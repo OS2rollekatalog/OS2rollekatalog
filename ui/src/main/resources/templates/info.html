@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+<head th:replace="fragments/header :: header (title=#{html.page.index.title})" />
+<body>
+	<div class="wrapper">
+		<header th:replace="fragments/navbar :: navbar-header" />
+		<aside th:replace="fragments/navbar :: navbar-aside (page = 'index')" />
+ 
+		<section>
+			<div class="content-wrapper">
+				<div class="panel panel-default">
+					<div class="panel-body">
+                                                <h3 th:text="#{html.page.info.download.importer.header}" />
+                                                <ul>
+                                                        <li><a th:href="@{/download/RoleCatalogueImporter.exe}" th:text="#{html.page.info.download.importer}"/></li>
+                                                        <li><a th:href="@{/download/ADSyncService.exe}" th:text="#{html.page.info.download.syncservice}"/></li>
+                                                </ul>
+
+						<h3 th:text="#{html.page.info.download.header}" />
+						<ul>
+							<li><a th:href="@{/download/ADFS-Plugin-ADFS30.zip}" th:text="#{html.page.info.download.adfs30link}"/></li>
+							<li><a th:href="@{/download/ADFS-Plugin-ADFS40.zip}" th:text="#{html.page.info.download.adfs40link}"/></li>
+                                                        <li><a th:href="@{/download/ADFS-Plugin-ADFS50.zip}" th:text="#{html.page.info.download.adfs50link}"/></li>
+						</ul>
+						
+						<h3 th:text="#{html.page.info.install.header}" />
+						<p th:text="#{html.page.info.install.paragraph}"/>
+						<ul>
+							<li><a th:href="@{/download/installationsvejledning.pdf}" th:text="#{html.page.info.install.link}"/></li>
+						</ul>
+						
+						<h3 th:text="#{html.page.info.api.header}" />
+						<p th:text="#{html.page.info.api.paragraph}"/>
+						<ul>
+							<li><a th:href="@{/download/api.html}" th:text="#{html.page.info.api.link}"/></li>
+						</ul>
+					</div>
+				</div>
+	        </div>
+	    </section>
+	</div>
+	
+	<nav th:replace="fragments/footer :: footer" />
+</body>
+</html>

@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html>
+<head th:replace="fragments/header :: header (title=#{html.page.rolegroup.view.title})" />
+<body>
+	<div class="wrapper">
+		<header th:replace="fragments/navbar :: navbar-header" />
+		<aside th:replace="fragments/navbar :: navbar-aside (page = 'rolegroups.new')" />
+ 
+		<section>
+			<div class="content-wrapper">
+				<h3>
+	                <a th:href="@{/ui/rolegroups/list}" class="btn btn-default">
+	                    <span><i class="fa fa-arrow-left"></i> </span>
+	                </a>
+					<span th:text="#{html.page.rolegroup.view.title}" />
+				</h3>
+
+				<div class="panel panel-default">
+					<div class="panel-heading" />
+					<div class="panel-body">
+						<form class="form-horizontal" th:object="${rolegroup}">
+							<fieldset>
+								<div class="form-group">
+					                <label class="col-sm-2 control-label" th:text="#{html.entity.rolegroup.name}" />
+					                <div class="col-sm-8">
+										<input th:field="${rolegroup.name}" class="form-control" disabled="disabled" />
+					                </div>
+						        </div>
+							</fieldset>
+
+							<fieldset>
+								<div class="form-group">
+									<label class="col-sm-2 control-label" th:text="#{html.entity.rolegroup.description}" />
+									<div class="col-sm-8">
+										<textarea th:field="${rolegroup.description}" class="form-control" disabled="disabled" />
+									</div>
+								</div>
+							</fieldset>
+
+							<fieldset sec:authorize="hasRole('ROLE_REQUESTER')" th:if="${canRequest}">
+								<div class="form-group">
+									<label class="col-sm-2 control-label" th:text="#{html.entity.view.action.label}" />
+									<div class="col-sm-8">
+										<a id="requestBtn" class="btn btn-lg btn-primary" th:text="#{html.entity.view.action.request}" />
+									</div>
+								</div>
+							</fieldset>
+
+							<fieldset sec:authorize="hasRole('ROLE_ADMINISTRATOR')">
+								<div class="form-group">
+									<label class="col-sm-2 control-label" th:text="#{html.entity.view.action.label}" />
+									
+									<div class="col-sm-8">
+										<a th:href="@{/ui/rolegroups/edit/{id}(id=${rolegroup.id})}">
+											<span class="btn btn-lg btn-primary" th:text="#{html.entity.view.action.edit}" />
+										</a>
+									</div>
+								</div>
+							</fieldset>
+						</form>
+
+						<ul class="nav nav-tabs">
+						  	<li class="active">
+								<a data-toggle="tab" href="#roles_menu" th:text="#{html.page.rolegroup.list.roles}"></a>
+							</li>
+							<li>
+								<a data-toggle="tab" href="#users_menu" th:text="#{html.entity.userrole.users}" />
+							</li>
+							<li>
+								<a data-toggle="tab" href="#ous_menu" th:text="#{html.entity.userrole.orgunits}" />
+							</li>
+						</ul>
+
+						<div class="tab-content">
+							<div id="roles_menu" class="tab-pane fade in active">
+								<table id="listTable" class="table table-striped table-hover">
+									<thead>
+										<tr>
+											<th class="col-md-3" th:text="#{html.entity.rolegroup.name}" />
+											<th class="col-md-3" th:text="#{html.entity.rolegroup.itsystem}" />
+											<th class="col-md-6" th:text="#{html.entity.rolegroup.description}" />
+										</tr>
+									</thead>				
+									<tbody>
+									    <tr th:each="assignment : ${rolegroup.userRoleAssignments}">
+									    	<td th:text="${assignment.userRole.name}" />	
+									    	<td th:text="${assignment.userRole.itSystem.name}" />											    	
+									    	<td th:text="${assignment.userRole.description}" />										    	
+						    			</tr>
+					    			</tbody>
+								</table>
+							</div>
+
+							<div id="users_menu" class="tab-pane fade in">
+								<table id="listTable2" class="table table-striped table-hover listTable">
+									<thead>
+									<tr>
+										<th class="col-md-2" th:text="#{html.entity.user.name}"/>
+										<th class="col-md-2" th:text="#{html.enum.assignmenttype}"/>
+										<th class="col-md-2" th:text="#{html.entity.user.userId}"/>
+									</tr>
+									</thead>
+
+									<tbody>
+									<tr th:each="mapping : ${userRoleMapping}">
+										<td th:text="${mapping.user.name}" />
+										<td th:text="#{__${mapping.assignedThrough.message}__}" />
+										<td th:text="${mapping.user.userId}" />
+									</tr>
+									</tbody>
+								</table>
+							</div>
+
+							<div id="ous_menu" class="tab-pane fade in">
+								<table id="listTable3" class="table table-striped table-hover listTable">
+									<thead>
+									<tr>
+										<th class="col-md-12" th:text="#{html.entity.ou.name}"/>
+										<th class="col-md-2" th:text="#{html.enum.assignmenttype}"/>
+									</tr>
+									</thead>
+
+									<tbody>
+									<tr th:each="mapping : ${orgUnits}">
+										<td th:text="${mapping.orgUnit.name}" />
+										<td th:text="#{__${mapping.assignedThrough.message}__}" />
+									</tr>
+									</tbody>
+								</table>
+							</div>
+						</div>
+					</div>
+				</div>
+	        </div>
+	    </section>
+    </div>
+
+	<div class="modal fade" id="modal-request" role="dialog">
+	    <div class="modal-dialog">
+	        <div class="modal-content">
+				<form class="form-horizontal" method="post" th:action="@{/ui/rolegroups/request}" th:object="${requestForm}">
+					<input type="hidden" th:field="*{id}"/>
+		            <div class="modal-header">
+		                <h4 th:text="#{html.page.roles.request.modal.header}"/>
+		            </div>
+	
+		            <div class="modal-body">
+		            	<span th:text="#{html.page.roles.request.modal.body}"/>
+						<textarea id="reasonField" required="required" oninvalid="this.setCustomValidity('Angiv begrundelse')" oninput="this.setCustomValidity('')" rows="8" class="form-control" th:field="*{reason}" style="margin-top: 10px;"></textarea>
+		            </div>
+		
+					<div class="modal-footer">
+						<button type="submit" class="btn btn-primary" th:text="#{html.control.button.request}"/>
+						<button type="button" class="btn btn-danger" id="closeModalBtn" th:text="#{html.control.button.cancel}"/>
+					</div>
+				</form>
+	        </div>
+	    </div>
+	</div>
+
+    <nav th:replace="fragments/footer :: footer" />
+
+	<script th:replace="fragments/datatables :: datatables " />
+	
+	<script th:inline="javascript">
+		/*<![CDATA[*/
+			
+		/*[+
+			var infoMessage = [[${infoMessage}]];
+			var errorMessage = [[${errorMessage}]];
+		+]*/
+
+		$("document").ready(function() {
+
+			$("#modal-request").on('shown.bs.modal', function() {
+				$("#reasonField").focus();
+			});
+			
+			$("#requestBtn").click(function() {
+				$("#modal-request").modal({
+				    backdrop: 'static',
+				    keyboard: false
+				});
+			});
+			
+			$("#closeModalBtn").click(function() {
+				$("#reasonField").val('');
+				$("#modal-request").modal('hide');
+			});
+			
+			if (infoMessage != null) {
+				$.notify({
+					message: infoMessage,
+					status: 'success',
+					timeout: 2000
+				});
+			}
+
+			if (errorMessage != null) {
+				$.notify({
+					message: errorMessage,
+					status: 'danger',
+					timeout: 4000
+				});
+			}
+		});
+		/*]]>*/
+	</script>
+</body>
+</html>

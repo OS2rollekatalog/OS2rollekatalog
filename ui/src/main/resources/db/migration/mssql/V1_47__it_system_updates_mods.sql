@@ -1,0 +1,1 @@
+ALTER TABLE it_system_updates ALTER COLUMN system_role_name NVARCHAR(128) NULL;

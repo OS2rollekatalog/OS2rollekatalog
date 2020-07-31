@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html>
+<head th:replace="fragments/header :: header (title=#{html.page.itsystem.list.title})" />
+<body>
+	<div class="wrapper">
+		<header th:replace="fragments/navbar :: navbar-header" />
+		<aside th:replace="fragments/navbar :: navbar-aside (page = 'itsystem.list')" />
+ 
+		<section>
+			<div class="content-wrapper">
+				<div class="panel panel-default">
+					<div class="panel-body">
+						<div class="form-group" style="margin-left:60px; margin-bottom: 40px; position: relative; top: 15px;">
+
+							<div class="form-group row">
+								<div class="col-md-12">
+									<label class="switch">
+										<input type="checkbox" name="showHidden">
+										<span></span>
+									</label>
+									&nbsp;&nbsp;&nbsp;
+									<label th:text="#{html.page.itsystem.list.filter.show.hidden.yes}" />
+								</div>
+                        	</div>
+						</div>
+						
+						<div class="table-responsive">
+							<table id="listTable" class="table table-striped table-hover listTable">
+								<thead>
+									<tr>
+										<th class="hidden" />
+										<th class="col-md-5" th:text="#{html.entity.itsystem.name}" />
+										<th class="col-md-3" th:text="#{html.entity.itsystem.identifier}" />
+										<th class="col-md-3" th:text="#{html.entity.itsystem.systemtype}" />
+										<th class="col-md-1" th:text="#{html.control.operations}" />
+									</tr>
+								</thead>
+
+								<tbody>
+								    <tr th:each="itsystem : ${itsystems}">
+								    	<td class="hidden" th:text="${itsystem.hidden}" />
+								    	<td th:text="${itsystem.name}" />
+								    	<td th:text="${itsystem.identifier}" />
+								    	<td th:text="#{__${itsystem.systemType.message}__}" />
+								    	<td>
+								    		<a th:href="@{/ui/itsystem/view/{id}(id=${itsystem.id})}"><em class="fa fa-search"></em></a>
+								    		<a sec:authorize="hasRole('ROLE_ADMINISTRATOR')" th:href="@{/ui/itsystem/edit/{id}(id=${itsystem.id})}"><em class="fa fa-pencil"></em></a>
+								    		<a sec:authorize="hasRole('ROLE_ADMINISTRATOR')" th:if="${#strings.toString(itsystem.systemType)} != 'KOMBIT' and ${#strings.toString(itsystem.systemType)} != 'KSPCICS' and ${itsystem.identifier} != 'RoleCatalogue'" href="#" onclick="openConfirmDeleteDialog(this);" th:attr="data-id=${itsystem.id}"><em class="fa fa-remove"></em></a>
+								    	</td>
+					    			</tr>
+				    			</tbody>
+							</table>
+						</div>
+					</div>
+				</div>
+	        </div>
+	    </section>
+	</div>
+
+	<nav th:replace="fragments/footer :: footer" />
+
+	<script th:replace="fragments/datatables :: datatables " />
+
+	<script th:inline="javascript">
+	/*<![CDATA[*/
+
+		var token = $("meta[name='_csrf']").attr("content");
+	
+	    /*[+
+		var urlList = [[@{/ui/itsystem/list}]];
+	    var deleteURI = [[@{/rest/itsystem/delete/}]];
+
+		var titleTxt = [[#{html.entity.itsystem.delete.confirm.title}]];
+		var bodyTxt = [[#{html.entity.itsystem.delete.confirm.body}]];
+		var cancelTxt = [[#{html.control.button.cancel}]];
+		var confirmTxt = [[#{html.control.button.delete}]];
+		+]*/
+	
+		$("document").ready(function() {
+			listTable = $('#listTable').DataTable();
+
+			$('input[name=showHidden]').change(function() {
+				listTable.column(0).search(this.checked).draw();
+			});
+			
+			//default show visible
+			listTable.column(0).search(false).draw();
+		});
+		
+		function openConfirmDeleteDialog(elem) {
+			var id = $(elem).data('id');
+	
+			swal({
+				html: true,
+				title : titleTxt,
+				text : bodyTxt,
+				type : "warning",
+				showCancelButton : true,
+				confirmButtonColor : "#DD6B55",
+				confirmButtonText : confirmTxt,
+				cancelButtonText : cancelTxt,
+				closeOnConfirm : true,
+				closeOnCancel : true
+			},
+			function (isConfirm) {
+				if (isConfirm) {
+					$.ajax({
+						method: "POST",
+						headers: {
+							'X-CSRF-TOKEN': token
+						},
+                        url: deleteURI + id,
+                        success: function() {
+                        	window.location.href = urlList;
+                        }
+                    });
+				}
+			});
+		}
+
+	/*]]>*/
+	</script>
+</body>
+</html>

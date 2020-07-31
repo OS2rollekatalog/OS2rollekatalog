@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:vc="http://www.w3.org/2007/XMLSchema-versioning" elementFormDefault="qualified" attributeFormDefault="unqualified" vc:minVersion="1.1"
+	xmlns:listevisning="http://www.kle-online.dk/rest/resources/emne/liste" 
+	xmlns="http://www.kle-online.dk/rest/resources/emneplan" 
+	targetNamespace="http://www.kle-online.dk/rest/resources/emne/liste">
+	<xs:import namespace="http://www.kle-online.dk/rest/resources/emneplan" schemaLocation="KLE-REST-Faelles-version-1-2.xsd"/>
+	<xs:element name="KLE-Emner">
+		<xs:complexType>
+			<xs:sequence>
+				<xs:element ref="listevisning:Emne" maxOccurs="unbounded"/>
+			</xs:sequence>
+		</xs:complexType>
+	</xs:element>
+	<xs:element name="Emne" type="listevisning:EmneType"/>
+	<xs:complexType name="EmneType">
+		<xs:sequence>
+			<xs:element ref="EmneNr"/>
+			<xs:element ref="UUID" minOccurs="0"/>
+			<xs:element ref="EmneTitel"/>
+		</xs:sequence>
+		<xs:attribute name="ref" type="xs:anyURI" use="required"/>
+	</xs:complexType>
+</xs:schema>

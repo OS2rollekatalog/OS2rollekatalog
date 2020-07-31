@@ -1,0 +1,1 @@
+ALTER TABLE it_systems ADD COLUMN expand_to_bsr BOOLEAN NOT NULL DEFAULT 1;

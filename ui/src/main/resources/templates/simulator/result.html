@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html>
+<head th:replace="fragments/header :: header (title=#{html.page.simulator.title})" />
+<body>
+	<div class="wrapper">
+		<header th:replace="fragments/navbar :: navbar-header" />
+		<aside th:replace="fragments/navbar :: navbar-aside" />
+ 
+		<section>
+			<div class="content-wrapper">
+				<h3>
+					<a th:href="@{/ui/simulate/login}" class="btn btn-default">
+						<span><i class="fa fa-arrow-left"></i> </span>
+					</a>
+					<span th:text="#{html.page.simulator.back}" />
+				</h3>
+
+				<div class="panel panel-default">
+					<div class="panel-heading" />
+					<div class="panel-body">
+						<div class="form-horizontal">
+							<fieldset>
+								<div class="form-group">
+									<label class="col-sm-2 control-label" th:text="#{html.page.simulator.roles}" />
+									<div class="col-sm-8">
+										<textarea id="xmlViewer" th:text="${result}" />
+									</div>
+								</div>
+							</fieldset>
+
+							<fieldset>
+								<div class="form-group">
+									<div class="col-sm-offset-2 col-sm-8">
+										<a th:href="@{/ui/simulate/login}" class="btn btn-lg btn-primary" th:text="#{html.control.button.ok}" />
+									</div>
+								</div>
+							</fieldset>
+						</div>
+					</div>
+				</div>
+			</div>
+		</section>
+	</div>
+
+	<nav th:replace="fragments/footer :: footer" />
+	<div th:replace="fragments/codeMirror" />
+
+	<script th:inline="javascript">
+		/*<![CDATA[*/
+		$(document).ready(function() {
+			$('[rel=popover]').popover();
+		});
+		/*]]>*/
+	</script>
+</body>
+</html>

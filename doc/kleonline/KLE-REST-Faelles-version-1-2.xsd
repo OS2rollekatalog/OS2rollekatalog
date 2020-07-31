@@ -1,0 +1,171 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:vc="http://www.w3.org/2007/XMLSchema-versioning" xmlns="http://www.kle-online.dk/rest/resources/emneplan" targetNamespace="http://www.kle-online.dk/rest/resources/emneplan" elementFormDefault="qualified" attributeFormDefault="unqualified" vc:minVersion="1.1">
+	<!-- **************************************************************************************************** -->
+	<!-- Typer anvendt af attributter på rodelementet -->
+	<!-- **************************************************************************************************** -->
+	<xs:element name="HovedgruppeTitel" type="TitelType"/>
+	<xs:element name="GruppeTitel" type="TitelType"/>
+	<xs:element name="EmneTitel" type="TitelType"/>
+	<xs:element name="HandlingsfacetTitel" type="TitelType"/>
+	<xs:element name="HandlingsfacetKategoriTitel" type="TitelType"/>
+	<xs:simpleType name="TitelType">
+		<xs:restriction base="xs:string"/>
+	</xs:simpleType>
+	<xs:element name="HovedgruppeVejledning" type="VejledningType"/>
+	<xs:element name="GruppeVejledning" type="VejledningType"/>
+	<xs:element name="EmneVejledning" type="VejledningType"/>
+	<xs:element name="HandlingsfacetVejledning" type="VejledningType"/>
+	<xs:element name="HandlingsfacetKategoriVejledning" type="VejledningType"/>
+	<xs:complexType name="VejledningType">
+		<xs:sequence>
+			<xs:element name="VejledningTekst" type="VejledningTekstType"/>
+		</xs:sequence>
+	</xs:complexType>
+	<xs:element name="HovedgruppeNr" type="HovedgruppeNrType"/>
+	<xs:simpleType name="HovedgruppeNrType">
+		<xs:restriction base="xs:string">
+			<xs:pattern value="[0-9][0-9]"/>
+		</xs:restriction>
+	</xs:simpleType>
+	<xs:element name="GruppeNr" type="GruppeNrType"/>
+	<xs:simpleType name="GruppeNrType">
+		<xs:restriction base="xs:string">
+			<xs:pattern value="[0-9][0-9]\.[0-9][0-9]"/>
+		</xs:restriction>
+	</xs:simpleType>
+	<xs:element name="EmneNr" type="EmneNrType"/>
+	<xs:simpleType name="EmneNrType">
+		<xs:restriction base="xs:string">
+			<xs:pattern value="[0-9][0-9]\.[0-9][0-9]\.[0-9][0-9]"/>
+		</xs:restriction>
+	</xs:simpleType>
+	<xs:element name="HandlingsfacetKategoriNr" type="HandlingsfacetKategoriNrType"/>
+	<xs:simpleType name="HandlingsfacetKategoriNrType">
+		<xs:restriction base="xs:string">
+			<xs:pattern value="[A-ZÆØÅ]"/>
+		</xs:restriction>
+	</xs:simpleType>
+	<xs:element name="HandlingsfacetNr" type="HandlingsfacetNrType"/>
+	<xs:simpleType name="HandlingsfacetNrType">
+		<xs:restriction base="xs:string">
+			<xs:pattern value="[A-ZÆØÅ][0-9][0-9]"/>
+		</xs:restriction>
+	</xs:simpleType>
+	<xs:element name="KLEAdministrativInfo" type="KLEAdministrativInfoType"/>
+	<xs:complexType name="KLEAdministrativInfoType">
+		<xs:sequence>
+			<xs:element name="OprettetDato" type="OprettetDatoType" minOccurs="1" maxOccurs="1"/>
+			<xs:element name="RettetDato" type="RettetDatoType" minOccurs="0" maxOccurs="unbounded"/>
+			<xs:element name="Historisk" type="HistoriskType" minOccurs="0" maxOccurs="1"/>
+		</xs:sequence>
+	</xs:complexType>
+	<xs:element name="HovedgruppeFilter" type="FilterType"/>
+	<xs:element name="GruppeFilter" type="FilterType"/>
+	<xs:element name="EmneFilter" type="FilterType"/>
+	<xs:complexType name="FilterType">
+		<xs:sequence>
+			<xs:element name="FilterTitel" type="FilterTitelType" maxOccurs="unbounded"/>
+		</xs:sequence>
+	</xs:complexType>
+	<xs:element name="GruppeRetskildeReference" type="RetskildeReferenceType"/>
+	<xs:element name="EmneRetskildeReference" type="RetskildeReferenceType"/>
+	<xs:complexType name="RetskildeReferenceType">
+		<xs:sequence>
+			<xs:element name="RetskildeTitel" type="TitelType" minOccurs="1" maxOccurs="1"/>
+			<xs:element name="ParagrafEllerKapitel" type="ParagrafEllerKapitel" minOccurs="0" maxOccurs="1"/>
+			<xs:element name="RetsinfoAccessionsNr" type="RetsinfoAccessionsNrType" minOccurs="1" maxOccurs="1"/>
+		</xs:sequence>
+	</xs:complexType>
+	<xs:element name="BevaringJaevnfoerArkivloven" type="BevaringJaevnfoerArkivlovenType"/>
+	<xs:simpleType name="BevaringJaevnfoerArkivlovenType">
+		<xs:annotation>
+			<xs:documentation>Statens Arkiver udsteder bestemmelser, som giver kommunerne mulighed for kassation af dokumenter i ESDH-systemer. Indhold er K for kassation, K5 for kassation 5 aar efter sagsafslutning, K10 for 10 aar, og B for bevaring for eftertiden. Fristerne er alene vejledende. Opmaerksomheden henledes på at gemme sager, så længe der er juridisk eller administrativt brug for det. Vaerdien 'tom' anvendes på emner, udgaaet foer 2007, der ikke har en bevaringskode.</xs:documentation>
+		</xs:annotation>
+		<xs:restriction base="xs:string">
+			<xs:pattern value="K|K5|K10|B|tom"/>
+		</xs:restriction>
+	</xs:simpleType>
+	<xs:element name="SletningJaevnfoerPersondataloven" type="SletningJaevnfoerPersondatalovenType"/>
+	<xs:simpleType name="SletningJaevnfoerPersondatalovenType">
+		<xs:annotation>
+			<xs:documentation>Dataelementet duration. 5 aar noteres som P1825D, hvor P er periode, og 1825 er antal, og D er dage. Perioden gælder fra sagafslutning. Anvendelse af dataelementet forudsætter indbygget ESDH funktionalitet, hvor informationen om sagsafslutning kommer fra ESDH systemet.</xs:documentation>
+		</xs:annotation>
+		<xs:restriction base="xs:duration"/>
+	</xs:simpleType>
+	<!-- **************************************************************************************************** -->
+	<!-- Typer anvendt af typer på attributter -->
+	<!-- **************************************************************************************************** -->
+	<xs:complexType name="VejledningTekstType" mixed="false">
+		<xs:annotation>
+			<xs:documentation>Elementet indeholder XHTML tags og tillader dermed styling af tekst.</xs:documentation>
+		</xs:annotation>
+		<xs:sequence maxOccurs="1">
+			<xs:element name="p" maxOccurs="unbounded">
+				<xs:complexType mixed="true">
+					<xs:choice minOccurs="0" maxOccurs="unbounded">
+						<xs:element name="i"/>
+						<xs:element name="b"/>
+						<xs:element name="ul">
+							<xs:complexType>
+								<xs:sequence>
+									<xs:element name="li" maxOccurs="unbounded"/>
+								</xs:sequence>
+							</xs:complexType>
+						</xs:element>
+						<xs:element name="ol">
+							<xs:complexType>
+								<xs:sequence>
+									<xs:element name="li" maxOccurs="unbounded"/>
+								</xs:sequence>
+							</xs:complexType>
+						</xs:element>
+					</xs:choice>
+				</xs:complexType>
+			</xs:element>
+		</xs:sequence>
+	</xs:complexType>
+	<xs:simpleType name="OprettetDatoType">
+		<xs:restriction base="xs:date"/>
+	</xs:simpleType>
+	<xs:simpleType name="RettetDatoType">
+		<xs:restriction base="xs:date"/>
+	</xs:simpleType>
+	<xs:complexType name="HistoriskType">
+		<xs:sequence>
+			<xs:element name="UdgaaetDato" type="UdgaaetDatoType" minOccurs="1"/>
+		</xs:sequence>
+	</xs:complexType>
+	<xs:simpleType name="UdgaaetDatoType">
+		<xs:restriction base="xs:date"/>
+	</xs:simpleType>
+	<xs:simpleType name="FilterTitelType">
+		<xs:restriction base="xs:string">
+			<xs:enumeration value="KommunalVand"/>
+			<xs:enumeration value="PrivatVand"/>
+			<xs:enumeration value="SaerligStoetteDelplan"/>
+			<xs:enumeration value="DagtilbudDelplan"/>
+			<xs:enumeration value="AeldreOmrådeDelPlan"/>
+			<xs:enumeration value="FolkeskolenDelplan"/>
+			<xs:enumeration value="JobcenterDelplan"/>
+			<xs:enumeration value="FagsystemDelplan"/>
+		</xs:restriction>
+	</xs:simpleType>
+	<xs:simpleType name="ParagrafEllerKapitel">
+		<xs:restriction base="xs:string">
+			<xs:pattern value="§.*|[0-9]+"/>
+		</xs:restriction>
+	</xs:simpleType>
+	<xs:simpleType name="RetsinfoAccessionsNrType">
+		<xs:restriction base="xs:string">
+			<xs:pattern value="[A-Z][0-9]+.*"/>
+		</xs:restriction>
+	</xs:simpleType>
+	<xs:element name="UUID">
+		<xs:annotation>
+			<xs:documentation>Globalt element</xs:documentation>
+		</xs:annotation>
+		<xs:simpleType>
+			<xs:restriction base="xs:string"/>
+		</xs:simpleType>
+	</xs:element>
+</xs:schema>

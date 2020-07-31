@@ -1,0 +1,74 @@
+.content-wrapper>h3>span {
+	vertical-align: text-bottom;
+}
+
+.content-wrapper>h3>a {
+	background-color: #4765a0;
+	background-image: -webkit-linear-gradient(left, #4765a0 0%, #4d638c 100%);
+	background-image: -o-linear-gradient(left, #4765a0 0%, #4d638c 100%);
+	background-image: linear-gradient(to right, #4765a0 0%, #4d638c 100%);
+	background-repeat: repeat-x;
+	filter: progid:DXImageTransform.Microsoft.gradient(startColorstr='#ff4765a0',
+		endColorstr='#ff4d638c', GradientType=1);
+}
+
+.content-wrapper>h3>a i {
+	color: white;
+}
+
+.bg-primary-dark {
+	background-color: #4765a0;
+	color: #ffffff !important;
+}
+
+.bg-primary {
+	background-color: #4e6fb2;
+	color: #ffffff !important;
+}
+
+#kle_performing_menu em, #kle_insight_menu em {
+	margin-right: 10px;
+	width: 10px;
+	height: 10px;
+}
+
+.kleElement a {
+	color: #000;
+}
+
+.kleMainGroup a {
+	margin-left: 10px;
+}
+
+.kleGroup a {
+	margin-left: 50px;
+}
+
+.kleSubject a {
+	margin-left: 90px;
+}
+
+.select2-container, .select2-choices {
+	height: 100px;
+}
+.select2-selection {
+	height: 100%;
+}
+.preformat {
+    white-space: pre-line;
+}
+
+.ouParent {
+	color: gray;
+	font-size: smaller;
+}
+
+td.centeredOps {
+	margin: 0 auto;
+	padding: 15px 8px !important;
+}
+
+.checkbox-red input[type=checkbox]:checked + span {
+  border-color: #ec5c5c;
+  background-color: #ec5c5c;
+}

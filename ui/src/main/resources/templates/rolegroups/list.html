@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html>
+<head th:replace="fragments/header :: header (title=#{html.page.rolegroups.list.title})" />
+<body>
+	<div class="wrapper">
+		<header th:replace="fragments/navbar :: navbar-header" />
+		<aside th:replace="fragments/navbar :: navbar-aside (page = 'rolegroups.list')" />
+
+		<section>
+			<div class="content-wrapper">
+				<div class="panel panel-default">
+					<div class="panel-heading" />
+					<div class="panel-body">
+						<div class="table-responsive">
+							<table id="listTable" class="table table-striped table-hover listTable">
+								<thead>
+									<tr>
+										<th class="col-md-4" th:text="#{html.entity.userrole.name}" />
+										<th class="col-md-7" th:text="#{html.entity.userrole.description}" />
+										<th class="col-md-1" th:text="#{html.control.operations}" />
+									</tr>
+								</thead>
+
+								<tbody>
+									<tr th:each="roleGroup : ${roleGroups}">
+										<td th:text="${roleGroup.name}" />
+										<td th:text="${roleGroup.description}" />
+										<td>
+											<a th:href="@{/ui/rolegroups/view/{id}(id=${roleGroup.id})}"><em class="fa fa-search"></em></a>
+											<th:block sec:authorize="hasRole('ROLE_ADMINISTRATOR')">
+												<a th:href="@{/ui/rolegroups/edit/{id}(id=${roleGroup.id})}"><em class="fa fa-pencil"></em></a>
+												<a href="#" class="openConfirmDeleteDialog" th:attr="data-id=${roleGroup.id}"><em class="fa fa-remove"></em></a>
+											</th:block>
+										</td>
+									</tr>
+								</tbody>
+								<tfoot>
+									<tr>
+										<th class="input-filter"></th>
+										<th class="input-filter"></th>
+									</tr>
+								</tfoot>
+							</table>
+						</div>
+					</div>
+				</div>
+			</div>
+		</section>
+	</div>
+
+	<nav th:replace="fragments/footer :: footer" />
+
+	<script th:replace="fragments/datatables :: datatables " />
+	<script th:inline="javascript">
+		/*<![CDATA[*/
+			
+		// This method replaces occurence of {0} with text from parameter
+		String.prototype.format = function () {
+				var args = [].slice.call(arguments);
+				return this.replace(/(\{\d+\})/g, function (a) {
+						return args[+(a.substr(1,a.length-2))||0];
+				});
+		};
+
+		$("document").ready(function() {
+			// 1. Setup - add a text input to each footer cell
+			$('#listTable tfoot th').each( function () {
+				$(this).html('<input type="text" class="form-control input-sm" placeholder="Søg" />');
+			});
+
+			var table = $('#listTable').DataTable();
+			
+			// 2. move search boxes to top
+			var r = $('#listTable tfoot tr');
+			r.find('th').each(function(){
+				$(this).css('padding', 8);
+			});
+			$('#listTable thead').append(r);
+			$('#search_0').css('text-align', 'center');
+
+		    // 2.5 Restore state
+		    var state = table.state.loaded();
+		    if (state) {
+		      table.columns().eq(0).each(function(colIdx) {
+		        var colSearch = state.columns[colIdx].search;
+		        
+		        if (colSearch.search) {
+		          $('input', table.column(colIdx).footer()).val(colSearch.search);
+		        }
+		      });
+
+		      table.draw();
+		    }
+
+			// 3. Apply the search
+			$.each($('.input-filter', table.table().header()), function () {
+				var column = table.column($(this).index());
+
+				$('input', this).on('keyup change', function () {
+					if (column.search() !== this.value) {
+						column
+							.search(this.value)
+							.draw();
+					}
+				});
+			});
+
+			$(document.body).on('click', '.openConfirmDeleteDialog', function(e) {
+				e.preventDefault();
+
+				var id = $(this).data('id');
+
+				/*[+
+					var tryDeleteURI = [[@{/rest/rolegroups/trydelete/}]] + id;
+					var url = [[@{/ui/rolegroups/list}]];
+					var deleteURI = [[@{/rest/rolegroups/delete/}]] + id;
+					var titleTxt = [[#{html.entity.rolegroup.delete.confirm.title}]];
+					var bodyTxt = [[#{html.entity.rolegroup.delete.confirm.body}]];
+					var bodyTxtAdditional = [[#{html.entity.rolegroup.delete.confirm.body.additional}]];
+					var cancelTxt = [[#{html.control.button.cancel}]];
+					var confirmTxt = [[#{html.control.button.delete}]];
+					var errorMsg = [[#{html.default.message.error}]];
+				+]*/
+				var token = $("meta[name='_csrf']").attr("content");
+
+				function getAjaxObject(urL) {
+					return {
+						url : urL,
+						cache : false,
+						error : errorCallback,
+						success : successCallback
+					}
+				}
+
+				function successCallback(result) {
+					if (result.success==false) {
+						var ous = "Enheder: " + result.ous;;
+						var users = "Brugere: " + result.users;
+
+						bodyTxt = bodyTxtAdditional.format(ous, users);
+					}
+
+					swal({
+						html: true,
+						title : titleTxt,
+						text : bodyTxt,
+						type : "warning",
+						showCancelButton : true,
+						confirmButtonColor : "#DD6B55",
+						confirmButtonText : confirmTxt,
+						cancelButtonText : cancelTxt,
+						closeOnConfirm : true,
+						closeOnCancel : true
+					},
+					function(isConfirm) {
+						if (isConfirm) {
+							$.ajax({
+								type: "POST",
+								url: deleteURI,
+								headers: {
+									'X-CSRF-TOKEN': token
+								},
+								success:
+									function(){	window.location.href = url;}
+
+							});
+
+						}
+					});
+				}
+
+				function errorCallback(result) {
+					$.notify({
+						message : errorMsg
+					},
+					{
+						status : 'danger',
+						autoHideDelay : 4000
+					});
+				}
+
+				$.ajax(getAjaxObject(tryDeleteURI));
+			});
+		});
+		/*]]>*/
+	</script>
+</body>
+</html>

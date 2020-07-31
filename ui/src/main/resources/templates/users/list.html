@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html>
+<head th:replace="fragments/header :: header (title=#{html.page.users.list.title})" />
+<body>
+	<div class="wrapper">
+		<header th:replace="fragments/navbar :: navbar-header" />
+		<aside th:replace="fragments/navbar :: navbar-aside (page = 'users')" />
+
+		<section>
+			<div class="content-wrapper">
+				<div class="panel panel-default">
+					<div class="panel-heading" />
+					<div class="panel-body">
+						<div class="table-responsive">
+							<table id="listTable" class="table table-striped table-hover">
+								<thead>
+									<tr>
+										<th class="col-md-3" th:text="#{html.entity.user.name}" />
+										<th class="col-md-1" th:text="#{html.entity.user.userId}" />
+										<th class="col-md-7" th:text="#{html.entity.user.positions}" />
+										<th class="col-md-1" th:text="#{html.control.operations}" />
+									</tr>
+								</thead>
+
+								<tbody>
+
+								</tbody>
+
+								<tfoot>
+									<tr >
+										<th class="input-filter"></th>
+										<th class="input-filter"></th>
+										<th class="input-filter"></th>
+										<th>&nbsp;</th>
+									</tr>
+								</tfoot>
+							</table>
+						</div>
+					</div>
+				</div>
+			</div>
+		</section>
+	</div>
+
+	<nav th:replace="fragments/footer :: footer" />
+
+	<script th:inline="javascript">
+		/*<![CDATA[*/
+			$(document).ready(function() {
+				var token = $("meta[name='_csrf']").attr("content");
+
+				/*[+
+					var searchTxt = [[#{html.datatables.search}]];
+					var dropdownTxt = [[#{html.datatables.dropdown}]];
+					var infoDefaultTxt = [[#{html.datatables.info.default}]];
+					var infoEmptyTxt = [[#{html.datatables.info.empty}]];
+					var infoLoadingTxt = [[#{html.datatables.info.loading}]];
+					var infoFilteredTxt = [[#{html.datatables.info.filtered}]]; 
+					var backendUrl = [[@{/rest/users}]];
+				+]*/
+
+				// Setup - add a text input to each footer cell
+				$('#listTable tfoot th[class="input-filter"]').each( function () {
+					$(this).html('<input type="text" class="form-control input-sm" placeholder="Søg" />');
+				});
+
+				var allUsers = [];
+				var table = $('#listTable').DataTable({
+					'paging': true,
+					'ordering': true, 
+					'info': true,
+					'stateSave': true,
+					'deferRender': true,
+					'pageLength': 100,
+					'language': {
+						"search": searchTxt,
+						"lengthMenu": dropdownTxt,
+						"info": infoDefaultTxt,
+						"zeroRecords": infoEmptyTxt,
+						"infoEmpty": "",
+						"infoFiltered": infoFilteredTxt
+					},
+					'data': allUsers,
+					'columns': [
+						{ "data": "name" },
+						{ "data": "userId" },
+						{ "data": "positions" },
+						{ "data": "operations"}
+					],
+					initComplete: function ()
+					{
+						var r = $('#listTable tfoot tr');
+						r.find('th').each(function(){
+							$(this).css('padding', 8);
+						});
+						$('#listTable thead').append(r);
+						$('#search_0').css('text-align', 'center');
+					}
+				});
+				
+			    // Restore state
+			    var state = table.state.loaded();
+			    if (state) {
+			      table.columns().eq(0).each(function(colIdx) {
+			        var colSearch = state.columns[colIdx].search;
+			        
+			        if (colSearch.search) {
+			          $('input', table.column(colIdx).footer()).val(colSearch.search);
+			        }
+			      });
+
+			      table.draw();
+			    }
+				
+				// Apply the search
+				$.each($('.input-filter', table.table().header()), function () {
+					var column = table.column($(this).index());
+
+					$('input', this).on('keyup change', function () {
+						if (column.search() !== this.value) {
+							column.search(this.value).draw();
+						}
+					});
+				});
+
+				var jsonUsers = sessionStorage.getItem("userList");
+				var jsonUsersExpire = sessionStorage.getItem("userListExpire");
+				var cacheExpire = (jsonUsersExpire !== null && jsonUsersExpire < new Date().getTime());
+				
+				if (jsonUsers !== null && !cacheExpire) {
+					setTimeout(function() {
+						allUsers = JSON.parse(jsonUsers);
+						updateTable();
+					}, 10);
+				}
+				else {
+					$.ajax({
+						url: backendUrl,
+						method: "GET",
+							error: function(response) {
+								$.notify({
+									message: 'Could not connect to user database!'
+								},{
+									status: 'danger',
+									autoHideDelay: 4000
+								});
+							},
+							success: function(response) {
+							allUsers = response;
+							updateTable();
+
+							setTimeout(function() {
+								var jsonUsers = JSON.stringify(response);
+								var dMs = new Date().getTime() + (30 * 60 * 1000);
+								sessionStorage.setItem("userList", jsonUsers);
+								sessionStorage.setItem("userListExpire", dMs);
+							}, 10);
+							}
+						});
+				}
+
+				function updateTable() {
+					table.rows.add(allUsers);
+					table.columns.adjust().draw();
+				}
+			});
+		/*]]>*/
+	</script>
+</body>
+</html>

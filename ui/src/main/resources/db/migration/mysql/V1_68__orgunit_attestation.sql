@@ -1,0 +1,3 @@
+ALTER TABLE ous ADD COLUMN last_attested_by VARCHAR(255);
+ALTER TABLE ous ADD COLUMN last_attested TIMESTAMP NULL;
+ALTER TABLE ous ADD COLUMN next_attestation TIMESTAMP NULL;

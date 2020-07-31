@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html>
+<head th:replace="fragments/header :: header (title=#{html.page.attestations.title})" />
+<body>
+	<div class="wrapper">
+		<header th:replace="fragments/navbar :: navbar-header" />
+		<aside th:replace="fragments/navbar :: navbar-aside (page = 'attestations')" />
+
+		<section>
+			<div class="content-wrapper">
+				<div class="panel panel-default">
+					<div class="panel-heading">
+						<h3 th:text="#{html.page.attestations.title}"/>
+						<p th:text="#{html.page.attestations.subtext}"/>
+					</div>
+
+					<div class="panel-body">
+						<table th:if="${#lists.size(orgUnits)} > 0" class="table table-striped table-hover listTable">
+							<thead>
+								<tr>
+									<th class="col-md-11" th:text="#{html.page.attestations.orgunit}" />
+									<th class="col-md-1" th:text="#{html.control.operations}"/>
+								</tr>
+							</thead>
+
+							<tbody>
+								<tr th:each="orgUnit : ${orgUnits}">
+									<td th:text="${orgUnit.name}" />
+									<td>
+										<a th:href="@{/ui/users/attestations/{uuid}(uuid=${orgUnit.uuid})}">
+											<em class="fa fa-fw fa-pencil"></em>
+										</a>
+									</td>
+								</tr>
+							</tbody>
+						</table>
+
+						<div th:if="${#lists.size(orgUnits)} == 0" class="row col-sm-12">
+							<p th:text="#{html.page.attestations.no.ous}"/>
+						</div>
+					</div>
+				</div>
+			</div>
+		</section>
+	</div>
+
+	<nav th:replace="fragments/footer :: footer" />
+	<script th:replace="fragments/datatables :: datatables " />
+	
+	<script th:inline="javascript">
+		/*<![CDATA[*/
+		/*[+
+			var success = [[${success}]];
+			var attestedMsg = [[#{html.page.attestations.success}]]; 
+		+]*/
+
+		/*]]>*/
+		
+		$(document).ready(function() {
+			if (success == "true") {
+				$.notify({
+                    message: attestedMsg
+				},{
+                    status: 'success',
+                    autoHideDelay: 2000
+				});
+			}
+		});
+	</script>
+</body>
+</html>

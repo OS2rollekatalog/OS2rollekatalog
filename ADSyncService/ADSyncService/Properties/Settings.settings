@@ -1,0 +1,24 @@
+﻿<?xml version='1.0' encoding='utf-8'?>
+<SettingsFile xmlns="http://schemas.microsoft.com/VisualStudio/2004/01/settings" CurrentProfile="(Default)" GeneratedClassNamespace="ADSyncService.Properties" GeneratedClassName="Settings">
+  <Profiles />
+  <Settings>
+    <Setting Name="ApiUrl" Type="System.String" Scope="Application">
+      <Value Profile="(Default)">https://kommune.rollekatalog.dk</Value>
+    </Setting>
+    <Setting Name="ApiKey" Type="System.String" Scope="Application">
+      <Value Profile="(Default)">xxxxxxxxxxxxxxxxxxxxxx</Value>
+    </Setting>
+    <Setting Name="CronSchedule" Type="System.String" Scope="Application">
+      <Value Profile="(Default)">0 /5 * ? * *</Value>
+    </Setting>
+    <Setting Name="CreateGroups" Type="System.Boolean" Scope="Application">
+      <Value Profile="(Default)">False</Value>
+    </Setting>
+    <Setting Name="DeleteGroups" Type="System.Boolean" Scope="Application">
+      <Value Profile="(Default)">False</Value>
+    </Setting>
+    <Setting Name="GroupOU" Type="System.String" Scope="Application">
+      <Value Profile="(Default)">OU=groups,DC=kommune,DC=dk</Value>
+    </Setting>
+  </Settings>
+</SettingsFile>

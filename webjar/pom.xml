@@ -1,0 +1,62 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+	<groupId>dk.digitalidentity.rc</groupId>
+	<artifactId>rc-webjar</artifactId>
+	<name>Role Catalogue Webjar</name>
+	<packaging>jar</packaging>
+
+	<parent>
+		<groupId>dk.digitalidentity.rc</groupId>
+		<artifactId>rc-parent</artifactId>
+		<version>1.0.0</version>
+	</parent>
+
+	<build>
+		<finalName>rc-webjar</finalName>
+	</build>
+
+	<dependencies>
+		<dependency>
+			<groupId>dk.digitalidentity</groupId>
+			<artifactId>angle-webjar</artifactId>
+			<version>3.7.5</version>
+		</dependency>
+
+                <dependency>
+                        <groupId>org.webjars</groupId>
+                        <artifactId>select2</artifactId>
+                        <version>4.0.3-1</version>
+                        <exclusions>
+                                <exclusion>
+                                        <groupId>org.webjars</groupId>
+                                        <artifactId>jquery</artifactId>
+                                </exclusion>
+                        </exclusions>
+                </dependency>
+
+		<dependency>
+			<groupId>org.webjars</groupId>
+			<artifactId>jstree</artifactId>
+			<version>3.3.7</version>
+		</dependency>
+
+		<dependency>
+			<groupId>org.webjars</groupId>
+			<artifactId>Eonasdan-bootstrap-datetimepicker</artifactId>
+			<version>4.17.47</version>
+		</dependency>
+
+                <dependency>
+                        <groupId>org.webjars</groupId>
+                        <artifactId>jQuery-Autocomplete</artifactId>
+                        <version>1.4.10</version>
+                </dependency>
+	</dependencies>
+
+	<repositories>
+		<repository>
+			<id>local-repo</id>
+			<url>file://${project.basedir}/libs</url>
+		</repository>
+	</repositories>
+</project>

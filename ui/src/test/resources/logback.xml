@@ -1,0 +1,13 @@
+<?xml version="1.0"?>
+<configuration>
+    <!-- the console log should not be enabled for production installations, but is handy for development -->
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>%cyan(%d{yyyy-MM-dd HH:mm:ss}) | %green(%-50logger{45}) | %highlight(%-5level) - %m %ex %n</pattern>
+        </encoder>
+    </appender>
+
+    <root level="INFO">
+        <appender-ref ref="CONSOLE" />
+    </root>
+</configuration>

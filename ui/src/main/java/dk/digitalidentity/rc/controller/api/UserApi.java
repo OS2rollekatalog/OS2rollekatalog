@@ -1,0 +1,181 @@
+package dk.digitalidentity.rc.controller.api;
+
+import dk.digitalidentity.rc.dao.model.User;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
+import org.apache.log4j.Logger;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestMethod;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
+import dk.digitalidentity.rc.controller.api.dto.UserResponseDTO;
+import dk.digitalidentity.rc.controller.api.dto.UserResponseWithOIOBPPDTO;
+import dk.digitalidentity.rc.controller.api.dto.UserResponseWithRolesDTO;
+import dk.digitalidentity.rc.dao.model.SystemRoleAssignment;
+import dk.digitalidentity.rc.dao.model.UserRole;
+import dk.digitalidentity.rc.dao.model.enums.EventType;
+import dk.digitalidentity.rc.exceptions.UserNotFoundException;
+import dk.digitalidentity.rc.log.AuditLogger;
+import dk.digitalidentity.rc.service.ItSystemService;
+import dk.digitalidentity.rc.service.UserService;
+
+@RestController
+public class UserApi {
+	private static final Logger logger = Logger.getLogger(UserApi.class);
+
+	@Autowired
+	private UserService userService;
+	
+	@Autowired
+	private AuditLogger auditLogger;
+	
+	@Autowired
+	private ItSystemService itSystemService;
+
+	@RequestMapping(value = "/api/user/{userid}/roles", method = RequestMethod.GET)
+	public ResponseEntity<UserResponseWithOIOBPPDTO> getUserRoles(@PathVariable("userid") String userId, @RequestParam(name = "system", required = false) String itSystemIdentifier) throws Exception {
+		UserResponseWithOIOBPPDTO response = new UserResponseWithOIOBPPDTO();
+
+		try {
+			Map<String, String> roleMap = new HashMap<>();
+			String oioBpp = userService.generateOIOBPP(userId, itSystemIdentifier, roleMap);
+			
+			response.setOioBPP(oioBpp);
+			response.setRoleMap(roleMap);
+			response.setNameID(userService.getUserNameId(userId));
+
+			User user = userService.getByUserId(userId);
+			if (user == null) {
+				List<User> users = userService.getByExtUuid(userId);
+				if (users.size() == 1) {
+					user = users.get(0);
+				}
+			}
+
+			auditLogger.log(user, EventType.LOGIN_EXTERNAL, itSystemService.getFirstByIdentifier(itSystemIdentifier));
+		}
+		catch (UserNotFoundException ex) {
+			logger.warn("could not find roles for " + userId + " for itSystem: " + itSystemIdentifier + ". Exception message: " + ex.getMessage());
+			return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+		}
+
+		return new ResponseEntity<>(response, HttpStatus.OK);
+	}
+	
+	@RequestMapping(value = "/api/user/{userid}/rolesAsList", method = RequestMethod.GET)
+	public ResponseEntity<UserResponseWithRolesDTO> getUserRolesAsList(@PathVariable("userid") String userId, @RequestParam(name = "system", required = false) String itSystemIdentifier) throws Exception {
+		UserResponseWithRolesDTO response = new UserResponseWithRolesDTO();
+
+		try {
+			List<UserRole> roles = userService.getAllUserRoles(userId, itSystemIdentifier);
+
+			List<String> userRoleList = new ArrayList<>();
+			for (UserRole role : roles) {
+				userRoleList.add(role.getIdentifier());
+			}
+
+			// use a set to remove duplicates
+			Set<String> systemRoleSet = new HashSet<>();
+			Set<String> dataRoleSet = new HashSet<>();
+			Set<String> functionRoleSet = new HashSet<>();
+			Map<String, String> roleMap = new HashMap<>();
+
+			for (UserRole role : roles) {
+				// might be counterintuitive, but while the output focuses on systemroles, we
+				// are sending a map of userRoles, for logging purposes, so it matches the OIO-BPP output (again, logging consistency)
+				roleMap.put(role.getIdentifier(), role.getName() + " (" + role.getItSystem().getName() + ")");
+				
+				for (SystemRoleAssignment systemRole : role.getSystemRoleAssignments()) {
+					systemRoleSet.add(systemRole.getSystemRole().getIdentifier());
+
+					switch (systemRole.getSystemRole().getRoleType()) {
+						case DATA_ROLE:
+							dataRoleSet.add(systemRole.getSystemRole().getIdentifier());
+							break;
+						case FUNCTION_ROLE:
+							functionRoleSet.add(systemRole.getSystemRole().getIdentifier());
+							break;
+						default:
+							break;
+					}
+				}
+			}
+			List<String> systemRoleList = new ArrayList<>(systemRoleSet);
+			List<String> dataRoleList = new ArrayList<>(dataRoleSet);
+			List<String> functionRoleList = new ArrayList<>(functionRoleSet);
+
+			response.setUserRoles(userRoleList);
+			response.setSystemRoles(systemRoleList);
+			response.setDataRoles(dataRoleList);
+			response.setFunctionRoles(functionRoleList);
+			response.setRoleMap(roleMap);
+
+			response.setNameID(userService.getUserNameId(userId));
+
+			auditLogger.log(userService.getByUserId(userId), EventType.LOGIN_EXTERNAL, itSystemService.getFirstByIdentifier(itSystemIdentifier));
+		}
+		catch (UserNotFoundException ex) {
+			logger.warn("could not find roles for " + userId + " for itSystem: " + itSystemIdentifier + ". Exception message: " + ex.getMessage());
+			return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+		}
+
+		return new ResponseEntity<>(response, HttpStatus.OK);
+	}
+
+	@RequestMapping(value = "/api/user/{userid}/nameid", method = RequestMethod.GET)
+	public ResponseEntity<UserResponseDTO> getUserNameId(@PathVariable("userid") String userId) throws Exception {
+		UserResponseDTO response = new UserResponseDTO();
+		
+		try {
+			response.setNameID(userService.getUserNameId(userId));
+		}
+		catch (UserNotFoundException ex) {
+			logger.warn("could not find nameId for " + userId + ". Exception message: " + ex.getMessage());
+			return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+		}
+
+		return new ResponseEntity<>(response, HttpStatus.OK);
+	}
+	
+	@RequestMapping(value = "/api/user/{userid}/hasUserRole/{roleId}", method = RequestMethod.GET)
+	public ResponseEntity<String> userHasUserRole(@PathVariable("userid") String userId, @PathVariable("roleId") long roleId, @RequestParam(name = "system", required = false) String itSystemIdentifier) throws Exception {
+		List<UserRole> roles = userService.getAllUserRoles(userId, itSystemIdentifier);
+		
+		if (roles != null) {
+			for (UserRole role : roles) {
+				if (role.getId() == roleId) {
+					return new ResponseEntity<>("Found role", HttpStatus.OK);
+				}
+			}
+		}
+
+		return new ResponseEntity<>("Did not find role", HttpStatus.NOT_FOUND);
+	}
+	
+	@RequestMapping(value = "/api/user/{userid}/hasSystemRole", method = RequestMethod.GET)
+	public ResponseEntity<String> userHasSystemRole(@PathVariable("userid") String userId, @RequestParam(name = "roleIdentifier") String roleIdentifier, @RequestParam(name = "system", required = false) String itSystemIdentifier) throws Exception {
+		List<UserRole> roles = userService.getAllUserRoles(userId, itSystemIdentifier);
+		
+		if (roles != null) {
+			for (UserRole role : roles) {
+				for (SystemRoleAssignment assignment : role.getSystemRoleAssignments()) {
+					if (assignment.getSystemRole().getIdentifier().equals(roleIdentifier)) {
+						return new ResponseEntity<>("Found role", HttpStatus.OK);
+					}
+				}
+			}
+		}
+
+		return new ResponseEntity<>("Did not find role", HttpStatus.NOT_FOUND);
+	}
+}

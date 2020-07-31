@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html>
+<head th:replace="fragments/header :: header (title=#{html.page.itsystem.edit.title})" />
+<body>
+
+	<div class="wrapper">
+		<header th:replace="fragments/navbar :: navbar-header" />
+		<aside th:replace="fragments/navbar :: navbar-aside (page = 'itsystem.list')" />
+
+		<section>
+			<div class="content-wrapper">
+				<h3>
+					<a th:href="@{/ui/itsystem/list}" class="btn btn-default">
+						<span><i class="fa fa-arrow-left"></i></span>
+					</a>
+					<span th:text="#{html.page.itsystem.edit.title}" />
+				</h3>
+				
+				<div class="panel panel-default">
+					<div class="panel-heading" />
+					<div class="panel-body">
+
+						<form id="role-form" class="form-horizontal" th:object="${itsystem}">
+							<input th:field="*{masterId}" type="hidden" />
+
+							<fieldset>
+								<div class="form-group">
+									<label class="col-sm-2 control-label" th:text="#{html.entity.itsystem.name}" />
+									<div class="col-sm-8">
+										<input th:field="*{name}" class="form-control" />
+									</div>
+								</div>
+							</fieldset>
+
+							<fieldset>
+								<div class="form-group">
+									<label class="col-sm-2 control-label" th:text="#{html.control.operations}" />
+									<div class="col-sm-8">
+										<a class="btn btn-lg btn-primary" th:text="#{html.page.itsystem.action.new.systemrole}" onclick="newRole();" />
+									</div>
+								</div>
+							</fieldset>
+						</form>
+
+						<form class="form-horizontal">
+							<ul class="nav nav-tabs">
+								<li th:class="active">
+									<a href="#" th:text="#{html.page.itsystem.pane.label}"/>
+								</li>
+							</ul>
+
+							<div class="tab-content">
+								<div id="systemRole_menu" class="tab-pane fade in active">
+									<table id="listTable" class="table table-striped listTable">
+										<thead>
+											<tr>
+												<th class="col-md-3" th:text="#{html.entity.systemrole.name}" />
+												<th class="col-md-3" th:text="#{html.entity.systemrole.identifier}" />
+												<th class="col-md-5" th:text="#{html.entity.systemrole.description}" />
+												<th class="col-md-1" th:text="#{html.control.operations}" />
+											</tr>
+										</thead>
+
+										<tbody>
+											<tr th:each="systemRole : ${systemRoles}">
+												<td th:text="${systemRole.name}" />
+												<td th:text="${systemRole.identifier}" />
+												<td class="preformat" th:text="${systemRole.description}" />
+												<td>
+													<a href="#" onclick="openConfirmDeleteDialog(this);" th:attr="data-id=${systemRole.id}"><em class="fa fa-remove"></em></a>
+													<a href="#" onclick="editRole(this);" th:attr="data-id=${systemRole.id}"><em class="fa fa-pencil"></em></a>
+												</td>
+											</tr>
+										</tbody>
+									</table>
+								</div>
+							</div>
+						</form>
+					</div>
+				</div>
+			</div>
+		</section>
+	</div>
+
+	<div class="modal fade" id="modal-systemrole" role="dialog">
+		<div class="modal-dialog">
+
+			<!-- Modal content-->
+			<div class="modal-content">
+				<div class="modal-header">
+					<button type="button" class="close" data-dismiss="modal">&times;</button>
+					<h4 th:text="#{html.page.itsystem.edit.modal}"/>
+				</div>
+
+				<form class="form-horizontal" id="systemRoleForm" th:object="${systemRoleForm}" th:action="@{/ui/itsystem/edit/} + ${itsystem.masterId} + '/addSystemRole'" method="post">
+					<div class="modal-body">
+						<input th:field="*{id}" id="systemRoleId" type="hidden" />
+						<input th:field="*{itSystemId}" type="hidden" />
+
+						<fieldset>
+							<div class="form-group">
+								<label class="col-sm-2 control-label" th:text="#{html.entity.systemrole.name}" />
+								<div class="col-sm-10">
+									<input th:field="*{name}" id="systemRoleName" class="form-control" />
+									<ul th:if="${#fields.hasErrors('name')}" class="error">
+										<li class="error" th:each="err : ${#fields.errors('name')}" th:text="${err}"/>
+									</ul>
+								</div>
+							</div>
+						</fieldset>
+
+						<fieldset>
+							<div class="form-group">
+								<label class="col-sm-2 control-label" th:text="#{html.entity.systemrole.identifier}" />
+								<div class="col-sm-10">
+									<input th:field="*{identifier}" id="systemRoleIdentifier" class="form-control" />
+									<ul th:if="${#fields.hasErrors('identifier')}" class="error">
+										<li class="error" th:each="err : ${#fields.errors('identifier')}" th:text="${err}"/>
+									</ul>
+								</div>
+							</div>
+						</fieldset>
+
+						<fieldset>
+							<div class="form-group">
+								<label class="col-sm-2 control-label" th:text="#{html.entity.systemrole.description}" />
+								<div class="col-sm-10">
+									<textarea rows="8" th:field="*{description}" id="systemRoleDescription" class="form-control" />
+									<ul th:if="${#fields.hasErrors('description')}" class="error">
+										<li class="error" th:each="err : ${#fields.errors('description')}" th:text="${err}"/>
+									</ul>
+								</div>
+							</div>
+						</fieldset>
+					</div>
+
+					<div class="modal-footer">
+						<button type="submit" id="save" class="btn btn-primary" th:text="#{html.control.button.save}"/>
+						<button type="button" class="btn btn-danger" data-dismiss="modal" th:text="#{html.control.button.cancel}"/>
+					</div>
+				</form>
+			</div>
+		</div>
+	</div>
+	
+	<nav th:replace="fragments/footer :: footer" />
+	<script th:replace="fragments/datatables :: datatables " />
+	
+	<style>
+		.table .checkbox {
+			margin-left: 10px;
+			width: auto;
+		}
+	</style>
+
+	<script th:inline="javascript">
+		var token = $("meta[name='_csrf']").attr("content");
+
+		$("document").ready(function() {
+
+			var masterId = $("#masterId").val();
+			/*<![CDATA[*/
+				/*[+
+					var url = [[@{/ui/itsystem/edit/}]] + masterId;
+					var nameUrl = [[@{/rest/itsystem/name}]];
+					var fieldUpdatedMsg = [[#{html.entity.itsystem.updatedmsg}]];
+					var fieldNotUpdatedMsg = [[#{html.entity.itsystem.failedupdatemsg}]];
+				+]*/
+
+			$("#name").change(handleChangeOnInput);
+
+			<!--if ($(".error").length > 0) {-->
+				<!--$("#modal-systemrole").modal('show');-->
+			<!--}-->
+
+			function handleChangeOnInput() {
+				var objName = $("#name").val();
+
+				$.ajax({
+					url: nameUrl,
+					method: 'POST',
+					data: {
+						'name': objName,
+						'id': masterId
+					},
+					headers: {
+						'X-CSRF-TOKEN': token
+					},
+					error: function(response) {
+						$.notify({
+							message: fieldNotUpdatedMsg + ""
+						},{
+							status: 'danger',
+							autoHideDelay: 4000
+						});
+					},
+					success: function(response) {
+						$.notify({
+							message: fieldUpdatedMsg
+						},{
+							status: 'success',
+							autoHideDelay: 2000
+						});
+					}
+				});
+			}
+			
+			$("#modal-systemrole").on('shown.bs.modal', function(e) {
+				if ($("#systemRoleId").val() == 0) {
+					$("#systemRoleName").val("");
+					$("#systemRoleIdentifier").val("");
+					$("#systemRoleIdentifier").prop("readonly", false);
+					$("#systemRoleDescription").val("");
+				}
+				
+				$("#systemRoleName").focus();
+		    })
+
+			/*]]>*/
+		});
+
+		function newRole() {
+			$("#systemRoleId").val("0");
+			$("#modal-systemrole").modal("show");
+		}
+		
+		function editRole(roleRow) {
+			var id = $(roleRow).data("id");
+			var tds = $(roleRow).parent().parent().find("td");
+
+			$("#systemRoleId").val(id);
+			$("#systemRoleName").val(tds.get(0).innerHTML);
+			$("#systemRoleIdentifier").val(tds.get(1).innerHTML);
+			$("#systemRoleIdentifier").prop("readonly", true);
+			$("#systemRoleDescription").val(tds.get(2).innerHTML);
+
+			$("#modal-systemrole").modal("show");
+		}
+
+		function openConfirmDeleteDialog(roleRow) {
+			var masterId = $("#masterId").val();
+			var id = $(roleRow).data('id');
+
+			/*[+
+				var url = [[@{/ui/itsystem/edit/}]] + masterId;
+				var deleteURI = [[@{/rest/systemrole/delete/}]] + id
+
+				var titleTxt = [[#{html.entity.itsystem.delete.confirm.title}]];
+				var bodyTxt = [[#{html.entity.itsystem.delete.confirm.body}]];
+				var bodyTxtAdditional = [[#{html.entity.itsystem.delete.confirm.body.additional}]];
+				var cancelTxt = [[#{html.control.button.cancel}]];
+				var confirmTxt = [[#{html.control.button.delete}]];
+				var errorMsg = [[#{html.default.message.error}]];
+				var roleNotDeletedMsg = [[#{html.entity.itsystem.rolenotdeletedmsg}]];
+			+]*/
+
+			swal({
+					html: true,
+					title : titleTxt,
+					text : bodyTxt,
+					type : "warning",
+					showCancelButton : true,
+					confirmButtonColor : "#DD6B55",
+					confirmButtonText : confirmTxt,
+					cancelButtonText : cancelTxt,
+					closeOnConfirm : true,
+					closeOnCancel : true
+				},
+				function (isConfirm) {
+					if (isConfirm) {
+						$.ajax({
+							type: "POST",
+							headers: {
+								'X-CSRF-TOKEN': token,
+							},
+							url: deleteURI,
+							success: function() {
+								window.location.href = url;
+							},
+							error: function() {
+								$.notify({
+									message: roleNotDeletedMsg
+								},{
+									status: 'danger',
+									autoHideDelay: 4000
+								});
+							}
+						});
+					}
+				}
+			);
+		}
+
+
+	</script>
+</body>
+</html>

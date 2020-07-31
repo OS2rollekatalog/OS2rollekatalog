@@ -1,0 +1,274 @@
+package dk.digitalidentity.rc.controller.mvc;
+
+import java.util.Date;
+import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.stream.Collectors;
+
+import javax.validation.Valid;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Controller;
+import org.springframework.ui.Model;
+import org.springframework.validation.BindingResult;
+import org.springframework.validation.ObjectError;
+import org.springframework.web.bind.WebDataBinder;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.InitBinder;
+import org.springframework.web.bind.annotation.ModelAttribute;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+
+import dk.digitalidentity.rc.controller.mvc.viewmodel.ItSystemForm;
+import dk.digitalidentity.rc.controller.mvc.viewmodel.SystemRoleForm;
+import dk.digitalidentity.rc.controller.mvc.viewmodel.SystemRoleViewModel;
+import dk.digitalidentity.rc.controller.validator.ItSystemValidator;
+import dk.digitalidentity.rc.controller.validator.SystemRoleValidator;
+import dk.digitalidentity.rc.dao.model.ItSystem;
+import dk.digitalidentity.rc.dao.model.ItSystemMaster;
+import dk.digitalidentity.rc.dao.model.PendingADGroupOperation;
+import dk.digitalidentity.rc.dao.model.SystemRole;
+import dk.digitalidentity.rc.dao.model.enums.ItSystemType;
+import dk.digitalidentity.rc.dao.model.enums.RoleType;
+import dk.digitalidentity.rc.security.RequireAdministratorRole;
+import dk.digitalidentity.rc.security.RequireReadAccessRole;
+import dk.digitalidentity.rc.security.SecurityUtil;
+import dk.digitalidentity.rc.service.ItSystemMasterService;
+import dk.digitalidentity.rc.service.ItSystemService;
+import dk.digitalidentity.rc.service.PendingADUpdateService;
+import dk.digitalidentity.rc.service.SystemRoleService;
+import dk.digitalidentity.rc.service.UserRoleService;
+
+@RequireReadAccessRole
+@Controller
+public class ItSystemController {
+
+	@Autowired
+	private ItSystemService itSystemService;
+
+	@Autowired
+	private SystemRoleService systemRoleService;
+
+	@Autowired
+	private ItSystemValidator itSystemValidator;
+
+	@Autowired
+	private SystemRoleValidator systemRoleValidator;
+
+	@Autowired
+	private ItSystemMasterService itSystemMasterService;
+	
+	@Autowired
+	private SecurityUtil securityUtil;
+
+	@Autowired
+	private UserRoleService userRoleService;
+	
+	@Autowired
+	private PendingADUpdateService pendingADUpdateService;
+	
+	@InitBinder(value = { "itSystemForm" })
+	public void initBinderItSystemForm(WebDataBinder binder) {
+		binder.addValidators(itSystemValidator);
+	}
+
+	@InitBinder(value = { "systemRoleForm" })
+	public void initBinderSystemRoleForm(WebDataBinder binder) {
+		binder.addValidators(systemRoleValidator);
+	}
+
+	@GetMapping(value = { "/ui/itsystem", "/ui/itsystem/list" })
+	public String list(Model model) {
+		List<ItSystem> itSystems = itSystemService.getAll();
+
+		// people with restricted read-only access will be limited
+		if (securityUtil.hasRestrictedReadAccess()) {
+			List<Long> itSystemIds = securityUtil.getRestrictedReadAccessItSystems();
+			
+			itSystems = itSystems.stream().filter(it -> itSystemIds.contains(it.getId())).collect(Collectors.toList());
+		}
+
+		model.addAttribute("itsystems", itSystems);
+
+		return "itsystem/list";
+	}
+
+	@RequireAdministratorRole
+	@GetMapping(value = { "/ui/itsystem/newad" })
+	public String createGetAD(Model model) {
+		ItSystemForm form = new ItSystemForm();
+		form.setSystemType(ItSystemType.AD);
+		model.addAttribute("itSystemForm", form);
+		
+		return "itsystem/new";
+	}
+	
+	@RequireAdministratorRole
+	@GetMapping(value = { "/ui/itsystem/newsaml" })
+	public String createGetSAML(Model model) {
+		ItSystemForm form = new ItSystemForm();
+		form.setSystemType(ItSystemType.SAML);
+		model.addAttribute("itSystemForm", form);
+		
+		return "itsystem/new";
+	}
+
+	@RequireAdministratorRole
+	@GetMapping(value = { "/ui/itsystem/newmanual" })
+	public String createGetManual(Model model) {
+		ItSystemForm form = new ItSystemForm();
+		form.setSystemType(ItSystemType.MANUAL);
+		model.addAttribute("itSystemForm", form);
+		
+		return "itsystem/new";
+	}
+
+	@RequireAdministratorRole
+	@PostMapping("/ui/itsystem/new")
+	public String createItSystem(Model model, @Valid @ModelAttribute("itSystemForm") ItSystemForm itSystemForm, BindingResult bindingResult) throws Exception {
+		if (bindingResult.hasErrors()) {
+			model.addAttribute(bindingResult.getAllErrors());
+			model.addAttribute("itSystemForm", itSystemForm);
+
+			return "itsystem/new";
+		}
+
+		ItSystem itSystem = new ItSystem();
+		itSystem.setName(itSystemForm.getName());
+		itSystem.setIdentifier(itSystemForm.getIdentifier());
+		
+		switch (itSystemForm.getSystemType()) {
+			case AD:
+				itSystem.setSystemType(ItSystemType.AD);
+				itSystem.setPaused(true);
+				break;
+			case SAML:
+				itSystem.setSystemType(ItSystemType.SAML);
+				break;
+			case MANUAL:
+				itSystem.setSystemType(ItSystemType.MANUAL);
+				itSystem.setEmail(itSystemForm.getEmail());
+				break;
+			default:
+				throw new Exception("Unknown systemtype: " + itSystemForm.getSystemType());
+		}
+		
+		itSystem = itSystemService.save(itSystem);
+
+		return "redirect:edit/" + itSystem.getId();
+	}
+
+	@GetMapping("/ui/itsystem/view/{id}")
+	public String viewItSystem(Model model, @PathVariable("id") long id) {
+		ItSystem itSystem = itSystemService.getById(id);
+		if (itSystem == null) {
+			return "redirect:../list";
+		}
+
+		SystemRoleForm systemRoleForm = new SystemRoleForm();
+		systemRoleForm.setItSystemId(itSystem.getId());
+
+		List<SystemRoleViewModel> systemRoles = systemRoleService.getByItSystem(itSystem).stream()
+				.map(sr -> new SystemRoleViewModel(sr, systemRoleService.isInUse(sr)))
+				.collect(Collectors.toList());
+		
+		model.addAttribute("itsystem", itSystem);
+		model.addAttribute("systemRoles", systemRoles);
+		model.addAttribute("userRoles", userRoleService.getByItSystem(itSystem));
+
+		Optional<ItSystemMaster> subscribedTo = itSystemMasterService.findAll().stream().filter(its -> Objects.equals(its.getMasterId(), itSystem.getSubscribedTo())).findAny();
+		model.addAttribute("subscribedTo", subscribedTo.isPresent() ? subscribedTo.get().getName() : "");
+
+		return "itsystem/view";
+	}
+
+	@RequireAdministratorRole
+	@GetMapping(value = { "/ui/itsystem/edit/{id}" })
+	public String editItSystem(Model model, @PathVariable("id") long id) {
+		ItSystem itSystem = itSystemService.getById(id);
+		if (itSystem == null) {
+			return "redirect:../list";
+		}
+
+		SystemRoleForm systemRoleForm = new SystemRoleForm();
+		systemRoleForm.setItSystemId(itSystem.getId());
+
+		List<SystemRoleViewModel> systemRoles = systemRoleService.getByItSystem(itSystem).stream()
+				.map(sr -> new SystemRoleViewModel(sr, systemRoleService.isInUse(sr)))
+				.collect(Collectors.toList());
+		
+		model.addAttribute("unusedCount", itSystemService.getUnusedUserRolesCount(itSystem));
+		model.addAttribute("itsystem", itSystem);
+		model.addAttribute("systemRoles", systemRoles);
+		model.addAttribute("unusedSystemRolesCount", systemRoles.stream().filter(sr -> !sr.isInUse()).count());
+		model.addAttribute("systemRoleForm", systemRoleForm);
+		model.addAttribute("itsystemMasterList", itSystemMasterService.findAll());
+		model.addAttribute("userRoles", userRoleService.getByItSystem(itSystem));
+
+		return "itsystem/edit";
+	}
+
+	@RequireAdministratorRole
+	@PostMapping(value = { "/ui/itsystem/edit/{systemid}/addSystemRole" })
+	public String addSystemRoleToItSystem(Model model, @PathVariable("systemid") long systemId, @Valid @ModelAttribute("systemRoleForm") SystemRoleForm systemRoleForm, BindingResult bindingResult) {
+		ItSystem itSystem = itSystemService.getById(systemId);
+		if (itSystem == null || (!itSystem.getSystemType().equals(ItSystemType.AD) && !itSystem.getSystemType().equals(ItSystemType.SAML) && !itSystem.getSystemType().equals(ItSystemType.MANUAL))) {
+			return "redirect:../../list";
+		}
+
+		// a-z, A-Z, 0-9 and '-', '_' and ' ' are allowed
+		systemRoleForm.setIdentifier(systemRoleForm.getIdentifier().replaceAll("[^A-Za-z0-9_\\-\\s]", ""));
+		if (systemRoleForm.getIdentifier().length() == 0) {
+			bindingResult.addError(new ObjectError("identifier", "html.errors.systemrole.identifier.notempty"));
+		}
+
+		if (bindingResult.hasErrors()) {
+			List<SystemRoleViewModel> systemRoles = systemRoleService.getByItSystem(itSystem).stream()
+					.map(sr -> new SystemRoleViewModel(sr, systemRoleService.isInUse(sr)))
+					.collect(Collectors.toList());
+
+			model.addAttribute(bindingResult.getAllErrors());
+			model.addAttribute("unusedCount", itSystemService.getUnusedUserRolesCount(itSystem));
+			model.addAttribute("itsystem", itSystem);
+			model.addAttribute("systemRoles", systemRoles);
+			model.addAttribute("unusedSystemRolesCount", systemRoles.stream().filter(sr -> !sr.isInUse()).count());
+			model.addAttribute("systemRoleForm", systemRoleForm);
+			model.addAttribute("itsystemMasterList", itSystemMasterService.findAll());
+			model.addAttribute("userRoles", userRoleService.getByItSystem(itSystem));
+
+			return "itsystem/edit";
+		}
+		
+		SystemRole systemRole = new SystemRole();
+		if (systemRoleForm.getId() > 0) {
+			systemRole = systemRoleService.getById(systemRoleForm.getId());
+			
+			// only name and description can be edited on existing system roles
+			systemRole.setName(systemRoleForm.getName());
+			systemRole.setDescription(systemRoleForm.getDescription());
+		}
+		else {
+			systemRole.setName(systemRoleForm.getName());
+			systemRole.setIdentifier(systemRoleForm.getIdentifier());
+			systemRole.setDescription(systemRoleForm.getDescription());
+			systemRole.setItSystem(itSystem);
+			systemRole.setRoleType(RoleType.BOTH);
+		}
+
+		systemRole = systemRoleService.save(systemRole);
+
+		if (systemRole.getItSystem().getSystemType().equals(ItSystemType.AD) && systemRoleForm.isCreateADGroup()) {
+			PendingADGroupOperation operation = new PendingADGroupOperation();
+			operation.setActive(true);
+			operation.setItSystemIdentifier(systemRole.getItSystem().getIdentifier());
+			operation.setSystemRoleId(systemRole.getId());
+			operation.setSystemRoleIdentifier(systemRole.getIdentifier());
+			operation.setTimestamp(new Date());
+
+			pendingADUpdateService.save(operation);
+		}
+
+		return "redirect:";
+	}
+}

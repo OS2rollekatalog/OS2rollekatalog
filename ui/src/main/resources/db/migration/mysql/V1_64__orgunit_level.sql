@@ -1,0 +1,2 @@
+ALTER TABLE ous ADD COLUMN level VARCHAR(64) NULL;
+UPDATE ous SET level = 'NONE';

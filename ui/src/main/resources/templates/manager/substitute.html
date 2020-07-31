@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html>
+<head th:replace="fragments/header :: header (title=#{html.page.manager.substitute})" />
+<body>
+	<div class="wrapper">
+		<header th:replace="fragments/navbar :: navbar-header" />
+		<aside th:replace="fragments/navbar :: navbar-aside (page = 'manager.substitute')" />
+
+		<section>
+			<div class="content-wrapper">
+				<h3>
+					<span th:text="#{html.page.manager.substitute.title}" />
+				</h3>
+
+				<div class="panel panel-default">
+					<div class="panel-heading" />
+					<div class="panel-body">
+						<form class="form-horizontal" th:object="${substitute}">
+							<div class="form-group">
+								<label class="col-sm-2 control-label" th:text="#{html.page.manager.substitute}"/>
+								<div class="col-sm-8">
+									<input style="margin-left: 10px; width: 500px; display: inline-block;" class="form-control" th:value="${substitute != null ? (substitute.name + ' (' + substitute.userId + ')') : ''}" id="search_person" disabled="disabled" onclick="return false;" />
+									<button type="button" class="btn btn-primary" onclick="autoCompleteService.togglePersonSearch(true);" id="edit_person" style="margin-left: 10px; margin-bottom: 3px;"><em class="fa fa-fw fa-pencil"></em></button>
+									<button type="button" class="btn btn-warning hidden" onclick="autoCompleteService.clearPerson();" id="clear_person" style="margin-left: 10px; margin-bottom: 3px;"><em class="fa fa-fw fa-times"></em></button>
+
+									<span style="display: none;" id="prev_value_person" th:text="${substitute != null ? substitute.name : ''}"></span>
+								</div>
+							</div>
+						</form>
+						
+						<hr/>
+						
+						<p th:text="#{html.page.manager.substitute.text}"/>
+					</div>
+				</div>
+			</div>
+		</section>
+	</div>
+
+	<nav th:replace="fragments/footer :: footer" />
+
+	<style>
+		.autocomplete-suggestions { border: 1px solid #999; background: #FFF; overflow: auto; width: 500px !important; }
+		.autocomplete-suggestion { padding: 2px 5px; white-space: nowrap; overflow: hidden; }
+		.autocomplete-selected { background: #F0F0F0; }
+		.autocomplete-suggestions strong { font-weight: normal; color: #3399FF; }
+		.autocomplete-group { padding: 2px 5px; }
+		.autocomplete-group strong { display: block; border-bottom: 1px solid #000; }
+	</style>
+
+	<script th:inline="javascript">
+		/*<![CDATA[*/
+
+		/*[+
+			var restUrl = [[@{/rest/manager/substitute}]];
+			var msgAssignSuccess = [[#{html.page.manager.substitute.assign.success}]];
+			var msgAssignFailure = [[#{html.page.manager.substitute.assign.failure}]];
+		+]*/
+		var token = $("meta[name='_csrf']").attr("content");
+
+		var autoCompleteService;
+		$(document).ready(function() {
+			autoCompleteService = new AutoCompleteService();
+		});
+
+		function AutoCompleteService() {
+			this.togglePersonSearch = function(revertOnClose) {
+				// optional parameter, default to false
+				revertOnClose = revertOnClose || false;
+				
+				var searchField = $("#search_person");
+				var ro = !searchField.prop('disabled');
+				searchField.prop('disabled', ro);
+
+				// flip buttons
+				$("#edit_person").toggleClass("btn-primary");
+				$("#edit_person").toggleClass("btn-danger");
+				$("#clear_person").toggleClass("hidden");
+
+				// enable autocomplete for the input field when switching to edit-mode
+				if (!ro) {
+					searchField.autocomplete({
+						serviceUrl: restUrl + "/search/person",
+						onSelect: function(suggestion) {
+							$(this).val(suggestion.value);
+
+							// keep track of this value so we can abort later if needed
+							$("#prev_value_person").text(suggestion.value);
+
+							autoCompleteService.togglePersonSearch();
+							autoCompleteService.save(suggestion.data);
+						},
+						preventBadQueries: true,
+						triggerSelectOnValidInput: false
+					});
+					searchField.select();
+					searchField.focus();
+				}
+				else if (revertOnClose) {
+					var oldValue = $("#prev_value_person").text();
+					$("#search_person").val(oldValue);
+				}
+			};
+
+			this.clearPerson = function() {
+				var searchField = $("#search_person");
+				searchField.val("");
+
+				this.save("clear");
+				this.togglePersonSearch();
+			}
+			
+			this.save = function(personUuid) {
+				$.ajax({
+					method : "POST",
+					url: restUrl + "/save",
+					headers: {
+						"content-type": "plain/text",
+						'X-CSRF-TOKEN': token
+					},
+					data: personUuid
+				}).done(function (data) {
+					$.notify({
+						message: msgAssignSuccess
+					}, {
+						status: 'success',
+						autoHideDelay: 2000
+					});
+				}).fail(function (jqXHR, textStatus, errorThrown) {
+					$.notify({
+						message: msgAssignFailure
+					}, {
+						status: 'danger',
+						autoHideDelay: 4000
+					});
+				});
+			};
+		}
+
+	/*]]>*/
+	</script>
+</body>
+</html>

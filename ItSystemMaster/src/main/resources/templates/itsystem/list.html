@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+<head th:replace="fragments/header :: header (title=#{html.page.itsystem.list.title})" />
+<body>
+	<div class="wrapper">
+		<header th:replace="fragments/navbar :: navbar-header" />
+		<aside th:replace="fragments/navbar :: navbar-aside (page = 'itsystem.list')" />
+ 
+		<section>
+			<div class="content-wrapper">
+				<div class="panel panel-default">
+					<div class="panel-heading" />
+					<div class="panel-body">
+						<div class="table-responsive">
+							<table class="table table-striped table-hover listTable">
+								<thead>
+									<tr>
+										<th class="col-md-5" th:text="#{html.entity.itsystem.name}" />
+										<th class="col-md-1" th:text="#{html.control.operations}" />
+									</tr>
+								</thead>
+
+								<tbody>
+								    <tr th:each="itsystem : ${itsystems}">
+								    	<td th:text="${itsystem.name}" />
+								    	<td>
+								    		<a th:href="@{/ui/itsystem/edit/{id}(id=${itsystem.masterId})}"><em class="fa fa-pencil"></em></a>
+								    	</td>
+					    			</tr>
+				    			</tbody>
+							</table>
+						</div>
+					</div>
+				</div>
+	        </div>
+	    </section>
+	</div>
+
+	<nav th:replace="fragments/footer :: footer" />
+
+	<script th:replace="fragments/datatables :: datatables " />
+
+</body>
+</html>

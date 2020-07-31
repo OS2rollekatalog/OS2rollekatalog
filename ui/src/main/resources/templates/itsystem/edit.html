@@ -1,0 +1,1063 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="fragments/header :: header (title=#{html.page.itsystem.edit.title})" />
+<body>
+
+	<div class="wrapper">
+		<header th:replace="fragments/navbar :: navbar-header" />
+		<aside th:replace="fragments/navbar :: navbar-aside (page = 'itsystem.list')" />
+
+		<section>
+			<div class="content-wrapper">
+				<h3>
+					<a th:href="@{/ui/itsystem/list}" class="btn btn-default">
+						<span><i class="fa fa-arrow-left"></i></span>
+					</a>
+					<span th:text="#{html.page.itsystem.edit.title}" />
+				</h3>
+				
+				<div class="panel panel-default">
+					<div class="panel-heading" />
+					<div class="panel-body">
+
+						<form id="role-form" class="form-horizontal" th:object="${itsystem}">
+							<input th:field="*{id}" type="hidden" />
+
+							<fieldset>
+								<div class="form-group">
+									<label class="col-sm-2 control-label" th:text="#{html.entity.itsystem.name}" />
+									<div class="col-sm-8">
+										<input th:field="*{name}" th:readonly="${#strings.toString(itsystem.systemType)} == 'KOMBIT'" class="form-control" />
+									</div>
+								</div>
+							</fieldset>
+
+							<fieldset>
+								<div class="form-group">
+									<label class="col-sm-2 control-label" th:text="#{html.entity.itsystem.identifier}" />
+									<div class="col-sm-8">
+										<input th:field="*{identifier}" readonly="readonly" class="form-control" />
+									</div>
+								</div>
+							</fieldset>
+
+							<fieldset th:if="${#strings.toString(itsystem.systemType)} == 'MANUAL'">
+								<div class="form-group">
+									<label class="col-sm-2 control-label" th:text="#{html.entity.itsystem.email}" />
+									<div class="col-sm-8">
+										<input th:field="*{email}" class="form-control" />
+									</div>
+								</div>
+							</fieldset>
+
+							<fieldset>
+								<div class="form-group">
+									<label class="col-sm-2 control-label" th:text="#{html.entity.itsystem.type}" />
+									<div class="col-sm-8">
+										<input th:value="#{__*{systemType.message}__}" readonly="readonly" class="form-control" />
+									</div>
+								</div>
+							</fieldset>
+							
+							<fieldset>
+								<div class="form-group">
+									<label class="col-sm-2 control-label" th:text="#{html.entity.itsystem.notes}" />
+									<div class="col-sm-8">
+										<textarea rows="5" th:field="*{notes}" class="form-control" />
+									</div>
+								</div>
+							</fieldset>
+
+							<fieldset>
+								<div class="form-group">
+									<label class="col-sm-2 control-label" th:text="#{html.entity.itsystem.hidden}" />
+									<div class="col-sm-1">
+										<div class="checkbox c-checkbox">
+											<label>
+												<input id="hidden-checkbox" type="checkbox" data-flag="hidden" th:attr="checked=${itsystem.hidden}" />
+												<span class="fa fa-check"></span>
+											</label>
+										</div>
+									</div>
+								</div>
+							</fieldset>
+
+							<fieldset th:if="${#strings.toString(itsystem.systemType)} == 'AD'">
+								<div class="form-group">
+									<label class="col-sm-2 control-label" th:text="#{html.entity.itsystem.paused}" />
+									<div class="col-sm-1">
+										<div class="checkbox c-checkbox">
+											<label>
+												<input id="paused-checkbox" type="checkbox" data-flag="paused" th:attr="checked=${itsystem.paused}" />
+												<span class="fa fa-check"></span>
+											</label>
+										</div>
+									</div>
+								</div>
+							</fieldset>
+
+							<fieldset th:if="${#strings.toString(itsystem.systemType)} == 'AD' or ${#strings.toString(itsystem.systemType)} == 'SAML'">
+								<div class="form-group">
+									<label class="col-sm-2 control-label" th:text="#{html.entity.itsystem.canEditThroughApi}" />
+									<div class="col-sm-1">
+										<div class="checkbox c-checkbox">
+											<label>
+												<input id="canEditThroughApi-checkbox" type="checkbox" th:attr="checked=${itsystem.canEditThroughApi}" />
+												<span class="fa fa-check"></span>
+											</label>
+										</div>
+									</div>
+								</div>
+							</fieldset>
+
+							<fieldset th:if="${#strings.toString(itsystem.systemType)} == 'AD'">
+								<div class="form-group">
+									<label class="col-sm-2 control-label" th:text="#{html.control.operations}" />
+									<div class="col-sm-8">
+										<a class="btn btn-lg btn-primary" th:text="#{html.page.itsystem.action.new.systemrole.ad}" onclick="newAdRole();" />
+									</div>
+								</div>
+							</fieldset>
+
+							<fieldset th:if="${#strings.toString(itsystem.systemType)} == 'SAML'">
+								<div class="form-group">
+									<label class="col-sm-2 control-label" th:text="#{html.entity.itsystem.subscribedto}" />
+									<div class="col-sm-8">
+										<div class="checkbox c-checkbox col-sm-1">
+											<label>
+												<input id="subscribedToCheckbox" style="padding-top:2px; padding-bottom:2px" class="role-checkbox" type="checkbox" th:attr="checked=${itsystem.subscribedTo != null}" />
+												<span class="fa fa-check"></span>
+											</label>
+										</div>
+
+										<div class="col-sm-10">
+										<select id="subscribedTo" style="float:right; width:95%" class="form-control m-b">
+											<option id="defaultOption" th:selected="${itsystem.subscribedTo != null}" th:text="#{html.select.default}"/>
+											<option th:each="masterSystem : ${itsystemMasterList}"
+													th:value="${masterSystem.masterId}"
+													th:text="${masterSystem.name}"
+													th:selected="${masterSystem.masterId == itsystem.subscribedTo}"/>
+										</select>
+										</div>
+									</div>
+								</div>
+							</fieldset>
+
+							<fieldset id="addRoleButtonField" th:if="${#strings.toString(itsystem.systemType)} == 'SAML'">
+								<div class="form-group">
+									<label class="col-sm-2 control-label" th:text="#{html.control.operations}" />
+									<div class="col-sm-8">
+										<a id="newSamlRoleBtn" class="btn btn-lg btn-primary" th:text="#{html.page.itsystem.action.new.systemrole.saml}" onclick="newSamlRole();" />
+									</div>
+								</div>
+							</fieldset>
+
+							<fieldset th:if="${#strings.toString(itsystem.systemType)} == 'MANUAL'">
+								<div class="form-group">
+									<label class="col-sm-2 control-label" th:text="#{html.control.operations}" />
+									<div class="col-sm-8">
+										<a class="btn btn-lg btn-primary" th:text="#{html.page.itsystem.action.new.systemrole.manual}" onclick="newSamlRole();" />
+									</div>
+								</div>
+							</fieldset>
+						</form>
+
+						<form class="form-horizontal" th:if="${#strings.toString(itsystem.systemType)} == 'AD'">
+							<ul class="nav nav-tabs">
+								<li th:class="active">
+									<a data-toggle="tab" href="#systemRole_menu" th:text="#{html.page.itsystem.pane.label}"/>
+								</li>
+								<li>
+									<a data-toggle="tab" href="#userRole_menu" th:text="#{html.page.itsystem.pane.userroles.label}"/>
+								</li>
+							</ul>
+
+							<div class="tab-content">
+								<div id="systemRole_menu" class="tab-pane fade in active">
+									<div style="margin-bottom:20px;">
+										<div class="btn btn-lg btn-primary" style="width:auto;" onclick="convertSystemRolesToUserRoles();"><span th:text="#{html.page.itsystem.pane.systemroles.convert}" /></div>
+									</div>
+									
+									<div class="table-responsive">
+										<table id="listTable" class="table table-striped listTable">
+											<thead>
+												<tr>
+													<th class="col-md-2" th:text="#{html.entity.adgroup.name}" />
+													<th class="col-md-3" th:text="#{html.entity.adgroup.identifier}" />
+													<th class="col-md-5" th:text="#{html.entity.adgroup.description}" />
+													<th class="col-md-1" th:text="#{html.entity.adgroup.inuse}" />
+													<th class="col-md-1" th:text="#{html.control.operations}" />
+												</tr>
+											</thead>
+	
+											<tbody>
+												<tr th:each="systemRole : ${systemRoles}">
+													<td th:text="${systemRole.name}" />
+													<td th:text="${systemRole.identifier}" />
+													<td class="preformat" th:text="${systemRole.description}" />
+													<td><em class="fa fa-fw" th:classappend="${systemRole.inUse} ? fa-check : ''"></em></td>
+													<td>
+														<a href="#" onclick="openConfirmDeleteDialog(this);" th:attr="data-id=${systemRole.id}"><em class="fa fa-remove"></em></a>
+														<a href="#" onclick="editAdRole(this);" th:attr="data-id=${systemRole.id}"><em class="fa fa-pencil"></em></a>
+														<a th:href="@{/ui/systemrole/{id}/userroles(id=${systemRole.id})}"><em class="fa fa-list"></em></a>
+													</td>
+												</tr>
+											</tbody>
+										</table>
+									</div>
+								</div>
+								<div id="userRole_menu" class="tab-pane fade">
+									<div style="margin-bottom:20px;">
+										<div class="btn btn-lg btn-primary" style="width:auto;" onclick="removeUnusedUserRoles();"><span th:text="#{html.page.itsystem.pane.userroles.delete}" /></div>
+									</div>
+									<div class="table-responsive">
+										<table id="listTable" class="table table-striped listTable">
+											<thead>
+												<tr>
+													<th class="col-md-5" th:text="#{html.entity.userrole.name}" />
+													<th class="col-md-6" th:text="#{html.entity.userrole.description}" />
+													<th class="col-md-1" th:text="#{html.control.operations}" />
+												</tr>
+											</thead>
+											<tbody>
+												<tr th:each="role : ${userRoles}">
+													<td class="col-md-5" th:text="${role.name}" />
+													<td class="col-md-6" th:text="${role.description}" />
+													<th:block th:if="${role.delegatedFromCvr == null}">
+														<td class="col-md-1">
+															<a th:href="@{/ui/userroles/view/{id}(id=${role.id})}"><em class="fa fa-search"></em></a>
+															<th:block sec:authorize="hasRole('ROLE_ADMINISTRATOR')">
+																<a th:href="@{/ui/userroles/edit/{id}(id=${role.id})}"><em class="fa fa-pencil"></em></a>
+															</th:block>
+														</td>
+													</th:block>
+													<th:block th:if="${role.delegatedFromCvr != null}">
+														<td class="col-md-1">&nbsp;</td>
+													</th:block>
+												</tr>
+											</tbody>
+										</table>
+									</div>
+								</div>
+							</div>
+						</form>
+						
+						<form class="form-horizontal" th:if="${#strings.toString(itsystem.systemType)} == 'SAML' or ${#strings.toString(itsystem.systemType)} == 'MANUAL'">
+							<ul class="nav nav-tabs">
+								<li th:class="active">
+									<a data-toggle="tab" href="#systemRole_menu" th:text="#{html.page.itsystem.pane.nonad.label}"/>
+								</li>
+								<li>
+									<a data-toggle="tab" href="#userRole_menu" th:text="#{html.page.itsystem.pane.userroles.label}"/>
+								</li>
+							</ul>
+
+							<div class="tab-content">
+								<div id="systemRole_menu" class="tab-pane fade in active">
+									<div style="margin-bottom:20px;">
+										<div class="btn btn-lg btn-primary" style="width:auto;" onclick="convertSystemRolesToUserRoles();"><span th:text="#{html.page.itsystem.pane.systemroles.convert}" /></div>
+									</div>
+									<table id="listTable" class="table table-striped listTable">
+										<thead>
+											<tr>
+												<th class="col-md-2" th:text="#{html.entity.samlrole.name}" />
+												<th class="col-md-3" th:text="#{html.entity.samlrole.identifier}" />
+												<th class="col-md-5" th:text="#{html.entity.samlrole.description}" />
+												<th class="col-md-1" th:text="#{html.entity.samlrole.inuse}" />
+												<th class="col-md-1" th:text="#{html.control.operations}" />
+											</tr>
+										</thead>
+
+										<tbody>
+											<tr th:each="systemRole : ${systemRoles}">
+												<td th:text="${systemRole.name}" />
+												<td th:text="${systemRole.identifier}" />
+												<td class="preformat" th:text="${systemRole.description}" />
+												<td><em class="fa fa-fw" th:classappend="${systemRole.inUse} ? fa-check : ''"></em></td>
+												<td>
+													<a href="#" onclick="openConfirmDeleteDialog(this);" th:attr="data-id=${systemRole.id}"><em class="fa fa-remove operationsCol"></em></a>
+													<a href="#" onclick="editSamlRole(this);" th:attr="data-id=${systemRole.id}"><em class="fa fa-pencil operationsCol"></em></a>
+													<a th:href="@{/ui/systemrole/{id}/userroles(id=${systemRole.id})}"><em class="fa fa-list"></em></a>
+												</td>
+											</tr>
+										</tbody>
+									</table>
+								</div>
+								<div id="userRole_menu" class="tab-pane fade">
+									<div style="margin-bottom:20px;">
+										<div class="btn btn-lg btn-primary" style="width:auto;" onclick="removeUnusedUserRoles();"><span th:text="#{html.page.itsystem.pane.userroles.delete}" /></div>
+									</div>
+									<div class="table-responsive">
+										<table id="listTable" class="table table-striped listTable">
+											<thead>
+												<tr>
+													<th class="col-md-5" th:text="#{html.entity.userrole.name}" />
+													<th class="col-md-6" th:text="#{html.entity.userrole.description}" />
+													<th class="col-md-1" th:text="#{html.control.operations}" />
+												</tr>
+											</thead>
+											<tbody>
+												<tr th:each="role : ${userRoles}">
+													<td class="col-md-5" th:text="${role.name}" />
+													<td class="col-md-6" th:text="${role.description}" />
+													<th:block th:if="${role.delegatedFromCvr == null}">
+														<td class="col-md-1">
+															<a th:href="@{/ui/userroles/view/{id}(id=${role.id})}"><em class="fa fa-search"></em></a>
+															<th:block sec:authorize="hasRole('ROLE_ADMINISTRATOR')">
+																<a th:href="@{/ui/userroles/edit/{id}(id=${role.id})}"><em class="fa fa-pencil"></em></a>
+															</th:block>
+														</td>
+													</th:block>
+													<th:block th:if="${role.delegatedFromCvr != null}">
+														<td class="col-md-1">&nbsp;</td>
+													</th:block>
+												</tr>
+											</tbody>
+										</table>
+									</div>
+								</div>
+							</div>
+						</form>
+						
+						<form class="form-horizontal" th:if="${#strings.toString(itsystem.systemType)} == 'KOMBIT' or ${#strings.toString(itsystem.systemType)} == 'KSPCICS'">
+							<ul class="nav nav-tabs">
+								<li th:class="active">
+									<a data-toggle="tab" href="#systemRole_menu" th:text="#{html.page.itsystem.pane.nonad.label}"/>
+								</li>
+								<li>
+									<a data-toggle="tab" href="#userRole_menu" th:text="#{html.page.itsystem.pane.userroles.label}"/>
+								</li>
+							</ul>
+
+							<div class="tab-content">
+								<div id="systemRole_menu" class="tab-pane fade in active">
+									<div style="margin-bottom:20px;" th:if="${#strings.toString(itsystem.systemType)} != 'KSPCICS'">
+										<div class="btn btn-lg btn-primary" style="width:auto;" onclick="convertSystemRolesToUserRoles();"><span th:text="#{html.page.itsystem.pane.systemroles.convert}" /></div>
+									</div>
+									<table id="listTable" class="table table-striped listTable">
+										<thead>
+											<tr>
+												<th class="col-md-4" th:text="#{html.entity.adgroup.name}" />
+												<th class="col-md-6" th:text="#{html.entity.adgroup.description}" />
+												<th class="col-md-1" th:text="#{html.entity.adgroup.inuse}" />
+												<th class="col-md-1" th:text="#{html.control.operations}" />
+											</tr>
+										</thead>
+
+										<tbody>
+											<tr th:each="systemRole : ${systemRoles}">
+												<td th:text="${systemRole.name}" />
+												<td class="preformat" th:text="${systemRole.description}" />
+												<td><em class="fa fa-fw" th:classappend="${systemRole.inUse} ? fa-check : ''"></em></td>
+												<td><a th:href="@{/ui/systemrole/{id}/userroles(id=${systemRole.id})}"><em class="fa fa-list"></em></a></td>
+											</tr>
+										</tbody>
+									</table>
+								</div>
+
+								<div id="userRole_menu" class="tab-pane fade">
+									<div style="margin-bottom:20px;" th:if="${#strings.toString(itsystem.systemType)} != 'KSPCICS'">
+										<div class="btn btn-lg btn-primary" style="width:auto;" onclick="removeUnusedUserRoles();"><span th:text="#{html.page.itsystem.pane.userroles.delete}" /></div>
+									</div>
+									<div class="table-responsive">
+										<table id="listTable" class="table table-striped listTable">
+											<thead>
+												<tr>
+													<th class="col-md-5" th:text="#{html.entity.userrole.name}" />
+													<th class="col-md-6" th:text="#{html.entity.userrole.description}" />
+													<th class="col-md-1" th:text="#{html.control.operations}" />
+												</tr>
+											</thead>
+											<tbody> 
+												<tr th:each="role : ${userRoles}">
+													<td class="col-md-5" th:text="${role.name}" />
+													<td class="col-md-6" th:text="${role.description}" />
+													<th:block th:if="${role.delegatedFromCvr == null}">
+														<td class="col-md-1">
+															<a th:href="@{/ui/userroles/view/{id}(id=${role.id})}"><em class="fa fa-search"></em></a>
+															<th:block sec:authorize="hasRole('ROLE_ADMINISTRATOR')">
+																<a th:href="@{/ui/userroles/edit/{id}(id=${role.id})}"><em class="fa fa-pencil"></em></a>
+															</th:block>
+														</td>
+													</th:block>
+													<th:block th:if="${role.delegatedFromCvr != null}">
+														<td class="col-md-1">&nbsp;</td>
+													</th:block>
+												</tr>
+											</tbody>
+										</table>
+									</div>
+								</div>
+							</div>
+						</form>
+					</div>
+				</div>
+			</div>
+		</section>
+	</div>
+
+	<div class="modal fade" id="modal-ad-systemrole" role="dialog">
+		<div class="modal-dialog">
+
+			<!-- Modal content-->
+			<div class="modal-content">
+				<div class="modal-header">
+					<button type="button" class="close" data-dismiss="modal">&times;</button>
+					<h4 th:text="#{html.page.itsystem.edit.modal.ad}"/>
+				</div>
+
+				<form class="form-horizontal" id="systemRoleForm" th:object="${systemRoleForm}" th:action="@{/ui/itsystem/edit/} + ${itsystem.id} + '/addSystemRole'" method="post">
+					<div class="modal-body">
+						<input th:field="*{id}" id="adSystemRoleId" type="hidden" />
+						<input th:field="*{itSystemId}" type="hidden" />
+
+						<fieldset>
+							<div class="form-group">
+								<label class="col-sm-3 control-label" th:text="#{html.entity.adgroup.name}" />
+								<div class="col-sm-9">
+									<input th:field="*{name}" id="adSystemRoleName" class="form-control" />
+									<ul th:if="${#fields.hasErrors('name')}" class="error">
+										<li class="error" th:each="err : ${#fields.errors('name')}" th:text="${err}"/>
+									</ul>
+								</div>
+							</div>
+						</fieldset>
+
+						<fieldset>
+							<div class="form-group">
+								<label class="col-sm-3 control-label" th:text="#{html.entity.adgroup.identifier}" />
+								<div class="col-sm-9">
+									<input th:field="*{identifier}" id="adSystemRoleIdentifier" class="form-control" />
+									<ul th:if="${#fields.hasErrors('identifier')}" class="error">
+										<li class="error" th:each="err : ${#fields.errors('identifier')}" th:text="${err}"/>
+									</ul>
+								</div>
+							</div>
+						</fieldset>
+
+						<fieldset>
+							<div class="form-group">
+								<label class="col-sm-3 control-label" th:text="#{html.entity.adgroup.description}" />
+								<div class="col-sm-9">
+									<textarea rows="8" th:field="*{description}" id="adSystemRoleDescription" class="form-control" />
+									<ul th:if="${#fields.hasErrors('description')}" class="error">
+										<li class="error" th:each="err : ${#fields.errors('description')}" th:text="${err}"/>
+									</ul>
+								</div>
+							</div>
+						</fieldset>
+						
+						<fieldset>
+							<div class="form-group">
+								<label class="col-sm-3 control-label" th:text="#{html.entity.adgroup.create}" />
+								<div class="col-sm-9">
+									<select th:field="*{createADGroup}" class="form-control">
+										<option value="false" th:text="#{html.entity.adgroup.create.false}" checked="checked"></option>
+										<option value="true" th:text="#{html.entity.adgroup.create.true}"></option>
+									</select>
+								</div>
+							</div>
+						</fieldset>
+					</div>
+
+					<div class="modal-footer">
+						<button type="submit" id="save" class="btn btn-primary" th:text="#{html.control.button.save}"/>
+						<button type="button" class="btn btn-danger" data-dismiss="modal" th:text="#{html.control.button.cancel}"/>
+					</div>
+				</form>
+			</div>
+		</div>
+	</div>
+	
+	<div class="modal fade" id="modal-saml-systemrole" role="dialog">
+		<div class="modal-dialog">
+
+			<!-- Modal content-->
+			<div class="modal-content">
+				<div class="modal-header">
+					<button type="button" class="close" data-dismiss="modal">&times;</button>
+					<h4 th:text="#{html.page.itsystem.edit.modal.saml}"/>
+				</div>
+
+				<form class="form-horizontal" id="systemRoleForm" th:object="${systemRoleForm}" th:action="@{/ui/itsystem/edit/} + ${itsystem.id} + '/addSystemRole'" method="post">
+					<div class="modal-body">
+						<input th:field="*{id}" id="samlSystemRoleId" type="hidden" />
+
+						<fieldset>
+							<div class="form-group">
+								<label class="col-sm-2 control-label" th:text="#{html.entity.samlrole.name}" />
+								<div class="col-sm-10">
+									<input th:field="*{name}" id="samlSystemRoleName" class="form-control" />
+									<ul th:if="${#fields.hasErrors('name')}" class="error">
+										<li class="error" th:each="err : ${#fields.errors('name')}" th:text="${err}"/>
+									</ul>
+								</div>
+							</div>
+						</fieldset>
+
+						<fieldset>
+							<div class="form-group">
+								<label class="col-sm-2 control-label" th:text="#{html.entity.samlrole.identifier}" />
+								<div class="col-sm-10">
+									<input th:field="*{identifier}" id="samlSystemRoleIdentifier" class="form-control" />
+									<ul th:if="${#fields.hasErrors('identifier')}" class="error">
+										<li class="error" th:each="err : ${#fields.errors('identifier')}" th:text="${err}"/>
+									</ul>
+								</div>
+							</div>
+						</fieldset>
+
+						<fieldset>
+							<div class="form-group">
+								<label class="col-sm-2 control-label" th:text="#{html.entity.samlrole.description}" />
+								<div class="col-sm-10">
+									<textarea rows="8" th:field="*{description}" id="samlSystemRoleDescription" class="form-control" />
+									<ul th:if="${#fields.hasErrors('description')}" class="error">
+										<li class="error" th:each="err : ${#fields.errors('description')}" th:text="${err}"/>
+									</ul>
+								</div>
+							</div>
+						</fieldset>
+					</div>
+
+					<div class="modal-footer">
+						<button type="submit" id="save" class="btn btn-primary" th:text="#{html.control.button.save}"/>
+						<button type="button" class="btn btn-danger" data-dismiss="modal" th:text="#{html.control.button.cancel}"/>
+					</div>
+				</form>
+			</div>
+		</div>
+	</div>
+
+	<nav th:replace="fragments/footer :: footer" />
+	<script th:replace="fragments/datatables :: datatables " />
+	
+	<style>
+		.table .checkbox {
+			margin-left: 10px;
+			width: auto;
+		}
+
+		.subscribed {
+			visibility: hidden
+		}
+	</style>
+
+	<script th:inline="javascript">
+	/*<![CDATA[*/
+		var token = $("meta[name='_csrf']").attr("content");
+
+		/*[+
+			var itSystemType = [[${#strings.toString(itsystem.systemType)}]];
+		+]*/
+
+		$("document").ready(function() {
+
+			var itsystemId = $("#id").val();
+
+				/*[+
+					var url = [[@{/ui/itsystem/edit/}]] + itsystemId;
+					var nameUrl = [[@{/rest/itsystem/name}]];
+					var emailUrl = [[@{/rest/itsystem/email}]];
+					var pausedUrl = [[@{/rest/itsystem/paused}]];
+					var canEditThroughApiUrl = [[@{/rest/itsystem/canEditThroughApi}]];
+					var hiddenUrl = [[@{/rest/itsystem/hidden}]];
+					var notesUrl = [[@{/rest/itsystem/notes}]];
+					var subscribedToUrl = [[@{/rest/itsystem/subscribedTo}]];
+					var fieldUpdatedMsg = [[#{html.entity.itsystem.updatedmsg}]];
+					var fieldNotUpdatedMsg = [[#{html.entity.itsystem.failedupdatemsg}]];
+					var fieldNotUpdatedNotesMsg = [[#{html.entity.itsystem.failedupdatenotesmsg}]];
+					var subscribedToMaster = [[${itsystem.subscribedTo != null}]]
+				+]*/
+
+			$("#name").change(handleChangeOnInput);
+			$("#email").change(handleChangeOnInputEmail);
+			$("#notes").change(handleChangeOnInputNotes);
+			$("#paused-checkbox").change(handleChangeOnPaused);
+			$("#canEditThroughApi-checkbox").change(handleChangeOnCanEditThroughApi);
+			$('#hidden-checkbox').change(handleChangeOnHidden);
+			$('#subscribedToCheckbox').change(toggleDisabledCheckbox);
+			$('#subscribedTo').change(handleChangeOnSubscribedTo);
+
+			if (subscribedToMaster) {
+				$('#subscribedTo').show();
+				$('.operationsCol').addClass('subscribed');
+				
+				$('#addRoleButtonField').hide();
+				$('#name').prop('readonly', true);
+			}
+			else {
+				$('#subscribedTo').hide();
+			}
+
+			if ($(".error").length > 0) {
+				if (itSystemType == "AD") {
+					$("#modal-ad-systemrole").modal('show');
+				}
+				
+				if (itSystemType == "MANUAL" || itSystemType == "SAML" || itSystemType == "KOMBIT") {
+					$("#modal-saml-systemrole").modal('show');
+				}
+			}
+
+			function handleChangeOnInput() {
+				var objName = $("#name").val();
+
+				$.ajax({
+					url: nameUrl,
+					method: 'POST',
+					data: {
+						'name': objName,
+						'id': itsystemId
+					},
+					headers: {
+						'X-CSRF-TOKEN': token
+					},
+					error: function(response) {
+						$.notify({
+							message: fieldNotUpdatedMsg + ""
+						},{
+							status: 'danger',
+							autoHideDelay: 4000
+						});
+					},
+					success: function(response) {
+						$.notify({
+							message: fieldUpdatedMsg
+						},{
+							status: 'success',
+							autoHideDelay: 2000
+						});
+					}
+				});
+			}
+
+			function handleChangeOnInputEmail() {
+				var objEmail = $("#email").val();
+
+				$.ajax({
+					url: emailUrl,
+					method: 'POST',
+					data: {
+						'email': objEmail,
+						'id': itsystemId
+					},
+					headers: {
+						'X-CSRF-TOKEN': token
+					},
+					error: function(response) {
+						$.notify({
+							message: fieldNotUpdatedMsg + ""
+						},{
+							status: 'danger',
+							autoHideDelay: 4000
+						});
+					},
+					success: function(response) {
+						$.notify({
+							message: fieldUpdatedMsg
+						},{
+							status: 'success',
+							autoHideDelay: 2000
+						});
+					}
+				});
+			}
+			
+			function handleChangeOnPaused() {
+				var objPaused = $("#paused-checkbox").is(":checked");
+
+				$.ajax({
+					url: pausedUrl,
+					method: 'POST',
+					data: {
+						'paused': objPaused,
+						'id': itsystemId
+					},
+					headers: {
+						'X-CSRF-TOKEN': token
+					},
+					error: function(response) {
+						$.notify({
+							message: fieldNotUpdatedMsg + ""
+						},{
+							status: 'danger',
+							autoHideDelay: 4000
+						});
+					},
+					success: function(response) {
+						$.notify({
+							message: fieldUpdatedMsg
+						},{
+							status: 'success',
+							autoHideDelay: 2000
+						});
+					}
+				});
+			}
+
+			function handleChangeOnCanEditThroughApi() {
+				var objCanEditApi = $("#canEditThroughApi-checkbox").is(":checked");
+
+				$.ajax({
+					url: canEditThroughApiUrl,
+					method: 'POST',
+					data: {
+						'canEditThroughApi': objCanEditApi,
+						'id': itsystemId
+					},
+					headers: {
+						'X-CSRF-TOKEN': token
+					},
+					error: function(response) {
+						$.notify({
+							message: fieldNotUpdatedMsg + ""
+						},{
+							status: 'danger',
+							autoHideDelay: 4000
+						});
+					},
+					success: function(response) {
+						$.notify({
+							message: fieldUpdatedMsg
+						},{
+							status: 'success',
+							autoHideDelay: 2000
+						});
+					}
+				});
+			}
+
+			function handleChangeOnHidden() {
+				var objHidden = $("#hidden-checkbox").is(":checked");
+
+				$.ajax({
+					url: hiddenUrl,
+					method: 'POST',
+					data: {
+						'hidden': objHidden,
+						'id': itsystemId
+					},
+					headers: {
+						'X-CSRF-TOKEN': token
+					},
+					error: function(response) {
+						$.notify({
+							message: fieldNotUpdatedMsg + ""
+						},{
+							status: 'danger',
+							autoHideDelay: 4000
+						});
+					},
+					success: function(response) {
+						$.notify({
+							message: fieldUpdatedMsg
+						},{
+							status: 'success',
+							autoHideDelay: 2000
+						});
+					}
+				});
+			}
+			
+			function handleChangeOnInputNotes() {
+				var objNotes = $("#notes").val();
+
+				$.ajax({
+					url: notesUrl,
+					method: 'POST',
+					data: {
+						'notes': objNotes,
+						'id': itsystemId
+					},
+					headers: {
+						'X-CSRF-TOKEN': token
+					},
+					error: function(response) {
+						$.notify({
+							message: fieldNotUpdatedNotesMsg + ""
+						},{
+							status: 'danger',
+							autoHideDelay: 4000
+						});
+					},
+					success: function(response) {
+						$.notify({
+							message: fieldUpdatedMsg
+						},{
+							status: 'success',
+							autoHideDelay: 2000
+						});
+					}
+				});
+			}
+
+			function handleChangeOnSubscribedTo() {
+				var subscribedTo = $("#subscribedToCheckbox").is(":checked");
+				var objItSystemMaster = $("#subscribedTo").val();
+
+				var optionId = $("#subscribedTo").children(":selected").attr("id");
+				if ("defaultOption" == optionId || !subscribedTo) {
+					// dirty workaround for submitting null values
+					objItSystemMaster = "null";
+				}
+
+				$.ajax({
+					url: subscribedToUrl,
+					method: 'POST',
+					data: {
+						'masterId': objItSystemMaster,
+						'id': itsystemId
+					},
+					headers: {
+						'X-CSRF-TOKEN': token
+					},
+					error: function(response) {
+						$.notify({
+							message: fieldNotUpdatedMsg + ""
+						},{
+							status: 'danger',
+							autoHideDelay: 4000
+						});
+					},
+					success: function(response) {
+						$.notify({
+							message: fieldUpdatedMsg
+						},{
+							status: 'success',
+							autoHideDelay: 2000
+						});
+					}
+				});
+			}
+
+			function toggleDisabledCheckbox() {
+				$('#subscribedTo').toggle();
+				$('.operationsCol').toggleClass('subscribed');
+				$('#addRoleButtonField').toggle();
+				$('#name').is('[readonly]') ? $('#name').prop('readonly', false) : $('#name').prop('readonly', true);
+				
+				handleChangeOnSubscribedTo();
+			}
+
+			$("#modal-ad-systemrole").on('shown.bs.modal', function(e) {
+				if ($("#adSystemRoleId").val() == 0) {
+					$("#adSystemRoleName").val("");
+					$("#adSystemRoleIdentifier").val("");
+					$("#adSystemRoleIdentifier").prop("readonly", false);
+					$("#adSystemRoleDescription").val("");
+				}
+				
+				$("#adSystemRoleName").focus();
+		    })
+		    
+			$("#modal-saml-systemrole").on('shown.bs.modal', function(e) {
+				if ($("#samlSystemRoleId").val() == 0) {
+					$("#samlSystemRoleName").val("");
+					$("#samlSystemRoleIdentifier").val("");
+					$("#samlSystemRoleIdentifier").prop("readonly", false);
+					$("#samlSystemRoleDescription").val("");
+				}
+				
+				$("#samlSystemRoleName").focus();
+		    })
+
+		});
+
+		function newAdRole() {
+			$("#adSystemRoleId").val("0");
+
+			$("#modal-ad-systemrole").modal("show");
+		}
+		
+		function newSamlRole() {
+			$("#samlSystemRoleId").val("0");
+
+			$("#modal-saml-systemrole").modal("show");
+		}
+		
+		function editAdRole(roleRow) {
+			var id = $(roleRow).data("id");
+			var tds = $(roleRow).parent().parent().find("td");
+
+			$("#adSystemRoleId").val(id);
+			$("#adSystemRoleName").val(tds.get(0).innerHTML);
+			$("#adSystemRoleIdentifier").val(tds.get(1).innerHTML);
+			$("#adSystemRoleIdentifier").prop("readonly", true);
+			$("#adSystemRoleDescription").val(tds.get(2).innerHTML);
+
+			$("#modal-ad-systemrole").modal("show");
+		}
+		
+		function editSamlRole(roleRow) {
+			var id = $(roleRow).data("id");
+			var tds = $(roleRow).parent().parent().find("td");
+
+			$("#samlSystemRoleId").val(id);
+			$("#samlSystemRoleName").val(tds.get(0).innerHTML);
+			$("#samlSystemRoleIdentifier").val(tds.get(1).innerHTML);
+			$("#samlSystemRoleIdentifier").prop("readonly", true);
+			$("#samlSystemRoleDescription").val(tds.get(2).innerHTML);
+
+			$("#modal-saml-systemrole").modal("show");
+		}
+		
+		function openConfirmDeleteDialog(roleRow) {
+			var itsystemId = $("#id").val();
+			var id = $(roleRow).data('id');
+
+			/*[+
+				var url = [[@{/ui/itsystem/edit/}]] + itsystemId;
+				var deleteURI = [[@{/rest/systemrole/delete/}]] + id
+				var titleTxt = [[#{html.entity.itsystem.role.delete.confirm.title}]];
+				var bodyTxt = [[#{html.entity.itsystem.role.delete.confirm.body}]];
+				var cancelTxt = [[#{html.control.button.cancel}]];
+				var confirmTxt = [[#{html.control.button.delete}]];
+				var errorMsg = [[#{html.default.message.error}]];
+				var roleNotDeletedMsg = [[#{html.entity.itsystem.rolenotdeletedmsg}]];
+			+]*/
+
+			swal({
+					html: true,
+					title : titleTxt,
+					text : bodyTxt,
+					type : "warning",
+					showCancelButton : true,
+					confirmButtonColor : "#DD6B55",
+					confirmButtonText : confirmTxt,
+					cancelButtonText : cancelTxt,
+					closeOnConfirm : true,
+					closeOnCancel : true
+				},
+				function (isConfirm) {
+					if (isConfirm) {
+						$.ajax({
+							type: "POST",
+							headers: {
+								'X-CSRF-TOKEN': token,
+							},
+							url: deleteURI,
+							success: function() {
+								window.location.href = url;
+							},
+							error: function() {
+								$.notify({
+									message: roleNotDeletedMsg
+								},{
+									status: 'danger',
+									autoHideDelay: 4000
+								});
+							}
+						});
+					}
+				}
+			);
+		}
+		
+		function removeUnusedUserRoles() {
+			/*[+
+				var deleteURI = [[@{/rest/itsystem/userrole/unused/{itsystem}(itsystem=${itsystem.id})}]];
+				var unusedCount = [[${unusedCount}]];
+				var titleTxt = [[#{html.entity.itsystem.unused.userrole.delete.confirm.title}]];
+				var bodyTxt = [[#{html.entity.itsystem.unused.userrole.delete.confirm.body(${unusedCount})}]];
+				var norolesBodyText = [[#{html.entity.itsystem.unused.userrole.delete.confirm.norolesbody}]];
+				var cancelTxt = [[#{html.control.button.cancel}]];
+				var confirmTxt = [[#{html.control.button.delete}]];
+				var rolesNotDeletedMsg = [[#{html.entity.itsystem.rolesnotdeletedmsg}]];
+			+]*/
+
+			swal({
+					html: true,
+					title : titleTxt,
+					text : (unusedCount > 0) ? bodyTxt : norolesBodyText,
+					type : "warning",
+					showCancelButton : true,
+					showConfirmButton: (unusedCount > 0),
+					confirmButtonColor : "#DD6B55",
+					confirmButtonText : confirmTxt,
+					cancelButtonText : cancelTxt,
+					closeOnConfirm : true,
+					closeOnCancel : true
+				},
+				function (isConfirm) {
+					if (isConfirm) {
+						$.ajax({
+							type: "POST",
+							headers: {
+								'X-CSRF-TOKEN': token,
+							},
+							url: deleteURI,
+							success: function() {
+								location.reload(true);
+							},
+							error: function() {
+								$.notify({
+									message: rolesNotDeletedMsg
+								},{
+									status: 'danger',
+									autoHideDelay: 4000
+								});
+							}
+						});
+					}
+				}
+			);
+		}
+		
+		function convertSystemRolesToUserRoles() {
+			/*[+
+				var convertURI = [[@{/rest/itsystem/systemrole/convert/{itsystem}(itsystem=${itsystem.id})}]];
+				var unusedCount = [[${unusedSystemRolesCount}]];
+				var titleTxt = [[#{html.page.itsystem.edit.systemrole.convert.confirm.title}]];
+				var bodyTxt = [[#{html.page.itsystem.edit.systemrole.convert.confirm.body(${unusedSystemRolesCount})}]];
+				var norolesBodyText = [[#{html.page.itsystem.edit.systemrole.convert.confirm.norolesbody}]];
+				var cancelTxt = [[#{html.control.button.cancel}]];
+				var confirmTxt = [[#{html.control.button.create}]];
+				var errorMsg = [[#{html.page.itsystem.edit.systemrole.convert.error}]];
+			+]*/
+
+			swal({
+					html: true,
+					title : titleTxt,
+					text : (unusedCount > 0) ? bodyTxt : norolesBodyText,
+					type: (unusedCount > 0) ? "input" : "warning",
+					inputPlaceholder: "Optional prefix",
+					showCancelButton : true,
+					showConfirmButton: (unusedCount > 0),
+					confirmButtonColor: "#5d9cec",//btn-primary
+					confirmButtonText : confirmTxt,
+					cancelButtonText : cancelTxt,
+					closeOnConfirm : true,
+					closeOnCancel : true
+				},
+				function (inputValue) {
+					if (inputValue === false) return false;
+					$.ajax({
+						type: "POST",
+						headers: {
+							'X-CSRF-TOKEN': token,
+						},
+						contentType: "application/json",
+						data : JSON.stringify({
+							prefix : inputValue
+						}),
+						url: convertURI,
+						success: function() {
+							location.reload(true);
+						},
+						error: function() {
+							$.notify({
+								message: errorMsg
+							},{
+								status: 'danger',
+								autoHideDelay: 4000
+							});
+						}
+					});
+				}
+			);
+		}
+	/*]]>*/
+	</script>
+</body>
+</html>

@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+<body>
+	<script th:fragment="datatables" th:inline="javascript">
+	/*<![CDATA[*/
+		$(document).ready(function() {
+/*[+
+   			var searchTxt = [[#{html.datatables.search}]];
+   			var dropdownTxt = [[#{html.datatables.dropdown}]];
+   			var infoDefaultTxt = [[#{html.datatables.info.default}]];
+   			var infoEmptyTxt = [[#{html.datatables.info.empty}]];
+   			var infoFilteredTxt = [[#{html.datatables.info.filtered}]];
++]*/
+		    $('.listTable').DataTable({
+		        'paging':   true,
+		        'ordering': true, 
+		        'info':     true,
+                'stateSave': true,
+				"pageLength": 25,
+		        "language": {
+		            "search":       searchTxt,
+		            "lengthMenu":   dropdownTxt,
+		            "info":         infoDefaultTxt,
+		            "zeroRecords":  infoEmptyTxt,
+		            "infoEmpty":    "",
+		            "infoFiltered": infoFilteredTxt
+		        }
+		    });
+		});
+	/*]]>*/
+	</script>
+</body>
+</html>

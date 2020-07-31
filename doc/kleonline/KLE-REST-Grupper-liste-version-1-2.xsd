@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+	xmlns:vc="http://www.w3.org/2007/XMLSchema-versioning" 
+	xmlns:listevisning="http://www.kle-online.dk/rest/resources/gruppe/liste" 
+	xmlns="http://www.kle-online.dk/rest/resources/emneplan" 
+	targetNamespace="http://www.kle-online.dk/rest/resources/gruppe/liste" elementFormDefault="qualified" attributeFormDefault="unqualified" vc:minVersion="1.1">
+	<xs:import namespace="http://www.kle-online.dk/rest/resources/emneplan" schemaLocation="KLE-REST-Faelles-version-1-2.xsd"/>
+	<xs:element name="KLE-Grupper">
+		<xs:complexType>
+			<xs:sequence>
+				<xs:element ref="listevisning:Gruppe" maxOccurs="unbounded"/>
+			</xs:sequence>
+		</xs:complexType>
+	</xs:element>
+	<xs:element name="Gruppe" type="listevisning:GruppeType"/>
+	<xs:complexType name="GruppeType">
+		<xs:sequence>
+			<xs:element ref="GruppeNr"/>
+			<xs:element ref="UUID" minOccurs="0"/>
+			<xs:element ref="GruppeTitel"/>
+		</xs:sequence>
+		<xs:attribute name="ref" type="xs:anyURI" use="required"/>
+	</xs:complexType>
+</xs:schema>

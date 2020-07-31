@@ -1,0 +1,401 @@
+<?xml version="1.0" encoding="utf-8"?>
+<wsdl:definitions xmlns:s="http://www.w3.org/2001/XMLSchema" xmlns:soap12="http://schemas.xmlsoap.org/wsdl/soap12/" xmlns:mime="http://schemas.xmlsoap.org/wsdl/mime/" xmlns:tns="http://www.kmd.dk/KMD.YH.KSPAabenSpml" xmlns:soap="http://schemas.xmlsoap.org/wsdl/soap/" xmlns:tm="http://microsoft.com/wsdl/mime/textMatching/" xmlns:http="http://schemas.xmlsoap.org/wsdl/http/" xmlns:soapenc="http://schemas.xmlsoap.org/soap/encoding/" targetNamespace="http://www.kmd.dk/KMD.YH.KSPAabenSpml" xmlns:wsdl="http://schemas.xmlsoap.org/wsdl/">
+  <wsdl:types>
+    <s:schema elementFormDefault="qualified" targetNamespace="http://www.kmd.dk/KMD.YH.KSPAabenSpml">
+      <s:element name="SPMLSchemaRequest">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="request" type="s:string" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="SPMLSchemaRequestResponse">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="SPMLSchemaRequestResult" type="s:string" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="SPMLSearchRequest">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="request" type="s:string" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="SPMLSearchRequestResponse">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="SPMLSearchRequestResult" type="s:string" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="SPMLAddRequest">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="request" type="s:string" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="SPMLAddRequestResponse">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="SPMLAddRequestResult" type="s:string" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="SPMLModifyRequest">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="request" type="s:string" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="SPMLModifyRequestResponse">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="SPMLModifyRequestResult" type="s:string" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="SPMLDeleteRequest">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="request" type="s:string" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="SPMLDeleteRequestResponse">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="SPMLDeleteRequestResult" type="s:string" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="SPMLStatusRequest">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="request" type="s:string" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="SPMLStatusRequestResponse">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="SPMLStatusRequestResult" type="s:string" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="SPMLCancelRequest">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="request" type="s:string" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="SPMLCancelRequestResponse">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="SPMLCancelRequestResult" type="s:string" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="SPMLExtendedRequest">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="request" type="s:string" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="SPMLExtendedRequestResponse">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="SPMLExtendedRequestResult" type="s:string" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="SPMLBatchRequest">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="request" type="s:string" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="SPMLBatchRequestResponse">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="SPMLBatchRequestResult" type="s:string" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+    </s:schema>
+  </wsdl:types>
+  <wsdl:message name="SPMLSchemaRequestSoapIn">
+    <wsdl:part name="parameters" element="tns:SPMLSchemaRequest" />
+  </wsdl:message>
+  <wsdl:message name="SPMLSchemaRequestSoapOut">
+    <wsdl:part name="parameters" element="tns:SPMLSchemaRequestResponse" />
+  </wsdl:message>
+  <wsdl:message name="SPMLSearchRequestSoapIn">
+    <wsdl:part name="parameters" element="tns:SPMLSearchRequest" />
+  </wsdl:message>
+  <wsdl:message name="SPMLSearchRequestSoapOut">
+    <wsdl:part name="parameters" element="tns:SPMLSearchRequestResponse" />
+  </wsdl:message>
+  <wsdl:message name="SPMLAddRequestSoapIn">
+    <wsdl:part name="parameters" element="tns:SPMLAddRequest" />
+  </wsdl:message>
+  <wsdl:message name="SPMLAddRequestSoapOut">
+    <wsdl:part name="parameters" element="tns:SPMLAddRequestResponse" />
+  </wsdl:message>
+  <wsdl:message name="SPMLModifyRequestSoapIn">
+    <wsdl:part name="parameters" element="tns:SPMLModifyRequest" />
+  </wsdl:message>
+  <wsdl:message name="SPMLModifyRequestSoapOut">
+    <wsdl:part name="parameters" element="tns:SPMLModifyRequestResponse" />
+  </wsdl:message>
+  <wsdl:message name="SPMLDeleteRequestSoapIn">
+    <wsdl:part name="parameters" element="tns:SPMLDeleteRequest" />
+  </wsdl:message>
+  <wsdl:message name="SPMLDeleteRequestSoapOut">
+    <wsdl:part name="parameters" element="tns:SPMLDeleteRequestResponse" />
+  </wsdl:message>
+  <wsdl:message name="SPMLStatusRequestSoapIn">
+    <wsdl:part name="parameters" element="tns:SPMLStatusRequest" />
+  </wsdl:message>
+  <wsdl:message name="SPMLStatusRequestSoapOut">
+    <wsdl:part name="parameters" element="tns:SPMLStatusRequestResponse" />
+  </wsdl:message>
+  <wsdl:message name="SPMLCancelRequestSoapIn">
+    <wsdl:part name="parameters" element="tns:SPMLCancelRequest" />
+  </wsdl:message>
+  <wsdl:message name="SPMLCancelRequestSoapOut">
+    <wsdl:part name="parameters" element="tns:SPMLCancelRequestResponse" />
+  </wsdl:message>
+  <wsdl:message name="SPMLExtendedRequestSoapIn">
+    <wsdl:part name="parameters" element="tns:SPMLExtendedRequest" />
+  </wsdl:message>
+  <wsdl:message name="SPMLExtendedRequestSoapOut">
+    <wsdl:part name="parameters" element="tns:SPMLExtendedRequestResponse" />
+  </wsdl:message>
+  <wsdl:message name="SPMLBatchRequestSoapIn">
+    <wsdl:part name="parameters" element="tns:SPMLBatchRequest" />
+  </wsdl:message>
+  <wsdl:message name="SPMLBatchRequestSoapOut">
+    <wsdl:part name="parameters" element="tns:SPMLBatchRequestResponse" />
+  </wsdl:message>
+  <wsdl:portType name="KSPAabenSPMLSoap">
+    <wsdl:operation name="SPMLSchemaRequest">
+      <wsdl:input message="tns:SPMLSchemaRequestSoapIn" />
+      <wsdl:output message="tns:SPMLSchemaRequestSoapOut" />
+    </wsdl:operation>
+    <wsdl:operation name="SPMLSearchRequest">
+      <wsdl:input message="tns:SPMLSearchRequestSoapIn" />
+      <wsdl:output message="tns:SPMLSearchRequestSoapOut" />
+    </wsdl:operation>
+    <wsdl:operation name="SPMLAddRequest">
+      <wsdl:input message="tns:SPMLAddRequestSoapIn" />
+      <wsdl:output message="tns:SPMLAddRequestSoapOut" />
+    </wsdl:operation>
+    <wsdl:operation name="SPMLModifyRequest">
+      <wsdl:input message="tns:SPMLModifyRequestSoapIn" />
+      <wsdl:output message="tns:SPMLModifyRequestSoapOut" />
+    </wsdl:operation>
+    <wsdl:operation name="SPMLDeleteRequest">
+      <wsdl:input message="tns:SPMLDeleteRequestSoapIn" />
+      <wsdl:output message="tns:SPMLDeleteRequestSoapOut" />
+    </wsdl:operation>
+    <wsdl:operation name="SPMLStatusRequest">
+      <wsdl:input message="tns:SPMLStatusRequestSoapIn" />
+      <wsdl:output message="tns:SPMLStatusRequestSoapOut" />
+    </wsdl:operation>
+    <wsdl:operation name="SPMLCancelRequest">
+      <wsdl:input message="tns:SPMLCancelRequestSoapIn" />
+      <wsdl:output message="tns:SPMLCancelRequestSoapOut" />
+    </wsdl:operation>
+    <wsdl:operation name="SPMLExtendedRequest">
+      <wsdl:input message="tns:SPMLExtendedRequestSoapIn" />
+      <wsdl:output message="tns:SPMLExtendedRequestSoapOut" />
+    </wsdl:operation>
+    <wsdl:operation name="SPMLBatchRequest">
+      <wsdl:input message="tns:SPMLBatchRequestSoapIn" />
+      <wsdl:output message="tns:SPMLBatchRequestSoapOut" />
+    </wsdl:operation>
+  </wsdl:portType>
+  <wsdl:binding name="KSPAabenSPMLSoap" type="tns:KSPAabenSPMLSoap">
+    <soap:binding transport="http://schemas.xmlsoap.org/soap/http" />
+    <wsdl:operation name="SPMLSchemaRequest">
+      <soap:operation soapAction="http://www.kmd.dk/KMD.YH.KSPAabenSpml/SPMLSchemaRequest" style="document" />
+      <wsdl:input>
+        <soap:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="SPMLSearchRequest">
+      <soap:operation soapAction="http://www.kmd.dk/KMD.YH.KSPAabenSpml/SPMLSearchRequest" style="document" />
+      <wsdl:input>
+        <soap:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="SPMLAddRequest">
+      <soap:operation soapAction="http://www.kmd.dk/KMD.YH.KSPAabenSpml/SPMLAddRequest" style="document" />
+      <wsdl:input>
+        <soap:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="SPMLModifyRequest">
+      <soap:operation soapAction="http://www.kmd.dk/KMD.YH.KSPAabenSpml/SPMLModifyRequest" style="document" />
+      <wsdl:input>
+        <soap:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="SPMLDeleteRequest">
+      <soap:operation soapAction="http://www.kmd.dk/KMD.YH.KSPAabenSpml/SPMLDeleteRequest" style="document" />
+      <wsdl:input>
+        <soap:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="SPMLStatusRequest">
+      <soap:operation soapAction="http://www.kmd.dk/KMD.YH.KSPAabenSpml/SPMLStatusRequest" style="document" />
+      <wsdl:input>
+        <soap:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="SPMLCancelRequest">
+      <soap:operation soapAction="http://www.kmd.dk/KMD.YH.KSPAabenSpml/SPMLCancelRequest" style="document" />
+      <wsdl:input>
+        <soap:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="SPMLExtendedRequest">
+      <soap:operation soapAction="http://www.kmd.dk/KMD.YH.KSPAabenSpml/SPMLExtendedRequest" style="document" />
+      <wsdl:input>
+        <soap:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="SPMLBatchRequest">
+      <soap:operation soapAction="http://www.kmd.dk/KMD.YH.KSPAabenSpml/SPMLBatchRequest" style="document" />
+      <wsdl:input>
+        <soap:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+  </wsdl:binding>
+  <wsdl:binding name="KSPAabenSPMLSoap12" type="tns:KSPAabenSPMLSoap">
+    <soap12:binding transport="http://schemas.xmlsoap.org/soap/http" />
+    <wsdl:operation name="SPMLSchemaRequest">
+      <soap12:operation soapAction="http://www.kmd.dk/KMD.YH.KSPAabenSpml/SPMLSchemaRequest" style="document" />
+      <wsdl:input>
+        <soap12:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap12:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="SPMLSearchRequest">
+      <soap12:operation soapAction="http://www.kmd.dk/KMD.YH.KSPAabenSpml/SPMLSearchRequest" style="document" />
+      <wsdl:input>
+        <soap12:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap12:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="SPMLAddRequest">
+      <soap12:operation soapAction="http://www.kmd.dk/KMD.YH.KSPAabenSpml/SPMLAddRequest" style="document" />
+      <wsdl:input>
+        <soap12:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap12:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="SPMLModifyRequest">
+      <soap12:operation soapAction="http://www.kmd.dk/KMD.YH.KSPAabenSpml/SPMLModifyRequest" style="document" />
+      <wsdl:input>
+        <soap12:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap12:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="SPMLDeleteRequest">
+      <soap12:operation soapAction="http://www.kmd.dk/KMD.YH.KSPAabenSpml/SPMLDeleteRequest" style="document" />
+      <wsdl:input>
+        <soap12:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap12:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="SPMLStatusRequest">
+      <soap12:operation soapAction="http://www.kmd.dk/KMD.YH.KSPAabenSpml/SPMLStatusRequest" style="document" />
+      <wsdl:input>
+        <soap12:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap12:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="SPMLCancelRequest">
+      <soap12:operation soapAction="http://www.kmd.dk/KMD.YH.KSPAabenSpml/SPMLCancelRequest" style="document" />
+      <wsdl:input>
+        <soap12:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap12:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="SPMLExtendedRequest">
+      <soap12:operation soapAction="http://www.kmd.dk/KMD.YH.KSPAabenSpml/SPMLExtendedRequest" style="document" />
+      <wsdl:input>
+        <soap12:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap12:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="SPMLBatchRequest">
+      <soap12:operation soapAction="http://www.kmd.dk/KMD.YH.KSPAabenSpml/SPMLBatchRequest" style="document" />
+      <wsdl:input>
+        <soap12:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap12:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+  </wsdl:binding>
+  <wsdl:service name="KSPAabenSPML">
+    <wsdl:port name="KSPAabenSPMLSoap" binding="tns:KSPAabenSPMLSoap">
+      <soap:address location="https://intewswlbs-wm.kmd.dk/KMD.YH.KSPAabenSpml/KspAabenSpml.asmx" />
+    </wsdl:port>
+    <wsdl:port name="KSPAabenSPMLSoap12" binding="tns:KSPAabenSPMLSoap12">
+      <soap12:address location="https://intewswlbs-wm.kmd.dk/KMD.YH.KSPAabenSpml/KspAabenSpml.asmx" />
+    </wsdl:port>
+  </wsdl:service>
+</wsdl:definitions>

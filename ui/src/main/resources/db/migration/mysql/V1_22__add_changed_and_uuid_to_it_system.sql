@@ -1,0 +1,3 @@
+ALTER TABLE it_systems ADD COLUMN uuid VARCHAR(36);
+ALTER TABLE it_systems ADD COLUMN last_updated TIMESTAMP NULL;
+ALTER TABLE system_roles ADD COLUMN uuid VARCHAR(36);

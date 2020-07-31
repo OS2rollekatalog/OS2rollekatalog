@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head th:replace="fragments/header :: header (title=#{html.page.index.title})" />
+<body>
+	<div class="wrapper">
+		<header th:replace="fragments/navbar :: navbar-header" />
+		<aside th:replace="fragments/navbar :: navbar-aside (page = 'index')" />
+ 
+		<section>
+			<div class="content-wrapper">
+				<div class="panel panel-default">
+					<div class="panel-body">
+						<h3 th:text="#{html.page.debug.headers}"/>
+						<ul>
+							<li th:each="header : ${headers}" th:text="${header}" />
+						</ul>
+
+						<th:block th:if="${token != null}">
+							<h3 th:text="#{html.page.debug.token}"/>
+							<pre class="well" th:text="${token}" />
+						</th:block>
+					</div>
+				</div>
+	        </div>
+	    </section>
+	</div>
+	
+	<nav th:replace="fragments/footer :: footer" />
+</body>
+</html>

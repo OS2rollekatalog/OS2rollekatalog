@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html>
+<head th:replace="fragments/header :: header (title=#{html.page.ous.list.title})" />
+<body>
+	<div class="wrapper">
+		<header th:replace="fragments/navbar :: navbar-header" />
+		<aside th:replace="fragments/navbar :: navbar-aside (page = 'ous')" />
+
+		<section>
+			<div class="content-wrapper">
+				<div class="panel panel-default">
+					<div class="panel-heading" />
+					<div class="panel-body">
+						<div class="row col-md-6" style="padding: 0px 75px 0px 20px;">
+							<h4 th:text="#{html.word.search}" />
+							<input class="form-control" id="searchField" style="margin-bottom: 40px;" autofocus="autofocus" />
+							<div id="hierarchy"></div>
+						</div>
+						<div class="row col-md-6" id="sidebar">
+							<h4 th:text="#{html.entity.ou.chosen}" />
+							<form class="form-horizontal">
+								<fieldset>
+									<div class="form-group">
+										<div class="col-sm-10">
+											<span class="form-control" id="ouName"/>
+										</div>
+									</div>
+								</fieldset>
+
+								<fieldset>
+									<div class="form-group">
+										<div class="col-sm-10">
+											<a id="ouViewLink" href="#">
+												<span class="btn btn-lg btn-primary" th:text="#{html.entity.view.action.view}" />
+											</a>
+											&nbsp;&nbsp;
+											<a id="ouEditLink" href="#">
+												<span class="btn btn-lg btn-primary" th:text="#{html.entity.view.action.edit}" />
+											</a>
+										</div>
+									</div>
+								</fieldset>
+							</form>
+						</div>
+					</div>
+				</div>
+			</div>
+		</section>
+	</div>
+
+	<nav th:replace="fragments/footer :: footer" />
+
+	<script th:inline="javascript">
+		/*<![CDATA[*/
+		/*[+
+		    var url = [[@{/ui/ous/}]];
+		    
+			var allOUs = [[${allOUs}]];
+		+]*/
+
+		// polyfill for IE
+		if (!String.prototype.startsWith) {
+			String.prototype.startsWith = function(searchString, position) {
+				position = position || 0;
+				return this.substr(position, searchString.length) === searchString;
+			};
+		}
+		
+		//hierarchy
+		$("document").ready(function() {
+			$("#hierarchy").jstree({
+				"core": {
+					"data": allOUs,
+					"themes": {
+						"icons": false
+					}
+				},
+				"search" : {
+					"show_only_matches": true,
+					"search_callback": function(str, node) {
+						return (node.text.toUpperCase().includes(str.toUpperCase()));
+					}
+				},
+				"plugins" : [
+					"state", "wholerow", "search"
+				]
+			});
+
+			// selecting in the JSTree
+			$("#hierarchy").on("select_node.jstree", function(e, data) {
+				$("#ouName").text(data.node.text);
+				$("#ouViewLink").attr("href", url + "view/" + data.node.id);
+				$("#ouEditLink").attr("href", url + "edit/" + data.node.id);
+
+				for (var i = 0; i < allOUs.length; i++) {
+					var ou = allOUs[i];
+					if (ou.id === data.node.id) {
+						if (ou.editable) {
+							$("#ouEditLink").show();
+						} else {
+							$("#ouEditLink").hide();
+						}
+					}
+				}
+			});
+			
+			// searching in the JSTree
+			var to = false;
+			$('#searchField').keyup(function() {
+				if (to) {
+					clearTimeout(to);
+				}
+
+				to = setTimeout(function() {
+					var v = $('#searchField').val();
+
+					$('#hierarchy').jstree(true).search(v);
+				}, 400);
+			});
+		});
+
+		/*]]>*/
+	</script>
+</body>
+</html>

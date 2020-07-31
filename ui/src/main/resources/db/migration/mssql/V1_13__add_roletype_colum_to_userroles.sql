@@ -1,0 +1,1 @@
+ALTER TABLE system_roles ADD role_type NVARCHAR(64) DEFAULT 'BOTH';

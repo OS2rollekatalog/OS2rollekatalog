@@ -1,0 +1,1 @@
+ALTER TABLE it_systems ADD COLUMN email VARCHAR(255);

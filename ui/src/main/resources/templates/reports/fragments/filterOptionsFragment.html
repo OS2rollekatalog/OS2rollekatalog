@@ -1,0 +1,176 @@
+<th:block th:fragment="filterOptions" xmlns="http://www.w3.org/1999/xhtml" xmlns:th="http://www.thymeleaf.org">
+	<fieldset>
+		<div class="form-group">
+			<h4 class="col-sm-12" th:text="#{html.page.report.filters}" />
+		</div>
+
+        <div class="form-group" style="margin-bottom: 20px">
+            <label class="col-sm-3 control-label" th:text="#{html.page.report.filter.it.system}"/>
+            <div class="col-sm-9">
+                <div class="checkbox c-checkbox">
+                    <label>
+                        <input id="itsystemCheckbox" type="checkbox" th:attr="checked=${false}" th:disabled="${#lists.size(allItSystems) < 1}"/>
+                        <span class="fa fa-check"></span>
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        <div class="form-group" id="itsystemToggle" style="display: none;">
+            <div class="col-sm-offset-3 col-sm-8">
+                <select id="itSystemSelectPicker" th:field="${reportForm.itSystems}" class="selectpicker form-control" multiple="multiple" data-lang="da_DK" title="Ingen it-systemer er valgt">
+                    <option th:each="itSystem : ${allItSystems}" th:value="${itSystem.itSystemId}" th:text="${itSystem.itSystemName}">
+                    </option>
+                </select>
+            </div>
+        </div>
+
+        <div class="form-group" style="margin-top: 40px;">
+            <label class="col-sm-3 control-label" th:text="#{html.page.report.filter.ou_manager}"/>
+            <div class="col-sm-9" style="padding-left: 35px;">
+                <div class="c-radio">
+                    <label >
+                        <input type="radio" onchange="onRadioChange('');" id="radioFilter1" name="radioFilter" checked="checked">
+                        <span class="fa fa-circle"></span>
+                        <label th:text="#{html.page.report.filter.no}"/>
+                    </label>
+                </div>
+
+                <div class="c-radio">
+                    <label >
+                        <input type="radio" onchange="onRadioChange('orgUnitToggle');" id="radioFilter2" name="radioFilter" th:disabled="${#lists.size(allItSystems) < 1}">
+                        <span class="fa fa-circle"></span>
+                        <label th:text="#{html.page.report.filter.ous}"/>
+                    </label>
+                </div>
+
+                <div class="c-radio">
+                    <label >
+                        <input type="radio" onchange="onRadioChange('managerToggle');" id="radioFilter3" name="radioFilter" th:disabled="${#lists.size(allManagers) < 1}">
+                        <span class="fa fa-circle"></span>
+                        <label th:text="#{html.page.report.filter.manager}"/>
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        <div class="form-group radio-toggle" id="orgUnitToggle" style="display: none;margin-top:30px;">
+            <div class="col-sm-offset-3 col-sm-9" style="padding: 0px 75px 0px 20px;">
+                <input id="realOUs" th:field="${reportForm.orgUnits}" type="hidden">
+                <label th:text="#{html.word.search}"/>
+                <input class="form-control" id="searchField" style="margin-bottom: 20px;" autofocus="autofocus"/>
+                <div id="hierarchy"></div>
+            </div>
+        </div>
+
+        <div class="form-group radio-toggle" id="managerToggle" style="display: none;margin-top:30px;">
+            <div class="col-sm-offset-3 col-sm-9">
+                <select id="managerSelect" th:field="${reportForm.manager}" class="form-control">
+                    <option id="defaultOption" th:text="#{html.select.default}" value="" selected/>
+                    <option th:each="manager : ${allManagers}" th:value="${manager.userUuid}" th:text="${manager.userName}"/>
+                </select>
+            </div>
+        </div>
+    </fieldset>
+</th:block>
+
+<th:block th:fragment="filterOptionsScripts" xmlns="http://www.w3.org/1999/xhtml" xmlns:th="http://www.thymeleaf.org">
+    <script th:inline="javascript">
+		/*<![CDATA[*/
+
+		/*[+
+			var allOrgUnits = [[${allOrgUnits}]];
+		+]*/
+
+		function initOUTree() {
+		    if (allOrgUnits == null || allOrgUnits.length < 1) {
+		        $('#radioFilter2').prop('disabled', true);
+		    }
+
+			$("#hierarchy").jstree({
+				"core": {
+					"data": allOrgUnits,
+					"themes": {
+						"icons": false
+					}
+				},
+				"search" : {
+					"show_only_matches": true,
+					"search_callback": function(str, node) {
+						return (node.text.toUpperCase().startsWith(str.toUpperCase()));
+					}
+				},
+				"checkbox" : {
+					"three_state": false,
+					"cascade" : "down"
+				},
+				"plugins" : [
+					"wholerow", "search", "checkbox"
+				]
+			});
+
+            // selecting in the JSTree
+			$("#hierarchy").on("select_node.jstree", function(e, data) {
+                var ous = $('#hierarchy').jstree('get_selected');
+
+                // Remember date
+        		$('#realOUs').val(ous);
+			});
+
+			// searching in the JSTree
+			var to = false;
+			$('#searchField').keyup(function() {
+				if (to) {
+					clearTimeout(to);
+				}
+
+				to = setTimeout(function() {
+					var v = $('#searchField').val();
+
+					$('#hierarchy').jstree(true).search(v);
+				}, 400);
+			});
+		}
+
+		function initItSystemPicker() {
+			$('select.selectpicker').selectpicker({
+				actionsBox: true,
+				deselectAllText: "Fravælg alle",
+				selectAllText: "Vælg alle",
+				iconBase: 'fa',
+				tickIcon: 'fa-check text-success'
+			});
+		}
+
+		function onRadioChange(id) {
+		    // Clean toggles
+		    $('.radio-toggle').hide();
+		    $('#hierarchy').jstree('deselect_all');
+            $("#managerSelect option:selected").prop("selected", false)
+
+		    $('#' + id).show();
+		}
+
+		function initOptionsFragment() {
+			// Toggle filter it system
+			$('#itsystemCheckbox').change(function () {
+				if (this.checked)  {
+				  	$('#itsystemToggle').fadeIn('fast');
+				} else {
+					$('#itsystemToggle').fadeOut('fast');
+                    $('#itSystemSelectPicker').selectpicker('val', '');
+				}
+			});
+			$('#itsystemCheckbox').trigger('change');
+
+			initItSystemPicker();
+			initOUTree();			
+		}
+
+		$(document).ready(function() {
+			initOptionsFragment();
+		});
+
+	/*]]>*/
+	</script>
+</th:block>

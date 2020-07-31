@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+<head th:replace="fragments/header :: header (title=#{html.page.index.title})" />
+<body>
+	<div class="wrapper">
+		<header th:replace="fragments/navbar :: navbar-header" />
+		<aside th:replace="fragments/navbar :: navbar-aside (page = 'index')" />
+ 
+		<section>
+			<div class="content-wrapper">
+				<h3>
+					<span th:text="${status} + ' ' + ${error}" />
+				</h3>
+
+				<div class="panel panel-default">
+					<div class="panel-heading" />
+					<div class="panel-body">
+
+						<div class="well well-lg">
+							<div th:if="${trace} == null" th:text="${exception} + ': ' + ${message}" />
+							<pre th:if="${trace} != null" th:text="${trace}" />
+						</div>
+					</div>
+				</div>
+	        </div>
+	    </section>
+	</div>
+	
+	<nav th:replace="fragments/footer :: footer" />
+</body>
+</html>

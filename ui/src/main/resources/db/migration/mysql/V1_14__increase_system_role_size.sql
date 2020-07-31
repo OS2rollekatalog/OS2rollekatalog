@@ -1,0 +1,1 @@
+ALTER TABLE system_roles MODIFY name VARCHAR(128) NOT NULL;

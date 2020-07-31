@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html>
+<head th:replace="fragments/header :: header (title=#{html.page.log.audit.title})" />
+<body>
+	<div class="wrapper">
+		<header th:replace="fragments/navbar :: navbar-header" />
+		<aside th:replace="fragments/navbar :: navbar-aside (page = 'log.audit')" />
+ 
+		<section>
+			<div class="content-wrapper">
+				<h3>
+					<span th:text="#{html.page.log.audit.title}" />
+				</h3>
+
+				<div class="panel panel-default">
+					<div class="panel-heading" />
+					<div class="panel-body">
+						<span th:text="#{html.page.logs.audit.intro}"/>
+					</div>
+
+					<div class="panel-body">
+						<div class="table-responsive">
+							<table class="table table-striped table-hover listTable">
+								<thead>
+									<tr>
+										<th class="col-md-2" th:text="#{html.page.log.timestamp}" />
+										<th class="col-md-1" th:text="#{html.page.log.auditor}" />
+										<th class="col-md-3" th:text="#{html.page.log.event}" />
+										<th class="col-md-3" th:text="#{html.page.log.target}" />
+										<th class="col-md-3" th:text="#{html.page.log.change}" />
+									</tr>
+								</thead>
+
+								<tbody>
+								    <tr th:each="entry : ${entries}">
+								    	<td th:text="${#dates.format(entry.timestamp, 'yyyy/MM/dd HH:mm')}" />
+								    	<td th:text="${entry.username}" />
+								    	<td th:text="#{__${entry.eventType.message}__}" />
+								    	<td th:text="${entry.entityName} + ' (' + #{__${entry.entityType.message}__} + ')'" />
+								    	<td th:text="${entry.secondaryEntityName}" />
+					    			</tr>
+				    			</tbody>
+							</table>
+						</div>
+					</div>
+				</div>
+	        </div>
+	    </section>
+	</div>
+
+	<nav th:replace="fragments/footer :: footer" />
+
+	<script th:inline="javascript">
+	/*<![CDATA[*/
+		$(document).ready(function() {
+/*[+
+   			var searchTxt = [[#{html.datatables.search}]];
+   			var dropdownTxt = [[#{html.datatables.dropdown}]];
+   			var infoDefaultTxt = [[#{html.datatables.info.default}]];
+   			var infoEmptyTxt = [[#{html.datatables.info.empty}]];
+   			var infoFilteredTxt = [[#{html.datatables.info.filtered}]];
++]*/
+		    $('.listTable').DataTable({
+		        'paging':   true,
+		        'ordering': true,
+		        'order': [
+		        	[ 0, "desc" ]
+		        ],
+		        'info':     true,
+				'stateSave': true,
+				'pageLength': 100,
+		        'language': {
+		            "search":       searchTxt,
+		            "lengthMenu":   dropdownTxt,
+		            "info":         infoDefaultTxt,
+		            "zeroRecords":  infoEmptyTxt,
+		            "infoEmpty":    "",
+		            "infoFiltered": infoFilteredTxt
+		        }
+		    });
+		});
+	/*]]>*/
+	</script>
+</body>
+</html>

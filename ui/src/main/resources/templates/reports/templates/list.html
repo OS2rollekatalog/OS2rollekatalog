@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html>
+<head th:replace="fragments/header :: header (title=#{html.page.report.full.title})" />
+<body>
+<div class="wrapper">
+    <header th:replace="fragments/navbar :: navbar-header" />
+    <aside th:replace="fragments/navbar :: navbar-aside (page = 'report.manager')" />
+
+    <section>
+        <div class="content-wrapper">
+            <h3>
+                <span th:text="#{html.page.report.template.title}" />
+            </h3>
+
+            <div class="panel panel-default">
+                <div class="panel-heading" />
+                <div class="panel-body">
+                    <table id="listTable1" class="table table-striped table-hover listTable">
+                        <thead>
+                        <tr>
+                            <th class="col-md-2" th:text="#{html.page.report.template.name}" />
+                            <th class="col-md-1" th:text="#{html.page.report.column.user}" />
+                            <th class="col-md-1" th:text="#{html.page.report.column.ou}" />
+                            <th class="col-md-1" th:text="#{html.page.report.column.userrole}" />
+                            <th class="col-md-1" th:text="#{html.page.report.column.kle}" />
+                            <th class="col-md-2" th:text="#{html.page.report.column.itsystem}" />
+                            <th class="col-md-2" th:text="#{html.page.report.column.show.inactive}" />
+                            <th class="col-md-2" th:text="#{html.control.operations}" />
+                        </tr>
+                        </thead>
+
+                        <tbody>
+                        <tr th:each="reportTemplate : ${reportTemplates}">
+                            <td th:text="${reportTemplate.name}" />
+                            <td>
+                                <i th:if="${reportTemplate.showUsers}" class="fa fa-check"></i>
+                            </td>
+                            <td>
+                                <i th:if="${reportTemplate.showOUs}" class="fa fa-check"></i>
+                            </td>
+                            <td>
+                                <i th:if="${reportTemplate.showUserRoles}" class="fa fa-check"></i>
+                            </td>
+                            <td>
+                                <i th:if="${reportTemplate.showKLE}" class="fa fa-check"></i>
+                            </td>
+                            <td>
+                                <i th:if="${reportTemplate.showItSystems}" class="fa fa-check"></i>
+                            </td>
+                            <td>
+                                <i th:if="${reportTemplate.showInactiveUsers}" class="fa fa-check"></i>
+                            </td>
+                            <td>
+                                <a th:href="@{/ui/report/configure/template/{id}(id=${reportTemplate.id})}"><em class="fa fa-file-text"></em></a>
+                                <a href="#" onclick="openConfirmDeleteDialog(this);" th:attr="data-id=${reportTemplate.id}"><em class="fa fa-remove"></em></a>
+                            </td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </section>
+</div>
+
+<nav th:replace="fragments/footer :: footer" />
+<script th:replace="fragments/datatables :: datatables " />
+
+<script th:inline="javascript">
+		/*<![CDATA[*/
+
+		/*[+
+			var url = [[@{/ui/report}]];
+			var resturl = [[@{/rest/report}]];
+            var titleTxt = [[#{html.page.report.template.delete.title}]];
+            var bodyTxt = [[#{html.page.report.template.delete.body}]];
+            var cancelTxt = [[#{html.control.button.cancel}]];
+            var confirmTxt = [[#{html.control.button.delete}]];
+		+]*/
+		var token = $("meta[name='_csrf']").attr("content");
+
+        function openConfirmDeleteDialog(elem) {
+			var id = $(elem).data('id');
+
+			swal({
+				html: true,
+				title : titleTxt,
+				text : bodyTxt,
+				type : "warning",
+				showCancelButton : true,
+				confirmButtonColor : "#DD6B55",
+				confirmButtonText : confirmTxt,
+				cancelButtonText : cancelTxt,
+				closeOnConfirm : true,
+				closeOnCancel : true
+			},
+			function (isConfirm) {
+				if (isConfirm) {
+					$.ajax({
+						method: "POST",
+						headers: {
+							'X-CSRF-TOKEN': token
+						},
+                        url: resturl + "/delete-template/" + id,
+                        success: function() {
+                        	window.location.href = url + "/templates";
+                        }
+                    });
+				}
+			});
+		}
+
+	/*]]>*/
+	</script>
+</body>
+</html>

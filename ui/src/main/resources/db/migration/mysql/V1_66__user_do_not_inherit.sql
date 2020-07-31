@@ -1,0 +1,1 @@
+ALTER TABLE users ADD COLUMN do_not_inherit BIT NOT NULL DEFAULT 0;

@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+<head th:replace="fragments/header :: header (title=#{html.page.index.title})" />
+<body>
+	<div class="wrapper">
+		<header th:replace="fragments/navbar :: navbar-header" />
+		<aside th:replace="fragments/navbar :: navbar-aside (page = 'index')" />
+ 
+		<section>
+			<div class="content-wrapper">
+				<h3>
+					<span th:text="#{html.default.message.errorsaml}" />
+				</h3>
+
+				<div class="panel panel-default">
+					<div class="panel-heading" />
+					<div class="panel-body">
+						<div class="well well-lg">
+							<div class="row">
+								<div class="col-md-12">
+									<p th:if="${cause == 'EXPIRED'}" th:text="#{html.default.message.saml.expired}" />
+									<p th:if="${cause == 'SKEW'}" th:text="#{html.default.message.saml.skew}" />
+									<p th:if="${cause == 'RESPONDER'}" th:text="#{html.default.message.saml.responder}" />
+									<p th:if="${cause == 'UNKNOWN'}" th:text="#{html.default.message.saml.unknown}" />
+								</div>
+							</div>
+
+							<th:block th:if="${exception != null}">
+								<h4 th:text="#{html.default.message.stacktrace}" />
+								<pre th:text="${exception}" />
+							</th:block>
+						</div>
+					</div>
+				</div>
+	        </div>
+	    </section>
+	</div>
+	
+	<nav th:replace="fragments/footer :: footer" />
+</body>
+</html>

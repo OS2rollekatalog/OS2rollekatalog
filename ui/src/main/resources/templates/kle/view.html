@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html>
+<head th:replace="fragments/header :: header (title=#{html.page.kle.kle.assignment})" />
+<body>
+	<div class="wrapper">
+		<header th:replace="fragments/navbar :: navbar-header" />
+		<aside th:replace="fragments/navbar :: navbar-aside (page = 'kle.assignment')" />
+		<section>
+			<div class="content-wrapper">
+				<h3>
+					<a th:href="@{/ui/kle/assignment}" class="btn btn-default">
+						<span>
+							<i class="fa fa-arrow-left"></i>
+						</span>
+					</a>
+					<span th:text="#{html.page.kle.kle.assignment}" />
+				</h3>
+
+				<div class="panel panel-default">
+					<div class="panel-heading">
+						<h3 th:text="${code} + ' - ' + ${name}" />
+					</div>
+					<div class="panel-body">
+						<ul class="nav nav-tabs">
+							<li class="active">
+								<a data-toggle="tab" href="#orgUnits_menu" th:text="#{html.page.kle.kle.assignment.tab.orgunits}"></a>
+							</li>
+							<li>
+								<a data-toggle="tab" href="#users_menu" th:text="#{html.page.kle.kle.assignment.tab.users}"></a>
+							</li>
+						</ul>
+
+						<div class="tab-content">
+							<div id="orgUnits_menu" class="tab-pane fade in active">
+								<div class="table-responsive">
+									<table class="listTable table table-striped table-hover">
+										<thead>
+											<tr>
+												<th class="col-md-10" th:text="#{html.entity.ou.name}" />
+												<th class="col-md-2" th:text="#{html.control.operations}" />
+											</tr>
+										</thead>
+										<tbody>
+											<tr th:each="ou : ${orgUnits}">
+												<td th:text="${ou.name}" />
+												<td></td>
+											</tr>
+										</tbody>
+									</table>
+								</div>
+							</div>
+
+							<div id="users_menu" class="tab-pane fade in">
+								<div class="table-responsive">
+									<table class="listTable table table-striped table-hover">
+										<thead>
+											<tr>
+												<th class="col-md-3" th:text="#{html.entity.user.name}" />
+												<th class="col-md-1" th:text="#{html.entity.user.userId}" />
+												<th class="col-md-7" th:text="#{html.entity.user.positions}" />
+												<th class="col-md-1" th:text="#{html.control.operations}" />
+											</tr>
+										</thead>
+										<tbody>
+											<tr th:each="user : ${users}">
+												<td th:text="${user.name}" />
+												<td th:text="${user.userId}" />
+												<td th:utext="${user.positions}" />
+												<td th:utext="${user.operations}" />
+											</tr>
+										</tbody>
+									</table>
+								</div>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+		</section>
+	</div>
+
+	<nav th:replace="fragments/footer :: footer" />
+	<script th:replace="fragments/datatables :: datatables " />
+</body>
+</html>

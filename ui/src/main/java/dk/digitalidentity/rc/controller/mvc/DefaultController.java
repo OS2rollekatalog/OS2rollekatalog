@@ -1,0 +1,233 @@
+package dk.digitalidentity.rc.controller.mvc;
+
+import java.io.StringWriter;
+import java.util.ArrayList;
+import java.util.Enumeration;
+import java.util.List;
+import java.util.Map;
+
+import javax.servlet.http.HttpServletRequest;
+import javax.xml.transform.OutputKeys;
+import javax.xml.transform.Source;
+import javax.xml.transform.Transformer;
+import javax.xml.transform.TransformerFactory;
+import javax.xml.transform.dom.DOMSource;
+import javax.xml.transform.stream.StreamResult;
+
+import org.opensaml.common.SAMLException;
+import org.opensaml.saml2.core.Assertion;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.web.servlet.error.DefaultErrorAttributes;
+import org.springframework.boot.web.servlet.error.ErrorAttributes;
+import org.springframework.boot.web.servlet.error.ErrorController;
+import org.springframework.context.annotation.PropertySource;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.authentication.CredentialsExpiredException;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.saml.SAMLCredential;
+import org.springframework.security.web.WebAttributes;
+import org.springframework.stereotype.Controller;
+import org.springframework.ui.Model;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.context.request.ServletWebRequest;
+import org.springframework.web.context.request.WebRequest;
+import org.w3c.dom.Element;
+
+import dk.digitalidentity.rc.dao.RoleGroupDao;
+import dk.digitalidentity.rc.dao.UserRoleDao;
+import dk.digitalidentity.rc.service.ItSystemService;
+import lombok.extern.log4j.Log4j;
+
+@Controller
+@Log4j
+@PropertySource("classpath:git.properties")
+public class DefaultController implements ErrorController {
+	private ErrorAttributes errorAttributes = new DefaultErrorAttributes();
+
+	@Value(value = "${error.showtrace:false}")
+	private boolean showStackTrace;
+
+	@Value(value = "${git.commit.id.abbrev}")
+	private String gitCommitId;
+
+	@Value(value = "${git.build.time}")
+	private String gitBuildTime;
+
+	@Autowired
+	private ItSystemService itSystemService;
+
+	@Autowired
+	private UserRoleDao userRoleDao;
+
+	@Autowired
+	private RoleGroupDao roleGroupDao;
+	
+	@RequestMapping(value = { "/" })
+	public String index(Model model) {
+		model.addAttribute("itSystemCount", itSystemService.count());
+		model.addAttribute("userRoleCount", userRoleDao.count());
+		model.addAttribute("roleGroupCount", roleGroupDao.count());
+		model.addAttribute("gitBuildTime", gitBuildTime.substring(0, 10));
+		model.addAttribute("gitCommitId", gitCommitId);
+
+		return "index";
+	}
+
+	@RequestMapping(value = { "/debug" })
+	public String index(Model model, HttpServletRequest request) {
+		List<String> headers = new ArrayList<>();
+		Enumeration<String> headerNames = request.getHeaderNames();
+
+		try {
+			if (SecurityContextHolder.getContext() != null && SecurityContextHolder.getContext().getAuthentication() != null) {
+				Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+				Object credentials = authentication.getCredentials();
+				
+				if (credentials != null && credentials instanceof SAMLCredential) {
+					SAMLCredential saml = (SAMLCredential) credentials;
+					
+					Assertion assertion = saml.getAuthenticationAssertion();
+					Element element = assertion.getDOM();
+	
+					Source source = new DOMSource(element);
+					TransformerFactory transFactory = TransformerFactory.newInstance();
+					Transformer transformer = transFactory.newTransformer();
+					StringWriter buffer = new StringWriter();
+	
+					transformer.setOutputProperty(OutputKeys.METHOD, "xml");
+					transformer.setOutputProperty("{http://xml.apache.org/xslt}indent-amount", "4");
+					transformer.setOutputProperty(OutputKeys.OMIT_XML_DECLARATION, "yes");
+					transformer.setOutputProperty(OutputKeys.INDENT, "yes");
+					transformer.setOutputProperty(OutputKeys.ENCODING, "UTF-8");
+					transformer.transform(source, new StreamResult(buffer));
+	
+					model.addAttribute("token", buffer.toString());
+				}
+			}
+		}
+		catch (Exception ex) {
+			log.warn("Failed to parse SAML token", ex);
+		}
+		
+		while (headerNames.hasMoreElements()) {
+			String header = headerNames.nextElement();
+
+			StringBuilder builder = new StringBuilder();
+			Enumeration<String> headers2 = request.getHeaders(header);
+			while (headers2.hasMoreElements()) {
+				String headerValue = headers2.nextElement();
+
+				if (builder.length() > 0) {
+					builder.append(",");
+				}
+				builder.append(headerValue);
+			}
+
+			headers.add(header + " = " + builder.toString());
+		}
+
+		model.addAttribute("headers", headers);
+
+		return "debug";
+	}
+
+	@GetMapping(value = { "/info" })
+	public String info() {
+		return "info";
+	}
+
+	@RequestMapping(value = "/error", produces = "text/html")
+	public String errorPage(Model model, HttpServletRequest request) {
+		Map<String, Object> body = getErrorAttributes(new ServletWebRequest(request), showStackTrace);
+
+		// deal with SAML errors first
+		Object status = body.get("status");
+		if (status != null && status instanceof Integer && (Integer) status == 999) {
+			Object authException = request.getAttribute(WebAttributes.AUTHENTICATION_EXCEPTION);
+
+			// handle the forward case
+			if (authException == null && request.getSession() != null) {
+				authException = request.getSession().getAttribute(WebAttributes.AUTHENTICATION_EXCEPTION);
+			}
+
+			if (authException != null && authException instanceof Throwable) {
+				StringBuilder builder = new StringBuilder();
+				Throwable t = (Throwable) authException;
+
+				logThrowable(builder, t, false);
+				model.addAttribute("exception", builder.toString());
+
+				if (t.getCause() != null) {
+					t = t.getCause();
+
+					// deal with the known causes for this error
+					if (t instanceof SAMLException) {
+						if (t.getCause() != null && t.getCause() instanceof CredentialsExpiredException) {
+							model.addAttribute("cause", "EXPIRED");
+						}
+						else if (t.getMessage() != null && t.getMessage().contains("Response issue time is either too old or with date in the future")) {
+							model.addAttribute("cause", "SKEW");
+						}
+						else if (t.getMessage() != null && t.getMessage().contains("urn:oasis:names:tc:SAML:2.0:status:Responder")) {
+							model.addAttribute("cause", "RESPONDER");
+						}
+						else {
+							model.addAttribute("cause", "UNKNOWN");
+						}
+					}
+					else {
+						model.addAttribute("cause", "UNKNOWN");
+					}
+				}
+
+				return "samlerror";
+			}
+		}
+
+		// default to ordinary error message in case error is not SAML related
+		model.addAllAttributes(body);
+
+		return "error";
+	}
+
+	private void logThrowable(StringBuilder builder, Throwable t, boolean append) {
+		StackTraceElement[] stackTraceElements = t.getStackTrace();
+
+		builder.append((append ? "Caused by: " : "") + t.getClass().getName() + ": " + t.getMessage() + "\n");
+		for (int i = 0; i < 5 && i < stackTraceElements.length; i++) {
+			builder.append("  ... " + stackTraceElements[i].toString() + "\n");
+		}
+
+		if (t.getCause() != null) {
+			logThrowable(builder, t.getCause(), true);
+		}
+	}
+
+	@RequestMapping(value = "/error", produces = "application/json")
+	public ResponseEntity<Map<String, Object>> errorJSON(HttpServletRequest request) {
+		Map<String, Object> body = getErrorAttributes(new ServletWebRequest(request), showStackTrace);
+
+		HttpStatus status = HttpStatus.INTERNAL_SERVER_ERROR;
+		try {
+			status = HttpStatus.valueOf((int) body.get("status"));
+		}
+		catch (Exception ex) {
+			;
+		}
+
+		return new ResponseEntity<>(body, status);
+	}
+
+	@Override
+	public String getErrorPath() {
+		return "/_dummyErrorPath";
+	}
+
+	private Map<String, Object> getErrorAttributes(WebRequest request, boolean includeStackTrace) {
+		return errorAttributes.getErrorAttributes(request, includeStackTrace);
+	}
+}

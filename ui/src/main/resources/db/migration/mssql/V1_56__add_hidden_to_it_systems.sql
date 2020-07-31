@@ -1,0 +1,1 @@
+ALTER TABLE it_systems ADD hidden BIT NOT NULL DEFAULT 0;

@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html>
+<body>
+	<header th:fragment="navbar-header" class="topnavbar-wrapper">
+		<nav role="navigation" class="navbar topnavbar">
+			<div class="navbar-header">
+				<a th:href="@{/}" class="navbar-brand">
+					<div class="brand-logo" style="height:100%">
+					        <img th:src="@{/img/logo.png}" alt="Logo" class="img-responsive" style="height:100%"/>
+					</div>
+					<div class="brand-logo-collapsed">
+					        &nbsp;
+					</div>
+				</a>
+			</div>
+
+			<div class="nav-wrapper">
+				<ul class="nav navbar-nav">
+					<li>
+						<a href="#" data-toggle-state="aside-collapsed" class="hidden-xs">
+							<em class="fa fa-navicon"></em>
+						</a>
+						<a href="#" data-toggle-state="aside-toggled" data-no-persist="true" class="visible-xs sidebar-toggle">
+							<em class="fa fa-navicon"></em>
+						</a>
+					</li>
+				</ul>
+			</div>
+		</nav>
+	</header>
+
+	<aside th:fragment="navbar-aside" class="aside">
+		<div class="aside-inner">
+			<nav data-sidebar-anyclick-close="" class="sidebar">
+				<ul class="nav">
+					<li class="nav-heading">
+						<span th:text="#{html.navbar.title}" />
+					</li>
+
+					<li>
+						<a href="#itsystems" data-toggle="collapse">
+							<em class="fa fa-laptop"></em>
+							<span th:text="#{html.navbar.itsystems}" />
+						</a>
+
+						<ul id="itsystems" class="nav sidebar-subnav collapse">
+							<li class="sidebar-subnav-header"/>
+							<li th:class="${page == 'itsystem.list'} ? 'active' : ''">
+								<a th:href="@{/ui/itsystem/list}">
+									<span th:text="#{html.navbar.listitsystem}" />
+								</a>
+							</li>
+							
+							<li th:class="${page == 'itsystem.new'} ? 'active' : ''">
+								<a th:href="@{/ui/itsystem/new}">
+									<span th:text="#{html.navbar.newitsystem}" />
+								</a>
+							</li>
+						</ul>
+					</li>
+				</ul>
+			</nav>
+		</div>
+	</aside>
+</body>
+</html>

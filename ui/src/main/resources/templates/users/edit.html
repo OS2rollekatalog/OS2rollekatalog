@@ -1,0 +1,813 @@
+<!DOCTYPE html>
+<html>
+<head th:replace="fragments/header :: header (title=#{html.page.users.edit.title})"/>
+<body>
+<div class="wrapper">
+    <header th:replace="fragments/navbar :: navbar-header" />
+    <aside th:replace="fragments/navbar :: navbar-aside (page = 'users')" />
+
+    <section>
+        <div class="content-wrapper">
+            <h3>
+                <a th:href="@{/ui/users/list}" class="btn btn-default">
+                    <span><i class="fa fa-arrow-left"></i> </span>
+                </a>
+                <span th:text="#{html.page.users.edit.title}"></span>
+            </h3>
+
+            <div class="panel panel-default">
+                <div class="panel-heading"></div>
+                <div class="panel-body">
+					<div class="panel-group" id="accordion" role="tablist" aria-multiselectable="true">
+						<div class="panel panel-default">
+							<div class="panel-heading" role="tab" id="stamdataHeading">
+								<h4 class="panel-title">
+									<a role="button" id="stamdataLink" data-toggle="collapse" data-parent="#accordion" href="#collapseOne" aria-expanded="false" aria-controls="collapseOne">
+										<em id="caretIcon" class="fa fa-caret-right"></em>&nbsp;
+										<span th:text="#{html.heading.stamdata}"></span>
+										<span th:text="${user.name}"></span>
+										(<span th:text="${user.userId}"></span>)
+									</a>
+								</h4>
+							</div>
+		
+							<div id="collapseOne" class="panel-collapse collapse" role="tabpanel" aria-labelledby="stamdataHeading">
+								<div class="panel-body">
+									<form class="form-horizontal" th:object="${user}">
+										<fieldset>
+											<div class="form-group">
+												<label class="col-sm-2 control-label" th:text="#{html.entity.extuuid}" />
+												<div class="col-sm-8">
+													<input th:field="*{extUuid}" class="form-control" disabled="disabled" />
+												</div>
+											</div>
+										</fieldset>
+										
+										<fieldset>
+											<div class="form-group">
+												<label class="col-sm-2 control-label" th:text="#{html.entity.user.positions}" />
+												<div class="col-sm-8">
+						    						<div th:each="position : *{positions}" style="padding-top: 7px;">
+						    							<span th:text="${position.name}"/>
+						    							<span th:text="#{html.word.in}"/>
+						    							<span th:text="${position.orgUnit.name}"/>
+						    						</div>
+												</div>
+											</div>
+										</fieldset>
+										
+										<fieldset th:if="${user.doNotInherit == true}">
+											<div class="form-group">
+												<div class="col-sm-offset-2 col-sm-8" style="color: red;" th:text="#{html.entity.user.do_not_inherit}"/>
+											</div>
+										</fieldset>
+										
+										<fieldset th:if="${#lists.size(user.altAccounts) > 0}">
+											<div class="form-group">
+												<label class="col-sm-2 control-label" th:text="#{html.entity.user.altaccounts}" />
+												<div class="col-sm-8">
+													<ul style="list-style: none; padding-left: 0px; margin-bottom: 0px;">
+							    						<li th:each="altAccount : *{altAccounts}" style="padding-top: 7px;">
+							    							<span th:text="${altAccount.accountUserId}"/>
+							    							<span th:text="'(' + #{__${altAccount.accountType.message}__} + ')'"/>
+						    						</ul>
+												</div>
+											</div>
+										</fieldset>
+		
+										<fieldset th:if="${editable}">
+											<div class="form-group">
+												<label class="col-sm-2 control-label" th:text="#{html.entity.view.action.label}" />
+												<div class="col-sm-8">
+													<a th:href="@{/ui/users/edit/{id}(id=${user.uuid})}">
+														<span class="btn btn-lg btn-primary" th:text="#{html.entity.view.action.edit}" />
+													</a>
+												</div>
+											</div>
+										</fieldset>
+									</form>
+								</div>
+							</div>
+						</div>
+					</div>
+
+                    <ul class="nav nav-tabs">
+                        <li th:class="${!onlyKleAdmin} ? active : ''" sec:authorize="hasRole('ROLE_ASSIGNER')">
+                            <a data-toggle="tab" href="#roles_menu" th:text="#{html.page.users.list.roles}"></a>
+                        </li>
+
+                        <li sec:authorize="hasRole('ROLE_ASSIGNER')">
+                            <a data-toggle="tab" href="#groups_menu" th:text="#{html.page.users.list.rolegroups}"></a>
+                        </li>
+
+                        <li th:class="${onlyKleAdmin} ? active : ''" th:if="${kleUiEnabled == true}" sec:authorize="hasRole('ROLE_KLE_ADMINISTRATOR')">
+                            <a data-toggle="tab" href="#kle_performing_menu" th:text="#{html.page.ous.list.kleperform}"></a>
+                        </li>
+
+                        <li th:if="${kleUiEnabled == true}" sec:authorize="hasRole('ROLE_KLE_ADMINISTRATOR')">
+                            <a data-toggle="tab" href="#kle_insight_menu" th:text="#{html.page.ous.list.kleinterest}"></a>
+                        </li>
+                    </ul>
+
+                    <div class="tab-content">
+                        <div id="roles_menu" th:class="${!onlyKleAdmin} ? 'tab-pane fade in active' : 'tab-pane fade'">
+                            <table id="listTable1" class="table table-striped table-hover listTable">
+                                <thead>
+                                <tr>
+                                    <th class="col-md-1" th:text="#{html.entity.rolegroup.enabled}"/>
+                                    <th class="col-md-2" th:text="#{html.entity.rolegroup.name}"/>
+                                    <th class="col-md-2" th:text="#{html.enum.assignmenttype}"/>
+                                    <th class="col-md-2" th:text="#{html.entity.rolegroup.itsystem}"/>
+                                    <th class="col-md-5" th:text="#{html.entity.rolegroup.description}"/>
+                                </tr>
+                                </thead>
+
+                                <tbody>
+                                <tr th:each="addRole : ${addRoles}">
+                                    <td>
+                                        <div class="checkbox c-checkbox">
+                                            <label>
+                                                <input class="checkbox-positions" th:id="${addRole.role.id}"
+                                                       type="checkbox" th:value="${user.uuid}"
+                                                       th:checked="${addRole.checked}" th:disabled="${addRole.canCheck == false}" data-objtype="role"/>
+                                                <span class="fa fa-check"></span>
+                                            </label>
+                                        </div>
+                                    </td>
+                                    <td>
+                                    	<span th:text="${addRole.role.name}"/>
+                                    	<div th:if="${addRole.assignedThrough != null}" style="font-size: smaller; color: red;" th:text="'(' + #{__${addRole.assignedThrough.message}__} + ')'"/>
+                                    </td>
+                                    <td th:text="#{${addRole.assignment.assignmentType.value}(${addRole.assignment.position})}"/>
+                                    <td th:text="${addRole.role.itSystem.name}"/>
+                                    <td th:text="${addRole.role.description}"/>
+                                </tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div id="groups_menu"
+                             class="tab-pane fade">
+                            <table id="listTable2" class="table table-striped table-hover listTable">
+                                <thead>
+                                <tr>
+                                    <th class="col-md-1" th:text="#{html.entity.rolegroup.enabled}"/>
+                                    <th class="col-md-2" th:text="#{html.entity.rolegroup.name}"/>
+                                    <th class="col-md-2" th:text="#{html.enum.assignmenttype}"/>
+                                    <th class="col-md-7" th:text="#{html.entity.rolegroup.description}"/>
+                                </tr>
+                                </thead>
+
+                                <tbody>
+                                <tr th:each="addRolegroup : ${addRoleGroups}">
+                                    <td>
+                                        <div class="checkbox c-checkbox">
+                                            <label>
+                                                <input class="checkbox-groups" th:id="${addRolegroup.roleGroup.id}"
+                                                       type="checkbox" th:value="${user.uuid}"
+                                                       th:checked="${addRolegroup.checked}" data-objtype="rolegroup"/>
+                                                <span class="fa fa-check"></span>
+                                            </label>
+                                        </div>
+                                    </td>
+                                    <td th:text="${addRolegroup.roleGroup.name}"/>
+                                    <td th:text="#{${addRolegroup.assignment.assignmentType.value}(${addRolegroup.assignment.position})}"/>
+                                    <td th:text="${addRolegroup.roleGroup.description}"/>
+                                </tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div sec:authorize="hasRole('ROLE_KLE_ADMINISTRATOR')" th:if="${kleUiEnabled == true}" id="kle_performing_menu" th:class="${onlyKleAdmin} ? 'tab-pane fade in active' : 'tab-pane fade'">
+                            <h4 th:text="#{html.page.ous.edit.search}" />
+                            <input class="form-control" id="KlePrimarySearch" style="margin-bottom: 5px;"/>
+                            <button class="btn btn-lg btn-primary" style="margin-bottom: 20px;" th:text="#{html.page.ous.edit.save}" onclick="saveChanges('KlePrimary')"></button>
+                            <button class="btn btn-lg btn-primary" style="margin-bottom: 20px;" th:text="#{html.page.ous.edit.cancel}" onclick="abortChanges('KlePrimary')"></button>
+                            <div id="KlePrimary"></div>
+                        </div>
+                        <div sec:authorize="hasRole('ROLE_KLE_ADMINISTRATOR')" th:if="${kleUiEnabled == true}" id="kle_insight_menu" class="tab-pane fade">
+                            <h4 th:text="#{html.page.ous.edit.search}" />
+                            <input class="form-control" id="KleSecondarySearch" style="margin-bottom: 5px;"/>
+                            <button class="btn btn-lg btn-primary" style="margin-bottom: 20px;" th:text="#{html.page.ous.edit.save}" onclick="saveChanges('KleSecondary')"></button>
+                            <button class="btn btn-lg btn-primary" style="margin-bottom: 20px;" th:text="#{html.page.ous.edit.cancel}" onclick="abortChanges('KleSecondary')"></button>
+                            <div id="KleSecondary"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+</div>
+
+<div class="modal fade" id="modal-positions" role="dialog">
+    <div class="modal-dialog">
+
+        <!-- Modal content-->
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 th:text="#{html.page.users.list.modal}"/>
+            </div>
+
+            <div class="modal-body">
+                <table class="table table-striped table-hover" th:if="${@roleCatalogueConfiguration.getTitles().isEnabled() == false}">
+                    <tbody>
+                    <tr>
+                        <td class="col-md-2">
+                            <button id="assignDirectlyBtn" class="btn btn-primary assign_role_directly" th:text="#{html.entity.positions.assign}"/>
+                        </td>
+                        <td class="col-md-10" th:text="#{html.entity.positions.assigndirect}"/>
+                    </tr>
+                    <tr th:each="position : ${user.positions}">
+                        <td>
+                            <button class="btn assign_role" th:text="#{html.entity.positions.assign}" th:value="${position.id}"/>
+                        </td>
+                        <td th:text="${position.name} + ' ' + #{html.word.in} + ' ' + ${position.orgUnit.name}"/>
+                    </tr>
+                    </tbody>
+                </table>
+                
+                <div th:if="${@roleCatalogueConfiguration.getTitles().isEnabled()}" th:text="#{html.page.user.assign.accept.text}"/>
+
+                <div class="alert alert-warning" style="margin-top: 10px;" role="alert" id="modal-positions-alert">
+                    &nbsp;
+                </div>
+            </div>
+
+            <div class="modal-footer">
+				<button id="assignDirectlyBtn" class="btn btn-primary assign_role_directly" th:text="#{html.entity.positions.assign}" th:if="${@roleCatalogueConfiguration.getTitles().isEnabled()}" />
+                <button type="button" class="btn btn-danger" id="closeModal" th:text="#{html.control.button.cancel}"/>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="modal-groups" role="dialog">
+    <div class="modal-dialog">
+
+        <!-- Modal content-->
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 th:text="#{html.page.users.list.modal.rolegroup}"/>
+            </div>
+
+            <div class="modal-body">
+                <table class="table table-striped table-hover" th:if="${@roleCatalogueConfiguration.getTitles().isEnabled() == false}">
+                    <tbody>
+                    <tr>
+                        <td class="col-md-2">
+                            <button id="assignDirectlyRGBtn" class="btn btn-danger assign_group_directly" th:text="#{html.entity.positions.assign}"/>
+                        </td>
+                        <td class="col-md-10" th:text="#{html.entity.positions.assigndirect}"/>
+                    </tr>
+                    <tr th:each="position : ${user.positions}" th:if="${@roleCatalogueConfiguration.getTitles().isEnabled() == false}">
+                        <td>
+                            <button class="btn assign_group" th:text="#{html.entity.positions.assign}" th:value="${position.id}"/>
+                        </td>
+                        <td th:text="${position.name}"/>
+                    </tr>
+                    </tbody>
+                </table>
+                
+                <div th:if="${@roleCatalogueConfiguration.getTitles().isEnabled()}" th:text="#{html.page.user.assign.accept.text}"/>
+
+                <div class="alert alert-warning" role="alert" id="modal-groups-alert">
+                    &nbsp;
+                </div>
+            </div>
+
+            <div class="modal-footer">
+				<button id="assignDirectlyRGBtn" class="btn btn-primary assign_group_directly" th:text="#{html.entity.positions.assign}"/>
+                <button type="button" class="btn btn-danger" id="closeRoleGroupModal" th:text="#{html.control.button.cancel}"/>
+            </div>
+        </div>
+    </div>
+</div>
+
+	<style>
+		.table .checkbox {
+			margin-left: 10px;
+			width: auto;
+		}
+	</style>
+
+	<nav th:replace="fragments/footer :: footer"/>
+	<script th:replace="fragments/datatables :: datatables " />
+
+	<script th:inline="javascript">
+		/*<![CDATA[*/
+		
+		/*[+
+		var url = [[@{/rest/users/}]];
+		var urlUi = [[@{/ui/users/}]];
+		var user = [[${user.uuid}]];
+		var fieldUpdatedMsg = [[#{html.entity.rolegroup.updatedmsg}]];
+		var fieldNotUpdatedMsg = [[#{html.entity.rolegroup.failedupdatemsg}]];
+		var success = [[#{html.default.message.success}]];
+		var failed = [[#{html.default.message.error}]];
+		
+		var stillAssignedThroughTitleMsg = [[#{html.user.role.stillassigned.title}]];
+		var stillAssignedThroughOUMsg = [[#{html.user.role.stillassigned.ou}]];
+		var stillAssignedThroughRoleGroupMsg = [[#{html.user.role.stillassigned.rolegroup}]];
+		var alreadyAssignedThroughTitleMsg = [[#{html.user.role.alreadyassigned.title}]];
+		var alreadyAssignedThroughOUMsg = [[#{html.user.role.alreadyassigned.ou}]];
+		var alreadyAssignedThroughRoleGroupMsg = [[#{html.user.role.alreadyassigned.rolegroup}]];
+		
+		var allKles = [[${allKles}]];
+		var klePrimarySelected = [[${klePrimarySelected}]];
+		var kleSecondarySelected = [[${kleSecondarySelected}]];
+		var titlesEnabled = [[${@roleCatalogueConfiguration.getTitles().isEnabled()}]];
+		+]*/
+
+		var token = $("meta[name='_csrf']").attr("content");
+
+		var klePrimaryInitialized = false;
+		var kleSecondaryInitialized = false;
+		
+		modal = $("#modal-positions");
+		modalGroups = $("#modal-groups");
+
+		$('.assign_role').click(assignRoleClicked);		
+		$('.assign_role_directly').click(assignRoleDirectlyClicked);
+		$('.assign_group').click(assignGroupClicked);		
+		$('.assign_group_directly').click(assignGroupDirectlyClicked);
+		$('#closeModal').click(closeModalAndRemoveCheckbox);
+		$('#closeRoleGroupModal').click(closeRoleGroupModalAndRemoveCheckbox);
+
+		//// BEGIN KLE CODE ////
+
+		function addCheckboxListeners() {
+			$('.checkboxaction').off("change");
+			$('.checkboxaction').change(handleCheckbox);
+			$('.inherit-checkbox').change(inheritCheckboxChange);
+		}
+		
+		$(document).ready(function() {
+			addCheckboxListeners();
+
+			var selectedTab = localStorage.getItem(user);
+			if (selectedTab != null) {
+				$('a[data-toggle="tab"][href="' + selectedTab + '"]').tab('show');
+			}
+		});
+		
+		function handleCheckbox() {
+			var objType = String(this.dataset.objtype);
+			var inheritAllowed = this.dataset.inherit;
+			var id = this.id;
+			var value = this.value;
+			var checked = this.checked;
+			var checkBoxSpan = $(this).siblings("span");
+
+			checkUserAssignmentsBeforePerform(objType, inheritAllowed, id, value, checked, function(objType, inheritAllowed, id, value, checked, usersWithRoleAssignedDirectly) {
+				var optionalSuccessMessage;
+				
+				if (checked) {
+					var endpoint = url + 'add' + objType + '/' + value + '/' + id;
+
+					if (usersWithRoleAssignedDirectly > 0) {
+						optionalSuccessMessage = usersAlreadyAssignedDirectlyMsg.format(usersWithRoleAssignedDirectly);
+					}
+					
+					if (inheritAllowed == 'true') {
+						swal({
+							  title: inheritAssignTitleMsg,
+							  text: inheritAssignBodyMsg,
+							  showCancelButton: true,
+	                          confirmButtonColor : "#DD6B55",
+							  confirmButtonText: inheritButtonYesMsg,
+							  cancelButtonText: inheritButtonNoMsg,
+							  closeOnConfirm: true,
+							  closeOnCancel: true
+						}, function(isConfirm) {
+							if (isConfirm) {
+								endpoint = endpoint + "?inherit=true";
+								checkBoxSpan.addClass("inherit");
+							}
+							else {
+								checkBoxSpan.removeClass("inherit");
+							}
+
+							defaultAjaxPost(endpoint, optionalSuccessMessage);
+						});
+					}
+					else {
+						defaultAjaxPost(endpoint, optionalSuccessMessage);
+					}
+				}
+				else {
+					var endpoint = url + 'remove' + objType + '/' + value + '/' + id;
+
+					if (usersWithRoleAssignedDirectly > 0) {
+						optionalSuccessMessage = usersStillAssignedDirectlyMsg.format(usersWithRoleAssignedDirectly);
+					}
+
+					defaultAjaxPost(endpoint, optionalSuccessMessage);
+				}
+			});
+		}
+
+		function initJSTree(id, search, selected) {
+			$('#' + id).jstree({
+					"core": {
+						"data": allKles,
+						"themes": {
+							"icons": false
+						}
+					},
+					"checkbox" : {
+						"keep_selected_style" : false,
+						"three_state": false,
+						"cascade": "undetermined"
+					},
+					"search" : {
+						"show_only_matches": true,
+						"search_callback": function(str, node) {
+							// special KLE search support
+							var kleValue = str.split('.').join("");
+							if (!isNaN(kleValue)) {
+								if (kleValue.length > 4) {
+									kleValue = kleValue.substr(0, 2) + "." + kleValue.substr(2, 2) + "." + kleValue.substr(4);
+								}
+								else if (kleValue.length > 2) {
+									kleValue = kleValue.substr(0, 2) + "." + kleValue.substr(2);
+								}
+								
+								return (node.text.startsWith(kleValue));
+							}
+
+							return (node.text.toUpperCase().includes(str.toUpperCase()));
+						}
+					},
+					"plugins" : [
+						"wholerow", "search", "checkbox"
+					]
+			});
+
+			// Select all already selected klecodes in the tree.
+			$('#' + id).on("ready.jstree", function(e, data) {
+				$('#' + id).jstree('select_node', selected);
+			});
+
+			// Searching in the JSTree
+			var to = false;
+			$('#' + search).keyup(function() {
+				if (to) {
+					clearTimeout(to);
+				}
+
+				to = setTimeout(function() {
+					var v = $('#' + search).val();
+
+					$('#' + id).jstree(true).search(v);
+				}, 400);
+			});
+		};
+
+		function saveChanges(id) {
+			var codes = $('#' + id).jstree('get_top_selected')
+
+			$.ajax({
+				contentType: 'application/json',
+				url: url + "updateAll/kle",
+				method : "POST",
+				headers: {
+					"uuid": user,
+					"type": id,
+					'X-CSRF-TOKEN': token
+				},
+				error: function(response) {
+					$.notify({
+						message: fieldNotUpdatedMsg
+					}, {
+						status: 'danger',
+						autoHideDelay: 4000
+					});
+				},
+				success: function(response) {
+					$.notify({
+						message: fieldUpdatedMsg
+					}, {
+						status: 'success',
+						autoHideDelay: 2000
+					});
+				},
+				data: JSON.stringify(codes)
+			});
+		}
+
+		function abortChanges(id) {
+			location.reload();
+		}
+
+		//// END  KLE CODE ////
+
+		$('#dataTabs a').click(function (e) {
+			e.preventDefault();
+			$(this).tab('show');
+		});
+
+		$('a[data-toggle="tab"]').on("shown.bs.tab", function (e) {
+			var id = $(e.target).attr("href");
+			localStorage.setItem(user, id)
+
+			// just a simple check to see if we have data to show
+			if ($('#kle_performing_menu').length > 0) {
+				if ("#kle_performing_menu" == id && !klePrimaryInitialized) {
+					klePrimaryInitialized = true;
+		            initJSTree('KlePrimary', 'KlePrimary'+"Search", klePrimarySelected);
+				}
+				else if ("#kle_insight_menu" == id && !kleSecondaryInitialized) {
+					kleSecondaryInitialized = true;
+					initJSTree('KleSecondary', 'KleSecondary'+"Search", kleSecondarySelected);					
+				}
+			}
+		});
+
+		modal.on('shown.bs.modal', function() {
+			$("#assignDirectlyBtn").focus();
+		});
+
+		modalGroups.on('shown.bs.modal', function() {
+			$("#assignDirectlyRGBtn").focus();
+		});
+
+		function addCheckboxListeners() {
+			$('.checkbox-positions').off( "change" );
+			$('.checkbox-groups').off( "change" );
+			$('.checkbox-positions').change(positionCheckboxChanged);
+			$('.checkbox-groups').change(groupCheckboxChanged);	
+		}
+
+		addCheckboxListeners();
+
+		$('#listTable1').on( 'draw.dt', function () {
+			addCheckboxListeners();
+		});
+		
+		$('#listTable2').on( 'draw.dt', function () {
+			addCheckboxListeners();
+		});
+
+		function closeRoleGroupModalAndRemoveCheckbox() {
+			var table = $("#listTable2");
+			var chosenCheckbox = table.find("#" + modalGroups.attr("rolegroupid"));
+			if (chosenCheckbox != null) {
+				chosenCheckbox.prop('checked', false);
+			}
+
+			modalGroups.modal('hide');
+		}
+		
+		function closeModalAndRemoveCheckbox() {
+			var table = $("#listTable1");
+			var chosenCheckbox = table.find("#" + modal.attr("roleid"));
+			if (chosenCheckbox != null) {
+				chosenCheckbox.prop('checked', false);
+			}
+
+			modal.modal('hide');
+		}
+		
+		function checkUserAssignmentsBeforePerform(objType, roleId, userUuid, checked, successFunction) {
+			var endpoint = url + 'assignedStatus/' + objType + '/' + userUuid + '/' + roleId;
+			
+			$.ajax({
+				url: endpoint,
+				method: "GET",
+				error: function(response) {
+					showErrorNotification(fieldNotUpdatedMsg);
+				},
+				success : function(response) {
+					var alreadyAssignedThroughOu = response.alreadyAssignedThroughOu;
+					var alreadyAssignedThroughRoleGroup = response.alreadyAssignedThroughRoleGroup;
+					var alreadyAssignedThroughTitle = response.alreadyAssignedThroughTitle;
+					
+					successFunction(roleId, userUuid, checked, alreadyAssignedThroughOu, alreadyAssignedThroughRoleGroup, alreadyAssignedThroughTitle);
+				}
+			});
+		}
+
+		function positionCheckboxChanged() {
+			var userUuid = $(this).val();
+			var roleid = this.id;
+			var checked = this.checked;
+
+			checkUserAssignmentsBeforePerform("role", roleid, userUuid, checked, function(roleid, userUuid, checked, alreadyAssignedThroughOu, alreadyAssignedThroughRoleGroup, alreadyAssignedThroughTitle) {
+				var optionalSuccessMessage;
+			
+				if (!checked) {
+					if (alreadyAssignedThroughOu) {
+						optionalSuccessMessage = stillAssignedThroughOUMsg;
+					}
+					else if (alreadyAssignedThroughRoleGroup) {
+						optionalSuccessMessage = stillAssignedThroughRoleGroupMsg;
+					}
+					else if (alreadyAssignedThroughTitle) {
+						optionalSuccessMessage = stillAssignedThroughTitleMsg;
+					}
+	
+					var endpoint = url + userUuid + '/' + 'removerole' + '/' + roleid;
+					
+					defaultAjaxPost(endpoint, optionalSuccessMessage);
+				}
+				else {
+					modal.modal({
+					    backdrop: 'static',
+					    keyboard: false
+					});
+
+					modal.attr("roleid", roleid);
+					modal.attr("userUuid", userUuid);
+
+					if (alreadyAssignedThroughOu) {
+						$('#modal-positions-alert').text(alreadyAssignedThroughOUMsg);
+						$('#modal-positions-alert').show();
+					}
+					else if (alreadyAssignedThroughRoleGroup) {
+						$('#modal-positions-alert').text(alreadyAssignedThroughRoleGroupMsg);
+						$('#modal-positions-alert').show();
+					}
+					else if (alreadyAssignedThroughTitle) {
+						$('#modal-positions-alert').text(alreadyAssignedThroughTitleMsg);
+						$('#modal-positions-alert').show();
+					}
+					else {
+						$('#modal-positions-alert').text('');
+						$('#modal-positions-alert').hide();
+					}
+				}
+			});
+		}
+		
+		function assignRoleDirectlyClicked() {
+			var positionUuid = $(this).val();
+			var roleid = modal.attr("roleid");
+			var userUuid = modal.attr("userUuid");
+			
+			var table = $("#listTable1");
+			var chosenCheckbox = table.find("#" + modal.attr("roleid"));
+			
+			$.ajax(getAjaxObject(url + userUuid + '/addrole/' + roleid, fieldUpdatedMsg, fieldNotUpdatedMsg, chosenCheckbox));
+			modal.modal('hide');
+		}
+		
+		function assignRoleClicked() {		
+			var positionUuid = $(this).val();
+			var roleid = modal.attr("roleid");
+			var userUuid = modal.attr("userUuid");
+
+			var table = $("#listTable1");
+			var chosenCheckbox = table.find("#" + modal.attr("roleid"));
+
+			$.ajax(getAjaxObject(url + 'position/' + positionUuid + '/addrole/' + roleid, fieldUpdatedMsg, fieldNotUpdatedMsg, chosenCheckbox));
+			modal.modal('hide');		
+		}
+
+		function groupCheckboxChanged() {
+			var userUuid = $(this).val();
+			var groupId = this.id;
+			var checked = this.checked;
+
+			checkUserAssignmentsBeforePerform("rolegroup", groupId, userUuid, checked, function(groupId, userUuid, checked, alreadyAssignedThroughOu, alreadyAssignedThroughRoleGroup) {
+				var optionalSuccessMessage;
+
+				if (!checked) {
+					if (alreadyAssignedThroughOu) {
+						optionalSuccessMessage = stillAssignedThroughOUMsg;
+					}
+					else if (alreadyAssignedThroughRoleGroup) {
+						optionalSuccessMessage = stillAssignedThroughRoleGroupMsg;
+					}
+	
+					var endpoint = url + userUuid + '/removegroup/' + groupId;
+					
+					defaultAjaxPost(endpoint, optionalSuccessMessage);
+				}
+				else {
+					modalGroups.modal({
+					    backdrop: 'static',
+					    keyboard: false
+					});
+
+					modalGroups.attr("rolegroupid", groupId);
+					modalGroups.attr("userUuid", userUuid);
+					
+					if (alreadyAssignedThroughOu) {
+						$('#modal-groups-alert').text(alreadyAssignedThroughOUMsg);
+						$('#modal-groups-alert').show();
+					}
+					else if (alreadyAssignedThroughRoleGroup) {
+						$('#modal-groups-alert').text(alreadyAssignedThroughOUMsg);
+						$('#modal-groups-alert').show();
+					}
+					else {
+						$('#modal-groups-alert').text('');
+						$('#modal-groups-alert').hide();
+					}
+				}
+			});
+		}
+		
+		function assignGroupDirectlyClicked() {		
+			var positionUuid = $(this).val();
+			var groupid = modalGroups.attr("rolegroupid");
+			var userUuid = modalGroups.attr("userUuid");
+			
+			var table = $("#listTable2");
+			var chosenCheckbox = table.find("#" + modalGroups.attr("rolegroupid"));
+			
+			$.ajax(getAjaxObject(url + userUuid + '/addgroup/' + groupid,fieldUpdatedMsg, fieldNotUpdatedMsg, chosenCheckbox));
+			modalGroups.modal('hide');		
+		}
+		
+		function assignGroupClicked() {
+			var positionUuid = $(this).val();
+			var groupid = modalGroups.attr("rolegroupid");
+			var userUuid = modalGroups.attr("userUuid");
+
+			var table = $("#listTable2");
+			var chosenCheckbox = table.find("#" + modalGroups.attr("rolegroupid"));
+
+			$.ajax(getAjaxObject(url + 'position/' + positionUuid + '/addgroup/' + groupid, fieldUpdatedMsg, fieldNotUpdatedMsg, chosenCheckbox));
+			modalGroups.modal('hide');
+		}
+		
+		// TODO: move these into a utility js file (exists in edit.html for users/orgunits)
+		function defaultAjaxPost(endpoint, optionalWarningMessage) {
+			$.ajax({
+				url: endpoint,
+				method: "POST",
+				headers: {
+					'X-CSRF-TOKEN': token
+				},
+				error : function(response) {
+					showErrorNotification(fieldNotUpdatedMsg);
+				},
+				success : function(response) {
+					if (optionalWarningMessage) {
+						showWarnNotification(optionalWarningMessage);
+					}
+					else {
+						showInfoNotification(fieldUpdatedMsg);
+					}
+				}
+			});
+		}
+
+		String.prototype.format = function () {
+			var args = [].slice.call(arguments);
+
+			return this.replace(/(\{\d+\})/g, function (a) {
+				return args[+(a.substr(1,a.length-2))||0];
+			});
+		};
+
+		function showInfoNotification(message) {
+			$.notify({
+				message: message,
+				status: 'success',
+				timeout: 2000
+			});
+		}
+		
+		function showWarnNotification(message) {
+			$.notify({
+				message: message,
+				status: 'warning',
+				timeout: 3000
+			});
+		}
+
+		function showErrorNotification(message) {
+			$.notify({
+				message: message,
+				status: 'danger',
+				timeout: 4000
+			});
+		}
+
+        function getAjaxObject(urL, okMsg, errorMsg, chosenCheckbox) {
+    		return {
+    			url: urL,
+				method: "POST",
+				headers: {
+					'X-CSRF-TOKEN': token
+				},
+    			error: function(response) {
+    				if (chosenCheckbox != null) {
+						chosenCheckbox.prop('checked', false);
+    				}
+
+					var msg = (response.responseText != null && response.responseText.length > 0) ? response.responseText : errorMsg;
+					showErrorNotification(msg);
+    			},
+    			success: function(response) {
+    				showInfoNotification(okMsg);
+    			}
+    		};
+    	}
+		/*]]>*/
+
+	</script>
+</body>
+</html>

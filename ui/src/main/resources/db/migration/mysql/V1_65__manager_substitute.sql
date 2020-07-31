@@ -1,0 +1,2 @@
+ALTER TABLE users ADD COLUMN manager_substitute VARCHAR(36) NULL;
+ALTER TABLE users ADD FOREIGN KEY (manager_substitute) REFERENCES users(uuid) ON DELETE NO ACTION ON UPDATE NO ACTION;

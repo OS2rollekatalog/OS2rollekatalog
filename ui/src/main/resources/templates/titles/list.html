@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+<head th:replace="fragments/header :: header (title=#{html.page.titles.list.title})" />
+<body>
+	<div class="wrapper">
+		<header th:replace="fragments/navbar :: navbar-header" />
+		<aside th:replace="fragments/navbar :: navbar-aside (page = 'titles')" />
+ 
+		<section>
+			<div class="content-wrapper">
+				<div class="panel panel-default">
+					<div class="panel-body">
+						<div class="table-responsive">
+							<table id="listTable" class="table table-striped table-hover listTable">
+								<thead>
+									<tr>
+										<th class="col-md-11" th:text="#{html.entity.itsystem.name}" />
+										<th class="col-md-1" th:text="#{html.control.operations}" />
+									</tr>
+								</thead>
+
+								<tbody>
+								    <tr th:each="title : ${titles}">
+								    	<td th:text="${title.name}" />
+								    	<td>
+								    		<a th:href="@{/ui/titles/view/{id}(id=${title.uuid})}"><em class="fa fa-search"></em></a>
+								    		<a sec:authorize="hasRole('ROLE_ASSIGNER')" th:href="@{/ui/titles/edit/{id}(id=${title.uuid})}"><em class="fa fa-pencil"></em></a>
+								    	</td>
+					    			</tr>
+				    			</tbody>
+							</table>
+						</div>
+					</div>
+				</div>
+	        </div>
+	    </section>
+	</div>
+
+	<nav th:replace="fragments/footer :: footer" />
+
+	<script th:replace="fragments/datatables :: datatables " />
+</body>
+</html>

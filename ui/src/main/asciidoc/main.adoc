@@ -1,0 +1,627 @@
+=  Role Catalogue API Guide
+Digital Identity Aps;
+:doctype: book
+:icons: font
+:source-highlighter: highlightjs
+:toc: left
+:toclevels: 4
+:sectlinks:
+
+[[resources-index]]
+= AD FS API
+
+The following operations are intended for AD FS integration, and expose information about a given user, which can be used to issue SAML assertions containing all relevant information about the user
+
+
+== Get Roles as OIO-BPP
+[[resources-list-user-roles]]
+This operation will generate the OIO-BPP structure containing the users roles for a given it-system.
+
+=== Path Parameters
+include::{snippets}/list-user-roles/path-parameters.adoc[]
+
+=== Request Headers
+include::{snippets}/list-user-roles/request-headers.adoc[]
+
+=== Request Parameters
+include::{snippets}/list-user-roles/request-parameters.adoc[]
+
+=== Response Fields
+include::{snippets}/list-user-roles/response-fields.adoc[]
+
+=== Example request
+include::{snippets}/list-user-roles/http-request.adoc[]
+
+=== Example response
+include::{snippets}/list-user-roles/http-response.adoc[]
+
+== Get Roles as a list
+[[resources-list-user-roles-as-list]]
+This operation will generate a list of userroles and systemroles assigned to the user for a given it-system.
+
+=== Path Parameters
+include::{snippets}/list-user-roles-as-list/path-parameters.adoc[]
+
+=== Request Headers
+include::{snippets}/list-user-roles-as-list/request-headers.adoc[]
+
+=== Request Parameters
+include::{snippets}/list-user-roles-as-list/request-parameters.adoc[]
+
+=== Response Fields
+include::{snippets}/list-user-roles-as-list/response-fields.adoc[]
+
+=== Example request
+include::{snippets}/list-user-roles-as-list/http-request.adoc[]
+
+=== Example response
+include::{snippets}/list-user-roles-as-list/http-response.adoc[]
+
+
+== Get Subject/NameID
+[[resources-get-nameid]]
+This operation will generate a KOMBIT compliant Subject/NameID field
+
+=== Path Parameters
+include::{snippets}/read-name-identifier/path-parameters.adoc[]
+
+=== Request Headers
+include::{snippets}/read-name-identifier/request-headers.adoc[]
+
+=== Response Fields
+include::{snippets}/read-name-identifier/response-fields.adoc[]
+
+=== Example request
+include::{snippets}/read-name-identifier/http-request.adoc[]
+
+=== Example response
+include::{snippets}/read-name-identifier/http-response.adoc[]
+
+= Titles API
+
+== List all titles
+
+[[resources-titles-list]]
+This operation returns a list of all titles currently loaded into the system
+
+=== Request Headers
+include::{snippets}/titles-list/request-headers.adoc[]
+
+=== Response Fields
+include::{snippets}/titles-list/response-fields.adoc[]
+
+=== Example request
+include::{snippets}/titles-list/http-request.adoc[]
+
+=== Example response
+include::{snippets}/titles-list/http-response.adoc[]
+
+== Update all titles
+
+[[resources-titles-update]]
+This operation is used for updating the list of titles loaded into the system
+
+=== Request Body
+include::{snippets}/titles-update/request-fields.adoc[]
+
+=== Request Headers
+include::{snippets}/titles-update/request-headers.adoc[]
+
+=== Example request
+include::{snippets}/titles-update/http-request.adoc[]
+
+= ItSystem API
+
+== List all it-systems
+
+[[resources-itsystem-manage-list]]
+This operation returns a list of all it-systems that can be managed through the API
+
+=== Request Headers
+include::{snippets}/itsystem-manage-list/request-headers.adoc[]
+
+=== Response Fields
+include::{snippets}/itsystem-manage-list/response-fields.adoc[]
+
+=== Example request
+include::{snippets}/itsystem-manage-list/http-request.adoc[]
+
+=== Example response
+include::{snippets}/itsystem-manage-list/http-response.adoc[]
+
+== Read details of one it-system
+
+[[resources-itsystem-manage-get]]
+This operation returns details about a given it-system that can be managed through the API
+
+=== Path Parameters
+include::{snippets}/itsystem-manage-get/path-parameters.adoc[]
+
+=== Request Headers
+include::{snippets}/itsystem-manage-get/request-headers.adoc[]
+
+=== Response Fields
+include::{snippets}/itsystem-manage-get/response-fields.adoc[]
+
+=== Example request
+include::{snippets}/itsystem-manage-get/http-request.adoc[]
+
+=== Example response
+include::{snippets}/itsystem-manage-get/http-response.adoc[]
+
+== Update one it-system
+
+[[resources-itsystem-manage-get]]
+This operation is used for updating details about a given it-system that can be managed through the API
+
+=== Path Parameters
+include::{snippets}/itsystem-manage-update/path-parameters.adoc[]
+
+=== Request Body
+include::{snippets}/itsystem-manage-update/request-fields.adoc[]
+
+=== Request Headers
+include::{snippets}/itsystem-manage-update/request-headers.adoc[]
+
+=== Example request
+include::{snippets}/itsystem-manage-update/http-request.adoc[]
+
+
+= Read API
+
+== Find all users with a given role
+
+[[resources-list-users-with-given-role]]
+This operation will list all users that has been assigned a given role - as a query parameter is is possible to indicate
+if the lookup should return any kind of assignment (through position, orgunit or simply directly assigned), or if the
+output should only be directly assigned roles (this is the default behaviour)
+
+=== Path Parameters
+include::{snippets}/list-users-with-given-role/path-parameters.adoc[]
+
+=== Request Headers
+include::{snippets}/list-users-with-given-role/request-headers.adoc[]
+
+=== Request Parameters
+include::{snippets}/list-users-with-given-role/request-parameters.adoc[]
+
+=== Response Fields
+include::{snippets}/list-users-with-given-role/response-fields.adoc[]
+
+=== Example request
+include::{snippets}/list-users-with-given-role/http-request.adoc[]
+
+=== Example response
+include::{snippets}/list-users-with-given-role/http-response.adoc[]
+
+== Find all users that has roles from a given itsystem
+
+[[resources-list-users-with-roles-from-itsystem]]
+This operation will list all users that has been assigned roles from a given itsystem - as a query parameter is is possible to indicate
+if the lookup should return any kind of assignment (through position, orgunit or simply directly assigned), or if the
+output should only be directly assigned roles (this is the default behaviour)
+
+=== Path Parameters
+include::{snippets}/list-users-with-roles-from-itsystem/path-parameters.adoc[]
+
+=== Request Headers
+include::{snippets}/list-users-with-roles-from-itsystem/request-headers.adoc[]
+
+=== Request Parameters
+include::{snippets}/list-users-with-roles-from-itsystem/request-parameters.adoc[]
+
+=== Response Fields
+include::{snippets}/list-users-with-roles-from-itsystem/response-fields.adoc[]
+
+=== Example request
+include::{snippets}/list-users-with-roles-from-itsystem/http-request.adoc[]
+
+=== Example response
+include::{snippets}/list-users-with-roles-from-itsystem/http-response.adoc[]
+
+
+== Read roles assigned to OrgUnit
+
+[[resources-read-ou-roles]]
+This operation will list all roles that have been assigned to a given OrgUnit
+
+=== Path Parameters
+include::{snippets}/read-ou-roles/path-parameters.adoc[]
+
+=== Request Headers
+include::{snippets}/read-ou-roles/request-headers.adoc[]
+
+=== Response Fields
+include::{snippets}/read-ou-roles/response-fields.adoc[]
+
+=== Example request
+include::{snippets}/read-ou-roles/http-request.adoc[]
+
+=== Example response
+include::{snippets}/read-ou-roles/http-response.adoc[]
+
+== Read rolegroups assigned to OrgUnit
+
+[[resources-read-ou-roles]]
+This operation will list all rolegroups that have been assigned to a given OrgUnit
+
+=== Path Parameters
+include::{snippets}/read-ou-rolegroups/path-parameters.adoc[]
+
+=== Request Headers
+include::{snippets}/read-ou-rolegroups/request-headers.adoc[]
+
+=== Response Fields
+include::{snippets}/read-ou-rolegroups/response-fields.adoc[]
+
+=== Example request
+include::{snippets}/read-ou-rolegroups/http-request.adoc[]
+
+=== Example response
+include::{snippets}/read-ou-rolegroups/http-response.adoc[]
+
+== Read roles assigned to user
+
+[[resources-read-ou-roles]]
+This operation will list all roles that have been assigned (directly) to a given user
+
+=== Path Parameters
+include::{snippets}/read-user-roles/path-parameters.adoc[]
+
+=== Request Headers
+include::{snippets}/read-user-roles/request-headers.adoc[]
+
+=== Response Fields
+include::{snippets}/read-user-roles/response-fields.adoc[]
+
+=== Example request
+include::{snippets}/read-user-roles/http-request.adoc[]
+
+=== Example response
+include::{snippets}/read-user-roles/http-response.adoc[]
+
+== Read rolegroups assigned to user
+
+[[resources-read-ou-roles]]
+This operation will list all rolegroups that have been assigned (directly) to a given user
+
+=== Path Parameters
+include::{snippets}/read-user-rolegroups/path-parameters.adoc[]
+
+=== Request Headers
+include::{snippets}/read-user-rolegroups/request-headers.adoc[]
+
+=== Response Fields
+include::{snippets}/read-user-rolegroups/response-fields.adoc[]
+
+=== Example request
+include::{snippets}/read-user-rolegroups/http-request.adoc[]
+
+=== Example response
+include::{snippets}/read-user-rolegroups/http-response.adoc[]
+
+== List all roles
+
+[[resources-list-userroles]]
+This operation will list all userroles in the role catalogue
+
+=== Request Headers
+include::{snippets}/list-userroles/request-headers.adoc[]
+
+=== Response Fields
+include::{snippets}/list-userroles/response-fields.adoc[]
+
+=== Example request
+include::{snippets}/list-userroles/http-request.adoc[]
+
+=== Example response
+include::{snippets}/list-userroles/http-response.adoc[]
+
+== Read one role
+
+[[resources-read-userrole]]
+This operation will read a given role
+
+=== Path Parameters
+include::{snippets}/read-userrole/path-parameters.adoc[]
+
+=== Request Headers
+include::{snippets}/read-userrole/request-headers.adoc[]
+
+=== Response Fields
+include::{snippets}/read-userrole/response-fields.adoc[]
+
+=== Example request
+include::{snippets}/read-userrole/http-request.adoc[]
+
+=== Example response
+include::{snippets}/read-userrole/http-response.adoc[]
+
+== List all rolegroups
+
+[[resources-list-rolegroups]]
+This operation will list all rolegroups in the role catalogue
+
+=== Request Headers
+include::{snippets}/list-rolegroups/request-headers.adoc[]
+
+=== Response Fields
+include::{snippets}/list-rolegroups/response-fields.adoc[]
+
+=== Example request
+include::{snippets}/list-rolegroups/http-request.adoc[]
+
+=== Example response
+include::{snippets}/list-rolegroups/http-response.adoc[]
+
+== Read one rolegroup
+
+[[resources-read-rolegroup]]
+This operation will read a given rolegroup
+
+=== Path Parameters
+include::{snippets}/read-rolegroup/path-parameters.adoc[]
+
+=== Request Headers
+include::{snippets}/read-rolegroup/request-headers.adoc[]
+
+=== Response Fields
+include::{snippets}/read-rolegroup/response-fields.adoc[]
+
+=== Example request
+include::{snippets}/read-rolegroup/http-request.adoc[]
+
+=== Example response
+include::{snippets}/read-rolegroup/http-response.adoc[]
+
+
+= Role Assignment API
+
+== Assign role to user
+[[resources-assign-user-role]]
+This operation will assign a given role directly to a user
+
+=== Path Parameters
+include::{snippets}/assign-user-role/path-parameters.adoc[]
+
+=== Request Headers
+include::{snippets}/assign-user-role/request-headers.adoc[]
+
+=== Example request
+include::{snippets}/assign-user-role/http-request.adoc[]
+
+=== Example response
+include::{snippets}/assign-user-role/http-response.adoc[]
+
+== Remove role from user
+[[resources-deassign-user-role]]
+This operation will remove a given role from a user
+
+=== Path Parameters
+include::{snippets}/deassign-user-role/path-parameters.adoc[]
+
+=== Request Headers
+include::{snippets}/deassign-user-role/request-headers.adoc[]
+
+=== Example request
+include::{snippets}/deassign-user-role/http-request.adoc[]
+
+=== Example response
+include::{snippets}/deassign-user-role/http-response.adoc[]
+
+== Assign rolegroup to user
+[[resources-assign-rolegroup-to-user]]
+This operation will assign a rolegroup directly to a user
+
+=== Path Parameters
+include::{snippets}/assign-user-rolegroup/path-parameters.adoc[]
+
+=== Request Headers
+include::{snippets}/assign-user-rolegroup/request-headers.adoc[]
+
+=== Example request
+include::{snippets}/assign-user-rolegroup/http-request.adoc[]
+
+=== Example response
+include::{snippets}/assign-user-rolegroup/http-response.adoc[]
+
+== Remove rolegroup from user
+[[resources-deassign-rolegroup-to-user]]
+This operation will remove a rolegroup from a user
+
+=== Path Parameters
+include::{snippets}/deassign-user-rolegroup/path-parameters.adoc[]
+
+=== Request Headers
+include::{snippets}/deassign-user-rolegroup/request-headers.adoc[]
+
+=== Example request
+include::{snippets}/deassign-user-rolegroup/http-request.adoc[]
+
+=== Example response
+include::{snippets}/deassign-user-rolegroup/http-response.adoc[]
+
+
+== Assign role to OrgUnit
+[[resources-assign-role-ou]]
+This operation will assign a role directly to an OrgUnit (and thus to all users with a position in that OrgUnit)
+
+=== Path Parameters
+include::{snippets}/assign-ou-role/path-parameters.adoc[]
+
+=== Request Headers
+include::{snippets}/assign-ou-role/request-headers.adoc[]
+
+=== Example request
+include::{snippets}/assign-ou-role/http-request.adoc[]
+
+=== Example response
+include::{snippets}/assign-ou-role/http-response.adoc[]
+
+== Remove role from OrgUnit
+[[resources-deassign-role-ou]]
+This operation will remove a role from an OrgUnit
+
+=== Path Parameters
+include::{snippets}/deassign-ou-role/path-parameters.adoc[]
+
+=== Request Headers
+include::{snippets}/deassign-ou-role/request-headers.adoc[]
+
+=== Example request
+include::{snippets}/deassign-ou-role/http-request.adoc[]
+
+=== Example response
+include::{snippets}/deassign-ou-role/http-response.adoc[]
+
+== Assign rolegroup to OrgUnit
+[[resources-assign-rolegroup-ou]]
+This operation will assign a rolegroup to an OrgUnit (and thus to all users that has a position in that OrgUnit)
+
+=== Path Parameters
+include::{snippets}/assign-ou-rolegroup/path-parameters.adoc[]
+
+=== Request Headers
+include::{snippets}/assign-ou-rolegroup/request-headers.adoc[]
+
+=== Example request
+include::{snippets}/assign-ou-rolegroup/http-request.adoc[]
+
+=== Example response
+include::{snippets}/assign-ou-rolegroup/http-response.adoc[]
+
+== Remove rolegroup from OrgUnit
+[[resources-deassign-rolegroup-ou]]
+This operation will remove a rolegroup from an OrgUnit
+
+=== Path Parameters
+include::{snippets}/deassign-ou-rolegroup/path-parameters.adoc[]
+
+=== Request Headers
+include::{snippets}/deassign-ou-rolegroup/request-headers.adoc[]
+
+=== Example request
+include::{snippets}/deassign-ou-rolegroup/http-request.adoc[]
+
+=== Example response
+include::{snippets}/deassign-ou-rolegroup/http-response.adoc[]
+
+= Organisation Management API
+
+== Load Organisation V3
+[[resources-load-organisation-v3]]
+This operation will load a full organisation, overwriting the existing organisation in the Role Catalogue.
+
+=== Request Body
+include::{snippets}/load-organisation-v3/request-fields.adoc[]
+
+=== Request Headers
+include::{snippets}/load-organisation-v3/request-headers.adoc[]
+
+=== Example request
+include::{snippets}/load-organisation-v3/http-request.adoc[]
+
+=== Example response
+include::{snippets}/load-organisation-v3/http-response.adoc[]
+
+== Create or update user
+[[resources-create-or-update-user]]
+This operation will create or update a user.
+
+=== Request Body
+include::{snippets}/create-or-update-user/request-fields.adoc[]
+
+=== Request Headers
+include::{snippets}/create-or-update-user/request-headers.adoc[]
+
+=== Example request
+include::{snippets}/create-or-update-user/http-request.adoc[]
+
+=== Example response
+include::{snippets}/create-or-update-user/http-response.adoc[]
+
+== Delete user
+[[resources-delete-user]]
+This operation will delete an existing user.
+
+=== Path Parameters
+include::{snippets}/delete-user/path-parameters.adoc[]
+
+=== Request Headers
+include::{snippets}/delete-user/request-headers.adoc[]
+
+=== Example request
+include::{snippets}/delete-user/http-request.adoc[]
+
+=== Example response
+include::{snippets}/delete-user/http-response.adoc[]
+
+== Create or update OrgUnit
+[[resources-create-or-update-ou]]
+This operation will create or update an OrgUnit.
+
+=== Request Body
+include::{snippets}/create-or-update-ou/request-fields.adoc[]
+
+=== Request Headers
+include::{snippets}/create-or-update-ou/request-headers.adoc[]
+
+=== Example request
+include::{snippets}/create-or-update-ou/http-request.adoc[]
+
+=== Example response
+include::{snippets}/create-or-update-ou/http-response.adoc[]
+
+== Delete OrgUnit
+[[resources-delete-ou]]
+This operation will delete an existing OrgUnit.
+
+=== Path Parameters
+include::{snippets}/delete-ou/path-parameters.adoc[]
+
+=== Request Headers
+include::{snippets}/delete-ou/request-headers.adoc[]
+
+=== Example request
+include::{snippets}/delete-ou/http-request.adoc[]
+
+=== Example response
+include::{snippets}/delete-ou/http-response.adoc[]
+
+= AD Sync API
+
+The following operations are intended for Active Directory Group Membership synchronization, where a local client uses the API to update Active Directory.
+
+== Get group membership changes
+[[resources-ad-sync-groups]]
+This operation will return a list of group memberships that have changed since last sync
+
+=== Request Headers
+include::{snippets}/ad-sync-assignments/request-headers.adoc[]
+
+=== Response Fields
+include::{snippets}/ad-sync-assignments/response-fields.adoc[]
+
+=== Example request
+include::{snippets}/ad-sync-assignments/http-request.adoc[]
+
+=== Example response
+include::{snippets}/ad-sync-assignments/http-response.adoc[]
+
+== Flag changes as dealt with
+[[resources-ad-sync-cleanup]]
+This operation is called after "Get group membership changes", to indicate that the Active Director is now updated. The output from that
+operation (the head parameter) is used as input to this operation.
+
+=== Request Headers
+include::{snippets}/ad-sync-cleanup/request-headers.adoc[]
+
+=== Path Parameters
+include::{snippets}/ad-sync-cleanup/path-parameters.adoc[]
+
+=== Example request
+include::{snippets}/ad-sync-cleanup/http-request.adoc[]
+
+=== Example response
+include::{snippets}/ad-sync-cleanup/http-response.adoc[]
+

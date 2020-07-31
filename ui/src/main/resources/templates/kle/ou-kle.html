@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html>
+<head th:replace="fragments/header :: header (title=#{html.page.kle.oukle})" />
+<body>
+	<div class="wrapper">
+		<header th:replace="fragments/navbar :: navbar-header" />
+		<aside th:replace="fragments/navbar :: navbar-aside (page = 'kle.ous')" />
+ 
+		<section>
+			<div class="content-wrapper">
+				<h3>
+					<span th:text="#{html.page.kle.oukle}" />
+				</h3>
+
+				<div class="panel panel-default">
+					<div class="panel-heading" />
+					<div class="panel-body">
+						<div class="row col-md-12" style="padding: 0px 75px 0px 20px;">
+							<h4 th:text="#{html.word.search}" />
+							<input class="form-control" id="searchField" style="margin-bottom: 40px;" autofocus="autofocus" />
+							<div style="width:100%; padding-right: 4px;">
+								<div class="pull-right" style="width: 50px;margin-left: .3em;" th:text="#{html.page.kle.oukle.interest}"></div>
+								<div class="pull-right" style="width: 50px;margin-left: .3em;" th:text="#{html.page.kle.oukle.perform}"></div>
+							</div>
+							<div id="hierarchy"></div>
+						</div>
+					</div>
+				</div>
+			</div>
+		</section>
+	</div>
+
+	<nav th:replace="fragments/footer :: footer" />
+
+	<script th:replace="fragments/datatables :: datatables " />
+	<style>
+		.jstree-default .jstree-anchor {
+			width: calc(100% - 24px);
+		}
+		.jstree-default .jstree-anchor em.fa.fa-fw {
+			width: 50px;
+			height: 24px;
+			line-height: 24px;
+		}
+		
+	</style>
+	<script th:inline="javascript">
+	/*<![CDATA[*/
+
+	/*[+
+		var url = [[@{/ui/orgunit/}]];
+		var allOUs = [[${orgUnits}]];
+	+]*/
+		var token = $("meta[name='_csrf']").attr("content");
+
+		// polyfill for IE
+		if (!String.prototype.startsWith) {
+			String.prototype.startsWith = function(searchString, position) {
+				position = position || 0;
+				return this.substr(position, searchString.length) === searchString;
+			};
+		}
+
+		$("document").ready(function() {
+			$("#hierarchy").jstree({
+				"core": {
+					"data": allOUs,
+					"multiple": false,
+					"themes": {
+						"icons": false
+					}
+				},
+				"search" : {
+					"show_only_matches": true,
+					"search_callback": function(str, node) {
+						return (node.text.toUpperCase().startsWith(str.toUpperCase()));
+					}
+				},
+				"plugins" : [
+					"search", "state" , "wholerow"
+				]
+			});
+
+			// searching in the JSTree
+			var to = false;
+			$('#searchField').keyup(function() {
+				if (to) {
+					clearTimeout(to);
+				}
+
+				to = setTimeout(function() {
+					var v = $('#searchField').val();
+
+					$('#hierarchy').jstree(true).search(v);
+				}, 400);
+			});
+		});
+	/*]]>*/
+	</script>
+</body>
+</html>

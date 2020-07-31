@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="fragments/header :: header (title=#{html.page.itsystem.view.title})" />
+<body>
+
+	<div class="wrapper">
+		<header th:replace="fragments/navbar :: navbar-header" />
+		<aside th:replace="fragments/navbar :: navbar-aside (page = 'itsystem.list')" />
+
+		<section>
+			<div class="content-wrapper">
+				<h3>
+					<a th:href="@{/ui/itsystem/list}" class="btn btn-default">
+						<span><i class="fa fa-arrow-left"></i></span>
+					</a>
+					<span th:text="#{html.page.itsystem.view.title}" />
+				</h3>
+				
+				<div class="panel panel-default">
+					<div class="panel-heading" />
+					<div class="panel-body">
+
+						<form id="role-form" class="form-horizontal" th:object="${itsystem}">
+
+							<fieldset>
+								<div class="form-group">
+									<label class="col-sm-2 control-label" th:text="#{html.entity.itsystem.name}" />
+									<div class="col-sm-8">
+										<input th:field="*{name}" readonly="readonly" class="form-control" />
+									</div>
+								</div>
+							</fieldset>
+
+							<fieldset>
+								<div class="form-group">
+									<label class="col-sm-2 control-label" th:text="#{html.entity.itsystem.identifier}" />
+									<div class="col-sm-8">
+										<input th:field="*{identifier}" readonly="readonly" class="form-control" />
+									</div>
+								</div>
+							</fieldset>
+
+							<fieldset th:if="${#strings.toString(itsystem.systemType)} == 'MANUAL'">
+								<div class="form-group">
+									<label class="col-sm-2 control-label" th:text="#{html.entity.itsystem.email}" />
+									<div class="col-sm-8">
+										<input th:field="*{email}" readonly="readonly" class="form-control" />
+									</div>
+								</div>
+							</fieldset>
+
+							<fieldset>
+								<div class="form-group">
+									<label class="col-sm-2 control-label" th:text="#{html.entity.itsystem.type}" />
+									<div class="col-sm-8">
+										<input th:value="#{__*{systemType.message}__}" readonly="readonly" class="form-control" />
+									</div>
+								</div>
+							</fieldset>
+							
+							<fieldset>
+								<div class="form-group">
+									<label class="col-sm-2 control-label" th:text="#{html.entity.itsystem.notes}" />
+									<div class="col-sm-8">
+										<textarea rows="5" th:field="*{notes}" readonly="readonly" class="form-control" />
+									</div>
+								</div>
+							</fieldset>
+
+							<fieldset>
+								<div class="form-group">
+									<label class="col-sm-2 control-label" th:text="#{html.entity.itsystem.hidden}" />
+									<div class="col-sm-1">
+										<div class="checkbox c-checkbox">
+											<label>
+												<input id="hidden-checkbox" type="checkbox" data-flag="hidden" th:attr="checked=${itsystem.hidden}" disabled="disabled"/>
+												<span class="fa fa-check"></span>
+											</label>
+										</div>
+									</div>
+								</div>
+							</fieldset>
+
+							<fieldset th:if="${#strings.toString(itsystem.systemType)} == 'AD'">
+								<div class="form-group">
+									<label class="col-sm-2 control-label" th:text="#{html.entity.itsystem.paused}" />
+									<div class="col-sm-1">
+										<div class="checkbox c-checkbox">
+											<label>
+												<input id="paused-checkbox" type="checkbox" data-flag="paused" th:attr="checked=${itsystem.paused}" disabled="disabled"/>
+												<span class="fa fa-check"></span>
+											</label>
+										</div>
+									</div>
+								</div>
+							</fieldset>
+
+							<fieldset th:if="${#strings.toString(itsystem.systemType)} == 'AD' or ${#strings.toString(itsystem.systemType)} == 'SAML'">
+								<div class="form-group">
+									<label class="col-sm-2 control-label" th:text="#{html.entity.itsystem.canEditThroughApi}" />
+									<div class="col-sm-1">
+										<div class="checkbox c-checkbox">
+											<label>
+												<input id="canEditThroughApi-checkbox" type="checkbox" th:attr="checked=${itsystem.canEditThroughApi}" disabled="disabled"/>
+												<span class="fa fa-check"></span>
+											</label>
+										</div>
+									</div>
+								</div>
+							</fieldset>
+ 
+							<fieldset th:if="${#strings.toString(itsystem.systemType)} == 'SAML'">
+								<div class="form-group">
+									<label class="col-sm-2 control-label" th:text="#{html.entity.itsystem.subscribedto}" />
+									<div class="col-sm-8">
+										<input th:value="${subscribedTo}" readonly="readonly" class="form-control" />
+									</div>
+								</div>
+							</fieldset>
+
+						</form>
+
+						<form class="form-horizontal" th:if="${#strings.toString(itsystem.systemType)} == 'AD'">
+							<ul class="nav nav-tabs">
+								<li th:class="active">
+									<a data-toggle="tab" href="#systemRole_menu" th:text="#{html.page.itsystem.pane.label}"/>
+								</li>
+								<li>
+									<a data-toggle="tab" href="#userRole_menu" th:text="#{html.page.itsystem.pane.userroles.label}"/>
+								</li>
+							</ul>
+
+							<div class="tab-content">
+								<div id="systemRole_menu" class="tab-pane fade in active">
+									<div class="table-responsive">
+										<table id="listTable" class="table table-striped listTable">
+											<thead>
+												<tr>
+													<th class="col-md-2" th:text="#{html.entity.adgroup.name}" />
+													<th class="col-md-3" th:text="#{html.entity.adgroup.identifier}" />
+													<th class="col-md-5" th:text="#{html.entity.adgroup.description}" />
+													<th class="col-md-1" th:text="#{html.entity.adgroup.inuse}" />
+													<th class="col-md-1" th:text="#{html.control.operations}" />
+												</tr>
+											</thead>
+	
+											<tbody>
+												<tr th:each="systemRole : ${systemRoles}">
+													<td th:text="${systemRole.name}" />
+													<td th:text="${systemRole.identifier}" />
+													<td class="preformat" th:text="${systemRole.description}" />
+													<td><em class="fa fa-fw" th:classappend="${systemRole.inUse} ? fa-check : ''"></em></td>
+													<td>
+														<a th:href="@{/ui/systemrole/{id}/userroles(id=${systemRole.id})}"><em class="fa fa-list"></em></a>
+													</td>
+												</tr>
+											</tbody>
+										</table>
+									</div>
+								</div>
+								<div id="userRole_menu" class="tab-pane fade">
+									<div class="table-responsive">
+										<table id="listTable" class="table table-striped listTable">
+											<thead>
+												<tr>
+													<th class="col-md-5" th:text="#{html.entity.userrole.name}" />
+													<th class="col-md-6" th:text="#{html.entity.userrole.description}" />
+													<th class="col-md-1" th:text="#{html.control.operations}" />
+												</tr>
+											</thead>
+											<tbody>
+												<tr th:each="role : ${userRoles}">
+													<td class="col-md-5" th:text="${role.name}" />
+													<td class="col-md-6" th:text="${role.description}" />
+													<th:block th:if="${role.delegatedFromCvr == null}">
+														<td class="col-md-1">
+															<a th:href="@{/ui/userroles/view/{id}(id=${role.id})}"><em class="fa fa-search"></em></a>
+															<th:block sec:authorize="hasRole('ROLE_ADMINISTRATOR')">
+																<a th:href="@{/ui/userroles/edit/{id}(id=${role.id})}"><em class="fa fa-pencil"></em></a>
+															</th:block>
+														</td>
+													</th:block>
+													<th:block th:if="${role.delegatedFromCvr != null}">
+														<td class="col-md-1">&nbsp;</td>
+													</th:block>
+												</tr>
+											</tbody>
+										</table>
+									</div>
+								</div>
+							</div>
+						</form>
+						
+						<form class="form-horizontal" th:if="${#strings.toString(itsystem.systemType)} == 'SAML' or ${#strings.toString(itsystem.systemType)} == 'MANUAL'">
+							<ul class="nav nav-tabs">
+								<li th:class="active">
+									<a data-toggle="tab" href="#systemRole_menu" th:text="#{html.page.itsystem.pane.nonad.label}"/>
+								</li>
+								<li>
+									<a data-toggle="tab" href="#userRole_menu" th:text="#{html.page.itsystem.pane.userroles.label}"/>
+								</li>
+							</ul>
+
+							<div class="tab-content">
+								<div id="systemRole_menu" class="tab-pane fade in active">
+									<table id="listTable" class="table table-striped listTable">
+										<thead>
+											<tr>
+												<th class="col-md-2" th:text="#{html.entity.samlrole.name}" />
+												<th class="col-md-3" th:text="#{html.entity.samlrole.identifier}" />
+												<th class="col-md-5" th:text="#{html.entity.samlrole.description}" />
+												<th class="col-md-1" th:text="#{html.entity.samlrole.inuse}" />
+												<th class="col-md-1" th:text="#{html.control.operations}" />
+											</tr>
+										</thead>
+
+										<tbody>
+											<tr th:each="systemRole : ${systemRoles}">
+												<td th:text="${systemRole.name}" />
+												<td th:text="${systemRole.identifier}" />
+												<td class="preformat" th:text="${systemRole.description}" />
+												<td><em class="fa fa-fw" th:classappend="${systemRole.inUse} ? fa-check : ''"></em></td>
+												<td>
+													<a th:href="@{/ui/systemrole/{id}/userroles(id=${systemRole.id})}"><em class="fa fa-list"></em></a>
+												</td>
+											</tr>
+										</tbody>
+									</table>
+								</div>
+								<div id="userRole_menu" class="tab-pane fade">
+									<div class="table-responsive">
+										<table id="listTable" class="table table-striped listTable">
+											<thead>
+												<tr>
+													<th class="col-md-5" th:text="#{html.entity.userrole.name}" />
+													<th class="col-md-6" th:text="#{html.entity.userrole.description}" />
+													<th class="col-md-1" th:text="#{html.control.operations}" />
+												</tr>
+											</thead>
+											<tbody>
+												<tr th:each="role : ${userRoles}">
+													<td class="col-md-5" th:text="${role.name}" />
+													<td class="col-md-6" th:text="${role.description}" />
+													<th:block th:if="${role.delegatedFromCvr == null}">
+														<td class="col-md-1">
+															<a th:href="@{/ui/userroles/view/{id}(id=${role.id})}"><em class="fa fa-search"></em></a>
+															<th:block sec:authorize="hasRole('ROLE_ADMINISTRATOR')">
+																<a th:href="@{/ui/userroles/edit/{id}(id=${role.id})}"><em class="fa fa-pencil"></em></a>
+															</th:block>
+														</td>
+													</th:block>
+													<th:block th:if="${role.delegatedFromCvr != null}">
+														<td class="col-md-1">&nbsp;</td>
+													</th:block>
+												</tr>
+											</tbody>
+										</table>
+									</div>
+								</div>
+							</div>
+						</form>
+						
+						<form class="form-horizontal" th:if="${#strings.toString(itsystem.systemType)} == 'KOMBIT' or ${#strings.toString(itsystem.systemType)} == 'KSPCICS'">
+							<ul class="nav nav-tabs">
+								<li th:class="active">
+									<a data-toggle="tab" href="#systemRole_menu" th:text="#{html.page.itsystem.pane.nonad.label}"/>
+								</li>
+								<li>
+									<a data-toggle="tab" href="#userRole_menu" th:text="#{html.page.itsystem.pane.userroles.label}"/>
+								</li>
+							</ul>
+
+							<div class="tab-content">
+								<div id="systemRole_menu" class="tab-pane fade in active">
+									<table id="listTable" class="table table-striped listTable">
+										<thead>
+											<tr>
+												<th class="col-md-4" th:text="#{html.entity.adgroup.name}" />
+												<th class="col-md-6" th:text="#{html.entity.adgroup.description}" />
+												<th class="col-md-1" th:text="#{html.entity.adgroup.inuse}" />
+												<th class="col-md-1" th:text="#{html.control.operations}" />
+											</tr>
+										</thead>
+
+										<tbody>
+											<tr th:each="systemRole : ${systemRoles}">
+												<td th:text="${systemRole.name}" />
+												<td class="preformat" th:text="${systemRole.description}" />
+												<td><em class="fa fa-fw" th:classappend="${systemRole.inUse} ? fa-check : ''"></em></td>
+												<td><a th:href="@{/ui/systemrole/{id}/userroles(id=${systemRole.id})}"><em class="fa fa-list"></em></a></td>
+											</tr>
+										</tbody>
+									</table>
+								</div>
+
+								<div id="userRole_menu" class="tab-pane fade">
+									<div class="table-responsive">
+										<table id="listTable" class="table table-striped listTable">
+											<thead>
+												<tr>
+													<th class="col-md-5" th:text="#{html.entity.userrole.name}" />
+													<th class="col-md-6" th:text="#{html.entity.userrole.description}" />
+													<th class="col-md-1" th:text="#{html.control.operations}" />
+												</tr>
+											</thead>
+											<tbody> 
+												<tr th:each="role : ${userRoles}">
+													<td class="col-md-5" th:text="${role.name}" />
+													<td class="col-md-6" th:text="${role.description}" />
+													<th:block th:if="${role.delegatedFromCvr == null}">
+														<td class="col-md-1">
+															<a th:href="@{/ui/userroles/view/{id}(id=${role.id})}"><em class="fa fa-search"></em></a>
+															<th:block sec:authorize="hasRole('ROLE_ADMINISTRATOR')">
+																<a th:href="@{/ui/userroles/edit/{id}(id=${role.id})}"><em class="fa fa-pencil"></em></a>
+															</th:block>
+														</td>
+													</th:block>
+													<th:block th:if="${role.delegatedFromCvr != null}">
+														<td class="col-md-1">&nbsp;</td>
+													</th:block>
+												</tr>
+											</tbody>
+										</table>
+									</div>
+								</div>
+							</div>
+						</form>
+					</div>
+				</div>
+			</div>
+		</section>
+	</div>
+
+	<nav th:replace="fragments/footer :: footer" />
+	<script th:replace="fragments/datatables :: datatables " />
+
+</body>
+</html>

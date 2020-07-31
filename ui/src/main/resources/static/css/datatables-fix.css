@@ -1,0 +1,21 @@
+table.dataTable thead .sorting_asc {
+	background: url("https://cdn.datatables.net/1.10.0/images/sort_asc.png") no-repeat center left;
+}
+
+table.dataTable thead .sorting_desc {
+	background:	url("https://cdn.datatables.net/1.10.0/images/sort_desc.png") no-repeat center left;
+}
+
+table.dataTable thead .sorting {
+	background:	url("https://cdn.datatables.net/1.10.0/images/sort_both.png") no-repeat center left;
+}
+
+table.dataTable thead th {
+	padding-left: 20px;
+}
+
+table.dataTable thead .sorting:after,
+table.dataTable thead .sorting_asc:after,
+table.dataTable thead .sorting_desc:after {
+	content: none !important;
+}

@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html>
+<head th:replace="fragments/header :: header (title=#{html.page.report.full.title})" />
+<body>
+	<div class="wrapper">
+		<header th:replace="fragments/navbar :: navbar-header" />
+		<aside th:replace="fragments/navbar :: navbar-aside (page = 'report.full')" />
+
+		<section>
+			<div class="content-wrapper">
+				<h3>
+					<span th:text="#{html.page.report.title}" />
+				</h3>
+
+				<div class="panel panel-default">
+					<div class="panel-heading" />
+					<div class="panel-body">
+						<form id="reportForm" class="form-horizontal" th:object="${reportForm}">
+
+							<div class="form-group">
+								<h4 class="col-sm-12" th:text="#{html.page.report.date}" />
+							</div>
+
+							<div class="form-group">
+								<input id="realDateField" th:field="*{date}" type="hidden">
+								<div style="overflow:hidden;" class="col-sm-offset-3 col-sm-9">
+									<div class="col-md-6">
+										<div id="datePicker"></div>
+									</div>
+								</div>
+							</div>
+
+							<hr/>
+							
+							<block id="filterOptions">
+								<div th:replace="reports/fragments/filterOptionsFragment :: filterOptions(allItSystems = ${allItSystems}, allManagers = ${allManagers})" />
+							</block>
+
+							<hr/>
+
+							<div class="form-group">
+								<h4 class="col-sm-12" th:text="#{html.page.report.column.text}" />
+							</div>
+
+							<div class="form-group" style="margin-bottom: 20px">
+								<input class="column-choice" id="realShowUsers" th:field="*{showUsers}" type="hidden">
+								<label class="col-sm-3 control-label" th:text="#{html.page.report.column.user}"/>
+								<div class="col-sm-9">
+									<div class="checkbox c-checkbox">
+										<label>
+											<input id="UserColumnCheckbox" type="checkbox" th:attr="checked=${reportForm.showUsers}" onchange="columnChoiceTrigger(this, 'ShowUsers')"/>
+											<span class="fa fa-check"></span>
+										</label>
+									</div>
+								</div>
+							</div>
+
+							<div class="form-group" style="margin-bottom: 20px" th:if="${@roleCatalogueConfiguration.getTitles().isEnabled()}">
+								<input class="column-choice" id="realShowTitles" th:field="*{showTitles}" type="hidden">
+								<label class="col-sm-3 control-label" th:text="#{html.page.report.column.title}"/>
+								<div class="col-sm-9">
+									<div class="checkbox c-checkbox">
+										<label>
+											<input id="TitleColumnCheckbox" type="checkbox" th:attr="checked=${reportForm.showTitles}" onchange="columnChoiceTrigger(this, 'ShowTitles')"/>
+											<span class="fa fa-check"></span>
+										</label>
+									</div>
+								</div>
+							</div>
+
+							<div class="form-group" style="margin-bottom: 20px">
+								<input class="column-choice" id="realShowOUs" th:field="*{showOUs}" type="hidden">
+								<label class="col-sm-3 control-label" th:text="#{html.page.report.column.ou}"/>
+								<div class="col-sm-9">
+									<div class="checkbox c-checkbox">
+										<label>
+											<input id="OUColumnCheckbox" type="checkbox" th:attr="checked=${reportForm.showOUs}" onchange="columnChoiceTrigger(this, 'ShowOUs')"/>
+											<span class="fa fa-check"></span>
+										</label>
+									</div>
+								</div>
+							</div>
+
+							<div class="form-group" style="margin-bottom: 20px">
+								<input class="column-choice" id="realShowUserRoles" th:field="*{showUserRoles}" type="hidden">
+								<label class="col-sm-3 control-label" th:text="#{html.page.report.column.userrole}"/>
+								<div class="col-sm-9">
+									<div class="checkbox c-checkbox">
+										<label>
+											<input id="UserRolesColumnCheckbox" type="checkbox" th:attr="checked=${reportForm.showUserRoles}" onchange="columnChoiceTrigger(this, 'ShowUserRoles')"/>
+											<span class="fa fa-check"></span>
+										</label>
+									</div>
+								</div>
+							</div>
+
+							<div class="form-group" style="margin-bottom: 20px">
+								<input class="column-choice" id="realShowKLE" th:field="*{showKLE}" type="hidden">
+								<label class="col-sm-3 control-label" th:text="#{html.page.report.column.kle}"/>
+								<div class="col-sm-9">
+									<div class="checkbox c-checkbox">
+										<label>
+											<input id="KLEColumnCheckbox" type="checkbox" th:attr="checked=${reportForm.showKLE}" onchange="columnChoiceTrigger(this, 'ShowKLE')"/>
+											<span class="fa fa-check"></span>
+										</label>
+									</div>
+								</div>
+							</div>
+
+							<div class="form-group" style="margin-bottom: 20px">
+								<input class="column-choice" id="realShowItSystems" th:field="*{showItSystems}" type="hidden">
+								<label class="col-sm-3 control-label" th:text="#{html.page.report.column.itsystem}"/>
+								<div class="col-sm-9">
+									<div class="checkbox c-checkbox">
+										<label>
+											<input id="ItSystemDataColumnCheckbox" type="checkbox" th:attr="checked=${reportForm.showItSystems}" onchange="columnChoiceTrigger(this, 'ShowItSystems')"/>
+											<span class="fa fa-check"></span>
+										</label>
+									</div>
+								</div>
+							</div>
+
+							<div class="form-group" style="margin-bottom: 40px">
+								<input class="column-choice" id="realShowInactiveUsers" th:field="*{showInactiveUsers}" type="hidden">
+								<label class="col-sm-3 control-label" th:text="#{html.page.report.column.show.inactive}"/>
+								<div class="col-sm-9">
+									<div class="checkbox c-checkbox">
+										<label>
+											<input id="ShowInactiveUsersCheckbox" type="checkbox" th:attr="checked=${reportForm.showInactiveUsers}" onchange="columnChoiceTrigger(this, 'ShowInactiveUsers')"/>
+											<span class="fa fa-check"></span>
+										</label>
+									</div>
+								</div>
+							</div>
+
+							<hr/>
+
+							<div class="form-group">
+								<div class="col-sm-offset-1 col-sm-10">
+								<input class="btn btn-lg btn-primary" type="submit" th:value="#{html.page.report.generate}" style="width: 250px;" /> &nbsp;&nbsp;
+								<input class="btn btn-lg btn-warning" th:value="#{html.page.report.save.template}" onclick="openSaveTemplateModal()" style="width: 250px;" />
+								</div>
+							</div>
+						</form>
+					</div>
+				</div>
+			</div>
+		</section>
+	</div>
+
+	<div class="modal fade" id="saveTemplateModal" role="dialog">
+		<div class="modal-dialog">
+
+			<!-- Modal content-->
+			<div class="modal-content">
+				<div class="modal-header">
+					<h4 th:text="#{html.page.report.modal.title}"/>
+				</div>
+
+				<div class="modal-body" style="min-height:70px;">
+					<label class="col-sm-2 control-label" th:text="#{html.page.report.modal.name}" />
+					<div class="col-sm-10">
+						<input id="templateName" class="form-control"/>
+					</div>
+				</div>
+
+				<div class="modal-footer">
+					<button type="button" class="btn btn-primary" th:text="#{html.control.button.save}" onclick="saveTemplate()"/>
+					<button type="button" class="btn btn-danger" th:text="#{html.control.button.cancel}" onclick="closeSaveTemplate()"/>
+				</div>
+			</div>
+		</div>
+	</div>
+	
+	<div class="modal-spinner">
+		<i class="fa fa-spinner fa-pulse fa-3x fa-fw"></i>
+		<span class="sr-only">Henter rapport...</span>
+	</div>
+
+	<style>
+		.modal-spinner {
+			display: none;
+			position: fixed;
+			z-index: 1000;
+			top: 0;
+			left: 0;
+			height: 100%;
+			width: 100%;
+			background: rgba( 255, 255, 255, .8 ) 50% 50% no-repeat;
+		}
+
+		.modal-spinner i {
+			color: #4765a0;
+			position: fixed;
+			top: 50%;
+			left: 50%;
+			margin-left: -0.642857145em;
+			margin-top: -0.642857145em;
+		}
+
+		body.loading {
+			overflow: hidden;
+		}
+
+		body.loading .modal-spinner {
+			display: block;
+		}
+	</style>
+
+	<nav th:replace="fragments/footer :: footer" />
+
+	<block id="filterOptionsScripts">
+		<div th:replace="reports/fragments/filterOptionsFragment :: filterOptionsScripts(allOrgUnits = ${allOrgUnits})" />
+	</block>
+
+	<script th:inline="javascript">
+		/*<![CDATA[*/
+
+		/*[+
+			var url = [[@{/ui/report}]];
+			var resturl = [[@{/rest/report}]];
+			var fieldUpdatedMsg = [[#{html.page.report.modal.successMsg}]];
+			var fieldNotUpdatedMsg = [[#{html.page.report.modal.failMsg}]];
+		+]*/
+		var token = $("meta[name='_csrf']").attr("content");
+
+		function columnChoiceTrigger(checkbox, name) {
+			$('#real' + name).val(checkbox.checked);
+		}
+
+		function openSaveTemplateModal() {
+			$('#saveTemplateModal').modal('show');
+		}
+
+		function closeSaveTemplate() {
+			$('#saveTemplateModal').modal('hide');
+		}
+
+		function saveTemplate() {
+			var dataObj = {
+				"name": $('#templateName').val(),
+				"showUsers": $('#realShowUsers').val(),
+				"showTitles": $('#realShowTitles').val(),
+				"showOUs": $('#realShowOUs').val(),
+				"showUserRoles": $('#realShowUserRoles').val(),
+				"showKLE": $('#realShowKLE').val(),
+				"showItSystems": $('#realShowItSystems').val(),
+				"showInactiveUsers": $('#realShowInactiveUsers').val()
+			}
+
+			closeSaveTemplate();
+
+			$.ajax({
+				contentType: 'application/json',
+				url: resturl + "/save-template",
+				method : "POST",
+				headers: {
+					'X-CSRF-TOKEN': token
+				},
+				success: function(response) {
+					$.notify({
+						message: fieldUpdatedMsg
+					}, {
+						status: 'success',
+						autoHideDelay: 4000
+					});
+				},
+				error: function(response) {
+					$.notify({
+						message: fieldNotUpdatedMsg
+					}, {
+						status: 'danger',
+						autoHideDelay: 4000
+					});
+				},
+				data: JSON.stringify(dataObj)
+			});
+		}
+
+		$(document).ready(function() {
+			// Initialize DatePicker
+			$('#datePicker').datetimepicker({
+				inline: true,
+				format: 'YYYY-MM-DD'
+			});
+
+			// On Change event for DatePicker
+        	$('#datePicker').on('dp.change', function () {
+        		var date = $('#datePicker').data('date');
+
+        		// Remember date
+        		$('#realDateField').val(date);
+
+        		// ajax call to load
+				$("#filterOptions").load(url + "/configure/" + date, function() {
+					initOptionsFragment();					
+				});
+        	});
+
+        	$('#datePicker').trigger('dp.change');
+
+        	$('.column-choice').trigger('change');
+
+        	$('#saveTemplateModal').on('hidden.bs.modal', function () {
+				$('#templateName').val('');
+			});
+
+			$('#saveTemplateModal').on('shown.bs.modal', function () {
+				$('#templateName').focus();
+			});
+						
+			$('#reportForm').submit(function(event) {
+				event.preventDefault();
+
+				var request = new XMLHttpRequest();
+				request.open('POST', url + '/download', true);
+				request.setRequestHeader('X-CSRF-TOKEN', token);
+				request.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded; charset=UTF-8');
+				request.responseType = 'blob';
+
+				request.onload = function() {
+					$('body').removeClass('loading');
+
+					if (request.status === 200) {
+						var disposition = request.getResponseHeader('content-disposition');
+						var matches = /"([^"]*)"/.exec(disposition);
+						var filename = (matches != null && matches[1] ? matches[1] : 'report.xls');
+
+						// The actual download
+						var blob = new Blob([request.response], { type: 'application/ms-excel' });
+						var link = document.createElement('a');
+						link.href = window.URL.createObjectURL(blob);
+						link.download = filename;
+
+						document.body.appendChild(link);
+						link.click();
+						document.body.removeChild(link);
+					}
+				};
+
+			    request.send($(this).serialize());
+
+				$('body').addClass('loading');
+			});
+		});
+
+	/*]]>*/
+	</script>
+</body>
+</html>

@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html>
+<head th:replace="fragments/header :: header (title=#{html.page.kle.kle.assignment})" />
+<body>
+	<div class="wrapper">
+		<header th:replace="fragments/navbar :: navbar-header" />
+		<aside th:replace="fragments/navbar :: navbar-aside (page = 'kle.assignment')" />
+		<section>
+			<div class="content-wrapper">
+				<h3>
+					<span th:text="#{html.page.kle.who}" />
+				</h3>
+
+				<div class="panel panel-default">
+					<div class="panel-heading" />
+					<div class="panel-body">
+						<div class="row">
+							<div class="col-md-12">
+								<div id="kleTree"></div>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+		</section>
+	</div>
+
+	<nav th:replace="fragments/footer :: footer" />
+
+	<script th:inline="javascript">
+		/*<![CDATA[*/
+
+		/*[+
+		var url = [[@{/ui/kle/}]];
+		var allKles = [[${allKles}]];
+		+]*/
+
+		var navigating = false;
+		var token = $("meta[name='_csrf']").attr("content");
+
+		$(document).ready(function() {
+			initJSTree();
+		});
+		
+		function initJSTree() {
+			$('#kleTree').jstree({
+				"core": {
+					"data": allKles,
+					"themes": {
+						"icons": false
+					}
+				},
+				"plugins" : [
+					"wholerow"
+				]
+			});
+
+			// selecting in the JSTree
+			$("#kleTree").on("select_node.jstree", function(e, data) {
+				if (!navigating) {
+					navigating = true;
+					window.location.href = url + data.node.id;
+				}
+			});
+
+		}
+
+		/*]]>*/
+	</script>
+</body>
+</html>

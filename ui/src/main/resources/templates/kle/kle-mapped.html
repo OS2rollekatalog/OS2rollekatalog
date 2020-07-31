@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html>
+<head th:replace="fragments/header :: header (title=#{html.page.kle.kle.mapped})" />
+<body>
+	<div class="wrapper">
+		<header th:replace="fragments/navbar :: navbar-header" />
+		<aside th:replace="fragments/navbar :: navbar-aside (page = 'kle.mapped')" />
+		<section>
+			<div class="content-wrapper">
+				<h3>
+					<a th:href="@{/ui/ous/list}" class="btn btn-default">
+						<span>
+							<i class="fa fa-arrow-left"></i>
+						</span>
+					</a>
+					<span th:text="#{html.page.kle.kle.mapped}" />
+				</h3>
+
+				<div class="panel panel-default">
+					<div class="panel-heading" />
+					<div class="panel-body">
+						<ul class="nav nav-tabs">
+							<li class="active">
+								<a data-toggle="tab" href="#kle_performing_menu" th:text="#{html.page.ous.list.kleperform}"></a>
+							</li>
+						</ul>
+
+						<div class="tab-content">
+							<div id="kle_performing_menu" class="tab-pane fade in active"/>
+						</div>
+					</div>
+				</div>
+			</div>
+		</section>
+	</div>
+
+	<nav th:replace="fragments/footer :: footer" />
+
+	<style>
+		.table .checkbox {
+			margin-left: 10px;
+			width: auto;
+		}
+	</style>
+
+	<script th:inline="javascript">
+		/*<![CDATA[*/
+
+		/*[+
+		var url = [[@{/ui/ous/}]];
+		var urlRest = [[@{/rest/ous/}]];
+		var kleMainGroups = [[${kleMainGroupsList}]];
+		var klePerformers = [[${klePerforming}]];
+		+]*/
+
+		var token = $("meta[name='_csrf']").attr("content");
+
+		$(document).ready(function() {
+			renderKleTree($("#kle_performing_menu"), kleMainGroups, "1");
+
+			$("#kle_performing_menu").on('click', "a", function(e) {
+				kleTree($(this));
+			});
+		});
+
+		function kleTree(element){
+			var scrollTop = document.documentElement.scrollTop;
+			
+			$this = element.closest("li");
+			if($this.hasClass("kleOpen")) {
+				$this.removeClass("kleOpen").addClass("kleClose").find("ul").first().hide();
+				$this.find(".arrow").removeClass("fa-chevron-down").addClass("fa-chevron-right");
+			}
+			else {
+				if ($this.hasClass("kleClose")) {
+					$this.find(".arrow").removeClass("fa-chevron-right").addClass("fa-chevron-down");
+					$this.removeClass("kleClose").addClass("kleOpen").find("ul").first().show();
+				}
+				else {
+					$this.find(".arrow").removeClass("fa-chevron-right").addClass("fa-chevron-down");
+					$this.addClass("kleOpen");
+					var kleParentCode = $this.attr("id").replace(".", "");
+					
+					$.ajax({
+						method: "GET",
+						url: urlRest + "getKle/" + kleParentCode,
+						success: function (response) {
+							if($this.hasClass("kleMainGroup")) {
+								renderKleTree($this, response, "2");
+							} else if($this.hasClass("kleGroup")){
+								renderKleTree($this, response, "3");
+							}
+
+							window.scrollTo(0, scrollTop);
+						}
+					});
+				}
+			}
+		}
+
+		function renderKleTree(element, kleList, level) {
+			element.append("<ul class='list-unstyled'></ul>");
+			var ul = $(element).find("ul");
+			var $this = $(this);
+			$(kleList).each(function(){
+				switch(level) {
+					case "1":
+						renderKleTreeMainGroup(ul, $(this));
+						break;
+					case "2":
+						renderKleTreeGroup(ul, $(this));
+						break;
+					case "3":
+						renderKleTreeSubject(ul, $(this));
+						break;
+				}
+			});
+
+			var kleChosenList = klePerformers;
+
+			$(kleChosenList).each(function(){
+				var code = $(this).attr("code").replace("\.\*", "");
+				ul.find('em[id="' + code + '"]').removeClass("fa-square-o").removeClass("fa-minus-square-o").addClass("fa-check-square-o");
+
+				if (code.length == 8) {
+					if (ul.find('em[id="' + code.substring(0, 5) + '"]').hasClass("fa-square-o")) {
+						ul.find('em[id="' + code.substring(0, 5) + '"]').toggleClass("fa-square-o").toggleClass("fa-minus-square-o");
+					}
+				}
+
+				if (code.length >= 5) {
+					if(ul.find('#' + code.substring(0, 2)+ " > em").hasClass("fa-square-o")) {
+						ul.find('#' + code.substring(0, 2) + " > em").toggleClass("fa-square-o").toggleClass("fa-minus-square-o");
+					}
+				}
+			});
+		}
+
+		function renderKleTreeMainGroup(ul, $this){
+			ul.append("<li class='kleElement kleMainGroup' id='" + $this.attr("code") +"'><em id='" + $this.attr("code") +"' class='kleCheckbox fa fa-square-o' aria-hidden='true'></em> <a href='#'><em class='arrow fa fa-chevron-right' aria-hidden='true'></em> " + $this.attr("code") + " " + $this.attr("name") + "</a></li>");
+		}
+
+		function renderKleTreeGroup(ul, $this){
+			ul.append("<li class='kleElement kleGroup' id='" + $this.attr("code") +"'><em id='" + $this.attr("code") +"'class='kleCheckbox fa fa-square-o' aria-hidden='true'></em> <a href='#'><em class='arrow fa fa-chevron-right' aria-hidden='true'></em> " + $this.attr("code") + " " + $this.attr("name") + "</a></li>");
+		}
+
+		function renderKleTreeSubject(ul, $this){
+			ul.append("<li class='kleElement kleSubject' id='" + $this.attr("code") +"'><em id='" + $this.attr("code") +"'class='kleCheckbox fa fa-square-o' aria-hidden='true'></em> <a href='#'> " + $this.attr("code") + " " + $this.attr("name") + "</a></li>");
+		}
+
+		/*]]>*/
+	</script>
+</body>
+</html>

@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"  elementFormDefault="qualified" attributeFormDefault="unqualified"
+	xmlns="http://www.kle-online.dk/rest/resources/emneplan" 
+	xmlns:listevisning="http://www.kle-online.dk/rest/resources/hovedgruppe/liste" 
+	targetNamespace="http://www.kle-online.dk/rest/resources/hovedgruppe/liste">
+	<xs:import namespace="http://www.kle-online.dk/rest/resources/emneplan" schemaLocation="KLE-REST-Faelles-version-1-2.xsd"/>
+	<xs:element name="KLE-Hovedgrupper">
+		<xs:complexType>
+			<xs:sequence>
+				<xs:element ref="listevisning:Hovedgruppe" maxOccurs="unbounded"/>
+			</xs:sequence>
+		</xs:complexType>
+	</xs:element>
+	<xs:element name="Hovedgruppe" type="listevisning:HovedgruppeType"/>
+	<xs:complexType name="HovedgruppeType">
+		<xs:sequence>
+			<xs:element ref="HovedgruppeNr"/>
+			<xs:element ref="HovedgruppeTitel"/>
+		</xs:sequence>
+		<xs:attribute name="ref" type="xs:anyURI" use="required"/>
+	</xs:complexType>
+</xs:schema>

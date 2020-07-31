@@ -1,0 +1,898 @@
+<!DOCTYPE html>
+<html>
+<head th:replace="fragments/header :: header (title=#{html.page.userroles.addrole.title})" />
+<body>
+
+	<div class="wrapper">
+		<header th:replace="fragments/navbar :: navbar-header" />
+		<aside th:replace="fragments/navbar :: navbar-aside (page = 'userroles.list')" />
+
+		<section>
+			<div class="content-wrapper">
+				<h3>
+					<a th:href="@{/ui/userroles/list}" class="btn btn-default">
+						<span><i class="fa fa-arrow-left"></i></span>
+					</a>
+					<span th:text="#{html.page.userroles.addrole.title}" />
+				</h3>
+				
+				<div class="panel panel-default">
+					<div class="panel-heading" />
+					<div class="panel-body">
+
+						<form id="role-form" class="form-horizontal" th:object="${role}">
+							<input th:field="*{id}" type="hidden" />
+							<input th:field="*{itSystem}" type="hidden" />
+
+							<fieldset>
+								<div class="form-group">
+									<label class="col-sm-2 control-label" th:text="#{html.entity.userrole.name}" />
+									<div class="col-sm-8">
+										<input th:field="*{name}" class="form-control" th:readonly="${#strings.toString(role.itSystem.systemType)} == 'KSPCICS'" />
+									</div>
+								</div>
+							</fieldset>
+
+							<fieldset>
+								<div class="form-group">
+									<label class="col-sm-2 control-label" th:text="#{html.entity.userrole.description}" />
+									<div class="col-sm-8">
+										<textarea th:field="*{description}" class="form-control" th:readonly="${#strings.toString(role.itSystem.systemType)} == 'KSPCICS'" />
+									</div>
+								</div>
+							</fieldset>
+							
+							<fieldset>
+								<div class="form-group">
+									<label class="col-sm-2 control-label" th:text="#{html.role.flag.useronly}" />
+									<div class="col-sm-1">
+										<div class="checkbox c-checkbox">
+											<label>
+												<input class="useronly-checkbox" type="checkbox" data-flag="useronly" th:attr="checked=${role.userOnly}" />
+												<span class="fa fa-check"></span>
+											</label>
+										</div>
+									</div>
+
+									<label class="col-sm-2 control-label" th:text="#{html.role.flag.inherit}" />
+									<div class="col-sm-1">
+										<div class="checkbox c-checkbox">
+											<label>
+												<input class="inherit-checkbox" type="checkbox" data-flag="inherit" th:attr="checked=${role.ouInheritAllowed}" />
+												<span class="fa fa-check"></span>
+											</label>
+										</div>
+									</div>
+									
+									<label class="col-sm-2 control-label" th:text="#{html.role.flag.canrequest}" />
+									<div class="col-sm-1">
+										<div class="checkbox c-checkbox">
+											<label>
+												<input class="canrequest-checkbox" type="checkbox" data-flag="canrequest" th:attr="checked=${role.canRequest}" />
+												<span class="fa fa-check"></span>
+											</label>
+										</div>
+									</div>
+								</div>
+							</fieldset>
+						</form>
+
+						<form class="form-horizontal">
+							<ul class="nav nav-tabs">
+								<li th:class="active">
+	                            	<a href="#" th:text="#{html.entity.userrole.roleassignments}"/>
+		                        </li>
+		                    </ul>
+	                    
+							<div class="tab-content">
+								<div id="roles_menu" class="tab-pane fade in active">
+									<table id="listTable" class="table table-striped">
+										<thead>
+											<tr>
+												<th class="col-md-1" th:text="#{html.entity.rolegroup.enabled}" />
+												<th class="col-md-4" th:text="#{html.entity.rolegroup.name}" />
+												<th class="col-md-7" th:text="#{html.entity.rolegroup.description}" />
+											</tr>
+										</thead>
+	
+										<tbody>
+											 <tr th:each="editSystemRole : ${editSystemRoles}">
+												<td>
+													<div class="checkbox c-checkbox">
+														<label>
+															<input class="role-checkbox" type="checkbox" th:attr="data-roleid=${editSystemRole.systemRole.id}, checked=${editSystemRole.checked}" />
+															<span class="fa fa-check"></span>
+														</label>
+													</div>
+												</td>
+												<td th:text="${editSystemRole.systemRole.name}" />
+												<td class="preformat" th:text="${editSystemRole.systemRole.description}" />
+											</tr>
+										</tbody>
+									</table>
+								</div>
+							</div>
+						</form>
+					</div>
+				</div>
+			</div>
+		</section>
+	</div>
+
+	<div style="display: none;" th:each="editSystemRole : ${editSystemRoles}" th:attr="id='constraints-' + ${editSystemRole.systemRole.id}">
+		<div th:if="${#lists.isEmpty(editSystemRole.systemRole.supportedConstraintTypes)}">
+			<span id="no-constraints"></span>
+		</div>
+ 
+		<div class="row" th:each="supportedConstraintType : ${editSystemRole.systemRole.supportedConstraintTypes}"
+			 th:with="selected=${#maps.containsKey(editSystemRole.selectedConstraints, supportedConstraintType.constraintType.uuid) or supportedConstraintType.mandatory == true},
+			          constraintData=${editSystemRole.selectedConstraints.get(supportedConstraintType.constraintType.uuid)}" >
+
+			<div class="col-sm-1">&nbsp;</div>
+			<div class="col-sm-3">
+				<div class="checkbox c-checkbox">
+					<label class="control-label">
+						<input class="constraint-checkbox" th:disabled="${supportedConstraintType.mandatory == true}" type="checkbox" th:attr="onclick='toggleDisabled('+${editSystemRole.systemRole.id}+',\''+${supportedConstraintType.constraintType.uuid}+'\');'" th:checked="${selected}"></input>
+
+						<span class="fa fa-check"></span>
+					</label>
+					<label class="control-label" th:text="${supportedConstraintType.constraintType.name}"></label>
+					<span style="display: none;" class="constraintTypeHolder" th:text="${supportedConstraintType.constraintType.uuid}"></span>
+				</div>
+			</div>
+
+			<div class="col-sm-7" style="padding-top: 6px">
+				<!-- REGEX UI -->
+				<th:block th:if="${supportedConstraintType.constraintType.uiType == T(dk.digitalidentity.rc.dao.model.enums.ConstraintUIType).REGEX}">
+
+					<th:block th:switch="${supportedConstraintType.constraintType.entityId}">
+
+						<!-- KLE selector -->
+						<th:block th:case="'http://sts.kombit.dk/constraints/KLE/1'">
+							<select style="width:100%;" class="form-control m-b" th:disabled="${selected}==false"
+							        th:attr="id=${editSystemRole.systemRole.id} + ${supportedConstraintType.constraintType.uuid}"
+							        th:attrappend="onchange='updateComboConstraintValue('+ ${editSystemRole.systemRole.id} + ',\'' + ${supportedConstraintType.constraintType.uuid} +'\'' + ',\'KLE\')'">
+
+								<option selected="selected" th:text="#{html.select.default}"></option>
+								<option th:selected="${selected} and ${constraintData != null} and ('INHERITED' eq ${#strings.toString(constraintData.constraintValueType)})" th:value="INHERITED" th:text="#{html.constraint.kle.inherited}"></option>
+								<option th:selected="${selected} and ${constraintData != null} and ('EXTENDED_INHERITED' eq ${#strings.toString(constraintData.constraintValueType)})" th:value="EXTENDED_INHERITED" th:text="#{html.constraint.kle.extended}"></option>
+								<option th:selected="${selected} and ${constraintData != null} and ('VALUE' eq ${#strings.toString(constraintData.constraintValueType)})" th:value="VALUE" th:text="#{html.constraint.kle.value}"></option>
+							</select>
+
+							<div class="col-sm-12" th:attr="id=${editSystemRole.systemRole.id} + ${supportedConstraintType.constraintType.uuid} + 'freetext'" style="padding-top: 6px; display: none;">
+								<div class="col-sm-9">
+									<input disabled="disabled" hidden="hidden" th:value="${constraintData != null} ? ${constraintData.constraintValue} : ''" th:attr="id=${editSystemRole.systemRole.id} + ${supportedConstraintType.constraintType.uuid} + 'values'"/>
+									<input class="form-control m-b" style="width:100%;" th:attr="id=${editSystemRole.systemRole.id} + ${supportedConstraintType.constraintType.uuid} + 'input'">
+								</div>
+								<div class="col-sm-3">
+									<a class="btn btn-primary" th:attr="onclick='chooseKles('+${editSystemRole.systemRole.id}+',\''+${supportedConstraintType.constraintType.uuid}+'\');'">
+										<span>Vælg Kle</span>
+									</a>
+								</div>
+							</div>
+						</th:block>
+	
+						<!-- organisation selector -->
+						<th:block th:case="'http://sts.kombit.dk/constraints/orgenhed/1'">
+							<select style="width:100%;" class="form-control m-b" th:disabled="${selected}==false"
+							        th:attr="id=${editSystemRole.systemRole.id} + ${supportedConstraintType.constraintType.uuid}"
+							        th:attrappend="onchange='updateComboConstraintValue('+ ${editSystemRole.systemRole.id} + ',\'' + ${supportedConstraintType.constraintType.uuid} +'\'' + ',\'OU\')'">
+
+								<option selected="selected" disabled="disabled" th:text="#{html.select.default}"></option>
+								<option th:selected="${selected} and ${constraintData != null} and ('INHERITED' eq ${#strings.toString(constraintData.constraintValueType)})" th:value="INHERITED" th:text="#{html.constraint.organisation.inherited}"></option>
+								<option th:selected="${selected} and ${constraintData != null} and ('EXTENDED_INHERITED' eq ${#strings.toString(constraintData.constraintValueType)})" th:value="EXTENDED_INHERITED" th:text="#{html.constraint.organisation.extended}"></option>
+								<option th:selected="${selected} and ${constraintData != null} and ('LEVEL_1' eq ${#strings.toString(constraintData.constraintValueType)})" th:value="LEVEL_1" th:text="#{html.constraint.organisation.level.1}"></option>
+								<option th:selected="${selected} and ${constraintData != null} and ('LEVEL_2' eq ${#strings.toString(constraintData.constraintValueType)})" th:value="LEVEL_2" th:text="#{html.constraint.organisation.level.2}"></option>
+								<option th:selected="${selected} and ${constraintData != null} and ('LEVEL_3' eq ${#strings.toString(constraintData.constraintValueType)})" th:value="LEVEL_3" th:text="#{html.constraint.organisation.level.3}"></option>
+								<option th:selected="${selected} and ${constraintData != null} and ('LEVEL_4' eq ${#strings.toString(constraintData.constraintValueType)})" th:value="LEVEL_4" th:text="#{html.constraint.organisation.level.4}"></option>
+								<option th:selected="${selected} and ${constraintData != null} and ('VALUE' eq ${#strings.toString(constraintData.constraintValueType)})" th:value="VALUE" th:text="#{html.constraint.organisation.value}"></option>
+							</select>
+							
+							<div th:attr="id=${editSystemRole.systemRole.id} + ${supportedConstraintType.constraintType.uuid} + 'freetext'" class="col-sm-12" style="padding-top: 6px; display: none;">
+								<div class="col-sm-12">
+									<select style="width:100%;" th:attr="id=${editSystemRole.systemRole.id} + ${supportedConstraintType.constraintType.uuid} + 'multiple-select'" class="form-control m-b" name="ous[]" multiple="multiple"></select>
+									<input th:value="${constraintData != null} ? ${constraintData.constraintValue} : ''" type="hidden"></input>
+								</div>
+							</div>
+						</th:block>
+						
+						<!-- TODO: duplicate block of the above - can we merge into one case? -->
+						<!-- organisation selector -->
+						<th:block th:case="'http://digital-identity.dk/constraints/orgunit/1'">
+							<select style="width:100%;" class="form-control m-b" th:disabled="${selected}==false"
+							        th:attr="id=${editSystemRole.systemRole.id} + ${supportedConstraintType.constraintType.uuid}"
+							        th:attrappend="onchange='updateComboConstraintValue('+ ${editSystemRole.systemRole.id} + ',\'' + ${supportedConstraintType.constraintType.uuid} +'\'' + ',\'OU\')'">
+
+								<option selected="selected" disabled="disabled" th:text="#{html.select.default}"></option>
+								<option th:selected="${selected} and ${constraintData != null} and ('INHERITED' eq ${#strings.toString(constraintData.constraintValueType)})" th:value="INHERITED" th:text="#{html.constraint.organisation.inherited}"></option>
+								<option th:selected="${selected} and ${constraintData != null} and ('EXTENDED_INHERITED' eq ${#strings.toString(constraintData.constraintValueType)})" th:value="EXTENDED_INHERITED" th:text="#{html.constraint.organisation.extended}"></option>
+								<option th:selected="${selected} and ${constraintData != null} and ('VALUE' eq ${#strings.toString(constraintData.constraintValueType)})" th:value="VALUE" th:text="#{html.constraint.organisation.value}"></option>
+							</select>
+							
+							<div th:attr="id=${editSystemRole.systemRole.id} + ${supportedConstraintType.constraintType.uuid} + 'freetext'" class="col-sm-12" style="padding-top: 6px; display: none;">
+								<div class="col-sm-12">
+									<select style="width:100%;" th:attr="id=${editSystemRole.systemRole.id} + ${supportedConstraintType.constraintType.uuid} + 'multiple-select'" class="form-control m-b" name="ous[]" multiple="multiple"></select>
+									<input th:value="${constraintData != null} ? ${constraintData.constraintValue} : ''" type="hidden"></input>
+								</div>
+							</div>
+						</th:block>
+
+						<!--it system selector-->
+						<th:block th:case="'http://digital-identity.dk/constraints/itsystem/1'">
+							<div th:attr="id=${editSystemRole.systemRole.id} + ${supportedConstraintType.constraintType.uuid}" class="col-sm-12" style="padding-top: 6px;" th:disabled="${selected}==false">
+								<div class="col-sm-12">
+									<select style="width:100%;" th:attr="id=${editSystemRole.systemRole.id} + ${supportedConstraintType.constraintType.uuid} + 'multiple-select'" class="form-control m-b" name="itSystems[]" multiple="multiple" th:disabled="${selected}==false"/>
+									<input style="width:100%;" th:value="${constraintData != null} ? ${constraintData.constraintValue} : ''" type="hidden"></input>
+								</div>
+							</div>
+						</th:block>
+
+						<!-- default freetext field -->
+						<th:block th:case="*">
+							<input style="width:100%;" class="form-control m-b" th:disabled="${selected}==false"
+								   th:attr="id=${editSystemRole.systemRole.id} + ${supportedConstraintType.constraintType.uuid}"
+								   th:attrappend="onchange='updateConstraintChoice('+ ${editSystemRole.systemRole.id} + ',\'' + ${supportedConstraintType.constraintType.uuid} +'\'' + ',\'VALUE\')'"
+								   th:value="${constraintData != null} ? ${constraintData.constraintValue} : ''"></input>
+						</th:block>
+					</th:block>
+				</th:block>
+				
+				<!-- COMBO_SINGLE UI -->
+				<th:block th:if="${supportedConstraintType.constraintType.uiType == T(dk.digitalidentity.rc.dao.model.enums.ConstraintUIType).COMBO_SINGLE}">
+					<select style="width:100%;" class="form-control m-b" th:disabled="${selected}==false"
+					        th:attr="id=${editSystemRole.systemRole.id} + ${supportedConstraintType.constraintType.uuid}"
+					        th:attrappend="onchange='updateConstraintChoice('+ ${editSystemRole.systemRole.id} + ',\'' + ${supportedConstraintType.constraintType.uuid} +'\'' + ',\'VALUE\')'">
+
+						<option selected="selected" disabled="disabled" th:text="#{html.select.default}"></option>
+						<option th:each="type : ${supportedConstraintType.constraintType.valueSet}" th:value="${type.constraintKey}" th:text="${type.constraintValue}"
+  							    th:selected="${selected} and ${constraintData != null} and (${type.constraintKey} eq ${constraintData.constraintValue})"></option>
+
+					</select>
+				</th:block>
+				
+				<!-- COMBO_MULTI -->
+				<th:block th:if="${supportedConstraintType.constraintType.uiType == T(dk.digitalidentity.rc.dao.model.enums.ConstraintUIType).COMBO_MULTI}">
+					<select style="width:100%;" class="form-control m-b" th:disabled="${selected}==false" multiple="multiple"
+					        th:attr="id=${editSystemRole.systemRole.id} + ${supportedConstraintType.constraintType.uuid}"
+					        th:attrappend="onchange='updateConstraintChoice('+ ${editSystemRole.systemRole.id} + ',\'' + ${supportedConstraintType.constraintType.uuid} +'\'' + ',\'VALUE\')'">
+
+						<option th:each="type : ${supportedConstraintType.constraintType.valueSet}" th:value="${type.constraintKey}" th:text="${type.constraintValue}"
+  							    th:selected="${selected} and ${constraintData != null} and (${#strings.contains(constraintData.constraintValue, type.constraintKey)})"></option>
+
+					</select>
+				</th:block>
+
+				<div class="clearfix"></div>
+			</div>
+		</div>
+	</div>
+
+	<div class="modal fade bd-example-modal-lg" id="modal-kle" role="dialog">
+			<div class="modal-dialog modal-lg">
+	
+				<!-- Modal content-->
+				<div class="modal-content">
+					<div class="modal-header">
+						<button type="button" class="close" data-dismiss="modal">&times;</button>
+						<h4 th:text="#{html.page.userrole.kle.modal}"/>
+					</div>
+	
+					<div class="modal-body">
+						<input type="hidden" id="modal-systemRoleId"/>
+						<input type="hidden" id="modal-constraintUuid"/>
+						<div id="modal-error" style="display:none;color:#FF0000;">
+							<label th:text="#{html.errors.kle.code.not.valid}"></label>
+							<ul id="modal-errors">
+
+							</ul>
+						</div>
+						<input class="form-control" id="kle-tree-search" style="margin-bottom: 5px;" th:placeholder="#{html.page.userrole.kle.modal.search}"/>
+						<div id="kle-tree"></div>
+					</div>
+	
+					<div class="modal-footer">
+						<button type="button" id="save" class="btn btn-primary" onclick="kleModalSaveConstraints()" th:text="#{html.control.button.save}"/>
+						<button type="button" class="btn btn-danger" data-dismiss="modal" th:text="#{html.control.button.cancel}"/>
+					</div>
+				</div>
+			</div>
+	</div>
+
+
+
+	<nav th:replace="fragments/footer :: footer" />
+	
+	<style>
+		.table .checkbox {
+			margin-left: 10px;
+			width: auto;
+		}
+		.modal-dialog{
+			overflow-y: initial !important
+		}
+		.modal-body{
+			height: 800px;
+			overflow-y: auto;
+		}
+	</style>
+
+	<script th:inline="javascript">
+		/*<![CDATA[*/
+
+		/*[+
+			var url = [[@{/rest/userroles/}]];
+			var roleId = [[${role.id}]];
+			
+			var fieldUpdatedMsg = [[#{html.entity.rolegroup.updatedmsg}]];
+			var fieldNotUpdatedMsg = [[#{html.entity.rolegroup.failedupdatemsg}]];
+
+   			var searchTxt = [[#{html.datatables.search}]];
+   			var dropdownTxt = [[#{html.datatables.dropdown}]];
+   			var infoDefaultTxt = [[#{html.datatables.info.default}]];
+   			var infoEmptyTxt = [[#{html.datatables.info.empty}]];
+   			var infoFilteredTxt = [[#{html.datatables.info.filtered}]];
+
+   			var kleList = [[${kleList}]];
+   			var orgUnitList = [[${orgUnitList}]];
+   			var itSystemList = [[${itSystemList}]];
+
+   			var kleConstraintUuid = [[${kleConstraintUuid}]];
+   			var ouConstraintUuid = [[${ouConstraintUuid}]];
+   			var internalOuConstraintUuid = [[${internalOuConstraintUuid}]];
+			var itSystemConstraintUuid = [[${itSystemConstraintUuid}]];
+		+]*/
+		
+		var token = $("meta[name='_csrf']").attr("content");
+
+		$("document").ready(function() {
+			$("#name").change(handleChangeOnInput);
+			$("#description").change(handleChangeOnInput);
+			
+			// Initialize datatable
+			var table = $('#listTable').DataTable( {
+				"columns": [ { "orderable": false, "className": 'details-control' }, { }, { } ],
+				"order": [
+					[1, 'asc']
+				],
+				"stateSave": true,
+				'pageLength': 100,
+		        "language": {
+		            "search":       searchTxt,
+		            "lengthMenu":   dropdownTxt,
+		            "info":         infoDefaultTxt,
+		            "zeroRecords":  infoEmptyTxt,
+		            "infoEmpty":    "",
+		            "infoFiltered": infoFilteredTxt
+		        }
+			});
+
+			$('.useronly-checkbox').change(flagCheckboxChange);
+			$('.inherit-checkbox').change(flagCheckboxChange);
+			$('.canrequest-checkbox').change(flagCheckboxChange);
+			
+			// Add event handler
+			// When data in the datatable is updated reassign checkboxes on change handler
+			$('#listTable').on( 'draw.dt', function () {
+				addCheckboxListeners(table);
+				showSelectedRoles(table);
+			});
+			
+			// init on first display
+			addCheckboxListeners(table);
+			showSelectedRoles(table);
+
+			//init jstree
+			initJSTree("kle-tree", "kle-tree-search");
+		});
+		
+		function showSelectedRoles(table) {
+			$('.role-checkbox[data-roleid]:checked').each(function() {
+				var tr = $(this).closest('tr');
+				var id = this.dataset.roleid;
+				var row = table.row( tr );
+				var template = $("#constraints-" + id+ ":not(:has(#no-constraints))").first();
+				var child = template.clone().show();
+				row.child(child).show();
+				
+				// expand and show free text constraint value if such is chosen
+				showOrHideFreetextAndFetchValue(id, kleConstraintUuid);
+				showOrHideFreetextAndFetchValue(id, ouConstraintUuid);
+				// TODO: duplicate functionality with ouConstraintUuid - next refactor should merge this into more sane logic
+				showOrHideFreetextAndFetchValue(id, internalOuConstraintUuid);
+				EnableFreetextAndFetchValue(id, itSystemConstraintUuid);
+			});
+		}
+
+		function flagCheckboxChange() {
+			var flag = String(this.dataset.flag);
+			var updateUrl = url + "flag/" + roleId + "/" + flag;
+
+			if (this.checked) {
+				updateUrl = updateUrl + "?active=true";
+			}
+			else {
+				updateUrl = updateUrl + "?active=false";
+			}
+			
+			$.ajax({
+				url: updateUrl,
+				method: "POST",
+				headers: {
+					'X-CSRF-TOKEN': token
+				},
+				error: function(response) {
+					$.notify({
+						message: response.responseText
+					}, {
+						status: 'danger',
+						autoHideDelay: 4000
+					});
+				},
+				success: function(response) {	
+					$.notify({
+						message: fieldUpdatedMsg
+					}, {
+						status: 'success',
+						autoHideDelay: 2000
+					});
+				}
+			});
+		}
+
+		function addCheckboxListeners(table){
+			$('.role-checkbox').off("change");
+
+			$('.role-checkbox').change(function() {
+				var input = $(this);
+				var tr = $(this).closest('tr');
+				var id = this.dataset.roleid;
+				var row = table.row( tr );
+				var template = $("#constraints-" + id).first();
+
+				if (!this.checked) {
+					removeSystemRole(id,function() {
+						// remove selected constraints for the template
+						template.find("input.constraint-checkbox").prop('checked', false);
+						template.find("select").prop('disabled', true);
+						row.child.hide();
+					}, function() {
+						input[0].checked = true; //keep checkbox selected on failure
+					});
+				}
+				else {
+					addSystemRole(id,function() {
+						if(template.has('#no-constraints').length==0){
+							var child = template.clone().show();
+							row.child(child).show();
+						}
+					}, function() {
+						input[0].checked = false; //keep checkbox un-selected on failure
+					});
+				}
+			});
+		}
+
+		function addSystemRole(id, onSuccess, onError) {
+			var roleid = $('[name="id"]').val();
+			var newUrl = url + "edit/" + roleid + "/addSystemRole/" + id;
+
+			$.ajax({
+				url : newUrl,
+				method: "POST",
+				headers: {
+					'X-CSRF-TOKEN': token
+				},
+				error : function(response) {
+					onError();
+					$.notify({
+						message : fieldNotUpdatedMsg
+					}, {
+						status : 'danger',
+						autoHideDelay : 4000
+					});
+				},
+				success : function(response) {	
+					onSuccess();
+					$.notify({
+						message : fieldUpdatedMsg
+					}, {
+						status : 'success',
+						autoHideDelay : 2000
+					});
+				}
+			});
+		}
+
+		function removeSystemRole(id, onSuccess, onError) {
+			var roleid = $('[name="id"]').val();
+			var newUrl = url + "edit/" + roleid + "/removeSystemRole/" + id;
+			$.ajax({
+				url : newUrl,
+				method: "POST",
+				headers: {
+					'X-CSRF-TOKEN': token
+				},
+				error : function(response) {
+					onError();
+					$.notify({
+						message : fieldNotUpdatedMsg
+					}, {
+						status : 'danger',
+						autoHideDelay : 4000
+					});
+				},
+				success : function(response) {	
+					onSuccess();
+					$.notify({
+						message : fieldUpdatedMsg
+					}, {
+						status : 'success',
+						autoHideDelay : 2000
+					});
+				}
+			});
+		}
+
+		function updateComboConstraintValue(systemRoleId, constraintUuid, constraintType) {
+			var constraintValue = $("#" + systemRoleId + constraintUuid).val();
+
+			if (constraintValue == 'INHERITED' || constraintValue == 'EXTENDED_INHERITED' || constraintValue == 'LEVEL_1' || constraintValue == 'LEVEL_2' || constraintValue == 'LEVEL_3' || constraintValue == 'LEVEL_4') {
+				saveConstraintChoice(systemRoleId, constraintUuid, constraintValue, '');
+				hideFreetext(systemRoleId, constraintUuid);
+			}
+			else if (constraintValue == 'VALUE' && constraintUuid != kleConstraintUuid) {
+				showFreetextAndFetchValue(systemRoleId, constraintUuid);
+			}
+			else if (constraintValue == 'VALUE' && constraintUuid == kleConstraintUuid) {
+				showKleAndFetchValue(systemRoleId, constraintUuid);
+			}
+		}
+		
+		function updateConstraintChoice(systemRoleId, constraintUuid, constraintValueType) {
+			var constraintValue = $("#" + systemRoleId + constraintUuid).val();
+			
+			saveConstraintChoice(systemRoleId, constraintUuid, constraintValueType, constraintValue);
+		}
+		
+		function saveConstraintChoice(systemRoleId, constraintUuid, constraintValueType, constraintValue) {
+			var roleid = $('[name="id"]').val();
+			var newUrl = url + "edit/" + roleid + "/addConstraint/" + systemRoleId;
+
+			$.ajax({
+				url : newUrl,
+				method: "POST",
+				headers: {
+					'X-CSRF-TOKEN': token
+				},
+				traditional: true, // required to deal with array issues
+				data: {
+					constraintUuid: constraintUuid,
+					constraintValue: constraintValue,
+					constraintValueType: constraintValueType
+				},
+				error : function(response) {
+					var msg = fieldNotUpdatedMsg;
+					if (response.responseText != null && response.responseText != '') {
+						msg = response.responseText;
+					}
+
+					$.notify({
+						message : msg
+					}, {
+						status: 'danger',
+						autoHideDelay : 2000
+					});
+				},
+				success : function(response) {
+					$.notify({
+						message: fieldUpdatedMsg
+					}, {
+						status: 'success',
+						autoHideDelay : 2000
+					});
+				}
+			});
+		}
+
+		function removeConstraintChoice(systemRoleId, constraintUuid) {
+			var roleid = $('[name="id"]').val();
+			var newUrl = url + "edit/" + roleid + "/removeConstraint/" + systemRoleId;
+			var value = hideFreetext(systemRoleId, constraintUuid);
+
+			$.ajax({
+				url : newUrl,
+				method: "POST",
+				headers: {
+					'X-CSRF-TOKEN': token
+				},
+				data: {
+					constraintUuid: constraintUuid
+				},
+				error : function(response) {
+					$.notify({
+						message: fieldNotUpdatedMsg
+					},
+					{
+						status : 'danger',
+						autoHideDelay : 2000
+					});
+				},
+				success : function(response) {
+					$.notify({
+						message : fieldUpdatedMsg
+					},
+					{
+						status : 'success',
+						autoHideDelay : 2000
+					});
+				}
+			});
+		}
+
+		function toggleDisabled(systemRoleId, constraintUuid) {
+			var elem;
+			if (constraintUuid == itSystemConstraintUuid){
+				elem = $("#" + systemRoleId + constraintUuid + "multiple-select");
+			}
+			else {
+				elem = $("#" + systemRoleId + constraintUuid);
+			}
+
+			if (elem.attr("disabled")) {
+				elem.removeAttr("disabled"); // enabling does not automatically set the value, the user must enter a value before we save anything
+
+				if (constraintUuid == itSystemConstraintUuid){
+					showFreetextAndFetchValue(systemRoleId, constraintUuid);
+				}
+			}
+			else {
+				elem.attr("disabled", "disabled");
+				removeConstraintChoice(systemRoleId, constraintUuid); // disabling should remove the constraint
+				elem.val('');
+			}
+		}
+
+		function showOrHideFreetextAndFetchValue(systemRoleId, constraintUuid) {
+			var constraintValueType = $("#" + systemRoleId + constraintUuid).val();
+
+			if (constraintValueType == "VALUE") {
+				if (constraintUuid == kleConstraintUuid) {
+					return showKleAndFetchValue(systemRoleId, constraintUuid);
+				} else {
+					return showFreetextAndFetchValue(systemRoleId, constraintUuid);
+				}
+			}
+			else {
+				hideFreetext(systemRoleId, constraintUuid);
+			}
+			
+			return "";
+		}
+
+		function showKleAndFetchValue(systemRoleId, constraintUuid) {
+			$("#" + systemRoleId + constraintUuid + "freetext").show();
+
+			var kleInput = $("#" + systemRoleId + constraintUuid + "input");
+
+			kleInput.val($("#" + systemRoleId + constraintUuid + "values").val().replace(/\.\*/g, ""));
+
+			kleInput.unbind("change");
+			kleInput.on("change", function() {
+				var constraintValueType = $("#" + systemRoleId + constraintUuid).val();
+				var selected = kleInput.val().split(",");
+
+				var constraintValue = [];
+				for (var i = 0; i < selected.length; i++) {
+					if (selected[i].length != 8) {
+						constraintValue.push(selected[i] + ".*");
+					} else {
+						constraintValue.push(selected[i]);
+					}
+				}
+				saveConstraintChoice(systemRoleId, constraintUuid, constraintValueType, constraintValue);
+			});
+		}
+
+		function showFreetextAndFetchValue(systemRoleId, constraintUuid) {
+			var multipleSelectField = $("#" + systemRoleId + constraintUuid + "multiple-select");
+			var multipleSelectInput = multipleSelectField.siblings('input').val().split(",");
+			var data = {};
+
+			if (constraintUuid == ouConstraintUuid || constraintUuid == internalOuConstraintUuid) {
+				data = orgUnitList;
+			}
+			else if (constraintUuid == itSystemConstraintUuid) {
+				data = itSystemList;
+			}
+
+			multipleSelectField.select2({
+				data: data
+			});
+
+			multipleSelectField.val(multipleSelectInput);
+			multipleSelectField.trigger('change');
+
+			$("#" + systemRoleId + constraintUuid + "freetext").show();
+
+			multipleSelectField.unbind("change");
+			multipleSelectField.on("change", function() {
+				var constraintValueType = $("#" + systemRoleId + constraintUuid).val();
+				var constraintValue = (multipleSelectField.val() != null) ? multipleSelectField.val().join(",") : '';
+
+				saveConstraintChoice(systemRoleId, constraintUuid, constraintValueType, constraintValue);
+			});
+		}
+
+		function hideFreetext(systemRoleId, constraintType) {
+			$("#" + systemRoleId + constraintType + "multiple-select").empty();
+			$("#" + systemRoleId + constraintType + "freetext").hide();
+		}
+
+		function EnableFreetextAndFetchValue(systemRoleId, constraintUuid) {
+			var multipleSelectField = $("#" + systemRoleId + constraintUuid + "multiple-select");
+
+			if (multipleSelectField.length) {
+				var multipleSelectInput = multipleSelectField.siblings('input').val().split(",");
+
+				if (multipleSelectInput.length > 0) {
+					showFreetextAndFetchValue(systemRoleId, constraintUuid);
+				}
+			}
+		}
+
+		function handleChangeOnInput() {
+			var objId = $("#id").val();
+			var objName = $("#name").val();
+			var objDescription = $("#description").val();
+			var objectItSystem = $("#itSystem").val();
+
+			var userRole = {
+				id: objId,
+				name: objName,
+				description: objDescription,
+				itSystem: objectItSystem
+			};
+
+			$.ajax({
+				url: url + 'edit',
+				method: 'POST',
+				data: userRole,
+		        headers: {
+		            'X-CSRF-TOKEN': token
+		        },
+				error: function(response) {
+					$.notify({
+						message: fieldNotUpdatedMsg
+					},{
+						status: 'danger',
+						autoHideDelay: 4000
+					});
+				},
+				success: function(response) {
+					$.notify({
+						message: fieldUpdatedMsg
+					},{
+						status: 'success',
+						autoHideDelay: 2000
+					});
+				}
+			});
+		};
+
+		//KLE Constraint modal
+		//Show modal
+		function chooseKles(systemRoleId, constraintUuid) {
+			//Get input field kle values 
+			var kles = $("#" + systemRoleId + constraintUuid + "input").val().split(",");
+			//Remember what opened the modal
+			$("#modal-systemRoleId").val(systemRoleId);
+			$("#modal-constraintUuid").val(constraintUuid);
+						
+			//Parse and save kle values
+			var selected = [];
+			var parseErrors = [];
+
+			for (var i = 0; i < kles.length; i++) {
+				if (!kles[i] == "") {
+					if (kles[i].match(/^((\d{2})|(\d{2}).(\d{2})|(\d{2}).(\d{2}).(\d{2}))$/)) {
+						selected.push(kles[i]);
+					} else {
+						parseErrors.push(kles[i]);
+					}
+				}
+			}
+
+			//Show erros to the user
+			var errorList = $("#modal-errors");
+			errorList.empty();
+			if (parseErrors.length != 0) {
+				for (var i = 0; i < parseErrors.length; i++) {
+					errorList.append("<li>" + parseErrors[i] + "</li>");
+				}
+
+				$("#modal-error").show();
+			} else {
+				$("#modal-error").hide();
+			}
+
+			var tree = $("#kle-tree");
+			tree.jstree("deselect_all");
+			tree.jstree("select_node", selected);
+
+			$('#modal-kle').modal('show');
+		}
+
+		//Focus search bar on show
+		$('#modal-kle').on('shown.bs.modal', function () {
+    		$('#kle-tree-search').focus();
+		})
+
+		//Save and close modal
+		function kleModalSaveConstraints() {
+			var systemRoleId  = $("#modal-systemRoleId").val();
+			var constraintUuid = $("#modal-constraintUuid").val();
+			var constraintValueType = $("#" + systemRoleId + constraintUuid).val();
+			var kleInput = $("#" + systemRoleId + constraintUuid + "input");
+
+			var selected = $("#kle-tree").jstree("get_top_checked");
+			kleInput.val(selected.join());
+			$('#modal-kle').modal('hide');
+			kleInput.trigger('change');
+		}
+
+		//Initialize KLE tree in modal
+		function initJSTree(id, search) {
+			$('#' + id).jstree({
+					"core": {
+						"data": kleList,
+						"themes": {
+							"icons": false
+						}
+					},
+					"checkbox" : {
+						"keep_selected_style" : false,
+						"three_state": false,
+						"cascade": "undetermined"
+					},
+					"search" : {
+						"show_only_matches": true,
+						"search_callback": function(str, node) {
+							// special KLE search support
+							var kleValue = str.split('.').join("");
+							if (!isNaN(kleValue)) {
+								if (kleValue.length > 4) {
+									kleValue = kleValue.substr(0, 2) + "." + kleValue.substr(2, 2) + "." + kleValue.substr(4);
+								}
+								else if (kleValue.length > 2) {
+									kleValue = kleValue.substr(0, 2) + "." + kleValue.substr(2);
+								}
+								
+								return (node.text.startsWith(kleValue));
+							}
+
+							return (node.text.toUpperCase().includes(str.toUpperCase()));
+						}
+					},
+					"plugins" : [
+						"wholerow", "search", "checkbox"
+					]
+			});
+
+			// searching in the JSTree
+			var to = false;
+			$('#' + search).keyup(function() {
+				if (to) {
+					clearTimeout(to);
+				}
+
+				to = setTimeout(function() {
+					var v = $('#' + search).val();
+
+					$('#' + id).jstree(true).search(v);
+				}, 400);
+			});
+		};
+		/*]]>*/
+	</script>
+</body>
+</html>
