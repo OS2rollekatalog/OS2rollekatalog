@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+<head th:replace="fragments/header :: header (title=#{html.page.report.custom.title})" />
+<body>
+<div class="wrapper">
+	<header th:replace="fragments/navbar :: navbar-header" />
+	<aside th:replace="fragments/navbar :: navbar-aside (page = 'report.custom')" />
+
+	<section>
+			<div class="content-wrapper">
+				<h3 th:text="#{html.page.report.custom.title}" />
+				<div class="panel panel-default">
+					<div class="panel-heading" />
+					<div class="panel-body">
+						<table class="listTable table table-responsive table-striped">
+							<thead>
+								<tr>
+									<th class="col-md-11" th:text="#{html.page.report.custom.table}" />
+									<th class="col-md-1" th:text="#{html.control.operations}" />
+								</tr>
+							</thead>
+							<tbody>
+								<tr th:each="report : ${reports}">
+									<td th:text="#{__${report.title}__}" />
+									<td>
+										<a th:href="@{/ui/report/custom/} + ${report}">
+											<em class="fa fa-fw fa-search"></em>
+										</a>
+									</td>
+								</tr>
+							</tbody>
+						</table>
+					</div>
+				</div>
+			</div>
+	</section>
+</div>
+
+<nav th:replace="fragments/footer :: footer" />
+<script th:replace="fragments/datatables :: datatables " />
+</body>
+</html>

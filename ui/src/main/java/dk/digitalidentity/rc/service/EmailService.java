@@ -14,11 +14,12 @@ import javax.mail.internet.MimeMessage;
 import javax.mail.internet.MimeMultipart;
 import javax.mail.util.ByteArrayDataSource;
 
-import org.springframework.beans.factory.annotation.Value;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.stereotype.Service;
 
+import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
 import lombok.extern.log4j.Log4j;
 
 @Log4j
@@ -26,24 +27,12 @@ import lombok.extern.log4j.Log4j;
 @Service
 public class EmailService {
 
-	@Value("${email.enabled}")
-	private boolean emailEnabled;
-
-	@Value("${email.from}")
-	private String smtpFrom;
-
-	@Value("${email.username}")
-	private String smtpUsername;
-
-	@Value("${email.password}")
-	private String smtpPassword;
-
-	@Value("${email.host}")
-	private String smtpHost;
+	@Autowired
+	private RoleCatalogueConfiguration configuration;
 
 	@Async
 	public void sendMessage(String email, String subject, String message) {
-		if (!emailEnabled) {
+		if (!configuration.getIntegrations().getEmail().isEnabled()) {
 			log.warn("email server is not configured - not sending emails!");
 			return;
 		}
@@ -60,14 +49,16 @@ public class EmailService {
 			Session session = Session.getDefaultInstance(props);
 
 			MimeMessage msg = new MimeMessage(session);
-			msg.setFrom(new InternetAddress(smtpFrom, "OS2rollekatalog"));
+			msg.setFrom(new InternetAddress(configuration.getIntegrations().getEmail().getFrom(), "OS2rollekatalog"));
 			msg.setRecipient(Message.RecipientType.TO, new InternetAddress(email));
 			msg.setSubject(subject, "UTF-8");
 			msg.setText(message, "UTF-8");
 			msg.setHeader("Content-Type", "text/html; charset=UTF-8");
 
 			transport = session.getTransport();
-			transport.connect(smtpHost, smtpUsername, smtpPassword);
+			transport.connect(configuration.getIntegrations().getEmail().getHost(),
+							  configuration.getIntegrations().getEmail().getUsername(),
+							  configuration.getIntegrations().getEmail().getPassword());
 			transport.addTransportListener(new TransportErrorHandler());
 			transport.sendMessage(msg, msg.getAllRecipients());
 		}
@@ -88,7 +79,7 @@ public class EmailService {
 
 	@Async
 	public void sendMessageWithFileAttached(String email, String subject, String message, byte[] fileData, String fileName) {
-		if (!emailEnabled) {
+		if (!configuration.getIntegrations().getEmail().isEnabled()) {
 			log.warn("email server is not configured - not sending emails!");
 			return;
 		}
@@ -105,7 +96,7 @@ public class EmailService {
 			Session session = Session.getDefaultInstance(props);
 
 			MimeMessage msg = new MimeMessage(session);
-			msg.setFrom(new InternetAddress(smtpFrom, "OS2rollekatalog"));
+			msg.setFrom(new InternetAddress(configuration.getIntegrations().getEmail().getFrom(), "OS2rollekatalog"));
 			msg.setRecipient(Message.RecipientType.TO, new InternetAddress(email));
 			msg.setSubject(subject, "UTF-8");
 
@@ -126,7 +117,9 @@ public class EmailService {
 			msg.setContent(multipart);
 
 			transport = session.getTransport();
-			transport.connect(smtpHost, smtpUsername, smtpPassword);
+			transport.connect(configuration.getIntegrations().getEmail().getHost(),
+					  configuration.getIntegrations().getEmail().getUsername(),
+					  configuration.getIntegrations().getEmail().getPassword());
 			transport.addTransportListener(new TransportErrorHandler());
 			transport.sendMessage(msg, msg.getAllRecipients());
 		}

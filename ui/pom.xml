@@ -172,19 +172,13 @@
 		<dependency>
 			<groupId>org.apache.poi</groupId>
 			<artifactId>poi</artifactId>
-			<version>3.16</version>
+			<version>3.17</version>
 		</dependency>
 
 		<dependency>
 			<groupId>org.projectlombok</groupId>
 			<artifactId>lombok</artifactId>
 			<scope>provided</scope>
-		</dependency>
-
-		<dependency>
-			<groupId>io.netty</groupId>
-			<artifactId>netty-all</artifactId>
-			<version>4.1.51.Final</version>
 		</dependency>
 
 		<dependency>
@@ -203,6 +197,12 @@
 			<groupId>org.webjars.npm</groupId>
 			<artifactId>codemirror-formatting</artifactId>
 			<version>1.0.0</version>
+		</dependency>
+
+ 		<dependency>
+			<groupId>io.netty</groupId>
+			<artifactId>netty-all</artifactId>
+			<version>4.1.51.Final</version>
 		</dependency>
 
 		<dependency>

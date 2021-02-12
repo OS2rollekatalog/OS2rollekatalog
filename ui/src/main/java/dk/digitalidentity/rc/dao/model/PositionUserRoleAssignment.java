@@ -1,5 +1,6 @@
 package dk.digitalidentity.rc.dao.model;
 
+import java.time.LocalDate;
 import java.util.Date;
 
 import javax.persistence.Column;
@@ -39,4 +40,13 @@ public class PositionUserRoleAssignment {
 	
 	@Column
 	private Date assignedTimestamp;
+
+	@Column
+	private LocalDate startDate;
+	
+	@Column
+	private LocalDate stopDate;
+	
+	@Column
+	private boolean inactive;
 }

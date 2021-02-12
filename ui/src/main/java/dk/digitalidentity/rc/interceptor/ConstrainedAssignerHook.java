@@ -7,15 +7,20 @@ import dk.digitalidentity.rc.dao.model.OrgUnit;
 import dk.digitalidentity.rc.dao.model.Position;
 import dk.digitalidentity.rc.dao.model.RoleGroup;
 import dk.digitalidentity.rc.dao.model.SystemRoleAssignment;
+import dk.digitalidentity.rc.dao.model.Title;
 import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserRole;
 import dk.digitalidentity.rc.security.AccessConstraintService;
+import dk.digitalidentity.rc.service.OrgUnitService;
 
 @Component
 public class ConstrainedAssignerHook implements RoleChangeHook {
 
 	@Autowired
 	private AccessConstraintService assignerRoleConstraint;
+	
+	@Autowired
+	private OrgUnitService orgUnitService;
 
 	@Override
 	public void interceptAddRoleGroupAssignmentOnUser(User user, RoleGroup roleGroup) {
@@ -141,5 +146,37 @@ public class ConstrainedAssignerHook implements RoleChangeHook {
 	@Override
 	public void interceptRemovePositionOnUser(User user, Position position) {
 		; // not relevant
+	}
+
+	@Override
+	public void interceptAddRoleGroupAssignmentOnTitle(Title title, RoleGroup roleGroup, String[] ouUuids) {
+		for (String uuid : ouUuids) {
+			OrgUnit ou = orgUnitService.getByUuid(uuid);
+			
+			if (!assignerRoleConstraint.isAssignmentAllowed(ou, roleGroup)) {
+				throw new SecurityException("user is prohibited from modifying ou: " + ou.getEntityId());
+			}
+		}
+	}
+
+	@Override
+	public void interceptRemoveRoleGroupAssignmentOnTitle(Title title, RoleGroup roleGroup) {
+		// we accept that removal is always allowed, as we do not know which OUs the role is being removed from
+	}
+
+	@Override
+	public void interceptAddUserRoleAssignmentOnTitle(Title title, UserRole userRole, String[] ouUuids) {
+		for (String uuid : ouUuids) {
+			OrgUnit ou = orgUnitService.getByUuid(uuid);
+			
+			if (!assignerRoleConstraint.isAssignmentAllowed(ou, userRole)) {
+				throw new SecurityException("user is prohibited from modifying ou: " + ou.getEntityId());
+			}
+		}
+	}
+
+	@Override
+	public void interceptRemoveUserRoleAssignmentOnTitle(Title title, UserRole userRole) {
+		// we accept that removal is always allowed, as we do not know which OUs the role is being removed from		
 	}
 }

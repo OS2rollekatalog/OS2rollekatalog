@@ -31,12 +31,16 @@ public interface OrgUnitDao extends CrudRepository<OrgUnit, String> {
 	OrgUnit getByActiveTrueAndParentIsNull();	
 	OrgUnit getByUuidAndActiveTrue(String uuid);
 	List<OrgUnit> getByActiveTrue();
+	
+	@Deprecated
 	List<OrgUnit> getByActiveTrueAndUserRoleAssignmentsUserRole(UserRole role);
-	List<OrgUnit> getByActiveTrueAndUserRoleAssignmentsUserRoleAndUserRoleAssignmentsInheritTrue(UserRole role);
-	List<OrgUnit> getByActiveTrueAndUserRoleAssignmentsUserRoleAndUserRoleAssignmentsInheritFalse(UserRole role);
+	List<OrgUnit> getByActiveTrueAndUserRoleAssignmentsUserRoleAndUserRoleAssignmentsInactive(UserRole userRole, boolean inactive);
+	List<OrgUnit> getByActiveTrueAndUserRoleAssignmentsUserRoleAndUserRoleAssignmentsInheritAndUserRoleAssignmentsInactive(UserRole role, boolean inherit, boolean inactive);
+
+	@Deprecated
 	List<OrgUnit> getByActiveTrueAndRoleGroupAssignmentsRoleGroup(RoleGroup role);
-	List<OrgUnit> getByActiveTrueAndRoleGroupAssignmentsRoleGroupAndRoleGroupAssignmentsInheritTrue(RoleGroup role);
-	List<OrgUnit> getByActiveTrueAndRoleGroupAssignmentsRoleGroupAndRoleGroupAssignmentsInheritFalse(RoleGroup role);
+	List<OrgUnit> getByActiveTrueAndRoleGroupAssignmentsRoleGroupAndRoleGroupAssignmentsInactive(RoleGroup roleGroup, boolean inactive);
+	List<OrgUnit> getByActiveTrueAndRoleGroupAssignmentsRoleGroupAndRoleGroupAssignmentsInheritAndRoleGroupAssignmentsInactive(RoleGroup role, boolean inherit, boolean inactive);
 	List<OrgUnit> getByManager(User user);
 	List<OrgUnit> getByActiveTrueAndNextAttestationNotNull();
 }

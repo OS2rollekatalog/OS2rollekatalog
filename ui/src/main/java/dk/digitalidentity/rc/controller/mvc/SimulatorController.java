@@ -4,6 +4,7 @@ import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Base64;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -25,6 +26,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.SimulationDTO;
 import dk.digitalidentity.rc.controller.validator.SimulationValidator;
 import dk.digitalidentity.rc.dao.model.SystemRoleAssignment;
+import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserRole;
 import dk.digitalidentity.rc.exceptions.UserNotFoundException;
 import dk.digitalidentity.rc.security.RequireAdministratorRole;
@@ -68,23 +70,21 @@ public class SimulatorController {
 		}
 
 		String result = "";
-		String userId = simulation.getUserId();
-		String itSystemIdentifier = simulation.getItSystem().getIdentifier();
-		List<UserRole> roles = new ArrayList<UserRole>();
-		try {
-			roles = userService.getAllUserRoles(userId, itSystemIdentifier);
-		}
-		catch (UserNotFoundException ex) {
+
+		User user = userService.getByUserId(simulation.getUserId());
+		if (user == null) {
 			// should already be dealt with by validator
 			log.warn("Tried to fetch all user roles for user that does not exist");
 
 			return returnLoginSimulationPage(model, simulation);
 		}
 
+		List<UserRole> roles = userService.getAllUserRoles(user, Collections.singletonList(simulation.getItSystem()));
+
 		switch (simulation.getLoginType()) {
 			case OIO_BPP:
 				try {
-					result = userService.generateOIOBPP(userId, itSystemIdentifier, new HashMap<String, String>());
+					result = userService.generateOIOBPP(user, Collections.singletonList(simulation.getItSystem()), new HashMap<String, String>());
 					result = new String(Base64.getDecoder().decode(result), Charset.forName("UTF-8"));
 				}
 				catch (UserNotFoundException ex) {

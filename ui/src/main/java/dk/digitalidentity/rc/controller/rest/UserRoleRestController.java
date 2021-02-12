@@ -9,7 +9,6 @@ import java.util.stream.Collectors;
 import javax.validation.Valid;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.BindingResult;
@@ -23,6 +22,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.RestController;
 
+import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.UserRoleDeleteStatus;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.UserRoleForm;
 import dk.digitalidentity.rc.controller.validator.UserRoleValidator;
@@ -55,9 +55,6 @@ import lombok.extern.log4j.Log4j;
 @RestController
 public class UserRoleRestController {
 
-	@Value("${kombit.domain}")
-	private String domain;
-
     @Autowired
     private UserService userService;
 
@@ -82,6 +79,9 @@ public class UserRoleRestController {
     @Autowired
     private ConstraintTypeService constraintTypeService;
 
+    @Autowired
+    private RoleCatalogueConfiguration configuration;
+
     @InitBinder
     public void initBinder(WebDataBinder binder) {
         binder.addValidators(userRoleValidator);
@@ -101,7 +101,9 @@ public class UserRoleRestController {
         		userRoleService.save(role);
         		
         		if (active) {
-        			List<OrgUnit> orgUnitsWithRole = orgUnitService.getByUserRole(role);
+        			// also need inactive assignments for this
+        			@SuppressWarnings("deprecation")
+					List<OrgUnit> orgUnitsWithRole = orgUnitService.getByUserRole(role);
         			
         			// if assigned to an OrgUnit already, return a warning (HTTP 400 is not really
         			// suitable for this, but there does not seem to be HTTP codes to return warnings)
@@ -241,7 +243,7 @@ public class UserRoleRestController {
         		systemRoleAssignmentConstraintValue = srcav;
                 systemRoleAssignmentConstraintValue.setConstraintValue(constraintValue);
                 systemRoleAssignmentConstraintValue.setConstraintValueType(constraintValueType);
-                systemRoleAssignmentConstraintValue.setConstraintIdentifier(IdentifierGenerator.buildKombitConstraintIdentifier(domain));
+                systemRoleAssignmentConstraintValue.setConstraintIdentifier(IdentifierGenerator.buildKombitConstraintIdentifier(configuration.getIntegrations().getKombit().getDomain()));
         		break;
         	}
 		}
@@ -252,7 +254,7 @@ public class UserRoleRestController {
             systemRoleAssignmentConstraintValue.setSystemRoleAssignment(roleAssignment);
             systemRoleAssignmentConstraintValue.setConstraintType(constraintType);
             systemRoleAssignmentConstraintValue.setConstraintValueType(constraintValueType);
-            systemRoleAssignmentConstraintValue.setConstraintIdentifier(IdentifierGenerator.buildKombitConstraintIdentifier(domain));
+            systemRoleAssignmentConstraintValue.setConstraintIdentifier(IdentifierGenerator.buildKombitConstraintIdentifier(configuration.getIntegrations().getKombit().getDomain()));
         }
         
 		roleAssignment.getConstraintValues().add(systemRoleAssignmentConstraintValue);
@@ -328,6 +330,8 @@ public class UserRoleRestController {
         return new ResponseEntity<>(HttpStatus.OK);
     }
 
+    // we have to use the deprecated method to get inactive assignments and users/orgunits
+    @SuppressWarnings("deprecation")
     @PostMapping(value = "/rest/userroles/delete/{id}")
     public ResponseEntity<String> deleteRoleAsync(@PathVariable("id") long id) {
         UserRole role = userRoleService.getById(id);
@@ -347,16 +351,12 @@ public class UserRoleRestController {
         	}
         }
 
-        // we have to use the deprecated method to ensure that inactive users are also cleaned up
-        @SuppressWarnings("deprecation")
         List<User> users = userService.getByRolesIncludingInactive(role);
         for (User user : users) {
         	userService.removeUserRole(user, role);
         	userService.save(user);
         }
 
-        // we have to use the deprecated method to ensure that inactive OUs are also cleaned up
-        @SuppressWarnings("deprecation")
         List<OrgUnit> ous = orgUnitService.getAllWithRoleIncludingInactive(role);
         for (OrgUnit orgUnit : ous) {
         	orgUnitService.removeUserRole(orgUnit, role);
@@ -373,7 +373,9 @@ public class UserRoleRestController {
         return new ResponseEntity<>(HttpStatus.OK);
     }
 
-    @GetMapping(value = "/rest/userroles/trydelete/{id}")
+    // use deprecated to find inactive assignments
+    @SuppressWarnings("deprecation")
+	@GetMapping(value = "/rest/userroles/trydelete/{id}")
     public ResponseEntity<UserRoleDeleteStatus> tryDelete(@PathVariable("id") long id) {
         UserRoleDeleteStatus status = new UserRoleDeleteStatus();
 

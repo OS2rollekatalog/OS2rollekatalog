@@ -30,7 +30,7 @@
             <div class="col-sm-9" style="padding-left: 35px;">
                 <div class="c-radio">
                     <label >
-                        <input type="radio" onchange="onRadioChange('');" id="radioFilter1" name="radioFilter" checked="checked">
+                        <input type="radio" id="radioFilter1" data-id="" name="radioFilter" checked="checked">
                         <span class="fa fa-circle"></span>
                         <label th:text="#{html.page.report.filter.no}"/>
                     </label>
@@ -38,7 +38,7 @@
 
                 <div class="c-radio">
                     <label >
-                        <input type="radio" onchange="onRadioChange('orgUnitToggle');" id="radioFilter2" name="radioFilter" th:disabled="${#lists.size(allItSystems) < 1}">
+                        <input type="radio" id="radioFilter2" data-id="orgUnitToggle" name="radioFilter" th:disabled="${#lists.size(allItSystems) < 1}">
                         <span class="fa fa-circle"></span>
                         <label th:text="#{html.page.report.filter.ous}"/>
                     </label>
@@ -46,7 +46,7 @@
 
                 <div class="c-radio">
                     <label >
-                        <input type="radio" onchange="onRadioChange('managerToggle');" id="radioFilter3" name="radioFilter" th:disabled="${#lists.size(allManagers) < 1}">
+                        <input type="radio"  id="radioFilter3" data-id="managerToggle" name="radioFilter" th:disabled="${#lists.size(allManagers) < 1}">
                         <span class="fa fa-circle"></span>
                         <label th:text="#{html.page.report.filter.manager}"/>
                     </label>
@@ -72,105 +72,4 @@
             </div>
         </div>
     </fieldset>
-</th:block>
-
-<th:block th:fragment="filterOptionsScripts" xmlns="http://www.w3.org/1999/xhtml" xmlns:th="http://www.thymeleaf.org">
-    <script th:inline="javascript">
-		/*<![CDATA[*/
-
-		/*[+
-			var allOrgUnits = [[${allOrgUnits}]];
-		+]*/
-
-		function initOUTree() {
-		    if (allOrgUnits == null || allOrgUnits.length < 1) {
-		        $('#radioFilter2').prop('disabled', true);
-		    }
-
-			$("#hierarchy").jstree({
-				"core": {
-					"data": allOrgUnits,
-					"themes": {
-						"icons": false
-					}
-				},
-				"search" : {
-					"show_only_matches": true,
-					"search_callback": function(str, node) {
-						return (node.text.toUpperCase().startsWith(str.toUpperCase()));
-					}
-				},
-				"checkbox" : {
-					"three_state": false,
-					"cascade" : "down"
-				},
-				"plugins" : [
-					"wholerow", "search", "checkbox"
-				]
-			});
-
-            // selecting in the JSTree
-			$("#hierarchy").on("select_node.jstree", function(e, data) {
-                var ous = $('#hierarchy').jstree('get_selected');
-
-                // Remember date
-        		$('#realOUs').val(ous);
-			});
-
-			// searching in the JSTree
-			var to = false;
-			$('#searchField').keyup(function() {
-				if (to) {
-					clearTimeout(to);
-				}
-
-				to = setTimeout(function() {
-					var v = $('#searchField').val();
-
-					$('#hierarchy').jstree(true).search(v);
-				}, 400);
-			});
-		}
-
-		function initItSystemPicker() {
-			$('select.selectpicker').selectpicker({
-				actionsBox: true,
-				deselectAllText: "Fravælg alle",
-				selectAllText: "Vælg alle",
-				iconBase: 'fa',
-				tickIcon: 'fa-check text-success'
-			});
-		}
-
-		function onRadioChange(id) {
-		    // Clean toggles
-		    $('.radio-toggle').hide();
-		    $('#hierarchy').jstree('deselect_all');
-            $("#managerSelect option:selected").prop("selected", false)
-
-		    $('#' + id).show();
-		}
-
-		function initOptionsFragment() {
-			// Toggle filter it system
-			$('#itsystemCheckbox').change(function () {
-				if (this.checked)  {
-				  	$('#itsystemToggle').fadeIn('fast');
-				} else {
-					$('#itsystemToggle').fadeOut('fast');
-                    $('#itSystemSelectPicker').selectpicker('val', '');
-				}
-			});
-			$('#itsystemCheckbox').trigger('change');
-
-			initItSystemPicker();
-			initOUTree();			
-		}
-
-		$(document).ready(function() {
-			initOptionsFragment();
-		});
-
-	/*]]>*/
-	</script>
 </th:block>

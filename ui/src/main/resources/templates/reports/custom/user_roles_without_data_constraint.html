@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html>
+<head th:replace="fragments/header :: header (title=#{html.report.user_roles_w_sys_role_but_no_constraint})" />
+<body>
+<div class="wrapper">
+	<header th:replace="fragments/navbar :: navbar-header" />
+	<aside th:replace="fragments/navbar :: navbar-aside (page = 'report.custom')" />
+
+	<section>
+			<div class="content-wrapper">
+				<h3 th:text="#{html.report.user_roles_w_sys_role_but_no_constraint}" />
+				<div class="panel panel-default">
+					<div class="panel-heading" />
+					<div class="panel-body">
+						<table class="listTable table table-responsive table-striped">
+							<thead>
+								<tr>
+									<th class="col-md-3" th:text="#{html.entity.userrole.name}" />
+									<th class="col-md-2" th:text="#{html.entity.itsystem.type}" />
+									<th class="col-md-6" th:text="#{html.entity.userrole.description}" />
+									<th class="col-md-1" th:text="#{html.control.operations}" />
+								</tr>
+							</thead>
+
+							<tbody>
+								<tr th:each="role : ${userRoles}">
+									<td th:text="${role.name}" />
+									<td th:text="${role.itSystem.name}" />
+									<td th:text="${role.description}" />
+									<td>
+										<th:block sec:authorize="hasRole('ROLE_ADMINISTRATOR')">
+											<a th:href="@{/ui/userroles/edit/{id}(id=${role.id})}"><em class="fa fa-search"></em></a>
+										</th:block>
+									</td>
+								</tr>
+							</tbody>
+						</table>
+					</div>
+				</div>
+			</div>
+	</section>
+</div>
+
+<nav th:replace="fragments/footer :: footer" />
+<script th:replace="fragments/datatables :: datatables " />
+</body>
+</html>

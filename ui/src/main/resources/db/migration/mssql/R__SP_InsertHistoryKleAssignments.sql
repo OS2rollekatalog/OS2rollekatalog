@@ -2,7 +2,7 @@
 -- should only be called once per day like this
 --
 -- EXEC SP_InsertHistoryKleAssignments;
-
+ 
 CREATE OR ALTER PROC SP_InsertHistoryKleAssignments 
 AS
 BEGIN	

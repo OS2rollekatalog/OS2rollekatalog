@@ -1,17 +1,15 @@
 package dk.digitalidentity.rc.task;
 
+import java.net.SocketTimeoutException;
 import java.util.ArrayList;
-import java.util.Calendar;
-import java.util.Date;
-import java.util.Iterator;
 import java.util.List;
 
 import javax.annotation.PostConstruct;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
 import org.springframework.scheduling.annotation.EnableScheduling;
@@ -21,6 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
 
+import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
 import dk.digitalidentity.rc.dao.model.ConstraintTypeValueSet;
 import dk.digitalidentity.rc.dao.model.PendingKOMBITUpdate;
 import dk.digitalidentity.rc.dao.model.SystemRoleAssignment;
@@ -39,21 +38,8 @@ import lombok.extern.log4j.Log4j;
 @EnableScheduling
 @Transactional
 public class UpdateKOMBITTask {
-
-	@Value("${kombit.url}")
-	private String baseUrl;
-
-	@Value("${kombit.domain}")
-	private String domain;
-
-	@Value("${kombit.enabled}")
-	private boolean kombitEnabled;
-	
-	@Value("${customer.cvr}")
-	private String cvr;
-
-	@Value("${scheduled.enabled:false}")
-	private boolean runScheduled;
+	private HttpHeaders headers;
+	private boolean initialized = false;
 
 	@Autowired
 	@Qualifier("kombitRestTemplate")
@@ -63,71 +49,99 @@ public class UpdateKOMBITTask {
 	private PendingKOMBITUpdateService pendingKOMBITUpdateService;
 
 	@Autowired
+	private UpdateKOMBITTask self;
+
+	@Autowired
 	private UserRoleService userRoleService;
 
-	private boolean initialized = false;
+	@Autowired
+	private RoleCatalogueConfiguration configuration;
 
 	@PostConstruct
 	public void init() {
-		if (runScheduled && kombitEnabled) {
+		if (configuration.getScheduled().isEnabled() &&
+			configuration.getIntegrations().getKombit().isEnabled()) {
+
 			initialized = true;
 			log.info("KOMBIT synchronization enabled on this instance!");
+			
+			headers = new HttpHeaders();
+			headers.add("content-type", "application/json");
 		}
 		else {
 			log.info("KOMBIT synchronization disabled on this instance!");
 		}
 	}
 
-	// we have had some issues with this task not running, so just check every weekday
-	@Scheduled(cron = "0 0 10 * * MON-FRI")
-	public void verifyTaskIsRunning() {
-		if (!runScheduled) {
-			return;
-		}
+	@SuppressWarnings("deprecation")
+	@Scheduled(fixedDelay = 2 * 60 * 1000)
+	public void processUserRolesFromUpdateQueue() {
+		Thread t = new Thread(new Runnable() {
 
-    	Calendar cal = Calendar.getInstance();
-    	cal.add(Calendar.DATE, -2);
-    	Date twoDaysAgo = cal.getTime();
-
-		List<PendingKOMBITUpdate> pendingUpdates = pendingKOMBITUpdateService.findAll();
-		for (PendingKOMBITUpdate pending : pendingUpdates) {
-			if (pending.getTimestamp().before(twoDaysAgo)) {
-				log.error("KOMBIT synchronization has stopped!");
-				break;
+			@Override
+			public void run() {
+				self.performUpdate();
 			}
+		});
+
+		try {
+			t.start();
+			t.join(2 * 60 * 1000);
+		}
+		catch (Exception ex) {
+			// bad, but required until we can shift to a HTTP implementation that actually
+			// has timeouts implemented (bad netty)
+			t.stop();
+        	log.error("Timeout in UpdateKOMBITTask", ex);
 		}
 	}
-
-	@Scheduled(fixedRate = 5 * 60 * 1000)
-	public void processUserRolesFromUpdateQueue() {
-		if (!runScheduled || !initialized) {
+	
+	@Transactional
+	public void performUpdate() {
+		if (!initialized) {
 			log.debug("Scheduled jobs are disabled on this instance");
 			return;
 		}
 
-		List<PendingKOMBITUpdate> pendingUserRoleUpdates = pendingKOMBITUpdateService.findAll();
-
-		for (Iterator<PendingKOMBITUpdate> iterator = pendingUserRoleUpdates.iterator(); iterator.hasNext();) {
-			PendingKOMBITUpdate pendingKOMBITUpdate = iterator.next();
-			boolean success = false;
-
-			switch (pendingKOMBITUpdate.getEventType()) {
-				case DELETE:
-					success = deleteUserRole(pendingKOMBITUpdate);
-					break;
-				case UPDATE:
-					if (pendingKOMBITUpdate.getUserRoleUuid() == null) {
-						success = createUserRole(pendingKOMBITUpdate);
-					}
-					else {
-						success = updateUserRole(pendingKOMBITUpdate);
-					}
-
-					break;
+		try {
+			List<PendingKOMBITUpdate> pendingUserRoleUpdates = pendingKOMBITUpdateService.findAll();
+			if (pendingUserRoleUpdates == null || pendingUserRoleUpdates.size() == 0) {
+				return;
 			}
-
-			if (success) {
-				pendingKOMBITUpdateService.delete(pendingKOMBITUpdate);
+			
+			log.info("Synchronizing " + pendingUserRoleUpdates.size() + " userroles to KOMBIT");
+	
+			for (PendingKOMBITUpdate pendingKOMBITUpdate : pendingUserRoleUpdates) {			
+				boolean success = false;
+	
+				switch (pendingKOMBITUpdate.getEventType()) {
+					case DELETE:
+						success = deleteUserRole(pendingKOMBITUpdate);
+						break;
+					case UPDATE:
+						if (pendingKOMBITUpdate.getUserRoleUuid() == null) {
+							success = createUserRole(pendingKOMBITUpdate);
+						}
+						else {
+							success = updateUserRole(pendingKOMBITUpdate);
+						}
+	
+						break;
+				}
+	
+				if (success) {
+					pendingKOMBITUpdateService.delete(pendingKOMBITUpdate);
+				}
+			}
+			
+			log.info("Done synchronizing userroles to KOMBIT");
+		}
+		catch (Exception ex) {
+			if (ex instanceof SocketTimeoutException || (ex.getCause() != null && ex.getCause() instanceof SocketTimeoutException)) {
+				log.warn("Synchronizing userRoles to KOMBIT failed with timeout: " + ex.getMessage());
+			}
+			else {
+				log.error("Synchronizing userRoles to KOMBIT failed", ex);
 			}
 		}
 	}
@@ -146,13 +160,13 @@ public class UpdateKOMBITTask {
 			return true;
 		}
 
-		String entityId = IdentifierGenerator.buildKombitIdentifier(userRole.getIdentifier(), domain);
+		String entityId = IdentifierGenerator.buildKombitIdentifier(userRole.getIdentifier(), configuration.getIntegrations().getKombit().getDomain());
 		List<KOMBITBrugersystemrolleDataafgraensningerDTO> brugersystemrolleDataafgraensninger = new ArrayList<>();
 
 		KOMBITUserRoleDTO userRoleDTO = new KOMBITUserRoleDTO();
 		userRoleDTO.setNavn(userRole.getName());
 		userRoleDTO.setEntityId(entityId);
-		userRoleDTO.setOrganisationCvr(cvr);
+		userRoleDTO.setOrganisationCvr(configuration.getCustomer().getCvr());
 		userRoleDTO.setBeskrivelse(userRole.getDescription());
 		userRoleDTO.setBrugersystemrolleDataafgraensninger(brugersystemrolleDataafgraensninger);
 
@@ -161,9 +175,10 @@ public class UpdateKOMBITTask {
 
 		// perform create (POST)
 		try {
-			String url = baseUrl + "/jobfunktionsroller";
+			String url = configuration.getIntegrations().getKombit().getUrl() + "/jobfunktionsroller";
 
-			HttpEntity<KOMBITUserRoleDTO> userRoleResponse = restTemplate.postForEntity(url, userRoleDTO, KOMBITUserRoleDTO.class);
+			HttpEntity<KOMBITUserRoleDTO> request = new HttpEntity<KOMBITUserRoleDTO>(userRoleDTO, headers);
+			HttpEntity<KOMBITUserRoleDTO> userRoleResponse = restTemplate.exchange(url, HttpMethod.POST, request, KOMBITUserRoleDTO.class);
 
 			KOMBITUserRoleDTO userRoleResponseDTO = userRoleResponse.getBody();
 			userRole.setUuid(userRoleResponseDTO.getUuid());
@@ -173,7 +188,7 @@ public class UpdateKOMBITTask {
 			return true;
 		}
 		catch (HttpClientErrorException ex) {
-			log.error("Failed to create UserRole: " + userRole.getId() + " / " + ex.getResponseBodyAsString());
+			log.error("Failed to create UserRole: " + userRole.getId() + " / " + ex.getResponseBodyAsString(), ex);
 		}
 		
 		return false;
@@ -194,7 +209,7 @@ public class UpdateKOMBITTask {
 		}
 
 		List<KOMBITBrugersystemrolleDataafgraensningerDTO> brugersystemrolleDataafgraensninger = new ArrayList<>();
-		String url = baseUrl + "/jobfunktionsroller/" + pendingKOMBITUpdate.getUserRoleUuid();
+		String url = configuration.getIntegrations().getKombit().getUrl() + "/jobfunktionsroller/" + pendingKOMBITUpdate.getUserRoleUuid();
 
 		// read existing UserRole from KOMBIT (fallback to create-case if it does not exist)
 		ResponseEntity<KOMBITUserRoleDTO> userRoleResponse = restTemplate.exchange(url, HttpMethod.GET, null, KOMBITUserRoleDTO.class);
@@ -211,12 +226,13 @@ public class UpdateKOMBITTask {
 
 		// write back
 		try {
-			restTemplate.put(url, userRoleDTO);
+			HttpEntity<KOMBITUserRoleDTO> request = new HttpEntity<KOMBITUserRoleDTO>(userRoleDTO, headers);
+			restTemplate.exchange(url, HttpMethod.PUT, request, KOMBITUserRoleDTO.class);
 
 			return true;
 		}
 		catch (HttpClientErrorException ex) {
-			log.error("Failed to update UserRole: " + userRole.getId() + " / " + ex.getResponseBodyAsString());
+			log.error("Failed to update UserRole: " + userRole.getId() + " / " + ex.getResponseBodyAsString(), ex);
 		}
 				
 		return false;
@@ -229,7 +245,7 @@ public class UpdateKOMBITTask {
 			return true;
 		}
 
-		String url = baseUrl + "/jobfunktionsroller/" + pendingKOMBITUpdate.getUserRoleUuid();
+		String url = configuration.getIntegrations().getKombit().getUrl() + "/jobfunktionsroller/" + pendingKOMBITUpdate.getUserRoleUuid();
 
 		try {
 			restTemplate.delete(url);
@@ -237,7 +253,7 @@ public class UpdateKOMBITTask {
 			return true;
 		}
 		catch (HttpClientErrorException ex) {
-			log.error("Failed to delete UserRole: " + pendingKOMBITUpdate.getUserRoleUuid() + " / " + ex.getResponseBodyAsString());
+			log.error("Failed to delete UserRole: " + pendingKOMBITUpdate.getUserRoleUuid() + " / " + ex.getResponseBodyAsString(), ex);
 		}
 
 		return false;
@@ -255,6 +271,7 @@ public class UpdateKOMBITTask {
 				switch (constraintValue.getConstraintValueType()) {
 					case EXTENDED_INHERITED:
 					case INHERITED:
+					case READ_AND_WRITE:
 					case LEVEL_1:
 					case LEVEL_2:
 					case LEVEL_3:

@@ -12,6 +12,6 @@ public interface SystemRoleDao extends CrudRepository<SystemRole, Long> {
 	List<SystemRole> findAll();
 	List<SystemRole> findByItSystem(ItSystem itSystem);
 	List<SystemRole> findByItSystemAndUuidNotNull(ItSystem itSystem);
-	SystemRole getByUuid(String uuid);
+	SystemRole findByUuid(String uuid);
 	List<SystemRole> findByIdentifierAndItSystemId(String identifier, long itSystemId);
 }

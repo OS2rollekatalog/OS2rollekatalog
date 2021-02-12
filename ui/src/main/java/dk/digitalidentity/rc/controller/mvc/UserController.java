@@ -1,6 +1,7 @@
 package dk.digitalidentity.rc.controller.mvc;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -12,6 +13,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 
 import dk.digitalidentity.rc.config.Constants;
+import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.KleDTO;
 import dk.digitalidentity.rc.dao.model.Kle;
 import dk.digitalidentity.rc.dao.model.User;
@@ -29,9 +31,6 @@ import dk.digitalidentity.rc.service.model.UserRoleAssignedToUser;
 @Controller
 public class UserController {
 
-    @Value("#{servletContext.contextPath}")
-    private String servletContextPath;
-
 	@Autowired
 	private UserService userService;
 
@@ -44,8 +43,11 @@ public class UserController {
     @Autowired
 	private AccessConstraintService assignerRoleConstraint;
 
-    @Value("${kle.ui.enabled:false}")
-	private boolean kleUiEnabled;
+    @Autowired
+    private RoleCatalogueConfiguration configuration;
+
+    @Value("#{servletContext.contextPath}")
+    private String servletContextPath;
 
 	@GetMapping(value = "/ui/users/list")
 	public String view() {
@@ -67,7 +69,7 @@ public class UserController {
 		model.addAttribute("editable", !readOnly && assignerRoleConstraint.isUserAccessable(user, true));
 		model.addAttribute("klePerforming", kleService.getKleAssignments(user, KleType.PERFORMING, true));
 		model.addAttribute("kleInterest", kleService.getKleAssignments(user, KleType.INTEREST, true));
-		model.addAttribute("kleUiEnabled", kleUiEnabled);
+		model.addAttribute("kleUiEnabled", configuration.getIntegrations().getKle().isUiEnabled());
 
 		return "users/view";
 	}
@@ -90,9 +92,10 @@ public class UserController {
 			kleDTO.setText(kle.isActive() ? kle.getCode() + " " + kle.getName() : kle.getCode() + " " + kle.getName() + " [UDGÅET]");
 			kleDTOS.add(kleDTO);
 		}
-
+		
 		boolean onlyKleAdmin = SecurityUtil.hasRole(Constants.ROLE_KLE_ADMINISTRATOR) && !SecurityUtil.hasRole(Constants.ROLE_ASSIGNER);
-
+		kleDTOS.sort(Comparator.comparing(KleDTO::getText));
+		
 		model.addAttribute("allKles", kleDTOS);
 		model.addAttribute("klePrimarySelected", user.getKles().stream().filter(userKLEMapping -> userKLEMapping.getAssignmentType().equals(KleType.PERFORMING)).map(UserKLEMapping::getCode).collect(Collectors.toList()));
 		model.addAttribute("kleSecondarySelected", user.getKles().stream().filter(userKLEMapping -> userKLEMapping.getAssignmentType().equals(KleType.INTEREST)).map(UserKLEMapping::getCode).collect(Collectors.toList()));
@@ -100,7 +103,7 @@ public class UserController {
 		model.addAttribute("user", user);
 		model.addAttribute("addRoles", helper.getAddRoles(user));
 		model.addAttribute("addRoleGroups", helper.getAddRoleGroups(user));
-		model.addAttribute("kleUiEnabled", kleUiEnabled);
+		model.addAttribute("kleUiEnabled", configuration.getIntegrations().getKle().isUiEnabled());
 		model.addAttribute("onlyKleAdmin", onlyKleAdmin);
 
 		return "users/edit";

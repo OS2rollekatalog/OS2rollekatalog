@@ -87,7 +87,7 @@
                         </thead>
 
                         <tbody>
-                        <tr th:each="addRole : ${roles}">
+                        <tr th:each="addRole : ${roles}" th:id="${addRole.role.id}+'row'">
 							<td>
 								<div>
 									<div class="checkbox c-checkbox">
@@ -99,6 +99,7 @@
 										</label>
 									</div>
 								</div>
+								<label th:id="${addRole.role.id}+'sortLabel'" style="display:none" th:text="${addRole.checked}"/>
 							</td>
                             <td th:text="${addRole.role.name}"/>
                             <td th:text="${addRole.role.itSystem.name}"/>
@@ -121,7 +122,7 @@
 	</style>
 
 	<nav th:replace="fragments/footer :: footer"/>
-	<script th:replace="fragments/datatables :: datatables " />
+	<script th:replace="fragments/datatables :: datatables(orderColumnValue=1) " />
 
 	<script th:inline="javascript">
 		/*<![CDATA[*/
@@ -224,6 +225,10 @@
 					else {
 						$.ajax(getAjaxObject(url + 'remove' + objType + '/' + this.value + '/' + this.id,fieldUpdatedMsg, fieldNotUpdatedMsg));
 					}
+					
+					var label = $("#"+this.id+"sortLabel");
+					label.text(this.checked);
+					$("#listTable").dataTable().api().row("#"+this.id+"row").invalidate('dom').draw();
 				}
 				
 				function flagCheckboxChange() {

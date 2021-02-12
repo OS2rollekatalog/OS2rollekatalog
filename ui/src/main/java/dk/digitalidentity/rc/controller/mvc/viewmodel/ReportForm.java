@@ -13,6 +13,9 @@ public class ReportForm {
     private List<Long> itSystems;
     private List<String> orgUnits;
     private String manager;
+    private String managerFilter;
+    private String[] unitFilter;
+    private long[] itsystemFilter;
 
     private boolean showUsers;
     private boolean showTitles;

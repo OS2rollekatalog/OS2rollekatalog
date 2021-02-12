@@ -1,6 +1,7 @@
 package dk.digitalidentity.rc.task;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -8,13 +9,13 @@ import java.util.stream.Collectors;
 
 import org.apache.commons.lang.LocaleUtils;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.MessageSource;
 import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
 import dk.digitalidentity.rc.dao.model.ItSystem;
 import dk.digitalidentity.rc.dao.model.PendingManualUpdate;
 import dk.digitalidentity.rc.dao.model.SystemRole;
@@ -30,12 +31,7 @@ import lombok.extern.log4j.Log4j;
 @EnableScheduling
 @Transactional
 public class UpdateManualSystemsTask {
-
-	@Value("${scheduled.enabled:false}")
-	private boolean runScheduled;
-
-	@Value("${rc.locale:da_DK}")
-	private String localeString;
+	private static final String localeString = "da_DK";
 
 	@Autowired
 	private MessageSource messageSource;
@@ -52,10 +48,13 @@ public class UpdateManualSystemsTask {
 	@Autowired
 	private EmailService emailService;
 
+	@Autowired
+	private RoleCatalogueConfiguration configuration;
+
 	// run every 15 minutes
-	@Scheduled(fixedRate = 15 * 60 * 1000)
+	@Scheduled(fixedDelay = 15 * 60 * 1000)
 	public void processUsersFromWaitingTable() {
-		if (!runScheduled) {
+		if (!configuration.getScheduled().isEnabled()) {
 			log.debug("Scheduled jobs are disabled on this instance");
 			return;
 		}
@@ -110,7 +109,7 @@ public class UpdateManualSystemsTask {
 
 				usersAndRoles.append("<ul>");
 
-				List<SystemRole> systemRoles = userService.getAllSystemRoles(user, itSystem.getIdentifier());
+				List<SystemRole> systemRoles = userService.getAllSystemRoles(user, Collections.singletonList(itSystem));
 				if (systemRoles == null || systemRoles.size() == 0) {
 					usersAndRoles.append(messageSource.getMessage("html.email.manual.message.noroles", null, locale));
 				}

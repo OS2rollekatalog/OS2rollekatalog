@@ -3,6 +3,7 @@ package dk.digitalidentity.rc.service;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -11,7 +12,6 @@ import java.util.Set;
 import java.util.UUID;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -63,9 +63,6 @@ public class OrganisationImporter {
 	
 	@Autowired
 	private RoleCatalogueConfiguration configuration;
-
-	@Value("${kle.ui.enabled:false}")
-	private boolean kleUiEnabled;
 	
 	// default values, overriden by settings later
 	private boolean itSystemMarkupEnabled = false;
@@ -104,7 +101,7 @@ public class OrganisationImporter {
 			// read existing data from database
 			List<User> existingUsers = userService.getAllIncludingInactive();			
 			List<OrgUnit> existingOrgUnits = orgUnitService.getAllIncludingInactive();
-			
+
 			// this modifies existingOrgUnits, so it now contains everything
 			processOrgUnits(newOrgUnits, existingOrgUnits, response);
 
@@ -269,7 +266,7 @@ public class OrganisationImporter {
 			}
 		}
 
-		if (!kleUiEnabled) {
+		if (!configuration.getIntegrations().getKle().isUiEnabled()) {
 			if (userDTO.getKleInterest() != null) {
 				for (String kle : userDTO.getKleInterest()) {
 					UserKLEMapping mapping = new UserKLEMapping();
@@ -314,7 +311,9 @@ public class OrganisationImporter {
 			ou.setLevel(orgUnit.getLevel());
 		}
 
-		if (!kleUiEnabled) {
+		if (!configuration.getIntegrations().getKle().isUiEnabled()) {
+			ou.setInheritKle(orgUnit.isInheritKle());
+			
 			if (orgUnit.getKleInterest() != null) {
 				for (String kle : orgUnit.getKleInterest()) {
 					KLEMapping mapping = new KLEMapping();
@@ -338,7 +337,7 @@ public class OrganisationImporter {
 			}
 		}
 
-		if (itSystemMarkupEnabled) {
+		if (itSystemMarkupEnabled && orgUnit.getItSystemIdentifiers() != null) {
 			for (Long itSystemId : orgUnit.getItSystemIdentifiers()) {
 				for (ItSystem itSystem : itSystems) {
 					if (itSystem.getId() == itSystemId) {
@@ -368,6 +367,7 @@ public class OrganisationImporter {
 
 			for (OrgUnit orgUnitToCreate : toBeCreated) {
 				if (orgUnitToCreate.getParent() != null) {
+					
 					// if the orgUnit we are going to create, has a parent that exists, move the pointer
 					// to the existing object, so Hibernate does not throw a hissy fit.
 					for (OrgUnit existingOrgUnit : existingOrgUnits) {
@@ -379,7 +379,7 @@ public class OrganisationImporter {
 					}
 				}
 			}
-			
+	
 			// bulk-save, and then copy them all to the list of existing orgUnits
 			orgUnitService.save(toBeCreated);
 			existingOrgUnits.addAll(toBeCreated);
@@ -399,7 +399,8 @@ public class OrganisationImporter {
 							existingOrgUnit.setLevel(orgUnitToUpdate.getLevel());
 						}
 
-						if (!kleUiEnabled) {
+						if (!configuration.getIntegrations().getKle().isUiEnabled()) {
+							existingOrgUnit.setInheritKle(orgUnitToUpdate.isInheritKle());
 							existingOrgUnit.getKles().clear();
 							existingOrgUnit.getKles().addAll(orgUnitToUpdate.getKles());
 
@@ -427,7 +428,7 @@ public class OrganisationImporter {
 								}
 							}
 						}
-						
+
 						orgUnitService.save(existingOrgUnit);
 						break;
 					}
@@ -500,7 +501,7 @@ public class OrganisationImporter {
 						existingUser.setCpr(userToUpdate.getCpr());
 						existingUser.setDoNotInherit(userToUpdate.isDoNotInherit());
 
-						if (!kleUiEnabled) {
+						if (!configuration.getIntegrations().getKle().isUiEnabled()) {
 							existingUser.getKles().clear();
 							existingUser.getKles().addAll(userToUpdate.getKles());
 
@@ -511,7 +512,7 @@ public class OrganisationImporter {
 						}
 
 						if (differentPositions(userToUpdate, existingUser)) {
-							// do the switcheroo to make Hibernate happy on all the usertoUpdate's positions
+							// do the switcheroo to make Hibernate happy on all the userToUpdate's positions
 							for (Position userToUpdatePosition : userToUpdate.getPositions()) {
 								for (OrgUnit existingOrgUnit : existingOrgUnits) {
 									if (userToUpdatePosition.getOrgUnit().getUuid().equals(existingOrgUnit.getUuid())) {
@@ -590,7 +591,7 @@ public class OrganisationImporter {
 					else if (differentEmail(newUser, existingUser)) {
 						toBeUpdated.add(newUser);
 					}
-					else if (!kleUiEnabled && hasKleChanges(newUser, existingUser)) {
+					else if (!configuration.getIntegrations().getKle().isUiEnabled() && hasKleChanges(newUser, existingUser)) {
 						toBeUpdated.add(newUser);
 					}
 					else if (differentPositions(newUser, existingUser)) {
@@ -683,7 +684,7 @@ public class OrganisationImporter {
 					else if (!existingOrgUnit.getName().equals(newOrgUnit.getName())) {
 						toBeUpdated.add(newOrgUnit);
 					}
-					else if (!kleUiEnabled && hasKleChanges(newOrgUnit, existingOrgUnit)) {
+					else if (!configuration.getIntegrations().getKle().isUiEnabled() && hasKleChanges(newOrgUnit, existingOrgUnit)) {
 						toBeUpdated.add(newOrgUnit);
 					}
 					else if (itSystemMarkupEnabled && hasItSystemChanges(newOrgUnit, existingOrgUnit)) {
@@ -698,6 +699,27 @@ public class OrganisationImporter {
 			}
 			
 			if (!found) {
+				// because of cascade-saving of children (we really need to get rid of that),
+				// we need to make sure that any EXISTING ous that are children of the NEW
+				// ou, are attached correctly
+				if (newOrgUnit.getChildren() != null && newOrgUnit.getChildren().size() > 0) {
+					List<OrgUnit> newChildren = new ArrayList<OrgUnit>();
+
+					for (Iterator<OrgUnit> iterator = newOrgUnit.getChildren().iterator(); iterator.hasNext();) {
+						OrgUnit child = iterator.next();
+
+						for (OrgUnit existingOrgUnit : existingOrgUnits) {
+							if (Objects.equals(child.getUuid(), existingOrgUnit.getUuid())) {
+								iterator.remove();
+								newChildren.add(existingOrgUnit);
+								break;
+							}
+						}
+					}
+					
+					newOrgUnit.getChildren().addAll(newChildren);
+				}
+
 				toBeCreated.add(newOrgUnit);
 			}
 		}
@@ -761,6 +783,10 @@ public class OrganisationImporter {
 	}
 
 	private boolean hasKleChanges(OrgUnit newOrgUnit, OrgUnit existingOrgUnit) {
+		if (newOrgUnit.isInheritKle() != existingOrgUnit.isInheritKle()) {
+			return true;
+		}
+		
 		for (KLEMapping existingOrgUnitKle : existingOrgUnit.getKles()) {
 			boolean kleFound = false;
 			

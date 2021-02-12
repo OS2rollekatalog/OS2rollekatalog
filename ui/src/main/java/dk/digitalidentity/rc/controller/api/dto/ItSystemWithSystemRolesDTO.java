@@ -16,6 +16,10 @@ public class ItSystemWithSystemRolesDTO {
 	private long id;
 	private String identifier;
 	private List<SystemRoleDTO> systemRoles = new ArrayList<SystemRoleDTO>();
+	private boolean convertRolesEnabled = false;
+	
+	// read only
+	private List<UserRoleDTO> userRoles = new ArrayList<UserRoleDTO>();
 
 	@NotBlank
 	private String name;

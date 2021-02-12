@@ -98,21 +98,21 @@ public class Select2Service {
 	}
 
 	// 24 hours, as we never update
-	@Scheduled(fixedRate = 24 * 60 * 60 * 1000)
+	@Scheduled(fixedDelay = 24 * 60 * 60 * 1000)
 	@CacheEvict(value = "kleList", allEntries = true)
 	public void resetKleCache() {
 		;
 	}
 
 	// 1 hour cache, should be fine for a single user session
-	@Scheduled(fixedRate = 4 * 60 * 60 * 1000)
+	@Scheduled(fixedDelay = 4 * 60 * 60 * 1000)
 	@CacheEvict(value = "orgunitList", allEntries = true)
 	public void resetOUCache() {
 		;
 	}
 
 	// 15 minute cache is enough, small dataset after all
-	@Scheduled(fixedRate = 15 * 60 * 1000)
+	@Scheduled(fixedDelay = 15 * 60 * 1000)
 	@CacheEvict(value = "itSystemList", allEntries = true)
 	public void resetITSystemCache() {
 		;

@@ -14,6 +14,7 @@ public class OrgUnitDTO {
 	private String uuid;
 	private String name;
 	private String parentOrgUnitUuid;
+	private boolean inheritKle;
 	private OrgUnitLevel level;
 	private List<String> klePerforming;
 	private List<String> kleInterest;

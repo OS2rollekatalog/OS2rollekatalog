@@ -11,6 +11,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import dk.digitalidentity.rc.config.Constants;
+import dk.digitalidentity.rc.dao.model.ItSystem;
 import dk.digitalidentity.rc.dao.model.OrgUnit;
 import dk.digitalidentity.rc.dao.model.Position;
 import dk.digitalidentity.rc.dao.model.RoleGroup;
@@ -19,6 +20,7 @@ import dk.digitalidentity.rc.dao.model.SystemRoleAssignmentConstraintValue;
 import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserRole;
 import dk.digitalidentity.rc.dao.model.enums.ConstraintValueType;
+import dk.digitalidentity.rc.service.ItSystemService;
 import dk.digitalidentity.rc.service.OrgUnitService;
 import dk.digitalidentity.rc.service.UserService;
 
@@ -30,6 +32,9 @@ public class AccessConstraintService {
 
 	@Autowired
 	private OrgUnitService orgUnitService;
+	
+	@Autowired
+	private ItSystemService itSystemService;
 	
 	/***
 	 * Returns a list of OrgUnits that this is constrained to.
@@ -50,8 +55,10 @@ public class AccessConstraintService {
 			return new ArrayList<String>(); // empty list, full restriction
 		}
 		
+		List<ItSystem> itSystems = itSystemService.findByIdentifier(Constants.ROLE_CATALOGUE_IDENTIFIER);
+
 		// get all roles, and start analyzing the data
-		List<UserRole> allRoleCatalogueRoles = userService.getAllUserRoles(user, Constants.ROLE_CATALOGUE_IDENTIFIER);
+		List<UserRole> allRoleCatalogueRoles = userService.getAllUserRoles(user, itSystems);
 		Set<String> resultSet = new HashSet<String>();
 
 		for (UserRole role : allRoleCatalogueRoles) {
@@ -227,7 +234,9 @@ public class AccessConstraintService {
 			return new ArrayList<Long>(); // empty list, full restriction
 		}
 		
-		List<UserRole> allRoles = userService.getAllUserRoles(user, Constants.ROLE_CATALOGUE_IDENTIFIER);
+		List<ItSystem> itSystems = itSystemService.findByIdentifier(Constants.ROLE_CATALOGUE_IDENTIFIER);
+		
+		List<UserRole> allRoles = userService.getAllUserRoles(user, itSystems);
 		Set<Long> resultSet = new HashSet<Long>();
 
 		for (UserRole role : allRoles) {

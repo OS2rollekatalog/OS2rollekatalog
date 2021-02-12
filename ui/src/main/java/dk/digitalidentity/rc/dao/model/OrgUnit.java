@@ -63,6 +63,7 @@ public class OrgUnit implements AuditLoggable {
 	@Column(nullable = true)
 	private OrgUnitLevel level;
 
+	// TODO: do we REALLY want to cascade everything to the children?
 	@OneToMany(fetch = FetchType.LAZY, mappedBy = "parent", cascade = CascadeType.ALL)
 	private List<OrgUnit> children;
 	

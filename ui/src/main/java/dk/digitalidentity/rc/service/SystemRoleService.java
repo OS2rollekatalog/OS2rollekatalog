@@ -28,7 +28,7 @@ public class SystemRoleService {
 	}
 
 	public SystemRole getByUuid(String uuid) {
-		return systemRoleDao.getByUuid(uuid);
+		return systemRoleDao.findByUuid(uuid);
 	}
 
 	public List<SystemRole> findByItSystemAndUuidNotNull(ItSystem itSystem) {

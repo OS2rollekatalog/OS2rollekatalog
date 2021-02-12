@@ -102,6 +102,12 @@ public class RoleGroupController {
 		}
 
 		RoleGroupForm roleGroupForm = mapper.map(roleGroup, RoleGroupForm.class);
+		
+		// remove userRoles from soft-deleted it-systems until they are really deleted
+		roleGroupForm.setUserRoleAssignments(roleGroup.getUserRoleAssignments().stream()
+				.filter(a -> a.getUserRole().getItSystem().isDeleted() == false)
+				.collect(Collectors.toList()));
+
 		model.addAttribute("rolegroup", roleGroupForm);
 
 		boolean canRequest = false;
@@ -182,6 +188,11 @@ public class RoleGroupController {
 		// note that we filter out roles that are part of the role catalogue, as
 		// they should never be in a role group
 		for (UserRole role : userRoleService.getAllExceptRoleCatalogue()) {
+			// filter roles from deleted itSystems
+			if (role.getItSystem().isDeleted()) {
+				continue;
+			}
+
 			UserRole newRole = new UserRole();
 			newRole.setDescription(role.getDescription());
 			newRole.setId(role.getId());

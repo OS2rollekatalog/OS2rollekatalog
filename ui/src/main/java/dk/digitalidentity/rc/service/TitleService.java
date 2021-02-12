@@ -1,10 +1,12 @@
 package dk.digitalidentity.rc.service;
 
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -37,13 +39,21 @@ public class TitleService {
 	public Title getByUuid(String uuid) {
 		return titleDao.getByUuidAndActiveTrue(uuid);
 	}
-
+	
 	public List<Title> getAll() {
 		return titleDao.getByActiveTrue();
 	}
 
+	public List<Title> getAllWithRole(UserRole userRole) {
+		return titleDao.findByUserRoleAssignmentsUserRoleAndUserRoleAssignmentsInactive(userRole, false);
+	}
+
+	public List<Title> getAllWithRoleGroup(RoleGroup roleGroup) {
+		return titleDao.findByRoleGroupAssignmentsRoleGroupAndRoleGroupAssignmentsInactive(roleGroup, false);
+	}
+
 	@AuditLogIntercepted
-	public boolean addUserRole(Title title, UserRole role, String[] ouUuids) {
+	public boolean addUserRole(Title title, UserRole role, String[] ouUuids, LocalDate startDate, LocalDate stopDate) {
 		if (role.getItSystem().getIdentifier().equals(Constants.ROLE_CATALOGUE_IDENTIFIER)
 				&& !SecurityUtil.getRoles().contains(Constants.ROLE_ADMINISTRATOR)
 				&& !SecurityUtil.getRoles().contains(Constants.ROLE_SYSTEM)) {
@@ -52,6 +62,7 @@ public class TitleService {
 
 		List<String> ouUuidsAsList = Arrays.asList(ouUuids);
 		
+		// existing assignment modification
 		for (TitleUserRoleAssignment assignment : title.getUserRoleAssignments()) {
 			if (assignment.getUserRole().getId() == role.getId()) {
 				boolean changes = false;
@@ -74,6 +85,15 @@ public class TitleService {
 					}
 				}
 
+				startDate = (startDate == null || LocalDate.now().equals(startDate)) ? null : startDate;
+				if (!Objects.equals(startDate, assignment.getStartDate()) || !Objects.equals(stopDate, assignment.getStopDate())) {
+					assignment.setStartDate(startDate);
+					assignment.setStopDate(stopDate);
+					assignment.setInactive(startDate != null ? startDate.isAfter(LocalDate.now()) : false);
+					
+					changes = true;
+				}
+
 				return changes;
 			}
 		}
@@ -84,13 +104,16 @@ public class TitleService {
 		assignment.setAssignedByName(SecurityUtil.getUserFullname());
 		assignment.setAssignedByUserId(SecurityUtil.getUserId());
 		assignment.setAssignedTimestamp(new Date());
+		assignment.setStartDate((startDate == null || LocalDate.now().equals(startDate)) ? null : startDate);
+		assignment.setStopDate(stopDate);
+		assignment.setInactive(startDate != null ? startDate.isAfter(LocalDate.now()) : false);
 		assignment.setOuUuids(new ArrayList<>());
 		assignment.getOuUuids().addAll(ouUuidsAsList);
 		title.getUserRoleAssignments().add(assignment);
 
 		return true;
 	}
-
+	
 	@AuditLogIntercepted
 	public boolean removeUserRole(Title title, UserRole role) {
 		if (role.getItSystem().getIdentifier().equals(Constants.ROLE_CATALOGUE_IDENTIFIER)
@@ -116,9 +139,9 @@ public class TitleService {
 	}
 
 	@AuditLogIntercepted
-	public boolean addRoleGroup(Title title, RoleGroup roleGroup, String[] ouUuids) {
+	public boolean addRoleGroup(Title title, RoleGroup roleGroup, String[] ouUuids, LocalDate startDate, LocalDate stopDate) {
 		List<String> ouUuidsAsList = Arrays.asList(ouUuids);
-		
+
 		for (TitleRoleGroupAssignment assignment : title.getRoleGroupAssignments()) {
 			if (assignment.getRoleGroup().getId() == roleGroup.getId()) {
 				boolean changes = false;
@@ -140,6 +163,15 @@ public class TitleService {
 						changes = true;
 					}
 				}
+				
+				startDate = (startDate == null || LocalDate.now().equals(startDate)) ? null : startDate;
+				if (!Objects.equals(startDate, assignment.getStartDate()) || !Objects.equals(stopDate, assignment.getStopDate())) {
+					assignment.setStartDate(startDate);
+					assignment.setStopDate(stopDate);
+					assignment.setInactive(startDate != null ? startDate.isAfter(LocalDate.now()) : false);
+					
+					changes = true;
+				}
 
 				return changes;
 			}
@@ -151,6 +183,9 @@ public class TitleService {
 		assignment.setAssignedByName(SecurityUtil.getUserFullname());
 		assignment.setAssignedByUserId(SecurityUtil.getUserId());
 		assignment.setAssignedTimestamp(new Date());
+		assignment.setStartDate((startDate == null || LocalDate.now().equals(startDate)) ? null : startDate);
+		assignment.setStopDate(stopDate);
+		assignment.setInactive(startDate != null ? startDate.isAfter(LocalDate.now()) : false);
 		assignment.setOuUuids(new ArrayList<>());
 		assignment.getOuUuids().addAll(ouUuidsAsList);
 		title.getRoleGroupAssignments().add(assignment);

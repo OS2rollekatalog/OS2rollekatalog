@@ -12,6 +12,7 @@ public enum ConstraintValueType {
 	LEVEL_4,
 	INHERITED,               // the user inherits constraint values from the OU(s) he holds positions in
 	EXTENDED_INHERITED,      // as above, but according to the extension rules (depends on the type of constraint)
+	READ_AND_WRITE,			 // the sum of the two above
 	VALUE;                   // an actual hardcoded value is used
 	
 	public static String getUIText(SystemRoleAssignmentConstraintValue assignment) throws Exception {

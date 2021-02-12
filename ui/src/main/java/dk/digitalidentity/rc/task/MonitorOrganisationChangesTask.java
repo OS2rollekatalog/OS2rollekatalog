@@ -4,11 +4,11 @@ import java.util.Calendar;
 import java.util.Date;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
+import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
 import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.service.UserService;
 import lombok.extern.log4j.Log4j;
@@ -18,17 +18,17 @@ import lombok.extern.log4j.Log4j;
 @EnableScheduling
 public class MonitorOrganisationChangesTask {
 
-	@Value("${scheduled.enabled:false}")
-	private boolean runScheduled;
-
 	@Autowired
 	private UserService userService;
-	
+
+	@Autowired
+	private RoleCatalogueConfiguration configuration;
+
 	// sometimes the local integration at the customer stops running,
 	// so we monitor for missing updates weekly
 	@Scheduled(cron = "0 0 14 * * WED")
 	public void verifyTaskIsRunning() {
-		if (!runScheduled) {
+		if (!configuration.getScheduled().isEnabled()) {
 			return;
 		}
 

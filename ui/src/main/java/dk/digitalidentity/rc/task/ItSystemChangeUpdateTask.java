@@ -9,7 +9,6 @@ import java.util.stream.Collectors;
 
 import org.apache.commons.lang.LocaleUtils;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.MessageSource;
 import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -17,6 +16,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
 import dk.digitalidentity.rc.dao.model.ItSystem;
 import dk.digitalidentity.rc.dao.model.ItSystemChange;
 import dk.digitalidentity.rc.dao.model.SystemRole;
@@ -35,12 +35,7 @@ import lombok.extern.log4j.Log4j;
 @EnableScheduling
 @Transactional
 public class ItSystemChangeUpdateTask {
-
-	@Value("${scheduled.enabled:false}")
-	private boolean runScheduled;
-
-	@Value("${rc.locale:da_DK}")
-	private String localeString;
+	private static final String localeString = "da_DK";
 
 	@Autowired
 	private MessageSource messageSource;
@@ -59,10 +54,13 @@ public class ItSystemChangeUpdateTask {
 
 	@Autowired
 	private SystemRoleService systemRoleService;
+	
+	@Autowired
+	private RoleCatalogueConfiguration configuration;
 
-	@Scheduled(fixedRate = 15 * 60 * 1000)
+	@Scheduled(fixedDelay = 15 * 60 * 1000)
 	public void notifyAboutItSystemChanges() {
-		if (!runScheduled) {
+		if (!configuration.getScheduled().isEnabled()) {
 			log.debug("Scheduled jobs are disabled on this instance");
 			return;
 		}
@@ -139,6 +137,11 @@ public class ItSystemChangeUpdateTask {
 					.filter(change -> change.getEventType().equals(ItSystemChangeEventType.SYSTEM_ROLE_REMOVE))
 					.collect(Collectors.toList());
 
+			// TODO: should probably remove the it_system_modified record also...
+			if (addedSystemRoles.size() == 0 && modifiedSystemRoles.size() == 0 && removedSystemRoles.size() == 0) {
+				continue;
+			}
+			
 			StringBuilder roleChanges = new StringBuilder();
 
 			// find out if we're adding new itsystem or updating
@@ -156,10 +159,12 @@ public class ItSystemChangeUpdateTask {
 			
 			if (modifiedSystemRoles.size() > 0) {
 				StringBuilder rolesList = new StringBuilder();
+
 				for (ItSystemChange systemRole : modifiedSystemRoles) {
 					SystemRole currentSystemRole = systemRoleService.getById(systemRole.getSystemRoleId());
 					rolesList.append(div(dt("Navn") + dd(diff(systemRole.getSystemRoleName(), currentSystemRole.getName()))));
 					rolesList.append(div(dt("Beskrivelse") + dd(diff(systemRole.getSystemRoleDescription(), currentSystemRole.getDescription()))));
+
 					if (systemRole.isSystemRoleConstraintChanged()) {
 						rolesList.append(div(dt("Dataafgrænsning") + dd("ændret")));
 					}
@@ -193,12 +198,21 @@ public class ItSystemChangeUpdateTask {
 			
 			String title = messageSource.getMessage("html.email.it.system.change.title", new Object[] { itSystem.getName() }, locale);//TODO change to old name if system was modified
 			String message = messageSource.getMessage("html.email.it.system.change.message.body", new Object[] { body.toString() }, locale);
-
+			
 			try {
 				emailService.sendMessage(emailAddress, title, message);
 			}
 			catch (Exception ex) {
-				log.error("Exception occured while sending email about ItSystem's SystemRole changes. Exception:" + ex.getMessage());
+				log.error("Exception occured while sending global email about ItSystem's SystemRole changes. Exception:" + ex.getMessage());
+			}
+			
+			if (!StringUtils.isEmpty(itSystem.getNotificationEmail())) {
+				try {
+					emailService.sendMessage(itSystem.getNotificationEmail(), title, message);
+				}
+				catch (Exception ex) {
+					log.error("Exception occured while sending direct email about ItSystem's SystemRole changes. Exception:" + ex.getMessage());
+				}
 			}
 		}
 		

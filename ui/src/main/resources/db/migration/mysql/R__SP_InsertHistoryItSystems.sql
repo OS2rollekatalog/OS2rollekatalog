@@ -6,7 +6,7 @@
 
 DELIMITER $$
 DROP PROCEDURE IF EXISTS SP_InsertHistoryItSystems $$
-
+ 
 CREATE PROCEDURE SP_InsertHistoryItSystems()
 BEGIN
 

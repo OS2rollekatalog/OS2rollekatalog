@@ -5,13 +5,13 @@ import java.util.Calendar;
 import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.EnableCaching;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
+import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
 import dk.digitalidentity.rc.dao.model.AuditLog;
 import dk.digitalidentity.rc.dao.model.enums.EventType;
 import dk.digitalidentity.rc.log.AuditLogEntryDao;
@@ -21,9 +21,9 @@ import dk.digitalidentity.rc.log.AuditLogEntryDao;
 public class AuditLogService {
 	private static List<EventType> eventTypes;
 	
-	@Value("${audit.browse.days:7}")
-	private int days;
-	
+	@Autowired
+	private RoleCatalogueConfiguration configuration;
+
 	@Autowired
 	private AuditLogEntryDao auditLogEntryDao;
 
@@ -43,12 +43,12 @@ public class AuditLogService {
 	@Cacheable(value = "auditLogEntries")
 	public List<AuditLog> getAuditLogEntries() {
 		Calendar cal = Calendar.getInstance();
-		cal.add(Calendar.DATE, (-1 * days));
+		cal.add(Calendar.DATE, (-1 * configuration.getAudit().getUiDays()));
 		
 		return auditLogEntryDao.findByTimestampAfterAndEventTypeInOrderByTimestampDesc(cal.getTime(), eventTypes);
 	}
 
-	@Scheduled(fixedRate = 60 * 1000)
+	@Scheduled(fixedDelay = 60 * 1000)
 	@CacheEvict(value = "auditLogEntries", allEntries = true)
 	public void resetAuditLogCache() {
 		; // clears cache every minute - we just want to protect

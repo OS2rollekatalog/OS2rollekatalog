@@ -14,11 +14,13 @@ import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Component;
 
 import dk.digitalidentity.rc.config.Constants;
+import dk.digitalidentity.rc.dao.model.ItSystem;
 import dk.digitalidentity.rc.dao.model.SystemRoleAssignment;
 import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserRole;
 import dk.digitalidentity.rc.dao.model.enums.EventType;
 import dk.digitalidentity.rc.log.AuditLogger;
+import dk.digitalidentity.rc.service.ItSystemService;
 import dk.digitalidentity.rc.service.SettingsService;
 import dk.digitalidentity.rc.service.UserService;
 import dk.digitalidentity.saml.extension.SamlLoginPostProcessor;
@@ -39,6 +41,9 @@ public class RolePostProcessor implements SamlLoginPostProcessor {
 	
 	@Autowired
 	private SettingsService settingsService;
+	
+	@Autowired
+	private ItSystemService itSystemService;
 
 	@Override
 	public void process(TokenUser tokenUser) {
@@ -56,7 +61,9 @@ public class RolePostProcessor implements SamlLoginPostProcessor {
 
 		Set<String> roles = new HashSet<>();
 
-		List<UserRole> userRoles = userService.getAllUserRoles(user, Constants.ROLE_CATALOGUE_IDENTIFIER);
+		List<ItSystem> itSystems = itSystemService.findByIdentifier(Constants.ROLE_CATALOGUE_IDENTIFIER);
+
+		List<UserRole> userRoles = userService.getAllUserRoles(user, itSystems);
 		if (userRoles != null) {
 			for (UserRole role : userRoles) {
 				for (SystemRoleAssignment roleAssignment : role.getSystemRoleAssignments()) {

@@ -4,10 +4,17 @@ import dk.digitalidentity.rc.dao.model.OrgUnit;
 import dk.digitalidentity.rc.dao.model.Position;
 import dk.digitalidentity.rc.dao.model.RoleGroup;
 import dk.digitalidentity.rc.dao.model.SystemRoleAssignment;
+import dk.digitalidentity.rc.dao.model.Title;
 import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserRole;
 
 public interface RoleChangeHook {
+	
+	// TitleServiceHooks
+	public void interceptAddRoleGroupAssignmentOnTitle(Title title, RoleGroup roleGroup, String[] ouUuids);
+	public void interceptRemoveRoleGroupAssignmentOnTitle(Title title, RoleGroup roleGroup);
+	public void interceptAddUserRoleAssignmentOnTitle(Title title, UserRole userRole, String[] ouUuids);
+	public void interceptRemoveUserRoleAssignmentOnTitle(Title title, UserRole userRole);
 
 	// UserServiceHooks
 	public void interceptAddRoleGroupAssignmentOnUser(User user, RoleGroup roleGroup);

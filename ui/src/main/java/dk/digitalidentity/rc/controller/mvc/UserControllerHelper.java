@@ -2,6 +2,7 @@ package dk.digitalidentity.rc.controller.mvc;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -14,9 +15,13 @@ import dk.digitalidentity.rc.controller.mvc.viewmodel.AssignmentType;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.EditRolegroupRow;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.EditUserRoleRow;
 import dk.digitalidentity.rc.dao.model.Position;
+import dk.digitalidentity.rc.dao.model.PositionRoleGroupAssignment;
+import dk.digitalidentity.rc.dao.model.PositionUserRoleAssignment;
 import dk.digitalidentity.rc.dao.model.RoleGroup;
 import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserRole;
+import dk.digitalidentity.rc.dao.model.UserRoleGroupAssignment;
+import dk.digitalidentity.rc.dao.model.UserUserRoleAssignment;
 import dk.digitalidentity.rc.dao.model.enums.AltAccountType;
 import dk.digitalidentity.rc.dao.model.enums.ItSystemType;
 import dk.digitalidentity.rc.security.AccessConstraintService;
@@ -123,16 +128,22 @@ public class UserControllerHelper {
 	private static Assignment getAssignment(User user, UserRole role) {
 		Assignment assignment = new Assignment();
 
-		if (user.getUserRoleAssignments().stream().map(ura -> ura.getUserRole()).collect(Collectors.toList()).contains(role)) {
+		Optional<UserUserRoleAssignment> userRoleAssignment = user.getUserRoleAssignments().stream().filter(ura -> ura.getUserRole().getId() == role.getId()).findAny();
+		if (userRoleAssignment.isPresent()) {
 			assignment.setAssignmentType(AssignmentType.DIRECTLY);
+			assignment.setStartDate(userRoleAssignment.get().getStartDate());
+			assignment.setStopDate(userRoleAssignment.get().getStopDate());
 
 			return assignment;
 		}
 
 		for (Position p : user.getPositions()) {
-	      	if (p.getUserRoleAssignments().stream().map(ura -> ura.getUserRole()).collect(Collectors.toList()).contains(role)) {
+			Optional<PositionUserRoleAssignment> uraPosition = p.getUserRoleAssignments().stream().filter(ura -> ura.getUserRole().getId() == role.getId()).findAny();
+			if (uraPosition.isPresent()) {
 				assignment.setAssignmentType(AssignmentType.POSITION);
 				assignment.setPosition(p.getName());
+				assignment.setStartDate(uraPosition.get().getStartDate());
+				assignment.setStopDate(uraPosition.get().getStopDate());
 
 				return assignment;
 			}
@@ -146,16 +157,22 @@ public class UserControllerHelper {
 	private static Assignment getAssignment(User user, RoleGroup rolegroup) {
 		Assignment assignment = new Assignment();
 
-		if (user.getRoleGroupAssignments().stream().map(ura -> ura.getRoleGroup()).collect(Collectors.toList()).contains(rolegroup)) {
+		Optional<UserRoleGroupAssignment> roleGroupAssignment = user.getRoleGroupAssignments().stream().filter(rga -> rga.getRoleGroup().getId() == rolegroup.getId()).findAny();
+		if (roleGroupAssignment.isPresent()) {
 			assignment.setAssignmentType(AssignmentType.DIRECTLY);
+			assignment.setStartDate(roleGroupAssignment.get().getStartDate());
+			assignment.setStopDate(roleGroupAssignment.get().getStopDate());
 
 			return assignment;
 		}
 
 		for (Position p : user.getPositions()) {
-			if (p.getRoleGroupAssignments().stream().map(ura -> ura.getRoleGroup()).collect(Collectors.toList()).contains(rolegroup)) {
+			Optional<PositionRoleGroupAssignment> rgaPosition = p.getRoleGroupAssignments().stream().filter(rga -> rga.getRoleGroup().getId() == rolegroup.getId()).findAny();
+			if (rgaPosition.isPresent()) {
 				assignment.setAssignmentType(AssignmentType.POSITION);
 				assignment.setPosition(p.getName());
+				assignment.setStartDate(roleGroupAssignment.get().getStartDate());
+				assignment.setStopDate(roleGroupAssignment.get().getStopDate());
 
 				return assignment;
 			}

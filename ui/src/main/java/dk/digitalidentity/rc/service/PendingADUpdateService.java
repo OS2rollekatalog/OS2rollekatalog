@@ -67,6 +67,7 @@ public class PendingADUpdateService {
 		}
 	}
 	
+	@Transactional
 	public void removeItSystemFromQueue(ItSystem itSystem) {
 		dirtyADGroupDao.deleteByItSystemId(itSystem.getId());
 	}

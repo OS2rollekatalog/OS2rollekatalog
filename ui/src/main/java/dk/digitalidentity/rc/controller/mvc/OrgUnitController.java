@@ -15,16 +15,22 @@ import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
 
 import dk.digitalidentity.rc.config.Constants;
+import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
+import dk.digitalidentity.rc.controller.mvc.viewmodel.Assignment;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.EditRolegroupRow;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.EditUserRoleRow;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.KleDTO;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.OUListForm;
+import dk.digitalidentity.rc.controller.mvc.viewmodel.TitleListForm;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.UserListDTO;
 import dk.digitalidentity.rc.dao.model.Kle;
 import dk.digitalidentity.rc.dao.model.OrgUnit;
 import dk.digitalidentity.rc.dao.model.OrgUnitRoleGroupAssignment;
 import dk.digitalidentity.rc.dao.model.OrgUnitUserRoleAssignment;
 import dk.digitalidentity.rc.dao.model.RoleGroup;
+import dk.digitalidentity.rc.dao.model.Title;
+import dk.digitalidentity.rc.dao.model.TitleRoleGroupAssignment;
+import dk.digitalidentity.rc.dao.model.TitleUserRoleAssignment;
 import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserRole;
 import dk.digitalidentity.rc.dao.model.enums.KleType;
@@ -58,14 +64,14 @@ public class OrgUnitController {
 	@Autowired
 	private AccessConstraintService assignerRoleConstraint;
 
-	@Value("${kle.ui.enabled:false}")
-	private boolean kleUiEnabled;
+    @Autowired
+	private UserService userService;
+
+    @Autowired
+    private RoleCatalogueConfiguration configuration;
 
     @Value("#{servletContext.contextPath}")
     private String servletContextPath;
-
-    @Autowired
-	private UserService userService;
 
 	@RequestMapping(value = "/ui/ous/list")
 	public String list(Model model) {
@@ -100,15 +106,13 @@ public class OrgUnitController {
 		model.addAttribute("rolegroups", orgUnitService.getRoleGroups(ou, true));
 		model.addAttribute("klePerforming", kleService.getKleAssignments(ou, KleType.PERFORMING, true));
 		model.addAttribute("kleInterest", kleService.getKleAssignments(ou, KleType.INTEREST, true));
-		model.addAttribute("kleUiEnabled", kleUiEnabled);
+		model.addAttribute("kleUiEnabled", configuration.getIntegrations().getKle().isUiEnabled());
 		model.addAttribute("users", userDTOs);
 
-		if (kleUiEnabled) {
-			List<OrgUnit> parentsKleIsInheritedFrom = new ArrayList<>();
-			getParentsKleIsInheritedFrom(parentsKleIsInheritedFrom, ou.getParent());
+		List<OrgUnit> parentsKleIsInheritedFrom = new ArrayList<>();
+		getParentsKleIsInheritedFrom(parentsKleIsInheritedFrom, ou.getParent());
 
-			model.addAttribute("parentsKleIsInheritedFrom", parentsKleIsInheritedFrom);
-		}
+		model.addAttribute("parentsKleIsInheritedFrom", parentsKleIsInheritedFrom);
 		
 		return "ous/view";
 	}
@@ -120,6 +124,8 @@ public class OrgUnitController {
 		if (ou == null) {
 			return "redirect:../list";
 		}
+		
+		boolean titlesEnabled = configuration.getTitles().isEnabled();
 
 		List<OrgUnit> parentsKleIsInheritedFrom = new ArrayList<>();
 		getParentsKleIsInheritedFrom(parentsKleIsInheritedFrom, ou.getParent());
@@ -167,18 +173,35 @@ public class OrgUnitController {
 		}
 		
 		List<OrgUnitLevel> allowedLevels = orgUnitService.getAllowedLevels(ou);
+		
+		if (titlesEnabled) {
+			List<Title> titles = orgUnitService.getTitles(ou);
+
+			List<TitleListForm> titleForms = titles
+					.stream()
+					.map(title -> new TitleListForm(title))
+					.collect(Collectors.toList());
+			
+			model.addAttribute("titles", titleForms);
+			model.addAttribute("addRoles", getAddRolesTitles(ou, titles));
+			model.addAttribute("addRoleGroups", getAddRoleGroupsTitles(ou, titles));
+		}
+		else {
+			model.addAttribute("titles", null);
+			model.addAttribute("addRoles", getAddRoles(ou));
+			model.addAttribute("addRoleGroups", getAddRoleGroups(ou));
+		}
 
 		model.addAttribute("ou", ou);
 		model.addAttribute("allowedLevels", allowedLevels);
 		model.addAttribute("parentsKleIsInheritedFrom", parentsKleIsInheritedFrom);
 		model.addAttribute("backRef", backRef);
-		model.addAttribute("addRoles", getAddRoles(ou));
-		model.addAttribute("addRoleGroups", getAddRoleGroups(ou));
 		model.addAttribute("users", userDTOs);
 		model.addAttribute("allInterestKles", kleInterestDTOS);
 		model.addAttribute("allPerformingKles", klePerformingDTOS);
-		model.addAttribute("kleUiEnabled", kleUiEnabled);
+		model.addAttribute("kleUiEnabled", configuration.getIntegrations().getKle().isUiEnabled());
 		model.addAttribute("onlyKleAdmin", onlyKleAdmin);
+		model.addAttribute("titlesEnabled", titlesEnabled);
 
 		return "ous/edit";
 	}
@@ -223,11 +246,15 @@ public class OrgUnitController {
 			
 			EditUserRoleRow roleWithAssignment = new EditUserRoleRow();
 			roleWithAssignment.setRole(role);
+			roleWithAssignment.setAssignment(new Assignment());
 
 			for (OrgUnitUserRoleAssignment roleMapping : directlyAssignedUserRoles) {
 				if (roleMapping.getUserRole().getId() == role.getId()) {
 					roleWithAssignment.setChecked(true);
 					roleWithAssignment.setCheckedWithInherit(roleMapping.isInherit());
+					roleWithAssignment.setAssignmentType(roleMapping.isInherit() ? -2 : -1);
+					roleWithAssignment.getAssignment().setStartDate(roleMapping.getStartDate());
+					roleWithAssignment.getAssignment().setStopDate(roleMapping.getStopDate());
 				}
 			}
 
@@ -236,7 +263,56 @@ public class OrgUnitController {
 
 		return addRoles;
 	}
+	
+	private List<EditUserRoleRow> getAddRolesTitles(OrgUnit ou, List<Title> titles) {
+		List<EditUserRoleRow> addRoles = new ArrayList<>();
+		List<UserRole> userRoles = assignerRoleConstraint.filterUserRolesUserCanAssign(userRoleService.getAll());
+		List<OrgUnitUserRoleAssignment> directlyAssignedUserRoles = orgUnitService.getRoleMappings(ou);
 
+		for (UserRole role : userRoles) {
+			if (role.isUserOnly()) {
+				continue;
+			}
+			
+			EditUserRoleRow roleWithAssignment = new EditUserRoleRow();
+			roleWithAssignment.setRole(role);
+			roleWithAssignment.setAssignment(new Assignment());
+			
+			for (OrgUnitUserRoleAssignment roleMapping : directlyAssignedUserRoles) {
+				if (roleMapping.getUserRole().getId() == role.getId()) {
+					roleWithAssignment.setChecked(true);
+					roleWithAssignment.setCheckedWithInherit(roleMapping.isInherit());
+					roleWithAssignment.setAssignmentType(roleMapping.isInherit() ? -2 : -1);
+					roleWithAssignment.getAssignment().setStartDate(roleMapping.getStartDate());
+					roleWithAssignment.getAssignment().setStopDate(roleMapping.getStopDate());
+					break;
+				}
+			}
+
+			// check for titles then
+			if (!roleWithAssignment.isChecked()) {
+				int counter = 0;
+				for (Title title : titles) {
+					for (TitleUserRoleAssignment tura : title.getUserRoleAssignments()) {
+						if (tura.getUserRole().getId() == role.getId() && tura.getOuUuids().contains(ou.getUuid())) {
+							roleWithAssignment.setChecked(true);
+							roleWithAssignment.setOuAssignment(false);
+							roleWithAssignment.setAssignmentType(++counter);
+
+							// they are identical for each assignment, but we need at least one of them
+							roleWithAssignment.getAssignment().setStartDate(tura.getStartDate());
+							roleWithAssignment.getAssignment().setStopDate(tura.getStopDate());
+						}
+					}
+				}
+			}
+
+			addRoles.add(roleWithAssignment);
+		}
+
+		return addRoles;
+	}
+	
 	private List<EditRolegroupRow> getAddRoleGroups(OrgUnit ou) {
 		List<EditRolegroupRow> addRoleGroups = new ArrayList<>();
 		List<RoleGroup> roleGroups = assignerRoleConstraint.filterRoleGroupsUserCanAssign(roleGroupService.getAll());
@@ -249,11 +325,63 @@ public class OrgUnitController {
 
 			EditRolegroupRow rgwa = new EditRolegroupRow();
 			rgwa.setRoleGroup(roleGroup);
+			rgwa.setAssignment(new Assignment());
 			
 			for (OrgUnitRoleGroupAssignment roleMapping : directlyAssignedRoleGroups) {
 				if (roleMapping.getRoleGroup().getId() == roleGroup.getId()) {
 					rgwa.setChecked(true);
 					rgwa.setCheckedWithInherit(roleMapping.isInherit());
+					rgwa.getAssignment().setStartDate(roleMapping.getStartDate());
+					rgwa.getAssignment().setStopDate(roleMapping.getStopDate());
+					break;
+				}
+			}
+
+			addRoleGroups.add(rgwa);
+		}
+
+		return addRoleGroups;
+	}
+	
+	private List<EditRolegroupRow> getAddRoleGroupsTitles(OrgUnit ou, List<Title> titles) {
+		List<EditRolegroupRow> addRoleGroups = new ArrayList<>();
+		List<RoleGroup> roleGroups = assignerRoleConstraint.filterRoleGroupsUserCanAssign(roleGroupService.getAll());
+		List<OrgUnitRoleGroupAssignment> directlyAssignedRoleGroups = orgUnitService.getRoleGroupMappings(ou);
+
+		for (RoleGroup roleGroup : roleGroups) {
+			if (roleGroup.isUserOnly()) {
+				continue;
+			}
+
+			EditRolegroupRow rgwa = new EditRolegroupRow();
+			rgwa.setRoleGroup(roleGroup);
+			rgwa.setAssignment(new Assignment());
+			
+			for (OrgUnitRoleGroupAssignment roleMapping : directlyAssignedRoleGroups) {
+				if (roleMapping.getRoleGroup().getId() == roleGroup.getId()) {
+					rgwa.setChecked(true);
+					rgwa.setCheckedWithInherit(roleMapping.isInherit());
+					rgwa.setAssignmentType(roleMapping.isInherit() ? -2 : -1);
+					rgwa.getAssignment().setStartDate(roleMapping.getStartDate());
+					rgwa.getAssignment().setStopDate(roleMapping.getStopDate());
+					break;
+				}
+			}
+
+			if (!rgwa.isChecked()) {
+				int counter = 0;
+				for (Title title : titles) {
+					for (TitleRoleGroupAssignment trga : title.getRoleGroupAssignments()) {
+						if (trga.getRoleGroup().getId() == roleGroup.getId() && trga.getOuUuids().contains(ou.getUuid())) {
+							rgwa.setChecked(true);
+							rgwa.setOuAssignment(false);
+							rgwa.setAssignmentType(++counter);
+							
+							// yes, we only need the first one, and they are identical, but this is easier
+							rgwa.getAssignment().setStartDate(trga.getStartDate());
+							rgwa.getAssignment().setStopDate(trga.getStopDate());
+						}
+					}
 				}
 			}
 

@@ -1,12 +1,12 @@
 package dk.digitalidentity.rc.task;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
+import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
 import dk.digitalidentity.rc.service.cics.KspCicsService;
 import lombok.extern.slf4j.Slf4j;
 
@@ -18,26 +18,22 @@ public class KspCicsUpdateTask {
 	@Autowired
 	private KspCicsService kspCicsService;
 	
-	@Value("${kmd.kspcics.enabled:false}")
-	private boolean kspCicsEnabled;
+	@Autowired
+	private RoleCatalogueConfiguration configuration;
 	
-	@Value("${scheduled.enabled:false}")
-	private boolean runScheduled;
-	
-	@Value("${kmd.kspcics.enabledOutgoing:false}")
-	private boolean kspCicsEnabledOutgoing;
-
 	@Async
 	public void init() {
-		if (runScheduled && !kspCicsService.initialized()) {
+		if (configuration.getScheduled().isEnabled() && !kspCicsService.initialized()) {
 			updateLocalData();
 		}
 	}
 
 	// Run once between 3 and 4 every night (no reason to spam KMD at the same time for each customer, so spread it out)
-	@Scheduled(cron = "0 #{new java.util.Random().nextInt(55)} 3 * * ?")
+	@Scheduled(cron = "0 #{new java.util.Random().nextInt(55)} 3,10,13 * * ?")
 	public void updateLocalData() {
-		if (!kspCicsEnabled || !runScheduled) {
+		if (!configuration.getIntegrations().getKspcics().isEnabled() ||
+			!configuration.getScheduled().isEnabled()) {
+
 			return;
 		}
 
@@ -50,7 +46,10 @@ public class KspCicsUpdateTask {
 	// run once every 5 minutes, starting 15 minutes after boot
 	@Scheduled(fixedDelay = 5 * 60 * 1000, initialDelay = 15 * 60 * 1000)
 	public void syncUserProfileAssignments() {
-		if (!kspCicsEnabled || !kspCicsEnabledOutgoing || !runScheduled) {
+		if (!configuration.getIntegrations().getKspcics().isEnabled() ||
+			!configuration.getIntegrations().getKspcics().isEnabledOutgoing() || 
+			!configuration.getScheduled().isEnabled()) {
+
 			return;
 		}
 

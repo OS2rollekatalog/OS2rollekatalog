@@ -85,7 +85,7 @@ public class OrgUnitServiceAuditInterceptor {
 
 	private void auditAddUserRole(JoinPoint jp, Object retVal) {
 		Object[] args = jp.getArgs();
-		if (!(args.length == 3 && args[0] instanceof OrgUnit && args[1] instanceof UserRole && args[2] instanceof Boolean)) {
+		if (!((args.length == 5) && args[0] instanceof OrgUnit && args[1] instanceof UserRole && args[2] instanceof Boolean)) {
 			log.error("Method signature on addUserRole does not match expectation");
 			return;
 		}
@@ -109,7 +109,7 @@ public class OrgUnitServiceAuditInterceptor {
 
 	private void auditAddRoleGroup(JoinPoint jp, Object retVal) {
 		Object[] args = jp.getArgs();
-		if (!(args.length == 3 && args[0] instanceof OrgUnit && args[1] instanceof RoleGroup && args[2] instanceof Boolean)) {
+		if (!((args.length == 5) && args[0] instanceof OrgUnit && args[1] instanceof RoleGroup && args[2] instanceof Boolean)) {
 			log.error("Method signature on addRoleGroup does not match expectation");
 			return;
 		}

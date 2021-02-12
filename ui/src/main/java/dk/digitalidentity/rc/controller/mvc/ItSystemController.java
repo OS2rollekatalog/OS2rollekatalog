@@ -89,6 +89,7 @@ public class ItSystemController {
 			itSystems = itSystems.stream().filter(it -> itSystemIds.contains(it.getId())).collect(Collectors.toList());
 		}
 
+		itSystems = itSystems.stream().filter(its -> its.isDeleted() == false).collect(Collectors.toList());
 		model.addAttribute("itsystems", itSystems);
 
 		return "itsystem/list";
@@ -217,8 +218,8 @@ public class ItSystemController {
 			return "redirect:../../list";
 		}
 
-		// a-z, A-Z, 0-9 and '-', '_' and ' ' are allowed
-		systemRoleForm.setIdentifier(systemRoleForm.getIdentifier().replaceAll("[^A-Za-z0-9_\\-\\s]", ""));
+		// a-z, A-Z, 0-9, æøå and ÆØÅ and '-', '_' and ' ' are allowed
+		systemRoleForm.setIdentifier(systemRoleForm.getIdentifier().replaceAll("[^A-Za-z0-9_\\-\\sæøåÆØÅ]", ""));
 		if (systemRoleForm.getIdentifier().length() == 0) {
 			bindingResult.addError(new ObjectError("identifier", "html.errors.systemrole.identifier.notempty"));
 		}

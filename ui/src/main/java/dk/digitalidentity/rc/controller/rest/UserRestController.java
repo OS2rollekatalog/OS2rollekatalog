@@ -1,10 +1,28 @@
 package dk.digitalidentity.rc.controller.rest;
 
+import java.time.LocalDate;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 import java.util.stream.Collectors;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.MessageSource;
+import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.web.bind.annotation.RestController;
 
 import dk.digitalidentity.rc.config.Constants;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.KleViewModel;
@@ -28,20 +46,6 @@ import dk.digitalidentity.rc.service.UserService;
 import dk.digitalidentity.rc.service.model.RoleGroupAssignedToUser;
 import dk.digitalidentity.rc.service.model.UserRoleAssignedToUser;
 import lombok.extern.log4j.Log4j;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.context.MessageSource;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
-import org.springframework.web.bind.annotation.ResponseBody;
-import org.springframework.web.bind.annotation.RestController;
 
 @Log4j
 @RequireReadAccessOrManagerRole
@@ -90,7 +94,11 @@ public class UserRestController {
 
 	@RequireAssignerRole
 	@PostMapping(value = "/rest/users/position/{id}/addrole/{roleid}")
-	public ResponseEntity<String> addRoleToPosition(@PathVariable("id") long positionId, @PathVariable("roleid") long roleId) {
+	public ResponseEntity<String> addRoleToPosition(@PathVariable("id") long positionId,
+			@PathVariable("roleid") long roleId,
+			@RequestParam(name = "startDate", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+			@RequestParam(name = "stopDate", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate stopDate) {
+
 		Position position = positionService.getById(positionId);
 		UserRole role = userRoleService.getById(roleId);
 
@@ -99,7 +107,7 @@ public class UserRestController {
 		}
 
 		try {
-			positionService.addUserRole(position, role);
+			positionService.addUserRole(position, role, startDate, stopDate);
 		}
 		catch (SecurityException ex) {
 			return new ResponseEntity<>(ex.getMessage(), HttpStatus.FORBIDDEN);
@@ -137,7 +145,11 @@ public class UserRestController {
 	
 	@RequireAssignerRole
 	@PostMapping(value = "/rest/users/{uuid}/addrole/{roleId}")
-	public ResponseEntity<String> addRoleToUser(@PathVariable("uuid") String userUuid, @PathVariable("roleId") long roleId) {
+	public ResponseEntity<String> addRoleToUser(@PathVariable("uuid") String userUuid,
+			@PathVariable("roleId") long roleId,
+			@RequestParam(name = "startDate", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+			@RequestParam(name = "stopDate", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate stopDate) {
+
 		User user = userService.getByUuid(userUuid);
 		UserRole userRole = userRoleService.getById(roleId);
 
@@ -146,9 +158,8 @@ public class UserRestController {
 		}
 
 		try {
-			userService.addUserRole(user, userRole);
-		}
-		catch (SecurityException ex) {
+			userService.addUserRole(user, userRole, startDate, stopDate);
+		} catch (SecurityException ex) {
 			return new ResponseEntity<>(ex.getMessage(), HttpStatus.FORBIDDEN);
 		}
 
@@ -159,7 +170,10 @@ public class UserRestController {
 	
 	@RequireAssignerRole
 	@PostMapping(value = "/rest/users/position/{id}/addgroup/{groupid}")
-	public ResponseEntity<String> addGroupToPosition(@PathVariable("id") long positionId, @PathVariable("groupid") long groupId) {
+	public ResponseEntity<String> addGroupToPosition(@PathVariable("id") long positionId,
+			@PathVariable("groupid") long groupId,
+			@RequestParam(name = "startDate", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+			@RequestParam(name = "stopDate", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate stopDate) {
 		Position position = positionService.getById(positionId);
 		RoleGroup group = roleGroupService.getById(groupId);
 
@@ -167,7 +181,7 @@ public class UserRestController {
 			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
 		}
 
-		positionService.addRoleGroup(position, group);
+		positionService.addRoleGroup(position, group, startDate, stopDate);
 		positionService.save(position);
 
 		return new ResponseEntity<>(HttpStatus.OK);
@@ -193,15 +207,17 @@ public class UserRestController {
 	
 	@RequireAssignerRole
 	@PostMapping(value = "/rest/users/{uuid}/addgroup/{groupid}")
-	public ResponseEntity<String> addGroupToUser(@PathVariable("uuid") String userUuid, @PathVariable("groupid") long groupid) {
+	public ResponseEntity<String> addGroupToUser(@PathVariable("uuid") String userUuid, @PathVariable("groupid") long groupid,
+			@RequestParam(name = "startDate", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+			@RequestParam(name = "stopDate", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate stopDate) {
 		User user = userService.getByUuid(userUuid);
 		RoleGroup group = roleGroupService.getById(groupid);
 
 		if (user == null || group==null) {
 			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
 		}
-
-		userService.addRoleGroup(user, group);
+		
+		userService.addRoleGroup(user, group, startDate, stopDate);
 		userService.save(user);
 
 		return new ResponseEntity<>(HttpStatus.OK);
@@ -233,7 +249,7 @@ public class UserRestController {
 				return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
 			}
 			
-			List<UserRoleAssignedToUser> assignments = userService.getAllUserRolesAssignedToUser(user, userRole.getItSystem().getIdentifier());
+			List<UserRoleAssignedToUser> assignments = userService.getAllUserRolesAssignedToUser(user, userRole.getItSystem());
 
 			for (UserRoleAssignedToUser assigned : assignments) {
 				if (assigned.getUserRole().getId() == userRole.getId()) {

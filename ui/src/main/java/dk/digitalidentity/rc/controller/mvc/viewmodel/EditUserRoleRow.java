@@ -12,6 +12,7 @@ public class EditUserRoleRow {
 	private UserRole role;
 	private boolean checked;
 	private boolean canCheck;
+	private boolean ouAssignment = true;
 	private Assignment assignment;
 	
 	// note, this only makes sense for users
@@ -22,4 +23,7 @@ public class EditUserRoleRow {
 
 	// note, this only makes sense for titles
 	private long ouAssignments; 
+	
+	// note, this only makes sense for ous (-2 inherit, -1 everyone, 0 not-assigned, 1+ assigned to 1+ titles)
+	private int assignmentType;
 }

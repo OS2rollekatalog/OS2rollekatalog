@@ -1,0 +1,1 @@
+ALTER TABLE it_systems ADD notification_email NVARCHAR(255);

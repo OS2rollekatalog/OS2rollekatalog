@@ -1,15 +1,14 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.DirectoryServices;
 using System.DirectoryServices.AccountManagement;
-using System.Web.UI.WebControls;
 
 namespace ADSyncService
 {
     class ADStub
     {
         private static log4net.ILog log = log4net.LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
-        private static string groupOU = Properties.Settings.Default.GroupOU;
+        private static string groupOU = Properties.Settings.Default.CreateDeleteFeature_OU;
+        private static string cprAttribute = Properties.Settings.Default.MembershipSyncFeature_CprAttribute;
 
         public List<string> GetGroupMembers(string groupId)
         {
@@ -22,6 +21,7 @@ namespace ADSyncService
                     if (group == null)
                     {
                         log.Error("Group does not exist: " + groupId);
+                        return null;
                     }
                     else
                     {
@@ -35,6 +35,44 @@ namespace ADSyncService
             }
 
             return members;
+        }
+
+        public List<Group> GetAllGroups(string ouDn)
+        {
+            List<Group> res = new List<Group>();
+
+            using (PrincipalContext context = new PrincipalContext(ContextType.Domain, null, ouDn))
+            {
+                GroupPrincipal template = new GroupPrincipal(context);
+                using (PrincipalSearcher searcher = new PrincipalSearcher(template))
+                {
+                    ((DirectorySearcher)searcher.GetUnderlyingSearcher()).SearchScope = SearchScope.OneLevel;
+
+                    using (var result = searcher.FindAll())
+                    {
+                        foreach (var group in result)
+                        {
+                            GroupPrincipal groupPrincipal = group as GroupPrincipal;
+                            if (groupPrincipal != null)
+                            {
+                                Group g = new Group();
+                                g.Uuid = groupPrincipal.Guid.ToString().ToLower();
+                                g.Name = groupPrincipal.Name;
+
+                                res.Add(g);
+                            }
+                        }
+                    }
+                }
+            }
+
+            return res;
+        }
+
+        public class Group
+        {
+            public string Uuid { get; set; }
+            public string Name { get; set; }
         }
 
         public void AddMember(string groupId, string userId)
@@ -51,7 +89,7 @@ namespace ADSyncService
                             return;
                         }
 
-                        log.Info("Added " + userId + " to " + groupId);
+                        log.Info("Added " + userId + " to " + group.Name);
 
                         group.Members.Add(user);
                         group.Save();
@@ -76,12 +114,12 @@ namespace ADSyncService
 
                         if (group.Members.Remove(user))
                         {
-                            log.Info("Removed " + userId + " from " + groupId);
+                            log.Info("Removed " + userId + " from " + group.Name);
                             group.Save();
                         }
                         else
                         {
-                            log.Warn("Could not remove " + userId + " from " + groupId);
+                            log.Warn("Could not remove " + userId + " from " + group.Name);
                         }
                     }
                 }
@@ -123,6 +161,30 @@ namespace ADSyncService
                     }
                 }
             }
+        }
+
+        public bool HasCpr(string userId)
+        {
+            using (PrincipalContext context = new PrincipalContext(ContextType.Domain))
+            {
+                using (UserPrincipal user = UserPrincipal.FindByIdentity(context, userId))
+                {
+                    using (DirectoryEntry de = user.GetUnderlyingObject() as DirectoryEntry)
+                    {
+                        if (de != null)
+                        {
+                            var cpr = de.Properties[cprAttribute].Value as string;
+
+                            if (!string.IsNullOrEmpty(cpr) && cpr.Length >= 10 && cpr.Length <= 11)
+                            {
+                                return true;
+                            }
+                        }
+                    }
+                }
+            }
+
+            return false;
         }
 
         public void DeleteGroup(string systemRoleIdentifier, string itSystemIdentifier)

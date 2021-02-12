@@ -3,6 +3,7 @@ package dk.digitalidentity.rc.service.cics;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Date;
 import java.util.HashSet;
 import java.util.List;
@@ -13,7 +14,6 @@ import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
@@ -25,6 +25,7 @@ import org.springframework.web.client.RestTemplate;
 import com.fasterxml.jackson.databind.MapperFeature;
 import com.fasterxml.jackson.dataformat.xml.XmlMapper;
 
+import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
 import dk.digitalidentity.rc.dao.AltAccountDao;
 import dk.digitalidentity.rc.dao.DirtyKspCicsUserProfileDao;
 import dk.digitalidentity.rc.dao.model.AltAccount;
@@ -150,11 +151,8 @@ public class KspCicsService {
 	@Autowired
 	private DirtyKspCicsUserProfileDao dirtyKspCicsUserProfileDao;
 
-	@Value("${kmd.kspcics.url:https://intewswlbs-wm.kmd.dk/KMD.YH.KSPAabenSpml/KspAabenSpml.asmx}")
-	private String kspCicsUrl;
-
-	@Value("${kmd.kspcics.losid:}")
-	private String kspCicsLosId;
+	@Autowired
+	private RoleCatalogueConfiguration configuration;
 	
 	public boolean initialized() {
 		return (altAccountDao.countByAccountType(AltAccountType.KSPCICS) > 0);
@@ -361,7 +359,7 @@ public class KspCicsService {
 		if (dirtyProfiles.size() == 0) {
 			return;
 		}
-
+		
 		List<ItSystem> itSystems = itSystemService.getBySystemType(ItSystemType.KSPCICS);
 		if (itSystems == null || itSystems.size() != 1) {
 			log.error("Could not find a unique KSP/CICS it-system (either 0 or > 1 was found!)");
@@ -435,9 +433,12 @@ public class KspCicsService {
 								kspCicsUsersToUpdate.addAll(toRemove);
 								kspCicsUsersToUpdate.addAll(toAdd);
 							}
+							
+							processed.add(dirtyProfile);
 						}
 						else {
 							// TODO: change to WARN after running in production for a while...
+							// TODO: also we do not flag it as processed for now - might do that later, once we know that KMD is working
 							log.error("Could not find dirty userProfile in KSP/CICS: " + dirtyProfile.getIdentifier());
 						}
 					}
@@ -449,8 +450,6 @@ public class KspCicsService {
 					continue;
 				}
 			}
-			
-			processed.add(dirtyProfile);
 		}
 
 		// cleanup queue
@@ -463,12 +462,15 @@ public class KspCicsService {
 			if (altAccount.isPresent()) {
 				User user = altAccount.get().getUser();
 				
-				Set<String> assignedUserProfiles = userService.getAllUserRoles(user, itSystem.getIdentifier()).stream()
+				Set<String> assignedUserProfiles = userService.getAllUserRoles(user, Collections.singletonList(itSystem)).stream()
 						.map(u -> u.getIdentifier())
 						.collect(Collectors.toSet());
 				
 				if (updateKspCicsUser(dirtyKspCicsUser, assignedUserProfiles)) {
 					log.info("Updated KSP/CICS role assignments for " + dirtyKspCicsUser);
+				}
+				else {
+					log.warn("Failed to update KSP/CICS role assignment for " + dirtyKspCicsUser);
 				}
 			}
 		}
@@ -524,7 +526,7 @@ public class KspCicsService {
 
         // add all userRoles that this user should be assigned
         for (String userProfile : userProfiles) {
-            builder.append(SOAP_MODIFY_KSP_CICS_USER_ROLE.replace(SOAP_ARG_USER_PROFILE, userProfile));
+            builder.append(SOAP_MODIFY_KSP_CICS_USER_ROLE.replace(SOAP_ARG_USER_PROFILE, escape(userProfile)));
         }
 
         builder.append(SOAP_MODIFY_KSP_CICS_USER_STOP);
@@ -533,14 +535,34 @@ public class KspCicsService {
         
         String payload = builder.toString();
     	HttpEntity<String> request = new HttpEntity<String>(payload, headers);
-		ResponseEntity<String> response = restTemplate.postForEntity(kspCicsUrl, request, String.class);	
-		if (response.getStatusCodeValue() != 200) {
-			log.error("updateKspCicsUser - Got responseCode " + response.getStatusCodeValue() + " from service: " + response.getBody());
+    	ResponseEntity<String> response = null;
+    	
+    	// KMD has some issues, so we might have to try multiple times
+    	int tries = 3;
+    	do {
+			response = restTemplate.postForEntity(configuration.getIntegrations().getKspcics().getUrl(), request, String.class);	
+			if (response.getStatusCodeValue() != 200) {
+				if (--tries >= 0) {
+					log.warn("updateKspCicsUser - Got responseCode " + response.getStatusCodeValue() + " from service");
+					
+					try {
+						Thread.sleep(5000);
+					}
+					catch (InterruptedException ex) {
+						;
+					}
+				}
+				else {
+					log.error("updateKspCicsUser - Got responseCode " + response.getStatusCodeValue() + " from service. Request=" + request + " / Response=" + response.getBody());
+					return false;
+				}
+			}
+			else {
+				break;
+			}
+    	} while (true);
 
-			return false;
-		}
-
-		String responseBody = response.getBody();		
+		String responseBody = response.getBody();
 		ModifyWrapper wrapper = null;
 
 		try {
@@ -560,12 +582,22 @@ public class KspCicsService {
 		}
 
 		if (!SUCCESS_RESPONSE.equals(wrapper.getResult())) {
-			log.error("updateKspCicsUser - Got a non-success response: " + wrapper.getResult() + ". Request: " + payload);
+			if ("indeholder KSP/CICS-administrator funktioner".equals(wrapper.getErrorMessage())) {
+				log.warn("updateKspCicsUser - Got a non-success response: " + wrapper.getResult() + ". Request=" + payload + " / Response=" + responseBody);
+			}
+			else {
+				log.error("updateKspCicsUser - Got a non-success response: " + wrapper.getResult() + ". Request=" + payload + " / Response=" + responseBody);
+			}
 			
 			return false;
 		}
 
 		return true;
+	}
+
+	// make the XML kings happy
+	private String escape(String userProfile) {
+		return userProfile.replace("&", "&amp;");
 	}
 
 	private KspUserProfilesResponse findUserProfiles(String optionalIdentifier) {
@@ -576,7 +608,7 @@ public class KspCicsService {
         StringBuilder builder = new StringBuilder();
         builder.append(SOAP_WRAPPER_BEGIN);
         builder.append(SOAP_SEARCH_REQUEST_BEGIN);
-        builder.append(SOAP_SEARCH_USERPROFILES.replace(SOAP_ARG_LOSSHORTNAME, kspCicsLosId));
+        builder.append(SOAP_SEARCH_USERPROFILES.replace(SOAP_ARG_LOSSHORTNAME, configuration.getIntegrations().getKspcics().getLosid()));
         if (!StringUtils.isEmpty(optionalIdentifier)) {
         	// Identifiers may contain ; to separate actual Identifier and Department, so strip those
         	if (optionalIdentifier.contains(";")) {
@@ -591,12 +623,32 @@ public class KspCicsService {
 
         String payload = builder.toString();
     	HttpEntity<String> request = new HttpEntity<String>(payload, headers);
-		ResponseEntity<String> response = restTemplate.postForEntity(kspCicsUrl, request, String.class);	
-		if (response.getStatusCodeValue() != 200) {
-			log.error("FindUserProfiles - Got responseCode " + response.getStatusCodeValue() + " from service: " + response.getBody());
-
-			return null;
-		}
+		ResponseEntity<String> response;
+		
+    	// KMD has some issues, so we might have to try multiple times
+    	int tries = 3;
+    	do {
+    		response = restTemplate.postForEntity(configuration.getIntegrations().getKspcics().getUrl(), request, String.class);
+			if (response.getStatusCodeValue() != 200) {
+				if (--tries >= 0) {
+					log.warn("FindUserProfiles - Got responseCode " + response.getStatusCodeValue() + " from service");
+					
+					try {
+						Thread.sleep(5000);
+					}
+					catch (InterruptedException ex) {
+						;
+					}
+				}
+				else {
+					log.error("FindUserProfiles - Got responseCode " + response.getStatusCodeValue() + " from service. Request=" + request + " / Response=" + response.getBody());
+					return null;
+				}
+			}
+			else {
+				break;
+			}
+    	} while (true);
 
 		String responseBody = response.getBody();		
 		SearchWrapper wrapper = null;
@@ -617,7 +669,7 @@ public class KspCicsService {
 		}
 
 		if (!SUCCESS_RESPONSE.equals(wrapper.getResult())) {
-			log.error("FindUserProfiles - Got a non-success response: " + wrapper.getResult() + ". Request: " + payload);
+			log.error("FindUserProfiles - Got a non-success response: " + wrapper.getResult() + ". Request=" + payload + " / Response=" + responseBody);
 			
 			return null;
 		}
@@ -629,7 +681,7 @@ public class KspCicsService {
 				KspUserProfile kspUserProfile = new KspUserProfile();
 				kspUserProfile.setDescription(entry.getAttributes().getUserProfileDescription());
 				kspUserProfile.setId(entry.getIdentifier().getId() + ";" + entry.getAttributes().getUserProfileDepartmentNumber());
-				kspUserProfile.setName(entry.getAttributes().getUserProfileName());
+				kspUserProfile.setName(entry.getAttributes().getUserProfileName() + "(" + entry.getAttributes().getUserProfileDepartmentNumber() + ")");
 				kspUserProfile.setUsers(entry.getAttributes().getUserProfileUsers());
 	
 				kspUserProfilesResponse.getUserProfiles().add(kspUserProfile);
@@ -647,18 +699,38 @@ public class KspCicsService {
         StringBuilder builder = new StringBuilder();
         builder.append(SOAP_WRAPPER_BEGIN);
         builder.append(SOAP_SEARCH_REQUEST_BEGIN);
-        builder.append(SOAP_SEARCH_USERS.replace(SOAP_ARG_LOSSHORTNAME, kspCicsLosId));
+        builder.append(SOAP_SEARCH_USERS.replace(SOAP_ARG_LOSSHORTNAME, configuration.getIntegrations().getKspcics().getLosid()));
         builder.append(SOAP_SEARCH_REQUEST_END);
         builder.append(SOAP_WRAPPER_END);
 
         String payload = builder.toString();
     	HttpEntity<String> request = new HttpEntity<String>(payload, headers);
-		ResponseEntity<String> response = restTemplate.postForEntity(kspCicsUrl, request, String.class);	
-		if (response.getStatusCodeValue() != 200) {
-			log.error("FindUsers - Got responseCode " + response.getStatusCodeValue() + " from service: " + response.getBody());
-
-			return null;
-		}
+		ResponseEntity<String> response;
+		
+    	// KMD has some issues, so we might have to try multiple times
+    	int tries = 3;
+    	do {
+    		response = restTemplate.postForEntity(configuration.getIntegrations().getKspcics().getUrl(), request, String.class);
+			if (response.getStatusCodeValue() != 200) {
+				if (--tries >= 0) {
+					log.warn("FindUsers - Got responseCode " + response.getStatusCodeValue() + " from service");
+					
+					try {
+						Thread.sleep(5000);
+					}
+					catch (InterruptedException ex) {
+						;
+					}
+				}
+				else {
+					log.error("FindUsers - Got responseCode " + response.getStatusCodeValue() + " from service. Request=" + request + " / Response=" + response.getBody());
+					return null;
+				}
+			}
+			else {
+				break;
+			}
+    	} while (true);
 
 		String responseBody = response.getBody();		
 		SearchWrapper wrapper = null;
@@ -679,7 +751,7 @@ public class KspCicsService {
 		}
 
 		if (!SUCCESS_RESPONSE.equals(wrapper.getResult())) {
-			log.error("FindUsers - Got a non-success response: " + wrapper.getResult() + ". Request: " + payload);
+			log.error("FindUsers - Got a non-success response: " + wrapper.getResult() + ". Request=" + payload + " / Response=" + responseBody);
 			
 			return null;
 		}

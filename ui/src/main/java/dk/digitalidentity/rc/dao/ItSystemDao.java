@@ -16,4 +16,6 @@ public interface ItSystemDao extends CrudRepository<ItSystem, Long> {
 	ItSystem getByUuid(String uuid);
 	ItSystem getById(long id);
 	List<ItSystem> findByHiddenFalse();
+	long countByDeletedFalseAndHiddenFalse();
+	List<ItSystem> findByDeletedTrue();
 }

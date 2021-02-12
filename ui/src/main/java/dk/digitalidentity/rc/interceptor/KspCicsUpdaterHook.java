@@ -12,6 +12,7 @@ import dk.digitalidentity.rc.dao.model.OrgUnitUserRoleAssignment;
 import dk.digitalidentity.rc.dao.model.Position;
 import dk.digitalidentity.rc.dao.model.RoleGroup;
 import dk.digitalidentity.rc.dao.model.SystemRoleAssignment;
+import dk.digitalidentity.rc.dao.model.Title;
 import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserRole;
 import dk.digitalidentity.rc.dao.model.enums.ItSystemType;
@@ -231,5 +232,25 @@ public class KspCicsUpdaterHook implements RoleChangeHook {
 				kspCicsService.addUserRoleToQueue(userRole);
 			}
 		}
+	}
+
+	@Override
+	public void interceptAddRoleGroupAssignmentOnTitle(Title title, RoleGroup roleGroup, String[] ouUuids) {
+		addRoleGroupToQueue(roleGroup);
+	}
+
+	@Override
+	public void interceptRemoveRoleGroupAssignmentOnTitle(Title title, RoleGroup roleGroup) {
+		addRoleGroupToQueue(roleGroup);
+	}
+
+	@Override
+	public void interceptAddUserRoleAssignmentOnTitle(Title title, UserRole userRole, String[] ouUuids) {
+		kspCicsService.addUserRoleToQueue(userRole);
+	}
+
+	@Override
+	public void interceptRemoveUserRoleAssignmentOnTitle(Title title, UserRole userRole) {
+		kspCicsService.addUserRoleToQueue(userRole);
 	}
 }

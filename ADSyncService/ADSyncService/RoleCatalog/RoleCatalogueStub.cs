@@ -2,7 +2,6 @@
 using RestSharp;
 using System.Net;
 using System.Collections.Generic;
-using System.Security.Cryptography.X509Certificates;
 
 namespace ADSyncService
 {
@@ -14,6 +13,8 @@ namespace ADSyncService
 
         public RoleCatalogueStub()
         {
+            ServicePointManager.ServerCertificateValidationCallback += (sender, cert, chain, error) => { return true; };
+
             baseUrl = Properties.Settings.Default.ApiUrl;
 
             if (baseUrl.EndsWith("/"))
@@ -53,6 +54,66 @@ namespace ADSyncService
                 head = 0,
                 operations = new List<Operation>()
             };
+        }
+
+        public List<string> GetUsersInItSystem(string itSystemId)
+        {
+            RestClient client = new RestClient(baseUrl);
+
+            var request = new RestRequest("/api/itsystem/" + itSystemId + "/users", Method.GET);
+            request.AddHeader("ApiKey", apiKey);
+            request.JsonSerializer = NewtonsoftJsonSerializer.Default;
+
+            var result = client.Execute<List<string>>(request);
+            if (result.StatusCode.Equals(HttpStatusCode.OK))
+            {
+                log.Debug("itsystem members retrieved: " + result.Content);
+
+                return result.Data;
+            }
+
+            log.Error("Read ItSystem members call failed (" + result.StatusCode + ") : " + result.Content);
+            return null;
+        }
+
+        public ItSystemData GetItSystemData(string itSystemId)
+        {
+            RestClient client = new RestClient(baseUrl);
+
+            var request = new RestRequest("/api/itsystem/manage/" + itSystemId, Method.GET);
+            request.AddHeader("ApiKey", apiKey);
+            request.JsonSerializer = NewtonsoftJsonSerializer.Default;
+
+            var result = client.Execute<ItSystemData>(request);
+            if (result.StatusCode.Equals(HttpStatusCode.OK))
+            {
+                log.Debug("itsystem data retrieved: " + result.Content);
+
+                return result.Data;
+            }
+
+            log.Error("Read ItSystem Data call failed (" + result.StatusCode + ") : " + result.Content);
+            return null;
+        }
+
+        public void SetItSystemData(string itSystemId, ItSystemData itSystemData)
+        {
+            RestClient client = new RestClient(baseUrl);
+
+            var request = new RestRequest("/api/itsystem/manage/" + itSystemId, Method.POST);
+            request.RequestFormat = DataFormat.Json;
+            request.AddHeader("Content-Type", "application/json");
+            request.AddHeader("ApiKey", apiKey);
+            request.JsonSerializer = NewtonsoftJsonSerializer.Default;
+            request.AddJsonBody(itSystemData);
+
+            var result = client.Execute(request);
+            if (result.StatusCode.Equals(HttpStatusCode.OK))
+            {
+                return;
+            }
+
+            log.Error("Set ItSystem Data call failed (" + result.StatusCode + ") : " + result.Content);
         }
 
         public SyncData GetSyncData()
@@ -153,6 +214,5 @@ namespace ADSyncService
                 log.Error("Reset operation call failed", ex);
             }
         }
-
     }
 }

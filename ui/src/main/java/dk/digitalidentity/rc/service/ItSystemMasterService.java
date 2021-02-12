@@ -5,12 +5,12 @@ import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestTemplate;
 
+import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
 import dk.digitalidentity.rc.dao.ItSystemMasterDao;
 import dk.digitalidentity.rc.dao.model.ItSystem;
 import dk.digitalidentity.rc.dao.model.ItSystemMaster;
@@ -24,9 +24,6 @@ import lombok.extern.log4j.Log4j;
 @Service
 public class ItSystemMasterService {
 
-	@Value("${itsystem.master.url}")
-	private String baseUrl;
-
 	@Autowired
 	@Qualifier("defaultRestTemplate")
 	private RestTemplate restTemplate;
@@ -39,6 +36,9 @@ public class ItSystemMasterService {
 
 	@Autowired
 	private SystemRoleService systemRoleService;
+	
+	@Autowired
+	private RoleCatalogueConfiguration configuration;
 
 	public List<ItSystemMaster> findAll() {
 		return itSystemMasterDao.findAll();
@@ -52,7 +52,7 @@ public class ItSystemMasterService {
 		for (ItSystem itSystem : subscribed) {
 			for (ItSystemMaster master : masterList) {
 				if (itSystem.getSubscribedTo().equals(master.getMasterId()) && (itSystem.getLastUpdated() == null || itSystem.getLastUpdated().before(master.getLastModified()))) {
-					String url = baseUrl + "/api/itsystem/" + itSystem.getSubscribedTo();
+					String url = configuration.getIntegrations().getMaster().getUrl() + "/api/itsystem/" + itSystem.getSubscribedTo();
 					
 					try {
 						ResponseEntity<ItSystemMasterDTO> response = restTemplate.getForEntity(url, ItSystemMasterDTO.class);
@@ -138,7 +138,7 @@ public class ItSystemMasterService {
 
 	@Transactional(rollbackFor = Exception.class)
 	public void fetchItSystems() {
-		String url = baseUrl + "/api/itsystems";
+		String url = configuration.getIntegrations().getMaster().getUrl() + "/api/itsystems";
 		try {
 			ResponseEntity<ItSystemMasterDTO[]> response = restTemplate.getForEntity(url, ItSystemMasterDTO[].class);
 

@@ -14,11 +14,12 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 
 import dk.digitalidentity.rc.config.Constants;
+import dk.digitalidentity.rc.dao.model.ItSystem;
 import dk.digitalidentity.rc.dao.model.SystemRoleAssignment;
 import dk.digitalidentity.rc.dao.model.SystemRoleAssignmentConstraintValue;
 import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserRole;
-import dk.digitalidentity.rc.exceptions.UserNotFoundException;
+import dk.digitalidentity.rc.service.ItSystemService;
 import dk.digitalidentity.rc.service.UserService;
 import dk.digitalidentity.saml.model.TokenUser;
 
@@ -29,7 +30,10 @@ public class SecurityUtil {
 
 	@Autowired
 	private UserService userService;
-	
+
+	@Autowired
+	private ItSystemService itSystemService;
+
 	public static List<String> getRoles() {
 		List<String> roles = new ArrayList<>();
 
@@ -222,9 +226,12 @@ public class SecurityUtil {
 
 	public boolean hasRestrictedReadAccess() {
 		String userId = getUserId();
-
-		try {
-			List<UserRole> roles = userService.getAllUserRoles(userId, Constants.ROLE_CATALOGUE_IDENTIFIER);
+		
+		List<ItSystem> itSystems = itSystemService.findByIdentifier(Constants.ROLE_CATALOGUE_IDENTIFIER);
+		
+		User user = userService.getByUserId(userId);
+		if (user != null) {
+			List<UserRole> roles = userService.getAllUserRoles(user, itSystems);
 				
 			for (UserRole role : roles) {
 				for (SystemRoleAssignment assignment : role.getSystemRoleAssignments()) {
@@ -234,9 +241,6 @@ public class SecurityUtil {
 				}
 			}
 		}
-		catch (UserNotFoundException ex) {
-			; // do nothing
-		}
 
 		return false;
 	}
@@ -245,8 +249,11 @@ public class SecurityUtil {
 		List<Long> result = new ArrayList<>();
 		String userId = getUserId();
 
-		try {
-			List<UserRole> roles = userService.getAllUserRoles(userId, Constants.ROLE_CATALOGUE_IDENTIFIER);
+		List<ItSystem> itSystems = itSystemService.findByIdentifier(Constants.ROLE_CATALOGUE_IDENTIFIER);
+		
+		User user = userService.getByUserId(userId);
+		if (user != null) {
+			List<UserRole> roles = userService.getAllUserRoles(user, itSystems);
 				
 			for (UserRole role : roles) {
 				for (SystemRoleAssignment assignment : role.getSystemRoleAssignments()) {
@@ -262,9 +269,6 @@ public class SecurityUtil {
 					}
 				}
 			}
-		}
-		catch (UserNotFoundException ex) {
-			; // do nothing
 		}
 
 		return result;

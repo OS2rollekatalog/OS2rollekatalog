@@ -129,6 +129,9 @@ public class UserRoleController {
 		List<Long> kombitUpdates = kombitService.findAll().stream().map(k -> k.getUserRoleId()).collect(Collectors.toList());
 		List<UserRoleForm> userRoles = roles.stream().map(r -> new UserRoleForm(r, kombitUpdates.contains(r.getId()))).collect(Collectors.toList());
 
+		// filter out deleted itSystems
+		userRoles = userRoles.stream().filter(ur -> ur.getItSystem().isDeleted() == false).collect(Collectors.toList());
+
 		model.addAttribute("roles", userRoles);
 
 		return "userroles/list";

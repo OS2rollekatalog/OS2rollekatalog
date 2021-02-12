@@ -1,18 +1,18 @@
 package dk.digitalidentity.rc.task;
 
+import java.net.SocketTimeoutException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Date;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Objects;
 
 import javax.annotation.PostConstruct;
 
-import org.apache.commons.lang.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
 import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -20,6 +20,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestTemplate;
 
+import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
 import dk.digitalidentity.rc.dao.SettingsDao;
 import dk.digitalidentity.rc.dao.UserRoleDao;
 import dk.digitalidentity.rc.dao.model.ConstraintType;
@@ -53,12 +54,7 @@ import lombok.extern.log4j.Log4j;
 @Component
 @EnableScheduling
 public class ReadKOMBITTask {
-
-	@Value("${scheduled.enabled:false}")
-	private boolean runScheduled;
-
-	@Value("${kombit.url}")
-	private String baseUrl;
+	private boolean initialized = false;
 
 	@Autowired
 	@Qualifier("kombitRestTemplate")
@@ -79,29 +75,54 @@ public class ReadKOMBITTask {
 	@Autowired
 	private UserRoleDao userRoleDao;
 
-	@Value("${kombit.enabled}")
-	private boolean kombitEnabled;
+	@Autowired
+	private RoleCatalogueConfiguration configuration;
 	
-	@Value("${customer.cvr}")
-	private String cvr;
-
-	private boolean initialized = false;
+	@Autowired
+	private ReadKOMBITTask self;
 
 	@PostConstruct
 	public void init() {
-		if (runScheduled && kombitEnabled) {
+		if (configuration.getScheduled().isEnabled() &&
+			configuration.getIntegrations().getKombit().isEnabled()) {
+			
 			initialized = true;
 		}
 	}
 
 	// check every 6 hours is more than enough
-	@Scheduled(fixedRate = 6 * 60 * 60 * 1000)
+	@SuppressWarnings("deprecation")
+	@Scheduled(fixedDelay = 6 * 60 * 60 * 1000)
 	@Transactional(rollbackFor = Exception.class)
 	public void importItSystems() {
-		if (!runScheduled || !initialized) {
+		Thread t = new Thread(new Runnable() {
+
+			@Override
+			public void run() {
+				self.performRead();
+			}
+		});
+
+		try {
+			t.start();
+			t.join(2 * 60 * 1000);
+		}
+		catch (Exception ex) {
+			// bad, but required until we can shift to a HTTP implementation that actually
+			// has timeouts implemented (bad netty)
+			t.stop();
+        	log.error("Timeout in ReadKOMBITTask", ex);
+		}
+	}
+
+	@Transactional
+    public void performRead() {
+		if (!initialized) {
 			log.debug("Scheduled jobs are disabled on this instance");
 			return;
 		}
+		
+		log.info("Starting to read it-system metadata from KOMBIT");
 
 		try {
 			KOMBITItSystemDTO[] itSystems = getItSystems();
@@ -113,8 +134,11 @@ public class ReadKOMBITTask {
 				// can be an issue (e.g. the it-system uses a shared constrainttype, the constraintype has been updated
 				// but the it-system has not)... these cases can be dealt with manually should they ever happen
 				if (itSystem != null) {
+					
 					// read all roles on this it-system
 					KOMBITSystemRoleDTO[] systemRolesDTO = getSystemRolesFromKOMBIT(itSystemDTO.getUuid());
+
+					log.info("Changes detected on: " + itSystem.getName() + " with " + systemRolesDTO.length + " systemroles");
 
 					// make sure constraints are available in the database
 					updateConstraintTypes(systemRolesDTO);
@@ -128,9 +152,55 @@ public class ReadKOMBITTask {
 			}
 	
 			readExistingJobfunctionRoles();
+			
+			deleteMissingItSystems(itSystems);
+			
+			log.info("Done reading it-system metadata from KOMBIT");
 		}
 		catch (Exception ex) {
-			log.error("Synchronizing it-systems from KOMBIT failed", ex);
+			if (ex instanceof SocketTimeoutException || (ex.getCause() != null && ex.getCause() instanceof SocketTimeoutException)) {
+				log.warn("Synchronizing it-systems from KOMBIT failed with timeout: " + ex.getMessage());
+			}
+			else {
+				log.error("Synchronizing it-systems from KOMBIT failed", ex);
+			}
+		}
+	}
+
+	private void deleteMissingItSystems(KOMBITItSystemDTO[] kombitItSystems) {
+		for (ItSystem itSystem : itSystemService.getBySystemTypeIncludingDeleted(ItSystemType.KOMBIT)) {
+			boolean found = false;
+			
+			// do not delete the test-system
+			if ("KOMBITTEST".equals(itSystem.getIdentifier())) {
+				if (itSystem.isDeleted()) {
+					itSystem.setDeleted(false);
+					itSystemService.save(itSystem);
+					
+					log.info("Undeleting KOMBITTEST it-system");
+				}
+
+				continue;
+			}
+			
+			if (itSystem.isDeleted()) {
+				continue;
+			}
+			
+			for (KOMBITItSystemDTO kombitItSystem : kombitItSystems) {
+				if (kombitItSystem.getUuid().equals(itSystem.getUuid())) {
+					found = true;
+					break;
+				}
+			}
+			
+			if (!found) {
+				log.info("Deleting it-system " + itSystem.getName() + " because it does not exist in KOMBIT any more");
+				itSystem.setDeleted(true);
+				itSystem.setDeletedTimestamp(new Date());
+				
+				itSystemService.save(itSystem);
+			}
 		}
 	}
 
@@ -152,7 +222,7 @@ public class ReadKOMBITTask {
 			boolean failed = false;
 			boolean delegated = false;
 
-			if (!userRoleDTO.getOrganisationCvr().equals(cvr)) {
+			if (!userRoleDTO.getOrganisationCvr().equals(configuration.getCustomer().getCvr())) {
 				delegated = true;
 			}
 			else if (initialSyncExecuted) {
@@ -289,7 +359,7 @@ public class ReadKOMBITTask {
 	}
 
 	private ItSystem createOrUpdateItSystem(KOMBITItSystemDTO itSystemDTO) {
-		ItSystem itSystem = itSystemService.getByUuid(itSystemDTO.getUuid());
+		ItSystem itSystem = itSystemService.getByUuidIncludingDeleted(itSystemDTO.getUuid());
 		if (itSystem != null && itSystemDTO.getChangedDate() == null) {
 			return null;
 		}
@@ -297,6 +367,7 @@ public class ReadKOMBITTask {
 		else if (itSystem != null && (itSystem.getLastUpdated() == null || itSystem.getLastUpdated().before(itSystemDTO.getChangedDate()))) {
 			itSystem.setName(itSystemDTO.getNavn());
 			itSystem.setLastUpdated(itSystemDTO.getChangedDate());
+			itSystem.setDeleted(false);
 		}
 		else if (itSystem == null) {
 			itSystem = new ItSystem();
@@ -331,15 +402,17 @@ public class ReadKOMBITTask {
 				}
 				
 				// ok, make sure we actually only try to update if there are changes
-				boolean changesToDescription = StringUtils.equals(systemRole.getDescription(), systemRoleDTO.getBeskrivelse());
-				boolean changesToName = StringUtils.equals(systemRole.getName(), systemRoleDTO.getNavn());
+				boolean changesToDescription = !Objects.equals(systemRole.getDescription(), systemRoleDTO.getBeskrivelse());
+				boolean changesToName = !Objects.equals(systemRole.getName(), systemRoleDTO.getNavn());
 				boolean changesToConstraints = areThereChangesToConstraints(systemRole, systemRoleDTO);
 				
 				if (!changesToDescription && !changesToName && !changesToConstraints) {
-					return;
+					log.info("No changes to: " + systemRoleDTO.getNavn());
+					continue;
 				}
 			}
 			
+			log.info("Updating or creating: " + systemRoleDTO.getNavn());
 			systemRole.setDescription(systemRoleDTO.getBeskrivelse());
 			systemRole.setName(systemRoleDTO.getNavn());
 			assignConstraintTypes(systemRoleDTO, systemRole);
@@ -365,7 +438,7 @@ public class ReadKOMBITTask {
 
 				for (KOMBITConstraintsDTO constraintDTO : systemRoleDTO.getDataafgraensningstyper()) {
 					String uuid = constraintDTO.getDataafgraensningstype().getUuid();
-					
+
 					ConstraintType constraintType = constraintTypeService.getByUuid(uuid);
 					if (constraintType == null) {
 						constraintType = new ConstraintType();
@@ -472,10 +545,16 @@ public class ReadKOMBITTask {
 			}
 
 			if (!found) {
-				ConstraintTypeSupport newSupportedConstraintType = new ConstraintTypeSupport();
-				newSupportedConstraintType.setMandatory(mapJaNejToBoolean(supportedConstraintTypeDTO.getKraevet()));
-				newSupportedConstraintType.setConstraintType(constraintTypeService.getByUuid(supportedConstraintTypeDTO.getDataafgraensningstype().getUuid()));
-				systemRole.getSupportedConstraintTypes().add(newSupportedConstraintType);
+				ConstraintType ct = constraintTypeService.getByUuid(supportedConstraintTypeDTO.getDataafgraensningstype().getUuid());
+				if (ct != null) {
+					ConstraintTypeSupport newSupportedConstraintType = new ConstraintTypeSupport();
+					newSupportedConstraintType.setMandatory(mapJaNejToBoolean(supportedConstraintTypeDTO.getKraevet()));
+					newSupportedConstraintType.setConstraintType(ct);
+					systemRole.getSupportedConstraintTypes().add(newSupportedConstraintType);
+				}
+				else {
+					log.error("Role is using a contraint type that does not exist: " + systemRoleDTO.getNavn() + " / " + systemRoleDTO.getUuid() + " / " + supportedConstraintTypeDTO.getDataafgraensningstype().getUuid());
+				}
 			}
 		}
 
@@ -505,12 +584,12 @@ public class ReadKOMBITTask {
 	}
 
 	private List<KOMBITUserRoleDTO> getUserRolesFromKOMBIT() {
-		HttpEntity<KOMBITUserRoleDTO[]> userRolesEntity = restTemplate.getForEntity(baseUrl + "/jobfunktionsroller", KOMBITUserRoleDTO[].class);
+		HttpEntity<KOMBITUserRoleDTO[]> userRolesEntity = restTemplate.getForEntity(configuration.getIntegrations().getKombit().getUrl() + "/jobfunktionsroller", KOMBITUserRoleDTO[].class);
 
 		List<KOMBITUserRoleDTO> result = new ArrayList<>();
 		
 		for (KOMBITUserRoleDTO userRoleKOMBITDTO : userRolesEntity.getBody()) {
-			HttpEntity<KOMBITUserRoleDTO> userRoleEntity = restTemplate.getForEntity(baseUrl + "/jobfunktionsroller/" + userRoleKOMBITDTO.getUuid(), KOMBITUserRoleDTO.class);
+			HttpEntity<KOMBITUserRoleDTO> userRoleEntity = restTemplate.getForEntity(configuration.getIntegrations().getKombit().getUrl() + "/jobfunktionsroller/" + userRoleKOMBITDTO.getUuid(), KOMBITUserRoleDTO.class);
 			result.add(userRoleEntity.getBody());
 		}
 
@@ -518,13 +597,13 @@ public class ReadKOMBITTask {
 	}
 
 	private KOMBITItSystemDTO[] getItSystems() throws Exception {
-		HttpEntity<KOMBITItSystemDTO[]> itSystemEntity = restTemplate.getForEntity(baseUrl + "/jobfunktionsroller/brugervendtesystemer", KOMBITItSystemDTO[].class);
+		HttpEntity<KOMBITItSystemDTO[]> itSystemEntity = restTemplate.getForEntity(configuration.getIntegrations().getKombit().getUrl() + "/jobfunktionsroller/brugervendtesystemer", KOMBITItSystemDTO[].class);
 
 		return itSystemEntity.getBody();
 	}
 
 	private KOMBITSystemRoleDTO[] getSystemRolesFromKOMBIT(String uuid) throws Exception {
-		String url = baseUrl + "/jobfunktionsroller/brugervendtesystemer/" + uuid + "/roller";
+		String url = configuration.getIntegrations().getKombit().getUrl() + "/jobfunktionsroller/brugervendtesystemer/" + uuid + "/roller";
 
 		HttpEntity<KOMBITSystemRoleDTO[]> systemRoles = restTemplate.getForEntity(url, KOMBITSystemRoleDTO[].class);
 		if (systemRoles.getBody() == null) {

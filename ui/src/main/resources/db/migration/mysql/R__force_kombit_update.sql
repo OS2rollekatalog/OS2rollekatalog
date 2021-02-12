@@ -1,0 +1,1 @@
+UPDATE it_systems SET last_updated = '2020-01-01' WHERE system_type = 'KOMBIT' and last_updated > '2020-01-01';

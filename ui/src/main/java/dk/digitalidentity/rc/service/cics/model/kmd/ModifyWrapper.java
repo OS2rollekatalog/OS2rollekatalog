@@ -10,4 +10,5 @@ import lombok.Setter;
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class ModifyWrapper {
 	private String result;
+	private String errorMessage;
 }

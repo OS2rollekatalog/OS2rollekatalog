@@ -7,7 +7,7 @@
 DELIMITER $$
 DROP PROCEDURE IF EXISTS SP_InsertHistoryOrganisation $$
 
-CREATE PROCEDURE SP_InsertHistoryOrganisation()
+CREATE PROCEDURE SP_InsertHistoryOrganisation() 
 BEGIN
 
   INSERT INTO history_ous (dato, ou_uuid, ou_name, ou_parent_uuid, ou_manager_uuid)

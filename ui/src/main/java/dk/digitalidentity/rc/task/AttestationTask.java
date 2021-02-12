@@ -28,6 +28,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.ReportForm;
 import dk.digitalidentity.rc.controller.mvc.xlsview.ManagerReportXlsUtil;
 import dk.digitalidentity.rc.dao.model.Attestation;
@@ -48,13 +49,8 @@ import lombok.extern.log4j.Log4j;
 @EnableScheduling
 @Transactional
 public class AttestationTask {
+	private static final String localeString = "da_DK";
 	private Locale locale;
-	
-	@Value("${scheduled.enabled:false}")
-	private boolean runScheduled;
-
-	@Value("${rc.locale:da_DK}")
-	private String localeString;
 	
 	@Value("${saml.baseUrl}")
 	private String baseUrl;
@@ -83,14 +79,17 @@ public class AttestationTask {
 	@Autowired
 	private ReportService reportService;
 
+	@Autowired
+	private RoleCatalogueConfiguration configuration;
+
 	@PostConstruct
 	public void setLocale() {
 		this.locale = LocaleUtils.toLocale(localeString.replace('-', '_'));
 	}
-
+	
 	@Scheduled(cron = "0 0 10 * * ?")
 	public void reminder() {
-		if (!runScheduled) {
+		if (!configuration.getScheduled().isEnabled()) {
 			log.debug("Scheduled jobs are disabled on this instance");
 			return;
 		}
@@ -134,7 +133,7 @@ public class AttestationTask {
 
 	@Scheduled(cron = "0 0 9 * * ?")
 	public void attest() {
-		if (!runScheduled) {
+		if (!configuration.getScheduled().isEnabled()) {
 			log.debug("Scheduled jobs are disabled on this instance");
 			return;
 		}

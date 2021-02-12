@@ -31,7 +31,7 @@
 							</div>
 
 							<hr/>
-							
+
 							<block id="filterOptions">
 								<div th:replace="reports/fragments/filterOptionsFragment :: filterOptions(allItSystems = ${allItSystems}, allManagers = ${allManagers})" />
 							</block>
@@ -48,7 +48,7 @@
 								<div class="col-sm-9">
 									<div class="checkbox c-checkbox">
 										<label>
-											<input id="UserColumnCheckbox" type="checkbox" th:attr="checked=${reportForm.showUsers}" onchange="columnChoiceTrigger(this, 'ShowUsers')"/>
+											<input id="UserColumnCheckbox" type="checkbox" th:attr="checked=${reportForm.showUsers}" onchange="columnService.columnChoiceTrigger(this, 'ShowUsers')"/>
 											<span class="fa fa-check"></span>
 										</label>
 									</div>
@@ -61,7 +61,7 @@
 								<div class="col-sm-9">
 									<div class="checkbox c-checkbox">
 										<label>
-											<input id="TitleColumnCheckbox" type="checkbox" th:attr="checked=${reportForm.showTitles}" onchange="columnChoiceTrigger(this, 'ShowTitles')"/>
+											<input id="TitleColumnCheckbox" type="checkbox" th:attr="checked=${reportForm.showTitles}" onchange="columnService.columnChoiceTrigger(this, 'ShowTitles')"/>
 											<span class="fa fa-check"></span>
 										</label>
 									</div>
@@ -74,7 +74,7 @@
 								<div class="col-sm-9">
 									<div class="checkbox c-checkbox">
 										<label>
-											<input id="OUColumnCheckbox" type="checkbox" th:attr="checked=${reportForm.showOUs}" onchange="columnChoiceTrigger(this, 'ShowOUs')"/>
+											<input id="OUColumnCheckbox" type="checkbox" th:attr="checked=${reportForm.showOUs}" onchange="columnService.columnChoiceTrigger(this, 'ShowOUs')"/>
 											<span class="fa fa-check"></span>
 										</label>
 									</div>
@@ -87,7 +87,7 @@
 								<div class="col-sm-9">
 									<div class="checkbox c-checkbox">
 										<label>
-											<input id="UserRolesColumnCheckbox" type="checkbox" th:attr="checked=${reportForm.showUserRoles}" onchange="columnChoiceTrigger(this, 'ShowUserRoles')"/>
+											<input id="UserRolesColumnCheckbox" type="checkbox" th:attr="checked=${reportForm.showUserRoles}" onchange="columnService.columnChoiceTrigger(this, 'ShowUserRoles')"/>
 											<span class="fa fa-check"></span>
 										</label>
 									</div>
@@ -100,7 +100,7 @@
 								<div class="col-sm-9">
 									<div class="checkbox c-checkbox">
 										<label>
-											<input id="KLEColumnCheckbox" type="checkbox" th:attr="checked=${reportForm.showKLE}" onchange="columnChoiceTrigger(this, 'ShowKLE')"/>
+											<input id="KLEColumnCheckbox" type="checkbox" th:attr="checked=${reportForm.showKLE}" onchange="columnService.columnChoiceTrigger(this, 'ShowKLE')"/>
 											<span class="fa fa-check"></span>
 										</label>
 									</div>
@@ -113,7 +113,7 @@
 								<div class="col-sm-9">
 									<div class="checkbox c-checkbox">
 										<label>
-											<input id="ItSystemDataColumnCheckbox" type="checkbox" th:attr="checked=${reportForm.showItSystems}" onchange="columnChoiceTrigger(this, 'ShowItSystems')"/>
+											<input id="ItSystemDataColumnCheckbox" type="checkbox" th:attr="checked=${reportForm.showItSystems}" onchange="columnService.columnChoiceTrigger(this, 'ShowItSystems')"/>
 											<span class="fa fa-check"></span>
 										</label>
 									</div>
@@ -126,7 +126,7 @@
 								<div class="col-sm-9">
 									<div class="checkbox c-checkbox">
 										<label>
-											<input id="ShowInactiveUsersCheckbox" type="checkbox" th:attr="checked=${reportForm.showInactiveUsers}" onchange="columnChoiceTrigger(this, 'ShowInactiveUsers')"/>
+											<input id="ShowInactiveUsersCheckbox" type="checkbox" th:attr="checked=${reportForm.showInactiveUsers}" onchange="columnService.columnChoiceTrigger(this, 'ShowInactiveUsers')"/>
 											<span class="fa fa-check"></span>
 										</label>
 									</div>
@@ -138,7 +138,7 @@
 							<div class="form-group">
 								<div class="col-sm-offset-1 col-sm-10">
 								<input class="btn btn-lg btn-primary" type="submit" th:value="#{html.page.report.generate}" style="width: 250px;" /> &nbsp;&nbsp;
-								<input class="btn btn-lg btn-warning" th:value="#{html.page.report.save.template}" onclick="openSaveTemplateModal()" style="width: 250px;" />
+								<input class="btn btn-lg btn-warning" th:value="#{html.page.report.save.template}" onclick="templateService.openSaveTemplateModal()" style="width: 250px;" />
 								</div>
 							</div>
 						</form>
@@ -165,8 +165,8 @@
 				</div>
 
 				<div class="modal-footer">
-					<button type="button" class="btn btn-primary" th:text="#{html.control.button.save}" onclick="saveTemplate()"/>
-					<button type="button" class="btn btn-danger" th:text="#{html.control.button.cancel}" onclick="closeSaveTemplate()"/>
+					<button type="button" class="btn btn-primary" th:text="#{html.control.button.save}" onclick="templateService.saveTemplate()"/>
+					<button type="button" class="btn btn-danger" th:text="#{html.control.button.cancel}" onclick="templateService.closeSaveTemplate()"/>
 				</div>
 			</div>
 		</div>
@@ -209,140 +209,352 @@
 
 	<nav th:replace="fragments/footer :: footer" />
 
-	<block id="filterOptionsScripts">
-		<div th:replace="reports/fragments/filterOptionsFragment :: filterOptionsScripts(allOrgUnits = ${allOrgUnits})" />
-	</block>
-
 	<script th:inline="javascript">
 		/*<![CDATA[*/
 
 		/*[+
 			var url = [[@{/ui/report}]];
 			var resturl = [[@{/rest/report}]];
+			var resturlous = [[@{/rest/ous}]];
 			var fieldUpdatedMsg = [[#{html.page.report.modal.successMsg}]];
 			var fieldNotUpdatedMsg = [[#{html.page.report.modal.failMsg}]];
+			var manager = [[${reportForm.managerFilter}]];
+			var itsystemFilter = [[${reportForm.itsystemFilter}]];
+			var unitFilter = [[${reportForm.unitFilter}]];
+			var templateId = [[${templateId}]];
+			
+			var allItSystems = [[${allItSystems}]];
+			var allOrgUnits = [[${allOrgUnits}]];
 		+]*/
 		var token = $("meta[name='_csrf']").attr("content");
 
-		function columnChoiceTrigger(checkbox, name) {
-			$('#real' + name).val(checkbox.checked);
-		}
-
-		function openSaveTemplateModal() {
-			$('#saveTemplateModal').modal('show');
-		}
-
-		function closeSaveTemplate() {
-			$('#saveTemplateModal').modal('hide');
-		}
-
-		function saveTemplate() {
-			var dataObj = {
-				"name": $('#templateName').val(),
-				"showUsers": $('#realShowUsers').val(),
-				"showTitles": $('#realShowTitles').val(),
-				"showOUs": $('#realShowOUs').val(),
-				"showUserRoles": $('#realShowUserRoles').val(),
-				"showKLE": $('#realShowKLE').val(),
-				"showItSystems": $('#realShowItSystems').val(),
-				"showInactiveUsers": $('#realShowInactiveUsers').val()
-			}
-
-			closeSaveTemplate();
-
-			$.ajax({
-				contentType: 'application/json',
-				url: resturl + "/save-template",
-				method : "POST",
-				headers: {
-					'X-CSRF-TOKEN': token
-				},
-				success: function(response) {
-					$.notify({
-						message: fieldUpdatedMsg
-					}, {
-						status: 'success',
-						autoHideDelay: 4000
-					});
-				},
-				error: function(response) {
-					$.notify({
-						message: fieldNotUpdatedMsg
-					}, {
-						status: 'danger',
-						autoHideDelay: 4000
-					});
-				},
-				data: JSON.stringify(dataObj)
-			});
-		}
+		var filterService;
+		var datePickerService;
+		var columnService;
+		var templateService;
+		var reportService;
 
 		$(document).ready(function() {
-			// Initialize DatePicker
-			$('#datePicker').datetimepicker({
-				inline: true,
-				format: 'YYYY-MM-DD'
-			});
-
-			// On Change event for DatePicker
-        	$('#datePicker').on('dp.change', function () {
-        		var date = $('#datePicker').data('date');
-
-        		// Remember date
-        		$('#realDateField').val(date);
-
-        		// ajax call to load
-				$("#filterOptions").load(url + "/configure/" + date, function() {
-					initOptionsFragment();					
-				});
-        	});
-
-        	$('#datePicker').trigger('dp.change');
-
-        	$('.column-choice').trigger('change');
-
-        	$('#saveTemplateModal').on('hidden.bs.modal', function () {
-				$('#templateName').val('');
-			});
-
-			$('#saveTemplateModal').on('shown.bs.modal', function () {
-				$('#templateName').focus();
-			});
-						
-			$('#reportForm').submit(function(event) {
-				event.preventDefault();
-
-				var request = new XMLHttpRequest();
-				request.open('POST', url + '/download', true);
-				request.setRequestHeader('X-CSRF-TOKEN', token);
-				request.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded; charset=UTF-8');
-				request.responseType = 'blob';
-
-				request.onload = function() {
-					$('body').removeClass('loading');
-
-					if (request.status === 200) {
-						var disposition = request.getResponseHeader('content-disposition');
-						var matches = /"([^"]*)"/.exec(disposition);
-						var filename = (matches != null && matches[1] ? matches[1] : 'report.xls');
-
-						// The actual download
-						var blob = new Blob([request.response], { type: 'application/ms-excel' });
-						var link = document.createElement('a');
-						link.href = window.URL.createObjectURL(blob);
-						link.download = filename;
-
-						document.body.appendChild(link);
-						link.click();
-						document.body.removeChild(link);
-					}
-				};
-
-			    request.send($(this).serialize());
-
-				$('body').addClass('loading');
-			});
+			datePickerService = new DatePickerService();
+			datePickerService.init();
+			
+			columnService = new ColumnService();
+			columnService.init();
+			
+			templateService = new TemplateService();
+			templateService.init();
+			
+			reportService = new ReportService();
+			reportService.init();
+			
+			filterService = new FilterService();
 		});
+		
+		function ReportService() {
+			this.init = function() {
+				$('#reportForm').submit(function(event) {
+					event.preventDefault();
+
+					var request = new XMLHttpRequest();
+					request.open('POST', url + '/download', true);
+					request.setRequestHeader('X-CSRF-TOKEN', token);
+					request.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded; charset=UTF-8');
+					request.responseType = 'blob';
+
+					request.onload = function() {
+						$('body').removeClass('loading');
+
+						if (request.status === 200) {
+							var disposition = request.getResponseHeader('content-disposition');
+							var matches = /"([^"]*)"/.exec(disposition);
+							var filename = (matches != null && matches[1] ? matches[1] : 'report.xls');
+
+							// The actual download
+							var blob = new Blob([request.response], { type: 'application/ms-excel' });
+							var link = document.createElement('a');
+							link.href = window.URL.createObjectURL(blob);
+							link.download = filename;
+
+							document.body.appendChild(link);
+							link.click();
+							document.body.removeChild(link);
+						}
+					};
+
+				    request.send($(this).serialize());
+
+					$('body').addClass('loading');
+				});
+			}
+		}
+		
+		function TemplateService() {
+			this.init = function() {
+				$('#saveTemplateModal').on('hidden.bs.modal', function () {
+					$('#templateName').val('');
+				});
+
+				$('#saveTemplateModal').on('shown.bs.modal', function () {
+					$('#templateName').focus();
+				});
+			}
+			
+			this.openSaveTemplateModal = function() {
+				$('#saveTemplateModal').modal('show');
+			}
+
+			this.closeSaveTemplate = function() {
+				$('#saveTemplateModal').modal('hide');
+			}
+
+			this.saveTemplate = function() {
+				var dataObj = {
+					"name": $('#templateName').val(),
+					"showUsers": $('#realShowUsers').val(),
+					"showTitles": $('#realShowTitles').val(),
+					"showOUs": $('#realShowOUs').val(),
+					"showUserRoles": $('#realShowUserRoles').val(),
+					"showKLE": $('#realShowKLE').val(),
+					"showItSystems": $('#realShowItSystems').val(),
+					"showInactiveUsers": $('#realShowInactiveUsers').val(),
+					"itsystemFilter" : $('#itSystemSelectPicker').val(),
+					"managerFilter": $('#managerSelect').val(),
+					"unitFilter" : $('#hierarchy').jstree("get_top_selected")
+				}
+
+				templateService.closeSaveTemplate();
+
+				$.ajax({
+					contentType: 'application/json',
+					url: resturl + "/save-template",
+					method : "POST",
+					headers: {
+						'X-CSRF-TOKEN': token
+					},
+					success: function(response) {
+						$.notify({
+							message: fieldUpdatedMsg
+						}, {
+							status: 'success',
+							autoHideDelay: 4000
+						});
+					},
+					error: function(response) {
+						$.notify({
+							message: fieldNotUpdatedMsg
+						}, {
+							status: 'danger',
+							autoHideDelay: 4000
+						});
+					},
+					data: JSON.stringify(dataObj)
+				});
+			}
+		}
+		
+		function ColumnService() {
+			this.init = function() {
+	        	$('.column-choice').trigger('change');
+			}
+			
+			this.columnChoiceTrigger = function(checkbox, name) {
+				$('#real' + name).val(checkbox.checked);
+			}
+		}
+		
+		function DatePickerService() {
+			this.init = function() {
+				
+				// Initialize DatePicker
+				$('#datePicker').datetimepicker({
+					inline: true,
+					format: 'YYYY-MM-DD'
+				});
+				
+				// On Change event for DatePicker
+	        	$('#datePicker').on('dp.change', function () {
+	        		var date = $('#datePicker').data('date');
+
+	        		// Remember date
+	        		$('#realDateField').val(date);
+
+	        		// ajax call to load
+					$("#filterOptions").load(url + "/configure/" + date + "?templateId=" + templateId, function() {
+						datePickerService.getOrgUnits(date);
+						filterService.init();					
+					});
+	        	});
+
+	        	$('#datePicker').trigger('dp.change');
+			}
+			
+			this.getOrgUnits = function(date) {
+				$.ajax({
+					contentType: 'application/json',
+					url: resturl + "/getous/" + date,
+					method : "POST",
+					headers: {
+						'X-CSRF-TOKEN': token
+					},
+					success: function(response) {
+						window.allOrgUnits = response;
+						
+						$('#hierarchy').jstree(true).settings.core.data = response;
+						$('#hierarchy').jstree(true).refresh();
+						
+						filterService.refreshRadioButtons();
+						filterService.refreshCheckbox();
+						filterService.units();
+					},
+					error: function(response) {
+						
+					}
+				});
+			}
+		}
+
+		function FilterService() {
+			this.init = function() {
+				filterService.initOptionsFragment();
+				filterService.units();
+				filterService.manager();
+				filterService.itSystem();
+			}
+
+			this.units = function() {
+				if(unitFilter!=null && $("#radioFilter2").prop("disabled") == false){
+					$("#radioFilter2").attr("checked", true).change();
+					
+					setTimeout(function(){
+						for (var i = 0; i < unitFilter.length; i++) {
+							$('#hierarchy').jstree("select_node", unitFilter[i]);
+						}
+					}, 100);
+				}
+			}
+			
+			this.manager = function() {
+				if(manager!="" && manager!=null && $("#radioFilter3").prop("disabled") == false){
+					$("#radioFilter3").attr("checked", true).change();
+					$("#managerSelect").val(manager);
+					$("#managerSelect").selectpicker('refresh');
+				}
+			}
+			
+			this.itSystem = function() {
+				if (itsystemFilter != null && $("#itsystemCheckbox").prop("disabled") == false){
+					$("#itsystemCheckbox").attr("checked", true).change();
+					$("#itSystemSelectPicker").val(itsystemFilter);
+					$("#itSystemSelectPicker").selectpicker('refresh');
+				}
+			}
+			
+			this.refreshRadioButtons = function() {
+			    if (allOrgUnits == null || allOrgUnits.length < 1) {
+			    	if( $('#radioFilter2').prop("checked")){
+			    		$('#radioFilter1').prop("checked", true).change();			    		
+			    		$("#orgUnitToggle").hide();
+			    	}
+
+			        $('#radioFilter2').prop('disabled', true);			        
+			    }
+			    else {
+			    	$('#radioFilter2').prop('disabled', false);
+			    }
+			}
+			
+			this.refreshCheckbox = function(){
+				 if (allItSystems == null || allItSystems.length < 1 || templateId == 0) {
+					$('#itsystemCheckbox').prop("checked", false);
+				}
+			}
+			
+			this.initOUTree = function() {
+				this.refreshRadioButtons();
+				this.refreshCheckbox();
+				
+				$("#hierarchy").jstree({
+					"core": {
+						"data": allOrgUnits,
+						"themes": {
+							"icons": false
+						}
+					},
+					"search" : {
+						"show_only_matches": true,
+						"search_callback": function(str, node) {
+							return (node.text.toUpperCase().startsWith(str.toUpperCase()));
+						}
+					},
+					"checkbox" : {
+						"three_state": false,
+						"cascade" : "down"
+					},
+					"plugins" : [
+						"wholerow", "search", "checkbox"
+					]
+				});
+
+	            // selecting in the JSTree
+				$("#hierarchy").on("select_node.jstree", function(e, data) {
+	                var ous = $('#hierarchy').jstree('get_selected');
+
+	                // Remember date
+	        		$('#realOUs').val(ous);
+				});
+
+				// searching in the JSTree
+				var to = false;
+				$('#searchField').keyup(function() {
+					if (to) {
+						clearTimeout(to);
+					}
+
+					to = setTimeout(function() {
+						var v = $('#searchField').val();
+
+						$('#hierarchy').jstree(true).search(v);
+					}, 400);
+				});
+			}
+
+			this.initItSystemPicker = function() {
+				$('select.selectpicker').selectpicker({
+					actionsBox: true,
+					deselectAllText: "Fravælg alle",
+					selectAllText: "Vælg alle",
+					iconBase: 'fa',
+					tickIcon: 'fa-check text-success'
+				});
+			}
+
+			this.onRadioChange = function(id) {
+			    // Clean toggles
+			    $('.radio-toggle').hide();
+			    $('#hierarchy').jstree('deselect_all');
+	            $("#managerSelect option:selected").prop("selected", false)
+
+			    $('#' + id).show();
+			}
+
+			this.initOptionsFragment = function() {
+				// Toggle filter it system
+				$('#itsystemCheckbox').change(function () {
+					if (this.checked)  {
+					  	$('#itsystemToggle').fadeIn('fast');
+					} else {
+						$('#itsystemToggle').fadeOut('fast');
+	                    $('#itSystemSelectPicker').selectpicker('val', '');
+					}
+				});
+				$('#itsystemCheckbox').trigger('change');
+				$('input[name="radioFilter"]').change(function () {
+					filterService.onRadioChange($(this).data("id"));
+				});
+				filterService.initItSystemPicker();
+				filterService.initOUTree();			
+			}
+		}
 
 	/*]]>*/
 	</script>

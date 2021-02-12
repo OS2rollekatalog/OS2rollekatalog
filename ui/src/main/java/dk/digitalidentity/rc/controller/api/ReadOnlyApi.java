@@ -2,7 +2,10 @@ package dk.digitalidentity.rc.controller.api;
 
 import java.lang.reflect.Type;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import org.modelmapper.ModelMapper;
 import org.modelmapper.TypeToken;
@@ -17,6 +20,9 @@ import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import dk.digitalidentity.rc.controller.api.dto.ConstraintValue;
+import dk.digitalidentity.rc.controller.api.dto.RoleAssignmentWithContraints;
+import dk.digitalidentity.rc.controller.api.dto.RoleAssignmentsWithContraints;
 import dk.digitalidentity.rc.controller.api.dto.UserRoleDTO;
 import dk.digitalidentity.rc.controller.api.dto.read.RoleGroupReadDTO;
 import dk.digitalidentity.rc.controller.api.dto.read.RoleGroupWithUserRolesReadDTO;
@@ -30,6 +36,7 @@ import dk.digitalidentity.rc.dao.model.ItSystem;
 import dk.digitalidentity.rc.dao.model.RoleGroup;
 import dk.digitalidentity.rc.dao.model.SystemRoleAssignment;
 import dk.digitalidentity.rc.dao.model.SystemRoleAssignmentConstraintValue;
+import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserRole;
 import dk.digitalidentity.rc.dao.model.enums.ConstraintValueType;
 import dk.digitalidentity.rc.exceptions.OrgUnitNotFoundException;
@@ -39,6 +46,8 @@ import dk.digitalidentity.rc.service.OrgUnitService;
 import dk.digitalidentity.rc.service.RoleGroupService;
 import dk.digitalidentity.rc.service.UserRoleService;
 import dk.digitalidentity.rc.service.UserService;
+import dk.digitalidentity.rc.service.model.Constraint;
+import dk.digitalidentity.rc.service.model.PrivilegeGroup;
 import dk.digitalidentity.rc.service.model.UserWithRole;
 
 @RestController
@@ -62,6 +71,63 @@ public class ReadOnlyApi {
 	@Autowired
 	private ItSystemService itSystemService;
 
+	@GetMapping("/api/read/itsystem/roleAssignmentsWithContraints/{system}")
+	public ResponseEntity<List<RoleAssignmentsWithContraints>> getRoleAssignmentsWithContraints(@PathVariable("system") String itSystemIdentifier) {
+		List<RoleAssignmentsWithContraints> result = new ArrayList<>();
+
+		ItSystem itSystem = itSystemService.getFirstByIdentifier(itSystemIdentifier);
+		if (itSystem == null) {
+			// we also allow looking up using UUID for KOMBIT based it-systems
+			itSystem = itSystemService.getByUuid(itSystemIdentifier);
+
+			if (itSystem == null) {
+				return new ResponseEntity<>(result, HttpStatus.NOT_FOUND);
+			}
+		}
+		
+		// find all users with a role in this system, in a HashMap to ensure single entry per user
+		Map<String, User> users = new HashMap<>();
+		List<UserRole> allRolesInSystem = userRoleService.getByItSystem(itSystem);
+		
+		for (UserRole userRole : allRolesInSystem) {
+			List<UserWithRole> usersWithRole = userService.getUsersWithUserRole(userRole, true);
+
+			for (UserWithRole userWithRole : usersWithRole) {
+				users.put(userWithRole.getUser().getExtUuid(), userWithRole.getUser());
+			}
+		}
+
+		for (User user : users.values()) {
+			RoleAssignmentsWithContraints rawc = new RoleAssignmentsWithContraints();
+			rawc.setExtUuid(user.getExtUuid());
+			rawc.setUserId(user.getUserId());
+			rawc.setAssignments(new ArrayList<>());
+		
+			List<PrivilegeGroup> privilegeGroups = userService.generateOIOBPPPrivileges(user, Collections.singletonList(itSystem), new HashMap<>());
+			
+			for (PrivilegeGroup privilegeGroup : privilegeGroups) {
+				RoleAssignmentWithContraints assignment = new RoleAssignmentWithContraints();
+				assignment.setRoleIdentifier(privilegeGroup.getPrivilege().getIdentifier());
+				assignment.setRoleName(privilegeGroup.getPrivilege().getName());
+				assignment.setRoleConstraintValues(new ArrayList<>());
+				
+				for (Constraint constraint : privilegeGroup.getConstraints()) {
+					ConstraintValue cv = new ConstraintValue();
+					cv.setConstraintType(constraint.getType());
+					cv.setConstraintValues(constraint.getValue().split(","));
+					
+					assignment.getRoleConstraintValues().add(cv);
+				}
+
+				rawc.getAssignments().add(assignment);
+			}
+			
+			result.add(rawc);
+		}
+
+		return new ResponseEntity<>(result, HttpStatus.OK);
+	}
+	
 	@RequestMapping(value = "/api/read/itsystem/{system}", method = RequestMethod.GET)
 	public ResponseEntity<List<UserReadWrapperDTO>> getUsersWithGivenUserRoles(@PathVariable("system") String itSystemIdentifier, @RequestParam(name = "indirectRoles", defaultValue = "false") boolean findIndirectlyAssignedRoles) {
 		List<UserReadWrapperDTO> result =  new ArrayList<>();
@@ -252,9 +318,17 @@ public class ReadOnlyApi {
 	@RequestMapping(value = "/api/read/userroles", method = RequestMethod.GET)
 	public ResponseEntity<List<UserRoleReadDTO>> listUserRoles() {
 		List<UserRole> userRoles = userRoleService.getAll();
-		Type targetListType = new TypeToken<List<UserRoleReadDTO>>() {}.getType();
-
-		List<UserRoleReadDTO> list = mapper.map(userRoles, targetListType);
+		
+		List<UserRoleReadDTO> list = new ArrayList<UserRoleReadDTO>();
+		for (UserRole userRole : userRoles) {
+			UserRoleReadDTO dto = new UserRoleReadDTO();			
+			dto.setDescription(userRole.getDescription());
+			dto.setId(userRole.getId());
+			dto.setItSystemName(userRole.getItSystem().getName());
+			dto.setName(userRole.getName());
+			
+			list.add(dto);
+		}
 
 		return new ResponseEntity<>(list, HttpStatus.OK);
 	}

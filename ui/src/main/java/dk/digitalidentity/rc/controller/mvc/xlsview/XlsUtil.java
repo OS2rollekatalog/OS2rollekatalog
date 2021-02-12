@@ -46,7 +46,10 @@ public class XlsUtil {
 
 				switch (constraintValue.getConstraintType().getEntityId()) {
 					case Constants.KLE_CONSTRAINT_ENTITY_ID:
-						switch (constraintValue.getConstraintValueType()) { 
+						switch (constraintValue.getConstraintValueType()) {
+							case READ_AND_WRITE:
+								value = instance.messageSource.getMessage("html.constraint.kle.read_and_write", null, locale);
+	                            break;
 							case EXTENDED_INHERITED:
 								value = instance.messageSource.getMessage("html.constraint.kle.extended", null, locale);
 								break;
@@ -65,7 +68,7 @@ public class XlsUtil {
 						}
 						break;
 					case Constants.OU_CONSTRAINT_ENTITY_ID:
-						switch (constraintValue.getConstraintValueType()) { 
+						switch (constraintValue.getConstraintValueType()) {
 							case EXTENDED_INHERITED:
 								value = instance.messageSource.getMessage("html.constraint.organisation.extended", null, locale);
 								break;
@@ -83,6 +86,9 @@ public class XlsUtil {
 								break;
 							case LEVEL_4:
 								value = instance.messageSource.getMessage("html.constraint.organisation.level.4", null, locale);
+								break;
+							case READ_AND_WRITE:
+								log.warn("An READ/WRITE was assigned as a constraint on OrgUnit");
 								break;
 							case VALUE:
 								value = constraintValue.getConstraintValue();

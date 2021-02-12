@@ -6,9 +6,9 @@ import lombok.Setter;
 @Getter
 @Setter
 public class ItSystemDTO {
-	long id;
-	String name;
-	String identifier;
+	private long id;
+	private String name;
+	private String identifier;
 
 	public ItSystemDTO(long id, String name, String identifier) {
 		this.id = id;

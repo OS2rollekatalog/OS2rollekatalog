@@ -5,7 +5,9 @@ import java.util.List;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.repository.CrudRepository;
 
+import dk.digitalidentity.rc.dao.model.RoleGroup;
 import dk.digitalidentity.rc.dao.model.Title;
+import dk.digitalidentity.rc.dao.model.UserRole;
 
 public interface TitleDao extends CrudRepository<Title, String>, JpaSpecificationExecutor<Title> {
 
@@ -19,4 +21,7 @@ public interface TitleDao extends CrudRepository<Title, String>, JpaSpecificatio
 
 	Title getByUuidAndActiveTrue(String uuid);
 
+	List<Title> findByUserRoleAssignmentsUserRoleAndUserRoleAssignmentsInactive(UserRole userRole, boolean inactive);
+
+	List<Title> findByRoleGroupAssignmentsRoleGroupAndRoleGroupAssignmentsInactive(RoleGroup roleGroup, boolean inactive);
 }

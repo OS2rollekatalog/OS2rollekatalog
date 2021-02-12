@@ -60,7 +60,9 @@ public class RolegroupRestController {
         binder.addValidators(rolegroupValidator);
     }
 
-    @GetMapping(value = "/rest/rolegroups/trydelete/{id}")
+    // have to check against deprecated method to ensure
+    @SuppressWarnings("deprecation")
+	@GetMapping(value = "/rest/rolegroups/trydelete/{id}")
     public RoleGroupDeleteStatus tryDelete(@PathVariable("id") long id) {
         RoleGroupDeleteStatus status = new RoleGroupDeleteStatus();
 
@@ -109,7 +111,9 @@ public class RolegroupRestController {
         		roleGroupService.save(role);
         		
         		if (active) {
-        			List<OrgUnit> orgUnitsWithRole = orgUnitService.getByRoleGroup(role);
+        			// need inactive assignments as well
+        			@SuppressWarnings("deprecation")
+					List<OrgUnit> orgUnitsWithRole = orgUnitService.getByRoleGroup(role);
         			
         			// if assigned to an OrgUnit already, return a warning (HTTP 400 is not really
         			// suitable for this, but there does not seem to be HTTP codes to return warnings)
@@ -133,6 +137,8 @@ public class RolegroupRestController {
         return new ResponseEntity<>(HttpStatus.OK);
     }
 
+    // we have to use deprecated method to ensure that we update inactive users and assignments
+    @SuppressWarnings("deprecation")
     @PostMapping(value = "/rest/rolegroups/delete/{id}")
     public ResponseEntity<String> deleteRolegroup(@PathVariable("id") long id) {
         RoleGroup roleGroup = roleGroupService.getById(id);
@@ -140,16 +146,12 @@ public class RolegroupRestController {
             return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
         }
         
-        // we have to use deprecated method to ensure that we update inactive OUs
-        @SuppressWarnings("deprecation")
 		List<OrgUnit> ous = orgUnitService.getAllWithRoleGroupIncludingInactive(roleGroup);
         for (OrgUnit ou : ous) {
         	orgUnitService.removeRoleGroup(ou, roleGroup);
         	orgUnitService.save(ou);
         }
 
-        // we have to use deprecated method to ensure that we update inactive users
-        @SuppressWarnings("deprecation")
         List<User> users = userService.getByRoleGroupsIncludingInactive(roleGroup);
         for (User user : users) {
         	userService.removeRoleGroup(user, roleGroup);

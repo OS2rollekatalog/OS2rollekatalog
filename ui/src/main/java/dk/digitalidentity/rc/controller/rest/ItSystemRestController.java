@@ -21,7 +21,6 @@ import dk.digitalidentity.rc.config.Constants;
 import dk.digitalidentity.rc.controller.rest.model.PrefixWrapper;
 import dk.digitalidentity.rc.dao.model.ItSystem;
 import dk.digitalidentity.rc.dao.model.PendingADGroupOperation;
-import dk.digitalidentity.rc.dao.model.RoleGroup;
 import dk.digitalidentity.rc.dao.model.SystemRole;
 import dk.digitalidentity.rc.dao.model.SystemRoleAssignment;
 import dk.digitalidentity.rc.dao.model.UserRole;
@@ -32,7 +31,6 @@ import dk.digitalidentity.rc.service.ItSystemService;
 import dk.digitalidentity.rc.service.OrgUnitService;
 import dk.digitalidentity.rc.service.PendingADUpdateService;
 import dk.digitalidentity.rc.service.PositionService;
-import dk.digitalidentity.rc.service.RoleGroupService;
 import dk.digitalidentity.rc.service.SystemRoleService;
 import dk.digitalidentity.rc.service.UserRoleService;
 import dk.digitalidentity.rc.service.UserService;
@@ -51,10 +49,7 @@ public class ItSystemRestController {
 	
 	@Autowired
 	private UserRoleService userRoleService;
-	
-	@Autowired
-	private RoleGroupService roleGroupService;
-	
+		
 	@Autowired
 	private PendingADUpdateService pendingADUpdateService;
 
@@ -108,45 +103,19 @@ public class ItSystemRestController {
         if (itSystem == null) {
             return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
         }
-        
-        log.info("Attempting to delete it-system " + itSystem.getName() + " with id = " + id);
-        
+
+        log.info("Deleting it-system " + itSystem.getName() + " with id " + itSystem.getId());
+
         if (itSystem.getSystemType().equals(ItSystemType.KOMBIT) ||
         	itSystem.getSystemType().equals(ItSystemType.KSPCICS) ||
         	itSystem.getIdentifier().equals(Constants.ROLE_CATALOGUE_IDENTIFIER)) {
         	return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
         }
         
-        // remove affected user roles from role groups
-        List<RoleGroup> roleGroups = roleGroupService.getAll();
-        for (RoleGroup roleGroup : roleGroups) {
-        	List<UserRole> userRoles = roleGroup.getUserRoleAssignments().stream()
-        			.filter(ura -> (ura.getUserRole().getItSystem().getId() == id))
-        			.map(ura -> ura.getUserRole()).collect(Collectors.toList());
-        	
-        	if (userRoles != null && userRoles.size() > 0) {
-	        	for (UserRole userRole : userRoles) {
-	       			roleGroupService.removeUserRole(roleGroup, userRole);
-	        	}
-	        	
-	        	roleGroupService.save(roleGroup);
-        	}
-        }
-
-        // delete affected user roles
-        List<UserRole> userRoles = userRoleService.getByItSystem(itSystem);
-        for (UserRole userRole : userRoles) { 
-        	userRoleService.delete(userRole);
-        }
-
-        // delete affected system roles
-        List<SystemRole> systemRoles = systemRoleService.getByItSystem(itSystem);
-        for (SystemRole systemRole : systemRoles) {
-    		systemRoleService.delete(systemRole);
-        }
-
         // delete itsystem
-        itSystemService.delete(itSystem);
+        itSystem.setDeleted(true);
+        itSystem.setDeletedTimestamp(new Date());
+        itSystemService.save(itSystem);
 
         return new ResponseEntity<>(HttpStatus.OK);
     }
@@ -185,6 +154,19 @@ public class ItSystemRestController {
 		}
 
 		itSystem.setEmail(email);
+		itSystemService.save(itSystem);
+
+		return new ResponseEntity<>(HttpStatus.OK);
+	}
+	
+	@PostMapping(value = "/rest/itsystem/notificationemail")
+	public ResponseEntity<String> editItSystemnNotificationEmail(long id, String email) {
+		ItSystem itSystem = itSystemService.getById(id);
+		if (itSystem == null) {
+			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+		}
+
+		itSystem.setNotificationEmail(email);
 		itSystemService.save(itSystem);
 
 		return new ResponseEntity<>(HttpStatus.OK);
@@ -273,6 +255,8 @@ public class ItSystemRestController {
 		return new ResponseEntity<>(HttpStatus.OK);
 	}
 	
+	// TODO: really should use the count() method instead
+	@SuppressWarnings("deprecation")
 	@PostMapping(value = "/rest/itsystem/userrole/unused/{id}")
 	public ResponseEntity<String> deleteUnusedUserRoles(@PathVariable("id") long id) {
 		ItSystem itSystem = itSystemService.getById(id);

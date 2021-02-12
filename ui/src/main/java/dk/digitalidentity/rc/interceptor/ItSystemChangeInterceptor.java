@@ -1,5 +1,7 @@
 package dk.digitalidentity.rc.interceptor;
 
+import java.util.Objects;
+
 import javax.persistence.EntityManager;
 import javax.persistence.PersistenceContext;
 
@@ -9,7 +11,9 @@ import org.aspectj.lang.annotation.Aspect;
 import org.aspectj.lang.annotation.Before;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
+import org.springframework.util.StringUtils;
 
+import dk.digitalidentity.rc.dao.model.ConstraintTypeSupport;
 import dk.digitalidentity.rc.dao.model.ItSystem;
 import dk.digitalidentity.rc.dao.model.ItSystemChange;
 import dk.digitalidentity.rc.dao.model.SystemRole;
@@ -43,8 +47,8 @@ public class ItSystemChangeInterceptor {
 
 			if (target != null && target instanceof SystemRole) {
 				SystemRole systemRole = (SystemRole) target;
-				boolean created = false;
-				
+				boolean created = false, changes = false;
+
 				if (systemRole.getId() == 0) {
 					created = true;
 				}
@@ -53,14 +57,62 @@ public class ItSystemChangeInterceptor {
 				newItSystemChange.setItSystemId(systemRole.getItSystem().getId());
 				newItSystemChange.setSystemRoleId(systemRole.getId());
 
+				// preload before we detach
+				if (systemRole.getSupportedConstraintTypes() != null) {
+					systemRole.getSupportedConstraintTypes().size();
+				}
+				
 				entityManager.detach(systemRole);
 
 				SystemRole oldSysRole = systemRoleService.getById(systemRole.getId());
 				if (oldSysRole != null) {
 					String prevName = oldSysRole.getName();
 					String prevDescription = oldSysRole.getDescription();
-					boolean constraintsChanged = oldSysRole.getSupportedConstraintTypes().equals(systemRole.getSupportedConstraintTypes());
-	
+					
+					long oldSysRoleConstraintCount = oldSysRole.getSupportedConstraintTypes() != null ? oldSysRole.getSupportedConstraintTypes().size() : 0;
+					long systemRoleConstraintCount = systemRole.getSupportedConstraintTypes() != null ? systemRole.getSupportedConstraintTypes().size() : 0;
+					boolean constraintsChanged = false;
+					if (oldSysRoleConstraintCount != systemRoleConstraintCount) {
+						constraintsChanged = true;
+					}
+					else if (oldSysRoleConstraintCount > 0) {
+						// same count, but still > 0, check for changes
+
+						for (ConstraintTypeSupport oldConstraint : oldSysRole.getSupportedConstraintTypes()) {
+							boolean found = false;
+							
+							for (ConstraintTypeSupport newConstraint : systemRole.getSupportedConstraintTypes()) {
+								if (oldConstraint.getConstraintType().getEntityId().contentEquals(newConstraint.getConstraintType().getEntityId())) {
+									found = true;
+									
+									if (newConstraint.isMandatory() != oldConstraint.isMandatory()) {
+										constraintsChanged = true;
+									}
+								}
+							}
+							
+							if (!found) {
+								constraintsChanged = true;
+							}
+						}
+					}
+
+					// figure out if there are actual changes
+					if (constraintsChanged) {
+						changes = true;
+					}
+					else if (!Objects.equals(prevName, systemRole.getName())) {
+						changes = true;
+					}
+					
+					// special extra check to avoid ("" != null) causing email notifications 
+					if (StringUtils.isEmpty(prevDescription) && StringUtils.isEmpty(systemRole.getDescription())) {
+						; // don't make any changes to "changes" status
+					}
+					else if (!Objects.equals(prevDescription, systemRole.getDescription())) {
+						changes = true;
+					}
+
 					newItSystemChange.setSystemRoleName(prevName);
 					newItSystemChange.setSystemRoleIdentifier(systemRole.getIdentifier());
 					newItSystemChange.setSystemRoleDescription(prevDescription);
@@ -69,19 +121,13 @@ public class ItSystemChangeInterceptor {
 				else {
 					newItSystemChange.setSystemRoleName(systemRole.getName());
 					newItSystemChange.setSystemRoleIdentifier(systemRole.getIdentifier());
+					newItSystemChange.setSystemRoleDescription(systemRole.getDescription());
 				}
 
-				if (created) {
-					newItSystemChange.setEventType(ItSystemChangeEventType.SYSTEM_ROLE_ADD);
+				if (created || changes) {
+					newItSystemChange.setEventType((created) ? ItSystemChangeEventType.SYSTEM_ROLE_ADD : ItSystemChangeEventType.SYSTEM_ROLE_MODIFY);
+					itSystemChangeService.save(newItSystemChange);
 				}
-				else {
-					newItSystemChange.setEventType(ItSystemChangeEventType.SYSTEM_ROLE_MODIFY);
-				}
-				SystemRole after = (SystemRole) joinPoint.proceed();
-
-				itSystemChangeService.save(newItSystemChange);
-
-				return after;
 			}
 			else {
 				log.info("Not a type of SystemRole. Actually: " + (target != null ? target.getClass().getSimpleName() : null));

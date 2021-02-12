@@ -22,7 +22,8 @@ BEGIN
   JOIN user_roles ur ON ur.id = tr.role_id
   JOIN it_systems it ON it.id = ur.it_system_id
   LEFT JOIN title_roles_ous trou ON trou.title_roles_id = tr.id
-  LEFT JOIN ous ou ON ou.uuid = trou.ou_uuid;
+  LEFT JOIN ous ou ON ou.uuid = trou.ou_uuid
+  WHERE tr.inactive = 0;
 
   -- user roles through rolegroups
   INSERT INTO history_title_role_assignments (
@@ -41,7 +42,8 @@ BEGIN
   JOIN user_roles ur ON ur.id = rgr.role_id
   JOIN it_systems it ON it.id = ur.it_system_id
   LEFT JOIN title_rolegroups_ous trgou ON trgou.title_rolegroups_id = trg.id
-  LEFT JOIN ous ou ON ou.uuid = trgou.ou_uuid;
+  LEFT JOIN ous ou ON ou.uuid = trgou.ou_uuid
+  WHERE trg.inactive = 0;
 
 END
 GO

@@ -8,7 +8,6 @@ import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.scheduling.annotation.EnableAsync;
@@ -18,6 +17,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestTemplate;
 
+import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
 import dk.digitalidentity.rc.dao.KleDao;
 import dk.digitalidentity.rc.dao.model.Kle;
 import dk.kleonline.xml.EmneKomponent;
@@ -33,9 +33,6 @@ import lombok.extern.log4j.Log4j;
 public class ReadKleTask {
 	private static Map<String, String> kleCacheMap = new HashMap<>();
 
-	@Value("${scheduled.enabled:false}")
-	private boolean runScheduled;
-
 	@Autowired
 	@Qualifier("defaultRestTemplate")
 	private RestTemplate restTemplate;
@@ -43,9 +40,12 @@ public class ReadKleTask {
 	@Autowired
 	private KleDao kleDao;
 	
+	@Autowired
+	private RoleCatalogueConfiguration configuration;
+
 	@Async
 	public void init() {
-		if (runScheduled && kleDao.countByActiveTrue() == 0) {
+		if (configuration.getScheduled().isEnabled() && kleDao.countByActiveTrue() == 0) {
 			parse();
 		}
 		else {
@@ -65,11 +65,11 @@ public class ReadKleTask {
 		kleCacheMap = newKleCacheMap;
 	}
 
-	// Run every Saturday at 22:00
-	@Scheduled(cron = "${kle.cron.refresh:0 0 22 * * SAT}")
+	// Run every Saturday at random point between 22:00-22:30
+	@Scheduled(cron = "0 #{new java.util.Random().nextInt(30)} 22 * * SAT")
 	@Transactional(rollbackFor = Exception.class)
 	public synchronized void reloadCache() {
-		if (runScheduled) {
+		if (configuration.getScheduled().isEnabled()) {
 			return; // do not reload cache on the instance that is running the scheduled task
 		}
 		
@@ -78,11 +78,11 @@ public class ReadKleTask {
 		loadCache();
 	}
 
-	// Run every Saturday at 21:00
-	@Scheduled(cron = "${kle.cron:0 0 21 * * SAT}")
+	// Run every Saturday at random point between 21:00-21:30
+	@Scheduled(cron = "0 #{new java.util.Random().nextInt(30)} 21 * * SAT")
 	@Transactional(rollbackFor = Exception.class)
 	public synchronized void parse() {
-		if (!runScheduled) {
+		if (!configuration.getScheduled().isEnabled()) {
 			return;
 		}
 

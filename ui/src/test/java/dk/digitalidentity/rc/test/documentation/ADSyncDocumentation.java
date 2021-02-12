@@ -111,7 +111,7 @@ public class ADSyncDocumentation {
 		ItSystem itSystem = itSystemService.getBySystemType(ItSystemType.AD).get(0);
 		UserRole userRole = userRoleService.getByItSystem(itSystem).get(0);		
 		User user = userService.getByUserId(testUserId);
-		userService.addUserRole(user, userRole);
+		userService.addUserRole(user, userRole, null, null);
 
 		DirtyADGroup pending = new DirtyADGroup();
 		pending.setIdentifier(userRole.getSystemRoleAssignments().get(0).getSystemRole().getIdentifier());

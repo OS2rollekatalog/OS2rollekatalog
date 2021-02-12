@@ -190,6 +190,11 @@ public class ReportXlsView extends AbstractXlsView {
                     StringBuilder constraintCell = new StringBuilder();
                     for (HistorySystemRoleAssignmentConstraint constraint : systemRoleAssignment.getHistoryConstraints()) {
                     	switch (constraint.getConstraintValueType()) {
+	                		case READ_AND_WRITE:
+	                            if ("KLE".equals(constraint.getConstraintName())) {
+	                                constraintCell.append(constraint.getConstraintName() + " = " + messageSource.getMessage("html.constraint.kle.read_and_write", null, locale) + "\n");
+	                            }
+	                            break;
                     		case EXTENDED_INHERITED:
                                 if ("KLE".equals(constraint.getConstraintName())) {
                                     constraintCell.append(constraint.getConstraintName() + " = " + messageSource.getMessage("html.constraint.kle.extended", null, locale) + "\n");
@@ -331,9 +336,9 @@ public class ReportXlsView extends AbstractXlsView {
 
                 String assignmentType = ouKleAssignment.getAssignmentType();
                 if (Objects.equals(assignmentType, "INTEREST")) {
-                    assignmentType = "Opgaveansvar";
-                } else if (Objects.equals(assignmentType, "PERFORMING")) {
                     assignmentType = "Indsigtsbehov";
+                } else if (Objects.equals(assignmentType, "PERFORMING")) {
+                    assignmentType = "Opgaveansvar";
                 }
 
                 int column = 0;

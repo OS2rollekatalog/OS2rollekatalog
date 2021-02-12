@@ -12,10 +12,10 @@ import java.util.UUID;
 import javax.persistence.EntityManager;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
+import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
 import dk.digitalidentity.rc.controller.api.dto.OrganisationV2DTO;
 import dk.digitalidentity.rc.controller.api.model.FullOrgUnitAM;
 import dk.digitalidentity.rc.controller.api.model.FullUserAM;
@@ -32,6 +32,7 @@ import dk.digitalidentity.rc.dao.model.Position;
 import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserKLEMapping;
 import dk.digitalidentity.rc.dao.model.enums.KleType;
+import dk.digitalidentity.rc.dao.model.enums.OrgUnitLevel;
 import dk.digitalidentity.rc.dao.model.enums.PendingOrganisationEventType;
 import dk.digitalidentity.rc.service.model.OrganisationChangeEvents;
 import lombok.extern.log4j.Log4j;
@@ -59,8 +60,8 @@ public class OrganisationImporterOld {
 	@Autowired
 	private PendingOrganisationUpdateDao pendingOrganisationUpdateDao;
 
-	@Value("${kle.ui.enabled:false}")
-	private boolean kleUiEnabled;
+	@Autowired
+	private RoleCatalogueConfiguration configuration;
 	
 	public OrganisationImportResponse bigImportV2(OrganisationV2DTO organisation) throws Exception {
 		FullOrgUnitAM root = null;
@@ -399,7 +400,7 @@ public class OrganisationImporterOld {
 					}
 
 					// Only if KLE management is disabled in ui
-					if (!kleUiEnabled) {
+					if (!configuration.getIntegrations().getKle().isUiEnabled()) {
 						// Add KLEs
 						for (KLEMapping newKle : ou.getKles()) {
 							boolean kleFound = false;
@@ -659,7 +660,7 @@ public class OrganisationImporterOld {
 						userService.removePosition(existingUser, positionToRemove);
 					}
 
-					if (!kleUiEnabled) {
+					if (!configuration.getIntegrations().getKle().isUiEnabled()) {
 						// if there are changes to the users KLE, update them
 						List<UserKLEMapping> existingKles = existingUser.getKles();
 						if (existingKles == null) {
@@ -959,6 +960,7 @@ public class OrganisationImporterOld {
 		orgUnitEntity.setUserRoleAssignments(new ArrayList<>());
 		orgUnitEntity.setParent(parent);
 		orgUnitEntity.setActive(true);
+		orgUnitEntity.setLevel(OrgUnitLevel.NONE);
 		
 		orgUnitEntity.setItSystems(new ArrayList<>());
 		if (orgUnit.getItSystemIdentifiers() != null && orgUnit.getItSystemIdentifiers().size() > 0) {

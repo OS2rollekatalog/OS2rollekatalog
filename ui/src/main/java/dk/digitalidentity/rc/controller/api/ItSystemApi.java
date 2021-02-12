@@ -1,13 +1,11 @@
 package dk.digitalidentity.rc.controller.api;
 
-import java.util.HashSet;
-import java.util.List;
-import java.util.Objects;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 
 import javax.validation.Valid;
 
+import dk.digitalidentity.rc.dao.model.SystemRoleAssignment;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -20,6 +18,7 @@ import org.springframework.web.bind.annotation.RestController;
 import dk.digitalidentity.rc.controller.api.dto.ItSystemDTO;
 import dk.digitalidentity.rc.controller.api.dto.ItSystemWithSystemRolesDTO;
 import dk.digitalidentity.rc.controller.api.dto.SystemRoleDTO;
+import dk.digitalidentity.rc.controller.api.dto.UserRoleDTO;
 import dk.digitalidentity.rc.dao.model.ItSystem;
 import dk.digitalidentity.rc.dao.model.SystemRole;
 import dk.digitalidentity.rc.dao.model.UserRole;
@@ -44,7 +43,7 @@ public class ItSystemApi {
 
 	@Autowired
 	private SystemRoleService systemRoleService;
-
+	
 	@GetMapping(value = "/api/itsystem/all")
 	public ResponseEntity<List<ItSystemDTO>> getAllItSystems() {
 		List<ItSystemDTO> itSystems = itSystemService.getAll().stream().map(its -> new ItSystemDTO(its.getId(), its.getName(), its.getIdentifier())).collect(Collectors.toList());
@@ -83,8 +82,13 @@ public class ItSystemApi {
 				.map(sr -> new SystemRoleDTO(sr))
 				.collect(Collectors.toList());
 
+		List<UserRoleDTO> userRoles = userRoleService.getByItSystem(itSystem).parallelStream()
+				.map(ur -> new UserRoleDTO(ur))
+				.collect(Collectors.toList());
+
 		result = new ItSystemWithSystemRolesDTO(itSystem.getId(), itSystem.getName(), itSystem.getIdentifier());
 		result.setSystemRoles(systemRoles);
+		result.setUserRoles(userRoles);
 
 		return new ResponseEntity<>(result, HttpStatus.OK);
 	}
@@ -140,20 +144,76 @@ public class ItSystemApi {
 		itSystem.setName(body.getName());
 		itSystemService.save(itSystem);
 
+		if( body.isConvertRolesEnabled() )
+		{
+			// ensure 1:1 user roles with same name as system-role and delete any user-role without system-roles
+			// we keep track of corresponding 1:1 roles by assigning the same identifier on both entities
+			var systemRoles = systemRoleService.getByItSystem(itSystem);
+			var userRoles = userRoleService.getByItSystem(itSystem);
+
+			// Update user role to match name of system role
+			var toBeUpdated = userRoles.stream().filter( ur -> systemRoles.stream().anyMatch(sr -> Objects.equals( sr.getIdentifier(), ur.getIdentifier()))).collect(Collectors.toList());
+			for( var userRole : toBeUpdated )
+			{
+				var systemRole = systemRoles.stream().filter(sr -> Objects.equals(sr.getIdentifier(),userRole.getIdentifier())).findFirst();
+				userRole.setName(systemRole.get().getName());
+				userRoleService.save(userRole);
+			}
+
+			// create 1:1 user role
+			var toBeCreated = systemRoles.stream().filter(sr -> userRoles.stream().noneMatch(ur -> Objects.equals(ur.getIdentifier(), sr.getIdentifier()))).collect(Collectors.toList());
+			for( var systemRole : toBeCreated )
+			{
+				var userRole = new UserRole();
+				userRole.setItSystem(itSystem);
+				userRole.setIdentifier(systemRole.getIdentifier());
+				userRole.setName(systemRole.getName());
+				var systemRoleAssignment = new SystemRoleAssignment();
+				systemRoleAssignment.setAssignedByName("Systembruger");
+				systemRoleAssignment.setAssignedByUserId("Systembruger");
+				systemRoleAssignment.setAssignedTimestamp(new Date());
+				systemRoleAssignment.setSystemRole(systemRole);
+				systemRoleAssignment.setUserRole(userRole);
+				systemRoleAssignment.setConstraintValues(new ArrayList<>());
+				userRole.setSystemRoleAssignments(Arrays.asList(systemRoleAssignment));
+				userRoleService.save(userRole);
+			}
+
+			// delete user roles that has no system role assignments
+			var toBeDeleted = userRoles.stream().filter(ur -> ur.getSystemRoleAssignments().size() == 0).collect(Collectors.toList());
+			for( var userRole : toBeDeleted )
+			{
+				userRoleService.delete(userRole);
+			}
+		}
+
 		return new ResponseEntity<>(HttpStatus.OK);
 	}
+
 
 	@GetMapping(value = "/api/itsystem/{id}/users")
 	public ResponseEntity<Set<String>> getUsersForItSystem(@PathVariable("id") String id) {
 		Set<String> result =  new HashSet<>();
 
-		ItSystem itSystem = itSystemService.getFirstByIdentifier(id);
+		ItSystem itSystem = null;
+
+		try {
+			itSystem = itSystemService.getById(Long.parseLong(id));
+		}
+		catch (Exception ex) {
+			; // ignore
+		}
+
 		if (itSystem == null) {
-			// we also allow looking up using UUID for KOMBIT based it-systems
-			itSystem = itSystemService.getByUuid(id);
+			itSystem = itSystemService.getFirstByIdentifier(id);
 
 			if (itSystem == null) {
-				return new ResponseEntity<>(result, HttpStatus.NOT_FOUND);
+				// we also allow looking up using UUID for KOMBIT based it-systems
+				itSystem = itSystemService.getByUuid(id);
+	
+				if (itSystem == null) {
+					return new ResponseEntity<>(result, HttpStatus.NOT_FOUND);
+				}
 			}
 		}
 
@@ -178,5 +238,4 @@ public class ItSystemApi {
 		
 		return users;
 	}
-
 }

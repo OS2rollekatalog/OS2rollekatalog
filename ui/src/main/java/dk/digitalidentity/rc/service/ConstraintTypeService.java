@@ -13,11 +13,11 @@ public class ConstraintTypeService {
     private ConstraintTypeDao constraintTypeDao;
     
     public ConstraintType getByUuid(String uuid) {
-    	return constraintTypeDao.getByUuid(uuid);
+    	return constraintTypeDao.findByUuid(uuid);
     }
     
     public ConstraintType getByEntityId(String entityId) {
-    	return constraintTypeDao.getByEntityId(entityId);
+    	return constraintTypeDao.findByEntityId(entityId);
     }
 
 	public ConstraintType save(ConstraintType entity) {

@@ -60,6 +60,15 @@
 							
 							<fieldset>
 								<div class="form-group">
+									<label class="col-sm-2 control-label" th:text="#{html.entity.itsystem.notificationEmail}" />
+									<div class="col-sm-8">
+										<input th:field="*{notificationEmail}" readonly="readonly" class="form-control" />
+									</div>
+								</div>
+							</fieldset>
+							
+							<fieldset>
+								<div class="form-group">
 									<label class="col-sm-2 control-label" th:text="#{html.entity.itsystem.notes}" />
 									<div class="col-sm-8">
 										<textarea rows="5" th:field="*{notes}" readonly="readonly" class="form-control" />

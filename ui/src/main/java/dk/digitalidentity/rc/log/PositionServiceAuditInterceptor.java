@@ -43,7 +43,7 @@ public class PositionServiceAuditInterceptor {
 
 	private void auditAddUserRole(JoinPoint jp, Object retVal) {
 		Object[] args = jp.getArgs();
-		if (!(args.length == 2 && args[0] instanceof Position && args[1] instanceof UserRole)) {
+		if (!(args.length == 4 && args[0] instanceof Position && args[1] instanceof UserRole)) {
 			log.error("Method signature on addUserRole does not match expectation");
 			return;
 		}
@@ -67,7 +67,7 @@ public class PositionServiceAuditInterceptor {
 
 	private void auditAddRoleGroup(JoinPoint jp, Object retVal) {
 		Object[] args = jp.getArgs();
-		if (!(args.length == 2 && args[0] instanceof Position && args[1] instanceof RoleGroup)) {
+		if (!(args.length == 4 && args[0] instanceof Position && args[1] instanceof RoleGroup)) {
 			log.error("Method signature on addRoleGroup does not match expectation");
 			return;
 		}

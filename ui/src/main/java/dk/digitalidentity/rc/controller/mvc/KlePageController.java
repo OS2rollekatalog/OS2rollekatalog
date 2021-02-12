@@ -1,6 +1,7 @@
 package dk.digitalidentity.rc.controller.mvc;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
@@ -118,7 +119,7 @@ public class KlePageController {
 			kleDTO.setText(kle.isActive() ? kle.getCode() + " " + kle.getName() : kle.getCode() + " " + kle.getName() + " [UDGÅET]");
 			kleDTOs.add(kleDTO);
 		}
-
+		kleDTOs.sort(Comparator.comparing(KleDTO::getText));
 		model.addAttribute("allKles", kleDTOs);
 
 		return "kle/kle-assignment";

@@ -11,6 +11,7 @@ import dk.digitalidentity.rc.dao.model.OrgUnitUserRoleAssignment;
 import dk.digitalidentity.rc.dao.model.Position;
 import dk.digitalidentity.rc.dao.model.RoleGroup;
 import dk.digitalidentity.rc.dao.model.SystemRoleAssignment;
+import dk.digitalidentity.rc.dao.model.Title;
 import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserRole;
 import dk.digitalidentity.rc.service.OrgUnitService;
@@ -166,6 +167,26 @@ public class LdapUpdaterHook implements RoleChangeHook {
 	@Override
 	public void interceptRemoveSystemRoleAssignmentOnUserRole(UserRole userRole, SystemRoleAssignment systemRoleAssignment) {
 		// role-modelling does not happen often enough that we should bother safety checking - just flag as dirty
+		pendingADUpdateService.addUserRoleToQueue(userRole);
+	}
+
+	@Override
+	public void interceptAddRoleGroupAssignmentOnTitle(Title title, RoleGroup roleGroup, String[] ouUuids) {
+		pendingADUpdateService.addRoleGroupToQueue(roleGroup);
+	}
+
+	@Override
+	public void interceptRemoveRoleGroupAssignmentOnTitle(Title title, RoleGroup roleGroup) {
+		pendingADUpdateService.addRoleGroupToQueue(roleGroup);
+	}
+
+	@Override
+	public void interceptAddUserRoleAssignmentOnTitle(Title title, UserRole userRole, String[] ouUuids) {
+		pendingADUpdateService.addUserRoleToQueue(userRole);
+	}
+
+	@Override
+	public void interceptRemoveUserRoleAssignmentOnTitle(Title title, UserRole userRole) {
 		pendingADUpdateService.addUserRoleToQueue(userRole);
 	}
 }

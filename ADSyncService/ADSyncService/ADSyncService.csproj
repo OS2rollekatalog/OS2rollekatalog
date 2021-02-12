@@ -89,6 +89,7 @@
     <Compile Include="Application.cs" />
     <Compile Include="Configuration.cs" />
     <Compile Include="NewtonsoftJsonSerializer.cs" />
+    <Compile Include="RoleCatalog\ItSystemData.cs" />
     <Compile Include="RoleCatalog\Operation.cs" />
     <Compile Include="RoleCatalog\RoleCatalogueStub.cs" />
     <Compile Include="RoleCatalog\Assignment.cs" />
@@ -101,6 +102,11 @@
       <DesignTimeSharedInput>True</DesignTimeSharedInput>
       <DependentUpon>Settings.settings</DependentUpon>
     </Compile>
+    <Compile Include="Tasks\BackSyncService.cs" />
+    <Compile Include="Tasks\CreateDeleteService.cs" />
+    <Compile Include="Tasks\ItSystemGroupService.cs" />
+    <Compile Include="Tasks\MembershipSyncService.cs" />
+    <Compile Include="Tasks\NightSyncJob.cs" />
     <Compile Include="Tasks\SyncJob.cs" />
   </ItemGroup>
   <ItemGroup>

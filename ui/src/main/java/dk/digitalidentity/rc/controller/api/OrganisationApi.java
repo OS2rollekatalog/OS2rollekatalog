@@ -3,7 +3,6 @@ package dk.digitalidentity.rc.controller.api;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.transaction.annotation.Transactional;
@@ -34,16 +33,9 @@ public class OrganisationApi {
 	@Autowired
 	private OrganisationImporter organisationImporter;
 
-	@Value(value="${organisation.sync.method}")
-	private String syncMethod;
-
 	@PostMapping(value = "/organisation")
 	@Transactional(rollbackFor = Exception.class)
 	public synchronized ResponseEntity<?> importOrgUnits(@RequestBody String request) {
-		if (!"api".equals(syncMethod)) {
-			return new ResponseEntity<>("Importing data through API is disabled.", HttpStatus.NOT_FOUND);
-		}
-
 		log.warn("Calling deprecated API v1");
 
 		try {
@@ -67,10 +59,6 @@ public class OrganisationApi {
 	@PostMapping(value = "/organisation/v2")
 	@Transactional(rollbackFor = Exception.class)
 	public synchronized ResponseEntity<?> importOrgUnitsV2(@RequestBody OrganisationV2DTO organisation) {
-		if (!"api".equals(syncMethod)) {
-			return new ResponseEntity<>("Importing data through API is disabled.", HttpStatus.NOT_FOUND);
-		}
-
 		log.warn("Calling deprecated API v2");
 		
 		try {
@@ -90,10 +78,6 @@ public class OrganisationApi {
 	@PostMapping(value = "/organisation/v3")
 	@Transactional(rollbackFor = Exception.class)
 	public synchronized ResponseEntity<?> importOrgUnitsV3(@RequestBody OrganisationDTO organisation) {
-		if (!"api".equals(syncMethod)) {
-			return new ResponseEntity<>("Importing data through API is disabled.", HttpStatus.NOT_FOUND);
-		}
-
 		try {
 			OrganisationImportResponse response = organisationImporter.fullSync(organisation);
 

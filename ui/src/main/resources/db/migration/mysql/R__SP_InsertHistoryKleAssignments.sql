@@ -3,7 +3,7 @@
 --
 -- CALL SP_InsertHistoryKleAssignments();
 --
-
+ 
 DELIMITER $$
 DROP PROCEDURE IF EXISTS SP_InsertTempOrgKLERecursive $$
 CREATE PROCEDURE SP_InsertTempOrgKLERecursive (IN _ou_uuid varchar(36), IN _child_ou_uuid VARCHAR(36))

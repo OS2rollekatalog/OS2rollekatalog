@@ -38,6 +38,21 @@ namespace ADSyncService
 
             schedule.ScheduleJob(job, trigger);
             schedule.TriggerJob(job.Key);
+
+            IJobDetail job2 = JobBuilder.Create<NightSyncJob>()
+                .WithIdentity("mappingJob2", "group2")
+                .Build();
+            jobKey = job.Key;
+
+            Random random = new Random();
+            ITrigger trigger2 = TriggerBuilder.Create()
+              .WithIdentity("trigger2", "group2")
+              .WithCronSchedule("0 " + random.Next(0, 59) + " 2 ? * *")
+              .StartNow()
+              .Build();
+
+            schedule.ScheduleJob(job2, trigger2);
+            schedule.TriggerJob(job2.Key);
         }
 
         public void Start()

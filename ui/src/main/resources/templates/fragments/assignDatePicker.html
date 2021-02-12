@@ -1,0 +1,115 @@
+<div th:fragment="content">
+
+	<style type="text/css">
+		li.picker-switch.accordion-toggle > table span.fa-trash {
+			text-decoration: none;
+			color: black;
+		}
+		
+		.c-checkbox input.active[type=checkbox]:checked + span {
+			border-color: #5d9cec;
+			background-color: #5d9cec;
+		}
+		.c-checkbox input.inactive[type=checkbox]:checked + span {
+			border-color: #fb3;
+			background-color: #fb3;
+		}
+	</style>
+	
+	<script th:inline="javascript">
+	/*<![CDATA[*/
+		/*[+
+		+]*/
+
+		var datePickerService;
+		$(document).ready(function() {
+			datePickerService = new DatePickerService();
+			datePickerService.init();
+		});
+
+		var icons = {
+			time: 'fa fa-clock-o',
+			date: 'fa fa-calendar',
+			up: 'fa fa-chevron-up',
+			down: 'fa fa-chevron-down',
+			previous: 'fa fa-chevron-left',
+			next: 'fa fa-chevron-right',
+			today: 'fa fa-calendar-check-o',
+			clear: 'fa fa-trash',
+			close: 'fa fa-times'
+		};
+		
+		var defaultStartDatePickerOptions = {
+			format: "YYYY-MM-DD",
+			locale: 'da',
+			allowInputToggle: true,
+			showClear: true,
+			icons: icons,
+			minDate: new Date(new Date().getTime())
+		};
+		
+		var defaultStopDatePickerOptions = {
+			format: "YYYY-MM-DD",
+			locale: 'da',
+			allowInputToggle: true,
+			showClear: true,
+			icons: icons,
+			minDate: new Date(new Date().getTime() + 24 * 60 * 60 * 1000),
+			useCurrent: false //Important! See issue #1075
+		}
+		
+		function DatePickerService() {
+			this.init = function() {
+				
+				// Initialize DatePicker
+				$('#startDatePicker').datetimepicker(defaultStartDatePickerOptions);
+				$('#stopDatePicker').datetimepicker(defaultStopDatePickerOptions);
+				$('#groupStartDatePicker').datetimepicker(defaultStartDatePickerOptions);
+				$('#groupStopDatePicker').datetimepicker(defaultStopDatePickerOptions);
+				
+				// UserRoles
+				$("#startDatePicker").on("dp.change", function (e) {
+					var minDate;
+					if (e.date) {
+						minDate = new Date(e.date + 24 * 60 * 60 * 1000);
+					} else {
+						minDate = new Date(new Date().getTime() + 24 * 60 * 60 * 1000);
+					}
+					$('#stopDatePicker').data("DateTimePicker").minDate(minDate);
+					
+					if ($('#stopDatePicker').data("date") && $('#stopDatePicker').data("DateTimePicker").date().toDate() < minDate) {
+						$('#stopDatePicker').data("DateTimePicker").date(minDate);
+					}
+				});
+
+				$("#stopDatePicker").on("dp.change", function (e) {
+					if (!$('#startDatePicker').data('date')) {
+						$('#startDatePicker').data("DateTimePicker").date(new Date());
+					}
+				});
+				
+				// RoleGroups
+				$("#groupStartDatePicker").on("dp.change", function (e) {
+					var minDate;
+					if (e.date) {
+						minDate = new Date(e.date + 24 * 60 * 60 * 1000);
+					} else {
+						minDate = new Date(new Date().getTime() + 24 * 60 * 60 * 1000);
+					}
+					$('#groupStopDatePicker').data("DateTimePicker").minDate(minDate);
+					
+					if ($('#groupStopDatePicker').data("date") && $('#groupStopDatePicker').data("DateTimePicker").date().toDate() < e.minDate) {
+						$('#groupStopDatePicker').data("DateTimePicker").date(minDate);
+					}
+				});
+
+				$("#groupStopDatePicker").on("dp.change", function (e) {
+					if (!$('#groupStartDatePicker').data('date')) {
+						$('#groupStartDatePicker').data("DateTimePicker").date(new Date());
+					}
+				});
+			}
+		}
+		/*]]>*/
+	</script>
+</div>

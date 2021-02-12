@@ -12,6 +12,7 @@ import dk.digitalidentity.rc.dao.model.RoleGroup;
 import dk.digitalidentity.rc.dao.model.OrgUnitRoleGroupAssignment;
 import dk.digitalidentity.rc.dao.model.OrgUnitUserRoleAssignment;
 import dk.digitalidentity.rc.dao.model.SystemRoleAssignment;
+import dk.digitalidentity.rc.dao.model.Title;
 import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserRole;
 import dk.digitalidentity.rc.service.ManualRolesService;
@@ -245,5 +246,53 @@ public class ManualRolesHook implements RoleChangeHook {
 				manualRolesService.addUserToQueue(user, userRole);
 			}
 		}
+	}
+
+	@Override
+	public void interceptAddRoleGroupAssignmentOnTitle(Title title, RoleGroup roleGroup, String[] ouUuids) {
+		for (String uuid : ouUuids) {
+			OrgUnit ou = orgUnitService.getByUuid(uuid);
+
+			for (User user : userService.findByOrgUnit(ou)) {
+				if (!user.isDoNotInherit()) {
+					manualRolesService.addUserToQueue(user, roleGroup);
+				}
+			}
+		}
+	}
+
+	@Override
+	public void interceptRemoveRoleGroupAssignmentOnTitle(Title title, RoleGroup roleGroup) {
+		// this one is bad, as we need to find everyone who has this rolegroup, and then put
+		// them on the queue, as we do not know which OUs to filter on
+		
+		List<UserWithRole> userswithRole = userService.getUsersWithRoleGroup(roleGroup, true);
+		for (UserWithRole userWithRole : userswithRole) {
+			manualRolesService.addUserToQueue(userWithRole.getUser(), roleGroup);
+		}
+	}
+
+	@Override
+	public void interceptAddUserRoleAssignmentOnTitle(Title title, UserRole userRole, String[] ouUuids) {
+		for (String uuid : ouUuids) {
+			OrgUnit ou = orgUnitService.getByUuid(uuid);
+
+			for (User user : userService.findByOrgUnit(ou)) {
+				if (!user.isDoNotInherit()) {
+					manualRolesService.addUserToQueue(user, userRole);
+				}
+			}
+		}
+	}
+
+	@Override
+	public void interceptRemoveUserRoleAssignmentOnTitle(Title title, UserRole userRole) {
+		// this one is bad, as we need to find everyone who has this rolegroup, and then put
+		// them on the queue, as we do not know which OUs to filter on
+		
+		List<UserWithRole> userswithRole = userService.getUsersWithUserRole(userRole, true);
+		for (UserWithRole userWithRole : userswithRole) {
+			manualRolesService.addUserToQueue(userWithRole.getUser(), userRole);
+		}		
 	}
 }

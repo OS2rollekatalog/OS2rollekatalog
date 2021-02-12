@@ -41,6 +41,7 @@ BEGIN
 	JOIN users u ON u.uuid = urm.user_uuid
 	JOIN user_roles ur ON ur.id = urm.role_id
 	JOIN it_systems it ON it.id = ur.it_system_id
+	WHERE urm.inactive = 0
 	UNION ALL
 	-- user roles through rolegroups from direct assignments
 	SELECT 
@@ -63,6 +64,7 @@ BEGIN
 	JOIN rolegroup_roles rgr ON rgr.rolegroup_id = urg.rolegroup_id
 	JOIN user_roles ur ON ur.id = rgr.role_id
 	JOIN it_systems it ON it.id = ur.it_system_id
+	WHERE urg.inactive = 0
 	UNION ALL
 	-- user roles from position assignments
 	SELECT 
@@ -85,6 +87,7 @@ BEGIN
 	JOIN ous ou ON ou.uuid = p.ou_uuid
 	JOIN user_roles ur ON ur.id = pr.role_id
 	JOIN it_systems it ON it.id = ur.it_system_id
+	WHERE pr.inactive = 0
 	UNION ALL 
 	-- user roles through rolegroup from position assignments
 	SELECT
@@ -108,7 +111,8 @@ BEGIN
 	JOIN ous ou ON ou.uuid = p.ou_uuid
 	JOIN rolegroup_roles rgr ON rgr.rolegroup_id = prg.rolegroup_id
 	JOIN user_roles ur ON ur.id = rgr.role_id
-	JOIN it_systems it ON it.id = ur.it_system_id;
+	JOIN it_systems it ON it.id = ur.it_system_id
+	WHERE prg.inactive = 0;
 
   -- user roles from orgunits
 	WITH cte
@@ -125,7 +129,7 @@ BEGIN
 		JOIN ou_roles our ON our.ou_uuid = o.uuid-- AND our.inherit = 1
 
 		WHERE 
-			o.active = 1
+			o.active = 1 AND our.inactive = 0
 
 		UNION ALL
 
@@ -173,7 +177,8 @@ BEGIN
 	JOIN positions p ON p.ou_uuid = cte.ou_uuid
 	JOIN users u ON u.uuid = p.user_uuid
 	JOIN user_roles ur ON ur.id = our.role_id
-	JOIN it_systems it ON it.id = ur.it_system_id;
+	JOIN it_systems it ON it.id = ur.it_system_id
+	WHERE our.inactive = 0;
 
 	-- user roles through rolegroups from orgunits
 	WITH cte
@@ -189,7 +194,7 @@ BEGIN
 		FROM ous o
 		JOIN ou_rolegroups ourg ON ourg.ou_uuid = o.uuid
 		WHERE 
-			o.active = 1
+			o.active = 1 AND ourg.inactive = 0
 
 		UNION ALL
 
@@ -242,7 +247,8 @@ BEGIN
 	JOIN rolegroup rg ON rg.id = ourg.rolegroup_id
 	JOIN rolegroup_roles rgr ON rgr.rolegroup_id = ourg.rolegroup_id
 	JOIN user_roles ur ON ur.id = rgr.role_id
-	JOIN it_systems it ON it.id = ur.it_system_id;
+	JOIN it_systems it ON it.id = ur.it_system_id
+	WHERE ourg.inactive = 0;
 
   -- TODO: review PSO: the two new statements below --
 
@@ -263,7 +269,8 @@ BEGIN
   JOIN ous ou ON ou.uuid = p.ou_uuid
   JOIN users u ON u.uuid = p.user_uuid
   JOIN user_roles ur ON ur.id = tr.role_id
-  JOIN it_systems it ON it.id = ur.it_system_id;
+  JOIN it_systems it ON it.id = ur.it_system_id
+  WHERE tr.inactive = 0;
 
   
   -- role groups through titles
@@ -285,7 +292,8 @@ BEGIN
   JOIN users u ON u.uuid = p.user_uuid
   JOIN rolegroup_roles rgr ON rgr.rolegroup_id = trg.rolegroup_id
   JOIN user_roles ur ON ur.id = rgr.role_id
-  JOIN it_systems it ON it.id = ur.it_system_id;
+  JOIN it_systems it ON it.id = ur.it_system_id
+  WHERE trg.inactive = 0;
 	
 END
 GO

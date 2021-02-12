@@ -108,8 +108,8 @@ public class ItSystemApiDocumentation {
 		User user = userService.getByUserId(testUserId);
 		UserRole userRole = userRoleService.getAll().get(2);
 		RoleGroup roleGroup = roleGroupService.getAll().get(0);
-		userService.addRoleGroup(user, roleGroup);
-		userService.addUserRole(user, userRole);
+		userService.addRoleGroup(user, roleGroup, null, null);
+		userService.addUserRole(user, userRole, null, null);
 
 		itSystemId = itSystemService.getAll().stream().filter(its -> its.isCanEditThroughApi()).findFirst().get().getId();
 		

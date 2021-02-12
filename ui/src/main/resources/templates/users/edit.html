@@ -116,14 +116,14 @@
                                 <tr>
                                     <th class="col-md-1" th:text="#{html.entity.rolegroup.enabled}"/>
                                     <th class="col-md-2" th:text="#{html.entity.rolegroup.name}"/>
-                                    <th class="col-md-2" th:text="#{html.enum.assignmenttype}"/>
+                                    <th class="col-md-2" th:text="#{html.entity.rolegroup.validity}"/>
                                     <th class="col-md-2" th:text="#{html.entity.rolegroup.itsystem}"/>
                                     <th class="col-md-5" th:text="#{html.entity.rolegroup.description}"/>
                                 </tr>
                                 </thead>
 
                                 <tbody>
-                                <tr th:each="addRole : ${addRoles}">
+                                <tr th:each="addRole : ${addRoles}" th:id="${addRole.role.id}+'row'">
                                     <td>
                                         <div class="checkbox c-checkbox">
                                             <label>
@@ -133,12 +133,21 @@
                                                 <span class="fa fa-check"></span>
                                             </label>
                                         </div>
+                                        <label th:id="${addRole.role.id}+'sortLabel'" style="display:none" th:text="${addRole.checked}"/>
                                     </td>
                                     <td>
                                     	<span th:text="${addRole.role.name}"/>
                                     	<div th:if="${addRole.assignedThrough != null}" style="font-size: smaller; color: red;" th:text="'(' + #{__${addRole.assignedThrough.message}__} + ')'"/>
                                     </td>
-                                    <td th:text="#{${addRole.assignment.assignmentType.value}(${addRole.assignment.position})}"/>
+                                    
+                                    <td class="fromToDate">
+                                    	<ul th:if="${addRole.assignment.startDate != null or addRole.assignment.stopDate != null}" style="padding-left: 0px; list-style-type: none;">
+	                                    	<li th:if="${addRole.assignment.startDate != null}" th:text="#{html.word.assigned} + ' ' + ${addRole.assignment.startDate}"></li>
+	                                    	<li th:if="${addRole.assignment.stopDate != null}" th:text="#{html.word.deassigned} + ' ' + ${addRole.assignment.stopDate}"></li>
+                                    	</ul>
+                                    	<span th:if="${addRole.checked == true and addRole.assignment.startDate == null and addRole.assignment.stopDate == null}" th:text="#{html.word.indefinite}"/>
+                                    </td>
+
                                     <td th:text="${addRole.role.itSystem.name}"/>
                                     <td th:text="${addRole.role.description}"/>
                                 </tr>
@@ -153,13 +162,13 @@
                                 <tr>
                                     <th class="col-md-1" th:text="#{html.entity.rolegroup.enabled}"/>
                                     <th class="col-md-2" th:text="#{html.entity.rolegroup.name}"/>
-                                    <th class="col-md-2" th:text="#{html.enum.assignmenttype}"/>
+                                    <th class="col-md-2" th:text="#{html.entity.rolegroup.validity}"/>
                                     <th class="col-md-7" th:text="#{html.entity.rolegroup.description}"/>
                                 </tr>
                                 </thead>
 
                                 <tbody>
-                                <tr th:each="addRolegroup : ${addRoleGroups}">
+                                <tr th:each="addRolegroup : ${addRoleGroups}" th:id="${addRolegroup.roleGroup.id}+'groupRow'">
                                     <td>
                                         <div class="checkbox c-checkbox">
                                             <label>
@@ -169,9 +178,21 @@
                                                 <span class="fa fa-check"></span>
                                             </label>
                                         </div>
+                                        <label th:id="${addRolegroup.roleGroup.id}+'groupSortLabel'" style="display:none" th:text="${addRolegroup.checked}"/>
                                     </td>
-                                    <td th:text="${addRolegroup.roleGroup.name}"/>
-                                    <td th:text="#{${addRolegroup.assignment.assignmentType.value}(${addRolegroup.assignment.position})}"/>
+                                    <td>
+                                    	<span th:text="${addRolegroup.roleGroup.name}"/>
+                                    	<!-- TODO: was never implemented on backend 
+                                    	<div th:if="${addRolegroup.assignedThrough != null}" style="font-size: smaller; color: red;" th:text="'(' + #{__${addRolegroup.assignedThrough.message}__} + ')'"/>
+                                        -->
+                                    </td>                                    
+                                    <td class="fromToDate">
+                                    	<ul th:if="${addRolegroup.assignment.startDate != null or addRolegroup.assignment.stopDate != null}" style="padding-left: 0px; list-style-type: none;">
+	                                    	<li th:if="${addRolegroup.assignment.startDate != null}" th:text="#{html.word.assigned} + ' ' + ${addRolegroup.assignment.startDate}"></li>
+	                                    	<li th:if="${addRolegroup.assignment.stopDate != null}" th:text="#{html.word.deassigned} + ' ' + ${addRolegroup.assignment.stopDate}"></li>
+                                    	</ul>
+                                    	<span th:if="${addRolegroup.checked == true and addRolegroup.assignment.startDate == null and addRolegroup.assignment.stopDate == null}" th:text="#{html.word.indefinite}"/>
+                                    </td>
                                     <td th:text="${addRolegroup.roleGroup.description}"/>
                                 </tr>
                                 </tbody>
@@ -231,6 +252,34 @@
                 <div class="alert alert-warning" style="margin-top: 10px;" role="alert" id="modal-positions-alert">
                     &nbsp;
                 </div>
+                
+               	<div style="height: 70px;">
+					<h4 class="md-12" th:text="#{html.word.validity}" />
+
+					<b class="col-sm-1" style="padding-top: 7px;" th:text="#{html.word.from}"></b>
+					<div class="col-md-5">
+						<div class="form-group">
+							<div class="input-group date" id="startDatePicker">
+								<input type="text" class="form-control"/>
+								<span class="input-group-addon">
+									<span class="fa fa-calendar"></span>
+								</span>
+							</div>
+						</div>
+					</div>
+
+					<b class="col-sm-1" style="padding-top: 7px;" th:text="#{html.word.to}"></b>
+					<div class="col-md-5">
+						<div class="form-group">
+							<div class="input-group date" id="stopDatePicker">
+								<input type="text" class="form-control" />
+								<span class="input-group-addon">
+									<span class="fa fa-calendar"></span>
+								</span>
+							</div>
+						</div>
+					</div>
+				</div>
             </div>
 
             <div class="modal-footer">
@@ -273,6 +322,34 @@
                 <div class="alert alert-warning" role="alert" id="modal-groups-alert">
                     &nbsp;
                 </div>
+                
+               	<div style="height: 70px;">
+					<h4 class="md-12" th:text="#{html.word.validity}" />
+
+					<b class="col-sm-1" style="padding-top: 7px;" th:text="#{html.word.from}"></b>
+					<div class="col-md-5">
+						<div class="form-group">
+							<div class="input-group date" id="groupStartDatePicker">
+								<input type="text" class="form-control"/>
+								<span class="input-group-addon">
+									<span class="fa fa-calendar"></span>
+								</span>
+							</div>
+						</div>
+					</div>
+
+					<b class="col-sm-1" style="padding-top: 7px;" th:text="#{html.word.to}"></b>
+					<div class="col-md-5">
+						<div class="form-group">
+							<div class="input-group date" id="groupStopDatePicker">
+								<input type="text" class="form-control" />
+								<span class="input-group-addon">
+									<span class="fa fa-calendar"></span>
+								</span>
+							</div>
+						</div>
+					</div>
+				</div>
             </div>
 
             <div class="modal-footer">
@@ -287,11 +364,12 @@
 		.table .checkbox {
 			margin-left: 10px;
 			width: auto;
-		}
+		}		
 	</style>
 
 	<nav th:replace="fragments/footer :: footer"/>
-	<script th:replace="fragments/datatables :: datatables " />
+	<script th:replace="fragments/datatables :: datatables(orderColumnValue=1) " />	
+	<script th:replace="fragments/assignDatePicker :: content " />
 
 	<script th:inline="javascript">
 		/*<![CDATA[*/
@@ -332,7 +410,7 @@
 		$('.assign_group_directly').click(assignGroupDirectlyClicked);
 		$('#closeModal').click(closeModalAndRemoveCheckbox);
 		$('#closeRoleGroupModal').click(closeRoleGroupModalAndRemoveCheckbox);
-
+		
 		//// BEGIN KLE CODE ////
 
 		function addCheckboxListeners() {
@@ -341,7 +419,7 @@
 			$('.inherit-checkbox').change(inheritCheckboxChange);
 		}
 		
-		$(document).ready(function() {
+		$(document).ready(function() {			
 			addCheckboxListeners();
 
 			var selectedTab = localStorage.getItem(user);
@@ -553,6 +631,8 @@
 			var chosenCheckbox = table.find("#" + modalGroups.attr("rolegroupid"));
 			if (chosenCheckbox != null) {
 				chosenCheckbox.prop('checked', false);
+				$("#"+modalGroups.attr("rolegroupid")+"groupSortLabel").text(false);
+				$("#listTable2").dataTable().api().row("#"+modalGroups.attr("rolegroupid")+"groupRow").invalidate('dom').draw();
 			}
 
 			modalGroups.modal('hide');
@@ -563,8 +643,10 @@
 			var chosenCheckbox = table.find("#" + modal.attr("roleid"));
 			if (chosenCheckbox != null) {
 				chosenCheckbox.prop('checked', false);
+				$("#"+modal.attr("roleid")+"sortLabel").text(false);
+				$("#listTable1").dataTable().api().row("#"+modal.attr("roleid")+"row").invalidate('dom').draw();
 			}
-
+			
 			modal.modal('hide');
 		}
 		
@@ -588,9 +670,14 @@
 		}
 
 		function positionCheckboxChanged() {
+			var chosenCheckbox = $(this);
 			var userUuid = $(this).val();
 			var roleid = this.id;
 			var checked = this.checked;
+			var table = $("#listTable1");
+			var label = $("#"+roleid+"sortLabel");
+			label.text(checked);
+			table.dataTable().api().row("#"+roleid+"row").invalidate('dom').draw();
 
 			checkUserAssignmentsBeforePerform("role", roleid, userUuid, checked, function(roleid, userUuid, checked, alreadyAssignedThroughOu, alreadyAssignedThroughRoleGroup, alreadyAssignedThroughTitle) {
 				var optionalSuccessMessage;
@@ -608,13 +695,17 @@
 	
 					var endpoint = url + userUuid + '/' + 'removerole' + '/' + roleid;
 					
-					defaultAjaxPost(endpoint, optionalSuccessMessage);
+					removeRoleAssignment(endpoint, optionalSuccessMessage, chosenCheckbox);
 				}
 				else {
 					modal.modal({
 					    backdrop: 'static',
 					    keyboard: false
 					});
+
+					$('#stopDatePicker').data("DateTimePicker").clear();
+					$('#startDatePicker').data("DateTimePicker").clear();
+					$('#startDatePicker').data("DateTimePicker").date(new Date());
 
 					modal.attr("roleid", roleid);
 					modal.attr("userUuid", userUuid);
@@ -639,6 +730,29 @@
 			});
 		}
 		
+		function removeRoleAssignment(endpoint, optionalSuccessMessage, chosenCheckbox) {
+			$.ajax({
+				url: endpoint,
+				method: "POST",
+				headers: {
+					'X-CSRF-TOKEN': token
+				},
+				error : function(response) {
+					showErrorNotification(fieldNotUpdatedMsg);
+				},
+				success : function(response) {
+					if (optionalSuccessMessage) {
+						showWarnNotification(optionalWarningMessage);
+					}
+					else {
+						showInfoNotification(fieldUpdatedMsg);
+					}
+					var tr = chosenCheckbox.parents("tr");
+					tr.find(".fromToDate").html('');
+				}
+			});
+		}
+		
 		function assignRoleDirectlyClicked() {
 			var positionUuid = $(this).val();
 			var roleid = modal.attr("roleid");
@@ -647,7 +761,11 @@
 			var table = $("#listTable1");
 			var chosenCheckbox = table.find("#" + modal.attr("roleid"));
 			
-			$.ajax(getAjaxObject(url + userUuid + '/addrole/' + roleid, fieldUpdatedMsg, fieldNotUpdatedMsg, chosenCheckbox));
+			var startDate = $('#startDatePicker').data('date');
+			var stopDate = $('#stopDatePicker').data('date');
+			var dates = "?startDate=" + startDate + "&stopDate=" + stopDate;
+			
+			$.ajax(getAjaxObject(url + userUuid + '/addrole/' + roleid + dates, fieldUpdatedMsg, fieldNotUpdatedMsg, chosenCheckbox));
 			modal.modal('hide');
 		}
 		
@@ -658,15 +776,24 @@
 
 			var table = $("#listTable1");
 			var chosenCheckbox = table.find("#" + modal.attr("roleid"));
+			
+			var startDate = $('#startDatePicker').data('date');
+			var stopDate = $('#stopDatePicker').data('date');
+			var dates = "?startDate=" + startDate + "&stopDate=" + stopDate;
 
-			$.ajax(getAjaxObject(url + 'position/' + positionUuid + '/addrole/' + roleid, fieldUpdatedMsg, fieldNotUpdatedMsg, chosenCheckbox));
-			modal.modal('hide');		
+			$.ajax(getAjaxObject(url + 'position/' + positionUuid + '/addrole/' + roleid + dates, fieldUpdatedMsg, fieldNotUpdatedMsg, chosenCheckbox));
+			modal.modal('hide');
 		}
 
 		function groupCheckboxChanged() {
+			var chosenCheckbox = $(this);
 			var userUuid = $(this).val();
 			var groupId = this.id;
 			var checked = this.checked;
+			var table = $("#listTable2");
+			var label = $("#"+groupId+"groupSortLabel");
+			label.text(checked);
+			table.dataTable().api().row("#"+groupId+"groupRow").invalidate('dom').draw();
 
 			checkUserAssignmentsBeforePerform("rolegroup", groupId, userUuid, checked, function(groupId, userUuid, checked, alreadyAssignedThroughOu, alreadyAssignedThroughRoleGroup) {
 				var optionalSuccessMessage;
@@ -681,13 +808,17 @@
 	
 					var endpoint = url + userUuid + '/removegroup/' + groupId;
 					
-					defaultAjaxPost(endpoint, optionalSuccessMessage);
+					removeRoleAssignment(endpoint, optionalSuccessMessage, chosenCheckbox);
 				}
 				else {
 					modalGroups.modal({
 					    backdrop: 'static',
 					    keyboard: false
 					});
+
+					$('#groupStopDatePicker').data("DateTimePicker").clear();
+					$('#groupStartDatePicker').data("DateTimePicker").clear();
+					$('#groupStartDatePicker').data("DateTimePicker").date(new Date());
 
 					modalGroups.attr("rolegroupid", groupId);
 					modalGroups.attr("userUuid", userUuid);
@@ -707,7 +838,7 @@
 				}
 			});
 		}
-		
+				
 		function assignGroupDirectlyClicked() {		
 			var positionUuid = $(this).val();
 			var groupid = modalGroups.attr("rolegroupid");
@@ -716,8 +847,12 @@
 			var table = $("#listTable2");
 			var chosenCheckbox = table.find("#" + modalGroups.attr("rolegroupid"));
 			
-			$.ajax(getAjaxObject(url + userUuid + '/addgroup/' + groupid,fieldUpdatedMsg, fieldNotUpdatedMsg, chosenCheckbox));
-			modalGroups.modal('hide');		
+			var startDate = $('#groupStartDatePicker').data('date');
+			var stopDate = $('#groupStopDatePicker').data('date');
+			var dates = "?startDate=" + startDate + "&stopDate=" + stopDate;
+			
+			$.ajax(getAjaxObject(url + userUuid + '/addgroup/' + groupid + dates,fieldUpdatedMsg, fieldNotUpdatedMsg, chosenCheckbox));
+			modalGroups.modal('hide');
 		}
 		
 		function assignGroupClicked() {
@@ -727,11 +862,15 @@
 
 			var table = $("#listTable2");
 			var chosenCheckbox = table.find("#" + modalGroups.attr("rolegroupid"));
+			
+			var startDate = $('#groupStartDatePicker').data('date');
+			var stopDate = $('#groupStopDatePicker').data('date');
+			var dates = "?startDate=" + startDate + "&stopDate=" + stopDate;
 
-			$.ajax(getAjaxObject(url + 'position/' + positionUuid + '/addgroup/' + groupid, fieldUpdatedMsg, fieldNotUpdatedMsg, chosenCheckbox));
+			$.ajax(getAjaxObject(url + 'position/' + positionUuid + '/addgroup/' + groupid + dates, fieldUpdatedMsg, fieldNotUpdatedMsg, chosenCheckbox));
 			modalGroups.modal('hide');
 		}
-		
+
 		// TODO: move these into a utility js file (exists in edit.html for users/orgunits)
 		function defaultAjaxPost(endpoint, optionalWarningMessage) {
 			$.ajax({
@@ -742,6 +881,7 @@
 				},
 				error : function(response) {
 					showErrorNotification(fieldNotUpdatedMsg);
+					return false;
 				},
 				success : function(response) {
 					if (optionalWarningMessage) {
@@ -750,6 +890,7 @@
 					else {
 						showInfoNotification(fieldUpdatedMsg);
 					}
+					return true;
 				}
 			});
 		}

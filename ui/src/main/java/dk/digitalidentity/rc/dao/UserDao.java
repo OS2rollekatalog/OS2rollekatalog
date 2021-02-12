@@ -35,9 +35,15 @@ public interface UserDao extends CrudRepository<User, String>, JpaSpecificationE
 	User getByUuidAndActiveTrue(String uuid);
 	List<User> getByExtUuidAndActiveTrue(String uuid);
 	User getByUserIdAndActiveTrue(String userId);
-	List<User> findByActiveTrueAndRoleGroupAssignmentsRoleGroup(RoleGroup role);
-	List<User> findByActiveTrueAndUserRoleAssignmentsUserRole(UserRole userRole);
 	
+	@Deprecated
+	List<User> findByActiveTrueAndRoleGroupAssignmentsRoleGroup(RoleGroup role);
+	@Deprecated
+	List<User> findByActiveTrueAndUserRoleAssignmentsUserRole(UserRole userRole);
+
+	List<User> findByActiveTrueAndUserRoleAssignmentsUserRoleAndUserRoleAssignmentsInactive(UserRole userRole, boolean inactive);
+	List<User> findByActiveTrueAndRoleGroupAssignmentsRoleGroupAndRoleGroupAssignmentsInactive(RoleGroup roleGroup, boolean inactive);
+
 	User getTopByActiveTrueOrderByLastUpdatedDesc();
 
 	@Query(nativeQuery = true, value = "SELECT * FROM users u WHERE u.uuid IN (SELECT DISTINCT(manager) FROM ous)")

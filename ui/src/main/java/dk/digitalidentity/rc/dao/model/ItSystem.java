@@ -10,6 +10,8 @@ import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
 import javax.persistence.Id;
 import javax.persistence.Table;
+import javax.persistence.Temporal;
+import javax.persistence.TemporalType;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 
@@ -61,6 +63,16 @@ public class ItSystem implements AuditLoggable {
 
 	@Column
 	private boolean canEditThroughApi;
+	
+	@Column
+	private String notificationEmail;
+
+	@Temporal(TemporalType.TIMESTAMP)
+	@Column
+	private Date deletedTimestamp;
+
+	@Column
+	private boolean deleted;
 
 	@JsonIgnore
 	@Override

@@ -140,12 +140,17 @@
 		                              <span th:text="#{html.navbar.report.templates}" />
 		                           </a>
 		                        </li>
+		                        <li th:class="${page == 'report.custom'} ? 'active' : ''">
+									<a th:href="@{/ui/report/custom}">
+		                              <span th:text="#{html.navbar.report.custom}" />
+		                           </a>
+		                        </li>
 		                    </ul>
 						</li>
 					</th:block>
 					
 					<th:block sec:authorize="hasRole('ROLE_KLE_ADMINISTRATOR')">
-						<li th:if="${@environment.getProperty('kle.ui.enabled')}">
+						<li th:if="${@roleCatalogueConfiguration.getIntegrations().getKle().isUiEnabled() == true}">
 							<a href="#kle" data-toggle="collapse">
 								<em class="fa fa-thumb-tack"></em>
 								<span th:text="#{html.navbar.kle}" />

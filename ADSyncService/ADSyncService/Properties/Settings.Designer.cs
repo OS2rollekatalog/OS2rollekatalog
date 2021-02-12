@@ -12,7 +12,7 @@ namespace ADSyncService.Properties {
     
     
     [global::System.Runtime.CompilerServices.CompilerGeneratedAttribute()]
-    [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.VisualStudio.Editors.SettingsDesigner.SettingsSingleFileGenerator", "16.6.0.0")]
+    [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.VisualStudio.Editors.SettingsDesigner.SettingsSingleFileGenerator", "16.8.1.0")]
     internal sealed partial class Settings : global::System.Configuration.ApplicationSettingsBase {
         
         private static Settings defaultInstance = ((Settings)(global::System.Configuration.ApplicationSettingsBase.Synchronized(new Settings())));
@@ -20,24 +20,6 @@ namespace ADSyncService.Properties {
         public static Settings Default {
             get {
                 return defaultInstance;
-            }
-        }
-        
-        [global::System.Configuration.ApplicationScopedSettingAttribute()]
-        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("https://kommune.rollekatalog.dk")]
-        public string ApiUrl {
-            get {
-                return ((string)(this["ApiUrl"]));
-            }
-        }
-        
-        [global::System.Configuration.ApplicationScopedSettingAttribute()]
-        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("xxxxxxxxxxxxxxxxxxxxxx")]
-        public string ApiKey {
-            get {
-                return ((string)(this["ApiKey"]));
             }
         }
         
@@ -52,28 +34,125 @@ namespace ADSyncService.Properties {
         
         [global::System.Configuration.ApplicationScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("False")]
-        public bool CreateGroups {
+        [global::System.Configuration.DefaultSettingValueAttribute("https://kommune.rollekatalog.dk")]
+        public string ApiUrl {
             get {
-                return ((bool)(this["CreateGroups"]));
+                return ((string)(this["ApiUrl"]));
+            }
+        }
+        
+        [global::System.Configuration.ApplicationScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("xxxxxxxxxxxxxxxxxxxxxxxxxx")]
+        public string ApiKey {
+            get {
+                return ((string)(this["ApiKey"]));
             }
         }
         
         [global::System.Configuration.ApplicationScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
         [global::System.Configuration.DefaultSettingValueAttribute("False")]
-        public bool DeleteGroups {
+        public bool CreateDeleteFeature_Enabled {
             get {
-                return ((bool)(this["DeleteGroups"]));
+                return ((bool)(this["CreateDeleteFeature_Enabled"]));
             }
         }
         
         [global::System.Configuration.ApplicationScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("OU=groups,DC=kommune,DC=dk")]
-        public string GroupOU {
+        [global::System.Configuration.DefaultSettingValueAttribute("True")]
+        public bool CreateDeleteFeature_CreateEnabled {
             get {
-                return ((string)(this["GroupOU"]));
+                return ((bool)(this["CreateDeleteFeature_CreateEnabled"]));
+            }
+        }
+        
+        [global::System.Configuration.ApplicationScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("True")]
+        public bool CreateDeleteFeature_DeleteEnabled {
+            get {
+                return ((bool)(this["CreateDeleteFeature_DeleteEnabled"]));
+            }
+        }
+        
+        [global::System.Configuration.ApplicationScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("OU=groups,DC=digitalidentity,DC=dk")]
+        public string CreateDeleteFeature_OU {
+            get {
+                return ((string)(this["CreateDeleteFeature_OU"]));
+            }
+        }
+        
+        [global::System.Configuration.ApplicationScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("True")]
+        public bool MembershipSyncFeature_Enabled {
+            get {
+                return ((bool)(this["MembershipSyncFeature_Enabled"]));
+            }
+        }
+        
+        [global::System.Configuration.ApplicationScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("True")]
+        public bool MembershipSyncFeature_IgnoreUsersWithoutCpr {
+            get {
+                return ((bool)(this["MembershipSyncFeature_IgnoreUsersWithoutCpr"]));
+            }
+        }
+        
+        [global::System.Configuration.ApplicationScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("employeeNumber")]
+        public string MembershipSyncFeature_CprAttribute {
+            get {
+                return ((string)(this["MembershipSyncFeature_CprAttribute"]));
+            }
+        }
+        
+        [global::System.Configuration.ApplicationScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("False")]
+        public bool BackSyncFeature_Enabled {
+            get {
+                return ((bool)(this["BackSyncFeature_Enabled"]));
+            }
+        }
+        
+        [global::System.Configuration.ApplicationScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute(@"<?xml version=""1.0"" encoding=""utf-16""?>
+<ArrayOfString xmlns:xsi=""http://www.w3.org/2001/XMLSchema-instance"" xmlns:xsd=""http://www.w3.org/2001/XMLSchema"">
+  <string>2399;OU=system1,OU=Groups,DC=digitalidentity,DC=dk</string>
+  <string>2400;OU=system2,OU=Groups,DC=digitalidentity,DC=dk</string>
+</ArrayOfString>")]
+        public global::System.Collections.Specialized.StringCollection BackSyncFeature_OUs {
+            get {
+                return ((global::System.Collections.Specialized.StringCollection)(this["BackSyncFeature_OUs"]));
+            }
+        }
+        
+        [global::System.Configuration.ApplicationScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("False")]
+        public bool ItSystemGroupFeature_Enabled {
+            get {
+                return ((bool)(this["ItSystemGroupFeature_Enabled"]));
+            }
+        }
+        
+        [global::System.Configuration.ApplicationScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("<?xml version=\"1.0\" encoding=\"utf-16\"?>\r\n<ArrayOfString xmlns:xsi=\"http://www.w3." +
+            "org/2001/XMLSchema-instance\" xmlns:xsd=\"http://www.w3.org/2001/XMLSchema\">\r\n  <s" +
+            "tring>1;CN=ItSystemOne,OU=Groups,DC=digitalidentity,DC=dk</string>\r\n</ArrayOfStr" +
+            "ing>")]
+        public global::System.Collections.Specialized.StringCollection ItSystemGroupFeature_SystemMap {
+            get {
+                return ((global::System.Collections.Specialized.StringCollection)(this["ItSystemGroupFeature_SystemMap"]));
             }
         }
     }

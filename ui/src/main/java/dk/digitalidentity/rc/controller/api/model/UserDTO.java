@@ -14,7 +14,7 @@ public class UserDTO {
 	private String email;
 	private String phone;
 	private String cpr;
-	private boolean doNotInherit; 
+	private boolean doNotInherit;
 	private List<PositionDTO> positions;
 	private List<String> klePerforming;
 	private List<String> kleInterest;

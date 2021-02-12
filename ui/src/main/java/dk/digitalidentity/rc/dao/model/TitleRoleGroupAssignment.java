@@ -1,5 +1,6 @@
 package dk.digitalidentity.rc.dao.model;
 
+import java.time.LocalDate;
 import java.util.Date;
 import java.util.List;
 
@@ -47,4 +48,13 @@ public class TitleRoleGroupAssignment {
 	@CollectionTable(name = "title_rolegroups_ous", joinColumns = @JoinColumn(name = "title_rolegroups_id"))
 	@Column(name = "ou_uuid")
 	private List<String> ouUuids;
+
+	@Column
+	private LocalDate startDate;
+	
+	@Column
+	private LocalDate stopDate;
+	
+	@Column
+	private boolean inactive;
 }

@@ -95,13 +95,13 @@ public class HistoryService {
 	}
 	
 	public Map<String, List<HistoryKleAssignment>> getKleAssignments(LocalDate localDate) {
-		return historyKleAssignmentDao.findByDate(localDate.getYear(), localDate.getMonthValue(), localDate.getDayOfMonth())
+		return historyKleAssignmentDao.findByDate(localDate.toString())
 									  .stream()
 									  .collect(Collectors.groupingBy(HistoryKleAssignment::getUserUuid));
 	}
 	
 	public List<HistoryKleAssignment> getKleAssignments(LocalDate localDate, String userUuid) {
-		return historyKleAssignmentDao.findByDateAndUserUuid(localDate.getYear(), localDate.getMonthValue(), localDate.getDayOfMonth(), userUuid);
+		return historyKleAssignmentDao.findByDateAndUserUuid(localDate.toString(), userUuid);
 	}
 
 	public Map<String, List<HistoryOUKleAssignment>> getOUKleAssignments(LocalDate localDate) {

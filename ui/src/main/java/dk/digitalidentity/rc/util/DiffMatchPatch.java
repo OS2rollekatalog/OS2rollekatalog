@@ -161,9 +161,13 @@ public class DiffMatchPatch {
 	 * @return Linked List of Diff objects.
 	 */
 	private LinkedList<Diff> diff_main(String text1, String text2, boolean checklines, long deadline) {
-		// Check for null inputs.
-		if (text1 == null || text2 == null) {
-			throw new IllegalArgumentException("Null inputs. (diff_main)");
+
+		if (text1 == null) {
+			text1 = "";
+		}
+		
+		if (text2 == null) {
+			text2 = "";
 		}
 
 		// Check for equality (speedup).

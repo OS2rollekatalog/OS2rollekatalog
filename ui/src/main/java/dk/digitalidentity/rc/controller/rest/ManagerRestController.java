@@ -160,13 +160,13 @@ public class ManagerRestController {
 				case USERROLE:
 					UserRole userRole = userRoleService.getById(request.getRoleId());
 					if (userRole != null) {
-						userService.addUserRole(request.getRequester(), userRole);
+						userService.addUserRole(request.getRequester(), userRole, null, null);
 					}
 					break;
 				case ROLEGROUP:
 					RoleGroup roleGroup = roleGroupService.getById(request.getRoleId());
 					if (roleGroup != null) {
-						userService.addRoleGroup(request.getRequester(), roleGroup);
+						userService.addRoleGroup(request.getRequester(), roleGroup, null, null);
 					}
 					break;
 				default:

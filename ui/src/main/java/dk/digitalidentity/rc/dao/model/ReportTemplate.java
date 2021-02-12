@@ -42,4 +42,13 @@ public class ReportTemplate {
 
 	@Column
 	private boolean showInactiveUsers;
+	
+	@Column
+	private String managerFilter;
+	
+	@Column
+	private String unitFilter;
+	
+	@Column
+	private String itsystemFilter;
 }

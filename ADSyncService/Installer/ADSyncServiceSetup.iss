@@ -2,9 +2,9 @@
 ; To generate the installer, define the variable MyAppSourceDir MUST point to the Directory where the dll's should be copied from
 ; The script may be executed from the console-mode compiler - iscc "c:\isetup\samples\my script.iss" or from the Inno Setup Compiler UI
 #define AppId "{{d438b389-0f50-4b9e-8311-6e9f81774587}"
-#define AppSourceDir "\\VBOXSVR\brian\projects\role-catalogue\ADSyncService\ADSyncService\bin\Debug\"
+#define AppSourceDir "z:\projects\role-catalogue\ADSyncService\ADSyncService\bin\Debug\"
 #define AppName "ADSyncService"
-#define AppVersion "1.2"
+#define AppVersion "1.3.0"
 #define AppPublisher "Digital Identity"
 #define AppURL "http://digital-identity.dk/"
 #define AppExeName "ADSyncService.exe"

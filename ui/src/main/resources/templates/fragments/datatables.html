@@ -12,10 +12,19 @@
    			var infoFilteredTxt = [[#{html.datatables.info.filtered}]];
 			var prevTxt = [[#{html.datatables.prev}]];
 			var nextTxt = [[#{html.datatables.next}]];
+            var orderColumnValue = [[${orderColumnValue}]];
 +]*/
+			var orderColumn = 0;
+			if (orderColumnValue) {
+				orderColumn = orderColumnValue;
+			}
+
 		    $('.listTable').DataTable({
 		        'paging':   true,
-		        'ordering': true, 
+		        'ordering': true,
+		        'order': [
+		        	[ orderColumn, 'asc' ]
+		        ],
 		        'info':     true,
                 'stateSave': true,
 				"pageLength": 100,

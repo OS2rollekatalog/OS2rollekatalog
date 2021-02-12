@@ -1,0 +1,81 @@
+﻿using System.Collections.Specialized;
+using System.Collections.Generic;
+
+namespace ADSyncService
+{
+    class ItSystemGroupService
+    {
+        private static log4net.ILog log = log4net.LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
+        private static StringCollection systemMap = Properties.Settings.Default.ItSystemGroupFeature_SystemMap;
+
+        public static void PerformUpdate(RoleCatalogueStub roleCatalogueStub, ADStub adStub)
+        {
+            foreach (string map in systemMap)
+            {
+                string[] tokens = map.Split(';');
+                if (tokens.Length != 2)
+                {
+                    log.Warn("Invalid entry in ItSystemGroup update: " + map);
+                    continue;
+                }
+
+                string itSystemId = tokens[0];
+                string groupDn = tokens[1];
+
+                List<string> users = roleCatalogueStub.GetUsersInItSystem(itSystemId);
+                if (users == null)
+                {
+                    log.Warn("Unable to get users from role catalogue: " + itSystemId);
+                    continue;
+                }
+
+                List<string> members = adStub.GetGroupMembers(groupDn);
+                if (members == null)
+                {
+                    log.Warn("Unable to get members from group: " + groupDn);
+                    continue;
+                }
+
+                // to add
+                foreach (string user in users)
+                {
+                    bool found = false;
+
+                    foreach (string member in members)
+                    {
+                        if (user.Equals(member))
+                        {
+                            found = true;
+                            break;
+                        }
+                    }
+
+                    if (!found)
+                    {
+                        adStub.AddMember(groupDn, user);
+                    }
+                }
+
+                // to remove
+                foreach (string member in members)
+                {
+                    bool found = false;
+
+                    foreach (string user in users)
+                    {
+                        if (user.Equals(member))
+                        {
+                            found = true;
+                            break;
+                        }
+                    }
+
+                    if (!found)
+                    {
+                        adStub.RemoveMember(groupDn, member);
+                    }
+                }
+            }
+        }
+    }
+}

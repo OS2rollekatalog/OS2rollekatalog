@@ -9,6 +9,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
+import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
 import lombok.extern.log4j.Log4j;
 
 @Component
@@ -16,26 +17,22 @@ import lombok.extern.log4j.Log4j;
 @Log4j
 public class HistoryRoleAssignmentsTask {
 
-	@Value("${scheduled.enabled:false}")
-	private boolean runScheduled;
-	
-	@Value("${history.generation.enabled:false}")
-	private boolean enabledFeature;
-	
-	@Value("${history.retention.period:180}")
-	private Long retentionPeriod;
-	
-	@Value("${spring.datasource.url:}")
-	private String dataSourceUrl;
+	@Autowired
+	private RoleCatalogueConfiguration configuration;
 
 	@Autowired
 	private JdbcTemplate jdbcTemplate;
 
+	@Value("${spring.datasource.url:}")
+	private String dataSourceUrl;
+
 	@Scheduled(cron = "0 #{new java.util.Random().nextInt(55)} 4 * * ?")
 	// enable this to execute script at bootup
-	// @Scheduled(fixedDelay = 60 * 60 * 1000)
+	//@Scheduled(fixedDelay = 60 * 60 * 1000)
 	public void generateHistory() {
-		if (!runScheduled || !enabledFeature) {
+		if (!configuration.getScheduled().isEnabled() ||
+			!configuration.getScheduled().getHistory().isEnabled()) {
+
 			return;
 		}
 		
@@ -63,6 +60,8 @@ public class HistoryRoleAssignmentsTask {
 	
 	@Scheduled(cron = "0 0 5 * * ?")
 	public void deleteAncientHistory() {
+		long retentionPeriod = configuration.getScheduled().getHistory().getRetention();
+
 		if (dataSourceUrl.startsWith("jdbc:mysql")) {
 			jdbcTemplate.update("DELETE FROM history_users WHERE dato < (NOW() - INTERVAL " + retentionPeriod + " DAY);");
 			jdbcTemplate.update("DELETE FROM history_ous WHERE dato < (NOW() - INTERVAL " + retentionPeriod + " DAY);");

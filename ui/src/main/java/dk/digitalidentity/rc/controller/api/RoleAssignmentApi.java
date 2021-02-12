@@ -1,5 +1,6 @@
 package dk.digitalidentity.rc.controller.api;
 
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -9,6 +10,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import dk.digitalidentity.rc.dao.model.OrgUnit;
@@ -42,7 +44,7 @@ public class RoleAssignmentApi {
     private RoleGroupService roleGroupService;
 
     @RequestMapping(value = "/api/user/{userUuid}/assign/userrole/{userRoleId}", method = RequestMethod.PUT)
-    public ResponseEntity<String> assignUserRoleToUser(@PathVariable("userRoleId") long userRoleId, @PathVariable("userUuid") String userUuid) {
+    public ResponseEntity<String> assignUserRoleToUser(@PathVariable("userRoleId") long userRoleId, @PathVariable("userUuid") String userUuid, @RequestParam(name = "startDate", required = false) LocalDate startDate, @RequestParam(name = "stopDate", required = false) LocalDate stopDate) {
         List<User> users = userService.getByExtUuid(userUuid);
         if (users == null || users.size() == 0) {
         	users = new ArrayList<>();
@@ -63,7 +65,7 @@ public class RoleAssignmentApi {
 		}
 
 		for (User user : users) {
-	        if (userService.addUserRole(user, userRole)) {
+	        if (userService.addUserRole(user, userRole, startDate, stopDate)) {
 	        	userService.save(user);
 	        }
 		}
@@ -72,7 +74,7 @@ public class RoleAssignmentApi {
     }
 
     @RequestMapping(value = "/api/user/{userUuid}/assign/rolegroup/{roleGroupId}", method = RequestMethod.PUT)
-    public ResponseEntity<String> assignRoleGroupToUser(@PathVariable("roleGroupId") long roleGroupId, @PathVariable("userUuid") String userUuid) {
+    public ResponseEntity<String> assignRoleGroupToUser(@PathVariable("roleGroupId") long roleGroupId, @PathVariable("userUuid") String userUuid, @RequestParam(name = "startDate", required = false) LocalDate startDate, @RequestParam(name = "stopDate", required = false) LocalDate stopDate) {
         List<User> users = userService.getByExtUuid(userUuid);
         if (users == null || users.size() == 0) {
         	users = new ArrayList<>();
@@ -93,7 +95,7 @@ public class RoleAssignmentApi {
 		}
 
 		for (User user : users) {
-	    	if (userService.addRoleGroup(user, roleGroup)) {
+	    	if (userService.addRoleGroup(user, roleGroup, startDate, stopDate)) {
 	    		userService.save(user);
 	    	}
 		}
@@ -102,7 +104,7 @@ public class RoleAssignmentApi {
     }
 
     @RequestMapping(value = "/api/ou/{ouUuid}/assign/userrole/{userRoleId}", method = RequestMethod.PUT)
-    public ResponseEntity<String> assignUserRoleToOrgUnit(@PathVariable("userRoleId") long userRoleId, @PathVariable("ouUuid") String ouUuid) {
+    public ResponseEntity<String> assignUserRoleToOrgUnit(@PathVariable("userRoleId") long userRoleId, @PathVariable("ouUuid") String ouUuid, @RequestParam(name = "startDate", required = false) LocalDate startDate, @RequestParam(name = "stopDate", required = false) LocalDate stopDate) {
         OrgUnit ou = orgUnitService.getByUuid(ouUuid);
         UserRole userRole = userRoleService.getById(userRoleId);
 
@@ -112,7 +114,7 @@ public class RoleAssignmentApi {
             return new ResponseEntity<>(ErrorMessage.USER_ROLE_NOT_FOUND, HttpStatus.NOT_FOUND);
         }
 
-        if (orgUnitService.addUserRole(ou, userRole, false)) {
+        if (orgUnitService.addUserRole(ou, userRole, false, startDate, stopDate)) {
         	orgUnitService.save(ou);
         }
 
@@ -120,7 +122,7 @@ public class RoleAssignmentApi {
     }
 
     @RequestMapping(value = "/api/ou/{ouUuid}/assign/rolegroup/{roleGroupId}", method = RequestMethod.PUT)
-    public ResponseEntity<String> assignRoleGroupToOrgUnit(@PathVariable("roleGroupId") long roleGroupId, @PathVariable("ouUuid") String ouUuid) {
+    public ResponseEntity<String> assignRoleGroupToOrgUnit(@PathVariable("roleGroupId") long roleGroupId, @PathVariable("ouUuid") String ouUuid, @RequestParam(name = "startDate", required = false) LocalDate startDate, @RequestParam(name = "stopDate", required = false) LocalDate stopDate) {
         OrgUnit ou = orgUnitService.getByUuid(ouUuid);
         RoleGroup roleGroup = roleGroupService.getById(roleGroupId);
 
@@ -130,7 +132,7 @@ public class RoleAssignmentApi {
             return new ResponseEntity<>(ErrorMessage.ROLE_GROUP_NOT_FOUND, HttpStatus.NOT_FOUND);
         }
 
-        if (orgUnitService.addRoleGroup(ou, roleGroup, false)) {
+        if (orgUnitService.addRoleGroup(ou, roleGroup, false, startDate, stopDate)) {
         	orgUnitService.save(ou);
         }
 

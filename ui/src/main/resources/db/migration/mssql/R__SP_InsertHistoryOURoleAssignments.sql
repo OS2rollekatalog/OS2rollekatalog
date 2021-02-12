@@ -41,7 +41,8 @@ BEGIN
 		JOIN user_roles ur ON ur.id = our.role_id
 		JOIN it_systems it ON it.id = ur.it_system_id
 	WHERE 
-		our.inherit = 0 
+		our.inherit = 0
+		AND our.inactive = 0
 		AND o.active = 1
 
 	UNION ALL
@@ -69,6 +70,7 @@ BEGIN
 		JOIN it_systems it ON it.id = ur.it_system_id
 	WHERE 
 		ourg.inherit = 0 
+		AND ourg.inactive = 0
 		AND o.active = 1;
 
 	-- user roles from orgunits (inherited)
@@ -130,7 +132,8 @@ BEGIN
 	JOIN ou_roles our ON our.id = cte.id
 	JOIN ous ou ON ou.uuid = our.ou_uuid
 	JOIN user_roles ur ON ur.id = our.role_id
-	JOIN it_systems it ON it.id = ur.it_system_id;
+	JOIN it_systems it ON it.id = ur.it_system_id
+	WHERE our.inactive = 0;
 
 	-- user roles through rolegroups from orgunits (inherited)
 	WITH cte
@@ -145,7 +148,7 @@ BEGIN
 		FROM ous o
 		JOIN ou_rolegroups ourg ON ourg.ou_uuid = o.uuid AND ourg.inherit = 1
 		WHERE 
-			o.active = 1
+			o.active = 1 AND ourg.inactive = 0
 
 		UNION ALL
 
@@ -194,6 +197,7 @@ BEGIN
 	JOIN rolegroup rg ON rg.id = ourg.rolegroup_id
 	JOIN rolegroup_roles rgr ON rgr.rolegroup_id = ourg.rolegroup_id
 	JOIN user_roles ur ON ur.id = rgr.role_id
-	JOIN it_systems it ON it.id = ur.it_system_id;
+	JOIN it_systems it ON it.id = ur.it_system_id
+	WHERE ourg.inactive = 0
 END
 GO

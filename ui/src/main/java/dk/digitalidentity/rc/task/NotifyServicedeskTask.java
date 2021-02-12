@@ -3,11 +3,11 @@ package dk.digitalidentity.rc.task;
 import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
+import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
 import dk.digitalidentity.rc.dao.model.RequestApprove;
 import dk.digitalidentity.rc.service.EmailService;
 import dk.digitalidentity.rc.service.RequestApproveService;
@@ -28,13 +28,13 @@ public class NotifyServicedeskTask {
 	@Autowired
 	private SettingsService settingsService;
 
-	@Value("${scheduled.enabled:false}")
-	private boolean runScheduled;
-		
+	@Autowired
+	private RoleCatalogueConfiguration configuration;
+
 	// run every 10 minutes
-	@Scheduled(fixedRate = 10 * 60 * 1000)
+	@Scheduled(fixedDelay = 10 * 60 * 1000)
 	public void sendNotifications() {
-		if (!runScheduled) {
+		if (!configuration.getScheduled().isEnabled()) {
 			log.debug("Scheduled jobs are disabled on this instance");
 			return;
 		}

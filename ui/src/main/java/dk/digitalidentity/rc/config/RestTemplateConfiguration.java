@@ -12,11 +12,13 @@ import java.util.function.Supplier;
 
 import javax.net.ssl.SSLContext;
 
+import org.apache.http.client.config.CookieSpecs;
+import org.apache.http.client.config.RequestConfig;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
 import org.apache.http.ssl.SSLContextBuilder;
 import org.apache.http.ssl.TrustStrategy;
-import org.springframework.beans.factory.annotation.Value;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.web.client.RestTemplateBuilder;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -44,28 +46,24 @@ import io.netty.handler.ssl.SslContextBuilder;
 @Configuration
 public class RestTemplateConfiguration {
 
-	@Value("${kombit.enabled:false}")
-	private boolean kombitEnabled;
-	
-	@Value("${kombit.keystore.location}")
-	private String kombitKeystoreLocation;
-
-	@Value("${kombit.keystore.password}")
-	private String kombitKeystorePassword;
-	
-	@Value("${kmd.kspcics.enabled:false}")
-	private boolean kspCicsEnabled;
-	
-	@Value("${kmd.kspcics.keystore.location}")
-	private String kspCicsKeystoreLocation;
-
-	@Value("${kmd.kspcics.keystore.password}")
-	private String kspCicsKeystorePassword;
+	@Autowired
+	private RoleCatalogueConfiguration configuration;
 
 	@Bean(name = "defaultRestTemplate")
-	public RestTemplate defaultRestTemplate(RestTemplateBuilder builder) {
-		RestTemplate restTemplate = builder.build();
+	public RestTemplate defaultRestTemplate() {
+		CloseableHttpClient client = HttpClients.custom()
+				.setDefaultRequestConfig(RequestConfig.custom().setCookieSpec(CookieSpecs.STANDARD).build())
+				.build();
+
+		HttpComponentsClientHttpRequestFactory requestFactory = new HttpComponentsClientHttpRequestFactory();
+		requestFactory.setConnectionRequestTimeout(3 * 60 * 1000);
+		requestFactory.setConnectTimeout(3 * 60 * 1000);
+		requestFactory.setReadTimeout(3 * 60 * 1000);
+		requestFactory.setHttpClient(client);
 		
+		RestTemplate restTemplate = new RestTemplate(requestFactory);
+		
+		// TODO: not needed once we move to our new KLE master (STS Klassifikation)
 		// remove jackson XML converter, as it does not play well with KLE XML
 		for (Iterator<HttpMessageConverter<?>> iterator = restTemplate.getMessageConverters().iterator(); iterator.hasNext();) {
 			HttpMessageConverter<?> converter = iterator.next();
@@ -77,6 +75,7 @@ public class RestTemplateConfiguration {
 		
 		// add the jackson XML converter, which DOES play well with KLE XML
 		restTemplate.getMessageConverters().add(new Jaxb2RootElementHttpMessageConverter());
+
 		
 		return restTemplate;
 	}
@@ -86,19 +85,30 @@ public class RestTemplateConfiguration {
 		TrustStrategy acceptingTrustStrategy = (X509Certificate[] chain, String authType) -> true;
 
 		CloseableHttpClient client = null;
-		if (kspCicsEnabled) {
+		if (configuration.getIntegrations().getKspcics().isEnabled()) {
 			SSLContext sslContext = SSLContextBuilder.create()
-			                .loadKeyMaterial(ResourceUtils.getFile(kspCicsKeystoreLocation), kspCicsKeystorePassword.toCharArray(), kspCicsKeystorePassword.toCharArray())
+			                .loadKeyMaterial(
+			                		ResourceUtils.getFile(configuration.getIntegrations().getKspcics().getKeystoreLocation()),
+			                		configuration.getIntegrations().getKspcics().getKeystorePassword().toCharArray(),
+			                		configuration.getIntegrations().getKspcics().getKeystorePassword().toCharArray())
 			                .loadTrustMaterial(acceptingTrustStrategy)
 			                .build();
 			
-			client = HttpClients.custom().setSSLContext(sslContext).build();
+			client = HttpClients.custom()
+				        .setDefaultRequestConfig(RequestConfig.custom().setCookieSpec(CookieSpecs.STANDARD).build())
+						.setSSLContext(sslContext)
+						.build();			
 		}
 		else {
-			client = HttpClients.custom().build();
+			client = HttpClients.custom()
+						.setDefaultRequestConfig(RequestConfig.custom().setCookieSpec(CookieSpecs.STANDARD).build())
+						.build();
 		}
 
 		HttpComponentsClientHttpRequestFactory requestFactory = new HttpComponentsClientHttpRequestFactory();
+		requestFactory.setConnectionRequestTimeout(3 * 60 * 1000);
+		requestFactory.setConnectTimeout(3 * 60 * 1000);
+		requestFactory.setReadTimeout(3 * 60 * 1000);
 		requestFactory.setHttpClient(client);
 
 		RestTemplate restTemplate = new RestTemplate(requestFactory);
@@ -122,10 +132,10 @@ public class RestTemplateConfiguration {
 	public RestTemplate kombitRestTemplate(RestTemplateBuilder builder) throws Exception {
 		SslContext sslContext = SslContextBuilder.forClient().build();
 
-		if (kombitEnabled && !StringUtils.isEmpty(kombitKeystoreLocation)) {
-			KeyStore ks = keyStore(kombitKeystoreLocation, kombitKeystorePassword.toCharArray());
+		if (configuration.getIntegrations().getKombit().isEnabled() && !StringUtils.isEmpty(configuration.getIntegrations().getKombit().getKeystoreLocation())) {
+			KeyStore ks = keyStore(configuration.getIntegrations().getKombit().getKeystoreLocation(), configuration.getIntegrations().getKombit().getKeystorePassword().toCharArray());
 			String alias = ks.aliases().nextElement();
-			PrivateKey privKey = (PrivateKey) ks.getKey(alias, kombitKeystorePassword.toCharArray());
+			PrivateKey privKey = (PrivateKey) ks.getKey(alias, configuration.getIntegrations().getKombit().getKeystorePassword().toCharArray());
 			X509Certificate certificate = (X509Certificate) ks.getCertificate(alias);
 	
 			// build SSL Context containing client certificate

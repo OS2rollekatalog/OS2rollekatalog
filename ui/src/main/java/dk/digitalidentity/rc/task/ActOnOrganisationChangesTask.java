@@ -3,12 +3,12 @@ package dk.digitalidentity.rc.task;
 import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
 import dk.digitalidentity.rc.dao.PendingOrganisationUpdateDao;
 import dk.digitalidentity.rc.dao.model.OrgUnit;
 import dk.digitalidentity.rc.dao.model.PendingOrganisationUpdate;
@@ -29,9 +29,6 @@ public class ActOnOrganisationChangesTask {
 	private OrganisationEventAction ouNewManagerAction = OrganisationEventAction.RIGHTS_KEPT;
 	private OrganisationEventAction ouNewParentAction = OrganisationEventAction.RIGHTS_KEPT;
 	private OrganisationEventAction userNewPositionAction = OrganisationEventAction.RIGHTS_KEPT;
-
-	@Value("${scheduled.enabled:false}")
-	private boolean runScheduled;
 	
 	@Autowired
 	private PendingOrganisationUpdateDao pendingOrganisationUpdateDao;
@@ -47,12 +44,15 @@ public class ActOnOrganisationChangesTask {
 	
 	@Autowired
 	private OrgUnitService orgUnitService;
+	
+	@Autowired
+	private RoleCatalogueConfiguration configuration;
 
 	// Run daily at 06:00
 	@Scheduled(cron = "0 0 6 * * ?")
 	@Transactional(rollbackFor = Exception.class)
 	public void actOnOrganisationChanges() {
-		if (!runScheduled) {
+		if (!configuration.getScheduled().isEnabled()) {
 			return;
 		}
 		
