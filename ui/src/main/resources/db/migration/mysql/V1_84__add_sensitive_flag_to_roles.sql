@@ -1,0 +1,1 @@
+ALTER TABLE user_roles ADD COLUMN sensitive_role BOOLEAN NOT NULL DEFAULT 0;

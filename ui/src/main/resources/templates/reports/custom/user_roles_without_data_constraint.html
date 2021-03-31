@@ -28,8 +28,8 @@
 									<td th:text="${role.itSystem.name}" />
 									<td th:text="${role.description}" />
 									<td>
-										<th:block sec:authorize="hasRole('ROLE_ADMINISTRATOR')">
-											<a th:href="@{/ui/userroles/edit/{id}(id=${role.id})}"><em class="fa fa-search"></em></a>
+										<th:block sec:authorize="hasRole('ROLE_ASSIGNER')">
+											<a th:href="@{/ui/userroles/edit/{id}(id=${role.id})}"><em class="fa fa-pencil"></em></a>
 										</th:block>
 									</td>
 								</tr>

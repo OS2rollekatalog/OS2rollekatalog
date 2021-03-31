@@ -1,0 +1,117 @@
+﻿using System.Collections.Specialized;
+using System.Collections.Generic;
+
+namespace ADSyncService
+{
+    class ReadonlyItSystemService
+    {
+        private static log4net.ILog log = log4net.LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
+        private static StringCollection systemMap = Properties.Settings.Default.ReadonlyItSystemFeature_SystemMap;
+
+        public static void PerformUpdate(RoleCatalogueStub roleCatalogueStub, ADStub adStub)
+        {
+            foreach (string map in systemMap)
+            {
+                string[] tokens = map.Split(';');
+                if (tokens.Length != 2)
+                {
+                    log.Warn("Invalid entry in ItSystemGroup update: " + map);
+                    continue;
+                }
+
+                string itSystemId = tokens[0];
+                string ouDn = tokens[1];
+
+                var allGroups = adStub.GetAllGroups(ouDn);
+   
+                ItSystemData itSystemData = roleCatalogueStub.GetItSystemData(itSystemId);
+                if (itSystemData == null)
+                {
+                    log.Warn("Got no it-system from role catalogue: " + itSystemId);
+                    continue;
+                }
+
+                // find to remove (or potentially update)
+                for (int i = itSystemData.systemRoles.Count - 1; i >= 0; i--)
+                {
+                    bool found = false;
+                    var systemRole = itSystemData.systemRoles[i];
+                    systemRole.users = new List<string>();
+
+                    foreach (var group in allGroups)
+                    {
+                        // update scenario
+                        if (group.Uuid.Equals(systemRole.identifier))
+                        {
+                            found = true;
+
+                            List<string> members = adStub.GetGroupMembers(group.Name);
+                            if (members != null)
+                            {
+                                foreach (var member in members)
+                                {
+                                    systemRole.users.Add(member);
+                                }
+                            }
+                            systemRole.name = group.Name;
+
+                            break;
+                        }
+                    }
+
+                    // delete scenario
+                    if (!found)
+                    {
+                        log.Info("Removing " + itSystemData.systemRoles[i].name + " from " + itSystemData.name);
+
+                        itSystemData.systemRoles.RemoveAt(i);
+                    }
+                }
+
+                // find to create
+                foreach (var group in allGroups)
+                {
+                    bool found = false;
+
+                    foreach (var role in itSystemData.systemRoles)
+                    {
+                        if (group.Uuid.Equals(role.identifier))
+                        {
+                            found = true;
+                            break;
+                        }
+                    }
+
+                    if (!found)
+                    {
+                        SystemRole systemRole = new SystemRole();
+                        systemRole.description = "";
+                        systemRole.identifier = group.Uuid;
+                        systemRole.name = group.Name;
+                        systemRole.users = new List<string>();
+
+                        List<string> members = adStub.GetGroupMembers(group.Name);
+                        if (members != null)
+                        {
+                            foreach (var member in members)
+                            {
+                                systemRole.users.Add(member);
+                            }
+                        }
+
+                        itSystemData.systemRoles.Add(systemRole);
+
+                        log.Info("Adding " + group.Name + " to " + itSystemData.name);
+                    }
+                }
+
+                log.Info("Updating " + itSystemData.name);
+
+                itSystemData.@readonly = true;
+                itSystemData.convertRolesEnabled = true;
+
+                roleCatalogueStub.SetItSystemData(itSystemId, itSystemData);
+            }
+        }
+    }
+}

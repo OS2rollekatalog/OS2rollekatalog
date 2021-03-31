@@ -35,7 +35,9 @@
 				<artifactId>maven-surefire-plugin</artifactId>
 				<configuration>
 					<includes>
+<!--
 						<include>**/*Test.java</include>
+-->
 						<include>**/*Documentation.java</include>
 					</includes>
 					<runOrder>alphabetical</runOrder>
@@ -210,6 +212,25 @@
 			<artifactId>rc-webjar</artifactId>
 			<version>1.0.0</version>
 		</dependency>
+		
+		<dependency>
+			<groupId>org.xhtmlrenderer</groupId>
+			<artifactId>flying-saucer-core</artifactId>
+			<version>9.1.18</version>
+		</dependency>
+
+		<dependency>
+			<groupId>org.xhtmlrenderer</groupId>
+			<artifactId>flying-saucer-pdf-itext5</artifactId>
+			<version>9.1.18</version>
+		</dependency>
+		
+		<!-- cleanup bad HTML for email/pdf templates -->
+		<dependency>
+			<groupId>net.sourceforge.htmlcleaner</groupId>
+			<artifactId>htmlcleaner</artifactId>
+			<version>2.24</version>
+		</dependency>
 
 		<dependency>
 			<groupId>dk.digitalidentity</groupId>
@@ -285,6 +306,21 @@
 			<groupId>org.springframework.restdocs</groupId>
 			<artifactId>spring-restdocs-mockmvc</artifactId>
 			<scope>test</scope>
+		</dependency>
+		
+		<!-- https://www.baeldung.com/java-with-jsoup -->
+		<dependency>
+		    <groupId>org.jsoup</groupId>
+		    <artifactId>jsoup</artifactId>
+		    <version>1.10.2</version>
+		</dependency>
+		
+		<!-- This is apparently needed to be added to send base64 inline images.
+		Think it has something to do with java version. Was not necessary in Java8, but is in java11 -->
+		<dependency>
+		    <groupId>javax.activation</groupId>
+		    <artifactId>activation</artifactId>
+		    <version>1.1.1</version>
 		</dependency>
 	</dependencies>
 </project>

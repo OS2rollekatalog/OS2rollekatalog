@@ -42,7 +42,6 @@ namespace ADSyncService
             IJobDetail job2 = JobBuilder.Create<NightSyncJob>()
                 .WithIdentity("mappingJob2", "group2")
                 .Build();
-            jobKey = job.Key;
 
             Random random = new Random();
             ITrigger trigger2 = TriggerBuilder.Create()
@@ -53,6 +52,19 @@ namespace ADSyncService
 
             schedule.ScheduleJob(job2, trigger2);
             schedule.TriggerJob(job2.Key);
+
+            IJobDetail job3 = JobBuilder.Create<ReadOnlyItSystemSyncJob>()
+                .WithIdentity("mappingJob3", "group3")
+                .Build();
+
+            ITrigger trigger3 = TriggerBuilder.Create()
+              .WithIdentity("trigger3", "group3")
+              .WithCronSchedule("0 " + random.Next(0, 59) + " 5,12,17 ? * *")
+              .StartNow()
+              .Build();
+
+            schedule.ScheduleJob(job3, trigger3);
+            schedule.TriggerJob(job3.Key);
         }
 
         public void Start()

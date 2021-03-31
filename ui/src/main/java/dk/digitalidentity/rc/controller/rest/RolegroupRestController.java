@@ -122,10 +122,6 @@ public class RolegroupRestController {
         			}
         		}
         		break;
-        	case "inherit":
-        		role.setOuInheritAllowed(active);
-        		roleGroupService.save(role);
-        		break;
         	case "canrequest":
         		role.setCanRequest(active);
         		roleGroupService.save(role);
@@ -192,7 +188,7 @@ public class RolegroupRestController {
         RoleGroup rolegroup = roleGroupService.getById(rolegroupId);
         UserRole role = userRoleService.getById(roleId);
 
-        if (rolegroup == null || role == null) {
+        if (rolegroup == null || role == null || role.getItSystem().isReadonly()) {
             return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
         }
 
@@ -207,7 +203,7 @@ public class RolegroupRestController {
         RoleGroup rolegroup = roleGroupService.getById(rolegroupId);
         UserRole role = userRoleService.getById(roleId);
 
-        if (rolegroup == null || role == null) {
+        if (rolegroup == null || role == null || role.getItSystem().isReadonly()) {
             return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
         }
 

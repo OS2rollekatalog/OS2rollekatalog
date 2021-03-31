@@ -51,8 +51,8 @@ public class UserRole implements AuditLoggable {
 	@Column(nullable = false)
 	private boolean canRequest;
 	
-	@Column(nullable = false)
-	private boolean ouInheritAllowed;
+	@Column
+	private boolean sensitiveRole;
 
 	@ManyToOne(fetch = FetchType.EAGER)
 	@JoinColumn(name = "it_system_id")

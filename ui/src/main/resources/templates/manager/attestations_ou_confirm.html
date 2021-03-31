@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html>
+<head th:replace="fragments/header :: header (title=#{html.page.attestations.title})" />
+<body>
+	<div class="wrapper">
+		<header th:replace="fragments/navbar :: navbar-header" />
+		<aside th:replace="fragments/navbar :: navbar-aside (page = 'attestation')" />
+
+		<section>
+			<div class="content-wrapper">
+				<h3>
+					<span th:text="#{html.page.attestations.confirment.title}"></span>
+				</h3>
+				<div class="panel panel-default">
+					<div class="panel-heading" />
+					<div class="panel-body">
+						<div class="panel-group">
+							<div class="panel panel-default">
+								<div class="panel-body">
+									<span th:text="#{html.page.attestations.confirment.subtext}"></span>
+									<br> <br>
+									<button type="button" class="btn btn-md btn-primary" onclick="confirm()"
+											th:text="#{html.page.attestations.confirment.button.approve}"></button>
+									<button type="button" class="btn btn-md btn-warning" onclick="back()"
+											th:text="#{html.page.attestations.confirment.button.back}"></button>
+								</div>
+							</div>
+						</div>
+						<div class="panel-group" th:unless="${dtoToBeRemoved.empty and dtoToEmail.empty}">
+							<div class="panel panel-default">
+								<div class="panel-body">
+									<div th:if="${!dtoToBeRemoved.empty}">
+										<h4 th:text="#{html.page.attestations.confirment.show.personal.remove}"></h4>
+										<ul th:each="dto : ${dtoToBeRemoved}">
+											<li th:if="${dto.roleGroup}" th:text="'Rollebuketten ' + ${dto.roleName} + ' for medarbejderen ' + ${dto.userOrUnitName}">
+											<li th:unless="${dto.roleGroup}" th:text="'Jobfunktionsrollen ' + ${dto.roleName} + ' (' + ${dto.itSystemName} + ') ' + 'for medarbejderen ' + ${dto.userOrUnitName}">
+										</ul>
+									</div>
+									<br>
+									<div th:if="${!dtoToEmail.empty}">
+										<h4 th:text="#{html.page.attestations.confirment.show.unit.remove}"></h4>
+										<ul th:each="dto : ${dtoToEmail}">
+											<div th:if="${dto.title}">
+												<li th:if="${dto.roleGroup}" th:text="'Rollebuketten ' + ${dto.roleName} + ' for titlen ' + ${dto.userOrUnitName}">
+												<li th:unless="${dto.roleGroup}" th:text="'Jobfunktionsrollen ' + ${dto.roleName} + ' (' + ${dto.itSystemName} + ') ' + ' for titlen ' + ${dto.userOrUnitName}">
+											</div>
+											<div th:unless="${dto.title}">
+												<li th:if="${dto.roleGroup}" th:text="'Rollebuketten ' + ${dto.roleName} + ' for enheden ' + ${dto.userOrUnitName}">
+												<li th:unless="${dto.roleGroup}" th:text="'Jobfunktionsrollen ' + ${dto.roleName} + ' (' + ${dto.itSystemName} + ') ' + ' for enheden ' + ${dto.userOrUnitName}">
+											</div>
+										</ul>
+									</div>
+								</div>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+		</section>
+	</div>
+
+	<nav th:replace="fragments/footer :: footer" />
+	<script th:inline="javascript">
+		/*<![CDATA[*/
+
+		/*[+
+			var toEmail = [[${toEmail}]];
+			var toBeRemoved = [[${toBeRemoved}]];
+			var aprovedPersonal = [[${aprovedPersonal}]];
+			var aprovedUnit = [[${aprovedUnit}]];
+			var orgUnitUuid = [[${orgUnitUuid}]];
+			var redirectUrl = [[@{/ui/users/attestations}]];
+			var restUrl = [[@{/rest/attestations/confirm/}]];
+			var errorMsg = [[#{html.default.message.error}]];
+			var dtoShowToEmail = [[${dtoToEmail}]];
+			var dtoShowToBeRemoved = [[${dtoToBeRemoved}]];
+			var dtoShowAprovedUnit = [[${dtoAprovedUnit}]];
+			var dtoShowAprovedPersonal = [[${dtoAprovedPersonal}]];
+		+]*/
+		var token = $("meta[name='_csrf']").attr("content");
+		$(document).ready(function() {
+		});
+		
+		function back() {
+			window.history.back();
+		}
+		
+		function confirm() {
+			$.ajax({
+			   url: restUrl + orgUnitUuid,
+			   headers: {
+			      'X-CSRF-TOKEN': token
+			   },
+			   type: 'post',
+			   contentType: "application/json",
+			   data: JSON.stringify({
+				   "aprovedUnit" : aprovedUnit,
+				   "aprovedPersonal" : aprovedPersonal,
+				   "toBeRemoved" : toBeRemoved,
+				   "toEmail" : toEmail,
+				   "dtoShowToEmail" : dtoShowToEmail,
+				   "dtoShowToBeRemoved" : dtoShowToBeRemoved,
+				   "dtoShowAprovedPersonal" : dtoShowAprovedPersonal,
+				   "dtoShowAprovedUnit" : dtoShowAprovedUnit
+			   }),
+			   success: function(data, textStatus, jQxhr) {
+				   window.location.href = redirectUrl;
+			   },
+			   error: function(jQxhr, textStatus, errorThrown) {
+				   $.notify({
+	                    message: errorMsg
+					},{
+	                    autoHideDelay: 2000
+					});
+			   }
+			});
+		}
+		
+		/*]]>*/
+	</script>
+</body>
+</html>

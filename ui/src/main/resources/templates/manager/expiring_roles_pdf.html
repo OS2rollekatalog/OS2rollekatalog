@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html>
+<head/>
+<body>
+	<h1>
+		<span th:text="#{html.pdf.expiring_roles.title}"></span>
+	</h1>
+	<p th:text="#{html.page.attestations.pdf.unit} + ' ' + ${ou}" style="font-weight: bold;"/>
+	<p th:text="#{html.page.attestations.pdf.time} + ' ' + ${time}" style="font-weight: bold;"/>
+	<p>
+		<span th:text="#{html.pdf.expiring_roles.subtext}"></span>
+	</p>
+	<br/>
+	
+	<div th:if="${!strings.empty}">
+		<ul th:each="string : ${strings}">
+			<li th:text="${string}"/>
+		</ul>
+		<br/>
+	</div>
+</body>
+</html>

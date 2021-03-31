@@ -1,25 +1,21 @@
 package dk.digitalidentity.rc.log;
 
-import java.util.Calendar;
-import java.util.Date;
-
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
 
 import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
+import dk.digitalidentity.rc.service.AuditLogService;
 import lombok.extern.log4j.Log4j;
 
 @Log4j
 @Component
 @EnableScheduling
-@Transactional(rollbackFor = Exception.class)
 public class AuditLogCleaner {
 
 	@Autowired
-	private AuditLogEntryDao auditLogEntryDao;
+	private AuditLogService auditLogService;
 
 	@Autowired
 	private RoleCatalogueConfiguration configuration;
@@ -33,10 +29,6 @@ public class AuditLogCleaner {
 		}
 		log.info("Running scheduled job");
 
-    	Calendar cal = Calendar.getInstance();
-    	cal.add(Calendar.MONTH, -1 * configuration.getAudit().getMonthRetention());
-    	Date before = cal.getTime();
-
-    	auditLogEntryDao.deleteByTimestampBefore(before);
+		auditLogService.cleanupAuditlogs();
     }
 }

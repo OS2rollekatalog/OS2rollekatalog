@@ -20,7 +20,7 @@ BEGIN
     assigned_by_user_id, assigned_by_name, assigned_when)
   SELECT CURRENT_TIMESTAMP, t.uuid,
     ur.id, ur.name, it.id, it.name, NULL,
-    'TITLE', t.uuid, CONCAT_WS('', t.name, CONCAT(' (', ou.name, ')')),
+    'TITLE', ou.uuid, CONCAT_WS('', t.name, CONCAT(' (', ou.name, ')')),
     tr.assigned_by_user_id, tr.assigned_by_name, tr.assigned_timestamp
   FROM title_roles tr
   JOIN titles t ON t.uuid = tr.title_uuid
@@ -38,7 +38,7 @@ BEGIN
     assigned_by_user_id, assigned_by_name, assigned_when)
   SELECT CURRENT_TIMESTAMP, t.uuid,
     ur.id, ur.name, it.id, it.name, rg.name,
-    'TITLE', t.uuid, CONCAT_WS('', t.name, CONCAT(' (', ou.name, ')')),
+    'TITLE', ou.uuid, CONCAT_WS('', t.name, CONCAT(' (', ou.name, ')')),
     trg.assigned_by_user_id, trg.assigned_by_name, trg.assigned_timestamp
   FROM title_rolegroups trg
   JOIN rolegroup rg ON trg.rolegroup_id = rg.id

@@ -78,9 +78,9 @@ public class BootstrapDevMode {
 	@Autowired
 	private RoleGroupDao roleGroupDao;
 	
-	// run every 8 hours, but wait 60 seconds after boot... kinda need a run-once
+	// run every 8 hours, but wait 15 seconds after boot... kinda need a run-once
 	// here instead ;)
-	@Scheduled(fixedDelay = 8 * 60 * 60 * 1000, initialDelay = 60000)
+	@Scheduled(fixedDelay = 8 * 60 * 60 * 1000, initialDelay = 15 * 1000)
 	public void init() throws Exception {
 		init(false);
 	}

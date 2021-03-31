@@ -33,6 +33,7 @@ import dk.digitalidentity.rc.dao.model.RoleGroup;
 import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserKLEMapping;
 import dk.digitalidentity.rc.dao.model.UserRole;
+import dk.digitalidentity.rc.dao.model.enums.ItSystemType;
 import dk.digitalidentity.rc.dao.model.enums.KleType;
 import dk.digitalidentity.rc.security.AccessConstraintService;
 import dk.digitalidentity.rc.security.RequireAssignerRole;
@@ -127,6 +128,10 @@ public class UserRestController {
 			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
 		}
 
+		if (role.getItSystem().getSystemType() == ItSystemType.AD && role.getItSystem().isReadonly()) {
+			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+		}
+
 		try {
 			userService.removeUserRole(user, role);
 
@@ -154,6 +159,10 @@ public class UserRestController {
 		UserRole userRole = userRoleService.getById(roleId);
 
 		if (user == null || userRole == null) {
+			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+		}
+
+		if (userRole.getItSystem().getSystemType() == ItSystemType.AD && userRole.getItSystem().isReadonly()) {
 			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
 		}
 

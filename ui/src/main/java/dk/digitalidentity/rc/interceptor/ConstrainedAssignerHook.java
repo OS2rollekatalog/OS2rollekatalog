@@ -160,8 +160,8 @@ public class ConstrainedAssignerHook implements RoleChangeHook {
 	}
 
 	@Override
-	public void interceptRemoveRoleGroupAssignmentOnTitle(Title title, RoleGroup roleGroup) {
-		// we accept that removal is always allowed, as we do not know which OUs the role is being removed from
+	public void interceptRemoveRoleGroupAssignmentOnTitle(Title title, RoleGroup roleGroup, OrgUnit ou) {
+		; // we accept removal
 	}
 
 	@Override
@@ -176,7 +176,7 @@ public class ConstrainedAssignerHook implements RoleChangeHook {
 	}
 
 	@Override
-	public void interceptRemoveUserRoleAssignmentOnTitle(Title title, UserRole userRole) {
-		// we accept that removal is always allowed, as we do not know which OUs the role is being removed from		
+	public void interceptRemoveUserRoleAssignmentOnTitle(Title title, UserRole userRole, OrgUnit ou) {
+		; // we accept removal		
 	}
 }

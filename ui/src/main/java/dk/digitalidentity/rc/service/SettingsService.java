@@ -28,10 +28,16 @@ public class SettingsService {
 	private static final String SETTING_REQUEST_APPROVE_SERVICEDESK_EMAIL = "RequestApproveServicedeskEmail";
 	private static final String SETTING_SCHEDULED_ATTESTATION_ENABLED = "ScheduledAttestationEnabled";
 	private static final String SETTING_SCHEDULED_ATTESTATION_INTERVAL = "ScheduledAttestationInterval";
+	private static final String SETTING_SCHEDULED_ATTESTATION_INTERVAL_SENSITIVE = "ScheduledAttestationIntervalSensitive";
 	private static final String SETTING_SCHEDULED_ATTESTATION_DAY_IN_MONTH = "ScheduledAttestationDayInMonth";
 	private static final String SETTING_SCHEDULED_ATTESTATION_FILTER = "ScheduledAttestationFilter";
 	private static final String SETTING_SCHEDULED_ATTESTATION_LAST_RUN = "ScheduledAttestationLastRun";
 	private static final String SETTING_IT_SYSTEM_CHANGE_EMAIL = "ItSystemChangeEmail";
+	private static final String SETTING_REMOVAL_OF_UNIT_ROLES_EMAIL = "RemovalOfUnitRolesEmail";
+	private static final String SETTING_REMINDER_COUNT = "ReminderCount";
+	private static final String SETTING_REMINDER_INTERVAL = "ReminderInterval";
+	private static final String SETTING_DAYS_BEFORE_DEADLINE = "DaysBeforeDeadline";
+	private static final String SETTING_EMAIL_AFTER_REMINDERS = "EmailAfterReminders";
 
 	@Autowired
 	private SettingsDao settingsDao;
@@ -91,6 +97,131 @@ public class SettingsService {
 		if (setting == null) {
 			setting = new Setting();
 			setting.setKey(SETTING_REQUEST_APPROVE_SERVICEDESK_EMAIL);
+		}
+		
+		setting.setValue(email);
+		settingsDao.save(setting);
+	}
+	
+	public String getRemovalOfUnitRolesEmail() {
+		Setting setting = settingsDao.getByKey(SETTING_REMOVAL_OF_UNIT_ROLES_EMAIL);
+		if (setting == null) {
+			return "";
+		}
+
+		return setting.getValue();
+	}
+	
+	public void setRemovalOfUnitRolesEmail(String email) {
+		Setting setting = settingsDao.getByKey(SETTING_REMOVAL_OF_UNIT_ROLES_EMAIL);
+		if (setting == null) {
+			setting = new Setting();
+			setting.setKey(SETTING_REMOVAL_OF_UNIT_ROLES_EMAIL);
+		}
+		
+		setting.setValue(email);
+		settingsDao.save(setting);
+	}
+	
+	public int getReminderCount() {
+		Setting setting = settingsDao.getByKey(SETTING_REMINDER_COUNT);
+		if (setting == null || StringUtils.isEmpty(setting.getValue())) {
+			return 2;
+		}
+		
+		int count = 2;
+		try {
+			count = Integer.parseInt(setting.getValue());
+		}
+		catch (Exception ex) {
+			; // ignore
+		}
+		
+
+		return count;
+	}
+	
+	public void setReminderCount(long count) {
+		Setting setting = settingsDao.getByKey(SETTING_REMINDER_COUNT);
+		if (setting == null) {
+			setting = new Setting();
+			setting.setKey(SETTING_REMINDER_COUNT);
+		}
+		
+		setting.setValue(Long.toString(count));
+		settingsDao.save(setting);
+	}
+	
+	public int getReminderInterval() {
+		Setting setting = settingsDao.getByKey(SETTING_REMINDER_INTERVAL);
+		if (setting == null || StringUtils.isEmpty(setting.getValue())) {
+			return 7;
+		}
+		
+		int interval = 7;
+		try {
+			interval = Integer.parseInt(setting.getValue());
+		}
+		catch (Exception ex) {
+			; // ignore
+		}
+		
+		return interval;
+	}
+	
+	public void setReminderInterval(long interval) {
+		Setting setting = settingsDao.getByKey(SETTING_REMINDER_INTERVAL);
+		if (setting == null) {
+			setting = new Setting();
+			setting.setKey(SETTING_REMINDER_INTERVAL);
+		}
+		
+		setting.setValue(Long.toString(interval));
+		settingsDao.save(setting);
+	}
+	
+	public int getDaysBeforeDeadline() {
+		Setting setting = settingsDao.getByKey(SETTING_DAYS_BEFORE_DEADLINE);
+		if (setting == null || StringUtils.isEmpty(setting.getValue())) {
+			return 7;
+		}
+		
+		int daysBeforeDeadline = 7;
+		try {
+			daysBeforeDeadline = Integer.parseInt(setting.getValue());
+		}
+		catch (Exception ex) {
+			; // ignore
+		}
+		
+		return daysBeforeDeadline;
+	}
+	
+	public void setDaysBeforeDeadline(long days) {
+		Setting setting = settingsDao.getByKey(SETTING_DAYS_BEFORE_DEADLINE);
+		if (setting == null) {
+			setting = new Setting();
+			setting.setKey(SETTING_DAYS_BEFORE_DEADLINE);
+		}
+		
+		setting.setValue(Long.toString(days));
+		settingsDao.save(setting);
+	}
+	
+	public String getEmailAfterReminders() {
+		Setting setting = settingsDao.getByKey(SETTING_EMAIL_AFTER_REMINDERS);
+		if (setting == null) {
+			return "";
+		}
+
+		return setting.getValue();
+	}
+	
+	public void setEmailAfterReminders(String email) {
+		Setting setting = settingsDao.getByKey(SETTING_EMAIL_AFTER_REMINDERS);
+		if (setting == null) {
+			setting = new Setting();
+			setting.setKey(SETTING_EMAIL_AFTER_REMINDERS);
 		}
 		
 		setting.setValue(email);
@@ -256,12 +387,32 @@ public class SettingsService {
 
 		return CheckupIntervalEnum.valueOf(setting.getValue());
 	}
-
+	
 	public void setScheduledAttestationInterval(CheckupIntervalEnum interval) {
 		Setting setting = settingsDao.getByKey(SETTING_SCHEDULED_ATTESTATION_INTERVAL);
 		if (setting == null) {
 			setting = new Setting();
 			setting.setKey(SETTING_SCHEDULED_ATTESTATION_INTERVAL);
+		}
+		
+		setting.setValue(interval.toString());
+		settingsDao.save(setting);
+	}
+	
+	public CheckupIntervalEnum getScheduledAttestationIntervalSensitive() {
+		Setting setting = settingsDao.getByKey(SETTING_SCHEDULED_ATTESTATION_INTERVAL_SENSITIVE);
+		if (setting == null) {
+			return CheckupIntervalEnum.QUARTERLY;
+		}
+
+		return CheckupIntervalEnum.valueOf(setting.getValue());
+	}
+
+	public void setScheduledAttestationIntervalSensitive(CheckupIntervalEnum interval) {
+		Setting setting = settingsDao.getByKey(SETTING_SCHEDULED_ATTESTATION_INTERVAL_SENSITIVE);
+		if (setting == null) {
+			setting = new Setting();
+			setting.setKey(SETTING_SCHEDULED_ATTESTATION_INTERVAL_SENSITIVE);
 		}
 		
 		setting.setValue(interval.toString());

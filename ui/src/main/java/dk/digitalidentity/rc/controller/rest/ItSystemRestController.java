@@ -66,7 +66,11 @@ public class ItSystemRestController {
 	@ResponseBody
 	public HttpEntity<String> deleteSystemRole(Model model, @PathVariable("id") long id) {
 		SystemRole systemRole = systemRoleService.getById(id);
-		if (systemRole == null || (!systemRole.getItSystem().getSystemType().equals(ItSystemType.AD) && !systemRole.getItSystem().getSystemType().equals(ItSystemType.SAML))) {
+
+		if (systemRole == null || (!systemRole.getItSystem().getSystemType().equals(ItSystemType.AD) &&
+								   !systemRole.getItSystem().getSystemType().equals(ItSystemType.SAML) &&
+								   !systemRole.getItSystem().getSystemType().equals(ItSystemType.MANUAL))) {
+
 			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
 		}
 		
@@ -207,6 +211,26 @@ public class ItSystemRestController {
         return new ResponseEntity<>(HttpStatus.OK);
     }
 
+    @PostMapping(value = "/rest/itsystem/readonly")
+    public ResponseEntity<String> editItSystemReadonly(long id, boolean readonly) {
+    	ItSystem itSystem = itSystemService.getById(id);
+    	if (itSystem == null || itSystem.getSystemType() != ItSystemType.AD) {
+			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+		}
+
+    	itSystem.setReadonly(readonly);
+    	itSystemService.save(itSystem);
+
+    	if (!readonly) {
+    		pendingADUpdateService.addItSystemToQueue(itSystem);
+    	}
+    	else {
+    		pendingADUpdateService.removeItSystemFromQueue(itSystem);
+    	}
+
+    	return new ResponseEntity<>(HttpStatus.OK);
+    }
+
     @PostMapping(value = "/rest/itsystem/canEditThroughApi")
     public ResponseEntity<String> editItSystemCanEditThroughApi(long id, boolean canEditThroughApi) {
     	ItSystem itSystem = itSystemService.getById(id);
@@ -237,6 +261,19 @@ public class ItSystemRestController {
 		return new ResponseEntity<>(HttpStatus.OK);
 	}
 
+	@PostMapping(value = "/rest/itsystem/accessBlocked")
+	public ResponseEntity<String> editItSystemAccessBlocked(long id, boolean accessBlocked) {
+		ItSystem itSystem = itSystemService.getById(id);
+		if (itSystem == null) {
+			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+		}
+
+		itSystem.setAccessBlocked(accessBlocked);
+		itSystemService.save(itSystem);
+
+		return new ResponseEntity<>(HttpStatus.OK);
+	}
+
 	@PostMapping(value = "/rest/itsystem/subscribedTo")
 	public ResponseEntity<String> editItSystemSubscribedTo(long id, String masterId) {
 		ItSystem itSystem = itSystemService.getById(id);
@@ -261,6 +298,10 @@ public class ItSystemRestController {
 	public ResponseEntity<String> deleteUnusedUserRoles(@PathVariable("id") long id) {
 		ItSystem itSystem = itSystemService.getById(id);
 		if (itSystem == null) {
+			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+		}
+
+		if (itSystem.getSystemType().equals(ItSystemType.AD) && itSystem.isReadonly()) {
 			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
 		}
 
@@ -296,6 +337,10 @@ public class ItSystemRestController {
 	public ResponseEntity<String> convertSystemRoles(@PathVariable("id") long id, @RequestBody PrefixWrapper prefixWrapper) {
 		ItSystem itSystem = itSystemService.getById(id);
 		if (itSystem == null) {
+			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+		}
+
+		if (itSystem.getSystemType().equals(ItSystemType.AD) && itSystem.isReadonly()) {
 			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
 		}
 

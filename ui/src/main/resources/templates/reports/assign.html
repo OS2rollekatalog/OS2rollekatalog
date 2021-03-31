@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html>
+<head th:replace="fragments/header :: header (title=#{html.page.report.assign.title})" />
+<body>
+	<div class="wrapper">
+		<header th:replace="fragments/navbar :: navbar-header" />
+		<aside th:replace="fragments/navbar :: navbar-aside (page = 'report')" />
+
+		<section>
+			<div class="content-wrapper">
+				<h3>
+					<span th:text="#{html.page.report.assign.title}" />
+				</h3>
+				<div class="panel panel-default">
+					<div class="panel-heading">
+					</div>
+					<div class="panel-body">
+						<div class="table-responsive">
+							<table id="listTable" class="table table-striped table-hover">
+								<thead>
+									<tr>
+										<th class="col-md-1" />
+										<th class="col-md-3" th:text="#{html.entity.user.name}" />
+										<th class="col-md-1" th:text="#{html.entity.user.userId}" />
+										<th class="col-md-7" th:text="#{html.entity.user.positions}" />
+									</tr>
+								</thead>
+
+								<tbody>
+
+								</tbody>
+
+								<tfoot>
+									<tr >
+										<th>&nbsp;</th>
+										<th class="input-filter"></th>
+										<th class="input-filter"></th>
+										<th class="input-filter"></th>
+									</tr>
+								</tfoot>
+							</table>
+						</div>
+					</div>
+				</div>
+			</div>
+		</section>
+	</div>
+
+	<style>
+		.table .checkbox {
+			margin-left: 10px;
+			width: auto;
+		}
+	</style>
+
+	<nav th:replace="fragments/footer :: footer" />
+
+	<script th:inline="javascript">
+		/*<![CDATA[*/
+
+			/*[+
+				var searchTxt = [[#{html.datatables.search}]];
+				var dropdownTxt = [[#{html.datatables.dropdown}]];
+				var infoDefaultTxt = [[#{html.datatables.info.default}]];
+				var infoEmptyTxt = [[#{html.datatables.info.empty}]];
+				var infoLoadingTxt = [[#{html.datatables.info.loading}]];
+				var infoFilteredTxt = [[#{html.datatables.info.filtered}]];
+				var fieldUpdatedMsg = [[#{html.page.report.assign.successMsg}]];
+				var fieldNotUpdatedMsg = [[#{html.page.report.assign.failMsg}]];
+				var backendUrl = [[@{/rest/report/assign}]];
+				var templateId = [[${templateId}]];
+			+]*/
+
+			var token = $("meta[name='_csrf']").attr("content");
+
+			$(document).ready(function() {
+
+				// Setup - add a text input to each footer cell
+				$('#listTable tfoot th[class="input-filter"]').each( function () {
+					$(this).html('<input type="text" class="form-control input-sm" placeholder="Søg" />');
+				});
+
+				var allUsers = [];
+				var table = $('#listTable').DataTable({
+					'paging': true,
+					'ordering': true,
+					'info': true,
+					'stateSave': true,
+					'deferRender': true,
+					'pageLength': 100,
+					'language': {
+						"search": searchTxt,
+						"lengthMenu": dropdownTxt,
+						"info": infoDefaultTxt,
+						"zeroRecords": infoEmptyTxt,
+						"infoEmpty": "",
+						"infoFiltered": infoFilteredTxt
+					},
+					"columnDefs": [ {
+						"targets": 0,
+						"data": "uuid",
+						"render": function ( data, type, row, meta ) {
+							return '<div class="checkbox c-checkbox">'
+									+ '<label>'
+									+ '<input id="user-checkbox" type="checkbox" data-uuid="'+row.uuid+'" onclick="toggleUserChecked(this);" '+(row.assigned ? 'checked' : '')+'/>'
+									+ '<span class="fa fa-check"></span>'
+									+ '</label>'
+									+ '<label id="sortLabel-' + row.uuid + '" style="display:none">' + ((row.assigned) ? "1" : "0") + '</label>'
+									+ '</div>';
+						}
+					}],
+					'data': allUsers,
+					'columns': [
+						{ "data": "uuid" },
+						{ "data": "name" },
+						{ "data": "userId" },
+						{ "data": "positions" }
+					],
+					initComplete: function ()
+					{
+						var r = $('#listTable tfoot tr');
+						r.find('th').each(function(){
+							$(this).css('padding', 8);
+						});
+						$('#listTable thead').append(r);
+						$('#search_0').css('text-align', 'center');
+					}
+				});
+				
+			    // Restore state
+			    var state = table.state.loaded();
+			    if (state) {
+			      table.columns().eq(0).each(function(colIdx) {
+			        var colSearch = state.columns[colIdx].search;
+			        
+			        if (colSearch.search) {
+			          $('input', table.column(colIdx).footer()).val(colSearch.search);
+			        }
+			      });
+
+			      table.draw();
+			    }
+				
+				// Apply the search
+				$.each($('.input-filter', table.table().header()), function () {
+					var column = table.column($(this).index());
+
+					$('input', this).on('keyup change', function () {
+						if (column.search() !== this.value) {
+							column.search(this.value).draw();
+						}
+					});
+				});
+
+				// TODO: refactor to use datatables dao backend)
+				var jsonUsers = sessionStorage.getItem(templateId + "reportUserList");
+				var jsonUsersExpire = sessionStorage.getItem(templateId + "reportUserListExpire");
+				var cacheExpire = (jsonUsersExpire !== null && jsonUsersExpire < new Date().getTime());
+				
+				if (jsonUsers !== null && !cacheExpire) {
+					setTimeout(function() {
+						allUsers = JSON.parse(jsonUsers);
+						updateTable();
+					}, 10);
+				}
+				else {
+					$.ajax({
+						url: backendUrl+ "/users/" + templateId,
+						method: "GET",
+							error: function(response) {
+								$.notify({
+									message: 'Could not connect to user database!'
+								},{
+									status: 'danger',
+									autoHideDelay: 4000
+								});
+							},
+							success: function(response) {
+								allUsers = response;
+								updateTable();
+	
+								setTimeout(function() {
+									var jsonUsers = JSON.stringify(response);
+									var dMs = new Date().getTime() + (30 * 60 * 1000);
+									sessionStorage.setItem(templateId + "reportUserList", jsonUsers);
+									sessionStorage.setItem(templateId + "reportUserListExpire", dMs);
+								}, 10);
+							}
+						});
+				}
+
+				function updateTable() {
+					table.rows.add(allUsers);
+					table.columns.adjust().draw();
+				}
+			});
+
+			function toggleUserChecked(checkbox) {
+				var uuid = $(checkbox).data('uuid');
+				var checked = $(checkbox).prop("checked");
+
+				$.ajax({
+					url: backendUrl+ "/toggleUser",
+					method: 'POST',
+					data: {
+						'uuid': uuid,
+						'templateId' : templateId
+					},
+					headers: {
+						'X-CSRF-TOKEN': token
+					},
+					error: function(response) {
+						$.notify({
+							message: fieldNotUpdatedMsg + ""
+						},{
+							status: 'danger',
+							autoHideDelay: 4000
+						});
+					},
+					success: function(response) {
+						$('#sortLabel-' + uuid).text((checked) ? "1" : "0");
+
+						updateSessionUserData(uuid, checked);
+						$.notify({
+							message: fieldUpdatedMsg
+						},{
+							status: 'success',
+							autoHideDelay: 2000
+						});
+					}
+				});
+			}
+			
+			function updateSessionUserData(uuid, checked) {
+				var table = $('#listTable').DataTable();
+
+				allUsers = JSON.parse(sessionStorage.getItem(templateId + "reportUserList"));
+
+				userIndex = allUsers.findIndex((obj => obj.uuid == uuid));
+				allUsers[userIndex].assigned = checked;
+
+				table.clear();
+				table.rows.add(allUsers);
+				table.draw();
+
+				setTimeout(function() {
+					var jsonUsers = JSON.stringify(allUsers);
+					var dMs = new Date().getTime() + (30 * 60 * 1000);
+					sessionStorage.setItem(templateId + "reportUserList", jsonUsers);
+					sessionStorage.setItem(templateId + "reportUserListExpire", dMs);
+				}, 10);
+			}
+
+		/*]]>*/
+	</script>
+</body>
+</html>

@@ -176,7 +176,7 @@ public class LdapUpdaterHook implements RoleChangeHook {
 	}
 
 	@Override
-	public void interceptRemoveRoleGroupAssignmentOnTitle(Title title, RoleGroup roleGroup) {
+	public void interceptRemoveRoleGroupAssignmentOnTitle(Title title, RoleGroup roleGroup, OrgUnit ou) {
 		pendingADUpdateService.addRoleGroupToQueue(roleGroup);
 	}
 
@@ -186,7 +186,7 @@ public class LdapUpdaterHook implements RoleChangeHook {
 	}
 
 	@Override
-	public void interceptRemoveUserRoleAssignmentOnTitle(Title title, UserRole userRole) {
+	public void interceptRemoveUserRoleAssignmentOnTitle(Title title, UserRole userRole, OrgUnit ou) {
 		pendingADUpdateService.addUserRoleToQueue(userRole);
 	}
 }

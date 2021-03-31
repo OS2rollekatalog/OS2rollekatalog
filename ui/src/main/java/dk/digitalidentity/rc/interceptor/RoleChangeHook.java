@@ -12,9 +12,9 @@ public interface RoleChangeHook {
 	
 	// TitleServiceHooks
 	public void interceptAddRoleGroupAssignmentOnTitle(Title title, RoleGroup roleGroup, String[] ouUuids);
-	public void interceptRemoveRoleGroupAssignmentOnTitle(Title title, RoleGroup roleGroup);
+	public void interceptRemoveRoleGroupAssignmentOnTitle(Title title, RoleGroup roleGroup, OrgUnit ou);
 	public void interceptAddUserRoleAssignmentOnTitle(Title title, UserRole userRole, String[] ouUuids);
-	public void interceptRemoveUserRoleAssignmentOnTitle(Title title, UserRole userRole);
+	public void interceptRemoveUserRoleAssignmentOnTitle(Title title, UserRole userRole, OrgUnit ou);
 
 	// UserServiceHooks
 	public void interceptAddRoleGroupAssignmentOnUser(User user, RoleGroup roleGroup);

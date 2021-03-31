@@ -8,10 +8,12 @@ import javax.persistence.Id;
 import javax.persistence.Table;
 
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 
 @Entity
 @Table(name = "history_kle_assignments")
 @Getter
+@NoArgsConstructor
 public class HistoryKleAssignment {
 
 	@Id
@@ -28,4 +30,14 @@ public class HistoryKleAssignment {
 	
 	@Column
 	private String kleValues;
+	
+	public HistoryKleAssignment(String userUuid, String assignmentType, String kleValues) {
+		this.userUuid = userUuid;
+		this.assignmentType = assignmentType;
+		this.kleValues = kleValues;
+	}
+	
+	public void setKleValues(String kleValues) {
+		this.kleValues = kleValues;
+	}
 }

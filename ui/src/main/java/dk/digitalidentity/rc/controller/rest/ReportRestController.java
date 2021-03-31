@@ -4,11 +4,15 @@ import java.time.DateTimeException;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.MessageSource;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -18,10 +22,14 @@ import com.microsoft.sqlserver.jdbc.StringUtils;
 
 import dk.digitalidentity.rc.controller.mvc.viewmodel.OUListForm;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.ReportForm;
+import dk.digitalidentity.rc.controller.rest.model.UserListDTO;
 import dk.digitalidentity.rc.dao.model.ReportTemplate;
+import dk.digitalidentity.rc.dao.model.User;
+import dk.digitalidentity.rc.security.AccessConstraintService;
 import dk.digitalidentity.rc.security.RequireReadAccessRole;
 import dk.digitalidentity.rc.service.HistoryService;
 import dk.digitalidentity.rc.service.ReportTemplateService;
+import dk.digitalidentity.rc.service.UserService;
 
 @RequireReadAccessRole
 @RestController
@@ -32,6 +40,15 @@ public class ReportRestController {
 
 	@Autowired
 	private ReportTemplateService reportTemplateService;
+
+	@Autowired
+	private MessageSource messageSource;
+
+	@Autowired
+	private UserService userService;
+
+	@Autowired
+	private AccessConstraintService accessConstraintService;
 
 	@PostMapping(value = "/rest/report/save-template")
 	public ResponseEntity<HttpStatus> saveTemplate(@RequestBody ReportForm reportForm) {
@@ -111,5 +128,46 @@ public class ReportRestController {
 				.stream()
 				.map(OUListForm::new)
 				.collect(Collectors.toList());
+	}
+
+	@GetMapping(value = "/rest/report/assign/users/{id}")
+	public ResponseEntity<List<UserListDTO>> getAllUsers(Locale locale, @PathVariable("id") Long id) {
+		String in = messageSource.getMessage("html.word.in", null, locale);
+
+		List<User> users = userService.getAllThin();
+		users = accessConstraintService.filterUsersUserCanAccess(users, false);
+
+		List<UserListDTO> userDTOs = users
+				.stream()
+				.map(u -> new UserListDTO(u, in))
+				.collect(Collectors.toList());
+		
+		ReportTemplate reportTemplate = reportTemplateService.getById(id);
+		List<User> assignedUsers = reportTemplate.getUsers();
+
+		//Set assigned = true on all userDTO that are also in assignedUsers
+		userDTOs.stream().filter(dto -> assignedUsers.stream().anyMatch(au -> Objects.equals(au.getUuid(), dto.getUuid()))).forEach((a) -> { a.setAssigned(true); });
+
+		return new ResponseEntity<List<UserListDTO>>(userDTOs, HttpStatus.OK);
+	}
+
+	@PostMapping(value = "/rest/report/assign/toggleUser")
+	public ResponseEntity<?> assignUser(String uuid, Long templateId) {
+		ReportTemplate reportTemplate = reportTemplateService.getById(templateId);
+		User user = userService.getByUuid(uuid);
+		if (user == null) {
+			return ResponseEntity.badRequest().body("Ukendt bruger");
+		}
+
+		if (reportTemplate.getUsers().contains(user)) {
+			reportTemplate.getUsers().remove(user);
+		}
+		else {
+			reportTemplate.getUsers().add(user);
+		}
+
+		reportTemplateService.saveTemplate(reportTemplate);
+
+		return ResponseEntity.ok("");
 	}
 }

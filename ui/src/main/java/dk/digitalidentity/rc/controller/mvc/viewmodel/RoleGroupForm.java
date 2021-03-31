@@ -19,9 +19,7 @@ public class RoleGroupForm {
 	private String name;
 
 	private boolean userOnly;
-	
-	private boolean ouInheritAllowed;
-	
+		
 	private boolean canRequest;
 
 	@Size(max = 4000)

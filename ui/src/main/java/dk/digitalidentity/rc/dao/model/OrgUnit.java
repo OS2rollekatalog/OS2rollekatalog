@@ -64,6 +64,8 @@ public class OrgUnit implements AuditLoggable {
 	private OrgUnitLevel level;
 
 	// TODO: do we REALLY want to cascade everything to the children?
+	//       on next major refactor, see what the effects of removing this is,
+	//       as it will fix a lot of issues on importing org data
 	@OneToMany(fetch = FetchType.LAZY, mappedBy = "parent", cascade = CascadeType.ALL)
 	private List<OrgUnit> children;
 	
@@ -96,6 +98,11 @@ public class OrgUnit implements AuditLoggable {
 	@JoinTable(name = "ous_itsystems", joinColumns = { @JoinColumn(name = "ou_uuid") }, inverseJoinColumns = { @JoinColumn(name = "itsystem_id") })
 	@LazyCollection(LazyCollectionOption.TRUE)
 	private List<ItSystem> itSystems;
+
+	// lazy does not work, due to some inane proxy stuff, so a ManyToOne is required
+	@ManyToOne(fetch = FetchType.LAZY)
+	@JoinColumn(name = "attestation_pdf")
+	private OrgUnitAttestationPdf attestationPdf;
 	
 	@JsonIgnore
 	@Override

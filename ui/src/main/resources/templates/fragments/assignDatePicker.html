@@ -60,12 +60,14 @@
 		
 		function DatePickerService() {
 			this.init = function() {
-				
 				// Initialize DatePicker
 				$('#startDatePicker').datetimepicker(defaultStartDatePickerOptions);
 				$('#stopDatePicker').datetimepicker(defaultStopDatePickerOptions);
 				$('#groupStartDatePicker').datetimepicker(defaultStartDatePickerOptions);
 				$('#groupStopDatePicker').datetimepicker(defaultStopDatePickerOptions);
+				// TODO: I know this is not the best way to do it, but I can't make it work otherwise
+				$('#startDatePickerOU').datetimepicker(defaultStartDatePickerOptions);
+				$('#stopDatePickerOU').datetimepicker(defaultStopDatePickerOptions);
 				
 				// UserRoles
 				$("#startDatePicker").on("dp.change", function (e) {
@@ -106,6 +108,27 @@
 				$("#groupStopDatePicker").on("dp.change", function (e) {
 					if (!$('#groupStartDatePicker').data('date')) {
 						$('#groupStartDatePicker').data("DateTimePicker").date(new Date());
+					}
+				});
+				
+				//roles ou
+				$("#startDatePickerOU").on("dp.change", function (e) {
+					var minDate;
+					if (e.date) {
+						minDate = new Date(e.date + 24 * 60 * 60 * 1000);
+					} else {
+						minDate = new Date(new Date().getTime() + 24 * 60 * 60 * 1000);
+					}
+					$('#stopDatePickerOU').data("DateTimePicker").minDate(minDate);
+					
+					if ($('#stopDatePickerOU').data("date") && $('#stopDatePickerOU').data("DateTimePicker").date().toDate() < minDate) {
+						$('#stopDatePickerOU').data("DateTimePicker").date(minDate);
+					}
+				});
+
+				$("#stopDatePickerOU").on("dp.change", function (e) {
+					if (!$('#startDatePickerOU').data('date')) {
+						$('#startDatePickerOU').data("DateTimePicker").date(new Date());
 					}
 				});
 			}

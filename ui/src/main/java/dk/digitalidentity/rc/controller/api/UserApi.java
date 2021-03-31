@@ -8,6 +8,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -63,7 +64,7 @@ public class UserApi {
 				return new ResponseEntity<>(HttpStatus.NOT_FOUND);
 			}
 		}
-		
+
 		try {
 			Map<String, String> roleMap = new HashMap<>();
 			String oioBpp = userService.generateOIOBPP(user, itSystems, roleMap);
@@ -102,6 +103,10 @@ public class UserApi {
 		}
 		else {
 			itSystems = itSystemService.getAll();
+		}
+
+		if (itSystems != null) {
+			itSystems = itSystems.stream().filter(its -> its.isAccessBlocked() == false).collect(Collectors.toList());
 		}
 
 		try {
@@ -192,6 +197,10 @@ public class UserApi {
 			}
 		}
 
+		if (itSystems != null) {
+			itSystems = itSystems.stream().filter(its -> its.isAccessBlocked() == false).collect(Collectors.toList());
+		}
+
 		List<UserRole> roles = userService.getAllUserRoles(user, itSystems);
 		
 		if (roles != null) {
@@ -220,6 +229,10 @@ public class UserApi {
 				log.warn("could not find itSystem: " + itSystemIdentifier);
 				return new ResponseEntity<>(HttpStatus.NOT_FOUND);
 			}
+		}
+
+		if (itSystems != null) {
+			itSystems = itSystems.stream().filter(its -> its.isAccessBlocked() == false).collect(Collectors.toList());
 		}
 
 		List<UserRole> roles = userService.getAllUserRoles(user, itSystems);
@@ -259,7 +272,8 @@ public class UserApi {
 			
 			itSystems = Collections.singletonList(itSystem);
 		}
-		
+
 		return itSystems;
 	}
+
 }

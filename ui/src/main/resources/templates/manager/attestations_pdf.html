@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html>
+<head/>
+<body>
+	<h1>
+		<span th:text="#{html.page.attestations.pdf.title}"></span>
+	</h1>
+	<p th:text="#{html.page.attestations.pdf.unit} + ' ' + ${orgUnitName}" style="font-weight: bold;"/>
+	<p th:text="#{html.page.attestations.pdf.time} + ' ' + ${time}" style="font-weight: bold;"/>
+	<p th:text="#{html.page.attestations.pdf.by} + ' ' + ${attestedBy}" style="font-weight: bold;"/>
+	<p>
+		<span th:text="#{html.page.attestations.pdf.subtext}"></span>
+	</p>
+	<br/>
+	<br/>				
+	<div th:if="${!toBeRemoved.empty}">
+		<p th:text="#{html.page.attestations.confirment.show.personal.remove}" style="font-weight: bold;"></p>
+		<ul th:each="dto : ${toBeRemoved}">
+			<li th:if="${dto.roleGroup}" th:text="'Rollebuketten ' + ${dto.roleName} + ' for medarbejderen ' + ${dto.userOrUnitName}"/>
+			<li th:unless="${dto.roleGroup}" th:text="'Jobfunktionsrollen ' + ${dto.roleName} + ' (' + ${dto.itSystemName} + ') ' + ' for medarbejderen ' + ${dto.userOrUnitName}"/>
+		</ul>
+		<br/>
+	</div>
+	
+	<div th:if="${!toEmail.empty}">
+		<p th:text="#{html.page.attestations.confirment.show.unit.remove}" style="font-weight: bold;"></p>
+		<ul th:each="dto : ${toEmail}">
+			<div th:if="${dto.title}">
+				<li th:if="${dto.roleGroup}" th:text="'Rollebuketten ' + ${dto.roleName} + ' for titlen ' + ${dto.userOrUnitName}"/>
+				<li th:unless="${dto.roleGroup}" th:text="'Jobfunktionsrollen ' + ${dto.roleName} + ' (' + ${dto.itSystemName} + ') ' + ' for titlen ' + ${dto.userOrUnitName}"/>
+			</div>
+			<div th:unless="${dto.title}">
+				<li th:if="${dto.roleGroup}" th:text="'Rollebuketten ' + ${dto.roleName} + ' for enheden ' + ${dto.userOrUnitName}"/>
+				<li th:unless="${dto.roleGroup}" th:text="'Jobfunktionsrollen ' + ${dto.roleName} + ' (' + ${dto.itSystemName} + ') ' + ' for enheden ' + ${dto.userOrUnitName}"/>
+			</div>
+		</ul>
+		<br/>
+	</div>
+	
+	<div th:if="${!aprovedPersonal.empty}">
+		<p th:text="#{html.page.attestations.pdf.aprove.personal}" style="font-weight: bold;"></p>
+		<ul th:each="dto : ${aprovedPersonal}">
+			<li th:if="${dto.roleGroup}" th:text="'Rollebuketten ' + ${dto.roleName} + ' for medarbejderen ' + ${dto.userOrUnitName}"/>
+			<li th:unless="${dto.roleGroup}" th:text="'Jobfunktionsrollen ' + ${dto.roleName} + ' (' + ${dto.itSystemName} + ') ' + ' for medarbejderen ' + ${dto.userOrUnitName}"/>
+		</ul>
+		<br/>
+	</div>
+	
+	<div th:if="${!aprovedUnit.empty}">
+		<p th:text="#{html.page.attestations.pdf.aprove.unit}" style="font-weight: bold;"></p>
+		<ul th:each="dto : ${aprovedUnit}">
+			<div th:if="${dto.title}">
+				<li th:if="${dto.roleGroup}" th:text="'Rollebuketten ' + ${dto.roleName} + ' for titlen ' + ${dto.userOrUnitName}"/>
+				<li th:unless="${dto.roleGroup}" th:text="'Jobfunktionsrollen ' + ${dto.roleName} + ' (' + ${dto.itSystemName} + ') ' + ' for titlen ' + ${dto.userOrUnitName}"/>
+			</div>
+			<div th:unless="${dto.title}">
+				<li th:if="${dto.roleGroup}" th:text="'Rollebuketten ' + ${dto.roleName} + ' for enheden ' + ${dto.userOrUnitName}"/>
+				<li th:unless="${dto.roleGroup}" th:text="'Jobfunktionsrollen ' + ${dto.roleName} + ' (' + ${dto.itSystemName} + ') ' + ' for enheden ' + ${dto.userOrUnitName}"/>
+			</div>
+		</ul>
+	</div>
+</body>
+</html>

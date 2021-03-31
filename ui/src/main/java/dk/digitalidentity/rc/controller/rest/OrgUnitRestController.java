@@ -40,6 +40,7 @@ import dk.digitalidentity.rc.dao.model.TitleRoleGroupAssignment;
 import dk.digitalidentity.rc.dao.model.TitleUserRoleAssignment;
 import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserRole;
+import dk.digitalidentity.rc.dao.model.enums.ItSystemType;
 import dk.digitalidentity.rc.dao.model.enums.KleType;
 import dk.digitalidentity.rc.dao.model.enums.OrgUnitLevel;
 import dk.digitalidentity.rc.security.RequireAdministratorRole;
@@ -191,14 +192,15 @@ public class OrgUnitRestController {
 		if (ou == null || role == null) {
 			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
 		}
-		
+
+		if (role.getItSystem().getSystemType() == ItSystemType.AD && role.getItSystem().isReadonly()) {
+			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+		}
+
 		OUAssignStatus status = alreadyAssigned(ou, role, (payload != null) ? payload.getTitleUuids() : null);
 
 		if (!configuration.getTitles().isEnabled() || payload == null || payload.getTitleUuids() == null || payload.getTitleUuids().size() == 0) {
 
-			// make sure noone tries to trick us ;)
-			inherit = role.isOuInheritAllowed() && inherit;
-	
 			if (orgUnitService.addUserRole(ou, role, inherit, startDate, stopDate)) {
 				orgUnitService.save(ou);
 				status.setSuccess(true);
@@ -251,24 +253,18 @@ public class OrgUnitRestController {
 					if (!ouUuids.contains(ou.getUuid())) {
 						continue;
 					}
-					
-					ouUuids.remove(ou.getUuid());
-					if (ouUuids.size() > 0) {
-						if (titleService.addUserRole(title, role, ouUuids.toArray(new String[0]), startDate, stopDate)) {
-							titleService.save(title);
-						}
-					}
-					else {
-						if (titleService.removeUserRole(title, role)) {
-							titleService.save(title);
-						}
+
+					if (titleService.removeUserRole(title, role, ou)) {
+						titleService.save(title);
 					}
 				}
 			}
 			
 			// assigning by titles should remove the direct assignment (if present)
-			if (orgUnitService.removeUserRole(ou, role)) {
-				orgUnitService.save(ou);
+			if (ou.getUserRoleAssignments().stream().anyMatch(a -> a.getUserRole().getId() == role.getId())) {
+				if (orgUnitService.removeUserRole(ou, role)) {
+					orgUnitService.save(ou);
+				}
 			}
 		}
 
@@ -286,8 +282,14 @@ public class OrgUnitRestController {
 			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
 		}
 
-		if (orgUnitService.removeUserRole(ou, role)) {
-			orgUnitService.save(ou);
+		if (role.getItSystem().getSystemType() == ItSystemType.AD && role.getItSystem().isReadonly()) {
+			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+		}
+
+		if (ou.getUserRoleAssignments().stream().anyMatch(a -> a.getUserRole().getId() == role.getId())) {
+			if (orgUnitService.removeUserRole(ou, role)) {
+				orgUnitService.save(ou);
+			}
 		}
 
 		removeTitleAssignedUserRole(ou, role);
@@ -316,9 +318,6 @@ public class OrgUnitRestController {
 		// if no titles supplied (or enabled), do direct assignment
 		if (!configuration.getTitles().isEnabled() || payload == null || payload.getTitleUuids() == null || payload.getTitleUuids().size() == 0) {
 		
-			// make sure noone tries to trick us ;)
-			inherit = roleGroup.isOuInheritAllowed() && inherit;
-			
 			if (orgUnitService.addRoleGroup(ou, roleGroup, inherit, startDate, stopDate)) {
 				orgUnitService.save(ou);
 				status.setSuccess(true);
@@ -369,24 +368,18 @@ public class OrgUnitRestController {
 					if (!ouUuids.contains(ou.getUuid())) {
 						continue;
 					}
-					
-					ouUuids.remove(ou.getUuid());
-					if (ouUuids.size() > 0) {
-						if (titleService.addRoleGroup(title, roleGroup, ouUuids.toArray(new String[0]), startDate, stopDate)) {
-							titleService.save(title);
-						}
-					}
-					else {
-						if (titleService.removeRoleGroup(title, roleGroup)) {
-							titleService.save(title);
-						}
+
+					if (titleService.removeRoleGroup(title, roleGroup, ou)) {
+						titleService.save(title);
 					}
 				}
 			}
 			
 			// directly assigned rolegroup is removed as the title assignment overwrites this
-			if (orgUnitService.removeRoleGroup(ou, roleGroup)) {
-				orgUnitService.save(ou);
+			if (ou.getRoleGroupAssignments().stream().anyMatch(a -> a.getRoleGroup().getId() == roleGroup.getId())) {
+				if (orgUnitService.removeRoleGroup(ou, roleGroup)) {
+					orgUnitService.save(ou);
+				}
 			}
 		}
 
@@ -403,8 +396,10 @@ public class OrgUnitRestController {
 			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
 		}
 
-		if (orgUnitService.removeRoleGroup(ou, roleGroup)) {
-			orgUnitService.save(ou);
+		if (ou.getRoleGroupAssignments().stream().anyMatch(a -> a.getRoleGroup().getId() == roleGroup.getId())) {
+			if (orgUnitService.removeRoleGroup(ou, roleGroup)) {
+				orgUnitService.save(ou);
+			}
 		}
 		
 		removeTitleAssignedRoleGroup(ou, roleGroup);
@@ -435,16 +430,8 @@ public class OrgUnitRestController {
 					continue;
 				}
 				
-				ouUuids.remove(ou.getUuid());
-				if (ouUuids.size() > 0) {
-					if (titleService.addRoleGroup(title, roleGroup, ouUuids.toArray(new String[0]), null, null)) {
-						titleService.save(title);
-					}
-				}
-				else {
-					if (titleService.removeRoleGroup(title, roleGroup)) {
-						titleService.save(title);
-					}
+				if (titleService.removeRoleGroup(title, roleGroup, ou)) {
+					titleService.save(title);
 				}
 			}
 		}
@@ -620,16 +607,8 @@ public class OrgUnitRestController {
 					continue;
 				}
 				
-				ouUuids.remove(ou.getUuid());
-				if (ouUuids.size() > 0) {
-					if (titleService.addUserRole(title, role, ouUuids.toArray(new String[0]), null, null)) {
-						titleService.save(title);
-					}
-				}
-				else {
-					if (titleService.removeUserRole(title, role)) {
-						titleService.save(title);
-					}
+				if (titleService.removeUserRole(title, role, ou)) {
+					titleService.save(title);
 				}
 			}
 		}

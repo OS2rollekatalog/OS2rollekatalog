@@ -381,14 +381,17 @@ public class OrganisationImporter {
 			}
 	
 			// bulk-save, and then copy them all to the list of existing orgUnits
-			orgUnitService.save(toBeCreated);
-			existingOrgUnits.addAll(toBeCreated);
+			Iterable<OrgUnit> resultToBeCreated = orgUnitService.save(toBeCreated);
+			for (OrgUnit orgUnit : resultToBeCreated) {
+				existingOrgUnits.add(orgUnit);				
+			}
 		}
 		
 		if (toBeUpdated.size() > 0) {
 			log.info("Updating " + toBeUpdated.size() + " OrgUnits");
 
 			for (OrgUnit orgUnitToUpdate : toBeUpdated) {
+				
 				for (OrgUnit existingOrgUnit : existingOrgUnits) {
 					if (existingOrgUnit.getUuid().equals(orgUnitToUpdate.getUuid())) {
 						existingOrgUnit.setActive(true);

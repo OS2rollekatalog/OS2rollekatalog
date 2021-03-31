@@ -28,10 +28,13 @@ import dk.digitalidentity.rc.controller.mvc.datatables.dao.model.AttestationView
 import dk.digitalidentity.rc.controller.rest.model.AutoCompleteResult;
 import dk.digitalidentity.rc.controller.rest.model.RejectForm;
 import dk.digitalidentity.rc.controller.rest.model.ValueData;
+import dk.digitalidentity.rc.service.EmailQueueService;
+import dk.digitalidentity.rc.dao.model.EmailTemplate;
 import dk.digitalidentity.rc.dao.model.RequestApprove;
 import dk.digitalidentity.rc.dao.model.RoleGroup;
 import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserRole;
+import dk.digitalidentity.rc.dao.model.enums.EmailTemplateType;
 import dk.digitalidentity.rc.dao.model.enums.EventType;
 import dk.digitalidentity.rc.dao.model.enums.RequestApproveStatus;
 import dk.digitalidentity.rc.log.AuditLogger;
@@ -40,6 +43,7 @@ import dk.digitalidentity.rc.security.RequireAssignerOrManagerRole;
 import dk.digitalidentity.rc.security.RequireManagerRole;
 import dk.digitalidentity.rc.security.SecurityUtil;
 import dk.digitalidentity.rc.service.EmailService;
+import dk.digitalidentity.rc.service.EmailTemplateService;
 import dk.digitalidentity.rc.service.RequestApproveService;
 import dk.digitalidentity.rc.service.RoleGroupService;
 import dk.digitalidentity.rc.service.UserRoleService;
@@ -75,6 +79,12 @@ public class ManagerRestController {
 
 	@Autowired
 	private AttestationViewDao attestationViewDao;
+	
+	@Autowired
+	private EmailTemplateService emailTemplateService;
+	
+	@Autowired
+	private EmailQueueService emailQueueService;
 
 	@RequireAdministratorRole
 	@PostMapping("/rest/manager/attestation/list")
@@ -134,6 +144,15 @@ public class ManagerRestController {
 		manager.setManagerSubstitute(substitute);
 
 		userService.save(manager);
+		
+		String substituteEmail = substitute.getEmail();
+		if (substituteEmail != null) {
+			EmailTemplate template = emailTemplateService.findByTemplateType(EmailTemplateType.SUBSTITUTE);
+			String message = template.getMessage();
+			message = message.replace(EmailTemplateService.RECEIVER_PLACEHOLDER, substitute.getName());
+			message = message.replace(EmailTemplateService.ORGUNIT_PLACEHOLDER, "en eller flere enheder");
+			emailQueueService.queueEmail(substituteEmail, template.getTitle(), message, template, null);
+		}
 
 		return new ResponseEntity<>(HttpStatus.OK);
 	}

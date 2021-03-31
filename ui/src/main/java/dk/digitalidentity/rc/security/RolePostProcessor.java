@@ -21,6 +21,7 @@ import dk.digitalidentity.rc.dao.model.UserRole;
 import dk.digitalidentity.rc.dao.model.enums.EventType;
 import dk.digitalidentity.rc.log.AuditLogger;
 import dk.digitalidentity.rc.service.ItSystemService;
+import dk.digitalidentity.rc.service.ReportTemplateService;
 import dk.digitalidentity.rc.service.SettingsService;
 import dk.digitalidentity.rc.service.UserService;
 import dk.digitalidentity.saml.extension.SamlLoginPostProcessor;
@@ -44,6 +45,9 @@ public class RolePostProcessor implements SamlLoginPostProcessor {
 	
 	@Autowired
 	private ItSystemService itSystemService;
+	
+	@Autowired
+	private ReportTemplateService reportTemplateService;
 
 	@Override
 	public void process(TokenUser tokenUser) {
@@ -114,7 +118,12 @@ public class RolePostProcessor implements SamlLoginPostProcessor {
 			authorities.add(new SimpleGrantedAuthority(Constants.ROLE_KLE_ADMINISTRATOR));
 			authorities.add(new SimpleGrantedAuthority(Constants.ROLE_READ_ACCESS));
 		}
-		
+
+		// Users without roles but with assigned Reports templates
+		if (roles.size() == 0 && reportTemplateService.getByUser(user).size() > 0) {
+			authorities.add(new SimpleGrantedAuthority(Constants.ROLE_TEMPLATE_ACCESS));
+		}
+
 		tokenUser.setAuthorities(authorities);
 	}
 }

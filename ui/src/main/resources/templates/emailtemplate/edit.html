@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="fragments/header :: header"/>
+<body>
+	<div class="wrapper">
+		<header th:replace="fragments/navbar :: navbar-header" />
+		<aside th:replace="fragments/navbar :: navbar-aside (page = 'mail')" />
+ 
+		<section>
+			<div class="content-wrapper">
+				<h3 th:text="#{html.page.email_template.edit.headline}" />
+
+				<div class="panel panel-default">
+					<div class="panel-heading" />
+
+					<div class="panel-body">
+						<div class="row" style="margin-bottom: 30px;">
+							<div class="col-lg-10 col-lg-offset-1">
+								<h3 style="margin-top: 0px;" th:text="#{html.page.email_template.header}"/>
+								<p th:text="#{html.page.email_template.intro}"/>
+							</div>
+						</div>
+						
+						<div class="row">
+							<div class="col-lg-12">
+								<form class="form-horizontal">
+									<div class="form-group">
+										<label class="col-sm-2 control-label" th:text="#{html.entity.email_template.template}"/>
+
+										<div class="col-sm-8">
+											<select class="form-control m-b col-sm-8" id="templateDropdown">
+												<option th:each="template : ${templates}" th:value="${template.id}" th:text="#{__${template.templateTypeText}__}"/>
+											</select>
+										</div>
+									</div>
+								</form>
+							</div>
+						</div>
+
+						<div class="row">
+							<div class="col-lg-12">
+								<form th:each="template : ${templates}" class="form-horizontal templateForm" th:id="'template' + ${template.id}" style="display: none;">
+									<input type="hidden" name="id" th:value="${template.id}"/>
+
+									<div class="form-group">
+										<label class="col-sm-2 control-label" th:text="#{html.entity.email_template.name}"/>
+										<div class="col-sm-8">
+											<input name="title" th:value="${template.title}" class="form-control" />
+										</div>
+									</div>
+
+									<div class="form-group">
+										<label class="col-sm-2 control-label" th:text="#{html.entity.email_template.message}"/>
+										<div class="col-sm-8">
+											<textarea name="message" th:text="${template.message}" class="mb-0 preformat" rows="10" style="width:100%;"></textarea>
+										</div>
+									</div>
+									
+									<div class="form-group">
+										<div class="col-sm-offset-2 col-sm-10">
+											<button type="button" style="margin-right: 5px;" class="btn btn-lg btn-primary col-xs-2 buttonSubmit" th:text="#{html.control.button.save}"/>
+											<button type="button" style="margin-right: 5px;" class="btn btn-lg btn-warning col-xs-2 buttonTest" th:text="#{html.page.email_template.test}"/>
+										</div>
+									</div>
+								</form>
+							</div>
+						</div>
+						
+						<div class="row">
+							<div class="col-lg-offset-2 col-lg-8">
+								<em th:utext="#{html.page.email_template.footer}" />
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+		</section>
+	</div>
+	
+	<div th:replace="fragments/footer :: footer"/>
+
+	<script th:inline="javascript">
+	/*<![CDATA[*/
+
+	/*[+
+		var restUrl = [[@{/rest/mailtemplates}]];
+		var msgSuccess = [[#{html.page.email_template.success}]];
+		var msgFail = [[#{html.page.email_template.failure}]];
+		var msgFailDelete = [[#{html.page.email_template.failure.removeattachment}]];
+		var msgFailAttachment = [[#{html.page.email_template.failure.addattachment}]];
+		
+		var swalImageOk = [[#{html.button.ok}]];
+		var swalImageTitle = [[#{html.page.email_template.swal.image.title}]];
+		var swalImageText = [[#{html.page.email_template.swal.image.text}]];
+	+]*/
+	
+		var token = $("meta[name='_csrf']").attr("content");
+
+		$(document).ready(function () {
+			
+			$('textarea[name="message"]').summernote({
+				"height": 320,
+				"toolbar": [
+					[ "font", [ "bold", "italic", "underline" ]],
+					[ "para", [ "ul", "ol" ]],
+					[ "insert", [ "picture", "link" ]]
+				],
+				maximumImageFileSize: 100*1024, // 100 KB
+				callbacks: {
+					onImageUploadError: function(msg) {
+						swal({
+							title: swalImageTitle,
+							text: swalImageText,
+							confirmButtonColor : "#4765a0",
+							confirmButtonText : swalImageOk
+						});
+					}
+				},
+				dialogsInBody: true
+			});
+			
+			$('#templateDropdown').change(function() {
+				// hide all
+				$('.templateForm').hide();
+				
+				// show chosen
+				$('#template' + $("#templateDropdown").val()).show();
+			});
+						
+			$('.buttonSubmit').click(function() {
+				var oForm = $('#template' + $("#templateDropdown").val());
+				var data = getFormData(oForm);
+				
+				save(data, false);
+			});
+			
+			$('.buttonTest').click(function() {
+				var oForm = $('#template' + $("#templateDropdown").val());
+				var data = getFormData(oForm);
+
+				save(data, true);
+			});
+			
+			$('.checkboxFancy').change(function() {
+				var oForm = $('#template' + $("#templateDropdown").val());
+				var checkboxValue = oForm.find('.checkboxFancy')[0].checked;
+				
+				oForm.find("input[name=enabled]")[0].value = checkboxValue;
+			});
+			
+			// display currently chosen template
+			$('#template' + $("#templateDropdown").val()).show();
+			
+			
+		});
+	
+
+		// polyfill for IE11 and endsWith() support
+		if (!String.prototype.endsWith) {
+		    String.prototype.endsWith = function(search, this_len) {
+		        if (this_len === undefined || this_len > this.length) {
+		            this_len = this.length;
+		        }
+		        return this.substring(this_len - search.length, this_len) === search;
+		    };
+		}
+
+		function getFormData(oForm) {
+		    var unindexed_array = oForm.serializeArray();
+		    var indexed_array = {};
+
+		    $.map(unindexed_array, function(n, i){
+		        indexed_array[n['name']] = n['value'];
+		    });
+
+		    return indexed_array;
+		}
+		
+		function save(payload, tryEmail) {
+			$.ajax({
+				method : "POST",
+				url: restUrl + "?tryEmail=" + tryEmail,
+				headers: {
+					"content-type": "application/json",
+					'X-CSRF-TOKEN': token
+				},
+				data: JSON.stringify(payload)
+			}).done(function(data) {
+				if (data != '') {
+					$.notify({
+						message: data
+					}, {
+						status: 'success',
+						autoHideDelay: 2000
+					});
+				}
+				else {				
+					$.notify({
+						message: msgSuccess
+					}, {
+						status: 'success',
+						autoHideDelay: 2000
+					});
+				}
+			}).fail(function(jqXHR, textStatus, errorThrown) {
+				if (jqXHR.status) {
+					$.notify({
+						message: jqXHR.responseText
+					}, {
+						status: 'danger',
+						autoHideDelay: 4000
+					});
+				}
+				else {
+					$.notify({
+						message: msgFail
+					}, {
+						status: 'danger',
+						autoHideDelay: 4000
+					});
+				}
+			});
+		}
+		
+	/*]]>*/
+	</script>
+</body>
+</html>

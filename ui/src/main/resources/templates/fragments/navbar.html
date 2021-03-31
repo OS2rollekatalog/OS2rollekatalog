@@ -116,8 +116,8 @@
 							</ul>
 						</li>
 					</th:block>
-										
-					<th:block sec:authorize="hasRole('ROLE_READ_ACCESS')">
+
+					<th:block sec:authorize="hasRole('ROLE_READ_ACCESS') or hasRole('ROLE_TEMPLATE_ACCESS')">
 						<li class="nav-heading">
 							<span th:text="#{html.navbar.reports}" />
 						</li>
@@ -130,17 +130,19 @@
 							
 							<ul id="reports" class="nav sidebar-subnav collapse">
 		                        <li class="sidebar-subnav-header" />
-		                        <li th:class="${page == 'report.full'} ? 'active' : ''">
+		                        <li th:class="${page == 'report.full'} ? 'active' : ''" sec:authorize="hasRole('ROLE_READ_ACCESS')">
 									<a th:href="@{/ui/report/configure}">
 		                              <span th:text="#{html.navbar.report.configure}" />
 		                           </a>
 		                        </li>
+		                        
 		                        <li th:class="${page == 'report.manager'} ? 'active' : ''">
 									<a th:href="@{/ui/report/templates}">
 		                              <span th:text="#{html.navbar.report.templates}" />
 		                           </a>
 		                        </li>
-		                        <li th:class="${page == 'report.custom'} ? 'active' : ''">
+
+		                        <li th:class="${page == 'report.custom'} ? 'active' : ''" sec:authorize="hasRole('ROLE_READ_ACCESS')">
 									<a th:href="@{/ui/report/custom}">
 		                              <span th:text="#{html.navbar.report.custom}" />
 		                           </a>
@@ -184,15 +186,36 @@
 						</a>
 					</li>
 
-					<th:block sec:authorize="hasRole('ROLE_MANAGER')">
+					<th:block sec:authorize="hasRole('ROLE_ADMINISTRATOR') or hasRole('ROLE_MANAGER') or hasRole('ROLE_SUBSTITUTE')">
 						<li class="nav-heading">
-							<span th:text="#{html.navbar.substitute}" />
+							<span th:text="#{html.navbar.management}" />
 						</li>
 	
-						<li th:class="${page == 'manager.substitute'} ? 'active' : ''">
+						<li th:class="${page == 'manager.substitute'} ? 'active' : ''" sec:authorize="hasRole('ROLE_MANAGER')">
 							<a th:href="@{/ui/manager/substitute}">
 								<em class="fa fa-male"></em>
 								<span th:text="#{html.navbar.substitute.choose}" />
+							</a>
+						</li>
+						
+						<li th:class="${page == 'admin.attestation'} ? 'active' : ''" sec:authorize="hasRole('ROLE_ADMINISTRATOR')">
+							<a th:href="@{/ui/admin/attestations}">
+								<em class="fa fa-check"></em>
+								<span th:text="#{html.navbar.attestations.admin}" />
+							</a>
+						</li>
+
+						<li th:class="${page == 'attestation'} ? 'active' : ''" sec:authorize="hasRole('ROLE_MANAGER') or hasRole('ROLE_SUBSTITUTE')">
+							<a th:href="@{/ui/users/attestations}">
+								<em class="fa fa-check"></em>
+								<span th:text="#{html.navbar.attestations}" />
+							</a>
+						</li>
+						
+						<li th:class="${page == 'mail'} ? 'active' : ''" sec:authorize="hasRole('ROLE_ADMINISTRATOR')">
+							<a th:href="@{/ui/admin/mailtemplates}">
+								<em class="fa fa-envelope"></em>
+								<span th:text="#{html.navbar.emailTemplate}" />
 							</a>
 						</li>
 					</th:block>
@@ -228,24 +251,6 @@
 								<a th:href="@{/ui/users/requests}">
 									<em class="fa fa-comment-o"></em>
 									<span th:text="#{html.navbar.requestapprove}" />
-								</a>
-							</li>
-						</th:block>
-						
-						<th:block sec:authorize="hasRole('ROLE_ADMINISTRATOR')">
-							<li th:class="${page == 'admin.attestation'} ? 'active' : ''">
-								<a th:href="@{/ui/admin/attestations}">
-									<em class="fa fa-check"></em>
-									<span th:text="#{html.navbar.attestations.admin}" />
-								</a>
-							</li>
-						</th:block>
-
-						<th:block sec:authorize="hasRole('ROLE_MANAGER') or hasRole('ROLE_SUBSTITUTE')">
-							<li th:class="${page == 'attestation'} ? 'active' : ''">
-								<a th:href="@{/ui/users/attestations}">
-									<em class="fa fa-check"></em>
-									<span th:text="#{html.navbar.attestations}" />
 								</a>
 							</li>
 						</th:block>

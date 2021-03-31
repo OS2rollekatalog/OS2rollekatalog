@@ -36,7 +36,6 @@ import lombok.extern.log4j.Log4j;
 @Log4j
 @Component
 @EnableScheduling
-@Transactional
 public class UpdateKOMBITTask {
 	private HttpHeaders headers;
 	private boolean initialized = false;
@@ -74,7 +73,7 @@ public class UpdateKOMBITTask {
 	}
 
 	@SuppressWarnings("deprecation")
-	@Scheduled(fixedDelay = 2 * 60 * 1000)
+	@Scheduled(cron = "0 0/2 6-21 * * ?")
 	public void processUserRolesFromUpdateQueue() {
 		Thread t = new Thread(new Runnable() {
 
@@ -96,6 +95,7 @@ public class UpdateKOMBITTask {
 		}
 	}
 	
+	// TODO: probably move this to a service class?
 	@Transactional
 	public void performUpdate() {
 		if (!initialized) {

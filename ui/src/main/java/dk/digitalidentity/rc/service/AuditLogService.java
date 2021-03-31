@@ -2,6 +2,7 @@ package dk.digitalidentity.rc.service;
 
 import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.Date;
 import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -10,6 +11,7 @@ import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.EnableCaching;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
 import dk.digitalidentity.rc.dao.model.AuditLog;
@@ -26,6 +28,9 @@ public class AuditLogService {
 
 	@Autowired
 	private AuditLogEntryDao auditLogEntryDao;
+
+	@Autowired
+	private AuditLogService self;
 
 	static {
 		eventTypes = new ArrayList<>();
@@ -48,11 +53,22 @@ public class AuditLogService {
 		return auditLogEntryDao.findByTimestampAfterAndEventTypeInOrderByTimestampDesc(cal.getTime(), eventTypes);
 	}
 
-	@Scheduled(fixedDelay = 60 * 1000)
-	@CacheEvict(value = "auditLogEntries", allEntries = true)
+	@Scheduled(fixedDelay = 5 * 60 * 1000)
 	public void resetAuditLogCache() {
-		; // clears cache every minute - we just want to protect
-		  // against force-refresh in the browser, as the lookup
-		  // can be a bit intensive
+		self.clearCache();
+	}
+	
+	@CacheEvict(value = "auditLogEntries", allEntries = true)
+	public void clearCache() {
+		;
+	}
+	
+	@Transactional
+	public void cleanupAuditlogs() {
+    	Calendar cal = Calendar.getInstance();
+    	cal.add(Calendar.MONTH, -1 * configuration.getAudit().getMonthRetention());
+    	Date before = cal.getTime();
+
+    	auditLogEntryDao.deleteByTimestampBefore(before);
 	}
 }

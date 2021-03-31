@@ -12,7 +12,6 @@ import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
 import dk.digitalidentity.rc.dao.PendingOrganisationUpdateDao;
 import dk.digitalidentity.rc.dao.model.OrgUnit;
 import dk.digitalidentity.rc.dao.model.PendingOrganisationUpdate;
-import dk.digitalidentity.rc.dao.model.Position;
 import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.security.SecurityUtil;
 import dk.digitalidentity.rc.service.AttestationService;
@@ -109,7 +108,11 @@ public class ActOnOrganisationChangesTask {
 				userService.removeAllDirectlyAssignedRolesAndInformUser(user);
 				break;
 			case RIGHTS_NEEDS_APPROVAL:
-				attestationService.flagPositionForAttestation(event.getUserUuid(), event.getOrgUnitUuid());
+				// TODO: not optimal, but probably what we can do for now
+				OrgUnit ou = orgUnitService.getByUuid(event.getOrgUnitUuid());
+				if (ou != null) {
+					attestationService.flagOrgUnitForImmediateAttesation(ou);
+				}
 				break;
 			default:
 				log.error("userNewPositionAction of type " + userNewPositionAction.toString() + " is unknown!");
@@ -170,14 +173,7 @@ public class ActOnOrganisationChangesTask {
 	}
 	
 	private void flagAllUserForAttestation(OrgUnit orgUnit, boolean recursive) {
-		List<User> users = userService.findByOrgUnit(orgUnit);
-		for (User user : users) {
-			for (Position position : user.getPositions()) {
-				if (position.getOrgUnit().getUuid().equals(orgUnit.getUuid())) {
-					attestationService.flagPositionForAttestation(position);
-				}
-			}
-		}
+		attestationService.flagOrgUnitForImmediateAttesation(orgUnit);
 		
 		if (recursive && orgUnit.getChildren() != null && orgUnit.getChildren().size() > 0) {
 			for (OrgUnit child : orgUnit.getChildren()) {

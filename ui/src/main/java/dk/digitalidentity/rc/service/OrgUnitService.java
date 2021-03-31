@@ -4,10 +4,12 @@ import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -22,6 +24,7 @@ import org.springframework.cache.annotation.EnableCaching;
 import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 
 import dk.digitalidentity.rc.config.Constants;
 import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
@@ -45,6 +48,7 @@ import dk.digitalidentity.rc.log.AuditLogIntercepted;
 import dk.digitalidentity.rc.security.SecurityUtil;
 import dk.digitalidentity.rc.service.model.AssignedThrough;
 import dk.digitalidentity.rc.service.model.OrgUnitWithRole;
+import dk.digitalidentity.rc.service.model.RoleWithDateDTO;
 
 @Service
 @EnableScheduling
@@ -93,7 +97,7 @@ public class OrgUnitService {
 
 		return orgUnitDao.saveAll(orgUnits);
 	}
-
+	
 	public OrgUnit getRoot() {
 		return orgUnitDao.getByActiveTrueAndParentIsNull();
 	}
@@ -113,6 +117,24 @@ public class OrgUnitService {
 	// used when we need direct match with manager, ignoring substitutes (e.g. during login)
 	public List<OrgUnit> getByManagerMatchingUser(User user) {
 		return orgUnitDao.getByManager(user);
+	}
+
+	public static Map<String, String> getManagerAndSubstituteEmail(OrgUnit orgUnit, boolean preferSubstitute) {
+		Map<String, String> result = new HashMap<String, String>();
+		
+		if (orgUnit.getManager() != null) {
+			if (orgUnit.getManager().getManagerSubstitute() != null && !StringUtils.isEmpty(orgUnit.getManager().getManagerSubstitute().getEmail())) {
+				result.put(orgUnit.getManager().getManagerSubstitute().getEmail(), orgUnit.getManager().getManagerSubstitute().getName());
+			}
+
+			if (!preferSubstitute || result.size() == 0) {				
+				if (!StringUtils.isEmpty(orgUnit.getManager().getEmail())) {
+					result.put(orgUnit.getManager().getEmail(), orgUnit.getManager().getName());
+				}
+			}
+		}
+		
+		return result;
 	}
 
 	// used when we need a list of orgUnits that the user is a manager for (or a substitute-manager for)
@@ -170,10 +192,10 @@ public class OrgUnitService {
 		;
 	}
 
+	// clears cache every 5 minutes
 	@Scheduled(fixedDelay = 5 * 60 * 1000)
 	public void resetOrgUnitCache() {
 		self.expireOrgUnitCache();
-		; // clears cache every 5 minutes
 	}
 
 	// TODO: the organisation importer does not use this method
@@ -343,17 +365,22 @@ public class OrgUnitService {
 	public List<Title> getTitles(OrgUnit orgUnit) {
 		return positionService.findByOrgUnit(orgUnit)
 				.stream()
-				.filter(p -> p.getTitle() != null && p.getUser().isActive())
+// ROL-117, they want to see all titles, including inactive ones
+				.filter(p -> p.getTitle() != null) // && p.getUser().isActive())
 				.map(p -> p.getTitle())
 				.filter(distinctByKey(t -> t.getUuid()))
 				.collect(Collectors.toList());
 	}
 
 	public List<UserRole> getUserRoles(OrgUnit orgUnit, boolean inherit) {
+		return getUserRolesWithUserFilter(orgUnit, inherit, null);
+	}
+
+	public List<UserRole> getUserRolesWithUserFilter(OrgUnit orgUnit, boolean inherit, User user) {
 		if (inherit) {
 			Set<UserRole> resultSet = new HashSet<>();
 
-			getUserRolesRecursive(resultSet, orgUnit, false);
+			getUserRolesRecursive(resultSet, orgUnit, false, user);
 
 			return new ArrayList<>(resultSet);
 		}
@@ -365,8 +392,22 @@ public class OrgUnitService {
 
 			for (Title title : titles) {
 				for (TitleUserRoleAssignment tura : title.getUserRoleAssignments()) {
-					if (tura.getOuUuids().contains(orgUnit.getUuid())) {
-						userRoles.add(tura.getUserRole());
+					if (tura.getOuUuids().contains(orgUnit.getUuid())) {						
+						if (user == null) {
+							userRoles.add(tura.getUserRole());
+						}
+						else {
+							if (user.getPositions() != null) {
+								List<String> titleUuids = user.getPositions().stream()
+										.filter(p -> Objects.equals(p.getOrgUnit().getUuid(), orgUnit.getUuid()) && p.getTitle() != null)
+										.map(p -> p.getTitle().getUuid())
+										.collect(Collectors.toList());
+								
+								if (titleUuids.contains(title.getUuid())) {
+									userRoles.add(tura.getUserRole());
+								}
+							}
+						}
 					}
 				}
 			}
@@ -385,7 +426,7 @@ public class OrgUnitService {
 		return orgUnit.getRoleGroupAssignments();
 	}
 
-	private void getUserRolesRecursive(Set<UserRole> resultSet, OrgUnit orgUnit, boolean inheritOnly) {
+	private void getUserRolesRecursive(Set<UserRole> resultSet, OrgUnit orgUnit, boolean inheritOnly, User user) {
 		if (inheritOnly) {
 			List<UserRole> userRoles = orgUnit.getUserRoleAssignments().stream().filter(r -> r.isInherit()).map(r -> r.getUserRole()).collect(Collectors.toList());
 
@@ -400,7 +441,21 @@ public class OrgUnitService {
 				for (Title title : titles) {
 					for (TitleUserRoleAssignment tura : title.getUserRoleAssignments()) {
 						if (tura.getOuUuids().contains(orgUnit.getUuid())) {
-							userRoles.add(tura.getUserRole());
+							if (user == null) {
+								userRoles.add(tura.getUserRole());
+							}
+							else {
+								if (user.getPositions() != null) {
+									List<String> titleUuids = user.getPositions().stream()
+											.filter(p -> Objects.equals(p.getOrgUnit().getUuid(), orgUnit.getUuid()) && p.getTitle() != null)
+											.map(p -> p.getTitle().getUuid())
+											.collect(Collectors.toList());
+									
+									if (titleUuids.contains(title.getUuid())) {
+										userRoles.add(tura.getUserRole());
+									}
+								}
+							}
 						}
 					}
 				}
@@ -410,7 +465,7 @@ public class OrgUnitService {
 		}
 
 		if (orgUnit.getParent() != null) {
-			getUserRolesRecursive(resultSet, orgUnit.getParent(), true);
+			getUserRolesRecursive(resultSet, orgUnit.getParent(), true, user);
 		}
 	}
 
@@ -424,10 +479,14 @@ public class OrgUnitService {
 	}
 
 	public List<RoleGroup> getRoleGroups(OrgUnit orgUnit, boolean inherit) {
+		return getRoleGroupsWithUserFilter(orgUnit, inherit, null);
+	}
+
+	public List<RoleGroup> getRoleGroupsWithUserFilter(OrgUnit orgUnit, boolean inherit, User user) {
 		if (inherit) {
 			Set<RoleGroup> resultSet = new HashSet<>();
 
-			getUserRoleGroupsRecursive(resultSet, orgUnit, false);
+			getUserRoleGroupsRecursive(resultSet, orgUnit, user, false);
 
 			return new ArrayList<>(resultSet);
 		}
@@ -440,7 +499,21 @@ public class OrgUnitService {
 			for (Title title : titles) {
 				for (TitleRoleGroupAssignment trga : title.getRoleGroupAssignments()) {
 					if (trga.getOuUuids().contains(orgUnit.getUuid())) {
-						roleGroups.add(trga.getRoleGroup());
+						if (user == null) {
+							roleGroups.add(trga.getRoleGroup());
+						}
+						else {
+							if (user.getPositions() != null) {
+								List<String> titleUuids = user.getPositions().stream()
+										.filter(p -> Objects.equals(p.getOrgUnit().getUuid(), orgUnit.getUuid()) && p.getTitle() != null)
+										.map(p -> p.getTitle().getUuid())
+										.collect(Collectors.toList());
+								
+								if (titleUuids.contains(title.getUuid())) {
+									roleGroups.add(trga.getRoleGroup());
+								}
+							}
+						}
 					}
 				}
 			}
@@ -448,8 +521,54 @@ public class OrgUnitService {
 
 		return roleGroups;
 	}
+	
+	public List<RoleWithDateDTO> getNotInheritedRoleGroupsWithDate(OrgUnit orgUnit) {
+		List<RoleWithDateDTO> roleGroups = orgUnit.getRoleGroupAssignments().stream().map(r -> RoleWithDateDTO.builder()
+				.id(r.getRoleGroup().getId())
+				.startDate(r.getStartDate())
+				.stopDate(r.getStopDate())
+				.build())
+		.collect(Collectors.toList());
 
-	private void getUserRoleGroupsRecursive(Set<RoleGroup> resultSet, OrgUnit orgUnit, boolean inheritOnly) {
+		if (configuration.getTitles().isEnabled()) {
+			List<Title> titles = getTitles(orgUnit);
+
+			for (Title title : titles) {
+				for (TitleRoleGroupAssignment trga : title.getRoleGroupAssignments()) {
+					if (trga.getOuUuids().contains(orgUnit.getUuid())) {
+						roleGroups.add(RoleWithDateDTO.builder().id(trga.getRoleGroup().getId()).startDate(trga.getStartDate()).stopDate(trga.getStopDate()).build());
+					}
+				}
+			}
+		}
+
+		return roleGroups;
+	}
+	
+	public List<RoleWithDateDTO> getNotInheritedUserRolesWithDate(OrgUnit orgUnit) {
+		List<RoleWithDateDTO> userRoles = orgUnit.getUserRoleAssignments().stream().map(r -> RoleWithDateDTO.builder()
+				.id(r.getUserRole().getId())
+				.startDate(r.getStartDate())
+				.stopDate(r.getStopDate())
+				.build())
+		.collect(Collectors.toList());
+
+		if (configuration.getTitles().isEnabled()) {
+			List<Title> titles = getTitles(orgUnit);
+
+			for (Title title : titles) {
+				for (TitleUserRoleAssignment tura : title.getUserRoleAssignments()) {
+					if (tura.getOuUuids().contains(orgUnit.getUuid())) {
+						userRoles.add(RoleWithDateDTO.builder().id(tura.getUserRole().getId()).startDate(tura.getStartDate()).stopDate(tura.getStopDate()).build());
+					}
+				}
+			}
+		}
+		
+		return userRoles;
+	}
+
+	private void getUserRoleGroupsRecursive(Set<RoleGroup> resultSet, OrgUnit orgUnit, User user, boolean inheritOnly) {
 		if (inheritOnly) {
 			List<RoleGroup> roleGroups = orgUnit.getRoleGroupAssignments().stream().filter(r -> r.isInherit()).map(r -> r.getRoleGroup()).collect(Collectors.toList());
 
@@ -464,7 +583,21 @@ public class OrgUnitService {
 				for (Title title : titles) {
 					for (TitleRoleGroupAssignment trga : title.getRoleGroupAssignments()) {
 						if (trga.getOuUuids().contains(orgUnit.getUuid())) {
-							roleGroups.add(trga.getRoleGroup());
+							if (user == null) {
+								roleGroups.add(trga.getRoleGroup());
+							}
+							else {
+								if (user.getPositions() != null) {
+									List<String> titleUuids = user.getPositions().stream()
+											.filter(p -> Objects.equals(p.getOrgUnit().getUuid(), orgUnit.getUuid()) && p.getTitle() != null)
+											.map(p -> p.getTitle().getUuid())
+											.collect(Collectors.toList());
+									
+									if (titleUuids.contains(title.getUuid())) {
+										roleGroups.add(trga.getRoleGroup());
+									}
+								}
+							}
 						}
 					}
 				}
@@ -474,7 +607,7 @@ public class OrgUnitService {
 		}
 
 		if (orgUnit.getParent() != null) {
-			getUserRoleGroupsRecursive(resultSet, orgUnit.getParent(), true);
+			getUserRoleGroupsRecursive(resultSet, orgUnit.getParent(), user, true);
 		}
 	}
 

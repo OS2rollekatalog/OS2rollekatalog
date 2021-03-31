@@ -24,4 +24,5 @@ public interface TitleDao extends CrudRepository<Title, String>, JpaSpecificatio
 	List<Title> findByUserRoleAssignmentsUserRoleAndUserRoleAssignmentsInactive(UserRole userRole, boolean inactive);
 
 	List<Title> findByRoleGroupAssignmentsRoleGroupAndRoleGroupAssignmentsInactive(RoleGroup roleGroup, boolean inactive);
+
 }

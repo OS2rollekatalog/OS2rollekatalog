@@ -55,7 +55,7 @@ public class TitleServiceAuditInterceptor {
 
 	private void auditRemoveUserRole(JoinPoint jp, Object retVal) {
 		Object[] args = jp.getArgs();
-		if (!(args.length == 2 && args[0] instanceof Title && args[1] instanceof UserRole)) {
+		if (!(args.length == 3 && args[0] instanceof Title && args[1] instanceof UserRole)) {
 			log.error("Method signature on removeUserRole does not match expectation");
 			return;
 		}
@@ -79,7 +79,7 @@ public class TitleServiceAuditInterceptor {
 
 	private void auditRemoveRoleGroup(JoinPoint jp, Object retVal) {
 		Object[] args = jp.getArgs();
-		if (!(args.length == 2 && args[0] instanceof Title && args[1] instanceof RoleGroup)) {
+		if (!(args.length == 3 && args[0] instanceof Title && args[1] instanceof RoleGroup)) {
 			log.error("Method signature on removeRoleGroup does not match expectation");
 			return;
 		}

@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.Linq;
 using System.Text;
@@ -10,6 +11,7 @@ namespace ADSyncService
     {
         private static log4net.ILog log = log4net.LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
         private static StringCollection ous = Properties.Settings.Default.BackSyncFeature_OUs;
+        private static bool convertToUserRoles = Properties.Settings.Default.BackSyncFeature_CreateUserRoles;
 
         public static void SyncGroupsToRoleCatalogue(RoleCatalogueStub roleCatalogueStub, ADStub adStub)
         {
@@ -41,7 +43,7 @@ namespace ADSyncService
 
                 bool changes = false;
 
-                // find to remove
+                // find to remove (or maybe update name)
                 for (int i = itSystemData.systemRoles.Count - 1; i >= 0; i--)
                 {
                     bool found = false;
@@ -50,6 +52,12 @@ namespace ADSyncService
                     {
                         if (group.Uuid.Equals(itSystemData.systemRoles[i].identifier))
                         {
+                            if (!group.Name.Equals(itSystemData.systemRoles[i].name))
+                            {
+                                log.Info("Updating name on group to " + group.Name);
+                                itSystemData.systemRoles[i].name = group.Name;
+                                changes = true;
+                            }
                             found = true;
                             break;
                         }
@@ -84,7 +92,18 @@ namespace ADSyncService
                         systemRole.description = "";
                         systemRole.identifier = group.Uuid;
                         systemRole.name = group.Name;
+                        systemRole.users = new List<string>();
                         itSystemData.systemRoles.Add(systemRole);
+
+                        // only add members on CREATE scenario
+                        List<string> members = adStub.GetGroupMembers(group.Name);
+                        if (members != null)
+                        {
+                            foreach (var member in members)
+                            {
+                                systemRole.users.Add(member);
+                            }
+                        }
 
                         log.Info("Adding " + group.Name + " to " + itSystemData.name);
                         changes = true;
@@ -95,7 +114,7 @@ namespace ADSyncService
                 {
                     log.Info("Updating " + itSystemData.name);
 
-                    itSystemData.convertRolesEnabled = true;
+                    itSystemData.convertRolesEnabled = convertToUserRoles;
 
                     roleCatalogueStub.SetItSystemData(itSystemId, itSystemData);
                 }

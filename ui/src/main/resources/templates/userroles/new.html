@@ -37,10 +37,35 @@
 									<label class="col-sm-2 control-label" th:text="#{html.entity.itsystem}" />
 									<div class="col-sm-8">
 										<select th:field="*{itSystem}" class="form-control">
-											<option th:each="itSystem : ${itSystems}" th:value="${itSystem.id}" th:text="${itSystem.name}" th:selected="${itSystem} == *{itSystem}" />
+											<option th:each="itSystem : ${itSystems}" th:value="${itSystem.id}" th:text="${itSystem.name}" th:selected="${itSystem} == *{itSystem}" th:attr="data-type=${itSystem.systemType}"/>
 										</select>
 									</div>
 									<a th:replace="fragments/help :: help (title=#{html.entity.itsystem.type}, content=#{html.entity.userrole.itsystem.help})" />
+								</div>
+							</fieldset>
+							
+							<fieldset id="checkboxRow" hidden>
+								<div class="form-group">
+									<label class="col-sm-2 control-label" th:text="#{html.page.userroles.new.custom_identifier}" />
+									<div class="col-sm-8">
+										<div class="checkbox c-checkbox">
+											<label>
+												<input type="checkbox" id="checkbox" th:checked="${!#strings.isEmpty(role.identifier)}"/>
+												<span class="fa fa-check"></span>
+											</label>
+										</div>
+									</div>
+								</div>
+							</fieldset>
+							
+							<fieldset id="identifierRow" th:hidden="${#strings.isEmpty(role.identifier)}">
+								<div class="form-group">
+									<div>
+										<label class="col-sm-2 control-label" th:text="#{html.page.userroles.new.custom_identifier.label}" />
+										<div class="col-sm-8">
+											<input th:field="*{identifier}" class="form-control" th:placeholder="#{html.page.userroles.new.custom_identifier.placeholder}"/>
+										</div>
+									</div>
 								</div>
 							</fieldset>
 
@@ -73,9 +98,52 @@
     
 	<script th:inline="javascript">
 		/*<![CDATA[*/
+			
+		/*[+
+			var identifier = [[${role.identifier}]];
+		+]*/
+			
+		var identifierService;
 		$(document).ready(function() {
 			$('[rel=popover]').popover();
+			
+			identifierService = new IdentifierService();
+			identifierService.addChangeListeners();
+			identifierService.selectChange();
 		});
+		
+		function IdentifierService() {
+			
+			this.addChangeListeners = function() {
+				$("#itSystem").change(this.selectChange);
+				$("#checkbox").change(this.checkboxChange);
+			}
+			
+			this.selectChange = function() {
+				var type = $("#itSystem").find(':selected').attr('data-type');
+				
+				if (type != 'AD'){
+					$('#checkboxRow').attr("hidden", false);
+				}else{
+					$('#checkboxRow').attr("hidden", true);
+					$('#checkbox').attr("checked", false);
+					$('#identifierRow').attr("hidden", true);
+					$('#identifier').val("");
+				}
+			}
+			
+			this.checkboxChange = function() {
+				var checked = this.checked;
+				
+				if (checked){
+					$('#identifierRow').attr("hidden", false);
+				}else{
+					$('#identifierRow').attr("hidden", true);
+					$('#identifier').val("");
+				}
+			}
+			
+		}
 		/*]]>*/
     </script>
 </body>

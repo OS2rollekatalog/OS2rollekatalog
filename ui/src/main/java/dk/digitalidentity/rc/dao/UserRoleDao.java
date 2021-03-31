@@ -18,4 +18,5 @@ public interface UserRoleDao extends CrudRepository<UserRole, Long> {
 	UserRole getByItSystemAndIdentifier(ItSystem itSystem, String identifier);
 	List<UserRole> getByDelegatedFromCvrNotNull();
 	int countBySystemRoleAssignmentsSystemRole(SystemRole systemRole);
+	List<UserRole> findBySensitiveRoleTrue();
 }

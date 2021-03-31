@@ -15,6 +15,7 @@ public class SettingsForm {
 	private boolean itSystemMarkupEnabled;
 	private String servicedeskEmail;
 	private String itSystemChangeEmail;
+	private String removalOfUnitRolesEmail;
 	private RequestApproveManagerAction requestApproveManagerAction;
 	
 	private boolean organisationEventsEnabled;
@@ -24,6 +25,12 @@ public class SettingsForm {
 	
 	private boolean scheduledAttestationEnabled;
 	private CheckupIntervalEnum scheduledAttestationInterval;
+	private CheckupIntervalEnum scheduledAttestationIntervalSensitive;
 	private long scheduledAttestationDayInMonth;
 	private Set<String> scheduledAttestationFilter;
+	
+	private int ReminderCount;
+	private int ReminderInterval;
+	private int DaysBeforeDeadline;
+	private String EmailAfterReminders;
 }

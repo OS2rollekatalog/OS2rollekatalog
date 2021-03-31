@@ -1,0 +1,1 @@
+ALTER TABLE it_systems ADD COLUMN access_blocked BOOLEAN NOT NULL DEFAULT 0;

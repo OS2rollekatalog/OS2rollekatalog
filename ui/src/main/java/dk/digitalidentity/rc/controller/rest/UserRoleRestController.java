@@ -23,6 +23,7 @@ import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.RestController;
 
 import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
+import dk.digitalidentity.rc.controller.mvc.viewmodel.TitleListForm;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.UserRoleDeleteStatus;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.UserRoleForm;
 import dk.digitalidentity.rc.controller.validator.UserRoleValidator;
@@ -34,6 +35,7 @@ import dk.digitalidentity.rc.dao.model.RoleGroup;
 import dk.digitalidentity.rc.dao.model.SystemRole;
 import dk.digitalidentity.rc.dao.model.SystemRoleAssignment;
 import dk.digitalidentity.rc.dao.model.SystemRoleAssignmentConstraintValue;
+import dk.digitalidentity.rc.dao.model.Title;
 import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserRole;
 import dk.digitalidentity.rc.dao.model.enums.ConstraintValueType;
@@ -112,12 +114,12 @@ public class UserRoleRestController {
         			}
         		}
         		break;
-        	case "inherit":
-        		role.setOuInheritAllowed(active);
-        		userRoleService.save(role);
-        		break;
         	case "canrequest":
         		role.setCanRequest(active);
+        		userRoleService.save(role);
+        		break;
+        	case "sensitive":
+        		role.setSensitiveRole(active);
         		userRoleService.save(role);
         		break;
         	default:
@@ -416,5 +418,28 @@ public class UserRoleRestController {
         }
 
         return new ResponseEntity<>(status, HttpStatus.OK);
+    }
+    
+    @GetMapping(value = "/rest/userroles/titles/{uuid}")
+    public ResponseEntity<List<TitleListForm>> getTitlesFromOU(@PathVariable("uuid") String uuid) {
+    	OrgUnit ou = orgUnitService.getByUuid(uuid);
+    	if (ou == null) {
+    		return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+    	}
+    	
+    	boolean titlesEnabled = configuration.getTitles().isEnabled();
+    	if (titlesEnabled) {
+			List<Title> titles = orgUnitService.getTitles(ou);
+
+			List<TitleListForm> titleForms = titles
+					.stream()
+					.map(title -> new TitleListForm(title))
+					.collect(Collectors.toList());
+			
+			return new ResponseEntity<>(titleForms, HttpStatus.OK);
+		}
+		else {
+			return new ResponseEntity<>(null, HttpStatus.OK);
+		}
     }
 }

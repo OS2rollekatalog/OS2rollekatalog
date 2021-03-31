@@ -13,6 +13,7 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import dk.digitalidentity.rc.controller.mvc.viewmodel.OUListForm;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.SettingsForm;
+import dk.digitalidentity.rc.dao.model.enums.CheckupIntervalEnum;
 import dk.digitalidentity.rc.security.RequireAdministratorRole;
 import dk.digitalidentity.rc.service.OrgUnitService;
 import dk.digitalidentity.rc.service.SettingsService;
@@ -35,6 +36,7 @@ public class SettingsController {
 		settingsForm.setItSystemMarkupEnabled(settingsService.isItSystemMarkupEnabled());
 		settingsForm.setRequestApproveManagerAction(settingsService.getRequestApproveManagerAction());
 		settingsForm.setServicedeskEmail(settingsService.getRequestApproveServicedeskEmail());
+		settingsForm.setRemovalOfUnitRolesEmail(settingsService.getRemovalOfUnitRolesEmail());
 
 		settingsForm.setOrganisationEventsEnabled(settingsService.isOrganisationEventsEnabled());
 		settingsForm.setOuNewManagerAction(settingsService.getOuNewManagerAction());
@@ -43,10 +45,16 @@ public class SettingsController {
 
 		settingsForm.setScheduledAttestationEnabled(settingsService.isScheduledAttestationEnabled());
 		settingsForm.setScheduledAttestationInterval(settingsService.getScheduledAttestationInterval());
+		settingsForm.setScheduledAttestationIntervalSensitive(settingsService.getScheduledAttestationIntervalSensitive());
 		settingsForm.setScheduledAttestationFilter(settingsService.getScheduledAttestationFilter());
 		settingsForm.setScheduledAttestationDayInMonth(settingsService.getScheduledAttestationDayInMonth());
 		
 		settingsForm.setItSystemChangeEmail(settingsService.getItSystemChangeEmail());
+		
+		settingsForm.setReminderCount(settingsService.getReminderCount());
+		settingsForm.setDaysBeforeDeadline(settingsService.getDaysBeforeDeadline());
+		settingsForm.setReminderInterval(settingsService.getReminderInterval());
+		settingsForm.setEmailAfterReminders(settingsService.getEmailAfterReminders());
 
 		List<OUListForm> allOUs = orgUnitService.getAllCached()
 				.stream()
@@ -65,18 +73,44 @@ public class SettingsController {
 		settingsService.setItSystemMarkupEnabled(settingsForm.isItSystemMarkupEnabled());
 		settingsService.setRequestApproveManagerAction(settingsForm.getRequestApproveManagerAction());
 		settingsService.setRequestApproveServicedeskEmail(settingsForm.getServicedeskEmail());
+		settingsService.setRemovalOfUnitRolesEmail(settingsForm.getRemovalOfUnitRolesEmail());
 
 		settingsService.setOrganisationEventsEnabled(settingsForm.isOrganisationEventsEnabled());
 		settingsService.setOuNewManagerAction(settingsForm.getOuNewManagerAction());
 		settingsService.setOuNewParentAction(settingsForm.getOuNewParentAction());
 		settingsService.setUserNewPositionAction(settingsForm.getUserNewPositionAction());
 
+		// make sure sensitive interval is at least as often as the ordinary interval
+		switch (settingsForm.getScheduledAttestationIntervalSensitive()) {
+			case YEARLY:
+				settingsForm.setScheduledAttestationIntervalSensitive(settingsForm.getScheduledAttestationInterval());
+				break;
+			case EVERY_HALF_YEAR:
+				if (!settingsForm.getScheduledAttestationInterval().equals(CheckupIntervalEnum.YEARLY)) {
+					settingsForm.setScheduledAttestationIntervalSensitive(settingsForm.getScheduledAttestationInterval());
+				}
+				break;
+			case QUARTERLY:
+				if (settingsForm.getScheduledAttestationInterval().equals(CheckupIntervalEnum.MONTHLY)) {
+					settingsForm.setScheduledAttestationIntervalSensitive(settingsForm.getScheduledAttestationInterval());
+				}
+				break;
+			case MONTHLY:
+				break;
+		}
+		
 		settingsService.setScheduledAttestationEnabled(settingsForm.isScheduledAttestationEnabled());
 		settingsService.setScheduledAttestationInterval(settingsForm.getScheduledAttestationInterval());
+		settingsService.setScheduledAttestationIntervalSensitive(settingsForm.getScheduledAttestationIntervalSensitive());
 		settingsService.setScheduledAttestationDayInMonth(settingsForm.getScheduledAttestationDayInMonth());
 		settingsService.setScheduledAttestationFilter(settingsForm.getScheduledAttestationFilter());
 
 		settingsService.setItSystemChangeEmail(settingsForm.getItSystemChangeEmail());
+		
+		settingsService.setReminderCount(settingsForm.getReminderCount());
+		settingsService.setDaysBeforeDeadline(settingsForm.getDaysBeforeDeadline());
+		settingsService.setReminderInterval(settingsForm.getReminderInterval());
+		settingsService.setEmailAfterReminders(settingsForm.getEmailAfterReminders());
 
 		redirectAttributes.addFlashAttribute("saved", true);
 

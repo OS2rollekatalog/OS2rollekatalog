@@ -393,6 +393,17 @@ public class UserService {
 	 * Returns all UserRoles, no matter how they are assigned to the user
 	 */
 	public List<UserRoleAssignedToUser> getAllUserRolesAssignedToUser(User user, ItSystem itSystem) {
+		return getAllUserRolesAssignedToUser(user, itSystem, true);
+	}
+	
+	/**
+	 * Returns all UserRoles, no matter how they are assigned to the user (except those embeded inside RoleGroups)
+	 */
+	public List<UserRoleAssignedToUser> getAllUserRolesAssignedToUserExemptingRoleGroups(User user, ItSystem itSystem) {
+		return getAllUserRolesAssignedToUser(user, itSystem, false);
+	}
+
+	private List<UserRoleAssignedToUser> getAllUserRolesAssignedToUser(User user, ItSystem itSystem, boolean expandRoleGroups) {
 		List<UserRoleAssignedToUser> result = new ArrayList<>();
 
 		// user.getUserRoles()
@@ -412,21 +423,23 @@ public class UserService {
 		}
 
 		// user.getRoleGroups()
-		List<RoleGroup> roleGroups = user.getRoleGroupAssignments().stream()
-				.filter(ura -> !ura.isInactive())
-				.map(ura -> ura.getRoleGroup())
-				.collect(Collectors.toList());
-
-		for (RoleGroup roleGroup : roleGroups) {
-			List<UserRole> ur = roleGroup.getUserRoleAssignments().stream().map(ura -> ura.getUserRole()).collect(Collectors.toList());
-
-			for (UserRole role : ur) {
-				if (itSystem == null || role.getItSystem().getId() == itSystem.getId()) {
-					UserRoleAssignedToUser assignment = new UserRoleAssignedToUser();
-					assignment.setUserRole(role);
-					assignment.setAssignedThrough(AssignedThrough.ROLEGROUP);
-
-					result.add(assignment);
+		if (expandRoleGroups) {
+			List<RoleGroup> roleGroups = user.getRoleGroupAssignments().stream()
+					.filter(ura -> !ura.isInactive())
+					.map(ura -> ura.getRoleGroup())
+					.collect(Collectors.toList());
+	
+			for (RoleGroup roleGroup : roleGroups) {
+				List<UserRole> ur = roleGroup.getUserRoleAssignments().stream().map(ura -> ura.getUserRole()).collect(Collectors.toList());
+	
+				for (UserRole role : ur) {
+					if (itSystem == null || role.getItSystem().getId() == itSystem.getId()) {
+						UserRoleAssignedToUser assignment = new UserRoleAssignedToUser();
+						assignment.setUserRole(role);
+						assignment.setAssignedThrough(AssignedThrough.ROLEGROUP);
+	
+						result.add(assignment);
+					}
 				}
 			}
 		}
@@ -451,21 +464,23 @@ public class UserService {
 			}
 
 			// position.getRoleGroups
-			List<RoleGroup> prg = position.getRoleGroupAssignments().stream()
-					.filter(ura -> !ura.isInactive())
-					.map(ura -> ura.getRoleGroup())
-					.collect(Collectors.toList());
-
-			for (RoleGroup roleGroup : prg) {
-				List<UserRole> rur = roleGroup.getUserRoleAssignments().stream().map(ura -> ura.getUserRole()).collect(Collectors.toList());
-
-				for (UserRole role : rur) {
-					if (itSystem == null || role.getItSystem().getId() == itSystem.getId()) {
-						UserRoleAssignedToUser assignment = new UserRoleAssignedToUser();
-						assignment.setUserRole(role);
-						assignment.setAssignedThrough(AssignedThrough.POSITION);
-
-						result.add(assignment);
+			if (expandRoleGroups) {
+				List<RoleGroup> prg = position.getRoleGroupAssignments().stream()
+						.filter(ura -> !ura.isInactive())
+						.map(ura -> ura.getRoleGroup())
+						.collect(Collectors.toList());
+	
+				for (RoleGroup roleGroup : prg) {
+					List<UserRole> rur = roleGroup.getUserRoleAssignments().stream().map(ura -> ura.getUserRole()).collect(Collectors.toList());
+	
+					for (UserRole role : rur) {
+						if (itSystem == null || role.getItSystem().getId() == itSystem.getId()) {
+							UserRoleAssignedToUser assignment = new UserRoleAssignedToUser();
+							assignment.setUserRole(role);
+							assignment.setAssignedThrough(AssignedThrough.POSITION);
+	
+							result.add(assignment);
+						}
 					}
 				}
 			}
@@ -487,31 +502,35 @@ public class UserService {
 						UserRoleAssignedToUser uratu = new UserRoleAssignedToUser();
 						uratu.setUserRole(assignment.getUserRole());
 						uratu.setAssignedThrough(AssignedThrough.TITLE);
-
+						uratu.setTitle(position.getTitle());
+						
 						result.add(uratu);
 					}
 				}
 
 				// position.title (RoleGroups)
-				for (TitleRoleGroupAssignment assignment : position.getTitle().getRoleGroupAssignments()) {
-					if (assignment.isInactive()) {
-						continue;
-					}
-
-					// if the assignment is restricted to specific OUs, check if this position's OU is included
-					if (assignment.getOuUuids().size() > 0 && !assignment.getOuUuids().contains(position.getOrgUnit().getUuid())) {
-						continue;
-					}
-
-					List<UserRole> rur = assignment.getRoleGroup().getUserRoleAssignments().stream().map(ura -> ura.getUserRole()).collect(Collectors.toList());
-
-					for (UserRole role : rur) {
-						if (itSystem == null || role.getItSystem().getId() == itSystem.getId()) {
-							UserRoleAssignedToUser uratu = new UserRoleAssignedToUser();
-							uratu.setUserRole(role);
-							uratu.setAssignedThrough(AssignedThrough.TITLE);
+				if (expandRoleGroups) {
+					for (TitleRoleGroupAssignment assignment : position.getTitle().getRoleGroupAssignments()) {
+						if (assignment.isInactive()) {
+							continue;
+						}
 	
-							result.add(uratu);
+						// if the assignment is restricted to specific OUs, check if this position's OU is included
+						if (assignment.getOuUuids().size() > 0 && !assignment.getOuUuids().contains(position.getOrgUnit().getUuid())) {
+							continue;
+						}
+	
+						List<UserRole> rur = assignment.getRoleGroup().getUserRoleAssignments().stream().map(ura -> ura.getUserRole()).collect(Collectors.toList());
+	
+						for (UserRole role : rur) {
+							if (itSystem == null || role.getItSystem().getId() == itSystem.getId()) {
+								UserRoleAssignedToUser uratu = new UserRoleAssignedToUser();
+								uratu.setUserRole(role);
+								uratu.setAssignedThrough(AssignedThrough.TITLE);
+								uratu.setTitle(position.getTitle());
+								
+								result.add(uratu);
+							}
 						}
 					}
 				}
@@ -519,7 +538,7 @@ public class UserService {
 
 			if (!user.isDoNotInherit()) {
 				// recursive through all OrgUnits from here and up
-				getAllUserRolesFromOrgUnit(result, position.getOrgUnit(), itSystem, false);
+				getAllUserRolesFromOrgUnit(result, position.getOrgUnit(), itSystem, false, expandRoleGroups);
 			}
 		}
 
@@ -580,6 +599,7 @@ public class UserService {
 					RoleGroupAssignedToUser rgatu = new RoleGroupAssignedToUser();
 					rgatu.setRoleGroup(assignment.getRoleGroup());
 					rgatu.setAssignedThrough(AssignedThrough.TITLE);
+					rgatu.setTitle(position.getTitle());
 
 					result.add(rgatu);
 				}
@@ -605,6 +625,7 @@ public class UserService {
 			RoleGroupAssignedToUser assignment = new RoleGroupAssignedToUser();
 			assignment.setRoleGroup(roleGroupMapping.getRoleGroup());
 			assignment.setAssignedThrough(AssignedThrough.ORGUNIT);
+			assignment.setOrgUnit(orgUnit);
 
 			result.add(assignment);
 		}
@@ -615,7 +636,7 @@ public class UserService {
 		}
 	}
 
-	private void getAllUserRolesFromOrgUnit(List<UserRoleAssignedToUser> result, OrgUnit orgUnit, ItSystem itSystem, boolean inheritOnly) {
+	private void getAllUserRolesFromOrgUnit(List<UserRoleAssignedToUser> result, OrgUnit orgUnit, ItSystem itSystem, boolean inheritOnly, boolean expandRoleGroups) {
 
 		// ou.getRoles()
 		for (OrgUnitUserRoleAssignment roleMapping : orgUnit.getUserRoleAssignments()) {
@@ -633,38 +654,42 @@ public class UserService {
 				UserRoleAssignedToUser assignment = new UserRoleAssignedToUser();
 				assignment.setUserRole(role);
 				assignment.setAssignedThrough(AssignedThrough.ORGUNIT);
-
+				assignment.setOrgUnit(orgUnit);
+				
 				result.add(assignment);
 			}
 		}
 
 		// ou.getRoleGroups()
-		for (OrgUnitRoleGroupAssignment roleGroupMapping : orgUnit.getRoleGroupAssignments()) {
-			if (roleGroupMapping.isInactive()) {
-				continue;
-			}
-
-			if (inheritOnly && !roleGroupMapping.isInherit()) {
-				continue;
-			}
-			
-			RoleGroup roleGroup = roleGroupMapping.getRoleGroup();
-
-			List<UserRole> userRoles = roleGroup.getUserRoleAssignments().stream().map(ura -> ura.getUserRole()).collect(Collectors.toList());
-			for (UserRole role : userRoles) {
-				if (itSystem == null || role.getItSystem().getId() == itSystem.getId()) {
-					UserRoleAssignedToUser assignment = new UserRoleAssignedToUser();
-					assignment.setUserRole(role);
-					assignment.setAssignedThrough(AssignedThrough.ORGUNIT);
-
-					result.add(assignment);
+		if (expandRoleGroups) {
+			for (OrgUnitRoleGroupAssignment roleGroupMapping : orgUnit.getRoleGroupAssignments()) {
+				if (roleGroupMapping.isInactive()) {
+					continue;
+				}
+	
+				if (inheritOnly && !roleGroupMapping.isInherit()) {
+					continue;
+				}
+				
+				RoleGroup roleGroup = roleGroupMapping.getRoleGroup();
+				
+				List<UserRole> userRoles = roleGroup.getUserRoleAssignments().stream().map(ura -> ura.getUserRole()).collect(Collectors.toList());
+				for (UserRole role : userRoles) {
+					if (itSystem == null || role.getItSystem().getId() == itSystem.getId()) {
+						UserRoleAssignedToUser assignment = new UserRoleAssignedToUser();
+						assignment.setUserRole(role);
+						assignment.setAssignedThrough(AssignedThrough.ORGUNIT);
+						assignment.setOrgUnit(orgUnit);
+	
+						result.add(assignment);
+					}
 				}
 			}
 		}
 		
 		// recursive upwards in the hierarchy (only inherited roles)
 		if (orgUnit.getParent() != null) {
-			getAllUserRolesFromOrgUnit(result, orgUnit.getParent(), itSystem, true);
+			getAllUserRolesFromOrgUnit(result, orgUnit.getParent(), itSystem, true, expandRoleGroups);
 		}
 	}
 
@@ -951,6 +976,9 @@ public class UserService {
 		if (itSystems == null) {
 			itSystems = itSystemService.getAll();
 		}
+
+		//filter out itsystems that are blocked
+		itSystems = itSystems.stream().filter(its -> its.isAccessBlocked() == false).collect(Collectors.toList());
 
 		List<UserRole> userRoles = getAllUserRoles(user, itSystems);
 		

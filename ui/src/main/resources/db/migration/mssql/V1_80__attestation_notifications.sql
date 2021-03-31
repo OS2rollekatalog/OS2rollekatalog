@@ -1,0 +1,7 @@
+CREATE TABLE attestation_notifications (
+	id					BIGINT NOT NULL PRIMARY KEY IDENTITY(1, 1),
+	ou_uuid				NVARCHAR(36) NOT NULL,
+	tts					DATETIME2 NOT NULL DEFAULT GETDATE(),
+	
+	FOREIGN KEY (ou_uuid) REFERENCES ous(uuid) ON DELETE CASCADE
+);

@@ -1,0 +1,11 @@
+2021.03.31 - release
+             attetation (ROL-98,99,100,101,102,103,104,105,106)
+             begrænset rapportadgang (ROL-90)
+             blokade på it-system (ROL-96)
+             ADSyncService opdatering (ROL-109)
+             2-vejs rollebuketter (ROL-110)
+             Dokumentation ad AD-grupper (ROL-114)
+             2-vejs tildeling (ROL-111)
+             mockups til ROL-108 (ROL-123)
+             Nedarvning (ROL-116)
+             Vakante stillinger (ROL-117)

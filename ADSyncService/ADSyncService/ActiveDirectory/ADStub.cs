@@ -1,6 +1,7 @@
 ﻿using System.Collections.Generic;
 using System.DirectoryServices;
 using System.DirectoryServices.AccountManagement;
+using System.Linq;
 
 namespace ADSyncService
 {
@@ -26,7 +27,7 @@ namespace ADSyncService
                     else
                     {
                         // argument to GetMembers indicate we want direct members, not indirect members
-                        foreach (Principal member in group.GetMembers(false))
+                        foreach (Principal member in group.GetMembers(false).Where(m => m.StructuralObjectClass.Equals("user")))
                         {
                             members.Add(member.SamAccountName.ToLower());
                         }
@@ -91,8 +92,14 @@ namespace ADSyncService
 
                         log.Info("Added " + userId + " to " + group.Name);
 
-                        group.Members.Add(user);
-                        group.Save();
+                        try {
+                            group.Members.Add(user);
+                            group.Save();
+                        }
+                        catch (PrincipalExistsException)
+                        {
+                            log.Warn("User " + userId + " was already a member of the group");
+                        }
                     }
                 }
             }

@@ -89,6 +89,8 @@
     <Compile Include="Application.cs" />
     <Compile Include="Configuration.cs" />
     <Compile Include="NewtonsoftJsonSerializer.cs" />
+    <Compile Include="Tasks\ReadonlyItSystemService.cs" />
+    <Compile Include="Tasks\ReadonlyItSystemSyncJob.cs" />
     <Compile Include="RoleCatalog\ItSystemData.cs" />
     <Compile Include="RoleCatalog\Operation.cs" />
     <Compile Include="RoleCatalog\RoleCatalogueStub.cs" />

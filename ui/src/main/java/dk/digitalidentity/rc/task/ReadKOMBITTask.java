@@ -88,12 +88,14 @@ public class ReadKOMBITTask {
 			
 			initialized = true;
 		}
+		
+		if (initialized && itSystemService.getBySystemType(ItSystemType.KOMBIT).size() == 0) {
+			importItSystems();
+		}
 	}
 
-	// check every 6 hours is more than enough
 	@SuppressWarnings("deprecation")
-	@Scheduled(fixedDelay = 6 * 60 * 60 * 1000)
-	@Transactional(rollbackFor = Exception.class)
+	@Scheduled(cron = "0 #{new java.util.Random().nextInt(55)} 6,12,18 * * ?")
 	public void importItSystems() {
 		Thread t = new Thread(new Runnable() {
 
@@ -584,31 +586,43 @@ public class ReadKOMBITTask {
 	}
 
 	private List<KOMBITUserRoleDTO> getUserRolesFromKOMBIT() {
+		log.info("Calling: " + configuration.getIntegrations().getKombit().getUrl() + "/jobfunktionsroller");
 		HttpEntity<KOMBITUserRoleDTO[]> userRolesEntity = restTemplate.getForEntity(configuration.getIntegrations().getKombit().getUrl() + "/jobfunktionsroller", KOMBITUserRoleDTO[].class);
 
 		List<KOMBITUserRoleDTO> result = new ArrayList<>();
 		
 		for (KOMBITUserRoleDTO userRoleKOMBITDTO : userRolesEntity.getBody()) {
+			log.info("Calling: " + configuration.getIntegrations().getKombit().getUrl() + "/jobfunktionsroller/" + userRoleKOMBITDTO.getUuid());
 			HttpEntity<KOMBITUserRoleDTO> userRoleEntity = restTemplate.getForEntity(configuration.getIntegrations().getKombit().getUrl() + "/jobfunktionsroller/" + userRoleKOMBITDTO.getUuid(), KOMBITUserRoleDTO.class);
 			result.add(userRoleEntity.getBody());
 		}
+		
+		log.info("Completed call to: " + configuration.getIntegrations().getKombit().getUrl() + "/jobfunktionsroller");
 
 		return result;
 	}
 
 	private KOMBITItSystemDTO[] getItSystems() throws Exception {
+		log.info("Calling: " + configuration.getIntegrations().getKombit().getUrl() + "/jobfunktionsroller/brugervendtesystemer");
+
 		HttpEntity<KOMBITItSystemDTO[]> itSystemEntity = restTemplate.getForEntity(configuration.getIntegrations().getKombit().getUrl() + "/jobfunktionsroller/brugervendtesystemer", KOMBITItSystemDTO[].class);
 
+		log.info("Completed call to: " + configuration.getIntegrations().getKombit().getUrl() + "/jobfunktionsroller/brugervendtesystemer");
+		
 		return itSystemEntity.getBody();
 	}
 
 	private KOMBITSystemRoleDTO[] getSystemRolesFromKOMBIT(String uuid) throws Exception {
 		String url = configuration.getIntegrations().getKombit().getUrl() + "/jobfunktionsroller/brugervendtesystemer/" + uuid + "/roller";
 
+		log.info("Calling: " + url);
+		
 		HttpEntity<KOMBITSystemRoleDTO[]> systemRoles = restTemplate.getForEntity(url, KOMBITSystemRoleDTO[].class);
 		if (systemRoles.getBody() == null) {
 			return new KOMBITSystemRoleDTO[0];
 		}
+		
+		log.info("Completed call to: " + url);
 		
 		return systemRoles.getBody();
 	}

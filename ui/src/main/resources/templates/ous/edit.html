@@ -153,8 +153,8 @@
 											<td>
 												<div class="checkbox c-checkbox">
 													<label>
-														<input th:id="${addRole.role.id}" type="checkbox" th:checked="${addRole.checked}" class="checkboxaction" 
-																th:attr="data-inherit=${addRole.role.ouInheritAllowed}, data-startdate=${addRole.assignment.startDate}, data-stopdate=${addRole.assignment.stopDate}" data-objtype="role"/>
+														<input th:id="${addRole.role.id}" type="checkbox" th:checked="${addRole.checked}" class="checkboxaction" th:disabled="${addRole.role.itSystem.readonly}"
+																th:attr="data-startdate=${addRole.assignment.startDate}, data-stopdate=${addRole.assignment.stopDate}" data-objtype="role"/>
 														<span class="fa fa-check"></span>
 													</label>
 												</div>
@@ -203,7 +203,7 @@
 												<div class="checkbox c-checkbox">
 													<label>
 														<input th:id="${addRolegroup.roleGroup.id}" type="checkbox" th:checked="${addRolegroup.checked}" class="checkboxaction" 
-																th:attr="data-inherit=${addRolegroup.roleGroup.ouInheritAllowed}, data-startdate=${addRolegroup.assignment.startDate},data-stopdate=${addRolegroup.assignment.stopDate}" data-objtype="rolegroup" />
+																th:attr="data-startdate=${addRolegroup.assignment.startDate},data-stopdate=${addRolegroup.assignment.stopDate}" data-objtype="rolegroup" />
 														<span class="fa fa-check"></span>
 													</label>
 												</div>
@@ -258,96 +258,7 @@
 		</section>
 	</div>
 	
-	<div class="modal fade bd-example-modal-lg" id="modal-ou" role="dialog">
-		<div class="modal-dialog modal-lg">
-
-			<!-- Modal content-->
-			<div class="modal-content">
-				<div class="modal-header">
-					<button type="button" class="close" onclick="closeModal();">&times;</button>
-					<h4 th:text="#{html.page.ous.edit.title.choose}"/>
-				</div>
-
-				<div class="modal-body">
-					<p th:utext="#{html.page.ous.edit.choose.text.intro}" />
-					<ul>
-						<li th:if="${titles != null and titles.size() > 0}" th:text="#{html.page.ous.edit.choose.text.titles}"></li>
-						<li th:text="#{html.page.ous.edit.choose.text.all}"></li>
-						<li th:text="#{html.page.ous.edit.choose.text.remove}"></li>
-					</ul>
-
-					<table th:if="${titles != null and titles.size() > 0}" id="listTable" class="table table-striped">
-						<thead>
-							<tr>
-								<th class="col-md-1" th:text="#{html.entity.title.checked}" />
-								<th class="col-md-4" th:text="#{html.entity.title.name}" />
-							</tr>
-						</thead>
-
-						<tbody>
-							 <tr th:each="title : ${titles}">
-								<td>
-									<div class="checkbox c-checkbox">
-										<label>
-											<input class="title-checkbox" type="checkbox" th:attr="data-id=${title.id}, checked=${title.state.checked}" />
-											<span class="fa fa-check"></span>
-										</label>
-									</div>
-								</td>
-								<td th:text="${title.name}" />
-							</tr>
-						</tbody>
-					</table>
-					
-	               	<div style="height: 70px;">
-						<h4 class="md-12" th:text="#{html.word.validity}" />
-	
-						<b class="col-sm-1" style="padding-top: 7px;" th:text="#{html.word.from}"></b>
-						<div class="col-md-5">
-							<div class="form-group">
-								<div class="input-group date" id="startDatePicker">
-									<input type="text" class="form-control"/>
-									<span class="input-group-addon">
-										<span class="fa fa-calendar"></span>
-									</span>
-								</div>
-							</div>
-						</div>
-	
-						<b class="col-sm-1" style="padding-top: 7px;" th:text="#{html.word.to}"></b>
-						<div class="col-md-5">
-							<div class="form-group">
-								<div class="input-group date" id="stopDatePicker">
-									<input type="text" class="form-control" />
-									<span class="input-group-addon">
-										<span class="fa fa-calendar"></span>
-									</span>
-								</div>
-							</div>
-						</div>
-					</div>
-				</div>
-
-				<div class="modal-footer">
-					<button type="button" id="titleAssignTitlesButton" class="btn btn-primary" onclick="handleTitleRoleAssignment()" th:text="#{html.page.ous.edit.button.assign}"/>
-					<div class="btn-group" id="titleInheritButton">
-                        <button type="button" style="margin-left: 5px;" class="btn btn-primary dropdown-toggle" data-toggle="dropdown">
-                        	<span>
-								<span th:text="#{html.page.ous.edit.button.assign.intro}"/>&nbsp;
-								<em class="fa fa-fw fa-caret-down"></em>
-							</span>
-                        </button>
-						<ul class="dropdown-menu">
-			    			<li><a href="#" onclick="handleEveryoneRoleAssignment(false)" th:text="#{html.page.ous.edit.button.assign.all}" /></li>
-	                		<li><a href="#" onclick="handleEveryoneRoleAssignment(true)" th:text="#{html.page.ous.edit.button.assign.all.inheritance}"/></li>
-			  			</ul>
-			  		</div>
-					<button type="button" id="titleNoInheritButton" class="btn btn-primary" style="margin-left: 5px;" onclick="handleEveryoneRoleAssignment(false)" th:text="#{html.page.ous.edit.button.assign.intro}"/>
-					<button type="button" class="btn btn-danger" style="margin-left: 5px;" onclick="handleRemoveRoleAssignment()" th:text="#{html.page.ous.edit.button.deassign}"/>
-				</div>
-			</div>
-		</div>
-	</div>
+	<div th:replace="ous/fragments/ou_roles_modal :: ouRolesModal(titles = ${titles})" />
 
 	<nav th:replace="fragments/footer :: footer" />
 	<script th:replace="fragments/datatables :: datatables(orderColumnValue=1) " />
@@ -360,6 +271,7 @@
 	</style>
 	
 	<script th:replace="fragments/assignDatePicker :: content " />
+	<script th:replace="ous/fragments/ou_roles_modal :: ouRoleGroupModalScript(titlesEnabled=${titlesEnabled})" />
 
 	<script th:inline="javascript">
 		/*<![CDATA[*/
@@ -387,12 +299,8 @@
 		var token = $("meta[name='_csrf']").attr("content");
 		var klePrimaryInitialized = false;
 		var kleSecondaryInitialized = false;
-		var checkedTitles = null; 		
-		var payload = {
-				roleType: '',
-				roleId: 0,
-				checkboxRef: null
-		};
+				
+		
 
 		$(document).ready(function() {
 
@@ -455,6 +363,11 @@
 					}
 				}
 			});
+			
+			
+			//for loading titles in the javascript fragment
+			payload.ouUuid=ou;
+			ouRolesModalService.loadTitles(false);
 		});
 		
 		function addCheckboxListeners() {
@@ -465,15 +378,10 @@
 			// this makes sure the KLE checkbox (inherit KLE) has the relevant event linked to it
 			$('.inherit-checkbox').off("change");
 			$('.inherit-checkbox').change(inheritCheckboxChange);
-			
-			// makes sure the title checkboxes on the modal dialogue modifies the underlying datastructure on changes
-			$('.title-checkbox').off("change");
-			$('.title-checkbox').change(handleTitleCheckbox);
 		}
 
 		// this is called when someone checks or unchecks a userrole/rolegroup checkbox
 		function handleCheckbox() {
-			var inheritAllowed = ("true" == this.dataset.inherit);
 			var checked = !this.checked; // checking flips it, and we want the previous value
 			var startDate = this.dataset.startDate;
 			var stopDate = this.dataset.stopDate;
@@ -497,136 +405,15 @@
 						payload.checkboxRef.checked = !payload.checkboxRef.checked;
 					},
 					success : function(response) {
-						showAssignModal(titlesEnabled, checked, inheritAllowed, response, startDate, stopDate);
+						ouRolesModalService.showAssignModal(titlesEnabled, checked, response, startDate, stopDate);
 					}
 				});
 			}
 			else {
-				showAssignModal(titlesEnabled, checked, inheritAllowed, null, startDate, stopDate);
+				ouRolesModalService.showAssignModal(titlesEnabled, checked, null, startDate, stopDate);
 			}
 		}
 		
-		function showAssignModal(titlesEnabled, checked, inheritAllowed, checkedTitles, startDate, stopDate) {
-			if (stopDate) {
-				$('#startDatePicker').data("DateTimePicker").date(startDate);
-				$('#stopDatePicker').data("DateTimePicker").date(stopDate);
-			} else {
-				$('#stopDatePicker').data("DateTimePicker").clear();
-				$('#startDatePicker').data("DateTimePicker").clear();
-				$('#startDatePicker').data("DateTimePicker").date(new Date());
-			}
-
-			if (titlesEnabled) {
-				var anythingChecked = false;
-
-				for (var i = 0; i < titles.length; i++) {
-					titles[i].state.checked = (checkedTitles != null && checkedTitles.indexOf(titles[i].id) > -1);
-	
-					$('.title-checkbox[data-id=' + titles[i].id + ']').prop('checked', titles[i].state.checked);
-					
-					if (titles[i].state.checked) {
-						anythingChecked = true;
-					}
-				}
-				
-				$("#titleAssignTitlesButton").show();
-				if (!anythingChecked) {
-					$("#titleAssignTitlesButton").prop('disabled', true);
-				}
-				else {
-					$("#titleAssignTitlesButton").prop('disabled', false);
-				}
-			}
-			else {
-				$("#titleAssignTitlesButton").hide();
-			}
-
-			if (inheritAllowed) {
-				$("#titleInheritButton").show();
-				$("#titleNoInheritButton").hide();
-			}
-			else {
-				$("#titleInheritButton").hide();
-				$("#titleNoInheritButton").show();
-			}
-			
-			$("#modal-ou").modal({
-				backdrop: 'static',
-				keyboard: false
-			});
-		}
-
-		function assignRole(objType, inherit, id, titleUuids) {
-			var endpoint = url + 'add' + objType + '/' + ou + '/' + id;
-
-			var startDate = $('#startDatePicker').data('date');
-			var stopDate = $('#stopDatePicker').data('date');
-			var dates = "?startDate=" + startDate + "&stopDate=" + stopDate;
-			endpoint = endpoint + dates;
-			
-			if (inherit) {
-				endpoint = endpoint + "&inherit=true";
-			}
-			
-			$.ajax({
-				url: endpoint,
-				method: "POST",
-				headers: {
-					'X-CSRF-TOKEN': token
-				},
-                contentType: 'application/json',
-                data: JSON.stringify({
-    			      'titleUuids': titleUuids
-				}),
-				error : function(response) {
-					showErrorNotification(fieldNotUpdatedMsg);
-					closeModalWithState(false);
-				},
-				success : function(response) {
-					if (response.success) {
-						if (response.users > 0) {
-							var optionalSuccessMessage = usersAlreadyAssignedDirectlyMsg.format(response.users);
-							showWarnNotification(optionalSuccessMessage);
-						}
-						else {
-							showInfoNotification(fieldUpdatedMsg);
-						}
-					}
-					else {
-						// TODO: should we inform the user that we did not make any change?
-						showInfoNotification(fieldUpdatedMsg);
-					}
-					
-					closeModalWithState(true);
-				}
-			});
-			
-			// TODO: I doubt this works with failures
-			updateCheckboxSorting(objType, id, true);
-		}
-		
-		function deassignRole(objType, id) {
-			var endpoint = url + 'remove' + objType + '/' + ou + '/' + id;
-
-			$.ajax({
-				url: endpoint,
-				method: "POST",
-				headers: {
-					'X-CSRF-TOKEN': token
-				},
-				error : function(response) {
-					showErrorNotification(fieldNotUpdatedMsg);
-					closeModalWithState(true);
-				},
-				success : function(response) {
-					showInfoNotification(fieldUpdatedMsg);
-					closeModalWithState(false);
-				}
-			});
-			
-			// TODO: I doubt this works with failures
-			updateCheckboxSorting(objType, id, false);
-		}
 
 		function updateCheckboxSorting(objType, id, checked) {
 			// update sorting of checked checkboxes
@@ -638,62 +425,6 @@
 				$("#" + id + "groupSortLabel").text(checked);
 				$("#listTable2").dataTable().api().row("#" + id + "groupRow").invalidate('dom').draw();
 			}
-		}
-
-		// wrapper around assignRole that reads the list of checked title UUIDs called by button click
-		function handleTitleRoleAssignment() {
-			var titleUuids = [];
-			for (var i = 0; i < titles.length; i++) {
-				if (titles[i].state.checked) {
-					titleUuids.push(titles[i].id);
-				}
-			}
-			
-			assignRole(payload.roleType, false, payload.roleId, titleUuids);
-		}
-		
-		// wrapper around assignRole that assigns to everyone called by button click
-		function handleEveryoneRoleAssignment(inherit) {
-			assignRole(payload.roleType, inherit, payload.roleId, []);			
-		}
-
-		// wrapper around deassignRole called by button click
-		function handleRemoveRoleAssignment() {
-			deassignRole(payload.roleType, payload.roleId);
-		}
-
-		// updates button state when a title checkbox is checked/unchecked
-		function handleTitleCheckbox() {
-			var anythingChecked = false;
-
-			for (var i = 0; i < titles.length; i++) {				
-				if (titles[i].id == $(this).data('id')) {
-					titles[i].state.checked = this.checked;					
-				}
-				
-				if (titles[i].state.checked) {
-					anythingChecked = true;
-				}
-			}
-			
-			if (!anythingChecked) {
-				$("#titleAssignTitlesButton").prop('disabled', true);
-			}
-			else {
-				$("#titleAssignTitlesButton").prop('disabled', false);
-			}
-		}
-		
-		function closeModalWithState(checkboxState) {
-			payload.checkboxRef.checked = checkboxState;
-
-			$('#modal-ou').modal('toggle');
-		}
-		
-		function closeModal() {
-			payload.checkboxRef.checked = !payload.checkboxRef.checked;
-
-			$('#modal-ou').modal('toggle');
 		}
 
 		function showInfoNotification(message) {

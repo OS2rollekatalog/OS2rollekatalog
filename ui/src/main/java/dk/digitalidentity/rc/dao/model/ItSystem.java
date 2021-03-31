@@ -59,6 +59,9 @@ public class ItSystem implements AuditLoggable {
 	private boolean hidden;
 
 	@Column
+	private boolean readonly;
+
+	@Column
 	private String subscribedTo;
 
 	@Column
@@ -73,6 +76,9 @@ public class ItSystem implements AuditLoggable {
 
 	@Column
 	private boolean deleted;
+
+	@Column
+	private boolean accessBlocked;
 
 	@JsonIgnore
 	@Override

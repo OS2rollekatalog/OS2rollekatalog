@@ -5,12 +5,16 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -31,10 +35,12 @@ import dk.digitalidentity.rc.dao.history.model.HistoryKleAssignment;
 import dk.digitalidentity.rc.dao.history.model.HistoryOU;
 import dk.digitalidentity.rc.dao.history.model.HistoryOUKleAssignment;
 import dk.digitalidentity.rc.dao.history.model.HistoryOURoleAssignment;
+import dk.digitalidentity.rc.dao.history.model.HistoryOUUser;
 import dk.digitalidentity.rc.dao.history.model.HistoryRoleAssignment;
 import dk.digitalidentity.rc.dao.history.model.HistorySystemRoleAssignment;
 import dk.digitalidentity.rc.dao.history.model.HistorySystemRoleAssignmentConstraint;
 import dk.digitalidentity.rc.dao.history.model.HistoryTitle;
+import dk.digitalidentity.rc.dao.history.model.HistoryTitleRoleAssignment;
 import dk.digitalidentity.rc.dao.history.model.HistoryUser;
 import dk.digitalidentity.rc.dao.history.model.HistoryUserRole;
 
@@ -46,8 +52,10 @@ public class ReportXlsView extends AbstractXlsView {
     private Map<String, List<HistoryRoleAssignment>> userRoleAssignments;
     private Map<String, List<HistoryKleAssignment>> userKLEAssignments;
     private Map<String, HistoryOU> orgUnits;
+    private Map<String, HistoryOU> allOrgUnits;
     private Map<String, List<HistoryOURoleAssignment>> ouRoleAssignments;
     private Map<String, List<HistoryOUKleAssignment>> ouKLEAssignments;
+    private Map<String, List<HistoryTitleRoleAssignment>> titleRoleAssignments;
     private Map<Long, String> itSystemNameMapping;
     private SimpleDateFormat dateFormatter;
     private ResourceBundleMessageSource messageSource;
@@ -65,12 +73,14 @@ public class ReportXlsView extends AbstractXlsView {
         users = (Map<String, HistoryUser>) model.get("users");
         titles = (List<HistoryTitle>) model.get("titles");
         orgUnits = (Map<String, HistoryOU>) model.get("orgUnits");
+        allOrgUnits = (Map<String, HistoryOU>) model.get("allOrgUnits");
         itSystems = (List<HistoryItSystem>) model.get("itSystems");
         messageSource = (ResourceBundleMessageSource) model.get("messagesBundle");
         ouKLEAssignments = (Map<String, List<HistoryOUKleAssignment>>) model.get("ouKLEAssignments");
         userKLEAssignments = (Map<String, List<HistoryKleAssignment>>) model.get("userKLEAssignments");
         ouRoleAssignments = (Map<String, List<HistoryOURoleAssignment>>) model.get("ouRoleAssignments");
         userRoleAssignments = (Map<String, List<HistoryRoleAssignment>>) model.get("userRoleAssignments");
+		titleRoleAssignments = (Map<String, List<HistoryTitleRoleAssignment>>) model.get("titleRoleAssignments");
         
         // Process data
         itSystemNameMapping = new HashMap<>();
@@ -329,15 +339,21 @@ public class ReportXlsView extends AbstractXlsView {
         createHeaderRow(sheet, headers);
 
         int row = 1;
-        for (Map.Entry<String, List<HistoryOUKleAssignment>> entry : ouKLEAssignments.entrySet()) {
-            String ouName = orgUnits.get(entry.getKey()).getOuName();
-            for (HistoryOUKleAssignment ouKleAssignment : entry.getValue()) {
+        for (HistoryOU ou : orgUnits.values()) {
+        	List<HistoryOUKleAssignment> entries = ouKLEAssignments.get(ou.getOuUuid());
+        	if (entries == null) {
+        		continue;
+        	}
+
+            String ouName = ou.getOuName();
+            for (HistoryOUKleAssignment ouKleAssignment : entries) {
                 Row dataRow = sheet.createRow(row++);
 
                 String assignmentType = ouKleAssignment.getAssignmentType();
                 if (Objects.equals(assignmentType, "INTEREST")) {
                     assignmentType = "Indsigtsbehov";
-                } else if (Objects.equals(assignmentType, "PERFORMING")) {
+                }
+                else if (Objects.equals(assignmentType, "PERFORMING")) {
                     assignmentType = "Opgaveansvar";
                 }
 
@@ -424,6 +440,96 @@ public class ReportXlsView extends AbstractXlsView {
                 createCell(dataRow, column++, assignedThroughStr, null);
             }
         }
+
+        for (HistoryOU ou : orgUnits.values()) {
+        	if (ou.getUsers() == null) {
+        		continue;
+        	}
+        	
+        	List<HistoryOURoleAssignment> ouAssignments = ouRoleAssignments.get(ou.getOuUuid());
+        	for (HistoryOUUser historyOuUser : ou.getUsers()) {
+                HistoryUser user = users.get(historyOuUser.getUserUuid());
+                if (user == null) {
+                	continue;
+                }
+                
+                // Skip inactive users if showInactive users = false
+    			if (!showInactiveUsers && !user.isUserActive()) {
+    				continue;
+    			}
+
+        		List<HistoryTitleRoleAssignment> userTitleAssignments = null;
+        		
+        		// find any assignments through titles matching users Title in this OrgUnit
+        		String titleUuid = historyOuUser.getTitleUuid();
+        		if (titleUuid != null) {
+        			userTitleAssignments = titleRoleAssignments.get(titleUuid);
+        			if (userTitleAssignments != null) {
+        				userTitleAssignments = userTitleAssignments.stream().filter(t -> Objects.equals(t.getAssignedThroughUuid(), ou.getOuUuid())).collect(Collectors.toList());
+        			}
+        		}
+
+        		// ok, time to generate records
+        		
+                String userName = user.getUserName();
+                String userId = user.getUserUserId();
+                boolean userActive = user.isUserActive();
+
+                if (ouAssignments != null) {
+	                for (HistoryOURoleAssignment roleAssignment : ouAssignments) {
+	                    
+	                	// Get ItSystem by id
+	                    Optional<HistoryItSystem> first = itSystems.stream().filter(itSystem -> itSystem.getItSystemId() == roleAssignment.getRoleItSystemId()).findFirst();
+	                    String itSystem = "";
+	                    if (first.isPresent()) {
+	                        HistoryItSystem historyItSystem = first.get();
+	                        itSystem = historyItSystem.getItSystemName();
+	                    }
+
+	                    String assignedBy = roleAssignment.getAssignedByName() + " (" + roleAssignment.getAssignedByUserId() + ")";	
+	                    String assignedThroughStr = messageSource.getMessage("xls.role.assigned.trough.type.orgunit", null, locale) + ": " + ((roleAssignment.getAssignedThroughName() != null) ? roleAssignment.getAssignedThroughName() : ou.getOuName());
+	
+	                    Row dataRow = sheet.createRow(row++);
+	                    int column = 0;
+	                    createCell(dataRow, column++, userName, null);
+	                    createCell(dataRow, column++, userId, null);
+	                    createCell(dataRow, column++, userActive ? "aktiv" : "inaktiv", null);
+	                    createCell(dataRow, column++, itSystemNameMapping.get(roleAssignment.getRoleId()), null);
+	                    createCell(dataRow, column++, itSystem, null);
+	                    createCell(dataRow, column++, assignedBy, null);
+	                    createCell(dataRow, column++, dateFormatter.format(roleAssignment.getAssignedWhen()), null);
+	                    createCell(dataRow, column++, assignedThroughStr, null);
+	                }
+                }
+                
+                if (userTitleAssignments != null) {
+	                for (HistoryTitleRoleAssignment roleAssignment : userTitleAssignments) {
+	                    
+	                	// Get ItSystem by id
+	                    Optional<HistoryItSystem> first = itSystems.stream().filter(itSystem -> itSystem.getItSystemId() == roleAssignment.getRoleItSystemId()).findFirst();
+	                    String itSystem = "";
+	                    if (first.isPresent()) {
+	                        HistoryItSystem historyItSystem = first.get();
+	                        itSystem = historyItSystem.getItSystemName();
+	                    }
+	
+	                    String assignedBy = roleAssignment.getAssignedByName() + " (" + roleAssignment.getAssignedByUserId() + ")";	
+	                    String assignedThroughStr = messageSource.getMessage("xls.role.assigned.trough.type.title", null, locale) + ": " + roleAssignment.getAssignedThroughName();
+
+	                    Row dataRow = sheet.createRow(row++);
+	                    int column = 0;
+	                    createCell(dataRow, column++, userName, null);
+	                    createCell(dataRow, column++, userId, null);
+	                    createCell(dataRow, column++, userActive ? "aktiv" : "inaktiv", null);
+	                    createCell(dataRow, column++, itSystemNameMapping.get(roleAssignment.getRoleId()), null);
+	                    createCell(dataRow, column++, itSystem, null);
+	                    createCell(dataRow, column++, assignedBy, null);
+	                    createCell(dataRow, column++, dateFormatter.format(roleAssignment.getAssignedWhen()), null);
+	                    createCell(dataRow, column++, assignedThroughStr, null);
+	                }
+                }
+        	}
+        }
     }
 
     private void createUserKLESheet(Workbook workbook, boolean showInactiveUsers) {
@@ -438,26 +544,79 @@ public class ReportXlsView extends AbstractXlsView {
 
         createHeaderRow(sheet, headers);
 
+        // enhance existing KLE assignments from OU assignments
+        for (HistoryOU ou : allOrgUnits.values()) {
+        	// skip OUs without any users
+        	if (ou.getUsers() == null || ou.getUsers().size() == 0) {
+        		continue;
+        	}
+        	
+        	// skip OUs without KLE assignments
+        	List<HistoryOUKleAssignment> ouKleAssignments = ouKLEAssignments.get(ou.getOuUuid());
+        	if (ouKleAssignments == null || ouKleAssignments.size() == 0) {
+        		continue;
+        	}
+        	
+        	for (HistoryOUUser ouUser : ou.getUsers()) {
+        		// minor optimization - no reason to map extra KLE for users that are not included in the report
+        		if (users.get(ouUser.getUserUuid()) == null) {
+        			continue;
+        		}
+
+        		List<HistoryKleAssignment> existingUserAssignments = userKLEAssignments.get(ouUser.getUserUuid());
+        		if (existingUserAssignments == null) {
+        			existingUserAssignments = new ArrayList<HistoryKleAssignment>();
+        			userKLEAssignments.put(ouUser.getUserUuid(), existingUserAssignments);
+        		}
+
+        		for (HistoryOUKleAssignment ouKleAssignment : ouKleAssignments) {
+        			String assignmentType = ouKleAssignment.getAssignmentType();
+        			String[] kleValues = (ouKleAssignment.getKleValues() != null) ? ouKleAssignment.getKleValues().split(",") : new String[0];
+        			
+        			boolean found = false;
+        			for (HistoryKleAssignment existingUserAssignment : existingUserAssignments) {
+        				if (Objects.equals(existingUserAssignment.getAssignmentType(), assignmentType)) {
+                			String[] existingKleValues = (existingUserAssignment.getKleValues() != null) ? existingUserAssignment.getKleValues().split(",") : new String[0];
+                			Set<String> tmp = new HashSet<>();
+                			tmp.addAll(Arrays.asList(existingKleValues));
+                			tmp.addAll(Arrays.asList(kleValues));
+                			
+                			existingUserAssignment.setKleValues(String.join(",", tmp));
+        					
+        					found = true;
+        					break;
+        				}
+        			}
+        			
+        			if (!found) {
+        				HistoryKleAssignment assignment = new HistoryKleAssignment(ouUser.getUserUuid(), assignmentType, ouKleAssignment.getKleValues());
+        				existingUserAssignments.add(assignment);
+        			}
+        		}
+        	}
+        }
+        
         int row = 1;
-        for (Map.Entry<String, List<HistoryKleAssignment>> entry : userKLEAssignments.entrySet()) {
-            HistoryUser user = users.get(entry.getKey());
+        for (HistoryUser user : users.values()) {
+        	List<HistoryKleAssignment> entries = userKLEAssignments.get(user.getUserUuid());
 
             // Skip inactive users if showInactive users = false
-            if (!showInactiveUsers && !user.isUserActive()) { continue; }
+			if (entries == null || !showInactiveUsers && !user.isUserActive()) {
+				continue;
+			}
 
             String userName = user.getUserName();
             String userId = user.getUserUserId();
             boolean userActive = user.isUserActive();
 
-            for (HistoryKleAssignment kleAssignment : entry.getValue()) {
-
+            for (HistoryKleAssignment kleAssignment : entries) {
                 String assignmentType = kleAssignment.getAssignmentType();
-                if (Objects.equals(assignmentType, "INTEREST")) {
-                    assignmentType = "Opgaveansvar";
-                } else if (Objects.equals(assignmentType, "PERFORMING")) {
-                    assignmentType = "Indsigtsbehov";
-                }
-
+				if (Objects.equals(assignmentType, "INTEREST")) {
+					assignmentType = "Indsigtsbehov";
+				}
+				else if (Objects.equals(assignmentType, "PERFORMING")) {
+					assignmentType = "Opgaveansvar";
+				}
 
                 Row dataRow = sheet.createRow(row++);
                 int column = 0;

@@ -1,16 +1,17 @@
 package dk.digitalidentity.rc.interceptor;
 
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import dk.digitalidentity.rc.dao.model.OrgUnit;
-import dk.digitalidentity.rc.dao.model.Position;
-import dk.digitalidentity.rc.dao.model.RoleGroup;
 import dk.digitalidentity.rc.dao.model.OrgUnitRoleGroupAssignment;
 import dk.digitalidentity.rc.dao.model.OrgUnitUserRoleAssignment;
+import dk.digitalidentity.rc.dao.model.Position;
+import dk.digitalidentity.rc.dao.model.RoleGroup;
 import dk.digitalidentity.rc.dao.model.SystemRoleAssignment;
 import dk.digitalidentity.rc.dao.model.Title;
 import dk.digitalidentity.rc.dao.model.User;
@@ -254,21 +255,32 @@ public class ManualRolesHook implements RoleChangeHook {
 			OrgUnit ou = orgUnitService.getByUuid(uuid);
 
 			for (User user : userService.findByOrgUnit(ou)) {
-				if (!user.isDoNotInherit()) {
-					manualRolesService.addUserToQueue(user, roleGroup);
+				if (user.getPositions().stream().anyMatch(p ->
+						Objects.equals(p.getOrgUnit().getUuid(), ou.getUuid()) &&
+						p.getTitle() != null &&
+						Objects.equals(p.getTitle().getUuid(), title.getUuid()))
+				) {
+					if (!user.isDoNotInherit()) {
+						manualRolesService.addUserToQueue(user, roleGroup);
+					}
 				}
 			}
 		}
 	}
 
 	@Override
-	public void interceptRemoveRoleGroupAssignmentOnTitle(Title title, RoleGroup roleGroup) {
-		// this one is bad, as we need to find everyone who has this rolegroup, and then put
-		// them on the queue, as we do not know which OUs to filter on
-		
+	public void interceptRemoveRoleGroupAssignmentOnTitle(Title title, RoleGroup roleGroup, OrgUnit ou) {
 		List<UserWithRole> userswithRole = userService.getUsersWithRoleGroup(roleGroup, true);
 		for (UserWithRole userWithRole : userswithRole) {
-			manualRolesService.addUserToQueue(userWithRole.getUser(), roleGroup);
+			User user = userWithRole.getUser();
+
+			if (user.getPositions().stream().anyMatch(p ->
+					Objects.equals(p.getOrgUnit().getUuid(), ou.getUuid()) &&
+					p.getTitle() != null &&
+					Objects.equals(p.getTitle().getUuid(), title.getUuid()))
+			) {
+				manualRolesService.addUserToQueue(user, roleGroup);
+			}
 		}
 	}
 
@@ -278,21 +290,33 @@ public class ManualRolesHook implements RoleChangeHook {
 			OrgUnit ou = orgUnitService.getByUuid(uuid);
 
 			for (User user : userService.findByOrgUnit(ou)) {
-				if (!user.isDoNotInherit()) {
-					manualRolesService.addUserToQueue(user, userRole);
+				if (user.getPositions().stream().anyMatch(p ->
+						Objects.equals(p.getOrgUnit().getUuid(), ou.getUuid()) &&
+						p.getTitle() != null &&
+						Objects.equals(p.getTitle().getUuid(), title.getUuid()))
+				) {
+					if (!user.isDoNotInherit()) {
+						manualRolesService.addUserToQueue(user, userRole);
+					}
 				}
 			}
 		}
 	}
 
 	@Override
-	public void interceptRemoveUserRoleAssignmentOnTitle(Title title, UserRole userRole) {
-		// this one is bad, as we need to find everyone who has this rolegroup, and then put
-		// them on the queue, as we do not know which OUs to filter on
-		
+	public void interceptRemoveUserRoleAssignmentOnTitle(Title title, UserRole userRole, OrgUnit ou) {
 		List<UserWithRole> userswithRole = userService.getUsersWithUserRole(userRole, true);
+
 		for (UserWithRole userWithRole : userswithRole) {
-			manualRolesService.addUserToQueue(userWithRole.getUser(), userRole);
+			User user = userWithRole.getUser();
+			
+			if (user.getPositions().stream().anyMatch(p ->
+					Objects.equals(p.getOrgUnit().getUuid(), ou.getUuid()) &&
+					p.getTitle() != null &&
+					Objects.equals(p.getTitle().getUuid(), title.getUuid()))
+			) {
+				manualRolesService.addUserToQueue(userWithRole.getUser(), userRole);
+			}
 		}		
 	}
 }

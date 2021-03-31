@@ -1,0 +1,232 @@
+<th:block th:fragment="userUserRoleModal" xmlns="http://www.w3.org/1999/xhtml" xmlns:th="http://www.thymeleaf.org">
+	<div class="modal fade" id="modal-positions" role="dialog">
+	    <div class="modal-dialog">
+	
+	        <!-- Modal content-->
+	        <div class="modal-content">
+	            <div class="modal-header">
+	                <h4 th:text="#{html.page.users.list.modal}"/>
+	            </div>
+	
+	            <div class="modal-body" style="overflow-y: initial !important;">
+	                <table class="table table-striped table-hover" th:if="${@roleCatalogueConfiguration.getTitles().isEnabled() == false}">
+	                    <tbody>
+	                    <tr>
+	                        <td class="col-md-2">
+	                            <button id="assignDirectlyBtn" class="btn btn-primary assign_role_directly" th:text="#{html.entity.positions.assign}"/>
+	                        </td>
+	                        <td class="col-md-10" th:text="#{html.entity.positions.assigndirect}"/>
+	                    </tr>
+	                    <tr th:each="position : ${positions}">
+	                        <td>
+	                            <button class="btn assign_role" th:text="#{html.entity.positions.assign}" th:value="${position.id}"/>
+	                        </td>
+	                        <td th:text="${position.name} + ' ' + #{html.word.in} + ' ' + ${position.orgUnit.name}"/>
+	                    </tr>
+	                    </tbody>
+	                </table>
+	                
+	                <div th:if="${@roleCatalogueConfiguration.getTitles().isEnabled()}" th:text="#{html.page.user.assign.accept.text}"/>
+	
+	                <div class="alert alert-warning" style="margin-top: 10px;" role="alert" id="modal-positions-alert">
+	                    &nbsp;
+	                </div>
+	                
+	               	<div style="height: 70px;">
+						<h4 class="md-12" th:text="#{html.word.validity}" />
+	
+						<b class="col-sm-1" style="padding-top: 7px;" th:text="#{html.word.from}"></b>
+						<div class="col-md-5">
+							<div class="form-group">
+								<div class="input-group date" id="startDatePicker">
+									<input type="text" class="form-control"/>
+									<span class="input-group-addon">
+										<span class="fa fa-calendar"></span>
+									</span>
+								</div>
+							</div>
+						</div>
+	
+						<b class="col-sm-1" style="padding-top: 7px;" th:text="#{html.word.to}"></b>
+						<div class="col-md-5">
+							<div class="form-group">
+								<div class="input-group date" id="stopDatePicker">
+									<input type="text" class="form-control" />
+									<span class="input-group-addon">
+										<span class="fa fa-calendar"></span>
+									</span>
+								</div>
+							</div>
+						</div>
+					</div>
+	            </div>
+	
+	            <div class="modal-footer">
+					<button id="assignDirectlyBtn" class="btn btn-primary assign_role_directly" th:text="#{html.entity.positions.assign}" th:if="${@roleCatalogueConfiguration.getTitles().isEnabled()}" />
+	                <button type="button" class="btn btn-danger" id="closeModal" th:text="#{html.control.button.cancel}"/>
+	            </div>
+	        </div>
+	    </div>
+	</div>
+</th:block>
+	
+<th:block th:fragment="userUserRoleModalScript" xmlns="http://www.w3.org/1999/xhtml" xmlns:th="http://www.thymeleaf.org">
+	<script th:inline="javascript" type="text/javascript">
+		/*<![CDATA[*/
+		
+		/*[+
+		var usersUrl = [[@{/rest/users/}]];
+		
+		var userRoleListTableId = [[${userRoleListTableId}]]
+		var page = [[${page}]];
+		+]*/
+
+		var userRoleModalService;
+		var modalAjaxService;
+		$(document).ready(function() {
+			console.log(userRoleListTableId)
+            userRoleModalService = new UserRoleModalService();
+            modalAjaxService = new ModalAjaxService();
+            
+            userRoleModalService.init();
+            
+            
+        });
+	
+		
+		
+		function UserRoleModalService() {
+			this.init = function(){
+				var modal = $("#modal-positions");
+	    		
+	            
+	            $('.assign_role').click(userRoleModalService.assignRoleClicked);		
+	      		$('.assign_role_directly').click(userRoleModalService.assignRoleDirectlyClicked);
+	      		$('#closeModal').click(userRoleModalService.closeModalAndRemoveCheckbox);
+	      		
+	      		modal.on('shown.bs.modal', function() {
+	    			$("#assignDirectlyBtn").focus();
+	    		});
+			}
+			
+			this.closeModalAndRemoveCheckbox = function() {
+				var listTable = $('#' + userRoleListTableId);
+				console.log(listTable)
+				var modal = $("#modal-positions");
+				if (page == 'user') {
+					console.log("user")
+					var chosenCheckbox = listTable.find("#" + modal.attr("roleid"));
+					console.log(chosenCheckbox)
+					if (chosenCheckbox != null) {
+						chosenCheckbox.prop('checked', false);
+						listTable.dataTable().api().row("#"+modal.attr("roleid")+"row").invalidate('dom').draw();
+					}
+				}
+				if (page == 'role'){
+					var chosenCheckbox = listTable.find("#" + modal.attr("userUuid"));
+					if (chosenCheckbox != null) {
+						chosenCheckbox.prop('checked', false);
+						listTable.dataTable().api().row("#"+modal.attr("userUuid")+"row").invalidate('dom').draw();
+					}
+				}
+				
+				
+				modal.modal('hide');
+			}
+			
+			this.assignRoleDirectlyClicked = function() {
+				var listTable = $('#' + userRoleListTableId);
+				var modal = $("#modal-positions");
+				var positionUuid = $(this).val();
+				var roleid = modal.attr("roleid");
+				var userUuid = modal.attr("userUuid");
+				
+				var chosenCheckbox;
+				if (page == 'user'){
+					chosenCheckbox = listTable.find("#" + modal.attr("roleid"));
+				}
+				if (page == 'role'){
+					chosenCheckbox = listTable.find("#" + modal.attr("userUuid"));
+				}
+				
+				
+				var startDate = $('#startDatePicker').data('date');
+				var stopDate = $('#stopDatePicker').data('date');
+				var dates = "?startDate=" + startDate + "&stopDate=" + stopDate;
+				
+				$.ajax(modalAjaxService.getAjaxObject(usersUrl + userUuid + '/addrole/' + roleid + dates, fieldUpdatedMsg, fieldNotUpdatedMsg, chosenCheckbox));
+				modal.modal('hide');
+			}
+			
+			this.assignRoleClicked = function() {
+				var listTable = $('#' + userRoleListTableId);
+				var modal = $("#modal-positions");
+				var positionUuid = $(this).val();
+				var roleid = modal.attr("roleid");
+				var userUuid = modal.attr("userUuid");
+				
+				var chosenCheckbox;
+				if (page == 'user'){
+					chosenCheckbox = listTable.find("#" + modal.attr("roleid"));
+				}
+				if (page == 'role'){
+					chosenCheckbox = listTable.find("#" + modal.attr("userUuid"));
+				}
+				
+				var startDate = $('#startDatePicker').data('date');
+				var stopDate = $('#stopDatePicker').data('date');
+				var dates = "?startDate=" + startDate + "&stopDate=" + stopDate;
+
+				$.ajax(modalAjaxService.getAjaxObject(usersUrl + 'position/' + positionUuid + '/addrole/' + roleid + dates, fieldUpdatedMsg, fieldNotUpdatedMsg, chosenCheckbox));
+				modal.modal('hide');
+			}
+		}
+		
+
+		// TODO: move these into a utility js file (exists in edit.html for users/orgunits)
+		function ModalAjaxService() {
+
+	        this.getAjaxObject = function(urL, okMsg, errorMsg, chosenCheckbox) {
+	    		return {
+	    			url: urL,
+					method: "POST",
+					headers: {
+						'X-CSRF-TOKEN': token
+					},
+	    			error: function(response) {
+	    				if (chosenCheckbox != null) {
+							chosenCheckbox.prop('checked', false);
+	    				}
+
+						var msg = (response.responseText != null && response.responseText.length > 0) ? response.responseText : errorMsg;
+						modalAjaxService.showErrorNotification(msg);
+	    			},
+	    			success: function(response) {
+	    				modalAjaxService.showInfoNotification(okMsg);
+	    			}
+	    		};
+	    	}
+	        
+	        this.showInfoNotification = function(message) {
+				$.notify({
+					message: message,
+					status: 'success',
+					timeout: 2000
+				});
+			}
+
+			this.showErrorNotification = function(message) {
+				$.notify({
+					message: message,
+					status: 'danger',
+					timeout: 4000
+				});
+			}
+		}
+		
+		
+		
+		/*]]>*/
+
+	</script>
+</th:block>

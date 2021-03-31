@@ -43,6 +43,7 @@
 								<a th:replace="fragments/help :: help (title=#{html.help.roleadmin.email.title}, content=#{html.help.roleadmin.email.body})" />
 							</div>
 						</fieldset>
+						
 					</div>
 
 					<div class="panel-heading">
@@ -190,6 +191,19 @@
 							
 							<fieldset>
 								<div class="form-group">
+									<label class="col-sm-3 control-label" th:text="#{html.setting.attestation.scheduled.interval.sensitive}" />
+									<div class="col-sm-8">
+										<select th:field="*{scheduledAttestationIntervalSensitive}" class="form-control">
+											<option th:each="interval : ${T(dk.digitalidentity.rc.dao.model.enums.CheckupIntervalEnum).values()}"
+												th:value="${interval}" th:text="#{__${interval.getMessage()}__}"
+												th:selected="${interval} == *{scheduledAttestationIntervalSensitive}"></option>
+										</select>
+									</div>
+								</div>
+							</fieldset>
+							
+							<fieldset>
+								<div class="form-group">
 									<label class="col-sm-3 control-label" th:text="#{html.setting.attestation.scheduled.day_in_month}" />
 									<div class="col-sm-8">
 										<input th:field="*{scheduledAttestationDayInMonth}" class="form-control" />
@@ -214,6 +228,54 @@
 									</div>
 								</div>
 							</fieldset>
+							
+							<fieldset>
+								<div class="form-group">
+									<label class="col-sm-3 control-label" th:text="#{html.setting.remove.role.email}" />
+									<div class="col-sm-8">
+										<input th:field="*{removalOfUnitRolesEmail}" class="form-control" />
+									</div>
+									<a th:replace="fragments/help :: help (title=#{html.help.remove.role.title}, content=#{html.help.remove.role.body})" />
+								</div>
+							</fieldset>
+							
+							<fieldset>
+								<div class="form-group">
+									<label class="col-sm-3 control-label" th:text="#{html.setting.attestation.days_before_deadline}" />
+									<div class="col-sm-8">
+										<input type="number" th:field="*{DaysBeforeDeadline}" class="form-control" />
+									</div>
+									<a th:replace="fragments/help :: help (title=#{html.help.attestation.days_before.title}, content=#{html.help.attestation.days_before.body})" />
+								</div>
+							</fieldset>
+							<fieldset>
+								<div class="form-group">
+									<label class="col-sm-3 control-label" th:text="#{html.setting.attestation.reminder_count}" />
+									<div class="col-sm-8">
+										<input type="number" th:field="*{ReminderCount}" class="form-control" />
+									</div>
+									<a th:replace="fragments/help :: help (title=#{html.help.attestation.reminder_count.title}, content=#{html.help.attestation.reminder_count.body})" />
+								</div>
+							</fieldset>
+							<fieldset>
+								<div class="form-group">
+									<label class="col-sm-3 control-label" th:text="#{html.setting.attestation.reminder_interval}" />
+									<div class="col-sm-8">
+										<input type="number" th:field="*{ReminderInterval}" class="form-control" />
+									</div>
+									<a th:replace="fragments/help :: help (title=#{html.help.attestation.reminder_interval.title}, content=#{html.help.attestation.reminder_interval.body})" />
+								</div>
+							</fieldset>
+							<fieldset>
+								<div class="form-group">
+									<label class="col-sm-3 control-label" th:text="#{html.setting.attestation.email_after_reminders}" />
+									<div class="col-sm-8">
+										<input th:field="*{EmailAfterReminders}" class="form-control" />
+									</div>
+									<a th:replace="fragments/help :: help (title=#{html.help.attestation.reminder.email.title}, content=#{html.help.attestation.reminder.email.body})" />
+								</div>
+							</fieldset>
+							
 						</div>
 					</div>
 

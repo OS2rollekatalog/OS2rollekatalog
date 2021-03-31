@@ -43,7 +43,7 @@ namespace ADSyncService
 
                     foreach (string member in members)
                     {
-                        if (user.Equals(member))
+                        if (string.Equals(user, member, System.StringComparison.OrdinalIgnoreCase))
                         {
                             found = true;
                             break;

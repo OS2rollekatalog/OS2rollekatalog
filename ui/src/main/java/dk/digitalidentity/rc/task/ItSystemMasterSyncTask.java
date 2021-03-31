@@ -18,7 +18,7 @@ public class ItSystemMasterSyncTask {
 	@Autowired
 	private RoleCatalogueConfiguration configuration;
 
-	@Scheduled(fixedDelay = 15 * 60 * 1000, initialDelay = 40 * 60 * 1000)
+	@Scheduled(cron = "0 7/15 6-20 * * *")
 	public void fetchItSystems() {
 		if (!configuration.getScheduled().isEnabled() ||
 			!configuration.getIntegrations().getMaster().isEnabled()) {
@@ -28,7 +28,7 @@ public class ItSystemMasterSyncTask {
 		masterService.fetchItSystems();
 	}
 
-	@Scheduled(fixedDelay = 15 * 60 * 1000, initialDelay = 60 * 60 * 1000)
+	@Scheduled(cron = "0 2/15 6-20 * * *")
 	public void updateLocalItSystems() {
 		if (!configuration.getScheduled().isEnabled() ||
 			!configuration.getIntegrations().getMaster().isEnabled()) {

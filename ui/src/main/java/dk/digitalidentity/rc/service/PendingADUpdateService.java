@@ -52,7 +52,7 @@ public class PendingADUpdateService {
 
 	// we always add to queue, duplicates are dealt with elsewhere
 	public void addItSystemToQueue(ItSystem itSystem) {
-		if (!itSystem.getSystemType().equals(ItSystemType.AD) || itSystem.isPaused()) {
+		if (!itSystem.getSystemType().equals(ItSystemType.AD) || itSystem.isPaused() || itSystem.isReadonly()) {
 			return;
 		}
 
@@ -75,7 +75,7 @@ public class PendingADUpdateService {
 	public void addUserRoleToQueue(UserRole userRole) {
 		ItSystem itSystem = userRole.getItSystem();
 		
-		if (!itSystem.getSystemType().equals(ItSystemType.AD) || itSystem.isPaused()) {
+		if (!itSystem.getSystemType().equals(ItSystemType.AD) || itSystem.isPaused() || itSystem.isReadonly()) {
 			return;
 		}
 

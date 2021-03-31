@@ -126,10 +126,10 @@
                                 <tr th:each="addRole : ${addRoles}" th:id="${addRole.role.id}+'row'">
                                     <td>
                                         <div class="checkbox c-checkbox">
-                                            <label>
+                                            <label th:title="${addRole.role.itSystem.readonly} == true ? 'Rettigheden styres udenfor rollekataloget' : ''">
                                                 <input class="checkbox-positions" th:id="${addRole.role.id}"
                                                        type="checkbox" th:value="${user.uuid}"
-                                                       th:checked="${addRole.checked}" th:disabled="${addRole.canCheck == false}" data-objtype="role"/>
+                                                       th:checked="${addRole.checked}" th:disabled="${addRole.canCheck == false} OR ${addRole.role.itSystem.readonly}" data-objtype="role"/>
                                                 <span class="fa fa-check"></span>
                                             </label>
                                         </div>
@@ -220,145 +220,9 @@
     </section>
 </div>
 
-<div class="modal fade" id="modal-positions" role="dialog">
-    <div class="modal-dialog">
+<div th:replace="users/fragments/user_user_role_modal :: userUserRoleModal(positions = ${user.positions})" />
+<div th:replace="users/fragments/user_role_group_modal :: userRoleGroupModal(positions = ${user.positions})" />
 
-        <!-- Modal content-->
-        <div class="modal-content">
-            <div class="modal-header">
-                <h4 th:text="#{html.page.users.list.modal}"/>
-            </div>
-
-            <div class="modal-body">
-                <table class="table table-striped table-hover" th:if="${@roleCatalogueConfiguration.getTitles().isEnabled() == false}">
-                    <tbody>
-                    <tr>
-                        <td class="col-md-2">
-                            <button id="assignDirectlyBtn" class="btn btn-primary assign_role_directly" th:text="#{html.entity.positions.assign}"/>
-                        </td>
-                        <td class="col-md-10" th:text="#{html.entity.positions.assigndirect}"/>
-                    </tr>
-                    <tr th:each="position : ${user.positions}">
-                        <td>
-                            <button class="btn assign_role" th:text="#{html.entity.positions.assign}" th:value="${position.id}"/>
-                        </td>
-                        <td th:text="${position.name} + ' ' + #{html.word.in} + ' ' + ${position.orgUnit.name}"/>
-                    </tr>
-                    </tbody>
-                </table>
-                
-                <div th:if="${@roleCatalogueConfiguration.getTitles().isEnabled()}" th:text="#{html.page.user.assign.accept.text}"/>
-
-                <div class="alert alert-warning" style="margin-top: 10px;" role="alert" id="modal-positions-alert">
-                    &nbsp;
-                </div>
-                
-               	<div style="height: 70px;">
-					<h4 class="md-12" th:text="#{html.word.validity}" />
-
-					<b class="col-sm-1" style="padding-top: 7px;" th:text="#{html.word.from}"></b>
-					<div class="col-md-5">
-						<div class="form-group">
-							<div class="input-group date" id="startDatePicker">
-								<input type="text" class="form-control"/>
-								<span class="input-group-addon">
-									<span class="fa fa-calendar"></span>
-								</span>
-							</div>
-						</div>
-					</div>
-
-					<b class="col-sm-1" style="padding-top: 7px;" th:text="#{html.word.to}"></b>
-					<div class="col-md-5">
-						<div class="form-group">
-							<div class="input-group date" id="stopDatePicker">
-								<input type="text" class="form-control" />
-								<span class="input-group-addon">
-									<span class="fa fa-calendar"></span>
-								</span>
-							</div>
-						</div>
-					</div>
-				</div>
-            </div>
-
-            <div class="modal-footer">
-				<button id="assignDirectlyBtn" class="btn btn-primary assign_role_directly" th:text="#{html.entity.positions.assign}" th:if="${@roleCatalogueConfiguration.getTitles().isEnabled()}" />
-                <button type="button" class="btn btn-danger" id="closeModal" th:text="#{html.control.button.cancel}"/>
-            </div>
-        </div>
-    </div>
-</div>
-
-<div class="modal fade" id="modal-groups" role="dialog">
-    <div class="modal-dialog">
-
-        <!-- Modal content-->
-        <div class="modal-content">
-            <div class="modal-header">
-                <h4 th:text="#{html.page.users.list.modal.rolegroup}"/>
-            </div>
-
-            <div class="modal-body">
-                <table class="table table-striped table-hover" th:if="${@roleCatalogueConfiguration.getTitles().isEnabled() == false}">
-                    <tbody>
-                    <tr>
-                        <td class="col-md-2">
-                            <button id="assignDirectlyRGBtn" class="btn btn-danger assign_group_directly" th:text="#{html.entity.positions.assign}"/>
-                        </td>
-                        <td class="col-md-10" th:text="#{html.entity.positions.assigndirect}"/>
-                    </tr>
-                    <tr th:each="position : ${user.positions}" th:if="${@roleCatalogueConfiguration.getTitles().isEnabled() == false}">
-                        <td>
-                            <button class="btn assign_group" th:text="#{html.entity.positions.assign}" th:value="${position.id}"/>
-                        </td>
-                        <td th:text="${position.name}"/>
-                    </tr>
-                    </tbody>
-                </table>
-                
-                <div th:if="${@roleCatalogueConfiguration.getTitles().isEnabled()}" th:text="#{html.page.user.assign.accept.text}"/>
-
-                <div class="alert alert-warning" role="alert" id="modal-groups-alert">
-                    &nbsp;
-                </div>
-                
-               	<div style="height: 70px;">
-					<h4 class="md-12" th:text="#{html.word.validity}" />
-
-					<b class="col-sm-1" style="padding-top: 7px;" th:text="#{html.word.from}"></b>
-					<div class="col-md-5">
-						<div class="form-group">
-							<div class="input-group date" id="groupStartDatePicker">
-								<input type="text" class="form-control"/>
-								<span class="input-group-addon">
-									<span class="fa fa-calendar"></span>
-								</span>
-							</div>
-						</div>
-					</div>
-
-					<b class="col-sm-1" style="padding-top: 7px;" th:text="#{html.word.to}"></b>
-					<div class="col-md-5">
-						<div class="form-group">
-							<div class="input-group date" id="groupStopDatePicker">
-								<input type="text" class="form-control" />
-								<span class="input-group-addon">
-									<span class="fa fa-calendar"></span>
-								</span>
-							</div>
-						</div>
-					</div>
-				</div>
-            </div>
-
-            <div class="modal-footer">
-				<button id="assignDirectlyRGBtn" class="btn btn-primary assign_group_directly" th:text="#{html.entity.positions.assign}"/>
-                <button type="button" class="btn btn-danger" id="closeRoleGroupModal" th:text="#{html.control.button.cancel}"/>
-            </div>
-        </div>
-    </div>
-</div>
 
 	<style>
 		.table .checkbox {
@@ -370,7 +234,8 @@
 	<nav th:replace="fragments/footer :: footer"/>
 	<script th:replace="fragments/datatables :: datatables(orderColumnValue=1) " />	
 	<script th:replace="fragments/assignDatePicker :: content " />
-
+	<script th:replace="users/fragments/user_user_role_modal :: userUserRoleModalScript(userRoleListTableId='listTable1', page='user')"/>
+	<script th:replace="users/fragments/user_role_group_modal :: userRoleGroupModalScript(listTable='listTable2', page='user')"/>
 	<script th:inline="javascript">
 		/*<![CDATA[*/
 		
@@ -404,12 +269,6 @@
 		modal = $("#modal-positions");
 		modalGroups = $("#modal-groups");
 
-		$('.assign_role').click(assignRoleClicked);		
-		$('.assign_role_directly').click(assignRoleDirectlyClicked);
-		$('.assign_group').click(assignGroupClicked);		
-		$('.assign_group_directly').click(assignGroupDirectlyClicked);
-		$('#closeModal').click(closeModalAndRemoveCheckbox);
-		$('#closeRoleGroupModal').click(closeRoleGroupModalAndRemoveCheckbox);
 		
 		//// BEGIN KLE CODE ////
 
@@ -601,13 +460,7 @@
 			}
 		});
 
-		modal.on('shown.bs.modal', function() {
-			$("#assignDirectlyBtn").focus();
-		});
-
-		modalGroups.on('shown.bs.modal', function() {
-			$("#assignDirectlyRGBtn").focus();
-		});
+		
 
 		function addCheckboxListeners() {
 			$('.checkbox-positions').off( "change" );
@@ -625,30 +478,7 @@
 		$('#listTable2').on( 'draw.dt', function () {
 			addCheckboxListeners();
 		});
-
-		function closeRoleGroupModalAndRemoveCheckbox() {
-			var table = $("#listTable2");
-			var chosenCheckbox = table.find("#" + modalGroups.attr("rolegroupid"));
-			if (chosenCheckbox != null) {
-				chosenCheckbox.prop('checked', false);
-				$("#"+modalGroups.attr("rolegroupid")+"groupSortLabel").text(false);
-				$("#listTable2").dataTable().api().row("#"+modalGroups.attr("rolegroupid")+"groupRow").invalidate('dom').draw();
-			}
-
-			modalGroups.modal('hide');
-		}
 		
-		function closeModalAndRemoveCheckbox() {
-			var table = $("#listTable1");
-			var chosenCheckbox = table.find("#" + modal.attr("roleid"));
-			if (chosenCheckbox != null) {
-				chosenCheckbox.prop('checked', false);
-				$("#"+modal.attr("roleid")+"sortLabel").text(false);
-				$("#listTable1").dataTable().api().row("#"+modal.attr("roleid")+"row").invalidate('dom').draw();
-			}
-			
-			modal.modal('hide');
-		}
 		
 		function checkUserAssignmentsBeforePerform(objType, roleId, userUuid, checked, successFunction) {
 			var endpoint = url + 'assignedStatus/' + objType + '/' + userUuid + '/' + roleId;
@@ -742,7 +572,7 @@
 				},
 				success : function(response) {
 					if (optionalSuccessMessage) {
-						showWarnNotification(optionalWarningMessage);
+						showWarnNotification(optionalSuccessMessage);
 					}
 					else {
 						showInfoNotification(fieldUpdatedMsg);
@@ -753,38 +583,6 @@
 			});
 		}
 		
-		function assignRoleDirectlyClicked() {
-			var positionUuid = $(this).val();
-			var roleid = modal.attr("roleid");
-			var userUuid = modal.attr("userUuid");
-			
-			var table = $("#listTable1");
-			var chosenCheckbox = table.find("#" + modal.attr("roleid"));
-			
-			var startDate = $('#startDatePicker').data('date');
-			var stopDate = $('#stopDatePicker').data('date');
-			var dates = "?startDate=" + startDate + "&stopDate=" + stopDate;
-			
-			$.ajax(getAjaxObject(url + userUuid + '/addrole/' + roleid + dates, fieldUpdatedMsg, fieldNotUpdatedMsg, chosenCheckbox));
-			modal.modal('hide');
-		}
-		
-		function assignRoleClicked() {		
-			var positionUuid = $(this).val();
-			var roleid = modal.attr("roleid");
-			var userUuid = modal.attr("userUuid");
-
-			var table = $("#listTable1");
-			var chosenCheckbox = table.find("#" + modal.attr("roleid"));
-			
-			var startDate = $('#startDatePicker').data('date');
-			var stopDate = $('#stopDatePicker').data('date');
-			var dates = "?startDate=" + startDate + "&stopDate=" + stopDate;
-
-			$.ajax(getAjaxObject(url + 'position/' + positionUuid + '/addrole/' + roleid + dates, fieldUpdatedMsg, fieldNotUpdatedMsg, chosenCheckbox));
-			modal.modal('hide');
-		}
-
 		function groupCheckboxChanged() {
 			var chosenCheckbox = $(this);
 			var userUuid = $(this).val();
@@ -837,38 +635,6 @@
 					}
 				}
 			});
-		}
-				
-		function assignGroupDirectlyClicked() {		
-			var positionUuid = $(this).val();
-			var groupid = modalGroups.attr("rolegroupid");
-			var userUuid = modalGroups.attr("userUuid");
-			
-			var table = $("#listTable2");
-			var chosenCheckbox = table.find("#" + modalGroups.attr("rolegroupid"));
-			
-			var startDate = $('#groupStartDatePicker').data('date');
-			var stopDate = $('#groupStopDatePicker').data('date');
-			var dates = "?startDate=" + startDate + "&stopDate=" + stopDate;
-			
-			$.ajax(getAjaxObject(url + userUuid + '/addgroup/' + groupid + dates,fieldUpdatedMsg, fieldNotUpdatedMsg, chosenCheckbox));
-			modalGroups.modal('hide');
-		}
-		
-		function assignGroupClicked() {
-			var positionUuid = $(this).val();
-			var groupid = modalGroups.attr("rolegroupid");
-			var userUuid = modalGroups.attr("userUuid");
-
-			var table = $("#listTable2");
-			var chosenCheckbox = table.find("#" + modalGroups.attr("rolegroupid"));
-			
-			var startDate = $('#groupStartDatePicker').data('date');
-			var stopDate = $('#groupStopDatePicker').data('date');
-			var dates = "?startDate=" + startDate + "&stopDate=" + stopDate;
-
-			$.ajax(getAjaxObject(url + 'position/' + positionUuid + '/addgroup/' + groupid + dates, fieldUpdatedMsg, fieldNotUpdatedMsg, chosenCheckbox));
-			modalGroups.modal('hide');
 		}
 
 		// TODO: move these into a utility js file (exists in edit.html for users/orgunits)
@@ -926,27 +692,6 @@
 				timeout: 4000
 			});
 		}
-
-        function getAjaxObject(urL, okMsg, errorMsg, chosenCheckbox) {
-    		return {
-    			url: urL,
-				method: "POST",
-				headers: {
-					'X-CSRF-TOKEN': token
-				},
-    			error: function(response) {
-    				if (chosenCheckbox != null) {
-						chosenCheckbox.prop('checked', false);
-    				}
-
-					var msg = (response.responseText != null && response.responseText.length > 0) ? response.responseText : errorMsg;
-					showErrorNotification(msg);
-    			},
-    			success: function(response) {
-    				showInfoNotification(okMsg);
-    			}
-    		};
-    	}
 		/*]]>*/
 
 	</script>

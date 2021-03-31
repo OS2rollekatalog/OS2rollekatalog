@@ -51,6 +51,10 @@ public class UserRoleService {
 		return false;
 	}
 
+	public List<UserRole> getAllSensitiveRoles() {
+		return userRoleDao.findBySensitiveRoleTrue();
+	}
+
 	public List<UserRole> getByItSystemId(long itSystemId) {
 		return userRoleDao.findByItSystem(itSystemService.getById(itSystemId));
 	}

@@ -153,6 +153,10 @@ public class PositionService {
 		return positionDao.findByRoleGroupAssignmentsRoleGroupAndRoleGroupAssignmentsInactive(role, inactive);
 	}
 
+	public List<String> findUserUuidByOrgUnitAndActiveUsers(OrgUnit orgUnit) {
+		return positionDao.findUserUuidByOrgUnit(orgUnit);
+	}
+	
 	public List<Position> findByOrgUnit(OrgUnit ou) {
 		return positionDao.findByOrgUnit(ou);
 	}

@@ -173,7 +173,7 @@ public class AccessConstraintService {
 		if (!isUserAccessable(user, true)) {
 			return false;
 		}
-		
+
 		return true;
 	}
 

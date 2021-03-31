@@ -24,8 +24,8 @@ public class CleanupRequestResponseTask {
 	@Autowired
 	private RoleCatalogueConfiguration configuration;
 		
-	// Run daily at 04:00
-	@Scheduled(cron = "0 0 4 * * ?")
+	// Run daily at 04:xx
+	@Scheduled(cron = "0 #{new java.util.Random().nextInt(55)} 4 * * ?")
 	public void sendNotifications() {
 		if (!configuration.getScheduled().isEnabled()) {
 			log.debug("Scheduled jobs are disabled on this instance");

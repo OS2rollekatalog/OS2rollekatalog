@@ -49,13 +49,6 @@ BEGIN
 		SELECT DISTINCT u.uuid, kle.code, kle.assignment_type
 		FROM users u
 		INNER JOIN user_kles kle ON kle.user_uuid = u.uuid
-
-		UNION
-
-		SELECT DISTINCT u.uuid, kle.code, kle.assignment_type
-		FROM users u
-		INNER JOIN positions p ON p.user_uuid = u.uuid
-		INNER JOIN #tmpOrgKLEs kle ON p.ou_uuid = kle.ou_uuid
 	) sub
 
 	INSERT INTO history_kle_assignments (dato, user_uuid, assignment_type, kle_values)

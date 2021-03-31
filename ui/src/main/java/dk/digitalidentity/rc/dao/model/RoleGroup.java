@@ -36,9 +36,6 @@ public class RoleGroup implements AuditLoggable {
 	@Column(nullable = false)
 	private boolean canRequest;
 
-	@Column(nullable = false)
-	private boolean ouInheritAllowed;
-
 	@OneToMany(mappedBy = "roleGroup", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
 	private List<RoleGroupUserRoleAssignment> userRoleAssignments;
 

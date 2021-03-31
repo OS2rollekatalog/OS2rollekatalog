@@ -218,8 +218,8 @@ public class ItSystemController {
 			return "redirect:../../list";
 		}
 
-		// a-z, A-Z, 0-9, æøå and ÆØÅ and '-', '_' and ' ' are allowed
-		systemRoleForm.setIdentifier(systemRoleForm.getIdentifier().replaceAll("[^A-Za-z0-9_\\-\\sæøåÆØÅ]", ""));
+		// everything except whitespace is allowed
+		systemRoleForm.setIdentifier(systemRoleForm.getIdentifier().replaceAll("[\\s]", ""));
 		if (systemRoleForm.getIdentifier().length() == 0) {
 			bindingResult.addError(new ObjectError("identifier", "html.errors.systemrole.identifier.notempty"));
 		}

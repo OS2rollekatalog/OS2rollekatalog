@@ -54,7 +54,7 @@ public class SystemRole implements AuditLoggable {
 	@Enumerated(EnumType.STRING)
 	@Column(nullable = false)
 	private RoleType roleType;
-
+	
 	@JsonIgnore
 	@ElementCollection(fetch = FetchType.LAZY, targetClass = ConstraintTypeSupport.class)
 	@CollectionTable(name = "system_role_supported_constraints", joinColumns = @JoinColumn(name = "system_role_id"))

@@ -240,7 +240,7 @@ public class KspCicsUpdaterHook implements RoleChangeHook {
 	}
 
 	@Override
-	public void interceptRemoveRoleGroupAssignmentOnTitle(Title title, RoleGroup roleGroup) {
+	public void interceptRemoveRoleGroupAssignmentOnTitle(Title title, RoleGroup roleGroup, OrgUnit ou) {
 		addRoleGroupToQueue(roleGroup);
 	}
 
@@ -250,7 +250,7 @@ public class KspCicsUpdaterHook implements RoleChangeHook {
 	}
 
 	@Override
-	public void interceptRemoveUserRoleAssignmentOnTitle(Title title, UserRole userRole) {
+	public void interceptRemoveUserRoleAssignmentOnTitle(Title title, UserRole userRole, OrgUnit ou) {
 		kspCicsService.addUserRoleToQueue(userRole);
 	}
 }

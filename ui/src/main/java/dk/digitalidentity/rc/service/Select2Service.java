@@ -1,24 +1,22 @@
 package dk.digitalidentity.rc.service;
 
-import dk.digitalidentity.rc.dao.KleDao;
-import dk.digitalidentity.rc.dao.OrgUnitDao;
-import dk.digitalidentity.rc.dao.model.ItSystem;
-import dk.digitalidentity.rc.dao.model.Kle;
-import dk.digitalidentity.rc.dao.model.OrgUnit;
-import dk.digitalidentity.rc.service.model.ItSystemSelect2DTO;
-import dk.digitalidentity.rc.service.model.KleSelect2DTO;
-import dk.digitalidentity.rc.service.model.OrgUnitSelect2DTO;
+import java.util.ArrayList;
+import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.cache.annotation.EnableCaching;
 import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
-import java.util.ArrayList;
-import java.util.List;
+import dk.digitalidentity.rc.dao.OrgUnitDao;
+import dk.digitalidentity.rc.dao.model.ItSystem;
+import dk.digitalidentity.rc.dao.model.OrgUnit;
+import dk.digitalidentity.rc.service.model.ItSystemSelect2DTO;
+import dk.digitalidentity.rc.service.model.OrgUnitSelect2DTO;
 
 @Service
 @EnableCaching
@@ -26,38 +24,13 @@ import java.util.List;
 public class Select2Service {
 
 	@Autowired
-	private KleDao kleDao;
-
-	@Autowired
 	private OrgUnitDao orgUnitDao;
 
 	@Autowired
 	private ItSystemService itSystemService;
 
-	@Cacheable(value = "kleList")
-	public List<KleSelect2DTO> getKleList() {
-		List<Kle> kleList = kleDao.findAll();
-		List<KleSelect2DTO> kleSelect2DTOList = new ArrayList<>();
-
-		if (kleList != null) {
-			for (Kle kle : kleList) {
-				KleSelect2DTO kleSelect2DTO = new KleSelect2DTO();
-
-				String kleCode = kle.getCode();
-				String kleName = kleCode + " " + kle.getName();
-				if (kleCode != null && kleCode.length() < 6) {
-					kleCode = kleCode + ".*";
-				}
-
-				kleSelect2DTO.setId(kleCode);
-				kleSelect2DTO.setText(kleName);
-
-				kleSelect2DTOList.add(kleSelect2DTO);
-			}
-		}
-
-		return kleSelect2DTOList;
-	}
+	@Autowired
+	private Select2Service self;
 
 	@Cacheable(value = "orgunitList")
 	public List<OrgUnitSelect2DTO> getOrgUnitList() {
@@ -97,24 +70,17 @@ public class Select2Service {
 		return itSystemSelect2DTOList;
 	}
 
-	// 24 hours, as we never update
-	@Scheduled(fixedDelay = 24 * 60 * 60 * 1000)
-	@CacheEvict(value = "kleList", allEntries = true)
-	public void resetKleCache() {
-		;
+	@Caching(evict = {
+		@CacheEvict(value = "orgunitList", allEntries = true),
+		@CacheEvict(value = "itSystemList", allEntries = true)
+	})
+	public void clearCache() {
+		
 	}
 
-	// 1 hour cache, should be fine for a single user session
+	// 4 hour cache
 	@Scheduled(fixedDelay = 4 * 60 * 60 * 1000)
-	@CacheEvict(value = "orgunitList", allEntries = true)
-	public void resetOUCache() {
-		;
-	}
-
-	// 15 minute cache is enough, small dataset after all
-	@Scheduled(fixedDelay = 15 * 60 * 1000)
-	@CacheEvict(value = "itSystemList", allEntries = true)
-	public void resetITSystemCache() {
-		;
+	public void resetCache() {
+		self.clearCache();
 	}
 }

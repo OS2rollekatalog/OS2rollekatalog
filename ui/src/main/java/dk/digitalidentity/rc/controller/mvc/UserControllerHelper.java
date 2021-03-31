@@ -171,8 +171,8 @@ public class UserControllerHelper {
 			if (rgaPosition.isPresent()) {
 				assignment.setAssignmentType(AssignmentType.POSITION);
 				assignment.setPosition(p.getName());
-				assignment.setStartDate(roleGroupAssignment.get().getStartDate());
-				assignment.setStopDate(roleGroupAssignment.get().getStopDate());
+				assignment.setStartDate(rgaPosition.get().getStartDate());
+				assignment.setStopDate(rgaPosition.get().getStopDate());
 
 				return assignment;
 			}

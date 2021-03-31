@@ -119,11 +119,39 @@
 								</div>
 							</fieldset>
 
+							<fieldset>
+								<div class="form-group">
+									<label class="col-sm-2 control-label" th:text="#{html.entity.itsystem.access_blocked}" />
+									<div class="col-sm-1">
+										<div class="checkbox c-checkbox">
+											<label>
+												<input id="accessBlocked-checkbox" type="checkbox" data-flag="hidden" th:attr="checked=${itsystem.accessBlocked}" />
+												<span class="fa fa-check"></span>
+											</label>
+										</div>
+									</div>
+								</div>
+							</fieldset>
+
+							<fieldset th:if="${#strings.toString(itsystem.systemType)} == 'AD'">
+								<div class="form-group">
+									<label class="col-sm-2 control-label" th:text="#{html.entity.itsystem.readonly}" />
+									<div class="col-sm-1">
+										<div class="checkbox c-checkbox">
+											<label>
+												<input id="readonly-checkbox" type="checkbox" data-flag="readonly" th:attr="checked=${itsystem.readonly}" />
+												<span class="fa fa-check"></span>
+											</label>
+										</div>
+									</div>
+								</div>
+							</fieldset>
+
 							<fieldset th:if="${#strings.toString(itsystem.systemType)} == 'AD'">
 								<div class="form-group">
 									<label class="col-sm-2 control-label" th:text="#{html.control.operations}" />
 									<div class="col-sm-8">
-										<a class="btn btn-lg btn-primary" th:text="#{html.page.itsystem.action.new.systemrole.ad}" onclick="newAdRole();" />
+										<a id="addAdRoleBtn" class="btn btn-lg btn-primary" th:text="#{html.page.itsystem.action.new.systemrole.ad}" onclick="newAdRole();" th:disabled="${itsystem.readonly}"/>
 									</div>
 								</div>
 							</fieldset>
@@ -184,7 +212,7 @@
 							<div class="tab-content">
 								<div id="systemRole_menu" class="tab-pane fade in active">
 									<div style="margin-bottom:20px;">
-										<div class="btn btn-lg btn-primary" style="width:auto;" onclick="convertSystemRolesToUserRoles();"><span th:text="#{html.page.itsystem.pane.systemroles.convert}" /></div>
+										<div id="convertSystemRolesToUserRolesBtn" class="btn btn-lg btn-primary" style="width:auto;" onclick="convertSystemRolesToUserRoles();" th:disabled="${itsystem.readonly}"><span th:text="#{html.page.itsystem.pane.systemroles.convert}" /></div>
 									</div>
 									
 									<div class="table-responsive">
@@ -206,8 +234,10 @@
 													<td class="preformat" th:text="${systemRole.description}" />
 													<td><em class="fa fa-fw" th:classappend="${systemRole.inUse} ? fa-check : ''"></em></td>
 													<td>
-														<a href="#" onclick="openConfirmDeleteDialog(this);" th:attr="data-id=${systemRole.id}"><em class="fa fa-remove"></em></a>
-														<a href="#" onclick="editAdRole(this);" th:attr="data-id=${systemRole.id}"><em class="fa fa-pencil"></em></a>
+														<th:block th:if="${itsystem.readonly} == false">
+															<a href="#" onclick="openConfirmDeleteDialog(this);" th:attr="data-id=${systemRole.id}"><em class="fa fa-remove"></em></a>
+															<a href="#" onclick="editAdRole(this);" th:attr="data-id=${systemRole.id}"><em class="fa fa-pencil"></em></a>
+														</th:block>
 														<a th:href="@{/ui/systemrole/{id}/userroles(id=${systemRole.id})}"><em class="fa fa-list"></em></a>
 													</td>
 												</tr>
@@ -215,9 +245,10 @@
 										</table>
 									</div>
 								</div>
+
 								<div id="userRole_menu" class="tab-pane fade">
 									<div style="margin-bottom:20px;">
-										<div class="btn btn-lg btn-primary" style="width:auto;" onclick="removeUnusedUserRoles();"><span th:text="#{html.page.itsystem.pane.userroles.delete}" /></div>
+										<div id="removeUnusedRolesBtn" class="btn btn-lg btn-primary" style="width:auto;" onclick="removeUnusedUserRoles();" th:disabled="${itsystem.readonly}"><span th:text="#{html.page.itsystem.pane.userroles.delete}" /></div>
 									</div>
 									<div class="table-responsive">
 										<table id="listTable" class="table table-striped listTable">
@@ -232,16 +263,13 @@
 												<tr th:each="role : ${userRoles}">
 													<td class="col-md-5" th:text="${role.name}" />
 													<td class="col-md-6" th:text="${role.description}" />
-													<th:block th:if="${role.delegatedFromCvr == null}">
-														<td class="col-md-1">
+													<td class="col-md-1">
+														<th:block th:if="${role.delegatedFromCvr == null}">
 															<a th:href="@{/ui/userroles/view/{id}(id=${role.id})}"><em class="fa fa-search"></em></a>
-															<th:block sec:authorize="hasRole('ROLE_ADMINISTRATOR')">
+															<th:block sec:authorize="hasRole('ROLE_ADMINISTRATOR')" th:if="${itsystem.readonly} == false">
 																<a th:href="@{/ui/userroles/edit/{id}(id=${role.id})}"><em class="fa fa-pencil"></em></a>
 															</th:block>
 														</td>
-													</th:block>
-													<th:block th:if="${role.delegatedFromCvr != null}">
-														<td class="col-md-1">&nbsp;</td>
 													</th:block>
 												</tr>
 											</tbody>
@@ -558,6 +586,7 @@
 
 		/*[+
 			var itSystemType = [[${#strings.toString(itsystem.systemType)}]];
+			var readonly = [[${itsystem.readonly}]];
 		+]*/
 
 		$("document").ready(function() {
@@ -571,7 +600,9 @@
 					var emailUrl = [[@{/rest/itsystem/email}]];
 					var notificationEmailUrl = [[@{/rest/itsystem/notificationemail}]];
 					var pausedUrl = [[@{/rest/itsystem/paused}]];
+					var readonlyUrl = [[@{/rest/itsystem/readonly}]];
 					var canEditThroughApiUrl = [[@{/rest/itsystem/canEditThroughApi}]];
+					var accessBlockedUrl = [[@{/rest/itsystem/accessBlocked}]];
 					var hiddenUrl = [[@{/rest/itsystem/hidden}]];
 					var notesUrl = [[@{/rest/itsystem/notes}]];
 					var subscribedToUrl = [[@{/rest/itsystem/subscribedTo}]];
@@ -579,7 +610,6 @@
 					var fieldNotUpdatedMsg = [[#{html.entity.itsystem.failedupdatemsg}]];
 					var fieldNotUpdatedNotesMsg = [[#{html.entity.itsystem.failedupdatenotesmsg}]];
 					var subscribedToMaster = [[${itsystem.subscribedTo != null}]];
-					
 				+]*/
 
 			$("#name").change(handleChangeOnInput);
@@ -587,8 +617,10 @@
 			$("#notificationEmail").change(handleChangeOnInputNotificationEmail);
 			$("#notes").change(handleChangeOnInputNotes);
 			$("#paused-checkbox").change(handleChangeOnPaused);
+			$("#readonly-checkbox").change(handleChangeOnReadOnly);
 			$("#canEditThroughApi-checkbox").change(handleChangeOnCanEditThroughApi);
 			$('#hidden-checkbox').change(handleChangeOnHidden);
+			$('#accessBlocked-checkbox').change(handleChangeOnAccessBlocked);
 			$('#subscribedToCheckbox').change(toggleDisabledCheckbox);
 			$('#subscribedTo').change(handleChangeOnSubscribedTo);
 
@@ -742,6 +774,66 @@
 				});
 			}
 
+			function handleChangeOnReadOnly() {
+				var objReadonly = $("#readonly-checkbox").is(":checked");
+
+				$.ajax({
+					url: readonlyUrl,
+					method: 'POST',
+					data: {
+						'readonly': objReadonly,
+						'id': itsystemId
+					},
+					headers: {
+						'X-CSRF-TOKEN': token
+					},
+					error: function(response) {
+						$.notify({
+							message: fieldNotUpdatedMsg + ""
+						},{
+							status: 'danger',
+							autoHideDelay: 4000
+						});
+					},
+					success: function(response) {
+						readonly = objReadonly;
+						toggleAddAdRoleBtnDisabled(objReadonly);
+						toggleConvertSystemRolesToUserRolesBtnDisabled(objReadonly);
+						toggleRemoveUnusedRolesBtnDisabled(objReadonly);
+						$.notify({
+							message: fieldUpdatedMsg
+						},{
+							status: 'success',
+							autoHideDelay: 2000
+						});
+					}
+				});
+			}
+
+			function toggleAddAdRoleBtnDisabled(objReadonly) {
+				if (objReadonly) {
+					$("#addAdRoleBtn").attr("disabled", true);
+				} else {
+					$("#addAdRoleBtn").removeAttr("disabled");
+				}
+			}
+
+			function toggleConvertSystemRolesToUserRolesBtnDisabled(objReadonly) {
+				if (objReadonly) {
+					$("#convertSystemRolesToUserRolesBtn").attr("disabled", true);
+				} else {
+					$("#convertSystemRolesToUserRolesBtn").removeAttr("disabled");
+				}
+			}
+
+			function toggleRemoveUnusedRolesBtnDisabled(objReadonly) {
+				if (objReadonly) {
+					$("#removeUnusedRolesBtn").attr("disabled", true);
+				} else {
+					$("#removeUnusedRolesBtn").removeAttr("disabled");
+				}
+			}
+
 			function handleChangeOnCanEditThroughApi() {
 				var objCanEditApi = $("#canEditThroughApi-checkbox").is(":checked");
 
@@ -805,7 +897,75 @@
 					}
 				});
 			}
+
+			function handleChangeOnAccessBlocked() {
+				var objAccessBlocked = $("#accessBlocked-checkbox").is(":checked");
+
+				if (objAccessBlocked == true) {
+					/*[+
+						var titleTxt = [[#{html.entity.itsystem.access_blocked.confirm.title}]];
+						var bodyTxt =  [[#{html.entity.itsystem.access_blocked.confirm.body}]];
+						var cancelTxt =  [[#{html.control.button.cancel}]];
+						var confirmTxt = [[#{html.control.button.yes}]];
+					+]*/
+	
+					swal({
+							html: true,
+							title : titleTxt,
+							text : bodyTxt,
+							type : "warning",
+							showCancelButton : true,
+							confirmButtonColor : "#DD6B55",
+							confirmButtonText : confirmTxt,
+							cancelButtonText : cancelTxt,
+							closeOnConfirm : true,
+							closeOnCancel : true
+						},
+						function (isConfirm) {
+							if (isConfirm) {
+								blockAccess(objAccessBlocked);
+							}
+							else {
+								$("#accessBlocked-checkbox").attr("checked", false);
+							}
+						}
+					);
+				}
+				else {
+					blockAccess(objAccessBlocked);
+				}
+			}
 			
+			function blockAccess(objAccessBlocked) {
+				$.ajax({
+					url: accessBlockedUrl,
+					method: 'POST',
+					data: {
+						'accessBlocked': objAccessBlocked,
+						'id': itsystemId
+					},
+					headers: {
+						'X-CSRF-TOKEN': token
+					},
+					error: function(response) {
+						$.notify({
+							message: fieldNotUpdatedMsg + ""
+						},{
+							status: 'danger',
+							autoHideDelay: 4000
+						});
+					},
+					success: function(response) {
+						$.notify({
+							message: fieldUpdatedMsg
+						},{
+							status: 'success',
+							autoHideDelay: 2000
+						});
+					}
+				});
+			}
+
 			function handleChangeOnInputNotes() {
 				var objNotes = $("#notes").val();
 
@@ -911,6 +1071,9 @@
 		});
 
 		function newAdRole() {
+			if (readonly) {
+				return;
+			}
 			$("#adSystemRoleId").val("0");
 
 			$("#modal-ad-systemrole").modal("show");
@@ -1012,6 +1175,10 @@
 				var rolesNotDeletedMsg = [[#{html.entity.itsystem.rolesnotdeletedmsg}]];
 			+]*/
 
+			if (readonly) {
+				return;
+			}
+
 			swal({
 					html: true,
 					title : titleTxt,
@@ -1061,6 +1228,10 @@
 				var confirmTxt = [[#{html.control.button.create}]];
 				var errorMsg = [[#{html.page.itsystem.edit.systemrole.convert.error}]];
 			+]*/
+
+			if (readonly) {
+				return;
+			}
 
 			swal({
 					html: true,

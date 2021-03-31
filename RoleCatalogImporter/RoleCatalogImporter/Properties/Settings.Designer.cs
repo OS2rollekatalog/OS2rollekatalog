@@ -12,7 +12,7 @@ namespace RoleCatalogImporter.Properties {
     
     
     [global::System.Runtime.CompilerServices.CompilerGeneratedAttribute()]
-    [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.VisualStudio.Editors.SettingsDesigner.SettingsSingleFileGenerator", "16.3.0.0")]
+    [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.VisualStudio.Editors.SettingsDesigner.SettingsSingleFileGenerator", "16.8.1.0")]
     internal sealed partial class Settings : global::System.Configuration.ApplicationSettingsBase {
         
         private static Settings defaultInstance = ((Settings)(global::System.Configuration.ApplicationSettingsBase.Synchronized(new Settings())));
@@ -97,7 +97,7 @@ namespace RoleCatalogImporter.Properties {
         
         [global::System.Configuration.ApplicationScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("0 0 5 ? * MON-FRI")]
+        [global::System.Configuration.DefaultSettingValueAttribute("0 0/15 5-23 ? * MON-FRI")]
         public string CronSchedule {
             get {
                 return ((string)(this["CronSchedule"]));
@@ -106,7 +106,7 @@ namespace RoleCatalogImporter.Properties {
         
         [global::System.Configuration.ApplicationScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("LDAP://OU=Kommune,DC=DIGITALIDENTITY,DC=LOCAL")]
+        [global::System.Configuration.DefaultSettingValueAttribute("LDAP://OU=Kommune,DC=digitalidentity,DC=dk")]
         public string ADUrl {
             get {
                 return ((string)(this["ADUrl"]));
@@ -128,6 +128,15 @@ namespace RoleCatalogImporter.Properties {
         public string UserCprField {
             get {
                 return ((string)(this["UserCprField"]));
+            }
+        }
+        
+        [global::System.Configuration.ApplicationScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("")]
+        public string CustomUUIDField {
+            get {
+                return ((string)(this["CustomUUIDField"]));
             }
         }
     }

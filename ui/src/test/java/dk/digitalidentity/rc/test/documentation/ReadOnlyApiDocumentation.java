@@ -139,6 +139,7 @@ public class ReadOnlyApiDocumentation {
 							responseFields(
 									fieldWithPath("[].id").type("String").description("The id of the role"),
 									fieldWithPath("[].name").type("String").description("The name of the role"),
+									fieldWithPath("[].description").type("String").description("The description of the role"),
 									fieldWithPath("[].itSystemName").type("String").description("The name of the itsystem the role belongs to")
 							)
 					));
@@ -176,7 +177,8 @@ public class ReadOnlyApiDocumentation {
 							responseFields(
 									fieldWithPath("[].id").type("String").description("The id of the role"),
 									fieldWithPath("[].name").type("String").description("The name of the role"),
-									fieldWithPath("[].itSystemName").description("The IT System that the role belongs to")
+									fieldWithPath("[].itSystemName").description("The IT System that the role belongs to"),
+									fieldWithPath("[].description").description("The decsription of the role")
 							)
 					));
 	}
@@ -210,6 +212,7 @@ public class ReadOnlyApiDocumentation {
 							responseFields(
 									fieldWithPath("[].id").type("String").description("The id of the role"),
 									fieldWithPath("[].name").type("String").description("The name of the role"),
+									fieldWithPath("[].description").type("String").description("The description of the role"),
 									fieldWithPath("[].itSystemName").type("String").description("The IT System that the role belongs to")
 							)
 					));
@@ -229,6 +232,7 @@ public class ReadOnlyApiDocumentation {
 							responseFields(
 									fieldWithPath("identifier").type("String").description("The id of the role"),
 									fieldWithPath("name").type("String").description("The name of the role"),
+									fieldWithPath("id").type("String").description("The ID of the role"),
 									fieldWithPath("systemRoleAssignments").description("The systemroles assigned to this role"),
 									fieldWithPath("systemRoleAssignments[].systemRole").description("The actual system role"),
 									fieldWithPath("systemRoleAssignments[].systemRole.name").description("The name of the system role"),

@@ -3,12 +3,11 @@ package dk.digitalidentity.rc.dao.history.model;
 import java.time.LocalDate;
 import java.util.List;
 
-import javax.persistence.CollectionTable;
 import javax.persistence.Column;
-import javax.persistence.ElementCollection;
 import javax.persistence.Entity;
+import javax.persistence.FetchType;
 import javax.persistence.Id;
-import javax.persistence.JoinColumn;
+import javax.persistence.OneToMany;
 import javax.persistence.Table;
 
 import lombok.Getter;
@@ -36,8 +35,6 @@ public class HistoryOU {
 	@Column
 	private String ouManagerUuid;
 	
-	@ElementCollection(targetClass = String.class)
-	@CollectionTable(name = "history_ous_users", joinColumns = @JoinColumn(name = "history_ous_id"))
-	@Column(name = "user_uuid")
-	private List<String> userUuids;
+	@OneToMany(mappedBy = "historyOU", fetch = FetchType.EAGER)
+	private List<HistoryOUUser> users;
 }

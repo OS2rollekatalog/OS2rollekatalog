@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html>
+<head th:replace="fragments/header :: header (title=#{html.page.attestations.confirment.title})" />
+<body>
+	<div class="wrapper">
+		<header th:replace="fragments/navbar :: navbar-header" />
+		<aside th:replace="fragments/navbar :: navbar-aside (page = 'attestation')" />
+
+		<section>
+			<div class="content-wrapper">
+				<h3>
+					<span th:text="#{html.page.attestations.confirment.walkthrough.title}"></span>
+				</h3>
+
+				<div class="panel panel-default">
+					<div class="panel-heading"></div>
+					<div class="panel-body">
+						<div class="panel-group">
+							<div class="panel panel-default">
+								<div class="panel-body">
+									<span th:text="#{html.page.attestations.confirment.walkthrough.subtext}"></span>
+									<br><br>
+
+									<form id="form" th:action="@{/ui/users/attestations/confirm}" method="post" th:object="${confirmDTO}">
+										<input type="hidden" th:field="*{aprovedUnit}" /> 
+										<input type="hidden" th:field="*{aprovedPersonal}" />
+										<input type="hidden" th:field="*{toBeRemoved}" /> 
+										<input type="hidden" th:field="*{toEmail}" /> 
+										<input type="hidden" th:field="*{orgUnitUuid}" />
+										<button type="button" class="btn btn-md btn-primary" onclick="next()" th:text="#{html.page.attestations.confirment.walkthrough.button.next}"></button>
+									</form>
+								</div>
+							</div>
+						</div>
+
+						<ul class="nav nav-tabs" id="dataTabs">
+							<li class="active">
+								<a data-toggle="tab" href="#personal" th:text="#{html.page.attestations.confirment.walkthrough.personal.title}"></a>
+							</li>
+							<li>
+								<a data-toggle="tab" href="#unit" th:text="#{html.page.attestations.confirment.walkthrough.unit.title}"></a>
+							</li>
+						</ul>
+
+						<div class="tab-content">
+							<div id="personal" class="tab-pane fade in active">
+								<div class="table-responsive">
+									<table id="listTable1" class="table table-striped table-hover listTable">
+										<thead>
+											<tr>
+												<th class="col-md-1" th:text="#{html.page.attestations.confirment.walkthrough.table.headers.remove}" />
+												<th class="col-md-2" th:text="#{html.page.attestations.confirment.walkthrough.table.headers.employee}" />
+												<th class="col-md-2" th:text="#{html.page.attestations.confirment.walkthrough.table.headers.role}" />
+												<th class="col-md-2" th:text="#{html.page.attestations.confirment.walkthrough.table.headers.roletype}" />
+												<th class="col-md-1" th:text="#{html.page.attestations.confirment.walkthrough.table.headers.system}" />
+												<th class="col-md-4" th:text="#{html.page.attestations.confirment.walkthrough.table.headers.description}" />
+											</tr>
+										</thead>
+
+										<tbody>
+											<tr th:each="dto : ${personal}">
+												<td>
+													<div class="checkbox c-checkbox">
+														<label th:title="${dto.disabled == true} ? 'Rettigheden styres udenfor rollekataloget' : ''">
+															<input type="checkbox" class="personal" th:attr="data-userUuid=${dto.user.uuid}, data-roleType=${dto.roleType}, data-roleId=${dto.roleAssignedToUser.getRoleId()}, data-assignedThrough=${dto.roleAssignedToUser.assignedThrough}" th:disabled="${dto.disabled} == true" />
+															<span class="fa fa-times"></span>
+														</label>
+													</div>
+												</td>
+												
+												<td th:text="${dto.user.name} + ' (' + ${dto.user.userId} + ')'" />
+
+												<td th:if="${dto.roleType} == 'Rollebuket'" th:text="${dto.roleAssignedToUser.roleGroup.name}" />
+												<td th:unless="${dto.roleType} == 'Rollebuket'" th:text="${dto.roleAssignedToUser.userRole.name}" />
+												
+												<td th:text="${dto.roleType}" />
+												
+												<td th:if="${dto.roleType}=='Rollebuket'">&nbsp;</td>
+												<th:block th:unless="${dto.roleType}=='Rollebuket'">
+													<td th:if="${dto.roleAssignedToUser.userRole.itSystem}!=null" th:text="${dto.roleAssignedToUser.userRole.itSystem.name}" />
+													<td th:unless="${dto.roleAssignedToUser.userRole.itSystem}!=null">&nbsp;</td>
+												</th:block>
+
+												<td th:if="${dto.roleType}=='Rollebuket'" th:text="${dto.roleAssignedToUser.roleGroup.description}" />
+												<td th:unless="${dto.roleType}=='Rollebuket'" th:text="${dto.roleAssignedToUser.userRole.description}" />
+											</tr>
+										</tbody>
+									</table>
+								</div>
+							</div>
+
+							<div id="unit" class="tab-pane fade">
+								<div class="table-responsive">
+									<table id="listTable2" class="table table-striped table-hover listTable">
+										<thead>
+											<tr>
+												<th class="col-md-1" th:text="#{html.page.attestations.confirment.walkthrough.table.headers.remove}" />
+												<th class="col-md-2" th:text="#{html.page.attestations.confirment.walkthrough.table.headers.role}" />
+												<th class="col-md-2" th:text="#{html.page.attestations.confirment.walkthrough.table.headers.role.via}" />
+												<th class="col-md-2" th:text="#{html.page.attestations.confirment.walkthrough.table.headers.roletype}" />
+												<th class="col-md-1" th:text="#{html.page.attestations.confirment.walkthrough.table.headers.system}" />
+												<th class="col-md-4" th:text="#{html.page.attestations.confirment.walkthrough.table.headers.description}" />
+											</tr>
+										</thead>
+
+										<tbody>
+											<tr th:each="dto : ${unit}">
+												<td>
+													<div class="checkbox c-checkbox">
+														<label>
+															<input type="checkbox" class="unit" th:attr="data-unitTitleUuid=${dto.roleAssignedToUser.titleOrOrgUnitUuid},  data-roleType=${dto.roleType}, data-roleId=${dto.roleAssignedToUser.getRoleId()}, data-assignedThrough=${dto.roleAssignedToUser.assignedThrough}" />
+															<span class="fa fa-times"></span>
+														</label>
+													</div>
+												</td>
+
+												<td th:if="${dto.roleType}=='Rollebuket'" th:text="${dto.roleAssignedToUser.roleGroup.name}" />
+												<td th:unless="${dto.roleType}=='Rollebuket'" th:text="${dto.roleAssignedToUser.userRole.name}" />
+
+												<td th:if="${dto.roleAssignedToUser.title}==null" th:text="#{html.page.attestations.confirment.walkthrough.table.headers.role.via.unit} + ${dto.roleAssignedToUser.titleOrOrgUnitName}" />
+												<td th:unless="${dto.roleAssignedToUser.title}==null" th:text="#{html.page.attestations.confirment.walkthrough.table.headers.role.via.title} + ${dto.roleAssignedToUser.titleOrOrgUnitName}" />
+
+												<td th:text="${dto.roleType}" />
+
+												<td th:if="${dto.roleType}=='Rollebuket'">&nbsp;</td>
+												<th:block th:unless="${dto.roleType}=='Rollebuket'">
+													<td th:if="${dto.roleAssignedToUser.userRole.itSystem}!=null" th:text="${dto.roleAssignedToUser.userRole.itSystem.name}" />
+													<td th:unless="${dto.roleAssignedToUser.userRole.itSystem}!=null">&nbsp;</td>
+												</th:block>
+
+												<td th:if="${dto.roleType}=='Rollebuket'" th:text="${dto.roleAssignedToUser.roleGroup.description}" />
+												<td th:unless="${dto.roleType}=='Rollebuket'" th:text="${dto.roleAssignedToUser.userRole.description}" />
+											</tr>
+										</tbody>
+									</table>
+								</div>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+		</section>
+	</div>
+
+	<nav th:replace="fragments/footer :: footer" />
+
+	<script th:inline="javascript">
+		/*<![CDATA[*/
+
+		/*[+
+		    var orderColumnValue = [[${orderColumnValue}]];
+		    var restUrl = [[@{/rest/attestations/confirm/}]];
+		    var redirectUrl = [[@{/ui/users/attestations}]];
+		    var orgUnitUuid = [[${orgUnit.uuid}]];
+		    var errorMsg = [[#{html.default.message.error}]];
+		+]*/
+
+		function next() {
+			var aprovedUnit = [];
+			var aprovedPersonal = [];
+			var toBeRemoved = [];
+			var toEmail = [];
+
+			$('input.unit:checkbox:checked').each(function() {
+				var toEmailObj = {
+					"unitTitleUuid" : $(this).attr("data-unitTitleUuid"),
+					"roleType" : $(this).attr("data-roleType"),
+					"roleId" : $(this).attr("data-roleId"),
+					"assignedThrough" : $(this).attr("data-assignedThrough")
+				}
+				
+				toEmail.push(toEmailObj);
+			});
+
+			$('input.personal:checkbox:checked').each(function() {
+				var toBeRemovedObj = {
+					"userUuid" : $(this).attr("data-userUuid"),
+					"roleType" : $(this).attr("data-roleType"),
+					"roleId" : $(this).attr("data-roleId"),
+					"assignedThrough" : $(this).attr("data-assignedThrough")
+				}
+
+				toBeRemoved.push(toBeRemovedObj);
+			});
+
+			$('input.unit:checkbox:not(:checked)').each(function() {
+				var aprovedUnitObj = {
+					"unitTitleUuid" : $(this).attr("data-unitTitleUuid"),
+					"roleType" : $(this).attr("data-roleType"),
+					"roleId" : $(this).attr("data-roleId"),
+					"assignedThrough" : $(this).attr("data-assignedThrough")
+				}
+				
+				aprovedUnit.push(aprovedUnitObj);
+			});
+
+			$('input.personal:checkbox:not(:checked)').each(function() {
+				var aprovedPersonalObj = {
+						"userUuid" : $(this).attr("data-userUuid"),
+						"roleType" : $(this).attr("data-roleType"),
+						"roleId" : $(this).attr("data-roleId"),
+						"assignedThrough" : $(this).attr("data-assignedThrough")
+				}
+
+				aprovedPersonal.push(aprovedPersonalObj);
+			});
+
+			$('#toEmail').val(JSON.stringify(toEmail));
+			$('#toBeRemoved').val(JSON.stringify(toBeRemoved));
+			$('#aprovedUnit').val(JSON.stringify(aprovedUnit));
+			$('#aprovedPersonal').val(JSON.stringify(aprovedPersonal));
+
+			$('#form').submit();
+		}
+
+		/*]]>*/
+	</script>
+</body>
+</html>

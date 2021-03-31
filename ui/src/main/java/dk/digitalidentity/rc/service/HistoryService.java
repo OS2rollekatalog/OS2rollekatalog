@@ -8,7 +8,10 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import dk.digitalidentity.rc.dao.history.HistoryItSystemDao;
 import dk.digitalidentity.rc.dao.history.HistoryKleAssignmentDao;
@@ -18,6 +21,7 @@ import dk.digitalidentity.rc.dao.history.HistoryOUKleAssignmentDao;
 import dk.digitalidentity.rc.dao.history.HistoryOURoleAssignmentDao;
 import dk.digitalidentity.rc.dao.history.HistoryRoleAssignmentDao;
 import dk.digitalidentity.rc.dao.history.HistoryTitleDao;
+import dk.digitalidentity.rc.dao.history.HistoryTitleRoleAssignmentDao;
 import dk.digitalidentity.rc.dao.history.HistoryUserDao;
 import dk.digitalidentity.rc.dao.history.model.HistoryItSystem;
 import dk.digitalidentity.rc.dao.history.model.HistoryKleAssignment;
@@ -27,6 +31,7 @@ import dk.digitalidentity.rc.dao.history.model.HistoryOUKleAssignment;
 import dk.digitalidentity.rc.dao.history.model.HistoryOURoleAssignment;
 import dk.digitalidentity.rc.dao.history.model.HistoryRoleAssignment;
 import dk.digitalidentity.rc.dao.history.model.HistoryTitle;
+import dk.digitalidentity.rc.dao.history.model.HistoryTitleRoleAssignment;
 import dk.digitalidentity.rc.dao.history.model.HistoryUser;
 
 @Service
@@ -57,7 +62,16 @@ public class HistoryService {
 	private HistoryManagerDao historyManagerDao;
 	
 	@Autowired
+	private HistoryTitleRoleAssignmentDao historyTitleRoleAssignmentDao;
+	
+	@Autowired
 	private HistoryOURoleAssignmentDao historyOURoleAssignmentDao;
+	
+	@Autowired
+	private JdbcTemplate jdbcTemplate;
+
+	@Value("${spring.datasource.url:}")
+	private String dataSourceUrl;
 
 	public List<HistoryManager> getManagers(LocalDate localDate) {
 		return historyManagerDao.findByDate(localDate.getYear(), localDate.getMonthValue(), localDate.getDayOfMonth()).stream()
@@ -136,5 +150,103 @@ public class HistoryService {
 		return historyOURoleAssignmentDao.findByDateAndItSystems(localDate.getYear(), localDate.getMonthValue(), localDate.getDayOfMonth(), itSystemIds)
 									   .stream()
 									   .collect(Collectors.groupingBy(HistoryOURoleAssignment::getOuUuid));
+	}
+	
+	public Map<String, List<HistoryTitleRoleAssignment>> getTitleRoleAssignments(LocalDate localDate) {
+		return historyTitleRoleAssignmentDao.findByDate(localDate.getYear(), localDate.getMonthValue(), localDate.getDayOfMonth())
+									   .stream()
+									   .collect(Collectors.groupingBy(HistoryTitleRoleAssignment::getTitleUuid));
+	}
+	
+	public Map<String, List<HistoryTitleRoleAssignment>> getTitleRoleAssignments(LocalDate localDate, List<Long> itSystemIds) {
+		return historyTitleRoleAssignmentDao.findByDateAndItSystems(localDate.getYear(), localDate.getMonthValue(), localDate.getDayOfMonth(), itSystemIds)
+									   .stream()
+									   .collect(Collectors.groupingBy(HistoryTitleRoleAssignment::getTitleUuid));
+	}
+	
+	@Transactional
+	public void generateOrganisationHistory() {
+		if (dataSourceUrl.startsWith("jdbc:mysql")) {
+			jdbcTemplate.update("CALL SP_InsertHistoryOrganisation();");
+		}
+		else {
+			jdbcTemplate.update("EXEC SP_InsertHistoryOrganisation;");
+		}
+	}
+	
+	@Transactional
+	public void generateItSytemHistory() {
+		if (dataSourceUrl.startsWith("jdbc:mysql")) {
+			jdbcTemplate.update("CALL SP_InsertHistoryItSystems();");
+		}
+		else {
+			jdbcTemplate.update("EXEC SP_InsertHistoryItSystems;");
+		}
+	}
+	
+	@Transactional
+	public void generateRoleAssignmentHistory() {
+		if (dataSourceUrl.startsWith("jdbc:mysql")) {
+			jdbcTemplate.update("CALL SP_InsertHistoryRoleAssignments();");
+		}
+		else {
+			jdbcTemplate.update("EXEC SP_InsertHistoryRoleAssignments;");
+		}
+	}
+	
+	@Transactional
+	public void generateKleAssignmentHistory() {
+		if (dataSourceUrl.startsWith("jdbc:mysql")) {
+			jdbcTemplate.update("CALL SP_InsertHistoryKleAssignments();");
+		}
+		else {
+			jdbcTemplate.update("EXEC SP_InsertHistoryKleAssignments;");
+		}
+	}
+	
+	@Transactional
+	public void generateOURoleAssignmentHistory() {
+		if (dataSourceUrl.startsWith("jdbc:mysql")) {
+			jdbcTemplate.update("CALL SP_InsertHistoryOURoleAssignments();");
+		}
+		else {
+			jdbcTemplate.update("EXEC SP_InsertHistoryOURoleAssignments;");
+		}
+	}
+	
+	@Transactional
+	public void generateTitleRoleAssignmentHistory() {
+		if (dataSourceUrl.startsWith("jdbc:mysql")) {
+			jdbcTemplate.update("CALL SP_InsertHistoryTitleRoleAssignments();");
+		}
+		else {
+			jdbcTemplate.update("EXEC SP_InsertHistoryTitleRoleAssignments;");
+		}
+	}
+
+	@Transactional
+	public void deleteOldHistory(long retentionPeriod) {
+		if (dataSourceUrl.startsWith("jdbc:mysql")) {
+			jdbcTemplate.update("DELETE FROM history_users WHERE dato < (NOW() - INTERVAL " + retentionPeriod + " DAY);");
+			jdbcTemplate.update("DELETE FROM history_ous WHERE dato < (NOW() - INTERVAL " + retentionPeriod + " DAY);");
+			jdbcTemplate.update("DELETE FROM history_role_assignments WHERE dato < (NOW() - INTERVAL " + retentionPeriod + " DAY);");
+			jdbcTemplate.update("DELETE FROM history_kle_assignments WHERE dato < (NOW() - INTERVAL " + retentionPeriod + " DAY);");
+			jdbcTemplate.update("DELETE FROM history_it_systems WHERE dato < (NOW() - INTERVAL " + retentionPeriod + " DAY);");
+			jdbcTemplate.update("DELETE FROM history_managers WHERE dato < (NOW() - INTERVAL " + retentionPeriod + " DAY);");
+			jdbcTemplate.update("DELETE FROM history_ou_role_assignments WHERE dato < (NOW() - INTERVAL " + retentionPeriod + " DAY);");
+			jdbcTemplate.update("DELETE FROM history_title_role_assignments WHERE dato < (NOW() - INTERVAL " + retentionPeriod + " DAY);");
+			jdbcTemplate.update("DELETE FROM history_titles WHERE dato < (NOW() - INTERVAL " + retentionPeriod + " DAY);");
+		}
+		else {
+			jdbcTemplate.update("DELETE FROM history_users WHERE dato < GETDATE() - " + retentionPeriod + ";");
+			jdbcTemplate.update("DELETE FROM history_ous WHERE dato < GETDATE() - " + retentionPeriod + ";");
+			jdbcTemplate.update("DELETE FROM history_role_assignments WHERE dato < GETDATE() - " + retentionPeriod + ";");
+			jdbcTemplate.update("DELETE FROM history_kle_assignments WHERE dato < GETDATE() - " + retentionPeriod + ";");
+			jdbcTemplate.update("DELETE FROM history_it_systems WHERE dato < GETDATE() - " + retentionPeriod + ";");
+			jdbcTemplate.update("DELETE FROM history_managers WHERE dato < GETDATE() - " + retentionPeriod + ";");
+			jdbcTemplate.update("DELETE FROM history_ou_role_assignments WHERE dato < GETDATE() - " + retentionPeriod + ";");
+			jdbcTemplate.update("DELETE FROM history_title_role_assignments WHERE dato < GETDATE() - " + retentionPeriod + ";");
+			jdbcTemplate.update("DELETE FROM history_titles WHERE dato < GETDATE() - " + retentionPeriod + ";");
+		}
 	}
 }

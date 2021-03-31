@@ -49,7 +49,7 @@ public class TitleApi {
 			return new ResponseEntity<>(HttpStatus.FORBIDDEN);
 		}
 
-		List<Title> existingTitles = titleService.getAll();
+		List<Title> existingTitles = titleService.getAllIncludingInactive();
 
 		for (TitleDTO titleDTO : body) {
 			Title title = null;
@@ -64,7 +64,7 @@ public class TitleApi {
 					changes = true;
 				}
 				
-				if (changes) {
+				if (changes && title.isActive() == false) {
 					title.setActive(true);
 					titleService.save(title);
 				}

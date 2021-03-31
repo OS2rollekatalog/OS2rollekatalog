@@ -14,6 +14,7 @@ import org.springframework.stereotype.Service;
 
 import dk.digitalidentity.rc.config.Constants;
 import dk.digitalidentity.rc.dao.TitleDao;
+import dk.digitalidentity.rc.dao.model.OrgUnit;
 import dk.digitalidentity.rc.dao.model.RoleGroup;
 import dk.digitalidentity.rc.dao.model.Title;
 import dk.digitalidentity.rc.dao.model.TitleRoleGroupAssignment;
@@ -42,6 +43,11 @@ public class TitleService {
 	
 	public List<Title> getAll() {
 		return titleDao.getByActiveTrue();
+	}
+	
+	@SuppressWarnings("deprecation")
+	public List<Title> getAllIncludingInactive() {
+		return titleDao.findAll();
 	}
 
 	public List<Title> getAllWithRole(UserRole userRole) {
@@ -115,7 +121,7 @@ public class TitleService {
 	}
 	
 	@AuditLogIntercepted
-	public boolean removeUserRole(Title title, UserRole role) {
+	public boolean removeUserRole(Title title, UserRole role, OrgUnit ou) {
 		if (role.getItSystem().getIdentifier().equals(Constants.ROLE_CATALOGUE_IDENTIFIER)
 				&& !SecurityUtil.getRoles().contains(Constants.ROLE_ADMINISTRATOR)
 				&& !SecurityUtil.getRoles().contains(Constants.ROLE_SYSTEM)) {
@@ -128,7 +134,12 @@ public class TitleService {
 				TitleUserRoleAssignment userRoleAssignment = iterator.next();
 				
 				if (userRoleAssignment.getUserRole().equals(role)) {
-					iterator.remove();
+					userRoleAssignment.getOuUuids().remove(ou.getUuid());
+					if (userRoleAssignment.getOuUuids().size() == 0) {
+						iterator.remove();
+					}
+					
+					break;
 				}
 			}
 
@@ -194,14 +205,19 @@ public class TitleService {
 	}
 
 	@AuditLogIntercepted
-	public boolean removeRoleGroup(Title title, RoleGroup roleGroup) {
+	public boolean removeRoleGroup(Title title, RoleGroup roleGroup, OrgUnit ou) {
 		if (title.getRoleGroupAssignments().stream().map(ura -> ura.getRoleGroup()).collect(Collectors.toList()).contains(roleGroup)) {
 
 			for (Iterator<TitleRoleGroupAssignment> iterator = title.getRoleGroupAssignments().iterator(); iterator.hasNext();) {
 				TitleRoleGroupAssignment roleGroupAssignment = iterator.next();
-				
+								
 				if (roleGroupAssignment.getRoleGroup().equals(roleGroup)) {
-					iterator.remove();
+					roleGroupAssignment.getOuUuids().remove(ou.getUuid());
+					if (roleGroupAssignment.getOuUuids().size() == 0) {
+						iterator.remove();
+					}
+					
+					break;
 				}
 			}
 

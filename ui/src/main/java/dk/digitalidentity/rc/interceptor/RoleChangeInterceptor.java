@@ -35,10 +35,10 @@ public class RoleChangeInterceptor {
 		}
 	}
 
-	@Before("execution(* dk.digitalidentity.rc.service.TitleService.removeRoleGroup(dk.digitalidentity.rc.dao.model.Title, dk.digitalidentity.rc.dao.model.RoleGroup)) && args(title, roleGroup)")
-	public void interceptRemoveRoleGroupAssignmentOnTitle(Title title, RoleGroup roleGroup) {
+	@Before("execution(* dk.digitalidentity.rc.service.TitleService.removeRoleGroup(dk.digitalidentity.rc.dao.model.Title, dk.digitalidentity.rc.dao.model.RoleGroup, dk.digitalidentity.rc.dao.model.OrgUnit)) && args(title, roleGroup, ou)")
+	public void interceptRemoveRoleGroupAssignmentOnTitle(Title title, RoleGroup roleGroup, OrgUnit ou) {
 		for (RoleChangeHook hook : hooks) {
-			hook.interceptRemoveRoleGroupAssignmentOnTitle(title, roleGroup);
+			hook.interceptRemoveRoleGroupAssignmentOnTitle(title, roleGroup, ou);
 		}
 	}
 
@@ -55,10 +55,10 @@ public class RoleChangeInterceptor {
 		}
 	}
 
-	@Before("execution(* dk.digitalidentity.rc.service.TitleService.removeUserRole(dk.digitalidentity.rc.dao.model.Title, dk.digitalidentity.rc.dao.model.UserRole)) && args(title, userRole)")
-	public void interceptRemoveUserRoleAssignmentOnUser(Title title, UserRole userRole) {
+	@Before("execution(* dk.digitalidentity.rc.service.TitleService.removeUserRole(dk.digitalidentity.rc.dao.model.Title, dk.digitalidentity.rc.dao.model.UserRole, dk.digitalidentity.rc.dao.model.OrgUnit)) && args(title, userRole, ou)")
+	public void interceptRemoveUserRoleAssignmentOnUser(Title title, UserRole userRole, OrgUnit ou) {
 		for (RoleChangeHook hook : hooks) {
-			hook.interceptRemoveUserRoleAssignmentOnTitle(title, userRole);
+			hook.interceptRemoveUserRoleAssignmentOnTitle(title, userRole, ou);
 		}
 	}
 

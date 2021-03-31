@@ -25,7 +25,7 @@ namespace ADSyncService.Properties {
         
         [global::System.Configuration.ApplicationScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("0 /5 * ? * *")]
+        [global::System.Configuration.DefaultSettingValueAttribute("0 /5 5-23 ? * *")]
         public string CronSchedule {
             get {
                 return ((string)(this["CronSchedule"]));
@@ -43,7 +43,7 @@ namespace ADSyncService.Properties {
         
         [global::System.Configuration.ApplicationScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("xxxxxxxxxxxxxxxxxxxxxxxxxx")]
+        [global::System.Configuration.DefaultSettingValueAttribute("xxxxxxxxxxxxxxxxxxxxx")]
         public string ApiKey {
             get {
                 return ((string)(this["ApiKey"]));
@@ -124,6 +124,24 @@ namespace ADSyncService.Properties {
         
         [global::System.Configuration.ApplicationScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("False")]
+        public bool ItSystemGroupFeature_Enabled {
+            get {
+                return ((bool)(this["ItSystemGroupFeature_Enabled"]));
+            }
+        }
+        
+        [global::System.Configuration.ApplicationScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("False")]
+        public bool ReadonlyItSystemFeature_Enabled {
+            get {
+                return ((bool)(this["ReadonlyItSystemFeature_Enabled"]));
+            }
+        }
+        
+        [global::System.Configuration.ApplicationScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
         [global::System.Configuration.DefaultSettingValueAttribute(@"<?xml version=""1.0"" encoding=""utf-16""?>
 <ArrayOfString xmlns:xsi=""http://www.w3.org/2001/XMLSchema-instance"" xmlns:xsd=""http://www.w3.org/2001/XMLSchema"">
   <string>2399;OU=system1,OU=Groups,DC=digitalidentity,DC=dk</string>
@@ -137,15 +155,6 @@ namespace ADSyncService.Properties {
         
         [global::System.Configuration.ApplicationScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("False")]
-        public bool ItSystemGroupFeature_Enabled {
-            get {
-                return ((bool)(this["ItSystemGroupFeature_Enabled"]));
-            }
-        }
-        
-        [global::System.Configuration.ApplicationScopedSettingAttribute()]
-        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
         [global::System.Configuration.DefaultSettingValueAttribute("<?xml version=\"1.0\" encoding=\"utf-16\"?>\r\n<ArrayOfString xmlns:xsi=\"http://www.w3." +
             "org/2001/XMLSchema-instance\" xmlns:xsd=\"http://www.w3.org/2001/XMLSchema\">\r\n  <s" +
             "tring>1;CN=ItSystemOne,OU=Groups,DC=digitalidentity,DC=dk</string>\r\n</ArrayOfStr" +
@@ -153,6 +162,28 @@ namespace ADSyncService.Properties {
         public global::System.Collections.Specialized.StringCollection ItSystemGroupFeature_SystemMap {
             get {
                 return ((global::System.Collections.Specialized.StringCollection)(this["ItSystemGroupFeature_SystemMap"]));
+            }
+        }
+        
+        [global::System.Configuration.ApplicationScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute(@"<?xml version=""1.0"" encoding=""utf-16""?>
+<ArrayOfString xmlns:xsi=""http://www.w3.org/2001/XMLSchema-instance"" xmlns:xsd=""http://www.w3.org/2001/XMLSchema"">
+  <string>2408;OU=subgroup1,OU=groups,DC=digitalidentity,DC=dk</string>
+  <string>2409;OU=subgroup2,OU=groups,DC=digitalidentity,DC=dk</string>
+</ArrayOfString>")]
+        public global::System.Collections.Specialized.StringCollection ReadonlyItSystemFeature_SystemMap {
+            get {
+                return ((global::System.Collections.Specialized.StringCollection)(this["ReadonlyItSystemFeature_SystemMap"]));
+            }
+        }
+        
+        [global::System.Configuration.ApplicationScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("True")]
+        public bool BackSyncFeature_CreateUserRoles {
+            get {
+                return ((bool)(this["BackSyncFeature_CreateUserRoles"]));
             }
         }
     }

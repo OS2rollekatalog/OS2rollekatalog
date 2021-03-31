@@ -7,6 +7,7 @@ import org.springframework.stereotype.Service;
 
 import dk.digitalidentity.rc.dao.ReportTemplateDao;
 import dk.digitalidentity.rc.dao.model.ReportTemplate;
+import dk.digitalidentity.rc.dao.model.User;
 
 @Service
 public class ReportTemplateService {
@@ -28,5 +29,9 @@ public class ReportTemplateService {
 
 	public void deleteTemplate(ReportTemplate entity) {
 		reportTemplateDao.delete(entity);
+	}
+	
+	public List<ReportTemplate> getByUser(User user) {
+		return reportTemplateDao.findByUsersContains(user);
 	}
 }

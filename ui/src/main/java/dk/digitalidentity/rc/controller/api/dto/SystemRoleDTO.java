@@ -1,5 +1,7 @@
 package dk.digitalidentity.rc.controller.api.dto;
 
+import java.util.List;
+
 import javax.validation.constraints.NotBlank;
 import javax.validation.constraints.Pattern;
 
@@ -13,12 +15,14 @@ import lombok.Setter;
 @NoArgsConstructor
 public class SystemRoleDTO {
 	private String description;
-	
+
 	@NotBlank
 	private String name;
 
 	@Pattern(regexp = "^[A-Za-z0-9_-]+$")
 	private String identifier;
+
+	private List<String> users;
 
 	public SystemRoleDTO(SystemRole sr) {
 		this.name = sr.getName();

@@ -12,6 +12,8 @@ import static org.springframework.restdocs.operation.preprocess.Preprocessors.pr
 import static org.springframework.restdocs.payload.PayloadDocumentation.fieldWithPath;
 import static org.springframework.restdocs.payload.PayloadDocumentation.requestFields;
 import static org.springframework.restdocs.payload.PayloadDocumentation.responseFields;
+import static org.springframework.restdocs.request.RequestDocumentation.parameterWithName;
+import static org.springframework.restdocs.request.RequestDocumentation.pathParameters;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import java.util.ArrayList;
@@ -147,14 +149,23 @@ public class ItSystemApiDocumentation {
 							requestHeaders(
 									headerWithName("ApiKey").description("Secret key required to call API")
 							),
+							pathParameters(
+									parameterWithName("id").description("The id of the it-system")
+							),
 							responseFields(
 									fieldWithPath("id").type("String").description("Unique ID for the it-system"),
 									fieldWithPath("name").type("String").description("Name of the it-system"),
 									fieldWithPath("identifier").type("String").description("Technical ID key for the it-system (not always unique)"),
+									fieldWithPath("convertRolesEnabled").description("Can safely be ignored when READING the it-system data"),
 									fieldWithPath("systemRoles[]").description("Array of systemroles currently on it-system"),
 									fieldWithPath("systemRoles[].name").description("Name of systemrole"),
 									fieldWithPath("systemRoles[].identifier").description("Unique identifier of systemrole"),
-									fieldWithPath("systemRoles[].description").description("Description of systemrole")
+									fieldWithPath("systemRoles[].description").description("Description of systemrole"),
+									fieldWithPath("userRoles[]").description("Array of userroles currently on it-system"),
+									fieldWithPath("userRoles[].id").description("ID of userRole"),
+									fieldWithPath("userRoles[].name").description("Name of userole"),
+									fieldWithPath("userRoles[].identifier").description("Unique identifier of userrole"),
+									fieldWithPath("userRoles[].systemRoleAssignments").ignored()
 							)
 					));
 	}
@@ -170,6 +181,9 @@ public class ItSystemApiDocumentation {
 				.andDo(document("itsystem-manage-update", preprocessRequest(prettyPrint()),
 						requestHeaders(
 								headerWithName("ApiKey").description("Secret key required to call API")
+						),
+						pathParameters(
+								parameterWithName("id").description("The id of the it-system")
 						),
 						requestFields(
 								fieldWithPath("name").description("Name of the it-system"),

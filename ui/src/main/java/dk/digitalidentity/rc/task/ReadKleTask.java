@@ -14,7 +14,6 @@ import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestTemplate;
 
 import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
@@ -67,7 +66,6 @@ public class ReadKleTask {
 
 	// Run every Saturday at random point between 22:00-22:30
 	@Scheduled(cron = "0 #{new java.util.Random().nextInt(30)} 22 * * SAT")
-	@Transactional(rollbackFor = Exception.class)
 	public synchronized void reloadCache() {
 		if (configuration.getScheduled().isEnabled()) {
 			return; // do not reload cache on the instance that is running the scheduled task
@@ -80,7 +78,6 @@ public class ReadKleTask {
 
 	// Run every Saturday at random point between 21:00-21:30
 	@Scheduled(cron = "0 #{new java.util.Random().nextInt(30)} 21 * * SAT")
-	@Transactional(rollbackFor = Exception.class)
 	public synchronized void parse() {
 		if (!configuration.getScheduled().isEnabled()) {
 			return;

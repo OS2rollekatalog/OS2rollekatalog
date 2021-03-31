@@ -5,6 +5,7 @@ import java.util.List;
 import javax.validation.constraints.Size;
 
 import dk.digitalidentity.rc.dao.model.ItSystem;
+import dk.digitalidentity.rc.dao.model.RoleGroup;
 import dk.digitalidentity.rc.dao.model.SystemRoleAssignment;
 import dk.digitalidentity.rc.dao.model.UserRole;
 import lombok.Getter;
@@ -18,10 +19,11 @@ public class UserRoleForm {
     private String uuid;
     private String delegatedFromCvr;
 	private boolean userOnly;
-	private boolean ouInheritAllowed;
 	private boolean canRequest;
+	private boolean sensitiveRole;
     private ItSystem itSystem;
     private List<SystemRoleAssignment> systemRoleAssignments;
+    private List<RoleGroup> roleGroups;
     private boolean pendingSync;
 
     @Size(max=4000)
@@ -40,10 +42,10 @@ public class UserRoleForm {
     	this.identifier = userRole.getIdentifier();
     	this.userOnly = userRole.isUserOnly();
     	this.uuid = userRole.getUuid();
-    	this.ouInheritAllowed = userRole.isOuInheritAllowed();
     	this.canRequest = userRole.isCanRequest();
     	this.description = userRole.getDescription();
     	this.itSystem = userRole.getItSystem();
+    	this.sensitiveRole = userRole.isSensitiveRole();
     	this.systemRoleAssignments = userRole.getSystemRoleAssignments();
     	this.delegatedFromCvr = userRole.getDelegatedFromCvr();
     	this.pendingSync = pendingSync;

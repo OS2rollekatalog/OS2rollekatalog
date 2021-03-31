@@ -12,6 +12,7 @@ public class Constants {
 	public static final String ROLE_REQUESTER = "ROLE_REQUESTER";
 	public static final String ROLE_MANAGER = "ROLE_MANAGER";
 	public static final String ROLE_SUBSTITUTE = "ROLE_SUBSTITUTE";
+	public static final String ROLE_TEMPLATE_ACCESS = "ROLE_TEMPLATE_ACCESS";
 
 	// role catalogue IDs for assignables roles
 	public static final String ROLE_ADMINISTRATOR_ID = "http://rollekatalog.dk/administrator";

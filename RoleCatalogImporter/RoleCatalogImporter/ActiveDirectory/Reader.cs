@@ -6,6 +6,7 @@ namespace RoleCatalogImporter
 {
     class Reader
     {
+        private static readonly log4net.ILog log = log4net.LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
         private string[] ousToIgnore = new string[0];
         private string SAMAccountPrefix = null;
 
@@ -104,6 +105,10 @@ namespace RoleCatalogImporter
                     searcher.PropertiesToLoad.Add(Properties.Settings.Default.UserNameField);
                     searcher.PropertiesToLoad.Add("distinguishedname");
                     searcher.PropertiesToLoad.Add("sAMAccountName");
+                    if (!string.IsNullOrEmpty(Properties.Settings.Default.CustomUUIDField))
+                    {
+                        searcher.PropertiesToLoad.Add(Properties.Settings.Default.CustomUUIDField);
+                    }
 
                     if (!string.IsNullOrEmpty(Properties.Settings.Default.UserEmailField))
                     {
@@ -119,7 +124,20 @@ namespace RoleCatalogImporter
                     {
                         foreach (SearchResult res in resultSet)
                         {
-                            Guid uuid = new Guid((byte[])res.Properties["objectGUID"][0]);
+                            string uuid = null;
+                            if (!string.IsNullOrEmpty(Properties.Settings.Default.CustomUUIDField))
+                            {
+                                if (res.Properties.Contains(Properties.Settings.Default.CustomUUIDField))
+                                {
+                                    uuid = (string)res.Properties[Properties.Settings.Default.CustomUUIDField][0];
+                                }
+                            }
+                            else
+                            {
+                                Guid guid = new Guid((byte[])res.Properties["objectGUID"][0]);
+                                uuid = guid.ToString().ToLower();
+                            }
+
                             string dn = (string)res.Properties["distinguishedname"][0];
                             string name = (string)res.Properties[Properties.Settings.Default.UserNameField][0];
                             string userId = (string)res.Properties["sAMAccountName"][0];
@@ -145,6 +163,22 @@ namespace RoleCatalogImporter
                                 {
                                     cpr = null;
                                 }
+                            }
+
+                            if (string.IsNullOrEmpty(uuid))
+                            {
+                                log.Warn("User " + userId + " did not have a uuid in attribute '" + Properties.Settings.Default.CustomUUIDField + "'");
+                                continue;
+                            }
+
+                            try
+                            {
+                                new Guid(uuid);
+                            }
+                            catch (Exception)
+                            {
+                                log.Warn("User " + userId + " did not have a uuid in attribute '" + Properties.Settings.Default.CustomUUIDField + "'. Invalid value: " + uuid);
+                                continue;
                             }
 
                             bool skip = false;

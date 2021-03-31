@@ -39,7 +39,10 @@
 								<tbody>
 								    <tr th:each="itsystem : ${itsystems}">
 								    	<td class="hidden" th:text="${itsystem.hidden}" />
-								    	<td th:text="${itsystem.name}" />
+                                        <td>
+                                            <span th:text="${itsystem.name}"></span>
+                                            <span th:if="${itsystem.accessBlocked == true}" class="label label-danger" th:text="#{html.page.itsystem.list.access_blocked}" />
+                                        </td>
 								    	<td th:text="${itsystem.identifier}" />
 								    	<td th:text="#{__${itsystem.systemType.message}__}" />
 								    	<td>

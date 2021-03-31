@@ -23,11 +23,18 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
+import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
+import dk.digitalidentity.rc.controller.mvc.viewmodel.Assignment;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.EditUserRoleRow;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.RequestForm;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.RoleGroupForm;
+import dk.digitalidentity.rc.controller.mvc.viewmodel.RolesOUTable;
+import dk.digitalidentity.rc.controller.mvc.viewmodel.TitleListForm;
+import dk.digitalidentity.rc.controller.mvc.viewmodel.UserRoleCheckedDTO;
 import dk.digitalidentity.rc.controller.validator.RolegroupValidator;
+import dk.digitalidentity.rc.dao.model.OrgUnit;
 import dk.digitalidentity.rc.dao.model.RoleGroup;
+import dk.digitalidentity.rc.dao.model.Title;
 import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserRole;
 import dk.digitalidentity.rc.security.RequireAdministratorRole;
@@ -40,6 +47,7 @@ import dk.digitalidentity.rc.service.SettingsService;
 import dk.digitalidentity.rc.service.UserRoleService;
 import dk.digitalidentity.rc.service.UserService;
 import dk.digitalidentity.rc.service.model.OrgUnitWithRole;
+import dk.digitalidentity.rc.service.model.RoleWithDateDTO;
 import dk.digitalidentity.rc.service.model.UserWithRole;
 
 @RequireRequesterOrReadAccessRole
@@ -72,6 +80,9 @@ public class RoleGroupController {
 
 	@Autowired
 	private OrgUnitService orgUnitService;
+	
+	@Autowired
+    private RoleCatalogueConfiguration configuration;
 
 	@InitBinder(value = { "rolegroup" })
 	public void initBinder(WebDataBinder binder) {
@@ -152,9 +163,42 @@ public class RoleGroupController {
 		}
 
 		RoleGroupForm roleGroupForm = mapper.map(roleGroup, RoleGroupForm.class);
+		boolean titlesEnabled = configuration.getTitles().isEnabled();
+		
+		List<User> usersFromDb = userService.getAll();
+		List<UserWithRole> usersWithRole = userService.getUsersWithRoleGroup(roleGroup, false);
+		
+		List<String> uuidsWithRole = usersWithRole.stream().map(u -> u.getUser().getUuid()).collect(Collectors.toList());
+		
+		List<UserRoleCheckedDTO> users = usersFromDb.stream()
+				.map(u -> UserRoleCheckedDTO.builder()
+						.uuid(u.getUuid())
+						.name(u.getName())
+						.userId(u.getUserId())
+						.checked(uuidsWithRole.contains(u.getUuid()))
+						.build())
+				.collect(Collectors.toList());
+		
+		List<OrgUnit> oUsFromDb = orgUnitService.getAll();
+		List<RolesOUTable> allOUs = new ArrayList<>();
+		for (OrgUnit ou : oUsFromDb) {
+			Assignment a = new Assignment();
+			List<RoleWithDateDTO> rolegroups = orgUnitService.getNotInheritedRoleGroupsWithDate(ou);
+			RoleWithDateDTO rg = rolegroups.stream().filter(r -> r.getId() == roleGroup.getId()).findFirst().orElse(null);
+			if (rg != null) {
+				a.setStartDate(rg.getStartDate());
+				a.setStopDate(rg.getStopDate());
+				allOUs.add(new RolesOUTable(ou, true, a));
+			}else {
+				allOUs.add(new RolesOUTable(ou, false, a));
+			}
+		}
 
 		model.addAttribute("rolegroup", roleGroupForm);
 		model.addAttribute("roles", getAddRoles(roleGroup));
+		model.addAttribute("users", users);
+		model.addAttribute("allOUs", allOUs);
+		model.addAttribute("titlesEnabled", titlesEnabled);
 
 		return "rolegroups/edit";
 	}
@@ -180,6 +224,42 @@ public class RoleGroupController {
 
 		roleGroup = roleGroupService.save(roleGroup);
 		return "redirect:../edit/" + roleGroup.getId();
+	}
+	
+	@GetMapping(value = "/ui/rolegroups/fragments/{uuid}")
+	public String getFragment(Model model, @PathVariable("uuid") String uuid) {
+		User user = userService.getByUuid(uuid);
+		
+		if (user != null) {
+			model.addAttribute("positions", user.getPositions());
+		}
+		
+		return "users/fragments/user_role_group_modal :: userRoleGroupModal";
+		
+	}
+	
+	@GetMapping(value = "/ui/rolegroups/fragments/ou/{uuid}")
+	public String getOUFragment(Model model, @PathVariable("uuid") String uuid) {
+		OrgUnit orgUnit = orgUnitService.getByUuid(uuid);
+		boolean titlesEnabled = configuration.getTitles().isEnabled();
+		
+		if (titlesEnabled && orgUnit != null) {
+			List<Title> titles = orgUnitService.getTitles(orgUnit);
+
+			List<TitleListForm> titleForms = titles
+					.stream()
+					.map(title -> new TitleListForm(title))
+					.collect(Collectors.toList());
+			
+			model.addAttribute("titles", titleForms);
+		}
+		else {
+			model.addAttribute("titles", null);
+		}
+		
+		model.addAttribute("titlesEnabled", titlesEnabled);
+		return "ous/fragments/ou_roles_modal :: ouRolesModal";
+		
 	}
 
 	private List<EditUserRoleRow> getAddRoles(RoleGroup rolegroup) {

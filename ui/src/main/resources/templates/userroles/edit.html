@@ -54,21 +54,21 @@
 										</div>
 									</div>
 
-									<label class="col-sm-2 control-label" th:text="#{html.role.flag.inherit}" />
-									<div class="col-sm-1">
-										<div class="checkbox c-checkbox">
-											<label>
-												<input class="inherit-checkbox" type="checkbox" data-flag="inherit" th:attr="checked=${role.ouInheritAllowed}" />
-												<span class="fa fa-check"></span>
-											</label>
-										</div>
-									</div>
-									
 									<label class="col-sm-2 control-label" th:text="#{html.role.flag.canrequest}" />
 									<div class="col-sm-1">
 										<div class="checkbox c-checkbox">
 											<label>
 												<input class="canrequest-checkbox" type="checkbox" data-flag="canrequest" th:attr="checked=${role.canRequest}" />
+												<span class="fa fa-check"></span>
+											</label>
+										</div>
+									</div>
+									
+									<label class="col-sm-2 control-label" th:text="#{html.role.flag.sensitive}" />
+									<div class="col-sm-1">
+										<div class="checkbox c-checkbox">
+											<label>
+												<input class="sensitive-checkbox" type="checkbox" data-flag="sensitive" th:attr="checked=${role.sensitiveRole}" />
 												<span class="fa fa-check"></span>
 											</label>
 										</div>
@@ -80,8 +80,17 @@
 						<form class="form-horizontal">
 							<ul class="nav nav-tabs">
 								<li th:class="active">
-	                            	<a href="#" th:text="#{html.entity.userrole.roleassignments}"/>
+	                            	<a data-toggle="tab" href="#roles_menu" th:text="#{html.entity.userrole.roleassignments}"/>
 		                        </li>
+		                        <li>
+	                            	<a data-toggle="tab" href="#groups_menu" th:text="#{html.entity.userrole.rolegroupassignments}"/>
+		                        </li>
+		                        <li>
+	                            	<a data-toggle="tab" href="#users_menu" th:text="#{html.page.userroles.edit.tab.users}"/>
+		                        </li>
+		                        <li>
+	                            	<a data-toggle="tab" id="outab" href="#ous_menu" th:text="#{html.page.userroles.edit.tab.ous}"/>
+	                            </li>
 		                    </ul>
 	                    
 							<div class="tab-content">
@@ -107,6 +116,98 @@
 												</td>
 												<td th:text="${editSystemRole.systemRole.name}" />
 												<td class="preformat" th:text="${editSystemRole.systemRole.description}" />
+											</tr>
+										</tbody>
+									</table>
+								</div>
+							
+								<div id="groups_menu" class="tab-pane fade in">
+									<table id="listTable3" class="table table-striped">
+										<thead>
+											<tr>
+												<th class="col-md-1" th:text="#{html.page.userroles.addrole.rolegroup.contained}" />
+												<th class="col-md-4" th:text="#{html.page.userroles.addrole.rolegroup.name}" />
+												<th class="col-md-7" th:text="#{html.page.userroles.addrole.rolegroup.description}" />
+											</tr>
+										</thead>
+	
+										<tbody>
+											 <tr th:each="editRoleGroup : ${editRoleGroups}">
+												<td>
+													<div class="checkbox c-checkbox">
+														<label>
+															<input class="group-checkbox" type="checkbox" th:attr="data-groupid=${editRoleGroup.roleGroup.id}, checked=${editRoleGroup.checked}" />
+															<span class="fa fa-check"></span>
+														</label>
+													</div>
+												</td>
+												<td th:text="${editRoleGroup.roleGroup.name}" /> 
+												<td class="preformat" th:text="${editRoleGroup.roleGroup.description}" />
+											</tr>
+										</tbody>
+									</table>
+								</div>
+
+								<div id="users_menu" class="tab-pane fade">
+									<table id="listTable1" class="table table-striped">
+										<thead>
+											<tr>
+												<th class="col-md-1" th:text="#{html.entity.positions.assign}" />
+												<th class="col-md-4" th:text="#{html.entity.user.name}" />
+												<th class="col-md-7" th:text="#{html.entity.user.userId}" />
+											</tr>
+										</thead>
+	
+										<tbody>
+											 <tr th:each="user : ${users}" th:id="${user.uuid}+'row'">
+												<td>
+													<div class="checkbox c-checkbox">
+			                                            <label>
+			                                                <input class="checkbox-positions" th:id="${user.uuid}"
+			                                                       type="checkbox" th:value="${roleId}" data-objtype="role" th:checked="${user.checked}"/>
+			                                                <span class="fa fa-check"></span>
+			                                            </label>
+			                                        </div>
+												</td>
+												<td th:text="${user.name}" />
+												<td th:text="${user.userId}" />
+											</tr>
+										</tbody>
+									</table>
+								</div>
+
+								<div id="ous_menu" class="tab-pane fade">
+									<table id="listTable2" class="table table-striped">
+										<thead>
+											<tr>
+												<th class="col-md-1" th:text="#{html.entity.positions.assign}" />
+												<th class="col-md-7" th:text="#{html.entity.ou.name}" />
+												<th class="col-md-5" th:text="#{html.entity.rolegroup.validity}"/>
+											</tr>
+										</thead>
+	
+										<tbody>
+											 <tr th:each="ou : ${allOUs}" th:id="${ou.uuid}+'row'">
+												<td>
+													<div class="checkbox c-checkbox">
+														<label>
+															<input th:id="${ou.uuid}" type="checkbox" th:checked="${ou.checked}" class="checkboxaction" data-objtype="role" th:attr="data-startdate=${ou.assignment.startDate}, data-stopdate=${ou.assignment.stopDate}"/>
+															<span class="fa fa-check"></span>
+														</label>
+													</div>
+												</td>
+												<td>
+													<div th:text="${ou.name}"></div>
+													<span style="font-size: 12px;" th:text="${ou.parentBreadcrumbs}"></span>
+												</td>
+												
+												<td class="fromToDate">
+			                                    	<ul th:if="${ou.assignment.startDate != null or ou.assignment.stopDate != null}" style="padding-left: 0px; list-style-type: none;">
+				                                    	<li th:if="${ou.assignment.startDate != null}" th:text="#{html.word.assigned} + ' ' + ${ou.assignment.startDate}"></li>
+				                                    	<li th:if="${ou.assignment.stopDate != null}" th:text="#{html.word.deassigned} + ' ' + ${ou.assignment.stopDate}"></li>
+			                                    	</ul>
+			                                    	<span th:if="${ou.checked == true and ou.assignment.startDate == null and ou.assignment.stopDate == null}" th:text="#{html.word.indefinite}"/>
+			                                    </td>
 											</tr>
 										</tbody>
 									</table>
@@ -279,7 +380,7 @@
 						<h4 th:text="#{html.page.userrole.kle.modal}"/>
 					</div>
 	
-					<div class="modal-body">
+					<div class="modal-body" style="height:800px;">
 						<input type="hidden" id="modal-systemRoleId"/>
 						<input type="hidden" id="modal-constraintUuid"/>
 						<div id="modal-error" style="display:none;color:#FF0000;">
@@ -299,11 +400,18 @@
 				</div>
 			</div>
 	</div>
-
-
-
-	<nav th:replace="fragments/footer :: footer" />
 	
+	 
+	<div id="userUserRoleModal"></div>
+	<div id="ouUserRoleModal"></div>
+	
+	<nav th:replace="fragments/footer :: footer" />
+	<script th:replace="users/fragments/user_user_role_modal :: userUserRoleModalScript(userRoleListTableId='listTable1', page='role')"/>
+	<script th:replace="ous/fragments/ou_roles_modal :: ouRoleGroupModalScript(titlesEnabled=${titlesEnabled}, page='role')" />
+	<script th:replace="fragments/assignDatePicker :: content " />
+	
+	<!-- TODO: we need to add some styling that makes the datepickers show at the bottom and overflowing the modal 
+	The modal ou_roles_modal shows at the top-->
 	<style>
 		.table .checkbox {
 			margin-left: 10px;
@@ -313,7 +421,6 @@
 			overflow-y: initial !important
 		}
 		.modal-body{
-			height: 800px;
 			overflow-y: auto;
 		}
 	</style>
@@ -323,7 +430,11 @@
 
 		/*[+
 			var url = [[@{/rest/userroles/}]];
+			var urlUsers = [[@{/rest/users/}]];
+			var roleGroupsUrl = [[@{/rest/rolegroups/}]];
 			var roleId = [[${role.id}]];
+			var UIUrl = [[@{/ui/userroles/}]]
+			var urlOUs = [[@{/rest/ous/}]];
 			
 			var fieldUpdatedMsg = [[#{html.entity.rolegroup.updatedmsg}]];
 			var fieldNotUpdatedMsg = [[#{html.entity.rolegroup.failedupdatemsg}]];
@@ -342,11 +453,27 @@
    			var ouConstraintUuid = [[${ouConstraintUuid}]];
    			var internalOuConstraintUuid = [[${internalOuConstraintUuid}]];
 			var itSystemConstraintUuid = [[${itSystemConstraintUuid}]];
+			
+			var stillAssignedThroughTitleMsg = [[#{html.user.role.stillassigned.title}]];
+			var stillAssignedThroughOUMsg = [[#{html.user.role.stillassigned.ou}]];
+			var stillAssignedThroughRoleGroupMsg = [[#{html.user.role.stillassigned.rolegroup}]];
+			var alreadyAssignedThroughTitleMsg = [[#{html.user.role.alreadyassigned.title}]];
+			var alreadyAssignedThroughOUMsg = [[#{html.user.role.alreadyassigned.ou}]];
+			var alreadyAssignedThroughRoleGroupMsg = [[#{html.user.role.alreadyassigned.rolegroup}]];
+			
+			var roleId = [[${roleId}]];
+			var titlesEnabled = [[${titlesEnabled}]];
 		+]*/
 		
 		var token = $("meta[name='_csrf']").attr("content");
-
+		var userService;
+		var unitService;
+		var notificationService;
 		$("document").ready(function() {
+			userService = new UserService();
+			unitService = new UnitService();
+			notificationService = new NotificationService();
+			
 			$("#name").change(handleChangeOnInput);
 			$("#description").change(handleChangeOnInput);
 			
@@ -356,6 +483,63 @@
 				"order": [
 					[1, 'asc']
 				],
+				"autoWidth": false,
+				"stateSave": true,
+				'pageLength': 100,
+		        "language": {
+		            "search":       searchTxt,
+		            "lengthMenu":   dropdownTxt,
+		            "info":         infoDefaultTxt,
+		            "zeroRecords":  infoEmptyTxt,
+		            "infoEmpty":    "",
+		            "infoFiltered": infoFilteredTxt
+		        }
+			});
+
+			// Initialize datatable
+			var table1 = $('#listTable1').DataTable( {
+				"columns": [ { "orderDataType": "dom-checkbox" , "className": 'details-control' }, { }, { } ],
+				"order": [
+					[1, 'asc']
+				],
+				"autoWidth": false,
+				"stateSave": true,
+				'pageLength': 100,
+		        "language": {
+		            "search":       searchTxt,
+		            "lengthMenu":   dropdownTxt,
+		            "info":         infoDefaultTxt,
+		            "zeroRecords":  infoEmptyTxt,
+		            "infoEmpty":    "",
+		            "infoFiltered": infoFilteredTxt
+		        }
+			});
+
+			// Initialize datatable
+			var table2 = $('#listTable2').DataTable( {
+				"columns": [ { "orderDataType": "dom-checkbox" , "className": 'details-control' }, { }, { } ],
+				"order": [
+					[1, 'asc']
+				],
+				"autoWidth": false,
+				"stateSave": true,
+				'pageLength': 100,
+		        "language": {
+		            "search":       searchTxt,
+		            "lengthMenu":   dropdownTxt,
+		            "info":         infoDefaultTxt,
+		            "zeroRecords":  infoEmptyTxt,
+		            "infoEmpty":    "",
+		            "infoFiltered": infoFilteredTxt
+		        }
+			});
+
+			var groupsTable = $('#listTable3').DataTable( {
+				"columns": [ { "orderDataType": "dom-checkbox" , "className": 'details-control' }, { }, { } ],
+				"order": [
+					[1, 'asc']
+				],
+				"autoWidth": false,
 				"stateSave": true,
 				'pageLength': 100,
 		        "language": {
@@ -371,6 +555,7 @@
 			$('.useronly-checkbox').change(flagCheckboxChange);
 			$('.inherit-checkbox').change(flagCheckboxChange);
 			$('.canrequest-checkbox').change(flagCheckboxChange);
+			$('.sensitive-checkbox').change(flagCheckboxChange);
 			
 			// Add event handler
 			// When data in the datatable is updated reassign checkboxes on change handler
@@ -379,13 +564,207 @@
 				showSelectedRoles(table);
 			});
 			
+			$('#listTable1').on( 'draw.dt', function () {
+				userService.addCheckboxListeners();
+			});
+			
+			$('#listTable2').on( 'draw.dt', function () {
+				unitService.addCheckboxListeners();
+			});
+
+			$('#listTable3').on( 'draw.dt', function () {
+				addGroupsCheckboxListeners(groupsTable);
+			});
+
+			
 			// init on first display
+			userService.addCheckboxListeners();
+			unitService.addCheckboxListeners();
 			addCheckboxListeners(table);
+			addGroupsCheckboxListeners(groupsTable);
 			showSelectedRoles(table);
 
-			//init jstree
+			//init kle jstree
 			initJSTree("kle-tree", "kle-tree-search");
 		});
+		
+		function UserService() {
+			
+			this.addCheckboxListeners = function(){
+				$('.checkbox-positions').off( "change" );
+				$('.checkbox-positions').change(userService.positionCheckboxChanged);
+			}
+			
+			function checkUserAssignmentsBeforePerform(objType, roleId, userUuid, checked, successFunction) {
+				var endpoint = urlUsers + 'assignedStatus/' + objType + '/' + userUuid + '/' + roleId;
+				
+				$.ajax({
+					url: endpoint,
+					method: "GET",
+					error: function(response) {
+						notificationService.showErrorNotification(fieldNotUpdatedMsg);
+					},
+					success : function(response) {
+						var alreadyAssignedThroughOu = response.alreadyAssignedThroughOu;
+						var alreadyAssignedThroughRoleGroup = response.alreadyAssignedThroughRoleGroup;
+						var alreadyAssignedThroughTitle = response.alreadyAssignedThroughTitle;
+						
+						successFunction(roleId, userUuid, checked, alreadyAssignedThroughOu, alreadyAssignedThroughRoleGroup, alreadyAssignedThroughTitle);
+					}
+				});
+			}
+			
+			this.positionCheckboxChanged = function() {
+				var chosenCheckbox = $(this);
+				var roleid = $(this).val();
+				var userUuid = this.id;
+				var checked = this.checked;
+				var table = $("#listTable1");
+				table.dataTable().api().row("#"+userUuid+"row").invalidate('dom').draw();
+
+				checkUserAssignmentsBeforePerform("role", roleid, userUuid, checked, function(roleid, userUuid, checked, alreadyAssignedThroughOu, alreadyAssignedThroughRoleGroup, alreadyAssignedThroughTitle) {
+					var optionalSuccessMessage;
+				
+					if (!checked) {
+						if (alreadyAssignedThroughOu) {
+							optionalSuccessMessage = stillAssignedThroughOUMsg;
+						}
+						else if (alreadyAssignedThroughRoleGroup) {
+							optionalSuccessMessage = stillAssignedThroughRoleGroupMsg;
+						}
+						else if (alreadyAssignedThroughTitle) {
+							optionalSuccessMessage = stillAssignedThroughTitleMsg;
+						}
+		
+						var endpoint = urlUsers + userUuid + '/' + 'removerole' + '/' + roleid;
+						
+						userService.removeRoleAssignment(endpoint, optionalSuccessMessage, chosenCheckbox);
+					}
+					else {
+						$("#userUserRoleModal").load(UIUrl + "fragments/" + userUuid, function(){
+							var modal = $("#modal-positions");
+							datePickerService.init();
+							userRoleModalService.init();
+							modal.modal({
+							    backdrop: 'static',
+							    keyboard: false
+							});
+
+							$('#stopDatePicker').data("DateTimePicker").clear();
+							$('#startDatePicker').data("DateTimePicker").clear();
+							$('#startDatePicker').data("DateTimePicker").date(new Date());
+
+							modal.attr("roleid", roleid);
+							modal.attr("userUuid", userUuid);
+
+							if (alreadyAssignedThroughOu) {
+								$('#modal-positions-alert').text(alreadyAssignedThroughOUMsg);
+								$('#modal-positions-alert').show();
+							}
+							else if (alreadyAssignedThroughRoleGroup) {
+								$('#modal-positions-alert').text(alreadyAssignedThroughRoleGroupMsg);
+								$('#modal-positions-alert').show();
+							}
+							else if (alreadyAssignedThroughTitle) {
+								$('#modal-positions-alert').text(alreadyAssignedThroughTitleMsg);
+								$('#modal-positions-alert').show();
+							}
+							else {
+								$('#modal-positions-alert').text('');
+								$('#modal-positions-alert').hide();
+							}
+						});
+						
+					}
+				});
+			}
+			
+			this.removeRoleAssignment = function(endpoint, optionalSuccessMessage, chosenCheckbox) {
+				$.ajax({
+					url: endpoint,
+					method: "POST",
+					headers: {
+						'X-CSRF-TOKEN': token
+					},
+					error : function(response) {
+						notificationService.showErrorNotification(fieldNotUpdatedMsg);
+					},
+					success : function(response) {
+						if (optionalSuccessMessage) {
+							notificationService.showWarnNotification(optionalSuccessMessage);
+						}
+						else {
+							notificationService.showInfoNotification(fieldUpdatedMsg);
+						}
+						var tr = chosenCheckbox.parents("tr");
+						tr.find(".fromToDate").html('');
+					}
+				});
+			}
+		}
+		
+		function NotificationService() {
+			this.showInfoNotification = function(message) {
+				$.notify({
+					message: message,
+					status: 'success',
+					timeout: 2000
+				});
+			}
+			
+			this.showWarnNotification = function(message) {
+				$.notify({
+					message: message,
+					status: 'warning',
+					timeout: 3000
+				});
+			}
+
+			this.showErrorNotification = function(message) {
+				$.notify({
+					message: message,
+					status: 'danger',
+					timeout: 4000
+				});
+			}
+		}
+		
+		function UnitService() {
+			this.addCheckboxListeners = function() {
+				$('.checkboxaction').off("change");
+				$('.checkboxaction').change(unitService.handleCheckbox);
+			}
+			
+			this.handleCheckbox = function() {
+				var checked = !this.checked;
+				var startDate = this.dataset.startDate;
+				var stopDate = this.dataset.stopDate;
+				
+				payload.roleType = String(this.dataset.objtype);
+				payload.roleId = roleId;
+				payload.checkboxRef = this;
+				payload.ouUuid = this.id;
+				
+				$("#ouUserRoleModal").load(UIUrl + "fragments/ou/" + payload.ouUuid, function(){
+					datePickerService.init();
+					ouRolesModalService.init();
+					
+					if (titlesEnabled) {
+						ouRolesModalService.loadTitles(true);
+
+						setTimeout(function() {
+							ouRolesModalService.showAssignModal(titlesEnabled, checked, null, startDate, stopDate);
+						}, 100);
+					}
+					else{
+						ouRolesModalService.showAssignModal(titlesEnabled, checked, null, startDate, stopDate);
+					}
+					
+					
+				});
+				
+			}
+		}
 		
 		//plug-in for sorting checkboxes
 		//from: https://datatables.net/plug-ins/sorting/custom-data-source/dom-checkbox
@@ -449,6 +828,89 @@
 				}
 			});
 		}
+
+		function addGroupsCheckboxListeners(table){
+			$('.group-checkbox').off("change");
+
+			$('.group-checkbox').change(function() {
+				var input = $(this);
+				var tr = $(this).closest('tr');
+				var id = this.dataset.groupid;
+				var row = table.row( tr );
+
+				if (!this.checked) {
+					removeFromRoleGroup(id, function() {}, function() {
+						input[0].checked = true; //keep checkbox selected on failure
+					});
+				}
+				else {
+					addToRoleGroup(id,function() {}, function() {
+						input[0].checked = false; //keep checkbox un-selected on failure
+					});
+				}
+			});
+		}
+
+		function addToRoleGroup(id, onSuccess, onError) {
+			var newUrl = roleGroupsUrl + "addrole/" + id + "/" + roleId;
+
+			$.ajax({
+				url : newUrl,
+				method: "POST",
+				headers: {
+					'X-CSRF-TOKEN': token
+				},
+				error : function(response) {
+					onError();
+					$.notify({
+						message : fieldNotUpdatedMsg
+					}, {
+						status : 'danger',
+						autoHideDelay : 4000
+					});
+				},
+				success : function(response) {	
+					onSuccess();
+					$.notify({
+						message : fieldUpdatedMsg
+					}, {
+						status : 'success',
+						autoHideDelay : 2000
+					});
+				}
+			});
+		}
+
+		function removeFromRoleGroup(id, onSuccess, onError) {
+			var newUrl = roleGroupsUrl + "removerole/" + id + "/" + roleId;
+
+			$.ajax({
+				url : newUrl,
+				method: "POST",
+				headers: {
+					'X-CSRF-TOKEN': token
+				},
+				error : function(response) {
+					onError();
+					$.notify({
+						message : fieldNotUpdatedMsg
+					}, {
+						status : 'danger',
+						autoHideDelay : 4000
+					});
+				},
+				success : function(response) {	
+					onSuccess();
+					$.notify({
+						message : fieldUpdatedMsg
+					}, {
+						status : 'success',
+						autoHideDelay : 2000
+					});
+				}
+			});
+		}
+
 
 		function addCheckboxListeners(table){
 			$('.role-checkbox').off("change");

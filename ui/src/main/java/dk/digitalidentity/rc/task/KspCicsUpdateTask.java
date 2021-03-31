@@ -43,8 +43,8 @@ public class KspCicsUpdateTask {
 		kspCicsService.updateUserProfiles();
 	}
 
-	// run once every 5 minutes, starting 15 minutes after boot
-	@Scheduled(fixedDelay = 5 * 60 * 1000, initialDelay = 15 * 60 * 1000)
+	// run once every 5 minutes
+	@Scheduled(cron = "0 #{new java.util.Random().nextInt(4)}/5 * * * ?")
 	public void syncUserProfileAssignments() {
 		if (!configuration.getIntegrations().getKspcics().isEnabled() ||
 			!configuration.getIntegrations().getKspcics().isEnabledOutgoing() || 

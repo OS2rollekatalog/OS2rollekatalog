@@ -19,8 +19,10 @@ import dk.digitalidentity.rc.dao.history.model.HistoryKleAssignment;
 import dk.digitalidentity.rc.dao.history.model.HistoryOU;
 import dk.digitalidentity.rc.dao.history.model.HistoryOUKleAssignment;
 import dk.digitalidentity.rc.dao.history.model.HistoryOURoleAssignment;
+import dk.digitalidentity.rc.dao.history.model.HistoryOUUser;
 import dk.digitalidentity.rc.dao.history.model.HistoryRoleAssignment;
 import dk.digitalidentity.rc.dao.history.model.HistoryTitle;
+import dk.digitalidentity.rc.dao.history.model.HistoryTitleRoleAssignment;
 import dk.digitalidentity.rc.dao.history.model.HistoryUser;
 import lombok.extern.slf4j.Slf4j;
 
@@ -43,9 +45,11 @@ public class ReportService {
 		List<HistoryItSystem> itSystems = historyService.getItSystems(localDate);
 		List<HistoryTitle> titles = (reportForm.isShowTitles()) ? historyService.getTitles(localDate) : null;
 		Map<String, HistoryOU> orgUnits = historyService.getOUs(localDate);
+		Map<String, HistoryOU> allOrgUnits = new HashMap<>(orgUnits);
 		Map<String, HistoryUser> users = historyService.getUsers(localDate);
 		Map<String, List<HistoryKleAssignment>> userKleAssignments = historyService.getKleAssignments(localDate);
 		Map<String, List<HistoryOUKleAssignment>> ouKleAssignments = historyService.getOUKleAssignments(localDate);
+		Map<String, List<HistoryTitleRoleAssignment>> titleRoleAssignments;
 		Map<String, List<HistoryOURoleAssignment>> ouRoleAssignments;
 		Map<String, List<HistoryRoleAssignment>> userRoleAssignments;
 
@@ -58,11 +62,16 @@ public class ReportService {
 
 			ouRoleAssignments = historyService.getOURoleAssignments(localDate, itSystemFilter);
 			userRoleAssignments = historyService.getRoleAssignments(localDate, itSystemFilter);
+			titleRoleAssignments = historyService.getTitleRoleAssignments(localDate, itSystemFilter);
 		}
 		else {
 			ouRoleAssignments = historyService.getOURoleAssignments(localDate);
 			userRoleAssignments = historyService.getRoleAssignments(localDate);
+			titleRoleAssignments = historyService.getTitleRoleAssignments(localDate);
 		}
+		
+		// TODO: det er uheldigt at vi filtrerer OU'ere væk... vi skal bruge dem alle sammen, så måske sende både ALLE OU'ere og de filtrerede med rundt (hvis det er relevant),
+		//       da vi nu skal nedarve fra dem... og det er lige så fjollet hvis vi fjerner rettigheder, da vi også skal bruge dem... hmmm
 		
 		// Filter on manager if specified		
 		if (!StringUtils.isEmpty(manager)) {
@@ -92,21 +101,27 @@ public class ReportService {
 			List<String> finalOuFilter = ouFilter;
 
 			// filter the retrieved role assignments and kle assignments
-			orgUnits.keySet().removeIf(k -> !finalOuFilter.contains(k));
-			ouRoleAssignments.keySet().removeIf(k -> !finalOuFilter.contains(k));
-			ouKleAssignments.keySet().removeIf(k -> !finalOuFilter.contains(k));
+			orgUnits.entrySet().removeIf(e -> !finalOuFilter.contains(e.getKey()));
+			ouRoleAssignments.entrySet().removeIf(e -> !finalOuFilter.contains(e.getKey()));
+			// doubt we need any filtering actually - but filtering here breaks the report, so lets not do that
+//			ouKleAssignments.entrySet().removeIf(e -> !finalOuFilter.contains(e.getKey()));
 
 			// Find all users in those filtered orgUnits
-			List<String> userUUIDs = orgUnits
+			List<HistoryOUUser> ouUsers = orgUnits
 					.entrySet()
 					.stream()
-					.flatMap(entry -> entry.getValue().getUserUuids().stream())
+					.flatMap(entry -> entry.getValue().getUsers().stream())
+					.collect(Collectors.toList());
+
+			List<String> userUUIDs = ouUsers
+					.stream()
+					.map(u -> u.getUserUuid())
 					.collect(Collectors.toList());
 
 			// Filter list of retrieved users
 			users.keySet().removeIf(k -> !userUUIDs.contains(k));
-			userRoleAssignments.keySet().removeIf(k -> !userUUIDs.contains(k));
-			userKleAssignments.keySet().removeIf(k -> !userUUIDs.contains(k));
+			userRoleAssignments.entrySet().removeIf(e -> !userUUIDs.contains(e.getKey()));
+			userKleAssignments.entrySet().removeIf(e -> !userUUIDs.contains(e.getKey()));
 		}
 
 		Map<String, Object> model = new HashMap<>();
@@ -114,10 +129,12 @@ public class ReportService {
 		model.put("itSystems", itSystems);
 
 		model.put("orgUnits", orgUnits);
+		model.put("allOrgUnits", allOrgUnits);
 		model.put("ouRoleAssignments", ouRoleAssignments);
 		model.put("ouKLEAssignments", ouKleAssignments);
 		
 		model.put("titles", titles);
+		model.put("titleRoleAssignments", titleRoleAssignments);
 		
 		model.put("users", users);
 		model.put("userRoleAssignments", userRoleAssignments);
