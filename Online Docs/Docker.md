@@ -40,7 +40,7 @@ is used, change the image tag to reflect this
           - 8090:8090
         environment:
           # basic customer information - the ApiKey is the secret key used to access the API's, and should
-          # be a strong password (e.g. a random UUID)
+          # be a strong password (e.g. a random UUID).
           rc.customer.cvr: "12345678"
           rc.customer.apikey: "00000000-0000-4000-0000-000000000000"
 
@@ -63,12 +63,42 @@ is used, change the image tag to reflect this
           saml.idp.metadatafile: "url:https://kunde.dk/adfs/sso/FederationMetadata.xml"
 
           # SAML setup for the keystore used by OS2rollekatalog - points to a PKCS#12 file and its password
-          saml.keystore.location: "file:///home/cert/keystore.pfx"
+          saml.keystore.location: "file:///home/cert/saml.pfx"
           saml.keystore.password: "password"
 
           # If running a multi-container setup, only enable scheduling on ONE of the containers. It should
           # be enabled on a container to ensure that batch/scheduled jobs are executed
           rc.scheduled.enabled: "true"
+          
+          # If you want to use the "title" feature in OS2rollekatalog, enable it with this flag. This allows
+          # assigning roles to titles (i.e. all users with a given title within a given OrgUnit)
+          rc.titles.enabled: "true"
+          
+          # If you want to integrate with KSP/CICS, you need to add the following section.
+          # Reading from CICS is enabled with the first flag, and sending data (assignments) back to CICS is
+          # enabled with the next flag. The losid field should contain Kaldenavn Kort for the top-level OrgUnit
+          # inside LOS, and finally the path and password to the certificate keystore used by the integration
+          rc.integrations.kspcics.enabled: "true"
+          rc.integrations.kspcics.enabledOutgoing: "true"
+          rc.integrations.kspcics.losid: "KOMMUNE"
+          rc.integrations.kspcics.keystoreLocation: "/home/cert/cics.pfx"
+          rc.integrations.kspcics.keystorePassword: "password"
+          
+          # If you want to integrate with KOMBIT Administrationsmodul, you need to add the following section
+          # the domain is filled with the "Jobfunktionsrolle domæne" used in KOMBIT, and the keystore section
+          # should point to the certificate keystore used for the integration
+          rc.integrations.kombit.enabled: "true"
+          rc.integrations.kombit.domain: "kommune.dk"
+          rc.integrations.kombit.keystoreLocation: "/home/cert/kombit.pfx"
+          rc.integrations.kombit.keystorePassword: "password"
+          
+          # If you want OS2rollekatalog to be able to send emails, fill out this section with the credentials
+          # to access the email server
+          rc.integrations.email.enabled: "true"
+          rc.integrations.email.from: "rollekatalog@kommune.dk"
+          rc.integrations.email.username: "rollekatalog"
+          rc.integrations.email.password: "password"
+          rc.integrations.email.host: "smtp.kommune.dk"
         volumes:
           # map a local folder (here the "cert" folder) to an internal folder. The filepaths used above
           # points to the internal folder name.
