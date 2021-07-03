@@ -63,9 +63,50 @@ Hvis man har nedenstående setting i application.properties filen, så dannes au
     environment.dev=true
 
 ### ItSystem Master applikationen
+OS2rollekatalog kodebasen har også en "master" applikation. Det er en lille web-applikation, hvor administratorer (oprettet i applikationen) kan logge ind og vedligeholde stamdata på it-systemer. De enkelte OS2rollekatalog installationer kan vælge at abonnere på it-systemer vedligeholdt i master applikationen. På den måde kan man nemt oprette og vedligeholde mange it-systemer, som gøres tilgængelig for alle der gør brug af OS2rollekatalog.
 
+Applikationen er en Java 11 applikation, og der anvendes Apache Maven som værktøj til at kompilere og afvikle kodebasen.
+
+Applikationen ligger i folderen ItSystemMaster, og er afhængig af webjar modulet (så det skal kompileres først, og evt installeres i det lokale Maven repository via install kommandoen).
+
+Applikationen forudsætter også at der kører en lokal SQL database, men den understøtter dog kun MySQL, så hvis man ønsker at afvikle denne lokalt, så skal man have en MySQL 5.7 database kørende.
+
+Forbindelsesoplysningerne til databaseb opsættes i config/application.properties filen, lige som for OS2rollekatalog, og igen håndterer Flyway frameworket oprettelsen af tabeller m.m., men selve database-skemaet skal være oprettet på forkant.
+
+Kompilering og afviklingen af applikationen er identisk med OS2rollekatalog, dvs man kørerer disse kommandoer
+
+    $ mvn clean package -Dmaven.test.skip=true
+    $ mvn spring-boot:run
+
+Hvorefter applikationen er tilgængelig på port 8091 under HTTPS, dvs man kan ramme den på
+
+    https://localhost:8091/
 
 ### ADFS Attribute Store
+Dette attribute store er en .NET 4.6 applikation, og kan åbnes i Visual Studio 2019, og kompileres herinde. Grundlæggende er applikationen "bare" implementationen af et enkelt Interface, udstillet af Microsoft. Dette Interface anvendes af en AD FS server til at hente oplysninger om en bruger på login tidspunktet (fx roller ;)).
 
+Når man kompilerer applikationen fra Visual Studio, så skal man sikre at der er tilføjet en Reference til den korrekte version af ClaimsPolicy.dll filen. Der ligger en folder i kodebasen med 3 versioner af denne DLL, en til hver Windows Server version (2012R2, 2016 og 2019). Det er vigtigt at der linkes til den version der matcher den Windows Server som attribute storet skal installeres på.
+
+Når man har kompileret applikationen, så dannes en enkelt DLL (RoleCatalogueAttributeStore.dll), som manuelt kopieres ind på den Windows Server hvor man har sin AD FS server kørende. Den skal kopieres til folderen
+
+    c:\windows\adfs
+    
+Der ligger en vejledning i Word under docs folderen til selve installationen og konfigurationen af dette attribute store.
 
 ### ADSyncService applikationen
+Denne applikation er en .NET 4.6 applikation, og kan åbnes i Visual Studio 2019. Når man kompilerer applikationen inde fra Visual Studio, danner den en fuld applikation der kan installeres som en Windows Service.
+
+For at lette installationen er der lavet et [InnoSetup](https://jrsoftware.org/isinfo.php) script, som ligger i Installer folderen. Hvis man afvikle det vha InnoSetup, så bygger den en EXE installer med den seneste kompilerede udgave af applikationen.
+
+Denne EXE installer kan afvikles på en Windows Service, hvor den vil installere applikationen og sætte den op som en Windows Service.
+
+Der ligger en vejledning i Word under docs folderen til selve isntallationen og konfigurationen af denne Windows Service.
+
+### RoleCatalogueImporter applikationen
+Denne applikation er en .NET 4.6 applikation, og kan åbnes i Visual Studio 2019. Når man kompilerer applikationen inde fra Visual Studio, danner den en fuld applikation der kan installeres som en Windows Service.
+
+For at lette installationen er der lavet et [InnoSetup](https://jrsoftware.org/isinfo.php) script, som ligger i Installer folderen. Hvis man afvikle det vha InnoSetup, så bygger den en EXE installer med den seneste kompilerede udgave af applikationen.
+
+Denne EXE installer kan afvikles på en Windows Service, hvor den vil installere applikationen og sætte den op som en Windows Service.
+
+Der ligger en vejledning i Word under docs folderen til selve isntallationen og konfigurationen af denne Windows Service.
