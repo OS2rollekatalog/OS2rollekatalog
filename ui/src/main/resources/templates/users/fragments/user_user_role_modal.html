@@ -84,22 +84,16 @@
 		var userRoleModalService;
 		var modalAjaxService;
 		$(document).ready(function() {
-			console.log(userRoleListTableId)
             userRoleModalService = new UserRoleModalService();
             modalAjaxService = new ModalAjaxService();
             
             userRoleModalService.init();
-            
-            
         });
-	
-		
 		
 		function UserRoleModalService() {
 			this.init = function(){
 				var modal = $("#modal-positions");
-	    		
-	            
+
 	            $('.assign_role').click(userRoleModalService.assignRoleClicked);		
 	      		$('.assign_role_directly').click(userRoleModalService.assignRoleDirectlyClicked);
 	      		$('#closeModal').click(userRoleModalService.closeModalAndRemoveCheckbox);
@@ -111,12 +105,10 @@
 			
 			this.closeModalAndRemoveCheckbox = function() {
 				var listTable = $('#' + userRoleListTableId);
-				console.log(listTable)
+
 				var modal = $("#modal-positions");
 				if (page == 'user') {
-					console.log("user")
 					var chosenCheckbox = listTable.find("#" + modal.attr("roleid"));
-					console.log(chosenCheckbox)
 					if (chosenCheckbox != null) {
 						chosenCheckbox.prop('checked', false);
 						listTable.dataTable().api().row("#"+modal.attr("roleid")+"row").invalidate('dom').draw();
@@ -128,8 +120,7 @@
 						chosenCheckbox.prop('checked', false);
 						listTable.dataTable().api().row("#"+modal.attr("userUuid")+"row").invalidate('dom').draw();
 					}
-				}
-				
+				}				
 				
 				modal.modal('hide');
 			}
@@ -145,10 +136,9 @@
 				if (page == 'user'){
 					chosenCheckbox = listTable.find("#" + modal.attr("roleid"));
 				}
-				if (page == 'role'){
+				else if (page == 'role'){
 					chosenCheckbox = listTable.find("#" + modal.attr("userUuid"));
 				}
-				
 				
 				var startDate = $('#startDatePicker').data('date');
 				var stopDate = $('#stopDatePicker').data('date');
@@ -169,7 +159,7 @@
 				if (page == 'user'){
 					chosenCheckbox = listTable.find("#" + modal.attr("roleid"));
 				}
-				if (page == 'role'){
+				else if (page == 'role'){
 					chosenCheckbox = listTable.find("#" + modal.attr("userUuid"));
 				}
 				
@@ -182,7 +172,6 @@
 			}
 		}
 		
-
 		// TODO: move these into a utility js file (exists in edit.html for users/orgunits)
 		function ModalAjaxService() {
 
@@ -223,8 +212,6 @@
 				});
 			}
 		}
-		
-		
 		
 		/*]]>*/
 

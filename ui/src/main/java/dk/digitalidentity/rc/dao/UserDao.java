@@ -1,6 +1,7 @@
 package dk.digitalidentity.rc.dao;
 
 import java.util.List;
+import java.util.Set;
 
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
@@ -33,17 +34,21 @@ public interface UserDao extends CrudRepository<User, String>, JpaSpecificationE
 	long countByActiveTrueAndUserRoleAssignmentsUserRole(UserRole userRole);
 	long countByActiveTrueAndRoleGroupAssignmentsRoleGroup(RoleGroup role);
 	User getByUuidAndActiveTrue(String uuid);
+	List<User> findByUuidInAndActiveTrue(Set<String> uuids);
 	List<User> getByExtUuidAndActiveTrue(String uuid);
 	User getByUserIdAndActiveTrue(String userId);
 	
+	// use the versions below that filters on active/inactive flag
 	@Deprecated
 	List<User> findByActiveTrueAndRoleGroupAssignmentsRoleGroup(RoleGroup role);
+
+	// use the versions below that filters on active/inactive flag
 	@Deprecated
 	List<User> findByActiveTrueAndUserRoleAssignmentsUserRole(UserRole userRole);
 
 	List<User> findByActiveTrueAndUserRoleAssignmentsUserRoleAndUserRoleAssignmentsInactive(UserRole userRole, boolean inactive);
 	List<User> findByActiveTrueAndRoleGroupAssignmentsRoleGroupAndRoleGroupAssignmentsInactive(RoleGroup roleGroup, boolean inactive);
-
+	
 	User getTopByActiveTrueOrderByLastUpdatedDesc();
 
 	@Query(nativeQuery = true, value = "SELECT * FROM users u WHERE u.uuid IN (SELECT DISTINCT(manager) FROM ous)")

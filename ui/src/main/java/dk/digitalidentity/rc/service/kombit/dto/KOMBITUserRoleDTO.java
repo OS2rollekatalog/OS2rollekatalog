@@ -6,6 +6,7 @@ import java.util.List;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
+import com.microsoft.sqlserver.jdbc.StringUtils;
 
 import lombok.Getter;
 import lombok.Setter;
@@ -39,4 +40,16 @@ public class KOMBITUserRoleDTO {
 	
 	@JsonProperty("version")
 	public Integer version;
+	
+	public void setBeskrivelse(String input) {
+		if (StringUtils.isEmpty(input)) {
+			this.beskrivelse = "";
+		}
+		else if (input.length() > 200) {
+			this.beskrivelse = input.substring(0, 200);
+		}
+		else {
+			this.beskrivelse = input;
+		}
+	}
 }

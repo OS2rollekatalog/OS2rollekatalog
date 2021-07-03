@@ -29,6 +29,7 @@ public class EmailTemplateController {
 						.message(t.getMessage())
 						.title(t.getTitle())
 						.templateTypeText(t.getTemplateType().getMessage())
+						.enabled(t.isEnabled())
 						.build())
 				.collect(Collectors.toList());
 		

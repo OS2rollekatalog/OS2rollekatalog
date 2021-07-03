@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html>
+<head th:replace="fragments/header :: header" />
+<body>
+	<div class="wrapper">
+		<header th:replace="fragments/navbar :: navbar-header(subpage = 'reports')" />
+		<aside th:replace="fragments/navbar :: navbar-aside (page = 'notifications', subpage = 'reports')" />
+
+		<section>
+			<div class="content-wrapper">
+				<h3 th:text="#{html.navbar.notifications}" />
+				<div class="panel panel-default">
+					<div class="panel-heading">
+						<div class="form-group form-check inline" style="margin-left:60px; position: relative; top: 15px;">
+							<div class="c-radio">
+								<label>
+									<input type="radio" name="showInactive" value="false" checked="checked" />
+									<span class="fa fa-circle"/>
+								</label>
+								<label th:text="#{html.page.admin.task.filter.show.active}"/>
+							</div>
+							<div class="c-radio">
+								<label>
+									<input type="radio" name="showInactive" value="true" />
+									<span class="fa fa-circle"/>
+								</label>
+								<label th:text="#{html.page.admin.task.filter.show.inactive}"/>
+							</div>
+						</div>
+					</div>
+
+					<div class="panel-body">
+						<div class="table-responsive">
+							<table id="listTable" class="table table-striped table-hover listTable">
+								<thead>
+									<tr>
+										<th class="col-md-2" th:text="#{html.entity.notification.created}" />
+										<th class="col-md-3" th:text="#{html.entity.notification.notificationType}" />
+										<th class="col-md-3" th:text="#{html.entity.notification.affectedEntity}" />
+										<th class="col-md-3" th:text="#{html.entity.notification.admin}" />
+										<th class="col-md-1" th:text="#{html.control.operations}" />
+									</tr>
+								</thead>
+								<tfoot style="display: table-row-group;">
+									<tr>
+										<th style="background-color: white;" class="input-filter"></th>
+										<th style="background-color: white;" class="input-filter"></th>
+										<th style="background-color: white;" class="input-filter"></th>
+										<th style="background-color: white;" class="input-filter"></th>
+										<th style="background-color: white;"></th>
+									</tr>
+									
+								</tfoot>
+								<tbody>
+								</tbody>
+							</table>
+						</div>
+					</div>
+				</div>
+			</div>
+		</section>
+	</div>
+
+	<nav th:replace="fragments/footer :: footer" />
+	<script th:inline="javascript">
+		/*<![CDATA[*/
+
+		/*[+
+			var searchTxt = [[#{html.datatables.search}]];
+			var dropdownTxt = [[#{html.datatables.dropdown}]];
+			var infoDefaultTxt = [[#{html.datatables.info.default}]];
+			var infoEmptyTxt = [[#{html.datatables.info.empty}]];
+			var infoFilteredTxt = [[#{html.datatables.info.filtered}]];
+			var prevTxt = [[#{html.datatables.prev}]];
+			var nextTxt = [[#{html.datatables.next}]];
+
+			var activateTitle = [[#{html.entity.notification.activate.title}]];
+			var activateText = [[#{html.entity.notification.activate.text}]];
+			
+			var discardTitle = [[#{html.entity.notification.discard.title}]];
+			var discardText = [[#{html.entity.notification.discard.text}]];
+
+			var assignTitle = [[#{html.entity.notification.assign.title}]];
+			var assignText = [[#{html.entity.notification.assign.text}]];
+
+			var deassignTitle = [[#{html.entity.notification.deassign.title}]];
+			var deassignText = [[#{html.entity.notification.deassign.text}]];
+
+			var reassignTitle = [[#{html.entity.notification.reassign.title}]];
+			var reassignText = [[#{html.entity.notification.reassign.text}]];
+			var reassignYesBtn = [[#{html.entity.notification.reassign.yes}]];
+			var reassignNoBtn = [[#{html.entity.notification.reassign.no}]];
+			
+			var changeStatusButtonConfirm = [[#{html.control.button.yes}]];
+			var changeStatusButtonCancel = [[#{html.control.button.no}]];
+			
+			var typesMap = [[${typesMap}]];
+			var url = [[@{/ui/}]];
+			var ajaxUrl = [[@{/rest/notifications/list}]];
+			var changeStatusUrl = [[@{/rest/notifications/changeStatus}]];
+			var flipAssignUrl = [[@{/rest/notifications/flipAssign/}]];
+			
+			var changeStatusErrorMsg = [[#{html.setting.update.msg.failed}]];
+			
+			var userUuid = [[${userUuid}]];
+		+]*/
+
+		var token = $("meta[name='_csrf']").attr("content");
+		var notificationService;
+		var currentTable;
+		$(document).ready(function() {
+			notificationService = new NotificationService();
+			notificationService.loadDataTables(false);
+			notificationService.initDatatables();
+			
+			$('input[type=radio][name=showInactive]').change(function() {
+				if (this.value == 'true') {
+					notificationService.loadDataTables(true);
+				}
+				else {
+					notificationService.loadDataTables(false);
+				}
+			});
+		});
+		
+		function NotificationService() {
+			this.flipAssign = function(id, status, currentUuid) {
+				var title = assignTitle;
+				var text = assignText;
+				var yesBtn = changeStatusButtonConfirm;
+				var noBtn = changeStatusButtonCancel;
+				var reassign = false;
+
+				// overwrite default messages of already assigned
+				if (currentUuid != '') {
+					if (currentUuid == userUuid) {
+						title = deassignTitle;
+						text = deassignText;
+					}
+					else {
+						title = reassignTitle;
+						text = reassignText;
+						yesBtn = reassignYesBtn;
+						noBtn = reassignNoBtn;
+						reassign = true;
+					}
+				}
+
+				swal({
+					html : true,
+					title : title,
+					text : text,
+					showCancelButton : true,
+					confirmButtonColor : "#4765a0",
+					confirmButtonText : yesBtn,
+					cancelButtonText : noBtn,
+					closeOnConfirm : true,
+					closeOnCancel : true
+				},
+				function(isConfirm) {
+					if (isConfirm || reassign) {
+						$.ajax({
+							url: flipAssignUrl + id,
+							headers: {
+								'X-CSRF-TOKEN': token,
+								'confirm': isConfirm
+							},
+							type: 'post',
+							contentType: 'application/json',
+							data: '',
+							success: function(data, textStatus, jQxhr) {
+								notificationService.loadDataTables(status);
+							},
+							error: function(jqXhr, textStatus, errorThrown) {
+								$.notify({
+									message: changeStatusErrorMsg
+								}, {
+									status: 'danger',
+									autoHideDelay: 4000
+								});
+							}
+						});
+					}
+				});
+			}
+			
+			this.loadDataTables = function(showInactive) {
+				currentTable = $('.listTable').DataTable({
+					'destroy': true,
+					'stateSave': true,
+					'ajax': {
+						'contentType': 'application/json',
+						'url': ajaxUrl,
+						'type': 'POST',
+						headers: {
+							'X-CSRF-TOKEN': token,
+							'show-inactive': showInactive
+						},
+						'data': function(d) {
+						 	return JSON.stringify(d);
+						}
+					},
+					'serverSide' : true,
+					'columns' : [
+						{
+							data : 'created'
+						},
+						{
+							data : 'notificationType',
+							render: function (data, type, row, meta){
+								return typesMap[data];
+							}
+						},
+						{
+							data : 'affectedEntityName',
+							orderable: true,
+							searchable: true,
+							render: function (data, type, row, meta) {
+								return row.affectedEntityName + ' <a href=' + url + row.affectedEntityType.toLowerCase() + '/view/' + row.affectedEntityUuid + '><em class="fa fa-fw fa-external-link"></em></a>';
+							}
+						},
+						{
+							data : 'adminName',
+							render: function (data, type, row, meta) {
+								return '<a onclick="notificationService.flipAssign(' + row.id + ',' + !row.active + ',\'' + ((row.adminUuid) ? row.adminUuid : '') + '\');"><em class="fa fa-fw fa-user"></em></a>' +
+										((row.adminName) ? row.adminName + '<br/><em style="font-size: smaller;">' + row.lastUpdated + '</em>' : '');
+							}
+						},
+						{
+							data : 'id',
+							orderable: false,
+							searchable: false,
+							render: function (data, type, row, meta) {
+								return '<a href=' + url + 'report/notifications/view/' + row.id + '><em class="fa fa-fw fa-search"></em></a>' +
+									   '<a href="#" onClick="notificationService.changeStatus'+ '(' + row.id + ',' + !row.active + ')' +'"><em class="fa fa-fw fa-' + (row.active ? 'times' : 'repeat') + '"></em></a>';
+							}
+						}
+					],
+					'paging':   true,
+					'ordering': true,
+					'info':	 true,
+					'pageLength': 25,
+					'language': {
+						"search":	   searchTxt,
+						"lengthMenu":   dropdownTxt,
+						"info":		 infoDefaultTxt,
+						"zeroRecords":  infoEmptyTxt,
+						"infoEmpty":	"",
+						"infoFiltered": infoFilteredTxt,
+						"paginate": {
+							"next": nextTxt,
+							"previous": prevTxt
+						}
+					}
+				});
+			}
+			
+			this.initDatatables = function() {
+				// 1. Setup - add a text input to each footer cell
+				$('#listTable tfoot th[class = input-filter]').each( function () {
+					$(this).html('<input type="text" class="form-control input-sm" placeholder="Søg" />');
+				});
+
+				var table = $('#listTable').DataTable();
+
+			    // 2. Restore state
+			    var state = currentTable.state.loaded(); 
+			    if (state) {
+			    	currentTable.columns().eq(0).each(function(colIdx) {
+			        var colSearch = state.columns[colIdx].search;
+			        
+			        if (colSearch.search) {
+			          $('input', currentTable.column(colIdx).footer()).val(colSearch.search);
+			        }
+			      });
+
+			    	currentTable.draw();
+			    }
+				// 3. Apply the search
+				$.each($('.input-filter', table.table().footer()), function () {
+					var column = table.column($(this).index());
+					$('input', this).on('keyup change', function () {
+						console.log("searching: " + this.value);
+						if (column.search() !== this.value) {
+							column
+								.search(this.value)
+								.draw();
+						}
+					});
+				});
+			}
+			
+			this.changeStatus = function(id, status){
+				swal({
+					html : true,
+					title : status ? activateTitle : discardTitle,
+					text : status ? activateText : discardText,
+					type : "warning",
+					showCancelButton : true,
+					confirmButtonColor : "#DD6B55",
+					confirmButtonText : changeStatusButtonConfirm,
+					cancelButtonText : changeStatusButtonCancel,
+					closeOnConfirm : true,
+					closeOnCancel : true
+				},
+				function(isConfirm) {
+					if (isConfirm) {
+						$.ajax({
+							url: changeStatusUrl,
+							headers: {
+								'X-CSRF-TOKEN': token,
+								'id' : id,
+								'status': status
+							},
+							type: 'post',
+							contentType: 'application/json',
+							data: '',
+							success: function(data, textStatus, jQxhr) {
+								notificationService.loadDataTables(status);
+							},
+							error: function(jqXhr, textStatus, errorThrown) {
+								$.notify({
+									message: changeStatusErrorMsg
+								}, {
+									status: 'danger',
+									autoHideDelay: 4000
+								});
+							}
+						});
+					}
+				});
+			}
+		}
+		/*]]>*/
+	</script>
+</body>
+</html>

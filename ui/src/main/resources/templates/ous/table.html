@@ -3,8 +3,8 @@
 <head th:replace="fragments/header :: header (title=#{html.page.ous.list.title})" />
 <body>
 	<div class="wrapper">
-		<header th:replace="fragments/navbar :: navbar-header" />
-		<aside th:replace="fragments/navbar :: navbar-aside (page = 'ous.table')" />
+		<header th:replace="fragments/navbar :: navbar-header(subpage = 'roles')" />
+		<aside th:replace="fragments/navbar :: navbar-aside (page = 'ous.table', subpage = 'roles')" />
 
 		<section>
 			<div class="content-wrapper">

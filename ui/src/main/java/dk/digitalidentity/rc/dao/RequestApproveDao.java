@@ -21,5 +21,6 @@ public interface RequestApproveDao extends CrudRepository<RequestApprove, Long> 
 	List<RequestApprove> getByStatusIn(List<RequestApproveStatus> stati);
 
 	void deleteByStatusInAndStatusTimestampBefore(List<RequestApproveStatus> stati, Date before);
-
+	
+	List<RequestApprove> findAll();
 }

@@ -43,4 +43,6 @@ public interface OrgUnitDao extends CrudRepository<OrgUnit, String> {
 	List<OrgUnit> getByActiveTrueAndRoleGroupAssignmentsRoleGroupAndRoleGroupAssignmentsInheritAndRoleGroupAssignmentsInactive(RoleGroup role, boolean inherit, boolean inactive);
 	List<OrgUnit> getByManager(User user);
 	List<OrgUnit> getByActiveTrueAndNextAttestationNotNull();
+	
+	List<OrgUnit> getByAuthorizationManagersUser(User user);
 }

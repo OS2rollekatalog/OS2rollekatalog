@@ -4,8 +4,8 @@
 <body>
 
 	<div class="wrapper">
-		<header th:replace="fragments/navbar :: navbar-header" />
-		<aside th:replace="fragments/navbar :: navbar-aside (page = 'userroles.list')" />
+		<header th:replace="fragments/navbar :: navbar-header(subpage = 'roles')" />
+		<aside th:replace="fragments/navbar :: navbar-aside (page = 'userroles.list', subpage = 'roles')" />
 
 		<section>
 			<div class="content-wrapper">
@@ -154,24 +154,13 @@
 											<tr>
 												<th class="col-md-1" th:text="#{html.entity.positions.assign}" />
 												<th class="col-md-4" th:text="#{html.entity.user.name}" />
-												<th class="col-md-7" th:text="#{html.entity.user.userId}" />
+												<th class="col-md-4" th:text="#{html.entity.user.userId}" />
+												<th class="col-md-3" th:text="#{html.entity.rolegroup.validity}"/>
 											</tr>
 										</thead>
 	
 										<tbody>
-											 <tr th:each="user : ${users}" th:id="${user.uuid}+'row'">
-												<td>
-													<div class="checkbox c-checkbox">
-			                                            <label>
-			                                                <input class="checkbox-positions" th:id="${user.uuid}"
-			                                                       type="checkbox" th:value="${roleId}" data-objtype="role" th:checked="${user.checked}"/>
-			                                                <span class="fa fa-check"></span>
-			                                            </label>
-			                                        </div>
-												</td>
-												<td th:text="${user.name}" />
-												<td th:text="${user.userId}" />
-											</tr>
+
 										</tbody>
 									</table>
 								</div>
@@ -406,9 +395,11 @@
 	<div id="ouUserRoleModal"></div>
 	
 	<nav th:replace="fragments/footer :: footer" />
-	<script th:replace="users/fragments/user_user_role_modal :: userUserRoleModalScript(userRoleListTableId='listTable1', page='role')"/>
 	<script th:replace="ous/fragments/ou_roles_modal :: ouRoleGroupModalScript(titlesEnabled=${titlesEnabled}, page='role')" />
 	<script th:replace="fragments/assignDatePicker :: content " />
+
+	<div id="userScriptHolder">
+	</div>
 	
 	<!-- TODO: we need to add some styling that makes the datepickers show at the bottom and overflowing the modal 
 	The modal ou_roles_modal shows at the top-->
@@ -464,11 +455,13 @@
 			var roleId = [[${roleId}]];
 			var titlesEnabled = [[${titlesEnabled}]];
 		+]*/
-		
+				
 		var token = $("meta[name='_csrf']").attr("content");
 		var userService;
 		var unitService;
 		var notificationService;
+		var userTabInitialized = false;
+
 		$("document").ready(function() {
 			userService = new UserService();
 			unitService = new UnitService();
@@ -476,28 +469,18 @@
 			
 			$("#name").change(handleChangeOnInput);
 			$("#description").change(handleChangeOnInput);
+
+			$('a[data-toggle="tab"]').on("shown.bs.tab", function (e) {
+				var id = $(e.target).attr("href");
+
+				if ("#users_menu" == id && !userTabInitialized) {
+					userTabInitialized = true;
+		            loadUserTab();
+				}
+			});
 			
 			// Initialize datatable
 			var table = $('#listTable').DataTable( {
-				"columns": [ { "orderDataType": "dom-checkbox" , "className": 'details-control' }, { }, { } ],
-				"order": [
-					[1, 'asc']
-				],
-				"autoWidth": false,
-				"stateSave": true,
-				'pageLength': 100,
-		        "language": {
-		            "search":       searchTxt,
-		            "lengthMenu":   dropdownTxt,
-		            "info":         infoDefaultTxt,
-		            "zeroRecords":  infoEmptyTxt,
-		            "infoEmpty":    "",
-		            "infoFiltered": infoFilteredTxt
-		        }
-			});
-
-			// Initialize datatable
-			var table1 = $('#listTable1').DataTable( {
 				"columns": [ { "orderDataType": "dom-checkbox" , "className": 'details-control' }, { }, { } ],
 				"order": [
 					[1, 'asc']
@@ -563,11 +546,7 @@
 				addCheckboxListeners(table);
 				showSelectedRoles(table);
 			});
-			
-			$('#listTable1').on( 'draw.dt', function () {
-				userService.addCheckboxListeners();
-			});
-			
+						
 			$('#listTable2').on( 'draw.dt', function () {
 				unitService.addCheckboxListeners();
 			});
@@ -587,6 +566,34 @@
 			//init kle jstree
 			initJSTree("kle-tree", "kle-tree-search");
 		});
+
+		function loadUserTab() {
+			$("#users_menu").load(UIUrl + "edit/" + roleId + "/userFragment", function() {
+				$("#userScriptHolder").load(UIUrl + "scriptFragment", function() {
+					$('#listTable1').on( 'draw.dt', function () {
+						userService.addCheckboxListeners();
+					});
+
+					var table1 = $('#listTable1').DataTable({
+						"columns": [ { "orderDataType": "dom-checkbox" , "className": 'details-control' }, { }, { }, { } ],
+						"order": [
+							[1, 'asc']
+						],
+						"autoWidth": false,
+						"stateSave": true,
+						'pageLength': 100,
+				        "language": {
+				            "search":       searchTxt,
+				            "lengthMenu":   dropdownTxt,
+				            "info":         infoDefaultTxt,
+				            "zeroRecords":  infoEmptyTxt,
+				            "infoEmpty":    "",
+				            "infoFiltered": infoFilteredTxt
+				        }
+					});
+				});
+			});
+		}
 		
 		function UserService() {
 			
@@ -737,8 +744,8 @@
 			
 			this.handleCheckbox = function() {
 				var checked = !this.checked;
-				var startDate = this.dataset.startDate;
-				var stopDate = this.dataset.stopDate;
+				var startDate = this.dataset.startdate;
+				var stopDate = this.dataset.stopdate;
 				
 				payload.roleType = String(this.dataset.objtype);
 				payload.roleId = roleId;
@@ -759,10 +766,7 @@
 					else{
 						ouRolesModalService.showAssignModal(titlesEnabled, checked, null, startDate, stopDate);
 					}
-					
-					
-				});
-				
+				});				
 			}
 		}
 		

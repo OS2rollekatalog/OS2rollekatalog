@@ -16,6 +16,7 @@ public class AttestationOrgUnit {
 	private String managerName;
 	private String managerPosition;
 	private String substituteName;
+	private String substitutePosition;
 	private String name;
 	private String lastAttestedBy;
 	private Date lastAttested;
@@ -48,7 +49,10 @@ public class AttestationOrgUnit {
 			}
 			
 			if (ou.getManager().getManagerSubstitute() != null) {
-				substituteName = ou.getManager().getManagerSubstitute().getName() + " (" + ou.getManager().getManagerSubstitute().getUserId() + " )";
+				substituteName = ou.getManager().getManagerSubstitute().getName();
+				if (ou.getManager().getManagerSubstitute().getPositions().size() > 0) {
+					substitutePosition = ou.getManager().getManagerSubstitute().getPositions().get(0).getName() + " i " + ou.getManager().getManagerSubstitute().getPositions().get(0).getOrgUnit().getName();
+				}
 			}
 		}
 		

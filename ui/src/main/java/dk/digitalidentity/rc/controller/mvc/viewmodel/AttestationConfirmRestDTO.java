@@ -19,4 +19,5 @@ public class AttestationConfirmRestDTO {
 	private List<AttestationConfirmShowDTO> dtoShowAprovedPersonal;
 	private List<AttestationConfirmShowDTO> dtoShowAprovedUnit;
 	private String orgUnitUuid;
+	private String message;
 }

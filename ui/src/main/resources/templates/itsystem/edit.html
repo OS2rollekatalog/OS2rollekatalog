@@ -4,8 +4,8 @@
 <body>
 
 	<div class="wrapper">
-		<header th:replace="fragments/navbar :: navbar-header" />
-		<aside th:replace="fragments/navbar :: navbar-aside (page = 'itsystem.list')" />
+		<header th:replace="fragments/navbar :: navbar-header(subpage = 'roles')" />
+		<aside th:replace="fragments/navbar :: navbar-aside (page = 'itsystem.list', subpage = 'roles')" />
 
 		<section>
 			<div class="content-wrapper">
@@ -199,6 +199,7 @@
 							</fieldset>
 						</form>
 
+						<!--  START AD PANEL -->
 						<form class="form-horizontal" th:if="${#strings.toString(itsystem.systemType)} == 'AD'">
 							<ul class="nav nav-tabs">
 								<li th:class="active">
@@ -278,7 +279,8 @@
 								</div>
 							</div>
 						</form>
-						
+
+						<!-- START SAML/MANUEL PANEL -->						
 						<form class="form-horizontal" th:if="${#strings.toString(itsystem.systemType)} == 'SAML' or ${#strings.toString(itsystem.systemType)} == 'MANUAL'">
 							<ul class="nav nav-tabs">
 								<li th:class="active">
@@ -294,6 +296,7 @@
 									<div style="margin-bottom:20px;">
 										<div class="btn btn-lg btn-primary" style="width:auto;" onclick="convertSystemRolesToUserRoles();"><span th:text="#{html.page.itsystem.pane.systemroles.convert}" /></div>
 									</div>
+									
 									<table id="listTable" class="table table-striped listTable">
 										<thead>
 											<tr>
@@ -356,6 +359,7 @@
 							</div>
 						</form>
 						
+						<!-- START KOMBIT/CICS PANEL -->
 						<form class="form-horizontal" th:if="${#strings.toString(itsystem.systemType)} == 'KOMBIT' or ${#strings.toString(itsystem.systemType)} == 'KSPCICS'">
 							<ul class="nav nav-tabs">
 								<li th:class="active">
@@ -371,6 +375,7 @@
 									<div style="margin-bottom:20px;" th:if="${#strings.toString(itsystem.systemType)} != 'KSPCICS'">
 										<div class="btn btn-lg btn-primary" style="width:auto;" onclick="convertSystemRolesToUserRoles();"><span th:text="#{html.page.itsystem.pane.systemroles.convert}" /></div>
 									</div>
+
 									<table id="listTable" class="table table-striped listTable">
 										<thead>
 											<tr>

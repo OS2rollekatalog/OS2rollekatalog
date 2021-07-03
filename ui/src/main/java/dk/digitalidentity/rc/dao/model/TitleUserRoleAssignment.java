@@ -6,6 +6,7 @@ import java.util.List;
 
 import javax.persistence.CollectionTable;
 import javax.persistence.Column;
+import javax.persistence.Convert;
 import javax.persistence.ElementCollection;
 import javax.persistence.Entity;
 import javax.persistence.FetchType;
@@ -15,6 +16,7 @@ import javax.persistence.Id;
 import javax.persistence.JoinColumn;
 import javax.persistence.ManyToOne;
 
+import dk.digitalidentity.rc.dao.serializer.LocalDateAttributeConverter;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -49,9 +51,11 @@ public class TitleUserRoleAssignment {
 	@Column(name = "ou_uuid")
 	private List<String> ouUuids;
 
+    @Convert(converter = LocalDateAttributeConverter.class)
 	@Column
 	private LocalDate startDate;
 	
+    @Convert(converter = LocalDateAttributeConverter.class)
 	@Column
 	private LocalDate stopDate;
 	

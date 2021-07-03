@@ -1,6 +1,7 @@
 package dk.digitalidentity.rc.controller.mvc;
 
 import java.security.Principal;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -23,6 +24,8 @@ import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
+
+import com.microsoft.sqlserver.jdbc.StringUtils;
 
 import dk.digitalidentity.rc.config.Constants;
 import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
@@ -66,6 +69,7 @@ import dk.digitalidentity.rc.service.UserService;
 import dk.digitalidentity.rc.service.model.OrgUnitWithRole;
 import dk.digitalidentity.rc.service.model.RoleWithDateDTO;
 import dk.digitalidentity.rc.service.model.UserWithRole;
+import dk.digitalidentity.rc.service.model.UserWithRoleAndDates;
 
 @RequireRequesterOrReadAccessRole
 @Controller
@@ -229,15 +233,59 @@ public class UserRoleController {
 
 		UserRole role = mapper.map(roleForm, UserRole.class);
 		
-		if (roleForm.getIdentifier() == null || roleForm.getIdentifier() == "") {
+		if (StringUtils.isEmpty(roleForm.getIdentifier())) {
 			role.setIdentifier("id-" + UUID.randomUUID().toString());
-		}else {
+		}
+		else {
 			role.setIdentifier(roleForm.getIdentifier().replaceAll("[\\s]", ""));
 		}
 		
 		role = userRoleService.save(role);
 
 		return "redirect:edit/" + role.getId();
+	}
+	
+	@RequireAdministratorRole
+	@GetMapping(value = "/ui/userroles/edit/{id}/userFragment")
+	public String editGetUserFragment(Model model, @PathVariable("id") long id) {
+		UserRole role = userRoleService.getById(id);
+		if (role == null) {
+			return "redirect:../list";
+		}
+
+		List<User> usersFromDb = userService.getAll();
+		List<UserWithRoleAndDates> usersWithRole = userService.getUsersWithUserRoleDirectlyAssigned(role);
+		List<String> uuidsWithRole = usersWithRole.stream().map(u -> u.getUser().getUuid()).collect(Collectors.toList());
+		List<UserRoleCheckedDTO> users = new ArrayList<>();
+		
+		for (User user : usersFromDb) {
+			LocalDate startDate = null;
+			LocalDate stopDate = null;
+			boolean checked = false;
+			
+			if (uuidsWithRole.contains(user.getUuid())) {
+				checked = true;
+				//We know it exists because of the if, and there should only be one
+				UserWithRoleAndDates userWithRole = usersWithRole.stream().filter(u -> u.getUser().getUuid().equals(user.getUuid())).findAny().orElse(null);
+				startDate = userWithRole.getStartDate();
+				stopDate = userWithRole.getStopDate();
+			}
+			
+			UserRoleCheckedDTO dto = new UserRoleCheckedDTO();
+			dto.setName(user.getName());
+			dto.setUuid(user.getUuid());
+			dto.setUserId(user.getUserId());
+			dto.setChecked(checked);
+			dto.setStartDate(startDate);
+			dto.setStopDate(stopDate);
+			
+			users.add(dto);
+		}
+
+		model.addAttribute("users", users);
+		model.addAttribute("roleId", id);
+
+		return "userroles/editUserFragment";
 	}
 
 	@RequireAdministratorRole
@@ -305,6 +353,7 @@ public class UserRoleController {
 			kleDTOS.add(kleDTO);
 		}
 		
+		/* moved to fragment
 		List<User> usersFromDb = userService.getAll();
 		List<UserWithRole> usersWithRole = userService.getUsersWithUserRole(role, false);
 		
@@ -318,6 +367,7 @@ public class UserRoleController {
 						.checked(uuidsWithRole.contains(u.getUuid()))
 						.build())
 				.collect(Collectors.toList());
+		*/
 		
 		List<OrgUnit> oUsFromDb = orgUnitService.getAll();
 		List<RolesOUTable> allOUs = new ArrayList<>();
@@ -325,14 +375,15 @@ public class UserRoleController {
 			Assignment a = new Assignment();
 			List<RoleWithDateDTO> userRoles = orgUnitService.getNotInheritedUserRolesWithDate(ou);
 			RoleWithDateDTO ur = userRoles.stream().filter(r -> r.getId() == role.getId()).findFirst().orElse(null);
+			
 			if (ur != null) {
 				a.setStartDate(ur.getStartDate());
 				a.setStopDate(ur.getStopDate());
 				allOUs.add(new RolesOUTable(ou, true, a));
-			}else {
+			}
+			else {
 				allOUs.add(new RolesOUTable(ou, false, a));
 			}
-			
 		}
 
 		model.addAttribute("role", userRoleForm);
@@ -346,7 +397,7 @@ public class UserRoleController {
 		model.addAttribute("kleList", kleDTOS);
 		model.addAttribute("orgUnitList", select2Service.getOrgUnitList());
 		model.addAttribute("itSystemList", select2Service.getItSystemList());
-		model.addAttribute("users", users);
+		//model.addAttribute("users", users);
 		model.addAttribute("roleId", id);
 		model.addAttribute("allOUs", allOUs);
 		model.addAttribute("titlesEnabled", configuration.getTitles().isEnabled());
@@ -357,13 +408,19 @@ public class UserRoleController {
 	@GetMapping(value = "/ui/userroles/fragments/{uuid}")
 	public String getFragment(Model model, @PathVariable("uuid") String uuid) {
 		User user = userService.getByUuid(uuid);
-		
 		if (user != null) {
 			model.addAttribute("positions", user.getPositions());
 		}
 		
-		return "users/fragments/user_user_role_modal :: userUserRoleModal";
+		return "users/fragments/user_user_role_modal :: userUserRoleModal";	
+	}
+	
+	@GetMapping(value = "/ui/userroles/scriptFragment")
+	public String getFragmentScripts(Model model) {
+		model.addAttribute("userRoleListTableId", "listTable1");
+		model.addAttribute("page", "role");
 		
+		return "users/fragments/user_user_role_modal :: userUserRoleModalScript";
 	}
 	
 	@GetMapping(value = "/ui/userroles/fragments/ou/{uuid}")

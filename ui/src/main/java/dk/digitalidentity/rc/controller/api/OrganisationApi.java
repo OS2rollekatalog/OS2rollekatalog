@@ -6,6 +6,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -18,6 +19,7 @@ import dk.digitalidentity.rc.controller.api.exception.BadRequestException;
 import dk.digitalidentity.rc.controller.api.model.OrgUnitAM;
 import dk.digitalidentity.rc.controller.api.model.OrganisationDTO;
 import dk.digitalidentity.rc.controller.api.model.OrganisationImportResponse;
+import dk.digitalidentity.rc.service.OrganisationExporter;
 import dk.digitalidentity.rc.service.OrganisationImporter;
 import dk.digitalidentity.rc.service.OrganisationImporterOld;
 
@@ -32,6 +34,9 @@ public class OrganisationApi {
 	
 	@Autowired
 	private OrganisationImporter organisationImporter;
+
+	@Autowired
+	private OrganisationExporter organisationExporter;
 
 	@PostMapping(value = "/organisation")
 	@Transactional(rollbackFor = Exception.class)
@@ -90,5 +95,12 @@ public class OrganisationApi {
 			log.error("Import failed on v3!", ex);
 			throw new BadRequestException(ex.getMessage());
 		}
+	}
+
+	@GetMapping(value = "/organisation/v3")
+	@Transactional(rollbackFor = Exception.class)
+	public synchronized ResponseEntity<?> getOrgUnitsHierarchy() {
+		OrganisationDTO organisationDTO = organisationExporter.getOrganisationDTO();
+		return ResponseEntity.ok(organisationDTO);
 	}
 }

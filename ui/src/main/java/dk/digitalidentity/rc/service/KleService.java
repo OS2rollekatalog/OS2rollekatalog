@@ -5,7 +5,9 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestTemplate;
 
 import dk.digitalidentity.rc.controller.mvc.viewmodel.KleViewModel;
 import dk.digitalidentity.rc.dao.KleDao;
@@ -22,6 +24,10 @@ public class KleService {
 
 	@Autowired
 	private KleDao kleDao;
+	
+	@Qualifier("defaultRestTemplate")
+	@Autowired
+	private RestTemplate restTemplate;
 
 	public List<KleViewModel> getKleMainGroupList(){
 		return getKleListFromParent("0"); //parentCode 0 = KLE main groups "parent"
@@ -32,6 +38,10 @@ public class KleService {
 	}
 
 	public List<Kle> findAll() { return kleDao.findAll(); }
+	
+	public Kle save(Kle kle) {
+		return kleDao.save(kle);
+	}
 
 	public List<KleViewModel> getKleListFromParent(String parentCode){
 		if (parentCode.length() > 2) {

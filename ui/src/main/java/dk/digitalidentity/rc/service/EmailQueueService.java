@@ -32,7 +32,7 @@ public class EmailQueueService {
 	
 	public void queueEmail(String email, String title, String message, EmailTemplate template, List<AttachmentFile> attachments) {
 		if (StringUtils.isEmpty(email)) {
-			log.info("Not sending email '" + title + " because no recipient email supplied");
+			log.info("Not sending email '" + title + "' because no recipient email supplied");
 			return;
 		}
 		

@@ -99,14 +99,21 @@ public class KspCicsService {
 			"  <spml:identifier type=\"urn:oasis:names:tc:SPML:1:0#UserIDAndOrDomainName\">" + 
 			"    <spml:id>" + SOAP_ARG_KSP_CICS_USER_ID+ "</spml:id>" + 
 			"  </spml:identifier>" + 
-			"  <spml:modifications>" + 
-			"    <dsml:modification name=\"authorisations\" operation=\"replace\">";
+			"  <spml:modifications>";
+
+	private static final String SOAP_MODIFY_KSP_CICS_ADD_START =
+			"    <dsml:modification name=\"authorisations\" operation=\"add\">";
+	
+	private static final String SOAP_MODIFY_KSP_CICS_DELETE_START =
+			"    <dsml:modification name=\"authorisations\" operation=\"delete\">";
 	
 	private static final String SOAP_MODIFY_KSP_CICS_USER_ROLE =
 			"      <dsml:value>" + SOAP_ARG_USER_PROFILE + "</dsml:value>";
 
+	private static final String SOAP_MODIFY_KSP_CICS_ANYMOD_STOP = 
+			"    </dsml:modification>";
+
 	private static final String SOAP_MODIFY_KSP_CICS_USER_STOP = 
-			"    </dsml:modification>" + 
 			"  </spml:modifications>";
 
 	// actual payload for searching for users
@@ -126,6 +133,14 @@ public class KspCicsService {
 			"  <dsml:filter>" + 
 			"    <dsml:equalityMatch name=\"userProfileName\">" + 
 			"      <dsml:value>" + SOAP_ARG_USER_PROFILE + "</dsml:value>" + 
+			"    </dsml:equalityMatch>" + 
+			"  </dsml:filter>";
+	
+	// actual payload for filtering users search for specific user
+	private static final String SOAP_SEARCH_USER_FILTER =
+			"  <dsml:filter>" + 
+			"    <dsml:equalityMatch name=\"uid\">" + 
+			"      <dsml:value>" + SOAP_ARG_KSP_CICS_USER_ID + "</dsml:value>" + 
 			"    </dsml:equalityMatch>" + 
 			"  </dsml:filter>";
 	
@@ -385,11 +400,18 @@ public class KspCicsService {
 		// if there are more than 10 dirty userProfiles, we load ALL of them instead of loading them one
 		// at a time, as this saves processing time overall
 		List<KspUserProfile> userProfiles = new ArrayList<>();
+		List<KspUser> kspExistingUsers = new ArrayList<>();
 		if (dirtyProfileIdentifiers.size() > 10) {
 			KspUserProfilesResponse response = findUserProfiles(null);
 
 			if (response != null && response.getUserProfiles() != null && response.getUserProfiles().size() > 0) {
 				userProfiles = response.getUserProfiles();
+			}
+			
+			// we might as well also load all KspCics users if we are doing bulk loads
+			KspUsersResponse kspUsersResponse = findUsers();
+			if (kspUsersResponse != null) {
+				kspExistingUsers = kspUsersResponse.getUsers();
 			}
 		}
 
@@ -437,7 +459,6 @@ public class KspCicsService {
 							processed.add(dirtyProfile);
 						}
 						else {
-							// TODO: change to WARN after running in production for a while...
 							// TODO: also we do not flag it as processed for now - might do that later, once we know that KMD is working
 							log.error("Could not find dirty userProfile in KSP/CICS: " + dirtyProfile.getIdentifier());
 						}
@@ -466,11 +487,17 @@ public class KspCicsService {
 						.map(u -> u.getIdentifier())
 						.collect(Collectors.toSet());
 				
-				if (updateKspCicsUser(dirtyKspCicsUser, assignedUserProfiles)) {
-					log.info("Updated KSP/CICS role assignments for " + dirtyKspCicsUser);
+				KspUser existingKspUser = readKspCicsUser(dirtyKspCicsUser, kspExistingUsers);
+				if (existingKspUser != null) {
+					if (updateKspCicsUser(existingKspUser, assignedUserProfiles)) {
+						log.info("Updated KSP/CICS role assignments for " + dirtyKspCicsUser);
+					}
+					else {
+						log.warn("Failed to update KSP/CICS role assignment for " + dirtyKspCicsUser);
+					}
 				}
 				else {
-					log.warn("Failed to update KSP/CICS role assignment for " + dirtyKspCicsUser);
+					log.error("Could not find ksp user: " + dirtyKspCicsUser);
 				}
 			}
 		}
@@ -514,7 +541,46 @@ public class KspCicsService {
 		return null;
 	}
 
-	private boolean updateKspCicsUser(String kspCicsUserId, Set<String> userProfiles) {
+	private boolean updateKspCicsUser(KspUser existingKspUser, Set<String> userProfiles) {
+		Set<String> toAdd = new HashSet<>();
+		Set<String> toDelete = new HashSet<>();
+		
+		// compute actual changes to make
+		for (String userProfileToAssign : userProfiles) {
+			boolean found = false;
+			
+			for (String userProfileAlreadyAssigned : existingKspUser.getAuthorisations()) {
+				if (userProfileAlreadyAssigned.equalsIgnoreCase(userProfileToAssign)) {
+					found = true;
+					break;
+				}
+			}
+			
+			if (!found) {
+				toAdd.add(userProfileToAssign);
+			}
+		}
+		
+		for (String userProfileToRemove : existingKspUser.getAuthorisations()) {
+			boolean found = false;
+			
+			for (String userProfileAssigned : userProfiles) {
+				if (userProfileAssigned.equalsIgnoreCase(userProfileToRemove)) {
+					found = true;
+					break;
+				}				
+			}
+			
+			if (!found) {
+				toDelete.add(userProfileToRemove);
+			}
+		}
+		
+		if (toAdd.size() == 0 && toDelete.size() == 0) {
+			log.info("No changes for " + existingKspUser.getUserId() + ", skipping update");
+			return true;
+		}
+
     	HttpHeaders headers = new HttpHeaders();
         headers.add("Content-Type", "text/xml; charset=utf-8");
         headers.add("SOAPAction", "http://www.kmd.dk/KMD.YH.KSPAabenSpml/SPMLModifyRequest");		
@@ -522,11 +588,26 @@ public class KspCicsService {
         StringBuilder builder = new StringBuilder();
         builder.append(SOAP_WRAPPER_BEGIN);
         builder.append(SOAP_MODIFY_REQUEST_BEGIN);
-        builder.append(SOAP_MODIFY_KSP_CICS_USER_START.replace(SOAP_ARG_KSP_CICS_USER_ID, kspCicsUserId));
+        builder.append(SOAP_MODIFY_KSP_CICS_USER_START.replace(SOAP_ARG_KSP_CICS_USER_ID, existingKspUser.getUserId()));
 
-        // add all userRoles that this user should be assigned
-        for (String userProfile : userProfiles) {
-            builder.append(SOAP_MODIFY_KSP_CICS_USER_ROLE.replace(SOAP_ARG_USER_PROFILE, escape(userProfile)));
+        if (toAdd.size() > 0) {
+            builder.append(SOAP_MODIFY_KSP_CICS_ADD_START);
+            
+	        for (String userProfile : toAdd) {
+	            builder.append(SOAP_MODIFY_KSP_CICS_USER_ROLE.replace(SOAP_ARG_USER_PROFILE, escape(userProfile)));
+	        }
+
+            builder.append(SOAP_MODIFY_KSP_CICS_ANYMOD_STOP);        	
+        }
+        
+        if (toDelete.size() > 0) {
+	        builder.append(SOAP_MODIFY_KSP_CICS_DELETE_START);
+	        
+	        for (String userProfile : toDelete) {
+	            builder.append(SOAP_MODIFY_KSP_CICS_USER_ROLE.replace(SOAP_ARG_USER_PROFILE, escape(userProfile)));
+	        }
+
+	        builder.append(SOAP_MODIFY_KSP_CICS_ANYMOD_STOP);
         }
 
         builder.append(SOAP_MODIFY_KSP_CICS_USER_STOP);
@@ -691,6 +772,94 @@ public class KspCicsService {
 		return kspUserProfilesResponse;
 	}
 
+	private KspUser readKspCicsUser(String userId, List<KspUser> kspExistingUsers) {
+		KspUser kspUser = kspExistingUsers.stream().filter(ksp -> ksp.getUserId().equalsIgnoreCase(userId)).findFirst().orElse(null);
+		if (kspUser != null) {
+			return kspUser;
+		}
+		
+		return readKspCicsUser(userId);
+	}
+
+	private KspUser readKspCicsUser(String userId) {
+    	HttpHeaders headers = new HttpHeaders();
+        headers.add("Content-Type", "text/xml; charset=utf-8");
+        headers.add("SOAPAction", "http://www.kmd.dk/KMD.YH.KSPAabenSpml/SPMLSearchRequest");
+
+        StringBuilder builder = new StringBuilder();
+        builder.append(SOAP_WRAPPER_BEGIN);
+        builder.append(SOAP_SEARCH_REQUEST_BEGIN);
+        builder.append(SOAP_SEARCH_USERS.replace(SOAP_ARG_LOSSHORTNAME, configuration.getIntegrations().getKspcics().getLosid()));
+        builder.append(SOAP_SEARCH_USER_FILTER.replace(SOAP_ARG_KSP_CICS_USER_ID, userId));
+        builder.append(SOAP_SEARCH_REQUEST_END);
+        builder.append(SOAP_WRAPPER_END);
+
+        String payload = builder.toString();
+    	HttpEntity<String> request = new HttpEntity<String>(payload, headers);
+		ResponseEntity<String> response;
+
+    	// KMD has some issues, so we might have to try multiple times
+    	int tries = 3;
+    	do {
+    		response = restTemplate.postForEntity(configuration.getIntegrations().getKspcics().getUrl(), request, String.class);
+			if (response.getStatusCodeValue() != 200) {
+				if (--tries >= 0) {
+					log.warn("FindUsers - Got responseCode " + response.getStatusCodeValue() + " from service");
+					
+					try {
+						Thread.sleep(5000);
+					}
+					catch (InterruptedException ex) {
+						;
+					}
+				}
+				else {
+					log.error("FindUsers - Got responseCode " + response.getStatusCodeValue() + " from service. Request=" + request + " / Response=" + response.getBody());
+					return null;
+				}
+			}
+			else {
+				break;
+			}
+    	} while (true);
+
+		String responseBody = response.getBody();		
+		SearchWrapper wrapper = null;
+
+		try {
+			XmlMapper xmlMapper = new XmlMapper();
+			xmlMapper.configure(MapperFeature.ACCEPT_CASE_INSENSITIVE_PROPERTIES, true);
+
+			Envelope envelope = xmlMapper.readValue(responseBody, Envelope.class);
+			String searchResponse = envelope.getBody().getSpmlSearchRequestResponse().getSpmlSearchRequestResult();
+	
+			wrapper = xmlMapper.readValue(searchResponse, SearchWrapper.class);
+		}
+		catch (Exception ex) {
+			log.error("FindUsers - Failed to decode response: " + responseBody, ex);
+
+			return null;
+		}
+
+		if (!SUCCESS_RESPONSE.equals(wrapper.getResult())) {
+			log.error("FindUsers - Got a non-success response: " + wrapper.getResult() + ". Request=" + payload + " / Response=" + responseBody);
+			
+			return null;
+		}
+		
+		KspUser kspUser = null;
+		for (SearchEntry entry : wrapper.getSearchResultEntry()) {
+			kspUser = new KspUser();
+			kspUser.setCpr(entry.getAttributes().getUserCpr());
+			kspUser.setUserId(entry.getIdentifier().getId());
+			kspUser.setAuthorisations(entry.getAttributes().getUserAuthorisations());
+
+			break;
+		}
+
+		return kspUser;
+	}
+
 	private KspUsersResponse findUsers() {
     	HttpHeaders headers = new HttpHeaders();
         headers.add("Content-Type", "text/xml; charset=utf-8");
@@ -762,6 +931,7 @@ public class KspCicsService {
 			KspUser kspUser = new KspUser();
 			kspUser.setCpr(entry.getAttributes().getUserCpr());
 			kspUser.setUserId(entry.getIdentifier().getId());
+			kspUser.setAuthorisations(entry.getAttributes().getUserAuthorisations());
 
 			kspUsersResponse.getUsers().add(kspUser);
 		}

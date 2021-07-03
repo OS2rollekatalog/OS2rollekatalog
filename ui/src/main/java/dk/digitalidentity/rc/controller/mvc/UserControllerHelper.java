@@ -30,6 +30,7 @@ import dk.digitalidentity.rc.service.RoleGroupService;
 import dk.digitalidentity.rc.service.UserRoleService;
 import dk.digitalidentity.rc.service.UserService;
 import dk.digitalidentity.rc.service.model.AssignedThrough;
+import dk.digitalidentity.rc.service.model.RoleGroupAssignedToUser;
 import dk.digitalidentity.rc.service.model.UserRoleAssignedToUser;
 
 @Component
@@ -64,20 +65,24 @@ public class UserControllerHelper {
 		List<UserRoleAssignedToUser> allAssigned = userService.getAllUserRolesAssignedToUser(user, null);
 
 		for (UserRole role : userRoles) {
+			// assigned directly or through positions
 			boolean checked = shouldBeChecked(user, role);
 			
 			// if not checked, we see if it was assigned indirectly, and then store that information for the GUI
 			AssignedThrough assignedThrough = null;
+			boolean shouldBeDisabled = false;
 			if (!checked) {
 				for (UserRoleAssignedToUser assigned : allAssigned) {
 					if (assigned.getUserRole().getId() == role.getId()) {
 						assignedThrough = assigned.getAssignedThrough();
-						
+
+						shouldBeDisabled = true;
+						checked = true;
 						break;
 					}
 				}
 			}
-			
+
 			UserRole newRole = new UserRole();
 			newRole.setDescription(role.getDescription());
 			newRole.setId(role.getId());
@@ -90,6 +95,7 @@ public class UserControllerHelper {
 			editUserRoleRow.setRole(newRole);
 			editUserRoleRow.setAssignedThrough(assignedThrough);
 			editUserRoleRow.setChecked(checked);
+			editUserRoleRow.setShouldBeDisabled(shouldBeDisabled);
 			
 			if (!SecurityUtil.getRoles().contains(Constants.ROLE_ADMINISTRATOR) && role.getItSystem().getIdentifier().equals(Constants.ROLE_CATALOGUE_IDENTIFIER)) {
 				editUserRoleRow.setCanCheck(false);
@@ -110,14 +116,33 @@ public class UserControllerHelper {
 		List<EditRolegroupRow> addRoleGroups = new ArrayList<>();
 		List<RoleGroup> roleGroups = roleGroupService.getAll();
 		roleGroups = assignerRoleConstraint.filterRoleGroupsUserCanAssign(roleGroups);
+		List<RoleGroupAssignedToUser> allAssigned = userService.getAllRoleGroupsAssignedToUser(user);
 
 		for (RoleGroup roleGroup : roleGroups) {
+			// assigned directly or through positions
 			boolean checked = shouldBeChecked(user, roleGroup);
+			
+			AssignedThrough assignedThrough = null;
+			boolean shouldBeDisabled = false;
+
+			if (!checked) {
+				for (RoleGroupAssignedToUser uratu : allAssigned) {
+					if (uratu.getRoleGroup().getId() == roleGroup.getId()) {
+						assignedThrough = uratu.getAssignedThrough();
+						shouldBeDisabled = true;
+						checked = true;
+
+						break;
+					}
+				}
+			}
 
 			EditRolegroupRow rgr = new EditRolegroupRow();
 			rgr.setRoleGroup(roleGroup);
 			rgr.setAssignment(getAssignment(user, roleGroup));
 			rgr.setChecked(checked);
+			rgr.setAssignedThrough(assignedThrough);
+			rgr.setShouldBeDisabled(shouldBeDisabled);
 
 			addRoleGroups.add(rgr);
 		}

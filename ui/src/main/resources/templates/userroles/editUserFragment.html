@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+<body>
+
+	<table th:fragment="userFragment" id="listTable1" class="table table-striped">
+		<thead>
+			<tr>
+				<th class="col-md-1" th:text="#{html.entity.positions.assign}" />
+				<th class="col-md-4" th:text="#{html.entity.user.name}" />
+				<th class="col-md-4" th:text="#{html.entity.user.userId}" />
+				<th class="col-md-3" th:text="#{html.entity.rolegroup.validity}"/>
+			</tr>
+		</thead>
+
+		<tbody>
+			 <tr th:each="user : ${users}" th:id="${user.uuid}+'row'">
+				<td>
+					<div class="checkbox c-checkbox">
+					    <label>
+					        <input class="checkbox-positions" th:id="${user.uuid}"
+					               type="checkbox" th:value="${roleId}" data-objtype="role" th:checked="${user.checked}"/>
+					        <span class="fa fa-check"></span>
+					    </label>
+					</div>
+				</td>
+				<td th:text="${user.name}" />
+				<td th:text="${user.userId}" />
+				<td class="fromToDate">
+              		<ul th:if="${user.startDate != null or user.stopDate != null}" style="padding-left: 0px; list-style-type: none;">
+               			<li th:if="${user.startDate != null}" th:text="#{html.word.assigned} + ' ' + ${user.startDate}"></li>
+               			<li th:if="${user.stopDate != null}" th:text="#{html.word.deassigned} + ' ' + ${user.stopDate}"></li>
+              		</ul>
+              		<span th:if="${user.checked == true and user.startDate == null and user.stopDate == null}" th:text="#{html.word.indefinite}"/>
+              	</td>
+			</tr>
+		</tbody>
+	</table>
+
+</body>
+</html>

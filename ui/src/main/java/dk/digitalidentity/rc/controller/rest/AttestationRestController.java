@@ -30,7 +30,6 @@ import org.xhtmlrenderer.pdf.ITextRenderer;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.AttestationConfirmPersonalListDTO;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.AttestationConfirmRestDTO;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.AttestationConfirmShowDTO;
-import dk.digitalidentity.rc.controller.mvc.viewmodel.AttestationConfirmUnitListDTO;
 import dk.digitalidentity.rc.dao.model.AttachmentFile;
 import dk.digitalidentity.rc.dao.model.AttestationNotification;
 import dk.digitalidentity.rc.dao.model.EmailTemplate;
@@ -39,6 +38,7 @@ import dk.digitalidentity.rc.dao.model.OrgUnitAttestationPdf;
 import dk.digitalidentity.rc.dao.model.RoleGroup;
 import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserRole;
+import dk.digitalidentity.rc.dao.model.enums.CheckupIntervalEnum;
 import dk.digitalidentity.rc.dao.model.enums.EmailTemplateType;
 import dk.digitalidentity.rc.security.RequireAdministratorRole;
 import dk.digitalidentity.rc.security.RequireAssignerOrManagerRole;
@@ -112,7 +112,7 @@ public class AttestationRestController {
 		removePersonalRoles(confirmDTO.getToBeRemoved());
 
 		// request removal of inherited roles that the manager will not approve
-		requestRemovalOfIndirectRoles(confirmDTO.getToEmail(), orgUnit, confirmDTO.getDtoShowToEmail());
+		requestRemovalOfIndirectRoles(orgUnit, confirmDTO.getMessage(), confirmDTO.getDtoShowToEmail());
 
 		// set lastAttested and update nextAttestation
 		orgUnit.setLastAttested(new Date());
@@ -125,6 +125,10 @@ public class AttestationRestController {
 		Date lastAttestation = (orgUnit.getNextAttestation() != null) ? orgUnit.getNextAttestation() : new Date();
 		LocalDate afterThisTts = Instant.ofEpochMilli(lastAttestation.getTime()).atZone(ZoneId.systemDefault()).toLocalDate();
 		
+		// for PDF report
+		Date currentDeadline = orgUnit.getNextAttestation();
+		CheckupIntervalEnum interval = settingsService.getScheduledAttestationInterval();
+
 		Date nextAttestationDate = attestationService.getNextAttestationDate(afterThisTts, attestationService.isSensitive(orgUnit));
 		orgUnit.setNextAttestation(nextAttestationDate);
 		
@@ -135,12 +139,17 @@ public class AttestationRestController {
 		attestationNotificationService.deleteAll(aNs);
 
 		// generate an attestation report
-		byte[] pdfConfirmation = generateAttestationReport(confirmDTO, orgUnit);
+		byte[] pdfConfirmation = generateAttestationReport(confirmDTO, orgUnit, currentDeadline, interval);
 
 		// Send pdf to manager and substitute, if they have emails
 		if (pdfConfirmation != null) {
 			Map<String, String> emails = new HashMap<>();
 			
+			String archiveEmail = settingsService.getEmailAttestationReport();
+			if (!StringUtils.isEmpty(archiveEmail)) {
+				emails.put(archiveEmail, "Arkiv");
+			}
+
 			User manager = orgUnit.getManager();
 			if (!StringUtils.isEmpty(manager.getEmail())) {
 				emails.put(manager.getEmail(), manager.getName());
@@ -150,19 +159,31 @@ public class AttestationRestController {
 				emails.put(manager.getManagerSubstitute().getEmail(), manager.getManagerSubstitute().getName());
 			}
 
+			StringBuilder fileNameBuilder = new StringBuilder();
+			fileNameBuilder.append(LocalDate.now().toString());
+			fileNameBuilder.append(" - ");
+			fileNameBuilder.append(orgUnit.getName());
+			fileNameBuilder.append(" - ");
+			fileNameBuilder.append("attesteringsrapport.pdf");
+			String fileName = fileNameBuilder.toString();
+			
 			EmailTemplate template = emailTemplateService.findByTemplateType(EmailTemplateType.ATTESTATION_DOCUMENTATION);
-			for (String email : emails.keySet()) {
-				AttachmentFile attachmentFile = new AttachmentFile();
-				attachmentFile.setContent(pdfConfirmation);
-				attachmentFile.setFilename("Attesteringsrapport.pdf");
+			if (template.isEnabled()) {
+				for (String email : emails.keySet()) {
+					AttachmentFile attachmentFile = new AttachmentFile();
+					attachmentFile.setContent(pdfConfirmation);
+					attachmentFile.setFilename(fileName);
 
-				List<AttachmentFile> attachments = new ArrayList<>();
-				attachments.add(attachmentFile);
+					List<AttachmentFile> attachments = new ArrayList<>();
+					attachments.add(attachmentFile);
 
-				String message = template.getMessage();
-				message = message.replace(EmailTemplateService.RECEIVER_PLACEHOLDER, emails.get(email));
-				message = message.replace(EmailTemplateService.ORGUNIT_PLACEHOLDER, orgUnit.getName());
-				emailQueueService.queueEmail(email, template.getTitle(), message, template, attachments);
+					String message = template.getMessage();
+					message = message.replace(EmailTemplateService.RECEIVER_PLACEHOLDER, emails.get(email));
+					message = message.replace(EmailTemplateService.ORGUNIT_PLACEHOLDER, orgUnit.getName());
+					emailQueueService.queueEmail(email, template.getTitle(), message, template, attachments);
+				}
+			} else {
+				log.info("Email template with type " + template.getTemplateType() + " is disabled. Emails were not sent.");
 			}
 		}
 
@@ -190,12 +211,21 @@ public class AttestationRestController {
 
 			return new ResponseEntity<>(HttpStatus.NOT_FOUND);
 		}
+		
+		SimpleDateFormat sdf = new SimpleDateFormat("yyyyMMdd");
+		StringBuilder fileNameBuilder = new StringBuilder();
+		fileNameBuilder.append(sdf.format(orgUnit.getLastAttested()));
+		fileNameBuilder.append(" - ");
+		fileNameBuilder.append(orgUnit.getName());
+		fileNameBuilder.append(" - ");
+		fileNameBuilder.append("attesteringsrapport.pdf");
+		String fileName = fileNameBuilder.toString();
 
 		byte[] bytes = ouap.getPdf();
 		HttpHeaders httpHeaders = new HttpHeaders();
 		httpHeaders.setContentType(MediaType.APPLICATION_OCTET_STREAM);
 		httpHeaders.setContentLength(bytes.length);
-		httpHeaders.setContentDispositionFormData("attachment", "Attesteringsrapport.pdf");
+		httpHeaders.setContentDispositionFormData("attachment", fileName);
 
 		return new ResponseEntity<>(bytes, httpHeaders, HttpStatus.OK);
 	}
@@ -217,11 +247,20 @@ public class AttestationRestController {
 			return new ResponseEntity<>(HttpStatus.NOT_FOUND);
 		}
 
+		SimpleDateFormat sdf = new SimpleDateFormat("yyyyMMdd");
+		StringBuilder fileNameBuilder = new StringBuilder();
+		fileNameBuilder.append(sdf.format(orgUnit.getLastAttested()));
+		fileNameBuilder.append(" - ");
+		fileNameBuilder.append(orgUnit.getName());
+		fileNameBuilder.append(" - ");
+		fileNameBuilder.append("attesteringsrapport.pdf");
+		String fileName = fileNameBuilder.toString();
+
 		byte[] bytes = ouap.getPdf();
 		HttpHeaders httpHeaders = new HttpHeaders();
 		httpHeaders.setContentType(MediaType.APPLICATION_OCTET_STREAM);
 		httpHeaders.setContentLength(bytes.length);
-		httpHeaders.setContentDispositionFormData("attachment", "Attesteringsrapport.pdf");
+		httpHeaders.setContentDispositionFormData("attachment", fileName);
 
 		return new ResponseEntity<>(bytes, httpHeaders, HttpStatus.OK);
 	}
@@ -270,58 +309,60 @@ public class AttestationRestController {
 		}
 	}
 	
-	private void requestRemovalOfIndirectRoles(List<AttestationConfirmUnitListDTO> toEmail, OrgUnit orgUnit, List<AttestationConfirmShowDTO> list) throws Exception {
-		if (toEmail != null && toEmail.size() > 0) {
-			String email = settingsService.getRemovalOfUnitRolesEmail();
+	private void requestRemovalOfIndirectRoles(OrgUnit orgUnit, String managerMessage, List<AttestationConfirmShowDTO> list) throws Exception {
+		String email = settingsService.getRemovalOfUnitRolesEmail();
 
-			if (!StringUtils.isEmpty(email)) {
-				log.warn("No email configured for sending removal requests");
+		if (StringUtils.isEmpty(email)) {
+			log.warn("No email configured for sending removal requests");
+		}
+		else {
+			Context ctxDelete = new Context();
+			ctxDelete.setVariable("toEmail", list);
+			ctxDelete.setVariable("orgUnitName", orgUnit.getName());
+			ctxDelete.setVariable("attestedBy", orgUnit.getLastAttestedBy());
+
+			SimpleDateFormat simpleDateFormatDelete = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+			ctxDelete.setVariable("time", simpleDateFormatDelete.format(new Date()));
+
+			String htmlContentDelete = templateEngine.process("manager/attestations_unit_roles_pdf", ctxDelete);
+
+			byte[] pdfDelete = null;
+
+			// Create PDF document
+			try (ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
+				ITextRenderer renderer = new ITextRenderer();
+				renderer.setDocumentFromString(htmlContentDelete);
+				renderer.layout();
+				renderer.createPDF(outputStream);
+
+				pdfDelete = outputStream.toByteArray();
 			}
-			else {
-				Context ctxDelete = new Context();
-				ctxDelete.setVariable("toEmail", list);
-				ctxDelete.setVariable("orgUnitName", orgUnit.getName());
-				ctxDelete.setVariable("attestedBy", orgUnit.getLastAttestedBy());
-	
-				SimpleDateFormat simpleDateFormatDelete = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-				ctxDelete.setVariable("time", simpleDateFormatDelete.format(new Date()));
-	
-				String htmlContentDelete = templateEngine.process("manager/attestations_unit_roles_pdf", ctxDelete);
-	
-				byte[] pdfDelete = null;
-	
-				// Create PDF document
-				try (ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
-					ITextRenderer renderer = new ITextRenderer();
-					renderer.setDocumentFromString(htmlContentDelete);
-					renderer.layout();
-					renderer.createPDF(outputStream);
-	
-					pdfDelete = outputStream.toByteArray();
-				}
-				finally {
-					;
-				}
-	
-				if (pdfDelete != null) {
-					AttachmentFile attachmentFile = new AttachmentFile();
-					attachmentFile.setContent(pdfDelete);
-					attachmentFile.setFilename("Anmodning.pdf");
+			finally {
+				;
+			}
 
-					List<AttachmentFile> attachments = new ArrayList<>();
-					attachments.add(attachmentFile);
+			if (pdfDelete != null) {
+				AttachmentFile attachmentFile = new AttachmentFile();
+				attachmentFile.setContent(pdfDelete);
+				attachmentFile.setFilename("Anmodning.pdf");
 
-					EmailTemplate template = emailTemplateService.findByTemplateType(EmailTemplateType.ATTESTATION_DOCUMENTATION);
-					String message = template.getMessage();
+				List<AttachmentFile> attachments = new ArrayList<>();
+				attachments.add(attachmentFile);
+
+				EmailTemplate template = emailTemplateService.findByTemplateType(EmailTemplateType.REMOVE_UNIT_ROLES);
+				if (template.isEnabled()) {
+					String message = template.getMessage() + ((!StringUtils.isEmpty(managerMessage)) ? ("\n<br/><br/>\n<strong>Besked fra lederen:</strong>\n<br/>" + managerMessage) : "");
 					message = message.replace(EmailTemplateService.RECEIVER_PLACEHOLDER, "it-afdeling");
 					message = message.replace(EmailTemplateService.ORGUNIT_PLACEHOLDER, orgUnit.getName());
 					emailQueueService.queueEmail(email, template.getTitle(), message, template, attachments);
+				} else {
+					log.info("Email template with type " + template.getTemplateType() + " is disabled. Email was not sent.");
 				}
 			}
 		}
 	}
 
-	private byte[] generateAttestationReport(AttestationConfirmRestDTO confirmDTO, OrgUnit orgUnit) throws Exception {
+	private byte[] generateAttestationReport(AttestationConfirmRestDTO confirmDTO, OrgUnit orgUnit, Date deadline, CheckupIntervalEnum interval) throws Exception {
 		Context ctxConfirmation = new Context();
 		ctxConfirmation.setVariable("aprovedPersonal", confirmDTO.getDtoShowAprovedPersonal());
 		ctxConfirmation.setVariable("aprovedUnit", confirmDTO.getDtoShowAprovedUnit());
@@ -329,9 +370,12 @@ public class AttestationRestController {
 		ctxConfirmation.setVariable("toBeRemoved", confirmDTO.getDtoShowToBeRemoved());
 		ctxConfirmation.setVariable("orgUnitName", orgUnit.getName());
 		ctxConfirmation.setVariable("attestedBy", orgUnit.getLastAttestedBy());
+		ctxConfirmation.setVariable("message", confirmDTO.getMessage());
 
-		SimpleDateFormat simpleDateFormatConfirmation = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+		SimpleDateFormat simpleDateFormatConfirmation = new SimpleDateFormat("yyyy-MM-dd");
 		ctxConfirmation.setVariable("time", simpleDateFormatConfirmation.format(new Date()));
+		ctxConfirmation.setVariable("deadline", simpleDateFormatConfirmation.format(deadline));
+		ctxConfirmation.setVariable("interval", interval.getMessage());
 
 		String htmlContentConfirmation = templateEngine.process("manager/attestations_pdf", ctxConfirmation);
 
@@ -348,8 +392,11 @@ public class AttestationRestController {
 			
 			OrgUnitAttestationPdf ouap = new OrgUnitAttestationPdf();
 			ouap.setPdf(pdfConfirmation);
-			
+
 			orgUnitAttestationPdfService.save(orgUnit, ouap);
+
+			// We need to also save ou otherwise the relation between the now saved pdf and the ou is not neccesarily saved
+			orgUnitService.save(orgUnit);
 		}
 		finally {
 			;

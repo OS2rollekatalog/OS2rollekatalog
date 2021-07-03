@@ -4,6 +4,8 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -294,8 +296,13 @@ public class HandleInactiveRolesService {
 						assignment.setInactive(false);
 						assignment.setStartDate(null);
 						hasChanges = true;
-						
-						roleChangeInterceptor.interceptAddRoleGroupAssignmentOnOrgUnit(orgUnit, assignment.getRoleGroup(), assignment.isInactive(), assignment.getStartDate(), assignment.getStopDate());
+
+						Set<String> exceptedUsers = null;
+						if (assignment.isContainsExceptedUsers()) {
+							exceptedUsers = assignment.getExceptedUsers().stream().map(User::getUuid).collect(Collectors.toSet());
+						}
+
+						roleChangeInterceptor.interceptAddRoleGroupAssignmentOnOrgUnit(orgUnit, assignment.getRoleGroup(), assignment.isInactive(), assignment.getStartDate(), assignment.getStopDate(), exceptedUsers);
 					}
 					break;
 				case EXPIRED:
@@ -330,8 +337,13 @@ public class HandleInactiveRolesService {
 						assignment.setInactive(false);
 						assignment.setStartDate(null);
 						hasChanges = true;
-						
-						roleChangeInterceptor.interceptAddUserRoleAssignmentOnOrgUnit(orgUnit, assignment.getUserRole(), assignment.isInherit(), assignment.getStartDate(), assignment.getStopDate());
+
+						Set<String> exceptedUsers = null;
+						if (assignment.isContainsExceptedUsers()) {
+							exceptedUsers = assignment.getExceptedUsers().stream().map(User::getUuid).collect(Collectors.toSet());
+						}
+
+						roleChangeInterceptor.interceptAddUserRoleAssignmentOnOrgUnit(orgUnit, assignment.getUserRole(), assignment.isInherit(), assignment.getStartDate(), assignment.getStopDate(), exceptedUsers);
 					}
 					break;
 				case EXPIRED:

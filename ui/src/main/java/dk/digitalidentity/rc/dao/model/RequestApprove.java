@@ -37,12 +37,16 @@ public class RequestApprove implements AuditLoggable {
 	private User requester;
 
 	@ManyToOne(fetch = FetchType.LAZY)
-	@JoinColumn(name = "manager_uuid")
-	private User manager;
-	
-	@ManyToOne(fetch = FetchType.LAZY)
 	@JoinColumn(name = "assigner_uuid")
 	private User assigner;
+	
+	@ManyToOne(fetch = FetchType.LAZY)
+	@JoinColumn(name = "requested_for_uuid")
+	private User requestedFor;
+	
+	@ManyToOne(fetch = FetchType.LAZY)
+	@JoinColumn(name = "ou_uuid")
+	private OrgUnit orgUnit;
 
 	@Enumerated(EnumType.STRING)
 	@Column(nullable = false)
@@ -69,6 +73,9 @@ public class RequestApprove implements AuditLoggable {
 
 	@Column
 	private Date statusTimestamp;
+	
+	@Column
+	private boolean emailSent;
 
 	@JsonIgnore
 	@Override

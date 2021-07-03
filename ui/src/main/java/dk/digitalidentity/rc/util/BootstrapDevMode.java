@@ -12,6 +12,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
 import dk.digitalidentity.rc.controller.api.model.OrgUnitAM;
 import dk.digitalidentity.rc.controller.api.model.UserAM;
 import dk.digitalidentity.rc.dao.RoleGroupDao;
@@ -78,11 +79,16 @@ public class BootstrapDevMode {
 	@Autowired
 	private RoleGroupDao roleGroupDao;
 	
+	@Autowired
+	private RoleCatalogueConfiguration configuration;
+
 	// run every 8 hours, but wait 15 seconds after boot... kinda need a run-once
 	// here instead ;)
 	@Scheduled(fixedDelay = 8 * 60 * 60 * 1000, initialDelay = 15 * 1000)
 	public void init() throws Exception {
-		init(false);
+		if (configuration.getScheduled().isEnabled()) {
+			init(false);
+		}
 	}
 	
 	public void init(boolean force) throws Exception {

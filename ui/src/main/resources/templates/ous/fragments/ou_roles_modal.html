@@ -13,32 +13,51 @@
 					<p th:utext="#{html.page.ous.edit.choose.text.intro}" />
 					<ul>
 						<li th:if="${titles != null and titles.size() > 0}" th:text="#{html.page.ous.edit.choose.text.titles}"></li>
+						<li th:text="#{html.page.ous.edit.choose.text.exceptedusers}"></li>
 						<li th:text="#{html.page.ous.edit.choose.text.all}"></li>
 						<li th:text="#{html.page.ous.edit.choose.text.remove}"></li>
 					</ul>
 
-					<table th:if="${titles != null and titles.size() > 0}" id="listTable" class="table table-striped">
-						<thead>
-							<tr>
-								<th class="col-md-1" th:text="#{html.entity.title.checked}" />
-								<th class="col-md-4" th:text="#{html.entity.title.name}" />
-							</tr>
-						</thead>
+					<ul class="nav nav-tabs" id="dataTabs">
+						<li sec:authorize="hasRole('ROLE_ASSIGNER')" th:if="${titles != null and titles.size() > 0}">
+							<a data-toggle="tab" data-tab-type="ou_roles_title_menu" href="#ou_roles_title_menu" th:text="#{html.page.ous.edit.tab.titles}"></a>
+						</li>
 
-						<tbody>
-							 <tr th:each="title : ${titles}">
-								<td>
-									<div class="checkbox c-checkbox">
-										<label>
-											<input class="title-checkbox" type="checkbox" th:attr="data-id=${title.id}, checked=${title.state.checked}" />
-											<span class="fa fa-check"></span>
-										</label>
-									</div>
-								</td>
-								<td th:text="${title.name}" />
-							</tr>
-						</tbody>
-					</table>
+						<li sec:authorize="hasRole('ROLE_ASSIGNER')">
+							<a data-toggle="tab" data-tab-type="ou_roles_excepted_users_menu" href="#ou_roles_excepted_users_menu" th:text="#{html.page.ous.edit.tab.exceptedusers}"></a>
+						</li>
+					</ul>
+
+					<div class="tab-content">
+						<div id="ou_roles_title_menu" class="tab-pane fade in active" th:if="${titles != null and titles.size() > 0}">
+							<table th:if="${titles != null and titles.size() > 0}" id="ou_roles_listTable1" class="table table-striped">
+								<thead>
+									<tr>
+										<th class="col-md-2" th:text="#{html.entity.title.checked}" />
+										<th class="col-md-10" th:text="#{html.entity.title.name}" />
+									</tr>
+								</thead>
+
+								<tbody>
+									 <tr th:each="title : ${titles}">
+										<td>
+											<div class="checkbox c-checkbox">
+												<label>
+													<input class="title-checkbox" type="checkbox" th:attr="data-id=${title.id}, checked=${title.state.checked}" />
+													<span class="fa fa-check"></span>
+												</label>
+											</div>
+										</td>
+										<td th:text="${title.name}" />
+									</tr>
+								</tbody>
+							</table>
+						</div>
+
+						<div id="ou_roles_excepted_users_menu" class="tab-pane fade in" th:classappend ="${titles != null and titles.size() > 0} ? '' : 'in active'">
+							<div th:replace="ous/fragments/ou_excepted_users :: table"></div>
+						</div>
+					</div>
 					
 	               	<div style="height: 70px;">
 						<h4 class="md-12" th:text="#{html.word.validity}" />
@@ -70,7 +89,8 @@
 				</div>
 
 				<div class="modal-footer">
-					<button type="button" id="titleAssignTitlesButton" class="btn btn-primary" onclick="ouRolesModalService.handleTitleRoleAssignment()" th:text="#{html.page.ous.edit.button.assign}"/>
+					<button type="button" disabled="disabled" id="titleAssignTitlesButton" class="btn btn-primary" onclick="ouRolesModalService.handleTitleRoleAssignment()" th:text="#{html.page.ous.edit.button.assign}"/>
+					<button type="button" disabled="disabled" id="assignWithExceptionsButton" class="btn btn-primary" onclick="ouRolesModalService.handleExceptedRoleAssignment()" th:text="#{html.page.ous.edit.button.assign.exceptedusers}"/>
 					<div class="btn-group" id="titleInheritButton">
                         <button id="assignAllButton" type="button" style="margin-left: 5px;" class="btn btn-primary dropdown-toggle" data-toggle="dropdown">
                         	<span>
@@ -79,7 +99,7 @@
 							</span>
                         </button>
 						<ul class="dropdown-menu">
-			    			<li><a href="#" onclick="ouRolesModalService.handleEveryoneRoleAssignment(false)" th:text="#{html.page.ous.edit.button.assign.all}" /></li>
+			    			<li><a href="#" onclick="ouRolesModalService.handleEveryoneRoleAssignment(false)" id="assignEveryoneChoiceDropdownForTestCases" th:text="#{html.page.ous.edit.button.assign.all}" /></li>
 	                		<li><a href="#" onclick="ouRolesModalService.handleEveryoneRoleAssignment(true)" th:text="#{html.page.ous.edit.button.assign.all.inheritance}"/></li>
 			  			</ul>
 			  		</div>
@@ -101,6 +121,7 @@
 		var fieldUpdatedMsg = [[#{html.entity.rolegroup.updatedmsg}]];
 		var fieldNotUpdatedMsg = [[#{html.entity.rolegroup.failedupdatemsg}]];
 		var urlOUsModal = [[@{/rest/ous/}]];
+		var urlFetchExceptedUsers = [[@{/ui/ous/}]]
 		+]*/
 		var payload = {
 				roleType: '',
@@ -122,8 +143,38 @@
 		function OURolesModalService(){
 			this.init = function(){
 				$('#modal-ou').on('shown.bs.modal', function (e) {
+					// Add checkboxlisteners to modal
 					ouRolesModalService.addTitleCheckboxListeners();
+					ouRolesModalService.addExceptedUsersCheckboxListeners();
+
+					// Show tab with prefilled information
+					if ($('.title-checkbox:checked').length > 0) {
+						$('.nav-tabs a[href="#ou_roles_title_menu"]').tab('show');
+					}
+					else if ($('.exceptedusers-checkbox:checked').length > 0) {
+						$('.nav-tabs a[href="#ou_roles_excepted_users_menu"]').tab('show');
+					}
 				})
+
+
+				// Add change tab event handler
+				$('a[data-toggle="tab"]').on("shown.bs.tab", function (e) {
+					// Fetch active tab and show/hide buttons depending on that
+					var tabType = $('#modal-ou .nav-tabs li.active a[data-toggle="tab"]').data('tab-type');
+
+					if (tabType == 'ou_roles_title_menu') {
+						$("#titleAssignTitlesButton").show();
+						$("#assignWithExceptionsButton").hide();
+
+						ouRolesModalService.handleTitleCheckbox();
+					} 
+					else if (tabType == 'ou_roles_excepted_users_menu') {
+						$("#titleAssignTitlesButton").hide();
+						$("#assignWithExceptionsButton").show();
+
+						ouRolesModalService.handleExceptedUsersCheckbox();
+					}
+				});
 			}
 			
 			this.loadTitles = function(loadCheckedTitles) {
@@ -168,21 +219,32 @@
 				$('.title-checkbox').off("change");
 				$('.title-checkbox').change(ouRolesModalService.handleTitleCheckbox);
 			}
+
+			this.addExceptedUsersCheckboxListeners = function() {
+				$('.exceptedusers-checkbox').off("change");
+				$('.exceptedusers-checkbox').change(ouRolesModalService.handleExceptedUsersCheckbox);
+			}
 			
 			this.showAssignModal = function(titlesEnabled, checked, checkedTitles, startDate, stopDate) {
+				// Setup DatePickers
 				if (stopDate) {
-					$('#startDatePickerOU').data("DateTimePicker").date(startDate);
 					$('#stopDatePickerOU').data("DateTimePicker").date(stopDate);
 				} else {
 					$('#stopDatePickerOU').data("DateTimePicker").clear();
+				}
+
+				if (startDate) {
+					$('#startDatePickerOU').data("DateTimePicker").date(startDate);
+				} else {
 					$('#startDatePickerOU').data("DateTimePicker").clear();
 					$('#startDatePickerOU').data("DateTimePicker").date(new Date());
 				}
 
+				// If titles are enabled, check all the checked boxes and disable/enable option to assign to titles.
 				if (titlesEnabled) {
-					
 					var anythingChecked = false;
 					
+					// Check the boxes corrosponding to the list of checked titles from the backend
 					if (checkedTitles != null){
 						for (var i = 0; i < titles.length; i++) {
 							titles[i].state.checked = (checkedTitles.indexOf(titles[i].id) > -1);
@@ -203,6 +265,7 @@
 						}
 					}
 					
+					// Show assign to titles button and enable/disable it based on number of checked titles
 					$("#titleAssignTitlesButton").show();
 					if (!anythingChecked) {
 						$("#titleAssignTitlesButton").prop('disabled', true);
@@ -212,20 +275,30 @@
 						$("#titleAssignTitlesButton").prop('disabled', false);
 						$("#assignAllButton").prop('disabled', true);
 					}
+
+					$('a[data-toggle="tab"][href="#ou_roles_title_menu"]').tab('show');
 				}
 				else {
+					// If titles not enabled, hide assign to tiles button
+					$('a[data-toggle="tab"][href="#ou_roles_excepted_users_menu"]').tab('show');
 					$("#titleAssignTitlesButton").hide();
 				}
 
+				// Fetch excepted users (if any), and check checkboxes
+				var url = urlFetchExceptedUsers + payload.roleType + "/exceptedusers/" + payload.ouUuid + "/" + payload.roleId;
+				$("#ou_roles_excepted_users_menu").load(url, function() {
+					fragShowDataTableFun('#ou_roles_listTable2', 0);
+				});
+
 				$("#titleInheritButton").show();
-				
+
 				$("#modal-ou").modal({
 					backdrop: 'static',
 					keyboard: false
 				});
 			}
 			
-			this.assignRole = function(objType, inherit, id, titleUuids) {
+			this.assignRole = function(objType, inherit, id, titleUuids, exceptedUserUuids) {
 				var endpoint = urlModal + 'add' + objType + '/' + payload.ouUuid + '/' + id;
 
 				var startDate = $('#startDatePickerOU').data('date');
@@ -245,7 +318,8 @@
 					},
 	                contentType: 'application/json',
 	                data: JSON.stringify({
-	    			      'titleUuids': titleUuids
+	    			      'titleUuids': titleUuids,
+	    			      'exceptedUserUuids' : exceptedUserUuids
 					}),
 					error : function(response) {
 						notifikationService.showErrorNotification(fieldNotUpdatedMsg);
@@ -299,6 +373,17 @@
 				//updateCheckboxSorting(objType, id, false);
 			}
 			
+			// wrapper around assignRole that gets the list of selected excepted users
+			this.handleExceptedRoleAssignment = function() {
+				var exceptedUsers = [];
+				var exceptedUsersChbx = $('.exceptedusers-checkbox:checked');
+				for (var i = 0; i < exceptedUsersChbx.length; i++) {
+					exceptedUsers.push($(exceptedUsersChbx[i]).data('id'));
+				}
+				
+				ouRolesModalService.assignRole(payload.roleType, false, payload.roleId, [], exceptedUsers);
+			}
+
 			// wrapper around assignRole that reads the list of checked title UUIDs called by button click
 			this.handleTitleRoleAssignment = function() {
 				var titleUuids = [];
@@ -308,12 +393,12 @@
 					}
 				}
 				
-				ouRolesModalService.assignRole(payload.roleType, false, payload.roleId, titleUuids);
+				ouRolesModalService.assignRole(payload.roleType, false, payload.roleId, titleUuids, []);
 			}
 			
 			// wrapper around assignRole that assigns to everyone called by button click
 			this.handleEveryoneRoleAssignment = function(inherit) {
-				ouRolesModalService.assignRole(payload.roleType, inherit, payload.roleId, []);			
+				ouRolesModalService.assignRole(payload.roleType, inherit, payload.roleId, [], []);			
 			}
 
 			// wrapper around deassignRole called by button click
@@ -323,6 +408,10 @@
 			
 			this.closeModalWithState = function(checkboxState) {
 				payload.checkboxRef.checked = checkboxState;
+
+				// Set data-startdate and data-stopdate so you don't have to refresh to have the values
+				$(payload.checkboxRef).attr('data-startdate', $('#startDatePickerOU').data('date'));
+				$(payload.checkboxRef).attr('data-stopdate', $('#stopDatePickerOU').data('date'));
 
 				$('#modal-ou').modal('toggle');
 			}
@@ -352,6 +441,19 @@
 				}
 				else {
 					$("#titleAssignTitlesButton").prop('disabled', false);
+					$("#assignAllButton").prop('disabled', true);
+				}
+			}
+
+			this.handleExceptedUsersCheckbox = function() {
+				var anythingChecked = $('.exceptedusers-checkbox:checked').length > 0;
+				
+				if (!anythingChecked) {
+					$("#assignWithExceptionsButton").prop('disabled', true);
+					$("#assignAllButton").prop('disabled', false);
+				}
+				else {
+					$("#assignWithExceptionsButton").prop('disabled', false);
 					$("#assignAllButton").prop('disabled', true);
 				}
 			}

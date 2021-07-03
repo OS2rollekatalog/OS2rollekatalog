@@ -43,6 +43,7 @@ BEGIN
 	WHERE 
 		our.inherit = 0
 		AND our.inactive = 0
+		AND our.contains_excepted_users = 0
 		AND o.active = 1
 
 	UNION ALL
@@ -71,6 +72,7 @@ BEGIN
 	WHERE 
 		ourg.inherit = 0 
 		AND ourg.inactive = 0
+		AND ourg.contains_excepted_users = 0
 		AND o.active = 1;
 
 	-- user roles from orgunits (inherited)
@@ -98,7 +100,7 @@ BEGIN
 			,cte.orig_ou_name
 		FROM ous o
 		JOIN cte ON cte.ou_uuid = o.parent_uuid
-		WHERE 
+		WHERE
 			o.active = 1
 	)
 	INSERT INTO history_ou_role_assignments (
@@ -133,7 +135,8 @@ BEGIN
 	JOIN ous ou ON ou.uuid = our.ou_uuid
 	JOIN user_roles ur ON ur.id = our.role_id
 	JOIN it_systems it ON it.id = ur.it_system_id
-	WHERE our.inactive = 0;
+	WHERE our.inactive = 0
+	AND our.contains_excepted_users = 0;
 
 	-- user roles through rolegroups from orgunits (inherited)
 	WITH cte
@@ -199,5 +202,6 @@ BEGIN
 	JOIN user_roles ur ON ur.id = rgr.role_id
 	JOIN it_systems it ON it.id = ur.it_system_id
 	WHERE ourg.inactive = 0
+	AND ourg.contains_excepted_users = 0;
 END
 GO

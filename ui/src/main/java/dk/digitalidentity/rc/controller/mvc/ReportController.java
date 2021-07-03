@@ -26,9 +26,13 @@ import dk.digitalidentity.rc.config.Constants;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.ItSystemChoice;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.OUListForm;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.ReportForm;
-import dk.digitalidentity.rc.controller.mvc.xlsview.ReportXlsView;
+import dk.digitalidentity.rc.controller.mvc.xlsview.ReportXlsxView;
 import dk.digitalidentity.rc.dao.history.model.HistoryItSystem;
+import dk.digitalidentity.rc.dao.model.OrgUnit;
+import dk.digitalidentity.rc.dao.model.Position;
 import dk.digitalidentity.rc.dao.model.ReportTemplate;
+import dk.digitalidentity.rc.dao.model.RoleGroup;
+import dk.digitalidentity.rc.dao.model.Title;
 import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserRole;
 import dk.digitalidentity.rc.dao.model.enums.ReportType;
@@ -36,8 +40,12 @@ import dk.digitalidentity.rc.security.RequireReadAccessRole;
 import dk.digitalidentity.rc.security.RequireTemplateAccessOrReadAccessRole;
 import dk.digitalidentity.rc.security.SecurityUtil;
 import dk.digitalidentity.rc.service.HistoryService;
+import dk.digitalidentity.rc.service.OrgUnitService;
+import dk.digitalidentity.rc.service.PositionService;
 import dk.digitalidentity.rc.service.ReportService;
 import dk.digitalidentity.rc.service.ReportTemplateService;
+import dk.digitalidentity.rc.service.RoleGroupService;
+import dk.digitalidentity.rc.service.TitleService;
 import dk.digitalidentity.rc.service.UserRoleService;
 import dk.digitalidentity.rc.service.UserService;
 import lombok.extern.slf4j.Slf4j;
@@ -61,6 +69,18 @@ public class ReportController {
 
 	@Autowired
 	private UserService userService;
+
+	@Autowired
+	private RoleGroupService roleGroupService;
+
+	@Autowired
+	private OrgUnitService orgUnitService;
+	
+	@Autowired
+	private PositionService positionService;
+	
+	@Autowired
+	private TitleService titleService;
 
 	@RequireTemplateAccessOrReadAccessRole
 	@GetMapping("/ui/report/templates")
@@ -211,9 +231,9 @@ public class ReportController {
 		Map<String, Object> model = reportService.getReportModel(reportForm, loc);
 
 		response.setContentType("application/ms-excel");
-		response.setHeader("Content-Disposition", "attachment; filename=\"Rapport.xls\"");
+		response.setHeader("Content-Disposition", "attachment; filename=\"Rapport.xlsx\"");
 
-		return new ModelAndView(new ReportXlsView(), model);
+		return new ModelAndView(new ReportXlsxView(), model);
 	}
 
 	@RequireTemplateAccessOrReadAccessRole
@@ -257,7 +277,7 @@ public class ReportController {
 		response.setContentType("application/ms-excel");
 		response.setHeader("Content-Disposition", "attachment; filename=\"Rapport.xls\"");
 
-		return new ModelAndView(new ReportXlsView(), model);
+		return new ModelAndView(new ReportXlsxView(), model);
 	}
 	
 	// fragment
@@ -286,6 +306,12 @@ public class ReportController {
 			case USER_ROLE_WITH_SENSITIVE_FLAG:
 				model.addAttribute("userRoles", generateUserRolesWithSensitiveFlagReport());
 				return "reports/custom/user_roles_with_sensitive_flag";
+			case USER_ROLE_WITHOUT_ASSIGNMENTS:
+				model.addAttribute("userRoles", generateUserRolesWithoutAssignmentsReport());
+				return "reports/custom/user_roles_without_assignments";
+			case USER_ROLE_WITHOUT_SYSTEM_ROLES:
+				model.addAttribute("userRoles", generateUserRolesWithoutSystemRolesReport());
+				return "reports/custom/user_roles_without_system_roles";
 		}
 
 		return "redirect:/ui/report/custom";
@@ -303,6 +329,49 @@ public class ReportController {
 							  ur.getSystemRoleAssignments().stream()
 							  	.anyMatch(sra -> sra.getSystemRole().getSupportedConstraintTypes().size() > 0 &&
 							  			  sra.getConstraintValues().isEmpty()))
+				.collect(Collectors.toList());
+
+		return userRoles;
+	}
+
+	private List<UserRole> generateUserRolesWithoutAssignmentsReport() {
+		List<RoleGroup> roleGroups = roleGroupService.getAll();
+		List<UserRole> userRoles = userRoleService.getAll();
+
+		// bulk load once
+		List<OrgUnit> orgUnits = orgUnitService.getAll();
+		List<User> users = userService.getAll();
+		List<Position> positions = positionService.getAll();
+		List<Title> titles = titleService.getAll();
+		
+		// find all assigned roleGroups
+		List<RoleGroup> assignedRoleGroups = roleGroups.stream()
+				.filter(ur ->
+					orgUnits.stream().anyMatch(ou -> ou.getRoleGroupAssignments().stream().anyMatch(ura -> ura.getRoleGroup().getId() == ur.getId())) ||
+					users.stream().anyMatch(u -> u.getRoleGroupAssignments().stream().anyMatch(ura -> ura.getRoleGroup().getId() == ur.getId())) ||
+					positions.stream().anyMatch(p -> p.getRoleGroupAssignments().stream().anyMatch(ura -> ura.getRoleGroup().getId() == ur.getId())) ||
+					titles.stream().anyMatch(t -> t.getRoleGroupAssignments().stream().anyMatch(ura -> ura.getRoleGroup().getId() == ur.getId()))
+				)
+				.collect(Collectors.toList());
+
+		// negative lookups to speed up the process
+		List<UserRole> userRolesNotInReport = userRoles.stream()
+				.filter(ur ->
+					orgUnits.stream().anyMatch(ou -> ou.getUserRoleAssignments().stream().anyMatch(ura -> ura.getUserRole().getId() == ur.getId())) ||
+					users.stream().anyMatch(u -> u.getUserRoleAssignments().stream().anyMatch(ura -> ura.getUserRole().getId() == ur.getId())) ||
+					positions.stream().anyMatch(p -> p.getUserRoleAssignments().stream().anyMatch(ura -> ura.getUserRole().getId() == ur.getId())) ||
+					titles.stream().anyMatch(t -> t.getUserRoleAssignments().stream().anyMatch(ura -> ura.getUserRole().getId() == ur.getId())) ||
+					assignedRoleGroups.stream().anyMatch(rg -> rg.getUserRoleAssignments().stream().anyMatch(ura -> ura.getUserRole().getId() == ur.getId()))
+				)
+				.collect(Collectors.toList());
+
+		return userRoles.stream().filter(u -> userRolesNotInReport.stream().noneMatch(ur -> ur.getId() == u.getId())).collect(Collectors.toList());
+	}
+
+	private List<UserRole> generateUserRolesWithoutSystemRolesReport() {
+		List<UserRole> userRoles = userRoleService.getAll();
+		userRoles = userRoles.stream()
+				.filter(ur -> ur.getSystemRoleAssignments().size() == 0)
 				.collect(Collectors.toList());
 
 		return userRoles;

@@ -5,6 +5,7 @@ import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 import javax.servlet.http.HttpServletRequest;
@@ -135,6 +136,10 @@ public class AttestationController {
 			dto.setRoleType("Jobfunktionsrolle");
 			dto.setRoleAssignedToUser(uratu);
 
+			if (ouura.isContainsExceptedUsers()) {
+				dto.setExceptedUsers(ouura.getExceptedUsers().stream().map(user -> user.getName() + " (" + user.getUserId() + ")").collect(Collectors.toList()));
+			}
+
 			unit.add(dto);
 		}
 		
@@ -148,6 +153,10 @@ public class AttestationController {
 			AttestationRolesDTO dto = new AttestationRolesDTO();
 			dto.setRoleType("Rollebuket");
 			dto.setRoleAssignedToUser(uratu);
+
+			if (ourga.isContainsExceptedUsers()) {
+				dto.setExceptedUsers(ourga.getExceptedUsers().stream().map(user -> user.getName() + " (" + user.getUserId() + ")").collect(Collectors.toList()));
+			}
 
 			unit.add(dto);
 		}
@@ -335,6 +344,33 @@ public class AttestationController {
 				if (ou == null) {
 					log.warn("Unknown OrgUnit: " + uuid);
 					continue;
+				}
+
+				// If assigned through a OU, check for excepted users and add to pdf
+				if (roleType.equals("Jobfunktionsrolle")) {
+
+					// Go through ou UserRoleAssignments, skip any that does not have excepted users and find the one with a matching roleId
+					for (OrgUnitUserRoleAssignment roleAssignment : ou.getUserRoleAssignments()) {
+						if (roleAssignment.isContainsExceptedUsers() && Objects.equals(roleAssignment.getUserRole().getId(), tE.getRoleId())) {
+							// Found correct role and it has excepted users
+							dto.setExceptedUsers(roleAssignment.getExceptedUsers()
+									.stream()
+									.map(user -> user.getName() + " (" + user.getUserId() + ")")
+									.collect(Collectors.toList()));
+						}
+					}
+				}
+				else if (roleType.equals("Rollebuket")) {
+					// Go through ou RoleGroupAssignments, skip any that does not have excepted users and find the one with a matching roleId
+					for (OrgUnitRoleGroupAssignment roleGroupAssignment : ou.getRoleGroupAssignments()) {
+						if (roleGroupAssignment.isContainsExceptedUsers() && Objects.equals(roleGroupAssignment.getRoleGroup().getId(), tE.getRoleId())) {
+							// Found correct role and it has excepted users
+							dto.setExceptedUsers(roleGroupAssignment.getExceptedUsers()
+									.stream()
+									.map(user -> user.getName() + " (" + user.getUserId() + ")")
+									.collect(Collectors.toList()));
+						}
+					}
 				}
 
 				dto.setUserOrUnitName(ou.getName());

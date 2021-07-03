@@ -13,6 +13,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import dk.digitalidentity.rc.dao.HistoryOURoleAssignmentWithExceptionsDao;
 import dk.digitalidentity.rc.dao.history.HistoryItSystemDao;
 import dk.digitalidentity.rc.dao.history.HistoryKleAssignmentDao;
 import dk.digitalidentity.rc.dao.history.HistoryManagerDao;
@@ -29,6 +30,7 @@ import dk.digitalidentity.rc.dao.history.model.HistoryManager;
 import dk.digitalidentity.rc.dao.history.model.HistoryOU;
 import dk.digitalidentity.rc.dao.history.model.HistoryOUKleAssignment;
 import dk.digitalidentity.rc.dao.history.model.HistoryOURoleAssignment;
+import dk.digitalidentity.rc.dao.history.model.HistoryOURoleAssignmentWithExceptions;
 import dk.digitalidentity.rc.dao.history.model.HistoryRoleAssignment;
 import dk.digitalidentity.rc.dao.history.model.HistoryTitle;
 import dk.digitalidentity.rc.dao.history.model.HistoryTitleRoleAssignment;
@@ -66,6 +68,9 @@ public class HistoryService {
 	
 	@Autowired
 	private HistoryOURoleAssignmentDao historyOURoleAssignmentDao;
+
+	@Autowired
+	private HistoryOURoleAssignmentWithExceptionsDao historyOURoleAssignmentWithExceptionsDao;
 	
 	@Autowired
 	private JdbcTemplate jdbcTemplate;
@@ -151,6 +156,18 @@ public class HistoryService {
 									   .stream()
 									   .collect(Collectors.groupingBy(HistoryOURoleAssignment::getOuUuid));
 	}
+
+	public Map<String, List<HistoryOURoleAssignmentWithExceptions>> getOURoleAssignmentsWithExceptions(LocalDate localDate) {
+		return historyOURoleAssignmentWithExceptionsDao.findByDate(localDate.getYear(), localDate.getMonthValue(), localDate.getDayOfMonth())
+				.stream()
+				.collect(Collectors.groupingBy(HistoryOURoleAssignmentWithExceptions::getOuUuid));
+	}
+
+	public Map<String, List<HistoryOURoleAssignmentWithExceptions>> getOURoleAssignmentsWithExceptions(LocalDate localDate, List<Long> itSystemIds) {
+		return historyOURoleAssignmentWithExceptionsDao.findByDateAndItSystems(localDate.getYear(), localDate.getMonthValue(), localDate.getDayOfMonth(), itSystemIds)
+				.stream()
+				.collect(Collectors.groupingBy(HistoryOURoleAssignmentWithExceptions::getOuUuid));
+	}
 	
 	public Map<String, List<HistoryTitleRoleAssignment>> getTitleRoleAssignments(LocalDate localDate) {
 		return historyTitleRoleAssignmentDao.findByDate(localDate.getYear(), localDate.getMonthValue(), localDate.getDayOfMonth())
@@ -225,6 +242,16 @@ public class HistoryService {
 	}
 
 	@Transactional
+	public void generateExceptedUsersHistory() {
+		if (dataSourceUrl.startsWith("jdbc:mysql")) {
+			jdbcTemplate.update("CALL SP_InsertHistoryOURoleAssignmentsWithExceptions();");
+		}
+		else {
+			jdbcTemplate.update("EXEC SP_InsertHistoryOURoleAssignmentsWithExceptions;");
+		}
+	}
+
+	@Transactional
 	public void deleteOldHistory(long retentionPeriod) {
 		if (dataSourceUrl.startsWith("jdbc:mysql")) {
 			jdbcTemplate.update("DELETE FROM history_users WHERE dato < (NOW() - INTERVAL " + retentionPeriod + " DAY);");
@@ -236,6 +263,7 @@ public class HistoryService {
 			jdbcTemplate.update("DELETE FROM history_ou_role_assignments WHERE dato < (NOW() - INTERVAL " + retentionPeriod + " DAY);");
 			jdbcTemplate.update("DELETE FROM history_title_role_assignments WHERE dato < (NOW() - INTERVAL " + retentionPeriod + " DAY);");
 			jdbcTemplate.update("DELETE FROM history_titles WHERE dato < (NOW() - INTERVAL " + retentionPeriod + " DAY);");
+			jdbcTemplate.update("DELETE FROM history_role_assignment_excepted_users WHERE dato < (NOW() - INTERVAL " + retentionPeriod + " DAY);");
 		}
 		else {
 			jdbcTemplate.update("DELETE FROM history_users WHERE dato < GETDATE() - " + retentionPeriod + ";");
@@ -247,6 +275,7 @@ public class HistoryService {
 			jdbcTemplate.update("DELETE FROM history_ou_role_assignments WHERE dato < GETDATE() - " + retentionPeriod + ";");
 			jdbcTemplate.update("DELETE FROM history_title_role_assignments WHERE dato < GETDATE() - " + retentionPeriod + ";");
 			jdbcTemplate.update("DELETE FROM history_titles WHERE dato < GETDATE() - " + retentionPeriod + ";");
+			jdbcTemplate.update("DELETE FROM history_role_assignment_excepted_users WHERE dato < GETDATE() - " + retentionPeriod + ";");
 		}
 	}
 }

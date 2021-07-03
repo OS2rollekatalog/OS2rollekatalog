@@ -1,35 +1,41 @@
 package dk.digitalidentity.rc.service;
 
+import java.time.LocalDate;
 import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
-import org.apache.commons.lang.LocaleUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.MessageSource;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
-import dk.digitalidentity.rc.dao.PendingManualUpdateDao;
+import dk.digitalidentity.rc.controller.mvc.viewmodel.ReportForm;
+import dk.digitalidentity.rc.dao.history.model.HistoryItSystem;
+import dk.digitalidentity.rc.dao.history.model.HistoryOU;
+import dk.digitalidentity.rc.dao.history.model.HistoryOURoleAssignment;
+import dk.digitalidentity.rc.dao.history.model.HistoryOURoleAssignmentWithExceptions;
+import dk.digitalidentity.rc.dao.history.model.HistoryRoleAssignment;
+import dk.digitalidentity.rc.dao.history.model.HistoryTitleRoleAssignment;
+import dk.digitalidentity.rc.dao.history.model.HistoryUser;
+import dk.digitalidentity.rc.dao.history.model.HistoryUserRole;
 import dk.digitalidentity.rc.dao.model.ItSystem;
-import dk.digitalidentity.rc.dao.model.PendingManualUpdate;
-import dk.digitalidentity.rc.dao.model.Position;
-import dk.digitalidentity.rc.dao.model.RoleGroup;
-import dk.digitalidentity.rc.dao.model.SystemRole;
 import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserRole;
 import dk.digitalidentity.rc.dao.model.enums.ItSystemType;
+import dk.digitalidentity.rc.service.model.UserRoleAssignmentReportEntry;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 @Service
 public class ManualRolesService {
-
-	private static final String localeString = "da_DK";
 
 	@Autowired
 	private MessageSource messageSource;
@@ -38,205 +44,208 @@ public class ManualRolesService {
 	private UserService userService;
 
 	@Autowired
+	private UserRoleService userRoleService;
+
+	@Autowired
 	private ItSystemService itSystemService;
 
 	@Autowired
 	private EmailService emailService;
 
 	@Autowired
-	private OrgUnitService orgUnitService;
+	private ReportService reportService;
 
-	@Autowired
-	private PendingManualUpdateDao pendingManualUpdateDao;
-
-	public List<PendingManualUpdate> findAll() {
-		return pendingManualUpdateDao.findAll();
-	}
-
-	public void delete(PendingManualUpdate entity) {
-		pendingManualUpdateDao.delete(entity);
-	}
-
-	public void delete(List<PendingManualUpdate> entities) {
-		pendingManualUpdateDao.deleteAll(entities);
-	}
-
-	public void addUserToQueue(User user, UserRole userRole) {
-		// if the UserRoles is related to an ItSystem of type 'MANUAL', we add the user to the queue
-		if (userRole.getItSystem().getSystemType().equals(ItSystemType.MANUAL)) {
-			addUserToQueue(user, userRole.getItSystem());
-		}
-	}
-
-	public void addUserToQueue(User user, RoleGroup roleGroup) {
-		// if any of the UserRoles within the RoleGroup are related to an ItSystem of type 'MANUAL', we add the user to the queue
-		if (roleGroup.getUserRoleAssignments() != null) {
-			List<UserRole> userRoles = roleGroup.getUserRoleAssignments().stream().map(ura -> ura.getUserRole()).collect(Collectors.toList());
-
-			for (UserRole userRole : userRoles) {
-				if (userRole.getItSystem().getSystemType().equals(ItSystemType.MANUAL)) {
-					addUserToQueue(user, userRole.getItSystem());
-				}
-			}
-		}
-	}
-
-	public void addUserToQueue(User user, Position position) {
-		boolean addToQueue = false;
+	@SuppressWarnings("unchecked")
+	private List<UserRoleAssignmentReportEntry> getHistoricalAssignments(LocalDate date, long itSystemId) {
+		ReportForm reportForm = new ReportForm();
+		reportForm.setDate(date.toString());
+		reportForm.setItSystems(new ArrayList<Long>());
+		reportForm.getItSystems().add(itSystemId);
 		
-		// check rolegroups assigned to position
-		if (position.getRoleGroupAssignments() != null) {
-	      	List<RoleGroup> prg = position.getRoleGroupAssignments().stream().map(ura -> ura.getRoleGroup()).collect(Collectors.toList());
+		Map<String, Object> modal = reportService.getReportModel(reportForm, Locale.ENGLISH);
 
-			for (RoleGroup roleGroup : prg) {
-				List<UserRole> userRoles = roleGroup.getUserRoleAssignments().stream().map(ura -> ura.getUserRole()).collect(Collectors.toList());
+		Map<String, HistoryUser> users = (Map<String, HistoryUser>) modal.get("users");
+		Map<String, HistoryOU> orgUnits = (Map<String, HistoryOU>) modal.get("orgUnits");
+		List<HistoryItSystem> itSystems = (List<HistoryItSystem>) modal.get("itSystems");
+		Map<String, List<HistoryOURoleAssignment>> ouRoleAssignments = (Map<String, List<HistoryOURoleAssignment>>) modal.get("ouRoleAssignments");
+		Map<String, List<HistoryOURoleAssignmentWithExceptions>> ouRoleAssignmentsWithExceptions = (Map<String, List<HistoryOURoleAssignmentWithExceptions>>) modal.get("ouRoleAssignmentsWithExceptions");
+		Map<String, List<HistoryRoleAssignment>> userRoleAssignments = (Map<String, List<HistoryRoleAssignment>>) modal.get("userRoleAssignments");
+		Map<String, List<HistoryTitleRoleAssignment>> titleRoleAssignments = (Map<String, List<HistoryTitleRoleAssignment>>) modal.get("titleRoleAssignments");
 
-				for (UserRole userRole : userRoles) {
-					if (userRole.getItSystem().getSystemType().equals(ItSystemType.MANUAL)) {
-						addUserToQueue(user, userRole.getItSystem());
-						addToQueue = true;
-						break;
-					}
-				}
-				
-				if (addToQueue) {
-					break;
-				}
-			}
-		}
-		
-		// check userroles assigned to position
-		if (!addToQueue && position.getUserRoleAssignments() != null) {
-			List<UserRole> userRoles = position.getUserRoleAssignments().stream().map(ura -> ura.getUserRole()).collect(Collectors.toList());
+		Map<Long, String> itSystemNameMapping = new HashMap<>();
+        for (HistoryItSystem itSystem : itSystems) {
+            for (HistoryUserRole userRole : itSystem.getHistoryUserRoles()) {
+                itSystemNameMapping.put(userRole.getUserRoleId(), userRole.getUserRoleName());
+            }
+        }
 
-			for (UserRole userRole : userRoles) {
-				if (userRole.getItSystem().getSystemType().equals(ItSystemType.MANUAL)) {
-					addUserToQueue(user, userRole.getItSystem());
-					addToQueue = true;
-					break;
-				}
-			}
-		}
-		
-		// check rolegroups assigned to OU that the position points to
-		if (!addToQueue) {
-			List<RoleGroup> rgs = orgUnitService.getRoleGroupsWithUserFilter(position.getOrgUnit(), true, user);
-
-			for (RoleGroup roleGroup : rgs) {
-				if (roleGroup.getUserRoleAssignments() != null) {
-					List<UserRole> userRoles = roleGroup.getUserRoleAssignments().stream().map(ura -> ura.getUserRole()).collect(Collectors.toList());
-
-					for (UserRole userRole : userRoles) {
-						if (userRole.getItSystem().getSystemType().equals(ItSystemType.MANUAL)) {
-							addUserToQueue(user, userRole.getItSystem());
-						}
-					}
-				}
-			}
-		}
-		
-		// check userroles assigned to the OU that the position points to
-		if (!addToQueue) {
-			List<UserRole> urs = orgUnitService.getUserRolesWithUserFilter(position.getOrgUnit(), true, user);
-
-			for (UserRole userRole : urs) {
-				if (userRole.getItSystem().getSystemType().equals(ItSystemType.MANUAL)) {
-					addUserToQueue(user, userRole.getItSystem());
-				}
-			}
-		}
+		return reportService.getUserRoleAssignmentReportEntries(users, orgUnits, itSystems, userRoleAssignments, ouRoleAssignments, ouRoleAssignmentsWithExceptions, titleRoleAssignments, itSystemNameMapping, Locale.ENGLISH, false);
 	}
-	
+
+	// TODO: we have this a few places - put it into a utility class so we can static import it in all places
+	public static <T> Predicate<T> distinctByKey(Function<? super T, ?> keyExtractor) {
+		Map<Object, Boolean> seen = new ConcurrentHashMap<>();
+		return t -> seen.putIfAbsent(keyExtractor.apply(t), Boolean.TRUE) == null;
+	}
+
 	@Transactional
 	public void notifyServicedesk() {
-		List<PendingManualUpdate> pendingManualUpdates = findAll();
-		if (pendingManualUpdates == null || pendingManualUpdates.size() == 0) {
-			return;
-		}
+		Map<String, User> userMap = userService.getAll().stream().collect(Collectors.toMap(User::getUserId, Function.identity()));
 		
-		// remove duplicates (the duplicates are there to ensure we don't have a race condition
-		// where we miss an update while running this scheduled task)
-		List<PendingManualUpdate> filtered = new ArrayList<>();
-		List<PendingManualUpdate> toRemove = new ArrayList<>();
-		for (PendingManualUpdate update : pendingManualUpdates) {
-			boolean alreadyFiltered = false;
+		List<ItSystem> itSystems = itSystemService.getBySystemType(ItSystemType.MANUAL);
+		for (ItSystem itSystem : itSystems) {
+			log.info("Detecting role changes on " + itSystem.getName() + " / " + itSystem.getId());
 
-			for (PendingManualUpdate f : filtered) {
-				if (f.getUserId().equals(update.getUserId()) && f.getItSystemId() == update.getItSystemId()) {
-					alreadyFiltered = true;
-					break;
-				}
-			}
-
-			if (!alreadyFiltered) {
-				filtered.add(update);
-			}
-			else {
-				toRemove.add(update);
-			}
-		}
-
-		// wipe all duplicates
-		delete(toRemove);
-
-		// Group list by ItSystem so that we send 1 email at a time
-		Map<Long, List<PendingManualUpdate>> groupByItSystemMap = filtered.stream().collect(Collectors.groupingBy(PendingManualUpdate::getItSystemId));
-
-		for (Long itSystemId : groupByItSystemMap.keySet()) {
-			ItSystem itSystem = itSystemService.getById(itSystemId);
 			String emailAddress = itSystem.getEmail();
+			if (StringUtils.isEmpty(emailAddress)) {
+				log.info("No email address configured for " + itSystem.getName() + " / " + itSystem.getId());
+				continue;
+			}
 
-			List<User> users = groupByItSystemMap.get(itSystemId).stream().map(PendingManualUpdate::getUserId).map(uid -> userService.getByUserId(uid)).collect(Collectors.toList());
+			Map<Long, UserRole> userRoleMap = userRoleService.getByItSystem(itSystem).stream().collect(Collectors.toMap(UserRole::getId, Function.identity()));
+			Map<User, List<UserRole>> toAddMap = new HashMap<>();
+			Map<User, List<UserRole>> toRemoveMap = new HashMap<>();
+			
+			List<UserRoleAssignmentReportEntry> todayAssignments = getHistoricalAssignments(LocalDate.now(), itSystem.getId());
+			List<UserRoleAssignmentReportEntry> yesterdayAssignments = getHistoricalAssignments(LocalDate.now().minusDays(1L), itSystem.getId());
 
-			StringBuilder usersAndRoles = new StringBuilder();
-
-			Locale locale = LocaleUtils.toLocale(localeString.replace('-', '_'));
-
-			for (User user : users) {
-				String positionName = "";
-				if (user.getPositions().size() > 0) {
-					positionName = ", ansat i " + user.getPositions().get(0).getOrgUnit().getName();
+			// should filter out duplicates and then compare - maybe collect on userUuid first
+			Map<String, List<UserRoleAssignmentReportEntry>> todayAssignmentsMap = todayAssignments.stream().collect(Collectors.groupingBy(UserRoleAssignmentReportEntry::getUserId));
+			Map<String, List<UserRoleAssignmentReportEntry>> yesterdayAssignmentsMap = yesterdayAssignments.stream().collect(Collectors.groupingBy(UserRoleAssignmentReportEntry::getUserId));
+			
+			// find added roles
+			for (String userId : todayAssignmentsMap.keySet()) {
+				List<UserRoleAssignmentReportEntry> todayAssignmentsForUser = todayAssignmentsMap.get(userId);
+				List<UserRoleAssignmentReportEntry> yesterdayAssignmentsForUser = yesterdayAssignmentsMap.get(userId);
+				if (yesterdayAssignmentsForUser == null) {
+					yesterdayAssignmentsForUser = new ArrayList<>();
 				}
+				
+				// filter duplicate assignments
+				todayAssignmentsForUser = todayAssignmentsForUser.stream().filter(distinctByKey(a -> a.getRoleId())).collect(Collectors.toList());
+				
+				// compare with yesterday
+				for (UserRoleAssignmentReportEntry assignment : todayAssignmentsForUser) {
+					boolean existedYesterday = yesterdayAssignmentsForUser.stream().anyMatch(a -> a.getRoleId() == assignment.getRoleId());
 
-				usersAndRoles.append(messageSource.getMessage("html.email.manual.message.user", new Object[] { user.getName() + " (" + user.getUserId() + positionName + ")" }, locale));
+					if (!existedYesterday) {
+						log.info("role " + assignment.getRoleId() + " has been assigned to " + userId);
+						
+						UserRole userRole = userRoleMap.get(assignment.getRoleId());
+						if (userRole == null) {
+							log.warn("Unknown userRole: " + assignment.getRoleId());
+							continue;
+						}
 
-				usersAndRoles.append("<ul>");
+						User user = userMap.get(userId);
+						if (user == null) {
+							log.warn("Unknown user: " + userId);
+							continue;
+						}
 
-				List<SystemRole> systemRoles = userService.getAllSystemRoles(user, Collections.singletonList(itSystem));
-				if (systemRoles == null || systemRoles.size() == 0) {
-					usersAndRoles.append(messageSource.getMessage("html.email.manual.message.noroles", null, locale));
-				}
-				else {
-					for (SystemRole systemRole : systemRoles) {
-						usersAndRoles.append("<li>" + systemRole.getName() + " &nbsp; (" + systemRole.getIdentifier() + ")</li>");
+						List<UserRole> usersRoles = toAddMap.get(user);
+						if (usersRoles == null) {
+							usersRoles = new ArrayList<UserRole>();
+							toAddMap.put(user, usersRoles);
+						}
+						
+						usersRoles.add(userRole);
 					}
 				}
+			}
+			
+			// find removed roles
+			for (String userId : yesterdayAssignmentsMap.keySet()) {
+				List<UserRoleAssignmentReportEntry> yesterdayAssignmentsForUser = yesterdayAssignmentsMap.get(userId);
+				List<UserRoleAssignmentReportEntry> todayAssignmentsForUser = todayAssignmentsMap.get(userId);
+				if (todayAssignmentsForUser == null) {
+					todayAssignmentsForUser = new ArrayList<>();
+				}
+				
+				// filter duplicate assignments
+				yesterdayAssignmentsForUser = yesterdayAssignmentsForUser.stream().filter(distinctByKey(a -> a.getRoleId())).collect(Collectors.toList());
+				
+				// compare with today
+				for (UserRoleAssignmentReportEntry assignment : yesterdayAssignmentsForUser) {
+					boolean existsToday = todayAssignmentsForUser.stream().anyMatch(a -> a.getRoleId() == assignment.getRoleId());
 
-				usersAndRoles.append("</ul>");
+					if (!existsToday) {
+						log.info("role " + assignment.getRoleId() + " has been removed from " + userId);
+						
+						UserRole userRole = userRoleMap.get(assignment.getRoleId());
+						if (userRole == null) {
+							log.warn("Unknown userRole: " + assignment.getRoleId());
+							continue;
+						}
+
+						User user = userMap.get(userId);
+						if (user == null) {
+							log.warn("Unknown user: " + userId);
+							continue;
+						}
+
+						List<UserRole> usersRoles = toRemoveMap.get(user);
+						if (usersRoles == null) {
+							usersRoles = new ArrayList<UserRole>();
+							toRemoveMap.put(user, usersRoles);
+						}
+						
+						usersRoles.add(userRole);
+					}
+				}
 			}
 
-			String title = messageSource.getMessage("html.email.manual.title", new Object[] { itSystem.getName() }, locale);
-			String message = messageSource.getMessage("html.email.manual.message.format", new Object[] { itSystem.getName(), usersAndRoles.toString() }, locale);
+			if (toAddMap.size() > 0 || toRemoveMap.size() > 0) {
+				StringBuilder usersAndRoles = new StringBuilder();
 
-			try {
-				emailService.sendMessage(emailAddress, title, message);
-			}
-			catch (Exception ex) {
-				log.error("Exception occured while synchronizing manual ItSystem: " + itSystem + " Exception:" + ex.getMessage());
+				for (User user : toAddMap.keySet()) {
+					usersAndRoles.append(messageSource.getMessage("html.email.manual.message.user", new Object[] { (user.getName() + " (" + user.getUserId() + ")") }, Locale.ENGLISH));
+					usersAndRoles.append("<ul>");
+					List<UserRole> toAdd = toAddMap.get(user);
+					List<UserRole> toRemove = toRemoveMap.get(user);
+					
+					for (UserRole userRole : toAdd) {
+						usersAndRoles.append(messageSource.getMessage("html.email.manual.message.addRole", new Object[] { userRole.getName() }, Locale.ENGLISH));
+					}
+					
+					if (toRemove != null) {
+						for (UserRole userRole : toRemove) {
+							usersAndRoles.append(messageSource.getMessage("html.email.manual.message.removeRole", new Object[] { userRole.getName() }, Locale.ENGLISH));
+						}
+					}
 
-				// we just continue with the next one - someone has to fix this, and then perform a full sync
+					usersAndRoles.append("</ul>");
+				}
+				
+				for (User user : toRemoveMap.keySet()) {
+					List<UserRole> toAdd = toAddMap.get(user);
+					if (toAdd != null) {
+						continue; // already taken care of above
+					}
+
+					usersAndRoles.append(messageSource.getMessage("html.email.manual.message.user", new Object[] { (user.getName() + " (" + user.getUserId() + ")") }, Locale.ENGLISH));
+					usersAndRoles.append("<ul>");
+
+					List<UserRole> toRemove = toRemoveMap.get(user);
+					for (UserRole userRole : toRemove) {
+						usersAndRoles.append(messageSource.getMessage("html.email.manual.message.removeRole", new Object[] { userRole.getName() }, Locale.ENGLISH));
+					}
+
+					usersAndRoles.append("</ul>");
+				}
+
+				String title = messageSource.getMessage("html.email.manual.title", new Object[] { itSystem.getName() }, Locale.ENGLISH);
+				String message = messageSource.getMessage("html.email.manual.message.format", new Object[] { itSystem.getName(), usersAndRoles.toString() }, Locale.ENGLISH);
+
+				try {
+					emailService.sendMessage(emailAddress, title, message);
+				}
+				catch (Exception ex) {
+					log.error("Exception occured while synchronizing manual ItSystem: " + itSystem + " Exception:" + ex.getMessage());
+
+					// we just continue with the next one - someone has to fix this, and then perform a full sync
+				}
 			}
 		}
-
-		delete(filtered);
-	}
-
-	// we always add to queue, duplicates are dealt with elsewhere
-	private void addUserToQueue(User user, ItSystem itSystem) {
-		PendingManualUpdate pendingManualUpdate = new PendingManualUpdate();
-		pendingManualUpdate.setUserId(user.getUserId());
-		pendingManualUpdate.setTimestamp(new Date());
-		pendingManualUpdate.setItSystemId(itSystem.getId());
-		pendingManualUpdateDao.save(pendingManualUpdate);
 	}
 }

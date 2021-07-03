@@ -10,6 +10,8 @@ import javax.persistence.JoinColumn;
 import javax.persistence.ManyToOne;
 import javax.persistence.Table;
 
+import org.hibernate.annotations.BatchSize;
+
 import dk.digitalidentity.rc.dao.model.enums.ConstraintValueType;
 import lombok.Getter;
 
@@ -31,6 +33,7 @@ public class HistorySystemRoleAssignmentConstraint {
 	@Column
 	private String constraintValue;
 	
+	@BatchSize(size = 50)
 	@ManyToOne(fetch = FetchType.LAZY)
 	@JoinColumn(name = "history_user_roles_system_roles_id")
 	private HistorySystemRoleAssignment historySystemRoleAssignment;

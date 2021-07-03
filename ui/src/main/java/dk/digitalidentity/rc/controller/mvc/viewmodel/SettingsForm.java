@@ -4,7 +4,7 @@ import java.util.Set;
 
 import dk.digitalidentity.rc.dao.model.enums.CheckupIntervalEnum;
 import dk.digitalidentity.rc.service.model.OrganisationEventAction;
-import dk.digitalidentity.rc.service.model.RequestApproveManagerAction;
+import dk.digitalidentity.rc.service.model.WhoCanRequest;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -12,11 +12,10 @@ import lombok.Setter;
 @Setter
 public class SettingsForm {
 	private boolean requestApproveEnabled;
-	private boolean itSystemMarkupEnabled;
 	private String servicedeskEmail;
 	private String itSystemChangeEmail;
 	private String removalOfUnitRolesEmail;
-	private RequestApproveManagerAction requestApproveManagerAction;
+	private WhoCanRequest requestApproveWho;
 	
 	private boolean organisationEventsEnabled;
 	private OrganisationEventAction ouNewManagerAction;
@@ -28,9 +27,10 @@ public class SettingsForm {
 	private CheckupIntervalEnum scheduledAttestationIntervalSensitive;
 	private long scheduledAttestationDayInMonth;
 	private Set<String> scheduledAttestationFilter;
+	private String emailAttestationReport;
 	
-	private int ReminderCount;
-	private int ReminderInterval;
-	private int DaysBeforeDeadline;
-	private String EmailAfterReminders;
+	private int reminderCount;
+	private int reminderInterval;
+	private int daysBeforeDeadline;
+	private String emailAfterReminders;
 }

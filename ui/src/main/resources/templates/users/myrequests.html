@@ -3,8 +3,8 @@
 <head th:replace="fragments/header :: header (title=#{html.page.myrequests.title})" />
 <body>
 	<div class="wrapper">
-		<header th:replace="fragments/navbar :: navbar-header" />
-		<aside th:replace="fragments/navbar :: navbar-aside (page = '')" />
+		<header th:replace="fragments/navbar :: navbar-header(subpage = 'roles')" />
+		<aside th:replace="fragments/navbar :: navbar-aside (page = '', subpage = 'roles')" />
  
 		<section>
 			<div class="content-wrapper">
@@ -27,7 +27,8 @@
 								<thead>
 									<tr>
 										<th class="col-md-3" th:text="#{html.my.requests.name}" />										
-										<th class="col-md-6" th:text="#{html.my.requests.description}"/>
+										<th class="col-md-4" th:text="#{html.my.requests.description}"/>
+										<th class="col-md-2" th:text="#{html.my.requests.to}"/>
 										<th class="col-md-2" th:text="#{html.my.requests.status}"/>
 										<th class="col-md-1" th:text="#{html.control.operations}"/>
 									</tr>
@@ -37,6 +38,7 @@
 								    <tr th:each="req : ${requests}">
 										<td th:text="${req.roleName}" />
 										<td th:text="${req.roleDescription}" />
+										<td th:text="${req.request.requestedFor} != null ? ${req.request.requestedFor.name} : ''"></td>
 										<td>
 											<span th:text="#{__${req.request.status.message}__}"/>
 											<th:block th:if="${req.request.rejectReason != null}">

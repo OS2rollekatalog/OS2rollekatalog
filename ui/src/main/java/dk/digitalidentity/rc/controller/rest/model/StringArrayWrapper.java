@@ -9,4 +9,5 @@ import lombok.Setter;
 @Setter
 public class StringArrayWrapper {
 	private Set<String> titleUuids;
+	private Set<String> exceptedUserUuids;
 }

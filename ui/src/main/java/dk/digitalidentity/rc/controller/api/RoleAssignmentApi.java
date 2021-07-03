@@ -114,7 +114,7 @@ public class RoleAssignmentApi {
             return new ResponseEntity<>(ErrorMessage.USER_ROLE_NOT_FOUND, HttpStatus.NOT_FOUND);
         }
 
-        if (orgUnitService.addUserRole(ou, userRole, false, startDate, stopDate)) {
+        if (orgUnitService.addUserRole(ou, userRole, false, startDate, stopDate, null)) {
         	orgUnitService.save(ou);
         }
 
@@ -132,7 +132,7 @@ public class RoleAssignmentApi {
             return new ResponseEntity<>(ErrorMessage.ROLE_GROUP_NOT_FOUND, HttpStatus.NOT_FOUND);
         }
 
-        if (orgUnitService.addRoleGroup(ou, roleGroup, false, startDate, stopDate)) {
+        if (orgUnitService.addRoleGroup(ou, roleGroup, false, startDate, stopDate, null)) {
         	orgUnitService.save(ou);
         }
 

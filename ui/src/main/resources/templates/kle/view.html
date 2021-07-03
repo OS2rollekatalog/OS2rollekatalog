@@ -3,8 +3,8 @@
 <head th:replace="fragments/header :: header (title=#{html.page.kle.kle.assignment})" />
 <body>
 	<div class="wrapper">
-		<header th:replace="fragments/navbar :: navbar-header" />
-		<aside th:replace="fragments/navbar :: navbar-aside (page = 'kle.assignment')" />
+		<header th:replace="fragments/navbar :: navbar-header(subpage = 'reports')" />
+		<aside th:replace="fragments/navbar :: navbar-aside (page = 'kle.assignment', subpage = 'reports')" />
 		<section>
 			<div class="content-wrapper">
 				<h3>

@@ -10,7 +10,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import javax.validation.Valid;
@@ -171,8 +170,13 @@ public class ItSystemApi {
 				}
 			}
 
-			Map<String, User> users = (containsUsers) ? userService.getAll().stream().collect(Collectors.toMap(User::getUserId, Function.identity())) : new HashMap<>();
-
+			Map<String, User> users = new HashMap<>();
+			if (containsUsers) {
+				for (User user : userService.getAll()) {
+					users.put(user.getUserId().toLowerCase(), user);
+				}
+			}
+			
 			// ensure 1:1 user roles with same name as system-role and delete any user-role without system-roles
 			// we keep track of corresponding 1:1 roles by assigning the same identifier on both entities
 			List<SystemRole> systemRoles = systemRoleService.getByItSystem(itSystem);
@@ -248,7 +252,13 @@ public class ItSystemApi {
 			// delete user roles that has no system role assignments
 			var toBeDeleted = userRoles.stream().filter(ur -> ur.getSystemRoleAssignments().size() == 0).collect(Collectors.toList());
 			for (var userRole : toBeDeleted) {
-				userRoleService.delete(userRole);
+				try {
+					// TODO: if the userRole is included in a RoleGroup, this will fail - need a "on delete cascade" rule to the reference *sigh*
+					userRoleService.delete(userRole);
+				}
+				catch (Exception ex) {
+					log.error("Failed to delete userRole: " + userRole.getId(), ex);
+				}
 			}
 		}
 
@@ -257,7 +267,7 @@ public class ItSystemApi {
 
 	private void updateUserAssignments(SystemRoleDTO systemRoleDTO, UserRole userRole, Map<String, User> users) {
 		List<String> assignedUsers = systemRoleDTO.getUsers();
-		if (assignedUsers.size() == 0) {
+		if (assignedUsers == null || assignedUsers.size() == 0) {
 			assignedUsers = new ArrayList<String>();
 		}
 
@@ -279,7 +289,7 @@ public class ItSystemApi {
 		for (UserWithRole userWithRole : usersWithRole) {
 			String userId = userWithRole.getUser().getUserId();
 
-			if (!assignedUsers.stream().anyMatch(u -> u.equals(userId))) {
+			if (!assignedUsers.stream().anyMatch(u -> u.equalsIgnoreCase(userId))) {
 				userService.removeUserRole(userWithRole.getUser(), userRole);
 			}
 		}

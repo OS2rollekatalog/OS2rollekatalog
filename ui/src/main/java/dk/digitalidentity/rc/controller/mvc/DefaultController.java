@@ -37,8 +37,11 @@ import org.springframework.web.context.request.ServletWebRequest;
 import org.springframework.web.context.request.WebRequest;
 import org.w3c.dom.Element;
 
+import dk.digitalidentity.rc.config.Constants;
+
 import dk.digitalidentity.rc.dao.RoleGroupDao;
 import dk.digitalidentity.rc.dao.UserRoleDao;
+import dk.digitalidentity.rc.security.SecurityUtil;
 import dk.digitalidentity.rc.service.ItSystemService;
 import lombok.extern.log4j.Log4j;
 
@@ -75,6 +78,28 @@ public class DefaultController implements ErrorController {
 		model.addAttribute("gitCommitId", gitCommitId);
 
 		return "index";
+	}
+	
+	@GetMapping("/ui/rolemenu")
+	public String roleIndex() {
+		if (SecurityUtil.hasRole(Constants.ROLE_READ_ACCESS)) {
+			return "redirect:/ui/userroles/list";
+		}
+
+		return "redirect:/ui/my";
+	}
+	
+	@GetMapping("/ui/reportmenu")
+	public String reportIndex() {
+		if (SecurityUtil.hasRole(Constants.ROLE_TEMPLATE_ACCESS) || SecurityUtil.hasRole(Constants.ROLE_READ_ACCESS)) {
+			return "redirect:/ui/report/templates";
+		}
+
+		if (SecurityUtil.hasRole(Constants.ROLE_SUBSTITUTE) || SecurityUtil.hasRole(Constants.ROLE_MANAGER)) {
+			return "redirect:/ui/users/attestations";
+		}
+
+		return "redirect:/";
 	}
 
 	@RequestMapping(value = { "/debug" })

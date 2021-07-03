@@ -14,7 +14,7 @@ import dk.digitalidentity.rc.dao.SettingsDao;
 import dk.digitalidentity.rc.dao.model.Setting;
 import dk.digitalidentity.rc.dao.model.enums.CheckupIntervalEnum;
 import dk.digitalidentity.rc.service.model.OrganisationEventAction;
-import dk.digitalidentity.rc.service.model.RequestApproveManagerAction;
+import dk.digitalidentity.rc.service.model.WhoCanRequest;
 
 @Service
 public class SettingsService {
@@ -24,7 +24,7 @@ public class SettingsService {
 	private static final String SETTING_USER_NEW_POSITION_ACTION = "UserNewPositionAction";
 	private static final String SETTING_IT_SYSTEM_MARKUP_ENABLED = "ItSystemMarkup";
 	private static final String SETTING_REQUEST_APPROVE_ENABLED = "RequestApproveEnabled";
-	private static final String SETTING_REQUEST_APPROVE_MANAGER_ACTION = "RequestApproveManagerAction";
+	private static final String SETTING_REQUEST_APPROVE_WHO = "RequestApproveWho";
 	private static final String SETTING_REQUEST_APPROVE_SERVICEDESK_EMAIL = "RequestApproveServicedeskEmail";
 	private static final String SETTING_SCHEDULED_ATTESTATION_ENABLED = "ScheduledAttestationEnabled";
 	private static final String SETTING_SCHEDULED_ATTESTATION_INTERVAL = "ScheduledAttestationInterval";
@@ -38,6 +38,7 @@ public class SettingsService {
 	private static final String SETTING_REMINDER_INTERVAL = "ReminderInterval";
 	private static final String SETTING_DAYS_BEFORE_DEADLINE = "DaysBeforeDeadline";
 	private static final String SETTING_EMAIL_AFTER_REMINDERS = "EmailAfterReminders";
+	private static final String SETTING_EMAIL_ATTESTATION_REPORT = "EmailAttestationReport";
 
 	@Autowired
 	private SettingsDao settingsDao;
@@ -65,21 +66,21 @@ public class SettingsService {
 	public void setRequestApproveEnabled(boolean enabled) {
 		setKeyEnabled(enabled, SETTING_REQUEST_APPROVE_ENABLED);
 	}
-	
-	public RequestApproveManagerAction getRequestApproveManagerAction() {
-		String value = getKeyWithDefault(SETTING_REQUEST_APPROVE_MANAGER_ACTION, RequestApproveManagerAction.NONE.toString());
+
+	public WhoCanRequest getRequestApproveWho() {
+		String value = getKeyWithDefault(SETTING_REQUEST_APPROVE_WHO, WhoCanRequest.USERS.toString());
 		
-		return RequestApproveManagerAction.valueOf(value);
+		return WhoCanRequest.valueOf(value);
 	}
 	
-	public void setRequestApproveManagerAction(RequestApproveManagerAction action) {
-		Setting setting = settingsDao.getByKey(SETTING_REQUEST_APPROVE_MANAGER_ACTION);
+	public void setRequestApproveWho(WhoCanRequest who) {
+		Setting setting = settingsDao.getByKey(SETTING_REQUEST_APPROVE_WHO);
 		if (setting == null) {
 			setting = new Setting();
-			setting.setKey(SETTING_REQUEST_APPROVE_MANAGER_ACTION);
+			setting.setKey(SETTING_REQUEST_APPROVE_WHO);
 		}
 		
-		setting.setValue(action.toString());
+		setting.setValue(who.toString());
 		settingsDao.save(setting);
 	}
 	
@@ -185,7 +186,7 @@ public class SettingsService {
 		if (setting == null || StringUtils.isEmpty(setting.getValue())) {
 			return 7;
 		}
-		
+
 		int daysBeforeDeadline = 7;
 		try {
 			daysBeforeDeadline = Integer.parseInt(setting.getValue());
@@ -193,7 +194,7 @@ public class SettingsService {
 		catch (Exception ex) {
 			; // ignore
 		}
-		
+
 		return daysBeforeDeadline;
 	}
 	
@@ -205,6 +206,26 @@ public class SettingsService {
 		}
 		
 		setting.setValue(Long.toString(days));
+		settingsDao.save(setting);
+	}
+	
+	public String getEmailAttestationReport() {
+		Setting setting = settingsDao.getByKey(SETTING_EMAIL_ATTESTATION_REPORT);
+		if (setting == null) {
+			return "";
+		}
+
+		return setting.getValue();
+	}
+	
+	public void setEmailAttestationReport(String email) {
+		Setting setting = settingsDao.getByKey(SETTING_EMAIL_ATTESTATION_REPORT);
+		if (setting == null) {
+			setting = new Setting();
+			setting.setKey(SETTING_EMAIL_ATTESTATION_REPORT);
+		}
+		
+		setting.setValue(email);
 		settingsDao.save(setting);
 	}
 	
@@ -247,8 +268,11 @@ public class SettingsService {
 		}
 		
 		// panic filter
-		if (dayInMonth < 1 || dayInMonth > 28) {
-			dayInMonth = 10;
+		if (dayInMonth < 1) {
+			dayInMonth = 1;
+		}
+		else if (dayInMonth > 28) {
+			dayInMonth = 28;
 		}
 
 		setting.setValue(Long.toString(dayInMonth));

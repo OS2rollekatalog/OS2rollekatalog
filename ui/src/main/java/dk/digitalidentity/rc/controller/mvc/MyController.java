@@ -8,6 +8,7 @@ import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 
 import dk.digitalidentity.rc.dao.model.User;
+import dk.digitalidentity.rc.security.RequireRequesterRole;
 import dk.digitalidentity.rc.service.RequestApproveService;
 import dk.digitalidentity.rc.service.UserService;
 import lombok.extern.log4j.Log4j;
@@ -22,7 +23,7 @@ public class MyController {
 	@Autowired
 	private RequestApproveService requestApproveService;
 
-	@GetMapping(value = { "/ui/my" })
+	@GetMapping("/ui/my")
 	public String my(Model model, Principal principal) {
 		User user = userService.getByUserId(principal.getName());
 		if (user == null) {
@@ -36,7 +37,8 @@ public class MyController {
 		return "users/my";
 	}
 	
-	@GetMapping(value = { "/ui/my/requests" })
+	@RequireRequesterRole
+	@GetMapping("/ui/my/requests")
 	public String myRequests(Model model, Principal principal) {
 		User user = userService.getByUserId(principal.getName());
 		if (user == null) {

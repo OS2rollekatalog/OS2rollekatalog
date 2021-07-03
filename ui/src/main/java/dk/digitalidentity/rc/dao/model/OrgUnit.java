@@ -103,7 +103,10 @@ public class OrgUnit implements AuditLoggable {
 	@ManyToOne(fetch = FetchType.LAZY)
 	@JoinColumn(name = "attestation_pdf")
 	private OrgUnitAttestationPdf attestationPdf;
-	
+		
+	@OneToMany(mappedBy = "orgUnit", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
+	private List<AuthorizationManager> authorizationManagers;
+
 	@JsonIgnore
 	@Override
 	public String getEntityId() {
@@ -113,5 +116,5 @@ public class OrgUnit implements AuditLoggable {
 	@Override
 	public String getEntityName() {
 		return name;
-	}
+	}	
 }

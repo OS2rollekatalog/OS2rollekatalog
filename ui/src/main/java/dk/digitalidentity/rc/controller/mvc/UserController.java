@@ -5,6 +5,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import dk.digitalidentity.rc.controller.mvc.viewmodel.UserRoleNotAssignedDTO;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Controller;
@@ -63,9 +64,11 @@ public class UserController {
 
 		boolean readOnly = !(SecurityUtil.hasRole(Constants.ROLE_ASSIGNER) || SecurityUtil.hasRole(Constants.ROLE_KLE_ADMINISTRATOR));
 		List<UserRoleAssignedToUser> assignments = userService.getAllUserRolesAssignedToUser(user, null);
+		List<UserRoleNotAssignedDTO> exceptedAssignments = userService.getAllExceptedUserRolesForUser(user);
 
 		model.addAttribute("user", user);
 		model.addAttribute("assignments", assignments);
+		model.addAttribute("exceptedAssignments", exceptedAssignments);
 		model.addAttribute("editable", !readOnly && assignerRoleConstraint.isUserAccessable(user, true));
 		model.addAttribute("klePerforming", kleService.getKleAssignments(user, KleType.PERFORMING, true));
 		model.addAttribute("kleInterest", kleService.getKleAssignments(user, KleType.INTEREST, true));

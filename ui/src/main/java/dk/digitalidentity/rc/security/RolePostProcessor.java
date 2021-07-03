@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import javax.servlet.http.HttpServletRequest;
 import javax.transaction.Transactional;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -12,8 +13,11 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Component;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
 
 import dk.digitalidentity.rc.config.Constants;
+import dk.digitalidentity.rc.config.SessionConstants;
 import dk.digitalidentity.rc.dao.model.ItSystem;
 import dk.digitalidentity.rc.dao.model.SystemRoleAssignment;
 import dk.digitalidentity.rc.dao.model.User;
@@ -21,9 +25,12 @@ import dk.digitalidentity.rc.dao.model.UserRole;
 import dk.digitalidentity.rc.dao.model.enums.EventType;
 import dk.digitalidentity.rc.log.AuditLogger;
 import dk.digitalidentity.rc.service.ItSystemService;
+import dk.digitalidentity.rc.service.NotificationService;
+import dk.digitalidentity.rc.service.OrgUnitService;
 import dk.digitalidentity.rc.service.ReportTemplateService;
 import dk.digitalidentity.rc.service.SettingsService;
 import dk.digitalidentity.rc.service.UserService;
+import dk.digitalidentity.rc.service.model.WhoCanRequest;
 import dk.digitalidentity.saml.extension.SamlLoginPostProcessor;
 import dk.digitalidentity.saml.model.TokenUser;
 
@@ -48,6 +55,12 @@ public class RolePostProcessor implements SamlLoginPostProcessor {
 	
 	@Autowired
 	private ReportTemplateService reportTemplateService;
+	
+	@Autowired 
+	private NotificationService notificationService;
+	
+	@Autowired
+	private OrgUnitService orgUnitService;
 
 	@Override
 	public void process(TokenUser tokenUser) {
@@ -75,18 +88,8 @@ public class RolePostProcessor implements SamlLoginPostProcessor {
 				}
 			}
 		}
-
+		
 		Set<GrantedAuthority> authorities = new HashSet<>();
-
-		// if the request/approve feature is enabled, all users gets the requester role
-		if (settingsService.isRequestApproveEnabled()) {
-			authorities.add(new SimpleGrantedAuthority(Constants.ROLE_REQUESTER));
-		}
-
-		// flag user as manager if that is the case
-		if (userService.isManager(user)) {
-			authorities.add(new SimpleGrantedAuthority(Constants.ROLE_MANAGER));
-		}
 
 		// if any manager has flagged this user as a substitute, add the substitute role and keep track of the list of managers
 		List<User> managers = userService.getSubstitutesManager(user);
@@ -98,12 +101,34 @@ public class RolePostProcessor implements SamlLoginPostProcessor {
 					.toArray(new String[0]));
 		}
 
+		// check if the request/approve feature is enabled
+		if (settingsService.isRequestApproveEnabled()) {
+			if (settingsService.getRequestApproveWho().equals(WhoCanRequest.AUTHORIZATION_MANAGER)) {
+
+				// if it is only a substitute/manager or an authorization manager that can request roles, check if the user is a substitute, authorization manager or a manager
+				if (managers.size() > 0 || !orgUnitService.getByAuthorizationManagerMatchingUser(user).isEmpty() || !orgUnitService.getByManagerMatchingUser(user).isEmpty()) {
+					authorities.add(new SimpleGrantedAuthority(Constants.ROLE_REQUESTER));
+				}
+				
+			}
+			else {
+				// if it is users that can request roles, all users gets the requester role
+				authorities.add(new SimpleGrantedAuthority(Constants.ROLE_REQUESTER));
+			}
+		}
+
+		// flag user as manager if that is the case
+		if (userService.isManager(user)) {
+			authorities.add(new SimpleGrantedAuthority(Constants.ROLE_MANAGER));
+		}
+
 		// hierarchy of roles
 		if (roles.contains(Constants.ROLE_ADMINISTRATOR_ID)) {
 			authorities.add(new SimpleGrantedAuthority(Constants.ROLE_ADMINISTRATOR));
 			authorities.add(new SimpleGrantedAuthority(Constants.ROLE_ASSIGNER));
 			authorities.add(new SimpleGrantedAuthority(Constants.ROLE_READ_ACCESS));
 			authorities.add(new SimpleGrantedAuthority(Constants.ROLE_KLE_ADMINISTRATOR));
+			setNotifications();
 		}
 		else if (roles.contains(Constants.ROLE_ASSIGNER_ID)) {
 			authorities.add(new SimpleGrantedAuthority(Constants.ROLE_ASSIGNER));
@@ -125,5 +150,23 @@ public class RolePostProcessor implements SamlLoginPostProcessor {
 		}
 
 		tokenUser.setAuthorities(authorities);
+	}
+	
+	private void setNotifications() {
+		HttpServletRequest request = getRequest();
+		
+		if (request != null) {
+			long count = notificationService.countActive();
+			request.getSession().setAttribute(SessionConstants.SESSION_NOTIFICATION_COUNT, count);
+		}
+	}
+	
+	private static HttpServletRequest getRequest() {
+		try {
+			return ((ServletRequestAttributes) RequestContextHolder.currentRequestAttributes()).getRequest();
+		}
+		catch (IllegalStateException ex) {
+			return null;
+		}
 	}
 }

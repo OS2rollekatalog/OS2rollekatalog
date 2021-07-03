@@ -17,7 +17,7 @@ public class SessionCacheConfiguration {
 		serializer.setCookiePath("/");
 		serializer.setUseSecureCookie(true);
 		serializer.setSameSite("None");
-		serializer.setDomainNamePattern("^.+?\\.(\\w+\\.[a-z]+)$");
+//		serializer.setDomainNamePattern("^.+?\\.(\\w+\\.[a-z]+)$");
 
 		return serializer;
 	}

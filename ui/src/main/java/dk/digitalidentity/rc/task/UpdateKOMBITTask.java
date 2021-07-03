@@ -1,6 +1,5 @@
 package dk.digitalidentity.rc.task;
 
-import java.net.SocketTimeoutException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -16,7 +15,8 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.web.client.HttpStatusCodeException;
+import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestTemplate;
 
 import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
@@ -72,30 +72,11 @@ public class UpdateKOMBITTask {
 		}
 	}
 
-	@SuppressWarnings("deprecation")
 	@Scheduled(cron = "0 0/2 6-21 * * ?")
 	public void processUserRolesFromUpdateQueue() {
-		Thread t = new Thread(new Runnable() {
-
-			@Override
-			public void run() {
-				self.performUpdate();
-			}
-		});
-
-		try {
-			t.start();
-			t.join(2 * 60 * 1000);
-		}
-		catch (Exception ex) {
-			// bad, but required until we can shift to a HTTP implementation that actually
-			// has timeouts implemented (bad netty)
-			t.stop();
-        	log.error("Timeout in UpdateKOMBITTask", ex);
-		}
+		self.performUpdate();
 	}
 	
-	// TODO: probably move this to a service class?
 	@Transactional
 	public void performUpdate() {
 		if (!initialized) {
@@ -137,12 +118,7 @@ public class UpdateKOMBITTask {
 			log.info("Done synchronizing userroles to KOMBIT");
 		}
 		catch (Exception ex) {
-			if (ex instanceof SocketTimeoutException || (ex.getCause() != null && ex.getCause() instanceof SocketTimeoutException)) {
-				log.warn("Synchronizing userRoles to KOMBIT failed with timeout: " + ex.getMessage());
-			}
-			else {
-				log.error("Synchronizing userRoles to KOMBIT failed", ex);
-			}
+			log.error("Synchronizing userRoles to KOMBIT failed", ex);
 		}
 	}
 
@@ -177,17 +153,34 @@ public class UpdateKOMBITTask {
 		try {
 			String url = configuration.getIntegrations().getKombit().getUrl() + "/jobfunktionsroller";
 
-			HttpEntity<KOMBITUserRoleDTO> request = new HttpEntity<KOMBITUserRoleDTO>(userRoleDTO, headers);
-			HttpEntity<KOMBITUserRoleDTO> userRoleResponse = restTemplate.exchange(url, HttpMethod.POST, request, KOMBITUserRoleDTO.class);
+			int timeoutCount = 0;
+			KOMBITUserRoleDTO userRoleResponseDTO = null;
+			do {
+				try {
+					HttpEntity<KOMBITUserRoleDTO> request = new HttpEntity<KOMBITUserRoleDTO>(userRoleDTO, headers);
+					HttpEntity<KOMBITUserRoleDTO> userRoleResponse = restTemplate.exchange(url, HttpMethod.POST, request, KOMBITUserRoleDTO.class);
+		
+					userRoleResponseDTO = userRoleResponse.getBody();
+					break;
+				}
+				catch (ResourceAccessException ex) {
+					timeoutCount++;
 
-			KOMBITUserRoleDTO userRoleResponseDTO = userRoleResponse.getBody();
+					if (timeoutCount >= 3) {
+						throw ex;
+					}
+
+					log.warn("Timeout when calling: " + url + ", ex = " + ex.getMessage());
+				}
+			} while (true);
+
 			userRole.setUuid(userRoleResponseDTO.getUuid());
 
 			userRoleService.save(userRole);
 			
 			return true;
 		}
-		catch (HttpClientErrorException ex) {
+		catch (HttpStatusCodeException ex) {
 			log.error("Failed to create UserRole: " + userRole.getId() + " / " + ex.getResponseBodyAsString(), ex);
 		}
 		
@@ -212,12 +205,29 @@ public class UpdateKOMBITTask {
 		String url = configuration.getIntegrations().getKombit().getUrl() + "/jobfunktionsroller/" + pendingKOMBITUpdate.getUserRoleUuid();
 
 		// read existing UserRole from KOMBIT (fallback to create-case if it does not exist)
-		ResponseEntity<KOMBITUserRoleDTO> userRoleResponse = restTemplate.exchange(url, HttpMethod.GET, null, KOMBITUserRoleDTO.class);
-		if (userRoleResponse.getStatusCodeValue() > 299) {
-			return createUserRole(pendingKOMBITUpdate);
-		}
+		int timeoutCount = 0;
+		KOMBITUserRoleDTO userRoleDTO = null;
+		do {
+			try {
+				ResponseEntity<KOMBITUserRoleDTO> userRoleResponse = restTemplate.exchange(url, HttpMethod.GET, null, KOMBITUserRoleDTO.class);
+				if (userRoleResponse.getStatusCodeValue() > 299) {
+					return createUserRole(pendingKOMBITUpdate);
+				}
+				
+				userRoleDTO = userRoleResponse.getBody();
+				break;
+			}
+			catch (ResourceAccessException ex) {
+				timeoutCount++;
 
-		KOMBITUserRoleDTO userRoleDTO = userRoleResponse.getBody();
+				if (timeoutCount >= 3) {
+					throw ex;
+				}
+
+				log.warn("Timeout when calling: " + url + ", ex = " + ex.getMessage());
+			}
+		} while (true);
+
 		userRoleDTO.setBeskrivelse(userRole.getDescription());
 		userRoleDTO.setNavn(userRole.getName());
 		userRoleDTO.setBrugersystemrolleDataafgraensninger(brugersystemrolleDataafgraensninger);
@@ -227,11 +237,27 @@ public class UpdateKOMBITTask {
 		// write back
 		try {
 			HttpEntity<KOMBITUserRoleDTO> request = new HttpEntity<KOMBITUserRoleDTO>(userRoleDTO, headers);
-			restTemplate.exchange(url, HttpMethod.PUT, request, KOMBITUserRoleDTO.class);
+			
+			timeoutCount = 0;
+			do {
+				try {
+					restTemplate.exchange(url, HttpMethod.PUT, request, KOMBITUserRoleDTO.class);
+					break;
+				}
+				catch (ResourceAccessException ex) {
+					timeoutCount++;
+
+					if (timeoutCount >= 3) {
+						throw ex;
+					}
+
+					log.warn("Timeout when calling: " + url + ", ex = " + ex.getMessage());
+				}
+			} while (true);
 
 			return true;
 		}
-		catch (HttpClientErrorException ex) {
+		catch (HttpStatusCodeException ex) {
 			log.error("Failed to update UserRole: " + userRole.getId() + " / " + ex.getResponseBodyAsString(), ex);
 		}
 				
@@ -248,11 +274,26 @@ public class UpdateKOMBITTask {
 		String url = configuration.getIntegrations().getKombit().getUrl() + "/jobfunktionsroller/" + pendingKOMBITUpdate.getUserRoleUuid();
 
 		try {
-			restTemplate.delete(url);
+			int timeoutCount = 0;
+			do {
+				try {
+					restTemplate.delete(url);
+					break;
+				}
+				catch (ResourceAccessException ex) {
+					timeoutCount++;
+
+					if (timeoutCount >= 3) {
+						throw ex;
+					}
+
+					log.warn("Timeout when calling: " + url + ", ex = " + ex.getMessage());
+				}
+			} while (true);
 
 			return true;
 		}
-		catch (HttpClientErrorException ex) {
+		catch (HttpStatusCodeException ex) {
 			log.error("Failed to delete UserRole: " + pendingKOMBITUpdate.getUserRoleUuid() + " / " + ex.getResponseBodyAsString(), ex);
 		}
 

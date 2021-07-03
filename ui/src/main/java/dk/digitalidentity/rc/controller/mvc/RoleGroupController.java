@@ -1,6 +1,7 @@
 package dk.digitalidentity.rc.controller.mvc;
 
 import java.security.Principal;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -49,6 +50,7 @@ import dk.digitalidentity.rc.service.UserService;
 import dk.digitalidentity.rc.service.model.OrgUnitWithRole;
 import dk.digitalidentity.rc.service.model.RoleWithDateDTO;
 import dk.digitalidentity.rc.service.model.UserWithRole;
+import dk.digitalidentity.rc.service.model.UserWithRoleAndDates;
 
 @RequireRequesterOrReadAccessRole
 @Controller
@@ -166,18 +168,33 @@ public class RoleGroupController {
 		boolean titlesEnabled = configuration.getTitles().isEnabled();
 		
 		List<User> usersFromDb = userService.getAll();
-		List<UserWithRole> usersWithRole = userService.getUsersWithRoleGroup(roleGroup, false);
-		
+		List<UserWithRoleAndDates> usersWithRole = userService.getUsersWithRoleGroupDirectlyAssigned(roleGroup);
 		List<String> uuidsWithRole = usersWithRole.stream().map(u -> u.getUser().getUuid()).collect(Collectors.toList());
+		List<UserRoleCheckedDTO> users = new ArrayList<>();
 		
-		List<UserRoleCheckedDTO> users = usersFromDb.stream()
-				.map(u -> UserRoleCheckedDTO.builder()
-						.uuid(u.getUuid())
-						.name(u.getName())
-						.userId(u.getUserId())
-						.checked(uuidsWithRole.contains(u.getUuid()))
-						.build())
-				.collect(Collectors.toList());
+		for (User user : usersFromDb) {
+			LocalDate startDate = null;
+			LocalDate stopDate = null;
+			boolean checked = false;
+			
+			if (uuidsWithRole.contains(user.getUuid())) {
+				checked = true;
+				//We know it exists because of the if, and there should only be one
+				UserWithRoleAndDates userWithRole = usersWithRole.stream().filter(u -> u.getUser().getUuid().equals(user.getUuid())).findAny().orElse(null);
+				startDate = userWithRole.getStartDate();
+				stopDate = userWithRole.getStopDate();
+			}
+			
+			UserRoleCheckedDTO dto = new UserRoleCheckedDTO();
+			dto.setName(user.getName());
+			dto.setUuid(user.getUuid());
+			dto.setUserId(user.getUserId());
+			dto.setChecked(checked);
+			dto.setStartDate(startDate);
+			dto.setStopDate(stopDate);
+			
+			users.add(dto);
+		}
 		
 		List<OrgUnit> oUsFromDb = orgUnitService.getAll();
 		List<RolesOUTable> allOUs = new ArrayList<>();

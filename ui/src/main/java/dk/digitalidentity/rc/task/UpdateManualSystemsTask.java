@@ -20,16 +20,18 @@ public class UpdateManualSystemsTask {
 	@Autowired
 	private RoleCatalogueConfiguration configuration;
 
-	// run every 15 minutes during the day
-	@Scheduled(cron = "0 0/15 7-17 * * ?")
+	@Scheduled(cron = " 0 #{new java.util.Random().nextInt(59)} 8 ? * *")
+	//@Scheduled(fixedDelay = 60 * 60 * 1000)
 	public void processUsersFromWaitingTable() {
 		if (!configuration.getScheduled().isEnabled()) {
 			log.debug("Scheduled jobs are disabled on this instance");
 			return;
 		}
 
-		log.debug("Running scheduled job");
+		log.info("Notifying servicedesk about manual it-system changes started");
 
 		manualRolesService.notifyServicedesk();
+		
+		log.info("Notifying servicedesk about manual it-system changes completed");
 	}
 }

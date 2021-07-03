@@ -3,8 +3,8 @@
 <head th:replace="fragments/header :: header (title=#{html.page.attestations.title})" />
 <body>
 	<div class="wrapper">
-		<header th:replace="fragments/navbar :: navbar-header" />
-		<aside th:replace="fragments/navbar :: navbar-aside (page = ${page})" />
+		<header th:replace="fragments/navbar :: navbar-header(subpage = 'reports')" />
+		<aside th:replace="fragments/navbar :: navbar-aside (page = ${page}, subpage = 'reports')" />
 
 		<section>
 			<div class="content-wrapper">
@@ -41,6 +41,7 @@
 											
 											<td th:if="${ou.substituteName} != null">
 												<div th:text="${ou.substituteName}" />
+												<span style="color: grey;" th:text="${ou.substitutePosition}" />
 											</td>
 											
 											<td th:unless="${ou.substituteName} != null">&nbsp;</td>

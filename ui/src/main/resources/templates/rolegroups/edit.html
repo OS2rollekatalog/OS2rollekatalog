@@ -3,8 +3,8 @@
 <head th:replace="fragments/header :: header (title=#{html.page.rolegroup.edit.title})" />
 <body>
 <div class="wrapper">
-    <header th:replace="fragments/navbar :: navbar-header" />
-    <aside th:replace="fragments/navbar :: navbar-aside (page = 'rolegroups.list')" />
+    <header th:replace="fragments/navbar :: navbar-header(subpage = 'roles')" />
+    <aside th:replace="fragments/navbar :: navbar-aside (page = 'rolegroups.list', subpage = 'roles')" />
     <section>
         <div class="content-wrapper">
             <h3>
@@ -68,7 +68,7 @@
 					
 					<ul class="nav nav-tabs">
 						<li th:class="active">
-                           	<a data-toggle="tab" href="#roles_menu" th:text="#{html.entity.userrole.roleassignments}"/>
+                           	<a data-toggle="tab" href="#roles_menu" th:text="#{html.page.rolegroup.list.roles}"/>
                         </li>
                         <li>
                            	<a data-toggle="tab" href="#users_menu" th:text="#{html.page.users.list.title}"/>
@@ -119,7 +119,8 @@
 									<tr>
 										<th class="col-md-1" th:text="#{html.entity.positions.assign}" />
 										<th class="col-md-4" th:text="#{html.entity.user.name}" />
-										<th class="col-md-7" th:text="#{html.entity.user.userId}" />
+										<th class="col-md-4" th:text="#{html.entity.user.userId}" />
+										<th class="col-md-3" th:text="#{html.entity.rolegroup.validity}"/>
 									</tr>
 								</thead>
 
@@ -136,6 +137,13 @@
 										</td>
 										<td th:text="${user.name}" />
 										<td th:text="${user.userId}" />
+										<td class="fromToDate">
+						              		<ul th:if="${user.startDate != null or user.stopDate != null}" style="padding-left: 0px; list-style-type: none;">
+						               			<li th:if="${user.startDate != null}" th:text="#{html.word.assigned} + ' ' + ${user.startDate}"></li>
+						               			<li th:if="${user.stopDate != null}" th:text="#{html.word.deassigned} + ' ' + ${user.stopDate}"></li>
+						              		</ul>
+						              		<span th:if="${user.checked == true and user.startDate == null and user.stopDate == null}" th:text="#{html.word.indefinite}"/>
+						              	</td>
 									</tr>
 								</tbody>
 							</table>
@@ -495,8 +503,8 @@
 				
 				this.handleCheckbox = function() {
 					var checked = !this.checked;
-					var startDate = this.dataset.startDate;
-					var stopDate = this.dataset.stopDate;
+					var startDate = this.dataset.startdate;
+					var stopDate = this.dataset.stopdate;
 					
 					payload.roleType = String(this.dataset.objtype);
 					payload.roleId = roleId;

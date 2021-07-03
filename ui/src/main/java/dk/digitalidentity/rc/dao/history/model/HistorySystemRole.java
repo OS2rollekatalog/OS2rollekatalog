@@ -8,6 +8,8 @@ import javax.persistence.JoinColumn;
 import javax.persistence.ManyToOne;
 import javax.persistence.Table;
 
+import org.hibernate.annotations.BatchSize;
+
 import lombok.Getter;
 
 @Entity
@@ -27,6 +29,7 @@ public class HistorySystemRole {
 	@Column
 	private String systemRoleDescription;
 	
+	@BatchSize(size = 50)
 	@ManyToOne(fetch = FetchType.LAZY)
 	@JoinColumn(name = "history_it_systems_id")
 	private HistoryItSystem historyItSystem;

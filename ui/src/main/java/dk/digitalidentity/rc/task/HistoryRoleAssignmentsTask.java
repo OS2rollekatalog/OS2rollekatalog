@@ -40,6 +40,7 @@ public class HistoryRoleAssignmentsTask {
 		historyService.generateKleAssignmentHistory();
 		historyService.generateOURoleAssignmentHistory();
 		historyService.generateTitleRoleAssignmentHistory();
+		historyService.generateExceptedUsersHistory();
 		
 		log.info("Generating historic role assignments took " + ((new Date().getTime() - now.getTime()) / 1000) + " seconds");
 	}

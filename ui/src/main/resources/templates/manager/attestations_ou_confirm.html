@@ -3,8 +3,8 @@
 <head th:replace="fragments/header :: header (title=#{html.page.attestations.title})" />
 <body>
 	<div class="wrapper">
-		<header th:replace="fragments/navbar :: navbar-header" />
-		<aside th:replace="fragments/navbar :: navbar-aside (page = 'attestation')" />
+		<header th:replace="fragments/navbar :: navbar-header(subpage = 'reports')" />
+		<aside th:replace="fragments/navbar :: navbar-aside (page = 'attestation', subpage = 'reports')" />
 
 		<section>
 			<div class="content-wrapper">
@@ -18,38 +18,63 @@
 							<div class="panel panel-default">
 								<div class="panel-body">
 									<span th:text="#{html.page.attestations.confirment.subtext}"></span>
+									
 									<br> <br>
-									<button type="button" class="btn btn-md btn-primary" onclick="confirm()"
-											th:text="#{html.page.attestations.confirment.button.approve}"></button>
-									<button type="button" class="btn btn-md btn-warning" onclick="back()"
-											th:text="#{html.page.attestations.confirment.button.back}"></button>
+									
+									<button type="button" class="btn btn-md btn-primary" onclick="confirm()" th:text="#{html.page.attestations.confirment.button.approve}"></button>
+									<button type="button" class="btn btn-md btn-warning" onclick="back()" th:text="#{html.page.attestations.confirment.button.back}"></button>
 								</div>
 							</div>
 						</div>
+						
 						<div class="panel-group" th:unless="${dtoToBeRemoved.empty and dtoToEmail.empty}">
 							<div class="panel panel-default">
 								<div class="panel-body">
 									<div th:if="${!dtoToBeRemoved.empty}">
 										<h4 th:text="#{html.page.attestations.confirment.show.personal.remove}"></h4>
 										<ul th:each="dto : ${dtoToBeRemoved}">
-											<li th:if="${dto.roleGroup}" th:text="'Rollebuketten ' + ${dto.roleName} + ' for medarbejderen ' + ${dto.userOrUnitName}">
-											<li th:unless="${dto.roleGroup}" th:text="'Jobfunktionsrollen ' + ${dto.roleName} + ' (' + ${dto.itSystemName} + ') ' + 'for medarbejderen ' + ${dto.userOrUnitName}">
+											<li style="list-style-type: none;">
+												<em class="fa fa-fw fa-times" style="color: red;"></em>
+												<span th:if="${dto.roleGroup}" th:text="'Rollebuketten ' + ${dto.roleName} + ' for medarbejderen ' + ${dto.userOrUnitName}" />
+											    <span th:unless="${dto.roleGroup}" th:text="'Jobfunktionsrollen ' + ${dto.roleName} + ' (' + ${dto.itSystemName} + ') ' + 'for medarbejderen ' + ${dto.userOrUnitName}" />
+											</li>
 										</ul>
 									</div>
+									
 									<br>
+
 									<div th:if="${!dtoToEmail.empty}">
 										<h4 th:text="#{html.page.attestations.confirment.show.unit.remove}"></h4>
 										<ul th:each="dto : ${dtoToEmail}">
 											<div th:if="${dto.title}">
-												<li th:if="${dto.roleGroup}" th:text="'Rollebuketten ' + ${dto.roleName} + ' for titlen ' + ${dto.userOrUnitName}">
-												<li th:unless="${dto.roleGroup}" th:text="'Jobfunktionsrollen ' + ${dto.roleName} + ' (' + ${dto.itSystemName} + ') ' + ' for titlen ' + ${dto.userOrUnitName}">
+												<li style="list-style-type: none;">
+													<em class="fa fa-fw fa-times" style="color: red;"></em>
+													<span th:if="${dto.roleGroup}" th:text="'Rollebuketten ' + ${dto.roleName} + ' for titlen ' + ${dto.userOrUnitName}" />
+													<span th:unless="${dto.roleGroup}" th:text="'Jobfunktionsrollen ' + ${dto.roleName} + ' (' + ${dto.itSystemName} + ') ' + ' for titlen ' + ${dto.userOrUnitName}" />
+												</li>
 											</div>
 											<div th:unless="${dto.title}">
-												<li th:if="${dto.roleGroup}" th:text="'Rollebuketten ' + ${dto.roleName} + ' for enheden ' + ${dto.userOrUnitName}">
-												<li th:unless="${dto.roleGroup}" th:text="'Jobfunktionsrollen ' + ${dto.roleName} + ' (' + ${dto.itSystemName} + ') ' + ' for enheden ' + ${dto.userOrUnitName}">
+												<li style="list-style-type: none;">
+													<em class="fa fa-fw fa-times" style="color: red;"></em>
+													<span th:if="${dto.roleGroup}" th:text="'Rollebuketten ' + ${dto.roleName} + ' for enheden ' + ${dto.userOrUnitName}" />
+													<span th:unless="${dto.roleGroup}" th:text="'Jobfunktionsrollen ' + ${dto.roleName} + ' (' + ${dto.itSystemName} + ') ' + ' for enheden ' + ${dto.userOrUnitName}" />
+													<span th:if="${not #lists.isEmpty(dto.exceptedUsers)}">
+														<p style="margin-left: 20px; margin-bottom: 0px;" th:text="#{html.page.attestations.confirment.walkthrough.table.headers.role.via.unit.exceptedUsers}"></p>
+														<small>
+															<ul>
+																<li th:each="exceptedUser : ${dto.exceptedUsers}" th:text="${exceptedUser}"></li>
+															</ul>
+														</small>
+													</span>
+												</li>
 											</div>
 										</ul>
 									</div>
+
+									<br>
+									
+									<label for="message">Kommentarer</label>
+									<textarea id="message" class="form-control" placeholder="Indtast kommentar"></textarea>
 								</div>
 							</div>
 						</div>
@@ -86,6 +111,8 @@
 		}
 		
 		function confirm() {
+
+
 			$.ajax({
 			   url: restUrl + orgUnitUuid,
 			   headers: {
@@ -98,6 +125,7 @@
 				   "aprovedPersonal" : aprovedPersonal,
 				   "toBeRemoved" : toBeRemoved,
 				   "toEmail" : toEmail,
+				   "message" : $('#message').val(),
 				   "dtoShowToEmail" : dtoShowToEmail,
 				   "dtoShowToBeRemoved" : dtoShowToBeRemoved,
 				   "dtoShowAprovedPersonal" : dtoShowAprovedPersonal,

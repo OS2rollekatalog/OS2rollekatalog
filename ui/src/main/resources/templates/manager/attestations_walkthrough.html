@@ -3,8 +3,8 @@
 <head th:replace="fragments/header :: header (title=#{html.page.attestations.confirment.title})" />
 <body>
 	<div class="wrapper">
-		<header th:replace="fragments/navbar :: navbar-header" />
-		<aside th:replace="fragments/navbar :: navbar-aside (page = 'attestation')" />
+		<header th:replace="fragments/navbar :: navbar-header(subpage = 'reports')" />
+		<aside th:replace="fragments/navbar :: navbar-aside (page = 'attestation', subpage = 'reports')" />
 
 		<section>
 			<div class="content-wrapper">
@@ -51,9 +51,9 @@
 												<th class="col-md-1" th:text="#{html.page.attestations.confirment.walkthrough.table.headers.remove}" />
 												<th class="col-md-2" th:text="#{html.page.attestations.confirment.walkthrough.table.headers.employee}" />
 												<th class="col-md-2" th:text="#{html.page.attestations.confirment.walkthrough.table.headers.role}" />
-												<th class="col-md-2" th:text="#{html.page.attestations.confirment.walkthrough.table.headers.roletype}" />
 												<th class="col-md-1" th:text="#{html.page.attestations.confirment.walkthrough.table.headers.system}" />
 												<th class="col-md-4" th:text="#{html.page.attestations.confirment.walkthrough.table.headers.description}" />
+												<th class="col-md-2" th:text="#{html.page.attestations.confirment.walkthrough.table.headers.roletype}" />
 											</tr>
 										</thead>
 
@@ -68,13 +68,14 @@
 													</div>
 												</td>
 												
-												<td th:text="${dto.user.name} + ' (' + ${dto.user.userId} + ')'" />
+												<td>
+													<div th:text="${dto.user.name}" />
+													<span style="color: grey;" th:text="${dto.getUserPositionName()}" />
+												</td>
 
 												<td th:if="${dto.roleType} == 'Rollebuket'" th:text="${dto.roleAssignedToUser.roleGroup.name}" />
 												<td th:unless="${dto.roleType} == 'Rollebuket'" th:text="${dto.roleAssignedToUser.userRole.name}" />
-												
-												<td th:text="${dto.roleType}" />
-												
+																								
 												<td th:if="${dto.roleType}=='Rollebuket'">&nbsp;</td>
 												<th:block th:unless="${dto.roleType}=='Rollebuket'">
 													<td th:if="${dto.roleAssignedToUser.userRole.itSystem}!=null" th:text="${dto.roleAssignedToUser.userRole.itSystem.name}" />
@@ -83,6 +84,8 @@
 
 												<td th:if="${dto.roleType}=='Rollebuket'" th:text="${dto.roleAssignedToUser.roleGroup.description}" />
 												<td th:unless="${dto.roleType}=='Rollebuket'" th:text="${dto.roleAssignedToUser.userRole.description}" />
+												
+												<td th:text="${dto.roleType}" />
 											</tr>
 										</tbody>
 									</table>
@@ -97,9 +100,9 @@
 												<th class="col-md-1" th:text="#{html.page.attestations.confirment.walkthrough.table.headers.remove}" />
 												<th class="col-md-2" th:text="#{html.page.attestations.confirment.walkthrough.table.headers.role}" />
 												<th class="col-md-2" th:text="#{html.page.attestations.confirment.walkthrough.table.headers.role.via}" />
-												<th class="col-md-2" th:text="#{html.page.attestations.confirment.walkthrough.table.headers.roletype}" />
-												<th class="col-md-1" th:text="#{html.page.attestations.confirment.walkthrough.table.headers.system}" />
+												<th class="col-md-2" th:text="#{html.page.attestations.confirment.walkthrough.table.headers.system}" />
 												<th class="col-md-4" th:text="#{html.page.attestations.confirment.walkthrough.table.headers.description}" />
+												<th class="col-md-1" th:text="#{html.page.attestations.confirment.walkthrough.table.headers.roletype}" />
 											</tr>
 										</thead>
 
@@ -117,10 +120,18 @@
 												<td th:if="${dto.roleType}=='Rollebuket'" th:text="${dto.roleAssignedToUser.roleGroup.name}" />
 												<td th:unless="${dto.roleType}=='Rollebuket'" th:text="${dto.roleAssignedToUser.userRole.name}" />
 
-												<td th:if="${dto.roleAssignedToUser.title}==null" th:text="#{html.page.attestations.confirment.walkthrough.table.headers.role.via.unit} + ${dto.roleAssignedToUser.titleOrOrgUnitName}" />
+												<td th:if="${dto.roleAssignedToUser.title}==null">
+													<p th:text="#{html.page.attestations.confirment.walkthrough.table.headers.role.via.unit} + ${dto.roleAssignedToUser.titleOrOrgUnitName}"></p>
+													<div th:if="${not #lists.isEmpty(dto.exceptedUsers)}">
+														<small>
+															<p th:text="#{html.page.attestations.confirment.walkthrough.table.headers.role.via.unit.exceptedUsers}"></p>
+															<ul style="padding-inline-start: 25px;">
+																<li th:each="exceptedUser : ${dto.exceptedUsers}" th:text="${exceptedUser}">
+															</ul>
+														</small>
+													</div>
+												</td>
 												<td th:unless="${dto.roleAssignedToUser.title}==null" th:text="#{html.page.attestations.confirment.walkthrough.table.headers.role.via.title} + ${dto.roleAssignedToUser.titleOrOrgUnitName}" />
-
-												<td th:text="${dto.roleType}" />
 
 												<td th:if="${dto.roleType}=='Rollebuket'">&nbsp;</td>
 												<th:block th:unless="${dto.roleType}=='Rollebuket'">
@@ -130,6 +141,8 @@
 
 												<td th:if="${dto.roleType}=='Rollebuket'" th:text="${dto.roleAssignedToUser.roleGroup.description}" />
 												<td th:unless="${dto.roleType}=='Rollebuket'" th:text="${dto.roleAssignedToUser.userRole.description}" />
+												
+												<td th:text="${dto.roleType}" />
 											</tr>
 										</tbody>
 									</table>
@@ -142,8 +155,16 @@
 		</section>
 	</div>
 
-	<nav th:replace="fragments/footer :: footer" />
+	<style>
+		.table .checkbox {
+			margin-left: 10px;
+			width: auto;
+		}
+	</style>
 
+	<nav th:replace="fragments/footer :: footer" />
+	<script th:replace="fragments/datatables :: datatables " />
+	
 	<script th:inline="javascript">
 		/*<![CDATA[*/
 

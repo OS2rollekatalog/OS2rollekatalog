@@ -1,6 +1,5 @@
 package dk.digitalidentity.rc.task;
 
-import java.net.SocketTimeoutException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -18,6 +17,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestTemplate;
 
 import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
@@ -90,31 +90,13 @@ public class ReadKOMBITTask {
 		}
 		
 		if (initialized && itSystemService.getBySystemType(ItSystemType.KOMBIT).size() == 0) {
-			importItSystems();
+			self.performRead();
 		}
 	}
 
-	@SuppressWarnings("deprecation")
 	@Scheduled(cron = "0 #{new java.util.Random().nextInt(55)} 6,12,18 * * ?")
 	public void importItSystems() {
-		Thread t = new Thread(new Runnable() {
-
-			@Override
-			public void run() {
-				self.performRead();
-			}
-		});
-
-		try {
-			t.start();
-			t.join(2 * 60 * 1000);
-		}
-		catch (Exception ex) {
-			// bad, but required until we can shift to a HTTP implementation that actually
-			// has timeouts implemented (bad netty)
-			t.stop();
-        	log.error("Timeout in ReadKOMBITTask", ex);
-		}
+		self.performRead();
 	}
 
 	@Transactional
@@ -160,12 +142,7 @@ public class ReadKOMBITTask {
 			log.info("Done reading it-system metadata from KOMBIT");
 		}
 		catch (Exception ex) {
-			if (ex instanceof SocketTimeoutException || (ex.getCause() != null && ex.getCause() instanceof SocketTimeoutException)) {
-				log.warn("Synchronizing it-systems from KOMBIT failed with timeout: " + ex.getMessage());
-			}
-			else {
-				log.error("Synchronizing it-systems from KOMBIT failed", ex);
-			}
+			log.error("Synchronizing it-systems from KOMBIT failed", ex);
 		}
 	}
 
@@ -301,6 +278,7 @@ public class ReadKOMBITTask {
 			}
 			userRole.setUuid(userRoleDTO.getUuid());
 
+			boolean badRole = false;
 			if (delegated) {
 				userRole.setDelegatedFromCvr(userRoleDTO.getOrganisationCvr());
 			}
@@ -310,6 +288,12 @@ public class ReadKOMBITTask {
 
 				for (KOMBITBrugersystemrolleDataafgraensningerDTO brugersystemrolleDataafgraensninger : userRoleDTO.getBrugersystemrolleDataafgraensninger()) {
 					SystemRole systemRole = systemRoleService.getByUuid(brugersystemrolleDataafgraensninger.getBrugersystemrolleUuid());
+					if (systemRole == null) {
+						log.warn("userRole = " + userRole.getName() + " : Could not find systemRole with entityId: " + brugersystemrolleDataafgraensninger.getBrugersystemrolleUuid());
+
+						badRole = true;
+						break;
+					}
 	
 					SystemRoleAssignment systemRoleAssignment = new SystemRoleAssignment();
 					systemRoleAssignment.setSystemRole(systemRole);
@@ -324,18 +308,30 @@ public class ReadKOMBITTask {
 						constraintValue.setSystemRoleAssignment(systemRoleAssignment);
 
 						ConstraintType constraintType = constraintTypeService.getByEntityId(dataafgraensningsVaerdier.getDataafgraensningstypeEntityId());
+						if (constraintType == null) {
+							log.warn("userRole = " + userRole.getName() + ", SystemRole = " + systemRole.getName() + " : Could not find contraintType with entityId: " + dataafgraensningsVaerdier.getDataafgraensningstypeEntityId());
+
+							badRole = true;
+							break;
+						}
 						constraintValue.setConstraintType(constraintType);
 						constraintValue.setConstraintValue(dataafgraensningsVaerdier.getVaerdi());
 						constraintValue.setConstraintValueType(ConstraintValueType.VALUE);
 	
 						systemRoleAssignment.getConstraintValues().add(constraintValue);
 					}
+					
+					if (badRole) {
+						break;
+					}
 	
 					userRole.getSystemRoleAssignments().add(systemRoleAssignment);
 				}
 			}
 
-			userRoleDao.save(userRole);
+			if (!badRole) {
+				userRoleDao.save(userRole);
+			}
 		}
 		
 		// any existing delegated roles that where not part of the output, has to be deleted,
@@ -586,44 +582,104 @@ public class ReadKOMBITTask {
 	}
 
 	private List<KOMBITUserRoleDTO> getUserRolesFromKOMBIT() {
-		log.info("Calling: " + configuration.getIntegrations().getKombit().getUrl() + "/jobfunktionsroller");
-		HttpEntity<KOMBITUserRoleDTO[]> userRolesEntity = restTemplate.getForEntity(configuration.getIntegrations().getKombit().getUrl() + "/jobfunktionsroller", KOMBITUserRoleDTO[].class);
+		int timeoutCount = 0;
+		KOMBITUserRoleDTO[] userRoles = null;
+	
+		do {
+			try {
+				HttpEntity<KOMBITUserRoleDTO[]> userRolesEntity = restTemplate.getForEntity(configuration.getIntegrations().getKombit().getUrl() + "/jobfunktionsroller", KOMBITUserRoleDTO[].class);
+
+				userRoles = userRolesEntity.getBody();
+				break;
+			}
+			catch (ResourceAccessException ex) {
+				timeoutCount++;
+
+				if (timeoutCount >= 3) {
+					throw ex;
+				}
+
+				log.warn("Timeout when calling: " + configuration.getIntegrations().getKombit().getUrl() + "/jobfunktionsroller, ex = " + ex.getMessage());
+			}
+		} while (true);
 
 		List<KOMBITUserRoleDTO> result = new ArrayList<>();
-		
-		for (KOMBITUserRoleDTO userRoleKOMBITDTO : userRolesEntity.getBody()) {
-			log.info("Calling: " + configuration.getIntegrations().getKombit().getUrl() + "/jobfunktionsroller/" + userRoleKOMBITDTO.getUuid());
-			HttpEntity<KOMBITUserRoleDTO> userRoleEntity = restTemplate.getForEntity(configuration.getIntegrations().getKombit().getUrl() + "/jobfunktionsroller/" + userRoleKOMBITDTO.getUuid(), KOMBITUserRoleDTO.class);
-			result.add(userRoleEntity.getBody());
+
+		for (KOMBITUserRoleDTO userRoleKOMBITDTO : userRoles) {
+			timeoutCount = 0;
+			
+			do {
+				try {
+					HttpEntity<KOMBITUserRoleDTO> userRoleEntity = restTemplate.getForEntity(configuration.getIntegrations().getKombit().getUrl() + "/jobfunktionsroller/" + userRoleKOMBITDTO.getUuid(), KOMBITUserRoleDTO.class);
+					result.add(userRoleEntity.getBody());
+					break;
+				}
+				catch (ResourceAccessException ex) {
+					timeoutCount++;
+					
+					if (timeoutCount >= 3) {
+						throw ex;
+					}
+
+					log.warn("Timeout when calling: " + configuration.getIntegrations().getKombit().getUrl() + "/jobfunktionsroller/" + userRoleKOMBITDTO.getUuid() + ", ex = " + ex.getMessage());
+				}
+			} while (true);
 		}
 		
-		log.info("Completed call to: " + configuration.getIntegrations().getKombit().getUrl() + "/jobfunktionsroller");
-
 		return result;
 	}
 
 	private KOMBITItSystemDTO[] getItSystems() throws Exception {
-		log.info("Calling: " + configuration.getIntegrations().getKombit().getUrl() + "/jobfunktionsroller/brugervendtesystemer");
-
-		HttpEntity<KOMBITItSystemDTO[]> itSystemEntity = restTemplate.getForEntity(configuration.getIntegrations().getKombit().getUrl() + "/jobfunktionsroller/brugervendtesystemer", KOMBITItSystemDTO[].class);
-
-		log.info("Completed call to: " + configuration.getIntegrations().getKombit().getUrl() + "/jobfunktionsroller/brugervendtesystemer");
+		int timeoutCount = 0;
 		
-		return itSystemEntity.getBody();
+		KOMBITItSystemDTO[] result = null;
+		do {
+			try {
+				HttpEntity<KOMBITItSystemDTO[]> itSystemEntity = restTemplate.getForEntity(configuration.getIntegrations().getKombit().getUrl() + "/jobfunktionsroller/brugervendtesystemer", KOMBITItSystemDTO[].class);
+
+				result = itSystemEntity.getBody();
+				break;
+			}
+			catch (ResourceAccessException ex) {
+				timeoutCount++;
+				
+				if (timeoutCount >= 3) {
+					throw ex;
+				}
+
+				log.warn("Timeout when calling: " + configuration.getIntegrations().getKombit().getUrl() + "/jobfunktionsroller/brugervendtesystemer, ex = " + ex.getMessage());
+			}
+		} while (true);
+		
+		return result;
 	}
 
 	private KOMBITSystemRoleDTO[] getSystemRolesFromKOMBIT(String uuid) throws Exception {
 		String url = configuration.getIntegrations().getKombit().getUrl() + "/jobfunktionsroller/brugervendtesystemer/" + uuid + "/roller";
+		int timeoutCount = 0;
 
-		log.info("Calling: " + url);
+		KOMBITSystemRoleDTO[] result = null;
+		do {
+			try {
+				HttpEntity<KOMBITSystemRoleDTO[]> systemRoles = restTemplate.getForEntity(url, KOMBITSystemRoleDTO[].class);
+				if (systemRoles.getBody() == null) {
+					return new KOMBITSystemRoleDTO[0];
+				}
+				
+				result = systemRoles.getBody();
+				break;
+			}
+			catch (ResourceAccessException ex) {
+				timeoutCount++;
+				
+				if (timeoutCount >= 3) {
+					throw ex;
+				}
+
+				log.warn("Timeout when calling: " + url + ", ex = " + ex.getMessage());
+			}
+		} while (true);
 		
-		HttpEntity<KOMBITSystemRoleDTO[]> systemRoles = restTemplate.getForEntity(url, KOMBITSystemRoleDTO[].class);
-		if (systemRoles.getBody() == null) {
-			return new KOMBITSystemRoleDTO[0];
-		}
-		
-		log.info("Completed call to: " + url);
-		
-		return systemRoles.getBody();
+		return result;
 	}
 }

@@ -3,6 +3,8 @@ package dk.digitalidentity.rc.service;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -17,6 +19,7 @@ import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
+import org.apache.commons.collections4.CollectionUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
@@ -74,6 +77,9 @@ public class OrgUnitService {
 	private PositionService positionService;
 	
 	@Autowired
+	private UserService userService;
+	
+	@Autowired
 	private OrgUnitService self;
 	
 	// dao methods
@@ -117,6 +123,30 @@ public class OrgUnitService {
 	// used when we need direct match with manager, ignoring substitutes (e.g. during login)
 	public List<OrgUnit> getByManagerMatchingUser(User user) {
 		return orgUnitDao.getByManager(user);
+	}
+	
+	public List<OrgUnit> getByAuthorizationManagerMatchingUser(User user) {
+		return orgUnitDao.getByAuthorizationManagersUser(user);
+	}
+	
+	public List<OrgUnit> getByAuthorizationManagerOrManagerMatchingUser(User user) {
+		List<OrgUnit> orgUnits = orgUnitDao.getByAuthorizationManagersUser(user);
+		List<OrgUnit> orgUnits2 = orgUnitDao.getByManager(user);
+
+		List<User> managers = userService.getSubstitutesManager(user);
+		for (User manager : managers) {
+			List<OrgUnit> ous = orgUnitDao.getByManager(manager);
+			orgUnits2.addAll(ous);
+		}
+		
+		// ensure no duplicates
+		for (OrgUnit ou : orgUnits2) {
+			if (orgUnits.stream().noneMatch(o -> Objects.equals(o.getUuid(), ou.getUuid()))) {
+				orgUnits.add(ou);
+			}
+		}
+		
+		return orgUnits;
 	}
 
 	public static Map<String, String> getManagerAndSubstituteEmail(OrgUnit orgUnit, boolean preferSubstitute) {
@@ -246,41 +276,58 @@ public class OrgUnitService {
 	}
 
 	@AuditLogIntercepted
-	public boolean addRoleGroup(OrgUnit ou, RoleGroup roleGroup, boolean inherit, LocalDate startDate, LocalDate stopDate) {
-		Optional<OrgUnitRoleGroupAssignment> assignment = ou.getRoleGroupAssignments().stream().filter(r -> r.getRoleGroup().getId() == roleGroup.getId()).findFirst();
-		
-		if (assignment.isEmpty()) {
-			OrgUnitRoleGroupAssignment mapping = new OrgUnitRoleGroupAssignment();
-			mapping.setInherit(inherit);
-			mapping.setRoleGroup(roleGroup);
-			mapping.setOrgUnit(ou);
-			mapping.setAssignedByName(SecurityUtil.getUserFullname());
-			mapping.setAssignedByUserId(SecurityUtil.getUserId());
-			mapping.setAssignedTimestamp(new Date());
-			mapping.setStartDate((startDate == null || LocalDate.now().equals(startDate)) ? null : startDate);
-			mapping.setStopDate(stopDate);
-			mapping.setInactive(startDate != null ? startDate.isAfter(LocalDate.now()) : false);
+	public boolean addRoleGroup(OrgUnit ou, RoleGroup roleGroup, boolean inherit, LocalDate startDate, LocalDate stopDate, Set<String> exceptedUsers) {
+		boolean modified = false;
 
-			ou.getRoleGroupAssignments().add(mapping);
+		Optional<OrgUnitRoleGroupAssignment> assignmentOpt = ou.getRoleGroupAssignments().stream().filter(r -> r.getRoleGroup().getId() == roleGroup.getId()).findFirst();
+		OrgUnitRoleGroupAssignment assignment;
+		if (assignmentOpt.isEmpty()) {
+			// Create scenario
+			assignment = new OrgUnitRoleGroupAssignment();
+			assignment.setOrgUnit(ou);
+			assignment.setInherit(inherit);
+			assignment.setRoleGroup(roleGroup);
+			assignment.setStartDate((startDate == null || LocalDate.now().equals(startDate)) ? null : startDate);
+			assignment.setStopDate(stopDate);
+			assignment.setInactive(startDate != null ? startDate.isAfter(LocalDate.now()) : false);
+			ou.getRoleGroupAssignments().add(assignment);
+			modified = true;
+		} else {
+			// Update scenario
+			assignment = assignmentOpt.get();
 
-			return true;
-		}
-		else {
-			// special case to handle inherit modification
-			OrgUnitRoleGroupAssignment a = assignment.get();
-			if (a.isInherit() != inherit) {
-				a.setInherit(inherit);
-				
+			// Special case to handle inherit modification
+			if (assignment.isInherit() != inherit) {
+				assignment.setInherit(inherit);
+
 				// update timestamps if needed
-				a.setStartDate((startDate == null || LocalDate.now().equals(startDate)) ? null : startDate);
-				a.setStopDate(stopDate);
-				a.setInactive(startDate != null ? startDate.isAfter(LocalDate.now()) : false);
+				assignment.setStartDate((startDate == null || LocalDate.now().equals(startDate)) ? null : startDate);
+				assignment.setStopDate(stopDate);
+				assignment.setInactive(startDate != null ? startDate.isAfter(LocalDate.now()) : false);
 
-				return true;
+				modified = true;
 			}
 		}
 
-		return false;
+		// Save changes to excepted users if there has been any change
+		Collection<User> usersById = (exceptedUsers !=null && exceptedUsers.size() > 0) ? (CollectionUtils.emptyIfNull(userDao.findByUuidInAndActiveTrue(exceptedUsers))) : Collections.emptyList();
+		Set<String> toBeSaved = usersById.stream().map(User::getUuid).collect(Collectors.toSet());
+		Set<String> alreadySaved = CollectionUtils.emptyIfNull(assignment.getExceptedUsers()).stream().map(User::getUuid).collect(Collectors.toSet());
+
+		Collection<String> intersection = CollectionUtils.intersection(toBeSaved, alreadySaved);
+		if (intersection.size() != toBeSaved.size() || intersection.size() != alreadySaved.size()) {
+			assignment.setContainsExceptedUsers(!usersById.isEmpty());
+			assignment.setExceptedUsers(new ArrayList<>(usersById));
+			modified = true;
+		}
+
+		if (modified) {
+			assignment.setAssignedByName(SecurityUtil.getUserFullname());
+			assignment.setAssignedByUserId(SecurityUtil.getUserId());
+			assignment.setAssignedTimestamp(new Date());
+		}
+
+		return modified;
 	}
 
 	@AuditLogIntercepted
@@ -298,40 +345,59 @@ public class OrgUnitService {
 	}
 
 	@AuditLogIntercepted
-	public boolean addUserRole(OrgUnit ou, UserRole userRole, boolean inherit, LocalDate startDate, LocalDate stopDate) {
-		Optional<OrgUnitUserRoleAssignment> assignment = ou.getUserRoleAssignments().stream().filter(r -> r.getUserRole().getId() == userRole.getId()).findFirst();
+	public boolean addUserRole(OrgUnit ou, UserRole userRole, boolean inherit, LocalDate startDate, LocalDate stopDate, Set<String> exceptedUsers) {
+		boolean modified = false;
 
-		if (assignment.isEmpty()) {
-			OrgUnitUserRoleAssignment mapping = new OrgUnitUserRoleAssignment();
-			mapping.setInherit(inherit);
-			mapping.setUserRole(userRole);
-			mapping.setOrgUnit(ou);
-			mapping.setAssignedByName(SecurityUtil.getUserFullname());
-			mapping.setAssignedByUserId(SecurityUtil.getUserId());
-			mapping.setAssignedTimestamp(new Date());
-			mapping.setStartDate((startDate == null || LocalDate.now().equals(startDate)) ? null : startDate);
-			mapping.setStopDate(stopDate);
-			mapping.setInactive(startDate != null ? startDate.isAfter(LocalDate.now()) : false);
-			ou.getUserRoleAssignments().add(mapping);
-
-			return true;
+		Optional<OrgUnitUserRoleAssignment> assignmentOpt = ou.getUserRoleAssignments().stream().filter(r -> r.getUserRole().getId() == userRole.getId()).findFirst();
+		OrgUnitUserRoleAssignment assignment;
+		if (assignmentOpt.isEmpty()) {
+			// Create scenario
+			assignment = new OrgUnitUserRoleAssignment();
+			assignment.setOrgUnit(ou);
+			assignment.setInherit(inherit);
+			assignment.setUserRole(userRole);
+			assignment.setStartDate((startDate == null || LocalDate.now().equals(startDate)) ? null : startDate);
+			assignment.setStopDate(stopDate);
+			assignment.setInactive(startDate != null ? startDate.isAfter(LocalDate.now()) : false);
+			ou.getUserRoleAssignments().add(assignment);
+			modified = true;
 		}
 		else {
-			// special case to handle inherit modification
-			OrgUnitUserRoleAssignment a = assignment.get();
-			if (a.isInherit() != inherit) {
-				a.setInherit(inherit);
-				
-				// update timestamps if needed
-				a.setStartDate((startDate == null || LocalDate.now().equals(startDate)) ? null : startDate);
-				a.setStopDate(stopDate);
-				a.setInactive(startDate != null ? startDate.isAfter(LocalDate.now()) : false);
+			// Update scenario
+			assignment = assignmentOpt.get();
 
-				return true;
-			}			
+			// Special case to handle inherit modification
+			if (assignment.isInherit() != inherit) {
+				assignment.setInherit(inherit);
+
+				// update timestamps if needed
+				assignment.setStartDate((startDate == null || LocalDate.now().equals(startDate)) ? null : startDate);
+				assignment.setStopDate(stopDate);
+				assignment.setInactive(startDate != null ? startDate.isAfter(LocalDate.now()) : false);
+
+				modified = true;
+			}
+		}
+		
+		// Save changes to excepted users if there has been any change
+		Collection<User> usersById = (exceptedUsers != null && exceptedUsers.size() > 0) ? (CollectionUtils.emptyIfNull(userDao.findByUuidInAndActiveTrue(exceptedUsers))) : Collections.emptyList();
+		Set<String> toBeSaved = usersById.stream().map(User::getUuid).collect(Collectors.toSet());
+		Set<String> alreadySaved = CollectionUtils.emptyIfNull(assignment.getExceptedUsers()).stream().map(User::getUuid).collect(Collectors.toSet());
+
+		Collection<String> intersection = CollectionUtils.intersection(toBeSaved, alreadySaved);
+		if (intersection.size() != toBeSaved.size() || intersection.size() != alreadySaved.size()) {
+			assignment.setContainsExceptedUsers(!usersById.isEmpty());
+			assignment.setExceptedUsers(new ArrayList<>(usersById));
+			modified = true;
 		}
 
-		return false;
+		if (modified) {
+			assignment.setAssignedByName(SecurityUtil.getUserFullname());
+			assignment.setAssignedByUserId(SecurityUtil.getUserId());
+			assignment.setAssignedTimestamp(new Date());
+		}
+
+		return modified;
 	}
 
 	@AuditLogIntercepted

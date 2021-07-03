@@ -3,8 +3,8 @@
 <head th:replace="fragments/header :: header (title=#{html.page.users.view.title})" />
 <body>
 	<div class="wrapper">
-		<header th:replace="fragments/navbar :: navbar-header" />
-		<aside th:replace="fragments/navbar :: navbar-aside (page = 'users')" />
+		<header th:replace="fragments/navbar :: navbar-header(subpage = 'roles')" />
+		<aside th:replace="fragments/navbar :: navbar-aside (page = 'users', subpage = 'roles')" />
  
 		<section>
 			<div class="content-wrapper">
@@ -110,24 +110,46 @@
 						
 							<div id="roles_menu" class="tab-pane fade in active">
 								<table id="listTable1" class="table table-striped table-hover listTable">
-								<thead>
-									<tr>
-										<th class="col-md-2" th:text="#{html.entity.rolegroup.name}" />
-										<th class="col-md-2" th:text="#{html.enum.assignmenttype}"/>
-										<th class="col-md-2" th:text="#{html.entity.rolegroup.itsystem}" />
-										<th class="col-md-6" th:text="#{html.entity.rolegroup.description}" />
-									</tr>
-								</thead>
+									<thead>
+										<tr>
+											<th class="col-md-2" th:text="#{html.entity.rolegroup.name}" />
+											<th class="col-md-2" th:text="#{html.enum.assignmenttype}"/>
+											<th class="col-md-2" th:text="#{html.entity.rolegroup.itsystem}" />
+											<th class="col-md-6" th:text="#{html.entity.rolegroup.description}" />
+										</tr>
+									</thead>
 
-								<tbody>
-									<tr th:each="assignment : ${assignments}">
-										<td th:text="${assignment.userRole.name}" />
-										<td th:text="#{__${assignment.assignedThrough.message}__}" />
-										<td th:text="${assignment.userRole.itSystem.name}" />
-										<td th:text="${assignment.userRole.description}" />
-									</tr>
-								</tbody>
+									<tbody>
+										<tr th:each="assignment : ${assignments}">
+											<td th:text="${assignment.userRole.name}" />
+											<td th:text="#{__${assignment.assignedThrough.message}__}" />
+											<td th:text="${assignment.userRole.itSystem.name}" />
+											<td th:text="${assignment.userRole.description}" />
+										</tr>
+									</tbody>
 								</table>
+
+								<div th:if="${not #lists.isEmpty(exceptedAssignments)}">
+									<h4 th:text="#{html.page.users.view.exceptedUsers.title}"></h4>
+									<p th:text="#{html.page.users.view.exceptedUsers.subtext}"></p>
+									<table id="listTable2" class="table table-striped table-hover listTable">
+										<thead>
+											<tr>
+												<th class="col-md-3" th:text="#{html.entity.rolegroup.name}" />
+												<th class="col-md-3" th:text="#{html.entity.rolegroup.itsystem}" />
+												<th class="col-md-6" th:text="#{html.entity.rolegroup.description}" />
+											</tr>
+										</thead>
+
+										<tbody>
+											<tr th:each="exceptedAssignment : ${exceptedAssignments}">
+												<td th:text="${exceptedAssignment.name}" />
+												<td th:text="${exceptedAssignment.itSystemName}" />
+												<td th:text="#{html.page.users.view.exceptedUsers.description} + ' \''+  ${exceptedAssignment.ouName} + '\''" />
+											</tr>
+										</tbody>
+									</table>
+								</div>
 							</div>
 							
 							<div id="kle_performing_menu" class="tab-pane fade">

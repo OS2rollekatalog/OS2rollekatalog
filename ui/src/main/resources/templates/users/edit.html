@@ -3,8 +3,8 @@
 <head th:replace="fragments/header :: header (title=#{html.page.users.edit.title})"/>
 <body>
 <div class="wrapper">
-    <header th:replace="fragments/navbar :: navbar-header" />
-    <aside th:replace="fragments/navbar :: navbar-aside (page = 'users')" />
+    <header th:replace="fragments/navbar :: navbar-header(subpage = 'roles')" />
+    <aside th:replace="fragments/navbar :: navbar-aside (page = 'users', subpage = 'roles')" />
 
     <section>
         <div class="content-wrapper">
@@ -129,7 +129,7 @@
                                             <label th:title="${addRole.role.itSystem.readonly} == true ? 'Rettigheden styres udenfor rollekataloget' : ''">
                                                 <input class="checkbox-positions" th:id="${addRole.role.id}"
                                                        type="checkbox" th:value="${user.uuid}"
-                                                       th:checked="${addRole.checked}" th:disabled="${addRole.canCheck == false} OR ${addRole.role.itSystem.readonly}" data-objtype="role"/>
+                                                       th:checked="${addRole.checked}" th:disabled="${addRole.canCheck == false} OR ${addRole.role.itSystem.readonly} OR ${addRole.shouldBeDisabled}" data-objtype="role"/>
                                                 <span class="fa fa-check"></span>
                                             </label>
                                         </div>
@@ -174,7 +174,7 @@
                                             <label>
                                                 <input class="checkbox-groups" th:id="${addRolegroup.roleGroup.id}"
                                                        type="checkbox" th:value="${user.uuid}"
-                                                       th:checked="${addRolegroup.checked}" data-objtype="rolegroup"/>
+                                                       th:checked="${addRolegroup.checked}" data-objtype="rolegroup" th:disabled="${addRolegroup.shouldBeDisabled}"/>
                                                 <span class="fa fa-check"></span>
                                             </label>
                                         </div>
@@ -182,9 +182,7 @@
                                     </td>
                                     <td>
                                     	<span th:text="${addRolegroup.roleGroup.name}"/>
-                                    	<!-- TODO: was never implemented on backend 
                                     	<div th:if="${addRolegroup.assignedThrough != null}" style="font-size: smaller; color: red;" th:text="'(' + #{__${addRolegroup.assignedThrough.message}__} + ')'"/>
-                                        -->
                                     </td>                                    
                                     <td class="fromToDate">
                                     	<ul th:if="${addRolegroup.assignment.startDate != null or addRolegroup.assignment.stopDate != null}" style="padding-left: 0px; list-style-type: none;">
@@ -560,7 +558,7 @@
 			});
 		}
 		
-		function removeRoleAssignment(endpoint, optionalSuccessMessage, chosenCheckbox) {
+		function removeRoleAssignment(endpoint, optionalWarningMessage, chosenCheckbox) {
 			$.ajax({
 				url: endpoint,
 				method: "POST",
@@ -571,8 +569,8 @@
 					showErrorNotification(fieldNotUpdatedMsg);
 				},
 				success : function(response) {
-					if (optionalSuccessMessage) {
-						showWarnNotification(optionalSuccessMessage);
+					if (optionalWarningMessage) {
+						showWarnNotification(optionalWarningMessage);
 					}
 					else {
 						showInfoNotification(fieldUpdatedMsg);

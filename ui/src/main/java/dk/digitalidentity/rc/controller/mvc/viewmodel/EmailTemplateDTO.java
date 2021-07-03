@@ -17,4 +17,5 @@ public class EmailTemplateDTO {
 	private String title;
 	private String message;
 	private String templateTypeText;
+	private boolean enabled;
 }

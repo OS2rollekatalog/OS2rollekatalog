@@ -2,6 +2,7 @@ package dk.digitalidentity.rc.interceptor;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Set;
 
 import org.aspectj.lang.annotation.Aspect;
 import org.aspectj.lang.annotation.Before;
@@ -162,8 +163,8 @@ public class RoleChangeInterceptor {
 
 	// OrgUnitService
 
-	@Before("execution(* dk.digitalidentity.rc.service.OrgUnitService.addRoleGroup(dk.digitalidentity.rc.dao.model.OrgUnit, dk.digitalidentity.rc.dao.model.RoleGroup, boolean, java.time.LocalDate, java.time.LocalDate)) && args(ou, roleGroup, inherit, startDate, stopDate)")
-	public void interceptAddRoleGroupAssignmentOnOrgUnit(OrgUnit ou, RoleGroup roleGroup, boolean inherit, LocalDate startDate, LocalDate stopDate) {
+	@Before("execution(* dk.digitalidentity.rc.service.OrgUnitService.addRoleGroup(dk.digitalidentity.rc.dao.model.OrgUnit, dk.digitalidentity.rc.dao.model.RoleGroup, boolean, java.time.LocalDate, java.time.LocalDate, java.util.Set)) && args(ou, roleGroup, inherit, startDate, stopDate, exceptedUsers)")
+	public void interceptAddRoleGroupAssignmentOnOrgUnit(OrgUnit ou, RoleGroup roleGroup, boolean inherit, LocalDate startDate, LocalDate stopDate, Set<String> exceptedUsers) {
 
 		// skip assignments that are active in the future (we will get a direct event-call later)
 		if (startDate != null && LocalDate.now().isAfter(startDate)) {
@@ -182,8 +183,8 @@ public class RoleChangeInterceptor {
 		}
 	}
 
-	@Before("execution(* dk.digitalidentity.rc.service.OrgUnitService.addUserRole(dk.digitalidentity.rc.dao.model.OrgUnit, dk.digitalidentity.rc.dao.model.UserRole, boolean, java.time.LocalDate, java.time.LocalDate)) && args(ou, userRole, inherit, startDate, stopDate)")
-	public void interceptAddUserRoleAssignmentOnOrgUnit(OrgUnit ou, UserRole userRole, boolean inherit, LocalDate startDate, LocalDate stopDate) {
+	@Before("execution(* dk.digitalidentity.rc.service.OrgUnitService.addUserRole(dk.digitalidentity.rc.dao.model.OrgUnit, dk.digitalidentity.rc.dao.model.UserRole, boolean, java.time.LocalDate, java.time.LocalDate, java.util.Set)) && args(ou, userRole, inherit, startDate, stopDate, exceptedUsers)")
+	public void interceptAddUserRoleAssignmentOnOrgUnit(OrgUnit ou, UserRole userRole, boolean inherit, LocalDate startDate, LocalDate stopDate, Set<String> exceptedUsers) {
 
 		// skip assignments that are active in the future (we will get a direct event-call later)
 		if (startDate != null && LocalDate.now().isAfter(startDate)) {

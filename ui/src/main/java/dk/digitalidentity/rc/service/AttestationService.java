@@ -240,28 +240,36 @@ public class AttestationService {
 				if (pdf != null) {
 					if (substituteEmail != null) {
 						EmailTemplate template = emailTemplateService.findByTemplateType(EmailTemplateType.ROLE_EXPIRING);
-						AttachmentFile attachmentFile = new AttachmentFile();
-						attachmentFile.setContent(pdf);
-						attachmentFile.setFilename("Rettighedsudløb.pdf");
-						List<AttachmentFile> attachments = new ArrayList<>();
-						attachments.add(attachmentFile);
-						String message = template.getMessage();
-						message = message.replace(EmailTemplateService.RECEIVER_PLACEHOLDER, substitute.getName());
-						message = message.replace(EmailTemplateService.ORGUNIT_PLACEHOLDER, ou.getName());
-						emailQueueService.queueEmail(substituteEmail, template.getTitle(), message, template, attachments);
+						if (template.isEnabled()) {
+							AttachmentFile attachmentFile = new AttachmentFile();
+							attachmentFile.setContent(pdf);
+							attachmentFile.setFilename("Rettighedsudløb.pdf");
+							List<AttachmentFile> attachments = new ArrayList<>();
+							attachments.add(attachmentFile);
+							String message = template.getMessage();
+							message = message.replace(EmailTemplateService.RECEIVER_PLACEHOLDER, substitute.getName());
+							message = message.replace(EmailTemplateService.ORGUNIT_PLACEHOLDER, ou.getName());
+							emailQueueService.queueEmail(substituteEmail, template.getTitle(), message, template, attachments);
+						} else {
+							log.info("Email template with type " + template.getTemplateType() + " is disabled. Email was not sent.");
+						}
 					}
 					
 					if (managerEmail != null) {
 						EmailTemplate template = emailTemplateService.findByTemplateType(EmailTemplateType.ROLE_EXPIRING);
-						AttachmentFile attachmentFile = new AttachmentFile();
-						attachmentFile.setContent(pdf);
-						attachmentFile.setFilename("Rettighedsudløb.pdf");
-						List<AttachmentFile> attachments = new ArrayList<>();
-						attachments.add(attachmentFile);
-						String message = template.getMessage();
-						message = message.replace(EmailTemplateService.RECEIVER_PLACEHOLDER, manager.getName());
-						message = message.replace(EmailTemplateService.ORGUNIT_PLACEHOLDER, ou.getName());
-						emailQueueService.queueEmail(managerEmail, template.getTitle(), message, template, attachments);
+						if (template.isEnabled()) {
+							AttachmentFile attachmentFile = new AttachmentFile();
+							attachmentFile.setContent(pdf);
+							attachmentFile.setFilename("Rettighedsudløb.pdf");
+							List<AttachmentFile> attachments = new ArrayList<>();
+							attachments.add(attachmentFile);
+							String message = template.getMessage();
+							message = message.replace(EmailTemplateService.RECEIVER_PLACEHOLDER, manager.getName());
+							message = message.replace(EmailTemplateService.ORGUNIT_PLACEHOLDER, ou.getName());
+							emailQueueService.queueEmail(managerEmail, template.getTitle(), message, template, attachments);
+						} else {
+							log.info("Email template with type " + template.getTemplateType() + " is disabled. Email was not sent.");
+						}
 					}
 				}
 			}
@@ -292,16 +300,20 @@ public class AttestationService {
 			if (attestationNotifications.isEmpty()) {
 				for (String email : emails.keySet()) {
 					EmailTemplate template = emailTemplateService.findByTemplateType(EmailTemplateType.ATTESTATION_NOTIFICATION);
-					String message = template.getMessage();
-					message = message.replace(EmailTemplateService.RECEIVER_PLACEHOLDER, emails.get(email));
-					message = message.replace(EmailTemplateService.ORGUNIT_PLACEHOLDER, ou.getName());
-					emailQueueService.queueEmail(email, template.getTitle(), message, template, null);
+					if (template.isEnabled()) {
+						String message = template.getMessage();
+						message = message.replace(EmailTemplateService.RECEIVER_PLACEHOLDER, emails.get(email));
+						message = message.replace(EmailTemplateService.ORGUNIT_PLACEHOLDER, ou.getName());
+						emailQueueService.queueEmail(email, template.getTitle(), message, template, null);
 
-					// what does this table keep track of?
-					AttestationNotification attestationNotification = new AttestationNotification();
-					attestationNotification.setOrgUnit(ou);
-					attestationNotification.setTimestamp(new Date());
-					attestationNotificationService.save(attestationNotification);
+						// what does this table keep track of?
+						AttestationNotification attestationNotification = new AttestationNotification();
+						attestationNotification.setOrgUnit(ou);
+						attestationNotification.setTimestamp(new Date());
+						attestationNotificationService.save(attestationNotification);
+					} else {
+						log.info("Email template with type " + template.getTemplateType() + " is disabled. Email was not sent.");
+					}
 				}
 			}
 		}
@@ -335,20 +347,25 @@ public class AttestationService {
 					Date modifiedDate = cal.getTime();
 
 					if (modifiedDate.before(now)) {
-						for (String email : emails.keySet()) {
-							EmailTemplate template = emailTemplateService.findByTemplateType(EmailTemplateType.ATTESTATION_REMINDER);
-							String message = template.getMessage();
-							message = message.replace(EmailTemplateService.RECEIVER_PLACEHOLDER, emails.get(email));
-							message = message.replace(EmailTemplateService.ORGUNIT_PLACEHOLDER, ou.getName());
-							emailQueueService.queueEmail(email, template.getTitle(), message, template, null);
+						EmailTemplate template = emailTemplateService.findByTemplateType(EmailTemplateType.ATTESTATION_REMINDER);
+						if (template.isEnabled()) {
+							for (String email : emails.keySet()) {
+								EmailTemplate tempTemplate = emailTemplateService.findByTemplateType(EmailTemplateType.ATTESTATION_REMINDER);
+								String message = tempTemplate.getMessage();
+								message = message.replace(EmailTemplateService.RECEIVER_PLACEHOLDER, emails.get(email));
+								message = message.replace(EmailTemplateService.ORGUNIT_PLACEHOLDER, ou.getName());
+								emailQueueService.queueEmail(email, tempTemplate.getTitle(), message, tempTemplate, null);
+							}
+							
+							// add a notification to the log (we use it above to keep track of how mamy reminders to send)
+							AttestationNotification attestationNotification = new AttestationNotification();
+							attestationNotification.setOrgUnit(ou);
+							attestationNotification.setTimestamp(new Date());
+							
+							attestationNotificationService.save(attestationNotification);
+						} else {
+							log.info("Email template with type " + template.getTemplateType() + " is disabled. Emails were not sent.");
 						}
-						
-						// add a notification to the log (we use it above to keep track of how mamy reminders to send)
-						AttestationNotification attestationNotification = new AttestationNotification();
-						attestationNotification.setOrgUnit(ou);
-						attestationNotification.setTimestamp(new Date());
-						
-						attestationNotificationService.save(attestationNotification);
 					}
 				}
 			}
@@ -358,39 +375,44 @@ public class AttestationService {
 	@Transactional
 	public void notifyThirdParty() {
 		String mail = settingsService.getEmailAfterReminders();
-		if (!StringUtils.isEmpty(mail)) {
+		if (StringUtils.isEmpty(mail)) {
 			return;
 		}
-
+		
 		int reminderCount = settingsService.getReminderCount();
 		List<OrgUnit> orgUnits = orgUnitService.getAll();
 		Date now = new Date();
 		
 		for (OrgUnit ou : orgUnits) {
 			List<AttestationNotification> attestationNotifications = attestationNotificationService.getByOrgUnit(ou);
+			
 			if (attestationNotifications.size() == (reminderCount + 1)) {
 				attestationNotifications.sort(Comparator.comparing(AttestationNotification::getTimestamp));
 				AttestationNotification newestNotification = attestationNotifications.get(attestationNotifications.size() - 1);
 				
-				if (ou.getNextAttestation() != null) {
+				if (ou.getNextAttestation() != null) {					
 					Calendar cal = Calendar.getInstance();
 					cal.setTime(newestNotification.getTimestamp());
 					cal.add(Calendar.DATE, settingsService.getReminderInterval());
 					Date modifiedDate = cal.getTime();
 
-					if (modifiedDate.before(now)) {
+					if (modifiedDate.before(now)) {						
 						EmailTemplate template = emailTemplateService.findByTemplateType(EmailTemplateType.ATTESTATION_REMINDER_THIRDPARTY);
-						String message = template.getMessage();
-						message = message.replace(EmailTemplateService.RECEIVER_PLACEHOLDER, mail);
-						message = message.replace(EmailTemplateService.ORGUNIT_PLACEHOLDER, ou.getName());
-						emailQueueService.queueEmail(mail, template.getTitle(), message, template, null);
-
-						// make sure we only send this ONE extra notification
-						AttestationNotification attestationNotification = new AttestationNotification();
-						attestationNotification.setOrgUnit(ou);
-						attestationNotification.setTimestamp(new Date());
-						
-						attestationNotificationService.save(attestationNotification);
+						if (template.isEnabled()) {
+							String message = template.getMessage();
+							message = message.replace(EmailTemplateService.RECEIVER_PLACEHOLDER, mail);
+							message = message.replace(EmailTemplateService.ORGUNIT_PLACEHOLDER, ou.getName());
+							emailQueueService.queueEmail(mail, template.getTitle(), message, template, null);
+	
+							// make sure we only send this ONE extra notification
+							AttestationNotification attestationNotification = new AttestationNotification();
+							attestationNotification.setOrgUnit(ou);
+							attestationNotification.setTimestamp(new Date());
+							
+							attestationNotificationService.save(attestationNotification);
+						} else {
+							log.info("Email template with type " + template.getTemplateType() + " is disabled. Email was not sent.");
+						}
 					}
 				}
 			}

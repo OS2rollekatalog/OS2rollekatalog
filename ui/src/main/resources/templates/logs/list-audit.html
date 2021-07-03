@@ -3,8 +3,8 @@
 <head th:replace="fragments/header :: header (title=#{html.page.log.audit.title})" />
 <body>
 	<div class="wrapper">
-		<header th:replace="fragments/navbar :: navbar-header" />
-		<aside th:replace="fragments/navbar :: navbar-aside (page = 'log.audit')" />
+		<header th:replace="fragments/navbar :: navbar-header(subpage = 'reports')" />
+		<aside th:replace="fragments/navbar :: navbar-aside (page = 'log.audit', subpage = 'reports')" />
  
 		<section>
 			<div class="content-wrapper">
@@ -13,9 +13,11 @@
 				</h3>
 
 				<div class="panel panel-default">
-					<div class="panel-heading" />
-					<div class="panel-body">
-						<span th:text="#{html.page.logs.audit.intro}"/>
+					<div class="panel-heading">
+						<a th:href="@{/ui/logs/audit/download}" class="btn btn-primary btn-lg">
+							<em class="fa fa-fw fa-download"></em> &nbsp;
+							<span th:text="#{html.word.download}" />
+						</a>
 					</div>
 
 					<div class="panel-body">
@@ -32,53 +34,89 @@
 								</thead>
 
 								<tbody>
-								    <tr th:each="entry : ${entries}">
-								    	<td th:text="${#dates.format(entry.timestamp, 'yyyy/MM/dd HH:mm')}" />
-								    	<td th:text="${entry.username}" />
-								    	<td th:text="#{__${entry.eventType.message}__}" />
-								    	<td th:text="${entry.entityName} + ' (' + #{__${entry.entityType.message}__} + ')'" />
-								    	<td th:text="${entry.secondaryEntityName}" />
-					    			</tr>
-				    			</tbody>
+								</tbody>
 							</table>
 						</div>
 					</div>
 				</div>
-	        </div>
-	    </section>
+			</div>
+		</section>
 	</div>
 
 	<nav th:replace="fragments/footer :: footer" />
 
 	<script th:inline="javascript">
 	/*<![CDATA[*/
+		var token = $("meta[name='_csrf']").attr("content");
+		/*[+
+			var searchTxt = [[#{html.datatables.search}]];
+			var dropdownTxt = [[#{html.datatables.dropdown}]];
+			var infoDefaultTxt = [[#{html.datatables.info.default}]];
+			var infoEmptyTxt = [[#{html.datatables.info.empty}]];
+			var infoFilteredTxt = [[#{html.datatables.info.filtered}]];
+			var prevTxt = [[#{html.datatables.prev}]];
+			var nextTxt = [[#{html.datatables.next}]];
+			var ajaxUrl = [[@{/rest/logs/audit}]];
+		+]*/
+
+		var auditLogTable;
+
 		$(document).ready(function() {
-/*[+
-   			var searchTxt = [[#{html.datatables.search}]];
-   			var dropdownTxt = [[#{html.datatables.dropdown}]];
-   			var infoDefaultTxt = [[#{html.datatables.info.default}]];
-   			var infoEmptyTxt = [[#{html.datatables.info.empty}]];
-   			var infoFilteredTxt = [[#{html.datatables.info.filtered}]];
-+]*/
-		    $('.listTable').DataTable({
-		        'paging':   true,
-		        'ordering': true,
-		        'order': [
-		        	[ 0, "desc" ]
-		        ],
-		        'info':     true,
+
+			auditLogTable = $('.listTable').DataTable({
+				destroy: true,
+				'ajax': {
+					'contentType': 'application/json',
+					'url': ajaxUrl,
+					'type': 'POST',
+					headers: {
+						'X-CSRF-TOKEN': token
+					},
+					'data': function(d) {
+						return JSON.stringify(d);
+					}
+				},
+				'serverSide' : true,
+				columns : [{
+					data : 'timestamp',
+					render: function (data, type, row, meta) {
+						return moment(new Date(data)).format("YYYY-MM-DD HH:mm")
+					}
+				}, {
+					data : 'username'
+				}, {
+					data : 'eventType'
+				}, {
+					data : 'entityName',
+					render: function (data, type, row, meta) {
+						return data + ' (' + row.entityType + ')';
+					}
+				}, {
+					data : 'secondaryEntityName'
+				}],
+				'paging':    true,
+				'ordering':  true,
 				'stateSave': true,
-				'pageLength': 100,
-		        'language': {
-		            "search":       searchTxt,
-		            "lengthMenu":   dropdownTxt,
-		            "info":         infoDefaultTxt,
-		            "zeroRecords":  infoEmptyTxt,
-		            "infoEmpty":    "",
-		            "infoFiltered": infoFilteredTxt
-		        }
-		    });
+				'info':      true,
+				'pageLength': 25,
+				'language': {
+					"search":       searchTxt,
+					"lengthMenu":   dropdownTxt,
+					"info":         infoDefaultTxt,
+					"zeroRecords":  infoEmptyTxt,
+					"infoEmpty":    "",
+					"infoFiltered": infoFilteredTxt,
+					"paginate": {
+						"next": nextTxt,
+						"previous": prevTxt
+					}
+				}
+			});
 		});
+		
+		function download() {
+			
+		}
 	/*]]>*/
 	</script>
 </body>

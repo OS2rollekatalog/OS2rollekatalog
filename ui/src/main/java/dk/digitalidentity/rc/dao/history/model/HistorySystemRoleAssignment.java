@@ -12,6 +12,8 @@ import javax.persistence.ManyToOne;
 import javax.persistence.OneToMany;
 import javax.persistence.Table;
 
+import org.hibernate.annotations.BatchSize;
+
 import lombok.Getter;
 
 @Entity
@@ -25,10 +27,12 @@ public class HistorySystemRoleAssignment {
 	@Column
 	private String systemRoleName;
 	
+	@BatchSize(size = 50)
 	@ManyToOne(fetch = FetchType.LAZY)
 	@JoinColumn(name = "history_user_roles_id")
 	private HistoryUserRole historyUserRole;
 
-	@OneToMany(mappedBy = "historySystemRoleAssignment", fetch = FetchType.EAGER, cascade = CascadeType.ALL, orphanRemoval = true)
+	@BatchSize(size = 100)
+	@OneToMany(mappedBy = "historySystemRoleAssignment", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
 	private Set<HistorySystemRoleAssignmentConstraint> historyConstraints;
 }

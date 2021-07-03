@@ -3,7 +3,6 @@
 <body>
 	<script th:fragment="datatables" th:inline="javascript">
 	/*<![CDATA[*/
-		$(document).ready(function() {
 /*[+
    			var searchTxt = [[#{html.datatables.search}]];
    			var dropdownTxt = [[#{html.datatables.dropdown}]];
@@ -14,12 +13,18 @@
 			var nextTxt = [[#{html.datatables.next}]];
             var orderColumnValue = [[${orderColumnValue}]];
 +]*/
+
+		$(document).ready(function() {
 			var orderColumn = 0;
 			if (orderColumnValue) {
 				orderColumn = orderColumnValue;
 			}
-
-		    $('.listTable').DataTable({
+			
+			fragShowDataTableFun('.listTable', orderColumn);
+		});
+	
+		function fragShowDataTableFun(jqSelector, orderColumn) {
+		    $(jqSelector).DataTable({
 		        'paging':   true,
 		        'ordering': true,
 		        'order': [
@@ -42,7 +47,7 @@
 					}
 		        }
 		    });
-		});
+		}
 	/*]]>*/
 	</script>
 </body>

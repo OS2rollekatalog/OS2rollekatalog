@@ -25,7 +25,7 @@ public class AttestationNotificationTask {
 	private SettingsService settingService;
 
 	@Scheduled(cron = " 0 #{new java.util.Random().nextInt(55)} 7 ? * *")
-//	@Scheduled(fixedDelay = 60 * 1000 * 1000) // once per hour while testing
+	// @Scheduled(fixedDelay = 60 * 1000 * 1000) // once per hour while testing
 	public void notifyOnAttestation() {
 		if (!configuration.getScheduled().isEnabled()) {
 			log.debug("Scheduled jobs are disabled on this instance");

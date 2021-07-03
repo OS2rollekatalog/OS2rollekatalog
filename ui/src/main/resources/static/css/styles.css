@@ -72,3 +72,7 @@ td.centeredOps {
   border-color: #ec5c5c;
   background-color: #ec5c5c;
 }
+
+li.bold {
+	font-weight: bold;
+}

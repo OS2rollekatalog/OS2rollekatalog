@@ -13,6 +13,7 @@ public class EditUserRoleRow {
 	private boolean checked;
 	private boolean canCheck;
 	private boolean ouAssignment = true;
+	private boolean containsExceptedUsers;
 	private Assignment assignment;
 	
 	// note, this only makes sense for users
@@ -26,4 +27,8 @@ public class EditUserRoleRow {
 	
 	// note, this only makes sense for ous (-2 inherit, -1 everyone, 0 not-assigned, 1+ assigned to 1+ titles)
 	private int assignmentType;
+	
+	//added for the purpose of disabling checkboxes on edit user page
+	private boolean shouldBeDisabled;
+
 }

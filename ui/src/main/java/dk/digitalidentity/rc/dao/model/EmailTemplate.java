@@ -37,4 +37,7 @@ public class EmailTemplate {
 	@Enumerated(EnumType.STRING)
 	@NotNull
 	private EmailTemplateType templateType;
+	
+	@Column
+	private boolean enabled;
 }

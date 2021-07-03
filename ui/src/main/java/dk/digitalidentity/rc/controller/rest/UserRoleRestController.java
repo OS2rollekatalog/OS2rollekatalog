@@ -22,8 +22,9 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.microsoft.sqlserver.jdbc.StringUtils;
+
 import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
-import dk.digitalidentity.rc.controller.mvc.viewmodel.TitleListForm;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.UserRoleDeleteStatus;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.UserRoleForm;
 import dk.digitalidentity.rc.controller.validator.UserRoleValidator;
@@ -35,7 +36,6 @@ import dk.digitalidentity.rc.dao.model.RoleGroup;
 import dk.digitalidentity.rc.dao.model.SystemRole;
 import dk.digitalidentity.rc.dao.model.SystemRoleAssignment;
 import dk.digitalidentity.rc.dao.model.SystemRoleAssignmentConstraintValue;
-import dk.digitalidentity.rc.dao.model.Title;
 import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserRole;
 import dk.digitalidentity.rc.dao.model.enums.ConstraintValueType;
@@ -245,7 +245,9 @@ public class UserRoleRestController {
         		systemRoleAssignmentConstraintValue = srcav;
                 systemRoleAssignmentConstraintValue.setConstraintValue(constraintValue);
                 systemRoleAssignmentConstraintValue.setConstraintValueType(constraintValueType);
-                systemRoleAssignmentConstraintValue.setConstraintIdentifier(IdentifierGenerator.buildKombitConstraintIdentifier(configuration.getIntegrations().getKombit().getDomain()));
+                if (StringUtils.isEmpty(systemRoleAssignmentConstraintValue.getConstraintIdentifier())) {
+                	systemRoleAssignmentConstraintValue.setConstraintIdentifier(IdentifierGenerator.buildKombitConstraintIdentifier(configuration.getIntegrations().getKombit().getDomain()));
+                }
         		break;
         	}
 		}
@@ -418,28 +420,5 @@ public class UserRoleRestController {
         }
 
         return new ResponseEntity<>(status, HttpStatus.OK);
-    }
-    
-    @GetMapping(value = "/rest/userroles/titles/{uuid}")
-    public ResponseEntity<List<TitleListForm>> getTitlesFromOU(@PathVariable("uuid") String uuid) {
-    	OrgUnit ou = orgUnitService.getByUuid(uuid);
-    	if (ou == null) {
-    		return new ResponseEntity<>(HttpStatus.NOT_FOUND);
-    	}
-    	
-    	boolean titlesEnabled = configuration.getTitles().isEnabled();
-    	if (titlesEnabled) {
-			List<Title> titles = orgUnitService.getTitles(ou);
-
-			List<TitleListForm> titleForms = titles
-					.stream()
-					.map(title -> new TitleListForm(title))
-					.collect(Collectors.toList());
-			
-			return new ResponseEntity<>(titleForms, HttpStatus.OK);
-		}
-		else {
-			return new ResponseEntity<>(null, HttpStatus.OK);
-		}
     }
 }

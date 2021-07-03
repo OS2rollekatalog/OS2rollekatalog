@@ -14,6 +14,10 @@ import dk.digitalidentity.rc.dao.model.enums.EmailTemplateType;
 public class EmailTemplateService {
 	public static final String RECEIVER_PLACEHOLDER = "{modtager}";
 	public static final String ORGUNIT_PLACEHOLDER = "{enhed}";
+	public static final String MANAGER_PLACEHOLDER = "{leder}";
+	public static final String ROLE_PLACEHOLDER = "{rolle}";
+	public static final String USER_PLACEHOLDER = "{bruger}";
+	public static final String COUNT_PLACEHOLDER = "{antal}";
 	
 	@Autowired
 	private EmailTemplateDao emailTemplateDao;
@@ -49,16 +53,16 @@ public class EmailTemplateService {
 					message = "Kære {modtager}\n<br/>\n<br/>\nDet er tid til, at der skal attesteres roller for enheden: {enhed}.";
 					break;
 				case ATTESTATION_REMINDER:
-					title = "Rykker for attestering";
+					title = "Påmindelse/rykker for attestering";
 					message = "Kære {modtager}\n<br/>\n<br/>\nDet er tid til, at der skal attesteres roller for enheden: {enhed}.";
 					break;
 				case ATTESTATION_REMINDER_THIRDPARTY:
-					title = "Rykker for attestering";
-					message = "Kære {modtager}\n<br/>\n<br/>\nDet er tid til, at der skal attesteres roller for enheden: {enhed}. Der er sendt en eller flere rykkere til leder og eventuel stedfortræder, men en attesteering er endnu ikke udført.";
+					title = "Manglende attestering";
+					message = "Kære {modtager}\n<br/>\n<br/>\nDet er tid til, at der skal attesteres roller for enheden: {enhed}. Der er sendt en eller flere rykkere til leder og eventuel stedfortræder, men en attestering er endnu ikke udført.";
 					break;
 				case SUBSTITUTE:
 					title = "Du er blevet udpeget som stedfortræder";
-					message = "Kære {modtager}\n<br/>\n<br/>\nDu er blevet udpeget til stedfortræder.";
+					message = "Kære {modtager}\n<br/>\n<br/>\nDu er blevet udpeget til stedfortræder for {leder} for enheden {enhed}.";
 					break;
 				case ATTESTATION_EMPLOYEE_NEW_UNIT:
 					title = "En medarbejder har skiftet enhed";
@@ -68,11 +72,28 @@ public class EmailTemplateService {
 					title = "Tidsbegrænsede rettigheder er ved at udløbe";
 					message = "Kære {modtager}\n<br/>\n<br/>\nEn eller flere tidsbegrænsede rettigheder udløber inden for 14 dage. De kan ses af den vedhæftede pdf.";
 					break;
+				case APPROVED_ROLE_REQUEST_USER:
+					title = "Du har fået tildelt en rolle";
+					message = "Kære {modtager}\n<br/>\n<br/>\nEn autorisationsansvarlig eller leder har anmodet om rollen {rolle} til dig. Den er nu tildelt.";
+					break;
+				case APPROVED_ROLE_REQUEST_MANAGER:
+					title = "En anmodning om en rolle er godkendt";
+					message = "Kære {modtager}\n<br/>\n<br/>\nRollen {rolle} du har anmodet om til {bruger}, er nu tildelt.";
+					break;
+				case REJECTED_ROLE_REQUEST_MANAGER:
+					title = "En anmodning om en rolle er afvist";
+					message = "Kære {modtager}\n<br/>\n<br/>\nRollen {rolle} du har anmodet om til {bruger}, er blevet afvist.";
+					break;
+				case WAITING_REQUESTS_ROLE_ASSIGNERS:
+					title = "Der er afventende rolleanmodninger";
+					message = "Kære {modtager}\n<br/>\n<br/>\nDer er {antal} rolleanmodning(er), der skal tages stilling til.";
+					break;
 			}
 			
 			template.setTitle(title);
 			template.setMessage(message);
 			template.setTemplateType(type);
+			template.setEnabled(true);
 			
 			template = emailTemplateDao.save(template);
 		}

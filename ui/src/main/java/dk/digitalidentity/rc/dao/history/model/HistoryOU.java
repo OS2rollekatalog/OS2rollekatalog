@@ -10,6 +10,8 @@ import javax.persistence.Id;
 import javax.persistence.OneToMany;
 import javax.persistence.Table;
 
+import org.hibernate.annotations.BatchSize;
+
 import lombok.Getter;
 
 @Entity
@@ -35,6 +37,7 @@ public class HistoryOU {
 	@Column
 	private String ouManagerUuid;
 	
-	@OneToMany(mappedBy = "historyOU", fetch = FetchType.EAGER)
+	@BatchSize(size = 100)
+	@OneToMany(mappedBy = "historyOU", fetch = FetchType.LAZY)
 	private List<HistoryOUUser> users;
 }

@@ -142,11 +142,13 @@ public class ItSystemChangeUpdateService {
 
 				for (ItSystemChange systemRole : modifiedSystemRoles) {
 					SystemRole currentSystemRole = systemRoleService.getById(systemRole.getSystemRoleId());
-					rolesList.append(div(dt("Navn") + dd(diff(systemRole.getSystemRoleName(), currentSystemRole.getName()))));
-					rolesList.append(div(dt("Beskrivelse") + dd(diff(systemRole.getSystemRoleDescription(), currentSystemRole.getDescription()))));
-
-					if (systemRole.isSystemRoleConstraintChanged()) {
-						rolesList.append(div(dt("Dataafgrænsning") + dd("ændret")));
+					if (currentSystemRole != null) {
+						rolesList.append(div(dt("Navn") + dd(diff(systemRole.getSystemRoleName(), currentSystemRole.getName()))));
+						rolesList.append(div(dt("Beskrivelse") + dd(diff(systemRole.getSystemRoleDescription(), currentSystemRole.getDescription()))));
+	
+						if (systemRole.isSystemRoleConstraintChanged()) {
+							rolesList.append(div(dt("Dataafgrænsning") + dd("ændret")));
+						}
 					}
 				}
 

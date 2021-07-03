@@ -11,6 +11,8 @@ import javax.persistence.Id;
 import javax.persistence.OneToMany;
 import javax.persistence.Table;
 
+import org.hibernate.annotations.BatchSize;
+
 import lombok.Getter;
 
 @Entity
@@ -33,11 +35,11 @@ public class HistoryItSystem {
 	@Column
 	private boolean itSystemHidden;
 	
-	// TODO: find a way to make these SQL JOIN, to improve performance ;)
-	
-	@OneToMany(mappedBy = "historyItSystem", fetch = FetchType.EAGER, cascade = CascadeType.ALL, orphanRemoval = true)
+	@BatchSize(size = 50)
+	@OneToMany(mappedBy = "historyItSystem", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
 	private Set<HistorySystemRole> historySystemRoles;
 	
-	@OneToMany(mappedBy = "historyItSystem", fetch = FetchType.EAGER, cascade = CascadeType.ALL, orphanRemoval = true)
+	@BatchSize(size = 50)
+	@OneToMany(mappedBy = "historyItSystem", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
 	private Set<HistoryUserRole> historyUserRoles;
 }

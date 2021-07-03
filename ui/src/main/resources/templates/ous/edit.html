@@ -3,8 +3,8 @@
 <head th:replace="fragments/header :: header (title=#{html.page.ous.edit.title})" />
 <body>
 	<div class="wrapper">
-		<header th:replace="fragments/navbar :: navbar-header" />
-		<aside th:replace="fragments/navbar :: navbar-aside (page = 'ous')" />
+		<header th:replace="fragments/navbar :: navbar-header(subpage = 'roles')" />
+		<aside th:replace="fragments/navbar :: navbar-aside (page = 'ous', subpage = 'roles')" />
 		
 		<section>
 			<div class="content-wrapper">
@@ -78,6 +78,35 @@
 													<label class="col-sm-2 control-label" th:text="#{html.entity.ou.manager}" />
 													<div class="col-sm-8">
 														<input th:value="${ou.manager} != null ? ${ou.manager.name} : ''" class="form-control" disabled="disabled" />
+													</div>
+												</div>
+											</fieldset>
+											
+											<fieldset sec:authorize="hasRole('ROLE_ADMINISTRATOR')" th:if="${@settingsService.isRequestApproveEnabled() == true && @settingsService.getRequestApproveWho() == T(dk.digitalidentity.rc.service.model.WhoCanRequest).AUTHORIZATION_MANAGER}">
+												<div class="form-group">
+													<label class="col-sm-2 control-label" th:text="#{html.page.ous.edit.authorizationManager}"/>
+													<div class="col-sm-8">
+														<input style="width: 600px; display: inline-block;" class="form-control" id="search_person" onclick="return false;" th:title="#{html.page.ous.edit.authorizationManager.title}" />
+
+														<table class="table table-striped" style="width: 600px;">
+															<thead>
+																<tr>
+																	<th class="col-md-6" th:text="#{html.entity.user.name}" />
+																	<th class="col-md-5" th:text="#{html.entity.user.userId}" />
+																	<th class="col-md-1" th:text="#{html.control.operations}" />
+																</tr>
+															</thead>
+															
+															<tbody>
+																<tr th:each="authManager : ${ou.authorizationManagers}">
+																	<td th:text="${authManager.user.name}" />
+																	<td th:text="${authManager.user.userId}" />
+																	<td>
+																		<a onclick="autoCompleteService.removeAuthManager(this); return false;" th:data-uuid="${authManager.user.uuid}"><em class="fa fa-fw fa-times"></em></a>
+																	</td>
+																</tr>
+															</tbody>
+														</table>
 													</div>
 												</div>
 											</fieldset>
@@ -173,7 +202,10 @@
 											
 											<th:block th:switch="${addRole.assignmentType}">
 												<td th:case="-2" th:text="#{html.entity.ou.assigned.inherit}" />
-												<td th:case="-1" th:text="#{html.entity.ou.assigned.all}" />
+												<td th:case="-1">
+													<p th:unless="${addRole.containsExceptedUsers}" th:text="#{html.entity.ou.assigned.all}"></p>
+													<p th:if="${addRole.containsExceptedUsers}" th:text="#{html.entity.ou.assigned.all.with.exceptions}"></p>
+												</td>
 												<td th:case="0"></td>
 												<td th:case="1" th:text="#{html.entity.ou.assigned.one}" />
 												<td th:case="*" th:text="#{html.entity.ou.assigned.many(${addRole.assignmentType})}" />
@@ -221,7 +253,10 @@
 
 											<th:block th:switch="${addRolegroup.assignmentType}">
 												<td th:case="-2" th:text="#{html.entity.ou.assigned.inherit}" />
-												<td th:case="-1" th:text="#{html.entity.ou.assigned.all}" />
+												<td th:case="-1">
+													<p th:unless="${addRolegroup.containsExceptedUsers}" th:text="#{html.entity.ou.assigned.all}"></p>
+													<p th:if="${addRolegroup.containsExceptedUsers}" th:text="#{html.entity.ou.assigned.all.with.exceptions}"></p>
+												</td>
 												<td th:case="0"></td>
 												<td th:case="1" th:text="#{html.entity.ou.assigned.one}" />
 												<td th:case="*" th:text="#{html.entity.ou.assigned.many(${addRolegroup.assignmentType})}" />
@@ -268,6 +303,13 @@
 			margin-left: 10px;
 			width: auto;
 		}
+		
+		.autocomplete-suggestions { border: 1px solid #999; background: #FFF; overflow: auto; width: 500px !important; }
+		.autocomplete-suggestion { padding: 2px 5px; white-space: nowrap; overflow: hidden; }
+		.autocomplete-selected { background: #F0F0F0; }
+		.autocomplete-suggestions strong { font-weight: normal; color: #3399FF; }
+		.autocomplete-group { padding: 2px 5px; }
+		.autocomplete-group strong { display: block; border-bottom: 1px solid #000; }
 	</style>
 	
 	<script th:replace="fragments/assignDatePicker :: content " />
@@ -294,15 +336,21 @@
 		
 		var titles = [[${titles}]];
 		var titlesEnabled = [[${titlesEnabled}]];
+		
+		var restUrl = [[@{/rest/ous/}]];
+		var substituteUrl = [[@{/rest/manager/substitute}]];
+		var msgAssignSuccess = [[#{html.page.manager.substitute.assign.success}]];
+		var msgAssignFailure = [[#{html.page.manager.substitute.assign.failure}]];
 		+]*/
 
 		var token = $("meta[name='_csrf']").attr("content");
 		var klePrimaryInitialized = false;
 		var kleSecondaryInitialized = false;
-				
-		
+		var autoCompleteService;
 
 		$(document).ready(function() {
+			autoCompleteService = new AutoCompleteService();
+			autoCompleteService.init();
 
 			// polyfill
 			if (!String.prototype.format) {
@@ -364,10 +412,13 @@
 				}
 			});
 			
-			
 			//for loading titles in the javascript fragment
 			payload.ouUuid=ou;
 			ouRolesModalService.loadTitles(false);
+			
+			if (location.href.indexOf('?reload') > 0) {
+				$('#collapseOne').collapse();
+			}
 		});
 		
 		function addCheckboxListeners() {
@@ -383,8 +434,8 @@
 		// this is called when someone checks or unchecks a userrole/rolegroup checkbox
 		function handleCheckbox() {
 			var checked = !this.checked; // checking flips it, and we want the previous value
-			var startDate = this.dataset.startDate;
-			var stopDate = this.dataset.stopDate;
+			var startDate = this.dataset.startdate;
+			var stopDate = this.dataset.stopdate;
 
 			payload.roleType = String(this.dataset.objtype);
 			payload.roleId = this.id;
@@ -643,6 +694,78 @@
 					});
 				}
 			});
+		}
+		
+		function AutoCompleteService() {
+			this.init = function() {
+				var searchField = $("#search_person");
+
+				searchField.autocomplete({
+					serviceUrl: substituteUrl + "/search/person",
+					onSelect: function(suggestion) {
+						$(this).val(suggestion.value);
+
+						searchField.val("");
+						autoCompleteService.addAuthManager(suggestion.data);
+					},
+					preventBadQueries: true,
+					triggerSelectOnValidInput: false
+				});
+			};
+
+			this.removeAuthManager = function(elem) {
+				var personUuid = $(elem).data('uuid');
+				
+				$.ajax({
+					method : "POST",
+					url: restUrl + ou + "/authorizationmanager/remove",
+					headers: {
+						"content-type": "plain/text",
+						'X-CSRF-TOKEN': token
+					},
+					data: personUuid
+				}).done(function (data) {
+					if (location.href.indexOf('?reload') < 0) {
+						location.href = location.href + "?reload";
+					}
+					else {
+						location.reload(true);
+					}
+				}).fail(function (jqXHR, textStatus, errorThrown) {
+					$.notify({
+						message: msgAssignFailure
+					}, {
+						status: 'danger',
+						autoHideDelay: 4000
+					});
+				});
+			};
+			
+			this.addAuthManager = function(personUuid) {
+				$.ajax({
+					method : "POST",
+					url: restUrl + ou + "/authorizationmanager/save",
+					headers: {
+						"content-type": "plain/text",
+						'X-CSRF-TOKEN': token
+					},
+					data: personUuid
+				}).done(function (data) {
+					if (window.location.href.indexOf('?reload') < 0) {
+						location.href = location.href + "?reload";
+					}
+					else {
+						location.reload(true);
+					}
+				}).fail(function (jqXHR, textStatus, errorThrown) {
+					$.notify({
+						message: msgAssignFailure
+					}, {
+						status: 'danger',
+						autoHideDelay: 4000
+					});
+				});
+			};
 		}
 		
 		/*]]>*/

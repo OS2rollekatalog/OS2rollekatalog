@@ -112,6 +112,8 @@ public class EmailService {
 							  configuration.getIntegrations().getEmail().getPassword());
 			transport.addTransportListener(new TransportErrorHandler());
 			transport.sendMessage(msg, msg.getAllRecipients());
+			
+			log.info("Sending email '" + subject + "' to " + email);
 		}
 		catch (Exception ex) {
 			log.error("Failed to send email", ex);
@@ -210,6 +212,8 @@ public class EmailService {
 					  configuration.getIntegrations().getEmail().getPassword());
 			transport.addTransportListener(new TransportErrorHandler());
 			transport.sendMessage(msg, msg.getAllRecipients());
+			
+			log.info("Sending email '" + subject + "' to " + email);
 		}
 		catch (Exception ex) {
 			log.error("Failed to send email", ex);

@@ -8,6 +8,8 @@ import javax.persistence.JoinColumn;
 import javax.persistence.ManyToOne;
 import javax.persistence.Table;
 
+import org.hibernate.annotations.BatchSize;
+
 import lombok.Getter;
 
 @Entity
@@ -18,6 +20,7 @@ public class HistoryOUUser {
 	@Id
 	private long id;
 
+	@BatchSize(size = 50)
 	@ManyToOne(fetch = FetchType.LAZY)
 	@JoinColumn(name = "history_ous_id")
 	private HistoryOU historyOU;

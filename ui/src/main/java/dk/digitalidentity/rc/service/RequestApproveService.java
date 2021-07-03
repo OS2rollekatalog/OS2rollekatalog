@@ -1,7 +1,6 @@
 package dk.digitalidentity.rc.service;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.List;
@@ -11,17 +10,18 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import dk.digitalidentity.rc.config.Constants;
+import com.microsoft.sqlserver.jdbc.StringUtils;
+
 import dk.digitalidentity.rc.dao.RequestApproveDao;
+import dk.digitalidentity.rc.dao.model.EmailTemplate;
+import dk.digitalidentity.rc.dao.model.OrgUnit;
 import dk.digitalidentity.rc.dao.model.RequestApprove;
 import dk.digitalidentity.rc.dao.model.RoleGroup;
 import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserRole;
+import dk.digitalidentity.rc.dao.model.enums.EmailTemplateType;
 import dk.digitalidentity.rc.dao.model.enums.EntityType;
 import dk.digitalidentity.rc.dao.model.enums.RequestApproveStatus;
-import dk.digitalidentity.rc.security.AccessConstraintService;
-import dk.digitalidentity.rc.security.SecurityUtil;
-import dk.digitalidentity.rc.service.model.RequestApproveManagerAction;
 import dk.digitalidentity.rc.service.model.RequestApproveWrapper;
 import lombok.extern.log4j.Log4j;
 
@@ -40,15 +40,15 @@ public class RequestApproveService {
 	
 	@Autowired
 	private RequestApproveDao requestApproveDao;
+
+	@Autowired
+	private EmailTemplateService emailTemplateService;
 	
 	@Autowired
-	private UserService userService;
+	private EmailQueueService emailQueueService;
 	
 	@Autowired
-	private EmailService emailService;
-	
-	@Autowired
-	private AccessConstraintService assignerRoleContraint;
+	private RequestApproveService requestApproveService;
 	
 	public RequestApprove getById(long id) {
 		return requestApproveDao.getById(id);
@@ -61,34 +61,13 @@ public class RequestApproveService {
 	public RequestApprove save(RequestApprove request) {
 		return requestApproveDao.save(request);		
 	}
-	
-	public List<RequestApprove> getPendingNotifications() {
-		if (settingsService.getRequestApproveManagerAction().equals(RequestApproveManagerAction.APPROVE)) {
-			return requestApproveDao.getByRoleAssignerNotifiedFalseAndStatusIn(Arrays.asList(RequestApproveStatus.MANAGER_APPROVED));
-		}
 
-		return requestApproveDao.getByRoleAssignerNotifiedFalseAndStatusIn(Arrays.asList(RequestApproveStatus.REQUESTED, RequestApproveStatus.MANAGER_NOTIFIED));
-	}
-	
-	public List<RequestApproveWrapper> getPendingRequests() {
+	public List<RequestApproveWrapper> getPendingRequestsAuthorizationManager() {
 		List<RequestApproveStatus> stati = new ArrayList<>();
 		
-		if (settingsService.getRequestApproveManagerAction().equals(RequestApproveManagerAction.APPROVE)) {
-			if (SecurityUtil.hasRole(Constants.ROLE_MANAGER) || SecurityUtil.hasRole(Constants.ROLE_SUBSTITUTE)) {
-				stati.add(RequestApproveStatus.MANAGER_NOTIFIED);
-				stati.add(RequestApproveStatus.REQUESTED);
-			}
-			else {
-				stati.add(RequestApproveStatus.MANAGER_APPROVED);
-			}
-		}
-		else {
-			stati.add(RequestApproveStatus.MANAGER_NOTIFIED);
-			stati.add(RequestApproveStatus.REQUESTED);
-		}
+		stati.add(RequestApproveStatus.REQUESTED);
 		
 		List<RequestApprove> requests = requestApproveDao.getByStatusIn(stati);		
-		requests = filterRequestsByAccess(requests);
 
 		return wrapRequests(requests);
 	}
@@ -104,64 +83,6 @@ public class RequestApproveService {
 		stati.add(RequestApproveStatus.REJECTED);
 
 		requestApproveDao.deleteByStatusInAndStatusTimestampBefore(stati, before);
-	}
-
-	// the method assumes that only those with relevant stati is given as input
-	// so no stati-related filtering will happen, only access - this means that
-	// wrong stati input can result in wrong output
-	public List<RequestApprove> filterRequestsByAccess(List<RequestApprove> requests) {
-		List<RequestApprove> result = new ArrayList<>();
-
-		boolean isAdmin = SecurityUtil.hasRole(Constants.ROLE_ADMINISTRATOR);
-		boolean isRoleAssigner = SecurityUtil.hasRole(Constants.ROLE_ASSIGNER);
-
-		List<User> requesters = requests.stream().map(r -> r.getRequester()).collect(Collectors.toList());
-		
-		requesters = assignerRoleContraint.filterUsersUserCanAccess(requesters, true);
-
-		for (RequestApprove request : requests) {
-			User requester = request.getRequester();
-
-			boolean isManager = userService.isManagerFor(requester);
-
-			switch (request.getStatus()) {
-				case ASSIGNED:
-				case REJECTED:
-					// these are not visible, and are always filtered (and should not be given as input to this method anyway)
-					break;
-				case MANAGER_APPROVED:
-					// only visible for assigners and admins
-					if (isAdmin) {
-						result.add(request);
-					}
-					else if (isRoleAssigner) {
-						for (User r : requesters) {
-							if (r.getUuid().equals(request.getRequester().getUuid())) {
-								result.add(request);
-								break;
-							}
-						}
-					}
-					break;
-				case REQUESTED:
-				case MANAGER_NOTIFIED:
-					// visible for assigners, admins and managers
-					if (isAdmin || isManager) {
-						result.add(request);
-					}
-					else if (isRoleAssigner) {
-						for (User r : requesters) {
-							if (r.getUuid().equals(request.getRequester().getUuid())) {
-								result.add(request);
-								break;
-							}
-						}
-					}
-					break;
-			}
-		}
-		
-		return result;
 	}
 
 	public List<RequestApproveWrapper> getRequestByRequester(User requester) {
@@ -184,25 +105,28 @@ public class RequestApproveService {
 			return false;
 		}
 		
-		RequestApproveStatus status = RequestApproveStatus.REQUESTED;
-		User manager = null;
-
-		if (!settingsService.getRequestApproveManagerAction().equals(RequestApproveManagerAction.NONE)) {
-			List<User> managers = userService.getManager(user);
-			
-			if (managers.size() > 0) {
-				// TODO: should we ask the user instead?
-				manager = managers.get(0);
-
-				// try to notify manager
-				status = notifyManager(manager, user, userRole.getName(), userRole.getDescription());
-			}
-			else {
-				log.warn("Unable to find manager for " + user.getUserId() + " no notification send!");
-			}
+		createRequest(reason, user, userRole.getId(), EntityType.USERROLE, RequestApproveStatus.REQUESTED, null, null);
+		
+		return true;
+	}
+	
+	public boolean requestUserRole(UserRole userRole, User requestedBy, String reason, User requestedFor, OrgUnit orgUnit) {
+		if (!settingsService.isRequestApproveEnabled()) {
+			log.warn("User " + requestedBy.getUserId() + " attempting to request role when request/approval is turned off!");
+			return false;
 		}
+		else if (userRole == null) {
+			log.warn("User " + requestedBy.getUserId() + " attempting to request role that does not exist");
+			return false;
+		}
+		else if (!userRoleService.canRequestRole(userRole, requestedBy)) {
+			log.warn("User " + requestedBy.getUserId() + " attempting to request role that user is not allowed to request: " + userRole.getId());
+			return false;
+		}
+		
+		RequestApproveStatus status = RequestApproveStatus.REQUESTED;
 
-		createRequest(reason, user, manager, userRole.getId(), EntityType.USERROLE, status);
+		createRequest(reason, requestedBy, userRole.getId(), EntityType.USERROLE, status, requestedFor, orgUnit);
 		
 		return true;
 	}
@@ -221,43 +145,54 @@ public class RequestApproveService {
 			return false;
 		}
 
-		RequestApproveStatus status = RequestApproveStatus.REQUESTED;
-		User manager = null;
-
-		if (!settingsService.getRequestApproveManagerAction().equals(RequestApproveManagerAction.NONE)) {
-			List<User> managers = userService.getManager(user);
-			
-			if (managers.size() > 0) {
-				// TODO: should we ask the user instead?
-				manager = managers.get(0);
-
-				// try to notify manager
-				status = notifyManager(manager, user, roleGroup.getName(), roleGroup.getDescription());
-			}
-			else {
-				log.warn("Unable to find manager for " + user.getUserId() + " no notification send!");
-			}
-		}
-
-		createRequest(reason, user, manager, roleGroup.getId(), EntityType.ROLEGROUP, status);
+		createRequest(reason, user, roleGroup.getId(), EntityType.ROLEGROUP, RequestApproveStatus.REQUESTED, null, null);
 
 		return true;
 	}
 	
-	private void createRequest(String reason, User user, User manager, long roleId, EntityType roleType, RequestApproveStatus status) {
+	public boolean requestRoleGroup(RoleGroup roleGroup, User requestedBy, String reason, User requestedFor, OrgUnit orgUnit) {
+		if (!settingsService.isRequestApproveEnabled()) {
+			log.warn("User " + requestedBy.getUserId() + " attempting to request rolegroup when request/approval is turned off!");
+			return false;
+		}
+		else if (roleGroup == null) {
+			log.warn("User " + requestedBy.getUserId() + " attempting to request rolegroup that does not exist");
+			return false;
+		}
+		else if (!roleGroupService.canRequestRole(roleGroup, requestedBy)) {
+			log.warn("User " + requestedBy.getUserId() + " attempting to request role that user is not allowed to request: " + roleGroup.getId());
+			return false;
+		}
+		
+		RequestApproveStatus status = RequestApproveStatus.REQUESTED;
+		
+		createRequest(reason, requestedBy, roleGroup.getId(), EntityType.ROLEGROUP, status, requestedFor, orgUnit);
+
+		return true;
+		
+	}
+	
+	private void createRequest(String reason, User user, long roleId, EntityType roleType, RequestApproveStatus status, User requestedFor, OrgUnit orgUnit) {
 		RequestApprove request = new RequestApprove();
 		
 		// is there an existing request, then overwrite it (resetting timestamps, status, etc ;))
 		List<RequestApprove> requests = requestApproveDao.getByRequester(user);
 		for (RequestApprove req : requests) {
 			if (req.getRoleType().equals(roleType) && req.getRoleId() == roleId) {
-				request = req;
-				break;
+				if (requestedFor == null) {
+					request = req;
+					break;
+				}
+				else {
+					if (req.getRequestedFor().equals(requestedFor)) {
+						request = req;
+						break;
+					}
+				}
 			}
 		}
 
 		request.setRoleAssignerNotified(false);
-		request.setManager(manager);
 		request.setReason(reason);
 		request.setAssigner(null);
 		request.setRejectReason(null);
@@ -267,47 +202,18 @@ public class RequestApproveService {
 		request.setRoleType(roleType);
 		request.setStatus(status);
 		request.setStatusTimestamp(new Date());
+		request.setOrgUnit(orgUnit);
+		
+		if (requestedFor == null) {
+			request.setRequestedFor(user);
+		}
+		else {
+			request.setRequestedFor(requestedFor);
+		}
+		
 		requestApproveDao.save(request);
 	}
-	
-	private RequestApproveStatus notifyManager(User manager, User user, String roleName, String roleDescription) {
-		String subject = "";
-		if (settingsService.getRequestApproveManagerAction().equals(RequestApproveManagerAction.APPROVE)) {
-			subject = "[Handling krævet] Anmodning om rettigheder fra " + user.getName();
-		}
-		else {
-			subject = "[Information] Anmodning om rettigheder fra " + user.getName();
-		}
 
-		String message = "Din medarbejder <b>" + user.getName() + "</b> har anmodet om at få tildelt rettigheden <b>" + roleName + "</b>.<br/><br/>";
-		message += "<b>Rettighedens beskrivelse:<b><br/>";
-		message += roleDescription;
-
-		message += "<br/><br/><br/>";
-		if (settingsService.getRequestApproveManagerAction().equals(RequestApproveManagerAction.APPROVE)) {	
-			message += "Hvis du vil godkende denne anmodning, skal du logge på rollekataloget og godkende den.";
-		}
-		else {
-			message += "Denne besked er blot til information, og du skal kun gøre noget hvis du ikke mener at medarbejderen skal have denne rettighed tildelt.";
-		}
-		
-		return notifyManager(manager, subject, message);
-	}
-
-	private RequestApproveStatus notifyManager(User manager, String subject, String message) {
-
-		if (manager.getEmail() != null) {
-			emailService.sendMessage(manager.getEmail(), subject, message);
-
-			return RequestApproveStatus.MANAGER_NOTIFIED;
-		}
-		else {
-			log.warn("Manager " + manager.getUserId() + " does not have an email address, so we cannot send notification to manager!");
-		}
-		
-		return RequestApproveStatus.REQUESTED;
-	}
-	
 	private List<RequestApproveWrapper> wrapRequests(List<RequestApprove> requests) {
 		List<RequestApproveWrapper> result = new ArrayList<>();
 
@@ -356,5 +262,32 @@ public class RequestApproveService {
 		}
 		
 		return result;
+	}
+	
+	@Transactional
+	public void sendMailToRoleAssigner() {
+		List<RequestApproveStatus> stati = new ArrayList<>();
+		stati.add(RequestApproveStatus.REQUESTED);
+		List<RequestApprove> requestApproves = requestApproveDao.getByStatusIn(stati).stream().filter(r -> !r.isEmailSent()).collect(Collectors.toList());
+		int count = requestApproves.size();
+		
+		if (count != 0) {
+			if (!StringUtils.isEmpty(settingsService.getRequestApproveServicedeskEmail())) {
+				EmailTemplate template = emailTemplateService.findByTemplateType(EmailTemplateType.WAITING_REQUESTS_ROLE_ASSIGNERS);
+				if (template.isEnabled()) {
+					String message = template.getMessage();
+					message = message.replace(EmailTemplateService.RECEIVER_PLACEHOLDER, "rolletildeler");
+					message = message.replace(EmailTemplateService.COUNT_PLACEHOLDER, Integer.toString(count));
+					emailQueueService.queueEmail(settingsService.getRequestApproveServicedeskEmail(), template.getTitle(), message, template, null);
+					for (RequestApprove requestApprove : requestApproves) {
+						requestApprove.setEmailSent(true);
+						requestApproveService.save(requestApprove);
+					}
+				}
+				else {
+					log.info("Email template with type " + template.getTemplateType() + " is disabled. Email was not sent.");
+				}
+			}
+		}
 	}
 }

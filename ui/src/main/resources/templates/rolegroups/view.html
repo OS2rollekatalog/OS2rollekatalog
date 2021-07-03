@@ -3,8 +3,8 @@
 <head th:replace="fragments/header :: header (title=#{html.page.rolegroup.view.title})" />
 <body>
 	<div class="wrapper">
-		<header th:replace="fragments/navbar :: navbar-header" />
-		<aside th:replace="fragments/navbar :: navbar-aside (page = 'rolegroups.new')" />
+		<header th:replace="fragments/navbar :: navbar-header(subpage = 'roles')" />
+		<aside th:replace="fragments/navbar :: navbar-aside (page = 'rolegroups.new', subpage = 'roles')" />
  
 		<section>
 			<div class="content-wrapper">
@@ -37,11 +37,20 @@
 								</div>
 							</fieldset>
 
-							<fieldset sec:authorize="hasRole('ROLE_REQUESTER')" th:if="${canRequest}">
+							<fieldset sec:authorize="hasRole('ROLE_REQUESTER')" th:if="${canRequest && @settingsService.getRequestApproveWho() == T(dk.digitalidentity.rc.service.model.WhoCanRequest).USERS}">
 								<div class="form-group">
 									<label class="col-sm-2 control-label" th:text="#{html.entity.view.action.label}" />
 									<div class="col-sm-8">
 										<a id="requestBtn" class="btn btn-lg btn-primary" th:text="#{html.entity.view.action.request}" />
+									</div>
+								</div>
+							</fieldset>
+							
+							<fieldset sec:authorize="hasRole('ROLE_REQUESTER')" th:if="${canRequest && @settingsService.getRequestApproveWho() == T(dk.digitalidentity.rc.service.model.WhoCanRequest).AUTHORIZATION_MANAGER}">
+								<div class="form-group">
+									<label class="col-sm-2 control-label" th:text="#{html.entity.view.action.label}" />
+									<div class="col-sm-8">
+										<a class="btn btn-lg btn-primary" th:text="#{html.entity.view.action.request}" th:href="@{/ui/requestapprove/request/step1/role/{id}?type=roleGroup(id=${rolegroup.id})}" />
 									</div>
 								</div>
 							</fieldset>

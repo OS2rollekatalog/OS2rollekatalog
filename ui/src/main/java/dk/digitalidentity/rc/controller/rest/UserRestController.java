@@ -10,11 +10,11 @@ import java.util.stream.Collectors;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.MessageSource;
-import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -97,14 +97,32 @@ public class UserRestController {
 	@PostMapping(value = "/rest/users/position/{id}/addrole/{roleid}")
 	public ResponseEntity<String> addRoleToPosition(@PathVariable("id") long positionId,
 			@PathVariable("roleid") long roleId,
-			@RequestParam(name = "startDate", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
-			@RequestParam(name = "stopDate", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate stopDate) {
+			@RequestParam(name = "startDate", required = false) String startDateStr,
+			@RequestParam(name = "stopDate", required = false) String stopDateStr) {
 
 		Position position = positionService.getById(positionId);
 		UserRole role = userRoleService.getById(roleId);
 
 		if (position == null || role == null) {
 			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+		}
+
+		LocalDate startDate = null, stopDate = null;
+		if (!StringUtils.isEmpty(startDateStr)) {
+			try {
+				startDate = LocalDate.parse(startDateStr);
+			}
+			catch (Exception ex) {
+				log.warn("Invalid startdate string: " + startDateStr);
+			}
+		}
+		if (!StringUtils.isEmpty(stopDateStr)) {
+			try {
+				stopDate = LocalDate.parse(stopDateStr);
+			}
+			catch (Exception ex) {
+				log.warn("Invalid stopdate string: " + stopDateStr);
+			}
 		}
 
 		try {
@@ -152,8 +170,8 @@ public class UserRestController {
 	@PostMapping(value = "/rest/users/{uuid}/addrole/{roleId}")
 	public ResponseEntity<String> addRoleToUser(@PathVariable("uuid") String userUuid,
 			@PathVariable("roleId") long roleId,
-			@RequestParam(name = "startDate", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
-			@RequestParam(name = "stopDate", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate stopDate) {
+			@RequestParam(name = "startDate", required = false) String startDateStr,
+			@RequestParam(name = "stopDate", required = false) String stopDateStr) {
 
 		User user = userService.getByUuid(userUuid);
 		UserRole userRole = userRoleService.getById(roleId);
@@ -164,6 +182,24 @@ public class UserRestController {
 
 		if (userRole.getItSystem().getSystemType() == ItSystemType.AD && userRole.getItSystem().isReadonly()) {
 			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+		}
+
+		LocalDate startDate = null, stopDate = null;
+		if (!StringUtils.isEmpty(startDateStr)) {
+			try {
+				startDate = LocalDate.parse(startDateStr);
+			}
+			catch (Exception ex) {
+				log.warn("Invalid startdate string: " + startDateStr);
+			}
+		}
+		if (!StringUtils.isEmpty(stopDateStr)) {
+			try {
+				stopDate = LocalDate.parse(stopDateStr);
+			}
+			catch (Exception ex) {
+				log.warn("Invalid stopdate string: " + stopDateStr);
+			}
 		}
 
 		try {
@@ -181,15 +217,33 @@ public class UserRestController {
 	@PostMapping(value = "/rest/users/position/{id}/addgroup/{groupid}")
 	public ResponseEntity<String> addGroupToPosition(@PathVariable("id") long positionId,
 			@PathVariable("groupid") long groupId,
-			@RequestParam(name = "startDate", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
-			@RequestParam(name = "stopDate", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate stopDate) {
+			@RequestParam(name = "startDate", required = false) String startDateStr,
+			@RequestParam(name = "stopDate", required = false) String stopDateStr) {
 		Position position = positionService.getById(positionId);
 		RoleGroup group = roleGroupService.getById(groupId);
 
 		if (position == null || group == null) {
 			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
 		}
-
+		
+		LocalDate startDate = null, stopDate = null;
+		if (!StringUtils.isEmpty(startDateStr)) {
+			try {
+				startDate = LocalDate.parse(startDateStr);
+			}
+			catch (Exception ex) {
+				log.warn("Invalid startdate string: " + startDateStr);
+			}
+		}
+		if (!StringUtils.isEmpty(stopDateStr)) {
+			try {
+				stopDate = LocalDate.parse(stopDateStr);
+			}
+			catch (Exception ex) {
+				log.warn("Invalid stopdate string: " + stopDateStr);
+			}
+		}
+		
 		positionService.addRoleGroup(position, group, startDate, stopDate);
 		positionService.save(position);
 
@@ -217,13 +271,31 @@ public class UserRestController {
 	@RequireAssignerRole
 	@PostMapping(value = "/rest/users/{uuid}/addgroup/{groupid}")
 	public ResponseEntity<String> addGroupToUser(@PathVariable("uuid") String userUuid, @PathVariable("groupid") long groupid,
-			@RequestParam(name = "startDate", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
-			@RequestParam(name = "stopDate", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate stopDate) {
+			@RequestParam(name = "startDate", required = false) String startDateStr,
+			@RequestParam(name = "stopDate", required = false) String stopDateStr) {
 		User user = userService.getByUuid(userUuid);
 		RoleGroup group = roleGroupService.getById(groupid);
 
 		if (user == null || group==null) {
 			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+		}
+		
+		LocalDate startDate = null, stopDate = null;
+		if (!StringUtils.isEmpty(startDateStr)) {
+			try {
+				startDate = LocalDate.parse(startDateStr);
+			}
+			catch (Exception ex) {
+				log.warn("Invalid startdate string: " + startDateStr);
+			}
+		}
+		if (!StringUtils.isEmpty(stopDateStr)) {
+			try {
+				stopDate = LocalDate.parse(stopDateStr);
+			}
+			catch (Exception ex) {
+				log.warn("Invalid stopdate string: " + stopDateStr);
+			}
 		}
 		
 		userService.addRoleGroup(user, group, startDate, stopDate);

@@ -1,0 +1,26 @@
+<th:block th:fragment="table" xmlns="http://www.w3.org/1999/xhtml" xmlns:th="http://www.thymeleaf.org">
+	<table id="ou_roles_listTable2" class="table table-striped">
+		<thead>
+			<tr>
+				<th class="col-md-2" th:text="#{html.page.ous.excepted.users.checkbox.title}" />
+				<th class="col-md-5" th:text="#{html.entity.user.name}" />
+				<th class="col-md-5" th:text="#{html.entity.user.userId}" />
+			</tr>
+		</thead>
+
+		<tbody>
+			<tr th:each="user : ${exceptedUsersDTO}">
+				<td>
+					<div class="checkbox c-checkbox">
+						<label>
+							<input class="exceptedusers-checkbox" type="checkbox" th:attr="data-id=${user.id}" th:checked="${user.excepted}" />
+							<span class="fa fa-times"></span>
+						</label>
+					</div>
+				</td>
+				<td th:text="${user.name}" />
+				<td th:text="${user.userId}" />
+			</tr>
+		</tbody>
+	</table>
+</th:block>

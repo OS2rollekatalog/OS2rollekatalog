@@ -3,8 +3,8 @@
 <head th:replace="fragments/header :: header (title=#{html.report.user_roles_with_sensitive_flag})" />
 <body>
 <div class="wrapper">
-	<header th:replace="fragments/navbar :: navbar-header" />
-	<aside th:replace="fragments/navbar :: navbar-aside (page = 'report.custom')" />
+	<header th:replace="fragments/navbar :: navbar-header(subpage = 'reports')" />
+	<aside th:replace="fragments/navbar :: navbar-aside (page = 'report.custom', subpage = 'reports')" />
 
 	<section>
 			<div class="content-wrapper">
