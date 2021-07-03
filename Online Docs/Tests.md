@@ -30,7 +30,7 @@ Disse tests kan afvikles uden de store forudsætninger, og danner metadata om de
 
 Ved succesfuld afvikling af alle testcases, dannes en API dokumentationsfil i denne folder
 
-    ui/TODO
+    ui/target/generated-docs/main.html
 
 ### Afvikling af brugergrænsefladetests
 Alle tests af brugergrænsefladen afvikles vha Selenium, og der anvendes en Chromedriver som den browser der afvikler de enkelte tests. I kodebasen ligger en binær kopi af Chromedriver applikationen, men denne er bygget til Linux. Hvis man ønsker at afvikle brugergrænsefladetests fra andre platforme, skal man [downloade](https://chromedriver.chromium.org/downloads) en kopi til ens operativsystem, og overskrive den version der ligger i kodebasen.
