@@ -69,7 +69,19 @@ namespace ADSyncService
             {
                 log.Debug("itsystem members retrieved: " + result.Content);
 
-                return result.Data;
+                List<string> newSamAccountNames = new List<string>();
+                if (result.Data != null)
+                {
+                    foreach (var samaccountname in result.Data)
+                    {
+                        if (!newSamAccountNames.Contains(samaccountname.ToLower()))
+                        {
+                            newSamAccountNames.Add(samaccountname.ToLower());
+                        }
+                    }
+                }
+
+                return newSamAccountNames;
             }
 
             log.Error("Read ItSystem members call failed (" + result.StatusCode + ") : " + result.Content);
@@ -139,7 +151,10 @@ namespace ADSyncService
 
                         foreach (var samaccountname in assignment.samaccountNames)
                         {
-                            newSamAccountNames.Add(samaccountname.ToLower());
+                            if (!newSamAccountNames.Contains(samaccountname.ToLower()))
+                            {
+                                newSamAccountNames.Add(samaccountname.ToLower());
+                            }
                         }
 
                         assignment.samaccountNames = newSamAccountNames;

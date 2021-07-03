@@ -36,6 +36,8 @@ namespace ADSyncService
                             continue;
                         }
 
+                        log.Info("Found " + adGroupMembers.Count + " existing members of " + assignment.groupName + " with expected end-result being " + assignment.samaccountNames.Count + " members");
+
                         foreach (var userId in assignment.samaccountNames)
                         {
                             if (!adGroupMembers.Contains(userId))

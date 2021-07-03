@@ -13,6 +13,8 @@ namespace ADSyncService
 
         public List<string> GetGroupMembers(string groupId)
         {
+            log.Debug("Looking for members of " + groupId);
+
             List<string> members = new List<string>();
 
             using (PrincipalContext context = new PrincipalContext(ContextType.Domain))
@@ -27,8 +29,13 @@ namespace ADSyncService
                     else
                     {
                         // argument to GetMembers indicate we want direct members, not indirect members
-                        foreach (Principal member in group.GetMembers(false).Where(m => m.StructuralObjectClass.Equals("user")))
+                        foreach (Principal member in group.GetMembers(false))
                         {
+                            if (member is GroupPrincipal)
+                            {
+                                continue;
+                            }
+
                             members.Add(member.SamAccountName.ToLower());
                         }
                     }
@@ -59,6 +66,7 @@ namespace ADSyncService
                                 Group g = new Group();
                                 g.Uuid = groupPrincipal.Guid.ToString().ToLower();
                                 g.Name = groupPrincipal.Name;
+                                g.Description = (groupPrincipal.Description != null) ? ((groupPrincipal.Description.Length > 200) ? groupPrincipal.Description.Substring(0, 200) : groupPrincipal.Description) : "";
 
                                 res.Add(g);
                             }
@@ -74,6 +82,7 @@ namespace ADSyncService
         {
             public string Uuid { get; set; }
             public string Name { get; set; }
+            public string Description { get; set; }
         }
 
         public void AddMember(string groupId, string userId)

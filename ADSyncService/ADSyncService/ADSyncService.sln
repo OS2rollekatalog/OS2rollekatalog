@@ -1,9 +1,9 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 15
-VisualStudioVersion = 15.0.27703.2042
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.30907.101
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{DDCB4CC0-4488-11E9-B475-0800200C9A66}") = "ADSyncService", "ADSyncService.csproj", "{F2EBEE20-4488-11E9-B475-0800200C9A66}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ADSyncService", "ADSyncService.csproj", "{F2EBEE20-4488-11E9-B475-0800200C9A66}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

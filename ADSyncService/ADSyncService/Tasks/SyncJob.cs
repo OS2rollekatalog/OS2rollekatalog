@@ -2,6 +2,7 @@
 
 namespace ADSyncService
 {
+    [DisallowConcurrentExecution]
     internal class SyncJob : IJob
     {
         private static log4net.ILog log = log4net.LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);

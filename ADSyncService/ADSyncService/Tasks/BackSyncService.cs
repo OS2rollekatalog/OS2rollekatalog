@@ -58,6 +58,14 @@ namespace ADSyncService
                                 itSystemData.systemRoles[i].name = group.Name;
                                 changes = true;
                             }
+                            
+                            if (!group.Description.Equals(itSystemData.systemRoles[i].description))
+                            {
+                                log.Info("Updating description on group " + group.Name);
+                                itSystemData.systemRoles[i].description = group.Description;
+                                changes = true;
+                            }
+
                             found = true;
                             break;
                         }
@@ -89,14 +97,14 @@ namespace ADSyncService
                     if (!found)
                     {
                         SystemRole systemRole = new SystemRole();
-                        systemRole.description = "";
+                        systemRole.description = group.Description;
                         systemRole.identifier = group.Uuid;
                         systemRole.name = group.Name;
                         systemRole.users = new List<string>();
                         itSystemData.systemRoles.Add(systemRole);
 
                         // only add members on CREATE scenario
-                        List<string> members = adStub.GetGroupMembers(group.Name);
+                        List<string> members = adStub.GetGroupMembers(group.Uuid);
                         if (members != null)
                         {
                             foreach (var member in members)

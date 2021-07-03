@@ -142,6 +142,15 @@ namespace ADSyncService.Properties {
         
         [global::System.Configuration.ApplicationScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("True")]
+        public bool BackSyncFeature_CreateUserRoles {
+            get {
+                return ((bool)(this["BackSyncFeature_CreateUserRoles"]));
+            }
+        }
+        
+        [global::System.Configuration.ApplicationScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
         [global::System.Configuration.DefaultSettingValueAttribute(@"<?xml version=""1.0"" encoding=""utf-16""?>
 <ArrayOfString xmlns:xsi=""http://www.w3.org/2001/XMLSchema-instance"" xmlns:xsd=""http://www.w3.org/2001/XMLSchema"">
   <string>2399;OU=system1,OU=Groups,DC=digitalidentity,DC=dk</string>
@@ -175,15 +184,6 @@ namespace ADSyncService.Properties {
         public global::System.Collections.Specialized.StringCollection ReadonlyItSystemFeature_SystemMap {
             get {
                 return ((global::System.Collections.Specialized.StringCollection)(this["ReadonlyItSystemFeature_SystemMap"]));
-            }
-        }
-        
-        [global::System.Configuration.ApplicationScopedSettingAttribute()]
-        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("True")]
-        public bool BackSyncFeature_CreateUserRoles {
-            get {
-                return ((bool)(this["BackSyncFeature_CreateUserRoles"]));
             }
         }
     }
