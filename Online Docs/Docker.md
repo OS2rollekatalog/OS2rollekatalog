@@ -19,7 +19,12 @@ OS2rollekatalog har 3 primære afhængigheder for at kunne starte op. Ud over de
 * **SAML Identity Provider Metadata**. OS2rollekatalog forudsætter at man har en SAML Identity Provider til at håndtere login til rollekatalogets brugergrænseflade.
 * **Certifikat til SAML**. OS2rollekatalog agerer i ovenstående kontext som en SAML Service Provider, og skal her udstyres med et certifikat keystore, som skal være tilgængelig som en PKCS#12 fil (p12/pfx)
 * **SQL Database**. OS2rollekatalog er afhængig af en SQL database til at gemme sine data. Både SQL Server 2017+ og MySQL 5.7+ understøttes.
-* 
+
+Mht databasen, hvis man anvender MySQL, så kan det være nødvendigt at ændre group_concat_max_len værdien i database konfigurationen. MySQL har typisk en max længde på 1024 bytes når man anvender GROUP_CONCAT SQL funktionen. Da den bruges af rollekataloget til at danne lister med KLE numre, så kan der være brugere som har så mange KLE tildelt, at de overstiger de 1024 bytes. Man kan ændre værdien i MySQLs konfigurationsfil ved at sætte nedenstående værdi. På samme måde kan det være nødvendigt at øge stakstørrelsen til rekursive SQL kald, hvis man har et meget dybt hierarki. Nedenstående indstillinger anvendes i produktion i dag uden at give problemer med faktiske produktionsdata
+
+    group_concat_max_len = 10240
+    thread_stack = 512kb
+
 **Optionelle afhængigheder**
 
 * **KOMBIT certifikat**. OS2rollekatalog kan integrere til KOMBITs administrationsmodul. Hvis man ønsker dette, så skal man have registreret et certifikat i KOMBITs Adminisrationsmodul, og det tilhørende certifikat keystore skal være tilgængelig som en PKCS#12 fil (p12/pfx)
