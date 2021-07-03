@@ -38,3 +38,9 @@ Alle tests af brugergrænsefladen afvikles vha Selenium, og der anvendes en Chro
 På nuværende tidspunkt anvendes version 2.37 af ChromeDriver, og man bør anvende samme version til ens operativsystem hvis man skal være sikker på at tests kan afvikles uden kodeændringer.
 
 Når den rette ChromeDriver er installeret, kan brugergrænseflade test afvikles. Bemærk at tests afvikles med en synlig browser, så man visuelt kan inspicere hvad testene udfører af handlinger. Til afvikling af tests på et CI setup kan man overveje at afvikle tests headless (kræver kodeændringer i konfigurationen af ChromeDriveren).
+
+Alle brugergrænsefladetests er samlet i folderen
+
+    ui/src/test/java/dk/digitalidentity/rc/test/ui/
+
+Der ligger også en hjælpeklasse ved navn LoginService i test-koden, som anvendes til at automatisere login'et via AD FS. Hvis man har problemer med at gennemføre et AD FS login via testcases, kan man evt have behov for at tilpasse denne hjælpeklasse, så den matcher ens AD FS opsætning. Det bør dog ikke være nødvendigt hvis man kører med en standardopsætning af AD FS
