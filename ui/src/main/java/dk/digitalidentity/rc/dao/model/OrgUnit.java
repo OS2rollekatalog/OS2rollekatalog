@@ -18,6 +18,7 @@ import javax.persistence.OneToOne;
 import javax.persistence.Temporal;
 import javax.persistence.TemporalType;
 
+import org.hibernate.annotations.BatchSize;
 import org.hibernate.annotations.LazyCollection;
 import org.hibernate.annotations.LazyCollectionOption;
 import org.hibernate.annotations.UpdateTimestamp;
@@ -69,12 +70,15 @@ public class OrgUnit implements AuditLoggable {
 	@OneToMany(fetch = FetchType.LAZY, mappedBy = "parent", cascade = CascadeType.ALL)
 	private List<OrgUnit> children;
 	
-	@OneToMany(fetch = FetchType.LAZY, cascade= CascadeType.ALL, orphanRemoval = true, mappedBy = "orgUnit")
+	@BatchSize(size = 50)
+	@OneToMany(fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true, mappedBy = "orgUnit")
 	private List<KLEMapping> kles;
 
+	@BatchSize(size = 50)
 	@OneToMany(mappedBy = "orgUnit", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
 	private List<OrgUnitUserRoleAssignment> userRoleAssignments;
 	
+	@BatchSize(size = 50)
 	@OneToMany(mappedBy = "orgUnit", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
 	private List<OrgUnitRoleGroupAssignment> roleGroupAssignments;
 

@@ -2,7 +2,9 @@ package dk.digitalidentity.rc.service;
 
 import java.io.ByteArrayOutputStream;
 import java.text.SimpleDateFormat;
+import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Comparator;
@@ -472,6 +474,7 @@ public class AttestationService {
 	public void setNextAttestationDeadlines() {
 		List<OrgUnit> orgUnits = orgUnitService.getAll();
 		Set<String> filter = settingsService.getScheduledAttestationFilter();
+		int daysBeforeDeadline = settingsService.getDaysBeforeDeadline();
 
 		// optimize lookup for sensitive roles (once per run, not once per OU)
 		Map<String, List<HistoryOURoleAssignment>> ouRoleAssignments = new HashMap<>();
@@ -487,18 +490,13 @@ public class AttestationService {
 		Date nextAttestationDateOrdinary = getNextAttestationDate(LocalDate.now(), false);
 		Date nextAttestationDateSensitive = getNextAttestationDate(LocalDate.now(), true);
 		
-		// some tts minus one hour for before/after checks that are not second-sensitive
-		Calendar cal = Calendar.getInstance();
-		cal.setTime(nextAttestationDateSensitive);
-		cal.add(Calendar.HOUR, 1);
-		Date nextAttestationDateSensitivePlusOneHour = cal.getTime();
-		cal.setTime(nextAttestationDateOrdinary);
-		cal.add(Calendar.HOUR, 1);
-		Date nextAttestationDateOrdinaryPlusOneHour = cal.getTime();
-		
+		// we also need these, to deal with attestations performed BEFORE the next deadline, but AFTER the first reminder has been set
+		Date nextNextAttestationDateOrdinary = getNextAttestationDate(Instant.ofEpochMilli(nextAttestationDateOrdinary.getTime()).atZone(ZoneId.systemDefault()).toLocalDate(), false);
+		Date nextNextAttestationDateSensitive = getNextAttestationDate(Instant.ofEpochMilli(nextAttestationDateSensitive.getTime()).atZone(ZoneId.systemDefault()).toLocalDate(), false);
+
 		for (OrgUnit orgUnit : orgUnits) {
 			boolean attestationEnabled = attestationEnabled(filter, orgUnit);
-
+			
 			if (!attestationEnabled) {
 				if (orgUnit.getNextAttestation() != null) {
 					orgUnit.setNextAttestation(null);
@@ -506,19 +504,25 @@ public class AttestationService {
 				}
 			}
 			else {
-				// if the next attestation deadline is already set to before the next sensitive date, then no reason
-				// to do anything here (small optimization, as we expect most OrgUnits to not be sensitive)
-				if (orgUnit.getNextAttestation() != null && orgUnit.getNextAttestation().before(nextAttestationDateSensitivePlusOneHour)) {
+				boolean sensitive = isSensitive(orgUnit, userRoles, ouRoleAssignments.get(orgUnit.getUuid()), userRoleAssignments);
+				
+				// default values - may be overwritten by the check below
+				Date nextAttestationDate = (sensitive) ? nextAttestationDateSensitive : nextAttestationDateOrdinary;
+
+				LocalDate lastAttestationDate = (orgUnit.getLastAttested() != null) ? convertToLocalDate(orgUnit.getLastAttested()) : LocalDate.of(1970, 1, 1);
+				LocalDate cutpoint = convertToLocalDate(nextAttestationDate).minusDays(daysBeforeDeadline);
+
+				if (cutpoint.isAfter(lastAttestationDate) && orgUnit.getNextAttestation() != null) {
+					// we have an overdue attestation, so we should not update
 					continue;
 				}
+				else if (cutpoint.isBefore(lastAttestationDate) || cutpoint.isEqual(lastAttestationDate)) {
+					// we have a completed attestation, before the deadline, so move to nextNext attestation deadline
+					nextAttestationDate = (sensitive) ? nextNextAttestationDateSensitive : nextNextAttestationDateOrdinary;
+				}
 
-				boolean sensitive = isSensitive(orgUnit, userRoles, ouRoleAssignments.get(orgUnit.getUuid()), userRoleAssignments);
-				Date nextAttestationDate = (sensitive) ? nextAttestationDateSensitive : nextAttestationDateOrdinary;
-				Date nextAttestationDatePlusOneHour = (sensitive) ? nextAttestationDateSensitivePlusOneHour : nextAttestationDateOrdinaryPlusOneHour;
-				
-				// only ever move it closer, never further away (because that will confuse everyone,
-				// and we might run into issues with overdue attestations being moved to the next attestation date)
-				if (orgUnit.getNextAttestation() == null || orgUnit.getNextAttestation().after(nextAttestationDatePlusOneHour)) {
+				// super-safe date-only comparison
+				if (orgUnit.getNextAttestation() == null || !(convertToLocalDate(orgUnit.getNextAttestation())).equals(convertToLocalDate(nextAttestationDate))) {
 					orgUnit.setNextAttestation(nextAttestationDate);
 					orgUnitService.save(orgUnit);
 				}
@@ -611,5 +615,9 @@ public class AttestationService {
 		}
 		
 		return attestationEnabled(filter, orgUnit.getParent());
+	}
+	
+	private LocalDate convertToLocalDate(Date dateToConvert) {
+		return dateToConvert.toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
 	}
 }

@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="fragments/header :: header"/>
+<body>
+	<div class="wrapper">
+		<header th:replace="fragments/navbar :: navbar-header (subpage = 'administration')" />
+		<aside th:replace="fragments/navbar :: navbar-aside (page = 'clients.new', subpage = 'administration')" />
+ 
+		<section>
+			<div class="content-wrapper">
+				<h3 th:text="#{html.client.edit.headline}" />
+
+				<div class="panel panel-default">
+					<div class="panel-heading" />
+					<div class="panel-body">
+						<div class="row">
+							<div class="col-lg-12">
+								<form class="form-horizontal" id="client-form" th:action="@{/ui/client/edit/}+${client.id}" method="post" th:object="${client}">
+									<input type="hidden" th:field="*{id}" />
+
+									<div class="form-group">
+										<label class="col-sm-2 control-label" th:text="#{html.client.name}"/>
+										<div class="col-sm-8">
+											<input th:field="*{name}" class="form-control"/>
+											<ul th:if="${#fields.hasErrors('name')}" class="error">
+												<li th:each="err : ${#fields.errors('name')}" th:text="${err}"/>
+											</ul>
+										</div>
+									</div>
+
+									<div class="form-group">
+										<label class="col-sm-2 control-label" th:text="#{html.client.apiKey}"/>
+										<div class="col-sm-8">
+											<input th:field="*{apiKey}" class="form-control"/>
+											<ul th:if="${#fields.hasErrors('apiKey')}" class="error">
+												<li th:each="err : ${#fields.errors('apiKey')}" th:text="${err}"/>
+											</ul>
+										</div>
+									</div>
+
+									<div class="form-group">
+										<label class="col-sm-2 control-label" th:text="#{html.client.access}" />
+										<div class="col-sm-8">
+											<select class="form-control m-b" th:field="*{accessRole}">
+												<option th:each="accessRole : ${accessRoles}" th:value="${accessRole}" th:text="#{${accessRole.messageId}}" />
+											</select>
+											<ul th:if="${#fields.hasErrors('accessRole')}" class="error">
+												<li th:each="err : ${#fields.errors('accessRole')}" th:text="${err}"/>
+											</ul>
+										</div>
+									</div>
+									
+									<div class="form-group">
+										<div class="col-sm-offset-2 col-sm-10">
+											<button type="submit" style="margin-right: 5px;" class="btn btn-lg btn-primary col-xs-2"  th:text="#{html.control.button.save}"/>
+											<a th:href="@{/ui/client/list}" style="margin-right: 5px;" class="btn btn-lg btn-danger col-xs-2" th:text="#{html.control.button.cancel}"/>
+										</div>
+									</div>
+								</form>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+		</section>
+	</div>
+
+	<div th:replace="fragments/footer :: footer"></div>
+</body>
+</html>

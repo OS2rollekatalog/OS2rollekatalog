@@ -246,7 +246,12 @@ public class UserRoleRestController {
                 systemRoleAssignmentConstraintValue.setConstraintValue(constraintValue);
                 systemRoleAssignmentConstraintValue.setConstraintValueType(constraintValueType);
                 if (StringUtils.isEmpty(systemRoleAssignmentConstraintValue.getConstraintIdentifier())) {
-                	systemRoleAssignmentConstraintValue.setConstraintIdentifier(IdentifierGenerator.buildKombitConstraintIdentifier(configuration.getIntegrations().getKombit().getDomain()));
+                	systemRoleAssignmentConstraintValue.setConstraintIdentifier(IdentifierGenerator.buildKombitConstraintIdentifier(
+                		configuration.getIntegrations().getKombit().getDomain(),
+                		systemRole,
+                		roleAssignment,
+                		constraintType
+                	));
                 }
         		break;
         	}
@@ -258,7 +263,12 @@ public class UserRoleRestController {
             systemRoleAssignmentConstraintValue.setSystemRoleAssignment(roleAssignment);
             systemRoleAssignmentConstraintValue.setConstraintType(constraintType);
             systemRoleAssignmentConstraintValue.setConstraintValueType(constraintValueType);
-            systemRoleAssignmentConstraintValue.setConstraintIdentifier(IdentifierGenerator.buildKombitConstraintIdentifier(configuration.getIntegrations().getKombit().getDomain()));
+            systemRoleAssignmentConstraintValue.setConstraintIdentifier(IdentifierGenerator.buildKombitConstraintIdentifier(
+            	configuration.getIntegrations().getKombit().getDomain(),
+        		systemRole,
+        		roleAssignment,
+        		constraintType
+            ));
         }
         
 		roleAssignment.getConstraintValues().add(systemRoleAssignmentConstraintValue);

@@ -43,6 +43,7 @@ import dk.digitalidentity.rc.dao.model.ConstraintType;
 import dk.digitalidentity.rc.dao.model.ItSystem;
 import dk.digitalidentity.rc.dao.model.Kle;
 import dk.digitalidentity.rc.dao.model.OrgUnit;
+import dk.digitalidentity.rc.dao.model.PendingKOMBITUpdate;
 import dk.digitalidentity.rc.dao.model.RoleGroup;
 import dk.digitalidentity.rc.dao.model.RoleGroupUserRoleAssignment;
 import dk.digitalidentity.rc.dao.model.SystemRole;
@@ -148,8 +149,18 @@ public class UserRoleController {
 			roles = roles.stream().filter(r -> itSystems.contains(r.getItSystem().getId())).collect(Collectors.toList());
 		}
 
-		List<Long> kombitUpdates = kombitService.findAll().stream().map(k -> k.getUserRoleId()).collect(Collectors.toList());
-		List<UserRoleForm> userRoles = roles.stream().map(r -> new UserRoleForm(r, kombitUpdates.contains(r.getId()))).collect(Collectors.toList());
+		List<UserRoleForm> userRoles = new ArrayList<>();
+		List<PendingKOMBITUpdate> kombitUpdates = kombitService.findAll();
+		List<Long> kombitUpdatesIds = kombitUpdates.stream().map(k -> k.getUserRoleId()).collect(Collectors.toList());
+		for (UserRole role : roles) {
+			boolean pendingSync = kombitUpdatesIds.contains(role.getId());
+			boolean syncFailed = false;
+			if (pendingSync) {
+				PendingKOMBITUpdate pendingKOMBITUpdate = kombitUpdates.stream().filter(k -> k.getUserRoleId() == role.getId()).findFirst().orElse(null);
+				syncFailed = pendingKOMBITUpdate == null ? false : pendingKOMBITUpdate.isFailed();
+			}
+			userRoles.add(new UserRoleForm(role, pendingSync, syncFailed));
+		}
 
 		// filter out deleted itSystems
 		userRoles = userRoles.stream().filter(ur -> ur.getItSystem().isDeleted() == false).collect(Collectors.toList());
@@ -296,6 +307,11 @@ public class UserRoleController {
 			return "redirect:../list";
 		}
 
+		// no edit here, just jump to view page instead
+		if (role.getLinkedSystemRole() != null) {
+			return "redirect:/ui/userroles/view/" + id;
+		}
+		
 		UserRoleForm userRoleForm = mapper.map(role, UserRoleForm.class);
 		ItSystem itSystem = role.getItSystem();
 		List<SystemRole> systemRoles = systemRoleService.getByItSystem(itSystem);
@@ -338,8 +354,8 @@ public class UserRoleController {
 
 		ConstraintType ouConstraintType = constraintTypeService.getByEntityId(Constants.OU_CONSTRAINT_ENTITY_ID);
 		ConstraintType kleConstraintType = constraintTypeService.getByEntityId(Constants.KLE_CONSTRAINT_ENTITY_ID);
-		ConstraintType itSystemConstraintType = constraintTypeService.getByEntityId(Constants.ITSYSTEM_CONSTRAINT_ENTITY_ID);
-		ConstraintType internalOuConstraintType = constraintTypeService.getByEntityId(Constants.ORGUNIT_CONSTRAINT_ENTITY_ID);
+		ConstraintType internalItSystemConstraintType = constraintTypeService.getByEntityId(Constants.INTERNAL_ITSYSTEM_CONSTRAINT_ENTITY_ID);
+		ConstraintType internalOuConstraintType = constraintTypeService.getByEntityId(Constants.INTERNAL_ORGUNIT_CONSTRAINT_ENTITY_ID);
 
 		List<Kle> kles = kleService.findAll();
 		List<KleDTO> kleDTOS = new ArrayList<>();
@@ -352,23 +368,7 @@ public class UserRoleController {
 			kleDTO.setText(kle.isActive() ? code + " " + kle.getName() : code + " " + kle.getName() + " [UDGÅET]");
 			kleDTOS.add(kleDTO);
 		}
-		
-		/* moved to fragment
-		List<User> usersFromDb = userService.getAll();
-		List<UserWithRole> usersWithRole = userService.getUsersWithUserRole(role, false);
-		
-		List<String> uuidsWithRole = usersWithRole.stream().map(u -> u.getUser().getUuid()).collect(Collectors.toList());
-		
-		List<UserRoleCheckedDTO> users = usersFromDb.stream()
-				.map(u -> UserRoleCheckedDTO.builder()
-						.uuid(u.getUuid())
-						.name(u.getName())
-						.userId(u.getUserId())
-						.checked(uuidsWithRole.contains(u.getUuid()))
-						.build())
-				.collect(Collectors.toList());
-		*/
-		
+
 		List<OrgUnit> oUsFromDb = orgUnitService.getAll();
 		List<RolesOUTable> allOUs = new ArrayList<>();
 		for (OrgUnit ou : oUsFromDb) {
@@ -390,7 +390,7 @@ public class UserRoleController {
 		// TODO: way to much mapping logic - refactor to deal with this
 		model.addAttribute("ouConstraintUuid", (ouConstraintType != null) ? ouConstraintType.getUuid() : "NA");
 		model.addAttribute("kleConstraintUuid", (kleConstraintType != null) ? kleConstraintType.getUuid() : "NA");
-		model.addAttribute("itSystemConstraintUuid", (itSystemConstraintType != null) ? itSystemConstraintType.getUuid() : "NA");
+		model.addAttribute("itSystemConstraintUuid", (internalItSystemConstraintType != null) ? internalItSystemConstraintType.getUuid() : "NA");
 		model.addAttribute("internalOuConstraintUuid", (internalOuConstraintType != null) ? internalOuConstraintType.getUuid() : "NA");
 		model.addAttribute("editSystemRoles", editSystemRoles);
 		model.addAttribute("editRoleGroups", editRoleGroups);

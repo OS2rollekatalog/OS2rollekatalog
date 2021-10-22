@@ -24,6 +24,7 @@ import dk.digitalidentity.rc.dao.model.PendingADGroupOperation;
 import dk.digitalidentity.rc.dao.model.SystemRole;
 import dk.digitalidentity.rc.dao.model.SystemRoleAssignment;
 import dk.digitalidentity.rc.dao.model.UserRole;
+import dk.digitalidentity.rc.dao.model.enums.ADGroupType;
 import dk.digitalidentity.rc.dao.model.enums.ItSystemType;
 import dk.digitalidentity.rc.security.RequireAdministratorRole;
 import dk.digitalidentity.rc.security.SecurityUtil;
@@ -94,6 +95,7 @@ public class ItSystemRestController {
 			operation.setSystemRoleId(null);
 			operation.setSystemRoleIdentifier(systemRole.getIdentifier());
 			operation.setTimestamp(new Date());
+			operation.setAdGroupType(ADGroupType.NONE);
 
 			pendingADUpdateService.save(operation);
 		}
@@ -359,6 +361,8 @@ public class ItSystemRestController {
 			userRole.setIdentifier("id-" + UUID.randomUUID().toString());
 			userRole.setItSystem(itSystem);
 			userRole.setSystemRoleAssignments(new ArrayList<SystemRoleAssignment>());
+			userRole.setLinkedSystemRole(systemRole);
+			userRole.setLinkedSystemRolePrefix(prefixWrapper.getPrefix());
 			userRole = userRoleService.save(userRole);
 
 			SystemRoleAssignment roleAssignment = new SystemRoleAssignment();

@@ -183,89 +183,77 @@ public class HistoryService {
 	
 	@Transactional
 	public void generateOrganisationHistory() {
-		if (dataSourceUrl.startsWith("jdbc:mysql")) {
-			jdbcTemplate.update("CALL SP_InsertHistoryOrganisation();");
+		if (dataSourceUrl.startsWith("jdbc:sqlserver")) {
+			jdbcTemplate.update("EXEC SP_InsertHistoryOrganisation;");
 		}
 		else {
-			jdbcTemplate.update("EXEC SP_InsertHistoryOrganisation;");
+			jdbcTemplate.update("CALL SP_InsertHistoryOrganisation();");
 		}
 	}
 	
 	@Transactional
 	public void generateItSytemHistory() {
-		if (dataSourceUrl.startsWith("jdbc:mysql")) {
-			jdbcTemplate.update("CALL SP_InsertHistoryItSystems();");
+		if (dataSourceUrl.startsWith("jdbc:sqlserver")) {
+			jdbcTemplate.update("EXEC SP_InsertHistoryItSystems;");
 		}
 		else {
-			jdbcTemplate.update("EXEC SP_InsertHistoryItSystems;");
+			jdbcTemplate.update("CALL SP_InsertHistoryItSystems();");
 		}
 	}
 	
 	@Transactional
 	public void generateRoleAssignmentHistory() {
-		if (dataSourceUrl.startsWith("jdbc:mysql")) {
-			jdbcTemplate.update("CALL SP_InsertHistoryRoleAssignments();");
+		if (dataSourceUrl.startsWith("jdbc:sqlserver")) {
+			jdbcTemplate.update("EXEC SP_InsertHistoryRoleAssignments;");
 		}
 		else {
-			jdbcTemplate.update("EXEC SP_InsertHistoryRoleAssignments;");
+			jdbcTemplate.update("CALL SP_InsertHistoryRoleAssignments();");
 		}
 	}
 	
 	@Transactional
 	public void generateKleAssignmentHistory() {
-		if (dataSourceUrl.startsWith("jdbc:mysql")) {
-			jdbcTemplate.update("CALL SP_InsertHistoryKleAssignments();");
+		if (dataSourceUrl.startsWith("jdbc:sqlserver")) {
+			jdbcTemplate.update("EXEC SP_InsertHistoryKleAssignments;");
 		}
 		else {
-			jdbcTemplate.update("EXEC SP_InsertHistoryKleAssignments;");
+			jdbcTemplate.update("CALL SP_InsertHistoryKleAssignments();");
 		}
 	}
 	
 	@Transactional
 	public void generateOURoleAssignmentHistory() {
-		if (dataSourceUrl.startsWith("jdbc:mysql")) {
-			jdbcTemplate.update("CALL SP_InsertHistoryOURoleAssignments();");
+		if (dataSourceUrl.startsWith("jdbc:sqlserver")) {
+			jdbcTemplate.update("EXEC SP_InsertHistoryOURoleAssignments;");
 		}
 		else {
-			jdbcTemplate.update("EXEC SP_InsertHistoryOURoleAssignments;");
+			jdbcTemplate.update("CALL SP_InsertHistoryOURoleAssignments();");
 		}
 	}
 	
 	@Transactional
 	public void generateTitleRoleAssignmentHistory() {
-		if (dataSourceUrl.startsWith("jdbc:mysql")) {
-			jdbcTemplate.update("CALL SP_InsertHistoryTitleRoleAssignments();");
+		if (dataSourceUrl.startsWith("jdbc:sqlserver")) {
+			jdbcTemplate.update("EXEC SP_InsertHistoryTitleRoleAssignments;");
 		}
 		else {
-			jdbcTemplate.update("EXEC SP_InsertHistoryTitleRoleAssignments;");
+			jdbcTemplate.update("CALL SP_InsertHistoryTitleRoleAssignments();");
 		}
 	}
 
 	@Transactional
 	public void generateExceptedUsersHistory() {
-		if (dataSourceUrl.startsWith("jdbc:mysql")) {
-			jdbcTemplate.update("CALL SP_InsertHistoryOURoleAssignmentsWithExceptions();");
+		if (dataSourceUrl.startsWith("jdbc:sqlserver")) {
+			jdbcTemplate.update("EXEC SP_InsertHistoryOURoleAssignmentsWithExceptions;");
 		}
 		else {
-			jdbcTemplate.update("EXEC SP_InsertHistoryOURoleAssignmentsWithExceptions;");
+			jdbcTemplate.update("CALL SP_InsertHistoryOURoleAssignmentsWithExceptions();");
 		}
 	}
 
 	@Transactional
 	public void deleteOldHistory(long retentionPeriod) {
-		if (dataSourceUrl.startsWith("jdbc:mysql")) {
-			jdbcTemplate.update("DELETE FROM history_users WHERE dato < (NOW() - INTERVAL " + retentionPeriod + " DAY);");
-			jdbcTemplate.update("DELETE FROM history_ous WHERE dato < (NOW() - INTERVAL " + retentionPeriod + " DAY);");
-			jdbcTemplate.update("DELETE FROM history_role_assignments WHERE dato < (NOW() - INTERVAL " + retentionPeriod + " DAY);");
-			jdbcTemplate.update("DELETE FROM history_kle_assignments WHERE dato < (NOW() - INTERVAL " + retentionPeriod + " DAY);");
-			jdbcTemplate.update("DELETE FROM history_it_systems WHERE dato < (NOW() - INTERVAL " + retentionPeriod + " DAY);");
-			jdbcTemplate.update("DELETE FROM history_managers WHERE dato < (NOW() - INTERVAL " + retentionPeriod + " DAY);");
-			jdbcTemplate.update("DELETE FROM history_ou_role_assignments WHERE dato < (NOW() - INTERVAL " + retentionPeriod + " DAY);");
-			jdbcTemplate.update("DELETE FROM history_title_role_assignments WHERE dato < (NOW() - INTERVAL " + retentionPeriod + " DAY);");
-			jdbcTemplate.update("DELETE FROM history_titles WHERE dato < (NOW() - INTERVAL " + retentionPeriod + " DAY);");
-			jdbcTemplate.update("DELETE FROM history_role_assignment_excepted_users WHERE dato < (NOW() - INTERVAL " + retentionPeriod + " DAY);");
-		}
-		else {
+		if (dataSourceUrl.startsWith("jdbc:sqlserver")) {
 			jdbcTemplate.update("DELETE FROM history_users WHERE dato < GETDATE() - " + retentionPeriod + ";");
 			jdbcTemplate.update("DELETE FROM history_ous WHERE dato < GETDATE() - " + retentionPeriod + ";");
 			jdbcTemplate.update("DELETE FROM history_role_assignments WHERE dato < GETDATE() - " + retentionPeriod + ";");
@@ -276,6 +264,18 @@ public class HistoryService {
 			jdbcTemplate.update("DELETE FROM history_title_role_assignments WHERE dato < GETDATE() - " + retentionPeriod + ";");
 			jdbcTemplate.update("DELETE FROM history_titles WHERE dato < GETDATE() - " + retentionPeriod + ";");
 			jdbcTemplate.update("DELETE FROM history_role_assignment_excepted_users WHERE dato < GETDATE() - " + retentionPeriod + ";");
+		}
+		else {
+			jdbcTemplate.update("DELETE FROM history_users WHERE dato < (NOW() - INTERVAL " + retentionPeriod + " DAY);");
+			jdbcTemplate.update("DELETE FROM history_ous WHERE dato < (NOW() - INTERVAL " + retentionPeriod + " DAY);");
+			jdbcTemplate.update("DELETE FROM history_role_assignments WHERE dato < (NOW() - INTERVAL " + retentionPeriod + " DAY);");
+			jdbcTemplate.update("DELETE FROM history_kle_assignments WHERE dato < (NOW() - INTERVAL " + retentionPeriod + " DAY);");
+			jdbcTemplate.update("DELETE FROM history_it_systems WHERE dato < (NOW() - INTERVAL " + retentionPeriod + " DAY);");
+			jdbcTemplate.update("DELETE FROM history_managers WHERE dato < (NOW() - INTERVAL " + retentionPeriod + " DAY);");
+			jdbcTemplate.update("DELETE FROM history_ou_role_assignments WHERE dato < (NOW() - INTERVAL " + retentionPeriod + " DAY);");
+			jdbcTemplate.update("DELETE FROM history_title_role_assignments WHERE dato < (NOW() - INTERVAL " + retentionPeriod + " DAY);");
+			jdbcTemplate.update("DELETE FROM history_titles WHERE dato < (NOW() - INTERVAL " + retentionPeriod + " DAY);");
+			jdbcTemplate.update("DELETE FROM history_role_assignment_excepted_users WHERE dato < (NOW() - INTERVAL " + retentionPeriod + " DAY);");
 		}
 	}
 }

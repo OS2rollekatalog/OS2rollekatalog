@@ -31,7 +31,7 @@ public class KLEMapping implements AuditLoggable {
 	private long id;
 
 	@JsonBackReference
-	@ManyToOne(fetch=FetchType.LAZY)
+	@ManyToOne(fetch = FetchType.LAZY)
 	@JoinColumn(name="ou_uuid")
 	private OrgUnit orgUnit;
 

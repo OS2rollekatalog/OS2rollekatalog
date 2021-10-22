@@ -1,7 +1,6 @@
 package dk.digitalidentity.rc.security;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 
@@ -161,6 +160,10 @@ public class SecurityUtil {
 	}
 
 	public static void loginSystemAccount() {
+		loginSystemAccount(new ArrayList<>());
+	}
+	
+	public static void loginSystemAccount(ArrayList<GrantedAuthority> authorities) {
 		Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
 
 		// apply to existing session
@@ -185,9 +188,10 @@ public class SecurityUtil {
 			}
 		}
 		else { // create new session
+			authorities.add(new SimpleGrantedAuthority(Constants.ROLE_SYSTEM));
 			TokenUser tokenUser = TokenUser.builder()
 					.cvr("N/A")
-					.authorities(Collections.singletonList(new SimpleGrantedAuthority(Constants.ROLE_SYSTEM)))
+					.authorities(authorities)
 					.username(SYSTEM_USERID)
 					.attributes(new HashMap<String, Object>())
 					.build();
@@ -197,7 +201,7 @@ public class SecurityUtil {
 			
 			UsernamePasswordAuthenticationToken token = new UsernamePasswordAuthenticationToken(SYSTEM_USERID, "N/A", tokenUser.getAuthorities());
 			token.setDetails(tokenUser);
-			SecurityContextHolder.getContext().setAuthentication(token);			
+			SecurityContextHolder.getContext().setAuthentication(token);
 		}
 	}
 	
@@ -259,7 +263,7 @@ public class SecurityUtil {
 				for (SystemRoleAssignment assignment : role.getSystemRoleAssignments()) {
 					if (assignment.getSystemRole().getIdentifier().equals(Constants.ROLE_READ_ACCESS_ID)) {
 						for (SystemRoleAssignmentConstraintValue constraintValue : assignment.getConstraintValues()) {
-							if (constraintValue.getConstraintType().getEntityId().equals(Constants.ITSYSTEM_CONSTRAINT_ENTITY_ID)) {
+							if (constraintValue.getConstraintType().getEntityId().equals(Constants.INTERNAL_ITSYSTEM_CONSTRAINT_ENTITY_ID)) {
 								String value = constraintValue.getConstraintValue();
 								for (String token : value.split(",")) {
 									result.add(Long.valueOf(token));

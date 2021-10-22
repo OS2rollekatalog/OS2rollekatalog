@@ -19,6 +19,10 @@ public class PendingKOMBITUpdateService {
 	public List<PendingKOMBITUpdate> findAll() {
 		return pendingKOMBITUpdateDao.findAll();
 	}
+	
+	public List<PendingKOMBITUpdate> findAllByFailedFalse() {
+		return pendingKOMBITUpdateDao.findByFailedFalse();
+	}
 
 	public void delete(PendingKOMBITUpdate entity) {
 		pendingKOMBITUpdateDao.delete(entity);
@@ -33,11 +37,11 @@ public class PendingKOMBITUpdateService {
 	}
 	
 	public boolean hasPendingUpdate(UserRole userRole) {
-		return (pendingKOMBITUpdateDao.getByUserRoleId(userRole.getId()) != null);
+		return (pendingKOMBITUpdateDao.findByUserRoleId(userRole.getId()) != null);
 	}
 
 	public void addUserRoleToQueue(UserRole userRole, KOMBITEventType eventType) {
-		PendingKOMBITUpdate pendingUpdate = pendingKOMBITUpdateDao.getByUserRoleId(userRole.getId());
+		PendingKOMBITUpdate pendingUpdate = pendingKOMBITUpdateDao.findByUserRoleId(userRole.getId());
 
 		if (pendingUpdate == null) {
 			PendingKOMBITUpdate pendingKOMBITUpdate = new PendingKOMBITUpdate();
@@ -49,6 +53,7 @@ public class PendingKOMBITUpdateService {
 		else {
 			pendingUpdate.setEventType(eventType);
 			pendingUpdate.setUserRoleUuid(userRole.getUuid());
+			pendingUpdate.setFailed(false);
 			pendingKOMBITUpdateDao.save(pendingUpdate);
 		}
 	}

@@ -15,15 +15,18 @@ import dk.digitalidentity.rc.controller.api.dto.ConstraintValuesDTO;
 import dk.digitalidentity.rc.dao.model.ConstraintType;
 import dk.digitalidentity.rc.dao.model.ConstraintTypeValueSet;
 import dk.digitalidentity.rc.dao.model.enums.ConstraintUIType;
+import dk.digitalidentity.rc.security.RequireApiRoleManagementRole;
 import dk.digitalidentity.rc.service.ConstraintTypeService;
 
+@RequireApiRoleManagementRole
 @RestController
 @RequestMapping("/api")
-public class ContraintApi {
+public class ConstraintApi {
 	
 	@Autowired
 	private ConstraintTypeService constraintTypeService;
 
+	// TODO: actually not used any more...
 	// TODO: document this API endpoint (used by Favrskov to load OPUS "knuder" as constraints)
 	@PutMapping(value = "/constraint")
 	public ResponseEntity<?> loadConstraintValues(@RequestBody ConstraintValuesDTO payload) {

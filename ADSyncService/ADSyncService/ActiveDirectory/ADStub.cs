@@ -101,7 +101,8 @@ namespace ADSyncService
 
                         log.Info("Added " + userId + " to " + group.Name);
 
-                        try {
+                        try
+                        {
                             group.Members.Add(user);
                             group.Save();
                         }
@@ -142,7 +143,7 @@ namespace ADSyncService
             }
         }
 
-        public void CreateGroup(string systemRoleIdentifier, string itSystemIdentifier)
+        public void CreateGroup(string systemRoleIdentifier, string itSystemIdentifier, string adGroupType)
         {
             string contextPath = "OU=" + itSystemIdentifier + "," + groupOU;
 
@@ -159,21 +160,51 @@ namespace ADSyncService
                 }
             }
 
-            using (PrincipalContext context = new PrincipalContext(ContextType.Domain, null, contextPath))
+            if ("DISTRIBUTION".Equals(adGroupType))
             {
-                using (GroupPrincipal group = GroupPrincipal.FindByIdentity(context, systemRoleIdentifier))
+                using (var de = new DirectoryEntry("LDAP://" + contextPath))
                 {
-                    if (group == null)
+                    try
                     {
-                        using (var groupPrincipal = new GroupPrincipal(context, systemRoleIdentifier))
+                        using (var existingGroup = de.Children.Find("CN=" + systemRoleIdentifier, "group"))
                         {
-                            groupPrincipal.Save();
-                            log.Info("Created security group: " + systemRoleIdentifier + " in " + contextPath);
+                            if (existingGroup != null)
+                            {
+                                log.Warn("Could not create new distribution group " + systemRoleIdentifier + " because it already exists: " + existingGroup.Name + "," + contextPath);
+                            }
                         }
                     }
-                    else
+                    catch (System.DirectoryServices.DirectoryServicesCOMException)
                     {
-                        log.Warn("Could not create new security group " + systemRoleIdentifier + " because it already exists: " + group.DistinguishedName);
+                        using (DirectoryEntry dGroup = de.Children.Add("CN=" + systemRoleIdentifier, "group"))
+                        {
+                            dGroup.Properties["sAMAccountName"].Add(systemRoleIdentifier);
+                            dGroup.Properties["groupType"].Add(unchecked((int)0x00000002));
+                            dGroup.CommitChanges();
+
+                            log.Info("Created distribution group: " + systemRoleIdentifier + " in " + contextPath);
+                        }
+                    }
+                }
+            }
+            else
+            {
+                using (PrincipalContext context = new PrincipalContext(ContextType.Domain, null, contextPath))
+                {
+                    using (GroupPrincipal group = GroupPrincipal.FindByIdentity(context, systemRoleIdentifier))
+                    {
+                        if (group == null)
+                        {
+                            using (var groupPrincipal = new GroupPrincipal(context, systemRoleIdentifier))
+                            {
+                                groupPrincipal.Save();
+                                log.Info("Created security group: " + systemRoleIdentifier + " in " + contextPath);
+                            }
+                        }
+                        else
+                        {
+                            log.Warn("Could not create new security group " + systemRoleIdentifier + " because it already exists: " + group.DistinguishedName);
+                        }
                     }
                 }
             }

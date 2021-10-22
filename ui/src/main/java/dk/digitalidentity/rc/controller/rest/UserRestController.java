@@ -77,6 +77,22 @@ public class UserRestController {
 	@Autowired
 	private KleService kleService;
 
+	@RequireAssignerRole
+	@PostMapping("/rest/users/cleanupDuplicateRoleAssignments")
+	public ResponseEntity<String> cleanupDuplicateRoleAssignments() {
+		userService.deleteDuplicateUserRoleAssignmentsOnUsers();
+		
+		return new ResponseEntity<String>(HttpStatus.OK);
+	}
+
+	@RequireAssignerRole
+	@PostMapping("/rest/users/cleanupDuplicateRoleGroupAssignments")
+	public ResponseEntity<String> cleanupDuplicateRoleGroupAssignments() {
+		userService.deleteDuplicateRoleGroupAssignmentsOnUsers();
+		
+		return new ResponseEntity<String>(HttpStatus.OK);
+	}
+	
 	@GetMapping(value = "/rest/users")
 	public ResponseEntity<List<UserListForm>> getAllUsers(Locale locale) {
 		boolean readOnly = !(SecurityUtil.hasRole(Constants.ROLE_ASSIGNER) || SecurityUtil.hasRole(Constants.ROLE_KLE_ADMINISTRATOR));

@@ -4,6 +4,8 @@ import java.util.Date;
 
 import javax.persistence.Column;
 import javax.persistence.Entity;
+import javax.persistence.EnumType;
+import javax.persistence.Enumerated;
 import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
 import javax.persistence.Id;
@@ -13,6 +15,7 @@ import org.hibernate.annotations.CreationTimestamp;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 
+import dk.digitalidentity.rc.dao.model.enums.ADGroupType;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -46,4 +49,8 @@ public class PendingADGroupOperation {
 	// active = 0 is DELETE
 	@Column
 	private boolean active;
+
+	@Column
+	@Enumerated(EnumType.STRING)
+	private ADGroupType adGroupType;
 }

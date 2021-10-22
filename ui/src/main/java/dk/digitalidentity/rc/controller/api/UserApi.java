@@ -29,10 +29,12 @@ import dk.digitalidentity.rc.dao.model.UserRole;
 import dk.digitalidentity.rc.dao.model.enums.EventType;
 import dk.digitalidentity.rc.exceptions.UserNotFoundException;
 import dk.digitalidentity.rc.log.AuditLogger;
+import dk.digitalidentity.rc.security.RequireApiRoleManagementRole;
 import dk.digitalidentity.rc.service.ItSystemService;
 import dk.digitalidentity.rc.service.UserService;
 import lombok.extern.slf4j.Slf4j;
 
+@RequireApiRoleManagementRole
 @Slf4j
 @RestController
 public class UserApi {

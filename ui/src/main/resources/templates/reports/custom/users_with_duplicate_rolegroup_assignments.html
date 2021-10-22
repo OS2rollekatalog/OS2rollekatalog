@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html>
+<head th:replace="fragments/header :: header (title=#{html.report.users_with_duplicate_rolegroup_assignments})" />
+<body>
+<div class="wrapper">
+	<header th:replace="fragments/navbar :: navbar-header(subpage = 'reports')" />
+	<aside th:replace="fragments/navbar :: navbar-aside (page = 'report.custom', subpage = 'reports')" />
+
+	<section>
+			<div class="content-wrapper">
+				<h3>
+					<span th:text="#{html.report.users_with_duplicate_rolegroup_assignments}" />
+					<button sec:authorize="hasRole('ROLE_ASSIGNER')" class="btn btn-primary btn-lg" style="float: right;" th:text="#{html.page.report.duplicate.remove}" onclick="deleteDuplicates();" />
+				</h3>
+
+				<div class="panel panel-default">
+					<div class="panel-heading" />
+					<div class="panel-body">
+						<table class="listTable table table-responsive table-striped">
+							<thead>
+								<tr>
+									<th class="col-md-3" th:text="#{html.entity.user.name}" />
+									<th class="col-md-3" th:text="#{html.entity.user.userId}" />
+									<th class="col-md-2" th:text="#{html.entity.rolegroup.type}" />
+									<th class="col-md-3" th:text="#{html.page.report.duplicate.via}" />
+									<th class="col-md-1" th:text="#{html.control.operations}" />
+								</tr>
+							</thead>
+
+							<tbody>
+								<tr th:each="user : ${users}">
+									<td th:text="${user.name}" />
+									<td th:text="${user.userId}" />
+									<td th:text="${user.roleGroup.name}" />
+									<td th:text="${user.message}" />
+									<td>
+										<th:block sec:authorize="hasRole('ROLE_ASSIGNER')">
+											<a th:href="@{/ui/users/edit/{uuid}(uuid=${user.uuid})}"><em class="fa fa-pencil"></em></a>
+										</th:block>
+									</td>
+								</tr>
+							</tbody>
+						</table>
+					</div>
+				</div>
+			</div>
+	</section>
+</div>
+
+<nav th:replace="fragments/footer :: footer" />
+<script th:replace="fragments/datatables :: datatables " />
+
+<script th:inline="javascript">
+	/*<![CDATA[*/
+		/*[+
+			var url = [[@{/rest/users/cleanupDuplicateRoleGroupAssignments}]];
+			
+			var txtTitle = [[#{html.page.report.duplicate.remove}]];
+			var txtBody = [[#{html.page.report.duplicate.remove.text}]];
+			var txtOrderConfirmed = [[#{html.page.report.duplicate.remove.confirmMessage}]];
+			var txtCleanupFailed = [[#{html.page.report.duplicate.remove.failedMessage}]];
+			var txtCleanupSucceeded = [[#{html.page.report.duplicate.remove.successMessage}]];
+			var btnNo = [[#{html.control.button.no}]];
+			var btnYes = [[#{html.control.button.yes}]];
+		+]*/
+
+		var token = $("meta[name='_csrf']").attr("content");
+	
+		function deleteDuplicates() {
+            swal({
+					html: true,
+					title : txtTitle,
+					text : txtBody,
+					type : "warning",
+					showCancelButton : true,
+					confirmButtonColor : "#DD6B55",
+					confirmButtonText : btnYes,
+					cancelButtonText : btnNo,
+					closeOnConfirm : true,
+					closeOnCancel : true
+				},
+				function (isConfirm) {
+					if (isConfirm) {
+			            $.notify({ message: txtOrderConfirmed },{ status: 'success', autoHideDelay: 4000 });
+			            
+						$.ajax({
+							url: url, 
+							method: "POST",
+							headers: {
+								'X-CSRF-TOKEN': token
+							},
+							error : function(response) {
+								$.notify({ message: txtCleanupFailed },{ status: 'danger', autoHideDelay: 4000 });
+							},
+							success : function(response) {
+								$.notify({ message: txtCleanupSucceeded },{ status: 'success', autoHideDelay: 4000 });
+								setTimeout(function() {
+									location.reload(true);
+								}, 2000);
+							}
+						});
+	                }
+				}
+			);
+		}
+	/*]]>*/
+</script>
+</body>
+</html>

@@ -1,0 +1,1 @@
+ALTER TABLE pending_kombit_updates ADD failed BIT NOT NULL DEFAULT 0;

@@ -149,6 +149,7 @@ public class RestTemplateConfiguration {
 		requestFactory.setHttpClient(client);
 
 		RestTemplate restTemplate = new RestTemplate(requestFactory);
+		/* NOPE, not until we rewrite the usage to deal with statuscodes instead
 		restTemplate.setErrorHandler(new ResponseErrorHandler() {
 			
 			@Override
@@ -161,6 +162,7 @@ public class RestTemplateConfiguration {
 				;
 			}
 		});
+		*/
 
 		return restTemplate;
 	}

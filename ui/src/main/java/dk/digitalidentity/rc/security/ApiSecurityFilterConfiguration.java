@@ -5,18 +5,17 @@ import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
-import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
+import dk.digitalidentity.rc.service.ClientService;
 
 @Configuration
 public class ApiSecurityFilterConfiguration {
 
 	@Autowired
-	private RoleCatalogueConfiguration configuration;
+	private ClientService clientService;
 
 	@Bean
 	public FilterRegistrationBean<ApiSecurityFilter> apiSecurityFilter() {
-		ApiSecurityFilter filter = new ApiSecurityFilter();
-		filter.setApiKeys(configuration.getCustomer().getApikey());
+		ApiSecurityFilter filter = new ApiSecurityFilter(clientService);
 
 		FilterRegistrationBean<ApiSecurityFilter> filterRegistrationBean = new FilterRegistrationBean<>(filter);
 		filterRegistrationBean.addUrlPatterns("/api/*");

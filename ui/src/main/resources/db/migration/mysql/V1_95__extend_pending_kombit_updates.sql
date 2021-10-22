@@ -1,0 +1,1 @@
+ALTER TABLE pending_kombit_updates ADD COLUMN failed BOOLEAN NOT NULL DEFAULT 0;

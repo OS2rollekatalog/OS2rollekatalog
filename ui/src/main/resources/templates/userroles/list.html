@@ -25,7 +25,8 @@
 								<tbody>
 									<tr th:each="role : ${roles}">
 										<td>
-											<em th:if="${role.pendingSync}" class="fa fa-refresh" th:title="#{html.entity.userrole.syncing}"></em>
+											<em th:if="${role.pendingSync && !role.syncFailed}" class="fa fa-refresh" th:title="#{html.entity.userrole.syncing}"></em>
+											<em th:if="${role.pendingSync && role.syncFailed}" class="fa fa-exclamation-triangle" style="color: red;" th:title="#{html.entity.userrole.sync.failed}"></em>
 											<span th:text="${role.name}" />
 										</td>
 										<td th:text="${role.itSystem.name}" />
@@ -34,7 +35,7 @@
 											<td>
 												<a th:href="@{/ui/userroles/view/{id}(id=${role.id})}"><em class="fa fa-search"></em></a>
 												<th:block sec:authorize="hasRole('ROLE_ADMINISTRATOR')" th:unless="${#strings.toString(role.itSystem.systemType)} == 'AD' and ${role.itSystem.readonly}">
-													<a th:href="@{/ui/userroles/edit/{id}(id=${role.id})}"><em class="fa fa-pencil"></em></a>
+													<a th:href="@{/ui/userroles/edit/{id}(id=${role.id})}" th:if="${role.linkedSystemRole == null}"><em class="fa fa-pencil"></em></a>
 													<a href="#" class="openConfirmDeleteDialog" th:attr="data-id=${role.id}" th:if="${#strings.toString(role.itSystem.systemType)} != 'KSPCICS'"><em class="fa fa-remove"></em></a>
 												</th:block>
 											</td>

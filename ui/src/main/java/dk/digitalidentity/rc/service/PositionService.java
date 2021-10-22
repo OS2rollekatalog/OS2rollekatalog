@@ -120,6 +120,18 @@ public class PositionService {
 
 		return false;
 	}
+	
+	// ONLY use this from our bulk cleanup method, which does its own auditlogging
+	public boolean removeUserRolesNoAuditlog(Position position, UserRole userRole) {
+		// direct access to method will bypass annotations/interceptors hence no auditLog
+		return removeUserRole(position, userRole);
+	}
+
+	// ONLY use this from our bulk cleanup method, which does its own auditlogging
+	public boolean removeRoleGroupsNoAuditlog(Position position, RoleGroup roleGroup) {
+		// direct access to method will bypass annotations/interceptors hence no auditLog
+		return removeRoleGroup(position, roleGroup);
+	}
 
 	public List<Position> getAll() {
 		return positionDao.findAll();

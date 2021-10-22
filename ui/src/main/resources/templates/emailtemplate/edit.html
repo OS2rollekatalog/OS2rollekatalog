@@ -41,6 +41,7 @@
 							<div class="col-lg-12">
 								<form th:each="template : ${templates}" class="form-horizontal templateForm" th:id="'template' + ${template.id}" style="display: none;">
 									<input type="hidden" name="id" th:value="${template.id}"/>
+									<input type="hidden" name="enabled" th:value="${template.enabled}" />
 									
 									<div class="form-group">
 										<label class="col-sm-2 control-label" th:text="#{html.entity.email_template.enabled}" />

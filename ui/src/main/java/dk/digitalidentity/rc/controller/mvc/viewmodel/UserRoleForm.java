@@ -6,6 +6,7 @@ import javax.validation.constraints.Size;
 
 import dk.digitalidentity.rc.dao.model.ItSystem;
 import dk.digitalidentity.rc.dao.model.RoleGroup;
+import dk.digitalidentity.rc.dao.model.SystemRole;
 import dk.digitalidentity.rc.dao.model.SystemRoleAssignment;
 import dk.digitalidentity.rc.dao.model.UserRole;
 import lombok.Getter;
@@ -25,18 +26,20 @@ public class UserRoleForm {
     private List<SystemRoleAssignment> systemRoleAssignments;
     private List<RoleGroup> roleGroups;
     private boolean pendingSync;
+    private boolean syncFailed;
+    private SystemRole linkedSystemRole;
 
-    @Size(max=4000)
-    private String description;
+	@Size(max = 4000)
+	private String description;
 
-    @Size(min=5, max=64, message="{validation.role.name}")
-    private String name;
+	@Size(min = 5, max = 64, message = "{validation.role.name}")
+	private String name;
 
     public UserRoleForm() {
     	
     }
 
-    public UserRoleForm(UserRole userRole, boolean pendingSync) {
+    public UserRoleForm(UserRole userRole, boolean pendingSync, boolean syncFailed) {
     	this.id = userRole.getId();
     	this.name = userRole.getName();
     	this.identifier = userRole.getIdentifier();
@@ -49,5 +52,7 @@ public class UserRoleForm {
     	this.systemRoleAssignments = userRole.getSystemRoleAssignments();
     	this.delegatedFromCvr = userRole.getDelegatedFromCvr();
     	this.pendingSync = pendingSync;
+    	this.syncFailed = syncFailed;
+    	this.linkedSystemRole = userRole.getLinkedSystemRole();
     }
 }

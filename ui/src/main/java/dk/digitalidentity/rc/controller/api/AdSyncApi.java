@@ -26,12 +26,14 @@ import dk.digitalidentity.rc.controller.api.dto.ADSyncResult;
 import dk.digitalidentity.rc.dao.model.DirtyADGroup;
 import dk.digitalidentity.rc.dao.model.SystemRole;
 import dk.digitalidentity.rc.dao.model.UserRole;
+import dk.digitalidentity.rc.security.RequireApiReadAccessRole;
 import dk.digitalidentity.rc.service.PendingADUpdateService;
 import dk.digitalidentity.rc.service.SystemRoleService;
 import dk.digitalidentity.rc.service.UserService;
 import dk.digitalidentity.rc.service.model.UserWithRole;
 import lombok.extern.slf4j.Slf4j;
 
+@RequireApiReadAccessRole
 @Slf4j
 @RestController
 public class AdSyncApi {

@@ -84,6 +84,15 @@ public class EmailQueueService {
 			}
 			
 			emailQueueDao.delete(email);
+			
+			// throttle outgoing emails - we cannot send more than a handful per second through our relay,
+			// otherwise we get blocked by the relay
+			try {
+				Thread.sleep(1000);
+			}
+			catch (Exception ex) {
+				;
+			}
 		}
 	}
 	

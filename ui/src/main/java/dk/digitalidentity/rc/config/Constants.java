@@ -23,8 +23,9 @@ public class Constants {
 	// KOMBIT ID's for special constraints handled by the UI
 	public static final String KLE_CONSTRAINT_ENTITY_ID = "http://sts.kombit.dk/constraints/KLE/1";
 	public static final String OU_CONSTRAINT_ENTITY_ID = "http://sts.kombit.dk/constraints/orgenhed/1";
-	
+	public static final String KOMBIT_ITSYSTEM_CONSTRAINT_ENTITY_ID = "http://sts.kombit.dk/constraints/itsystem/1";
+
 	// internal constraints in role catalogue
-	public static final String ITSYSTEM_CONSTRAINT_ENTITY_ID = "http://digital-identity.dk/constraints/itsystem/1";
-	public static final String ORGUNIT_CONSTRAINT_ENTITY_ID = "http://digital-identity.dk/constraints/orgunit/1";
+	public static final String INTERNAL_ITSYSTEM_CONSTRAINT_ENTITY_ID = "http://digital-identity.dk/constraints/itsystem/1";
+	public static final String INTERNAL_ORGUNIT_CONSTRAINT_ENTITY_ID = "http://digital-identity.dk/constraints/orgunit/1";
 }

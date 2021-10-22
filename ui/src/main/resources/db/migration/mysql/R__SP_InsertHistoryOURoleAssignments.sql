@@ -141,7 +141,7 @@ BEGIN
     IF finished = 1 THEN
       LEAVE getInherited;
     END IF;
-    
+
     Call SP_InsertHistoryOURoleAssignmentsOURoleGroupInheritRecursive(ou_roles_id, ou_roles_ou_uuid, ou_name, ou_roles_ou_uuid);
   END LOOP getInherited;
   

@@ -14,6 +14,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -43,6 +44,8 @@ import dk.digitalidentity.rc.dao.history.model.HistoryTitle;
 import dk.digitalidentity.rc.dao.history.model.HistoryTitleRoleAssignment;
 import dk.digitalidentity.rc.dao.history.model.HistoryUser;
 import dk.digitalidentity.rc.dao.history.model.HistoryUserRole;
+import dk.digitalidentity.rc.service.ItSystemService;
+import dk.digitalidentity.rc.service.OrgUnitService;
 import dk.digitalidentity.rc.service.ReportService;
 import dk.digitalidentity.rc.service.model.UserRoleAssignmentReportEntry;
 
@@ -66,6 +69,8 @@ public class ReportXlsxView extends AbstractXlsxView {
     private CellStyle headerStyle;
     private CellStyle wrapStyle;
     private ReportService reportService;
+    private OrgUnitService orgUnitService;
+    private ItSystemService itSystemService;
 
     @SuppressWarnings("unchecked")
     @Override
@@ -74,6 +79,8 @@ public class ReportXlsxView extends AbstractXlsxView {
         // Get data
         locale = (Locale) model.get("locale");
         reportService = (ReportService) model.get("reportService");
+        orgUnitService = (OrgUnitService) model.get("orgUnitService");
+        itSystemService = (ItSystemService) model.get("itSystemService");
         filterDate = (LocalDate) model.get("filterDate");
         users = (Map<String, HistoryUser>) model.get("users");
         titles = (List<HistoryTitle>) model.get("titles");
@@ -253,8 +260,47 @@ public class ReportXlsxView extends AbstractXlsxView {
                                 }
                     			break;
                     		case VALUE:
-                    			constraintCell.append(constraint.getConstraintName() + " = " + constraint.getConstraintValue() + "\n");
-                    			break;
+                    			String constraintValue = constraint.getConstraintValue();
+                    			
+								List<String> values;
+								String[] constraintValues;
+								// TODO: not super robust, but as the history table only stores names, and not ID's, this is
+								//       what is currently possible
+								switch (constraint.getConstraintName()) {
+									case "It-system":
+										values = new ArrayList<>();
+										constraintValues = constraintValue.split(",");
+										for (String id : constraintValues) {
+											var cvItSystem = itSystemService.getById(Long.parseLong(id));
+											if (cvItSystem == null) {
+												values.add(id);
+											}
+											else {
+												values.add(cvItSystem.getName() + "(" + id + ")");
+											}
+										}
+										constraintValue = values.stream().collect(Collectors.joining(", "));
+										break;
+									case "Organisation":
+									case "Enhed":
+										values = new ArrayList<>();
+										constraintValues = constraintValue.split(",");
+										for (String uuid : constraintValues) {
+											var cvOrgUnit = orgUnitService.getByUuid(uuid);
+											if (cvOrgUnit == null) {
+												values.add(uuid);
+											}
+											else {
+												values.add(cvOrgUnit.getName() + "(" + uuid + ")");
+											}
+										}
+										constraintValue = values.stream().collect(Collectors.joining(", "));
+										break;
+									default:
+										break;
+								}
+								constraintCell.append(constraint.getConstraintName() + " = " + constraintValue + "\n");
+								break;
                     	}
 
                         if (constraintCell.length() == 0) {

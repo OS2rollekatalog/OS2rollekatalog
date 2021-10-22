@@ -41,7 +41,7 @@ BEGIN
   JOIN rolegroup_roles rgr ON rgr.rolegroup_id = ourg.rolegroup_id
   JOIN user_roles ur ON ur.id = rgr.role_id
   JOIN it_systems it ON it.id = ur.it_system_id
-  JOIN ou_rolegroups_excepted_users ourgeu ON ourgeu.ou_rolegroups_id = ourg.rolegroup_id
+  JOIN ou_rolegroups_excepted_users ourgeu ON ourgeu.ou_rolegroups_id = ourg.id
   WHERE ourg.inherit = 0 AND o.active = 1 AND ourg.inactive = 0 AND ourg.contains_excepted_users = 1
   GROUP BY ourg.id, ur.id;
 

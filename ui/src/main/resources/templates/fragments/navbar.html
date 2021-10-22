@@ -13,7 +13,7 @@
 
 			<div class="nav-wrapper">
 				<ul class="nav navbar-nav">
-					<li class="nav-item" th:classappend="${subpage == 'roles'} ? 'bold' : ''">
+					<li class="nav-item" th:classappend="${subpage == 'roles'} ? 'bold' : ''" sec:authorize="isAuthenticated()">
 						<a th:href="@{/ui/rolemenu}">
 							<em class="fa fa-fw fa-users"></em>
 							<span th:text="#{html.navbar.sub.roles}" />
@@ -312,7 +312,20 @@
 									<span th:text="#{html.navbar.emailTemplate}" />
 								</a>
 							</li>
-						</th:block>					
+						</th:block>
+
+						<th:block sec:authorize="hasRole('ROLE_ADMINISTRATOR')" th:if="${@roleCatalogueConfiguration.isExperimental()}">
+							<li class="nav-heading" sec:authorize="isAuthenticated()">
+								<span th:text="#{html.navbar.client}" />
+							</li>
+
+							<li th:class="${page == 'clients.list'} ? 'active' : ''">
+								<a th:href="@{/ui/client/list}">
+									<em class="fa fa-list"></em>
+									<span th:text="#{html.navbar.client}" />
+								</a>
+							</li>
+						</th:block>
 					</th:block>
 					
 					<li class="nav-heading">

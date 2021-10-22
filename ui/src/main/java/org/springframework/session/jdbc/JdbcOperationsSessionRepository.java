@@ -839,7 +839,13 @@ public class JdbcOperationsSessionRepository implements
 		@Override
 		public void setLastAccessedTime(Instant lastAccessedTime) {
 			this.delegate.setLastAccessedTime(lastAccessedTime);
-			this.changed = true;
+			
+			// TODO: This is a bit of a hack, but if we update lastAccessedTime on each request,
+			//       then we will flush to the database for each and every single page request,
+			//       which includes calls to js, css, img, etc resources. This causes havoc in
+			//       our Galera cluster, so we do not flush this to the database, instead we
+			//       simple have a pretty long default session lifetime (8 hours)
+			//this.changed = true;
 		}
 
 		@Override

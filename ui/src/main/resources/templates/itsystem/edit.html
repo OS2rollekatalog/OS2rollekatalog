@@ -493,9 +493,10 @@
 							<div class="form-group">
 								<label class="col-sm-3 control-label" th:text="#{html.entity.adgroup.create}" />
 								<div class="col-sm-9">
-									<select th:field="*{createADGroup}" class="form-control">
-										<option value="false" th:text="#{html.entity.adgroup.create.false}" checked="checked"></option>
-										<option value="true" th:text="#{html.entity.adgroup.create.true}"></option>
+									<select th:field="*{adGroupType}" id="adGroupType" class="form-control">
+										<option th:value="${T(dk.digitalidentity.rc.dao.model.enums.ADGroupType).NONE}" th:text="#{html.entity.adgroup.create.none}" checked="checked"></option>
+										<option th:value="${T(dk.digitalidentity.rc.dao.model.enums.ADGroupType).SECURITY}" th:text="#{html.entity.adgroup.create.security}"></option>
+										<option th:value="${T(dk.digitalidentity.rc.dao.model.enums.ADGroupType).DISTRIBUTION}" th:text="#{html.entity.adgroup.create.distribution}"></option>
 									</select>
 								</div>
 							</div>
@@ -1058,6 +1059,7 @@
 					$("#adSystemRoleIdentifier").prop("readonly", false);
 					$("#adSystemRoleDescription").val("");
 				}
+				$("#adGroupType").val("NONE");
 				
 				$("#adSystemRoleName").focus();
 		    })

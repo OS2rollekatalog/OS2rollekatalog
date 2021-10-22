@@ -10,6 +10,7 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -85,7 +86,7 @@ public class UpdateKOMBITTask {
 		}
 
 		try {
-			List<PendingKOMBITUpdate> pendingUserRoleUpdates = pendingKOMBITUpdateService.findAll();
+			List<PendingKOMBITUpdate> pendingUserRoleUpdates = pendingKOMBITUpdateService.findAllByFailedFalse();
 			if (pendingUserRoleUpdates == null || pendingUserRoleUpdates.size() == 0) {
 				return;
 			}
@@ -181,7 +182,15 @@ public class UpdateKOMBITTask {
 			return true;
 		}
 		catch (HttpStatusCodeException ex) {
-			log.error("Failed to create UserRole: " + userRole.getId() + " / " + ex.getResponseBodyAsString(), ex);
+			if (ex.getStatusCode().equals(HttpStatus.NOT_ACCEPTABLE)) {
+				pendingKOMBITUpdate.setFailed(true);
+				pendingKOMBITUpdateService.save(pendingKOMBITUpdate);
+
+				log.warn("Failed to create UserRole: " + userRole.getId() + " / " + ex.getResponseBodyAsString());
+			}
+			else {
+				log.error("Failed to create UserRole: " + userRole.getId() + " / " + ex.getResponseBodyAsString(), ex);
+			}
 		}
 		
 		return false;
@@ -258,7 +267,15 @@ public class UpdateKOMBITTask {
 			return true;
 		}
 		catch (HttpStatusCodeException ex) {
-			log.error("Failed to update UserRole: " + userRole.getId() + " / " + ex.getResponseBodyAsString(), ex);
+			if (ex.getStatusCode().equals(HttpStatus.NOT_ACCEPTABLE)) {
+				pendingKOMBITUpdate.setFailed(true);
+				pendingKOMBITUpdateService.save(pendingKOMBITUpdate);
+
+				log.warn("Failed to update UserRole: " + userRole.getId() + " / " + ex.getResponseBodyAsString());
+			}
+			else {
+				log.error("Failed to update UserRole: " + userRole.getId() + " / " + ex.getResponseBodyAsString(), ex);
+			}
 		}
 				
 		return false;

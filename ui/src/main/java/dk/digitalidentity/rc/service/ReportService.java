@@ -40,6 +40,12 @@ public class ReportService {
 	@Autowired
 	private HistoryService historyService;
 
+	@Autowired
+	private ItSystemService itSytemService;
+
+	@Autowired
+	private OrgUnitService orgUnitService;
+
 	// used to be part of ReportXlsView code, but moved here because our ManualRolesService also
 	// needs these computations
 	public List<UserRoleAssignmentReportEntry> getUserRoleAssignmentReportEntries(
@@ -363,6 +369,8 @@ public class ReportService {
 		model.put("userKLEAssignments", userKleAssignments);
 		model.put("reportForm", reportForm);
 		model.put("reportService", this);
+		model.put("itSystemService", itSytemService);
+		model.put("orgUnitService", orgUnitService);
 
 		// Locale specific text
 		model.put("messagesBundle", messageSource);

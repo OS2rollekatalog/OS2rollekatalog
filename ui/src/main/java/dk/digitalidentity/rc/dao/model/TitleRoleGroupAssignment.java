@@ -16,6 +16,8 @@ import javax.persistence.Id;
 import javax.persistence.JoinColumn;
 import javax.persistence.ManyToOne;
 
+import org.hibernate.annotations.BatchSize;
+
 import dk.digitalidentity.rc.dao.serializer.LocalDateAttributeConverter;
 import lombok.Getter;
 import lombok.Setter;
@@ -33,7 +35,8 @@ public class TitleRoleGroupAssignment {
 	@JoinColumn(name = "title_uuid")
 	private Title title;
 	
-	@ManyToOne(fetch = FetchType.EAGER)
+	@BatchSize(size = 50)
+	@ManyToOne(fetch = FetchType.LAZY)
 	@JoinColumn(name = "rolegroup_id")
 	private RoleGroup roleGroup;
 	

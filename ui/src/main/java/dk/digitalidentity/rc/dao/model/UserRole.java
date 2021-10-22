@@ -12,6 +12,7 @@ import javax.persistence.Id;
 import javax.persistence.JoinColumn;
 import javax.persistence.ManyToOne;
 import javax.persistence.OneToMany;
+import javax.persistence.OneToOne;
 import javax.persistence.Table;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
@@ -60,6 +61,13 @@ public class UserRole implements AuditLoggable {
 
 	@OneToMany(mappedBy = "userRole", cascade = CascadeType.ALL, fetch = FetchType.LAZY, orphanRemoval = true)
 	private List<SystemRoleAssignment> systemRoleAssignments;
+
+	@OneToOne(fetch = FetchType.LAZY)
+	@JoinColumn(name = "linked_system_role")
+	private SystemRole linkedSystemRole;
+
+	@Column(nullable = true)
+	private String linkedSystemRolePrefix;
 
 	@JsonIgnore
 	@Override

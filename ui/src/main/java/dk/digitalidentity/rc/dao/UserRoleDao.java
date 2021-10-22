@@ -9,7 +9,7 @@ import dk.digitalidentity.rc.dao.model.SystemRole;
 import dk.digitalidentity.rc.dao.model.UserRole;
 
 public interface UserRoleDao extends CrudRepository<UserRole, Long> {
-	UserRole getById(long id);
+	UserRole findById(long id);
 	UserRole getByNameAndItSystem(String name, ItSystem itSystem);
 	List<UserRole> findAll();
 	UserRole getByIdentifier(String identifier);
@@ -19,4 +19,5 @@ public interface UserRoleDao extends CrudRepository<UserRole, Long> {
 	List<UserRole> getByDelegatedFromCvrNotNull();
 	int countBySystemRoleAssignmentsSystemRole(SystemRole systemRole);
 	List<UserRole> findBySensitiveRoleTrue();
+	List<UserRole> findByLinkedSystemRoleNotNull();
 }

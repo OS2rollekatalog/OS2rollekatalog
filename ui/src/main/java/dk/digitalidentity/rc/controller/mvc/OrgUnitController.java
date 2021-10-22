@@ -1,6 +1,7 @@
 package dk.digitalidentity.rc.controller.mvc;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -86,6 +87,7 @@ public class OrgUnitController {
 		List<OUListForm> allOUs = orgUnitService.getAllCached()
 				.stream()
 				.map(ou -> new OUListForm(ou, (list == null || list.contains(ou.getUuid()))))
+				.sorted(Comparator.comparing(OUListForm::getText))
 				.collect(Collectors.toList());
 
 		model.addAttribute("allOUs", allOUs);

@@ -28,7 +28,10 @@ public enum EventType {
 	AUTH_MANAGER_REMOVED("html.enum.eventtype.remove_auth_manager"),
 	REQUEST_ROLE_FOR("html.enum.eventtype.request"),
 	APPROVE_REQUEST("html.enum.eventtype.approve_request"),
-	REJECT_REQUEST("html.enum.eventtype.reject_request");
+	REJECT_REQUEST("html.enum.eventtype.reject_request"),
+	
+	PERFORMED_USERROLE_CLEANUP("html.enum.eventtype.cleanup.userroles"),
+	PERFORMED_ROLEGROUP_CLEANUP("html.enum.eventtype.cleanup.rolegroups");
 
 	private String message;
 	

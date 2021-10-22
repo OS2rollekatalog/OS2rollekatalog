@@ -15,6 +15,7 @@ import javax.persistence.Id;
 import javax.persistence.JoinColumn;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
 import dk.digitalidentity.rc.dao.model.enums.ConstraintUIType;
 import lombok.Getter;
@@ -22,6 +23,7 @@ import lombok.Setter;
 
 @Getter
 @Setter
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 @Entity(name = "constraint_types")
 public class ConstraintType {
 

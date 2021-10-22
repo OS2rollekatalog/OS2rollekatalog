@@ -55,6 +55,15 @@
 								</div>
 							</fieldset>
 
+							<fieldset th:if="${role.linkedSystemRole != null}">
+								<div class="form-group">
+									<label class="col-sm-2 control-label" th:text="#{html.entity.userrole.linkedsystemrole}" />
+									<div class="col-sm-8">
+										<input th:field="*{linkedSystemRole.name}" class="form-control" readonly />
+									</div>
+								</div>
+							</fieldset>
+
 							<fieldset sec:authorize="hasRole('ROLE_REQUESTER')" th:if="${canRequest == true && @settingsService.getRequestApproveWho() == T(dk.digitalidentity.rc.service.model.WhoCanRequest).USERS}">
 								<div class="form-group">
 									<label class="col-sm-2 control-label" th:text="#{html.entity.view.action.label}" />
@@ -73,7 +82,7 @@
 								</div>
 							</fieldset>
 
-							<fieldset sec:authorize="hasRole('ROLE_ADMINISTRATOR')" th:unless="${role.itSystem.readonly}">
+							<fieldset sec:authorize="hasRole('ROLE_ADMINISTRATOR')" th:unless="${role.itSystem.readonly or role.linkedSystemRole != null}">
 								<div class="form-group">
 									<label class="col-sm-2 control-label"
 										   th:text="#{html.entity.view.action.label}" />

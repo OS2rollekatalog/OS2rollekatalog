@@ -29,6 +29,7 @@ import dk.digitalidentity.rc.dao.model.ItSystem;
 import dk.digitalidentity.rc.dao.model.ItSystemMaster;
 import dk.digitalidentity.rc.dao.model.PendingADGroupOperation;
 import dk.digitalidentity.rc.dao.model.SystemRole;
+import dk.digitalidentity.rc.dao.model.enums.ADGroupType;
 import dk.digitalidentity.rc.dao.model.enums.ItSystemType;
 import dk.digitalidentity.rc.dao.model.enums.RoleType;
 import dk.digitalidentity.rc.security.RequireAdministratorRole;
@@ -259,13 +260,14 @@ public class ItSystemController {
 
 		systemRole = systemRoleService.save(systemRole);
 
-		if (systemRole.getItSystem().getSystemType().equals(ItSystemType.AD) && systemRoleForm.isCreateADGroup()) {
+		if (systemRole.getItSystem().getSystemType().equals(ItSystemType.AD) && !systemRoleForm.getAdGroupType().equals(ADGroupType.NONE)) {
 			PendingADGroupOperation operation = new PendingADGroupOperation();
 			operation.setActive(true);
 			operation.setItSystemIdentifier(systemRole.getItSystem().getIdentifier());
 			operation.setSystemRoleId(systemRole.getId());
 			operation.setSystemRoleIdentifier(systemRole.getIdentifier());
 			operation.setTimestamp(new Date());
+			operation.setAdGroupType(systemRoleForm.getAdGroupType());
 
 			pendingADUpdateService.save(operation);
 		}

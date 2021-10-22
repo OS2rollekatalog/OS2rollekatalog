@@ -1,5 +1,6 @@
 package dk.digitalidentity.rc.controller.mvc.viewmodel;
 
+import dk.digitalidentity.rc.dao.model.enums.ADGroupType;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -13,5 +14,5 @@ public class SystemRoleForm {
     private long itSystemId;
     
     // only used for system-roles matching AD groups
-    private boolean createADGroup;
+    private ADGroupType adGroupType;
 }

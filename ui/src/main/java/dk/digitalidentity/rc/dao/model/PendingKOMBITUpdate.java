@@ -38,4 +38,7 @@ public class PendingKOMBITUpdate {
 	@CreationTimestamp
 	@Column
 	private Date timestamp;
+	
+	@Column
+	private boolean failed;
 }

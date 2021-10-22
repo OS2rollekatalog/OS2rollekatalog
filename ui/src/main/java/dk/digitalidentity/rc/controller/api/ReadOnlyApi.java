@@ -41,6 +41,7 @@ import dk.digitalidentity.rc.dao.model.UserRole;
 import dk.digitalidentity.rc.dao.model.enums.ConstraintValueType;
 import dk.digitalidentity.rc.exceptions.OrgUnitNotFoundException;
 import dk.digitalidentity.rc.exceptions.UserNotFoundException;
+import dk.digitalidentity.rc.security.RequireApiReadAccessRole;
 import dk.digitalidentity.rc.service.ItSystemService;
 import dk.digitalidentity.rc.service.OrgUnitService;
 import dk.digitalidentity.rc.service.RoleGroupService;
@@ -50,6 +51,7 @@ import dk.digitalidentity.rc.service.model.Constraint;
 import dk.digitalidentity.rc.service.model.PrivilegeGroup;
 import dk.digitalidentity.rc.service.model.UserWithRole;
 
+@RequireApiReadAccessRole
 @RestController
 public class ReadOnlyApi {
 

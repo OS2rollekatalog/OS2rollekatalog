@@ -23,4 +23,7 @@ public class RoleCatalogueConfiguration {
 	private Organisation organisation = new Organisation();
 	private Integrations integrations = new Integrations();
 	private Scheduled scheduled = new Scheduled();
+	
+	// enable for new un-released features
+	private boolean experimental = false;
 }

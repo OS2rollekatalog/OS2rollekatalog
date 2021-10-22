@@ -1,6 +1,9 @@
 package dk.digitalidentity.rc.controller.mvc.xlsview;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Locale;
+import java.util.stream.Collectors;
 
 import javax.annotation.PostConstruct;
 
@@ -13,6 +16,8 @@ import dk.digitalidentity.rc.config.Constants;
 import dk.digitalidentity.rc.dao.model.ConstraintTypeValueSet;
 import dk.digitalidentity.rc.dao.model.SystemRoleAssignment;
 import dk.digitalidentity.rc.dao.model.SystemRoleAssignmentConstraintValue;
+import dk.digitalidentity.rc.service.ItSystemService;
+import dk.digitalidentity.rc.service.OrgUnitService;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
@@ -22,6 +27,12 @@ public class XlsUtil {
 	
 	@Autowired
 	private MessageSource messageSource;
+
+	@Autowired
+	private OrgUnitService orgUnitService;
+
+	@Autowired
+	private ItSystemService itSystemService;
 	
 	@PostConstruct
 	public void init() {
@@ -38,18 +49,20 @@ public class XlsUtil {
 		}
 
 		Locale locale = LocaleContextHolder.getLocale();
-		
+
 		if (assignment.getConstraintValues() != null) {
 			for (SystemRoleAssignmentConstraintValue constraintValue : assignment.getConstraintValues()) {
 				String name = constraintValue.getConstraintType().getName();
 				String value = "";
 
+				String[] constraintValues;
+				List<String> values;
 				switch (constraintValue.getConstraintType().getEntityId()) {
 					case Constants.KLE_CONSTRAINT_ENTITY_ID:
 						switch (constraintValue.getConstraintValueType()) {
 							case READ_AND_WRITE:
 								value = instance.messageSource.getMessage("html.constraint.kle.read_and_write", null, locale);
-	                            break;
+								break;
 							case EXTENDED_INHERITED:
 								value = instance.messageSource.getMessage("html.constraint.kle.extended", null, locale);
 								break;
@@ -90,10 +103,35 @@ public class XlsUtil {
 							case READ_AND_WRITE:
 								log.warn("An READ/WRITE was assigned as a constraint on OrgUnit");
 								break;
-							case VALUE:
-								value = constraintValue.getConstraintValue();
+							case VALUE:								
+								values = new ArrayList<>();
+								constraintValues = constraintValue.getConstraintValue().split(",");
+								for (String uuid : constraintValues) {
+									var orgUnit = instance.orgUnitService.getByUuid(uuid);
+									if (orgUnit == null) {
+										values.add(uuid);
+									}
+									else {
+										values.add(orgUnit.getName());
+									}
+								}
+								value = values.stream().collect(Collectors.joining(", "));								
 								break;
 						}
+						break;
+					case Constants.KOMBIT_ITSYSTEM_CONSTRAINT_ENTITY_ID:
+						values = new ArrayList<>();
+						constraintValues = constraintValue.getConstraintValue().split(",");
+						for (String id : constraintValues) {
+							var itSystem = instance.itSystemService.getById(Long.parseLong(id));
+							if (itSystem == null) {
+								values.add(id);
+							}
+							else {
+								values.add(itSystem.getName());
+							}
+						}
+						value = values.stream().collect(Collectors.joining(", "));
 						break;
 					default:
 						switch (constraintValue.getConstraintType().getUiType()) {
@@ -101,7 +139,7 @@ public class XlsUtil {
 								value = constraintValue.getConstraintValue();
 								break;
 							case COMBO_MULTI: {
-								String[] constraintValues = constraintValue.getConstraintValue().split(",");
+								constraintValues = constraintValue.getConstraintValue().split(",");
 
 								for (ConstraintTypeValueSet valueEntry : constraintValue.getConstraintType().getValueSet()) {
 									for (String val : constraintValues) {

@@ -2,8 +2,11 @@ package dk.digitalidentity.rc.service;
 
 import java.util.Iterator;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
+
+import javax.transaction.Transactional;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -16,7 +19,9 @@ import dk.digitalidentity.rc.dao.model.SystemRoleAssignment;
 import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserRole;
 import dk.digitalidentity.rc.log.AuditLogIntercepted;
+import lombok.extern.log4j.Log4j;
 
+@Log4j
 @Service
 public class UserRoleService {
 
@@ -87,7 +92,7 @@ public class UserRoleService {
 	}
 
 	public UserRole getById(long roleId) {
-		return userRoleDao.getById(roleId);
+		return userRoleDao.findById(roleId);
 	}
 
     public UserRole getByNameAndItSystem(String name, ItSystem itSystem) {
@@ -165,8 +170,51 @@ public class UserRoleService {
 		return roles;
 	}
 
+	@Transactional
+	public void updateLinkedUserRoles() {
+		List<UserRole> userRoles = findByLinkedSystemRoleNotNull();
+
+		for (UserRole userRole : userRoles) {
+			boolean changes = false;
+
+			SystemRole linkedSystemRole = userRole.getLinkedSystemRole();
+			if (linkedSystemRole == null) {
+				log.warn("Linked systemrole does not exist any more for userRole: " + userRole.getId());
+				userRole.setLinkedSystemRole(null);
+				userRole.setLinkedSystemRolePrefix(null);
+				changes = true;
+			}
+			else {
+				String prefix = userRole.getLinkedSystemRolePrefix();
+				if (prefix == null) {
+					prefix = "";
+				}
+	
+				// compare name
+				if (!Objects.equals(userRole.getName(), prefix + linkedSystemRole.getName())) {
+					userRole.setName(prefix + linkedSystemRole.getName());
+					changes = true;
+				}
+	
+				// compare description
+				if (!Objects.equals(userRole.getDescription(), linkedSystemRole.getDescription())) {
+					userRole.setDescription(linkedSystemRole.getDescription());
+					changes = true;
+				}
+			}
+			
+			if (changes) {
+				save(userRole);
+			}
+		}
+	}
+
 	public int countBySystemRoleAssignmentsSystemRole(SystemRole systemRole) {
 		return userRoleDao.countBySystemRoleAssignmentsSystemRole(systemRole);
+	}
+
+	public List<UserRole> findByLinkedSystemRoleNotNull() {
+		return userRoleDao.findByLinkedSystemRoleNotNull();
 	}
 
 }

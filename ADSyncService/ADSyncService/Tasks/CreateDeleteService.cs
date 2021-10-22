@@ -24,7 +24,7 @@ namespace ADSyncService
                         {
                             if (createGroupsEnabled)
                             {
-                                adStub.CreateGroup(operation.systemRoleIdentifier, operation.itSystemIdentifier);
+                                adStub.CreateGroup(operation.systemRoleIdentifier, operation.itSystemIdentifier, operation.adGroupType);
                             }
                             else
                             {

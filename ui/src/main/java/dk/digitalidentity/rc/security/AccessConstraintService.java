@@ -89,7 +89,7 @@ public class AccessConstraintService {
 					filteredConstraints = systemRoleAssignment
 						.getConstraintValues()
 						.stream()
-						.filter(c -> c.getConstraintType().getEntityId().equals(Constants.ORGUNIT_CONSTRAINT_ENTITY_ID))
+						.filter(c -> c.getConstraintType().getEntityId().equals(Constants.INTERNAL_ORGUNIT_CONSTRAINT_ENTITY_ID))
 						.collect(Collectors.toList());
 				}
 
@@ -259,7 +259,7 @@ public class AccessConstraintService {
 					List<SystemRoleAssignmentConstraintValue> filteredConstraints = systemRoleAssignment
 							.getConstraintValues()
 							.stream()
-							.filter(c -> c.getConstraintType().getEntityId().equals(Constants.ITSYSTEM_CONSTRAINT_ENTITY_ID))
+							.filter(c -> c.getConstraintType().getEntityId().equals(Constants.INTERNAL_ITSYSTEM_CONSTRAINT_ENTITY_ID))
 							.collect(Collectors.toList());
 					
 					// at least one RoleAssigner role with no constraints on OrgUnits, gives full access

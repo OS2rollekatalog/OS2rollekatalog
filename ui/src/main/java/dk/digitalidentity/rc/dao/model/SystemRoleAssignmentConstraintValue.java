@@ -14,14 +14,18 @@ import javax.persistence.Table;
 
 import com.fasterxml.jackson.annotation.JsonBackReference;
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
 import dk.digitalidentity.rc.dao.model.enums.ConstraintValueType;
-import lombok.Data;
+import lombok.Getter;
+import lombok.Setter;
 import lombok.ToString;
 
 @Entity
 @Table(name = "system_role_assignment_constraint_values")
-@Data
+@Setter
+@Getter
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 @ToString(exclude = { "systemRoleAssignment" })
 public class SystemRoleAssignmentConstraintValue {
 
@@ -48,4 +52,8 @@ public class SystemRoleAssignmentConstraintValue {
 	
 	@Column(nullable = true, length = 128)
 	private String constraintIdentifier;
+	
+	public void setConstraintIdentifier(String identifier) {
+		this.constraintIdentifier = identifier;
+	}
 }

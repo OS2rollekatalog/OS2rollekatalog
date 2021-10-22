@@ -19,9 +19,11 @@ import org.springframework.web.bind.annotation.RestController;
 import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
 import dk.digitalidentity.rc.controller.api.dto.TitleDTO;
 import dk.digitalidentity.rc.dao.model.Title;
+import dk.digitalidentity.rc.security.RequireApiRoleManagementRole;
 import dk.digitalidentity.rc.service.TitleService;
 import lombok.extern.slf4j.Slf4j;
 
+@RequireApiRoleManagementRole
 @Slf4j
 @RestController
 public class TitleApi {
@@ -64,8 +66,12 @@ public class TitleApi {
 					changes = true;
 				}
 				
-				if (changes && title.isActive() == false) {
+				if (!title.isActive()) {
 					title.setActive(true);
+					changes = true;
+				}
+				
+				if (changes) {
 					titleService.save(title);
 				}
 			}

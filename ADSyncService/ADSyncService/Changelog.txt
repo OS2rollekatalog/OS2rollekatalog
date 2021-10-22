@@ -1,0 +1,1 @@
+﻿# 2021-07-22  -  2.0.0  -  support for creating distribution groups 

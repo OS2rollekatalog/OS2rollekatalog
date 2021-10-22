@@ -5,6 +5,7 @@ import java.util.ArrayList;
 import java.util.Base64;
 import java.util.Calendar;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
@@ -14,16 +15,17 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import dk.digitalidentity.rc.controller.mvc.viewmodel.UserRoleNotAssignedDTO;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.EnableCaching;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 import dk.digitalidentity.rc.config.Constants;
 import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
+import dk.digitalidentity.rc.controller.mvc.viewmodel.UserRoleNotAssignedDTO;
 import dk.digitalidentity.rc.dao.RoleGroupDao;
 import dk.digitalidentity.rc.dao.UserDao;
 import dk.digitalidentity.rc.dao.model.ItSystem;
@@ -44,17 +46,23 @@ import dk.digitalidentity.rc.dao.model.UserRole;
 import dk.digitalidentity.rc.dao.model.UserRoleGroupAssignment;
 import dk.digitalidentity.rc.dao.model.UserUserRoleAssignment;
 import dk.digitalidentity.rc.dao.model.enums.ConstraintValueType;
+import dk.digitalidentity.rc.dao.model.enums.EventType;
 import dk.digitalidentity.rc.dao.model.enums.ItSystemType;
 import dk.digitalidentity.rc.dao.model.enums.KleType;
 import dk.digitalidentity.rc.exceptions.UserNotFoundException;
 import dk.digitalidentity.rc.log.AuditLogIntercepted;
+import dk.digitalidentity.rc.log.AuditLogger;
 import dk.digitalidentity.rc.security.SecurityUtil;
 import dk.digitalidentity.rc.service.model.AssignedThrough;
+import dk.digitalidentity.rc.service.model.AssignedThroughInfo;
+import dk.digitalidentity.rc.service.model.AssignedThroughInfo.RoleType;
 import dk.digitalidentity.rc.service.model.Constraint;
 import dk.digitalidentity.rc.service.model.Privilege;
 import dk.digitalidentity.rc.service.model.PrivilegeGroup;
 import dk.digitalidentity.rc.service.model.RoleGroupAssignedToUser;
+import dk.digitalidentity.rc.service.model.RoleGroupAssignmentWithInfo;
 import dk.digitalidentity.rc.service.model.UserRoleAssignedToUser;
+import dk.digitalidentity.rc.service.model.UserRoleAssignmentWithInfo;
 import dk.digitalidentity.rc.service.model.UserWithRole;
 import dk.digitalidentity.rc.service.model.UserWithRoleAndDates;
 import dk.digitalidentity.rc.util.IdentifierGenerator;
@@ -94,8 +102,11 @@ public class UserService {
 	private ItSystemService itSystemService;
 	
 	@Autowired
+	private AuditLogger auditLogger;
+	
+	@Autowired
 	private RoleCatalogueConfiguration configuration;
-		
+
 	// dao methods
 
 	public User save(User user) {
@@ -392,13 +403,169 @@ public class UserService {
 		return new ArrayList<>(resultSet);
 	}
 
+	public void deleteDuplicateUserRoleAssignmentsOnUsers() {
+		User admin = getByUserId(SecurityUtil.getUserId());
+		if (admin == null) {
+			throw new RuntimeException("No administrator logged in");
+		}
+		
+		Map<User, List<UserRoleAssignmentWithInfo>> usersWithRoleAssignments = getUsersWithRoleAssignments();
+
+		List<User> dirtyUsers = new ArrayList<>();
+		for (User user : usersWithRoleAssignments.keySet()) {
+			List<UserRoleAssignmentWithInfo> assignments = usersWithRoleAssignments.get(user);
+			if (assignments == null || assignments.size() == 0) {
+				continue;
+			}
+			
+			List<UserRoleAssignmentWithInfo> directAssignments = assignments.stream().filter(a -> a.getAssignedThroughInfo() == null).collect(Collectors.toList());
+			if (directAssignments == null || directAssignments.size() == 0) {
+				continue;
+			}
+
+			boolean dirty = false;
+			for (UserRoleAssignmentWithInfo directAssignment : directAssignments) {
+				boolean duplicate = false;
+
+				for (UserRoleAssignmentWithInfo assignment : assignments) {
+					// ignore direct assignments
+					if (assignment.getAssignedThroughInfo() == null) {
+						continue;
+					}
+					
+					// is this UserRole also assigned indirectly?
+					if (assignment.getUserRole().getId() == directAssignment.getUserRole().getId()) {
+						duplicate = true;
+						break;
+					}
+				}
+				
+				// remove duplicates
+				if (duplicate) {
+					UserRole role = directAssignment.getUserRole();
+					
+					// remove direct assignment (self. to ensure auditlogging)
+					//self.removeUserRole(user, role);
+					dirty = dirty | removeUserRole(user, role);
+
+					// remove through positions if not assigned directly
+					if (!dirty) {
+						for (Position p : user.getPositions()) {
+							dirty = dirty | positionService.removeUserRolesNoAuditlog(p, role);
+						}
+					}
+				}
+			}
+
+			if (dirty) {
+				dirtyUsers.add(user);
+			}
+		}
+		
+		if (dirtyUsers.size() > 0) {
+			auditLogger.log(admin, EventType.PERFORMED_USERROLE_CLEANUP);
+			
+			userDao.saveAll(dirtyUsers);
+		}
+	}
+
+	public void deleteDuplicateRoleGroupAssignmentsOnUsers() {
+		User admin = getByUserId(SecurityUtil.getUserId());
+		if (admin == null) {
+			throw new RuntimeException("No administrator logged in");
+		}
+		
+		Map<User, List<RoleGroupAssignmentWithInfo>> usersWithRoleGroupAssignments = getUsersWithRoleGroupAssignments();
+
+		List<User> dirtyUsers = new ArrayList<>();
+		for (User user : usersWithRoleGroupAssignments.keySet()) {
+			List<RoleGroupAssignmentWithInfo> assignments = usersWithRoleGroupAssignments.get(user);
+			if (assignments == null || assignments.size() == 0) {
+				continue;
+			}
+			
+			List<RoleGroupAssignmentWithInfo> directAssignments = assignments.stream().filter(a -> a.getAssignedThroughInfo() == null).collect(Collectors.toList());
+			if (directAssignments == null || directAssignments.size() == 0) {
+				continue;
+			}
+
+			boolean dirty = false;
+			for (RoleGroupAssignmentWithInfo directAssignment : directAssignments) {
+				boolean duplicate = false;
+
+				for (RoleGroupAssignmentWithInfo assignment : assignments) {
+					// ignore direct assignments
+					if (assignment.getAssignedThroughInfo() == null) {
+						continue;
+					}
+					
+					// is this RoleGroup also assigned indirectly?
+					if (assignment.getRoleGroup().getId() == directAssignment.getRoleGroup().getId()) {
+						duplicate = true;
+						break;
+					}
+				}
+				
+				// remove duplicates
+				if (duplicate) {
+					RoleGroup roleGroup = directAssignment.getRoleGroup();
+					
+					// remove direct assignment (self. to ensure auditlogging)
+					//self.removeUserRole(user, role);
+					dirty = dirty | removeRoleGroup(user, roleGroup);
+
+					// remove through positions if not assigned directly
+					if (!dirty) {
+						for (Position p : user.getPositions()) {
+							dirty = dirty | positionService.removeRoleGroupsNoAuditlog(p, roleGroup);
+						}
+					}
+				}
+			}
+
+			if (dirty) {
+				dirtyUsers.add(user);
+			}
+		}
+		
+		if (dirtyUsers.size() > 0) {
+			auditLogger.log(admin, EventType.PERFORMED_ROLEGROUP_CLEANUP);
+			
+			userDao.saveAll(dirtyUsers);
+		}
+	}
+
+	public Map<User, List<UserRoleAssignmentWithInfo>> getUsersWithRoleAssignments() {
+		Map<User, List<UserRoleAssignmentWithInfo>> result = new HashMap<>();
+		List<User> users = getAll();
+		
+		for (User user : users) {
+			List<UserRoleAssignmentWithInfo> assignments = getAllUserRolesAssignedToUserWithInfo(user, null, true);
+			result.put(user, assignments);
+		}
+		
+		return result;
+	}
+
+	public Map<User, List<RoleGroupAssignmentWithInfo>> getUsersWithRoleGroupAssignments() {
+		Map<User, List<RoleGroupAssignmentWithInfo>> result = new HashMap<>();
+		List<User> users = getAll();
+		
+		for (User user : users) {
+			List<RoleGroupAssignmentWithInfo> assignments = getAllRoleGroupsAssignedToUserWithInfo(user);
+			result.put(user, assignments);
+		}
+		
+		return result;
+	}
+	
 	/**
 	 * Returns all UserRoles, no matter how they are assigned to the user
 	 */
 	public List<UserRoleAssignedToUser> getAllUserRolesAssignedToUser(User user, ItSystem itSystem) {
 		return getAllUserRolesAssignedToUser(user, itSystem, true);
 	}
-	
+
 	/**
 	 * Returns all UserRoles, no matter how they are assigned to the user (except those embeded inside RoleGroups)
 	 */
@@ -409,6 +576,17 @@ public class UserService {
 	private List<UserRoleAssignedToUser> getAllUserRolesAssignedToUser(User user, ItSystem itSystem, boolean expandRoleGroups) {
 		List<UserRoleAssignedToUser> result = new ArrayList<>();
 
+		List<UserRoleAssignmentWithInfo> assignments = getAllUserRolesAssignedToUserWithInfo(user, itSystem, expandRoleGroups);
+		for (UserRoleAssignmentWithInfo assignment : assignments) {
+			result.add(assignment.toUserRoleAssignedToUser());
+		}
+
+		return result;
+	}
+
+	private List<UserRoleAssignmentWithInfo> getAllUserRolesAssignedToUserWithInfo(User user, ItSystem itSystem, boolean expandRoleGroups) {
+		List<UserRoleAssignmentWithInfo> result = new ArrayList<>();
+
 		// user.getUserRoles()
 		List<UserRole> userRoles = user.getUserRoleAssignments().stream()
 				.filter(ura -> !ura.isInactive())
@@ -417,9 +595,8 @@ public class UserService {
 
 		for (UserRole role : userRoles) {
 			if (itSystem == null || role.getItSystem().getId() == itSystem.getId()) {
-				UserRoleAssignedToUser assignment = new UserRoleAssignedToUser();
+				UserRoleAssignmentWithInfo assignment = new UserRoleAssignmentWithInfo();
 				assignment.setUserRole(role);
-				assignment.setAssignedThrough(AssignedThrough.DIRECT);
 
 				result.add(assignment);
 			}
@@ -437,9 +614,9 @@ public class UserService {
 	
 				for (UserRole role : ur) {
 					if (itSystem == null || role.getItSystem().getId() == itSystem.getId()) {
-						UserRoleAssignedToUser assignment = new UserRoleAssignedToUser();
+						UserRoleAssignmentWithInfo assignment = new UserRoleAssignmentWithInfo();
 						assignment.setUserRole(role);
-						assignment.setAssignedThrough(AssignedThrough.ROLEGROUP);
+						assignment.setAssignedThroughInfo(new AssignedThroughInfo(roleGroup));
 	
 						result.add(assignment);
 					}
@@ -458,9 +635,8 @@ public class UserService {
 
 			for (UserRole role : pur) {
 				if (itSystem == null || role.getItSystem().getId() == itSystem.getId()) {
-					UserRoleAssignedToUser assignment = new UserRoleAssignedToUser();
+					UserRoleAssignmentWithInfo assignment = new UserRoleAssignmentWithInfo();
 					assignment.setUserRole(role);
-					assignment.setAssignedThrough(AssignedThrough.POSITION);
 
 					result.add(assignment);
 				}
@@ -478,9 +654,9 @@ public class UserService {
 	
 					for (UserRole role : rur) {
 						if (itSystem == null || role.getItSystem().getId() == itSystem.getId()) {
-							UserRoleAssignedToUser assignment = new UserRoleAssignedToUser();
+							UserRoleAssignmentWithInfo assignment = new UserRoleAssignmentWithInfo();
 							assignment.setUserRole(role);
-							assignment.setAssignedThrough(AssignedThrough.POSITION);
+							assignment.setAssignedThroughInfo(new AssignedThroughInfo(roleGroup));
 	
 							result.add(assignment);
 						}
@@ -502,10 +678,11 @@ public class UserService {
 					}
 
 					if (itSystem == null || assignment.getUserRole().getItSystem().getId() == itSystem.getId()) {
-						UserRoleAssignedToUser uratu = new UserRoleAssignedToUser();
+						UserRoleAssignmentWithInfo uratu = new UserRoleAssignmentWithInfo();
 						uratu.setUserRole(assignment.getUserRole());
-						uratu.setAssignedThrough(AssignedThrough.TITLE);
 						uratu.setTitle(position.getTitle());
+						uratu.setOrgUnit(position.getOrgUnit());
+						uratu.setAssignedThroughInfo(new AssignedThroughInfo(position.getOrgUnit(), position.getTitle(), RoleType.USERROLE));
 						
 						result.add(uratu);
 					}
@@ -527,10 +704,11 @@ public class UserService {
 	
 						for (UserRole role : rur) {
 							if (itSystem == null || role.getItSystem().getId() == itSystem.getId()) {
-								UserRoleAssignedToUser uratu = new UserRoleAssignedToUser();
+								UserRoleAssignmentWithInfo uratu = new UserRoleAssignmentWithInfo();
 								uratu.setUserRole(role);
-								uratu.setAssignedThrough(AssignedThrough.TITLE);
 								uratu.setTitle(position.getTitle());
+								uratu.setOrgUnit(position.getOrgUnit());
+								uratu.setAssignedThroughInfo(new AssignedThroughInfo(position.getOrgUnit(), position.getTitle(), RoleType.ROLEGROUP));
 								
 								result.add(uratu);
 							}
@@ -577,12 +755,22 @@ public class UserService {
 
 		return result;
 	}
-
 	/**
 	 * Returns all UserRoles, no matter how they are assigned to the user
 	 */
 	public List<RoleGroupAssignedToUser> getAllRoleGroupsAssignedToUser(User user) {
-		List<RoleGroupAssignedToUser> result = new ArrayList<>();
+		List<RoleGroupAssignedToUser> result= new ArrayList<>();
+
+		List<RoleGroupAssignmentWithInfo> assignments = getAllRoleGroupsAssignedToUserWithInfo(user);
+		for (RoleGroupAssignmentWithInfo assignment : assignments) {
+			result.add(assignment.toRoleGroupAssignment());
+		}
+
+		return result;
+	}
+
+	public List<RoleGroupAssignmentWithInfo> getAllRoleGroupsAssignedToUserWithInfo(User user) {
+		List<RoleGroupAssignmentWithInfo> result = new ArrayList<>();
 
 		// user.getRoleGroups()
 		List<RoleGroup> roleGroups = user.getRoleGroupAssignments().stream()
@@ -591,9 +779,8 @@ public class UserService {
 				.collect(Collectors.toList());
 
 		for (RoleGroup roleGroup : roleGroups) {
-			RoleGroupAssignedToUser assignment = new RoleGroupAssignedToUser();
+			RoleGroupAssignmentWithInfo assignment = new RoleGroupAssignmentWithInfo();
 			assignment.setRoleGroup(roleGroup);
-			assignment.setAssignedThrough(AssignedThrough.DIRECT);
 
 			result.add(assignment);
 		}
@@ -608,9 +795,9 @@ public class UserService {
 	      			.collect(Collectors.toList());
 	      	
 			for (RoleGroup roleGroup : prg) {
-				RoleGroupAssignedToUser assignment = new RoleGroupAssignedToUser();
+				RoleGroupAssignmentWithInfo assignment = new RoleGroupAssignmentWithInfo();
 				assignment.setRoleGroup(roleGroup);
-				assignment.setAssignedThrough(AssignedThrough.POSITION);
+				assignment.setAssignedThroughInfo(new AssignedThroughInfo(roleGroup));
 
 				result.add(assignment);
 			}
@@ -628,11 +815,11 @@ public class UserService {
 						continue;
 					}
 
-
-					RoleGroupAssignedToUser rgatu = new RoleGroupAssignedToUser();
+					RoleGroupAssignmentWithInfo rgatu = new RoleGroupAssignmentWithInfo();
 					rgatu.setRoleGroup(assignment.getRoleGroup());
-					rgatu.setAssignedThrough(AssignedThrough.TITLE);
+					rgatu.setAssignedThroughInfo(new AssignedThroughInfo(position.getOrgUnit(), position.getTitle(), RoleType.ROLEGROUP));
 					rgatu.setTitle(position.getTitle());
+					rgatu.setOrgUnit(position.getOrgUnit());
 
 					result.add(rgatu);
 				}
@@ -647,7 +834,7 @@ public class UserService {
 		return new ArrayList<>(result);
 	}
 	
-	private void getAllRoleGroupsFromOrgUnit(List<RoleGroupAssignedToUser> result, OrgUnit orgUnit, boolean inheritOnly, User user) {
+	private void getAllRoleGroupsFromOrgUnit(List<RoleGroupAssignmentWithInfo> result, OrgUnit orgUnit, boolean inheritOnly, User user) {
 
 		// ou.getRoleGroups()
 		for (OrgUnitRoleGroupAssignment roleGroupMapping : orgUnit.getRoleGroupAssignments()) {
@@ -667,9 +854,9 @@ public class UserService {
 				}
 			}
 			
-			RoleGroupAssignedToUser assignment = new RoleGroupAssignedToUser();
+			RoleGroupAssignmentWithInfo assignment = new RoleGroupAssignmentWithInfo();
 			assignment.setRoleGroup(roleGroupMapping.getRoleGroup());
-			assignment.setAssignedThrough(AssignedThrough.ORGUNIT);
+			assignment.setAssignedThroughInfo(new AssignedThroughInfo(orgUnit, RoleType.ROLEGROUP));
 			assignment.setOrgUnit(orgUnit);
 
 			result.add(assignment);
@@ -681,7 +868,7 @@ public class UserService {
 		}
 	}
 
-	private void getAllUserRolesFromOrgUnit(List<UserRoleAssignedToUser> result, OrgUnit orgUnit, ItSystem itSystem, boolean inheritOnly, boolean expandRoleGroups, User user) {
+	private void getAllUserRolesFromOrgUnit(List<UserRoleAssignmentWithInfo> result, OrgUnit orgUnit, ItSystem itSystem, boolean inheritOnly, boolean expandRoleGroups, User user) {
 
 		// ou.getRoles()
 		for (OrgUnitUserRoleAssignment roleMapping : orgUnit.getUserRoleAssignments()) {
@@ -708,10 +895,10 @@ public class UserService {
 			UserRole role = roleMapping.getUserRole();
 
 			if (itSystem == null || role.getItSystem().getId() == itSystem.getId()) {
-				UserRoleAssignedToUser assignment = new UserRoleAssignedToUser();
+				UserRoleAssignmentWithInfo assignment = new UserRoleAssignmentWithInfo();
 				assignment.setUserRole(role);
-				assignment.setAssignedThrough(AssignedThrough.ORGUNIT);
 				assignment.setOrgUnit(orgUnit);
+				assignment.setAssignedThroughInfo(new AssignedThroughInfo(orgUnit, RoleType.USERROLE));
 				
 				result.add(assignment);
 			}
@@ -745,10 +932,10 @@ public class UserService {
 				List<UserRole> userRoles = roleGroup.getUserRoleAssignments().stream().map(ura -> ura.getUserRole()).collect(Collectors.toList());
 				for (UserRole role : userRoles) {
 					if (itSystem == null || role.getItSystem().getId() == itSystem.getId()) {
-						UserRoleAssignedToUser assignment = new UserRoleAssignedToUser();
+						UserRoleAssignmentWithInfo assignment = new UserRoleAssignmentWithInfo();
 						assignment.setUserRole(role);
-						assignment.setAssignedThrough(AssignedThrough.ORGUNIT);
 						assignment.setOrgUnit(orgUnit);
+						assignment.setAssignedThroughInfo(new AssignedThroughInfo(orgUnit, RoleType.ROLEGROUP));
 	
 						result.add(assignment);
 					}
@@ -1108,6 +1295,11 @@ public class UserService {
 	}
 
 	public String generateOIOBPP(User user, List<ItSystem> itSystems, Map<String, String> roleMap) throws UserNotFoundException {
+		// santity check - this happens a bit to often
+		if (StringUtils.isEmpty(configuration.getIntegrations().getKombit().getDomain())) {
+			throw new RuntimeException("Badly configured - no domain available");
+		}
+
 		List<PrivilegeGroup> privilegeGroups = generateOIOBPPPrivileges(user, itSystems, roleMap);
 
 		StringBuilder builder = new StringBuilder();

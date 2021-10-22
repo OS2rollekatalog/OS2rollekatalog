@@ -7,7 +7,7 @@ import org.springframework.session.web.http.CookieSerializer;
 import org.springframework.session.web.http.DefaultCookieSerializer;
 
 @Configuration
-@EnableJdbcHttpSession(cleanupCron = "${custom.sessions.cleanup.cron:0 * * * * *}")
+@EnableJdbcHttpSession(cleanupCron = "#{roleCatalogueConfiguration.scheduled.enabled ? '0 * * * * *' : '0 0 3 29 2 *'}", maxInactiveIntervalInSeconds = 8 * 60 * 60)
 public class SessionCacheConfiguration {
 
 	@Bean
@@ -17,7 +17,6 @@ public class SessionCacheConfiguration {
 		serializer.setCookiePath("/");
 		serializer.setUseSecureCookie(true);
 		serializer.setSameSite("None");
-//		serializer.setDomainNamePattern("^.+?\\.(\\w+\\.[a-z]+)$");
 
 		return serializer;
 	}

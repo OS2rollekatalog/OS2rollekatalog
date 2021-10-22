@@ -19,10 +19,12 @@ import dk.digitalidentity.rc.controller.api.exception.BadRequestException;
 import dk.digitalidentity.rc.controller.api.model.OrgUnitAM;
 import dk.digitalidentity.rc.controller.api.model.OrganisationDTO;
 import dk.digitalidentity.rc.controller.api.model.OrganisationImportResponse;
+import dk.digitalidentity.rc.security.RequireApiOrganisationRole;
 import dk.digitalidentity.rc.service.OrganisationExporter;
 import dk.digitalidentity.rc.service.OrganisationImporter;
 import dk.digitalidentity.rc.service.OrganisationImporterOld;
 
+@RequireApiOrganisationRole
 @RestController
 @RequestMapping("/api")
 public class OrganisationApi {

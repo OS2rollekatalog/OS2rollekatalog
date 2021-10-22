@@ -26,6 +26,7 @@ import dk.digitalidentity.rc.config.Constants;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.ItSystemChoice;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.OUListForm;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.ReportForm;
+import dk.digitalidentity.rc.controller.mvc.viewmodel.UserWithDuplicateRoleAssignmentDTO;
 import dk.digitalidentity.rc.controller.mvc.xlsview.ReportXlsxView;
 import dk.digitalidentity.rc.dao.history.model.HistoryItSystem;
 import dk.digitalidentity.rc.dao.model.OrgUnit;
@@ -48,6 +49,8 @@ import dk.digitalidentity.rc.service.RoleGroupService;
 import dk.digitalidentity.rc.service.TitleService;
 import dk.digitalidentity.rc.service.UserRoleService;
 import dk.digitalidentity.rc.service.UserService;
+import dk.digitalidentity.rc.service.model.RoleGroupAssignmentWithInfo;
+import dk.digitalidentity.rc.service.model.UserRoleAssignmentWithInfo;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
@@ -306,6 +309,12 @@ public class ReportController {
 			case USER_ROLE_WITH_SENSITIVE_FLAG:
 				model.addAttribute("userRoles", generateUserRolesWithSensitiveFlagReport());
 				return "reports/custom/user_roles_with_sensitive_flag";
+			case USERS_WITH_DUPLICATE_USERROLE_ASSIGNMENTS:
+				model.addAttribute("users", generateUsersWithDuplicateRoleAssignmentsReport());
+				return "reports/custom/users_with_duplicate_userrole_assignments";
+			case USERS_WITH_DUPLICATE_ROLEGROUP_ASSIGNMENTS:
+				model.addAttribute("users", generateUsersWithDuplicateRoleGroupAssignmentsReport());
+				return "reports/custom/users_with_duplicate_rolegroup_assignments";
 			case USER_ROLE_WITHOUT_ASSIGNMENTS:
 				model.addAttribute("userRoles", generateUserRolesWithoutAssignmentsReport());
 				return "reports/custom/user_roles_without_assignments";
@@ -332,6 +341,90 @@ public class ReportController {
 				.collect(Collectors.toList());
 
 		return userRoles;
+	}
+
+	private List<UserWithDuplicateRoleAssignmentDTO> generateUsersWithDuplicateRoleAssignmentsReport() {
+		List<UserWithDuplicateRoleAssignmentDTO> result = new ArrayList<>();
+		
+		// heavy lookup performed here
+		Map<User, List<UserRoleAssignmentWithInfo>> usersWithRoleAssignments = userService.getUsersWithRoleAssignments();
+
+		for (User user : usersWithRoleAssignments.keySet()) {
+			List<UserRoleAssignmentWithInfo> assignments = usersWithRoleAssignments.get(user);
+			if (assignments == null || assignments.size() == 0) {
+				continue;
+			}
+			
+			List<UserRoleAssignmentWithInfo> directAssignments = assignments.stream().filter(a -> a.getAssignedThroughInfo() == null).collect(Collectors.toList());
+			if (directAssignments == null || directAssignments.size() == 0) {
+				continue;
+			}
+			
+			for (UserRoleAssignmentWithInfo directAssignment : directAssignments) {
+				for (UserRoleAssignmentWithInfo assignment : assignments) {
+					// ignore direct assignments
+					if (assignment.getAssignedThroughInfo() == null) {
+						continue;
+					}
+					
+					// is this UserRole also assigned indirectly?
+					if (assignment.getUserRole().getId() == directAssignment.getUserRole().getId()) {
+						UserWithDuplicateRoleAssignmentDTO entry = new UserWithDuplicateRoleAssignmentDTO();
+						entry.setMessage(assignment.getAssignedThroughInfo().getMessage());
+						entry.setName(user.getName());
+						entry.setUserId(user.getUserId());
+						entry.setUuid(user.getUuid());
+						entry.setUserRole(assignment.getUserRole());
+
+						result.add(entry);
+					}
+				}
+			}
+		}
+		
+		return result;
+	}
+
+	private List<UserWithDuplicateRoleAssignmentDTO> generateUsersWithDuplicateRoleGroupAssignmentsReport() {
+		List<UserWithDuplicateRoleAssignmentDTO> result = new ArrayList<>();
+		
+		// heavy lookup performed here
+		Map<User, List<RoleGroupAssignmentWithInfo>> usersWithRoleGroupAssignments = userService.getUsersWithRoleGroupAssignments();
+
+		for (User user : usersWithRoleGroupAssignments.keySet()) {
+			List<RoleGroupAssignmentWithInfo> assignments = usersWithRoleGroupAssignments.get(user);
+			if (assignments == null || assignments.isEmpty()) {
+				continue;
+			}
+			
+			List<RoleGroupAssignmentWithInfo> directAssignments = assignments.stream().filter(a -> a.getAssignedThroughInfo() == null).collect(Collectors.toList());
+			if (directAssignments == null || directAssignments.isEmpty()) {
+				continue;
+			}
+			
+			for (RoleGroupAssignmentWithInfo directAssignment : directAssignments) {
+				for (RoleGroupAssignmentWithInfo assignment : assignments) {
+					// ignore direct assignments
+					if (assignment.getAssignedThroughInfo() == null) {
+						continue;
+					}
+					
+					// is this RoleGroup also assigned indirectly?
+					if (assignment.getRoleGroup().getId() == directAssignment.getRoleGroup().getId()) {
+						UserWithDuplicateRoleAssignmentDTO entry = new UserWithDuplicateRoleAssignmentDTO();
+						entry.setMessage(assignment.getAssignedThroughInfo().getMessage());
+						entry.setName(user.getName());
+						entry.setUserId(user.getUserId());
+						entry.setUuid(user.getUuid());
+						entry.setRoleGroup(assignment.getRoleGroup());
+
+						result.add(entry);
+					}
+				}
+			}
+		}
+		
+		return result;
 	}
 
 	private List<UserRole> generateUserRolesWithoutAssignmentsReport() {

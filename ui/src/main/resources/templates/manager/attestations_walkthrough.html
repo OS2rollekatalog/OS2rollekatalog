@@ -182,50 +182,62 @@
 			var toBeRemoved = [];
 			var toEmail = [];
 
-			$('input.unit:checkbox:checked').each(function() {
-				var toEmailObj = {
-					"unitTitleUuid" : $(this).attr("data-unitTitleUuid"),
-					"roleType" : $(this).attr("data-roleType"),
-					"roleId" : $(this).attr("data-roleId"),
-					"assignedThrough" : $(this).attr("data-assignedThrough")
-				}
-				
-				toEmail.push(toEmailObj);
+			$('#listTable1').DataTable().rows().iterator('row', function(context, index){
+			    var node = $(this.row(index).node()); 
+			    var tr = node.context;
+			    var td = $(tr).find("td:first");
+			    var checkbox = $(td).find("input.personal:checkbox");
+			    var checked = $(checkbox).prop('checked');
+
+			    if (!checked) {
+			    	var aprovedPersonalObj = {
+							"userUuid" : $(checkbox).attr("data-userUuid"),
+							"roleType" : $(checkbox).attr("data-roleType"),
+							"roleId" : $(checkbox).attr("data-roleId"),
+							"assignedThrough" : $(checkbox).attr("data-assignedThrough")
+					}
+
+					aprovedPersonal.push(aprovedPersonalObj);
+			    } else {
+			    	var toBeRemovedObj = {
+							"userUuid" : $(checkbox).attr("data-userUuid"),
+							"roleType" : $(checkbox).attr("data-roleType"),
+							"roleId" : $(checkbox).attr("data-roleId"),
+							"assignedThrough" : $(checkbox).attr("data-assignedThrough")
+						}
+
+					toBeRemoved.push(toBeRemovedObj);
+			    }
 			});
+			
+			$('#listTable2').DataTable().rows().iterator('row', function(context, index){
+			    var node = $(this.row(index).node()); 
+			    var tr = node.context;
+			    var td = $(tr).find("td:first");
+			    var checkbox = $(td).find("input.unit:checkbox");
+			    var checked = $(checkbox).prop('checked');
 
-			$('input.personal:checkbox:checked').each(function() {
-				var toBeRemovedObj = {
-					"userUuid" : $(this).attr("data-userUuid"),
-					"roleType" : $(this).attr("data-roleType"),
-					"roleId" : $(this).attr("data-roleId"),
-					"assignedThrough" : $(this).attr("data-assignedThrough")
-				}
-
-				toBeRemoved.push(toBeRemovedObj);
+			    if (!checked) {
+			    	var aprovedUnitObj = {
+							"unitTitleUuid" : $(checkbox).attr("data-unitTitleUuid"),
+							"roleType" : $(checkbox).attr("data-roleType"),
+							"roleId" : $(checkbox).attr("data-roleId"),
+							"assignedThrough" : $(checkbox).attr("data-assignedThrough")
+						}
+						
+					aprovedUnit.push(aprovedUnitObj);
+			    } else {
+			    	var toEmailObj = {
+							"unitTitleUuid" : $(checkbox).attr("data-unitTitleUuid"),
+							"roleType" : $(checkbox).attr("data-roleType"),
+							"roleId" : $(checkbox).attr("data-roleId"),
+							"assignedThrough" : $(checkbox).attr("data-assignedThrough")
+						}
+						
+					toEmail.push(toEmailObj);
+			    }
 			});
-
-			$('input.unit:checkbox:not(:checked)').each(function() {
-				var aprovedUnitObj = {
-					"unitTitleUuid" : $(this).attr("data-unitTitleUuid"),
-					"roleType" : $(this).attr("data-roleType"),
-					"roleId" : $(this).attr("data-roleId"),
-					"assignedThrough" : $(this).attr("data-assignedThrough")
-				}
-				
-				aprovedUnit.push(aprovedUnitObj);
-			});
-
-			$('input.personal:checkbox:not(:checked)').each(function() {
-				var aprovedPersonalObj = {
-						"userUuid" : $(this).attr("data-userUuid"),
-						"roleType" : $(this).attr("data-roleType"),
-						"roleId" : $(this).attr("data-roleId"),
-						"assignedThrough" : $(this).attr("data-assignedThrough")
-				}
-
-				aprovedPersonal.push(aprovedPersonalObj);
-			});
-
+			
 			$('#toEmail').val(JSON.stringify(toEmail));
 			$('#toBeRemoved').val(JSON.stringify(toBeRemoved));
 			$('#aprovedUnit').val(JSON.stringify(aprovedUnit));
