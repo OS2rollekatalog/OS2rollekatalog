@@ -41,8 +41,8 @@ public class EmailTemplateService {
 			
 			switch (type) {
 				case REMOVE_UNIT_ROLES:
-					title = "Nedarvede roller til sletning";
-					message = "Kære {modtager}\n<br/>\n<br/>\nDer er et ønske om, at nogle nedarvede roller skal fjernes. De berørte roller kan ses af den vedhæftede pdf.";
+					title = "Roller til sletning";
+					message = "Kære {modtager}\n<br/>\n<br/>\nDer er et ønske om, at nogle roller skal fjernes. De berørte roller kan ses af den vedhæftede pdf.";
 					break;
 				case ATTESTATION_DOCUMENTATION:
 					title = "Attesteringsrapport";

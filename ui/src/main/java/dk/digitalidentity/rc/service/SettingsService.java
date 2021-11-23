@@ -39,6 +39,7 @@ public class SettingsService {
 	private static final String SETTING_DAYS_BEFORE_DEADLINE = "DaysBeforeDeadline";
 	private static final String SETTING_EMAIL_AFTER_REMINDERS = "EmailAfterReminders";
 	private static final String SETTING_EMAIL_ATTESTATION_REPORT = "EmailAttestationReport";
+	private static final String SETTING_ATTESTATION_ROLE_DELETION_ENABLED = "AttestationRoleDeletionEnabled";
 
 	@Autowired
 	private SettingsDao settingsDao;
@@ -492,4 +493,13 @@ public class SettingsService {
 		setting.setValue(email);
 		settingsDao.save(setting);
 	}
+	
+	public boolean isAttestationRoleDeletionEnabled() {
+		return isKeyEnabled(SETTING_ATTESTATION_ROLE_DELETION_ENABLED);
+	}
+
+	public void setAttestationRoleDeletionEnabled(boolean enabled) {
+		setKeyEnabled(enabled, SETTING_ATTESTATION_ROLE_DELETION_ENABLED);
+	}
+
 }

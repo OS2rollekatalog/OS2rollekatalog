@@ -9,7 +9,7 @@
 	            </div>
 	
 	            <div class="modal-body" style="overflow-y: initial !important;">
-	                <table class="table table-striped table-hover" th:if="${@roleCatalogueConfiguration.getTitles().isEnabled() == false}">
+	                <table id="positionTable" class="table table-striped table-hover" th:if="${@roleCatalogueConfiguration.getTitles().isEnabled() == false}">
 	                    <tbody>
 	                    <tr>
 	                        <td class="col-md-2">
@@ -26,12 +26,10 @@
 	                    </tbody>
 	                </table>
 	                
-	                <div th:if="${@roleCatalogueConfiguration.getTitles().isEnabled()}" th:text="#{html.page.user.assign.accept.text}"/>
-	
-	                <div class="alert alert-warning" style="margin-top: 10px;" role="alert" id="modal-positions-alert">
-	                    &nbsp;
-	                </div>
+	                <div th:if="${@roleCatalogueConfiguration.getTitles().isEnabled()}" th:text="#{html.page.user.assign.accept.text}"></div>
 	                
+	                <div id="postponedConstraintsPlaceholder"></div>
+	
 	               	<div style="height: 70px;">
 						<h4 class="md-12" th:text="#{html.word.validity}" />
 	
@@ -62,7 +60,7 @@
 	            </div>
 	
 	            <div class="modal-footer">
-					<button id="assignDirectlyBtn" class="btn btn-primary assign_role_directly" th:text="#{html.entity.positions.assign}" th:if="${@roleCatalogueConfiguration.getTitles().isEnabled()}" />
+					<button id="assignRoleDirectlyBtn" class="btn btn-primary assign_role_directly" th:text="#{html.entity.positions.assign}" hidden/>
 	                <button type="button" class="btn btn-danger" id="closeModal" th:text="#{html.control.button.cancel}"/>
 	            </div>
 	        </div>
@@ -74,19 +72,21 @@
 	<script th:inline="javascript" type="text/javascript">
 		/*<![CDATA[*/
 		
-		/*[+
-		var usersUrl = [[@{/rest/users/}]];
-		
-		var userRoleListTableId = [[${userRoleListTableId}]]
-		var page = [[${page}]];
-		+]*/
-
 		var userRoleModalService;
 		var modalAjaxService;
+		
 		$(document).ready(function() {
             userRoleModalService = new UserRoleModalService();
             modalAjaxService = new ModalAjaxService();
-            
+
+            /*[+
+    		userRoleModalService.usersUrl = [[@{/rest/users/}]];
+			userRoleModalService.fieldUpdatedMsg = [[#{html.entity.rolegroup.updatedmsg}]];
+			userRoleModalService.fieldNotUpdatedMsg = [[#{html.entity.rolegroup.failedupdatemsg}]];
+			userRoleModalService.page = [[#{page}]];
+			titlesEnabled = [[${@roleCatalogueConfiguration.getTitles().isEnabled()}]];
+    		+]*/
+
             userRoleModalService.init();
         });
 		
@@ -94,88 +94,97 @@
 			this.init = function(){
 				var modal = $("#modal-positions");
 
-	            $('.assign_role').click(userRoleModalService.assignRoleClicked);		
-	      		$('.assign_role_directly').click(userRoleModalService.assignRoleDirectlyClicked);
-	      		$('#closeModal').click(userRoleModalService.closeModalAndRemoveCheckbox);
+	            $('.assign_role').click(userRoleModalService.assignRoleClicked);
+	            
+	      		$('.assign_role_directly').on( "click", function() {
+	            	postponedConstraintsService.validate("assignRoleDirectlyClicked");
+	            });
+	      		$('#closeModal').click(userRoleModalService.closeModal);
 	      		
 	      		modal.on('shown.bs.modal', function() {
 	    			$("#assignDirectlyBtn").focus();
 	    		});
+	      		
 			}
-			
-			this.closeModalAndRemoveCheckbox = function() {
-				var listTable = $('#' + userRoleListTableId);
 
+			this.closeModal = function() {
 				var modal = $("#modal-positions");
-				if (page == 'user') {
-					var chosenCheckbox = listTable.find("#" + modal.attr("roleid"));
-					if (chosenCheckbox != null) {
-						chosenCheckbox.prop('checked', false);
-						listTable.dataTable().api().row("#"+modal.attr("roleid")+"row").invalidate('dom').draw();
-					}
-				}
-				if (page == 'role'){
-					var chosenCheckbox = listTable.find("#" + modal.attr("userUuid"));
-					if (chosenCheckbox != null) {
-						chosenCheckbox.prop('checked', false);
-						listTable.dataTable().api().row("#"+modal.attr("userUuid")+"row").invalidate('dom').draw();
-					}
-				}				
-				
 				modal.modal('hide');
 			}
 			
 			this.assignRoleDirectlyClicked = function() {
-				var listTable = $('#' + userRoleListTableId);
 				var modal = $("#modal-positions");
-				var positionUuid = $(this).val();
 				var roleid = modal.attr("roleid");
 				var userUuid = modal.attr("userUuid");
-				
-				var chosenCheckbox;
-				if (page == 'user'){
-					chosenCheckbox = listTable.find("#" + modal.attr("roleid"));
-				}
-				else if (page == 'role'){
-					chosenCheckbox = listTable.find("#" + modal.attr("userUuid"));
-				}
 				
 				var startDate = $('#startDatePicker').data('date');
 				var stopDate = $('#stopDatePicker').data('date');
 				var dates = "?startDate=" + startDate + "&stopDate=" + stopDate;
 				
-				$.ajax(modalAjaxService.getAjaxObject(usersUrl + userUuid + '/addrole/' + roleid + dates, fieldUpdatedMsg, fieldNotUpdatedMsg, chosenCheckbox));
+				var constraints = postponedConstraintsService.getConstraintList();
+				$.ajax({
+	    			   url: userRoleModalService.usersUrl + userUuid + '/addrole/' + roleid + dates,
+	    			   contentType: 'application/json',
+	    			   headers: {
+	    			      'X-CSRF-TOKEN': token
+	    			   },
+	    			   type: 'post',
+	    			   data : JSON.stringify(constraints),
+	    			   success: function(response) {
+	    				   modalAjaxService.showInfoNotification(userRoleModalService.fieldUpdatedMsg);
+	    			   },
+	    			   error: function(response) {
+	    				   var msg = (response.responseText != null && response.responseText.length > 0) ? response.responseText : userRoleModalService.fieldNotUpdatedMsg;
+						   modalAjaxService.showErrorNotification(msg);
+	    			   }
+	    		});
+
 				modal.modal('hide');
+				
 			}
 			
 			this.assignRoleClicked = function() {
-				var listTable = $('#' + userRoleListTableId);
 				var modal = $("#modal-positions");
 				var positionUuid = $(this).val();
 				var roleid = modal.attr("roleid");
 				var userUuid = modal.attr("userUuid");
-				
-				var chosenCheckbox;
-				if (page == 'user'){
-					chosenCheckbox = listTable.find("#" + modal.attr("roleid"));
-				}
-				else if (page == 'role'){
-					chosenCheckbox = listTable.find("#" + modal.attr("userUuid"));
-				}
 				
 				var startDate = $('#startDatePicker').data('date');
 				var stopDate = $('#stopDatePicker').data('date');
 				var dates = "?startDate=" + startDate + "&stopDate=" + stopDate;
 
-				$.ajax(modalAjaxService.getAjaxObject(usersUrl + 'position/' + positionUuid + '/addrole/' + roleid + dates, fieldUpdatedMsg, fieldNotUpdatedMsg, chosenCheckbox));
+				$.ajax(modalAjaxService.getAjaxObject(userRoleModalService.usersUrl + 'position/' + positionUuid + '/addrole/' + roleid + dates, userRoleModalService.fieldUpdatedMsg, userRoleModalService.fieldNotUpdatedMsg));
+				
 				modal.modal('hide');
+			}
+			
+			this.loadPostponedConstraintsFragment = function (roleId) {
+				$("#postponedConstraintsPlaceholder").empty();
+				$("#editPostponedConstraintsPlaceholder").empty();
+				
+				$("#postponedConstraintsPlaceholder").load(baseUrl + "ui/users/manage/postponedconstraints/" + roleId, function () {
+					postponedConstraintsService.init();
+					
+					console.log(titlesEnabled)
+					
+					var postponingAllowed = $("#postponingAllowed").val();
+					if (postponingAllowed == "true") {
+						$("#positionTable").hide();
+						$("#assignRoleDirectlyBtn").show();
+					} else {
+						if (!titlesEnabled) {
+							$("#positionTable").show();
+							$("#assignRoleDirectlyBtn").hide();
+						}
+					}
+				});
 			}
 		}
 		
 		// TODO: move these into a utility js file (exists in edit.html for users/orgunits)
 		function ModalAjaxService() {
 
-	        this.getAjaxObject = function(urL, okMsg, errorMsg, chosenCheckbox) {
+	        this.getAjaxObject = function(urL, okMsg, errorMsg) {
 	    		return {
 	    			url: urL,
 					method: "POST",
@@ -183,10 +192,6 @@
 						'X-CSRF-TOKEN': token
 					},
 	    			error: function(response) {
-	    				if (chosenCheckbox != null) {
-							chosenCheckbox.prop('checked', false);
-	    				}
-
 						var msg = (response.responseText != null && response.responseText.length > 0) ? response.responseText : errorMsg;
 						modalAjaxService.showErrorNotification(msg);
 	    			},

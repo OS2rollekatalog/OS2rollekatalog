@@ -10,7 +10,7 @@ public interface PendingKOMBITUpdateDao extends CrudRepository<PendingKOMBITUpda
 
 	public List<PendingKOMBITUpdate> findAll();
 
-	public PendingKOMBITUpdate findByUserRoleId(long id);
+	public List<PendingKOMBITUpdate> findByUserRoleId(long id);
 	
 	public List<PendingKOMBITUpdate> findByFailedFalse();
 }

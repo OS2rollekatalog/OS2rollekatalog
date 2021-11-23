@@ -3,54 +3,51 @@ package dk.digitalidentity.rc.controller.mvc;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
-import dk.digitalidentity.rc.controller.mvc.viewmodel.ExceptedUsersDTO;
-import dk.digitalidentity.rc.controller.mvc.viewmodel.RoleGroupDTO;
-import dk.digitalidentity.rc.controller.mvc.viewmodel.UserRoleDTO;
-import dk.digitalidentity.rc.security.RequireAssignerRole;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestMethod;
-import org.springframework.web.bind.annotation.RequestParam;
 
 import dk.digitalidentity.rc.config.Constants;
 import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
-import dk.digitalidentity.rc.controller.mvc.viewmodel.Assignment;
-import dk.digitalidentity.rc.controller.mvc.viewmodel.EditRolegroupRow;
-import dk.digitalidentity.rc.controller.mvc.viewmodel.EditUserRoleRow;
+import dk.digitalidentity.rc.controller.mvc.viewmodel.AvailableRoleGroupDTO;
+import dk.digitalidentity.rc.controller.mvc.viewmodel.AvailableUserRoleDTO;
+import dk.digitalidentity.rc.controller.mvc.viewmodel.ExceptedUsersDTO;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.KleDTO;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.OUListForm;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.TitleListForm;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.UserListDTO;
+import dk.digitalidentity.rc.dao.model.KLEMapping;
 import dk.digitalidentity.rc.dao.model.Kle;
 import dk.digitalidentity.rc.dao.model.OrgUnit;
 import dk.digitalidentity.rc.dao.model.OrgUnitRoleGroupAssignment;
 import dk.digitalidentity.rc.dao.model.OrgUnitUserRoleAssignment;
 import dk.digitalidentity.rc.dao.model.RoleGroup;
 import dk.digitalidentity.rc.dao.model.Title;
-import dk.digitalidentity.rc.dao.model.TitleRoleGroupAssignment;
-import dk.digitalidentity.rc.dao.model.TitleUserRoleAssignment;
 import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserRole;
 import dk.digitalidentity.rc.dao.model.enums.KleType;
 import dk.digitalidentity.rc.dao.model.enums.OrgUnitLevel;
 import dk.digitalidentity.rc.security.AccessConstraintService;
-import dk.digitalidentity.rc.security.RequireAssignerOrKleAdminRole;
+import dk.digitalidentity.rc.security.RequireAssignerRole;
 import dk.digitalidentity.rc.security.RequireReadAccessOrManagerRole;
+import dk.digitalidentity.rc.security.RequireReadAccessRole;
 import dk.digitalidentity.rc.security.SecurityUtil;
 import dk.digitalidentity.rc.service.KleService;
 import dk.digitalidentity.rc.service.OrgUnitService;
 import dk.digitalidentity.rc.service.RoleGroupService;
 import dk.digitalidentity.rc.service.UserRoleService;
 import dk.digitalidentity.rc.service.UserService;
+import dk.digitalidentity.rc.service.model.AssignedThrough;
+import dk.digitalidentity.rc.service.model.RoleAssignedToOrgUnitDTO;
+import dk.digitalidentity.rc.service.model.RoleAssignmentType;
 
 @RequireReadAccessOrManagerRole
 @Controller
@@ -95,8 +92,9 @@ public class OrgUnitController {
 		return "ous/list";
 	}
 
-	@RequestMapping(value = "/ui/ous/view/{uuid}", method = RequestMethod.GET)
-	public String view(Model model, @PathVariable("uuid") String uuid, @RequestParam(required = false, defaultValue = "tree", value = "backRef") String backRef) {
+	@RequireReadAccessRole
+	@GetMapping("/ui/ous/manage/{uuid}")
+	public String manage(Model model, @PathVariable("uuid") String uuid) {
 		OrgUnit ou = orgUnitService.getByUuid(uuid);
 		if (ou == null) {
 			return "redirect:../list";
@@ -105,101 +103,37 @@ public class OrgUnitController {
 		boolean readOnly = !(SecurityUtil.hasRole(Constants.ROLE_ASSIGNER) || SecurityUtil.hasRole(Constants.ROLE_KLE_ADMINISTRATOR));
 		List<String> ousThatCanBeEdited = assignerRoleConstraint.getConstrainedOrgUnits(true);
 
-		List<UserListDTO> userDTOs = getUserDTOs(ou);
-
-		// UserRoles
-		Map<Long, List<User>> exceptedUsersByUserRole = ou.getUserRoleAssignments()
-				.stream()
-				.filter(OrgUnitUserRoleAssignment::isContainsExceptedUsers)
-				.collect(Collectors.toMap(orgUnitUserRoleAssignment -> orgUnitUserRoleAssignment.getUserRole().getId(), OrgUnitUserRoleAssignment::getExceptedUsers));
-
-		List<UserRole> userRoles = orgUnitService.getUserRoles(ou, true);
-		List<UserRoleDTO> userRolesDTOS = userRoles.stream().map(userRole -> new UserRoleDTO(userRole, exceptedUsersByUserRole.get(userRole.getId()))).collect(Collectors.toList());
-
-		// RoleGroups
-		Map<Long, List<User>> exceptedUsersByRoleGroup = ou.getRoleGroupAssignments()
-				.stream()
-				.filter(OrgUnitRoleGroupAssignment::isContainsExceptedUsers)
-				.collect(Collectors.toMap(orgUnitRoleGroupAssignment -> orgUnitRoleGroupAssignment.getRoleGroup().getId(), OrgUnitRoleGroupAssignment::getExceptedUsers));
-
-		List<RoleGroup> roleGroups = orgUnitService.getRoleGroups(ou, true);
-		List<RoleGroupDTO> roleGroupDTOS = roleGroups.stream().map(roleGroup -> new RoleGroupDTO(roleGroup, exceptedUsersByRoleGroup.get(roleGroup.getId()))).collect(Collectors.toList());
-
-		model.addAttribute("editable", !readOnly && (ousThatCanBeEdited == null || ousThatCanBeEdited.contains(ou.getUuid())));
-		model.addAttribute("ou", ou);
-		model.addAttribute("backRef", backRef);
-		model.addAttribute("roles", userRolesDTOS);
-		model.addAttribute("rolegroups", roleGroupDTOS);
-		model.addAttribute("klePerforming", kleService.getKleAssignments(ou, KleType.PERFORMING, true));
-		model.addAttribute("kleInterest", kleService.getKleAssignments(ou, KleType.INTEREST, true));
-		model.addAttribute("kleUiEnabled", configuration.getIntegrations().getKle().isUiEnabled());
-		model.addAttribute("users", userDTOs);
-
-		List<OrgUnit> parentsKleIsInheritedFrom = new ArrayList<>();
-		getParentsKleIsInheritedFrom(parentsKleIsInheritedFrom, ou.getParent());
-
-		model.addAttribute("parentsKleIsInheritedFrom", parentsKleIsInheritedFrom);
-		
-		return "ous/view";
-	}
-
-	@RequireAssignerOrKleAdminRole
-	@RequestMapping(value = "/ui/ous/edit/{uuid}", method = RequestMethod.GET)
-	public String edit(Model model, @PathVariable("uuid") String uuid, @RequestParam(required = false, defaultValue = "tree", value = "backRef") String backRef) {
-		OrgUnit ou = orgUnitService.getByUuid(uuid);
-		if (ou == null) {
-			return "redirect:../list";
-		}
-		
-		boolean titlesEnabled = configuration.getTitles().isEnabled();
-
-		List<OrgUnit> parentsKleIsInheritedFrom = new ArrayList<>();
-		getParentsKleIsInheritedFrom(parentsKleIsInheritedFrom, ou.getParent());
-
-		boolean onlyKleAdmin = SecurityUtil.hasRole(Constants.ROLE_KLE_ADMINISTRATOR) && !SecurityUtil.hasRole(Constants.ROLE_ASSIGNER);
-		
-		List<UserListDTO> userDTOs = getUserDTOs(ou);
-
-		List<String> klePerformingCodes = ou.getKles().stream()
-					.filter(k -> k.getAssignmentType().equals(KleType.PERFORMING))
-					.map(k -> k.getCode())
-					.collect(Collectors.toList());
-		
-		List<String> kleInterestCodes = ou.getKles().stream()
-				.filter(k -> k.getAssignmentType().equals(KleType.INTEREST))
-				.map(k -> k.getCode())
-				.collect(Collectors.toList());
-
-		List<KleDTO> kleInterestDTOS = new ArrayList<>();
-		List<KleDTO> klePerformingDTOS = new ArrayList<>();
-
-		List<Kle> kles = kleService.findAll();
-		
-		kles = kles.stream()
-				.sorted((a, b) -> a.getCode().compareTo(b.getCode()))
-				.collect(Collectors.toList());
-		
-		for (Kle kle : kles) {
-			KleDTO klePerformingDTO = new KleDTO();
-			klePerformingDTO.setId(kle.getCode());
-			klePerformingDTO.setParent(kle.getParent().equals("0") ? "#" : kle.getParent());
-			klePerformingDTO.setText(kle.isActive() ? kle.getCode() + " " + kle.getName() : kle.getCode() + " " + kle.getName() + " [UDGÅET]");
-			
-			if (klePerformingCodes.contains(kle.getCode())) {
-				klePerformingDTO.getState().setChecked(true);
-			}
-			
-			KleDTO kleInterestDTO = new KleDTO(klePerformingDTO);
-			if (kleInterestCodes.contains(kle.getCode())) {
-				kleInterestDTO.getState().setChecked(true);
-			}
-			
-			kleInterestDTOS.add(kleInterestDTO);
-			klePerformingDTOS.add(klePerformingDTO);
-		}
-		
 		List<OrgUnitLevel> allowedLevels = orgUnitService.getAllowedLevels(ou);
 		
+		List<OrgUnit> parentsKleIsInheritedFrom = new ArrayList<>();
+		getParentsKleIsInheritedFrom(parentsKleIsInheritedFrom, ou.getParent());
+		
+		List<UserListDTO> userDTOs = getUserDTOs(ou);
+
+		//kle
+		List<Kle> kles = kleService.findAll();
+
+		List<KleDTO> kleDTOS = new ArrayList<>();
+		for (Kle kle : kles) {
+			KleDTO kleDTO = new KleDTO();
+			kleDTO.setId(kle.getCode());
+			kleDTO.setParent(kle.getParent().equals("0") ? "#" : kle.getParent());
+			kleDTO.setText(kle.isActive() ? kle.getCode() + " " + kle.getName() : kle.getCode() + " " + kle.getName() + " [UDGÅET]");
+			kleDTOS.add(kleDTO);
+		}
+		kleDTOS.sort(Comparator.comparing(KleDTO::getText));
+		model.addAttribute("allKles", kleDTOS);
+
+		model.addAttribute("allowedLevels", allowedLevels);
+		model.addAttribute("editable", !readOnly && (ousThatCanBeEdited == null || ousThatCanBeEdited.contains(ou.getUuid())));
+		model.addAttribute("ou", ou);
+		model.addAttribute("kleUiEnabled", configuration.getIntegrations().getKle().isUiEnabled());
+		model.addAttribute("parentsKleIsInheritedFrom", parentsKleIsInheritedFrom);
+		model.addAttribute("users", userDTOs);
+		model.addAttribute("canEditKle", SecurityUtil.hasRole(Constants.ROLE_ASSIGNER) || SecurityUtil.hasRole(Constants.ROLE_KLE_ADMINISTRATOR));
+		
+		//Titles
+		boolean titlesEnabled = configuration.getTitles().isEnabled();
 		if (titlesEnabled) {
 			List<Title> titles = orgUnitService.getTitles(ou);
 
@@ -209,32 +143,135 @@ public class OrgUnitController {
 					.collect(Collectors.toList());
 			
 			model.addAttribute("titles", titleForms);
-			model.addAttribute("addRoles", getAddRolesTitles(ou, titles));
-			model.addAttribute("addRoleGroups", getAddRoleGroupsTitles(ou, titles));
 		}
 		else {
 			model.addAttribute("titles", null);
-			model.addAttribute("addRoles", getAddRoles(ou));
-			model.addAttribute("addRoleGroups", getAddRoleGroups(ou));
 		}
-
-		model.addAttribute("ou", ou);
-		model.addAttribute("allowedLevels", allowedLevels);
-		model.addAttribute("parentsKleIsInheritedFrom", parentsKleIsInheritedFrom);
-		model.addAttribute("backRef", backRef);
-		model.addAttribute("users", userDTOs);
-		model.addAttribute("allInterestKles", kleInterestDTOS);
-		model.addAttribute("allPerformingKles", klePerformingDTOS);
-		model.addAttribute("kleUiEnabled", configuration.getIntegrations().getKle().isUiEnabled());
-		model.addAttribute("onlyKleAdmin", onlyKleAdmin);
 		model.addAttribute("titlesEnabled", titlesEnabled);
 
-		return "ous/edit";
+
+		return "ous/manage";
+	}
+
+	@RequireReadAccessRole
+	@RequestMapping(value = "/ui/ous/manage/{uuid}/roles")
+	public String getAssignedRolesFragment(Model model, @PathVariable("uuid") String uuid) {
+		OrgUnit ou = orgUnitService.getByUuid(uuid);
+		if (ou == null) {
+			return "redirect:../list";
+		}
+		
+		boolean readOnly = !(SecurityUtil.hasRole(Constants.ROLE_ASSIGNER) || SecurityUtil.hasRole(Constants.ROLE_KLE_ADMINISTRATOR));
+		List<String> ousThatCanBeEdited = assignerRoleConstraint.getConstrainedOrgUnits(true);
+		boolean editable = !readOnly && (ousThatCanBeEdited == null || ousThatCanBeEdited.contains(ou.getUuid()));
+
+		List<RoleAssignedToOrgUnitDTO> userRoleAssignments = orgUnitService.getAllUserRolesAssignedToOrgUnit(ou);
+		List<RoleAssignedToOrgUnitDTO> roleGroupAssignments = orgUnitService.getAllRoleGroupsAssignedToOrgUnit(ou);
+		
+		List<RoleAssignedToOrgUnitDTO> assignments = new ArrayList<>();
+		assignments.addAll(userRoleAssignments);
+		assignments.addAll(roleGroupAssignments);
+		
+		for (RoleAssignedToOrgUnitDTO assignment : assignments) {
+			boolean directlyAssignedRole = ((assignment.getAssignedThrough() == AssignedThrough.DIRECT) || (assignment.getAssignedThrough() == AssignedThrough.TITLE));
+
+			if (assignment.getType() == RoleAssignmentType.USERROLE) {
+				boolean internalRole = assignment.getItSystem().getIdentifier().equals(Constants.ROLE_CATALOGUE_IDENTIFIER);
+
+				// We allow editing of internal roles when user is an Administrator (which also allows editing other roles)
+				// or if user can edit and role is "directly" assigned
+				if ((internalRole && SecurityUtil.getRoles().contains(Constants.ROLE_ADMINISTRATOR) && directlyAssignedRole) || (editable && directlyAssignedRole)) {
+					assignment.setCanEdit(true);
+				}
+			}
+			else if (assignment.getType() == RoleAssignmentType.ROLEGROUP) {
+				if (editable && directlyAssignedRole) {
+					assignment.setCanEdit(true);
+				}
+			}
+		}
+		
+		model.addAttribute("assignments", assignments);
+		model.addAttribute("editable", editable);
+
+		return "ous/fragments/manage_roles :: ouAssignedRoles";
 	}
 
 	@RequireAssignerRole
-	@RequestMapping(value = "/ui/ous/role/exceptedusers/{uuid}/{roleid}")
-	public String getExceptedUsersRoleFragment(Model model, @PathVariable("uuid") String uuid, @PathVariable("roleid") long roleId) {
+	@RequestMapping(value = "/ui/ous/manage/{uuid}/addUserRole")
+	public String getAddUserRoleFragment(Model model, @PathVariable("uuid") String uuid) {
+		OrgUnit ou = orgUnitService.getByUuid(uuid);
+		if (ou == null) {
+			return "redirect:../list";
+		}
+
+		List<AvailableUserRoleDTO> roles = getAvailableUserRoles(ou);
+
+		model.addAttribute("roles", roles);
+		return "ous/fragments/manage_add_userrole :: addUserRole";
+	}
+
+	@RequireAssignerRole
+	@RequestMapping(value = "/ui/ous/manage/{uuid}/addRoleGroup")
+	public String getAddRoleGroupFragment(Model model, @PathVariable("uuid") String uuid) {
+		OrgUnit ou = orgUnitService.getByUuid(uuid);
+		if (ou == null) {
+			return "redirect:../list";
+		}
+
+		List<AvailableRoleGroupDTO> roleGroups = getAvailableRoleGroups(ou);
+
+		model.addAttribute("roleGroups", roleGroups);
+		return "ous/fragments/manage_add_rolegroup :: addRoleGroup";
+	}
+	
+	@RequestMapping(value = "/ui/ous/manage/{uuid}/kle/{type}")
+	public String getKleFragment(Model model, @PathVariable("uuid") String uuid, @PathVariable("type") String type) {
+		OrgUnit ou = orgUnitService.getByUuid(uuid);
+		if (ou == null) {
+			return "redirect:../list";
+		}
+		
+		switch (type) {
+		case "PERFORMING":
+			model.addAttribute("kles", kleService.getKleAssignments(ou, KleType.PERFORMING, true));
+			break;
+		case "INTEREST":
+			model.addAttribute("kles", kleService.getKleAssignments(ou, KleType.INTEREST, true));
+			break;
+
+		default:
+			return "redirect:../list";
+		}
+
+		return "fragments/manage_kle :: kle";
+	}
+
+	@RequestMapping(value = "/ui/ous/manage/{uuid}/kleEdit/{type}")
+	public String getKleEditFragment(Model model, @PathVariable("uuid") String uuid, @PathVariable("type") String type) {
+		OrgUnit ou = orgUnitService.getByUuid(uuid);
+		if (ou == null) {
+			return "redirect:../list";
+		}
+		
+		switch (type) {
+		case "PERFORMING":
+			model.addAttribute("selectedKles", ou.getKles().stream().filter(userKLEMapping -> userKLEMapping.getAssignmentType().equals(KleType.PERFORMING)).map(KLEMapping::getCode).collect(Collectors.toList()));
+			break;
+		case "INTEREST":
+			model.addAttribute("selectedKles", ou.getKles().stream().filter(userKLEMapping -> userKLEMapping.getAssignmentType().equals(KleType.INTEREST)).map(KLEMapping::getCode).collect(Collectors.toList()));
+			break;
+
+		default:
+			return "redirect:../list";
+		}
+
+		return "fragments/manage_kle_edit :: kleEdit";
+	}
+
+	@RequireAssignerRole
+	@RequestMapping(value = "/ui/ous/manage/users/{uuid}")
+	public String getExceptedUsersRoleFragment(Model model, @PathVariable("uuid") String uuid) {
 		OrgUnit ou = orgUnitService.getByUuid(uuid);
 		if (ou == null) {
 			return "redirect:../list";
@@ -243,26 +280,35 @@ public class OrgUnitController {
 		// Get users
 		List<User> users = userService.findByOrgUnit(ou);
 
-		// Check if role is assigned to ou already
-		UserRole role = userRoleService.getById(roleId);
-		Optional<OrgUnitUserRoleAssignment> match = ou.getUserRoleAssignments()
-				.stream()
-				.filter(roleAssignment -> Objects.equals(roleAssignment.getUserRole().getId(), role.getId()))
-				.findAny();
-
-		// If present check mark excepted users
-		List<String> exceptedUsers = new ArrayList<>();
-		if (match.isPresent()) {
-			OrgUnitUserRoleAssignment roleAssignment = match.get();
-
-			if (roleAssignment.isContainsExceptedUsers()) {
-				exceptedUsers = roleAssignment.getExceptedUsers().stream().map(User::getUuid).collect(Collectors.toList());
-			}
-		}
-
 		ArrayList<ExceptedUsersDTO> usersDTOS = new ArrayList<>();
 		for (User user : users) {
-			usersDTOS.add(new ExceptedUsersDTO(user, exceptedUsers.contains(user.getUuid())));
+			usersDTOS.add(new ExceptedUsersDTO(user, false));
+		}
+
+		model.addAttribute("exceptedUsersDTO", usersDTOS);
+
+		return "ous/fragments/ou_excepted_users :: table";
+	}
+	
+	@RequireAssignerRole
+	@RequestMapping(value = "/ui/ous/manage/role/exceptedusers2/{uuid}/{assignmentId}")
+	public String getExceptedUsersRoleFragment2(Model model, @PathVariable("uuid") String uuid, @PathVariable("assignmentId") long assignmentId) {
+		OrgUnit ou = orgUnitService.getByUuid(uuid);
+		if (ou == null) {
+			return "redirect:../list";
+		}
+
+		// Get users
+		List<User> users = userService.findByOrgUnit(ou);
+		ArrayList<ExceptedUsersDTO> usersDTOS = new ArrayList<>();
+
+		OrgUnitUserRoleAssignment roleAssignment = ou.getUserRoleAssignments().stream().filter(ura -> ura.getId() == assignmentId).findAny().orElse(null);
+		if (roleAssignment != null) {
+			List<String> exceptedUsers = roleAssignment.getExceptedUsers().stream().map(User::getUuid).collect(Collectors.toList());
+
+			for (User user : users) {
+				usersDTOS.add(new ExceptedUsersDTO(user, exceptedUsers.contains(user.getUuid())));
+			}
 		}
 
 		model.addAttribute("exceptedUsersDTO", usersDTOS);
@@ -270,7 +316,7 @@ public class OrgUnitController {
 	}
 
 	@RequireAssignerRole
-	@RequestMapping(value = "/ui/ous/rolegroup/exceptedusers/{uuid}/{rolegroupid}")
+	@RequestMapping(value = "/ui/ous/manage/rolegroup/exceptedusers/{uuid}/{rolegroupid}")
 	public String getExceptedUsersRoleGroupFragment(Model model, @PathVariable("uuid") String uuid, @PathVariable("rolegroupid") long roleGroupId) {
 		OrgUnit ou = orgUnitService.getByUuid(uuid);
 		if (ou == null) {
@@ -306,6 +352,31 @@ public class OrgUnitController {
 		return "ous/fragments/ou_excepted_users :: table";
 	}
 
+	@RequireAssignerRole
+	@RequestMapping(value = "/ui/ous/manage/rolegroup/exceptedusers2/{uuid}/{assignmentId}")
+	public String getExceptedUsersRoleGroupFragment2(Model model, @PathVariable("uuid") String uuid, @PathVariable("assignmentId") long assignmentId) {
+		OrgUnit ou = orgUnitService.getByUuid(uuid);
+		if (ou == null) {
+			return "redirect:../list";
+		}
+
+		// Get users
+		List<User> users = userService.findByOrgUnit(ou);
+		ArrayList<ExceptedUsersDTO> usersDTOS = new ArrayList<>();
+
+		OrgUnitRoleGroupAssignment roleAssignment = ou.getRoleGroupAssignments().stream().filter(rga -> rga.getId() == assignmentId).findAny().orElse(null);
+		if (roleAssignment != null) {
+			List<String> exceptedUsers = roleAssignment.getExceptedUsers().stream().map(User::getUuid).collect(Collectors.toList());
+
+			for (User user : users) {
+				usersDTOS.add(new ExceptedUsersDTO(user, exceptedUsers.contains(user.getUuid())));
+			}
+		}
+
+		model.addAttribute("exceptedUsersDTO", usersDTOS);
+		return "ous/fragments/ou_excepted_users :: table";
+	}
+
 	private List<UserListDTO> getUserDTOs(OrgUnit ou) {
 		List<User> users = userService.findByOrgUnit(ou);
 		List<UserListDTO> userDTOs = new ArrayList<UserListDTO>();
@@ -334,162 +405,50 @@ public class OrgUnitController {
 		getParentsKleIsInheritedFrom(parentsKleIsInheritedFrom, orgUnit.getParent());
 	}
 
-	private List<EditUserRoleRow> getAddRoles(OrgUnit ou) {
-		List<EditUserRoleRow> addRoles = new ArrayList<>();
+	private List<AvailableUserRoleDTO> getAvailableUserRoles(OrgUnit orgUnit) {
+		List<AvailableUserRoleDTO> addRoles = new ArrayList<>();
 		List<UserRole> userRoles = assignerRoleConstraint.filterUserRolesUserCanAssign(userRoleService.getAll());
-		List<OrgUnitUserRoleAssignment> directlyAssignedUserRoles = orgUnitService.getRoleMappings(ou);
+		
+		//filter out RC internal roles
+		if (!SecurityUtil.getRoles().contains(Constants.ROLE_ADMINISTRATOR)) {
+			userRoles = userRoles.stream().filter(role -> !role.getItSystem().getIdentifier().equals(Constants.ROLE_CATALOGUE_IDENTIFIER)).collect(Collectors.toList());
+		}
 
 		for (UserRole role : userRoles) {
 			if (role.isUserOnly()) {
 				continue;
 			}
 			
-			EditUserRoleRow roleWithAssignment = new EditUserRoleRow();
-			roleWithAssignment.setRole(role);
-			roleWithAssignment.setAssignment(new Assignment());
-
-			for (OrgUnitUserRoleAssignment roleMapping : directlyAssignedUserRoles) {
-				if (roleMapping.getUserRole().getId() == role.getId()) {
-					roleWithAssignment.setChecked(true);
-					roleWithAssignment.setCheckedWithInherit(roleMapping.isInherit());
-					roleWithAssignment.setAssignmentType(roleMapping.isInherit() ? -2 : -1);
-					roleWithAssignment.getAssignment().setStartDate(roleMapping.getStartDate());
-					roleWithAssignment.getAssignment().setStopDate(roleMapping.getStopDate());
-					roleWithAssignment.setContainsExceptedUsers(roleMapping.isContainsExceptedUsers());
-				}
+			// filter out roles that allows postponing
+			if (role.isAllowPostponing()) {
+				continue;
 			}
+			
+			AvailableUserRoleDTO availableUserRole = new AvailableUserRoleDTO();
+			availableUserRole.setId(role.getId());
+			availableUserRole.setName(role.getName());
+			availableUserRole.setDescription(role.getDescription());
+			availableUserRole.setItSystem(role.getItSystem());
 
-			addRoles.add(roleWithAssignment);
+			addRoles.add(availableUserRole);
 		}
 
 		return addRoles;
 	}
 	
-	private List<EditUserRoleRow> getAddRolesTitles(OrgUnit ou, List<Title> titles) {
-		List<EditUserRoleRow> addRoles = new ArrayList<>();
-		List<UserRole> userRoles = assignerRoleConstraint.filterUserRolesUserCanAssign(userRoleService.getAll());
-		List<OrgUnitUserRoleAssignment> directlyAssignedUserRoles = orgUnitService.getRoleMappings(ou);
-
-		for (UserRole role : userRoles) {
-			if (role.isUserOnly()) {
-				continue;
-			}
-			
-			EditUserRoleRow roleWithAssignment = new EditUserRoleRow();
-			roleWithAssignment.setRole(role);
-			roleWithAssignment.setAssignment(new Assignment());
-			
-			for (OrgUnitUserRoleAssignment roleMapping : directlyAssignedUserRoles) {
-				if (roleMapping.getUserRole().getId() == role.getId()) {
-					roleWithAssignment.setChecked(true);
-					roleWithAssignment.setCheckedWithInherit(roleMapping.isInherit());
-					roleWithAssignment.setAssignmentType(roleMapping.isInherit() ? -2 : -1);
-					roleWithAssignment.getAssignment().setStartDate(roleMapping.getStartDate());
-					roleWithAssignment.getAssignment().setStopDate(roleMapping.getStopDate());
-					roleWithAssignment.setContainsExceptedUsers(roleMapping.isContainsExceptedUsers());
-					break;
-				}
-			}
-
-			// check for titles then
-			if (!roleWithAssignment.isChecked()) {
-				int counter = 0;
-				for (Title title : titles) {
-					for (TitleUserRoleAssignment tura : title.getUserRoleAssignments()) {
-						if (tura.getUserRole().getId() == role.getId() && tura.getOuUuids().contains(ou.getUuid())) {
-							roleWithAssignment.setChecked(true);
-							roleWithAssignment.setOuAssignment(false);
-							roleWithAssignment.setAssignmentType(++counter);
-
-							// they are identical for each assignment, but we need at least one of them
-							roleWithAssignment.getAssignment().setStartDate(tura.getStartDate());
-							roleWithAssignment.getAssignment().setStopDate(tura.getStopDate());
-						}
-					}
-				}
-			}
-
-			addRoles.add(roleWithAssignment);
-		}
-
-		return addRoles;
-	}
-	
-	private List<EditRolegroupRow> getAddRoleGroups(OrgUnit ou) {
-		List<EditRolegroupRow> addRoleGroups = new ArrayList<>();
-		List<RoleGroup> roleGroups = assignerRoleConstraint.filterRoleGroupsUserCanAssign(roleGroupService.getAll());
-		List<OrgUnitRoleGroupAssignment> directlyAssignedRoleGroups = orgUnitService.getRoleGroupMappings(ou);
+	public List<AvailableRoleGroupDTO> getAvailableRoleGroups(OrgUnit orgUnit) {
+		List<AvailableRoleGroupDTO> addRoleGroups = new ArrayList<>();
+		List<RoleGroup> roleGroups = roleGroupService.getAll();
+		roleGroups = assignerRoleConstraint.filterRoleGroupsUserCanAssign(roleGroups);
 
 		for (RoleGroup roleGroup : roleGroups) {
-			if (roleGroup.isUserOnly()) {
-				continue;
-			}
 
-			EditRolegroupRow rgwa = new EditRolegroupRow();
-			rgwa.setRoleGroup(roleGroup);
-			rgwa.setAssignment(new Assignment());
-			
-			for (OrgUnitRoleGroupAssignment roleMapping : directlyAssignedRoleGroups) {
-				if (roleMapping.getRoleGroup().getId() == roleGroup.getId()) {
-					rgwa.setChecked(true);
-					rgwa.setCheckedWithInherit(roleMapping.isInherit());
-					rgwa.getAssignment().setStartDate(roleMapping.getStartDate());
-					rgwa.getAssignment().setStopDate(roleMapping.getStopDate());
-					rgwa.setContainsExceptedUsers(roleMapping.isContainsExceptedUsers());
-					break;
-				}
-			}
+			AvailableRoleGroupDTO rgr = new AvailableRoleGroupDTO();
+			rgr.setId(roleGroup.getId());
+			rgr.setName(roleGroup.getName());
+			rgr.setDescription(roleGroup.getDescription());
 
-			addRoleGroups.add(rgwa);
-		}
-
-		return addRoleGroups;
-	}
-	
-	private List<EditRolegroupRow> getAddRoleGroupsTitles(OrgUnit ou, List<Title> titles) {
-		List<EditRolegroupRow> addRoleGroups = new ArrayList<>();
-		List<RoleGroup> roleGroups = assignerRoleConstraint.filterRoleGroupsUserCanAssign(roleGroupService.getAll());
-		List<OrgUnitRoleGroupAssignment> directlyAssignedRoleGroups = orgUnitService.getRoleGroupMappings(ou);
-
-		for (RoleGroup roleGroup : roleGroups) {
-			if (roleGroup.isUserOnly()) {
-				continue;
-			}
-
-			EditRolegroupRow rgwa = new EditRolegroupRow();
-			rgwa.setRoleGroup(roleGroup);
-			rgwa.setAssignment(new Assignment());
-			
-			for (OrgUnitRoleGroupAssignment roleMapping : directlyAssignedRoleGroups) {
-				if (roleMapping.getRoleGroup().getId() == roleGroup.getId()) {
-					rgwa.setChecked(true);
-					rgwa.setCheckedWithInherit(roleMapping.isInherit());
-					rgwa.setAssignmentType(roleMapping.isInherit() ? -2 : -1);
-					rgwa.getAssignment().setStartDate(roleMapping.getStartDate());
-					rgwa.getAssignment().setStopDate(roleMapping.getStopDate());
-					rgwa.setContainsExceptedUsers(roleMapping.isContainsExceptedUsers());
-					break;
-				}
-			}
-
-			if (!rgwa.isChecked()) {
-				int counter = 0;
-				for (Title title : titles) {
-					for (TitleRoleGroupAssignment trga : title.getRoleGroupAssignments()) {
-						if (trga.getRoleGroup().getId() == roleGroup.getId() && trga.getOuUuids().contains(ou.getUuid())) {
-							rgwa.setChecked(true);
-							rgwa.setOuAssignment(false);
-							rgwa.setAssignmentType(++counter);
-							
-							// yes, we only need the first one, and they are identical, but this is easier
-							rgwa.getAssignment().setStartDate(trga.getStartDate());
-							rgwa.getAssignment().setStopDate(trga.getStopDate());
-						}
-					}
-				}
-			}
-
-			addRoleGroups.add(rgwa);
+			addRoleGroups.add(rgr);
 		}
 
 		return addRoleGroups;

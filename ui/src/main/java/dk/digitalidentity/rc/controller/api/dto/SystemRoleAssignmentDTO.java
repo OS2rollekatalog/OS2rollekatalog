@@ -2,9 +2,11 @@ package dk.digitalidentity.rc.controller.api.dto;
 
 import java.util.List;
 
-import lombok.Data;
+import lombok.Getter;
+import lombok.Setter;
 
-@Data
+@Setter
+@Getter
 public class SystemRoleAssignmentDTO {
 	private SystemRoleDTO systemRole;
 	private List<SystemRoleAssignmentConstraintValueDTO> constraintValues;

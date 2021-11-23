@@ -67,9 +67,8 @@ public class RoleAssignmentApi {
 		}
 
 		for (User user : users) {
-	        if (userService.addUserRole(user, userRole, startDate, stopDate)) {
-	        	userService.save(user);
-	        }
+			userService.addUserRole(user, userRole, startDate, stopDate);
+			userService.save(user);
 		}
 
         return new ResponseEntity<>(HttpStatus.OK);
@@ -97,9 +96,9 @@ public class RoleAssignmentApi {
 		}
 
 		for (User user : users) {
-	    	if (userService.addRoleGroup(user, roleGroup, startDate, stopDate)) {
-	    		userService.save(user);
-	    	}
+			userService.addRoleGroup(user, roleGroup, startDate, stopDate);
+			userService.save(user);
+
 		}
 
         return new ResponseEntity<>(HttpStatus.OK);
@@ -116,9 +115,8 @@ public class RoleAssignmentApi {
             return new ResponseEntity<>(ErrorMessage.USER_ROLE_NOT_FOUND, HttpStatus.NOT_FOUND);
         }
 
-        if (orgUnitService.addUserRole(ou, userRole, false, startDate, stopDate, null)) {
-        	orgUnitService.save(ou);
-        }
+		orgUnitService.addUserRole(ou, userRole, false, startDate, stopDate, null, null);
+		orgUnitService.save(ou);
 
         return new ResponseEntity<>(HttpStatus.OK);
     }
@@ -134,9 +132,8 @@ public class RoleAssignmentApi {
             return new ResponseEntity<>(ErrorMessage.ROLE_GROUP_NOT_FOUND, HttpStatus.NOT_FOUND);
         }
 
-        if (orgUnitService.addRoleGroup(ou, roleGroup, false, startDate, stopDate, null)) {
-        	orgUnitService.save(ou);
-        }
+		orgUnitService.addRoleGroup(ou, roleGroup, false, startDate, stopDate, null, null);
+		orgUnitService.save(ou);
 
         return new ResponseEntity<>(HttpStatus.OK);
     }

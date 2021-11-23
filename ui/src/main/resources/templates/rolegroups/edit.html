@@ -114,76 +114,9 @@
 						</div>
 						
 						<div id="users_menu" class="tab-pane fade">
-							<table id="listTable1" class="table table-striped table-hover listTable">
-								<thead>
-									<tr>
-										<th class="col-md-1" th:text="#{html.entity.positions.assign}" />
-										<th class="col-md-4" th:text="#{html.entity.user.name}" />
-										<th class="col-md-4" th:text="#{html.entity.user.userId}" />
-										<th class="col-md-3" th:text="#{html.entity.rolegroup.validity}"/>
-									</tr>
-								</thead>
-
-								<tbody>
-									 <tr th:each="user : ${users}" th:id="${user.uuid}+'groupRow'">
-										<td>
-											<div class="checkbox c-checkbox">
-	                                            <label>
-	                                                <input class="checkbox-groups" th:id="${user.uuid}"
-	                                                       type="checkbox" th:value="${rolegroup.id}" data-objtype="role" th:checked="${user.checked}"/>
-	                                                <span class="fa fa-check"></span>
-	                                            </label>
-	                                        </div>
-										</td>
-										<td th:text="${user.name}" />
-										<td th:text="${user.userId}" />
-										<td class="fromToDate">
-						              		<ul th:if="${user.startDate != null or user.stopDate != null}" style="padding-left: 0px; list-style-type: none;">
-						               			<li th:if="${user.startDate != null}" th:text="#{html.word.assigned} + ' ' + ${user.startDate}"></li>
-						               			<li th:if="${user.stopDate != null}" th:text="#{html.word.deassigned} + ' ' + ${user.stopDate}"></li>
-						              		</ul>
-						              		<span th:if="${user.checked == true and user.startDate == null and user.stopDate == null}" th:text="#{html.word.indefinite}"/>
-						              	</td>
-									</tr>
-								</tbody>
-							</table>
 						</div>
 						
 						<div id="ous_menu" class="tab-pane fade">
-							<table id="listTable2" class="table table-striped listTable">
-								<thead>
-									<tr>
-										<th class="col-md-1" th:text="#{html.entity.positions.assign}" />
-										<th class="col-md-6" th:text="#{html.entity.ou.name}" />
-										<th class="col-md-5" th:text="#{html.entity.rolegroup.validity}"/>
-									</tr>
-								</thead>
-
-								<tbody>
-									 <tr th:each="ou : ${allOUs}" th:id="${ou.uuid}+'row'">
-										<td>
-											<div class="checkbox c-checkbox">
-												<label>
-													<input th:id="${ou.uuid}" type="checkbox" th:checked="${ou.checked}" class="oucheckboxaction" data-objtype="rolegroup" th:attr="data-startdate=${ou.assignment.startDate}, data-stopdate=${ou.assignment.stopDate}"/>
-													<span class="fa fa-check"></span>
-												</label>
-											</div>
-										</td>
-										<td>
-											<div th:text="${ou.name}"></div>
-											<span style="font-size: 12px;" th:text="${ou.parentBreadcrumbs}"></span>
-										</td>
-										
-										<td class="fromToDate">
-	                                    	<ul th:if="${ou.assignment.startDate != null or ou.assignment.stopDate != null}" style="padding-left: 0px; list-style-type: none;">
-		                                    	<li th:if="${ou.assignment.startDate != null}" th:text="#{html.word.assigned} + ' ' + ${ou.assignment.startDate}"></li>
-		                                    	<li th:if="${ou.assignment.stopDate != null}" th:text="#{html.word.deassigned} + ' ' + ${ou.assignment.stopDate}"></li>
-	                                    	</ul>
-	                                    	<span th:if="${ou.checked == true and ou.assignment.startDate == null and ou.assignment.stopDate == null}" th:text="#{html.word.indefinite}"/>
-	                                    </td>
-									</tr>
-								</tbody>
-							</table>
 						</div>
 					</div>
                 </div>
@@ -191,8 +124,6 @@
         </div>
     </section>
 </div>
-<div id="userRoleGroupModal"></div>
-<div id="ouRoleGroupModal"></div>
 
 	<!-- TODO: we need to add some styling that makes the datepickers show at the bottom and overflowing the modal 
 	The modal ou_roles_modal shows at the top-->
@@ -203,12 +134,19 @@
 		}
 	</style>
 
+	<div id="userRoleGroupModal"></div>
+	<div id="ouRoleGroupModal"></div>
+	<div id="ouRoleGroupEditModal"></div>
+	<div th:replace="users/fragments/role_assignment_edit_modal :: roleAssignmentEditModal" />
 	<nav th:replace="fragments/footer :: footer"/>
-	<div id="ouScript"></div>
-	<script th:replace="ous/fragments/ou_roles_modal :: ouRoleGroupModalScript(titlesEnabled=${titlesEnabled})" />
+	
 	<script th:replace="fragments/datatables :: datatables(orderColumnValue=1) " />
-	<script th:replace="users/fragments/user_role_group_modal :: userRoleGroupModalScript(listTable='listTable1', page='role')"/>
 	<script th:replace="fragments/assignDatePicker :: content " />
+	
+	<script th:replace="ous/fragments/ou_roles_modal :: ouRoleGroupModalScript(titlesEnabled=${titlesEnabled})" />
+	<script th:replace="ous/fragments/ou_roles_edit_modal :: ouRolesEditModalScript(titlesEnabled=${titlesEnabled})" />
+	<script th:replace="users/fragments/role_assignment_edit_modal :: roleAssignmentEditModalScript" />
+	<script th:replace="users/fragments/user_role_group_modal :: userRoleGroupModalScript"/>
 
 	<script th:inline="javascript">
 		/*<![CDATA[*/
@@ -219,16 +157,17 @@
 				var fieldUpdatedMsg = [[#{html.entity.rolegroup.updatedmsg}]];
 				var fieldNotUpdatedMsg = [[#{html.entity.rolegroup.failedupdatemsg}]];
 
-				var UIUrl = [[@{/ui/rolegroups/}]]
-				var urlUsers = [[@{/rest/users/}]];
-				var urlOUs = [[@{/rest/ous/}]];
+				var UIUrl = [[@{/ui/rolegroups/}]];
+				var userRestUrl = [[@{/rest/users/}]];
+				var ouRestUrl = [[@{/rest/ous/}]];
 				
-				var stillAssignedThroughTitleMsg = [[#{html.user.role.stillassigned.title}]];
-				var stillAssignedThroughOUMsg = [[#{html.user.role.stillassigned.ou}]];
-				var stillAssignedThroughRoleGroupMsg = [[#{html.user.role.stillassigned.rolegroup}]];
-				var alreadyAssignedThroughTitleMsg = [[#{html.user.role.alreadyassigned.title}]];
-				var alreadyAssignedThroughOUMsg = [[#{html.user.role.alreadyassigned.ou}]];
-				var alreadyAssignedThroughRoleGroupMsg = [[#{html.user.role.alreadyassigned.rolegroup}]];
+				//Delete role assignment swal
+				var deleteRoleAssignmentTitleTxt = [[#{html.page.manage.roles.delete.title}]];
+				var deleteRoleAssignmentBodyTxt = [[#{html.page.manage.roles.delete.body}]];
+				var deleteRoleAssignmentErrorMessage = [[#{html.page.manage.roles.delete.error}]];
+				
+				var deleteAssignmentConfirmTxt = [[#{html.control.button.yes}]];
+				var deleteAssignmentCancelTxt = [[#{html.control.button.cancel}]];
 				
 				var titlesEnabled = [[${titlesEnabled}]];
 				var roleId = [[${rolegroup.id}]];
@@ -236,20 +175,19 @@
 
 			var token = $("meta[name='_csrf']").attr("content");
 			
-			var userService;
-			var unitService;
-			var notificationService;
+			var userService = new UserService();
+			var orgUnitService = new OrgUnitService();
+			var notificationService = new NotificationService();
+			
 			$("document").ready( function() {
-				userService = new UserService();
-				unitService = new UnitService();
-				notificationService = new NotificationService();
+				userService.loadRolesFragment();
+				//Edit RoleGroup assignemnet on User modal
+				userRoleEditModalService.parentService = userService;
 				
-				
-				userService.addCheckboxListeners();
-				$('#listTable1').on( 'draw.dt', function () {
-					userService.addCheckboxListeners();
-				});
-					
+				orgUnitService.loadRolesFragment();
+				//Edit RoleGroup assignmnet on OrgUnit modal
+				ouRolesEditModalService.parentService = orgUnitService;
+
 				$("#name").change(handleChangeOnInput);
 				$("#description").change(handleChangeOnInput);
 				
@@ -267,11 +205,6 @@
 					addCheckboxListeners();
 				});
 				
-				unitService.addCheckboxListeners();
-				$('#listTable2').on( 'draw.dt', function () {
-					unitService.addCheckboxListeners();
-				});
-
 				function handleChangeOnInput() {
 					var objId = $("#id").val();
 					var objName = $("#name").val();
@@ -291,20 +224,10 @@
 				        },
 						data: roleGroup,
 						error: function(response) {
-		    				$.notify({
-		    					message: fieldNotUpdatedMsg
-		    				},{
-		    					status: 'danger',
-		    					autoHideDelay: 4000
-		    				});
+							notificationService.showErrorNotification(fieldNotUpdatedMsg);
 		    			},
 		    			success: function(response) {
-		    				$.notify({
-		    					message: fieldUpdatedMsg
-		    				},{
-		    					status: 'success',
-		    					autoHideDelay: 2000
-		    				});
+		    				notificationService.showInfoNotification(fieldUpdatedMsg);
 		    			}
 					});
 				};
@@ -317,20 +240,10 @@
 				            'X-CSRF-TOKEN': token
 				        },
 		    			error: function(response) {
-		    				$.notify({
-		    					message: errorMsg
-		    				},{
-		    					status: 'danger',
-		    					autoHideDelay: 4000
-		    				});
+							notificationService.showErrorNotification(errorMsg);
 		    			},
 		    			success: function(response) {
-		    				$.notify({
-		    					message: okMsg
-		    				},{
-		    					status: 'success',
-		    					autoHideDelay: 2000
-		    				});
+		    				notificationService.showInfoNotification(okMsg);
 		    			}
 		    		}
 		    	};
@@ -367,167 +280,216 @@
 							'X-CSRF-TOKEN': token
 						},
 						error: function(response) {
-							$.notify({
-								message: response.responseText
-							}, {
-								status: 'danger',
-								autoHideDelay: 4000
-							});
+							notificationService.showErrorNotification(response.responseText);
 						},
 						success: function(response) {	
-							$.notify({
-								message: fieldUpdatedMsg
-							}, {
-								status: 'success',
-								autoHideDelay: 2000
-							});
+		    				notificationService.showInfoNotification(fieldUpdatedMsg);
 						}
 					});
 				}
 			});
 			
-		
-			
 			function UserService() {
-				
-				this.addCheckboxListeners = function(){
-					$('.checkbox-groups').off( "change" );
-					$('.checkbox-groups').change(userService.groupCheckboxChanged);	
-				}
-				
-				function checkUserAssignmentsBeforePerform(objType, roleId, userUuid, checked, successFunction) {
-					var endpoint = urlUsers + 'assignedStatus/' + objType + '/' + userUuid + '/' + roleId;
-					
-					$.ajax({
-						url: endpoint,
-						method: "GET",
-						error: function(response) {
-							notificationService.showErrorNotification(fieldNotUpdatedMsg);
-						},
-						success : function(response) {
-							var alreadyAssignedThroughOu = response.alreadyAssignedThroughOu;
-							var alreadyAssignedThroughRoleGroup = response.alreadyAssignedThroughRoleGroup;
-							var alreadyAssignedThroughTitle = response.alreadyAssignedThroughTitle;
-							
-							successFunction(roleId, userUuid, checked, alreadyAssignedThroughOu, alreadyAssignedThroughRoleGroup, alreadyAssignedThroughTitle);
-						}
+			/*[+
+				var userRestUrl = [[@{/rest/users/}]];
+				var deleteRoleAssignmentTitleTxt = [[#{html.page.manage.roles.delete.title}]];
+				var deleteRoleAssignmentBodyTxt = [[#{html.page.manage.roles.delete.body}]];
+				var deleteRoleAssignmentErrorMessage = [[#{html.page.manage.roles.delete.error}]];
+				var deleteRoleAssignmentSuccessMessage = [[#{html.page.manage.roles.delete.success}]];
+				var yesBtnTxt = [[#{html.control.button.yes}]];
+				var cancelBtnTxt = [[#{html.control.button.cancel}]];
+			+]*/
+
+				this.loadRolesFragment = function () {
+					$("#users_menu").load(UIUrl + roleId + "/assignedUsersFragment?showEdit=true", function () {
+						fragShowDataTableFun('#listTableUsers', 0);
 					});
 				}
-				
-				this.groupCheckboxChanged = function() {
-					var chosenCheckbox = $(this);
-					var groupId = $(this).val();
-					var userUuid = this.id;
-					var checked = this.checked;
-					var table = $("#listTable1");
-					table.dataTable().api().row("#"+userUuid+"groupRow").invalidate('dom').draw();
 
-					checkUserAssignmentsBeforePerform("rolegroup", groupId, userUuid, checked, function(groupId, userUuid, checked, alreadyAssignedThroughOu, alreadyAssignedThroughRoleGroup) {
-						var optionalSuccessMessage;
+				this.loadAddUserRoleFragment = function () {
+					$("#users_menu").load(UIUrl + roleId + "/availableUsersFragment", function () {
+						fragShowDataTableFun('#listTableUsersAdd', 0);
+					});
+				}
 
-						if (!checked) {
-							if (alreadyAssignedThroughOu) {
-								optionalSuccessMessage = stillAssignedThroughOUMsg;
-							}
-							else if (alreadyAssignedThroughRoleGroup) {
-								optionalSuccessMessage = stillAssignedThroughRoleGroupMsg;
-							}
-			
-							var endpoint = urlUsers + userUuid + '/removegroup/' + groupId;
-							
-							userService.removeRoleAssignment(endpoint, optionalSuccessMessage, chosenCheckbox);
-						}
-						else {
-							$("#userRoleGroupModal").load(UIUrl + "fragments/" + userUuid, function(){
-								var modalGroups = $("#modal-groups");
-								datePickerService.init();
-								roleGroupModalService.init();
-								modalGroups.modal({
-								    backdrop: 'static',
-								    keyboard: false
-								});
-	
-								$('#groupStopDatePicker').data("DateTimePicker").clear();
-								$('#groupStartDatePicker').data("DateTimePicker").clear();
-								$('#groupStartDatePicker').data("DateTimePicker").date(new Date());
-	
-								modalGroups.attr("rolegroupid", groupId);
-								modalGroups.attr("userUuid", userUuid);
-								
-								if (alreadyAssignedThroughOu) {
-									$('#modal-groups-alert').text(alreadyAssignedThroughOUMsg);
-									$('#modal-groups-alert').show();
-								}
-								else if (alreadyAssignedThroughRoleGroup) {
-									$('#modal-groups-alert').text(alreadyAssignedThroughOUMsg);
-									$('#modal-groups-alert').show();
-								}
-								else {
-									$('#modal-groups-alert').text('');
-									$('#modal-groups-alert').hide();
+				this.deleteRoleAssignment = function(elem) {
+					var parent = elem.parentElement;
+					var assignmentId = parent.dataset.assignmentid;
+					var user = parent.dataset.user;
+					var type = parent.dataset.type;
+
+					var endpoint = userRestUrl + user + '/removeassignment/ROLEGROUP/DIRECT/' + assignmentId;
+										
+					swal({
+						html: true,
+						title : deleteRoleAssignmentTitleTxt,
+						text : deleteRoleAssignmentBodyTxt,
+						type : "warning",
+						showCancelButton : true,
+						confirmButtonColor : "#DD6B55",
+						confirmButtonText : yesBtnTxt,
+						cancelButtonText : cancelBtnTxt,
+						closeOnConfirm : true,
+						closeOnCancel : true
+					},
+					function (isConfirm) {
+						if (isConfirm) {
+							$.ajax({
+								url: endpoint,
+								method: "POST",
+								headers: {
+									'X-CSRF-TOKEN': token
+								},
+								error: function(response) {
+									notificationService.showErrorNotification(deleteRoleAssignmentErrorMessage);
+								},
+								success: function(response) {
+									userService.loadRolesFragment();
+									
+				    				notificationService.showInfoNotification(deleteRoleAssignmentSuccessMessage);
 								}
 							});
 						}
 					});
 				}
-				
-				this.removeRoleAssignment = function(endpoint, optionalSuccessMessage, chosenCheckbox) {
-					$.ajax({
-						url: endpoint,
-						method: "POST",
-						headers: {
-							'X-CSRF-TOKEN': token
-						},
-						error : function(response) {
-							notificationService.showErrorNotification(fieldNotUpdatedMsg);
-						},
-						success : function(response) {
-							if (optionalSuccessMessage) {
-								notificationService.showWarnNotification(optionalSuccessMessage);
-							}
-							else {
-								notificationService.showInfoNotification(fieldUpdatedMsg);
-							}
-							var tr = chosenCheckbox.parents("tr");
-							tr.find(".fromToDate").html('');
-						}
+
+				this.editRoleAssignment = function (elem) {
+					var parent = elem.parentElement;
+					var assignmentId = parent.dataset.assignmentid;
+					var startDate = parent.dataset.startdate;
+					var stopDate = parent.dataset.stopdate;
+					var user = parent.dataset.user;
+					var type = 'ROLEGROUP';
+					
+					userRoleEditModalService.showModal(user, startDate, stopDate, type, assignmentId, 'DIRECT');
+				}
+
+				this.addRoleGroup = function (elem) {
+					var user = elem.dataset.user;
+					$("#userRoleGroupModal").load(UIUrl + "fragments/" + user, function(){
+						var modalGroups = $("#modal-groups");
+						datePickerService.init();
+						roleGroupModalService.init();
+						roleGroupModalService.parentService = userService;
+
+						modalGroups.modal({
+						    backdrop: 'static',
+						    keyboard: false
+						});
+
+						$('#groupStopDatePicker').data("DateTimePicker").clear();
+						$('#groupStartDatePicker').data("DateTimePicker").clear();
+						$('#groupStartDatePicker').data("DateTimePicker").date(new Date());
+
+						modalGroups.attr("rolegroupid", roleId);
+						modalGroups.attr("userUuid", user);
 					});
 				}
 			}
-			
-			function UnitService() {
-				this.addCheckboxListeners = function() {
-					$('.oucheckboxaction').off("change");
-					$('.oucheckboxaction').change(unitService.handleCheckbox);
+
+			function OrgUnitService() {
+			/*[+
+				var ouRestUrl = [[@{/rest/ous/}]];
+				var deleteRoleAssignmentTitleTxt = [[#{html.page.manage.roles.delete.title}]];
+				var deleteRoleAssignmentBodyTxt = [[#{html.page.manage.roles.delete.body}]];
+				var deleteRoleAssignmentErrorMessage = [[#{html.page.manage.roles.delete.error}]];
+				var deleteRoleAssignmentSuccessMessage = [[#{html.page.manage.roles.delete.success}]];
+				var yesBtnTxt = [[#{html.control.button.yes}]];
+				var cancelBtnTxt = [[#{html.control.button.cancel}]];
+			+]*/
+
+				this.loadRolesFragment = function () {
+					$("#ous_menu").load(UIUrl + roleId + "/assignedOrgUnitsFragment?showEdit=true", function () {
+						fragShowDataTableFun('#listTableOus', 0);
+					});
 				}
 				
-				this.handleCheckbox = function() {
-					var checked = !this.checked;
-					var startDate = this.dataset.startdate;
-					var stopDate = this.dataset.stopdate;
+				this.loadAddUserRoleFragment = function () {
+					$("#ous_menu").load(UIUrl + roleId + "/availableOrgUnitsFragment", function () {
+						fragShowDataTableFun('#listTableOusAdd', 0);
+					});
+				}
+				
+				this.deleteRoleAssignment = function(elem) {
+					var parent = elem.parentElement;
+					var assignmentId = parent.dataset.assignmentid;
+					var type = parent.dataset.type;
+					var ou = parent.dataset.orgunit;
+
+					var endpoint = ouRestUrl + ou + '/removeassignment/ROLEGROUP/' + assignmentId;
 					
-					payload.roleType = String(this.dataset.objtype);
-					payload.roleId = roleId;
-					payload.checkboxRef = this;
-					payload.ouUuid = this.id;
+					swal({
+						html: true,
+						title : deleteRoleAssignmentTitleTxt,
+						text : deleteRoleAssignmentBodyTxt,
+						type : "warning",
+						showCancelButton : true,
+						confirmButtonColor : "#DD6B55",
+						confirmButtonText : yesBtnTxt,
+						cancelButtonText : cancelBtnTxt,
+						closeOnConfirm : true,
+						closeOnCancel : true
+					},
+					function (isConfirm) {
+						if (isConfirm) {
+							$.ajax({
+								url: endpoint,
+								method: "POST",
+								headers: {
+									'X-CSRF-TOKEN': token
+								},
+								error: function(response) {
+									notificationService.showErrorNotification(deleteRoleAssignmentErrorMessage);
+								},
+								success: function(response) {
+									orgUnitService.loadRolesFragment();
+									
+									notificationService.showInfoNotification(deleteRoleAssignmentSuccessMessage);
+								}
+							});
+						}
+					});
+				}
+
+				this.editRoleAssignment = function (elem) {
+					var parent = elem.parentElement;
+					var startDate = parent.dataset.startdate;
+					var stopDate = parent.dataset.stopdate;
+					var assignmentType = parent.dataset.assignmenttype;
+					var assignmentId = parent.dataset.assignmentid;
+					var ou = parent.dataset.orgunit;
+
+					$("#ouRoleGroupEditModal").load(UIUrl + "fragments/ou/" + ou + "?edit=true", function() {
+						datePickerService.init();
+						ouRolesEditModalService.init();
+						
+						ouRolesEditModalService.assignmentId = assignmentId;
+						ouRolesEditModalService.ouUuid = ou;
+						ouRolesEditModalService.roleType = 'rolegroup';
+						ouRolesEditModalService.roleId = roleId; //get current roleGroup id
+						ouRolesEditModalService.inherit = (assignmentType == -2);
+
+						ouRolesEditModalService.showAssignModal(titlesEnabled, null, startDate, stopDate, assignmentType, assignmentId);
+					});
+				}
+
+				this.addRoleAssignment = function (elem) {
+					ouRolesModalService.roleType = 'rolegroup';
+					ouRolesModalService.roleId = roleId;
+					ouRolesModalService.ouUuid = elem.dataset.orgunit;
 					
-					$("#ouRoleGroupModal").load(UIUrl + "fragments/ou/" + payload.ouUuid, function(){
+					$("#ouRoleGroupModal").load(UIUrl + "fragments/ou/" + ouRolesModalService.ouUuid, function() {
+						console.log($('#ouRoleGroupModal').html());
+
 						datePickerService.init();
 						ouRolesModalService.init();
+						ouRolesModalService.parentService = orgUnitService;
 						
-						if (titlesEnabled) {
-							ouRolesModalService.loadTitles(true);
-							setTimeout(function() {
-								ouRolesModalService.showAssignModal(titlesEnabled, checked, null, startDate, stopDate);
-							}, 100);
-						}
-						else {
-							ouRolesModalService.showAssignModal(titlesEnabled, checked, null, startDate, stopDate);
-						}
+						ouRolesModalService.showAssignModal(titlesEnabled, null, null, null);
 					});
 				}
 			}
-			
+
 			function NotificationService() {
 				this.showInfoNotification = function(message) {
 					$.notify({

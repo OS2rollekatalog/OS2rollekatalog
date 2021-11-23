@@ -22,8 +22,8 @@ import dk.digitalidentity.rc.dao.history.model.HistoryItSystem;
 import dk.digitalidentity.rc.dao.history.model.HistoryOU;
 import dk.digitalidentity.rc.dao.history.model.HistoryOURoleAssignment;
 import dk.digitalidentity.rc.dao.history.model.HistoryOURoleAssignmentWithExceptions;
+import dk.digitalidentity.rc.dao.history.model.HistoryOURoleAssignmentWithTitles;
 import dk.digitalidentity.rc.dao.history.model.HistoryRoleAssignment;
-import dk.digitalidentity.rc.dao.history.model.HistoryTitleRoleAssignment;
 import dk.digitalidentity.rc.dao.history.model.HistoryUser;
 import dk.digitalidentity.rc.dao.history.model.HistoryUserRole;
 import dk.digitalidentity.rc.dao.model.ItSystem;
@@ -62,15 +62,15 @@ public class ManualRolesService {
 		reportForm.setItSystems(new ArrayList<Long>());
 		reportForm.getItSystems().add(itSystemId);
 		
-		Map<String, Object> modal = reportService.getReportModel(reportForm, Locale.ENGLISH);
+		Map<String, Object> model = reportService.getReportModel(reportForm, Locale.ENGLISH);
 
-		Map<String, HistoryUser> users = (Map<String, HistoryUser>) modal.get("users");
-		Map<String, HistoryOU> orgUnits = (Map<String, HistoryOU>) modal.get("orgUnits");
-		List<HistoryItSystem> itSystems = (List<HistoryItSystem>) modal.get("itSystems");
-		Map<String, List<HistoryOURoleAssignment>> ouRoleAssignments = (Map<String, List<HistoryOURoleAssignment>>) modal.get("ouRoleAssignments");
-		Map<String, List<HistoryOURoleAssignmentWithExceptions>> ouRoleAssignmentsWithExceptions = (Map<String, List<HistoryOURoleAssignmentWithExceptions>>) modal.get("ouRoleAssignmentsWithExceptions");
-		Map<String, List<HistoryRoleAssignment>> userRoleAssignments = (Map<String, List<HistoryRoleAssignment>>) modal.get("userRoleAssignments");
-		Map<String, List<HistoryTitleRoleAssignment>> titleRoleAssignments = (Map<String, List<HistoryTitleRoleAssignment>>) modal.get("titleRoleAssignments");
+		Map<String, HistoryUser> users = (Map<String, HistoryUser>) model.get("users");
+		Map<String, HistoryOU> orgUnits = (Map<String, HistoryOU>) model.get("orgUnits");
+		List<HistoryItSystem> itSystems = (List<HistoryItSystem>) model.get("itSystems");
+		Map<String, List<HistoryOURoleAssignment>> ouRoleAssignments = (Map<String, List<HistoryOURoleAssignment>>) model.get("ouRoleAssignments");
+		Map<String, List<HistoryOURoleAssignmentWithExceptions>> ouRoleAssignmentsWithExceptions = (Map<String, List<HistoryOURoleAssignmentWithExceptions>>) model.get("ouRoleAssignmentsWithExceptions");
+		Map<String, List<HistoryRoleAssignment>> userRoleAssignments = (Map<String, List<HistoryRoleAssignment>>) model.get("userRoleAssignments");
+		Map<String, List<HistoryOURoleAssignmentWithTitles>> titleRoleAssignments = (Map<String, List<HistoryOURoleAssignmentWithTitles>>) model.get("titleRoleAssignments");
 
 		Map<Long, String> itSystemNameMapping = new HashMap<>();
         for (HistoryItSystem itSystem : itSystems) {

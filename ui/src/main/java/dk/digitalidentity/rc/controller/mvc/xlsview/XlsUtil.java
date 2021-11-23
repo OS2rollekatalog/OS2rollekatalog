@@ -14,6 +14,7 @@ import org.springframework.stereotype.Component;
 
 import dk.digitalidentity.rc.config.Constants;
 import dk.digitalidentity.rc.dao.model.ConstraintTypeValueSet;
+import dk.digitalidentity.rc.dao.model.ItSystem;
 import dk.digitalidentity.rc.dao.model.SystemRoleAssignment;
 import dk.digitalidentity.rc.dao.model.SystemRoleAssignmentConstraintValue;
 import dk.digitalidentity.rc.service.ItSystemService;
@@ -78,6 +79,9 @@ public class XlsUtil {
 							case VALUE:
 								value = constraintValue.getConstraintValue();
 								break;
+							case POSTPONED:
+								value = "Udskudt";
+								break;
 						}
 						break;
 					case Constants.OU_CONSTRAINT_ENTITY_ID:
@@ -103,6 +107,9 @@ public class XlsUtil {
 							case READ_AND_WRITE:
 								log.warn("An READ/WRITE was assigned as a constraint on OrgUnit");
 								break;
+							case POSTPONED:
+								value = "udskudt";
+								break;
 							case VALUE:								
 								values = new ArrayList<>();
 								constraintValues = constraintValue.getConstraintValue().split(",");
@@ -122,8 +129,16 @@ public class XlsUtil {
 					case Constants.KOMBIT_ITSYSTEM_CONSTRAINT_ENTITY_ID:
 						values = new ArrayList<>();
 						constraintValues = constraintValue.getConstraintValue().split(",");
+
 						for (String id : constraintValues) {
-							var itSystem = instance.itSystemService.getById(Long.parseLong(id));
+							ItSystem itSystem = null;
+							try {
+								itSystem = instance.itSystemService.getById(Long.parseLong(id));
+							}
+							catch (Exception ex) {
+								; // ignore bad values ;)
+							}
+
 							if (itSystem == null) {
 								values.add(id);
 							}

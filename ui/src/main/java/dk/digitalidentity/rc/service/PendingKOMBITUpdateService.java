@@ -9,7 +9,9 @@ import dk.digitalidentity.rc.dao.PendingKOMBITUpdateDao;
 import dk.digitalidentity.rc.dao.model.PendingKOMBITUpdate;
 import dk.digitalidentity.rc.dao.model.UserRole;
 import dk.digitalidentity.rc.dao.model.enums.KOMBITEventType;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 @Service
 public class PendingKOMBITUpdateService {
 
@@ -41,20 +43,36 @@ public class PendingKOMBITUpdateService {
 	}
 
 	public void addUserRoleToQueue(UserRole userRole, KOMBITEventType eventType) {
-		PendingKOMBITUpdate pendingUpdate = pendingKOMBITUpdateDao.findByUserRoleId(userRole.getId());
-
-		if (pendingUpdate == null) {
-			PendingKOMBITUpdate pendingKOMBITUpdate = new PendingKOMBITUpdate();
-			pendingKOMBITUpdate.setEventType(eventType);
-			pendingKOMBITUpdate.setUserRoleId(userRole.getId());
-			pendingKOMBITUpdate.setUserRoleUuid(userRole.getUuid());
-			pendingKOMBITUpdateDao.save(pendingKOMBITUpdate);
+		try {
+			List<PendingKOMBITUpdate> pendingUpdates = pendingKOMBITUpdateDao.findByUserRoleId(userRole.getId());
+	
+			if (pendingUpdates == null || pendingUpdates.size() == 0) {
+				PendingKOMBITUpdate pendingKOMBITUpdate = new PendingKOMBITUpdate();
+				pendingKOMBITUpdate.setEventType(eventType);
+				pendingKOMBITUpdate.setUserRoleId(userRole.getId());
+				pendingKOMBITUpdate.setUserRoleUuid(userRole.getUuid());
+				pendingKOMBITUpdateDao.save(pendingKOMBITUpdate);
+			}
+			else {
+				boolean first = true;
+	
+				for (PendingKOMBITUpdate pendingUpdate : pendingUpdates) {
+					if (first) {
+						pendingUpdate.setEventType(eventType);
+						pendingUpdate.setUserRoleUuid(userRole.getUuid());
+						pendingUpdate.setFailed(false);
+						pendingKOMBITUpdateDao.save(pendingUpdate);
+						
+						first = false;
+					}
+					else {
+						pendingKOMBITUpdateDao.delete(pendingUpdate);
+					}
+				}
+			}
 		}
-		else {
-			pendingUpdate.setEventType(eventType);
-			pendingUpdate.setUserRoleUuid(userRole.getUuid());
-			pendingUpdate.setFailed(false);
-			pendingKOMBITUpdateDao.save(pendingUpdate);
+		catch (Exception ex) {
+			log.error("Failed to add userRole to queue: " + userRole.getId(), ex);
 		}
 	}
 }

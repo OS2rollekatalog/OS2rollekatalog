@@ -17,6 +17,7 @@ import dk.digitalidentity.rc.dao.model.PositionRoleGroupAssignment;
 import dk.digitalidentity.rc.dao.model.PositionUserRoleAssignment;
 import dk.digitalidentity.rc.dao.model.RoleGroup;
 import dk.digitalidentity.rc.dao.model.Title;
+import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserRole;
 import dk.digitalidentity.rc.log.AuditLogIntercepted;
 import dk.digitalidentity.rc.security.SecurityUtil;
@@ -27,6 +28,9 @@ public class PositionService {
 	@Autowired
 	private PositionDao positionDao;
 	
+	@Autowired
+	private PositionService self;
+	
 	public Position save(Position position) {
 		return positionDao.save(position);
 	}
@@ -36,18 +40,26 @@ public class PositionService {
 	}
 
 	@AuditLogIntercepted
-	public boolean addRoleGroup(Position position, RoleGroup roleGroup, LocalDate startDate, LocalDate stopDate) {
-		if (!position.getRoleGroupAssignments().stream().map(ura -> ura.getRoleGroup()).collect(Collectors.toList()).contains(roleGroup)) {
-			PositionRoleGroupAssignment assignment = new PositionRoleGroupAssignment();
-			assignment.setPosition(position);
-			assignment.setRoleGroup(roleGroup);
-			assignment.setAssignedByName(SecurityUtil.getUserFullname());
-			assignment.setAssignedByUserId(SecurityUtil.getUserId());
-			assignment.setAssignedTimestamp(new Date());
-			assignment.setStartDate((startDate == null || LocalDate.now().equals(startDate)) ? null : startDate);
-			assignment.setStopDate(stopDate);
-			assignment.setInactive(startDate != null ? startDate.isAfter(LocalDate.now()) : false);
-			position.getRoleGroupAssignments().add(assignment);
+	public void addRoleGroup(Position position, RoleGroup roleGroup, LocalDate startDate, LocalDate stopDate) {
+		PositionRoleGroupAssignment assignment = new PositionRoleGroupAssignment();
+		assignment.setPosition(position);
+		assignment.setRoleGroup(roleGroup);
+		assignment.setAssignedByName(SecurityUtil.getUserFullname());
+		assignment.setAssignedByUserId(SecurityUtil.getUserId());
+		assignment.setAssignedTimestamp(new Date());
+		assignment.setStartDate((startDate == null || LocalDate.now().equals(startDate)) ? null : startDate);
+		assignment.setStopDate(stopDate);
+		assignment.setInactive(startDate != null ? startDate.isAfter(LocalDate.now()) : false);
+		position.getRoleGroupAssignments().add(assignment);
+	}
+
+	public boolean editRoleGroup(Position position, RoleGroup roleGroup, LocalDate startDate, LocalDate stopDate) {
+
+		PositionRoleGroupAssignment existingRoleGroupAssignment = position.getRoleGroupAssignments().stream().filter(ura -> ura.getRoleGroup().equals(roleGroup)).findAny().orElse(null);
+		if (existingRoleGroupAssignment != null) {
+			existingRoleGroupAssignment.setStartDate((startDate == null || LocalDate.now().equals(startDate)) ? null : startDate);
+			existingRoleGroupAssignment.setStopDate(stopDate);
+			existingRoleGroupAssignment.setInactive(startDate != null ? startDate.isAfter(LocalDate.now()) : false);
 
 			return true;
 		}
@@ -71,26 +83,74 @@ public class PositionService {
 
 		return false;
 	}
+	
+	@AuditLogIntercepted
+	public void removeRoleGroupAssignment(Position position, PositionRoleGroupAssignment assignment) {
+		for (Iterator<PositionRoleGroupAssignment> iterator = position.getRoleGroupAssignments().iterator(); iterator.hasNext();) {
+			PositionRoleGroupAssignment a = iterator.next();
+			
+			if (assignment.getId() == a.getId()) {
+				iterator.remove();
+				break;
+			}
+		}
+	}
+
+	public boolean removeRoleGroupAssignment(User user, long assignmentId) {
+		if (user.getPositions() == null) {
+			return false;
+		}
+		
+		for (Position position : user.getPositions()) {
+			for (PositionRoleGroupAssignment assignment : position.getRoleGroupAssignments()) {
+				if (assignment.getId() == assignmentId) {
+					self.removeRoleGroupAssignment(position, assignment);
+
+					return true;
+				}
+			}
+		}
+		
+		return false;
+	}
+
+	public void editRoleGroupAssignment(User user, PositionRoleGroupAssignment assignment, LocalDate startDate, LocalDate stopDate) {
+		assignment.setStartDate(startDate);
+		assignment.setStopDate(stopDate);
+	}
 
 	@AuditLogIntercepted
-	public boolean addUserRole(Position position, UserRole userRole, LocalDate startDate, LocalDate stopDate) {
+	public void addUserRole(Position position, UserRole userRole, LocalDate startDate, LocalDate stopDate) {
 		if (userRole.getItSystem().getIdentifier().equals(Constants.ROLE_CATALOGUE_IDENTIFIER)
 				&& !SecurityUtil.getRoles().contains(Constants.ROLE_ADMINISTRATOR)
 				&& !SecurityUtil.getRoles().contains(Constants.ROLE_SYSTEM)) {
 			throw new SecurityException("Kun administratorer kan tildele Rollekatalog roller");
 		}
 
-      	if (!position.getUserRoleAssignments().stream().map(ura -> ura.getUserRole()).collect(Collectors.toList()).contains(userRole)) {
-			PositionUserRoleAssignment assignment = new PositionUserRoleAssignment();
-			assignment.setPosition(position);
-			assignment.setUserRole(userRole);
-			assignment.setAssignedByName(SecurityUtil.getUserFullname());
-			assignment.setAssignedByUserId(SecurityUtil.getUserId());
-			assignment.setAssignedTimestamp(new Date());
-			assignment.setStartDate((startDate == null || LocalDate.now().equals(startDate)) ? null : startDate);
-			assignment.setStopDate(stopDate);
-			assignment.setInactive(startDate != null ? startDate.isAfter(LocalDate.now()) : false);
-			position.getUserRoleAssignments().add(assignment);
+		PositionUserRoleAssignment assignment = new PositionUserRoleAssignment();
+		assignment.setPosition(position);
+		assignment.setUserRole(userRole);
+		assignment.setAssignedByName(SecurityUtil.getUserFullname());
+		assignment.setAssignedByUserId(SecurityUtil.getUserId());
+		assignment.setAssignedTimestamp(new Date());
+		assignment.setStartDate((startDate == null || LocalDate.now().equals(startDate)) ? null : startDate);
+		assignment.setStopDate(stopDate);
+		assignment.setInactive(startDate != null ? startDate.isAfter(LocalDate.now()) : false);
+		position.getUserRoleAssignments().add(assignment);
+	}
+
+	public boolean editUserRole(Position position, UserRole userRole, LocalDate startDate, LocalDate stopDate) {
+		if (userRole.getItSystem().getIdentifier().equals(Constants.ROLE_CATALOGUE_IDENTIFIER)
+				&& !SecurityUtil.getRoles().contains(Constants.ROLE_ADMINISTRATOR)
+				&& !SecurityUtil.getRoles().contains(Constants.ROLE_SYSTEM)) {
+			throw new SecurityException("Kun administratorer kan redigere Rollekatalog roller");
+		}
+
+		PositionUserRoleAssignment exitstingUserRoleAssignment = position.getUserRoleAssignments().stream().filter(ura -> ura.getUserRole().equals(userRole)).findAny().orElse(null);
+		if (exitstingUserRoleAssignment != null) {
+			exitstingUserRoleAssignment.setStartDate((startDate == null || LocalDate.now().equals(startDate)) ? null : startDate);
+			exitstingUserRoleAssignment.setStopDate(stopDate);
+			exitstingUserRoleAssignment.setInactive(startDate != null ? startDate.isAfter(LocalDate.now()) : false);
 
 			return true;
 		}
@@ -119,6 +179,54 @@ public class PositionService {
 		}
 
 		return false;
+	}
+
+	@AuditLogIntercepted
+	public void removeUserRoleAssignment(Position position, PositionUserRoleAssignment assignment) {
+		for (Iterator<PositionUserRoleAssignment> iterator = position.getUserRoleAssignments().iterator(); iterator.hasNext();) {
+			PositionUserRoleAssignment a = iterator.next();
+			
+			if (assignment.getId() == a.getId()) {
+				iterator.remove();
+				break;
+			}
+		}
+	}
+
+	public boolean removeUserRoleAssignment(User user, long assignmentId) {
+		if (user.getPositions() == null) {
+			return false;
+		}
+		
+		for (Position position : user.getPositions()) {
+			for (PositionUserRoleAssignment assignment : position.getUserRoleAssignments()) {
+				if (assignment.getUserRole().getItSystem().getIdentifier().equals(Constants.ROLE_CATALOGUE_IDENTIFIER)
+						&& !SecurityUtil.getRoles().contains(Constants.ROLE_ADMINISTRATOR)
+						&& !SecurityUtil.getRoles().contains(Constants.ROLE_SYSTEM)) {
+					throw new SecurityException("Kun administratorer kan fjerne Rollekatalog roller");
+				}
+
+				if (assignment.getId() == assignmentId) {
+					self.removeUserRoleAssignment(position, assignment);
+
+					return true;
+				}
+			}
+		}
+
+		return false;
+	}
+
+	@AuditLogIntercepted
+	public void editUserRoleAssignment(User user, PositionUserRoleAssignment assignment, LocalDate startDate, LocalDate stopDate) {
+		if (assignment.getUserRole().getItSystem().getIdentifier().equals(Constants.ROLE_CATALOGUE_IDENTIFIER)
+				&& !SecurityUtil.getRoles().contains(Constants.ROLE_ADMINISTRATOR)
+				&& !SecurityUtil.getRoles().contains(Constants.ROLE_SYSTEM)) {
+			throw new SecurityException("Kun administratorer kan redigere Rollekatalog roller");
+		}
+
+		assignment.setStartDate(startDate);
+		assignment.setStopDate(stopDate);
 	}
 	
 	// ONLY use this from our bulk cleanup method, which does its own auditlogging

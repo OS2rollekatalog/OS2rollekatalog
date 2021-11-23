@@ -26,7 +26,7 @@
 				<td th:text="${user.name}" />
 				<td th:text="${user.userId}" />
 				<td class="fromToDate">
-              		<ul th:if="${user.startDate != null or user.stopDate != null}" style="padding-left: 0px; list-style-type: none;">
+              		<ul th:if="${user.startDate != null or user.stopDate != null}" style="padding-left: 0px; list-style-type: none; margin-bottom: 0px;">
                			<li th:if="${user.startDate != null}" th:text="#{html.word.assigned} + ' ' + ${user.startDate}"></li>
                			<li th:if="${user.stopDate != null}" th:text="#{html.word.deassigned} + ' ' + ${user.stopDate}"></li>
               		</ul>

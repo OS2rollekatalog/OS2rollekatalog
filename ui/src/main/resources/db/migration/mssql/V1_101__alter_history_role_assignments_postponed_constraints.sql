@@ -1,0 +1,1 @@
+ALTER TABLE history_role_assignments ADD postponed_constraints TEXT NULL;

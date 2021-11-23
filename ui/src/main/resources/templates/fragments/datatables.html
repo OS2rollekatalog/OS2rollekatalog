@@ -24,7 +24,7 @@
 		});
 	
 		function fragShowDataTableFun(jqSelector, orderColumn) {
-		    $(jqSelector).DataTable({
+		    return $(jqSelector).DataTable({
 		        'paging':   true,
 		        'ordering': true,
 		        'order': [
@@ -47,6 +47,69 @@
 					}
 		        }
 		    });
+		}
+		
+		function showDataTableWithHiddenColumns(jqSelector, orderColumn, hideColumns) {
+		    return $(jqSelector).DataTable({
+		        'paging':   true,
+		        'ordering': true,
+		        'order': [
+		        	[ orderColumn, 'asc' ]
+		        ],
+		        "autoWidth": false,
+		        'info':     true,
+                'stateSave': true,
+				"pageLength": 100,
+				'columnDefs': [
+			        { "targets": hideColumns, visible: false },
+			    ],
+		        "language": {
+		            "search":       searchTxt,
+		            "lengthMenu":   dropdownTxt,
+		            "info":         infoDefaultTxt,
+		            "zeroRecords":  infoEmptyTxt,
+		            "infoEmpty":    "",
+		            "infoFiltered": infoFilteredTxt,
+					"paginate": {
+						"next": nextTxt,
+						"previous": prevTxt
+					}
+		        }
+		    });
+		}
+
+		function dataTablesToggleColumn(elem) {
+			if (!currentTable) {
+				return false;
+			}
+			
+			var cId = $(elem).data("cid");
+
+			currentTable.column(cId).visible(!currentTable.column(cId).visible());
+			
+			var dropDownElem = $(elem).parent();
+			dataTablesRefreshIcons(dropDownElem);
+
+			return false;
+		}
+
+		function dataTablesRefreshIcons(dropDownElem) {
+			if (!currentTable) {
+				return false;
+			}
+			
+			dropDownElem.find("a").each(function() {
+				var cId = $(this).data("cid");
+			
+				if (currentTable.column(cId).visible()) {
+					$(this).find("em").addClass("fa-check");
+					$(this).find("em").removeClass("fa-minus");
+				}
+				else {
+					$(this).find("em").addClass("fa-minus");
+					$(this).find("em").removeClass("fa-check");
+				}
+			});
 		}
 	/*]]>*/
 	</script>

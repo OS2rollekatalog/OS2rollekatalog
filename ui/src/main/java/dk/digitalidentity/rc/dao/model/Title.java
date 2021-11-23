@@ -1,18 +1,13 @@
 package dk.digitalidentity.rc.dao.model;
 
 import java.util.Date;
-import java.util.List;
 
-import javax.persistence.CascadeType;
 import javax.persistence.Column;
 import javax.persistence.Entity;
-import javax.persistence.FetchType;
 import javax.persistence.Id;
-import javax.persistence.OneToMany;
 import javax.persistence.Temporal;
 import javax.persistence.TemporalType;
 
-import org.hibernate.annotations.BatchSize;
 import org.hibernate.annotations.UpdateTimestamp;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
@@ -42,16 +37,6 @@ public class Title implements AuditLoggable {
 	@JsonIgnore
 	@Column
 	private boolean active;
-	
-	@JsonIgnore
-	@BatchSize(size = 50)
-	@OneToMany(mappedBy = "title", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
-	private List<TitleUserRoleAssignment> userRoleAssignments;
-
-	@JsonIgnore
-	@BatchSize(size = 50)
-	@OneToMany(mappedBy = "title", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
-	private List<TitleRoleGroupAssignment> roleGroupAssignments;
 
 	@JsonIgnore
 	@Override

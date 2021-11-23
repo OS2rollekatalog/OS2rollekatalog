@@ -122,11 +122,8 @@ public class EmailQueueService {
 
 			InlineImageDTO inlineImageDto = new InlineImageDTO();
 			inlineImageDto.setBase64(src.contains("base64"));
-			if (inlineImageDto.isBase64()) {
-				inlineImageDto.setUrl(false);
-			}
-			else {
-				inlineImageDto.setUrl(true);
+			if (!inlineImageDto.isBase64()) {
+				continue;
 			}
 			
 			inlineImageDto.setCid(filename);

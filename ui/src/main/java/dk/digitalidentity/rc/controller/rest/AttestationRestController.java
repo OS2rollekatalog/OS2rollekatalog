@@ -50,6 +50,7 @@ import dk.digitalidentity.rc.service.EmailQueueService;
 import dk.digitalidentity.rc.service.EmailTemplateService;
 import dk.digitalidentity.rc.service.OrgUnitAttestationPdfService;
 import dk.digitalidentity.rc.service.OrgUnitService;
+import dk.digitalidentity.rc.service.PositionService;
 import dk.digitalidentity.rc.service.RoleGroupService;
 import dk.digitalidentity.rc.service.SettingsService;
 import dk.digitalidentity.rc.service.UserRoleService;
@@ -94,6 +95,9 @@ public class AttestationRestController {
 	@Autowired
 	private AttestationService attestationService;
 	
+	@Autowired
+	private PositionService positionService;
+	
 	@RequireManagerRole
 	@PostMapping("/rest/attestations/confirm/{uuid}")
 	public ResponseEntity<String> approveRequest(@PathVariable("uuid") String uuid, @RequestBody AttestationConfirmRestDTO confirmDTO) throws Exception {
@@ -108,12 +112,17 @@ public class AttestationRestController {
 			return new ResponseEntity<>(HttpStatus.FORBIDDEN);
 		}
 
-		// remove any personally assigned roles which the manager will not approve
-		removePersonalRoles(confirmDTO.getToBeRemoved());
-
-		// request removal of inherited roles that the manager will not approve
-		requestRemovalOfIndirectRoles(orgUnit, confirmDTO.getMessage(), confirmDTO.getDtoShowToEmail());
-
+		if (settingsService.isAttestationRoleDeletionEnabled()) {
+			// remove any personally assigned roles which the manager will not approve
+			removePersonalRoles(confirmDTO.getToBeRemoved());
+	
+			// request removal of inherited roles that the manager will not approve
+			requestRemovalOfRoles(orgUnit, confirmDTO.getMessage(), confirmDTO.getDtoShowToEmail(), null);
+		} else {
+			// request removal of roles that the manager will not approve
+			requestRemovalOfRoles(orgUnit, confirmDTO.getMessage(), confirmDTO.getDtoShowToEmail(), confirmDTO.getDtoShowToBeRemoved());
+		}
+		
 		// set lastAttested and update nextAttestation
 		orgUnit.setLastAttested(new Date());
 		User AttestingUser = userService.getByUserId(SecurityUtil.getUserId());
@@ -265,6 +274,22 @@ public class AttestationRestController {
 		return new ResponseEntity<>(bytes, httpHeaders, HttpStatus.OK);
 	}
 	
+	@PostMapping("/rest/admin/attestations/{uuid}/fastforward")
+	@RequireAdministratorRole
+	public ResponseEntity<?> fastForwardAttestation(@PathVariable("uuid") String uuid) throws IOException {
+		OrgUnit orgUnit = orgUnitService.getByUuid(uuid);
+		if (orgUnit == null) {
+			log.warn("Unable to fetch OrgUnit with uuid: " + uuid);
+
+			return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+		}
+		
+		orgUnit.setNextAttestation(new Date());
+		orgUnitService.save(orgUnit);
+
+		return new ResponseEntity<>(HttpStatus.OK);
+	}
+	
 	private void removePersonalRoles(List<AttestationConfirmPersonalListDTO> list) {
 		if (list.size() == 0) {
 			return;
@@ -287,7 +312,13 @@ public class AttestationRestController {
 						continue;
 					}
 					
-					userService.removeUserRole(user, ur);
+					if (tbr.isFromPosition()) {
+						positionService.removeUserRoleAssignment(user, tbr.getAssignmentId());
+					}
+					else {
+						userService.removeUserRoleAssignment(user, tbr.getAssignmentId());
+					}
+					
 				}
 				else if (roleType.equals("Rollebuket")) {
 					RoleGroup rg = roleGroupService.getById(tbr.getRoleId());
@@ -296,7 +327,13 @@ public class AttestationRestController {
 						continue;
 					}
 	
-					userService.removeRoleGroup(user, rg);
+					if (tbr.isFromPosition()) {
+						positionService.removeRoleGroupAssignment(user, tbr.getAssignmentId());
+					}
+					else {
+						userService.removeRoleGroupAssignment(user, tbr.getAssignmentId());
+					}
+					
 				}
 				else {
 					log.warn("Unknown roleType: " + roleType);
@@ -309,15 +346,16 @@ public class AttestationRestController {
 		}
 	}
 	
-	private void requestRemovalOfIndirectRoles(OrgUnit orgUnit, String managerMessage, List<AttestationConfirmShowDTO> list) throws Exception {
+	private void requestRemovalOfRoles(OrgUnit orgUnit, String managerMessage, List<AttestationConfirmShowDTO> unitRoles, List<AttestationConfirmShowDTO> personalRoles) throws Exception {
 		String email = settingsService.getRemovalOfUnitRolesEmail();
 
-		if (StringUtils.isEmpty(email)) {
+		if (StringUtils.isEmpty(email) || (unitRoles.isEmpty() && personalRoles.isEmpty())) {
 			log.warn("No email configured for sending removal requests");
 		}
 		else {
 			Context ctxDelete = new Context();
-			ctxDelete.setVariable("toEmail", list);
+			ctxDelete.setVariable("unitRoles", unitRoles);
+			ctxDelete.setVariable("personalRoles", personalRoles);
 			ctxDelete.setVariable("orgUnitName", orgUnit.getName());
 			ctxDelete.setVariable("attestedBy", orgUnit.getLastAttestedBy());
 

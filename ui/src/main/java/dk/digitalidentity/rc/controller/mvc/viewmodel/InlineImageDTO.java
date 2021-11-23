@@ -8,7 +8,6 @@ import lombok.Setter;
 @Getter
 @Setter
 public class InlineImageDTO {
-	private boolean url;
 	private boolean base64;
 	private String cid;
 	private String src;

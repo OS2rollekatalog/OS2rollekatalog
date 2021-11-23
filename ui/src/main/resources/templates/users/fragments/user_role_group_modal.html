@@ -28,10 +28,6 @@
                 
                 <div th:if="${@roleCatalogueConfiguration.getTitles().isEnabled()}" th:text="#{html.page.user.assign.accept.text}"/>
 
-                <div class="alert alert-warning" role="alert" id="modal-groups-alert">
-                    &nbsp;
-                </div>
-                
                	<div style="height: 70px;">
 					<h4 class="md-12" th:text="#{html.word.validity}" />
 
@@ -62,7 +58,7 @@
             </div>
 
             <div class="modal-footer">
-				<button id="assignDirectlyRGBtn" class="btn btn-primary assign_group_directly" th:text="#{html.entity.positions.assign}"/>
+				<button id="assignDirectlyRGBtn" class="btn btn-primary assign_group_directly" th:text="#{html.entity.positions.assign}" th:if="${@roleCatalogueConfiguration.getTitles().isEnabled()}"/>
                 <button type="button" class="btn btn-danger" id="closeRoleGroupModal" th:text="#{html.control.button.cancel}"/>
             </div>
         </div>
@@ -74,24 +70,22 @@
 	<script th:inline="javascript" type="text/javascript">
 		/*<![CDATA[*/
 		
-		/*[+
-		var usersUrl = [[@{/rest/users/}]];
-		
-		var listTableId = [[${listTable}]];
-		var page = [[${page}]];
-		+]*/
-
-		var token = $("meta[name='_csrf']").attr("content");
 		var roleGroupModalService;
 		var modalRGAjaxService;
+
 		$(document).ready(function() {
 			roleGroupModalService = new RoleGroupModalService();
-			modalRGAjaxService = new ModalRGAjaxService();
+			
+    		/*[+
+    		roleGroupModalService.usersUrl = [[@{/rest/users/}]];
+			roleGroupModalService.fieldUpdatedMsg = [[#{html.entity.rolegroup.updatedmsg}]];
+			roleGroupModalService.fieldNotUpdatedMsg = [[#{html.entity.rolegroup.failedupdatemsg}]];
+			roleGroupModalService.page = [[#{page}]];
+    		+]*/
+
+    		modalRGAjaxService = new ModalRGAjaxService();
 			roleGroupModalService.init();
-            
-            
-        });
-	
+		});
 		
 		function RoleGroupModalService() {
 			this.init = function(){
@@ -99,83 +93,52 @@
 	            
 				$('.assign_group').click(roleGroupModalService.assignGroupClicked);		
 	    		$('.assign_group_directly').click(roleGroupModalService.assignGroupDirectlyClicked);
-	    		$('#closeRoleGroupModal').click(roleGroupModalService.closeRoleGroupModalAndRemoveCheckbox);
+	    		$('#closeRoleGroupModal').click(roleGroupModalService.closeModal);
 	      		
 	    		modalGroups.on('shown.bs.modal', function() {
 	    			$("#assignDirectlyRGBtn").focus();
 	    		});
 			}
-			
-			this.closeRoleGroupModalAndRemoveCheckbox = function() {
-				var listTable = $('#' + listTableId);
-				var modalGroups = $("#modal-groups");
-				
-				if (page == 'user') {
-					var chosenCheckbox = listTable.find("#" + modalGroups.attr("rolegroupid"));
-					if (chosenCheckbox != null) {
-						chosenCheckbox.prop('checked', false);
-						listTable.dataTable().api().row("#"+modalGroups.attr("rolegroupid")+"groupRow").invalidate('dom').draw();
-					}
-				}
-				if (page == 'role'){
-					var chosenCheckbox = listTable.find("#" + modalGroups.attr("userUuid"));
-					if (chosenCheckbox != null) {
-						chosenCheckbox.prop('checked', false);
-						listTable.dataTable().api().row("#"+modalGroups.attr("userUuid")+"groupRow").invalidate('dom').draw();
-					}
-				}
-				modalGroups.modal('hide');
+
+			this.closeModal = function() {
+				var modal = $("#modal-groups");
+				modal.modal('hide');
 			}
 			
 			this.assignGroupDirectlyClicked = function() {
-				var listTable = $('#' + listTableId);
 				var modalGroups = $("#modal-groups");
-				
-				var positionUuid = $(this).val();
-				var groupid = modalGroups.attr("rolegroupid");
+				var roleid = modalGroups.attr("rolegroupid");
 				var userUuid = modalGroups.attr("userUuid");
-				
-				var chosenCheckbox;
-				if (page = 'user'){
-					chosenCheckbox = listTable.find("#" + modalGroups.attr("rolegroupid"));
-				}
-				if (page = 'role'){
-					chosenCheckbox = listTable.find("#" + modalGroups.attr("userUuid"));
-				}
-				
 				
 				var startDate = $('#groupStartDatePicker').data('date');
 				var stopDate = $('#groupStopDatePicker').data('date');
 				var dates = "?startDate=" + startDate + "&stopDate=" + stopDate;
+
+				$.ajax(modalAjaxService.getAjaxObject(roleGroupModalService.usersUrl + userUuid + '/addgroup/' + roleid + dates, roleGroupModalService.fieldUpdatedMsg, roleGroupModalService.fieldNotUpdatedMsg));
 				
-				$.ajax(modalRGAjaxService.getAjaxObject(usersUrl + userUuid + '/addgroup/' + groupid + dates,fieldUpdatedMsg, fieldNotUpdatedMsg, chosenCheckbox));
 				modalGroups.modal('hide');
 			}
 			
 			this.assignGroupClicked = function() {	
-				var listTable = $('#' + listTableId);
 				var modalGroups = $("#modal-groups");
-				
 				var positionUuid = $(this).val();
-				var groupid = modalGroups.attr("rolegroupid");
+				var roleid = modalGroups.attr("rolegroupid");
 				var userUuid = modalGroups.attr("userUuid");
-
-				var chosenCheckbox = listTable.find("#" + modalGroups.attr("rolegroupid"));
 				
 				var startDate = $('#groupStartDatePicker').data('date');
 				var stopDate = $('#groupStopDatePicker').data('date');
 				var dates = "?startDate=" + startDate + "&stopDate=" + stopDate;
 
-				$.ajax(modalRGAjaxService.getAjaxObject(usersUrl + 'position/' + positionUuid + '/addgroup/' + groupid + dates, fieldUpdatedMsg, fieldNotUpdatedMsg, chosenCheckbox));
+				$.ajax(modalAjaxService.getAjaxObject(roleGroupModalService.usersUrl + 'position/' + positionUuid + '/addgroup/' + roleid + dates, roleGroupModalService.fieldUpdatedMsg, roleGroupModalService.fieldNotUpdatedMsg));
+
 				modalGroups.modal('hide');
 			}
 		}
 		
-
 		// TODO: move these into a utility js file (exists in edit.html for users/orgunits)
 		function ModalRGAjaxService() {
 
-	        this.getAjaxObject = function(urL, okMsg, errorMsg, chosenCheckbox) {
+	        this.getAjaxObject = function(urL, okMsg, errorMsg) {
 	    		return {
 	    			url: urL,
 					method: "POST",
@@ -183,10 +146,6 @@
 						'X-CSRF-TOKEN': token
 					},
 	    			error: function(response) {
-	    				if (chosenCheckbox != null) {
-							chosenCheckbox.prop('checked', false);
-	    				}
-
 						var msg = (response.responseText != null && response.responseText.length > 0) ? response.responseText : errorMsg;
 						modalRGAjaxService.showErrorNotification(msg);
 	    			},

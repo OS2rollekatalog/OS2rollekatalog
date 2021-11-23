@@ -37,7 +37,7 @@
 									<td th:text="${user.message}" />
 									<td>
 										<th:block sec:authorize="hasRole('ROLE_ASSIGNER')">
-											<a th:href="@{/ui/users/edit/{uuid}(uuid=${user.uuid})}"><em class="fa fa-pencil"></em></a>
+											<a th:href="@{/ui/users/manage/{uuid}(uuid=${user.uuid})}"><em class="fa fa-pencil"></em></a>
 										</th:block>
 									</td>
 								</tr>

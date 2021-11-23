@@ -357,6 +357,12 @@ public class ItSystemRestController {
 		for (SystemRole systemRole : systemRoles) {
 			UserRole userRole = new UserRole();
 			userRole.setName(prefixWrapper.getPrefix() + systemRole.getName());
+			
+			// TODO: must be a better way to safely ensure this lenght max (maybe setter on UserRole)
+			if (userRole.getName().length() > 64) {
+				userRole.setName(userRole.getName().substring(0, 64));
+			}
+
 			userRole.setDescription(systemRole.getDescription());
 			userRole.setIdentifier("id-" + UUID.randomUUID().toString());
 			userRole.setItSystem(itSystem);

@@ -1,8 +1,10 @@
 package dk.digitalidentity.rc.controller.api.dto.read;
 
-import lombok.Data;
+import lombok.Getter;
+import lombok.Setter;
 
-@Data
+@Getter
+@Setter
 public class RoleGroupReadDTO {
 	private long id;
 	private String name;

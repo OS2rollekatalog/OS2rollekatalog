@@ -1,10 +1,13 @@
 package dk.digitalidentity.rc.controller.rest;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -24,26 +27,37 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.RestController;
 
-import dk.digitalidentity.rc.config.Constants;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.KleViewModel;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.UserAssignStatus;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.UserListForm;
+import dk.digitalidentity.rc.controller.rest.model.PostponedConstraintDTO;
+import dk.digitalidentity.rc.dao.model.ConstraintType;
 import dk.digitalidentity.rc.dao.model.Position;
+import dk.digitalidentity.rc.dao.model.PositionRoleGroupAssignment;
+import dk.digitalidentity.rc.dao.model.PositionUserRoleAssignment;
+import dk.digitalidentity.rc.dao.model.PostponedConstraint;
 import dk.digitalidentity.rc.dao.model.RoleGroup;
+import dk.digitalidentity.rc.dao.model.SystemRole;
 import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserKLEMapping;
 import dk.digitalidentity.rc.dao.model.UserRole;
+import dk.digitalidentity.rc.dao.model.UserRoleGroupAssignment;
+import dk.digitalidentity.rc.dao.model.UserUserRoleAssignment;
+import dk.digitalidentity.rc.dao.model.enums.ConstraintUIType;
 import dk.digitalidentity.rc.dao.model.enums.ItSystemType;
 import dk.digitalidentity.rc.dao.model.enums.KleType;
 import dk.digitalidentity.rc.security.AccessConstraintService;
 import dk.digitalidentity.rc.security.RequireAssignerRole;
 import dk.digitalidentity.rc.security.RequireReadAccessOrManagerRole;
-import dk.digitalidentity.rc.security.SecurityUtil;
+import dk.digitalidentity.rc.service.ConstraintTypeService;
 import dk.digitalidentity.rc.service.KleService;
 import dk.digitalidentity.rc.service.PositionService;
 import dk.digitalidentity.rc.service.RoleGroupService;
+import dk.digitalidentity.rc.service.SystemRoleService;
 import dk.digitalidentity.rc.service.UserRoleService;
 import dk.digitalidentity.rc.service.UserService;
+import dk.digitalidentity.rc.service.model.AssignedThrough;
+import dk.digitalidentity.rc.service.model.RoleAssignmentType;
 import dk.digitalidentity.rc.service.model.RoleGroupAssignedToUser;
 import dk.digitalidentity.rc.service.model.UserRoleAssignedToUser;
 import lombok.extern.log4j.Log4j;
@@ -76,7 +90,13 @@ public class UserRestController {
 
 	@Autowired
 	private KleService kleService;
-
+	
+	@Autowired
+	private SystemRoleService systemRoleService;
+	
+	@Autowired
+	private ConstraintTypeService constraintTypeService;
+	
 	@RequireAssignerRole
 	@PostMapping("/rest/users/cleanupDuplicateRoleAssignments")
 	public ResponseEntity<String> cleanupDuplicateRoleAssignments() {
@@ -94,9 +114,7 @@ public class UserRestController {
 	}
 	
 	@GetMapping(value = "/rest/users")
-	public ResponseEntity<List<UserListForm>> getAllUsers(Locale locale) {
-		boolean readOnly = !(SecurityUtil.hasRole(Constants.ROLE_ASSIGNER) || SecurityUtil.hasRole(Constants.ROLE_KLE_ADMINISTRATOR));
-		
+	public ResponseEntity<List<UserListForm>> getAllUsers(Locale locale) {	
 		String in = messageSource.getMessage("html.word.in", null, locale);
 
 		List<User> users = userService.getAllThin();
@@ -104,13 +122,14 @@ public class UserRestController {
 
 		return new ResponseEntity<>(users
 				.stream()
-				.map(u -> new UserListForm(u, servletContextPath, in, readOnly))
+				.map(u -> new UserListForm(u, servletContextPath, in))
 				.collect(Collectors.toList()),
 				HttpStatus.OK);
 	}
 
 	@RequireAssignerRole
 	@PostMapping(value = "/rest/users/position/{id}/addrole/{roleid}")
+	@ResponseBody
 	public ResponseEntity<String> addRoleToPosition(@PathVariable("id") long positionId,
 			@PathVariable("roleid") long roleId,
 			@RequestParam(name = "startDate", required = false) String startDateStr,
@@ -184,14 +203,16 @@ public class UserRestController {
 	
 	@RequireAssignerRole
 	@PostMapping(value = "/rest/users/{uuid}/addrole/{roleId}")
+	@ResponseBody
 	public ResponseEntity<String> addRoleToUser(@PathVariable("uuid") String userUuid,
 			@PathVariable("roleId") long roleId,
 			@RequestParam(name = "startDate", required = false) String startDateStr,
-			@RequestParam(name = "stopDate", required = false) String stopDateStr) {
+			@RequestParam(name = "stopDate", required = false) String stopDateStr,
+			@RequestBody List<PostponedConstraintDTO> postponedConstraints) {
 
 		User user = userService.getByUuid(userUuid);
 		UserRole userRole = userRoleService.getById(roleId);
-
+		
 		if (user == null || userRole == null) {
 			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
 		}
@@ -218,17 +239,38 @@ public class UserRestController {
 			}
 		}
 
+		List<PostponedConstraint> postponedConstraintsForAssignment = new ArrayList<>();
+		for (PostponedConstraintDTO postponedConstraintDTO : postponedConstraints) {
+			SystemRole systemRole = systemRoleService.getById(postponedConstraintDTO.getSystemRoleId());
+			if (systemRole == null) {
+				return new ResponseEntity<>("En eller flere systemroller til udskudte dataafgrænsninger kan ikke findes", HttpStatus.BAD_REQUEST);
+			}
+
+			ConstraintType constraintType = constraintTypeService.getByUuid(postponedConstraintDTO.getConstraintTypeUuid());
+			if (constraintType == null) {
+				return new ResponseEntity<>("En eller flere afgrænsningstyper til udskudte dataafgrænsninger kan ikke findes", HttpStatus.BAD_REQUEST);
+			}
+
+			PostponedConstraint postponedConstraint = new PostponedConstraint();
+			postponedConstraint.setConstraintType(constraintType);
+			postponedConstraint.setSystemRole(systemRole);
+			postponedConstraint.setValue(postponedConstraintDTO.getValue());
+
+			postponedConstraintsForAssignment.add(postponedConstraint);
+		}
+
 		try {
-			userService.addUserRole(user, userRole, startDate, stopDate);
-		} catch (SecurityException ex) {
+			userService.addUserRole(user, userRole, startDate, stopDate, postponedConstraintsForAssignment);
+		}
+		catch (SecurityException ex) {
 			return new ResponseEntity<>(ex.getMessage(), HttpStatus.FORBIDDEN);
 		}
 
 		userService.save(user);
-
+		
 		return new ResponseEntity<>(HttpStatus.OK);
 	}
-	
+
 	@RequireAssignerRole
 	@PostMapping(value = "/rest/users/position/{id}/addgroup/{groupid}")
 	public ResponseEntity<String> addGroupToPosition(@PathVariable("id") long positionId,
@@ -280,6 +322,167 @@ public class UserRestController {
 			positionService.removeRoleGroup(p, group);
 		}
 		userService.save(user);
+
+		return new ResponseEntity<>(HttpStatus.OK);
+	}
+
+	@RequireAssignerRole
+	@PostMapping(value = "/rest/users/{uuid}/removeassignment/{type}/{assignedThrough}/{assignmentId}")
+	public ResponseEntity<String> removeUserRoleOrRoleGroupAssignmentFromUser(
+			@PathVariable("uuid") String userUuid,
+			@PathVariable("assignmentId") long assignmentId,
+			@PathVariable("type") RoleAssignmentType type,
+			@PathVariable("assignedThrough") AssignedThrough assignedThrough) {
+		User user = userService.getByUuid(userUuid);
+		if (user == null) {
+			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+		}
+
+		if (assignedThrough == AssignedThrough.DIRECT) {
+			if (type == RoleAssignmentType.USERROLE) {
+				if (userService.removeUserRoleAssignment(user, assignmentId)) {
+					userService.save(user);
+				}
+			} else if (type == RoleAssignmentType.ROLEGROUP) {
+				if (userService.removeRoleGroupAssignment(user, assignmentId)) {
+					userService.save(user);
+				}
+			}
+		} else if (assignedThrough == AssignedThrough.POSITION) {
+			if (type == RoleAssignmentType.USERROLE) {
+				if (positionService.removeUserRoleAssignment(user, assignmentId)) {
+					userService.save(user);
+				}
+			} else if (type == RoleAssignmentType.ROLEGROUP) {
+				if (positionService.removeRoleGroupAssignment(user, assignmentId)) {
+					userService.save(user);
+				}
+			}
+		}
+
+		return new ResponseEntity<>(HttpStatus.OK);
+	}
+
+	@RequireAssignerRole
+	@PostMapping(value = "/rest/users/{uuid}/editassignment/{type}/{assignedThrough}/{assignmentId}")
+	@ResponseBody
+	public ResponseEntity<String> editAssignment(@PathVariable("uuid") String userUuid,
+			@PathVariable("type") RoleAssignmentType type,
+			@PathVariable("assignmentId") long assignmentId,
+			@PathVariable("assignedThrough") AssignedThrough assignedThrough,
+			@RequestParam(name = "startDate", required = false) String startDateStr,
+			@RequestParam(name = "stopDate", required = false) String stopDateStr,
+			@RequestBody List<PostponedConstraintDTO> postponedConstraints) {
+
+		User user = userService.getByUuid(userUuid);
+
+		if (user == null) {
+			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+		}
+
+		LocalDate startDate = null, stopDate = null;
+		if (!StringUtils.isEmpty(startDateStr)) {
+			try {
+				startDate = LocalDate.parse(startDateStr);
+				
+				if (startDate.equals(LocalDate.now())) {
+					startDate = null;
+				}
+			}
+			catch (Exception ex) {
+				log.warn("Invalid startdate string: " + startDateStr);
+			}
+		}
+		if (!StringUtils.isEmpty(stopDateStr)) {
+			try {
+				stopDate = LocalDate.parse(stopDateStr);
+			}
+			catch (Exception ex) {
+				log.warn("Invalid stopdate string: " + stopDateStr);
+			}
+		}
+
+		if (assignedThrough == AssignedThrough.DIRECT) {
+			if (type == RoleAssignmentType.USERROLE) {
+				UserUserRoleAssignment userRoleAssignment = user.getUserRoleAssignments().stream().filter(ura->ura.getId() == assignmentId).findAny().orElse(null);
+				
+				if (userRoleAssignment == null) {
+					return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+				}
+		
+				if (userRoleAssignment.getUserRole().getItSystem().getSystemType() == ItSystemType.AD && userRoleAssignment.getUserRole().getItSystem().isReadonly()) {
+					return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+				}
+				
+				List<PostponedConstraint> postponedConstraintsForAssignment = new ArrayList<>();
+				for (PostponedConstraintDTO postponedConstraintDTO : postponedConstraints) {
+					SystemRole systemRole = systemRoleService.getById(postponedConstraintDTO.getSystemRoleId());
+					if (systemRole == null) {
+						return new ResponseEntity<>("En eller flere systemroller til udskudte dataafgrænsninger kan ikke findes", HttpStatus.BAD_REQUEST);
+					}
+
+					ConstraintType constraintType = constraintTypeService.getByUuid(postponedConstraintDTO.getConstraintTypeUuid());
+					if (constraintType == null) {
+						return new ResponseEntity<>("En eller flere afgrænsningstyper til udskudte dataafgrænsninger kan ikke findes", HttpStatus.BAD_REQUEST);
+					}
+
+					PostponedConstraint postponedConstraint = new PostponedConstraint();
+					postponedConstraint.setConstraintType(constraintType);
+					postponedConstraint.setSystemRole(systemRole);
+					postponedConstraint.setValue(postponedConstraintDTO.getValue());
+
+					postponedConstraintsForAssignment.add(postponedConstraint);
+				}
+	
+				try {
+					userService.editUserRoleAssignment(user, userRoleAssignment, startDate, stopDate, postponedConstraintsForAssignment);
+				}
+				catch (SecurityException ex) {
+					return new ResponseEntity<>(ex.getMessage(), HttpStatus.FORBIDDEN);
+				}
+
+				userService.save(user);
+			}
+			else if (type == RoleAssignmentType.ROLEGROUP) {
+				UserRoleGroupAssignment roleGroupAssignment = user.getRoleGroupAssignments().stream().filter(rga -> rga.getId() == assignmentId).findAny().orElse(null);
+				
+				if (roleGroupAssignment == null) {
+					return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+				}
+				
+				userService.editRoleGroupAssignment(user, roleGroupAssignment, startDate, stopDate);
+				userService.save(user);
+			}
+		}
+		else if(assignedThrough == AssignedThrough.POSITION) {
+			if (type == RoleAssignmentType.USERROLE) {
+				PositionUserRoleAssignment existingAssignemnt = user.getPositions().stream().map(Position::getUserRoleAssignments).flatMap(x -> x.stream()).filter(ura -> ura.getId() == assignmentId).findAny().orElse(null);
+				
+				if (existingAssignemnt == null) {
+					return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+				}
+		
+				if (existingAssignemnt.getUserRole().getItSystem().getSystemType() == ItSystemType.AD && existingAssignemnt.getUserRole().getItSystem().isReadonly()) {
+					return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+				}
+	
+				try {
+					positionService.editUserRoleAssignment(user, existingAssignemnt, startDate, stopDate);
+				} catch (SecurityException ex) {
+					return new ResponseEntity<>(ex.getMessage(), HttpStatus.FORBIDDEN);
+				}
+				userService.save(user);
+			} else if (type == RoleAssignmentType.ROLEGROUP) {
+				PositionRoleGroupAssignment existingAssignemnt = user.getPositions().stream().map(Position::getRoleGroupAssignments).flatMap(x -> x.stream()).filter(rga -> rga.getId() == assignmentId).findAny().orElse(null);
+				
+				if (existingAssignemnt == null) {
+					return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+				}
+				
+				positionService.editRoleGroupAssignment(user, existingAssignemnt, startDate, stopDate);
+				userService.save(user);
+			}
+		}
 
 		return new ResponseEntity<>(HttpStatus.OK);
 	}
@@ -426,9 +629,11 @@ public class UserRestController {
 		KleType kleType;
 		switch (type) {
 			case "KlePrimary":
+			case "PERFORMING":
 				kleType = KleType.PERFORMING;
 				break;
 			case "KleSecondary":
+			case "INTEREST":
 				kleType = KleType.INTEREST;
 				break;
 			default:
@@ -456,5 +661,51 @@ public class UserRestController {
 		userService.save(user);
 
 		return new ResponseEntity<>(HttpStatus.OK);
+	}
+	
+	@RequireAssignerRole
+	@PostMapping(value = "/rest/users/constraints/validate")
+	@ResponseBody
+	public HttpEntity<?> validatePostponedConstraints(@RequestBody List<PostponedConstraintDTO> postponedConstraints) {
+		List<String> errorIds = new ArrayList<>();
+		for (PostponedConstraintDTO postponedConstraintDTO : postponedConstraints) {
+			SystemRole systemRole = systemRoleService.getById(postponedConstraintDTO.getSystemRoleId());
+	        if (systemRole == null) {
+	            return new ResponseEntity<>("En eller flere systemroller kan ikke findes", HttpStatus.BAD_REQUEST);
+	        }
+	        
+	        ConstraintType constraintType = constraintTypeService.getByUuid(postponedConstraintDTO.getConstraintTypeUuid());
+	        if (constraintType == null) {
+	            return new ResponseEntity<>("En eller flere afgrænsningstyper kan ikke findes", HttpStatus.BAD_REQUEST);
+	        }
+	        
+	        // perform regex validation (if needed)
+	        if (constraintType.getUiType().equals(ConstraintUIType.REGEX) && constraintType.getRegex() != null && constraintType.getRegex().length() > 0) {
+	        	try {
+	        		Pattern pattern = Pattern.compile(constraintType.getRegex());
+	        		Matcher matcher = pattern.matcher(postponedConstraintDTO.getValue());
+	        		if (!matcher.matches()) {
+	        			log.warn("Input does not match regular expression: " + postponedConstraintDTO.getValue() + " for regex: " + constraintType.getRegex());
+	        			errorIds.add(postponedConstraintDTO.getSystemRoleId() + postponedConstraintDTO.getConstraintTypeUuid());
+	        		}
+	        	}
+	        	catch (Exception ex) {
+	        		log.warn("Unable to perform regex validation (giving it a free pass) on '" + constraintType.getEntityId() + "'. Message = " + ex.getMessage());
+	        	}
+	        }
+	        
+	        //Check that it has a value
+	        if (StringUtils.isEmpty(postponedConstraintDTO.getValue())) {
+	        	log.warn("Value is null or empty for system role id  " + postponedConstraintDTO.getSystemRoleId() + " and constraint type " + postponedConstraintDTO.getConstraintTypeUuid());
+    			errorIds.add(postponedConstraintDTO.getSystemRoleId() + postponedConstraintDTO.getConstraintTypeUuid());
+	        }
+		}
+
+		if (errorIds.isEmpty()) {
+			return new ResponseEntity<>(HttpStatus.OK);
+		} else {
+			return new ResponseEntity<>(errorIds, HttpStatus.BAD_REQUEST);
+		}
+		
 	}
 }

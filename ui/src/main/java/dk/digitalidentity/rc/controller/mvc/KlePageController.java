@@ -19,7 +19,6 @@ import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 
-import dk.digitalidentity.rc.config.Constants;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.KleDTO;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.OUTreeViewModel;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.UserListForm;
@@ -33,7 +32,6 @@ import dk.digitalidentity.rc.dao.model.UserKLEMapping;
 import dk.digitalidentity.rc.dao.model.enums.KleType;
 import dk.digitalidentity.rc.security.AccessConstraintService;
 import dk.digitalidentity.rc.security.RequireReadAccessRole;
-import dk.digitalidentity.rc.security.SecurityUtil;
 import dk.digitalidentity.rc.service.KleService;
 import dk.digitalidentity.rc.service.OrgUnitService;
 import dk.digitalidentity.rc.service.UserService;
@@ -183,13 +181,11 @@ public class KlePageController {
 		// remove use duplicates
 		users = users.stream().filter(distinctByKey(User::getUuid)).collect(Collectors.toList());
 
-		boolean readOnly = !(SecurityUtil.hasRole(Constants.ROLE_ASSIGNER) || SecurityUtil.hasRole(Constants.ROLE_KLE_ADMINISTRATOR));
-		
 		String in = messageSource.getMessage("html.word.in", null, locale);
 
 		users = accessConstraintService.filterUsersUserCanAccess(users, false);
 
-		List<UserListForm> usersDTO = users.stream().map(u -> new UserListForm(u, servletContextPath, in, readOnly)).collect(Collectors.toList());
+		List<UserListForm> usersDTO = users.stream().map(u -> new UserListForm(u, servletContextPath, in)).collect(Collectors.toList());
 
 		model.addAttribute("users", usersDTO);
 		model.addAttribute("code", kle.getCode());

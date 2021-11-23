@@ -70,6 +70,13 @@ public class OrgUnitUserRoleAssignment {
 	@JoinTable(name = "ou_roles_excepted_users", joinColumns = @JoinColumn(name = "ou_roles_id"), inverseJoinColumns = @JoinColumn(name = "user_uuid"))
 	private List<User> exceptedUsers;
 
+	@OneToMany
+	@JoinTable(name = "ou_roles_titles", joinColumns = @JoinColumn(name = "ou_roles_id"), inverseJoinColumns = @JoinColumn(name = "title_uuid"))
+	private List<Title> titles;
+
 	@Column
-	public boolean containsExceptedUsers;
+	private boolean containsExceptedUsers;
+	
+	@Column
+	private boolean containsTitles;
 }

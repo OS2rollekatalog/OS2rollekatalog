@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html>
+<head th:replace="fragments/header :: header (title=#{html.page.users.manage.title})" />
+<body>
+	<div class="wrapper">
+		<header th:replace="fragments/navbar :: navbar-header(subpage = 'roles')" />
+		<aside th:replace="fragments/navbar :: navbar-aside (page = 'users', subpage = 'roles')" />
+ 
+		<section>
+			<div class="content-wrapper">
+				<h3>
+					<a th:href="@{/ui/users/list}" class="btn btn-default">
+						<span><i class="fa fa-arrow-left"></i> </span>
+					</a>
+					<span th:text="#{html.page.users.manage.title}"></span>
+				</h3>
+
+				<div class="panel panel-default">
+					<div class="panel-heading"></div>
+					<div class="panel-body">
+						<div class="panel-group" id="accordion" role="tablist" aria-multiselectable="true">
+							<div class="panel panel-default">
+								<div class="panel-heading" role="tab" id="stamdataHeading">
+									<h4 class="panel-title">
+										<a role="button" id="stamdataLink" data-toggle="collapse" data-parent="#accordion" href="#collapseOne" aria-expanded="false" aria-controls="collapseOne">
+											<em id="caretIcon" class="fa fa-caret-right"></em>&nbsp;
+											<span th:text="#{html.heading.stamdata}"></span>
+											<span th:text="${user.name}"></span>
+											(<span th:text="${user.userId}"></span>)
+										</a>
+									</h4>
+								</div>
+
+								<div id="collapseOne" class="panel-collapse collapse" role="tabpanel" aria-labelledby="stamdataHeading">
+									<div class="panel-body">
+										<form class="form-horizontal" th:object="${user}">
+											<fieldset>
+												<div class="form-group">
+													<label class="col-sm-2 control-label" th:text="#{html.entity.extuuid}" />
+													<div class="col-sm-8">
+														<input th:field="*{extUuid}" class="form-control" disabled="disabled" />
+													</div>
+												</div>
+											</fieldset>
+											
+											<fieldset>
+												<div class="form-group">
+													<label class="col-sm-2 control-label" th:text="#{html.entity.user.positions}" />
+													<div class="col-sm-8">
+														<div th:each="position : *{positions}" style="padding-top: 7px;">
+															<span th:text="${position.name}"/>
+															<span th:text="#{html.word.in}"/>
+															<span th:text="${position.orgUnit.name}"/>
+															<th:block th:if="${position.title != null}">
+															&nbsp;(<strong th:text="${position.title.name}"/> <span th:text="#{html.page.titles.intext}"/>)
+															</th:block>
+														</div>
+													</div>
+												</div>
+											</fieldset>
+											
+											<fieldset th:if="${user.doNotInherit == true}">
+												<div class="form-group">
+													<div class="col-sm-offset-2 col-sm-8" style="color: red;" th:text="#{html.entity.user.do_not_inherit}"/>
+												</div>
+											</fieldset>
+											
+											<fieldset th:if="${#lists.size(user.altAccounts) > 0}">
+												<div class="form-group">
+													<label class="col-sm-2 control-label" th:text="#{html.entity.user.altaccounts}" />
+													<div class="col-sm-8">
+														<ul style="list-style: none; padding-left: 0px; margin-bottom: 0px;">
+															<li th:each="altAccount : *{altAccounts}" style="padding-top: 7px;">
+																<span th:text="${altAccount.accountUserId}"/>
+																<span th:text="'(' + #{__${altAccount.accountType.message}__} + ')'"/>
+														</ul>
+													</div>
+												</div>
+											</fieldset>
+
+										</form>
+									</div>
+								</div>
+							</div>
+						</div>
+
+						<!-- Tabs -->
+						<ul class="nav nav-tabs">
+							<li class="active">
+								<a data-toggle="tab" href="#roles_menu" th:text="#{html.page.users.manage.tabs.roleassignments}"></a>
+							</li>
+							<li th:if="${not #lists.isEmpty(exceptedAssignments)}">
+								<a data-toggle="tab" href="#excepted_users_menu" th:text="#{html.page.users.manage.tabs.exceptedassignments}"></a>
+							</li>
+							<li>
+								<a data-toggle="tab" href="#kle_performing_menu" th:if="${kleUiEnabled == true}" th:text="#{html.page.ous.list.kleperform}"></a>
+							</li>
+							<li>
+								<a data-toggle="tab" href="#kle_interest_menu" th:if="${kleUiEnabled == true}" th:text="#{html.page.ous.list.kleinterest}"></a>
+							</li>
+						</ul>
+	
+						<div class="tab-content">
+							<div id="roles_menu" class="tab-pane fade in active">
+							</div>
+
+							<div id="excepted_users_menu" class="tab-pane fade" th:if="${not #lists.isEmpty(exceptedAssignments)}">
+								<h4 th:text="#{html.page.users.view.exceptedUsers.title}"></h4>
+								<p th:text="#{html.page.users.view.exceptedUsers.subtext}"></p>
+								<table id="listTable2" class="table table-striped table-hover listTable">
+									<thead>
+										<tr>
+											<th class="col-md-3" th:text="#{html.entity.rolegroup.name}" />
+											<th class="col-md-3" th:text="#{html.entity.rolegroup.itsystem}" />
+											<th class="col-md-6" th:text="#{html.entity.rolegroup.description}" />
+										</tr>
+									</thead>
+
+									<tbody>
+										<tr th:each="exceptedAssignment : ${exceptedAssignments}">
+											<td th:text="${exceptedAssignment.name}" />
+											<td th:text="${exceptedAssignment.itSystemName}" />
+											<td th:text="#{html.page.users.view.exceptedUsers.description} + ' \''+  ${exceptedAssignment.ouName} + '\''" />
+										</tr>
+									</tbody>
+								</table>
+							</div>
+	
+							<div id="kle_performing_menu" th:if="${kleUiEnabled == true}" class="tab-pane fade">
+								<div th:if="${canEditKle}">
+									<button id="editBtnPerforming" class="btn btn-lg btn-primary" style="margin-bottom: 20px;" th:text="#{html.page.users.manage.kle.edit}" onclick="kleService.loadEditFragment('PERFORMING')"></button>
+								</div>
+								<div class="content"></div>
+							</div>
+							<div id="kle_interest_menu" th:if="${kleUiEnabled == true}" class="tab-pane fade">
+								<div th:if="${canEditKle}">
+									<button id="editBtnInterest" class="btn btn-lg btn-primary" style="margin-bottom: 20px;" th:text="#{html.page.users.manage.kle.edit}" onclick="kleService.loadEditFragment('INTEREST')"></button>
+								</div>
+								<div class="content"></div>
+							</div>
+						</div>
+						<!-- END Tabs -->
+
+					</div>
+				</div>
+			</div>
+		</section>
+	</div>
+
+	<div th:replace="users/fragments/user_user_role_modal :: userUserRoleModal(positions = ${user.positions})" />
+	<div th:replace="users/fragments/role_assignment_edit_modal :: roleAssignmentEditModal" />
+	<div th:replace="users/fragments/user_role_group_modal :: userRoleGroupModal(positions = ${user.positions})" />
+	<div th:replace="users/fragments/postponed_constraint_kle_modal :: postponedConstraintsKLEModal" />
+	<div th:replace="userroles/fragments/constraint_ou_modal :: OUModal" />
+
+	<nav th:replace="fragments/footer :: footer" />
+
+	<script th:replace="fragments/datatables :: datatables " />
+	<script th:replace="fragments/assignDatePicker :: content " />
+	<script th:replace="users/fragments/user_user_role_modal :: userUserRoleModalScript(userRoleListTableId='listTable1', page='user')"/>
+	<script th:replace="users/fragments/role_assignment_edit_modal :: roleAssignmentEditModalScript(page='user')" />
+	<script th:replace="users/fragments/user_role_group_modal :: userRoleGroupModalScript(listTable='listTable2', page='user')"/>
+	<script th:replace="users/fragments/assign_user_role_postponed_data_constraints :: postponedConstraintsScript"/>
+
+	<script th:inline="javascript">
+		/*<![CDATA[*/
+		
+		/*[+
+		var UIUrl = [[@{/ui/users/manage/}]];
+		var restUrl = [[@{/rest/users/}]];
+		
+		var user = [[${user.uuid}]];
+
+		var searchTxt = [[#{html.datatables.search}]];
+		var dropdownTxt = [[#{html.datatables.dropdown}]];
+		var infoDefaultTxt = [[#{html.datatables.info.default}]];
+		var infoEmptyTxt = [[#{html.datatables.info.empty}]];
+		var infoFilteredTxt = [[#{html.datatables.info.filtered}]];
+		
+		//Delete role assignment swal
+		var deleteRoleAssignmentTitleTxt = [[#{html.page.manage.roles.delete.title}]];
+		var deleteRoleAssignmentBodyTxt = [[#{html.page.manage.roles.delete.body}]];
+		var deleteRoleAssignmentErrorMessage = [[#{html.page.manage.roles.delete.error}]];
+
+		var deleteAssignmentConfirmTxt = [[#{html.control.button.yes}]];
+		var deleteAssignmentCancelTxt = [[#{html.control.button.cancel}]];
+		
+		var kleList = [[${kleList}]];
+		var orgUnitList = [[${orgUnitList}]];
+		var itSystemList = [[${itSystemList}]];
+		var treeOUs = [[${treeOUs}]];
+		
+		var baseUrl = [[@{/}]];
+
+		+]*/
+		var token = $("meta[name='_csrf']").attr("content");
+
+		var rolesService = new RolesService();
+		
+		modal = $("#modal-positions");
+		modalGroups = $("#modal-groups");
+
+		$(document).ready(function () {
+			$('#stamdataLink').on('click', function () {
+				$('#caretIcon').toggleClass('fa-caret-right');
+				$('#caretIcon').toggleClass('fa-caret-down');
+			});
+
+			// flip active tab on page-load
+			var selectedTab = localStorage.getItem(user);
+			if (selectedTab != null) {
+				$('a[data-toggle="tab"][href="' + selectedTab + '"]').tab('show');
+			}
+			
+			// setup tab memory
+			$('#dataTabs a').click(function (e) {
+				e.preventDefault();
+				$(this).tab('show');
+			});
+
+			$('a[data-toggle="tab"]').on("shown.bs.tab", function (e) {
+				var id = $(e.target).attr("href");
+				localStorage.setItem(user, id)
+			});
+
+			//Initialize tabs
+			rolesService.loadRolesFragment();
+			//Init userrole edit modal
+			userRoleEditModalService.parentService = rolesService;
+		});
+
+		function RolesService() {
+			this.loadRolesFragment = function () {
+				$("#roles_menu").load(UIUrl + user + "/roles", function () {
+					hideColumn = [2];
+					currentTable = showDataTableWithHiddenColumns('#listTable', 0, hideColumn);
+					dataTablesRefreshIcons($('#dataTableDropdown'));
+				});
+			}
+
+			this.loadAddUserRoleFragment = function () {
+				$("#roles_menu").load(UIUrl + user + "/addUserRole", function () {
+					fragShowDataTableFun('#listTable_u_ur', 0);
+				});
+			}
+
+			this.loadAddRoleGroupFragment = function () {
+				$("#roles_menu").load(UIUrl + user + "/addRoleGroup", function () {
+					fragShowDataTableFun('#listTable_u_rg', 0);
+				});
+			}
+
+			this.deleteRoleAssignment = function(elem) {
+				var parent = elem.parentElement;
+				var assignmentId = parent.dataset.assignmentid;
+				var assignedThrough = parent.dataset.assignedthrough;
+				var type = parent.dataset.type;
+
+				var endpoint = restUrl + user + '/removeassignment/' + type + '/' + assignedThrough + '/' + assignmentId;
+				
+				var titleTxt = deleteRoleAssignmentTitleTxt;
+				var bodyTxt = deleteRoleAssignmentBodyTxt;
+				var errorMessage = deleteRoleAssignmentErrorMessage;
+				
+				swal({
+						html: true,
+						title : titleTxt,
+						text : bodyTxt,
+						type : "warning",
+						showCancelButton : true,
+						confirmButtonColor : "#DD6B55",
+						confirmButtonText : deleteAssignmentConfirmTxt,
+						cancelButtonText : deleteAssignmentCancelTxt,
+						closeOnConfirm : true,
+						closeOnCancel : true
+				},
+				function (isConfirm) {
+						if (isConfirm) {
+							$.ajax({
+								url: endpoint,
+								method: "POST",
+								headers: {
+									'X-CSRF-TOKEN': token
+								},
+								error: function(response) {
+									$.notify({
+										message: errorMessage,
+										status: 'danger',
+										timeout: 4000
+									});
+								},
+								success: function(response) {
+									rolesService.loadRolesFragment();
+								}
+							});
+						}
+				});
+			}
+			this.editRoleAssignment = function (elem) {
+				var parent = elem.parentElement;
+				var assignmentId = parent.dataset.assignmentid;
+				var type = parent.dataset.type;
+				var startDate = parent.dataset.startdate;
+				var stopDate = parent.dataset.stopdate;
+				var assignedThrough = parent.dataset.assignedthrough;
+				
+				userRoleEditModalService.showModal(user, startDate, stopDate, type, assignmentId, assignedThrough);
+				userRoleEditModalService.loadPostponedConstraintsFragment(assignmentId, type, user);
+			}
+			this.addUserRole = function (elem) {
+				var roleid = elem.dataset.roleid;
+
+				modal.modal({
+				    backdrop: 'static',
+				    keyboard: false
+				});
+
+				userRoleModalService.loadPostponedConstraintsFragment(roleid);
+				$('#stopDatePicker').data("DateTimePicker").clear();
+				$('#startDatePicker').data("DateTimePicker").clear();
+				$('#startDatePicker').data("DateTimePicker").date(new Date());
+
+				modal.attr("roleid", roleid);
+				modal.attr("userUuid", user);
+
+			}
+			this.addRoleGroup = function (elem) {
+				var groupId = elem.dataset.rolegroupid;
+
+				modalGroups.modal({
+				    backdrop: 'static',
+				    keyboard: false
+				});
+
+				//clear alert
+				$('#modal-groups-alert').text('');
+				$('#modal-groups-alert').hide();
+
+				$('#groupStopDatePicker').data("DateTimePicker").clear();
+				$('#groupStartDatePicker').data("DateTimePicker").clear();
+				$('#groupStartDatePicker').data("DateTimePicker").date(new Date());
+
+				modalGroups.attr("rolegroupid", groupId);
+				modalGroups.attr("userUuid", user);
+					
+			}
+		}
+
+		/*]]>*/
+	</script>
+	
+	<script th:if="${kleUiEnabled == true}" th:inline="javascript">
+		/*<![CDATA[*/
+
+		/*[+
+			var allKles = [[${allKles}]];
+			var fieldUpdatedMsg = [[#{html.entity.rolegroup.updatedmsg}]];
+			var fieldNotUpdatedMsg = [[#{html.entity.rolegroup.failedupdatemsg}]];
+		+]*/
+	
+		var kleService = new KleService();
+		
+		$(document).ready(function () {
+			kleService.loadViewFragment('PERFORMING');
+			kleService.loadViewFragment('INTEREST');
+		});
+
+		function KleService() {
+			this.loadViewFragment = function (type) {
+				if (type=='PERFORMING') {
+					$("#kle_performing_menu .content").load(UIUrl + user + "/kle/PERFORMING", function () {
+						$('#editBtnPerforming').show();
+					});
+				} else if (type=='INTEREST') {
+					$("#kle_interest_menu .content").load(UIUrl + user + "/kle/INTEREST", function () {
+						$('#editBtnInterest').show();
+					});
+				}
+			}
+
+			this.loadEditFragment = function (type) {
+				if (type=='PERFORMING') {
+					$("#kle_performing_menu .content").load(UIUrl + user + "/kleEdit/PERFORMING", function () {
+						$('#editBtnPerforming').hide();
+						kleService.initJSTree('KlePERFORMING', 'KlePERFORMING'+"Search", klePERFORMINGSelected);
+					});
+				} else if (type=='INTEREST') {
+					$("#kle_interest_menu .content").load(UIUrl + user + "/kleEdit/INTEREST", function () {
+						$('#editBtnInterest').hide();
+						kleService.initJSTree('KleINTEREST', 'KleINTEREST'+"Search", kleINTERESTSelected);
+					});
+				}
+			}
+
+			this.initJSTree = function (id, search, selected) {
+				$('#' + id).jstree({
+						"core": {
+							"data": allKles,
+							"themes": {
+								"icons": false
+							}
+						},
+						"checkbox" : {
+							"keep_selected_style" : false,
+							"three_state": false,
+							"cascade": "undetermined"
+						},
+						"search" : {
+							"show_only_matches": true,
+							"search_callback": function(str, node) {
+								// special KLE search support
+								var kleValue = str.split('.').join("");
+								if (!isNaN(kleValue)) {
+									if (kleValue.length > 4) {
+										kleValue = kleValue.substr(0, 2) + "." + kleValue.substr(2, 2) + "." + kleValue.substr(4);
+									}
+									else if (kleValue.length > 2) {
+										kleValue = kleValue.substr(0, 2) + "." + kleValue.substr(2);
+									}
+									
+									return (node.text.startsWith(kleValue));
+								}
+	
+								return (node.text.toUpperCase().includes(str.toUpperCase()));
+							}
+						},
+						"plugins" : [
+							"wholerow", "search", "checkbox"
+						]
+				});
+	
+				// Select all already selected klecodes in the tree.
+				$('#' + id).on("ready.jstree", function(e, data) {
+					$('#' + id).jstree('select_node', selected);
+				});
+	
+				// Searching in the JSTree
+				var to = false;
+				$('#' + search).keyup(function () {
+					if (to) {
+						clearTimeout(to);
+					}
+	
+					to = setTimeout(function () {
+						var v = $('#' + search).val();
+	
+						$('#' + id).jstree(true).search(v);
+					}, 400);
+				});
+			};
+			
+			this.saveChanges = function (element) {
+				var id = 'Kle' + element.dataset.type;
+				var codes = $('#' + id).jstree('get_top_selected');
+
+				$.ajax({
+					contentType: 'application/json',
+					url: restUrl + "updateAll/kle",
+					method : "POST",
+					headers: {
+						"uuid": user,
+						"type": element.dataset.type,
+						'X-CSRF-TOKEN': token
+					},
+					error: function(response) {
+						$.notify({
+							message: fieldNotUpdatedMsg
+						}, {
+							status: 'danger',
+							autoHideDelay: 4000
+						});
+					},
+					success: function(response) {
+						kleService.loadViewFragment(element.dataset.type);
+						$.notify({
+							message: fieldUpdatedMsg
+						}, {
+							status: 'success',
+							autoHideDelay: 2000
+						});
+					},
+					data: JSON.stringify(codes)
+				});
+			}
+			
+			this.abortChanges = function (element) {
+				kleService.loadViewFragment(element.dataset.type);
+			}
+		}
+	
+		/*]]>*/
+	</script>
+
+</body>
+</html>

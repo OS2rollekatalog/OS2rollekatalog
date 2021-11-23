@@ -1,5 +1,6 @@
 package dk.digitalidentity.rc.controller.mvc;
 
+import java.util.Date;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -19,8 +20,11 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.OUListForm;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.SettingsForm;
 import dk.digitalidentity.rc.controller.validator.SettingFormValidator;
+import dk.digitalidentity.rc.dao.model.Notification;
 import dk.digitalidentity.rc.dao.model.enums.CheckupIntervalEnum;
+import dk.digitalidentity.rc.dao.model.enums.NotificationType;
 import dk.digitalidentity.rc.security.RequireAdministratorRole;
+import dk.digitalidentity.rc.service.NotificationService;
 import dk.digitalidentity.rc.service.OrgUnitService;
 import dk.digitalidentity.rc.service.SettingsService;
 import lombok.extern.slf4j.Slf4j;
@@ -38,6 +42,9 @@ public class SettingsController {
 	
 	@Autowired
 	private SettingFormValidator settingFormValidator;
+	
+	@Autowired
+	private NotificationService notificationService;
 
 	@InitBinder
 	public void initBinder(WebDataBinder binder) {
@@ -77,6 +84,8 @@ public class SettingsController {
 		settingsForm.setDaysBeforeDeadline(settingsService.getDaysBeforeDeadline());
 		settingsForm.setReminderInterval(settingsService.getReminderInterval());
 		settingsForm.setEmailAfterReminders(settingsService.getEmailAfterReminders());
+		
+		settingsForm.setAttestationRoleDeletionEnabled(settingsService.isAttestationRoleDeletionEnabled());
 
 		List<OUListForm> allOUs = orgUnitService.getAllCached()
 				.stream()
@@ -96,6 +105,9 @@ public class SettingsController {
 			log.warn("Bad settingsform - unable to save");
 			return "setting/settings";
 		}
+		
+		boolean requestApproveBefore = settingsService.isRequestApproveEnabled();
+		boolean attestationBefore = settingsService.isScheduledAttestationEnabled();
 
 		settingsService.setRequestApproveEnabled(settingsForm.isRequestApproveEnabled());
 		settingsService.setRequestApproveWho(settingsForm.getRequestApproveWho());
@@ -139,8 +151,28 @@ public class SettingsController {
 		settingsService.setDaysBeforeDeadline(settingsForm.getDaysBeforeDeadline());
 		settingsService.setReminderInterval(settingsForm.getReminderInterval());
 		settingsService.setEmailAfterReminders(settingsForm.getEmailAfterReminders());
+		
+		settingsService.setAttestationRoleDeletionEnabled(settingsForm.isAttestationRoleDeletionEnabled());
 
 		redirectAttributes.addFlashAttribute("saved", true);
+		
+		if (!requestApproveBefore && settingsForm.isRequestApproveEnabled()) {
+			Notification notification = new Notification();
+			notification.setActive(true);
+			notification.setCreated(new Date());
+			notification.setNotificationType(NotificationType.EDIT_REQUEST_APPROVE_EMAIL_TEMPLATE);
+
+			notificationService.save(notification);
+		}
+		
+		if (!attestationBefore && settingsForm.isScheduledAttestationEnabled()) {
+			Notification notification = new Notification();
+			notification.setActive(true);
+			notification.setCreated(new Date());
+			notification.setNotificationType(NotificationType.EDIT_ATTESTATION_EMAIL_TEMPLATE);
+
+			notificationService.save(notification);
+		}
 
 		return "redirect:/ui/settings";
 	}

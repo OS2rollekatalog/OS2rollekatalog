@@ -6,7 +6,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -22,10 +21,10 @@ import dk.digitalidentity.rc.dao.history.model.HistoryOU;
 import dk.digitalidentity.rc.dao.history.model.HistoryOUKleAssignment;
 import dk.digitalidentity.rc.dao.history.model.HistoryOURoleAssignment;
 import dk.digitalidentity.rc.dao.history.model.HistoryOURoleAssignmentWithExceptions;
+import dk.digitalidentity.rc.dao.history.model.HistoryOURoleAssignmentWithTitles;
 import dk.digitalidentity.rc.dao.history.model.HistoryOUUser;
 import dk.digitalidentity.rc.dao.history.model.HistoryRoleAssignment;
 import dk.digitalidentity.rc.dao.history.model.HistoryTitle;
-import dk.digitalidentity.rc.dao.history.model.HistoryTitleRoleAssignment;
 import dk.digitalidentity.rc.dao.history.model.HistoryUser;
 import dk.digitalidentity.rc.service.model.UserRoleAssignmentReportEntry;
 import lombok.extern.slf4j.Slf4j;
@@ -55,7 +54,7 @@ public class ReportService {
 			Map<String, List<HistoryRoleAssignment>> userRoleAssignments,
 			Map<String, List<HistoryOURoleAssignment>> ouRoleAssignments,
 			Map<String, List<HistoryOURoleAssignmentWithExceptions>> ouRoleAssignmentsWithExceptions,
-			Map<String, List<HistoryTitleRoleAssignment>> titleRoleAssignments,
+			Map<String, List<HistoryOURoleAssignmentWithTitles>> titleRoleAssignments,
 			Map<Long, String> itSystemNameMapping,
 			Locale locale,
 			boolean showInactiveUsers) {
@@ -118,6 +117,7 @@ public class ReportService {
                 row.setAssignedBy(assignedBy);
                 row.setAssignedWhen(roleAssignment.getAssignedWhen());
                 row.setAssignedThrough(assignedThroughStr);
+                row.setPostponedConstraints(roleAssignment.getPostponedConstraints());
                 result.add(row);
             }
         }
@@ -139,19 +139,18 @@ public class ReportService {
     				continue;
     			}
 
-        		List<HistoryTitleRoleAssignment> userTitleAssignments = null;
+        		List<HistoryOURoleAssignmentWithTitles> userTitleAssignments = null;
         		
-        		// find any assignments through titles matching users Title in this OrgUnit
         		String titleUuid = historyOuUser.getTitleUuid();
         		if (titleUuid != null) {
-        			userTitleAssignments = titleRoleAssignments.get(titleUuid);
+        			userTitleAssignments = titleRoleAssignments.get(ou.getOuUuid());
         			if (userTitleAssignments != null) {
-        				userTitleAssignments = userTitleAssignments.stream().filter(t -> Objects.equals(t.getAssignedThroughUuid(), ou.getOuUuid())).collect(Collectors.toList());
+        				userTitleAssignments = userTitleAssignments.stream().filter(t -> t.getTitleUuids().contains(historyOuUser.getTitleUuid())).collect(Collectors.toList());
         			}
         		}
 
         		// ok, time to generate records
-        		
+
                 String userName = user.getUserName();
                 String userId = user.getUserUserId();
                 boolean userActive = user.isUserActive();
@@ -184,8 +183,8 @@ public class ReportService {
                 }
                 
                 if (userTitleAssignments != null) {
-	                for (HistoryTitleRoleAssignment roleAssignment : userTitleAssignments) {
-	                    
+	                for (HistoryOURoleAssignmentWithTitles roleAssignment : userTitleAssignments) {
+	                	
 	                	// Get ItSystem by id
 	                    Optional<HistoryItSystem> first = itSystems.stream().filter(itSystem -> itSystem.getItSystemId() == roleAssignment.getRoleItSystemId()).findFirst();
 	                    String itSystem = "";
@@ -194,8 +193,9 @@ public class ReportService {
 	                        itSystem = historyItSystem.getItSystemName();
 	                    }
 	
-	                    String assignedBy = roleAssignment.getAssignedByName() + " (" + roleAssignment.getAssignedByUserId() + ")";	
-	                    String assignedThroughStr = messageSource.getMessage("xls.role.assigned.trough.type.title", null, locale) + ": " + roleAssignment.getAssignedThroughName();
+	                    String assignedBy = roleAssignment.getAssignedByName() + " (" + roleAssignment.getAssignedByUserId() + ")";
+	                    	                    
+	                    String assignedThroughStr = messageSource.getMessage("xls.role.assigned.trough.type.title", null, locale) + ": " + ou.getOuName();
 
 	                    UserRoleAssignmentReportEntry row = new UserRoleAssignmentReportEntry();
 	                    row.setUserName(userName);
@@ -266,13 +266,13 @@ public class ReportService {
 		String manager = reportForm.getManager();
 
 		List<HistoryItSystem> itSystems = historyService.getItSystems(localDate);
-		List<HistoryTitle> titles = (reportForm.isShowTitles()) ? historyService.getTitles(localDate) : null;
+		List<HistoryTitle> titles = historyService.getTitles(localDate);
 		Map<String, HistoryOU> orgUnits = historyService.getOUs(localDate);
 		Map<String, HistoryOU> allOrgUnits = new HashMap<>(orgUnits);
 		Map<String, HistoryUser> users = historyService.getUsers(localDate);
 		Map<String, List<HistoryKleAssignment>> userKleAssignments = historyService.getKleAssignments(localDate);
 		Map<String, List<HistoryOUKleAssignment>> ouKleAssignments = historyService.getOUKleAssignments(localDate);
-		Map<String, List<HistoryTitleRoleAssignment>> titleRoleAssignments;
+		Map<String, List<HistoryOURoleAssignmentWithTitles>> titleRoleAssignments;
 		Map<String, List<HistoryOURoleAssignment>> ouRoleAssignments;
 		Map<String, List<HistoryOURoleAssignmentWithExceptions>> ouRoleAssignmentsWithExceptions;
 		Map<String, List<HistoryRoleAssignment>> userRoleAssignments;
@@ -286,13 +286,13 @@ public class ReportService {
 			
 			ouRoleAssignments = historyService.getOURoleAssignments(localDate, itSystemFilter);
 			userRoleAssignments = historyService.getRoleAssignments(localDate, itSystemFilter);
-			titleRoleAssignments = historyService.getTitleRoleAssignments(localDate, itSystemFilter);
+			titleRoleAssignments = historyService.getOURoleAssignmentsWithTitles(localDate, itSystemFilter);
 			ouRoleAssignmentsWithExceptions = historyService.getOURoleAssignmentsWithExceptions(localDate, itSystemFilter);
 		}
 		else {
 			ouRoleAssignments = historyService.getOURoleAssignments(localDate);
 			userRoleAssignments = historyService.getRoleAssignments(localDate);
-			titleRoleAssignments = historyService.getTitleRoleAssignments(localDate);
+			titleRoleAssignments = historyService.getOURoleAssignmentsWithTitles(localDate);
 			ouRoleAssignmentsWithExceptions = historyService.getOURoleAssignmentsWithExceptions(localDate);
 		}
 		

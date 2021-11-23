@@ -191,7 +191,7 @@ public class UserRoleRestController {
 
     @PostMapping(value = "/rest/userroles/edit/{roleId}/addConstraint/{systemRoleId}")
     @ResponseBody
-    public ResponseEntity<String> addConstraint(@PathVariable("roleId") long roleId, @PathVariable("systemRoleId") long systemRoleId, String constraintUuid, String constraintValue, ConstraintValueType constraintValueType) {
+    public ResponseEntity<String> addConstraint(@PathVariable("roleId") long roleId, @PathVariable("systemRoleId") long systemRoleId, String constraintUuid, String constraintValue, ConstraintValueType constraintValueType, boolean postpone) {
         UserRole role = userRoleService.getById(roleId);
         if (role == null) {
             return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
@@ -245,6 +245,7 @@ public class UserRoleRestController {
         		systemRoleAssignmentConstraintValue = srcav;
                 systemRoleAssignmentConstraintValue.setConstraintValue(constraintValue);
                 systemRoleAssignmentConstraintValue.setConstraintValueType(constraintValueType);
+                systemRoleAssignmentConstraintValue.setPostponed(postpone);
                 if (StringUtils.isEmpty(systemRoleAssignmentConstraintValue.getConstraintIdentifier())) {
                 	systemRoleAssignmentConstraintValue.setConstraintIdentifier(IdentifierGenerator.buildKombitConstraintIdentifier(
                 		configuration.getIntegrations().getKombit().getDomain(),
@@ -263,6 +264,7 @@ public class UserRoleRestController {
             systemRoleAssignmentConstraintValue.setSystemRoleAssignment(roleAssignment);
             systemRoleAssignmentConstraintValue.setConstraintType(constraintType);
             systemRoleAssignmentConstraintValue.setConstraintValueType(constraintValueType);
+            systemRoleAssignmentConstraintValue.setPostponed(postpone);
             systemRoleAssignmentConstraintValue.setConstraintIdentifier(IdentifierGenerator.buildKombitConstraintIdentifier(
             	configuration.getIntegrations().getKombit().getDomain(),
         		systemRole,
@@ -277,7 +279,7 @@ public class UserRoleRestController {
 
         return new ResponseEntity<>(HttpStatus.OK);
     }
-
+    
     @PostMapping(value = "/rest/userroles/edit/{roleId}/removeConstraint/{systemRoleId}")
     @ResponseBody
     public ResponseEntity<String> removeConstraint(@PathVariable("roleId") long roleId, @PathVariable("systemRoleId") long systemRoleId, String constraintUuid) {

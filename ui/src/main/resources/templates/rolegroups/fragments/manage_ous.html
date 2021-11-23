@@ -1,0 +1,53 @@
+<th:block th:fragment="ous" xmlns="http://www.w3.org/1999/xhtml" xmlns:th="http://www.thymeleaf.org">
+	<th:block sec:authorize="hasRole('ROLE_ASSIGNER')" th:if="${showEdit == true}">
+		<a href="#" id="addUserRoleAssignment" class="btn btn-lg btn-primary" style="width:auto;" th:text="#{html.page.role.add.orgunit}" onclick="orgUnitService.loadAddUserRoleFragment()"></a>
+	</th:block>
+	<table id="listTableOus" class="table table-striped table-hover listTable">
+		<thead>
+		<tr>
+			<th class="col-md-3" th:text="#{html.entity.user.name}"/>
+			<th class="col-md-3" th:text="#{html.page.ous.manage.assignment.assignmentType}" />			
+			<th class="col-md-5" th:text="#{html.word.validity}"/>
+			<th class="col-md-1" th:text="#{html.control.operations}" />
+		</tr>
+		</thead>
+
+		<tbody>
+		<tr th:each="mapping : ${orgUnitMapping}">
+			<td th:text="${mapping.ouName}" />
+
+			<th:block th:switch="${mapping.assignment.assignmentType}">
+				<td th:case="-2" th:text="#{html.entity.ou.assigned.inherit}" />
+				<td th:case="-1" th:text="#{html.entity.ou.assigned.all}" />
+				<td th:case="0" th:text="#{html.entity.ou.assigned.all.with.exceptions}" />
+				<td th:case="1" th:text="#{html.entity.ou.assigned.one}" />
+				<td th:case="*" th:text="#{html.entity.ou.assigned.many(${mapping.assignment.assignmentType})}" />
+			</th:block>
+
+			<td>
+				<ul th:if="${mapping.assignment.startDate != null or mapping.assignment.stopDate != null}" style="padding-left: 0px; list-style-type: none; margin-bottom: 0px;">
+					<li th:if="${mapping.assignment.startDate != null}" th:text="#{html.word.assigned} + ' ' + ${mapping.assignment.startDate}"></li>
+					<li th:if="${mapping.assignment.stopDate != null}" th:text="#{html.word.deassigned} + ' ' + ${mapping.assignment.stopDate}"></li>
+				</ul>
+				<span th:if="${mapping.assignment.startDate == null and mapping.assignment.stopDate == null}" th:text="#{html.word.indefinite}" />
+			</td>
+
+			<td th:if="${showEdit == true}" th:attr="data-assignmentid=${mapping.assignment.assignmentId}, data-roleid=${mapping.assignment.roleId}, data-assignmenttype=${mapping.assignment.assignmentType}, data-orgunit=${mapping.ouUuid}, data-startDate=${mapping.assignment.startDate}, data-stopDate=${mapping.assignment.stopDate}, data-assignedthrough=${mapping.assignment.assignedThrough}">
+				<a
+					href="#"
+					th:if="${mapping.assignment.canEdit}"
+					onclick="orgUnitService.editRoleAssignment(this)">
+					<em class="fa fa-pencil"></em></a>
+				<a
+					href="#"
+					th:if="${mapping.assignment.canEdit}"
+					onclick="orgUnitService.deleteRoleAssignment(this)">
+					<em class="fa fa-times"></em>
+				</a>
+			</td>
+			
+			<td th:unless="${showEdit == true}">&nbsp;</td>
+		</tr>
+		</tbody>
+	</table>
+</th:block>

@@ -13,7 +13,8 @@ public enum ConstraintValueType {
 	INHERITED,               // the user inherits constraint values from the OU(s) he holds positions in
 	EXTENDED_INHERITED,      // as above, but according to the extension rules (depends on the type of constraint)
 	READ_AND_WRITE,			 // the sum of the two above
-	VALUE;                   // an actual hardcoded value is used
+	VALUE,                   // an actual hardcoded value is used
+	POSTPONED;				 // the constraint is postponed to the role assignment time
 	
 	public static String getUIText(SystemRoleAssignmentConstraintValue assignment) throws Exception {
 		switch (assignment.getConstraintValueType()) {

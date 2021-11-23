@@ -10,16 +10,20 @@
              Nedarvning (ROL-116)
              Vakante stillinger (ROL-117)
 
+2021.07.03 - The following Jira issues has been released
+
+             [ROL-112](https://os2web.atlassian.net/browse/ROL-112)
+             [ROL-120](https://os2web.atlassian.net/browse/ROL-120)
+             [ROL-122](https://os2web.atlassian.net/browse/ROL-122)
+             [ROL-125](https://os2web.atlassian.net/browse/ROL-125)
+             [ROL-126](https://os2web.atlassian.net/browse/ROL-126)
+             [ROL-131](https://os2web.atlassian.net/browse/ROL-131)
+             [ROL-132](https://os2web.atlassian.net/browse/ROL-132)
+             [ROL-136](https://os2web.atlassian.net/browse/ROL-136)
+             [ROL-140](https://os2web.atlassian.net/browse/ROL-140)
+             [ROL-150](https://os2web.atlassian.net/browse/ROL-150)
+
 2021.10.22 - release
-             ROL-112 "blanke" muligheden for at tilføje en rettighed som allerede er tildelt via nedarvning
-             ROL-120 Hente KLE fra STS Klassifikation i stedet for KLE Online
-             ROL-122 Håndtering af hjørnetilfælde i CICS integrationen
-             ROL-125 Faste rapporter
-             ROL-126 Adviseringsliste
-             ROL-131 Auditlog på administratorer
-             ROL-132 Tilpasninger af mailudsendelse
-             ROL-136 Opdatering af diverse dokumentation / docker / ad fs m.m.
-             ROL-140 Ændringer til anmod/godkend flowet i OS2rollekatalog
              ROL-113 Rapport over dobbelt-tildelinger inkl "ryd op" knap
              ROL-143 Valg af type af AD gruppe ved oprettelse via rollekataloget
              ROL-147 Kopiering af beskrivelsesfelt mellem Jobfunktionsroller og Brugersystemroller

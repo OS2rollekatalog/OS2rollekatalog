@@ -68,6 +68,21 @@
 									</div>
 								</div>
 							</fieldset>
+							
+							<fieldset id="allowPostponingRow">
+								<div class="form-group">
+									<label class="col-sm-2 control-label" th:text="#{html.page.userroles.new.allow_postponing}" />
+									<div class="col-sm-8" style="display: flex;">
+										<div class="checkbox c-checkbox">
+											<label>
+												<input type="checkbox" id="allowPostponing" name="allowPostponing"/>
+												<span class="fa fa-check"></span>
+											</label>
+										</div>
+									</div>
+									<a th:replace="fragments/help :: help (title=#{html.help.constraint.postpone.title}, content=#{html.help.constraint.postpone.body})" />
+								</div>
+							</fieldset>
 
 							<fieldset>
 								<div class="form-group">

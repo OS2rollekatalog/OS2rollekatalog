@@ -44,6 +44,7 @@ BEGIN
 		our.inherit = 0
 		AND our.inactive = 0
 		AND our.contains_excepted_users = 0
+		AND our.contains_titles = 0
 		AND o.active = 1
 
 	UNION ALL
@@ -73,6 +74,7 @@ BEGIN
 		ourg.inherit = 0 
 		AND ourg.inactive = 0
 		AND ourg.contains_excepted_users = 0
+		AND ourg.contains_titles = 0
 		AND o.active = 1;
 
 	-- user roles from orgunits (inherited)
@@ -136,6 +138,7 @@ BEGIN
 	JOIN user_roles ur ON ur.id = our.role_id
 	JOIN it_systems it ON it.id = ur.it_system_id
 	WHERE our.inactive = 0
+	AND our.contains_titles = 0
 	AND our.contains_excepted_users = 0;
 
 	-- user roles through rolegroups from orgunits (inherited)
@@ -202,6 +205,7 @@ BEGIN
 	JOIN user_roles ur ON ur.id = rgr.role_id
 	JOIN it_systems it ON it.id = ur.it_system_id
 	WHERE ourg.inactive = 0
+	AND ourg.contains_titles = 0
 	AND ourg.contains_excepted_users = 0;
 END
 GO

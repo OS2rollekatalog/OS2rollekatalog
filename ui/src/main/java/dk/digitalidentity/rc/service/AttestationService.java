@@ -14,6 +14,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -35,8 +36,6 @@ import dk.digitalidentity.rc.dao.model.Position;
 import dk.digitalidentity.rc.dao.model.PositionRoleGroupAssignment;
 import dk.digitalidentity.rc.dao.model.PositionUserRoleAssignment;
 import dk.digitalidentity.rc.dao.model.Title;
-import dk.digitalidentity.rc.dao.model.TitleRoleGroupAssignment;
-import dk.digitalidentity.rc.dao.model.TitleUserRoleAssignment;
 import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserRole;
 import dk.digitalidentity.rc.dao.model.UserRoleGroupAssignment;
@@ -148,23 +147,22 @@ public class AttestationService {
 			}
 			
 			// finding assignments with stopDate within 14 days for titles associated with the OU
-			List<Title> titles = orgUnitService.getTitles(ou);
-			for (Title title : titles) {
-				for (TitleUserRoleAssignment tura : title.getUserRoleAssignments()) {
-					if (tura.getStopDate() != null && tura.getOuUuids().contains(ou.getUuid())) {
-						if (tura.getStopDate().isBefore(modifiedDate)) {
-							String turaString = "Jobfunktionsrollen " + tura.getUserRole().getName() + " tildelt på titlen " + title.getName() + " associeret med enheden " + ou.getName() +  " udløber " + tura.getStopDate();
-							expiringStrings.add(turaString);
-						}
+			List<OrgUnitUserRoleAssignment> userRoleAssigments = ou.getUserRoleAssignments().stream().filter(ura->ura.isContainsTitles()).collect(Collectors.toList());
+			for (OrgUnitUserRoleAssignment oura : userRoleAssigments) {
+				if (oura.getStopDate() != null && oura.getStopDate().isBefore(modifiedDate)) {
+					for (Title title : oura.getTitles()) {
+						String turaString = "Jobfunktionsrollen " + oura.getUserRole().getName() + " tildelt på titlen " + title.getName() + " associeret med enheden " + ou.getName() +  " udløber " + oura.getStopDate();
+						expiringStrings.add(turaString);
 					}
 				}
-				
-				for (TitleRoleGroupAssignment trga : title.getRoleGroupAssignments()) {
-					if (trga.getStopDate() != null && trga.getOuUuids().contains(ou.getUuid())) {
-						if (trga.getStopDate().isBefore(modifiedDate)) {
-							String trgaString = "Rollebuketten " + trga.getRoleGroup().getName() + " tildelt på titlen " + title.getName() + " associeret med enheden " + ou.getName() +  " udløber " + trga.getStopDate();
-							expiringStrings.add(trgaString);
-						}
+			}
+			
+			List<OrgUnitRoleGroupAssignment> roleGroupAssigments = ou.getRoleGroupAssignments().stream().filter(rga->rga.isContainsTitles()).collect(Collectors.toList());
+			for (OrgUnitRoleGroupAssignment orga : roleGroupAssigments) {
+				if (orga.getStopDate() != null && orga.getStopDate().isBefore(modifiedDate)) {
+					for (Title title : orga.getTitles()) {
+						String trgaString = "Rollebuketten " + orga.getRoleGroup().getName() + " tildelt på titlen " + title.getName() + " associeret med enheden " + ou.getName() +  " udløber " + orga.getStopDate();
+						expiringStrings.add(trgaString);
 					}
 				}
 			}
@@ -504,6 +502,16 @@ public class AttestationService {
 				}
 			}
 			else {
+				Set<User> users = positionService.findByOrgUnit(orgUnit).stream().map(p -> p.getUser()).collect(Collectors.toSet());
+				long usersWithAssignments = users.stream().filter(u -> !u.getUserRoleAssignments().isEmpty() || !u.getRoleGroupAssignments().isEmpty()).count();
+				
+				// we skip OrgUnits where there are no assignments (or no users, because then... well...)
+				if (users.isEmpty() || (orgUnit.getUserRoleAssignments().isEmpty() && orgUnit.getRoleGroupAssignments().isEmpty() && usersWithAssignments == 0)) {
+					orgUnit.setNextAttestation(null);
+					orgUnitService.save(orgUnit);
+					continue;
+				}
+				
 				boolean sensitive = isSensitive(orgUnit, userRoles, ouRoleAssignments.get(orgUnit.getUuid()), userRoleAssignments);
 				
 				// default values - may be overwritten by the check below
@@ -514,12 +522,14 @@ public class AttestationService {
 
 				if (cutpoint.isAfter(lastAttestationDate) && orgUnit.getNextAttestation() != null) {
 					// we have an overdue attestation, so we should not update
+					// Or an attestation is fast forwarded, so we should not update
 					continue;
 				}
 				else if (cutpoint.isBefore(lastAttestationDate) || cutpoint.isEqual(lastAttestationDate)) {
 					// we have a completed attestation, before the deadline, so move to nextNext attestation deadline
 					nextAttestationDate = (sensitive) ? nextNextAttestationDateSensitive : nextNextAttestationDateOrdinary;
 				}
+				
 
 				// super-safe date-only comparison
 				if (orgUnit.getNextAttestation() == null || !(convertToLocalDate(orgUnit.getNextAttestation())).equals(convertToLocalDate(nextAttestationDate))) {
@@ -529,7 +539,7 @@ public class AttestationService {
 			}
 		}
 	}
-
+	
 	public Date getNextAttestationDate(LocalDate afterThisTts, boolean sensitive) {
 		int month = afterThisTts.getMonthValue();
 		int day = afterThisTts.getDayOfMonth();
@@ -617,7 +627,9 @@ public class AttestationService {
 		return attestationEnabled(filter, orgUnit.getParent());
 	}
 	
-	private LocalDate convertToLocalDate(Date dateToConvert) {
-		return dateToConvert.toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
-	}
+    private LocalDate convertToLocalDate(Date dateToConvert) {
+        return dateToConvert.toInstant()
+          .atZone(ZoneId.systemDefault())
+          .toLocalDate();
+    }
 }

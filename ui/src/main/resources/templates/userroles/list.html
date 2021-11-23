@@ -35,7 +35,7 @@
 											<td>
 												<a th:href="@{/ui/userroles/view/{id}(id=${role.id})}"><em class="fa fa-search"></em></a>
 												<th:block sec:authorize="hasRole('ROLE_ADMINISTRATOR')" th:unless="${#strings.toString(role.itSystem.systemType)} == 'AD' and ${role.itSystem.readonly}">
-													<a th:href="@{/ui/userroles/edit/{id}(id=${role.id})}" th:if="${role.linkedSystemRole == null}"><em class="fa fa-pencil"></em></a>
+													<a th:href="@{/ui/userroles/edit/{id}(id=${role.id})}"><em class="fa fa-pencil"></em></a>
 													<a href="#" class="openConfirmDeleteDialog" th:attr="data-id=${role.id}" th:if="${#strings.toString(role.itSystem.systemType)} != 'KSPCICS'"><em class="fa fa-remove"></em></a>
 												</th:block>
 											</td>

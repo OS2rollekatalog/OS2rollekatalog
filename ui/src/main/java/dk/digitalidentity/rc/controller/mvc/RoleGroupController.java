@@ -1,7 +1,6 @@
 package dk.digitalidentity.rc.controller.mvc;
 
 import java.security.Principal;
-import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -22,15 +21,15 @@ import org.springframework.web.bind.annotation.InitBinder;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
-import dk.digitalidentity.rc.controller.mvc.viewmodel.Assignment;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.EditUserRoleRow;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.RequestForm;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.RoleGroupForm;
-import dk.digitalidentity.rc.controller.mvc.viewmodel.RolesOUTable;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.TitleListForm;
+import dk.digitalidentity.rc.controller.mvc.viewmodel.UserRoleAddOrgUnitDTO;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.UserRoleCheckedDTO;
 import dk.digitalidentity.rc.controller.validator.RolegroupValidator;
 import dk.digitalidentity.rc.dao.model.OrgUnit;
@@ -47,10 +46,8 @@ import dk.digitalidentity.rc.service.RoleGroupService;
 import dk.digitalidentity.rc.service.SettingsService;
 import dk.digitalidentity.rc.service.UserRoleService;
 import dk.digitalidentity.rc.service.UserService;
-import dk.digitalidentity.rc.service.model.OrgUnitWithRole;
-import dk.digitalidentity.rc.service.model.RoleWithDateDTO;
-import dk.digitalidentity.rc.service.model.UserWithRole;
-import dk.digitalidentity.rc.service.model.UserWithRoleAndDates;
+import dk.digitalidentity.rc.service.model.OrgUnitWithRole2;
+import dk.digitalidentity.rc.service.model.UserWithRole2;
 
 @RequireRequesterOrReadAccessRole
 @Controller
@@ -128,14 +125,9 @@ public class RoleGroupController {
 			User user = getUserOrThrow(principal.getName());
 			canRequest = roleGroupService.canRequestRole(roleGroup, user);
 		}
+
 		model.addAttribute("canRequest", canRequest);
 		model.addAttribute("requestForm", new RequestForm(id));
-
-		List<UserWithRole> mapping = userService.getUsersWithRoleGroup(roleGroup, true);
-		model.addAttribute("userRoleMapping", mapping);
-
-		List<OrgUnitWithRole> orgUnits = orgUnitService.getOrgUnitsWithRoleGroup(roleGroup, true);
-		model.addAttribute("orgUnits", orgUnits);
 
 		return "rolegroups/view";
 	}
@@ -167,54 +159,8 @@ public class RoleGroupController {
 		RoleGroupForm roleGroupForm = mapper.map(roleGroup, RoleGroupForm.class);
 		boolean titlesEnabled = configuration.getTitles().isEnabled();
 		
-		List<User> usersFromDb = userService.getAll();
-		List<UserWithRoleAndDates> usersWithRole = userService.getUsersWithRoleGroupDirectlyAssigned(roleGroup);
-		List<String> uuidsWithRole = usersWithRole.stream().map(u -> u.getUser().getUuid()).collect(Collectors.toList());
-		List<UserRoleCheckedDTO> users = new ArrayList<>();
-		
-		for (User user : usersFromDb) {
-			LocalDate startDate = null;
-			LocalDate stopDate = null;
-			boolean checked = false;
-			
-			if (uuidsWithRole.contains(user.getUuid())) {
-				checked = true;
-				//We know it exists because of the if, and there should only be one
-				UserWithRoleAndDates userWithRole = usersWithRole.stream().filter(u -> u.getUser().getUuid().equals(user.getUuid())).findAny().orElse(null);
-				startDate = userWithRole.getStartDate();
-				stopDate = userWithRole.getStopDate();
-			}
-			
-			UserRoleCheckedDTO dto = new UserRoleCheckedDTO();
-			dto.setName(user.getName());
-			dto.setUuid(user.getUuid());
-			dto.setUserId(user.getUserId());
-			dto.setChecked(checked);
-			dto.setStartDate(startDate);
-			dto.setStopDate(stopDate);
-			
-			users.add(dto);
-		}
-		
-		List<OrgUnit> oUsFromDb = orgUnitService.getAll();
-		List<RolesOUTable> allOUs = new ArrayList<>();
-		for (OrgUnit ou : oUsFromDb) {
-			Assignment a = new Assignment();
-			List<RoleWithDateDTO> rolegroups = orgUnitService.getNotInheritedRoleGroupsWithDate(ou);
-			RoleWithDateDTO rg = rolegroups.stream().filter(r -> r.getId() == roleGroup.getId()).findFirst().orElse(null);
-			if (rg != null) {
-				a.setStartDate(rg.getStartDate());
-				a.setStopDate(rg.getStopDate());
-				allOUs.add(new RolesOUTable(ou, true, a));
-			}else {
-				allOUs.add(new RolesOUTable(ou, false, a));
-			}
-		}
-
 		model.addAttribute("rolegroup", roleGroupForm);
 		model.addAttribute("roles", getAddRoles(roleGroup));
-		model.addAttribute("users", users);
-		model.addAttribute("allOUs", allOUs);
 		model.addAttribute("titlesEnabled", titlesEnabled);
 
 		return "rolegroups/edit";
@@ -242,6 +188,63 @@ public class RoleGroupController {
 		roleGroup = roleGroupService.save(roleGroup);
 		return "redirect:../edit/" + roleGroup.getId();
 	}
+
+	@GetMapping(value = "/ui/rolegroups/{id}/assignedUsersFragment")
+	public String assignedUsersFragment(Model model, @PathVariable("id") long roleGroupId, @RequestParam(name = "showEdit", required = false, defaultValue = "false") boolean showEdit) {
+		RoleGroup group = roleGroupService.getById(roleGroupId);
+		if (group == null) {
+			return "redirect:../list";
+		}
+
+		List<UserWithRole2> usersWithRoleMapping = userService.getUsersWithRoleGroup(group);
+		model.addAttribute("userRoleMapping", usersWithRoleMapping);
+		model.addAttribute("showEdit", showEdit);
+
+		return "rolegroups/fragments/manage_users :: users";
+	}
+
+	@GetMapping(value = "/ui/rolegroups/{id}/availableUsersFragment")
+	public String availableUsersFragment(Model model, @PathVariable("id") long roleGroupId) {
+		RoleGroup group = roleGroupService.getById(roleGroupId);
+		if (group == null) {
+			return "redirect:../list";
+		}
+
+		List<User> usersFromDb = userService.getAll();
+		//Reusing existing dto
+		var availableUsers = usersFromDb.stream().map(u -> new UserRoleCheckedDTO(u.getUuid(), u.getName(), u.getUserId(), false, null, null)).collect(Collectors.toList());
+
+		model.addAttribute("users", availableUsers);
+		return "rolegroups/fragments/manage_add_users :: addUsers";
+	}
+
+	@GetMapping(value = "/ui/rolegroups/{id}/assignedOrgUnitsFragment")
+	public String assignedOrgUnitsFragment(Model model, @PathVariable("id") long roleGroupId, @RequestParam(name = "showEdit", required = false, defaultValue = "false") boolean showEdit) {
+		RoleGroup group = roleGroupService.getById(roleGroupId);
+		if (group == null) {
+			return "redirect:../list";
+		}
+
+		List<OrgUnitWithRole2> orgUnitsWithRole = orgUnitService.getOrgUnitsWithRoleGroup(group);
+		model.addAttribute("orgUnitMapping", orgUnitsWithRole);
+		model.addAttribute("showEdit", showEdit);
+
+		return "rolegroups/fragments/manage_ous :: ous";
+	}
+
+	@GetMapping(value = "/ui/rolegroups/{id}/availableOrgUnitsFragment")
+	public String availableOrgUnitsFragment(Model model, @PathVariable("id") long roleGroupId) {
+		RoleGroup group = roleGroupService.getById(roleGroupId);
+		if (group == null) {
+			return "redirect:../list";
+		}
+
+		List<OrgUnit> ousFromDb = orgUnitService.getAllCached();
+		var availableOrgUnits = ousFromDb.stream().map(ou -> new UserRoleAddOrgUnitDTO(ou)).collect(Collectors.toList());
+
+		model.addAttribute("ous", availableOrgUnits);
+		return "rolegroups/fragments/manage_add_ous :: addOrgUnits";
+	}
 	
 	@GetMapping(value = "/ui/rolegroups/fragments/{uuid}")
 	public String getFragment(Model model, @PathVariable("uuid") String uuid) {
@@ -256,7 +259,7 @@ public class RoleGroupController {
 	}
 	
 	@GetMapping(value = "/ui/rolegroups/fragments/ou/{uuid}")
-	public String getOUFragment(Model model, @PathVariable("uuid") String uuid) {
+	public String getOUFragment(Model model, @PathVariable("uuid") String uuid, @RequestParam(name = "edit", required = false, defaultValue = "false") boolean edit) {
 		OrgUnit orgUnit = orgUnitService.getByUuid(uuid);
 		boolean titlesEnabled = configuration.getTitles().isEnabled();
 		
@@ -275,8 +278,12 @@ public class RoleGroupController {
 		}
 		
 		model.addAttribute("titlesEnabled", titlesEnabled);
-		return "ous/fragments/ou_roles_modal :: ouRolesModal";
-		
+
+		if (edit) {
+			return "ous/fragments/ou_roles_edit_modal :: ouRolesEditModal";
+		} else {
+			return "ous/fragments/ou_roles_modal :: ouRolesModal";
+		}
 	}
 
 	private List<EditUserRoleRow> getAddRoles(RoleGroup rolegroup) {
@@ -287,6 +294,11 @@ public class RoleGroupController {
 		for (UserRole role : userRoleService.getAllExceptRoleCatalogue()) {
 			// filter roles from deleted itSystems
 			if (role.getItSystem().isDeleted()) {
+				continue;
+			}
+			
+			// filter out roles that allows postponing
+			if (role.isAllowPostponing()) {
 				continue;
 			}
 

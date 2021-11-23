@@ -72,6 +72,7 @@
 											<a th:if="${ou.canEdit} == true" th:href="'/ui/users/attestations/'+${ou.uuid}"><i style="color:black;" class="fa-fw fa fa-pencil" ></i></a>
 											<a sec:authorize="hasRole('ROLE_MANAGER') or hasRole('ROLE_SUBSTITUTE')" th:if="${ou.attestationPdfAVailable} == true and ${page} == 'attestation'" th:href="'/rest/users/attestations/'+${ou.uuid}+'/download'"><i style="color:black;" class="fa-fw fa fa-download" ></i></a>
 											<a sec:authorize="hasRole('ROLE_ADMINISTRATOR')" th:if="${ou.attestationPdfAVailable} == true and ${page} != 'attestation'" th:href="'/rest/admin/attestations/'+${ou.uuid}+'/download'"><i style="color:black;" class="fa-fw fa fa-download" ></i></a>
+											<i sec:authorize="hasRole('ROLE_ADMINISTRATOR')" th:if="${page} != 'attestation'" th:title="#{html.page.attestations.forceAttestation.title}" th:attr="data-uuid=${ou.uuid}" th:onclick="attestationService.fastForward(this)" style="color:black;" class="fa-fw fa fa-fast-forward" ></i>
 										</td>
 									</tr>
 								</tbody>
@@ -95,33 +96,84 @@
 			var infoFilteredTxt = [[#{html.datatables.info.filtered}]];
 			var prevTxt = [[#{html.datatables.prev}]];
 			var nextTxt = [[#{html.datatables.next}]];
-
+			var restUrl = [[@{/rest/admin/attestations/}]];
+			var successMsg = [[#{html.default.message.success}]];
+			var errorMsg = [[#{html.default.message.error}]];
 		+]*/
 
 		var token = $("meta[name='_csrf']").attr("content");
-
+		var attestationService;
 		$(document).ready(function() {
-			showDatatables();
+			attestationService = new AttestationService();
+			
+			attestationService.init();			
 		});
+		
+		function AttestationService() {
+			/*[+
+			var fastforwardTitle = [[#{html.page.attestation.fastforward.title}]];
+			var fastforwardText = [[#{html.page.attestation.fastforward.text}]];
+			var yesBtnTxt = [[#{html.control.button.yes}]];
+			var cancelBtnTxt = [[#{html.control.button.no}]];
+			+]*/
 
-		function showDatatables() {
-			var table = $('#listTable').DataTable({
-				"pageLength" : 25,
-				"responsive" : true,
-				'language': {
-					"search":       searchTxt,
-					"lengthMenu":   dropdownTxt,
-					"info":         infoDefaultTxt,
-					"zeroRecords":  infoEmptyTxt,
-					"infoEmpty":    "",
-					"infoFiltered": infoFilteredTxt,
-					"paginate": {
-						"next": nextTxt,
-						"previous": prevTxt
+			this.init = function() {
+				var table = $('#listTable').DataTable({
+					"pageLength" : 25,
+					"responsive" : true,
+					'language': {
+						"search":       searchTxt,
+						"lengthMenu":   dropdownTxt,
+						"info":         infoDefaultTxt,
+						"zeroRecords":  infoEmptyTxt,
+						"infoEmpty":    "",
+						"infoFiltered": infoFilteredTxt,
+						"paginate": {
+							"next": nextTxt,
+							"previous": prevTxt
+						}
 					}
-				}
-			});
-
+				});
+			}
+			
+			this.fastForward = function(elem) {
+				var uuid = $(elem).data("uuid");
+				
+				swal({
+					html: true,
+					title : fastforwardTitle,
+					text : fastforwardText,
+					type : "warning",
+					showCancelButton : true,
+					confirmButtonColor : "#DD6B55",
+					confirmButtonText : yesBtnTxt,
+					cancelButtonText : cancelBtnTxt,
+					closeOnConfirm : true,
+					closeOnCancel : true
+				},
+				function (isConfirm) {
+					if (isConfirm) {
+						$.ajax({
+							   url: restUrl + uuid + "/fastforward",
+							   headers: {
+							      'X-CSRF-TOKEN': token
+							   },
+							   type: 'post',
+							   success: function(data, textStatus, jQxhr) {
+								   location.reload(true);
+							   },
+							   error: function(jQxhr, textStatus, errorThrown) {
+								   	$.notify({
+										message: errorMsg
+									}, {
+										status: 'danger',
+										autoHideDelay: 2000
+									});
+							   }
+						});
+					}
+				});
+			}
 		}
 		/*]]>*/
 	</script>

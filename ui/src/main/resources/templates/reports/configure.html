@@ -55,19 +55,6 @@
 								</div>
 							</div>
 
-							<div class="form-group" style="margin-bottom: 20px" th:if="${@roleCatalogueConfiguration.getTitles().isEnabled()}">
-								<input class="column-choice" id="realShowTitles" th:field="*{showTitles}" type="hidden">
-								<label class="col-sm-3 control-label" th:text="#{html.page.report.column.title}"/>
-								<div class="col-sm-9">
-									<div class="checkbox c-checkbox">
-										<label>
-											<input id="TitleColumnCheckbox" type="checkbox" th:attr="checked=${reportForm.showTitles}" onchange="columnService.columnChoiceTrigger(this, 'ShowTitles')"/>
-											<span class="fa fa-check"></span>
-										</label>
-									</div>
-								</div>
-							</div>
-
 							<div class="form-group" style="margin-bottom: 20px">
 								<input class="column-choice" id="realShowOUs" th:field="*{showOUs}" type="hidden">
 								<label class="col-sm-3 control-label" th:text="#{html.page.report.column.ou}"/>
@@ -205,6 +192,28 @@
 		body.loading .modal-spinner {
 			display: block;
 		}
+
+		/* Override default calendar styling to better show disabled dates */
+		.bootstrap-datetimepicker-widget table td.day:hover,
+		.bootstrap-datetimepicker-widget table td.hour:hover,
+		.bootstrap-datetimepicker-widget table td.minute:hover,
+		.bootstrap-datetimepicker-widget table td.second:hover {
+		    background: #d9d9d9;
+		}
+		.bootstrap-datetimepicker-widget table td.day {
+			background: #f2f2f2;
+		}
+		.bootstrap-datetimepicker-widget table td.active, .bootstrap-datetimepicker-widget table td.active:hover {
+		    background-color: #d9d9d9;
+		    color: black;
+		    text-shadow: 0;
+		}
+		.bootstrap-datetimepicker-widget table td.disabled,
+		.bootstrap-datetimepicker-widget table td.disabled:hover {
+		    background: white;
+		    color: lightgrey;
+		    cursor: not-allowed;
+		}
 	</style>
 
 	<nav th:replace="fragments/footer :: footer" />
@@ -311,7 +320,6 @@
 				var dataObj = {
 					"name": $('#templateName').val(),
 					"showUsers": $('#realShowUsers').val(),
-					"showTitles": $('#realShowTitles').val(),
 					"showOUs": $('#realShowOUs').val(),
 					"showUserRoles": $('#realShowUserRoles').val(),
 					"showKLE": $('#realShowKLE').val(),
@@ -361,28 +369,68 @@
 				$('#real' + name).val(checkbox.checked);
 			}
 		}
-		
+
+		Date.prototype.addDays = function(days) {
+			var dat = new Date(this.valueOf())
+			dat.setDate(dat.getDate() + days);
+			return dat;
+		}
+
+		function getDates(startDate, stopDate) {
+			var dateArray = new Array();
+			var currentDate = startDate;
+			while (currentDate <= stopDate) {
+				dateArray.push(currentDate)
+				currentDate = currentDate.addDays(1);
+			}
+			return dateArray;
+		}
+
 		function DatePickerService() {
 			this.init = function() {
+				var date2MonthsAgo = new Date(new Date().setMonth(new Date().getMonth()-2));
+				var date6MonthsAgo = new Date(new Date().setMonth(new Date().getMonth()-6));
+
+				//Enable last two months
+				var enabledDates = getDates( date2MonthsAgo, new Date());
+				
+				//Enable 7th, 14th etc. from 4 months prior to 2 months ago
+				var olderDates = getDates(date6MonthsAgo,date2MonthsAgo);
+				for (i = 0; i < olderDates.length; i ++ ) {
+					if (olderDates[i].getDate() != 7
+						&& olderDates[i].getDate() != 14
+						&& olderDates[i].getDate() != 21
+						&& olderDates[i].getDate() != 28) {
+							continue;
+						}
+					
+					enabledDates.push(olderDates[i]);
+				}
 				
 				// Initialize DatePicker
 				$('#datePicker').datetimepicker({
 					inline: true,
-					format: 'YYYY-MM-DD'
+					format: 'YYYY-MM-DD',
+					minDate: moment().subtract(6, 'months'),
+					maxDate: moment().add(0.5, 'months'),
+					enabledDates: enabledDates,
 				});
 				
 				// On Change event for DatePicker
 	        	$('#datePicker').on('dp.change', function () {
 	        		var date = $('#datePicker').data('date');
-
-	        		// Remember date
-	        		$('#realDateField').val(date);
-
-	        		// ajax call to load
-					$("#filterOptions").load(url + "/configure/" + date + "?templateId=" + templateId, function() {
-						datePickerService.getOrgUnits(date);
-						filterService.init();					
-					});
+	        		
+	        		//sometimes date is undefined. thanks javascript
+	        		if (date) {
+						// Remember date
+						$('#realDateField').val(date);
+	
+						// ajax call to load
+						$("#filterOptions").load(url + "/configure/" + date + "?templateId=" + templateId, function() {
+							datePickerService.getOrgUnits(date);
+							filterService.init();
+						});
+	        		}
 	        	});
 
 	        	$('#datePicker').trigger('dp.change');

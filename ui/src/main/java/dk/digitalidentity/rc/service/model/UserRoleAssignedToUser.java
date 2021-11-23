@@ -13,7 +13,10 @@ public class UserRoleAssignedToUser implements RoleAssignedToUser {
 	private AssignedThrough assignedThrough;
 	private Title title;
 	private OrgUnit orgUnit;
-
+	
+	private Long assignmentId;
+	private boolean fromPosition;
+	
 	@Override
 	public long getRoleId() {
 		if (userRole != null) {

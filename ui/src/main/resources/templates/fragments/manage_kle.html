@@ -1,0 +1,25 @@
+<th:block th:fragment="kle" xmlns="http://www.w3.org/1999/xhtml" xmlns:th="http://www.thymeleaf.org">
+	<fieldset>
+		<div class="form-group">
+			<div class="table-responsive">
+				<table class="listTable table table-striped table-hover">
+					<thead>
+						<tr>
+							<th class="col-md-2" th:text="#{html.entity.kle.code}" />
+							<th class="col-md-6" th:text="#{html.entity.kle.description}" />
+							<th class="col-md-4" th:text="#{html.entity.kle.inherited}" />
+						</tr>
+					</thead>
+
+					<tbody>
+						<tr th:each="kle : ${kles}">
+							<td th:text="${kle.code}" />
+							<td th:text="${kle.description}" />
+							<td th:text="${kle.inheritedFrom}" />
+						</tr>
+					</tbody>
+				</table>
+			</div>
+		</div>
+	</fieldset>
+</th:block>

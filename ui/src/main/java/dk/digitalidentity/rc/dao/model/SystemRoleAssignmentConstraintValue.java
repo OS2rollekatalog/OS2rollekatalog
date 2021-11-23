@@ -53,7 +53,6 @@ public class SystemRoleAssignmentConstraintValue {
 	@Column(nullable = true, length = 128)
 	private String constraintIdentifier;
 	
-	public void setConstraintIdentifier(String identifier) {
-		this.constraintIdentifier = identifier;
-	}
+	@Column(nullable = false)
+	private boolean postponed;
 }

@@ -16,4 +16,9 @@ public class AttestationConfirmShowDTO {
 	private boolean roleGroup = false;
 	private boolean title = false;
 	private List<String> exceptedUsers = null;
+	private boolean fromPosition = false;
+	
+	// for postponed constraints
+	private List<SystemRoleAssignmentDTO> systemRoleAssignmentsDTOs = null;
+	private Long assignmentId = null;
 }

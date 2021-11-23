@@ -45,7 +45,7 @@
 			allowInputToggle: true,
 			showClear: true,
 			icons: icons,
-			minDate: new Date(new Date().getTime())
+			minDate: new Date(new Date(new Date().toISOString().substr(0, 10)).getTime() - (4 * 60 * 60 * 1000))
 		};
 		
 		var defaultStopDatePickerOptions = {
@@ -54,7 +54,7 @@
 			allowInputToggle: true,
 			showClear: true,
 			icons: icons,
-			minDate: new Date(new Date().getTime() + 24 * 60 * 60 * 1000),
+			minDate: new Date(new Date().getTime() + (24 * 60 * 60 * 1000)),
 			useCurrent: false //Important! See issue #1075
 		}
 		
@@ -68,6 +68,12 @@
 				// TODO: I know this is not the best way to do it, but I can't make it work otherwise
 				$('#startDatePickerOU').datetimepicker(defaultStartDatePickerOptions);
 				$('#stopDatePickerOU').datetimepicker(defaultStopDatePickerOptions);
+				//Edit dialog for userRoles and RoleGroup assignments in USERS
+				$('#startDatePickerEdit').datetimepicker(defaultStartDatePickerOptions);
+				$('#stopDatePickerEdit').datetimepicker(defaultStopDatePickerOptions);
+				//Edit dialog for userRoles and RoleGroup assignments in ORGUNITS
+				$('#startDatePickerEditOU').datetimepicker(defaultStartDatePickerOptions);
+				$('#stopDatePickerEditOU').datetimepicker(defaultStopDatePickerOptions);
 				
 				// UserRoles
 				$("#startDatePicker").on("dp.change", function (e) {
@@ -129,6 +135,48 @@
 				$("#stopDatePickerOU").on("dp.change", function (e) {
 					if (!$('#startDatePickerOU').data('date')) {
 						$('#startDatePickerOU').data("DateTimePicker").date(new Date());
+					}
+				});
+
+				// Edit Modal
+				$("#startDatePickerEdit").on("dp.change", function (e) {
+					var minDate;
+					if (e.date) {
+						minDate = new Date(e.date + 24 * 60 * 60 * 1000);
+					} else {
+						minDate = new Date(new Date().getTime() + 24 * 60 * 60 * 1000);
+					}
+					$('#stopDatePickerEdit').data("DateTimePicker").minDate(minDate);
+					
+					if ($('#stopDatePickerEdit').data("date") && $('#stopDatePickerEdit').data("DateTimePicker").date().toDate() < minDate) {
+						$('#stopDatePickerEdit').data("DateTimePicker").date(minDate);
+					}
+				});
+
+				$("#stopDatePickerEdit").on("dp.change", function (e) {
+					if (!$('#startDatePickerEdit').data('date')) {
+						$('#startDatePickerEdit').data("DateTimePicker").date(new Date());
+					}
+				});
+
+				//Edit modal OU
+				$("#startDatePickerEditOU").on("dp.change", function (e) {
+					var minDate;
+					if (e.date) {
+						minDate = new Date(e.date + 24 * 60 * 60 * 1000);
+					} else {
+						minDate = new Date(new Date().getTime() + 24 * 60 * 60 * 1000);
+					}
+					$('#stopDatePickerEditOU').data("DateTimePicker").minDate(minDate);
+					
+					if ($('#stopDatePickerEditOU').data("date") && $('#stopDatePickerEditOU').data("DateTimePicker").date().toDate() < minDate) {
+						$('#stopDatePickerEditOU').data("DateTimePicker").date(minDate);
+					}
+				});
+
+				$("#stopDatePickerEditOU").on("dp.change", function (e) {
+					if (!$('#startDatePickerEditOU').data('date')) {
+						$('#startDatePickerEditOU').data("DateTimePicker").date(new Date());
 					}
 				});
 			}

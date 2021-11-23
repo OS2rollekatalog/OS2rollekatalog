@@ -1,9 +1,12 @@
 package dk.digitalidentity.rc.controller.api.dto;
 
 import java.util.List;
-import lombok.Data;
 
-@Data
+import lombok.Getter;
+import lombok.Setter;
+
+@Getter
+@Setter
 public class UserDTO {
 	private String uuid;
 	private String userId;

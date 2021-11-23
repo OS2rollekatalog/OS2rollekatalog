@@ -32,7 +32,7 @@ public class MyController {
 		}
 
 		model.addAttribute("user", user);
-		model.addAttribute("assignments", userService.getAllUserRolesAssignedToUser(user, null));
+		model.addAttribute("assignments", userService.getAllUserRoleAndRoleGroupAssignments(user));
 		
 		return "users/my";
 	}

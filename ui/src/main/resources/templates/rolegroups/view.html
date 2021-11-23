@@ -72,9 +72,11 @@
 						  	<li class="active">
 								<a data-toggle="tab" href="#roles_menu" th:text="#{html.page.rolegroup.list.roles}"></a>
 							</li>
+							
 							<li>
 								<a data-toggle="tab" href="#users_menu" th:text="#{html.entity.userrole.users}" />
 							</li>
+							
 							<li>
 								<a data-toggle="tab" href="#ous_menu" th:text="#{html.entity.userrole.orgunits}" />
 							</li>
@@ -101,41 +103,9 @@
 							</div>
 
 							<div id="users_menu" class="tab-pane fade in">
-								<table id="listTable2" class="table table-striped table-hover listTable">
-									<thead>
-									<tr>
-										<th class="col-md-2" th:text="#{html.entity.user.name}"/>
-										<th class="col-md-2" th:text="#{html.enum.assignmenttype}"/>
-										<th class="col-md-2" th:text="#{html.entity.user.userId}"/>
-									</tr>
-									</thead>
-
-									<tbody>
-									<tr th:each="mapping : ${userRoleMapping}">
-										<td th:text="${mapping.user.name}" />
-										<td th:text="#{__${mapping.assignedThrough.message}__}" />
-										<td th:text="${mapping.user.userId}" />
-									</tr>
-									</tbody>
-								</table>
 							</div>
 
 							<div id="ous_menu" class="tab-pane fade in">
-								<table id="listTable3" class="table table-striped table-hover listTable">
-									<thead>
-									<tr>
-										<th class="col-md-12" th:text="#{html.entity.ou.name}"/>
-										<th class="col-md-2" th:text="#{html.enum.assignmenttype}"/>
-									</tr>
-									</thead>
-
-									<tbody>
-									<tr th:each="mapping : ${orgUnits}">
-										<td th:text="${mapping.orgUnit.name}" />
-										<td th:text="#{__${mapping.assignedThrough.message}__}" />
-									</tr>
-									</tbody>
-								</table>
 							</div>
 						</div>
 					</div>
@@ -167,19 +137,62 @@
 	    </div>
 	</div>
 
-    <nav th:replace="fragments/footer :: footer" />
-
-	<script th:replace="fragments/datatables :: datatables " />
+	<div id="userRoleGroupModal"></div>
+	<div id="ouRoleGroupModal"></div>
+	<div id="ouRoleGroupEditModal"></div>
+	<div th:replace="users/fragments/role_assignment_edit_modal :: roleAssignmentEditModal" />
+	<nav th:replace="fragments/footer :: footer"/>
+	
+	<script th:replace="fragments/datatables :: datatables(orderColumnValue=1) " />
+	<script th:replace="fragments/assignDatePicker :: content " />
+	
+	<script th:replace="ous/fragments/ou_roles_modal :: ouRoleGroupModalScript(titlesEnabled=${titlesEnabled})" />
+	<script th:replace="ous/fragments/ou_roles_edit_modal :: ouRolesEditModalScript(titlesEnabled=${titlesEnabled})" />
+	<script th:replace="users/fragments/role_assignment_edit_modal :: roleAssignmentEditModalScript" />
+	<script th:replace="users/fragments/user_role_group_modal :: userRoleGroupModalScript"/>
 	
 	<script th:inline="javascript">
 		/*<![CDATA[*/
 			
 		/*[+
+			var url = [[@{/rest/rolegroups/}]];
+			var roleId = [[${rolegroup.id}]];
+			var fieldUpdatedMsg = [[#{html.entity.rolegroup.updatedmsg}]];
+			var fieldNotUpdatedMsg = [[#{html.entity.rolegroup.failedupdatemsg}]];
+
+			var UIUrl = [[@{/ui/rolegroups/}]];
+			var userRestUrl = [[@{/rest/users/}]];
+			var ouRestUrl = [[@{/rest/ous/}]];
+			
+			//Delete role assignment swal
+			var deleteRoleAssignmentTitleTxt = [[#{html.page.manage.roles.delete.title}]];
+			var deleteRoleAssignmentBodyTxt = [[#{html.page.manage.roles.delete.body}]];
+			var deleteRoleAssignmentErrorMessage = [[#{html.page.manage.roles.delete.error}]];
+			
+			var deleteAssignmentConfirmTxt = [[#{html.control.button.yes}]];
+			var deleteAssignmentCancelTxt = [[#{html.control.button.cancel}]];
+			
+			var titlesEnabled = [[${titlesEnabled}]];
+			var roleId = [[${rolegroup.id}]];
+				
 			var infoMessage = [[${infoMessage}]];
 			var errorMessage = [[${errorMessage}]];
 		+]*/
 
+		var token = $("meta[name='_csrf']").attr("content");
+		
+		var userService = new UserService();
+		var orgUnitService = new OrgUnitService();
+		var notificationService = new NotificationService();
+		
 		$("document").ready(function() {
+			userService.loadRolesFragment();
+			//Edit RoleGroup assignemnet on User modal
+			userRoleEditModalService.parentService = userService;
+			
+			orgUnitService.loadRolesFragment();
+			//Edit RoleGroup assignmnet on OrgUnit modal
+			ouRolesEditModalService.parentService = orgUnitService;
 
 			$("#modal-request").on('shown.bs.modal', function() {
 				$("#reasonField").focus();
@@ -198,21 +211,55 @@
 			});
 			
 			if (infoMessage != null) {
+				notificationService.showInfoNotification(infoMessage);
+			}
+
+			if (errorMessage != null) {
+				notificationService.showErrorNotification(errorMessage);
+			}
+		});
+
+		function UserService() {
+			this.loadRolesFragment = function () {
+				$("#users_menu").load(UIUrl + roleId + "/assignedUsersFragment", function () {
+					fragShowDataTableFun('#listTableUsers', 0);
+				});
+			}
+		}
+
+		function OrgUnitService() {
+			this.loadRolesFragment = function () {
+				$("#ous_menu").load(UIUrl + roleId + "/assignedOrgUnitsFragment", function () {
+					fragShowDataTableFun('#listTableOus', 0);
+				});
+			}
+		}
+		
+		function NotificationService() {
+			this.showInfoNotification = function(message) {
 				$.notify({
-					message: infoMessage,
+					message: message,
 					status: 'success',
 					timeout: 2000
 				});
 			}
-
-			if (errorMessage != null) {
+			
+			this.showWarnNotification = function(message) {
 				$.notify({
-					message: errorMessage,
+					message: message,
+					status: 'warning',
+					timeout: 3000
+				});
+			}
+
+			this.showErrorNotification = function(message) {
+				$.notify({
+					message: message,
 					status: 'danger',
 					timeout: 4000
 				});
 			}
-		});
+		}
 		/*]]>*/
 	</script>
 </body>

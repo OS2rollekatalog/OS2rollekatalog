@@ -55,7 +55,6 @@ public class ReportRestController {
 		ReportTemplate reportTemplate = new ReportTemplate();
 		reportTemplate.setName(reportForm.getName());
 		reportTemplate.setShowUsers(reportForm.isShowUsers());
-		reportTemplate.setShowTitles(reportForm.isShowTitles());
 		reportTemplate.setShowOUs(reportForm.isShowOUs());
 		reportTemplate.setShowUserRoles(reportForm.isShowUserRoles());
 		reportTemplate.setShowKLE(reportForm.isShowKLE());

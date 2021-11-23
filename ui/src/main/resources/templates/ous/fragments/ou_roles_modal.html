@@ -19,17 +19,17 @@
 					</ul>
 
 					<ul class="nav nav-tabs" id="dataTabs">
-						<li sec:authorize="hasRole('ROLE_ASSIGNER')" th:if="${titles != null and titles.size() > 0}">
+						<li th:if="${titles != null and titles.size() > 0}" class="active">
 							<a data-toggle="tab" data-tab-type="ou_roles_title_menu" href="#ou_roles_title_menu" th:text="#{html.page.ous.edit.tab.titles}"></a>
 						</li>
 
-						<li sec:authorize="hasRole('ROLE_ASSIGNER')">
+						<li th:class="${titles != null and titles.size() > 0} ? '' : 'active'">
 							<a data-toggle="tab" data-tab-type="ou_roles_excepted_users_menu" href="#ou_roles_excepted_users_menu" th:text="#{html.page.ous.edit.tab.exceptedusers}"></a>
 						</li>
 					</ul>
 
 					<div class="tab-content">
-						<div id="ou_roles_title_menu" class="tab-pane fade in active" th:if="${titles != null and titles.size() > 0}">
+						<div id="ou_roles_title_menu" class="tab-pane active" th:if="${titles != null and titles.size() > 0}">
 							<table th:if="${titles != null and titles.size() > 0}" id="ou_roles_listTable1" class="table table-striped">
 								<thead>
 									<tr>
@@ -48,13 +48,14 @@
 												</label>
 											</div>
 										</td>
+
 										<td th:text="${title.name}" />
 									</tr>
 								</tbody>
 							</table>
 						</div>
 
-						<div id="ou_roles_excepted_users_menu" class="tab-pane fade in" th:classappend ="${titles != null and titles.size() > 0} ? '' : 'in active'">
+						<div id="ou_roles_excepted_users_menu" class="tab-pane" th:classappend="${titles != null and titles.size() > 0} ? '' : 'active'">
 							<div th:replace="ous/fragments/ou_excepted_users :: table"></div>
 						</div>
 					</div>
@@ -103,62 +104,52 @@
 	                		<li><a href="#" onclick="ouRolesModalService.handleEveryoneRoleAssignment(true)" th:text="#{html.page.ous.edit.button.assign.all.inheritance}"/></li>
 			  			</ul>
 			  		</div>
-					<button type="button" class="btn btn-danger" style="margin-left: 5px;" onclick="ouRolesModalService.handleRemoveRoleAssignment()" th:text="#{html.page.ous.edit.button.deassign}"/>
+			  		<button type="button" class="btn btn-warning" style="margin-left: 5px;" onclick="ouRolesModalService.closeModal();" th:text="#{html.control.button.cancel}"/>
 				</div>
 			</div>
 		</div>
 	</div>
 </th:block>
-	
+
 <th:block th:fragment="ouRoleGroupModalScript" xmlns="http://www.w3.org/1999/xhtml" xmlns:th="http://www.thymeleaf.org">
 	<script th:inline="javascript" type="text/javascript">
 		/*<![CDATA[*/
 		
 		/*[+
 		var titlesEnabled = [[${titlesEnabled}]];
-		var urlModal = [[@{/rest/ous/}]];
-		var restUserRoleUrl = [[@{/rest/userroles/}]]
-		var fieldUpdatedMsg = [[#{html.entity.rolegroup.updatedmsg}]];
-		var fieldNotUpdatedMsg = [[#{html.entity.rolegroup.failedupdatemsg}]];
-		var urlOUsModal = [[@{/rest/ous/}]];
-		var urlFetchExceptedUsers = [[@{/ui/ous/}]]
 		+]*/
-		var payload = {
-				roleType: '',
-				roleId: 0,
-				checkboxRef: null,
-				ouUuid: ''
-		};
-		var ouRolesModalService
+
+		var ouRolesModalService;
 		var notifikationService;
 		var titles = [];
 		var checkedTitlesFetched;
+
 		$(document).ready(function() {
-            ouRolesModalService = new OURolesModalService();
+			ouRolesModalService = new OURolesModalService();
             ouRolesModalService.init();
+
+    		/*[+
+    		ouRolesModalService.fieldUpdatedMsg = [[#{html.entity.rolegroup.updatedmsg}]];
+    		ouRolesModalService.fieldNotUpdatedMsg = [[#{html.entity.rolegroup.failedupdatemsg}]];
+    		ouRolesModalService.restUrl = [[@{/rest/ous/}]];
+    		ouRolesModalService.uiUrl = [[@{/ui/ous/manage/}]];
+    		+]*/
             
             notifikationService = new NotificationService();
         });
 		
-		function OURolesModalService(){
-			this.init = function(){
-				$('#modal-ou').on('shown.bs.modal', function (e) {
+		function OURolesModalService() {
+			this.init = function() {
+				$('#modal-ou').on('shown.bs.modal', function(e) {
+
 					// Add checkboxlisteners to modal
 					ouRolesModalService.addTitleCheckboxListeners();
 					ouRolesModalService.addExceptedUsersCheckboxListeners();
-
-					// Show tab with prefilled information
-					if ($('.title-checkbox:checked').length > 0) {
-						$('.nav-tabs a[href="#ou_roles_title_menu"]').tab('show');
-					}
-					else if ($('.exceptedusers-checkbox:checked').length > 0) {
-						$('.nav-tabs a[href="#ou_roles_excepted_users_menu"]').tab('show');
-					}
 				})
-
 
 				// Add change tab event handler
 				$('a[data-toggle="tab"]').on("shown.bs.tab", function (e) {
+
 					// Fetch active tab and show/hide buttons depending on that
 					var tabType = $('#modal-ou .nav-tabs li.active a[data-toggle="tab"]').data('tab-type');
 
@@ -176,44 +167,7 @@
 					}
 				});
 			}
-			
-			this.loadTitles = function(loadCheckedTitles) {
-				var endpoint = restUserRoleUrl + 'titles/' + payload.ouUuid;
-				$.ajax({
-					url: endpoint,
-					method: "GET",
-					error: function(response) {
-						showErrorNotification(fieldNotUpdatedMsg);
-					},
-					success : function(response) {
-						titles=response;
-						if (loadCheckedTitles) {
-							ouRolesModalService.fetchCheckedTitles(response);
-						}
-					}
-				});
-			}
-			
-			this.fetchCheckedTitles = function(titles) {
-				//fetch checked titles
-				$.ajax({
-					url: urlOUsModal + payload.ouUuid + "/" + payload.roleType + "/" + payload.roleId + "/titles", 
-					method: "POST",
-					headers: {
-						'X-CSRF-TOKEN': token
-					},
-	                contentType: 'application/json',
-					data: JSON.stringify(titles),
-					error : function(response) {
-						notificationService.showErrorNotification(fieldNotUpdatedMsg);
-						payload.checkboxRef.checked = !payload.checkboxRef.checked;
-					},
-					success : function(response) {
-						checkedTitlesFetched=response;
-					}
-				});
-			}
-			
+
 			this.addTitleCheckboxListeners = function(){
 				// makes sure the title checkboxes on the modal dialogue modifies the underlying datastructure on changes
 				$('.title-checkbox').off("change");
@@ -225,70 +179,36 @@
 				$('.exceptedusers-checkbox').change(ouRolesModalService.handleExceptedUsersCheckbox);
 			}
 			
-			this.showAssignModal = function(titlesEnabled, checked, checkedTitles, startDate, stopDate) {
-				// Setup DatePickers
-				if (stopDate) {
-					$('#stopDatePickerOU').data("DateTimePicker").date(stopDate);
-				} else {
-					$('#stopDatePickerOU').data("DateTimePicker").clear();
-				}
+			this.showAssignModal = function(titlesEnabled, checkedTitles, startDate, stopDate) {
+				$('#stopDatePickerOU').data("DateTimePicker").clear();
+				$('#startDatePickerOU').data("DateTimePicker").clear();
+				$('#startDatePickerOU').data("DateTimePicker").date(new Date());
 
-				if (startDate) {
-					$('#startDatePickerOU').data("DateTimePicker").date(startDate);
-				} else {
-					$('#startDatePickerOU').data("DateTimePicker").clear();
-					$('#startDatePickerOU').data("DateTimePicker").date(new Date());
-				}
+				// Reset UI
+				$('#modal-ou-edit #dataTabs').show();
+				$('#modal-ou-edit .tab-content').show();
 
-				// If titles are enabled, check all the checked boxes and disable/enable option to assign to titles.
-				if (titlesEnabled) {
-					var anythingChecked = false;
-					
-					// Check the boxes corrosponding to the list of checked titles from the backend
-					if (checkedTitles != null){
-						for (var i = 0; i < titles.length; i++) {
-							titles[i].state.checked = (checkedTitles.indexOf(titles[i].id) > -1);
-							$('.title-checkbox[data-id=' + titles[i].id + ']').prop('checked', titles[i].state.checked);
-							
-							if (titles[i].state.checked) {
-								anythingChecked = true;
-							}
-						}
-					}else if (checkedTitlesFetched){
-						for (var i = 0; i < titles.length; i++) {
-							titles[i].state.checked = (checkedTitlesFetched != null && checkedTitlesFetched.indexOf(titles[i].id) > -1);
-							$('.title-checkbox[data-id=' + titles[i].id + ']').prop('checked', titles[i].state.checked);
-							
-							if (titles[i].state.checked) {
-								anythingChecked = true;
-							}
-						}
-					}
-					
-					// Show assign to titles button and enable/disable it based on number of checked titles
-					$("#titleAssignTitlesButton").show();
-					if (!anythingChecked) {
-						$("#titleAssignTitlesButton").prop('disabled', true);
-						$("#assignAllButton").prop('disabled', false);
-					}
-					else {
-						$("#titleAssignTitlesButton").prop('disabled', false);
-						$("#assignAllButton").prop('disabled', true);
-					}
-
-					$('a[data-toggle="tab"][href="#ou_roles_title_menu"]').tab('show');
-				}
-				else {
-					// If titles not enabled, hide assign to tiles button
-					$('a[data-toggle="tab"][href="#ou_roles_excepted_users_menu"]').tab('show');
-					$("#titleAssignTitlesButton").hide();
-				}
-
-				// Fetch excepted users (if any), and check checkboxes
-				var url = urlFetchExceptedUsers + payload.roleType + "/exceptedusers/" + payload.ouUuid + "/" + payload.roleId;
+				// Fetch possible excepted users for this OU
+				var url = ouRolesModalService.uiUrl + "users/" + ouRolesModalService.ouUuid;
 				$("#ou_roles_excepted_users_menu").load(url, function() {
 					fragShowDataTableFun('#ou_roles_listTable2', 0);
 				});
+				
+				if (titlesEnabled) {
+					$('.title-checkbox').removeAttr('checked');
+					$('a[data-toggle="tab"][href="#ou_roles_title_menu"]').tab('show');
+					$("#titleAssignTitlesButton").show();
+					$("#assignWithExceptionsButton").hide();
+				}
+				else {
+					$('.exceptedusers-checkbox').removeAttr('checked');
+					$('a[data-toggle="tab"][href="#ou_roles_excepted_users_menu"]').tab('show');
+					$("#titleAssignTitlesButton").hide();
+					$("#assignWithExceptionsButton").show();
+				}
+
+				ouRolesModalService.handleTitleCheckbox();
+				ouRolesModalService.handleExceptedUsersCheckbox();
 
 				$("#titleInheritButton").show();
 
@@ -299,7 +219,7 @@
 			}
 			
 			this.assignRole = function(objType, inherit, id, titleUuids, exceptedUserUuids) {
-				var endpoint = urlModal + 'add' + objType + '/' + payload.ouUuid + '/' + id;
+				var endpoint = ouRolesModalService.restUrl + 'add' + objType + '/' + ouRolesModalService.ouUuid + '/' + id;
 
 				var startDate = $('#startDatePickerOU').data('date');
 				var stopDate = $('#stopDatePickerOU').data('date');
@@ -322,8 +242,8 @@
 	    			      'exceptedUserUuids' : exceptedUserUuids
 					}),
 					error : function(response) {
-						notifikationService.showErrorNotification(fieldNotUpdatedMsg);
-						ouRolesModalService.closeModalWithState(false);
+						notifikationService.showErrorNotification(ouRolesModalService.fieldNotUpdatedMsg);
+						ouRolesModalService.closeModal();
 					},
 					success : function(response) {
 						if (response.success) {
@@ -332,109 +252,64 @@
 								notifikationService.showWarnNotification(optionalSuccessMessage);
 							}
 							else {
-								notifikationService.showInfoNotification(fieldUpdatedMsg);
+								notifikationService.showInfoNotification(ouRolesModalService.fieldUpdatedMsg);
 							}
 						}
 						else {
 							// TODO: should we inform the user that we did not make any change?
-							notifikationService.showInfoNotification(fieldUpdatedMsg);
+							notifikationService.showInfoNotification(ouRolesModalService.fieldUpdatedMsg);
 						}
 						
-						ouRolesModalService.closeModalWithState(true);
+						ouRolesModalService.closeModal();
 					}
 				});
-				
+
 				// TODO: I doubt this works with failures
 				// TODO: what to do with this? should not be in fragment. Belongs to ous/edit.html
 				//updateCheckboxSorting(objType, id, true);
 			}
 			
-			this.deassignRole = function(objType, id) {
-				var endpoint = urlModal + 'remove' + objType + '/' + payload.ouUuid + '/' + id;
-
-				$.ajax({
-					url: endpoint,
-					method: "POST",
-					headers: {
-						'X-CSRF-TOKEN': token
-					},
-					error : function(response) {
-						notifikationService.showErrorNotification(fieldNotUpdatedMsg);
-						ouRolesModalService.closeModalWithState(true);
-					},
-					success : function(response) {
-						notifikationService.showInfoNotification(fieldUpdatedMsg);
-						ouRolesModalService.closeModalWithState(false);
-					}
-				});
-				
-				// TODO: I doubt this works with failures
-				// TODO: what to do with this? should not be in fragment. Belongs to ous/edit.html
-				//updateCheckboxSorting(objType, id, false);
-			}
-			
 			// wrapper around assignRole that gets the list of selected excepted users
 			this.handleExceptedRoleAssignment = function() {
 				var exceptedUsers = [];
-				var exceptedUsersChbx = $('.exceptedusers-checkbox:checked');
+				var exceptedUsersChbx = $('#modal-ou .exceptedusers-checkbox:checked');
 				for (var i = 0; i < exceptedUsersChbx.length; i++) {
 					exceptedUsers.push($(exceptedUsersChbx[i]).data('id'));
 				}
 				
-				ouRolesModalService.assignRole(payload.roleType, false, payload.roleId, [], exceptedUsers);
+				ouRolesModalService.assignRole(ouRolesModalService.roleType, false, ouRolesModalService.roleId, [], exceptedUsers);
 			}
 
 			// wrapper around assignRole that reads the list of checked title UUIDs called by button click
 			this.handleTitleRoleAssignment = function() {
 				var titleUuids = [];
-				for (var i = 0; i < titles.length; i++) {
-					if (titles[i].state.checked) {
-						titleUuids.push(titles[i].id);
-					}
-				}
-				
-				ouRolesModalService.assignRole(payload.roleType, false, payload.roleId, titleUuids, []);
+
+				$('#ou_roles_listTable1 input:checkbox:checked').each(function(index) {
+					titleUuids.push($(this).data('id'));
+				});
+
+				ouRolesModalService.assignRole(ouRolesModalService.roleType, false, ouRolesModalService.roleId, titleUuids, []);
 			}
 			
 			// wrapper around assignRole that assigns to everyone called by button click
 			this.handleEveryoneRoleAssignment = function(inherit) {
-				ouRolesModalService.assignRole(payload.roleType, inherit, payload.roleId, [], []);			
+				ouRolesModalService.assignRole(ouRolesModalService.roleType, inherit, ouRolesModalService.roleId, [], []);
 			}
 
-			// wrapper around deassignRole called by button click
-			this.handleRemoveRoleAssignment = function() {
-				ouRolesModalService.deassignRole(payload.roleType, payload.roleId);
-			}
-			
-			this.closeModalWithState = function(checkboxState) {
-				payload.checkboxRef.checked = checkboxState;
-
-				// Set data-startdate and data-stopdate so you don't have to refresh to have the values
-				$(payload.checkboxRef).attr('data-startdate', $('#startDatePickerOU').data('date'));
-				$(payload.checkboxRef).attr('data-stopdate', $('#stopDatePickerOU').data('date'));
-
-				$('#modal-ou').modal('toggle');
-			}
-			
 			this.closeModal = function() {
-				payload.checkboxRef.checked = !payload.checkboxRef.checked;
+				$('#modal-ou').modal('hide');
+				ouRolesModalService.resetUI();
+			}
 
-				$('#modal-ou').modal('toggle');
+			this.resetUI = function() {
+				$('.title-checkbox').removeAttr('checked');
+				$('.exceptedusers-checkbox').removeAttr('checked');
+				$('.nav-tabs a[href="#ou_roles_title_menu"]').tab('show');
 			}
 			
-			this.handleTitleCheckbox = function() {
-				var anythingChecked = false;
+			this.handleTitleCheckbox = function() {				
+				var anythingChecked = ($('#ou_roles_listTable1 input:checkbox:checked').length > 0);
 
-				for (var i = 0; i < titles.length; i++) {
-					if (titles[i].id == $(this).data('id')) {
-						titles[i].state.checked = this.checked;					
-					}
-					
-					if (titles[i].state.checked) {
-						anythingChecked = true;
-					}
-				}
-				
 				if (!anythingChecked) {
 					$("#titleAssignTitlesButton").prop('disabled', true);
 					$("#assignAllButton").prop('disabled', false);
@@ -446,7 +321,7 @@
 			}
 
 			this.handleExceptedUsersCheckbox = function() {
-				var anythingChecked = $('.exceptedusers-checkbox:checked').length > 0;
+				var anythingChecked = $('#modal-ou .exceptedusers-checkbox:checked').length > 0;
 				
 				if (!anythingChecked) {
 					$("#assignWithExceptionsButton").prop('disabled', true);
@@ -484,9 +359,7 @@
 				});
 			}
 		}
-	
-		
-		
+
 		/*]]>*/
 
 	</script>

@@ -85,8 +85,8 @@ public class ReadOnlyApiDocumentation {
 			RoleGroup roleGroup = roleGroupService.getAll().get(0);
 			userService.addRoleGroup(user, roleGroup, null, null);
 			userService.addUserRole(user, userRole, null,  null);
-			orgUnitService.addUserRole(ou, userRole, false, null, null, null);
-			orgUnitService.addRoleGroup(ou, roleGroup, false, null, null, null);
+			orgUnitService.addUserRole(ou, userRole, false, null, null, null, null);
+			orgUnitService.addRoleGroup(ou, roleGroup, false, null, null, null, null);
 			
 			this.mockMvc = MockMvcBuilders.webAppContextSetup(this.context)
 										  .apply(documentationConfiguration(this.restDocumentation)

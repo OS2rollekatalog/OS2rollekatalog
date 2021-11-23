@@ -24,7 +24,7 @@ public class HistoryRoleAssignmentsTask {
 
 	@Scheduled(cron = "0 #{new java.util.Random().nextInt(55)} 4 * * ?")
 	// enable this to execute script at bootup
-	// @Scheduled(fixedDelay = 60 * 60 * 1000)
+	//@Scheduled(fixedDelay = 60 * 60 * 1000)
 	public void generateHistory() {
 		if (!configuration.getScheduled().isEnabled() ||
 			!configuration.getScheduled().getHistory().isEnabled()) {
@@ -45,7 +45,7 @@ public class HistoryRoleAssignmentsTask {
 		log.info("Generating historic role assignments took " + ((new Date().getTime() - now.getTime()) / 1000) + " seconds");
 	}
 	
-	@Scheduled(cron = "0 0 5 * * ?")
+	@Scheduled(cron = "0 #{new java.util.Random().nextInt(55)} 5 * * ?")
 	public void deleteAncientHistory() {
 		if (!configuration.getScheduled().isEnabled() ||
 			!configuration.getScheduled().getHistory().isEnabled()) {

@@ -216,7 +216,11 @@
 							orderable: true,
 							searchable: true,
 							render: function (data, type, row, meta) {
-								return row.affectedEntityName + ' <a href=' + url + row.affectedEntityType.toLowerCase() + '/view/' + row.affectedEntityUuid + '><em class="fa fa-fw fa-external-link"></em></a>';
+								if (row.affectedEntityName == null || row.affectedEntityType == null || row.affectedEntityUuid == null) {
+									return '';
+								} else {
+									return row.affectedEntityName + ' <a href=' + url + row.affectedEntityType.toLowerCase() + '/view/' + row.affectedEntityUuid + '><em class="fa fa-fw fa-external-link"></em></a>';
+								}
 							}
 						},
 						{

@@ -68,6 +68,9 @@ public class UserRole implements AuditLoggable {
 
 	@Column(nullable = true)
 	private String linkedSystemRolePrefix;
+	
+	@Column(nullable = false)
+	private boolean allowPostponing;
 
 	@JsonIgnore
 	@Override

@@ -2,6 +2,7 @@ package dk.digitalidentity.rc.security;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Objects;
 
 import javax.servlet.Filter;
 import javax.servlet.FilterChain;
@@ -63,6 +64,21 @@ public class ApiSecurityFilter implements Filter {
 					break;
 			}
 
+			String tlsVersion = request.getHeader("x-amzn-tls-version");
+			tlsVersion = (tlsVersion != null) ? ((tlsVersion.length() > 64) ? (tlsVersion.substring(0, 60) + "...") : tlsVersion) : null;
+			boolean clientChanged = false;
+
+			if (tlsVersion != null && !Objects.equals(client.getTlsVersion(), tlsVersion)) {
+				client.setTlsVersion(tlsVersion);
+				clientChanged = true;
+			}
+			
+			if (clientChanged) {
+				Client clientFromDb = clientService.getClientById(client.getId());
+				clientFromDb.setTlsVersion(client.getTlsVersion());
+				clientService.save(clientFromDb);
+			}
+			
 			SecurityUtil.loginSystemAccount(authorities);
 
 			filterChain.doFilter(servletRequest, servletResponse);

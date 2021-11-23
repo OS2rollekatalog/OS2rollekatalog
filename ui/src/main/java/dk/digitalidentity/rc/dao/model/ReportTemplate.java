@@ -32,6 +32,7 @@ public class ReportTemplate {
 	@Column
 	private boolean showUsers;
 
+	// TODO: we can drop this from the database at some point, not used any more
 	@Column
 	private boolean showTitles;
 

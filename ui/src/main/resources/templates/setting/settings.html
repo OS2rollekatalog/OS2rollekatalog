@@ -14,6 +14,7 @@
 					<input type="hidden" th:field="*{requestApproveEnabled}" />
 					<input type="hidden" th:field="*{organisationEventsEnabled}" />
 					<input type="hidden" th:field="*{scheduledAttestationEnabled}" />
+					<input type="hidden" th:field="*{attestationRoleDeletionEnabled}" />
 					<select th:field="*{scheduledAttestationFilter}" multiple="multiple" class="form-control" style="display: none;">
 						<option th:each="ou : ${allOUs}" th:value="${ou.id}" th:text="${ou.text}" th:selected="${settingsForm.getScheduledAttestationFilter().contains(ou.id)}"></option>
 					</select>
@@ -161,6 +162,20 @@
 						</fieldset>
 						
 						<div id="scheduledAttestationSubsettings" style="display: none;">
+							<fieldset>
+								<div class="form-group">
+									<label class="col-sm-3 control-label" th:text="#{html.setting.attestation.scheduled.roledeletion.enabled}" />
+									<div class="col-sm-1">
+										<div class="checkbox c-checkbox">
+											<label>
+												<input id="attestation-roledeletion-checkbox" type="checkbox" th:attr="checked=${settingsForm.attestationRoleDeletionEnabled}" />
+												<span class="fa fa-check"></span>
+											</label>
+										</div>
+									</div>
+								</div>
+							</fieldset>
+						
 							<fieldset>
 								<div class="form-group">
 									<label class="col-sm-3 control-label" th:text="#{html.setting.attestation.scheduled.interval}" />
@@ -372,6 +387,10 @@
 			if ($("#scheduledAttestationEnabled").val() == "true") {
 				$("#scheduledAttestationSubsettings").show();
 			}
+			
+			$("#attestation-roledeletion-checkbox").change(function() {
+				$("#attestationRoleDeletionEnabled").val(this.checked);
+			});
 			
 			$("#organisationevents-checkbox").change(function() {
 				$("#organisationEventsEnabled").val(this.checked);

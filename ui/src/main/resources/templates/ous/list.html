@@ -30,10 +30,6 @@
 								<fieldset>
 									<div class="form-group">
 										<div class="col-sm-10">
-											<a id="ouViewLink" href="#">
-												<span class="btn btn-lg btn-primary" th:text="#{html.entity.view.action.view}" />
-											</a>
-											&nbsp;&nbsp;
 											<a id="ouEditLink" href="#">
 												<span class="btn btn-lg btn-primary" th:text="#{html.entity.view.action.edit}" />
 											</a>
@@ -89,19 +85,7 @@
 			// selecting in the JSTree
 			$("#hierarchy").on("select_node.jstree", function(e, data) {
 				$("#ouName").text(data.node.text);
-				$("#ouViewLink").attr("href", url + "view/" + data.node.id);
-				$("#ouEditLink").attr("href", url + "edit/" + data.node.id);
-
-				for (var i = 0; i < allOUs.length; i++) {
-					var ou = allOUs[i];
-					if (ou.id === data.node.id) {
-						if (ou.editable) {
-							$("#ouEditLink").show();
-						} else {
-							$("#ouEditLink").hide();
-						}
-					}
-				}
+				$("#ouEditLink").attr("href", url + "manage/" + data.node.id);
 			});
 			
 			// searching in the JSTree

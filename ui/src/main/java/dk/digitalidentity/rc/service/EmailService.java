@@ -89,18 +89,6 @@ public class EmailService {
 
 	                	multipart.addBodyPart(imagePart);
 	                }
-	                else if (inlineImageDTO.isUrl()) {
-	                	MimeBodyPart imagePart = new MimeBodyPart();
-	                	URL url = new URL(inlineImageDTO.getSrc());
-		                URLDataSource uds = new URLDataSource(url);
-		                imagePart.setDataHandler(new DataHandler(uds));
-		                imagePart.setDisposition(Part.ATTACHMENT);
-		                imagePart.setHeader("Content-ID", "<" + inlineImageDTO.getCid() + ">");
-		                imagePart.setDisposition(MimeBodyPart.INLINE);
-		                imagePart.setFileName(url.getFile());
-
-		                multipart.addBodyPart(imagePart);
-	                }
 	            }
 	        }
 	        
@@ -189,17 +177,6 @@ public class EmailService {
 	                	imagePart.setDisposition(MimeBodyPart.INLINE);
 	                	imagePart.setDisposition(Part.ATTACHMENT);
 	                	multipart.addBodyPart(imagePart);
-	                }
-	                else if (inlineImageDTO.isUrl()) {
-	                	MimeBodyPart imagePart = new MimeBodyPart();
-	                	URL url = new URL(inlineImageDTO.getSrc());
-		                URLDataSource uds = new URLDataSource(url);
-		                imagePart.setDataHandler(new DataHandler(uds));
-		                imagePart.setDisposition(Part.ATTACHMENT);
-		                imagePart.setHeader("Content-ID", "<" + inlineImageDTO.getCid() + ">");
-		                imagePart.setDisposition(MimeBodyPart.INLINE);
-		                imagePart.setFileName(url.getFile());
-		                multipart.addBodyPart(imagePart);
 	                }
 	            }
 	        }

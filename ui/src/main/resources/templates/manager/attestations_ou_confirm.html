@@ -37,6 +37,19 @@
 												<em class="fa fa-fw fa-times" style="color: red;"></em>
 												<span th:if="${dto.roleGroup}" th:text="'Rollebuketten ' + ${dto.roleName} + ' for medarbejderen ' + ${dto.userOrUnitName}" />
 											    <span th:unless="${dto.roleGroup}" th:text="'Jobfunktionsrollen ' + ${dto.roleName} + ' (' + ${dto.itSystemName} + ') ' + 'for medarbejderen ' + ${dto.userOrUnitName}" />
+												<ul th:if="${dto.systemRoleAssignmentsDTOs != null && not #lists.isEmpty(dto.systemRoleAssignmentsDTOs)}">
+													<li>
+														<span style="font-weight: bold;" th:text="#{html.page.users.manage.assignment.postponed}"></span>
+														<ul th:each="systemRoleAssignment : ${dto.systemRoleAssignmentsDTOs}">
+															<li>
+																<span style="font-weight: bold;" th:text="${systemRoleAssignment.systemRoleName}"></span>
+																<ul style="list-style-type:none;">
+																  <li th:each="constraint : ${systemRoleAssignment.postponedConstraints}" th:text="${constraint.constraintType.name + ': ' + constraint.constraintValue}" ></li>
+																</ul>
+															</li>
+														</ul>
+													</li>
+												</ul>
 											</li>
 										</ul>
 									</div>
@@ -111,8 +124,6 @@
 		}
 		
 		function confirm() {
-
-
 			$.ajax({
 			   url: restUrl + orgUnitUuid,
 			   headers: {

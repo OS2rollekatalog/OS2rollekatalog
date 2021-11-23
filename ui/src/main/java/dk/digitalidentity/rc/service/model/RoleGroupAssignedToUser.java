@@ -14,6 +14,9 @@ public class RoleGroupAssignedToUser implements RoleAssignedToUser {
 	private Title title;
 	private OrgUnit orgUnit;
 	
+	private Long assignmentId;
+	private boolean fromPosition;
+	
 	@Override
 	public long getRoleId() {
 		if (roleGroup != null) {

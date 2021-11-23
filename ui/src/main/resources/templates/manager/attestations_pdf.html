@@ -22,7 +22,22 @@
 		<p th:text="#{html.page.attestations.confirment.show.personal.remove}" style="font-weight: bold; color: red;"></p>
 		<ul th:each="dto : ${toBeRemoved}">
 			<li th:if="${dto.roleGroup}" th:text="'Rollebuketten ' + ${dto.roleName} + ' for medarbejderen ' + ${dto.userOrUnitName}"/>
-			<li th:unless="${dto.roleGroup}" th:text="'Jobfunktionsrollen ' + ${dto.roleName} + ' (' + ${dto.itSystemName} + ') ' + ' for medarbejderen ' + ${dto.userOrUnitName}"/>
+			<li th:unless="${dto.roleGroup}">
+				<span th:text="'Jobfunktionsrollen ' + ${dto.roleName} + ' (' + ${dto.itSystemName} + ') ' + ' for medarbejderen ' + ${dto.userOrUnitName}"></span>
+				<ul th:if="${not #lists.isEmpty(dto.systemRoleAssignmentsDTOs)}">
+					<li>
+						<span style="font-weight: bold;" th:text="#{html.page.users.manage.assignment.postponed}"></span>
+						<ul th:each="systemRoleAssignment : ${dto.systemRoleAssignmentsDTOs}">
+							<li>
+								<span style="font-weight: bold;" th:text="${systemRoleAssignment.systemRoleName}"></span>
+								<ul style="list-style-type:none;">
+								  <li th:each="constraint : ${systemRoleAssignment.postponedConstraints}" th:text="${constraint.constraintType.name + ': ' + constraint.constraintValue}" ></li>
+								</ul>
+							</li>
+						</ul>
+					</li>
+				</ul>
+			</li>
 		</ul>
 		<br/>
 	</div>
@@ -55,7 +70,22 @@
 		<p th:text="#{html.page.attestations.pdf.aprove.personal}" style="font-weight: bold; color: green;"></p>
 		<ul th:each="dto : ${aprovedPersonal}">
 			<li th:if="${dto.roleGroup}" th:text="'Rollebuketten ' + ${dto.roleName} + ' for medarbejderen ' + ${dto.userOrUnitName}"/>
-			<li th:unless="${dto.roleGroup}" th:text="'Jobfunktionsrollen ' + ${dto.roleName} + ' (' + ${dto.itSystemName} + ') ' + ' for medarbejderen ' + ${dto.userOrUnitName}"/>
+			<li th:unless="${dto.roleGroup}" >
+				<span th:text="'Jobfunktionsrollen ' + ${dto.roleName} + ' (' + ${dto.itSystemName} + ') ' + ' for medarbejderen ' + ${dto.userOrUnitName}"></span>
+				<ul th:if="${not #lists.isEmpty(dto.systemRoleAssignmentsDTOs)}">
+					<li>
+						<span style="font-weight: bold;" th:text="#{html.page.users.manage.assignment.postponed}"></span>
+						<ul th:each="systemRoleAssignment : ${dto.systemRoleAssignmentsDTOs}">
+							<li>
+								<span style="font-weight: bold;" th:text="${systemRoleAssignment.systemRoleName}"></span>
+								<ul style="list-style-type:none;">
+								  <li th:each="constraint : ${systemRoleAssignment.postponedConstraints}" th:text="${constraint.constraintType.name + ': ' + constraint.constraintValue}" ></li>
+								</ul>
+							</li>
+						</ul>
+					</li>
+				</ul>
+			</li>
 		</ul>
 		<br/>
 	</div>

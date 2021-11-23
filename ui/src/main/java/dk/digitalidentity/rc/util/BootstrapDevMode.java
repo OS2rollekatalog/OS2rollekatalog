@@ -12,6 +12,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import dk.digitalidentity.rc.config.Constants;
 import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
 import dk.digitalidentity.rc.controller.api.model.OrgUnitAM;
 import dk.digitalidentity.rc.controller.api.model.UserAM;
@@ -306,22 +307,46 @@ public class BootstrapDevMode {
 
 	private List<ItSystem> createItSystems() {		
 		ConstraintType constraintType = new ConstraintType();
-		constraintType.setEntityId("http://sts.kombit.dk/constraint/kle/1");
+		constraintType.setEntityId(Constants.KLE_CONSTRAINT_ENTITY_ID);
 		constraintType.setUuid("9366d0e0-52bd-464c-8e2f-c8b63b021e52");
 		constraintType.setName("KLE");
 		constraintType.setUiType(ConstraintUIType.REGEX);
 		constraintType.setRegex(".");
 		constraintType = constraintTypeService.save(constraintType);
+		
+		ConstraintType constraintType2 = new ConstraintType();
+		constraintType2.setEntityId(Constants.OU_CONSTRAINT_ENTITY_ID);
+		constraintType2.setUuid("9366d0e0-52bd-464c-8e2f-c8b63b021e51");
+		constraintType2.setName("Organisation");
+		constraintType2.setUiType(ConstraintUIType.REGEX);
+		constraintType2.setRegex(".");
+		constraintType2 = constraintTypeService.save(constraintType2);
+		
+		ConstraintType constraintType3 = new ConstraintType();
+		constraintType3.setEntityId("https://sts.kombit.dk/constraints/itsystem/1");
+		constraintType3.setUuid("9366d0e0-52bd-464c-8e2f-c8b63b021e57");
+		constraintType3.setName("Organisation");
+		constraintType3.setUiType(ConstraintUIType.REGEX);
+		constraintType3.setRegex(".");
+		constraintType3 = constraintTypeService.save(constraintType3);
 
 		ItSystem kombit = new ItSystem();
 		kombit.setIdentifier("KOMBIT");
 		kombit.setName("KOMBIT System");
-		kombit.setSystemType(ItSystemType.SAML);
+		kombit.setSystemType(ItSystemType.KOMBIT);
 		itSystemService.save(kombit);
 
 		ConstraintTypeSupport constraintSupport = new ConstraintTypeSupport();
 		constraintSupport.setConstraintType(constraintType);
 		constraintSupport.setMandatory(false);
+		
+		ConstraintTypeSupport constraintSupport2 = new ConstraintTypeSupport();
+		constraintSupport2.setConstraintType(constraintType2);
+		constraintSupport2.setMandatory(false);
+		
+		ConstraintTypeSupport constraintSupport3 = new ConstraintTypeSupport();
+		constraintSupport3.setConstraintType(constraintType3);
+		constraintSupport3.setMandatory(false);
 
 		SystemRole kombitRole1 = new SystemRole();
 		kombitRole1.setDescription("description...");
@@ -330,6 +355,8 @@ public class BootstrapDevMode {
 		kombitRole1.setName("Se sag");
 		kombitRole1.setSupportedConstraintTypes(new ArrayList<>());
 		kombitRole1.getSupportedConstraintTypes().add(constraintSupport);
+		kombitRole1.getSupportedConstraintTypes().add(constraintSupport2);
+		kombitRole1.getSupportedConstraintTypes().add(constraintSupport3);
 		kombitRole1.setRoleType(RoleType.BOTH);
 		systemRoleService.save(kombitRole1);
 

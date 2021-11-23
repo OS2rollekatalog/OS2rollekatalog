@@ -17,8 +17,14 @@ public class AttestationRolesDTO {
 	private String roleType;
 	private List<String> exceptedUsers;
 	
+	//For postponed constraints
+	private List<SystemRoleAssignmentDTO> systemRoleAssignmentsDTOs;
+	private Long assignmentId;
+	
 	// set to true for personal roles that cannot be removed attestation
 	private boolean disabled;
+	
+	private boolean fromPosition;
 	
 	public String getUserPositionName() {
 		if (user != null && user.getPositions().size() > 0) {

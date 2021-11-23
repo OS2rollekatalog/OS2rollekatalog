@@ -14,15 +14,23 @@ BEGIN
     dato, user_uuid,
     role_id, role_name, role_it_system_id, role_it_system_name, role_role_group,
     assigned_through_type, assigned_through_uuid, assigned_through_name,
-    assigned_by_user_id, assigned_by_name, assigned_when)
+    assigned_by_user_id, assigned_by_name, assigned_when, postponed_constraints)
   SELECT CURRENT_TIMESTAMP, u.uuid,
     ur.id, ur.name, it.id, it.name, NULL,
     'DIRECT', NULL, NULL,
-    urm.assigned_by_user_id, urm.assigned_by_name, urm.assigned_timestamp
+    urm.assigned_by_user_id, urm.assigned_by_name, urm.assigned_timestamp, sub_constraints.combined_constraints
   FROM user_roles_mapping urm
   JOIN users u ON u.uuid = urm.user_uuid
   JOIN user_roles ur ON ur.id = urm.role_id
   JOIN it_systems it ON it.id = ur.it_system_id
+  LEFT JOIN
+  (
+    SELECT
+	  pc.user_user_role_assignment_id, group_concat( concat(ct.name,': ',pc.constraint_value) separator '\n' ) as combined_constraints
+    FROM postponed_constraints pc
+    INNER JOIN constraint_types ct ON ct.id = pc.constraint_type_id
+    GROUP BY pc.user_user_role_assignment_id
+  ) as sub_constraints ON sub_constraints.user_user_role_assignment_id = urm.id
   WHERE urm.inactive = 0;
 
   -- user roles through rolegroups from direct assignments

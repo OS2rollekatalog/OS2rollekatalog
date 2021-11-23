@@ -1,0 +1,204 @@
+<th:block th:fragment="roleAssignmentEditModal" xmlns="http://www.w3.org/1999/xhtml" xmlns:th="http://www.thymeleaf.org">
+	<div class="modal fade" id="modal-edit" role="dialog">
+		<div class="modal-dialog">
+	
+			<!-- Modal content-->
+			<div class="modal-content">
+				<div class="modal-header">
+					<h4 th:text="#{html.page.users.list.modal}"/>
+				</div>
+	
+				<div class="modal-body" style="overflow-y: initial !important;">
+					<div id="editPostponedConstraintsPlaceholder"></div>
+					
+					<div style="height: 70px;">
+						<h4 class="md-12" th:text="#{html.word.validity}" />
+						
+						<b class="col-sm-1" style="padding-top: 7px;" th:text="#{html.word.from}"></b>
+						<div class="col-md-5">
+							<div class="form-group">
+								<div class="input-group date" id="startDatePickerEdit">
+									<input type="text" class="form-control"/>
+									<span class="input-group-addon">
+										<span class="fa fa-calendar"></span>
+									</span>
+								</div>
+							</div>
+						</div>
+	
+						<b class="col-sm-1" style="padding-top: 7px;" th:text="#{html.word.to}"></b>
+						<div class="col-md-5">
+							<div class="form-group">
+								<div class="input-group date" id="stopDatePickerEdit">
+									<input type="text" class="form-control" />
+									<span class="input-group-addon">
+										<span class="fa fa-calendar"></span>
+									</span>
+								</div>
+							</div>
+						</div>
+					</div>
+				</div>
+	
+				<div class="modal-footer">
+					<button id="updateBtn" class="btn btn-primary" th:text="#{html.control.button.save}"/>
+					<button id="closeEditModal" class="btn btn-danger" th:text="#{html.control.button.cancel}"/>
+				</div>
+			</div>
+		</div>
+	</div>
+</th:block>
+	
+<th:block th:fragment="roleAssignmentEditModalScript" xmlns="http://www.w3.org/1999/xhtml" xmlns:th="http://www.thymeleaf.org">
+	<script th:inline="javascript" type="text/javascript">
+		/*<![CDATA[*/
+
+		//Don't use global variables here so that they don't conflict with main page.
+
+		var userRoleEditModalService;
+		var modalAjaxService;
+		$(document).ready(function() {
+			userRoleEditModalService = new UserRoleEditModalService();
+			modalAjaxService = new ModalAjaxService();
+			/*[+
+			userRoleEditModalService.usersUrl = [[@{/rest/users/}]];
+			userRoleEditModalService.fieldUpdatedMsg = [[#{html.entity.rolegroup.updatedmsg}]];
+			userRoleEditModalService.fieldNotUpdatedMsg = [[#{html.entity.rolegroup.failedupdatemsg}]];
+			+]*/
+			userRoleEditModalService.init();
+		});
+		
+		function UserRoleEditModalService() {
+			this.modal = function () {
+				return $("#modal-edit");
+			}
+
+			this.init = function(){
+				$('#closeEditModal').click(userRoleEditModalService.closeModal);
+				$('#updateBtn').on( "click", function() {
+	            	postponedConstraintsService.validate("edit");
+	            });
+				
+				userRoleEditModalService.modal().on('shown.bs.modal', function() {
+					$("#updateBtn").focus();
+				});
+			}
+
+			this.showModal = function (user, startDate, stopDate, type, assignmentId, assignedThrough) {
+				var editModal = userRoleEditModalService.modal();
+				editModal.modal({
+				    backdrop: 'static',
+				    keyboard: false
+				});
+				
+				$('#startDatePickerEdit').data("DateTimePicker").clear();
+				if (startDate) {
+					$('#startDatePickerEdit').data("DateTimePicker").date(startDate);
+				} else {
+					$('#startDatePickerEdit').data("DateTimePicker").date(new Date());
+				}
+
+				$('#stopDatePickerEdit').data("DateTimePicker").clear();
+				if (stopDate) {
+					$('#stopDatePickerEdit').data("DateTimePicker").date(stopDate);
+				}
+
+				//This doesn't have to be passed through attributes it could be variables in userRoleEditModalService
+				editModal.attr("type", type);
+				editModal.attr("assignmentId", assignmentId);
+				editModal.attr("assignedThrough", assignedThrough);
+				editModal.attr("user", user);
+			}
+
+			this.updateClicked = function () {
+				var editModal = userRoleEditModalService.modal();
+				var assignmentId = editModal.attr("assignmentid");
+				var userUuid = editModal.attr("user");
+				var assignedThrough = editModal.attr("assignedthrough");
+				var type = editModal.attr("type");
+
+				var startDate = $('#startDatePickerEdit').data('date');
+				var stopDate = $('#stopDatePickerEdit').data('date');
+				var dates = "?startDate=" + startDate + "&stopDate=" + stopDate;
+				
+				var updateRestEndpoint = userRoleEditModalService.usersUrl + userUuid + '/editassignment/' + type + '/'+ assignedThrough + '/' + assignmentId + dates;
+				var constraints = postponedConstraintsService.getConstraintList();
+				$.ajax({
+	    			   url: updateRestEndpoint,
+	    			   contentType: 'application/json',
+	    			   headers: {
+	    			      'X-CSRF-TOKEN': token
+	    			   },
+	    			   type: 'post',
+	    			   data : JSON.stringify(constraints),
+	    			   success: function(response) {
+	    				   modalAjaxService.showInfoNotification(userRoleEditModalService.fieldUpdatedMsg);
+	    			   },
+	    			   error: function(response) {
+	    				   var msg = (response.responseText != null && response.responseText.length > 0) ? response.responseText : userRoleEditModalService.fieldNotUpdatedMsg;
+						   modalAjaxService.showErrorNotification(msg);
+	    			   }
+	    		});
+				
+				setTimeout(function(){ userRoleEditModalService.parentService.loadRolesFragment(); }, 200);
+				editModal.modal('hide');
+			}
+
+			this.closeModal = function() {
+				userRoleEditModalService.modal().modal('hide');
+			}
+			
+			this.loadPostponedConstraintsFragment = function (assignmentId, type, user) {
+				if (type == "USERROLE") {
+					$("#postponedConstraintsPlaceholder").empty();
+					$("#editPostponedConstraintsPlaceholder").empty();
+					
+					$("#editPostponedConstraintsPlaceholder").load(baseUrl + "ui/users/manage/" + user + "/postponedconstraints/edit/" + assignmentId, function () {
+						postponedConstraintsService.init();
+					});
+				}
+			}
+			
+		}
+		
+		// TODO: move these into a utility js file (exists in edit.html for users/orgunits)
+		function ModalAjaxService() {
+
+	        this.getAjaxObject = function(urL, okMsg, errorMsg) {
+	    		return {
+	    			url: urL,
+					method: "POST",
+					headers: {
+						'X-CSRF-TOKEN': token
+					},
+	    			error: function(response) {
+						var msg = (response.responseText != null && response.responseText.length > 0) ? response.responseText : errorMsg;
+						modalAjaxService.showErrorNotification(msg);
+	    			},
+	    			success: function(response) {
+	    				modalAjaxService.showInfoNotification(okMsg);
+	    			}
+	    		};
+	    	}
+	        
+	        this.showInfoNotification = function(message) {
+				$.notify({
+					message: message,
+					status: 'success',
+					timeout: 2000
+				});
+			}
+
+			this.showErrorNotification = function(message) {
+				$.notify({
+					message: message,
+					status: 'danger',
+					timeout: 4000
+				});
+			}
+		}
+		
+		/*]]>*/
+
+	</script>
+</th:block>

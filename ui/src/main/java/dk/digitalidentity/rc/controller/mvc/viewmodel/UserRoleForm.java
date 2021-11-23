@@ -28,6 +28,7 @@ public class UserRoleForm {
     private boolean pendingSync;
     private boolean syncFailed;
     private SystemRole linkedSystemRole;
+    private boolean allowPostponing;
 
 	@Size(max = 4000)
 	private String description;
@@ -54,5 +55,6 @@ public class UserRoleForm {
     	this.pendingSync = pendingSync;
     	this.syncFailed = syncFailed;
     	this.linkedSystemRole = userRole.getLinkedSystemRole();
+    	this.allowPostponing = userRole.isAllowPostponing();
     }
 }

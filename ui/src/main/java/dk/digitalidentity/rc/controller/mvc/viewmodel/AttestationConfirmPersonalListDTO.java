@@ -17,13 +17,17 @@ public class AttestationConfirmPersonalListDTO {
 	private String itSystemName;
 	private long roleId;
 	private AssignedThrough assignedThrough;
+	private Long assignmentId;
+	private boolean fromPosition;
 	
     @JsonCreator
-    public AttestationConfirmPersonalListDTO(@JsonProperty("userUuid") String userUuid, @JsonProperty("roleType") String roleType, @JsonProperty("itSystemName") String itSystemName, @JsonProperty("roleId") long roleId, @JsonProperty("assignedThrough") AssignedThrough assignedThrough) {
+    public AttestationConfirmPersonalListDTO(@JsonProperty("userUuid") String userUuid, @JsonProperty("roleType") String roleType, @JsonProperty("itSystemName") String itSystemName, @JsonProperty("roleId") long roleId, @JsonProperty("assignedThrough") AssignedThrough assignedThrough, @JsonProperty("assignmentId") Long assignmentId, @JsonProperty("fromPosition") boolean fromPosition) {
 	    this.userUuid = userUuid;
 	    this.roleType = roleType;
 	    this.roleId = roleId;
 	    this.itSystemName = itSystemName;
 	    this.assignedThrough = assignedThrough;
+	    this.assignmentId = assignmentId;
+	    this.fromPosition = fromPosition;
   }
 }

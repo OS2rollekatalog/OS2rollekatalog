@@ -54,4 +54,7 @@ public class HistoryRoleAssignment {
 	
 	@Column
 	private Date assignedWhen;
+	
+	@Column
+	private String postponedConstraints;
 }

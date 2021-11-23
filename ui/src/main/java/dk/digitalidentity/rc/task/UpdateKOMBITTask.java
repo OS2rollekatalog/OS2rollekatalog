@@ -334,6 +334,7 @@ public class UpdateKOMBITTask {
 					case LEVEL_2:
 					case LEVEL_3:
 					case LEVEL_4:
+					case POSTPONED:
 						dataConstraintValue.setDynamisk(true);
 						dataConstraintValue.setVaerdi(constraintValue.getConstraintIdentifier());
 						break;

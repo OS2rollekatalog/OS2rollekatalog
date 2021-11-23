@@ -1,0 +1,470 @@
+<th:block th:fragment="postponedConstraints" xmlns="http://www.w3.org/1999/xhtml" xmlns:th="http://www.thymeleaf.org">
+	<input th:id="postponingAllowed" th:value="${postponingAllowed}" hidden>
+	<h4 th:if="${postponingAllowed}" class="md-12" th:text="#{html.page.user.assign.userrole.constraints.header}" />
+    <div th:if="${postponingAllowed}" th:each="systemRoleAssignment : ${systemRoleAssignments}">
+     	<h5 th:text="${systemRoleAssignment.systemRole.name}" style="font-weight: bold;"></h5>
+		<div class="row" th:each="postponedConstraint : ${systemRoleAssignment.postponedConstraints}">
+			<div class="col-sm-2">
+				<label th:text="${postponedConstraint.constraintType.name}" style="font-weight: normal;"></label>
+			</div>
+	
+			<div class="col-sm-10" style="padding-top: 6px">
+				<!-- REGEX UI -->
+				<th:block th:if="${postponedConstraint.constraintType.uiType == T(dk.digitalidentity.rc.dao.model.enums.ConstraintUIType).REGEX}">
+					
+					<th:block th:switch="${postponedConstraint.constraintType.entityId}">
+	
+						<!-- KLE selector -->
+						<th:block th:case="'http://sts.kombit.dk/constraints/KLE/1'">
+							<div class="col-sm-12" th:id="'postponed' + ${systemRoleAssignment.systemRole.id} + ${postponedConstraint.constraintType.uuid}">
+								<div class="col-sm-9">
+									<input class="form-control m-b constraint" style="width:100%;" th:value="${postponedConstraint.constraintValue != null} ? ${postponedConstraint.constraintValue} : ''" th:attr="data-type='kle', data-systemroleid=${systemRoleAssignment.systemRole.id}, data-constrainttype=${postponedConstraint.constraintType.uuid}, id='postponed' + ${systemRoleAssignment.systemRole.id} + ${postponedConstraint.constraintType.uuid} + 'input'">
+								</div>
+								<div class="col-sm-3">
+									<a class="btn btn-primary" th:attr="onclick='kleConstraintService.chooseKles('+${systemRoleAssignment.systemRole.id}+',\''+${postponedConstraint.constraintType.uuid}+'\');'">
+										<span>Vælg Kle</span>
+									</a>
+								</div>
+								<div class="col-sm-12">
+									<p class="constraintValidationError" th:id="'postponed' + ${systemRoleAssignment.systemRole.id} + ${postponedConstraint.constraintType.uuid} + 'error'" style="color:red" th:text="#{html.page.user.assign.userrole.constraints.error}" hidden></p>
+								</div>
+							</div>
+						</th:block>
+	
+						<!-- organisation selector -->
+						<th:block th:case="'http://sts.kombit.dk/constraints/orgenhed/1'">
+							<div class="col-sm-12" th:id="'postponed' + ${systemRoleAssignment.systemRole.id} + ${postponedConstraint.constraintType.uuid}">
+								<div class="col-sm-9">
+									<input class="form-control m-b constraint" style="width:100%;" th:value="${postponedConstraint.constraintValue != null} ? ${postponedConstraint.constraintValue} : ''" th:attr="data-type='ous', data-systemroleid=${systemRoleAssignment.systemRole.id}, data-constrainttype=${postponedConstraint.constraintType.uuid}, id='postponed' + ${systemRoleAssignment.systemRole.id} + ${postponedConstraint.constraintType.uuid} + 'input'">
+								</div>
+								<div class="col-sm-3">
+									<a class="btn btn-primary" th:attr="onclick='orgUnitPostponedConstraintService.chooseOUs('+${systemRoleAssignment.systemRole.id}+',\''+${postponedConstraint.constraintType.uuid}+'\');'">
+										<span>Vælg enheder</span>
+									</a>
+								</div>
+								<div class="col-sm-12">
+									<p class="constraintValidationError" th:id="'postponed' + ${systemRoleAssignment.systemRole.id} + ${postponedConstraint.constraintType.uuid} + 'error'" style="color:red" th:text="#{html.page.user.assign.userrole.constraints.error}" hidden></p>
+								</div>
+							</div>
+						</th:block>
+	
+						<!--it system selector-->
+						<th:block th:case="'http://digital-identity.dk/constraints/itsystem/1'">
+							<div th:id="'postponed' + ${systemRoleAssignment.systemRole.id} + ${postponedConstraint.constraintType.uuid}" class="col-sm-12">
+								<div class="col-sm-12">
+									<select style="width:100%;" th:id="'postponed' + ${systemRoleAssignment.systemRole.id} + ${postponedConstraint.constraintType.uuid} + 'multiple-select'"  th:attr="data-type='itsystems',data-systemroleid=${systemRoleAssignment.systemRole.id}, data-constrainttype=${postponedConstraint.constraintType.uuid}" class="form-control m-b multiple-select constraint" name="itSystems[]" multiple="multiple"/>
+									<input style="width:100%;" th:value="${postponedConstraint.constraintValue != null} ? ${postponedConstraint.constraintValue} : ''" type="hidden" ></input>
+								</div>
+								<div class="col-sm-12">
+									<p class="constraintValidationError" th:id="'postponed' + ${systemRoleAssignment.systemRole.id} + ${postponedConstraint.constraintType.uuid} + 'error'" style="color:red" th:text="#{html.page.user.assign.userrole.constraints.error}" hidden></p>
+								</div>
+							</div>
+						</th:block>
+	
+						<!-- default freetext field -->
+						<th:block th:case="*">
+							<div th:id="'postponed' + ${systemRoleAssignment.systemRole.id} + ${postponedConstraint.constraintType.uuid}" class="col-sm-12">	
+								<div class="col-sm-12">
+									<input style="width:100%;" class="form-control m-b constraint"
+									   		th:id="'postponed' + ${systemRoleAssignment.systemRole.id} + ${postponedConstraint.constraintType.uuid}"
+									   		th:value="${postponedConstraint.constraintValue != null} ? ${postponedConstraint.constraintValue} : ''"
+									   		th:attr="data-type='defaultfreetext', data-systemroleid=${systemRoleAssignment.systemRole.id}, data-constrainttype=${postponedConstraint.constraintType.uuid}"></input>
+								</div>
+								<div class="col-sm-12">
+									<p class="constraintValidationError" th:id="'postponed' + ${systemRoleAssignment.systemRole.id} + ${postponedConstraint.constraintType.uuid} + 'error'" style="color:red" th:text="#{html.page.user.assign.userrole.constraints.error}" hidden></p>
+								</div>
+							</div>
+						</th:block>
+					</th:block>
+				</th:block>
+				
+				<!-- COMBO_SINGLE UI -->
+				<th:block th:if="${postponedConstraint.constraintType.uiType == T(dk.digitalidentity.rc.dao.model.enums.ConstraintUIType).COMBO_SINGLE}">
+					<div class="col-sm-12">
+						<div class="col-sm-12">
+							<select style="width:100%;" class="form-control m-b constraint" th:disabled="${selected}==false or ${constraintData != null} and ${constraintData.postponed}"
+							        th:id="'postponed' + ${systemRoleAssignment.systemRole.id} + ${postponedConstraint.constraintType.uuid}"
+							        th:attr="data-type='combosingle', data-systemroleid=${systemRoleAssignment.systemRole.id}, data-constrainttype=${postponedConstraint.constraintType.uuid}">
+			
+								<option selected="selected" disabled="disabled" th:text="#{html.select.default}"></option>
+								<option th:each="type : ${postponedConstraint.constraintType.valueSet}" th:value="${type.constraintKey}" th:text="${type.constraintValue}"
+			 							th:selected="${postponedConstraint.constraintValue != null} and (${type.constraintKey} eq ${postponedConstraint.constraintValue})"></option>
+			
+							</select>
+						</div>
+						<div class="col-sm-12">
+							<p class="constraintValidationError" th:id="'postponed' + ${systemRoleAssignment.systemRole.id} + ${postponedConstraint.constraintType.uuid} + 'error'" style="color:red" th:text="#{html.page.user.assign.userrole.constraints.error}" hidden></p>
+						</div>
+					</div>
+				</th:block>
+				
+				<!-- COMBO_MULTI -->
+				<th:block th:if="${postponedConstraint.constraintType.uiType == T(dk.digitalidentity.rc.dao.model.enums.ConstraintUIType).COMBO_MULTI}">
+					<div class="col-sm-12">
+						<div class="col-sm-12">
+							<select style="width:100%;" class="form-control m-b constraint" th:disabled="${selected}==false or ${constraintData != null} and ${constraintData.postponed}" multiple="multiple"
+							        th:id="'postponed' + ${systemRoleAssignment.systemRole.id} + ${postponedConstraint.constraintType.uuid}"
+							        th:attr="data-type='combomulti', data-systemroleid=${systemRoleAssignment.systemRole.id}, data-constrainttype=${postponedConstraint.constraintType.uuid}">
+			
+								<option th:each="type : ${postponedConstraint.constraintType.valueSet}" th:value="${type.constraintKey}" th:text="${type.constraintValue}"
+			 							th:selected="${postponedConstraint.constraintValue != null} and (${#arrays.contains(#strings.arraySplit(postponedConstraint.constraintValue,','), type.constraintKey)})"></option>
+			
+							</select>
+						</div>
+						<div class="col-sm-12">
+							<p class="constraintValidationError" th:id="'postponed' + ${systemRoleAssignment.systemRole.id} + ${postponedConstraint.constraintType.uuid} + 'error'" style="color:red" th:text="#{html.page.user.assign.userrole.constraints.error}" hidden></p>
+						</div>
+					</div>
+				</th:block>
+	
+				<div class="clearfix"></div>
+			</div>
+			
+		</div>
+	</div>
+</th:block>
+
+<th:block th:fragment="postponedConstraintsScript" xmlns="http://www.w3.org/1999/xhtml" xmlns:th="http://www.thymeleaf.org">
+	<script th:inline="javascript" type="text/javascript">
+		/*<![CDATA[*/
+		
+		var postponedConstraintsService;
+		var kleConstraintService;
+		var orgUnitPostponedConstraintService;
+		
+		$(document).ready(function() {
+			postponedConstraintsService = new PostponedConstraintsService();
+			kleConstraintService = new KleConstraintService();
+			orgUnitPostponedConstraintService = new OrgUnitPostponedConstraintService();
+			
+			/*[+
+    		postponedConstraintsService.usersUrl = [[@{/rest/users/}]];
+    		+]*/
+        });
+		
+		function PostponedConstraintsService() {
+			this.init = function() {
+				kleConstraintService.init();
+				postponedConstraintsService.initSelects();
+				orgUnitPostponedConstraintService.init();
+			}
+			
+			this.initSelects = function() {
+				$(".multiple-select").each(function( index ) {
+					var multipleSelectField = $(this); 
+					var type = multipleSelectField.data("type");
+					var multipleSelectInput = multipleSelectField.siblings('input').val().split(",");
+					var data = {};
+	
+					if (type == 'ous') {
+						data = orgUnitList;
+					}
+					else {
+						data = itSystemList;
+					}
+	
+					multipleSelectField.select2({
+						data: data
+					});
+	
+					multipleSelectField.val(multipleSelectInput).trigger('change');
+	
+				});
+			}
+			
+			this.validate = function(from) {
+				$(".constraintValidationError").hide();
+				
+				var constraints = postponedConstraintsService.getConstraintList();
+				$.ajax({
+	    			   url: postponedConstraintsService.usersUrl + "constraints/validate",
+	    			   contentType: 'application/json',
+	    			   headers: {
+	    			      'X-CSRF-TOKEN': token
+	    			   },
+	    			   type: 'post',
+	    			   data : JSON.stringify(constraints),
+	    			   success: function(response) {
+	    				   if (from == "edit") {
+	    					   userRoleEditModalService.updateClicked();
+	    				   } else if (from == "assignRoleDirectlyClicked") {
+	    					   userRoleModalService.assignRoleDirectlyClicked();
+	    				   }
+	    			   },
+	    			   error: function(response) {
+	    				   for (const id of response.responseJSON) {
+	    					   $("#postponed" + id + "error").show();
+	    				   }
+	    			   }
+	    		});
+			}
+			
+			this.getConstraintList = function() {
+				var constraintList = [];
+				$(".constraint").each(function( index ) {
+					var field = $(this);
+					var type = field.data("type");
+					var systemRoleId = field.data("systemroleid");
+					var constraintType = field.data("constrainttype");
+					var val = field.val();
+					
+					if (Array.isArray(val)) {
+						var valString = "";
+						for (const element of val) {
+							valString += element + ",";
+						}
+						val = valString.substring(0, valString.length - 1);
+					}
+					
+					var constraint = {
+						type: type,
+						systemRoleId: systemRoleId,
+						constraintTypeUuid: constraintType,
+						value: val
+					};
+					
+					constraintList.push(constraint);
+				});
+				
+				return constraintList;
+			}
+		}
+		
+		function KleConstraintService() {
+			this.init = function() {
+				kleConstraintService.initJSTree("kle-constraint-tree", "kle-constraint-tree-search");
+				
+				//Focus search bar on show
+				$('#modal-kle-constraint').on('shown.bs.modal', function () {
+		    		$('#kle-constraint-tree-search').focus();
+				})
+			}
+			
+			//KLE Constraint modal
+			//Show modal
+			this.chooseKles = function(systemRoleId, constraintUuid) {
+				//Get input field kle values 
+				var kles = $("#postponed" + systemRoleId + constraintUuid + "input").val().split(",");
+				//Remember what opened the modal
+				$("#modal-kle-constraint-systemRoleId").val(systemRoleId);
+				$("#modal-kle-constraint-constraintUuid").val(constraintUuid);
+							
+				//Parse and save kle values
+				var selected = [];
+				var parseErrors = [];
+
+				for (var i = 0; i < kles.length; i++) {
+					if (!kles[i] == "") {
+						if (kles[i].match(/^((\d{2})|(\d{2}).(\d{2})|(\d{2}).(\d{2}).(\d{2}))$/)) {
+							selected.push(kles[i]);
+						} else {
+							parseErrors.push(kles[i]);
+						}
+					}
+				}
+
+				//Show erros to the user
+				var errorList = $("#modal-kle-constraint-errors");
+				errorList.empty();
+				if (parseErrors.length != 0) {
+					for (var i = 0; i < parseErrors.length; i++) {
+						errorList.append("<li>" + parseErrors[i] + "</li>");
+					}
+
+					$("#modal-kle-constraint-error").show();
+				} else {
+					$("#modal-kle-constraint-error").hide();
+				}
+
+				var tree = $("#kle-constraint-tree");
+				tree.jstree("deselect_all");
+				tree.jstree("select_node", selected);
+
+				$('#modal-kle-constraint').modal('show');
+			}
+			
+			//Save and close modal
+			this.kleModalSaveConstraints = function() {
+				var systemRoleId  = $("#modal-kle-constraint-systemRoleId").val();
+				var constraintUuid = $("#modal-kle-constraint-constraintUuid").val();
+				var constraintValueType = $("#postponed" + systemRoleId + constraintUuid).val();
+				var kleInput = $("#postponed" + systemRoleId + constraintUuid + "input");
+
+				var selected = $("#kle-constraint-tree").jstree("get_top_checked");
+				kleInput.val(selected.join());
+				$('#modal-kle-constraint').modal('hide');
+				kleInput.trigger('change');
+			}
+			
+			//Initialize KLE tree in modal
+			this.initJSTree = function(id, search) {
+				$('#' + id).jstree({
+						"core": {
+							"data": kleList,
+							"themes": {
+								"icons": false
+							}
+						},
+						"checkbox" : {
+							"keep_selected_style" : false,
+							"three_state": false,
+							"cascade": "undetermined"
+						},
+						"search" : {
+							"show_only_matches": true,
+							"search_callback": function(str, node) {
+								// special KLE search support
+								var kleValue = str.split('.').join("");
+								if (!isNaN(kleValue)) {
+									if (kleValue.length > 4) {
+										kleValue = kleValue.substr(0, 2) + "." + kleValue.substr(2, 2) + "." + kleValue.substr(4);
+									}
+									else if (kleValue.length > 2) {
+										kleValue = kleValue.substr(0, 2) + "." + kleValue.substr(2);
+									}
+									
+									return (node.text.startsWith(kleValue));
+								}
+
+								return (node.text.toUpperCase().includes(str.toUpperCase()));
+							}
+						},
+						"plugins" : [
+							"wholerow", "search", "checkbox"
+						]
+				});
+
+				// searching in the JSTree
+				var to = false;
+				$('#' + search).keyup(function() {
+					if (to) {
+						clearTimeout(to);
+					}
+
+					to = setTimeout(function() {
+						var v = $('#' + search).val();
+
+						$('#' + id).jstree(true).search(v);
+					}, 400);
+				});
+			};
+		}
+		
+		function OrgUnitPostponedConstraintService() {
+			this.init = function() {
+				//Focus search bar on show
+				$('#modal-kle-constraint').on('shown.bs.modal', function () {
+		    		$('#kle-constraint-tree-search').focus();
+				})
+				//Focus search bar on show
+				$('#modal-ou').on('shown.bs.modal', function () {
+		    		$('#ou-tree-search').focus();
+				})
+				
+				//init OU jstree
+				orgUnitPostponedConstraintService.initOUJSTree("ou-tree", "ou-tree-search", treeOUs);
+			}
+			
+			//OU Constraint modal
+			//Show modal
+			this.chooseOUs = function(systemRoleId, constraintUuid) {
+				//Get input field kle values 
+				var ous = $("#postponed" + systemRoleId + constraintUuid + "input").val().split(",");
+				//Remember what opened the modal
+				$("#modal-ou-systemRoleId").val(systemRoleId);
+				$("#modal-ou-constraintUuid").val(constraintUuid);
+							
+				//Parse and save kle values
+				var selected = [];
+				var parseErrors = [];
+
+				for (var i = 0; i < ous.length; i++) {
+					if (!ous[i] == "") {
+						if (ous[i].match(/^[0-9a-fA-F]{8}\b-[0-9a-fA-F]{4}\b-[0-9a-fA-F]{4}\b-[0-9a-fA-F]{4}\b-[0-9a-fA-F]{12}$/)) {
+							selected.push(ous[i]);
+						} else {
+							parseErrors.push(ous[i]);
+						}
+					}
+				}
+
+				//Show erros to the user
+				var errorList = $("#modal-ou-errors");
+				errorList.empty();
+				if (parseErrors.length != 0) {
+					for (var i = 0; i < parseErrors.length; i++) {
+						errorList.append("<li>" + parseErrors[i] + "</li>");
+					}
+
+					$("#modal-ou-error").show();
+				} else {
+					$("#modal-ou-error").hide();
+				}
+
+				var tree = $("#ou-tree");
+				tree.jstree("deselect_all");
+				tree.jstree("select_node", selected);
+
+				$(".postponed-constraint-save-btn").show();
+				$(".constraint-save-btn").hide();
+				
+				$('#modal-ou').modal('show');
+			}
+			
+			//Save and close modal
+			this.oUModalSaveConstraints = function() {
+				var systemRoleId  = $("#modal-ou-systemRoleId").val();
+				var constraintUuid = $("#modal-ou-constraintUuid").val();
+				var constraintValueType = $("#postponed" + systemRoleId + constraintUuid).val();
+				var oUInput = $("#postponed" + systemRoleId + constraintUuid + "input");
+
+				var selected = $("#ou-tree").jstree("get_top_checked");
+				oUInput.val(selected.join());
+				$('#modal-ou').modal('hide');
+				oUInput.trigger('change');
+			}
+
+			//Initialize KLE tree in modal
+			this.initOUJSTree = function(id, search, list) {
+				$('#' + id).jstree({
+						"core": {
+							"data": list,
+							"themes": {
+								"icons": false
+							}
+						},
+						"checkbox" : {
+							"keep_selected_style" : false,
+							"three_state": false,
+							"cascade": "undetermined"
+						},
+						"search" : {
+							"show_only_matches": true,
+							"search_callback": function(str, node) {
+								return (node.text.toUpperCase().includes(str.toUpperCase()));
+							}
+						},
+						"plugins" : [
+							"wholerow", "search", "checkbox"
+						]
+				});
+
+				// searching in the JSTree
+				var to = false;
+				$('#' + search).keyup(function() {
+					if (to) {
+						clearTimeout(to);
+					}
+
+					to = setTimeout(function() {
+						var v = $('#' + search).val();
+
+						$('#' + id).jstree(true).search(v);
+					}, 400);
+				});
+			};
+		}
+		/*]]>*/
+
+	</script>
+</th:block>

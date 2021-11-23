@@ -219,8 +219,6 @@ public class ItSystemController {
 			return "redirect:../../list";
 		}
 
-		// everything except whitespace is allowed
-		systemRoleForm.setIdentifier(systemRoleForm.getIdentifier().replaceAll("[\\s]", ""));
 		if (systemRoleForm.getIdentifier().length() == 0) {
 			bindingResult.addError(new ObjectError("identifier", "html.errors.systemrole.identifier.notempty"));
 		}

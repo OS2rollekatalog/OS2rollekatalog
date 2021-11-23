@@ -21,12 +21,20 @@ public class RoleGroupAssignmentWithInfo {
 	// internal use only, should not be exposed through Getters, but can be SET
 	private OrgUnit orgUnit;
 	private Title title;
+	
+	@Getter
+	private Long assignmentId;
+
+	@Getter
+	private boolean fromPosition;
 
 	public RoleGroupAssignedToUser toRoleGroupAssignment() {
 		RoleGroupAssignedToUser rgatu = new RoleGroupAssignedToUser();
 		rgatu.setRoleGroup(roleGroup);
 		rgatu.setTitle(title);
 		rgatu.setOrgUnit(orgUnit);
+		rgatu.setAssignmentId(assignmentId);
+		rgatu.setFromPosition(fromPosition);
 		
 		if (assignedThroughInfo == null) {
 			rgatu.setAssignedThrough(AssignedThrough.DIRECT);

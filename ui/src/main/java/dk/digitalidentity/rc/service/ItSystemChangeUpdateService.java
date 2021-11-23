@@ -98,6 +98,11 @@ public class ItSystemChangeUpdateService {
 				log.warn("Failed to send notification for it-system with id: " + itSystemId + " because it did not exist!");
 				continue;
 			}
+			
+			// hidden it-systems never emit notifications
+			if (itSystem.isHidden()) {
+				continue;
+			}
 
 			// Get added SystemRoles
 			List<ItSystemChange> addedSystemRoles = groupByItSystemMap.get(itSystemId)

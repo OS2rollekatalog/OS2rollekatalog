@@ -52,8 +52,9 @@
 												<th class="col-md-2" th:text="#{html.page.attestations.confirment.walkthrough.table.headers.employee}" />
 												<th class="col-md-2" th:text="#{html.page.attestations.confirment.walkthrough.table.headers.role}" />
 												<th class="col-md-1" th:text="#{html.page.attestations.confirment.walkthrough.table.headers.system}" />
-												<th class="col-md-4" th:text="#{html.page.attestations.confirment.walkthrough.table.headers.description}" />
+												<th class="col-md-2" th:text="#{html.page.attestations.confirment.walkthrough.table.headers.description}" />
 												<th class="col-md-2" th:text="#{html.page.attestations.confirment.walkthrough.table.headers.roletype}" />
+												<th class="col-md-2" th:text="#{html.page.users.manage.assignment.postponed}" />
 											</tr>
 										</thead>
 
@@ -62,7 +63,7 @@
 												<td>
 													<div class="checkbox c-checkbox">
 														<label th:title="${dto.disabled == true} ? 'Rettigheden styres udenfor rollekataloget' : ''">
-															<input type="checkbox" class="personal" th:attr="data-userUuid=${dto.user.uuid}, data-roleType=${dto.roleType}, data-roleId=${dto.roleAssignedToUser.getRoleId()}, data-assignedThrough=${dto.roleAssignedToUser.assignedThrough}" th:disabled="${dto.disabled} == true" />
+															<input type="checkbox" class="personal" th:attr="data-userUuid=${dto.user.uuid}, data-roleType=${dto.roleType}, data-roleId=${dto.roleAssignedToUser.getRoleId()}, data-assignedThrough=${dto.roleAssignedToUser.assignedThrough}, data-assignmentid=${dto.assignmentId}, data-fromposition=${dto.fromPosition}" th:disabled="${dto.disabled} == true" />
 															<span class="fa fa-times"></span>
 														</label>
 													</div>
@@ -86,6 +87,15 @@
 												<td th:unless="${dto.roleType}=='Rollebuket'" th:text="${dto.roleAssignedToUser.userRole.description}" />
 												
 												<td th:text="${dto.roleType}" />
+												
+												<td>
+													<div th:each="systemRoleAssignment : ${dto.systemRoleAssignmentsDTOs}">
+														<span style="font-weight: bold;" th:text="${systemRoleAssignment.systemRole.name}"></span>
+														<ul style="list-style-type:none;">
+														  <li th:each="constraint : ${systemRoleAssignment.postponedConstraints}" th:text="${constraint.constraintType.name + ': ' + constraint.constraintValue}" ></li>
+														</ul>
+													</div>
+												</td>
 											</tr>
 										</tbody>
 									</table>
@@ -190,11 +200,14 @@
 			    var checked = $(checkbox).prop('checked');
 
 			    if (!checked) {
+			    	
 			    	var aprovedPersonalObj = {
 							"userUuid" : $(checkbox).attr("data-userUuid"),
 							"roleType" : $(checkbox).attr("data-roleType"),
 							"roleId" : $(checkbox).attr("data-roleId"),
-							"assignedThrough" : $(checkbox).attr("data-assignedThrough")
+							"assignedThrough" : $(checkbox).attr("data-assignedThrough"),
+							"assignmentId" : $(checkbox).attr("data-assignmentid"),
+							"fromPosition" : $(checkbox).attr("data-fromposition")
 					}
 
 					aprovedPersonal.push(aprovedPersonalObj);
@@ -203,7 +216,9 @@
 							"userUuid" : $(checkbox).attr("data-userUuid"),
 							"roleType" : $(checkbox).attr("data-roleType"),
 							"roleId" : $(checkbox).attr("data-roleId"),
-							"assignedThrough" : $(checkbox).attr("data-assignedThrough")
+							"assignedThrough" : $(checkbox).attr("data-assignedThrough"),
+							"assignmentId" : $(checkbox).attr("data-assignmentid"),
+							"fromPosition" : $(checkbox).attr("data-fromposition")
 						}
 
 					toBeRemoved.push(toBeRemovedObj);

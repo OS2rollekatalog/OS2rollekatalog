@@ -1,0 +1,1 @@
+ALTER TABLE client ADD tls_version NVARCHAR(64) NULL;

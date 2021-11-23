@@ -2,7 +2,6 @@ package dk.digitalidentity.rc.service;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -19,8 +18,6 @@ import dk.digitalidentity.rc.dao.model.PositionRoleGroupAssignment;
 import dk.digitalidentity.rc.dao.model.PositionUserRoleAssignment;
 import dk.digitalidentity.rc.dao.model.RoleGroup;
 import dk.digitalidentity.rc.dao.model.Title;
-import dk.digitalidentity.rc.dao.model.TitleRoleGroupAssignment;
-import dk.digitalidentity.rc.dao.model.TitleUserRoleAssignment;
 import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserRole;
 import dk.digitalidentity.rc.dao.model.UserRoleGroupAssignment;
@@ -44,9 +41,6 @@ public class HandleInactiveRolesService {
 	
 	@Autowired
 	private PositionService positionService;
-	
-	@Autowired
-	private TitleService titleService;
 	
 	@Autowired
 	private RoleChangeInterceptor roleChangeInterceptor;
@@ -94,121 +88,12 @@ public class HandleInactiveRolesService {
 				}
 			}
 
-			// titles
-			List<Title> titles = titleService.getAll();
-			for (Title title : titles) {
-				boolean hasChanges = handleTitleUserRoles(title);
-				hasChanges = handleTitleRoleGroups(title) || hasChanges;
-
-				if (hasChanges) {
-					titleService.save(title);
-					titleCount++;
-				}
-			}
 		}
 		finally {
 			SecurityUtil.logoutSystemAccount();
 		}
 		
 		log.info("Changed assignment status on " + userCount + " users, " + orgunitCount + " orgUnits, " + titleCount + " titles, " + positionCount + " positions");
-	}
-
-	private boolean handleTitleRoleGroups(Title title) {
-		List<RoleGroup> removeRoleGroups = new ArrayList<>();
-		boolean hasChanges = false;
-
-		for (TitleRoleGroupAssignment assignment : title.getRoleGroupAssignments()) {
-			Result result = handle(assignment.getStartDate(), assignment.getStopDate());
-
-			switch (result) {
-				case ACTIVE:
-					if (assignment.isInactive()) {
-						assignment.setInactive(false);
-						assignment.setStartDate(null);
-						hasChanges = true;
-
-						roleChangeInterceptor.interceptAddRoleGroupAssignmentOnTitle(title, assignment.getRoleGroup(), assignment.getOuUuids().toArray(new String[0]), assignment.getStartDate(), assignment.getStopDate());
-					}
-					break;
-				case EXPIRED:
-					removeRoleGroups.add(assignment.getRoleGroup());
-					break;
-				case INACTIVE:
-					break;
-			}
-		}
-
-		if (removeRoleGroups.size() > 0) {
-			for (RoleGroup roleGroup : removeRoleGroups) {
-				for (Iterator<TitleRoleGroupAssignment> iterator = title.getRoleGroupAssignments().iterator(); iterator.hasNext();) {
-					TitleRoleGroupAssignment assignment = iterator.next();
-
-					if (assignment.getRoleGroup().getId() == roleGroup.getId()) {
-						for (String uuid : assignment.getOuUuids()) {
-							OrgUnit ou = orgUnitService.getByUuid(uuid);
-							if (ou != null) {
-								titleService.removeRoleGroup(title, roleGroup, ou);
-							}
-						}
-
-						break;
-					}
-				}
-			}
-
-			hasChanges = true;
-		}
-
-		return hasChanges;
-	}
-
-	private boolean handleTitleUserRoles(Title title) {
-		List<UserRole> removeUserRoles = new ArrayList<>();
-		boolean hasChanges = false;
-
-		for (TitleUserRoleAssignment assignment : title.getUserRoleAssignments()) {
-			Result result = handle(assignment.getStartDate(), assignment.getStopDate());
-
-				switch (result) {
-				case ACTIVE:
-					if (assignment.isInactive()) {
-						assignment.setInactive(false);
-						assignment.setStartDate(null);
-						hasChanges = true;
-
-						roleChangeInterceptor.interceptAddUserRoleAssignmentOnTitle(title, assignment.getUserRole(), assignment.getOuUuids().toArray(new String[0]), assignment.getStartDate(), assignment.getStopDate());
-					}
-					break;
-				case EXPIRED:
-					removeUserRoles.add(assignment.getUserRole());
-					break;
-				case INACTIVE:
-					break;
-			}
-		}
-
-		if (removeUserRoles.size() > 0) {
-			for (UserRole userRole : removeUserRoles) {
-				for (Iterator<TitleUserRoleAssignment> iterator = title.getUserRoleAssignments().iterator(); iterator.hasNext();) {
-					TitleUserRoleAssignment assignment = iterator.next();
-
-					if (assignment.getUserRole().getId() == userRole.getId()) {
-						for (String uuid : assignment.getOuUuids()) {
-							OrgUnit ou = orgUnitService.getByUuid(uuid);
-							if (ou != null) {
-								titleService.removeUserRole(title, userRole, ou);
-							}
-						}
-
-						break;
-					}
-				}
-			}
-			
-			hasChanges = true;
-		}
-		
-		return hasChanges;
 	}
 
 	private boolean handlePositionRoleGroups(Position position) {
@@ -297,12 +182,17 @@ public class HandleInactiveRolesService {
 						assignment.setStartDate(null);
 						hasChanges = true;
 
+						Set<String> titles = null;
 						Set<String> exceptedUsers = null;
 						if (assignment.isContainsExceptedUsers()) {
 							exceptedUsers = assignment.getExceptedUsers().stream().map(User::getUuid).collect(Collectors.toSet());
 						}
+						
+						if (assignment.isContainsTitles()) {
+							titles = assignment.getTitles().stream().map(Title::getUuid).collect(Collectors.toSet());
+						}
 
-						roleChangeInterceptor.interceptAddRoleGroupAssignmentOnOrgUnit(orgUnit, assignment.getRoleGroup(), assignment.isInactive(), assignment.getStartDate(), assignment.getStopDate(), exceptedUsers);
+						roleChangeInterceptor.interceptAddRoleGroupAssignmentOnOrgUnit(orgUnit, assignment.getRoleGroup(), assignment.isInactive(), assignment.getStartDate(), assignment.getStopDate(), exceptedUsers, titles);
 					}
 					break;
 				case EXPIRED:
@@ -338,12 +228,16 @@ public class HandleInactiveRolesService {
 						assignment.setStartDate(null);
 						hasChanges = true;
 
+						Set<String> titles = null;
 						Set<String> exceptedUsers = null;
 						if (assignment.isContainsExceptedUsers()) {
 							exceptedUsers = assignment.getExceptedUsers().stream().map(User::getUuid).collect(Collectors.toSet());
 						}
+						else if (assignment.isContainsTitles()) {
+							titles = assignment.getTitles().stream().map(Title::getUuid).collect(Collectors.toSet());
+						}
 
-						roleChangeInterceptor.interceptAddUserRoleAssignmentOnOrgUnit(orgUnit, assignment.getUserRole(), assignment.isInherit(), assignment.getStartDate(), assignment.getStopDate(), exceptedUsers);
+						roleChangeInterceptor.interceptAddUserRoleAssignmentOnOrgUnit(orgUnit, assignment.getUserRole(), assignment.isInherit(), assignment.getStartDate(), assignment.getStopDate(), exceptedUsers, titles);
 					}
 					break;
 				case EXPIRED:

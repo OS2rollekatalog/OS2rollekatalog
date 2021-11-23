@@ -11,6 +11,8 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Map.Entry;
+import java.util.function.Function;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
@@ -36,12 +38,12 @@ import dk.digitalidentity.rc.dao.history.model.HistoryOU;
 import dk.digitalidentity.rc.dao.history.model.HistoryOUKleAssignment;
 import dk.digitalidentity.rc.dao.history.model.HistoryOURoleAssignment;
 import dk.digitalidentity.rc.dao.history.model.HistoryOURoleAssignmentWithExceptions;
+import dk.digitalidentity.rc.dao.history.model.HistoryOURoleAssignmentWithTitles;
 import dk.digitalidentity.rc.dao.history.model.HistoryOUUser;
 import dk.digitalidentity.rc.dao.history.model.HistoryRoleAssignment;
 import dk.digitalidentity.rc.dao.history.model.HistorySystemRoleAssignment;
 import dk.digitalidentity.rc.dao.history.model.HistorySystemRoleAssignmentConstraint;
 import dk.digitalidentity.rc.dao.history.model.HistoryTitle;
-import dk.digitalidentity.rc.dao.history.model.HistoryTitleRoleAssignment;
 import dk.digitalidentity.rc.dao.history.model.HistoryUser;
 import dk.digitalidentity.rc.dao.history.model.HistoryUserRole;
 import dk.digitalidentity.rc.service.ItSystemService;
@@ -54,6 +56,7 @@ public class ReportXlsxView extends AbstractXlsxView {
     private List<HistoryItSystem> itSystems;
     private Map<String, HistoryUser> users;
     private List<HistoryTitle> titles;
+    private Map<String, HistoryTitle> titleMap;
     private Map<String, List<HistoryRoleAssignment>> userRoleAssignments;
     private Map<String, List<HistoryKleAssignment>> userKLEAssignments;
     private Map<String, HistoryOU> orgUnits;
@@ -61,7 +64,7 @@ public class ReportXlsxView extends AbstractXlsxView {
     private Map<String, List<HistoryOURoleAssignment>> ouRoleAssignments;
     private Map<String, List<HistoryOURoleAssignmentWithExceptions>> ouRoleAssignmentsWithExceptions;
     private Map<String, List<HistoryOUKleAssignment>> ouKLEAssignments;
-    private Map<String, List<HistoryTitleRoleAssignment>> titleRoleAssignments;
+    private Map<String, List<HistoryOURoleAssignmentWithTitles>> titleRoleAssignments;
     private Map<Long, String> itSystemNameMapping;
     private SimpleDateFormat dateFormatter;
     private ResourceBundleMessageSource messageSource;
@@ -93,8 +96,15 @@ public class ReportXlsxView extends AbstractXlsxView {
         ouRoleAssignments = (Map<String, List<HistoryOURoleAssignment>>) model.get("ouRoleAssignments");
         ouRoleAssignmentsWithExceptions = (Map<String, List<HistoryOURoleAssignmentWithExceptions>>) model.get("ouRoleAssignmentsWithExceptions");
         userRoleAssignments = (Map<String, List<HistoryRoleAssignment>>) model.get("userRoleAssignments");
-		titleRoleAssignments = (Map<String, List<HistoryTitleRoleAssignment>>) model.get("titleRoleAssignments");
+		titleRoleAssignments = (Map<String, List<HistoryOURoleAssignmentWithTitles>>) model.get("titleRoleAssignments");
 
+		if (titles != null) {
+			titleMap = titles.stream().collect(Collectors.toMap(HistoryTitle::getTitleUuid, Function.identity()));
+		}
+		else {
+			titleMap = new HashMap<>();
+		}
+		
 		// Process data
         itSystemNameMapping = new HashMap<>();
         for (HistoryItSystem itSystem : itSystems) {
@@ -133,10 +143,6 @@ public class ReportXlsxView extends AbstractXlsxView {
 			}
 		}
 		
-		if (reportForm.isShowTitles()) {
-			createTitlesSheet(workbook);
-		}
-
 		if (reportForm.isShowUsers()) {
 			if (reportForm.isShowUserRoles()) {
 				createUserRoleSheet(workbook, reportForm.isShowInactiveUsers());
@@ -165,29 +171,6 @@ public class ReportXlsxView extends AbstractXlsxView {
         createCell(filterDateRow, 1, filterDate.format(DateTimeFormatter.ofPattern("yyyy-MM-dd")), null);
         
     }
-
-    private void createTitlesSheet(Workbook workbook) {
-    	if (titles == null) {
-    		return;
-    	}
-
-        Sheet sheet = workbook.createSheet(messageSource.getMessage("xls.report.titles.sheet.title", null, locale));
-		
-        ArrayList<String> headers = new ArrayList<>();
-        headers.add("xls.report.titles.uuid");
-        headers.add("xls.report.titles.name");
-
-        createHeaderRow(sheet, headers);
-
-        int row = 1;
-        for (HistoryTitle title : titles) {
-            Row dataRow = sheet.createRow(row++);
-
-            createCell(dataRow, 0, title.getTitleUuid(), null);
-            createCell(dataRow, 1, title.getTitleName(), null);
-        }
-        
-	}
 
     private void createRoleSheet(Workbook workbook) {
         Sheet sheet = workbook.createSheet(messageSource.getMessage("xls.report.roles.sheet.title", null, locale));
@@ -301,6 +284,9 @@ public class ReportXlsxView extends AbstractXlsxView {
 								}
 								constraintCell.append(constraint.getConstraintName() + " = " + constraintValue + "\n");
 								break;
+							case POSTPONED:
+								constraintCell.append("Udskudt");
+								break;
                     	}
 
                         if (constraintCell.length() == 0) {
@@ -312,7 +298,6 @@ public class ReportXlsxView extends AbstractXlsxView {
                     if (systemRoleAssignment.getHistoryConstraints() != null) {
                         dataRow.setHeight((short) (dataRow.getHeight() * (1 + systemRoleAssignment.getHistoryConstraints().size())));
                     }
-
                 }
             }
         }
@@ -329,6 +314,7 @@ public class ReportXlsxView extends AbstractXlsxView {
         headers.add("xls.role.date");
         headers.add("xls.role.assigned.through");
         headers.add("xls.report.ou.roles.exceptedusers");
+        headers.add("xls.report.ou.roles.titles");
 
         createHeaderRow(sheet, headers);
 
@@ -384,7 +370,13 @@ public class ReportXlsxView extends AbstractXlsxView {
 
         // Add assignments with exceptions
         for (Map.Entry<String, List<HistoryOURoleAssignmentWithExceptions>> entry : ouRoleAssignmentsWithExceptions.entrySet()) {
-            String ouName = orgUnits.get(entry.getKey()).getOuName();
+        	HistoryOU ou = orgUnits.get(entry.getKey());
+        	if (ou == null) {
+        		// this OU has been filtered out, so skip
+        		continue;
+        	}
+        	
+            String ouName = ou.getOuName();
             List<HistoryOURoleAssignmentWithExceptions> ouRoleAssignments = entry.getValue();
 
             for (HistoryOURoleAssignmentWithExceptions ouRoleAssignment : ouRoleAssignments) {
@@ -417,6 +409,53 @@ public class ReportXlsxView extends AbstractXlsxView {
                 createCell(dataRow, column++, assignedBy, null);
                 createCell(dataRow, column++, dateFormatter.format(ouRoleAssignment.getAssignedWhen()), null);
                 createCell(dataRow, column++, messageSource.getMessage("xls.role.assigned.trough.type.direct", null, locale), null);
+                createCell(dataRow, column++, exceptionStr.toString(), wrapStyle);
+            }
+        }
+        
+        // Add assignments with titles
+        for (Entry<String, List<HistoryOURoleAssignmentWithTitles>> entry : titleRoleAssignments.entrySet()) {
+        	HistoryOU ou = orgUnits.get(entry.getKey());
+        	if (ou == null) {
+        		// this OU has been filtered out, so skip
+        		continue;
+        	}
+
+        	String ouName = orgUnits.get(entry.getKey()).getOuName();
+            List<HistoryOURoleAssignmentWithTitles> ouRoleAssignments = entry.getValue();
+
+            for (HistoryOURoleAssignmentWithTitles ouRoleAssignment : ouRoleAssignments) {
+
+                // Get ItSystem by id
+                Optional<HistoryItSystem> first = itSystems.stream().filter(itSystem -> itSystem.getItSystemId() == ouRoleAssignment.getRoleItSystemId()).findFirst();
+                String itSystem = "";
+                if (first.isPresent()) {
+                    HistoryItSystem historyItSystem = first.get();
+                    itSystem = historyItSystem.getItSystemName();
+                }
+
+                // Creating assigned by
+                String assignedBy = ouRoleAssignment.getAssignedByName() + " (" + ouRoleAssignment.getAssignedByUserId() + ")";
+
+                // Creating Excepted users string
+                StringBuilder exceptionStr = new StringBuilder();
+                for (String titleUuid : ouRoleAssignment.getTitleUuids()) {
+                	if (exceptionStr.length() > 0) {
+                		exceptionStr.append("\n");
+                	}
+
+                    exceptionStr.append(titleMap.containsKey(titleUuid) ? titleMap.get(titleUuid).getTitleName() : titleUuid + "");
+                }
+
+                Row dataRow = sheet.createRow(row++);
+                int column = 0;
+                createCell(dataRow, column++, ouName, null);
+                createCell(dataRow, column++, itSystemNameMapping.get(ouRoleAssignment.getRoleId()), null);
+                createCell(dataRow, column++, itSystem, null);
+                createCell(dataRow, column++, assignedBy, null);
+                createCell(dataRow, column++, dateFormatter.format(ouRoleAssignment.getAssignedWhen()), null);
+                createCell(dataRow, column++, messageSource.getMessage("xls.role.assigned.trough.type.direct", null, locale), null);
+                createCell(dataRow, column++, "", null);
                 createCell(dataRow, column++, exceptionStr.toString(), wrapStyle);
             }
         }
@@ -471,6 +510,7 @@ public class ReportXlsxView extends AbstractXlsxView {
         headers.add("xls.role.assigned.by");
         headers.add("xls.role.date");
         headers.add("xls.role.assigned.through");
+        headers.add("xls.role.postponedconstraints");
 
         createHeaderRow(sheet, headers);
 
@@ -488,7 +528,8 @@ public class ReportXlsxView extends AbstractXlsxView {
             createCell(dataRow, column++, entry.getItSystem(), null);
             createCell(dataRow, column++, entry.getAssignedBy(), null);
             createCell(dataRow, column++, dateFormatter.format(entry.getAssignedWhen()), null);
-            createCell(dataRow, column++, entry.getAssignedThrough(), null);        	
+            createCell(dataRow, column++, entry.getAssignedThrough(), null);
+            createCell(dataRow, column++, entry.getPostponedConstraints(), null);
         }
     }
 

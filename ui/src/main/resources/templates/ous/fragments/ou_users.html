@@ -18,8 +18,7 @@
 							<td th:text="${user.userId}" />
 							<td th:text="${user.title}" />
 							<td>
-								<a th:href="@{/ui/users/view/{id}(id=${user.id})}"><em class="fa fa-search"></em></a>
-								<a sec:authorize="hasRole('ROLE_KLE_ADMINISTRATOR') or hasRole('ROLE_ASSIGNER')" th:href="@{/ui/users/edit/{id}(id=${user.id})}"><em class="fa fa-pencil"></em></a>
+								<a th:href="@{/ui/users/manage/{id}(id=${user.id})}"><em class="fa fa-pencil"></em></a>
 							</td>
 						</tr>
 					</tbody>

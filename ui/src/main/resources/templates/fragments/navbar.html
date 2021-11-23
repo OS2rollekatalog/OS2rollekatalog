@@ -28,7 +28,7 @@
 						</a>
 					</li>
 					
-					<li class="nav-item" th:classappend="${subpage == 'administration'} ? 'bold' : ''" sec:authorize="hasRole('ROLE_ADMINISTRATOR') or hasRole('ROLE_MANAGER') or hasRole('ROLE_SUBSTITUTE')">
+					<li class="nav-item" th:classappend="${subpage == 'administration'} ? 'bold' : ''" sec:authorize="hasRole('ROLE_ADMINISTRATOR')">
 						<a th:href="@{/ui/settings}">
 							<em class="fa fa-fw fa-cogs"></em>
 							<span th:text="#{html.navbar.sub.administration}" />
@@ -128,7 +128,7 @@
 							</li>
 						</th:block>
 						
-						<th:block sec:authorize="hasRole('ROLE_READ_ACCESS') or hasRole('ROLE_MANAGER') or hasRole('ROLE_SUBSTITUTE')">
+						<th:block sec:authorize="hasRole('ROLE_READ_ACCESS')">
 							<li class="nav-heading">
 								<span th:text="#{html.navbar.rolemanagement}" />
 							</li>

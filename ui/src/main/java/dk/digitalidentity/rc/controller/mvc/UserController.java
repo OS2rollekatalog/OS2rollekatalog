@@ -1,33 +1,58 @@
 package dk.digitalidentity.rc.controller.mvc;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import dk.digitalidentity.rc.controller.mvc.viewmodel.UserRoleNotAssignedDTO;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestMapping;
 
 import dk.digitalidentity.rc.config.Constants;
 import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
+import dk.digitalidentity.rc.controller.mvc.viewmodel.AvailableRoleGroupDTO;
+import dk.digitalidentity.rc.controller.mvc.viewmodel.AvailableUserRoleDTO;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.KleDTO;
+import dk.digitalidentity.rc.controller.mvc.viewmodel.OUListForm;
+import dk.digitalidentity.rc.controller.mvc.viewmodel.SystemRoleAssignmentConstraintValueDTO;
+import dk.digitalidentity.rc.controller.mvc.viewmodel.SystemRoleAssignmentDTO;
+import dk.digitalidentity.rc.controller.mvc.viewmodel.UserRoleNotAssignedDTO;
+import dk.digitalidentity.rc.dao.model.ConstraintTypeValueSet;
+import dk.digitalidentity.rc.dao.model.ItSystem;
 import dk.digitalidentity.rc.dao.model.Kle;
+import dk.digitalidentity.rc.dao.model.OrgUnit;
+import dk.digitalidentity.rc.dao.model.PostponedConstraint;
+import dk.digitalidentity.rc.dao.model.SystemRoleAssignment;
+import dk.digitalidentity.rc.dao.model.SystemRoleAssignmentConstraintValue;
 import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserKLEMapping;
+import dk.digitalidentity.rc.dao.model.UserRole;
+import dk.digitalidentity.rc.dao.model.UserUserRoleAssignment;
+import dk.digitalidentity.rc.dao.model.enums.ConstraintUIType;
 import dk.digitalidentity.rc.dao.model.enums.KleType;
 import dk.digitalidentity.rc.security.AccessConstraintService;
-import dk.digitalidentity.rc.security.RequireAssignerOrKleAdminRole;
+import dk.digitalidentity.rc.security.RequireAssignerRole;
 import dk.digitalidentity.rc.security.RequireReadAccessOrManagerRole;
+import dk.digitalidentity.rc.security.RequireReadAccessRole;
 import dk.digitalidentity.rc.security.SecurityUtil;
+import dk.digitalidentity.rc.service.ItSystemService;
 import dk.digitalidentity.rc.service.KleService;
+import dk.digitalidentity.rc.service.OrgUnitService;
+import dk.digitalidentity.rc.service.Select2Service;
+import dk.digitalidentity.rc.service.UserRoleService;
 import dk.digitalidentity.rc.service.UserService;
-import dk.digitalidentity.rc.service.model.UserRoleAssignedToUser;
+import dk.digitalidentity.rc.service.model.AssignedThrough;
+import dk.digitalidentity.rc.service.model.RoleAssignedToUserDTO;
+import dk.digitalidentity.rc.service.model.RoleAssignmentType;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 @RequireReadAccessOrManagerRole
 @Controller
 public class UserController {
@@ -35,18 +60,30 @@ public class UserController {
 	@Autowired
 	private UserService userService;
 
-    @Autowired
-    private UserControllerHelper helper;
-    
+	@Autowired
+	private UserControllerHelper helper;
+
 	@Autowired
 	private KleService kleService;
 
-    @Autowired
+	@Autowired
 	private AccessConstraintService assignerRoleConstraint;
 
-    @Autowired
-    private RoleCatalogueConfiguration configuration;
+	@Autowired
+	private RoleCatalogueConfiguration configuration;
 
+	@Autowired
+	private UserRoleService userRoleService;
+
+	@Autowired
+	private Select2Service select2Service;
+
+	@Autowired
+	private OrgUnitService orgUnitService;
+
+	@Autowired
+	private ItSystemService itSystemService;
+    
     @Value("#{servletContext.contextPath}")
     private String servletContextPath;
 
@@ -55,36 +92,22 @@ public class UserController {
 		return "users/list";
 	}
 
-	@GetMapping(value = "/ui/users/view/{id}")
-	public String view(Model model, @PathVariable("id") String uuid) {
+	@RequireReadAccessRole
+	@GetMapping(value = "/ui/users/manage/{uuid}")
+	public String manage(Model model, @PathVariable("uuid") String uuid) {
 		User user = userService.getByUuid(uuid);
 		if (user == null) {
-			return "redirect:../list";
+			return "redirect:/ui/users/list";
 		}
 
 		boolean readOnly = !(SecurityUtil.hasRole(Constants.ROLE_ASSIGNER) || SecurityUtil.hasRole(Constants.ROLE_KLE_ADMINISTRATOR));
-		List<UserRoleAssignedToUser> assignments = userService.getAllUserRolesAssignedToUser(user, null);
 		List<UserRoleNotAssignedDTO> exceptedAssignments = userService.getAllExceptedUserRolesForUser(user);
 
 		model.addAttribute("user", user);
-		model.addAttribute("assignments", assignments);
 		model.addAttribute("exceptedAssignments", exceptedAssignments);
 		model.addAttribute("editable", !readOnly && assignerRoleConstraint.isUserAccessable(user, true));
-		model.addAttribute("klePerforming", kleService.getKleAssignments(user, KleType.PERFORMING, true));
-		model.addAttribute("kleInterest", kleService.getKleAssignments(user, KleType.INTEREST, true));
-		model.addAttribute("kleUiEnabled", configuration.getIntegrations().getKle().isUiEnabled());
 
-		return "users/view";
-	}
-
-	@RequireAssignerOrKleAdminRole
-	@GetMapping(value = "/ui/users/edit/{id}")
-	public String edit(Model model, @PathVariable("id") String uuid) {
-		User user = userService.getByUuid(uuid);
-		if (user == null) {
-			return "redirect:../list";
-		}
-
+		//kle
 		List<Kle> kles = kleService.findAll();
 
 		List<KleDTO> kleDTOS = new ArrayList<>();
@@ -95,20 +118,326 @@ public class UserController {
 			kleDTO.setText(kle.isActive() ? kle.getCode() + " " + kle.getName() : kle.getCode() + " " + kle.getName() + " [UDGÅET]");
 			kleDTOS.add(kleDTO);
 		}
-		
-		boolean onlyKleAdmin = SecurityUtil.hasRole(Constants.ROLE_KLE_ADMINISTRATOR) && !SecurityUtil.hasRole(Constants.ROLE_ASSIGNER);
+
 		kleDTOS.sort(Comparator.comparing(KleDTO::getText));
-		
 		model.addAttribute("allKles", kleDTOS);
-		model.addAttribute("klePrimarySelected", user.getKles().stream().filter(userKLEMapping -> userKLEMapping.getAssignmentType().equals(KleType.PERFORMING)).map(UserKLEMapping::getCode).collect(Collectors.toList()));
-		model.addAttribute("kleSecondarySelected", user.getKles().stream().filter(userKLEMapping -> userKLEMapping.getAssignmentType().equals(KleType.INTEREST)).map(UserKLEMapping::getCode).collect(Collectors.toList()));
-
-		model.addAttribute("user", user);
-		model.addAttribute("addRoles", helper.getAddRoles(user));
-		model.addAttribute("addRoleGroups", helper.getAddRoleGroups(user));
+		
 		model.addAttribute("kleUiEnabled", configuration.getIntegrations().getKle().isUiEnabled());
-		model.addAttribute("onlyKleAdmin", onlyKleAdmin);
+		model.addAttribute("canEditKle", SecurityUtil.hasRole(Constants.ROLE_ASSIGNER) || SecurityUtil.hasRole(Constants.ROLE_KLE_ADMINISTRATOR));
 
-		return "users/edit";
+		// TODO: refactor at some point, so we can use the above KLE list instead of this one...
+		List<KleDTO> kleConstraintDTOS = new ArrayList<>();
+		for (Kle kle : kles) {
+			KleDTO kleDTO = new KleDTO();
+			kleDTO.setId(kle.getCode());
+			kleDTO.setParent(kle.getParent().equals("0") ? "#" : kle.getParent());
+
+			String code = kle.getCode().replaceAll("\\.\\*", "");
+			kleDTO.setText(kle.isActive() ? code + " " + kle.getName() : code + " " + kle.getName() + " [UDGÅET]");
+			kleConstraintDTOS.add(kleDTO);
+		}
+		
+		model.addAttribute("kleList", kleConstraintDTOS);
+		model.addAttribute("orgUnitList", select2Service.getOrgUnitList());
+		model.addAttribute("itSystemList", select2Service.getItSystemList());
+		
+		List<OUListForm> treeOUs = orgUnitService.getAllCached()
+				.stream()
+				.map(ou -> new OUListForm(ou, false))
+				.sorted(Comparator.comparing(OUListForm::getText))
+				.collect(Collectors.toList());
+
+		model.addAttribute("treeOUs", treeOUs);
+		
+		return "users/manage";
+	}
+
+	@RequireReadAccessRole
+	@RequestMapping(value = "/ui/users/manage/{uuid}/roles")
+	public String getAssignedRolesFragment(Model model, @PathVariable("uuid") String uuid) {
+		User user = userService.getByUuid(uuid);
+		if (user == null) {
+			return "redirect:../list";
+		}
+		
+		boolean readOnly = !(SecurityUtil.hasRole(Constants.ROLE_ASSIGNER) || SecurityUtil.hasRole(Constants.ROLE_KLE_ADMINISTRATOR));
+		boolean editable = !readOnly && assignerRoleConstraint.isUserAccessable(user, true);
+
+		List<RoleAssignedToUserDTO> assignments = userService.getAllUserRoleAndRoleGroupAssignments(user);
+		for (RoleAssignedToUserDTO assignment : assignments) {
+			boolean directlyAssignedRole = assignment.getAssignedThrough() == AssignedThrough.DIRECT || assignment.getAssignedThrough() == AssignedThrough.POSITION;
+
+			if (assignment.getType() == RoleAssignmentType.USERROLE) {
+				boolean internalRole = assignment.getItSystem().getIdentifier().equals(Constants.ROLE_CATALOGUE_IDENTIFIER);
+				// We allow editing of internal roles when user is an Administrator (which also allows editing other roles)
+				// or if user can edit and role is "directly" assigned
+				if ((internalRole && SecurityUtil.getRoles().contains(Constants.ROLE_ADMINISTRATOR) && directlyAssignedRole) || (editable && directlyAssignedRole)) {
+					assignment.setCanEdit(true);
+				}
+				
+				// TODO: this block of code is duplicated in multiple places - could it be extracted to a utility method somewhere?
+				// it is also found in AttestationController
+				UserUserRoleAssignment userUserRoleAssignment = user.getUserRoleAssignments().stream().filter(ura->ura.getId() == assignment.getAssignmentId()).findAny().orElse(null);
+				if (userUserRoleAssignment != null) {
+					List<SystemRoleAssignmentDTO> systemRoleAssignmentsDTOs = new ArrayList<>();
+					UserRole role = userUserRoleAssignment.getUserRole();
+
+					if (role.isAllowPostponing()) {
+						for (SystemRoleAssignment systemRoleAssignment : role.getSystemRoleAssignments()) {
+							List<SystemRoleAssignmentConstraintValueDTO> postponedConstraintValues = new ArrayList<>();
+
+							for (SystemRoleAssignmentConstraintValue constraintValue : systemRoleAssignment.getConstraintValues()) {
+								if (constraintValue.isPostponed()) {
+									SystemRoleAssignmentConstraintValueDTO valueDto = new SystemRoleAssignmentConstraintValueDTO(constraintValue);
+									PostponedConstraint postponedConstraint = userUserRoleAssignment.getPostponedConstraints().stream().filter(p -> p.getSystemRole().getId() == systemRoleAssignment.getSystemRole().getId() && p.getConstraintType().getUuid().equals(constraintValue.getConstraintType().getUuid())).findAny().orElse(null);
+
+									if (postponedConstraint != null) {
+										if (postponedConstraint.getConstraintType().getUiType().equals(ConstraintUIType.REGEX)) {
+											if (postponedConstraint.getConstraintType().getEntityId().equals(Constants.OU_CONSTRAINT_ENTITY_ID)) {
+												String[] uuids = postponedConstraint.getValue().split(",");
+												String ouString = "";
+
+												for (String ouUuid : uuids) {
+													OrgUnit ou = orgUnitService.getByUuid(ouUuid);
+													if (ou != null) {
+														ouString += ou.getName() + ", ";
+													}
+												}
+												
+												valueDto.setConstraintValue(ouString.substring(0, ouString.length()-2));
+											}
+											else if (postponedConstraint.getConstraintType().getEntityId().equals(Constants.INTERNAL_ITSYSTEM_CONSTRAINT_ENTITY_ID)) {
+												String[] ids = postponedConstraint.getValue().split(",");
+												String itSystemsString = "";
+
+												for (String id : ids) {
+													ItSystem itSystem = itSystemService.getById(Integer.parseInt(id));
+													if (itSystem != null) {
+														itSystemsString += itSystem.getName() + ", ";
+													}
+												}
+												
+												valueDto.setConstraintValue(itSystemsString.substring(0, itSystemsString.length()-2));
+											}
+											else {
+												valueDto.setConstraintValue(postponedConstraint.getValue());
+											}
+										}
+										else if (postponedConstraint.getConstraintType().getUiType().equals(ConstraintUIType.COMBO_SINGLE)) {
+											ConstraintTypeValueSet valueSet = postponedConstraint.getConstraintType().getValueSet().stream().filter(v -> v.getConstraintKey().equals(postponedConstraint.getValue())).findAny().orElse(null);
+											valueDto.setConstraintValue(valueSet == null ? "" : valueSet.getConstraintValue());
+										}
+										else if (postponedConstraint.getConstraintType().getUiType().equals(ConstraintUIType.COMBO_MULTI)) {
+											String[] keysArr = postponedConstraint.getValue().split(",");
+											List<String> keys = Arrays.asList(keysArr);
+											List<ConstraintTypeValueSet> valueSets = postponedConstraint.getConstraintType().getValueSet().stream().filter(v -> keys.contains(v.getConstraintKey())).collect(Collectors.toList());
+											String valuesString = "";
+
+											for (ConstraintTypeValueSet valueSet : valueSets) {
+												valuesString += valueSet.getConstraintValue() + ", ";
+											}
+											
+											valueDto.setConstraintValue(valuesString.substring(0, valuesString.length()-2));
+										}
+									}
+									
+									postponedConstraintValues.add(valueDto);
+								}
+							}
+							
+							if (!postponedConstraintValues.isEmpty()) {
+								SystemRoleAssignmentDTO systemRoleAssignmentDTO = new SystemRoleAssignmentDTO();
+								systemRoleAssignmentDTO.setSystemRole(systemRoleAssignment.getSystemRole());
+								systemRoleAssignmentDTO.setPostponedConstraints(postponedConstraintValues);
+								
+								systemRoleAssignmentsDTOs.add(systemRoleAssignmentDTO);
+							}
+						}
+					}
+					assignment.setSystemRoleAssignments(systemRoleAssignmentsDTOs);
+				}
+			}
+			else if (assignment.getType() == RoleAssignmentType.ROLEGROUP) {
+				if (editable && directlyAssignedRole) {
+					assignment.setCanEdit(true);
+				}
+			}
+		}
+
+		model.addAttribute("assignments", assignments);
+		model.addAttribute("editable", editable);
+
+		return "users/fragments/manage_roles :: userAssignedRoles";
+	}
+
+	@RequireAssignerRole
+	@RequestMapping(value = "/ui/users/manage/{uuid}/addUserRole")
+	public String getAddUserRoleFragment(Model model, @PathVariable("uuid") String uuid) {
+		User user = userService.getByUuid(uuid);
+		if (user == null) {
+			return "redirect:../list";
+		}
+
+		List<AvailableUserRoleDTO> roles = helper.getAvailableUserRoles(user);
+
+		model.addAttribute("roles", roles);
+		return "users/fragments/manage_add_userrole :: addUserRole";
+	}
+
+	@RequireAssignerRole
+	@RequestMapping(value = "/ui/users/manage/{uuid}/addRoleGroup")
+	public String getAddRoleGroupFragment(Model model, @PathVariable("uuid") String uuid) {
+		User user = userService.getByUuid(uuid);
+		if (user == null) {
+			return "redirect:../list";
+		}
+
+		List<AvailableRoleGroupDTO> roleGroups = helper.getAvailableRoleGroups(user);
+
+		model.addAttribute("roleGroups", roleGroups);
+		return "users/fragments/manage_add_rolegroup :: addRoleGroup";
+	}
+	
+	@RequireAssignerRole
+	@RequestMapping(value = "/ui/users/manage/postponedconstraints/{roleId}")
+	public String getPostponedConstraintsFragment(Model model, @PathVariable("roleId") long roleId) {
+		List<SystemRoleAssignmentDTO> systemRoleAssignmentsDTOs = new ArrayList<>();
+
+		UserRole role = userRoleService.getById(roleId);
+		if (role == null) {
+			log.warn("Attempting to get a fragment for a role that does not exist: " + roleId);
+			
+			model.addAttribute("systemRoleAssignments", systemRoleAssignmentsDTOs);
+			model.addAttribute("postponingAllowed", false);
+
+			return "users/fragments/assign_user_role_postponed_data_constraints :: postponedConstraints";
+		}
+		
+		if (role.isAllowPostponing()) {
+			for (SystemRoleAssignment systemRoleAssignment : role.getSystemRoleAssignments()) {
+				List<SystemRoleAssignmentConstraintValueDTO> postponedConstraintValues = new ArrayList<>();
+				for (SystemRoleAssignmentConstraintValue constraintValue : systemRoleAssignment.getConstraintValues()) {
+					if (constraintValue.isPostponed()) {
+						postponedConstraintValues.add(new SystemRoleAssignmentConstraintValueDTO(constraintValue));
+					}
+				}
+				
+				if (!postponedConstraintValues.isEmpty()) {
+					SystemRoleAssignmentDTO systemRoleAssignmentDTO = new SystemRoleAssignmentDTO();
+					systemRoleAssignmentDTO.setSystemRole(systemRoleAssignment.getSystemRole());
+					systemRoleAssignmentDTO.setPostponedConstraints(postponedConstraintValues);
+					
+					systemRoleAssignmentsDTOs.add(systemRoleAssignmentDTO);
+				}
+			}
+		}
+		
+		model.addAttribute("systemRoleAssignments", systemRoleAssignmentsDTOs);
+		model.addAttribute("postponingAllowed", role.isAllowPostponing());
+		
+		return "users/fragments/assign_user_role_postponed_data_constraints :: postponedConstraints";
+	}
+	
+	@RequireAssignerRole
+	@RequestMapping(value = "/ui/users/manage/{userUuid}/postponedconstraints/edit/{assignmentId}")
+	public String getPostponedConstraintsEditFragment(Model model, @PathVariable("userUuid") String userUuid, @PathVariable("assignmentId") long assignmentId) {
+		List<SystemRoleAssignmentDTO> systemRoleAssignmentsDTOs = new ArrayList<>();
+
+		User user = userService.getByUuid(userUuid);
+		if (user == null) {
+			log.warn("Attempting to get fragment for user that does not exist: " + userUuid);
+			
+			model.addAttribute("systemRoleAssignments", systemRoleAssignmentsDTOs);
+			model.addAttribute("postponingAllowed", false);
+			
+			return "users/fragments/assign_user_role_postponed_data_constraints :: postponedConstraints";
+		}
+		
+		UserUserRoleAssignment userRoleAssignment = user.getUserRoleAssignments().stream().filter(ura->ura.getId() == assignmentId).findAny().orElse(null);
+		if (userRoleAssignment == null) {
+			log.warn("Attempting to get fragment for assignment that does not exist: " + assignmentId);
+			
+			model.addAttribute("systemRoleAssignments", systemRoleAssignmentsDTOs);
+			model.addAttribute("postponingAllowed", false);
+			
+			return "users/fragments/assign_user_role_postponed_data_constraints :: postponedConstraints";
+		}
+		
+		UserRole role = userRoleAssignment.getUserRole();
+		if (role.isAllowPostponing()) {
+			for (SystemRoleAssignment systemRoleAssignment : role.getSystemRoleAssignments()) {
+				List<SystemRoleAssignmentConstraintValueDTO> postponedConstraintValues = new ArrayList<>();
+				
+				for (SystemRoleAssignmentConstraintValue constraintValue : systemRoleAssignment.getConstraintValues()) {
+					if (constraintValue.isPostponed()) {
+						SystemRoleAssignmentConstraintValueDTO dto = new SystemRoleAssignmentConstraintValueDTO(constraintValue);
+						PostponedConstraint postponedConstraint = userRoleAssignment.getPostponedConstraints().stream().filter(p -> p.getSystemRole().getId() == systemRoleAssignment.getSystemRole().getId() && p.getConstraintType().getUuid().equals(constraintValue.getConstraintType().getUuid())).findAny().orElse(null);
+
+						if (postponedConstraint != null) {
+							dto.setConstraintValue(postponedConstraint.getValue());
+						}
+
+						postponedConstraintValues.add(dto);
+					}
+				}
+				
+				if (!postponedConstraintValues.isEmpty()) {
+					SystemRoleAssignmentDTO systemRoleAssignmentDTO = new SystemRoleAssignmentDTO();
+					systemRoleAssignmentDTO.setSystemRole(systemRoleAssignment.getSystemRole());
+					systemRoleAssignmentDTO.setPostponedConstraints(postponedConstraintValues);
+					
+					systemRoleAssignmentsDTOs.add(systemRoleAssignmentDTO);
+				}
+			}
+		}
+		
+		model.addAttribute("systemRoleAssignments", systemRoleAssignmentsDTOs);
+		model.addAttribute("postponingAllowed", role.isAllowPostponing());
+		
+		return "users/fragments/assign_user_role_postponed_data_constraints :: postponedConstraints";
+	}
+	
+	@RequestMapping(value = "/ui/users/manage/{uuid}/kle/{type}")
+	public String getKleFragment(Model model, @PathVariable("uuid") String uuid, @PathVariable("type") String type) {
+		User user = userService.getByUuid(uuid);
+		if (user == null) {
+			return "redirect:../list";
+		}
+		
+		switch (type) {
+		case "PERFORMING":
+			model.addAttribute("kles", kleService.getKleAssignments(user, KleType.PERFORMING, true));
+			break;
+		case "INTEREST":
+			model.addAttribute("kles", kleService.getKleAssignments(user, KleType.INTEREST, true));
+			break;
+
+		default:
+			return "redirect:../list";
+		}
+
+		return "fragments/manage_kle :: kle";
+	}
+
+	@RequestMapping(value = "/ui/users/manage/{uuid}/kleEdit/{type}")
+	public String getKleEditFragment(Model model, @PathVariable("uuid") String uuid, @PathVariable("type") String type) {
+		User user = userService.getByUuid(uuid);
+		if (user == null) {
+			return "redirect:../list";
+		}
+		
+		switch (type) {
+		case "PERFORMING":
+			model.addAttribute("selectedKles", user.getKles().stream().filter(userKLEMapping -> userKLEMapping.getAssignmentType().equals(KleType.PERFORMING)).map(UserKLEMapping::getCode).collect(Collectors.toList()));
+			break;
+		case "INTEREST":
+			model.addAttribute("selectedKles", user.getKles().stream().filter(userKLEMapping -> userKLEMapping.getAssignmentType().equals(KleType.INTEREST)).map(UserKLEMapping::getCode).collect(Collectors.toList()));
+			break;
+
+		default:
+			return "redirect:../list";
+		}
+
+		return "fragments/manage_kle_edit :: kleEdit";
 	}
 }

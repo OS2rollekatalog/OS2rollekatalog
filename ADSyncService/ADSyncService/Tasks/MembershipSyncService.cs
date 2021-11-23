@@ -1,8 +1,5 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace ADSyncService
 {
@@ -13,6 +10,9 @@ namespace ADSyncService
 
         public static void SynchronizeGroupMemberships(RoleCatalogueStub roleCatalogueStub, ADStub adStub)
         {
+            // retrieve map that contains settings for updating user attributes based on group membership.
+            var attributeMap = GetAttributeMap();
+
             // retrieve any changes from role catalogue
             var syncData = roleCatalogueStub.GetSyncData();
 
@@ -44,6 +44,12 @@ namespace ADSyncService
                             {
                                 adStub.AddMember(assignment.groupName, userId);
                                 added++;
+
+                                // update user's ad attributes with values specified in configuration
+                                foreach (var attributeSetting in attributeMap.Where(am => am.Key == assignment.groupName.ToLower()))
+                                {
+                                    adStub.UpdateAttribute(userId, attributeSetting.Value.Key, attributeSetting.Value.Value);
+                                }                                    
                             }
                         }
 
@@ -55,6 +61,12 @@ namespace ADSyncService
                                 {
                                     adStub.RemoveMember(assignment.groupName, userId);
                                     removed++;
+
+                                    // clear user's ad attributes if any was specified in configuration
+                                    foreach (var attributeSetting in attributeMap.Where(am => am.Key == assignment.groupName.ToLower()))
+                                    {
+                                        adStub.ClearAttribute(userId, attributeSetting.Value.Key);
+                                    }
                                 }
                                 else
                                 {
@@ -75,5 +87,27 @@ namespace ADSyncService
                 roleCatalogueStub.ResetHead(syncData.head);
             }
         }
+
+        private static List<KeyValuePair<string, KeyValuePair<string, string>>> GetAttributeMap()
+        {
+            // result is KeyValuePair( groupName, KeyValuePair( attributeName, attributeValue ))
+            var settingsMap = Properties.Settings.Default.MembershipSyncFeature_AttributeMap;
+            var result = new List<KeyValuePair<string, KeyValuePair<string, string>>>();
+            if (settingsMap != null)
+            {
+                foreach (var mapping in settingsMap)
+                {
+                    var values = mapping.Split(';');
+                    if (values.Count() != 3)
+                    {
+                        log.Warn("Invalid attributemap value: " + mapping);
+                        continue;
+                    }
+                    result.Add(new KeyValuePair<string,KeyValuePair<string,string>>(values[0].ToLower(), new KeyValuePair<string, string>(values[1], values[2])));
+                }
+            }
+            return result;
+        }
+
     }
 }

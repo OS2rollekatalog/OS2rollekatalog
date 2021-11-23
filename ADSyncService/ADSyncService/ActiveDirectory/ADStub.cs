@@ -78,6 +78,49 @@ namespace ADSyncService
             return res;
         }
 
+        public void UpdateAttribute(string userId, string attributeName, string attributeValue)
+        {
+            using (PrincipalContext context = new PrincipalContext(ContextType.Domain))
+            {
+                using (UserPrincipal user = UserPrincipal.FindByIdentity(context, userId))
+                {
+                    using (DirectoryEntry directoryEntry = (DirectoryEntry) user.GetUnderlyingObject())
+                    {
+                        log.Info($"Setting {attributeName} attribute of {userId} to {attributeValue}");
+                        if (directoryEntry.Properties.Contains(attributeName))
+                        {
+                            directoryEntry.Properties[attributeName].Value = attributeValue;
+                        }
+                        else
+                        {
+                            directoryEntry.Properties[attributeName].Add(attributeValue);
+                        }
+                        directoryEntry.CommitChanges();
+                    }
+                }
+            }
+
+        }
+
+        public void ClearAttribute(string userId, string attributeName)
+        {
+            using (PrincipalContext context = new PrincipalContext(ContextType.Domain))
+            {
+                using (UserPrincipal user = UserPrincipal.FindByIdentity(context, userId))
+                {
+                    using (DirectoryEntry directoryEntry = (DirectoryEntry)user.GetUnderlyingObject())
+                    {
+                        log.Info($"clearing {attributeName} attribute of {userId}");
+                        if (directoryEntry.Properties.Contains(attributeName))
+                        {
+                            directoryEntry.Properties[attributeName].Clear();
+                            directoryEntry.CommitChanges();
+                        }
+                    }
+                }
+            }
+        }
+
         public class Group
         {
             public string Uuid { get; set; }

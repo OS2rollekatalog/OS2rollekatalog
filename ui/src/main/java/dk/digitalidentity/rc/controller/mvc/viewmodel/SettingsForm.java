@@ -33,4 +33,6 @@ public class SettingsForm {
 	private int reminderInterval;
 	private int daysBeforeDeadline;
 	private String emailAfterReminders;
+	
+	private boolean attestationRoleDeletionEnabled;
 }

@@ -21,6 +21,7 @@ BEGIN
 		,assigned_by_user_id
 		,assigned_by_name
 		,assigned_when
+		,postponed_constraints
 	)
 	-- user roles from direct assignments
 	SELECT
@@ -37,14 +38,23 @@ BEGIN
 		,urm.assigned_by_user_id
 		,urm.assigned_by_name
 		,urm.assigned_timestamp
+		,sub_constraints.combined_constraints
 	FROM user_roles_mapping urm
 	JOIN users u ON u.uuid = urm.user_uuid
 	JOIN user_roles ur ON ur.id = urm.role_id
 	JOIN it_systems it ON it.id = ur.it_system_id
+    LEFT JOIN
+    (
+      SELECT
+	    pc.user_user_role_assignment_id, STRING_AGG( ct.name + ': ' + CAST(pc.constraint_value as nvarchar(max)), CHAR(13)+CHAR(10) ) as combined_constraints
+      FROM postponed_constraints pc
+      INNER JOIN constraint_types ct ON ct.id = pc.constraint_type_id
+      GROUP BY pc.user_user_role_assignment_id
+    ) as sub_constraints ON sub_constraints.user_user_role_assignment_id = urm.id
 	WHERE urm.inactive = 0
 	UNION ALL
 	-- user roles through rolegroups from direct assignments
-	SELECT 
+	SELECT
 		CURRENT_TIMESTAMP
 		,u.uuid
 		,ur.id
@@ -58,6 +68,7 @@ BEGIN
 		,urg.assigned_by_user_id
 		,urg.assigned_by_name
 		,urg.assigned_timestamp
+		,NULL
 	FROM user_rolegroups urg
 	JOIN rolegroup rg ON urg.rolegroup_id = rg.id
 	JOIN users u ON u.uuid = urg.user_uuid
@@ -67,7 +78,7 @@ BEGIN
 	WHERE urg.inactive = 0
 	UNION ALL
 	-- user roles from position assignments
-	SELECT 
+	SELECT
 		CURRENT_TIMESTAMP
 		,u.uuid
 		,ur.id
@@ -81,6 +92,7 @@ BEGIN
 		,pr.assigned_by_user_id
 		,pr.assigned_by_name
 		,pr.assigned_timestamp
+		,NULL
 	FROM position_roles pr
 	JOIN positions p on p.id = pr.position_id
 	JOIN users u ON u.uuid = p.user_uuid
@@ -88,7 +100,7 @@ BEGIN
 	JOIN user_roles ur ON ur.id = pr.role_id
 	JOIN it_systems it ON it.id = ur.it_system_id
 	WHERE pr.inactive = 0
-	UNION ALL 
+	UNION ALL
 	-- user roles through rolegroup from position assignments
 	SELECT
 		CURRENT_TIMESTAMP
@@ -104,6 +116,7 @@ BEGIN
 		,prg.assigned_by_user_id
 		,prg.assigned_by_name
 		,prg.assigned_timestamp
+		,NULL
 	FROM position_rolegroups prg
 	JOIN rolegroup rg ON prg.rolegroup_id = rg.id
 	JOIN positions p on p.id = prg.position_id

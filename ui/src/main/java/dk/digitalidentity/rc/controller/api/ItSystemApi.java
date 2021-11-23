@@ -163,6 +163,7 @@ public class ItSystemApi {
 
 		if (body.isConvertRolesEnabled()) {
 			boolean containsUsers = false;
+
 			if (body.getSystemRoles() != null) {
 				for (SystemRoleDTO dto : body.getSystemRoles()) {
 					if (dto.getUsers() != null && dto.getUsers().size() > 0) {
@@ -199,8 +200,12 @@ public class ItSystemApi {
 					continue;
 				}
 
-				if (!Objects.equals(userRole.getName(), systemRole.get().getName())) {
-					userRole.setName(systemRole.get().getName());
+				SystemRole sRole = systemRole.get();
+
+				if (!Objects.equals(userRole.getName(), sRole.getName()) ||
+					!Objects.equals(userRole.getDescription(), sRole.getDescription())) {
+					userRole.setName(sRole.getName());
+					userRole.setDescription(sRole.getDescription());
 					userRole = userRoleService.save(userRole);
 				}
 
@@ -224,6 +229,7 @@ public class ItSystemApi {
 				userRole.setItSystem(itSystem);
 				userRole.setIdentifier(systemRole.getIdentifier());
 				userRole.setName(systemRole.getName());
+				userRole.setDescription(systemRole.getDescription());
 
 				SystemRoleAssignment systemRoleAssignment = new SystemRoleAssignment();
 				systemRoleAssignment.setAssignedByName("Systembruger");

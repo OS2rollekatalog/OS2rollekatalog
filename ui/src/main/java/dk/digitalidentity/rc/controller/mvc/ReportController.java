@@ -33,7 +33,6 @@ import dk.digitalidentity.rc.dao.model.OrgUnit;
 import dk.digitalidentity.rc.dao.model.Position;
 import dk.digitalidentity.rc.dao.model.ReportTemplate;
 import dk.digitalidentity.rc.dao.model.RoleGroup;
-import dk.digitalidentity.rc.dao.model.Title;
 import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserRole;
 import dk.digitalidentity.rc.dao.model.enums.ReportType;
@@ -46,7 +45,6 @@ import dk.digitalidentity.rc.service.PositionService;
 import dk.digitalidentity.rc.service.ReportService;
 import dk.digitalidentity.rc.service.ReportTemplateService;
 import dk.digitalidentity.rc.service.RoleGroupService;
-import dk.digitalidentity.rc.service.TitleService;
 import dk.digitalidentity.rc.service.UserRoleService;
 import dk.digitalidentity.rc.service.UserService;
 import dk.digitalidentity.rc.service.model.RoleGroupAssignmentWithInfo;
@@ -81,9 +79,6 @@ public class ReportController {
 	
 	@Autowired
 	private PositionService positionService;
-	
-	@Autowired
-	private TitleService titleService;
 
 	@RequireTemplateAccessOrReadAccessRole
 	@GetMapping("/ui/report/templates")
@@ -119,7 +114,6 @@ public class ReportController {
 		// default column choices
 		ReportForm reportForm = new ReportForm();
 		reportForm.setShowUsers(true);
-		reportForm.setShowTitles(false);
 		reportForm.setShowOUs(false);
 		reportForm.setShowUserRoles(true);
 		reportForm.setShowKLE(true);
@@ -143,7 +137,6 @@ public class ReportController {
 		ReportTemplate reportTemplate = reportTemplateService.getById(id);
 		if (reportTemplate != null) {
 			reportForm.setShowUsers(reportTemplate.isShowUsers());
-			reportForm.setShowTitles(reportTemplate.isShowTitles());
 			reportForm.setShowOUs(reportTemplate.isShowOUs());
 			reportForm.setShowUserRoles(reportTemplate.isShowUserRoles());
 			reportForm.setShowKLE(reportTemplate.isShowKLE());
@@ -168,7 +161,6 @@ public class ReportController {
 		}
 		else {
 			reportForm.setShowUsers(true);
-			reportForm.setShowTitles(false);
 			reportForm.setShowOUs(false);
 			reportForm.setShowUserRoles(true);
 			reportForm.setShowKLE(true);
@@ -200,7 +192,6 @@ public class ReportController {
 		ReportTemplate reportTemplate = reportTemplateService.getById(templateId);
 		if (reportTemplate != null) {
 			reportForm.setShowUsers(reportTemplate.isShowUsers());
-			reportForm.setShowTitles(reportTemplate.isShowTitles());
 			reportForm.setShowOUs(reportTemplate.isShowOUs());
 			reportForm.setShowUserRoles(reportTemplate.isShowUserRoles());
 			reportForm.setShowKLE(reportTemplate.isShowKLE());
@@ -270,7 +261,6 @@ public class ReportController {
 		reportForm.setShowItSystems(template.isShowItSystems());
 		reportForm.setShowKLE(template.isShowKLE());
 		reportForm.setShowOUs(template.isShowOUs());
-		reportForm.setShowTitles(template.isShowTitles());
 		reportForm.setShowUserRoles(template.isShowUserRoles());
 		reportForm.setShowUsers(template.isShowUsers());
 		reportForm.setName(template.getName());
@@ -343,6 +333,7 @@ public class ReportController {
 		return userRoles;
 	}
 
+	@Deprecated
 	private List<UserWithDuplicateRoleAssignmentDTO> generateUsersWithDuplicateRoleAssignmentsReport() {
 		List<UserWithDuplicateRoleAssignmentDTO> result = new ArrayList<>();
 		
@@ -435,15 +426,13 @@ public class ReportController {
 		List<OrgUnit> orgUnits = orgUnitService.getAll();
 		List<User> users = userService.getAll();
 		List<Position> positions = positionService.getAll();
-		List<Title> titles = titleService.getAll();
 		
 		// find all assigned roleGroups
 		List<RoleGroup> assignedRoleGroups = roleGroups.stream()
 				.filter(ur ->
 					orgUnits.stream().anyMatch(ou -> ou.getRoleGroupAssignments().stream().anyMatch(ura -> ura.getRoleGroup().getId() == ur.getId())) ||
 					users.stream().anyMatch(u -> u.getRoleGroupAssignments().stream().anyMatch(ura -> ura.getRoleGroup().getId() == ur.getId())) ||
-					positions.stream().anyMatch(p -> p.getRoleGroupAssignments().stream().anyMatch(ura -> ura.getRoleGroup().getId() == ur.getId())) ||
-					titles.stream().anyMatch(t -> t.getRoleGroupAssignments().stream().anyMatch(ura -> ura.getRoleGroup().getId() == ur.getId()))
+					positions.stream().anyMatch(p -> p.getRoleGroupAssignments().stream().anyMatch(ura -> ura.getRoleGroup().getId() == ur.getId()))
 				)
 				.collect(Collectors.toList());
 
@@ -453,7 +442,6 @@ public class ReportController {
 					orgUnits.stream().anyMatch(ou -> ou.getUserRoleAssignments().stream().anyMatch(ura -> ura.getUserRole().getId() == ur.getId())) ||
 					users.stream().anyMatch(u -> u.getUserRoleAssignments().stream().anyMatch(ura -> ura.getUserRole().getId() == ur.getId())) ||
 					positions.stream().anyMatch(p -> p.getUserRoleAssignments().stream().anyMatch(ura -> ura.getUserRole().getId() == ur.getId())) ||
-					titles.stream().anyMatch(t -> t.getUserRoleAssignments().stream().anyMatch(ura -> ura.getUserRole().getId() == ur.getId())) ||
 					assignedRoleGroups.stream().anyMatch(rg -> rg.getUserRoleAssignments().stream().anyMatch(ura -> ura.getUserRole().getId() == ur.getId()))
 				)
 				.collect(Collectors.toList());

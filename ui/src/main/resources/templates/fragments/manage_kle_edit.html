@@ -1,0 +1,19 @@
+<th:block th:fragment="kleEdit" xmlns="http://www.w3.org/1999/xhtml" xmlns:th="http://www.thymeleaf.org">
+	<fieldset>
+		<div class="form-group">
+			<h4 th:text="#{html.page.ous.edit.search}" />
+			<input class="form-control" th:id="Kle + ${type} + Search" style="margin-bottom: 5px;" />
+			<button class="btn btn-lg btn-primary" style="margin-bottom: 20px;" th:text="#{html.page.ous.edit.save}" onclick="kleService.saveChanges(this)" th:attr="data-type=${type}"></button>
+			<button class="btn btn-lg btn-primary" style="margin-bottom: 20px;" th:text="#{html.page.ous.edit.cancel}" onclick="kleService.abortChanges(this)" th:attr="data-type=${type}"></button>
+			<div th:id="Kle+ ${type}"></div>
+		</div>
+		<script th:inline="javascript">
+			/*<![CDATA[*/
+			/*[+
+				var type = [[${type}]];
+				window['kle'+type+'Selected'] = [[${selectedKles}]];
+			+]*/
+			/*]]>*/
+		</script>
+	</fieldset>
+</th:block>

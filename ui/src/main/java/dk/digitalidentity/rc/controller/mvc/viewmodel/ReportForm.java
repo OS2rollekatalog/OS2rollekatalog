@@ -18,7 +18,6 @@ public class ReportForm {
     private long[] itsystemFilter;
 
     private boolean showUsers;
-    private boolean showTitles;
     private boolean showOUs;
     private boolean showUserRoles;
     private boolean showKLE;

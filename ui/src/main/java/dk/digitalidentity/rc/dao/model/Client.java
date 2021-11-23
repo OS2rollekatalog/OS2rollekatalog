@@ -15,8 +15,7 @@ import lombok.Setter;
 @Getter
 @Setter
 @Entity
-//@Audited
-public class Client { // implements Loggable {
+public class Client {
 
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -31,4 +30,7 @@ public class Client { // implements Loggable {
 	@Column
 	@Enumerated(EnumType.STRING)
 	private AccessRole accessRole;
+	
+	@Column
+	private String tlsVersion;
 }

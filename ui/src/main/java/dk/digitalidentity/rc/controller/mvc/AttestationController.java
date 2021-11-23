@@ -2,6 +2,7 @@ package dk.digitalidentity.rc.controller.mvc;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.List;
@@ -23,24 +24,33 @@ import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import dk.digitalidentity.rc.config.Constants;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.AttestationConfirmDTO;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.AttestationConfirmPersonalListDTO;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.AttestationConfirmShowDTO;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.AttestationConfirmUnitListDTO;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.AttestationOrgUnit;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.AttestationRolesDTO;
+import dk.digitalidentity.rc.controller.mvc.viewmodel.SystemRoleAssignmentConstraintValueDTO;
+import dk.digitalidentity.rc.controller.mvc.viewmodel.SystemRoleAssignmentDTO;
+import dk.digitalidentity.rc.dao.model.ConstraintTypeValueSet;
+import dk.digitalidentity.rc.dao.model.ItSystem;
 import dk.digitalidentity.rc.dao.model.OrgUnit;
 import dk.digitalidentity.rc.dao.model.OrgUnitRoleGroupAssignment;
 import dk.digitalidentity.rc.dao.model.OrgUnitUserRoleAssignment;
+import dk.digitalidentity.rc.dao.model.PostponedConstraint;
 import dk.digitalidentity.rc.dao.model.RoleGroup;
+import dk.digitalidentity.rc.dao.model.SystemRoleAssignment;
+import dk.digitalidentity.rc.dao.model.SystemRoleAssignmentConstraintValue;
 import dk.digitalidentity.rc.dao.model.Title;
-import dk.digitalidentity.rc.dao.model.TitleRoleGroupAssignment;
-import dk.digitalidentity.rc.dao.model.TitleUserRoleAssignment;
 import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserRole;
+import dk.digitalidentity.rc.dao.model.UserUserRoleAssignment;
+import dk.digitalidentity.rc.dao.model.enums.ConstraintUIType;
 import dk.digitalidentity.rc.security.RequireAdministratorRole;
 import dk.digitalidentity.rc.security.RequireAssignerOrManagerRole;
 import dk.digitalidentity.rc.security.RequireManagerRole;
+import dk.digitalidentity.rc.service.ItSystemService;
 import dk.digitalidentity.rc.service.OrgUnitService;
 import dk.digitalidentity.rc.service.RoleGroupService;
 import dk.digitalidentity.rc.service.SettingsService;
@@ -74,6 +84,9 @@ public class AttestationController {
 
 	@Autowired
 	private SettingsService settingService;
+    
+	@Autowired
+	private ItSystemService itSystemService;
 
 	@RequireAdministratorRole
 	@GetMapping("/ui/admin/attestations")
@@ -162,36 +175,35 @@ public class AttestationController {
 		}
 		
 		// getting from titles
-		List<Title> titles = orgUnitService.getTitles(orgUnit);
-		for (Title t : titles) {
-			for (TitleUserRoleAssignment tura : t.getUserRoleAssignments()) {
-				if (tura.getOuUuids().contains(orgUnit.getUuid())) {
-					UserRoleAssignedToUser uratu  = new UserRoleAssignedToUser();
-					uratu.setAssignedThrough(AssignedThrough.TITLE);
-					uratu.setUserRole(tura.getUserRole());
-					uratu.setTitle(t);
+		List<OrgUnitUserRoleAssignment> userRoleAssignments = orgUnit.getUserRoleAssignments().stream().filter(ura -> ura.isContainsTitles()).collect(Collectors.toList());
+		for (OrgUnitUserRoleAssignment oura : userRoleAssignments) {
+			for (Title t : oura.getTitles()) {
+				UserRoleAssignedToUser uratu  = new UserRoleAssignedToUser();
+				uratu.setAssignedThrough(AssignedThrough.TITLE);
+				uratu.setUserRole(oura.getUserRole());
+				uratu.setTitle(t);
 
-					AttestationRolesDTO dto = new AttestationRolesDTO();
-					dto.setRoleType("Jobfunktionsrolle");
-					dto.setRoleAssignedToUser(uratu);
-					
-					unit.add(dto);
-				}
+				AttestationRolesDTO dto = new AttestationRolesDTO();
+				dto.setRoleType("Jobfunktionsrolle");
+				dto.setRoleAssignedToUser(uratu);
+				
+				unit.add(dto);
 			}
-			
-			for (TitleRoleGroupAssignment trga : t.getRoleGroupAssignments()) {
-				if (trga.getOuUuids().contains(orgUnit.getUuid())) {
-					RoleGroupAssignedToUser uratu  = new RoleGroupAssignedToUser();
-					uratu.setAssignedThrough(AssignedThrough.TITLE);
-					uratu.setRoleGroup(trga.getRoleGroup());
-					uratu.setTitle(t);
-
-					AttestationRolesDTO dto = new AttestationRolesDTO();
-					dto.setRoleType("Rollebuket");
-					dto.setRoleAssignedToUser(uratu);
-
-					unit.add(dto);
-				}
+		}
+		
+		List<OrgUnitRoleGroupAssignment> roleGroupAssignments = orgUnit.getRoleGroupAssignments().stream().filter(rga -> rga.isContainsTitles()).collect(Collectors.toList());
+		for (OrgUnitRoleGroupAssignment trga : roleGroupAssignments) {
+			for (Title t : trga.getTitles()) {
+				RoleGroupAssignedToUser uratu  = new RoleGroupAssignedToUser();
+				uratu.setAssignedThrough(AssignedThrough.TITLE);
+				uratu.setRoleGroup(trga.getRoleGroup());
+				uratu.setTitle(t);
+	
+				AttestationRolesDTO dto = new AttestationRolesDTO();
+				dto.setRoleType("Rollebuket");
+				dto.setRoleAssignedToUser(uratu);
+	
+				unit.add(dto);
 			}
 		}
 		
@@ -205,6 +217,8 @@ public class AttestationController {
 				AttestationRolesDTO dto = new AttestationRolesDTO();
 				dto.setRoleAssignedToUser(uratu);
 				dto.setRoleType("Jobfunktionsrolle");
+				dto.setAssignmentId(uratu.getAssignmentId());
+				dto.setFromPosition(uratu.isFromPosition());
 				
 				if (uratu.getUserRole().getItSystem().isReadonly()) {
 					dto.setDisabled(true);
@@ -212,6 +226,95 @@ public class AttestationController {
 
 				switch (uratu.getAssignedThrough()) {
 					case DIRECT:
+						dto.setUser(user);
+						
+						if (uratu.getAssignmentId() != null) {
+							dto.setAssignmentId(uratu.getAssignmentId());
+							UserUserRoleAssignment userUserRoleAssignment = user.getUserRoleAssignments().stream().filter(ura->ura.getId() == uratu.getAssignmentId()).findAny().orElse(null);
+
+							if (userUserRoleAssignment != null) {
+								List<SystemRoleAssignmentDTO> systemRoleAssignmentsDTOs = new ArrayList<>();
+								UserRole role = userUserRoleAssignment.getUserRole();
+
+								if (role.isAllowPostponing()) {
+									for (SystemRoleAssignment systemRoleAssignment : role.getSystemRoleAssignments()) {
+										List<SystemRoleAssignmentConstraintValueDTO> postponedConstraintValues = new ArrayList<>();
+
+										for (SystemRoleAssignmentConstraintValue constraintValue : systemRoleAssignment.getConstraintValues()) {
+											if (constraintValue.isPostponed()) {
+												SystemRoleAssignmentConstraintValueDTO valueDto = new SystemRoleAssignmentConstraintValueDTO(constraintValue);
+												PostponedConstraint postponedConstraint = userUserRoleAssignment.getPostponedConstraints().stream().filter(p -> p.getSystemRole().getId() == systemRoleAssignment.getSystemRole().getId() && p.getConstraintType().getUuid().equals(constraintValue.getConstraintType().getUuid())).findAny().orElse(null);
+
+												if (postponedConstraint != null) {
+													if (postponedConstraint.getConstraintType().getUiType().equals(ConstraintUIType.REGEX)) {
+														if (postponedConstraint.getConstraintType().getEntityId().equals(Constants.OU_CONSTRAINT_ENTITY_ID)) {
+															String[] uuids = postponedConstraint.getValue().split(",");
+															String ouString = "";
+
+															for (String ouUuid : uuids) {
+																OrgUnit ou = orgUnitService.getByUuid(ouUuid);
+																if (ou != null) {
+																	ouString += ou.getName() + ", ";
+																}
+															}
+															
+															valueDto.setConstraintValue(ouString.substring(0, ouString.length()-2));
+														}
+														else if (postponedConstraint.getConstraintType().getEntityId().equals(Constants.INTERNAL_ITSYSTEM_CONSTRAINT_ENTITY_ID)) {
+															String[] ids = postponedConstraint.getValue().split(",");
+															String itSystemsString = "";
+
+															for (String id : ids) {
+																ItSystem itSystem = itSystemService.getById(Integer.parseInt(id));
+																if (itSystem != null) {
+																	itSystemsString += itSystem.getName() + ", ";
+																}
+															}
+															
+															valueDto.setConstraintValue(itSystemsString.substring(0, itSystemsString.length()-2));
+														}
+														else {
+															valueDto.setConstraintValue(postponedConstraint.getValue());
+														}
+													}
+													else if (postponedConstraint.getConstraintType().getUiType().equals(ConstraintUIType.COMBO_SINGLE)) {
+														ConstraintTypeValueSet valueSet = postponedConstraint.getConstraintType().getValueSet().stream().filter(v -> v.getConstraintKey().equals(postponedConstraint.getValue())).findAny().orElse(null);
+														valueDto.setConstraintValue(valueSet == null ? "" : valueSet.getConstraintValue());
+													}
+													else if (postponedConstraint.getConstraintType().getUiType().equals(ConstraintUIType.COMBO_MULTI)) {
+														String[] keysArr = postponedConstraint.getValue().split(",");
+														List<String> keys = Arrays.asList(keysArr);
+														List<ConstraintTypeValueSet> valueSets = postponedConstraint.getConstraintType().getValueSet().stream().filter(v -> keys.contains(v.getConstraintKey())).collect(Collectors.toList());
+														String valuesString = "";
+
+														for (ConstraintTypeValueSet valueSet : valueSets) {
+															valuesString += valueSet.getConstraintValue() + ", ";
+														}
+														
+														valueDto.setConstraintValue(valuesString.substring(0, valuesString.length()-2));
+													}
+												}
+												
+												postponedConstraintValues.add(valueDto);
+											}
+										}
+										
+										if (!postponedConstraintValues.isEmpty()) {
+											SystemRoleAssignmentDTO systemRoleAssignmentDTO = new SystemRoleAssignmentDTO();
+											systemRoleAssignmentDTO.setSystemRole(systemRoleAssignment.getSystemRole());
+											systemRoleAssignmentDTO.setPostponedConstraints(postponedConstraintValues);
+											
+											systemRoleAssignmentsDTOs.add(systemRoleAssignmentDTO);
+										}
+									}
+								}
+
+								dto.setSystemRoleAssignmentsDTOs(systemRoleAssignmentsDTOs);
+							}
+						}
+						
+						personal.add(dto);
+						break;
 					case POSITION:
 						dto.setUser(user);
 						personal.add(dto);
@@ -225,10 +328,13 @@ public class AttestationController {
 				AttestationRolesDTO dto = new AttestationRolesDTO();
 				dto.setRoleAssignedToUser(uratu);
 				dto.setRoleType("Rollebuket");
+				dto.setAssignmentId(uratu.getAssignmentId());
+				dto.setFromPosition(uratu.isFromPosition());
 
 				switch (uratu.getAssignedThrough()) {
 					case DIRECT:
 					case POSITION:
+					case ROLEGROUP:
 						dto.setUser(user);
 						personal.add(dto);
 						break;
@@ -276,6 +382,8 @@ public class AttestationController {
 			
 			AttestationConfirmShowDTO dto = new AttestationConfirmShowDTO();
 			dto.setUserOrUnitName(user.getName());
+			dto.setAssignmentId(tbr.getAssignmentId());
+			dto.setFromPosition(tbr.isFromPosition());
 			
 			String roleType = tbr.getRoleType();
 			if (roleType.equals("Jobfunktionsrolle")) {
@@ -288,6 +396,93 @@ public class AttestationController {
 				dto.setRoleName(ur.getName());
 				dto.setItSystemName(ur.getItSystem().getName());
 				tbr.setItSystemName(dto.getItSystemName());
+
+				if (tbr.getAssignedThrough().equals(AssignedThrough.DIRECT)) {
+					// handle postponed constraints
+					if (tbr.getAssignmentId() != null) {
+						UserUserRoleAssignment userUserRoleAssignment = user.getUserRoleAssignments().stream().filter(ura->ura.getId() == tbr.getAssignmentId()).findAny().orElse(null);
+
+						if (userUserRoleAssignment != null) {
+							List<SystemRoleAssignmentDTO> systemRoleAssignmentsDTOs = new ArrayList<>();
+							UserRole role = userUserRoleAssignment.getUserRole();
+							
+							if (role.isAllowPostponing()) {
+								for (SystemRoleAssignment systemRoleAssignment : role.getSystemRoleAssignments()) {
+									List<SystemRoleAssignmentConstraintValueDTO> postponedConstraintValues = new ArrayList<>();
+
+									for (SystemRoleAssignmentConstraintValue constraintValue : systemRoleAssignment.getConstraintValues()) {
+										if (constraintValue.isPostponed()) {
+											SystemRoleAssignmentConstraintValueDTO valueDto = new SystemRoleAssignmentConstraintValueDTO(constraintValue);
+											PostponedConstraint postponedConstraint = userUserRoleAssignment.getPostponedConstraints().stream().filter(p -> p.getSystemRole().getId() == systemRoleAssignment.getSystemRole().getId() && p.getConstraintType().getUuid().equals(constraintValue.getConstraintType().getUuid())).findAny().orElse(null);
+
+											if (postponedConstraint != null) {
+												if (postponedConstraint.getConstraintType().getUiType().equals(ConstraintUIType.REGEX)) {
+													if (postponedConstraint.getConstraintType().getEntityId().equals(Constants.OU_CONSTRAINT_ENTITY_ID)) {
+														String[] uuids = postponedConstraint.getValue().split(",");
+														String ouString = "";
+
+														for (String ouUuid : uuids) {
+															OrgUnit ou = orgUnitService.getByUuid(ouUuid);
+															if (ou != null) {
+																ouString += ou.getName() + ", ";
+															}
+														}
+														
+														valueDto.setConstraintValue(ouString.substring(0, ouString.length()-2));
+													}
+													else if (postponedConstraint.getConstraintType().getEntityId().equals(Constants.INTERNAL_ITSYSTEM_CONSTRAINT_ENTITY_ID)) {
+														String[] ids = postponedConstraint.getValue().split(",");
+														String itSystemsString = "";
+
+														for (String id : ids) {
+															ItSystem itSystem = itSystemService.getById(Integer.parseInt(id));
+															if (itSystem != null) {
+																itSystemsString += itSystem.getName() + ", ";
+															}
+														}
+														
+														valueDto.setConstraintValue(itSystemsString.substring(0, itSystemsString.length()-2));
+													}
+													else {
+														valueDto.setConstraintValue(postponedConstraint.getValue());
+													}
+												}
+												else if (postponedConstraint.getConstraintType().getUiType().equals(ConstraintUIType.COMBO_SINGLE)) {
+													ConstraintTypeValueSet valueSet = postponedConstraint.getConstraintType().getValueSet().stream().filter(v -> v.getConstraintKey().equals(postponedConstraint.getValue())).findAny().orElse(null);
+													valueDto.setConstraintValue(valueSet == null ? "" : valueSet.getConstraintValue());
+												}
+												else if (postponedConstraint.getConstraintType().getUiType().equals(ConstraintUIType.COMBO_MULTI)) {
+													String[] keysArr = postponedConstraint.getValue().split(",");
+													List<String> keys = Arrays.asList(keysArr);
+													List<ConstraintTypeValueSet> valueSets = postponedConstraint.getConstraintType().getValueSet().stream().filter(v -> keys.contains(v.getConstraintKey())).collect(Collectors.toList());
+													String valuesString = "";
+
+													for (ConstraintTypeValueSet valueSet : valueSets) {
+														valuesString += valueSet.getConstraintValue() + ", ";
+													}
+													
+													valueDto.setConstraintValue(valuesString.substring(0, valuesString.length()-2));
+												}
+											}
+
+											postponedConstraintValues.add(valueDto);
+										}
+									}
+									
+									if (!postponedConstraintValues.isEmpty()) {
+										SystemRoleAssignmentDTO systemRoleAssignmentDTO = new SystemRoleAssignmentDTO();
+										systemRoleAssignmentDTO.setSystemRoleName(systemRoleAssignment.getSystemRole().getName());
+										systemRoleAssignmentDTO.setPostponedConstraints(postponedConstraintValues);
+										
+										systemRoleAssignmentsDTOs.add(systemRoleAssignmentDTO);
+									}
+								}
+							}
+
+							dto.setSystemRoleAssignmentsDTOs(systemRoleAssignmentsDTOs);
+						}
+					}
+				}
 			}
 			else if (roleType.equals("Rollebuket")) {
 				RoleGroup rg = roleGroupService.getById(tbr.getRoleId());
@@ -303,7 +498,7 @@ public class AttestationController {
 				log.warn("Unknown roleType: " + roleType);
 				continue;
 			}
-
+			
 			AttestationRolesDTOsToBeRemoved.add(dto);
 		}
 		
@@ -403,6 +598,8 @@ public class AttestationController {
 
 			AttestationConfirmShowDTO dto = new AttestationConfirmShowDTO();
 			dto.setUserOrUnitName(user.getName());
+			dto.setAssignmentId(ap.getAssignmentId());
+			dto.setFromPosition(ap.isFromPosition());
 
 			String roleType = ap.getRoleType();
 			if (roleType.equals("Jobfunktionsrolle")) {
@@ -415,6 +612,91 @@ public class AttestationController {
 				dto.setItSystemName(ur.getItSystem().getName());
 				dto.setRoleName(ur.getName());
 				ap.setItSystemName(dto.getItSystemName());
+				
+				if (ap.getAssignedThrough().equals(AssignedThrough.DIRECT)) {
+					if (ap.getAssignmentId() != null) {
+						UserUserRoleAssignment userUserRoleAssignment = user.getUserRoleAssignments().stream().filter(ura->ura.getId() == ap.getAssignmentId()).findAny().orElse(null);
+
+						if (userUserRoleAssignment != null) {
+							List<SystemRoleAssignmentDTO> systemRoleAssignmentsDTOs = new ArrayList<>();
+							UserRole role = userUserRoleAssignment.getUserRole();
+
+							if (role.isAllowPostponing()) {
+								for (SystemRoleAssignment systemRoleAssignment : role.getSystemRoleAssignments()) {
+									List<SystemRoleAssignmentConstraintValueDTO> postponedConstraintValues = new ArrayList<>();
+
+									for (SystemRoleAssignmentConstraintValue constraintValue : systemRoleAssignment.getConstraintValues()) {
+										if (constraintValue.isPostponed()) {
+											SystemRoleAssignmentConstraintValueDTO valueDto = new SystemRoleAssignmentConstraintValueDTO(constraintValue);
+											PostponedConstraint postponedConstraint = userUserRoleAssignment.getPostponedConstraints().stream().filter(p -> p.getSystemRole().getId() == systemRoleAssignment.getSystemRole().getId() && p.getConstraintType().getUuid().equals(constraintValue.getConstraintType().getUuid())).findAny().orElse(null);
+
+											if (postponedConstraint != null) {
+												if (postponedConstraint.getConstraintType().getUiType().equals(ConstraintUIType.REGEX)) {
+													if (postponedConstraint.getConstraintType().getEntityId().equals(Constants.OU_CONSTRAINT_ENTITY_ID)) {
+														String[] uuids = postponedConstraint.getValue().split(",");
+														String ouString = "";
+
+														for (String ouUuid : uuids) {
+															OrgUnit ou = orgUnitService.getByUuid(ouUuid);
+															if (ou != null) {
+																ouString += ou.getName() + ", ";
+															}
+														}
+														
+														valueDto.setConstraintValue(ouString.substring(0, ouString.length()-2));
+													}
+													else if (postponedConstraint.getConstraintType().getEntityId().equals(Constants.INTERNAL_ITSYSTEM_CONSTRAINT_ENTITY_ID)) {
+														String[] ids = postponedConstraint.getValue().split(",");
+														String itSystemsString = "";
+
+														for (String id : ids) {
+															ItSystem itSystem = itSystemService.getById(Integer.parseInt(id));
+															if (itSystem != null) {
+																itSystemsString += itSystem.getName() + ", ";
+															}
+														}
+														
+														valueDto.setConstraintValue(itSystemsString.substring(0, itSystemsString.length()-2));
+													}
+													else {
+														valueDto.setConstraintValue(postponedConstraint.getValue());
+													}
+												}
+												else if (postponedConstraint.getConstraintType().getUiType().equals(ConstraintUIType.COMBO_SINGLE)) {
+													ConstraintTypeValueSet valueSet = postponedConstraint.getConstraintType().getValueSet().stream().filter(v -> v.getConstraintKey().equals(postponedConstraint.getValue())).findAny().orElse(null);
+													valueDto.setConstraintValue(valueSet == null ? "" : valueSet.getConstraintValue());
+												}
+												else if (postponedConstraint.getConstraintType().getUiType().equals(ConstraintUIType.COMBO_MULTI)) {
+													String[] keysArr = postponedConstraint.getValue().split(",");
+													List<String> keys = Arrays.asList(keysArr);
+													List<ConstraintTypeValueSet> valueSets = postponedConstraint.getConstraintType().getValueSet().stream().filter(v -> keys.contains(v.getConstraintKey())).collect(Collectors.toList());
+													String valuesString = "";
+
+													for (ConstraintTypeValueSet valueSet : valueSets) {
+														valuesString += valueSet.getConstraintValue() + ", ";
+													}
+													
+													valueDto.setConstraintValue(valuesString.substring(0, valuesString.length()-2));
+												}
+											}
+											postponedConstraintValues.add(valueDto);
+										}
+									}
+									
+									if (!postponedConstraintValues.isEmpty()) {
+										SystemRoleAssignmentDTO systemRoleAssignmentDTO = new SystemRoleAssignmentDTO();
+										systemRoleAssignmentDTO.setSystemRoleName(systemRoleAssignment.getSystemRole().getName());
+										systemRoleAssignmentDTO.setPostponedConstraints(postponedConstraintValues);
+										
+										systemRoleAssignmentsDTOs.add(systemRoleAssignmentDTO);
+									}
+								}
+							}
+
+							dto.setSystemRoleAssignmentsDTOs(systemRoleAssignmentsDTOs);
+						}
+					}
+				}
 			}
 			else if (roleType.equals("Rollebuket")) {
 				RoleGroup rg = roleGroupService.getById(ap.getRoleId());
@@ -430,7 +712,7 @@ public class AttestationController {
 				log.warn("Unknown roleType: " + roleType);
 				continue;
 			}
-
+			
 			AttestationRolesDTOsAprovedPersonal.add(dto);
 		}
 		

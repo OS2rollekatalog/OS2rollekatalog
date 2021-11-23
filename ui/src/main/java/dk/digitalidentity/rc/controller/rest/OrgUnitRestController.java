@@ -1,7 +1,6 @@
 package dk.digitalidentity.rc.controller.rest;
 
 import java.time.LocalDate;
-import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
@@ -36,11 +35,10 @@ import dk.digitalidentity.rc.controller.rest.model.StringArrayWrapper;
 import dk.digitalidentity.rc.dao.model.AuthorizationManager;
 import dk.digitalidentity.rc.dao.model.KLEMapping;
 import dk.digitalidentity.rc.dao.model.OrgUnit;
-import dk.digitalidentity.rc.dao.model.Position;
+import dk.digitalidentity.rc.dao.model.OrgUnitRoleGroupAssignment;
+import dk.digitalidentity.rc.dao.model.OrgUnitUserRoleAssignment;
 import dk.digitalidentity.rc.dao.model.RoleGroup;
 import dk.digitalidentity.rc.dao.model.Title;
-import dk.digitalidentity.rc.dao.model.TitleRoleGroupAssignment;
-import dk.digitalidentity.rc.dao.model.TitleUserRoleAssignment;
 import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserRole;
 import dk.digitalidentity.rc.dao.model.enums.EventType;
@@ -54,12 +52,11 @@ import dk.digitalidentity.rc.security.RequireKleAdministratorRole;
 import dk.digitalidentity.rc.security.RequireReadAccessRole;
 import dk.digitalidentity.rc.service.KleService;
 import dk.digitalidentity.rc.service.OrgUnitService;
-import dk.digitalidentity.rc.service.PositionService;
 import dk.digitalidentity.rc.service.RoleGroupService;
 import dk.digitalidentity.rc.service.SettingsService;
-import dk.digitalidentity.rc.service.TitleService;
 import dk.digitalidentity.rc.service.UserRoleService;
 import dk.digitalidentity.rc.service.UserService;
+import dk.digitalidentity.rc.service.model.RoleAssignmentType;
 import dk.digitalidentity.rc.service.model.WhoCanRequest;
 import lombok.extern.slf4j.Slf4j;
 
@@ -85,12 +82,6 @@ public class OrgUnitRestController {
 
 	@Autowired
 	private UserService userService;
-	
-	@Autowired
-	private TitleService titleService;
-	
-	@Autowired
-	private PositionService positionService;
 	
 	@Autowired
 	private SettingsService settingsService;
@@ -140,9 +131,11 @@ public class OrgUnitRestController {
 
 		KleType kleType;
 		switch (type) {
+			case "PERFORMING":
 			case "KlePrimary":
 				kleType = KleType.PERFORMING;
 				break;
+			case "INTEREST":
 			case "KleSecondary":
 				kleType = KleType.INTEREST;
 				break;
@@ -195,7 +188,7 @@ public class OrgUnitRestController {
 
 	@RequireAssignerRole
 	@PostMapping(value = "/rest/ous/addrole/{uuid}/{roleid}")
-	public ResponseEntity<OUAssignStatus> addRole(@PathVariable("uuid") String uuid,
+	public ResponseEntity<?> addRole(@PathVariable("uuid") String uuid,
 			@PathVariable("roleid") long roleId,
 			@RequestParam(name = "inherit", required = false, defaultValue = "false") boolean inherit,
 			@RequestParam(name = "startDate", required = false) String startDateStr,
@@ -230,80 +223,85 @@ public class OrgUnitRestController {
 			}
 		}
 
-		OUAssignStatus status = alreadyAssigned(ou, role, (payload != null) ? payload.getTitleUuids() : null);
+		orgUnitService.addUserRole(ou, role, inherit, startDate, stopDate, (payload != null ? payload.getExceptedUserUuids() : null),(payload != null ? payload.getTitleUuids() : null));
+		orgUnitService.save(ou);
 
-		if (!configuration.getTitles().isEnabled() || payload == null || payload.getTitleUuids() == null || payload.getTitleUuids().size() == 0) {
-
-			if (orgUnitService.addUserRole(ou, role, inherit, startDate, stopDate, (payload != null ? payload.getExceptedUserUuids() : null))) {
-				orgUnitService.save(ou);
-				status.setSuccess(true);
-			}
-			
-			// if already assigned through titles, we should remove the title assignment as the new assignment overwrites
-			removeTitleAssignedUserRole(ou, role);
-		}
-		else {
-			status.setSuccess(true);
-
-			List<Title> titles = positionService.findByOrgUnit(ou)
-					.stream()
-					.filter(p -> p.getTitle() != null)
-					.map(p -> p.getTitle())
-					.filter(distinctByKey(t -> t.getUuid()))
-					.collect(Collectors.toList());
-
-			for (Title title : titles) {
-				boolean found = false;
-				
-				for (String titleUuid : payload.getTitleUuids()) {
-					if (titleUuid.equals(title.getUuid())) {
-						found = true;
-						break;
-					}
-				}
-
-				List<String> ouUuids = new ArrayList<>();
-				for (TitleUserRoleAssignment assignment : title.getUserRoleAssignments()) {
-					if (assignment.getUserRole().getId() == roleId) {
-						ouUuids = assignment.getOuUuids();
-						break;
-					}
-				}
-
-				if (found) {		
-					// already there, do nothing
-					if (ouUuids.contains(ou.getUuid())) {
-						continue;
-					}
-					
-					ouUuids.add(ou.getUuid());
-					if (titleService.addUserRole(title, role, ouUuids.toArray(new String[0]), startDate, stopDate)) {
-						titleService.save(title);
-					}
-				}
-				else {
-					// if not there, do nothing
-					if (!ouUuids.contains(ou.getUuid())) {
-						continue;
-					}
-
-					if (titleService.removeUserRole(title, role, ou)) {
-						titleService.save(title);
-					}
-				}
-			}
-			
-			// assigning by titles should remove the direct assignment (if present)
-			if (ou.getUserRoleAssignments().stream().anyMatch(a -> a.getUserRole().getId() == role.getId())) {
-				if (orgUnitService.removeUserRole(ou, role)) {
-					orgUnitService.save(ou);
-				}
-			}
-		}
-
-		return new ResponseEntity<>(status, HttpStatus.OK);
+		return new ResponseEntity<>(HttpStatus.OK);
 	}
-	
+
+	@RequireAssignerRole
+	@PostMapping(value = "/rest/ous/editrole/{uuid}/{assignmentId}")
+	public ResponseEntity<OUAssignStatus> editUserRoleAssignment(@PathVariable("uuid") String uuid,
+			@PathVariable("assignmentId") long assignmentId,
+			@RequestParam(name = "inherit", required = false, defaultValue = "false") boolean inherit,
+			@RequestParam(name = "startDate", required = false) String startDateStr,
+			@RequestParam(name = "stopDate", required = false) String stopDateStr,
+			@RequestBody StringArrayWrapper payload) {
+
+		OrgUnit ou = orgUnitService.getByUuid(uuid);
+		if (ou == null) {
+			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+		}
+
+		LocalDate startDate = null, stopDate = null;
+		if (!StringUtils.isEmpty(startDateStr)) {
+			try {
+				startDate = LocalDate.parse(startDateStr);
+				
+				if (startDate.equals(LocalDate.now())) {
+					startDate = null;
+				}
+			}
+			catch (Exception ex) {
+				log.warn("Invalid startdate string: " + startDateStr);
+			}
+}
+
+		if (!StringUtils.isEmpty(stopDateStr)) {
+			try {
+				stopDate = LocalDate.parse(stopDateStr);
+			}
+			catch (Exception ex) {
+				log.warn("Invalid stopdate string: " + stopDateStr);
+			}
+		}
+
+		OrgUnitUserRoleAssignment assignment = ou.getUserRoleAssignments().stream().filter(ura -> ura.getId() == assignmentId).findAny().orElse(null);
+		if (assignment == null) {
+			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+		}
+
+		if (assignment.getUserRole().getItSystem().getSystemType() == ItSystemType.AD && assignment.getUserRole().getItSystem().isReadonly()) {
+			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+		}
+		
+		if (orgUnitService.updateUserRoleAssignment(ou, assignment, inherit, startDate, stopDate, (payload != null ? payload.getExceptedUserUuids() : null), (payload != null ? payload.getTitleUuids(): null))) {
+			orgUnitService.save(ou);
+		}
+
+		return new ResponseEntity<>(HttpStatus.OK);
+	}
+
+	@RequireAssignerRole
+	@PostMapping(value = "/rest/ous/{uuid}/removeassignment/{type}/{assignmentId}")
+	public ResponseEntity<String> removeUserRoleOrRoleGroupAssignmentFromOrgUnit(@PathVariable("uuid") String uuid, @PathVariable("assignmentId") long assignmentId, @PathVariable("type") RoleAssignmentType type) {
+		OrgUnit ou = orgUnitService.getByUuid(uuid);
+		if (ou == null) {
+			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+		}
+
+		if (type == RoleAssignmentType.USERROLE) {
+			if (orgUnitService.removeUserRoleAssignment(ou, assignmentId)) {
+				orgUnitService.save(ou);
+			}
+		} else if (type == RoleAssignmentType.ROLEGROUP) {
+			if (orgUnitService.removeRoleGroupAssignment(ou, assignmentId)) {
+				orgUnitService.save(ou);
+			}
+		}
+
+		return new ResponseEntity<>(HttpStatus.OK);
+	}
 
 	@RequireAssignerRole
 	@PostMapping(value = "/rest/ous/removerole/{uuid}/{roleid}")
@@ -324,8 +322,6 @@ public class OrgUnitRestController {
 				orgUnitService.save(ou);
 			}
 		}
-
-		removeTitleAssignedUserRole(ou, role);
 
 		return new ResponseEntity<>(HttpStatus.OK);
 	}	
@@ -364,76 +360,54 @@ public class OrgUnitRestController {
 			}
 		}
 
-		OUAssignStatus status = alreadyAssigned(ou, roleGroup, (payload != null) ? payload.getTitleUuids() : null);
+		orgUnitService.addRoleGroup(ou, roleGroup, inherit, startDate, stopDate, (payload != null ? payload.getExceptedUserUuids() : null),(payload != null ? payload.getTitleUuids() : null));
+		orgUnitService.save(ou);
 
-		// if no titles supplied (or enabled), do direct assignment
-		if (!configuration.getTitles().isEnabled() || payload == null || payload.getTitleUuids() == null || payload.getTitleUuids().size() == 0) {
-			if (orgUnitService.addRoleGroup(ou, roleGroup, inherit, startDate, stopDate, (payload != null ? payload.getExceptedUserUuids() : null))) {
-				orgUnitService.save(ou);
-				status.setSuccess(true);
-			}
-			
-			// if already assigned through titles, we should remove the title assignment as the new assignment overwrites
-			removeTitleAssignedRoleGroup(ou, roleGroup);
+		return new ResponseEntity<>(HttpStatus.OK);
+	}
+
+	@RequireAssignerRole
+	@PostMapping(value = "/rest/ous/editrolegroup/{uuid}/{assignmentId}")
+	public ResponseEntity<OUAssignStatus> editRoleGroupAssignment(@PathVariable("uuid") String uuid,
+			@PathVariable("assignmentId") long assignmentId,
+			@RequestParam(name = "inherit", required = false, defaultValue = "false") boolean inherit,
+			@RequestParam(name = "startDate", required = false) String startDateStr,
+			@RequestParam(name = "stopDate", required = false) String stopDateStr,
+			@RequestBody StringArrayWrapper payload) {
+		OrgUnit ou = orgUnitService.getByUuid(uuid);
+
+		if (ou == null) {
+			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
 		}
-		else {
-			List<Title> titles = positionService.findByOrgUnit(ou)
-					.stream()
-					.filter(p -> p.getTitle() != null)
-					.map(p -> p.getTitle())
-					.filter(distinctByKey(t -> t.getUuid()))
-					.collect(Collectors.toList());
 
-			for (Title title : titles) {
-				boolean found = false;
-				
-				for (String titleUuid : payload.getTitleUuids()) {
-					if (titleUuid.equals(title.getUuid())) {
-						found = true;
-						break;
-					}
-				}
-
-				List<String> ouUuids = new ArrayList<>();
-				for (TitleRoleGroupAssignment assignment : title.getRoleGroupAssignments()) {
-					if (assignment.getRoleGroup().getId() == roleGroupId) {
-						ouUuids = assignment.getOuUuids();
-						break;
-					}
-				}
-
-				if (found) {		
-					// already there, do nothing
-					if (ouUuids.contains(ou.getUuid())) {
-						continue;
-					}
-					
-					ouUuids.add(ou.getUuid());
-					if (titleService.addRoleGroup(title, roleGroup, ouUuids.toArray(new String[0]), startDate, stopDate)) {
-						titleService.save(title);
-					}
-				}
-				else {
-					// if not there, do nothing
-					if (!ouUuids.contains(ou.getUuid())) {
-						continue;
-					}
-
-					if (titleService.removeRoleGroup(title, roleGroup, ou)) {
-						titleService.save(title);
-					}
-				}
+		LocalDate startDate = null, stopDate = null;
+		if (!StringUtils.isEmpty(startDateStr)) {
+			try {
+				startDate = LocalDate.parse(startDateStr);
 			}
-			
-			// directly assigned rolegroup is removed as the title assignment overwrites this
-			if (ou.getRoleGroupAssignments().stream().anyMatch(a -> a.getRoleGroup().getId() == roleGroup.getId())) {
-				if (orgUnitService.removeRoleGroup(ou, roleGroup)) {
-					orgUnitService.save(ou);
-				}
+			catch (Exception ex) {
+				log.warn("Invalid startdate string: " + startDateStr);
+			}
+		}
+		if (!StringUtils.isEmpty(stopDateStr)) {
+			try {
+				stopDate = LocalDate.parse(stopDateStr);
+			}
+			catch (Exception ex) {
+				log.warn("Invalid stopdate string: " + stopDateStr);
 			}
 		}
 
-		return new ResponseEntity<>(status, HttpStatus.OK);
+		OrgUnitRoleGroupAssignment assignment = ou.getRoleGroupAssignments().stream().filter(rga -> rga.getId() == assignmentId).findAny().orElse(null);
+		if(assignment == null) {
+			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+		}
+		
+		if (orgUnitService.updateRoleGroupAssignment(ou, assignment, inherit, startDate, stopDate, (payload != null ? payload.getExceptedUserUuids() : null), (payload != null ? payload.getTitleUuids(): null))) {
+			orgUnitService.save(ou);
+		}
+
+		return new ResponseEntity<>(HttpStatus.OK);
 	}
 	
 	@RequireAssignerRole
@@ -452,73 +426,29 @@ public class OrgUnitRestController {
 			}
 		}
 		
-		removeTitleAssignedRoleGroup(ou, roleGroup);
-		
 		return new ResponseEntity<>(HttpStatus.OK);
 	}
-	
-	private void removeTitleAssignedRoleGroup(OrgUnit ou, RoleGroup roleGroup) {
-		if (configuration.getTitles().isEnabled()) {
-			List<Title> titles = positionService.findByOrgUnit(ou)
-					.stream()
-					.filter(p -> p.getTitle() != null)
-					.map(p -> p.getTitle())
-					.filter(distinctByKey(t -> t.getUuid()))
-					.collect(Collectors.toList());
 
-			for (Title title : titles) {
-				List<String> ouUuids = new ArrayList<>();
-				for (TitleRoleGroupAssignment assignment : title.getRoleGroupAssignments()) {
-					if (assignment.getRoleGroup().getId() == roleGroup.getId()) {
-						ouUuids = assignment.getOuUuids();
-						break;
-					}
-				}
-				
-				// if not there, do nothing
-				if (!ouUuids.contains(ou.getUuid())) {
-					continue;
-				}
-				
-				if (titleService.removeRoleGroup(title, roleGroup, ou)) {
-					titleService.save(title);
-				}
-			}
-		}
-	}
-
-	
 	@RequireAssignerRole
-	@PostMapping("/rest/ous/{uuid}/role/{roleid}/titles")
-	public ResponseEntity<List<String>> getRoleOus(@PathVariable("uuid") String uuid, @PathVariable("roleid") long roleId, @RequestBody TitleListForm[] titles) {
+	@GetMapping("/rest/ous/{uuid}/role/{assignmentId}/titles")
+	public ResponseEntity<List<String>> getRoleOus(@PathVariable("uuid") String uuid, @PathVariable("assignmentId") long roleAssignmentId) {
 		OrgUnit ou = orgUnitService.getByUuid(uuid);
-		UserRole role = userRoleService.getById(roleId);
-
-		if (ou == null || role == null) {
+		if (ou == null) {
 			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
 		}
 		
-		List<String> titleUuids = new ArrayList<String>();
-
-		if (titles != null) {
-			for (TitleListForm t : titles) {
-				Title title = titleService.getByUuid(t.getId());
-				for (TitleUserRoleAssignment assignment : title.getUserRoleAssignments()) {
-					if (assignment.getUserRole().getId() == roleId) {
-						for (String ouUuid : assignment.getOuUuids()) {
-							if (ouUuid.equals(uuid)) {
-								titleUuids.add(title.getUuid());
-							}
-						}
-					}
-				}
-			}
-		}
+		List<OrgUnitUserRoleAssignment> titlesAssignedToOuWithUserRole = ou.getUserRoleAssignments().stream()
+				.filter(ura -> ura.getId() == roleAssignmentId)
+				.collect(Collectors.toList());
 		
+		List<String> titleUuids = titlesAssignedToOuWithUserRole.stream()
+				.flatMap(ura -> ura.getTitles().stream())
+				.map(Title::getUuid).collect(Collectors.toList());
+
 		return new ResponseEntity<>(titleUuids, HttpStatus.OK);
 	}
 	
-    @GetMapping(value = "/rest/userroles/titles/{uuid}")
+    @GetMapping(value = "/rest/ous/titles/{uuid}")
     public ResponseEntity<List<TitleListForm>> getTitlesFromOU(@PathVariable("uuid") String uuid) {
     	OrgUnit ou = orgUnitService.getByUuid(uuid);
     	if (ou == null) {
@@ -542,30 +472,21 @@ public class OrgUnitRestController {
     }
 	
 	@RequireAssignerRole
-	@PostMapping("/rest/ous/{uuid}/rolegroup/{roleid}/titles")
-	public ResponseEntity<List<String>> getRoleGroupOus(@PathVariable("uuid") String uuid, @PathVariable("roleid") long roleId, @RequestBody TitleListForm[] titles) {
+	@GetMapping("/rest/ous/{uuid}/rolegroup/{assignmentId}/titles")
+	public ResponseEntity<List<String>> getRoleGroupOus(@PathVariable("uuid") String uuid, @PathVariable("assignmentId") long assignmentId) {
 		OrgUnit ou = orgUnitService.getByUuid(uuid);
-		RoleGroup roleGroup = roleGroupService.getById(roleId);
-
-		if (ou == null || roleGroup == null) {
+		if (ou == null) {
 			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
 		}
 
-		List<String> titleUuids = new ArrayList<String>();
-		if (titles != null) {
-			for (TitleListForm t : titles) {
-				Title title = titleService.getByUuid(t.getId());
-				for (TitleRoleGroupAssignment assignment : title.getRoleGroupAssignments()) {
-					if (assignment.getRoleGroup().getId() == roleId) {
-						for (String ouUuid : assignment.getOuUuids()) {
-							if (ouUuid.equals(uuid)) {
-								titleUuids.add(title.getUuid());
-							}
-						}
-					}
-				}
-			}
-		}
+		List<OrgUnitRoleGroupAssignment> titlesAssignedToOuWithRoleGroup = ou.getRoleGroupAssignments().stream()
+				.filter(rga -> rga.getId() == assignmentId)
+				.collect(Collectors.toList());
+		
+		List<String> titleUuids = titlesAssignedToOuWithRoleGroup.stream()
+				.flatMap(ura -> ura.getTitles().stream())
+				.map(Title::getUuid).collect(Collectors.toList());
+
 		return new ResponseEntity<>(titleUuids, HttpStatus.OK);
 	}
 	
@@ -644,121 +565,4 @@ public class OrgUnitRestController {
 		return new ResponseEntity<>(HttpStatus.OK);
 	}
 
-	private OUAssignStatus alreadyAssigned(OrgUnit orgUnit, UserRole userRole, Set<String> titleUuids) {
-		int amount = 0;
-
-		List<User> usersByOrgUnit = userService.findByOrgUnit(orgUnit);
-		for (User user : usersByOrgUnit) {
-			// if titles available and enabled, skip users that does not match title
-			if (configuration.getTitles().isEnabled() && titleUuids != null) {
-				boolean found = false;
-				
-				for (Position position : user.getPositions()) {
-					if (position.getTitle() == null) {
-						continue;
-					}
-					
-					if (titleUuids.contains(position.getTitle().getUuid())) {
-						found = true;
-					}
-				}
-				
-				if (!found) {
-					continue;
-				}
-			}
-
-			if (user.getUserRoleAssignments() != null && user.getUserRoleAssignments().size() > 0) {
-				List<UserRole> userRoles = user.getUserRoleAssignments().stream().map(ura -> ura.getUserRole()).collect(Collectors.toList());
-				
-				for (UserRole ur : userRoles) {
-					if (ur.getId() == userRole.getId()) {
-						amount++;
-						break;
-					}
-				}
-			}
-		}
-
-		OUAssignStatus status = new OUAssignStatus();
-		status.setUsers(amount);
-		status.setSuccess(false);
-
-		return status;
-	}
-	
-	private OUAssignStatus alreadyAssigned(OrgUnit orgUnit, RoleGroup roleGroup, Set<String> titleUuids) {
-		long amount = 0;
-
-		List<User> usersByOrgUnit = userService.findByOrgUnit(orgUnit);
-
-		for (User user : usersByOrgUnit) {
-
-			// if titles available and enabled, skip users that does not match title
-			if (configuration.getTitles().isEnabled() && titleUuids != null) {
-				boolean found = false;
-				
-				for (Position position : user.getPositions()) {
-					if (position.getTitle() == null) {
-						continue;
-					}
-
-					if (titleUuids.contains(position.getTitle().getUuid())) {
-						found = true;
-					}
-				}
-				
-				if (!found) {
-					continue;
-				}
-			}
-
-			if (user.getRoleGroupAssignments() != null && user.getRoleGroupAssignments().size() > 0) {
-				List<RoleGroup> roleGroups = user.getRoleGroupAssignments().stream().map(ura -> ura.getRoleGroup()).collect(Collectors.toList());
-
-				for (RoleGroup rg : roleGroups) {
-					if (rg.getId() == roleGroup.getId()) {
-						amount++;
-						break;
-					}
-				}
-			}
-		}
-
-		OUAssignStatus status = new OUAssignStatus();
-		status.setUsers(amount);
-		status.setSuccess(false);
-
-		return status;
-	}
-	
-	private void removeTitleAssignedUserRole(OrgUnit ou, UserRole role) {
-		if (configuration.getTitles().isEnabled()) {
-			List<Title> titles = positionService.findByOrgUnit(ou)
-					.stream()
-					.filter(p -> p.getTitle() != null)
-					.map(p -> p.getTitle())
-					.filter(distinctByKey(t -> t.getUuid()))
-					.collect(Collectors.toList());
-
-			for (Title title : titles) {
-				List<String> ouUuids = new ArrayList<>();
-				for (TitleUserRoleAssignment assignment : title.getUserRoleAssignments()) {
-					if (assignment.getUserRole().getId() == role.getId()) {
-						ouUuids = assignment.getOuUuids();
-						break;
-					}
-				}
-				
-				// if not there, do nothing
-				if (!ouUuids.contains(ou.getUuid())) {
-					continue;
-				}
-				
-				if (titleService.removeUserRole(title, role, ou)) {
-					titleService.save(title);
-				}
-			}
-		}
-	}
 }

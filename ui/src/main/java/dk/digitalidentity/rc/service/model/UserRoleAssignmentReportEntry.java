@@ -16,4 +16,5 @@ public class UserRoleAssignmentReportEntry {
 	private String assignedBy;
 	private Date assignedWhen;
 	private String assignedThrough;
+	private String postponedConstraints = "";
 }
