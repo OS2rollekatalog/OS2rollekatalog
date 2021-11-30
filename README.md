@@ -38,7 +38,7 @@ Se [OS2iot Governance Report.md](https://github.com/OS2offdig/Governance_Reports
 | <ul><li> [x] </li> | F5 | Løsningens formål og værdi er beskrevet |<a href="https://os2.eu/produkt/os2rollekatalog">her</a></p>  | 0 |
 | <ul><li> [x] </li> | F6 | Kildekoden er placeret på OS2's github | <a href="https://github.com/OS2rollekatalog/OS2rollekatalog">her</a></p>| 1 |
 | <ul><li> [x] </li> | F7 | Driftskrav til løsningen er dokumenteret | <a href="https://github.com/OS2rollekatalog/OS2rollekatalog/blob/master/doc/Rollekataloget%20-%20Drift.docx">her</a></p> | 1 |
-| <ul><li> [x] </li> | F8 | Løsningen er dokumenteret på teknisk niveau  | <a href="</p>https://github.com/OS2rollekatalog/OS2rollekatalog/blob/master/doc/Rollekataloget%20-%20Developer%20Guide.docx">her</a> | 1 |
+| <ul><li> [x] </li> | F8 | Løsningen er dokumenteret på teknisk niveau  | <a href="https://github.com/OS2rollekatalog/OS2rollekatalog/blob/master/doc/Rollekataloget%20-%20Developer%20Guide.docx">her</a> | 1 |
 | <ul><li> [x] </li> | F9 | Teknisk implementering af løsningen er dokumenteret  |<a href="https://github.com/OS2rollekatalog/OS2rollekatalog/blob/master/doc/Rollekataloget%20-%20Implementeringsvejledning.docx">her</a></p>| 1 |
 | <ul><li> [x] </li> | F10 | OS2's kommunikationskanaler anvendes (OS2.eu)   |<a href="Github.com/OS2rollekatalog/OS2rollekatalog">her</a></p>  og <a href="https://os2web.atlassian.net/jira/software/c/projects/ROL/boards/50/backlog?issueLimit=100">her</a></p>   | 1 |
 | <ul><li> [x] </li> | F11 | OS2's værktøjer benyttes (Jira)  | <a href="https://os2web.atlassian.net/jira/software/c/projects/ROL/boards/50/backlog?issueLimit=100">her</a></p> | 1 |
