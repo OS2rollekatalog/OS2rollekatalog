@@ -66,7 +66,7 @@ Se [OS2iot Governance Report.md](https://github.com/OS2offdig/Governance_Reports
 | --- | --- | --- | --- | --- |
 | <ul><li> [x] </li> | S1 | Produktet har en kobling til OS2's strategi (indsæt link til OS2's strategi) | Ja, produktet lever op til beskrivelsen af OS2's formål som angivet i vedtægterne | 1 |
 | <ul><li> [x] </li> | S2 | Løsningen understøtter innovation og Open Source | OS2rollekatalog understøtter innovation, da løsningen er bygget direkte som svar på konkrete probelmer. Der er også en privat aktør (ID Connect) der har kunne udnytte dele af koden og dermed er der skabt værdi både offentligt og privat. Den er bygget efter Open Source standarder og koden ligger offentligt tilgængeligt.| 1 |
-| <ul><li> [x] </li> | S3 | Produktets (forventelige) kobling til OS2's vision og strategi er beskrevet| I dokumentet <a href="https://os2.eu/dokument/dokumenter-og-aftale">Noter til governance report</a></p> | 2 |
+| <ul><li> [x] </li> | S3 | Produktets (forventelige) kobling til OS2's vision og strategi er beskrevet| I dokumentet <a href="https://os2.eu/dokument/dokumenter-og-aftaler">Noter til governance report</a></p> | 2 |
 | <ul><li> [x] </li> | S4 | Produktets kobling til og overensstemmelse med OS2's vision og strategi er tilstede og beskrevet | Ja, se ovenstående link | 3 |
 
 
