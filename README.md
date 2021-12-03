@@ -7,4 +7,4 @@ Lederne får mulighed for at danne sig et overblik over hvilke rettigheder medar
 Dokumentation
 Dokumentationen for OS2rollekatalog findes i mappen doc her på Github. samt på OS2rollekatalogs prduktside på OS2.eu
 
-hej hej 
+
