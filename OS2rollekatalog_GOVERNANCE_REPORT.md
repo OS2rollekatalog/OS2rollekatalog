@@ -91,7 +91,7 @@ Se [OS2iot Governance Report.md](https://github.com/OS2offdig/Governance_Reports
 | <ul><li> [x] </li> | G8 | _En projektmodel anvendes og er dokumenteret (anbefaling)_ | Arbejdsprocesserne er dokumenteret i dokumentet <a href="https://os2.eu/dokument/dokumenter-og-aftaler">Håndbog til Jira</a></p> | 2 |
 | <ul><li> [x] </li> | G9 | _Review af kode foretages af tredjepart (anbefaling)_ | ja, Strongminds har lavet et code review | 2 |
 | <ul><li> [x] </li> | G10 | _Der er udarbejdet en tilslutningserklæring til sikring af økonomi (anbefaling)_ | Ja, <a href="https://os2.eu/dokument/tilslutningsaftale-os2rollekatalog">her</a></p>| 2 |
-| <ul><li> [ ] </li> | G11 | Bestyrelsen har godkendt styregruppen | Afventer instilling til niveau 3 | 3 |
+| <ul><li> [ ] </li> | G11 | Bestyrelsen har godkendt styregruppen | Afventer indstilling til niveau 3 | 3 |
 | <ul><li> [ ] </li> | G12 | Bestyrelsen er repræsenteret i styregruppen | Afventer indstilling til niveau 3 | 3 |
 | <ul><li> [x] </li> | G13 | Der foreligger en aftale der sikrer økonomi til koordinerg og videreudvikling | 	Tilslutningsaftalen (jf. G10) kommunerne har underskrevet sikre dette | 3 |
 | <ul><li> [x] </li> | G14 | Der er etableret et fagligt fælleskab bag løsningen hvor erfaringer kan udveksles | Der er etableret et levende community på Jira samt halvårlige arrangementer for den store brugergruppe | 3 |
