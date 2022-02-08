@@ -13,16 +13,16 @@ import javax.servlet.ServletResponse;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
-import org.apache.log4j.Logger;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 
 import dk.digitalidentity.rc.dao.model.Client;
 import dk.digitalidentity.rc.dao.model.enums.AccessRole;
 import dk.digitalidentity.rc.service.ClientService;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 public class ApiSecurityFilter implements Filter {
-	private static final Logger logger = Logger.getLogger(ApiSecurityFilter.class);
 	private static final String ROLE_API = "ROLE_API_";
 
 	private ClientService clientService;
@@ -51,6 +51,7 @@ public class ApiSecurityFilter implements Filter {
 					authorities.add(new SimpleGrantedAuthority(ROLE_API + AccessRole.ORGANISATION.toString()));
 					authorities.add(new SimpleGrantedAuthority(ROLE_API + AccessRole.READ_ACCESS.toString()));
 					authorities.add(new SimpleGrantedAuthority(ROLE_API + AccessRole.ROLE_MANAGEMENT.toString()));
+					authorities.add(new SimpleGrantedAuthority(ROLE_API + AccessRole.CICS_ADMIN.toString()));
 					break;
 				case ORGANISATION:
 					authorities.add(new SimpleGrantedAuthority(ROLE_API + AccessRole.ORGANISATION.toString()));
@@ -61,6 +62,9 @@ public class ApiSecurityFilter implements Filter {
 				case ROLE_MANAGEMENT:
 					authorities.add(new SimpleGrantedAuthority(ROLE_API + AccessRole.ROLE_MANAGEMENT.toString()));
 					authorities.add(new SimpleGrantedAuthority(ROLE_API + AccessRole.READ_ACCESS.toString()));
+					break;
+				case CICS_ADMIN:
+					authorities.add(new SimpleGrantedAuthority(ROLE_API + AccessRole.CICS_ADMIN.toString()));
 					break;
 			}
 
@@ -79,7 +83,7 @@ public class ApiSecurityFilter implements Filter {
 				clientService.save(clientFromDb);
 			}
 			
-			SecurityUtil.loginSystemAccount(authorities);
+			SecurityUtil.loginSystemAccount(authorities, client);
 
 			filterChain.doFilter(servletRequest, servletResponse);
 		} else {
@@ -88,7 +92,7 @@ public class ApiSecurityFilter implements Filter {
 	}
 
 	private static void unauthorized(HttpServletResponse response, String message, String authHeader) throws IOException {
-		logger.warn(message + " (authHeader = " + authHeader + ")");
+		log.warn(message + " (authHeader = " + authHeader + ")");
 		response.sendError(401, message);
 	}
 

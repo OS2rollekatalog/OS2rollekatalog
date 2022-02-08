@@ -27,6 +27,7 @@ import org.thymeleaf.TemplateEngine;
 import org.thymeleaf.context.Context;
 import org.xhtmlrenderer.pdf.ITextRenderer;
 
+import dk.digitalidentity.rc.controller.mvc.viewmodel.AttestationConfirmADDTO;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.AttestationConfirmPersonalListDTO;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.AttestationConfirmRestDTO;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.AttestationConfirmShowDTO;
@@ -117,10 +118,21 @@ public class AttestationRestController {
 			removePersonalRoles(confirmDTO.getToBeRemoved());
 	
 			// request removal of inherited roles that the manager will not approve
-			requestRemovalOfRoles(orgUnit, confirmDTO.getMessage(), confirmDTO.getDtoShowToEmail(), null);
-		} else {
+			if (settingsService.isADAttestationEnabled()) {
+				requestRemovalOfRoles(orgUnit, confirmDTO.getMessage(), confirmDTO.getDtoShowToEmail(), null, confirmDTO.getDtoNotAprovedAD());
+			}
+			else {
+				requestRemovalOfRoles(orgUnit, confirmDTO.getMessage(), confirmDTO.getDtoShowToEmail(), null, null);
+			}
+		}
+		else {
 			// request removal of roles that the manager will not approve
-			requestRemovalOfRoles(orgUnit, confirmDTO.getMessage(), confirmDTO.getDtoShowToEmail(), confirmDTO.getDtoShowToBeRemoved());
+			if (settingsService.isADAttestationEnabled()) {
+				requestRemovalOfRoles(orgUnit, confirmDTO.getMessage(), confirmDTO.getDtoShowToEmail(), confirmDTO.getDtoShowToBeRemoved(), confirmDTO.getDtoNotAprovedAD());
+			}
+			else {
+				requestRemovalOfRoles(orgUnit, confirmDTO.getMessage(), confirmDTO.getDtoShowToEmail(), confirmDTO.getDtoShowToBeRemoved(), null);
+			}
 		}
 		
 		// set lastAttested and update nextAttestation
@@ -346,10 +358,14 @@ public class AttestationRestController {
 		}
 	}
 	
-	private void requestRemovalOfRoles(OrgUnit orgUnit, String managerMessage, List<AttestationConfirmShowDTO> unitRoles, List<AttestationConfirmShowDTO> personalRoles) throws Exception {
+	private void requestRemovalOfRoles(OrgUnit orgUnit, String managerMessage, List<AttestationConfirmShowDTO> unitRoles, List<AttestationConfirmShowDTO> personalRoles, List<AttestationConfirmADDTO> ad) throws Exception {
 		String email = settingsService.getRemovalOfUnitRolesEmail();
 
-		if (StringUtils.isEmpty(email) || (unitRoles.isEmpty() && personalRoles.isEmpty())) {
+		if ((unitRoles == null || unitRoles.isEmpty()) && (personalRoles == null || personalRoles.isEmpty()) && (ad == null || ad.isEmpty())) {
+			return;
+		}
+
+		if (StringUtils.isEmpty(email)) {
 			log.warn("No email configured for sending removal requests");
 		}
 		else {
@@ -358,6 +374,7 @@ public class AttestationRestController {
 			ctxDelete.setVariable("personalRoles", personalRoles);
 			ctxDelete.setVariable("orgUnitName", orgUnit.getName());
 			ctxDelete.setVariable("attestedBy", orgUnit.getLastAttestedBy());
+			ctxDelete.setVariable("ad", ad);
 
 			SimpleDateFormat simpleDateFormatDelete = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
 			ctxDelete.setVariable("time", simpleDateFormatDelete.format(new Date()));
@@ -409,6 +426,8 @@ public class AttestationRestController {
 		ctxConfirmation.setVariable("orgUnitName", orgUnit.getName());
 		ctxConfirmation.setVariable("attestedBy", orgUnit.getLastAttestedBy());
 		ctxConfirmation.setVariable("message", confirmDTO.getMessage());
+		ctxConfirmation.setVariable("aprovedAd", confirmDTO.getDtoAprovedAD());
+		ctxConfirmation.setVariable("notAprovedAd", confirmDTO.getDtoNotAprovedAD());
 
 		SimpleDateFormat simpleDateFormatConfirmation = new SimpleDateFormat("yyyy-MM-dd");
 		ctxConfirmation.setVariable("time", simpleDateFormatConfirmation.format(new Date()));

@@ -18,6 +18,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import dk.digitalidentity.rc.controller.api.dto.ADGroupAssignments;
@@ -125,13 +126,14 @@ public class AdSyncApi {
 		}
 
 		result.setHead(maxId);
-
+		result.setMaxHead(pendingADUpdateService.findMaxHead());
+		
 		return new ResponseEntity<>(result, HttpStatus.OK);
 	}
 	
 	@DeleteMapping("/api/ad/v2/sync/{head}")
-	public ResponseEntity<String> flagSyncPerformed(@PathVariable("head") long head) {
-		pendingADUpdateService.deleteByIdLessThan(head + 1);
+	public ResponseEntity<String> flagSyncPerformed(@PathVariable("head") long head, @RequestParam(name = "maxHead", required = false, defaultValue = "0") long maxHead) {
+		pendingADUpdateService.deleteByIdLessThan(head + 1, maxHead);
 		
 		return new ResponseEntity<>(HttpStatus.OK);
 	}

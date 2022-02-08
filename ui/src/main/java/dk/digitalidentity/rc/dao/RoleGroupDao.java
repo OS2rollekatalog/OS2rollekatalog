@@ -7,11 +7,11 @@ import org.springframework.data.repository.CrudRepository;
 import dk.digitalidentity.rc.dao.model.RoleGroup;
 import dk.digitalidentity.rc.dao.model.UserRole;
 
-public interface RoleGroupDao extends CrudRepository<RoleGroup, String> {
+public interface RoleGroupDao extends CrudRepository<RoleGroup, Long> {
 
-	RoleGroup getById(long id);
+	RoleGroup findById(long id);
 
-	RoleGroup getByName(String name);
+	RoleGroup findByName(String name);
 
 	List<RoleGroup> findAll();		
 	

@@ -41,6 +41,7 @@ import dk.digitalidentity.rc.dao.model.PositionRoleGroupAssignment;
 import dk.digitalidentity.rc.dao.model.PositionUserRoleAssignment;
 import dk.digitalidentity.rc.dao.model.PostponedConstraint;
 import dk.digitalidentity.rc.dao.model.RoleGroup;
+import dk.digitalidentity.rc.dao.model.RoleGroupUserRoleAssignment;
 import dk.digitalidentity.rc.dao.model.SystemRole;
 import dk.digitalidentity.rc.dao.model.SystemRoleAssignment;
 import dk.digitalidentity.rc.dao.model.SystemRoleAssignmentConstraintValue;
@@ -65,6 +66,7 @@ import dk.digitalidentity.rc.service.model.Constraint;
 import dk.digitalidentity.rc.service.model.Privilege;
 import dk.digitalidentity.rc.service.model.PrivilegeGroup;
 import dk.digitalidentity.rc.service.model.RoleAssignedToUserDTO;
+import dk.digitalidentity.rc.service.model.RoleAssignmentType;
 import dk.digitalidentity.rc.service.model.RoleGroupAssignedToUser;
 import dk.digitalidentity.rc.service.model.RoleGroupAssignmentWithInfo;
 import dk.digitalidentity.rc.service.model.RoleGroupWithAssignmentIdDTO;
@@ -165,12 +167,12 @@ public class UserService {
 		return userDao.findByCprAndActiveTrue(cpr);
 	}
 	
-	@Deprecated
+	@SuppressWarnings("deprecation")
 	public List<User> getByRoleGroupsIncludingInactive(RoleGroup role) {
-		return userDao.findByActiveTrueAndRoleGroupAssignmentsRoleGroup(role);
+		return userDao.findByRoleGroupAssignmentsRoleGroup(role);
 	}
 
-	@Deprecated
+	@SuppressWarnings("deprecation")
 	public List<User> getByRolesIncludingInactive(UserRole userRole) {
 		return userDao.findByUserRoleAssignmentsUserRole(userRole);
 	}
@@ -182,6 +184,11 @@ public class UserService {
 	@SuppressWarnings("deprecation")
 	public List<User> getAllIncludingInactive() {
 		return userDao.findAll();
+	}
+	
+	@SuppressWarnings("deprecation")
+	public List<User> getAllByExtUuidIncludingInactive(Set<String> extUuids) {
+		return userDao.findByExtUuidIn(extUuids);
 	}
 
 	public List<User> findTop10ByName(String term) {
@@ -239,6 +246,11 @@ public class UserService {
 		return false;
 	}
 
+	// this method exists solely so we can intercept it ;)
+	public void activateUser(User user) {
+		user.setActive(true);
+	}
+
 	public void removePosition(User user, Position position) {
 		if (user.getPositions().contains(position)) {
 			user.getPositions().remove(position);
@@ -269,6 +281,7 @@ public class UserService {
 		user.getRoleGroupAssignments().add(assignment);
 	}
 
+	@AuditLogIntercepted
 	public void editRoleGroupAssignment(User user, UserRoleGroupAssignment roleGroupAssignment, LocalDate startDate, LocalDate stopDate) {
 		roleGroupAssignment.setStartDate((startDate == null || LocalDate.now().equals(startDate)) ? null : startDate);
 		roleGroupAssignment.setStopDate(stopDate);
@@ -318,7 +331,7 @@ public class UserService {
 	}
 	
 	public void addUserRole(User user, UserRole userRole, LocalDate startDate, LocalDate stopDate) {
-		addUserRole(user, userRole, startDate, stopDate, null);
+		self.addUserRole(user, userRole, startDate, stopDate, null);
 	}
 
 	@AuditLogIntercepted
@@ -350,11 +363,13 @@ public class UserService {
 		
 		user.getUserRoleAssignments().add(assignment);
 	}
-	
+
+	@AuditLogIntercepted
 	public void editUserRoleAssignment(User user, UserUserRoleAssignment userRoleAssignment, LocalDate startDate, LocalDate stopDate) {
 		editUserRoleAssignment(user, userRoleAssignment, startDate, stopDate, null);
 	}
 
+	@AuditLogIntercepted
 	public void editUserRoleAssignment(User user, UserUserRoleAssignment userRoleAssignment, LocalDate startDate, LocalDate stopDate, List<PostponedConstraint> postponedConstraints) {
 		if (userRoleAssignment.getUserRole().getItSystem().getIdentifier().equals(Constants.ROLE_CATALOGUE_IDENTIFIER)
 				&& !SecurityUtil.getRoles().contains(Constants.ROLE_ADMINISTRATOR)
@@ -707,7 +722,7 @@ public class UserService {
 		return result;
 	}
 
-	private List<UserRoleAssignmentWithInfo> getAllUserRolesAssignedToUserWithInfo(User user, ItSystem itSystem, boolean expandRoleGroups) {
+	public List<UserRoleAssignmentWithInfo> getAllUserRolesAssignedToUserWithInfo(User user, ItSystem itSystem, boolean expandRoleGroups) {
 		List<UserRoleAssignmentWithInfo> result = new ArrayList<>();
 
 		// user.getUserRoles()
@@ -811,6 +826,7 @@ public class UserService {
 					if (assignment.isInactive()) {
 						continue;
 					}
+
 					if (itSystem == null || assignment.getUserRole().getItSystem().getId() == itSystem.getId()) {
 						UserRoleAssignmentWithInfo uratu = new UserRoleAssignmentWithInfo();
 						uratu.setUserRole(assignment.getUserRole());
@@ -898,6 +914,25 @@ public class UserService {
 			}
 		}
 
+		// TODO: this should be temporary code - we need it for now to support the old way of using the UI, but
+		// eventually we should look into a redesign of the UI for UserRoles within RoleGroups
+
+		// expand rolegroups
+		List<RoleAssignedToUserDTO> expanded = new ArrayList<>();
+		for (RoleAssignedToUserDTO assignment : result) {
+			if (assignment.getType().equals(RoleAssignmentType.ROLEGROUP)) {
+				RoleGroup roleGroup = roleGroupDao.findById(assignment.getRoleId());
+
+				if (roleGroup != null && roleGroup.getUserRoleAssignments() != null) {
+					for (RoleGroupUserRoleAssignment userRoleAssignment : roleGroup.getUserRoleAssignments()) {
+						expanded.add(RoleAssignedToUserDTO.fromRoleGroupUserRoleAssignment(userRoleAssignment, assignment.getStartDate(), assignment.getStopDate()));
+					}
+				}
+			}
+		}
+
+		result.addAll(expanded);
+		
 		return new ArrayList<>(result);
 	}
 
@@ -1097,6 +1132,19 @@ public class UserService {
 				}
 			}
 			
+			if (roleGroupMapping.isContainsTitles()) {
+				boolean match = roleGroupMapping.getTitles()
+						.stream()
+						.anyMatch(t -> user.getPositions()
+								.stream()
+								.anyMatch(p -> p.getTitle() != null && Objects.equals(p.getTitle().getUuid(), t.getUuid()))
+						);
+
+				if (!match) {
+					continue;
+				}
+			}
+			
 			RoleGroupAssignmentWithInfo assignment = new RoleGroupAssignmentWithInfo();
 			assignment.setRoleGroup(roleGroupMapping.getRoleGroup());
 			assignment.setAssignedThroughInfo(new AssignedThroughInfo(orgUnit, RoleType.ROLEGROUP));
@@ -1132,6 +1180,19 @@ public class UserService {
 						.findAny();
 
 				if (match.isPresent()) {
+					continue;
+				}
+			}
+			
+			if (roleMapping.isContainsTitles()) {
+				boolean match = roleMapping.getTitles()
+						.stream()
+						.anyMatch(t -> user.getPositions()
+								.stream()
+								.anyMatch(p -> p.getTitle() != null && Objects.equals(p.getTitle().getUuid(), t.getUuid()))
+						);
+
+				if (!match) {
 					continue;
 				}
 			}
@@ -1172,6 +1233,19 @@ public class UserService {
 					}
 				}
 
+				if (roleGroupMapping.isContainsTitles()) {
+					boolean match = roleGroupMapping.getTitles()
+							.stream()
+							.anyMatch(t -> user.getPositions()
+									.stream()
+									.anyMatch(p -> p.getTitle() != null && Objects.equals(p.getTitle().getUuid(), t.getUuid()))
+							);
+
+					if (!match) {
+						continue;
+					}
+				}
+
 				RoleGroup roleGroup = roleGroupMapping.getRoleGroup();
 				
 				List<UserRoleWithAssignmentIdDTO> userRoles = roleGroup.getUserRoleAssignments().stream().map(ura -> new UserRoleWithAssignmentIdDTO(ura)).collect(Collectors.toList());
@@ -1195,12 +1269,15 @@ public class UserService {
 		}
 	}
 
-	public List<UserWithRole2> getUsersWithRoleGroup(RoleGroup roleGroup) {
+	public List<UserWithRole2> getActiveUsersWithRoleGroup(RoleGroup roleGroup) {
 		List<UserWithRole2> result = new ArrayList<>();
 		
 		boolean canEdit = SecurityUtil.getRoles().contains(Constants.ROLE_ADMINISTRATOR);
 
 		for (UserRoleGroupAssignment assignment : userRoleGroupAssignmentDao.findByRoleGroup(roleGroup)) {
+			if (!assignment.getUser().isActive()) {
+				continue;
+			}
 			UserWithRole2 mapping = new UserWithRole2();
 			mapping.setUserName(assignment.getUser().getName());
 			mapping.setUserUserId(assignment.getUser().getUserId());
@@ -1212,6 +1289,9 @@ public class UserService {
 		}
 		
 		for (PositionRoleGroupAssignment assignment : positionRoleGroupAssignmentDao.findByRoleGroup(roleGroup)) {
+			if (!assignment.getPosition().getUser().isActive()) {
+				continue;
+			}
 			UserWithRole2 mapping = new UserWithRole2();
 			mapping.setUserName(assignment.getPosition().getUser().getName());
 			mapping.setUserUserId(assignment.getPosition().getUser().getUserId());
@@ -1225,12 +1305,15 @@ public class UserService {
 		return result;
 	}
 	
-	public List<UserWithRole2> getUsersWithUserRole(UserRole userRole) {
+	public List<UserWithRole2> getActiveUsersWithUserRole(UserRole userRole) {
 		List<UserWithRole2> result = new ArrayList<>();
 
 		boolean canEdit = SecurityUtil.getRoles().contains(Constants.ROLE_ADMINISTRATOR);
 
 		for (UserUserRoleAssignment assignment : userUserRoleAssignmentDao.findByUserRole(userRole)) {
+			if (!assignment.getUser().isActive()) {
+				continue;
+			}
 			UserWithRole2 mapping = new UserWithRole2();
 			mapping.setUserName(assignment.getUser().getName());
 			mapping.setUserUserId(assignment.getUser().getUserId());
@@ -1242,6 +1325,9 @@ public class UserService {
 		}
 		
 		for (PositionUserRoleAssignment assignment : positionUserRoleAssignmentDao.findByUserRole(userRole)) {
+			if (!assignment.getPosition().getUser().isActive()) {
+				continue;
+			}
 			UserWithRole2 mapping = new UserWithRole2();
 			mapping.setUserName(assignment.getPosition().getUser().getName());
 			mapping.setUserUserId(assignment.getPosition().getUser().getUserId());
@@ -1326,10 +1412,12 @@ public class UserService {
 				// Get list of excepted users (if any)
 				ArrayList<String> exceptedUsersUuid = new ArrayList<>();
 				OrgUnitUserRoleAssignment orgUnitUserRoleAssignment = assignment.get();
-				//If titles are disabled skip
+
+				// if titles are disabled skip
 				if (!configuration.getTitles().isEnabled() && orgUnitUserRoleAssignment.isContainsTitles()) {
 					continue;
 				}
+				
 				if (orgUnitUserRoleAssignment.isContainsExceptedUsers()) {
 					exceptedUsersUuid.addAll(orgUnitUserRoleAssignment.getExceptedUsers().stream().map(User::getUuid).collect(Collectors.toList()));
 				}
@@ -1338,15 +1426,19 @@ public class UserService {
 					if (exceptedUsersUuid.contains(position.getUser().getUuid())) {
 						continue;
 					}
+					
 					if (orgUnitUserRoleAssignment.isContainsTitles() && !orgUnitUserRoleAssignment.getTitles().contains(position.getTitle())) {
 						continue;
 					}
+					
 					if (position.getUser().isActive() && !position.getUser().isDoNotInherit()) {
 						UserWithRole mapping = new UserWithRole();
 						mapping.setUser(position.getUser());
+
 						if (orgUnitUserRoleAssignment.isContainsTitles()) {
 							mapping.setAssignedThrough(AssignedThrough.TITLE);
-						} else {
+						}
+						else {
 							mapping.setAssignedThrough(AssignedThrough.ORGUNIT);
 						}
 	
@@ -1365,8 +1457,9 @@ public class UserService {
 			for (RoleGroup roleGroup : roleGroups) {
 				for (OrgUnit orgUnit : orgUnitService.getByRoleGroup(roleGroup, false)) {
 					Optional<OrgUnitRoleGroupAssignment> assignment = orgUnit.getRoleGroupAssignments().stream().filter(ourga -> Objects.equals(ourga.getRoleGroup().getId(), roleGroup.getId())).findFirst();
+
 					if (assignment.isEmpty()) {
-						log.error("Could not find assignment (RoleGroupId: " + roleGroup.getId() + ", OU: " + orgUnit.getUuid()+ ")");
+						log.error("getUsersWithUserRole: Could not find assignment (RoleGroupId: " + roleGroup.getId() + ", OU: " + orgUnit.getUuid()+ ")");
 						continue;
 					}
 
@@ -1381,15 +1474,19 @@ public class UserService {
 						if (exceptedUsersUuid.contains(position.getUser().getUuid())) {
 							continue;
 						}
+
 						if (orgUnitRoleGroupAssignment.isContainsTitles() && !orgUnitRoleGroupAssignment.getTitles().contains(position.getTitle())) {
 							continue;
 						}
+						
 						if (position.getUser().isActive() && !position.getUser().isDoNotInherit()) {
 							UserWithRole mapping = new UserWithRole();
 							mapping.setUser(position.getUser());
+							
 							if (orgUnitRoleGroupAssignment.isContainsTitles()) {
 								mapping.setAssignedThrough(AssignedThrough.TITLE);
-							} else {
+							}
+							else {
 								mapping.setAssignedThrough(AssignedThrough.ORGUNIT);
 							}
 	
@@ -1601,9 +1698,10 @@ public class UserService {
 			for (OrgUnit orgUnit : orgUnitService.getByRoleGroup(roleGroup, false)) {
 				List<OrgUnitRoleGroupAssignment> roleGroupAssignments = orgUnit.getRoleGroupAssignments().stream().filter(ourga -> Objects.equals(ourga.getRoleGroup().getId(), roleGroup.getId())).collect(Collectors.toList());
 				if (roleGroupAssignments.isEmpty()) {
-					log.error("Could not find assignment (RoleGroupId: " + roleGroup.getId() + ", OU: " + orgUnit.getUuid()+ ")");
+					log.error("getUsersWithRoleGroup: Could not find assignment (RoleGroupId: " + roleGroup.getId() + ", OU: " + orgUnit.getUuid()+ ")");
 					continue;
 				}
+
 				for (OrgUnitRoleGroupAssignment orgUnitRoleGroupAssignment : roleGroupAssignments) {
 					// Get list of excepted users (if any)
 					ArrayList<String> exceptedUsersUuid = new ArrayList<>();
@@ -1617,9 +1715,18 @@ public class UserService {
 					}
 	
 					for (Position position : positionService.findByOrgUnit(orgUnit)) {
-						if (exceptedUsersUuid.contains(position.getUser().getUuid()) || !titles.contains(position.getTitle().getUuid())) {
+						// exceptedUsers, and user is mentioned, skip
+						if (exceptedUsersUuid.contains(position.getUser().getUuid())) {
 							continue;
 						}
+
+						// titles enabled and title assignment, but not title-match, skip
+						if (configuration.getTitles().isEnabled() && orgUnitRoleGroupAssignment.isContainsTitles()) {
+							if (position.getTitle() == null || !titles.contains(position.getTitle().getUuid())) {
+								continue;
+							}
+						}
+						
 						if (position.getUser().isActive() && !position.getUser().isDoNotInherit()) {
 							UserWithRole mapping = new UserWithRole();
 							mapping.setUser(position.getUser());
@@ -1628,9 +1735,7 @@ public class UserService {
 							result.add(mapping);
 						}
 					}
-					
 
-	
 					// check if the assignment to the OrgUnit is flagged with inherit
 					if (orgUnitRoleGroupAssignment.isInherit()) {
 						List<UserWithRole> inherited = getUserRoleMappingsRecursive(orgUnit.getChildren(), AssignedThrough.ORGUNIT);

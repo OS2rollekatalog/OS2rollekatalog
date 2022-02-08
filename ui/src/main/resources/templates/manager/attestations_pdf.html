@@ -66,6 +66,14 @@
 		<br/>
 	</div>
 	
+	<div th:if="${not #lists.isEmpty(notAprovedAd)}">
+		<p th:text="#{html.page.attestations.confirment.show.ad.remove}" style="font-weight: bold; color: red;"></p>
+		<ul th:each="dto : ${notAprovedAd}">
+			<li th:text="'Brugerkontoen med brugernavn ' + ${dto.userUserId} + ' for medarbejderen ' + ${dto.userName}"/>
+		</ul>
+		<br/>
+	</div>
+	
 	<div th:if="${!aprovedPersonal.empty}">
 		<p th:text="#{html.page.attestations.pdf.aprove.personal}" style="font-weight: bold; color: green;"></p>
 		<ul th:each="dto : ${aprovedPersonal}">
@@ -102,6 +110,15 @@
 				<li th:unless="${dto.roleGroup}" th:text="'Jobfunktionsrollen ' + ${dto.roleName} + ' (' + ${dto.itSystemName} + ') ' + ' for enheden ' + ${dto.userOrUnitName}"/>
 			</div>
 		</ul>
+		<br/>
+	</div>
+	
+	<div th:if="${not #lists.isEmpty(aprovedAd)}">
+		<p th:text="#{html.page.attestations.pdf.aprove.ad}" style="font-weight: bold; color: green;"></p>
+		<ul th:each="dto : ${aprovedAd}">
+			<li th:text="'Brugerkontoen med brugernavn ' + ${dto.userUserId} + ' for medarbejderen ' + ${dto.userName}"/>
+		</ul>
+		<br/>
 	</div>
 </body>
 </html>

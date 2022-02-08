@@ -4,20 +4,19 @@ import java.util.HashSet;
 import java.util.Set;
 
 import dk.digitalidentity.rc.dao.model.OrgUnit;
-import dk.digitalidentity.rc.dao.model.Position;
 import lombok.Getter;
 import lombok.Setter;
 
 @Getter
 @Setter
 public class OrganisationChangeEvents {
-	private Set<OrgUnit> ousWithNewParent;
-	private Set<OrgUnit> ousWithNewManager;
-	private Set<Position> usersWithNewPosition;
+	private Set<OrgUnit> newOrgUnits;
+	private Set<OrgUnitWithNewAndOldParentDTO> orgUnitsWithNewParent;
+	private Set<OrgUnitWithTitlesDTO> orgUnitsWithNewTitles;
 	
 	public OrganisationChangeEvents() {
-		ousWithNewParent = new HashSet<>();
-		ousWithNewManager = new HashSet<>();
-		usersWithNewPosition = new HashSet<>();
+		newOrgUnits = new HashSet<>();
+		orgUnitsWithNewParent = new HashSet<>();
+		orgUnitsWithNewTitles = new HashSet<>();
 	}
 }

@@ -1,5 +1,7 @@
 package dk.digitalidentity.rc.controller.api;
 
+import java.util.List;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -19,6 +21,7 @@ import dk.digitalidentity.rc.controller.api.exception.BadRequestException;
 import dk.digitalidentity.rc.controller.api.model.OrgUnitAM;
 import dk.digitalidentity.rc.controller.api.model.OrganisationDTO;
 import dk.digitalidentity.rc.controller.api.model.OrganisationImportResponse;
+import dk.digitalidentity.rc.controller.api.model.UserDTO;
 import dk.digitalidentity.rc.security.RequireApiOrganisationRole;
 import dk.digitalidentity.rc.service.OrganisationExporter;
 import dk.digitalidentity.rc.service.OrganisationImporter;
@@ -89,7 +92,24 @@ public class OrganisationApi {
 			OrganisationImportResponse response = organisationImporter.fullSync(organisation);
 
 			if (response.containsChanges()) {
-				log.info("update completed: " + response.toString());
+				log.info("full update completed: " + response.toString());
+			}
+
+			return new ResponseEntity<>(response, HttpStatus.OK);
+		} catch (Exception ex) {
+			log.error("Import failed on v3!", ex);
+			throw new BadRequestException(ex.getMessage());
+		}
+	}
+
+	@PostMapping(value = "/organisation/v3/delta")
+	@Transactional(rollbackFor = Exception.class)
+	public synchronized ResponseEntity<?> importUsersDeltaV3(@RequestBody List<UserDTO> users) {
+		try {
+			OrganisationImportResponse response = organisationImporter.deltaSync(users);
+
+			if (response.containsChanges()) {
+				log.info("delta update completed: " + response.toString());
 			}
 
 			return new ResponseEntity<>(response, HttpStatus.OK);

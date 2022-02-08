@@ -23,6 +23,7 @@ import dk.digitalidentity.rc.dao.model.OrgUnit;
 import dk.digitalidentity.rc.dao.model.RoleGroup;
 import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserRole;
+import dk.digitalidentity.rc.dao.model.enums.AccessRole;
 import dk.digitalidentity.rc.security.RolePostProcessor;
 import dk.digitalidentity.rc.service.OrgUnitService;
 import dk.digitalidentity.rc.service.RoleGroupService;
@@ -45,6 +46,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 
@@ -87,7 +89,7 @@ public class RoleAssignmentApiDocumentation {
 		// so all of our existing security code just works without further modifications
 		List<SimpleGrantedAuthority> authorities = new ArrayList<>();
 		authorities.add(new SimpleGrantedAuthority(Constants.ROLE_SYSTEM));
-		authorities.add(new SimpleGrantedAuthority(Constants.ROLE_ADMINISTRATOR));
+		authorities.add(new SimpleGrantedAuthority("ROLE_API_" + AccessRole.ROLE_MANAGEMENT.toString()));
 
 		Map<String, Object> attributes = new HashMap<>();
 		attributes.put(RolePostProcessor.ATTRIBUTE_NAME, "system");
@@ -110,8 +112,8 @@ public class RoleAssignmentApiDocumentation {
 		RoleGroup roleGroup = roleGroupService.getAll().get(0);
 		userService.addRoleGroup(user, roleGroup, null, null);
 		userService.addUserRole(user, userRole, null, null);
-		orgUnitService.addUserRole(ou, userRole, false, null, null, null, null);
-		orgUnitService.addRoleGroup(ou, roleGroup, false, null, null, null, null);
+		orgUnitService.addUserRole(ou, userRole, false, null, null, new HashSet<>(), new HashSet<>());
+		orgUnitService.addRoleGroup(ou, roleGroup, false, null, null, new HashSet<>(), new HashSet<>());
 
 		this.mockMvc = MockMvcBuilders.webAppContextSetup(this.context)
 									  .apply(documentationConfiguration(this.restDocumentation)

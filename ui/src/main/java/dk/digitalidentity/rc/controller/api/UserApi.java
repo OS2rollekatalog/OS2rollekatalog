@@ -1,6 +1,5 @@
 package dk.digitalidentity.rc.controller.api;
 
-import dk.digitalidentity.rc.dao.model.User;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -25,16 +24,17 @@ import dk.digitalidentity.rc.controller.api.dto.UserResponseWithOIOBPPDTO;
 import dk.digitalidentity.rc.controller.api.dto.UserResponseWithRolesDTO;
 import dk.digitalidentity.rc.dao.model.ItSystem;
 import dk.digitalidentity.rc.dao.model.SystemRoleAssignment;
+import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserRole;
 import dk.digitalidentity.rc.dao.model.enums.EventType;
 import dk.digitalidentity.rc.exceptions.UserNotFoundException;
 import dk.digitalidentity.rc.log.AuditLogger;
-import dk.digitalidentity.rc.security.RequireApiRoleManagementRole;
+import dk.digitalidentity.rc.security.RequireApiReadAccessRole;
 import dk.digitalidentity.rc.service.ItSystemService;
 import dk.digitalidentity.rc.service.UserService;
 import lombok.extern.slf4j.Slf4j;
 
-@RequireApiRoleManagementRole
+@RequireApiReadAccessRole
 @Slf4j
 @RestController
 public class UserApi {

@@ -44,7 +44,6 @@ public class NavigationTest {
     public void navigate() {
     	ousList();
     	ousView();
-    	ousEdit();
     	
     	roleGroupsList();
     	roleGroupsNew();
@@ -58,7 +57,6 @@ public class NavigationTest {
     	
     	usersList();
     	usersView();
-    	usersEdit();
     }
 
     private void userRolesList() {
@@ -107,27 +105,17 @@ public class NavigationTest {
     }
     
     private void ousView() {
-        driver.get(url + "/ui/ous/view/" + BootstrapDevMode.orgUnitUUID);
+        driver.get(url + "/ui/ous/manage/" + BootstrapDevMode.orgUnitUUID);
         Assert.assertEquals("OS2rollekatalog", driver.getTitle());
     }
     
-    private void ousEdit() {
-        driver.get(url + "/ui/ous/edit/" + BootstrapDevMode.orgUnitUUID);
-        Assert.assertEquals("OS2rollekatalog", driver.getTitle());
-    }
-
     private void usersList() {
         driver.get(url + "/ui/users/list");
         Assert.assertEquals("OS2rollekatalog", driver.getTitle());
     }
     
     private void usersView() {
-        driver.get(url + "/ui/users/view/" + BootstrapDevMode.userUUID);
-        Assert.assertEquals("OS2rollekatalog", driver.getTitle());
-    }
-    
-    private void usersEdit() {
-        driver.get(url + "/ui/users/edit/" + BootstrapDevMode.userUUID);
+        driver.get(url + "/ui/users/manage/" + BootstrapDevMode.userUUID);
         Assert.assertEquals("OS2rollekatalog", driver.getTitle());
     }
 }

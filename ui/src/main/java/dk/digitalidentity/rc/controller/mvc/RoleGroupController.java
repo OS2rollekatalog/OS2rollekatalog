@@ -47,6 +47,7 @@ import dk.digitalidentity.rc.service.SettingsService;
 import dk.digitalidentity.rc.service.UserRoleService;
 import dk.digitalidentity.rc.service.UserService;
 import dk.digitalidentity.rc.service.model.OrgUnitWithRole2;
+import dk.digitalidentity.rc.service.model.UserWithRole;
 import dk.digitalidentity.rc.service.model.UserWithRole2;
 
 @RequireRequesterOrReadAccessRole
@@ -196,11 +197,24 @@ public class RoleGroupController {
 			return "redirect:../list";
 		}
 
-		List<UserWithRole2> usersWithRoleMapping = userService.getUsersWithRoleGroup(group);
+		List<UserWithRole2> usersWithRoleMapping = userService.getActiveUsersWithRoleGroup(group);
 		model.addAttribute("userRoleMapping", usersWithRoleMapping);
 		model.addAttribute("showEdit", showEdit);
 
 		return "rolegroups/fragments/manage_users :: users";
+	}
+	
+	@GetMapping(value = "/ui/rolegroups/{id}/assignedUsersFragmentView")
+	public String assignedUsersFragmentView(Model model, @PathVariable("id") long roleGroupId) {
+		RoleGroup group = roleGroupService.getById(roleGroupId);
+		if (group == null) {
+			return "redirect:../list";
+		}
+
+		List<UserWithRole> usersWithRoleMapping = userService.getUsersWithRoleGroup(group, true);
+		model.addAttribute("userRoleMapping", usersWithRoleMapping);
+
+		return "rolegroups/fragments/view_users :: users";
 	}
 
 	@GetMapping(value = "/ui/rolegroups/{id}/availableUsersFragment")
@@ -225,7 +239,7 @@ public class RoleGroupController {
 			return "redirect:../list";
 		}
 
-		List<OrgUnitWithRole2> orgUnitsWithRole = orgUnitService.getOrgUnitsWithRoleGroup(group);
+		List<OrgUnitWithRole2> orgUnitsWithRole = orgUnitService.getActiveOrgUnitsWithRoleGroup(group);
 		model.addAttribute("orgUnitMapping", orgUnitsWithRole);
 		model.addAttribute("showEdit", showEdit);
 

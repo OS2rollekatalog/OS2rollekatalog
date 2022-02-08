@@ -437,37 +437,98 @@ public class ReadKOMBITTask {
 				for (KOMBITConstraintsDTO constraintDTO : systemRoleDTO.getDataafgraensningstyper()) {
 					String uuid = constraintDTO.getDataafgraensningstype().getUuid();
 
+					boolean changes = false;
 					ConstraintType constraintType = constraintTypeService.getByUuid(uuid);
 					if (constraintType == null) {
 						constraintType = new ConstraintType();
 						constraintType.setEntityId(constraintDTO.getDataafgraensningstype().getEntityId());
 						constraintType.setUuid(constraintDTO.getDataafgraensningstype().getUuid());
+						
+						changes = true;
 					}
 
+					ConstraintUIType constraintUIType = null;
 					switch (constraintDTO.getDataafgraensningstype().getType()) {
 						case "SINGLE":
-							constraintType.setUiType(ConstraintUIType.COMBO_SINGLE);
+							constraintUIType = ConstraintUIType.COMBO_SINGLE;
 							break;
 						case "MULTI":
-							constraintType.setUiType(ConstraintUIType.COMBO_MULTI);
+							constraintUIType = ConstraintUIType.COMBO_MULTI;
 							break;
 						case "TEXT":
-							constraintType.setUiType(ConstraintUIType.REGEX);
+							constraintUIType = ConstraintUIType.REGEX;
 							break;
 					}
-
-					constraintType.setName(constraintDTO.getDataafgraensningstype().getNavn());
-					constraintType.setRegex(constraintDTO.getDataafgraensningstype().getRegulaertUdtryk());
-					constraintType.setValueSet(new ArrayList<ConstraintTypeValueSet>());
-
-					for (KOMBITVaerdiListeDTO pair : constraintDTO.getDataafgraensningstype().getVaerdiListe()) {
-						ConstraintTypeValueSet entry = new ConstraintTypeValueSet();
-						entry.setConstraintKey(pair.getVaerdi());
-						entry.setConstraintValue(pair.getNavn());
-						constraintType.getValueSet().add(entry);
+					
+					if (!Objects.equals(constraintUIType, constraintType.getUiType())) {
+						constraintType.setUiType(constraintUIType);
+						changes = true;
 					}
 
-					constraintTypeService.save(constraintType);
+					if (!Objects.equals(constraintDTO.getDataafgraensningstype().getNavn(), constraintType.getName())) {
+						constraintType.setName(constraintDTO.getDataafgraensningstype().getNavn());
+						changes = true;
+					}
+
+					if (!Objects.equals(constraintDTO.getDataafgraensningstype().getRegulaertUdtryk(), constraintType.getRegex())) {
+						constraintType.setRegex(constraintDTO.getDataafgraensningstype().getRegulaertUdtryk());
+						changes = true;
+					}
+					
+					if (!Objects.equals(constraintDTO.getDataafgraensningstype().getBeskrivelse(), constraintType.getDescription())) {
+						constraintType.setDescription(constraintDTO.getDataafgraensningstype().getBeskrivelse());
+						changes = true;
+					}
+
+					if (constraintType.getValueSet() == null) {
+						constraintType.setValueSet(new ArrayList<ConstraintTypeValueSet>());
+					}
+
+					for (KOMBITVaerdiListeDTO pair : constraintDTO.getDataafgraensningstype().getVaerdiListe()) {
+						boolean found = false;
+						
+						for (ConstraintTypeValueSet constraintTypeValueSet : constraintType.getValueSet()) {
+							if (Objects.equals(pair.getVaerdi(), constraintTypeValueSet.getConstraintKey())) {
+								if (!Objects.equals(pair.getNavn(), constraintTypeValueSet.getConstraintValue())) {
+									constraintTypeValueSet.setConstraintValue(pair.getNavn());
+									changes = true;
+								}
+
+								found = true;
+								break;
+							}
+						}
+						
+						if (!found) {
+							ConstraintTypeValueSet entry = new ConstraintTypeValueSet();
+							entry.setConstraintKey(pair.getVaerdi());
+							entry.setConstraintValue(pair.getNavn());
+							constraintType.getValueSet().add(entry);
+							
+							changes = true;
+						}
+					}
+
+					for (Iterator<ConstraintTypeValueSet> iterator = constraintType.getValueSet().iterator(); iterator.hasNext();) {
+						ConstraintTypeValueSet constraintTypeValueSet = iterator.next();						
+						boolean found = false;
+						
+						for (KOMBITVaerdiListeDTO pair : constraintDTO.getDataafgraensningstype().getVaerdiListe()) {
+							if (Objects.equals(pair.getVaerdi(), constraintTypeValueSet.getConstraintKey())) {
+								found = true;
+								break;
+							}
+						}
+						
+						if (!found) {
+							iterator.remove();
+							changes = true;
+						}
+					}
+
+					if (changes) {
+						constraintTypeService.save(constraintType);
+					}
 				}
 			}
 		}

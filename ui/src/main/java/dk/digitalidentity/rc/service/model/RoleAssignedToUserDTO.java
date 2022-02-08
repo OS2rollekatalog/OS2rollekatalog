@@ -9,6 +9,7 @@ import dk.digitalidentity.rc.dao.model.OrgUnitRoleGroupAssignment;
 import dk.digitalidentity.rc.dao.model.OrgUnitUserRoleAssignment;
 import dk.digitalidentity.rc.dao.model.PositionRoleGroupAssignment;
 import dk.digitalidentity.rc.dao.model.PositionUserRoleAssignment;
+import dk.digitalidentity.rc.dao.model.RoleGroupUserRoleAssignment;
 import dk.digitalidentity.rc.dao.model.UserRoleGroupAssignment;
 import dk.digitalidentity.rc.dao.model.UserUserRoleAssignment;
 import lombok.Getter;
@@ -29,6 +30,22 @@ public class RoleAssignedToUserDTO {
 	private LocalDate stopDate;
 	private boolean canEdit;
 	private List<SystemRoleAssignmentDTO> systemRoleAssignments;
+
+	public static RoleAssignedToUserDTO fromRoleGroupUserRoleAssignment(RoleGroupUserRoleAssignment assignment, LocalDate startDate, LocalDate stopDate) {
+		RoleAssignedToUserDTO dto = new RoleAssignedToUserDTO();
+		dto.setAssignmentId(assignment.getId());
+		dto.setRoleId(assignment.getUserRole().getId());
+		dto.setName(assignment.getUserRole().getName());
+		dto.setType(RoleAssignmentType.USERROLE);
+		dto.setAssignedThrough(AssignedThrough.ROLEGROUP);
+		dto.setItSystem(assignment.getUserRole().getItSystem());
+		dto.setDescription(assignment.getUserRole().getDescription());
+		dto.setStartDate(startDate);
+		dto.setStopDate(stopDate);
+		dto.setCanEdit(false);
+		
+		return dto;
+	}
 
 	public static RoleAssignedToUserDTO fromUserRoleAssignment(UserUserRoleAssignment assignment) {
 		RoleAssignedToUserDTO dto = new RoleAssignedToUserDTO();

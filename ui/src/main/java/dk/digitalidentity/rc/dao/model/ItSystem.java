@@ -80,6 +80,11 @@ public class ItSystem implements AuditLoggable {
 	@Column
 	private boolean accessBlocked;
 
+	// TODO: this is the new field for the v2 API's, we should merge this with "canEditThroughApi" above, once 
+	//       we figure out the full API configuration.
+	@Column
+	private boolean apiManagedRoleAssignments;
+
 	@JsonIgnore
 	@Override
 	public String getEntityId() {

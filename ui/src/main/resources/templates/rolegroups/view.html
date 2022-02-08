@@ -221,7 +221,7 @@
 
 		function UserService() {
 			this.loadRolesFragment = function () {
-				$("#users_menu").load(UIUrl + roleId + "/assignedUsersFragment", function () {
+				$("#users_menu").load(UIUrl + roleId + "/assignedUsersFragmentView", function () {
 					fragShowDataTableFun('#listTableUsers', 0);
 				});
 			}

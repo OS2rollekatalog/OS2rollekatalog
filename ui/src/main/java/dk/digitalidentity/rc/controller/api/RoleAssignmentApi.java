@@ -2,6 +2,7 @@ package dk.digitalidentity.rc.controller.api;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -44,7 +45,7 @@ public class RoleAssignmentApi {
 
     @Autowired
     private RoleGroupService roleGroupService;
-
+	
     @RequestMapping(value = "/api/user/{userUuid}/assign/userrole/{userRoleId}", method = RequestMethod.PUT)
     public ResponseEntity<String> assignUserRoleToUser(@PathVariable("userRoleId") long userRoleId, @PathVariable("userUuid") String userUuid, @RequestParam(name = "startDate", required = false) LocalDate startDate, @RequestParam(name = "stopDate", required = false) LocalDate stopDate) {
         List<User> users = userService.getByExtUuid(userUuid);
@@ -115,7 +116,7 @@ public class RoleAssignmentApi {
             return new ResponseEntity<>(ErrorMessage.USER_ROLE_NOT_FOUND, HttpStatus.NOT_FOUND);
         }
 
-		orgUnitService.addUserRole(ou, userRole, false, startDate, stopDate, null, null);
+		orgUnitService.addUserRole(ou, userRole, false, startDate, stopDate, new HashSet<>(), new HashSet<>());
 		orgUnitService.save(ou);
 
         return new ResponseEntity<>(HttpStatus.OK);
@@ -132,7 +133,7 @@ public class RoleAssignmentApi {
             return new ResponseEntity<>(ErrorMessage.ROLE_GROUP_NOT_FOUND, HttpStatus.NOT_FOUND);
         }
 
-		orgUnitService.addRoleGroup(ou, roleGroup, false, startDate, stopDate, null, null);
+		orgUnitService.addRoleGroup(ou, roleGroup, false, startDate, stopDate, new HashSet<>(), new HashSet<>());
 		orgUnitService.save(ou);
 
         return new ResponseEntity<>(HttpStatus.OK);

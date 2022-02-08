@@ -544,8 +544,10 @@
 			this.addRoleAssignment = function (elem) {
 				ouRolesModalService.roleType = String(elem.dataset.objtype);
 				ouRolesModalService.roleId = elem.dataset.roleid;
-				for (var i = 0; i < titles.length; i++) {
-					titles[i].state.checked = false;
+				if (titlesEnabled && titles != null) {
+					for (var i = 0; i < titles.length; i++) {
+						titles[i].state.checked = false;
+					}
 				}
 
 				ouRolesModalService.showAssignModal(titlesEnabled, false, null, null, null);

@@ -5,6 +5,7 @@ import java.io.IOException;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 import org.htmlcleaner.BrowserCompactXmlSerializer;
 import org.htmlcleaner.CleanerProperties;
@@ -82,22 +83,16 @@ public class EmailTemplateRestController {
 		return new ResponseEntity<>(HttpStatus.OK);
 	}
 	
+	
 	private List<InlineImageDTO> transformImages(EmailTemplateDTO emailTemplateDTO) {
 		List<InlineImageDTO> inlineImages = new ArrayList<>();
 		String message = emailTemplateDTO.getMessage();
 		Document doc = Jsoup.parse(message);
-		int counter = 1;
 
 		for (Element img : doc.select("img")) {
 			String src = img.attr("src");
 			if (src == null || src == "") {
 				continue;
-			}
-
-			String filename = img.attr("data-filename");
-			if (filename == null || filename == "") {
-				filename = "file" + counter;
-				counter ++;
 			}
 
 			InlineImageDTO inlineImageDto = new InlineImageDTO();
@@ -107,18 +102,18 @@ public class EmailTemplateRestController {
 				continue;
 			}
 			
-			inlineImageDto.setCid(filename);
+			String cID = UUID.randomUUID().toString();
+			inlineImageDto.setCid(cID);
 			inlineImageDto.setSrc(src);
 			inlineImages.add(inlineImageDto);
-			
-			img.attr("src", "cid:" + filename);
+			img.attr("src", "cid:" + cID);
 		}
 
 		emailTemplateDTO.setMessage(doc.html());
-
+		
 		return inlineImages;
 	}
-
+	
 	/**
 	 * summernote does not generate valid XHTML. At least the <br/> and <img/> tags are not closed,
 	 * so we need to close them, otherwise our PDF processing will fail.

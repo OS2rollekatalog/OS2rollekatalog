@@ -190,9 +190,14 @@ public class UserRoleService {
 					prefix = "";
 				}
 	
+				String newName = prefix + linkedSystemRole.getName();
+				if (newName.length() > 64) {
+					newName = newName.substring(0, 64);
+				}
+				
 				// compare name
-				if (!Objects.equals(userRole.getName(), prefix + linkedSystemRole.getName())) {
-					userRole.setName(prefix + linkedSystemRole.getName());
+				if (!Objects.equals(userRole.getName(), newName)) {
+					userRole.setName(newName);
 					changes = true;
 				}
 	

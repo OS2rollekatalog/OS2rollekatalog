@@ -70,6 +70,7 @@ import dk.digitalidentity.rc.service.SystemRoleService;
 import dk.digitalidentity.rc.service.UserRoleService;
 import dk.digitalidentity.rc.service.UserService;
 import dk.digitalidentity.rc.service.model.OrgUnitWithRole2;
+import dk.digitalidentity.rc.service.model.UserWithRole;
 import dk.digitalidentity.rc.service.model.UserWithRole2;
 import dk.digitalidentity.rc.service.model.UserWithRoleAndDates;
 
@@ -223,11 +224,24 @@ public class UserRoleController {
 			return "redirect:../list";
 		}
 
-		List<UserWithRole2> usersWithRoleMapping = userService.getUsersWithUserRole(role);
+		List<UserWithRole2> usersWithRoleMapping = userService.getActiveUsersWithUserRole(role);
 		model.addAttribute("userRoleMapping", usersWithRoleMapping);
 		model.addAttribute("showEdit", showEdit);
 		
 		return "userroles/fragments/manage_users :: users";
+	}
+	
+	@GetMapping(value = "/ui/userroles/{id}/assignedUsersFragmentView")
+	public String assignedUsersFragmentView(Model model, @PathVariable("id") long userRoleId) {
+		UserRole role = userRoleService.getById(userRoleId);
+		if (role == null) {
+			return "redirect:../list";
+		}
+
+		List<UserWithRole> usersWithRole = userService.getUsersWithUserRole(role, true);
+		model.addAttribute("userRoleMapping", usersWithRole);
+		
+		return "userroles/fragments/view_users :: users";
 	}
 
 	@GetMapping(value = "/ui/userroles/{id}/availableUsersFragment")
@@ -252,7 +266,7 @@ public class UserRoleController {
 			return "redirect:../list";
 		}
 
-		List<OrgUnitWithRole2> orgUnitsWithRole = orgUnitService.getOrgUnitsWithUserRole(role);
+		List<OrgUnitWithRole2> orgUnitsWithRole = orgUnitService.getActiveOrgUnitsWithUserRole(role);
 		model.addAttribute("orgUnitMapping", orgUnitsWithRole);
 		model.addAttribute("showEdit", showEdit);
 

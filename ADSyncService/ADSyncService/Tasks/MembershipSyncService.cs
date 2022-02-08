@@ -84,7 +84,7 @@ namespace ADSyncService
                 }
 
                 // inform rolecatalogue that we are done sync'ing
-                roleCatalogueStub.ResetHead(syncData.head);
+                roleCatalogueStub.ResetHead(syncData.head, syncData.maxHead);
             }
         }
 

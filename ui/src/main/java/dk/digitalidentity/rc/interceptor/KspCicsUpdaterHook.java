@@ -16,7 +16,9 @@ import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserRole;
 import dk.digitalidentity.rc.dao.model.enums.ItSystemType;
 import dk.digitalidentity.rc.service.OrgUnitService;
+import dk.digitalidentity.rc.service.UserService;
 import dk.digitalidentity.rc.service.cics.KspCicsService;
+import dk.digitalidentity.rc.service.model.UserRoleAssignmentWithInfo;
 
 @Component
 public class KspCicsUpdaterHook implements RoleChangeHook {
@@ -26,6 +28,9 @@ public class KspCicsUpdaterHook implements RoleChangeHook {
 	
 	@Autowired
 	private OrgUnitService orgUnitService;
+	
+	@Autowired
+	private UserService userService;
 	
 	@Override
 	public void interceptAddRoleGroupAssignmentOnUser(User user, RoleGroup roleGroup) {
@@ -38,6 +43,14 @@ public class KspCicsUpdaterHook implements RoleChangeHook {
 	public void interceptRemoveRoleGroupAssignmentOnUser(User user, RoleGroup roleGroup) {
 		if (user.getRoleGroupAssignments().stream().map(ura -> ura.getRoleGroup()).collect(Collectors.toList()).contains(roleGroup)) {
 			addRoleGroupToQueue(roleGroup);
+		}
+	}
+	
+	@Override
+	public void interceptActivateUser(User user) {
+		List<UserRoleAssignmentWithInfo> assignments = userService.getAllUserRolesAssignedToUserWithInfo(user, null, true);
+		for (UserRoleAssignmentWithInfo assignment : assignments) {
+			kspCicsService.addUserRoleToQueue(assignment.getUserRole());
 		}
 	}
 
@@ -169,6 +182,16 @@ public class KspCicsUpdaterHook implements RoleChangeHook {
 	public void interceptRemoveSystemRoleAssignmentOnUserRole(UserRole userRole, SystemRoleAssignment systemRoleAssignment) {
 		// role-modelling does not happen often enough that we should bother safety checking - just flag as dirty
 		kspCicsService.addUserRoleToQueue(userRole);
+	}
+	
+	@Override
+	public void interceptEditUserRoleAssignmentOnOrgUnit(OrgUnit ou, UserRole userRole) {
+		kspCicsService.addUserRoleToQueue(userRole);
+	}
+
+	@Override
+	public void interceptEditRoleGroupAssignmentOnOrgUnit(OrgUnit ou, RoleGroup roleGroup) {
+		addRoleGroupToQueue(roleGroup);
 	}
 	
 	private void addRoleGroupToQueue(RoleGroup roleGroup) {

@@ -44,6 +44,7 @@ import dk.digitalidentity.rc.dao.model.DirtyADGroup;
 import dk.digitalidentity.rc.dao.model.ItSystem;
 import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserRole;
+import dk.digitalidentity.rc.dao.model.enums.AccessRole;
 import dk.digitalidentity.rc.dao.model.enums.ItSystemType;
 import dk.digitalidentity.rc.security.RolePostProcessor;
 import dk.digitalidentity.rc.service.ItSystemService;
@@ -90,7 +91,7 @@ public class ADSyncDocumentation {
 		// so all of our existing security code just works without further modifications
 		List<SimpleGrantedAuthority> authorities = new ArrayList<>();
 		authorities.add(new SimpleGrantedAuthority(Constants.ROLE_SYSTEM));
-		authorities.add(new SimpleGrantedAuthority(Constants.ROLE_ADMINISTRATOR));
+		authorities.add(new SimpleGrantedAuthority("ROLE_API_" + AccessRole.READ_ACCESS.toString()));
 
 		Map<String, Object> attributes = new HashMap<>();
 		attributes.put(RolePostProcessor.ATTRIBUTE_NAME, "system");
@@ -139,6 +140,7 @@ public class ADSyncDocumentation {
 				),
 				responseFields(
 					fieldWithPath("head").type("Integer").description("sync-control value (used for cleanup)"),
+					fieldWithPath("maxHead").type("Integer").description("sync-control value (used to indicate max ID of all pending operations, including those not available in output)"),
 					fieldWithPath("assignments[]").description("An array of AD groups that have changes in assignments"),
 					fieldWithPath("assignments[].groupName").description("the name of the AD group"),
 					fieldWithPath("assignments[].samaccountNames").type("Array of String").description("sAMAccountNames of the users within this AD group")

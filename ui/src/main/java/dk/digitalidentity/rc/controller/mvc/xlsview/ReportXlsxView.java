@@ -308,6 +308,7 @@ public class ReportXlsxView extends AbstractXlsxView {
 
         ArrayList<String> headers = new ArrayList<>();
         headers.add("xls.report.ou.roles.ou.name");
+        headers.add("xls.report.ou.roles.ou.uuid");
         headers.add("xls.role.name");
         headers.add("xls.role.it.system");
         headers.add("xls.role.assigned.by");
@@ -360,6 +361,7 @@ public class ReportXlsxView extends AbstractXlsxView {
                 Row dataRow = sheet.createRow(row++);
                 int column = 0;
                 createCell(dataRow, column++, ouName, null);
+                createCell(dataRow, column++, entry.getKey(), null);
                 createCell(dataRow, column++, itSystemNameMapping.get(ouRoleAssignment.getRoleId()), null);
                 createCell(dataRow, column++, itSystem, null);
                 createCell(dataRow, column++, assignedBy, null);
@@ -404,6 +406,7 @@ public class ReportXlsxView extends AbstractXlsxView {
                 Row dataRow = sheet.createRow(row++);
                 int column = 0;
                 createCell(dataRow, column++, ouName, null);
+                createCell(dataRow, column++, entry.getKey(), null);
                 createCell(dataRow, column++, itSystemNameMapping.get(ouRoleAssignment.getRoleId()), null);
                 createCell(dataRow, column++, itSystem, null);
                 createCell(dataRow, column++, assignedBy, null);
@@ -450,6 +453,7 @@ public class ReportXlsxView extends AbstractXlsxView {
                 Row dataRow = sheet.createRow(row++);
                 int column = 0;
                 createCell(dataRow, column++, ouName, null);
+                createCell(dataRow, column++, entry.getKey(), null);
                 createCell(dataRow, column++, itSystemNameMapping.get(ouRoleAssignment.getRoleId()), null);
                 createCell(dataRow, column++, itSystem, null);
                 createCell(dataRow, column++, assignedBy, null);
@@ -504,6 +508,9 @@ public class ReportXlsxView extends AbstractXlsxView {
         ArrayList<String> headers = new ArrayList<>();
         headers.add("xls.user.name");
         headers.add("xls.user.id");
+        headers.add("xls.role.employee.id");
+        headers.add("xls.role.ou.name");
+        headers.add("xls.role.ou.uuid");
         headers.add("xls.user.active");
         headers.add("xls.role.name");
         headers.add("xls.role.it.system");
@@ -523,6 +530,9 @@ public class ReportXlsxView extends AbstractXlsxView {
             
             createCell(dataRow, column++, entry.getUserName(), null);
             createCell(dataRow, column++, entry.getUserId(), null);
+            createCell(dataRow, column++, entry.getEmployeeId(), null);
+            createCell(dataRow, column++, entry.getOrgUnitName(), null);
+            createCell(dataRow, column++, entry.getOrgUnitUUID(), null);
             createCell(dataRow, column++, entry.isUserActive() ? "aktiv" : "inaktiv", null);
             createCell(dataRow, column++, itSystemNameMapping.get(entry.getRoleId()), null);
             createCell(dataRow, column++, entry.getItSystem(), null);

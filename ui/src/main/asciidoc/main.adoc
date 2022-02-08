@@ -12,6 +12,9 @@ Digital Identity Aps;
 
 The following operations are intended for AD FS integration, and expose information about a given user, which can be used to issue SAML assertions containing all relevant information about the user
 
+== Required Role
+
+All the operations in the AD FS API are available to any clients that has at least the "Læseadgang" role assigned to them.
 
 == Get Roles as OIO-BPP
 [[resources-list-user-roles]]
@@ -78,6 +81,11 @@ include::{snippets}/read-name-identifier/http-request.adoc[]
 include::{snippets}/read-name-identifier/http-response.adoc[]
 
 = Titles API
+This API is used to manage the Titles available in OS2rollekatalog organisation data.
+
+== Required Role
+
+All the operations in the Title API are available to any clients that has at least the "Organisation" role assigned to them.
 
 == List all titles
 
@@ -111,6 +119,10 @@ include::{snippets}/titles-update/request-headers.adoc[]
 include::{snippets}/titles-update/http-request.adoc[]
 
 = ItSystem API
+
+== Required Role
+
+All the operations in the ItSystem API are available to any clients that has at least the "Rolleadministration" role assigned to them.
 
 == List all it-systems
 
@@ -168,6 +180,10 @@ include::{snippets}/itsystem-manage-update/http-request.adoc[]
 
 
 = Read API
+
+== Required Role
+
+All the operations in the Read API are available to any clients that has at least the "Læseadgang" role assigned to them.
 
 == Find all users with a given role
 
@@ -377,6 +393,10 @@ include::{snippets}/read-rolegroup/http-response.adoc[]
 
 = Role Assignment API
 
+== Required Role
+
+All the operations in the Role Assignment API are available to any clients that has at least the "Rolleadministration" role assigned to them.
+
 == Assign role to user
 [[resources-assign-user-role]]
 This operation will assign a given role directly to a user
@@ -508,6 +528,10 @@ include::{snippets}/deassign-ou-rolegroup/http-response.adoc[]
 
 = Organisation Management API
 
+== Required Role
+
+All the operations in the Organisation API are available to any clients that has at least the "Organisation" role assigned to them.
+
 == Load Organisation V3
 [[resources-load-organisation-v3]]
 This operation will load a full organisation, overwriting the existing organisation in the Role Catalogue.
@@ -527,6 +551,10 @@ include::{snippets}/load-organisation-v3/http-response.adoc[]
 = AD Sync API
 
 The following operations are intended for Active Directory Group Membership synchronization, where a local client uses the API to update Active Directory.
+
+== Required Role
+
+All the operations in the AD Sync API are available to any clients that has at least the "Læseadgang" role assigned to them.
 
 == Get group membership changes
 [[resources-ad-sync-groups]]

@@ -10,6 +10,7 @@ import dk.digitalidentity.rc.dao.model.UserRole;
 public interface RoleChangeHook {
 
 	// UserServiceHooks
+	public void interceptActivateUser(User user);
 	public void interceptAddRoleGroupAssignmentOnUser(User user, RoleGroup roleGroup);
 	public void interceptRemoveRoleGroupAssignmentOnUser(User user, RoleGroup roleGroup);
 	public void interceptAddUserRoleAssignmentOnUser(User user, UserRole userRole);
@@ -28,6 +29,8 @@ public interface RoleChangeHook {
 	public void interceptRemoveRoleGroupAssignmentOnOrgUnit(OrgUnit ou, RoleGroup roleGroup);
 	public void interceptAddUserRoleAssignmentOnOrgUnit(OrgUnit ou, UserRole userRole, boolean inherit);
 	public void interceptRemoveUserRoleAssignmentOnOrgUnit(OrgUnit ou, UserRole userRole);
+	public void interceptEditUserRoleAssignmentOnOrgUnit(OrgUnit ou, UserRole userRole);
+	public void interceptEditRoleGroupAssignmentOnOrgUnit(OrgUnit ou, RoleGroup roleGroup);
 	
 	// RoleGroupService Hooks
 	public void interceptAddUserRoleAssignmentOnRoleGroup(RoleGroup roleGroup, UserRole userRole);

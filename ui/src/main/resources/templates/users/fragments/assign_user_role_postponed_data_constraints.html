@@ -201,7 +201,7 @@
 			
 			this.getConstraintList = function() {
 				var constraintList = [];
-				$(".constraint").each(function( index ) {
+				$(".constraint").each(function(index) {
 					var field = $(this);
 					var type = field.data("type");
 					var systemRoleId = field.data("systemroleid");
@@ -244,7 +244,8 @@
 			//Show modal
 			this.chooseKles = function(systemRoleId, constraintUuid) {
 				//Get input field kle values 
-				var kles = $("#postponed" + systemRoleId + constraintUuid + "input").val().split(",");
+				var kles = $("#postponed" + systemRoleId + constraintUuid + "input").val().replace(/\.\*/g, "").split(",");
+
 				//Remember what opened the modal
 				$("#modal-kle-constraint-systemRoleId").val(systemRoleId);
 				$("#modal-kle-constraint-constraintUuid").val(constraintUuid);
@@ -291,7 +292,18 @@
 				var kleInput = $("#postponed" + systemRoleId + constraintUuid + "input");
 
 				var selected = $("#kle-constraint-tree").jstree("get_top_checked");
-				kleInput.val(selected.join());
+
+				var constraintValue = [];
+				for (var i = 0; i < selected.length; i++) {
+					if (selected[i].length != 8) {
+						constraintValue.push(selected[i] + ".*");
+					}
+					else {
+						constraintValue.push(selected[i]);
+					}
+				}
+
+				kleInput.val(constraintValue.join());
 				$('#modal-kle-constraint').modal('hide');
 				kleInput.trigger('change');
 			}

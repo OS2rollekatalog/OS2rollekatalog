@@ -1,0 +1,1 @@
+ALTER TABLE pending_ad_group_operations ADD universal BIT NOT NULL DEFAULT 0;

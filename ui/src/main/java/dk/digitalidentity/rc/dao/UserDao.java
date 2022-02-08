@@ -28,6 +28,10 @@ public interface UserDao extends CrudRepository<User, String>, JpaSpecificationE
 	@Deprecated
 	List<User> findByRoleGroupAssignmentsRoleGroup(RoleGroup role);
 	
+	// same
+	@Deprecated
+	List<User> findByExtUuidIn(Set<String> extUuids);
+	
 	List<User> findByCprAndActiveTrue(String cpr);
 	List<User> getByActiveTrue();
 	List<User> getByActiveFalse();

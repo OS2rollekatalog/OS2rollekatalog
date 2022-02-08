@@ -263,7 +263,7 @@ public class PositionService {
 	public List<Position> getAllWithRole(UserRole userRole, boolean inactive) {
 		return positionDao.findByUserRoleAssignmentsUserRoleAndUserRoleAssignmentsInactive(userRole, inactive);
 	}
-
+	
 	@Deprecated
 	public List<Position> getAllWithRoleGroup(RoleGroup role) {
 		return positionDao.findByRoleGroupAssignmentsRoleGroup(role);

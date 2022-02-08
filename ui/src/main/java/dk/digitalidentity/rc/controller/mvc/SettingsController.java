@@ -66,11 +66,6 @@ public class SettingsController {
 		settingsForm.setServicedeskEmail(settingsService.getRequestApproveServicedeskEmail());
 		settingsForm.setRemovalOfUnitRolesEmail(settingsService.getRemovalOfUnitRolesEmail());
 
-		settingsForm.setOrganisationEventsEnabled(settingsService.isOrganisationEventsEnabled());
-		settingsForm.setOuNewManagerAction(settingsService.getOuNewManagerAction());
-		settingsForm.setOuNewParentAction(settingsService.getOuNewParentAction());
-		settingsForm.setUserNewPositionAction(settingsService.getUserNewPositionAction());
-
 		settingsForm.setScheduledAttestationEnabled(settingsService.isScheduledAttestationEnabled());
 		settingsForm.setScheduledAttestationInterval(settingsService.getScheduledAttestationInterval());
 		settingsForm.setScheduledAttestationIntervalSensitive(settingsService.getScheduledAttestationIntervalSensitive());
@@ -86,6 +81,8 @@ public class SettingsController {
 		settingsForm.setEmailAfterReminders(settingsService.getEmailAfterReminders());
 		
 		settingsForm.setAttestationRoleDeletionEnabled(settingsService.isAttestationRoleDeletionEnabled());
+		
+		settingsForm.setAdAttestationEnabled(settingsService.isADAttestationEnabled());
 
 		List<OUListForm> allOUs = orgUnitService.getAllCached()
 				.stream()
@@ -113,11 +110,6 @@ public class SettingsController {
 		settingsService.setRequestApproveWho(settingsForm.getRequestApproveWho());
 		settingsService.setRequestApproveServicedeskEmail(settingsForm.getServicedeskEmail());
 		settingsService.setRemovalOfUnitRolesEmail(settingsForm.getRemovalOfUnitRolesEmail());
-
-		settingsService.setOrganisationEventsEnabled(settingsForm.isOrganisationEventsEnabled());
-		settingsService.setOuNewManagerAction(settingsForm.getOuNewManagerAction());
-		settingsService.setOuNewParentAction(settingsForm.getOuNewParentAction());
-		settingsService.setUserNewPositionAction(settingsForm.getUserNewPositionAction());
 
 		// make sure sensitive interval is at least as often as the ordinary interval
 		switch (settingsForm.getScheduledAttestationIntervalSensitive()) {
@@ -153,6 +145,8 @@ public class SettingsController {
 		settingsService.setEmailAfterReminders(settingsForm.getEmailAfterReminders());
 		
 		settingsService.setAttestationRoleDeletionEnabled(settingsForm.isAttestationRoleDeletionEnabled());
+		
+		settingsService.setADAttestationEnabled(settingsForm.isAdAttestationEnabled());
 
 		redirectAttributes.addFlashAttribute("saved", true);
 		

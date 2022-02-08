@@ -1,13 +1,11 @@
 package dk.digitalidentity.rc.service;
 
-import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
 
 import javax.activation.DataHandler;
 import javax.activation.DataSource;
-import javax.activation.URLDataSource;
 import javax.mail.Message;
 import javax.mail.Multipart;
 import javax.mail.Part;

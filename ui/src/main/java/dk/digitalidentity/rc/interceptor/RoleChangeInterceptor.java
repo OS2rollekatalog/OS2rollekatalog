@@ -29,11 +29,18 @@ public class RoleChangeInterceptor {
 
 	// UserService
 
+	@Before("execution(* dk.digitalidentity.rc.service.UserService.activateUser(dk.digitalidentity.rc.dao.model.User)) && args(user)")
+	public void interceptActivateUser(User user) {
+		for (RoleChangeHook hook : hooks) {
+			hook.interceptActivateUser(user);
+		}
+	}
+
 	@Before("execution(* dk.digitalidentity.rc.service.UserService.addRoleGroup(dk.digitalidentity.rc.dao.model.User, dk.digitalidentity.rc.dao.model.RoleGroup, java.time.LocalDate, java.time.LocalDate)) && args(user, roleGroup, startDate, stopDate)")
 	public void interceptAddRoleGroupAssignmentOnUser(User user, RoleGroup roleGroup, LocalDate startDate, LocalDate stopDate) {
 		
 		// skip assignments that are active in the future (we will get a direct event-call later)
-		if (startDate != null && LocalDate.now().isAfter(startDate)) {
+		if (startDate != null && startDate.isAfter(LocalDate.now())) {
 			return;
 		}
 
@@ -56,11 +63,11 @@ public class RoleChangeInterceptor {
 		}
 	}
 
-	@Before("execution(* dk.digitalidentity.rc.service.UserService.addUserRole(dk.digitalidentity.rc.dao.model.User, dk.digitalidentity.rc.dao.model.UserRole, java.time.LocalDate, java.time.LocalDate)) && args(user, userRole, startDate, stopDate)")
+	@Before("execution(* dk.digitalidentity.rc.service.UserService.addUserRole(dk.digitalidentity.rc.dao.model.User, dk.digitalidentity.rc.dao.model.UserRole, java.time.LocalDate, java.time.LocalDate, ..)) && args(user, userRole, startDate, stopDate, ..)")
 	public void interceptAddUserRoleAssignmentOnUser(User user, UserRole userRole, LocalDate startDate, LocalDate stopDate) {
 
 		// skip assignments that are active in the future (we will get a direct event-call later)
-		if (startDate != null && LocalDate.now().isAfter(startDate)) {
+		if (startDate != null && startDate.isAfter(LocalDate.now())) {
 			return;
 		}
 
@@ -103,7 +110,7 @@ public class RoleChangeInterceptor {
 	public void interceptAddRoleGroupAssignmentOnPosition(Position position, RoleGroup roleGroup, LocalDate startDate, LocalDate stopDate) {
 
 		// skip assignments that are active in the future (we will get a direct event-call later)
-		if (startDate != null && LocalDate.now().isAfter(startDate)) {
+		if (startDate != null && startDate.isAfter(LocalDate.now())) {
 			return;
 		}
 
@@ -130,7 +137,7 @@ public class RoleChangeInterceptor {
 	public void interceptAddUserRoleAssignmentOnPosition(Position position, UserRole userRole, LocalDate startDate, LocalDate stopDate) {
 
 		// skip assignments that are active in the future (we will get a direct event-call later)
-		if (startDate != null && LocalDate.now().isAfter(startDate)) {
+		if (startDate != null && startDate.isAfter(LocalDate.now())) {
 			return;
 		}
 
@@ -159,7 +166,7 @@ public class RoleChangeInterceptor {
 	public void interceptAddRoleGroupAssignmentOnOrgUnit(OrgUnit ou, RoleGroup roleGroup, boolean inherit, LocalDate startDate, LocalDate stopDate, Set<String> exceptedUsers, Set<String> titles) {
 
 		// skip assignments that are active in the future (we will get a direct event-call later)
-		if (startDate != null && LocalDate.now().isAfter(startDate)) {
+		if (startDate != null && startDate.isAfter(LocalDate.now())) {
 			return;
 		}
 
@@ -186,7 +193,7 @@ public class RoleChangeInterceptor {
 	public void interceptAddUserRoleAssignmentOnOrgUnit(OrgUnit ou, UserRole userRole, boolean inherit, LocalDate startDate, LocalDate stopDate, Set<String> exceptedUsers, Set<String> titles) {
 
 		// skip assignments that are active in the future (we will get a direct event-call later)
-		if (startDate != null && LocalDate.now().isAfter(startDate)) {
+		if (startDate != null && startDate.isAfter(LocalDate.now())) {
 			return;
 		}
 
@@ -206,6 +213,22 @@ public class RoleChangeInterceptor {
 	public void interceptRemoveUserRoleAssignmentOnOrgUnit2(OrgUnit ou, OrgUnitUserRoleAssignment assignment) {
 		for (RoleChangeHook hook : hooks) {
 			hook.interceptRemoveUserRoleAssignmentOnOrgUnit(ou, assignment.getUserRole());
+		}
+	}
+
+	// public boolean updateUserRoleAssignment(OrgUnit ou, OrgUnitUserRoleAssignment assignment, boolean inherit, LocalDate startDate, LocalDate stopDate, Set<String> exceptedUsers, Set<String> titleUuids) {
+	@Before("execution(* dk.digitalidentity.rc.service.OrgUnitService.updateUserRoleAssignment(dk.digitalidentity.rc.dao.model.OrgUnit, dk.digitalidentity.rc.dao.model.OrgUnitUserRoleAssignment, ..)) && args(ou, assignment, ..)")
+	public void interceptEditUserRoleAssignmentOnOrgUnit(OrgUnit ou,  OrgUnitUserRoleAssignment assignment) {
+		for (RoleChangeHook hook : hooks) {
+			hook.interceptEditUserRoleAssignmentOnOrgUnit(ou, assignment.getUserRole());
+		}
+	}
+
+	// public boolean updateRoleGroupAssignment(OrgUnit ou, OrgUnitRoleGroupAssignment assignment, boolean inherit, LocalDate startDate, LocalDate stopDate, Set<String> exceptedUsers, Set<String> titleUuids) {
+	@Before("execution(* dk.digitalidentity.rc.service.OrgUnitService.updateRoleGroupAssignment(dk.digitalidentity.rc.dao.model.OrgUnit, dk.digitalidentity.rc.dao.model.OrgUnitRoleGroupAssignment, ..)) && args(ou, assignment, ..)")
+	public void interceptEditRoleGroupAssignmentOnOrgUnit(OrgUnit ou, OrgUnitRoleGroupAssignment assignment) {
+		for (RoleChangeHook hook : hooks) {
+			hook.interceptEditRoleGroupAssignmentOnOrgUnit(ou, assignment.getRoleGroup());
 		}
 	}
 	

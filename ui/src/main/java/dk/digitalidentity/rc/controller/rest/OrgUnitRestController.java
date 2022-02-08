@@ -255,7 +255,7 @@ public class OrgUnitRestController {
 			catch (Exception ex) {
 				log.warn("Invalid startdate string: " + startDateStr);
 			}
-}
+		}
 
 		if (!StringUtils.isEmpty(stopDateStr)) {
 			try {

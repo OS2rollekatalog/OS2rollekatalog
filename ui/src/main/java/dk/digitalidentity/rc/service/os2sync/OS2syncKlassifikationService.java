@@ -44,8 +44,12 @@ public class OS2syncKlassifikationService {
 			else if (kleDto.getCode().length() == 5) {
 				kle.setParent(kleDto.getCode().substring(0, 2));
 			}
-			else {
+			else if (kleDto.getCode().length() == 8) {
 				kle.setParent(kleDto.getCode().substring(0, 5));
+			} 
+			else {
+				log.warn("Invalid KLE: " + kleDto.getCode());
+				continue;
 			}
 
 			if (kleMap.containsKey(kle.getCode())) {

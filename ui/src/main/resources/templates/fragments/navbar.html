@@ -299,6 +299,12 @@
 									<span th:text="#{html.navbar.settings}" />
 								</a>
 							</li>
+							<li th:class="${page == 'featureDocumentation'} ? 'active' : ''">
+								<a th:href="@{/ui/featuredocumentation}">
+									<em class="fa fa-toggle-on"></em>
+									<span th:text="#{html.navbar.features}" />
+								</a>
+							</li>
 						</th:block>
 						
 						<th:block sec:authorize="hasRole('ROLE_ADMINISTRATOR') or hasRole('ROLE_MANAGER') or hasRole('ROLE_SUBSTITUTE')">
@@ -313,8 +319,21 @@
 								</a>
 							</li>
 						</th:block>
+						
+						<th:block sec:authorize="hasRole('ROLE_ADMINISTRATOR')">
+							<li class="nav-heading">
+								<span th:text="#{html.navbar.notification}" />
+							</li>
+							
+							<li th:class="${page == 'notificationSettings'} ? 'active' : ''">
+								<a th:href="@{/ui/admin/notificationsettings}">
+									<em class="fa fa-exclamation"></em>
+									<span th:text="#{html.setting.notification.title}" />
+								</a>
+							</li>
+						</th:block>
 
-						<th:block sec:authorize="hasRole('ROLE_ADMINISTRATOR')" th:if="${@roleCatalogueConfiguration.isExperimental()}">
+						<th:block sec:authorize="hasRole('ROLE_ADMINISTRATOR')">
 							<li class="nav-heading" sec:authorize="isAuthenticated()">
 								<span th:text="#{html.navbar.client}" />
 							</li>
@@ -344,14 +363,6 @@
 							<em class="fa fa-sign-out"></em>
 							<span th:text="#{html.navbar.logout}" />
 						</a>
-					</li>
-				</ul>
-
-				<ul th:if="${buildId != null and buildTime != null}" class="nav" style="position: absolute; bottom: 20px;">
-					<li style="white-space: nowrap; color: #919da8; padding: 12px 15px; font-size: 13px; letter-spacing: .035em;">
-						<span th:text="#{html.navbar.buildId} + ': ' + ${buildId}"/>
-						<br/>
-						<span th:text="#{html.navbar.buildTime} + ': ' + ${buildTime}"/>
 					</li>
 				</ul>
 			</nav>

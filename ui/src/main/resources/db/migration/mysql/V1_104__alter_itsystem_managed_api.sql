@@ -1,0 +1,1 @@
+ALTER TABLE it_systems ADD COLUMN api_managed_role_assignments BOOLEAN NOT NULL DEFAULT 0;

@@ -205,8 +205,10 @@ public class KlePageController {
 		List<OrgUnit> children = new ArrayList<OrgUnit>();
 
 		for (OrgUnit unit : orgUnit.getChildren()) {
-			children.add(unit);
-			children.addAll(getAllChildren(unit));
+			if (unit.isActive()) {
+				children.add(unit);
+				children.addAll(getAllChildren(unit));
+			}
 		}
 
 		return children;

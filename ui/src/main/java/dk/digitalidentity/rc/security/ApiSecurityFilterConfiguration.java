@@ -19,6 +19,7 @@ public class ApiSecurityFilterConfiguration {
 
 		FilterRegistrationBean<ApiSecurityFilter> filterRegistrationBean = new FilterRegistrationBean<>(filter);
 		filterRegistrationBean.addUrlPatterns("/api/*");
+		filterRegistrationBean.setOrder(100);
 
 		return filterRegistrationBean;
 	}

@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="fragments/header :: header (title=#{html.setting.notifications.title})" />
+<body>
+<div class="wrapper">
+    <header th:replace="fragments/navbar :: navbar-header(subpage = 'administration')" />
+    <aside th:replace="fragments/navbar :: navbar-aside (page = 'notificationSettings', subpage = 'administration')" />
+
+    <section>
+        <div class="content-wrapper">
+			<h3 th:text="#{html.setting.notification.title}"/>
+			<div class="panel panel-default" style="padding-left: 20px; padding-right: 20px;">
+				<form id="setting-form" class="form-horizontal" method="post" th:object="${settings}" th:action="@{/ui/admin/notifications/settings}">
+					<div class="panel-body">
+						<div class="panel-heading"/>
+
+						<fieldset>
+							<div class="form-group">
+								<div class="col-sm-12" th:text="#{html.setting.notification.text}" />
+							</div>
+						</fieldset>
+
+						<fieldset>
+							<div class="form-group row" style="margin-bottom: inherit;" th:each="notificationtype : ${T(dk.digitalidentity.rc.dao.model.enums.NotificationType).values()}">
+								<label class="col-sm-3 control-label" style="padding-top: inherit;" th:text="#{__${notificationtype.message}__}" />
+								<div class="col-sm-9">
+									<span class="checkbox c-checkbox" style="display: inline;">
+										<label>
+											<input th:attr="data-id=${notificationtype}" class="notificationtypeCbx" type="checkbox" th:checked="${@settingsService.isNotificationTypeEnabled(notificationtype)}" />
+											<span class="fa fa-check" />
+										</label>
+									</span>
+								</div>
+								<input th:id="${notificationtype}" th:value="${@settingsService.isNotificationTypeEnabled(notificationtype)}" style="display: none;"/>
+							</div>
+						</fieldset>
+					</div>
+				</form>
+
+				<fieldset>
+					<div class="form-group">
+						<div class="col-md-offset-2 col-md-8">
+							<button onclick="settingService.submitForm(); return false;" class="btn btn-primary btn-block" th:text="#{html.control.button.save}" />
+						</div>
+					</div>
+				</fieldset>
+			</div>
+		</div>
+    </section>
+</div>
+
+<div th:replace="fragments/footer :: footer" />
+
+<script th:inline="javascript">
+		/*<![CDATA[*/
+
+        /*[+
+			 var successMsg = [[#{html.setting.update.msg.success}]];
+			 var failedMsg = [[#{html.setting.update.msg.failed}]];
+	
+			 var ajaxUrl = [[@{/rest/admin/notifications/settings}]]
+			 var deleteDeselectedNotificationsHeader = [[#{html.setting.notification.swal.header}]];
+			 var deleteDeselectedNotificationsText = [[#{html.setting.notification.swal.text}]];
+			 var btnYes = [[#{html.setting.notification.swal.btn.yes}]];
+			 var btnNo = [[#{html.setting.notification.swal.btn.no}]];
+		 +]*/
+
+		var modifications = false;
+
+		var settingService;
+		$("document").ready(function() {
+			settingService = new SettingService();
+			settingService.init();
+		});
+
+		var token = $("meta[name='_csrf']").attr("content");
+		
+		function SettingService() {
+			
+			this.init = function() {
+				$('.notificationtypeCbx').change(function() {
+					settingService.handleCheckbox(this, $(this).data("id"));
+				});
+			}
+
+			this.submitForm = function() {
+				if (modifications) {
+					var checkboxes = $('.notificationtypeCbx');
+					var notificationTypes = {};
+					for (var i = 0; i < checkboxes.length; i++) {
+						var key = $(checkboxes[i]).data('id')
+						var value = $('#' + key).val();
+	
+						notificationTypes[key] = value;
+					} 
+	
+					swal({
+						html : true,
+						title : deleteDeselectedNotificationsHeader,
+						text : deleteDeselectedNotificationsText,
+						type : "warning",
+						showCancelButton : true,
+						confirmButtonColor : "#DD6B55",
+						confirmButtonText : btnYes,
+						cancelButtonText : btnNo,
+						closeOnConfirm : true,
+						closeOnCancel : true
+					},
+					function(isConfirm) {
+						modifications = false;
+
+						$.ajax({
+							method : "POST",
+							url: ajaxUrl,
+							headers: {
+								'X-CSRF-TOKEN': token
+							},
+							contentType: "application/json",
+							data: JSON.stringify({
+								'deleteAlreadyCreated': isConfirm,
+								'notificationTypes': notificationTypes
+							})
+						}).done(function (data) {''
+							$.notify({
+								message: successMsg
+							},{
+								status: 'success',
+								autoHideDelay: 4000
+							});
+						}).fail(function (jqXHR, textStatus, errorThrown) {
+							$.notify({
+								message: failedMsg
+							},{
+								status: 'warning',
+								autoHideDelay: 4000
+							});
+						});
+					});
+				}
+				else {
+					$.notify({
+						message: successMsg
+					},{
+						status: 'success',
+						autoHideDelay: 4000
+					});
+				}
+			}
+
+			this.handleCheckbox = function (obj, id) {
+				var checked = $(obj).prop('checked');
+				$('#' + id).val(checked);
+				
+				modifications = true;
+			}
+		}
+		/*]]>*/
+	</script>
+</body>
+</html>

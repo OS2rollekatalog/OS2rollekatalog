@@ -9,5 +9,6 @@ import lombok.Setter;
 @Setter
 public class ADSyncResult {
 	private long head;
+	private long maxHead;
 	private List<ADGroupAssignments> assignments;
 }

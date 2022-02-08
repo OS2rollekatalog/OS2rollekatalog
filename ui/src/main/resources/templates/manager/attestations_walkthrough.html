@@ -27,6 +27,8 @@
 										<input type="hidden" th:field="*{toBeRemoved}" /> 
 										<input type="hidden" th:field="*{toEmail}" /> 
 										<input type="hidden" th:field="*{orgUnitUuid}" />
+										<input type="hidden" th:field="*{adAproved}" />
+										<input type="hidden" th:field="*{adNotAproved}" />  
 										<button type="button" class="btn btn-md btn-primary" onclick="next()" th:text="#{html.page.attestations.confirment.walkthrough.button.next}"></button>
 									</form>
 								</div>
@@ -40,12 +42,15 @@
 							<li>
 								<a data-toggle="tab" href="#unit" th:text="#{html.page.attestations.confirment.walkthrough.unit.title}"></a>
 							</li>
+							<li th:if="${not #lists.isEmpty(ad)}">
+								<a data-toggle="tab" href="#ad" th:text="#{html.page.attestations.confirment.walkthrough.ad.title}"></a>
+							</li>
 						</ul>
 
 						<div class="tab-content">
 							<div id="personal" class="tab-pane fade in active">
 								<div class="table-responsive">
-									<table id="listTable1" class="table table-striped table-hover listTable">
+									<table id="listTable1" class="table table-striped table-hover">
 										<thead>
 											<tr>
 												<th class="col-md-1" th:text="#{html.page.attestations.confirment.walkthrough.table.headers.remove}" />
@@ -63,7 +68,7 @@
 												<td>
 													<div class="checkbox c-checkbox">
 														<label th:title="${dto.disabled == true} ? 'Rettigheden styres udenfor rollekataloget' : ''">
-															<input type="checkbox" class="personal" th:attr="data-userUuid=${dto.user.uuid}, data-roleType=${dto.roleType}, data-roleId=${dto.roleAssignedToUser.getRoleId()}, data-assignedThrough=${dto.roleAssignedToUser.assignedThrough}, data-assignmentid=${dto.assignmentId}, data-fromposition=${dto.fromPosition}" th:disabled="${dto.disabled} == true" />
+															<input type="checkbox" class="personal" th:attr="data-userUuid=${dto.user.uuid}, data-roleType=${dto.roleType}, data-roleId=${dto.roleAssignedToUser.getRoleId()}, data-assignedThrough=${dto.roleAssignedToUser.assignedThrough}, data-assignmentid=${dto.assignmentId}, data-fromposition=${dto.fromPosition}" th:checked="${dto.checked} == true" th:disabled="${dto.disabled} == true"/>
 															<span class="fa fa-times"></span>
 														</label>
 													</div>
@@ -104,7 +109,7 @@
 
 							<div id="unit" class="tab-pane fade">
 								<div class="table-responsive">
-									<table id="listTable2" class="table table-striped table-hover listTable">
+									<table id="listTable2" class="table table-striped table-hover">
 										<thead>
 											<tr>
 												<th class="col-md-1" th:text="#{html.page.attestations.confirment.walkthrough.table.headers.remove}" />
@@ -121,7 +126,7 @@
 												<td>
 													<div class="checkbox c-checkbox">
 														<label>
-															<input type="checkbox" class="unit" th:attr="data-unitTitleUuid=${dto.roleAssignedToUser.titleOrOrgUnitUuid},  data-roleType=${dto.roleType}, data-roleId=${dto.roleAssignedToUser.getRoleId()}, data-assignedThrough=${dto.roleAssignedToUser.assignedThrough}" />
+															<input type="checkbox" class="unit" th:attr="data-unitTitleUuid=${dto.roleAssignedToUser.titleOrOrgUnitUuid},  data-roleType=${dto.roleType}, data-roleId=${dto.roleAssignedToUser.getRoleId()}, data-assignedThrough=${dto.roleAssignedToUser.assignedThrough}" th:checked="${dto.checked} == true"/>
 															<span class="fa fa-times"></span>
 														</label>
 													</div>
@@ -158,6 +163,40 @@
 									</table>
 								</div>
 							</div>
+							
+							<div id="ad" class="tab-pane fade" th:if="${not #lists.isEmpty(ad)}">
+								<div class="table-responsive">
+									<table id="listTable3" class="table table-striped table-hover">
+										<thead>
+											<tr>
+												<th class="col-md-1" th:text="#{html.page.attestations.confirment.walkthrough.table.headers.remove}" />
+												<th class="col-md-8" th:text="#{html.page.attestations.confirment.walkthrough.table.headers.employee}" />
+												<th class="col-md-3" th:text="#{html.page.attestations.confirment.walkthrough.table.headers.userId}" />
+											</tr>
+										</thead>
+
+										<tbody>
+											<tr th:each="dto : ${ad}">
+												<td>
+													<div class="checkbox c-checkbox">
+														<label>
+															<input type="checkbox" class="personal" th:attr="data-userUuid=${dto.user.uuid}" th:checked="${dto.checked} == true"/>
+															<span class="fa fa-times"></span>
+														</label>
+													</div>
+												</td>
+												
+												<td>
+													<div th:text="${dto.user.name}" />
+													<span style="color: grey;" th:text="${dto.getUserPositionName()}" />
+												</td>
+
+												<td th:text="${dto.user.userId}" />
+											</tr>
+										</tbody>
+									</table>
+								</div>
+							</div>
 						</div>
 					</div>
 				</div>
@@ -185,12 +224,97 @@
 		    var orgUnitUuid = [[${orgUnit.uuid}]];
 		    var errorMsg = [[#{html.default.message.error}]];
 		+]*/
+		
+		$(document).ready(function() {
+			$("#listTable1").DataTable({
+		        'paging':   true,
+		        'ordering': true,
+		        'order': [
+		        	[ 1, 'asc' ]
+		        ],
+		        "columnDefs": [
+		            { "targets": [0], "orderable": false }
+		        ],
+		        "autoWidth": false,
+		        'info':     true,
+	            'stateSave': true,
+				"pageLength": 100,
+		        "language": {
+		            "search":       searchTxt,
+		            "lengthMenu":   dropdownTxt,
+		            "info":         infoDefaultTxt,
+		            "zeroRecords":  infoEmptyTxt,
+		            "infoEmpty":    "",
+		            "infoFiltered": infoFilteredTxt,
+					"paginate": {
+						"next": nextTxt,
+						"previous": prevTxt
+					}
+		        }
+		    });
+			
+			$("#listTable2").DataTable({
+		        'paging':   true,
+		        'ordering': true,
+		        'order': [
+		        	[ 1, 'asc' ]
+		        ],
+		        "columnDefs": [
+		            { "targets": [0], "orderable": false }
+		        ],
+		        "autoWidth": false,
+		        'info':     true,
+	            'stateSave': true,
+				"pageLength": 100,
+		        "language": {
+		            "search":       searchTxt,
+		            "lengthMenu":   dropdownTxt,
+		            "info":         infoDefaultTxt,
+		            "zeroRecords":  infoEmptyTxt,
+		            "infoEmpty":    "",
+		            "infoFiltered": infoFilteredTxt,
+					"paginate": {
+						"next": nextTxt,
+						"previous": prevTxt
+					}
+		        }
+		    });
+			
+			$("#listTable3").DataTable({
+		        'paging':   true,
+		        'ordering': true,
+		        'order': [
+		        	[ 1, 'asc' ]
+		        ],
+		        "columnDefs": [
+		            { "targets": [0], "orderable": false }
+		        ],
+		        "autoWidth": false,
+		        'info':     true,
+	            'stateSave': true,
+				"pageLength": 100,
+		        "language": {
+		            "search":       searchTxt,
+		            "lengthMenu":   dropdownTxt,
+		            "info":         infoDefaultTxt,
+		            "zeroRecords":  infoEmptyTxt,
+		            "infoEmpty":    "",
+		            "infoFiltered": infoFilteredTxt,
+					"paginate": {
+						"next": nextTxt,
+						"previous": prevTxt
+					}
+		        }
+		    });
+		});
 
 		function next() {
 			var aprovedUnit = [];
 			var aprovedPersonal = [];
 			var toBeRemoved = [];
 			var toEmail = [];
+			var adAproved = [];
+			var adNotAproved = [];
 
 			$('#listTable1').DataTable().rows().iterator('row', function(context, index){
 			    var node = $(this.row(index).node()); 
@@ -253,10 +377,34 @@
 			    }
 			});
 			
+			$('#listTable3').DataTable().rows().iterator('row', function(context, index){
+				var node = $(this.row(index).node()); 
+			    var tr = node.context;
+			    var td = $(tr).find("td:first");
+			    var checkbox = $(td).find("input.personal:checkbox");
+			    var checked = $(checkbox).prop('checked');
+
+			    if (!checked) {
+			    	var aprovedAdObj = {
+							"userUuid" : $(checkbox).attr("data-userUuid")
+					}
+
+			    	adAproved.push(aprovedAdObj);
+			    } else {
+			    	var notAprovedAdObj = {
+							"userUuid" : $(checkbox).attr("data-userUuid")
+						}
+
+			    	adNotAproved.push(notAprovedAdObj);
+			    }
+			});
+			
 			$('#toEmail').val(JSON.stringify(toEmail));
 			$('#toBeRemoved').val(JSON.stringify(toBeRemoved));
 			$('#aprovedUnit').val(JSON.stringify(aprovedUnit));
 			$('#aprovedPersonal').val(JSON.stringify(aprovedPersonal));
+			$('#adAproved').val(JSON.stringify(adAproved));
+			$('#adNotAproved').val(JSON.stringify(adNotAproved));
 
 			$('#form').submit();
 		}

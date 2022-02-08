@@ -12,9 +12,9 @@
 			<div class="panel panel-default" style="padding-left: 20px; padding-right: 20px;">
 				<form id="setting-form" class="form-horizontal" method="post" th:object="${settingsForm}" th:action="@{/ui/settings}">
 					<input type="hidden" th:field="*{requestApproveEnabled}" />
-					<input type="hidden" th:field="*{organisationEventsEnabled}" />
 					<input type="hidden" th:field="*{scheduledAttestationEnabled}" />
 					<input type="hidden" th:field="*{attestationRoleDeletionEnabled}" />
+					<input type="hidden" th:field="*{adAttestationEnabled}" />
 					<select th:field="*{scheduledAttestationFilter}" multiple="multiple" class="form-control" style="display: none;">
 						<option th:each="ou : ${allOUs}" th:value="${ou.id}" th:text="${ou.text}" th:selected="${settingsForm.getScheduledAttestationFilter().contains(ou.id)}"></option>
 					</select>
@@ -43,7 +43,6 @@
 								<a th:replace="fragments/help :: help (title=#{html.help.roleadmin.email.title}, content=#{html.help.roleadmin.email.body})" />
 							</div>
 						</fieldset>
-						
 					</div>
 
 					<div class="panel-heading">
@@ -82,67 +81,6 @@
 					</div>
 
 					<div class="panel-heading">
-						<h4 th:text="#{html.setting.ouEvents}" />
-					</div>
-
-					<div class="panel-body">
-						<fieldset>
-							<div class="form-group">
-								<label class="col-sm-3 control-label" th:text="#{html.setting.organisationevents.enabled}" />
-								<div class="col-sm-1">
-									<div class="checkbox c-checkbox">
-										<label>
-											<input id="organisationevents-checkbox" type="checkbox" th:attr="checked=${settingsForm.organisationEventsEnabled}" />
-											<span class="fa fa-check"></span>
-										</label>
-									</div>
-								</div>
-							</div>
-						</fieldset>
-						
-						<div id="organisationEventsSubsettings" style="display: none;">
-							<fieldset>
-								<div class="form-group">
-									<label class="col-sm-3 control-label" th:text="#{html.setting.ounewmanager.action}" />
-									<div class="col-sm-8">
-										<select th:field="*{ouNewManagerAction}" class="form-control">
-											<option th:each="action : ${T(dk.digitalidentity.rc.service.model.OrganisationEventAction).values()}"
-												th:value="${action}" th:text="#{__${action.getMessage()}__}"
-												th:selected="${action} == *{ouNewManagerAction}"></option>
-										</select>
-									</div>
-								</div>
-							</fieldset>
-
-							<fieldset>
-								<div class="form-group">
-									<label class="col-sm-3 control-label" th:text="#{html.setting.ounewparent.action}" />
-									<div class="col-sm-8">
-										<select th:field="*{ouNewParentAction}" class="form-control">
-											<option th:each="action : ${T(dk.digitalidentity.rc.service.model.OrganisationEventAction).values()}"
-												th:value="${action}" th:text="#{__${action.getMessage()}__}"
-												th:selected="${action} == *{ouNewParentAction}"></option>
-										</select>
-									</div>
-								</div>
-							</fieldset>
-							
-							<fieldset>
-								<div class="form-group">
-									<label class="col-sm-3 control-label" th:text="#{html.setting.usernewposition.action}" />
-									<div class="col-sm-8">
-										<select th:field="*{userNewPositionAction}" class="form-control">
-											<option th:each="action : ${T(dk.digitalidentity.rc.service.model.OrganisationEventAction).values()}"
-												th:value="${action}" th:text="#{__${action.getMessage()}__}"
-												th:selected="${action} == *{userNewPositionAction}"></option>
-										</select>
-									</div>
-								</div>
-							</fieldset>
-						</div>
-					</div>
-
-					<div class="panel-heading">
 						<h4 th:text="#{html.setting.attestation.scheduled}" />
 					</div>
 
@@ -165,10 +103,25 @@
 							<fieldset>
 								<div class="form-group">
 									<label class="col-sm-3 control-label" th:text="#{html.setting.attestation.scheduled.roledeletion.enabled}" />
-									<div class="col-sm-1">
+									<div class="col-sm-8">
 										<div class="checkbox c-checkbox">
 											<label>
 												<input id="attestation-roledeletion-checkbox" type="checkbox" th:attr="checked=${settingsForm.attestationRoleDeletionEnabled}" />
+												<span class="fa fa-check"></span>
+											</label>
+										</div>
+									</div>
+									<a th:replace="fragments/help :: help (title=#{html.setting.attestation.scheduled.roledeletion.enabled.info.header}, content=#{html.setting.attestation.scheduled.roledeletion.enabled.info})" />
+								</div>
+							</fieldset>
+							
+							<fieldset>
+								<div class="form-group">
+									<label class="col-sm-3 control-label" th:text="#{html.setting.attestation.scheduled.ad.enabled}" />
+									<div class="col-sm-1">
+										<div class="checkbox c-checkbox">
+											<label>
+												<input id="attestation-ad-checkbox" type="checkbox" th:attr="checked=${settingsForm.adAttestationEnabled}" />
 												<span class="fa fa-check"></span>
 											</label>
 										</div>
@@ -392,21 +345,6 @@
 				$("#attestationRoleDeletionEnabled").val(this.checked);
 			});
 			
-			$("#organisationevents-checkbox").change(function() {
-				$("#organisationEventsEnabled").val(this.checked);
-				
-				if (this.checked) {
-					$("#organisationEventsSubsettings").show();
-				}
-				else {
-					$("#organisationEventsSubsettings").hide();
-				}
-			});
-			
-			if ($("#organisationEventsEnabled").val() == "true") {
-				$("#organisationEventsSubsettings").show();
-			}
-			
 			$("#requestapprove-checkbox").change(function() {
 				$("#requestApproveEnabled").val(this.checked);
 				
@@ -421,6 +359,10 @@
 			if ($("#requestApproveEnabled").val() == "true") {
 				$("#requestApproveSubsettings").show();
 			}
+			
+			$("#attestation-ad-checkbox").change(function() {
+				$("#adAttestationEnabled").val(this.checked);
+			});
 			
 			if (typeof saved != "undefined" && saved != null) {
 			    if (saved) {

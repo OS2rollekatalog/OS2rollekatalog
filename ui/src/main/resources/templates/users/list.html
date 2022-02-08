@@ -56,7 +56,7 @@
 					var infoEmptyTxt = [[#{html.datatables.info.empty}]];
 					var infoLoadingTxt = [[#{html.datatables.info.loading}]];
 					var infoFilteredTxt = [[#{html.datatables.info.filtered}]]; 
-					var backendUrl = [[@{/rest/users}]];
+					var ajaxUrl = [[@{/rest/users/list}]];
 				+]*/
 
 				// Setup - add a text input to each footer cell
@@ -64,14 +64,60 @@
 					$(this).html('<input type="text" class="form-control input-sm" placeholder="Søg" />');
 				});
 
-				var allUsers = [];
 				var table = $('#listTable').DataTable({
-					'paging': true,
-					'ordering': true,
-					'info': true,
+					'destroy': true,
 					'stateSave': true,
-					'deferRender': true,
-					'pageLength': 100,
+					'ajax': {
+						'contentType': 'application/json',
+						'url': ajaxUrl,
+						'type': 'POST',
+						headers: {
+							'X-CSRF-TOKEN': token
+						},
+						'data': function(d) {
+						 	return JSON.stringify(d);
+						}
+					},
+					'serverSide' : true,
+					'columns': [
+						{ 
+							data: "name",
+							orderable: true,
+							searchable: true
+						},
+						{ 
+							data: "userId",
+							orderable: true,
+							searchable: true
+						},
+						{ 
+							data: "title",
+							orderable: true,
+							searchable: true,
+							render: function (data, type, row, meta) {
+								var titles = data.split(";");
+								var result = "";
+								titles.forEach(function(title) {
+									result += title + '</br>';
+								});
+								//the titles minus the last </br>
+								return result.substring(0, result.length - 5);
+							}
+						},
+						{ 	
+							data: "uuid",
+							orderable: false,
+							searchable: false,
+							render: function (data, type, row, meta) {
+								var actions = '<a href="/ui/users/manage/' + data + '"><em class="fa fa-fw fa-pencil"></em></a>';
+								return actions;
+							}
+						}
+					],
+					'paging':   true,
+					'ordering': true,
+					'info':	 true,
+					'pageLength': 25,
 					'language': {
 						"search": searchTxt,
 						"lengthMenu": dropdownTxt,
@@ -80,13 +126,6 @@
 						"infoEmpty": "",
 						"infoFiltered": infoFilteredTxt
 					},
-					'data': allUsers,
-					'columns': [
-						{ "data": "name" },
-						{ "data": "userId" },
-						{ "data": "positions" },
-						{ "data": "operations"}
-					],
 					initComplete: function ()
 					{
 						var r = $('#listTable tfoot tr');
@@ -96,7 +135,7 @@
 						$('#listTable thead').append(r);
 						$('#search_0').css('text-align', 'center');
 					}
-				});
+				});				
 				
 			    // Restore state
 			    var state = table.state.loaded();
@@ -112,57 +151,18 @@
 			      table.draw();
 			    }
 				
-				// Apply the search
-				$.each($('.input-filter', table.table().header()), function () {
+				//Apply the search
+				$.each($('.input-filter', table.table().footer()), function () {
 					var column = table.column($(this).index());
-
 					$('input', this).on('keyup change', function () {
 						if (column.search() !== this.value) {
-							column.search(this.value).draw();
+							column
+								.search(this.value)
+								.draw();
 						}
 					});
 				});
 
-				var jsonUsers = sessionStorage.getItem("userList");
-				var jsonUsersExpire = sessionStorage.getItem("userListExpire");
-				var cacheExpire = (jsonUsersExpire !== null && jsonUsersExpire < new Date().getTime());
-				
-				if (jsonUsers !== null && !cacheExpire) {
-					setTimeout(function() {
-						allUsers = JSON.parse(jsonUsers);
-						updateTable();
-					}, 10);
-				}
-				else {
-					$.ajax({
-						url: backendUrl,
-						method: "GET",
-							error: function(response) {
-								$.notify({
-									message: 'Could not connect to user database!'
-								},{
-									status: 'danger',
-									autoHideDelay: 4000
-								});
-							},
-							success: function(response) {
-							allUsers = response;
-							updateTable();
-
-							setTimeout(function() {
-								var jsonUsers = JSON.stringify(response);
-								var dMs = new Date().getTime() + (30 * 60 * 1000);
-								sessionStorage.setItem("userList", jsonUsers);
-								sessionStorage.setItem("userListExpire", dMs);
-							}, 10);
-							}
-						});
-				}
-
-				function updateTable() {
-					table.rows.add(allUsers);
-					table.columns.adjust().draw();
-				}
 			});
 		/*]]>*/
 	</script>

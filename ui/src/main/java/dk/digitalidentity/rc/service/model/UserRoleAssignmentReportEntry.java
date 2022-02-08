@@ -10,6 +10,9 @@ import lombok.Setter;
 public class UserRoleAssignmentReportEntry {
 	private String userName;
 	private String userId;
+	private String employeeId;
+	private String orgUnitName;
+	private String orgUnitUUID;
 	private boolean userActive;
 	private long roleId;
 	private String itSystem;

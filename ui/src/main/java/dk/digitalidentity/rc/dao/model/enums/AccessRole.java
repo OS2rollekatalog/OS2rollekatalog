@@ -4,7 +4,8 @@ public enum AccessRole {
 	ORGANISATION("html.enum.accessrole.organisation"),
 	READ_ACCESS("html.enum.accessrole.readAccess"),
 	ROLE_MANAGEMENT("html.enum.accessrole.roleManagement"),
-	ADMINISTRATOR("html.enum.accessrole.administrator");
+	ADMINISTRATOR("html.enum.accessrole.administrator"),
+	CICS_ADMIN("html.enum.accessrole.cicsAdmin");
 
 	private String messageId;
 

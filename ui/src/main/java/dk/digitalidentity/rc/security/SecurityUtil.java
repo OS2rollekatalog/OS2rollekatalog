@@ -13,6 +13,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 
 import dk.digitalidentity.rc.config.Constants;
+import dk.digitalidentity.rc.dao.model.Client;
 import dk.digitalidentity.rc.dao.model.ItSystem;
 import dk.digitalidentity.rc.dao.model.SystemRoleAssignment;
 import dk.digitalidentity.rc.dao.model.SystemRoleAssignmentConstraintValue;
@@ -134,6 +135,19 @@ public class SecurityUtil {
 		return SYSTEM_USERNAME;
 	}
 
+	public static Client getClient() {
+		if (SecurityContextHolder.getContext() != null && SecurityContextHolder.getContext().getAuthentication() != null) {
+			Object o = SecurityContextHolder.getContext().getAuthentication().getDetails();
+			if (o instanceof TokenUser) {
+				TokenUser tokenUser = (TokenUser) o;
+				
+				return (Client)tokenUser.getAttributes().get(RolePostProcessor.ATTRIBUTE_CLIENT);
+			}
+		}
+		
+		return null;
+	}
+
 	public List<User> getManagersBySubstitute() {
 		List<User> result = new ArrayList<>();
 
@@ -160,10 +174,10 @@ public class SecurityUtil {
 	}
 
 	public static void loginSystemAccount() {
-		loginSystemAccount(new ArrayList<>());
+		loginSystemAccount(new ArrayList<>(), null);
 	}
 	
-	public static void loginSystemAccount(ArrayList<GrantedAuthority> authorities) {
+	public static void loginSystemAccount(ArrayList<GrantedAuthority> authorities, Client client) {
 		Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
 
 		// apply to existing session
@@ -198,6 +212,7 @@ public class SecurityUtil {
 
 			tokenUser.getAttributes().put(RolePostProcessor.ATTRIBUTE_USERID, SYSTEM_USERID);
 			tokenUser.getAttributes().put(RolePostProcessor.ATTRIBUTE_NAME, SYSTEM_USERNAME);
+			tokenUser.getAttributes().put(RolePostProcessor.ATTRIBUTE_CLIENT, client);
 			
 			UsernamePasswordAuthenticationToken token = new UsernamePasswordAuthenticationToken(SYSTEM_USERID, "N/A", tokenUser.getAuthorities());
 			token.setDetails(tokenUser);

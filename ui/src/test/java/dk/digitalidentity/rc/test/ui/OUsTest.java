@@ -1,14 +1,10 @@
 package dk.digitalidentity.rc.test.ui;
 
-import java.util.List;
-
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.openqa.selenium.By;
-import org.openqa.selenium.WebElement;
 import org.openqa.selenium.chrome.ChromeDriver;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -49,50 +45,11 @@ public class OUsTest {
         listOUs();
         String fiskbaekUUID = BootstrapDevMode.orgUnitUUID;
         viewOU(fiskbaekUUID);
-        editOU(fiskbaekUUID, "2");
-        verifyEditOU(fiskbaekUUID, "2");
     }
 
     public void viewOU(String ouUUID) {
-        driver.get(url + "/ui/ous/view/" + ouUUID);
+        driver.get(url + "/ui/ous/manage/" + ouUUID);
         Assert.assertEquals("OS2rollekatalog", driver.getTitle());
-    }
-
-    public void editOU(String userId, String roleId) throws Exception {
-        driver.get(url + "/ui/ous/edit/" + userId);
-        Assert.assertEquals("OS2rollekatalog", driver.getTitle());
-
-        List<WebElement> checkboxes = driver.findElementsByTagName("input");
-
-        for (WebElement e : checkboxes) {
-            if (e.getAttribute("id") != null) {
-                if (e.getAttribute("id").equals(roleId)) {
-                    e.click();
-
-                    // ajax, modal stuff *sigh*
-                    Thread.sleep(500);
-                    driver.findElement(By.id("assignAllButton")).click();
-                    Thread.sleep(500);
-                    driver.findElement(By.id("assignEveryoneChoiceDropdownForTestCases")).click();
-                    Thread.sleep(500);
-                }
-            }
-        }
-    }
-
-    public void verifyEditOU(String userId, String roleId) {
-        driver.get(url + "/ui/ous/edit/" + userId);
-        Assert.assertEquals("OS2rollekatalog", driver.getTitle());
-
-        List<WebElement> checkboxes = driver.findElementsByTagName("input");
-
-        for (WebElement e : checkboxes) {
-            if (e.getAttribute("id") != null) {
-                if (e.getAttribute("id").equals(roleId)) {
-                    Assert.assertTrue(e.isSelected());
-                }
-            }
-        }
     }
 
     public void listOUs() {

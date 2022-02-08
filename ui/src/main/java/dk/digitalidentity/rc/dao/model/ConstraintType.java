@@ -42,6 +42,9 @@ public class ConstraintType {
 	private String name;
 	
 	@Column
+	private String description;
+
+	@Column
 	@Enumerated(EnumType.STRING)
 	private ConstraintUIType uiType;
 	

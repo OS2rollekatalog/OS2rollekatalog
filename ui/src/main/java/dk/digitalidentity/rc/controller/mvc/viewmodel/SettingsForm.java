@@ -3,7 +3,6 @@ package dk.digitalidentity.rc.controller.mvc.viewmodel;
 import java.util.Set;
 
 import dk.digitalidentity.rc.dao.model.enums.CheckupIntervalEnum;
-import dk.digitalidentity.rc.service.model.OrganisationEventAction;
 import dk.digitalidentity.rc.service.model.WhoCanRequest;
 import lombok.Getter;
 import lombok.Setter;
@@ -16,11 +15,6 @@ public class SettingsForm {
 	private String itSystemChangeEmail;
 	private String removalOfUnitRolesEmail;
 	private WhoCanRequest requestApproveWho;
-	
-	private boolean organisationEventsEnabled;
-	private OrganisationEventAction ouNewManagerAction;
-	private OrganisationEventAction ouNewParentAction;
-	private OrganisationEventAction userNewPositionAction;
 	
 	private boolean scheduledAttestationEnabled;
 	private CheckupIntervalEnum scheduledAttestationInterval;
@@ -35,4 +29,6 @@ public class SettingsForm {
 	private String emailAfterReminders;
 	
 	private boolean attestationRoleDeletionEnabled;
+	
+	private boolean adAttestationEnabled;
 }

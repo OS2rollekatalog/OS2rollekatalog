@@ -16,4 +16,6 @@ public interface NotificationDao extends CrudRepository<Notification, Long> {
 	long countByActiveTrue();
 
 	List<Notification> findAllByNotificationType(NotificationType type);
+	
+	void deleteByNotificationType(NotificationType type);
 }

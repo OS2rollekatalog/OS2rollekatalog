@@ -28,8 +28,8 @@ public class KspCicsUpdateTask {
 		}
 	}
 
-	// Run once between 3 and 4 every night (no reason to spam KMD at the same time for each customer, so spread it out)
-	@Scheduled(cron = "0 #{new java.util.Random().nextInt(55)} 3,10,13 * * ?")
+	// run hourly in daytime
+	@Scheduled(cron = "0 #{new java.util.Random().nextInt(55)} 5-17 * * ?")
 	public void updateLocalData() {
 		if (!configuration.getIntegrations().getKspcics().isEnabled() ||
 			!configuration.getScheduled().isEnabled()) {

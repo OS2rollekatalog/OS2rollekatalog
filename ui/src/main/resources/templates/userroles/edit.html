@@ -152,40 +152,6 @@
 								</div>
 
 								<div id="ous_menu" class="tab-pane fade">
-									<table id="listTable2" class="table table-striped">
-										<thead>
-											<tr>
-												<th class="col-md-1" th:text="#{html.entity.positions.assign}" />
-												<th class="col-md-7" th:text="#{html.entity.ou.name}" />
-												<th class="col-md-5" th:text="#{html.entity.rolegroup.validity}"/>
-											</tr>
-										</thead>
-	
-										<tbody>
-											 <tr th:each="ou : ${allOUs}" th:id="${ou.uuid}+'row'">
-												<td>
-													<div class="checkbox c-checkbox">
-														<label>
-															<input th:id="${ou.uuid}" type="checkbox" th:checked="${ou.checked}" class="checkboxaction" data-objtype="role" th:attr="data-startdate=${ou.assignment.startDate}, data-stopdate=${ou.assignment.stopDate}"/>
-															<span class="fa fa-check"></span>
-														</label>
-													</div>
-												</td>
-												<td>
-													<div th:text="${ou.name}"></div>
-													<span style="font-size: 12px;" th:text="${ou.parentBreadcrumbs}"></span>
-												</td>
-												
-												<td class="fromToDate">
-			                                    	<ul th:if="${ou.assignment.startDate != null or ou.assignment.stopDate != null}" style="padding-left: 0px; list-style-type: none; margin-bottom: 0px;">
-				                                    	<li th:if="${ou.assignment.startDate != null}" th:text="#{html.word.assigned} + ' ' + ${ou.assignment.startDate}"></li>
-				                                    	<li th:if="${ou.assignment.stopDate != null}" th:text="#{html.word.deassigned} + ' ' + ${ou.assignment.stopDate}"></li>
-			                                    	</ul>
-			                                    	<span th:if="${ou.checked == true and ou.assignment.startDate == null and ou.assignment.stopDate == null}" th:text="#{html.word.indefinite}"/>
-			                                    </td>
-											</tr>
-										</tbody>
-									</table>
 								</div>
 							</div>
 						</form>
@@ -214,7 +180,11 @@
 
 						<span class="fa fa-check"></span>
 					</label>
+
 					<label class="control-label" th:text="${supportedConstraintType.constraintType.name}"></label>
+
+					<em th:if="${supportedConstraintType.constraintType.description !=null and #strings.length(supportedConstraintType.constraintType.description) > 0}" class="fa fa-question" data-toggle="popover" data-trigger="hover" data-placement="top" th:attr="data-content=${supportedConstraintType.constraintType.description}"></em>
+
 					<span style="display: none;" class="constraintTypeHolder" th:text="${supportedConstraintType.constraintType.uuid}"></span>
 				</div>
 			</div>
@@ -437,6 +407,9 @@
 		.modal-body{
 			overflow-y: auto;
 		}
+		.popover {
+			width: 300px;
+		}
 	</style>
 
 	<script th:inline="javascript">
@@ -526,24 +499,6 @@
 			});
 
 			// Initialize datatable
-			var table2 = $('#listTable2').DataTable( {
-				"columns": [ { "orderDataType": "dom-checkbox" , "className": 'details-control' }, { }, { } ],
-				"order": [
-					[1, 'asc']
-				],
-				"autoWidth": false,
-				"stateSave": true,
-				'pageLength': 100,
-		        "language": {
-		            "search":       searchTxt,
-		            "lengthMenu":   dropdownTxt,
-		            "info":         infoDefaultTxt,
-		            "zeroRecords":  infoEmptyTxt,
-		            "infoEmpty":    "",
-		            "infoFiltered": infoFilteredTxt
-		        }
-			});
-
 			var groupsTable = $('#listTable3').DataTable( {
 				"columns": [ { "orderDataType": "dom-checkbox" , "className": 'details-control' }, { }, { } ],
 				"order": [
@@ -1170,9 +1125,10 @@
 
 				var constraintValue = [];
 				for (var i = 0; i < selected.length; i++) {
-					if (selected[i].length != 8) {
+					if (selected[i].length != 8 && selected[i] != '*') {
 						constraintValue.push(selected[i] + ".*");
-					} else {
+					}
+					else {
 						constraintValue.push(selected[i]);
 					}
 				}
@@ -1480,7 +1436,7 @@
 				var constraintValueType = $("#" + systemRoleId + constraintUuid).val();
 				var oUInput = $("#" + systemRoleId + constraintUuid + "input");
 
-				var selected = $("#ou-tree").jstree("get_top_checked");
+				var selected = $("#ou-tree").jstree("get_checked");
 				oUInput.val(selected.join());
 				$('#modal-ou').modal('hide');
 				oUInput.trigger('change');

@@ -42,6 +42,7 @@ import dk.digitalidentity.rc.service.ItSystemService;
 import dk.digitalidentity.rc.service.KspCicsUnmatchedUserService;
 import dk.digitalidentity.rc.service.UserRoleService;
 import dk.digitalidentity.rc.service.UserService;
+import dk.digitalidentity.rc.service.cics.model.KspChangePasswordResponse;
 import dk.digitalidentity.rc.service.cics.model.KspUser;
 import dk.digitalidentity.rc.service.cics.model.KspUserProfile;
 import dk.digitalidentity.rc.service.cics.model.KspUserProfilesResponse;
@@ -59,6 +60,7 @@ public class KspCicsService {
 	private static final String SOAP_ARG_LOSSHORTNAME = "{{LOS_SHORTNAME}}";
 	private static final String SOAP_ARG_KSP_CICS_USER_ID = "{{KSP_CICS_USER_ID}}";
 	private static final String SOAP_ARG_USER_PROFILE = "{{USER_PROFILE}}";
+	private static final String SOAP_ARG_USER_PASSWORD = "{{USER_PASSWORD}}";
 	
 	// default wrappers around all requests
 	private static final String SOAP_WRAPPER_BEGIN =
@@ -109,6 +111,12 @@ public class KspCicsService {
 	
 	private static final String SOAP_MODIFY_KSP_CICS_USER_ROLE =
 			"      <dsml:value>" + SOAP_ARG_USER_PROFILE + "</dsml:value>";
+	
+	private static final String SOAP_MODIFY_KSP_CICS_REPLACE_PASSWORD_START =
+			"    <dsml:modification name=\"userPassword\" operation=\"replace\">";
+	
+	private static final String SOAP_MODIFY_KSP_CICS_USER_PASSWORD =
+			"      <dsml:value>" + SOAP_ARG_USER_PASSWORD + "</dsml:value>";
 
 	private static final String SOAP_MODIFY_KSP_CICS_ANYMOD_STOP = 
 			"    </dsml:modification>";
@@ -477,6 +485,8 @@ public class KspCicsService {
 		dirtyKspCicsUserProfileDao.deleteAll(processed);
 		
 		// perform actual updates in KSP/CICS
+		log.info("Found " + kspCicsUsersToUpdate.size() + " KSP/CICS users that needs to be updated");
+
 		for (String dirtyKspCicsUser : kspCicsUsersToUpdate) {
 			Optional<AltAccount> altAccount = allAltAccounts.stream().filter(a -> a.getAccountUserId().equals(dirtyKspCicsUser)).findFirst();
 
@@ -486,14 +496,13 @@ public class KspCicsService {
 				Set<String> assignedUserProfiles = userService.getAllUserRoles(user, Collections.singletonList(itSystem)).stream()
 						.map(u -> u.getIdentifier())
 						.collect(Collectors.toSet());
+
+				log.info("Attempting to synchronize: " + dirtyKspCicsUser);
 				
 				KspUser existingKspUser = readKspCicsUser(dirtyKspCicsUser, kspExistingUsers);
 				if (existingKspUser != null) {
 					if (updateKspCicsUser(existingKspUser, assignedUserProfiles)) {
 						log.info("Updated KSP/CICS role assignments for " + dirtyKspCicsUser);
-					}
-					else {
-						log.warn("Failed to update KSP/CICS role assignment for " + dirtyKspCicsUser);
 					}
 				}
 				else {
@@ -501,6 +510,8 @@ public class KspCicsService {
 				}
 			}
 		}
+
+		log.info("Synchronization completed");
 	}
 
 	public void addUserRoleToQueue(UserRole userRole) {
@@ -515,6 +526,99 @@ public class KspCicsService {
 		dirty.setTimestamp(new Date());
 
 		dirtyKspCicsUserProfileDao.save(dirty);
+	}
+	
+	public KspChangePasswordResponse updateKspCicsPassword(String userId, String newPassword) {
+		HttpHeaders headers = new HttpHeaders();
+		headers.add("Content-Type", "text/xml; charset=utf-8");
+		headers.add("SOAPAction", "http://www.kmd.dk/KMD.YH.KSPAabenSpml/SPMLModifyRequest");
+
+		StringBuilder builder = new StringBuilder();
+		builder.append(SOAP_WRAPPER_BEGIN);
+		builder.append(SOAP_MODIFY_REQUEST_BEGIN);
+		builder.append(SOAP_MODIFY_KSP_CICS_USER_START.replace(SOAP_ARG_KSP_CICS_USER_ID, userId));
+
+		builder.append(SOAP_MODIFY_KSP_CICS_REPLACE_PASSWORD_START);
+		builder.append(SOAP_MODIFY_KSP_CICS_USER_PASSWORD.replace(SOAP_ARG_USER_PASSWORD, newPassword));
+		builder.append(SOAP_MODIFY_KSP_CICS_ANYMOD_STOP);
+
+		builder.append(SOAP_MODIFY_KSP_CICS_USER_STOP);
+		builder.append(SOAP_MODIFY_REQUEST_END);
+		builder.append(SOAP_WRAPPER_END);
+
+		String payload = builder.toString();
+
+		HttpEntity<String> request = new HttpEntity<String>(payload, headers);
+		ResponseEntity<String> response = null;
+
+		// KMD has some issues, so we might have to try multiple times
+		int tries = 3;
+		do {
+			response = restTemplate.postForEntity(configuration.getIntegrations().getKspcics().getUrl(), request, String.class);
+			if (response.getStatusCodeValue() != 200) {
+				if (--tries >= 0) {
+					log.warn("updateKspCicsPassword - Got responseCode " + response.getStatusCodeValue() + " from service");
+
+					try {
+						Thread.sleep(5000);
+					}
+					catch (InterruptedException ex) {
+						;
+					}
+				}
+				else {
+					log.error("updateKspCicsPassword - Got responseCode " + response.getStatusCodeValue() + " from service. Request=" + request + " / Response=" + response.getBody());
+
+					KspChangePasswordResponse result = new KspChangePasswordResponse();
+					result.setSuccess(false);
+					result.setHttp(response.getStatusCode());
+					result.setResponse(response.getBody());
+
+					return result;
+				}
+			}
+			else {
+				break;
+			}
+		} while (true);
+
+		String responseBody = response.getBody();
+		ModifyWrapper wrapper = null;
+
+		try {
+			XmlMapper xmlMapper = new XmlMapper();
+			xmlMapper.configure(MapperFeature.ACCEPT_CASE_INSENSITIVE_PROPERTIES, true);
+
+			Envelope envelope = xmlMapper.readValue(responseBody, Envelope.class);
+
+			String modifyResponse = envelope.getBody().getSpmlModifyRequestResponse().getSpmlModifyRequestResult();
+
+			wrapper = xmlMapper.readValue(modifyResponse, ModifyWrapper.class);
+		}
+		catch (Exception ex) {
+			log.error("updateKspCicsPassword - Failed to decode response: " + responseBody, ex);
+
+			KspChangePasswordResponse result = new KspChangePasswordResponse();
+			result.setSuccess(false);
+			result.setResponse(responseBody);
+
+			return result;
+		}
+
+		if (!SUCCESS_RESPONSE.equals(wrapper.getResult())) {
+			log.warn("updateKspCicsPassword - Got a non-success response: " + wrapper.getResult() + ". Request=" + payload + " / Response=" + responseBody);
+
+			KspChangePasswordResponse result = new KspChangePasswordResponse();
+			result.setSuccess(false);
+			result.setResponse(wrapper.getErrorMessage() != null ? wrapper.getErrorMessage() : responseBody);
+
+			return result;
+		}
+
+		KspChangePasswordResponse result = new KspChangePasswordResponse();
+		result.setSuccess(true);
+
+		return result;
 	}
 
 	private KspUserProfile getKspUserProfile(String identifier, List<KspUserProfile> userProfiles) {
@@ -578,7 +682,7 @@ public class KspCicsService {
 		
 		if (toAdd.size() == 0 && toDelete.size() == 0) {
 			log.info("No changes for " + existingKspUser.getUserId() + ", skipping update");
-			return true;
+			return false;
 		}
 
     	HttpHeaders headers = new HttpHeaders();
@@ -663,7 +767,7 @@ public class KspCicsService {
 		}
 
 		if (!SUCCESS_RESPONSE.equals(wrapper.getResult())) {
-			if ("indeholder KSP/CICS-administrator funktioner".equals(wrapper.getErrorMessage())) {
+			if (wrapper.getErrorMessage() != null && wrapper.getErrorMessage().contains("Brugerprofil ugyldig - indeholder KSP/CICS-administrator funktioner")) {
 				log.warn("updateKspCicsUser - Got a non-success response: " + wrapper.getResult() + ". Request=" + payload + " / Response=" + responseBody);
 			}
 			else {

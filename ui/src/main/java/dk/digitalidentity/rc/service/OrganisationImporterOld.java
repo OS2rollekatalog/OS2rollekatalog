@@ -6,7 +6,6 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.UUID;
 
 import javax.persistence.EntityManager;
@@ -23,25 +22,19 @@ import dk.digitalidentity.rc.controller.api.model.OrgUnitAM;
 import dk.digitalidentity.rc.controller.api.model.OrganisationImportResponse;
 import dk.digitalidentity.rc.controller.api.model.PositionAM;
 import dk.digitalidentity.rc.controller.api.model.UserAM;
-import dk.digitalidentity.rc.dao.PendingOrganisationUpdateDao;
 import dk.digitalidentity.rc.dao.model.ItSystem;
 import dk.digitalidentity.rc.dao.model.KLEMapping;
 import dk.digitalidentity.rc.dao.model.OrgUnit;
-import dk.digitalidentity.rc.dao.model.PendingOrganisationUpdate;
 import dk.digitalidentity.rc.dao.model.Position;
 import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserKLEMapping;
 import dk.digitalidentity.rc.dao.model.enums.KleType;
 import dk.digitalidentity.rc.dao.model.enums.OrgUnitLevel;
-import dk.digitalidentity.rc.dao.model.enums.PendingOrganisationEventType;
-import dk.digitalidentity.rc.service.model.OrganisationChangeEvents;
 import lombok.extern.log4j.Log4j;
 
 @Log4j
 @Service
 public class OrganisationImporterOld {
-	private ThreadLocal<OrganisationChangeEvents> events = new ThreadLocal<>();
-
 	@Autowired
 	private UserService userService;
 
@@ -57,9 +50,6 @@ public class OrganisationImporterOld {
 	@Autowired
 	private SettingsService settingsService;
 	
-	@Autowired
-	private PendingOrganisationUpdateDao pendingOrganisationUpdateDao;
-
 	@Autowired
 	private RoleCatalogueConfiguration configuration;
 	
@@ -99,50 +89,42 @@ public class OrganisationImporterOld {
 	}
 
 	public OrganisationImportResponse bigImport(OrgUnitAM rootOrgUnit) throws Exception {
-		try {
-			OrganisationImportResponse response = new OrganisationImportResponse();
-			List<User> users = new ArrayList<>();
-			List<OrgUnit> ous = new ArrayList<>();
-			events.set(new OrganisationChangeEvents());
-	
-			// convert incoming DTOs to Entity classes with all required relationships established
-			traverse(ous, users, rootOrgUnit, null);
+		OrganisationImportResponse response = new OrganisationImportResponse();
+		List<User> users = new ArrayList<>();
+		List<OrgUnit> ous = new ArrayList<>();
 
-			String errorMsg = null;
-			if ((errorMsg = validateUsers(users)) != null) {
-				log.warn("Rejecting payload due to bad users: " + errorMsg);
-				throw new Exception(errorMsg);
-			}
-			else if ((errorMsg = validateOUs(ous)) != null) {
-				log.warn("Rejecting payload due to bad ous: " + errorMsg);
-				throw new Exception(errorMsg);
-			}
-	
-			// we have to use getAll to ensure we update existing (but inactive) users
-			List<User> existingUsers = userService.getAllIncludingInactive();			
-			List<OrgUnit> existingOUs = orgUnitService.getAllIncludingInactive();
-			
-			processOrgUnits(ous, existingOUs, response);
-			softDeleteOUs(ous, existingOUs, response);
-	
-			processUsers(users, existingUsers, existingOUs, response);
-			softDeleteUsers(users, existingUsers, response);
-	
-			ensureUserConsistency(users, existingUsers);
+		// convert incoming DTOs to Entity classes with all required relationships established
+		traverse(ous, users, rootOrgUnit, null);
 
-			// reload and set managers
-			existingUsers = userService.getAllIncludingInactive();
-			existingOUs = orgUnitService.getAllIncludingInactive();
-
-			setManagers(rootOrgUnit, existingOUs, existingUsers);
-			
-			processEvents();
-
-			return response;
+		String errorMsg = null;
+		if ((errorMsg = validateUsers(users)) != null) {
+			log.warn("Rejecting payload due to bad users: " + errorMsg);
+			throw new Exception(errorMsg);
 		}
-		finally {
-			events.remove();
+		else if ((errorMsg = validateOUs(ous)) != null) {
+			log.warn("Rejecting payload due to bad ous: " + errorMsg);
+			throw new Exception(errorMsg);
 		}
+
+		// we have to use getAll to ensure we update existing (but inactive) users
+		List<User> existingUsers = userService.getAllIncludingInactive();			
+		List<OrgUnit> existingOUs = orgUnitService.getAllIncludingInactive();
+		
+		processOrgUnits(ous, existingOUs, response);
+		softDeleteOUs(ous, existingOUs, response);
+
+		processUsers(users, existingUsers, existingOUs, response);
+		softDeleteUsers(users, existingUsers, response);
+
+		ensureUserConsistency(users, existingUsers);
+
+		// reload and set managers
+		existingUsers = userService.getAllIncludingInactive();
+		existingOUs = orgUnitService.getAllIncludingInactive();
+
+		setManagers(rootOrgUnit, existingOUs, existingUsers);
+		
+		return response;
 	}
 
 	private void setManagers(OrgUnitAM root, List<OrgUnit> ous, List<User> users) {
@@ -504,72 +486,14 @@ public class OrganisationImporterOld {
 
 	private void setOUParent(OrgUnit ou, OrgUnit parent) {
 		ou.setParent(parent);
-		
-		events.get().getOusWithNewParent().add(ou);
 	}
 
 	private void setOUManager(OrgUnit ou, User manager) {
 		ou.setManager(manager);
-		
-		events.get().getOusWithNewManager().add(ou);
 	}
 
 	private void addPosition(User user, Position position) {
 		userService.addPosition(user, position);
-		
-		events.get().getUsersWithNewPosition().add(position);
-	}
-
-	private void processEvents() {
-		if (!settingsService.isOrganisationEventsEnabled()) {
-			return;
-		}
-
-		Set<OrgUnit> ousWithNewManager = events.get().getOusWithNewManager();
-		Set<OrgUnit> ousWithNewParent = events.get().getOusWithNewParent();
-		Set<Position> usersWithNewPosition = events.get().getUsersWithNewPosition();
-				
-		for (OrgUnit orgUnit : ousWithNewParent) {
-			PendingOrganisationUpdate event = new PendingOrganisationUpdate();
-			event.setOrgUnitUuid(orgUnit.getUuid());
-			event.setEventType(PendingOrganisationEventType.NEW_PARENT);		
-			pendingOrganisationUpdateDao.save(event);
-			
-			// if the OU was moved, but didn't bring its own manager, it will most likely have a new manager as well
-			if (orgUnit.getManager() == null) {
-				ousWithNewManager.add(orgUnit);
-			}
-		}
-		
-		for (OrgUnit orgUnit : ousWithNewManager) {
-			processOuWithNewManager(orgUnit, false);
-		}
-
-		for (Position position : usersWithNewPosition) {
-			PendingOrganisationUpdate event = new PendingOrganisationUpdate();
-			event.setUserUuid(position.getUser().getUuid());
-			event.setOrgUnitUuid(position.getOrgUnit().getUuid());
-			event.setEventType(PendingOrganisationEventType.NEW_POSITION);		
-			pendingOrganisationUpdateDao.save(event);
-		}
-	}
-
-	private void processOuWithNewManager(OrgUnit orgUnit, boolean isChild) {
-		// for children (recursive-handling) stop once first OU with a manager is encountered
-		if (isChild && orgUnit.getManager() != null) {
-			return;
-		}
-
-		PendingOrganisationUpdate event = new PendingOrganisationUpdate();
-		event.setOrgUnitUuid(orgUnit.getUuid());
-		event.setEventType(PendingOrganisationEventType.NEW_MANAGER);		
-		pendingOrganisationUpdateDao.save(event);
-		
-		if (orgUnit.getChildren() != null) {
-			for (OrgUnit child : orgUnit.getChildren()) {
-				processOuWithNewManager(child, true);
-			}
-		}
 	}
 
 	private void softDeleteOUs(List<OrgUnit> newOus, List<OrgUnit> existingOUs, OrganisationImportResponse response) {

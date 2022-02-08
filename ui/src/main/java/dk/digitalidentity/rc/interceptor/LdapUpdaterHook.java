@@ -1,5 +1,6 @@
 package dk.digitalidentity.rc.interceptor;
 
+import java.util.List;
 import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -15,6 +16,8 @@ import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserRole;
 import dk.digitalidentity.rc.service.OrgUnitService;
 import dk.digitalidentity.rc.service.PendingADUpdateService;
+import dk.digitalidentity.rc.service.UserService;
+import dk.digitalidentity.rc.service.model.UserRoleAssignmentWithInfo;
 
 @Component
 public class LdapUpdaterHook implements RoleChangeHook {
@@ -24,7 +27,10 @@ public class LdapUpdaterHook implements RoleChangeHook {
 	
 	@Autowired
 	private OrgUnitService orgUnitService;
-		
+	
+	@Autowired
+	private UserService userService;
+
 	@Override
 	public void interceptAddRoleGroupAssignmentOnUser(User user, RoleGroup roleGroup) {
 		if (!user.getRoleGroupAssignments().stream().map(ura -> ura.getRoleGroup()).collect(Collectors.toList()).contains(roleGroup)) {
@@ -36,6 +42,14 @@ public class LdapUpdaterHook implements RoleChangeHook {
 	public void interceptRemoveRoleGroupAssignmentOnUser(User user, RoleGroup roleGroup) {
 		if (user.getRoleGroupAssignments().stream().map(ura -> ura.getRoleGroup()).collect(Collectors.toList()).contains(roleGroup)) {
 			pendingADUpdateService.addRoleGroupToQueue(roleGroup);
+		}
+	}
+
+	@Override
+	public void interceptActivateUser(User user) {
+		List<UserRoleAssignmentWithInfo> assignments = userService.getAllUserRolesAssignedToUserWithInfo(user, null, true);
+		for (UserRoleAssignmentWithInfo assignment : assignments) {
+			pendingADUpdateService.addUserRoleToQueue(assignment.getUserRole());
 		}
 	}
 
@@ -128,6 +142,16 @@ public class LdapUpdaterHook implements RoleChangeHook {
 		if (!orgUnitService.getUserRoles(ou, true).contains(userRole)) {
 			pendingADUpdateService.addUserRoleToQueue(userRole);
 		}
+	}
+	
+	@Override
+	public void interceptEditUserRoleAssignmentOnOrgUnit(OrgUnit ou, UserRole userRole) {
+		pendingADUpdateService.addUserRoleToQueue(userRole);
+	}
+
+	@Override
+	public void interceptEditRoleGroupAssignmentOnOrgUnit(OrgUnit ou, RoleGroup roleGroup) {
+		pendingADUpdateService.addRoleGroupToQueue(roleGroup);
 	}
 
 	@Override

@@ -3,6 +3,7 @@ package dk.digitalidentity.rc.service;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+import java.util.UUID;
 
 import javax.transaction.Transactional;
 
@@ -102,39 +103,33 @@ public class EmailQueueService {
 		return emailQueueDao.findByDeliveryTtsBefore(tts);
 	}
 	
-	public List<InlineImageDTO> transformImages(EmailQueue email) {
+	private List<InlineImageDTO> transformImages(EmailQueue email) {
 		List<InlineImageDTO> inlineImages = new ArrayList<>();
 		String message = email.getMessage();
 		Document doc = Jsoup.parse(message);
 
-		int counter = 1;
 		for (Element img : doc.select("img")) {
 			String src = img.attr("src");
 			if (src == null || src == "") {
 				continue;
 			}
 
-			String filename = img.attr("data-filename");
-			if (filename == null || filename == "") {
-				filename = "file" + counter;
-				counter ++;
-			}
-
 			InlineImageDTO inlineImageDto = new InlineImageDTO();
 			inlineImageDto.setBase64(src.contains("base64"));
+			
 			if (!inlineImageDto.isBase64()) {
 				continue;
 			}
 			
-			inlineImageDto.setCid(filename);
+			String cID = UUID.randomUUID().toString();
+			inlineImageDto.setCid(cID);
 			inlineImageDto.setSrc(src);
 			inlineImages.add(inlineImageDto);
-
-			img.attr("src", "cid:" + filename);
+			img.attr("src", "cid:" + cID);
 		}
-		
-		email.setMessage(doc.html());
 
-		return inlineImages;
+		email.setMessage(doc.html());
+		
+		return inlineImages;		
 	}
 }

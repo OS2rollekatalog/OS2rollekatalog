@@ -36,6 +36,9 @@ public class OrgUnitServiceAuditInterceptor {
 			case "removeRoleGroupAssignment":
 				auditRemoveRoleGroupAssignment(jp);
 				break;
+			case "updateRoleGroupAssignment":
+				auditUpdateRoleGroupAssignment(jp);
+				break;
 			case "addUserRole":
 				auditAddUserRole(jp);
 				break;
@@ -44,6 +47,9 @@ public class OrgUnitServiceAuditInterceptor {
 				break;
 			case "removeUserRoleAssignment":
 				auditRemoveUserRoleAssignment(jp);
+				break;
+			case "updateUserRoleAssignment":
+				auditUpdateUserRoleAssignment(jp);
 				break;
 			case "addKLE":
 				auditAddKle(jp);
@@ -107,6 +113,18 @@ public class OrgUnitServiceAuditInterceptor {
 		auditLogger.log((OrgUnit) args[0], EventType.REMOVE_USER_ROLE, (UserRole) args[1]);
 	}
 	
+	private void auditUpdateUserRoleAssignment(JoinPoint jp) {
+		Object[] args = jp.getArgs();
+		if (!(args.length >= 2 && args[0] instanceof OrgUnit && args[1] instanceof OrgUnitUserRoleAssignment)) {
+			log.error("Method signature on updateUserRoleAssignment does not match expectation");
+			return;
+		}
+		
+		UserRole userRole = ((OrgUnitUserRoleAssignment) args[1]).getUserRole();
+
+		auditLogger.log((OrgUnit) args[0], EventType.EDIT_USER_ROLE_ASSIGNMENT, userRole);
+	}
+	
 	private void auditRemoveUserRoleAssignment(JoinPoint jp) {
 		Object[] args = jp.getArgs();
 		if (!(args.length == 2 && args[0] instanceof OrgUnit && args[1] instanceof OrgUnitUserRoleAssignment)) {
@@ -137,6 +155,18 @@ public class OrgUnitServiceAuditInterceptor {
 		}
 
 		auditLogger.log((OrgUnit) args[0], EventType.REMOVE_ROLE_GROUP, (RoleGroup) args[1]);
+	}
+	
+	private void auditUpdateRoleGroupAssignment(JoinPoint jp) {
+		Object[] args = jp.getArgs();
+		if (!(args.length >= 2 && args[0] instanceof OrgUnit && args[1] instanceof OrgUnitRoleGroupAssignment)) {
+			log.error("Method signature on updateRoleGroupAssignment does not match expectation");
+			return;
+		}
+		
+		RoleGroup roleGroup = ((OrgUnitRoleGroupAssignment) args[1]).getRoleGroup();
+
+		auditLogger.log((OrgUnit) args[0], EventType.EDIT_ROLE_GROUP_ASSIGNMENT, roleGroup);
 	}
 	
 	private void auditRemoveRoleGroupAssignment(JoinPoint jp) {

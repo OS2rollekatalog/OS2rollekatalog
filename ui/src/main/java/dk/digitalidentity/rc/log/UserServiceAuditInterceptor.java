@@ -36,6 +36,9 @@ public class UserServiceAuditInterceptor {
 			case "removeRoleGroup":
 				auditRemoveRoleGroup(jp);
 				break;
+			case "editRoleGroupAssignment":
+				auditEditRoleGroupAssignment(jp);
+				break;
 			case "addUserRole":
 				auditAddUserRole(jp);
 				break;
@@ -44,6 +47,9 @@ public class UserServiceAuditInterceptor {
 				break;
 			case "removeUserRoleAssignment":
 				auditRemoveUserRoleAssignment(jp);
+				break;
+			case "editUserRoleAssignment":
+				auditEditUserRoleAssignment(jp);
 				break;
 			case "addKLE":
 				auditAddKle(jp);
@@ -107,6 +113,18 @@ public class UserServiceAuditInterceptor {
 		auditLogger.log((User) args[0], EventType.REMOVE_USER_ROLE, (UserRole) args[1]);
 	}
 	
+	private void auditEditUserRoleAssignment(JoinPoint jp) {
+		Object[] args = jp.getArgs();
+		if (!(args.length >= 2 && args[0] instanceof User && args[1] instanceof UserUserRoleAssignment)) {
+			log.error("Method signature on editUserRoleAssignment does not match expectation");
+			return;
+		}
+
+		UserRole userRole = ((UserUserRoleAssignment) args[1]).getUserRole();
+
+		auditLogger.log((User) args[0], EventType.EDIT_USER_ROLE_ASSIGNMENT, userRole);
+	}
+	
 	private void auditRemoveUserRoleAssignment(JoinPoint jp) {
 		Object[] args = jp.getArgs();
 		if (!(args.length == 2 && args[0] instanceof User && args[1] instanceof UserUserRoleAssignment)) {
@@ -149,5 +167,17 @@ public class UserServiceAuditInterceptor {
 		}
 
 		auditLogger.log((User) args[0], EventType.REMOVE_ROLE_GROUP, (RoleGroup) args[1]);
+	}
+	
+	private void auditEditRoleGroupAssignment(JoinPoint jp) {
+		Object[] args = jp.getArgs();
+		if (!(args.length >= 2 && args[0] instanceof User && args[1] instanceof UserRoleGroupAssignment)) {
+			log.error("Method signature on editRoleGroupAssignment does not match expectation");
+			return;
+		}
+		
+		RoleGroup roleGroup = ((UserRoleGroupAssignment) args[1]).getRoleGroup();
+
+		auditLogger.log((User) args[0], EventType.EDIT_ROLE_GROUP_ASSIGNMENT, roleGroup);
 	}
 }

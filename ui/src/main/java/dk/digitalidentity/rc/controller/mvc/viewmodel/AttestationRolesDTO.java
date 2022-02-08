@@ -26,6 +26,8 @@ public class AttestationRolesDTO {
 	
 	private boolean fromPosition;
 	
+	private boolean checked;
+	
 	public String getUserPositionName() {
 		if (user != null && user.getPositions().size() > 0) {
 			return user.getPositions().get(0).getName() + " i " + user.getPositions().get(0).getOrgUnit().getName();

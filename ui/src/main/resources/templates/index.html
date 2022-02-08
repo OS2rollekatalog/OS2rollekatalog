@@ -4,7 +4,7 @@
 <body>
 	<div class="wrapper">
 		<header th:replace="fragments/navbar :: navbar-header" />
-		<aside th:replace="fragments/navbar :: navbar-aside (page = 'index', buildTime = ${gitBuildTime}, buildId = ${gitCommitId})" />
+		<aside th:replace="fragments/navbar :: navbar-aside (page = 'index')" />
  
 		<section>
 			<div class="content-wrapper">

@@ -51,5 +51,12 @@
 		</ul>
 		<br/>
 	</div>
+	
+	<div th:if="${ad != null && !ad.empty}">
+		<p th:text="#{html.page.attestations.confirment.show.ad.remove}" style="font-weight: bold;"></p>
+		<ul th:each="dto : ${ad}">
+			<li th:text="'Brugerkontoen med brugernavn ' + ${dto.userUserId} + ' for medarbejderen ' + ${dto.userName}"/>
+		</ul>
+	</div>
 </body>
 </html>

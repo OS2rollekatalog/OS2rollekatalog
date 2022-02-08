@@ -178,13 +178,13 @@ namespace ADSyncService
             };
         }
 
-        public void ResetHead(long head)
+        public void ResetHead(long head, long maxHead)
         {
             try
             {
                 RestClient client = new RestClient(baseUrl);
 
-                var request = new RestRequest("/api/ad/v2/sync/" + head, Method.DELETE);
+                var request = new RestRequest("/api/ad/v2/sync/" + head + "?maxHead=" + maxHead, Method.DELETE);
                 request.AddHeader("ApiKey", apiKey);
                 request.JsonSerializer = NewtonsoftJsonSerializer.Default;
 

@@ -276,6 +276,19 @@ public class ItSystemRestController {
 		return new ResponseEntity<>(HttpStatus.OK);
 	}
 
+	@PostMapping("/rest/itsystem/apiManagedRoleAssignments")
+	public ResponseEntity<String> editItSystemManagedRoleAssignments(long id, boolean apiManagedRoleAssignments) {
+		ItSystem itSystem = itSystemService.getById(id);
+		if (itSystem == null) {
+			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+		}
+
+		itSystem.setApiManagedRoleAssignments(apiManagedRoleAssignments);
+		itSystemService.save(itSystem);
+
+		return new ResponseEntity<>(HttpStatus.OK);
+	}
+
 	@PostMapping(value = "/rest/itsystem/subscribedTo")
 	public ResponseEntity<String> editItSystemSubscribedTo(long id, String masterId) {
 		ItSystem itSystem = itSystemService.getById(id);

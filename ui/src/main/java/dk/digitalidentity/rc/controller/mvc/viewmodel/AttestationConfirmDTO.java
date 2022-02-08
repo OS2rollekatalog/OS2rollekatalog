@@ -13,4 +13,6 @@ public class AttestationConfirmDTO {
 	private String toBeRemoved;
 	private String toEmail;
 	private String orgUnitUuid;
+	private String adAproved;
+	private String adNotAproved;
 }

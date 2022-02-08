@@ -479,8 +479,6 @@
 					ouRolesModalService.ouUuid = elem.dataset.orgunit;
 					
 					$("#ouRoleGroupModal").load(UIUrl + "fragments/ou/" + ouRolesModalService.ouUuid, function() {
-						console.log($('#ouRoleGroupModal').html());
-
 						datePickerService.init();
 						ouRolesModalService.init();
 						ouRolesModalService.parentService = orgUnitService;

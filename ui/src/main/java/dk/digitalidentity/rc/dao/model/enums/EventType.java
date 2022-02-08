@@ -12,9 +12,11 @@ public enum EventType {
 
 	ASSIGN_USER_ROLE("html.enum.eventtype.assign_user_role"),
 	REMOVE_USER_ROLE("html.enum.eventtype.remove_user_role"),
+	EDIT_USER_ROLE_ASSIGNMENT("html.enum.eventtype.edit_user_role_assignment"),
 	
 	ASSIGN_ROLE_GROUP("html.enum.eventtype.assign_role_group"),
 	REMOVE_ROLE_GROUP("html.enum.eventtype.remove_role_group"),
+	EDIT_ROLE_GROUP_ASSIGNMENT("html.enum.eventtype.edit_role_group_assignment"),
 	
 	ASSIGN_SYSTEMROLE("html.enum.eventtype.assign_systemrole"),
 	REMOVE_SYSTEMROLE("html.enum.eventtype.remove_systemrole"),

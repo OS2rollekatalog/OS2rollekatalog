@@ -271,7 +271,9 @@
 
 		function UserService() {
 			this.loadRolesFragment = function () {
-				$("#users_menu").load(UIUrl + roleId + "/assignedUsersFragment", function () {
+				// TODO: we should call /assignedUsersFragment instead, once we can agree on what we are going
+				//       to show on that page. For now we will just show the old version of the page
+				$("#users_menu").load(UIUrl + roleId + "/assignedUsersFragmentView", function () {
 					fragShowDataTableFun('#listTableUsers', 0);
 				});
 			}

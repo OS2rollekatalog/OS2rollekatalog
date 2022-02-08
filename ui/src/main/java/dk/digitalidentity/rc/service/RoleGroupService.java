@@ -76,11 +76,11 @@ public class RoleGroupService {
 	}
 
 	public RoleGroup getById(long roleGroupId) {
-		return roleGroupDao.getById(roleGroupId);
+		return roleGroupDao.findById(roleGroupId);
 	}
 
 	public RoleGroup getByName(String name) {
-		return roleGroupDao.getByName(name);
+		return roleGroupDao.findByName(name);
 	}
 	
 	public boolean canRequestRole(RoleGroup role, User user) {

@@ -4,6 +4,7 @@ import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import dk.digitalidentity.rc.dao.NotificationDao;
 import dk.digitalidentity.rc.dao.model.Notification;
@@ -14,6 +15,9 @@ public class NotificationService {
 
 	@Autowired
 	private NotificationDao notificationDao;
+	
+	@Autowired
+	private SettingsService settingsService;
 	
 	public long countActive() {
 		return notificationDao.countByActiveTrue();
@@ -28,7 +32,12 @@ public class NotificationService {
 	}
 
 	public Notification save(Notification notification) {
-		return notificationDao.save(notification);
+		// Only save if enabled in settings
+		if (settingsService.isNotificationTypeEnabled(notification.getNotificationType())) {
+			return notificationDao.save(notification);
+		}
+
+		return null;
 	}
 	
 	public List<Notification> findAllByType(NotificationType type) {
@@ -37,5 +46,10 @@ public class NotificationService {
 
 	public void delete(Notification notification) {
 		notificationDao.delete(notification);
+	}
+	
+	@Transactional
+	public void deleteAllByNotificationType(NotificationType type) {
+		notificationDao.deleteByNotificationType(type);
 	}
 }

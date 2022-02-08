@@ -25,6 +25,9 @@ import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import dk.digitalidentity.rc.config.Constants;
+import dk.digitalidentity.rc.controller.mvc.viewmodel.AttestationADDTO;
+import dk.digitalidentity.rc.controller.mvc.viewmodel.AttestationConfirmADDTO;
+import dk.digitalidentity.rc.controller.mvc.viewmodel.AttestationConfirmADListDTO;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.AttestationConfirmDTO;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.AttestationConfirmPersonalListDTO;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.AttestationConfirmShowDTO;
@@ -50,6 +53,7 @@ import dk.digitalidentity.rc.dao.model.enums.ConstraintUIType;
 import dk.digitalidentity.rc.security.RequireAdministratorRole;
 import dk.digitalidentity.rc.security.RequireAssignerOrManagerRole;
 import dk.digitalidentity.rc.security.RequireManagerRole;
+import dk.digitalidentity.rc.security.SecurityUtil;
 import dk.digitalidentity.rc.service.ItSystemService;
 import dk.digitalidentity.rc.service.OrgUnitService;
 import dk.digitalidentity.rc.service.RoleGroupService;
@@ -132,6 +136,20 @@ public class AttestationController {
 			return "redirect:/ui/users/attestations";
 		}
 
+		if (orgUnit.getManager() == null || !orgUnit.getManager().getUserId().equals(SecurityUtil.getUserId())) {
+			if (orgUnit.getManager().getManagerSubstitute() == null || !orgUnit.getManager().getManagerSubstitute().getUserId().equals(SecurityUtil.getUserId())) {
+				log.warn("logged in user " + SecurityUtil.getUserId() + " is not the manager for OU " + orgUnit.getUuid());
+
+				return "redirect:/ui/users/attestations";
+			}
+		}
+		
+		handleAttestationWalkthrough(model, orgUnit, null, null, null);
+
+		return "manager/attestations_walkthrough";
+	}
+
+	private void handleAttestationWalkthrough(Model model, OrgUnit orgUnit, List<AttestationConfirmPersonalListDTO> toBeRemovedChecked, List<AttestationConfirmUnitListDTO> toEmailChecked, List<AttestationConfirmADListDTO> notAprovedAdChecked) {
 		List<AttestationRolesDTO> personal = new ArrayList<AttestationRolesDTO>();
 		List<AttestationRolesDTO> unit = new ArrayList<AttestationRolesDTO>();
 
@@ -152,6 +170,15 @@ public class AttestationController {
 			if (ouura.isContainsExceptedUsers()) {
 				dto.setExceptedUsers(ouura.getExceptedUsers().stream().map(user -> user.getName() + " (" + user.getUserId() + ")").collect(Collectors.toList()));
 			}
+			
+			boolean checked = false;
+			if (toEmailChecked != null) {
+				long count = toEmailChecked.stream().filter(t -> t.getRoleId() == uratu.getRoleId() && t.getRoleType().equals(dto.getRoleType())).count();
+				if (count == 1) {
+					checked = true;
+				}
+			}
+			dto.setChecked(checked);
 
 			unit.add(dto);
 		}
@@ -208,6 +235,27 @@ public class AttestationController {
 		}
 		
 		List<User> users = userService.findByOrgUnit(orgUnit);
+		List<String> userUuids = users.stream().map(u -> u.getUuid()).collect(Collectors.toList());		
+		
+		// add the managers and substitutes that can't be attested in underlying orgUnits
+		pullUpManagersAndSubstitutes(
+				users,
+				userUuids,
+				orgUnit.getManager().getUuid(),
+				orgUnit.getManager().getManagerSubstitute() != null ? orgUnit.getManager().getManagerSubstitute().getUuid() : null,
+				orgUnit.getChildren());
+
+		// remove this orgUnit's manager and substitute from the user list
+		if (orgUnit.getManager() != null) {
+			users = users.stream().filter(u -> !u.getUuid().equals(orgUnit.getManager().getUuid())).collect(Collectors.toList());
+		
+			if (orgUnit.getManager().getManagerSubstitute() != null) {
+				users = users.stream().filter(u -> !u.getUuid().equals(orgUnit.getManager().getManagerSubstitute().getUuid())).collect(Collectors.toList());
+			}
+		}
+		
+		List<AttestationADDTO> aDDTOs = new ArrayList<>();
+		boolean adAttestationEnabled = settingService.isADAttestationEnabled();
 
 		for (User user : users) {
 			List<UserRoleAssignedToUser> allRolesForUser = userService.getAllUserRolesAssignedToUserExemptingRoleGroups(user, null);
@@ -312,11 +360,26 @@ public class AttestationController {
 								dto.setSystemRoleAssignmentsDTOs(systemRoleAssignmentsDTOs);
 							}
 						}
-						
+						boolean checked = false;
+						if (toBeRemovedChecked != null) {
+							long count = toBeRemovedChecked.stream().filter(t -> t.getAssignmentId().equals(dto.getAssignmentId()) && t.getUserUuid().equals(user.getUuid()) && t.getRoleType().equals(dto.getRoleType()) && t.isFromPosition() == dto.isFromPosition()).count();
+							if (count == 1) {
+								checked = true;
+							}
+						}
+						dto.setChecked(checked);
 						personal.add(dto);
 						break;
 					case POSITION:
 						dto.setUser(user);
+						boolean shouldBeChecked = false;
+						if (toBeRemovedChecked != null) {
+							long count = toBeRemovedChecked.stream().filter(t -> t.getAssignmentId().equals(dto.getAssignmentId()) && t.getUserUuid().equals(user.getUuid()) && t.getRoleType().equals(dto.getRoleType()) && t.isFromPosition() == dto.isFromPosition()).count();
+							if (count == 1) {
+								shouldBeChecked = true;
+							}
+						}
+						dto.setChecked(shouldBeChecked);
 						personal.add(dto);
 						break;
 					default:
@@ -335,6 +398,14 @@ public class AttestationController {
 					case DIRECT:
 					case POSITION:
 					case ROLEGROUP:
+						boolean checked = false;
+						if (toBeRemovedChecked != null) {
+							long count = toBeRemovedChecked.stream().filter(t -> t.getAssignmentId().equals(dto.getAssignmentId()) && t.getUserUuid().equals(user.getUuid()) && t.getRoleType().equals(dto.getRoleType()) && t.isFromPosition() == dto.isFromPosition()).count();
+							if (count == 1) {
+								checked = true;
+							}
+						}
+						dto.setChecked(checked);
 						dto.setUser(user);
 						personal.add(dto);
 						break;
@@ -342,17 +413,82 @@ public class AttestationController {
 						break;
 				}
 			}
+			
+			if (adAttestationEnabled) {
+				AttestationADDTO aDDTO = new AttestationADDTO();
+				aDDTO.setUser(user);
+				boolean checked = false;
+				if (notAprovedAdChecked != null) {
+					long count = notAprovedAdChecked.stream().filter(a -> a.getUserUuid().equals(user.getUuid())).count();
+					if (count == 1) {
+						checked = true;
+					}
+				}
+				aDDTO.setChecked(checked);
+				aDDTOs.add(aDDTO);
+			}
 		}
 
 		AttestationConfirmDTO confirmDTO = new AttestationConfirmDTO();
 		confirmDTO.setOrgUnitUuid(orgUnit.getUuid());
-
+		
 		model.addAttribute("personal", personal);
 		model.addAttribute("unit", unit);
 		model.addAttribute("orgUnit", orgUnit);
 		model.addAttribute("confirmDTO", confirmDTO);
+		model.addAttribute("ad", aDDTOs);
+	}
+	
+	// for each child, check the following
+	// - if the childs manager has a position in the child, pull manager up
+	// - if the childs managers substitute has a position in the child, pull the substitute up
+	// then, if the child did not have a manager, or if the manager was pulled up, continue with children. Note that we only need to check
+	// if we found a non-null manager that was not pulled up, as that manager would take care of any managers/substitutes further down.
+	private void pullUpManagersAndSubstitutes(List<User> users, List<String> userUuids, String topLevelManagerUuid, String topLevelSubstituteUuid, List<OrgUnit> children) {
+		if (children == null || children.size() == 0) {
+			return;
+		}
+		
+		for (OrgUnit child : children) {
+			User manager = child.getManager();
+			User substitute = (manager != null) ? manager.getManagerSubstitute() : null;
 
-		return "manager/attestations_walkthrough";
+			boolean stop = false;
+			
+			boolean managerMatchesTopLevel = (manager != null) ? Objects.equals(manager.getUuid(), topLevelManagerUuid) : false;
+			boolean substituteMatchesTopLevel = (substitute != null) ? Objects.equals(substitute.getUuid(), topLevelSubstituteUuid) : false;
+			boolean childManagerHasPositionInChild = (manager != null) ? manager.getPositions().stream().anyMatch(p -> Objects.equals(p.getOrgUnit().getUuid(), child.getUuid())) : false;
+			boolean childSubstituteHasPositionInChild = (substitute != null) ? substitute.getPositions().stream().anyMatch(p -> Objects.equals(p.getOrgUnit().getUuid(), child.getUuid())) : false;
+
+			// pull up manager?
+			if (managerMatchesTopLevel) {
+				; // no, we do not want this manager pulled up
+			}
+			else if (manager != null && childManagerHasPositionInChild) {
+				if (!userUuids.contains(manager.getUuid())) {
+					users.add(manager);
+					userUuids.add(manager.getUuid());
+				}
+
+				stop = true;
+			}
+			
+			// pull up substitute
+			if (substituteMatchesTopLevel) {
+				; // no, we do not want this substitute pulled up
+			}
+			else if (substitute != null && (childSubstituteHasPositionInChild || stop)) {
+				// note that we pull up the substitute if we pulled up the manager (the "stop" check above")
+				if (!userUuids.contains(substitute.getUuid())) {
+					users.add(substitute);
+					userUuids.add(substitute.getUuid());
+				}
+			}
+
+			if (!stop) {
+				pullUpManagersAndSubstitutes(users, userUuids, topLevelManagerUuid, topLevelSubstituteUuid, child.getChildren());
+			}
+		}
 	}
 
 	@RequireManagerRole
@@ -366,11 +502,15 @@ public class AttestationController {
 		List<AttestationConfirmPersonalListDTO> toBeRemoved = jsonDesializePersonal(confirmDTO.getToBeRemoved());
 		List<AttestationConfirmUnitListDTO> aprovedUnit = jsonDesializeUnit(confirmDTO.getAprovedUnit());
 		List<AttestationConfirmUnitListDTO> toEmail = jsonDesializeUnit(confirmDTO.getToEmail());
+		List<AttestationConfirmADListDTO> aprovedAd = jsonDesializeAD(confirmDTO.getAdAproved());
+		List<AttestationConfirmADListDTO> notAprovedAd = jsonDesializeAD(confirmDTO.getAdNotAproved());
 
 		List<AttestationConfirmShowDTO> AttestationRolesDTOsAprovedPersonal = new ArrayList<AttestationConfirmShowDTO>();
 		List<AttestationConfirmShowDTO> AttestationRolesDTOsAprovedUnit = new ArrayList<AttestationConfirmShowDTO>();
 		List<AttestationConfirmShowDTO> AttestationRolesDTOsToBeRemoved = new ArrayList<AttestationConfirmShowDTO>();
 		List<AttestationConfirmShowDTO> AttestationRolesDTOsToEmail = new ArrayList<AttestationConfirmShowDTO>();
+		List<AttestationConfirmADDTO> attestationADAprovedDTOs = new ArrayList<AttestationConfirmADDTO>();
+		List<AttestationConfirmADDTO> attestationADNotAprovedDTOs = new ArrayList<AttestationConfirmADDTO>();
 		
 		// deal with personal roles to be removed
 		for (AttestationConfirmPersonalListDTO tbr : toBeRemoved) {
@@ -774,6 +914,32 @@ public class AttestationController {
 
 			AttestationRolesDTOsAprovedUnit.add(dto);
 		}
+		
+		// deal with aproved AD
+		for (AttestationConfirmADListDTO aprovedADObj : aprovedAd) {
+			User user = userService.getByUuid(aprovedADObj.getUserUuid());
+			
+			if (user != null) {
+				AttestationConfirmADDTO dto = new AttestationConfirmADDTO();
+				dto.setUserName(user.getName());
+				dto.setUserUserId(user.getUserId());
+				dto.setUserUuid(user.getUuid());
+				attestationADAprovedDTOs.add(dto);
+			}
+		}
+		
+		// deal with not aproved AD
+		for (AttestationConfirmADListDTO notAprovedADObj : notAprovedAd) {
+			User user = userService.getByUuid(notAprovedADObj.getUserUuid());
+			
+			if (user != null) {
+				AttestationConfirmADDTO dto = new AttestationConfirmADDTO();
+				dto.setUserName(user.getName());
+				dto.setUserUserId(user.getUserId());
+				dto.setUserUuid(user.getUuid());
+				attestationADNotAprovedDTOs.add(dto);
+			}
+		}
 
 		model.addAttribute("dtoToEmail", AttestationRolesDTOsToEmail);
 		model.addAttribute("dtoToBeRemoved", AttestationRolesDTOsToBeRemoved);
@@ -784,10 +950,43 @@ public class AttestationController {
 		model.addAttribute("aprovedPersonal", aprovedPersonal);
 		model.addAttribute("aprovedUnit", aprovedUnit);
 		model.addAttribute("orgUnitUuid", confirmDTO.getOrgUnitUuid());
+		model.addAttribute("dtoAprovedAD", attestationADAprovedDTOs);
+		model.addAttribute("dtoNotAprovedAD", attestationADNotAprovedDTOs);
+		model.addAttribute("confirmDTO", confirmDTO);
 
 		return "manager/attestations_ou_confirm";
 	}
+	
+	@RequireManagerRole
+	@PostMapping("/ui/users/attestations/back")
+	public String getAttestationsWalkthroughBack(Model model, @ModelAttribute("confirmDTO") AttestationConfirmDTO confirmDTO, BindingResult bindingResult, HttpServletRequest httpServletRequest) throws JsonParseException, JsonMappingException, IOException {
+		if (bindingResult.hasErrors()) {
+			return "redirect:/ui/users/attestations/" + confirmDTO.getOrgUnitUuid();
+		}
+		
+		OrgUnit orgUnit = orgUnitService.getByUuid(confirmDTO.getOrgUnitUuid());
+		if (orgUnit == null) {
+			log.warn("Unable to fetch OrgUnit with uuid: " + confirmDTO.getOrgUnitUuid());
 
+			return "redirect:/ui/users/attestations";
+		}
+
+		if (orgUnit.getManager() == null || !orgUnit.getManager().getUserId().equals(SecurityUtil.getUserId())) {
+			log.warn("logged in user " + SecurityUtil.getUserId() + " is not the manager for OU " + orgUnit.getUuid());
+			
+			return "redirect:/ui/users/attestations";
+		}
+
+		List<AttestationConfirmPersonalListDTO> toBeRemoved = jsonDesializePersonal(confirmDTO.getToBeRemoved());
+		List<AttestationConfirmUnitListDTO> toEmail = jsonDesializeUnit(confirmDTO.getToEmail());
+		List<AttestationConfirmADListDTO> notAprovedAd = jsonDesializeAD(confirmDTO.getAdNotAproved());
+		
+		handleAttestationWalkthrough(model, orgUnit, toBeRemoved, toEmail, notAprovedAd);
+
+		return "manager/attestations_walkthrough";
+		
+	}
+	
 	private List<AttestationConfirmPersonalListDTO> jsonDesializePersonal(String json) throws IOException, JsonParseException, JsonMappingException {
 		var mapper = new ObjectMapper();
 		var mapCollectionType = mapper.getTypeFactory().constructCollectionType(List.class, AttestationConfirmPersonalListDTO.class);
@@ -798,6 +997,13 @@ public class AttestationController {
 	private List<AttestationConfirmUnitListDTO> jsonDesializeUnit(String json) throws IOException, JsonParseException, JsonMappingException {
 		var mapper = new ObjectMapper();
 		var mapCollectionType = mapper.getTypeFactory().constructCollectionType(List.class, AttestationConfirmUnitListDTO.class);
+
+		return mapper.readValue(json, mapCollectionType);
+	}
+	
+	private List<AttestationConfirmADListDTO> jsonDesializeAD(String json) throws IOException, JsonParseException, JsonMappingException {
+		var mapper = new ObjectMapper();
+		var mapCollectionType = mapper.getTypeFactory().constructCollectionType(List.class, AttestationConfirmADListDTO.class);
 
 		return mapper.readValue(json, mapCollectionType);
 	}

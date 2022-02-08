@@ -68,7 +68,7 @@ public class ItSystemController {
 	
 	@Autowired
 	private PendingADUpdateService pendingADUpdateService;
-	
+
 	@InitBinder(value = { "itSystemForm" })
 	public void initBinderItSystemForm(WebDataBinder binder) {
 		binder.addValidators(itSystemValidator);
@@ -266,6 +266,7 @@ public class ItSystemController {
 			operation.setSystemRoleIdentifier(systemRole.getIdentifier());
 			operation.setTimestamp(new Date());
 			operation.setAdGroupType(systemRoleForm.getAdGroupType());
+			operation.setUniversal(systemRoleForm.isUniversal());
 
 			pendingADUpdateService.save(operation);
 		}

@@ -6,6 +6,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import org.modelmapper.ModelMapper;
 import org.modelmapper.TypeToken;
@@ -297,7 +298,7 @@ public class ReadOnlyApi {
 	}
 
 	@RequestMapping(value = "/api/read/rolegroups", method = RequestMethod.GET)
-	private ResponseEntity<List<RoleGroupReadDTO>> list() {
+	public ResponseEntity<List<RoleGroupReadDTO>> list() {
 		List<RoleGroup> roleGroups = roleGroupService.getAll();
 		Type targetListType = new TypeToken<List<RoleGroupReadDTO>>() {}.getType();
 		List<RoleGroupReadDTO> roleGroupReadDTOS = mapper.map(roleGroups, targetListType);
@@ -306,13 +307,23 @@ public class ReadOnlyApi {
 	}
 
 	@RequestMapping(value = "/api/read/rolegroups/{id}", method = RequestMethod.GET)
-	private ResponseEntity<RoleGroupWithUserRolesReadDTO> getRolegroupsRoles(@PathVariable("id") long rolegroupId) {
+	public ResponseEntity<RoleGroupWithUserRolesReadDTO> getRolegroupsRoles(@PathVariable("id") long rolegroupId) {
 		RoleGroup roleGroup = roleGroupService.getById(rolegroupId);
 		if (roleGroup == null) {
 			return new ResponseEntity<>(HttpStatus.NOT_FOUND);
 		}
 
-		RoleGroupWithUserRolesReadDTO roleGroupDTO = mapper.map(roleGroup, RoleGroupWithUserRolesReadDTO.class);
+		RoleGroupWithUserRolesReadDTO roleGroupDTO = new RoleGroupWithUserRolesReadDTO();
+		roleGroupDTO.setId(roleGroup.getId());
+		roleGroupDTO.setName(roleGroup.getName());
+		roleGroupDTO.setRoles(new ArrayList<>());
+
+		List<UserRole> userRoles = roleGroup.getUserRoleAssignments().stream().map(ura -> ura.getUserRole()).collect(Collectors.toList());
+		for (UserRole userRole : userRoles) {
+			UserRoleReadDTO userRoleDTO = new UserRoleReadDTO(userRole);
+
+			roleGroupDTO.getRoles().add(userRoleDTO);
+		}
 
 		return new ResponseEntity<>(roleGroupDTO, HttpStatus.OK);
 	}
@@ -323,11 +334,7 @@ public class ReadOnlyApi {
 		
 		List<UserRoleReadDTO> list = new ArrayList<UserRoleReadDTO>();
 		for (UserRole userRole : userRoles) {
-			UserRoleReadDTO dto = new UserRoleReadDTO();			
-			dto.setDescription(userRole.getDescription());
-			dto.setId(userRole.getId());
-			dto.setItSystemName(userRole.getItSystem().getName());
-			dto.setName(userRole.getName());
+			UserRoleReadDTO dto = new UserRoleReadDTO(userRole);
 			
 			list.add(dto);
 		}

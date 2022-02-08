@@ -1,1 +1,2 @@
 ﻿# 2021-07-22  -  2.0.0  -  support for creating distribution groups 
+# 2021-12-02  -  2.0.1  -  send maxHead param when cleaning up queue

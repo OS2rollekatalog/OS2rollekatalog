@@ -13,15 +13,11 @@ import org.springframework.util.StringUtils;
 import dk.digitalidentity.rc.dao.SettingsDao;
 import dk.digitalidentity.rc.dao.model.Setting;
 import dk.digitalidentity.rc.dao.model.enums.CheckupIntervalEnum;
-import dk.digitalidentity.rc.service.model.OrganisationEventAction;
+import dk.digitalidentity.rc.dao.model.enums.NotificationType;
 import dk.digitalidentity.rc.service.model.WhoCanRequest;
 
 @Service
 public class SettingsService {
-	private static final String SETTING_ORGANISATION_EVENTS_ENABLED = "OrganisationEventsEnabled";
-	private static final String SETTING_OU_NEW_MANAGER_ACTION = "OuNewManagerAction";
-	private static final String SETTING_OU_NEW_PARENT_ACTION = "OuNewParentAction";
-	private static final String SETTING_USER_NEW_POSITION_ACTION = "UserNewPositionAction";
 	private static final String SETTING_IT_SYSTEM_MARKUP_ENABLED = "ItSystemMarkup";
 	private static final String SETTING_REQUEST_APPROVE_ENABLED = "RequestApproveEnabled";
 	private static final String SETTING_REQUEST_APPROVE_WHO = "RequestApproveWho";
@@ -40,17 +36,10 @@ public class SettingsService {
 	private static final String SETTING_EMAIL_AFTER_REMINDERS = "EmailAfterReminders";
 	private static final String SETTING_EMAIL_ATTESTATION_REPORT = "EmailAttestationReport";
 	private static final String SETTING_ATTESTATION_ROLE_DELETION_ENABLED = "AttestationRoleDeletionEnabled";
+	private static final String SETTING_AD_ATTESTATION = "AttestationADEnabled";
 
 	@Autowired
 	private SettingsDao settingsDao;
-
-	public boolean isOrganisationEventsEnabled() {
-		return isKeyEnabled(SETTING_ORGANISATION_EVENTS_ENABLED);
-	}
-
-	public void setOrganisationEventsEnabled(boolean enabled) {
-		setKeyEnabled(enabled, SETTING_ORGANISATION_EVENTS_ENABLED);
-	}
 	
 	public boolean isItSystemMarkupEnabled() {
 		return isKeyEnabled(SETTING_IT_SYSTEM_MARKUP_ENABLED);
@@ -312,57 +301,6 @@ public class SettingsService {
 		settingsDao.save(setting);
 	}
 
-	public OrganisationEventAction getOuNewManagerAction() {
-		String value = getKeyWithDefault(SETTING_OU_NEW_MANAGER_ACTION, OrganisationEventAction.RIGHTS_KEPT.toString());
-		
-		return OrganisationEventAction.valueOf(value);
-	}
-
-	public OrganisationEventAction getOuNewParentAction() {
-		String value = getKeyWithDefault(SETTING_OU_NEW_PARENT_ACTION, OrganisationEventAction.RIGHTS_KEPT.toString());
-		
-		return OrganisationEventAction.valueOf(value);
-	}
-
-	public OrganisationEventAction getUserNewPositionAction() {
-		String value = getKeyWithDefault(SETTING_USER_NEW_POSITION_ACTION, OrganisationEventAction.RIGHTS_KEPT.toString());
-		
-		return OrganisationEventAction.valueOf(value);
-	}
-
-	public void setOuNewManagerAction(OrganisationEventAction action) {
-		Setting setting = settingsDao.getByKey(SETTING_OU_NEW_MANAGER_ACTION);
-		if (setting == null) {
-			setting = new Setting();
-			setting.setKey(SETTING_OU_NEW_MANAGER_ACTION);
-		}
-		
-		setting.setValue(action.toString());
-		settingsDao.save(setting);
-	}
-
-	public void setOuNewParentAction(OrganisationEventAction action) {
-		Setting setting = settingsDao.getByKey(SETTING_OU_NEW_PARENT_ACTION);
-		if (setting == null) {
-			setting = new Setting();
-			setting.setKey(SETTING_OU_NEW_PARENT_ACTION);
-		}
-		
-		setting.setValue(action.toString());
-		settingsDao.save(setting);
-	}
-
-	public void setUserNewPositionAction(OrganisationEventAction action) {
-		Setting setting = settingsDao.getByKey(SETTING_USER_NEW_POSITION_ACTION);
-		if (setting == null) {
-			setting = new Setting();
-			setting.setKey(SETTING_USER_NEW_POSITION_ACTION);
-		}
-		
-		setting.setValue(action.toString());
-		settingsDao.save(setting);
-	}
-
 	/// helper methods
 
 	private String getKeyWithDefault(String key, String defaultValue) {
@@ -500,6 +438,38 @@ public class SettingsService {
 
 	public void setAttestationRoleDeletionEnabled(boolean enabled) {
 		setKeyEnabled(enabled, SETTING_ATTESTATION_ROLE_DELETION_ENABLED);
+	}
+	
+	public boolean isADAttestationEnabled() {
+		return isKeyEnabled(SETTING_AD_ATTESTATION);
+	}
+
+	public void setADAttestationEnabled(boolean enabled) {
+		setKeyEnabled(enabled, SETTING_AD_ATTESTATION);
+	}
+	
+	public boolean isNotificationTypeEnabled(NotificationType notificationType) {
+		return getBooleanWithDefault(notificationType.toString(), true);
+	}
+	
+	private boolean getBooleanWithDefault(String key, boolean defaultValue) {
+		Setting setting = settingsDao.getByKey(key);
+		if (setting != null) {
+			return Boolean.parseBoolean(setting.getValue());
+		}
+
+		return defaultValue;
+	}
+	
+	public void setNotificationTypeEnabled(NotificationType notificationType, boolean enabled) {
+		Setting setting = settingsDao.getByKey(notificationType.toString());
+		if (setting == null) {
+			setting = new Setting();
+			setting.setKey(notificationType.toString());
+		}
+
+		setting.setValue(Boolean.toString(enabled));
+		settingsDao.save(setting);
 	}
 
 }

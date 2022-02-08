@@ -30,3 +30,15 @@
              ROL-149 Oversat visning af dataafgrænsninger på organisationsenheder
              ROL-153 Sortering af enheder
              ROL-159 Rapport over dobbelt-tildelinger af rollebuketter og ryd-op knap
+
+2022.02.08 - Release 2022r1
+             [ROL-171](https://os2web.atlassian.net/browse/ROL-171)
+             [ROL-180](https://os2web.atlassian.net/browse/ROL-180)
+             [ROL-178](https://os2web.atlassian.net/browse/ROL-178)
+             [ROL-182](https://os2web.atlassian.net/browse/ROL-182)
+             [ROL-154](https://os2web.atlassian.net/browse/ROL-154)
+             [ROL-183](https://os2web.atlassian.net/browse/ROL-183)
+             [ROL-175](https://os2web.atlassian.net/browse/ROL-175)
+             [ROL-189](https://os2web.atlassian.net/browse/ROL-189)
+
+

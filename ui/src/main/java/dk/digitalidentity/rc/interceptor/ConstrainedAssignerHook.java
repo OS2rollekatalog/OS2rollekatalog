@@ -30,6 +30,11 @@ public class ConstrainedAssignerHook implements RoleChangeHook {
 			throw new SecurityException("user is prohibited from modifying user: " + user.getEntityId());
 		}		
 	}
+	
+	@Override
+	public void interceptActivateUser(User user) {
+		; // not relevant
+	}
 
 	@Override
 	public void interceptAddUserRoleAssignmentOnUser(User user, UserRole userRole) {
@@ -140,6 +145,16 @@ public class ConstrainedAssignerHook implements RoleChangeHook {
 
 	@Override
 	public void interceptRemovePositionOnUser(User user, Position position) {
+		; // not relevant
+	}
+
+	@Override
+	public void interceptEditUserRoleAssignmentOnOrgUnit(OrgUnit ou, UserRole userRole) {
+		; // not relevant
+	}
+
+	@Override
+	public void interceptEditRoleGroupAssignmentOnOrgUnit(OrgUnit ou, RoleGroup roleGroup) {
 		; // not relevant
 	}
 }

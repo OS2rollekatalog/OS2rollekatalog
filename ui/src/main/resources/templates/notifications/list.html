@@ -284,7 +284,6 @@
 				$.each($('.input-filter', table.table().footer()), function () {
 					var column = table.column($(this).index());
 					$('input', this).on('keyup change', function () {
-						console.log("searching: " + this.value);
 						if (column.search() !== this.value) {
 							column
 								.search(this.value)

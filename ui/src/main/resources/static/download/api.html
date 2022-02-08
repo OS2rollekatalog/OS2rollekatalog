@@ -422,6 +422,7 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 <ul class="sectlevel0">
 <li><a href="#resources-index">AD FS API</a>
 <ul class="sectlevel1">
+<li><a href="#_required_role">Required Role</a></li>
 <li><a href="#_get_roles_as_oio_bpp">Get Roles as OIO-BPP</a>
 <ul class="sectlevel2">
 <li><a href="#_path_parameters">Path Parameters</a></li>
@@ -455,6 +456,7 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 </li>
 <li><a href="#_titles_api">Titles API</a>
 <ul class="sectlevel1">
+<li><a href="#_required_role_2">Required Role</a></li>
 <li><a href="#_list_all_titles">List all titles</a>
 <ul class="sectlevel2">
 <li><a href="#_request_headers_4">Request Headers</a></li>
@@ -474,6 +476,7 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 </li>
 <li><a href="#_itsystem_api">ItSystem API</a>
 <ul class="sectlevel1">
+<li><a href="#_required_role_3">Required Role</a></li>
 <li><a href="#_list_all_it_systems">List all it-systems</a>
 <ul class="sectlevel2">
 <li><a href="#_request_headers_6">Request Headers</a></li>
@@ -503,6 +506,7 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 </li>
 <li><a href="#_read_api">Read API</a>
 <ul class="sectlevel1">
+<li><a href="#_required_role_4">Required Role</a></li>
 <li><a href="#_find_all_users_with_a_given_role">Find all users with a given role</a>
 <ul class="sectlevel2">
 <li><a href="#_path_parameters_6">Path Parameters</a></li>
@@ -597,6 +601,7 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 </li>
 <li><a href="#_role_assignment_api">Role Assignment API</a>
 <ul class="sectlevel1">
+<li><a href="#_required_role_5">Required Role</a></li>
 <li><a href="#_assign_role_to_user">Assign role to user</a>
 <ul class="sectlevel2">
 <li><a href="#_path_parameters_14">Path Parameters</a></li>
@@ -665,6 +670,7 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 </li>
 <li><a href="#_organisation_management_api">Organisation Management API</a>
 <ul class="sectlevel1">
+<li><a href="#_required_role_6">Required Role</a></li>
 <li><a href="#_load_organisation_v3">Load Organisation V3</a>
 <ul class="sectlevel2">
 <li><a href="#_request_body_3">Request Body</a></li>
@@ -677,6 +683,7 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 </li>
 <li><a href="#_ad_sync_api">AD Sync API</a>
 <ul class="sectlevel1">
+<li><a href="#_required_role_7">Required Role</a></li>
 <li><a href="#_get_group_membership_changes">Get group membership changes</a>
 <ul class="sectlevel2">
 <li><a href="#_request_headers_28">Request Headers</a></li>
@@ -703,6 +710,14 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 <div class="openblock partintro">
 <div class="content">
 The following operations are intended for AD FS integration, and expose information about a given user, which can be used to issue SAML assertions containing all relevant information about the user
+</div>
+</div>
+<div class="sect1">
+<h2 id="_required_role"><a class="link" href="#_required_role">Required Role</a></h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>All the operations in the AD FS API are available to any clients that has at least the "Læseadgang" role assigned to them.</p>
+</div>
 </div>
 </div>
 <div class="sect1">
@@ -824,14 +839,14 @@ Host: www.rollekatalog.dk</code></pre>
 <div class="listingblock">
 <div class="content">
 <pre class="highlight nowrap"><code class="language-http" data-lang="http">HTTP/1.1 200 OK
-Content-Length: 647
+Content-Length: 682
 Content-Type: application/json;charset=UTF-8
 
 {
-  "nameID" : "C=DK,O=29189714,CN=Bente Børgesen,Serial=fb075871-153d-41e7-97c4-825093cbd2fb",
-  "oioBPP" : "PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiPz48YnBwOlByaXZpbGVnZUxpc3QgeG1sbnM6YnBwPSJodHRwOi8vaXRzdC5kay9vaW9zYW1sL2Jhc2ljX3ByaXZpbGVnZV9wcm9maWxlIiB4bWxuczp4c2k9Imh0dHA6Ly93d3cudzMub3JnLzIwMDEvWE1MU2NoZW1hLWluc3RhbmNlIj48UHJpdmlsZWdlR3JvdXAgU2NvcGU9InVybjpkazpnb3Y6c2FtbDpjdnJOdW1iZXJJZGVudGlmaWVyOm51bGwiPjxQcml2aWxlZ2U+aHR0cDovL2tvbWJpdC5kay9yb2xlcy91c2Vyc3lzdGVtcm9sZS9zZV9zYWcvMTwvUHJpdmlsZWdlPjwvUHJpdmlsZWdlR3JvdXA+PC9icHA6UHJpdmlsZWdlTGlzdD4=",
+  "nameID" : "C=DK,O=12345678,CN=Bente Børgesen,Serial=6b5bdbbb-9b9d-4636-80e4-dea991cb0e16",
+  "oioBPP" : "PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiPz48YnBwOlByaXZpbGVnZUxpc3QgeG1sbnM6YnBwPSJodHRwOi8vaXRzdC5kay9vaW9zYW1sL2Jhc2ljX3ByaXZpbGVnZV9wcm9maWxlIiB4bWxuczp4c2k9Imh0dHA6Ly93d3cudzMub3JnLzIwMDEvWE1MU2NoZW1hLWluc3RhbmNlIj48UHJpdmlsZWdlR3JvdXAgU2NvcGU9InVybjpkazpnb3Y6c2FtbDpjdnJOdW1iZXJJZGVudGlmaWVyOjEyMzQ1Njc4Ij48UHJpdmlsZWdlPmh0dHA6Ly9mYXZyc2tvdi5kay9yb2xlcy9qb2Jyb2xlL0tPTUJJVF8yLzE8L1ByaXZpbGVnZT48L1ByaXZpbGVnZUdyb3VwPjwvYnBwOlByaXZpbGVnZUxpc3Q+",
   "roleMap" : {
-    "KOMBIT_2" : "KOMBIT System role 2 (KOMBIT System)"
+    "http://favrskov.dk/roles/jobrole/KOMBIT_2/1" : "KOMBIT System role 2 (KOMBIT System)"
   }
 }</code></pre>
 </div>
@@ -977,7 +992,7 @@ Content-Length: 324
 Content-Type: application/json;charset=UTF-8
 
 {
-  "nameID" : "C=DK,O=29189714,CN=Bente Børgesen,Serial=fb075871-153d-41e7-97c4-825093cbd2fb",
+  "nameID" : "C=DK,O=12345678,CN=Bente Børgesen,Serial=6b5bdbbb-9b9d-4636-80e4-dea991cb0e16",
   "userRoles" : [ "KOMBIT_2" ],
   "systemRoles" : [ "http://kombit.dk/roles/usersystemrole/se_sag/1" ],
   "dataRoles" : [ ],
@@ -1083,7 +1098,7 @@ Content-Length: 97
 Content-Type: application/json;charset=UTF-8
 
 {
-  "nameID" : "C=DK,O=29189714,CN=Bente Børgesen,Serial=fb075871-153d-41e7-97c4-825093cbd2fb"
+  "nameID" : "C=DK,O=12345678,CN=Bente Børgesen,Serial=6b5bdbbb-9b9d-4636-80e4-dea991cb0e16"
 }</code></pre>
 </div>
 </div>
@@ -1091,6 +1106,19 @@ Content-Type: application/json;charset=UTF-8
 </div>
 </div>
 <h1 id="_titles_api" class="sect0"><a class="link" href="#_titles_api">Titles API</a></h1>
+<div class="openblock partintro">
+<div class="content">
+This API is used to manage the Titles available in OS2rollekatalog organisation data.
+</div>
+</div>
+<div class="sect1">
+<h2 id="_required_role_2"><a class="link" href="#_required_role_2">Required Role</a></h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>All the operations in the Title API are available to any clients that has at least the "Organisation" role assigned to them.</p>
+</div>
+</div>
+</div>
 <div class="sect1">
 <h2 id="_list_all_titles"><a class="link" href="#_list_all_titles">List all titles</a></h2>
 <div class="sectionbody">
@@ -1166,10 +1194,10 @@ Content-Length: 160
 Content-Type: application/json;charset=UTF-8
 
 [ {
-  "uuid" : "2b6476f3-aa8a-4650-b4d1-298c6bf23924",
+  "uuid" : "7fffb026-4d6e-4b7d-a587-157a872f4be3",
   "name" : "Title Two"
 }, {
-  "uuid" : "45a15b4f-8c90-4247-bf44-aa8ab3579e08",
+  "uuid" : "825cc06c-98eb-441e-907b-72f0db77911f",
   "name" : "Title One"
 } ]</code></pre>
 </div>
@@ -1260,6 +1288,14 @@ Content-Type: application/json
 </div>
 <h1 id="_itsystem_api" class="sect0"><a class="link" href="#_itsystem_api">ItSystem API</a></h1>
 <div class="sect1">
+<h2 id="_required_role_3"><a class="link" href="#_required_role_3">Required Role</a></h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>All the operations in the ItSystem API are available to any clients that has at least the "Rolleadministration" role assigned to them.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
 <h2 id="_list_all_it_systems"><a class="link" href="#_list_all_it_systems">List all it-systems</a></h2>
 <div class="sectionbody">
 <div id="resources-itsystem-manage-list" class="paragraph">
@@ -1336,10 +1372,10 @@ Host: www.rollekatalog.dk</code></pre>
 <div class="content">
 <pre class="highlight nowrap"><code class="language-http" data-lang="http">HTTP/1.1 200 OK
 Content-Type: application/json;charset=UTF-8
-Content-Length: 59
+Content-Length: 58
 
 [ {
-  "id" : 10,
+  "id" : 4,
   "name" : "AD",
   "identifier" : "AD"
 } ]</code></pre>
@@ -1424,6 +1460,11 @@ Content-Length: 59
 <td class="tableblock halign-left valign-top"><p class="tableblock">Name of the it-system</p></td>
 </tr>
 <tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>readonly</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>Boolean</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Indicating if the system can only be read, and not written to</p></td>
+</tr>
+<tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock"><code>identifier</code></p></td>
 <td class="tableblock halign-left valign-top"><p class="tableblock"><code>String</code></p></td>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Technical ID key for the it-system (not always unique)</p></td>
@@ -1454,6 +1495,11 @@ Content-Length: 59
 <td class="tableblock halign-left valign-top"><p class="tableblock">Description of systemrole</p></td>
 </tr>
 <tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>systemRoles[].users</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>Null</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Users with this assignment</p></td>
+</tr>
+<tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock"><code>userRoles[]</code></p></td>
 <td class="tableblock halign-left valign-top"><p class="tableblock"><code>Array</code></p></td>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Array of userroles currently on it-system</p></td>
@@ -1480,7 +1526,7 @@ Content-Length: 59
 <h3 id="_example_request_7"><a class="link" href="#_example_request_7">Example request</a></h3>
 <div class="listingblock">
 <div class="content">
-<pre class="highlight nowrap"><code class="language-http" data-lang="http">GET /api/itsystem/manage/8 HTTP/1.1
+<pre class="highlight nowrap"><code class="language-http" data-lang="http">GET /api/itsystem/manage/4 HTTP/1.1
 ApiKey: f7d8ea9e-53fe-4948-b600-fbc94d4eb0fb
 Host: www.rollekatalog.dk</code></pre>
 </div>
@@ -1491,38 +1537,49 @@ Host: www.rollekatalog.dk</code></pre>
 <div class="listingblock">
 <div class="content">
 <pre class="highlight nowrap"><code class="language-http" data-lang="http">HTTP/1.1 200 OK
+Content-Length: 1043
 Content-Type: application/json;charset=UTF-8
-Content-Length: 773
 
 {
-  "id" : 8,
+  "id" : 4,
   "identifier" : "AD",
   "systemRoles" : [ {
     "description" : "description...",
     "name" : "AD Group 1",
-    "identifier" : "testgroup-001"
+    "identifier" : "testgroup-001",
+    "users" : null
   }, {
     "description" : "description...",
     "name" : "AD Group 2",
-    "identifier" : "testgroup-002"
+    "identifier" : "testgroup-002",
+    "users" : null
   }, {
     "description" : "description...",
     "name" : "AD Group 3",
-    "identifier" : "testgroup-003"
+    "identifier" : "testgroup-003",
+    "users" : null
   }, {
     "description" : "description...",
     "name" : "AD Group 4",
-    "identifier" : "testgroup-004"
+    "identifier" : "testgroup-004",
+    "users" : null
   }, {
     "description" : "description...",
     "name" : "AD Group 5",
-    "identifier" : "testgroup-005"
+    "identifier" : "testgroup-005",
+    "users" : null
   } ],
   "convertRolesEnabled" : false,
+  "readonly" : false,
   "userRoles" : [ {
-    "id" : 9,
+    "id" : 5,
     "name" : "AD role 1",
     "identifier" : "AD_1",
+    "systemRoleAssignments" : null
+  }, {
+    "id" : 7,
+    "name" : "new test role",
+    "identifier" : "id-d9fef900-0e75-4d0c-8ebf-3571f9d0c457",
     "systemRoleAssignments" : null
   } ],
   "name" : "AD"
@@ -1634,7 +1691,7 @@ Content-Length: 773
 <h3 id="_example_request_8"><a class="link" href="#_example_request_8">Example request</a></h3>
 <div class="listingblock">
 <div class="content">
-<pre class="highlight nowrap"><code class="language-http" data-lang="http">POST /api/itsystem/manage/12 HTTP/1.1
+<pre class="highlight nowrap"><code class="language-http" data-lang="http">POST /api/itsystem/manage/4 HTTP/1.1
 ApiKey: f7d8ea9e-53fe-4948-b600-fbc94d4eb0fb
 Host: www.rollekatalog.dk
 Content-Length: 273
@@ -1659,6 +1716,14 @@ Content-Type: application/json
 </div>
 </div>
 <h1 id="_read_api" class="sect0"><a class="link" href="#_read_api">Read API</a></h1>
+<div class="sect1">
+<h2 id="_required_role_4"><a class="link" href="#_required_role_4">Required Role</a></h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>All the operations in the Read API are available to any clients that has at least the "Læseadgang" role assigned to them.</p>
+</div>
+</div>
+</div>
 <div class="sect1">
 <h2 id="_find_all_users_with_a_given_role"><a class="link" href="#_find_all_users_with_a_given_role">Find all users with a given role</a></h2>
 <div class="sectionbody">
@@ -1829,7 +1894,7 @@ output should only be directly assigned roles (this is the default behaviour)</p
 <h3 id="_example_request_9"><a class="link" href="#_example_request_9">Example request</a></h3>
 <div class="listingblock">
 <div class="content">
-<pre class="highlight nowrap"><code class="language-http" data-lang="http">GET /api/read/assigned/24?indirectRoles=true HTTP/1.1
+<pre class="highlight nowrap"><code class="language-http" data-lang="http">GET /api/read/assigned/6?indirectRoles=true HTTP/1.1
 ApiKey: f7d8ea9e-53fe-4948-b600-fbc94d4eb0fb
 Host: www.rollekatalog.dk</code></pre>
 </div>
@@ -1840,36 +1905,36 @@ Host: www.rollekatalog.dk</code></pre>
 <div class="listingblock">
 <div class="content">
 <pre class="highlight nowrap"><code class="language-http" data-lang="http">HTTP/1.1 200 OK
-Content-Length: 1015
+Content-Length: 1021
 Content-Type: application/json;charset=UTF-8
 
 {
-  "roleId" : 24,
+  "roleId" : 6,
   "roleIdentifier" : "KOMBIT_2",
   "roleName" : "KOMBIT System role 2",
   "systemRoles" : [ {
     "roleName" : "Se sag",
     "roleIdentifier" : "http://kombit.dk/roles/usersystemrole/se_sag/1",
     "roleConstraintValues" : [ {
-      "constraintType" : "http://sts.kombit.dk/constraint/kle/1",
+      "constraintType" : "https://sts.kombit.dk/constraints/itsystem/1",
       "constraintValue" : "27.18.00"
     } ]
   } ],
   "assignments" : [ {
-    "uuid" : "2bf0a841-788f-43a9-b88f-7e60d3f73665",
-    "extUuid" : "2bf0a841-788f-43a9-b88f-7e60d3f73665",
+    "uuid" : "041fb4d1-b599-4226-9229-926223633530",
+    "extUuid" : "041fb4d1-b599-4226-9229-926223633530",
     "userId" : "fnur",
     "name" : "Frederikke Urgdal",
     "assignedThrough" : [ "DIRECT" ]
   }, {
-    "uuid" : "fb075871-153d-41e7-97c4-825093cbd2fb",
-    "extUuid" : "fb075871-153d-41e7-97c4-825093cbd2fb",
+    "uuid" : "6b5bdbbb-9b9d-4636-80e4-dea991cb0e16",
+    "extUuid" : "6b5bdbbb-9b9d-4636-80e4-dea991cb0e16",
     "userId" : "bbog",
     "name" : "Bente Børgesen",
     "assignedThrough" : [ "ROLEGROUP" ]
   }, {
-    "uuid" : "d85cd96c-4900-4c61-93b3-9877a6974f74",
-    "extUuid" : "d85cd96c-4900-4c61-93b3-9877a6974f74",
+    "uuid" : "9d58eb4a-1dea-489f-9630-87e3921d1a42",
+    "extUuid" : "9d58eb4a-1dea-489f-9630-87e3921d1a42",
     "userId" : "user1",
     "name" : "Justin McCase",
     "assignedThrough" : [ "ORGUNIT" ]
@@ -2061,33 +2126,39 @@ Host: www.rollekatalog.dk</code></pre>
 <div class="listingblock">
 <div class="content">
 <pre class="highlight nowrap"><code class="language-http" data-lang="http">HTTP/1.1 200 OK
-Content-Length: 819
+Content-Length: 1025
 Content-Type: application/json;charset=UTF-8
 
 [ {
-  "roleId" : 32,
+  "roleId" : 6,
   "roleIdentifier" : "KOMBIT_2",
   "roleName" : "KOMBIT System role 2",
   "systemRoles" : [ {
     "roleName" : "Se sag",
     "roleIdentifier" : "http://kombit.dk/roles/usersystemrole/se_sag/1",
     "roleConstraintValues" : [ {
-      "constraintType" : "http://sts.kombit.dk/constraint/kle/1",
+      "constraintType" : "https://sts.kombit.dk/constraints/itsystem/1",
       "constraintValue" : "27.18.00"
     } ]
   } ],
   "assignments" : [ {
-    "uuid" : "23664123-b9e7-404f-979e-03f59ea41d11",
-    "extUuid" : "23664123-b9e7-404f-979e-03f59ea41d11",
-    "userId" : "user1",
-    "name" : "Justin McCase",
-    "assignedThrough" : [ "DIRECT", "ORGUNIT" ]
+    "uuid" : "041fb4d1-b599-4226-9229-926223633530",
+    "extUuid" : "041fb4d1-b599-4226-9229-926223633530",
+    "userId" : "fnur",
+    "name" : "Frederikke Urgdal",
+    "assignedThrough" : [ "DIRECT" ]
   }, {
-    "uuid" : "fb075871-153d-41e7-97c4-825093cbd2fb",
-    "extUuid" : "fb075871-153d-41e7-97c4-825093cbd2fb",
+    "uuid" : "6b5bdbbb-9b9d-4636-80e4-dea991cb0e16",
+    "extUuid" : "6b5bdbbb-9b9d-4636-80e4-dea991cb0e16",
     "userId" : "bbog",
     "name" : "Bente Børgesen",
     "assignedThrough" : [ "ROLEGROUP" ]
+  }, {
+    "uuid" : "9d58eb4a-1dea-489f-9630-87e3921d1a42",
+    "extUuid" : "9d58eb4a-1dea-489f-9630-87e3921d1a42",
+    "userId" : "user1",
+    "name" : "Justin McCase",
+    "assignedThrough" : [ "ORGUNIT" ]
   } ]
 } ]</code></pre>
 </div>
@@ -2187,7 +2258,7 @@ Content-Type: application/json;charset=UTF-8
 <h3 id="_example_request_11"><a class="link" href="#_example_request_11">Example request</a></h3>
 <div class="listingblock">
 <div class="content">
-<pre class="highlight nowrap"><code class="language-http" data-lang="http">GET /api/read/ous/c9a8f0b7-08ad-4cc6-9af4-f605a2473cbe/roles HTTP/1.1
+<pre class="highlight nowrap"><code class="language-http" data-lang="http">GET /api/read/ous/736e372d-70cb-4079-8394-64be603b1240/roles HTTP/1.1
 ApiKey: f7d8ea9e-53fe-4948-b600-fbc94d4eb0fb
 Host: www.rollekatalog.dk</code></pre>
 </div>
@@ -2294,7 +2365,7 @@ Content-Type: application/json;charset=UTF-8
 <h3 id="_example_request_12"><a class="link" href="#_example_request_12">Example request</a></h3>
 <div class="listingblock">
 <div class="content">
-<pre class="highlight nowrap"><code class="language-http" data-lang="http">GET /api/read/ous/c9a8f0b7-08ad-4cc6-9af4-f605a2473cbe/rolegroups HTTP/1.1
+<pre class="highlight nowrap"><code class="language-http" data-lang="http">GET /api/read/ous/736e372d-70cb-4079-8394-64be603b1240/rolegroups HTTP/1.1
 ApiKey: f7d8ea9e-53fe-4948-b600-fbc94d4eb0fb
 Host: www.rollekatalog.dk</code></pre>
 </div>
@@ -2306,10 +2377,10 @@ Host: www.rollekatalog.dk</code></pre>
 <div class="content">
 <pre class="highlight nowrap"><code class="language-http" data-lang="http">HTTP/1.1 200 OK
 Content-Type: application/json;charset=UTF-8
-Content-Length: 46
+Content-Length: 45
 
 [ {
-  "id" : 13,
+  "id" : 1,
   "name" : "My rolegroup"
 } ]</code></pre>
 </div>
@@ -2409,7 +2480,7 @@ Content-Length: 46
 <h3 id="_example_request_13"><a class="link" href="#_example_request_13">Example request</a></h3>
 <div class="listingblock">
 <div class="content">
-<pre class="highlight nowrap"><code class="language-http" data-lang="http">GET /api/read/user/fb075871-153d-41e7-97c4-825093cbd2fb/roles HTTP/1.1
+<pre class="highlight nowrap"><code class="language-http" data-lang="http">GET /api/read/user/6b5bdbbb-9b9d-4636-80e4-dea991cb0e16/roles HTTP/1.1
 ApiKey: f7d8ea9e-53fe-4948-b600-fbc94d4eb0fb
 Host: www.rollekatalog.dk</code></pre>
 </div>
@@ -2516,7 +2587,7 @@ Content-Type: application/json;charset=UTF-8
 <h3 id="_example_request_14"><a class="link" href="#_example_request_14">Example request</a></h3>
 <div class="listingblock">
 <div class="content">
-<pre class="highlight nowrap"><code class="language-http" data-lang="http">GET /api/read/user/fb075871-153d-41e7-97c4-825093cbd2fb/rolegroups HTTP/1.1
+<pre class="highlight nowrap"><code class="language-http" data-lang="http">GET /api/read/user/6b5bdbbb-9b9d-4636-80e4-dea991cb0e16/rolegroups HTTP/1.1
 ApiKey: f7d8ea9e-53fe-4948-b600-fbc94d4eb0fb
 Host: www.rollekatalog.dk</code></pre>
 </div>
@@ -2528,10 +2599,10 @@ Host: www.rollekatalog.dk</code></pre>
 <div class="content">
 <pre class="highlight nowrap"><code class="language-http" data-lang="http">HTTP/1.1 200 OK
 Content-Type: application/json;charset=UTF-8
-Content-Length: 46
+Content-Length: 45
 
 [ {
-  "id" : 15,
+  "id" : 1,
   "name" : "My rolegroup"
 } ]</code></pre>
 </div>
@@ -2620,8 +2691,8 @@ Host: www.rollekatalog.dk</code></pre>
 <div class="listingblock">
 <div class="content">
 <pre class="highlight nowrap"><code class="language-http" data-lang="http">HTTP/1.1 200 OK
+Content-Length: 973
 Content-Type: application/json;charset=UTF-8
-Content-Length: 884
 
 [ {
   "id" : 1,
@@ -2644,15 +2715,20 @@ Content-Length: 884
   "itSystemName" : "Rollekatalog",
   "description" : "Denne rolle giver adgang til at administrere KLE opmærkninger i Rollekataloget"
 }, {
-  "id" : 25,
+  "id" : 5,
   "name" : "AD role 1",
   "itSystemName" : "AD",
   "description" : "description"
 }, {
-  "id" : 26,
+  "id" : 6,
   "name" : "KOMBIT System role 2",
   "itSystemName" : "KOMBIT System",
   "description" : "description"
+}, {
+  "id" : 7,
+  "name" : "new test role",
+  "itSystemName" : "AD",
+  "description" : ""
 } ]</code></pre>
 </div>
 </div>
@@ -2750,6 +2826,11 @@ Content-Length: 884
 <td class="tableblock halign-left valign-top"><p class="tableblock">The actual system role</p></td>
 </tr>
 <tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>systemRoleAssignments[].systemRole.users</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>Null</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">assignments to users</p></td>
+</tr>
+<tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock"><code>systemRoleAssignments[].systemRole.name</code></p></td>
 <td class="tableblock halign-left valign-top"><p class="tableblock"><code>String</code></p></td>
 <td class="tableblock halign-left valign-top"><p class="tableblock">The name of the system role</p></td>
@@ -2788,7 +2869,7 @@ Host: www.rollekatalog.dk</code></pre>
 <div class="content">
 <pre class="highlight nowrap"><code class="language-http" data-lang="http">HTTP/1.1 200 OK
 Content-Type: application/json;charset=UTF-8
-Content-Length: 356
+Content-Length: 378
 
 {
   "id" : 1,
@@ -2798,7 +2879,8 @@ Content-Length: 356
     "systemRole" : {
       "description" : "Denne rolle giver adgang til alt funktionaliteten i Rollekataloget",
       "name" : "Administrator",
-      "identifier" : "http://rollekatalog.dk/administrator"
+      "identifier" : "http://rollekatalog.dk/administrator",
+      "users" : null
     },
     "constraintValues" : [ ]
   } ]
@@ -2879,12 +2961,15 @@ Host: www.rollekatalog.dk</code></pre>
 <div class="listingblock">
 <div class="content">
 <pre class="highlight nowrap"><code class="language-http" data-lang="http">HTTP/1.1 200 OK
+Content-Length: 90
 Content-Type: application/json;charset=UTF-8
-Content-Length: 45
 
 [ {
-  "id" : 9,
+  "id" : 1,
   "name" : "My rolegroup"
+}, {
+  "id" : 2,
+  "name" : "Test rolegroup"
 } ]</code></pre>
 </div>
 </div>
@@ -2978,7 +3063,7 @@ Content-Length: 45
 <h3 id="_example_request_18"><a class="link" href="#_example_request_18">Example request</a></h3>
 <div class="listingblock">
 <div class="content">
-<pre class="highlight nowrap"><code class="language-http" data-lang="http">GET /api/read/rolegroups/7 HTTP/1.1
+<pre class="highlight nowrap"><code class="language-http" data-lang="http">GET /api/read/rolegroups/1 HTTP/1.1
 ApiKey: f7d8ea9e-53fe-4948-b600-fbc94d4eb0fb
 Host: www.rollekatalog.dk</code></pre>
 </div>
@@ -2993,7 +3078,7 @@ Content-Type: application/json;charset=UTF-8
 Content-Length: 59
 
 {
-  "id" : 7,
+  "id" : 1,
   "name" : "My rolegroup",
   "roles" : null
 }</code></pre>
@@ -3003,6 +3088,14 @@ Content-Length: 59
 </div>
 </div>
 <h1 id="_role_assignment_api" class="sect0"><a class="link" href="#_role_assignment_api">Role Assignment API</a></h1>
+<div class="sect1">
+<h2 id="_required_role_5"><a class="link" href="#_required_role_5">Required Role</a></h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>All the operations in the Role Assignment API are available to any clients that has at least the "Rolleadministration" role assigned to them.</p>
+</div>
+</div>
+</div>
 <div class="sect1">
 <h2 id="_assign_role_to_user"><a class="link" href="#_assign_role_to_user">Assign role to user</a></h2>
 <div class="sectionbody">
@@ -3060,7 +3153,7 @@ Content-Length: 59
 <h3 id="_example_request_19"><a class="link" href="#_example_request_19">Example request</a></h3>
 <div class="listingblock">
 <div class="content">
-<pre class="highlight nowrap"><code class="language-http" data-lang="http">PUT /api/user/fb075871-153d-41e7-97c4-825093cbd2fb/assign/userrole/3 HTTP/1.1
+<pre class="highlight nowrap"><code class="language-http" data-lang="http">PUT /api/user/6b5bdbbb-9b9d-4636-80e4-dea991cb0e16/assign/userrole/3 HTTP/1.1
 ApiKey: f7d8ea9e-53fe-4948-b600-fbc94d4eb0fb
 Host: www.rollekatalog.dk</code></pre>
 </div>
@@ -3133,7 +3226,7 @@ Host: www.rollekatalog.dk</code></pre>
 <h3 id="_example_request_20"><a class="link" href="#_example_request_20">Example request</a></h3>
 <div class="listingblock">
 <div class="content">
-<pre class="highlight nowrap"><code class="language-http" data-lang="http">DELETE /api/user/fb075871-153d-41e7-97c4-825093cbd2fb/deassign/userrole/3 HTTP/1.1
+<pre class="highlight nowrap"><code class="language-http" data-lang="http">DELETE /api/user/6b5bdbbb-9b9d-4636-80e4-dea991cb0e16/deassign/userrole/3 HTTP/1.1
 ApiKey: f7d8ea9e-53fe-4948-b600-fbc94d4eb0fb
 Host: www.rollekatalog.dk</code></pre>
 </div>
@@ -3206,7 +3299,7 @@ Host: www.rollekatalog.dk</code></pre>
 <h3 id="_example_request_21"><a class="link" href="#_example_request_21">Example request</a></h3>
 <div class="listingblock">
 <div class="content">
-<pre class="highlight nowrap"><code class="language-http" data-lang="http">PUT /api/user/fb075871-153d-41e7-97c4-825093cbd2fb/assign/rolegroup/21 HTTP/1.1
+<pre class="highlight nowrap"><code class="language-http" data-lang="http">PUT /api/user/6b5bdbbb-9b9d-4636-80e4-dea991cb0e16/assign/rolegroup/1 HTTP/1.1
 ApiKey: f7d8ea9e-53fe-4948-b600-fbc94d4eb0fb
 Host: www.rollekatalog.dk</code></pre>
 </div>
@@ -3279,7 +3372,7 @@ Host: www.rollekatalog.dk</code></pre>
 <h3 id="_example_request_22"><a class="link" href="#_example_request_22">Example request</a></h3>
 <div class="listingblock">
 <div class="content">
-<pre class="highlight nowrap"><code class="language-http" data-lang="http">DELETE /api/user/fb075871-153d-41e7-97c4-825093cbd2fb/deassign/rolegroup/16 HTTP/1.1
+<pre class="highlight nowrap"><code class="language-http" data-lang="http">DELETE /api/user/6b5bdbbb-9b9d-4636-80e4-dea991cb0e16/deassign/rolegroup/1 HTTP/1.1
 ApiKey: f7d8ea9e-53fe-4948-b600-fbc94d4eb0fb
 Host: www.rollekatalog.dk</code></pre>
 </div>
@@ -3352,7 +3445,7 @@ Host: www.rollekatalog.dk</code></pre>
 <h3 id="_example_request_23"><a class="link" href="#_example_request_23">Example request</a></h3>
 <div class="listingblock">
 <div class="content">
-<pre class="highlight nowrap"><code class="language-http" data-lang="http">PUT /api/ou/c9a8f0b7-08ad-4cc6-9af4-f605a2473cbe/assign/userrole/1 HTTP/1.1
+<pre class="highlight nowrap"><code class="language-http" data-lang="http">PUT /api/ou/736e372d-70cb-4079-8394-64be603b1240/assign/userrole/1 HTTP/1.1
 ApiKey: f7d8ea9e-53fe-4948-b600-fbc94d4eb0fb
 Host: www.rollekatalog.dk</code></pre>
 </div>
@@ -3425,7 +3518,7 @@ Host: www.rollekatalog.dk</code></pre>
 <h3 id="_example_request_24"><a class="link" href="#_example_request_24">Example request</a></h3>
 <div class="listingblock">
 <div class="content">
-<pre class="highlight nowrap"><code class="language-http" data-lang="http">DELETE /api/ou/c9a8f0b7-08ad-4cc6-9af4-f605a2473cbe/deassign/userrole/1 HTTP/1.1
+<pre class="highlight nowrap"><code class="language-http" data-lang="http">DELETE /api/ou/736e372d-70cb-4079-8394-64be603b1240/deassign/userrole/1 HTTP/1.1
 ApiKey: f7d8ea9e-53fe-4948-b600-fbc94d4eb0fb
 Host: www.rollekatalog.dk</code></pre>
 </div>
@@ -3498,7 +3591,7 @@ Host: www.rollekatalog.dk</code></pre>
 <h3 id="_example_request_25"><a class="link" href="#_example_request_25">Example request</a></h3>
 <div class="listingblock">
 <div class="content">
-<pre class="highlight nowrap"><code class="language-http" data-lang="http">PUT /api/ou/c9a8f0b7-08ad-4cc6-9af4-f605a2473cbe/assign/rolegroup/23 HTTP/1.1
+<pre class="highlight nowrap"><code class="language-http" data-lang="http">PUT /api/ou/736e372d-70cb-4079-8394-64be603b1240/assign/rolegroup/1 HTTP/1.1
 ApiKey: f7d8ea9e-53fe-4948-b600-fbc94d4eb0fb
 Host: www.rollekatalog.dk</code></pre>
 </div>
@@ -3571,7 +3664,7 @@ Host: www.rollekatalog.dk</code></pre>
 <h3 id="_example_request_26"><a class="link" href="#_example_request_26">Example request</a></h3>
 <div class="listingblock">
 <div class="content">
-<pre class="highlight nowrap"><code class="language-http" data-lang="http">DELETE /api/ou/c9a8f0b7-08ad-4cc6-9af4-f605a2473cbe/deassign/rolegroup/20 HTTP/1.1
+<pre class="highlight nowrap"><code class="language-http" data-lang="http">DELETE /api/ou/736e372d-70cb-4079-8394-64be603b1240/deassign/rolegroup/1 HTTP/1.1
 ApiKey: f7d8ea9e-53fe-4948-b600-fbc94d4eb0fb
 Host: www.rollekatalog.dk</code></pre>
 </div>
@@ -3588,6 +3681,14 @@ Host: www.rollekatalog.dk</code></pre>
 </div>
 </div>
 <h1 id="_organisation_management_api" class="sect0"><a class="link" href="#_organisation_management_api">Organisation Management API</a></h1>
+<div class="sect1">
+<h2 id="_required_role_6"><a class="link" href="#_required_role_6">Required Role</a></h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>All the operations in the Organisation API are available to any clients that has at least the "Organisation" role assigned to them.</p>
+</div>
+</div>
+</div>
 <div class="sect1">
 <h2 id="_load_organisation_v3"><a class="link" href="#_load_organisation_v3">Load Organisation V3</a></h2>
 <div class="sectionbody">
@@ -3848,10 +3949,10 @@ Content-Type: application/json
 <div class="listingblock">
 <div class="content">
 <pre class="highlight nowrap"><code class="language-http" data-lang="http">HTTP/1.1 200 OK
-Content-Length: 97
+Content-Length: 98
 Content-Type: application/json;charset=UTF-8
 
-{"usersCreated":3,"usersUpdated":0,"usersDeleted":0,"ousCreated":4,"ousUpdated":0,"ousDeleted":0}</code></pre>
+{"usersCreated":3,"usersUpdated":0,"usersDeleted":7,"ousCreated":4,"ousUpdated":0,"ousDeleted":11}</code></pre>
 </div>
 </div>
 </div>
@@ -3861,6 +3962,14 @@ Content-Type: application/json;charset=UTF-8
 <div class="openblock partintro">
 <div class="content">
 The following operations are intended for Active Directory Group Membership synchronization, where a local client uses the API to update Active Directory.
+</div>
+</div>
+<div class="sect1">
+<h2 id="_required_role_7"><a class="link" href="#_required_role_7">Required Role</a></h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>All the operations in the AD Sync API are available to any clients that has at least the "Læseadgang" role assigned to them.</p>
+</div>
 </div>
 </div>
 <div class="sect1">
@@ -3912,6 +4021,11 @@ The following operations are intended for Active Directory Group Membership sync
 <td class="tableblock halign-left valign-top"><p class="tableblock">sync-control value (used for cleanup)</p></td>
 </tr>
 <tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>maxHead</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>Integer</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">sync-control value (used to indicate max ID of all pending operations, including those not available in output)</p></td>
+</tr>
+<tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock"><code>assignments[]</code></p></td>
 <td class="tableblock halign-left valign-top"><p class="tableblock"><code>Array</code></p></td>
 <td class="tableblock halign-left valign-top"><p class="tableblock">An array of AD groups that have changes in assignments</p></td>
@@ -3944,11 +4058,12 @@ Host: www.rollekatalog.dk</code></pre>
 <div class="listingblock">
 <div class="content">
 <pre class="highlight nowrap"><code class="language-http" data-lang="http">HTTP/1.1 200 OK
-Content-Length: 115
+Content-Length: 132
 Content-Type: application/json;charset=UTF-8
 
 {
-  "head" : 2,
+  "head" : 3,
+  "maxHead" : 3,
   "assignments" : [ {
     "groupName" : "testgroup-001",
     "samaccountNames" : [ "bbog" ]
@@ -4032,7 +4147,7 @@ Host: www.rollekatalog.dk</code></pre>
 </div>
 <div id="footer">
 <div id="footer-text">
-Last updated 2021-03-18 11:23:05 +01:00
+Last updated 2022-01-02 16:44:31 +01:00
 </div>
 </div>
 </body>

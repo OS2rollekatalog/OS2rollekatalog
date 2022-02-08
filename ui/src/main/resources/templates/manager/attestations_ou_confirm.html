@@ -17,6 +17,13 @@
 						<div class="panel-group">
 							<div class="panel panel-default">
 								<div class="panel-body">
+									<form id="form" th:action="@{/ui/users/attestations/back}" method="post" th:object="${confirmDTO}">
+										<input type="hidden" th:field="*{toBeRemoved}" /> 
+										<input type="hidden" th:field="*{toEmail}" /> 
+										<input type="hidden" th:field="*{orgUnitUuid}" />
+										<input type="hidden" th:field="*{adNotAproved}" />  
+									</form>
+									
 									<span th:text="#{html.page.attestations.confirment.subtext}"></span>
 									
 									<br> <br>
@@ -27,7 +34,7 @@
 							</div>
 						</div>
 						
-						<div class="panel-group" th:unless="${dtoToBeRemoved.empty and dtoToEmail.empty}">
+						<div class="panel-group" th:unless="${dtoToBeRemoved.empty and dtoToEmail.empty and #lists.isEmpty(dtoNotAprovedAD)}">
 							<div class="panel panel-default">
 								<div class="panel-body">
 									<div th:if="${!dtoToBeRemoved.empty}">
@@ -86,6 +93,18 @@
 
 									<br>
 									
+									<div th:if="${not #lists.isEmpty(dtoNotAprovedAD)}">
+										<h4 th:text="#{html.page.attestations.confirment.show.ad.remove}"></h4>
+										<ul th:each="dto : ${dtoNotAprovedAD}">
+											<li style="list-style-type: none;">
+												<em class="fa fa-fw fa-times" style="color: red;"></em>
+												<span th:text="'Brugerkontoen med brugernavn ' + ${dto.userUserId} + ' for medarbejderen ' + ${dto.userName}" />
+											</li>
+										</ul>
+									</div>
+									
+									<br>
+									
 									<label for="message">Kommentarer</label>
 									<textarea id="message" class="form-control" placeholder="Indtast kommentar"></textarea>
 								</div>
@@ -114,13 +133,18 @@
 			var dtoShowToBeRemoved = [[${dtoToBeRemoved}]];
 			var dtoShowAprovedUnit = [[${dtoAprovedUnit}]];
 			var dtoShowAprovedPersonal = [[${dtoAprovedPersonal}]];
+			var dtoAprovedAD = [[${dtoAprovedAD}]];
+			var dtoNotAprovedAD = [[${dtoNotAprovedAD}]];
+			var personal = [[${personal}]];
+			var unit = [[${unit}]];
+			var AD = [[${AD}]];
 		+]*/
 		var token = $("meta[name='_csrf']").attr("content");
 		$(document).ready(function() {
 		});
 		
 		function back() {
-			window.history.back();
+			$('#form').submit();
 		}
 		
 		function confirm() {
@@ -140,7 +164,9 @@
 				   "dtoShowToEmail" : dtoShowToEmail,
 				   "dtoShowToBeRemoved" : dtoShowToBeRemoved,
 				   "dtoShowAprovedPersonal" : dtoShowAprovedPersonal,
-				   "dtoShowAprovedUnit" : dtoShowAprovedUnit
+				   "dtoShowAprovedUnit" : dtoShowAprovedUnit,
+				   "dtoAprovedAD" : dtoAprovedAD,
+				   "dtoNotAprovedAD" : dtoNotAprovedAD
 			   }),
 			   success: function(data, textStatus, jQxhr) {
 				   window.location.href = redirectUrl;

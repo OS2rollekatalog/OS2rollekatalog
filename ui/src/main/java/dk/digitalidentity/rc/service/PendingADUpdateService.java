@@ -157,8 +157,16 @@ public class PendingADUpdateService {
 	}
 
 	@Transactional
-	public void deleteByIdLessThan(long head) {
-		dirtyADGroupDao.deleteByIdLessThan(head);
+	public void deleteByIdLessThan(long head, long maxHead) {
+		List<DirtyADGroup> toDelete = dirtyADGroupDao.findByIdLessThan(head);
+		Set<String> toDeleteIdentifiers = toDelete.stream().map(d -> d.getIdentifier()).collect(Collectors.toSet());
+		
+		if (maxHead > 0) {
+			dirtyADGroupDao.deleteByIdentifierInAndIdLessThan(toDeleteIdentifiers, maxHead + 1);
+		}
+		else {
+			dirtyADGroupDao.deleteByIdentifierIn(toDeleteIdentifiers);
+		}
 	}
 	
 	@Transactional
@@ -183,5 +191,14 @@ public class PendingADUpdateService {
 
 	public List<PendingADGroupOperation> find100Operations() {
 		return pendingADGroupOperationDao.findFirst100ByOrderByIdAsc();
+	}
+
+	public long findMaxHead() {
+		DirtyADGroup group = dirtyADGroupDao.findTopByOrderByIdDesc();
+		if (group != null) {
+			return group.getId();
+		}
+		
+		return 0;
 	}
 }

@@ -1,7 +1,5 @@
 package dk.digitalidentity.rc.test.ui;
 
-import java.util.List;
-
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
@@ -48,9 +46,6 @@ public class UserRolesTest {
     public void userRolesTest() throws Exception {
         String userId = newUserRole();
         viewUserRole(userId);
-        editUserRole(userId, "2");
-        Thread.sleep(1000); // *sigh*
-        verifyEditUserRole(userId, "2");
         listUserRoles();
     }
 
@@ -73,36 +68,6 @@ public class UserRolesTest {
     public void viewUserRole(String id) {
         driver.get(url + "/ui/userroles/view/" + id);
         Assert.assertEquals("OS2rollekatalog", driver.getTitle());
-    }
-
-    public void editUserRole(String id, String roleId) {
-        driver.get(url+ "/ui/userroles/edit/" + id);
-        Assert.assertEquals("OS2rollekatalog", driver.getTitle());
-
-        List<WebElement> checkboxes = driver.findElementsByTagName("input");
-
-        for (WebElement e : checkboxes) {
-            if (e.getAttribute("data-roleid") != null) {
-                if (e.getAttribute("data-roleid").equals(roleId)) {
-                    e.click();
-                }
-            }
-        }
-    }
-
-    public void verifyEditUserRole(String id, String roleId) {
-        driver.get(url + "/ui/userroles/edit/" + id);
-        Assert.assertEquals("OS2rollekatalog", driver.getTitle());
-
-        List<WebElement> checkboxes = driver.findElementsByTagName("input");
-
-        for (WebElement e : checkboxes) {
-            if (e.getAttribute("data-roleid") != null) {
-                if (e.getAttribute("data-roleid").equals(roleId)) {
-                    Assert.assertTrue(e.isSelected());
-                }
-            }
-        }
     }
 
     public void listUserRoles() {

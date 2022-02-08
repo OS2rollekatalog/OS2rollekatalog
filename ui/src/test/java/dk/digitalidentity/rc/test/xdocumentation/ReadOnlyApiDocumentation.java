@@ -15,6 +15,12 @@ import static org.springframework.restdocs.request.RequestDocumentation.pathPara
 import static org.springframework.restdocs.request.RequestDocumentation.requestParameters;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -22,6 +28,9 @@ import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.restdocs.JUnitRestDocumentation;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
@@ -30,16 +39,20 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.context.WebApplicationContext;
 
+import dk.digitalidentity.rc.config.Constants;
 import dk.digitalidentity.rc.dao.model.OrgUnit;
 import dk.digitalidentity.rc.dao.model.RoleGroup;
 import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserRole;
+import dk.digitalidentity.rc.dao.model.enums.AccessRole;
+import dk.digitalidentity.rc.security.RolePostProcessor;
 import dk.digitalidentity.rc.security.SecurityUtil;
 import dk.digitalidentity.rc.service.OrgUnitService;
 import dk.digitalidentity.rc.service.RoleGroupService;
 import dk.digitalidentity.rc.service.UserRoleService;
 import dk.digitalidentity.rc.service.UserService;
 import dk.digitalidentity.rc.util.BootstrapDevMode;
+import dk.digitalidentity.saml.model.TokenUser;
 
 @RunWith(SpringJUnit4ClassRunner.class)
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.DEFINED_PORT)
@@ -76,7 +89,26 @@ public class ReadOnlyApiDocumentation {
 	public void setUp() throws Exception {
 		bootstrapper.init(true);
 
-		SecurityUtil.loginSystemAccount();
+		// this is a bit of a hack, but we fake that the api logged in using a token,
+		// so all of our existing security code just works without further modifications
+		List<SimpleGrantedAuthority> authorities = new ArrayList<>();
+		authorities.add(new SimpleGrantedAuthority(Constants.ROLE_SYSTEM));
+		authorities.add(new SimpleGrantedAuthority("ROLE_API_" + AccessRole.READ_ACCESS.toString()));
+
+		Map<String, Object> attributes = new HashMap<>();
+		attributes.put(RolePostProcessor.ATTRIBUTE_NAME, "system");
+		attributes.put(RolePostProcessor.ATTRIBUTE_USERID, "system");
+
+		TokenUser tokenUser = TokenUser.builder()
+				.cvr("N/A")
+				.attributes(attributes)
+				.authorities(authorities)
+				.username("System")
+				.build();
+
+		UsernamePasswordAuthenticationToken token = new UsernamePasswordAuthenticationToken("System", "N/A", tokenUser.getAuthorities());
+		token.setDetails(tokenUser);
+		SecurityContextHolder.getContext().setAuthentication(token);
 
 		try {
 			User user = userService.getByUuid(testUserUUID);
@@ -85,9 +117,9 @@ public class ReadOnlyApiDocumentation {
 			RoleGroup roleGroup = roleGroupService.getAll().get(0);
 			userService.addRoleGroup(user, roleGroup, null, null);
 			userService.addUserRole(user, userRole, null,  null);
-			orgUnitService.addUserRole(ou, userRole, false, null, null, null, null);
-			orgUnitService.addRoleGroup(ou, roleGroup, false, null, null, null, null);
-			
+			orgUnitService.addUserRole(ou, userRole, false, null, null, new HashSet<>(), new HashSet<>());
+			orgUnitService.addRoleGroup(ou, roleGroup, false, null, null, new HashSet<>(), new HashSet<>());
+
 			this.mockMvc = MockMvcBuilders.webAppContextSetup(this.context)
 										  .apply(documentationConfiguration(this.restDocumentation)
 												  .uris()
@@ -237,10 +269,8 @@ public class ReadOnlyApiDocumentation {
 	}
 
 	@Test
-	public void readRoleGroup() throws Exception {
-		String id = Long.toString(roleGroupService.getAll().get(0).getId());
-		
-		this.mockMvc.perform(get("/api/read/rolegroups/{id}", id).header("ApiKey", "f7d8ea9e-53fe-4948-b600-fbc94d4eb0fb"))
+	public void readRoleGroup() throws Exception {		
+		this.mockMvc.perform(get("/api/read/rolegroups/{id}", 1).header("ApiKey", "f7d8ea9e-53fe-4948-b600-fbc94d4eb0fb"))
 					.andExpect(status().is(200))
 					.andDo(document("read-rolegroup", preprocessResponse(prettyPrint()),
 							requestHeaders(

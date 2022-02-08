@@ -333,7 +333,6 @@ public class ReportController {
 		return userRoles;
 	}
 
-	@Deprecated
 	private List<UserWithDuplicateRoleAssignmentDTO> generateUsersWithDuplicateRoleAssignmentsReport() {
 		List<UserWithDuplicateRoleAssignmentDTO> result = new ArrayList<>();
 		
@@ -341,6 +340,7 @@ public class ReportController {
 		Map<User, List<UserRoleAssignmentWithInfo>> usersWithRoleAssignments = userService.getUsersWithRoleAssignments();
 
 		for (User user : usersWithRoleAssignments.keySet()) {
+			
 			List<UserRoleAssignmentWithInfo> assignments = usersWithRoleAssignments.get(user);
 			if (assignments == null || assignments.size() == 0) {
 				continue;
@@ -350,14 +350,14 @@ public class ReportController {
 			if (directAssignments == null || directAssignments.size() == 0) {
 				continue;
 			}
-			
+
 			for (UserRoleAssignmentWithInfo directAssignment : directAssignments) {
 				for (UserRoleAssignmentWithInfo assignment : assignments) {
 					// ignore direct assignments
 					if (assignment.getAssignedThroughInfo() == null) {
 						continue;
 					}
-					
+
 					// is this UserRole also assigned indirectly?
 					if (assignment.getUserRole().getId() == directAssignment.getUserRole().getId()) {
 						UserWithDuplicateRoleAssignmentDTO entry = new UserWithDuplicateRoleAssignmentDTO();

@@ -44,6 +44,7 @@ import dk.digitalidentity.rc.config.Constants;
 import dk.digitalidentity.rc.dao.model.RoleGroup;
 import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserRole;
+import dk.digitalidentity.rc.dao.model.enums.AccessRole;
 import dk.digitalidentity.rc.security.RolePostProcessor;
 import dk.digitalidentity.rc.service.ItSystemService;
 import dk.digitalidentity.rc.service.RoleGroupService;
@@ -91,7 +92,7 @@ public class ItSystemApiDocumentation {
 		// so all of our existing security code just works without further modifications
 		List<SimpleGrantedAuthority> authorities = new ArrayList<>();
 		authorities.add(new SimpleGrantedAuthority(Constants.ROLE_SYSTEM));
-		authorities.add(new SimpleGrantedAuthority(Constants.ROLE_ADMINISTRATOR));
+		authorities.add(new SimpleGrantedAuthority("ROLE_API_" + AccessRole.ROLE_MANAGEMENT.toString()));
 
 		Map<String, Object> attributes = new HashMap<>();
 		attributes.put(RolePostProcessor.ATTRIBUTE_NAME, "system");

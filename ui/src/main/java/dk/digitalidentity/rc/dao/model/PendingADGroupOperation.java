@@ -53,4 +53,7 @@ public class PendingADGroupOperation {
 	@Column
 	@Enumerated(EnumType.STRING)
 	private ADGroupType adGroupType;
+	
+	@Column
+	private boolean universal;
 }

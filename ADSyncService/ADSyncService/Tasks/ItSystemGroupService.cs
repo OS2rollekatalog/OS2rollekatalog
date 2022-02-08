@@ -10,8 +10,9 @@ namespace ADSyncService
 
         public static void PerformUpdate(RoleCatalogueStub roleCatalogueStub, ADStub adStub)
         {
-            foreach (string map in systemMap)
+            foreach (string mapRaw in systemMap)
             {
+                var map = mapRaw.Replace("&amp;", "&");
                 string[] tokens = map.Split(';');
                 if (tokens.Length != 2)
                 {

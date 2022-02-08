@@ -186,7 +186,7 @@ namespace ADSyncService
             }
         }
 
-        public void CreateGroup(string systemRoleIdentifier, string itSystemIdentifier, string adGroupType)
+        public void CreateGroup(string systemRoleIdentifier, string itSystemIdentifier, string adGroupType, bool universel)
         {
             string contextPath = "OU=" + itSystemIdentifier + "," + groupOU;
 
@@ -203,51 +203,55 @@ namespace ADSyncService
                 }
             }
 
-            if ("DISTRIBUTION".Equals(adGroupType))
+            using (var de = new DirectoryEntry("LDAP://" + contextPath))
             {
-                using (var de = new DirectoryEntry("LDAP://" + contextPath))
+                try
                 {
-                    try
+                    using (var existingGroup = de.Children.Find("CN=" + systemRoleIdentifier, "group"))
                     {
-                        using (var existingGroup = de.Children.Find("CN=" + systemRoleIdentifier, "group"))
+                        if (existingGroup != null)
                         {
-                            if (existingGroup != null)
-                            {
-                                log.Warn("Could not create new distribution group " + systemRoleIdentifier + " because it already exists: " + existingGroup.Name + "," + contextPath);
-                            }
-                        }
-                    }
-                    catch (System.DirectoryServices.DirectoryServicesCOMException)
-                    {
-                        using (DirectoryEntry dGroup = de.Children.Add("CN=" + systemRoleIdentifier, "group"))
-                        {
-                            dGroup.Properties["sAMAccountName"].Add(systemRoleIdentifier);
-                            dGroup.Properties["groupType"].Add(unchecked((int)0x00000002));
-                            dGroup.CommitChanges();
-
-                            log.Info("Created distribution group: " + systemRoleIdentifier + " in " + contextPath);
+                            log.Warn("Could not create new distribution group " + systemRoleIdentifier + " because it already exists: " + existingGroup.Name + "," + contextPath);
                         }
                     }
                 }
-            }
-            else
-            {
-                using (PrincipalContext context = new PrincipalContext(ContextType.Domain, null, contextPath))
+                catch (System.DirectoryServices.DirectoryServicesCOMException)
                 {
-                    using (GroupPrincipal group = GroupPrincipal.FindByIdentity(context, systemRoleIdentifier))
+                    using (DirectoryEntry dGroup = de.Children.Add("CN=" + systemRoleIdentifier, "group"))
                     {
-                        if (group == null)
+                        dGroup.Properties["sAMAccountName"].Add(systemRoleIdentifier);
+
+                        string createdType = "";
+                        if ("DISTRIBUTION".Equals(adGroupType))
                         {
-                            using (var groupPrincipal = new GroupPrincipal(context, systemRoleIdentifier))
+                            if (universel)
                             {
-                                groupPrincipal.Save();
-                                log.Info("Created security group: " + systemRoleIdentifier + " in " + contextPath);
+                                dGroup.Properties["groupType"].Add(unchecked((int)0x00000008));
+                                createdType = "Universal Distribution";
+                            }
+                            else
+                            {
+                                dGroup.Properties["groupType"].Add(unchecked((int)0x00000002));
+                                createdType = "Global Distribution";
                             }
                         }
                         else
                         {
-                            log.Warn("Could not create new security group " + systemRoleIdentifier + " because it already exists: " + group.DistinguishedName);
+                            if (universel)
+                            {
+                                dGroup.Properties["groupType"].Add(unchecked((int)0x80000008));
+                                createdType = "Universal Security";
+                            }
+                            else
+                            {
+                                dGroup.Properties["groupType"].Add(unchecked((int)0x80000002));
+                                createdType = "Global Security";
+                            }
                         }
+
+                        dGroup.CommitChanges();
+
+                        log.Info("Created group: " + systemRoleIdentifier + " in " + contextPath + " of type: " + createdType);
                     }
                 }
             }

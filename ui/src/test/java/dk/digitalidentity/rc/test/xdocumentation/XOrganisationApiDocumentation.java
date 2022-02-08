@@ -11,6 +11,11 @@ import static org.springframework.restdocs.payload.PayloadDocumentation.fieldWit
 import static org.springframework.restdocs.payload.PayloadDocumentation.requestFields;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
 import org.junit.Before;
 import org.junit.FixMethodOrder;
 import org.junit.Rule;
@@ -20,12 +25,20 @@ import org.junit.runners.MethodSorters;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.restdocs.JUnitRestDocumentation;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
+
+import dk.digitalidentity.rc.config.Constants;
+import dk.digitalidentity.rc.dao.model.enums.AccessRole;
+import dk.digitalidentity.rc.security.RolePostProcessor;
+import dk.digitalidentity.saml.model.TokenUser;
 
 @RunWith(SpringJUnit4ClassRunner.class)
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.DEFINED_PORT)
@@ -43,6 +56,27 @@ public class XOrganisationApiDocumentation { // bad naming, but the X ensures th
 
 	@Before
 	public void setUp() {
+		// this is a bit of a hack, but we fake that the api logged in using a token,
+		// so all of our existing security code just works without further modifications
+		List<SimpleGrantedAuthority> authorities = new ArrayList<>();
+		authorities.add(new SimpleGrantedAuthority(Constants.ROLE_SYSTEM));
+		authorities.add(new SimpleGrantedAuthority("ROLE_API_" + AccessRole.ORGANISATION.toString()));
+
+		Map<String, Object> attributes = new HashMap<>();
+		attributes.put(RolePostProcessor.ATTRIBUTE_NAME, "system");
+		attributes.put(RolePostProcessor.ATTRIBUTE_USERID, "system");
+
+		TokenUser tokenUser = TokenUser.builder()
+				.cvr("N/A")
+				.attributes(attributes)
+				.authorities(authorities)
+				.username("System")
+				.build();
+
+		UsernamePasswordAuthenticationToken token = new UsernamePasswordAuthenticationToken("System", "N/A", tokenUser.getAuthorities());
+		token.setDetails(tokenUser);
+		SecurityContextHolder.getContext().setAuthentication(token);
+
 		this.mockMvc = MockMvcBuilders.webAppContextSetup(this.context)
 									  .apply(documentationConfiguration(this.restDocumentation)
 											  .uris()

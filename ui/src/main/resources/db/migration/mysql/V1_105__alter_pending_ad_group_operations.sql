@@ -1,0 +1,1 @@
+ALTER TABLE pending_ad_group_operations ADD COLUMN universal BOOLEAN NOT NULL DEFAULT 0;

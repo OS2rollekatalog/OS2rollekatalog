@@ -40,6 +40,7 @@ public class RolePostProcessor implements SamlLoginPostProcessor {
 	public static final String ATTRIBUTE_USERID = "ATTRIBUTE_USERID";
 	public static final String ATTRIBUTE_NAME = "ATTRIBUTE_NAME";
 	public static final String ATTRIBUTE_SUBSTITUTE_FOR = "ATTRIBUTE_SUBSTITUTE_FOR";
+	public static final String ATTRIBUTE_CLIENT = "ATTRIBUTE_CLIENT";
 
 	@Autowired
 	private UserService userService;

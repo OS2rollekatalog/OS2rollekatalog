@@ -12,6 +12,7 @@ public class SystemRoleForm {
     private String identifier;
     private String description;
     private long itSystemId;
+    private boolean universal;
     
     // only used for system-roles matching AD groups
     private ADGroupType adGroupType;

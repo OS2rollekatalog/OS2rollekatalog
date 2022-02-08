@@ -8,5 +8,6 @@ namespace ADSyncService
         public string itSystemIdentifier { get; set; }
         public bool active { get; set; }
         public string adGroupType { get; set; }
+        public bool universal { get; set; }
     }
 }

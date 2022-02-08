@@ -38,6 +38,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.context.WebApplicationContext;
 
 import dk.digitalidentity.rc.config.Constants;
+import dk.digitalidentity.rc.dao.model.enums.AccessRole;
 import dk.digitalidentity.rc.security.RolePostProcessor;
 import dk.digitalidentity.rc.util.BootstrapDevMode;
 import dk.digitalidentity.saml.model.TokenUser;
@@ -67,8 +68,8 @@ public class TitleApiDocumentation {
 		// so all of our existing security code just works without further modifications
 		List<SimpleGrantedAuthority> authorities = new ArrayList<>();
 		authorities.add(new SimpleGrantedAuthority(Constants.ROLE_SYSTEM));
-		authorities.add(new SimpleGrantedAuthority(Constants.ROLE_ADMINISTRATOR));
-
+		authorities.add(new SimpleGrantedAuthority("ROLE_API_" + AccessRole.ORGANISATION.toString()));
+		
 		Map<String, Object> attributes = new HashMap<>();
 		attributes.put(RolePostProcessor.ATTRIBUTE_NAME, "system");
 		attributes.put(RolePostProcessor.ATTRIBUTE_USERID, "system");

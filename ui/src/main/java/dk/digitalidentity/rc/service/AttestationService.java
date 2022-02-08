@@ -492,6 +492,8 @@ public class AttestationService {
 		Date nextNextAttestationDateOrdinary = getNextAttestationDate(Instant.ofEpochMilli(nextAttestationDateOrdinary.getTime()).atZone(ZoneId.systemDefault()).toLocalDate(), false);
 		Date nextNextAttestationDateSensitive = getNextAttestationDate(Instant.ofEpochMilli(nextAttestationDateSensitive.getTime()).atZone(ZoneId.systemDefault()).toLocalDate(), false);
 
+		boolean adAttestationEnabled = settingsService.isADAttestationEnabled();
+		
 		for (OrgUnit orgUnit : orgUnits) {
 			boolean attestationEnabled = attestationEnabled(filter, orgUnit);
 			
@@ -503,13 +505,24 @@ public class AttestationService {
 			}
 			else {
 				Set<User> users = positionService.findByOrgUnit(orgUnit).stream().map(p -> p.getUser()).collect(Collectors.toSet());
-				long usersWithAssignments = users.stream().filter(u -> !u.getUserRoleAssignments().isEmpty() || !u.getRoleGroupAssignments().isEmpty()).count();
 				
-				// we skip OrgUnits where there are no assignments (or no users, because then... well...)
-				if (users.isEmpty() || (orgUnit.getUserRoleAssignments().isEmpty() && orgUnit.getRoleGroupAssignments().isEmpty() && usersWithAssignments == 0)) {
-					orgUnit.setNextAttestation(null);
-					orgUnitService.save(orgUnit);
-					continue;
+				if (adAttestationEnabled) {
+					// we skip OrgUnits where there are no users
+					if (users.isEmpty()) {
+						orgUnit.setNextAttestation(null);
+						orgUnitService.save(orgUnit);
+						continue;
+					}					
+				}
+				else {
+					long usersWithAssignments = users.stream().filter(u -> !u.getUserRoleAssignments().isEmpty() || !u.getRoleGroupAssignments().isEmpty()).count();
+
+					// we skip OrgUnits where there are no assignments (or no users, because then... well...)
+					if (users.isEmpty() || (orgUnit.getUserRoleAssignments().isEmpty() && orgUnit.getRoleGroupAssignments().isEmpty() && usersWithAssignments == 0)) {
+						orgUnit.setNextAttestation(null);
+						orgUnitService.save(orgUnit);
+						continue;					
+					}
 				}
 				
 				boolean sensitive = isSensitive(orgUnit, userRoles, ouRoleAssignments.get(orgUnit.getUuid()), userRoleAssignments);

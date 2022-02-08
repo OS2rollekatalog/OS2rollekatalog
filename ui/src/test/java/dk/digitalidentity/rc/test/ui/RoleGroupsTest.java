@@ -1,7 +1,5 @@
 package dk.digitalidentity.rc.test.ui;
 
-import java.util.List;
-
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
@@ -48,8 +46,6 @@ public class RoleGroupsTest {
     public void roleGroupsTest() {
         String roleGroupId = newRoleGroup();
         viewRoleGroup(roleGroupId);
-        editRoleGroup(roleGroupId, "1");
-        verifyEditRoleGroup(roleGroupId, "1");
         listRoleGroups();
     }
 
@@ -71,43 +67,6 @@ public class RoleGroupsTest {
     public void viewRoleGroup(String roleGroupId) {
         driver.get(url + "/ui/rolegroups/view/" + roleGroupId);
         Assert.assertEquals("OS2rollekatalog", driver.getTitle());
-    }
-
-    public void editRoleGroup(String roleGroupId, String roleId) {
-        driver.get(url + "/ui/rolegroups/edit/" + roleGroupId);
-        Assert.assertEquals("OS2rollekatalog", driver.getTitle());
-
-        List<WebElement> checkboxes = driver.findElementsByTagName("input");
-
-        for (WebElement e : checkboxes) {
-            if (e.getAttribute("id") != null) {
-                if (e.getAttribute("id").equals(roleId)) {
-                    e.click();
-                }
-            }
-        }
-        
-        try {
-        	Thread.sleep(1000);
-		}
-        catch (InterruptedException e1) {
-        	; // wait a bit, clicking the checkbox is async
-		}
-    }
-
-    public void verifyEditRoleGroup(String userId, String roleId) {
-        driver.get(url + "/ui/rolegroups/edit/" + userId);
-        Assert.assertEquals("OS2rollekatalog", driver.getTitle());
-
-        List<WebElement> checkboxes = driver.findElementsByTagName("input");
-
-        for (WebElement e : checkboxes) {
-            if (e.getAttribute("id") != null) {
-                if (e.getAttribute("id").equals(roleId)) {
-                    Assert.assertTrue(e.isSelected());
-                }
-            }
-        }
     }
 
     public void listRoleGroups() {

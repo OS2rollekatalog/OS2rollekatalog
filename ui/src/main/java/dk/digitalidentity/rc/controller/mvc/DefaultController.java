@@ -38,7 +38,7 @@ import org.springframework.web.context.request.WebRequest;
 import org.w3c.dom.Element;
 
 import dk.digitalidentity.rc.config.Constants;
-
+import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
 import dk.digitalidentity.rc.dao.RoleGroupDao;
 import dk.digitalidentity.rc.dao.UserRoleDao;
 import dk.digitalidentity.rc.security.SecurityUtil;
@@ -69,13 +69,14 @@ public class DefaultController implements ErrorController {
 	@Autowired
 	private RoleGroupDao roleGroupDao;
 	
+	@Autowired
+	private RoleCatalogueConfiguration configuration;
+	
 	@RequestMapping(value = { "/" })
 	public String index(Model model) {
 		model.addAttribute("itSystemCount", itSystemService.count());
 		model.addAttribute("userRoleCount", userRoleDao.count());
 		model.addAttribute("roleGroupCount", roleGroupDao.count());
-		model.addAttribute("gitBuildTime", gitBuildTime.substring(0, 10));
-		model.addAttribute("gitCommitId", gitCommitId);
 
 		return "index";
 	}
@@ -161,7 +162,11 @@ public class DefaultController implements ErrorController {
 	}
 
 	@GetMapping(value = { "/info" })
-	public String info() {
+	public String info(Model model) {
+		model.addAttribute("gitBuildTime", gitBuildTime.substring(0, 10));
+		model.addAttribute("gitCommitId", gitCommitId);
+		model.addAttribute("releaseVersion", configuration.getVersion());
+
 		return "info";
 	}
 

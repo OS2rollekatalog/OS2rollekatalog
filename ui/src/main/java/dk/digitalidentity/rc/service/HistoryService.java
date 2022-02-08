@@ -41,7 +41,7 @@ public class HistoryService {
 
 	@Autowired
 	private HistoryItSystemDao historyItSystemDao;
-	
+
 	@Autowired
 	private HistoryKleAssignmentDao historyKleAssignmentDao;
 
@@ -50,28 +50,28 @@ public class HistoryService {
 
 	@Autowired
 	private HistoryOUDao historyOUDao;
-	
+
 	@Autowired
 	private HistoryRoleAssignmentDao historyRoleAssignmentDao;
-	
+
 	@Autowired
 	private HistoryUserDao historyUserDao;
-	
+
 	@Autowired
 	private HistoryTitleDao historyTitleDao;
-	
+
 	@Autowired
 	private HistoryManagerDao historyManagerDao;
-	
+
 	@Autowired
 	private HistoryOURoleAssignmentDao historyOURoleAssignmentDao;
 
 	@Autowired
 	private HistoryOURoleAssignmentWithExceptionsDao historyOURoleAssignmentWithExceptionsDao;
-	
+
 	@Autowired
 	private HistoryOURoleAssignmentWithTitlesDao historyOURoleAssignmentWithTitlesDao;
-	
+
 	@Autowired
 	private JdbcTemplate jdbcTemplate;
 
@@ -91,70 +91,70 @@ public class HistoryService {
 
 	public Map<String, HistoryUser> getUsers(LocalDate localDate) {
 		return historyUserDao.findByDate(localDate.getYear(), localDate.getMonthValue(), localDate.getDayOfMonth())
-							 .stream()
-							 .collect(Collectors.toMap(HistoryUser::getUserUuid, Function.identity()));
+				.stream()
+				.collect(Collectors.toMap(HistoryUser::getUserUuid, Function.identity()));
 	}
-	
+
 	public List<HistoryTitle> getTitles(LocalDate localDate) {
 		return historyTitleDao.findByDate(localDate.getYear(), localDate.getMonthValue(), localDate.getDayOfMonth());
 	}
-	
+
 	public Map<String, HistoryOU> getOUs(LocalDate localDate) {
 		return historyOUDao.findByDate(localDate.getYear(), localDate.getMonthValue(), localDate.getDayOfMonth())
-						   .stream()
-						   .collect(Collectors.toMap(HistoryOU::getOuUuid, Function.identity()));
+				.stream()
+				.collect(Collectors.toMap(HistoryOU::getOuUuid, Function.identity()));
 	}
-	
+
 	public HistoryOU getOU(LocalDate localDate, String uuid) {
 		return historyOUDao.findByDateAndUuid(localDate.getYear(), localDate.getMonthValue(), localDate.getDayOfMonth(), uuid);
 	}
-	
+
 	public List<HistoryItSystem> getItSystems(LocalDate localDate) {
 		return historyItSystemDao.findByDate(localDate.getYear(), localDate.getMonthValue(), localDate.getDayOfMonth());
 	}
-	
+
 	public Map<String, List<HistoryKleAssignment>> getKleAssignments(LocalDate localDate) {
 		return historyKleAssignmentDao.findByDate(localDate.toString())
-									  .stream()
-									  .collect(Collectors.groupingBy(HistoryKleAssignment::getUserUuid));
+				.stream()
+				.collect(Collectors.groupingBy(HistoryKleAssignment::getUserUuid));
 	}
-	
+
 	public List<HistoryKleAssignment> getKleAssignments(LocalDate localDate, String userUuid) {
 		return historyKleAssignmentDao.findByDateAndUserUuid(localDate.toString(), userUuid);
 	}
 
 	public Map<String, List<HistoryOUKleAssignment>> getOUKleAssignments(LocalDate localDate) {
 		return historyOUKleAssignmentDao.findByDate(localDate.getYear(), localDate.getMonthValue(), localDate.getDayOfMonth())
-									  .stream()
-									  .collect(Collectors.groupingBy(HistoryOUKleAssignment::getOuUuid));
+				.stream()
+				.collect(Collectors.groupingBy(HistoryOUKleAssignment::getOuUuid));
 	}
-	
+
 	public List<HistoryOUKleAssignment> getOUKleAssignments(LocalDate localDate, String ouUuid) {
 		return historyOUKleAssignmentDao.findByDateAndOuUuid(localDate.getYear(), localDate.getMonthValue(), localDate.getDayOfMonth(), ouUuid);
 	}
-	
+
 	public Map<String, List<HistoryRoleAssignment>> getRoleAssignments(LocalDate localDate) {
 		return historyRoleAssignmentDao.findByDate(localDate.getYear(), localDate.getMonthValue(), localDate.getDayOfMonth())
-									   .stream()
-									   .collect(Collectors.groupingBy(HistoryRoleAssignment::getUserUuid));
+				.stream()
+				.collect(Collectors.groupingBy(HistoryRoleAssignment::getUserUuid));
 	}
-	
+
 	public Map<String, List<HistoryRoleAssignment>> getRoleAssignments(LocalDate localDate, List<Long> itSystemIds) {
 		return historyRoleAssignmentDao.findByDateAndItSystems(localDate.getYear(), localDate.getMonthValue(), localDate.getDayOfMonth(), itSystemIds)
-									   .stream()
-									   .collect(Collectors.groupingBy(HistoryRoleAssignment::getUserUuid));
+				.stream()
+				.collect(Collectors.groupingBy(HistoryRoleAssignment::getUserUuid));
 	}
-	
+
 	public Map<String, List<HistoryOURoleAssignment>> getOURoleAssignments(LocalDate localDate) {
 		return historyOURoleAssignmentDao.findByDate(localDate.getYear(), localDate.getMonthValue(), localDate.getDayOfMonth())
-									   .stream()
-									   .collect(Collectors.groupingBy(HistoryOURoleAssignment::getOuUuid));
+				.stream()
+				.collect(Collectors.groupingBy(HistoryOURoleAssignment::getOuUuid));
 	}
-	
+
 	public Map<String, List<HistoryOURoleAssignment>> getOURoleAssignments(LocalDate localDate, List<Long> itSystemIds) {
 		return historyOURoleAssignmentDao.findByDateAndItSystems(localDate.getYear(), localDate.getMonthValue(), localDate.getDayOfMonth(), itSystemIds)
-									   .stream()
-									   .collect(Collectors.groupingBy(HistoryOURoleAssignment::getOuUuid));
+				.stream()
+				.collect(Collectors.groupingBy(HistoryOURoleAssignment::getOuUuid));
 	}
 
 	public Map<String, List<HistoryOURoleAssignmentWithExceptions>> getOURoleAssignmentsWithExceptions(LocalDate localDate) {
@@ -168,7 +168,7 @@ public class HistoryService {
 				.stream()
 				.collect(Collectors.groupingBy(HistoryOURoleAssignmentWithExceptions::getOuUuid));
 	}
-	
+
 	public Map<String, List<HistoryOURoleAssignmentWithTitles>> getOURoleAssignmentsWithTitles(LocalDate localDate) {
 		return historyOURoleAssignmentWithTitlesDao.findByDate(localDate.getYear(), localDate.getMonthValue(), localDate.getDayOfMonth())
 				.stream()
@@ -183,6 +183,7 @@ public class HistoryService {
 
 	@Transactional
 	public void generateOrganisationHistory() {
+
 		if (dataSourceUrl.startsWith("jdbc:sqlserver")) {
 			jdbcTemplate.update("EXEC SP_InsertHistoryOrganisation;");
 		}
@@ -190,9 +191,10 @@ public class HistoryService {
 			jdbcTemplate.update("CALL SP_InsertHistoryOrganisation();");
 		}
 	}
-	
+
 	@Transactional
 	public void generateItSytemHistory() {
+
 		if (dataSourceUrl.startsWith("jdbc:sqlserver")) {
 			jdbcTemplate.update("EXEC SP_InsertHistoryItSystems;");
 		}
@@ -200,9 +202,10 @@ public class HistoryService {
 			jdbcTemplate.update("CALL SP_InsertHistoryItSystems();");
 		}
 	}
-	
+
 	@Transactional
 	public void generateRoleAssignmentHistory() {
+
 		if (dataSourceUrl.startsWith("jdbc:sqlserver")) {
 			jdbcTemplate.update("EXEC SP_InsertHistoryRoleAssignments;");
 		}
@@ -210,9 +213,10 @@ public class HistoryService {
 			jdbcTemplate.update("CALL SP_InsertHistoryRoleAssignments();");
 		}
 	}
-	
+
 	@Transactional
 	public void generateKleAssignmentHistory() {
+
 		if (dataSourceUrl.startsWith("jdbc:sqlserver")) {
 			jdbcTemplate.update("EXEC SP_InsertHistoryKleAssignments;");
 		}
@@ -220,9 +224,10 @@ public class HistoryService {
 			jdbcTemplate.update("CALL SP_InsertHistoryKleAssignments();");
 		}
 	}
-	
+
 	@Transactional
 	public void generateOURoleAssignmentHistory() {
+
 		if (dataSourceUrl.startsWith("jdbc:sqlserver")) {
 			jdbcTemplate.update("EXEC SP_InsertHistoryOURoleAssignments;");
 		}
@@ -230,9 +235,10 @@ public class HistoryService {
 			jdbcTemplate.update("CALL SP_InsertHistoryOURoleAssignments();");
 		}
 	}
-	
+
 	@Transactional
 	public void generateTitleRoleAssignmentHistory() {
+
 		if (dataSourceUrl.startsWith("jdbc:sqlserver")) {
 			jdbcTemplate.update("EXEC SP_InsertHistoryOURoleAssignmentsWithTitles;");
 		}
@@ -243,6 +249,7 @@ public class HistoryService {
 
 	@Transactional
 	public void generateExceptedUsersHistory() {
+
 		if (dataSourceUrl.startsWith("jdbc:sqlserver")) {
 			jdbcTemplate.update("EXEC SP_InsertHistoryOURoleAssignmentsWithExceptions;");
 		}
@@ -253,6 +260,7 @@ public class HistoryService {
 
 	@Transactional
 	public void deleteOldHistory(long retentionPeriod) {
+
 		// delete where (older than retention period) or (older than 2 months except days 7, 14, 21, 28)
 		if (dataSourceUrl.startsWith("jdbc:sqlserver")) {
 			jdbcTemplate.update("DELETE FROM history_users WHERE (dato < GETDATE() - " + retentionPeriod + ") OR (dato < DATEADD(month, -2, GETDATE()) AND DAY(dato) NOT IN (7, 14, 21, 28))");

@@ -10,14 +10,20 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
+import javax.persistence.criteria.Predicate;
+import javax.validation.Valid;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.context.MessageSource;
+import org.springframework.data.jpa.datatables.mapping.DataTablesInput;
+import org.springframework.data.jpa.datatables.mapping.DataTablesOutput;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.util.StringUtils;
+import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -27,9 +33,10 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.RestController;
 
+import dk.digitalidentity.rc.controller.mvc.datatables.dao.UserViewDao;
+import dk.digitalidentity.rc.controller.mvc.datatables.dao.model.UserView;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.KleViewModel;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.UserAssignStatus;
-import dk.digitalidentity.rc.controller.mvc.viewmodel.UserListForm;
 import dk.digitalidentity.rc.controller.rest.model.PostponedConstraintDTO;
 import dk.digitalidentity.rc.dao.model.ConstraintType;
 import dk.digitalidentity.rc.dao.model.Position;
@@ -82,9 +89,6 @@ public class UserRestController {
 	@Autowired
 	private UserRoleService userRoleService;
 
-    @Autowired
-    private MessageSource messageSource;
-
 	@Autowired
 	private AccessConstraintService accessConstraintService;
 
@@ -96,6 +100,9 @@ public class UserRestController {
 	
 	@Autowired
 	private ConstraintTypeService constraintTypeService;
+	
+	@Autowired
+	private UserViewDao userViewDao;
 	
 	@RequireAssignerRole
 	@PostMapping("/rest/users/cleanupDuplicateRoleAssignments")
@@ -113,18 +120,44 @@ public class UserRestController {
 		return new ResponseEntity<String>(HttpStatus.OK);
 	}
 	
-	@GetMapping(value = "/rest/users")
-	public ResponseEntity<List<UserListForm>> getAllUsers(Locale locale) {	
-		String in = messageSource.getMessage("html.word.in", null, locale);
+	@PostMapping("/rest/users/list")
+	public DataTablesOutput<UserView> list(@Valid @RequestBody DataTablesInput input, BindingResult bindingResult, Locale locale) {
 
-		List<User> users = userService.getAllThin();
-		users = accessConstraintService.filterUsersUserCanAccess(users, false);
+		if (bindingResult.hasErrors()) {
+			DataTablesOutput<UserView> error = new DataTablesOutput<>();
+			error.setError(bindingResult.toString());
 
-		return new ResponseEntity<>(users
-				.stream()
-				.map(u -> new UserListForm(u, servletContextPath, in))
-				.collect(Collectors.toList()),
-				HttpStatus.OK);
+			return error;
+		}
+
+		List<String> constrainedOrgUnitUuids = accessConstraintService.getConstrainedOrgUnits(false);
+
+		if (constrainedOrgUnitUuids == null) {
+			return userViewDao.findAll(input);
+		}
+		else if (constrainedOrgUnitUuids.isEmpty()) {
+			return new DataTablesOutput<>();
+		}
+		else {
+			return userViewDao.findAll(input, getUserByOrgUnitUuidIn(constrainedOrgUnitUuids));
+		}
+	}
+	
+	private Specification<UserView> getUserByOrgUnitUuidIn(List<String> orgUnitUuids) {
+		
+		// SELECT * FROM "view" WHERE orgunitUuid LIKE ('') OR orunitUuid LIKE ('') OR orgunitUuid LIKE ('') ...
+		Specification<UserView> specification = null;
+		specification = (Specification<UserView>) (root, query, criteriaBuilder) -> {
+			List<Predicate> predicates = new ArrayList<>(orgUnitUuids.size());
+
+			for (String uuid : orgUnitUuids) {
+			  predicates.add(criteriaBuilder.like(root.get("orgunitUuid"), "%" + uuid + "%"));
+			}
+
+			return criteriaBuilder.or(predicates.toArray(Predicate[]::new));
+		};
+		
+		return specification;
 	}
 
 	@RequireAssignerRole

@@ -15,8 +15,10 @@ namespace ADSyncService
 
         public static void SyncGroupsToRoleCatalogue(RoleCatalogueStub roleCatalogueStub, ADStub adStub)
         {
-            foreach (string ou in ous)
+            foreach (string ouRaw in ous)
             {
+                // need to support OUs with & char in the name and these need to be written as &amp; in xml config.
+                var ou = ouRaw.Replace("&amp;", "&");
                 string[] tokens = ou.Split(';');
                 if (tokens.Length != 2)
                 {

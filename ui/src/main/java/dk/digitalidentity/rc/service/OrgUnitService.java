@@ -215,12 +215,12 @@ public class OrgUnitService {
 		return orgUnitDao.findAll();
 	}
 
-	@Deprecated
+	@SuppressWarnings("deprecation")
 	public List<OrgUnit> getAllWithRoleGroupIncludingInactive(RoleGroup role) {
 		return orgUnitDao.getByRoleGroupAssignmentsRoleGroup(role);
 	}
 
-	@Deprecated
+	@SuppressWarnings("deprecation")
 	public List<OrgUnit> getAllWithRoleIncludingInactive(UserRole userRole) {
 		return orgUnitDao.getByUserRoleAssignmentsUserRole(userRole);
 	}
@@ -315,6 +315,7 @@ public class OrgUnitService {
 		assignment.setAssignedTimestamp(new Date());
 	}
 
+	@AuditLogIntercepted
 	public boolean updateRoleGroupAssignment(OrgUnit ou, OrgUnitRoleGroupAssignment assignment, boolean inherit, LocalDate startDate, LocalDate stopDate, Set<String> exceptedUsers, Set<String> titleUuids) {
 		boolean modified = false;
 	
@@ -406,7 +407,8 @@ public class OrgUnitService {
 			Collection<Title> titlesByUuid = CollectionUtils.emptyIfNull(titleDao.findByUuidInAndActiveTrue(titles));
 			assignment.setContainsTitles(!titlesByUuid.isEmpty());
 			assignment.setTitles(new ArrayList<>(titlesByUuid));
-		} else {
+		}
+		else {
 			Collection<User> usersById = CollectionUtils.emptyIfNull(userDao.findByUuidInAndActiveTrue(exceptedUsers));
 			assignment.setContainsExceptedUsers(!usersById.isEmpty());
 			assignment.setExceptedUsers(new ArrayList<>(usersById));
@@ -419,6 +421,7 @@ public class OrgUnitService {
 		assignment.setAssignedTimestamp(new Date());
 	}
 
+	@AuditLogIntercepted
 	public boolean updateUserRoleAssignment(OrgUnit ou, OrgUnitUserRoleAssignment assignment, boolean inherit, LocalDate startDate, LocalDate stopDate, Set<String> exceptedUsers, Set<String> titleUuids) {
 		boolean modified = false;
 
@@ -835,12 +838,15 @@ public class OrgUnitService {
 		return null;
 	}
 	
-	public List<OrgUnitWithRole2> getOrgUnitsWithRoleGroup(RoleGroup roleGroup) {
+	public List<OrgUnitWithRole2> getActiveOrgUnitsWithRoleGroup(RoleGroup roleGroup) {
 		List<OrgUnitWithRole2> result = new ArrayList<>();
 
 		boolean canEdit = SecurityUtil.getRoles().contains(Constants.ROLE_ADMINISTRATOR);
 
 		for (OrgUnitRoleGroupAssignment assignment : orgUnitRoleGroupAssignmentDao.findByRoleGroup(roleGroup)) {
+			if (!assignment.getOrgUnit().isActive()) {
+				continue;
+			}
 			OrgUnitWithRole2 mapping = new OrgUnitWithRole2();
 			mapping.setOuName(assignment.getOrgUnit().getName());
 			mapping.setOuUuid(assignment.getOrgUnit().getUuid());
@@ -853,12 +859,15 @@ public class OrgUnitService {
 		return result;
 	}
 
-	public List<OrgUnitWithRole2> getOrgUnitsWithUserRole(UserRole userRole) {
+	public List<OrgUnitWithRole2> getActiveOrgUnitsWithUserRole(UserRole userRole) {
 		List<OrgUnitWithRole2> result = new ArrayList<>();
 
 		boolean canEdit = SecurityUtil.getRoles().contains(Constants.ROLE_ADMINISTRATOR);
 
 		for (OrgUnitUserRoleAssignment assignment : orgUnitUserRoleAssignmentDao.findByUserRole(userRole)) {
+			if (!assignment.getOrgUnit().isActive()) {
+				continue;
+			}
 			OrgUnitWithRole2 mapping = new OrgUnitWithRole2();
 			mapping.setOuName(assignment.getOrgUnit().getName());
 			mapping.setOuUuid(assignment.getOrgUnit().getUuid());
