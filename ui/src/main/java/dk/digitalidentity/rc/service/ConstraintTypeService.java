@@ -1,5 +1,8 @@
 package dk.digitalidentity.rc.service;
 
+import java.util.List;
+import java.util.Objects;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -17,7 +20,16 @@ public class ConstraintTypeService {
     }
     
     public ConstraintType getByEntityId(String entityId) {
-    	return constraintTypeDao.findByEntityId(entityId);
+    	List<ConstraintType> constraintTypes = constraintTypeDao.findByEntityId(entityId);
+    	
+    	// there might be several different "casings" of an EntityID, and the DB is not case-sensitive on searches :(
+    	for (ConstraintType ct : constraintTypes) {
+    		if (Objects.equals(ct.getEntityId(), entityId)) {
+    			return ct;
+    		}
+    	}
+    	
+    	return null;
     }
 
 	public ConstraintType save(ConstraintType entity) {

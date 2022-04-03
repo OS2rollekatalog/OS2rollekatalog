@@ -37,13 +37,15 @@ import dk.digitalidentity.rc.dao.model.UserRole;
 import dk.digitalidentity.rc.dao.model.enums.KleType;
 import dk.digitalidentity.rc.dao.model.enums.NotificationType;
 import dk.digitalidentity.rc.dao.model.enums.OrgUnitLevel;
+import dk.digitalidentity.rc.service.model.MovedPostion;
 import dk.digitalidentity.rc.service.model.OrgUnitWithNewAndOldParentDTO;
 import dk.digitalidentity.rc.service.model.OrgUnitWithTitlesDTO;
 import dk.digitalidentity.rc.service.model.OrganisationChangeEvents;
+import dk.digitalidentity.rc.service.model.UserMovedPositions;
 import lombok.Getter;
-import lombok.extern.log4j.Log4j;
+import lombok.extern.slf4j.Slf4j;
 
-@Log4j
+@Slf4j
 @Service
 public class OrganisationImporter {
 	private ThreadLocal<OrganisationChangeEvents> events = new ThreadLocal<>();
@@ -176,12 +178,15 @@ public class OrganisationImporter {
 	private void mapOrganisation(OrganisationDTO organisation, List<User> newUsers, List<OrgUnit> newOrgUnits) {
 		// get all itSystems for mapping purposes
 		List<ItSystem> itSystems = itSystemService.getAll();
+		
+		// get all titles for mapping purposes
+		List<Title> titles = titleService.getAll();
 
 		// validation ensures that this will work, so we can safely call get() on the rootDTO
 		Optional<OrgUnitDTO> rootDTO = organisation.getOrgUnits().stream().filter(ou -> ou.getParentOrgUnitUuid() == null).findFirst();
-		OrgUnit root = mapOrgUnitDTOToOrgUnit(rootDTO.get(), null, itSystems);
+		OrgUnit root = mapOrgUnitDTOToOrgUnit(rootDTO.get(), null, itSystems, titles);
 
-		buildOrgUnitTree(root, organisation.getOrgUnits(), itSystems);
+		buildOrgUnitTree(root, organisation.getOrgUnits(), itSystems, titles);
 		copyTreeToList(root, newOrgUnits);
 
 		for (UserDTO userDTO : organisation.getUsers()) {
@@ -265,14 +270,14 @@ public class OrganisationImporter {
 	}
 
 	// O(n^2) - not pretty, but actually not that slow either
-	private void buildOrgUnitTree(OrgUnit parent, List<OrgUnitDTO> orgUnits, List<ItSystem> itSystems) {		
+	private void buildOrgUnitTree(OrgUnit parent, List<OrgUnitDTO> orgUnits, List<ItSystem> itSystems, List<Title> titles) {		
 		for (OrgUnitDTO orgUnit : orgUnits) {
 			if (orgUnit.getParentOrgUnitUuid() != null && orgUnit.getParentOrgUnitUuid().equals(parent.getUuid())) {
-				OrgUnit ou = mapOrgUnitDTOToOrgUnit(orgUnit, parent, itSystems);
+				OrgUnit ou = mapOrgUnitDTOToOrgUnit(orgUnit, parent, itSystems, titles);
 
 				parent.getChildren().add(ou);
 
-				buildOrgUnitTree(ou, orgUnits, itSystems);
+				buildOrgUnitTree(ou, orgUnits, itSystems, titles);
 			}
 		}
 	}
@@ -347,7 +352,7 @@ public class OrganisationImporter {
 		return user;
 	}
 
-	private OrgUnit mapOrgUnitDTOToOrgUnit(OrgUnitDTO orgUnit, OrgUnit parent, List<ItSystem> itSystems) {
+	private OrgUnit mapOrgUnitDTOToOrgUnit(OrgUnitDTO orgUnit, OrgUnit parent, List<ItSystem> itSystems, List<Title> titles) {
 		OrgUnit ou = new OrgUnit();
 		ou.setActive(true);
 		ou.setChildren(new ArrayList<>());
@@ -359,6 +364,7 @@ public class OrganisationImporter {
 		ou.setName(orgUnit.getName());
 		ou.setParent(parent);
 		ou.setUuid(orgUnit.getUuid());
+		ou.setTitles(new ArrayList<>());
 
 		ou.setLevel(OrgUnitLevel.NONE);
 		if (configuration.getOrganisation().isGetLevelsFromApi() && orgUnit.getLevel() != null) {
@@ -396,6 +402,21 @@ public class OrganisationImporter {
 				for (ItSystem itSystem : itSystems) {
 					if (itSystem.getId() == itSystemId) {
 						ou.getItSystems().add(itSystem);
+						break;
+					}
+				}
+			}
+		}
+
+		if (orgUnit.getTitleIdentifiers() != null) {
+			for (String titleUuid : orgUnit.getTitleIdentifiers()) {
+				for (Title title : titles) {
+					if (Objects.equals(title.getUuid(), titleUuid)) {
+						// only add if not already added
+						if (ou.getTitles().stream().noneMatch(t -> Objects.equals(t.getUuid(), titleUuid))) {
+							ou.getTitles().add(title);
+						}
+						
 						break;
 					}
 				}
@@ -439,6 +460,10 @@ public class OrganisationImporter {
 			for (OrgUnit orgUnit : resultToBeCreated) {
 				existingOrgUnits.add(orgUnit);				
 				events.get().getNewOrgUnits().add(orgUnit);
+				
+				for (Title title : orgUnit.getTitles()) {
+					addNewEmptyTitlesToEvent(orgUnit, title);
+				}
 			}
 		}
 		
@@ -486,6 +511,11 @@ public class OrganisationImporter {
 								}
 							}
 						}
+						
+						if (hasTitleChanges(existingOrgUnit, orgUnitToUpdate)) {
+							checkOrgUnitForNewEmptyTitles(existingOrgUnit, orgUnitToUpdate);
+							existingOrgUnit.setTitles(orgUnitToUpdate.getTitles());
+						}
 
 						orgUnitService.save(existingOrgUnit);
 						break;
@@ -503,6 +533,7 @@ public class OrganisationImporter {
 			}
 		}
 	}
+
 	
 	private void processUsers(List<User> newUsers, List<User> existingUsers, List<OrgUnit> existingOrgUnits, OrganisationImportResponse response, boolean deltaSync) {
 		List<User> toBeCreated = new ArrayList<>();
@@ -576,6 +607,13 @@ public class OrganisationImporter {
 						}
 
 						if (differentPositions(userToUpdate, existingUser)) {
+							
+							UserMovedPositions movedPositionEvent = null;
+							if (!existingUser.getUserRoleAssignments().isEmpty() || !existingUser.getRoleGroupAssignments().isEmpty()) {
+								movedPositionEvent = new UserMovedPositions();
+								movedPositionEvent.setUser(userToUpdate);
+							}
+							
 							// do the switcheroo to make Hibernate happy on all the userToUpdate's positions
 							for (Position userToUpdatePosition : userToUpdate.getPositions()) {
 								for (OrgUnit existingOrgUnit : existingOrgUnits) {
@@ -596,6 +634,10 @@ public class OrganisationImporter {
 								if (!containsPosition(newPosition, existingUser.getPositions())) {
 									checkOrgUnitForNewTitles(newPosition, newPosition.getOrgUnit());
 									addPosition(existingUser, newPosition);
+									
+									if (movedPositionEvent != null) {
+										movedPositionEvent.getNewPositions().add(new MovedPostion(newPosition.getOrgUnit().getName(), newPosition.getName()));
+									}
 								}
 							}
 
@@ -604,11 +646,19 @@ public class OrganisationImporter {
 							for (Position existingPosition : existingUser.getPositions()) {
 								if (!containsPosition(existingPosition, userToUpdate.getPositions())) {
 									positionsToRemove.add(existingPosition);
+									
+									if (movedPositionEvent != null) {
+										movedPositionEvent.getOldPositions().add(new MovedPostion(existingPosition.getOrgUnit().getName(), existingPosition.getName()));
+									}
 								}
 							}
 
 							for (Position positionToRemove : positionsToRemove) {
 								userService.removePosition(existingUser, positionToRemove);
+							}
+							
+							if (movedPositionEvent != null && !movedPositionEvent.getNewPositions().isEmpty() && !movedPositionEvent.getOldPositions().isEmpty()) {
+								events.get().getUsersMovedPostions().add(movedPositionEvent);
 							}
 						}
 
@@ -643,6 +693,7 @@ public class OrganisationImporter {
 					.stream()
 					.map(t -> t.getUuid())
 					.collect(Collectors.toList());
+			existingTitleUuids.addAll(orgUnit.getTitles().stream().map(t -> t.getUuid()).collect(Collectors.toList()));
 
 			// if not present, we got a new title
 			if (!existingTitleUuids.contains(position.getTitle().getUuid())) {
@@ -664,6 +715,60 @@ public class OrganisationImporter {
 					events.get().getOrgUnitsWithNewTitles().add(dto);
 				}
 			}
+		}
+	}
+	
+	private void checkOrgUnitForNewEmptyTitles(OrgUnit existingOrgUnit, OrgUnit newOrgUnit) {
+		if (configuration.getTitles().isEnabled()) {
+
+			// find existing
+			List<String> existingTitleUuids = orgUnitService.getTitles(existingOrgUnit)
+					.stream()
+					.map(t -> t.getUuid())
+					.collect(Collectors.toList());
+			existingTitleUuids.addAll(existingOrgUnit.getTitles().stream().map(t -> t.getUuid()).collect(Collectors.toList()));
+
+			for (Title newOrgUnitTitle : newOrgUnit.getTitles()) {
+				// if not present, we got a new title
+				if (!existingTitleUuids.contains(newOrgUnitTitle.getUuid())) {
+					boolean found = false;
+
+					for (OrgUnitWithTitlesDTO dto : events.get().getOrgUnitsWithNewTitles()) {
+						if (dto.getOrgUnit().getUuid().equals(existingOrgUnit.getUuid())) {
+							dto.getNewTitles().add(newOrgUnitTitle);
+							found = true;
+							break;
+						}
+					}
+					
+					if (!found) {
+						OrgUnitWithTitlesDTO dto = new OrgUnitWithTitlesDTO();
+						dto.setOrgUnit(existingOrgUnit);
+						dto.getNewTitles().add(newOrgUnitTitle);
+						
+						events.get().getOrgUnitsWithNewTitles().add(dto);
+					}
+				}
+			}
+		}
+	}
+	
+	private void addNewEmptyTitlesToEvent(OrgUnit orgUnit, Title title) {
+		boolean found = false;
+		for (OrgUnitWithTitlesDTO dto : events.get().getOrgUnitsWithNewTitles()) {
+			if (dto.getOrgUnit().getUuid().equals(orgUnit.getUuid())) {
+				dto.getNewTitles().add(title);
+				found = true;
+				break;
+			}
+		}
+		
+		if (!found) {
+			OrgUnitWithTitlesDTO dto = new OrgUnitWithTitlesDTO();
+			dto.setOrgUnit(orgUnit);
+			dto.getNewTitles().add(title);
+			
+			events.get().getOrgUnitsWithNewTitles().add(dto);
 		}
 	}
 	
@@ -756,7 +861,7 @@ public class OrganisationImporter {
 	}
 	
 	private static boolean hasSameKey(ManagerDTO managerDto, User manager) {
-		if (managerDto.getUserId().equals(manager.getUserId()) && managerDto.getUuid().equals(manager.getExtUuid())) {
+		if (managerDto.getUserId().equalsIgnoreCase(manager.getUserId()) && managerDto.getUuid().equals(manager.getExtUuid())) {
 			return true;
 		}
 		
@@ -764,7 +869,7 @@ public class OrganisationImporter {
 	}
 
 	private static boolean hasSameKey(User user1, User user2) {
-		if (user1.getExtUuid().equals(user2.getExtUuid()) && user1.getUserId().equals(user2.getUserId())) {
+		if (user1.getExtUuid().equals(user2.getExtUuid()) && user1.getUserId().equalsIgnoreCase(user2.getUserId())) {
 			return true;
 		}
 
@@ -776,7 +881,7 @@ public class OrganisationImporter {
 		// find those that needs to be created or updated
 		for (OrgUnit newOrgUnit : newOrgUnits) {
 			boolean found = false;
-
+			
 			for (OrgUnit existingOrgUnit : existingOrgUnits) {
 				if (existingOrgUnit.getUuid().equals(newOrgUnit.getUuid())) {
 					found = true;
@@ -797,6 +902,9 @@ public class OrganisationImporter {
 						toBeUpdated.add(newOrgUnit);
 					}
 					else if (configuration.getOrganisation().isGetLevelsFromApi() && differentOrgUnitLevels(existingOrgUnit, newOrgUnit)) {
+						toBeUpdated.add(newOrgUnit);
+					} 
+					else if (hasTitleChanges(existingOrgUnit, newOrgUnit)) {
 						toBeUpdated.add(newOrgUnit);
 					}
 					
@@ -853,6 +961,40 @@ public class OrganisationImporter {
 	}
 	
 	//// equals() methods for detecting changes ////
+
+	private boolean hasTitleChanges(OrgUnit existingOrgUnit, OrgUnit newOrgUnit) {
+		for (Title existingOrgUnitTitles : existingOrgUnit.getTitles()) {
+			boolean titleFound = false;
+
+			for (Title newOrgUnitTitle : newOrgUnit.getTitles()) {
+				if (newOrgUnitTitle.getUuid().equals(existingOrgUnitTitles.getUuid())) {
+					titleFound = true;
+					break;
+				}
+			}
+			
+			if (!titleFound) {
+				return true;
+			}
+		}
+		
+		for (Title newOrgUnitTitle : newOrgUnit.getTitles()) {
+			boolean titleFound = false;
+
+			for (Title existingOrgUnitTitle : existingOrgUnit.getTitles()) {
+				if (newOrgUnitTitle.getUuid().equals(existingOrgUnitTitle.getUuid())) {
+					titleFound = true;
+					break;
+				}
+			}
+			
+			if (!titleFound) {
+				return true;
+			}
+		}
+		
+		return false;
+	}
 
 	private boolean hasItSystemChanges(OrgUnit newOrgUnit, OrgUnit existingOrgUnit) {
 		for (ItSystem existingOrgUnitItSystem : existingOrgUnit.getItSystems()) {
@@ -1070,12 +1212,40 @@ public class OrganisationImporter {
 		Set<OrgUnit> newOrgUnits = events.get().getNewOrgUnits();
 		Set<OrgUnitWithNewAndOldParentDTO> parentChangedOrgUnits = events.get().getOrgUnitsWithNewParent();
 		Set<OrgUnitWithTitlesDTO> orgUnitsWithNewTitles = events.get().getOrgUnitsWithNewTitles();
+		Set<UserMovedPositions> UsersWhoMovedPositions = events.get().getUsersMovedPostions();
 
 		handleNewOrgUnits(newOrgUnits);
 
 		handleParentChange(parentChangedOrgUnits);
 
 		handleNewTitles(orgUnitsWithNewTitles);
+		
+		handleUserPositionChange(UsersWhoMovedPositions);
+	}
+
+	private void handleUserPositionChange(Set<UserMovedPositions> UsersWhoMovedPositions) {
+		if (settingsService.isNotificationTypeEnabled(NotificationType.USER_MOVED_POSITIONS)) {
+			for (UserMovedPositions event : UsersWhoMovedPositions) {
+				String oneOrMoreNew = event.getNewPositions().size() == 1 ? "Ny stilling:" : "Nye stillinger:";
+				String oneOrMoreOld = event.getOldPositions().size() == 1 ? "Fratrådt stilling:" : "Fratrådte stillinger:";
+				String message = "Brugeren " + event.getUser().getName() + " (" + event.getUser().getUserId() + ") har skiftet afdeling.\n" + oneOrMoreNew + "\n";
+				for (MovedPostion newPosition : event.getNewPositions()) {
+					message += newPosition.getPositionName() + " i " + newPosition.getOrgUnitName() + "\n";
+				}
+				message += "\n" + oneOrMoreOld + "\n";
+				for (MovedPostion oldPosition : event.getOldPositions()) {
+					message += oldPosition.getPositionName() + " i " + oldPosition.getOrgUnitName() + "\n";
+				}
+				
+				Notification moveNotification = new Notification();
+				moveNotification.setActive(true);
+				moveNotification.setCreated(new Date());
+				moveNotification.setMessage(message);
+				moveNotification.setNotificationType(NotificationType.USER_MOVED_POSITIONS);
+
+				notificationService.save(moveNotification);
+			}
+		}
 	}
 
 	private void handleNewTitles(Set<OrgUnitWithTitlesDTO> orgUnitsWithNewTitles) {
@@ -1088,9 +1258,9 @@ public class OrganisationImporter {
 					continue;
 				}
 				
-				String message = "Enheden " + dto.getOrgUnit().getName() + " med uuid " + dto.getOrgUnit().getUuid() + " har en eller flere roller tildelt på stillinger og har fået en eller flere nye stillinger:\n";
+				String message = "Enheden '" + dto.getOrgUnit().getName() + "' har en eller flere roller tildelt på stillinger og har fået en eller flere nye stillinger:\n";
 				for (Title title : dto.getNewTitles()) {
-					message += title.getName() + " med uuid " + title.getUuid() + "\n";
+					message += title.getName() + "\n";
 				}
 				
 				Notification moveNotification = new Notification();
@@ -1134,28 +1304,28 @@ public class OrganisationImporter {
 					List<RoleGroup> filteredOldRoleGroups = oldWrapper.getRoleGroups().stream().filter(r -> !roleGroupsAfter.contains(r.getId())).collect(Collectors.toList());
 					List<UserRole> filteredOldNewUserRoles = oldWrapper.getUserRoles().stream().filter(u -> !userRolesAfter.contains(u.getId())).collect(Collectors.toList());
 					
-					String message = "En enhed med uuid " + dto.getOrgUnit().getUuid() + " og navn " + dto.getOrgUnit().getName() + " har skiftet overliggende enhed og som konsekvens deraf har dens rettigheder ændret sig.\n";
+					String message = "Enheden '" + dto.getOrgUnit().getName() + "' har skiftet overliggende enhed og som konsekvens deraf har dens rettigheder ændret sig.\n";
 					
 					if (!filteredNewRoleGroups.isEmpty() || !filteredNewUserRoles.isEmpty()) {
 						message += "Den har nedarvet følgende rettigheder: \n";
 						
 						for (RoleGroup roleGroup : filteredNewRoleGroups) {
-							message += "Rollebuketten " +  roleGroup.getName() + " med id " + roleGroup.getId() + "\n";
+							message += "Rollebuketten " +  roleGroup.getName() + "\n";
 						}
 						
 						for (UserRole userRole : filteredNewUserRoles) {
-							message += "Jobfunktionsrollen " +  userRole.getName() + " med id " + userRole.getId() + "\n";
+							message += "Jobfunktionsrollen " +  userRole.getName() + " fra it-systemet " + userRole.getItSystem().getName() + "\n";
 						}
 					}
 					
 					if (!filteredOldRoleGroups.isEmpty() || !filteredOldNewUserRoles.isEmpty()) {
 						message += "\nDen har mistet følgende nedarvede rettigheder: \n";
 						for (RoleGroup roleGroup : filteredOldRoleGroups) {
-							message += "Rollebuketten " +  roleGroup.getName() + " med id " + roleGroup.getId() + "\n";
+							message += "Rollebuketten " +  roleGroup.getName() + "\n";
 						}
 						
 						for (UserRole userRole : filteredOldNewUserRoles) {
-							message += "Jobfunktionsrollen " +  userRole.getName() + " med id " + userRole.getId() + "\n";
+							message += "Jobfunktionsrollen " +  userRole.getName() + " fra it-systemet " + userRole.getItSystem().getName() + "\n";
 						}
 					}
 					
@@ -1177,7 +1347,7 @@ public class OrganisationImporter {
 				Notification notification = new Notification();
 				notification.setActive(true);
 				notification.setCreated(new Date());
-				notification.setMessage("Der er oprettet en ny enhed med uuid " + orgUnit.getUuid() + " og navnet " + orgUnit.getName());
+				notification.setMessage("Der er oprettet en ny enhed med navnet '" + orgUnit.getName() + "'");
 				notification.setNotificationType(NotificationType.NEW_ORG_UNIT);
 	
 				notificationService.save(notification);
@@ -1193,14 +1363,14 @@ public class OrganisationImporter {
 				}
 				
 				if (!wrapper.getRoleGroups().isEmpty() || !wrapper.getUserRoles().isEmpty()) {
-					String message = "En enhed med uuid " + orgUnit.getUuid() + " og navn " + orgUnit.getName() + " har skiftet overliggende enhed og har som konsekvens deraf nedarvet følgende rettigheder: \n";
+					String message = "Enheden '" + orgUnit.getName() + "' har skiftet overliggende enhed og har som konsekvens deraf nedarvet følgende rettigheder: \n";
 
 					for (RoleGroup roleGroup : wrapper.getRoleGroups()) {
-						message += "Rollebuketten " +  roleGroup.getName() + " med id " + roleGroup.getId() + "\n";
+						message += "Rollebuketten " +  roleGroup.getName() + "\n";
 					}
 					
 					for (UserRole userRole : wrapper.getUserRoles()) {
-						message += "Rollebuketten " +  userRole.getName() + " med id " + userRole.getId() + "\n";
+						message += "Jobfunktionsrollen " +  userRole.getName() + " fra it-systemet" + userRole.getItSystem().getName() + "\n";
 					}
 					
 					Notification moveNotification = new Notification();

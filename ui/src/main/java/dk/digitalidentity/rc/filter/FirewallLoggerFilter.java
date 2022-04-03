@@ -20,7 +20,7 @@ import lombok.extern.slf4j.Slf4j;
 
 @Component
 @Slf4j
-@Order(Ordered.HIGHEST_PRECEDENCE)
+@Order(Ordered.HIGHEST_PRECEDENCE + 1) // support RequestLoggerconfiguration
 public class FirewallLoggerFilter extends GenericFilterBean {
 
     @Override

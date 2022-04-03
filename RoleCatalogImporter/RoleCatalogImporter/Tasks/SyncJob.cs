@@ -43,6 +43,15 @@ namespace RoleCatalogImporter
                         orgUnit.parentOrgUnitUuid = ou.ParentUUID;
                     }
 
+                    if (ou.Manager != null)
+                    {
+                        orgUnit.manager = new Manager()
+                        {
+                            userId = ou.Manager.UserId,
+                            uuid = ou.Manager.Uuid
+                        };
+                    }
+
                     organisation.orgUnits.Add(orgUnit);
                 }
 

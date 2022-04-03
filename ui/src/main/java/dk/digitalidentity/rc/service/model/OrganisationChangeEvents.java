@@ -13,10 +13,12 @@ public class OrganisationChangeEvents {
 	private Set<OrgUnit> newOrgUnits;
 	private Set<OrgUnitWithNewAndOldParentDTO> orgUnitsWithNewParent;
 	private Set<OrgUnitWithTitlesDTO> orgUnitsWithNewTitles;
+	private Set<UserMovedPositions> usersMovedPostions;
 	
 	public OrganisationChangeEvents() {
 		newOrgUnits = new HashSet<>();
 		orgUnitsWithNewParent = new HashSet<>();
 		orgUnitsWithNewTitles = new HashSet<>();
+		usersMovedPostions = new HashSet<>();
 	}
 }

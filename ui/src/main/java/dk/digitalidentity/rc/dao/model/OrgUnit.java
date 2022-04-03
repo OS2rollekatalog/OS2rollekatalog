@@ -12,6 +12,7 @@ import javax.persistence.FetchType;
 import javax.persistence.Id;
 import javax.persistence.JoinColumn;
 import javax.persistence.JoinTable;
+import javax.persistence.ManyToMany;
 import javax.persistence.ManyToOne;
 import javax.persistence.OneToMany;
 import javax.persistence.OneToOne;
@@ -111,6 +112,13 @@ public class OrgUnit implements AuditLoggable {
 	@OneToMany(mappedBy = "orgUnit", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
 	private List<AuthorizationManager> authorizationManagers;
 
+	@ManyToMany(cascade = CascadeType.ALL)
+	@JoinTable(
+	  name = "ou_title_mapping", 
+	  joinColumns = @JoinColumn(name = "orgunit_uuid"), 
+	  inverseJoinColumns = @JoinColumn(name = "title_uuid"))
+	private List<Title> titles;
+	
 	@JsonIgnore
 	@Override
 	public String getEntityId() {

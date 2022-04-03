@@ -1,21 +1,13 @@
 package dk.digitalidentity.rc.controller.mvc;
 
-import java.io.StringWriter;
 import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.List;
 import java.util.Map;
 
 import javax.servlet.http.HttpServletRequest;
-import javax.xml.transform.OutputKeys;
-import javax.xml.transform.Source;
-import javax.xml.transform.Transformer;
-import javax.xml.transform.TransformerFactory;
-import javax.xml.transform.dom.DOMSource;
-import javax.xml.transform.stream.StreamResult;
 
-import org.opensaml.common.SAMLException;
-import org.opensaml.saml2.core.Assertion;
+import org.opensaml.saml.common.SAMLException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.web.servlet.error.DefaultErrorAttributes;
@@ -25,9 +17,6 @@ import org.springframework.context.annotation.PropertySource;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.CredentialsExpiredException;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.saml.SAMLCredential;
 import org.springframework.security.web.WebAttributes;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -35,7 +24,6 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.context.request.ServletWebRequest;
 import org.springframework.web.context.request.WebRequest;
-import org.w3c.dom.Element;
 
 import dk.digitalidentity.rc.config.Constants;
 import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
@@ -43,10 +31,8 @@ import dk.digitalidentity.rc.dao.RoleGroupDao;
 import dk.digitalidentity.rc.dao.UserRoleDao;
 import dk.digitalidentity.rc.security.SecurityUtil;
 import dk.digitalidentity.rc.service.ItSystemService;
-import lombok.extern.log4j.Log4j;
 
 @Controller
-@Log4j
 @PropertySource("classpath:git.properties")
 public class DefaultController implements ErrorController {
 	private ErrorAttributes errorAttributes = new DefaultErrorAttributes();
@@ -107,37 +93,6 @@ public class DefaultController implements ErrorController {
 	public String index(Model model, HttpServletRequest request) {
 		List<String> headers = new ArrayList<>();
 		Enumeration<String> headerNames = request.getHeaderNames();
-
-		try {
-			if (SecurityContextHolder.getContext() != null && SecurityContextHolder.getContext().getAuthentication() != null) {
-				Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-				Object credentials = authentication.getCredentials();
-				
-				if (credentials != null && credentials instanceof SAMLCredential) {
-					SAMLCredential saml = (SAMLCredential) credentials;
-					
-					Assertion assertion = saml.getAuthenticationAssertion();
-					Element element = assertion.getDOM();
-	
-					Source source = new DOMSource(element);
-					TransformerFactory transFactory = TransformerFactory.newInstance();
-					Transformer transformer = transFactory.newTransformer();
-					StringWriter buffer = new StringWriter();
-	
-					transformer.setOutputProperty(OutputKeys.METHOD, "xml");
-					transformer.setOutputProperty("{http://xml.apache.org/xslt}indent-amount", "4");
-					transformer.setOutputProperty(OutputKeys.OMIT_XML_DECLARATION, "yes");
-					transformer.setOutputProperty(OutputKeys.INDENT, "yes");
-					transformer.setOutputProperty(OutputKeys.ENCODING, "UTF-8");
-					transformer.transform(source, new StreamResult(buffer));
-	
-					model.addAttribute("token", buffer.toString());
-				}
-			}
-		}
-		catch (Exception ex) {
-			log.warn("Failed to parse SAML token", ex);
-		}
 		
 		while (headerNames.hasMoreElements()) {
 			String header = headerNames.nextElement();

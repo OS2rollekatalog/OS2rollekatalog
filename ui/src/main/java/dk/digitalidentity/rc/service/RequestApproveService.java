@@ -23,9 +23,9 @@ import dk.digitalidentity.rc.dao.model.enums.EmailTemplateType;
 import dk.digitalidentity.rc.dao.model.enums.EntityType;
 import dk.digitalidentity.rc.dao.model.enums.RequestApproveStatus;
 import dk.digitalidentity.rc.service.model.RequestApproveWrapper;
-import lombok.extern.log4j.Log4j;
+import lombok.extern.slf4j.Slf4j;
 
-@Log4j
+@Slf4j
 @Service
 public class RequestApproveService {
 	
@@ -275,10 +275,13 @@ public class RequestApproveService {
 			if (!StringUtils.isEmpty(settingsService.getRequestApproveServicedeskEmail())) {
 				EmailTemplate template = emailTemplateService.findByTemplateType(EmailTemplateType.WAITING_REQUESTS_ROLE_ASSIGNERS);
 				if (template.isEnabled()) {
+					String title = template.getTitle();
+					title = title.replace(EmailTemplateService.RECEIVER_PLACEHOLDER, "rolletildeler");
+					title = title.replace(EmailTemplateService.COUNT_PLACEHOLDER, Integer.toString(count));
 					String message = template.getMessage();
 					message = message.replace(EmailTemplateService.RECEIVER_PLACEHOLDER, "rolletildeler");
 					message = message.replace(EmailTemplateService.COUNT_PLACEHOLDER, Integer.toString(count));
-					emailQueueService.queueEmail(settingsService.getRequestApproveServicedeskEmail(), template.getTitle(), message, template, null);
+					emailQueueService.queueEmail(settingsService.getRequestApproveServicedeskEmail(), title, message, template, null);
 					for (RequestApprove requestApprove : requestApproves) {
 						requestApprove.setEmailSent(true);
 						requestApproveService.save(requestApprove);

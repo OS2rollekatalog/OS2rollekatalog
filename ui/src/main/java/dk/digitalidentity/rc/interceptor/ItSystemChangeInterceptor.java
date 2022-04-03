@@ -21,10 +21,10 @@ import dk.digitalidentity.rc.dao.model.enums.ItSystemChangeEventType;
 import dk.digitalidentity.rc.service.ItSystemChangeService;
 import dk.digitalidentity.rc.service.ItSystemService;
 import dk.digitalidentity.rc.service.SystemRoleService;
-import lombok.extern.log4j.Log4j;
+import lombok.extern.slf4j.Slf4j;
 
 @Aspect
-@Log4j
+@Slf4j
 @Component
 public class ItSystemChangeInterceptor {
 

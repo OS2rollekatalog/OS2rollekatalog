@@ -32,14 +32,18 @@ import dk.digitalidentity.rc.dao.model.AltAccount;
 import dk.digitalidentity.rc.dao.model.DirtyKspCicsUserProfile;
 import dk.digitalidentity.rc.dao.model.ItSystem;
 import dk.digitalidentity.rc.dao.model.KspCicsUnmatchedUser;
+import dk.digitalidentity.rc.dao.model.Notification;
 import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserRole;
 import dk.digitalidentity.rc.dao.model.UserUserRoleAssignment;
 import dk.digitalidentity.rc.dao.model.enums.AltAccountType;
 import dk.digitalidentity.rc.dao.model.enums.ItSystemType;
+import dk.digitalidentity.rc.dao.model.enums.NotificationEntityType;
+import dk.digitalidentity.rc.dao.model.enums.NotificationType;
 import dk.digitalidentity.rc.security.SecurityUtil;
 import dk.digitalidentity.rc.service.ItSystemService;
 import dk.digitalidentity.rc.service.KspCicsUnmatchedUserService;
+import dk.digitalidentity.rc.service.NotificationService;
 import dk.digitalidentity.rc.service.UserRoleService;
 import dk.digitalidentity.rc.service.UserService;
 import dk.digitalidentity.rc.service.cics.model.KspChangePasswordResponse;
@@ -176,6 +180,9 @@ public class KspCicsService {
 
 	@Autowired
 	private RoleCatalogueConfiguration configuration;
+	
+	@Autowired
+	private NotificationService notificationService;
 	
 	public boolean initialized() {
 		return (altAccountDao.countByAccountType(AltAccountType.KSPCICS) > 0);
@@ -739,6 +746,7 @@ public class KspCicsService {
 				}
 				else {
 					log.error("updateKspCicsUser - Got responseCode " + response.getStatusCodeValue() + " from service. Request=" + request + " / Response=" + response.getBody());
+					notify(existingKspUser, toAdd, toDelete, response, null);
 					return false;
 				}
 			}
@@ -762,6 +770,7 @@ public class KspCicsService {
 		}
 		catch (Exception ex) {
 			log.error("updateKspCicsUser - Failed to decode response: " + responseBody, ex);
+			notify(existingKspUser, toAdd, toDelete, response, null);
 			
 			return false;
 		}
@@ -774,10 +783,45 @@ public class KspCicsService {
 				log.error("updateKspCicsUser - Got a non-success response: " + wrapper.getResult() + ". Request=" + payload + " / Response=" + responseBody);
 			}
 			
+			notify(existingKspUser, toAdd, toDelete, response, wrapper.getErrorMessage());
+			
 			return false;
 		}
 
 		return true;
+	}
+
+	private void notify(KspUser existingKspUser, Set<String> toAdd, Set<String> toDelete, ResponseEntity<String> response, String optionalErrorMessage) {
+		Notification notification = new Notification();
+		notification.setActive(true);
+		notification.setNotificationType(NotificationType.UPDATE_KSP_CICS_USER_FAILED);
+		notification.setAffectedEntityType(NotificationEntityType.KSP_USERS);
+		notification.setAffectedEntityName(existingKspUser.getUserId());
+		notification.setAffectedEntityUuid(existingKspUser.getUserId());
+		String message = "Opdatering af CICS konto " + existingKspUser.getUserId() + " er fejlet.\n\n";
+		
+		if (!toAdd.isEmpty()) {
+			message += "Forsøgte at tilføje rollerne:\n";
+			for (String add : toAdd) {
+				message += " - " + add + "\n";
+			}
+		}
+
+		if (!toDelete.isEmpty()) {
+			message += "Forsøgte at fjerne rollerne:\n";
+			for (String delete : toDelete) {
+				message += " - " + delete + "\n";
+			}
+		}
+		
+		message += "\nFejlbesked fra CICS:\n\n";
+		if (optionalErrorMessage != null) {
+			message += optionalErrorMessage + "\n\n";
+		}
+
+		message += response.getBody();
+		notification.setMessage(message);
+		notificationService.save(notification);
 	}
 
 	// make the XML kings happy
@@ -801,7 +845,7 @@ public class KspCicsService {
         		optionalIdentifier = optionalIdentifier.substring(0, idx);
         	}
 
-        	builder.append(SOAP_SEARCH_USERPROFILES_FILTER.replace(SOAP_ARG_USER_PROFILE, optionalIdentifier));
+        	builder.append(SOAP_SEARCH_USERPROFILES_FILTER.replace(SOAP_ARG_USER_PROFILE, escape(optionalIdentifier)));
         }
         builder.append(SOAP_SEARCH_REQUEST_END);
         builder.append(SOAP_WRAPPER_END);

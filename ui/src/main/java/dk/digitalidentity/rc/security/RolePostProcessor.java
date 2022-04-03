@@ -8,9 +8,8 @@ import java.util.stream.Collectors;
 import javax.servlet.http.HttpServletRequest;
 import javax.transaction.Transactional;
 
+import dk.digitalidentity.samlmodule.model.SamlGrantedAuthority;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.security.core.GrantedAuthority;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Component;
 import org.springframework.web.context.request.RequestContextHolder;
@@ -31,8 +30,8 @@ import dk.digitalidentity.rc.service.ReportTemplateService;
 import dk.digitalidentity.rc.service.SettingsService;
 import dk.digitalidentity.rc.service.UserService;
 import dk.digitalidentity.rc.service.model.WhoCanRequest;
-import dk.digitalidentity.saml.extension.SamlLoginPostProcessor;
-import dk.digitalidentity.saml.model.TokenUser;
+import dk.digitalidentity.samlmodule.model.SamlLoginPostProcessor;
+import dk.digitalidentity.samlmodule.model.TokenUser;
 
 @Component
 @Transactional
@@ -90,12 +89,12 @@ public class RolePostProcessor implements SamlLoginPostProcessor {
 			}
 		}
 		
-		Set<GrantedAuthority> authorities = new HashSet<>();
+		Set<SamlGrantedAuthority> authorities = new HashSet<>();
 
 		// if any manager has flagged this user as a substitute, add the substitute role and keep track of the list of managers
 		List<User> managers = userService.getSubstitutesManager(user);
 		if (managers.size() > 0) {
-			authorities.add(new SimpleGrantedAuthority(Constants.ROLE_SUBSTITUTE));
+			authorities.add(new SamlGrantedAuthority(Constants.ROLE_SUBSTITUTE));
 			tokenUser.getAttributes().put(ATTRIBUTE_SUBSTITUTE_FOR, managers.stream()
 					.map(m -> m.getUuid())
 					.collect(Collectors.toList())
@@ -108,46 +107,46 @@ public class RolePostProcessor implements SamlLoginPostProcessor {
 
 				// if it is only a substitute/manager or an authorization manager that can request roles, check if the user is a substitute, authorization manager or a manager
 				if (managers.size() > 0 || !orgUnitService.getByAuthorizationManagerMatchingUser(user).isEmpty() || !orgUnitService.getByManagerMatchingUser(user).isEmpty()) {
-					authorities.add(new SimpleGrantedAuthority(Constants.ROLE_REQUESTER));
+					authorities.add(new SamlGrantedAuthority(Constants.ROLE_REQUESTER));
 				}
 				
 			}
 			else {
 				// if it is users that can request roles, all users gets the requester role
-				authorities.add(new SimpleGrantedAuthority(Constants.ROLE_REQUESTER));
+				authorities.add(new SamlGrantedAuthority(Constants.ROLE_REQUESTER));
 			}
 		}
 
 		// flag user as manager if that is the case
 		if (userService.isManager(user)) {
-			authorities.add(new SimpleGrantedAuthority(Constants.ROLE_MANAGER));
+			authorities.add(new SamlGrantedAuthority(Constants.ROLE_MANAGER));
 		}
 
 		// hierarchy of roles
 		if (roles.contains(Constants.ROLE_ADMINISTRATOR_ID)) {
-			authorities.add(new SimpleGrantedAuthority(Constants.ROLE_ADMINISTRATOR));
-			authorities.add(new SimpleGrantedAuthority(Constants.ROLE_ASSIGNER));
-			authorities.add(new SimpleGrantedAuthority(Constants.ROLE_READ_ACCESS));
-			authorities.add(new SimpleGrantedAuthority(Constants.ROLE_KLE_ADMINISTRATOR));
+			authorities.add(new SamlGrantedAuthority(Constants.ROLE_ADMINISTRATOR));
+			authorities.add(new SamlGrantedAuthority(Constants.ROLE_ASSIGNER));
+			authorities.add(new SamlGrantedAuthority(Constants.ROLE_READ_ACCESS));
+			authorities.add(new SamlGrantedAuthority(Constants.ROLE_KLE_ADMINISTRATOR));
 			setNotifications();
 		}
 		else if (roles.contains(Constants.ROLE_ASSIGNER_ID)) {
-			authorities.add(new SimpleGrantedAuthority(Constants.ROLE_ASSIGNER));
-			authorities.add(new SimpleGrantedAuthority(Constants.ROLE_READ_ACCESS));
+			authorities.add(new SamlGrantedAuthority(Constants.ROLE_ASSIGNER));
+			authorities.add(new SamlGrantedAuthority(Constants.ROLE_READ_ACCESS));
 		}
 		else if (roles.contains(Constants.ROLE_READ_ACCESS_ID)) {
-			authorities.add(new SimpleGrantedAuthority(Constants.ROLE_READ_ACCESS));
+			authorities.add(new SamlGrantedAuthority(Constants.ROLE_READ_ACCESS));
 		}
 
 		// roles outside hierarchy
 		if (roles.contains(Constants.ROLE_KLE_ADMINISTRATOR_ID)) {
-			authorities.add(new SimpleGrantedAuthority(Constants.ROLE_KLE_ADMINISTRATOR));
-			authorities.add(new SimpleGrantedAuthority(Constants.ROLE_READ_ACCESS));
+			authorities.add(new SamlGrantedAuthority(Constants.ROLE_KLE_ADMINISTRATOR));
+			authorities.add(new SamlGrantedAuthority(Constants.ROLE_READ_ACCESS));
 		}
 
 		// Users without roles but with assigned Reports templates
 		if (roles.size() == 0 && reportTemplateService.getByUser(user).size() > 0) {
-			authorities.add(new SimpleGrantedAuthority(Constants.ROLE_TEMPLATE_ACCESS));
+			authorities.add(new SamlGrantedAuthority(Constants.ROLE_TEMPLATE_ACCESS));
 		}
 
 		tokenUser.setAuthorities(authorities);

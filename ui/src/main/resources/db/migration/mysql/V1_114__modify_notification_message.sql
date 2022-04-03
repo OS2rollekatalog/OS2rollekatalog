@@ -1,0 +1,1 @@
+ALTER TABLE notifications MODIFY COLUMN message TEXT;

@@ -1,4 +1,5 @@
 package dk.digitalidentity.rc.config;
+
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
@@ -8,6 +9,7 @@ import javax.servlet.DispatcherType;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.Ordered;
 
 import dk.digitalidentity.rc.log.RequestLogger;
 import dk.digitalidentity.rc.log.SecurityLogger;
@@ -17,16 +19,9 @@ public class RequestLoggerConfiguration {
 
 	@Bean
 	public RequestLogger logFilter(SecurityLogger logger) {
-		RequestLogger filter = new RequestLogger(logger);
-		filter.setIncludeQueryString(true);
-		filter.setIncludePayload(false);
-		filter.setIncludeHeaders(false);
-		filter.setBeforeMessagePrefix("");
-		filter.setBeforeMessageSuffix("");
-
-		return filter;
+		return new RequestLogger(logger);
 	}
-	
+
 	@Bean
 	public FilterRegistrationBean<RequestLogger> logFilterRegistration(RequestLogger filter) {
 		List<String> urlPatterns = new ArrayList<>();
@@ -36,7 +31,8 @@ public class RequestLoggerConfiguration {
 		registration.setFilter(filter);
 		registration.setDispatcherTypes(EnumSet.allOf(DispatcherType.class));
 		registration.setUrlPatterns(urlPatterns);
-		
+		registration.setOrder(Ordered.HIGHEST_PRECEDENCE);
+
 		return registration;
 	}
 }

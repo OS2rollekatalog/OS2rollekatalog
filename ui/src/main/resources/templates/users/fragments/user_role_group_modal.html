@@ -5,31 +5,31 @@
         <!-- Modal content-->
         <div class="modal-content">
             <div class="modal-header">
-                <h4 th:text="#{html.page.users.list.modal.rolegroup}"/>
+                <h4 th:text="#{html.page.users.list.modal.rolegroup}"></h4>
             </div>
 
             <div class="modal-body">
-                <table class="table table-striped table-hover" th:if="${@roleCatalogueConfiguration.getTitles().isEnabled() == false}">
+                <table class="table table-striped table-hover" th:if="${@roleCatalogueConfiguration.getTitles().isEnabled() == false and @roleCatalogueConfiguration.getTitles().isPositionsEnabled()}">
                     <tbody>
                     <tr>
                         <td class="col-md-2">
-                            <button id="assignDirectlyRGBtn" class="btn btn-danger assign_group_directly" th:text="#{html.entity.positions.assign}"/>
+                            <button id="assignDirectlyRGBtn" class="btn btn-danger assign_group_directly" th:text="#{html.entity.positions.assign}"></button>
                         </td>
                         <td class="col-md-10" th:text="#{html.entity.positions.assigndirect}"/>
                     </tr>
-                    <tr th:each="position : ${positions}" th:if="${@roleCatalogueConfiguration.getTitles().isEnabled() == false}">
+                    <tr th:each="position : ${positions}">
                         <td>
-                            <button class="btn assign_group" th:text="#{html.entity.positions.assign}" th:value="${position.id}"/>
+                            <button class="btn assign_group" th:text="#{html.entity.positions.assign}" th:value="${position.id}"></button>
                         </td>
                         <td th:text="${position.name}"/>
                     </tr>
                     </tbody>
                 </table>
                 
-                <div th:if="${@roleCatalogueConfiguration.getTitles().isEnabled()}" th:text="#{html.page.user.assign.accept.text}"/>
+                <div th:if="${@roleCatalogueConfiguration.getTitles().isEnabled() or @roleCatalogueConfiguration.getTitles().isPositionsEnabled() == false}" th:text="#{html.page.user.assign.accept.text}"></div>
 
                	<div style="height: 70px;">
-					<h4 class="md-12" th:text="#{html.word.validity}" />
+					<h4 class="md-12" th:text="#{html.word.validity}"></h4>
 
 					<b class="col-sm-1" style="padding-top: 7px;" th:text="#{html.word.from}"></b>
 					<div class="col-md-5">
@@ -58,8 +58,8 @@
             </div>
 
             <div class="modal-footer">
-				<button id="assignDirectlyRGBtn" class="btn btn-primary assign_group_directly" th:text="#{html.entity.positions.assign}" th:if="${@roleCatalogueConfiguration.getTitles().isEnabled()}"/>
-                <button type="button" class="btn btn-danger" id="closeRoleGroupModal" th:text="#{html.control.button.cancel}"/>
+				<button id="assignDirectlyRGBtn" class="btn btn-primary assign_group_directly" th:text="#{html.entity.positions.assign}" th:if="${@roleCatalogueConfiguration.getTitles().isEnabled() or @roleCatalogueConfiguration.getTitles().isPositionsEnabled() == false}"></button>
+                <button type="button" class="btn btn-danger" id="closeRoleGroupModal" th:text="#{html.control.button.cancel}"></button>
             </div>
         </div>
     </div>

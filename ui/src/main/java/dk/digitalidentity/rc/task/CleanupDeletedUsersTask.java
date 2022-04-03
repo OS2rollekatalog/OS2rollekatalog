@@ -7,11 +7,11 @@ import org.springframework.stereotype.Component;
 
 import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
 import dk.digitalidentity.rc.service.UserService;
-import lombok.extern.log4j.Log4j;
+import lombok.extern.slf4j.Slf4j;
 
 @Component
 @EnableScheduling
-@Log4j
+@Slf4j
 public class CleanupDeletedUsersTask {
 
 	@Autowired

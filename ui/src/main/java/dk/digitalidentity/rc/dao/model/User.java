@@ -82,6 +82,13 @@ public class User implements AuditLoggable {
 	@OneToOne(fetch = FetchType.LAZY)
 	@JoinColumn(name = "manager_substitute", nullable = true)
 	private User managerSubstitute;
+	
+	@Column(name = "substitute_assigned_by")
+	private String substituteAssignedBy;
+	
+	@Temporal(TemporalType.TIMESTAMP)
+	@Column(name = "substitute_assigned_tts")
+	private Date substituteAssignedTts;
 
 	@JsonIgnore
 	@Override

@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.DirectoryServices;
+using System.DirectoryServices.AccountManagement;
 
 namespace RoleCatalogImporter
 {
@@ -28,6 +29,7 @@ namespace RoleCatalogImporter
                     searcher.Filter = "(objectCategory=organizationalUnit)";
                     searcher.PropertiesToLoad.Add("objectGUID");
                     searcher.PropertiesToLoad.Add("name");
+                    searcher.PropertiesToLoad.Add("managedBy");
                     searcher.PropertiesToLoad.Add("ou");
                     searcher.PropertiesToLoad.Add(Properties.Settings.Default.OrgUnitNameField);
                     searcher.PropertiesToLoad.Add("distinguishedname");
@@ -73,12 +75,45 @@ namespace RoleCatalogImporter
                                 continue;
                             }
 
+                            string manager = null;
+                            if (res.Properties.Contains("managedBy"))
+                            {
+                                manager = (string)res.Properties["managedBy"][0];
+                            }
+
+                            string managerUuid = null, managerUserId = null;
+                            if (!string.IsNullOrEmpty(manager))
+                            {
+                                // do stuff
+                                using (PrincipalContext ctx = new PrincipalContext(ContextType.Domain))
+                                {
+                                    using (UserPrincipal user = UserPrincipal.FindByIdentity(ctx, IdentityType.DistinguishedName, manager))
+                                    {
+                                        if (user != null)
+                                        {
+                                            managerUuid = user.Guid.ToString().ToLower();
+                                            managerUserId = user.SamAccountName.ToLower();
+                                        }
+                                    }
+                                }
+                            }
+
                             ADOrgUnit ou = new ADOrgUnit();
                             ou.Uuid = uuid.ToString().ToLower();
                             ou.Name = name;
                             ou.Dn = dn;
+
                             if (parent?.Guid != null) {
 	                            ou.ParentUUID = parent.Guid.ToString().ToLower();
+                            }
+
+                            if (managerUserId != null && managerUuid != null)
+                            {
+                                ou.Manager = new ADManager
+                                {
+                                    UserId = managerUserId,
+                                    Uuid = managerUuid
+                                };
                             }
 
                             orgUnits.Add(ou);

@@ -259,9 +259,16 @@
 							</th:block>
 						</th:block>
 
-						<th:block sec:authorize="hasRole('ROLE_ADMINISTRATOR') or hasRole('ROLE_MANAGER') or hasRole('ROLE_SUBSTITUTE')">
+						<th:block sec:authorize="hasRole('ROLE_ADMINISTRATOR') or hasRole('ROLE_MANAGER') or hasRole('ROLE_SUBSTITUTE') or hasRole('ROLE_READ_ACCESS')">
 							<li class="nav-heading">
 								<span th:text="#{html.navbar.management}" />
+							</li>
+							
+							<li th:class="${page == 'manager.list'} ? 'active' : ''" sec:authorize="hasRole('ROLE_READ_ACCESS')">
+								<a th:href="@{/ui/manager/list}">
+									<em class="fa fa-users"></em>
+									<span th:text="#{html.navbar.manager.list}" />
+								</a>
 							</li>
 		
 							<li th:class="${page == 'manager.substitute'} ? 'active' : ''" sec:authorize="hasRole('ROLE_MANAGER')">

@@ -12,9 +12,11 @@ public class TitleListForm {
 	private String id;
 	private String name;
 	private TitleListFormState state = new TitleListFormState();
+	private boolean emptyTitle;
 	
-	public TitleListForm(Title title) {
+	public TitleListForm(Title title, boolean emptyTitle) {
 		this.id = title.getUuid();
 		this.name = title.getName();
+		this.emptyTitle = emptyTitle;
 	}
 }

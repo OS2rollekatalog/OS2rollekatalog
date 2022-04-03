@@ -70,6 +70,7 @@
     <Reference Include="System.Configuration.Install" />
     <Reference Include="System.Core" />
     <Reference Include="System.DirectoryServices" />
+    <Reference Include="System.DirectoryServices.AccountManagement" />
     <Reference Include="System.Runtime.Remoting" />
     <Reference Include="System.ServiceProcess" />
     <Reference Include="System.Web" />
@@ -84,6 +85,7 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="ActiveDirectory\ADManager.cs" />
     <Compile Include="ActiveDirectory\ADOrgUnit.cs" />
     <Compile Include="ActiveDirectory\ADUser.cs" />
     <Compile Include="ActiveDirectory\Reader.cs" />
@@ -91,6 +93,7 @@
     <Compile Include="Configuration.cs" />
     <Compile Include="NewtonsoftJsonSerializer.cs" />
     <Compile Include="RoleCatalog\Importer.cs" />
+    <Compile Include="RoleCatalog\Manager.cs" />
     <Compile Include="RoleCatalog\Organisation.cs" />
     <Compile Include="RoleCatalog\OrgUnit.cs" />
     <Compile Include="RoleCatalog\Position.cs" />

@@ -11,5 +11,6 @@ namespace RoleCatalogImporter
         public string uuid { get; set; }
         public string name { get; set; }
         public string parentOrgUnitUuid { get; set; }
+        public Manager manager { get; set; }
     }
 }

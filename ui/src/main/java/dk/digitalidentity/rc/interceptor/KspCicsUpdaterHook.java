@@ -213,7 +213,7 @@ public class KspCicsUpdaterHook implements RoleChangeHook {
 				List<UserRole> userRoles = roleGroup.getUserRoleAssignments().stream().map(ura -> ura.getUserRole()).collect(Collectors.toList());
 
 				for (UserRole userRole : userRoles) {
-					if (userRole.getItSystem().getSystemType().equals(ItSystemType.AD) && !userRole.getItSystem().isPaused()) {
+					if (userRole.getItSystem().getSystemType().equals(ItSystemType.KSPCICS) && !userRole.getItSystem().isPaused()) {
 						kspCicsService.addUserRoleToQueue(userRole);
 					}
 				}
@@ -225,7 +225,7 @@ public class KspCicsUpdaterHook implements RoleChangeHook {
 			List<UserRole> userRoles = position.getUserRoleAssignments().stream().map(ura -> ura.getUserRole()).collect(Collectors.toList());
 
 			for (UserRole userRole : userRoles) {
-				if (userRole.getItSystem().getSystemType().equals(ItSystemType.AD) && !userRole.getItSystem().isPaused()) {
+				if (userRole.getItSystem().getSystemType().equals(ItSystemType.KSPCICS) && !userRole.getItSystem().isPaused()) {
 					kspCicsService.addUserRoleToQueue(userRole);
 				}
 			}
@@ -239,7 +239,7 @@ public class KspCicsUpdaterHook implements RoleChangeHook {
 				List<UserRole> userRoles = roleGroup.getUserRoleAssignments().stream().map(ura -> ura.getUserRole()).collect(Collectors.toList());
 
 				for (UserRole userRole : userRoles) {
-					if (userRole.getItSystem().getSystemType().equals(ItSystemType.AD) && !userRole.getItSystem().isPaused()) {
+					if (userRole.getItSystem().getSystemType().equals(ItSystemType.KSPCICS) && !userRole.getItSystem().isPaused()) {
 						kspCicsService.addUserRoleToQueue(userRole);
 					}
 				}
@@ -250,7 +250,7 @@ public class KspCicsUpdaterHook implements RoleChangeHook {
 		List<UserRole> urs = orgUnitService.getUserRoles(position.getOrgUnit(), true);
 
 		for (UserRole userRole : urs) {
-			if (userRole.getItSystem().getSystemType().equals(ItSystemType.AD) && !userRole.getItSystem().isPaused()) {
+			if (userRole.getItSystem().getSystemType().equals(ItSystemType.KSPCICS) && !userRole.getItSystem().isPaused()) {
 				kspCicsService.addUserRoleToQueue(userRole);
 			}
 		}

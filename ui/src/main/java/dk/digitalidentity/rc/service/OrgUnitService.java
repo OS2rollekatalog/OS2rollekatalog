@@ -166,7 +166,7 @@ public class OrgUnitService {
 		Map<String, String> result = new HashMap<String, String>();
 		
 		if (orgUnit.getManager() != null) {
-			if (orgUnit.getManager().getManagerSubstitute() != null && !StringUtils.isEmpty(orgUnit.getManager().getManagerSubstitute().getEmail())) {
+			if (orgUnit.getManager().getManagerSubstitute() != null && orgUnit.getManager().getManagerSubstitute().isActive() && !StringUtils.isEmpty(orgUnit.getManager().getManagerSubstitute().getEmail())) {
 				result.put(orgUnit.getManager().getManagerSubstitute().getEmail(), orgUnit.getManager().getManagerSubstitute().getName());
 			}
 

@@ -47,7 +47,7 @@ public class ConstraintType {
 	@Column
 	@Enumerated(EnumType.STRING)
 	private ConstraintUIType uiType;
-	
+
 	@JsonIgnore
 	@ElementCollection(fetch = FetchType.LAZY, targetClass = ConstraintTypeValueSet.class)
 	@CollectionTable(name = "constraint_type_value_sets", joinColumns = @JoinColumn(name = "constraint_type_id"))

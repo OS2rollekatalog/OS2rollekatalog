@@ -28,9 +28,9 @@ import dk.digitalidentity.rc.service.UserRoleService;
 import dk.digitalidentity.rc.service.UserService;
 import dk.digitalidentity.rc.service.model.UserWithRole;
 import dk.digitalidentity.rc.service.model.WhoCanRequest;
-import lombok.extern.log4j.Log4j;
+import lombok.extern.slf4j.Slf4j;
 
-@Log4j
+@Slf4j
 @Controller
 public class RequestApproveController {
 

@@ -119,7 +119,7 @@ public class AttestationService {
 
 			String substituteEmail = null;			
 			User substitute = manager.getManagerSubstitute();
-			if (substitute != null && !StringUtils.isEmpty(substitute.getEmail())) {
+			if (substitute != null && substitute.isActive() && !StringUtils.isEmpty(substitute.getEmail())) {
 				substituteEmail = substitute.getEmail();
 			}
 			
@@ -246,10 +246,13 @@ public class AttestationService {
 							attachmentFile.setFilename("Rettighedsudløb.pdf");
 							List<AttachmentFile> attachments = new ArrayList<>();
 							attachments.add(attachmentFile);
+							String title = template.getTitle();
+							title = title.replace(EmailTemplateService.RECEIVER_PLACEHOLDER, substitute.getName());
+							title = title.replace(EmailTemplateService.ORGUNIT_PLACEHOLDER, ou.getName());
 							String message = template.getMessage();
 							message = message.replace(EmailTemplateService.RECEIVER_PLACEHOLDER, substitute.getName());
 							message = message.replace(EmailTemplateService.ORGUNIT_PLACEHOLDER, ou.getName());
-							emailQueueService.queueEmail(substituteEmail, template.getTitle(), message, template, attachments);
+							emailQueueService.queueEmail(substituteEmail, title, message, template, attachments);
 						} else {
 							log.info("Email template with type " + template.getTemplateType() + " is disabled. Email was not sent.");
 						}
@@ -263,10 +266,13 @@ public class AttestationService {
 							attachmentFile.setFilename("Rettighedsudløb.pdf");
 							List<AttachmentFile> attachments = new ArrayList<>();
 							attachments.add(attachmentFile);
+							String title = template.getTitle();
+							title = title.replace(EmailTemplateService.RECEIVER_PLACEHOLDER, manager.getName());
+							title = title.replace(EmailTemplateService.ORGUNIT_PLACEHOLDER, ou.getName());
 							String message = template.getMessage();
 							message = message.replace(EmailTemplateService.RECEIVER_PLACEHOLDER, manager.getName());
 							message = message.replace(EmailTemplateService.ORGUNIT_PLACEHOLDER, ou.getName());
-							emailQueueService.queueEmail(managerEmail, template.getTitle(), message, template, attachments);
+							emailQueueService.queueEmail(managerEmail, title, message, template, attachments);
 						} else {
 							log.info("Email template with type " + template.getTemplateType() + " is disabled. Email was not sent.");
 						}
@@ -301,10 +307,14 @@ public class AttestationService {
 				for (String email : emails.keySet()) {
 					EmailTemplate template = emailTemplateService.findByTemplateType(EmailTemplateType.ATTESTATION_NOTIFICATION);
 					if (template.isEnabled()) {
+						String title = template.getTitle();
+						title = title.replace(EmailTemplateService.RECEIVER_PLACEHOLDER, emails.get(email));
+						title = title.replace(EmailTemplateService.ORGUNIT_PLACEHOLDER, ou.getName());
+						
 						String message = template.getMessage();
 						message = message.replace(EmailTemplateService.RECEIVER_PLACEHOLDER, emails.get(email));
 						message = message.replace(EmailTemplateService.ORGUNIT_PLACEHOLDER, ou.getName());
-						emailQueueService.queueEmail(email, template.getTitle(), message, template, null);
+						emailQueueService.queueEmail(email, title, message, template, null);
 
 						// what does this table keep track of?
 						AttestationNotification attestationNotification = new AttestationNotification();
@@ -351,10 +361,15 @@ public class AttestationService {
 						if (template.isEnabled()) {
 							for (String email : emails.keySet()) {
 								EmailTemplate tempTemplate = emailTemplateService.findByTemplateType(EmailTemplateType.ATTESTATION_REMINDER);
+								
+								String title = tempTemplate.getTitle();
+								title = title.replace(EmailTemplateService.RECEIVER_PLACEHOLDER, emails.get(email));
+								title = title.replace(EmailTemplateService.ORGUNIT_PLACEHOLDER, ou.getName());
+								
 								String message = tempTemplate.getMessage();
 								message = message.replace(EmailTemplateService.RECEIVER_PLACEHOLDER, emails.get(email));
 								message = message.replace(EmailTemplateService.ORGUNIT_PLACEHOLDER, ou.getName());
-								emailQueueService.queueEmail(email, tempTemplate.getTitle(), message, tempTemplate, null);
+								emailQueueService.queueEmail(email, title, message, tempTemplate, null);
 							}
 							
 							// add a notification to the log (we use it above to keep track of how mamy reminders to send)
@@ -399,10 +414,14 @@ public class AttestationService {
 					if (modifiedDate.before(now)) {						
 						EmailTemplate template = emailTemplateService.findByTemplateType(EmailTemplateType.ATTESTATION_REMINDER_THIRDPARTY);
 						if (template.isEnabled()) {
+							String title = template.getTitle();
+							title = title.replace(EmailTemplateService.RECEIVER_PLACEHOLDER, mail);
+							title = title.replace(EmailTemplateService.ORGUNIT_PLACEHOLDER, ou.getName());
+							
 							String message = template.getMessage();
 							message = message.replace(EmailTemplateService.RECEIVER_PLACEHOLDER, mail);
 							message = message.replace(EmailTemplateService.ORGUNIT_PLACEHOLDER, ou.getName());
-							emailQueueService.queueEmail(mail, template.getTitle(), message, template, null);
+							emailQueueService.queueEmail(mail, title, message, template, null);
 	
 							// make sure we only send this ONE extra notification
 							AttestationNotification attestationNotification = new AttestationNotification();

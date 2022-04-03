@@ -33,7 +33,7 @@ import dk.digitalidentity.rc.dao.model.SystemRoleAssignment;
 import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserRole;
 import dk.digitalidentity.rc.dao.model.enums.ItSystemType;
-import dk.digitalidentity.rc.security.RequireApiRoleManagementRole;
+import dk.digitalidentity.rc.security.RequireApiItSystemRole;
 import dk.digitalidentity.rc.service.ItSystemService;
 import dk.digitalidentity.rc.service.SystemRoleService;
 import dk.digitalidentity.rc.service.UserRoleService;
@@ -41,7 +41,7 @@ import dk.digitalidentity.rc.service.UserService;
 import dk.digitalidentity.rc.service.model.UserWithRole;
 import lombok.extern.slf4j.Slf4j;
 
-@RequireApiRoleManagementRole
+@RequireApiItSystemRole
 @Slf4j
 @RestController
 public class ItSystemApi {
@@ -68,7 +68,7 @@ public class ItSystemApi {
 	@GetMapping(value = "/api/itsystem/manage")
 	public ResponseEntity<List<ItSystemDTO>> manageItSystems() {
 		List<ItSystemDTO> itSystems = itSystemService.getAll().stream()
-				.filter(its -> its.isCanEditThroughApi() && (its.getSystemType() == ItSystemType.AD || its.getSystemType() == ItSystemType.SAML))
+				.filter(its -> its.isCanEditThroughApi() && (its.getSystemType() == ItSystemType.AD || its.getSystemType() == ItSystemType.SAML || its.getSystemType() == ItSystemType.MANUAL))
 				.map(its -> new ItSystemDTO(its.getId(), its.getName(), its.getIdentifier()))
 				.collect(Collectors.toList());
 
@@ -88,7 +88,7 @@ public class ItSystemApi {
 			return new ResponseEntity<>(HttpStatus.FORBIDDEN);
 		}
 
-		if (itSystem.getSystemType() != ItSystemType.AD && itSystem.getSystemType() != ItSystemType.SAML) {
+		if (itSystem.getSystemType() != ItSystemType.AD && itSystem.getSystemType() != ItSystemType.SAML && itSystem.getSystemType() != ItSystemType.MANUAL) {
 			return new ResponseEntity<>(HttpStatus.FORBIDDEN);
 		}
 
@@ -120,7 +120,7 @@ public class ItSystemApi {
 			return new ResponseEntity<>(HttpStatus.FORBIDDEN);
 		}
 
-		if (itSystem.getSystemType() != ItSystemType.AD && itSystem.getSystemType() != ItSystemType.SAML) {
+		if (itSystem.getSystemType() != ItSystemType.AD && itSystem.getSystemType() != ItSystemType.SAML && itSystem.getSystemType() != ItSystemType.MANUAL) {
 			return new ResponseEntity<>(HttpStatus.FORBIDDEN);
 		}
 

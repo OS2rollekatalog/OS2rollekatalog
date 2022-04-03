@@ -2,9 +2,9 @@ package dk.digitalidentity.rc.dao.model.enums;
 
 import dk.digitalidentity.rc.dao.model.ConstraintTypeValueSet;
 import dk.digitalidentity.rc.dao.model.SystemRoleAssignmentConstraintValue;
-import lombok.extern.log4j.Log4j;
+import lombok.extern.slf4j.Slf4j;
 
-@Log4j
+@Slf4j
 public enum ConstraintValueType {
 	LEVEL_1,                 // level 1-4 is only used for Organisation constraint - we should probably refactor this
 	LEVEL_2,                 // at some point, as we are also going to add new dynamic constraints that are KLE only

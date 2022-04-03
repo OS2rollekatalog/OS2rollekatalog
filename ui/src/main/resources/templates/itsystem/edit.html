@@ -105,7 +105,7 @@
 								</div>
 							</fieldset>
 
-							<fieldset th:if="${#strings.toString(itsystem.systemType)} == 'AD' or ${#strings.toString(itsystem.systemType)} == 'SAML'">
+							<fieldset th:if="${#strings.toString(itsystem.systemType)} == 'AD' or ${#strings.toString(itsystem.systemType)} == 'SAML' or ${#strings.toString(itsystem.systemType)} == 'MANUAL'">
 								<div class="form-group">
 									<label class="col-sm-2 control-label" th:text="#{html.entity.itsystem.canEditThroughApi}" />
 									<div class="col-sm-1">

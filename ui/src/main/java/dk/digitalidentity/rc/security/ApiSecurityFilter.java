@@ -13,12 +13,10 @@ import javax.servlet.ServletResponse;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
-import org.springframework.security.core.GrantedAuthority;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
-
 import dk.digitalidentity.rc.dao.model.Client;
 import dk.digitalidentity.rc.dao.model.enums.AccessRole;
 import dk.digitalidentity.rc.service.ClientService;
+import dk.digitalidentity.samlmodule.model.SamlGrantedAuthority;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
@@ -45,26 +43,35 @@ public class ApiSecurityFilter implements Filter {
 				return;
 			}
 
-			ArrayList<GrantedAuthority> authorities = new ArrayList<>();
+			ArrayList<SamlGrantedAuthority> authorities = new ArrayList<>();
 			switch (client.getAccessRole()) {
 				case ADMINISTRATOR:
-					authorities.add(new SimpleGrantedAuthority(ROLE_API + AccessRole.ORGANISATION.toString()));
-					authorities.add(new SimpleGrantedAuthority(ROLE_API + AccessRole.READ_ACCESS.toString()));
-					authorities.add(new SimpleGrantedAuthority(ROLE_API + AccessRole.ROLE_MANAGEMENT.toString()));
-					authorities.add(new SimpleGrantedAuthority(ROLE_API + AccessRole.CICS_ADMIN.toString()));
+					authorities.add(new SamlGrantedAuthority(ROLE_API + AccessRole.ORGANISATION.toString()));
+					authorities.add(new SamlGrantedAuthority(ROLE_API + AccessRole.READ_ACCESS.toString()));
+					authorities.add(new SamlGrantedAuthority(ROLE_API + AccessRole.ROLE_MANAGEMENT.toString()));
+					authorities.add(new SamlGrantedAuthority(ROLE_API + AccessRole.CICS_ADMIN.toString()));
+					authorities.add(new SamlGrantedAuthority(ROLE_API + AccessRole.ITSYSTEM.toString()));
 					break;
 				case ORGANISATION:
-					authorities.add(new SimpleGrantedAuthority(ROLE_API + AccessRole.ORGANISATION.toString()));
+					authorities.add(new SamlGrantedAuthority(ROLE_API + AccessRole.ORGANISATION.toString()));
 					break;
 				case READ_ACCESS:
-					authorities.add(new SimpleGrantedAuthority(ROLE_API + AccessRole.READ_ACCESS.toString()));
+					authorities.add(new SamlGrantedAuthority(ROLE_API + AccessRole.READ_ACCESS.toString()));
 					break;
 				case ROLE_MANAGEMENT:
-					authorities.add(new SimpleGrantedAuthority(ROLE_API + AccessRole.ROLE_MANAGEMENT.toString()));
-					authorities.add(new SimpleGrantedAuthority(ROLE_API + AccessRole.READ_ACCESS.toString()));
+					authorities.add(new SamlGrantedAuthority(ROLE_API + AccessRole.ROLE_MANAGEMENT.toString()));
+					authorities.add(new SamlGrantedAuthority(ROLE_API + AccessRole.READ_ACCESS.toString()));
+					authorities.add(new SamlGrantedAuthority(ROLE_API + AccessRole.ITSYSTEM.toString()));
 					break;
 				case CICS_ADMIN:
-					authorities.add(new SimpleGrantedAuthority(ROLE_API + AccessRole.CICS_ADMIN.toString()));
+					authorities.add(new SamlGrantedAuthority(ROLE_API + AccessRole.CICS_ADMIN.toString()));
+					break;
+				case VENDOR:
+					// nothing yet, planned for future features where a vendor can get read access to role assignments for own it-system
+					break;
+				case ITSYSTEM:
+					authorities.add(new SamlGrantedAuthority(ROLE_API + AccessRole.READ_ACCESS.toString()));
+					authorities.add(new SamlGrantedAuthority(ROLE_API + AccessRole.ITSYSTEM.toString()));
 					break;
 			}
 

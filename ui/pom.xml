@@ -244,29 +244,7 @@
 		<dependency>
 			<groupId>dk.digitalidentity</groupId>
 			<artifactId>saml-module</artifactId>
-			<version>1.4.0</version>
-			<exclusions>
-				<exclusion>
-					<groupId>xml-apis</groupId>
-					<artifactId>xml-apis</artifactId>
-				</exclusion>
-                                <exclusion>
-                                        <groupId>org.owasp.antisamy</groupId>
-                                        <artifactId>antisamy</artifactId>
-                                </exclusion>
-                                <exclusion>
-                                        <groupId>xom</groupId>
-                                        <artifactId>xom</artifactId>
-                                </exclusion>
-                                <exclusion>
-                                        <groupId>org.apache.xmlgraphics</groupId>
-                                        <artifactId>batik-css</artifactId>
-                                </exclusion>
-				<exclusion>
-					<groupId>stax</groupId>
-					<artifactId>stax-api</artifactId>
-				</exclusion>
-			</exclusions>
+			<version>2.1.4</version>
 		</dependency>
 
 		<!-- TODO: not sure if these three the right dependencies to add, but they 
@@ -339,4 +317,12 @@
 		    <version>1.1.1</version>
 		</dependency>
 	</dependencies>
+
+	<repositories>
+		<repository>
+			<id>shared-resources</id>
+			<name>Shared Resources</name>
+			<url>https://mvn.digital-identity.dk/release</url>
+		</repository>
+	</repositories>
 </project>

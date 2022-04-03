@@ -19,9 +19,9 @@ import dk.digitalidentity.rc.dao.model.SystemRoleAssignment;
 import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserRole;
 import dk.digitalidentity.rc.log.AuditLogIntercepted;
-import lombok.extern.log4j.Log4j;
+import lombok.extern.slf4j.Slf4j;
 
-@Log4j
+@Slf4j
 @Service
 public class UserRoleService {
 
@@ -76,6 +76,11 @@ public class UserRoleService {
 	@AuditLogIntercepted
 	public void delete(UserRole userRole) {
 		userRoleDao.delete(userRole);
+	}
+	
+	// TODO: auditlog? This is not exposed in UI, so....
+	public void deleteAll(List<UserRole> userRoles) {
+		userRoleDao.deleteAll(userRoles);	
 	}
 
 	public List<UserRole> getAll() {
@@ -221,5 +226,16 @@ public class UserRoleService {
 	public List<UserRole> findByLinkedSystemRoleNotNull() {
 		return userRoleDao.findByLinkedSystemRoleNotNull();
 	}
+		
+	public UserRole getByItSystemAndIdentifier(ItSystem itSystem, String identifier) {
+		return userRoleDao.getByItSystemAndIdentifier(itSystem, identifier);
+	}
 
+	public List<UserRole> getByItSystemAndDelegatedFromCvrNotNull(ItSystem itSystem) {
+		return userRoleDao.getByItSystemAndDelegatedFromCvrNotNull(itSystem);
+	}
+
+	public List<UserRole> getByDelegatedFromCvrNotNullAndItSystemIdentifierNot(String itSystemIdentifier) {
+		return userRoleDao.getByDelegatedFromCvrNotNullAndItSystemIdentifierNot(itSystemIdentifier);
+	}
 }

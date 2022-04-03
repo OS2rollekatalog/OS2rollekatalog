@@ -7,6 +7,7 @@ import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
@@ -15,9 +16,12 @@ import org.springframework.web.filter.OncePerRequestFilter;
 @Order(Integer.MIN_VALUE)
 public class ExcludeAPISessionFilter extends OncePerRequestFilter {
 
+	@Value("#{servletContext.contextPath}")
+	private String contextPath;
+
 	@Override
-	protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {
-		if (request.getRequestURI().startsWith("/api/") || request.getRequestURI().startsWith("/manage/")) {
+	protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {		
+		if (request.getRequestURI().startsWith(contextPath + "/api/") || request.getRequestURI().startsWith(contextPath + "/manage/")) {
 			request.setAttribute("org.springframework.session.web.http.SessionRepositoryFilter.FILTERED", Boolean.TRUE);
 		}
 

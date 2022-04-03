@@ -34,7 +34,7 @@ public class UserRole implements AuditLoggable {
 	@Column
 	private String uuid;
 
-	@Column(nullable = false, length = 64)
+	@Column(nullable = false, length = 128)
 	private String name;
 
 	@Column(nullable = false, length = 128)
@@ -81,5 +81,13 @@ public class UserRole implements AuditLoggable {
 	@Override
 	public String getEntityName() {
 		return name + " (" + itSystem.getName() + ")";
+	}
+	
+	public void setName(String name) {
+		if (name != null && name.length() > 128) {
+			this.name = name.substring(0, 128);
+		} else {
+			this.name = name;
+		}
 	}
 }

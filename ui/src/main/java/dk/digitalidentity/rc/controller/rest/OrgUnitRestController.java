@@ -461,8 +461,11 @@ public class OrgUnitRestController {
 
 			List<TitleListForm> titleForms = titles
 					.stream()
-					.map(title -> new TitleListForm(title))
+					.map(title -> new TitleListForm(title, false))
 					.collect(Collectors.toList());
+			
+			List<String> titleFormsUuids = titleForms.stream().map(t -> t.getId()).collect(Collectors.toList());
+			titleForms.addAll(ou.getTitles().stream().filter(t -> !titleFormsUuids.contains(t.getUuid())).map(t -> new TitleListForm(t, true)).collect(Collectors.toList()));
 			
 			return new ResponseEntity<>(titleForms, HttpStatus.OK);
 		}

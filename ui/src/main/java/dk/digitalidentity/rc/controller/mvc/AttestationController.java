@@ -64,11 +64,11 @@ import dk.digitalidentity.rc.service.UserService;
 import dk.digitalidentity.rc.service.model.AssignedThrough;
 import dk.digitalidentity.rc.service.model.RoleGroupAssignedToUser;
 import dk.digitalidentity.rc.service.model.UserRoleAssignedToUser;
-import lombok.extern.log4j.Log4j;
+import lombok.extern.slf4j.Slf4j;
 
 @Controller
 @RequireAssignerOrManagerRole
-@Log4j
+@Slf4j
 public class AttestationController {
 
 	@Autowired

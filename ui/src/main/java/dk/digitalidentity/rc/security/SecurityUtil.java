@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 
+import dk.digitalidentity.samlmodule.model.SamlGrantedAuthority;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -21,7 +22,7 @@ import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserRole;
 import dk.digitalidentity.rc.service.ItSystemService;
 import dk.digitalidentity.rc.service.UserService;
-import dk.digitalidentity.saml.model.TokenUser;
+import dk.digitalidentity.samlmodule.model.TokenUser;
 
 @Component
 public class SecurityUtil {
@@ -177,7 +178,7 @@ public class SecurityUtil {
 		loginSystemAccount(new ArrayList<>(), null);
 	}
 	
-	public static void loginSystemAccount(ArrayList<GrantedAuthority> authorities, Client client) {
+	public static void loginSystemAccount(ArrayList<SamlGrantedAuthority> authorities, Client client) {
 		Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
 
 		// apply to existing session
@@ -202,7 +203,7 @@ public class SecurityUtil {
 			}
 		}
 		else { // create new session
-			authorities.add(new SimpleGrantedAuthority(Constants.ROLE_SYSTEM));
+			authorities.add(new SamlGrantedAuthority(Constants.ROLE_SYSTEM));
 			TokenUser tokenUser = TokenUser.builder()
 					.cvr("N/A")
 					.authorities(authorities)
@@ -248,6 +249,8 @@ public class SecurityUtil {
 		
 		List<ItSystem> itSystems = itSystemService.findByIdentifier(Constants.ROLE_CATALOGUE_IDENTIFIER);
 		
+		boolean hasAdminRole = false;
+		boolean hasRestrictedRole = false;
 		User user = userService.getByUserId(userId);
 		if (user != null) {
 			List<UserRole> roles = userService.getAllUserRoles(user, itSystems);
@@ -255,13 +258,20 @@ public class SecurityUtil {
 			for (UserRole role : roles) {
 				for (SystemRoleAssignment assignment : role.getSystemRoleAssignments()) {
 					if (assignment.getSystemRole().getIdentifier().equals(Constants.ROLE_READ_ACCESS_ID)) {
-						return (assignment.getConstraintValues().size() > 0);
+						hasRestrictedRole = (assignment.getConstraintValues().size() > 0);
+					}
+					if (assignment.getSystemRole().getIdentifier().equals(Constants.ROLE_ADMINISTRATOR_ID)) {
+						hasAdminRole = true;
 					}
 				}
 			}
 		}
-
-		return false;
+		
+		if (hasAdminRole) {
+			return false;
+		} else {
+			return hasRestrictedRole;
+		}
 	}
 	
 	public List<Long> getRestrictedReadAccessItSystems() {

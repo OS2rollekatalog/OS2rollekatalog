@@ -10,7 +10,6 @@ public enum EmailTemplateType {
 	ATTESTATION_REMINDER("html.enum.email.message.type.attestation_reminder"),
 	ATTESTATION_REMINDER_THIRDPARTY("html.enum.email.message.type.attestation_reminder_thirdparty"),
 	SUBSTITUTE("html.enum.email.message.type.substitute"),
-	ATTESTATION_EMPLOYEE_NEW_UNIT("html.enum.email.message.type.attestation_employee_new_unit"),
 	ROLE_EXPIRING("html.enum.email.message.type.role_expiring"),
 	APPROVED_ROLE_REQUEST_USER("html.enum.email.message.type.approved_role_request_user"),
 	APPROVED_ROLE_REQUEST_MANAGER("html.enum.email.message.type.approved_role_request_manager"),

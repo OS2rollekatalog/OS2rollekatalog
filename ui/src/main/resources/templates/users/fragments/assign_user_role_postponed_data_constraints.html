@@ -430,7 +430,7 @@
 				var constraintValueType = $("#postponed" + systemRoleId + constraintUuid).val();
 				var oUInput = $("#postponed" + systemRoleId + constraintUuid + "input");
 
-				var selected = $("#ou-tree").jstree("get_top_checked");
+				var selected = $("#ou-tree").jstree("get_checked");
 				oUInput.val(selected.join());
 				$('#modal-ou').modal('hide');
 				oUInput.trigger('change');

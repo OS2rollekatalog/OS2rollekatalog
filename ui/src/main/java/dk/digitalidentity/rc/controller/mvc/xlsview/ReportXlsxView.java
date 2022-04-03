@@ -29,7 +29,7 @@ import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.springframework.context.support.ResourceBundleMessageSource;
 import org.springframework.util.StringUtils;
-import org.springframework.web.servlet.view.document.AbstractXlsxView;
+import org.springframework.web.servlet.view.document.AbstractXlsxStreamingView;
 
 import dk.digitalidentity.rc.controller.mvc.viewmodel.ReportForm;
 import dk.digitalidentity.rc.dao.history.model.HistoryItSystem;
@@ -51,7 +51,7 @@ import dk.digitalidentity.rc.service.OrgUnitService;
 import dk.digitalidentity.rc.service.ReportService;
 import dk.digitalidentity.rc.service.model.UserRoleAssignmentReportEntry;
 
-public class ReportXlsxView extends AbstractXlsxView {
+public class ReportXlsxView extends AbstractXlsxStreamingView {
     private LocalDate filterDate;
     private List<HistoryItSystem> itSystems;
     private Map<String, HistoryUser> users;

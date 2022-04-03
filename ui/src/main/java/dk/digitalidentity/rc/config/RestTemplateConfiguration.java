@@ -166,4 +166,61 @@ public class RestTemplateConfiguration {
 
 		return restTemplate;
 	}
+	
+	
+	@Bean(name = "kombitTestRestTemplate")
+	public RestTemplate kombitTestRestTemplate() throws Exception {
+		TrustStrategy acceptingTrustStrategy = (X509Certificate[] chain, String authType) -> true;
+
+		CloseableHttpClient client = null;
+		if (configuration.getIntegrations().getKombit().isTestEnabled() && !StringUtils.isEmpty(configuration.getIntegrations().getKombit().getTestKeystoreLocation())) {
+			SSLContext sslContext = SSLContextBuilder.create()
+			                .loadKeyMaterial(
+			                		ResourceUtils.getFile(configuration.getIntegrations().getKombit().getTestKeystoreLocation()),
+			                		configuration.getIntegrations().getKombit().getTestKeystorePassword().toCharArray(),
+			                		configuration.getIntegrations().getKombit().getTestKeystorePassword().toCharArray())
+			                .loadTrustMaterial(acceptingTrustStrategy)
+			                .build();
+
+			SSLConnectionSocketFactory f = new SSLConnectionSocketFactory(sslContext, 
+				    new String[] { "TLSv1.2" },
+				    new String[] { "TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384" },
+				    new DefaultHostnameVerifier());
+			
+			client = HttpClients.custom()
+				        .setDefaultRequestConfig(RequestConfig.custom().setCookieSpec(CookieSpecs.STANDARD).build())
+				        .setSSLSocketFactory(f)
+						.build();
+		}
+		else {
+			client = HttpClients.custom()
+						.setDefaultRequestConfig(RequestConfig.custom().setCookieSpec(CookieSpecs.STANDARD).build())
+						.build();
+		}
+
+		HttpComponentsClientHttpRequestFactory requestFactory = new HttpComponentsClientHttpRequestFactory();
+		requestFactory.setConnectionRequestTimeout(3 * 60 * 1000);
+		requestFactory.setConnectTimeout(3 * 60 * 1000);
+		requestFactory.setReadTimeout(3 * 60 * 1000);
+		
+		requestFactory.setHttpClient(client);
+
+		RestTemplate restTemplate = new RestTemplate(requestFactory);
+		/* NOPE, not until we rewrite the usage to deal with statuscodes instead
+		restTemplate.setErrorHandler(new ResponseErrorHandler() {
+			
+			@Override
+			public boolean hasError(ClientHttpResponse response) throws IOException {
+				return false;
+			}
+			
+			@Override
+			public void handleError(ClientHttpResponse response) throws IOException {
+				;
+			}
+		});
+		*/
+
+		return restTemplate;
+	}
 }

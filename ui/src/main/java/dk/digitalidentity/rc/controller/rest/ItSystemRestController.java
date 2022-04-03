@@ -35,9 +35,9 @@ import dk.digitalidentity.rc.service.PositionService;
 import dk.digitalidentity.rc.service.SystemRoleService;
 import dk.digitalidentity.rc.service.UserRoleService;
 import dk.digitalidentity.rc.service.UserService;
-import lombok.extern.log4j.Log4j;
+import lombok.extern.slf4j.Slf4j;
 
-@Log4j
+@Slf4j
 @RequireAdministratorRole
 @RestController
 public class ItSystemRestController {
@@ -240,7 +240,7 @@ public class ItSystemRestController {
 			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
 		}
 
-		if (itSystem.getSystemType() != ItSystemType.AD && itSystem.getSystemType() != ItSystemType.SAML) {
+		if (itSystem.getSystemType() != ItSystemType.AD && itSystem.getSystemType() != ItSystemType.SAML && itSystem.getSystemType() != ItSystemType.MANUAL) {
 			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
 		}
 

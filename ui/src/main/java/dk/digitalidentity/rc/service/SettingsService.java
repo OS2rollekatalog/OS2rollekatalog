@@ -37,6 +37,7 @@ public class SettingsService {
 	private static final String SETTING_EMAIL_ATTESTATION_REPORT = "EmailAttestationReport";
 	private static final String SETTING_ATTESTATION_ROLE_DELETION_ENABLED = "AttestationRoleDeletionEnabled";
 	private static final String SETTING_AD_ATTESTATION = "AttestationADEnabled";
+	private static final String SETTING_RUN_CICS = "RunCics";
 
 	@Autowired
 	private SettingsDao settingsDao;
@@ -471,5 +472,20 @@ public class SettingsService {
 		setting.setValue(Boolean.toString(enabled));
 		settingsDao.save(setting);
 	}
+	
+	public boolean isRunCics() {
+		return isKeyEnabled(SETTING_RUN_CICS);
+	}
+	
+	public void setRunCics(boolean enabled) {
+		setKeyEnabled(enabled, SETTING_RUN_CICS);
+	}
 
+	public Setting getByKey(String key) {
+		return settingsDao.getByKey(key);
+	}
+
+	public void save(Setting setting) {
+		settingsDao.save(setting);
+	}
 }

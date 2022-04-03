@@ -1,6 +1,7 @@
 package dk.digitalidentity.rc.controller.rest;
 
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 
 import javax.validation.Valid;
@@ -27,17 +28,19 @@ import dk.digitalidentity.rc.dao.model.EmailTemplate;
 import dk.digitalidentity.rc.dao.model.OrgUnit;
 import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.enums.EmailTemplateType;
+import dk.digitalidentity.rc.dao.model.enums.EventType;
+import dk.digitalidentity.rc.log.AuditLogger;
+import dk.digitalidentity.rc.security.RequireAdministratorOrManagerRole;
 import dk.digitalidentity.rc.security.RequireAdministratorRole;
 import dk.digitalidentity.rc.security.RequireAssignerOrManagerRole;
-import dk.digitalidentity.rc.security.RequireManagerRole;
 import dk.digitalidentity.rc.security.SecurityUtil;
 import dk.digitalidentity.rc.service.EmailQueueService;
 import dk.digitalidentity.rc.service.EmailTemplateService;
 import dk.digitalidentity.rc.service.OrgUnitService;
 import dk.digitalidentity.rc.service.UserService;
-import lombok.extern.log4j.Log4j;
+import lombok.extern.slf4j.Slf4j;
 
-@Log4j
+@Slf4j
 @RestController
 @RequireAssignerOrManagerRole
 public class ManagerRestController {
@@ -56,6 +59,8 @@ public class ManagerRestController {
 	
 	@Autowired
 	private OrgUnitService orgUnitService;
+	
+	@Autowired AuditLogger auditLogger;
 
 	@RequireAdministratorRole
 	@PostMapping("/rest/manager/attestation/list")
@@ -96,30 +101,53 @@ public class ManagerRestController {
 		return new ResponseEntity<>(result, HttpStatus.OK);
 	}
 
-	@RequireManagerRole
+	@RequireAdministratorOrManagerRole
 	@PostMapping("/rest/manager/substitute/save")
 	@ResponseBody
-	public ResponseEntity<HttpStatus> saveSubstitute(@RequestBody String personUuid) {
-		User manager = userService.getByUserId(SecurityUtil.getUserId());
+	public ResponseEntity<HttpStatus> saveSubstitute(@RequestBody String personUuid, @RequestParam(required = false) String managerUuid) {
+		User manager = null;
+		if (managerUuid == null) {
+			manager = userService.getByUserId(SecurityUtil.getUserId());
+		}
+		else {
+			manager = userService.getByUuid(managerUuid);
+		}
+
+		// we need a manager to set the substitute on, otherwise...
 		if (manager == null) {
 			return ResponseEntity.badRequest().build();
 		}
 
-		// only for managers - not substitutes...
-		if (!SecurityUtil.hasRole(Constants.ROLE_MANAGER)) {
+		// someone needs to be logged in for this to work
+		User loggedInUser = userService.getByUserId(SecurityUtil.getUserId());
+		if (loggedInUser == null) {
 			return ResponseEntity.badRequest().build();
 		}
 
-		User substitute = userService.getByUuid(personUuid);
+		// only for managers and admins - not substitutes...
+		if (!SecurityUtil.hasRole(Constants.ROLE_MANAGER) && !SecurityUtil.hasRole(Constants.ROLE_ADMINISTRATOR)) {
+			return ResponseEntity.badRequest().build();
+		}
+
+		User substitute = userService.getByUuid(personUuid); // null is clearing ;)
+		if (substitute != null && !substitute.isActive()) {
+			substitute = null; // do not pick inactive substitutes
+		}
+
+		auditLogger.log(manager, EventType.ADMIN_ASSIGNED_MANAGER_SUBSTITUTE, substitute);			
+
+		manager.setSubstituteAssignedBy((substitute != null) ? (loggedInUser.getName() + " (" + loggedInUser.getUserId() + ")") : null);
 		manager.setManagerSubstitute(substitute);
+		manager.setSubstituteAssignedTts(new Date());
 
 		userService.save(manager);
-		
-		//if the substitute is removed, it is null and will therefore cause a null pointer exception at line 170
+
+		// if a substitute was removed, we do not need to send an email
 		if (substitute == null) {
 			return new ResponseEntity<>(HttpStatus.OK);
 		}
 		
+		// inform the substitute by email
 		List<OrgUnit> orgUnits = orgUnitService.getByManagerMatchingUser(manager);
 		StringBuilder builder = new StringBuilder();
 		if (orgUnits != null && orgUnits.size() > 0) {
@@ -135,16 +163,22 @@ public class ManagerRestController {
 		String substituteEmail = substitute.getEmail();
 		if (substituteEmail != null) {
 			EmailTemplate template = emailTemplateService.findByTemplateType(EmailTemplateType.SUBSTITUTE);
+
 			if (template.isEnabled()) {
+				String title = template.getTitle();
+				title = title.replace(EmailTemplateService.RECEIVER_PLACEHOLDER, substitute.getName());
+				title = title.replace(EmailTemplateService.MANAGER_PLACEHOLDER, manager.getName());
+				title = title.replace(EmailTemplateService.ORGUNIT_PLACEHOLDER, builder.toString());
+
 				String message = template.getMessage();
 				message = message.replace(EmailTemplateService.RECEIVER_PLACEHOLDER, substitute.getName());
 				message = message.replace(EmailTemplateService.MANAGER_PLACEHOLDER, manager.getName());
 				message = message.replace(EmailTemplateService.ORGUNIT_PLACEHOLDER, builder.toString());
-				emailQueueService.queueEmail(substituteEmail, template.getTitle(), message, template, null);
-			} else {
+				emailQueueService.queueEmail(substituteEmail, title, message, template, null);
+			}
+			else {
 				log.info("Email template with type " + template.getTemplateType() + " is disabled. Email was not sent.");
 			}
-			
 		}
 
 		return new ResponseEntity<>(HttpStatus.OK);

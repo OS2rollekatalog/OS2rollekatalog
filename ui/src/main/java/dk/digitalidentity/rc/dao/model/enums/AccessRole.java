@@ -4,6 +4,8 @@ public enum AccessRole {
 	ORGANISATION("html.enum.accessrole.organisation"),
 	READ_ACCESS("html.enum.accessrole.readAccess"),
 	ROLE_MANAGEMENT("html.enum.accessrole.roleManagement"),
+	VENDOR("html.enum.accessrole.vendor"),
+	ITSYSTEM("html.enum.accessrole.itsystem"),
 	ADMINISTRATOR("html.enum.accessrole.administrator"),
 	CICS_ADMIN("html.enum.accessrole.cicsAdmin");
 

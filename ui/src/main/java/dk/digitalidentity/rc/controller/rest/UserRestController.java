@@ -54,12 +54,14 @@ import dk.digitalidentity.rc.dao.model.enums.ConstraintUIType;
 import dk.digitalidentity.rc.dao.model.enums.ItSystemType;
 import dk.digitalidentity.rc.dao.model.enums.KleType;
 import dk.digitalidentity.rc.security.AccessConstraintService;
+import dk.digitalidentity.rc.security.RequireAdministratorRole;
 import dk.digitalidentity.rc.security.RequireAssignerRole;
 import dk.digitalidentity.rc.security.RequireReadAccessOrManagerRole;
 import dk.digitalidentity.rc.service.ConstraintTypeService;
 import dk.digitalidentity.rc.service.KleService;
 import dk.digitalidentity.rc.service.PositionService;
 import dk.digitalidentity.rc.service.RoleGroupService;
+import dk.digitalidentity.rc.service.SettingsService;
 import dk.digitalidentity.rc.service.SystemRoleService;
 import dk.digitalidentity.rc.service.UserRoleService;
 import dk.digitalidentity.rc.service.UserService;
@@ -67,9 +69,9 @@ import dk.digitalidentity.rc.service.model.AssignedThrough;
 import dk.digitalidentity.rc.service.model.RoleAssignmentType;
 import dk.digitalidentity.rc.service.model.RoleGroupAssignedToUser;
 import dk.digitalidentity.rc.service.model.UserRoleAssignedToUser;
-import lombok.extern.log4j.Log4j;
+import lombok.extern.slf4j.Slf4j;
 
-@Log4j
+@Slf4j
 @RequireReadAccessOrManagerRole
 @RestController
 public class UserRestController {
@@ -104,6 +106,9 @@ public class UserRestController {
 	@Autowired
 	private UserViewDao userViewDao;
 	
+	@Autowired
+	private SettingsService settingsService;
+	
 	@RequireAssignerRole
 	@PostMapping("/rest/users/cleanupDuplicateRoleAssignments")
 	public ResponseEntity<String> cleanupDuplicateRoleAssignments() {
@@ -118,6 +123,14 @@ public class UserRestController {
 		userService.deleteDuplicateRoleGroupAssignmentsOnUsers();
 		
 		return new ResponseEntity<String>(HttpStatus.OK);
+	}
+	
+	@RequireAdministratorRole
+	@PostMapping("/rest/users/loadcics")
+	public ResponseEntity<HttpStatus> loadCics() {
+		settingsService.setRunCics(true);
+		
+		return new ResponseEntity<>(HttpStatus.OK);
 	}
 	
 	@PostMapping("/rest/users/list")

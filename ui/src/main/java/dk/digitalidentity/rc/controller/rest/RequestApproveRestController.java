@@ -42,9 +42,9 @@ import dk.digitalidentity.rc.service.SettingsService;
 import dk.digitalidentity.rc.service.UserRoleService;
 import dk.digitalidentity.rc.service.UserService;
 import dk.digitalidentity.rc.service.model.WhoCanRequest;
-import lombok.extern.log4j.Log4j;
+import lombok.extern.slf4j.Slf4j;
 
-@Log4j
+@Slf4j
 @RestController
 public class RequestApproveRestController {
 
@@ -95,7 +95,11 @@ public class RequestApproveRestController {
 		
 		User requestedFor = request.getRequestedFor();
 		if (requestedFor == null) {
-			return new ResponseEntity<>("The role is not requested for anyone", HttpStatus.BAD_REQUEST);
+			return new ResponseEntity<>("Der er ikke valgt en modtager af rollen", HttpStatus.BAD_REQUEST);
+		}
+		
+		if (requestedFor.isActive() == false) {
+			return new ResponseEntity<>("Der er valgt en inaktiv modtager af rollen", HttpStatus.BAD_REQUEST);
 		}
 
 		String roleName = "";
@@ -128,10 +132,13 @@ public class RequestApproveRestController {
 		if (requestedFor.getEmail() != null) {
 			EmailTemplate template = emailTemplateService.findByTemplateType(EmailTemplateType.APPROVED_ROLE_REQUEST_USER);
 			if (template.isEnabled()) {
+				String title = template.getTitle();
+				title = title.replace(EmailTemplateService.RECEIVER_PLACEHOLDER, requestedFor.getName());
+				title = title.replace(EmailTemplateService.ROLE_PLACEHOLDER, roleName);
 				String message = template.getMessage();
 				message = message.replace(EmailTemplateService.RECEIVER_PLACEHOLDER, requestedFor.getName());
 				message = message.replace(EmailTemplateService.ROLE_PLACEHOLDER, roleName);
-				emailQueueService.queueEmail(requestedFor.getEmail(), template.getTitle(), message, template, null);
+				emailQueueService.queueEmail(requestedFor.getEmail(), title, message, template, null);
 			}
 			else {
 				log.info("Email template with type " + template.getTemplateType() + " is disabled. Email was not sent.");
@@ -274,24 +281,35 @@ public class RequestApproveRestController {
 
 				if (manager != null) {
 					if (!StringUtils.isEmpty(manager.getEmail())) {
+						String title = template.getTitle();
+						title = title.replace(EmailTemplateService.RECEIVER_PLACEHOLDER, manager.getName());
+						title = title.replace(EmailTemplateService.ROLE_PLACEHOLDER, roleName);
+						title = title.replace(EmailTemplateService.USER_PLACEHOLDER, request.getRequestedFor().getName());
 						String message = template.getMessage();
 						message = message.replace(EmailTemplateService.RECEIVER_PLACEHOLDER, manager.getName());
 						message = message.replace(EmailTemplateService.ROLE_PLACEHOLDER, roleName);
 						message = message.replace(EmailTemplateService.USER_PLACEHOLDER, request.getRequestedFor().getName());
-						emailQueueService.queueEmail(manager.getEmail(), template.getTitle(), message, template, null);
+						emailQueueService.queueEmail(manager.getEmail(), title, message, template, null);
 					}
 				}
 				
 				if (authorizationManagers != null && authorizationManagers.size() > 0) {
 					for (AuthorizationManager am : authorizationManagers) {
 						User authorizationManager = am.getUser();
+						if (authorizationManager == null || authorizationManager.isActive() == false) {
+							continue;
+						}
 
 						if (!StringUtils.isEmpty(authorizationManager.getEmail())) {
+							String title = template.getTitle();
+							title = title.replace(EmailTemplateService.RECEIVER_PLACEHOLDER, authorizationManager.getName());
+							title = title.replace(EmailTemplateService.ROLE_PLACEHOLDER, roleName);
+							title = title.replace(EmailTemplateService.USER_PLACEHOLDER, request.getRequestedFor().getName());
 							String message = template.getMessage();
 							message = message.replace(EmailTemplateService.RECEIVER_PLACEHOLDER, authorizationManager.getName());
 							message = message.replace(EmailTemplateService.ROLE_PLACEHOLDER, roleName);
 							message = message.replace(EmailTemplateService.USER_PLACEHOLDER, request.getRequestedFor().getName());
-							emailQueueService.queueEmail(authorizationManager.getEmail(), template.getTitle(), message, template, null);
+							emailQueueService.queueEmail(authorizationManager.getEmail(), title, message, template, null);
 						}
 					}
 				}

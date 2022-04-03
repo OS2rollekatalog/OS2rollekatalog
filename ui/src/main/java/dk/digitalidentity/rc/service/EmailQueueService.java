@@ -19,9 +19,9 @@ import dk.digitalidentity.rc.dao.EmailQueueDao;
 import dk.digitalidentity.rc.dao.model.AttachmentFile;
 import dk.digitalidentity.rc.dao.model.EmailQueue;
 import dk.digitalidentity.rc.dao.model.EmailTemplate;
-import lombok.extern.log4j.Log4j;
+import lombok.extern.slf4j.Slf4j;
 
-@Log4j
+@Slf4j
 @Service
 public class EmailQueueService {
 	

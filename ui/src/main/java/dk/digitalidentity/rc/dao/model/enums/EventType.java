@@ -33,7 +33,9 @@ public enum EventType {
 	REJECT_REQUEST("html.enum.eventtype.reject_request"),
 	
 	PERFORMED_USERROLE_CLEANUP("html.enum.eventtype.cleanup.userroles"),
-	PERFORMED_ROLEGROUP_CLEANUP("html.enum.eventtype.cleanup.rolegroups");
+	PERFORMED_ROLEGROUP_CLEANUP("html.enum.eventtype.cleanup.rolegroups"),
+	
+	ADMIN_ASSIGNED_MANAGER_SUBSTITUTE("html.enum.eventtype.admin_assigned_manager_substitute");
 
 	private String message;
 	

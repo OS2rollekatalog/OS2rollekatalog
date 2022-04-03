@@ -30,7 +30,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.restdocs.JUnitRestDocumentation;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.TestPropertySource;
@@ -51,7 +50,8 @@ import dk.digitalidentity.rc.service.RoleGroupService;
 import dk.digitalidentity.rc.service.UserRoleService;
 import dk.digitalidentity.rc.service.UserService;
 import dk.digitalidentity.rc.util.BootstrapDevMode;
-import dk.digitalidentity.saml.model.TokenUser;
+import dk.digitalidentity.samlmodule.model.SamlGrantedAuthority;
+import dk.digitalidentity.samlmodule.model.TokenUser;
 
 @RunWith(SpringJUnit4ClassRunner.class)
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.DEFINED_PORT)
@@ -90,9 +90,9 @@ public class ItSystemApiDocumentation {
 
 		// this is a bit of a hack, but we fake that the api logged in using a token,
 		// so all of our existing security code just works without further modifications
-		List<SimpleGrantedAuthority> authorities = new ArrayList<>();
-		authorities.add(new SimpleGrantedAuthority(Constants.ROLE_SYSTEM));
-		authorities.add(new SimpleGrantedAuthority("ROLE_API_" + AccessRole.ROLE_MANAGEMENT.toString()));
+		List<SamlGrantedAuthority> authorities = new ArrayList<>();
+		authorities.add(new SamlGrantedAuthority(Constants.ROLE_SYSTEM));
+		authorities.add(new SamlGrantedAuthority("ROLE_API_" + AccessRole.ROLE_MANAGEMENT.toString()));
 
 		Map<String, Object> attributes = new HashMap<>();
 		attributes.put(RolePostProcessor.ATTRIBUTE_NAME, "system");

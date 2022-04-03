@@ -28,12 +28,12 @@ import dk.kleonline.xml.EmneKomponent;
 import dk.kleonline.xml.GruppeKomponent;
 import dk.kleonline.xml.HovedgruppeKomponent;
 import dk.kleonline.xml.KLEEmneplanKomponent;
-import lombok.extern.log4j.Log4j;
+import lombok.extern.slf4j.Slf4j;
 
 @Component
 @EnableScheduling
 @EnableAsync
-@Log4j
+@Slf4j
 public class ReadKleTask {
 	private static Map<String, String> kleCacheMap = new HashMap<>();
 

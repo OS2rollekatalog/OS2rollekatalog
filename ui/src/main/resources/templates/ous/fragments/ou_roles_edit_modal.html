@@ -40,7 +40,7 @@
 												</label>
 											</div>
 										</td>
-										<td th:text="${title.name}" />
+										<td><span th:text="${title.name} + ' '"></span><span th:if="${title.emptyTitle}" class="badge" style="background-color: #ff8517; color: #FFFFFF;" th:text="#{html.page.ous.edit.tab.titles.empty}"></span></td>
 									</tr>
 								</tbody>
 							</table>

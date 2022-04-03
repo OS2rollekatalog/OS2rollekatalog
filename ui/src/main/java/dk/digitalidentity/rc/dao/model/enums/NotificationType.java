@@ -6,7 +6,9 @@ public enum NotificationType {
 	EDIT_ATTESTATION_EMAIL_TEMPLATE("html.enum.notificationtype.edit_attestation_email_template"),
 	NEW_ORG_UNIT("html.enum.notificationtype.new_org_unit"),
 	ORG_UNIT_NEW_PARENT("html.enum.notificationtype.org_unit_new_parent"),
-	NEW_TITLE_IN_ORG_UNIT("html.enum.notificationtype.new_title_in_org_unit");
+	NEW_TITLE_IN_ORG_UNIT("html.enum.notificationtype.new_title_in_org_unit"),
+	USER_MOVED_POSITIONS("html.enum.notificationtype.user_moved_positions"),
+	UPDATE_KSP_CICS_USER_FAILED("html.enum.notificationtype.update_ksp_cics_user_failed");
 
 	private String message;
 

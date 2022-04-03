@@ -7,9 +7,9 @@ import org.springframework.stereotype.Component;
 
 import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
 import dk.digitalidentity.rc.service.EmailQueueService;
-import lombok.extern.log4j.Log4j;
+import lombok.extern.slf4j.Slf4j;
 
-@Log4j
+@Slf4j
 @Component
 @EnableScheduling
 public class EmailQueueTask {

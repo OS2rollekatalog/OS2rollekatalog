@@ -7,5 +7,6 @@ namespace RoleCatalogImporter
         public string Name { get; set; }
         public string Dn { get; set; }
         public string ParentUUID { get; set; }
+        public ADManager Manager { get; set; }
     }
 }

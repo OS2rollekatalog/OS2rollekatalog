@@ -64,10 +64,6 @@ public class EmailTemplateService {
 					title = "Du er blevet udpeget som stedfortræder";
 					message = "Kære {modtager}\n<br/>\n<br/>\nDu er blevet udpeget til stedfortræder for {leder} for enheden {enhed}.";
 					break;
-				case ATTESTATION_EMPLOYEE_NEW_UNIT:
-					title = "En medarbejder har skiftet enhed";
-					message = "Kære {modtager}\n<br/>\n<br/>\nEn medarbejder har skiftet enhed, og der skal derfor attesteres.";
-					break;
 				case ROLE_EXPIRING:
 					title = "Tidsbegrænsede rettigheder er ved at udløbe";
 					message = "Kære {modtager}\n<br/>\n<br/>\nEn eller flere tidsbegrænsede rettigheder udløber inden for 14 dage. De kan ses af den vedhæftede pdf.";

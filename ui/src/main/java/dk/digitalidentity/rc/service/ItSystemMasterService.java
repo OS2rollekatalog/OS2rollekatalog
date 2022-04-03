@@ -18,9 +18,9 @@ import dk.digitalidentity.rc.dao.model.SystemRole;
 import dk.digitalidentity.rc.dao.model.enums.RoleType;
 import dk.digitalidentity.rc.service.master.dto.ItSystemMasterDTO;
 import dk.digitalidentity.rc.service.master.dto.SystemRoleMasterDTO;
-import lombok.extern.log4j.Log4j;
+import lombok.extern.slf4j.Slf4j;
 
-@Log4j
+@Slf4j
 @Service
 public class ItSystemMasterService {
 

@@ -2235,7 +2235,7 @@ public class UserService {
 		
 		builder.append("</ul>");
 		
-		if (user.getEmail() != null && user.getEmail().length() > 0) {
+		if (user.getEmail() != null && user.isActive() && user.getEmail().length() > 0) {
 			emailService.sendMessage(user.getEmail(), "Ændringer i dine rettigheder", builder.toString());
 		}
 	}
@@ -2302,7 +2302,7 @@ public class UserService {
 		
 		builder.append("</ul>");
 		
-		if (user.getEmail() != null && user.getEmail().length() > 0) {
+		if (user.getEmail() != null && user.isActive() && user.getEmail().length() > 0) {
 			emailService.sendMessage(user.getEmail(), "Ændringer i dine rettigheder", builder.toString());
 		}
 	}

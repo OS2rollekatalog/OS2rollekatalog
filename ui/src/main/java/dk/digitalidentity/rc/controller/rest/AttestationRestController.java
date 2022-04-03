@@ -56,11 +56,11 @@ import dk.digitalidentity.rc.service.RoleGroupService;
 import dk.digitalidentity.rc.service.SettingsService;
 import dk.digitalidentity.rc.service.UserRoleService;
 import dk.digitalidentity.rc.service.UserService;
-import lombok.extern.log4j.Log4j;
+import lombok.extern.slf4j.Slf4j;
 
 @RestController
 @RequireAssignerOrManagerRole
-@Log4j
+@Slf4j
 public class AttestationRestController {
 
 	@Autowired
@@ -176,7 +176,7 @@ public class AttestationRestController {
 				emails.put(manager.getEmail(), manager.getName());
 			}
 			
-			if (manager.getManagerSubstitute() != null && !StringUtils.isEmpty(manager.getManagerSubstitute().getEmail())) {
+			if (manager.getManagerSubstitute() != null && manager.getManagerSubstitute().isActive() && !StringUtils.isEmpty(manager.getManagerSubstitute().getEmail())) {
 				emails.put(manager.getManagerSubstitute().getEmail(), manager.getManagerSubstitute().getName());
 			}
 
@@ -197,11 +197,15 @@ public class AttestationRestController {
 
 					List<AttachmentFile> attachments = new ArrayList<>();
 					attachments.add(attachmentFile);
+					
+					String title = template.getTitle();
+					title = title.replace(EmailTemplateService.RECEIVER_PLACEHOLDER, emails.get(email));
+					title = title.replace(EmailTemplateService.ORGUNIT_PLACEHOLDER, orgUnit.getName());
 
 					String message = template.getMessage();
 					message = message.replace(EmailTemplateService.RECEIVER_PLACEHOLDER, emails.get(email));
 					message = message.replace(EmailTemplateService.ORGUNIT_PLACEHOLDER, orgUnit.getName());
-					emailQueueService.queueEmail(email, template.getTitle(), message, template, attachments);
+					emailQueueService.queueEmail(email, title, message, template, attachments);
 				}
 			} else {
 				log.info("Email template with type " + template.getTemplateType() + " is disabled. Emails were not sent.");
@@ -406,10 +410,14 @@ public class AttestationRestController {
 
 				EmailTemplate template = emailTemplateService.findByTemplateType(EmailTemplateType.REMOVE_UNIT_ROLES);
 				if (template.isEnabled()) {
+					String title = template.getTitle();
+					title = title.replace(EmailTemplateService.RECEIVER_PLACEHOLDER, "it-afdeling");
+					title = title.replace(EmailTemplateService.ORGUNIT_PLACEHOLDER, orgUnit.getName());
+					
 					String message = template.getMessage() + ((!StringUtils.isEmpty(managerMessage)) ? ("\n<br/><br/>\n<strong>Besked fra lederen:</strong>\n<br/>" + managerMessage) : "");
 					message = message.replace(EmailTemplateService.RECEIVER_PLACEHOLDER, "it-afdeling");
 					message = message.replace(EmailTemplateService.ORGUNIT_PLACEHOLDER, orgUnit.getName());
-					emailQueueService.queueEmail(email, template.getTitle(), message, template, attachments);
+					emailQueueService.queueEmail(email, title, message, template, attachments);
 				} else {
 					log.info("Email template with type " + template.getTemplateType() + " is disabled. Email was not sent.");
 				}

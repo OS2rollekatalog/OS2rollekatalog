@@ -27,9 +27,9 @@ import org.springframework.stereotype.Service;
 import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.InlineImageDTO;
 import dk.digitalidentity.rc.dao.model.AttachmentFile;
-import lombok.extern.log4j.Log4j;
+import lombok.extern.slf4j.Slf4j;
 
-@Log4j
+@Slf4j
 @EnableAsync
 @Service
 public class EmailService {
@@ -145,7 +145,7 @@ public class EmailService {
 			msg.setSubject(subject, "UTF-8");
 
 			MimeBodyPart htmlBodyPart = new MimeBodyPart();
-			htmlBodyPart.setContent(message, "text/html");
+			htmlBodyPart.setContent(message, "text/html; charset=UTF-8");
 
 			Multipart multipart = new MimeMultipart();
 			multipart.addBodyPart(htmlBodyPart);

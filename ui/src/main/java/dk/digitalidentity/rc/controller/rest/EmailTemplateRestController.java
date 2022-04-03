@@ -32,9 +32,9 @@ import dk.digitalidentity.rc.security.SecurityUtil;
 import dk.digitalidentity.rc.service.EmailService;
 import dk.digitalidentity.rc.service.EmailTemplateService;
 import dk.digitalidentity.rc.service.UserService;
-import lombok.extern.log4j.Log4j;
+import lombok.extern.slf4j.Slf4j;
 
-@Log4j
+@Slf4j
 @RequireAdministratorRole
 @RestController
 public class EmailTemplateRestController {

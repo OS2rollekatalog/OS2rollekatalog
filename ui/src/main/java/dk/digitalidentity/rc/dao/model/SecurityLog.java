@@ -38,4 +38,12 @@ public class SecurityLog {
 	@Column(nullable = false)
 	private String ipAddress;
 
+	@Column(nullable = true)
+	private String clientVersion;
+
+	@Column(nullable = true)
+	private String tlsVersion;
+
+	@Column(nullable = true)
+	private String responseCode;
 }

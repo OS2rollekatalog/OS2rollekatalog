@@ -11,9 +11,9 @@ import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.security.RequireRequesterRole;
 import dk.digitalidentity.rc.service.RequestApproveService;
 import dk.digitalidentity.rc.service.UserService;
-import lombok.extern.log4j.Log4j;
+import lombok.extern.slf4j.Slf4j;
 
-@Log4j
+@Slf4j
 @Controller
 public class MyController {
 

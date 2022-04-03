@@ -11,6 +11,7 @@
 				<div class="panel panel-default">
 					<div class="panel-heading" />
 					<div class="panel-body">
+						<button sec:authorize="hasRole('ROLE_ADMINISTRATOR')" th:if="${@roleCatalogueConfiguration.getIntegrations().getKspcics().isEnabled() == true}" onclick="userService.runCics();" class="btn btn-primary" style="margin-bottom: 20px;" th:text="#{html.page.users.list.loadCics.btn}"></button>
 						<div class="table-responsive">
 							<table id="listTable" class="table table-striped table-hover">
 								<thead>
@@ -46,18 +47,24 @@
 
 	<script th:inline="javascript">
 		/*<![CDATA[*/
-			$(document).ready(function() {
-				var token = $("meta[name='_csrf']").attr("content");
+			var token = $("meta[name='_csrf']").attr("content");
 
-				/*[+
-					var searchTxt = [[#{html.datatables.search}]];
-					var dropdownTxt = [[#{html.datatables.dropdown}]];
-					var infoDefaultTxt = [[#{html.datatables.info.default}]];
-					var infoEmptyTxt = [[#{html.datatables.info.empty}]];
-					var infoLoadingTxt = [[#{html.datatables.info.loading}]];
-					var infoFilteredTxt = [[#{html.datatables.info.filtered}]]; 
-					var ajaxUrl = [[@{/rest/users/list}]];
-				+]*/
+			/*[+
+                var baseUrl = [[@{/}]];
+				var searchTxt = [[#{html.datatables.search}]];
+				var dropdownTxt = [[#{html.datatables.dropdown}]];
+				var infoDefaultTxt = [[#{html.datatables.info.default}]];
+				var infoEmptyTxt = [[#{html.datatables.info.empty}]];
+				var infoLoadingTxt = [[#{html.datatables.info.loading}]];
+				var infoFilteredTxt = [[#{html.datatables.info.filtered}]]; 
+				var ajaxUrl = [[@{/rest/users/list}]];
+				var cicsErrorMsg = [[#{html.default.message.error}]];
+				var cicsSuccessMsg = [[#{html.page.users.list.loadCics.success}]];
+			+]*/
+			
+			var userService;
+			$(document).ready(function() {
+				this.userService = new UserService();
 
 				// Setup - add a text input to each footer cell
 				$('#listTable tfoot th[class="input-filter"]').each( function () {
@@ -109,8 +116,7 @@
 							orderable: false,
 							searchable: false,
 							render: function (data, type, row, meta) {
-								var actions = '<a href="/ui/users/manage/' + data + '"><em class="fa fa-fw fa-pencil"></em></a>';
-								return actions;
+								return '<a href="' + baseUrl + 'ui/users/manage/' + data + '"><em class="fa fa-fw fa-pencil"></em></a>';
 							}
 						}
 					],
@@ -164,6 +170,32 @@
 				});
 
 			});
+			
+			function UserService() {
+				this.runCics = function() {
+					$.ajax({
+						url: "/rest/users/loadcics",
+						method: "POST",
+						headers: {
+							'X-CSRF-TOKEN': token
+						},
+						error: function(response) {
+							$.notify({
+								message: cicsErrorMsg,
+								status: 'danger',
+								timeout: 4000
+							});
+						},
+						success: function(response) {
+							$.notify({
+								message: cicsSuccessMsg,
+								status: 'success',
+								timeout: 4000
+							});
+						}
+					});
+				}
+			}
 		/*]]>*/
 	</script>
 </body>

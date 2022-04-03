@@ -27,6 +27,7 @@ public class OrgUnitDTO {
 	private List<String> kleInterest;
 	private List<Long> itSystemIdentifiers;
 	private ManagerDTO manager;
+	private List<String> titleIdentifiers;
 	
 	@Transient
 	private OrgUnitDTO _parentRef;
@@ -59,6 +60,10 @@ public class OrgUnitDTO {
 
 		if (orgUnit.getItSystems() != null) {
 			this.itSystemIdentifiers = orgUnit.getItSystems().stream().map(ItSystem::getId).collect(Collectors.toList());
+		}
+		
+		if (orgUnit.getTitles() != null) {
+			this.titleIdentifiers = orgUnit.getTitles().stream().map(t -> t.getUuid()).collect(Collectors.toList());
 		}
 	}
 }
