@@ -1,6 +1,6 @@
 2022.04.03 - Release 2022r2
 
-             [ROL-171](https://os2web.atlassian.net/browse/ROL-133)
+             <a href="https://os2web.atlassian.net/browse/ROL-133">[ROL-171]</a>(https://os2web.atlassian.net/browse/ROL-133)
              [ROL-180](https://os2web.atlassian.net/browse/ROL-168)
              [ROL-178](https://os2web.atlassian.net/browse/ROL-174)
              [ROL-182](https://os2web.atlassian.net/browse/ROL-188)
