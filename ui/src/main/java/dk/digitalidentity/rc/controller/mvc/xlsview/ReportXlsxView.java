@@ -5,17 +5,16 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.function.Function;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import javax.servlet.http.HttpServletRequest;
@@ -560,6 +559,7 @@ public class ReportXlsxView extends AbstractXlsxStreamingView {
         headers.add("xls.user.active");
         headers.add("xls.report.user.kle.assignment.type");
         headers.add("xls.report.user.kle.kle.values");
+        headers.add("xls.report.user.kle.source");
 
         createHeaderRow(sheet, headers);
 
@@ -589,28 +589,8 @@ public class ReportXlsxView extends AbstractXlsxStreamingView {
         		}
 
         		for (HistoryOUKleAssignment ouKleAssignment : ouKleAssignments) {
-        			String assignmentType = ouKleAssignment.getAssignmentType();
-        			String[] kleValues = (ouKleAssignment.getKleValues() != null) ? ouKleAssignment.getKleValues().split(",") : new String[0];
-        			
-        			boolean found = false;
-        			for (HistoryKleAssignment existingUserAssignment : existingUserAssignments) {
-        				if (Objects.equals(existingUserAssignment.getAssignmentType(), assignmentType)) {
-                			String[] existingKleValues = (existingUserAssignment.getKleValues() != null) ? existingUserAssignment.getKleValues().split(",") : new String[0];
-                			Set<String> tmp = new HashSet<>();
-                			tmp.addAll(Arrays.asList(existingKleValues));
-                			tmp.addAll(Arrays.asList(kleValues));
-                			
-                			existingUserAssignment.setKleValues(String.join(",", tmp));
-        					
-        					found = true;
-        					break;
-        				}
-        			}
-        			
-        			if (!found) {
-        				HistoryKleAssignment assignment = new HistoryKleAssignment(ouUser.getUserUuid(), assignmentType, ouKleAssignment.getKleValues());
-        				existingUserAssignments.add(assignment);
-        			}
+    				HistoryKleAssignment assignment = new HistoryKleAssignment(ouUser.getUserUuid(), ouKleAssignment.getAssignmentType(), ouKleAssignment.getKleValues(), ou.getOuName());
+    				existingUserAssignments.add(assignment);
         		}
         	}
         }
@@ -620,7 +600,7 @@ public class ReportXlsxView extends AbstractXlsxStreamingView {
         	List<HistoryKleAssignment> entries = userKLEAssignments.get(user.getUserUuid());
 
             // Skip inactive users if showInactive users = false
-			if (entries == null || !showInactiveUsers && !user.isUserActive()) {
+			if (entries == null || (!showInactiveUsers && !user.isUserActive())) {
 				continue;
 			}
 
@@ -628,22 +608,83 @@ public class ReportXlsxView extends AbstractXlsxStreamingView {
             String userId = user.getUserUserId();
             boolean userActive = user.isUserActive();
 
-            for (HistoryKleAssignment kleAssignment : entries) {
-                String assignmentType = kleAssignment.getAssignmentType();
-				if (Objects.equals(assignmentType, "INTEREST")) {
-					assignmentType = "Indsigtsbehov";
-				}
-				else if (Objects.equals(assignmentType, "PERFORMING")) {
-					assignmentType = "Opgaveansvar";
-				}
-
+            List<HistoryKleAssignment> interestAssignments = entries.stream().filter(e -> Objects.equals(e.getAssignmentType(), "INTEREST")).collect(Collectors.toList());
+            List<HistoryKleAssignment> performingAssignments = entries.stream().filter(e -> Objects.equals(e.getAssignmentType(), "PERFORMING")).collect(Collectors.toList());
+            
+            // duplicated code *sigh*
+            
+            Set<String> codeSum = new HashSet<>();
+            for (HistoryKleAssignment kleAssignment : interestAssignments) {
                 Row dataRow = sheet.createRow(row++);
                 int column = 0;
+
                 createCell(dataRow, column++, userName, null);
                 createCell(dataRow, column++, userId, null);
                 createCell(dataRow, column++, userActive ? "aktiv" : "inaktiv", null);
-                createCell(dataRow, column++, assignmentType, null);
+                createCell(dataRow, column++, "Indsigtsbehov", null);
                 createCell(dataRow, column++, kleAssignment.getKleValues(), null);
+
+                if (StringUtils.hasLength(kleAssignment.getInheritedFrom())) {
+                	createCell(dataRow, column++, "Ansat: " + kleAssignment.getInheritedFrom(), null);
+                }
+                else {
+                	createCell(dataRow, column++, "Personlige", null);
+                }
+                
+                String[] kleCodes = kleAssignment.getKleValues().split(",");
+                for (String kleCode : kleCodes) {
+                	codeSum.add(kleCode);
+                }
+            }
+            
+            // output sum of above rows
+            if (codeSum.size() > 0) {
+                Row dataRow = sheet.createRow(row++);
+                int column = 0;
+
+                createCell(dataRow, column++, userName, null);
+                createCell(dataRow, column++, userId, null);
+                createCell(dataRow, column++, userActive ? "aktiv" : "inaktiv", null);
+                createCell(dataRow, column++, "Indsigtsbehov", null);
+                createCell(dataRow, column++, String.join(",", codeSum), null);
+               	createCell(dataRow, column++, "Summen", null);
+            }
+
+            codeSum = new HashSet<>();
+            for (HistoryKleAssignment kleAssignment : performingAssignments) {
+                Row dataRow = sheet.createRow(row++);
+                int column = 0;
+
+                createCell(dataRow, column++, userName, null);
+                createCell(dataRow, column++, userId, null);
+                createCell(dataRow, column++, userActive ? "aktiv" : "inaktiv", null);
+                createCell(dataRow, column++, "Opgaveansvar", null);
+                createCell(dataRow, column++, kleAssignment.getKleValues(), null);
+
+                if (StringUtils.hasLength(kleAssignment.getInheritedFrom())) {
+                	createCell(dataRow, column++, "Ansat: " + kleAssignment.getInheritedFrom(), null);
+                }
+                else {
+                	createCell(dataRow, column++, "Personlige", null);
+                }
+                
+                String[] kleCodes = kleAssignment.getKleValues().split(",");
+                for (String kleCode : kleCodes) {
+                	codeSum.add(kleCode);
+                }
+            }
+            
+            // output sum of above rows
+            if (codeSum.size() > 0) {
+                Row dataRow = sheet.createRow(row++);
+                int column = 0;
+
+                createCell(dataRow, column++, userName, null);
+                createCell(dataRow, column++, userId, null);
+                createCell(dataRow, column++, userActive ? "aktiv" : "inaktiv", null);
+                createCell(dataRow, column++, "Opgaveansvar", null);
+                createCell(dataRow, column++, String.join(",", codeSum), null);
+               	createCell(dataRow, column++, "Summen", null);
             }
         }
     }

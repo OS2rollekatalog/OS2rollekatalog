@@ -24,7 +24,7 @@ public class HistoryRoleAssignmentsTask {
 
 	@Scheduled(cron = "0 #{new java.util.Random().nextInt(55)} 4 * * ?")
 	// enable this to execute script at bootup
-	//@Scheduled(fixedDelay = 60 * 60 * 1000)
+	//@Scheduled(fixedDelay = 24 * 60 * 60 * 1000)
 	public void generateHistory() {
 		if (!configuration.getScheduled().isEnabled() ||
 			!configuration.getScheduled().getHistory().isEnabled()) {
