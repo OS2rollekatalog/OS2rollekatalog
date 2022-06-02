@@ -68,7 +68,7 @@ public class RoleAssignment {
 		try {
 			String orgUnitName = rs.getString("orgunit_name");
 			
-			if (!StringUtils.isEmpty(orgUnitName)) {
+			if (StringUtils.hasLength(orgUnitName)) {
 				assignedThrough = ORGUNIT_PREFIX + orgUnitName;
 			}
 		}
@@ -80,7 +80,7 @@ public class RoleAssignment {
 		try {
 			String positionName = rs.getString("position_name");
 			
-			if (!StringUtils.isEmpty(positionName)) {
+			if (StringUtils.hasLength(positionName)) {
 				assignedThrough = POSITION_PREFIX + positionName;
 			}
 		}

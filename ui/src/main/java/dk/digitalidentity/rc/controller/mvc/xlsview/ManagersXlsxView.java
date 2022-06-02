@@ -58,7 +58,8 @@ public class ManagersXlsxView extends AbstractXlsxView {
             String assignedBy = "";
             if (manager.getSubstituteAssignedBy() == null && manager.getManagerSubstitute() != null) {
             	assignedBy = manager.getName() + "(" + manager.getUserId() + ")";
-            } else if (manager.getSubstituteAssignedBy() != null && manager.getManagerSubstitute() != null) {
+            }
+            else if (manager.getSubstituteAssignedBy() != null && manager.getManagerSubstitute() != null) {
             	assignedBy = manager.getSubstituteAssignedBy();
             }
             
@@ -68,7 +69,7 @@ public class ManagersXlsxView extends AbstractXlsxView {
             createCell(dataRow, 3, manager.getManagerSubstitute() == null ? "" : manager.getManagerSubstitute().getUuid(), null);
             createCell(dataRow, 4, manager.getManagerSubstitute() == null ? "" : manager.getManagerSubstitute().getName(), null);
             createCell(dataRow, 5, manager.getManagerSubstitute() == null ? "" : manager.getManagerSubstitute().getUserId(), null);
-            createCell(dataRow, 6, dateFormatter.format(manager.getSubstituteAssignedTts()), null);
+            createCell(dataRow, 6, (manager.getSubstituteAssignedTts() != null) ? dateFormatter.format(manager.getSubstituteAssignedTts()) : "", null);
             createCell(dataRow, 7, assignedBy, null);
         }
         

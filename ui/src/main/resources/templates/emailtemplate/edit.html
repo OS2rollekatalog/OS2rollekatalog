@@ -1,23 +1,23 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
-<head th:replace="fragments/header :: header"/>
+<head th:replace="fragments/header :: header"></head>
 <body>
 	<div class="wrapper">
-		<header th:replace="fragments/navbar :: navbar-header(subpage = 'administration')" />
-		<aside th:replace="fragments/navbar :: navbar-aside (page = 'mail', subpage = 'administration')" />
+		<header th:replace="fragments/navbar :: navbar-header(subpage = 'administration')"></header>
+		<aside th:replace="fragments/navbar :: navbar-aside (page = 'mail', subpage = 'administration')"></aside>
  
 		<section>
 			<div class="content-wrapper">
-				<h3 th:text="#{html.page.email_template.edit.headline}" />
+				<h3 th:text="#{html.page.email_template.edit.headline}"></h3>
 
 				<div class="panel panel-default">
-					<div class="panel-heading" />
+					<div class="panel-heading"></div>
 
 					<div class="panel-body">
 						<div class="row" style="margin-bottom: 30px;">
 							<div class="col-lg-10 col-lg-offset-1">
-								<h3 style="margin-top: 0px;" th:text="#{html.page.email_template.header}"/>
-								<p th:text="#{html.page.email_template.intro}"/>
+								<h3 style="margin-top: 0px;" th:text="#{html.page.email_template.header}"></h3>
+								<p th:text="#{html.page.email_template.intro}"></p>
 							</div>
 						</div>
 						
@@ -25,11 +25,11 @@
 							<div class="col-lg-12">
 								<form class="form-horizontal">
 									<div class="form-group">
-										<label class="col-sm-2 control-label" th:text="#{html.entity.email_template.template}"/>
+										<label class="col-sm-2 control-label" th:text="#{html.entity.email_template.template}"></label>
 
 										<div class="col-sm-8">
 											<select class="form-control m-b col-sm-8" id="templateDropdown">
-												<option th:each="template : ${templates}" th:value="${template.id}" th:text="#{__${template.templateTypeText}__}"/>
+												<option th:each="template : ${templates}" th:value="${template.id}" th:text="#{__${template.templateTypeText}__}"></option>
 											</select>
 										</div>
 									</div>
@@ -44,26 +44,26 @@
 									<input type="hidden" name="enabled" th:value="${template.enabled}" />
 									
 									<div class="form-group">
-										<label class="col-sm-2 control-label" th:text="#{html.entity.email_template.enabled}" />
+										<label class="col-sm-2 control-label" th:text="#{html.entity.email_template.enabled}"></label>
 										<div class="col-sm-8">
 											<div class="checkbox c-checkbox">
 												<label>
 													<input class="checkboxFancy" th:checked="${template.enabled}" type="checkbox" />
-													<span class="fa fa-check" />
+													<span class="fa fa-check"></span>
 												</label>
 											</div>
 										</div>
 									</div>
 
 									<div class="form-group">
-										<label class="col-sm-2 control-label" th:text="#{html.entity.email_template.name}"/>
+										<label class="col-sm-2 control-label" th:text="#{html.entity.email_template.name}"></label>
 										<div class="col-sm-8">
 											<input name="title" th:value="${template.title}" class="form-control" />
 										</div>
 									</div>
 
 									<div class="form-group">
-										<label class="col-sm-2 control-label" th:text="#{html.entity.email_template.message}"/>
+										<label class="col-sm-2 control-label" th:text="#{html.entity.email_template.message}"></label>
 										<div class="col-sm-8">
 											<textarea name="message" th:text="${template.message}" class="mb-0 preformat" rows="10" style="width:100%;"></textarea>
 										</div>
@@ -71,8 +71,8 @@
 									
 									<div class="form-group">
 										<div class="col-sm-offset-2 col-sm-10">
-											<button type="button" style="margin-right: 5px;" class="btn btn-lg btn-primary col-xs-2 buttonSubmit" th:text="#{html.control.button.save}"/>
-											<button type="button" style="margin-right: 5px;" class="btn btn-lg btn-warning col-xs-2 buttonTest" th:text="#{html.page.email_template.test}"/>
+											<button type="button" style="margin-right: 5px;" class="btn btn-lg btn-primary col-xs-2 buttonSubmit" th:text="#{html.control.button.save}"></button>
+											<button type="button" style="margin-right: 5px;" class="btn btn-lg btn-warning col-xs-2 buttonTest" th:text="#{html.page.email_template.test}"></button>
 										</div>
 									</div>
 								</form>
@@ -81,7 +81,7 @@
 						
 						<div class="row">
 							<div class="col-lg-offset-2 col-lg-8">
-								<em th:utext="#{html.page.email_template.footer}" />
+								<em th:utext="#{html.page.email_template.footer}"></em>
 							</div>
 						</div>
 					</div>
@@ -90,7 +90,7 @@
 		</section>
 	</div>
 	
-	<div th:replace="fragments/footer :: footer"/>
+	<div th:replace="fragments/footer :: footer"></div>
 
 	<script th:inline="javascript">
 	/*<![CDATA[*/

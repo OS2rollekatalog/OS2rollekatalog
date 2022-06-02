@@ -4,16 +4,16 @@
 		<table id="listTableUsersAdd" class="table table-striped table-hover listTable">
 			<thead>
 				<tr>
-					<th class="col-md-5" th:text="#{html.entity.user.name}" />
-					<th class="col-md-6" th:text="#{html.entity.user.userId}" />
-					<th class="col-md-1" th:text="#{html.control.operations}" />
+					<th class="col-md-5" th:text="#{html.entity.user.name}"></th>
+					<th class="col-md-6" th:text="#{html.entity.user.userId}"></th>
+					<th class="col-md-1" th:text="#{html.control.operations}"></th>
 				</tr>
 			</thead>
 
 			<tbody>
 				<tr th:each="user : ${users}">
-					<td th:text="${user.name}" />
-					<td th:text="${user.userId}" />
+					<td th:text="${user.name}"></td>
+					<td th:text="${user.userId}"></td>
 					<td>
 						<a
 							href="#"

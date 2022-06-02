@@ -223,6 +223,8 @@ public class ReportXlsxView extends AbstractXlsxStreamingView {
                     		case LEVEL_2:
                     		case LEVEL_3:
                     		case LEVEL_4:
+							case LEVEL_5:
+							case LEVEL_6:
                     			if ("Organisation".equals(constraint.getConstraintName())) {
                     				switch (constraint.getConstraintValueType()) {
 										case LEVEL_1:
@@ -236,6 +238,12 @@ public class ReportXlsxView extends AbstractXlsxStreamingView {
 											break;
 										case LEVEL_4:
 											constraintCell.append(constraint.getConstraintName() + " = " + messageSource.getMessage("html.constraint.organisation.level.4", null, locale) + "\n");
+											break;
+										case LEVEL_5:
+											constraintCell.append(constraint.getConstraintName() + " = " + messageSource.getMessage("html.constraint.organisation.level.5", null, locale) + "\n");
+											break;
+										case LEVEL_6:
+											constraintCell.append(constraint.getConstraintName() + " = " + messageSource.getMessage("html.constraint.organisation.level.6", null, locale) + "\n");
 											break;
 										default:
 											break;
@@ -354,7 +362,7 @@ public class ReportXlsxView extends AbstractXlsxStreamingView {
                         break;
                 }
 
-                if (!StringUtils.isEmpty(ouRoleAssignment.getAssignedThroughName())) {
+                if (StringUtils.hasLength(ouRoleAssignment.getAssignedThroughName())) {
                     assignedThroughStr += ": " + ouRoleAssignment.getAssignedThroughName();
                 }
 

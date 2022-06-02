@@ -5,17 +5,17 @@
 	<table id="listTableUsers" class="table table-striped table-hover listTable">
 		<thead>
 		<tr>
-			<th class="col-md-5" th:text="#{html.entity.user.name}"/>
-			<th class="col-md-4" th:text="#{html.enum.assignmenttype}"/>
-			<th class="col-md-3" th:text="#{html.entity.user.userId}"/>
+			<th class="col-md-5" th:text="#{html.entity.user.name}"></th>
+			<th class="col-md-4" th:text="#{html.enum.assignmenttype}"></th>
+			<th class="col-md-3" th:text="#{html.entity.user.userId}"></th>
 		</tr>
 		</thead>
 
 		<tbody>
 		<tr th:each="mapping : ${userRoleMapping}">
-			<td th:text="${mapping.user.name}" />
-			<td th:text="#{__${mapping.assignedThrough.message}__}" />
-			<td th:text="${mapping.user.userId}" />
+			<td th:text="${mapping.user.name}"></td>
+			<td th:text="#{__${mapping.assignedThrough.message}__}"></td>
+			<td th:text="${mapping.user.userId}"></td>
 		</tr>
 		</tbody>
 	</table>

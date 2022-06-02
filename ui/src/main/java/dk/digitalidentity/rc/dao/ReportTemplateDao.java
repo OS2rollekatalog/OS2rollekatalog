@@ -8,7 +8,7 @@ import dk.digitalidentity.rc.dao.model.ReportTemplate;
 import dk.digitalidentity.rc.dao.model.User;
 
 public interface ReportTemplateDao extends CrudRepository<ReportTemplate, Long> {
-	ReportTemplate getById(long id);
+	ReportTemplate findById(long id);
 	List<ReportTemplate> findAll();
 	List<ReportTemplate> findByUsersContains(User user);
 }

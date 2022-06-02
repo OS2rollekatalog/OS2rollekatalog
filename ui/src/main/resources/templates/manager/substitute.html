@@ -1,23 +1,23 @@
 <!DOCTYPE html>
 <html>
-<head th:replace="fragments/header :: header (title=#{html.page.manager.substitute})" />
+<head th:replace="fragments/header :: header (title=#{html.page.manager.substitute})"></head>
 <body>
 	<div class="wrapper">
-		<header th:replace="fragments/navbar :: navbar-header(subpage = 'reports')" />
-		<aside th:replace="fragments/navbar :: navbar-aside (page = 'manager.substitute', subpage = 'reports')" />
+		<header th:replace="fragments/navbar :: navbar-header(subpage = 'reports')"></header>
+		<aside th:replace="fragments/navbar :: navbar-aside (page = 'manager.substitute', subpage = 'reports')"></aside>
 
 		<section>
 			<div class="content-wrapper">
 				<h3>
-					<span th:text="#{html.page.manager.substitute.title}" />
+					<span th:text="#{html.page.manager.substitute.title}"></span>
 				</h3>
 
 				<div class="panel panel-default">
-					<div class="panel-heading" />
+					<div class="panel-heading"></div>
 					<div class="panel-body">
 						<form class="form-horizontal" th:object="${substitute}">
 							<div class="form-group">
-								<label class="col-sm-2 control-label" th:text="#{html.page.manager.substitute}"/>
+								<label class="col-sm-2 control-label" th:text="#{html.page.manager.substitute}"></label>
 								<div class="col-sm-8">
 									<input style="margin-left: 10px; width: 500px; display: inline-block;" class="form-control" th:value="${substitute != null ? (substitute.name + ' (' + substitute.userId + ')') : ''}" id="search_person" disabled="disabled" onclick="return false;" />
 									<button type="button" class="btn btn-primary" onclick="autoCompleteService.togglePersonSearch(true);" id="edit_person" style="margin-left: 10px; margin-bottom: 3px;"><em class="fa fa-fw fa-pencil"></em></button>
@@ -30,14 +30,14 @@
 						
 						<hr/>
 						
-						<p th:text="#{html.page.manager.substitute.text}"/>
+						<p th:text="#{html.page.manager.substitute.text}"></p>
 					</div>
 				</div>
 			</div>
 		</section>
 	</div>
 
-	<nav th:replace="fragments/footer :: footer" />
+	<nav th:replace="fragments/footer :: footer"></nav>
 
 	<style>
 		.autocomplete-suggestions { border: 1px solid #999; background: #FFF; overflow: auto; width: 500px !important; }

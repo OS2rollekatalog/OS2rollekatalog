@@ -1403,101 +1403,109 @@ public class UserService {
 
 			// get ous that have userRole assigned
 			for (OrgUnit orgUnit : orgUnitService.getByUserRole(userRole, false)) {
-				Optional<OrgUnitUserRoleAssignment> assignment = orgUnit.getUserRoleAssignments().stream().filter(ouura -> Objects.equals(ouura.getUserRole().getId(), userRole.getId())).findFirst();
-				if (assignment.isEmpty()) {
-					log.error("Could not find assignment (UserRoleId: " + userRole.getId() + ", OU: " + orgUnit.getUuid()+ ")");
-					continue;
-				}
 
-				// Get list of excepted users (if any)
-				ArrayList<String> exceptedUsersUuid = new ArrayList<>();
-				OrgUnitUserRoleAssignment orgUnitUserRoleAssignment = assignment.get();
+				for (OrgUnitUserRoleAssignment orgUnitUserRoleAssignment : orgUnit.getUserRoleAssignments()) {
 
-				// if titles are disabled skip
-				if (!configuration.getTitles().isEnabled() && orgUnitUserRoleAssignment.isContainsTitles()) {
-					continue;
-				}
-				
-				if (orgUnitUserRoleAssignment.isContainsExceptedUsers()) {
-					exceptedUsersUuid.addAll(orgUnitUserRoleAssignment.getExceptedUsers().stream().map(User::getUuid).collect(Collectors.toList()));
-				}
-
-				for (Position position : positionService.findByOrgUnit(orgUnit)) {
-					if (exceptedUsersUuid.contains(position.getUser().getUuid())) {
+					// skip irrelevant assignments
+					if (!Objects.equals(orgUnitUserRoleAssignment.getUserRole().getId(), userRole.getId())) {
 						continue;
 					}
-					
-					if (orgUnitUserRoleAssignment.isContainsTitles() && !orgUnitUserRoleAssignment.getTitles().contains(position.getTitle())) {
-						continue;
-					}
-					
-					if (position.getUser().isActive() && !position.getUser().isDoNotInherit()) {
-						UserWithRole mapping = new UserWithRole();
-						mapping.setUser(position.getUser());
 
-						if (orgUnitUserRoleAssignment.isContainsTitles()) {
-							mapping.setAssignedThrough(AssignedThrough.TITLE);
-						}
-						else {
-							mapping.setAssignedThrough(AssignedThrough.ORGUNIT);
-						}
-	
-						result.add(mapping);
-					}
-				}
-
-				// check if the assignment to the OrgUnit is flagged with inherit
-				if (orgUnitUserRoleAssignment.isInherit()) {
-					List<UserWithRole> inherited = getUserRoleMappingsRecursive(orgUnit.getChildren(), AssignedThrough.ORGUNIT);
-					result.addAll(inherited);
-				}
-			}
-
-			// get ous that have roleGroup assigned
-			for (RoleGroup roleGroup : roleGroups) {
-				for (OrgUnit orgUnit : orgUnitService.getByRoleGroup(roleGroup, false)) {
-					Optional<OrgUnitRoleGroupAssignment> assignment = orgUnit.getRoleGroupAssignments().stream().filter(ourga -> Objects.equals(ourga.getRoleGroup().getId(), roleGroup.getId())).findFirst();
-
-					if (assignment.isEmpty()) {
-						log.error("getUsersWithUserRole: Could not find assignment (RoleGroupId: " + roleGroup.getId() + ", OU: " + orgUnit.getUuid()+ ")");
+					// if titles are disabled and this assignment contains titles, skip it
+					if (!configuration.getTitles().isEnabled() && orgUnitUserRoleAssignment.isContainsTitles()) {
 						continue;
 					}
 
 					// Get list of excepted users (if any)
 					ArrayList<String> exceptedUsersUuid = new ArrayList<>();
-					OrgUnitRoleGroupAssignment orgUnitRoleGroupAssignment = assignment.get();
-					if (orgUnitRoleGroupAssignment.isContainsExceptedUsers()) {
-						exceptedUsersUuid.addAll(orgUnitRoleGroupAssignment.getExceptedUsers().stream().map(User::getUuid).collect(Collectors.toList()));
+					if (orgUnitUserRoleAssignment.isContainsExceptedUsers()) {
+						exceptedUsersUuid.addAll(orgUnitUserRoleAssignment.getExceptedUsers().stream().map(User::getUuid).collect(Collectors.toList()));
 					}
 
 					for (Position position : positionService.findByOrgUnit(orgUnit)) {
 						if (exceptedUsersUuid.contains(position.getUser().getUuid())) {
 							continue;
 						}
-
-						if (orgUnitRoleGroupAssignment.isContainsTitles() && !orgUnitRoleGroupAssignment.getTitles().contains(position.getTitle())) {
+						
+						if (orgUnitUserRoleAssignment.isContainsTitles() && !orgUnitUserRoleAssignment.getTitles().contains(position.getTitle())) {
 							continue;
 						}
 						
 						if (position.getUser().isActive() && !position.getUser().isDoNotInherit()) {
 							UserWithRole mapping = new UserWithRole();
 							mapping.setUser(position.getUser());
-							
-							if (orgUnitRoleGroupAssignment.isContainsTitles()) {
+
+							if (orgUnitUserRoleAssignment.isContainsTitles()) {
 								mapping.setAssignedThrough(AssignedThrough.TITLE);
 							}
 							else {
 								mapping.setAssignedThrough(AssignedThrough.ORGUNIT);
 							}
-	
+		
 							result.add(mapping);
 						}
 					}
 
 					// check if the assignment to the OrgUnit is flagged with inherit
-					if (orgUnitRoleGroupAssignment.isInherit()) {
+					if (orgUnitUserRoleAssignment.isInherit()) {
 						List<UserWithRole> inherited = getUserRoleMappingsRecursive(orgUnit.getChildren(), AssignedThrough.ORGUNIT);
 						result.addAll(inherited);
+					}
+				}
+			}
+
+			// get ous that have roleGroup assigned
+			for (RoleGroup roleGroup : roleGroups) {
+				
+				for (OrgUnit orgUnit : orgUnitService.getByRoleGroup(roleGroup, false)) {
+					
+					for (OrgUnitRoleGroupAssignment orgUnitRoleGroupAssignment : orgUnit.getRoleGroupAssignments()) {
+
+						// skip irrelevant assignments
+						if (!Objects.equals(orgUnitRoleGroupAssignment.getRoleGroup().getId(), roleGroup.getId())) {
+							continue;
+						}
+						
+						// if titles are disabled and this assignment contains titles, skip it
+						if (!configuration.getTitles().isEnabled() && orgUnitRoleGroupAssignment.isContainsTitles()) {
+							continue;
+						}
+
+						// Get list of excepted users (if any)
+						ArrayList<String> exceptedUsersUuid = new ArrayList<>();
+						if (orgUnitRoleGroupAssignment.isContainsExceptedUsers()) {
+							exceptedUsersUuid.addAll(orgUnitRoleGroupAssignment.getExceptedUsers().stream().map(User::getUuid).collect(Collectors.toList()));
+						}
+
+						for (Position position : positionService.findByOrgUnit(orgUnit)) {
+							if (exceptedUsersUuid.contains(position.getUser().getUuid())) {
+								continue;
+							}
+
+							if (orgUnitRoleGroupAssignment.isContainsTitles() && !orgUnitRoleGroupAssignment.getTitles().contains(position.getTitle())) {
+								continue;
+							}
+							
+							if (position.getUser().isActive() && !position.getUser().isDoNotInherit()) {
+								UserWithRole mapping = new UserWithRole();
+								mapping.setUser(position.getUser());
+								
+								if (orgUnitRoleGroupAssignment.isContainsTitles()) {
+									mapping.setAssignedThrough(AssignedThrough.TITLE);
+								}
+								else {
+									mapping.setAssignedThrough(AssignedThrough.ORGUNIT);
+								}
+		
+								result.add(mapping);
+							}
+						}
+
+						// check if the assignment to the OrgUnit is flagged with inherit
+						if (orgUnitRoleGroupAssignment.isInherit()) {
+							List<UserWithRole> inherited = getUserRoleMappingsRecursive(orgUnit.getChildren(), AssignedThrough.ORGUNIT);
+							result.addAll(inherited);
+						}
 					}
 				}
 			}
@@ -1750,7 +1758,7 @@ public class UserService {
 
 	public String generateOIOBPP(User user, List<ItSystem> itSystems, Map<String, String> roleMap) throws UserNotFoundException {
 		// santity check - this happens a bit to often
-		if (StringUtils.isEmpty(configuration.getIntegrations().getKombit().getDomain())) {
+		if (!StringUtils.hasLength(configuration.getIntegrations().getKombit().getDomain())) {
 			throw new RuntimeException("Badly configured - no domain available");
 		}
 
@@ -1868,6 +1876,8 @@ public class UserService {
 							case LEVEL_2:
 							case LEVEL_3:
 							case LEVEL_4:
+							case LEVEL_5:
+							case LEVEL_6:
 								if (constraint.getConstraintType().getEntityId().equals(Constants.OU_CONSTRAINT_ENTITY_ID)) {
 									constraintValue.append(getOrganisationConstraint(user, constraint.getConstraintValueType()));
 								}
@@ -1981,6 +1991,8 @@ public class UserService {
 			case LEVEL_2:
 			case LEVEL_3:
 			case LEVEL_4:
+			case LEVEL_5:
+			case LEVEL_6:
 			case VALUE: // do nothing, data has been provisioned already
 				break;
 		}
@@ -2024,18 +2036,35 @@ public class UserService {
 					case LEVEL_2:
 						if (constraintValueType.equals(ConstraintValueType.LEVEL_2) ||
 							constraintValueType.equals(ConstraintValueType.LEVEL_3) ||
-							constraintValueType.equals(ConstraintValueType.LEVEL_4)) {
+							constraintValueType.equals(ConstraintValueType.LEVEL_4) ||
+							constraintValueType.equals(ConstraintValueType.LEVEL_5) ||
+							constraintValueType.equals(ConstraintValueType.LEVEL_6)) {
 							orgUnitWithRequiredLevel = ou;
 						}
 						break;
 					case LEVEL_3:
 						if (constraintValueType.equals(ConstraintValueType.LEVEL_3) ||
-							constraintValueType.equals(ConstraintValueType.LEVEL_4)) {
+							constraintValueType.equals(ConstraintValueType.LEVEL_4) ||
+							constraintValueType.equals(ConstraintValueType.LEVEL_5) ||
+							constraintValueType.equals(ConstraintValueType.LEVEL_6)) {
 							orgUnitWithRequiredLevel = ou;
 						}
 						break;
 					case LEVEL_4:
-						if (constraintValueType.equals(ConstraintValueType.LEVEL_4)) {
+						if (constraintValueType.equals(ConstraintValueType.LEVEL_4) ||
+							constraintValueType.equals(ConstraintValueType.LEVEL_5) ||
+							constraintValueType.equals(ConstraintValueType.LEVEL_6)) {
+							orgUnitWithRequiredLevel = ou;
+						}
+						break;
+					case LEVEL_5:
+						if (constraintValueType.equals(ConstraintValueType.LEVEL_5) ||
+							constraintValueType.equals(ConstraintValueType.LEVEL_6)) {
+							orgUnitWithRequiredLevel = ou;
+						}
+						break;
+					case LEVEL_6:
+						if (constraintValueType.equals(ConstraintValueType.LEVEL_6)) {
 							orgUnitWithRequiredLevel = ou;
 						}
 						break;

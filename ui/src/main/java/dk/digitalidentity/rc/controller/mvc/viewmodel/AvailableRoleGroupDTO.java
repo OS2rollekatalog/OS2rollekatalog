@@ -8,4 +8,5 @@ public class AvailableRoleGroupDTO {
 	private long id;
 	private String name;
 	private String description;
+	private boolean alreadyAssigned;
 }

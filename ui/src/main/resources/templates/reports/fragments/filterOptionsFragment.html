@@ -1,11 +1,11 @@
 <th:block th:fragment="filterOptions" xmlns="http://www.w3.org/1999/xhtml" xmlns:th="http://www.thymeleaf.org">
 	<fieldset>
 		<div class="form-group">
-			<h4 class="col-sm-12" th:text="#{html.page.report.filters}" />
+			<h4 class="col-sm-12" th:text="#{html.page.report.filters}"></h4>
 		</div>
 
         <div class="form-group" style="margin-bottom: 20px">
-            <label class="col-sm-3 control-label" th:text="#{html.page.report.filter.it.system}"/>
+            <label class="col-sm-3 control-label" th:text="#{html.page.report.filter.it.system}"></label>
             <div class="col-sm-9">
                 <div class="checkbox c-checkbox">
                     <label>
@@ -26,13 +26,13 @@
         </div>
 
         <div class="form-group" style="margin-top: 40px;">
-            <label class="col-sm-3 control-label" th:text="#{html.page.report.filter.ou_manager}"/>
+            <label class="col-sm-3 control-label" th:text="#{html.page.report.filter.ou_manager}"></label>
             <div class="col-sm-9" style="padding-left: 35px;">
                 <div class="c-radio">
                     <label >
                         <input type="radio" id="radioFilter1" data-id="" name="radioFilter" checked="checked">
                         <span class="fa fa-circle"></span>
-                        <label th:text="#{html.page.report.filter.no}"/>
+                        <label th:text="#{html.page.report.filter.no}"></label>
                     </label>
                 </div>
 
@@ -40,7 +40,7 @@
                     <label >
                         <input type="radio" id="radioFilter2" data-id="orgUnitToggle" name="radioFilter" th:disabled="${#lists.size(allItSystems) < 1}">
                         <span class="fa fa-circle"></span>
-                        <label th:text="#{html.page.report.filter.ous}"/>
+                        <label th:text="#{html.page.report.filter.ous}"></label>
                     </label>
                 </div>
 
@@ -48,7 +48,7 @@
                     <label >
                         <input type="radio"  id="radioFilter3" data-id="managerToggle" name="radioFilter" th:disabled="${#lists.size(allManagers) < 1}">
                         <span class="fa fa-circle"></span>
-                        <label th:text="#{html.page.report.filter.manager}"/>
+                        <label th:text="#{html.page.report.filter.manager}"></label>
                     </label>
                 </div>
             </div>
@@ -57,7 +57,7 @@
         <div class="form-group radio-toggle" id="orgUnitToggle" style="display: none;margin-top:30px;">
             <div class="col-sm-offset-3 col-sm-9" style="padding: 0px 75px 0px 20px;">
                 <input id="realOUs" th:field="${reportForm.orgUnits}" type="hidden">
-                <label th:text="#{html.word.search}"/>
+                <label th:text="#{html.word.search}"></label>
                 <input class="form-control" id="searchField" style="margin-bottom: 20px;" autofocus="autofocus"/>
                 <div id="hierarchy"></div>
             </div>
@@ -66,8 +66,8 @@
         <div class="form-group radio-toggle" id="managerToggle" style="display: none;margin-top:30px;">
             <div class="col-sm-offset-3 col-sm-9">
                 <select id="managerSelect" th:field="${reportForm.manager}" class="form-control">
-                    <option id="defaultOption" th:text="#{html.select.default}" value="" selected/>
-                    <option th:each="manager : ${allManagers}" th:value="${manager.userUuid}" th:text="${manager.userName}"/>
+                    <option id="defaultOption" th:text="#{html.select.default}" value="" selected></option>
+                    <option th:each="manager : ${allManagers}" th:value="${manager.userUuid}" th:text="${manager.userName}"></option>
                 </select>
             </div>
         </div>

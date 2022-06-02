@@ -43,7 +43,7 @@ public class XlsUtil {
 	}
 	
 	// TODO: actually not used by the ReportXlsView anymore, but used by UI instead
-	public static String stringifyAssignment(SystemRoleAssignment assignment, boolean html) {
+	public String stringifyAssignment(SystemRoleAssignment assignment, boolean html) {
 		StringBuilder builder = new StringBuilder();
 		if (html) {
 			builder.append("<ul>");
@@ -74,6 +74,8 @@ public class XlsUtil {
 							case LEVEL_2:
 							case LEVEL_3:
 							case LEVEL_4:
+							case LEVEL_5:
+							case LEVEL_6:
 								log.warn("An OrgUnitLevel constraint was used on KLE!");
 								break;
 							case VALUE:
@@ -103,6 +105,12 @@ public class XlsUtil {
 								break;
 							case LEVEL_4:
 								value = instance.messageSource.getMessage("html.constraint.organisation.level.4", null, locale);
+								break;
+							case LEVEL_5:
+								value = instance.messageSource.getMessage("html.constraint.organisation.level.5", null, locale);
+								break;
+							case LEVEL_6:
+								value = instance.messageSource.getMessage("html.constraint.organisation.level.6", null, locale);
 								break;
 							case READ_AND_WRITE:
 								log.warn("An READ/WRITE was assigned as a constraint on OrgUnit");

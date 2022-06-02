@@ -6,12 +6,11 @@
 			</button>
 			
 			<ul class="dropdown-menu" role="menu" id="dataTableDropdown">
-				<li><a href="#" data-cid="0" onclick="return dataTablesToggleColumn(this);"><em class="fa fa-fw"></em><span th:text="#{html.page.ous.manage.assignment.name}" /></a></li>
-				<li><a href="#" data-cid="1" onclick="return dataTablesToggleColumn(this);"><em class="fa fa-fw"></em><span th:text="#{html.page.ous.manage.assignment.type}" /></a></li>
-				<li><a href="#" data-cid="2" onclick="return dataTablesToggleColumn(this);"><em class="fa fa-fw"></em><span th:text="#{html.enum.assignmenttype}" /></a></li>
-				<li><a href="#" data-cid="3" onclick="return dataTablesToggleColumn(this);"><em class="fa fa-fw"></em><span th:text="#{html.page.ous.manage.assignment.assignmentType}" /></a></li>
-				<li><a href="#" data-cid="4" onclick="return dataTablesToggleColumn(this);"><em class="fa fa-fw"></em><span th:text="#{html.word.validity}" /></a></li>
-				<li><a href="#" data-cid="5" onclick="return dataTablesToggleColumn(this);"><em class="fa fa-fw"></em><span th:text="#{html.page.ous.manage.assignment.itsystem}" /></a></li>
+				<li><a href="#" data-cid="0" onclick="return dataTablesToggleColumn(this);"><em class="fa fa-fw"></em><span th:text="#{html.page.ous.manage.assignment.name}"></span></a></li>
+				<li><a href="#" data-cid="1" onclick="return dataTablesToggleColumn(this);"><em class="fa fa-fw"></em><span th:text="#{html.enum.assignmenttype}"></span></a></li>
+				<li><a href="#" data-cid="2" onclick="return dataTablesToggleColumn(this);"><em class="fa fa-fw"></em><span th:text="#{html.page.ous.manage.assignment.assignmentType}"></span></a></li>
+				<li><a href="#" data-cid="3" onclick="return dataTablesToggleColumn(this);"><em class="fa fa-fw"></em><span th:text="#{html.word.validity}"></span></a></li>
+				<li><a href="#" data-cid="4" onclick="return dataTablesToggleColumn(this);"><em class="fa fa-fw"></em><span th:text="#{html.page.ous.manage.assignment.itsystem}"></span></a></li>
 			</ul>
 		</div>
 		<th:block th:if="${editable}" sec:authorize="hasRole('ROLE_ASSIGNER')">
@@ -24,20 +23,21 @@
 				<table id="listTable" class="table table-striped table-hover listTable">
 					<thead>
 						<tr>
-							<th class="col-md-2" th:text="#{html.page.ous.manage.assignment.name}" />
-							<th class="col-md-1" th:text="#{html.page.ous.manage.assignment.type}" />
-							<th class="col-md-2" th:text="#{html.enum.assignmenttype}"/>
-							<th class="col-md-2" th:text="#{html.page.ous.manage.assignment.assignmentType}" />
-							<th class="col-md-2" th:text="#{html.word.validity}"/>
-							<th class="col-md-2" th:text="#{html.page.ous.manage.assignment.itsystem}" />
-							<th class="col-md-1" th:text="#{html.control.operations}" />
+							<th class="col-md-2" th:text="#{html.page.ous.manage.assignment.name}"></th>
+							<th class="col-md-2" th:text="#{html.enum.assignmenttype}"></th>
+							<th class="col-md-2" th:text="#{html.page.ous.manage.assignment.assignmentType}"></th>
+							<th class="col-md-3" th:text="#{html.word.validity}"></th>
+							<th class="col-md-2" th:text="#{html.page.ous.manage.assignment.itsystem}"></th>
+							<th class="col-md-1" th:text="#{html.control.operations}"></th>
 						</tr>
 					</thead>
 	
 					<tbody>
 						<tr th:each="assignment : ${assignments}">
-							<td th:text="${assignment.name}" />
-							<td th:text="#{__${assignment.type.message}__}" />
+							<td>
+								<span th:text="${assignment.name}"></span>
+								<div th:text="#{__${assignment.type.message}__}" style="font-size: smaller; color: black;"></div>
+							</td>
 
 							<td>
 								<span th:text="#{__${assignment.assignedThrough.message}__}"></span>
@@ -45,11 +45,11 @@
 							</td>
 
 							<th:block th:switch="${assignment.assignmentType}">
-								<td th:case="-2" th:text="#{html.entity.ou.assigned.inherit}" />
-								<td th:case="-1" th:text="#{html.entity.ou.assigned.all}" />
-								<td th:case="0" th:text="#{html.entity.ou.assigned.all.with.exceptions}" />
-								<td th:case="1" th:text="#{html.entity.ou.assigned.one}" />
-								<td th:case="*" th:text="#{html.entity.ou.assigned.many(${assignment.assignmentType})}" />
+								<td th:case="-2" th:text="#{html.entity.ou.assigned.inherit}"></td>
+								<td th:case="-1" th:text="#{html.entity.ou.assigned.all}"></td>
+								<td th:case="0" th:text="#{html.entity.ou.assigned.all.with.exceptions}"></td>
+								<td th:case="1" th:text="#{html.entity.ou.assigned.one}"></td>
+								<td th:case="*" th:text="#{html.entity.ou.assigned.many(${assignment.assignmentType})}"></td>
 							</th:block>
 							
 							<td>
@@ -57,10 +57,10 @@
 									<li th:if="${assignment.startDate != null}" th:text="#{html.word.assigned} + ' ' + ${assignment.startDate}"></li>
 									<li th:if="${assignment.stopDate != null}" th:text="#{html.word.deassigned} + ' ' + ${assignment.stopDate}"></li>
 								</ul>
-								<span th:if="${assignment.startDate == null and assignment.stopDate == null}" th:text="#{html.word.indefinite}" />
+								<span th:if="${assignment.startDate == null and assignment.stopDate == null}" th:text="#{html.word.indefinite}"></span>
 							</td>
 
-							<td th:text="${assignment.itSystem?.name}" />
+							<td th:text="${assignment.itSystem?.name}"></td>
 
 							<td th:attr="data-assignmentid=${assignment.assignmentId}, data-assignmenttype=${assignment.assignmentType}, data-roleid=${assignment.roleId}, data-objtype=${assignment.type}, data-startdate=${assignment.startDate}, data-stopdate=${assignment.stopDate}">
 								<a

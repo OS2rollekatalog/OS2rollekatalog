@@ -10,7 +10,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.microsoft.sqlserver.jdbc.StringUtils;
+import org.springframework.util.StringUtils;
 
 import dk.digitalidentity.rc.dao.RequestApproveDao;
 import dk.digitalidentity.rc.dao.model.EmailTemplate;
@@ -272,7 +272,7 @@ public class RequestApproveService {
 		int count = requestApproves.size();
 		
 		if (count != 0) {
-			if (!StringUtils.isEmpty(settingsService.getRequestApproveServicedeskEmail())) {
+			if (StringUtils.hasLength(settingsService.getRequestApproveServicedeskEmail())) {
 				EmailTemplate template = emailTemplateService.findByTemplateType(EmailTemplateType.WAITING_REQUESTS_ROLE_ASSIGNERS);
 				if (template.isEnabled()) {
 					String title = template.getTitle();

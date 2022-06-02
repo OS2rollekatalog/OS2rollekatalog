@@ -5,24 +5,24 @@
 	<table id="listTableUsers" class="table table-striped table-hover listTable">
 		<thead>
 		<tr>
-			<th class="col-md-3" th:text="#{html.entity.user.name}"/>
-			<th class="col-md-2" th:text="#{html.entity.user.userId}"/>
-			<th class="col-md-6" th:text="#{html.word.validity}"/>
-			<th class="col-md-1" th:text="#{html.control.operations}" />
+			<th class="col-md-3" th:text="#{html.entity.user.name}"></th>
+			<th class="col-md-2" th:text="#{html.entity.user.userId}"></th>
+			<th class="col-md-6" th:text="#{html.word.validity}"></th>
+			<th class="col-md-1" th:text="#{html.control.operations}"></th>
 		</tr>
 		</thead>
 
 		<tbody>
 		<tr th:each="mapping : ${userRoleMapping}">
-			<td th:text="${mapping.userName}" />
-			<td th:text="${mapping.userUserId}" />
+			<td th:text="${mapping.userName}"></td>
+			<td th:text="${mapping.userUserId}"></td>
 
 			<td>
 				<ul th:if="${mapping.assignment.startDate != null or mapping.assignment.stopDate != null}" style="padding-left: 0px; list-style-type: none; margin-bottom: 0px;">
 					<li th:if="${mapping.assignment.startDate != null}" th:text="#{html.word.assigned} + ' ' + ${mapping.assignment.startDate}"></li>
 					<li th:if="${mapping.assignment.stopDate != null}" th:text="#{html.word.deassigned} + ' ' + ${mapping.assignment.stopDate}"></li>
 				</ul>
-				<span th:if="${mapping.assignment.startDate == null and mapping.assignment.stopDate == null}" th:text="#{html.word.indefinite}" />
+				<span th:if="${mapping.assignment.startDate == null and mapping.assignment.stopDate == null}" th:text="#{html.word.indefinite}"></span>
 			</td>
 
 			<td th:if="${showEdit == true}" th:attr="data-assignmentid=${mapping.assignment.assignmentId}, data-user=${mapping.userUuid}, data-startDate=${mapping.assignment.startDate}, data-stopDate=${mapping.assignment.stopDate}">

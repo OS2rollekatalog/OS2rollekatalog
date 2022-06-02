@@ -10,6 +10,9 @@ public enum ConstraintValueType {
 	LEVEL_2,                 // at some point, as we are also going to add new dynamic constraints that are KLE only
 	LEVEL_3,
 	LEVEL_4,
+	LEVEL_5,
+	LEVEL_6,
+
 	INHERITED,               // the user inherits constraint values from the OU(s) he holds positions in
 	EXTENDED_INHERITED,      // as above, but according to the extension rules (depends on the type of constraint)
 	READ_AND_WRITE,			 // the sum of the two above

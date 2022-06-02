@@ -1,24 +1,24 @@
 <!DOCTYPE html>
 <html>
-<head th:replace="fragments/header :: header (title=#{html.page.report.full.title})" />
+<head th:replace="fragments/header :: header (title=#{html.page.report.full.title})"></head>
 <body>
 	<div class="wrapper">
-		<header th:replace="fragments/navbar :: navbar-header(subpage = 'reports')" />
-		<aside th:replace="fragments/navbar :: navbar-aside (page = 'report.full', subpage = 'reports')" />
+		<header th:replace="fragments/navbar :: navbar-header(subpage = 'reports')"></header>
+		<aside th:replace="fragments/navbar :: navbar-aside (page = 'report.full', subpage = 'reports')"></aside>
 
 		<section>
 			<div class="content-wrapper">
 				<h3>
-					<span th:text="#{html.page.report.title}" />
+					<span th:text="#{html.page.report.title}"></span>
 				</h3>
 
 				<div class="panel panel-default">
-					<div class="panel-heading" />
+					<div class="panel-heading"></div>
 					<div class="panel-body">
 						<form id="reportForm" class="form-horizontal" th:object="${reportForm}">
 
 							<div class="form-group">
-								<h4 class="col-sm-12" th:text="#{html.page.report.date}" />
+								<h4 class="col-sm-12" th:text="#{html.page.report.date}"></h4>
 							</div>
 
 							<div class="form-group">
@@ -33,18 +33,18 @@
 							<hr/>
 
 							<block id="filterOptions">
-								<div th:replace="reports/fragments/filterOptionsFragment :: filterOptions(allItSystems = ${allItSystems}, allManagers = ${allManagers})" />
+								<div th:replace="reports/fragments/filterOptionsFragment :: filterOptions(allItSystems = ${allItSystems}, allManagers = ${allManagers})"></div>
 							</block>
 
 							<hr/>
 
 							<div class="form-group">
-								<h4 class="col-sm-12" th:text="#{html.page.report.column.text}" />
+								<h4 class="col-sm-12" th:text="#{html.page.report.column.text}"></h4>
 							</div>
 
 							<div class="form-group" style="margin-bottom: 20px">
 								<input class="column-choice" id="realShowUsers" th:field="*{showUsers}" type="hidden">
-								<label class="col-sm-3 control-label" th:text="#{html.page.report.column.user}"/>
+								<label class="col-sm-3 control-label" th:text="#{html.page.report.column.user}"></label>
 								<div class="col-sm-9">
 									<div class="checkbox c-checkbox">
 										<label>
@@ -57,7 +57,7 @@
 
 							<div class="form-group" style="margin-bottom: 20px">
 								<input class="column-choice" id="realShowOUs" th:field="*{showOUs}" type="hidden">
-								<label class="col-sm-3 control-label" th:text="#{html.page.report.column.ou}"/>
+								<label class="col-sm-3 control-label" th:text="#{html.page.report.column.ou}"></label>
 								<div class="col-sm-9">
 									<div class="checkbox c-checkbox">
 										<label>
@@ -70,7 +70,7 @@
 
 							<div class="form-group" style="margin-bottom: 20px">
 								<input class="column-choice" id="realShowUserRoles" th:field="*{showUserRoles}" type="hidden">
-								<label class="col-sm-3 control-label" th:text="#{html.page.report.column.userrole}"/>
+								<label class="col-sm-3 control-label" th:text="#{html.page.report.column.userrole}"></label>
 								<div class="col-sm-9">
 									<div class="checkbox c-checkbox">
 										<label>
@@ -83,7 +83,7 @@
 
 							<div class="form-group" style="margin-bottom: 20px">
 								<input class="column-choice" id="realShowKLE" th:field="*{showKLE}" type="hidden">
-								<label class="col-sm-3 control-label" th:text="#{html.page.report.column.kle}"/>
+								<label class="col-sm-3 control-label" th:text="#{html.page.report.column.kle}"></label>
 								<div class="col-sm-9">
 									<div class="checkbox c-checkbox">
 										<label>
@@ -96,7 +96,7 @@
 
 							<div class="form-group" style="margin-bottom: 20px">
 								<input class="column-choice" id="realShowItSystems" th:field="*{showItSystems}" type="hidden">
-								<label class="col-sm-3 control-label" th:text="#{html.page.report.column.itsystem}"/>
+								<label class="col-sm-3 control-label" th:text="#{html.page.report.column.itsystem}"></label>
 								<div class="col-sm-9">
 									<div class="checkbox c-checkbox">
 										<label>
@@ -109,7 +109,7 @@
 
 							<div class="form-group" style="margin-bottom: 40px">
 								<input class="column-choice" id="realShowInactiveUsers" th:field="*{showInactiveUsers}" type="hidden">
-								<label class="col-sm-3 control-label" th:text="#{html.page.report.column.show.inactive}"/>
+								<label class="col-sm-3 control-label" th:text="#{html.page.report.column.show.inactive}"></label>
 								<div class="col-sm-9">
 									<div class="checkbox c-checkbox">
 										<label>
@@ -141,19 +141,19 @@
 			<!-- Modal content-->
 			<div class="modal-content">
 				<div class="modal-header">
-					<h4 th:text="#{html.page.report.modal.title}"/>
+					<h4 th:text="#{html.page.report.modal.title}"></h4>
 				</div>
 
 				<div class="modal-body" style="min-height:70px;">
-					<label class="col-sm-2 control-label" th:text="#{html.page.report.modal.name}" />
+					<label class="col-sm-2 control-label" th:text="#{html.page.report.modal.name}"></label>
 					<div class="col-sm-10">
 						<input id="templateName" class="form-control"/>
 					</div>
 				</div>
 
 				<div class="modal-footer">
-					<button type="button" class="btn btn-primary" th:text="#{html.control.button.save}" onclick="templateService.saveTemplate()"/>
-					<button type="button" class="btn btn-danger" th:text="#{html.control.button.cancel}" onclick="templateService.closeSaveTemplate()"/>
+					<button type="button" class="btn btn-primary" th:text="#{html.control.button.save}" onclick="templateService.saveTemplate()"></button>
+					<button type="button" class="btn btn-danger" th:text="#{html.control.button.cancel}" onclick="templateService.closeSaveTemplate()"></button>
 				</div>
 			</div>
 		</div>
@@ -216,7 +216,7 @@
 		}
 	</style>
 
-	<nav th:replace="fragments/footer :: footer" />
+	<nav th:replace="fragments/footer :: footer"></nav>
 
 	<script th:inline="javascript">
 		/*<![CDATA[*/

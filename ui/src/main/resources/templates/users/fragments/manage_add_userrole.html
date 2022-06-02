@@ -8,18 +8,21 @@
 				<table id="listTable_u_ur" class="table table-striped table-hover listTable">
 					<thead>
 						<tr>
-							<th class="col-md-4" th:text="#{html.entity.userrole.name}" />
-							<th class="col-md-4" th:text="#{html.entity.itsystem}" />
-							<th class="col-md-3" th:text="#{html.entity.userrole.description}"/>
-							<th class="col-md-1" th:text="#{html.control.operations}" />
+							<th class="col-md-4" th:text="#{html.entity.userrole.name}"></th>
+							<th class="col-md-4" th:text="#{html.entity.itsystem}"></th>
+							<th class="col-md-3" th:text="#{html.entity.userrole.description}"></th>
+							<th class="col-md-1" th:text="#{html.control.operations}"></th>
 						</tr>
 					</thead>
 
 					<tbody>
 						<tr th:each="role : ${roles}">
-							<td th:text="${role.name}" />
-							<td th:text="${role.itSystem?.name}" />
-							<td th:text="${role.description}" />
+							<td>
+								<span th:text="${role.name}"></span>
+								<div th:if="${role.alreadyAssigned}" th:text="#{html.page.user.assign.already.assigned}" style="font-size: smaller; color: red;"></div>
+							</td>
+							<td th:text="${role.itSystem?.name}"></td>
+							<td th:text="${role.description}"></td>
 							<td>
 								<a
 									href="#"

@@ -1,27 +1,27 @@
 <!DOCTYPE html>
 <html>
-<head th:replace="fragments/header :: header (title=#{html.page.report.custom.title})" />
+<head th:replace="fragments/header :: header (title=#{html.page.report.custom.title})"></head>
 <body>
 <div class="wrapper">
-	<header th:replace="fragments/navbar :: navbar-header(subpage = 'reports')" />
-	<aside th:replace="fragments/navbar :: navbar-aside (page = 'report.custom', subpage = 'reports')" />
+	<header th:replace="fragments/navbar :: navbar-header(subpage = 'reports')"></header>
+	<aside th:replace="fragments/navbar :: navbar-aside (page = 'report.custom', subpage = 'reports')"></aside>
 
 	<section>
 			<div class="content-wrapper">
-				<h3 th:text="#{html.page.report.custom.title}" />
+				<h3 th:text="#{html.page.report.custom.title}"></h3>
 				<div class="panel panel-default">
-					<div class="panel-heading" />
+					<div class="panel-heading"></div>
 					<div class="panel-body">
 						<table class="listTable table table-responsive table-striped">
 							<thead>
 								<tr>
-									<th class="col-md-11" th:text="#{html.page.report.custom.table}" />
-									<th class="col-md-1" th:text="#{html.control.operations}" />
+									<th class="col-md-11" th:text="#{html.page.report.custom.table}"></th>
+									<th class="col-md-1" th:text="#{html.control.operations}"></th>
 								</tr>
 							</thead>
 							<tbody>
 								<tr th:each="report : ${reports}">
-									<td th:text="#{__${report.title}__}" />
+									<td th:text="#{__${report.title}__}"></td>
 									<td>
 										<a th:href="@{/ui/report/custom/} + ${report}">
 											<em class="fa fa-fw fa-search"></em>
@@ -36,7 +36,7 @@
 	</section>
 </div>
 
-<nav th:replace="fragments/footer :: footer" />
-<script th:replace="fragments/datatables :: datatables " />
+<nav th:replace="fragments/footer :: footer"></nav>
+<script th:replace="fragments/datatables :: datatables "></script>
 </body>
 </html>

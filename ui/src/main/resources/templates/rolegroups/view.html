@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html>
-<head th:replace="fragments/header :: header (title=#{html.page.rolegroup.view.title})" />
+<head th:replace="fragments/header :: header (title=#{html.page.rolegroup.view.title})"></head>
 <body>
 	<div class="wrapper">
-		<header th:replace="fragments/navbar :: navbar-header(subpage = 'roles')" />
-		<aside th:replace="fragments/navbar :: navbar-aside (page = 'rolegroups.new', subpage = 'roles')" />
+		<header th:replace="fragments/navbar :: navbar-header(subpage = 'roles')"></header>
+		<aside th:replace="fragments/navbar :: navbar-aside (page = 'rolegroups.new', subpage = 'roles')"></aside>
  
 		<section>
 			<div class="content-wrapper">
@@ -12,16 +12,16 @@
 	                <a th:href="@{/ui/rolegroups/list}" class="btn btn-default">
 	                    <span><i class="fa fa-arrow-left"></i> </span>
 	                </a>
-					<span th:text="#{html.page.rolegroup.view.title}" />
+					<span th:text="#{html.page.rolegroup.view.title}"></span>
 				</h3>
 
 				<div class="panel panel-default">
-					<div class="panel-heading" />
+					<div class="panel-heading"></div>
 					<div class="panel-body">
 						<form class="form-horizontal" th:object="${rolegroup}">
 							<fieldset>
 								<div class="form-group">
-					                <label class="col-sm-2 control-label" th:text="#{html.entity.rolegroup.name}" />
+					                <label class="col-sm-2 control-label" th:text="#{html.entity.rolegroup.name}"></label>
 					                <div class="col-sm-8">
 										<input th:field="${rolegroup.name}" class="form-control" disabled="disabled" />
 					                </div>
@@ -30,38 +30,38 @@
 
 							<fieldset>
 								<div class="form-group">
-									<label class="col-sm-2 control-label" th:text="#{html.entity.rolegroup.description}" />
+									<label class="col-sm-2 control-label" th:text="#{html.entity.rolegroup.description}"></label>
 									<div class="col-sm-8">
-										<textarea th:field="${rolegroup.description}" class="form-control" disabled="disabled" />
+										<textarea th:field="${rolegroup.description}" class="form-control" disabled="disabled"></textarea>
 									</div>
 								</div>
 							</fieldset>
 
 							<fieldset sec:authorize="hasRole('ROLE_REQUESTER')" th:if="${canRequest && @settingsService.getRequestApproveWho() == T(dk.digitalidentity.rc.service.model.WhoCanRequest).USERS}">
 								<div class="form-group">
-									<label class="col-sm-2 control-label" th:text="#{html.entity.view.action.label}" />
+									<label class="col-sm-2 control-label" th:text="#{html.entity.view.action.label}"></label>
 									<div class="col-sm-8">
-										<a id="requestBtn" class="btn btn-lg btn-primary" th:text="#{html.entity.view.action.request}" />
+										<a id="requestBtn" class="btn btn-lg btn-primary" th:text="#{html.entity.view.action.request}"></a>
 									</div>
 								</div>
 							</fieldset>
 							
 							<fieldset sec:authorize="hasRole('ROLE_REQUESTER')" th:if="${canRequest && @settingsService.getRequestApproveWho() == T(dk.digitalidentity.rc.service.model.WhoCanRequest).AUTHORIZATION_MANAGER}">
 								<div class="form-group">
-									<label class="col-sm-2 control-label" th:text="#{html.entity.view.action.label}" />
+									<label class="col-sm-2 control-label" th:text="#{html.entity.view.action.label}"></label>
 									<div class="col-sm-8">
-										<a class="btn btn-lg btn-primary" th:text="#{html.entity.view.action.request}" th:href="@{/ui/requestapprove/request/step1/role/{id}?type=roleGroup(id=${rolegroup.id})}" />
+										<a class="btn btn-lg btn-primary" th:text="#{html.entity.view.action.request}" th:href="@{/ui/requestapprove/request/step1/role/{id}?type=roleGroup(id=${rolegroup.id})}"></a>
 									</div>
 								</div>
 							</fieldset>
 
 							<fieldset sec:authorize="hasRole('ROLE_ADMINISTRATOR')">
 								<div class="form-group">
-									<label class="col-sm-2 control-label" th:text="#{html.entity.view.action.label}" />
+									<label class="col-sm-2 control-label" th:text="#{html.entity.view.action.label}"></label>
 									
 									<div class="col-sm-8">
 										<a th:href="@{/ui/rolegroups/edit/{id}(id=${rolegroup.id})}">
-											<span class="btn btn-lg btn-primary" th:text="#{html.entity.view.action.edit}" />
+											<span class="btn btn-lg btn-primary" th:text="#{html.entity.view.action.edit}"></span>
 										</a>
 									</div>
 								</div>
@@ -74,11 +74,11 @@
 							</li>
 							
 							<li>
-								<a data-toggle="tab" href="#users_menu" th:text="#{html.entity.userrole.users}" />
+								<a data-toggle="tab" href="#users_menu" th:text="#{html.entity.userrole.users}"></a>
 							</li>
 							
 							<li>
-								<a data-toggle="tab" href="#ous_menu" th:text="#{html.entity.userrole.orgunits}" />
+								<a data-toggle="tab" href="#ous_menu" th:text="#{html.entity.userrole.orgunits}"></a>
 							</li>
 						</ul>
 
@@ -87,16 +87,16 @@
 								<table id="listTable" class="table table-striped table-hover listTable">
 									<thead>
 										<tr>
-											<th class="col-md-3" th:text="#{html.entity.rolegroup.name}" />
-											<th class="col-md-3" th:text="#{html.entity.rolegroup.itsystem}" />
-											<th class="col-md-6" th:text="#{html.entity.rolegroup.description}" />
+											<th class="col-md-3" th:text="#{html.entity.rolegroup.name}"></th>
+											<th class="col-md-3" th:text="#{html.entity.rolegroup.itsystem}"></th>
+											<th class="col-md-6" th:text="#{html.entity.rolegroup.description}"></th>
 										</tr>
 									</thead>				
 									<tbody>
 									    <tr th:each="assignment : ${rolegroup.userRoleAssignments}">
-									    	<td th:text="${assignment.userRole.name}" />	
-									    	<td th:text="${assignment.userRole.itSystem.name}" />											    	
-									    	<td th:text="${assignment.userRole.description}" />										    	
+									    	<td th:text="${assignment.userRole.name}"></td>
+									    	<td th:text="${assignment.userRole.itSystem.name}"></td>
+									    	<td th:text="${assignment.userRole.description}"></td>
 						    			</tr>
 					    			</tbody>
 								</table>
@@ -120,17 +120,17 @@
 				<form class="form-horizontal" method="post" th:action="@{/ui/rolegroups/request}" th:object="${requestForm}">
 					<input type="hidden" th:field="*{id}"/>
 		            <div class="modal-header">
-		                <h4 th:text="#{html.page.roles.request.modal.header}"/>
+		                <h4 th:text="#{html.page.roles.request.modal.header}"></h4>
 		            </div>
 	
 		            <div class="modal-body">
-		            	<span th:text="#{html.page.roles.request.modal.body}"/>
+		            	<span th:text="#{html.page.roles.request.modal.body}"></span>
 						<textarea id="reasonField" required="required" oninvalid="this.setCustomValidity('Angiv begrundelse')" oninput="this.setCustomValidity('')" rows="8" class="form-control" th:field="*{reason}" style="margin-top: 10px;"></textarea>
 		            </div>
 		
 					<div class="modal-footer">
-						<button type="submit" class="btn btn-primary" th:text="#{html.control.button.request}"/>
-						<button type="button" class="btn btn-danger" id="closeModalBtn" th:text="#{html.control.button.cancel}"/>
+						<button type="submit" class="btn btn-primary" th:text="#{html.control.button.request}"></button>
+						<button type="button" class="btn btn-danger" id="closeModalBtn" th:text="#{html.control.button.cancel}"></button>
 					</div>
 				</form>
 	        </div>
@@ -140,16 +140,16 @@
 	<div id="userRoleGroupModal"></div>
 	<div id="ouRoleGroupModal"></div>
 	<div id="ouRoleGroupEditModal"></div>
-	<div th:replace="users/fragments/role_assignment_edit_modal :: roleAssignmentEditModal" />
-	<nav th:replace="fragments/footer :: footer"/>
+	<div th:replace="users/fragments/role_assignment_edit_modal :: roleAssignmentEditModal"></div>
+	<nav th:replace="fragments/footer :: footer"></nav>
 	
-	<script th:replace="fragments/datatables :: datatables(orderColumnValue=1) " />
-	<script th:replace="fragments/assignDatePicker :: content " />
+	<script th:replace="fragments/datatables :: datatables(orderColumnValue=1) "></script>
+	<script th:replace="fragments/assignDatePicker :: content "></script>
 	
-	<script th:replace="ous/fragments/ou_roles_modal :: ouRoleGroupModalScript(titlesEnabled=${titlesEnabled})" />
-	<script th:replace="ous/fragments/ou_roles_edit_modal :: ouRolesEditModalScript(titlesEnabled=${titlesEnabled})" />
-	<script th:replace="users/fragments/role_assignment_edit_modal :: roleAssignmentEditModalScript" />
-	<script th:replace="users/fragments/user_role_group_modal :: userRoleGroupModalScript"/>
+	<script th:replace="ous/fragments/ou_roles_modal :: ouRoleGroupModalScript(titlesEnabled=${titlesEnabled})"></script>
+	<script th:replace="ous/fragments/ou_roles_edit_modal :: ouRolesEditModalScript(titlesEnabled=${titlesEnabled})"></script>
+	<script th:replace="users/fragments/role_assignment_edit_modal :: roleAssignmentEditModalScript"></script>
+	<script th:replace="users/fragments/user_role_group_modal :: userRoleGroupModalScript"></script>
 	
 	<script th:inline="javascript">
 		/*<![CDATA[*/

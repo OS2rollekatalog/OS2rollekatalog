@@ -16,7 +16,7 @@ public class ReportTemplateService {
 	private ReportTemplateDao reportTemplateDao;
 
 	public ReportTemplate getById(long id) {
-		return reportTemplateDao.getById(id);
+		return reportTemplateDao.findById(id);
 	}
 
 	public List<ReportTemplate> getAll() {

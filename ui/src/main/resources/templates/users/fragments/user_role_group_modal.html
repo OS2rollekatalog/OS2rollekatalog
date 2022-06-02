@@ -15,13 +15,13 @@
                         <td class="col-md-2">
                             <button id="assignDirectlyRGBtn" class="btn btn-danger assign_group_directly" th:text="#{html.entity.positions.assign}"></button>
                         </td>
-                        <td class="col-md-10" th:text="#{html.entity.positions.assigndirect}"/>
+                        <td class="col-md-10" th:text="#{html.entity.positions.assigndirect}"></td>
                     </tr>
                     <tr th:each="position : ${positions}">
                         <td>
                             <button class="btn assign_group" th:text="#{html.entity.positions.assign}" th:value="${position.id}"></button>
                         </td>
-                        <td th:text="${position.name}"/>
+                        <td th:text="${position.name}"></td>
                     </tr>
                     </tbody>
                 </table>
@@ -114,7 +114,22 @@
 				var stopDate = $('#groupStopDatePicker').data('date');
 				var dates = "?startDate=" + startDate + "&stopDate=" + stopDate;
 
-				$.ajax(modalAjaxService.getAjaxObject(roleGroupModalService.usersUrl + userUuid + '/addgroup/' + roleid + dates, roleGroupModalService.fieldUpdatedMsg, roleGroupModalService.fieldNotUpdatedMsg));
+				$.ajax({
+	    			   url: roleGroupModalService.usersUrl + userUuid + '/addgroup/' + roleid + dates,
+	    			   contentType: 'application/json',
+	    			   headers: {
+	    			      'X-CSRF-TOKEN': token
+	    			   },
+	    			   type: 'post',
+	    			   success: function(response) {
+	    				   modalRGAjaxService.showInfoNotification(roleGroupModalService.fieldUpdatedMsg);
+	    				   rolesService.loadAddRoleGroupFragment();
+	    			   },
+	    			   error: function(response) {
+	    				   var msg = (response.responseText != null && response.responseText.length > 0) ? response.responseText : roleGroupModalService.fieldNotUpdatedMsg;
+	    				   modalRGAjaxService.showErrorNotification(msg);
+	    			   }
+	    		});
 				
 				modalGroups.modal('hide');
 			}
@@ -129,7 +144,22 @@
 				var stopDate = $('#groupStopDatePicker').data('date');
 				var dates = "?startDate=" + startDate + "&stopDate=" + stopDate;
 
-				$.ajax(modalAjaxService.getAjaxObject(roleGroupModalService.usersUrl + 'position/' + positionUuid + '/addgroup/' + roleid + dates, roleGroupModalService.fieldUpdatedMsg, roleGroupModalService.fieldNotUpdatedMsg));
+				$.ajax({
+	    			   url: roleGroupModalService.usersUrl + 'position/' + positionUuid + '/addgroup/' + roleid + dates,
+	    			   contentType: 'application/json',
+	    			   headers: {
+	    			      'X-CSRF-TOKEN': token
+	    			   },
+	    			   type: 'post',
+	    			   success: function(response) {
+	    				   modalRGAjaxService.showInfoNotification(roleGroupModalService.fieldUpdatedMsg);
+	    				   rolesService.loadAddRoleGroupFragment();
+	    			   },
+	    			   error: function(response) {
+	    				   var msg = (response.responseText != null && response.responseText.length > 0) ? response.responseText : roleGroupModalService.fieldNotUpdatedMsg;
+	    				   modalRGAjaxService.showErrorNotification(msg);
+	    			   }
+	    		});
 
 				modalGroups.modal('hide');
 			}

@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html>
-<head th:replace="fragments/header :: header (title=#{html.page.ous.mange.title})" />
+<head th:replace="fragments/header :: header (title=#{html.page.ous.mange.title})"></head>
 <body>
 	<div class="wrapper">
-		<header th:replace="fragments/navbar :: navbar-header(subpage = 'roles')" />
-		<aside th:replace="fragments/navbar :: navbar-aside (page = 'ous', subpage = 'roles')" />
+		<header th:replace="fragments/navbar :: navbar-header(subpage = 'roles')"></header>
+		<aside th:replace="fragments/navbar :: navbar-aside (page = 'ous', subpage = 'roles')"></aside>
 
 		<section>
 			<div class="content-wrapper">
@@ -38,7 +38,7 @@
 										<form class="form-horizontal" th:object="${ou}">
 											<fieldset>
 												<div class="form-group">
-													<label class="col-sm-2 control-label" th:text="#{html.entity.ou.name}" />
+													<label class="col-sm-2 control-label" th:text="#{html.entity.ou.name}"></label>
 													<div class="col-sm-8">
 														<input th:value="${ou.name}" class="form-control" disabled="disabled" />
 													</div>
@@ -47,7 +47,7 @@
 											
 											<fieldset th:unless="${editable}">
 												<div class="form-group">
-													<label class="col-sm-2 control-label" th:text="#{html.entity.ou.level}" />
+													<label class="col-sm-2 control-label" th:text="#{html.entity.ou.level}"></label>
 													<div class="col-sm-8">
 														<input th:value="#{__${ou.level.message}__}" class="form-control" disabled="disabled" />
 													</div>
@@ -55,7 +55,7 @@
 											</fieldset>
 											<fieldset th:if="${editable}" sec:authorize="hasRole('ROLE_ADMINISTRATOR')">
 												<div th:if="${@roleCatalogueConfiguration.getOrganisation().isGetLevelsFromApi() == false}" class="form-group">
-													<label class="col-sm-2 control-label" th:text="#{html.entity.ou.level}" />
+													<label class="col-sm-2 control-label" th:text="#{html.entity.ou.level}"></label>
 													<div class="col-sm-8">
 														<select onchange="setLevel(this);" class="form-control">
 															<option th:each="level : ${allowedLevels}"
@@ -66,7 +66,7 @@
 												</div>
 												
 												<div th:if="${@roleCatalogueConfiguration.getOrganisation().isGetLevelsFromApi() == true}" class="form-group">
-													<label class="col-sm-2 control-label" th:text="#{html.entity.ou.level}" />
+													<label class="col-sm-2 control-label" th:text="#{html.entity.ou.level}"></label>
 													<div class="col-sm-8">
 														<input th:value="#{__${ou.level.message}__}" class="form-control" disabled="disabled" />
 													</div>
@@ -75,74 +75,21 @@
 											
 											<fieldset>
 												<div class="form-group">
-													<label class="col-sm-2 control-label" th:text="#{html.entity.ou.manager}" />
+													<label class="col-sm-2 control-label" th:text="#{html.entity.ou.manager}"></label>
 													<div class="col-sm-8">
 														<input th:value="${ou.manager} != null ? ${ou.manager.name} : ''" class="form-control" disabled="disabled" />
 													</div>
 												</div>
 											</fieldset>
-											
-											<th:block th:switch="${editable}">
-											<fieldset th:case="false" th:if="${@settingsService.isRequestApproveEnabled() == true && @settingsService.getRequestApproveWho() == T(dk.digitalidentity.rc.service.model.WhoCanRequest).AUTHORIZATION_MANAGER}">
-												<div class="form-group">
-													<label class="col-sm-2 control-label" th:text="#{html.page.ous.edit.authorizationManager}"/>
-													<div class="col-sm-8">
-														<table class="table table-striped" style="width: 600px;">
-															<thead>
-																<tr>
-																	<th class="col-md-6" th:text="#{html.entity.user.name}" />
-																	<th class="col-md-5" th:text="#{html.entity.user.userId}" />
-																	<th class="col-md-1" th:text="#{html.control.operations}" />
-																</tr>
-															</thead>
-															
-															<tbody>
-																<tr th:each="authManager : ${ou.authorizationManagers}">
-																	<td th:text="${authManager.user.name}" />
-																	<td th:text="${authManager.user.userId}" />
-																	<td>
-																		<a onclick="autoCompleteService.removeAuthManager(this); return false;" th:data-uuid="${authManager.user.uuid}"><em class="fa fa-fw fa-times"></em></a>
-																	</td>
-																</tr>
-															</tbody>
-														</table>
-													</div>
-												</div>
-											</fieldset>
-											<fieldset th:case="true" sec:authorize="hasRole('ROLE_ADMINISTRATOR')" th:if="${@settingsService.isRequestApproveEnabled() == true && @settingsService.getRequestApproveWho() == T(dk.digitalidentity.rc.service.model.WhoCanRequest).AUTHORIZATION_MANAGER}">
-												<div class="form-group">
-													<label class="col-sm-2 control-label" th:text="#{html.page.ous.edit.authorizationManager}"/>
-													<div class="col-sm-8">
-														<input style="width: 600px; display: inline-block;" class="form-control" id="search_person" onclick="return false;" th:title="#{html.page.ous.edit.authorizationManager.title}" />
 
-														<table class="table table-striped" style="width: 600px;">
-															<thead>
-																<tr>
-																	<th class="col-md-6" th:text="#{html.entity.user.name}" />
-																	<th class="col-md-5" th:text="#{html.entity.user.userId}" />
-																	<th class="col-md-1" th:text="#{html.control.operations}" />
-																</tr>
-															</thead>
-															
-															<tbody>
-																<tr th:each="authManager : ${ou.authorizationManagers}">
-																	<td th:text="${authManager.user.name}" />
-																	<td th:text="${authManager.user.userId}" />
-																	<td>
-																		<a onclick="autoCompleteService.removeAuthManager(this); return false;" th:data-uuid="${authManager.user.uuid}"><em class="fa fa-fw fa-times"></em></a>
-																	</td>
-																</tr>
-															</tbody>
-														</table>
-													</div>
-												</div>
+											<fieldset id="requestApproveFragment" th:if="${@settingsService.isRequestApproveEnabled() == true && @settingsService.getRequestApproveWho() == T(dk.digitalidentity.rc.service.model.WhoCanRequest).AUTHORIZATION_MANAGER}">
+												<div th:replace="ous/fragments/request_approve :: requestApproveTable(ou = ${ou}, editable = ${editable})"></div>
 											</fieldset>
-											</th:block>
-											
+
 											<th:block th:switch="${editable}">
 											<fieldset th:case="false">
 												<div class="form-group">
-													<label class="col-sm-2 control-label" th:text="#{html.orgunit.settings}" />
+													<label class="col-sm-2 control-label" th:text="#{html.orgunit.settings}"></label>
 													<div class="col-sm-8">
 														<div class="checkbox c-checkbox">
 															<label>
@@ -150,16 +97,16 @@
 																<span class="fa fa-check"></span>
 															</label>
 															
-															<label th:text="#{html.orgunit.flag.inherit}" />
+															<label th:text="#{html.orgunit.flag.inherit}"></label>
 														</div>
 													</div>
 												</div>
 												
 												<div class="form-group" th:if="${#lists.size(parentsKleIsInheritedFrom)} > 0">
 													<div class="col-sm-offset-2 col-sm-8" style="margin-top: 20px;">
-														<span style="font-weight: bold;" th:text="#{html.orgunit.kle.inherited.from}" />
+														<span style="font-weight: bold;" th:text="#{html.orgunit.kle.inherited.from}"></span>
 														<ul>
-															<li th:each="ouInheritedFrom : ${parentsKleIsInheritedFrom}" th:text="${ouInheritedFrom.name}" />
+															<li th:each="ouInheritedFrom : ${parentsKleIsInheritedFrom}" th:text="${ouInheritedFrom.name}"></li>
 														</ul>
 													</div>
 												</div>
@@ -181,9 +128,9 @@
 												
 												<div class="form-group" th:if="${#lists.size(parentsKleIsInheritedFrom)} > 0">
 													<div class="col-sm-offset-2 col-sm-8" style="margin-top: 20px;">
-														<span style="font-weight: bold;" th:text="#{html.orgunit.kle.inherited.from}" />
+														<span style="font-weight: bold;" th:text="#{html.orgunit.kle.inherited.from}"></span>
 														<ul>
-															<li th:each="ouInheritedFrom : ${parentsKleIsInheritedFrom}" th:text="${ouInheritedFrom.name}" />
+															<li th:each="ouInheritedFrom : ${parentsKleIsInheritedFrom}" th:text="${ouInheritedFrom.name}"></li>
 														</ul>
 													</div>
 												</div>
@@ -228,7 +175,7 @@
 							</div>
 
 							<div id="users_menu" class="tab-pane fade">
-								<div th:replace="ous/fragments/ou_users :: orgUnitUsers(users = ${users})" />
+								<div th:replace="ous/fragments/ou_users :: orgUnitUsers(users = ${users})"></div>
 							</div>
 						</div>
 					</div>
@@ -251,15 +198,15 @@
 		.autocomplete-group strong { display: block; border-bottom: 1px solid #000; }
 	</style>
 
-	<div th:replace="ous/fragments/ou_roles_modal :: ouRolesModal(titles = ${titles})" />
-	<div th:replace="ous/fragments/ou_roles_edit_modal :: ouRolesEditModal(titles = ${titles})" />
+	<div th:replace="ous/fragments/ou_roles_modal :: ouRolesModal(titles = ${titles})"></div>
+	<div th:replace="ous/fragments/ou_roles_edit_modal :: ouRolesEditModal(titles = ${titles})"></div>
 
-	<nav th:replace="fragments/footer :: footer" />
+	<nav th:replace="fragments/footer :: footer"></nav>
 	
-	<script th:replace="fragments/datatables :: datatables " />
-	<script th:replace="fragments/assignDatePicker :: content " />
-	<script th:replace="ous/fragments/ou_roles_modal :: ouRoleGroupModalScript(titlesEnabled=${titlesEnabled})" />
-	<script th:replace="ous/fragments/ou_roles_edit_modal :: ouRolesEditModalScript(titlesEnabled=${titlesEnabled})" />
+	<script th:replace="fragments/datatables :: datatables "></script>
+	<script th:replace="fragments/assignDatePicker :: content "></script>
+	<script th:replace="ous/fragments/ou_roles_modal :: ouRoleGroupModalScript(titlesEnabled=${titlesEnabled})"></script>
+	<script th:replace="ous/fragments/ou_roles_edit_modal :: ouRolesEditModalScript(titlesEnabled=${titlesEnabled})"></script>
 
 
 	<script th:inline="javascript">
@@ -410,6 +357,12 @@
 						autoHideDelay: 2000
 					});
 				}
+			});
+		}
+
+		function reloadRequestApproveFragment() {
+			$("#requestApproveFragment").load(urlUi + "requestapprove/" + ou, function () {
+				autoCompleteService.init();
 			});
 		}
 
@@ -583,12 +536,7 @@
 					},
 					data: personUuid
 				}).done(function (data) {
-					if (location.href.indexOf('?reload') < 0) {
-						location.href = location.href + "?reload";
-					}
-					else {
-						location.reload(true);
-					}
+					reloadRequestApproveFragment();
 				}).fail(function (jqXHR, textStatus, errorThrown) {
 					$.notify({
 						message: msgAssignFailure
@@ -609,12 +557,7 @@
 					},
 					data: personUuid
 				}).done(function (data) {
-					if (window.location.href.indexOf('?reload') < 0) {
-						location.href = location.href + "?reload";
-					}
-					else {
-						location.reload(true);
-					}
+					reloadRequestApproveFragment();
 				}).fail(function (jqXHR, textStatus, errorThrown) {
 					$.notify({
 						message: msgAssignFailure

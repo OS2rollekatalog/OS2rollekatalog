@@ -4,9 +4,12 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -37,6 +40,7 @@ import dk.digitalidentity.rc.dao.model.UserRole;
 import dk.digitalidentity.rc.dao.model.enums.ConstraintUIType;
 import dk.digitalidentity.rc.dao.model.enums.ConstraintValueType;
 import dk.digitalidentity.rc.dao.model.enums.ItSystemType;
+import dk.digitalidentity.rc.dao.model.enums.KOMBITEventType;
 import dk.digitalidentity.rc.dao.model.enums.RoleType;
 import dk.digitalidentity.rc.security.SecurityUtil;
 import dk.digitalidentity.rc.service.ConstraintTypeService;
@@ -527,6 +531,8 @@ public class KOMBITService {
 					case LEVEL_2:
 					case LEVEL_3:
 					case LEVEL_4:
+					case LEVEL_5:
+					case LEVEL_6:
 					case POSTPONED:
 						dataConstraintValue.setDynamisk(true);
 						dataConstraintValue.setVaerdi(constraintValue.getConstraintIdentifier());
@@ -611,45 +617,69 @@ public class KOMBITService {
 		List<KOMBITUserRoleDTO> userRolesDTO = getUserRolesFromKOMBIT(); // TODO: supply initialSyncExecuted as a parameter, and then only read delegated roles if true (optimize external calls)
 
 		for (KOMBITUserRoleDTO userRoleDTO : userRolesDTO) {
-			ItSystem itSystem = null;
 			boolean failed = false;
 			boolean delegated = false;
 
+			// a UserRole in KOMBIT might have SystemRoles from different it-systems - we accept the first it-system, and create
+			// new UserRoles for the rest... If there are changes, we submit a change to the affected roles to KOMBIT afterwards
+			Map<Long, List<SystemRole>> itSystemToSystemRoleMap = new HashMap<>();
+			
 			if (!userRoleDTO.getOrganisationCvr().equals(configuration.getCustomer().getCvr())) {
 				delegated = true;
+				
+				for (KOMBITBrugersystemrolleDataafgraensningerDTO systemRoleAssignmentDTO : userRoleDTO.getBrugersystemrolleDataafgraensninger()) {
+					String uuid = systemRoleAssignmentDTO.getBrugersystemrolleUuid();
+					SystemRole systemRole = systemRoleService.getByUuid(uuid);
+	
+					if (systemRole != null) {
+						List<SystemRole> systemRolesForItSystem = new ArrayList<>();
+						systemRolesForItSystem.add(systemRole);
+
+						itSystemToSystemRoleMap.put(systemRole.getItSystem().getId(), systemRolesForItSystem);
+
+						// only need the one - it is just for documentation
+						break;
+					}
+				}
 			}
 			else if (initialSyncExecuted) {
 				// we only do reverse sync of non-delegated Jobfunktionsroller on the very first run
 				continue;
 			}
-
-			for (KOMBITBrugersystemrolleDataafgraensningerDTO systemRoleAssignmentDTO : userRoleDTO.getBrugersystemrolleDataafgraensninger()) {
-				for (KOMBITDataafgraensningsVaerdier dataafgraensningsVaerdier : systemRoleAssignmentDTO.getDataafgraensningsVaerdier()) {
-					if (dataafgraensningsVaerdier.getDynamisk() == true) {
-						log.error("Cannot synchronize UserRole " + userRoleDTO.getEntityId() + " because it contains dynamic constraints, using keys unknown to the role catalogue.");
-						failed = true;
+			else {
+				// we need to extract all information about the SystemRoles in this case
+				for (KOMBITBrugersystemrolleDataafgraensningerDTO systemRoleAssignmentDTO : userRoleDTO.getBrugersystemrolleDataafgraensninger()) {
+					for (KOMBITDataafgraensningsVaerdier dataafgraensningsVaerdier : systemRoleAssignmentDTO.getDataafgraensningsVaerdier()) {
+						if (dataafgraensningsVaerdier.getDynamisk() == true) {
+							log.error("Cannot synchronize UserRole " + userRoleDTO.getEntityId() + " because it contains dynamic constraints, using keys unknown to the role catalogue.");
+							failed = true;
+						}
+					}
+	
+					String uuid = systemRoleAssignmentDTO.getBrugersystemrolleUuid();
+					SystemRole systemRole = systemRoleService.getByUuid(uuid);
+	
+					if (systemRole != null) {
+						ItSystem itSystem = systemRole.getItSystem();
+	
+						if (!itSystemToSystemRoleMap.containsKey(itSystem.getId())) {
+							List<SystemRole> systemRolesForItSystem = new ArrayList<>();
+							systemRolesForItSystem.add(systemRole);
+	
+							itSystemToSystemRoleMap.put(itSystem.getId(), systemRolesForItSystem);
+						}
+						else {
+							itSystemToSystemRoleMap.get(itSystem.getId()).add(systemRole);
+						}
 					}
 				}
-
-				String uuid = systemRoleAssignmentDTO.getBrugersystemrolleUuid();
-				SystemRole systemRole = systemRoleService.getByUuid(uuid);
-
-				if (systemRole != null) {
-					if (itSystem == null) {
-						itSystem = systemRole.getItSystem();
-					}
-					else if (itSystem.getId() != systemRole.getItSystem().getId()) {
-						log.error("Cannot synchronize UserRole " + userRoleDTO.getEntityId() + " because it covers more than one it-system.");
-						failed = true;
-					}
+				
+				if (failed) {
+					continue;
 				}
 			}
 			
-			if (failed) {
-				continue;
-			}
-
-			if (itSystem == null) {
+			if (itSystemToSystemRoleMap.size() == 0) {
 				log.warn("Failed to synchronize UserRole " + userRoleDTO.getEntityId() + " because no it-system was found in database that matches");
 				continue;
 			}
@@ -680,71 +710,110 @@ public class KOMBITService {
 				userRoleDTO.setBeskrivelse("(CVR: " + userRoleDTO.getOrganisationCvr() + ") " + userRoleDTO.getBeskrivelse());
 			}
 
-			// check if we already have it in our database
-			UserRole userRole = userRoleService.getByItSystemAndIdentifier(itSystem, identifier);
-			if (userRole == null) {
-				userRole = new UserRole();
-				userRole.setSystemRoleAssignments(new ArrayList<>());
-				userRole.setItSystem(itSystem);
-				userRole.setIdentifier(identifier);				
-				userRole.setDescription(userRoleDTO.getBeskrivelse());
-				userRole.setName(userRoleDTO.getNavn());
-			}
-			userRole.setUuid(userRoleDTO.getUuid());
+			boolean firstItSystem = true;
+			for (Long itSystemId : itSystemToSystemRoleMap.keySet()) {
+				ItSystem itSystem = itSystemService.getById(itSystemId);
+				if (itSystem == null) {
+					log.error("This should not happen - it system does not exists: " + itSystemId);
+					continue;
+				}
 
-			boolean badRole = false;
-			if (delegated) {
-				userRole.setDelegatedFromCvr(userRoleDTO.getOrganisationCvr());
-			}
-			else {
-				// we don't want to keep track of this information on delegated roles, as it is not given that
-				// they follow our business rules, and we cannot edit them anyway.
-
-				for (KOMBITBrugersystemrolleDataafgraensningerDTO brugersystemrolleDataafgraensninger : userRoleDTO.getBrugersystemrolleDataafgraensninger()) {
-					SystemRole systemRole = systemRoleService.getByUuid(brugersystemrolleDataafgraensninger.getBrugersystemrolleUuid());
-					if (systemRole == null) {
-						log.warn("userRole = " + userRole.getName() + " : Could not find systemRole with entityId: " + brugersystemrolleDataafgraensninger.getBrugersystemrolleUuid());
-
-						badRole = true;
-						break;
-					}
+				// on following, we should always generate a new random identifier
+				if (!firstItSystem) {
+					// just generate a random one for the conversion
+					identifier = "id" + UUID.randomUUID().toString();
+				}
+				
+				// check if we already have it in our database
+				UserRole userRole = userRoleService.getByItSystemAndIdentifier(itSystem, identifier);
+				if (userRole == null) {
+					userRole = new UserRole();
+					userRole.setSystemRoleAssignments(new ArrayList<>());
+					userRole.setItSystem(itSystem);
+					userRole.setIdentifier(identifier);				
+					userRole.setDescription(userRoleDTO.getBeskrivelse());
+					userRole.setName(userRoleDTO.getNavn());
+				}
+				
+				// for the first it-system we will inherit the UUID (match the existing role in FK Adm), but for any
+				// extra roles, we will create a new blank UserRole, that will be send to FK Adm to be created.
+				if (firstItSystem) {
+					userRole.setUuid(userRoleDTO.getUuid());
+				}
 	
-					SystemRoleAssignment systemRoleAssignment = new SystemRoleAssignment();
-					systemRoleAssignment.setSystemRole(systemRole);
-					systemRoleAssignment.setUserRole(userRole);
-					systemRoleAssignment.setAssignedByName(SecurityUtil.getUserFullname());
-					systemRoleAssignment.setAssignedByUserId(SecurityUtil.getUserId());
-					systemRoleAssignment.setAssignedTimestamp(new Date());
-					systemRoleAssignment.setConstraintValues(new ArrayList<>());
+				boolean badRole = false;
+				if (delegated) {
+					userRole.setDelegatedFromCvr(userRoleDTO.getOrganisationCvr());
+				}
+				else {
+					// we don't want to keep track of this information on delegated roles, as it is not given that
+					// they follow our business rules, and we cannot edit them anyway.
 	
-					for (KOMBITDataafgraensningsVaerdier dataafgraensningsVaerdier : brugersystemrolleDataafgraensninger.getDataafgraensningsVaerdier()) {
-						SystemRoleAssignmentConstraintValue constraintValue = new SystemRoleAssignmentConstraintValue();
-						constraintValue.setSystemRoleAssignment(systemRoleAssignment);
-
-						ConstraintType constraintType = constraintTypeService.getByEntityId(dataafgraensningsVaerdier.getDataafgraensningstypeEntityId());
-						if (constraintType == null) {
-							log.warn("userRole = " + userRole.getName() + ", SystemRole = " + systemRole.getName() + " : Could not find contraintType with entityId: " + dataafgraensningsVaerdier.getDataafgraensningstypeEntityId());
-
+					for (KOMBITBrugersystemrolleDataafgraensningerDTO brugersystemrolleDataafgraensninger : userRoleDTO.getBrugersystemrolleDataafgraensninger()) {
+						SystemRole systemRole = systemRoleService.getByUuid(brugersystemrolleDataafgraensninger.getBrugersystemrolleUuid());
+						if (systemRole == null) {
+							log.warn("userRole = " + userRole.getName() + " : Could not find systemRole with entityId: " + brugersystemrolleDataafgraensninger.getBrugersystemrolleUuid());
+	
 							badRole = true;
 							break;
 						}
-						constraintValue.setConstraintType(constraintType);
-						constraintValue.setConstraintValue(dataafgraensningsVaerdier.getVaerdi());
-						constraintValue.setConstraintValueType(ConstraintValueType.VALUE);
-	
-						systemRoleAssignment.getConstraintValues().add(constraintValue);
-					}
-					
-					if (badRole) {
-						break;
-					}
-	
-					userRole.getSystemRoleAssignments().add(systemRoleAssignment);
-				}
-			}
 
-			if (!badRole) {
-				userRoleDao.save(userRole);
+						// split userRoles
+						if (systemRole.getItSystem().getId() != itSystemId) {
+							continue;
+						}
+						
+						SystemRoleAssignment systemRoleAssignment = new SystemRoleAssignment();
+						systemRoleAssignment.setSystemRole(systemRole);
+						systemRoleAssignment.setUserRole(userRole);
+						systemRoleAssignment.setAssignedByName(SecurityUtil.getUserFullname());
+						systemRoleAssignment.setAssignedByUserId(SecurityUtil.getUserId());
+						systemRoleAssignment.setAssignedTimestamp(new Date());
+						systemRoleAssignment.setConstraintValues(new ArrayList<>());
+		
+						for (KOMBITDataafgraensningsVaerdier dataafgraensningsVaerdier : brugersystemrolleDataafgraensninger.getDataafgraensningsVaerdier()) {
+							SystemRoleAssignmentConstraintValue constraintValue = new SystemRoleAssignmentConstraintValue();
+							constraintValue.setSystemRoleAssignment(systemRoleAssignment);
+	
+							ConstraintType constraintType = constraintTypeService.getByEntityId(dataafgraensningsVaerdier.getDataafgraensningstypeEntityId());
+							if (constraintType == null) {
+								log.warn("userRole = " + userRole.getName() + ", SystemRole = " + systemRole.getName() + " : Could not find contraintType with entityId: " + dataafgraensningsVaerdier.getDataafgraensningstypeEntityId());
+	
+								badRole = true;
+								break;
+							}
+							constraintValue.setConstraintType(constraintType);
+							constraintValue.setConstraintValue(dataafgraensningsVaerdier.getVaerdi());
+							constraintValue.setConstraintValueType(ConstraintValueType.VALUE);
+		
+							systemRoleAssignment.getConstraintValues().add(constraintValue);
+						}
+						
+						if (badRole) {
+							break;
+						}
+		
+						userRole.getSystemRoleAssignments().add(systemRoleAssignment);
+					}
+				}
+
+				if (!badRole) {
+					userRoleDao.save(userRole);
+					
+					// perform an update on this userRole (sync back to FK Adm), as it has changes
+					if (itSystemToSystemRoleMap.size() > 1) {
+						if (!firstItSystem) {							
+							log.warn("Synchronizing split-changes on " + userRole.getName() + " on " + itSystem.getName() + " back to FK Administrationsmodul");
+							pendingKOMBITUpdateService.addUserRoleToQueue(userRole, KOMBITEventType.UPDATE);
+						}
+						else {
+							// we don't want to break the existing role from working....
+							log.warn("Did NOT synchronize userRole " + userRole.getEntityName() + " / " + userRole.getId() + " which should be done manually through table updates" );
+						}
+					}
+
+					firstItSystem = false;
+				}
 			}
 		}
 		

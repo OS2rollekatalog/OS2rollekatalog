@@ -18,7 +18,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.microsoft.sqlserver.jdbc.StringUtils;
+import org.springframework.util.StringUtils;
 
 import dk.digitalidentity.rc.controller.mvc.viewmodel.OUListForm;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.ReportForm;
@@ -75,7 +75,7 @@ public class ReportRestController {
 			reportTemplate.setItsystemFilter(builder.toString());
 		}
 
-		if (!StringUtils.isEmpty(reportForm.getManagerFilter())) {
+		if (StringUtils.hasLength(reportForm.getManagerFilter())) {
 			reportTemplate.setManagerFilter(reportForm.getManagerFilter());
 		}
 
@@ -130,7 +130,7 @@ public class ReportRestController {
 	}
 
 	@GetMapping(value = "/rest/report/assign/users/{id}")
-	public ResponseEntity<List<UserListDTO>> getAllUsers(Locale locale, @PathVariable("id") Long id) {
+	public ResponseEntity<?> getAllUsers(Locale locale, @PathVariable("id") Long id) {
 		String in = messageSource.getMessage("html.word.in", null, locale);
 
 		List<User> users = userService.getAllThin();
@@ -142,6 +142,9 @@ public class ReportRestController {
 				.collect(Collectors.toList());
 		
 		ReportTemplate reportTemplate = reportTemplateService.getById(id);
+		if (reportTemplate == null) {
+			return ResponseEntity.badRequest().body("Ukendt skabelon");
+		}
 		List<User> assignedUsers = reportTemplate.getUsers();
 
 		//Set assigned = true on all userDTO that are also in assignedUsers
@@ -153,6 +156,10 @@ public class ReportRestController {
 	@PostMapping(value = "/rest/report/assign/toggleUser")
 	public ResponseEntity<?> assignUser(String uuid, Long templateId) {
 		ReportTemplate reportTemplate = reportTemplateService.getById(templateId);
+		if (reportTemplate == null) {
+			return ResponseEntity.badRequest().body("Ukendt skabelon");
+		}
+
 		User user = userService.getByUuid(uuid);
 		if (user == null) {
 			return ResponseEntity.badRequest().body("Ukendt bruger");

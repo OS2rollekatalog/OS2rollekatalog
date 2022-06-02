@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html>
-<head th:replace="fragments/header :: header (title=#{html.page.simulator.title})" />
+<head th:replace="fragments/header :: header (title=#{html.page.simulator.title})"></head>
 <body>
 	<div class="wrapper">
-		<header th:replace="fragments/navbar :: navbar-header" />
-		<aside th:replace="fragments/navbar :: navbar-aside" />
+		<header th:replace="fragments/navbar :: navbar-header"></header>
+		<aside th:replace="fragments/navbar :: navbar-aside"></aside>
  
 		<section>
 			<div class="content-wrapper">
@@ -12,18 +12,18 @@
 					<a th:href="@{/ui/simulate/login}" class="btn btn-default">
 						<span><i class="fa fa-arrow-left"></i> </span>
 					</a>
-					<span th:text="#{html.page.simulator.back}" />
+					<span th:text="#{html.page.simulator.back}"></span>
 				</h3>
 
 				<div class="panel panel-default">
-					<div class="panel-heading" />
+					<div class="panel-heading"></div>
 					<div class="panel-body">
 						<div class="form-horizontal">
 							<fieldset>
 								<div class="form-group">
-									<label class="col-sm-2 control-label" th:text="#{html.page.simulator.roles}" />
+									<label class="col-sm-2 control-label" th:text="#{html.page.simulator.roles}"></label>
 									<div class="col-sm-8">
-										<textarea id="xmlViewer" th:text="${result}" />
+										<textarea id="xmlViewer" th:text="${result}"></textarea>
 									</div>
 								</div>
 							</fieldset>
@@ -31,7 +31,7 @@
 							<fieldset>
 								<div class="form-group">
 									<div class="col-sm-offset-2 col-sm-8">
-										<a th:href="@{/ui/simulate/login}" class="btn btn-lg btn-primary" th:text="#{html.control.button.ok}" />
+										<a th:href="@{/ui/simulate/login}" class="btn btn-lg btn-primary" th:text="#{html.control.button.ok}"></a>
 									</div>
 								</div>
 							</fieldset>
@@ -42,8 +42,8 @@
 		</section>
 	</div>
 
-	<nav th:replace="fragments/footer :: footer" />
-	<div th:replace="fragments/codeMirror" />
+	<nav th:replace="fragments/footer :: footer"></nav>
+	<div th:replace="fragments/codeMirror"></div>
 
 	<script th:inline="javascript">
 		/*<![CDATA[*/

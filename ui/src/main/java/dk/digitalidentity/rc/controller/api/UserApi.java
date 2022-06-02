@@ -59,7 +59,7 @@ public class UserApi {
 		}
 
 		List<ItSystem> itSystems = null;
-		if (!StringUtils.isEmpty(itSystemIdentifier)) {
+		if (StringUtils.hasLength(itSystemIdentifier)) {
 			itSystems = getItSystems(itSystemIdentifier);
 			if (itSystems.size() == 0) {
 				log.warn("could not find itSystem: " + itSystemIdentifier);
@@ -96,7 +96,7 @@ public class UserApi {
 		}
 
 		List<ItSystem> itSystems = null;
-		if (!StringUtils.isEmpty(itSystemIdentifier)) {
+		if (StringUtils.hasLength(itSystemIdentifier)) {
 			itSystems = getItSystems(itSystemIdentifier);
 			if (itSystems.size() == 0) {
 				log.warn("could not find itSystem: " + itSystemIdentifier);
@@ -191,7 +191,7 @@ public class UserApi {
 		}
 
 		List<ItSystem> itSystems = null;
-		if (!StringUtils.isEmpty(itSystemIdentifier)) {
+		if (StringUtils.hasLength(itSystemIdentifier)) {
 			itSystems = getItSystems(itSystemIdentifier);
 			if (itSystems.size() == 0) {
 				log.warn("could not find itSystem: " + itSystemIdentifier);
@@ -225,7 +225,7 @@ public class UserApi {
 		}
 
 		List<ItSystem> itSystems = null;
-		if (!StringUtils.isEmpty(itSystemIdentifier)) {
+		if (StringUtils.hasLength(itSystemIdentifier)) {
 			itSystems = getItSystems(itSystemIdentifier);
 			if (itSystems.size() == 0) {
 				log.warn("could not find itSystem: " + itSystemIdentifier);

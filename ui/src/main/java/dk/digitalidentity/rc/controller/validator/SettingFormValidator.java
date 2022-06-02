@@ -20,7 +20,7 @@ public class SettingFormValidator implements Validator {
 		SettingsForm settingsForm = (SettingsForm) o;
 
 		if (settingsForm.isScheduledAttestationEnabled()) {
-			if (StringUtils.isEmpty(settingsForm.getEmailAttestationReport())) {
+			if (!StringUtils.hasLength(settingsForm.getEmailAttestationReport())) {
 				errors.rejectValue("emailAttestationReport", "html.errors.attestation.email.empty");
 			}
 		}

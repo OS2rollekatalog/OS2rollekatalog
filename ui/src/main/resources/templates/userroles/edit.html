@@ -1,11 +1,11 @@
 <!DOCTYPE html>
 <html>
-<head th:replace="fragments/header :: header (title=#{html.page.userroles.addrole.title})" />
+<head th:replace="fragments/header :: header (title=#{html.page.userroles.addrole.title})"></head>
 <body>
 
 	<div class="wrapper">
-		<header th:replace="fragments/navbar :: navbar-header(subpage = 'roles')" />
-		<aside th:replace="fragments/navbar :: navbar-aside (page = 'userroles.list', subpage = 'roles')" />
+		<header th:replace="fragments/navbar :: navbar-header(subpage = 'roles')"></header>
+		<aside th:replace="fragments/navbar :: navbar-aside (page = 'userroles.list', subpage = 'roles')"></aside>
 
 		<section>
 			<div class="content-wrapper">
@@ -26,7 +26,7 @@
 
 							<fieldset>
 								<div class="form-group">
-									<label class="col-sm-2 control-label" th:text="#{html.entity.userrole.name}" />
+									<label class="col-sm-2 control-label" th:text="#{html.entity.userrole.name}"></label>
 									<div class="col-sm-8">
 										<input th:field="*{name}" class="form-control" th:readonly="${#strings.toString(role.itSystem.systemType)} == 'KSPCICS'" />
 									</div>
@@ -35,16 +35,16 @@
 
 							<fieldset>
 								<div class="form-group">
-									<label class="col-sm-2 control-label" th:text="#{html.entity.userrole.description}" />
+									<label class="col-sm-2 control-label" th:text="#{html.entity.userrole.description}"></label>
 									<div class="col-sm-8">
-										<textarea th:field="*{description}" class="form-control" th:readonly="${#strings.toString(role.itSystem.systemType)} == 'KSPCICS'" />
+										<textarea th:field="*{description}" class="form-control" th:readonly="${#strings.toString(role.itSystem.systemType)} == 'KSPCICS'"></textarea>
 									</div>
 								</div>
 							</fieldset>
 							
 							<fieldset>
 								<div class="form-group">
-									<label class="col-sm-2 control-label" th:text="#{html.role.flag.useronly}" />
+									<label class="col-sm-2 control-label" th:text="#{html.role.flag.useronly}"></label>
 									<div class="col-sm-1">
 										<div class="checkbox c-checkbox">
 											<label>
@@ -54,7 +54,7 @@
 										</div>
 									</div>
 
-									<label class="col-sm-2 control-label" th:text="#{html.role.flag.canrequest}" />
+									<label class="col-sm-2 control-label" th:text="#{html.role.flag.canrequest}"></label>
 									<div class="col-sm-1">
 										<div class="checkbox c-checkbox">
 											<label>
@@ -64,7 +64,7 @@
 										</div>
 									</div>
 									
-									<label class="col-sm-2 control-label" th:text="#{html.role.flag.sensitive}" />
+									<label class="col-sm-2 control-label" th:text="#{html.role.flag.sensitive}"></label>
 									<div class="col-sm-1">
 										<div class="checkbox c-checkbox">
 											<label>
@@ -75,21 +75,30 @@
 									</div>
 								</div>
 							</fieldset>
+							
+							<fieldset th:if="${role.linkedSystemRole != null}">
+								<div class="form-group">
+									<div class="col-sm-12">
+										<button type="button" onclick="removeLinkToSystemRole();" class="btn btn-primary btn-lg" style="width: 250px;"><i class="fa fa-chain-broken"></i>&nbsp;<span th:text="#{html.page.userroles.edit.unlink}"></span></button>
+										<span style="margin-left: 25px;" th:text="#{html.role.flag.linked.description}"></span>
+									</div>
+								</div>
+							</fieldset>
 						</form>
 
 						<form class="form-horizontal">
 							<ul class="nav nav-tabs">
 								<li th:class="active">
-	                            	<a data-toggle="tab" href="#roles_menu" th:text="#{html.entity.userrole.roleassignments}"/>
+	                            	<a data-toggle="tab" href="#roles_menu" th:text="#{html.entity.userrole.roleassignments}"></a>
 		                        </li>
 		                        <li th:unless="${hideRolegroups}">
-	                            	<a data-toggle="tab" href="#groups_menu" th:text="#{html.entity.userrole.rolegroupassignments}"/>
+	                            	<a data-toggle="tab" href="#groups_menu" th:text="#{html.entity.userrole.rolegroupassignments}"></a>
 		                        </li>
 		                        <li>
-	                            	<a data-toggle="tab" href="#users_menu" th:text="#{html.page.userroles.edit.tab.users}"/>
+	                            	<a data-toggle="tab" href="#users_menu" th:text="#{html.page.userroles.edit.tab.users}"></a>
 		                        </li>
 		                        <li>
-	                            	<a data-toggle="tab" id="outab" href="#ous_menu" th:text="#{html.page.userroles.edit.tab.ous}"/>
+	                            	<a data-toggle="tab" id="outab" href="#ous_menu" th:text="#{html.page.userroles.edit.tab.ous}"></a>
 	                            </li>
 		                    </ul>
 	                    
@@ -98,9 +107,9 @@
 									<table id="listTable" class="table table-striped">
 										<thead>
 											<tr>
-												<th class="col-md-1" th:text="#{html.entity.rolegroup.enabled}" />
-												<th class="col-md-4" th:text="#{html.entity.rolegroup.name}" />
-												<th class="col-md-7" th:text="#{html.entity.rolegroup.description}" />
+												<th class="col-md-1" th:text="#{html.entity.rolegroup.enabled}"></th>
+												<th class="col-md-4" th:text="#{html.entity.rolegroup.name}"></th>
+												<th class="col-md-7" th:text="#{html.entity.rolegroup.description}"></th>
 											</tr>
 										</thead>
 	
@@ -114,8 +123,8 @@
 														</label>
 													</div>
 												</td>
-												<td th:text="${editSystemRole.systemRole.name}" />
-												<td class="preformat" th:text="${editSystemRole.systemRole.description}" />
+												<td th:text="${editSystemRole.systemRole.name}"></td>
+												<td class="preformat" th:text="${editSystemRole.systemRole.description}"></td>
 											</tr>
 										</tbody>
 									</table>
@@ -125,9 +134,9 @@
 									<table id="listTable3" class="table table-striped">
 										<thead>
 											<tr>
-												<th class="col-md-1" th:text="#{html.page.userroles.addrole.rolegroup.contained}" />
-												<th class="col-md-4" th:text="#{html.page.userroles.addrole.rolegroup.name}" />
-												<th class="col-md-7" th:text="#{html.page.userroles.addrole.rolegroup.description}" />
+												<th class="col-md-1" th:text="#{html.page.userroles.addrole.rolegroup.contained}"></th>
+												<th class="col-md-4" th:text="#{html.page.userroles.addrole.rolegroup.name}"></th>
+												<th class="col-md-7" th:text="#{html.page.userroles.addrole.rolegroup.description}"></th>
 											</tr>
 										</thead>
 	
@@ -141,8 +150,8 @@
 														</label>
 													</div>
 												</td>
-												<td th:text="${editRoleGroup.roleGroup.name}" /> 
-												<td class="preformat" th:text="${editRoleGroup.roleGroup.description}" />
+												<td th:text="${editRoleGroup.roleGroup.name}"></td>
+												<td class="preformat" th:text="${editRoleGroup.roleGroup.description}"></td>
 											</tr>
 										</tbody>
 									</table>
@@ -235,6 +244,8 @@
 								<option th:selected="${selected} and ${constraintData != null} and ('LEVEL_2' eq ${#strings.toString(constraintData.constraintValueType)})" th:value="LEVEL_2" th:text="#{html.constraint.organisation.level.2}"></option>
 								<option th:selected="${selected} and ${constraintData != null} and ('LEVEL_3' eq ${#strings.toString(constraintData.constraintValueType)})" th:value="LEVEL_3" th:text="#{html.constraint.organisation.level.3}"></option>
 								<option th:selected="${selected} and ${constraintData != null} and ('LEVEL_4' eq ${#strings.toString(constraintData.constraintValueType)})" th:value="LEVEL_4" th:text="#{html.constraint.organisation.level.4}"></option>
+								<option th:selected="${selected} and ${constraintData != null} and ('LEVEL_5' eq ${#strings.toString(constraintData.constraintValueType)})" th:value="LEVEL_5" th:text="#{html.constraint.organisation.level.5}"></option>
+								<option th:selected="${selected} and ${constraintData != null} and ('LEVEL_6' eq ${#strings.toString(constraintData.constraintValueType)})" th:value="LEVEL_6" th:text="#{html.constraint.organisation.level.6}"></option>
 								<option th:selected="${selected} and ${constraintData != null} and ('VALUE' eq ${#strings.toString(constraintData.constraintValueType)})" th:value="VALUE" th:text="#{html.constraint.organisation.value}"></option>
 							</select>
 
@@ -281,7 +292,7 @@
 						<th:block th:case="'http://digital-identity.dk/constraints/itsystem/1'">
 							<div th:attr="id=${editSystemRole.systemRole.id} + ${supportedConstraintType.constraintType.uuid}" class="col-sm-12" style="padding-top: 6px;" th:disabled="${selected}==false or ${constraintData != null} and ${constraintData.postponed}">
 								<div class="col-sm-12">
-									<select style="width:100%;" th:attr="id=${editSystemRole.systemRole.id} + ${supportedConstraintType.constraintType.uuid} + 'multiple-select'" class="form-control m-b" name="itSystems[]" multiple="multiple" th:disabled="${selected}==false or ${constraintData != null} and ${constraintData.postponed}"/>
+									<select style="width:100%;" th:attr="id=${editSystemRole.systemRole.id} + ${supportedConstraintType.constraintType.uuid} + 'multiple-select'" class="form-control m-b" name="itSystems[]" multiple="multiple" th:disabled="${selected}==false or ${constraintData != null} and ${constraintData.postponed}"></select>
 									<input style="width:100%;" th:value="${constraintData != null} ? ${constraintData.constraintValue} : ''" type="hidden"></input>
 								</div>
 							</div>
@@ -336,7 +347,7 @@
 						<span class="fa fa-check"></span>
 					</label>
 					<label class="control-label" th:text="#{html.constraint.postpone}"></label>
-					<a th:replace="fragments/help :: help (title=#{html.help.constraint.postpone.title}, content=#{html.help.constraint.postpone.body})" />
+					<a th:replace="fragments/help :: help (title=#{html.help.constraint.postpone.title}, content=#{html.help.constraint.postpone.body})"></a>
 				</div>
 			</div>
 			
@@ -350,7 +361,7 @@
 				<div class="modal-content">
 					<div class="modal-header">
 						<button type="button" class="close" data-dismiss="modal">&times;</button>
-						<h4 th:text="#{html.page.userrole.kle.modal}"/>
+						<h4 th:text="#{html.page.userrole.kle.modal}"></h4>
 					</div>
 	
 					<div class="modal-body" style="height:800px;">
@@ -367,8 +378,8 @@
 					</div>
 	
 					<div class="modal-footer">
-						<button type="button" id="save" class="btn btn-primary" onclick="kleModalSaveConstraints()" th:text="#{html.control.button.save}"/>
-						<button type="button" class="btn btn-danger" data-dismiss="modal" th:text="#{html.control.button.cancel}"/>
+						<button type="button" id="save" class="btn btn-primary" onclick="kleModalSaveConstraints()" th:text="#{html.control.button.save}"></button>
+						<button type="button" class="btn btn-danger" data-dismiss="modal" th:text="#{html.control.button.cancel}"></button>
 					</div>
 				</div>
 			</div>
@@ -377,19 +388,19 @@
 	<div id="userUserRoleModal"></div>
 	<div id="ouUserRoleModal"></div>
 	<div id="ouUserRoleEditModal"></div>
-	<div th:replace="users/fragments/postponed_constraint_kle_modal :: postponedConstraintsKLEModal" />
-	<div th:replace="users/fragments/user_user_role_modal :: userUserRoleModal" />
-	<div th:replace="users/fragments/role_assignment_edit_modal :: roleAssignmentEditModal" />
-	<div th:replace="userroles/fragments/constraint_ou_modal :: OUModal" />
-	<nav th:replace="fragments/footer :: footer" />
+	<div th:replace="users/fragments/postponed_constraint_kle_modal :: postponedConstraintsKLEModal"></div>
+	<div th:replace="users/fragments/user_user_role_modal :: userUserRoleModal"></div>
+	<div th:replace="users/fragments/role_assignment_edit_modal :: roleAssignmentEditModal"></div>
+	<div th:replace="userroles/fragments/constraint_ou_modal :: OUModal"></div>
+	<nav th:replace="fragments/footer :: footer"></nav>
 
-	<script th:replace="fragments/datatables :: datatables " />
-	<script th:replace="fragments/assignDatePicker :: content " />
-	<script th:replace="users/fragments/role_assignment_edit_modal :: roleAssignmentEditModalScript" />
-	<script th:replace="users/fragments/user_user_role_modal :: userUserRoleModalScript(page='userrole')"/>
-	<script th:replace="ous/fragments/ou_roles_modal :: ouRoleGroupModalScript(titlesEnabled=${titlesEnabled})" />
-	<script th:replace="ous/fragments/ou_roles_edit_modal :: ouRolesEditModalScript(titlesEnabled=${titlesEnabled})" />
-	<script th:replace="users/fragments/assign_user_role_postponed_data_constraints :: postponedConstraintsScript"/>
+	<script th:replace="fragments/datatables :: datatables "></script>
+	<script th:replace="fragments/assignDatePicker :: content "></script>
+	<script th:replace="users/fragments/role_assignment_edit_modal :: roleAssignmentEditModalScript"></script>
+	<script th:replace="users/fragments/user_user_role_modal :: userUserRoleModalScript(page='userrole')"></script>
+	<script th:replace="ous/fragments/ou_roles_modal :: ouRoleGroupModalScript(titlesEnabled=${titlesEnabled})"></script>
+	<script th:replace="ous/fragments/ou_roles_edit_modal :: ouRolesEditModalScript(titlesEnabled=${titlesEnabled})"></script>
+	<script th:replace="users/fragments/assign_user_role_postponed_data_constraints :: postponedConstraintsScript"></script>
 
 	<div id="userScriptHolder">
 	</div>
@@ -544,6 +555,47 @@
 			
 			orgUnitConstraintService.init();
 		});
+
+		function removeLinkToSystemRole() {
+			/*[+
+			var unlinkFromSystemRoleBodyTxt = [[#{html.page.manage.roles.unlink.body}]];
+			var unlinkFromSystemRoleErrorMessage = [[#{html.page.manage.roles.unlink.error}]];
+			var yesBtnTxt = [[#{html.control.button.yes}]];
+			var cancelBtnTxt = [[#{html.control.button.cancel}]];
+			+]*/
+
+			var endpoint = url + 'removeSystemRoleLink/' + roleId;
+			
+			swal({
+				html: true,
+				title : '',
+				text : unlinkFromSystemRoleBodyTxt,
+				type : "warning",
+				showCancelButton : true,
+				confirmButtonColor : "#DD6B55",
+				confirmButtonText : yesBtnTxt,
+				cancelButtonText : cancelBtnTxt,
+				closeOnConfirm : true,
+				closeOnCancel : true
+			},
+			function (isConfirm) {
+				if (isConfirm) {
+					$.ajax({
+						url: endpoint,
+						method: "POST",
+						headers: {
+							'X-CSRF-TOKEN': token
+						},
+						error: function(response) {
+							notificationService.showErrorNotification(unlinkFromSystemRoleErrorMessage);
+						},
+						success: function(response) {
+							location.reload();
+						}
+					});
+				}
+			});
+		}
 
 		function UserService() {
 		/*[+
@@ -956,7 +1008,7 @@
 		function updateComboConstraintValue(systemRoleId, constraintUuid, constraintType) {
 			var constraintValue = $("#" + systemRoleId + constraintUuid).val();
 
-			if (constraintValue == 'INHERITED' || constraintValue == 'READ_AND_WRITE' || constraintValue == 'EXTENDED_INHERITED' || constraintValue == 'LEVEL_1' || constraintValue == 'LEVEL_2' || constraintValue == 'LEVEL_3' || constraintValue == 'LEVEL_4') {
+			if (constraintValue == 'INHERITED' || constraintValue == 'READ_AND_WRITE' || constraintValue == 'EXTENDED_INHERITED' || constraintValue == 'LEVEL_1' || constraintValue == 'LEVEL_2' || constraintValue == 'LEVEL_3' || constraintValue == 'LEVEL_4' || constraintValue == 'LEVEL_5' || constraintValue == 'LEVEL_6') {
 				saveConstraintChoice(systemRoleId, constraintUuid, constraintValue, '', false);
 				hideFreetext(systemRoleId, constraintUuid);
 			} else if (constraintValue == 'VALUE' && (constraintUuid == internalOuConstraintUuid || constraintUuid == ouConstraintUuid)) {

@@ -1,20 +1,20 @@
 <!DOCTYPE html>
 <html>
-<head th:replace="fragments/header :: header (title=#{html.page.myrequests.title})" />
+<head th:replace="fragments/header :: header (title=#{html.page.myrequests.title})"></head>
 <body>
 	<div class="wrapper">
-		<header th:replace="fragments/navbar :: navbar-header(subpage = 'roles')" />
-		<aside th:replace="fragments/navbar :: navbar-aside (page = '', subpage = 'roles')" />
+		<header th:replace="fragments/navbar :: navbar-header(subpage = 'roles')"></header>
+		<aside th:replace="fragments/navbar :: navbar-aside (page = '', subpage = 'roles')"></aside>
  
 		<section>
 			<div class="content-wrapper">
 				<div class="panel panel-default">
-					<div class="panel-heading" />
+					<div class="panel-heading"></div>
 					<div class="panel-body">
 						<form class="form-horizontal" th:object="${user}">
 							<fieldset>
 								<div class="form-group">
-									<label class="col-sm-2 control-label" th:text="#{html.entity.user.name}" />
+									<label class="col-sm-2 control-label" th:text="#{html.entity.user.name}"></label>
 									<div class="col-sm-8">
 										<input th:field="${user.name}" class="form-control" disabled="disabled" />
 									</div>
@@ -26,23 +26,23 @@
 							<table class="table table-striped table-hover listTable">
 								<thead>
 									<tr>
-										<th class="col-md-3" th:text="#{html.my.requests.name}" />										
-										<th class="col-md-4" th:text="#{html.my.requests.description}"/>
-										<th class="col-md-2" th:text="#{html.my.requests.to}"/>
-										<th class="col-md-2" th:text="#{html.my.requests.status}"/>
-										<th class="col-md-1" th:text="#{html.control.operations}"/>
+										<th class="col-md-3" th:text="#{html.my.requests.name}"></th>
+										<th class="col-md-4" th:text="#{html.my.requests.description}"></th>
+										<th class="col-md-2" th:text="#{html.my.requests.to}"></th>
+										<th class="col-md-2" th:text="#{html.my.requests.status}"></th>
+										<th class="col-md-1" th:text="#{html.control.operations}"></th>
 									</tr>
 								</thead>
 	
 								<tbody>
 								    <tr th:each="req : ${requests}">
-										<td th:text="${req.roleName}" />
-										<td th:text="${req.roleDescription}" />
+										<td th:text="${req.roleName}"></td>
+										<td th:text="${req.roleDescription}"></td>
 										<td th:text="${req.request.requestedFor} != null ? ${req.request.requestedFor.name} : ''"></td>
 										<td>
-											<span th:text="#{__${req.request.status.message}__}"/>
+											<span th:text="#{__${req.request.status.message}__}"></span>
 											<th:block th:if="${req.request.rejectReason != null}">
-												<a th:replace="fragments/help :: help (title=#{html.my.requests.reject.title}, content=${req.request.rejectReason})" />
+												<a th:replace="fragments/help :: help (title=#{html.my.requests.reject.title}, content=${req.request.rejectReason})"></a>
 											</th:block>
 										</td>
 										<td>
@@ -58,9 +58,9 @@
 	    </section>
     </div>
 
-    <nav th:replace="fragments/footer :: footer" />
+    <nav th:replace="fragments/footer :: footer"></nav>
 
-	<script th:replace="fragments/datatables :: datatables " />
+	<script th:replace="fragments/datatables :: datatables "></script>
 	
 	<script th:inline="javascript">
 		/*<![CDATA[*/

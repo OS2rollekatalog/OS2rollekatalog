@@ -106,7 +106,7 @@ public class ItSystemChangeInterceptor {
 					}
 					
 					// special extra check to avoid ("" != null) causing email notifications 
-					if (StringUtils.isEmpty(prevDescription) && StringUtils.isEmpty(systemRole.getDescription())) {
+					if (!StringUtils.hasLength(prevDescription) && !StringUtils.hasLength(systemRole.getDescription())) {
 						; // don't make any changes to "changes" status
 					}
 					else if (!Objects.equals(prevDescription, systemRole.getDescription())) {

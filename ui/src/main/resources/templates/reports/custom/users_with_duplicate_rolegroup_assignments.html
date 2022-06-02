@@ -1,38 +1,38 @@
 <!DOCTYPE html>
 <html>
-<head th:replace="fragments/header :: header (title=#{html.report.users_with_duplicate_rolegroup_assignments})" />
+<head th:replace="fragments/header :: header (title=#{html.report.users_with_duplicate_rolegroup_assignments})"></head>
 <body>
 <div class="wrapper">
-	<header th:replace="fragments/navbar :: navbar-header(subpage = 'reports')" />
-	<aside th:replace="fragments/navbar :: navbar-aside (page = 'report.custom', subpage = 'reports')" />
+	<header th:replace="fragments/navbar :: navbar-header(subpage = 'reports')"></header>
+	<aside th:replace="fragments/navbar :: navbar-aside (page = 'report.custom', subpage = 'reports')"></aside>
 
 	<section>
 			<div class="content-wrapper">
 				<h3>
-					<span th:text="#{html.report.users_with_duplicate_rolegroup_assignments}" />
-					<button sec:authorize="hasRole('ROLE_ASSIGNER')" class="btn btn-primary btn-lg" style="float: right;" th:text="#{html.page.report.duplicate.remove}" onclick="deleteDuplicates();" />
+					<span th:text="#{html.report.users_with_duplicate_rolegroup_assignments}"></span>
+					<button sec:authorize="hasRole('ROLE_ASSIGNER')" class="btn btn-primary btn-lg" style="float: right;" th:text="#{html.page.report.duplicate.remove}" onclick="deleteDuplicates();"></button>
 				</h3>
 
 				<div class="panel panel-default">
-					<div class="panel-heading" />
+					<div class="panel-heading"></div>
 					<div class="panel-body">
 						<table class="listTable table table-responsive table-striped">
 							<thead>
 								<tr>
-									<th class="col-md-3" th:text="#{html.entity.user.name}" />
-									<th class="col-md-3" th:text="#{html.entity.user.userId}" />
-									<th class="col-md-2" th:text="#{html.entity.rolegroup.type}" />
-									<th class="col-md-3" th:text="#{html.page.report.duplicate.via}" />
-									<th class="col-md-1" th:text="#{html.control.operations}" />
+									<th class="col-md-3" th:text="#{html.entity.user.name}"></th>
+									<th class="col-md-3" th:text="#{html.entity.user.userId}"></th>
+									<th class="col-md-2" th:text="#{html.entity.rolegroup.type}"></th>
+									<th class="col-md-3" th:text="#{html.page.report.duplicate.via}"></th>
+									<th class="col-md-1" th:text="#{html.control.operations}"></th>
 								</tr>
 							</thead>
 
 							<tbody>
 								<tr th:each="user : ${users}">
-									<td th:text="${user.name}" />
-									<td th:text="${user.userId}" />
-									<td th:text="${user.roleGroup.name}" />
-									<td th:text="${user.message}" />
+									<td th:text="${user.name}"></td>
+									<td th:text="${user.userId}"></td>
+									<td th:text="${user.roleGroup.name}"></td>
+									<td th:text="${user.message}"></td>
 									<td>
 										<th:block sec:authorize="hasRole('ROLE_ASSIGNER')">
 											<a th:href="@{/ui/users/edit/{uuid}(uuid=${user.uuid})}"><em class="fa fa-pencil"></em></a>
@@ -47,8 +47,8 @@
 	</section>
 </div>
 
-<nav th:replace="fragments/footer :: footer" />
-<script th:replace="fragments/datatables :: datatables " />
+<nav th:replace="fragments/footer :: footer"></nav>
+<script th:replace="fragments/datatables :: datatables "></script>
 
 <script th:inline="javascript">
 	/*<![CDATA[*/

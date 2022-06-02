@@ -1,30 +1,30 @@
 <!DOCTYPE html>
 <html>
-<head th:replace="fragments/header :: header" />
+<head th:replace="fragments/header :: header"></head>
 <body>
 	<div class="wrapper">
-		<header th:replace="fragments/navbar :: navbar-header(subpage = 'reports')" />
-		<aside th:replace="fragments/navbar :: navbar-aside (page = 'notifications', subpage = 'reports')" />
+		<header th:replace="fragments/navbar :: navbar-header(subpage = 'reports')"></header>
+		<aside th:replace="fragments/navbar :: navbar-aside (page = 'notifications', subpage = 'reports')"></aside>
 
 		<section>
 			<div class="content-wrapper">
-				<h3 th:text="#{html.navbar.notifications}" />
+				<h3 th:text="#{html.navbar.notifications}"></h3>
 				<div class="panel panel-default">
 					<div class="panel-heading">
 						<div class="form-group form-check inline" style="margin-left:60px; position: relative; top: 15px;">
 							<div class="c-radio">
 								<label>
 									<input type="radio" name="showInactive" value="false" checked="checked" />
-									<span class="fa fa-circle"/>
+									<span class="fa fa-circle"></span>
 								</label>
-								<label th:text="#{html.page.admin.task.filter.show.active}"/>
+								<label th:text="#{html.page.admin.task.filter.show.active}"></label>
 							</div>
 							<div class="c-radio">
 								<label>
 									<input type="radio" name="showInactive" value="true" />
-									<span class="fa fa-circle"/>
+									<span class="fa fa-circle"></span>
 								</label>
-								<label th:text="#{html.page.admin.task.filter.show.inactive}"/>
+								<label th:text="#{html.page.admin.task.filter.show.inactive}"></label>
 							</div>
 						</div>
 					</div>
@@ -34,11 +34,11 @@
 							<table id="listTable" class="table table-striped table-hover listTable">
 								<thead>
 									<tr>
-										<th class="col-md-2" th:text="#{html.entity.notification.created}" />
-										<th class="col-md-3" th:text="#{html.entity.notification.notificationType}" />
-										<th class="col-md-3" th:text="#{html.entity.notification.affectedEntity}" />
-										<th class="col-md-3" th:text="#{html.entity.notification.admin}" />
-										<th class="col-md-1" th:text="#{html.control.operations}" />
+										<th class="col-md-2" th:text="#{html.entity.notification.created}"></th>
+										<th class="col-md-3" th:text="#{html.entity.notification.notificationType}"></th>
+										<th class="col-md-3" th:text="#{html.entity.notification.affectedEntity}"></th>
+										<th class="col-md-3" th:text="#{html.entity.notification.admin}"></th>
+										<th class="col-md-1" th:text="#{html.control.operations}"></th>
 									</tr>
 								</thead>
 								<tfoot style="display: table-row-group;">
@@ -61,7 +61,7 @@
 		</section>
 	</div>
 
-	<nav th:replace="fragments/footer :: footer" />
+	<nav th:replace="fragments/footer :: footer"></nav>
 	<script th:inline="javascript">
 		/*<![CDATA[*/
 
@@ -219,7 +219,7 @@
 								if (row.affectedEntityName == null || row.affectedEntityType == null || row.affectedEntityUuid == null) {
 									return '';
 								} else {
-									return row.affectedEntityName + ' <a href=' + url + row.affectedEntityType.toLowerCase() + '/view/' + row.affectedEntityUuid + '><em class="fa fa-fw fa-external-link"></em></a>';
+									return row.affectedEntityName + ' <a href=' + url + row.affectedEntityType.toLowerCase() + '/manage/' + row.affectedEntityUuid + '><em class="fa fa-fw fa-external-link"></em></a>';
 								}
 							}
 						},

@@ -16,22 +16,22 @@
 					<li class="nav-item" th:classappend="${subpage == 'roles'} ? 'bold' : ''" sec:authorize="isAuthenticated()">
 						<a th:href="@{/ui/rolemenu}">
 							<em class="fa fa-fw fa-users"></em>
-							<span th:text="#{html.navbar.sub.roles}" />
+							<span th:text="#{html.navbar.sub.roles}"></span>
 						</a>
 					</li>
 					
 					<li class="nav-item" th:classappend="${subpage == 'reports'} ? 'bold' : ''" sec:authorize="hasRole('ROLE_READ_ACCESS') or hasRole('ROLE_TEMPLATE_ACCESS') or hasRole('ROLE_ADMINISTRATOR') or hasRole('ROLE_MANAGER') or hasRole('ROLE_SUBSTITUTE') or hasRole('ROLE_KLE_ADMINISTRATOR')">
 						<a th:href="@{/ui/reportmenu}">
 							<em class="fa fa-fw fa-book"></em>
-							<span th:text="#{html.navbar.sub.reports}" />
-							<span class="badge" style="background-color: red;" th:text="${session.SESSION_NOTIFICATION_COUNT}" th:unless="${session == null || session.SESSION_NOTIFICATION_COUNT == 0}"/>
+							<span th:text="#{html.navbar.sub.reports}"></span>
+							<span class="badge" style="background-color: red;" th:text="${session.SESSION_NOTIFICATION_COUNT}" th:unless="${session == null || session.SESSION_NOTIFICATION_COUNT == 0}"></span>
 						</a>
 					</li>
 					
 					<li class="nav-item" th:classappend="${subpage == 'administration'} ? 'bold' : ''" sec:authorize="hasRole('ROLE_ADMINISTRATOR')">
 						<a th:href="@{/ui/settings}">
 							<em class="fa fa-fw fa-cogs"></em>
-							<span th:text="#{html.navbar.sub.administration}" />
+							<span th:text="#{html.navbar.sub.administration}"></span>
 						</a>
 					</li>
 				</ul>
@@ -46,25 +46,25 @@
 					<th:block sec:authorize="isAuthenticated()" th:if="${subpage == 'roles'}">
 						<th:block sec:authorize="hasRole('ROLE_READ_ACCESS') or hasRole('ROLE_REQUESTER')">
 							<li class="nav-heading">
-								<span th:text="#{html.navbar.rolemodelling}" />
+								<span th:text="#{html.navbar.rolemodelling}"></span>
 							</li>
 	
 							<li>
 								<a href="#userroles" data-toggle="collapse">
 									<em class="fa fa-unlock-alt"></em>
-									<span th:text="#{html.navbar.jobroles}" />
+									<span th:text="#{html.navbar.jobroles}"></span>
 								</a>
 								
 								<ul id="userroles" class="nav sidebar-subnav collapse">
-			                        <li class="sidebar-subnav-header"/>
+			                        <li class="sidebar-subnav-header"></li>
 			                        <li th:class="${page == 'userroles.list'} ? 'active' : ''">
 										<a th:href="@{/ui/userroles/list}">
-			                              <span th:text="#{html.navbar.listjobroles}" />
+			                              <span th:text="#{html.navbar.listjobroles}"></span>
 			                           </a>
 			                        </li>
 			                        <li sec:authorize="hasRole('ROLE_ADMINISTRATOR')" th:class="${page == 'userroles.new'} ? 'active' : ''">
 										<a th:href="@{/ui/userroles/new}">
-			                              <span th:text="#{html.navbar.newjobrole}" />
+			                              <span th:text="#{html.navbar.newjobrole}"></span>
 			                           </a>
 			                        </li>
 			                    </ul>
@@ -73,19 +73,19 @@
 							<li>
 								<a href="#rolegroups" data-toggle="collapse">
 									<em class="fa fa-shield"></em>
-									<span th:text="#{html.navbar.rolegroups}" />
+									<span th:text="#{html.navbar.rolegroups}"></span>
 								</a>
 								
 								<ul id="rolegroups" class="nav sidebar-subnav collapse">
-			                        <li class="sidebar-subnav-header"/>
+			                        <li class="sidebar-subnav-header"></li>
 										<li th:class="${page == 'rolegroups.list'} ? 'active' : ''">
 											<a th:href="@{/ui/rolegroups/list}">
-				                              <span th:text="#{html.navbar.listrolegroups}" />
+				                              <span th:text="#{html.navbar.listrolegroups}"></span>
 				                           </a>
 						                 </li>
 				                         <li sec:authorize="hasRole('ROLE_ADMINISTRATOR')" th:class="${page == 'rolegroups.new'} ? 'active' : ''">
 											<a th:href="@{/ui/rolegroups/new}">
-				                              <span th:text="#{html.navbar.newrolegroup}" />
+				                              <span th:text="#{html.navbar.newrolegroup}"></span>
 				                           </a>
 					                 </li>
 							 	</ul>
@@ -96,32 +96,32 @@
 							<li>
 								<a href="#itsystems" data-toggle="collapse">
 									<em class="fa fa-laptop"></em>
-									<span th:text="#{html.navbar.itsystems}" />
+									<span th:text="#{html.navbar.itsystems}"></span>
 								</a>
 		
 								<ul id="itsystems" class="nav sidebar-subnav collapse">
-									<li class="sidebar-subnav-header"/>
+									<li class="sidebar-subnav-header"></li>
 									<li th:class="${page == 'itsystem.list'} ? 'active' : ''">
 										<a th:href="@{/ui/itsystem/list}">
-											<span th:text="#{html.navbar.listitsystem}" />
+											<span th:text="#{html.navbar.listitsystem}"></span>
 										</a>
 									</li>
 									
 									<li sec:authorize="hasRole('ROLE_ADMINISTRATOR')" th:class="${page == 'itsystem.new.AD'} ? 'active' : ''">
 										<a th:href="@{/ui/itsystem/newad}">
-											<span th:text="#{html.navbar.newaditsystem}" />
+											<span th:text="#{html.navbar.newaditsystem}"></span>
 										</a>
 									</li>
 									
 									<li sec:authorize="hasRole('ROLE_ADMINISTRATOR')" th:class="${page == 'itsystem.new.SAML'} ? 'active' : ''">
 										<a th:href="@{/ui/itsystem/newsaml}">
-											<span th:text="#{html.navbar.newsamlitsystem}" />
+											<span th:text="#{html.navbar.newsamlitsystem}"></span>
 										</a>
 									</li>
 									
 									<li sec:authorize="hasRole('ROLE_ADMINISTRATOR')" th:class="${page == 'itsystem.new.MANUAL'} ? 'active' : ''">
 										<a th:href="@{/ui/itsystem/newmanual}">
-											<span th:text="#{html.navbar.newmanualitsystem}" />
+											<span th:text="#{html.navbar.newmanualitsystem}"></span>
 										</a>
 									</li>
 								</ul>
@@ -130,20 +130,20 @@
 						
 						<th:block sec:authorize="hasRole('ROLE_READ_ACCESS')">
 							<li class="nav-heading">
-								<span th:text="#{html.navbar.rolemanagement}" />
+								<span th:text="#{html.navbar.rolemanagement}"></span>
 							</li>
 	
 							<li th:class="${page == 'ous'} ? 'active' : ''">
 								<a th:href="@{/ui/ous/list}">
 									<em class="fa fa-users"></em>
-									<span th:text="#{html.navbar.ous}" />
+									<span th:text="#{html.navbar.ous}"></span>
 								</a>
 							</li>
 	
 							<li th:class="${page == 'users'} ? 'active' : ''">
 								<a th:href="@{/ui/users/list}">
 									<em class="fa fa-user"></em>
-									<span th:text="#{html.navbar.users}" />
+									<span th:text="#{html.navbar.users}"></span>
 								</a>
 							</li>
 
@@ -151,27 +151,27 @@
 								<li sec:authorize="hasRole('ROLE_ASSIGNER')" th:class="${page == 'requests_authorization_manager'} ? 'active' : ''">
 									<a th:href="@{/ui/users/requests/authorizationmanager}">
 										<em class="fa fa-comment-o"></em>
-										<span th:text="#{html.navbar.requestapprove}" />
+										<span th:text="#{html.navbar.requestapprove}"></span>
 									</a>
 								</li>
 							</th:block>
 						</th:block>
 						
 						<li class="nav-heading">
-							<span th:text="#{html.navbar.personal}" />
+							<span th:text="#{html.navbar.personal}"></span>
 						</li>
 	
 						<li sec:authorize="isAuthenticated()">
 							<a th:href="@{/ui/my}">
 								<em class="fa fa-id-card"></em>
-								<span th:text="#{html.navbar.my}" />
+								<span th:text="#{html.navbar.my}"></span>
 							</a>
 						</li>
 						
 						<li sec:authorize="hasRole('ROLE_REQUESTER')" th:if="${@settingsService.isRequestApproveEnabled() == true}">
 							<a th:href="@{/ui/my/requests}">
 								<em class="fa fa-comment-o"></em>
-								<span th:text="#{html.navbar.requests}" />
+								<span th:text="#{html.navbar.requests}"></span>
 							</a>
 						</li>
 					</th:block>
@@ -179,27 +179,27 @@
 					<th:block sec:authorize="isAuthenticated()" th:if="${subpage == 'reports'}">
 						<th:block sec:authorize="hasRole('ROLE_READ_ACCESS') or hasRole('ROLE_TEMPLATE_ACCESS')">
 							<li class="nav-heading">
-								<span th:text="#{html.navbar.reports}" />
+								<span th:text="#{html.navbar.reports}"></span>
 							</li>
 	
 	                        <li th:class="${page == 'report.full'} ? 'active' : ''" sec:authorize="hasRole('ROLE_READ_ACCESS')">
 								<a th:href="@{/ui/report/configure}">
 									<em class="fa fa-file-excel-o"></em>
-	                             	<span th:text="#{html.navbar.report.configure}" />
+	                             	<span th:text="#{html.navbar.report.configure}"></span>
 	                           </a>
 	                        </li>
 	                        
 	                        <li th:class="${page == 'report.manager'} ? 'active' : ''">
 								<a th:href="@{/ui/report/templates}">
 									<em class="fa fa-file-excel-o"></em>
-	                              	<span th:text="#{html.navbar.report.templates}" />
+	                              	<span th:text="#{html.navbar.report.templates}"></span>
 	                           </a>
 	                        </li>
 
 	                        <li th:class="${page == 'report.custom'} ? 'active' : ''" sec:authorize="hasRole('ROLE_READ_ACCESS')">
 								<a th:href="@{/ui/report/custom}">
 									<em class="fa fa-file-excel-o"></em>
-	                              	<span th:text="#{html.navbar.report.custom}" />
+	                              	<span th:text="#{html.navbar.report.custom}"></span>
 	                           </a>
 	                        </li>
 	                        
@@ -207,24 +207,24 @@
 								<li th:if="${@roleCatalogueConfiguration.getIntegrations().getKle().isUiEnabled() == true}">
 									<a href="#kle" data-toggle="collapse">
 										<em class="fa fa-thumb-tack"></em>
-										<span th:text="#{html.navbar.kle}" />
+										<span th:text="#{html.navbar.kle}"></span>
 									</a>
 			
 									<ul id="kle" class="nav sidebar-subnav collapse">
-										<li class="sidebar-subnav-header"/>
+										<li class="sidebar-subnav-header"></li>
 										<li th:class="${page == 'kle.ous'} ? 'active' : ''">
 											<a th:href="@{/ui/kle/ou}">
-												<span th:text="#{html.navbar.kle.ous}" />
+												<span th:text="#{html.navbar.kle.ous}"></span>
 											</a>
 										</li>
 										<li th:class="${page == 'kle.mapped'} ? 'active' : ''">
 											<a th:href="@{/ui/kle/mapped}">
-												<span th:text="#{html.navbar.kle.mapped}" />
+												<span th:text="#{html.navbar.kle.mapped}"></span>
 											</a>
 										</li>
 										<li th:class="${page == 'kle.assignment'} ? 'active' : ''">
 											<a th:href="@{/ui/kle/assignment}">
-												<span th:text="#{html.navbar.kle.assignment}" />
+												<span th:text="#{html.navbar.kle.assignment}"></span>
 											</a>
 										</li>
 									</ul>
@@ -233,27 +233,27 @@
 
 							<th:block sec:authorize="hasRole('ROLE_ADMINISTRATOR')">
 								<li class="nav-heading">
-									<span th:text="#{html.navbar.audit}" />
+									<span th:text="#{html.navbar.audit}"></span>
 								</li>
 	
 	          					<li th:class="${page == 'log.audit'} ? 'active' : ''">
 									<a th:href="@{/ui/logs/audit}">
 										<em class="fa fa-table"></em>
-										<span th:text="#{html.navbar.audit}" />
+										<span th:text="#{html.navbar.audit}"></span>
 									</a>
 								</li>
 							</th:block>
 							
 							<th:block sec:authorize="hasRole('ROLE_ASSIGNER')">
 								<li class="nav-heading">
-									<span th:text="#{html.navbar.notifications}" />
+									<span th:text="#{html.navbar.notifications}"></span>
 								</li>
 	
 								<li th:class="${page == 'notifications'} ? 'active' : ''">
 									<a th:href="@{/ui/notifications/list}">
 										<em class="fa fa-tasks"></em>
-										<span th:text="#{html.navbar.notifications}" />
-										<span class="badge" style="background-color: red;" th:text="${session.SESSION_NOTIFICATION_COUNT}" th:unless="${session == null || session.SESSION_NOTIFICATION_COUNT == 0}"/>
+										<span th:text="#{html.navbar.notifications}"></span>
+										<span class="badge" style="background-color: red;" th:text="${session.SESSION_NOTIFICATION_COUNT}" th:unless="${session == null || session.SESSION_NOTIFICATION_COUNT == 0}"></span>
 									</a>
 								</li>
 							</th:block>
@@ -261,34 +261,34 @@
 
 						<th:block sec:authorize="hasRole('ROLE_ADMINISTRATOR') or hasRole('ROLE_MANAGER') or hasRole('ROLE_SUBSTITUTE') or hasRole('ROLE_READ_ACCESS')">
 							<li class="nav-heading">
-								<span th:text="#{html.navbar.management}" />
+								<span th:text="#{html.navbar.management}"></span>
 							</li>
 							
 							<li th:class="${page == 'manager.list'} ? 'active' : ''" sec:authorize="hasRole('ROLE_READ_ACCESS')">
 								<a th:href="@{/ui/manager/list}">
 									<em class="fa fa-users"></em>
-									<span th:text="#{html.navbar.manager.list}" />
+									<span th:text="#{html.navbar.manager.list}"></span>
 								</a>
 							</li>
 		
 							<li th:class="${page == 'manager.substitute'} ? 'active' : ''" sec:authorize="hasRole('ROLE_MANAGER')">
 								<a th:href="@{/ui/manager/substitute}">
 									<em class="fa fa-male"></em>
-									<span th:text="#{html.navbar.substitute.choose}" />
+									<span th:text="#{html.navbar.substitute.choose}"></span>
 								</a>
 							</li>
 							
 							<li th:class="${page == 'admin.attestation'} ? 'active' : ''" sec:authorize="hasRole('ROLE_ADMINISTRATOR')">
 								<a th:href="@{/ui/admin/attestations}">
 									<em class="fa fa-check"></em>
-									<span th:text="#{html.navbar.attestations.admin}" />
+									<span th:text="#{html.navbar.attestations.admin}"></span>
 								</a>
 							</li>
 	
 							<li th:class="${page == 'attestation'} ? 'active' : ''" sec:authorize="hasRole('ROLE_MANAGER') or hasRole('ROLE_SUBSTITUTE')">
 								<a th:href="@{/ui/users/attestations}">
 									<em class="fa fa-check"></em>
-									<span th:text="#{html.navbar.attestations}" />
+									<span th:text="#{html.navbar.attestations}"></span>
 								</a>
 							</li>
 						</th:block>
@@ -297,78 +297,78 @@
 					<th:block sec:authorize="isAuthenticated()" th:if="${subpage == 'administration'}">
 						<th:block sec:authorize="hasRole('ROLE_ADMINISTRATOR')">
 							<li class="nav-heading" sec:authorize="isAuthenticated()">
-								<span th:text="#{html.navbar.settings}" />
+								<span th:text="#{html.navbar.settings}"></span>
 							</li>
 		
 							<li th:class="${page == 'settings'} ? 'active' : ''">
 								<a th:href="@{/ui/settings}">
 									<em class="fa fa-gears"></em>
-									<span th:text="#{html.navbar.settings}" />
+									<span th:text="#{html.navbar.settings}"></span>
 								</a>
 							</li>
 							<li th:class="${page == 'featureDocumentation'} ? 'active' : ''">
 								<a th:href="@{/ui/featuredocumentation}">
 									<em class="fa fa-toggle-on"></em>
-									<span th:text="#{html.navbar.features}" />
+									<span th:text="#{html.navbar.features}"></span>
 								</a>
 							</li>
 						</th:block>
 						
 						<th:block sec:authorize="hasRole('ROLE_ADMINISTRATOR') or hasRole('ROLE_MANAGER') or hasRole('ROLE_SUBSTITUTE')">
 							<li class="nav-heading">
-								<span th:text="#{html.navbar.mail}" />
+								<span th:text="#{html.navbar.mail}"></span>
 							</li>
 							
 							<li th:class="${page == 'mail'} ? 'active' : ''" sec:authorize="hasRole('ROLE_ADMINISTRATOR')">
 								<a th:href="@{/ui/admin/mailtemplates}">
 									<em class="fa fa-envelope"></em>
-									<span th:text="#{html.navbar.emailTemplate}" />
+									<span th:text="#{html.navbar.emailTemplate}"></span>
 								</a>
 							</li>
 						</th:block>
 						
 						<th:block sec:authorize="hasRole('ROLE_ADMINISTRATOR')">
 							<li class="nav-heading">
-								<span th:text="#{html.navbar.notification}" />
+								<span th:text="#{html.navbar.notification}"></span>
 							</li>
 							
 							<li th:class="${page == 'notificationSettings'} ? 'active' : ''">
 								<a th:href="@{/ui/admin/notificationsettings}">
 									<em class="fa fa-exclamation"></em>
-									<span th:text="#{html.setting.notification.title}" />
+									<span th:text="#{html.setting.notification.title}"></span>
 								</a>
 							</li>
 						</th:block>
 
 						<th:block sec:authorize="hasRole('ROLE_ADMINISTRATOR')">
 							<li class="nav-heading" sec:authorize="isAuthenticated()">
-								<span th:text="#{html.navbar.client}" />
+								<span th:text="#{html.navbar.client}"></span>
 							</li>
 
 							<li th:class="${page == 'clients.list'} ? 'active' : ''">
 								<a th:href="@{/ui/client/list}">
 									<em class="fa fa-list"></em>
-									<span th:text="#{html.navbar.client}" />
+									<span th:text="#{html.navbar.client}"></span>
 								</a>
 							</li>
 						</th:block>
 					</th:block>
 					
 					<li class="nav-heading">
-						<span th:text="#{html.navbar.actions}" />
+						<span th:text="#{html.navbar.actions}"></span>
 					</li>
 					
 					<li sec:authorize="!isAuthenticated()">
 						<a th:href="@{/ui/my}">
 							<em class="fa fa-sign-in"></em>
-							<span th:text="#{html.navbar.login}" />
+							<span th:text="#{html.navbar.login}"></span>
 						</a>
 					</li>
 
 					<li sec:authorize="isAuthenticated()">
 						<a th:href="@{/saml/logout}">
 							<em class="fa fa-sign-out"></em>
-							<span th:text="#{html.navbar.logout}" />
+							<span th:text="#{html.navbar.logout}"></span>
 						</a>
 					</li>
 				</ul>

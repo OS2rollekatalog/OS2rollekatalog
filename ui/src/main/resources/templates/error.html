@@ -1,24 +1,24 @@
 <!DOCTYPE html>
 <html>
-<head th:replace="fragments/header :: header (customTitle='Der er opstået en fejl!')" />
+<head th:replace="fragments/header :: header (customTitle='Der er opstået en fejl!')"></head>
 <body>
 	<div class="wrapper">
-		<header th:replace="fragments/navbar :: navbar-header" />
-		<aside th:replace="fragments/navbar :: navbar-aside (page = 'index')" />
+		<header th:replace="fragments/navbar :: navbar-header"></header>
+		<aside th:replace="fragments/navbar :: navbar-aside (page = 'index')"></aside>
  
 		<section>
 			<div class="content-wrapper">
 				<h3>
-					<span th:text="${status} + ' ' + ${error}" />
+					<span th:text="${status} + ' ' + ${error}"></span>
 				</h3>
 
 				<div class="panel panel-default">
-					<div class="panel-heading" />
+					<div class="panel-heading"></div>
 					<div class="panel-body">
 
 						<div class="well well-lg">
-							<div th:if="${trace} == null" th:text="${exception} + ': ' + ${message}" />
-							<pre th:if="${trace} != null" th:text="${trace}" />
+							<div th:if="${trace} == null" th:text="${exception} + ': ' + ${message}"></div>
+							<pre th:if="${trace} != null" th:text="${trace}"></pre>
 						</div>
 					</div>
 				</div>
@@ -26,6 +26,6 @@
 	    </section>
 	</div>
 	
-	<nav th:replace="fragments/footer :: footer" />
+	<nav th:replace="fragments/footer :: footer"></nav>
 </body>
 </html>

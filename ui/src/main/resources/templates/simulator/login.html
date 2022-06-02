@@ -1,28 +1,28 @@
 <!DOCTYPE html>
 <html>
-<head th:replace="fragments/header :: header (title=#{html.page.simulator.title})" />
+<head th:replace="fragments/header :: header (title=#{html.page.simulator.title})"></head>
 <body>
 	<div class="wrapper">
-		<header th:replace="fragments/navbar :: navbar-header" />
-		<aside th:replace="fragments/navbar :: navbar-aside" />
+		<header th:replace="fragments/navbar :: navbar-header"></header>
+		<aside th:replace="fragments/navbar :: navbar-aside"></aside>
  
 		<section>
 			<div class="content-wrapper">
 				<h3>
-					<span th:text="#{html.page.simulator.title}" />
+					<span th:text="#{html.page.simulator.title}"></span>
 				</h3>
 
 				<div class="panel panel-default">
-					<div class="panel-heading" />
+					<div class="panel-heading"></div>
 					<div class="panel-body">
 						<form class="form-horizontal" th:object="${simulation}" method="post" th:action="@{/ui/simulate/login}">
 							<fieldset>
 								<div th:class="${#fields.hasErrors('userId')} ? 'form-group has-error' : 'form-group'">
-									<label class="col-sm-2 control-label" th:text="#{html.entity.user.userId}" />
+									<label class="col-sm-2 control-label" th:text="#{html.entity.user.userId}"></label>
 									<div class="col-sm-8">
 										<input th:field="*{userId}" class="form-control" autofocus="autofocus" />
 										<ul th:if="${#fields.hasErrors('userId')}">
-											<li th:each="err : ${#fields.errors('userId')}" th:text="${err}" />
+											<li th:each="err : ${#fields.errors('userId')}" th:text="${err}"></li>
 										</ul>
 									</div>
 								</div>
@@ -30,13 +30,13 @@
 
 							<fieldset>
 								<div th:class="${#fields.hasErrors('itSystem')} ? 'form-group has-error' : 'form-group'">
-									<label class="col-sm-2 control-label" th:text="#{html.entity.itsystem}" />
+									<label class="col-sm-2 control-label" th:text="#{html.entity.itsystem}"></label>
 									<div class="col-sm-8">
 										<select th:field="*{itSystem}" class="form-control">
-											<option th:each="itSystem : ${itSystems}" th:value="${itSystem.id}" th:text="${itSystem.name}" th:selected="${itSystem} == *{itSystem}" />
+											<option th:each="itSystem : ${itSystems}" th:value="${itSystem.id}" th:text="${itSystem.name}" th:selected="${itSystem} == *{itSystem}"></option>
 										</select>
 										<ul th:if="${#fields.hasErrors('itSystem')}">
-											<li th:each="err : ${#fields.errors('itSystem')}" th:text="${err}" />
+											<li th:each="err : ${#fields.errors('itSystem')}" th:text="${err}"></li>
 										</ul>
 									</div>
 								</div>
@@ -44,10 +44,10 @@
 
 							<fieldset>
 								<div class="form-group">
-									<label class="col-sm-2 control-label" th:text="#{html.entity.itsystem}" />
+									<label class="col-sm-2 control-label" th:text="#{html.entity.itsystem}"></label>
 									<div class="col-sm-8">
 										<select th:field="*{loginType}" class="form-control">
-											<option th:each="type : ${T(dk.digitalidentity.rc.controller.dao.model.enums.LoginType).values()}" th:value="${type}" th:text="#{__${type.getMessage()}__}" />
+											<option th:each="type : ${T(dk.digitalidentity.rc.controller.dao.model.enums.LoginType).values()}" th:value="${type}" th:text="#{__${type.getMessage()}__}"></option>
 										</select>
 									</div>
 								</div>	
@@ -56,7 +56,7 @@
 							<fieldset>
 								<div class="form-group">
 									<div class="col-sm-offset-2 col-sm-8">
-										<button type="submit" class="btn btn-lg btn-primary" th:text="#{html.control.button.ok}" />
+										<button type="submit" class="btn btn-lg btn-primary" th:text="#{html.control.button.ok}"></button>
 									</div>
 								</div>
 							</fieldset>
@@ -67,7 +67,7 @@
 		</section>
 	</div>
 
-	<nav th:replace="fragments/footer :: footer" />
+	<nav th:replace="fragments/footer :: footer"></nav>
 
 	<script th:inline="javascript">
 		/*<![CDATA[*/

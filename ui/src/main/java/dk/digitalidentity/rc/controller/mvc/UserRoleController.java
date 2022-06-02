@@ -27,7 +27,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
-import com.microsoft.sqlserver.jdbc.StringUtils;
+import org.springframework.util.StringUtils;
 
 import dk.digitalidentity.rc.config.Constants;
 import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
@@ -327,7 +327,7 @@ public class UserRoleController {
 
 		UserRole role = mapper.map(roleForm, UserRole.class);
 		
-		if (StringUtils.isEmpty(roleForm.getIdentifier())) {
+		if (!StringUtils.hasLength(roleForm.getIdentifier())) {
 			role.setIdentifier("id-" + UUID.randomUUID().toString());
 		}
 		else {

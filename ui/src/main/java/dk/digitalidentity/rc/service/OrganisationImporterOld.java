@@ -177,7 +177,7 @@ public class OrganisationImporterOld {
 	}
 
 	private static void populateManagerMap(OrgUnitAM root, Map<String, String> managerMap) {
-		if (!StringUtils.isEmpty(root.getManagerUuid())) {
+		if (StringUtils.hasLength(root.getManagerUuid())) {
 			managerMap.put(root.getUuid(), root.getManagerUuid());
 		}
 

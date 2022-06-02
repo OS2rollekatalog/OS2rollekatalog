@@ -1,22 +1,22 @@
 <!DOCTYPE html>
 <html>
-<head th:replace="fragments/header :: header (title=#{html.page.kle.oukle})" />
+<head th:replace="fragments/header :: header (title=#{html.page.kle.oukle})"></head>
 <body>
 	<div class="wrapper">
-		<header th:replace="fragments/navbar :: navbar-header(subpage = 'reports')" />
-		<aside th:replace="fragments/navbar :: navbar-aside (page = 'kle.ous', subpage = 'reports')" />
+		<header th:replace="fragments/navbar :: navbar-header(subpage = 'reports')"></header>
+		<aside th:replace="fragments/navbar :: navbar-aside (page = 'kle.ous', subpage = 'reports')"></aside>
  
 		<section>
 			<div class="content-wrapper">
 				<h3>
-					<span th:text="#{html.page.kle.oukle}" />
+					<span th:text="#{html.page.kle.oukle}"></span>
 				</h3>
 
 				<div class="panel panel-default">
-					<div class="panel-heading" />
+					<div class="panel-heading"></div>
 					<div class="panel-body">
 						<div class="row col-md-12" style="padding: 0px 75px 0px 20px;">
-							<h4 th:text="#{html.word.search}" />
+							<h4 th:text="#{html.word.search}"></h4>
 							<input class="form-control" id="searchField" style="margin-bottom: 40px;" autofocus="autofocus" />
 							<div style="width:100%; padding-right: 4px;">
 								<div class="pull-right" style="width: 50px;margin-left: .3em;" th:text="#{html.page.kle.oukle.interest}"></div>
@@ -30,9 +30,9 @@
 		</section>
 	</div>
 
-	<nav th:replace="fragments/footer :: footer" />
+	<nav th:replace="fragments/footer :: footer"></nav>
 
-	<script th:replace="fragments/datatables :: datatables " />
+	<script th:replace="fragments/datatables :: datatables "></script>
 	<style>
 		.jstree-default .jstree-anchor {
 			width: calc(100% - 24px);

@@ -1,33 +1,33 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
-<head th:replace="fragments/header :: header (title=#{html.setting.notifications.title})" />
+<head th:replace="fragments/header :: header (title=#{html.setting.notifications.title})"></head>
 <body>
 <div class="wrapper">
-    <header th:replace="fragments/navbar :: navbar-header(subpage = 'administration')" />
-    <aside th:replace="fragments/navbar :: navbar-aside (page = 'notificationSettings', subpage = 'administration')" />
+    <header th:replace="fragments/navbar :: navbar-header(subpage = 'administration')"></header>
+    <aside th:replace="fragments/navbar :: navbar-aside (page = 'notificationSettings', subpage = 'administration')"></aside>
 
     <section>
         <div class="content-wrapper">
-			<h3 th:text="#{html.setting.notification.title}"/>
+			<h3 th:text="#{html.setting.notification.title}"></h3>
 			<div class="panel panel-default" style="padding-left: 20px; padding-right: 20px;">
 				<form id="setting-form" class="form-horizontal" method="post" th:object="${settings}" th:action="@{/ui/admin/notifications/settings}">
 					<div class="panel-body">
-						<div class="panel-heading"/>
+						<div class="panel-heading"></div>
 
 						<fieldset>
 							<div class="form-group">
-								<div class="col-sm-12" th:text="#{html.setting.notification.text}" />
+								<div class="col-sm-12" th:text="#{html.setting.notification.text}"></div>
 							</div>
 						</fieldset>
 
 						<fieldset>
 							<div class="form-group row" style="margin-bottom: inherit;" th:each="notificationtype : ${T(dk.digitalidentity.rc.dao.model.enums.NotificationType).values()}">
-								<label class="col-sm-3 control-label" style="padding-top: inherit;" th:text="#{__${notificationtype.message}__}" />
+								<label class="col-sm-3 control-label" style="padding-top: inherit;" th:text="#{__${notificationtype.message}__}"></label>
 								<div class="col-sm-9">
 									<span class="checkbox c-checkbox" style="display: inline;">
 										<label>
 											<input th:attr="data-id=${notificationtype}" class="notificationtypeCbx" type="checkbox" th:checked="${@settingsService.isNotificationTypeEnabled(notificationtype)}" />
-											<span class="fa fa-check" />
+											<span class="fa fa-check"></span>
 										</label>
 									</span>
 								</div>
@@ -40,7 +40,7 @@
 				<fieldset>
 					<div class="form-group">
 						<div class="col-md-offset-2 col-md-8">
-							<button onclick="settingService.submitForm(); return false;" class="btn btn-primary btn-block" th:text="#{html.control.button.save}" />
+							<button onclick="settingService.submitForm(); return false;" class="btn btn-primary btn-block" th:text="#{html.control.button.save}"></button>
 						</div>
 					</div>
 				</fieldset>
@@ -49,7 +49,7 @@
     </section>
 </div>
 
-<div th:replace="fragments/footer :: footer" />
+<div th:replace="fragments/footer :: footer"></div>
 
 <script th:inline="javascript">
 		/*<![CDATA[*/

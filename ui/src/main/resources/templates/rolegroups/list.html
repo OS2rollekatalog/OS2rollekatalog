@@ -1,30 +1,30 @@
 <!DOCTYPE html>
 <html>
-<head th:replace="fragments/header :: header (title=#{html.page.rolegroups.list.title})" />
+<head th:replace="fragments/header :: header (title=#{html.page.rolegroups.list.title})"></head>
 <body>
 	<div class="wrapper">
-		<header th:replace="fragments/navbar :: navbar-header(subpage = 'roles')" />
-		<aside th:replace="fragments/navbar :: navbar-aside (page = 'rolegroups.list', subpage = 'roles')" />
+		<header th:replace="fragments/navbar :: navbar-header(subpage = 'roles')"></header>
+		<aside th:replace="fragments/navbar :: navbar-aside (page = 'rolegroups.list', subpage = 'roles')"></aside>
 
 		<section>
 			<div class="content-wrapper">
 				<div class="panel panel-default">
-					<div class="panel-heading" />
+					<div class="panel-heading"></div>
 					<div class="panel-body">
 						<div class="table-responsive">
 							<table id="listTable" class="table table-striped table-hover listTable">
 								<thead>
 									<tr>
-										<th class="col-md-4" th:text="#{html.entity.userrole.name}" />
-										<th class="col-md-7" th:text="#{html.entity.userrole.description}" />
-										<th class="col-md-1" th:text="#{html.control.operations}" />
+										<th class="col-md-4" th:text="#{html.entity.userrole.name}"></th>
+										<th class="col-md-7" th:text="#{html.entity.userrole.description}"></th>
+										<th class="col-md-1" th:text="#{html.control.operations}"></th>
 									</tr>
 								</thead>
 
 								<tbody>
 									<tr th:each="roleGroup : ${roleGroups}">
-										<td th:text="${roleGroup.name}" />
-										<td th:text="${roleGroup.description}" />
+										<td th:text="${roleGroup.name}"></td>
+										<td th:text="${roleGroup.description}"></td>
 										<td>
 											<a th:href="@{/ui/rolegroups/view/{id}(id=${roleGroup.id})}"><em class="fa fa-search"></em></a>
 											<th:block sec:authorize="hasRole('ROLE_ADMINISTRATOR')">
@@ -48,9 +48,9 @@
 		</section>
 	</div>
 
-	<nav th:replace="fragments/footer :: footer" />
+	<nav th:replace="fragments/footer :: footer"></nav>
 
-	<script th:replace="fragments/datatables :: datatables " />
+	<script th:replace="fragments/datatables :: datatables "></script>
 	<script th:inline="javascript">
 		/*<![CDATA[*/
 			

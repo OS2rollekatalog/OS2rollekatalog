@@ -20,7 +20,7 @@ public class SystemRoleService {
 	private UserRoleService userRoleService;
 
 	public SystemRole getById(long id) {
-		return systemRoleDao.getById(id);
+		return systemRoleDao.findById(id);
 	}
 
 	public List<SystemRole> getByItSystem(ItSystem itSystem) {

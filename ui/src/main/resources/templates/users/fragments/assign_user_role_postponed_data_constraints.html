@@ -1,6 +1,6 @@
 <th:block th:fragment="postponedConstraints" xmlns="http://www.w3.org/1999/xhtml" xmlns:th="http://www.thymeleaf.org">
 	<input th:id="postponingAllowed" th:value="${postponingAllowed}" hidden>
-	<h4 th:if="${postponingAllowed}" class="md-12" th:text="#{html.page.user.assign.userrole.constraints.header}" />
+	<h4 th:if="${postponingAllowed}" class="md-12" th:text="#{html.page.user.assign.userrole.constraints.header}"></h4>
     <div th:if="${postponingAllowed}" th:each="systemRoleAssignment : ${systemRoleAssignments}">
      	<h5 th:text="${systemRoleAssignment.systemRole.name}" style="font-weight: bold;"></h5>
 		<div class="row" th:each="postponedConstraint : ${systemRoleAssignment.postponedConstraints}">
@@ -52,7 +52,7 @@
 						<th:block th:case="'http://digital-identity.dk/constraints/itsystem/1'">
 							<div th:id="'postponed' + ${systemRoleAssignment.systemRole.id} + ${postponedConstraint.constraintType.uuid}" class="col-sm-12">
 								<div class="col-sm-12">
-									<select style="width:100%;" th:id="'postponed' + ${systemRoleAssignment.systemRole.id} + ${postponedConstraint.constraintType.uuid} + 'multiple-select'"  th:attr="data-type='itsystems',data-systemroleid=${systemRoleAssignment.systemRole.id}, data-constrainttype=${postponedConstraint.constraintType.uuid}" class="form-control m-b multiple-select constraint" name="itSystems[]" multiple="multiple"/>
+									<select style="width:100%;" th:id="'postponed' + ${systemRoleAssignment.systemRole.id} + ${postponedConstraint.constraintType.uuid} + 'multiple-select'"  th:attr="data-type='itsystems',data-systemroleid=${systemRoleAssignment.systemRole.id}, data-constrainttype=${postponedConstraint.constraintType.uuid}" class="form-control m-b multiple-select constraint" name="itSystems[]" multiple="multiple"></select>
 									<input style="width:100%;" th:value="${postponedConstraint.constraintValue != null} ? ${postponedConstraint.constraintValue} : ''" type="hidden" ></input>
 								</div>
 								<div class="col-sm-12">

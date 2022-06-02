@@ -1,19 +1,19 @@
 <!DOCTYPE html>
 <html>
-<head th:replace="fragments/header :: header (title=#{html.page.index.title})" />
+<head th:replace="fragments/header :: header (title=#{html.page.index.title})"></head>
 <body>
 	<div class="wrapper">
-		<header th:replace="fragments/navbar :: navbar-header" />
-		<aside th:replace="fragments/navbar :: navbar-aside (page = 'index')" />
+		<header th:replace="fragments/navbar :: navbar-header"></header>
+		<aside th:replace="fragments/navbar :: navbar-aside (page = 'index')"></aside>
  
 		<section>
 			<div class="content-wrapper">
 				<h3>
-					<span th:text="#{html.page.index.title}" />
+					<span th:text="#{html.page.index.title}"></span>
 				</h3>
 
 				<div class="panel panel-default">
-					<div class="panel-heading" />
+					<div class="panel-heading"></div>
 					<div class="panel-body">
 						<div class="row" sec:authorize="isAuthenticated()">
 							<div class="col-lg-4 col-sm-6">
@@ -23,8 +23,8 @@
 											<em class="fa fa-laptop fa-3x"></em>
 										</div>
 										<div class="col-xs-8 pv-lg">
-											<div class="h2 mt0" th:text="${itSystemCount}"/>
-											<div class="text-uppercase" th:text="#{html.navbar.itsystems}" />
+											<div class="h2 mt0" th:text="${itSystemCount}"></div>
+											<div class="text-uppercase" th:text="#{html.navbar.itsystems}"></div>
 										</div>
 									</div>
 								</div>
@@ -37,8 +37,8 @@
 											<em class="fa fa-unlock-alt fa-3x"></em>
 										</div>
 										<div class="col-xs-8 pv-lg">
-											<div class="h2 mt0" th:text="${userRoleCount}"/>
-											<div class="text-uppercase" th:text="#{html.navbar.jobroles}" />
+											<div class="h2 mt0" th:text="${userRoleCount}"></div>
+											<div class="text-uppercase" th:text="#{html.navbar.jobroles}"></div>
 										</div>
 									</div>
 								</div>
@@ -51,8 +51,8 @@
 											<em class="fa fa-shield fa-3x"></em>
 										</div>
 										<div class="col-xs-8 pv-lg">
-											<div class="h2 mt0" th:text="${roleGroupCount}"/>
-											<div class="text-uppercase" th:text="#{html.navbar.rolegroups}" />
+											<div class="h2 mt0" th:text="${roleGroupCount}"></div>
+											<div class="text-uppercase" th:text="#{html.navbar.rolegroups}"></div>
 										</div>
 									</div>
 								</div>
@@ -61,11 +61,11 @@
 						
 						<div class="row">
 							<div class="col-sm-12">
-								<h3 th:text="#{html.index.links}"/>
-								<p th:text="#{html.index.links.text}"/>
+								<h3 th:text="#{html.index.links}"></h3>
+								<p th:text="#{html.index.links.text}"></p>
 								<ul>
-									<li><a th:href="@{/info}" th:text="#{html.index.links.info}"/></li>
-									<li><a th:href="@{/download/brugermanual.pdf}" th:text="#{html.index.links.manual}"/></li>
+									<li><a th:href="@{/info}" th:text="#{html.index.links.info}"></a></li>
+									<li><a th:href="@{/download/brugermanual.pdf}" th:text="#{html.index.links.manual}"></a></li>
 								</ul>
 							</div>
 						</div>
@@ -75,6 +75,6 @@
 	    </section>
 	</div>
 	
-	<nav th:replace="fragments/footer :: footer" />
+	<nav th:replace="fragments/footer :: footer"></nav>
 </body>
 </html>

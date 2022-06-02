@@ -14,7 +14,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.microsoft.sqlserver.jdbc.StringUtils;
+import org.springframework.util.StringUtils;
 
 import dk.digitalidentity.rc.controller.rest.model.MultipleUserRequestDTO;
 import dk.digitalidentity.rc.controller.rest.model.RejectForm;
@@ -280,7 +280,7 @@ public class RequestApproveRestController {
 				List<AuthorizationManager> authorizationManagers = orgUnit.getAuthorizationManagers();
 
 				if (manager != null) {
-					if (!StringUtils.isEmpty(manager.getEmail())) {
+					if (StringUtils.hasLength(manager.getEmail())) {
 						String title = template.getTitle();
 						title = title.replace(EmailTemplateService.RECEIVER_PLACEHOLDER, manager.getName());
 						title = title.replace(EmailTemplateService.ROLE_PLACEHOLDER, roleName);
@@ -300,7 +300,7 @@ public class RequestApproveRestController {
 							continue;
 						}
 
-						if (!StringUtils.isEmpty(authorizationManager.getEmail())) {
+						if (StringUtils.hasLength(authorizationManager.getEmail())) {
 							String title = template.getTitle();
 							title = title.replace(EmailTemplateService.RECEIVER_PLACEHOLDER, authorizationManager.getName());
 							title = title.replace(EmailTemplateService.ROLE_PLACEHOLDER, roleName);

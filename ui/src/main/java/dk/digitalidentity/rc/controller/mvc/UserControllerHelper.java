@@ -20,6 +20,9 @@ import dk.digitalidentity.rc.security.AccessConstraintService;
 import dk.digitalidentity.rc.security.SecurityUtil;
 import dk.digitalidentity.rc.service.RoleGroupService;
 import dk.digitalidentity.rc.service.UserRoleService;
+import dk.digitalidentity.rc.service.UserService;
+import dk.digitalidentity.rc.service.model.RoleAssignedToUserDTO;
+import dk.digitalidentity.rc.service.model.RoleAssignmentType;
 
 @Component
 public class UserControllerHelper {
@@ -36,10 +39,14 @@ public class UserControllerHelper {
 	@Autowired
 	private AccessConstraintService assignerRoleConstraint;
 
+	@Autowired
+	private UserService userService;
+
 	public List<AvailableUserRoleDTO> getAvailableUserRoles(User user) {
 		List<AvailableUserRoleDTO> addRoles = new ArrayList<>();
 		List<UserRole> userRoles = userRoleService.getAll();
 		userRoles = assignerRoleConstraint.filterUserRolesUserCanAssign(userRoles);
+		List<RoleAssignedToUserDTO> assignments = userService.getAllUserRoleAndRoleGroupAssignments(user);
 
 		// if the user does not have a KSP/CICS account, filter out UserRoles from KSPCICS it-systems
 		boolean kspCicsAccount = user.getAltAccounts().stream().anyMatch(a -> a.getAccountType().equals(AltAccountType.KSPCICS));
@@ -60,6 +67,7 @@ public class UserControllerHelper {
 			availableUserRole.setName(role.getName());
 			availableUserRole.setDescription(role.getDescription());
 			availableUserRole.setItSystem(role.getItSystem());
+			availableUserRole.setAlreadyAssigned(assignments.stream().filter(a -> a.getType() == RoleAssignmentType.USERROLE).anyMatch(a -> a.getRoleId() == role.getId()));
 
 			addRoles.add(availableUserRole);
 		}
@@ -71,12 +79,14 @@ public class UserControllerHelper {
 		List<AvailableRoleGroupDTO> addRoleGroups = new ArrayList<>();
 		List<RoleGroup> roleGroups = roleGroupService.getAll();
 		roleGroups = assignerRoleConstraint.filterRoleGroupsUserCanAssign(roleGroups);
+		List<RoleAssignedToUserDTO> assignments = userService.getAllUserRoleAndRoleGroupAssignments(user);
 
 		for (RoleGroup roleGroup : roleGroups) {
 			AvailableRoleGroupDTO rgr = new AvailableRoleGroupDTO();
 			rgr.setId(roleGroup.getId());
 			rgr.setName(roleGroup.getName());
 			rgr.setDescription(roleGroup.getDescription());
+			rgr.setAlreadyAssigned(assignments.stream().filter(a -> a.getType() == RoleAssignmentType.ROLEGROUP).anyMatch(a -> a.getRoleId() == roleGroup.getId()));
 
 			addRoleGroups.add(rgr);
 		}

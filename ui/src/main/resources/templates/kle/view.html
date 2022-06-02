@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html>
-<head th:replace="fragments/header :: header (title=#{html.page.kle.kle.assignment})" />
+<head th:replace="fragments/header :: header (title=#{html.page.kle.kle.assignment})"></head>
 <body>
 	<div class="wrapper">
-		<header th:replace="fragments/navbar :: navbar-header(subpage = 'reports')" />
-		<aside th:replace="fragments/navbar :: navbar-aside (page = 'kle.assignment', subpage = 'reports')" />
+		<header th:replace="fragments/navbar :: navbar-header(subpage = 'reports')"></header>
+		<aside th:replace="fragments/navbar :: navbar-aside (page = 'kle.assignment', subpage = 'reports')"></aside>
 		<section>
 			<div class="content-wrapper">
 				<h3>
@@ -13,12 +13,12 @@
 							<i class="fa fa-arrow-left"></i>
 						</span>
 					</a>
-					<span th:text="#{html.page.kle.kle.assignment}" />
+					<span th:text="#{html.page.kle.kle.assignment}"></span>
 				</h3>
 
 				<div class="panel panel-default">
 					<div class="panel-heading">
-						<h3 th:text="${code} + ' - ' + ${name}" />
+						<h3 th:text="${code} + ' - ' + ${name}"></h3>
 					</div>
 					<div class="panel-body">
 						<ul class="nav nav-tabs">
@@ -36,13 +36,13 @@
 									<table class="listTable table table-striped table-hover">
 										<thead>
 											<tr>
-												<th class="col-md-10" th:text="#{html.entity.ou.name}" />
-												<th class="col-md-2" th:text="#{html.control.operations}" />
+												<th class="col-md-10" th:text="#{html.entity.ou.name}"></th>
+												<th class="col-md-2" th:text="#{html.control.operations}"></th>
 											</tr>
 										</thead>
 										<tbody>
 											<tr th:each="ou : ${orgUnits}">
-												<td th:text="${ou.name}" />
+												<td th:text="${ou.name}"></td>
 												<td></td>
 											</tr>
 										</tbody>
@@ -55,18 +55,18 @@
 									<table class="listTable table table-striped table-hover">
 										<thead>
 											<tr>
-												<th class="col-md-3" th:text="#{html.entity.user.name}" />
-												<th class="col-md-1" th:text="#{html.entity.user.userId}" />
-												<th class="col-md-7" th:text="#{html.entity.user.positions}" />
-												<th class="col-md-1" th:text="#{html.control.operations}" />
+												<th class="col-md-3" th:text="#{html.entity.user.name}"></th>
+												<th class="col-md-1" th:text="#{html.entity.user.userId}"></th>
+												<th class="col-md-7" th:text="#{html.entity.user.positions}"></th>
+												<th class="col-md-1" th:text="#{html.control.operations}"></th>
 											</tr>
 										</thead>
 										<tbody>
 											<tr th:each="user : ${users}">
-												<td th:text="${user.name}" />
-												<td th:text="${user.userId}" />
-												<td th:utext="${user.positions}" />
-												<td th:utext="${user.operations}" />
+												<td th:text="${user.name}"></td>
+												<td th:text="${user.userId}"></td>
+												<td th:utext="${user.positions}"></td>
+												<td th:utext="${user.operations}"></td>
 											</tr>
 										</tbody>
 									</table>
@@ -79,7 +79,7 @@
 		</section>
 	</div>
 
-	<nav th:replace="fragments/footer :: footer" />
-	<script th:replace="fragments/datatables :: datatables " />
+	<nav th:replace="fragments/footer :: footer"></nav>
+	<script th:replace="fragments/datatables :: datatables "></script>
 </body>
 </html>

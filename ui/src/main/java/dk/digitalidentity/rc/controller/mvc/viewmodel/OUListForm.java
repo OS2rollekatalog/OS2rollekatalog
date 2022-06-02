@@ -34,6 +34,12 @@ public class OUListForm {
 				case LEVEL_4:
 					text += " (niveau 4)";
 					break;
+				case LEVEL_5:
+					text += " (niveau 5)";
+					break;
+				case LEVEL_6:
+					text += " (niveau 6)";
+					break;
 				case NONE:
 					break;
 			}

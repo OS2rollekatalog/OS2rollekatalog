@@ -206,7 +206,7 @@ public class OrgUnitRestController {
 		}
 
 		LocalDate startDate = null, stopDate = null;
-		if (!StringUtils.isEmpty(startDateStr)) {
+		if (StringUtils.hasLength(startDateStr)) {
 			try {
 				startDate = LocalDate.parse(startDateStr);
 			}
@@ -214,7 +214,7 @@ public class OrgUnitRestController {
 				log.warn("Invalid startdate string: " + startDateStr);
 			}
 		}
-		if (!StringUtils.isEmpty(stopDateStr)) {
+		if (StringUtils.hasLength(stopDateStr)) {
 			try {
 				stopDate = LocalDate.parse(stopDateStr);
 			}
@@ -244,7 +244,7 @@ public class OrgUnitRestController {
 		}
 
 		LocalDate startDate = null, stopDate = null;
-		if (!StringUtils.isEmpty(startDateStr)) {
+		if (StringUtils.hasLength(startDateStr)) {
 			try {
 				startDate = LocalDate.parse(startDateStr);
 				
@@ -257,7 +257,7 @@ public class OrgUnitRestController {
 			}
 		}
 
-		if (!StringUtils.isEmpty(stopDateStr)) {
+		if (StringUtils.hasLength(stopDateStr)) {
 			try {
 				stopDate = LocalDate.parse(stopDateStr);
 			}
@@ -343,7 +343,7 @@ public class OrgUnitRestController {
 		}
 		
 		LocalDate startDate = null, stopDate = null;
-		if (!StringUtils.isEmpty(startDateStr)) {
+		if (StringUtils.hasLength(startDateStr)) {
 			try {
 				startDate = LocalDate.parse(startDateStr);
 			}
@@ -351,7 +351,7 @@ public class OrgUnitRestController {
 				log.warn("Invalid startdate string: " + startDateStr);
 			}
 		}
-		if (!StringUtils.isEmpty(stopDateStr)) {
+		if (StringUtils.hasLength(stopDateStr)) {
 			try {
 				stopDate = LocalDate.parse(stopDateStr);
 			}
@@ -381,7 +381,7 @@ public class OrgUnitRestController {
 		}
 
 		LocalDate startDate = null, stopDate = null;
-		if (!StringUtils.isEmpty(startDateStr)) {
+		if (StringUtils.hasLength(startDateStr)) {
 			try {
 				startDate = LocalDate.parse(startDateStr);
 			}
@@ -389,7 +389,7 @@ public class OrgUnitRestController {
 				log.warn("Invalid startdate string: " + startDateStr);
 			}
 		}
-		if (!StringUtils.isEmpty(stopDateStr)) {
+		if (StringUtils.hasLength(stopDateStr)) {
 			try {
 				stopDate = LocalDate.parse(stopDateStr);
 			}

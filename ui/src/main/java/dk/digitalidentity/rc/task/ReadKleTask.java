@@ -94,7 +94,7 @@ public class ReadKleTask {
 			return;
 		}
 		
-		if (configuration.getIntegrations().getKle().isUseOS2sync() && !StringUtils.isEmpty(configuration.getIntegrations().getKle().getOs2SyncUrl())) {
+		if (configuration.getIntegrations().getKle().isUseOS2sync() && StringUtils.hasLength(configuration.getIntegrations().getKle().getOs2SyncUrl())) {
 			readFromKOMBIT();
 		}
 		else {

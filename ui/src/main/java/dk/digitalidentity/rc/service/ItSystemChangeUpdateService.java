@@ -51,7 +51,7 @@ public class ItSystemChangeUpdateService {
 
 		// Fetch email specified in settings, if none exists, delete everything
 		String emailAddress = settingsService.getItSystemChangeEmail();
-		if (StringUtils.isEmpty(emailAddress)) {
+		if (!StringUtils.hasLength(emailAddress)) {
 			itSystemChangeService.deleteAll();
 			return;
 		}
@@ -193,7 +193,7 @@ public class ItSystemChangeUpdateService {
 				log.error("Exception occured while sending global email about ItSystem's SystemRole changes. Exception:" + ex.getMessage());
 			}
 			
-			if (!StringUtils.isEmpty(itSystem.getNotificationEmail())) {
+			if (StringUtils.hasLength(itSystem.getNotificationEmail())) {
 				try {
 					emailService.sendMessage(itSystem.getNotificationEmail(), title, message);
 				}

@@ -11,5 +11,6 @@ public class AvailableUserRoleDTO {
 	private String name;
 	private String description;
 	private ItSystem itSystem;
+	private boolean alreadyAssigned;
 
 }

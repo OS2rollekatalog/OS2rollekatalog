@@ -1,25 +1,25 @@
 <!DOCTYPE html>
 <html>
-<head th:replace="fragments/header :: header (title=#{html.page.requests.title})" />
+<head th:replace="fragments/header :: header (title=#{html.page.requests.title})"></head>
 <body>
 	<div class="wrapper">
-		<header th:replace="fragments/navbar :: navbar-header(subpage = 'roles')" />
-		<aside th:replace="fragments/navbar :: navbar-aside (page = 'requests_authorization_manager', subpage = 'roles')" />
+		<header th:replace="fragments/navbar :: navbar-header(subpage = 'roles')"></header>
+		<aside th:replace="fragments/navbar :: navbar-aside (page = 'requests_authorization_manager', subpage = 'roles')"></aside>
  
 		<section>
 			<div class="content-wrapper">
 				<div class="panel panel-default">
-					<div class="panel-heading" />
+					<div class="panel-heading"></div>
 					<div class="panel-body">
 						<div>
 							<table class="table table-striped table-hover listTable">
 								<thead>
 									<tr>
-										<th class="col-md-2" th:text="#{html.my.requests.to}" />
-										<th class="col-md-2" th:text="#{html.my.requests.from}" />
-										<th class="col-md-2" th:text="#{html.my.requests.name}" />
-										<th class="col-md-2" th:text="#{html.my.requests.itsystem}" />							
-										<th class="col-md-4" th:text="#{html.my.requests.description}"/>
+										<th class="col-md-2" th:text="#{html.my.requests.to}"></th>
+										<th class="col-md-2" th:text="#{html.my.requests.from}"></th>
+										<th class="col-md-2" th:text="#{html.my.requests.name}"></th>
+										<th class="col-md-2" th:text="#{html.my.requests.itsystem}"></th>
+										<th class="col-md-4" th:text="#{html.my.requests.description}"></th>
 									</tr>
 								</thead>
 	
@@ -27,12 +27,12 @@
 								    <tr th:each="req : ${requests}" th:attr="data-child=${req.childJson}">
 										<td>
 											<em class="fa fa-chevron-right"></em> &nbsp;
-											<span th:text="${req.request.requestedFor} != null ? (${req.request.requestedFor.name} + ' (' + ${req.request.requestedFor.userId} + ')') : ''"/>
+											<span th:text="${req.request.requestedFor} != null ? (${req.request.requestedFor.name} + ' (' + ${req.request.requestedFor.userId} + ')') : ''"></span>
 										</td>
-										<td th:text="${req.request.requester.name} + ' (' + ${req.request.requester.userId} + ')'" />
-										<td th:text="${req.roleName}" />
-										<td th:text="${req.itSystemName}" />
-										<td th:text="${req.roleDescription}" />
+										<td th:text="${req.request.requester.name} + ' (' + ${req.request.requester.userId} + ')'"></td>
+										<td th:text="${req.roleName}"></td>
+										<td th:text="${req.itSystemName}"></td>
+										<td th:text="${req.roleDescription}"></td>
 					    			</tr>
 				    			</tbody>
 							</table>
@@ -43,7 +43,7 @@
 	    </section>
     </div>
 
-    <nav th:replace="fragments/footer :: footer" />
+    <nav th:replace="fragments/footer :: footer"></nav>
 	
 	<script th:inline="javascript">
 		/*<![CDATA[*/

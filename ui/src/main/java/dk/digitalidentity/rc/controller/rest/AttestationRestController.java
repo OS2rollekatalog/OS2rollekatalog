@@ -167,16 +167,16 @@ public class AttestationRestController {
 			Map<String, String> emails = new HashMap<>();
 			
 			String archiveEmail = settingsService.getEmailAttestationReport();
-			if (!StringUtils.isEmpty(archiveEmail)) {
+			if (StringUtils.hasLength(archiveEmail)) {
 				emails.put(archiveEmail, "Arkiv");
 			}
 
 			User manager = orgUnit.getManager();
-			if (!StringUtils.isEmpty(manager.getEmail())) {
+			if (StringUtils.hasLength(manager.getEmail())) {
 				emails.put(manager.getEmail(), manager.getName());
 			}
 			
-			if (manager.getManagerSubstitute() != null && manager.getManagerSubstitute().isActive() && !StringUtils.isEmpty(manager.getManagerSubstitute().getEmail())) {
+			if (manager.getManagerSubstitute() != null && manager.getManagerSubstitute().isActive() && StringUtils.hasLength(manager.getManagerSubstitute().getEmail())) {
 				emails.put(manager.getManagerSubstitute().getEmail(), manager.getManagerSubstitute().getName());
 			}
 
@@ -369,7 +369,7 @@ public class AttestationRestController {
 			return;
 		}
 
-		if (StringUtils.isEmpty(email)) {
+		if (!StringUtils.hasLength(email)) {
 			log.warn("No email configured for sending removal requests");
 		}
 		else {
@@ -414,7 +414,7 @@ public class AttestationRestController {
 					title = title.replace(EmailTemplateService.RECEIVER_PLACEHOLDER, "it-afdeling");
 					title = title.replace(EmailTemplateService.ORGUNIT_PLACEHOLDER, orgUnit.getName());
 					
-					String message = template.getMessage() + ((!StringUtils.isEmpty(managerMessage)) ? ("\n<br/><br/>\n<strong>Besked fra lederen:</strong>\n<br/>" + managerMessage) : "");
+					String message = template.getMessage() + ((StringUtils.hasLength(managerMessage)) ? ("\n<br/><br/>\n<strong>Besked fra lederen:</strong>\n<br/>" + managerMessage) : "");
 					message = message.replace(EmailTemplateService.RECEIVER_PLACEHOLDER, "it-afdeling");
 					message = message.replace(EmailTemplateService.ORGUNIT_PLACEHOLDER, orgUnit.getName());
 					emailQueueService.queueEmail(email, title, message, template, attachments);

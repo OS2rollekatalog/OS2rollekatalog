@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html>
-<head th:replace="fragments/header :: header (title=#{html.page.kle.kle.mapped})" />
+<head th:replace="fragments/header :: header (title=#{html.page.kle.kle.mapped})"></head>
 <body>
 	<div class="wrapper">
-		<header th:replace="fragments/navbar :: navbar-header(subpage = 'reports')" />
-		<aside th:replace="fragments/navbar :: navbar-aside (page = 'kle.mapped', subpage = 'reports')" />
+		<header th:replace="fragments/navbar :: navbar-header(subpage = 'reports')"></header>
+		<aside th:replace="fragments/navbar :: navbar-aside (page = 'kle.mapped', subpage = 'reports')"></aside>
 		<section>
 			<div class="content-wrapper">
 				<h3>
@@ -13,11 +13,11 @@
 							<i class="fa fa-arrow-left"></i>
 						</span>
 					</a>
-					<span th:text="#{html.page.kle.kle.mapped}" />
+					<span th:text="#{html.page.kle.kle.mapped}"></span>
 				</h3>
 
 				<div class="panel panel-default">
-					<div class="panel-heading" />
+					<div class="panel-heading"></div>
 					<div class="panel-body">
 						<ul class="nav nav-tabs">
 							<li class="active">
@@ -26,7 +26,7 @@
 						</ul>
 
 						<div class="tab-content">
-							<div id="kle_performing_menu" class="tab-pane fade in active"/>
+							<div id="kle_performing_menu" class="tab-pane fade in active"></div>
 						</div>
 					</div>
 				</div>
@@ -34,7 +34,7 @@
 		</section>
 	</div>
 
-	<nav th:replace="fragments/footer :: footer" />
+	<nav th:replace="fragments/footer :: footer"></nav>
 
 	<style>
 		.table .checkbox {

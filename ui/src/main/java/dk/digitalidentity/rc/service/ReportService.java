@@ -108,7 +108,7 @@ public class ReportService {
 	                        break;
 	                }
 	
-	                if (!StringUtils.isEmpty(roleAssignment.getAssignedThroughName())) {
+	                if (StringUtils.hasLength(roleAssignment.getAssignedThroughName())) {
 	                    assignedThroughStr += ": " + roleAssignment.getAssignedThroughName();
 	                }
 	
@@ -323,7 +323,7 @@ public class ReportService {
 		//       da vi nu skal nedarve fra dem... og det er lige så fjollet hvis vi fjerner rettigheder, da vi også skal bruge dem... hmmm
 		
 		// Filter on manager if specified		
-		if (!StringUtils.isEmpty(manager)) {
+		if (StringUtils.hasLength(manager)) {
 			ouFilter = orgUnits
 					.entrySet()
 					.stream()

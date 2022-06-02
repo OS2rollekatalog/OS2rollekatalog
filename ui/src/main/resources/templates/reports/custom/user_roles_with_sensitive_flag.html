@@ -1,32 +1,32 @@
 <!DOCTYPE html>
 <html>
-<head th:replace="fragments/header :: header (title=#{html.report.user_roles_with_sensitive_flag})" />
+<head th:replace="fragments/header :: header (title=#{html.report.user_roles_with_sensitive_flag})"></head>
 <body>
 <div class="wrapper">
-	<header th:replace="fragments/navbar :: navbar-header(subpage = 'reports')" />
-	<aside th:replace="fragments/navbar :: navbar-aside (page = 'report.custom', subpage = 'reports')" />
+	<header th:replace="fragments/navbar :: navbar-header(subpage = 'reports')"></header>
+	<aside th:replace="fragments/navbar :: navbar-aside (page = 'report.custom', subpage = 'reports')"></aside>
 
 	<section>
 			<div class="content-wrapper">
-				<h3 th:text="#{html.report.user_roles_with_sensitive_flag}" />
+				<h3 th:text="#{html.report.user_roles_with_sensitive_flag}"></h3>
 				<div class="panel panel-default">
-					<div class="panel-heading" />
+					<div class="panel-heading"></div>
 					<div class="panel-body">
 						<table class="listTable table table-responsive table-striped">
 							<thead>
 								<tr>
-									<th class="col-md-3" th:text="#{html.entity.userrole.name}" />
-									<th class="col-md-2" th:text="#{html.entity.itsystem.type}" />
-									<th class="col-md-6" th:text="#{html.entity.userrole.description}" />
-									<th class="col-md-1" th:text="#{html.control.operations}" />
+									<th class="col-md-3" th:text="#{html.entity.userrole.name}"></th>
+									<th class="col-md-2" th:text="#{html.entity.itsystem.type}"></th>
+									<th class="col-md-6" th:text="#{html.entity.userrole.description}"></th>
+									<th class="col-md-1" th:text="#{html.control.operations}"></th>
 								</tr>
 							</thead>
 
 							<tbody>
 								<tr th:each="role : ${userRoles}">
-									<td th:text="${role.name}" />
-									<td th:text="${role.itSystem.name}" />
-									<td th:text="${role.description}" />
+									<td th:text="${role.name}"></td>
+									<td th:text="${role.itSystem.name}"></td>
+									<td th:text="${role.description}"></td>
 									<td>
 										<th:block sec:authorize="hasRole('ROLE_ASSIGNER')">
 											<a th:href="@{/ui/userroles/edit/{id}(id=${role.id})}"><em class="fa fa-pencil"></em></a>
@@ -41,7 +41,7 @@
 	</section>
 </div>
 
-<nav th:replace="fragments/footer :: footer" />
-<script th:replace="fragments/datatables :: datatables " />
+<nav th:replace="fragments/footer :: footer"></nav>
+<script th:replace="fragments/datatables :: datatables "></script>
 </body>
 </html>

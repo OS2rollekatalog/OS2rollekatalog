@@ -15,13 +15,13 @@
 	                        <td class="col-md-2">
 	                            <button id="assignDirectlyBtn" class="btn btn-primary assign_role_directly" th:text="#{html.entity.positions.assign}"></button>
 	                        </td>
-	                        <td class="col-md-10" th:text="#{html.entity.positions.assigndirect}"/>
+	                        <td class="col-md-10" th:text="#{html.entity.positions.assigndirect}"></td>
 	                    </tr>
 	                    <tr th:each="position : ${positions}">
 	                        <td>
 	                            <button class="btn assign_role" th:text="#{html.entity.positions.assign}" th:value="${position.id}"></button>
 	                        </td>
-	                        <td th:text="${position.name} + ' ' + #{html.word.in} + ' ' + ${position.orgUnit.name}"/>
+	                        <td th:text="${position.name} + ' ' + #{html.word.in} + ' ' + ${position.orgUnit.name}"></td>
 	                    </tr>
 	                    </tbody>
 	                </table>
@@ -132,6 +132,7 @@
 	    			   data : JSON.stringify(constraints),
 	    			   success: function(response) {
 	    				   modalAjaxService.showInfoNotification(userRoleModalService.fieldUpdatedMsg);
+	    				   rolesService.loadAddUserRoleFragment();
 	    			   },
 	    			   error: function(response) {
 	    				   var msg = (response.responseText != null && response.responseText.length > 0) ? response.responseText : userRoleModalService.fieldNotUpdatedMsg;
@@ -153,7 +154,22 @@
 				var stopDate = $('#stopDatePicker').data('date');
 				var dates = "?startDate=" + startDate + "&stopDate=" + stopDate;
 
-				$.ajax(modalAjaxService.getAjaxObject(userRoleModalService.usersUrl + 'position/' + positionUuid + '/addrole/' + roleid + dates, userRoleModalService.fieldUpdatedMsg, userRoleModalService.fieldNotUpdatedMsg));
+				$.ajax({
+	    			   url: userRoleModalService.usersUrl + 'position/' + positionUuid + '/addrole/' + roleid + dates,
+	    			   contentType: 'application/json',
+	    			   headers: {
+	    			      'X-CSRF-TOKEN': token
+	    			   },
+	    			   type: 'post',
+	    			   success: function(response) {
+	    				   modalAjaxService.showInfoNotification(userRoleModalService.fieldUpdatedMsg);
+	    				   rolesService.loadAddUserRoleFragment();
+	    			   },
+	    			   error: function(response) {
+	    				   var msg = (response.responseText != null && response.responseText.length > 0) ? response.responseText : userRoleModalService.fieldNotUpdatedMsg;
+						   modalAjaxService.showErrorNotification(msg);
+	    			   }
+	    		});
 				
 				modal.modal('hide');
 			}

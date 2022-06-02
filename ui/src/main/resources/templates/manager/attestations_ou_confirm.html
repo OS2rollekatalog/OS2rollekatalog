@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html>
-<head th:replace="fragments/header :: header (title=#{html.page.attestations.title})" />
+<head th:replace="fragments/header :: header (title=#{html.page.attestations.title})"></head>
 <body>
 	<div class="wrapper">
-		<header th:replace="fragments/navbar :: navbar-header(subpage = 'reports')" />
-		<aside th:replace="fragments/navbar :: navbar-aside (page = 'attestation', subpage = 'reports')" />
+		<header th:replace="fragments/navbar :: navbar-header(subpage = 'reports')"></header>
+		<aside th:replace="fragments/navbar :: navbar-aside (page = 'attestation', subpage = 'reports')"></aside>
 
 		<section>
 			<div class="content-wrapper">
@@ -12,7 +12,7 @@
 					<span th:text="#{html.page.attestations.confirment.title}"></span>
 				</h3>
 				<div class="panel panel-default">
-					<div class="panel-heading" />
+					<div class="panel-heading"></div>
 					<div class="panel-body">
 						<div class="panel-group">
 							<div class="panel panel-default">
@@ -42,8 +42,8 @@
 										<ul th:each="dto : ${dtoToBeRemoved}">
 											<li style="list-style-type: none;">
 												<em class="fa fa-fw fa-times" style="color: red;"></em>
-												<span th:if="${dto.roleGroup}" th:text="'Rollebuketten ' + ${dto.roleName} + ' for medarbejderen ' + ${dto.userOrUnitName}" />
-											    <span th:unless="${dto.roleGroup}" th:text="'Jobfunktionsrollen ' + ${dto.roleName} + ' (' + ${dto.itSystemName} + ') ' + 'for medarbejderen ' + ${dto.userOrUnitName}" />
+												<span th:if="${dto.roleGroup}" th:text="'Rollebuketten ' + ${dto.roleName} + ' for medarbejderen ' + ${dto.userOrUnitName}"></span>
+											    <span th:unless="${dto.roleGroup}" th:text="'Jobfunktionsrollen ' + ${dto.roleName} + ' (' + ${dto.itSystemName} + ') ' + 'for medarbejderen ' + ${dto.userOrUnitName}"></span>
 												<ul th:if="${dto.systemRoleAssignmentsDTOs != null && not #lists.isEmpty(dto.systemRoleAssignmentsDTOs)}">
 													<li>
 														<span style="font-weight: bold;" th:text="#{html.page.users.manage.assignment.postponed}"></span>
@@ -69,15 +69,15 @@
 											<div th:if="${dto.title}">
 												<li style="list-style-type: none;">
 													<em class="fa fa-fw fa-times" style="color: red;"></em>
-													<span th:if="${dto.roleGroup}" th:text="'Rollebuketten ' + ${dto.roleName} + ' for titlen ' + ${dto.userOrUnitName}" />
-													<span th:unless="${dto.roleGroup}" th:text="'Jobfunktionsrollen ' + ${dto.roleName} + ' (' + ${dto.itSystemName} + ') ' + ' for titlen ' + ${dto.userOrUnitName}" />
+													<span th:if="${dto.roleGroup}" th:text="'Rollebuketten ' + ${dto.roleName} + ' for titlen ' + ${dto.userOrUnitName}"></span>
+													<span th:unless="${dto.roleGroup}" th:text="'Jobfunktionsrollen ' + ${dto.roleName} + ' (' + ${dto.itSystemName} + ') ' + ' for titlen ' + ${dto.userOrUnitName}"></span>
 												</li>
 											</div>
 											<div th:unless="${dto.title}">
 												<li style="list-style-type: none;">
 													<em class="fa fa-fw fa-times" style="color: red;"></em>
-													<span th:if="${dto.roleGroup}" th:text="'Rollebuketten ' + ${dto.roleName} + ' for enheden ' + ${dto.userOrUnitName}" />
-													<span th:unless="${dto.roleGroup}" th:text="'Jobfunktionsrollen ' + ${dto.roleName} + ' (' + ${dto.itSystemName} + ') ' + ' for enheden ' + ${dto.userOrUnitName}" />
+													<span th:if="${dto.roleGroup}" th:text="'Rollebuketten ' + ${dto.roleName} + ' for enheden ' + ${dto.userOrUnitName}"></span>
+													<span th:unless="${dto.roleGroup}" th:text="'Jobfunktionsrollen ' + ${dto.roleName} + ' (' + ${dto.itSystemName} + ') ' + ' for enheden ' + ${dto.userOrUnitName}"></span>
 													<span th:if="${not #lists.isEmpty(dto.exceptedUsers)}">
 														<p style="margin-left: 20px; margin-bottom: 0px;" th:text="#{html.page.attestations.confirment.walkthrough.table.headers.role.via.unit.exceptedUsers}"></p>
 														<small>
@@ -98,7 +98,7 @@
 										<ul th:each="dto : ${dtoNotAprovedAD}">
 											<li style="list-style-type: none;">
 												<em class="fa fa-fw fa-times" style="color: red;"></em>
-												<span th:text="'Brugerkontoen med brugernavn ' + ${dto.userUserId} + ' for medarbejderen ' + ${dto.userName}" />
+												<span th:text="'Brugerkontoen med brugernavn ' + ${dto.userUserId} + ' for medarbejderen ' + ${dto.userName}"></span>
 											</li>
 										</ul>
 									</div>
@@ -116,7 +116,7 @@
 		</section>
 	</div>
 
-	<nav th:replace="fragments/footer :: footer" />
+	<nav th:replace="fragments/footer :: footer"></nav>
 	<script th:inline="javascript">
 		/*<![CDATA[*/
 

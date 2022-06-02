@@ -1,10 +1,7 @@
 package dk.digitalidentity.rc.controller.rest;
 
-import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
-import java.util.UUID;
-import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpEntity;
@@ -13,12 +10,10 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.RestController;
 
 import dk.digitalidentity.rc.config.Constants;
-import dk.digitalidentity.rc.controller.rest.model.PrefixWrapper;
 import dk.digitalidentity.rc.dao.model.ItSystem;
 import dk.digitalidentity.rc.dao.model.PendingADGroupOperation;
 import dk.digitalidentity.rc.dao.model.SystemRole;
@@ -27,7 +22,6 @@ import dk.digitalidentity.rc.dao.model.UserRole;
 import dk.digitalidentity.rc.dao.model.enums.ADGroupType;
 import dk.digitalidentity.rc.dao.model.enums.ItSystemType;
 import dk.digitalidentity.rc.security.RequireAdministratorRole;
-import dk.digitalidentity.rc.security.SecurityUtil;
 import dk.digitalidentity.rc.service.ItSystemService;
 import dk.digitalidentity.rc.service.OrgUnitService;
 import dk.digitalidentity.rc.service.PendingADUpdateService;
@@ -348,53 +342,4 @@ public class ItSystemRestController {
 		return new ResponseEntity<>(HttpStatus.OK);
 	}
 
-	@PostMapping(value = "/rest/itsystem/systemrole/convert/{id}")
-	public ResponseEntity<String> convertSystemRoles(@PathVariable("id") long id, @RequestBody PrefixWrapper prefixWrapper) {
-		ItSystem itSystem = itSystemService.getById(id);
-		if (itSystem == null) {
-			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
-		}
-
-		if (itSystem.getSystemType().equals(ItSystemType.AD) && itSystem.isReadonly()) {
-			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
-		}
-
-		if (itSystem.getSystemType().equals(ItSystemType.KSPCICS)) {
-			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
-		}
-
-		List<SystemRole> systemRoles = systemRoleService.getByItSystem(itSystem).stream()
-				.filter(sr -> systemRoleService.isInUse(sr) == false)
-				.collect(Collectors.toList());
-
-		for (SystemRole systemRole : systemRoles) {
-			UserRole userRole = new UserRole();
-			userRole.setName(prefixWrapper.getPrefix() + systemRole.getName());
-			
-			// TODO: must be a better way to safely ensure this lenght max (maybe setter on UserRole)
-			if (userRole.getName().length() > 64) {
-				userRole.setName(userRole.getName().substring(0, 64));
-			}
-
-			userRole.setDescription(systemRole.getDescription());
-			userRole.setIdentifier("id-" + UUID.randomUUID().toString());
-			userRole.setItSystem(itSystem);
-			userRole.setSystemRoleAssignments(new ArrayList<SystemRoleAssignment>());
-			userRole.setLinkedSystemRole(systemRole);
-			userRole.setLinkedSystemRolePrefix(prefixWrapper.getPrefix());
-			userRole = userRoleService.save(userRole);
-
-			SystemRoleAssignment roleAssignment = new SystemRoleAssignment();
-			roleAssignment.setSystemRole(systemRole);
-			roleAssignment.setUserRole(userRole);
-			roleAssignment.setAssignedByName(SecurityUtil.getUserFullname());
-			roleAssignment.setAssignedByUserId(SecurityUtil.getUserId());
-			roleAssignment.setAssignedTimestamp(new Date());
-
-			userRoleService.addSystemRoleAssignment(userRole, roleAssignment);
-			userRoleService.save(userRole);
-		}
-
-		return new ResponseEntity<>(HttpStatus.OK);
-	}
 }

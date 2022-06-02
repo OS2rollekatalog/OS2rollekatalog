@@ -1,27 +1,27 @@
 <!DOCTYPE html>
 <html>
-<head/>
+<head></head>
 <body>
 	<h1>
 		<span th:text="#{html.page.attestations.pdf.title}"></span>
 	</h1>
-	<p th:text="#{html.page.attestations.pdf.unit} + ' ' + ${orgUnitName}" style="font-weight: bold;"/>
-	<p th:text="#{html.page.attestations.pdf.time} + ' ' + ${time}" style="font-weight: bold;"/>
-	<p th:text="#{html.page.attestations.pdf.deadline} + ' ' + ${deadline}" style="font-weight: bold;"/>
-	<p th:text="#{html.page.attestations.pdf.interval} + ' ' + #{__${interval}__}" style="font-weight: bold;"/>
-	<p th:text="#{html.page.attestations.pdf.by} + ' ' + ${attestedBy}" style="font-weight: bold;"/>
+	<p th:text="#{html.page.attestations.pdf.unit} + ' ' + ${orgUnitName}" style="font-weight: bold;"></p>
+	<p th:text="#{html.page.attestations.pdf.time} + ' ' + ${time}" style="font-weight: bold;"></p>
+	<p th:text="#{html.page.attestations.pdf.deadline} + ' ' + ${deadline}" style="font-weight: bold;"></p>
+	<p th:text="#{html.page.attestations.pdf.interval} + ' ' + #{__${interval}__}" style="font-weight: bold;"></p>
+	<p th:text="#{html.page.attestations.pdf.by} + ' ' + ${attestedBy}" style="font-weight: bold;"></p>
 	<p>
 		<span th:text="#{html.page.attestations.pdf.subtext}"></span>
 	</p>
 	<br/>
 	<label style="font-weight: bold;" th:text="#{html.page.attestations.pdf.message}"></label>
-	<p th:text="${message}"/>
+	<p th:text="${message}"></p>
 	<br/>
 	<br/>				
 	<div th:if="${!toBeRemoved.empty}">
 		<p th:text="#{html.page.attestations.confirment.show.personal.remove}" style="font-weight: bold; color: red;"></p>
 		<ul th:each="dto : ${toBeRemoved}">
-			<li th:if="${dto.roleGroup}" th:text="'Rollebuketten ' + ${dto.roleName} + ' for medarbejderen ' + ${dto.userOrUnitName}"/>
+			<li th:if="${dto.roleGroup}" th:text="'Rollebuketten ' + ${dto.roleName} + ' for medarbejderen ' + ${dto.userOrUnitName}"></li>
 			<li th:unless="${dto.roleGroup}">
 				<span th:text="'Jobfunktionsrollen ' + ${dto.roleName} + ' (' + ${dto.itSystemName} + ') ' + ' for medarbejderen ' + ${dto.userOrUnitName}"></span>
 				<ul th:if="${not #lists.isEmpty(dto.systemRoleAssignmentsDTOs)}">
@@ -46,19 +46,19 @@
 		<p th:text="#{html.page.attestations.confirment.show.unit.remove}" style="font-weight: bold; color: red;"></p>
 		<ul th:each="dto : ${toEmail}">
 			<div th:if="${dto.title}">
-				<li th:if="${dto.roleGroup}" th:text="'Rollebuketten ' + ${dto.roleName} + ' for titlen ' + ${dto.userOrUnitName}"/>
-				<li th:unless="${dto.roleGroup}" th:text="'Jobfunktionsrollen ' + ${dto.roleName} + ' (' + ${dto.itSystemName} + ') ' + ' for titlen ' + ${dto.userOrUnitName}"/>
+				<li th:if="${dto.roleGroup}" th:text="'Rollebuketten ' + ${dto.roleName} + ' for titlen ' + ${dto.userOrUnitName}"></li>
+				<li th:unless="${dto.roleGroup}" th:text="'Jobfunktionsrollen ' + ${dto.roleName} + ' (' + ${dto.itSystemName} + ') ' + ' for titlen ' + ${dto.userOrUnitName}"></li>
 			</div>
 			<div th:unless="${dto.title}">
 				<div th:if="${dto.exceptedUsers} == null">
-					<li th:if="${dto.roleGroup}" th:text="'Rollebuketten ' + ${dto.roleName} + ' for enheden ' + ${dto.userOrUnitName}"/>
-					<li th:unless="${dto.roleGroup}" th:text="'Jobfunktionsrollen ' + ${dto.roleName} + ' (' + ${dto.itSystemName} + ') ' + ' for enheden ' + ${dto.userOrUnitName}" />
+					<li th:if="${dto.roleGroup}" th:text="'Rollebuketten ' + ${dto.roleName} + ' for enheden ' + ${dto.userOrUnitName}"></li>
+					<li th:unless="${dto.roleGroup}" th:text="'Jobfunktionsrollen ' + ${dto.roleName} + ' (' + ${dto.itSystemName} + ') ' + ' for enheden ' + ${dto.userOrUnitName}"></li>
 				</div>
 				<div th:unless="${dto.exceptedUsers} == null">
 					<p th:if="${dto.roleGroup}" th:text="'Rollebuketten ' + ${dto.roleName} + ' for enheden ' + ${dto.userOrUnitName} + ' med undtagede brugere: '"></p>
 					<p th:unless="${dto.roleGroup}" th:text="'Jobfunktionsrollen ' + ${dto.roleName} + ' (' + ${dto.itSystemName} + ') ' + ' for enheden ' + ${dto.userOrUnitName} + ' med undtagede brugere: '"></p>
 					<ul>
-						<li th:each="user : ${dto.exceptedUsers}" th:text="${user}" />
+						<li th:each="user : ${dto.exceptedUsers}" th:text="${user}"></li>
 					</ul>
 				</div>
 			</div>
@@ -69,7 +69,7 @@
 	<div th:if="${not #lists.isEmpty(notAprovedAd)}">
 		<p th:text="#{html.page.attestations.confirment.show.ad.remove}" style="font-weight: bold; color: red;"></p>
 		<ul th:each="dto : ${notAprovedAd}">
-			<li th:text="'Brugerkontoen med brugernavn ' + ${dto.userUserId} + ' for medarbejderen ' + ${dto.userName}"/>
+			<li th:text="'Brugerkontoen med brugernavn ' + ${dto.userUserId} + ' for medarbejderen ' + ${dto.userName}"></li>
 		</ul>
 		<br/>
 	</div>
@@ -77,7 +77,7 @@
 	<div th:if="${!aprovedPersonal.empty}">
 		<p th:text="#{html.page.attestations.pdf.aprove.personal}" style="font-weight: bold; color: green;"></p>
 		<ul th:each="dto : ${aprovedPersonal}">
-			<li th:if="${dto.roleGroup}" th:text="'Rollebuketten ' + ${dto.roleName} + ' for medarbejderen ' + ${dto.userOrUnitName}"/>
+			<li th:if="${dto.roleGroup}" th:text="'Rollebuketten ' + ${dto.roleName} + ' for medarbejderen ' + ${dto.userOrUnitName}"></li>
 			<li th:unless="${dto.roleGroup}" >
 				<span th:text="'Jobfunktionsrollen ' + ${dto.roleName} + ' (' + ${dto.itSystemName} + ') ' + ' for medarbejderen ' + ${dto.userOrUnitName}"></span>
 				<ul th:if="${not #lists.isEmpty(dto.systemRoleAssignmentsDTOs)}">
@@ -102,12 +102,12 @@
 		<p th:text="#{html.page.attestations.pdf.aprove.unit}" style="font-weight: bold; color: green;"></p>
 		<ul th:each="dto : ${aprovedUnit}">
 			<div th:if="${dto.title}">
-				<li th:if="${dto.roleGroup}" th:text="'Rollebuketten ' + ${dto.roleName} + ' for titlen ' + ${dto.userOrUnitName}"/>
-				<li th:unless="${dto.roleGroup}" th:text="'Jobfunktionsrollen ' + ${dto.roleName} + ' (' + ${dto.itSystemName} + ') ' + ' for titlen ' + ${dto.userOrUnitName}"/>
+				<li th:if="${dto.roleGroup}" th:text="'Rollebuketten ' + ${dto.roleName} + ' for titlen ' + ${dto.userOrUnitName}"></li>
+				<li th:unless="${dto.roleGroup}" th:text="'Jobfunktionsrollen ' + ${dto.roleName} + ' (' + ${dto.itSystemName} + ') ' + ' for titlen ' + ${dto.userOrUnitName}"></li>
 			</div>
 			<div th:unless="${dto.title}">
-				<li th:if="${dto.roleGroup}" th:text="'Rollebuketten ' + ${dto.roleName} + ' for enheden ' + ${dto.userOrUnitName}"/>
-				<li th:unless="${dto.roleGroup}" th:text="'Jobfunktionsrollen ' + ${dto.roleName} + ' (' + ${dto.itSystemName} + ') ' + ' for enheden ' + ${dto.userOrUnitName}"/>
+				<li th:if="${dto.roleGroup}" th:text="'Rollebuketten ' + ${dto.roleName} + ' for enheden ' + ${dto.userOrUnitName}"></li>
+				<li th:unless="${dto.roleGroup}" th:text="'Jobfunktionsrollen ' + ${dto.roleName} + ' (' + ${dto.itSystemName} + ') ' + ' for enheden ' + ${dto.userOrUnitName}"></li>
 			</div>
 		</ul>
 		<br/>
@@ -116,7 +116,7 @@
 	<div th:if="${not #lists.isEmpty(aprovedAd)}">
 		<p th:text="#{html.page.attestations.pdf.aprove.ad}" style="font-weight: bold; color: green;"></p>
 		<ul th:each="dto : ${aprovedAd}">
-			<li th:text="'Brugerkontoen med brugernavn ' + ${dto.userUserId} + ' for medarbejderen ' + ${dto.userName}"/>
+			<li th:text="'Brugerkontoen med brugernavn ' + ${dto.userUserId} + ' for medarbejderen ' + ${dto.userName}"></li>
 		</ul>
 		<br/>
 	</div>

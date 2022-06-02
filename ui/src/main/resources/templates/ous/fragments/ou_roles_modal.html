@@ -6,11 +6,11 @@
 			<div class="modal-content">
 				<div class="modal-header">
 					<button type="button" class="close" onclick="ouRolesModalService.closeModal();">&times;</button>
-					<h4 th:text="#{html.page.ous.edit.title.choose}"/>
+					<h4 th:text="#{html.page.ous.edit.title.choose}"></h4>
 				</div>
 
 				<div class="modal-body" style="overflow-y: initial !important;">
-					<p th:utext="#{html.page.ous.edit.choose.text.intro}" />
+					<p th:utext="#{html.page.ous.edit.choose.text.intro}"></p>
 					<ul>
 						<li th:if="${titles != null and titles.size() > 0}" th:text="#{html.page.ous.edit.choose.text.titles}"></li>
 						<li th:text="#{html.page.ous.edit.choose.text.exceptedusers}"></li>
@@ -33,8 +33,8 @@
 							<table th:if="${titles != null and titles.size() > 0}" id="ou_roles_listTable1" class="table table-striped">
 								<thead>
 									<tr>
-										<th class="col-md-2" th:text="#{html.entity.title.checked}" />
-										<th class="col-md-10" th:text="#{html.entity.title.name}" />
+										<th class="col-md-2" th:text="#{html.entity.title.checked}"></th>
+										<th class="col-md-10" th:text="#{html.entity.title.name}"></th>
 									</tr>
 								</thead>
 
@@ -61,7 +61,7 @@
 					</div>
 					
 	               	<div style="height: 70px;">
-						<h4 class="md-12" th:text="#{html.word.validity}" />
+						<h4 class="md-12" th:text="#{html.word.validity}"></h4>
 	
 						<b class="col-sm-1" style="padding-top: 7px;" th:text="#{html.word.from}"></b>
 						<div class="col-md-5">
@@ -90,21 +90,21 @@
 				</div>
 
 				<div class="modal-footer">
-					<button type="button" disabled="disabled" id="titleAssignTitlesButton" class="btn btn-primary" onclick="ouRolesModalService.handleTitleRoleAssignment()" th:text="#{html.page.ous.edit.button.assign}"/>
-					<button type="button" disabled="disabled" id="assignWithExceptionsButton" class="btn btn-primary" onclick="ouRolesModalService.handleExceptedRoleAssignment()" th:text="#{html.page.ous.edit.button.assign.exceptedusers}"/>
+					<button type="button" disabled="disabled" id="titleAssignTitlesButton" class="btn btn-primary" onclick="ouRolesModalService.handleTitleRoleAssignment()" th:text="#{html.page.ous.edit.button.assign}"></button>
+					<button type="button" disabled="disabled" id="assignWithExceptionsButton" class="btn btn-primary" onclick="ouRolesModalService.handleExceptedRoleAssignment()" th:text="#{html.page.ous.edit.button.assign.exceptedusers}"></button>
 					<div class="btn-group" id="titleInheritButton">
                         <button id="assignAllButton" type="button" style="margin-left: 5px;" class="btn btn-primary dropdown-toggle" data-toggle="dropdown">
                         	<span>
-								<span th:text="#{html.page.ous.edit.button.assign.intro}"/>&nbsp;
+								<span th:text="#{html.page.ous.edit.button.assign.intro}"></span>&nbsp;
 								<em class="fa fa-fw fa-caret-down"></em>
 							</span>
                         </button>
 						<ul class="dropdown-menu">
-			    			<li><a href="#" onclick="ouRolesModalService.handleEveryoneRoleAssignment(false)" id="assignEveryoneChoiceDropdownForTestCases" th:text="#{html.page.ous.edit.button.assign.all}" /></li>
-	                		<li><a href="#" onclick="ouRolesModalService.handleEveryoneRoleAssignment(true)" th:text="#{html.page.ous.edit.button.assign.all.inheritance}"/></li>
+			    			<li><a href="#" onclick="ouRolesModalService.handleEveryoneRoleAssignment(false)" id="assignEveryoneChoiceDropdownForTestCases" th:text="#{html.page.ous.edit.button.assign.all}"></a></li>
+	                		<li><a href="#" onclick="ouRolesModalService.handleEveryoneRoleAssignment(true)" th:text="#{html.page.ous.edit.button.assign.all.inheritance}"></a></li>
 			  			</ul>
 			  		</div>
-			  		<button type="button" class="btn btn-warning" style="margin-left: 5px;" onclick="ouRolesModalService.closeModal();" th:text="#{html.control.button.cancel}"/>
+			  		<button type="button" class="btn btn-warning" style="margin-left: 5px;" onclick="ouRolesModalService.closeModal();" th:text="#{html.control.button.cancel}"></button>
 				</div>
 			</div>
 		</div>
@@ -261,6 +261,11 @@
 						}
 						
 						ouRolesModalService.closeModal();
+						if (objType == "role") {
+							rolesService.loadAddUserRoleFragment();
+						} else if (objType == "rolegroup") {
+							rolesService.loadAddRoleGroupFragment();
+						}
 					}
 				});
 

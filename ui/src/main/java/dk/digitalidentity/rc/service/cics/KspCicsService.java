@@ -838,7 +838,7 @@ public class KspCicsService {
         builder.append(SOAP_WRAPPER_BEGIN);
         builder.append(SOAP_SEARCH_REQUEST_BEGIN);
         builder.append(SOAP_SEARCH_USERPROFILES.replace(SOAP_ARG_LOSSHORTNAME, configuration.getIntegrations().getKspcics().getLosid()));
-        if (!StringUtils.isEmpty(optionalIdentifier)) {
+        if (StringUtils.hasLength(optionalIdentifier)) {
         	// Identifiers may contain ; to separate actual Identifier and Department, so strip those
         	if (optionalIdentifier.contains(";")) {
         		int idx = optionalIdentifier.lastIndexOf(";");

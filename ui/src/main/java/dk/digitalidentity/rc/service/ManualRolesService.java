@@ -97,7 +97,7 @@ public class ManualRolesService {
 			log.info("Detecting role changes on " + itSystem.getName() + " / " + itSystem.getId());
 
 			String emailAddress = itSystem.getEmail();
-			if (StringUtils.isEmpty(emailAddress)) {
+			if (!StringUtils.hasLength(emailAddress)) {
 				log.info("No email address configured for " + itSystem.getName() + " / " + itSystem.getId());
 				continue;
 			}

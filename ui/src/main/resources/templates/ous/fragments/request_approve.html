@@ -1,0 +1,57 @@
+<th:block th:fragment="requestApproveTable" xmlns="http://www.w3.org/1999/xhtml" xmlns:th="http://www.thymeleaf.org">
+	<th:block th:switch="${editable}">
+	
+	<div th:case="false" class="form-group">
+		<label class="col-sm-2 control-label" th:text="#{html.page.ous.edit.authorizationManager}"></label>
+
+		<div class="col-sm-8">
+			<table class="table table-striped" style="width: 600px;">
+				<thead>
+					<tr>
+						<th class="col-md-6" th:text="#{html.entity.user.name}"></th>
+						<th class="col-md-5" th:text="#{html.entity.user.userId}"></th>
+						<th class="col-md-1" th:text="#{html.control.operations}"></th>
+					</tr>
+				</thead>
+				
+				<tbody>
+					<tr th:each="authManager : ${ou.authorizationManagers}">
+						<td th:text="${authManager.user.name}"></td>
+						<td th:text="${authManager.user.userId}"></td>
+						<td>&nbsp;</td>
+					</tr>
+				</tbody>
+			</table>
+		</div>
+	</div>
+
+	<div th:case="true" class="form-group" sec:authorize="hasRole('ROLE_ADMINISTRATOR')" th:if="${@settingsService.isRequestApproveEnabled() == true && @settingsService.getRequestApproveWho() == T(dk.digitalidentity.rc.service.model.WhoCanRequest).AUTHORIZATION_MANAGER}">
+		<label class="col-sm-2 control-label" th:text="#{html.page.ous.edit.authorizationManager}"></label>
+
+		<div class="col-sm-8">
+			<input style="width: 600px; display: inline-block;" class="form-control" id="search_person" onclick="return false;" th:title="#{html.page.ous.edit.authorizationManager.title}" />
+
+			<table class="table table-striped" style="width: 600px;">
+				<thead>
+					<tr>
+						<th class="col-md-6" th:text="#{html.entity.user.name}"></th>
+						<th class="col-md-5" th:text="#{html.entity.user.userId}"></th>
+						<th class="col-md-1" th:text="#{html.control.operations}"></th>
+					</tr>
+				</thead>
+				
+				<tbody>
+					<tr th:each="authManager : ${ou.authorizationManagers}">
+						<td th:text="${authManager.user.name}"></td>
+						<td th:text="${authManager.user.userId}"></td>
+						<td>
+							<a onclick="autoCompleteService.removeAuthManager(this); return false;" th:data-uuid="${authManager.user.uuid}"><em class="fa fa-fw fa-times"></em></a>
+						</td>
+					</tr>
+				</tbody>
+			</table>
+		</div>
+	</div>
+
+	</th:block>
+</th:block>

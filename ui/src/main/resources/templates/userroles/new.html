@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html>
-<head th:replace="fragments/header :: header (title=#{html.page.userroles.new.title})" />
+<head th:replace="fragments/header :: header (title=#{html.page.userroles.new.title})"></head>
 <body>
 	<div class="wrapper">
-		<header th:replace="fragments/navbar :: navbar-header(subpage = 'roles')" />
-		<aside th:replace="fragments/navbar :: navbar-aside (page = 'userroles.new', subpage = 'roles')" />
+		<header th:replace="fragments/navbar :: navbar-header(subpage = 'roles')"></header>
+		<aside th:replace="fragments/navbar :: navbar-aside (page = 'userroles.new', subpage = 'roles')"></aside>
  
 		<section>
 			<div class="content-wrapper">
@@ -12,41 +12,41 @@
 					<a th:href="@{/ui/userroles/list}" class="btn btn-default">
 	                    <span><i class="fa fa-arrow-left"></i> </span>
 	                </a>
-					<span th:text="#{html.page.userroles.new.title}" />
+					<span th:text="#{html.page.userroles.new.title}"></span>
 				</h3>
 
 				<div class="panel panel-default">
-					<div class="panel-heading" />
+					<div class="panel-heading"></div>
 					<div class="panel-body">					
 						<form class="form-horizontal" th:object="${role}" method="post" th:action="@{/ui/userroles/new}">
 							<fieldset>
 								<div th:class="${#fields.hasErrors('name')} ? 'form-group has-error' : 'form-group'">
-					                <label class="col-sm-2 control-label" th:text="#{html.entity.userrole.name}" />
+					                <label class="col-sm-2 control-label" th:text="#{html.entity.userrole.name}"></label>
 					                <div class="col-sm-8">
 										<input th:field="*{name}" class="form-control" th:placeholder="#{html.entity.userrole.name.placeholder}" autofocus="autofocus" />
 										<ul th:if="${#fields.hasErrors('name')}">
-										    <li th:each="err : ${#fields.errors('name')}" th:text="${err}" />
+										    <li th:each="err : ${#fields.errors('name')}" th:text="${err}"></li>
 										</ul>
 					                </div>
-									<a th:replace="fragments/help :: help (title=#{html.entity.userrole.name}, content=#{html.entity.userrole.name.help})" />
+									<a th:replace="fragments/help :: help (title=#{html.entity.userrole.name}, content=#{html.entity.userrole.name.help})"></a>
 						        </div>
 					        </fieldset>
 
 							<fieldset>
 								<div class="form-group">
-									<label class="col-sm-2 control-label" th:text="#{html.entity.itsystem}" />
+									<label class="col-sm-2 control-label" th:text="#{html.entity.itsystem}"></label>
 									<div class="col-sm-8">
 										<select th:field="*{itSystem}" class="form-control">
-											<option th:each="itSystem : ${itSystems}" th:value="${itSystem.id}" th:text="${itSystem.name}" th:selected="${itSystem} == *{itSystem}" th:attr="data-type=${itSystem.systemType}"/>
+											<option th:each="itSystem : ${itSystems}" th:value="${itSystem.id}" th:text="${itSystem.name}" th:selected="${itSystem} == *{itSystem}" th:attr="data-type=${itSystem.systemType}"></option>
 										</select>
 									</div>
-									<a th:replace="fragments/help :: help (title=#{html.entity.itsystem.type}, content=#{html.entity.userrole.itsystem.help})" />
+									<a th:replace="fragments/help :: help (title=#{html.entity.itsystem.type}, content=#{html.entity.userrole.itsystem.help})"></a>
 								</div>
 							</fieldset>
 							
 							<fieldset id="checkboxRow" hidden>
 								<div class="form-group">
-									<label class="col-sm-2 control-label" th:text="#{html.page.userroles.new.custom_identifier}" />
+									<label class="col-sm-2 control-label" th:text="#{html.page.userroles.new.custom_identifier}"></label>
 									<div class="col-sm-8">
 										<div class="checkbox c-checkbox">
 											<label>
@@ -61,7 +61,7 @@
 							<fieldset id="identifierRow" th:hidden="${#strings.isEmpty(role.identifier)}">
 								<div class="form-group">
 									<div>
-										<label class="col-sm-2 control-label" th:text="#{html.page.userroles.new.custom_identifier.label}" />
+										<label class="col-sm-2 control-label" th:text="#{html.page.userroles.new.custom_identifier.label}"></label>
 										<div class="col-sm-8">
 											<input th:field="*{identifier}" class="form-control" th:placeholder="#{html.page.userroles.new.custom_identifier.placeholder}"/>
 										</div>
@@ -71,7 +71,7 @@
 							
 							<fieldset id="allowPostponingRow">
 								<div class="form-group">
-									<label class="col-sm-2 control-label" th:text="#{html.page.userroles.new.allow_postponing}" />
+									<label class="col-sm-2 control-label" th:text="#{html.page.userroles.new.allow_postponing}"></label>
 									<div class="col-sm-8" style="display: flex;">
 										<div class="checkbox c-checkbox">
 											<label>
@@ -80,25 +80,25 @@
 											</label>
 										</div>
 									</div>
-									<a th:replace="fragments/help :: help (title=#{html.help.constraint.postpone.title}, content=#{html.help.constraint.postpone.body})" />
+									<a th:replace="fragments/help :: help (title=#{html.help.constraint.postpone.title}, content=#{html.help.constraint.postpone.body})"></a>
 								</div>
 							</fieldset>
 
 							<fieldset>
 								<div class="form-group">
-					                <label class="col-sm-2 control-label" th:text="#{html.entity.userrole.description}" />
+					                <label class="col-sm-2 control-label" th:text="#{html.entity.userrole.description}"></label>
 					                <div class="col-sm-8">
-										<textarea th:field="*{description}" class="form-control" th:placeholder="#{html.entity.userrole.description.placeholder}" />
+										<textarea th:field="*{description}" class="form-control" th:placeholder="#{html.entity.userrole.description.placeholder}"></textarea>
 					                </div>
-									<a th:replace="fragments/help :: help (title=#{html.entity.userrole.description}, content=#{html.entity.userrole.description.help})" />
+									<a th:replace="fragments/help :: help (title=#{html.entity.userrole.description}, content=#{html.entity.userrole.description.help})"></a>
 						        </div>	
 							</fieldset>
 
 							<fieldset>
 						        <div class="form-group">
 						            <div class="col-sm-offset-2 col-sm-8">
-										<button type="submit" class="btn btn-lg btn-primary" th:text="#{html.control.button.save}" />
-										<a th:href="@{/ui/userroles/list}" class="btn btn-lg btn-danger" th:text="#{html.control.button.cancel}" />
+										<button type="submit" class="btn btn-lg btn-primary" th:text="#{html.control.button.save}"></button>
+										<a th:href="@{/ui/userroles/list}" class="btn btn-lg btn-danger" th:text="#{html.control.button.cancel}"></a>
 						       		</div>
 						        </div>
 							</fieldset>
@@ -109,7 +109,7 @@
 	    </section>
     </div>
 
-    <nav th:replace="fragments/footer :: footer" />
+    <nav th:replace="fragments/footer :: footer"></nav>
     
 	<script th:inline="javascript">
 		/*<![CDATA[*/

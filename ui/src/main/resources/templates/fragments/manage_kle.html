@@ -5,17 +5,17 @@
 				<table class="listTable table table-striped table-hover">
 					<thead>
 						<tr>
-							<th class="col-md-2" th:text="#{html.entity.kle.code}" />
-							<th class="col-md-6" th:text="#{html.entity.kle.description}" />
-							<th class="col-md-4" th:text="#{html.entity.kle.inherited}" />
+							<th class="col-md-2" th:text="#{html.entity.kle.code}"></th>
+							<th class="col-md-6" th:text="#{html.entity.kle.description}"></th>
+							<th class="col-md-4" th:text="#{html.entity.kle.inherited}"></th>
 						</tr>
 					</thead>
 
 					<tbody>
 						<tr th:each="kle : ${kles}">
-							<td th:text="${kle.code}" />
-							<td th:text="${kle.description}" />
-							<td th:text="${kle.inheritedFrom}" />
+							<td th:text="${kle.code}"></td>
+							<td th:text="${kle.description}"></td>
+							<td th:text="${kle.inheritedFrom}"></td>
 						</tr>
 					</tbody>
 				</table>

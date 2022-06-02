@@ -32,7 +32,7 @@ public class EmailQueueService {
 	private EmailService emailService;
 	
 	public void queueEmail(String email, String title, String message, EmailTemplate template, List<AttachmentFile> attachments) {
-		if (StringUtils.isEmpty(email)) {
+		if (!StringUtils.hasLength(email)) {
 			log.info("Not sending email '" + title + "' because no recipient email supplied");
 			return;
 		}
@@ -59,8 +59,8 @@ public class EmailQueueService {
 			
 			email.forceLoadAttachments();
 			List<AttachmentFile> attachments = (template != null && email.getAttachments() != null && email.getAttachments().size() > 0) ? email.getAttachments() : null;
-			
-			if (!StringUtils.isEmpty(email.getEmail())) {
+
+			if (StringUtils.hasLength(email.getEmail())) {
 				if (template != null) {
 					List<InlineImageDTO> inlineImages = transformImages(email);
 

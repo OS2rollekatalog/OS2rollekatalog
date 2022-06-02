@@ -22,7 +22,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.microsoft.sqlserver.jdbc.StringUtils;
+import org.springframework.util.StringUtils;
 
 import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.UserRoleDeleteStatus;
@@ -246,7 +246,7 @@ public class UserRoleRestController {
                 systemRoleAssignmentConstraintValue.setConstraintValue(constraintValue);
                 systemRoleAssignmentConstraintValue.setConstraintValueType(constraintValueType);
                 systemRoleAssignmentConstraintValue.setPostponed(postpone);
-                if (StringUtils.isEmpty(systemRoleAssignmentConstraintValue.getConstraintIdentifier())) {
+                if (!StringUtils.hasLength(systemRoleAssignmentConstraintValue.getConstraintIdentifier())) {
                 	systemRoleAssignmentConstraintValue.setConstraintIdentifier(IdentifierGenerator.buildKombitConstraintIdentifier(
                 		configuration.getIntegrations().getKombit().getDomain(),
                 		systemRole,
@@ -432,5 +432,21 @@ public class UserRoleRestController {
         }
 
         return new ResponseEntity<>(status, HttpStatus.OK);
+    }
+
+    @PostMapping(value = "/rest/userroles/removeSystemRoleLink/{roleId}")
+    @ResponseBody
+    public ResponseEntity<String> removeSystemRoleLink(@PathVariable("roleId") long roleId) {
+        UserRole role = userRoleService.getById(roleId);
+        if (role == null) {
+            return new ResponseEntity<>("Ukendt Jobfunktionsrolle", HttpStatus.BAD_REQUEST);
+        }
+
+        role.setLinkedSystemRole(null);
+        role.setLinkedSystemRolePrefix(null);
+
+        userRoleService.save(role);
+
+        return new ResponseEntity<>(HttpStatus.OK);
     }
 }

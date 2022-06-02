@@ -89,7 +89,7 @@ public class NotificationRestController {
 			return ResponseEntity.badRequest().build();
 		}
 
-		if (!StringUtils.isEmpty(notification.getAdminUuid())) {
+		if (StringUtils.hasLength(notification.getAdminUuid())) {
 			if (!confirm || notification.getAdminUuid().equals(user.getUuid())) {
 				notification.setAdminName(null);
 				notification.setAdminUuid(null);

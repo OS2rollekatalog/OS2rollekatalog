@@ -117,7 +117,7 @@ public class SettingsService {
 	
 	public int getReminderCount() {
 		Setting setting = settingsDao.getByKey(SETTING_REMINDER_COUNT);
-		if (setting == null || StringUtils.isEmpty(setting.getValue())) {
+		if (setting == null || !StringUtils.hasLength(setting.getValue())) {
 			return 2;
 		}
 		
@@ -146,7 +146,7 @@ public class SettingsService {
 	
 	public int getReminderInterval() {
 		Setting setting = settingsDao.getByKey(SETTING_REMINDER_INTERVAL);
-		if (setting == null || StringUtils.isEmpty(setting.getValue())) {
+		if (setting == null || !StringUtils.hasLength(setting.getValue())) {
 			return 7;
 		}
 		
@@ -174,7 +174,7 @@ public class SettingsService {
 	
 	public int getDaysBeforeDeadline() {
 		Setting setting = settingsDao.getByKey(SETTING_DAYS_BEFORE_DEADLINE);
-		if (setting == null || StringUtils.isEmpty(setting.getValue())) {
+		if (setting == null || !StringUtils.hasLength(setting.getValue())) {
 			return 7;
 		}
 
@@ -242,7 +242,7 @@ public class SettingsService {
 	
 	public Set<String> getScheduledAttestationFilter() {
 		Setting setting = settingsDao.getByKey(SETTING_SCHEDULED_ATTESTATION_FILTER);
-		if (setting == null || StringUtils.isEmpty(setting.getValue())) {
+		if (setting == null || !StringUtils.hasLength(setting.getValue())) {
 			return new HashSet<>();
 		}
 		
@@ -272,7 +272,7 @@ public class SettingsService {
 	
 	public long getScheduledAttestationDayInMonth() {
 		Setting setting = settingsDao.getByKey(SETTING_SCHEDULED_ATTESTATION_DAY_IN_MONTH);
-		if (setting == null || StringUtils.isEmpty(setting.getValue())) {
+		if (setting == null || !StringUtils.hasLength(setting.getValue())) {
 			return 10;
 		}
 		

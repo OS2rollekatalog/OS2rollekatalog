@@ -1,11 +1,11 @@
 <!DOCTYPE html>
 <html xmlns="http://www.w3.org/1999/xhtml" xmlns:th="http://www.thymeleaf.org">
-<head th:replace="fragments/header :: header (title=#{html.page.itsystem.edit.title})" />
+<head th:replace="fragments/header :: header (title=#{html.page.itsystem.edit.title})"></head>
 <body>
 
 	<div class="wrapper">
-		<header th:replace="fragments/navbar :: navbar-header(subpage = 'roles')" />
-		<aside th:replace="fragments/navbar :: navbar-aside (page = 'itsystem.list', subpage = 'roles')" />
+		<header th:replace="fragments/navbar :: navbar-header(subpage = 'roles')"></header>
+		<aside th:replace="fragments/navbar :: navbar-aside (page = 'itsystem.list', subpage = 'roles')"></aside>
 
 		<section>
 			<div class="content-wrapper">
@@ -13,11 +13,11 @@
 					<a th:href="@{/ui/itsystem/list}" class="btn btn-default">
 						<span><i class="fa fa-arrow-left"></i></span>
 					</a>
-					<span th:text="#{html.page.itsystem.edit.title}" />
+					<span th:text="#{html.page.itsystem.edit.title}"></span>
 				</h3>
 				
 				<div class="panel panel-default">
-					<div class="panel-heading" />
+					<div class="panel-heading"></div>
 					<div class="panel-body">
 
 						<form id="role-form" class="form-horizontal" th:object="${itsystem}">
@@ -25,7 +25,7 @@
 
 							<fieldset>
 								<div class="form-group">
-									<label class="col-sm-2 control-label" th:text="#{html.entity.itsystem.name}" />
+									<label class="col-sm-2 control-label" th:text="#{html.entity.itsystem.name}"></label>
 									<div class="col-sm-8">
 										<input th:field="*{name}" th:readonly="${#strings.toString(itsystem.systemType)} == 'KOMBIT'" class="form-control" />
 									</div>
@@ -34,7 +34,7 @@
 
 							<fieldset>
 								<div class="form-group">
-									<label class="col-sm-2 control-label" th:text="#{html.entity.itsystem.identifier}" />
+									<label class="col-sm-2 control-label" th:text="#{html.entity.itsystem.identifier}"></label>
 									<div class="col-sm-8">
 										<input th:field="*{identifier}" readonly="readonly" class="form-control" />
 									</div>
@@ -43,7 +43,7 @@
 
 							<fieldset th:if="${#strings.toString(itsystem.systemType)} == 'MANUAL'">
 								<div class="form-group">
-									<label class="col-sm-2 control-label" th:text="#{html.entity.itsystem.email}" />
+									<label class="col-sm-2 control-label" th:text="#{html.entity.itsystem.email}"></label>
 									<div class="col-sm-8">
 										<input th:field="*{email}" class="form-control" />
 									</div>
@@ -52,7 +52,7 @@
 
 							<fieldset>
 								<div class="form-group">
-									<label class="col-sm-2 control-label" th:text="#{html.entity.itsystem.type}" />
+									<label class="col-sm-2 control-label" th:text="#{html.entity.itsystem.type}"></label>
 									<div class="col-sm-8">
 										<input th:value="#{__*{systemType.message}__}" readonly="readonly" class="form-control" />
 									</div>
@@ -61,7 +61,7 @@
 							
 							<fieldset>
 								<div class="form-group">
-									<label class="col-sm-2 control-label" th:text="#{html.entity.itsystem.notificationEmail}" />
+									<label class="col-sm-2 control-label" th:text="#{html.entity.itsystem.notificationEmail}"></label>
 									<div class="col-sm-8">
 										<input th:field="*{notificationEmail}" class="form-control" />
 									</div>
@@ -70,16 +70,16 @@
 							
 							<fieldset>
 								<div class="form-group">
-									<label class="col-sm-2 control-label" th:text="#{html.entity.itsystem.notes}" />
+									<label class="col-sm-2 control-label" th:text="#{html.entity.itsystem.notes}"></label>
 									<div class="col-sm-8">
-										<textarea rows="5" th:field="*{notes}" class="form-control" />
+										<textarea rows="5" th:field="*{notes}" class="form-control"></textarea>
 									</div>
 								</div>
 							</fieldset>
 
 							<fieldset>
 								<div class="form-group">
-									<label class="col-sm-2 control-label" th:text="#{html.entity.itsystem.hidden}" />
+									<label class="col-sm-2 control-label" th:text="#{html.entity.itsystem.hidden}"></label>
 									<div class="col-sm-1">
 										<div class="checkbox c-checkbox">
 											<label>
@@ -93,7 +93,7 @@
 
 							<fieldset th:if="${#strings.toString(itsystem.systemType)} == 'AD'">
 								<div class="form-group">
-									<label class="col-sm-2 control-label" th:text="#{html.entity.itsystem.paused}" />
+									<label class="col-sm-2 control-label" th:text="#{html.entity.itsystem.paused}"></label>
 									<div class="col-sm-1">
 										<div class="checkbox c-checkbox">
 											<label>
@@ -107,7 +107,7 @@
 
 							<fieldset th:if="${#strings.toString(itsystem.systemType)} == 'AD' or ${#strings.toString(itsystem.systemType)} == 'SAML' or ${#strings.toString(itsystem.systemType)} == 'MANUAL'">
 								<div class="form-group">
-									<label class="col-sm-2 control-label" th:text="#{html.entity.itsystem.canEditThroughApi}" />
+									<label class="col-sm-2 control-label" th:text="#{html.entity.itsystem.canEditThroughApi}"></label>
 									<div class="col-sm-1">
 										<div class="checkbox c-checkbox">
 											<label>
@@ -121,7 +121,7 @@
 
 							<fieldset>
 								<div class="form-group">
-									<label class="col-sm-2 control-label" th:text="#{html.entity.itsystem.access_blocked}" />
+									<label class="col-sm-2 control-label" th:text="#{html.entity.itsystem.access_blocked}"></label>
 									<div class="col-sm-1">
 										<div class="checkbox c-checkbox">
 											<label>
@@ -135,7 +135,7 @@
 
 							<fieldset th:if="${@roleCatalogueConfiguration.apiControl.enabled}">
 								<div class="form-group">
-									<label class="col-sm-2 control-label" th:text="#{html.entity.itsystem.api_managed_role_assignments}" />
+									<label class="col-sm-2 control-label" th:text="#{html.entity.itsystem.api_managed_role_assignments}"></label>
 									<div class="col-sm-1">
 										<div class="checkbox c-checkbox">
 											<label>
@@ -149,7 +149,7 @@
 
 							<fieldset th:if="${#strings.toString(itsystem.systemType)} == 'AD'">
 								<div class="form-group">
-									<label class="col-sm-2 control-label" th:text="#{html.entity.itsystem.readonly}" />
+									<label class="col-sm-2 control-label" th:text="#{html.entity.itsystem.readonly}"></label>
 									<div class="col-sm-1">
 										<div class="checkbox c-checkbox">
 											<label>
@@ -163,16 +163,16 @@
 
 							<fieldset th:if="${#strings.toString(itsystem.systemType)} == 'AD'">
 								<div class="form-group">
-									<label class="col-sm-2 control-label" th:text="#{html.control.operations}" />
+									<label class="col-sm-2 control-label" th:text="#{html.control.operations}"></label>
 									<div class="col-sm-8">
-										<a id="addAdRoleBtn" class="btn btn-lg btn-primary" th:text="#{html.page.itsystem.action.new.systemrole.ad}" onclick="newAdRole();" th:disabled="${itsystem.readonly}"/>
+										<a id="addAdRoleBtn" class="btn btn-lg btn-primary" th:text="#{html.page.itsystem.action.new.systemrole.ad}" onclick="newAdRole();" th:disabled="${itsystem.readonly}"></a>
 									</div>
 								</div>
 							</fieldset>
 
 							<fieldset th:if="${#strings.toString(itsystem.systemType)} == 'SAML'">
 								<div class="form-group">
-									<label class="col-sm-2 control-label" th:text="#{html.entity.itsystem.subscribedto}" />
+									<label class="col-sm-2 control-label" th:text="#{html.entity.itsystem.subscribedto}"></label>
 									<div class="col-sm-8">
 										<div class="checkbox c-checkbox col-sm-1">
 											<label>
@@ -183,11 +183,11 @@
 
 										<div class="col-sm-10">
 										<select id="subscribedTo" style="float:right; width:95%" class="form-control m-b">
-											<option id="defaultOption" th:selected="${itsystem.subscribedTo != null}" th:text="#{html.select.default}"/>
+											<option id="defaultOption" th:selected="${itsystem.subscribedTo != null}" th:text="#{html.select.default}"></option>
 											<option th:each="masterSystem : ${itsystemMasterList}"
 													th:value="${masterSystem.masterId}"
 													th:text="${masterSystem.name}"
-													th:selected="${masterSystem.masterId == itsystem.subscribedTo}"/>
+													th:selected="${masterSystem.masterId == itsystem.subscribedTo}"></option>
 										</select>
 										</div>
 									</div>
@@ -196,18 +196,18 @@
 
 							<fieldset id="addRoleButtonField" th:if="${#strings.toString(itsystem.systemType)} == 'SAML'">
 								<div class="form-group">
-									<label class="col-sm-2 control-label" th:text="#{html.control.operations}" />
+									<label class="col-sm-2 control-label" th:text="#{html.control.operations}"></label>
 									<div class="col-sm-8">
-										<a id="newSamlRoleBtn" class="btn btn-lg btn-primary" th:text="#{html.page.itsystem.action.new.systemrole.saml}" onclick="newSamlRole();" />
+										<a id="newSamlRoleBtn" class="btn btn-lg btn-primary" th:text="#{html.page.itsystem.action.new.systemrole.saml}" onclick="newSamlRole();"></a>
 									</div>
 								</div>
 							</fieldset>
 
 							<fieldset th:if="${#strings.toString(itsystem.systemType)} == 'MANUAL'">
 								<div class="form-group">
-									<label class="col-sm-2 control-label" th:text="#{html.control.operations}" />
+									<label class="col-sm-2 control-label" th:text="#{html.control.operations}"></label>
 									<div class="col-sm-8">
-										<a class="btn btn-lg btn-primary" th:text="#{html.page.itsystem.action.new.systemrole.manual}" onclick="newSamlRole();" />
+										<a class="btn btn-lg btn-primary" th:text="#{html.page.itsystem.action.new.systemrole.manual}" onclick="newSamlRole();"></a>
 									</div>
 								</div>
 							</fieldset>
@@ -217,36 +217,36 @@
 						<form class="form-horizontal" th:if="${#strings.toString(itsystem.systemType)} == 'AD'">
 							<ul class="nav nav-tabs">
 								<li th:class="active">
-									<a data-toggle="tab" href="#systemRole_menu" th:text="#{html.page.itsystem.pane.label}"/>
+									<a data-toggle="tab" href="#systemRole_menu" th:text="#{html.page.itsystem.pane.label}"></a>
 								</li>
 								<li>
-									<a data-toggle="tab" href="#userRole_menu" th:text="#{html.page.itsystem.pane.userroles.label}"/>
+									<a data-toggle="tab" href="#userRole_menu" th:text="#{html.page.itsystem.pane.userroles.label}"></a>
 								</li>
 							</ul>
 
 							<div class="tab-content">
 								<div id="systemRole_menu" class="tab-pane fade in active">
 									<div style="margin-bottom:20px;">
-										<div id="convertSystemRolesToUserRolesBtn" class="btn btn-lg btn-primary" style="width:auto;" onclick="convertSystemRolesToUserRoles();" th:disabled="${itsystem.readonly}"><span th:text="#{html.page.itsystem.pane.systemroles.convert}" /></div>
+										<div id="convertSystemRolesToUserRolesBtn" class="btn btn-lg btn-primary" style="width:auto;" onclick="convertSystemRolesToUserRoles();" th:disabled="${itsystem.readonly}"><span th:text="#{html.page.itsystem.pane.systemroles.convert}"></span></div>
 									</div>
 									
 									<div class="table-responsive">
 										<table id="listTable" class="table table-striped listTable">
 											<thead>
 												<tr>
-													<th class="col-md-2" th:text="#{html.entity.adgroup.name}" />
-													<th class="col-md-3" th:text="#{html.entity.adgroup.identifier}" />
-													<th class="col-md-5" th:text="#{html.entity.adgroup.description}" />
-													<th class="col-md-1" th:text="#{html.entity.adgroup.inuse}" />
-													<th class="col-md-1" th:text="#{html.control.operations}" />
+													<th class="col-md-2" th:text="#{html.entity.adgroup.name}"></th>
+													<th class="col-md-3" th:text="#{html.entity.adgroup.identifier}"></th>
+													<th class="col-md-5" th:text="#{html.entity.adgroup.description}"></th>
+													<th class="col-md-1" th:text="#{html.entity.adgroup.inuse}"></th>
+													<th class="col-md-1" th:text="#{html.control.operations}"></th>
 												</tr>
 											</thead>
 	
 											<tbody>
 												<tr th:each="systemRole : ${systemRoles}">
-													<td th:text="${systemRole.name}" />
-													<td th:text="${systemRole.identifier}" />
-													<td class="preformat" th:text="${systemRole.description}" />
+													<td th:text="${systemRole.name}"></td>
+													<td th:text="${systemRole.identifier}"></td>
+													<td class="preformat" th:text="${systemRole.description}"></td>
 													<td><em class="fa fa-fw" th:classappend="${systemRole.inUse} ? fa-check : ''"></em></td>
 													<td>
 														<th:block th:if="${itsystem.readonly} == false">
@@ -263,29 +263,29 @@
 
 								<div id="userRole_menu" class="tab-pane fade">
 									<div style="margin-bottom:20px;">
-										<div id="removeUnusedRolesBtn" class="btn btn-lg btn-primary" style="width:auto;" onclick="removeUnusedUserRoles();" th:disabled="${itsystem.readonly}"><span th:text="#{html.page.itsystem.pane.userroles.delete}" /></div>
+										<div id="removeUnusedRolesBtn" class="btn btn-lg btn-primary" style="width:auto;" onclick="removeUnusedUserRoles();" th:disabled="${itsystem.readonly}"><span th:text="#{html.page.itsystem.pane.userroles.delete}"></span></div>
 									</div>
 									<div class="table-responsive">
 										<table id="listTable" class="table table-striped listTable">
 											<thead>
 												<tr>
-													<th class="col-md-5" th:text="#{html.entity.userrole.name}" />
-													<th class="col-md-6" th:text="#{html.entity.userrole.description}" />
-													<th class="col-md-1" th:text="#{html.control.operations}" />
+													<th class="col-md-5" th:text="#{html.entity.userrole.name}"></th>
+													<th class="col-md-6" th:text="#{html.entity.userrole.description}"></th>
+													<th class="col-md-1" th:text="#{html.control.operations}"></th>
 												</tr>
 											</thead>
 											<tbody>
 												<tr th:each="role : ${userRoles}">
-													<td class="col-md-5" th:text="${role.name}" />
-													<td class="col-md-6" th:text="${role.description}" />
+													<td class="col-md-5" th:text="${role.name}"></td>
+													<td class="col-md-6" th:text="${role.description}"></td>
 													<td class="col-md-1">
 														<th:block th:if="${role.delegatedFromCvr == null}">
 															<a th:href="@{/ui/userroles/view/{id}(id=${role.id})}"><em class="fa fa-search"></em></a>
 															<th:block sec:authorize="hasRole('ROLE_ADMINISTRATOR')" th:if="${itsystem.readonly} == false">
 																<a th:href="@{/ui/userroles/edit/{id}(id=${role.id})}"><em class="fa fa-pencil"></em></a>
 															</th:block>
-														</td>
-													</th:block>
+														</th:block>
+													</td>
 												</tr>
 											</tbody>
 										</table>
@@ -298,35 +298,35 @@
 						<form class="form-horizontal" th:if="${#strings.toString(itsystem.systemType)} == 'SAML' or ${#strings.toString(itsystem.systemType)} == 'MANUAL'">
 							<ul class="nav nav-tabs">
 								<li th:class="active">
-									<a data-toggle="tab" href="#systemRole_menu" th:text="#{html.page.itsystem.pane.nonad.label}"/>
+									<a data-toggle="tab" href="#systemRole_menu" th:text="#{html.page.itsystem.pane.nonad.label}"></a>
 								</li>
 								<li>
-									<a data-toggle="tab" href="#userRole_menu" th:text="#{html.page.itsystem.pane.userroles.label}"/>
+									<a data-toggle="tab" href="#userRole_menu" th:text="#{html.page.itsystem.pane.userroles.label}"></a>
 								</li>
 							</ul>
 
 							<div class="tab-content">
 								<div id="systemRole_menu" class="tab-pane fade in active">
 									<div style="margin-bottom:20px;">
-										<div class="btn btn-lg btn-primary" style="width:auto;" onclick="convertSystemRolesToUserRoles();"><span th:text="#{html.page.itsystem.pane.systemroles.convert}" /></div>
+										<div class="btn btn-lg btn-primary" style="width:auto;" onclick="convertSystemRolesToUserRoles();"><span th:text="#{html.page.itsystem.pane.systemroles.convert}"></span></div>
 									</div>
 									
 									<table id="listTable" class="table table-striped listTable">
 										<thead>
 											<tr>
-												<th class="col-md-2" th:text="#{html.entity.samlrole.name}" />
-												<th class="col-md-3" th:text="#{html.entity.samlrole.identifier}" />
-												<th class="col-md-5" th:text="#{html.entity.samlrole.description}" />
-												<th class="col-md-1" th:text="#{html.entity.samlrole.inuse}" />
-												<th class="col-md-1" th:text="#{html.control.operations}" />
+												<th class="col-md-2" th:text="#{html.entity.samlrole.name}"></th>
+												<th class="col-md-3" th:text="#{html.entity.samlrole.identifier}"></th>
+												<th class="col-md-5" th:text="#{html.entity.samlrole.description}"></th>
+												<th class="col-md-1" th:text="#{html.entity.samlrole.inuse}"></th>
+												<th class="col-md-1" th:text="#{html.control.operations}"></th>
 											</tr>
 										</thead>
 
 										<tbody>
 											<tr th:each="systemRole : ${systemRoles}">
-												<td th:text="${systemRole.name}" />
-												<td th:text="${systemRole.identifier}" />
-												<td class="preformat" th:text="${systemRole.description}" />
+												<td th:text="${systemRole.name}"></td>
+												<td th:text="${systemRole.identifier}"></td>
+												<td class="preformat" th:text="${systemRole.description}"></td>
 												<td><em class="fa fa-fw" th:classappend="${systemRole.inUse} ? fa-check : ''"></em></td>
 												<td>
 													<a href="#" onclick="openConfirmDeleteDialog(this);" th:attr="data-id=${systemRole.id}"><em class="fa fa-remove operationsCol"></em></a>
@@ -339,21 +339,21 @@
 								</div>
 								<div id="userRole_menu" class="tab-pane fade">
 									<div style="margin-bottom:20px;">
-										<div class="btn btn-lg btn-primary" style="width:auto;" onclick="removeUnusedUserRoles();"><span th:text="#{html.page.itsystem.pane.userroles.delete}" /></div>
+										<div class="btn btn-lg btn-primary" style="width:auto;" onclick="removeUnusedUserRoles();"><span th:text="#{html.page.itsystem.pane.userroles.delete}"></span></div>
 									</div>
 									<div class="table-responsive">
 										<table id="listTable" class="table table-striped listTable">
 											<thead>
 												<tr>
-													<th class="col-md-5" th:text="#{html.entity.userrole.name}" />
-													<th class="col-md-6" th:text="#{html.entity.userrole.description}" />
-													<th class="col-md-1" th:text="#{html.control.operations}" />
+													<th class="col-md-5" th:text="#{html.entity.userrole.name}"></th>
+													<th class="col-md-6" th:text="#{html.entity.userrole.description}"></th>
+													<th class="col-md-1" th:text="#{html.control.operations}"></th>
 												</tr>
 											</thead>
 											<tbody>
 												<tr th:each="role : ${userRoles}">
-													<td class="col-md-5" th:text="${role.name}" />
-													<td class="col-md-6" th:text="${role.description}" />
+													<td class="col-md-5" th:text="${role.name}"></td>
+													<td class="col-md-6" th:text="${role.description}"></td>
 													<th:block th:if="${role.delegatedFromCvr == null}">
 														<td class="col-md-1">
 															<a th:href="@{/ui/userroles/view/{id}(id=${role.id})}"><em class="fa fa-search"></em></a>
@@ -377,33 +377,33 @@
 						<form class="form-horizontal" th:if="${#strings.toString(itsystem.systemType)} == 'KOMBIT' or ${#strings.toString(itsystem.systemType)} == 'KSPCICS'">
 							<ul class="nav nav-tabs">
 								<li th:class="active">
-									<a data-toggle="tab" href="#systemRole_menu" th:text="#{html.page.itsystem.pane.nonad.label}"/>
+									<a data-toggle="tab" href="#systemRole_menu" th:text="#{html.page.itsystem.pane.nonad.label}"></a>
 								</li>
 								<li>
-									<a data-toggle="tab" href="#userRole_menu" th:text="#{html.page.itsystem.pane.userroles.label}"/>
+									<a data-toggle="tab" href="#userRole_menu" th:text="#{html.page.itsystem.pane.userroles.label}"></a>
 								</li>
 							</ul>
 
 							<div class="tab-content">
 								<div id="systemRole_menu" class="tab-pane fade in active">
 									<div style="margin-bottom:20px;" th:if="${#strings.toString(itsystem.systemType)} != 'KSPCICS'">
-										<div class="btn btn-lg btn-primary" style="width:auto;" onclick="convertSystemRolesToUserRoles();"><span th:text="#{html.page.itsystem.pane.systemroles.convert}" /></div>
+										<div class="btn btn-lg btn-primary" style="width:auto;" onclick="convertSystemRolesToUserRoles();"><span th:text="#{html.page.itsystem.pane.systemroles.convert}"></span></div>
 									</div>
 
 									<table id="listTable" class="table table-striped listTable">
 										<thead>
 											<tr>
-												<th class="col-md-4" th:text="#{html.entity.adgroup.name}" />
-												<th class="col-md-6" th:text="#{html.entity.adgroup.description}" />
-												<th class="col-md-1" th:text="#{html.entity.adgroup.inuse}" />
-												<th class="col-md-1" th:text="#{html.control.operations}" />
+												<th class="col-md-4" th:text="#{html.entity.adgroup.name}"></th>
+												<th class="col-md-6" th:text="#{html.entity.adgroup.description}"></th>
+												<th class="col-md-1" th:text="#{html.entity.adgroup.inuse}"></th>
+												<th class="col-md-1" th:text="#{html.control.operations}"></th>
 											</tr>
 										</thead>
 
 										<tbody>
 											<tr th:each="systemRole : ${systemRoles}">
-												<td th:text="${systemRole.name}" />
-												<td class="preformat" th:text="${systemRole.description}" />
+												<td th:text="${systemRole.name}"></td>
+												<td class="preformat" th:text="${systemRole.description}"></td>
 												<td><em class="fa fa-fw" th:classappend="${systemRole.inUse} ? fa-check : ''"></em></td>
 												<td><a th:href="@{/ui/systemrole/{id}/userroles(id=${systemRole.id})}"><em class="fa fa-list"></em></a></td>
 											</tr>
@@ -413,21 +413,21 @@
 
 								<div id="userRole_menu" class="tab-pane fade">
 									<div style="margin-bottom:20px;" th:if="${#strings.toString(itsystem.systemType)} != 'KSPCICS'">
-										<div class="btn btn-lg btn-primary" style="width:auto;" onclick="removeUnusedUserRoles();"><span th:text="#{html.page.itsystem.pane.userroles.delete}" /></div>
+										<div class="btn btn-lg btn-primary" style="width:auto;" onclick="removeUnusedUserRoles();"><span th:text="#{html.page.itsystem.pane.userroles.delete}"></span></div>
 									</div>
 									<div class="table-responsive">
 										<table id="listTable" class="table table-striped listTable">
 											<thead>
 												<tr>
-													<th class="col-md-5" th:text="#{html.entity.userrole.name}" />
-													<th class="col-md-6" th:text="#{html.entity.userrole.description}" />
-													<th class="col-md-1" th:text="#{html.control.operations}" />
+													<th class="col-md-5" th:text="#{html.entity.userrole.name}"></th>
+													<th class="col-md-6" th:text="#{html.entity.userrole.description}"></th>
+													<th class="col-md-1" th:text="#{html.control.operations}"></th>
 												</tr>
 											</thead>
 											<tbody> 
 												<tr th:each="role : ${userRoles}">
-													<td class="col-md-5" th:text="${role.name}" />
-													<td class="col-md-6" th:text="${role.description}" />
+													<td class="col-md-5" th:text="${role.name}"></td>
+													<td class="col-md-6" th:text="${role.description}"></td>
 													<th:block th:if="${role.delegatedFromCvr == null}">
 														<td class="col-md-1">
 															<a th:href="@{/ui/userroles/view/{id}(id=${role.id})}"><em class="fa fa-search"></em></a>
@@ -459,7 +459,7 @@
 			<div class="modal-content">
 				<div class="modal-header">
 					<button type="button" class="close" data-dismiss="modal">&times;</button>
-					<h4 th:text="#{html.page.itsystem.edit.modal.ad}"/>
+					<h4 th:text="#{html.page.itsystem.edit.modal.ad}"></h4>
 				</div>
 
 				<form class="form-horizontal" id="systemRoleForm" th:object="${systemRoleForm}" th:action="@{/ui/itsystem/edit/} + ${itsystem.id} + '/addSystemRole'" method="post">
@@ -470,11 +470,11 @@
 
 						<fieldset>
 							<div class="form-group">
-								<label class="col-sm-3 control-label" th:text="#{html.entity.adgroup.name}" />
+								<label class="col-sm-3 control-label" th:text="#{html.entity.adgroup.name}"></label>
 								<div class="col-sm-9">
 									<input th:field="*{name}" id="adSystemRoleName" class="form-control" />
 									<ul th:if="${#fields.hasErrors('name')}" class="error">
-										<li class="error" th:each="err : ${#fields.errors('name')}" th:text="${err}"/>
+										<li class="error" th:each="err : ${#fields.errors('name')}" th:text="${err}"></li>
 									</ul>
 								</div>
 							</div>
@@ -482,11 +482,11 @@
 
 						<fieldset>
 							<div class="form-group">
-								<label class="col-sm-3 control-label" th:text="#{html.entity.adgroup.identifier}" />
+								<label class="col-sm-3 control-label" th:text="#{html.entity.adgroup.identifier}"></label>
 								<div class="col-sm-9">
 									<input th:field="*{identifier}" id="adSystemRoleIdentifier" class="form-control" />
 									<ul th:if="${#fields.hasErrors('identifier')}" class="error">
-										<li class="error" th:each="err : ${#fields.errors('identifier')}" th:text="${err}"/>
+										<li class="error" th:each="err : ${#fields.errors('identifier')}" th:text="${err}"></li>
 									</ul>
 								</div>
 							</div>
@@ -494,11 +494,11 @@
 
 						<fieldset>
 							<div class="form-group">
-								<label class="col-sm-3 control-label" th:text="#{html.entity.adgroup.description}" />
+								<label class="col-sm-3 control-label" th:text="#{html.entity.adgroup.description}"></label>
 								<div class="col-sm-9">
-									<textarea rows="8" th:field="*{description}" id="adSystemRoleDescription" class="form-control" />
+									<textarea rows="8" th:field="*{description}" id="adSystemRoleDescription" class="form-control"></textarea>
 									<ul th:if="${#fields.hasErrors('description')}" class="error">
-										<li class="error" th:each="err : ${#fields.errors('description')}" th:text="${err}"/>
+										<li class="error" th:each="err : ${#fields.errors('description')}" th:text="${err}"></li>
 									</ul>
 								</div>
 							</div>
@@ -506,7 +506,7 @@
 						
 						<fieldset>
 							<div class="form-group">
-								<label class="col-sm-3 control-label" th:text="#{html.entity.adgroup.create}" />
+								<label class="col-sm-3 control-label" th:text="#{html.entity.adgroup.create}"></label>
 								<div class="col-sm-9">
 									<select th:field="*{adGroupType}" id="adGroupType" class="form-control">
 										<option th:value="${T(dk.digitalidentity.rc.dao.model.enums.ADGroupType).NONE}" th:text="#{html.entity.adgroup.create.none}" checked="checked"></option>
@@ -531,8 +531,8 @@
 					</div>
 
 					<div class="modal-footer">
-						<button type="submit" id="save" class="btn btn-primary" th:text="#{html.control.button.save}"/>
-						<button type="button" class="btn btn-danger" data-dismiss="modal" th:text="#{html.control.button.cancel}"/>
+						<button type="submit" id="save" class="btn btn-primary" th:text="#{html.control.button.save}"></button>
+						<button type="button" class="btn btn-danger" data-dismiss="modal" th:text="#{html.control.button.cancel}"></button>
 					</div>
 				</form>
 			</div>
@@ -546,7 +546,7 @@
 			<div class="modal-content">
 				<div class="modal-header">
 					<button type="button" class="close" data-dismiss="modal">&times;</button>
-					<h4 th:text="#{html.page.itsystem.edit.modal.saml}"/>
+					<h4 th:text="#{html.page.itsystem.edit.modal.saml}"></h4>
 				</div>
 
 				<form class="form-horizontal" id="systemRoleForm" th:object="${systemRoleForm}" th:action="@{/ui/itsystem/edit/} + ${itsystem.id} + '/addSystemRole'" method="post">
@@ -555,11 +555,11 @@
 
 						<fieldset>
 							<div class="form-group">
-								<label class="col-sm-2 control-label" th:text="#{html.entity.samlrole.name}" />
+								<label class="col-sm-2 control-label" th:text="#{html.entity.samlrole.name}"></label>
 								<div class="col-sm-10">
 									<input th:field="*{name}" id="samlSystemRoleName" class="form-control" />
 									<ul th:if="${#fields.hasErrors('name')}" class="error">
-										<li class="error" th:each="err : ${#fields.errors('name')}" th:text="${err}"/>
+										<li class="error" th:each="err : ${#fields.errors('name')}" th:text="${err}"></li>
 									</ul>
 								</div>
 							</div>
@@ -567,11 +567,11 @@
 
 						<fieldset>
 							<div class="form-group">
-								<label class="col-sm-2 control-label" th:text="#{html.entity.samlrole.identifier}" />
+								<label class="col-sm-2 control-label" th:text="#{html.entity.samlrole.identifier}"></label>
 								<div class="col-sm-10">
 									<input th:field="*{identifier}" id="samlSystemRoleIdentifier" class="form-control" />
 									<ul th:if="${#fields.hasErrors('identifier')}" class="error">
-										<li class="error" th:each="err : ${#fields.errors('identifier')}" th:text="${err}"/>
+										<li class="error" th:each="err : ${#fields.errors('identifier')}" th:text="${err}"></li>
 									</ul>
 								</div>
 							</div>
@@ -579,11 +579,11 @@
 
 						<fieldset>
 							<div class="form-group">
-								<label class="col-sm-2 control-label" th:text="#{html.entity.samlrole.description}" />
+								<label class="col-sm-2 control-label" th:text="#{html.entity.samlrole.description}"></label>
 								<div class="col-sm-10">
-									<textarea rows="8" th:field="*{description}" id="samlSystemRoleDescription" class="form-control" />
+									<textarea rows="8" th:field="*{description}" id="samlSystemRoleDescription" class="form-control"></textarea>
 									<ul th:if="${#fields.hasErrors('description')}" class="error">
-										<li class="error" th:each="err : ${#fields.errors('description')}" th:text="${err}"/>
+										<li class="error" th:each="err : ${#fields.errors('description')}" th:text="${err}"></li>
 									</ul>
 								</div>
 							</div>
@@ -591,16 +591,66 @@
 					</div>
 
 					<div class="modal-footer">
-						<button type="submit" id="save" class="btn btn-primary" th:text="#{html.control.button.save}"/>
-						<button type="button" class="btn btn-danger" data-dismiss="modal" th:text="#{html.control.button.cancel}"/>
+						<button type="submit" id="save" class="btn btn-primary" th:text="#{html.control.button.save}"></button>
+						<button type="button" class="btn btn-danger" data-dismiss="modal" th:text="#{html.control.button.cancel}"></button>
 					</div>
 				</form>
 			</div>
 		</div>
 	</div>
 
-	<nav th:replace="fragments/footer :: footer" />
-	<script th:replace="fragments/datatables :: datatables " />
+	<div class="modal fade" id="modal-convert-systemroles" role="dialog">
+		<div class="modal-dialog modal-lg">
+
+			<!-- Modal content-->
+			<div class="modal-content">
+				<div class="modal-header">
+					<button type="button" class="close" data-dismiss="modal">&times;</button>
+					<h4 th:text="#{html.page.itsystem.edit.modal.convert}"></h4>
+				</div>
+
+				<form class="form-horizontal" id="convertSystemRolesForm" th:object="${convertSystemRolesForm}" th:action="@{/ui/itsystem/systemrole/convert/{itsystem}(itsystem=${itsystem.id})}" method="post">
+					<div class="modal-body">
+						<input th:field="*{createLink}" id="createLinkValue" type="hidden"/>
+
+						<fieldset>
+							<div class="form-group">
+								<label class="col-sm-3 control-label" th:text="#{html.page.itsystem.edit.modal.convert.prefix}"></label>
+								<div class="col-sm-9">
+									<input th:field="*{prefix}" id="samlSystemRoleName" class="form-control" />
+									<ul th:if="${#fields.hasErrors('prefix')}" class="error">
+										<li class="error" th:each="err : ${#fields.errors('prefix')}" th:text="${err}"></li>
+									</ul>
+								</div>
+							</div>
+						</fieldset>
+
+						<fieldset>
+							<div class="form-group">
+								<div class="col-sm-3">
+									<div class="checkbox c-checkbox" style="float: right;">
+										<label>
+											<input id="createLinkCheckbox" style="padding-top:2px; padding-bottom:2px" type="checkbox" checked="checked" />
+											<span class="fa fa-check"></span>
+										</label>
+									</div>
+								</div>
+								<label class="col-sm-9 control-label" style="text-align: left;" th:text="#{html.page.itsystem.edit.modal.convert.link}"></label>
+							</div>
+						</fieldset>
+					</div>
+
+					<div class="modal-footer">
+						<button type="submit" id="save" class="btn btn-primary" th:text="#{html.control.button.create}"></button>
+						<button type="button" class="btn btn-danger" data-dismiss="modal" th:text="#{html.control.button.cancel}"></button>
+					</div>
+				</form>
+			</div>
+		</div>
+	</div>
+
+	<nav th:replace="fragments/footer :: footer"></nav>
+	<script th:replace="fragments/datatables :: datatables "></script>
 	
 	<style>
 		.table .checkbox {
@@ -1141,6 +1191,10 @@
 				$("#universalValue").val($('#universalCheckbox').val());
 			});
 
+			$("#createLinkCheckbox").on('change', function() {
+				$("#createLinkValue").val($('#createLinkCheckbox').prop("checked"));
+			});
+
 			$("#modal-saml-systemrole").on('shown.bs.modal', function(e) {
 				if ($("#samlSystemRoleId").val() == 0) {
 					$("#samlSystemRoleName").val("");
@@ -1301,61 +1355,7 @@
 		}
 		
 		function convertSystemRolesToUserRoles() {
-			/*[+
-				var convertURI = [[@{/rest/itsystem/systemrole/convert/{itsystem}(itsystem=${itsystem.id})}]];
-				var unusedCount = [[${unusedSystemRolesCount}]];
-				var titleTxt = [[#{html.page.itsystem.edit.systemrole.convert.confirm.title}]];
-				var bodyTxt = [[#{html.page.itsystem.edit.systemrole.convert.confirm.body(${unusedSystemRolesCount})}]];
-				var norolesBodyText = [[#{html.page.itsystem.edit.systemrole.convert.confirm.norolesbody}]];
-				var cancelTxt = [[#{html.control.button.cancel}]];
-				var confirmTxt = [[#{html.control.button.create}]];
-				var errorMsg = [[#{html.page.itsystem.edit.systemrole.convert.error}]];
-			+]*/
-
-			if (readonly) {
-				return;
-			}
-
-			swal({
-					html: true,
-					title : titleTxt,
-					text : (unusedCount > 0) ? bodyTxt : norolesBodyText,
-					type: (unusedCount > 0) ? "input" : "warning",
-					inputPlaceholder: "Optional prefix",
-					showCancelButton : true,
-					showConfirmButton: (unusedCount > 0),
-					confirmButtonColor: "#5d9cec",//btn-primary
-					confirmButtonText : confirmTxt,
-					cancelButtonText : cancelTxt,
-					closeOnConfirm : true,
-					closeOnCancel : true
-				},
-				function (inputValue) {
-					if (inputValue === false) return false;
-					$.ajax({
-						type: "POST",
-						headers: {
-							'X-CSRF-TOKEN': token,
-						},
-						contentType: "application/json",
-						data : JSON.stringify({
-							prefix : inputValue
-						}),
-						url: convertURI,
-						success: function() {
-							location.reload(true);
-						},
-						error: function() {
-							$.notify({
-								message: errorMsg
-							},{
-								status: 'danger',
-								autoHideDelay: 4000
-							});
-						}
-					});
-				}
-			);
+			$("#modal-convert-systemroles").modal("show");
 		}
 	/*]]>*/
 	</script>

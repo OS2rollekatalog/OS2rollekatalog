@@ -207,7 +207,7 @@ public class OrganisationImporter {
 	private void setManagers(List<OrgUnitDTO> orgUnitDTOs, List<OrgUnit> existingOrgUnits, List<User> existingUsers) {
 		Map<String, ManagerDTO> managerMap = new HashMap<>();
 		for (OrgUnitDTO orgUnitDTO : orgUnitDTOs) {
-			if (!StringUtils.isEmpty(orgUnitDTO.getManager()) && !StringUtils.isEmpty(orgUnitDTO.getManager().getUuid()) && !StringUtils.isEmpty(orgUnitDTO.getManager().getUserId())) {
+			if (orgUnitDTO.getManager() != null && StringUtils.hasLength(orgUnitDTO.getManager().getUuid()) && StringUtils.hasLength(orgUnitDTO.getManager().getUserId())) {
 				managerMap.put(orgUnitDTO.getUuid(), orgUnitDTO.getManager());
 			}
 		}
@@ -319,7 +319,7 @@ public class OrganisationImporter {
 					}
 				}
 				
-				if (configuration.getTitles().isEnabled() && !StringUtils.isEmpty(positionDTO.getTitleUuid())) {
+				if (configuration.getTitles().isEnabled() && StringUtils.hasLength(positionDTO.getTitleUuid())) {
 					position.setTitle(titleService.getByUuid(positionDTO.getTitleUuid()));
 				}
 			}
@@ -1447,6 +1447,23 @@ public class OrganisationImporter {
 								if (!parent.getLevel().equals(OrgUnitLevel.LEVEL_1) &&
 									!parent.getLevel().equals(OrgUnitLevel.LEVEL_2) &&
 									!parent.getLevel().equals(OrgUnitLevel.LEVEL_3)) {
+									return new ValidationResult(false, "Orgunit has higher or same level as parent: " + orgUnit.getUuid());
+								}
+								break;
+							case LEVEL_5:
+								if (!parent.getLevel().equals(OrgUnitLevel.LEVEL_1) &&
+										!parent.getLevel().equals(OrgUnitLevel.LEVEL_2) &&
+										!parent.getLevel().equals(OrgUnitLevel.LEVEL_3) &&
+										!parent.getLevel().equals(OrgUnitLevel.LEVEL_4)) {
+									return new ValidationResult(false, "Orgunit has higher or same level as parent: " + orgUnit.getUuid());
+								}
+								break;
+							case LEVEL_6:
+								if (!parent.getLevel().equals(OrgUnitLevel.LEVEL_1) &&
+										!parent.getLevel().equals(OrgUnitLevel.LEVEL_2) &&
+										!parent.getLevel().equals(OrgUnitLevel.LEVEL_3) &&
+										!parent.getLevel().equals(OrgUnitLevel.LEVEL_4) &&
+										!parent.getLevel().equals(OrgUnitLevel.LEVEL_5)) {
 									return new ValidationResult(false, "Orgunit has higher or same level as parent: " + orgUnit.getUuid());
 								}
 								break;

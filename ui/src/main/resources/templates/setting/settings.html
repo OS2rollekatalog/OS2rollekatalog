@@ -1,14 +1,14 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
-<head th:replace="fragments/header :: header (title=#{html.setting.title})" />
+<head th:replace="fragments/header :: header (title=#{html.setting.title})"></head>
 <body>
 <div class="wrapper">
-    <header th:replace="fragments/navbar :: navbar-header(subpage = 'administration')" />
-    <aside th:replace="fragments/navbar :: navbar-aside (page = 'settings', subpage = 'administration')" />
+    <header th:replace="fragments/navbar :: navbar-header(subpage = 'administration')"></header>
+    <aside th:replace="fragments/navbar :: navbar-aside (page = 'settings', subpage = 'administration')"></aside>
 
     <section>
         <div class="content-wrapper">
-			<h3 th:text="#{html.setting.title}"/>
+			<h3 th:text="#{html.setting.title}"></h3>
 			<div class="panel panel-default" style="padding-left: 20px; padding-right: 20px;">
 				<form id="setting-form" class="form-horizontal" method="post" th:object="${settingsForm}" th:action="@{/ui/settings}">
 					<input type="hidden" th:field="*{requestApproveEnabled}" />
@@ -20,39 +20,39 @@
 					</select>
 
 					<div class="panel-heading">
-						<h4 th:text="#{html.setting.general}" />
+						<h4 th:text="#{html.setting.general}"></h4>
 					</div>
 	
 					<div class="panel-body">
 						<fieldset>
 							<div class="form-group">
-								<label class="col-sm-3 control-label" th:text="#{html.setting.requestapprove.servicedesk}" />
+								<label class="col-sm-3 control-label" th:text="#{html.setting.requestapprove.servicedesk}"></label>
 								<div class="col-sm-8">
 									<input th:field="*{servicedeskEmail}" class="form-control" />
 								</div>
-								<a th:replace="fragments/help :: help (title=#{html.help.servicedesk.email.title}, content=#{html.help.servicedesk.email.body})" />
+								<a th:replace="fragments/help :: help (title=#{html.help.servicedesk.email.title}, content=#{html.help.servicedesk.email.body})"></a>
 							</div>
 						</fieldset>
 						
 						<fieldset>
 							<div class="form-group">
-								<label class="col-sm-3 control-label" th:text="#{html.setting.itsystem.change.email}" />
+								<label class="col-sm-3 control-label" th:text="#{html.setting.itsystem.change.email}"></label>
 								<div class="col-sm-8">
 									<input th:field="*{itSystemChangeEmail}" class="form-control" />
 								</div>
-								<a th:replace="fragments/help :: help (title=#{html.help.roleadmin.email.title}, content=#{html.help.roleadmin.email.body})" />
+								<a th:replace="fragments/help :: help (title=#{html.help.roleadmin.email.title}, content=#{html.help.roleadmin.email.body})"></a>
 							</div>
 						</fieldset>
 					</div>
 
 					<div class="panel-heading">
-						<h4 th:text="#{html.setting.requestapprove}" />
+						<h4 th:text="#{html.setting.requestapprove}"></h4>
 					</div>
 
 					<div class="panel-body">
 						<fieldset>
 							<div class="form-group">
-								<label class="col-sm-3 control-label" th:text="#{html.setting.requestapprove.enabled}" />
+								<label class="col-sm-3 control-label" th:text="#{html.setting.requestapprove.enabled}"></label>
 								<div class="col-sm-1">
 									<div class="checkbox c-checkbox">
 										<label>
@@ -67,7 +67,7 @@
 						<div id="requestApproveSubsettings" style="display: none;">
 							<fieldset>
 								<div class="form-group">
-									<label class="col-sm-3 control-label" th:text="#{html.setting.who_can_request}" />
+									<label class="col-sm-3 control-label" th:text="#{html.setting.who_can_request}"></label>
 									<div class="col-sm-8">
 										<select th:field="*{requestApproveWho}" class="form-control">
 											<option th:each="type : ${T(dk.digitalidentity.rc.service.model.WhoCanRequest).values()}"
@@ -81,13 +81,13 @@
 					</div>
 
 					<div class="panel-heading">
-						<h4 th:text="#{html.setting.attestation.scheduled}" />
+						<h4 th:text="#{html.setting.attestation.scheduled}"></h4>
 					</div>
 
 					<div class="panel-body">
 						<fieldset>
 							<div class="form-group">
-								<label class="col-sm-3 control-label" th:text="#{html.setting.attestation.scheduled.enabled}" />
+								<label class="col-sm-3 control-label" th:text="#{html.setting.attestation.scheduled.enabled}"></label>
 								<div class="col-sm-1">
 									<div class="checkbox c-checkbox">
 										<label>
@@ -102,7 +102,7 @@
 						<div id="scheduledAttestationSubsettings" style="display: none;">
 							<fieldset>
 								<div class="form-group">
-									<label class="col-sm-3 control-label" th:text="#{html.setting.attestation.scheduled.roledeletion.enabled}" />
+									<label class="col-sm-3 control-label" th:text="#{html.setting.attestation.scheduled.roledeletion.enabled}"></label>
 									<div class="col-sm-8">
 										<div class="checkbox c-checkbox">
 											<label>
@@ -111,13 +111,13 @@
 											</label>
 										</div>
 									</div>
-									<a th:replace="fragments/help :: help (title=#{html.setting.attestation.scheduled.roledeletion.enabled.info.header}, content=#{html.setting.attestation.scheduled.roledeletion.enabled.info})" />
+									<a th:replace="fragments/help :: help (title=#{html.setting.attestation.scheduled.roledeletion.enabled.info.header}, content=#{html.setting.attestation.scheduled.roledeletion.enabled.info})"></a>
 								</div>
 							</fieldset>
 							
 							<fieldset>
 								<div class="form-group">
-									<label class="col-sm-3 control-label" th:text="#{html.setting.attestation.scheduled.ad.enabled}" />
+									<label class="col-sm-3 control-label" th:text="#{html.setting.attestation.scheduled.ad.enabled}"></label>
 									<div class="col-sm-1">
 										<div class="checkbox c-checkbox">
 											<label>
@@ -131,7 +131,7 @@
 						
 							<fieldset>
 								<div class="form-group">
-									<label class="col-sm-3 control-label" th:text="#{html.setting.attestation.scheduled.interval}" />
+									<label class="col-sm-3 control-label" th:text="#{html.setting.attestation.scheduled.interval}"></label>
 									<div class="col-sm-8">
 										<select th:field="*{scheduledAttestationInterval}" class="form-control">
 											<option th:each="interval : ${T(dk.digitalidentity.rc.dao.model.enums.CheckupIntervalEnum).values()}"
@@ -144,7 +144,7 @@
 							
 							<fieldset>
 								<div class="form-group">
-									<label class="col-sm-3 control-label" th:text="#{html.setting.attestation.scheduled.interval.sensitive}" />
+									<label class="col-sm-3 control-label" th:text="#{html.setting.attestation.scheduled.interval.sensitive}"></label>
 									<div class="col-sm-8">
 										<select th:field="*{scheduledAttestationIntervalSensitive}" class="form-control">
 											<option th:each="interval : ${T(dk.digitalidentity.rc.dao.model.enums.CheckupIntervalEnum).values()}"
@@ -157,7 +157,7 @@
 							
 							<fieldset>
 								<div class="form-group">
-									<label class="col-sm-3 control-label" th:text="#{html.setting.attestation.scheduled.day_in_month}" />
+									<label class="col-sm-3 control-label" th:text="#{html.setting.attestation.scheduled.day_in_month}"></label>
 									<div class="col-sm-8">
 										<input th:field="*{scheduledAttestationDayInMonth}" class="form-control" />
 									</div>
@@ -166,11 +166,11 @@
 
 							<fieldset>
 								<div class="form-group">
-									<label class="col-sm-3 control-label" th:text="#{html.setting.attestation.attestationEmail}" />
+									<label class="col-sm-3 control-label" th:text="#{html.setting.attestation.attestationEmail}"></label>
 									<div class="col-sm-8">
 										<input th:field="*{emailAttestationReport}" class="form-control" />
 										<ul th:if="${#fields.hasErrors('emailAttestationReport')}">
-										    <li style="color: red;" th:each="err : ${#fields.errors('emailAttestationReport')}" th:text="${err}" />
+										    <li style="color: red;" th:each="err : ${#fields.errors('emailAttestationReport')}" th:text="${err}"></li>
 										</ul>
 									</div>
 								</div>
@@ -178,17 +178,17 @@
 							
 							<fieldset>
 								<div class="form-group">
-									<label class="col-sm-3 control-label" th:text="#{html.setting.attestation.scheduled.filter}"/>
+									<label class="col-sm-3 control-label" th:text="#{html.setting.attestation.scheduled.filter}"></label>
 
 									<div class="col-sm-8">
 										<button type="button" onclick="chooseOU()" class="btn btn-primary" th:text="#{html.setting.attestation.scheduled.pickou}"></button>
 										<br/><br/>
-										<em id="filterZeroTxt" th:style="${(#lists.size(settingsForm.scheduledAttestationFilter) > 0) ? 'display: none': ''}" th:text="'Ikke aktiveret for nogen enheder'" />
-										<em id="filterOneTxt" th:style="${(#lists.size(settingsForm.scheduledAttestationFilter) != 1) ? 'display: none' : ''}" th:text="'Aktiveret for én enhed (og alle underliggende enheder)'" />
+										<em id="filterZeroTxt" th:style="${(#lists.size(settingsForm.scheduledAttestationFilter) > 0) ? 'display: none': ''}" th:text="'Ikke aktiveret for nogen enheder'"></em>
+										<em id="filterOneTxt" th:style="${(#lists.size(settingsForm.scheduledAttestationFilter) != 1) ? 'display: none' : ''}" th:text="'Aktiveret for én enhed (og alle underliggende enheder)'"></em>
 										<em id="filterMultiTxt" th:style="${(#lists.size(settingsForm.scheduledAttestationFilter) lt 2) ? 'display: none' : ''}">
-											<span th:text="'Aktiveret for'"/>
-											<span id="filterMultiValue" th:text="${#lists.size(settingsForm.scheduledAttestationFilter)}" />
-											<span th:text="'enheder (og alle underliggende enheder)'"/>
+											<span th:text="'Aktiveret for'"></span>
+											<span id="filterMultiValue" th:text="${#lists.size(settingsForm.scheduledAttestationFilter)}"></span>
+											<span th:text="'enheder (og alle underliggende enheder)'"></span>
 										</em>
 									</div>
 								</div>
@@ -196,48 +196,48 @@
 							
 							<fieldset>
 								<div class="form-group">
-									<label class="col-sm-3 control-label" th:text="#{html.setting.remove.role.email}" />
+									<label class="col-sm-3 control-label" th:text="#{html.setting.remove.role.email}"></label>
 									<div class="col-sm-8">
 										<input th:field="*{removalOfUnitRolesEmail}" class="form-control" />
 									</div>
-									<a th:replace="fragments/help :: help (title=#{html.help.remove.role.title}, content=#{html.help.remove.role.body})" />
+									<a th:replace="fragments/help :: help (title=#{html.help.remove.role.title}, content=#{html.help.remove.role.body})"></a>
 								</div>
 							</fieldset>
 							
 							<fieldset>
 								<div class="form-group">
-									<label class="col-sm-3 control-label" th:text="#{html.setting.attestation.days_before_deadline}" />
+									<label class="col-sm-3 control-label" th:text="#{html.setting.attestation.days_before_deadline}"></label>
 									<div class="col-sm-8">
 										<input type="number" th:field="*{DaysBeforeDeadline}" class="form-control" />
 									</div>
-									<a th:replace="fragments/help :: help (title=#{html.help.attestation.days_before.title}, content=#{html.help.attestation.days_before.body})" />
+									<a th:replace="fragments/help :: help (title=#{html.help.attestation.days_before.title}, content=#{html.help.attestation.days_before.body})"></a>
 								</div>
 							</fieldset>
 							<fieldset>
 								<div class="form-group">
-									<label class="col-sm-3 control-label" th:text="#{html.setting.attestation.reminder_count}" />
+									<label class="col-sm-3 control-label" th:text="#{html.setting.attestation.reminder_count}"></label>
 									<div class="col-sm-8">
 										<input type="number" th:field="*{ReminderCount}" class="form-control" />
 									</div>
-									<a th:replace="fragments/help :: help (title=#{html.help.attestation.reminder_count.title}, content=#{html.help.attestation.reminder_count.body})" />
+									<a th:replace="fragments/help :: help (title=#{html.help.attestation.reminder_count.title}, content=#{html.help.attestation.reminder_count.body})"></a>
 								</div>
 							</fieldset>
 							<fieldset>
 								<div class="form-group">
-									<label class="col-sm-3 control-label" th:text="#{html.setting.attestation.reminder_interval}" />
+									<label class="col-sm-3 control-label" th:text="#{html.setting.attestation.reminder_interval}"></label>
 									<div class="col-sm-8">
 										<input type="number" th:field="*{ReminderInterval}" class="form-control" />
 									</div>
-									<a th:replace="fragments/help :: help (title=#{html.help.attestation.reminder_interval.title}, content=#{html.help.attestation.reminder_interval.body})" />
+									<a th:replace="fragments/help :: help (title=#{html.help.attestation.reminder_interval.title}, content=#{html.help.attestation.reminder_interval.body})"></a>
 								</div>
 							</fieldset>
 							<fieldset>
 								<div class="form-group">
-									<label class="col-sm-3 control-label" th:text="#{html.setting.attestation.email_after_reminders}" />
+									<label class="col-sm-3 control-label" th:text="#{html.setting.attestation.email_after_reminders}"></label>
 									<div class="col-sm-8">
 										<input th:field="*{EmailAfterReminders}" class="form-control" />
 									</div>
-									<a th:replace="fragments/help :: help (title=#{html.help.attestation.reminder.email.title}, content=#{html.help.attestation.reminder.email.body})" />
+									<a th:replace="fragments/help :: help (title=#{html.help.attestation.reminder.email.title}, content=#{html.help.attestation.reminder.email.body})"></a>
 								</div>
 							</fieldset>
 							
@@ -247,7 +247,7 @@
 					<fieldset>
 						<div class="form-group">
 							<div class="col-md-offset-1 col-md-10">
-							<button type="submit" class="btn btn-primary btn-block" th:text="#{html.control.button.save}" />
+							<button type="submit" class="btn btn-primary btn-block" th:text="#{html.control.button.save}"></button>
 							</div>
 						</div>
 					</fieldset>
@@ -264,7 +264,7 @@
 		<div class="modal-content">
 			<div class="modal-header">
 				<button type="button" class="close" data-dismiss="modal">&times;</button>
-				<h4 th:text="#{html.word.search}"/>
+				<h4 th:text="#{html.word.search}"></h4>
 			</div>
 
 			<div class="modal-body">
@@ -273,14 +273,14 @@
 			</div>
 
 			<div class="modal-footer">
-				<button type="button" id="save" class="btn btn-primary" onclick="saveOUs()" th:text="#{html.control.button.save}"/>
-				<button type="button" class="btn btn-danger" data-dismiss="modal" th:text="#{html.control.button.cancel}"/>
+				<button type="button" id="save" class="btn btn-primary" onclick="saveOUs()" th:text="#{html.control.button.save}"></button>
+				<button type="button" class="btn btn-danger" data-dismiss="modal" th:text="#{html.control.button.cancel}"></button>
 			</div>
 		</div>
 	</div>
 </div>
 
-<div th:replace="fragments/footer :: footer" />
+<div th:replace="fragments/footer :: footer"></div>
 
 <script th:inline="javascript">
 		/*<![CDATA[*/

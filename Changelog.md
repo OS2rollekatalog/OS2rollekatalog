@@ -1,3 +1,12 @@
+2022.06.02 - Release 2022r3
+- [ROL-186](https://os2web.atlassian.net/browse/ROL-186) – Visning af jobfunktionsroller i rollebuketter
+- [ROL-193](https://os2web.atlassian.net/browse/ROL-193) – Rapport: Hvor kommer KLE fra?
+- [ROL-201](https://os2web.atlassian.net/browse/ROL-201) – Udstille et API til ”streaming” udlæsning af auditlog
+- [ROL-202](https://os2web.atlassian.net/browse/ROL-202) – In-line opdatering af autorisationsansvarlig
+- [ROL-206](https://os2web.atlassian.net/browse/ROL-206) – Opgradere til Spring boot 2.6 og Java 17
+- [ROL-204](https://os2web.atlassian.net/browse/ROL-204) – Vis eksisterende rettighedstildelinger
+- [ROL-207](https://os2web.atlassian.net/browse/ROL-207) – ”Af-koble” jobfunktionsroller fra systemroller
+
 2022.04.03 - Release 2022r2
 - [ROL-171](https://os2web.atlassian.net/browse/ROL-133) - Understøtte rapporter på mere end 65335 rækker
 - [ROL-180](https://os2web.atlassian.net/browse/ROL-168) - Integration til KOMBITs test-miljø

@@ -1,14 +1,14 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
-<head th:replace="fragments/header :: header" />
+<head th:replace="fragments/header :: header"></head>
 <body>
 	<div class="wrapper">
-		<header th:replace="fragments/navbar :: navbar-header (subpage = 'administration')" />
-		<aside th:replace="fragments/navbar :: navbar-aside (page = 'clients.list', subpage = 'administration')" />
+		<header th:replace="fragments/navbar :: navbar-header (subpage = 'administration')"></header>
+		<aside th:replace="fragments/navbar :: navbar-aside (page = 'clients.list', subpage = 'administration')"></aside>
  
 		<section>
 			<div class="content-wrapper">
-				<h3 th:text="#{html.client.view.headline}" />
+				<h3 th:text="#{html.client.view.headline}"></h3>
 
 				<div class="panel panel-default">
 					<div class="panel-heading"></div>
@@ -18,7 +18,7 @@
 								<form class="form-horizontal" id="requirement-form" th:object="${client}">
 									<fieldset>
 										<div class="form-group">
-											<label class="col-sm-2 control-label" th:text="#{html.client.name}" />
+											<label class="col-sm-2 control-label" th:text="#{html.client.name}"></label>
 											<div class="col-sm-8">
 												<input th:field="*{name}" class="form-control" readonly="readonly" />
 											</div>
@@ -27,18 +27,18 @@
 
 									<fieldset>
 										<div class="form-group">
-											<label class="col-sm-2 control-label" th:text="#{html.client.apiKey}"/>
+											<label class="col-sm-2 control-label" th:text="#{html.client.apiKey}"></label>
 											<div class="col-sm-8">
-												<div th:text="*{apiKey}" class="preformat form-control" style="height: auto !important;" readonly="readonly" />
+												<div th:text="*{apiKey}" class="preformat form-control" style="height: auto !important;" readonly="readonly"></div>
 											</div>
 										</div>
 									</fieldset>
 
 									<fieldset>
 										<div class="form-group">
-											<label class="col-sm-2 control-label" th:text="#{html.client.access}"/>
+											<label class="col-sm-2 control-label" th:text="#{html.client.access}"></label>
 											<div class="col-sm-8">
-												<div th:text="#{*{accessRole}}" class="preformat form-control" style="height: auto !important;" readonly="readonly" />
+												<div th:text="#{*{accessRole}}" class="preformat form-control" style="height: auto !important;" readonly="readonly"></div>
 											</div>
 										</div>
 									</fieldset>
@@ -46,7 +46,7 @@
 									<th:block th:if="${client.accessRole == 'html.enum.accessrole.limitedReadAccess'}">
 										<fieldset>
 											<div class="form-group">
-												<label class="col-sm-2 control-label" th:text="#{html.client.view.list.ou}"/>
+												<label class="col-sm-2 control-label" th:text="#{html.client.view.list.ou}"></label>
 												<div class="col-sm-8">
 													<ul>
 														<li style="padding-left: 16px;" th:each="field : ${ouFieldList}" th:value="${field}" th:text="#{${field}}" ></li>
@@ -57,7 +57,7 @@
 	
 										<fieldset>
 											<div class="form-group">
-												<label class="col-sm-2 control-label" th:text="#{html.client.view.list.user}"/>
+												<label class="col-sm-2 control-label" th:text="#{html.client.view.list.user}"></label>
 												<div class="col-sm-8">
 													<ul>
 														<li style="padding-left: 16px;" th:each="field : ${userFieldList}" th:value="${field}" th:text="#{${field}}" ></li>
@@ -75,6 +75,6 @@
 		</section>
 	</div>
 
-	<div th:replace="fragments/footer :: footer"/>
+	<div th:replace="fragments/footer :: footer"></div>
 </body>
 </html>

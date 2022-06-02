@@ -1,11 +1,11 @@
 <!DOCTYPE html>
 <html>
-<head th:replace="fragments/header :: header (title=#{html.page.systemrole.userroles.title})" />
+<head th:replace="fragments/header :: header (title=#{html.page.systemrole.userroles.title})"></head>
 <body>
 
 	<div class="wrapper">
-		<header th:replace="fragments/navbar :: navbar-header(subpage = 'roles')" />
-		<aside th:replace="fragments/navbar :: navbar-aside (page = 'itsystem.list', subpage = 'roles')" />
+		<header th:replace="fragments/navbar :: navbar-header(subpage = 'roles')"></header>
+		<aside th:replace="fragments/navbar :: navbar-aside (page = 'itsystem.list', subpage = 'roles')"></aside>
 
 		<section>
 			<div class="content-wrapper">
@@ -13,11 +13,11 @@
 					<a th:href="@{/ui/itsystem/edit/} + ${itSystem.id}" class="btn btn-default">
 						<span><i class="fa fa-arrow-left"></i></span>
 					</a>
-					<span th:text="#{html.page.systemrole.userroles.title}" />
+					<span th:text="#{html.page.systemrole.userroles.title}"></span>
 				</h3>
 				
 				<div class="panel panel-default">
-					<div class="panel-heading" />
+					<div class="panel-heading"></div>
 					<div class="panel-body">
 
 						<form class="form-horizontal">
@@ -25,16 +25,16 @@
 									<table class="table table-striped listTable">
 										<thead>
 											<tr>
-												<th class="col-md-4" th:text="#{html.entity.userrole.name}" />
-												<th class="col-md-7" th:text="#{html.entity.userrole.description}" />
-												<th class="col-md-1" th:text="#{html.control.operations}" />
+												<th class="col-md-4" th:text="#{html.entity.userrole.name}"></th>
+												<th class="col-md-7" th:text="#{html.entity.userrole.description}"></th>
+												<th class="col-md-1" th:text="#{html.control.operations}"></th>
 											</tr>
 										</thead>
 
 										<tbody>
 											<tr th:each="role : ${userRoles}">
-												<td th:text="${role.name}" />
-												<td th:text="${role.description}" />
+												<td th:text="${role.name}"></td>
+												<td th:text="${role.description}"></td>
 										    	<th:block th:if="${role.delegatedFromCvr == null}"> 
 											    	<td>
 											    		<a th:href="@{/ui/userroles/view/{id}(id=${role.id})}"><em class="fa fa-search"></em></a>
@@ -57,8 +57,8 @@
 		</section>
 	</div>
 
-	<nav th:replace="fragments/footer :: footer" />
-	<script th:replace="fragments/datatables :: datatables " />
+	<nav th:replace="fragments/footer :: footer"></nav>
+	<script th:replace="fragments/datatables :: datatables "></script>
 
 </body>
 </html>

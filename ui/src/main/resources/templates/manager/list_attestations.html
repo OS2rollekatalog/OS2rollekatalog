@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html>
-<head th:replace="fragments/header :: header (title=#{html.page.attestations.title})" />
+<head th:replace="fragments/header :: header (title=#{html.page.attestations.title})"></head>
 <body>
 	<div class="wrapper">
-		<header th:replace="fragments/navbar :: navbar-header(subpage = 'reports')" />
-		<aside th:replace="fragments/navbar :: navbar-aside (page = ${page}, subpage = 'reports')" />
+		<header th:replace="fragments/navbar :: navbar-header(subpage = 'reports')"></header>
+		<aside th:replace="fragments/navbar :: navbar-aside (page = ${page}, subpage = 'reports')"></aside>
 
 		<section>
 			<div class="content-wrapper">
@@ -13,35 +13,35 @@
 					<span th:unless="${page}=='attestation'" th:text="#{html.navbar.attestations.admin}"></span>
 				</h3>
 				<div class="panel panel-default">
-					<div class="panel-heading" />
+					<div class="panel-heading"></div>
 					<div class="panel-body">
 						<div class="table-responsive">
 							<table id="listTable" class="table table-striped table-hover listTable">
 								<thead>
 									<tr>
-										<th class="col-md-2" th:text="#{html.page.attestations.ou}" />
-										<th class="col-md-3" th:text="#{html.page.attestations.manager}" />
-										<th class="col-md-3" th:text="#{html.page.attestations.substitute}" />
-										<th class="col-md-3" th:text="#{html.page.attestations.lastAttested}" />
-										<th class="col-md-1" th:text="#{html.page.attestations.nextAttestation}" />
-										<th class="col-md-1" th:text="#{html.control.operations}" />
+										<th class="col-md-2" th:text="#{html.page.attestations.ou}"></th>
+										<th class="col-md-3" th:text="#{html.page.attestations.manager}"></th>
+										<th class="col-md-3" th:text="#{html.page.attestations.substitute}"></th>
+										<th class="col-md-3" th:text="#{html.page.attestations.lastAttested}"></th>
+										<th class="col-md-1" th:text="#{html.page.attestations.nextAttestation}"></th>
+										<th class="col-md-1" th:text="#{html.control.operations}"></th>
 										
 									</tr>
 								</thead>
 			
 								<tbody>
 									<tr th:each="ou : ${ous}">
-										<td th:text="${ou.name}" />
+										<td th:text="${ou.name}"></td>
 
 										<th:block th:if="${ou.managerName} != null">
 											<td>	
-												<div th:text="${ou.managerName}"/>
-												<span style="color: grey;" th:text="${ou.managerPosition}" />
+												<div th:text="${ou.managerName}"></div>
+												<span style="color: grey;" th:text="${ou.managerPosition}"></span>
 											</td>
 											
 											<td th:if="${ou.substituteName} != null">
-												<div th:text="${ou.substituteName}" />
-												<span style="color: grey;" th:text="${ou.substitutePosition}" />
+												<div th:text="${ou.substituteName}"></div>
+												<span style="color: grey;" th:text="${ou.substitutePosition}"></span>
 											</td>
 											
 											<td th:unless="${ou.substituteName} != null">&nbsp;</td>
@@ -52,17 +52,17 @@
 										</th:block>
 
 										<td th:if="${ou.lastAttested} != null">
-											<div th:text="${#dates.format(ou.lastAttested, 'dd-MM-yyyy')}" />
-											<span style="color: grey;" th:text="'af: ' + ${ou.lastAttestedBy}" />
+											<div th:text="${#dates.format(ou.lastAttested, 'dd-MM-yyyy')}"></div>
+											<span style="color: grey;" th:text="'af: ' + ${ou.lastAttestedBy}"></span>
 										</td>
 										<td th:unless="${ou.lastAttested}!=null">&nbsp;</td>
 										
 										<th:block th:if="${ou.nextAttestation} != null">
 											<th:block th:switch="${ou.nextAttestation.before(#dates.createNow())}">
-									    		<td th:case="true" th:text="${#dates.format(ou.nextAttestation, 'dd-MM-yyyy')}" style="color: red;"/>
+									    		<td th:case="true" th:text="${#dates.format(ou.nextAttestation, 'dd-MM-yyyy')}" style="color: red;"></td>
 										    	<th:block th:case="false">
-										    		<td th:if="${ou.canEdit} == true" th:text="${#dates.format(ou.nextAttestation, 'dd-MM-yyyy')}"/>
-										    		<td th:if="${ou.canEdit} == false" th:text="${#dates.format(ou.nextAttestation, 'dd-MM-yyyy')}" style="color:grey;"/>
+										    		<td th:if="${ou.canEdit} == true" th:text="${#dates.format(ou.nextAttestation, 'dd-MM-yyyy')}"></td>
+										    		<td th:if="${ou.canEdit} == false" th:text="${#dates.format(ou.nextAttestation, 'dd-MM-yyyy')}" style="color:grey;"></td>
 										    	</th:block>
 											</th:block>
 										</th:block>
@@ -72,7 +72,7 @@
 											<a th:if="${ou.canEdit} == true" th:href="'/ui/users/attestations/'+${ou.uuid}"><i style="color:black;" class="fa-fw fa fa-pencil" ></i></a>
 											<a sec:authorize="hasRole('ROLE_MANAGER') or hasRole('ROLE_SUBSTITUTE')" th:if="${ou.attestationPdfAVailable} == true and ${page} == 'attestation'" th:href="'/rest/users/attestations/'+${ou.uuid}+'/download'"><i style="color:black;" class="fa-fw fa fa-download" ></i></a>
 											<a sec:authorize="hasRole('ROLE_ADMINISTRATOR')" th:if="${ou.attestationPdfAVailable} == true and ${page} != 'attestation'" th:href="'/rest/admin/attestations/'+${ou.uuid}+'/download'"><i style="color:black;" class="fa-fw fa fa-download" ></i></a>
-											<i sec:authorize="hasRole('ROLE_ADMINISTRATOR')" th:if="${page} != 'attestation'" th:title="#{html.page.attestations.forceAttestation.title}" th:attr="data-uuid=${ou.uuid}" th:onclick="attestationService.fastForward(this)" style="color:black;" class="fa-fw fa fa-fast-forward" ></i>
+											<i sec:authorize="hasRole('ROLE_ADMINISTRATOR')" th:if="${page} != 'attestation'" th:title="#{html.page.attestations.forceAttestation.title}" th:attr="data-uuid=${ou.uuid}" onclick="attestationService.fastForward(this)" style="color:black;" class="fa-fw fa fa-fast-forward" ></i>
 										</td>
 									</tr>
 								</tbody>
@@ -84,7 +84,7 @@
 		</section>
 	</div>
 
-	<nav th:replace="fragments/footer :: footer" />
+	<nav th:replace="fragments/footer :: footer"></nav>
 	<script th:inline="javascript">
 		/*<![CDATA[*/
 

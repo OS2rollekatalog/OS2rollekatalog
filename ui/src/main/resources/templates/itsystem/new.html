@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
-<head th:replace="fragments/header :: header (title=#{html.page.itsystem.new.title})" />
+<head th:replace="fragments/header :: header (title=#{html.page.itsystem.new.title})"></head>
 <body>
 	<div class="wrapper">
-		<header th:replace="fragments/navbar :: navbar-header(subpage = 'roles')" />
-		<aside th:replace="fragments/navbar :: navbar-aside (page = 'itsystem.new.' + ${itSystemForm.systemType}, subpage = 'roles')" />
+		<header th:replace="fragments/navbar :: navbar-header(subpage = 'roles')"></header>
+		<aside th:replace="fragments/navbar :: navbar-aside (page = 'itsystem.new.' + ${itSystemForm.systemType}, subpage = 'roles')"></aside>
  
 		<section>
 			<div class="content-wrapper">
@@ -12,22 +12,22 @@
 					<a th:href="@{/ui/itsystem/list}" class="btn btn-default">
 	                    <span><i class="fa fa-arrow-left"></i> </span>
 	                </a>
-					<span th:text="#{html.page.itsystem.new.title}" />
+					<span th:text="#{html.page.itsystem.new.title}"></span>
 				</h3>
 
 				<div class="panel panel-default">
-					<div class="panel-heading" />
+					<div class="panel-heading"></div>
 					<div class="panel-body">
 						<form class="form-horizontal" th:object="${itSystemForm}" method="post" th:action="@{/ui/itsystem/new}">
 							<input type="hidden" th:field="*{systemType}" />
 
  							<fieldset>
 								<div th:class="${#fields.hasErrors('name')} ? 'form-group has-error' : 'form-group'">
-					                <label class="col-sm-2 control-label" th:text="#{html.entity.userrole.name}" />
+					                <label class="col-sm-2 control-label" th:text="#{html.entity.userrole.name}"></label>
 					                <div class="col-sm-8">
 										<input th:field="*{name}" class="form-control" th:placeholder="#{html.entity.itsystem.name.placeholder}" autofocus="autofocus" />
 										<ul th:if="${#fields.hasErrors('name')}">
-										    <li th:each="err : ${#fields.errors('name')}" th:text="${err}" />
+										    <li th:each="err : ${#fields.errors('name')}" th:text="${err}"></li>
 										</ul>
 					                </div>
 						        </div>
@@ -35,11 +35,11 @@
 
 							<fieldset>
 								<div class="form-group">
-									<label class="col-sm-2 control-label" th:text="#{html.entity.itsystem.identifier}" />
+									<label class="col-sm-2 control-label" th:text="#{html.entity.itsystem.identifier}"></label>
 									<div class="col-sm-8">
 										<input th:field="*{identifier}" class="form-control" th:placeholder="#{html.entity.itsystem.identifier.placeholder}"/>
 										<ul th:if="${#fields.hasErrors('identifier')}">
-											<li th:each="err : ${#fields.errors('identifier')}" th:text="${err}" />
+											<li th:each="err : ${#fields.errors('identifier')}" th:text="${err}"></li>
 										</ul>
 									</div>
 								</div>
@@ -47,11 +47,11 @@
 
 							<fieldset th:if="${#strings.toString(itSystemForm.systemType)} == 'MANUAL'">
 								<div class="form-group">
-									<label class="col-sm-2 control-label" th:text="#{html.entity.itsystem.email}" />
+									<label class="col-sm-2 control-label" th:text="#{html.entity.itsystem.email}"></label>
 									<div class="col-sm-8">
 										<input th:field="*{email}" class="form-control" th:placeholder="#{html.entity.itsystem.email.placeholder}"/>
 										<ul th:if="${#fields.hasErrors('email')}">
-											<li th:each="err : ${#fields.errors('email')}" th:text="${err}" />
+											<li th:each="err : ${#fields.errors('email')}" th:text="${err}"></li>
 										</ul>
 									</div>
 								</div>
@@ -60,8 +60,8 @@
 							<fieldset>
 						        <div class="form-group">
 						            <div class="col-sm-offset-2 col-sm-8">
-										<button type="submit" class="btn btn-lg btn-primary" th:text="#{html.control.button.save}" />
-										<a th:href="@{/ui/itsystem/list}" class="btn btn-lg btn-danger" th:text="#{html.control.button.cancel}" />
+										<button type="submit" class="btn btn-lg btn-primary" th:text="#{html.control.button.save}"></button>
+										<a th:href="@{/ui/itsystem/list}" class="btn btn-lg btn-danger" th:text="#{html.control.button.cancel}"></a>
 						       		</div>
 						        </div>
 							</fieldset>
@@ -72,7 +72,7 @@
 	    </section>
     </div>
 
-    <nav th:replace="fragments/footer :: footer" />
+    <nav th:replace="fragments/footer :: footer"></nav>
     
 	<script th:inline="javascript">
 		/*<![CDATA[*/

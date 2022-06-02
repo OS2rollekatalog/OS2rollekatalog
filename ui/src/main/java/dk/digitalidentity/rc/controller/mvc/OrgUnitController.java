@@ -380,6 +380,23 @@ public class OrgUnitController {
 		return "ous/fragments/ou_excepted_users :: table";
 	}
 
+	@RequireAssignerRole
+	@RequestMapping(value = "/ui/ous/manage/requestapprove/{uuid}")
+	public String getRequestApproveFragment(Model model, @PathVariable("uuid") String uuid) {
+		OrgUnit ou = orgUnitService.getByUuid(uuid);
+		if (ou == null) {
+			return "redirect:../list";
+		}
+
+		boolean readOnly = !(SecurityUtil.hasRole(Constants.ROLE_ASSIGNER) || SecurityUtil.hasRole(Constants.ROLE_KLE_ADMINISTRATOR));
+		List<String> ousThatCanBeEdited = assignerRoleConstraint.getConstrainedOrgUnits(true);
+
+		model.addAttribute("ou", ou);
+		model.addAttribute("editable", !readOnly && (ousThatCanBeEdited == null || ousThatCanBeEdited.contains(ou.getUuid())));
+
+		return "ous/fragments/request_approve :: requestApproveTable";
+	}
+
 	private List<UserListDTO> getUserDTOs(OrgUnit ou) {
 		List<User> users = userService.findByOrgUnit(ou);
 		List<UserListDTO> userDTOs = new ArrayList<UserListDTO>();
@@ -411,8 +428,10 @@ public class OrgUnitController {
 	private List<AvailableUserRoleDTO> getAvailableUserRoles(OrgUnit orgUnit) {
 		List<AvailableUserRoleDTO> addRoles = new ArrayList<>();
 		List<UserRole> userRoles = assignerRoleConstraint.filterUserRolesUserCanAssign(userRoleService.getAll());
+
+		List<RoleAssignedToOrgUnitDTO> assignments = orgUnitService.getAllUserRolesAssignedToOrgUnit(orgUnit);
 		
-		//filter out RC internal roles
+		// filter out RC internal roles
 		if (!SecurityUtil.getRoles().contains(Constants.ROLE_ADMINISTRATOR)) {
 			userRoles = userRoles.stream().filter(role -> !role.getItSystem().getIdentifier().equals(Constants.ROLE_CATALOGUE_IDENTIFIER)).collect(Collectors.toList());
 		}
@@ -432,6 +451,7 @@ public class OrgUnitController {
 			availableUserRole.setName(role.getName());
 			availableUserRole.setDescription(role.getDescription());
 			availableUserRole.setItSystem(role.getItSystem());
+			availableUserRole.setAlreadyAssigned(assignments.stream().filter(a -> a.getType() == RoleAssignmentType.USERROLE).anyMatch(a -> a.getRoleId() == role.getId()));
 
 			addRoles.add(availableUserRole);
 		}
@@ -444,12 +464,14 @@ public class OrgUnitController {
 		List<RoleGroup> roleGroups = roleGroupService.getAll();
 		roleGroups = assignerRoleConstraint.filterRoleGroupsUserCanAssign(roleGroups);
 
+		List<RoleAssignedToOrgUnitDTO> assignments = orgUnitService.getAllRoleGroupsAssignedToOrgUnit(orgUnit);
+		
 		for (RoleGroup roleGroup : roleGroups) {
-
 			AvailableRoleGroupDTO rgr = new AvailableRoleGroupDTO();
 			rgr.setId(roleGroup.getId());
 			rgr.setName(roleGroup.getName());
 			rgr.setDescription(roleGroup.getDescription());
+			rgr.setAlreadyAssigned(assignments.stream().filter(a -> a.getType() == RoleAssignmentType.ROLEGROUP).anyMatch(a -> a.getRoleId() == roleGroup.getId()));
 
 			addRoleGroups.add(rgr);
 		}

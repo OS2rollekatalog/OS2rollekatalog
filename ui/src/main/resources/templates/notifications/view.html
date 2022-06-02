@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html>
-<head th:replace="fragments/header :: header" />
+<head th:replace="fragments/header :: header"></head>
 <body>
 <div class="wrapper">
-	<header th:replace="fragments/navbar :: navbar-header(subpage = 'reports')" />
-	<aside th:replace="fragments/navbar :: navbar-aside (page = 'notifications', subpage = 'reports')" />
+	<header th:replace="fragments/navbar :: navbar-header(subpage = 'reports')"></header>
+	<aside th:replace="fragments/navbar :: navbar-aside (page = 'notifications', subpage = 'reports')"></aside>
 
 	<section>
 		<div class="content-wrapper">
@@ -13,18 +13,18 @@
 					<span><i class="fa fa-arrow-left"></i></span>
 				</a>
 
-				<span th:text="#{html.navbar.notifications}"/>
+				<span th:text="#{html.navbar.notifications}"></span>
 			</h3>
 
 			<div class="panel panel-default">
-				<div class="panel-heading" />
+				<div class="panel-heading"></div>
 				<div class="panel-body">
 					<div class="form-horizontal">
 						<div class="row">
 							<div class="col-md-12">
 								<fieldset>
 									<div class="row">
-										<label class="col-sm-2 control-label" th:text="#{html.entity.notification.notificationType}" />
+										<label class="col-sm-2 control-label" th:text="#{html.entity.notification.notificationType}"></label>
 										<div class="col-sm-8">
 											<input th:value="#{__${notification.notificationType.message}__}" class="form-control" readonly="readonly" />
 										</div>
@@ -37,7 +37,7 @@
 							<div class="col-md-12">
 								<fieldset>
 									<div class="row">
-										<label class="col-sm-2 control-label" th:text="#{html.entity.notification.affectedEntity}" />
+										<label class="col-sm-2 control-label" th:text="#{html.entity.notification.affectedEntity}"></label>
 										<div class="col-sm-8">
 											<input th:value="${notification.affectedEntityName}" class="form-control" readonly="readonly" />
 										</div>
@@ -50,9 +50,9 @@
 							<div class="col-md-12">
 								<fieldset>
 									<div class="row">
-										<label class="col-sm-2 control-label" th:text="#{html.entity.notification.message}" />
+										<label class="col-sm-2 control-label" th:text="#{html.entity.notification.message}"></label>
 										<div class="col-sm-8">
-											<textarea th:text="${notification.message}" rows="6" class="form-control" readonly="readonly" />
+											<textarea th:text="${notification.message}" rows="6" class="form-control" readonly="readonly"></textarea>
 										</div>
 									</div>
 								</fieldset>
@@ -63,7 +63,7 @@
 							<div class="col-md-12">
 								<fieldset>
 									<div class="row">
-										<label class="col-sm-2 control-label" th:text="#{html.entity.notification.admin}" />
+										<label class="col-sm-2 control-label" th:text="#{html.entity.notification.admin}"></label>
 										<div class="col-sm-8">
 											<input th:value="${notification.adminName}" class="form-control" readonly="readonly" />
 										</div>
@@ -76,7 +76,7 @@
 							<div class="col-md-12">
 								<fieldset>
 									<div class="row">
-										<label class="col-sm-2 control-label" th:text="#{html.entity.notification.created}" />
+										<label class="col-sm-2 control-label" th:text="#{html.entity.notification.created}"></label>
 										<div class="col-sm-8">
 											<input th:value="${#dates.format(notification.created, 'yyyy-MM-dd HH:mm')}" class="form-control" readonly="readonly" />
 										</div>
@@ -89,7 +89,7 @@
 							<div class="col-md-12">
 								<fieldset>
 									<div class="row">
-										<label class="col-sm-2 control-label" th:text="#{html.entity.notification.lastUpdated}" />
+										<label class="col-sm-2 control-label" th:text="#{html.entity.notification.lastUpdated}"></label>
 										<div class="col-sm-8">
 											<input th:value="${#dates.format(notification.lastUpdated, 'yyyy-MM-dd HH:mm')}" class="form-control" readonly="readonly" />
 										</div>
@@ -104,7 +104,7 @@
 	</section>
 </div>
 
-<nav th:replace="fragments/footer :: footer" />
+<nav th:replace="fragments/footer :: footer"></nav>
 
 </body>
 </html>

@@ -1,38 +1,33 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
-<head th:replace="fragments/header :: header (title=#{html.featureDocumentation.title})" />
+<head th:replace="fragments/header :: header (title=#{html.featureDocumentation.title})"></head>
 <body>
 <div class="wrapper">
-    <header th:replace="fragments/navbar :: navbar-header(subpage = 'administration')" />
-    <aside th:replace="fragments/navbar :: navbar-aside (page = 'featureDocumentation', subpage = 'administration')" />
+    <header th:replace="fragments/navbar :: navbar-header(subpage = 'administration')"></header>
+    <aside th:replace="fragments/navbar :: navbar-aside (page = 'featureDocumentation', subpage = 'administration')"></aside>
 
     <section>
         <div class="content-wrapper">
-			<h3 th:utext="#{html.featureDocumentation.title}"/>
+			<h3 th:utext="#{html.featureDocumentation.title}"></h3>
 			<div class="panel panel-default" style="padding-left: 20px; padding-right: 20px;">
 				<div class="panel-body">
 					<div class="table-responsive">
 						<table id="listTable" class="table table-striped table-hover listTable">
 							<thead>
 								<tr>
-									<th class="col-md-1" th:text="#{html.featureDocumentation.list.enabled}" />
-									<th class="col-md-3" th:text="#{html.featureDocumentation.list.name}" />
-									<th class="col-md-8" th:text="#{html.featureDocumentation.list.description}" />
+									<th class="col-md-1" th:text="#{html.featureDocumentation.list.enabled}"></th>
+									<th class="col-md-3" th:text="#{html.featureDocumentation.list.name}"></th>
+									<th class="col-md-8" th:text="#{html.featureDocumentation.list.description}"></th>
 								</tr>
 							</thead>
 				
 							<tbody>
 								<tr th:each="feature : ${features}">
-									<td>
-										<div class="checkbox c-checkbox">
-											<label>
-												<input type="checkbox" th:checked="${feature.enabled}" disabled="disabled" />
-												<span class="fa fa-check"></span>
-											</label>
-										</div>
+									<td style="text-align: center;">
+										<em th:if="${feature.enabled}" class="fa fa-check"></em>
 									</td>
-									<td th:text="${feature.name}" />
-									<td th:text="${feature.description}" />
+									<td th:text="${feature.name}"></td>
+									<td th:text="${feature.description}"></td>
 								</tr>
 							</tbody>
 						</table>
@@ -50,7 +45,7 @@
 	}
 </style>
 
-<div th:replace="fragments/footer :: footer" />
+<div th:replace="fragments/footer :: footer"></div>
 
 <script th:inline="javascript">
 		/*<![CDATA[*/

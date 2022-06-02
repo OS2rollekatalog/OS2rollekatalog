@@ -9,16 +9,16 @@
 	<parent>
 		<groupId>org.springframework.boot</groupId>
 		<artifactId>spring-boot-starter-parent</artifactId>
-		<version>2.1.6.RELEASE</version>
+		<version>2.6.7</version>
 	</parent>
 
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-		<java.version>11</java.version>
+		<java.version>17</java.version>
 	</properties>
 
-        <build>
-                <plugins>
+	<build>
+		<plugins>
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-eclipse-plugin</artifactId>
@@ -27,7 +27,7 @@
 					<downloadSources>true</downloadSources>
 					<downloadJavadocs>true</downloadJavadocs>
 				</configuration>
-                        </plugin>
+			</plugin>
 
 			<plugin>
 				<!-- version 3.1.2 breaks the use of local repositories -->
@@ -35,11 +35,11 @@
 				<artifactId>maven-dependency-plugin</artifactId>
 				<version>3.1.1</version>
 			</plugin>
-                </plugins>
-        </build>	
+		</plugins>
+	</build>
 
-        <modules>
+	<modules>
 		<module>webjar</module>
-                <module>ui</module>
-        </modules>	
+		<module>ui</module>
+	</modules>
 </project>

@@ -113,13 +113,13 @@ public class AttestationService {
 			}
 			
 			String managerEmail = null;
-			if (!StringUtils.isEmpty(manager.getEmail())) {
+			if (StringUtils.hasLength(manager.getEmail())) {
 				managerEmail = manager.getEmail();
 			}
 
 			String substituteEmail = null;			
 			User substitute = manager.getManagerSubstitute();
-			if (substitute != null && substitute.isActive() && !StringUtils.isEmpty(substitute.getEmail())) {
+			if (substitute != null && substitute.isActive() && StringUtils.hasLength(substitute.getEmail())) {
 				substituteEmail = substitute.getEmail();
 			}
 			
@@ -390,7 +390,7 @@ public class AttestationService {
 	@Transactional
 	public void notifyThirdParty() {
 		String mail = settingsService.getEmailAfterReminders();
-		if (StringUtils.isEmpty(mail)) {
+		if (!StringUtils.hasLength(mail)) {
 			return;
 		}
 		

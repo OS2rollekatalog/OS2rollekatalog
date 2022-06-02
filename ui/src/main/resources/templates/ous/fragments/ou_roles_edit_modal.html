@@ -6,7 +6,7 @@
 			<div class="modal-content">
 				<div class="modal-header">
 					<button type="button" class="close" onclick="ouRolesEditModalService.closeModal();">&times;</button>
-					<h4 th:text="#{html.page.ous.edit.title.choose}"/>
+					<h4 th:text="#{html.page.ous.edit.title.choose}"></h4>
 				</div>
 
 				<div class="modal-body" style="overflow-y: initial !important;">
@@ -25,8 +25,8 @@
 							<table th:if="${titles != null and titles.size() > 0}" id="ou_roles_listTable1" class="table table-striped">
 								<thead>
 									<tr>
-										<th class="col-md-2" th:text="#{html.entity.title.checked}" />
-										<th class="col-md-10" th:text="#{html.entity.title.name}" />
+										<th class="col-md-2" th:text="#{html.entity.title.checked}"></th>
+										<th class="col-md-10" th:text="#{html.entity.title.name}"></th>
 									</tr>
 								</thead>
 
@@ -52,7 +52,7 @@
 					</div>
 					
 	               	<div style="height: 70px;">
-						<h4 class="md-12" th:text="#{html.word.validity}" />
+						<h4 class="md-12" th:text="#{html.word.validity}"></h4>
 	
 						<b class="col-sm-1" style="padding-top: 7px;" th:text="#{html.word.from}"></b>
 						<div class="col-md-5">
@@ -81,8 +81,8 @@
 				</div>
 
 				<div class="modal-footer">
-					<button type="button" class="btn btn-primary" style="margin-left: 5px;" onclick="ouRolesEditModalService.saveChanges();" th:text="#{html.control.button.save}"/>
-					<button type="button" class="btn btn-warning" style="margin-left: 5px;" onclick="ouRolesEditModalService.closeModal();" th:text="#{html.control.button.cancel}"/>
+					<button type="button" class="btn btn-primary" style="margin-left: 5px;" onclick="ouRolesEditModalService.saveChanges();" th:text="#{html.control.button.save}"></button>
+					<button type="button" class="btn btn-warning" style="margin-left: 5px;" onclick="ouRolesEditModalService.closeModal();" th:text="#{html.control.button.cancel}"></button>
 				</div>
 			</div>
 		</div>
@@ -192,7 +192,9 @@
 				$('#modal-ou-edit .tab-content').show();
 
 				// Clear old title selection
-				ouRolesEditModalService.clearTitleSelection();
+				if (titlesEnabled) {
+					ouRolesEditModalService.clearTitleSelection();
+				}
 
 				// Clear old exceptedUsers selection
 				ouRolesEditModalService.clearExceptedUsersSelection();

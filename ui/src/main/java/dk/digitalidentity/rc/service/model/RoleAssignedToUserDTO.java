@@ -38,6 +38,7 @@ public class RoleAssignedToUserDTO {
 		dto.setName(assignment.getUserRole().getName());
 		dto.setType(RoleAssignmentType.USERROLE);
 		dto.setAssignedThrough(AssignedThrough.ROLEGROUP);
+		dto.setAssignedThroughName(assignment.getRoleGroup().getName());
 		dto.setItSystem(assignment.getUserRole().getItSystem());
 		dto.setDescription(assignment.getUserRole().getDescription());
 		dto.setStartDate(startDate);

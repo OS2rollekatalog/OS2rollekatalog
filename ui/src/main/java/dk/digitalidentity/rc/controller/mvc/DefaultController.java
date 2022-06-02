@@ -10,6 +10,7 @@ import javax.servlet.http.HttpServletRequest;
 import org.opensaml.saml.common.SAMLException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.web.error.ErrorAttributeOptions;
 import org.springframework.boot.web.servlet.error.DefaultErrorAttributes;
 import org.springframework.boot.web.servlet.error.ErrorAttributes;
 import org.springframework.boot.web.servlet.error.ErrorController;
@@ -207,12 +208,7 @@ public class DefaultController implements ErrorController {
 		return new ResponseEntity<>(body, status);
 	}
 
-	@Override
-	public String getErrorPath() {
-		return "/_dummyErrorPath";
-	}
-
 	private Map<String, Object> getErrorAttributes(WebRequest request, boolean includeStackTrace) {
-		return errorAttributes.getErrorAttributes(request, includeStackTrace);
+		return errorAttributes.getErrorAttributes(request, ErrorAttributeOptions.defaults());
 	}
 }

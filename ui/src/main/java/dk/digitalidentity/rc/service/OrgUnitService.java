@@ -138,6 +138,10 @@ public class OrgUnitService {
 		return orgUnitDao.getByManager(user);
 	}
 	
+	public List<OrgUnit> getAllWithManager() {
+		return orgUnitDao.getByActiveTrueAndManagerNotNull();
+	}
+	
 	public List<OrgUnit> getByAuthorizationManagerMatchingUser(User user) {
 		return orgUnitDao.getByAuthorizationManagersUser(user);
 	}
@@ -166,12 +170,12 @@ public class OrgUnitService {
 		Map<String, String> result = new HashMap<String, String>();
 		
 		if (orgUnit.getManager() != null) {
-			if (orgUnit.getManager().getManagerSubstitute() != null && orgUnit.getManager().getManagerSubstitute().isActive() && !StringUtils.isEmpty(orgUnit.getManager().getManagerSubstitute().getEmail())) {
+			if (orgUnit.getManager().getManagerSubstitute() != null && orgUnit.getManager().getManagerSubstitute().isActive() && StringUtils.hasLength(orgUnit.getManager().getManagerSubstitute().getEmail())) {
 				result.put(orgUnit.getManager().getManagerSubstitute().getEmail(), orgUnit.getManager().getManagerSubstitute().getName());
 			}
 
 			if (!preferSubstitute || result.size() == 0) {				
-				if (!StringUtils.isEmpty(orgUnit.getManager().getEmail())) {
+				if (StringUtils.hasLength(orgUnit.getManager().getEmail())) {
 					result.put(orgUnit.getManager().getEmail(), orgUnit.getManager().getName());
 				}
 			}
@@ -1086,21 +1090,38 @@ public class OrgUnitService {
 				allowedLevels.add(OrgUnitLevel.LEVEL_2);
 				allowedLevels.add(OrgUnitLevel.LEVEL_3);
 				allowedLevels.add(OrgUnitLevel.LEVEL_4);
+				allowedLevels.add(OrgUnitLevel.LEVEL_5);
+				allowedLevels.add(OrgUnitLevel.LEVEL_6);
 				allowedLevels.add(OrgUnitLevel.NONE);
 				break;
 			case LEVEL_1:
 				allowedLevels.add(OrgUnitLevel.LEVEL_2);
 				allowedLevels.add(OrgUnitLevel.LEVEL_3);
 				allowedLevels.add(OrgUnitLevel.LEVEL_4);
+				allowedLevels.add(OrgUnitLevel.LEVEL_5);
+				allowedLevels.add(OrgUnitLevel.LEVEL_6);
 				allowedLevels.add(OrgUnitLevel.NONE);
 				break;
 			case LEVEL_2:
-				allowedLevels.add(OrgUnitLevel.NONE);
 				allowedLevels.add(OrgUnitLevel.LEVEL_3);
 				allowedLevels.add(OrgUnitLevel.LEVEL_4);
+				allowedLevels.add(OrgUnitLevel.LEVEL_5);
+				allowedLevels.add(OrgUnitLevel.LEVEL_6);
+				allowedLevels.add(OrgUnitLevel.NONE);
 				break;
 			case LEVEL_3:
 				allowedLevels.add(OrgUnitLevel.LEVEL_4);
+				allowedLevels.add(OrgUnitLevel.LEVEL_5);
+				allowedLevels.add(OrgUnitLevel.LEVEL_6);
+				allowedLevels.add(OrgUnitLevel.NONE);
+				break;
+			case LEVEL_4:
+				allowedLevels.add(OrgUnitLevel.LEVEL_5);
+				allowedLevels.add(OrgUnitLevel.LEVEL_6);
+				allowedLevels.add(OrgUnitLevel.NONE);
+				break;
+			case LEVEL_5:
+				allowedLevels.add(OrgUnitLevel.LEVEL_6);
 				allowedLevels.add(OrgUnitLevel.NONE);
 				break;
 			default:

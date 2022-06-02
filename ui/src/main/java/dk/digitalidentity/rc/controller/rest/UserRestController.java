@@ -189,7 +189,7 @@ public class UserRestController {
 		}
 
 		LocalDate startDate = null, stopDate = null;
-		if (!StringUtils.isEmpty(startDateStr)) {
+		if (StringUtils.hasLength(startDateStr)) {
 			try {
 				startDate = LocalDate.parse(startDateStr);
 			}
@@ -197,7 +197,7 @@ public class UserRestController {
 				log.warn("Invalid startdate string: " + startDateStr);
 			}
 		}
-		if (!StringUtils.isEmpty(stopDateStr)) {
+		if (StringUtils.hasLength(stopDateStr)) {
 			try {
 				stopDate = LocalDate.parse(stopDateStr);
 			}
@@ -268,7 +268,7 @@ public class UserRestController {
 		}
 
 		LocalDate startDate = null, stopDate = null;
-		if (!StringUtils.isEmpty(startDateStr)) {
+		if (StringUtils.hasLength(startDateStr)) {
 			try {
 				startDate = LocalDate.parse(startDateStr);
 			}
@@ -276,7 +276,7 @@ public class UserRestController {
 				log.warn("Invalid startdate string: " + startDateStr);
 			}
 		}
-		if (!StringUtils.isEmpty(stopDateStr)) {
+		if (StringUtils.hasLength(stopDateStr)) {
 			try {
 				stopDate = LocalDate.parse(stopDateStr);
 			}
@@ -331,7 +331,7 @@ public class UserRestController {
 		}
 		
 		LocalDate startDate = null, stopDate = null;
-		if (!StringUtils.isEmpty(startDateStr)) {
+		if (StringUtils.hasLength(startDateStr)) {
 			try {
 				startDate = LocalDate.parse(startDateStr);
 			}
@@ -339,7 +339,7 @@ public class UserRestController {
 				log.warn("Invalid startdate string: " + startDateStr);
 			}
 		}
-		if (!StringUtils.isEmpty(stopDateStr)) {
+		if (StringUtils.hasLength(stopDateStr)) {
 			try {
 				stopDate = LocalDate.parse(stopDateStr);
 			}
@@ -427,7 +427,7 @@ public class UserRestController {
 		}
 
 		LocalDate startDate = null, stopDate = null;
-		if (!StringUtils.isEmpty(startDateStr)) {
+		if (StringUtils.hasLength(startDateStr)) {
 			try {
 				startDate = LocalDate.parse(startDateStr);
 				
@@ -439,7 +439,7 @@ public class UserRestController {
 				log.warn("Invalid startdate string: " + startDateStr);
 			}
 		}
-		if (!StringUtils.isEmpty(stopDateStr)) {
+		if (StringUtils.hasLength(stopDateStr)) {
 			try {
 				stopDate = LocalDate.parse(stopDateStr);
 			}
@@ -546,7 +546,7 @@ public class UserRestController {
 		}
 		
 		LocalDate startDate = null, stopDate = null;
-		if (!StringUtils.isEmpty(startDateStr)) {
+		if (StringUtils.hasLength(startDateStr)) {
 			try {
 				startDate = LocalDate.parse(startDateStr);
 			}
@@ -554,7 +554,7 @@ public class UserRestController {
 				log.warn("Invalid startdate string: " + startDateStr);
 			}
 		}
-		if (!StringUtils.isEmpty(stopDateStr)) {
+		if (StringUtils.hasLength(stopDateStr)) {
 			try {
 				stopDate = LocalDate.parse(stopDateStr);
 			}
@@ -741,7 +741,7 @@ public class UserRestController {
 	        }
 	        
 	        //Check that it has a value
-	        if (StringUtils.isEmpty(postponedConstraintDTO.getValue())) {
+	        if (!StringUtils.hasLength(postponedConstraintDTO.getValue())) {
 	        	log.warn("Value is null or empty for system role id  " + postponedConstraintDTO.getSystemRoleId() + " and constraint type " + postponedConstraintDTO.getConstraintTypeUuid());
     			errorIds.add(postponedConstraintDTO.getSystemRoleId() + postponedConstraintDTO.getConstraintTypeUuid());
 	        }

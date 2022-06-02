@@ -47,7 +47,7 @@ public class RoleAssignmentApi {
     private RoleGroupService roleGroupService;
 	
     @RequestMapping(value = "/api/user/{userUuid}/assign/userrole/{userRoleId}", method = RequestMethod.PUT)
-    public ResponseEntity<String> assignUserRoleToUser(@PathVariable("userRoleId") long userRoleId, @PathVariable("userUuid") String userUuid, @RequestParam(name = "startDate", required = false) LocalDate startDate, @RequestParam(name = "stopDate", required = false) LocalDate stopDate) {
+    public ResponseEntity<String> assignUserRoleToUser(@PathVariable("userRoleId") long userRoleId, @PathVariable("userUuid") String userUuid, @RequestParam(name = "startDate", required = false) LocalDate startDate, @RequestParam(name = "stopDate", required = false) LocalDate stopDate, @RequestParam(name = "onlyIfNotAssigned", required = false, defaultValue = "true") boolean onlyIfNotAssigned) {
         List<User> users = userService.getByExtUuid(userUuid);
         if (users == null || users.size() == 0) {
         	users = new ArrayList<>();
@@ -66,8 +66,15 @@ public class RoleAssignmentApi {
 		else if (userRole == null) {
 			return new ResponseEntity<>(ErrorMessage.USER_ROLE_NOT_FOUND, HttpStatus.NOT_FOUND);
 		}
-
+		
 		for (User user : users) {
+			if (onlyIfNotAssigned) {
+				// if already assigned, skip it
+				if (user.getUserRoleAssignments().stream().anyMatch(ura -> ura.getUserRole().getId() == userRoleId)) {
+					continue;
+				}
+			}
+
 			userService.addUserRole(user, userRole, startDate, stopDate);
 			userService.save(user);
 		}

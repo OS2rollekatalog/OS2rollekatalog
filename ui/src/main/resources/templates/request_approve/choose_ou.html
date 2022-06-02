@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html>
-<head th:replace="fragments/header :: header (title=#{html.page.rolegroup.edit.title})" />
+<head th:replace="fragments/header :: header (title=#{html.page.rolegroup.edit.title})"></head>
 <body>
 	<div class="wrapper">
-	    <header th:replace="fragments/navbar :: navbar-header(subpage = 'roles')" />
-	    <aside th:replace="fragments/navbar :: navbar-aside (subpage = 'roles')" />
+	    <header th:replace="fragments/navbar :: navbar-header(subpage = 'roles')"></header>
+	    <aside th:replace="fragments/navbar :: navbar-aside (subpage = 'roles')"></aside>
 	    <section>
 	        <div class="content-wrapper">
 	            <h3>
@@ -14,24 +14,24 @@
 	                <a th:if="${roleType == 'userRole'}" th:href="@{/ui/userroles/view/{id}(id=${role.id})}" class="btn btn-default">
 	                    <span><i class="fa fa-arrow-left"></i> </span>
 	                </a>
-	                <span th:text="#{html.page.requestapprove.choose_ou}"/>
+	                <span th:text="#{html.page.requestapprove.choose_ou}"></span>
 	            </h3>
 	
 	            <div class="panel panel-default">
 	                <div class="panel-body">
-						<p th:text="#{html.page.requestapprove.choose_ou.text}" />
+						<p th:text="#{html.page.requestapprove.choose_ou.text}"></p>
 	                
 						<table id="listTable" class="table table-striped table-hover">
 							<thead>
 								<tr>
-									<th class="col-md-11" th:text="#{html.entity.ou.name}" />
-									<th class="col-md-1" th:text="#{html.control.operations}" />
+									<th class="col-md-11" th:text="#{html.entity.ou.name}"></th>
+									<th class="col-md-1" th:text="#{html.control.operations}"></th>
 								</tr>
 							</thead>
 
 							<tbody>
 								<tr th:each="ou : ${orgUnits}">
-									<td th:text="${ou.name}" />
+									<td th:text="${ou.name}"></td>
 									<td>
 										<a th:href="@{/ui/requestapprove/request/step2/role/{id}/ou/{uuid}?type={type}(id=${role.id},uuid=${ou.uuid},type=${roleType})}"><em class="fa fa-plus"></em></a>
 									</td>
@@ -44,7 +44,7 @@
 	    </section>
 	</div>
 
-	<nav th:replace="fragments/footer :: footer"/>
-	<script th:replace="fragments/datatables :: datatables " />
+	<nav th:replace="fragments/footer :: footer"></nav>
+	<script th:replace="fragments/datatables :: datatables "></script>
 </body>
 </html>

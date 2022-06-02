@@ -116,7 +116,7 @@ public class RestTemplateConfiguration {
 		TrustStrategy acceptingTrustStrategy = (X509Certificate[] chain, String authType) -> true;
 
 		CloseableHttpClient client = null;
-		if (configuration.getIntegrations().getKombit().isEnabled() && !StringUtils.isEmpty(configuration.getIntegrations().getKombit().getKeystoreLocation())) {
+		if (configuration.getIntegrations().getKombit().isEnabled() && StringUtils.hasLength(configuration.getIntegrations().getKombit().getKeystoreLocation())) {
 			SSLContext sslContext = SSLContextBuilder.create()
 			                .loadKeyMaterial(
 			                		ResourceUtils.getFile(configuration.getIntegrations().getKombit().getKeystoreLocation()),
@@ -173,7 +173,7 @@ public class RestTemplateConfiguration {
 		TrustStrategy acceptingTrustStrategy = (X509Certificate[] chain, String authType) -> true;
 
 		CloseableHttpClient client = null;
-		if (configuration.getIntegrations().getKombit().isTestEnabled() && !StringUtils.isEmpty(configuration.getIntegrations().getKombit().getTestKeystoreLocation())) {
+		if (configuration.getIntegrations().getKombit().isTestEnabled() && StringUtils.hasLength(configuration.getIntegrations().getKombit().getTestKeystoreLocation())) {
 			SSLContext sslContext = SSLContextBuilder.create()
 			                .loadKeyMaterial(
 			                		ResourceUtils.getFile(configuration.getIntegrations().getKombit().getTestKeystoreLocation()),

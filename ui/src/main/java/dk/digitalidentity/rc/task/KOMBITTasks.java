@@ -30,7 +30,7 @@ public class KOMBITTasks {
 	public void init() {
 		if (configuration.getScheduled().isEnabled() &&
 			configuration.getIntegrations().getKombit().isEnabled()) {
-			
+
 			initialized = true;
 
 			if (itSystemService.getBySystemType(ItSystemType.KOMBIT).size() == 0) {

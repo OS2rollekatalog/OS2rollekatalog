@@ -1,9 +1,11 @@
 package dk.digitalidentity.rc.controller.mvc;
 
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 import javax.validation.Valid;
@@ -20,6 +22,7 @@ import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 
+import dk.digitalidentity.rc.controller.mvc.viewmodel.ConvertSystemRolesForm;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.ItSystemForm;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.SystemRoleForm;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.SystemRoleViewModel;
@@ -29,6 +32,8 @@ import dk.digitalidentity.rc.dao.model.ItSystem;
 import dk.digitalidentity.rc.dao.model.ItSystemMaster;
 import dk.digitalidentity.rc.dao.model.PendingADGroupOperation;
 import dk.digitalidentity.rc.dao.model.SystemRole;
+import dk.digitalidentity.rc.dao.model.SystemRoleAssignment;
+import dk.digitalidentity.rc.dao.model.UserRole;
 import dk.digitalidentity.rc.dao.model.enums.ADGroupType;
 import dk.digitalidentity.rc.dao.model.enums.ItSystemType;
 import dk.digitalidentity.rc.dao.model.enums.RoleType;
@@ -186,7 +191,7 @@ public class ItSystemController {
 	}
 
 	@RequireAdministratorRole
-	@GetMapping(value = { "/ui/itsystem/edit/{id}" })
+	@GetMapping("/ui/itsystem/edit/{id}")
 	public String editItSystem(Model model, @PathVariable("id") long id) {
 		ItSystem itSystem = itSystemService.getById(id);
 		if (itSystem == null) {
@@ -199,6 +204,9 @@ public class ItSystemController {
 		List<SystemRoleViewModel> systemRoles = systemRoleService.getByItSystem(itSystem).stream()
 				.map(sr -> new SystemRoleViewModel(sr, systemRoleService.isInUse(sr)))
 				.collect(Collectors.toList());
+
+		ConvertSystemRolesForm convertSystemRolesForm = new ConvertSystemRolesForm();
+		convertSystemRolesForm.setCreateLink(true);
 		
 		model.addAttribute("unusedCount", itSystemService.getUnusedUserRolesCount(itSystem));
 		model.addAttribute("itsystem", itSystem);
@@ -207,12 +215,13 @@ public class ItSystemController {
 		model.addAttribute("systemRoleForm", systemRoleForm);
 		model.addAttribute("itsystemMasterList", itSystemMasterService.findAll());
 		model.addAttribute("userRoles", userRoleService.getByItSystem(itSystem));
+		model.addAttribute("convertSystemRolesForm", convertSystemRolesForm);
 
 		return "itsystem/edit";
 	}
 
 	@RequireAdministratorRole
-	@PostMapping(value = { "/ui/itsystem/edit/{systemid}/addSystemRole" })
+	@PostMapping("/ui/itsystem/edit/{systemid}/addSystemRole")
 	public String addSystemRoleToItSystem(Model model, @PathVariable("systemid") long systemId, @Valid @ModelAttribute("systemRoleForm") SystemRoleForm systemRoleForm, BindingResult bindingResult) {
 		ItSystem itSystem = itSystemService.getById(systemId);
 		if (itSystem == null || (!itSystem.getSystemType().equals(ItSystemType.AD) && !itSystem.getSystemType().equals(ItSystemType.SAML) && !itSystem.getSystemType().equals(ItSystemType.MANUAL))) {
@@ -272,5 +281,60 @@ public class ItSystemController {
 		}
 
 		return "redirect:";
+	}
+
+	@RequireAdministratorRole
+	@PostMapping("/ui/itsystem/systemrole/convert/{id}")
+	public String convertSystemRoles(Model model, @PathVariable("id") long id, @ModelAttribute("convertSystemRolesForm") ConvertSystemRolesForm convertSystemRolesForm) {
+		ItSystem itSystem = itSystemService.getById(id);
+		if (itSystem == null) {
+			return "redirect:../../list";
+		}
+
+		if (itSystem.getSystemType().equals(ItSystemType.AD) && itSystem.isReadonly()) {
+			return "redirect:../../list";
+		}
+
+		if (itSystem.getSystemType().equals(ItSystemType.KSPCICS)) {
+			return "redirect:../../list";
+		}
+
+		List<SystemRole> systemRoles = systemRoleService.getByItSystem(itSystem).stream()
+				.filter(sr -> systemRoleService.isInUse(sr) == false)
+				.collect(Collectors.toList());
+
+		for (SystemRole systemRole : systemRoles) {
+			UserRole userRole = new UserRole();
+			userRole.setName(convertSystemRolesForm.getPrefix() + systemRole.getName());
+			
+			// TODO: must be a better way to safely ensure this length max (maybe setter on UserRole)
+			if (userRole.getName().length() > 64) {
+				userRole.setName(userRole.getName().substring(0, 64));
+			}
+
+			userRole.setDescription(systemRole.getDescription());
+			userRole.setIdentifier("id-" + UUID.randomUUID().toString());
+			userRole.setItSystem(itSystem);
+			userRole.setSystemRoleAssignments(new ArrayList<SystemRoleAssignment>());
+
+			if (convertSystemRolesForm.isCreateLink()) {
+				userRole.setLinkedSystemRole(systemRole);
+				userRole.setLinkedSystemRolePrefix(convertSystemRolesForm.getPrefix());
+			}
+
+			userRole = userRoleService.save(userRole);
+
+			SystemRoleAssignment roleAssignment = new SystemRoleAssignment();
+			roleAssignment.setSystemRole(systemRole);
+			roleAssignment.setUserRole(userRole);
+			roleAssignment.setAssignedByName(SecurityUtil.getUserFullname());
+			roleAssignment.setAssignedByUserId(SecurityUtil.getUserId());
+			roleAssignment.setAssignedTimestamp(new Date());
+
+			userRoleService.addSystemRoleAssignment(userRole, roleAssignment);
+			userRoleService.save(userRole);
+		}
+
+		return "redirect:../../edit/" + itSystem.getId();
 	}
 }

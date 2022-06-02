@@ -10,6 +10,7 @@ import dk.digitalidentity.rc.dao.model.SystemRoleAssignment;
 import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserRole;
 import dk.digitalidentity.rc.security.AccessConstraintService;
+import dk.digitalidentity.rc.security.SecurityUtil;
 
 @Component
 public class ConstrainedAssignerHook implements RoleChangeHook {
@@ -20,14 +21,14 @@ public class ConstrainedAssignerHook implements RoleChangeHook {
 	@Override
 	public void interceptAddRoleGroupAssignmentOnUser(User user, RoleGroup roleGroup) {
 		if (!assignerRoleConstraint.isAssignmentAllowed(user, roleGroup)) {
-			throw new SecurityException("user is prohibited from modifying user: " + user.getEntityId());
+			throw new SecurityException("User " + SecurityUtil.getUserId() + " is prohibited from modifying user: " + user.getEntityId());
 		}
 	}
 
 	@Override
 	public void interceptRemoveRoleGroupAssignmentOnUser(User user, RoleGroup roleGroup) {
 		if (!assignerRoleConstraint.isAssignmentAllowed(user, roleGroup)) {
-			throw new SecurityException("user is prohibited from modifying user: " + user.getEntityId());
+			throw new SecurityException("User " + SecurityUtil.getUserId() + " is prohibited from modifying user: " + user.getEntityId());
 		}		
 	}
 	
@@ -39,14 +40,14 @@ public class ConstrainedAssignerHook implements RoleChangeHook {
 	@Override
 	public void interceptAddUserRoleAssignmentOnUser(User user, UserRole userRole) {
 		if (!assignerRoleConstraint.isAssignmentAllowed(user, userRole)) {
-			throw new SecurityException("user is prohibited from modifying user: " + user.getEntityId());
+			throw new SecurityException("User " + SecurityUtil.getUserId() + " is prohibited from modifying user: " + user.getEntityId());
 		}
 	}
 
 	@Override
 	public void interceptRemoveUserRoleAssignmentOnUser(User user, UserRole userRole) {
 		if (!assignerRoleConstraint.isAssignmentAllowed(user, userRole)) {
-			throw new SecurityException("user is prohibited from modifying user: " + user.getEntityId());
+			throw new SecurityException("User " + SecurityUtil.getUserId() + " is prohibited from modifying user: " + user.getEntityId());
 		}
 	}
 
@@ -55,7 +56,7 @@ public class ConstrainedAssignerHook implements RoleChangeHook {
 		User user = position.getUser();
 
 		if (!assignerRoleConstraint.isAssignmentAllowed(user, roleGroup)) {
-			throw new SecurityException("user is prohibited from modifying user: " + user.getEntityId());
+			throw new SecurityException("User " + SecurityUtil.getUserId() + " is prohibited from modifying user: " + user.getEntityId());
 		}
 	}
 
@@ -64,7 +65,7 @@ public class ConstrainedAssignerHook implements RoleChangeHook {
 		User user = position.getUser();
 
 		if (!assignerRoleConstraint.isAssignmentAllowed(user, roleGroup)) {
-			throw new SecurityException("user is prohibited from modifying user: " + user.getEntityId());
+			throw new SecurityException("User " + SecurityUtil.getUserId() + " is prohibited from modifying user: " + user.getEntityId());
 		}
 	}
 
@@ -73,7 +74,7 @@ public class ConstrainedAssignerHook implements RoleChangeHook {
 		User user = position.getUser();
 
 		if (!assignerRoleConstraint.isAssignmentAllowed(user, userRole)) {
-			throw new SecurityException("user is prohibited from modifying user: " + user.getEntityId());
+			throw new SecurityException("User " + SecurityUtil.getUserId() + " is prohibited from modifying user: " + user.getEntityId());
 		}
 	}
 
@@ -82,7 +83,7 @@ public class ConstrainedAssignerHook implements RoleChangeHook {
 		User user = position.getUser();
 
 		if (!assignerRoleConstraint.isAssignmentAllowed(user, userRole)) {
-			throw new SecurityException("user is prohibited from modifying user: " + user.getEntityId());
+			throw new SecurityException("User " + SecurityUtil.getUserId() + " is prohibited from modifying user: " + user.getEntityId());
 		}
 	}
 
@@ -91,14 +92,14 @@ public class ConstrainedAssignerHook implements RoleChangeHook {
 		// if the user is allowed to assign roles on the OU, then we also allow
 		// them to assign inherited roles, even though they do not have access to sub-OU's
 		if (!assignerRoleConstraint.isAssignmentAllowed(ou, roleGroup)) {
-			throw new SecurityException("user is prohibited from modifying ou: " + ou.getEntityId());
+			throw new SecurityException("User " + SecurityUtil.getUserId() + " is prohibited from modifying ou: " + ou.getEntityId());
 		}
 	}
 
 	@Override
 	public void interceptRemoveRoleGroupAssignmentOnOrgUnit(OrgUnit ou, RoleGroup roleGroup) {
 		if (!assignerRoleConstraint.isAssignmentAllowed(ou, roleGroup)) {
-			throw new SecurityException("user is prohibited from modifying ou: " + ou.getEntityId());
+			throw new SecurityException("User " + SecurityUtil.getUserId() + " is prohibited from modifying ou: " + ou.getEntityId());
 		}
 	}
 
@@ -107,14 +108,14 @@ public class ConstrainedAssignerHook implements RoleChangeHook {
 		// if the user is allowed to assign roles on the OU, then we also allow
 		// them to assign inherited roles, even though they do not have access to sub-OU's
 		if (!assignerRoleConstraint.isAssignmentAllowed(ou, userRole)) {
-			throw new SecurityException("user is prohibited from modifying ou: " + ou.getEntityId());
+			throw new SecurityException("User " + SecurityUtil.getUserId() + " is prohibited from modifying ou: " + ou.getEntityId());
 		}
 	}
 
 	@Override
 	public void interceptRemoveUserRoleAssignmentOnOrgUnit(OrgUnit ou, UserRole userRole) {
 		if (!assignerRoleConstraint.isAssignmentAllowed(ou, userRole)) {
-			throw new SecurityException("user is prohibited from modifying ou: " + ou.getEntityId());
+			throw new SecurityException("User " + SecurityUtil.getUserId() + " is prohibited from modifying ou: " + ou.getEntityId());
 		}
 	}
 

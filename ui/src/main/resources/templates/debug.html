@@ -1,23 +1,23 @@
 <!DOCTYPE html>
 <html>
-<head th:replace="fragments/header :: header (title=#{html.page.index.title})" />
+<head th:replace="fragments/header :: header (title=#{html.page.index.title})"></head>
 <body>
 	<div class="wrapper">
-		<header th:replace="fragments/navbar :: navbar-header" />
-		<aside th:replace="fragments/navbar :: navbar-aside (page = 'index')" />
+		<header th:replace="fragments/navbar :: navbar-header"></header>
+		<aside th:replace="fragments/navbar :: navbar-aside (page = 'index')"></aside>
  
 		<section>
 			<div class="content-wrapper">
 				<div class="panel panel-default">
 					<div class="panel-body">
-						<h3 th:text="#{html.page.debug.headers}"/>
+						<h3 th:text="#{html.page.debug.headers}"></h3>
 						<ul>
-							<li th:each="header : ${headers}" th:text="${header}" />
+							<li th:each="header : ${headers}" th:text="${header}"></li>
 						</ul>
 
 						<th:block th:if="${token != null}">
-							<h3 th:text="#{html.page.debug.token}"/>
-							<pre class="well" th:text="${token}" />
+							<h3 th:text="#{html.page.debug.token}"></h3>
+							<pre class="well" th:text="${token}"></pre>
 						</th:block>
 					</div>
 				</div>
@@ -25,6 +25,6 @@
 	    </section>
 	</div>
 	
-	<nav th:replace="fragments/footer :: footer" />
+	<nav th:replace="fragments/footer :: footer"></nav>
 </body>
 </html>

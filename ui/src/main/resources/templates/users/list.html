@@ -1,25 +1,25 @@
 <!DOCTYPE html>
 <html>
-<head th:replace="fragments/header :: header (title=#{html.page.users.list.title})" />
+<head th:replace="fragments/header :: header (title=#{html.page.users.list.title})"></head>
 <body>
 	<div class="wrapper">
-		<header th:replace="fragments/navbar :: navbar-header(subpage = 'roles')" />
-		<aside th:replace="fragments/navbar :: navbar-aside (page = 'users', subpage = 'roles')" />
+		<header th:replace="fragments/navbar :: navbar-header(subpage = 'roles')"></header>
+		<aside th:replace="fragments/navbar :: navbar-aside (page = 'users', subpage = 'roles')"></aside>
 
 		<section>
 			<div class="content-wrapper">
 				<div class="panel panel-default">
-					<div class="panel-heading" />
+					<div class="panel-heading"></div>
 					<div class="panel-body">
 						<button sec:authorize="hasRole('ROLE_ADMINISTRATOR')" th:if="${@roleCatalogueConfiguration.getIntegrations().getKspcics().isEnabled() == true}" onclick="userService.runCics();" class="btn btn-primary" style="margin-bottom: 20px;" th:text="#{html.page.users.list.loadCics.btn}"></button>
 						<div class="table-responsive">
 							<table id="listTable" class="table table-striped table-hover">
 								<thead>
 									<tr>
-										<th class="col-md-3" th:text="#{html.entity.user.name}" />
-										<th class="col-md-1" th:text="#{html.entity.user.userId}" />
-										<th class="col-md-7" th:text="#{html.entity.user.positions}" />
-										<th class="col-md-1" th:text="#{html.control.operations}" />
+										<th class="col-md-3" th:text="#{html.entity.user.name}"></th>
+										<th class="col-md-1" th:text="#{html.entity.user.userId}"></th>
+										<th class="col-md-7" th:text="#{html.entity.user.positions}"></th>
+										<th class="col-md-1" th:text="#{html.control.operations}"></th>
 									</tr>
 								</thead>
 
@@ -43,7 +43,7 @@
 		</section>
 	</div>
 
-	<nav th:replace="fragments/footer :: footer" />
+	<nav th:replace="fragments/footer :: footer"></nav>
 
 	<script th:inline="javascript">
 		/*<![CDATA[*/
