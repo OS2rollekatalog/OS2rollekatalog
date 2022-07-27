@@ -26,7 +26,7 @@
 
 							<fieldset>
 								<div class="form-group">
-									<label class="col-sm-2 control-label" th:text="#{html.entity.userrole.name}"></label>
+									<label class="col-sm-3 control-label" th:text="#{html.entity.userrole.name}"></label>
 									<div class="col-sm-8">
 										<input th:field="*{name}" class="form-control" th:readonly="${#strings.toString(role.itSystem.systemType)} == 'KSPCICS'" />
 									</div>
@@ -35,16 +35,82 @@
 
 							<fieldset>
 								<div class="form-group">
-									<label class="col-sm-2 control-label" th:text="#{html.entity.userrole.description}"></label>
+									<label class="col-sm-3 control-label" th:text="#{html.entity.userrole.description}"></label>
 									<div class="col-sm-8">
 										<textarea th:field="*{description}" class="form-control" th:readonly="${#strings.toString(role.itSystem.systemType)} == 'KSPCICS'"></textarea>
 									</div>
 								</div>
 							</fieldset>
 							
+							<fieldset th:if="${#strings.equals(role.itSystem.systemType, 'MANUAL')}">
+								<div class="form-group">
+									<label class="col-sm-3 control-label" th:text="#{html.page.userroles.new.require_manager_action.label}"></label>
+									<div class="col-sm-8">
+										<div class="checkbox c-checkbox">
+											<label>
+												<input type="checkbox" id="requireManagerActionCheckbox" name="requireManagerAction" th:checked="${role.requireManagerAction}"/>
+												<span class="fa fa-check"></span>
+											</label>
+										</div>
+									</div>
+								</div>
+								
+								<div id="requireManagerActionRow" th:hidden="${!role.requireManagerAction}">
+									<div class="form-group">
+										<label class="col-sm-3 control-label" th:text="#{html.page.userroles.new.send_to_manager.label}"></label>
+										<div class="col-sm-8">
+											<div class="checkbox c-checkbox">
+												<label>
+													<input type="checkbox" checked="checked" disabled="disabled"/>
+													<span class="fa fa-check"></span>
+												</label>
+											</div>
+										</div>
+									</div>
+									
+									<div class="form-group">
+										<label class="col-sm-3 control-label" th:text="#{html.page.userroles.new.send_to_substitutes.label}"></label>
+										<div class="col-sm-8">
+											<div class="checkbox c-checkbox">
+												<label>
+													<input type="checkbox" id="sendToSubstitutes" name="sendToSubstitutes" th:checked="${role.sendToSubstitutes}"/>
+													<span class="fa fa-check"></span>
+												</label>
+											</div>
+										</div>
+									</div>
+									
+									<div class="form-group">
+										<label class="col-sm-3 control-label" th:text="#{html.page.userroles.new.send_to_authorization_managers.label}"></label>
+										<div class="col-sm-8">
+											<div class="checkbox c-checkbox">
+												<label>
+													<input type="checkbox" id="sendToAuthorizationManagers" name="sendToAuthorizationManagers" th:checked="${role.sendToAuthorizationManagers}"/>
+													<span class="fa fa-check"></span>
+												</label>
+											</div>
+										</div>
+									</div>
+									
+									<div class="form-group" style="margin-top: 10px;">
+										<label class="col-sm-3 control-label" th:text="#{html.page.userroles.new.email_template.title}"></label>
+										<div class="col-sm-8">
+											<input th:field="*{emailTemplateTitle}" class="form-control" />
+										</div>
+									</div>
+
+									<div class="form-group">
+										<label class="col-sm-3 control-label" th:text="#{html.page.userroles.new.email_template.message}"></label>
+										<div class="col-sm-8">
+											<textarea th:field="*{emailTemplateMessage}" class="mb-0 preformat" rows="10" style="width:100%;"></textarea>
+										</div>
+									</div>
+								</div>
+							</fieldset>
+							
 							<fieldset>
 								<div class="form-group">
-									<label class="col-sm-2 control-label" th:text="#{html.role.flag.useronly}"></label>
+									<label class="col-sm-3 control-label" th:text="#{html.role.flag.useronly}"></label>
 									<div class="col-sm-1">
 										<div class="checkbox c-checkbox">
 											<label>
@@ -473,6 +539,7 @@
 		var orgUnitService = new OrgUnitService();
 		var notificationService = new NotificationService();
 		var orgUnitConstraintService = new OrgUnitConstraintService();
+		var managerActionService = new ManagerActionService();
 
 		$("document").ready(function() {
 			userService.loadRolesFragment();
@@ -485,6 +552,8 @@
 			
 			$("#name").change(handleChangeOnInput);
 			$("#description").change(handleChangeOnInput);
+			$("#emailTemplateTitle").change(handleChangeOnInput);
+			$('#emailTemplateMessage').on('summernote.blur', handleChangeOnInput);
 
 			$('a[data-toggle="tab"]').on("shown.bs.tab", function (e) {
 				var id = $(e.target).attr("href");
@@ -553,8 +622,79 @@
 			
 			$('[data-toggle="popover"]').popover();
 			
+			$('#emailTemplateMessage').summernote({
+				"height": 320,
+				"toolbar": [
+					[ "font", [ "bold", "italic", "underline" ]],
+					[ "para", [ "ul", "ol" ]],
+					[ "insert", [ "picture", "link" ]]
+				],
+				maximumImageFileSize: 100*1024, // 100 KB
+				callbacks: {
+					onImageUploadError: function(msg) {
+						swal({
+							title: swalImageTitle,
+							text: swalImageText,
+							confirmButtonColor : "#4765a0",
+							confirmButtonText : swalImageOk
+						});
+					}
+				},
+				dialogsInBody: true,
+				onChange: handleChangeOnInput
+			});
+			
 			orgUnitConstraintService.init();
+			
+			
+			managerActionService.init();
+			
 		});
+		
+		function ManagerActionService() {
+
+			this.init = function() {
+				$("#requireManagerActionCheckbox").change(function() {
+					var checked = $(this).prop("checked");
+					
+					if (checked) {
+						$("#requireManagerActionRow").attr("hidden", false);
+					} else {
+						$("#requireManagerActionRow").attr("hidden", true);
+						$('#sendToSubstitutes').attr("checked", false);
+						$('#sendToAuthorizationManagers').attr("checked", false);
+					}
+					
+					managerActionService.save("requireManagerAction", checked);
+				});
+				
+				$("#sendToAuthorizationManagers").change(function() {
+					managerActionService.save("sendToAuthorizationManagers", $(this).prop("checked"));
+				});
+				
+				$("#sendToSubstitutes").change(function() {
+					managerActionService.save("sendToSubstitutes", $(this).prop("checked"));
+				});
+			}
+			
+			this.save = function(field, checked) {
+				var updateUrl = url + "manageraction/" + roleId + "/" + field + "?checked=" + checked;
+				
+				$.ajax({
+					url: updateUrl,
+					method: "POST",
+					headers: {
+						'X-CSRF-TOKEN': token
+					},
+					error: function(response) {
+						notificationService.showErrorNotification(response.responseText);
+					},
+					success: function(response) {
+						notificationService.showInfoNotification(fieldUpdatedMsg);
+					}
+				});			
+			}
+		}
 
 		function removeLinkToSystemRole() {
 			/*[+
@@ -852,7 +992,7 @@
 					notificationService.showErrorNotification(response.responseText);
 				},
 				success: function(response) {
-					notificationService.showErrorNotification(fieldUpdatedMsg);
+					notificationService.showInfoNotification(fieldUpdatedMsg);
 				}
 			});
 		}
@@ -1240,12 +1380,16 @@
 			var objName = $("#name").val();
 			var objDescription = $("#description").val();
 			var objectItSystem = $("#itSystem").val();
+			var emailTemplateTitle = $("#emailTemplateTitle").val();
+			var emailTemplateMessage = $("#emailTemplateMessage").val();
 
 			var userRole = {
 				id: objId,
 				name: objName,
 				description: objDescription,
-				itSystem: objectItSystem
+				itSystem: objectItSystem,
+				emailTemplateTitle: emailTemplateTitle,
+				emailTemplateMessage: emailTemplateMessage
 			};
 
 			$.ajax({

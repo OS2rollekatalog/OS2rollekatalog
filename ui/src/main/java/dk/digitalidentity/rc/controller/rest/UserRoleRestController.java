@@ -38,6 +38,7 @@ import dk.digitalidentity.rc.dao.model.SystemRoleAssignment;
 import dk.digitalidentity.rc.dao.model.SystemRoleAssignmentConstraintValue;
 import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserRole;
+import dk.digitalidentity.rc.dao.model.UserRoleEmailTemplate;
 import dk.digitalidentity.rc.dao.model.enums.ConstraintValueType;
 import dk.digitalidentity.rc.dao.model.enums.ItSystemType;
 import dk.digitalidentity.rc.security.RequireAdministratorRole;
@@ -125,6 +126,37 @@ public class UserRoleRestController {
         	default:
         		return new ResponseEntity<>("Ukendt flag: " + flag, HttpStatus.BAD_REQUEST);
         }
+
+        return new ResponseEntity<>(HttpStatus.OK);
+    }
+    
+    @PostMapping(value = "/rest/userroles/manageraction/{roleId}/{field}")
+    @ResponseBody
+    public ResponseEntity<String> setManagerAction(@PathVariable("roleId") long roleId, @PathVariable("field") String field, @RequestParam(name = "checked") boolean checked) {
+        UserRole role = userRoleService.getById(roleId);
+        if (role == null) {
+            return new ResponseEntity<>("Ukendt Jobfunktionsrolle", HttpStatus.BAD_REQUEST);
+        }
+        
+        switch (field) {
+        	case "requireManagerAction":
+        		role.setRequireManagerAction(checked);
+        		if (!checked) {
+        			role.setSendToAuthorizationManagers(false);
+        			role.setSendToSubstitutes(false);
+        		}
+        		break;
+        	case "sendToAuthorizationManagers":
+        		role.setSendToAuthorizationManagers(checked);
+        		break;
+        	case "sendToSubstitutes":
+        		role.setSendToSubstitutes(checked);
+        		break;
+        	default:
+        		return new ResponseEntity<>("Ukendt flag: " + field, HttpStatus.BAD_REQUEST);
+        }
+
+		userRoleService.save(role);
 
         return new ResponseEntity<>(HttpStatus.OK);
     }
@@ -340,6 +372,18 @@ public class UserRoleRestController {
 
         role.setName(userRoleForm.getName());
         role.setDescription(userRoleForm.getDescription());
+        
+        if (role.isRequireManagerAction()) {
+        	if (role.getUserRoleEmailTemplate() == null) {
+        		UserRoleEmailTemplate userRoleEmailTemplate = new UserRoleEmailTemplate();
+        		userRoleEmailTemplate.setUserRole(role);
+
+				role.setUserRoleEmailTemplate(userRoleEmailTemplate);
+        	}
+
+        	role.getUserRoleEmailTemplate().setTitle(userRoleForm.getEmailTemplateTitle());
+        	role.getUserRoleEmailTemplate().setMessage(userRoleForm.getEmailTemplateMessage());
+        }
 
         userRoleService.save(role);
 

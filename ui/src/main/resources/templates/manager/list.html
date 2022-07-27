@@ -24,7 +24,7 @@
 										<th class="col-md-3" th:text="#{html.page.manager.substitute.name}"></th>
 										<th class="col-md-2" th:text="#{html.page.manager.substitute.user}"></th>
 										<th class="col-md-1" th:text="#{html.page.manager.substitute.date}"></th>
-										<th sec:authorize="hasRole('ROLE_ADMINISTRATOR')" class="col-md-1" th:text="#{html.control.operations}"></th>
+										<th sec:authorize="hasRole('ROLE_ADMINISTRATOR')" class="col-md-1" th:text="#{html.control.operations}" th:if="${@roleCatalogueConfiguration.substituteManagerAPI.enabled == false}"></th>
 										
 									</tr>
 								</thead>
@@ -38,7 +38,7 @@
 										<td th:if="${manager.managerSubstitute != null}" th:text="${manager.managerSubstitute.userId}"></td>
 										<td th:unless="${manager.managerSubstitute != null}"></td>
 										<td th:text="${#dates.format(manager.substituteAssignedTts, 'yyyy-MM-dd')}"></td>
-										<td sec:authorize="hasRole('ROLE_ADMINISTRATOR')">
+										<td sec:authorize="hasRole('ROLE_ADMINISTRATOR')" th:if="${@roleCatalogueConfiguration.substituteManagerAPI.enabled == false}">
 											<i style="color:black;" class="fa-fw fa fa-pencil" th:title="#{html.page.manager.list.modal.title}" th:attr="data-uuid=${manager.uuid},data-currentsubname=(${manager.managerSubstitute} != null ? ${manager.managerSubstitute.name} : ''),data-currentsubuserid=(${manager.managerSubstitute} != null ? ${manager.managerSubstitute.userId} : '')" onclick="managerService.openModal(this)"></i>
 										</td>
 									</tr>

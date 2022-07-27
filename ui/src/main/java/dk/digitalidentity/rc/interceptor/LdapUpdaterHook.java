@@ -139,9 +139,7 @@ public class LdapUpdaterHook implements RoleChangeHook {
 	
 	@Override
 	public void interceptAddUserRoleAssignmentOnOrgUnit(OrgUnit ou, UserRole userRole, boolean inherit) {
-		if (!orgUnitService.getUserRoles(ou, true).contains(userRole)) {
-			pendingADUpdateService.addUserRoleToQueue(userRole);
-		}
+		pendingADUpdateService.addUserRoleToQueue(userRole);
 	}
 	
 	@Override

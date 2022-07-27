@@ -54,6 +54,72 @@
 									</div>
 								</div>
 							</fieldset>
+							
+							<fieldset th:if="${#strings.equals(role.itSystem.systemType, 'MANUAL')}">
+								<div class="form-group">
+									<label class="col-sm-2 control-label" th:text="#{html.page.userroles.new.require_manager_action.label}"></label>
+									<div class="col-sm-8">
+										<div class="checkbox c-checkbox">
+											<label>
+												<input type="checkbox" id="requireManagerActionCheckbox" th:checked="${role.requireManagerAction}" disabled="disabled"/>
+												<span class="fa fa-check"></span>
+											</label>
+										</div>
+									</div>
+								</div>
+								
+								<div id="requireManagerActionRow"  th:if="${role.requireManagerAction}">
+									<div class="form-group">
+										<label class="col-sm-2 control-label" th:text="#{html.page.userroles.new.send_to_manager.label}"></label>
+										<div class="col-sm-8">
+											<div class="checkbox c-checkbox">
+												<label>
+													<input type="checkbox" checked="checked" disabled="disabled"/>
+													<span class="fa fa-check"></span>
+												</label>
+											</div>
+										</div>
+									</div>
+									
+									<div class="form-group">
+										<label class="col-sm-2 control-label" th:text="#{html.page.userroles.new.send_to_substitutes.label}"></label>
+										<div class="col-sm-8">
+											<div class="checkbox c-checkbox">
+												<label>
+													<input type="checkbox" id="sendToSubstitutes" th:checked="${role.sendToSubstitutes}" disabled="disabled"/>
+													<span class="fa fa-check"></span>
+												</label>
+											</div>
+										</div>
+									</div>
+									
+									<div class="form-group">
+										<label class="col-sm-2 control-label" th:text="#{html.page.userroles.new.send_to_authorization_managers.label}"></label>
+										<div class="col-sm-8">
+											<div class="checkbox c-checkbox">
+												<label>
+													<input type="checkbox" id="sendToAuthorizationManagers" th:checked="${role.sendToAuthorizationManagers}" disabled="disabled"/>
+													<span class="fa fa-check"></span>
+												</label>
+											</div>
+										</div>
+									</div>
+									
+									<div class="form-group">
+										<label class="col-sm-2 control-label" th:text="#{html.page.userroles.new.email_template.title}"></label>
+										<div class="col-sm-8">
+											<input th:field="*{emailTemplateTitle}" class="form-control" readonly="readonly"/>
+										</div>
+									</div>
+
+									<div class="form-group">
+										<label class="col-sm-2 control-label" th:text="#{html.page.userroles.new.email_template.message}"></label>
+										<div class="col-sm-8">
+											<textarea th:field="*{emailTemplateMessage}" class="mb-0 preformat" rows="10" style="width:100%;"></textarea>
+										</div>
+									</div>
+								</div>
+							</fieldset>
 
 							<fieldset th:if="${role.linkedSystemRole != null}">
 								<div class="form-group">
@@ -267,6 +333,25 @@
 			if (errorMessage != null) {
 				notificationService.showErrorNotification(errorMessage);
 			}
+			
+			$('#emailTemplateMessage').summernote({
+				"height": 320,
+				"toolbar": [],
+				maximumImageFileSize: 100*1024, // 100 KB
+				callbacks: {
+					onImageUploadError: function(msg) {
+						swal({
+							title: swalImageTitle,
+							text: swalImageText,
+							confirmButtonColor : "#4765a0",
+							confirmButtonText : swalImageOk
+						});
+					}
+				},
+				dialogsInBody: true
+			});
+			
+			$('#emailTemplateMessage').summernote('disable');
 		});
 
 		function UserService() {

@@ -9,6 +9,7 @@ import dk.digitalidentity.rc.config.model.Customer;
 import dk.digitalidentity.rc.config.model.Integrations;
 import dk.digitalidentity.rc.config.model.Organisation;
 import dk.digitalidentity.rc.config.model.Scheduled;
+import dk.digitalidentity.rc.config.model.SubstituteManagerAPI;
 import dk.digitalidentity.rc.config.model.Titles;
 import lombok.Getter;
 import lombok.Setter;
@@ -18,7 +19,7 @@ import lombok.Setter;
 @Setter
 @ConfigurationProperties(prefix = "rc")
 public class RoleCatalogueConfiguration {
-	private String version = "2022 r3";
+	private String version = "2022 r4";
 
 	private Customer customer = new Customer();
 	private Titles titles = new Titles();
@@ -27,6 +28,7 @@ public class RoleCatalogueConfiguration {
 	private Integrations integrations = new Integrations();
 	private Scheduled scheduled = new Scheduled();
 	private ApiControl apiControl = new ApiControl();
+	private SubstituteManagerAPI substituteManagerAPI = new SubstituteManagerAPI();
 	
 	// enable for new un-released features
 	private boolean experimental = false;

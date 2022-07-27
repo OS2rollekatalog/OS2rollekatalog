@@ -77,8 +77,14 @@
 						return (node.text.toUpperCase().includes(str.toUpperCase()));
 					}
 				},
+				"sort": function(a, b) {
+			        a1 = this.get_node(a);
+			        b1 = this.get_node(b);
+
+		            return (a1.text > b1.text) ? 1 : -1;
+				},
 				"plugins" : [
-					"state", "wholerow", "search"
+					"sort", "state", "wholerow", "search"
 				]
 			});
 

@@ -135,8 +135,8 @@ public class BootstrapDevMode {
 	}
 
 	private void findUserOneAndMakeHimAdmin() {
-		User user1 = userDao.getByUserIdAndActiveTrue("user1");
-		User bsg = userDao.getByUserIdAndActiveTrue("bsg");
+		User user1 = userDao.findByUserIdAndActiveTrue("user1");
+		User bsg = userDao.findByUserIdAndActiveTrue("bsg");
 		UserRole administrator = userRoleDao.getByIdentifier("administrator");
 		
 		UserUserRoleAssignment assignment = new UserUserRoleAssignment();

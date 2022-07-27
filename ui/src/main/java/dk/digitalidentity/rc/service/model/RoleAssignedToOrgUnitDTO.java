@@ -5,6 +5,7 @@ import java.time.LocalDate;
 import dk.digitalidentity.rc.dao.model.ItSystem;
 import dk.digitalidentity.rc.dao.model.OrgUnitRoleGroupAssignment;
 import dk.digitalidentity.rc.dao.model.OrgUnitUserRoleAssignment;
+import dk.digitalidentity.rc.dao.model.RoleGroupUserRoleAssignment;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -29,6 +30,24 @@ public class RoleAssignedToOrgUnitDTO {
 	//  0 contains excepted users
 	//  1 assigned to 1+ titles
 	private int assignmentType = 0;
+
+	public static RoleAssignedToOrgUnitDTO fromRoleGroupUserRoleAssignment(RoleGroupUserRoleAssignment assignment, RoleAssignedToOrgUnitDTO roleGroupAssignment) {
+		RoleAssignedToOrgUnitDTO dto = new RoleAssignedToOrgUnitDTO();
+		dto.setAssignmentId(assignment.getId());
+		dto.setRoleId(assignment.getUserRole().getId());
+		dto.setName(assignment.getUserRole().getName());
+		dto.setAssignmentType(roleGroupAssignment.getAssignmentType());
+		dto.setType(RoleAssignmentType.USERROLE);
+		dto.setAssignedThrough(AssignedThrough.ROLEGROUP);
+		dto.setAssignedThroughName(assignment.getRoleGroup().getName());
+		dto.setItSystem(assignment.getUserRole().getItSystem());
+		dto.setDescription(assignment.getUserRole().getDescription());
+		dto.setStartDate(roleGroupAssignment.getStartDate());
+		dto.setStopDate(roleGroupAssignment.getStopDate());
+		dto.setCanEdit(false);
+		
+		return dto;
+	}
 
 	public static RoleAssignedToOrgUnitDTO fromUserRoleAssignment(OrgUnitUserRoleAssignment assignment) {
 		RoleAssignedToOrgUnitDTO dto = new RoleAssignedToOrgUnitDTO();

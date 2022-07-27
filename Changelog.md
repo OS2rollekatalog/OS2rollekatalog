@@ -1,3 +1,7 @@
+2022.07.27 - Release 2022r4
+- [ROL-205](https://os2web.atlassian.net/browse/ROL-205) – Indlæsning af stedfortrædere via API
+- [ROL-212](https://os2web.atlassian.net/browse/ROL-212) – Mail til leder ved tildeling af rolle fra manuelt it-system
+
 2022.06.02 - Release 2022r3
 - [ROL-186](https://os2web.atlassian.net/browse/ROL-186) – Visning af jobfunktionsroller i rollebuketter
 - [ROL-193](https://os2web.atlassian.net/browse/ROL-193) – Rapport: Hvor kommer KLE fra?

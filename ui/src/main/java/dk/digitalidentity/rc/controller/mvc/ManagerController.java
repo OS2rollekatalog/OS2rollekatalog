@@ -1,14 +1,8 @@
 package dk.digitalidentity.rc.controller.mvc;
 
 import java.util.HashMap;
-import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.function.Function;
-import java.util.function.Predicate;
-import java.util.stream.Collectors;
 
 import javax.servlet.http.HttpServletResponse;
 
@@ -20,12 +14,12 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.servlet.ModelAndView;
 
+import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
 import dk.digitalidentity.rc.controller.mvc.xlsview.ManagersXlsxView;
 import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.security.RequireManagerRole;
 import dk.digitalidentity.rc.security.RequireReadAccessRole;
 import dk.digitalidentity.rc.security.SecurityUtil;
-import dk.digitalidentity.rc.service.OrgUnitService;
 import dk.digitalidentity.rc.service.UserService;
 
 @Controller
@@ -35,14 +29,18 @@ public class ManagerController {
 	private UserService userService;
 	
 	@Autowired
-	private OrgUnitService orgUnitService;
-	
-	@Autowired
 	private MessageSource messageSource;
+
+	@Autowired
+	private RoleCatalogueConfiguration roleCatalogueConfiguration;
 	
 	@RequireManagerRole
 	@GetMapping("/ui/manager/substitute")
 	public String getSubstitute(Model model) {
+		if (roleCatalogueConfiguration.getSubstituteManagerAPI().isEnabled()) {
+			return "redirect:/";
+		}
+
 		User manager = getManager();
 		if (manager == null) {
 			return "redirect:/";
@@ -56,7 +54,7 @@ public class ManagerController {
 	@RequireReadAccessRole
 	@GetMapping("/ui/manager/list")
 	public String getManagers(Model model) {
-		model.addAttribute("managers", findManagers());
+		model.addAttribute("managers", userService.findManagers());
 
 		return "manager/list";
 	}
@@ -65,7 +63,7 @@ public class ManagerController {
 	@RequestMapping(value = "/ui/managers/download")
 	public ModelAndView download(HttpServletResponse response, Locale loc) {
 		Map<String, Object> model = new HashMap<>();
-		model.put("managers", findManagers());
+		model.put("managers", userService.findManagers());
 		model.put("locale", loc);
 		model.put("messagesBundle", messageSource);
 
@@ -78,16 +76,5 @@ public class ManagerController {
 	private User getManager() {
 		return userService.getByUserId(SecurityUtil.getUserId());
 	}
-	
-	public static <T> Predicate<T> distinctByKey(Function<? super T, ?> keyExtractor) {
-	    Set<Object> seen = ConcurrentHashMap.newKeySet();
-	    return t -> seen.add(keyExtractor.apply(t));
-	}
 
-	private List<User> findManagers() {
-		return orgUnitService.getAllWithManager().stream()
-				.map(o -> o.getManager())
-				.filter(distinctByKey(User::getUuid))
-				.collect(Collectors.toList());
-	}
 }

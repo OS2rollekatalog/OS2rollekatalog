@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.Set;
 
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.CrudRepository;
 import org.springframework.data.repository.query.Param;
@@ -33,14 +34,14 @@ public interface UserDao extends CrudRepository<User, String>, JpaSpecificationE
 	List<User> findByExtUuidIn(Set<String> extUuids);
 	
 	List<User> findByCprAndActiveTrue(String cpr);
-	List<User> getByActiveTrue();
-	List<User> getByActiveFalse();
+	List<User> findByActiveTrue();
+	List<User> findByActiveFalse();
 	long countByActiveTrueAndUserRoleAssignmentsUserRole(UserRole userRole);
 	long countByActiveTrueAndRoleGroupAssignmentsRoleGroup(RoleGroup role);
-	User getByUuidAndActiveTrue(String uuid);
+	User findByUuidAndActiveTrue(String uuid);
 	List<User> findByUuidInAndActiveTrue(Set<String> uuids);
-	List<User> getByExtUuidAndActiveTrue(String uuid);
-	User getByUserIdAndActiveTrue(String userId);
+	List<User> findByExtUuidAndActiveTrue(String uuid);
+	User findByUserIdAndActiveTrue(String userId);
 	
 	// use the versions below that filters on active/inactive flag
 	@Deprecated
@@ -65,5 +66,11 @@ public interface UserDao extends CrudRepository<User, String>, JpaSpecificationE
 			" ORDER BY u.name LIMIT 10")
 	List<User> findTop10ByName(@Param("name") String input);
 
-	List<User> getByManagerSubstitute(User user);
+	List<User> findByManagerSubstitute(User user);
+
+	List<User> findByManagerSubstituteActiveFalse();
+
+	@Modifying
+	@Query("update users u set u.managerSubstitute = null where u.managerSubstitute = :manager")
+	void deleteManagerSubstituteAssignment(@Param("manager") User user);
 }

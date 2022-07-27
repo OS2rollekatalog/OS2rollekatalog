@@ -190,7 +190,7 @@ public class OrgUnitService {
 
 		String userId = SecurityUtil.getUserId();
 		if (userId != null) {
-			User user = userDao.getByUserIdAndActiveTrue(userId);
+			User user = userDao.findByUserIdAndActiveTrue(userId);
 
 			if (user != null) {
 				if (SecurityUtil.hasRole(Constants.ROLE_MANAGER)) {

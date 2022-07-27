@@ -11,12 +11,12 @@ import java.util.stream.Collectors;
 
 import javax.validation.Valid;
 
-import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.MessageSource;
 import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
+import org.springframework.util.StringUtils;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.WebDataBinder;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -26,8 +26,6 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
-
-import org.springframework.util.StringUtils;
 
 import dk.digitalidentity.rc.config.Constants;
 import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
@@ -80,9 +78,6 @@ public class UserRoleController {
 
 	@Autowired
 	private MessageSource messageSource;
-
-	@Autowired
-	private ModelMapper mapper;
 
 	@Autowired
 	private UserRoleService userRoleService;
@@ -179,7 +174,7 @@ public class UserRoleController {
 			return "redirect:../list";
 		}
 
-		UserRoleForm roleForm = mapper.map(role, UserRoleForm.class);
+		UserRoleForm roleForm = new UserRoleForm(role, false, false);
 		List<RoleGroup> roleGroups = roleGroupService.getAll();
 		roleGroups = roleGroups.stream()
 				.filter(rg -> rg.getUserRoleAssignments().stream().anyMatch(ass -> ass.getUserRole().equals(role)))
@@ -312,9 +307,6 @@ public class UserRoleController {
 		return "userroles/new";
 	}
 
-	// TODO: this is broken because UserRoleForm contains database entity objects, which can not (since Spring Boot 2.1.18) be mapped
-	//       to entity classes from some magical string value (no idea why it works today actually)
-	//       solution: do not use entity classes in html/form objects please
 	@RequireAdministratorRole
 	@PostMapping(value = "/ui/userroles/new")
 	public String newPost(Model model, @Valid @ModelAttribute("role") UserRoleForm roleForm, BindingResult bindingResult) {
@@ -325,7 +317,7 @@ public class UserRoleController {
 			return "userroles/new";
 		}
 
-		UserRole role = mapper.map(roleForm, UserRole.class);
+		UserRole role = roleForm.toUserRole();
 		
 		if (!StringUtils.hasLength(roleForm.getIdentifier())) {
 			role.setIdentifier("id-" + UUID.randomUUID().toString());
@@ -391,7 +383,7 @@ public class UserRoleController {
 			return "redirect:../list";
 		}
 		
-		UserRoleForm userRoleForm = mapper.map(role, UserRoleForm.class);
+		UserRoleForm userRoleForm = new UserRoleForm(role, false, false);
 		ItSystem itSystem = role.getItSystem();
 		List<SystemRole> systemRoles = systemRoleService.getByItSystem(itSystem);
 		List<EditSystemRoleRow> editSystemRoles = new ArrayList<>();

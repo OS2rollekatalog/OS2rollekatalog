@@ -30,6 +30,7 @@ import dk.digitalidentity.rc.dao.model.OrgUnit;
 import dk.digitalidentity.rc.dao.model.OrgUnitRoleGroupAssignment;
 import dk.digitalidentity.rc.dao.model.OrgUnitUserRoleAssignment;
 import dk.digitalidentity.rc.dao.model.RoleGroup;
+import dk.digitalidentity.rc.dao.model.RoleGroupUserRoleAssignment;
 import dk.digitalidentity.rc.dao.model.Title;
 import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserRole;
@@ -175,6 +176,7 @@ public class OrgUnitController {
 		assignments.addAll(userRoleAssignments);
 		assignments.addAll(roleGroupAssignments);
 		
+		List<RoleAssignedToOrgUnitDTO> extraJfrs = new ArrayList<>();
 		for (RoleAssignedToOrgUnitDTO assignment : assignments) {
 			boolean directlyAssignedRole = ((assignment.getAssignedThrough() == AssignedThrough.DIRECT) || (assignment.getAssignedThrough() == AssignedThrough.TITLE));
 
@@ -191,8 +193,18 @@ public class OrgUnitController {
 				if (editable && directlyAssignedRole) {
 					assignment.setCanEdit(true);
 				}
+				
+				// expand userRoles within the RoleGroup
+				RoleGroup roleGroup = roleGroupService.getById(assignment.getRoleId());
+				if (roleGroup != null && roleGroup.getUserRoleAssignments() != null && roleGroup.getUserRoleAssignments().size() > 0) {
+					for (RoleGroupUserRoleAssignment userRoleAssignment : roleGroup.getUserRoleAssignments()) {
+						extraJfrs.add(RoleAssignedToOrgUnitDTO.fromRoleGroupUserRoleAssignment(userRoleAssignment, assignment));
+					}
+				}
 			}
 		}
+		
+		assignments.addAll(extraJfrs);
 		
 		model.addAttribute("assignments", assignments);
 		model.addAttribute("editable", editable);

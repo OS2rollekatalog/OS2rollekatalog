@@ -62,7 +62,7 @@ public class EmailService {
 
 			MimeMessage msg = new MimeMessage(session);
 			msg.setFrom(new InternetAddress(configuration.getIntegrations().getEmail().getFrom(), "OS2rollekatalog"));
-			msg.setRecipient(Message.RecipientType.TO, new InternetAddress(email));
+			msg.setRecipients(Message.RecipientType.TO, InternetAddress.parse(email));
 			msg.setSubject(subject, "UTF-8");
 
 			MimeBodyPart messageBodyPart = new MimeBodyPart();
@@ -141,7 +141,7 @@ public class EmailService {
 
 			MimeMessage msg = new MimeMessage(session);
 			msg.setFrom(new InternetAddress(configuration.getIntegrations().getEmail().getFrom(), "OS2rollekatalog"));
-			msg.setRecipient(Message.RecipientType.TO, new InternetAddress(email));
+			msg.setRecipients(Message.RecipientType.TO, InternetAddress.parse(email));
 			msg.setSubject(subject, "UTF-8");
 
 			MimeBodyPart htmlBodyPart = new MimeBodyPart();

@@ -35,6 +35,7 @@ import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserKLEMapping;
 import dk.digitalidentity.rc.dao.model.UserRole;
 import dk.digitalidentity.rc.dao.model.enums.KleType;
+import dk.digitalidentity.rc.dao.model.enums.NotificationEntityType;
 import dk.digitalidentity.rc.dao.model.enums.NotificationType;
 import dk.digitalidentity.rc.dao.model.enums.OrgUnitLevel;
 import dk.digitalidentity.rc.service.model.MovedPostion;
@@ -1242,6 +1243,9 @@ public class OrganisationImporter {
 				moveNotification.setCreated(new Date());
 				moveNotification.setMessage(message);
 				moveNotification.setNotificationType(NotificationType.USER_MOVED_POSITIONS);
+				moveNotification.setAffectedEntityName(event.getUser().getName());
+				moveNotification.setAffectedEntityType(NotificationEntityType.USERS);
+				moveNotification.setAffectedEntityUuid(event.getUser().getUuid());
 
 				notificationService.save(moveNotification);
 			}
@@ -1268,6 +1272,9 @@ public class OrganisationImporter {
 				moveNotification.setCreated(new Date());
 				moveNotification.setMessage(message);
 				moveNotification.setNotificationType(NotificationType.NEW_TITLE_IN_ORG_UNIT);
+				moveNotification.setAffectedEntityName(dto.getOrgUnit().getName());
+				moveNotification.setAffectedEntityType(NotificationEntityType.OUS);
+				moveNotification.setAffectedEntityUuid(dto.getOrgUnit().getUuid());
 
 				notificationService.save(moveNotification);
 			}
@@ -1334,6 +1341,9 @@ public class OrganisationImporter {
 					moveNotification.setCreated(new Date());
 					moveNotification.setMessage(message);
 					moveNotification.setNotificationType(NotificationType.ORG_UNIT_NEW_PARENT);
+					moveNotification.setAffectedEntityName(dto.getOrgUnit().getName());
+					moveNotification.setAffectedEntityType(NotificationEntityType.OUS);
+					moveNotification.setAffectedEntityUuid(dto.getOrgUnit().getUuid());
 	
 					notificationService.save(moveNotification);
 				}
@@ -1349,6 +1359,9 @@ public class OrganisationImporter {
 				notification.setCreated(new Date());
 				notification.setMessage("Der er oprettet en ny enhed med navnet '" + orgUnit.getName() + "'");
 				notification.setNotificationType(NotificationType.NEW_ORG_UNIT);
+				notification.setAffectedEntityName(orgUnit.getName());
+				notification.setAffectedEntityType(NotificationEntityType.OUS);
+				notification.setAffectedEntityUuid(orgUnit.getUuid());
 	
 				notificationService.save(notification);
 			}
@@ -1378,6 +1391,9 @@ public class OrganisationImporter {
 					moveNotification.setCreated(new Date());
 					moveNotification.setMessage(message);
 					moveNotification.setNotificationType(NotificationType.ORG_UNIT_NEW_PARENT);
+					moveNotification.setAffectedEntityName(orgUnit.getName());
+					moveNotification.setAffectedEntityType(NotificationEntityType.OUS);
+					moveNotification.setAffectedEntityUuid(orgUnit.getUuid());
 	
 					notificationService.save(moveNotification);
 				}

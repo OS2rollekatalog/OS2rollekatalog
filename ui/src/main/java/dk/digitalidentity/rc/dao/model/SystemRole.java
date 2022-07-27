@@ -20,11 +20,13 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 
 import dk.digitalidentity.rc.dao.model.enums.RoleType;
 import dk.digitalidentity.rc.log.AuditLoggable;
-import lombok.Data;
+import lombok.Getter;
+import lombok.Setter;
 
 @Entity
 @Table(name = "system_roles")
-@Data
+@Getter
+@Setter
 public class SystemRole implements AuditLoggable {
 
 	@Id
@@ -53,7 +55,7 @@ public class SystemRole implements AuditLoggable {
 	
 	@Enumerated(EnumType.STRING)
 	@Column(nullable = false)
-	private RoleType roleType;
+	private RoleType roleType = RoleType.BOTH;
 	
 	@JsonIgnore
 	@ElementCollection(fetch = FetchType.LAZY, targetClass = ConstraintTypeSupport.class)

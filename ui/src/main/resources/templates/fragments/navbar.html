@@ -271,7 +271,7 @@
 								</a>
 							</li>
 		
-							<li th:class="${page == 'manager.substitute'} ? 'active' : ''" sec:authorize="hasRole('ROLE_MANAGER')">
+							<li th:class="${page == 'manager.substitute'} ? 'active' : ''" sec:authorize="hasRole('ROLE_MANAGER')" th:if="${@roleCatalogueConfiguration.substituteManagerAPI.enabled == false}">
 								<a th:href="@{/ui/manager/substitute}">
 									<em class="fa fa-male"></em>
 									<span th:text="#{html.navbar.substitute.choose}"></span>

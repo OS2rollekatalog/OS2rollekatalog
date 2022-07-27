@@ -13,6 +13,9 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -51,6 +54,7 @@ import dk.digitalidentity.rc.dao.model.UserKLEMapping;
 import dk.digitalidentity.rc.dao.model.UserRole;
 import dk.digitalidentity.rc.dao.model.UserRoleGroupAssignment;
 import dk.digitalidentity.rc.dao.model.UserUserRoleAssignment;
+import dk.digitalidentity.rc.dao.model.enums.AltAccountType;
 import dk.digitalidentity.rc.dao.model.enums.ConstraintValueType;
 import dk.digitalidentity.rc.dao.model.enums.EventType;
 import dk.digitalidentity.rc.dao.model.enums.ItSystemType;
@@ -152,15 +156,15 @@ public class UserService {
 	}
 
 	public List<User> getByExtUuid(String uuid) {
-		return userDao.getByExtUuidAndActiveTrue(uuid);
+		return userDao.findByExtUuidAndActiveTrue(uuid);
 	}
 
 	public User getByUuid(String uuid) {
-		return userDao.getByUuidAndActiveTrue(uuid);
+		return userDao.findByUuidAndActiveTrue(uuid);
 	}
 
 	public User getByUserId(String userId) {
-		return userDao.getByUserIdAndActiveTrue(userId);
+		return userDao.findByUserIdAndActiveTrue(userId);
 	}
 	
 	public List<User> findByCpr(String cpr) {
@@ -178,7 +182,7 @@ public class UserService {
 	}
 
 	public List<User> getAll() {
-		return userDao.getByActiveTrue();
+		return userDao.findByActiveTrue();
 	}
 	
 	@SuppressWarnings("deprecation")
@@ -196,7 +200,7 @@ public class UserService {
 	}
 
 	public List<User> getAllInactive() {
-		return userDao.getByActiveFalse();
+		return userDao.findByActiveFalse();
 	}
 
 	// utility methods
@@ -449,9 +453,9 @@ public class UserService {
 	// TODO: this method is only used by the ReadOnlyApi, and very likely noone has any use for
 	//       this method, so deprecate it in future versions of the API
 	public List<UserRole> getUserRolesAssignedDirectly(String id) throws UserNotFoundException {
-		User user = userDao.getByUuidAndActiveTrue(id);
+		User user = userDao.findByUuidAndActiveTrue(id);
 		if (user == null) {
-			User byUserId = userDao.getByUserIdAndActiveTrue(id);
+			User byUserId = userDao.findByUserIdAndActiveTrue(id);
 
 			if (byUserId == null) {
 				throw new UserNotFoundException("User with id '" + id + "' was not found in the database");
@@ -465,7 +469,7 @@ public class UserService {
 	// TODO: this method is only used by the ReadOnlyApi, and very likely noone has any use for
 	//       this method, so deprecate it in future versions of the API
 	public List<RoleGroup> getRoleGroupsAssignedDirectly(String uuid) throws UserNotFoundException {
-		User user = userDao.getByUuidAndActiveTrue(uuid);
+		User user = userDao.findByUuidAndActiveTrue(uuid);
 		if (user == null) {
 			throw new UserNotFoundException("User with uuid '" + uuid + "' was not found in the database");
 		}
@@ -474,9 +478,9 @@ public class UserService {
 	}
 
 	public String getUserNameId(String userId) throws UserNotFoundException {
-		User user = userDao.getByUserIdAndActiveTrue(userId);
+		User user = userDao.findByUserIdAndActiveTrue(userId);
 		if (user == null) {
-			List<User> users = userDao.getByExtUuidAndActiveTrue(userId);
+			List<User> users = userDao.findByExtUuidAndActiveTrue(userId);
 			if (users.size() != 1) {
 				throw new UserNotFoundException("User with userId '" + userId + "' was not found in the database");
 			}
@@ -507,7 +511,7 @@ public class UserService {
 	 * Returns all UserRoles, no matter how they are assigned to the user
 	 */
 	public List<UserRole> getAllUserRoles(String userId, List<ItSystem> itSystems) throws UserNotFoundException {
-		User user = userDao.getByUserIdAndActiveTrue(userId);
+		User user = userDao.findByUserIdAndActiveTrue(userId);
 		if (user == null) {
 			throw new UserNotFoundException("User with userId '" + userId + "' was not found in the database");
 		}
@@ -2220,6 +2224,14 @@ public class UserService {
 
 		return managers;
 	}
+	
+	public boolean hasCicsUser(User user) {
+		if (user == null || user.getAltAccounts() == null || user.getAltAccounts().size() == 0) {
+			return false;
+		}
+		
+		return user.getAltAccounts().stream().anyMatch(a -> a.getAccountType().equals(AltAccountType.KSPCICS));
+	}
 
 	// will return false for substitutes, so take care to use this when a MANAGER is needed
 	public boolean isManager(User user) {
@@ -2337,7 +2349,7 @@ public class UserService {
 	}
 
 	public List<User> getSubstitutesManager(User user) {
-		return userDao.getByManagerSubstitute(user);
+		return userDao.findByManagerSubstitute(user);
 	}
 
 	@Transactional(rollbackFor = Exception.class)
@@ -2353,6 +2365,7 @@ public class UserService {
 		for (User user : listOfInactiveUsers) {
 			if (user.getLastUpdated() == null || user.getLastUpdated().before(sixMonthsFromNow)) {
 				log.info("Deleting user object '" + user.getUserId() + "' because of inactive state for a long period of time");
+				userDao.deleteManagerSubstituteAssignment(user);
 				toBeDeleted.add(user);
 			}
 		}
@@ -2360,5 +2373,27 @@ public class UserService {
 		if (toBeDeleted.size() > 0) {
 			userDao.deleteAll(toBeDeleted);
 		}
+	}
+
+	public static <T> Predicate<T> distinctByKey(Function<? super T, ?> keyExtractor) {
+	    Set<Object> seen = ConcurrentHashMap.newKeySet();
+	    return t -> seen.add(keyExtractor.apply(t));
+	}
+
+	public List<User> findManagers() {
+		return orgUnitService.getAllWithManager().stream()
+				.map(o -> o.getManager())
+				.filter(distinctByKey(User::getUuid))
+				.collect(Collectors.toList());
+	}
+	
+	@Transactional(rollbackFor = Exception.class)
+	public void removeInactiveSubstituteManagers() {
+		List<User> usersWithInactiveSubstitute = userDao.findByManagerSubstituteActiveFalse();
+		for (User user : usersWithInactiveSubstitute) {
+			user.setManagerSubstitute(null);
+		}
+		
+		self.save(usersWithInactiveSubstitute);
 	}
 }

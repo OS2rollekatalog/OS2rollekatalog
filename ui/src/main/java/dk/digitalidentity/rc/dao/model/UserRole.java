@@ -42,16 +42,16 @@ public class UserRole implements AuditLoggable {
 
 	@Column(nullable = true)
 	private String description;
-	
+
 	@Column(nullable = true)
 	private String delegatedFromCvr;
 
 	@Column(nullable = false)
 	private boolean userOnly;
-	
+
 	@Column(nullable = false)
 	private boolean canRequest;
-	
+
 	@Column
 	private boolean sensitiveRole;
 
@@ -68,9 +68,21 @@ public class UserRole implements AuditLoggable {
 
 	@Column(nullable = true)
 	private String linkedSystemRolePrefix;
-	
+
 	@Column(nullable = false)
 	private boolean allowPostponing;
+
+	@Column(nullable = false)
+	private boolean requireManagerAction;
+
+	@Column(nullable = false)
+	private boolean sendToSubstitutes;
+
+	@Column(nullable = false)
+	private boolean sendToAuthorizationManagers;
+
+	@OneToOne(mappedBy = "userRole", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
+	private UserRoleEmailTemplate userRoleEmailTemplate;
 
 	@JsonIgnore
 	@Override
@@ -82,11 +94,12 @@ public class UserRole implements AuditLoggable {
 	public String getEntityName() {
 		return name + " (" + itSystem.getName() + ")";
 	}
-	
+
 	public void setName(String name) {
 		if (name != null && name.length() > 128) {
 			this.name = name.substring(0, 128);
-		} else {
+		}
+		else {
 			this.name = name;
 		}
 	}

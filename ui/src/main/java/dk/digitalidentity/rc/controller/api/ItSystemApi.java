@@ -33,6 +33,7 @@ import dk.digitalidentity.rc.dao.model.SystemRoleAssignment;
 import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserRole;
 import dk.digitalidentity.rc.dao.model.enums.ItSystemType;
+import dk.digitalidentity.rc.dao.model.enums.RoleType;
 import dk.digitalidentity.rc.security.RequireApiItSystemRole;
 import dk.digitalidentity.rc.service.ItSystemService;
 import dk.digitalidentity.rc.service.SystemRoleService;
@@ -60,7 +61,9 @@ public class ItSystemApi {
 	
 	@GetMapping(value = "/api/itsystem/all")
 	public ResponseEntity<List<ItSystemDTO>> getAllItSystems() {
-		List<ItSystemDTO> itSystems = itSystemService.getAll().stream().map(its -> new ItSystemDTO(its.getId(), its.getName(), its.getIdentifier())).collect(Collectors.toList());
+		List<ItSystemDTO> itSystems = itSystemService.getAll().stream()
+				.map(its -> new ItSystemDTO(its.getId(), its.getName(), its.getIdentifier()))
+				.collect(Collectors.toList());
 
 		return new ResponseEntity<>(itSystems, HttpStatus.OK);
 	}
@@ -143,6 +146,7 @@ public class ItSystemApi {
 				newSystemRole.setName(systemRoleDTO.getName());
 				newSystemRole.setDescription(systemRoleDTO.getDescription());
 				newSystemRole.setItSystem(itSystem);
+				newSystemRole.setRoleType(RoleType.BOTH);
 
 				// add new systemroles
 				systemRoleService.save(newSystemRole);

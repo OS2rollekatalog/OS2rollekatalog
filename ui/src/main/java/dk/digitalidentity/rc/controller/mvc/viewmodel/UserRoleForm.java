@@ -9,6 +9,7 @@ import dk.digitalidentity.rc.dao.model.RoleGroup;
 import dk.digitalidentity.rc.dao.model.SystemRole;
 import dk.digitalidentity.rc.dao.model.SystemRoleAssignment;
 import dk.digitalidentity.rc.dao.model.UserRole;
+import dk.digitalidentity.rc.dao.model.UserRoleEmailTemplate;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -29,6 +30,11 @@ public class UserRoleForm {
     private boolean syncFailed;
     private SystemRole linkedSystemRole;
     private boolean allowPostponing;
+    private boolean requireManagerAction;
+    private boolean sendToSubstitutes;
+    private boolean sendToAuthorizationManagers;
+    private String emailTemplateTitle = "Der er tildelt en rolle der kræver leder-involvering";
+    private String emailTemplateMessage = "Kære {modtager}\n<br/>\n<br/>\nRollen {rolle}, der kræver leder-involvering, er tildelt til {bruger}.";
 
 	@Size(max = 4000)
 	private String description;
@@ -39,7 +45,7 @@ public class UserRoleForm {
     public UserRoleForm() {
     	
     }
-
+    
     public UserRoleForm(UserRole userRole, boolean pendingSync, boolean syncFailed) {
     	this.id = userRole.getId();
     	this.name = userRole.getName();
@@ -56,5 +62,43 @@ public class UserRoleForm {
     	this.syncFailed = syncFailed;
     	this.linkedSystemRole = userRole.getLinkedSystemRole();
     	this.allowPostponing = userRole.isAllowPostponing();
+    	this.requireManagerAction = userRole.isRequireManagerAction();
+    	this.sendToSubstitutes = userRole.isSendToSubstitutes();
+    	this.sendToAuthorizationManagers = userRole.isSendToAuthorizationManagers();
+    	
+    	if (userRole.getUserRoleEmailTemplate() != null) {
+    		this.emailTemplateTitle = userRole.getUserRoleEmailTemplate().getTitle();
+    		this.emailTemplateMessage = userRole.getUserRoleEmailTemplate().getMessage();
+    	}
+    }
+    
+    public UserRole toUserRole() {
+    	UserRole userRole = new UserRole();
+    	userRole.setId(this.id);
+    	userRole.setName(this.name);
+    	userRole.setIdentifier(this.identifier);
+    	userRole.setUserOnly(this.userOnly);
+    	userRole.setUuid(this.uuid);
+    	userRole.setCanRequest(this.canRequest);
+    	userRole.setDescription(this.description);
+    	userRole.setItSystem(this.itSystem);
+    	userRole.setSensitiveRole(this.sensitiveRole);
+    	userRole.setSystemRoleAssignments(this.systemRoleAssignments);
+    	userRole.setDelegatedFromCvr(this.delegatedFromCvr);
+    	userRole.setLinkedSystemRole(this.linkedSystemRole);
+    	userRole.setAllowPostponing(this.allowPostponing);
+    	userRole.setRequireManagerAction(this.requireManagerAction);
+    	userRole.setSendToSubstitutes(this.sendToSubstitutes);
+    	userRole.setSendToAuthorizationManagers(this.sendToAuthorizationManagers);
+    	
+    	if (this.isRequireManagerAction()) {
+    		UserRoleEmailTemplate template = new UserRoleEmailTemplate();
+    		template.setTitle(this.emailTemplateTitle);
+    		template.setMessage(this.emailTemplateMessage);
+    		template.setUserRole(userRole);
+    		userRole.setUserRoleEmailTemplate(template);
+    	}
+    	
+    	return userRole;
     }
 }

@@ -268,7 +268,7 @@ public class KOMBITService {
 			log.info("Done reading user roles from KOMBIT Test");
 		}
 		catch (Exception ex) {
-			log.error("Synchronizing user roles from KOMBIT Test failed", ex);
+			log.warn("Synchronizing user roles from KOMBIT Test failed", ex);
 		}
 	}
 	

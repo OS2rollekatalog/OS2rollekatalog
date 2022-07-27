@@ -12,6 +12,8 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import javax.annotation.PostConstruct;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.HttpEntity;
@@ -55,11 +57,14 @@ import dk.digitalidentity.rc.service.cics.model.kmd.Envelope;
 import dk.digitalidentity.rc.service.cics.model.kmd.ModifyWrapper;
 import dk.digitalidentity.rc.service.cics.model.kmd.SearchEntry;
 import dk.digitalidentity.rc.service.cics.model.kmd.SearchWrapper;
+import dk.digitalidentity.rc.service.model.UserRoleAssignmentWithInfo;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 @Service
 public class KspCicsService {
+	private ItSystem cics = null;
+
 	private static final String SUCCESS_RESPONSE = "urn:oasis:names:tc:SPML:1:0#success";
 	private static final String SOAP_ARG_LOSSHORTNAME = "{{LOS_SHORTNAME}}";
 	private static final String SOAP_ARG_KSP_CICS_USER_ID = "{{KSP_CICS_USER_ID}}";
@@ -184,10 +189,20 @@ public class KspCicsService {
 	@Autowired
 	private NotificationService notificationService;
 	
+	@PostConstruct
+	public void init() {
+		List<ItSystem> itSystems = itSystemService.getBySystemType(ItSystemType.KSPCICS);
+		if (itSystems != null && itSystems.size() == 1) {
+			cics = itSystems.get(0);
+		}
+	}
+
 	public boolean initialized() {
 		return (altAccountDao.countByAccountType(AltAccountType.KSPCICS) > 0);
 	}
-
+	
+	// This is called from KspCicsUpdateTask and does a periodic sync of data from KSP/CICS to OS2rollekatalog
+	// - new, updated or deleted userProfiles
 	@Transactional(rollbackFor = Exception.class)
 	public void updateUserProfiles() {
 		List<ItSystem> itSystems = itSystemService.getBySystemType(ItSystemType.KSPCICS);
@@ -307,6 +322,8 @@ public class KspCicsService {
 		}
 	}
 
+	// This is called from KspCicsUpdateTask and does a periodic sync of data from KSP/CICS to OS2rollekatalog
+	// - new, updated or deleted user accounts
 	@Transactional(rollbackFor = Exception.class)
 	public void updateUsers() {
 		long newAccounts = 0;
@@ -315,6 +332,8 @@ public class KspCicsService {
 
 		List<AltAccount> altAccounts = altAccountDao.findByAccountType(AltAccountType.KSPCICS);
 		KspUsersResponse response = findUsers();
+		
+		boolean initialLoad = (altAccounts.size() == 0);
 
 		if (response != null && response.getUsers() != null && response.getUsers().size() > 0) {
 			List<KspUser> kspUsers = response.getUsers();
@@ -339,11 +358,17 @@ public class KspCicsService {
 							altAccount.setUser(user);
 	
 							user.getAltAccounts().add(altAccount);
-							userService.save(user);
+							user = userService.save(user);
 							
 							newAccounts++;
 							
 							foundUser = true;
+							
+							// besides the initial load, whenever a new user is created, we should perform a full sync on their
+							// roles, to ensure any inherited roles are applied to them
+							if (!initialLoad) {
+								addUserToQueue(user);
+							}
 						}
 					}
 				}
@@ -383,6 +408,8 @@ public class KspCicsService {
 		}
 	}
 	
+	// This is called from KspCicsUpdateTask and does a periodic sync of data from OS2rollekatalog to KSP/CICS
+	// - synchronize any dirty CICS roles (flagged as such by KspCicsUpdaterHook)
 	@Transactional(rollbackFor = Exception.class)
 	public void updateUserProfileAssignments() {
 		List<DirtyKspCicsUserProfile> dirtyProfiles = dirtyKspCicsUserProfileDao.findAll();
@@ -436,6 +463,8 @@ public class KspCicsService {
 
 		for (DirtyKspCicsUserProfile dirtyProfile : dirtyProfiles) {
 			if (!seen.contains(dirtyProfile.getIdentifier())) {
+				log.info("Checking for modifications on userProfile: " + dirtyProfile);
+				
 				try {
 					// ensure we only process each of these _once_
 					seen.add(dirtyProfile.getIdentifier());
@@ -519,6 +548,14 @@ public class KspCicsService {
 		}
 
 		log.info("Synchronization completed");
+	}
+	
+	public void addUserToQueue(User user) {
+		List<UserRoleAssignmentWithInfo> assignments = userService.getAllUserRolesAssignedToUserWithInfo(user, cics, true);
+
+		for (UserRoleAssignmentWithInfo assignment : assignments) {
+			addUserRoleToQueue(assignment.getUserRole());
+		}
 	}
 
 	public void addUserRoleToQueue(UserRole userRole) {
@@ -996,13 +1033,15 @@ public class KspCicsService {
 		}
 		
 		KspUser kspUser = null;
-		for (SearchEntry entry : wrapper.getSearchResultEntry()) {
-			kspUser = new KspUser();
-			kspUser.setCpr(entry.getAttributes().getUserCpr());
-			kspUser.setUserId(entry.getIdentifier().getId());
-			kspUser.setAuthorisations(entry.getAttributes().getUserAuthorisations());
-
-			break;
+		if (wrapper.getSearchResultEntry() != null) {
+			for (SearchEntry entry : wrapper.getSearchResultEntry()) {
+				kspUser = new KspUser();
+				kspUser.setCpr(entry.getAttributes().getUserCpr());
+				kspUser.setUserId(entry.getIdentifier().getId());
+				kspUser.setAuthorisations(entry.getAttributes().getUserAuthorisations());
+	
+				break;
+			}
 		}
 
 		return kspUser;

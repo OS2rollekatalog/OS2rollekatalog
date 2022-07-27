@@ -21,7 +21,7 @@ public class UpdateManualSystemsTask {
 	private RoleCatalogueConfiguration configuration;
 
 	@Scheduled(cron = " 0 #{new java.util.Random().nextInt(59)} 8 ? * *")
-	//@Scheduled(fixedDelay = 60 * 60 * 1000)
+//	@Scheduled(fixedDelay = 60 * 1000)
 	public void processUsersFromWaitingTable() {
 		if (!configuration.getScheduled().isEnabled()) {
 			log.debug("Scheduled jobs are disabled on this instance");

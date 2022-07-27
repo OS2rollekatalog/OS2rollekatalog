@@ -3,20 +3,27 @@ package dk.digitalidentity.rc.service;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
+import org.jsoup.Jsoup;
+import org.jsoup.nodes.Document;
+import org.jsoup.nodes.Element;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.MessageSource;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import dk.digitalidentity.rc.controller.mvc.viewmodel.InlineImageDTO;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.ReportForm;
 import dk.digitalidentity.rc.dao.history.model.HistoryItSystem;
 import dk.digitalidentity.rc.dao.history.model.HistoryOU;
@@ -27,8 +34,10 @@ import dk.digitalidentity.rc.dao.history.model.HistoryRoleAssignment;
 import dk.digitalidentity.rc.dao.history.model.HistoryUser;
 import dk.digitalidentity.rc.dao.history.model.HistoryUserRole;
 import dk.digitalidentity.rc.dao.model.ItSystem;
+import dk.digitalidentity.rc.dao.model.OrgUnit;
 import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserRole;
+import dk.digitalidentity.rc.dao.model.UserRoleEmailTemplate;
 import dk.digitalidentity.rc.dao.model.enums.ItSystemType;
 import dk.digitalidentity.rc.service.model.UserRoleAssignmentReportEntry;
 import lombok.extern.slf4j.Slf4j;
@@ -199,13 +208,18 @@ public class ManualRolesService {
 				StringBuilder usersAndRoles = new StringBuilder();
 
 				for (User user : toAddMap.keySet()) {
-					usersAndRoles.append(messageSource.getMessage("html.email.manual.message.user", new Object[] { (user.getName() + " (" + user.getUserId() + ")") }, Locale.ENGLISH));
+					usersAndRoles.append(messageSource.getMessage("html.email.manual.message.user", new Object[] { user.getName(), user.getUserId(), user.getExtUuid() }, Locale.ENGLISH));
 					usersAndRoles.append("<ul>");
 					List<UserRole> toAdd = toAddMap.get(user);
 					List<UserRole> toRemove = toRemoveMap.get(user);
 					
 					for (UserRole userRole : toAdd) {
 						usersAndRoles.append(messageSource.getMessage("html.email.manual.message.addRole", new Object[] { userRole.getName() }, Locale.ENGLISH));
+					
+						// handle manager action required email template
+						if (userRole.isRequireManagerAction()) {
+							notifyManagerActionRequired(user, userRole);
+						}					
 					}
 					
 					if (toRemove != null) {
@@ -223,7 +237,7 @@ public class ManualRolesService {
 						continue; // already taken care of above
 					}
 
-					usersAndRoles.append(messageSource.getMessage("html.email.manual.message.user", new Object[] { (user.getName() + " (" + user.getUserId() + ")") }, Locale.ENGLISH));
+					usersAndRoles.append(messageSource.getMessage("html.email.manual.message.user", new Object[] { user.getName(), user.getUserId(), user.getExtUuid() }, Locale.ENGLISH));
 					usersAndRoles.append("<ul>");
 
 					List<UserRole> toRemove = toRemoveMap.get(user);
@@ -247,5 +261,93 @@ public class ManualRolesService {
 				}
 			}
 		}
+	}
+
+	private void notifyManagerActionRequired(User user, UserRole userRole) {
+		UserRoleEmailTemplate template = userRole.getUserRoleEmailTemplate();
+		
+		if (template == null) {
+			log.warn("The UserRoleEmailTemplate on the user role with id " + userRole.getId() + " was null. Will not send email.");
+			return;
+		}
+		
+		Set<OrgUnit> orgUnits = user.getPositions().stream()
+				.map(p -> p.getOrgUnit())
+				.collect(Collectors.toSet());
+		
+		Set<User> recipients = new HashSet<>();
+		List<User> managers = userService.getManager(user);
+		recipients.addAll(managers);
+		
+		if (userRole.isSendToSubstitutes()) {
+			for (User manager : managers) {
+				if (manager.getManagerSubstitute() != null && manager.getManagerSubstitute().isActive()) {
+					recipients.add(manager.getManagerSubstitute());
+				}
+			}
+		}
+		
+		if (userRole.isSendToAuthorizationManagers()) {
+			for (OrgUnit orgUnit : orgUnits) {
+				recipients.addAll(orgUnit.getAuthorizationManagers().stream().map(a -> a.getUser()).collect(Collectors.toSet()));
+			}
+		}
+		
+		recipients = recipients.stream().filter(r -> r != null && r.getEmail() != null).collect(Collectors.toSet());
+		String recipientNames = recipients.stream().map(r -> r.getName()).collect(Collectors.joining(", "));
+		String recipientMails = recipients.stream().map(r -> r.getEmail()).collect(Collectors.joining(","));
+		
+		if (!recipientMails.isBlank()) {
+			String orgMessage = template.getMessage();
+			List<InlineImageDTO> inlineImages = transformImages(template);
+			
+			String title = template.getTitle();
+			title = title.replace(EmailTemplateService.RECEIVER_PLACEHOLDER, recipientNames);
+			title = title.replace(EmailTemplateService.ROLE_PLACEHOLDER, userRole.getName());
+			title = title.replace(EmailTemplateService.USER_PLACEHOLDER, user.getName() + " (" + user.getUserId() + ")");
+
+			String message = template.getMessage();
+			message = message.replace(EmailTemplateService.RECEIVER_PLACEHOLDER, recipientNames);
+			message = message.replace(EmailTemplateService.ROLE_PLACEHOLDER, userRole.getName());
+			message = message.replace(EmailTemplateService.USER_PLACEHOLDER, user.getName() + " (" + user.getUserId() + ")");
+			
+			emailService.sendMessage(recipientMails, title, message, inlineImages);
+			
+			// we need to set the original message again because for some reason the template is saved to the db
+			template.setMessage(orgMessage);
+		}
+		else {
+			log.warn("Could not notify manager on assignment of " + userRole.getId() + " to user " + user.getUserId() + " because no managers, substitutes or authorizationManagers where available or had email adresses");
+		}
+	}
+	
+	private List<InlineImageDTO> transformImages(UserRoleEmailTemplate email) {
+		List<InlineImageDTO> inlineImages = new ArrayList<>();
+		String message = email.getMessage();
+		Document doc = Jsoup.parse(message);
+
+		for (Element img : doc.select("img")) {
+			String src = img.attr("src");
+			if (src == null || src == "") {
+				continue;
+			}
+
+			InlineImageDTO inlineImageDto = new InlineImageDTO();
+			inlineImageDto.setBase64(src.contains("base64"));
+			
+			if (!inlineImageDto.isBase64()) {
+				continue;
+			}
+			
+			String cID = UUID.randomUUID().toString();
+			inlineImageDto.setCid(cID);
+			inlineImageDto.setSrc(src);
+			inlineImages.add(inlineImageDto);
+			img.attr("src", "cid:" + cID);
+		}
+
+		email.setMessage(doc.html());
+		
+		return inlineImages;		
 	}
 }
