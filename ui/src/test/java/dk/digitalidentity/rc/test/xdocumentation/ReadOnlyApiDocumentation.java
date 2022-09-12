@@ -62,6 +62,8 @@ import dk.digitalidentity.samlmodule.model.TokenUser;
 public class ReadOnlyApiDocumentation {
 	private static String testUserUUID = BootstrapDevMode.userUUID;
 	private static String testOrgUnitUUID = BootstrapDevMode.orgUnitUUID;
+	private static String actualTestUserUUID = null;
+	private static long roleGroupId = 0;
 	private MockMvc mockMvc;
 
 	@Rule
@@ -111,10 +113,12 @@ public class ReadOnlyApiDocumentation {
 		SecurityContextHolder.getContext().setAuthentication(token);
 
 		try {
-			User user = userService.getByUuid(testUserUUID);
+			User user = userService.getByExtUuid(testUserUUID).get(0);
+			actualTestUserUUID = user.getUuid();
 			OrgUnit ou = orgUnitService.getByUuid(testOrgUnitUUID);
 			UserRole userRole = userRoleService.getAll().get(2);
 			RoleGroup roleGroup = roleGroupService.getAll().get(0);
+			roleGroupId = roleGroup.getId();
 			userService.addRoleGroup(user, roleGroup, null, null);
 			userService.addUserRole(user, userRole, null,  null);
 			orgUnitService.addUserRole(ou, userRole, false, null, null, new HashSet<>(), new HashSet<>());
@@ -148,7 +152,6 @@ public class ReadOnlyApiDocumentation {
 							responseFields(
 									fieldWithPath("[].id").type("String").description("The id of the role"),
 									fieldWithPath("[].name").type("String").description("The name of the role"),
-									fieldWithPath("[].description").type("String").description("The description of the role"),
 									fieldWithPath("[].itSystemName").type("String").description("The name of the itsystem the role belongs to")
 							)
 					));
@@ -174,7 +177,7 @@ public class ReadOnlyApiDocumentation {
 
 	@Test
 	public void readUserRoles() throws Exception {
-		this.mockMvc.perform(get("/api/read/user/{uuid}/roles", testUserUUID).header("ApiKey", "f7d8ea9e-53fe-4948-b600-fbc94d4eb0fb"))
+		this.mockMvc.perform(get("/api/read/user/{uuid}/roles", actualTestUserUUID).header("ApiKey", "f7d8ea9e-53fe-4948-b600-fbc94d4eb0fb"))
 					.andExpect(status().is(200))
 					.andDo(document("read-user-roles", preprocessResponse(prettyPrint()),
 							requestHeaders(
@@ -186,15 +189,14 @@ public class ReadOnlyApiDocumentation {
 							responseFields(
 									fieldWithPath("[].id").type("String").description("The id of the role"),
 									fieldWithPath("[].name").type("String").description("The name of the role"),
-									fieldWithPath("[].itSystemName").description("The IT System that the role belongs to"),
-									fieldWithPath("[].description").description("The decsription of the role")
+									fieldWithPath("[].itSystemName").description("The IT System that the role belongs to")
 							)
 					));
 	}
 
 	@Test
 	public void readUserRoleGroups() throws Exception {
-		this.mockMvc.perform(get("/api/read/user/{uuid}/rolegroups", testUserUUID).header("ApiKey", "f7d8ea9e-53fe-4948-b600-fbc94d4eb0fb"))
+		this.mockMvc.perform(get("/api/read/user/{uuid}/rolegroups", actualTestUserUUID).header("ApiKey", "f7d8ea9e-53fe-4948-b600-fbc94d4eb0fb"))
 					.andExpect(status().is(200))
 					.andDo(document("read-user-rolegroups", preprocessResponse(prettyPrint()),
 							requestHeaders(
@@ -221,7 +223,6 @@ public class ReadOnlyApiDocumentation {
 							responseFields(
 									fieldWithPath("[].id").type("String").description("The id of the role"),
 									fieldWithPath("[].name").type("String").description("The name of the role"),
-									fieldWithPath("[].description").type("String").description("The description of the role"),
 									fieldWithPath("[].itSystemName").type("String").description("The IT System that the role belongs to")
 							)
 					));
@@ -270,7 +271,7 @@ public class ReadOnlyApiDocumentation {
 
 	@Test
 	public void readRoleGroup() throws Exception {		
-		this.mockMvc.perform(get("/api/read/rolegroups/{id}", 1).header("ApiKey", "f7d8ea9e-53fe-4948-b600-fbc94d4eb0fb"))
+		this.mockMvc.perform(get("/api/read/rolegroups/{id}", roleGroupId).header("ApiKey", "f7d8ea9e-53fe-4948-b600-fbc94d4eb0fb"))
 					.andExpect(status().is(200))
 					.andDo(document("read-rolegroup", preprocessResponse(prettyPrint()),
 							requestHeaders(
@@ -282,7 +283,10 @@ public class ReadOnlyApiDocumentation {
 							responseFields(
 									fieldWithPath("id").type("String").description("The id of the rolegroup"),
 									fieldWithPath("name").type("String").description("The name of the rolegroup"),
-									fieldWithPath("roles").description("The roles assigned to this rolegroup")
+									fieldWithPath("roles").description("The roles assigned to this rolegroup"),
+									fieldWithPath("roles[].id").description("The id of the user role"),
+									fieldWithPath("roles[].name").description("The name of the user role"),
+									fieldWithPath("roles[].itSystemName").description("The IT System that the role belongs to")
 							)
 					));
 	}
@@ -307,6 +311,7 @@ public class ReadOnlyApiDocumentation {
 					fieldWithPath("roleId").description("The id of the user role"),
 					fieldWithPath("roleIdentifier").description("The identifier of the user role"),
 					fieldWithPath("roleName").description("The name of the user role"),
+					fieldWithPath("roleDescription").description("The description of the user role"),
 					fieldWithPath("systemRoles[]").description("An array of system roles mapped to this user role"),
 					fieldWithPath("systemRoles[].roleName").description("The name of the system role"),
 					fieldWithPath("systemRoles[].roleIdentifier").description("The unique identifier of the system role"),
@@ -344,6 +349,7 @@ public class ReadOnlyApiDocumentation {
 					fieldWithPath("[]roleId").description("The id of the user role"),
 					fieldWithPath("[]roleIdentifier").description("The identifier of the user role"),
 					fieldWithPath("[]roleName").description("The name of the user role"),
+					fieldWithPath("[]roleDescription").description("The description of the user role"),
 					fieldWithPath("[]systemRoles[]").description("An array of system roles mapped to this user role"),
 					fieldWithPath("[]systemRoles[].roleName").description("The name of the system role"),
 					fieldWithPath("[]systemRoles[].roleIdentifier").description("The unique identifier of the system role"),

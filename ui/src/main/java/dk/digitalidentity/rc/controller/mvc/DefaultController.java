@@ -59,7 +59,7 @@ public class DefaultController implements ErrorController {
 	@Autowired
 	private RoleCatalogueConfiguration configuration;
 	
-	@RequestMapping(value = { "/" })
+	@GetMapping("/")
 	public String index(Model model) {
 		model.addAttribute("itSystemCount", itSystemService.count());
 		model.addAttribute("userRoleCount", userRoleDao.count());
@@ -90,7 +90,12 @@ public class DefaultController implements ErrorController {
 		return "redirect:/";
 	}
 
-	@RequestMapping(value = { "/debug" })
+	@GetMapping("/ui/version")
+	public String newVersion(Model model) {
+		return "version";
+	}
+
+	@GetMapping("/debug")
 	public String index(Model model, HttpServletRequest request) {
 		List<String> headers = new ArrayList<>();
 		Enumeration<String> headerNames = request.getHeaderNames();
@@ -117,7 +122,7 @@ public class DefaultController implements ErrorController {
 		return "debug";
 	}
 
-	@GetMapping(value = { "/info" })
+	@GetMapping("/info")
 	public String info(Model model) {
 		model.addAttribute("gitBuildTime", gitBuildTime.substring(0, 10));
 		model.addAttribute("gitCommitId", gitCommitId);

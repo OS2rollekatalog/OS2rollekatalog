@@ -245,11 +245,11 @@ public class PositionService {
 		return positionDao.findAll();
 	}
 	
-	public List<Position> getAllWithTitle(Title title, boolean includeInactiveUsers) {
+	public List<Position> getAllWithTitle(Title title, boolean includeDeletedUsers) {
 		List<Position> positions = positionDao.findByTitle(title);
 		
-		if (!includeInactiveUsers) {
-			positions = positions.stream().filter(p -> p.getUser().isActive()).collect(Collectors.toList());
+		if (!includeDeletedUsers) {
+			positions = positions.stream().filter(p -> !p.getUser().isDeleted()).collect(Collectors.toList());
 		}
 
 		return positions;

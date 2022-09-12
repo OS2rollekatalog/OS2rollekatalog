@@ -1,6 +1,8 @@
-﻿using System;
+﻿using ADSyncService.Properties;
+using System;
 using System.Collections.Generic;
 using System.Collections.Specialized;
+using System.Configuration;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -17,118 +19,150 @@ namespace ADSyncService
         {
             foreach (string ouRaw in ous)
             {
-                // need to support OUs with & char in the name and these need to be written as &amp; in xml config.
-                var ou = ouRaw.Replace("&amp;", "&");
-                string[] tokens = ou.Split(';');
-                if (tokens.Length != 2)
+                try
                 {
-                    log.Warn("Invalid OU in backsync: " + ou);
-                    continue;
-                }
+                    // need to support OUs with & char in the name and these need to be written as &amp; in xml config.
+                    var ou = ouRaw.Replace("&amp;", "&");
+                    string[] tokens = ou.Split(';');
+                    if (tokens.Length != 2)
+                    {
+                        log.Warn("Invalid OU in backsync: " + ou);
+                        continue;
+                    }
 
-                string itSystemId = tokens[0];
-                string ouDn = tokens[1];
+                    string itSystemId = tokens[0];
+                    string ouDn = tokens[1];
 
-                var groups = adStub.GetAllGroups(ouDn);
-                if (groups == null)
-                {
-                    log.Warn("Got 0 groups from OU: " + ouDn);
-                    continue;
-                }
+                    var groups = adStub.GetAllGroups(ouDn);
+                    if (groups == null)
+                    {
+                        log.Warn("Got 0 groups from OU: " + ouDn);
+                        continue;
+                    }
 
-                ItSystemData itSystemData = roleCatalogueStub.GetItSystemData(itSystemId);
-                if (itSystemData == null)
-                {
-                    log.Warn("Got no it-system from role catalogue: " + itSystemId);
-                    continue;
-                }
+                    ItSystemData itSystemData = roleCatalogueStub.GetItSystemData(itSystemId);
+                    if (itSystemData == null)
+                    {
+                        log.Warn("Got no it-system from role catalogue: " + itSystemId);
+                        continue;
+                    }
 
-                bool changes = false;
+                    bool changes = false;
 
-                // find to remove (or maybe update name)
-                for (int i = itSystemData.systemRoles.Count - 1; i >= 0; i--)
-                {
-                    bool found = false;
+                    // find to remove (or maybe update name)
+                    for (int i = itSystemData.systemRoles.Count - 1; i >= 0; i--)
+                    {
+                        bool found = false;
 
+                        foreach (var group in groups)
+                        {
+                            if (group.Uuid.Equals(itSystemData.systemRoles[i].identifier))
+                            {
+                                if (!group.Name.Equals(itSystemData.systemRoles[i].name))
+                                {
+                                    log.Info("Updating name on group to " + group.Name);
+                                    itSystemData.systemRoles[i].name = group.Name;
+                                    changes = true;
+                                }
+
+                                if (!group.Description.Equals(itSystemData.systemRoles[i].description))
+                                {
+                                    log.Info("Updating description on group " + group.Name);
+                                    itSystemData.systemRoles[i].description = group.Description;
+                                    changes = true;
+                                }
+
+                                found = true;
+                                break;
+                            }
+                        }
+
+                        if (!found)
+                        {
+                            log.Info("Removing " + itSystemData.systemRoles[i].name + " from " + itSystemData.name);
+
+                            itSystemData.systemRoles.RemoveAt(i);
+                            changes = true;
+                        }
+                    }
+
+                    // find to create
                     foreach (var group in groups)
                     {
-                        if (group.Uuid.Equals(itSystemData.systemRoles[i].identifier))
+                        bool found = false;
+                        SystemRole existingRole = null;
+
+                        foreach (var role in itSystemData.systemRoles)
                         {
-                            if (!group.Name.Equals(itSystemData.systemRoles[i].name))
+                            if (group.Uuid.Equals(role.identifier))
                             {
-                                log.Info("Updating name on group to " + group.Name);
-                                itSystemData.systemRoles[i].name = group.Name;
+                                found = true;
+                                existingRole = role;
+                                break;
+                            }
+                        }
+
+                        if (!found)
+                        {
+                            SystemRole systemRole = new SystemRole();
+                            systemRole.description = group.Description;
+                            systemRole.identifier = group.Uuid;
+                            systemRole.name = group.Name;
+                            systemRole.users = new List<string>();
+                            itSystemData.systemRoles.Add(systemRole);
+
+                            // add members
+                            List<string> members = adStub.GetGroupMembers(group.Uuid);
+                            if (members != null)
+                            {
+                                foreach (var member in members)
+                                {
+                                    systemRole.users.Add(member);
+                                }
+                            }
+
+                            log.Info("Adding " + group.Name + " to " + itSystemData.name);
+                            changes = true;
+                        }
+                        else if (ReImportUsersEnabled())
+                        {
+                            List<string> members = adStub.GetGroupMembers(group.Uuid);
+                            if (members != null)
+                            {
+                                log.Info("Re-importing users to " + itSystemData.name);
+                                existingRole.users = members;
                                 changes = true;
                             }
-                            
-                            if (!group.Description.Equals(itSystemData.systemRoles[i].description))
-                            {
-                                log.Info("Updating description on group " + group.Name);
-                                itSystemData.systemRoles[i].description = group.Description;
-                                changes = true;
-                            }
-
-                            found = true;
-                            break;
                         }
                     }
 
-                    if (!found)
+                    if (changes)
                     {
-                        log.Info("Removing " + itSystemData.systemRoles[i].name + " from " + itSystemData.name);
+                        log.Info("Updating " + itSystemData.name);
 
-                        itSystemData.systemRoles.RemoveAt(i);
-                        changes = true;
+                        itSystemData.convertRolesEnabled = convertToUserRoles;
+
+                        roleCatalogueStub.SetItSystemData(itSystemId, itSystemData);
                     }
                 }
-
-                // find to create
-                foreach (var group in groups)
+                catch (Exception ex)
                 {
-                    bool found = false;
-
-                    foreach (var role in itSystemData.systemRoles)
+                    if (ex is System.DirectoryServices.AccountManagement.PrincipalOperationException)
                     {
-                        if (group.Uuid.Equals(role.identifier))
-                        {
-                            found = true;
-                            break;
-                        }
+                        log.Error("Unable to find OU with dn (skipping): " + ouRaw, ex);
                     }
-
-                    if (!found)
+                    else
                     {
-                        SystemRole systemRole = new SystemRole();
-                        systemRole.description = group.Description;
-                        systemRole.identifier = group.Uuid;
-                        systemRole.name = group.Name;
-                        systemRole.users = new List<string>();
-                        itSystemData.systemRoles.Add(systemRole);
-
-                        // only add members on CREATE scenario
-                        List<string> members = adStub.GetGroupMembers(group.Uuid);
-                        if (members != null)
-                        {
-                            foreach (var member in members)
-                            {
-                                systemRole.users.Add(member);
-                            }
-                        }
-
-                        log.Info("Adding " + group.Name + " to " + itSystemData.name);
-                        changes = true;
+                        throw ex;
                     }
-                }
-
-                if (changes)
-                {
-                    log.Info("Updating " + itSystemData.name);
-
-                    itSystemData.convertRolesEnabled = convertToUserRoles;
-
-                    roleCatalogueStub.SetItSystemData(itSystemId, itSystemData);
                 }
             }
+        }
+
+        private static bool ReImportUsersEnabled()
+        {
+            string reImportUsers = ConfigurationManager.AppSettings["ReImportUsers"];
+            return reImportUsers != null && reImportUsers.Equals("Yes");
         }
     }
 }

@@ -130,7 +130,7 @@ public class ManagerRestController {
 		}
 
 		User substitute = userService.getByUuid(personUuid); // null is clearing ;)
-		if (substitute != null && !substitute.isActive()) {
+		if (substitute != null && substitute.isDeleted()) {
 			substitute = null; // do not pick inactive substitutes
 		}
 

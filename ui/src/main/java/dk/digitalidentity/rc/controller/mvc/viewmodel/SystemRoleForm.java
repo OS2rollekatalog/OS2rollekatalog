@@ -16,4 +16,7 @@ public class SystemRoleForm {
     
     // only used for system-roles matching AD groups
     private ADGroupType adGroupType;
+    
+    // only used for saml and AD
+    private int weight = 1;
 }

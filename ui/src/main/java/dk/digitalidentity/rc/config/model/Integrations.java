@@ -11,4 +11,5 @@ public class Integrations {
 	private Kombit kombit = new Kombit();
 	private Master master = new Master();
 	private Email email = new Email();
+	private AppManager appManager = new AppManager();
 }

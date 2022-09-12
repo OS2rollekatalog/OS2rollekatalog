@@ -10,4 +10,6 @@ public class ClientDTO {
 	private String name;
 	private String apiKey;
 	private String accessRole;
+	private String version;
+	private boolean outdated;
 }

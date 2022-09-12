@@ -36,6 +36,7 @@ public class ApiSecurityFilter implements Filter {
 
 		// we are using a custom header instead of Authorization because the Authorization header plays very badly with the SAML filter
 		String authHeader = request.getHeader("ApiKey");
+		String versionHeader = request.getHeader("ClientVersion");
 		if (authHeader != null) {
 			Client client = clientService.getClientByApiKey(authHeader);
 			if (client == null) {
@@ -46,6 +47,7 @@ public class ApiSecurityFilter implements Filter {
 			ArrayList<SamlGrantedAuthority> authorities = new ArrayList<>();
 			switch (client.getAccessRole()) {
 				case ADMINISTRATOR:
+					authorities.add(new SamlGrantedAuthority(ROLE_API + AccessRole.AUDITLOG_ACCESS.toString()));
 					authorities.add(new SamlGrantedAuthority(ROLE_API + AccessRole.ORGANISATION.toString()));
 					authorities.add(new SamlGrantedAuthority(ROLE_API + AccessRole.READ_ACCESS.toString()));
 					authorities.add(new SamlGrantedAuthority(ROLE_API + AccessRole.ROLE_MANAGEMENT.toString()));
@@ -73,6 +75,9 @@ public class ApiSecurityFilter implements Filter {
 					authorities.add(new SamlGrantedAuthority(ROLE_API + AccessRole.READ_ACCESS.toString()));
 					authorities.add(new SamlGrantedAuthority(ROLE_API + AccessRole.ITSYSTEM.toString()));
 					break;
+				case AUDITLOG_ACCESS:
+					authorities.add(new SamlGrantedAuthority(ROLE_API + AccessRole.AUDITLOG_ACCESS.toString()));
+					break;
 			}
 
 			String tlsVersion = request.getHeader("x-amzn-tls-version");
@@ -81,6 +86,11 @@ public class ApiSecurityFilter implements Filter {
 
 			if (tlsVersion != null && !Objects.equals(client.getTlsVersion(), tlsVersion)) {
 				client.setTlsVersion(tlsVersion);
+				clientChanged = true;
+			}
+
+			if (versionHeader != null && !Objects.equals(client.getVersion(), versionHeader)) {
+				client.setVersion(versionHeader);
 				clientChanged = true;
 			}
 			

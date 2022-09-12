@@ -75,15 +75,15 @@ public class ItSystemService {
 	}
 
 	public ItSystem getById(long id) {
-		return filterDeleted(itSystemDao.getById(id));
+		return filterDeleted(itSystemDao.findById(id));
 	}
 
 	public ItSystem getByUuid(String uuid) {
-		return filterDeleted(itSystemDao.getByUuid(uuid));
+		return filterDeleted(itSystemDao.findByUuid(uuid));
 	}
 	
 	public ItSystem getByUuidIncludingDeleted(String uuid) {
-		return itSystemDao.getByUuid(uuid);
+		return itSystemDao.findByUuid(uuid);
 	}
 
 	public List<ItSystem> getBySystemType(ItSystemType systemType) {

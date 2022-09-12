@@ -134,12 +134,22 @@ namespace RoleCatalogImporter
                 using (DirectorySearcher searcher = new DirectorySearcher(startingPoint))
                 {
                     searcher.PageSize = 500;
-                    searcher.Filter = "(&(objectClass=user)(objectCategory=person)(!(UserAccountControl:1.2.840.113556.1.4.803:=2)))";
+                    if (Properties.Settings.Default.IncludeDisabledUsers)
+                    {
+                        searcher.Filter = "(&(objectClass=user)(objectCategory=person))";
+                    }
+                    else
+                    {
+                        searcher.Filter = "(&(objectClass=user)(objectCategory=person)(!(UserAccountControl:1.2.840.113556.1.4.803:=2)))";
+                    }
+
                     searcher.PropertiesToLoad.Add(Properties.Settings.Default.UserTitleField);
                     searcher.PropertiesToLoad.Add("objectGUID");
                     searcher.PropertiesToLoad.Add(Properties.Settings.Default.UserNameField);
                     searcher.PropertiesToLoad.Add("distinguishedname");
                     searcher.PropertiesToLoad.Add("sAMAccountName");
+                    searcher.PropertiesToLoad.Add("UserAccountControl");
+
                     if (!string.IsNullOrEmpty(Properties.Settings.Default.CustomUUIDField))
                     {
                         searcher.PropertiesToLoad.Add(Properties.Settings.Default.CustomUUIDField);
@@ -186,6 +196,14 @@ namespace RoleCatalogImporter
                             if (res.Properties.Contains(Properties.Settings.Default.UserEmailField))
                             {
                                 email = (string)res.Properties[Properties.Settings.Default.UserEmailField][0];
+                            }
+
+                            bool disabled = false;
+                            const int AccountDisable = (int)0x0002;
+                            int accountControlValue = (int)res.Properties["UserAccountControl"][0];
+                            if ((accountControlValue & AccountDisable) == AccountDisable)
+                            {
+                                disabled = true;
                             }
 
                             string cpr = null;
@@ -252,6 +270,7 @@ namespace RoleCatalogImporter
                             user.UserId = userId;
                             user.Cpr = cpr;
                             user.Email = email;
+                            user.Disabled = disabled;
 
                             users.Add(user);
                         }

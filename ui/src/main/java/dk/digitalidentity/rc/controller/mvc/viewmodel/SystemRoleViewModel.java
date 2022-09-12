@@ -12,6 +12,7 @@ public class SystemRoleViewModel {
 	private String description;
 	private String identifier;
 	private boolean inUse;
+	private int weight;
 
 	public SystemRoleViewModel(SystemRole sr, boolean inUse) {
 		this.id = sr.getId();
@@ -19,5 +20,6 @@ public class SystemRoleViewModel {
 		this.description = sr.getDescription();
 		this.identifier = sr.getIdentifier();
 		this.inUse = inUse;
+		this.weight = sr.getWeight();
 	}
 }

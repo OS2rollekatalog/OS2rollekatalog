@@ -12,9 +12,9 @@ import org.springframework.web.bind.annotation.RestController;
 import dk.digitalidentity.rc.controller.api.dto.AuditLogHeadDTO;
 import dk.digitalidentity.rc.dao.model.AuditLog;
 import dk.digitalidentity.rc.log.AuditLogEntryDao;
-import dk.digitalidentity.rc.security.RequireApiReadAccessRole;
+import dk.digitalidentity.rc.security.RequireApiAuditlogAccessRole;
 
-@RequireApiReadAccessRole
+@RequireApiAuditlogAccessRole
 @RestController
 public class AuditLogApi {
 

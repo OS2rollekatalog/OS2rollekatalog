@@ -135,8 +135,8 @@ public class JdbcHttpSessionConfiguration extends SpringHttpSessionConfiguration
 
 	private static boolean requiresTemporaryLob(DataSource dataSource) {
 		try {
-			String productName = JdbcUtils.extractDatabaseMetaData(dataSource,
-					"getDatabaseProductName");
+			@SuppressWarnings("deprecation")
+			String productName = JdbcUtils.extractDatabaseMetaData(dataSource, "getDatabaseProductName");
 			return "Oracle".equalsIgnoreCase(JdbcUtils.commonDatabaseName(productName));
 		}
 		catch (MetaDataAccessException ex) {

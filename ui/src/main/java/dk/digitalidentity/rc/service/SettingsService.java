@@ -38,6 +38,7 @@ public class SettingsService {
 	private static final String SETTING_ATTESTATION_ROLE_DELETION_ENABLED = "AttestationRoleDeletionEnabled";
 	private static final String SETTING_AD_ATTESTATION = "AttestationADEnabled";
 	private static final String SETTING_RUN_CICS = "RunCics";
+	private static final String SETTING_IT_SYSTEM_DEFAULT_HIDDEN_ENABLED = "ItSystemHiddenByDefault";
 
 	@Autowired
 	private SettingsDao settingsDao;
@@ -65,7 +66,7 @@ public class SettingsService {
 	}
 	
 	public void setRequestApproveWho(WhoCanRequest who) {
-		Setting setting = settingsDao.getByKey(SETTING_REQUEST_APPROVE_WHO);
+		Setting setting = settingsDao.findByKey(SETTING_REQUEST_APPROVE_WHO);
 		if (setting == null) {
 			setting = new Setting();
 			setting.setKey(SETTING_REQUEST_APPROVE_WHO);
@@ -76,7 +77,7 @@ public class SettingsService {
 	}
 	
 	public String getRequestApproveServicedeskEmail() {
-		Setting setting = settingsDao.getByKey(SETTING_REQUEST_APPROVE_SERVICEDESK_EMAIL);
+		Setting setting = settingsDao.findByKey(SETTING_REQUEST_APPROVE_SERVICEDESK_EMAIL);
 		if (setting == null) {
 			return "";
 		}
@@ -85,7 +86,7 @@ public class SettingsService {
 	}
 	
 	public void setRequestApproveServicedeskEmail(String email) {
-		Setting setting = settingsDao.getByKey(SETTING_REQUEST_APPROVE_SERVICEDESK_EMAIL);
+		Setting setting = settingsDao.findByKey(SETTING_REQUEST_APPROVE_SERVICEDESK_EMAIL);
 		if (setting == null) {
 			setting = new Setting();
 			setting.setKey(SETTING_REQUEST_APPROVE_SERVICEDESK_EMAIL);
@@ -96,7 +97,7 @@ public class SettingsService {
 	}
 	
 	public String getRemovalOfUnitRolesEmail() {
-		Setting setting = settingsDao.getByKey(SETTING_REMOVAL_OF_UNIT_ROLES_EMAIL);
+		Setting setting = settingsDao.findByKey(SETTING_REMOVAL_OF_UNIT_ROLES_EMAIL);
 		if (setting == null) {
 			return "";
 		}
@@ -105,7 +106,7 @@ public class SettingsService {
 	}
 	
 	public void setRemovalOfUnitRolesEmail(String email) {
-		Setting setting = settingsDao.getByKey(SETTING_REMOVAL_OF_UNIT_ROLES_EMAIL);
+		Setting setting = settingsDao.findByKey(SETTING_REMOVAL_OF_UNIT_ROLES_EMAIL);
 		if (setting == null) {
 			setting = new Setting();
 			setting.setKey(SETTING_REMOVAL_OF_UNIT_ROLES_EMAIL);
@@ -116,7 +117,7 @@ public class SettingsService {
 	}
 	
 	public int getReminderCount() {
-		Setting setting = settingsDao.getByKey(SETTING_REMINDER_COUNT);
+		Setting setting = settingsDao.findByKey(SETTING_REMINDER_COUNT);
 		if (setting == null || !StringUtils.hasLength(setting.getValue())) {
 			return 2;
 		}
@@ -134,7 +135,7 @@ public class SettingsService {
 	}
 	
 	public void setReminderCount(long count) {
-		Setting setting = settingsDao.getByKey(SETTING_REMINDER_COUNT);
+		Setting setting = settingsDao.findByKey(SETTING_REMINDER_COUNT);
 		if (setting == null) {
 			setting = new Setting();
 			setting.setKey(SETTING_REMINDER_COUNT);
@@ -145,7 +146,7 @@ public class SettingsService {
 	}
 	
 	public int getReminderInterval() {
-		Setting setting = settingsDao.getByKey(SETTING_REMINDER_INTERVAL);
+		Setting setting = settingsDao.findByKey(SETTING_REMINDER_INTERVAL);
 		if (setting == null || !StringUtils.hasLength(setting.getValue())) {
 			return 7;
 		}
@@ -162,7 +163,7 @@ public class SettingsService {
 	}
 	
 	public void setReminderInterval(long interval) {
-		Setting setting = settingsDao.getByKey(SETTING_REMINDER_INTERVAL);
+		Setting setting = settingsDao.findByKey(SETTING_REMINDER_INTERVAL);
 		if (setting == null) {
 			setting = new Setting();
 			setting.setKey(SETTING_REMINDER_INTERVAL);
@@ -173,7 +174,7 @@ public class SettingsService {
 	}
 	
 	public int getDaysBeforeDeadline() {
-		Setting setting = settingsDao.getByKey(SETTING_DAYS_BEFORE_DEADLINE);
+		Setting setting = settingsDao.findByKey(SETTING_DAYS_BEFORE_DEADLINE);
 		if (setting == null || !StringUtils.hasLength(setting.getValue())) {
 			return 7;
 		}
@@ -190,7 +191,7 @@ public class SettingsService {
 	}
 	
 	public void setDaysBeforeDeadline(long days) {
-		Setting setting = settingsDao.getByKey(SETTING_DAYS_BEFORE_DEADLINE);
+		Setting setting = settingsDao.findByKey(SETTING_DAYS_BEFORE_DEADLINE);
 		if (setting == null) {
 			setting = new Setting();
 			setting.setKey(SETTING_DAYS_BEFORE_DEADLINE);
@@ -201,7 +202,7 @@ public class SettingsService {
 	}
 	
 	public String getEmailAttestationReport() {
-		Setting setting = settingsDao.getByKey(SETTING_EMAIL_ATTESTATION_REPORT);
+		Setting setting = settingsDao.findByKey(SETTING_EMAIL_ATTESTATION_REPORT);
 		if (setting == null) {
 			return "";
 		}
@@ -210,7 +211,7 @@ public class SettingsService {
 	}
 	
 	public void setEmailAttestationReport(String email) {
-		Setting setting = settingsDao.getByKey(SETTING_EMAIL_ATTESTATION_REPORT);
+		Setting setting = settingsDao.findByKey(SETTING_EMAIL_ATTESTATION_REPORT);
 		if (setting == null) {
 			setting = new Setting();
 			setting.setKey(SETTING_EMAIL_ATTESTATION_REPORT);
@@ -221,7 +222,7 @@ public class SettingsService {
 	}
 	
 	public String getEmailAfterReminders() {
-		Setting setting = settingsDao.getByKey(SETTING_EMAIL_AFTER_REMINDERS);
+		Setting setting = settingsDao.findByKey(SETTING_EMAIL_AFTER_REMINDERS);
 		if (setting == null) {
 			return "";
 		}
@@ -230,7 +231,7 @@ public class SettingsService {
 	}
 	
 	public void setEmailAfterReminders(String email) {
-		Setting setting = settingsDao.getByKey(SETTING_EMAIL_AFTER_REMINDERS);
+		Setting setting = settingsDao.findByKey(SETTING_EMAIL_AFTER_REMINDERS);
 		if (setting == null) {
 			setting = new Setting();
 			setting.setKey(SETTING_EMAIL_AFTER_REMINDERS);
@@ -241,7 +242,7 @@ public class SettingsService {
 	}
 	
 	public Set<String> getScheduledAttestationFilter() {
-		Setting setting = settingsDao.getByKey(SETTING_SCHEDULED_ATTESTATION_FILTER);
+		Setting setting = settingsDao.findByKey(SETTING_SCHEDULED_ATTESTATION_FILTER);
 		if (setting == null || !StringUtils.hasLength(setting.getValue())) {
 			return new HashSet<>();
 		}
@@ -252,7 +253,7 @@ public class SettingsService {
 	}
 	
 	public void setScheduledAttestationDayInMonth(long dayInMonth) {
-		Setting setting = settingsDao.getByKey(SETTING_SCHEDULED_ATTESTATION_DAY_IN_MONTH);
+		Setting setting = settingsDao.findByKey(SETTING_SCHEDULED_ATTESTATION_DAY_IN_MONTH);
 		if (setting == null) {
 			setting = new Setting();
 			setting.setKey(SETTING_SCHEDULED_ATTESTATION_DAY_IN_MONTH);
@@ -271,7 +272,7 @@ public class SettingsService {
 	}
 	
 	public long getScheduledAttestationDayInMonth() {
-		Setting setting = settingsDao.getByKey(SETTING_SCHEDULED_ATTESTATION_DAY_IN_MONTH);
+		Setting setting = settingsDao.findByKey(SETTING_SCHEDULED_ATTESTATION_DAY_IN_MONTH);
 		if (setting == null || !StringUtils.hasLength(setting.getValue())) {
 			return 10;
 		}
@@ -292,7 +293,7 @@ public class SettingsService {
 	}
 	
 	public void setScheduledAttestationFilter(Set<String> filter) {
-		Setting setting = settingsDao.getByKey(SETTING_SCHEDULED_ATTESTATION_FILTER);
+		Setting setting = settingsDao.findByKey(SETTING_SCHEDULED_ATTESTATION_FILTER);
 		if (setting == null) {
 			setting = new Setting();
 			setting.setKey(SETTING_SCHEDULED_ATTESTATION_FILTER);
@@ -305,7 +306,7 @@ public class SettingsService {
 	/// helper methods
 
 	private String getKeyWithDefault(String key, String defaultValue) {
-		Setting setting = settingsDao.getByKey(key);
+		Setting setting = settingsDao.findByKey(key);
 		if (setting != null) {
 			return setting.getValue();
 		}
@@ -314,7 +315,7 @@ public class SettingsService {
 	}
 
 	private boolean isKeyEnabled(String key) {
-		Setting setting = settingsDao.getByKey(key);
+		Setting setting = settingsDao.findByKey(key);
 		if (setting != null) {
 			if ("true".equals(setting.getValue())) {
 				return true;
@@ -325,7 +326,7 @@ public class SettingsService {
 	}
 	
 	private void setKeyEnabled(boolean enabled, String key) {
-		Setting setting = settingsDao.getByKey(key);
+		Setting setting = settingsDao.findByKey(key);
 		if (setting == null) {
 			setting = new Setting();
 			setting.setKey(key);
@@ -344,7 +345,7 @@ public class SettingsService {
 	}
 
 	public CheckupIntervalEnum getScheduledAttestationInterval() {
-		Setting setting = settingsDao.getByKey(SETTING_SCHEDULED_ATTESTATION_INTERVAL);
+		Setting setting = settingsDao.findByKey(SETTING_SCHEDULED_ATTESTATION_INTERVAL);
 		if (setting == null) {
 			return CheckupIntervalEnum.EVERY_HALF_YEAR;
 		}
@@ -353,7 +354,7 @@ public class SettingsService {
 	}
 	
 	public void setScheduledAttestationInterval(CheckupIntervalEnum interval) {
-		Setting setting = settingsDao.getByKey(SETTING_SCHEDULED_ATTESTATION_INTERVAL);
+		Setting setting = settingsDao.findByKey(SETTING_SCHEDULED_ATTESTATION_INTERVAL);
 		if (setting == null) {
 			setting = new Setting();
 			setting.setKey(SETTING_SCHEDULED_ATTESTATION_INTERVAL);
@@ -364,7 +365,7 @@ public class SettingsService {
 	}
 	
 	public CheckupIntervalEnum getScheduledAttestationIntervalSensitive() {
-		Setting setting = settingsDao.getByKey(SETTING_SCHEDULED_ATTESTATION_INTERVAL_SENSITIVE);
+		Setting setting = settingsDao.findByKey(SETTING_SCHEDULED_ATTESTATION_INTERVAL_SENSITIVE);
 		if (setting == null) {
 			return CheckupIntervalEnum.QUARTERLY;
 		}
@@ -373,7 +374,7 @@ public class SettingsService {
 	}
 
 	public void setScheduledAttestationIntervalSensitive(CheckupIntervalEnum interval) {
-		Setting setting = settingsDao.getByKey(SETTING_SCHEDULED_ATTESTATION_INTERVAL_SENSITIVE);
+		Setting setting = settingsDao.findByKey(SETTING_SCHEDULED_ATTESTATION_INTERVAL_SENSITIVE);
 		if (setting == null) {
 			setting = new Setting();
 			setting.setKey(SETTING_SCHEDULED_ATTESTATION_INTERVAL_SENSITIVE);
@@ -387,7 +388,7 @@ public class SettingsService {
 		SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd");
 
 		try {
-			Setting setting = settingsDao.getByKey(SETTING_SCHEDULED_ATTESTATION_LAST_RUN);
+			Setting setting = settingsDao.findByKey(SETTING_SCHEDULED_ATTESTATION_LAST_RUN);
 			if (setting == null) {
 				return format.parse("1979-05-21");
 			}
@@ -403,7 +404,7 @@ public class SettingsService {
 		SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd");
 		String dateString = format.format(date);
 
-		Setting setting = settingsDao.getByKey(SETTING_SCHEDULED_ATTESTATION_LAST_RUN);
+		Setting setting = settingsDao.findByKey(SETTING_SCHEDULED_ATTESTATION_LAST_RUN);
 		if (setting == null) {
 			setting = new Setting();
 			setting.setKey(SETTING_SCHEDULED_ATTESTATION_LAST_RUN);
@@ -414,7 +415,7 @@ public class SettingsService {
 	}
 
 	public String getItSystemChangeEmail() {
-		Setting setting = settingsDao.getByKey(SETTING_IT_SYSTEM_CHANGE_EMAIL);
+		Setting setting = settingsDao.findByKey(SETTING_IT_SYSTEM_CHANGE_EMAIL);
 		if (setting == null) {
 			return "";
 		}
@@ -423,7 +424,7 @@ public class SettingsService {
 	}
 
 	public void setItSystemChangeEmail(String email) {
-		Setting setting = settingsDao.getByKey(SETTING_IT_SYSTEM_CHANGE_EMAIL);
+		Setting setting = settingsDao.findByKey(SETTING_IT_SYSTEM_CHANGE_EMAIL);
 		if (setting == null) {
 			setting = new Setting();
 			setting.setKey(SETTING_IT_SYSTEM_CHANGE_EMAIL);
@@ -454,7 +455,7 @@ public class SettingsService {
 	}
 	
 	private boolean getBooleanWithDefault(String key, boolean defaultValue) {
-		Setting setting = settingsDao.getByKey(key);
+		Setting setting = settingsDao.findByKey(key);
 		if (setting != null) {
 			return Boolean.parseBoolean(setting.getValue());
 		}
@@ -463,7 +464,7 @@ public class SettingsService {
 	}
 	
 	public void setNotificationTypeEnabled(NotificationType notificationType, boolean enabled) {
-		Setting setting = settingsDao.getByKey(notificationType.toString());
+		Setting setting = settingsDao.findByKey(notificationType.toString());
 		if (setting == null) {
 			setting = new Setting();
 			setting.setKey(notificationType.toString());
@@ -481,8 +482,16 @@ public class SettingsService {
 		setKeyEnabled(enabled, SETTING_RUN_CICS);
 	}
 
+	public boolean isItSystemsHiddenByDefault() {
+		return isKeyEnabled(SETTING_IT_SYSTEM_DEFAULT_HIDDEN_ENABLED);
+	}
+
+	public void setItSystemsHiddenByDefault(boolean enabled) {
+		setKeyEnabled(enabled, SETTING_IT_SYSTEM_DEFAULT_HIDDEN_ENABLED);
+	}
+
 	public Setting getByKey(String key) {
-		return settingsDao.getByKey(key);
+		return settingsDao.findByKey(key);
 	}
 
 	public void save(Setting setting) {

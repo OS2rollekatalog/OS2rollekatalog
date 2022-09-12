@@ -9,6 +9,7 @@ import javax.persistence.GenerationType;
 import javax.persistence.Id;
 
 import dk.digitalidentity.rc.dao.model.enums.AccessRole;
+import dk.digitalidentity.rc.dao.model.enums.VersionStatusEnum;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -30,7 +31,23 @@ public class Client {
 	@Column
 	@Enumerated(EnumType.STRING)
 	private AccessRole accessRole;
-	
+
+	@Column
+	private String version;
+
 	@Column
 	private String tlsVersion;
+
+	@Column
+	private String applicationIdentifier;
+
+	@Column
+	private String newestVersion;
+
+	@Column
+	private String minimumVersion;
+
+	@Column
+	@Enumerated(EnumType.STRING)
+	private VersionStatusEnum versionStatus;
 }

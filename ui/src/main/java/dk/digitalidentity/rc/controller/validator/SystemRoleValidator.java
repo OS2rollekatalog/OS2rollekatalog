@@ -1,19 +1,20 @@
 package dk.digitalidentity.rc.controller.validator;
 
-import dk.digitalidentity.rc.controller.mvc.viewmodel.SystemRoleForm;
-import dk.digitalidentity.rc.dao.model.SystemRole;
-import dk.digitalidentity.rc.service.SystemRoleService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.validation.Errors;
 import org.springframework.validation.Validator;
+
+import dk.digitalidentity.rc.controller.mvc.viewmodel.SystemRoleForm;
+import dk.digitalidentity.rc.dao.model.SystemRole;
+import dk.digitalidentity.rc.service.SystemRoleService;
 
 @Component
 public class SystemRoleValidator implements Validator {
 
 	@Autowired
 	private SystemRoleService systemRoleService;
-
+	
 	@Override
 	public boolean supports(Class<?> aClass) {
 		return (SystemRoleForm.class.isAssignableFrom(aClass));
@@ -36,6 +37,10 @@ public class SystemRoleValidator implements Validator {
 		
 		if (systemRoleForm.getName().length() < 2) {
 			errors.rejectValue("name", "html.errors.systemrole.name.notempty");			
+		}
+		
+		if (systemRoleForm.getWeight() < 1) {
+			errors.rejectValue("weight", "html.errors.systemrole.weight.lessthanone");
 		}
 	}
 }

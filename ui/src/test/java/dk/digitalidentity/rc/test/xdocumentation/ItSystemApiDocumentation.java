@@ -92,7 +92,7 @@ public class ItSystemApiDocumentation {
 		// so all of our existing security code just works without further modifications
 		List<SamlGrantedAuthority> authorities = new ArrayList<>();
 		authorities.add(new SamlGrantedAuthority(Constants.ROLE_SYSTEM));
-		authorities.add(new SamlGrantedAuthority("ROLE_API_" + AccessRole.ROLE_MANAGEMENT.toString()));
+		authorities.add(new SamlGrantedAuthority("ROLE_API_" + AccessRole.ITSYSTEM.toString()));
 
 		Map<String, Object> attributes = new HashMap<>();
 		attributes.put(RolePostProcessor.ATTRIBUTE_NAME, "system");

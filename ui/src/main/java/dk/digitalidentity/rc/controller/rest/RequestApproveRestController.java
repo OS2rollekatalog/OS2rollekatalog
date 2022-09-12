@@ -98,7 +98,7 @@ public class RequestApproveRestController {
 			return new ResponseEntity<>("Der er ikke valgt en modtager af rollen", HttpStatus.BAD_REQUEST);
 		}
 		
-		if (requestedFor.isActive() == false) {
+		if (requestedFor.isDeleted() == true) {
 			return new ResponseEntity<>("Der er valgt en inaktiv modtager af rollen", HttpStatus.BAD_REQUEST);
 		}
 
@@ -296,7 +296,7 @@ public class RequestApproveRestController {
 				if (authorizationManagers != null && authorizationManagers.size() > 0) {
 					for (AuthorizationManager am : authorizationManagers) {
 						User authorizationManager = am.getUser();
-						if (authorizationManager == null || authorizationManager.isActive() == false) {
+						if (authorizationManager == null || authorizationManager.isDeleted() == true) {
 							continue;
 						}
 

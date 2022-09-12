@@ -30,6 +30,6 @@ public interface PositionDao extends CrudRepository<Position, String> {
 
 	List<Position> findByTitle(Title title);
 
-	@Query("SELECT u.uuid FROM users u JOIN positions p ON p.user = u WHERE u.active = 1 AND p.orgUnit = ?1")
+	@Query("SELECT u.uuid FROM users u JOIN positions p ON p.user = u WHERE u.deleted = 0 AND p.orgUnit = ?1")
 	List<String> findUserUuidByOrgUnit(OrgUnit orgUnit);
 }

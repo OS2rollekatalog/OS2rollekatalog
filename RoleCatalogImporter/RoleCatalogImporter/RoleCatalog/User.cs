@@ -9,7 +9,7 @@ namespace RoleCatalogImporter
         public string name { get; set; }
         public string email { get; set; }
         public string cpr { get; set; }
-        
+        public bool disabled { get; set; }
         public List<Position> positions { get; set; }
     }
 }

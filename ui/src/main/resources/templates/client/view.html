@@ -43,6 +43,18 @@
 										</div>
 									</fieldset>
 
+									<fieldset>
+										<div class="form-group">
+											<label class="col-sm-2 control-label" th:text="#{html.client.version}"></label>
+											<div class="col-sm-8">
+												<div class="form-control" style="height: auto !important;" readonly="readonly">
+													<span th:text="*{version}"></span>&nbsp
+													<em th:if="*{outdated}" class="fa fa-warning text-warning" th:title="#{html.client.version.outdated}"></em>
+												</div>
+											</div>
+										</div>
+									</fieldset>
+
 									<th:block th:if="${client.accessRole == 'html.enum.accessrole.limitedReadAccess'}">
 										<fieldset>
 											<div class="form-group">

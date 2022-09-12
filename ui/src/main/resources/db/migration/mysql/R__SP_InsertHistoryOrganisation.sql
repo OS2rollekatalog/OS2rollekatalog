@@ -23,8 +23,8 @@ BEGIN
   WHERE ho.dato = CAST(CURRENT_TIMESTAMP AS DATE);
   
   INSERT INTO history_users (dato, user_uuid, user_ext_uuid, user_name, user_user_id, user_active)
-  SELECT CURRENT_TIMESTAMP, u.uuid, u.ext_uuid, u.name, u.user_id, u.active
-  FROM users u;
+  SELECT CURRENT_TIMESTAMP, u.uuid, u.ext_uuid, u.name, u.user_id, NOT u.disabled
+  FROM users u WHERE u.deleted = 0;
   
   INSERT INTO history_managers (dato, user_uuid, user_name)
   SELECT DISTINCT CURRENT_TIMESTAMP, o.manager, u.name

@@ -1,21 +1,21 @@
 package dk.digitalidentity.rc.test.ui;
 
-import org.junit.After;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Test;
-import org.junit.runner.RunWith;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.openqa.selenium.chrome.ChromeDriver;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.TestPropertySource;
-import org.springframework.test.context.junit4.SpringRunner;
+import org.springframework.test.context.junit.jupiter.SpringExtension;
 
 import dk.digitalidentity.rc.test.ui.service.LoginService;
 import dk.digitalidentity.rc.util.BootstrapDevMode;
 
-@RunWith(SpringRunner.class)
+@ExtendWith(SpringExtension.class)
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.DEFINED_PORT)
 @TestPropertySource(locations="classpath:test.properties")
 @ActiveProfiles({ "test" })
@@ -29,13 +29,13 @@ public class UsersTest {
     @Autowired
     private LoginService loginService;
 
-    @Before
+    @BeforeEach
     public void before() throws Exception {
     	bootstrapper.init(false);
         driver = loginService.login();
     }
     
-    @After
+    @AfterEach
     public void after() {
     	loginService.logout();
     }
@@ -49,11 +49,11 @@ public class UsersTest {
 
     public void viewUser(String uuid) {
         driver.get(url + "/ui/users/manage/" + uuid);
-        Assert.assertEquals("OS2rollekatalog", driver.getTitle());
+        Assertions.assertEquals("OS2rollekatalog", driver.getTitle());
     }
 
     public void listUsers() {
         driver.get(url + "/ui/users/list");
-        Assert.assertEquals("OS2rollekatalog", driver.getTitle());
+        Assertions.assertEquals("OS2rollekatalog", driver.getTitle());
     }
 }

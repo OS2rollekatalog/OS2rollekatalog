@@ -20,6 +20,7 @@ import dk.digitalidentity.rc.controller.mvc.viewmodel.ClientDTO;
 import dk.digitalidentity.rc.controller.validator.ClientDTOValidator;
 import dk.digitalidentity.rc.dao.model.Client;
 import dk.digitalidentity.rc.dao.model.enums.AccessRole;
+import dk.digitalidentity.rc.dao.model.enums.VersionStatusEnum;
 import dk.digitalidentity.rc.security.RequireAdministratorRole;
 import dk.digitalidentity.rc.service.ClientService;
 
@@ -72,6 +73,7 @@ public class ClientController {
 		client.setName(clientDTO.getName());
 		client.setApiKey(clientDTO.getApiKey());
 		client.setAccessRole(AccessRole.valueOf(clientDTO.getAccessRole()));
+		client.setVersionStatus(VersionStatusEnum.UNKNOWN);
 
 		clientService.save(client);
 
@@ -89,6 +91,8 @@ public class ClientController {
 		clientDTO.setName(client.getName());
 		clientDTO.setApiKey(client.getApiKey());
 		clientDTO.setAccessRole(client.getAccessRole().getMessageId());
+		clientDTO.setVersion(client.getVersion());
+		clientDTO.setOutdated(client.getVersionStatus() == VersionStatusEnum.OUTDATED);
 
 		model.addAttribute("client", clientDTO);
 

@@ -17,6 +17,7 @@ import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
 import dk.digitalidentity.rc.dao.ClientDao;
 import dk.digitalidentity.rc.dao.model.Client;
 import dk.digitalidentity.rc.dao.model.enums.AccessRole;
+import dk.digitalidentity.rc.dao.model.enums.VersionStatusEnum;
 
 @Service
 @EnableScheduling
@@ -40,6 +41,7 @@ public class ClientService {
 				newClient.setName("Administrator");
 				newClient.setApiKey(apiKey);
 				newClient.setAccessRole(AccessRole.ADMINISTRATOR);
+				newClient.setVersionStatus(VersionStatusEnum.UNKNOWN);
 				clientDao.save(newClient);
 			});
 		}

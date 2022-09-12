@@ -183,7 +183,7 @@ public class DataGenerator {
 		
 		for (int i = 0; i < 10000; i++) {
 			User user = new User();
-			user.setActive(true);
+			user.setDeleted(false);
 			user.setName("User " + i);
 			user.setUserId("user" + i);
 			user.setUuid(UUID.randomUUID().toString());

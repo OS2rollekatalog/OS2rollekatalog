@@ -211,6 +211,7 @@ public class KspCicsService {
 			return;
 		}
 		ItSystem itSystem = itSystems.get(0);
+		String namePrefix = configuration.getIntegrations().getKspcics().getNamePrefix();
 
 		try {
 			SecurityUtil.loginSystemAccount();
@@ -244,7 +245,7 @@ public class KspCicsService {
 						existingUserRole.setDescription(userProfile.getDescription());
 						existingUserRole.setIdentifier(userProfile.getId());
 						existingUserRole.setItSystem(itSystem);
-						existingUserRole.setName(userProfile.getName());
+						existingUserRole.setName(namePrefix + userProfile.getName());
 						existingUserRole.setSystemRoleAssignments(new ArrayList<>());
 						existingUserRole = userRoleService.save(existingUserRole);
 						
@@ -257,10 +258,16 @@ public class KspCicsService {
 							changes = true;
 							existingUserRole.setDescription(userProfile.getDescription());
 						}
-						
-						if (!Objects.equals(existingUserRole.getName(), userProfile.getName())) {
+
+						// remove prefix from existing userrole's name (if it exists)
+						String strippedName = existingUserRole.getName();
+						if (StringUtils.hasLength(namePrefix) && strippedName.startsWith(namePrefix)) {
+							strippedName = strippedName.substring(namePrefix.length());
+						}
+
+						if (!Objects.equals(strippedName, userProfile.getName())) {
 							changes = true;
-							existingUserRole.setName(userProfile.getName());
+							existingUserRole.setName(namePrefix + userProfile.getName());
 						}
 						
 						if (changes) {
@@ -463,7 +470,7 @@ public class KspCicsService {
 
 		for (DirtyKspCicsUserProfile dirtyProfile : dirtyProfiles) {
 			if (!seen.contains(dirtyProfile.getIdentifier())) {
-				log.info("Checking for modifications on userProfile: " + dirtyProfile);
+				log.info("Checking for modifications on userProfile: " + dirtyProfile.getIdentifier());
 				
 				try {
 					// ensure we only process each of these _once_
@@ -572,6 +579,7 @@ public class KspCicsService {
 		dirtyKspCicsUserProfileDao.save(dirty);
 	}
 	
+	@SuppressWarnings("deprecation")
 	public KspChangePasswordResponse updateKspCicsPassword(String userId, String newPassword) {
 		HttpHeaders headers = new HttpHeaders();
 		headers.add("Content-Type", "text/xml; charset=utf-8");
@@ -611,7 +619,7 @@ public class KspCicsService {
 					}
 				}
 				else {
-					log.error("updateKspCicsPassword - Got responseCode " + response.getStatusCodeValue() + " from service. Request=" + request + " / Response=" + response.getBody());
+					log.error("updateKspCicsPassword - Got responseCode " + response.getStatusCodeValue() + " from service. Request=" + payload + " / Response=" + response.getBody());
 
 					KspChangePasswordResponse result = new KspChangePasswordResponse();
 					result.setSuccess(false);
@@ -689,6 +697,7 @@ public class KspCicsService {
 		return null;
 	}
 
+	@SuppressWarnings("deprecation")
 	private boolean updateKspCicsUser(KspUser existingKspUser, Set<String> userProfiles) {
 		Set<String> toAdd = new HashSet<>();
 		Set<String> toDelete = new HashSet<>();
@@ -866,6 +875,7 @@ public class KspCicsService {
 		return userProfile.replace("&", "&amp;");
 	}
 
+	@SuppressWarnings("deprecation")
 	private KspUserProfilesResponse findUserProfiles(String optionalIdentifier) {
     	HttpHeaders headers = new HttpHeaders();
         headers.add("Content-Type", "text/xml; charset=utf-8");
@@ -966,6 +976,7 @@ public class KspCicsService {
 		return readKspCicsUser(userId);
 	}
 
+	@SuppressWarnings("deprecation")
 	private KspUser readKspCicsUser(String userId) {
     	HttpHeaders headers = new HttpHeaders();
         headers.add("Content-Type", "text/xml; charset=utf-8");
@@ -1047,6 +1058,7 @@ public class KspCicsService {
 		return kspUser;
 	}
 
+	@SuppressWarnings("deprecation")
 	private KspUsersResponse findUsers() {
     	HttpHeaders headers = new HttpHeaders();
         headers.add("Content-Type", "text/xml; charset=utf-8");

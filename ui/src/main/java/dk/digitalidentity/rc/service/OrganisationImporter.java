@@ -285,7 +285,7 @@ public class OrganisationImporter {
 
 	private User mapUserDTOToUser(UserDTO userDTO, List<OrgUnit> newOrgUnits) {
 		User user = new User();
-		user.setActive(true);
+		user.setDeleted(false);
 		user.setEmail(userDTO.getEmail());
 		user.setExtUuid(userDTO.getExtUuid());
 		user.setLastUpdated(new Date());
@@ -300,6 +300,7 @@ public class OrganisationImporter {
 		user.setKles(new ArrayList<>());
 		user.setAltAccounts(new ArrayList<>());
 		user.setDoNotInherit(userDTO.isDoNotInherit());
+		user.setDisabled(userDTO.isDisabled());
 		
 		if (userDTO.getPositions() != null) {
 			for (PositionDTO positionDTO : userDTO.getPositions()) {
@@ -585,7 +586,7 @@ public class OrganisationImporter {
 						log.info("Updating: " + existingUser.getUserId());
 
 						// do it like this to trigger interceptors
-						if (!existingUser.isActive()) {
+						if (existingUser.isDeleted()) {
 							userService.activateUser(existingUser);
 						}
 
@@ -596,6 +597,7 @@ public class OrganisationImporter {
 						existingUser.setUserId(userToUpdate.getUserId());
 						existingUser.setCpr(userToUpdate.getCpr());
 						existingUser.setDoNotInherit(userToUpdate.isDoNotInherit());
+						existingUser.setDisabled(userToUpdate.isDisabled());
 
 						if (!configuration.getIntegrations().getKle().isUiEnabled()) {
 							existingUser.getKles().clear();
@@ -674,8 +676,8 @@ public class OrganisationImporter {
 		if (toBeDeleted.size() > 0) {
 			log.info("Deleting " + toBeDeleted.size() + " Users");
 			
-			for (User userToDelete : toBeDeleted) {				
-				userToDelete.setActive(false);
+			for (User userToDelete : toBeDeleted) {
+				userToDelete.setDeleted(true);
 				userService.save(userToDelete);
 			}
 		}
@@ -773,8 +775,8 @@ public class OrganisationImporter {
 		}
 	}
 	
+	
 	private void identifyUserChanges(List<User> newUsers, List<User> existingUsers, List<User> toBeCreated, List<User> toBeUpdated, List<User> toBeDeleted, boolean deltaSync) {
-
 		// find those that needs to be created or updated
 		for (User newUser : newUsers) {
 			boolean found = false;
@@ -783,7 +785,7 @@ public class OrganisationImporter {
 				if (hasSameKey(existingUser, newUser)) {
 					found = true;
 
-					if (!existingUser.isActive()) {
+					if (existingUser.isDeleted()) {
 						toBeUpdated.add(newUser);
 					}
 					else if (!existingUser.getName().equals(newUser.getName())) {
@@ -810,6 +812,9 @@ public class OrganisationImporter {
 					else if (existingUser.isDoNotInherit() != newUser.isDoNotInherit()) {
 						toBeUpdated.add(newUser);
 					}
+					else if (existingUser.isDisabled() != newUser.isDisabled()) {
+						toBeUpdated.add(newUser);
+					}
 
 					break;
 				}
@@ -817,7 +822,7 @@ public class OrganisationImporter {
 			
 			if (!found) {
 				User userToCreate = new User();
-				userToCreate.setActive(true);
+				userToCreate.setDeleted(false);
 				userToCreate.setEmail(newUser.getEmail());
 				userToCreate.setExtUuid(newUser.getExtUuid());
 				userToCreate.setKles(newUser.getKles());
@@ -829,6 +834,7 @@ public class OrganisationImporter {
 				userToCreate.setUserRoleAssignments(new ArrayList<>());
 				userToCreate.setPositions(new ArrayList<>());
 				userToCreate.setDoNotInherit(newUser.isDoNotInherit());
+				userToCreate.setDisabled(newUser.isDisabled());
 				for (Position p : newUser.getPositions()) {
 					addPosition(userToCreate, p);
 				}
@@ -838,12 +844,12 @@ public class OrganisationImporter {
 		}
 		
 		if (!deltaSync) {
-			// find those that should be set to inactive
+			// find those that should be set to deleted
 			for (User existingUser : existingUsers) {
 				boolean found = false;
 
-				// ignore those that are already inactive
-				if (!existingUser.isActive()) {
+				// ignore those that are already deleted
+				if (existingUser.isDeleted()) {
 					continue;
 				}
 

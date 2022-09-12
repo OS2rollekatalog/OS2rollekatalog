@@ -231,11 +231,14 @@ public class ItSystemController {
 		if (systemRoleForm.getIdentifier().length() == 0) {
 			bindingResult.addError(new ObjectError("identifier", "html.errors.systemrole.identifier.notempty"));
 		}
-
+		
 		if (bindingResult.hasErrors()) {
 			List<SystemRoleViewModel> systemRoles = systemRoleService.getByItSystem(itSystem).stream()
 					.map(sr -> new SystemRoleViewModel(sr, systemRoleService.isInUse(sr)))
 					.collect(Collectors.toList());
+			
+			ConvertSystemRolesForm convertSystemRolesForm = new ConvertSystemRolesForm();
+			convertSystemRolesForm.setCreateLink(true);
 
 			model.addAttribute(bindingResult.getAllErrors());
 			model.addAttribute("unusedCount", itSystemService.getUnusedUserRolesCount(itSystem));
@@ -245,6 +248,7 @@ public class ItSystemController {
 			model.addAttribute("systemRoleForm", systemRoleForm);
 			model.addAttribute("itsystemMasterList", itSystemMasterService.findAll());
 			model.addAttribute("userRoles", userRoleService.getByItSystem(itSystem));
+			model.addAttribute("convertSystemRolesForm", convertSystemRolesForm);
 
 			return "itsystem/edit";
 		}
@@ -263,6 +267,11 @@ public class ItSystemController {
 			systemRole.setDescription(systemRoleForm.getDescription());
 			systemRole.setItSystem(itSystem);
 			systemRole.setRoleType(RoleType.BOTH);
+			systemRole.setWeight(1);
+		}
+		
+		if (itSystem.getSystemType().equals(ItSystemType.AD) || itSystem.getSystemType().equals(ItSystemType.SAML)) {
+			systemRole.setWeight(systemRoleForm.getWeight());
 		}
 
 		systemRole = systemRoleService.save(systemRole);

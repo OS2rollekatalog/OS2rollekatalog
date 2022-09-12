@@ -113,6 +113,13 @@ public class AttestationRestController {
 			return new ResponseEntity<>(HttpStatus.FORBIDDEN);
 		}
 
+		// set lastAttested and update nextAttestation
+		orgUnit.setLastAttested(new Date());
+		User AttestingUser = userService.getByUserId(SecurityUtil.getUserId());
+		if (AttestingUser != null) {
+			orgUnit.setLastAttestedBy(AttestingUser.getName() + " (" + SecurityUtil.getUserId() + ")");
+		}
+
 		if (settingsService.isAttestationRoleDeletionEnabled()) {
 			// remove any personally assigned roles which the manager will not approve
 			removePersonalRoles(confirmDTO.getToBeRemoved());
@@ -134,14 +141,7 @@ public class AttestationRestController {
 				requestRemovalOfRoles(orgUnit, confirmDTO.getMessage(), confirmDTO.getDtoShowToEmail(), confirmDTO.getDtoShowToBeRemoved(), null);
 			}
 		}
-		
-		// set lastAttested and update nextAttestation
-		orgUnit.setLastAttested(new Date());
-		User AttestingUser = userService.getByUserId(SecurityUtil.getUserId());
-		if (AttestingUser != null) {
-			orgUnit.setLastAttestedBy(AttestingUser.getName() + " (" + SecurityUtil.getUserId() + ")");
-		}
-		
+				
 		// set next attestation timestamp
 		Date lastAttestation = (orgUnit.getNextAttestation() != null) ? orgUnit.getNextAttestation() : new Date();
 		LocalDate afterThisTts = Instant.ofEpochMilli(lastAttestation.getTime()).atZone(ZoneId.systemDefault()).toLocalDate();
@@ -176,7 +176,7 @@ public class AttestationRestController {
 				emails.put(manager.getEmail(), manager.getName());
 			}
 			
-			if (manager.getManagerSubstitute() != null && manager.getManagerSubstitute().isActive() && StringUtils.hasLength(manager.getManagerSubstitute().getEmail())) {
+			if (manager.getManagerSubstitute() != null && !manager.getManagerSubstitute().isDeleted() && StringUtils.hasLength(manager.getManagerSubstitute().getEmail())) {
 				emails.put(manager.getManagerSubstitute().getEmail(), manager.getManagerSubstitute().getName());
 			}
 

@@ -1,6 +1,8 @@
 package dk.digitalidentity.rc.service;
 
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -79,5 +81,18 @@ public class SystemRoleService {
 		}
 
 		return false;
+	}
+	
+	public boolean belongsToItSystemWithDifferentWeight(SystemRole systemRole) {
+		if (systemRole == null) {
+			return false;
+		}
+		
+		Set<Integer> weights = new HashSet<>();
+		for (SystemRole sr : getByItSystem(systemRole.getItSystem())) {
+			weights.add(sr.getWeight());
+		}
+		
+		return weights.size() > 1;
 	}
 }

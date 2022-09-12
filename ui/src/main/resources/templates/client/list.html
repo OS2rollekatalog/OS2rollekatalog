@@ -18,7 +18,7 @@
 						</a>
 					</div>
 				</h3>
-				<div class="panel panel-default">					
+				<div class="panel panel-default">
 					<div class="panel-body">
 						<div class="table-responsive">
 							<table id="listTable" class="table table-striped table-hover listTable">
@@ -26,7 +26,8 @@
 									<tr>
 										<th class="col-md-3" th:text="#{html.entity.client.name}"></th>
 										<th class="col-md-4" th:text="#{html.entity.client.ApiKey}"></th>
-										<th class="col-md-4" th:text="#{html.entity.client.accessRole}"></th>
+										<th class="col-md-3" th:text="#{html.entity.client.accessRole}"></th>
+										<th class="col-md-3" th:text="#{html.entity.client.version}"></th>
 										<th class="col-md-1" th:text="#{html.control.operations}"></th>
 									</tr>
 								</thead>
@@ -39,6 +40,10 @@
 											<span th:attr="data-key=${client.apiKey}" th:id="'pwd-' + ${client.id}">********</span>
 										</td>
 										<td th:text="#{__${client.accessRole.messageId}__}"></td>
+										<td>
+											<span th:text="${client.version}"></span>
+											<em th:if="${client.versionStatus == T(dk.digitalidentity.rc.dao.model.enums.VersionStatusEnum).OUTDATED}" th:title="#{html.client.version.outdated}" class="fa fa-warning text-warning"></em>
+										</td>
 										<td>
 											<a th:href="@{/ui/client/view/} + ${client.id}"><em class="fa fa-fw fa-search"></em></a>
 											<a th:href="@{/ui/client/edit/} + ${client.id}"><em class="fa fa-fw fa-pencil"></em></a>

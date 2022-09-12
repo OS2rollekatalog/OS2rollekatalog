@@ -16,6 +16,7 @@ public class UserHistoryDao {
 	@Autowired
 	private JdbcTemplate jdbcTemplate;
 	
+	@SuppressWarnings("deprecation")
 	public List<UserHistory> getDirectUserRoleHistory(User user) {
 		return jdbcTemplate.query(
 			"SELECT a.timestamp, a.username, a.event_type, u.name, i.name AS system_name, a.secondary_entity_id as role_id" +
@@ -30,6 +31,7 @@ public class UserHistoryDao {
 		);
 	}
 	
+	@SuppressWarnings("deprecation")
 	public List<UserHistory> getPositionUserRoleHistory(User user) {
 		return jdbcTemplate.query(
 			"SELECT a.timestamp, a.username, a.event_type, u.name, i.name AS system_name, a.secondary_entity_id as role_id" +
@@ -45,6 +47,7 @@ public class UserHistoryDao {
 		);
 	}
 	
+	@SuppressWarnings("deprecation")
 	public List<UserHistory> getDirectRoleGroupHistory(User user) {
 		return jdbcTemplate.query(
 			"SELECT a.timestamp, a.username, a.event_type, rg.name, 'Rollebuket' AS system_name, a.secondary_entity_id as role_id" +
@@ -58,6 +61,7 @@ public class UserHistoryDao {
 		);
 	}
 	
+	@SuppressWarnings("deprecation")
 	public List<UserHistory> getPositionRoleGroupHistory(User user) {
 		return jdbcTemplate.query(
 			"SELECT a.timestamp, a.username, a.event_type, rg.name, 'Rollebuket' AS system_name, a.secondary_entity_id as role_id" +

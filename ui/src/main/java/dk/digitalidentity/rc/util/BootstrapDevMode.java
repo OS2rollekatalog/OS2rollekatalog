@@ -14,8 +14,10 @@ import org.springframework.transaction.annotation.Transactional;
 
 import dk.digitalidentity.rc.config.Constants;
 import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
-import dk.digitalidentity.rc.controller.api.model.OrgUnitAM;
-import dk.digitalidentity.rc.controller.api.model.UserAM;
+import dk.digitalidentity.rc.controller.api.model.OrgUnitDTO;
+import dk.digitalidentity.rc.controller.api.model.OrganisationDTO;
+import dk.digitalidentity.rc.controller.api.model.PositionDTO;
+import dk.digitalidentity.rc.controller.api.model.UserDTO;
 import dk.digitalidentity.rc.dao.RoleGroupDao;
 import dk.digitalidentity.rc.dao.TitleDao;
 import dk.digitalidentity.rc.dao.UserDao;
@@ -39,7 +41,7 @@ import dk.digitalidentity.rc.dao.model.enums.RoleType;
 import dk.digitalidentity.rc.service.ConstraintTypeService;
 import dk.digitalidentity.rc.service.ItSystemService;
 import dk.digitalidentity.rc.service.OrgUnitService;
-import dk.digitalidentity.rc.service.OrganisationImporterOld;
+import dk.digitalidentity.rc.service.OrganisationImporter;
 import dk.digitalidentity.rc.service.SystemRoleService;
 
 @Transactional(rollbackFor = Exception.class)
@@ -54,7 +56,7 @@ public class BootstrapDevMode {
 	private boolean devEnvironment;
 
 	@Autowired
-	private OrganisationImporterOld orgImporter;
+	private OrganisationImporter orgImporter;
 
 	@Autowired
 	private ConstraintTypeService constraintTypeService;
@@ -112,7 +114,7 @@ public class BootstrapDevMode {
 			
 			findUserOneAndMakeHimAdmin();
 		}
-		
+
 		// when running tests (and only when running tests), we need
 		// at least one user with all roles assigned
 		if (force) {
@@ -135,8 +137,8 @@ public class BootstrapDevMode {
 	}
 
 	private void findUserOneAndMakeHimAdmin() {
-		User user1 = userDao.findByUserIdAndActiveTrue("user1");
-		User bsg = userDao.findByUserIdAndActiveTrue("bsg");
+		User user1 = userDao.findByUserIdAndDeletedFalse("user1");
+		User bsg = userDao.findByUserIdAndDeletedFalse("bsg");
 		UserRole administrator = userRoleDao.getByIdentifier("administrator");
 		
 		UserUserRoleAssignment assignment = new UserUserRoleAssignment();
@@ -161,59 +163,86 @@ public class BootstrapDevMode {
 	}
 
 	private void importOrganisation() throws Exception {
-		OrgUnitAM arbejdsmarked = createOU("Arbejdsmarkedsområdet");
-		OrgUnitAM jobcenter = createOU("Jobcenteret");
+		List<OrgUnitDTO> orgUnits = new ArrayList<>();
+		List<UserDTO> users = new ArrayList<>();
+
+		OrgUnitDTO kommune = createOU(orgUnits, "Hørning Kommune");
+		OrgUnitDTO job = createOU(orgUnits, "Job og beskæftigelse");
+		OrgUnitDTO arbejdsmarked = createOU(orgUnits, "Arbejdsmarkedsområdet");
+		OrgUnitDTO jobcenter = createOU(orgUnits, "Jobcenteret");
+		OrgUnitDTO bakkeskolen = createOU(orgUnits, "Bakkeskolen");
+		OrgUnitDTO aaskolen = createOU(orgUnits, "Aaskolen");
+		OrgUnitDTO skole = createOU(orgUnits, "Børn og skole");
+		OrgUnitDTO landbrug = createOU(orgUnits, "Landbrug og natur");
+		OrgUnitDTO kultur = createOU(orgUnits, "Kultur og fritid");
+		OrgUnitDTO miljoe = createOU(orgUnits, "Teknik og miljø");
+		OrgUnitDTO teknik = createOU(orgUnits, "Teknik og kultur");
+
 		jobcenter.setUuid(orgUnitUUID);
 
-		OrgUnitAM job = createOU("Job og beskæftigelse");
-		job.getChildren().add(arbejdsmarked);
-		job.getChildren().add(jobcenter);
+		job.setParentOrgUnitUuid(kommune.getUuid());
+		skole.setParentOrgUnitUuid(kommune.getUuid());
+		teknik.setParentOrgUnitUuid(kommune.getUuid());
+		arbejdsmarked.setParentOrgUnitUuid(job.getUuid());
+		jobcenter.setParentOrgUnitUuid(job.getUuid());
+		bakkeskolen.setParentOrgUnitUuid(skole.getUuid());
+		aaskolen.setParentOrgUnitUuid(skole.getUuid());
+		kultur.setParentOrgUnitUuid(teknik.getUuid());
+		miljoe.setParentOrgUnitUuid(teknik.getUuid());
+		landbrug.setParentOrgUnitUuid(miljoe.getUuid());
 
-		OrgUnitAM bakkeskolen = createOU("Bakkeskolen");
-		OrgUnitAM aaskolen = createOU("Aaskolen");
+		UserDTO bente = createUser(users, "Bente Børgesen", "bbog");
+		PositionDTO p = new PositionDTO();
+		p.setName("Sagsbehandler");
+		p.setOrgUnitUuid(arbejdsmarked.getUuid());
+		bente.getPositions().add(p);
+		bente.setExtUuid(userUUID);
 
-		OrgUnitAM skole = createOU("Børn og skole");
-		skole.getChildren().add(bakkeskolen);
-		skole.getChildren().add(aaskolen);
+		UserDTO frederikke = createUser(users, "Frederikke Urgdal", "fnur");
+		p = new PositionDTO();
+		p.setName("Skolelæreinde");
+		p.setOrgUnitUuid(bakkeskolen.getUuid());
+		frederikke.getPositions().add(p);
+		p = new PositionDTO();
+		p.setName("Skolelæreinde");
+		p.setOrgUnitUuid(aaskolen.getUuid());
+		frederikke.getPositions().add(p);
 
-		OrgUnitAM landbrug = createOU("Landbrug og natur");
-		OrgUnitAM kultur = createOU("Kultur og fritid");
-		OrgUnitAM miljoe = createOU("Teknik og miljø");
-		miljoe.getChildren().add(landbrug);
+		UserDTO freja = createUser(users, "Freja Irkeda", "fnui");
+		p = new PositionDTO();
+		p.setName("Forstanderinde");
+		p.setOrgUnitUuid(bakkeskolen.getUuid());
+		freja.getPositions().add(p);
 
-		OrgUnitAM teknik = createOU("Teknik og kultur");
-		teknik.getChildren().add(kultur);
-		teknik.getChildren().add(miljoe);
+		UserDTO gert = createUser(users, "Gert Grinte-Waldorfsen", "ggri");
+		p = new PositionDTO();
+		p.setName("Sekretær");
+		p.setOrgUnitUuid(kommune.getUuid());
+		gert.getPositions().add(p);
 
-		OrgUnitAM kommune = createOU("Hørning Kommune");
-		kommune.getChildren().add(job);
-		kommune.getChildren().add(skole);
-		kommune.getChildren().add(teknik);
+		UserDTO user1 = createUser(users, "Justin McCase", "user1");
+		p = new PositionDTO();
+		p.setName("Alt-mulig-mand");
+		p.setOrgUnitUuid(kommune.getUuid());
+		user1.getPositions().add(p);
 
-		UserAM bente = createUser("Bente Børgesen", "Sagsbehandler", "bbog");
-		UserAM frederikke = createUser("Frederikke Urgdal", "Skolelæreinde", "fnur");
-		UserAM freja = createUser("Freja Irkeda", "Forstanderinde", "fnui");
-		UserAM gert = createUser("Gert Grinte-Waldorfsen", "Sekretær", "ggri");
-		UserAM user1 = createUser("Justin McCase", "Alt-mulig-mand", "user1");
-		UserAM bsg = createUser("Brian Tester", "Tester", "bsg");
-		UserAM viggo = createUser("Viggo Mortensen", "Borgmester", "vmort");
+		UserDTO bsg = createUser(users, "Brian Tester", "bsg");
+		p = new PositionDTO();
+		p.setName("Tester");
+		p.setOrgUnitUuid(kommune.getUuid());
+		bsg.getPositions().add(p);
 
-		bente.setUuid(userUUID);
-		
-		// clone Frederikke for 2nd employment
-		UserAM frederikke2 = createUser("Frederikke Urgdal", "Vikar", "fnur");
-		frederikke2.setUuid(frederikke.getUuid());
+		UserDTO viggo = createUser(users, "Viggo Mortensen", "vmort");
+		p = new PositionDTO();
+		p.setName("Borgmester");
+		p.setOrgUnitUuid(kommune.getUuid());
+		viggo.getPositions().add(p);
 
-		bakkeskolen.getEmployees().add(frederikke);
-		kommune.getEmployees().add(frederikke2);
-		kommune.getEmployees().add(viggo);
-		arbejdsmarked.getEmployees().add(bente);
-		arbejdsmarked.getEmployees().add(bsg);
-		jobcenter.getEmployees().add(user1);
-		arbejdsmarked.getEmployees().add(gert);
-		aaskolen.getEmployees().add(freja);
+		OrganisationDTO payload = new OrganisationDTO();
+		payload.setOrgUnits(orgUnits);
+		payload.setUsers(users);
 
-		orgImporter.bigImport(kommune);
+		orgImporter.fullSync(payload);
 	}
 
 	private void createRoleGroups(List<UserRole> userRoles) {
@@ -252,6 +281,7 @@ public class BootstrapDevMode {
 			assignment.setUserRole(userRole);
 			assignment.setAssignedByName("system");
 			assignment.setAssignedByUserId("system");
+			assignment.setAssignedTimestamp(new Date());
 			user.getUserRoleAssignments().add(assignment);
 		}
 
@@ -422,24 +452,24 @@ public class BootstrapDevMode {
 		return itSystems;
 	}
 
-	private OrgUnitAM createOU(String name) {
-		OrgUnitAM ou = new OrgUnitAM();
+	private OrgUnitDTO createOU(List<OrgUnitDTO> orgUnits, String name) {
+		OrgUnitDTO ou = new OrgUnitDTO();
 		ou.setName(name);
 		ou.setUuid(UUID.randomUUID().toString());
-		ou.setChildren(new ArrayList<>());
-		ou.setEmployees(new ArrayList<>());
-		ou.setKleInterest(new ArrayList<>());
-		ou.setKlePerforming(new ArrayList<>());
+
+		orgUnits.add(ou);
 
 		return ou;
 	}
 
-	private UserAM createUser(String name, String title, String userId) {
-		UserAM user = new UserAM();
+	private UserDTO createUser(List<UserDTO> users, String name, String userId) {
+		UserDTO user = new UserDTO();
 		user.setName(name);
-		user.setTitle(title);
-		user.setUser_id(userId);
-		user.setUuid(UUID.randomUUID().toString());
+		user.setPositions(new ArrayList<>());
+		user.setUserId(userId);
+		user.setExtUuid(UUID.randomUUID().toString());
+
+		users.add(user);
 
 		return user;
 	}

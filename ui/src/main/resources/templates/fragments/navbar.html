@@ -34,6 +34,13 @@
 							<span th:text="#{html.navbar.sub.administration}"></span>
 						</a>
 					</li>
+
+					<li class="nav-item" sec:authorize="hasRole('ROLE_ADMINISTRATOR')" th:unless="${@roleCatalogueConfiguration.checkVersion()}">
+						<a th:href="@{/ui/version}" style="color: #feff4b !important;">
+							<em class="fa fa-fw fa-warning"></em>
+							<span th:text="#{html.navbar.sub.version}"></span>
+						</a>
+					</li>
 				</ul>
 			</div>
 		</nav>
@@ -304,6 +311,12 @@
 								<a th:href="@{/ui/settings}">
 									<em class="fa fa-gears"></em>
 									<span th:text="#{html.navbar.settings}"></span>
+								</a>
+							</li>
+							<li th:class="${page == 'kombit-settings'} ? 'active' : ''">
+								<a th:href="@{/ui/kombit/settings}">
+									<em class="fa fa-wrench"></em>
+									<span th:text="#{html.navbar.settings.kombit}"></span>
 								</a>
 							</li>
 							<li th:class="${page == 'featureDocumentation'} ? 'active' : ''">

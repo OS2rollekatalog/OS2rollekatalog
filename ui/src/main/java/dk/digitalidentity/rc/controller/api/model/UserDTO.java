@@ -23,6 +23,7 @@ public class UserDTO {
 	private String phone;
 	private String cpr;
 	private boolean doNotInherit;
+	private boolean disabled;
 	private List<PositionDTO> positions;
 	private List<String> klePerforming;
 	private List<String> kleInterest;
@@ -35,6 +36,7 @@ public class UserDTO {
 		this.phone = user.getPhone();
 		this.cpr = user.getCpr();
 		this.doNotInherit = user.isDoNotInherit();
+		this.disabled = user.isDisabled();
 
 		List<Position> userPositions = user.getPositions();
 		if (userPositions != null) {

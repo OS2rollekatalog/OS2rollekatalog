@@ -88,7 +88,7 @@ public class RolegroupRestController {
         
         // have to fetch all positions, as we need to check against users - perhaps a JOIN in the future ;)
         for (Position position : positionService.getAllWithRoleGroup(roleGroup)) {
-        	if (position.getUser().isActive()) {
+        	if (!position.getUser().isDeleted()) {
         		status.setUsers(status.getUsers() + 1);
             	status.setSuccess(false);
         	}

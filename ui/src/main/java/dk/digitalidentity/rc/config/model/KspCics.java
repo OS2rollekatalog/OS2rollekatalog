@@ -16,4 +16,5 @@ public class KspCics {
 	private String losid;
 	private String keystoreLocation;
 	private String keystorePassword;
+	private String namePrefix = "";
 }

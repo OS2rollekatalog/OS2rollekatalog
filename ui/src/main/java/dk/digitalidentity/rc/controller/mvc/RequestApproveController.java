@@ -108,6 +108,7 @@ public class RequestApproveController {
 		return "request_approve/choose_ou";
 	}
 	
+	@SuppressWarnings("deprecation")
 	@RequireRequesterRole
 	@GetMapping("/ui/requestapprove/request/step2/role/{id}/ou/{ouUuid}")
 	public String requestRole(Model model, @PathVariable long id, @PathVariable String ouUuid, @RequestParam(name = "type") String roleType) {		

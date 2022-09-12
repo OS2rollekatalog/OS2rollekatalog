@@ -13,8 +13,8 @@ public interface ItSystemDao extends CrudRepository<ItSystem, Long> {
 	List<ItSystem> findByName(String name);
 	List<ItSystem> findBySystemType(ItSystemType systemType);
 	List<ItSystem> findBySubscribedToNotNull();
-	ItSystem getByUuid(String uuid);
-	ItSystem getById(long id);
+	ItSystem findByUuid(String uuid);
+	ItSystem findById(long id);
 	List<ItSystem> findByHiddenFalse();
 	long countByDeletedFalseAndHiddenFalse();
 	List<ItSystem> findByDeletedTrue();

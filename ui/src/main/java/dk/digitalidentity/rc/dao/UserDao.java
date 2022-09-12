@@ -33,42 +33,42 @@ public interface UserDao extends CrudRepository<User, String>, JpaSpecificationE
 	@Deprecated
 	List<User> findByExtUuidIn(Set<String> extUuids);
 	
-	List<User> findByCprAndActiveTrue(String cpr);
-	List<User> findByActiveTrue();
-	List<User> findByActiveFalse();
-	long countByActiveTrueAndUserRoleAssignmentsUserRole(UserRole userRole);
-	long countByActiveTrueAndRoleGroupAssignmentsRoleGroup(RoleGroup role);
-	User findByUuidAndActiveTrue(String uuid);
-	List<User> findByUuidInAndActiveTrue(Set<String> uuids);
-	List<User> findByExtUuidAndActiveTrue(String uuid);
-	User findByUserIdAndActiveTrue(String userId);
+	List<User> findByCprAndDeletedFalse(String cpr);
+	List<User> findByDeletedFalse();
+	List<User> findByDeletedTrue();
+	long countByDeletedFalseAndUserRoleAssignmentsUserRole(UserRole userRole);
+	long countByDeletedFalseAndRoleGroupAssignmentsRoleGroup(RoleGroup role);
+	User findByUuidAndDeletedFalse(String uuid);
+	List<User> findByUuidInAndDeletedFalse(Set<String> uuids);
+	List<User> findByExtUuidAndDeletedFalse(String uuid);
+	User findByUserIdAndDeletedFalse(String userId);
 	
 	// use the versions below that filters on active/inactive flag
 	@Deprecated
-	List<User> findByActiveTrueAndRoleGroupAssignmentsRoleGroup(RoleGroup role);
+	List<User> findByDeletedFalseAndRoleGroupAssignmentsRoleGroup(RoleGroup role);
 
 	// use the versions below that filters on active/inactive flag
 	@Deprecated
-	List<User> findByActiveTrueAndUserRoleAssignmentsUserRole(UserRole userRole);
+	List<User> findByDeletedFalseAndUserRoleAssignmentsUserRole(UserRole userRole);
 
-	List<User> findByActiveTrueAndUserRoleAssignmentsUserRoleAndUserRoleAssignmentsInactive(UserRole userRole, boolean inactive);
-	List<User> findByActiveTrueAndRoleGroupAssignmentsRoleGroupAndRoleGroupAssignmentsInactive(RoleGroup roleGroup, boolean inactive);
+	List<User> findByDeletedFalseAndUserRoleAssignmentsUserRoleAndUserRoleAssignmentsInactive(UserRole userRole, boolean inactive);
+	List<User> findByDeletedFalseAndRoleGroupAssignmentsRoleGroupAndRoleGroupAssignmentsInactive(RoleGroup roleGroup, boolean inactive);
 	
-	User getTopByActiveTrueOrderByLastUpdatedDesc();
+	User getTopByDeletedFalseOrderByLastUpdatedDesc();
 
 	@Query(nativeQuery = true, value = "SELECT * FROM users u WHERE u.uuid IN (SELECT DISTINCT(manager) FROM ous)")
 	List<User> getManagers();
 
 	@Query(nativeQuery = true, value = "SELECT u.* " +
 			"FROM users u" +
-			" WHERE u.active = 1" +
+			" WHERE u.deleted = 0" +
 			"  AND u.name LIKE CONCAT('%',?1,'%')" +
 			" ORDER BY u.name LIMIT 10")
 	List<User> findTop10ByName(@Param("name") String input);
 
 	List<User> findByManagerSubstitute(User user);
 
-	List<User> findByManagerSubstituteActiveFalse();
+	List<User> findByManagerSubstituteDeletedTrue();
 
 	@Modifying
 	@Query("update users u set u.managerSubstitute = null where u.managerSubstitute = :manager")

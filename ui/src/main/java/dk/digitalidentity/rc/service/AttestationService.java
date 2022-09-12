@@ -119,7 +119,7 @@ public class AttestationService {
 
 			String substituteEmail = null;			
 			User substitute = manager.getManagerSubstitute();
-			if (substitute != null && substitute.isActive() && StringUtils.hasLength(substitute.getEmail())) {
+			if (substitute != null && !substitute.isDeleted() && StringUtils.hasLength(substitute.getEmail())) {
 				substituteEmail = substitute.getEmail();
 			}
 			
@@ -171,7 +171,7 @@ public class AttestationService {
 			List<Position> positions = positionService.findByOrgUnit(ou);
 			for (Position position : positions) {
 				User user = position.getUser();
-				if (user == null || !user.isActive()) {
+				if (user == null || user.isDeleted()) {
 					continue;
 				}
 				

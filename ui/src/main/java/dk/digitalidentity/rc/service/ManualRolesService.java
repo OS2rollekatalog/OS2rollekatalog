@@ -9,9 +9,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
-import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 import org.jsoup.Jsoup;
@@ -40,6 +38,7 @@ import dk.digitalidentity.rc.dao.model.UserRole;
 import dk.digitalidentity.rc.dao.model.UserRoleEmailTemplate;
 import dk.digitalidentity.rc.dao.model.enums.ItSystemType;
 import dk.digitalidentity.rc.service.model.UserRoleAssignmentReportEntry;
+import dk.digitalidentity.rc.util.StreamExtensions;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
@@ -91,12 +90,6 @@ public class ManualRolesService {
 		return reportService.getUserRoleAssignmentReportEntries(users, orgUnits, itSystems, userRoleAssignments, ouRoleAssignments, ouRoleAssignmentsWithExceptions, titleRoleAssignments, itSystemNameMapping, Locale.ENGLISH, false);
 	}
 
-	// TODO: we have this a few places - put it into a utility class so we can static import it in all places
-	public static <T> Predicate<T> distinctByKey(Function<? super T, ?> keyExtractor) {
-		Map<Object, Boolean> seen = new ConcurrentHashMap<>();
-		return t -> seen.putIfAbsent(keyExtractor.apply(t), Boolean.TRUE) == null;
-	}
-
 	@Transactional
 	public void notifyServicedesk() {
 		Map<String, User> userMap = userService.getAll().stream().collect(Collectors.toMap(User::getUserId, Function.identity()));
@@ -131,7 +124,7 @@ public class ManualRolesService {
 				}
 				
 				// filter duplicate assignments
-				todayAssignmentsForUser = todayAssignmentsForUser.stream().filter(distinctByKey(a -> a.getRoleId())).collect(Collectors.toList());
+				todayAssignmentsForUser = todayAssignmentsForUser.stream().filter(StreamExtensions.distinctByKey(a -> a.getRoleId())).collect(Collectors.toList());
 				
 				// compare with yesterday
 				for (UserRoleAssignmentReportEntry assignment : todayAssignmentsForUser) {
@@ -172,7 +165,7 @@ public class ManualRolesService {
 				}
 				
 				// filter duplicate assignments
-				yesterdayAssignmentsForUser = yesterdayAssignmentsForUser.stream().filter(distinctByKey(a -> a.getRoleId())).collect(Collectors.toList());
+				yesterdayAssignmentsForUser = yesterdayAssignmentsForUser.stream().filter(StreamExtensions.distinctByKey(a -> a.getRoleId())).collect(Collectors.toList());
 				
 				// compare with today
 				for (UserRoleAssignmentReportEntry assignment : yesterdayAssignmentsForUser) {
@@ -281,7 +274,7 @@ public class ManualRolesService {
 		
 		if (userRole.isSendToSubstitutes()) {
 			for (User manager : managers) {
-				if (manager.getManagerSubstitute() != null && manager.getManagerSubstitute().isActive()) {
+				if (manager.getManagerSubstitute() != null && !manager.getManagerSubstitute().isDeleted()) {
 					recipients.add(manager.getManagerSubstitute());
 				}
 			}

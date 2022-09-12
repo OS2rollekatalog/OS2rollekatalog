@@ -64,6 +64,7 @@ namespace RoleCatalogImporter
                     user.email = u.Email;
                     user.userId = u.UserId;
                     user.positions = new List<Position>();
+                    user.disabled = u.Disabled;
 
                     string suffix = u.Dn.ToLower();
                     int idx = suffix.IndexOf(",ou=");

@@ -236,8 +236,9 @@
 												<tr>
 													<th class="col-md-2" th:text="#{html.entity.adgroup.name}"></th>
 													<th class="col-md-3" th:text="#{html.entity.adgroup.identifier}"></th>
-													<th class="col-md-5" th:text="#{html.entity.adgroup.description}"></th>
+													<th class="col-md-4" th:text="#{html.entity.adgroup.description}"></th>
 													<th class="col-md-1" th:text="#{html.entity.adgroup.inuse}"></th>
+													<th class="col-md-1" th:text="#{html.entity.adgroup.weight}"></th>
 													<th class="col-md-1" th:text="#{html.control.operations}"></th>
 												</tr>
 											</thead>
@@ -248,6 +249,7 @@
 													<td th:text="${systemRole.identifier}"></td>
 													<td class="preformat" th:text="${systemRole.description}"></td>
 													<td><em class="fa fa-fw" th:classappend="${systemRole.inUse} ? fa-check : ''"></em></td>
+													<td th:text="${systemRole.weight}"></td>
 													<td>
 														<th:block th:if="${itsystem.readonly} == false">
 															<a href="#" onclick="openConfirmDeleteDialog(this);" th:attr="data-id=${systemRole.id}"><em class="fa fa-remove"></em></a>
@@ -316,8 +318,9 @@
 											<tr>
 												<th class="col-md-2" th:text="#{html.entity.samlrole.name}"></th>
 												<th class="col-md-3" th:text="#{html.entity.samlrole.identifier}"></th>
-												<th class="col-md-5" th:text="#{html.entity.samlrole.description}"></th>
+												<th class="col-md-4" th:text="#{html.entity.samlrole.description}"></th>
 												<th class="col-md-1" th:text="#{html.entity.samlrole.inuse}"></th>
+												<th th:if="${#strings.toString(itsystem.systemType)} == 'SAML'" class="col-md-1" th:text="#{html.entity.samlrole.weight}"></th>
 												<th class="col-md-1" th:text="#{html.control.operations}"></th>
 											</tr>
 										</thead>
@@ -328,6 +331,7 @@
 												<td th:text="${systemRole.identifier}"></td>
 												<td class="preformat" th:text="${systemRole.description}"></td>
 												<td><em class="fa fa-fw" th:classappend="${systemRole.inUse} ? fa-check : ''"></em></td>
+												<td th:if="${#strings.toString(itsystem.systemType)} == 'SAML'" th:text="${systemRole.weight}"></td>
 												<td>
 													<a href="#" onclick="openConfirmDeleteDialog(this);" th:attr="data-id=${systemRole.id}"><em class="fa fa-remove operationsCol"></em></a>
 													<a href="#" onclick="editSamlRole(this);" th:attr="data-id=${systemRole.id}"><em class="fa fa-pencil operationsCol"></em></a>
@@ -528,6 +532,18 @@
 								<label class="col-sm-8 control-label" style="text-align: left;" th:text="#{html.entity.adgroup.create.universal}"></label>
 							</div>
 						</fieldset>
+						
+						<fieldset>
+							<div class="form-group">
+								<label class="col-sm-3 control-label" th:text="#{html.entity.adgroup.weight}"></label>
+								<div class="col-sm-9">
+									<input th:field="*{weight}" id="adSystemRoleWeight" class="form-control" type="number"/>
+									<ul th:if="${#fields.hasErrors('weight')}" class="error">
+										<li class="error" th:each="err : ${#fields.errors('weight')}" th:text="${err}"></li>
+									</ul>
+								</div>
+							</div>
+						</fieldset>
 					</div>
 
 					<div class="modal-footer">
@@ -584,6 +600,18 @@
 									<textarea rows="8" th:field="*{description}" id="samlSystemRoleDescription" class="form-control"></textarea>
 									<ul th:if="${#fields.hasErrors('description')}" class="error">
 										<li class="error" th:each="err : ${#fields.errors('description')}" th:text="${err}"></li>
+									</ul>
+								</div>
+							</div>
+						</fieldset>
+						
+						<fieldset th:if="${#strings.toString(itsystem.systemType)} == 'SAML'">
+							<div class="form-group">
+								<label class="col-sm-2 control-label" th:text="#{html.entity.samlrole.weight}"></label>
+								<div class="col-sm-10">
+									<input th:field="*{weight}" id="samlSystemRoleWeight" class="form-control" type="number"/>
+									<ul th:if="${#fields.hasErrors('weight')}" class="error">
+										<li class="error" th:each="err : ${#fields.errors('weight')}" th:text="${err}"></li>
 									</ul>
 								</div>
 							</div>
@@ -1164,19 +1192,6 @@
 			}
 
 			$("#universalFieldSet").hide();
-			$("#modal-ad-systemrole").on('shown.bs.modal', function(e) {
-				if ($("#adSystemRoleId").val() == 0) {
-					$("#adSystemRoleName").val("");
-					$("#adSystemRoleIdentifier").val("");
-					$("#adSystemRoleIdentifier").prop("readonly", false);
-					$("#adSystemRoleDescription").val("");
-				}
-
-				$("#adGroupType").val("NONE");
-				$("#universalFieldSet").hide();
-				
-				$("#adSystemRoleName").focus();
-		    });
 			
 			$("#adGroupType").on('change', function() {
 				if ($("#adGroupType").val() != 'NONE') {
@@ -1195,16 +1210,6 @@
 				$("#createLinkValue").val($('#createLinkCheckbox').prop("checked"));
 			});
 
-			$("#modal-saml-systemrole").on('shown.bs.modal', function(e) {
-				if ($("#samlSystemRoleId").val() == 0) {
-					$("#samlSystemRoleName").val("");
-					$("#samlSystemRoleIdentifier").val("");
-					$("#samlSystemRoleIdentifier").prop("readonly", false);
-					$("#samlSystemRoleDescription").val("");
-				}
-				
-				$("#samlSystemRoleName").focus();
-		    });
 		});
 
 		function newAdRole() {
@@ -1214,12 +1219,31 @@
 			$("#adSystemRoleId").val("0");
 
 			$("#modal-ad-systemrole").modal("show");
+			
+			$("#adSystemRoleName").val("");
+			$("#adSystemRoleIdentifier").val("");
+			$("#adSystemRoleIdentifier").prop("readonly", false);
+			$("#adSystemRoleDescription").val("");
+			$("#adSystemRoleWeight").val("1");
+
+			$("#adGroupType").val("NONE");
+			$("#universalFieldSet").hide();
+			
+			$("#adSystemRoleName").focus();
 		}
 		
 		function newSamlRole() {
 			$("#samlSystemRoleId").val("0");
 
 			$("#modal-saml-systemrole").modal("show");
+			
+			$("#samlSystemRoleName").val("");
+			$("#samlSystemRoleIdentifier").val("");
+			$("#samlSystemRoleIdentifier").prop("readonly", false);
+			$("#samlSystemRoleDescription").val("");
+			$("#samlSystemRoleWeight").val("1");
+			
+			$("#samlSystemRoleName").focus();
 		}
 		
 		function editAdRole(roleRow) {
@@ -1231,19 +1255,25 @@
 			$("#adSystemRoleIdentifier").val(tds.get(1).innerHTML);
 			$("#adSystemRoleIdentifier").prop("readonly", true);
 			$("#adSystemRoleDescription").val(tds.get(2).innerHTML);
+			$("#adSystemRoleWeight").val(tds.get(4).innerHTML);
 
 			$("#modal-ad-systemrole").modal("show");
+			
+			$("#adGroupType").val("NONE");
+			$("#universalFieldSet").hide();
 		}
 		
 		function editSamlRole(roleRow) {
 			var id = $(roleRow).data("id");
 			var tds = $(roleRow).parent().parent().find("td");
+			console.log(tds);
 
 			$("#samlSystemRoleId").val(id);
 			$("#samlSystemRoleName").val(tds.get(0).innerHTML);
 			$("#samlSystemRoleIdentifier").val(tds.get(1).innerHTML);
 			$("#samlSystemRoleIdentifier").prop("readonly", true);
 			$("#samlSystemRoleDescription").val(tds.get(2).innerHTML);
+			$("#samlSystemRoleWeight").val(tds.get(4).innerHTML);
 
 			$("#modal-saml-systemrole").modal("show");
 		}

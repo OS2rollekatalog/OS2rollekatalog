@@ -857,6 +857,10 @@ public class KOMBITService {
 			itSystem.setIdentifier("KOMBIT");
 			itSystem.setSystemType(ItSystemType.KOMBIT);
 			itSystem.setLastUpdated(itSystemDTO.getChangedDate());
+
+			if (settingsService.isItSystemsHiddenByDefault()) {
+				itSystem.setHidden(true);
+			}
 		}
 		else {
 			return null;

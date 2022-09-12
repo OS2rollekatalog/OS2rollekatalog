@@ -1,3 +1,8 @@
+2022.09-12 - Release 2022r5
+- [ROL-203](https://os2web.atlassian.net/browse/ROL-203) – Nye systemer skal som default ligge som 'skjult' i oversigten under IT Systemer
+- [ROL-216](https://os2web.atlassian.net/browse/ROL-216) – Gruppering af roller i samme type (til licensstyring)
+- [ROL-217](https://os2web.atlassian.net/browse/ROL-217) – Håndtere inaktive brugere i OS2rollekatalog
+
 2022.07.27 - Release 2022r4
 - [ROL-205](https://os2web.atlassian.net/browse/ROL-205) – Indlæsning af stedfortrædere via API
 - [ROL-212](https://os2web.atlassian.net/browse/ROL-212) – Mail til leder ved tildeling af rolle fra manuelt it-system

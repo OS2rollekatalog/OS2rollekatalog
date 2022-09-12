@@ -204,6 +204,7 @@ public class RoleGroupController {
 		return "rolegroups/fragments/manage_users :: users";
 	}
 	
+	@SuppressWarnings("deprecation")
 	@GetMapping(value = "/ui/rolegroups/{id}/assignedUsersFragmentView")
 	public String assignedUsersFragmentView(Model model, @PathVariable("id") long roleGroupId) {
 		RoleGroup group = roleGroupService.getById(roleGroupId);

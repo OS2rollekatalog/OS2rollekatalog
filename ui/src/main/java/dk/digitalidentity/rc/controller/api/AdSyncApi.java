@@ -2,14 +2,12 @@ package dk.digitalidentity.rc.controller.api;
 
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.function.Function;
-import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -32,6 +30,7 @@ import dk.digitalidentity.rc.service.PendingADUpdateService;
 import dk.digitalidentity.rc.service.SystemRoleService;
 import dk.digitalidentity.rc.service.UserService;
 import dk.digitalidentity.rc.service.model.UserWithRole;
+import dk.digitalidentity.rc.util.StreamExtensions;
 import lombok.extern.slf4j.Slf4j;
 
 @RequireApiReadAccessRole
@@ -83,7 +82,7 @@ public class AdSyncApi {
 
 		// compute sets of userIds and itSystemIds that are dirty, filtered for duplicates
 		List<DirtyADGroup> updates = pendingADUpdateService.find100();
-
+		
 		// compute max
 		long maxId = 0;
 		try {
@@ -95,8 +94,10 @@ public class AdSyncApi {
 		}
 		
 		// filter duplicates (by identifier)
-		updates = updates.stream().filter(distinctByKey(s -> s.getIdentifier())).collect(Collectors.toList());
-
+		updates = updates.stream().filter(StreamExtensions.distinctByKey(s -> s.getIdentifier())).collect(Collectors.toList());
+		Map<String, SystemRole> dirtySystemRoles = new HashMap<>();
+		
+		// we want to add all systemRoles from itSystems that has weighted systemRoles if just one of them is dirty
 		for (DirtyADGroup update : updates) {
 			String groupName = update.getIdentifier();
 			SystemRole systemRole = systemRoleService.getFirstByIdentifierAndItSystemId(groupName, update.getItSystemId());
@@ -104,33 +105,79 @@ public class AdSyncApi {
 				log.warn("Could not find SystemRole '" + groupName + "' in itSystem " + update.getItSystemId());
 				continue;
 			}
-
+			
+			dirtySystemRoles.put(groupName, systemRole);
+			
+			boolean differentWeightedItSystem = systemRoleService.belongsToItSystemWithDifferentWeight(systemRole);
+			if (differentWeightedItSystem) {
+				for (SystemRole sr : systemRoleService.getByItSystem(systemRole.getItSystem())) {
+					dirtySystemRoles.put(sr.getIdentifier(), sr);
+				}
+			}
+		}
+		
+		for (SystemRole dirtySystemRole : dirtySystemRoles.values()) {
+			boolean differentWeightedItSystem = systemRoleService.belongsToItSystemWithDifferentWeight(dirtySystemRole);
+			
 			// get all users that has a given system-role
 			Set<String> sAMAccountNames = new HashSet<>();
-			List<UserRole> userRoles = systemRoleService.userRolesWithSystemRole(systemRole);
+			List<UserRole> userRoles = systemRoleService.userRolesWithSystemRole(dirtySystemRole);
 			for (UserRole userRole : userRoles) {
 				List<UserWithRole> users = userService.getUsersWithUserRole(userRole, true);
 
 				if (users != null && users.size() > 0) {
 					for (UserWithRole user : users) {
-						sAMAccountNames.add(user.getUser().getUserId());
+						if (differentWeightedItSystem) {
+							boolean skip = false;
+							for (SystemRole sr : dirtySystemRoles.values()) {
+								if (sr.getItSystem().getId() != dirtySystemRole.getItSystem().getId()) {
+									continue;
+								}
+								
+								boolean hasRole = userHasSystemRole(sr, user);
+								if (sr.getWeight() > dirtySystemRole.getWeight() && hasRole) {
+									skip = true;
+									break;
+								}
+							}
+							
+							if (!skip) {
+								sAMAccountNames.add(user.getUser().getUserId());
+							}
+						} else {
+							sAMAccountNames.add(user.getUser().getUserId());
+						}
 					}
 				}
 			}
 
 			ADGroupAssignments assignment = new ADGroupAssignments();
-			assignment.setGroupName(groupName);
+			assignment.setGroupName(dirtySystemRole.getIdentifier());
 			assignment.setSAMAccountNames(new ArrayList<>(sAMAccountNames));
 
 			result.getAssignments().add(assignment);
 		}
-
+		
 		result.setHead(maxId);
 		result.setMaxHead(pendingADUpdateService.findMaxHead());
 		
 		return new ResponseEntity<>(result, HttpStatus.OK);
 	}
 	
+	private boolean userHasSystemRole(SystemRole sr, UserWithRole user) {
+		boolean hasRole = false;
+		List<UserRole> userRolesWithSystemRole = systemRoleService.userRolesWithSystemRole(sr);
+		for (UserRole userRoleWithSystemRole : userRolesWithSystemRole) {
+			List<UserWithRole> usersWithRole = userService.getUsersWithUserRole(userRoleWithSystemRole, true);
+			hasRole = usersWithRole.stream().filter(u -> u.getUser().getUuid().equals(user.getUser().getUuid())).count() > 0;
+			if (hasRole) {
+				break;
+			}
+		}
+		
+		return hasRole;
+	}
+
 	@DeleteMapping("/api/ad/v2/sync/{head}")
 	public ResponseEntity<String> flagSyncPerformed(@PathVariable("head") long head, @RequestParam(name = "maxHead", required = false, defaultValue = "0") long maxHead) {
 		pendingADUpdateService.deleteByIdLessThan(head + 1, maxHead);
@@ -138,9 +185,4 @@ public class AdSyncApi {
 		return new ResponseEntity<>(HttpStatus.OK);
 	}
 	
-	private static <T> Predicate<T> distinctByKey(Function<? super T, ?> keyExtractor) {
-		Map<Object, Boolean> seen = new ConcurrentHashMap<>();
-
-		return t -> seen.putIfAbsent(keyExtractor.apply(t), Boolean.TRUE) == null;
-	}
 }

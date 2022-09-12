@@ -13,9 +13,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.function.Function;
-import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -84,13 +81,14 @@ import dk.digitalidentity.rc.service.model.UserWithRole;
 import dk.digitalidentity.rc.service.model.UserWithRole2;
 import dk.digitalidentity.rc.service.model.UserWithRoleAndDates;
 import dk.digitalidentity.rc.util.IdentifierGenerator;
+import dk.digitalidentity.rc.util.StreamExtensions;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 @Service
 @EnableCaching
 public class UserService {
-	private static final String SELECT_THIN_USERS_SQL = "SELECT u.uuid AS uuid, u.name AS username, user_id AS userid, p.name AS title, o.name AS orgunitName, o.uuid AS orgunitUuid FROM users u JOIN positions p ON p.user_uuid = u.uuid JOIN ous o ON o.uuid = p.ou_uuid WHERE u.active = 1";
+	private static final String SELECT_THIN_USERS_SQL = "SELECT u.uuid AS uuid, u.name AS username, user_id AS userid, p.name AS title, o.name AS orgunitName, o.uuid AS orgunitUuid FROM users u JOIN positions p ON p.user_uuid = u.uuid JOIN ous o ON o.uuid = p.ou_uuid WHERE u.deleted = 0";
 
 	@Autowired
 	private UserDao userDao;
@@ -148,27 +146,27 @@ public class UserService {
 	}
 
 	public long countAllWithRoleGroup(RoleGroup role) {
-		return userDao.countByActiveTrueAndRoleGroupAssignmentsRoleGroup(role);
+		return userDao.countByDeletedFalseAndRoleGroupAssignmentsRoleGroup(role);
 	}
 
 	public long countAllWithRole(UserRole userRole) {
-		return userDao.countByActiveTrueAndUserRoleAssignmentsUserRole(userRole);
+		return userDao.countByDeletedFalseAndUserRoleAssignmentsUserRole(userRole);
 	}
 
 	public List<User> getByExtUuid(String uuid) {
-		return userDao.findByExtUuidAndActiveTrue(uuid);
+		return userDao.findByExtUuidAndDeletedFalse(uuid);
 	}
 
 	public User getByUuid(String uuid) {
-		return userDao.findByUuidAndActiveTrue(uuid);
+		return userDao.findByUuidAndDeletedFalse(uuid);
 	}
 
 	public User getByUserId(String userId) {
-		return userDao.findByUserIdAndActiveTrue(userId);
+		return userDao.findByUserIdAndDeletedFalse(userId);
 	}
 	
 	public List<User> findByCpr(String cpr) {
-		return userDao.findByCprAndActiveTrue(cpr);
+		return userDao.findByCprAndDeletedFalse(cpr);
 	}
 	
 	@SuppressWarnings("deprecation")
@@ -182,7 +180,7 @@ public class UserService {
 	}
 
 	public List<User> getAll() {
-		return userDao.findByActiveTrue();
+		return userDao.findByDeletedFalse();
 	}
 	
 	@SuppressWarnings("deprecation")
@@ -200,7 +198,7 @@ public class UserService {
 	}
 
 	public List<User> getAllInactive() {
-		return userDao.findByActiveFalse();
+		return userDao.findByDeletedTrue();
 	}
 
 	// utility methods
@@ -252,7 +250,7 @@ public class UserService {
 
 	// this method exists solely so we can intercept it ;)
 	public void activateUser(User user) {
-		user.setActive(true);
+		user.setDeleted(false);
 	}
 
 	public void removePosition(User user, Position position) {
@@ -453,9 +451,9 @@ public class UserService {
 	// TODO: this method is only used by the ReadOnlyApi, and very likely noone has any use for
 	//       this method, so deprecate it in future versions of the API
 	public List<UserRole> getUserRolesAssignedDirectly(String id) throws UserNotFoundException {
-		User user = userDao.findByUuidAndActiveTrue(id);
+		User user = userDao.findByUuidAndDeletedFalse(id);
 		if (user == null) {
-			User byUserId = userDao.findByUserIdAndActiveTrue(id);
+			User byUserId = userDao.findByUserIdAndDeletedFalse(id);
 
 			if (byUserId == null) {
 				throw new UserNotFoundException("User with id '" + id + "' was not found in the database");
@@ -469,7 +467,7 @@ public class UserService {
 	// TODO: this method is only used by the ReadOnlyApi, and very likely noone has any use for
 	//       this method, so deprecate it in future versions of the API
 	public List<RoleGroup> getRoleGroupsAssignedDirectly(String uuid) throws UserNotFoundException {
-		User user = userDao.findByUuidAndActiveTrue(uuid);
+		User user = userDao.findByUuidAndDeletedFalse(uuid);
 		if (user == null) {
 			throw new UserNotFoundException("User with uuid '" + uuid + "' was not found in the database");
 		}
@@ -478,9 +476,9 @@ public class UserService {
 	}
 
 	public String getUserNameId(String userId) throws UserNotFoundException {
-		User user = userDao.findByUserIdAndActiveTrue(userId);
+		User user = userDao.findByUserIdAndDeletedFalse(userId);
 		if (user == null) {
-			List<User> users = userDao.findByExtUuidAndActiveTrue(userId);
+			List<User> users = userDao.findByExtUuidAndDeletedFalse(userId);
 			if (users.size() != 1) {
 				throw new UserNotFoundException("User with userId '" + userId + "' was not found in the database");
 			}
@@ -511,7 +509,7 @@ public class UserService {
 	 * Returns all UserRoles, no matter how they are assigned to the user
 	 */
 	public List<UserRole> getAllUserRoles(String userId, List<ItSystem> itSystems) throws UserNotFoundException {
-		User user = userDao.findByUserIdAndActiveTrue(userId);
+		User user = userDao.findByUserIdAndDeletedFalse(userId);
 		if (user == null) {
 			throw new UserNotFoundException("User with userId '" + userId + "' was not found in the database");
 		}
@@ -918,13 +916,18 @@ public class UserService {
 			}
 		}
 
-		// TODO: this should be temporary code - we need it for now to support the old way of using the UI, but
-		// eventually we should look into a redesign of the UI for UserRoles within RoleGroups
-
 		// expand rolegroups
+		Set<Long> seenRoleGroups = new HashSet<>();
 		List<RoleAssignedToUserDTO> expanded = new ArrayList<>();
 		for (RoleAssignedToUserDTO assignment : result) {
 			if (assignment.getType().equals(RoleAssignmentType.ROLEGROUP)) {
+				// no reason to expand the same RoleGroup multiple times
+				if (seenRoleGroups.contains(assignment.getRoleId())) {
+					continue;
+				}
+				
+				seenRoleGroups.add(assignment.getRoleId());
+
 				RoleGroup roleGroup = roleGroupDao.findById(assignment.getRoleId());
 
 				if (roleGroup != null && roleGroup.getUserRoleAssignments() != null) {
@@ -1279,7 +1282,7 @@ public class UserService {
 		boolean canEdit = SecurityUtil.getRoles().contains(Constants.ROLE_ADMINISTRATOR);
 
 		for (UserRoleGroupAssignment assignment : userRoleGroupAssignmentDao.findByRoleGroup(roleGroup)) {
-			if (!assignment.getUser().isActive()) {
+			if (assignment.getUser().isDeleted()) {
 				continue;
 			}
 			UserWithRole2 mapping = new UserWithRole2();
@@ -1293,7 +1296,7 @@ public class UserService {
 		}
 		
 		for (PositionRoleGroupAssignment assignment : positionRoleGroupAssignmentDao.findByRoleGroup(roleGroup)) {
-			if (!assignment.getPosition().getUser().isActive()) {
+			if (assignment.getPosition().getUser().isDeleted()) {
 				continue;
 			}
 			UserWithRole2 mapping = new UserWithRole2();
@@ -1315,7 +1318,7 @@ public class UserService {
 		boolean canEdit = SecurityUtil.getRoles().contains(Constants.ROLE_ADMINISTRATOR);
 
 		for (UserUserRoleAssignment assignment : userUserRoleAssignmentDao.findByUserRole(userRole)) {
-			if (!assignment.getUser().isActive()) {
+			if (assignment.getUser().isDeleted()) {
 				continue;
 			}
 			UserWithRole2 mapping = new UserWithRole2();
@@ -1329,7 +1332,7 @@ public class UserService {
 		}
 		
 		for (PositionUserRoleAssignment assignment : positionUserRoleAssignmentDao.findByUserRole(userRole)) {
-			if (!assignment.getPosition().getUser().isActive()) {
+			if (assignment.getPosition().getUser().isDeleted()) {
 				continue;
 			}
 			UserWithRole2 mapping = new UserWithRole2();
@@ -1354,7 +1357,7 @@ public class UserService {
 		List<UserWithRole> result = new ArrayList<>();
 		
 		// this we ALWAYS need to do
-		for (User user : userDao.findByActiveTrueAndUserRoleAssignmentsUserRoleAndUserRoleAssignmentsInactive(userRole, false)) {
+		for (User user : userDao.findByDeletedFalseAndUserRoleAssignmentsUserRoleAndUserRoleAssignmentsInactive(userRole, false)) {
 			UserWithRole mapping = new UserWithRole();
 			mapping.setUser(user);
 			mapping.setAssignedThrough(AssignedThrough.DIRECT);
@@ -1367,7 +1370,7 @@ public class UserService {
 
 		// get users that have roleGroup assigned
 		for (RoleGroup roleGroup : roleGroups) {
-			for (User user : userDao.findByActiveTrueAndRoleGroupAssignmentsRoleGroupAndRoleGroupAssignmentsInactive(roleGroup, false)) {
+			for (User user : userDao.findByDeletedFalseAndRoleGroupAssignmentsRoleGroupAndRoleGroupAssignmentsInactive(roleGroup, false)) {
 				UserWithRole mapping = new UserWithRole();
 				mapping.setUser(user);
 				mapping.setAssignedThrough(AssignedThrough.ROLEGROUP);
@@ -1382,7 +1385,7 @@ public class UserService {
 			if (!configuration.getTitles().isEnabled()) {
 				// get positions that have userRole assigned
 				for (Position position : positionService.getAllWithRole(userRole, false)) {
-					if (position.getUser().isActive()) {
+					if (!position.getUser().isDeleted()) {
 						UserWithRole mapping = new UserWithRole();
 						mapping.setUser(position.getUser());
 						mapping.setAssignedThrough(AssignedThrough.POSITION);
@@ -1394,7 +1397,7 @@ public class UserService {
 				// get positions that have roleGroup assigned
 				for (RoleGroup roleGroup : roleGroups) {
 					for (Position position : positionService.getAllWithRoleGroup(roleGroup, false)) {
-						if (position.getUser().isActive()) {
+						if (!position.getUser().isDeleted()) {
 							UserWithRole mapping = new UserWithRole();
 							mapping.setUser(position.getUser());
 							mapping.setAssignedThrough(AssignedThrough.POSITION);
@@ -1435,7 +1438,7 @@ public class UserService {
 							continue;
 						}
 						
-						if (position.getUser().isActive() && !position.getUser().isDoNotInherit()) {
+						if (!position.getUser().isDeleted() && !position.getUser().isDoNotInherit()) {
 							UserWithRole mapping = new UserWithRole();
 							mapping.setUser(position.getUser());
 
@@ -1490,7 +1493,7 @@ public class UserService {
 								continue;
 							}
 							
-							if (position.getUser().isActive() && !position.getUser().isDoNotInherit()) {
+							if (!position.getUser().isDeleted() && !position.getUser().isDoNotInherit()) {
 								UserWithRole mapping = new UserWithRole();
 								mapping.setUser(position.getUser());
 								
@@ -1524,7 +1527,7 @@ public class UserService {
 		
 		// this we ALWAYS need to do
 		@SuppressWarnings("deprecation") // ok, it is for UI
-		List<User> userRoleUsers = userDao.findByActiveTrueAndUserRoleAssignmentsUserRole(userRole);
+		List<User> userRoleUsers = userDao.findByDeletedFalseAndUserRoleAssignmentsUserRole(userRole);
 		for (User user : userRoleUsers.stream().distinct().collect(Collectors.toList())) {
 			List<UserUserRoleAssignment> userRoleAssignments = user.getUserRoleAssignments().stream().filter(a -> a.getUserRole().equals(userRole)).collect(Collectors.toList());
 			for (UserUserRoleAssignment userUserRoleAssignment : userRoleAssignments) {
@@ -1546,7 +1549,7 @@ public class UserService {
 		// get users that have roleGroup assigned
 		for (RoleGroup roleGroup : roleGroups) {
 			@SuppressWarnings("deprecation") // ok, it is for UI
-			List<User> roleGroupUsers = userDao.findByActiveTrueAndRoleGroupAssignmentsRoleGroup(roleGroup);
+			List<User> roleGroupUsers = userDao.findByDeletedFalseAndRoleGroupAssignmentsRoleGroup(roleGroup);
 			for (User user : roleGroupUsers.stream().distinct().collect(Collectors.toList())) {
 				List<UserRoleGroupAssignment> roleGroupAssignments = user.getRoleGroupAssignments().stream().filter(a -> a.getRoleGroup().equals(roleGroup)).collect(Collectors.toList());
 				for (UserRoleGroupAssignment userRoleGroupAssignment : roleGroupAssignments) {
@@ -1571,7 +1574,7 @@ public class UserService {
 		
 		// this we ALWAYS need to do
 		@SuppressWarnings("deprecation") // ok, it is for UI
-		List<User> userRoleUsers = userDao.findByActiveTrueAndRoleGroupAssignmentsRoleGroup(roleGroup);
+		List<User> userRoleUsers = userDao.findByDeletedFalseAndRoleGroupAssignmentsRoleGroup(roleGroup);
 		for (User user : userRoleUsers.stream().distinct().collect(Collectors.toList())) {
 			List<UserRoleGroupAssignment> roleGroupAssignments = user.getRoleGroupAssignments().stream().filter(a -> a.getRoleGroup().equals(roleGroup)).collect(Collectors.toList());
 			for (UserRoleGroupAssignment roleGroupAssignment : roleGroupAssignments) {
@@ -1595,7 +1598,7 @@ public class UserService {
 		
 		// this we ALWAYS need to do
 		@SuppressWarnings("deprecation") // ok, it is for UI
-		List<User> userRoleUsers = userDao.findByActiveTrueAndUserRoleAssignmentsUserRole(userRole);
+		List<User> userRoleUsers = userDao.findByDeletedFalseAndUserRoleAssignmentsUserRole(userRole);
 		for (User user : userRoleUsers) {
 			UserWithRoleAndDates mapping = new UserWithRoleAndDates();
 			mapping.setUser(user);
@@ -1615,7 +1618,7 @@ public class UserService {
 		// get users that have roleGroup assigned
 		for (RoleGroup roleGroup : roleGroups) {
 			@SuppressWarnings("deprecation") // ok, it is for UI
-			List<User> roleGroupUsers = userDao.findByActiveTrueAndRoleGroupAssignmentsRoleGroup(roleGroup);
+			List<User> roleGroupUsers = userDao.findByDeletedFalseAndRoleGroupAssignmentsRoleGroup(roleGroup);
 			for (User user : roleGroupUsers) {
 				UserWithRoleAndDates mapping = new UserWithRoleAndDates();
 				mapping.setUser(user);
@@ -1636,7 +1639,7 @@ public class UserService {
 		
 		// this we ALWAYS need to do
 		@SuppressWarnings("deprecation") // ok, it is for UI
-		List<User> userRoleUsers = userDao.findByActiveTrueAndRoleGroupAssignmentsRoleGroup(roleGroup);
+		List<User> userRoleUsers = userDao.findByDeletedFalseAndRoleGroupAssignmentsRoleGroup(roleGroup);
 		for (User user : userRoleUsers) {
 			UserWithRoleAndDates mapping = new UserWithRoleAndDates();
 			mapping.setUser(user);
@@ -1662,7 +1665,7 @@ public class UserService {
 				}
 	
 				for (Position position : positionService.findByOrgUnit(child)) {
-					if (position.getUser().isActive() && !position.getUser().isDoNotInherit()) {
+					if (!position.getUser().isDeleted() && !position.getUser().isDoNotInherit()) {
 						UserWithRole mapping = new UserWithRole();
 						mapping.setUser(position.getUser());
 						mapping.setAssignedThrough(assignedThrough);
@@ -1684,7 +1687,7 @@ public class UserService {
 		List<UserWithRole> result = new ArrayList<>();
 
 		// get users that have roleGroup assigned
-		for (User user : userDao.findByActiveTrueAndRoleGroupAssignmentsRoleGroupAndRoleGroupAssignmentsInactive(roleGroup, false)) {
+		for (User user : userDao.findByDeletedFalseAndRoleGroupAssignmentsRoleGroupAndRoleGroupAssignmentsInactive(roleGroup, false)) {
 			UserWithRole mapping = new UserWithRole();
 			mapping.setUser(user);
 			mapping.setAssignedThrough(AssignedThrough.ROLEGROUP);
@@ -1696,7 +1699,7 @@ public class UserService {
 			if (!configuration.getTitles().isEnabled()) {
 				// get positions that have roleGroup assigned
 				for (Position position : positionService.getAllWithRoleGroup(roleGroup, false)) {
-					if (position.getUser().isActive()) {
+					if (!position.getUser().isDeleted()) {
 						UserWithRole mapping = new UserWithRole();
 						mapping.setUser(position.getUser());
 						mapping.setAssignedThrough(AssignedThrough.POSITION);
@@ -1739,7 +1742,7 @@ public class UserService {
 							}
 						}
 						
-						if (position.getUser().isActive() && !position.getUser().isDoNotInherit()) {
+						if (!position.getUser().isDeleted() && !position.getUser().isDoNotInherit()) {
 							UserWithRole mapping = new UserWithRole();
 							mapping.setUser(position.getUser());
 							mapping.setAssignedThrough(AssignedThrough.ORGUNIT);
@@ -2198,7 +2201,7 @@ public class UserService {
 		Set<User> users = new HashSet<>();
 
 		for (Position position : positions) {
-			if (position.getUser().isActive()) {
+			if (!position.getUser().isDeleted()) {
 				users.add(position.getUser());
 			}
 		}
@@ -2259,7 +2262,7 @@ public class UserService {
 	}
 
 	public User getLatestUpdatedUser() {
-		return userDao.getTopByActiveTrueOrderByLastUpdatedDesc();
+		return userDao.getTopByDeletedFalseOrderByLastUpdatedDesc();
 	}
 	
 	public void removeAllDirectlyAssignedRolesAndInformUser(User user) {
@@ -2276,7 +2279,7 @@ public class UserService {
 		
 		builder.append("</ul>");
 		
-		if (user.getEmail() != null && user.isActive() && user.getEmail().length() > 0) {
+		if (user.getEmail() != null && !user.isDeleted() && user.getEmail().length() > 0) {
 			emailService.sendMessage(user.getEmail(), "Ændringer i dine rettigheder", builder.toString());
 		}
 	}
@@ -2343,7 +2346,7 @@ public class UserService {
 		
 		builder.append("</ul>");
 		
-		if (user.getEmail() != null && user.isActive() && user.getEmail().length() > 0) {
+		if (user.getEmail() != null && !user.isDeleted() && user.getEmail().length() > 0) {
 			emailService.sendMessage(user.getEmail(), "Ændringer i dine rettigheder", builder.toString());
 		}
 	}
@@ -2375,21 +2378,16 @@ public class UserService {
 		}
 	}
 
-	public static <T> Predicate<T> distinctByKey(Function<? super T, ?> keyExtractor) {
-	    Set<Object> seen = ConcurrentHashMap.newKeySet();
-	    return t -> seen.add(keyExtractor.apply(t));
-	}
-
 	public List<User> findManagers() {
 		return orgUnitService.getAllWithManager().stream()
 				.map(o -> o.getManager())
-				.filter(distinctByKey(User::getUuid))
+				.filter(StreamExtensions.distinctByKey(User::getUuid))
 				.collect(Collectors.toList());
 	}
 	
 	@Transactional(rollbackFor = Exception.class)
 	public void removeInactiveSubstituteManagers() {
-		List<User> usersWithInactiveSubstitute = userDao.findByManagerSubstituteActiveFalse();
+		List<User> usersWithInactiveSubstitute = userDao.findByManagerSubstituteDeletedTrue();
 		for (User user : usersWithInactiveSubstitute) {
 			user.setManagerSubstitute(null);
 		}

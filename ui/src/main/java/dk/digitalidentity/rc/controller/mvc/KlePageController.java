@@ -6,9 +6,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.function.Function;
-import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -36,6 +33,7 @@ import dk.digitalidentity.rc.service.KleService;
 import dk.digitalidentity.rc.service.OrgUnitService;
 import dk.digitalidentity.rc.service.UserService;
 import dk.digitalidentity.rc.service.model.KleAssignment;
+import dk.digitalidentity.rc.util.StreamExtensions;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
@@ -157,29 +155,29 @@ public class KlePageController {
 		}
 
 		// remove orgUnit duplicates
-		allOrgUnits = allOrgUnits.stream().filter(distinctByKey(OrgUnit::getUuid)).collect(Collectors.toList());
+		allOrgUnits = allOrgUnits.stream().filter(StreamExtensions.distinctByKey(OrgUnit::getUuid)).collect(Collectors.toList());
 		
 		// get users from selected orgUnits
 		List<User> users = allOrgUnits.stream().flatMap(ou -> userService.findByOrgUnit(ou).stream()).collect(Collectors.toList());
 
 		// append users that have that KLE assigned directly
 		
-		List<UserKLEMapping> userMappings = userKLEMappingDao.findByCodeAndUserActiveTrue(code);
+		List<UserKLEMapping> userMappings = userKLEMappingDao.findByCodeAndUserDeletedFalse(code);
 		
 		// if we are looking at a xx.xx.xx KLE, also find those with access to xx.xx
 		if (code.length() > 5) {
-			userMappings.addAll(userKLEMappingDao.findByCodeAndUserActiveTrue(code.substring(0, 5)));
+			userMappings.addAll(userKLEMappingDao.findByCodeAndUserDeletedFalse(code.substring(0, 5)));
 		}
 
 		// if we are looking at a xx.xx KLE, also find those with access to xx
 		if (code.length() > 2) {
-			userMappings.addAll(userKLEMappingDao.findByCodeAndUserActiveTrue(code.substring(0, 2)));
+			userMappings.addAll(userKLEMappingDao.findByCodeAndUserDeletedFalse(code.substring(0, 2)));
 		}
 		
 		users.addAll(userMappings.stream().map(UserKLEMapping::getUser).collect(Collectors.toList()));
 
 		// remove use duplicates
-		users = users.stream().filter(distinctByKey(User::getUuid)).collect(Collectors.toList());
+		users = users.stream().filter(StreamExtensions.distinctByKey(User::getUuid)).collect(Collectors.toList());
 
 		String in = messageSource.getMessage("html.word.in", null, locale);
 
@@ -193,12 +191,6 @@ public class KlePageController {
 		model.addAttribute("orgUnits", allOrgUnits);
 
 		return "kle/view";
-	}
-
-	private static <T> Predicate<T> distinctByKey(Function<? super T, ?> keyExtractor) {
-		Set<Object> seen = ConcurrentHashMap.newKeySet();
-
-		return t -> seen.add(keyExtractor.apply(t));
 	}
 
 	private List<OrgUnit> getAllChildren(OrgUnit orgUnit) {

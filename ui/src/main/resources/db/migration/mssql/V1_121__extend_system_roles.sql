@@ -1,0 +1,1 @@
+ALTER TABLE system_roles ADD weight BIGINT NOT NULL DEFAULT 1;

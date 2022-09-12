@@ -47,6 +47,9 @@ public class SystemRole implements AuditLoggable {
 	@JsonIgnore
 	@Column(nullable = true)
 	private String description;
+	
+	@Column(nullable = false)
+	private int weight;
 
 	@JsonIgnore
 	@ManyToOne(fetch = FetchType.LAZY)

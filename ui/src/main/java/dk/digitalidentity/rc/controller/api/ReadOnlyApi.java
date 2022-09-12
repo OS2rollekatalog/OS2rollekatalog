@@ -132,7 +132,7 @@ public class ReadOnlyApi {
 	}
 	
 	@RequestMapping(value = "/api/read/itsystem/{system}", method = RequestMethod.GET)
-	public ResponseEntity<List<UserReadWrapperDTO>> getUsersWithGivenUserRoles(@PathVariable("system") String itSystemIdentifier, @RequestParam(name = "indirectRoles", defaultValue = "false") boolean findIndirectlyAssignedRoles) {
+	public ResponseEntity<List<UserReadWrapperDTO>> getUsersWithGivenUserRoles(@PathVariable("system") String itSystemIdentifier, @RequestParam(name = "indirectRoles", defaultValue = "false") boolean findIndirectlyAssignedRoles, @RequestParam(name = "withDescription", defaultValue = "false") boolean withDescription) {
 		List<UserReadWrapperDTO> result =  new ArrayList<>();
 
 		ItSystem itSystem = itSystemService.getFirstByIdentifier(itSystemIdentifier);
@@ -147,7 +147,7 @@ public class ReadOnlyApi {
 
 		List<UserRole> userRoles = userRoleService.getByItSystem(itSystem);
 		for (UserRole userRole : userRoles) {
-			UserReadWrapperDTO dto = getUsersWithUserRole(userRole, findIndirectlyAssignedRoles);
+			UserReadWrapperDTO dto = getUsersWithUserRole(userRole, findIndirectlyAssignedRoles, withDescription);
 
 			result.add(dto);
 		}
@@ -156,21 +156,24 @@ public class ReadOnlyApi {
 	}
 	
 	@RequestMapping(value = "/api/read/assigned/{id}", method = RequestMethod.GET)
-	public ResponseEntity<UserReadWrapperDTO> getUsersWithGivenUserRole(@PathVariable("id") long userRoleId, @RequestParam(name = "indirectRoles", defaultValue = "false") boolean findIndirectlyAssignedRoles) {
+	public ResponseEntity<UserReadWrapperDTO> getUsersWithGivenUserRole(@PathVariable("id") long userRoleId, @RequestParam(name = "indirectRoles", defaultValue = "false") boolean findIndirectlyAssignedRoles, @RequestParam(name = "withDescription", defaultValue = "false") boolean withDescription) {
 		UserRole userRole = userRoleService.getById(userRoleId);
 		if (userRole == null) {
 			return new ResponseEntity<>(new UserReadWrapperDTO(), HttpStatus.NOT_FOUND);
 		}
 
-		UserReadWrapperDTO dto = getUsersWithUserRole(userRole, findIndirectlyAssignedRoles);
+		UserReadWrapperDTO dto = getUsersWithUserRole(userRole, findIndirectlyAssignedRoles, withDescription);
 
 		return new ResponseEntity<>(dto, HttpStatus.OK);
 	}
 
-	private UserReadWrapperDTO getUsersWithUserRole(UserRole userRole, boolean indirect) {
+	private UserReadWrapperDTO getUsersWithUserRole(UserRole userRole, boolean indirect, boolean withDescription) {
 		UserReadWrapperDTO dto = new UserReadWrapperDTO();
 		dto.setRoleId(userRole.getId());
 		dto.setRoleIdentifier(userRole.getIdentifier());
+		if (withDescription) {
+			dto.setRoleDescription(userRole.getDescription());
+		}
 		dto.setRoleName(userRole.getName());		
 		dto.setSystemRoles(new ArrayList<>());
 		dto.setAssignments(new ArrayList<>());

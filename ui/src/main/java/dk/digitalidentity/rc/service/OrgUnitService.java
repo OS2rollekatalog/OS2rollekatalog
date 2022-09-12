@@ -14,9 +14,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.function.Function;
-import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 import org.apache.commons.collections4.CollectionUtils;
@@ -56,6 +53,7 @@ import dk.digitalidentity.rc.service.model.OrgUnitWithRole;
 import dk.digitalidentity.rc.service.model.OrgUnitWithRole2;
 import dk.digitalidentity.rc.service.model.RoleAssignedToOrgUnitDTO;
 import dk.digitalidentity.rc.service.model.RoleWithDateDTO;
+import dk.digitalidentity.rc.util.StreamExtensions;
 
 @Service
 @EnableScheduling
@@ -170,7 +168,7 @@ public class OrgUnitService {
 		Map<String, String> result = new HashMap<String, String>();
 		
 		if (orgUnit.getManager() != null) {
-			if (orgUnit.getManager().getManagerSubstitute() != null && orgUnit.getManager().getManagerSubstitute().isActive() && StringUtils.hasLength(orgUnit.getManager().getManagerSubstitute().getEmail())) {
+			if (orgUnit.getManager().getManagerSubstitute() != null && !orgUnit.getManager().getManagerSubstitute().isDeleted() && StringUtils.hasLength(orgUnit.getManager().getManagerSubstitute().getEmail())) {
 				result.put(orgUnit.getManager().getManagerSubstitute().getEmail(), orgUnit.getManager().getManagerSubstitute().getName());
 			}
 
@@ -190,7 +188,7 @@ public class OrgUnitService {
 
 		String userId = SecurityUtil.getUserId();
 		if (userId != null) {
-			User user = userDao.findByUserIdAndActiveTrue(userId);
+			User user = userDao.findByUserIdAndDeletedFalse(userId);
 
 			if (user != null) {
 				if (SecurityUtil.hasRole(Constants.ROLE_MANAGER)) {
@@ -307,7 +305,7 @@ public class OrgUnitService {
 			assignment.setContainsTitles(!titlesByUuid.isEmpty());
 			assignment.setTitles(new ArrayList<>(titlesByUuid));
 		} else {
-			Collection<User> usersById = CollectionUtils.emptyIfNull(userDao.findByUuidInAndActiveTrue(exceptedUsers));
+			Collection<User> usersById = CollectionUtils.emptyIfNull(userDao.findByUuidInAndDeletedFalse(exceptedUsers));
 			assignment.setContainsExceptedUsers(!usersById.isEmpty());
 			assignment.setExceptedUsers(new ArrayList<>(usersById));
 		}
@@ -333,7 +331,7 @@ public class OrgUnitService {
 		
 		// Save changes to excepted users if there has been any change
 		if (assignment.isContainsExceptedUsers()) {
-			Collection<User> usersById = (exceptedUsers != null && exceptedUsers.size() > 0) ? (CollectionUtils.emptyIfNull(userDao.findByUuidInAndActiveTrue(exceptedUsers))) : Collections.emptyList();
+			Collection<User> usersById = (exceptedUsers != null && exceptedUsers.size() > 0) ? (CollectionUtils.emptyIfNull(userDao.findByUuidInAndDeletedFalse(exceptedUsers))) : Collections.emptyList();
 			if (usersById.isEmpty()) {
 				removeRoleGroupAssignment(ou, assignment.getId());
 				return true;
@@ -413,7 +411,7 @@ public class OrgUnitService {
 			assignment.setTitles(new ArrayList<>(titlesByUuid));
 		}
 		else {
-			Collection<User> usersById = CollectionUtils.emptyIfNull(userDao.findByUuidInAndActiveTrue(exceptedUsers));
+			Collection<User> usersById = CollectionUtils.emptyIfNull(userDao.findByUuidInAndDeletedFalse(exceptedUsers));
 			assignment.setContainsExceptedUsers(!usersById.isEmpty());
 			assignment.setExceptedUsers(new ArrayList<>(usersById));
 		}
@@ -439,7 +437,7 @@ public class OrgUnitService {
 		
 		// Save changes to excepted users if there has been any change
 		if (assignment.isContainsExceptedUsers()) {
-			Collection<User> usersById = (exceptedUsers != null && exceptedUsers.size() > 0) ? (CollectionUtils.emptyIfNull(userDao.findByUuidInAndActiveTrue(exceptedUsers))) : Collections.emptyList();
+			Collection<User> usersById = (exceptedUsers != null && exceptedUsers.size() > 0) ? (CollectionUtils.emptyIfNull(userDao.findByUuidInAndDeletedFalse(exceptedUsers))) : Collections.emptyList();
 			if (usersById.isEmpty()) {
 				removeUserRoleAssignment(ou, assignment.getId());
 				return true;
@@ -566,11 +564,6 @@ public class OrgUnitService {
 
 		return getUserRoles(orgUnit, inherit);
 	}
-	
-	private static <T> Predicate<T> distinctByKey(Function<? super T, ?> keyExtractor) {
-		Map<Object, Boolean> seen = new ConcurrentHashMap<>();
-		return t -> seen.putIfAbsent(keyExtractor.apply(t), Boolean.TRUE) == null;
-	}
 
 	public List<Title> getTitles(OrgUnit orgUnit) {
 		return positionService.findByOrgUnit(orgUnit)
@@ -578,7 +571,7 @@ public class OrgUnitService {
 // ROL-117, they want to see all titles, including inactive ones
 				.filter(p -> p.getTitle() != null) // && p.getUser().isActive())
 				.map(p -> p.getTitle())
-				.filter(distinctByKey(t -> t.getUuid()))
+				.filter(StreamExtensions.distinctByKey(t -> t.getUuid()))
 				.collect(Collectors.toList());
 	}
 

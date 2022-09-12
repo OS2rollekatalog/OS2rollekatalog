@@ -30,4 +30,7 @@ public class UserView {
 	@Column
 	private String orgunitUuid;
 
+	@Column
+	private boolean disabled;
+
 }

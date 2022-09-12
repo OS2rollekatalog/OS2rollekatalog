@@ -56,8 +56,11 @@ public class User implements AuditLoggable {
 	private Date lastUpdated;
 
 	@JsonIgnore
-	@Column(name = "active")
-	private boolean active;
+	@Column(name = "deleted")
+	private boolean deleted;
+
+	@Column(name = "disabled")
+	private boolean disabled;
 
 	@Column(name = "do_not_inherit")
 	private boolean doNotInherit;

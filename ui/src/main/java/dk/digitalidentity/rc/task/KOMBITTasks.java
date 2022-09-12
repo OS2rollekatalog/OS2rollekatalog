@@ -33,7 +33,7 @@ public class KOMBITTasks {
 
 			initialized = true;
 
-			if (itSystemService.getBySystemType(ItSystemType.KOMBIT).size() == 0) {
+			if (itSystemService.getBySystemType(ItSystemType.KOMBIT).size() <= 1) {
 				kombitService.readAndUpdateItSystems();
 			}
 		}

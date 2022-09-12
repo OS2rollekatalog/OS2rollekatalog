@@ -23,6 +23,7 @@ import dk.digitalidentity.rc.controller.api.dto.UserResponseDTO;
 import dk.digitalidentity.rc.controller.api.dto.UserResponseWithOIOBPPDTO;
 import dk.digitalidentity.rc.controller.api.dto.UserResponseWithRolesDTO;
 import dk.digitalidentity.rc.dao.model.ItSystem;
+import dk.digitalidentity.rc.dao.model.SystemRole;
 import dk.digitalidentity.rc.dao.model.SystemRoleAssignment;
 import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserRole;
@@ -31,6 +32,7 @@ import dk.digitalidentity.rc.exceptions.UserNotFoundException;
 import dk.digitalidentity.rc.log.AuditLogger;
 import dk.digitalidentity.rc.security.RequireApiReadAccessRole;
 import dk.digitalidentity.rc.service.ItSystemService;
+import dk.digitalidentity.rc.service.SystemRoleService;
 import dk.digitalidentity.rc.service.UserService;
 import lombok.extern.slf4j.Slf4j;
 
@@ -47,6 +49,9 @@ public class UserApi {
 	
 	@Autowired
 	private ItSystemService itSystemService;
+	
+	@Autowired
+	private SystemRoleService systemRoleService;
 
 	@RequestMapping(value = "/api/user/{userid}/roles", method = RequestMethod.GET)
 	public ResponseEntity<UserResponseWithOIOBPPDTO> getUserRoles(@PathVariable("userid") String userId, @RequestParam(name = "system", required = false) String itSystemIdentifier) throws Exception {
@@ -124,25 +129,49 @@ public class UserApi {
 			Set<String> dataRoleSet = new HashSet<>();
 			Set<String> functionRoleSet = new HashSet<>();
 			Map<String, String> roleMap = new HashMap<>();
-
+			
+			Map<String, SystemRole> allAssignedSystemRoles = new HashMap<>();
 			for (UserRole role : roles) {
 				// might be counterintuitive, but while the output focuses on systemroles, we
 				// are sending a map of userRoles, for logging purposes, so it matches the OIO-BPP output (again, logging consistency)
 				roleMap.put(role.getIdentifier(), role.getName() + " (" + role.getItSystem().getName() + ")");
 				
-				for (SystemRoleAssignment systemRole : role.getSystemRoleAssignments()) {
-					systemRoleSet.add(systemRole.getSystemRole().getIdentifier());
+				for (SystemRoleAssignment systemRoleAssignment : role.getSystemRoleAssignments()) {
+					allAssignedSystemRoles.put(systemRoleAssignment.getSystemRole().getIdentifier(), systemRoleAssignment.getSystemRole());
+				}
+			}
 
-					switch (systemRole.getSystemRole().getRoleType()) {
-						case DATA_ROLE:
-							dataRoleSet.add(systemRole.getSystemRole().getIdentifier());
+			for (SystemRole systemRole : allAssignedSystemRoles.values()) {
+				boolean differentWeightedItSystem = systemRoleService.belongsToItSystemWithDifferentWeight(systemRole);
+				if (differentWeightedItSystem) {
+					boolean skip = false;
+					
+					for (SystemRole sr : allAssignedSystemRoles.values()) {
+						if (sr.getItSystem().getId() != systemRole.getItSystem().getId()) {
+							continue;
+						}
+						if (sr.getWeight() > systemRole.getWeight()) {
+							skip = true;
 							break;
-						case FUNCTION_ROLE:
-							functionRoleSet.add(systemRole.getSystemRole().getIdentifier());
-							break;
-						default:
-							break;
+						}
 					}
+					
+					if (!skip) {
+						systemRoleSet.add(systemRole.getIdentifier());
+					}
+				} else {
+					systemRoleSet.add(systemRole.getIdentifier());
+				}
+
+				switch (systemRole.getRoleType()) {
+					case DATA_ROLE:
+						dataRoleSet.add(systemRole.getIdentifier());
+						break;
+					case FUNCTION_ROLE:
+						functionRoleSet.add(systemRole.getIdentifier());
+						break;
+					default:
+						break;
 				}
 			}
 			List<String> systemRoleList = new ArrayList<>(systemRoleSet);

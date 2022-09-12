@@ -76,3 +76,7 @@ td.centeredOps {
 li.bold {
 	font-weight: bold;
 }
+.badge-warning {
+	color: #212529;
+	background-color: #ffc107;
+}

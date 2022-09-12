@@ -2,9 +2,11 @@ package dk.digitalidentity.rc.controller.mvc;
 
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -176,6 +178,7 @@ public class OrgUnitController {
 		assignments.addAll(userRoleAssignments);
 		assignments.addAll(roleGroupAssignments);
 		
+		Set<Long> seenRoleGroups = new HashSet<>();
 		List<RoleAssignedToOrgUnitDTO> extraJfrs = new ArrayList<>();
 		for (RoleAssignedToOrgUnitDTO assignment : assignments) {
 			boolean directlyAssignedRole = ((assignment.getAssignedThrough() == AssignedThrough.DIRECT) || (assignment.getAssignedThrough() == AssignedThrough.TITLE));
@@ -194,6 +197,13 @@ public class OrgUnitController {
 					assignment.setCanEdit(true);
 				}
 				
+				// no reason to expand the same RoleGroup multiple times
+				if (seenRoleGroups.contains(assignment.getRoleId())) {
+					continue;
+				}
+				
+				seenRoleGroups.add(assignment.getRoleId());
+				
 				// expand userRoles within the RoleGroup
 				RoleGroup roleGroup = roleGroupService.getById(assignment.getRoleId());
 				if (roleGroup != null && roleGroup.getUserRoleAssignments() != null && roleGroup.getUserRoleAssignments().size() > 0) {
@@ -203,7 +213,7 @@ public class OrgUnitController {
 				}
 			}
 		}
-		
+
 		assignments.addAll(extraJfrs);
 		
 		model.addAttribute("assignments", assignments);

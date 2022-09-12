@@ -149,6 +149,7 @@
 													<th class="col-md-3" th:text="#{html.entity.adgroup.identifier}"></th>
 													<th class="col-md-5" th:text="#{html.entity.adgroup.description}"></th>
 													<th class="col-md-1" th:text="#{html.entity.adgroup.inuse}"></th>
+													<th class="col-md-1" th:text="#{html.entity.adgroup.weight}"></th>
 													<th class="col-md-1" th:text="#{html.control.operations}"></th>
 												</tr>
 											</thead>
@@ -159,6 +160,7 @@
 													<td th:text="${systemRole.identifier}"></td>
 													<td class="preformat" th:text="${systemRole.description}"></td>
 													<td><em class="fa fa-fw" th:classappend="${systemRole.inUse} ? fa-check : ''"></em></td>
+													<td th:text="${systemRole.weight}"></td>
 													<td>
 														<a th:href="@{/ui/systemrole/{id}/userroles(id=${systemRole.id})}"><em class="fa fa-list"></em></a>
 													</td>
@@ -219,6 +221,7 @@
 												<th class="col-md-3" th:text="#{html.entity.samlrole.identifier}"></th>
 												<th class="col-md-5" th:text="#{html.entity.samlrole.description}"></th>
 												<th class="col-md-1" th:text="#{html.entity.samlrole.inuse}"></th>
+												<th th:if="${#strings.toString(itsystem.systemType)} == 'SAML'" class="col-md-1" th:text="#{html.entity.samlrole.weight}"></th>
 												<th class="col-md-1" th:text="#{html.control.operations}"></th>
 											</tr>
 										</thead>
@@ -229,6 +232,7 @@
 												<td th:text="${systemRole.identifier}"></td>
 												<td class="preformat" th:text="${systemRole.description}"></td>
 												<td><em class="fa fa-fw" th:classappend="${systemRole.inUse} ? fa-check : ''"></em></td>
+												<td th:if="${#strings.toString(itsystem.systemType)} == 'SAML'" class="preformat" th:text="${systemRole.weight}"></td>
 												<td>
 													<a th:href="@{/ui/systemrole/{id}/userroles(id=${systemRole.id})}"><em class="fa fa-list"></em></a>
 												</td>

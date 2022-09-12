@@ -106,12 +106,14 @@ public class RoleAssignmentApiDocumentation {
 		token.setDetails(tokenUser);
 		SecurityContextHolder.getContext().setAuthentication(token);
 
-		User user = userService.getByUuid(testUserUUID);
-		OrgUnit ou = orgUnitService.getByUuid(testOrgUnitUUID);
 		UserRole userRole = userRoleService.getAll().get(2);
 		RoleGroup roleGroup = roleGroupService.getAll().get(0);
+
+		User user = userService.getByExtUuid(testUserUUID).get(0);
 		userService.addRoleGroup(user, roleGroup, null, null);
 		userService.addUserRole(user, userRole, null, null);
+		
+		OrgUnit ou = orgUnitService.getByUuid(testOrgUnitUUID);
 		orgUnitService.addUserRole(ou, userRole, false, null, null, new HashSet<>(), new HashSet<>());
 		orgUnitService.addRoleGroup(ou, roleGroup, false, null, null, new HashSet<>(), new HashSet<>());
 

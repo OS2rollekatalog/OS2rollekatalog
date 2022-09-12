@@ -469,7 +469,7 @@ public class UserRoleRestController {
 
         // have to check the corresponding user - could probably improve this at some point with a JOIN
         for (Position position : positionService.getAllWithRole(userRole)) {
-        	if (position.getUser().isActive()) {
+        	if (!position.getUser().isDeleted()) {
 	            status.setUsers(status.getUsers() + 1);
 	        	status.setSuccess(false);
         	}

@@ -11,6 +11,7 @@ public class UserReadWrapperDTO {
 	private long roleId;
 	private String roleIdentifier;
 	private String roleName;
+	private String roleDescription;
 	private List<UserReadRoleSystemRole> systemRoles;
 	private List<UserReadDTO> assignments;
 }

@@ -1,5 +1,7 @@
 package dk.digitalidentity.rc.config;
 
+import java.util.Objects;
+
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
 
@@ -19,7 +21,8 @@ import lombok.Setter;
 @Setter
 @ConfigurationProperties(prefix = "rc")
 public class RoleCatalogueConfiguration {
-	private String version = "2022 r4";
+	private String version = "2022 r5";
+	private String latestVersion = "2022 r5";
 
 	private Customer customer = new Customer();
 	private Titles titles = new Titles();
@@ -32,4 +35,8 @@ public class RoleCatalogueConfiguration {
 	
 	// enable for new un-released features
 	private boolean experimental = false;
+
+	public boolean checkVersion() {
+		return Objects.equals(version, latestVersion);
+	}
 }

@@ -10,5 +10,6 @@ namespace RoleCatalogImporter
         public string UserId { get; set; }
         public string Email { get; set; }
         public string Cpr { get; set; }
+        public bool Disabled { get; set; }
     }
 }

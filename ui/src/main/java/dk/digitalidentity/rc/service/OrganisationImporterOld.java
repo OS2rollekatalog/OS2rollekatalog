@@ -283,8 +283,8 @@ public class OrganisationImporterOld {
 	private void ensureUserConsistency(User user, List<User> existingUsers) {
 		for (User existingUser : existingUsers) {
 			if (existingUser.getUserId().equals(user.getUserId()) && !existingUser.getUuid().equals(user.getUuid())) {
-				if (existingUser.isActive()) {
-					existingUser.setActive(false);
+				if (!existingUser.isDeleted()) {
+					existingUser.setDeleted(true);
 
 					userService.save(existingUser);
 				}
@@ -558,8 +558,8 @@ public class OrganisationImporterOld {
 					boolean changes = false;
 
 					// if existing User was soft-deleted we restore it
-					if (!existingUser.isActive()) {
-						existingUser.setActive(true);
+					if (existingUser.isDeleted()) {
+						existingUser.setDeleted(false);
 						changes = true;
 					}
 
@@ -668,7 +668,7 @@ public class OrganisationImporterOld {
 
 			if (!found) {
 				User userToCreate = new User();
-				userToCreate.setActive(true);
+				userToCreate.setDeleted(false);
 				userToCreate.setEmail(newUser.getEmail());
 				userToCreate.setExtUuid(newUser.getUuid());
 				userToCreate.setKles(newUser.getKles());
@@ -727,7 +727,7 @@ public class OrganisationImporterOld {
 		for (User existingUser : existingUsers) {
 			boolean found = false;
 
-			if (!existingUser.isActive()) {
+			if (existingUser.isDeleted()) {
 				continue;
 			}
 
@@ -740,7 +740,7 @@ public class OrganisationImporterOld {
 			if (!found) {
 				//soft delete
 				deleted++;
-				existingUser.setActive(false);
+				existingUser.setDeleted(true);
 				userService.save(existingUser);
 			}
 		}
@@ -853,7 +853,7 @@ public class OrganisationImporterOld {
 		userEntity.setPositions(new ArrayList<Position>());
 		userEntity.setRoleGroupAssignments(new ArrayList<>());
 		userEntity.setUserRoleAssignments(new ArrayList<>());
-		userEntity.setActive(true);
+		userEntity.setDeleted(false);
 
 		return userEntity;
 	}

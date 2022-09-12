@@ -1,0 +1,6 @@
+ALTER TABLE client
+	ADD COLUMN version VARCHAR(64) NULL,
+	ADD COLUMN application_identifier VARCHAR(255) NULL,
+	ADD COLUMN newest_version VARCHAR(255) NULL,
+	ADD COLUMN minimum_version VARCHAR(255) NULL,
+	ADD COLUMN version_status VARCHAR(255) NOT NULL DEFAULT 'UNKNOWN';

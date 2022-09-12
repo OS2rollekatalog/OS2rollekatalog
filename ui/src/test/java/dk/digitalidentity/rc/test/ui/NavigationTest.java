@@ -1,21 +1,21 @@
 package dk.digitalidentity.rc.test.ui;
 
-import org.junit.After;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Test;
-import org.junit.runner.RunWith;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.openqa.selenium.chrome.ChromeDriver;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.TestPropertySource;
-import org.springframework.test.context.junit4.SpringRunner;
+import org.springframework.test.context.junit.jupiter.SpringExtension;
 
 import dk.digitalidentity.rc.test.ui.service.LoginService;
 import dk.digitalidentity.rc.util.BootstrapDevMode;
 
-@RunWith(SpringRunner.class)
+@ExtendWith(SpringExtension.class)
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.DEFINED_PORT)
 @TestPropertySource(locations="classpath:test.properties")
 @ActiveProfiles({ "test" })
@@ -29,13 +29,13 @@ public class NavigationTest {
     @Autowired
     private BootstrapDevMode bootstrapper;
     
-    @Before
+    @BeforeEach
     public void before() throws Exception {
     	bootstrapper.init(false);
         driver = loginService.login();
     }
     
-    @After
+    @AfterEach
     public void after() {
     	loginService.logout();
     }
@@ -61,61 +61,61 @@ public class NavigationTest {
 
     private void userRolesList() {
         driver.get(url + "/ui/userroles/list");
-        Assert.assertEquals("OS2rollekatalog", driver.getTitle());
+        Assertions.assertEquals("OS2rollekatalog", driver.getTitle());
     }
 
     private void userRolesNew() {
         driver.get(url + "/ui/userroles/new");
-        Assert.assertEquals("OS2rollekatalog", driver.getTitle());
+        Assertions.assertEquals("OS2rollekatalog", driver.getTitle());
     }
 
     private void userRolesView() {
         driver.get(url + "/ui/userroles/view/1");
-        Assert.assertEquals("OS2rollekatalog", driver.getTitle());
+        Assertions.assertEquals("OS2rollekatalog", driver.getTitle());
     }
     
     private void userRolesEdit() {
         driver.get(url + "/ui/userroles/edit/1");
-        Assert.assertEquals("OS2rollekatalog", driver.getTitle());
+        Assertions.assertEquals("OS2rollekatalog", driver.getTitle());
     }
     
     private void roleGroupsList() {
         driver.get(url + "/ui/rolegroups/list");
-        Assert.assertEquals("OS2rollekatalog", driver.getTitle());
+        Assertions.assertEquals("OS2rollekatalog", driver.getTitle());
     }
 
     private void roleGroupsNew() {
         driver.get(url + "/ui/rolegroups/new");
-        Assert.assertEquals("OS2rollekatalog", driver.getTitle());
+        Assertions.assertEquals("OS2rollekatalog", driver.getTitle());
     }
     
     private void roleGroupsEdit() {
         driver.get(url + "/ui/rolegroups/edit/1");
-        Assert.assertEquals("OS2rollekatalog", driver.getTitle());
+        Assertions.assertEquals("OS2rollekatalog", driver.getTitle());
     }
     
     private void roleGroupsView() {
         driver.get(url + "/ui/rolegroups/view/1");
-        Assert.assertEquals("OS2rollekatalog", driver.getTitle());
+        Assertions.assertEquals("OS2rollekatalog", driver.getTitle());
     }
 
     private void ousList() {
         driver.get(url + "/ui/ous/list");
-        Assert.assertEquals("OS2rollekatalog", driver.getTitle());
+        Assertions.assertEquals("OS2rollekatalog", driver.getTitle());
     }
     
     private void ousView() {
         driver.get(url + "/ui/ous/manage/" + BootstrapDevMode.orgUnitUUID);
-        Assert.assertEquals("OS2rollekatalog", driver.getTitle());
+        Assertions.assertEquals("OS2rollekatalog", driver.getTitle());
     }
     
     private void usersList() {
         driver.get(url + "/ui/users/list");
-        Assert.assertEquals("OS2rollekatalog", driver.getTitle());
+        Assertions.assertEquals("OS2rollekatalog", driver.getTitle());
     }
     
     private void usersView() {
         driver.get(url + "/ui/users/manage/" + BootstrapDevMode.userUUID);
-        Assert.assertEquals("OS2rollekatalog", driver.getTitle());
+        Assertions.assertEquals("OS2rollekatalog", driver.getTitle());
     }
 }

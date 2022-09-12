@@ -7,6 +7,7 @@ public enum AccessRole {
 	VENDOR("html.enum.accessrole.vendor"),
 	ITSYSTEM("html.enum.accessrole.itsystem"),
 	ADMINISTRATOR("html.enum.accessrole.administrator"),
+	AUDITLOG_ACCESS("html.enum.accessrole.auditlogAccess"),
 	CICS_ADMIN("html.enum.accessrole.cicsAdmin");
 
 	private String messageId;

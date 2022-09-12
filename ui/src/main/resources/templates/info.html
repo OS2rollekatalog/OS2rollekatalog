@@ -35,15 +35,14 @@
 						<ul>
 							<li><a th:href="@{/download/api.html}" th:text="#{html.page.info.api.link}"></a></li>
 							<li><a th:href="@{/download/api.pdf}" th:text="#{html.page.info.api.pdf}"></a></li>
+							<li><a th:href="@{/download/substituteApi.pdf}" th:text="#{html.page.info.substitute.api.pdf}"></a></li>
+							<li><a th:href="@{/download/auditlog-api.pdf}" th:text="#{html.page.info.auditlog.api.pdf}"></a></li>
 						</ul>
 
 						<h3 th:text="#{html.page.info.version.header}"></h3>
 						<span th:text="#{html.page.info.version.version} + ': ' + ${releaseVersion}"></span><br/>
 						<span th:text="#{html.page.info.version.buildId} + ': ' + ${gitCommitId}"></span><br/>
 						<span th:text="#{html.page.info.version.buildTime} + ': ' + ${gitBuildTime}"></span>
-					</li>
-				</ul>
-
 					</div>
 				</div>
 	        </div>
