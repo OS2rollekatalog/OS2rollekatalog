@@ -299,6 +299,12 @@ public class ReportService {
 		Map<String, List<HistoryOURoleAssignment>> ouRoleAssignments;
 		Map<String, List<HistoryOURoleAssignmentWithExceptions>> ouRoleAssignmentsWithExceptions;
 		Map<String, List<HistoryRoleAssignment>> userRoleAssignments;
+		
+		List<HistoryOUUser> historyOUUsers = orgUnits
+				.entrySet()
+				.stream()
+				.flatMap(entry -> entry.getValue().getUsers().stream())
+				.collect(Collectors.toList());
 
 		// Filter on ItSystems if specified
 		if (itSystemFilter != null && itSystemFilter.size() > 0) {
@@ -394,6 +400,8 @@ public class ReportService {
 		model.put("reportService", this);
 		model.put("itSystemService", itSytemService);
 		model.put("orgUnitService", orgUnitService);
+		
+		model.put("ouUsers", historyOUUsers);
 
 		// Locale specific text
 		model.put("messagesBundle", messageSource);

@@ -70,5 +70,8 @@
   &lt;string&gt;2409;OU=subgroup2,OU=groups,DC=digitalidentity,DC=dk&lt;/string&gt;
 &lt;/ArrayOfString&gt;</Value>
     </Setting>
+    <Setting Name="ItSystemGroupFeature_Cron" Type="System.String" Scope="Application">
+      <Value Profile="(Default)" />
+    </Setting>
   </Settings>
 </SettingsFile>

@@ -117,65 +117,50 @@ public class AdSyncApi {
 		}
 		
 		for (SystemRole dirtySystemRole : dirtySystemRoles.values()) {
-			boolean differentWeightedItSystem = systemRoleService.belongsToItSystemWithDifferentWeight(dirtySystemRole);
-			
 			// get all users that has a given system-role
 			Set<String> sAMAccountNames = new HashSet<>();
 			List<UserRole> userRoles = systemRoleService.userRolesWithSystemRole(dirtySystemRole);
 			for (UserRole userRole : userRoles) {
 				List<UserWithRole> users = userService.getUsersWithUserRole(userRole, true);
-
 				if (users != null && users.size() > 0) {
 					for (UserWithRole user : users) {
-						if (differentWeightedItSystem) {
-							boolean skip = false;
-							for (SystemRole sr : dirtySystemRoles.values()) {
-								if (sr.getItSystem().getId() != dirtySystemRole.getItSystem().getId()) {
-									continue;
-								}
-								
-								boolean hasRole = userHasSystemRole(sr, user);
-								if (sr.getWeight() > dirtySystemRole.getWeight() && hasRole) {
-									skip = true;
-									break;
-								}
-							}
-							
-							if (!skip) {
-								sAMAccountNames.add(user.getUser().getUserId());
-							}
-						} else {
 							sAMAccountNames.add(user.getUser().getUserId());
-						}
 					}
 				}
 			}
 
 			ADGroupAssignments assignment = new ADGroupAssignments();
+			assignment.setItSystemId(dirtySystemRole.getItSystem().getId());
+			assignment.setWeight(dirtySystemRole.getWeight());
 			assignment.setGroupName(dirtySystemRole.getIdentifier());
 			assignment.setSAMAccountNames(new ArrayList<>(sAMAccountNames));
 
 			result.getAssignments().add(assignment);
 		}
-		
+
+		// support weighted it-systems by removing assignments that should not have been added due to an assignment with higher weight
+		// get distinct it systems
+		var itSystems = result.getAssignments().stream().map( a -> a.getItSystemId()).distinct().collect(Collectors.toList());
+		for( var itSystemId : itSystems ) {
+			// get assignments belonging to this it system
+			var itSystemAssignments = result.getAssignments().stream().filter(a -> a.getItSystemId() == itSystemId).collect(Collectors.toList());
+			// get the distinct weights for this it system ordered by descending weight
+			var weights = itSystemAssignments.stream().map(a -> a.getWeight()).sorted(Comparator.reverseOrder()).collect(Collectors.toList());
+			// we don't want to remove any assignments that has highest weight, so remove this item from weight list
+			// there is always minimum 1 weight. For unweighted it-systems there will be exactly 1 weight
+			weights.remove(0);
+			for( var weight : weights ) {
+				for( var assignment : itSystemAssignments.stream().filter(a -> a.getWeight() == weight).collect(Collectors.toList()) ) {
+					// remove any accountnames that are in an assignment with a higher weight
+					assignment.getSAMAccountNames().removeIf(account -> itSystemAssignments.stream().anyMatch(a -> a.getWeight() > weight && a.getSAMAccountNames().contains(account)));
+				}
+			}
+		}
+
 		result.setHead(maxId);
 		result.setMaxHead(pendingADUpdateService.findMaxHead());
 		
 		return new ResponseEntity<>(result, HttpStatus.OK);
-	}
-	
-	private boolean userHasSystemRole(SystemRole sr, UserWithRole user) {
-		boolean hasRole = false;
-		List<UserRole> userRolesWithSystemRole = systemRoleService.userRolesWithSystemRole(sr);
-		for (UserRole userRoleWithSystemRole : userRolesWithSystemRole) {
-			List<UserWithRole> usersWithRole = userService.getUsersWithUserRole(userRoleWithSystemRole, true);
-			hasRole = usersWithRole.stream().filter(u -> u.getUser().getUuid().equals(user.getUser().getUuid())).count() > 0;
-			if (hasRole) {
-				break;
-			}
-		}
-		
-		return hasRole;
 	}
 
 	@DeleteMapping("/api/ad/v2/sync/{head}")

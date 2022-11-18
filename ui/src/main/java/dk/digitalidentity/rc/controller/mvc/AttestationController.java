@@ -54,6 +54,7 @@ import dk.digitalidentity.rc.security.RequireAdministratorRole;
 import dk.digitalidentity.rc.security.RequireAssignerOrManagerRole;
 import dk.digitalidentity.rc.security.RequireManagerRole;
 import dk.digitalidentity.rc.security.SecurityUtil;
+import dk.digitalidentity.rc.service.AttestationService;
 import dk.digitalidentity.rc.service.ItSystemService;
 import dk.digitalidentity.rc.service.OrgUnitService;
 import dk.digitalidentity.rc.service.RoleGroupService;
@@ -91,6 +92,9 @@ public class AttestationController {
     
 	@Autowired
 	private ItSystemService itSystemService;
+	
+	@Autowired
+	private AttestationService attestationService;
 
 	@RequireAdministratorRole
 	@GetMapping("/ui/admin/attestations")
@@ -158,12 +162,16 @@ public class AttestationController {
 
 		// adding the userRoles from this OU
 		for (OrgUnitUserRoleAssignment ouura : ouuras) {
+			if (ouura.isContainsTitles()) {
+				continue;
+			}
 			UserRoleAssignedToUser uratu  = new UserRoleAssignedToUser();
 			uratu.setAssignedThrough(AssignedThrough.ORGUNIT);
 			uratu.setUserRole(ouura.getUserRole());
 			uratu.setOrgUnit(orgUnit);
 
 			AttestationRolesDTO dto = new AttestationRolesDTO();
+			dto.setOrgUnitUuid(orgUnit.getUuid());
 			dto.setRoleType("Jobfunktionsrolle");
 			dto.setRoleAssignedToUser(uratu);
 
@@ -179,18 +187,22 @@ public class AttestationController {
 				}
 			}
 			dto.setChecked(checked);
-
+			
 			unit.add(dto);
 		}
 		
 		// adding the roleGroups for this OU
 		for (OrgUnitRoleGroupAssignment ourga : ourgas) {
+			if (ourga.isContainsTitles()) {
+				continue;
+			}
 			RoleGroupAssignedToUser uratu  = new RoleGroupAssignedToUser();
 			uratu.setAssignedThrough(AssignedThrough.ORGUNIT);
 			uratu.setRoleGroup(ourga.getRoleGroup());
 			uratu.setOrgUnit(orgUnit);
 
 			AttestationRolesDTO dto = new AttestationRolesDTO();
+			dto.setOrgUnitUuid(orgUnit.getUuid());
 			dto.setRoleType("Rollebuket");
 			dto.setRoleAssignedToUser(uratu);
 
@@ -211,6 +223,7 @@ public class AttestationController {
 				uratu.setTitle(t);
 
 				AttestationRolesDTO dto = new AttestationRolesDTO();
+				dto.setOrgUnitUuid(orgUnit.getUuid());
 				dto.setRoleType("Jobfunktionsrolle");
 				dto.setRoleAssignedToUser(uratu);
 				
@@ -227,6 +240,7 @@ public class AttestationController {
 				uratu.setTitle(t);
 	
 				AttestationRolesDTO dto = new AttestationRolesDTO();
+				dto.setOrgUnitUuid(orgUnit.getUuid());
 				dto.setRoleType("Rollebuket");
 				dto.setRoleAssignedToUser(uratu);
 	
@@ -238,7 +252,7 @@ public class AttestationController {
 		List<String> userUuids = users.stream().map(u -> u.getUuid()).collect(Collectors.toList());		
 		
 		// add the managers and substitutes that can't be attested in underlying orgUnits
-		pullUpManagersAndSubstitutes(
+		attestationService.pullUpManagersAndSubstitutes(
 				users,
 				userUuids,
 				orgUnit.getManager().getUuid(),
@@ -263,6 +277,7 @@ public class AttestationController {
 
 			for (UserRoleAssignedToUser uratu : allRolesForUser) {
 				AttestationRolesDTO dto = new AttestationRolesDTO();
+				dto.setOrgUnitUuid(orgUnit.getUuid());
 				dto.setRoleAssignedToUser(uratu);
 				dto.setRoleType("Jobfunktionsrolle");
 				dto.setAssignmentId(uratu.getAssignmentId());
@@ -389,6 +404,7 @@ public class AttestationController {
 			
 			for (RoleGroupAssignedToUser uratu : allRoleGroupsForUser) {
 				AttestationRolesDTO dto = new AttestationRolesDTO();
+				dto.setOrgUnitUuid(orgUnit.getUuid());
 				dto.setRoleAssignedToUser(uratu);
 				dto.setRoleType("Rollebuket");
 				dto.setAssignmentId(uratu.getAssignmentId());
@@ -439,58 +455,6 @@ public class AttestationController {
 		model.addAttribute("ad", aDDTOs);
 	}
 	
-	// for each child, check the following
-	// - if the childs manager has a position in the child, pull manager up
-	// - if the childs managers substitute has a position in the child, pull the substitute up
-	// then, if the child did not have a manager, or if the manager was pulled up, continue with children. Note that we only need to check
-	// if we found a non-null manager that was not pulled up, as that manager would take care of any managers/substitutes further down.
-	private void pullUpManagersAndSubstitutes(List<User> users, List<String> userUuids, String topLevelManagerUuid, String topLevelSubstituteUuid, List<OrgUnit> children) {
-		if (children == null || children.size() == 0) {
-			return;
-		}
-		
-		for (OrgUnit child : children) {
-			User manager = child.getManager();
-			User substitute = (manager != null) ? manager.getManagerSubstitute() : null;
-
-			boolean stop = false;
-			
-			boolean managerMatchesTopLevel = (manager != null) ? Objects.equals(manager.getUuid(), topLevelManagerUuid) : false;
-			boolean substituteMatchesTopLevel = (substitute != null) ? Objects.equals(substitute.getUuid(), topLevelSubstituteUuid) : false;
-			boolean childManagerHasPositionInChild = (manager != null) ? manager.getPositions().stream().anyMatch(p -> Objects.equals(p.getOrgUnit().getUuid(), child.getUuid())) : false;
-			boolean childSubstituteHasPositionInChild = (substitute != null) ? substitute.getPositions().stream().anyMatch(p -> Objects.equals(p.getOrgUnit().getUuid(), child.getUuid())) : false;
-
-			// pull up manager?
-			if (managerMatchesTopLevel) {
-				; // no, we do not want this manager pulled up
-			}
-			else if (manager != null && childManagerHasPositionInChild) {
-				if (!userUuids.contains(manager.getUuid())) {
-					users.add(manager);
-					userUuids.add(manager.getUuid());
-				}
-
-				stop = true;
-			}
-			
-			// pull up substitute
-			if (substituteMatchesTopLevel) {
-				; // no, we do not want this substitute pulled up
-			}
-			else if (substitute != null && (childSubstituteHasPositionInChild || stop)) {
-				// note that we pull up the substitute if we pulled up the manager (the "stop" check above")
-				if (!userUuids.contains(substitute.getUuid())) {
-					users.add(substitute);
-					userUuids.add(substitute.getUuid());
-				}
-			}
-
-			if (!stop) {
-				pullUpManagersAndSubstitutes(users, userUuids, topLevelManagerUuid, topLevelSubstituteUuid, child.getChildren());
-			}
-		}
-	}
-
 	@RequireManagerRole
 	@PostMapping("/ui/users/attestations/confirm")
 	public String postNew(Model model, @ModelAttribute("confirmDTO") AttestationConfirmDTO confirmDTO, BindingResult bindingResult, HttpServletRequest httpServletRequest) throws JsonParseException, JsonMappingException, IOException {

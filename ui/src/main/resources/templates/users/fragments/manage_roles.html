@@ -60,9 +60,11 @@
 								</ul>
 								<span th:if="${assignment.startDate == null and assignment.stopDate == null}" th:text="#{html.word.indefinite}"></span>
 							</td>
-							
-							<td th:text="${assignment.itSystem?.name}"></td>
-							<td th:attr="data-assignmentid=${assignment.assignmentId}, data-roleid=${assignment.roleId}, data-type=${assignment.type}, data-startDate=${assignment.startDate}, data-stopDate=${assignment.stopDate}, data-assignedthrough=${assignment.assignedThrough}">
+							<td>
+								<span th:text="${assignment.itSystem?.name}"></span>
+								<span th:if="${assignment.itSystem?.paused == true}" class="badge badge-warning" th:text="#{html.page.itsystem.list.paused}"></span>
+							</td>
+							<td th:attr="data-assignmentid=${assignment.assignmentId}, data-roleid=${assignment.roleId}, data-type=${assignment.type}, data-startDate=${assignment.startDate}, data-stopDate=${assignment.stopDate}, data-assignedthrough=${assignment.assignedThrough}, data-name=${assignment.name}">
 								<a
 									href="#"
 									th:if="${assignment.canEdit}"

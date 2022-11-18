@@ -35,6 +35,7 @@ public class ClientService {
 
 	@PostConstruct
 	private void init() {
+		// TODO: remove this code once everyone is running a newer version
 		if (clientDao.findAll().isEmpty()) {
 			Arrays.stream(roleCatalogueConfiguration.getCustomer().getApikey()).distinct().forEach(apiKey -> {
 				Client newClient = new Client();

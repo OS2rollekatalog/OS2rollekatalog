@@ -73,6 +73,7 @@ public class ReportXlsxView extends AbstractXlsxStreamingView {
     private ReportService reportService;
     private OrgUnitService orgUnitService;
     private ItSystemService itSystemService;
+    private List<HistoryOUUser> ouUsers;
 
     @SuppressWarnings("unchecked")
     @Override
@@ -96,6 +97,7 @@ public class ReportXlsxView extends AbstractXlsxStreamingView {
         ouRoleAssignmentsWithExceptions = (Map<String, List<HistoryOURoleAssignmentWithExceptions>>) model.get("ouRoleAssignmentsWithExceptions");
         userRoleAssignments = (Map<String, List<HistoryRoleAssignment>>) model.get("userRoleAssignments");
 		titleRoleAssignments = (Map<String, List<HistoryOURoleAssignmentWithTitles>>) model.get("titleRoleAssignments");
+		ouUsers = (List<HistoryOUUser>) model.get("ouUsers");
 
 		if (titles != null) {
 			titleMap = titles.stream().collect(Collectors.toMap(HistoryTitle::getTitleUuid, Function.identity()));
@@ -127,6 +129,10 @@ public class ReportXlsxView extends AbstractXlsxStreamingView {
 
         // Create Sheets
         createMasterDataSheet(workbook, reportForm);
+        
+        if (reportForm.isShowUsers()) {
+			createUsersSheet(workbook);
+        }
 
 		if (reportForm.isShowItSystems()) {
 			createRoleSheet(workbook);
@@ -152,6 +158,50 @@ public class ReportXlsxView extends AbstractXlsxStreamingView {
 			}
 		}
     }
+
+	private void createUsersSheet(Workbook workbook) {
+		Sheet sheet = workbook.createSheet(messageSource.getMessage("xls.report.users.sheet.title", null, locale));
+		ArrayList<String> headers = new ArrayList<>();
+        headers.add("xls.report.users.uuid");
+        headers.add("xls.report.users.name");
+        headers.add("xls.report.users.userId");
+        headers.add("xls.report.users.positions");
+
+        createHeaderRow(sheet, headers);
+        
+        int row = 1;
+        for (HistoryUser entry : users.values()) {
+            Row dataRow = sheet.createRow(row++);
+            int column = 0;
+            
+            createCell(dataRow, column++, entry.getUserUuid(), null);
+            createCell(dataRow, column++, entry.getUserName(), null);
+            createCell(dataRow, column++, entry.getUserUserId(), null);
+            
+            CellStyle cs = workbook.createCellStyle();
+    		cs.setWrapText(true);
+    		String in = messageSource.getMessage("html.word.in", null, locale);
+    		
+    		List<HistoryOUUser> entryOUUsers = ouUsers.stream().filter(h -> h.getUserUuid().equals(entry.getUserUuid())).toList();
+    		List<String> titleStrings = new ArrayList<>();
+    		for (HistoryOUUser ouUser : entryOUUsers) {
+    			if (ouUser.getTitleUuid() == null) {
+    				titleStrings.add("• " + ouUser.getHistoryOU().getOuName());
+    			}
+    			else {
+    				HistoryTitle title = titles.stream().filter(t -> t.getTitleUuid().equals(ouUser.getTitleUuid())).findAny().orElse(null);
+
+    				if (title == null) {
+    					titleStrings.add("• " + ouUser.getHistoryOU().getOuName());
+    				}
+    				else {
+    					titleStrings.add("• " + title.getTitleName() + " (" + title.getTitleUuid() + ") " + in +  " " + ouUser.getHistoryOU().getOuName());
+    				}
+    			}
+    		}
+            createCell(dataRow, column++, titleStrings.stream().collect(Collectors.joining("\n")), cs);
+        }
+	}
 
 	private void createMasterDataSheet(Workbook workbook, ReportForm reportForm) {
         Sheet sheet = workbook.createSheet(messageSource.getMessage("xls.report.masterdata.sheet.title", null, locale));

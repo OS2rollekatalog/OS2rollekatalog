@@ -2,7 +2,7 @@
 
 namespace ADSyncService
 {
-    internal class NightSyncJob : IJob
+    internal class ItSystemsGroupsJob : IJob
     {
         private static log4net.ILog log = log4net.LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
         private static bool itSystemGroupsEnabled = Properties.Settings.Default.ItSystemGroupFeature_Enabled;
@@ -16,7 +16,9 @@ namespace ADSyncService
             {
                 try
                 {
+                    log.Info("Executing itSystemGroups");
                     ItSystemGroupService.PerformUpdate(roleCatalogueStub, adStub);
+                    log.Info("Finished executing itSystemGroups");
                 }
                 catch (System.Exception ex)
                 {

@@ -4,7 +4,7 @@
 #define AppId "{{d438b389-0f50-4b9e-8311-6e9f81774587}"
 #define AppSourceDir "..\ADSyncService\bin\Debug\"
 #define AppName "ADSyncService"
-#define AppVersion "2.0.1"
+#define AppVersion "2.0.3"
 #define AppPublisher "Digital Identity"
 #define AppURL "http://digital-identity.dk/"
 #define AppExeName "ADSyncService.exe"

@@ -26,7 +26,7 @@
 							<td>
 								<a
 									href="#"
-									onclick="rolesService.addUserRole(this)"
+									onclick="rolesService.addUserRole(this); return false;"
 									th:attr="data-roleid=${role.id}">
 									<em class="fa fa-plus"></em>
 								</a>

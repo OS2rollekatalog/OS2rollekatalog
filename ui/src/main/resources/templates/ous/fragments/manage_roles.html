@@ -62,7 +62,7 @@
 
 							<td th:text="${assignment.itSystem?.name}"></td>
 
-							<td th:attr="data-assignmentid=${assignment.assignmentId}, data-assignmenttype=${assignment.assignmentType}, data-roleid=${assignment.roleId}, data-objtype=${assignment.type}, data-startdate=${assignment.startDate}, data-stopdate=${assignment.stopDate}">
+							<td th:attr="data-assignmentid=${assignment.assignmentId}, data-assignmenttype=${assignment.assignmentType}, data-roleid=${assignment.roleId}, data-objtype=${assignment.type}, data-startdate=${assignment.startDate}, data-stopdate=${assignment.stopDate}, data-name=${assignment.name}">
 								<a
 									href="#"
 									th:if="${assignment.canEdit}"

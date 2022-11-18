@@ -18,11 +18,11 @@ import javax.mail.internet.MimeMultipart;
 import javax.mail.internet.PreencodedMimeBodyPart;
 import javax.mail.util.ByteArrayDataSource;
 
-import org.apache.commons.lang.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 
 import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.InlineImageDTO;
@@ -46,6 +46,11 @@ public class EmailService {
 	public void sendMessage(String email, String subject, String message, List<InlineImageDTO> inlineImages) {
 		if (!configuration.getIntegrations().getEmail().isEnabled()) {
 			log.warn("email server is not configured - not sending emails!");
+			return;
+		}
+
+		if (!StringUtils.hasLength(email)) {
+			log.warn("No recipient email given for mail with subject: " + subject);
 			return;
 		}
 
@@ -77,7 +82,7 @@ public class EmailService {
 	                if (inlineImageDTO.isBase64()) {
 	                	MimeBodyPart imagePart = new PreencodedMimeBodyPart("base64");
 	                	String src = inlineImageDTO.getSrc();
-	                	String dataType = StringUtils.substringBetween(src, "data:", ";base64,"); // extract data type ( fx dataType = "image/png") 
+	                	String dataType = org.apache.commons.lang.StringUtils.substringBetween(src, "data:", ";base64,"); // extract data type ( fx dataType = "image/png") 
 	                	String base64EncodedFileContent = src.replaceFirst("data:.*;base64,", ""); // remove prefix from fileContent String ( fx base64EncodedFileContent = "iVBORw0KGg......etc"
 	                	imagePart.setContent(base64EncodedFileContent, dataType);
 	                	imagePart.setFileName(inlineImageDTO.getCid());
@@ -128,6 +133,11 @@ public class EmailService {
 			return;
 		}
 
+		if (!StringUtils.hasLength(email)) {
+			log.warn("No recipient email given for mail with subject: " + subject);
+			return;
+		}
+
 		Transport transport = null;
 
 		try {
@@ -167,7 +177,7 @@ public class EmailService {
 	                if (inlineImageDTO.isBase64()) {
 	                	MimeBodyPart imagePart = new PreencodedMimeBodyPart("base64");
 	                	String src = inlineImageDTO.getSrc();
-	                	String dataType = StringUtils.substringBetween(src, "data:", ";base64,"); // extract data type ( fx dataType = "image/png") 
+	                	String dataType = org.apache.commons.lang.StringUtils.substringBetween(src, "data:", ";base64,"); // extract data type ( fx dataType = "image/png") 
 	                	String base64EncodedFileContent = src.replaceFirst("data:.*;base64,", ""); // remove prefix from fileContent String ( fx base64EncodedFileContent = "iVBORw0KGg......etc"
 	                	imagePart.setContent(base64EncodedFileContent, dataType);
 	                	imagePart.setFileName(inlineImageDTO.getCid());

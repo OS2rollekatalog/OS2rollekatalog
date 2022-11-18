@@ -30,7 +30,6 @@ import dk.digitalidentity.rc.controller.mvc.viewmodel.RequestForm;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.RoleGroupForm;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.TitleListForm;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.UserRoleAddOrgUnitDTO;
-import dk.digitalidentity.rc.controller.mvc.viewmodel.UserRoleCheckedDTO;
 import dk.digitalidentity.rc.controller.validator.RolegroupValidator;
 import dk.digitalidentity.rc.dao.model.OrgUnit;
 import dk.digitalidentity.rc.dao.model.RoleGroup;
@@ -226,10 +225,8 @@ public class RoleGroupController {
 		}
 
 		List<User> usersFromDb = userService.getAll();
-		//Reusing existing dto
-		var availableUsers = usersFromDb.stream().map(u -> new UserRoleCheckedDTO(u.getUuid(), u.getName(), u.getUserId(), false, null, null)).collect(Collectors.toList());
 
-		model.addAttribute("users", availableUsers);
+		model.addAttribute("users", usersFromDb);
 		return "rolegroups/fragments/manage_add_users :: addUsers";
 	}
 

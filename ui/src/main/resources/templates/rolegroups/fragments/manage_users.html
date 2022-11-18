@@ -6,8 +6,9 @@
 		<thead>
 		<tr>
 			<th class="col-md-3" th:text="#{html.entity.user.name}"></th>
-			<th class="col-md-2" th:text="#{html.entity.user.userId}"></th>
-			<th class="col-md-6" th:text="#{html.word.validity}"></th>
+			<th class="col-md-1" th:text="#{html.entity.user.userId}"></th>
+			<th class="col-md-1" th:text="#{html.word.validity}"></th>
+			<th class="col-md-5" th:text="#{html.entity.user.positions}"></th>
 			<th class="col-md-1" th:text="#{html.control.operations}"></th>
 		</tr>
 		</thead>
@@ -25,7 +26,13 @@
 				<span th:if="${mapping.assignment.startDate == null and mapping.assignment.stopDate == null}" th:text="#{html.word.indefinite}"></span>
 			</td>
 
-			<td th:if="${showEdit == true}" th:attr="data-assignmentid=${mapping.assignment.assignmentId}, data-user=${mapping.userUuid}, data-startDate=${mapping.assignment.startDate}, data-stopDate=${mapping.assignment.stopDate}">
+			<td>
+				<ul style="list-style: none;">
+					<li th:each="position : ${mapping.positions}" th:text="${position.name} + ' i ' + ${position.orgUnit.name}"></li>
+				</ul>
+			</td>
+
+			<td th:if="${showEdit == true}" th:attr="data-assignmentid=${mapping.assignment.assignmentId}, data-user=${mapping.userUuid}, data-startDate=${mapping.assignment.startDate}, data-stopDate=${mapping.assignment.stopDate}, data-name=${mapping.assignment.name}">
 				<a
 					href="#"
 					th:if="${mapping.assignment.canEdit}"

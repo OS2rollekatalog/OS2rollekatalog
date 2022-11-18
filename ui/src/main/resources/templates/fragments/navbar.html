@@ -159,6 +159,7 @@
 									<a th:href="@{/ui/users/requests/authorizationmanager}">
 										<em class="fa fa-comment-o"></em>
 										<span th:text="#{html.navbar.requestapprove}"></span>
+										<span class="badge" style="background-color: red;" th:text="${session.SESSION_REQUEST_COUNT}" th:unless="${session == null || session.SESSION_REQUEST_COUNT == 0}"></span>
 									</a>
 								</li>
 							</th:block>

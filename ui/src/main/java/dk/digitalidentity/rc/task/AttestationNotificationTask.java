@@ -24,7 +24,10 @@ public class AttestationNotificationTask {
 	@Autowired
 	private SettingsService settingService;
 
-	@Scheduled(cron = " 0 #{new java.util.Random().nextInt(55)} 7 ? * *")
+	// BSG: I moved this from 7:xx to 4:xx because we hav a bug below. We send out the mails before we
+	//      update the timestamps (setNextAttestationDeadlines)... this is a quickfix, as Attetation
+	//      is to be re-implemented, and this will likely go away
+	@Scheduled(cron = " 0 #{new java.util.Random().nextInt(55)} 4 ? * *")
 	// @Scheduled(fixedDelay = 60 * 1000 * 1000) // once per hour while testing
 	public void notifyOnAttestation() {
 		if (!configuration.getScheduled().isEnabled()) {

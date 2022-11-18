@@ -49,7 +49,7 @@ public class SystemRole implements AuditLoggable {
 	private String description;
 	
 	@Column(nullable = false)
-	private int weight;
+	private int weight = 1;
 
 	@JsonIgnore
 	@ManyToOne(fetch = FetchType.LAZY)

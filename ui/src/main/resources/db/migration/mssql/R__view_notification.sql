@@ -1,3 +1,7 @@
+DROP VIEW IF EXISTS view_notifications_active;
+
+GO
+
 CREATE VIEW view_notifications_active AS (
     SELECT
 		id,

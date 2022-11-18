@@ -6,11 +6,11 @@ import java.util.stream.Collectors;
 
 import javax.transaction.Transactional;
 
-import org.apache.commons.lang.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
+import org.springframework.util.StringUtils;
 
 import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
 import dk.digitalidentity.rc.dao.model.Client;
@@ -44,6 +44,10 @@ public class FetchClientVersionsTask {
 		if (!configuration.getScheduled().isEnabled()) {
 			return;
 		}
+		
+		if (!StringUtils.hasLength(configuration.getIntegrations().getAppManager().getUrl())) {
+			return;
+		}
 
 		self.executeTask();
 	}
@@ -55,7 +59,7 @@ public class FetchClientVersionsTask {
 			return;
 		}
 
-		List<Client> dbClients = clientService.findAll().stream().filter(c -> !StringUtils.isBlank(c.getApplicationIdentifier())).collect(Collectors.toList());
+		List<Client> dbClients = clientService.findAll().stream().filter(c -> !org.apache.commons.lang.StringUtils.isBlank(c.getApplicationIdentifier())).collect(Collectors.toList());
 		for (Client client : dbClients) {
 
 			// find matching client in api call
@@ -67,7 +71,7 @@ public class FetchClientVersionsTask {
 				client.setMinimumVersion(clientDTO.getMinimumVersion());
 
 				if (client.getVersion() != null && client.getNewestVersion() != null && client.getMinimumVersion() != null) {
-					if (StringUtils.isBlank(client.getVersion())) {
+					if (org.apache.commons.lang.StringUtils.isBlank(client.getVersion())) {
 						client.setVersionStatus(VersionStatusEnum.UNKNOWN);
 					}
 					else {

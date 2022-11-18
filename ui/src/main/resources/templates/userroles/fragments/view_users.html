@@ -6,9 +6,10 @@
 	<table id="listTableUsers" class="table table-striped table-hover listTable">
 		<thead>
 		<tr>
-			<th class="col-md-5" th:text="#{html.entity.user.name}"></th>
-			<th class="col-md-4" th:text="#{html.enum.assignmenttype}"></th>
-			<th class="col-md-3" th:text="#{html.entity.user.userId}"></th>
+			<th class="col-md-3" th:text="#{html.entity.user.name}"></th>
+			<th class="col-md-3" th:text="#{html.enum.assignmenttype}"></th>
+			<th class="col-md-1" th:text="#{html.entity.user.userId}"></th>
+			<th class="col-md-5" th:text="#{html.entity.user.positions}"></th>
 		</tr>
 		</thead>
 
@@ -17,6 +18,11 @@
 			<td th:text="${mapping.user.name}"></td>
 			<td th:text="#{__${mapping.assignedThrough.message}__}"></td>
 			<td th:text="${mapping.user.userId}"></td>
+			<td>
+				<ul style="list-style: none;">
+					<li th:each="position : ${mapping.user.positions}" th:text="${position.name} + ' i ' + ${position.orgUnit.name}"></li>
+				</ul>
+			</td>
 		</tr>
 		</tbody>
 	</table>

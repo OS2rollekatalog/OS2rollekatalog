@@ -524,6 +524,17 @@ public class AttestationService {
 			}
 			else {
 				Set<User> users = positionService.findByOrgUnit(orgUnit).stream().map(p -> p.getUser()).collect(Collectors.toSet());
+				List<String> userUuids = users.stream().map(u -> u.getUuid()).collect(Collectors.toList());
+
+				// if this orgUnit has a manager, pull up managers below
+				if (orgUnit.getManager() != null) {
+					pullUpManagersAndSubstitutes(
+							new ArrayList<>(users),
+							userUuids,
+							orgUnit.getManager().getUuid(),
+							orgUnit.getManager().getManagerSubstitute() != null ? orgUnit.getManager().getManagerSubstitute().getUuid() : null,
+							orgUnit.getChildren());
+				}
 				
 				if (adAttestationEnabled) {
 					// we skip OrgUnits where there are no users
@@ -568,6 +579,58 @@ public class AttestationService {
 					orgUnit.setNextAttestation(nextAttestationDate);
 					orgUnitService.save(orgUnit);
 				}
+			}
+		}
+	}
+	
+	// for each child, check the following
+	// - if the childs manager has a position in the child, pull manager up
+	// - if the childs managers substitute has a position in the child, pull the substitute up
+	// then, if the child did not have a manager, or if the manager was pulled up, continue with children. Note that we only need to check
+	// if we found a non-null manager that was not pulled up, as that manager would take care of any managers/substitutes further down.
+	public void pullUpManagersAndSubstitutes(List<User> users, List<String> userUuids, String topLevelManagerUuid, String topLevelSubstituteUuid, List<OrgUnit> children) {
+		if (children == null || children.size() == 0) {
+			return;
+		}
+		
+		for (OrgUnit child : children) {
+			User manager = child.getManager();
+			User substitute = (manager != null) ? manager.getManagerSubstitute() : null;
+
+			boolean stop = false;
+			
+			boolean managerMatchesTopLevel = (manager != null) ? Objects.equals(manager.getUuid(), topLevelManagerUuid) : false;
+			boolean substituteMatchesTopLevel = (substitute != null) ? Objects.equals(substitute.getUuid(), topLevelSubstituteUuid) : false;
+			boolean childManagerHasPositionInChild = (manager != null) ? manager.getPositions().stream().anyMatch(p -> Objects.equals(p.getOrgUnit().getUuid(), child.getUuid())) : false;
+			boolean childSubstituteHasPositionInChild = (substitute != null) ? substitute.getPositions().stream().anyMatch(p -> Objects.equals(p.getOrgUnit().getUuid(), child.getUuid())) : false;
+
+			// pull up manager?
+			if (managerMatchesTopLevel) {
+				; // no, we do not want this manager pulled up
+			}
+			else if (manager != null && childManagerHasPositionInChild) {
+				if (!userUuids.contains(manager.getUuid())) {
+					users.add(manager);
+					userUuids.add(manager.getUuid());
+				}
+
+				stop = true;
+			}
+			
+			// pull up substitute
+			if (substituteMatchesTopLevel) {
+				; // no, we do not want this substitute pulled up
+			}
+			else if (substitute != null && (childSubstituteHasPositionInChild || stop)) {
+				// note that we pull up the substitute if we pulled up the manager (the "stop" check above")
+				if (!userUuids.contains(substitute.getUuid())) {
+					users.add(substitute);
+					userUuids.add(substitute.getUuid());
+				}
+			}
+
+			if (!stop) {
+				pullUpManagersAndSubstitutes(users, userUuids, topLevelManagerUuid, topLevelSubstituteUuid, child.getChildren());
 			}
 		}
 	}

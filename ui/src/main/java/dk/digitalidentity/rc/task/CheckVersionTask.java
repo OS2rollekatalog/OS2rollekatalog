@@ -7,6 +7,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
+import org.springframework.util.StringUtils;
 
 import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
 import dk.digitalidentity.rc.service.AppManagerService;
@@ -25,6 +26,10 @@ public class CheckVersionTask {
 	// check for a new version once per hour
 	@Scheduled(initialDelay = 1000, fixedDelay = 60 * 60 * 1000)
 	public void checkVersion() {
+		if (!StringUtils.hasLength(configuration.getIntegrations().getAppManager().getUrl())) {
+			return;
+		}
+		
 		List<ApplicationApiDTO> applications = appManagerService.getApplications();
 		if (applications == null) {
 			return;

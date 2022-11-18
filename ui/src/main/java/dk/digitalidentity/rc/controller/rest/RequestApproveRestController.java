@@ -23,11 +23,13 @@ import dk.digitalidentity.rc.dao.model.EmailTemplate;
 import dk.digitalidentity.rc.dao.model.OrgUnit;
 import dk.digitalidentity.rc.dao.model.RequestApprove;
 import dk.digitalidentity.rc.dao.model.RoleGroup;
+import dk.digitalidentity.rc.dao.model.RoleGroupUserRoleAssignment;
 import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserRole;
 import dk.digitalidentity.rc.dao.model.enums.EmailTemplateType;
 import dk.digitalidentity.rc.dao.model.enums.EntityType;
 import dk.digitalidentity.rc.dao.model.enums.EventType;
+import dk.digitalidentity.rc.dao.model.enums.ItSystemType;
 import dk.digitalidentity.rc.dao.model.enums.RequestApproveStatus;
 import dk.digitalidentity.rc.log.AuditLogger;
 import dk.digitalidentity.rc.security.RequireAssignerRole;
@@ -102,6 +104,7 @@ public class RequestApproveRestController {
 			return new ResponseEntity<>("Der er valgt en inaktiv modtager af rollen", HttpStatus.BAD_REQUEST);
 		}
 
+		boolean manualItSystem = false;
 		String roleName = "";
 		switch (request.getRoleType()) {
 			case USERROLE:
@@ -109,6 +112,7 @@ public class RequestApproveRestController {
 				if (userRole != null) {
 					userService.addUserRole(request.getRequestedFor(), userRole, null, null);
 					roleName = userRole.getName();
+					manualItSystem = userRole.getItSystem().getSystemType().equals(ItSystemType.MANUAL);
 					
 					auditLogger.log(request.getRequestedFor(), EventType.APPROVE_REQUEST, userRole);
 				}
@@ -118,6 +122,13 @@ public class RequestApproveRestController {
 				if (roleGroup != null) {
 					userService.addRoleGroup(request.getRequestedFor(), roleGroup, null, null);
 					roleName = roleGroup.getName();
+					
+					for (RoleGroupUserRoleAssignment userRoleAssignment : roleGroup.getUserRoleAssignments()) {
+						if (userRoleAssignment.getUserRole().getItSystem().getSystemType().equals(ItSystemType.MANUAL)) {
+							manualItSystem = true;
+							break;
+						}
+					}
 					
 					auditLogger.log(request.getRequestedFor(), EventType.APPROVE_REQUEST, roleGroup);
 				}
@@ -131,6 +142,10 @@ public class RequestApproveRestController {
 		
 		if (requestedFor.getEmail() != null) {
 			EmailTemplate template = emailTemplateService.findByTemplateType(EmailTemplateType.APPROVED_ROLE_REQUEST_USER);
+			if (manualItSystem) {
+				template = emailTemplateService.findByTemplateType(EmailTemplateType.APPROVED_MANUAL_ROLE_REQUEST_USER);
+			}
+			
 			if (template.isEnabled()) {
 				String title = template.getTitle();
 				title = title.replace(EmailTemplateService.RECEIVER_PLACEHOLDER, requestedFor.getName());
@@ -148,6 +163,9 @@ public class RequestApproveRestController {
 		//Notifying manager and authorizationManager
 		OrgUnit orgUnit = request.getOrgUnit();
 		EmailTemplate template = emailTemplateService.findByTemplateType(EmailTemplateType.APPROVED_ROLE_REQUEST_MANAGER);
+		if (manualItSystem) {
+			template = emailTemplateService.findByTemplateType(EmailTemplateType.APPROVED_MANUAL_ROLE_REQUEST_MANAGER);
+		}
 		notify(request, orgUnit, template);
 
 		return new ResponseEntity<>(HttpStatus.OK);

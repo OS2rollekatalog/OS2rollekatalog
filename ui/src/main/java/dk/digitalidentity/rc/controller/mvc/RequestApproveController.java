@@ -5,6 +5,8 @@ import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
+import javax.servlet.http.HttpServletRequest;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -12,6 +14,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestParam;
 
+import dk.digitalidentity.rc.config.SessionConstants;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.RequestUserDTO;
 import dk.digitalidentity.rc.dao.model.OrgUnit;
 import dk.digitalidentity.rc.dao.model.RoleGroup;
@@ -54,12 +57,16 @@ public class RequestApproveController {
 	
 	@RequireAssignerRole
 	@GetMapping("/ui/users/requests/authorizationmanager")
-	public String getRequests(Model model) {
+	public String getRequests(Model model, HttpServletRequest request) {
 		if (!settingsService.isRequestApproveEnabled()) {
 			return "redirect:/error";
 		}
 
 		model.addAttribute("requests", requestApproveService.getPendingRequestsAuthorizationManager());
+		
+		// update badge in UI
+		long count = requestApproveService.getPendingRequestsAuthorizationManager().size();
+		request.getSession().setAttribute(SessionConstants.SESSION_REQUEST_COUNT, count);
 		
 		return "request_approve/requests_list";
 	}
@@ -101,7 +108,7 @@ public class RequestApproveController {
 		
 		model.addAttribute("roleType", roleType);
 		
-		List<OrgUnit> orgUnits = orgUnitService.getByAuthorizationManagerOrManagerMatchingUser(user);
+		List<OrgUnit> orgUnits = orgUnitService.getActiveByAuthorizationManagerOrManagerMatchingUser(user);
 		
 		model.addAttribute("orgUnits", orgUnits);
 

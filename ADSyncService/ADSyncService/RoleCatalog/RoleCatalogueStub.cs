@@ -2,6 +2,7 @@
 using RestSharp;
 using System.Net;
 using System.Collections.Generic;
+using System.Configuration;
 
 namespace ADSyncService
 {
@@ -112,7 +113,12 @@ namespace ADSyncService
         {
             RestClient client = new RestClient(baseUrl);
 
-            var request = new RestRequest("/api/itsystem/manage/" + itSystemId, Method.POST);
+            string updateUserAssignments = "";
+            if (ReImportUsersEnabled())
+            {
+                updateUserAssignments = "?updateUserAssignments=true";
+            }
+            var request = new RestRequest("/api/itsystem/manage/" + itSystemId + updateUserAssignments, Method.POST);
             request.RequestFormat = DataFormat.Json;
             request.AddHeader("Content-Type", "application/json");
             request.AddHeader("ApiKey", apiKey);
@@ -228,6 +234,12 @@ namespace ADSyncService
             {
                 log.Error("Reset operation call failed", ex);
             }
+        }
+
+        private static bool ReImportUsersEnabled()
+        {
+            string reImportUsers = ConfigurationManager.AppSettings["ReImportUsers"];
+            return reImportUsers != null && reImportUsers.Equals("Yes");
         }
     }
 }

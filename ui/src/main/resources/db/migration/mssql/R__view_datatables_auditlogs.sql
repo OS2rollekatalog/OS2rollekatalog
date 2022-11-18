@@ -1,3 +1,7 @@
+DROP VIEW IF EXISTS view_datatables_auditlogs;
+
+GO
+
 CREATE VIEW view_datatables_auditlogs AS (
 	SELECT a.id, a.timestamp, a.username, a.entity_type, a.entity_name, a.event_type, a.secondary_entity_name
 	FROM audit_log a

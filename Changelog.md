@@ -1,3 +1,10 @@
+2022.11.18 - Release 2022r6
+- [ROL-221](https://os2web.atlassian.net/browse/ROL-221) – Særskilt mailskabelon til anmod/godkend på manuelle it-systemer
+- [ROL-224](https://os2web.atlassian.net/browse/ROL-224) – Højere synlighed af pause-markering på it-systemer
+- [ROL-222](https://os2web.atlassian.net/browse/ROL-222) – Tilføj en "brugere" fane til rapporterne på rapportmodulet
+- [ROL-229](https://os2web.atlassian.net/browse/ROL-229) – Tilpasse overskriften på modal dialogerne på fjern roller
+- [ROL-230](https://os2web.atlassian.net/browse/ROL-230) – Ekstra kolonne til fanen "Brugere" under rettigheder
+
 2022.09-12 - Release 2022r5
 - [ROL-203](https://os2web.atlassian.net/browse/ROL-203) – Nye systemer skal som default ligge som 'skjult' i oversigten under IT Systemer
 - [ROL-216](https://os2web.atlassian.net/browse/ROL-216) – Gruppering af roller i samme type (til licensstyring)

@@ -4,11 +4,15 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -46,6 +50,42 @@ public class RoleAssignmentApi {
     @Autowired
     private RoleGroupService roleGroupService;
 	
+    // updates all direct assignments on users for this role
+    @PostMapping("/api/overwriteAssignments/userrole/{userRoleId}")
+    public ResponseEntity<String> overwriteUserRoleAssignments(@PathVariable("userRoleId") long userRoleId, @RequestBody Set<String> userIds) {
+        UserRole userRole = userRoleService.getById(userRoleId);
+        if (userRole == null) {
+            return new ResponseEntity<>("UserRole with id " + userRoleId + " does not exist", HttpStatus.NOT_FOUND);
+        }
+
+        Set<String> usersWhoShouldHaveUserRole = userIds.stream().map(u -> u.toLowerCase()).collect(Collectors.toSet());
+        Set<String> usersWithUserRole = userService.getActiveUsersWithUserRole(userRole).stream().map(uwr -> uwr.getUserUserId().toLowerCase()).collect(Collectors.toSet());
+
+        // find all that should be added
+        Set<String> toAdd = new HashSet<>(usersWhoShouldHaveUserRole);
+        toAdd.removeAll(usersWithUserRole);
+        for (String userId : toAdd) {
+        	User user = userService.getByUserId(userId);
+        	if (user != null) {
+        		userService.addUserRole(user, userRole, LocalDate.now(), null);
+    			userService.save(user);
+        	}
+        }
+        
+        // find all that should be removed
+        Set<String> toRemove = new HashSet<>(usersWithUserRole);
+        toRemove.removeAll(usersWhoShouldHaveUserRole);
+        for (String userId : toRemove) {
+        	User user = userService.getByUserId(userId);
+        	if (user != null) {
+        		userService.removeUserRole(user, userRole);
+    			userService.save(user);
+        	}
+        }
+        
+        return new ResponseEntity<>(HttpStatus.OK);
+    }
+
     @RequestMapping(value = "/api/user/{userUuid}/assign/userrole/{userRoleId}", method = RequestMethod.PUT)
     public ResponseEntity<String> assignUserRoleToUser(@PathVariable("userRoleId") long userRoleId, @PathVariable("userUuid") String userUuid, @RequestParam(name = "startDate", required = false) LocalDate startDate, @RequestParam(name = "stopDate", required = false) LocalDate stopDate, @RequestParam(name = "onlyIfNotAssigned", required = false, defaultValue = "true") boolean onlyIfNotAssigned) {
         List<User> users = userService.getByExtUuid(userUuid);

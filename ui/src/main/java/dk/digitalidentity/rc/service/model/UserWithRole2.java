@@ -1,5 +1,8 @@
 package dk.digitalidentity.rc.service.model;
 
+import java.util.List;
+
+import dk.digitalidentity.rc.dao.model.Position;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -11,4 +14,5 @@ public class UserWithRole2 {
 	public String userName;
 	public String userUserId;
 	public RoleAssignedToUserDTO assignment;
+	public List<Position> positions;
 }

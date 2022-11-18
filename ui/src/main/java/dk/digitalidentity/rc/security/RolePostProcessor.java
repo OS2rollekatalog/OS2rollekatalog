@@ -27,6 +27,7 @@ import dk.digitalidentity.rc.service.ItSystemService;
 import dk.digitalidentity.rc.service.NotificationService;
 import dk.digitalidentity.rc.service.OrgUnitService;
 import dk.digitalidentity.rc.service.ReportTemplateService;
+import dk.digitalidentity.rc.service.RequestApproveService;
 import dk.digitalidentity.rc.service.SettingsService;
 import dk.digitalidentity.rc.service.UserService;
 import dk.digitalidentity.rc.service.model.WhoCanRequest;
@@ -61,6 +62,9 @@ public class RolePostProcessor implements SamlLoginPostProcessor {
 	
 	@Autowired
 	private OrgUnitService orgUnitService;
+	
+	@Autowired
+	private RequestApproveService requestApproveService;
 
 	@Override
 	public void process(TokenUser tokenUser) {
@@ -148,8 +152,13 @@ public class RolePostProcessor implements SamlLoginPostProcessor {
 		if (roles.size() == 0 && reportTemplateService.getByUser(user).size() > 0) {
 			authorities.add(new SamlGrantedAuthority(Constants.ROLE_TEMPLATE_ACCESS));
 		}
-
+		
 		tokenUser.setAuthorities(authorities);
+		
+		// set number of requests on session if user is role assigner
+		if (authorities.stream().anyMatch(a -> a.getAuthority().equals(Constants.ROLE_ASSIGNER))) {
+			setRequests();
+		}
 	}
 	
 	private void setNotifications() {
@@ -158,6 +167,15 @@ public class RolePostProcessor implements SamlLoginPostProcessor {
 		if (request != null) {
 			long count = notificationService.countActive();
 			request.getSession().setAttribute(SessionConstants.SESSION_NOTIFICATION_COUNT, count);
+		}
+	}
+	
+	private void setRequests() {
+		HttpServletRequest request = getRequest();
+		
+		if (request != null) {
+			long count = requestApproveService.getPendingRequestsAuthorizationManager().size();
+			request.getSession().setAttribute(SessionConstants.SESSION_REQUEST_COUNT, count);
 		}
 	}
 	

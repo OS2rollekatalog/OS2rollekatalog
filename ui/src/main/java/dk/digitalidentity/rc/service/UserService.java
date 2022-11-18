@@ -1291,6 +1291,7 @@ public class UserService {
 			mapping.setUserUuid(assignment.getUser().getUuid());
 			mapping.setAssignment(RoleAssignedToUserDTO.fromRoleGroupAssignment(assignment));
 			mapping.getAssignment().setCanEdit(canEdit);
+			mapping.setPositions(assignment.getUser().getPositions());
 
 			result.add(mapping);
 		}
@@ -1305,6 +1306,7 @@ public class UserService {
 			mapping.setUserUuid(assignment.getPosition().getUser().getUuid());
 			mapping.setAssignment(RoleAssignedToUserDTO.fromPositionRoleGroupAssignment(assignment));
 			mapping.getAssignment().setCanEdit(canEdit);
+			mapping.setPositions(assignment.getPosition().getUser().getPositions());
 
 			result.add(mapping);			
 		}
@@ -1327,6 +1329,7 @@ public class UserService {
 			mapping.setUserUuid(assignment.getUser().getUuid());
 			mapping.setAssignment(RoleAssignedToUserDTO.fromUserRoleAssignment(assignment));
 			mapping.getAssignment().setCanEdit(canEdit);
+			mapping.setPositions(assignment.getUser().getPositions());
 
 			result.add(mapping);
 		}
@@ -1341,6 +1344,7 @@ public class UserService {
 			mapping.setUserUuid(assignment.getPosition().getUser().getUuid());
 			mapping.setAssignment(RoleAssignedToUserDTO.fromPositionUserRoleAssignment(assignment));
 			mapping.getAssignment().setCanEdit(canEdit);
+			mapping.setPositions(assignment.getPosition().getUser().getPositions());
 
 			result.add(mapping);			
 		}

@@ -144,7 +144,7 @@ public class OrgUnitService {
 		return orgUnitDao.getByAuthorizationManagersUser(user);
 	}
 	
-	public List<OrgUnit> getByAuthorizationManagerOrManagerMatchingUser(User user) {
+	public List<OrgUnit> getActiveByAuthorizationManagerOrManagerMatchingUser(User user) {
 		List<OrgUnit> orgUnits = orgUnitDao.getByAuthorizationManagersUser(user);
 		List<OrgUnit> orgUnits2 = orgUnitDao.getByManager(user);
 
@@ -161,7 +161,7 @@ public class OrgUnitService {
 			}
 		}
 		
-		return orgUnits;
+		return orgUnits.stream().filter(o -> o.isActive()).toList();
 	}
 
 	public static Map<String, String> getManagerAndSubstituteEmail(OrgUnit orgUnit, boolean preferSubstitute) {
@@ -205,7 +205,7 @@ public class OrgUnitService {
 			}
 		}
 		
-		return result;
+		return result.stream().filter(ou -> ou.isActive()).collect(Collectors.toList());
 	}
 
 	public List<OrgUnit> getAll() {

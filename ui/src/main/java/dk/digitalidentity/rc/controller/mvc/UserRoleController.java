@@ -247,10 +247,8 @@ public class UserRoleController {
 		}
 
 		List<User> usersFromDb = userService.getAll();
-		//Reusing existing dto
-		var availableUsers = usersFromDb.stream().map(u -> new UserRoleCheckedDTO(u.getUuid(), u.getName(), u.getUserId(), false, null, null)).collect(Collectors.toList());
 
-		model.addAttribute("users", availableUsers);
+		model.addAttribute("users", usersFromDb);
 		return "userroles/fragments/manage_add_users :: addUsers";
 	}
 

@@ -21,8 +21,8 @@ import lombok.Setter;
 @Setter
 @ConfigurationProperties(prefix = "rc")
 public class RoleCatalogueConfiguration {
-	private String version = "2022 r5";
-	private String latestVersion = "2022 r5";
+	private String version = "2022 r6";
+	private String latestVersion = "2022 r6";
 
 	private Customer customer = new Customer();
 	private Titles titles = new Titles();

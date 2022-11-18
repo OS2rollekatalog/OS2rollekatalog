@@ -84,6 +84,14 @@ public class EmailTemplateService {
 					title = "Der er afventende rolleanmodninger";
 					message = "Kære {modtager}\n<br/>\n<br/>\nDer er {antal} rolleanmodning(er), der skal tages stilling til.";
 					break;
+				case APPROVED_MANUAL_ROLE_REQUEST_USER:
+					title = "Du har fået tildelt en rolle";
+					message = "Kære {modtager}\n<br/>\n<br/>\nEn autorisationsansvarlig eller leder har anmodet om rollen {rolle} til dig. Den er nu tildelt.";
+					break;
+				case APPROVED_MANUAL_ROLE_REQUEST_MANAGER:
+					title = "En anmodning om en rolle er godkendt";
+					message = "Kære {modtager}\n<br/>\n<br/>\nRollen {rolle} du har anmodet om til {bruger}, er nu tildelt.";
+					break;
 			}
 			
 			template.setTitle(title);

@@ -13,6 +13,8 @@ public enum EmailTemplateType {
 	ROLE_EXPIRING("html.enum.email.message.type.role_expiring"),
 	APPROVED_ROLE_REQUEST_USER("html.enum.email.message.type.approved_role_request_user"),
 	APPROVED_ROLE_REQUEST_MANAGER("html.enum.email.message.type.approved_role_request_manager"),
+	APPROVED_MANUAL_ROLE_REQUEST_USER("html.enum.email.message.type.approved_manual_role_request_user"),
+	APPROVED_MANUAL_ROLE_REQUEST_MANAGER("html.enum.email.message.type.approved_manual_role_request_manager"),
 	REJECTED_ROLE_REQUEST_MANAGER("html.enum.email.message.type.rejected_role_request_manager"),
 	WAITING_REQUESTS_ROLE_ASSIGNERS("html.enum.email.message.type.waiting_requests_role_assigners");
 	

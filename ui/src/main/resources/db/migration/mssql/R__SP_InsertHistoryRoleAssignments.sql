@@ -51,7 +51,7 @@ BEGIN
       INNER JOIN constraint_types ct ON ct.id = pc.constraint_type_id
       GROUP BY pc.user_user_role_assignment_id
     ) as sub_constraints ON sub_constraints.user_user_role_assignment_id = urm.id
-	WHERE urm.inactive = 0
+	WHERE urm.inactive = 0 AND u.deleted = 0
 	UNION ALL
 	-- user roles through rolegroups from direct assignments
 	SELECT
@@ -75,7 +75,7 @@ BEGIN
 	JOIN rolegroup_roles rgr ON rgr.rolegroup_id = urg.rolegroup_id
 	JOIN user_roles ur ON ur.id = rgr.role_id
 	JOIN it_systems it ON it.id = ur.it_system_id
-	WHERE urg.inactive = 0
+	WHERE urg.inactive = 0 AND u.deleted = 0
 	UNION ALL
 	-- user roles from position assignments
 	SELECT
@@ -99,7 +99,7 @@ BEGIN
 	JOIN ous ou ON ou.uuid = p.ou_uuid
 	JOIN user_roles ur ON ur.id = pr.role_id
 	JOIN it_systems it ON it.id = ur.it_system_id
-	WHERE pr.inactive = 0
+	WHERE pr.inactive = 0 AND u.deleted = 0
 	UNION ALL
 	-- user roles through rolegroup from position assignments
 	SELECT
@@ -125,7 +125,7 @@ BEGIN
 	JOIN rolegroup_roles rgr ON rgr.rolegroup_id = prg.rolegroup_id
 	JOIN user_roles ur ON ur.id = rgr.role_id
 	JOIN it_systems it ON it.id = ur.it_system_id
-	WHERE prg.inactive = 0;
+	WHERE prg.inactive = 0 AND u.deleted = 0;
 	
 END
 GO

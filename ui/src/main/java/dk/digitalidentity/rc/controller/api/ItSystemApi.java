@@ -21,6 +21,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import dk.digitalidentity.rc.controller.api.dto.ItSystemDTO;
@@ -111,7 +112,7 @@ public class ItSystemApi {
 	}
 
 	@PostMapping(value = "/api/itsystem/manage/{id}")
-	public ResponseEntity<?> manageItSystem(@PathVariable("id") Long id, @RequestBody @Valid ItSystemWithSystemRolesDTO body) {
+	public ResponseEntity<?> manageItSystem(@PathVariable("id") Long id, @RequestParam(name = "updateUserAssignments", required = false, defaultValue = "false") boolean updateUserAssignments, @RequestBody @Valid ItSystemWithSystemRolesDTO body) {
 		log.info("manage API on " + id + " called");
 		
 		ItSystem itSystem = itSystemService.getById(id);
@@ -213,7 +214,7 @@ public class ItSystemApi {
 					userRole = userRoleService.save(userRole);
 				}
 
-				if (itSystem.isReadonly()) {
+				if (itSystem.isReadonly() || updateUserAssignments) {
 					Optional<SystemRoleDTO> systemRoleDTO = body.getSystemRoles().stream()
 							.filter(srDTO -> Objects.equals(srDTO.getIdentifier(), systemRole.get().getIdentifier()))
 							.findFirst();

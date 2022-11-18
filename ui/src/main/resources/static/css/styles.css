@@ -76,7 +76,16 @@ td.centeredOps {
 li.bold {
 	font-weight: bold;
 }
+.badge-alert {
+	background-color: red;
+	font-size: 75%;
+}
+.badge-success {
+	background-color: green;
+	font-size: 75%;
+}
 .badge-warning {
-	color: #212529;
-	background-color: #ffc107;
+	background-color: yellow;
+	color: black;
+	font-size: 75%;
 }

@@ -33,7 +33,7 @@
 				<span th:if="${mapping.assignment.startDate == null and mapping.assignment.stopDate == null}" th:text="#{html.word.indefinite}"></span>
 			</td>
 
-			<td th:if="${showEdit == true}" th:attr="data-assignmentid=${mapping.assignment.assignmentId}, data-roleid=${mapping.assignment.roleId}, data-assignmenttype=${mapping.assignment.assignmentType}, data-orgunit=${mapping.ouUuid}, data-startDate=${mapping.assignment.startDate}, data-stopDate=${mapping.assignment.stopDate}, data-assignedthrough=${mapping.assignment.assignedThrough}">
+			<td th:if="${showEdit == true}" th:attr="data-assignmentid=${mapping.assignment.assignmentId}, data-roleid=${mapping.assignment.roleId}, data-assignmenttype=${mapping.assignment.assignmentType}, data-orgunit=${mapping.ouUuid}, data-startDate=${mapping.assignment.startDate}, data-stopDate=${mapping.assignment.stopDate}, data-assignedthrough=${mapping.assignment.assignedThrough}, data-name=${mapping.assignment.name}">
 				<a
 					href="#"
 					th:if="${mapping.assignment.canEdit}"

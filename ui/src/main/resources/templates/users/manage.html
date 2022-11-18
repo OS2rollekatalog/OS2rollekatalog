@@ -255,10 +255,11 @@
 				var assignmentId = parent.dataset.assignmentid;
 				var assignedThrough = parent.dataset.assignedthrough;
 				var type = parent.dataset.type;
+				var roleName = parent.dataset.name;
 
 				var endpoint = restUrl + user + '/removeassignment/' + type + '/' + assignedThrough + '/' + assignmentId;
 				
-				var titleTxt = deleteRoleAssignmentTitleTxt;
+				var titleTxt = deleteRoleAssignmentTitleTxt + '"' + roleName + '"';
 				var bodyTxt = deleteRoleAssignmentBodyTxt;
 				var errorMessage = deleteRoleAssignmentErrorMessage;
 				

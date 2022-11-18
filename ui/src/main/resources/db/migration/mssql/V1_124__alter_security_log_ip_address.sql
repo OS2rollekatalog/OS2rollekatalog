@@ -1,0 +1,1 @@
+ALTER TABLE security_log ALTER COLUMN ip_address VARCHAR(64) NOT NULL;

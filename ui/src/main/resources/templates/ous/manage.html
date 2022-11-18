@@ -390,9 +390,11 @@
 				var parent = elem.parentElement;
 				var assignmentId = parent.dataset.assignmentid;
 				var type = parent.dataset.objtype;
+				var roleName = parent.dataset.name;
+
 				var endpoint = url + ou + '/removeassignment/'+ type + '/' + assignmentId;
 
-				var titleTxt = deleteRoleAssignmentTitleTxt;
+				var titleTxt = deleteRoleAssignmentTitleTxt + '"' + roleName + '"';
 				var bodyTxt = deleteRoleAssignmentBodyTxt;
 				var errorMessage = deleteRoleAssignmentErrorMessage;
 				

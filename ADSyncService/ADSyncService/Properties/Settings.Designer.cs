@@ -12,7 +12,7 @@ namespace ADSyncService.Properties {
     
     
     [global::System.Runtime.CompilerServices.CompilerGeneratedAttribute()]
-    [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.VisualStudio.Editors.SettingsDesigner.SettingsSingleFileGenerator", "17.2.0.0")]
+    [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.VisualStudio.Editors.SettingsDesigner.SettingsSingleFileGenerator", "17.3.0.0")]
     internal sealed partial class Settings : global::System.Configuration.ApplicationSettingsBase {
         
         private static Settings defaultInstance = ((Settings)(global::System.Configuration.ApplicationSettingsBase.Synchronized(new Settings())));
@@ -195,6 +195,15 @@ namespace ADSyncService.Properties {
         public global::System.Collections.Specialized.StringCollection ReadonlyItSystemFeature_SystemMap {
             get {
                 return ((global::System.Collections.Specialized.StringCollection)(this["ReadonlyItSystemFeature_SystemMap"]));
+            }
+        }
+        
+        [global::System.Configuration.ApplicationScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("")]
+        public string ItSystemGroupFeature_Cron {
+            get {
+                return ((string)(this["ItSystemGroupFeature_Cron"]));
             }
         }
     }

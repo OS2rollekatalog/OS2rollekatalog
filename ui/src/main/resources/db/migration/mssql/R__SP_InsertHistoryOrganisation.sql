@@ -16,7 +16,8 @@ BEGIN
   FROM history_ous ho
   JOIN positions p ON p.ou_uuid = ho.ou_uuid
   JOIN users u ON u.uuid = p.user_uuid
-  WHERE ho.dato = CAST(CURRENT_TIMESTAMP AS DATE);
+  WHERE ho.dato = CAST(CURRENT_TIMESTAMP AS DATE)
+    AND u.deleted = 0;
   
   INSERT INTO history_users (dato, user_uuid, user_ext_uuid, user_name, user_user_id, user_active)
   SELECT CURRENT_TIMESTAMP, u.uuid, u.ext_uuid, u.name, u.user_id, IIF(u.disabled = 1, 0, 1)

@@ -765,13 +765,17 @@
 				var assignmentId = parent.dataset.assignmentid;
 				var user = parent.dataset.user;
 				var type = parent.dataset.type;
+				var roleName = parent.dataset.name;
 
 				var endpoint = userRestUrl + user + '/removeassignment/USERROLE/DIRECT/' + assignmentId;
 
+				var titleTxt = deleteRoleAssignmentTitleTxt + '"' + roleName + '"';
+				var bodyTxt = deleteRoleAssignmentBodyTxt;
+
 				swal({
 					html: true,
-					title : deleteRoleAssignmentTitleTxt,
-					text : deleteRoleAssignmentBodyTxt,
+					title : titleTxt,
+					text : bodyTxt,
 					type : "warning",
 					showCancelButton : true,
 					confirmButtonColor : "#DD6B55",
@@ -868,13 +872,17 @@
 				var assignmentId = parent.dataset.assignmentid;
 				var type = parent.dataset.type;
 				var ou = parent.dataset.orgunit;
+				var roleName = parent.dataset.name;
 
 				var endpoint = ouRestUrl + ou + '/removeassignment/USERROLE/' + assignmentId;
-				
+
+				var titleTxt = deleteRoleAssignmentTitleTxt + '"' + roleName + '"';
+				var bodyTxt = deleteRoleAssignmentBodyTxt;
+
 				swal({
 					html: true,
-					title : deleteRoleAssignmentTitleTxt,
-					text : deleteRoleAssignmentBodyTxt,
+					title : titleTxt,
+					text : bodyTxt,
 					type : "warning",
 					showCancelButton : true,
 					confirmButtonColor : "#DD6B55",

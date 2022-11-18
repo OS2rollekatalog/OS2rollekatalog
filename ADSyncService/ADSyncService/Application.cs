@@ -39,19 +39,20 @@ namespace ADSyncService
             schedule.ScheduleJob(job, trigger);
             schedule.TriggerJob(job.Key);
 
-            IJobDetail job2 = JobBuilder.Create<NightSyncJob>()
+            IJobDetail itSystemsGroupsJob = JobBuilder.Create<ItSystemsGroupsJob>()
                 .WithIdentity("mappingJob2", "group2")
                 .Build();
 
             Random random = new Random();
+            var itSystemsGroupsCron = String.IsNullOrEmpty(Properties.Settings.Default.ItSystemGroupFeature_Cron) ? $"0 {random.Next(0, 59)} 2 ? * *" : Properties.Settings.Default.ItSystemGroupFeature_Cron;
             ITrigger trigger2 = TriggerBuilder.Create()
               .WithIdentity("trigger2", "group2")
-              .WithCronSchedule("0 " + random.Next(0, 59) + " 2 ? * *")
+              .WithCronSchedule(itSystemsGroupsCron)
               .StartNow()
               .Build();
 
-            schedule.ScheduleJob(job2, trigger2);
-            schedule.TriggerJob(job2.Key);
+            schedule.ScheduleJob(itSystemsGroupsJob, trigger2);
+            schedule.TriggerJob(itSystemsGroupsJob.Key);
 
             IJobDetail job3 = JobBuilder.Create<ReadOnlyItSystemSyncJob>()
                 .WithIdentity("mappingJob3", "group3")
