@@ -54,14 +54,11 @@
 															<th:block th:if="${position.title != null}">
 															&nbsp;(<strong th:text="${position.title.name}"></strong> <span th:text="#{html.page.titles.intext}"></span>)
 															</th:block>
+															<th:block th:if="${position.doNotInherit}">
+															 - <span style="color: red;" th:text="#{html.entity.positions.do_not_inherit}"></span>
+															</th:block>
 														</div>
 													</div>
-												</div>
-											</fieldset>
-											
-											<fieldset th:if="${user.doNotInherit == true}">
-												<div class="form-group">
-													<div class="col-sm-offset-2 col-sm-8" style="color: red;" th:text="#{html.entity.user.do_not_inherit}"></div>
 												</div>
 											</fieldset>
 											

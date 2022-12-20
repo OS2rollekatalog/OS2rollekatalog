@@ -37,16 +37,7 @@
 								</div>
 							</fieldset>
 
-							<fieldset sec:authorize="hasRole('ROLE_REQUESTER')" th:if="${canRequest && @settingsService.getRequestApproveWho() == T(dk.digitalidentity.rc.service.model.WhoCanRequest).USERS}">
-								<div class="form-group">
-									<label class="col-sm-2 control-label" th:text="#{html.entity.view.action.label}"></label>
-									<div class="col-sm-8">
-										<a id="requestBtn" class="btn btn-lg btn-primary" th:text="#{html.entity.view.action.request}"></a>
-									</div>
-								</div>
-							</fieldset>
-							
-							<fieldset sec:authorize="hasRole('ROLE_REQUESTER')" th:if="${canRequest && @settingsService.getRequestApproveWho() == T(dk.digitalidentity.rc.service.model.WhoCanRequest).AUTHORIZATION_MANAGER}">
+							<fieldset sec:authorize="hasRole('ROLE_REQUESTER')" th:if="${canRequest && @settingsService.isRequestApproveEnabled() == true}">
 								<div class="form-group">
 									<label class="col-sm-2 control-label" th:text="#{html.entity.view.action.label}"></label>
 									<div class="col-sm-8">
@@ -114,29 +105,6 @@
 	    </section>
     </div>
 
-	<div class="modal fade" id="modal-request" role="dialog">
-	    <div class="modal-dialog">
-	        <div class="modal-content">
-				<form class="form-horizontal" method="post" th:action="@{/ui/rolegroups/request}" th:object="${requestForm}">
-					<input type="hidden" th:field="*{id}"/>
-		            <div class="modal-header">
-		                <h4 th:text="#{html.page.roles.request.modal.header}"></h4>
-		            </div>
-	
-		            <div class="modal-body">
-		            	<span th:text="#{html.page.roles.request.modal.body}"></span>
-						<textarea id="reasonField" required="required" oninvalid="this.setCustomValidity('Angiv begrundelse')" oninput="this.setCustomValidity('')" rows="8" class="form-control" th:field="*{reason}" style="margin-top: 10px;"></textarea>
-		            </div>
-		
-					<div class="modal-footer">
-						<button type="submit" class="btn btn-primary" th:text="#{html.control.button.request}"></button>
-						<button type="button" class="btn btn-danger" id="closeModalBtn" th:text="#{html.control.button.cancel}"></button>
-					</div>
-				</form>
-	        </div>
-	    </div>
-	</div>
-
 	<div id="userRoleGroupModal"></div>
 	<div id="ouRoleGroupModal"></div>
 	<div id="ouRoleGroupEditModal"></div>
@@ -194,22 +162,6 @@
 			//Edit RoleGroup assignmnet on OrgUnit modal
 			ouRolesEditModalService.parentService = orgUnitService;
 
-			$("#modal-request").on('shown.bs.modal', function() {
-				$("#reasonField").focus();
-			});
-			
-			$("#requestBtn").click(function() {
-				$("#modal-request").modal({
-				    backdrop: 'static',
-				    keyboard: false
-				});
-			});
-			
-			$("#closeModalBtn").click(function() {
-				$("#reasonField").val('');
-				$("#modal-request").modal('hide');
-			});
-			
 			if (infoMessage != null) {
 				notificationService.showInfoNotification(infoMessage);
 			}

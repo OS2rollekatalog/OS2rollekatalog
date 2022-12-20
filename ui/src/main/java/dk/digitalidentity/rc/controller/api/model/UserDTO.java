@@ -35,7 +35,7 @@ public class UserDTO {
 		this.email = user.getEmail();
 		this.phone = user.getPhone();
 		this.cpr = user.getCpr();
-		this.doNotInherit = user.isDoNotInherit();
+		this.doNotInherit = user.getPositions().stream().anyMatch(p -> p.isDoNotInherit());
 		this.disabled = user.isDisabled();
 
 		List<Position> userPositions = user.getPositions();

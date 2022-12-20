@@ -1,5 +1,7 @@
 package dk.digitalidentity.rc.service.model;
 
+import java.util.Date;
+
 import dk.digitalidentity.rc.dao.model.RequestApprove;
 import dk.digitalidentity.rc.dao.model.RoleGroup;
 import dk.digitalidentity.rc.dao.model.UserRole;
@@ -16,4 +18,5 @@ public class RequestApproveWrapper {
 	private String roleDescription;
 	private String itSystemName;
 	private String childJson;
+	private Date requestTimestamp;
 }

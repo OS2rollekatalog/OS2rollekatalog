@@ -1,9 +1,7 @@
 package dk.digitalidentity.rc.service;
 
-import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
-import java.util.Set;
 import java.util.stream.Collectors;
 
 import javax.transaction.Transactional;
@@ -30,9 +28,6 @@ public class UserRoleService {
 
 	@Autowired
 	private ItSystemService itSystemService;
-
-	@Autowired
-	private SettingsService settingsService;
 
 	@AuditLogIntercepted
 	public boolean addSystemRoleAssignment(UserRole userRole, SystemRoleAssignment systemRoleAssignment) {
@@ -87,6 +82,10 @@ public class UserRoleService {
 		return userRoleDao.findAll();
 	}
 
+	public List<UserRole> getAllRequestable() {
+		return userRoleDao.findByCanRequestTrue();
+	}
+
 	public List<UserRole> getAllExceptRoleCatalogue() {
 		List<ItSystem> roleCatalogue = itSystemService.findByIdentifier(Constants.ROLE_CATALOGUE_IDENTIFIER);
 		if (roleCatalogue == null || roleCatalogue.size() != 1) {
@@ -112,30 +111,6 @@ public class UserRoleService {
 		if (!role.isCanRequest()) {
 			return false;
 		}
-
-		// filter on itSystem
-		if (settingsService.isItSystemMarkupEnabled()) {
-			
-			// get all it-systems from all orgunits that the user resides in
-			Set<ItSystem> itSystems = user.getPositions().stream()
-					.map(p -> p.getOrgUnit().getItSystems())
-					.collect(Collectors.toList())
-					.stream().flatMap(List::stream)
-					.collect(Collectors.toSet());
-
-			boolean found = false;
-	    	for (ItSystem itSystem : itSystems) {
-	    		if (itSystem.getId() == role.getItSystem().getId()) {
-	    			found = true;
-	    			break;
-	    		}
-	    	}
-
-	    	if (!found) {
-	    		return false;
-	    	}
-		}
-		
 		return true;
 	}
 	
@@ -143,35 +118,7 @@ public class UserRoleService {
 
 		// filter on canRequest
 		roles = roles.stream().filter(r -> r.isCanRequest()).collect(Collectors.toList());
-		
-		// filter on itSystem
-		if (settingsService.isItSystemMarkupEnabled()) {
-			
-			// get all it-systems from all orgunits that the user resides in
-			Set<ItSystem> itSystems = user.getPositions().stream()
-					.map(p -> p.getOrgUnit().getItSystems())
-					.collect(Collectors.toList())
-					.stream().flatMap(List::stream)
-					.collect(Collectors.toSet());
-			
-			// filter out all userroles not found in one of the whitelisted it-systems
-			for (Iterator<UserRole> iter = roles.iterator(); iter.hasNext(); ) {
-			    UserRole userRole = iter.next();
-		    	boolean found = false;
 
-		    	for (ItSystem itSystem : itSystems) {
-		    		if (itSystem.getId() == userRole.getItSystem().getId()) {
-		    			found = true;
-		    			break;
-		    		}
-		    	}
-
-		    	if (!found) {
-		    		iter.remove();
-		    	}
-			}
-		}
-		
 		return roles;
 	}
 

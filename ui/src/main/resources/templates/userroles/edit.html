@@ -120,16 +120,6 @@
 										</div>
 									</div>
 
-									<label class="col-sm-2 control-label" th:text="#{html.role.flag.canrequest}"></label>
-									<div class="col-sm-1">
-										<div class="checkbox c-checkbox">
-											<label>
-												<input class="canrequest-checkbox" type="checkbox" data-flag="canrequest" th:attr="checked=${role.canRequest}" />
-												<span class="fa fa-check"></span>
-											</label>
-										</div>
-									</div>
-									
 									<label class="col-sm-2 control-label" th:text="#{html.role.flag.sensitive}"></label>
 									<div class="col-sm-1">
 										<div class="checkbox c-checkbox">
@@ -599,7 +589,6 @@
 
 			$('.useronly-checkbox').change(flagCheckboxChange);
 			$('.inherit-checkbox').change(flagCheckboxChange);
-			$('.canrequest-checkbox').change(flagCheckboxChange);
 			$('.sensitive-checkbox').change(flagCheckboxChange);
 			
 			// Add event handler

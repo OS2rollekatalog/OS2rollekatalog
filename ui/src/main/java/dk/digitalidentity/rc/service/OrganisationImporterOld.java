@@ -22,7 +22,6 @@ import dk.digitalidentity.rc.controller.api.model.OrgUnitAM;
 import dk.digitalidentity.rc.controller.api.model.OrganisationImportResponse;
 import dk.digitalidentity.rc.controller.api.model.PositionAM;
 import dk.digitalidentity.rc.controller.api.model.UserAM;
-import dk.digitalidentity.rc.dao.model.ItSystem;
 import dk.digitalidentity.rc.dao.model.KLEMapping;
 import dk.digitalidentity.rc.dao.model.OrgUnit;
 import dk.digitalidentity.rc.dao.model.Position;
@@ -42,14 +41,8 @@ public class OrganisationImporterOld {
 	private OrgUnitService orgUnitService;
 
 	@Autowired
-	private ItSystemService itSystemService;
-
-	@Autowired
 	private EntityManager entityManager;
 
-	@Autowired
-	private SettingsService settingsService;
-	
 	@Autowired
 	private RoleCatalogueConfiguration configuration;
 	
@@ -351,7 +344,6 @@ public class OrganisationImporterOld {
 
 	private void processOrgUnits(List<OrgUnit> newOus, List<OrgUnit> existingOUs, OrganisationImportResponse response) {
 		long updated = 0, created = 0;
-		boolean itSystemMarkupEnabled = settingsService.isItSystemMarkupEnabled();
 
 		for (OrgUnit ou : newOus) {
 			boolean found = false;
@@ -414,44 +406,6 @@ public class OrganisationImporterOld {
 							}
 
 							if (!kleFound) {
-								iterator.remove();
-
-								changes = true;
-							}
-						}
-					}
-
-					if (itSystemMarkupEnabled) {
-						// Add new it-systems
-						for (ItSystem itSystem : ou.getItSystems()) {
-							boolean itSystemFound = false;
-							for (ItSystem oldItSystem : existingOU.getItSystems()) {
-								if (oldItSystem.getId() == itSystem.getId()) {
-									itSystemFound = true;
-									break;
-								}
-							}
-
-							if (!itSystemFound) {
-								existingOU.getItSystems().add(itSystem);
-
-								changes = true;
-							}
-						}
-
-						// Remove old it-systems
-						for (Iterator<ItSystem> iterator = existingOU.getItSystems().iterator(); iterator.hasNext(); ) {
-							ItSystem oldItSystem = iterator.next();
-
-							boolean itSystemFound = false;
-							for (ItSystem newItSystem : ou.getItSystems()) {
-								if (oldItSystem.getId() == newItSystem.getId()) {
-									itSystemFound = true;
-									break;
-								}
-							}
-
-							if (!itSystemFound) {
 								iterator.remove();
 
 								changes = true;
@@ -885,21 +839,7 @@ public class OrganisationImporterOld {
 		orgUnitEntity.setParent(parent);
 		orgUnitEntity.setActive(true);
 		orgUnitEntity.setLevel(OrgUnitLevel.NONE);
-		
-		orgUnitEntity.setItSystems(new ArrayList<>());
-		if (orgUnit.getItSystemIdentifiers() != null && orgUnit.getItSystemIdentifiers().size() > 0) {
-			for (Long id : orgUnit.getItSystemIdentifiers()) {
-				ItSystem itSystem = itSystemService.getById(id);
 
-				if (itSystem == null) {
-					log.warn("ItSystem with id " + id + " does not exist!");
-				}
-				else {
-					orgUnitEntity.getItSystems().add(itSystem);
-				}
-			}
-		}
-		
 		handleKLEs(orgUnitEntity, orgUnit.getKleInterest(), KleType.INTEREST);
 		handleKLEs(orgUnitEntity, orgUnit.getKlePerforming(), KleType.PERFORMING);
 

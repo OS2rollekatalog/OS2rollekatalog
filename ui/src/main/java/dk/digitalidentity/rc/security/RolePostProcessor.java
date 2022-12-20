@@ -30,7 +30,6 @@ import dk.digitalidentity.rc.service.ReportTemplateService;
 import dk.digitalidentity.rc.service.RequestApproveService;
 import dk.digitalidentity.rc.service.SettingsService;
 import dk.digitalidentity.rc.service.UserService;
-import dk.digitalidentity.rc.service.model.WhoCanRequest;
 import dk.digitalidentity.samlmodule.model.SamlLoginPostProcessor;
 import dk.digitalidentity.samlmodule.model.TokenUser;
 
@@ -107,16 +106,9 @@ public class RolePostProcessor implements SamlLoginPostProcessor {
 
 		// check if the request/approve feature is enabled
 		if (settingsService.isRequestApproveEnabled()) {
-			if (settingsService.getRequestApproveWho().equals(WhoCanRequest.AUTHORIZATION_MANAGER)) {
-
-				// if it is only a substitute/manager or an authorization manager that can request roles, check if the user is a substitute, authorization manager or a manager
-				if (managers.size() > 0 || !orgUnitService.getByAuthorizationManagerMatchingUser(user).isEmpty() || !orgUnitService.getByManagerMatchingUser(user).isEmpty()) {
-					authorities.add(new SamlGrantedAuthority(Constants.ROLE_REQUESTER));
-				}
-				
-			}
-			else {
-				// if it is users that can request roles, all users gets the requester role
+			
+			// it is only a substitute/manager or an authorization manager that can request roles, check if the user is a substitute, authorization manager or a manager
+			if (managers.size() > 0 || !orgUnitService.getByAuthorizationManagerMatchingUser(user).isEmpty() || !orgUnitService.getByManagerMatchingUser(user).isEmpty()) {
 				authorities.add(new SamlGrantedAuthority(Constants.ROLE_REQUESTER));
 			}
 		}

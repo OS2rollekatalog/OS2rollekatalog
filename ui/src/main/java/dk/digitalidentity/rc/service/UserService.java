@@ -815,7 +815,7 @@ public class UserService {
 				}
 			}
 			
-			if (!user.isDoNotInherit() && position.getTitle() != null) {
+			if (!position.isDoNotInherit() && position.getTitle() != null) {
 
 				// position.title (userRoles)
 				
@@ -872,7 +872,7 @@ public class UserService {
 				}
 			}
 
-			if (!user.isDoNotInherit()) {
+			if (!position.isDoNotInherit()) {
 				// recursive through all OrgUnits from here and up
 				getAllUserRolesFromOrgUnit(result, position.getOrgUnit(), itSystem, false, expandRoleGroups, user);
 			}
@@ -910,7 +910,7 @@ public class UserService {
 			
 			result.addAll(prg.stream().map(RoleAssignedToUserDTO::fromPositionRoleGroupAssignment).collect(Collectors.toList()));
 
-			if (!user.isDoNotInherit()) {
+			if (!position.isDoNotInherit()) {
 				// recursive through all OrgUnits from here and up
 				getAllUserRolesAndRoleGroupsFromOrgUnit(result, position.getOrgUnit(), false, user, position.getTitle());
 			}
@@ -1086,7 +1086,7 @@ public class UserService {
 				result.add(assignment);
 			}
 
-			if (!user.isDoNotInherit() && position.getTitle() != null) {
+			if (!position.isDoNotInherit() && position.getTitle() != null) {
 
 				// position.title (RoleGroups)
 				List<OrgUnitRoleGroupAssignment> titleAssignments = position.getOrgUnit().getRoleGroupAssignments()
@@ -1111,7 +1111,7 @@ public class UserService {
 			}
 
 			// recursive through all OrgUnits from here and up
-			if (!user.isDoNotInherit()) {
+			if (!position.isDoNotInherit()) {
 				getAllRoleGroupsFromOrgUnit(result, position.getOrgUnit(), false, user);
 			}
 		}
@@ -1442,7 +1442,7 @@ public class UserService {
 							continue;
 						}
 						
-						if (!position.getUser().isDeleted() && !position.getUser().isDoNotInherit()) {
+						if (!position.getUser().isDeleted() && !position.isDoNotInherit()) {
 							UserWithRole mapping = new UserWithRole();
 							mapping.setUser(position.getUser());
 
@@ -1497,7 +1497,7 @@ public class UserService {
 								continue;
 							}
 							
-							if (!position.getUser().isDeleted() && !position.getUser().isDoNotInherit()) {
+							if (!position.getUser().isDeleted() && !position.isDoNotInherit()) {
 								UserWithRole mapping = new UserWithRole();
 								mapping.setUser(position.getUser());
 								
@@ -1669,7 +1669,7 @@ public class UserService {
 				}
 	
 				for (Position position : positionService.findByOrgUnit(child)) {
-					if (!position.getUser().isDeleted() && !position.getUser().isDoNotInherit()) {
+					if (!position.getUser().isDeleted() && !position.isDoNotInherit()) {
 						UserWithRole mapping = new UserWithRole();
 						mapping.setUser(position.getUser());
 						mapping.setAssignedThrough(assignedThrough);
@@ -1746,7 +1746,7 @@ public class UserService {
 							}
 						}
 						
-						if (!position.getUser().isDeleted() && !position.getUser().isDoNotInherit()) {
+						if (!position.getUser().isDeleted() && !position.isDoNotInherit()) {
 							UserWithRole mapping = new UserWithRole();
 							mapping.setUser(position.getUser());
 							mapping.setAssignedThrough(AssignedThrough.ORGUNIT);

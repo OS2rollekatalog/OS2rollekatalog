@@ -16,4 +16,6 @@ public interface RoleGroupDao extends CrudRepository<RoleGroup, Long> {
 	List<RoleGroup> findAll();		
 	
 	List<RoleGroup> findByUserRoleAssignmentsUserRole(UserRole userRole);
+
+	List<RoleGroup> findByCanRequestTrue();
 }

@@ -20,8 +20,6 @@ import javax.persistence.Temporal;
 import javax.persistence.TemporalType;
 
 import org.hibernate.annotations.BatchSize;
-import org.hibernate.annotations.LazyCollection;
-import org.hibernate.annotations.LazyCollectionOption;
 import org.hibernate.annotations.UpdateTimestamp;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
@@ -99,11 +97,6 @@ public class OrgUnit implements AuditLoggable {
 	@Temporal(TemporalType.TIMESTAMP)
     private Date nextAttestation;    
     
-	@OneToMany
-	@JoinTable(name = "ous_itsystems", joinColumns = { @JoinColumn(name = "ou_uuid") }, inverseJoinColumns = { @JoinColumn(name = "itsystem_id") })
-	@LazyCollection(LazyCollectionOption.TRUE)
-	private List<ItSystem> itSystems;
-
 	// lazy does not work, due to some inane proxy stuff, so a ManyToOne is required
 	@ManyToOne(fetch = FetchType.LAZY)
 	@JoinColumn(name = "attestation_pdf")

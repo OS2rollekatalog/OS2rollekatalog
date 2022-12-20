@@ -16,7 +16,8 @@
 								<thead>
 									<tr>
 										<th class="col-md-4" th:text="#{html.entity.userrole.name}"></th>
-										<th class="col-md-7" th:text="#{html.entity.userrole.description}"></th>
+										<th th:class="'col-md-' + ${@settingsService.isRequestApproveEnabled() ? 6 : 7}" th:text="#{html.entity.userrole.description}"></th>
+										<th class="col-md-1" th:if="${@settingsService.isRequestApproveEnabled()}"  th:text="#{html.entity.userrole.canRequest}"></th>
 										<th class="col-md-1" th:text="#{html.control.operations}"></th>
 									</tr>
 								</thead>
@@ -25,6 +26,9 @@
 									<tr th:each="roleGroup : ${roleGroups}">
 										<td th:text="${roleGroup.name}"></td>
 										<td th:text="${roleGroup.description}"></td>
+										<td th:if="${@settingsService.isRequestApproveEnabled()}">
+											<em th:if="${roleGroup.canRequest}" class="fa fa-check"></em>
+										</td>
 										<td>
 											<a th:href="@{/ui/rolegroups/view/{id}(id=${roleGroup.id})}"><em class="fa fa-search"></em></a>
 											<th:block sec:authorize="hasRole('ROLE_ADMINISTRATOR')">
@@ -38,6 +42,8 @@
 									<tr>
 										<th class="input-filter"></th>
 										<th class="input-filter"></th>
+										<th th:if="${@settingsService.isRequestApproveEnabled()}">&nbsp;</th>
+										<th>&nbsp;</th>
 									</tr>
 								</tfoot>
 							</table>
@@ -65,7 +71,9 @@
 		$("document").ready(function() {
 			// 1. Setup - add a text input to each footer cell
 			$('#listTable tfoot th').each( function () {
-				$(this).html('<input type="text" class="form-control input-sm" placeholder="Søg" />');
+				if ($(this).hasClass('input-filter')) {
+					$(this).html('<input type="text" class="form-control input-sm" placeholder="Søg" />');
+				}
 			});
 
 			var table = $('#listTable').DataTable();

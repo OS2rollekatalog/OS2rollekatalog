@@ -49,6 +49,9 @@ public class Position implements AuditLoggable {
 	@ManyToOne(fetch = FetchType.LAZY)
 	@JoinColumn(name = "title_uuid")
 	private Title title;
+	
+	@Column(name = "do_not_inherit")
+	private boolean doNotInherit;
 
 	@OneToMany(mappedBy = "position", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
 	private List<PositionUserRoleAssignment> userRoleAssignments;

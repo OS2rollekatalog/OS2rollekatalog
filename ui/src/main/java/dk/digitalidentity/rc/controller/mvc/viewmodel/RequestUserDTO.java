@@ -13,4 +13,5 @@ public class RequestUserDTO {
 	private String name;
 	private String userId;
 	private String uuid;
+	private String title;
 }

@@ -18,6 +18,8 @@ public class EmailTemplateService {
 	public static final String ROLE_PLACEHOLDER = "{rolle}";
 	public static final String USER_PLACEHOLDER = "{bruger}";
 	public static final String COUNT_PLACEHOLDER = "{antal}";
+	public static final String ITSYSTEM_PLACEHOLDER = "{itsystem}";
+	public static final String REQUESTER_PLACEHOLDER = "{anmoder}";
 	
 	@Autowired
 	private EmailTemplateDao emailTemplateDao;
@@ -74,11 +76,11 @@ public class EmailTemplateService {
 					break;
 				case APPROVED_ROLE_REQUEST_MANAGER:
 					title = "En anmodning om en rolle er godkendt";
-					message = "Kære {modtager}\n<br/>\n<br/>\nRollen {rolle} du har anmodet om til {bruger}, er nu tildelt.";
+					message = "Kære {modtager}\n<br/>\n<br/>\nRollen {rolle} {anmoder} har anmodet om til {bruger}, er nu tildelt.";
 					break;
 				case REJECTED_ROLE_REQUEST_MANAGER:
 					title = "En anmodning om en rolle er afvist";
-					message = "Kære {modtager}\n<br/>\n<br/>\nRollen {rolle} du har anmodet om til {bruger}, er blevet afvist.";
+					message = "Kære {modtager}\n<br/>\n<br/>\nRollen {rolle} {anmoder} har anmodet om til {bruger}, er blevet afvist.";
 					break;
 				case WAITING_REQUESTS_ROLE_ASSIGNERS:
 					title = "Der er afventende rolleanmodninger";
@@ -90,7 +92,11 @@ public class EmailTemplateService {
 					break;
 				case APPROVED_MANUAL_ROLE_REQUEST_MANAGER:
 					title = "En anmodning om en rolle er godkendt";
-					message = "Kære {modtager}\n<br/>\n<br/>\nRollen {rolle} du har anmodet om til {bruger}, er nu tildelt.";
+					message = "Kære {modtager}\n<br/>\n<br/>\nRollen {rolle} {anmoder} har anmodet om til {bruger}, er nu tildelt.";
+					break;
+				case USER_WITH_MANUAL_ITSYSTEM_DELETED:
+					title = "En bruger med manuelle roller er blevet nedlagt";
+					message = "Til den ansvarlige for {itsystem}\n<\br>\nBrugeren {bruger} er blevet nedlagt, og denne bruger har adgange i {itsystem}, som muligvis kræver manuel behandling";
 					break;
 			}
 			

@@ -1140,4 +1140,8 @@ public class OrgUnitService {
 		
 		return result;
 	}
+
+	public List<OrgUnit> getByUuidIn(List<String> uuids) {
+		return orgUnitDao.getByUuidIn(uuids);
+	}
 }

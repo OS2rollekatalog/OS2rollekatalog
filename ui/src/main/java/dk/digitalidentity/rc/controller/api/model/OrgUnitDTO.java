@@ -5,7 +5,6 @@ import java.util.stream.Collectors;
 
 import javax.persistence.Transient;
 
-import dk.digitalidentity.rc.dao.model.ItSystem;
 import dk.digitalidentity.rc.dao.model.KLEMapping;
 import dk.digitalidentity.rc.dao.model.OrgUnit;
 import dk.digitalidentity.rc.dao.model.enums.KleType;
@@ -25,7 +24,6 @@ public class OrgUnitDTO {
 	private OrgUnitLevel level;
 	private List<String> klePerforming;
 	private List<String> kleInterest;
-	private List<Long> itSystemIdentifiers;
 	private ManagerDTO manager;
 	private List<String> titleIdentifiers;
 	
@@ -58,10 +56,6 @@ public class OrgUnitDTO {
 					.collect(Collectors.toList());
 		}
 
-		if (orgUnit.getItSystems() != null) {
-			this.itSystemIdentifiers = orgUnit.getItSystems().stream().map(ItSystem::getId).collect(Collectors.toList());
-		}
-		
 		if (orgUnit.getTitles() != null) {
 			this.titleIdentifiers = orgUnit.getTitles().stream().map(t -> t.getUuid()).collect(Collectors.toList());
 		}

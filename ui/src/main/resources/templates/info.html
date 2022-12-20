@@ -3,49 +3,48 @@
 <head th:replace="fragments/header :: header (title=#{html.page.index.title})"></head>
 <body>
 	<div class="wrapper">
-		<header th:replace="fragments/navbar :: navbar-header"></header>
-		<aside th:replace="fragments/navbar :: navbar-aside (page = 'index')"></aside>
- 
-		<section>
-			<div class="content-wrapper">
-				<div class="panel panel-default">
-					<div class="panel-body">
-						<h3 th:text="#{html.page.info.download.importer.header}"></h3>
-						<ul>
-							<li><a th:href="@{/download/RoleCatalogueImporter.exe}" th:text="#{html.page.info.download.importer}"></a></li>
-							<li><a th:href="@{/download/ADSyncService.exe}" th:text="#{html.page.info.download.syncservice}"></a></li>
-						</ul>
-
-						<h3 th:text="#{html.page.info.download.header}"></h3>
-						<ul>
-							<li><a th:href="@{/download/ADFS-Plugin-ADFS30.zip}" th:text="#{html.page.info.download.adfs30link}"></a></li>
-							<li><a th:href="@{/download/ADFS-Plugin-ADFS40.zip}" th:text="#{html.page.info.download.adfs40link}"></a></li>
-							<li><a th:href="@{/download/ADFS-Plugin-ADFS50.zip}" th:text="#{html.page.info.download.adfs50link}"></a></li>
-						</ul>
-
-						<h3 th:text="#{html.page.info.install.header}"></h3>
-						<p th:text="#{html.page.info.install.paragraph}"></p>
-						<ul>
-							<li><a th:href="@{/download/installationsvejledning.pdf}" th:text="#{html.page.info.install.link}"></a></li>
-							<li><a th:href="@{/download/adsyncservice.pdf}" th:text="#{html.page.info.adsyncservice.link}"></a></li>
-						</ul>
-
-						<h3 th:text="#{html.page.info.api.header}"></h3>
-						<p th:text="#{html.page.info.api.paragraph}"></p>
-						<ul>
-							<li><a th:href="@{/download/api.html}" th:text="#{html.page.info.api.link}"></a></li>
-							<li><a th:href="@{/download/api.pdf}" th:text="#{html.page.info.api.pdf}"></a></li>
-							<li><a th:href="@{/download/substituteApi.pdf}" th:text="#{html.page.info.substitute.api.pdf}"></a></li>
-							<li><a th:href="@{/download/auditlog-api.pdf}" th:text="#{html.page.info.auditlog.api.pdf}"></a></li>
-						</ul>
-
-						<h3 th:text="#{html.page.info.version.header}"></h3>
-						<span th:text="#{html.page.info.version.version} + ': ' + ${releaseVersion}"></span><br/>
-						<span th:text="#{html.page.info.version.buildId} + ': ' + ${gitCommitId}"></span><br/>
-						<span th:text="#{html.page.info.version.buildTime} + ': ' + ${gitBuildTime}"></span>
-					</div>
+		<section style="margin-left: 7%; margin-right: 7%; margin-top: 7%;">
+			<div class="panel panel-default">
+				<div class="panel-heading">
+					<img src="/img/logo.png" alt="Logo" class="img-responsive" style="height:100%; display: block; margin: auto; margin-top: 20px;"></img>
 				</div>
-	        </div>
+
+				<div class="panel-body" style="padding-bottom: 40px;">
+					<h3 th:text="#{html.page.info.download.importer.header}"></h3>
+					<ul>
+						<li><a th:href="@{/download/RoleCatalogueImporter.exe}" th:text="#{html.page.info.download.importer}"></a></li>
+						<li><a th:href="@{/download/ADSyncService.exe}" th:text="#{html.page.info.download.syncservice}"></a></li>
+					</ul>
+
+					<h3 th:text="#{html.page.info.download.header}"></h3>
+					<ul>
+						<li><a th:href="@{/download/ADFS-Plugin-ADFS30.zip}" th:text="#{html.page.info.download.adfs30link}"></a></li>
+						<li><a th:href="@{/download/ADFS-Plugin-ADFS40.zip}" th:text="#{html.page.info.download.adfs40link}"></a></li>
+						<li><a th:href="@{/download/ADFS-Plugin-ADFS50.zip}" th:text="#{html.page.info.download.adfs50link}"></a></li>
+					</ul>
+
+					<h3 th:text="#{html.page.info.install.header}"></h3>
+					<p th:text="#{html.page.info.install.paragraph}"></p>
+					<ul>
+						<li><a th:href="@{/download/installationsvejledning.pdf}" th:text="#{html.page.info.install.link}"></a></li>
+						<li><a th:href="@{/download/adsyncservice.pdf}" th:text="#{html.page.info.adsyncservice.link}"></a></li>
+					</ul>
+
+					<h3 th:text="#{html.page.info.api.header}"></h3>
+					<p th:text="#{html.page.info.api.paragraph}"></p>
+					<ul>
+						<li><a th:href="@{/download/api.html}" th:text="#{html.page.info.api.link}"></a></li>
+						<li><a th:href="@{/download/api.pdf}" th:text="#{html.page.info.api.pdf}"></a></li>
+						<li><a th:href="@{/download/substituteApi.pdf}" th:text="#{html.page.info.substitute.api.pdf}"></a></li>
+						<li><a th:href="@{/download/auditlog-api.pdf}" th:text="#{html.page.info.auditlog.api.pdf}"></a></li>
+					</ul>
+
+					<h3 th:text="#{html.page.info.version.header}"></h3>
+					<span th:text="#{html.page.info.version.version} + ': ' + ${releaseVersion}"></span><br/>
+					<span th:text="#{html.page.info.version.buildId} + ': ' + ${gitCommitId}"></span><br/>
+					<span th:text="#{html.page.info.version.buildTime} + ': ' + ${gitBuildTime}"></span>
+				</div>
+			</div>
 	    </section>
 	</div>
 	

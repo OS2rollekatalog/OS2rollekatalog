@@ -67,7 +67,7 @@ public class RequestApproveService {
 		
 		stati.add(RequestApproveStatus.REQUESTED);
 		
-		List<RequestApprove> requests = requestApproveDao.getByStatusIn(stati);		
+		List<RequestApprove> requests = requestApproveDao.getByStatusIn(stati);
 
 		return wrapRequests(requests);
 	}
@@ -90,25 +90,6 @@ public class RequestApproveService {
 		
 		return wrapRequests(requests);
 	}
-
-	public boolean requestUserRole(UserRole userRole, User user, String reason) {
-		if (!settingsService.isRequestApproveEnabled()) {
-			log.warn("User " + user.getUserId() + " attempting to request role when request/approval is turned off!");
-			return false;
-		}
-		else if (userRole == null) {
-			log.warn("User " + user.getUserId() + " attempting to request role that does not exist");
-			return false;
-		}
-		else if (!userRoleService.canRequestRole(userRole, user)) {
-			log.warn("User " + user.getUserId() + " attempting to request role that user is not allowed to request: " + userRole.getId());
-			return false;
-		}
-		
-		createRequest(reason, user, userRole.getId(), EntityType.USERROLE, RequestApproveStatus.REQUESTED, null, null);
-		
-		return true;
-	}
 	
 	public boolean requestUserRole(UserRole userRole, User requestedBy, String reason, User requestedFor, OrgUnit orgUnit) {
 		if (!settingsService.isRequestApproveEnabled()) {
@@ -128,25 +109,6 @@ public class RequestApproveService {
 
 		createRequest(reason, requestedBy, userRole.getId(), EntityType.USERROLE, status, requestedFor, orgUnit);
 		
-		return true;
-	}
-	
-	public boolean requestRoleGroup(RoleGroup roleGroup, User user, String reason) {
-		if (!settingsService.isRequestApproveEnabled()) {
-			log.warn("User " + user.getUserId() + " attempting to request rolegroup when request/approval is turned off!");
-			return false;
-		}
-		else if (roleGroup == null) {
-			log.warn("User " + user.getUserId() + " attempting to request rolegroup that does not exist");
-			return false;
-		}
-		else if (!roleGroupService.canRequestRole(roleGroup, user)) {
-			log.warn("User " + user.getUserId() + " attempting to request role that user is not allowed to request: " + roleGroup.getId());
-			return false;
-		}
-
-		createRequest(reason, user, roleGroup.getId(), EntityType.ROLEGROUP, RequestApproveStatus.REQUESTED, null, null);
-
 		return true;
 	}
 	
@@ -220,6 +182,7 @@ public class RequestApproveService {
 		for (RequestApprove request : requests) {
 			RequestApproveWrapper wrapper = new RequestApproveWrapper();
 			wrapper.setRequest(request);
+			wrapper.setRequestTimestamp(request.getRequestTimestamp());
 
 			String reason = request.getReason()
 					.replace("\\", "\\\\")

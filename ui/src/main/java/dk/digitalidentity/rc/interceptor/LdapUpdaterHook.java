@@ -70,7 +70,7 @@ public class LdapUpdaterHook implements RoleChangeHook {
 	@Override
 	public void interceptAddPositionOnUser(User user, Position position) {
 		if (!user.getPositions().contains(position)) {
-			if (!user.isDoNotInherit()) {
+			if (!position.isDoNotInherit()) {
 				pendingADUpdateService.addUserToQueue(user, position);
 			}
 		}
@@ -79,7 +79,7 @@ public class LdapUpdaterHook implements RoleChangeHook {
 	@Override
 	public void interceptRemovePositionOnUser(User user, Position position) {
 		if (user.getPositions().contains(position)) {
-			if (!user.isDoNotInherit()) {
+			if (!position.isDoNotInherit()) {
 				pendingADUpdateService.addUserToQueue(user, position);
 			}
 		}

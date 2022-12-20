@@ -28,10 +28,7 @@ import org.springframework.web.context.request.WebRequest;
 
 import dk.digitalidentity.rc.config.Constants;
 import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
-import dk.digitalidentity.rc.dao.RoleGroupDao;
-import dk.digitalidentity.rc.dao.UserRoleDao;
 import dk.digitalidentity.rc.security.SecurityUtil;
-import dk.digitalidentity.rc.service.ItSystemService;
 
 @Controller
 @PropertySource("classpath:git.properties")
@@ -46,25 +43,19 @@ public class DefaultController implements ErrorController {
 
 	@Value(value = "${git.build.time}")
 	private String gitBuildTime;
-
-	@Autowired
-	private ItSystemService itSystemService;
-
-	@Autowired
-	private UserRoleDao userRoleDao;
-
-	@Autowired
-	private RoleGroupDao roleGroupDao;
 	
 	@Autowired
 	private RoleCatalogueConfiguration configuration;
 	
 	@GetMapping("/")
 	public String index(Model model) {
-		model.addAttribute("itSystemCount", itSystemService.count());
-		model.addAttribute("userRoleCount", userRoleDao.count());
-		model.addAttribute("roleGroupCount", roleGroupDao.count());
-
+		if (SecurityUtil.hasRole(Constants.ROLE_SUBSTITUTE) || SecurityUtil.hasRole(Constants.ROLE_MANAGER)) {
+			return "redirect:/ui/users/attestations";
+		}
+		else if (SecurityUtil.hasRole(Constants.ROLE_READ_ACCESS)) {
+			return "redirect:/ui/users/list";
+		}
+		
 		return "index";
 	}
 	

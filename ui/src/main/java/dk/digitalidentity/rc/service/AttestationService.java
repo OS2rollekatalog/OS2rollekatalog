@@ -608,10 +608,12 @@ public class AttestationService {
 			if (managerMatchesTopLevel) {
 				; // no, we do not want this manager pulled up
 			}
-			else if (manager != null && childManagerHasPositionInChild) {
-				if (!userUuids.contains(manager.getUuid())) {
-					users.add(manager);
-					userUuids.add(manager.getUuid());
+			else {
+				if (manager != null && childManagerHasPositionInChild) {
+					if (!userUuids.contains(manager.getUuid())) {
+						users.add(manager);
+						userUuids.add(manager.getUuid());
+					}
 				}
 
 				stop = true;

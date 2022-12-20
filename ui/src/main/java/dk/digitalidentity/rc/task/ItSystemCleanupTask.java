@@ -18,8 +18,8 @@ public class ItSystemCleanupTask {
 	@Autowired
 	private RoleCatalogueConfiguration configuration;
 
-	// Run daily at 01:10
-	@Scheduled(cron = "0 10 1 * * ?")
+	// Run daily at 01:00 - 02:00
+	@Scheduled(cron = "${cron.itSystemClean:0 #{new java.util.Random().nextInt(59)} 1 * * ?}")
 	public void deleteItSystems() {
 		if (!configuration.getScheduled().isEnabled()) {
 			return;

@@ -1,10 +1,14 @@
 package dk.digitalidentity.rc.service;
 
+import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 
+import dk.digitalidentity.rc.dao.model.OrgUnit;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -106,10 +110,6 @@ public class ItSystemService {
 		return filterDeleted(itSystemDao.findByIdentifier(identifier));
 	}
 
-	public void delete(ItSystem itSystem) {
-		itSystemDao.delete(itSystem);
-	}
-
 	// TODO: use count
 	@SuppressWarnings("deprecation")
 	public int getUnusedUserRolesCount(ItSystem itSystem) {
@@ -142,11 +142,34 @@ public class ItSystemService {
 		return result.stream().sorted((o1, o2) -> o1.getName().toLowerCase().compareTo(o2.getName().toLowerCase())).collect(Collectors.toList());
 	}
 
+	public List<String> getOUFilterUuidsWithChildren(ItSystem itSystem) {
+		Set<String> selectedOUs = new HashSet<>();
+		for (OrgUnit ou : itSystem.getOrgUnitFilterOrgUnits()) {
+			if (!selectedOUs.contains(ou.getUuid())) {
+				addChildrenRecursive(ou, selectedOUs);
+			}
+		}
+
+		return new ArrayList<>(selectedOUs);
+	}
+
+	private void addChildrenRecursive(OrgUnit ou, Set<String> selectedOUs) {
+		selectedOUs.add(ou.getUuid());
+
+		if (ou.getChildren() == null || ou.getChildren().isEmpty()) {
+			return;
+		}
+
+		for (OrgUnit child : ou.getChildren()) {
+			addChildrenRecursive(child, selectedOUs);
+		}
+	}
+
 	@Transactional(rollbackFor = Exception.class)
 	public void permanentlyDelete() {
 		Calendar cal = Calendar.getInstance();
 		cal.setTime(new Date());
-		cal.add(Calendar.MONTH, -6);
+		cal.add(Calendar.DAY_OF_MONTH, -3);
 		Date sixMonthsAgo = cal.getTime();
 
 		List<ItSystem> deleted = itSystemDao.findByDeletedTrue();
@@ -154,9 +177,8 @@ public class ItSystemService {
 			if (itSystem.getDeletedTimestamp().before(sixMonthsAgo)) {
 				log.info("Attempting to delete it-system " + itSystem.getName() + " with id = " + itSystem.getId());
 
-				if (itSystem.getSystemType().equals(ItSystemType.KOMBIT)
-						|| itSystem.getSystemType().equals(ItSystemType.KSPCICS)
-						|| itSystem.getIdentifier().equals(Constants.ROLE_CATALOGUE_IDENTIFIER)) {
+				// these are build-in, cannot delete
+				if (itSystem.getSystemType().equals(ItSystemType.KSPCICS) || itSystem.getIdentifier().equals(Constants.ROLE_CATALOGUE_IDENTIFIER)) {
 					continue;
 				}
 
@@ -189,7 +211,7 @@ public class ItSystemService {
 				}
 
 				// delete itsystem
-				delete(itSystem);
+				itSystemDao.delete(itSystem);
 			}
 		}
 	}

@@ -10,6 +10,9 @@ import java.util.stream.Collectors;
 
 import javax.validation.Valid;
 
+import dk.digitalidentity.rc.controller.mvc.viewmodel.OUListForm;
+import dk.digitalidentity.rc.dao.model.OrgUnit;
+import dk.digitalidentity.rc.service.OrgUnitService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -73,6 +76,9 @@ public class ItSystemController {
 	
 	@Autowired
 	private PendingADUpdateService pendingADUpdateService;
+
+	@Autowired
+	private OrgUnitService orgUnitService;
 
 	@InitBinder(value = { "itSystemForm" })
 	public void initBinderItSystemForm(WebDataBinder binder) {
@@ -207,7 +213,9 @@ public class ItSystemController {
 
 		ConvertSystemRolesForm convertSystemRolesForm = new ConvertSystemRolesForm();
 		convertSystemRolesForm.setCreateLink(true);
-		
+
+		List<OUListForm> ouListForms = orgUnitService.getAll().stream().map(ou -> new OUListForm(ou, false)).toList();
+
 		model.addAttribute("unusedCount", itSystemService.getUnusedUserRolesCount(itSystem));
 		model.addAttribute("itsystem", itSystem);
 		model.addAttribute("systemRoles", systemRoles);
@@ -216,6 +224,8 @@ public class ItSystemController {
 		model.addAttribute("itsystemMasterList", itSystemMasterService.findAll());
 		model.addAttribute("userRoles", userRoleService.getByItSystem(itSystem));
 		model.addAttribute("convertSystemRolesForm", convertSystemRolesForm);
+		model.addAttribute("allOUs", ouListForms);
+		model.addAttribute("selectedOUs", itSystem.getOrgUnitFilterOrgUnits().stream().map(OrgUnit::getUuid).toList());
 
 		return "itsystem/edit";
 	}

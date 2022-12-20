@@ -3,14 +3,12 @@ package dk.digitalidentity.rc.service;
 import java.util.Date;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import dk.digitalidentity.rc.dao.RoleGroupDao;
-import dk.digitalidentity.rc.dao.model.ItSystem;
 import dk.digitalidentity.rc.dao.model.RoleGroup;
 import dk.digitalidentity.rc.dao.model.RoleGroupUserRoleAssignment;
 import dk.digitalidentity.rc.dao.model.User;
@@ -24,9 +22,6 @@ public class RoleGroupService {
     @Autowired
     private RoleGroupDao roleGroupDao;
     
-	@Autowired
-	private SettingsService settingsService;
-
 	@AuditLogIntercepted
 	public boolean addUserRole(RoleGroup roleGroup, UserRole userRole) {
       	if (!roleGroup.getUserRoleAssignments().stream().map(ura -> ura.getUserRole()).collect(Collectors.toList()).contains(userRole)) {
@@ -75,6 +70,10 @@ public class RoleGroupService {
 		return roleGroupDao.findAll();
 	}
 
+	public List<RoleGroup> getAllRequestable() {
+		return roleGroupDao.findByCanRequestTrue();
+	}
+
 	public RoleGroup getById(long roleGroupId) {
 		return roleGroupDao.findById(roleGroupId);
 	}
@@ -88,33 +87,6 @@ public class RoleGroupService {
 			return false;
 		}
 
-		// filter on itSystem
-		if (settingsService.isItSystemMarkupEnabled()) {
-
-			// get all it-systems from all orgunits that the user resides in
-			Set<ItSystem> itSystems = user.getPositions().stream()
-					.map(p -> p.getOrgUnit().getItSystems())
-					.collect(Collectors.toList())
-					.stream().flatMap(List::stream)
-					.collect(Collectors.toSet());
-			
-			List<UserRole> userRoles = role.getUserRoleAssignments().stream().map(ura -> ura.getUserRole()).collect(Collectors.toList());
-		    for (UserRole userRole : userRoles) {
-		    	boolean found = false;
-
-		    	for (ItSystem itSystem : itSystems) {
-		    		if (itSystem.getId() == userRole.getItSystem().getId()) {
-		    			found = true;
-		    			break;
-		    		}
-		    	}
-		    	
-		    	if (!found) {
-		    		return false;
-		    	}
-			}
-		}
-
 		return true;
 	}
 	
@@ -122,40 +94,7 @@ public class RoleGroupService {
 
 		// filter on canRequest
 		roles = roles.stream().filter(r -> r.isCanRequest()).collect(Collectors.toList());
-		
-		// filter on itSystem
-		if (settingsService.isItSystemMarkupEnabled()) {
-			
-			// get all it-systems from all orgunits that the user resides in
-			Set<ItSystem> itSystems = user.getPositions().stream()
-					.map(p -> p.getOrgUnit().getItSystems())
-					.collect(Collectors.toList())
-					.stream().flatMap(List::stream)
-					.collect(Collectors.toSet());
-			
-			// filter out all rolegroups that contain userRoles not found in one of the whitelisted it-systems
-			for (Iterator<RoleGroup> iter = roles.iterator(); iter.hasNext(); ) {
-			    RoleGroup roleGroup = iter.next();
 
-				List<UserRole> userRoles = roleGroup.getUserRoleAssignments().stream().map(ura -> ura.getUserRole()).collect(Collectors.toList());
-			    for (UserRole userRole : userRoles) {
-			    	boolean found = false;
-
-			    	for (ItSystem itSystem : itSystems) {
-			    		if (itSystem.getId() == userRole.getItSystem().getId()) {
-			    			found = true;
-			    			break;
-			    		}
-			    	}
-			    	
-			    	if (!found) {
-			    		iter.remove();
-			    		break;
-			    	}
-				}
-			}
-		}
-		
 		return roles;
 	}
 }

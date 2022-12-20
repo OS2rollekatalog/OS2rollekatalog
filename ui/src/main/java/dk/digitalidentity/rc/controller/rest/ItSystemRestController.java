@@ -3,6 +3,8 @@ package dk.digitalidentity.rc.controller.rest;
 import java.util.Date;
 import java.util.List;
 
+import dk.digitalidentity.rc.controller.rest.model.OUFilterDTO;
+import dk.digitalidentity.rc.dao.model.OrgUnit;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpStatus;
@@ -10,6 +12,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -296,6 +299,38 @@ public class ItSystemRestController {
 		}
 
 		itSystem.setSubscribedTo(masterId);
+		itSystemService.save(itSystem);
+
+		return new ResponseEntity<>(HttpStatus.OK);
+	}
+
+	@PostMapping("/rest/itsystem/ouFilterEnabled")
+	public ResponseEntity<String> editOUFilterEnabled(long id, boolean ouFilterEnabled) {
+		ItSystem itSystem = itSystemService.getById(id);
+		if (itSystem == null) {
+			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+		}
+
+		itSystem.setOuFilterEnabled(ouFilterEnabled);
+		if (!ouFilterEnabled) {
+			itSystem.getOrgUnitFilterOrgUnits().clear();
+		}
+		itSystemService.save(itSystem);
+
+		return new ResponseEntity<>(HttpStatus.OK);
+	}
+
+	@ResponseBody
+	@PostMapping(value = "/rest/itsystem/oufilter")
+	public ResponseEntity<String> editItSystemOUFilter(@RequestBody OUFilterDTO dto) {
+		ItSystem itSystem = itSystemService.getById(dto.getId());
+		if (itSystem == null) {
+			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+		}
+
+		List<OrgUnit> ous = orgUnitService.getByUuidIn(dto.getSelectedOUs());
+		itSystem.getOrgUnitFilterOrgUnits().clear();
+		itSystem.getOrgUnitFilterOrgUnits().addAll(ous);
 		itSystemService.save(itSystem);
 
 		return new ResponseEntity<>(HttpStatus.OK);

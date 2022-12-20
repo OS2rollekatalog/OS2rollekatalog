@@ -3,7 +3,6 @@ package dk.digitalidentity.rc.controller.mvc.viewmodel;
 import java.util.Set;
 
 import dk.digitalidentity.rc.dao.model.enums.CheckupIntervalEnum;
-import dk.digitalidentity.rc.service.model.WhoCanRequest;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -14,7 +13,6 @@ public class SettingsForm {
 	private String servicedeskEmail;
 	private String itSystemChangeEmail;
 	private String removalOfUnitRolesEmail;
-	private WhoCanRequest requestApproveWho;
 	
 	private boolean scheduledAttestationEnabled;
 	private CheckupIntervalEnum scheduledAttestationInterval;

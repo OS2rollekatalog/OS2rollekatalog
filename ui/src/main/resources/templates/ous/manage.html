@@ -82,7 +82,7 @@
 												</div>
 											</fieldset>
 
-											<fieldset id="requestApproveFragment" th:if="${@settingsService.isRequestApproveEnabled() == true && @settingsService.getRequestApproveWho() == T(dk.digitalidentity.rc.service.model.WhoCanRequest).AUTHORIZATION_MANAGER}">
+											<fieldset id="requestApproveFragment" th:if="${@settingsService.isRequestApproveEnabled() == true}">
 												<div th:replace="ous/fragments/request_approve :: requestApproveTable(ou = ${ou}, editable = ${editable})"></div>
 											</fieldset>
 

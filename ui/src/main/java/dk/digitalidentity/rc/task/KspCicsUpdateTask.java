@@ -33,7 +33,7 @@ public class KspCicsUpdateTask {
 	}
 
 	// run hourly in daytime
-	@Scheduled(cron = "0 #{new java.util.Random().nextInt(55)} 6-18/3 * * ?")
+	@Scheduled(cron = "0 #{new java.util.Random().nextInt(55)} 6-18 * * ?")
 	public void updateLocalData() {
 		if (!configuration.getIntegrations().getKspcics().isEnabled() ||
 			!configuration.getScheduled().isEnabled()) {

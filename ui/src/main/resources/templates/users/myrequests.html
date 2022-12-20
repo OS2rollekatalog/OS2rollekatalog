@@ -27,9 +27,10 @@
 								<thead>
 									<tr>
 										<th class="col-md-3" th:text="#{html.my.requests.name}"></th>
-										<th class="col-md-4" th:text="#{html.my.requests.description}"></th>
+										<th class="col-md-3" th:text="#{html.my.requests.description}"></th>
 										<th class="col-md-2" th:text="#{html.my.requests.to}"></th>
 										<th class="col-md-2" th:text="#{html.my.requests.status}"></th>
+										<th class="col-md-1" th:text="#{html.my.requests.request.timestamp}"></th>
 										<th class="col-md-1" th:text="#{html.control.operations}"></th>
 									</tr>
 								</thead>
@@ -45,6 +46,7 @@
 												<a th:replace="fragments/help :: help (title=#{html.my.requests.reject.title}, content=${req.request.rejectReason})"></a>
 											</th:block>
 										</td>
+										<td th:text="${#dates.format(req.requestTimestamp, 'yyyy-MM-dd')}"></td>
 										<td>
 											<a href="#" th:attr="onclick='confirmDelete('+${req.request.id}+');'"><em class="fa fa-remove"></em></a>
 										</td>

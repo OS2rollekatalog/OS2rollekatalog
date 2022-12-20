@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html>
+<head th:replace="fragments/header :: header (title=#{html.page.rolegroup.edit.title})"></head>
+<body>
+	<div class="wrapper">
+	    <header th:replace="fragments/navbar :: navbar-header(subpage = 'roles')"></header>
+	    <aside th:replace="fragments/navbar :: navbar-aside (page = 'users_request', subpage = 'roles')"></aside>
+	    <section>
+	        <div class="content-wrapper">
+	            <div class="panel panel-default">
+	                <div class="panel-body">
+	                	<p th:text="#{html.page.requestapprove.list_users.text}"></p>
+
+						<table id="listTable1" class="table table-striped table-hover listTable">
+							<thead>
+								<tr>
+									<th class="col-md-4" th:text="#{html.entity.user.name}"></th>
+									<th class="col-md-3" th:text="#{html.entity.user.position}"></th>
+									<th class="col-md-4" th:text="#{html.entity.user.userId}"></th>
+									<th class="col-md-1" th:text="#{html.entity.user.request_for}"></th>
+								</tr>
+							</thead>
+
+							<tbody>
+								 <tr th:each="user : ${users}">
+									<td th:text="${user.name}"></td>
+									<td th:text="${user.title}"></td>
+									<td th:text="${user.userId}"></td>
+								 	<td>
+										<a th:href="'/ui/requestapprove/users/' + ${user.uuid} + '/roles'" ><em class="fa fa-plus"></em></a>
+									</td>
+								</tr>
+							</tbody>
+						</table>
+	                </div>
+	            </div>
+	        </div>
+	    </section>
+	</div>
+
+	<nav th:replace="fragments/footer :: footer"></nav>
+	<script th:replace="fragments/datatables :: datatables"></script>
+
+	<script th:inline="javascript">
+		/*<![CDATA[*/
+			
+			/*[+
+				var infoMessage = [[${infoMessage}]];
+				var errorMessage = [[${errorMessage}]];
+			+]*/
+
+			var notificationService = new NotificationService();
+			$("document").ready(function() {
+				if (infoMessage != null) {
+					notificationService.showInfoNotification(infoMessage);
+				}
+
+				if (errorMessage != null) {
+					notificationService.showErrorNotification(errorMessage);
+				}
+			});
+
+			function NotificationService() {
+				this.showInfoNotification = function(message) {
+					$.notify({
+						message: message,
+						status: 'success',
+						timeout: 2000
+					});
+				}
+
+				this.showWarnNotification = function(message) {
+					$.notify({
+						message: message,
+						status: 'warning',
+						timeout: 3000
+					});
+				}
+
+				this.showErrorNotification = function(message) {
+					$.notify({
+						message: message,
+						status: 'danger',
+						timeout: 4000
+					});
+				}
+			}
+			
+		/*]]>*/
+	</script>
+</body>
+</html>

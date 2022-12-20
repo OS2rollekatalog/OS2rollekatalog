@@ -49,11 +49,9 @@ import dk.digitalidentity.rc.security.RequireReadAccessRole;
 import dk.digitalidentity.rc.service.KleService;
 import dk.digitalidentity.rc.service.OrgUnitService;
 import dk.digitalidentity.rc.service.RoleGroupService;
-import dk.digitalidentity.rc.service.SettingsService;
 import dk.digitalidentity.rc.service.UserRoleService;
 import dk.digitalidentity.rc.service.UserService;
 import dk.digitalidentity.rc.service.model.RoleAssignmentType;
-import dk.digitalidentity.rc.service.model.WhoCanRequest;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
@@ -79,9 +77,6 @@ public class OrgUnitRestController {
 	@Autowired
 	private UserService userService;
 	
-	@Autowired
-	private SettingsService settingsService;
-
 	@Autowired
 	private AuditLogger auditLogger;
 
@@ -488,10 +483,6 @@ public class OrgUnitRestController {
 	@PostMapping("/rest/ous/{uuid}/authorizationmanager/save")
 	@ResponseBody
 	public ResponseEntity<HttpStatus> saveAuthManager(@RequestBody String personUuid, @PathVariable String uuid) {
-		if (!settingsService.getRequestApproveWho().equals(WhoCanRequest.AUTHORIZATION_MANAGER)) {
-			return ResponseEntity.badRequest().build();
-		}
-		
 		OrgUnit orgUnit = orgUnitService.getByUuid(uuid);
 		if (orgUnit == null) {
 			log.warn("Unable to find orgUnit with uuid = " + uuid);
@@ -529,10 +520,6 @@ public class OrgUnitRestController {
 	@PostMapping("/rest/ous/{uuid}/authorizationmanager/remove")
 	@ResponseBody
 	public ResponseEntity<HttpStatus> removeAuthManager(@RequestBody String personUuid, @PathVariable String uuid) {
-		if (!settingsService.getRequestApproveWho().equals(WhoCanRequest.AUTHORIZATION_MANAGER)) {
-			return ResponseEntity.badRequest().build();
-		}
-		
 		OrgUnit orgUnit = orgUnitService.getByUuid(uuid);
 		if (orgUnit == null) {
 			return ResponseEntity.badRequest().build();

@@ -63,21 +63,6 @@
 								</div>
 							</div>
 						</fieldset>
-						
-						<div id="requestApproveSubsettings" style="display: none;">
-							<fieldset>
-								<div class="form-group">
-									<label class="col-sm-3 control-label" th:text="#{html.setting.who_can_request}"></label>
-									<div class="col-sm-8">
-										<select th:field="*{requestApproveWho}" class="form-control">
-											<option th:each="type : ${T(dk.digitalidentity.rc.service.model.WhoCanRequest).values()}"
-												th:value="${type}" th:text="#{__${type.getMessage()}__}"
-												th:selected="${type} == *{requestApproveWho}"></option>
-										</select>
-									</div>
-								</div>
-							</fieldset>
-						</div>
 					</div>
 
 					<div class="panel-heading">
@@ -347,19 +332,8 @@
 			
 			$("#requestapprove-checkbox").change(function() {
 				$("#requestApproveEnabled").val(this.checked);
-				
-				if (this.checked) {
-					$("#requestApproveSubsettings").show();
-				}
-				else {
-					$("#requestApproveSubsettings").hide();
-				}
 			});
-			
-			if ($("#requestApproveEnabled").val() == "true") {
-				$("#requestApproveSubsettings").show();
-			}
-			
+
 			$("#attestation-ad-checkbox").change(function() {
 				$("#adAttestationEnabled").val(this.checked);
 			});

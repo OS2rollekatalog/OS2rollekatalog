@@ -3,15 +3,12 @@ package dk.digitalidentity.rc.controller.mvc;
 import java.security.Principal;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
 import java.util.stream.Collectors;
 
 import javax.validation.Valid;
 
 import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.MessageSource;
-import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
@@ -22,11 +19,9 @@ import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.EditUserRoleRow;
-import dk.digitalidentity.rc.controller.mvc.viewmodel.RequestForm;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.RoleGroupForm;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.TitleListForm;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.UserRoleAddOrgUnitDTO;
@@ -40,7 +35,6 @@ import dk.digitalidentity.rc.security.RequireAdministratorRole;
 import dk.digitalidentity.rc.security.RequireRequesterOrReadAccessRole;
 import dk.digitalidentity.rc.security.SecurityUtil;
 import dk.digitalidentity.rc.service.OrgUnitService;
-import dk.digitalidentity.rc.service.RequestApproveService;
 import dk.digitalidentity.rc.service.RoleGroupService;
 import dk.digitalidentity.rc.service.SettingsService;
 import dk.digitalidentity.rc.service.UserRoleService;
@@ -52,9 +46,6 @@ import dk.digitalidentity.rc.service.model.UserWithRole2;
 @RequireRequesterOrReadAccessRole
 @Controller
 public class RoleGroupController {
-
-	@Autowired
-	private MessageSource messageSource;
 
 	@Autowired
 	private ModelMapper mapper;
@@ -73,9 +64,6 @@ public class RoleGroupController {
 
 	@Autowired
 	private SettingsService settingsService;
-
-	@Autowired
-	private RequestApproveService requestApproveService;
 
 	@Autowired
 	private OrgUnitService orgUnitService;
@@ -127,25 +115,8 @@ public class RoleGroupController {
 		}
 
 		model.addAttribute("canRequest", canRequest);
-		model.addAttribute("requestForm", new RequestForm(id));
 
 		return "rolegroups/view";
-	}
-
-	@PostMapping(value = "/ui/rolegroups/request")
-	public String requestRole(Model model, RequestForm requestForm, RedirectAttributes redirectAttributes, Principal principal) throws Exception {
-		RoleGroup roleGroup = roleGroupService.getById(requestForm.getId());
-		Locale locale = LocaleContextHolder.getLocale();
-		User user = getUserOrThrow(principal.getName());
-
-		if (!requestApproveService.requestRoleGroup(roleGroup, user, requestForm.getReason())) {
-			redirectAttributes.addFlashAttribute("errorMessage", messageSource.getMessage("html.page.roles.request.error", null, locale));
-		}
-		else {
-			redirectAttributes.addFlashAttribute("infoMessage", messageSource.getMessage("html.page.roles.request.send", null, locale));
-		}
-
-		return "redirect:/ui/rolegroups/view/" + requestForm.getId();
 	}
 
 	@RequireAdministratorRole

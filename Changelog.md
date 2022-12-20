@@ -1,3 +1,12 @@
+2022.12.20 - Release 2022r7
+- [ROL-163](https://os2web.atlassian.net/browse/ROL-163) – Fjerne muligheden for at brugere selv kan anmode om rettigheder
+- [ROL-228](https://os2web.atlassian.net/browse/ROL-228) – Begrænset visning for ledere i anmod/godkend
+- [ROL-233](https://os2web.atlassian.net/browse/ROL-233) – Filter til Jobfunktionsroller så man kan se alle der kan anmodes om
+- [ROL-239](https://os2web.atlassian.net/browse/ROL-239) – Email-advisering når en bruger med "simple" rettigheder bliver lukket
+- [ROL-240](https://os2web.atlassian.net/browse/ROL-240) – Fremsøgning pr. medarbejder ved anmodning af rettigheder
+- [ROL-243](https://os2web.atlassian.net/browse/ROL-243) – Dato-anmærkning på anmod funktionaliteten
+- [ROL-244](https://os2web.atlassian.net/browse/ROL-244) – Navn i mailskabelon når en anmodning godkendes og tildeles 
+
 2022.11.18 - Release 2022r6
 - [ROL-221](https://os2web.atlassian.net/browse/ROL-221) – Særskilt mailskabelon til anmod/godkend på manuelle it-systemer
 - [ROL-224](https://os2web.atlassian.net/browse/ROL-224) – Højere synlighed af pause-markering på it-systemer

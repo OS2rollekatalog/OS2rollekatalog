@@ -350,6 +350,10 @@ public class ItSystemApi {
 
 		List<UserWithRole> usersWithRole = userService.getUsersWithUserRole(userRole, true);
 		for (UserWithRole userWithRole : usersWithRole) {
+			if (userWithRole.getUser().isDeleted() || userWithRole.getUser().isDisabled()) {
+				continue;
+			}
+
 			users.add(userWithRole.getUser().getUserId());
 		}
 		

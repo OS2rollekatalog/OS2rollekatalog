@@ -16,7 +16,8 @@ public enum EmailTemplateType {
 	APPROVED_MANUAL_ROLE_REQUEST_USER("html.enum.email.message.type.approved_manual_role_request_user"),
 	APPROVED_MANUAL_ROLE_REQUEST_MANAGER("html.enum.email.message.type.approved_manual_role_request_manager"),
 	REJECTED_ROLE_REQUEST_MANAGER("html.enum.email.message.type.rejected_role_request_manager"),
-	WAITING_REQUESTS_ROLE_ASSIGNERS("html.enum.email.message.type.waiting_requests_role_assigners");
+	WAITING_REQUESTS_ROLE_ASSIGNERS("html.enum.email.message.type.waiting_requests_role_assigners"),
+	USER_WITH_MANUAL_ITSYSTEM_DELETED("html.enum.email.message.type.user_with_manual_itsystem_deleted");
 	
 	private String message;
 	

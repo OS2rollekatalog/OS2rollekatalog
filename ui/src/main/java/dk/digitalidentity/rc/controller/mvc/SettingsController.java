@@ -62,7 +62,6 @@ public class SettingsController {
 		SettingsForm settingsForm = new SettingsForm();
 
 		settingsForm.setRequestApproveEnabled(settingsService.isRequestApproveEnabled());
-		settingsForm.setRequestApproveWho(settingsService.getRequestApproveWho());
 		settingsForm.setServicedeskEmail(settingsService.getRequestApproveServicedeskEmail());
 		settingsForm.setRemovalOfUnitRolesEmail(settingsService.getRemovalOfUnitRolesEmail());
 
@@ -107,7 +106,6 @@ public class SettingsController {
 		boolean attestationBefore = settingsService.isScheduledAttestationEnabled();
 
 		settingsService.setRequestApproveEnabled(settingsForm.isRequestApproveEnabled());
-		settingsService.setRequestApproveWho(settingsForm.getRequestApproveWho());
 		settingsService.setRequestApproveServicedeskEmail(settingsForm.getServicedeskEmail());
 		settingsService.setRemovalOfUnitRolesEmail(settingsForm.getRemovalOfUnitRolesEmail());
 

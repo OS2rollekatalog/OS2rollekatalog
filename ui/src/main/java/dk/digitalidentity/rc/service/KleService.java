@@ -109,7 +109,8 @@ public class KleService {
 				.collect(Collectors.toList());
 
 		// grab all KLEs assigned to OrgUnits where the user is positioned (if required)
-		if (inherit && !user.isDoNotInherit()) {
+		boolean userDoNotInherit = user.getPositions().stream().anyMatch(p -> p.isDoNotInherit());
+		if (inherit && !userDoNotInherit) {
 			for (Position position : user.getPositions()) {
 				result.addAll(getKleAssignments(position.getOrgUnit(), kleType, true));
 			}

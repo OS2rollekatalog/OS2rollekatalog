@@ -1,0 +1,1 @@
+ALTER TABLE it_systems ADD COLUMN ou_filter_enabled BOOLEAN NOT NULL DEFAULT FALSE;

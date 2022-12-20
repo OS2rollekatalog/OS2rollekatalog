@@ -47,4 +47,6 @@ public interface OrgUnitDao extends CrudRepository<OrgUnit, String> {
 	List<OrgUnit> getByAuthorizationManagersUser(User user);
 
 	List<OrgUnit> getByActiveTrueAndManagerNotNull();
+
+	List<OrgUnit> getByUuidIn(List<String> uuids);
 }

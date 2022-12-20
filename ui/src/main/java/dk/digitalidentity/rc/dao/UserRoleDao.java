@@ -12,6 +12,7 @@ public interface UserRoleDao extends CrudRepository<UserRole, Long> {
 	UserRole findById(long id);
 	UserRole getByNameAndItSystem(String name, ItSystem itSystem);
 	List<UserRole> findAll();
+	List<UserRole> findByCanRequestTrue();
 	UserRole getByIdentifier(String identifier);
 	List<UserRole> findByItSystem(ItSystem itSystem);
 	<S extends UserRole> S save(S entity);

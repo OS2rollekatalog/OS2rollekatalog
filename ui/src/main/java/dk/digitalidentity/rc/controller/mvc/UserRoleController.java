@@ -5,15 +5,12 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
-import java.util.Locale;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
 import javax.validation.Valid;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.MessageSource;
-import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.util.StringUtils;
@@ -25,14 +22,12 @@ import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import dk.digitalidentity.rc.config.Constants;
 import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.EditRolegroupRow;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.KleDTO;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.OUListForm;
-import dk.digitalidentity.rc.controller.mvc.viewmodel.RequestForm;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.TitleListForm;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.UserRoleAddOrgUnitDTO;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.UserRoleCheckedDTO;
@@ -60,7 +55,6 @@ import dk.digitalidentity.rc.service.ItSystemService;
 import dk.digitalidentity.rc.service.KleService;
 import dk.digitalidentity.rc.service.OrgUnitService;
 import dk.digitalidentity.rc.service.PendingKOMBITUpdateService;
-import dk.digitalidentity.rc.service.RequestApproveService;
 import dk.digitalidentity.rc.service.RoleGroupService;
 import dk.digitalidentity.rc.service.Select2Service;
 import dk.digitalidentity.rc.service.SettingsService;
@@ -75,9 +69,6 @@ import dk.digitalidentity.rc.service.model.UserWithRoleAndDates;
 @RequireRequesterOrReadAccessRole
 @Controller
 public class UserRoleController {
-
-	@Autowired
-	private MessageSource messageSource;
 
 	@Autowired
 	private UserRoleService userRoleService;
@@ -102,9 +93,6 @@ public class UserRoleController {
 
 	@Autowired
 	private UserService userService;
-
-	@Autowired
-	private RequestApproveService requestApproveService;
 
 	@Autowired
 	private PendingKOMBITUpdateService kombitService;
@@ -190,7 +178,6 @@ public class UserRoleController {
 		}
 
 		model.addAttribute("canRequest", canRequest);
-		model.addAttribute("requestForm", new RequestForm(id));
 
 		boolean titlesEnabled = configuration.getTitles().isEnabled();
 		model.addAttribute("titlesEnabled", titlesEnabled);
@@ -278,22 +265,6 @@ public class UserRoleController {
 
 		model.addAttribute("ous", availableOrgUnits);
 		return "userroles/fragments/manage_add_ous :: addOrgUnits";
-	}
-
-	@PostMapping(value = "/ui/userroles/request")
-	public String requestRole(Model model, RequestForm requestForm, RedirectAttributes redirectAttributes, Principal principal) throws Exception {
-		UserRole userRole = userRoleService.getById(requestForm.getId());
-		User user = getUserOrThrow(principal.getName());
-		Locale locale = LocaleContextHolder.getLocale();
-
-		if (!requestApproveService.requestUserRole(userRole, user, requestForm.getReason())) {
-			redirectAttributes.addFlashAttribute("errorMessage", messageSource.getMessage("html.page.roles.request.error", null, locale));
-		}
-		else {
-			redirectAttributes.addFlashAttribute("infoMessage", messageSource.getMessage("html.page.roles.request.send", null, locale));
-		}
-
-		return "redirect:/ui/userroles/view/" + requestForm.getId();
 	}
 
 	@RequireAdministratorRole

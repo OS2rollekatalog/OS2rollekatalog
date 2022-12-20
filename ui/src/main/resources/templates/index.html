@@ -3,75 +3,64 @@
 <head th:replace="fragments/header :: header (title=#{html.page.index.title})"></head>
 <body>
 	<div class="wrapper">
-		<header th:replace="fragments/navbar :: navbar-header"></header>
-		<aside th:replace="fragments/navbar :: navbar-aside (page = 'index')"></aside>
- 
-		<section>
-			<div class="content-wrapper">
-				<h3>
-					<span th:text="#{html.page.index.title}"></span>
-				</h3>
-
-				<div class="panel panel-default">
-					<div class="panel-heading"></div>
-					<div class="panel-body">
-						<div class="row" sec:authorize="isAuthenticated()">
-							<div class="col-lg-4 col-sm-6">
+		<section style="margin-left: 7%; margin-right: 7%; margin-top: 7%;">
+			<div class="panel panel-default">
+				<div class="panel-heading">
+					<img src="/img/logo.png" alt="Logo" class="img-responsive" style="height:100%; display: block; margin: auto; margin-top: 20px;"></img>
+				</div>
+				
+				<div class="panel-body" style="margin-top: 100px; padding-bottom: 40px;">
+					<div class="row">
+						<a th:href="@{/ui/users/attestations}">
+							<div class="col-lg-10 col-lg-offset-1">
 								<div class="panel widget bg-primary">
 									<div class="row row-table">
 										<div class="col-xs-4 text-center bg-primary-dark pv-lg">
-											<em class="fa fa-laptop fa-3x"></em>
+											<em class="fa fa-sitemap fa-3x"></em>
 										</div>
 										<div class="col-xs-8 pv-lg">
-											<div class="h2 mt0" th:text="${itSystemCount}"></div>
-											<div class="text-uppercase" th:text="#{html.navbar.itsystems}"></div>
+											<div class="h2 mt0">Jeg er leder</div>
+											<div>Klik her hvis du er leder eller autorisationsansvarlig, og skal udføre rettighedskontrol, eller administrere dine medarbejdere</div>
 										</div>
 									</div>
 								</div>
 							</div>
-							
-							<div class="col-lg-4 col-sm-6">
-								<div class="panel widget bg-primary">
-									<div class="row row-table">
-										<div class="col-xs-4 text-center bg-primary-dark pv-lg">
-											<em class="fa fa-unlock-alt fa-3x"></em>
-										</div>
-										<div class="col-xs-8 pv-lg">
-											<div class="h2 mt0" th:text="${userRoleCount}"></div>
-											<div class="text-uppercase" th:text="#{html.navbar.jobroles}"></div>
-										</div>
-									</div>
-								</div>
-							</div>
-							
-							<div class="col-lg-4 col-md-6 col-sm-12">
-								<div class="panel widget bg-primary">
-									<div class="row row-table">
-										<div class="col-xs-4 text-center bg-primary-dark pv-lg">
-											<em class="fa fa-shield fa-3x"></em>
-										</div>
-										<div class="col-xs-8 pv-lg">
-											<div class="h2 mt0" th:text="${roleGroupCount}"></div>
-											<div class="text-uppercase" th:text="#{html.navbar.rolegroups}"></div>
-										</div>
-									</div>
-								</div>
-							</div>
-						</div>
+						</a>
 						
-						<div class="row">
-							<div class="col-sm-12">
-								<h3 th:text="#{html.index.links}"></h3>
-								<p th:text="#{html.index.links.text}"></p>
-								<ul>
-									<li><a th:href="@{/info}" th:text="#{html.index.links.info}"></a></li>
-									<li><a th:href="@{/download/brugermanual.pdf}" th:text="#{html.index.links.manual}"></a></li>
-								</ul>
+						<a th:href="@{/info}">
+							<div class="col-lg-10 col-lg-offset-1">
+								<div class="panel widget bg-primary">
+									<div class="row row-table">
+										<div class="col-xs-4 text-center bg-primary-dark pv-lg">
+											<em class="fa fa-gears fa-3x"></em>
+										</div>
+										<div class="col-xs-8 pv-lg">
+											<div class="h2 mt0">Jeg er tekniker</div>
+											<div>Klik her hvis du er tekniker, og skal tilgå dokumentation, opsætning eller hente integrationskomponenter til rollekataloget</div>
+										</div>
+									</div>
+								</div>
 							</div>
-						</div>
+						</a>
+
+						<a th:href="@{/ui/users/list}">							
+							<div class="col-lg-10 col-lg-offset-1">
+								<div class="panel widget bg-primary">
+									<div class="row row-table">
+										<div class="col-xs-4 text-center bg-primary-dark pv-lg">
+											<em class="fa fa-pencil fa-3x"></em>
+										</div>
+										<div class="col-xs-8 pv-lg">
+											<div class="h2 mt0">Jeg er rolleadministrator</div>
+											<div>Klik her hvis du skal ind og anvende rollekataloget til at opsætte, tildele eller administrere adgange</div>
+										</div>
+									</div>
+								</div>
+							</div>
+						</a>						
 					</div>
 				</div>
-	        </div>
+			</div>
 	    </section>
 	</div>
 	

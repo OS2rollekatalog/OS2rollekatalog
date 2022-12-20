@@ -25,7 +25,7 @@
 		</div>
 	</div>
 
-	<div th:case="true" class="form-group" sec:authorize="hasRole('ROLE_ADMINISTRATOR')" th:if="${@settingsService.isRequestApproveEnabled() == true && @settingsService.getRequestApproveWho() == T(dk.digitalidentity.rc.service.model.WhoCanRequest).AUTHORIZATION_MANAGER}">
+	<div th:case="true" class="form-group" sec:authorize="hasRole('ROLE_ADMINISTRATOR')" th:if="${@settingsService.isRequestApproveEnabled() == true}">
 		<label class="col-sm-2 control-label" th:text="#{html.page.ous.edit.authorizationManager}"></label>
 
 		<div class="col-sm-8">

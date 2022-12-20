@@ -62,9 +62,6 @@ public class User implements AuditLoggable {
 	@Column(name = "disabled")
 	private boolean disabled;
 
-	@Column(name = "do_not_inherit")
-	private boolean doNotInherit;
-
 	@OneToMany(mappedBy = "user", fetch = FetchType.LAZY, cascade= CascadeType.ALL, orphanRemoval = true)
 	private List<AltAccount> altAccounts;
 	

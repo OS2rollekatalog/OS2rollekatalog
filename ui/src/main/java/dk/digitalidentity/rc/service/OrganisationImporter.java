@@ -10,6 +10,9 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -24,6 +27,7 @@ import dk.digitalidentity.rc.controller.api.model.OrganisationDTO;
 import dk.digitalidentity.rc.controller.api.model.OrganisationImportResponse;
 import dk.digitalidentity.rc.controller.api.model.PositionDTO;
 import dk.digitalidentity.rc.controller.api.model.UserDTO;
+import dk.digitalidentity.rc.dao.model.EmailTemplate;
 import dk.digitalidentity.rc.dao.model.ItSystem;
 import dk.digitalidentity.rc.dao.model.KLEMapping;
 import dk.digitalidentity.rc.dao.model.Notification;
@@ -34,6 +38,8 @@ import dk.digitalidentity.rc.dao.model.Title;
 import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserKLEMapping;
 import dk.digitalidentity.rc.dao.model.UserRole;
+import dk.digitalidentity.rc.dao.model.enums.EmailTemplateType;
+import dk.digitalidentity.rc.dao.model.enums.ItSystemType;
 import dk.digitalidentity.rc.dao.model.enums.KleType;
 import dk.digitalidentity.rc.dao.model.enums.NotificationEntityType;
 import dk.digitalidentity.rc.dao.model.enums.NotificationType;
@@ -42,6 +48,7 @@ import dk.digitalidentity.rc.service.model.MovedPostion;
 import dk.digitalidentity.rc.service.model.OrgUnitWithNewAndOldParentDTO;
 import dk.digitalidentity.rc.service.model.OrgUnitWithTitlesDTO;
 import dk.digitalidentity.rc.service.model.OrganisationChangeEvents;
+import dk.digitalidentity.rc.service.model.UserDeletedEvent;
 import dk.digitalidentity.rc.service.model.UserMovedPositions;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
@@ -71,9 +78,12 @@ public class OrganisationImporter {
 	
 	@Autowired
 	private NotificationService notificationService;
-	
-	// default values, overriden by settings later
-	private boolean itSystemMarkupEnabled = false;
+
+	@Autowired
+	private EmailTemplateService emailTemplateService;
+
+	@Autowired
+	private EmailQueueService emailQueueService;
 	
 	// TODO: this can be the only version we keep, once the following integrations are updated
 	//       - AD Sync
@@ -85,8 +95,6 @@ public class OrganisationImporter {
 	@Transactional(rollbackFor = Exception.class)
 	public OrganisationImportResponse fullSync(OrganisationDTO organisation) throws Exception {
 		events.set(new OrganisationChangeEvents());
-
-		itSystemMarkupEnabled = settingsService.isItSystemMarkupEnabled();
 
 		try {
 			OrganisationImportResponse response = new OrganisationImportResponse();
@@ -130,8 +138,6 @@ public class OrganisationImporter {
 	@Transactional(rollbackFor = Exception.class)
 	public OrganisationImportResponse deltaSync(List<UserDTO> users) throws Exception {
 		events.set(new OrganisationChangeEvents());
-
-		itSystemMarkupEnabled = settingsService.isItSystemMarkupEnabled();
 		
 		try {
 			OrganisationImportResponse response = new OrganisationImportResponse();
@@ -299,7 +305,6 @@ public class OrganisationImporter {
 		user.setCpr(userDTO.getCpr());
 		user.setKles(new ArrayList<>());
 		user.setAltAccounts(new ArrayList<>());
-		user.setDoNotInherit(userDTO.isDoNotInherit());
 		user.setDisabled(userDTO.isDisabled());
 		
 		if (userDTO.getPositions() != null) {
@@ -310,6 +315,8 @@ public class OrganisationImporter {
 				position.setUserRoleAssignments(new ArrayList<>());
 				position.setRoleGroupAssignments(new ArrayList<>());
 				position.setUser(user);
+				// support old clients that do not send doNotInherit on positions by using the value from userDTO
+				position.setDoNotInherit(positionDTO.getDoNotInherit() != null ? positionDTO.getDoNotInherit() : userDTO.isDoNotInherit());
 				
 				for (OrgUnit orgUnit : newOrgUnits) {
 					// we ignore positionDTOs that points to non-existing OrgUnits
@@ -358,7 +365,6 @@ public class OrganisationImporter {
 		OrgUnit ou = new OrgUnit();
 		ou.setActive(true);
 		ou.setChildren(new ArrayList<>());
-		ou.setItSystems(new ArrayList<>());
 		ou.setRoleGroupAssignments(new ArrayList<>());
 		ou.setUserRoleAssignments(new ArrayList<>());
 		ou.setKles(new ArrayList<>());
@@ -395,17 +401,6 @@ public class OrganisationImporter {
 					mapping.setAssignmentType(KleType.PERFORMING);
 					
 					ou.getKles().add(mapping);						
-				}
-			}
-		}
-
-		if (itSystemMarkupEnabled && orgUnit.getItSystemIdentifiers() != null) {
-			for (Long itSystemId : orgUnit.getItSystemIdentifiers()) {
-				for (ItSystem itSystem : itSystems) {
-					if (itSystem.getId() == itSystemId) {
-						ou.getItSystems().add(itSystem);
-						break;
-					}
 				}
 			}
 		}
@@ -495,10 +490,6 @@ public class OrganisationImporter {
 							}
 						}
 
-						if (itSystemMarkupEnabled) {
-							existingOrgUnit.setItSystems(orgUnitToUpdate.getItSystems());
-						}
-	
 						// is there a change to parent, then we need to do something about it
 						if (differentParents(existingOrgUnit, orgUnitToUpdate)) {
 							if (orgUnitToUpdate.getParent() == null) {
@@ -548,6 +539,9 @@ public class OrganisationImporter {
 		response.setUsersDeleted(toBeDeleted.size());
 		response.setUsersUpdated(toBeUpdated.size());
 
+		// get list of all MANUAL itSystems
+		List<ItSystem> simpleItSystems = itSystemService.getBySystemType(ItSystemType.MANUAL);
+
 		if (toBeCreated.size() > 0) {
 			log.info("Creating " + toBeCreated.size() + " Users");
 
@@ -596,7 +590,12 @@ public class OrganisationImporter {
 						existingUser.setPhone(userToUpdate.getPhone());
 						existingUser.setUserId(userToUpdate.getUserId());
 						existingUser.setCpr(userToUpdate.getCpr());
-						existingUser.setDoNotInherit(userToUpdate.isDoNotInherit());
+						
+						// check whether the user was deleted or disabled
+						if (!(existingUser.isDisabled() || existingUser.isDeleted()) && (userToUpdate.isDisabled() || userToUpdate.isDeleted())) {
+							handleUserDeletedEvent(simpleItSystems, existingUser);
+						}
+
 						existingUser.setDisabled(userToUpdate.isDisabled());
 
 						if (!configuration.getIntegrations().getKle().isUiEnabled()) {
@@ -675,12 +674,39 @@ public class OrganisationImporter {
 		
 		if (toBeDeleted.size() > 0) {
 			log.info("Deleting " + toBeDeleted.size() + " Users");
-			
+
 			for (User userToDelete : toBeDeleted) {
+				handleUserDeletedEvent(simpleItSystems, userToDelete);
+				
 				userToDelete.setDeleted(true);
 				userService.save(userToDelete);
 			}
 		}
+	}
+
+	private void handleUserDeletedEvent(List<ItSystem> simpleItSystems, User userToDelete) {
+		if (simpleItSystems.size() == 0) {
+			return;
+		}
+
+		// if user has roles in simple itSystems
+		List<UserRole> userRoles = userService.getAllUserRoles(userToDelete, simpleItSystems);
+		if (!userRoles.isEmpty()) {
+			List<ItSystem> itSystemsUserHasRoleIn = userRoles.stream().map(ur -> ur.getItSystem()).filter(distinctByKey(i -> i.getId())).toList();
+			
+			for (ItSystem itSystem : itSystemsUserHasRoleIn) {
+				UserDeletedEvent userDeletedEvent = new UserDeletedEvent();
+				userDeletedEvent.setUser(userToDelete);
+				userDeletedEvent.setEmail(itSystem.getEmail());
+				events.get().getDeletedUsers().add(userDeletedEvent);
+			}
+		}
+	}
+
+	public static <T> Predicate<T> distinctByKey(Function<? super T, ?> keyExtractor) {
+		Map<Object, Boolean> seen = new ConcurrentHashMap<>();
+
+		return t -> seen.putIfAbsent(keyExtractor.apply(t), Boolean.TRUE) == null;
 	}
 
 	private void checkOrgUnitForNewTitles(Position position, OrgUnit orgUnit) {
@@ -809,9 +835,6 @@ public class OrganisationImporter {
 					else if (differentPositions(newUser, existingUser)) {
 						toBeUpdated.add(newUser);
 					}
-					else if (existingUser.isDoNotInherit() != newUser.isDoNotInherit()) {
-						toBeUpdated.add(newUser);
-					}
 					else if (existingUser.isDisabled() != newUser.isDisabled()) {
 						toBeUpdated.add(newUser);
 					}
@@ -833,7 +856,6 @@ public class OrganisationImporter {
 				userToCreate.setRoleGroupAssignments(new ArrayList<>());
 				userToCreate.setUserRoleAssignments(new ArrayList<>());
 				userToCreate.setPositions(new ArrayList<>());
-				userToCreate.setDoNotInherit(newUser.isDoNotInherit());
 				userToCreate.setDisabled(newUser.isDisabled());
 				for (Position p : newUser.getPositions()) {
 					addPosition(userToCreate, p);
@@ -903,9 +925,6 @@ public class OrganisationImporter {
 						toBeUpdated.add(newOrgUnit);
 					}
 					else if (!configuration.getIntegrations().getKle().isUiEnabled() && hasKleChanges(newOrgUnit, existingOrgUnit)) {
-						toBeUpdated.add(newOrgUnit);
-					}
-					else if (itSystemMarkupEnabled && hasItSystemChanges(newOrgUnit, existingOrgUnit)) {
 						toBeUpdated.add(newOrgUnit);
 					}
 					else if (configuration.getOrganisation().isGetLevelsFromApi() && differentOrgUnitLevels(existingOrgUnit, newOrgUnit)) {
@@ -996,40 +1015,6 @@ public class OrganisationImporter {
 			}
 			
 			if (!titleFound) {
-				return true;
-			}
-		}
-		
-		return false;
-	}
-
-	private boolean hasItSystemChanges(OrgUnit newOrgUnit, OrgUnit existingOrgUnit) {
-		for (ItSystem existingOrgUnitItSystem : existingOrgUnit.getItSystems()) {
-			boolean itSystemFound = false;
-
-			for (ItSystem newOrgUnitItSystem : newOrgUnit.getItSystems()) {
-				if (newOrgUnitItSystem.getId() == existingOrgUnitItSystem.getId()) {
-					itSystemFound = true;
-					break;
-				}
-			}
-			
-			if (!itSystemFound) {
-				return true;
-			}
-		}
-		
-		for (ItSystem newOrgUnitItSystem : newOrgUnit.getItSystems()) {
-			boolean itSystemFound = false;
-
-			for (ItSystem existingOrgUnitItSystem : existingOrgUnit.getItSystems()) {
-				if (newOrgUnitItSystem.getId() == existingOrgUnitItSystem.getId()) {
-					itSystemFound = true;
-					break;
-				}
-			}
-			
-			if (!itSystemFound) {
 				return true;
 			}
 		}
@@ -1168,6 +1153,7 @@ public class OrganisationImporter {
 		for (Position p : positions) {
 			if (p.getName().equals(position.getName()) &&
 				p.getOrgUnit().getUuid().equals(position.getOrgUnit().getUuid()) &&
+				p.isDoNotInherit() == position.isDoNotInherit() &&
 				hasSameKey(p.getUser(), position.getUser()) &&				
 				(p.getTitle() == null && position.getTitle() == null || (p.getTitle() != null && position.getTitle() != null && Objects.equals(p.getTitle().getUuid(), position.getTitle().getUuid())))) {
 
@@ -1220,6 +1206,7 @@ public class OrganisationImporter {
 		Set<OrgUnitWithNewAndOldParentDTO> parentChangedOrgUnits = events.get().getOrgUnitsWithNewParent();
 		Set<OrgUnitWithTitlesDTO> orgUnitsWithNewTitles = events.get().getOrgUnitsWithNewTitles();
 		Set<UserMovedPositions> UsersWhoMovedPositions = events.get().getUsersMovedPostions();
+		Set<UserDeletedEvent> deletedUsers = events.get().getDeletedUsers();
 
 		handleNewOrgUnits(newOrgUnits);
 
@@ -1228,6 +1215,33 @@ public class OrganisationImporter {
 		handleNewTitles(orgUnitsWithNewTitles);
 		
 		handleUserPositionChange(UsersWhoMovedPositions);
+
+		handleUserDeleteEvents(deletedUsers);
+	}
+
+	private void handleUserDeleteEvents(Set<UserDeletedEvent> deletedUsers) {
+		if (deletedUsers.size() > 0) {
+			EmailTemplate template = emailTemplateService.findByTemplateType(EmailTemplateType.USER_WITH_MANUAL_ITSYSTEM_DELETED);
+			
+			if (template.isEnabled()) {
+				for (UserDeletedEvent deletedEvent : deletedUsers) {
+					User user = deletedEvent.getUser();
+					
+					String title = template.getTitle();
+					title = title.replace(EmailTemplateService.ITSYSTEM_PLACEHOLDER, deletedEvent.getItSystemName());
+					title = title.replace(EmailTemplateService.USER_PLACEHOLDER, user.getName() + " (" + user.getUserId() + ")");
+					
+					String message = template.getMessage();
+					message = message.replace(EmailTemplateService.ITSYSTEM_PLACEHOLDER, deletedEvent.getItSystemName());
+					message = message.replace(EmailTemplateService.USER_PLACEHOLDER, user.getName() + " (" + user.getUserId() + ")");
+					
+					emailQueueService.queueEmail(deletedEvent.getEmail(), title, message, template, null);
+				}
+			}
+			else {
+				log.info("Email template with type " + template.getTemplateType() + " is disabled. Emails were not sent.");
+			}
+		}
 	}
 
 	private void handleUserPositionChange(Set<UserMovedPositions> UsersWhoMovedPositions) {

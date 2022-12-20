@@ -40,6 +40,15 @@
 							<em class="fa fa-fw fa-warning"></em>
 							<span th:text="#{html.navbar.sub.version}"></span>
 						</a>
+					</li>					
+				</ul>
+				
+				<ul class="nav navbar-nav navbar-right">
+					<li class="nav-item">
+						<a th:href="@{/download/brugermanual.pdf}" target="_blank">
+							<em class="fa fa-fw fa-book"></em>
+							<span>Brugermanual</span>
+						</a>
 					</li>
 				</ul>
 			</div>
@@ -135,33 +144,47 @@
 							</li>
 						</th:block>
 						
-						<th:block sec:authorize="hasRole('ROLE_READ_ACCESS')">
-							<li class="nav-heading">
+						<th:block>
+							<li th:unless="${@settingsService.isRequestApproveEnabled() == true}" sec:authorize="hasRole('ROLE_READ_ACCESS')" class="nav-heading">
 								<span th:text="#{html.navbar.rolemanagement}"></span>
 							</li>
-	
-							<li th:class="${page == 'ous'} ? 'active' : ''">
-								<a th:href="@{/ui/ous/list}">
-									<em class="fa fa-users"></em>
-									<span th:text="#{html.navbar.ous}"></span>
-								</a>
-							</li>
-	
-							<li th:class="${page == 'users'} ? 'active' : ''">
-								<a th:href="@{/ui/users/list}">
-									<em class="fa fa-user"></em>
-									<span th:text="#{html.navbar.users}"></span>
-								</a>
-							</li>
 
-							<th:block th:if="${@settingsService.isRequestApproveEnabled() == true}">
-								<li sec:authorize="hasRole('ROLE_ASSIGNER')" th:class="${page == 'requests_authorization_manager'} ? 'active' : ''">
-									<a th:href="@{/ui/users/requests/authorizationmanager}">
+							<th:block th:if="${@settingsService.isRequestApproveEnabled() == true}" sec:authorize="hasRole('ROLE_REQUESTER')">
+								<li class="nav-heading">
+									<span th:text="#{html.navbar.rolemanagement}"></span>
+								</li>
+								<li th:class="${page == 'users_request'} ? 'active' : ''">
+									<a th:href="@{/ui/requestapprove/users}">
 										<em class="fa fa-comment-o"></em>
-										<span th:text="#{html.navbar.requestapprove}"></span>
-										<span class="badge" style="background-color: red;" th:text="${session.SESSION_REQUEST_COUNT}" th:unless="${session == null || session.SESSION_REQUEST_COUNT == 0}"></span>
+										<span th:text="#{html.navbar.users_request}"></span>
 									</a>
 								</li>
+							</th:block>
+
+							<th:block sec:authorize="hasRole('ROLE_READ_ACCESS')">
+								<li th:class="${page == 'ous'} ? 'active' : ''">
+									<a th:href="@{/ui/ous/list}">
+										<em class="fa fa-users"></em>
+										<span th:text="#{html.navbar.ous}"></span>
+									</a>
+								</li>
+
+								<li th:class="${page == 'users'} ? 'active' : ''">
+									<a th:href="@{/ui/users/list}">
+										<em class="fa fa-user"></em>
+										<span th:text="#{html.navbar.users}"></span>
+									</a>
+								</li>
+
+								<th:block th:if="${@settingsService.isRequestApproveEnabled() == true}">
+									<li sec:authorize="hasRole('ROLE_ASSIGNER')" th:class="${page == 'requests_authorization_manager'} ? 'active' : ''">
+										<a th:href="@{/ui/users/requests/authorizationmanager}">
+											<em class="fa fa-comment-o"></em>
+											<span th:text="#{html.navbar.requestapprove}"></span>
+											<span class="badge" style="background-color: red;" th:text="${session.SESSION_REQUEST_COUNT}" th:unless="${session == null || session.SESSION_REQUEST_COUNT == 0}"></span>
+										</a>
+									</li>
+								</th:block>
 							</th:block>
 						</th:block>
 						

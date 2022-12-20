@@ -14,13 +14,10 @@ import dk.digitalidentity.rc.dao.SettingsDao;
 import dk.digitalidentity.rc.dao.model.Setting;
 import dk.digitalidentity.rc.dao.model.enums.CheckupIntervalEnum;
 import dk.digitalidentity.rc.dao.model.enums.NotificationType;
-import dk.digitalidentity.rc.service.model.WhoCanRequest;
 
 @Service
 public class SettingsService {
-	private static final String SETTING_IT_SYSTEM_MARKUP_ENABLED = "ItSystemMarkup";
 	private static final String SETTING_REQUEST_APPROVE_ENABLED = "RequestApproveEnabled";
-	private static final String SETTING_REQUEST_APPROVE_WHO = "RequestApproveWho";
 	private static final String SETTING_REQUEST_APPROVE_SERVICEDESK_EMAIL = "RequestApproveServicedeskEmail";
 	private static final String SETTING_SCHEDULED_ATTESTATION_ENABLED = "ScheduledAttestationEnabled";
 	private static final String SETTING_SCHEDULED_ATTESTATION_INTERVAL = "ScheduledAttestationInterval";
@@ -42,15 +39,7 @@ public class SettingsService {
 
 	@Autowired
 	private SettingsDao settingsDao;
-	
-	public boolean isItSystemMarkupEnabled() {
-		return isKeyEnabled(SETTING_IT_SYSTEM_MARKUP_ENABLED);
-	}
-	
-	public void setItSystemMarkupEnabled(boolean enabled) {
-		setKeyEnabled(enabled, SETTING_IT_SYSTEM_MARKUP_ENABLED);
-	}
-	
+
 	public boolean isRequestApproveEnabled() {
 		return isKeyEnabled(SETTING_REQUEST_APPROVE_ENABLED);
 	}
@@ -59,23 +48,6 @@ public class SettingsService {
 		setKeyEnabled(enabled, SETTING_REQUEST_APPROVE_ENABLED);
 	}
 
-	public WhoCanRequest getRequestApproveWho() {
-		String value = getKeyWithDefault(SETTING_REQUEST_APPROVE_WHO, WhoCanRequest.USERS.toString());
-		
-		return WhoCanRequest.valueOf(value);
-	}
-	
-	public void setRequestApproveWho(WhoCanRequest who) {
-		Setting setting = settingsDao.findByKey(SETTING_REQUEST_APPROVE_WHO);
-		if (setting == null) {
-			setting = new Setting();
-			setting.setKey(SETTING_REQUEST_APPROVE_WHO);
-		}
-		
-		setting.setValue(who.toString());
-		settingsDao.save(setting);
-	}
-	
 	public String getRequestApproveServicedeskEmail() {
 		Setting setting = settingsDao.findByKey(SETTING_REQUEST_APPROVE_SERVICEDESK_EMAIL);
 		if (setting == null) {
@@ -304,15 +276,6 @@ public class SettingsService {
 	}
 
 	/// helper methods
-
-	private String getKeyWithDefault(String key, String defaultValue) {
-		Setting setting = settingsDao.findByKey(key);
-		if (setting != null) {
-			return setting.getValue();
-		}
-		
-		return defaultValue;
-	}
 
 	private boolean isKeyEnabled(String key) {
 		Setting setting = settingsDao.findByKey(key);

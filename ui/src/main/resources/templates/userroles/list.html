@@ -17,7 +17,8 @@
 									<tr>
 										<th class="col-md-3" th:text="#{html.entity.userrole.name}"></th>
 										<th class="col-md-2" th:text="#{html.entity.itsystem.type}"></th>
-										<th class="col-md-6" th:text="#{html.entity.userrole.description}"></th>
+										<th th:class="'col-md-' + ${@settingsService.isRequestApproveEnabled() ? 5 : 6}" th:text="#{html.entity.userrole.description}"></th>
+										<th class="col-md-1" th:if="${@settingsService.isRequestApproveEnabled()}"  th:text="#{html.entity.userrole.canRequest}"></th>
 										<th class="col-md-1" th:text="#{html.control.operations}"></th>
 									</tr>
 								</thead>
@@ -31,6 +32,9 @@
 										</td>
 										<td th:text="${role.itSystem.name}"></td>
 										<td th:text="${role.description}"></td>
+										<td th:if="${@settingsService.isRequestApproveEnabled()}">
+											<em th:if="${role.canRequest}" class="fa fa-check"></em>
+										</td>
 										<th:block th:if="${role.delegatedFromCvr == null}"> 
 											<td>
 												<a th:href="@{/ui/userroles/view/{id}(id=${role.id})}"><em class="fa fa-search"></em></a>
@@ -50,7 +54,8 @@
 										<th class="input-filter"></th>
 										<th class="input-filter"></th>
 										<th class="input-filter"></th>
-										<td>&nbsp;</td>
+										<th th:if="${@settingsService.isRequestApproveEnabled()}">&nbsp;</th>
+										<th>&nbsp;</th>
 									</tr>
 								</tfoot>
 							</table>
@@ -79,8 +84,10 @@
 
 	$("document").ready(function() {
 		// 1. Setup - add a text input to each footer cell
-		$('#listTable tfoot th').each( function () {
-			$(this).html('<input type="text" class="form-control input-sm" placeholder="Søg" />');
+		$('#listTable tfoot th').each(function () {
+			if ($(this).hasClass('input-filter')) {
+				$(this).html('<input type="text" class="form-control input-sm" placeholder="Søg" />');
+			}
 		});
 
 		var table = $('#listTable').DataTable();

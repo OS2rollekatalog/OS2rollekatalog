@@ -1,6 +1,7 @@
 package dk.digitalidentity.rc.dao.model;
 
 import java.util.Date;
+import java.util.List;
 
 import javax.persistence.Column;
 import javax.persistence.Entity;
@@ -9,6 +10,9 @@ import javax.persistence.Enumerated;
 import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
 import javax.persistence.Id;
+import javax.persistence.JoinColumn;
+import javax.persistence.JoinTable;
+import javax.persistence.OneToMany;
 import javax.persistence.Table;
 import javax.persistence.Temporal;
 import javax.persistence.TemporalType;
@@ -18,6 +22,8 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import dk.digitalidentity.rc.dao.model.enums.ItSystemType;
 import dk.digitalidentity.rc.log.AuditLoggable;
 import lombok.Data;
+import org.hibernate.annotations.LazyCollection;
+import org.hibernate.annotations.LazyCollectionOption;
 
 @Entity
 @Table(name = "it_systems")
@@ -84,6 +90,14 @@ public class ItSystem implements AuditLoggable {
 	//       we figure out the full API configuration.
 	@Column
 	private boolean apiManagedRoleAssignments;
+
+	@Column
+	private boolean ouFilterEnabled;
+
+	@OneToMany
+	@JoinTable(name = "ous_itsystems", joinColumns = { @JoinColumn(name = "itsystem_id") }, inverseJoinColumns = { @JoinColumn(name = "ou_uuid") })
+	@LazyCollection(LazyCollectionOption.TRUE)
+	private List<OrgUnit> orgUnitFilterOrgUnits;
 
 	@JsonIgnore
 	@Override

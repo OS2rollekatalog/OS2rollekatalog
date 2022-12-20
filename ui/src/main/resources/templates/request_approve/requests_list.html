@@ -19,7 +19,8 @@
 										<th class="col-md-2" th:text="#{html.my.requests.from}"></th>
 										<th class="col-md-2" th:text="#{html.my.requests.name}"></th>
 										<th class="col-md-2" th:text="#{html.my.requests.itsystem}"></th>
-										<th class="col-md-4" th:text="#{html.my.requests.description}"></th>
+										<th class="col-md-1" th:text="#{html.my.requests.request.timestamp}"></th>
+										<th class="col-md-3" th:text="#{html.my.requests.description}"></th>
 									</tr>
 								</thead>
 	
@@ -32,11 +33,12 @@
 										<td th:text="${req.request.requester.name} + ' (' + ${req.request.requester.userId} + ')'"></td>
 										<td th:text="${req.roleName}"></td>
 										<td th:text="${req.itSystemName}"></td>
+										<td th:text="${#dates.format(req.requestTimestamp, 'yyyy-MM-dd')}"></td>
 										<td th:text="${req.roleDescription}"></td>
 					    			</tr>
 				    			</tbody>
 							</table>
-						</div>							
+						</div>
 					</div>
 				</div>
 	        </div>
@@ -156,6 +158,7 @@
 		            {
 		                "className": 'request-userid'
 		            },
+		            { },
 		            { },
 		            { },
 		            { },

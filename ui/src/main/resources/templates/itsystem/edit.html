@@ -161,11 +161,37 @@
 								</div>
 							</fieldset>
 
+
 							<fieldset th:if="${#strings.toString(itsystem.systemType)} == 'AD'">
 								<div class="form-group">
 									<label class="col-sm-2 control-label" th:text="#{html.control.operations}"></label>
 									<div class="col-sm-8">
 										<a id="addAdRoleBtn" class="btn btn-lg btn-primary" th:text="#{html.page.itsystem.action.new.systemrole.ad}" onclick="newAdRole();" th:disabled="${itsystem.readonly}"></a>
+									</div>
+								</div>
+							</fieldset>
+
+							<fieldset>
+								<div class="form-group">
+									<label class="col-sm-2 control-label" th:text="#{html.page.itsystem.edit.modal.oufilter.label}"></label>
+									<div class="col-sm-1">
+										<div class="checkbox c-checkbox">
+											<label>
+												<input id="ouFilterEnabled-checkbox" type="checkbox" th:attr="checked=${itsystem.ouFilterEnabled}" />
+												<span class="fa fa-check"></span>
+											</label>
+										</div>
+									</div>
+								</div>
+							</fieldset>
+
+							<fieldset id="ouFilterButtonField" hidden>
+								<div class="form-group">
+									<label class="col-sm-2 control-label"></label>
+									<div class="col-sm-8">
+										<a id="ouFilterBtn" class="btn btn-lg btn-primary col-sm-2" th:text="#{html.page.itsystem.edit.modal.oufilter.title}"></a>
+										<label th:if="${#lists.isEmpty(selectedOUs)}" class="col-sm-8" style="padding-top: 7px;" th:text="#{html.page.itsystem.edit.modal.oufilter.empty}"></label>
+										<label th:if="${not #lists.isEmpty(selectedOUs)}" class="col-sm-8" style="padding-top: 7px;" th:text="#{html.page.itsystem.edit.modal.oufilter.not_empty(${#lists.size(selectedOUs)})}"></label>
 									</div>
 								</div>
 							</fieldset>
@@ -268,17 +294,26 @@
 										<div id="removeUnusedRolesBtn" class="btn btn-lg btn-primary" style="width:auto;" onclick="removeUnusedUserRoles();" th:disabled="${itsystem.readonly}"><span th:text="#{html.page.itsystem.pane.userroles.delete}"></span></div>
 									</div>
 									<div class="table-responsive">
-										<table id="listTable" class="table table-striped listTable">
+										<table id="listTable" class="table table-striped listTable userRoleTable">
 											<thead>
 												<tr>
-													<th class="col-md-5" th:text="#{html.entity.userrole.name}"></th>
+													<th class="col-md-1" th:if="${@settingsService.isRequestApproveEnabled()}"  th:text="#{html.entity.userrole.canRequest}"></th>
+													<th th:class="'col-md-' + ${@settingsService.isRequestApproveEnabled() ? 4 : 5}" th:text="#{html.entity.userrole.name}"></th>
 													<th class="col-md-6" th:text="#{html.entity.userrole.description}"></th>
 													<th class="col-md-1" th:text="#{html.control.operations}"></th>
 												</tr>
 											</thead>
 											<tbody>
 												<tr th:each="role : ${userRoles}">
-													<td class="col-md-5" th:text="${role.name}"></td>
+													<td th:if="${@settingsService.isRequestApproveEnabled()}" class="col-sm-1">
+														<div class="checkbox c-checkbox">
+															<label>
+																<input style="padding-top:2px; padding-bottom:2px" class="canrequest-checkbox" type="checkbox" th:attr="data-roleid=${role.id},checked=${role.canRequest}" />
+																<span class="fa fa-check"></span>
+															</label>
+														</div>
+													</td>
+													<td th:class="'col-md-' + ${@settingsService.isRequestApproveEnabled() ? 4 : 5}" th:text="${role.name}"></td>
 													<td class="col-md-6" th:text="${role.description}"></td>
 													<td class="col-md-1">
 														<th:block th:if="${role.delegatedFromCvr == null}">
@@ -346,17 +381,26 @@
 										<div class="btn btn-lg btn-primary" style="width:auto;" onclick="removeUnusedUserRoles();"><span th:text="#{html.page.itsystem.pane.userroles.delete}"></span></div>
 									</div>
 									<div class="table-responsive">
-										<table id="listTable" class="table table-striped listTable">
+										<table id="listTable" class="table table-striped listTable userRoleTable">
 											<thead>
 												<tr>
-													<th class="col-md-5" th:text="#{html.entity.userrole.name}"></th>
+													<th class="col-md-1" th:if="${@settingsService.isRequestApproveEnabled()}"  th:text="#{html.entity.userrole.canRequest}"></th>
+													<th th:class="'col-md-' + ${@settingsService.isRequestApproveEnabled() ? 4 : 5}" th:text="#{html.entity.userrole.name}"></th>
 													<th class="col-md-6" th:text="#{html.entity.userrole.description}"></th>
 													<th class="col-md-1" th:text="#{html.control.operations}"></th>
 												</tr>
 											</thead>
 											<tbody>
 												<tr th:each="role : ${userRoles}">
-													<td class="col-md-5" th:text="${role.name}"></td>
+													<td th:if="${@settingsService.isRequestApproveEnabled()}" class="col-sm-1">
+														<div class="checkbox c-checkbox">
+															<label>
+																<input style="padding-top:2px; padding-bottom:2px" class="canrequest-checkbox" type="checkbox" th:attr="data-roleid=${role.id},checked=${role.canRequest}" />
+																<span class="fa fa-check"></span>
+															</label>
+														</div>
+													</td>
+													<td th:class="'col-md-' + ${@settingsService.isRequestApproveEnabled() ? 4 : 5}" th:text="${role.name}"></td>
 													<td class="col-md-6" th:text="${role.description}"></td>
 													<th:block th:if="${role.delegatedFromCvr == null}">
 														<td class="col-md-1">
@@ -420,17 +464,26 @@
 										<div class="btn btn-lg btn-primary" style="width:auto;" onclick="removeUnusedUserRoles();"><span th:text="#{html.page.itsystem.pane.userroles.delete}"></span></div>
 									</div>
 									<div class="table-responsive">
-										<table id="listTable" class="table table-striped listTable">
+										<table id="listTable" class="table table-striped listTable userRoleTable">
 											<thead>
 												<tr>
-													<th class="col-md-5" th:text="#{html.entity.userrole.name}"></th>
+													<th class="col-md-1" th:if="${@settingsService.isRequestApproveEnabled()}" th:text="#{html.entity.userrole.canRequest}"></th>
+													<th th:class="'col-md-' + ${@settingsService.isRequestApproveEnabled() ? 4 : 5}" th:text="#{html.entity.userrole.name}"></th>
 													<th class="col-md-6" th:text="#{html.entity.userrole.description}"></th>
 													<th class="col-md-1" th:text="#{html.control.operations}"></th>
 												</tr>
 											</thead>
 											<tbody> 
 												<tr th:each="role : ${userRoles}">
-													<td class="col-md-5" th:text="${role.name}"></td>
+													<td th:if="${@settingsService.isRequestApproveEnabled()}" class="col-sm-1">
+														<div class="checkbox c-checkbox">
+															<label>
+																<input style="padding-top:2px; padding-bottom:2px" class="canrequest-checkbox" type="checkbox" th:attr="data-roleid=${role.id},checked=${role.canRequest}" />
+																<span class="fa fa-check"></span>
+															</label>
+														</div>
+													</td>
+													<td th:class="'col-md-' + ${@settingsService.isRequestApproveEnabled() ? 4 : 5}" th:text="${role.name}"></td>
 													<td class="col-md-6" th:text="${role.description}"></td>
 													<th:block th:if="${role.delegatedFromCvr == null}">
 														<td class="col-md-1">
@@ -683,6 +736,32 @@
 		</div>
 	</div>
 
+	<!-- ou filter modal-->
+	<div class="modal fade" id="modal-ou-filter" role="dialog">
+		<div class="modal-dialog">
+
+			<!-- Modal content-->
+			<div class="modal-content">
+				<div class="modal-header">
+					<button type="button" class="close" data-dismiss="modal">&times;</button>
+					<h4 th:text="#{html.page.itsystem.edit.modal.oufilter.title}"></h4>
+				</div>
+
+				<div class="modal-body">
+					<p th:text="#{html.page.itsystem.edit.modal.oufilter.description}"></p>
+					<hr/>
+					<input class="form-control" id="ou-tree-search" style="margin-bottom: 5px;" />
+					<div id="ou-tree"></div>
+				</div>
+
+				<div class="modal-footer">
+					<button type="submit" id="oufilterSave" class="btn btn-primary" th:text="#{html.control.button.save}"></button>
+					<button type="button" class="btn btn-danger" data-dismiss="modal" th:text="#{html.control.button.cancel}"></button>
+				</div>
+			</div>
+		</div>
+	</div>
+
 	<nav th:replace="fragments/footer :: footer"></nav>
 	<script th:replace="fragments/datatables :: datatables "></script>
 	
@@ -700,16 +779,25 @@
 	<script th:inline="javascript">
 	/*<![CDATA[*/
 		var token = $("meta[name='_csrf']").attr("content");
-
+		var ouFilterService;
+		var itsystemId;
 		/*[+
 			var itSystemType = [[${#strings.toString(itsystem.systemType)}]];
 			var readonly = [[${itsystem.readonly}]];
+			var userRoleUrl = [[@{/rest/userroles/}]];
+			var fieldUpdatedMsg = [[#{html.entity.itsystem.updatedmsg}]];
+			var fieldNotUpdatedMsgOUFilter = [[#{html.entity.itsystem.failedupdateouufiltermsg}]];
+			var allOUs = [[${allOUs}]];
+			var selectedOUs = [[${selectedOUs}]];
+			var restUrl = [[@{/rest/itsystem/}]];
+			var ouFilterEnabledUrl = [[@{/rest/itsystem/ouFilterEnabled}]];
 		+]*/
 
 		$("document").ready(function() {
 
-			var itsystemId = $("#id").val();
-			
+			itsystemId = $("#id").val();
+			ouFilterService = new OUFilterService();
+			ouFilterService.init();
 
 				/*[+
 					var url = [[@{/ui/itsystem/edit/}]] + itsystemId;
@@ -724,7 +812,6 @@
 					var hiddenUrl = [[@{/rest/itsystem/hidden}]];
 					var notesUrl = [[@{/rest/itsystem/notes}]];
 					var subscribedToUrl = [[@{/rest/itsystem/subscribedTo}]];
-					var fieldUpdatedMsg = [[#{html.entity.itsystem.updatedmsg}]];
 					var fieldNotUpdatedMsg = [[#{html.entity.itsystem.failedupdatemsg}]];
 					var fieldNotUpdatedNotesMsg = [[#{html.entity.itsystem.failedupdatenotesmsg}]];
 					var subscribedToMaster = [[${itsystem.subscribedTo != null}]];
@@ -742,6 +829,13 @@
 			$('#apiManagedRoleAssignments-checkbox').change(handleChangeOnApiManagedRoleAssignmentsUrl);
 			$('#subscribedToCheckbox').change(toggleDisabledCheckbox);
 			$('#subscribedTo').change(handleChangeOnSubscribedTo);
+			$('.canrequest-checkbox').change(handleCanRequestCheckboxChange);
+
+			//assign relevant listeners again on page change
+			$('.userRoleTable').on('draw.dt', function() {
+				$('.canrequest-checkbox').off('change');
+				$('.canrequest-checkbox').change(handleCanRequestCheckboxChange);
+			});
 
 			if (subscribedToMaster) {
 				$('#subscribedTo').show();
@@ -1392,6 +1486,177 @@
 		
 		function convertSystemRolesToUserRoles() {
 			$("#modal-convert-systemroles").modal("show");
+		}
+
+		function handleCanRequestCheckboxChange() {
+			var roleId = String(this.dataset.roleid);
+			var updateUrl = userRoleUrl + "flag/" + roleId + "/canrequest";
+
+			if (this.checked) {
+				updateUrl = updateUrl + "?active=true";
+			}
+			else {
+				updateUrl = updateUrl + "?active=false";
+			}
+
+			$.ajax({
+				url: updateUrl,
+				method: "POST",
+				headers: {
+					'X-CSRF-TOKEN': token
+				},
+				error: function(response) {
+					$.notify({
+						message: response.responseText
+					},{
+						status: 'danger',
+						autoHideDelay: 4000
+					});
+				},
+				success: function(response) {
+					$.notify({
+						message: fieldUpdatedMsg
+					},{
+						status: 'success',
+						autoHideDelay: 4000
+					});
+				}
+			});
+		}
+
+		function OUFilterService() {
+			this.init = function() {
+				$("#ouFilterEnabled-checkbox").change(ouFilterService.handleOUFilterCheckbox)
+				$("#ouFilterBtn").click(ouFilterService.handleOUFilterBtnClick);
+				$("#oufilterSave").click(ouFilterService.saveOUs);
+
+				$('#modal-ou-filter').on('shown.bs.modal', function() {
+					$('#ou-tree-search').focus();
+				})
+
+				ouFilterService.handleOUFilterCheckbox(true);
+
+				// JSTree stuff
+
+				$('#modal-ou').on('shown.bs.modal', function() {
+					$('#ou-tree-search').focus();
+				})
+
+				$("#ou-tree").jstree({
+					"core": {
+						"data": allOUs,
+						"themes": {
+							"icons": false
+						}
+					},
+					"search" : {
+						"show_only_matches": true,
+						"search_callback": function(str, node) {
+							return (node.text.toUpperCase().startsWith(str.toUpperCase()));
+						}
+					},
+					"checkbox" : {
+						"keep_selected_style" : false,
+						"three_state": false,
+						"cascade": "undefined"
+					},
+					"plugins" : [
+						"checkbox", "search"
+					]
+				});
+
+				// searching in the JSTree
+				var to = false;
+				$('#ou-tree-search').keyup(function() {
+					if (to) {
+						clearTimeout(to);
+					}
+
+					to = setTimeout(function() {
+						var v = $('#ou-tree-search').val();
+
+						$('#ou-tree').jstree(true).search(v);
+					}, 400);
+				});
+
+				// selecting in the JSTree
+				$('#ou-tree').on("ready.jstree", function(e, data) {
+					$('#ou-tree').jstree('select_node', selectedOUs);
+				});
+			}
+
+			this.handleOUFilterBtnClick = function() {
+				$("#modal-ou-filter").modal("show");
+			}
+
+			this.handleOUFilterCheckbox = function(initial) {
+				var checked = $("#ouFilterEnabled-checkbox").prop("checked");
+
+				if (initial) {
+					$.ajax({
+						url: ouFilterEnabledUrl,
+						method: 'POST',
+						data: {
+							'ouFilterEnabled': checked,
+							'id': itsystemId
+						},
+						headers: {
+							'X-CSRF-TOKEN': token
+						},
+						error: function(response) {
+							$.notify({
+								message: fieldNotUpdatedMsgOUFilter
+							},{
+								status: 'danger',
+								autoHideDelay: 4000
+							});
+						},
+						success: function(response) {
+							$.notify({
+								message: fieldUpdatedMsg
+							},{
+								status: 'success',
+								autoHideDelay: 2000
+							});
+						}
+					});
+				}
+
+				// hide/ show
+				if (checked) {
+					$(ouFilterButtonField).show();
+				} else {
+					$(ouFilterButtonField).hide();
+				}
+			}
+
+			this.saveOUs = function() {
+				var selected = $('#ou-tree').jstree(true).get_selected();
+				$.ajax({
+					url: restUrl + "oufilter",
+					method: "POST",
+					headers: {
+						'X-CSRF-TOKEN': token,
+						'Content-Type': 'application/json'
+					},
+					data: JSON.stringify({
+						'id': itsystemId,
+						'selectedOUs': selected
+					}),
+					error: function(response) {
+						$.notify({
+							message: response.responseText
+						},{
+							status: 'danger',
+							autoHideDelay: 4000
+						});
+					},
+					success: function(response) {
+						$("#modal-ou-filter").modal("hide");
+						location.reload();
+					}
+				});
+			}
 		}
 	/*]]>*/
 	</script>

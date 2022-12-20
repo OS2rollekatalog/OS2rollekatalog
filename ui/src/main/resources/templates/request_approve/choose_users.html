@@ -130,7 +130,8 @@
 					
 					if (checked) {
 						selectedUsers.push(userUuid)
-					}else {
+					}
+					else {
 						var index = selectedUsers.indexOf(userUuid);
 					  	if (index > -1) {
 					  		selectedUsers.splice(index, 1);
@@ -162,7 +163,8 @@
 					var reason = $("#reasonField").val();
 					if (reason.length === 0) {
 						$("#errormsg").show();
-					} else {
+					}
+					else {
 						$("#errormsg").hide();
 					
 						$.ajax({

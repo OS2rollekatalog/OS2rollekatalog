@@ -53,6 +53,8 @@ public class EmailService {
 			log.warn("No recipient email given for mail with subject: " + subject);
 			return;
 		}
+		
+		log.info("Sending email '" + subject + "' to '" + email + "'");
 
 		Transport transport = null;
 
@@ -103,8 +105,6 @@ public class EmailService {
 							  configuration.getIntegrations().getEmail().getPassword());
 			transport.addTransportListener(new TransportErrorHandler());
 			transport.sendMessage(msg, msg.getAllRecipients());
-			
-			log.info("Sending email '" + subject + "' to " + email);
 		}
 		catch (Exception ex) {
 			log.error("Failed to send email", ex);
