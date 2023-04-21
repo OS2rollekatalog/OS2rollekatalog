@@ -18,6 +18,7 @@ import org.apache.poi.ss.usermodel.Workbook;
 import org.springframework.context.support.ResourceBundleMessageSource;
 import org.springframework.web.servlet.view.document.AbstractXlsxView;
 
+import dk.digitalidentity.rc.dao.model.ManagerSubstitute;
 import dk.digitalidentity.rc.dao.model.User;
 
 public class ManagersXlsxView extends AbstractXlsxView {
@@ -48,29 +49,48 @@ public class ManagersXlsxView extends AbstractXlsxView {
         headers.add("html.page.manager.substitute.user");
         headers.add("html.page.manager.substitute.date");
         headers.add("html.page.manager.substitute.assigned_by");
+        headers.add("html.page.manager.substitute.orgunit");
 
         createHeaderRow(messageSource, locale, sheet, headers, headerStyle);
 
         int row = 1;
         for (User manager : managers) {
-            Row dataRow = sheet.createRow(row++);
+        	if (manager.getManagerSubstitutes().size() > 0) {
+	        	for (ManagerSubstitute substitute : manager.getManagerSubstitutes()) {
+		            Row dataRow = sheet.createRow(row++);
+		
+		            String assignedBy = "";
+		            if (substitute.getAssignedBy() == null) {
+		            	assignedBy = manager.getName() + "(" + manager.getUserId() + ")";
+		            }
+		            else if (substitute.getAssignedBy() != null) {
+		            	assignedBy = substitute.getAssignedBy();
+		            }
+	
+		            createCell(dataRow, 0, manager.getUuid(), null);
+		            createCell(dataRow, 1, manager.getName(), null);
+		            createCell(dataRow, 2, manager.getUserId(), null);
+		            createCell(dataRow, 3, substitute.getSubstitute().getUuid(), null);
+		            createCell(dataRow, 4, substitute.getSubstitute().getName(), null);
+		            createCell(dataRow, 5, substitute.getSubstitute().getUserId(), null);
+		            createCell(dataRow, 6, substitute.getAssignedTts() != null ? dateFormatter.format(substitute.getAssignedTts()) : "", null);
+		            createCell(dataRow, 7, assignedBy, null);
+		            createCell(dataRow, 8, substitute.getOrgUnit().getName(), null);
+	        	}
+        	}
+        	else {
+	            Row dataRow = sheet.createRow(row++);
 
-            String assignedBy = "";
-            if (manager.getSubstituteAssignedBy() == null && manager.getManagerSubstitute() != null) {
-            	assignedBy = manager.getName() + "(" + manager.getUserId() + ")";
-            }
-            else if (manager.getSubstituteAssignedBy() != null && manager.getManagerSubstitute() != null) {
-            	assignedBy = manager.getSubstituteAssignedBy();
-            }
-            
-            createCell(dataRow, 0, manager.getUuid(), null);
-            createCell(dataRow, 1, manager.getName(), null);
-            createCell(dataRow, 2, manager.getUserId(), null);
-            createCell(dataRow, 3, manager.getManagerSubstitute() == null ? "" : manager.getManagerSubstitute().getUuid(), null);
-            createCell(dataRow, 4, manager.getManagerSubstitute() == null ? "" : manager.getManagerSubstitute().getName(), null);
-            createCell(dataRow, 5, manager.getManagerSubstitute() == null ? "" : manager.getManagerSubstitute().getUserId(), null);
-            createCell(dataRow, 6, (manager.getSubstituteAssignedTts() != null) ? dateFormatter.format(manager.getSubstituteAssignedTts()) : "", null);
-            createCell(dataRow, 7, assignedBy, null);
+	            createCell(dataRow, 0, manager.getUuid(), null);
+	            createCell(dataRow, 1, manager.getName(), null);
+	            createCell(dataRow, 2, manager.getUserId(), null);
+	            createCell(dataRow, 3, "", null);
+	            createCell(dataRow, 4, "", null);
+	            createCell(dataRow, 5, "", null);
+	            createCell(dataRow, 6, "", null);
+	            createCell(dataRow, 7, "", null);
+	            createCell(dataRow, 8, "", null);        		
+        	}
         }
         
         format(sheet);
@@ -85,6 +105,7 @@ public class ManagersXlsxView extends AbstractXlsxView {
 		sheet.autoSizeColumn(5);
 		sheet.autoSizeColumn(6);
 		sheet.autoSizeColumn(7);
+		sheet.autoSizeColumn(8);
 	}
 
     private static void createCell(Row header, int column, String value, CellStyle style) {

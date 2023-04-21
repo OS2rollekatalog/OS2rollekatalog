@@ -134,6 +134,7 @@ public class OrgUnitController {
 		model.addAttribute("parentsKleIsInheritedFrom", parentsKleIsInheritedFrom);
 		model.addAttribute("users", userDTOs);
 		model.addAttribute("canEditKle", SecurityUtil.hasRole(Constants.ROLE_ASSIGNER) || SecurityUtil.hasRole(Constants.ROLE_KLE_ADMINISTRATOR));
+		model.addAttribute("allowAccessToOu", assignerRoleConstraint.isAssignmentAllowed(ou));
 		
 		//Titles
 		boolean titlesEnabled = configuration.getTitles().isEnabled();

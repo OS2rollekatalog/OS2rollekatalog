@@ -9,6 +9,7 @@ import java.util.stream.Collectors;
 
 import javax.transaction.Transactional;
 
+import dk.digitalidentity.rc.dao.model.Domain;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -62,6 +63,7 @@ public class PendingADUpdateService {
 			dirty.setIdentifier(systemRole.getIdentifier());
 			dirty.setItSystemId(itSystem.getId());
 			dirty.setTimestamp(new Date());
+			dirty.setDomain(itSystem.getDomain());
 
 			dirtyADGroupDao.save(dirty);
 		}
@@ -85,6 +87,7 @@ public class PendingADUpdateService {
 			dirty.setIdentifier(systemRole.getIdentifier());
 			dirty.setItSystemId(itSystem.getId());
 			dirty.setTimestamp(new Date());
+			dirty.setDomain(itSystem.getDomain());
 
 			dirtyADGroupDao.save(dirty);
 		}
@@ -157,8 +160,8 @@ public class PendingADUpdateService {
 	}
 
 	@Transactional
-	public void deleteByIdLessThan(long head, long maxHead) {
-		List<DirtyADGroup> toDelete = dirtyADGroupDao.findByIdLessThan(head);
+	public void deleteByIdLessThan(long head, long maxHead, Domain domain) {
+		List<DirtyADGroup> toDelete = dirtyADGroupDao.findByIdLessThanAndDomain(head, domain);
 		Set<String> toDeleteIdentifiers = toDelete.stream().map(d -> d.getIdentifier()).collect(Collectors.toSet());
 		
 		if (maxHead > 0) {
@@ -170,8 +173,8 @@ public class PendingADUpdateService {
 	}
 	
 	@Transactional
-	public void deleteOperationsByIdLessThan(long head) {
-		pendingADGroupOperationDao.deleteByIdLessThan(head);
+	public void deleteOperationsByIdLessThan(long head, Domain foundDomain) {
+		pendingADGroupOperationDao.deleteByDomainAndIdLessThan(foundDomain, head);
 	}
 
 	public List<String> getAllGroupIdentifiers() {
@@ -185,12 +188,12 @@ public class PendingADUpdateService {
 		return new ArrayList<>(managedGroups);
 	}
 
-	public List<DirtyADGroup> find100() {
-		return dirtyADGroupDao.findFirst100ByOrderByIdAsc();
+	public List<DirtyADGroup> find100(Domain domain) {
+		return dirtyADGroupDao.findFirst100ByDomainOrderByIdAsc(domain);
 	}
 
-	public List<PendingADGroupOperation> find100Operations() {
-		return pendingADGroupOperationDao.findFirst100ByOrderByIdAsc();
+	public List<PendingADGroupOperation> find100Operations(Domain domain) {
+		return pendingADGroupOperationDao.findFirst100ByDomainOrderByIdAsc(domain);
 	}
 
 	public long findMaxHead() {

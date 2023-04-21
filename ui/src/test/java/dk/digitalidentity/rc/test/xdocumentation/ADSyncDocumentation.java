@@ -118,6 +118,7 @@ public class ADSyncDocumentation {
 		pending.setIdentifier(userRole.getSystemRoleAssignments().get(0).getSystemRole().getIdentifier());
 		pending.setItSystemId(itSystem.getId());
 		pending.setTimestamp(new Date());
+		pending.setDomain(itSystem.getDomain());
 		dirtyADGroupDao.save(pending);
 
 		this.mockMvc = MockMvcBuilders.webAppContextSetup(this.context)

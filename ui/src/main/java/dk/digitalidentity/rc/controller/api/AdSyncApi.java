@@ -23,9 +23,11 @@ import dk.digitalidentity.rc.controller.api.dto.ADGroupAssignments;
 import dk.digitalidentity.rc.controller.api.dto.ADOperationsResult;
 import dk.digitalidentity.rc.controller.api.dto.ADSyncResult;
 import dk.digitalidentity.rc.dao.model.DirtyADGroup;
+import dk.digitalidentity.rc.dao.model.Domain;
 import dk.digitalidentity.rc.dao.model.SystemRole;
 import dk.digitalidentity.rc.dao.model.UserRole;
 import dk.digitalidentity.rc.security.RequireApiReadAccessRole;
+import dk.digitalidentity.rc.service.DomainService;
 import dk.digitalidentity.rc.service.PendingADUpdateService;
 import dk.digitalidentity.rc.service.SystemRoleService;
 import dk.digitalidentity.rc.service.UserService;
@@ -47,11 +49,19 @@ public class AdSyncApi {
 	@Autowired
 	private SystemRoleService systemRoleService;
 
+	@Autowired
+	private DomainService domainService;
+
 	@GetMapping("/api/ad/v2/operations")
-	public ResponseEntity<ADOperationsResult> getPendingOperations() {
+	public ResponseEntity<ADOperationsResult> getPendingOperations(@RequestParam(name = "domain", required = false) String domain) {
+		Domain foundDomain = domainService.getDomainOrPrimary(domain);
+		if (foundDomain == null) {
+			return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+		}
+
 		ADOperationsResult result = new ADOperationsResult();
 		
-		result.setOperations(pendingADUpdateService.find100Operations());
+		result.setOperations(pendingADUpdateService.find100Operations(foundDomain));
 
 		// compute max
 		long maxId = 0;
@@ -69,19 +79,29 @@ public class AdSyncApi {
 	}
 	
 	@DeleteMapping("/api/ad/v2/operations/{head}")
-	public ResponseEntity<String> flagOperationsPerformed(@PathVariable("head") long head) {
-		pendingADUpdateService.deleteOperationsByIdLessThan(head + 1);
+	public ResponseEntity<String> flagOperationsPerformed(@PathVariable("head") long head, @RequestParam(name = "domain", required = false) String domain) {
+		Domain foundDomain = domainService.getDomainOrPrimary(domain);
+		if (foundDomain == null) {
+			return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+		}
+
+		pendingADUpdateService.deleteOperationsByIdLessThan(head + 1, foundDomain);
 		
 		return new ResponseEntity<>(HttpStatus.OK);
 	}
 
 	@GetMapping("/api/ad/v2/sync")
-	public ResponseEntity<ADSyncResult> getPendingUpdates() {
+	public ResponseEntity<ADSyncResult> getPendingUpdates(@RequestParam(name = "domain", required = false) String domain) {
+		Domain foundDomain = domainService.getDomainOrPrimary(domain);
+		if (foundDomain == null) {
+			return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+		}
+
 		ADSyncResult result = new ADSyncResult();
 		result.setAssignments(new ArrayList<ADGroupAssignments>());
 
 		// compute sets of userIds and itSystemIds that are dirty, filtered for duplicates
-		List<DirtyADGroup> updates = pendingADUpdateService.find100();
+		List<DirtyADGroup> updates = pendingADUpdateService.find100(foundDomain);
 		
 		// compute max
 		long maxId = 0;
@@ -124,7 +144,9 @@ public class AdSyncApi {
 				List<UserWithRole> users = userService.getUsersWithUserRole(userRole, true);
 				if (users != null && users.size() > 0) {
 					for (UserWithRole user : users) {
+						if (user.getUser().getDomain().getId() == foundDomain.getId()) {
 							sAMAccountNames.add(user.getUser().getUserId());
+						}
 					}
 				}
 			}
@@ -164,10 +186,13 @@ public class AdSyncApi {
 	}
 
 	@DeleteMapping("/api/ad/v2/sync/{head}")
-	public ResponseEntity<String> flagSyncPerformed(@PathVariable("head") long head, @RequestParam(name = "maxHead", required = false, defaultValue = "0") long maxHead) {
-		pendingADUpdateService.deleteByIdLessThan(head + 1, maxHead);
+	public ResponseEntity<String> flagSyncPerformed(@PathVariable("head") long head, @RequestParam(name = "maxHead", required = false, defaultValue = "0") long maxHead, @RequestParam(name = "domain", required = false) String domain) {
+		Domain foundDomain = domainService.getDomainOrPrimary(domain);
+		if (foundDomain == null) {
+			return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+		}
+		pendingADUpdateService.deleteByIdLessThan(head + 1, maxHead, foundDomain);
 		
 		return new ResponseEntity<>(HttpStatus.OK);
-	}
-	
+	}	
 }

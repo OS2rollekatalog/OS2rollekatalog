@@ -18,4 +18,6 @@ public class ItSystemForm {
 	private Integer expandToBsr;
 
 	private ItSystemType systemType;
+
+	private String domain;
 }

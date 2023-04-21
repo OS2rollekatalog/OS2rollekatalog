@@ -18,6 +18,7 @@ import dk.digitalidentity.rc.dao.model.Notification;
 import dk.digitalidentity.rc.dao.model.OrgUnit;
 import dk.digitalidentity.rc.dao.model.enums.NotificationEntityType;
 import dk.digitalidentity.rc.dao.model.enums.NotificationType;
+import dk.digitalidentity.rc.service.ManagerSubstituteService;
 import dk.digitalidentity.rc.service.NotificationService;
 import dk.digitalidentity.rc.service.OrgUnitService;
 import dk.digitalidentity.rc.service.SettingsService;
@@ -40,6 +41,9 @@ public class NoAuthorizationManagerTask {
 	
 	@Autowired
 	private NoAuthorizationManagerTask self;
+
+	@Autowired
+	private ManagerSubstituteService managerSubstituteService;
 	
 	@Scheduled(cron = "0 #{new java.util.Random().nextInt(55)} 9 * * ?")
 	public void run() {
@@ -51,12 +55,12 @@ public class NoAuthorizationManagerTask {
 	}
 
 	@Transactional
-	public void flagOrgunits() {		
+	public void flagOrgunits() {
 		List<Notification> notifications = notificationService.findAllByType(NotificationType.ORGUNIT_WITHOUT_AUTHORIZATION_MANAGER);
 		Set<String> uuids = notifications.stream().map(n -> n.getAffectedEntityUuid()).collect(Collectors.toSet()); 
 
 		for (OrgUnit orgUnit : orgUnitService.getAll()) {
-			boolean hasSubstitute = (orgUnit.getManager() != null && orgUnit.getManager().getManagerSubstitute() != null);
+			boolean hasSubstitute = managerSubstituteService.hasSubstitute(orgUnit);
 			boolean hasAuthorizationManager = (hasSubstitute || (orgUnit.getAuthorizationManagers() != null && orgUnit.getAuthorizationManagers().size() > 0));
 			boolean alreadyNotified = (uuids.contains(orgUnit.getUuid()));
 

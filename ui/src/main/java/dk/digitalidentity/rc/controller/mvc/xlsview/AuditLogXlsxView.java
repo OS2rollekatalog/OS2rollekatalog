@@ -20,7 +20,7 @@ import org.springframework.web.servlet.view.document.AbstractXlsxView;
 
 import dk.digitalidentity.rc.controller.mvc.datatables.dao.model.AuditLogView;
 
-public class AuditLogtXlsxView extends AbstractXlsxView {
+public class AuditLogXlsxView extends AbstractXlsxView {
 
     @SuppressWarnings("unchecked")
     @Override

@@ -10,11 +10,13 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import dk.digitalidentity.rc.dao.model.Domain;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.EnableCaching;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -33,6 +35,7 @@ import dk.digitalidentity.rc.dao.UserDao;
 import dk.digitalidentity.rc.dao.UserRoleGroupAssignmentDao;
 import dk.digitalidentity.rc.dao.UserUserRoleAssignmentDao;
 import dk.digitalidentity.rc.dao.model.ItSystem;
+import dk.digitalidentity.rc.dao.model.ManagerSubstitute;
 import dk.digitalidentity.rc.dao.model.OrgUnit;
 import dk.digitalidentity.rc.dao.model.OrgUnitRoleGroupAssignment;
 import dk.digitalidentity.rc.dao.model.OrgUnitUserRoleAssignment;
@@ -56,6 +59,7 @@ import dk.digitalidentity.rc.dao.model.enums.ConstraintValueType;
 import dk.digitalidentity.rc.dao.model.enums.EventType;
 import dk.digitalidentity.rc.dao.model.enums.ItSystemType;
 import dk.digitalidentity.rc.dao.model.enums.KleType;
+import dk.digitalidentity.rc.dao.model.enums.NemLoginConstraintType;
 import dk.digitalidentity.rc.exceptions.UserNotFoundException;
 import dk.digitalidentity.rc.log.AuditLogIntercepted;
 import dk.digitalidentity.rc.log.AuditLogger;
@@ -134,6 +138,15 @@ public class UserService {
 	
 	@Autowired
 	private UserService self;
+	
+	@Autowired
+	private UserRoleService userRoleService;
+	
+	@Autowired
+	private RoleGroupService roleGroupService;
+
+	@Autowired
+	private DomainService domainService;
 
 	// dao methods
 
@@ -161,8 +174,13 @@ public class UserService {
 		return userDao.findByUuidAndDeletedFalse(uuid);
 	}
 
+	// using the default domain - used when getting user from SecurityUtil, Principal and simulating logins
 	public User getByUserId(String userId) {
-		return userDao.findByUserIdAndDeletedFalse(userId);
+		return userDao.findByUserIdAndDomainAndDeletedFalse(userId, domainService.getPrimaryDomain());
+	}
+
+	public User getByUserId(String userId, Domain domain) {
+		return userDao.findByUserIdAndDomainAndDeletedFalse(userId, domain);
 	}
 	
 	public List<User> findByCpr(String cpr) {
@@ -179,10 +197,19 @@ public class UserService {
 		return userDao.findByUserRoleAssignmentsUserRole(userRole);
 	}
 
+	public List<User> getByDomain(Domain domain) {
+		return userDao.findByDomainAndDeletedFalse(domain);
+	}
+
 	public List<User> getAll() {
 		return userDao.findByDeletedFalse();
 	}
 	
+	@SuppressWarnings("deprecation")
+	public List<User> getAllIncludingInactive(Domain domain) {
+		return userDao.findByDomain(domain);
+	}
+
 	@SuppressWarnings("deprecation")
 	public List<User> getAllIncludingInactive() {
 		return userDao.findAll();
@@ -191,6 +218,11 @@ public class UserService {
 	@SuppressWarnings("deprecation")
 	public List<User> getAllByExtUuidIncludingInactive(Set<String> extUuids) {
 		return userDao.findByExtUuidIn(extUuids);
+	}
+
+	@SuppressWarnings("deprecation")
+	public List<User> getAllByExtUuidIncludingInactive(Domain domain, Set<String> extUuids) {
+		return userDao.findByDomainAndExtUuidIn(domain, extUuids);
 	}
 
 	public List<User> findTop10ByName(String term) {
@@ -450,10 +482,10 @@ public class UserService {
 
 	// TODO: this method is only used by the ReadOnlyApi, and very likely noone has any use for
 	//       this method, so deprecate it in future versions of the API
-	public List<UserRole> getUserRolesAssignedDirectly(String id) throws UserNotFoundException {
+	public List<UserRole> getUserRolesAssignedDirectly(String id, Domain domain) throws UserNotFoundException {
 		User user = userDao.findByUuidAndDeletedFalse(id);
 		if (user == null) {
-			User byUserId = userDao.findByUserIdAndDeletedFalse(id);
+			User byUserId = userDao.findByUserIdAndDomainAndDeletedFalse(id, domain);
 
 			if (byUserId == null) {
 				throw new UserNotFoundException("User with id '" + id + "' was not found in the database");
@@ -475,8 +507,8 @@ public class UserService {
 		return user.getRoleGroupAssignments().stream().map(ura -> ura.getRoleGroup()).collect(Collectors.toList());
 	}
 
-	public String getUserNameId(String userId) throws UserNotFoundException {
-		User user = userDao.findByUserIdAndDeletedFalse(userId);
+	public String getUserNameId(String userId, Domain domain) throws UserNotFoundException {
+		User user = userDao.findByUserIdAndDomainAndDeletedFalse(userId, domain);
 		if (user == null) {
 			List<User> users = userDao.findByExtUuidAndDeletedFalse(userId);
 			if (users.size() != 1) {
@@ -508,8 +540,8 @@ public class UserService {
 	/**
 	 * Returns all UserRoles, no matter how they are assigned to the user
 	 */
-	public List<UserRole> getAllUserRoles(String userId, List<ItSystem> itSystems) throws UserNotFoundException {
-		User user = userDao.findByUserIdAndDeletedFalse(userId);
+	public List<UserRole> getAllUserRoles(String userId, Domain domain, List<ItSystem> itSystems) throws UserNotFoundException {
+		User user = userDao.findByUserIdAndDomainAndDeletedFalse(userId, domain);
 		if (user == null) {
 			throw new UserNotFoundException("User with userId '" + userId + "' was not found in the database");
 		}
@@ -1935,6 +1967,95 @@ public class UserService {
 
 		return result;
 	}
+	
+	public String generateNemLoginOIOBPP(User user, Map<String, String> roleMap) throws UserNotFoundException {
+		StringBuilder builder = new StringBuilder();
+		builder.append("<?xml version=\"1.0\" encoding=\"UTF-8\"?>");
+		builder.append("<bpp:PrivilegeList xmlns:bpp=\"http://digst.dk/oiosaml/basic_privilege_profile\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" >");
+		
+		Map<String, Set<String>> map = new HashMap<String, Set<String>>();
+		List<RoleAssignedToUserDTO> assignments = getAllUserRoleAndRoleGroupAssignments(user);
+		for (RoleAssignedToUserDTO assignment : assignments) {
+			if (assignment.getType() == RoleAssignmentType.USERROLE) {
+				if (assignment.getItSystem().getSystemType().equals(ItSystemType.NEMLOGIN)) {
+					UserRole userRole = userRoleService.getById(assignment.getRoleId());
+					if (userRole == null) {
+						continue;
+					}
+					
+					roleMap.put(userRole.getIdentifier(), userRole.getName() + " (" + userRole.getItSystem().getName() + ")");
+					if (userRole.getNemloginConstraintType().equals(NemLoginConstraintType.NONE)) {
+						if (!map.containsKey("NONE")) {
+							map.put("NONE", new HashSet<String>());
+						}
+						
+						map.get("NONE").add(userRole.getIdentifier());
+					}
+					else {
+						if (!map.containsKey(userRole.getNemloginConstraintValue())) {
+							map.put(userRole.getNemloginConstraintValue(), new HashSet<String>());
+						}
+
+						map.get(userRole.getNemloginConstraintValue()).add(userRole.getIdentifier());
+					}
+				}
+			}
+			else if (assignment.getType() == RoleAssignmentType.ROLEGROUP) {
+				RoleGroup roleGroup = roleGroupService.getById(assignment.getRoleId());
+				if (roleGroup == null) {
+					continue;
+				}
+				
+				for (RoleGroupUserRoleAssignment userRoleAssignment : roleGroup.getUserRoleAssignments()) {
+					UserRole userRole = userRoleAssignment.getUserRole();
+					if (userRole.getItSystem().getSystemType().equals(ItSystemType.NEMLOGIN)) {
+						roleMap.put(userRole.getIdentifier(), userRole.getName() + " (" + userRole.getItSystem().getName() + ")");
+						
+						if (userRole.getNemloginConstraintType().equals(NemLoginConstraintType.NONE)) {
+							if (!map.containsKey("NONE")) {
+								map.put("NONE", new HashSet<String>());
+							}
+							
+							map.get("NONE").add(userRole.getIdentifier());
+						}
+						else {
+							if (!map.containsKey(userRole.getNemloginConstraintValue())) {
+								map.put(userRole.getNemloginConstraintValue(), new HashSet<String>());
+							}
+
+							map.get(userRole.getNemloginConstraintValue()).add(userRole.getIdentifier());
+						}
+					}
+				}
+			}
+		}
+		
+		for (Entry<String, Set<String>> entry : map.entrySet()) {
+			if (entry.getKey().equals("NONE")) {
+				builder.append("<PrivilegeGroup Scope=\"urn:dk:gov:saml:cvrNumberIdentifier:" + configuration.getCustomer().getCvr() + "\">");
+			}
+			else if (entry.getKey().length() == 8) {
+				builder.append("<PrivilegeGroup Scope=\"urn:dk:gov:saml:seNumberIdentifier:" + entry.getKey() + "\">");
+			}
+			else if (entry.getKey().length() == 10) {
+				builder.append("<PrivilegeGroup Scope=\"urn:dk:gov:saml:productionUnitIdentifier:" + entry.getKey() + "\">");
+			}
+			else {
+				log.warn("Malformed scope value: " + entry.getKey());
+				break;
+			}
+
+			for (String privilegeString : entry.getValue()) {
+				builder.append("<Privilege>" + privilegeString + "</Privilege>");
+			}
+
+			builder.append("</PrivilegeGroup>");
+		}
+		
+		builder.append("</bpp:PrivilegeList>");
+
+		return Base64.getEncoder().encodeToString(builder.toString().getBytes());
+	}
 
 	private String getKLEConstraint(User user, ConstraintValueType constraintValueType) {
 		Set<String> kleSet = new HashSet<>();
@@ -2356,7 +2477,7 @@ public class UserService {
 	}
 
 	public List<User> getSubstitutesManager(User user) {
-		return userDao.findByManagerSubstitute(user);
+		return userDao.findByManagerSubstitutesSubstitute(user);
 	}
 
 	@Transactional(rollbackFor = Exception.class)
@@ -2372,7 +2493,6 @@ public class UserService {
 		for (User user : listOfInactiveUsers) {
 			if (user.getLastUpdated() == null || user.getLastUpdated().before(sixMonthsFromNow)) {
 				log.info("Deleting user object '" + user.getUserId() + "' because of inactive state for a long period of time");
-				userDao.deleteManagerSubstituteAssignment(user);
 				toBeDeleted.add(user);
 			}
 		}
@@ -2391,9 +2511,17 @@ public class UserService {
 	
 	@Transactional(rollbackFor = Exception.class)
 	public void removeInactiveSubstituteManagers() {
-		List<User> usersWithInactiveSubstitute = userDao.findByManagerSubstituteDeletedTrue();
+		List<User> usersWithInactiveSubstitute = userDao.findByManagerSubstitutesSubstituteDeletedTrue();
+
 		for (User user : usersWithInactiveSubstitute) {
-			user.setManagerSubstitute(null);
+			for (Iterator<ManagerSubstitute> iterator = user.getManagerSubstitutes().iterator(); iterator.hasNext();) {
+				ManagerSubstitute mapping = iterator.next();
+
+				if (mapping.getSubstitute().isDeleted()) {
+					log.info("Removing inactive Substitute: " + mapping.getSubstitute().getName());
+					iterator.remove();
+				}
+			}
 		}
 		
 		self.save(usersWithInactiveSubstitute);

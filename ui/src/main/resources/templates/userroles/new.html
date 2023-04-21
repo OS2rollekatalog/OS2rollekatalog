@@ -137,7 +137,7 @@
 			this.selectChange = function() {
 				var type = $("#itSystem").find(':selected').attr('data-type');
 				
-				if (type != 'AD'){
+				if (type != 'AD' && type != 'NEMLOGIN') {
 					$('#checkboxRow').attr("hidden", false);
 				}
 				else{

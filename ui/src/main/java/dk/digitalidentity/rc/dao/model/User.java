@@ -9,8 +9,8 @@ import javax.persistence.Entity;
 import javax.persistence.FetchType;
 import javax.persistence.Id;
 import javax.persistence.JoinColumn;
+import javax.persistence.ManyToOne;
 import javax.persistence.OneToMany;
-import javax.persistence.OneToOne;
 import javax.persistence.Temporal;
 import javax.persistence.TemporalType;
 
@@ -62,6 +62,9 @@ public class User implements AuditLoggable {
 	@Column(name = "disabled")
 	private boolean disabled;
 
+	@Column
+	private String nemloginUuid;
+
 	@OneToMany(mappedBy = "user", fetch = FetchType.LAZY, cascade= CascadeType.ALL, orphanRemoval = true)
 	private List<AltAccount> altAccounts;
 	
@@ -79,16 +82,13 @@ public class User implements AuditLoggable {
 	@OneToMany(mappedBy = "user", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
 	private List<UserRoleGroupAssignment> roleGroupAssignments;
 
-	@OneToOne(fetch = FetchType.LAZY)
-	@JoinColumn(name = "manager_substitute", nullable = true)
-	private User managerSubstitute;
+	@ManyToOne(fetch = FetchType.LAZY)
+	@JoinColumn(name = "domain_id")
+	private Domain domain;
 	
-	@Column(name = "substitute_assigned_by")
-	private String substituteAssignedBy;
-	
-	@Temporal(TemporalType.TIMESTAMP)
-	@Column(name = "substitute_assigned_tts")
-	private Date substituteAssignedTts;
+	@BatchSize(size = 50)
+	@OneToMany(mappedBy = "manager", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
+	private List<ManagerSubstitute> managerSubstitutes;
 
 	@JsonIgnore
 	@Override

@@ -22,6 +22,7 @@ public class CleanupInactiveSubstituteMangersTask {
 
 	// Run sometime Saturday between 18:00 and 18:55
 	@Scheduled(cron = "0 #{new java.util.Random().nextInt(55)} 18 * * SAT")
+//	@Scheduled(fixedDelay = 20 * 60 * 1000)
 	public void removeInactiveSubstituteMangers() {
 		if (!configuration.getScheduled().isEnabled()) {
 			log.debug("Scheduled jobs are disabled on this instance");

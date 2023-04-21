@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html>
-<head th:replace="fragments/header :: header (title=#{html.page.attestations.title})"></head>
+<head th:replace="fragments/header :: header (title=#{html.page.manager.list.title})"></head>
 <body>
 	<div class="wrapper">
 		<header th:replace="fragments/navbar :: navbar-header(subpage = 'reports')"></header>
@@ -19,13 +19,9 @@
 							<table id="listTable" class="table table-striped table-hover listTable">
 								<thead>
 									<tr>
-										<th class="col-md-3" th:text="#{html.page.manager.name}"></th>
-										<th class="col-md-2" th:text="#{html.page.manager.user}"></th>
-										<th class="col-md-3" th:text="#{html.page.manager.substitute.name}"></th>
-										<th class="col-md-2" th:text="#{html.page.manager.substitute.user}"></th>
-										<th class="col-md-1" th:text="#{html.page.manager.substitute.date}"></th>
-										<th sec:authorize="hasRole('ROLE_ADMINISTRATOR')" class="col-md-1" th:text="#{html.control.operations}" th:if="${@roleCatalogueConfiguration.substituteManagerAPI.enabled == false}"></th>
-										
+										<th class="col-md-6" th:text="#{html.page.manager.name}"></th>
+										<th class="col-md-5" th:text="#{html.page.manager.user}"></th>
+										<th class="col-md-1" th:text="#{html.control.operations}" data-orderable="false"></th>
 									</tr>
 								</thead>
 			
@@ -33,13 +29,8 @@
 									<tr th:each="manager : ${managers}">
 										<td th:text="${manager.name}"></td>
 										<td th:text="${manager.userId}"></td>
-										<td th:if="${manager.managerSubstitute != null}" th:text="${manager.managerSubstitute.name}"></td>
-										<td th:unless="${manager.managerSubstitute != null}"></td>
-										<td th:if="${manager.managerSubstitute != null}" th:text="${manager.managerSubstitute.userId}"></td>
-										<td th:unless="${manager.managerSubstitute != null}"></td>
-										<td th:text="${#dates.format(manager.substituteAssignedTts, 'yyyy-MM-dd')}"></td>
-										<td sec:authorize="hasRole('ROLE_ADMINISTRATOR')" th:if="${@roleCatalogueConfiguration.substituteManagerAPI.enabled == false}">
-											<i style="color:black;" class="fa-fw fa fa-pencil" th:title="#{html.page.manager.list.modal.title}" th:attr="data-uuid=${manager.uuid},data-currentsubname=(${manager.managerSubstitute} != null ? ${manager.managerSubstitute.name} : ''),data-currentsubuserid=(${manager.managerSubstitute} != null ? ${manager.managerSubstitute.userId} : '')" onclick="managerService.openModal(this)"></i>
+										<td>
+											<a th:href="@{/ui/manager/substitute} + '?uuid=' + ${manager.uuid}" th:title="#{html.page.manager.list.substitutes}"><em class="fa fa-fw fa-list"></em></a>
 										</td>
 									</tr>
 								</tbody>
@@ -51,190 +42,7 @@
 		</section>
 	</div>
 	
-	<div class="modal fade bd-example-modal-lg" id="editSubstituteModal" role="dialog">
-		<div class="modal-dialog modal-lg">
-			<!-- Modal content-->
-			<div class="modal-content">
-				<div class="modal-header">
-					<button type="button" class="close" data-dismiss="modal">&times;</button>
-					<h4 th:text="#{html.page.manager.list.modal.title}"></h4>
-				</div>
-
-				<div class="modal-body">
-					<form class="form-horizontal">
-						<input id="selectedSubstituteUuid" hidden>
-						<input id="managerUuid" hidden>
-						<div class="form-group">
-							<label class="col-lg-2 control-label" th:text="#{html.page.manager.substitute}"></label>
-							<input style="margin-left: 10px; width: 500px; display: inline-block;" class="col-lg-8 form-control" id="search_person" disabled="disabled" onclick="return false;" />
-							<button type="button" class="col-lg-1 btn btn-primary" onclick="autoCompleteService.togglePersonSearch(true);" id="edit_person" th:title="#{html.page.manager.list.modal.title}" style="margin-left: 10px; margin-bottom: 3px;"><em class="fa fa-fw fa-pencil"></em></button>
-							<button type="button" class="col-lg-1 btn btn-warning hidden" onclick="autoCompleteService.clearPerson();" id="clear_person" th:title="#{html.page.manager.list.modal.substitute.remove}" style="margin-left: 10px; margin-bottom: 3px;"><em class="fa fa-fw fa-times"></em></button>
-						
-							<span style="display: none;" id="prev_value_person"></span>
-						</div>
-						
-						<hr/>
-						
-						<p th:text="#{html.page.manager.substitute.text}"></p>
-					</form>
-				</div>
-
-				<div class="modal-footer">
-					<button type="button" class="btn btn-primary" onclick="autoCompleteService.save()" th:text="#{html.control.button.save}"></button>
-					<button type="button" class="btn btn-danger" data-dismiss="modal" th:text="#{html.control.button.cancel}"></button>
-				</div>
-			</div>
-		</div>
-	</div>
-	
-	<style>
-		.autocomplete-suggestions { border: 1px solid #999; background: #FFF; overflow: auto; width: 500px !important; }
-		.autocomplete-suggestion { padding: 2px 5px; white-space: nowrap; overflow: hidden; }
-		.autocomplete-selected { background: #F0F0F0; }
-		.autocomplete-suggestions strong { font-weight: normal; color: #3399FF; }
-		.autocomplete-group { padding: 2px 5px; }
-		.autocomplete-group strong { display: block; border-bottom: 1px solid #000; }
-	</style>
-
 	<nav th:replace="fragments/footer :: footer"></nav>
-	<script th:inline="javascript">
-		/*<![CDATA[*/
-
-		/*[+
-			var searchTxt = [[#{html.datatables.search}]];
-			var dropdownTxt = [[#{html.datatables.dropdown}]];
-			var infoDefaultTxt = [[#{html.datatables.info.default}]];
-			var infoEmptyTxt = [[#{html.datatables.info.empty}]];
-			var infoFilteredTxt = [[#{html.datatables.info.filtered}]];
-			var prevTxt = [[#{html.datatables.prev}]];
-			var nextTxt = [[#{html.datatables.next}]];
-			var restUrl = [[@{/rest/manager/substitute}]];
-			var msgAssignFailure = [[#{html.page.manager.substitute.assign.failure}]];
-		+]*/
-
-		var token = $("meta[name='_csrf']").attr("content");
-		var managerService, autoCompleteService;
-		$(document).ready(function() {
-			managerService = new ManagerService();
-			autoCompleteService = new AutoCompleteService();
-			
-			managerService.init();			
-		});
-		
-		function ManagerService() {
-			this.init = function() {
-				var table = $('#listTable').DataTable({
-					"columnDefs" : [
-					    { orderable: false, targets: 5 }
-					],
-					"pageLength" : 50,
-					"responsive" : true,
-					'language': {
-						"search":       searchTxt,
-						"lengthMenu":   dropdownTxt,
-						"info":         infoDefaultTxt,
-						"zeroRecords":  infoEmptyTxt,
-						"infoEmpty":    "",
-						"infoFiltered": infoFilteredTxt,
-						"paginate": {
-							"next": nextTxt,
-							"previous": prevTxt
-						}
-					}
-				});
-			}
-			
-			this.openModal = function(elem) {
-				var managerUuid = $(elem).data("uuid");
-				var currentSubstituteName = $(elem).data("currentsubname");
-				var currentSubstituteId = $(elem).data("currentsubuserid");
-				
-				if (currentSubstituteName != null && currentSubstituteName != "") {
-					$("#search_person").val(currentSubstituteName + "(" + currentSubstituteId + ")");
-					$("#prev_value_person").text(currentSubstituteName + "(" + currentSubstituteId + ")");
-				}
-				
-				$("#managerUuid").val(managerUuid);
-				$("#selectedSubstituteUuid").val("");
-				
-				$("#editSubstituteModal").modal("show");
-			}
-			
-		}
-		
-		function AutoCompleteService() {
-			this.togglePersonSearch = function(revertOnClose) {
-				// optional parameter, default to false
-				revertOnClose = revertOnClose || false;
-				
-				var searchField = $("#search_person");
-				var ro = !searchField.prop('disabled');
-				searchField.prop('disabled', ro);
-
-				// flip buttons
-				$("#edit_person").toggleClass("btn-primary");
-				$("#edit_person").toggleClass("btn-danger");
-				$("#clear_person").toggleClass("hidden");
-
-				// enable autocomplete for the input field when switching to edit-mode
-				if (!ro) {
-					searchField.autocomplete({
-						serviceUrl: restUrl + "/search/person",
-						onSelect: function(suggestion) {
-							$(this).val(suggestion.value);
-
-							// keep track of this value so we can abort later if needed
-							$("#prev_value_person").text(suggestion.value);
-
-							autoCompleteService.togglePersonSearch();
-							
-							$("#selectedSubstituteUuid").val(suggestion.data);
-						},
-						preventBadQueries: true,
-						triggerSelectOnValidInput: false
-					});
-					searchField.select();
-					searchField.focus();
-				}
-				else if (revertOnClose) {
-					var oldValue = $("#prev_value_person").text();
-					$("#search_person").val(oldValue);
-				}
-			}
-
-			this.clearPerson = function() {
-				var searchField = $("#search_person");
-				searchField.val("");
-
-				$("#selectedSubstituteUuid").val("clear");
-				this.togglePersonSearch();
-			}
-			
-			this.save = function() {
-				var substituteUuid = $("#selectedSubstituteUuid").val();
-				var managerUuid = $("#managerUuid").val();
-				
-				$.ajax({
-					method : "POST",
-					url: restUrl + "/save?managerUuid=" + managerUuid,
-					headers: {
-						"content-type": "plain/text",
-						'X-CSRF-TOKEN': token
-					},
-					data: substituteUuid
-				}).done(function (data) {
-					window.location.reload();
-				}).fail(function (jqXHR, textStatus, errorThrown) {
-					$.notify({
-						message: msgAssignFailure
-					}, {
-						status: 'danger',
-						autoHideDelay: 4000
-					});
-				});
-			}
-		}
-		/*]]>*/
-	</script>
+	<script th:replace="fragments/datatables :: datatables "></script>
 </body>
 </html>

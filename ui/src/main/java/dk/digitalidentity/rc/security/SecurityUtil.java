@@ -59,6 +59,20 @@ public class SecurityUtil {
 		return false;
 	}
 	
+	public static boolean doesNotHaveReadAccess() {
+		boolean readAccess = false;
+		
+		if (isLoggedIn()) {
+			for (GrantedAuthority grantedAuthority : (SecurityContextHolder.getContext().getAuthentication()).getAuthorities()) {
+				if (grantedAuthority.getAuthority().equals(Constants.ROLE_READ_ACCESS)) {
+					readAccess = true;
+				}
+			}
+		}
+		
+		return !readAccess;
+	}
+
 	public static boolean isManagerWithoutReadAccess() {
 		boolean manager = false;
 		boolean readAccess = false;

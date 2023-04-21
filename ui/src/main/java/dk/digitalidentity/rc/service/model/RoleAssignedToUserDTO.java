@@ -30,6 +30,7 @@ public class RoleAssignedToUserDTO {
 	private LocalDate stopDate;
 	private boolean canEdit;
 	private List<SystemRoleAssignmentDTO> systemRoleAssignments;
+	private boolean ineffective = false;
 
 	public static RoleAssignedToUserDTO fromRoleGroupUserRoleAssignment(RoleGroupUserRoleAssignment assignment, LocalDate startDate, LocalDate stopDate) {
 		RoleAssignedToUserDTO dto = new RoleAssignedToUserDTO();

@@ -41,8 +41,14 @@
     <Setting Name="CustomUUIDField" Type="System.String" Scope="Application">
       <Value Profile="(Default)" />
     </Setting>
+    <Setting Name="NemLoginUUIDField" Type="System.String" Scope="Application">
+      <Value Profile="(Default)" />
+    </Setting>
     <Setting Name="IncludeDisabledUsers" Type="System.Boolean" Scope="Application">
       <Value Profile="(Default)">False</Value>
+    </Setting>
+    <Setting Name="Domain" Type="System.String" Scope="Application">
+      <Value Profile="(Default)" />
     </Setting>
   </Settings>
 </SettingsFile>

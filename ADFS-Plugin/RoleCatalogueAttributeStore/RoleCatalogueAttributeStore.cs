@@ -23,6 +23,13 @@ namespace RoleCatalogueAttributeStore
 
                     AttributeStoreLogger.Debug("NameID query result is '" + outputValues[0][0] + "'");
                     break;
+                case "getNemLoginRoles":
+                    AttributeStoreLogger.Debug("Performing NemLog-in OIO-BPP lookup on user '" + parameters[0] + "'");
+
+                    outputValues[0] = new string[1] { RoleCatalogueStub.GetNemLoginOIOBPP(parameters[0]) };
+
+                    AttributeStoreLogger.Debug("NemLog-in OIO-BPP query result is '" + outputValues[0][0] + "'");
+                    break;
                 case "getBasicPriviligeProfile":
                 case "oio-bpp": // legacy command
                     AttributeStoreLogger.Debug("Performing OIO-BPP lookup on user '" + parameters[0] + "' for it-system '" + parameters[1] + "'");

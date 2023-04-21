@@ -17,7 +17,7 @@
 									<th class="col-md-4" th:text="#{html.entity.user.name}"></th>
 									<th class="col-md-3" th:text="#{html.entity.user.position}"></th>
 									<th class="col-md-4" th:text="#{html.entity.user.userId}"></th>
-									<th class="col-md-1" th:text="#{html.entity.user.request_for}"></th>
+									<th class="col-md-1">Vælg</th>
 								</tr>
 							</thead>
 
@@ -28,6 +28,7 @@
 									<td th:text="${user.userId}"></td>
 								 	<td>
 										<a th:href="'/ui/requestapprove/users/' + ${user.uuid} + '/roles'" ><em class="fa fa-plus"></em></a>
+										<a th:href="'/ui/users/manage/' + ${user.uuid}" ><em class="fa fa-search"></em></a>
 									</td>
 								</tr>
 							</tbody>

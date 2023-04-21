@@ -12,49 +12,27 @@
 					<div class="panel-heading"></div>
 					<div class="panel-body">
 						<div class="table-responsive">
-							<table id="listTable" class="table table-striped table-hover listTable">
+							<table id="listTable" class="table table-striped table-hover">
 								<thead>
 									<tr>
 										<th class="col-md-3" th:text="#{html.entity.userrole.name}"></th>
-										<th class="col-md-2" th:text="#{html.entity.itsystem.type}"></th>
-										<th th:class="'col-md-' + ${@settingsService.isRequestApproveEnabled() ? 5 : 6}" th:text="#{html.entity.userrole.description}"></th>
-										<th class="col-md-1" th:if="${@settingsService.isRequestApproveEnabled()}"  th:text="#{html.entity.userrole.canRequest}"></th>
+										<th class="col-md-2" th:text="#{html.page.itsystem.view.title}"></th>
+										<th class="col-md-4" th:text="#{html.entity.userrole.description}"></th>
+										<th class="col-md-2" th:text="#{html.entity.userrole.canRequest}"></th>
 										<th class="col-md-1" th:text="#{html.control.operations}"></th>
 									</tr>
 								</thead>
 
 								<tbody>
-									<tr th:each="role : ${roles}">
-										<td>
-											<em th:if="${role.pendingSync && !role.syncFailed}" class="fa fa-refresh" th:title="#{html.entity.userrole.syncing}"></em>
-											<em th:if="${role.pendingSync && role.syncFailed}" class="fa fa-exclamation-triangle" style="color: red;" th:title="#{html.entity.userrole.sync.failed}"></em>
-											<span th:text="${role.name}"></span>
-										</td>
-										<td th:text="${role.itSystem.name}"></td>
-										<td th:text="${role.description}"></td>
-										<td th:if="${@settingsService.isRequestApproveEnabled()}">
-											<em th:if="${role.canRequest}" class="fa fa-check"></em>
-										</td>
-										<th:block th:if="${role.delegatedFromCvr == null}"> 
-											<td>
-												<a th:href="@{/ui/userroles/view/{id}(id=${role.id})}"><em class="fa fa-search"></em></a>
-												<th:block sec:authorize="hasRole('ROLE_ADMINISTRATOR')" th:unless="${#strings.toString(role.itSystem.systemType)} == 'AD' and ${role.itSystem.readonly}">
-													<a th:href="@{/ui/userroles/edit/{id}(id=${role.id})}"><em class="fa fa-pencil"></em></a>
-													<a href="#" class="openConfirmDeleteDialog" th:attr="data-id=${role.id}" th:if="${#strings.toString(role.itSystem.systemType)} != 'KSPCICS'"><em class="fa fa-remove"></em></a>
-												</th:block>
-											</td>
-										</th:block>
-										<th:block th:if="${role.delegatedFromCvr != null}">
-											<td>&nbsp;</td>
-										</th:block>
-									</tr>
+
 								</tbody>
+
 								<tfoot>
-									<tr>
+									<tr >
 										<th class="input-filter"></th>
 										<th class="input-filter"></th>
 										<th class="input-filter"></th>
-										<th th:if="${@settingsService.isRequestApproveEnabled()}">&nbsp;</th>
+										<th>&nbsp;</th>
 										<th>&nbsp;</th>
 									</tr>
 								</tfoot>
@@ -66,6 +44,11 @@
 		</section>
 	</div>
 
+	<style>
+	.center-row {
+		text-align: center;
+	}
+	</style>
 	<nav th:replace="fragments/footer :: footer"></nav>
 
 	<script th:replace="fragments/datatables :: datatables "></script>
@@ -73,6 +56,21 @@
 	/*<![CDATA[*/
 		
 	var token = $("meta[name='_csrf']").attr("content");
+	
+	/*[+
+    var baseUrl = [[@{/}]];
+	var searchTxt = [[#{html.datatables.search}]];
+	var dropdownTxt = [[#{html.datatables.dropdown}]];
+	var infoDefaultTxt = [[#{html.datatables.info.default}]];
+	var infoEmptyTxt = [[#{html.datatables.info.empty}]];
+	var infoLoadingTxt = [[#{html.datatables.info.loading}]];
+	var infoFilteredTxt = [[#{html.datatables.info.filtered}]]; 
+	var ajaxUrl = [[@{/rest/userroles/list}]];
+	
+	var titleSyncing = [[#{html.entity.userrole.syncing}]];
+	var titleFailed = [[#{html.entity.userrole.sync.failed}]];
+	var titleNlFailed = [[#{html.entity.userrole.nlsync.failed}]];
++]*/
 
 	// This method replaces occurence of {0} with text from parameter
 	String.prototype.format = function () {
@@ -83,24 +81,124 @@
 	};
 
 	$("document").ready(function() {
-		// 1. Setup - add a text input to each footer cell
-		$('#listTable tfoot th').each(function () {
-			if ($(this).hasClass('input-filter')) {
-				$(this).html('<input type="text" class="form-control input-sm" placeholder="Søg" />');
+		
+		// Setup - add a text input to each footer cell
+		$('#listTable tfoot th[class="input-filter"]').each( function () {
+			$(this).html('<input type="text" class="form-control input-sm" placeholder="Søg" />');
+		});
+
+		var table = $('#listTable').DataTable({
+			'destroy': true,
+			'stateSave': false,
+			'ajax': {
+				'contentType': 'application/json',
+				'url': ajaxUrl,
+				'type': 'POST',
+				headers: {
+					'X-CSRF-TOKEN': token
+				},
+				'data': function(d) {
+				 	return JSON.stringify(d);
+				}
+			},
+			'serverSide' : true,
+			'columns': [
+				{ 
+					data: "name",
+					orderable: true,
+					searchable: true,
+					render: function (data, type, row, meta) {
+						var result = '';
+
+						if (row.pendingSync == true && row.syncFailed == false) {
+							result += '<em class="fa fa-refresh" title="'+ titleSyncing + '"></em> ';
+						}
+						
+						if (row.pendingSync == true && row.syncFailed == true) {
+							result += '<em class="fa fa-exclamation-triangle" style="color: red;" title="' + titleFailed + '"></em> ';
+						}
+						
+						if (row.pendingNemloginSync == true && row.syncNemloginFailed == false) {
+							result += '<em class="fa fa-refresh" title="'+ titleSyncing + '"></em> ';
+						}
+
+						if (row.pendingNemloginSync == true && row.syncNemloginFailed == true) {
+							result += '<em class="fa fa-exclamation-triangle" style="color: red;" title="' + titleNlFailed + '"></em> ';
+						}
+
+						result += "<span>" + data + "</span>";
+						return result;
+					}
+				},
+				{ 
+					data: "itSystemName",
+					orderable: true,
+					searchable: true
+				},
+				{ 
+					data: "description",
+					orderable: true,
+					searchable: true
+				},
+				{ 
+					data: "canRequest",
+					class: "center-row",
+					orderable: true,
+					searchable: true,
+					visible: /*[[${@settingsService.isRequestApproveEnabled() ? true : false}]]*/ false,
+					render: function (data, type, row, meta) {
+						if (data == true) {
+							return '<em class="fa fa-check"></em>';
+						} else {
+							return '';
+						}
+					}
+				},
+				{ 
+					data: "id",
+					orderable: false,
+					searchable: false,
+					render: function (data, type, row, meta) {
+						var result = '';
+
+						if (row.delegatedFromCvr == null) {
+							result += '<a href="' + baseUrl +'ui/userroles/view/' + row.id + '"><em class="fa fa-search"></em></a>';
+							/*[# sec:authorize="hasRole('ROLE_ADMINISTRATOR')" ]*/
+							result += '<a href="' + baseUrl +'ui/userroles/edit/' + row.id + '"><em class="fa fa-pencil"></em></a>';
+							if (row.itSystemType != 'KSPCICS') {
+								result += '<a href="#" class="openConfirmDeleteDialog" data-id="' + row.id + '"><em class="fa fa-remove"></em></a>';
+							}
+							/*[/]*/
+						}
+						
+						return result;
+					}
+				}
+			],
+			'paging':   true,
+			'ordering': true,
+			'info':	 true,
+			'pageLength': 25,
+			'language': {
+				"search": searchTxt,
+				"lengthMenu": dropdownTxt,
+				"info": infoDefaultTxt,
+				"zeroRecords": infoEmptyTxt,
+				"infoEmpty": "",
+				"infoFiltered": infoFilteredTxt
+			},
+			initComplete: function ()
+			{
+				var r = $('#listTable tfoot tr');
+				r.find('th').each(function(){
+					$(this).css('padding', 8);
+				});
+				$('#listTable thead').append(r);
+				$('#search_0').css('text-align', 'center');
 			}
 		});
-
-		var table = $('#listTable').DataTable();
 		
-		// 2. move search boxes to top
-		var r = $('#listTable tfoot tr');
-		r.find('th').each(function(){
-			$(this).css('padding', 8);
-		});
-		$('#listTable thead').append(r);
-		$('#search_0').css('text-align', 'center');
-
-	    // 2.5 Restore state
+	    // Restore state
 	    var state = table.state.loaded();
 	    if (state) {
 	      table.columns().eq(0).each(function(colIdx) {
@@ -113,11 +211,10 @@
 
 	      table.draw();
 	    }
-
-		// 3. Apply the search
-		$.each($('.input-filter', table.table().header()), function () {
+		
+		//Apply the search
+		$.each($('.input-filter', table.table().footer()), function () {
 			var column = table.column($(this).index());
-
 			$('input', this).on('keyup change', function () {
 				if (column.search() !== this.value) {
 					column
@@ -126,7 +223,7 @@
 				}
 			});
 		});
-
+		
 		$(document.body).on('click', '.openConfirmDeleteDialog', function(e) {
 			e.preventDefault();
 			

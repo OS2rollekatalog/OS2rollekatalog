@@ -92,6 +92,12 @@ public class OrgUnitService {
 	
 	@Autowired
 	private OrgUnitRoleGroupAssignmentDao orgUnitRoleGroupAssignmentDao;
+
+	@Autowired
+	private DomainService domainService;
+	
+	@Autowired
+	private ManagerSubstituteService managerSubstituteService;
 	
 	// dao methods
 
@@ -164,15 +170,17 @@ public class OrgUnitService {
 		return orgUnits.stream().filter(o -> o.isActive()).toList();
 	}
 
-	public static Map<String, String> getManagerAndSubstituteEmail(OrgUnit orgUnit, boolean preferSubstitute) {
+	public Map<String, String> getManagerAndSubstituteEmail(OrgUnit orgUnit, boolean preferSubstitute) {
 		Map<String, String> result = new HashMap<String, String>();
 		
 		if (orgUnit.getManager() != null) {
-			if (orgUnit.getManager().getManagerSubstitute() != null && !orgUnit.getManager().getManagerSubstitute().isDeleted() && StringUtils.hasLength(orgUnit.getManager().getManagerSubstitute().getEmail())) {
-				result.put(orgUnit.getManager().getManagerSubstitute().getEmail(), orgUnit.getManager().getManagerSubstitute().getName());
+			for (User substitute : managerSubstituteService.getSubstitutesForOrgUnit(orgUnit)) {
+				if (!substitute.isDeleted() && StringUtils.hasLength(substitute.getEmail())) {
+					result.put(substitute.getEmail(), substitute.getName());
+				}
 			}
 
-			if (!preferSubstitute || result.size() == 0) {				
+			if (!preferSubstitute || result.size() == 0) {
 				if (StringUtils.hasLength(orgUnit.getManager().getEmail())) {
 					result.put(orgUnit.getManager().getEmail(), orgUnit.getManager().getName());
 				}
@@ -188,7 +196,7 @@ public class OrgUnitService {
 
 		String userId = SecurityUtil.getUserId();
 		if (userId != null) {
-			User user = userDao.findByUserIdAndDeletedFalse(userId);
+			User user = userDao.findByUserIdAndDomainAndDeletedFalse(userId, domainService.getPrimaryDomain());
 
 			if (user != null) {
 				if (SecurityUtil.hasRole(Constants.ROLE_MANAGER)) {

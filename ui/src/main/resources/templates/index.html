@@ -6,12 +6,12 @@
 		<section style="margin-left: 7%; margin-right: 7%; margin-top: 7%;">
 			<div class="panel panel-default">
 				<div class="panel-heading">
-					<img src="/img/logo.png" alt="Logo" class="img-responsive" style="height:100%; display: block; margin: auto; margin-top: 20px;"></img>
+					<img th:src="@{/img/logo.png}" alt="Logo" class="img-responsive" style="height:120px; display: block; margin: auto; margin-top: 20px;"></img>
 				</div>
-				
-				<div class="panel-body" style="margin-top: 100px; padding-bottom: 40px;">
+
+				<div class="panel-body" style="margin-top: 60px; padding-bottom: 40px;">
 					<div class="row">
-						<a th:href="@{/ui/users/attestations}">
+						<a th:href="@{/ui/my}">
 							<div class="col-lg-10 col-lg-offset-1">
 								<div class="panel widget bg-primary">
 									<div class="row row-table">
@@ -26,7 +26,7 @@
 								</div>
 							</div>
 						</a>
-						
+
 						<a th:href="@{/info}">
 							<div class="col-lg-10 col-lg-offset-1">
 								<div class="panel widget bg-primary">
@@ -43,7 +43,7 @@
 							</div>
 						</a>
 
-						<a th:href="@{/ui/users/list}">							
+						<a th:href="@{/ui/users/list}">
 							<div class="col-lg-10 col-lg-offset-1">
 								<div class="panel widget bg-primary">
 									<div class="row row-table">
@@ -57,11 +57,11 @@
 									</div>
 								</div>
 							</div>
-						</a>						
+						</a>
 					</div>
 				</div>
 			</div>
-	    </section>
+		</section>
 	</div>
 	
 	<nav th:replace="fragments/footer :: footer"></nav>

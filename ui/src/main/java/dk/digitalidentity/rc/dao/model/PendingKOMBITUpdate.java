@@ -1,6 +1,6 @@
 package dk.digitalidentity.rc.dao.model;
 
-import java.util.Date;
+import java.time.LocalDateTime;
 
 import javax.persistence.Column;
 import javax.persistence.Entity;
@@ -37,7 +37,7 @@ public class PendingKOMBITUpdate {
 	
 	@CreationTimestamp
 	@Column
-	private Date timestamp;
+	private LocalDateTime timestamp;
 	
 	@Column
 	private boolean failed;

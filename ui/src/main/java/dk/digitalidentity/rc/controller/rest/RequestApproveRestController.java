@@ -340,10 +340,12 @@ public class RequestApproveRestController {
 							title = title.replace(EmailTemplateService.RECEIVER_PLACEHOLDER, authorizationManager.getName());
 							title = title.replace(EmailTemplateService.ROLE_PLACEHOLDER, roleName);
 							title = title.replace(EmailTemplateService.USER_PLACEHOLDER, request.getRequestedFor().getName());
+							title = title.replace(EmailTemplateService.REQUESTER_PLACEHOLDER, request.getRequester().getName());
 							String message = template.getMessage();
 							message = message.replace(EmailTemplateService.RECEIVER_PLACEHOLDER, authorizationManager.getName());
 							message = message.replace(EmailTemplateService.ROLE_PLACEHOLDER, roleName);
 							message = message.replace(EmailTemplateService.USER_PLACEHOLDER, request.getRequestedFor().getName());
+							message = message.replace(EmailTemplateService.REQUESTER_PLACEHOLDER, request.getRequester().getName());
 							emailQueueService.queueEmail(authorizationManager.getEmail(), title, message, template, null);
 						}
 					}

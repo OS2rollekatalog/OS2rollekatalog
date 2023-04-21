@@ -93,6 +93,10 @@ public class ItSystemService {
 	public List<ItSystem> getBySystemType(ItSystemType systemType) {
 		return filterDeleted(itSystemDao.findBySystemType(systemType));
 	}
+
+	public List<ItSystem> getBySystemTypeIn(List<ItSystemType> systemTypes) {
+		return filterDeleted(itSystemDao.findBySystemTypeIn(systemTypes));
+	}
 	
 	public List<ItSystem> getBySystemTypeIncludingDeleted(ItSystemType systemType) {
 		return itSystemDao.findBySystemType(systemType);

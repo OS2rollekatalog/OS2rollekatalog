@@ -14,8 +14,6 @@ import dk.digitalidentity.rc.controller.mvc.viewmodel.AvailableUserRoleDTO;
 import dk.digitalidentity.rc.dao.model.RoleGroup;
 import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserRole;
-import dk.digitalidentity.rc.dao.model.enums.AltAccountType;
-import dk.digitalidentity.rc.dao.model.enums.ItSystemType;
 import dk.digitalidentity.rc.security.AccessConstraintService;
 import dk.digitalidentity.rc.security.SecurityUtil;
 import dk.digitalidentity.rc.service.RoleGroupService;
@@ -48,17 +46,10 @@ public class UserControllerHelper {
 		userRoles = assignerRoleConstraint.filterUserRolesUserCanAssign(userRoles);
 		List<RoleAssignedToUserDTO> assignments = userService.getAllUserRoleAndRoleGroupAssignments(user);
 
-		// if the user does not have a KSP/CICS account, filter out UserRoles from KSPCICS it-systems
-		boolean kspCicsAccount = user.getAltAccounts().stream().anyMatch(a -> a.getAccountType().equals(AltAccountType.KSPCICS));
-		if (!kspCicsAccount) {
-			userRoles = userRoles.stream().filter(u -> !u.getItSystem().getSystemType().equals(ItSystemType.KSPCICS)).collect(Collectors.toList());
-		}
-		
 		//filter out RC internal roles
 		if (!SecurityUtil.getRoles().contains(Constants.ROLE_ADMINISTRATOR)) {
 			userRoles = userRoles.stream().filter(role -> !role.getItSystem().getIdentifier().equals(Constants.ROLE_CATALOGUE_IDENTIFIER)).collect(Collectors.toList());
 		}
-
 
 		for (UserRole role : userRoles) {
 

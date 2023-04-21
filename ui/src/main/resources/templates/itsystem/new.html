@@ -33,6 +33,20 @@
 						        </div>
 					        </fieldset>
 
+							<fieldset th:if="${#lists.contains({'AD'}, #strings.toString(itSystemForm.systemType))}">
+								<div class="form-group">
+									<label class="col-sm-2 control-label" th:text="#{html.entity.itsystem.domain}"></label>
+									<div class="col-sm-8">
+										<select th:field="*{domain}" class="form-control">
+											<option th:each="domain : ${domains}" th:text="${domain.name}" th:value="${domain.name}"></option>
+										</select>
+										<ul th:if="${#fields.hasErrors('domain')}">
+											<li th:each="err : ${#fields.errors('domain')}" th:text="${err}"></li>
+										</ul>
+									</div>
+								</div>
+							</fieldset>
+
 							<fieldset>
 								<div class="form-group">
 									<label class="col-sm-2 control-label" th:text="#{html.entity.itsystem.identifier}"></label>
@@ -45,7 +59,7 @@
 								</div>
 							</fieldset>
 
-							<fieldset th:if="${#strings.toString(itSystemForm.systemType)} == 'MANUAL'">
+							<fieldset th:if="${#lists.contains({'MANUAL','AD','SAML'}, #strings.toString(itSystemForm.systemType))}">
 								<div class="form-group">
 									<label class="col-sm-2 control-label" th:text="#{html.entity.itsystem.email}"></label>
 									<div class="col-sm-8">

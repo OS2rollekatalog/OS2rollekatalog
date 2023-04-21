@@ -145,14 +145,11 @@
 						</th:block>
 						
 						<th:block>
-							<li th:unless="${@settingsService.isRequestApproveEnabled() == true}" sec:authorize="hasRole('ROLE_READ_ACCESS')" class="nav-heading">
+							<li sec:authorize="hasRole('ROLE_REQUESTER') or hasRole('ROLE_READ_ACCESS')" class="nav-heading">
 								<span th:text="#{html.navbar.rolemanagement}"></span>
 							</li>
 
 							<th:block th:if="${@settingsService.isRequestApproveEnabled() == true}" sec:authorize="hasRole('ROLE_REQUESTER')">
-								<li class="nav-heading">
-									<span th:text="#{html.navbar.rolemanagement}"></span>
-								</li>
 								<li th:class="${page == 'users_request'} ? 'active' : ''">
 									<a th:href="@{/ui/requestapprove/users}">
 										<em class="fa fa-comment-o"></em>

@@ -27,7 +27,14 @@ namespace RoleCatalogueAttributeStore
                 url = url + "/";
             }
 
-            client.BaseUrl = new Uri(url + "api/user/" + userid + "/nameid");
+            var query = "";
+            var domain = Configuration.GetInstance().Domain;
+            if (!String.IsNullOrEmpty(domain))
+            {
+                query = $"?domain={domain}";
+            }
+
+            client.BaseUrl = new Uri(url + "api/user/" + userid + "/nameid" + query);
 
             var request = new RestRequest();
             request.AddHeader("ApiKey", Configuration.GetInstance().ApiKey);
@@ -46,6 +53,52 @@ namespace RoleCatalogueAttributeStore
             return response.Data.nameID;
         }
 
+        public static string GetNemLoginOIOBPP(string userid)
+        {
+            userid = GetUserId(userid);
+            var client = new RestClient();
+
+            var url = Configuration.GetInstance().RoleCatalogueUrl;
+            if (!url.EndsWith("/"))
+            {
+                url = url + "/";
+            }
+
+            var query = "";
+            var domain = Configuration.GetInstance().Domain;
+            if (!String.IsNullOrEmpty(domain))
+            {
+                query = $"?domain={domain}";
+            }
+
+            client.BaseUrl = new Uri(url + "api/user/" + userid + "/nemloginRoles" + query);
+
+            var request = new RestRequest();
+            request.AddHeader("ApiKey", Configuration.GetInstance().ApiKey);
+
+            IRestResponse<UserResponse> response = client.Execute<UserResponse>(request);
+
+            if (!response.StatusCode.Equals(System.Net.HttpStatusCode.OK))
+            {
+                AttributeStoreLogger.Warn("Failed to find '" + userid + "' in RoleCatalogue. Status from RoleCatalogue was: " + response.StatusCode.ToString());
+                response.Data = new UserResponse()
+                {
+                    oioBPP = "",
+                    nameID = ""
+                };
+            }
+            else
+            {
+                StringBuilder builder = new StringBuilder();
+                builder.Append("NemLog-in roles issued\n");
+                builder.Append("Timestamp: " + DateTime.Now.ToString("yyyy/MM/dd HH:mm:ss") + "\n");
+                builder.Append("OIO-BPP: " + response.Data.oioBPP);
+                AttributeStoreLogger.Info(builder.ToString());
+            }
+
+            return response.Data.oioBPP;
+        }
+
         public static string GetOIOBPP(string userid, string itsystem)
         {
             userid = GetUserId(userid);
@@ -57,7 +110,14 @@ namespace RoleCatalogueAttributeStore
                 url = url + "/";
             }
 
-            client.BaseUrl = new Uri(url + "api/user/" + userid + "/roles?system=" + itsystem);
+            var query = "";
+            var domain = Configuration.GetInstance().Domain;
+            if (!String.IsNullOrEmpty(domain))
+            {
+                query = $"&domain={domain}";
+            }
+
+            client.BaseUrl = new Uri(url + "api/user/" + userid + "/roles?system=" + itsystem + query);
 
             var request = new RestRequest();
             request.AddHeader("ApiKey", Configuration.GetInstance().ApiKey);
@@ -273,7 +333,14 @@ namespace RoleCatalogueAttributeStore
                 url = url + "/";
             }
 
-            client.BaseUrl = new Uri(url + "api/user/" + userid + "/rolesAsList?system=" + itsystem);
+            var query = "";
+            var domain = Configuration.GetInstance().Domain;
+            if (!String.IsNullOrEmpty(domain))
+            {
+                query = $"&domain={domain}";
+            }
+
+            client.BaseUrl = new Uri(url + "api/user/" + userid + "/rolesAsList?system=" + itsystem + query);
 
             var request = new RestRequest();
             request.AddHeader("ApiKey", Configuration.GetInstance().ApiKey);
@@ -312,7 +379,14 @@ namespace RoleCatalogueAttributeStore
                 url = url + "/";
             }
 
-            client.BaseUrl = new Uri(url + "api/user/" + userid + "/hasUserRole/" + roleId + "?system=" + itsystem);
+            var query = "";
+            var domain = Configuration.GetInstance().Domain;
+            if (!String.IsNullOrEmpty(domain))
+            {
+                query = $"&domain={domain}";
+            }
+
+            client.BaseUrl = new Uri(url + "api/user/" + userid + "/hasUserRole/" + roleId + "?system=" + itsystem + query);
 
             var request = new RestRequest();
             request.AddHeader("ApiKey", Configuration.GetInstance().ApiKey);
@@ -342,7 +416,14 @@ namespace RoleCatalogueAttributeStore
                 url = url + "/";
             }
 
-            client.BaseUrl = new Uri(url + "api/user/" + userid + "/hasSystemRole/?roleIdentifier=" + Uri.EscapeDataString(roleId) + "&system=" + itsystem);
+            var query = "";
+            var domain = Configuration.GetInstance().Domain;
+            if (!String.IsNullOrEmpty(domain))
+            {
+                query = $"&domain={domain}";
+            }
+
+            client.BaseUrl = new Uri(url + "api/user/" + userid + "/hasSystemRole/?roleIdentifier=" + Uri.EscapeDataString(roleId) + "&system=" + itsystem + query);
 
             var request = new RestRequest();
             request.AddHeader("ApiKey", Configuration.GetInstance().ApiKey);

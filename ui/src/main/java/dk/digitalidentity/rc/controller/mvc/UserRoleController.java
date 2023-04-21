@@ -38,7 +38,6 @@ import dk.digitalidentity.rc.dao.model.ConstraintType;
 import dk.digitalidentity.rc.dao.model.ItSystem;
 import dk.digitalidentity.rc.dao.model.Kle;
 import dk.digitalidentity.rc.dao.model.OrgUnit;
-import dk.digitalidentity.rc.dao.model.PendingKOMBITUpdate;
 import dk.digitalidentity.rc.dao.model.RoleGroup;
 import dk.digitalidentity.rc.dao.model.RoleGroupUserRoleAssignment;
 import dk.digitalidentity.rc.dao.model.SystemRole;
@@ -49,12 +48,10 @@ import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserRole;
 import dk.digitalidentity.rc.security.RequireAdministratorRole;
 import dk.digitalidentity.rc.security.RequireRequesterOrReadAccessRole;
-import dk.digitalidentity.rc.security.SecurityUtil;
 import dk.digitalidentity.rc.service.ConstraintTypeService;
 import dk.digitalidentity.rc.service.ItSystemService;
 import dk.digitalidentity.rc.service.KleService;
 import dk.digitalidentity.rc.service.OrgUnitService;
-import dk.digitalidentity.rc.service.PendingKOMBITUpdateService;
 import dk.digitalidentity.rc.service.RoleGroupService;
 import dk.digitalidentity.rc.service.Select2Service;
 import dk.digitalidentity.rc.service.SettingsService;
@@ -95,12 +92,6 @@ public class UserRoleController {
 	private UserService userService;
 
 	@Autowired
-	private PendingKOMBITUpdateService kombitService;
-
-	@Autowired
-	private SecurityUtil securityUtil;
-
-	@Autowired
 	private KleService kleService;
 
 	@Autowired
@@ -119,39 +110,6 @@ public class UserRoleController {
 
 	@GetMapping(value = { "/ui/userroles/list" })
 	public String list(Model model, Principal principal) throws Exception {
-		List<UserRole> roles = userRoleService.getAll();
-
-		// requesters needs to have the list filtered
-		if (SecurityUtil.isRequesterAndOnlyRequester()) {
-			User user = getUserOrThrow(principal.getName());
-
-			roles = userRoleService.whichRolesCanBeRequestedByUser(roles, user);
-		}
-		// people with restricted read-only access will be limited
-		else if (securityUtil.hasRestrictedReadAccess()) {
-			List<Long> itSystems = securityUtil.getRestrictedReadAccessItSystems();
-
-			roles = roles.stream().filter(r -> itSystems.contains(r.getItSystem().getId())).collect(Collectors.toList());
-		}
-
-		List<UserRoleForm> userRoles = new ArrayList<>();
-		List<PendingKOMBITUpdate> kombitUpdates = kombitService.findAll();
-		List<Long> kombitUpdatesIds = kombitUpdates.stream().map(k -> k.getUserRoleId()).collect(Collectors.toList());
-		for (UserRole role : roles) {
-			boolean pendingSync = kombitUpdatesIds.contains(role.getId());
-			boolean syncFailed = false;
-			if (pendingSync) {
-				PendingKOMBITUpdate pendingKOMBITUpdate = kombitUpdates.stream().filter(k -> k.getUserRoleId() == role.getId()).findFirst().orElse(null);
-				syncFailed = pendingKOMBITUpdate == null ? false : pendingKOMBITUpdate.isFailed();
-			}
-			userRoles.add(new UserRoleForm(role, pendingSync, syncFailed));
-		}
-
-		// filter out deleted itSystems
-		userRoles = userRoles.stream().filter(ur -> ur.getItSystem().isDeleted() == false).collect(Collectors.toList());
-
-		model.addAttribute("roles", userRoles);
-
 		return "userroles/list";
 	}
 

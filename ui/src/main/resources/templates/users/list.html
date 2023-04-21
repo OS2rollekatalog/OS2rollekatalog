@@ -18,6 +18,7 @@
 									<tr>
 										<th class="col-md-3" th:text="#{html.entity.user.name}"></th>
 										<th class="col-md-1" th:text="#{html.entity.user.userId}"></th>
+										<th class="col-md-1" th:text="#{html.entity.user.domain}"></th>
 										<th class="col-md-7" th:text="#{html.entity.user.positions}"></th>
 										<th class="col-md-1" th:text="#{html.control.operations}"></th>
 									</tr>
@@ -29,6 +30,7 @@
 
 								<tfoot>
 									<tr >
+										<th class="input-filter"></th>
 										<th class="input-filter"></th>
 										<th class="input-filter"></th>
 										<th class="input-filter"></th>
@@ -50,16 +52,17 @@
 			var token = $("meta[name='_csrf']").attr("content");
 
 			/*[+
-                var baseUrl = [[@{/}]];
+				var baseUrl = [[@{/}]];
+				var restUrl = [[@{/rest/users/}]];
 				var searchTxt = [[#{html.datatables.search}]];
 				var dropdownTxt = [[#{html.datatables.dropdown}]];
 				var infoDefaultTxt = [[#{html.datatables.info.default}]];
 				var infoEmptyTxt = [[#{html.datatables.info.empty}]];
 				var infoLoadingTxt = [[#{html.datatables.info.loading}]];
 				var infoFilteredTxt = [[#{html.datatables.info.filtered}]]; 
-				var ajaxUrl = [[@{/rest/users/list}]];
 				var cicsErrorMsg = [[#{html.default.message.error}]];
 				var cicsSuccessMsg = [[#{html.page.users.list.loadCics.success}]];
+				var multipleDomains = [[${multipleDomains}]];
 			+]*/
 			
 			var userService;
@@ -76,7 +79,7 @@
 					'stateSave': true,
 					'ajax': {
 						'contentType': 'application/json',
-						'url': ajaxUrl,
+						'url': restUrl + 'list',
 						'type': 'POST',
 						headers: {
 							'X-CSRF-TOKEN': token
@@ -103,11 +106,20 @@
 							orderable: true,
 							searchable: true
 						},
+						{
+							data: "domain",
+							orderable: true,
+							searchable: true
+						},
 						{ 
 							data: "title",
 							orderable: true,
 							searchable: true,
 							render: function (data, type, row, meta) {
+							    if (data == null) {
+							        return null;
+							    }
+							    
 								var titles = data.split(";");
 								var result = "";
 								titles.forEach(function(title) {
@@ -147,7 +159,7 @@
 						$('#listTable thead').append(r);
 						$('#search_0').css('text-align', 'center');
 					}
-				});				
+				});
 				
 			    // Restore state
 			    var state = table.state.loaded();
@@ -175,12 +187,17 @@
 					});
 				});
 
+				// if only one domain, don't show the domain column
+				if (!multipleDomains) {
+					var column = table.column(2);
+					column.visible(false);
+				}
 			});
 			
 			function UserService() {
 				this.runCics = function() {
 					$.ajax({
-						url: "/rest/users/loadcics",
+						url: restUrl + "loadcics",
 						method: "POST",
 						headers: {
 							'X-CSRF-TOKEN': token

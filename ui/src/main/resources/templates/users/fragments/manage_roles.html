@@ -37,6 +37,7 @@
 							<td>
 								<span th:text="${assignment.name}"></span>
 								<div th:text="#{__${assignment.type.message}__}" style="font-size: smaller; color: black;"></div>
+								<div th:if="${assignment.ineffective}" style="font-size: smaller; color: red;" th:text="#{html.page.users.manage.assignment.ineffective}"></div>
 							</td>
 							
 							<td>

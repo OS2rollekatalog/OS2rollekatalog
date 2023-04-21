@@ -1,5 +1,12 @@
 package dk.digitalidentity.rc.dao.model.enums;
 
+import dk.digitalidentity.rc.dao.model.enums.dto.NotificationTypeDTO;
+import org.springframework.context.support.ResourceBundleMessageSource;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
+
 public enum NotificationType {
 	ORGUNIT_WITHOUT_AUTHORIZATION_MANAGER("html.enum.notificationtype.orgunit_without_authorization_manager"),
 	EDIT_REQUEST_APPROVE_EMAIL_TEMPLATE("html.enum.notificationtype.edit_request_approve_email_template"),
@@ -18,5 +25,22 @@ public enum NotificationType {
 
 	public String getMessage() {
 		return message;
+	}
+
+	public static List<NotificationTypeDTO> getSorted(ResourceBundleMessageSource resourceBundle, Locale locale) {
+		List<NotificationTypeDTO> dtos = new ArrayList<>();
+
+		for (NotificationType notificationType : NotificationType.values()) {
+			String newMessage = resourceBundle.getMessage(notificationType.getMessage(), null, locale);
+			NotificationTypeDTO dto = new NotificationTypeDTO();
+			dto.setNotificationType(notificationType);
+			dto.setMessage(newMessage);
+
+			dtos.add(dto);
+		}
+
+		dtos.sort((a, b) -> a.getMessage().compareToIgnoreCase(b.getMessage()));
+
+		return dtos;
 	}
 }

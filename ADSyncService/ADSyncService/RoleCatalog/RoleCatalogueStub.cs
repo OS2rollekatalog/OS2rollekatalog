@@ -11,6 +11,7 @@ namespace ADSyncService
         private static readonly log4net.ILog log = log4net.LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
         private static string apiKey = Properties.Settings.Default.ApiKey;
         private static string baseUrl;
+        private static string domain = Properties.Settings.Default.Domain;
 
         public RoleCatalogueStub()
         {
@@ -61,7 +62,13 @@ namespace ADSyncService
         {
             RestClient client = new RestClient(baseUrl);
 
-            var request = new RestRequest("/api/itsystem/" + itSystemId + "/users", Method.GET);
+            string query = "";
+            if (!String.IsNullOrEmpty(domain))
+            {
+                query = $"?domain={domain}";
+            }
+
+            var request = new RestRequest("/api/itsystem/" + itSystemId + "/users" + query, Method.GET);
             request.AddHeader("ApiKey", apiKey);
             request.JsonSerializer = NewtonsoftJsonSerializer.Default;
 
@@ -139,6 +146,12 @@ namespace ADSyncService
             try
             {
                 RestClient client = new RestClient(baseUrl);
+
+                string query = "";
+                if (!String.IsNullOrEmpty(domain))
+                {
+                    query = $"?domain={domain}";
+                }
 
                 var request = new RestRequest("/api/ad/v2/sync", Method.GET);
                 request.AddHeader("ApiKey", apiKey);

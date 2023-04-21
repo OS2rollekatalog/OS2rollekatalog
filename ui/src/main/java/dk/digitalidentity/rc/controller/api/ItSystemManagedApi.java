@@ -1,4 +1,4 @@
-package dk.digitalidentity.rc.controller.v2.api;
+package dk.digitalidentity.rc.controller.api;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -10,8 +10,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import dk.digitalidentity.rc.controller.v2.api.model.ManagedItSystemDTO;
-import dk.digitalidentity.rc.controller.v2.api.model.SimpleUserRoleDTO;
+import dk.digitalidentity.rc.controller.api.dto.ManagedItSystemDTO;
+import dk.digitalidentity.rc.controller.api.dto.SimpleUserRoleDTO;
 import dk.digitalidentity.rc.dao.model.ItSystem;
 import dk.digitalidentity.rc.security.RequireApiRoleManagementRole;
 import dk.digitalidentity.rc.service.ItSystemService;
@@ -19,7 +19,7 @@ import dk.digitalidentity.rc.service.UserRoleService;
 
 @RequireApiRoleManagementRole
 @RestController
-public class ItSystemApiV2 {
+public class ItSystemManagedApi {
 
 	@Autowired
 	private ItSystemService itSystemService;

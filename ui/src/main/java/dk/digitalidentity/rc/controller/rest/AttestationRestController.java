@@ -49,6 +49,7 @@ import dk.digitalidentity.rc.service.AttestationNotificationService;
 import dk.digitalidentity.rc.service.AttestationService;
 import dk.digitalidentity.rc.service.EmailQueueService;
 import dk.digitalidentity.rc.service.EmailTemplateService;
+import dk.digitalidentity.rc.service.ManagerSubstituteService;
 import dk.digitalidentity.rc.service.OrgUnitAttestationPdfService;
 import dk.digitalidentity.rc.service.OrgUnitService;
 import dk.digitalidentity.rc.service.PositionService;
@@ -99,6 +100,9 @@ public class AttestationRestController {
 	@Autowired
 	private PositionService positionService;
 	
+	@Autowired
+	private ManagerSubstituteService managerSubstituteService;
+	
 	@RequireManagerRole
 	@PostMapping("/rest/attestations/confirm/{uuid}")
 	public ResponseEntity<String> approveRequest(@PathVariable("uuid") String uuid, @RequestBody AttestationConfirmRestDTO confirmDTO) throws Exception {
@@ -108,7 +112,7 @@ public class AttestationRestController {
 			return new ResponseEntity<>(HttpStatus.NOT_FOUND);
 		}
 		
-		if (!isManager(orgUnit)) {
+		if (!isManagerOrSubstitute(orgUnit)) {
 			log.warn("User tried to confirm for OU that they are not manager for");
 			return new ResponseEntity<>(HttpStatus.FORBIDDEN);
 		}
@@ -175,9 +179,11 @@ public class AttestationRestController {
 			if (StringUtils.hasLength(manager.getEmail())) {
 				emails.put(manager.getEmail(), manager.getName());
 			}
-			
-			if (manager.getManagerSubstitute() != null && !manager.getManagerSubstitute().isDeleted() && StringUtils.hasLength(manager.getManagerSubstitute().getEmail())) {
-				emails.put(manager.getManagerSubstitute().getEmail(), manager.getManagerSubstitute().getName());
+
+			for (User substitute : managerSubstituteService.getSubstitutesForOrgUnit(orgUnit)) {
+				if (!substitute.isDeleted() && StringUtils.hasLength(substitute.getEmail())) {
+					emails.put(substitute.getEmail(), substitute.getName());
+				}
 			}
 
 			StringBuilder fileNameBuilder = new StringBuilder();
@@ -225,7 +231,7 @@ public class AttestationRestController {
 			return new ResponseEntity<>(HttpStatus.NOT_FOUND);
 		}
 		
-		if (!isManager(orgUnit)) {
+		if (!isManagerOrSubstitute(orgUnit)) {
 			log.warn("User tried to confirm for OU that they are not manager for");
 			return new ResponseEntity<>(HttpStatus.FORBIDDEN);
 		}
@@ -470,22 +476,12 @@ public class AttestationRestController {
 		return pdfConfirmation;
 	}
 	
-	private boolean isManager(OrgUnit orgUnit) {
-		String userId = SecurityUtil.getUserId();
-		if (userId == null) {
-			return false;
-		}
-		
-		User user = userService.getByUserId(userId);
-		if (user == null) {
-			return false;
-		}
-		
-		if (orgUnit.getManager() != null && orgUnit.getManager().getUuid().equals(user.getUuid())) {
+	private boolean isManagerOrSubstitute(OrgUnit orgUnit) {
+		if (managerSubstituteService.isManagerForOrgUnit(orgUnit)) {
 			return true;
 		}
-		
-		if (orgUnit.getManager() != null && orgUnit.getManager().getManagerSubstitute() != null && orgUnit.getManager().getManagerSubstitute().getUuid().equals(user.getUuid())) {
+
+		if (managerSubstituteService.isSubstituteforOrgUnit(orgUnit)) {
 			return true;
 		}
 

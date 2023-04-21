@@ -153,7 +153,7 @@
 								<a data-toggle="tab" href="#kle_interest_menu" th:if="${kleUiEnabled == true}" th:text="#{html.page.ous.list.kleinterest}"></a>
 							</li>
 							<li>
-								<a data-toggle="tab" href="#users_menu" th:text="#{html.page.ous.list.users}"></a>
+								<a data-toggle="tab" href="#users_menu" th:if="${allowAccessToOu == true}" th:text="#{html.page.ous.list.users}"></a>
 							</li>
 						</ul>
 
@@ -174,7 +174,7 @@
 								<div class="content"></div>
 							</div>
 
-							<div id="users_menu" class="tab-pane fade">
+							<div id="users_menu" th:if="${allowAccessToOu == true}" class="tab-pane fade">
 								<div th:replace="ous/fragments/ou_users :: orgUnitUsers(users = ${users})"></div>
 							</div>
 						</div>

@@ -22,6 +22,7 @@ public class UserDTO {
 	private String email;
 	private String phone;
 	private String cpr;
+	private String nemloginUuid;
 	private boolean doNotInherit;
 	private boolean disabled;
 	private List<PositionDTO> positions;
@@ -35,6 +36,7 @@ public class UserDTO {
 		this.email = user.getEmail();
 		this.phone = user.getPhone();
 		this.cpr = user.getCpr();
+		this.nemloginUuid = user.getNemloginUuid();
 		this.doNotInherit = user.getPositions().stream().anyMatch(p -> p.isDoNotInherit());
 		this.disabled = user.isDisabled();
 

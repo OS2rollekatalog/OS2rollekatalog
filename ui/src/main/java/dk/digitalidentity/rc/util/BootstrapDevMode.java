@@ -5,6 +5,7 @@ import java.util.Date;
 import java.util.List;
 import java.util.UUID;
 
+import dk.digitalidentity.rc.service.DomainService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.EnableScheduling;
@@ -85,6 +86,9 @@ public class BootstrapDevMode {
 	@Autowired
 	private RoleCatalogueConfiguration configuration;
 
+	@Autowired
+	private DomainService domainService;
+
 	// run every 8 hours, but wait 15 seconds after boot... kinda need a run-once
 	// here instead ;)
 	@Scheduled(fixedDelay = 8 * 60 * 60 * 1000, initialDelay = 15 * 1000)
@@ -137,8 +141,8 @@ public class BootstrapDevMode {
 	}
 
 	private void findUserOneAndMakeHimAdmin() {
-		User user1 = userDao.findByUserIdAndDeletedFalse("user1");
-		User bsg = userDao.findByUserIdAndDeletedFalse("bsg");
+		User user1 = userDao.findByUserIdAndDomainAndDeletedFalse("user1", domainService.getPrimaryDomain());
+		User bsg = userDao.findByUserIdAndDomainAndDeletedFalse("bsg", domainService.getPrimaryDomain());
 		UserRole administrator = userRoleDao.getByIdentifier("administrator");
 		
 		UserUserRoleAssignment assignment = new UserUserRoleAssignment();
@@ -242,7 +246,7 @@ public class BootstrapDevMode {
 		payload.setOrgUnits(orgUnits);
 		payload.setUsers(users);
 
-		orgImporter.fullSync(payload);
+		orgImporter.fullSync(payload, domainService.getPrimaryDomain());
 	}
 
 	private void createRoleGroups(List<UserRole> userRoles) {

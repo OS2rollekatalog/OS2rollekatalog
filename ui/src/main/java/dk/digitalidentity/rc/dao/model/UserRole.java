@@ -5,6 +5,8 @@ import java.util.List;
 import javax.persistence.CascadeType;
 import javax.persistence.Column;
 import javax.persistence.Entity;
+import javax.persistence.EnumType;
+import javax.persistence.Enumerated;
 import javax.persistence.FetchType;
 import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
@@ -17,6 +19,7 @@ import javax.persistence.Table;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 
+import dk.digitalidentity.rc.dao.model.enums.NemLoginConstraintType;
 import dk.digitalidentity.rc.log.AuditLoggable;
 import lombok.Data;
 import lombok.ToString;
@@ -80,6 +83,13 @@ public class UserRole implements AuditLoggable {
 
 	@Column(nullable = false)
 	private boolean sendToAuthorizationManagers;
+	
+	@Enumerated(EnumType.STRING)
+	@Column
+	private NemLoginConstraintType nemloginConstraintType = NemLoginConstraintType.NONE;
+	
+	@Column
+	private String nemloginConstraintValue;
 
 	@OneToOne(mappedBy = "userRole", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
 	private UserRoleEmailTemplate userRoleEmailTemplate;

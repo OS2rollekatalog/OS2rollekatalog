@@ -13,7 +13,7 @@ import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.servlet.ModelAndView;
 
-import dk.digitalidentity.rc.controller.mvc.xlsview.AuditLogtXlsxView;
+import dk.digitalidentity.rc.controller.mvc.xlsview.AuditLogXlsxView;
 import dk.digitalidentity.rc.security.RequireAdministratorRole;
 import dk.digitalidentity.rc.service.AuditLogService;
 
@@ -42,6 +42,6 @@ public class LogViewerController {
 		response.setContentType("application/ms-excel");
 		response.setHeader("Content-Disposition", "attachment; filename=\"auditlog.xlsx\"");
 
-		return new ModelAndView(new AuditLogtXlsxView(), model);
+		return new ModelAndView(new AuditLogXlsxView(), model);
 	}
 }

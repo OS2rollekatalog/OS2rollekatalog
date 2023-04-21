@@ -1,16 +1,23 @@
 package dk.digitalidentity.rc.controller.rest;
 
+import java.security.Principal;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
+import javax.persistence.criteria.Predicate;
 import javax.validation.Valid;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.jpa.datatables.mapping.DataTablesInput;
+import org.springframework.data.jpa.datatables.mapping.DataTablesOutput;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.util.StringUtils;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.WebDataBinder;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -18,13 +25,14 @@ import org.springframework.web.bind.annotation.InitBinder;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.RestController;
 
-import org.springframework.util.StringUtils;
-
 import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
+import dk.digitalidentity.rc.controller.mvc.datatables.dao.UserRoleViewDao;
+import dk.digitalidentity.rc.controller.mvc.datatables.dao.model.UserRoleView;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.UserRoleDeleteStatus;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.UserRoleForm;
 import dk.digitalidentity.rc.controller.validator.UserRoleValidator;
@@ -41,7 +49,9 @@ import dk.digitalidentity.rc.dao.model.UserRole;
 import dk.digitalidentity.rc.dao.model.UserRoleEmailTemplate;
 import dk.digitalidentity.rc.dao.model.enums.ConstraintValueType;
 import dk.digitalidentity.rc.dao.model.enums.ItSystemType;
+import dk.digitalidentity.rc.dao.model.enums.NemLoginConstraintType;
 import dk.digitalidentity.rc.security.RequireAdministratorRole;
+import dk.digitalidentity.rc.security.RequireRequesterOrReadAccessRole;
 import dk.digitalidentity.rc.security.SecurityUtil;
 import dk.digitalidentity.rc.service.ConstraintTypeService;
 import dk.digitalidentity.rc.service.OrgUnitService;
@@ -85,10 +95,83 @@ public class UserRoleRestController {
     @Autowired
     private RoleCatalogueConfiguration configuration;
 
-    @InitBinder
+    @Autowired
+    private UserRoleViewDao userRoleViewDao;
+
+    @Autowired
+	private SecurityUtil securityUtil;
+
+    @InitBinder(value = { "role" })
     public void initBinder(WebDataBinder binder) {
         binder.addValidators(userRoleValidator);
     }
+
+    @RequireRequesterOrReadAccessRole
+    @PostMapping("/rest/userroles/list")
+	public DataTablesOutput<UserRoleView> list(@Valid @RequestBody DataTablesInput input, Principal principal) throws Exception {
+
+		// requesters needs to have the list filtered
+		if (SecurityUtil.isRequesterAndOnlyRequester()) {
+			User user = getUserOrThrow(principal.getName());
+
+			// TODO: not very performance-friendly, look into making this smarter
+			List<UserRole> roles = userRoleService.getAll();
+			roles = userRoleService.whichRolesCanBeRequestedByUser(roles, user);
+			List<Long> selectedUserRoles = roles.stream().map(UserRole::getId).toList();
+
+			return userRoleViewDao.findAll(input, getUserRoleByIdIn(selectedUserRoles));
+		}
+
+		// people with restricted read-only access will be limited
+		else if (securityUtil.hasRestrictedReadAccess()) {
+			List<Long> itSystems = securityUtil.getRestrictedReadAccessItSystems();
+			
+			return userRoleViewDao.findAll(input, getUserRolesByItSystem(itSystems));
+		}
+
+		return userRoleViewDao.findAll(input);
+	}
+
+	private User getUserOrThrow(String userId) throws Exception {
+		User user = userService.getByUserId(userId);
+		if (user == null) {
+			throw new Exception("Ukendt bruger: " + userId);
+		}
+
+		return user;
+	}
+
+	// SELECT * FROM "view" WHERE it_system_id = x or y or z...
+	private Specification<UserRoleView> getUserRolesByItSystem(List<Long> itSystemIds) {
+		Specification<UserRoleView> specification = null;
+		specification = (Specification<UserRoleView>) (root, query, criteriaBuilder) -> {
+			List<Predicate> predicates = new ArrayList<>(itSystemIds.size());
+
+			for (Long id : itSystemIds) {
+				predicates.add(criteriaBuilder.equal(root.get("itSystemId"), id));
+			}
+
+			return criteriaBuilder.or(predicates.toArray(Predicate[]::new));
+		};
+		
+		return specification;
+	}
+	
+	// SELECT * FROM "view" WHERE id LIKE ('') OR id LIKE ('') OR id LIKE ('') ...
+	private Specification<UserRoleView> getUserRoleByIdIn(List<Long> userRoleIds) {		
+		Specification<UserRoleView> specification = null;
+		specification = (Specification<UserRoleView>) (root, query, criteriaBuilder) -> {
+			List<Predicate> predicates = new ArrayList<>(userRoleIds.size());
+
+			for (Long id : userRoleIds) {
+				predicates.add(criteriaBuilder.equal(root.get("id"), id));
+			}
+
+			return criteriaBuilder.or(predicates.toArray(Predicate[]::new));
+		};
+		
+		return specification;
+	}
     
     @PostMapping(value = "/rest/userroles/flag/{roleId}/{flag}")
     @ResponseBody
@@ -389,6 +472,42 @@ public class UserRoleRestController {
 
         return new ResponseEntity<>(HttpStatus.OK);
     }
+    
+	@PostMapping(value = "/rest/userroles/edit/{id}/nemlogin/{type}")
+	public ResponseEntity<String> editRoleAsync(@PathVariable long id, @PathVariable NemLoginConstraintType type, @RequestParam String value) {
+		UserRole role = userRoleService.getById(id);
+		if (role == null) {
+			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+		}
+
+		if (type.equals(NemLoginConstraintType.NONE)) {
+			role.setNemloginConstraintType(type);
+			role.setNemloginConstraintValue(null);
+		}
+		else if (type.equals(NemLoginConstraintType.SENR)) {
+			if (!Pattern.matches("\\d{8}", value)) {
+				return new ResponseEntity<>("Afgrænsning på SE valgt, men værdien er ikke gyldig", HttpStatus.BAD_REQUEST);
+			}
+
+			role.setNemloginConstraintType(type);
+			role.setNemloginConstraintValue(value);
+		}
+		else if (type.equals(NemLoginConstraintType.PNR)) {
+			if (!Pattern.matches("\\d{10}", value)) {
+				return new ResponseEntity<>("Afgrænsning på P-nummer valgt, men værdien er ikke gyldig", HttpStatus.BAD_REQUEST);
+			}
+
+			role.setNemloginConstraintType(type);
+			role.setNemloginConstraintValue(value);
+		}
+		else {
+			return new ResponseEntity<>("Den valgte afgrænsningstype er ikke kendt", HttpStatus.BAD_REQUEST);
+		}
+
+		userRoleService.save(role);
+
+		return new ResponseEntity<>(HttpStatus.OK);
+	}
 
     // we have to use the deprecated method to get inactive assignments and users/orgunits
     @SuppressWarnings("deprecation")

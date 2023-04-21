@@ -4,12 +4,15 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
+import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -34,15 +37,18 @@ import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserKLEMapping;
 import dk.digitalidentity.rc.dao.model.UserRole;
 import dk.digitalidentity.rc.dao.model.UserUserRoleAssignment;
+import dk.digitalidentity.rc.dao.model.enums.AltAccountType;
 import dk.digitalidentity.rc.dao.model.enums.ConstraintUIType;
+import dk.digitalidentity.rc.dao.model.enums.ItSystemType;
 import dk.digitalidentity.rc.dao.model.enums.KleType;
 import dk.digitalidentity.rc.security.AccessConstraintService;
 import dk.digitalidentity.rc.security.RequireAssignerRole;
-import dk.digitalidentity.rc.security.RequireReadAccessOrManagerRole;
-import dk.digitalidentity.rc.security.RequireReadAccessRole;
+import dk.digitalidentity.rc.security.RequireReadAccessOrRequesterOrManagerRole;
 import dk.digitalidentity.rc.security.SecurityUtil;
+import dk.digitalidentity.rc.service.DomainService;
 import dk.digitalidentity.rc.service.ItSystemService;
 import dk.digitalidentity.rc.service.KleService;
+import dk.digitalidentity.rc.service.ManagerSubstituteService;
 import dk.digitalidentity.rc.service.OrgUnitService;
 import dk.digitalidentity.rc.service.Select2Service;
 import dk.digitalidentity.rc.service.UserRoleService;
@@ -53,7 +59,7 @@ import dk.digitalidentity.rc.service.model.RoleAssignmentType;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
-@RequireReadAccessOrManagerRole
+@RequireReadAccessOrRequesterOrManagerRole
 @Controller
 public class UserController {
 
@@ -83,16 +89,24 @@ public class UserController {
 
 	@Autowired
 	private ItSystemService itSystemService;
+	
+	@Autowired
+	private ManagerSubstituteService managerSubstituteService;
+
+	@Autowired
+	private DomainService domainService;
     
     @Value("#{servletContext.contextPath}")
     private String servletContextPath;
 
 	@GetMapping(value = "/ui/users/list")
-	public String view() {
+	public String view(Model model) {
+		model.addAttribute("multipleDomains", domainService.getAll().size() > 1);
+
 		return "users/list";
 	}
 
-	@RequireReadAccessRole
+	@RequireReadAccessOrRequesterOrManagerRole
 	@GetMapping(value = "/ui/users/manage/{uuid}")
 	public String manage(Model model, @PathVariable("uuid") String uuid) {
 		User user = userService.getByUuid(uuid);
@@ -100,6 +114,8 @@ public class UserController {
 			return "redirect:/ui/users/list";
 		}
 
+		verifyRequesterOrManagerAccess(user);
+		
 		boolean readOnly = !(SecurityUtil.hasRole(Constants.ROLE_ASSIGNER) || SecurityUtil.hasRole(Constants.ROLE_KLE_ADMINISTRATOR));
 		List<UserRoleNotAssignedDTO> exceptedAssignments = userService.getAllExceptedUserRolesForUser(user);
 
@@ -152,7 +168,31 @@ public class UserController {
 		return "users/manage";
 	}
 
-	@RequireReadAccessRole
+	// since it requires ReadAccess OR manager/subsitute/reqeuster access to get here, if you do not have ReadAccess
+	// we can safely assume you must have one of the others - so we scan to see if you have access to this specific user
+	private void verifyRequesterOrManagerAccess(User user) {
+		if (SecurityUtil.doesNotHaveReadAccess()) {
+			final String userId = SecurityUtil.getUserId();
+
+			boolean isManager = user.getPositions().stream()
+					.anyMatch(p ->
+							// that orgUnits manager is our currently logged in user
+							managerSubstituteService.isManagerForOrgUnit(p.getOrgUnit()) ||
+							// or our currently logged in user is one of that orgUnits manager's substitutes
+							managerSubstituteService.isSubstituteforOrgUnit(p.getOrgUnit())
+					 );
+
+			// any of the users positions that points to an OU that has an AuthorizationManager that happens to be our currently logged in user?
+			boolean isAuthorizationManager = user.getPositions().stream()
+					.anyMatch(p -> p.getOrgUnit().getAuthorizationManagers().stream().anyMatch(a -> Objects.equals(a.getUser().getUserId(), userId)));
+			
+			if (!isManager && !isAuthorizationManager) {
+				throw new AccessDeniedException("Der er ikke adgang til at se data på denne bruger");
+			}
+		}
+	}
+
+	@RequireReadAccessOrRequesterOrManagerRole
 	@RequestMapping(value = "/ui/users/manage/{uuid}/roles")
 	public String getAssignedRolesFragment(Model model, @PathVariable("uuid") String uuid) {
 		User user = userService.getByUuid(uuid);
@@ -160,6 +200,8 @@ public class UserController {
 			return "redirect:../list";
 		}
 		
+		verifyRequesterOrManagerAccess(user);
+
 		boolean readOnly = !(SecurityUtil.hasRole(Constants.ROLE_ASSIGNER) || SecurityUtil.hasRole(Constants.ROLE_KLE_ADMINISTRATOR));
 		boolean editable = !readOnly && assignerRoleConstraint.isUserAccessable(user, true);
 
@@ -173,6 +215,16 @@ public class UserController {
 				// or if user can edit and role is "directly" assigned
 				if ((internalRole && SecurityUtil.getRoles().contains(Constants.ROLE_ADMINISTRATOR) && directlyAssignedRole) || (editable && directlyAssignedRole)) {
 					assignment.setCanEdit(true);
+				}
+				
+				// check if role is ineffective
+				if (assignment.getItSystem().getSystemType().equals(ItSystemType.NEMLOGIN) && !StringUtils.hasLength(user.getNemloginUuid())) {
+					assignment.setIneffective(true);
+				}
+				
+				boolean kspCicsAccount = user.getAltAccounts().stream().anyMatch(a -> a.getAccountType().equals(AltAccountType.KSPCICS));
+				if (!kspCicsAccount && assignment.getItSystem().getSystemType().equals(ItSystemType.KSPCICS)) {
+					assignment.setIneffective(true);
 				}
 				
 				// TODO: this block of code is duplicated in multiple places - could it be extracted to a utility method somewhere?
@@ -200,11 +252,15 @@ public class UserController {
 												for (String ouUuid : uuids) {
 													OrgUnit ou = orgUnitService.getByUuid(ouUuid);
 													if (ou != null) {
-														ouString += ou.getName() + ", ";
+														if (ouString.length() > 0) {
+															ouString += ", ";
+														}
+														
+														ouString += ou.getName();
 													}
 												}
 												
-												valueDto.setConstraintValue(ouString.substring(0, ouString.length()-2));
+												valueDto.setConstraintValue(ouString);
 											}
 											else if (postponedConstraint.getConstraintType().getEntityId().equals(Constants.INTERNAL_ITSYSTEM_CONSTRAINT_ENTITY_ID)) {
 												String[] ids = postponedConstraint.getValue().split(",");
@@ -213,11 +269,15 @@ public class UserController {
 												for (String id : ids) {
 													ItSystem itSystem = itSystemService.getById(Integer.parseInt(id));
 													if (itSystem != null) {
-														itSystemsString += itSystem.getName() + ", ";
+														if (itSystemsString.length() > 0) {
+															itSystemsString += ", ";
+														}
+														
+														itSystemsString += itSystem.getName();
 													}
 												}
 												
-												valueDto.setConstraintValue(itSystemsString.substring(0, itSystemsString.length()-2));
+												valueDto.setConstraintValue(itSystemsString);
 											}
 											else {
 												valueDto.setConstraintValue(postponedConstraint.getValue());
@@ -234,10 +294,14 @@ public class UserController {
 											String valuesString = "";
 
 											for (ConstraintTypeValueSet valueSet : valueSets) {
-												valuesString += valueSet.getConstraintValue() + ", ";
+												if (valuesString.length() > 0) {
+													valuesString += ", ";
+												}
+												
+												valuesString += valueSet.getConstraintValue();
 											}
 											
-											valueDto.setConstraintValue(valuesString.substring(0, valuesString.length()-2));
+											valueDto.setConstraintValue(valuesString);
 										}
 									}
 									

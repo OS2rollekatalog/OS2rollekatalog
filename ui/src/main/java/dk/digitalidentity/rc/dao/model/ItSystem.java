@@ -7,11 +7,13 @@ import javax.persistence.Column;
 import javax.persistence.Entity;
 import javax.persistence.EnumType;
 import javax.persistence.Enumerated;
+import javax.persistence.FetchType;
 import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
 import javax.persistence.Id;
 import javax.persistence.JoinColumn;
 import javax.persistence.JoinTable;
+import javax.persistence.ManyToOne;
 import javax.persistence.OneToMany;
 import javax.persistence.Table;
 import javax.persistence.Temporal;
@@ -98,6 +100,10 @@ public class ItSystem implements AuditLoggable {
 	@JoinTable(name = "ous_itsystems", joinColumns = { @JoinColumn(name = "itsystem_id") }, inverseJoinColumns = { @JoinColumn(name = "ou_uuid") })
 	@LazyCollection(LazyCollectionOption.TRUE)
 	private List<OrgUnit> orgUnitFilterOrgUnits;
+
+	@ManyToOne(fetch = FetchType.LAZY)
+	@JoinColumn(name = "domain_id")
+	private Domain domain;
 
 	@JsonIgnore
 	@Override

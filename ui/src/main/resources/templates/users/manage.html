@@ -9,9 +9,11 @@
 		<section>
 			<div class="content-wrapper">
 				<h3>
+ <!-- this never works as intended (to many ways to navigate to a user) 
 					<a th:href="@{/ui/users/list}" class="btn btn-default">
 						<span><i class="fa fa-arrow-left"></i> </span>
 					</a>
+ -->
 					<span th:text="#{html.page.users.manage.title}"></span>
 				</h3>
 
@@ -39,6 +41,15 @@
 													<label class="col-sm-2 control-label" th:text="#{html.entity.extuuid}"></label>
 													<div class="col-sm-8">
 														<input th:field="*{extUuid}" class="form-control" disabled="disabled" />
+													</div>
+												</div>
+											</fieldset>
+											
+											<fieldset th:if="*{nemloginUuid} != null">
+												<div class="form-group">
+													<label class="col-sm-2 control-label" th:text="#{html.entity.user.nemlogin_uuid}"></label>
+													<div class="col-sm-8">
+														<input th:field="*{nemloginUuid}" class="form-control" disabled="disabled" />
 													</div>
 												</div>
 											</fieldset>

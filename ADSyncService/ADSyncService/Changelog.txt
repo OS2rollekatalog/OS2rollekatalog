@@ -2,3 +2,4 @@
 # 2021-12-02  -  2.0.1  -  send maxHead param when cleaning up queue
 # 2022-09-09  -  2.0.2  -  backsync will now skip missing OU's instead of failing completely
 # 2022-10-05  -  2.0.3  -  itsystemgroup feature cron can now be configured
+# 2023-03-11  -  2.1.0  -  support a Domain setting, allowing for specific "skole" lookup on users

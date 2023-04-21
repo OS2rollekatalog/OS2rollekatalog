@@ -23,6 +23,9 @@ public class UserView {
 	
 	@Column
 	private String userId;
+
+	@Column
+	private String domain;
 	
 	@Column
 	private String title;

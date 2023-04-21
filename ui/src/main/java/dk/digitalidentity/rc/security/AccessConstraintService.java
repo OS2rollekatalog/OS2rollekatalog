@@ -161,6 +161,14 @@ public class AccessConstraintService {
 		return (filterRoleGroupsUserCanAssign(Collections.singletonList(roleGroup)).size() > 0);
 	}
 
+	public boolean isAssignmentAllowed(OrgUnit ou) {
+		if (!isOUAccessable(ou,true)) {
+			return false;
+		}
+		
+		return true;
+	}
+
 	public boolean isKleAssignmentAllowed(OrgUnit ou) {
 		if (!isOUAccessable(ou, true)) {
 			return false;
@@ -262,12 +270,12 @@ public class AccessConstraintService {
 							.filter(c -> c.getConstraintType().getEntityId().equals(Constants.INTERNAL_ITSYSTEM_CONSTRAINT_ENTITY_ID))
 							.collect(Collectors.toList());
 					
-					// at least one RoleAssigner role with no constraints on OrgUnits, gives full access
+					// at least one RoleAssigner role with no constraints on itSystems, gives full access
 					if (filteredConstraints == null || filteredConstraints.size() == 0) {
 						return null;
 					}
 
-					// if constrained on OrgUnits, sum up (could be assigned the role multiple times)
+					// if constrained on itSystems, sum up (could be assigned the role multiple times)
 					for (SystemRoleAssignmentConstraintValue constraintValue : filteredConstraints) {
 						for (String val : constraintValue.getConstraintValue().split(",")) {
 							resultSet.add(Long.parseLong(val));

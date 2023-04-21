@@ -2,6 +2,7 @@ package dk.digitalidentity.rc.controller.rest;
 
 import javax.validation.Valid;
 
+import dk.digitalidentity.rc.controller.mvc.datatables.dao.model.NotificationViewInactive;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.jpa.datatables.mapping.DataTablesInput;
 import org.springframework.data.jpa.datatables.mapping.DataTablesOutput;
@@ -48,7 +49,7 @@ public class NotificationRestController {
 
 			return error;
 		}
-		
+
 		if (showInactive) {
 			return notificationDatatableDaoInactive.findAll(input);
 		}

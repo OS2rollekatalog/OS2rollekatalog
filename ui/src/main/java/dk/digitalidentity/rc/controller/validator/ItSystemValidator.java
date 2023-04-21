@@ -1,19 +1,28 @@
 package dk.digitalidentity.rc.controller.validator;
 
+import java.util.regex.Pattern;
+
+import dk.digitalidentity.rc.dao.model.Domain;
+import dk.digitalidentity.rc.service.DomainService;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
+import org.springframework.util.StringUtils;
+import org.springframework.validation.Errors;
+import org.springframework.validation.Validator;
+
 import dk.digitalidentity.rc.controller.mvc.viewmodel.ItSystemForm;
 import dk.digitalidentity.rc.dao.model.ItSystem;
 import dk.digitalidentity.rc.dao.model.enums.ItSystemType;
 import dk.digitalidentity.rc.service.ItSystemService;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Component;
-import org.springframework.validation.Errors;
-import org.springframework.validation.Validator;
 
 @Component
 public class ItSystemValidator implements Validator {
 
 	@Autowired
 	private ItSystemService itSystemService;
+
+	@Autowired
+	private DomainService domainService;
 
 	@Override
 	public boolean supports(Class<?> aClass) {
@@ -42,12 +51,40 @@ public class ItSystemValidator implements Validator {
 			errors.rejectValue("name", "html.errors.itsystem.name.notempty");
 		}
 
-		if (itSystemForm.getSystemType().equals(ItSystemType.MANUAL) && itSystemForm.getEmail().isEmpty()) {
-			errors.rejectValue("email", "html.errors.itsystem.email.notempty");
+		if (itSystemForm.getSystemType() == ItSystemType.MANUAL) {
+			if (!StringUtils.hasLength(itSystemForm.getEmail())) {
+				errors.rejectValue("email", "html.errors.itsystem.email.notempty");
+			}
+			
+			checkEmailSyntax(errors, itSystemForm);
 		}
-		
+
+		if (itSystemForm.getSystemType() == ItSystemType.AD || itSystemForm.getSystemType() == ItSystemType.SAML) {
+			if (StringUtils.hasLength(itSystemForm.getEmail())) {
+				checkEmailSyntax(errors, itSystemForm);
+			}
+		}
+
 		if (itSystemForm.getIdentifier().length() < 2) {
 			errors.rejectValue("identifier", "html.errors.itsystem.identifier.notempty");
+		}
+
+		if (itSystemForm.getSystemType() == ItSystemType.AD) {
+			Domain domain = domainService.getByName(itSystemForm.getDomain());
+			if (domain == null) {
+				errors.rejectValue("domain", "html.errors.itsystem.domain.notempty");
+			}
+		}
+	}
+
+	private void checkEmailSyntax(Errors errors, ItSystemForm itSystemForm) {
+		if (itSystemForm.getEmail() != null) {
+			// Regular Expression by RFC 5322 for Email Validation
+			String regex = "^[a-zA-Z0-9_!#$%&'*+/=?`{|}~^.-]+@[a-zA-Z0-9.-]+$";
+	
+			if (!Pattern.matches(regex, itSystemForm.getEmail())) {
+				errors.rejectValue("email", "html.errors.itsystem.email.notemail");
+			}
 		}
 	}
 }

@@ -12,6 +12,7 @@ public interface ItSystemDao extends CrudRepository<ItSystem, Long> {
 	List<ItSystem> findByIdentifier(String identifier);
 	List<ItSystem> findByName(String name);
 	List<ItSystem> findBySystemType(ItSystemType systemType);
+	List<ItSystem> findBySystemTypeIn(List<ItSystemType> systemTypes);
 	List<ItSystem> findBySubscribedToNotNull();
 	ItSystem findByUuid(String uuid);
 	ItSystem findById(long id);

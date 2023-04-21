@@ -6,8 +6,11 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
+import dk.digitalidentity.rc.dao.model.Domain;
+import dk.digitalidentity.rc.service.DomainService;
 import org.modelmapper.ModelMapper;
 import org.modelmapper.TypeToken;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -74,8 +77,16 @@ public class ReadOnlyApi {
 	@Autowired
 	private ItSystemService itSystemService;
 
+	@Autowired
+	private DomainService domainService;
+
 	@GetMapping("/api/read/itsystem/roleAssignmentsWithContraints/{system}")
-	public ResponseEntity<List<RoleAssignmentsWithContraints>> getRoleAssignmentsWithContraints(@PathVariable("system") String itSystemIdentifier) {
+	public ResponseEntity<List<RoleAssignmentsWithContraints>> getRoleAssignmentsWithContraints(@PathVariable("system") String itSystemIdentifier, @RequestParam(name = "domain", required = false) String domain) {
+		Domain foundDomain = domainService.getDomainOrPrimary(domain);
+		if (foundDomain == null) {
+			return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+		}
+
 		List<RoleAssignmentsWithContraints> result = new ArrayList<>();
 
 		ItSystem itSystem = itSystemService.getFirstByIdentifier(itSystemIdentifier);
@@ -101,6 +112,10 @@ public class ReadOnlyApi {
 		}
 
 		for (User user : users.values()) {
+			if (!Objects.equals(user.getDomain().getName(), foundDomain.getName())) {
+				continue;
+			}
+
 			RoleAssignmentsWithContraints rawc = new RoleAssignmentsWithContraints();
 			rawc.setExtUuid(user.getExtUuid());
 			rawc.setUserId(user.getUserId());
@@ -132,7 +147,12 @@ public class ReadOnlyApi {
 	}
 	
 	@RequestMapping(value = "/api/read/itsystem/{system}", method = RequestMethod.GET)
-	public ResponseEntity<List<UserReadWrapperDTO>> getUsersWithGivenUserRoles(@PathVariable("system") String itSystemIdentifier, @RequestParam(name = "indirectRoles", defaultValue = "false") boolean findIndirectlyAssignedRoles, @RequestParam(name = "withDescription", defaultValue = "false") boolean withDescription) {
+	public ResponseEntity<List<UserReadWrapperDTO>> getUsersWithGivenUserRoles(@PathVariable("system") String itSystemIdentifier, @RequestParam(name = "indirectRoles", defaultValue = "false") boolean findIndirectlyAssignedRoles, @RequestParam(name = "withDescription", defaultValue = "false") boolean withDescription, @RequestParam(name = "domain", required = false) String domain) {
+		Domain foundDomain = domainService.getDomainOrPrimary(domain);
+		if (foundDomain == null) {
+			return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+		}
+
 		List<UserReadWrapperDTO> result =  new ArrayList<>();
 
 		ItSystem itSystem = itSystemService.getFirstByIdentifier(itSystemIdentifier);
@@ -141,13 +161,22 @@ public class ReadOnlyApi {
 			itSystem = itSystemService.getByUuid(itSystemIdentifier);
 
 			if (itSystem == null) {
-				return new ResponseEntity<>(result, HttpStatus.NOT_FOUND);
+				try {
+					itSystem = itSystemService.getById(Long.parseLong(itSystemIdentifier));
+				}
+				catch (Exception ex) {
+					;
+				}
+				
+				if (itSystem == null) {
+					return new ResponseEntity<>(result, HttpStatus.NOT_FOUND);
+				}
 			}
 		}
 
 		List<UserRole> userRoles = userRoleService.getByItSystem(itSystem);
 		for (UserRole userRole : userRoles) {
-			UserReadWrapperDTO dto = getUsersWithUserRole(userRole, findIndirectlyAssignedRoles, withDescription);
+			UserReadWrapperDTO dto = getUsersWithUserRole(userRole, findIndirectlyAssignedRoles, withDescription, foundDomain);
 
 			result.add(dto);
 		}
@@ -156,18 +185,23 @@ public class ReadOnlyApi {
 	}
 	
 	@RequestMapping(value = "/api/read/assigned/{id}", method = RequestMethod.GET)
-	public ResponseEntity<UserReadWrapperDTO> getUsersWithGivenUserRole(@PathVariable("id") long userRoleId, @RequestParam(name = "indirectRoles", defaultValue = "false") boolean findIndirectlyAssignedRoles, @RequestParam(name = "withDescription", defaultValue = "false") boolean withDescription) {
+	public ResponseEntity<UserReadWrapperDTO> getUsersWithGivenUserRole(@PathVariable("id") long userRoleId, @RequestParam(name = "indirectRoles", defaultValue = "false") boolean findIndirectlyAssignedRoles, @RequestParam(name = "withDescription", defaultValue = "false") boolean withDescription, @RequestParam(name = "domain", required = false) String domain) {
 		UserRole userRole = userRoleService.getById(userRoleId);
 		if (userRole == null) {
 			return new ResponseEntity<>(new UserReadWrapperDTO(), HttpStatus.NOT_FOUND);
 		}
 
-		UserReadWrapperDTO dto = getUsersWithUserRole(userRole, findIndirectlyAssignedRoles, withDescription);
+		Domain foundDomain = domainService.getDomainOrPrimary(domain);
+		if (foundDomain == null) {
+			return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+		}
+
+		UserReadWrapperDTO dto = getUsersWithUserRole(userRole, findIndirectlyAssignedRoles, withDescription, foundDomain);
 
 		return new ResponseEntity<>(dto, HttpStatus.OK);
 	}
 
-	private UserReadWrapperDTO getUsersWithUserRole(UserRole userRole, boolean indirect, boolean withDescription) {
+	private UserReadWrapperDTO getUsersWithUserRole(UserRole userRole, boolean indirect, boolean withDescription, Domain domain) {
 		UserReadWrapperDTO dto = new UserReadWrapperDTO();
 		dto.setRoleId(userRole.getId());
 		dto.setRoleIdentifier(userRole.getIdentifier());
@@ -202,6 +236,10 @@ public class ReadOnlyApi {
 
 		List<UserWithRole> users = userService.getUsersWithUserRole(userRole, indirect);
 		for (UserWithRole user : users) {
+			if (!Objects.equals(user.getUser().getDomain().getName(), domain.getName())) {
+				continue;
+			}
+			
 			UserReadDTO userReadDto = null;
 			
 			// have we seen this user before?
@@ -231,11 +269,16 @@ public class ReadOnlyApi {
 	}
 
 	@RequestMapping(value = "/api/read/user/{uuid}/roles", method = RequestMethod.GET)
-	public ResponseEntity<List<UserRoleReadDTO>> getUserRoles(@PathVariable("uuid") String uuid) {
+	public ResponseEntity<List<UserRoleReadDTO>> getUserRoles(@PathVariable("uuid") String uuid, @RequestParam(name = "domain", required = false) String domain) {
 		List<UserRole> roles = new ArrayList<>();
 
+		Domain foundDomain = domainService.getDomainOrPrimary(domain);
+		if (foundDomain == null) {
+			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+		}
+
 		try {
-			roles = userService.getUserRolesAssignedDirectly(uuid);
+			roles = userService.getUserRolesAssignedDirectly(uuid, foundDomain);
 		}
 		catch (UserNotFoundException e) {
 			return new ResponseEntity<>(HttpStatus.NOT_FOUND);

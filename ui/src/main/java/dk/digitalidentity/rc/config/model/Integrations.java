@@ -12,4 +12,5 @@ public class Integrations {
 	private Master master = new Master();
 	private Email email = new Email();
 	private AppManager appManager = new AppManager();
+	private NemLogin nemLogin = new NemLogin();
 }

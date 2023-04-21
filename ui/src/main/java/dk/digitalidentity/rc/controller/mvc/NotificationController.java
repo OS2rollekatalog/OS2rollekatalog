@@ -7,8 +7,10 @@ import java.util.Map;
 
 import javax.servlet.http.HttpServletRequest;
 
+import dk.digitalidentity.rc.dao.model.enums.NotificationType;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.MessageSource;
+import org.springframework.context.support.ResourceBundleMessageSource;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -22,7 +24,6 @@ import dk.digitalidentity.rc.security.SecurityUtil;
 import dk.digitalidentity.rc.service.NotificationService;
 import dk.digitalidentity.rc.service.UserService;
 
-
 @Controller
 @RequireAssignerRole
 public class NotificationController {
@@ -35,11 +36,14 @@ public class NotificationController {
 	
 	@Autowired
 	private MessageSource messageSource;
+
+	@Autowired
+	private ResourceBundleMessageSource resourceBundle;
 	
 	@GetMapping(path = "/ui/notifications/list")
-	public String listNotifications(Model model, HttpServletRequest request) {
+	public String listNotifications(Model model, HttpServletRequest request, Locale locale) {
 		List<Notification> notifications = notificationService.findAll();
-		
+
 		Map<String, String> map = new HashMap<>();
 		for (Notification notification : notifications) {
 			map.put(notification.getNotificationType().toString(), messageSource.getMessage(notification.getNotificationType().getMessage(), null, new Locale("da-DK")));
@@ -53,6 +57,7 @@ public class NotificationController {
 		request.getSession().setAttribute(SessionConstants.SESSION_NOTIFICATION_COUNT, count);
 		
 		model.addAttribute("typesMap", map);
+		model.addAttribute("notificationTypes", NotificationType.getSorted(resourceBundle, locale));
 
 		return "notifications/list";
 	}

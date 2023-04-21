@@ -1,4 +1,4 @@
-package dk.digitalidentity.rc.controller.v2.api.model;
+package dk.digitalidentity.rc.controller.api.dto;
 
 import java.util.List;
 

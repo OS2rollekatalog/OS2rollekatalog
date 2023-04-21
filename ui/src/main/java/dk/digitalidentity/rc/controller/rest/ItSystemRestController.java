@@ -2,6 +2,7 @@ package dk.digitalidentity.rc.controller.rest;
 
 import java.util.Date;
 import java.util.List;
+import java.util.regex.Pattern;
 
 import dk.digitalidentity.rc.controller.rest.model.OUFilterDTO;
 import dk.digitalidentity.rc.dao.model.OrgUnit;
@@ -10,6 +11,7 @@ import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.ui.Model;
+import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -93,6 +95,7 @@ public class ItSystemRestController {
 			operation.setSystemRoleIdentifier(systemRole.getIdentifier());
 			operation.setTimestamp(new Date());
 			operation.setAdGroupType(ADGroupType.NONE);
+			operation.setDomain(systemRole.getItSystem().getDomain());
 
 			pendingADUpdateService.save(operation);
 		}
@@ -147,12 +150,22 @@ public class ItSystemRestController {
 
 	@PostMapping(value = "/rest/itsystem/email")
 	public ResponseEntity<String> editItSystemEmail(long id, String email) {
-		if (email == null || email.length() < 2) {
+		ItSystem itSystem = itSystemService.getById(id);
+		if (itSystem == null) {
 			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
 		}
 
-		ItSystem itSystem = itSystemService.getById(id);
-		if (itSystem == null) {
+		if (itSystem.getSystemType() == ItSystemType.MANUAL) {
+			if (email == null || email.isEmpty()) {
+				return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+			}
+
+			if (!isEmailCorrect(email)) {
+				return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+			}
+		}
+		
+		if ((itSystem.getSystemType() == ItSystemType.AD || itSystem.getSystemType() == ItSystemType.SAML) && (StringUtils.hasLength(email) && !isEmailCorrect(email))) {
 			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
 		}
 
@@ -160,6 +173,16 @@ public class ItSystemRestController {
 		itSystemService.save(itSystem);
 
 		return new ResponseEntity<>(HttpStatus.OK);
+	}
+
+	private boolean isEmailCorrect(CharSequence email) {
+		if (email == null) {
+			return false;
+		}
+
+		// Regular Expression by RFC 5322 for Email Validation
+		String regex = "^[a-zA-Z0-9_!#$%&'*+/=?`{|}~^.-]+@[a-zA-Z0-9.-]+$";
+		return Pattern.matches(regex, email);
 	}
 	
 	@PostMapping(value = "/rest/itsystem/notificationemail")

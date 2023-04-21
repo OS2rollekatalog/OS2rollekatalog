@@ -10,6 +10,7 @@ namespace RoleCatalogImporter
         private static readonly log4net.ILog log = log4net.LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
         private static Uri uri = new Uri(Properties.Settings.Default.ApiUrl);
         private static string apiKey = Properties.Settings.Default.ApiKey;
+        private static string domain = Properties.Settings.Default.Domain;
 
         public Importer()
         {
@@ -23,6 +24,12 @@ namespace RoleCatalogImporter
                 RestClient client = new RestClient(uri.Scheme + "://" + uri.Host + ":" + uri.Port);
 
                 var request = new RestRequest(uri.AbsolutePath, Method.POST);
+
+                if (!String.IsNullOrEmpty(domain))
+                {
+                    request.AddQueryParameter("domain", domain);
+                }
+
                 request.RequestFormat = DataFormat.Json;
                 request.AddHeader("Content-Type", "application/json");
                 request.AddHeader("ApiKey", apiKey);

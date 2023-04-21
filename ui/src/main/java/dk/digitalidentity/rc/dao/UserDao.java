@@ -3,8 +3,8 @@ package dk.digitalidentity.rc.dao;
 import java.util.List;
 import java.util.Set;
 
+import dk.digitalidentity.rc.dao.model.Domain;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
-import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.CrudRepository;
 import org.springframework.data.repository.query.Param;
@@ -20,7 +20,11 @@ public interface UserDao extends CrudRepository<User, String>, JpaSpecificationE
 	// to the developer
 	@Deprecated
 	List<User> findAll();
-	
+
+	// same
+	@Deprecated
+	List<User> findByDomain(Domain domain);
+
 	// same
 	@Deprecated
 	List<User> findByUserRoleAssignmentsUserRole(UserRole userRole);
@@ -32,7 +36,12 @@ public interface UserDao extends CrudRepository<User, String>, JpaSpecificationE
 	// same
 	@Deprecated
 	List<User> findByExtUuidIn(Set<String> extUuids);
+
+	// same
+	@Deprecated
+	List<User> findByDomainAndExtUuidIn(Domain domain, Set<String> extUuids);
 	
+	List<User> findByDomainAndDeletedFalse(Domain domain);
 	List<User> findByCprAndDeletedFalse(String cpr);
 	List<User> findByDeletedFalse();
 	List<User> findByDeletedTrue();
@@ -41,7 +50,7 @@ public interface UserDao extends CrudRepository<User, String>, JpaSpecificationE
 	User findByUuidAndDeletedFalse(String uuid);
 	List<User> findByUuidInAndDeletedFalse(Set<String> uuids);
 	List<User> findByExtUuidAndDeletedFalse(String uuid);
-	User findByUserIdAndDeletedFalse(String userId);
+	User findByUserIdAndDomainAndDeletedFalse(String userId, Domain domain);
 	
 	// use the versions below that filters on active/inactive flag
 	@Deprecated
@@ -66,11 +75,8 @@ public interface UserDao extends CrudRepository<User, String>, JpaSpecificationE
 			" ORDER BY u.name LIMIT 10")
 	List<User> findTop10ByName(@Param("name") String input);
 
-	List<User> findByManagerSubstitute(User user);
+	List<User> findByManagerSubstitutesSubstituteDeletedTrue();
 
-	List<User> findByManagerSubstituteDeletedTrue();
+	List<User> findByManagerSubstitutesSubstitute(User user);
 
-	@Modifying
-	@Query("update users u set u.managerSubstitute = null where u.managerSubstitute = :manager")
-	void deleteManagerSubstituteAssignment(@Param("manager") User user);
 }

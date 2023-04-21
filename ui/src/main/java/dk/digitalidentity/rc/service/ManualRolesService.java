@@ -2,6 +2,7 @@ package dk.digitalidentity.rc.service;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -62,6 +63,9 @@ public class ManualRolesService {
 
 	@Autowired
 	private ReportService reportService;
+	
+	@Autowired
+	private ManagerSubstituteService managerSubstituteService;
 
 	@SuppressWarnings("unchecked")
 	private List<UserRoleAssignmentReportEntry> getHistoricalAssignments(LocalDate date, long itSystemId) {
@@ -92,15 +96,17 @@ public class ManualRolesService {
 
 	@Transactional
 	public void notifyServicedesk() {
+		// TODO: this will fail if there are multiple users with the same userId (and since we added domains, that is possible), so
+		// we need to do some refactoring on this entire feature *sigh*
 		Map<String, User> userMap = userService.getAll().stream().collect(Collectors.toMap(User::getUserId, Function.identity()));
 		
-		List<ItSystem> itSystems = itSystemService.getBySystemType(ItSystemType.MANUAL);
+		List<ItSystem> itSystems = itSystemService.getBySystemTypeIn(Arrays.asList(ItSystemType.MANUAL, ItSystemType.AD, ItSystemType.SAML));
 		for (ItSystem itSystem : itSystems) {
 			log.info("Detecting role changes on " + itSystem.getName() + " / " + itSystem.getId());
 
 			String emailAddress = itSystem.getEmail();
 			if (!StringUtils.hasLength(emailAddress)) {
-				log.info("No email address configured for " + itSystem.getName() + " / " + itSystem.getId());
+				log.debug("No email address configured for " + itSystem.getName() + " / " + itSystem.getId());
 				continue;
 			}
 
@@ -269,24 +275,28 @@ public class ManualRolesService {
 				.collect(Collectors.toSet());
 		
 		Set<User> recipients = new HashSet<>();
-		List<User> managers = userService.getManager(user);
+		List<User> managers = userService.getManager(user).stream().filter(m -> StringUtils.hasLength(m.getEmail())).toList();
 		recipients.addAll(managers);
 		
 		if (userRole.isSendToSubstitutes()) {
-			for (User manager : managers) {
-				if (manager.getManagerSubstitute() != null && !manager.getManagerSubstitute().isDeleted()) {
-					recipients.add(manager.getManagerSubstitute());
+			for (OrgUnit orgUnit : orgUnits) {
+				for (User substitute : managerSubstituteService.getSubstitutesForOrgUnit(orgUnit)) {
+					if (!substitute.isDeleted() && StringUtils.hasLength(substitute.getEmail())) {
+						recipients.add(substitute);
+					}
 				}
 			}
 		}
 		
 		if (userRole.isSendToAuthorizationManagers()) {
 			for (OrgUnit orgUnit : orgUnits) {
-				recipients.addAll(orgUnit.getAuthorizationManagers().stream().map(a -> a.getUser()).collect(Collectors.toSet()));
+				recipients.addAll(orgUnit.getAuthorizationManagers().stream()
+						.map(a -> a.getUser())
+						.filter(u -> StringUtils.hasLength(u.getEmail()))
+						.collect(Collectors.toSet()));
 			}
 		}
 		
-		recipients = recipients.stream().filter(r -> r != null && r.getEmail() != null).collect(Collectors.toSet());
 		String recipientNames = recipients.stream().map(r -> r.getName()).collect(Collectors.joining(", "));
 		String recipientMails = recipients.stream().map(r -> r.getEmail()).collect(Collectors.joining(","));
 		

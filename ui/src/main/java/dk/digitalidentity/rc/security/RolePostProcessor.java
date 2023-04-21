@@ -158,7 +158,14 @@ public class RolePostProcessor implements SamlLoginPostProcessor {
 		
 		if (request != null) {
 			long count = notificationService.countActive();
-			request.getSession().setAttribute(SessionConstants.SESSION_NOTIFICATION_COUNT, count);
+			if (count > 0) {
+				request.getSession().setAttribute(SessionConstants.SESSION_NOTIFICATION_COUNT, count);
+			}
+
+			count = requestApproveService.count();
+			if (count > 0) {
+				request.getSession().setAttribute(SessionConstants.SESSION_REQUEST_COUNT, count);
+			}
 		}
 	}
 	

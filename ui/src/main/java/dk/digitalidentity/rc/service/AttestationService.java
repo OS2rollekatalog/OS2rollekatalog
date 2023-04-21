@@ -75,6 +75,9 @@ public class AttestationService {
 	@Autowired
 	private HistoryService historyService;
 
+	@Autowired
+	private ManagerSubstituteService managerSubstituteService;
+
 	public void flagOrgUnitForImmediateAttesation(OrgUnit orgUnit) {
 		if (!settingsService.isScheduledAttestationEnabled()) {
 			return;
@@ -117,13 +120,11 @@ public class AttestationService {
 				managerEmail = manager.getEmail();
 			}
 
-			String substituteEmail = null;			
-			User substitute = manager.getManagerSubstitute();
-			if (substitute != null && !substitute.isDeleted() && StringUtils.hasLength(substitute.getEmail())) {
-				substituteEmail = substitute.getEmail();
-			}
+			List<User> substitutes = new ArrayList<>();
 			
-			if (managerEmail == null && substituteEmail == null) {
+			substitutes.addAll(managerSubstituteService.getSubstitutesForOrgUnit(ou).stream().filter(u -> !u.isDeleted() && StringUtils.hasLength(u.getEmail())).toList());
+			
+			if (managerEmail == null && substitutes.isEmpty()) {
 				continue;
 			}
 
@@ -140,7 +141,7 @@ public class AttestationService {
 			for (OrgUnitUserRoleAssignment ouura : ou.getUserRoleAssignments()) {
 				if (ouura.getStopDate() != null) {
 					if (ouura.getStopDate().isBefore(modifiedDate)) {
-						String ouuraString = "Jobfunktionsrollen " + ouura.getUserRole().getName() + " tildelt på enheden " + ou.getName() + " udløber " + ouura.getStopDate();
+						String ouuraString = "Jobfunktionsrollen " + ouura.getUserRole().getName() + " (" + ouura.getUserRole().getItSystem().getName() + ") tildelt på enheden " + ou.getName() + " udløber " + ouura.getStopDate();
 						expiringStrings.add(ouuraString);
 					}
 				}
@@ -151,7 +152,7 @@ public class AttestationService {
 			for (OrgUnitUserRoleAssignment oura : userRoleAssigments) {
 				if (oura.getStopDate() != null && oura.getStopDate().isBefore(modifiedDate)) {
 					for (Title title : oura.getTitles()) {
-						String turaString = "Jobfunktionsrollen " + oura.getUserRole().getName() + " tildelt på titlen " + title.getName() + " associeret med enheden " + ou.getName() +  " udløber " + oura.getStopDate();
+						String turaString = "Jobfunktionsrollen " + oura.getUserRole().getName() + " (" + oura.getUserRole().getItSystem().getName() + ") tildelt på titlen " + title.getName() + " associeret med enheden " + ou.getName() +  " udløber " + oura.getStopDate();
 						expiringStrings.add(turaString);
 					}
 				}
@@ -187,7 +188,7 @@ public class AttestationService {
 				for (PositionUserRoleAssignment pura : position.getUserRoleAssignments()) {
 					if (pura.getStopDate() != null) {
 						if (pura.getStopDate().isBefore(modifiedDate)) {
-							String puraString = "Jobfunktionsrollen " + pura.getUserRole().getName() + " tildelt brugeren " + user.getName() + " udløber " + pura.getStopDate();
+							String puraString = "Jobfunktionsrollen " + pura.getUserRole().getName() + " (" + pura.getUserRole().getItSystem().getName() + ") tildelt brugeren " + user.getName() + " udløber " + pura.getStopDate();
 							expiringStrings.add(puraString);
 						}
 					}
@@ -197,7 +198,7 @@ public class AttestationService {
 				for (UserUserRoleAssignment uura : user.getUserRoleAssignments()) {
 					if (uura.getStopDate() != null) {
 						if (uura.getStopDate().isBefore(modifiedDate)) {
-							String uuraString = "Jobfunktionsrollen " + uura.getUserRole().getName() + " tildelt brugeren " + user.getName() + " udløber " + uura.getStopDate();
+							String uuraString = "Jobfunktionsrollen " + uura.getUserRole().getName() + " (" + uura.getUserRole().getItSystem().getName() + ") tildelt brugeren " + user.getName() + " udløber " + uura.getStopDate();
 							expiringStrings.add(uuraString);
 						}
 					}
@@ -238,28 +239,34 @@ public class AttestationService {
 				}
 				
 				if (pdf != null) {
-					if (substituteEmail != null) {
+					if (!substitutes.isEmpty()) {
 						EmailTemplate template = emailTemplateService.findByTemplateType(EmailTemplateType.ROLE_EXPIRING);
+						
 						if (template.isEnabled()) {
 							AttachmentFile attachmentFile = new AttachmentFile();
 							attachmentFile.setContent(pdf);
 							attachmentFile.setFilename("Rettighedsudløb.pdf");
 							List<AttachmentFile> attachments = new ArrayList<>();
 							attachments.add(attachmentFile);
-							String title = template.getTitle();
-							title = title.replace(EmailTemplateService.RECEIVER_PLACEHOLDER, substitute.getName());
-							title = title.replace(EmailTemplateService.ORGUNIT_PLACEHOLDER, ou.getName());
-							String message = template.getMessage();
-							message = message.replace(EmailTemplateService.RECEIVER_PLACEHOLDER, substitute.getName());
-							message = message.replace(EmailTemplateService.ORGUNIT_PLACEHOLDER, ou.getName());
-							emailQueueService.queueEmail(substituteEmail, title, message, template, attachments);
-						} else {
+							
+							for (User substitute : substitutes) {
+								String title = template.getTitle();
+								title = title.replace(EmailTemplateService.RECEIVER_PLACEHOLDER, substitute.getName());
+								title = title.replace(EmailTemplateService.ORGUNIT_PLACEHOLDER, ou.getName());
+								String message = template.getMessage();
+								message = message.replace(EmailTemplateService.RECEIVER_PLACEHOLDER, substitute.getName());
+								message = message.replace(EmailTemplateService.ORGUNIT_PLACEHOLDER, ou.getName());
+								emailQueueService.queueEmail(substitute.getEmail(), title, message, template, attachments);
+							}
+						}
+						else {
 							log.info("Email template with type " + template.getTemplateType() + " is disabled. Email was not sent.");
 						}
 					}
 					
 					if (managerEmail != null) {
 						EmailTemplate template = emailTemplateService.findByTemplateType(EmailTemplateType.ROLE_EXPIRING);
+						
 						if (template.isEnabled()) {
 							AttachmentFile attachmentFile = new AttachmentFile();
 							attachmentFile.setContent(pdf);
@@ -273,7 +280,8 @@ public class AttestationService {
 							message = message.replace(EmailTemplateService.RECEIVER_PLACEHOLDER, manager.getName());
 							message = message.replace(EmailTemplateService.ORGUNIT_PLACEHOLDER, ou.getName());
 							emailQueueService.queueEmail(managerEmail, title, message, template, attachments);
-						} else {
+						}
+						else {
 							log.info("Email template with type " + template.getTemplateType() + " is disabled. Email was not sent.");
 						}
 					}
@@ -283,7 +291,7 @@ public class AttestationService {
 	}
 
 	@Transactional
-	public void firstNotify() {		
+	public void firstNotify() {
 		Calendar cal = Calendar.getInstance();
 		cal.add(Calendar.DATE, settingsService.getDaysBeforeDeadline());
 		Date triggerDate = cal.getTime();
@@ -292,7 +300,7 @@ public class AttestationService {
 		for (OrgUnit ou : orgUnits) {
 
 			// make sure we have someone to send emails to (preferSubstitutes, so we will only ever get one, the loop below is silly)
-			Map<String, String> emails = OrgUnitService.getManagerAndSubstituteEmail(ou, true);
+			Map<String, String> emails = orgUnitService.getManagerAndSubstituteEmail(ou, true);
 			if (emails.size() == 0) {
 				continue;
 			}
@@ -338,7 +346,7 @@ public class AttestationService {
 		for (OrgUnit ou : orgUnits) {
 			
 			// make sure we have someone to send emails to (do not prefer substitutes, so get both email adresses if available)
-			Map<String, String> emails = OrgUnitService.getManagerAndSubstituteEmail(ou, false);
+			Map<String, String> emails = orgUnitService.getManagerAndSubstituteEmail(ou, false);
 			if (emails.size() == 0) {
 				continue;
 			}
@@ -519,7 +527,7 @@ public class AttestationService {
 			if (!attestationEnabled) {
 				if (orgUnit.getNextAttestation() != null) {
 					orgUnit.setNextAttestation(null);
-					orgUnitService.save(orgUnit);					
+					orgUnitService.save(orgUnit);
 				}
 			}
 			else {
@@ -532,7 +540,7 @@ public class AttestationService {
 							new ArrayList<>(users),
 							userUuids,
 							orgUnit.getManager().getUuid(),
-							orgUnit.getManager().getManagerSubstitute() != null ? orgUnit.getManager().getManagerSubstitute().getUuid() : null,
+							managerSubstituteService.getSubstitutesForOrgUnit(orgUnit).stream().map(s -> s.getUuid()).collect(Collectors.toList()),
 							orgUnit.getChildren());
 				}
 				
@@ -588,21 +596,19 @@ public class AttestationService {
 	// - if the childs managers substitute has a position in the child, pull the substitute up
 	// then, if the child did not have a manager, or if the manager was pulled up, continue with children. Note that we only need to check
 	// if we found a non-null manager that was not pulled up, as that manager would take care of any managers/substitutes further down.
-	public void pullUpManagersAndSubstitutes(List<User> users, List<String> userUuids, String topLevelManagerUuid, String topLevelSubstituteUuid, List<OrgUnit> children) {
+	public void pullUpManagersAndSubstitutes(List<User> users, List<String> userUuids, String topLevelManagerUuid, List<String> topLevelSubstituteUuids, List<OrgUnit> children) {
 		if (children == null || children.size() == 0) {
 			return;
 		}
-		
+		 
 		for (OrgUnit child : children) {
 			User manager = child.getManager();
-			User substitute = (manager != null) ? manager.getManagerSubstitute() : null;
+			List<User> childSubstitutes = managerSubstituteService.getSubstitutesForOrgUnit(child);
 
 			boolean stop = false;
 			
 			boolean managerMatchesTopLevel = (manager != null) ? Objects.equals(manager.getUuid(), topLevelManagerUuid) : false;
-			boolean substituteMatchesTopLevel = (substitute != null) ? Objects.equals(substitute.getUuid(), topLevelSubstituteUuid) : false;
 			boolean childManagerHasPositionInChild = (manager != null) ? manager.getPositions().stream().anyMatch(p -> Objects.equals(p.getOrgUnit().getUuid(), child.getUuid())) : false;
-			boolean childSubstituteHasPositionInChild = (substitute != null) ? substitute.getPositions().stream().anyMatch(p -> Objects.equals(p.getOrgUnit().getUuid(), child.getUuid())) : false;
 
 			// pull up manager?
 			if (managerMatchesTopLevel) {
@@ -619,20 +625,25 @@ public class AttestationService {
 				stop = true;
 			}
 			
-			// pull up substitute
-			if (substituteMatchesTopLevel) {
-				; // no, we do not want this substitute pulled up
-			}
-			else if (substitute != null && (childSubstituteHasPositionInChild || stop)) {
-				// note that we pull up the substitute if we pulled up the manager (the "stop" check above")
-				if (!userUuids.contains(substitute.getUuid())) {
-					users.add(substitute);
-					userUuids.add(substitute.getUuid());
+			for (User substitute : childSubstitutes) {
+				boolean substituteMatchesTopLevel = topLevelSubstituteUuids.contains(substitute.getUuid());
+				boolean childSubstituteHasPositionInChild = substitute.getPositions().stream().anyMatch(p -> Objects.equals(p.getOrgUnit().getUuid(), child.getUuid()));
+				
+				// pull up substitute
+				if (substituteMatchesTopLevel) {
+					; // no, we do not want this substitute pulled up
+				}
+				else if (childSubstituteHasPositionInChild || stop) {
+					// note that we pull up the substitute if we pulled up the manager (the "stop" check above")
+					if (!userUuids.contains(substitute.getUuid())) {
+						users.add(substitute);
+						userUuids.add(substitute.getUuid());
+					}
 				}
 			}
 
 			if (!stop) {
-				pullUpManagersAndSubstitutes(users, userUuids, topLevelManagerUuid, topLevelSubstituteUuid, child.getChildren());
+				pullUpManagersAndSubstitutes(users, userUuids, topLevelManagerUuid, topLevelSubstituteUuids, child.getChildren());
 			}
 		}
 	}

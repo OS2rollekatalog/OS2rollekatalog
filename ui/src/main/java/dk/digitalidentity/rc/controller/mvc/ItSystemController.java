@@ -11,7 +11,9 @@ import java.util.stream.Collectors;
 import javax.validation.Valid;
 
 import dk.digitalidentity.rc.controller.mvc.viewmodel.OUListForm;
+import dk.digitalidentity.rc.dao.model.Domain;
 import dk.digitalidentity.rc.dao.model.OrgUnit;
+import dk.digitalidentity.rc.service.DomainService;
 import dk.digitalidentity.rc.service.OrgUnitService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
@@ -48,7 +50,9 @@ import dk.digitalidentity.rc.service.ItSystemService;
 import dk.digitalidentity.rc.service.PendingADUpdateService;
 import dk.digitalidentity.rc.service.SystemRoleService;
 import dk.digitalidentity.rc.service.UserRoleService;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 @RequireReadAccessRole
 @Controller
 public class ItSystemController {
@@ -79,6 +83,9 @@ public class ItSystemController {
 
 	@Autowired
 	private OrgUnitService orgUnitService;
+
+	@Autowired
+	private DomainService domainService;
 
 	@InitBinder(value = { "itSystemForm" })
 	public void initBinderItSystemForm(WebDataBinder binder) {
@@ -113,6 +120,7 @@ public class ItSystemController {
 		ItSystemForm form = new ItSystemForm();
 		form.setSystemType(ItSystemType.AD);
 		model.addAttribute("itSystemForm", form);
+		model.addAttribute("domains", domainService.getAll());
 		
 		return "itsystem/new";
 	}
@@ -143,6 +151,15 @@ public class ItSystemController {
 		if (bindingResult.hasErrors()) {
 			model.addAttribute(bindingResult.getAllErrors());
 			model.addAttribute("itSystemForm", itSystemForm);
+			model.addAttribute("domains", domainService.getAll());
+
+			return "itsystem/new";
+		}
+
+		Domain domain = domainService.getByName(itSystemForm.getDomain());
+		if (itSystemForm.getSystemType() == ItSystemType.AD && domain == null) {
+			log.warn("Missing Domain on creating new AD it-system");
+			model.addAttribute("domains", domainService.getAll());
 
 			return "itsystem/new";
 		}
@@ -150,18 +167,19 @@ public class ItSystemController {
 		ItSystem itSystem = new ItSystem();
 		itSystem.setName(itSystemForm.getName());
 		itSystem.setIdentifier(itSystemForm.getIdentifier());
-		
+		itSystem.setEmail(itSystemForm.getEmail());
+
 		switch (itSystemForm.getSystemType()) {
 			case AD:
 				itSystem.setSystemType(ItSystemType.AD);
 				itSystem.setPaused(true);
+				itSystem.setDomain(domain);
 				break;
 			case SAML:
 				itSystem.setSystemType(ItSystemType.SAML);
 				break;
 			case MANUAL:
 				itSystem.setSystemType(ItSystemType.MANUAL);
-				itSystem.setEmail(itSystemForm.getEmail());
 				break;
 			default:
 				throw new Exception("Unknown systemtype: " + itSystemForm.getSystemType());
@@ -295,6 +313,7 @@ public class ItSystemController {
 			operation.setTimestamp(new Date());
 			operation.setAdGroupType(systemRoleForm.getAdGroupType());
 			operation.setUniversal(systemRoleForm.isUniversal());
+			operation.setDomain(systemRole.getItSystem().getDomain());
 
 			pendingADUpdateService.save(operation);
 		}

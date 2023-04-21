@@ -2,14 +2,15 @@ package dk.digitalidentity.rc.service;
 
 import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.Collections;
 import java.util.Date;
+import java.util.Iterator;
 import java.util.List;
 import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
 import org.springframework.util.StringUtils;
 
 import dk.digitalidentity.rc.dao.RequestApproveDao;
@@ -17,11 +18,13 @@ import dk.digitalidentity.rc.dao.model.EmailTemplate;
 import dk.digitalidentity.rc.dao.model.OrgUnit;
 import dk.digitalidentity.rc.dao.model.RequestApprove;
 import dk.digitalidentity.rc.dao.model.RoleGroup;
+import dk.digitalidentity.rc.dao.model.RoleGroupUserRoleAssignment;
 import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserRole;
 import dk.digitalidentity.rc.dao.model.enums.EmailTemplateType;
 import dk.digitalidentity.rc.dao.model.enums.EntityType;
 import dk.digitalidentity.rc.dao.model.enums.RequestApproveStatus;
+import dk.digitalidentity.rc.security.AccessConstraintService;
 import dk.digitalidentity.rc.service.model.RequestApproveWrapper;
 import lombok.extern.slf4j.Slf4j;
 
@@ -50,6 +53,9 @@ public class RequestApproveService {
 	@Autowired
 	private RequestApproveService requestApproveService;
 	
+	@Autowired
+	private AccessConstraintService accessConstraintService;
+	
 	public RequestApprove getById(long id) {
 		return requestApproveDao.getById(id);
 	}
@@ -62,16 +68,44 @@ public class RequestApproveService {
 		return requestApproveDao.save(request);		
 	}
 
-	public List<RequestApproveWrapper> getPendingRequestsAuthorizationManager() {
-		List<RequestApproveStatus> stati = new ArrayList<>();
+	public List<RequestApproveWrapper> getPendingRequestsAuthorizationManager() {		
+		List<RequestApprove> requests = requestApproveDao.getByStatusIn(Collections.singletonList(RequestApproveStatus.REQUESTED));
+
+		// filter in case the user has a constrained access role
+		List<String> ous = accessConstraintService.getConstrainedOrgUnits(true);
+		List<Long> itSystems = accessConstraintService.itSystemsUserCanEdit();
 		
-		stati.add(RequestApproveStatus.REQUESTED);
-		
-		List<RequestApprove> requests = requestApproveDao.getByStatusIn(stati);
+		if (ous == null && itSystems == null) {
+			return wrapRequests(requests);
+		}
+
+		// we need to filter, so filter on OUs and ItSystems
+		for (Iterator<RequestApprove> iterator = requests.iterator(); iterator.hasNext();) {
+			RequestApprove request = iterator.next();
+			if (ous != null && request.getOrgUnit() != null && !ous.contains(request.getOrgUnit().getUuid())) {
+				iterator.remove();
+			} else 
+			if (itSystems != null) {
+				if (request.getRoleType() == EntityType.USERROLE) {
+					UserRole userRole = userRoleService.getById(request.getRoleId());
+					if (!itSystems.contains(userRole.getItSystem().getId())) {
+						iterator.remove();
+					}
+				} else if (request.getRoleType() == EntityType.ROLEGROUP) {
+					RoleGroup rg = roleGroupService.getById(request.getRoleId());
+					for (UserRole userRole : rg.getUserRoleAssignments().stream().map(RoleGroupUserRoleAssignment::getUserRole).toList()) {
+						if (!itSystems.contains(userRole.getItSystem().getId())) {
+							iterator.remove();
+							break;
+						}
+					}
+				}
+			}
+		}
 
 		return wrapRequests(requests);
 	}
-
+	
 	@Transactional
 	public void deleteOld() {
         Calendar cal = Calendar.getInstance();
@@ -255,5 +289,10 @@ public class RequestApproveService {
 				}
 			}
 		}
+	}
+
+	// TODO: optimize
+	public long count() {
+		return getPendingRequestsAuthorizationManager().size();
 	}
 }

@@ -56,6 +56,7 @@ import dk.digitalidentity.rc.security.RequireManagerRole;
 import dk.digitalidentity.rc.security.SecurityUtil;
 import dk.digitalidentity.rc.service.AttestationService;
 import dk.digitalidentity.rc.service.ItSystemService;
+import dk.digitalidentity.rc.service.ManagerSubstituteService;
 import dk.digitalidentity.rc.service.OrgUnitService;
 import dk.digitalidentity.rc.service.RoleGroupService;
 import dk.digitalidentity.rc.service.SettingsService;
@@ -95,6 +96,9 @@ public class AttestationController {
 	
 	@Autowired
 	private AttestationService attestationService;
+
+	@Autowired
+	private ManagerSubstituteService substituteService;
 
 	@RequireAdministratorRole
 	@GetMapping("/ui/admin/attestations")
@@ -139,10 +143,26 @@ public class AttestationController {
 
 			return "redirect:/ui/users/attestations";
 		}
+		
+		if (orgUnit.getManager() == null) {
+			log.warn("orgUnit has no manager: " + uuid);
 
-		if (orgUnit.getManager() == null || !orgUnit.getManager().getUserId().equals(SecurityUtil.getUserId())) {
-			if (orgUnit.getManager().getManagerSubstitute() == null || !orgUnit.getManager().getManagerSubstitute().getUserId().equals(SecurityUtil.getUserId())) {
-				log.warn("logged in user " + SecurityUtil.getUserId() + " is not the manager for OU " + orgUnit.getUuid());
+			return "redirect:/ui/users/attestations";
+		}
+
+		// check for substitute if needed
+		if (!Objects.equals(orgUnit.getManager().getUserId(), SecurityUtil.getUserId())) {
+			
+			boolean foundMatch = false;
+			for (User substitute : substituteService.getSubstitutesForOrgUnit(orgUnit)) {
+				if (Objects.equals(substitute.getUserId(), SecurityUtil.getUserId())) {
+					foundMatch = true;
+					break;
+				}
+			}
+			
+			if (!foundMatch) {
+				log.warn("logged in user " + SecurityUtil.getUserId() + " is not the manager or substitute for OU " + orgUnit.getUuid());
 
 				return "redirect:/ui/users/attestations";
 			}
@@ -249,22 +269,22 @@ public class AttestationController {
 		}
 		
 		List<User> users = userService.findByOrgUnit(orgUnit);
-		List<String> userUuids = users.stream().map(u -> u.getUuid()).collect(Collectors.toList());		
+		List<String> userUuids = users.stream().map(u -> u.getUuid()).collect(Collectors.toList());
 		
 		// add the managers and substitutes that can't be attested in underlying orgUnits
 		attestationService.pullUpManagersAndSubstitutes(
 				users,
 				userUuids,
 				orgUnit.getManager().getUuid(),
-				orgUnit.getManager().getManagerSubstitute() != null ? orgUnit.getManager().getManagerSubstitute().getUuid() : null,
+				substituteService.getSubstitutesForOrgUnit(orgUnit).stream().map(u -> u.getUuid()).collect(Collectors.toList()),
 				orgUnit.getChildren());
 
 		// remove this orgUnit's manager and substitute from the user list
 		if (orgUnit.getManager() != null) {
 			users = users.stream().filter(u -> !u.getUuid().equals(orgUnit.getManager().getUuid())).collect(Collectors.toList());
 		
-			if (orgUnit.getManager().getManagerSubstitute() != null) {
-				users = users.stream().filter(u -> !u.getUuid().equals(orgUnit.getManager().getManagerSubstitute().getUuid())).collect(Collectors.toList());
+			if (!orgUnit.getManager().getManagerSubstitutes().isEmpty()) {
+				users = users.stream().filter(u -> !substituteService.isSubstituteforOrgUnit(u, orgUnit)).collect(Collectors.toList());
 			}
 		}
 		
@@ -317,11 +337,15 @@ public class AttestationController {
 															for (String ouUuid : uuids) {
 																OrgUnit ou = orgUnitService.getByUuid(ouUuid);
 																if (ou != null) {
-																	ouString += ou.getName() + ", ";
+																	if (ouString.length() > 0) {
+																		ouString += ", ";
+																	}
+																	
+																	ouString += ou.getName();
 																}
 															}
-															
-															valueDto.setConstraintValue(ouString.substring(0, ouString.length()-2));
+																														
+															valueDto.setConstraintValue(ouString);
 														}
 														else if (postponedConstraint.getConstraintType().getEntityId().equals(Constants.INTERNAL_ITSYSTEM_CONSTRAINT_ENTITY_ID)) {
 															String[] ids = postponedConstraint.getValue().split(",");
@@ -330,11 +354,15 @@ public class AttestationController {
 															for (String id : ids) {
 																ItSystem itSystem = itSystemService.getById(Integer.parseInt(id));
 																if (itSystem != null) {
-																	itSystemsString += itSystem.getName() + ", ";
+																	if (itSystemsString.length() > 0) {
+																		itSystemsString += ", ";
+																	}
+																	
+																	itSystemsString += itSystem.getName();
 																}
 															}
 															
-															valueDto.setConstraintValue(itSystemsString.substring(0, itSystemsString.length()-2));
+															valueDto.setConstraintValue(itSystemsString);
 														}
 														else {
 															valueDto.setConstraintValue(postponedConstraint.getValue());
@@ -351,10 +379,14 @@ public class AttestationController {
 														String valuesString = "";
 
 														for (ConstraintTypeValueSet valueSet : valueSets) {
-															valuesString += valueSet.getConstraintValue() + ", ";
+															if (valuesString.length() > 0) {
+																valuesString += ", ";
+															}
+															
+															valuesString += valueSet.getConstraintValue();
 														}
 														
-														valueDto.setConstraintValue(valuesString.substring(0, valuesString.length()-2));
+														valueDto.setConstraintValue(valuesString);
 													}
 												}
 												
@@ -528,11 +560,15 @@ public class AttestationController {
 														for (String ouUuid : uuids) {
 															OrgUnit ou = orgUnitService.getByUuid(ouUuid);
 															if (ou != null) {
-																ouString += ou.getName() + ", ";
+																if (ouString.length() > 0) {
+																	ouString += ", ";
+																}
+																
+																ouString += ou.getName();
 															}
 														}
 														
-														valueDto.setConstraintValue(ouString.substring(0, ouString.length()-2));
+														valueDto.setConstraintValue(ouString);
 													}
 													else if (postponedConstraint.getConstraintType().getEntityId().equals(Constants.INTERNAL_ITSYSTEM_CONSTRAINT_ENTITY_ID)) {
 														String[] ids = postponedConstraint.getValue().split(",");
@@ -541,11 +577,15 @@ public class AttestationController {
 														for (String id : ids) {
 															ItSystem itSystem = itSystemService.getById(Integer.parseInt(id));
 															if (itSystem != null) {
-																itSystemsString += itSystem.getName() + ", ";
+																if (itSystemsString.length() > 0) {
+																	itSystemsString += ", ";
+																}
+																
+																itSystemsString += itSystem.getName();
 															}
 														}
 														
-														valueDto.setConstraintValue(itSystemsString.substring(0, itSystemsString.length()-2));
+														valueDto.setConstraintValue(itSystemsString);
 													}
 													else {
 														valueDto.setConstraintValue(postponedConstraint.getValue());
@@ -562,10 +602,14 @@ public class AttestationController {
 													String valuesString = "";
 
 													for (ConstraintTypeValueSet valueSet : valueSets) {
-														valuesString += valueSet.getConstraintValue() + ", ";
+														if (valuesString.length() > 0) {
+															valuesString += ", ";
+														}
+														
+														valuesString += valueSet.getConstraintValue();
 													}
 													
-													valueDto.setConstraintValue(valuesString.substring(0, valuesString.length()-2));
+													valueDto.setConstraintValue(valuesString);
 												}
 											}
 
@@ -743,11 +787,15 @@ public class AttestationController {
 														for (String ouUuid : uuids) {
 															OrgUnit ou = orgUnitService.getByUuid(ouUuid);
 															if (ou != null) {
-																ouString += ou.getName() + ", ";
+																if (ouString.length() > 0) {
+																	ouString += ", ";
+																}
+																
+																ouString += ou.getName();
 															}
 														}
 														
-														valueDto.setConstraintValue(ouString.substring(0, ouString.length()-2));
+														valueDto.setConstraintValue(ouString);
 													}
 													else if (postponedConstraint.getConstraintType().getEntityId().equals(Constants.INTERNAL_ITSYSTEM_CONSTRAINT_ENTITY_ID)) {
 														String[] ids = postponedConstraint.getValue().split(",");
@@ -756,11 +804,15 @@ public class AttestationController {
 														for (String id : ids) {
 															ItSystem itSystem = itSystemService.getById(Integer.parseInt(id));
 															if (itSystem != null) {
-																itSystemsString += itSystem.getName() + ", ";
+																if (itSystemsString.length() > 0) {
+																	itSystemsString += ", ";
+																}
+																
+																itSystemsString += itSystem.getName();
 															}
 														}
 														
-														valueDto.setConstraintValue(itSystemsString.substring(0, itSystemsString.length()-2));
+														valueDto.setConstraintValue(itSystemsString);
 													}
 													else {
 														valueDto.setConstraintValue(postponedConstraint.getValue());
@@ -777,10 +829,14 @@ public class AttestationController {
 													String valuesString = "";
 
 													for (ConstraintTypeValueSet valueSet : valueSets) {
-														valuesString += valueSet.getConstraintValue() + ", ";
+														if (valuesString.length() > 0) {
+															valuesString += ", ";
+														}
+														
+														valuesString += valueSet.getConstraintValue();
 													}
 													
-													valueDto.setConstraintValue(valuesString.substring(0, valuesString.length()-2));
+													valueDto.setConstraintValue(valuesString);
 												}
 											}
 											postponedConstraintValues.add(valueDto);

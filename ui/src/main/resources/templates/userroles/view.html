@@ -55,6 +55,22 @@
 								</div>
 							</fieldset>
 							
+							<fieldset th:if="${#strings.equals(role.itSystem.systemType, 'NEMLOGIN')}">
+								<div class="form-group">
+									<label class="col-sm-2 control-label" th:text="#{html.entity.userrole.nemloginConstraint}"></label>
+									<div class="col-sm-8">
+										<input th:value="#{*{nemloginConstraintType.message}}" class="form-control" disabled="disabled"/>
+									</div>
+								</div>
+								
+								<div class="form-group" style="padding-top: 8px;" th:if="${role.nemloginConstraintType != T(dk.digitalidentity.rc.dao.model.enums.NemLoginConstraintType).NONE}">
+									<label class="col-sm-2 control-label" th:text="#{html.entity.userrole.nemloginConstraintValue}"></label>
+									<div class="col-sm-8">
+										<input th:value="*{nemloginConstraintValue}" class="form-control" disabled="disabled"/>
+									</div>
+								</div>
+							</fieldset>
+							
 							<fieldset th:if="${#strings.equals(role.itSystem.systemType, 'MANUAL')}">
 								<div class="form-group">
 									<label class="col-sm-2 control-label" th:text="#{html.page.userroles.new.require_manager_action.label}"></label>

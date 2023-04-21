@@ -39,12 +39,13 @@
 												<span style="color: grey;" th:text="${ou.managerPosition}"></span>
 											</td>
 											
-											<td th:if="${ou.substituteName} != null">
-												<div th:text="${ou.substituteName}"></div>
-												<span style="color: grey;" th:text="${ou.substitutePosition}"></span>
+											<td th:if="${#lists.size(ou.substitutes) > 0}">
+												<th:block th:each="substitute : ${ou.substitutes}">
+													<div th:text="${substitute}"></div>
+												</th:block>
 											</td>
 											
-											<td th:unless="${ou.substituteName} != null">&nbsp;</td>
+											<td th:unless="${#lists.size(ou.substitutes) > 0}">&nbsp;</td>
 										</th:block>
 										<th:block th:unless="${ou.managerName} != null">
 											<td>&nbsp;</td>

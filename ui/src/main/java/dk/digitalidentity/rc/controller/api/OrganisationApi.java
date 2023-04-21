@@ -5,6 +5,7 @@ import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.transaction.annotation.Transactional;
@@ -12,17 +13,17 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-
-import com.fasterxml.jackson.databind.ObjectMapper;
 
 import dk.digitalidentity.rc.controller.api.dto.OrganisationV2DTO;
 import dk.digitalidentity.rc.controller.api.exception.BadRequestException;
-import dk.digitalidentity.rc.controller.api.model.OrgUnitAM;
 import dk.digitalidentity.rc.controller.api.model.OrganisationDTO;
 import dk.digitalidentity.rc.controller.api.model.OrganisationImportResponse;
 import dk.digitalidentity.rc.controller.api.model.UserDTO;
+import dk.digitalidentity.rc.dao.model.Domain;
 import dk.digitalidentity.rc.security.RequireApiOrganisationRole;
+import dk.digitalidentity.rc.service.DomainService;
 import dk.digitalidentity.rc.service.OrganisationExporter;
 import dk.digitalidentity.rc.service.OrganisationImporter;
 import dk.digitalidentity.rc.service.OrganisationImporterOld;
@@ -43,33 +44,28 @@ public class OrganisationApi {
 	@Autowired
 	private OrganisationExporter organisationExporter;
 
+	@Autowired
+	private DomainService domainService;
+
+	@Value("${org.errorOnOldApi:true}")
+	private boolean errorOnOldApi;
+	
 	@PostMapping(value = "/organisation")
 	@Transactional(rollbackFor = Exception.class)
 	public synchronized ResponseEntity<?> importOrgUnits(@RequestBody String request) {
-		log.warn("Calling deprecated API v1");
-
-		try {
-			ObjectMapper mapper = new ObjectMapper();
-			OrgUnitAM rootOrgUnit = mapper.readValue(request, OrgUnitAM.class);
-
-			OrganisationImportResponse response = organisationImporterOld.bigImport(rootOrgUnit);
-
-			if (response.containsChanges()) {
-				log.info("update completed: " + response.toString());
-			}
-			
-			return new ResponseEntity<>(response, HttpStatus.OK);
-		} catch (Exception ex) {
-			log.error("Import failed on v1!", ex);
-			log.warn("Bad input: " + request);
-			throw new BadRequestException(ex.getMessage());
+		if (errorOnOldApi) {
+			log.error("Calling deprecated API v1");
 		}
+
+		throw new BadRequestException("This endpoint does not exist anymore - please upgrade to /api/organisation/v3");
 	}
 	
 	@PostMapping(value = "/organisation/v2")
 	@Transactional(rollbackFor = Exception.class)
 	public synchronized ResponseEntity<?> importOrgUnitsV2(@RequestBody OrganisationV2DTO organisation) {
-		log.warn("Calling deprecated API v2");
+		if (errorOnOldApi) {
+			log.error("Calling deprecated API v2");
+		}
 		
 		try {
 			OrganisationImportResponse response = organisationImporterOld.bigImportV2(organisation);
@@ -79,42 +75,58 @@ public class OrganisationApi {
 			}
 
 			return new ResponseEntity<>(response, HttpStatus.OK);
-		} catch (Exception ex) {
+		}
+		catch (Exception ex) {
 			log.error("Import failed on v2!", ex);
+			
 			throw new BadRequestException(ex.getMessage());
 		}
 	}
 	
 	@PostMapping(value = "/organisation/v3")
 	@Transactional(rollbackFor = Exception.class)
-	public synchronized ResponseEntity<?> importOrgUnitsV3(@RequestBody OrganisationDTO organisation) {
+	public synchronized ResponseEntity<?> importOrgUnitsV3(@RequestBody OrganisationDTO organisation, @RequestParam(required = false) String domain) {
 		try {
-			OrganisationImportResponse response = organisationImporter.fullSync(organisation);
+			Domain syncDomain = domainService.getDomainOrPrimary(domain);
+			if (syncDomain == null) {
+				return new ResponseEntity<>("Failed to find domain with name " + domain, HttpStatus.NOT_FOUND);
+			}
+
+			OrganisationImportResponse response = organisationImporter.fullSync(organisation, syncDomain);
 
 			if (response.containsChanges()) {
 				log.info("full update completed: " + response.toString());
 			}
 
 			return new ResponseEntity<>(response, HttpStatus.OK);
-		} catch (Exception ex) {
+		}
+		catch (Exception ex) {
 			log.error("Import failed on v3!", ex);
+			
 			throw new BadRequestException(ex.getMessage());
 		}
 	}
 
 	@PostMapping(value = "/organisation/v3/delta")
 	@Transactional(rollbackFor = Exception.class)
-	public synchronized ResponseEntity<?> importUsersDeltaV3(@RequestBody List<UserDTO> users) {
+	public synchronized ResponseEntity<?> importUsersDeltaV3(@RequestBody List<UserDTO> users, @RequestParam(required = false) String domain) {
 		try {
-			OrganisationImportResponse response = organisationImporter.deltaSync(users);
+			Domain syncDomain = domainService.getDomainOrPrimary(domain);
+			if (syncDomain == null) {
+				return new ResponseEntity<>("Failed to find domain with name " + domain, HttpStatus.NOT_FOUND);
+			}
+
+			OrganisationImportResponse response = organisationImporter.deltaSync(users, syncDomain);
 
 			if (response.containsChanges()) {
 				log.info("delta update completed: " + response.toString());
 			}
 
 			return new ResponseEntity<>(response, HttpStatus.OK);
-		} catch (Exception ex) {
+		}
+		catch (Exception ex) {
 			log.error("Import failed on v3!", ex);
+			
 			throw new BadRequestException(ex.getMessage());
 		}
 	}
@@ -123,6 +135,7 @@ public class OrganisationApi {
 	@Transactional(rollbackFor = Exception.class)
 	public synchronized ResponseEntity<?> getOrgUnitsHierarchy() {
 		OrganisationDTO organisationDTO = organisationExporter.getOrganisationDTO();
+		
 		return ResponseEntity.ok(organisationDTO);
 	}
 }

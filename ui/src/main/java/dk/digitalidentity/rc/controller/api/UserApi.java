@@ -9,6 +9,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import dk.digitalidentity.rc.dao.model.Domain;
+import dk.digitalidentity.rc.service.DomainService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -28,6 +30,7 @@ import dk.digitalidentity.rc.dao.model.SystemRoleAssignment;
 import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserRole;
 import dk.digitalidentity.rc.dao.model.enums.EventType;
+import dk.digitalidentity.rc.dao.model.enums.ItSystemType;
 import dk.digitalidentity.rc.exceptions.UserNotFoundException;
 import dk.digitalidentity.rc.log.AuditLogger;
 import dk.digitalidentity.rc.security.RequireApiReadAccessRole;
@@ -53,11 +56,19 @@ public class UserApi {
 	@Autowired
 	private SystemRoleService systemRoleService;
 
+	@Autowired
+	private DomainService domainService;
+
 	@RequestMapping(value = "/api/user/{userid}/roles", method = RequestMethod.GET)
-	public ResponseEntity<UserResponseWithOIOBPPDTO> getUserRoles(@PathVariable("userid") String userId, @RequestParam(name = "system", required = false) String itSystemIdentifier) throws Exception {
+	public ResponseEntity<UserResponseWithOIOBPPDTO> getUserRoles(@PathVariable("userid") String userId, @RequestParam(name = "system", required = false) String itSystemIdentifier, @RequestParam(name = "domain", required = false) String domain) throws Exception {
 		UserResponseWithOIOBPPDTO response = new UserResponseWithOIOBPPDTO();
 
-		User user = getUser(userId);
+		Domain foundDomain = domainService.getDomainOrPrimary(domain);
+		if (foundDomain == null) {
+			return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+		}
+
+		User user = getUser(userId, foundDomain);
 		if (user == null) {
 			log.warn("could not find user: " + userId);
 			return new ResponseEntity<>(HttpStatus.NOT_FOUND);
@@ -78,8 +89,9 @@ public class UserApi {
 			
 			response.setOioBPP(oioBpp);
 			response.setRoleMap(roleMap);
-			response.setNameID(userService.getUserNameId(userId));
+			response.setNameID(userService.getUserNameId(userId, foundDomain));
 
+			// TODO: lav ikke opslag igen - brug listen af it-systemer og log den første
 			auditLogger.log(user, EventType.LOGIN_EXTERNAL, itSystemService.getFirstByIdentifier(itSystemIdentifier));
 		}
 		catch (UserNotFoundException ex) {
@@ -90,11 +102,56 @@ public class UserApi {
 		return new ResponseEntity<>(response, HttpStatus.OK);
 	}
 	
+	@RequestMapping(value = "/api/user/{userid}/nemloginRoles", method = RequestMethod.GET)
+	public ResponseEntity<?> getNemLoginRoles(@PathVariable("userid") String userId, @RequestParam(name = "domain", required = false) String domain) throws Exception {
+		List<ItSystem> itSystems = itSystemService.getBySystemType(ItSystemType.NEMLOGIN);
+		if (itSystems == null || itSystems.size() != 1) {
+			log.warn("Could not find a unique NEMLOGIN it-system (either 0 or > 1 was found!). Can't return nemloginRoles");
+			return new ResponseEntity<>("Could not find a unique NEMLOGIN it-system (either 0 or > 1 was found!)", HttpStatus.BAD_REQUEST);
+		}
+		
+		ItSystem itSystem = itSystems.get(0);
+
+		Domain foundDomain = domainService.getDomainOrPrimary(domain);
+		if (foundDomain == null) {
+			return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+		}
+
+		User user = getUser(userId, foundDomain);
+		if (user == null) {
+			log.warn("could not find user: " + userId);
+			return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+		}
+		
+		UserResponseWithOIOBPPDTO response = new UserResponseWithOIOBPPDTO();
+
+		try {
+			Map<String, String> roleMap = new HashMap<>();
+			String oioBpp = userService.generateNemLoginOIOBPP(user, roleMap);
+			
+			response.setOioBPP(oioBpp);
+			response.setRoleMap(roleMap);
+
+			auditLogger.log(user, EventType.LOGIN_EXTERNAL, itSystem);
+		}
+		catch (UserNotFoundException ex) {
+			log.warn("could not find roles for " + userId + " for itSystem: " + itSystem.getIdentifier() + ". Exception message: " + ex.getMessage());
+			return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+		}
+
+		return new ResponseEntity<>(response, HttpStatus.OK);
+	}
+	
 	@RequestMapping(value = "/api/user/{userid}/rolesAsList", method = RequestMethod.GET)
-	public ResponseEntity<UserResponseWithRolesDTO> getUserRolesAsList(@PathVariable("userid") String userId, @RequestParam(name = "system") String itSystemIdentifier) throws Exception {
+	public ResponseEntity<UserResponseWithRolesDTO> getUserRolesAsList(@PathVariable("userid") String userId, @RequestParam(name = "system") String itSystemIdentifier, @RequestParam(name = "domain", required = false) String domain) throws Exception {
 		UserResponseWithRolesDTO response = new UserResponseWithRolesDTO();
 
-		User user = getUser(userId);
+		Domain foundDomain = domainService.getDomainOrPrimary(domain);
+		if (foundDomain == null) {
+			return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+		}
+
+		User user = getUser(userId, foundDomain);
 		if (user == null) {
 			log.warn("could not find user: " + userId);
 			return new ResponseEntity<>(HttpStatus.NOT_FOUND);
@@ -184,9 +241,9 @@ public class UserApi {
 			response.setFunctionRoles(functionRoleList);
 			response.setRoleMap(roleMap);
 
-			response.setNameID(userService.getUserNameId(userId));
+			response.setNameID(userService.getUserNameId(userId, foundDomain));
 
-			auditLogger.log(userService.getByUserId(userId), EventType.LOGIN_EXTERNAL, itSystemService.getFirstByIdentifier(itSystemIdentifier));
+			auditLogger.log(userService.getByUserId(userId, foundDomain), EventType.LOGIN_EXTERNAL, itSystemService.getFirstByIdentifier(itSystemIdentifier));
 		}
 		catch (UserNotFoundException ex) {
 			log.warn("could not find roles for " + userId + " for itSystem: " + itSystemIdentifier + ". Exception message: " + ex.getMessage());
@@ -197,11 +254,16 @@ public class UserApi {
 	}
 
 	@RequestMapping(value = "/api/user/{userid}/nameid", method = RequestMethod.GET)
-	public ResponseEntity<UserResponseDTO> getUserNameId(@PathVariable("userid") String userId) throws Exception {
+	public ResponseEntity<UserResponseDTO> getUserNameId(@PathVariable("userid") String userId, @RequestParam(name = "domain", required = false) String domain) throws Exception {
 		UserResponseDTO response = new UserResponseDTO();
-		
+
+		Domain foundDomain = domainService.getDomainOrPrimary(domain);
+		if (foundDomain == null) {
+			return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+		}
+
 		try {
-			response.setNameID(userService.getUserNameId(userId));
+			response.setNameID(userService.getUserNameId(userId, foundDomain));
 		}
 		catch (UserNotFoundException ex) {
 			log.warn("could not find nameId for " + userId + ". Exception message: " + ex.getMessage());
@@ -212,8 +274,13 @@ public class UserApi {
 	}
 	
 	@RequestMapping(value = "/api/user/{userid}/hasUserRole/{roleId}", method = RequestMethod.GET)
-	public ResponseEntity<String> userHasUserRole(@PathVariable("userid") String userId, @PathVariable("roleId") long roleId, @RequestParam(name = "system", required = false) String itSystemIdentifier) throws Exception {
-		User user = getUser(userId);
+	public ResponseEntity<String> userHasUserRole(@PathVariable("userid") String userId, @PathVariable("roleId") long roleId, @RequestParam(name = "system", required = false) String itSystemIdentifier, @RequestParam(name = "domain", required = false) String domain) throws Exception {
+		Domain foundDomain = domainService.getDomainOrPrimary(domain);
+		if (foundDomain == null) {
+			return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+		}
+
+		User user = getUser(userId, foundDomain);
 		if (user == null) {
 			log.warn("could not find user: " + userId);
 			return new ResponseEntity<>(HttpStatus.NOT_FOUND);
@@ -246,8 +313,13 @@ public class UserApi {
 	}
 	
 	@RequestMapping(value = "/api/user/{userid}/hasSystemRole", method = RequestMethod.GET)
-	public ResponseEntity<String> userHasSystemRole(@PathVariable("userid") String userId, @RequestParam(name = "roleIdentifier") String roleIdentifier, @RequestParam(name = "system", required = false) String itSystemIdentifier) throws Exception {
-		User user = getUser(userId);
+	public ResponseEntity<String> userHasSystemRole(@PathVariable("userid") String userId, @RequestParam(name = "roleIdentifier") String roleIdentifier, @RequestParam(name = "system", required = false) String itSystemIdentifier, @RequestParam(name = "domain", required = false) String domain) throws Exception {
+		Domain foundDomain = domainService.getDomainOrPrimary(domain);
+		if (foundDomain == null) {
+			return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+		}
+
+		User user = getUser(userId, foundDomain);
 		if (user == null) {
 			log.warn("could not find user: " + userId);
 			return new ResponseEntity<>(HttpStatus.NOT_FOUND);
@@ -281,8 +353,8 @@ public class UserApi {
 		return new ResponseEntity<>("Did not find role", HttpStatus.NOT_FOUND);
 	}
 	
-	private User getUser(String userId) {
-		User user = userService.getByUserId(userId);
+	private User getUser(String userId, Domain domain) {
+		User user = userService.getByUserId(userId, domain);
 		if (user == null) {
 			List<User> users = userService.getByExtUuid(userId);
 			if (users.size() == 1) {
@@ -295,9 +367,18 @@ public class UserApi {
 	
 	private List<ItSystem> getItSystems(String itSystemIdentifier) {
 		List<ItSystem> itSystems = itSystemService.findByIdentifier(itSystemIdentifier);
+
 		if (itSystems == null || itSystems.size() == 0) {
 			ItSystem itSystem = itSystemService.getByUuid(itSystemIdentifier);
+
 			if (itSystem == null) {
+				try {
+					itSystem = itSystemService.getById(Long.parseLong(itSystemIdentifier));
+				}
+				catch (Exception ex) {
+					; // ignore
+				}
+
 				return new ArrayList<>();
 			}
 			

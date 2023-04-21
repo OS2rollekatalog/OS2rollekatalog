@@ -223,4 +223,47 @@ public class RestTemplateConfiguration {
 
 		return restTemplate;
 	}
+	
+	@Bean(name = "nemLoginRestTemplate")
+	public RestTemplate nemLoginRestTemplate() throws Exception {
+		TrustStrategy acceptingTrustStrategy = (X509Certificate[] chain, String authType) -> true;
+		CloseableHttpClient client = null;
+		if (configuration.getIntegrations().getNemLogin().isEnabled() && StringUtils.hasLength(configuration.getIntegrations().getNemLogin().getKeystoreLocation()) && StringUtils.hasLength(configuration.getIntegrations().getNemLogin().getKeystorePassword())) {
+			SSLContext sslContext = SSLContextBuilder.create()
+			                .loadKeyMaterial(
+			                		ResourceUtils.getFile(configuration.getIntegrations().getNemLogin().getKeystoreLocation()),
+			                		configuration.getIntegrations().getNemLogin().getKeystorePassword().toCharArray(),
+			                		configuration.getIntegrations().getNemLogin().getKeystorePassword().toCharArray())
+			                .loadTrustMaterial(acceptingTrustStrategy)
+			                .build();
+			
+			client = HttpClients.custom()
+				        .setDefaultRequestConfig(RequestConfig.custom().setCookieSpec(CookieSpecs.STANDARD).build())
+						.setSSLContext(sslContext)
+						.build();			
+		}
+		else {
+			client = HttpClients.custom()
+						.setDefaultRequestConfig(RequestConfig.custom().setCookieSpec(CookieSpecs.STANDARD).build())
+						.build();
+		}
+		HttpComponentsClientHttpRequestFactory requestFactory = new HttpComponentsClientHttpRequestFactory();
+		requestFactory.setConnectionRequestTimeout(3 * 60 * 1000);
+		requestFactory.setConnectTimeout(3 * 60 * 1000);
+		requestFactory.setReadTimeout(3 * 60 * 1000);
+		requestFactory.setHttpClient(client);
+		RestTemplate restTemplate = new RestTemplate(requestFactory);
+		restTemplate.setErrorHandler(new ResponseErrorHandler() {
+			
+			@Override
+			public boolean hasError(ClientHttpResponse response) throws IOException {
+				return false;
+			}
+			
+			@Override
+			public void handleError(ClientHttpResponse response) throws IOException {
+			}
+		});
+		return restTemplate;
+	}
 }

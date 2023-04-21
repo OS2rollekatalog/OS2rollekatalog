@@ -46,6 +46,17 @@
 
 	<nav th:replace="fragments/footer :: footer"></nav>
 
+	<style>
+		div .affix {
+			position: fixed;
+			right: 0;
+			padding-left: 50px;
+			margin-left: -30px;
+			margin-right: -30px;
+			padding-right: 126.1px;
+		}
+	</style>
+
 	<script th:inline="javascript">
 		/*<![CDATA[*/
 		/*[+
@@ -64,6 +75,12 @@
 		
 		//hierarchy
 		$("document").ready(function() {
+			$("#sidebar").affix({
+				offset: {
+					top: 0
+				}
+			});
+			
 			$("#hierarchy").jstree({
 				"core": {
 					"data": allOUs,

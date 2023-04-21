@@ -12,7 +12,7 @@ namespace ADSyncService.Properties {
     
     
     [global::System.Runtime.CompilerServices.CompilerGeneratedAttribute()]
-    [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.VisualStudio.Editors.SettingsDesigner.SettingsSingleFileGenerator", "17.3.0.0")]
+    [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.VisualStudio.Editors.SettingsDesigner.SettingsSingleFileGenerator", "17.2.0.0")]
     internal sealed partial class Settings : global::System.Configuration.ApplicationSettingsBase {
         
         private static Settings defaultInstance = ((Settings)(global::System.Configuration.ApplicationSettingsBase.Synchronized(new Settings())));
@@ -151,9 +151,27 @@ namespace ADSyncService.Properties {
         
         [global::System.Configuration.ApplicationScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("<?xml version=\"1.0\" encoding=\"utf-16\"?>\n<ArrayOfString xmlns:xsi=\"http://www.w3.o" +
-            "rg/2001/XMLSchema-instance\" xmlns:xsd=\"http://www.w3.org/2001/XMLSchema\">\n  <str" +
-            "ing>someGroupName;someAttribute;someAttributeValue</string>\n</ArrayOfString>")]
+        [global::System.Configuration.DefaultSettingValueAttribute("")]
+        public string ItSystemGroupFeature_Cron {
+            get {
+                return ((string)(this["ItSystemGroupFeature_Cron"]));
+            }
+        }
+        
+        [global::System.Configuration.ApplicationScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("")]
+        public string Domain {
+            get {
+                return ((string)(this["Domain"]));
+            }
+        }
+        
+        [global::System.Configuration.ApplicationScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("<?xml version=\"1.0\" encoding=\"utf-16\"?>\r\n<ArrayOfString xmlns:xsd=\"http://www.w3." +
+            "org/2001/XMLSchema\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\">\r\n  <s" +
+            "tring>someGroupName;someAttribute;someAttributeValue</string>\r\n</ArrayOfString>")]
         public global::System.Collections.Specialized.StringCollection MembershipSyncFeature_AttributeMap {
             get {
                 return ((global::System.Collections.Specialized.StringCollection)(this["MembershipSyncFeature_AttributeMap"]));
@@ -163,7 +181,7 @@ namespace ADSyncService.Properties {
         [global::System.Configuration.ApplicationScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
         [global::System.Configuration.DefaultSettingValueAttribute(@"<?xml version=""1.0"" encoding=""utf-16""?>
-<ArrayOfString xmlns:xsi=""http://www.w3.org/2001/XMLSchema-instance"" xmlns:xsd=""http://www.w3.org/2001/XMLSchema"">
+<ArrayOfString xmlns:xsd=""http://www.w3.org/2001/XMLSchema"" xmlns:xsi=""http://www.w3.org/2001/XMLSchema-instance"">
   <string>2399;OU=system1,OU=Groups,DC=digitalidentity,DC=dk</string>
   <string>2400;OU=system2,OU=Groups,DC=digitalidentity,DC=dk</string>
 </ArrayOfString>")]
@@ -175,10 +193,10 @@ namespace ADSyncService.Properties {
         
         [global::System.Configuration.ApplicationScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("<?xml version=\"1.0\" encoding=\"utf-16\"?>\n<ArrayOfString xmlns:xsi=\"http://www.w3.o" +
-            "rg/2001/XMLSchema-instance\" xmlns:xsd=\"http://www.w3.org/2001/XMLSchema\">\n  <str" +
-            "ing>1;CN=ItSystemOne,OU=Groups,DC=digitalidentity,DC=dk</string>\n</ArrayOfString" +
-            ">")]
+        [global::System.Configuration.DefaultSettingValueAttribute("<?xml version=\"1.0\" encoding=\"utf-16\"?>\r\n<ArrayOfString xmlns:xsd=\"http://www.w3." +
+            "org/2001/XMLSchema\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\">\r\n  <s" +
+            "tring>1;CN=ItSystemOne,OU=Groups,DC=digitalidentity,DC=dk</string>\r\n</ArrayOfStr" +
+            "ing>")]
         public global::System.Collections.Specialized.StringCollection ItSystemGroupFeature_SystemMap {
             get {
                 return ((global::System.Collections.Specialized.StringCollection)(this["ItSystemGroupFeature_SystemMap"]));
@@ -188,22 +206,13 @@ namespace ADSyncService.Properties {
         [global::System.Configuration.ApplicationScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
         [global::System.Configuration.DefaultSettingValueAttribute(@"<?xml version=""1.0"" encoding=""utf-16""?>
-<ArrayOfString xmlns:xsi=""http://www.w3.org/2001/XMLSchema-instance"" xmlns:xsd=""http://www.w3.org/2001/XMLSchema"">
+<ArrayOfString xmlns:xsd=""http://www.w3.org/2001/XMLSchema"" xmlns:xsi=""http://www.w3.org/2001/XMLSchema-instance"">
   <string>2408;OU=subgroup1,OU=groups,DC=digitalidentity,DC=dk</string>
   <string>2409;OU=subgroup2,OU=groups,DC=digitalidentity,DC=dk</string>
 </ArrayOfString>")]
         public global::System.Collections.Specialized.StringCollection ReadonlyItSystemFeature_SystemMap {
             get {
                 return ((global::System.Collections.Specialized.StringCollection)(this["ReadonlyItSystemFeature_SystemMap"]));
-            }
-        }
-        
-        [global::System.Configuration.ApplicationScopedSettingAttribute()]
-        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("")]
-        public string ItSystemGroupFeature_Cron {
-            get {
-                return ((string)(this["ItSystemGroupFeature_Cron"]));
             }
         }
     }

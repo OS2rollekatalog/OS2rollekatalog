@@ -49,7 +49,7 @@
 								    	<td>
 								    		<a th:href="@{/ui/itsystem/view/{id}(id=${itsystem.id})}"><em class="fa fa-search"></em></a>
 								    		<a sec:authorize="hasRole('ROLE_ADMINISTRATOR')" th:href="@{/ui/itsystem/edit/{id}(id=${itsystem.id})}"><em class="fa fa-pencil"></em></a>
-								    		<a sec:authorize="hasRole('ROLE_ADMINISTRATOR')" th:if="${#strings.toString(itsystem.systemType)} != 'KOMBIT' and ${#strings.toString(itsystem.systemType)} != 'KSPCICS' and ${itsystem.identifier} != 'RoleCatalogue'" href="#" onclick="openConfirmDeleteDialog(this);" th:attr="data-id=${itsystem.id}"><em class="fa fa-remove"></em></a>
+								    		<a sec:authorize="hasRole('ROLE_ADMINISTRATOR')" th:if="${#strings.toString(itsystem.systemType)} != 'KOMBIT' and ${#strings.toString(itsystem.systemType)} != 'KSPCICS' and ${itsystem.identifier} != 'RoleCatalogue' and ${#strings.toString(itsystem.systemType)} != 'NEMLOGIN'" href="#" onclick="openConfirmDeleteDialog(this);" th:attr="data-id=${itsystem.id}"><em class="fa fa-remove"></em></a>
 								    	</td>
 					    			</tr>
 				    			</tbody>

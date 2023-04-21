@@ -3,6 +3,7 @@ package dk.digitalidentity.rc.controller.rest;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+import java.util.Objects;
 
 import javax.validation.Valid;
 
@@ -20,11 +21,14 @@ import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.RestController;
 
 import dk.digitalidentity.rc.config.Constants;
+import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
 import dk.digitalidentity.rc.controller.mvc.datatables.dao.AttestationViewDao;
 import dk.digitalidentity.rc.controller.mvc.datatables.dao.model.AttestationView;
 import dk.digitalidentity.rc.controller.rest.model.AutoCompleteResult;
+import dk.digitalidentity.rc.controller.rest.model.ManagerSubstituteAssignmentDTO;
 import dk.digitalidentity.rc.controller.rest.model.ValueData;
 import dk.digitalidentity.rc.dao.model.EmailTemplate;
+import dk.digitalidentity.rc.dao.model.ManagerSubstitute;
 import dk.digitalidentity.rc.dao.model.OrgUnit;
 import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.enums.EmailTemplateType;
@@ -36,6 +40,7 @@ import dk.digitalidentity.rc.security.RequireAssignerOrManagerRole;
 import dk.digitalidentity.rc.security.SecurityUtil;
 import dk.digitalidentity.rc.service.EmailQueueService;
 import dk.digitalidentity.rc.service.EmailTemplateService;
+import dk.digitalidentity.rc.service.ManagerSubstituteService;
 import dk.digitalidentity.rc.service.OrgUnitService;
 import dk.digitalidentity.rc.service.UserService;
 import lombok.extern.slf4j.Slf4j;
@@ -50,6 +55,9 @@ public class ManagerRestController {
 	
 	@Autowired
 	private AttestationViewDao attestationViewDao;
+
+	@Autowired
+	private ManagerSubstituteService managerSubstituteService;
 	
 	@Autowired
 	private EmailTemplateService emailTemplateService;
@@ -60,7 +68,11 @@ public class ManagerRestController {
 	@Autowired
 	private OrgUnitService orgUnitService;
 	
-	@Autowired AuditLogger auditLogger;
+	@Autowired
+	private AuditLogger auditLogger;
+
+	@Autowired
+	private RoleCatalogueConfiguration roleCatalogueConfiguration;
 
 	@RequireAdministratorRole
 	@PostMapping("/rest/manager/attestation/list")
@@ -102,19 +114,38 @@ public class ManagerRestController {
 	}
 
 	@RequireAdministratorOrManagerRole
-	@PostMapping("/rest/manager/substitute/save")
+	@PostMapping("/rest/manager/substitute/add")
 	@ResponseBody
-	public ResponseEntity<HttpStatus> saveSubstitute(@RequestBody String personUuid, @RequestParam(required = false) String managerUuid) {
+	public ResponseEntity<?> addSubstitute(@RequestBody ManagerSubstituteAssignmentDTO body) {
+		if (roleCatalogueConfiguration.getSubstituteManagerAPI().isEnabled()) {
+			return ResponseEntity.badRequest().build();
+		}
+
 		User manager = null;
-		if (managerUuid == null) {
+		if (body.getManager() == null) {
 			manager = userService.getByUserId(SecurityUtil.getUserId());
 		}
 		else {
-			manager = userService.getByUuid(managerUuid);
+			manager = userService.getByUuid(body.getManager().getUuid());
 		}
 
-		// we need a manager to set the substitute on, otherwise...
+		// we need a manager to add the substitute on, otherwise...
 		if (manager == null) {
+			return ResponseEntity.badRequest().build();
+		}
+		
+		OrgUnit orgUnit = orgUnitService.getByUuid(body.getOrgUnit().getUuid());
+		if (orgUnit == null) {
+			return ResponseEntity.badRequest().build();
+		}
+
+		User substitute = userService.getByUuid(body.getSubstitute().getUuid());
+		if (substitute == null) {
+			return ResponseEntity.badRequest().build();
+		}
+
+		// substitute cannot be the same as manager
+		if (Objects.equals(substitute.getUuid(), manager.getUuid())) {
 			return ResponseEntity.badRequest().build();
 		}
 
@@ -124,42 +155,29 @@ public class ManagerRestController {
 			return ResponseEntity.badRequest().build();
 		}
 
-		// only for managers and admins - not substitutes...
-		if (!SecurityUtil.hasRole(Constants.ROLE_MANAGER) && !SecurityUtil.hasRole(Constants.ROLE_ADMINISTRATOR)) {
+		// only admins can change on other users
+		if (!SecurityUtil.hasRole(Constants.ROLE_ADMINISTRATOR) && !Objects.equals(loggedInUser.getUuid(), manager.getUuid())) {
 			return ResponseEntity.badRequest().build();
 		}
 
-		User substitute = userService.getByUuid(personUuid); // null is clearing ;)
-		if (substitute != null && substitute.isDeleted()) {
-			substitute = null; // do not pick inactive substitutes
+		// check if substitute already assigned to selected orgUnit
+		if (manager.getManagerSubstitutes().stream().anyMatch(m -> m.getSubstitute().equals(substitute) && m.getOrgUnit().equals(orgUnit))) {
+			return ResponseEntity.badRequest().body(substitute.getName() + " er allerede tildelt som stedfortræder i " + orgUnit.getName());
 		}
 
-		auditLogger.log(manager, EventType.ADMIN_ASSIGNED_MANAGER_SUBSTITUTE, substitute);			
-
-		manager.setSubstituteAssignedBy((substitute != null) ? (loggedInUser.getName() + " (" + loggedInUser.getUserId() + ")") : null);
-		manager.setManagerSubstitute(substitute);
-		manager.setSubstituteAssignedTts(new Date());
+		auditLogger.log(manager, EventType.ADMIN_ASSIGNED_MANAGER_SUBSTITUTE, substitute);
+		
+		ManagerSubstitute managerSubstituteMapping = new ManagerSubstitute();
+		managerSubstituteMapping.setManager(manager);
+		managerSubstituteMapping.setSubstitute(substitute);
+		managerSubstituteMapping.setOrgUnit(orgUnit);
+		managerSubstituteMapping.setAssignedBy(loggedInUser.getName() + " (" + loggedInUser.getUserId() + ")");
+		managerSubstituteMapping.setAssignedTts(new Date());
+		
+		manager.getManagerSubstitutes().add(managerSubstituteMapping);
 
 		userService.save(manager);
 
-		// if a substitute was removed, we do not need to send an email
-		if (substitute == null) {
-			return new ResponseEntity<>(HttpStatus.OK);
-		}
-		
-		// inform the substitute by email
-		List<OrgUnit> orgUnits = orgUnitService.getByManagerMatchingUser(manager);
-		StringBuilder builder = new StringBuilder();
-		if (orgUnits != null && orgUnits.size() > 0) {
-			for (OrgUnit orgUnit : orgUnits) {
-				if (builder.length() > 0) {
-					builder.append(", ");
-				}
-				
-				builder.append(orgUnit.getName());
-			}
-		}
-		
 		String substituteEmail = substitute.getEmail();
 		if (substituteEmail != null) {
 			EmailTemplate template = emailTemplateService.findByTemplateType(EmailTemplateType.SUBSTITUTE);
@@ -168,18 +186,35 @@ public class ManagerRestController {
 				String title = template.getTitle();
 				title = title.replace(EmailTemplateService.RECEIVER_PLACEHOLDER, substitute.getName());
 				title = title.replace(EmailTemplateService.MANAGER_PLACEHOLDER, manager.getName());
-				title = title.replace(EmailTemplateService.ORGUNIT_PLACEHOLDER, builder.toString());
+				title = title.replace(EmailTemplateService.ORGUNIT_PLACEHOLDER, orgUnit.getName());
 
 				String message = template.getMessage();
 				message = message.replace(EmailTemplateService.RECEIVER_PLACEHOLDER, substitute.getName());
 				message = message.replace(EmailTemplateService.MANAGER_PLACEHOLDER, manager.getName());
-				message = message.replace(EmailTemplateService.ORGUNIT_PLACEHOLDER, builder.toString());
+				message = message.replace(EmailTemplateService.ORGUNIT_PLACEHOLDER, orgUnit.getName());
 				emailQueueService.queueEmail(substituteEmail, title, message, template, null);
 			}
 			else {
 				log.info("Email template with type " + template.getTemplateType() + " is disabled. Email was not sent.");
 			}
 		}
+
+		return new ResponseEntity<>(HttpStatus.OK);
+	}
+
+	@RequireAdministratorOrManagerRole
+	@PostMapping("/rest/manager/substitute/remove")
+	@ResponseBody
+	public ResponseEntity<?> removeSubstitute(@RequestBody ManagerSubstituteAssignmentDTO body) {
+		if (roleCatalogueConfiguration.getSubstituteManagerAPI().isEnabled()) {
+			return ResponseEntity.badRequest().build();
+		}
+
+		if (body == null) {
+			return ResponseEntity.badRequest().build();
+		}
+
+		managerSubstituteService.deleteById(body.getId());
 
 		return new ResponseEntity<>(HttpStatus.OK);
 	}

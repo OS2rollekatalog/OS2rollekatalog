@@ -14,6 +14,8 @@ import java.util.stream.Collectors;
 
 import javax.validation.Valid;
 
+import dk.digitalidentity.rc.dao.model.Domain;
+import dk.digitalidentity.rc.service.DomainService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -59,6 +61,9 @@ public class ItSystemApi {
 
 	@Autowired
 	private SystemRoleService systemRoleService;
+
+	@Autowired
+	private DomainService domainService;
 	
 	@GetMapping(value = "/api/itsystem/all")
 	public ResponseEntity<List<ItSystemDTO>> getAllItSystems() {
@@ -112,7 +117,7 @@ public class ItSystemApi {
 	}
 
 	@PostMapping(value = "/api/itsystem/manage/{id}")
-	public ResponseEntity<?> manageItSystem(@PathVariable("id") Long id, @RequestParam(name = "updateUserAssignments", required = false, defaultValue = "false") boolean updateUserAssignments, @RequestBody @Valid ItSystemWithSystemRolesDTO body) {
+	public ResponseEntity<?> manageItSystem(@PathVariable("id") Long id, @RequestParam(name = "updateUserAssignments", required = false, defaultValue = "false") boolean updateUserAssignments, @RequestParam(name = "domain", required = false) String domain, @RequestBody @Valid ItSystemWithSystemRolesDTO body) {
 		log.info("manage API on " + id + " called");
 		
 		ItSystem itSystem = itSystemService.getById(id);
@@ -126,6 +131,14 @@ public class ItSystemApi {
 
 		if (itSystem.getSystemType() != ItSystemType.AD && itSystem.getSystemType() != ItSystemType.SAML && itSystem.getSystemType() != ItSystemType.MANUAL) {
 			return new ResponseEntity<>(HttpStatus.FORBIDDEN);
+		}
+
+		// while normally not something we would set on non-AD it-systems, we still need to known which domain
+		// the users are coming from, so we have to do this check (we only get AD usernames for the users, not UUIDs)
+		Domain foundDomain = domainService.getDomainOrPrimary(domain);
+		if (foundDomain == null) {
+			log.warn("Unable to find a domain for it-system");
+			return new ResponseEntity<>(HttpStatus.NOT_FOUND);
 		}
 
 		List<SystemRole> existingSystemRoles = systemRoleService.getByItSystem(itSystem);
@@ -180,7 +193,7 @@ public class ItSystemApi {
 
 			Map<String, User> users = new HashMap<>();
 			if (containsUsers) {
-				for (User user : userService.getAll()) {
+				for (User user : userService.getByDomain(foundDomain)) {
 					users.put(user.getUserId().toLowerCase(), user);
 				}
 			}
@@ -309,7 +322,11 @@ public class ItSystemApi {
 	}
 
 	@GetMapping(value = "/api/itsystem/{id}/users")
-	public ResponseEntity<Set<String>> getUsersForItSystem(@PathVariable("id") String id) {
+	public ResponseEntity<Set<String>> getUsersForItSystem(@PathVariable("id") String id, @RequestParam(name = "domain", required = false) String domain) {
+		Domain foundDomain = domainService.getDomainOrPrimary(domain);
+		if (foundDomain == null) {
+			return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+		}
 		Set<String> result =  new HashSet<>();
 
 		ItSystem itSystem = null;
@@ -336,7 +353,7 @@ public class ItSystemApi {
 
 		List<UserRole> userRoles = userRoleService.getByItSystem(itSystem);
 		for (UserRole userRole : userRoles) {
-			Set<String> users = getUsersWithUserRole(userRole);
+			Set<String> users = getUsersWithUserRole(userRole, foundDomain);
 
 			result.addAll(users);
 		}
@@ -345,12 +362,12 @@ public class ItSystemApi {
 
 	}
 	
-	private Set<String> getUsersWithUserRole(UserRole userRole) {
+	private Set<String> getUsersWithUserRole(UserRole userRole, Domain domain) {
 		Set<String> users = new HashSet<>();
 
 		List<UserWithRole> usersWithRole = userService.getUsersWithUserRole(userRole, true);
 		for (UserWithRole userWithRole : usersWithRole) {
-			if (userWithRole.getUser().isDeleted() || userWithRole.getUser().isDisabled()) {
+			if (userWithRole.getUser().isDeleted() || userWithRole.getUser().isDisabled() || !Objects.equals(domain.getName(), userWithRole.getUser().getDomain().getName())) {
 				continue;
 			}
 

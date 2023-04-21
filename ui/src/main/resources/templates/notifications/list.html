@@ -43,10 +43,18 @@
 								</thead>
 								<tfoot style="display: table-row-group;">
 									<tr>
-										<th style="background-color: white;" class="input-filter"></th>
-										<th style="background-color: white;" class="input-filter"></th>
-										<th style="background-color: white;" class="input-filter"></th>
-										<th style="background-color: white;" class="input-filter"></th>
+										<th style="background-color: white;" class="input-filter"><input type="text" class="form-control input-sm" placeholder="Søg" /></th>
+										<td class="input-filter">
+											<select class="form-control input-sm">
+												<option selected="selected" value="">Alle</option>
+												<option th:each="type : ${notificationTypes}"
+														th:value="${type.notificationType}"
+														th:text="${type.message}">
+												</option>
+											</select>
+										</td>
+										<th style="background-color: white;" class="input-filter"><input type="text" class="form-control input-sm" placeholder="Søg" /></th>
+										<th style="background-color: white;" class="input-filter"><input type="text" class="form-control input-sm" placeholder="Søg" /></th>
 										<th style="background-color: white;"></th>
 									</tr>
 									
@@ -260,10 +268,6 @@
 			}
 			
 			this.initDatatables = function() {
-				// 1. Setup - add a text input to each footer cell
-				$('#listTable tfoot th[class = input-filter]').each( function () {
-					$(this).html('<input type="text" class="form-control input-sm" placeholder="Søg" />');
-				});
 
 				var table = $('#listTable').DataTable();
 
@@ -281,13 +285,12 @@
 			    	currentTable.draw();
 			    }
 				// 3. Apply the search
-				$.each($('.input-filter', table.table().footer()), function () {
+				$.each($('.input-filter', table.table().footer()), function() {
 					var column = table.column($(this).index());
-					$('input', this).on('keyup change', function () {
+
+					$('input, select', this).on('keyup change', function () {
 						if (column.search() !== this.value) {
-							column
-								.search(this.value)
-								.draw();
+							column.search(this.value).draw();
 						}
 					});
 				});

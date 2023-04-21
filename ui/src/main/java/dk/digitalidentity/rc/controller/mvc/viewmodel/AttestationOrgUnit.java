@@ -1,7 +1,10 @@
 package dk.digitalidentity.rc.controller.mvc.viewmodel;
 
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.List;
 
+import dk.digitalidentity.rc.dao.model.ManagerSubstitute;
 import dk.digitalidentity.rc.dao.model.OrgUnit;
 import dk.digitalidentity.rc.dao.model.Position;
 import lombok.Getter;
@@ -15,8 +18,7 @@ public class AttestationOrgUnit {
 	private String uuid;
 	private String managerName;
 	private String managerPosition;
-	private String substituteName;
-	private String substitutePosition;
+	private List<String> substitutes;
 	private String name;
 	private String lastAttestedBy;
 	private Date lastAttested;
@@ -47,12 +49,10 @@ public class AttestationOrgUnit {
 					managerPosition = ou.getManager().getPositions().get(0).getName() + " i " + ou.getManager().getPositions().get(0).getOrgUnit().getName();
 				}
 			}
-			
-			if (ou.getManager().getManagerSubstitute() != null) {
-				substituteName = ou.getManager().getManagerSubstitute().getName();
-				if (ou.getManager().getManagerSubstitute().getPositions().size() > 0) {
-					substitutePosition = ou.getManager().getManagerSubstitute().getPositions().get(0).getName() + " i " + ou.getManager().getManagerSubstitute().getPositions().get(0).getOrgUnit().getName();
-				}
+
+			substitutes = new ArrayList<>();
+			for (ManagerSubstitute ms : ou.getManager().getManagerSubstitutes()) {
+				substitutes.add(ms.getSubstitute().getName());
 			}
 		}
 		

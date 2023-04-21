@@ -11,6 +11,7 @@ namespace RoleCatalogueAttributeStore
         public string ApiKey { get; set; }
         public bool Debug { get; set; }
         public bool LogToEventLog { get; set; }
+        public string Domain { get; set; }
 
         private Configuration()
         {
@@ -53,6 +54,14 @@ namespace RoleCatalogueAttributeStore
             else
             {
                 LogToEventLog = false;
+            }
+
+            if (config.ContainsKey("Domain"))
+            {
+                ApiKey = config["Domain"];
+            } else
+            {
+                Domain = null;
             }
         }
 

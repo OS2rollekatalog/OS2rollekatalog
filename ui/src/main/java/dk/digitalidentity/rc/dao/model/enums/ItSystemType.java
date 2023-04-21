@@ -5,7 +5,8 @@ public enum ItSystemType {
 	SAML("html.enum.systemtype.saml"),
 	KOMBIT("html.enum.systemtype.kombit"),
 	MANUAL("html.enum.systemtype.manual"),
-	KSPCICS("html.enum.systemtype.kspcics");
+	KSPCICS("html.enum.systemtype.kspcics"),
+	NEMLOGIN("html.enum.systemtype.nemlogin");
 	
 	private String message;
 

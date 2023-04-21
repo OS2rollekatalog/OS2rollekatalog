@@ -114,6 +114,7 @@ public class UserRoleService {
 		return true;
 	}
 	
+	// TODO: bør man ikke filtere på hvilke systemer som brugeren faktisk kan anmode om?
 	public List<UserRole> whichRolesCanBeRequestedByUser(List<UserRole> roles, User user) {
 
 		// filter on canRequest

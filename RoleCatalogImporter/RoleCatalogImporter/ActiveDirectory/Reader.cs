@@ -155,6 +155,11 @@ namespace RoleCatalogImporter
                         searcher.PropertiesToLoad.Add(Properties.Settings.Default.CustomUUIDField);
                     }
 
+                    if (!string.IsNullOrEmpty(Properties.Settings.Default.NemLoginUUIDField))
+                    {
+                        searcher.PropertiesToLoad.Add(Properties.Settings.Default.NemLoginUUIDField);
+                    }
+
                     if (!string.IsNullOrEmpty(Properties.Settings.Default.UserEmailField))
                     {
                         searcher.PropertiesToLoad.Add(Properties.Settings.Default.UserEmailField);
@@ -181,6 +186,15 @@ namespace RoleCatalogImporter
                             {
                                 Guid guid = new Guid((byte[])res.Properties["objectGUID"][0]);
                                 uuid = guid.ToString().ToLower();
+                            }
+
+                            string nemLoginUuid = null;
+                            if (!string.IsNullOrEmpty(Properties.Settings.Default.NemLoginUUIDField))
+                            {
+                                if (res.Properties.Contains(Properties.Settings.Default.NemLoginUUIDField))
+                                {
+                                    nemLoginUuid = (string)res.Properties[Properties.Settings.Default.NemLoginUUIDField][0];
+                                }
                             }
 
                             string dn = (string)res.Properties["distinguishedname"][0];
@@ -270,6 +284,7 @@ namespace RoleCatalogImporter
                             user.UserId = userId;
                             user.Cpr = cpr;
                             user.Email = email;
+                            user.NemloginUuid = nemLoginUuid;
                             user.Disabled = disabled;
 
                             users.Add(user);

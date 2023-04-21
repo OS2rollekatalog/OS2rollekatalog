@@ -15,6 +15,7 @@ import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
+import dk.digitalidentity.rc.dao.model.Domain;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -85,15 +86,9 @@ public class OrganisationImporter {
 	@Autowired
 	private EmailQueueService emailQueueService;
 	
-	// TODO: this can be the only version we keep, once the following integrations are updated
-	//       - AD Sync
-	//       - SOFD V3 Sync
-	//       - SOFD Core Sync
-	//       - Frille Sync
-	//       - Aarhus Sync
-	//       - OS2mo Sync
 	@Transactional(rollbackFor = Exception.class)
-	public OrganisationImportResponse fullSync(OrganisationDTO organisation) throws Exception {
+	public OrganisationImportResponse fullSync(OrganisationDTO organisation, Domain domain) throws Exception {
+		boolean isPrimaryDomain = DomainService.isPrimaryDomain(domain);
 		events.set(new OrganisationChangeEvents());
 
 		try {
@@ -113,18 +108,22 @@ public class OrganisationImporter {
 			mapOrganisation(organisation, newUsers, newOrgUnits);
 
 			// read existing data from database
-			List<User> existingUsers = userService.getAllIncludingInactive();			
+			List<User> existingUsers = userService.getAllIncludingInactive(domain);
 			List<OrgUnit> existingOrgUnits = orgUnitService.getAllIncludingInactive();
 
-			// this modifies existingOrgUnits, so it now contains everything
-			processOrgUnits(newOrgUnits, existingOrgUnits, response);
+			// this modifies existingOrgUnits, so it now contains everything - only if primary domain
+			if (isPrimaryDomain) {
+				processOrgUnits(newOrgUnits, existingOrgUnits, response);
+			}
 
 			// this modifies existingUsers, so it now contains everything
-			processUsers(newUsers, existingUsers, existingOrgUnits, response, false);
+			processUsers(newUsers, existingUsers, existingOrgUnits, response, false, domain);
 
-			// both existing OrgUnits and Users have been merged with new OrgUnits and Users at this point
-			setManagers(organisation.getOrgUnits(), existingOrgUnits, existingUsers);
-	
+			// both existing OrgUnits and Users have been merged with new OrgUnits and Users at this point - only if primary domain
+			if (isPrimaryDomain) {
+				setManagers(organisation.getOrgUnits(), existingOrgUnits, existingUsers);
+			}
+
 			// if everything went okay so far, fire of all collected events
 			processEvents();
 			
@@ -136,7 +135,7 @@ public class OrganisationImporter {
 	}
 
 	@Transactional(rollbackFor = Exception.class)
-	public OrganisationImportResponse deltaSync(List<UserDTO> users) throws Exception {
+	public OrganisationImportResponse deltaSync(List<UserDTO> users, Domain domain) throws Exception {
 		events.set(new OrganisationChangeEvents());
 		
 		try {
@@ -163,14 +162,14 @@ public class OrganisationImporter {
 			// read existing data from database (optimize by size)
 			List<User> existingUsers = null;
 			if (newUsers.size() < 50) {
-				existingUsers = userService.getAllByExtUuidIncludingInactive(newUsers.stream().map(u -> u.getExtUuid()).collect(Collectors.toSet()));
+				existingUsers = userService.getAllByExtUuidIncludingInactive(domain, newUsers.stream().map(u -> u.getExtUuid()).collect(Collectors.toSet()));
 			}
 			else {
-				existingUsers = userService.getAllIncludingInactive();				
+				existingUsers = userService.getAllIncludingInactive(domain);
 			}
 
 			// this modifies existingUsers, so it now contains everything
-			processUsers(newUsers, existingUsers, existingOrgUnits, response, true);
+			processUsers(newUsers, existingUsers, existingOrgUnits, response, true, domain);
 
 			// if everything went okay so far, fire of all collected events
 			processEvents();
@@ -293,6 +292,7 @@ public class OrganisationImporter {
 		User user = new User();
 		user.setDeleted(false);
 		user.setEmail(userDTO.getEmail());
+		user.setNemloginUuid(userDTO.getNemloginUuid());
 		user.setExtUuid(userDTO.getExtUuid());
 		user.setLastUpdated(new Date());
 		user.setName(userDTO.getName());
@@ -528,12 +528,12 @@ public class OrganisationImporter {
 	}
 
 	
-	private void processUsers(List<User> newUsers, List<User> existingUsers, List<OrgUnit> existingOrgUnits, OrganisationImportResponse response, boolean deltaSync) {
+	private void processUsers(List<User> newUsers, List<User> existingUsers, List<OrgUnit> existingOrgUnits, OrganisationImportResponse response, boolean deltaSync, Domain domain) {
 		List<User> toBeCreated = new ArrayList<>();
 		List<User> toBeUpdated = new ArrayList<>();
 		List<User> toBeDeleted = new ArrayList<>();
 		
-		identifyUserChanges(newUsers, existingUsers, toBeCreated, toBeUpdated, toBeDeleted, deltaSync);
+		identifyUserChanges(newUsers, existingUsers, toBeCreated, toBeUpdated, toBeDeleted, domain, deltaSync);
 		
 		response.setUsersCreated(toBeCreated.size());
 		response.setUsersDeleted(toBeDeleted.size());
@@ -585,6 +585,7 @@ public class OrganisationImporter {
 						}
 
 						existingUser.setEmail(userToUpdate.getEmail());
+						existingUser.setNemloginUuid(userToUpdate.getNemloginUuid());
 						existingUser.setLastUpdated(new Date());
 						existingUser.setName(userToUpdate.getName());
 						existingUser.setPhone(userToUpdate.getPhone());
@@ -608,59 +609,62 @@ public class OrganisationImporter {
 							}
 						}
 
-						if (differentPositions(userToUpdate, existingUser)) {
-							
-							UserMovedPositions movedPositionEvent = null;
-							if (!existingUser.getUserRoleAssignments().isEmpty() || !existingUser.getRoleGroupAssignments().isEmpty()) {
-								movedPositionEvent = new UserMovedPositions();
-								movedPositionEvent.setUser(userToUpdate);
-							}
-							
-							// do the switcheroo to make Hibernate happy on all the userToUpdate's positions
-							for (Position userToUpdatePosition : userToUpdate.getPositions()) {
-								for (OrgUnit existingOrgUnit : existingOrgUnits) {
-									if (userToUpdatePosition.getOrgUnit().getUuid().equals(existingOrgUnit.getUuid())) {
-										checkOrgUnitForNewTitles(userToUpdatePosition, existingOrgUnit);
-										
-										userToUpdatePosition.setOrgUnit(existingOrgUnit);
+						// only update positions if user is from primary domain
+						if (DomainService.isPrimaryDomain(domain)) {
+							if (differentPositions(userToUpdate, existingUser)) {
 
-										break;
+								UserMovedPositions movedPositionEvent = null;
+								if (!existingUser.getUserRoleAssignments().isEmpty() || !existingUser.getRoleGroupAssignments().isEmpty()) {
+									movedPositionEvent = new UserMovedPositions();
+									movedPositionEvent.setUser(existingUser);
+								}
+
+								// do the switcheroo to make Hibernate happy on all the userToUpdate's positions
+								for (Position userToUpdatePosition : userToUpdate.getPositions()) {
+									for (OrgUnit existingOrgUnit : existingOrgUnits) {
+										if (userToUpdatePosition.getOrgUnit().getUuid().equals(existingOrgUnit.getUuid())) {
+											checkOrgUnitForNewTitles(userToUpdatePosition, existingOrgUnit);
+
+											userToUpdatePosition.setOrgUnit(existingOrgUnit);
+
+											break;
+										}
+									}
+
+									userToUpdatePosition.setUser(existingUser);
+								}
+
+								// if there are new positions add them to existing object
+								for (Position newPosition : userToUpdate.getPositions()) {
+									if (!containsPosition(newPosition, existingUser.getPositions())) {
+										checkOrgUnitForNewTitles(newPosition, newPosition.getOrgUnit());
+										addPosition(existingUser, newPosition);
+
+										if (movedPositionEvent != null) {
+											movedPositionEvent.getNewPositions().add(new MovedPostion(newPosition.getOrgUnit().getName(), newPosition.getName()));
+										}
 									}
 								}
-								
-								userToUpdatePosition.setUser(existingUser);
-							}
 
-							// if there are new positions add them to existing object
-							for (Position newPosition : userToUpdate.getPositions()) {
-								if (!containsPosition(newPosition, existingUser.getPositions())) {
-									checkOrgUnitForNewTitles(newPosition, newPosition.getOrgUnit());
-									addPosition(existingUser, newPosition);
-									
-									if (movedPositionEvent != null) {
-										movedPositionEvent.getNewPositions().add(new MovedPostion(newPosition.getOrgUnit().getName(), newPosition.getName()));
+								// remove if existing user has positions that are not in the new one
+								List<Position> positionsToRemove = new ArrayList<>();
+								for (Position existingPosition : existingUser.getPositions()) {
+									if (!containsPosition(existingPosition, userToUpdate.getPositions())) {
+										positionsToRemove.add(existingPosition);
+
+										if (movedPositionEvent != null) {
+											movedPositionEvent.getOldPositions().add(new MovedPostion(existingPosition.getOrgUnit().getName(), existingPosition.getName()));
+										}
 									}
 								}
-							}
 
-							// remove if existing user has positions that are not in the new one
-							List<Position> positionsToRemove = new ArrayList<>();
-							for (Position existingPosition : existingUser.getPositions()) {
-								if (!containsPosition(existingPosition, userToUpdate.getPositions())) {
-									positionsToRemove.add(existingPosition);
-									
-									if (movedPositionEvent != null) {
-										movedPositionEvent.getOldPositions().add(new MovedPostion(existingPosition.getOrgUnit().getName(), existingPosition.getName()));
-									}
+								for (Position positionToRemove : positionsToRemove) {
+									userService.removePosition(existingUser, positionToRemove);
 								}
-							}
 
-							for (Position positionToRemove : positionsToRemove) {
-								userService.removePosition(existingUser, positionToRemove);
-							}
-							
-							if (movedPositionEvent != null && !movedPositionEvent.getNewPositions().isEmpty() && !movedPositionEvent.getOldPositions().isEmpty()) {
-								events.get().getUsersMovedPostions().add(movedPositionEvent);
+								if (movedPositionEvent != null && !movedPositionEvent.getNewPositions().isEmpty() && !movedPositionEvent.getOldPositions().isEmpty()) {
+									events.get().getUsersMovedPostions().add(movedPositionEvent);
+								}
 							}
 						}
 
@@ -698,6 +702,8 @@ public class OrganisationImporter {
 				UserDeletedEvent userDeletedEvent = new UserDeletedEvent();
 				userDeletedEvent.setUser(userToDelete);
 				userDeletedEvent.setEmail(itSystem.getEmail());
+				userDeletedEvent.setItSystemName(itSystem.getName());
+
 				events.get().getDeletedUsers().add(userDeletedEvent);
 			}
 		}
@@ -802,7 +808,7 @@ public class OrganisationImporter {
 	}
 	
 	
-	private void identifyUserChanges(List<User> newUsers, List<User> existingUsers, List<User> toBeCreated, List<User> toBeUpdated, List<User> toBeDeleted, boolean deltaSync) {
+	private void identifyUserChanges(List<User> newUsers, List<User> existingUsers, List<User> toBeCreated, List<User> toBeUpdated, List<User> toBeDeleted, Domain domain, boolean deltaSync) {
 		// find those that needs to be created or updated
 		for (User newUser : newUsers) {
 			boolean found = false;
@@ -829,10 +835,13 @@ public class OrganisationImporter {
 					else if (differentEmail(newUser, existingUser)) {
 						toBeUpdated.add(newUser);
 					}
+					else if (!Objects.equals(existingUser.getNemloginUuid(), newUser.getNemloginUuid())) {
+						toBeUpdated.add(newUser);
+					}
 					else if (!configuration.getIntegrations().getKle().isUiEnabled() && hasKleChanges(newUser, existingUser)) {
 						toBeUpdated.add(newUser);
 					}
-					else if (differentPositions(newUser, existingUser)) {
+					else if (DomainService.isPrimaryDomain(domain) && differentPositions(newUser, existingUser)) {
 						toBeUpdated.add(newUser);
 					}
 					else if (existingUser.isDisabled() != newUser.isDisabled()) {
@@ -847,6 +856,7 @@ public class OrganisationImporter {
 				User userToCreate = new User();
 				userToCreate.setDeleted(false);
 				userToCreate.setEmail(newUser.getEmail());
+				userToCreate.setNemloginUuid(newUser.getNemloginUuid());
 				userToCreate.setExtUuid(newUser.getExtUuid());
 				userToCreate.setKles(newUser.getKles());
 				userToCreate.setName(newUser.getName());
@@ -857,9 +867,15 @@ public class OrganisationImporter {
 				userToCreate.setUserRoleAssignments(new ArrayList<>());
 				userToCreate.setPositions(new ArrayList<>());
 				userToCreate.setDisabled(newUser.isDisabled());
-				for (Position p : newUser.getPositions()) {
-					addPosition(userToCreate, p);
+				userToCreate.setDomain(domain);
+
+				// only add positions if the user is from the primary domain
+				if (DomainService.isPrimaryDomain(domain)) {
+					for (Position p : newUser.getPositions()) {
+						addPosition(userToCreate, p);
+					}
 				}
+
 
 				toBeCreated.add(userToCreate);
 			}

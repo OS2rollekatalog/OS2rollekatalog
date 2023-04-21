@@ -65,6 +65,7 @@ namespace RoleCatalogImporter
                     user.userId = u.UserId;
                     user.positions = new List<Position>();
                     user.disabled = u.Disabled;
+                    user.nemloginUuid = u.NemloginUuid;
 
                     string suffix = u.Dn.ToLower();
                     int idx = suffix.IndexOf(",ou=");
