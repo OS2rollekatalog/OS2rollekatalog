@@ -8,6 +8,7 @@ import lombok.Data;
 
 @Data
 public class EditSystemRoleRow {
+	private long id;
 	private SystemRole systemRole;
 	private boolean checked;
 	private HashMap<String, SystemRoleAssignmentConstraintValue> selectedConstraints = new HashMap<>();

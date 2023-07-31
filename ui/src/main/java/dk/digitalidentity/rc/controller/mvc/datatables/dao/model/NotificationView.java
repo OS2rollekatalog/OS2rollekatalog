@@ -15,8 +15,8 @@ import lombok.Setter;
 
 @Getter
 @Setter
-@Entity(name = "view_notifications_inactive")
-public class NotificationViewInactive {
+@Entity(name = "view_notifications")
+public class NotificationView {
 
 	@Id
 	@GeneratedValue(strategy = GenerationType.AUTO)

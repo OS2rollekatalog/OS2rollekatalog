@@ -8,6 +8,7 @@
 		<tr>
 			<th class="col-md-3" th:text="#{html.entity.user.name}"></th>
 			<th class="col-md-1" th:text="#{html.entity.user.userId}"></th>
+			<th class="col-md-1" th:text="#{html.enum.assignmenttype}"></th>
 			<th class="col-md-1" th:text="#{html.word.validity}"></th>
 			<th class="col-md-5" th:text="#{html.entity.user.positions}"></th>
 			<th class="col-md-1" th:text="#{html.control.operations}"></th>
@@ -18,6 +19,8 @@
 		<tr th:each="mapping : ${userRoleMapping}">
 			<td th:text="${mapping.userName}"></td>
 			<td th:text="${mapping.userUserId}"></td>
+
+			<td th:text="#{__${mapping.assignment.assignedThrough.message}__}"></td>
 
 			<td>
 				<ul th:if="${mapping.assignment.startDate != null or mapping.assignment.stopDate != null}" style="padding-left: 0px; list-style-type: none; margin-bottom: 0px;">

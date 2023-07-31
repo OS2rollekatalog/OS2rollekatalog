@@ -8,6 +8,8 @@ import lombok.Setter;
 @Setter
 public class UserDeletedEvent {
 	private User user;
-	private String email;
 	private String itSystemName;
+
+	// can be more than one email separated with ;
+	private String email;
 }

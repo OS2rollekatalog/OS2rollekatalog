@@ -9,8 +9,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import dk.digitalidentity.rc.dao.model.Domain;
-import dk.digitalidentity.rc.service.DomainService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -24,16 +22,17 @@ import org.springframework.web.bind.annotation.RestController;
 import dk.digitalidentity.rc.controller.api.dto.UserResponseDTO;
 import dk.digitalidentity.rc.controller.api.dto.UserResponseWithOIOBPPDTO;
 import dk.digitalidentity.rc.controller.api.dto.UserResponseWithRolesDTO;
+import dk.digitalidentity.rc.dao.model.Domain;
 import dk.digitalidentity.rc.dao.model.ItSystem;
 import dk.digitalidentity.rc.dao.model.SystemRole;
 import dk.digitalidentity.rc.dao.model.SystemRoleAssignment;
 import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserRole;
 import dk.digitalidentity.rc.dao.model.enums.EventType;
-import dk.digitalidentity.rc.dao.model.enums.ItSystemType;
 import dk.digitalidentity.rc.exceptions.UserNotFoundException;
 import dk.digitalidentity.rc.log.AuditLogger;
 import dk.digitalidentity.rc.security.RequireApiReadAccessRole;
+import dk.digitalidentity.rc.service.DomainService;
 import dk.digitalidentity.rc.service.ItSystemService;
 import dk.digitalidentity.rc.service.SystemRoleService;
 import dk.digitalidentity.rc.service.UserService;
@@ -96,46 +95,6 @@ public class UserApi {
 		}
 		catch (UserNotFoundException ex) {
 			log.warn("could not find roles for " + userId + " for itSystem: " + itSystemIdentifier + ". Exception message: " + ex.getMessage());
-			return new ResponseEntity<>(HttpStatus.NOT_FOUND);
-		}
-
-		return new ResponseEntity<>(response, HttpStatus.OK);
-	}
-	
-	@RequestMapping(value = "/api/user/{userid}/nemloginRoles", method = RequestMethod.GET)
-	public ResponseEntity<?> getNemLoginRoles(@PathVariable("userid") String userId, @RequestParam(name = "domain", required = false) String domain) throws Exception {
-		List<ItSystem> itSystems = itSystemService.getBySystemType(ItSystemType.NEMLOGIN);
-		if (itSystems == null || itSystems.size() != 1) {
-			log.warn("Could not find a unique NEMLOGIN it-system (either 0 or > 1 was found!). Can't return nemloginRoles");
-			return new ResponseEntity<>("Could not find a unique NEMLOGIN it-system (either 0 or > 1 was found!)", HttpStatus.BAD_REQUEST);
-		}
-		
-		ItSystem itSystem = itSystems.get(0);
-
-		Domain foundDomain = domainService.getDomainOrPrimary(domain);
-		if (foundDomain == null) {
-			return new ResponseEntity<>(HttpStatus.NOT_FOUND);
-		}
-
-		User user = getUser(userId, foundDomain);
-		if (user == null) {
-			log.warn("could not find user: " + userId);
-			return new ResponseEntity<>(HttpStatus.NOT_FOUND);
-		}
-		
-		UserResponseWithOIOBPPDTO response = new UserResponseWithOIOBPPDTO();
-
-		try {
-			Map<String, String> roleMap = new HashMap<>();
-			String oioBpp = userService.generateNemLoginOIOBPP(user, roleMap);
-			
-			response.setOioBPP(oioBpp);
-			response.setRoleMap(roleMap);
-
-			auditLogger.log(user, EventType.LOGIN_EXTERNAL, itSystem);
-		}
-		catch (UserNotFoundException ex) {
-			log.warn("could not find roles for " + userId + " for itSystem: " + itSystem.getIdentifier() + ". Exception message: " + ex.getMessage());
 			return new ResponseEntity<>(HttpStatus.NOT_FOUND);
 		}
 

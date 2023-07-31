@@ -34,6 +34,7 @@
 							<table id="listTable" class="table table-striped table-hover listTable">
 								<thead>
 									<tr>
+										<th style="display: none;" th:text="#{html.entity.notification.active}"></th>
 										<th class="col-md-2" th:text="#{html.entity.notification.created}"></th>
 										<th class="col-md-3" th:text="#{html.entity.notification.notificationType}"></th>
 										<th class="col-md-3" th:text="#{html.entity.notification.affectedEntity}"></th>
@@ -43,21 +44,13 @@
 								</thead>
 								<tfoot style="display: table-row-group;">
 									<tr>
-										<th style="background-color: white;" class="input-filter"><input type="text" class="form-control input-sm" placeholder="Søg" /></th>
-										<td class="input-filter">
-											<select class="form-control input-sm">
-												<option selected="selected" value="">Alle</option>
-												<option th:each="type : ${notificationTypes}"
-														th:value="${type.notificationType}"
-														th:text="${type.message}">
-												</option>
-											</select>
-										</td>
-										<th style="background-color: white;" class="input-filter"><input type="text" class="form-control input-sm" placeholder="Søg" /></th>
-										<th style="background-color: white;" class="input-filter"><input type="text" class="form-control input-sm" placeholder="Søg" /></th>
-										<th style="background-color: white;"></th>
+										<td style="display: none;"></td>
+										<td></td>
+										<td></td>
+										<td></td>
+										<td></td>
+										<td></td>
 									</tr>
-									
 								</tfoot>
 								<tbody>
 								</tbody>
@@ -118,15 +111,24 @@
 		var currentTable;
 		$(document).ready(function() {
 			notificationService = new NotificationService();
-			notificationService.loadDataTables(false);
-			notificationService.initDatatables();
-			
+
+			// find potential saved search
+			var datatableState = localStorage.getItem('DataTables_listTable_/ui/notifications/list');
+			if (datatableState == null) {
+				notificationService.loadDataTables(false, "");
+			} else {
+				var asObject = JSON.parse(datatableState);
+				var searchFor = asObject.columns[2].search.search;
+				notificationService.loadDataTables(false, searchFor);
+			}
+
 			$('input[type=radio][name=showInactive]').change(function() {
+				var selectedValue = $("#notificationTypeSelect").val();
 				if (this.value == 'true') {
-					notificationService.loadDataTables(true);
+					notificationService.loadDataTables(true, selectedValue);
 				}
 				else {
-					notificationService.loadDataTables(false);
+					notificationService.loadDataTables(false, selectedValue);
 				}
 			});
 		});
@@ -177,7 +179,8 @@
 							contentType: 'application/json',
 							data: '',
 							success: function(data, textStatus, jQxhr) {
-								notificationService.loadDataTables(status);
+								var selectedValue = $("#notificationTypeSelect").val();
+								notificationService.loadDataTables(status, selectedValue);
 							},
 							error: function(jqXhr, textStatus, errorThrown) {
 								$.notify({
@@ -192,7 +195,7 @@
 				});
 			}
 			
-			this.loadDataTables = function(showInactive) {
+			this.loadDataTables = function(showInactive, selectedValue) {
 				currentTable = $('.listTable').DataTable({
 					'destroy': true,
 					'stateSave': true,
@@ -210,6 +213,12 @@
 					},
 					'serverSide' : true,
 					'columns' : [
+						{
+							data : 'active',
+							orderable: false,
+							searchable: true,
+							visible: false
+						},
 						{
 							data : 'created'
 						},
@@ -263,39 +272,30 @@
 							"next": nextTxt,
 							"previous": prevTxt
 						}
+					},
+					initComplete: function () {
+						this.api().columns([2]).every(function() {
+							var column = this;
+							var select = $('<select class="ui-state-default" id="notificationTypeSelect"><option value="">Vis alle</option></select>')
+								.appendTo($(column.footer()).empty())
+								.on('change', function() {
+									column.search($(this).val(), false, true).draw();
+								}
+							);
+
+							for (var key in typesMap) {
+								select.append('<option value="' + key + '">' + typesMap[key] + '</option>');
+							}
+
+							if (selectedValue != null) {
+								$("#notificationTypeSelect").val(selectedValue);
+							}
+
+						});
 					}
 				});
 			}
-			
-			this.initDatatables = function() {
 
-				var table = $('#listTable').DataTable();
-
-			    // 2. Restore state
-			    var state = currentTable.state.loaded(); 
-			    if (state) {
-			    	currentTable.columns().eq(0).each(function(colIdx) {
-			        var colSearch = state.columns[colIdx].search;
-			        
-			        if (colSearch.search) {
-			          $('input', currentTable.column(colIdx).footer()).val(colSearch.search);
-			        }
-			      });
-
-			    	currentTable.draw();
-			    }
-				// 3. Apply the search
-				$.each($('.input-filter', table.table().footer()), function() {
-					var column = table.column($(this).index());
-
-					$('input, select', this).on('keyup change', function () {
-						if (column.search() !== this.value) {
-							column.search(this.value).draw();
-						}
-					});
-				});
-			}
-			
 			this.changeStatus = function(id, status){
 				swal({
 					html : true,
@@ -322,7 +322,8 @@
 							contentType: 'application/json',
 							data: '',
 							success: function(data, textStatus, jQxhr) {
-								notificationService.loadDataTables(status);
+								var selectedValue = $("#notificationTypeSelect").val();
+								notificationService.loadDataTables(status, selectedValue);
 							},
 							error: function(jqXhr, textStatus, errorThrown) {
 								$.notify({

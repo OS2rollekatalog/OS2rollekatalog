@@ -224,7 +224,11 @@
 				        },
 						data: roleGroup,
 						error: function(response) {
-							notificationService.showErrorNotification(fieldNotUpdatedMsg);
+							if (response.responseText != null) {
+								notificationService.showErrorNotification(response.responseText);
+							} else {
+								notificationService.showErrorNotification(fieldNotUpdatedMsg);
+							}
 		    			},
 		    			success: function(response) {
 		    				notificationService.showInfoNotification(fieldUpdatedMsg);

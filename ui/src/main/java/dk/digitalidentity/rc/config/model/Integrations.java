@@ -13,4 +13,5 @@ public class Integrations {
 	private Email email = new Email();
 	private AppManager appManager = new AppManager();
 	private NemLogin nemLogin = new NemLogin();
+	private Cvr cvr = new Cvr();
 }

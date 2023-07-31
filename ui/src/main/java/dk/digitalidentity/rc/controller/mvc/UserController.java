@@ -7,6 +7,8 @@ import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
+import dk.digitalidentity.rc.service.PNumberService;
+import dk.digitalidentity.rc.service.SENumberService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.access.AccessDeniedException;
@@ -95,6 +97,12 @@ public class UserController {
 
 	@Autowired
 	private DomainService domainService;
+
+	@Autowired
+	private SENumberService seNumberService;
+
+	@Autowired
+	private PNumberService pNumberService;
     
     @Value("#{servletContext.contextPath}")
     private String servletContextPath;
@@ -373,6 +381,7 @@ public class UserController {
 			
 			model.addAttribute("systemRoleAssignments", systemRoleAssignmentsDTOs);
 			model.addAttribute("postponingAllowed", false);
+			model.addAttribute("itSystemList", select2Service.getItSystemList());
 
 			return "users/fragments/assign_user_role_postponed_data_constraints :: postponedConstraints";
 		}
@@ -398,6 +407,12 @@ public class UserController {
 		
 		model.addAttribute("systemRoleAssignments", systemRoleAssignmentsDTOs);
 		model.addAttribute("postponingAllowed", role.isAllowPostponing());
+		model.addAttribute("itSystemList", select2Service.getItSystemList());
+
+		if (role.getItSystem().getSystemType().equals(ItSystemType.NEMLOGIN)) {
+			model.addAttribute("pNumberList", pNumberService.getAll());
+			model.addAttribute("sENumberList", seNumberService.getAll());
+		}
 		
 		return "users/fragments/assign_user_role_postponed_data_constraints :: postponedConstraints";
 	}
@@ -413,6 +428,7 @@ public class UserController {
 			
 			model.addAttribute("systemRoleAssignments", systemRoleAssignmentsDTOs);
 			model.addAttribute("postponingAllowed", false);
+			model.addAttribute("itSystemList", select2Service.getItSystemList());
 			
 			return "users/fragments/assign_user_role_postponed_data_constraints :: postponedConstraints";
 		}
@@ -423,6 +439,7 @@ public class UserController {
 			
 			model.addAttribute("systemRoleAssignments", systemRoleAssignmentsDTOs);
 			model.addAttribute("postponingAllowed", false);
+			model.addAttribute("itSystemList", select2Service.getItSystemList());
 			
 			return "users/fragments/assign_user_role_postponed_data_constraints :: postponedConstraints";
 		}
@@ -457,6 +474,12 @@ public class UserController {
 		
 		model.addAttribute("systemRoleAssignments", systemRoleAssignmentsDTOs);
 		model.addAttribute("postponingAllowed", role.isAllowPostponing());
+		model.addAttribute("itSystemList", select2Service.getItSystemList());
+
+		if (role.getItSystem().getSystemType().equals(ItSystemType.NEMLOGIN)) {
+			model.addAttribute("pNumberList", pNumberService.getAll());
+			model.addAttribute("sENumberList", seNumberService.getAll());
+		}
 		
 		return "users/fragments/assign_user_role_postponed_data_constraints :: postponedConstraints";
 	}

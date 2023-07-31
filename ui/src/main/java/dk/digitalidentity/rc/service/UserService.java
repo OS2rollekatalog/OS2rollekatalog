@@ -10,13 +10,11 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import dk.digitalidentity.rc.dao.model.Domain;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.EnableCaching;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -34,6 +32,7 @@ import dk.digitalidentity.rc.dao.RoleGroupDao;
 import dk.digitalidentity.rc.dao.UserDao;
 import dk.digitalidentity.rc.dao.UserRoleGroupAssignmentDao;
 import dk.digitalidentity.rc.dao.UserUserRoleAssignmentDao;
+import dk.digitalidentity.rc.dao.model.Domain;
 import dk.digitalidentity.rc.dao.model.ItSystem;
 import dk.digitalidentity.rc.dao.model.ManagerSubstitute;
 import dk.digitalidentity.rc.dao.model.OrgUnit;
@@ -59,7 +58,6 @@ import dk.digitalidentity.rc.dao.model.enums.ConstraintValueType;
 import dk.digitalidentity.rc.dao.model.enums.EventType;
 import dk.digitalidentity.rc.dao.model.enums.ItSystemType;
 import dk.digitalidentity.rc.dao.model.enums.KleType;
-import dk.digitalidentity.rc.dao.model.enums.NemLoginConstraintType;
 import dk.digitalidentity.rc.exceptions.UserNotFoundException;
 import dk.digitalidentity.rc.log.AuditLogIntercepted;
 import dk.digitalidentity.rc.log.AuditLogger;
@@ -140,12 +138,6 @@ public class UserService {
 	private UserService self;
 	
 	@Autowired
-	private UserRoleService userRoleService;
-	
-	@Autowired
-	private RoleGroupService roleGroupService;
-
-	@Autowired
 	private DomainService domainService;
 
 	// dao methods
@@ -158,6 +150,10 @@ public class UserService {
 		userDao.saveAll(list);
 	}
 
+	public void delete(User user) {
+		userDao.delete(user);
+	}
+	
 	public long countAllWithRoleGroup(RoleGroup role) {
 		return userDao.countByDeletedFalseAndRoleGroupAssignmentsRoleGroup(role);
 	}
@@ -231,6 +227,14 @@ public class UserService {
 
 	public List<User> getAllInactive() {
 		return userDao.findByDeletedTrue();
+	}
+
+	public List<User> getAllWithNemLoginUuid() {
+		return userDao.findByNemloginUuidNotNull();
+	}
+
+	public List<String> getAllUuidsWithNemLoginUuid() {
+		return userDao.findUuidByNemloginUuidNotNull();
 	}
 
 	// utility methods
@@ -1726,7 +1730,7 @@ public class UserService {
 		for (User user : userDao.findByDeletedFalseAndRoleGroupAssignmentsRoleGroupAndRoleGroupAssignmentsInactive(roleGroup, false)) {
 			UserWithRole mapping = new UserWithRole();
 			mapping.setUser(user);
-			mapping.setAssignedThrough(AssignedThrough.ROLEGROUP);
+			mapping.setAssignedThrough(AssignedThrough.DIRECT);
 
 			result.add(mapping);
 		}
@@ -1931,7 +1935,9 @@ public class UserService {
 							case POSTPONED:
 								if (userRoleWithPostponedConstraints.getPostponedConstraints() != null) {
 									for (PostponedConstraint postponedConstraint : userRoleWithPostponedConstraints.getPostponedConstraints()) {
-										if (postponedConstraint.getConstraintType().getId() == constraint.getConstraintType().getId()) {
+										if (postponedConstraint.getConstraintType().getId() == constraint.getConstraintType().getId() &&
+											postponedConstraint.getSystemRole().getId() == constraint.getSystemRoleAssignment().getSystemRole().getId()) {
+											
 											constraintValue.append(postponedConstraint.getValue());
 										}
 									}
@@ -1966,95 +1972,6 @@ public class UserService {
 		}
 
 		return result;
-	}
-	
-	public String generateNemLoginOIOBPP(User user, Map<String, String> roleMap) throws UserNotFoundException {
-		StringBuilder builder = new StringBuilder();
-		builder.append("<?xml version=\"1.0\" encoding=\"UTF-8\"?>");
-		builder.append("<bpp:PrivilegeList xmlns:bpp=\"http://digst.dk/oiosaml/basic_privilege_profile\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" >");
-		
-		Map<String, Set<String>> map = new HashMap<String, Set<String>>();
-		List<RoleAssignedToUserDTO> assignments = getAllUserRoleAndRoleGroupAssignments(user);
-		for (RoleAssignedToUserDTO assignment : assignments) {
-			if (assignment.getType() == RoleAssignmentType.USERROLE) {
-				if (assignment.getItSystem().getSystemType().equals(ItSystemType.NEMLOGIN)) {
-					UserRole userRole = userRoleService.getById(assignment.getRoleId());
-					if (userRole == null) {
-						continue;
-					}
-					
-					roleMap.put(userRole.getIdentifier(), userRole.getName() + " (" + userRole.getItSystem().getName() + ")");
-					if (userRole.getNemloginConstraintType().equals(NemLoginConstraintType.NONE)) {
-						if (!map.containsKey("NONE")) {
-							map.put("NONE", new HashSet<String>());
-						}
-						
-						map.get("NONE").add(userRole.getIdentifier());
-					}
-					else {
-						if (!map.containsKey(userRole.getNemloginConstraintValue())) {
-							map.put(userRole.getNemloginConstraintValue(), new HashSet<String>());
-						}
-
-						map.get(userRole.getNemloginConstraintValue()).add(userRole.getIdentifier());
-					}
-				}
-			}
-			else if (assignment.getType() == RoleAssignmentType.ROLEGROUP) {
-				RoleGroup roleGroup = roleGroupService.getById(assignment.getRoleId());
-				if (roleGroup == null) {
-					continue;
-				}
-				
-				for (RoleGroupUserRoleAssignment userRoleAssignment : roleGroup.getUserRoleAssignments()) {
-					UserRole userRole = userRoleAssignment.getUserRole();
-					if (userRole.getItSystem().getSystemType().equals(ItSystemType.NEMLOGIN)) {
-						roleMap.put(userRole.getIdentifier(), userRole.getName() + " (" + userRole.getItSystem().getName() + ")");
-						
-						if (userRole.getNemloginConstraintType().equals(NemLoginConstraintType.NONE)) {
-							if (!map.containsKey("NONE")) {
-								map.put("NONE", new HashSet<String>());
-							}
-							
-							map.get("NONE").add(userRole.getIdentifier());
-						}
-						else {
-							if (!map.containsKey(userRole.getNemloginConstraintValue())) {
-								map.put(userRole.getNemloginConstraintValue(), new HashSet<String>());
-							}
-
-							map.get(userRole.getNemloginConstraintValue()).add(userRole.getIdentifier());
-						}
-					}
-				}
-			}
-		}
-		
-		for (Entry<String, Set<String>> entry : map.entrySet()) {
-			if (entry.getKey().equals("NONE")) {
-				builder.append("<PrivilegeGroup Scope=\"urn:dk:gov:saml:cvrNumberIdentifier:" + configuration.getCustomer().getCvr() + "\">");
-			}
-			else if (entry.getKey().length() == 8) {
-				builder.append("<PrivilegeGroup Scope=\"urn:dk:gov:saml:seNumberIdentifier:" + entry.getKey() + "\">");
-			}
-			else if (entry.getKey().length() == 10) {
-				builder.append("<PrivilegeGroup Scope=\"urn:dk:gov:saml:productionUnitIdentifier:" + entry.getKey() + "\">");
-			}
-			else {
-				log.warn("Malformed scope value: " + entry.getKey());
-				break;
-			}
-
-			for (String privilegeString : entry.getValue()) {
-				builder.append("<Privilege>" + privilegeString + "</Privilege>");
-			}
-
-			builder.append("</PrivilegeGroup>");
-		}
-		
-		builder.append("</bpp:PrivilegeList>");
-
-		return Base64.getEncoder().encodeToString(builder.toString().getBytes());
 	}
 
 	private String getKLEConstraint(User user, ConstraintValueType constraintValueType) {

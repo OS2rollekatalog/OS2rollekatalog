@@ -1,0 +1,1 @@
+alter table it_systems MODIFY COLUMN email VARCHAR(1000) NULL;

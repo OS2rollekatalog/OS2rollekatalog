@@ -15,4 +15,5 @@ public class UserReadDTO {
 	private String userId;
 	private String name;
 	private List<AssignedThrough> assignedThrough = new ArrayList<>();
+	private List<PostponedConstraintReadDTO> postponedConstraints = new ArrayList<>();
 }

@@ -1,5 +1,6 @@
 package dk.digitalidentity.rc.controller.rest;
 
+import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
 import java.util.regex.Pattern;
@@ -180,9 +181,19 @@ public class ItSystemRestController {
 			return false;
 		}
 
-		// Regular Expression by RFC 5322 for Email Validation
-		String regex = "^[a-zA-Z0-9_!#$%&'*+/=?`{|}~^.-]+@[a-zA-Z0-9.-]+$";
-		return Pattern.matches(regex, email);
+		boolean success = true;
+		List<String> emails = Arrays.asList(email.toString().split(";"));
+		for (String currentEmail : emails) {
+
+			// Regular Expression by RFC 5322 for Email Validation
+			String regex = "^[a-zA-Z0-9_!#$%&'*+/=?`{|}~^.-]+@[a-zA-Z0-9.-]+$";
+
+			if (!Pattern.matches(regex, currentEmail)) {
+				success = false;
+			}
+		}
+
+		return success;
 	}
 	
 	@PostMapping(value = "/rest/itsystem/notificationemail")

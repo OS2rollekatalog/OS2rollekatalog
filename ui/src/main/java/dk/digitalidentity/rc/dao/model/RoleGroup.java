@@ -24,7 +24,7 @@ public class RoleGroup implements AuditLoggable {
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	private long id;
 
-	@Column(nullable = false, length = 64)
+	@Column(nullable = false, length = 128)
 	private String name;
 
 	@Column(nullable = true)

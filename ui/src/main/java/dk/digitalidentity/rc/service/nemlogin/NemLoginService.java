@@ -1,14 +1,23 @@
 package dk.digitalidentity.rc.service.nemlogin;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.EnableCaching;
+import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
@@ -17,32 +26,46 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
+import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 
 import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
-import dk.digitalidentity.rc.dao.UserRoleDao;
+import dk.digitalidentity.rc.dao.DirtyNemLoginUserDao;
+import dk.digitalidentity.rc.dao.model.ConstraintType;
+import dk.digitalidentity.rc.dao.model.ConstraintTypeSupport;
+import dk.digitalidentity.rc.dao.model.DirtyNemLoginUser;
 import dk.digitalidentity.rc.dao.model.ItSystem;
-import dk.digitalidentity.rc.dao.model.PendingNemLoginGroupUpdate;
+import dk.digitalidentity.rc.dao.model.OrgUnit;
+import dk.digitalidentity.rc.dao.model.PNumber;
+import dk.digitalidentity.rc.dao.model.PostponedConstraint;
+import dk.digitalidentity.rc.dao.model.RoleGroup;
+import dk.digitalidentity.rc.dao.model.SENumber;
 import dk.digitalidentity.rc.dao.model.SystemRole;
 import dk.digitalidentity.rc.dao.model.SystemRoleAssignment;
+import dk.digitalidentity.rc.dao.model.SystemRoleAssignmentConstraintValue;
+import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserRole;
+import dk.digitalidentity.rc.dao.model.UserUserRoleAssignment;
+import dk.digitalidentity.rc.dao.model.enums.ConstraintValueType;
 import dk.digitalidentity.rc.dao.model.enums.ItSystemType;
-import dk.digitalidentity.rc.dao.model.enums.NemLoginConstraintType;
 import dk.digitalidentity.rc.dao.model.enums.RoleType;
 import dk.digitalidentity.rc.security.SecurityUtil;
+import dk.digitalidentity.rc.service.ConstraintTypeService;
 import dk.digitalidentity.rc.service.ItSystemService;
-import dk.digitalidentity.rc.service.PendingNemLoginGroupUpdateService;
+import dk.digitalidentity.rc.service.SettingsService;
 import dk.digitalidentity.rc.service.SystemRoleService;
 import dk.digitalidentity.rc.service.UserRoleService;
-import dk.digitalidentity.rc.service.nemlogin.model.CreateGroupRequest;
-import dk.digitalidentity.rc.service.nemlogin.model.CreateGroupResponse;
+import dk.digitalidentity.rc.service.UserService;
+import dk.digitalidentity.rc.service.model.UserRoleAssignmentWithInfo;
+import dk.digitalidentity.rc.service.model.UserWithRole;
+import dk.digitalidentity.rc.service.nemlogin.model.AssignedRole;
 import dk.digitalidentity.rc.service.nemlogin.model.NemLoginAllRolesResponse;
-import dk.digitalidentity.rc.service.nemlogin.model.NemLoginGroup;
 import dk.digitalidentity.rc.service.nemlogin.model.NemLoginRole;
 import dk.digitalidentity.rc.service.nemlogin.model.Scope;
 import dk.digitalidentity.rc.service.nemlogin.model.TokenResponse;
-import dk.digitalidentity.rc.service.nemlogin.model.UpdateGroupRequest;
 import lombok.extern.slf4j.Slf4j;
+
 @EnableCaching
 @EnableScheduling
 @Slf4j
@@ -66,13 +89,235 @@ public class NemLoginService {
 	private SystemRoleService systemRoleService;
 	
 	@Autowired
-	private PendingNemLoginGroupUpdateService pendingNemLoginGroupUpdateService;
-	
-	@Autowired
 	private UserRoleService userRoleService;
 	
 	@Autowired
-	private UserRoleDao userRoleDao;
+	private UserService userService;
+
+	@Autowired
+	private SettingsService settingsService;
+	
+	@Autowired
+	private ConstraintTypeService constraintTypeService;
+
+	@Autowired
+	private DirtyNemLoginUserDao dirtyNemLoginUserDao;
+
+	public void addRoleGroupToQueue(RoleGroup roleGroup) {
+		if (roleGroup != null && roleGroup.getUserRoleAssignments() != null) {
+			List<UserRole> userRoles = roleGroup.getUserRoleAssignments().stream().map(ura -> ura.getUserRole()).collect(Collectors.toList());
+
+			for (UserRole userRole : userRoles) {
+				addUserRoleToQueue(userRole);
+			}
+		}
+	}
+
+	public void addUserRoleToQueue(UserRole userRole) {
+		ItSystem itSystem = userRole.getItSystem();
+
+		if (!itSystem.getSystemType().equals(ItSystemType.NEMLOGIN)) {
+			return;
+		}
+
+		for (UserWithRole userWithRole : userService.getUsersWithUserRole(userRole, true)) {
+			addUserToQueue(userWithRole.getUser());
+		}
+	}
+
+	public void addOrgUnitToQueue(OrgUnit orgUnit, boolean inherit) {
+		for (User user : userService.findByOrgUnit(orgUnit)) {
+			addUserToQueue(user);
+		}
+
+		// check if the assignment to the OrgUnit is flagged with inherit
+		if (inherit) {
+			addOrgUnitToQueueRecursive(orgUnit.getChildren());
+		}
+	}
+
+	private void addOrgUnitToQueueRecursive(List<OrgUnit> children) {
+		if (children == null) {
+			return;
+		}
+
+		for (OrgUnit child : children) {
+			for (User user : userService.findByOrgUnit(child)) {
+				addUserToQueue(user);
+			}
+			
+			addOrgUnitToQueueRecursive(child.getChildren());
+		}
+	}
+
+	public void addUserToQueue(User user) {
+		if (!StringUtils.hasLength(user.getNemloginUuid()) || user.isDeleted()) {
+			return;
+		}
+
+		DirtyNemLoginUser dirty = new DirtyNemLoginUser();
+		dirty.setUser(user);
+		dirty.setTimestamp(LocalDateTime.now());
+
+		dirtyNemLoginUserDao.save(dirty);
+	}
+
+	@Transactional
+	public void syncExistingRoleAssignments() {
+		if (!config.getIntegrations().getNemLogin().isEnabled()) {
+			return;
+		}
+
+		if (settingsService.isMitIDErhvervMigrationPerformed()) {
+			return;
+		}
+	
+		List<ItSystem> itSystems = itSystemService.getBySystemType(ItSystemType.NEMLOGIN);
+		if (itSystems == null || itSystems.size() != 1) {
+			log.error("Could not find a unique NEMLOGIN it-system (either 0 or > 1 was found!)");
+			return;
+		}
+
+		ItSystem itSystem = itSystems.get(0);
+		List<SystemRole> existingRoles = systemRoleService.getByItSystem(itSystem);
+		if (existingRoles.isEmpty()) {
+			log.info("Will not perform MitID Erhverv migration, as no NemLog-in systemRoles exists in database");
+			return;
+		}
+		
+		if (userService.getAllWithNemLoginUuid().size() == 0) {
+			log.info("Will not perform MitID Erhverv migration, because no users exists in DB with MitID Erhverv UUID");
+			return;
+		}
+
+		ConstraintType pnrConstraint = constraintTypeService.getByEntityId("https://nemlogin.dk/constraints/pnr/1");
+		ConstraintType senrConstraint = constraintTypeService.getByEntityId("https://nemlogin.dk/constraints/senr/1");
+		if (pnrConstraint == null || senrConstraint == null) {
+			log.error("ABORT! Failed to find pnr/senr constraints");
+			return;
+		}
+
+		log.info("Performing migration of existing role assignments in MitID Erhverv to OS2rollekatalog");
+
+		try {
+			SecurityUtil.loginSystemAccount();
+
+			List<User> nemLoginUsers = userService.getAllWithNemLoginUuid();
+			for (User user : nemLoginUsers) {
+				List<AssignedRole> assignedRoles = getRolesForUser(user);
+				if (assignedRoles == null || assignedRoles.size() == 0) {
+					continue;
+				}
+
+				for (AssignedRole assignedRole : assignedRoles) {
+					SystemRole matchingSystemRole = systemRoleService.getFirstByIdentifierAndItSystemId(assignedRole.getUuid(), itSystem.getId());
+					if (matchingSystemRole == null) {
+						log.warn("Could not find a systemRole matching " + assignedRole.getName() + " (" + assignedRole.getUuid() + ") for " + user.getUserId());
+						continue;
+					}
+
+					UserRole existingUserRole = null;
+					boolean assigned = false;
+
+					if (assignedRole.getScope().getType().equals("SE")) {
+						existingUserRole = userRoleService.getByNameAndItSystem(assignedRole.getName() + " med senr", itSystem);
+					}
+					else if (assignedRole.getScope().getType().equals("PU")) {
+						existingUserRole = userRoleService.getByNameAndItSystem(assignedRole.getName() + " med pnr", itSystem);
+					}
+					else if (assignedRole.getScope().getType().equals("Cvr")) {
+						existingUserRole = userRoleService.getByNameAndItSystem(assignedRole.getName(), itSystem);
+					}
+					else {
+						log.error("Unknown scope type " + assignedRole.getScope().getType() + " on NemLogin role with name " + assignedRole.getName());
+						continue;
+					}
+
+					if (existingUserRole == null) {
+						existingUserRole = new UserRole();
+						existingUserRole.setItSystem(itSystem);
+						existingUserRole.setDescription(assignedRole.getDescription());
+
+						existingUserRole.setSystemRoleAssignments(new ArrayList<>());
+						SystemRoleAssignment systemRoleAssignment = new SystemRoleAssignment();
+						systemRoleAssignment.setSystemRole(matchingSystemRole);
+						systemRoleAssignment.setUserRole(existingUserRole);
+						systemRoleAssignment.setConstraintValues(new ArrayList<>());
+						systemRoleAssignment.setAssignedByName("Systembruger");
+						systemRoleAssignment.setAssignedByUserId("system");
+
+						if (assignedRole.getScope().getType().equals("SE")) {
+							existingUserRole.setName(assignedRole.getName() + " med senr");
+							existingUserRole.setAllowPostponing(true);
+							existingUserRole.setIdentifier(assignedRole.getUuid() + "_SE");
+
+							SystemRoleAssignmentConstraintValue systemRoleAssignmentConstraintValue = new SystemRoleAssignmentConstraintValue();
+							systemRoleAssignmentConstraintValue.setSystemRoleAssignment(systemRoleAssignment);
+							systemRoleAssignmentConstraintValue.setPostponed(true);
+							systemRoleAssignmentConstraintValue.setConstraintValueType(ConstraintValueType.POSTPONED);
+							systemRoleAssignmentConstraintValue.setConstraintType(senrConstraint);
+
+							systemRoleAssignment.getConstraintValues().add(systemRoleAssignmentConstraintValue);
+						}
+						else if (assignedRole.getScope().getType().equals("PU")) {
+							existingUserRole.setName(assignedRole.getName() + " med pnr");
+							existingUserRole.setAllowPostponing(true);
+							existingUserRole.setIdentifier(assignedRole.getUuid() + "_PU");
+
+							SystemRoleAssignmentConstraintValue systemRoleAssignmentConstraintValue = new SystemRoleAssignmentConstraintValue();
+							systemRoleAssignmentConstraintValue.setSystemRoleAssignment(systemRoleAssignment);
+							systemRoleAssignmentConstraintValue.setPostponed(true);
+							systemRoleAssignmentConstraintValue.setConstraintValueType(ConstraintValueType.POSTPONED);
+							systemRoleAssignmentConstraintValue.setConstraintType(pnrConstraint);
+
+							systemRoleAssignment.getConstraintValues().add(systemRoleAssignmentConstraintValue);
+						}
+						else if (assignedRole.getScope().getType().equals("Cvr")) {
+							existingUserRole.setName(assignedRole.getName());
+							existingUserRole.setAllowPostponing(false);
+							existingUserRole.setIdentifier(assignedRole.getUuid() + "_Cvr");
+						}
+
+						existingUserRole.getSystemRoleAssignments().add(systemRoleAssignment);
+						userRoleService.save(existingUserRole);
+					}
+					else {
+						long existingId = existingUserRole.getId();
+						
+						if (user.getUserRoleAssignments().stream().anyMatch(u -> u.getUserRole().getId() == existingId)) {
+							assigned = true;
+						}
+					}
+
+					if (!assigned) {
+						UserUserRoleAssignment userUserRoleAssignment = new UserUserRoleAssignment();
+						userUserRoleAssignment.setUserRole(existingUserRole);
+						userUserRoleAssignment.setUser(user);
+						userUserRoleAssignment.setAssignedByUserId("system");
+						userUserRoleAssignment.setAssignedByName("Systembruger");
+						userUserRoleAssignment.setPostponedConstraints(new ArrayList<>());
+
+						if (assignedRole.getScope().getType().equals("SE") || assignedRole.getScope().getType().equals("PU")) {
+							PostponedConstraint postponedConstraint = new PostponedConstraint();
+							postponedConstraint.setUserUserRoleAssignment(userUserRoleAssignment);
+							postponedConstraint.setValue(assignedRole.getScope().getValue());
+							postponedConstraint.setSystemRole(matchingSystemRole);
+							postponedConstraint.setConstraintType(assignedRole.getScope().getType().equals("SE") ? senrConstraint : pnrConstraint);
+							userUserRoleAssignment.getPostponedConstraints().add(postponedConstraint);
+						}
+
+						user.getUserRoleAssignments().add(userUserRoleAssignment);
+						userService.save(user);
+					}
+				}
+			}
+		}
+		finally {
+			SecurityUtil.logoutSystemAccount();
+			
+			settingsService.setMitIDErhvervMigrationPerformed();
+		}
+	}
 
 	@Transactional
 	public void syncNemLoginRoles(boolean force) {
@@ -105,6 +350,16 @@ public class NemLoginService {
 		try {
 			SecurityUtil.loginSystemAccount();
 
+			ConstraintType pnrConstraint = constraintTypeService.getByEntityId("https://nemlogin.dk/constraints/pnr/1");
+			ConstraintTypeSupport pnrSupportedConstraint = new ConstraintTypeSupport();
+			pnrSupportedConstraint.setConstraintType(pnrConstraint);
+			pnrSupportedConstraint.setMandatory(false);
+
+			ConstraintType senrConstraint = constraintTypeService.getByEntityId("https://nemlogin.dk/constraints/senr/1");
+			ConstraintTypeSupport senrSupportedConstraint = new ConstraintTypeSupport();
+			senrSupportedConstraint.setConstraintType(senrConstraint);
+			senrSupportedConstraint.setMandatory(false);
+
 			for (NemLoginRole nemLoginRole : roles) {
 				if (existingSystemRoles.stream().anyMatch(sr -> Objects.equals(sr.getIdentifier(), nemLoginRole.getUuid()))) {
 					SystemRole existingSystemRole = existingSystemRoles.stream()
@@ -113,16 +368,24 @@ public class NemLoginService {
 
 					boolean changes = false;
 					if (!Objects.equals(existingSystemRole.getDescription(), nemLoginRole.getDescription())) {
-						changes = true;
-					}
-					else if (!Objects.equals(existingSystemRole.getName(), nemLoginRole.getName())) {
-						changes = true;
-					}
-					
-					if (changes) {
 						existingSystemRole.setDescription(nemLoginRole.getDescription());
+						changes = true;
+					}
+					if (!Objects.equals(existingSystemRole.getName(), nemLoginRole.getName())) {
 						existingSystemRole.setName(nemLoginRole.getName());
-	
+						changes = true;
+					}
+
+					if (existingSystemRole.getSupportedConstraintTypes().stream().noneMatch(s -> s.getConstraintType().getEntityId().equals(pnrConstraint.getEntityId()))) {
+						existingSystemRole.getSupportedConstraintTypes().add(pnrSupportedConstraint);
+						changes = true;
+					}
+					if (existingSystemRole.getSupportedConstraintTypes().stream().noneMatch(s -> s.getConstraintType().getEntityId().equals(senrConstraint.getEntityId()))) {
+						existingSystemRole.getSupportedConstraintTypes().add(senrSupportedConstraint);
+						changes = true;
+					}
+
+					if (changes) {
 						log.info("Updating " + existingSystemRole.getName() + " / " + existingSystemRole.getId());
 						
 						// update existing systemroles
@@ -136,6 +399,9 @@ public class NemLoginService {
 					newSystemRole.setDescription(nemLoginRole.getDescription());
 					newSystemRole.setItSystem(itSystem);
 					newSystemRole.setRoleType(RoleType.BOTH);
+					newSystemRole.setSupportedConstraintTypes(new ArrayList<>());
+					newSystemRole.getSupportedConstraintTypes().add(pnrSupportedConstraint);
+					newSystemRole.getSupportedConstraintTypes().add(senrSupportedConstraint);
 
 					log.info("Creating " + newSystemRole.getName());
 
@@ -159,53 +425,191 @@ public class NemLoginService {
 		
 		log.info("Done synchronizing NemLog-in roles");
 	}
-	
-	@Transactional
-	public void synchronizeUserRoles() {
-		if (!config.getIntegrations().getNemLogin().isEnabled()) {
+
+	// This is called from NemLoginUpdateTask and does a periodic sync of data from OS2rollekatalog to NemLog-in
+	// - synchronize any dirty user's roles (flagged as such by NemLoginUpdaterHook)
+	@Transactional(rollbackFor = Exception.class)
+	public void updateUserRoleAssignments() {
+		List<DirtyNemLoginUser> dirtyUsers = dirtyNemLoginUserDao.findAll();
+		if (dirtyUsers.isEmpty()) {
 			return;
 		}
-		
-		try {
-			List<PendingNemLoginGroupUpdate> pendingUserRoleUpdates = pendingNemLoginGroupUpdateService.findAllByFailedFalse();
-			if (pendingUserRoleUpdates == null || pendingUserRoleUpdates.size() == 0) {
-				return;
-			}
-			
-			log.info("Synchronizing " + pendingUserRoleUpdates.size() + " userroles to NemLog-in");
-	
-			for (PendingNemLoginGroupUpdate pendingNemLoginGroupUpdate : pendingUserRoleUpdates) {
-				boolean success = false;
 
-				log.info("Synchronizing " + pendingNemLoginGroupUpdate.getUserRoleId() + " / " + pendingNemLoginGroupUpdate.getUserRoleUuid() +  " to NemLog-in");
+		List<ItSystem> itSystems = itSystemService.getBySystemType(ItSystemType.NEMLOGIN);
+		if (itSystems == null || itSystems.size() != 1) {
+			log.error("Could not find a unique NemLog-in it-system (either 0 or > 1 was found!)");
+			return;
+		}
+		ItSystem itSystem = itSystems.get(0);
 
-				switch (pendingNemLoginGroupUpdate.getEventType()) {
-					case DELETE:
-						success = deleteUserRole(pendingNemLoginGroupUpdate);
-						break;
-					case UPDATE:
-						if (pendingNemLoginGroupUpdate.getUserRoleUuid() == null) {
-							success = createUserRole(pendingNemLoginGroupUpdate);
-						}
-						else {
-							success = updateUserRole(pendingNemLoginGroupUpdate);
-						}
-						break;
+		List<DirtyNemLoginUser> processed = new ArrayList<>();
+		Set<String> seen = new HashSet<>();
+
+		for (DirtyNemLoginUser dirtyUser : dirtyUsers) {
+			if (!seen.contains(dirtyUser.getUser().getUuid())) {
+				log.info("Checking for NemLog-in role modifications on user with uuid: " + dirtyUser.getUser().getUuid());
+
+				try {
+					// ensure we only process each of these once
+					seen.add(dirtyUser.getUser().getUuid());
+
+					if (dirtyUser.getUser().getNemloginUuid() != null && !dirtyUser.getUser().isDeleted()) {
+						syncNemLoginRolesForUser(dirtyUser.getUser(), itSystem);
+					}
+
+					processed.add(dirtyUser);
+					processed.addAll(dirtyUsers.stream().filter(d -> d.getUser().getUuid().equals(dirtyUser.getUser().getUuid())).collect(Collectors.toList()));
 				}
-	
-				if (success) {
-					pendingNemLoginGroupUpdateService.delete(pendingNemLoginGroupUpdate);
+				catch (Exception ex) {
+					log.error("Failed to process NemLog-in role modifications on user with uuid: " + dirtyUser.getUser().getUuid(), ex);
+
+					// if it failed, we do not flag it as processed
+					continue;
+				}
+			}
+		}
+
+		// cleanup queue
+		dirtyNemLoginUserDao.deleteAll(processed);
+
+		log.info("DirtyNemLoginUser synchronization completed");
+	}
+
+	@Transactional(rollbackFor = Exception.class)
+	public void fullRoleSync() {
+		log.info("Running full NemLog-In role sync");
+		
+		List<ItSystem> itSystems = itSystemService.getBySystemType(ItSystemType.NEMLOGIN);
+		if (itSystems == null || itSystems.size() != 1) {
+			log.error("Could not find a unique NemLog-in it-system (either 0 or > 1 was found!)");
+			return;
+		}
+		ItSystem itSystem = itSystems.get(0);
+
+		for (User user : userService.getAllWithNemLoginUuid()) {
+			try {
+				if (!user.isDeleted()) {
+					syncNemLoginRolesForUser(user, itSystem);
+				}
+			}
+			catch (Exception ex) {
+				log.error("Failed to process NemLog-in role modifications on user with uuid: " + user.getUuid(), ex);
+			}
+		}
+
+		log.info("Full NemLog-In role sync completed");
+	}
+
+	private void syncNemLoginRolesForUser(User user, ItSystem itSystem) throws Exception {
+		List<UserRoleAssignmentWithInfo> assignedUserRoles = userService.getAllUserRolesAssignmentsWithInfo(user, Collections.singletonList(itSystem));
+
+		Set<String> systemRoleIdentifiersNoConstraints = new HashSet<>();
+		Map<String, Set<String>> systemRoleIdentifiersPnrConstraints = new HashMap<>();
+		Map<String, Set<String>> systemRoleIdentifiersSenrConstraints = new HashMap<>();
+		
+		for (UserRoleAssignmentWithInfo userRoleAssignmentWithInfo : assignedUserRoles) {
+			for (SystemRoleAssignment systemRoleAssignment : userRoleAssignmentWithInfo.getUserRole().getSystemRoleAssignments()) {
+				if (userRoleAssignmentWithInfo.getPostponedConstraints() == null) {
+					systemRoleIdentifiersNoConstraints.add(systemRoleAssignment.getSystemRole().getIdentifier());
 				}
 				else {
-					pendingNemLoginGroupUpdate.setFailed(true);
-					pendingNemLoginGroupUpdateService.save(pendingNemLoginGroupUpdate);
+					boolean anyPostponedConstraint = false;
+
+					for (PostponedConstraint postponedConstraint : userRoleAssignmentWithInfo.getPostponedConstraints()) {
+						if (postponedConstraint.getSystemRole().getIdentifier().equals(systemRoleAssignment.getSystemRole().getIdentifier())) {
+							if (postponedConstraint.getConstraintType().getEntityId().equals("https://nemlogin.dk/constraints/pnr/1")) {
+								anyPostponedConstraint = true;
+								if (!systemRoleIdentifiersPnrConstraints.containsKey(systemRoleAssignment.getSystemRole().getIdentifier())) {
+									systemRoleIdentifiersPnrConstraints.put(systemRoleAssignment.getSystemRole().getIdentifier(), new HashSet<>());
+								}
+
+								systemRoleIdentifiersPnrConstraints.get(systemRoleAssignment.getSystemRole().getIdentifier()).add(postponedConstraint.getValue());
+							}
+							else if (postponedConstraint.getConstraintType().getEntityId().equals("https://nemlogin.dk/constraints/senr/1")) {
+								anyPostponedConstraint = true;
+								if (!systemRoleIdentifiersSenrConstraints.containsKey(systemRoleAssignment.getSystemRole().getIdentifier())) {
+									systemRoleIdentifiersSenrConstraints.put(systemRoleAssignment.getSystemRole().getIdentifier(), new HashSet<>());
+								}
+
+								systemRoleIdentifiersSenrConstraints.get(systemRoleAssignment.getSystemRole().getIdentifier()).add(postponedConstraint.getValue());
+							}
+						}
+					}
+
+					if (!anyPostponedConstraint) {
+						systemRoleIdentifiersNoConstraints.add(systemRoleAssignment.getSystemRole().getIdentifier());
+					}
 				}
 			}
-
-			log.info("Done synchronizing userroles to NemLog-in");
 		}
-		catch (Exception ex) {
-			log.error("Synchronizing userRoles to NemLog-in failed", ex);
+
+		List<AssignedRole> assignedNemLoginRoles = getRolesForUser(user);
+		if (assignedNemLoginRoles == null) {
+			throw new Exception("assignedNemLoginRoles for user with NemLoginUuid " + user.getUuid() + " was null. Should at least be empty. Won't sync user's nemLogin roles.");
+		}
+
+		// remove roles
+		for (AssignedRole assignedRole : assignedNemLoginRoles) {
+			boolean delete = false;
+
+			if (assignedRole.getScope().getType().equals("SE")) {
+				if (systemRoleIdentifiersSenrConstraints.containsKey(assignedRole.getUuid())) {
+					if (!systemRoleIdentifiersSenrConstraints.get(assignedRole.getUuid()).contains(assignedRole.getScope().getValue())) {
+						delete = true;
+					}
+				}
+				else {
+					delete = true;
+				}
+			}
+			else if (assignedRole.getScope().getType().equals("PU")) {
+				if (systemRoleIdentifiersPnrConstraints.containsKey(assignedRole.getUuid())) {
+					if (!systemRoleIdentifiersPnrConstraints.get(assignedRole.getUuid()).contains(assignedRole.getScope().getValue())) {
+						delete = true;
+					}
+				}
+				else {
+					delete = true;
+				}
+			}
+			else if (assignedRole.getScope().getType().equals("Cvr")) {
+				if (!systemRoleIdentifiersNoConstraints.contains(assignedRole.getUuid())) {
+					delete = true;
+				}
+			}
+			else {
+				log.error("Unknown scope type " + assignedRole.getScope().getType() + " on NemLogin role with name " + assignedRole.getName());
+				continue;
+			}
+
+			if (delete) {
+				deleteRoleFromUser(user, assignedRole);
+			}
+		}
+
+		// add missing roles
+		String cvr = config.getCustomer().getCvr();
+		Scope cvrScope = new Scope("Cvr", cvr);
+		for (String identifier : systemRoleIdentifiersNoConstraints) {
+			if (assignedNemLoginRoles.stream().noneMatch(a -> a.getUuid().equals(identifier) && a.getScope().getType().equals("Cvr"))) {
+				addRoleToUser(user, cvrScope, identifier);
+			}
+		}
+
+		for (Map.Entry<String, Set<String>> pair : systemRoleIdentifiersPnrConstraints.entrySet()) {
+			for (String pnrValue : pair.getValue()) {
+				if (assignedNemLoginRoles.stream().noneMatch(a -> a.getUuid().equals(pair.getKey()) && a.getScope().getType().equals("PU") && a.getScope().getValue().equals(pnrValue))) {
+					addRoleToUser(user, new Scope("PU", pnrValue), pair.getKey());
+				}
+			}
+		}
+
+		for (Map.Entry<String, Set<String>> pair : systemRoleIdentifiersSenrConstraints.entrySet()) {
+			for (String senrValue : pair.getValue()) {
+				if (assignedNemLoginRoles.stream().noneMatch(a -> a.getUuid().equals(pair.getKey()) && a.getScope().getType().equals("SE") && a.getScope().getValue().equals(senrValue))) {
+					addRoleToUser(user, new Scope("SE", senrValue), pair.getKey());
+				}
+			}
 		}
 	}
 
@@ -266,247 +670,75 @@ public class NemLoginService {
 			return null;
 		}
 	}
-	
-	private boolean createUserRole(PendingNemLoginGroupUpdate pendingNemLoginGroupUpdate) {
-		UserRole userRole = userRoleService.getById(pendingNemLoginGroupUpdate.getUserRoleId());
-		if (userRole == null) {
-			log.warn("Attempted to synchronize UserRole to NemLogin with id " + pendingNemLoginGroupUpdate.getUserRoleId() + " but it does not exist anymore");
-			
-			// we return true to get it removed from the queue
-			return true;
-		}
-		
-		String url = config.getIntegrations().getNemLogin().getBaseUrl() + "/api/administration/rights/group";
+
+	private List<AssignedRole> getRolesForUser(User user) {
+		String url = config.getIntegrations().getNemLogin().getBaseUrl() + "/api/administration/rights/identity/" + user.getNemloginUuid() + "/roles";
 		HttpHeaders headers = getHeader();
-		
-		CreateGroupRequest createGroupRequest = new CreateGroupRequest();
-		createGroupRequest.setName(userRole.getName());
-		createGroupRequest.setDescription(userRole.getDescription());
-		createGroupRequest.setOrganizationGroupIdentifier(userRole.getIdentifier());
-		
-		Scope scope = new Scope();
-		if (userRole.getNemloginConstraintType().equals(NemLoginConstraintType.NONE)) {
-			scope.setType("Cvr");
-			scope.setValue(config.getCustomer().getCvr());
-		}
-		else if (userRole.getNemloginConstraintType().equals(NemLoginConstraintType.PNR)) {
-			scope.setType("PU");
-			scope.setValue(userRole.getNemloginConstraintValue());
-		}
-		else if (userRole.getNemloginConstraintType().equals(NemLoginConstraintType.SENR)) {
-			scope.setType("SE");
-			scope.setValue(userRole.getNemloginConstraintValue());
-		}
-		
-		createGroupRequest.setScope(scope);
-		HttpEntity<CreateGroupRequest> request = new HttpEntity<>(createGroupRequest, headers);
+
+		HttpEntity<String> request = new HttpEntity<>(headers);
 		try {
-			ResponseEntity<CreateGroupResponse> response = restTemplate.exchange(url, HttpMethod.POST, request, CreateGroupResponse.class);
+			ResponseEntity<AssignedRole[]> response = restTemplate.exchange(url, HttpMethod.GET, request, AssignedRole[].class);
 			if (response.getStatusCodeValue() == 200 && response.getBody() != null) {
-				userRole.setUuid(response.getBody().getUuid());
-				userRoleDao.save(userRole);
+				return Arrays.asList(response.getBody());
 			}
 			else {
-				log.error("Failed to create userRole/group in NemLog-in. Code " + response.getStatusCodeValue() + " body: " + response.getBody());
-				return false;
-			}
-		}
-		catch (Exception ex) {
-			log.error("Failed to create userRole/group in NemLog-in", ex);
-			return false;
-		}
-		
-		for (SystemRoleAssignment assignment : userRole.getSystemRoleAssignments()) {
-			addRoleToGroup(userRole, assignment);
-		}
-		
-		return true;
-	}
-
-	private void addRoleToGroup(UserRole userRole, SystemRoleAssignment assignment) {
-		String url = config.getIntegrations().getNemLogin().getBaseUrl() + "/api/administration/rights/group/" + userRole.getUuid() + "/role/" + assignment.getSystemRole().getIdentifier();
-		HttpHeaders headers = getHeader();
-		
-		HttpEntity<String> request = new HttpEntity<>(headers);
-		try {
-			ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.POST, request, String.class);
-
-			if (response.getStatusCodeValue() > 299) {
-				log.error("Failed to add systemRole with id " + assignment.getSystemRole().getId() + " to userRole/group in NemLog-in. UserRole with id " + userRole.getId() + ". Code " + response.getStatusCodeValue() + " body: " + response.getBody());
-			}
-		}
-		catch (Exception ex) {
-			log.error("Failed to add systemRole with id " + assignment.getSystemRole().getId() + " to userRole/group in NemLog-in. UserRole with id " + userRole.getId(), ex);
-		}
-	}
-	
-	private void deleteRoleFromGroup(UserRole userRole, String roleUuid) {
-		String url = config.getIntegrations().getNemLogin().getBaseUrl() + "/api/administration/rights/group/" + userRole.getUuid() + "/role/" + roleUuid;
-		HttpHeaders headers = getHeader();
-		
-		HttpEntity<String> request = new HttpEntity<>(headers);
-		try {
-			ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.DELETE, request, String.class);
-			
-			if (response.getStatusCodeValue() > 299) {
-				log.error("Failed to delete NemLog-in role with uuid " + roleUuid + " from userRole/group in NemLog-in. UserRole with id " + userRole.getId() + ". Code " + response.getStatusCodeValue() + " body: " + response.getBody());
-			}
-		}
-		catch (Exception ex) {
-			log.error("Failed to delete NemLog-in role with uuid " + roleUuid + " from userRole/group in NemLog-in. UserRole with id " + userRole.getId(), ex);
-		}
-	}
-	
-	private NemLoginGroup getNemLoginGroup(UserRole userRole) {
-		String url = config.getIntegrations().getNemLogin().getBaseUrl() + "/api/administration/rights/group/" + userRole.getUuid();
-		HttpHeaders headers = getHeader();
-		
-		HttpEntity<String> request = new HttpEntity<>(headers);
-		try {
-			ResponseEntity<NemLoginGroup> response = restTemplate.exchange(url, HttpMethod.GET, request, NemLoginGroup.class);
-
-			if (response.getStatusCodeValue() == 200 && response.getBody() != null) {
-				return response.getBody();
-			}
-			else {
-				log.error("Failed to get userRole/group in NemLog-in. UserRole with id " + userRole.getId() + ". Code " + response.getStatusCodeValue() + " body: " + response.getBody());
+				log.error("Failed to fetch roles assigned to user with nemloginUuid " + user.getNemloginUuid() + " from nemloginApi. Code " + response.getStatusCodeValue() + " body: " + response.getBody());
 				return null;
 			}
 		}
 		catch (Exception ex) {
-			log.error("Failed to get userRole/group in NemLog-in. UserRole with id " + userRole.getId(), ex);
+			log.error("Failed to fetch roles assigned to user with nemloginUuid " + user.getNemloginUuid() + " from nemloginApi.", ex);
 			return null;
 		}
 	}
 
-	private boolean updateUserRole(PendingNemLoginGroupUpdate pendingNemLoginGroupUpdate) {
-		UserRole userRole = userRoleService.getById(pendingNemLoginGroupUpdate.getUserRoleId());
-		if (userRole == null) {
-			log.warn("Attempted to synchronize UserRole to NemLog-in with id " + pendingNemLoginGroupUpdate.getUserRoleId() + " but it does not exist anymore");
-			
-			// we return true to get it removed from the queue
-			return true;
+	record RoleBody(Scope scope, List<String> roleUuids) {}
+	private void deleteRoleFromUser(User user, AssignedRole assignedRole) {
+		if (config.getIntegrations().getNemLogin().isUserDryRunOnly()) {
+			log.info("Removing " + assignedRole.getName() + " from " + user.getUserId());
+			return;
 		}
-		
-		NemLoginGroup group = getNemLoginGroup(userRole);
-		if (group == null) {
-			log.error("Failed to find group with uuid " + userRole.getUuid() + " in NemLog-in. Won't update");
-			
-			// it will be flagged as failed in the queue, so we can replay it if needed
-			return false;
-		}
-		
-		boolean changes = checkForChanges(userRole, group);
-		
-		if (changes) {
-			String url = config.getIntegrations().getNemLogin().getBaseUrl() + "/api/administration/rights/group/" + userRole.getUuid();
-			HttpHeaders headers = getHeader();
-			
-			UpdateGroupRequest updateGroupRequest = new UpdateGroupRequest();
-			updateGroupRequest.setName(userRole.getName());
-			updateGroupRequest.setDescription(userRole.getDescription());
-			updateGroupRequest.setOrganizationGroupIdentifier(userRole.getIdentifier());
 
-			Scope scope = group.getScope();
-			if (userRole.getNemloginConstraintType().equals(NemLoginConstraintType.NONE)) {
-				scope.setType("Cvr");
-				scope.setValue(config.getCustomer().getCvr());
-			}
-			else if (userRole.getNemloginConstraintType().equals(NemLoginConstraintType.PNR)) {
-				scope.setType("PU");
-				scope.setValue(userRole.getNemloginConstraintValue());
-			}
-			else if (userRole.getNemloginConstraintType().equals(NemLoginConstraintType.SENR)) {
-				scope.setType("SE");
-				scope.setValue(userRole.getNemloginConstraintValue());
-			}
-			
-			updateGroupRequest.setScope(scope);
-			HttpEntity<UpdateGroupRequest> request = new HttpEntity<>(updateGroupRequest, headers);
-			try {
-				ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.PUT, request, String.class);
-
-				if (response.getStatusCodeValue() > 299) {
-					log.error("Failed to update userRole/group with id " + userRole.getId() + " in NemLog-in. Code " + response.getStatusCodeValue() + " body: " + response.getBody());
-					return false;
-				}
-			}
-			catch (Exception ex) {
-				log.warn("Failed to update userRole/group with id " + userRole.getId() + " in NemLog-in", ex);
-				return false;
-			}
-		}
-		
-		// add missing roles to group
-		List<String> assignedRoles = group.getRoles() == null ? new ArrayList<String>() : group.getRoles().stream().map(r -> r.getUuid()).toList();
-		for (SystemRoleAssignment assignment : userRole.getSystemRoleAssignments()) {
-			if (!assignedRoles.contains(assignment.getSystemRole().getIdentifier())) {
-				addRoleToGroup(userRole, assignment);
-			}
-		}
-		
-		// remove groups that should not be in group
-		List<String> assignedSystemRoleIdentifers = userRole.getSystemRoleAssignments().stream().map(u -> u.getSystemRole().getIdentifier()).toList();
-		for (NemLoginRole role : group.getRoles()) {
-			if (!assignedSystemRoleIdentifers.contains(role.getUuid())) {
-				deleteRoleFromGroup(userRole, role.getUuid());
-			}
-		}
-		
-		return true;
-	}
-
-	private boolean checkForChanges(UserRole userRole, NemLoginGroup group) {
-		if (!Objects.equals(userRole.getName(), group.getName())) {
-			return true;
-		}
-		else if (!Objects.equals(userRole.getDescription(), group.getDescription())) {
-			return true;
-		}
-		else if (!Objects.equals(userRole.getIdentifier(), group.getOrganizationGroupIdentifier())) {
-			return true;
-		}
-		
-		// check scopes
-		if (userRole.getNemloginConstraintType().equals(NemLoginConstraintType.NONE) && !group.getScope().getType().equals("Cvr")) {
-			return true;
-		}
-		else if (userRole.getNemloginConstraintType().equals(NemLoginConstraintType.PNR) && !group.getScope().getType().equals("PU")) {
-			return true;
-		}
-		else if (userRole.getNemloginConstraintType().equals(NemLoginConstraintType.SENR) && !group.getScope().getType().equals("SE")) {
-			return true;
-		}
-		else if (!Objects.equals(userRole.getNemloginConstraintValue(), group.getScope().getValue())) {
-			return true;
-		}
-		
-		return false;
-	}
-
-	private boolean deleteUserRole(PendingNemLoginGroupUpdate pendingNemLoginGroupUpdate) {
-		if (pendingNemLoginGroupUpdate.getUserRoleUuid() == null) {
-			log.error("Cannot delete UserRole without UUID.");
-
-			return true;
-		}
-		
-		String url = config.getIntegrations().getNemLogin().getBaseUrl() + "/api/administration/rights/group/" + pendingNemLoginGroupUpdate.getUserRoleUuid();
+		String url = config.getIntegrations().getNemLogin().getBaseUrl() + "/api/administration/rights/identity/" + user.getNemloginUuid() + "/roles";
 		HttpHeaders headers = getHeader();
-		
-		HttpEntity<String> request = new HttpEntity<>(headers);
+
+		RoleBody roleBody = new RoleBody(assignedRole.getScope(), Collections.singletonList(assignedRole.getUuid()));
+		HttpEntity<RoleBody> request = new HttpEntity<>(roleBody, headers);
 		try {
 			ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.DELETE, request, String.class);
-			if (response.getStatusCodeValue() > 299) {
-				log.error("Failed to delete NemLog-in group with uuid " + pendingNemLoginGroupUpdate.getUserRoleUuid() + " in NemLog-in. Code " + response.getStatusCodeValue() + " body: " + response.getBody());
-				return false;
+			if (response.getStatusCodeValue() == 204) {
+				log.info("Removed NemLog-In role with uuid " + assignedRole.getUuid() + " from user with nemloginUuid " + user.getNemloginUuid());
+			} else {
+				log.error("Failed to delete role with uuid " + assignedRole.getUuid() + " assigned to user with nemloginUuid " + user.getNemloginUuid() + " from nemloginApi. Code " + response.getStatusCodeValue() + " body: " + response.getBody());
 			}
-			
-			return true;
 		}
 		catch (Exception ex) {
-			log.error("Failed to delete NemLog-in group with uuid " + pendingNemLoginGroupUpdate.getUserRoleUuid() + " in NemLog-in", ex);
-			return false;
+			log.error("Failed to delete role with uuid " + assignedRole.getUuid() + " assigned to user with nemloginUuid " + user.getNemloginUuid() + " from nemloginApi.", ex);
+		}
+	}
+
+	private void addRoleToUser(User user, Scope scope, String roleUuid) {
+		if (config.getIntegrations().getNemLogin().isUserDryRunOnly()) {
+			log.info("Adding " + roleUuid + " to " + user.getUserId());
+			return;
+		}
+		
+		String url = config.getIntegrations().getNemLogin().getBaseUrl() + "/api/administration/rights/identity/" + user.getNemloginUuid() + "/roles";
+		HttpHeaders headers = getHeader();
+
+		RoleBody roleBody = new RoleBody(scope, Collections.singletonList(roleUuid));
+		HttpEntity<RoleBody> request = new HttpEntity<>(roleBody, headers);
+		try {
+			ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.POST, request, String.class);
+			if (response.getStatusCodeValue() == 204) {
+				log.info("Added NemLog-In role with uuid " + roleUuid + " to user with nemloginUuid " + user.getNemloginUuid());
+			}
+			else {
+				log.error("Failed to add role with uuid " + roleUuid + " to user with nemloginUuid " + user.getNemloginUuid() + " from nemloginApi. Code " + response.getStatusCodeValue() + " body: " + response.getBody());
+			}
+		}
+		catch (Exception ex) {
+			log.error("Failed to add role with uuid " + roleUuid + " to user with nemloginUuid " + user.getNemloginUuid() + " from nemloginApi.", ex);
 		}
 	}
 	
@@ -515,6 +747,93 @@ public class NemLoginService {
 		headers.add("Content-Type", "application/json");
 		headers.add("Authorization", "Bearer " + self.fetchToken());
 
+		return headers;
+	}
+	
+	private record SeNumberDTORecord(String seNumber) {}
+	public List<SENumber> getAllSENR() {
+		String SENRResourceUrl = config.getIntegrations().getNemLogin().getBaseUrl() + "/api/administration/organization/senumber";
+
+		HttpEntity<String> request = new HttpEntity<>(getHeader());
+		try {
+			ResponseEntity<List<SeNumberDTORecord>> response = restTemplate.exchange(SENRResourceUrl, HttpMethod.GET, request, new ParameterizedTypeReference<List<SeNumberDTORecord>>(){});
+			List<SENumber> retList = new ArrayList<>();
+			
+			for (SeNumberDTORecord record : response.getBody()) {
+				SENumber se = new SENumber();
+				se.setCode(record.seNumber);
+				se.setName(record.seNumber);
+				
+				retList.add(se);
+			}
+			
+			return retList;
+		}
+		catch (Exception ex) {
+			log.error("Failed to get SEnumbers", ex);
+
+			return null;
+		}
+	}
+	
+	private record PNumberDTORecord(long pNumber, String cvrNumber, int mainActivity, boolean mainDivision) {}
+	public List<PNumber> getAllPNR() {
+		String PNRResourceUrl = config.getIntegrations().getNemLogin().getBaseUrl() + "/api/administration/organization/productionunits";
+		HttpEntity<String> request = new HttpEntity<>(getHeader());
+
+		try {
+			List<PNumber> retList = new ArrayList<>();
+
+			ResponseEntity<List<PNumberDTORecord>> response = restTemplate.exchange(PNRResourceUrl, HttpMethod.GET, request, new ParameterizedTypeReference<List<PNumberDTORecord>>(){});
+			List<PNumberDTORecord> responseBody = response.getBody();
+
+			for (PNumberDTORecord record : responseBody) {
+				PNumber pNumber = new PNumber();
+				pNumber.setCode(String.valueOf(record.pNumber));
+				pNumber.setName(String.valueOf(record.pNumber));
+
+				retList.add(pNumber);
+			}
+			
+			return retList;
+		}
+		catch (Exception ex) {
+			log.error("Failed to get Pnumbers", ex);
+
+			return null;
+		}
+	}
+	
+	private record PUnitLookupDTORecord(String number, String street, String postalCode, String city, String name){}
+	public String getPnrNameByCode(String pnr) {
+		if (!config.getIntegrations().getCvr().isEnabled()) {
+			log.info("CVR integration not enabled");
+			return null;
+		}
+		
+		RestTemplate restTemplate = new RestTemplate();
+		String cvrResourceUrl = config.getIntegrations().getCvr().getBaseUrl() + "/CVR/HentCVRData/1/rest/hentProduktionsenhedMedPNummer?ppNummer=" + pnr;
+		String apiKey = config.getIntegrations().getCvr().getApiKey();
+
+		HttpEntity<String> request = new HttpEntity<>(getHeaders(apiKey));
+		try {
+			ResponseEntity<PUnitLookupDTORecord> response = restTemplate.exchange(cvrResourceUrl, HttpMethod.GET, request, PUnitLookupDTORecord.class);
+			PUnitLookupDTORecord post = response.getBody();
+
+			return post.name;
+		}
+		catch (RestClientException ex) {
+			log.warn("Failed to lookup: " + pnr, ex);
+			return null;
+		}
+	}
+	
+	private HttpHeaders getHeaders(String apiKey) {
+		HttpHeaders headers = new HttpHeaders();
+		headers.add("Content-Type", "application/json");
+		headers.add("Authorization", "Bearer " + self.fetchToken());
+		headers.add(apiKey, apiKey);
+		
 		return headers;
 	}
 }

@@ -1,13 +1,16 @@
 package dk.digitalidentity.rc.controller.rest;
 
 import java.util.List;
+import java.util.Locale;
 
 import javax.validation.Valid;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.support.ResourceBundleMessageSource;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.BindingResult;
+import org.springframework.validation.ObjectError;
 import org.springframework.web.bind.WebDataBinder;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.InitBinder;
@@ -54,6 +57,9 @@ public class RolegroupRestController {
 
     @Autowired
     private RolegroupValidator rolegroupValidator;
+
+	@Autowired
+	private ResourceBundleMessageSource resourceBundle;
 
     @InitBinder
     public void initBinder(WebDataBinder binder) {
@@ -165,9 +171,16 @@ public class RolegroupRestController {
     }
 
     @PostMapping(value = "/rest/rolegroups/edit")
-    public ResponseEntity<String> editRoleGroupAsync(@Valid @ModelAttribute("rolegroup") RoleGroupForm roleGroupForm, BindingResult bindingResult) {
+    public ResponseEntity<String> editRoleGroupAsync(@Valid @ModelAttribute("rolegroup") RoleGroupForm roleGroupForm, BindingResult bindingResult, Locale locale) {
         if (bindingResult.hasErrors()) {
-            return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+			StringBuilder stringBuilder = new StringBuilder();
+			for (ObjectError error : bindingResult.getAllErrors()) {
+				if (error.getCode() != null) {
+					stringBuilder.append(resourceBundle.getMessage(error.getCode(), null, locale));
+					stringBuilder.append(".<br/>");
+				}
+			}
+            return new ResponseEntity<>(stringBuilder.toString(), HttpStatus.BAD_REQUEST);
         }
         RoleGroup roleGroup = roleGroupService.getById(roleGroupForm.getId());
 

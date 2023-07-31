@@ -148,12 +148,12 @@ namespace ADSyncService
                 RestClient client = new RestClient(baseUrl);
 
                 string query = "";
-                if (!String.IsNullOrEmpty(domain))
+                if (!string.IsNullOrEmpty(domain))
                 {
                     query = $"?domain={domain}";
                 }
 
-                var request = new RestRequest("/api/ad/v2/sync", Method.GET);
+                var request = new RestRequest("/api/ad/v2/sync" + query, Method.GET);
                 request.AddHeader("ApiKey", apiKey);
                 request.JsonSerializer = NewtonsoftJsonSerializer.Default;
 

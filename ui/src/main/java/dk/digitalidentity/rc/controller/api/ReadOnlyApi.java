@@ -9,7 +9,10 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
+import dk.digitalidentity.rc.controller.api.dto.read.PostponedConstraintReadDTO;
 import dk.digitalidentity.rc.dao.model.Domain;
+import dk.digitalidentity.rc.dao.model.PostponedConstraint;
+import dk.digitalidentity.rc.dao.model.UserUserRoleAssignment;
 import dk.digitalidentity.rc.service.DomainService;
 import org.modelmapper.ModelMapper;
 import org.modelmapper.TypeToken;
@@ -147,7 +150,7 @@ public class ReadOnlyApi {
 	}
 	
 	@RequestMapping(value = "/api/read/itsystem/{system}", method = RequestMethod.GET)
-	public ResponseEntity<List<UserReadWrapperDTO>> getUsersWithGivenUserRoles(@PathVariable("system") String itSystemIdentifier, @RequestParam(name = "indirectRoles", defaultValue = "false") boolean findIndirectlyAssignedRoles, @RequestParam(name = "withDescription", defaultValue = "false") boolean withDescription, @RequestParam(name = "domain", required = false) String domain) {
+	public ResponseEntity<List<UserReadWrapperDTO>> getUsersWithGivenUserRoles(@PathVariable("system") String itSystemIdentifier, @RequestParam(name = "indirectRoles", defaultValue = "false") boolean findIndirectlyAssignedRoles, @RequestParam(name = "withDescription", defaultValue = "false") boolean withDescription, @RequestParam(name = "domain", required = false) String domain, @RequestParam(name = "includePostponedConstraints", defaultValue = "false") boolean includePostponedConstraints) {
 		Domain foundDomain = domainService.getDomainOrPrimary(domain);
 		if (foundDomain == null) {
 			return new ResponseEntity<>(HttpStatus.NOT_FOUND);
@@ -176,7 +179,7 @@ public class ReadOnlyApi {
 
 		List<UserRole> userRoles = userRoleService.getByItSystem(itSystem);
 		for (UserRole userRole : userRoles) {
-			UserReadWrapperDTO dto = getUsersWithUserRole(userRole, findIndirectlyAssignedRoles, withDescription, foundDomain);
+			UserReadWrapperDTO dto = getUsersWithUserRole(userRole, findIndirectlyAssignedRoles, withDescription, foundDomain, includePostponedConstraints);
 
 			result.add(dto);
 		}
@@ -196,12 +199,12 @@ public class ReadOnlyApi {
 			return new ResponseEntity<>(HttpStatus.NOT_FOUND);
 		}
 
-		UserReadWrapperDTO dto = getUsersWithUserRole(userRole, findIndirectlyAssignedRoles, withDescription, foundDomain);
+		UserReadWrapperDTO dto = getUsersWithUserRole(userRole, findIndirectlyAssignedRoles, withDescription, foundDomain, false);
 
 		return new ResponseEntity<>(dto, HttpStatus.OK);
 	}
 
-	private UserReadWrapperDTO getUsersWithUserRole(UserRole userRole, boolean indirect, boolean withDescription, Domain domain) {
+	private UserReadWrapperDTO getUsersWithUserRole(UserRole userRole, boolean indirect, boolean withDescription, Domain domain, boolean includePostponedConstraints) {
 		UserReadWrapperDTO dto = new UserReadWrapperDTO();
 		dto.setRoleId(userRole.getId());
 		dto.setRoleIdentifier(userRole.getIdentifier());
@@ -249,6 +252,14 @@ public class ReadOnlyApi {
 					break;
 				}
 			}
+
+			List<PostponedConstraint> postponedConstraints = new ArrayList<>();
+			if (includePostponedConstraints) {
+				List<UserUserRoleAssignment> assignments = user.getUser().getUserRoleAssignments().stream().filter(u -> u.getUserRole().getId() == userRole.getId()).collect(Collectors.toList());
+				for (UserUserRoleAssignment assignment : assignments) {
+					postponedConstraints.addAll(assignment.getPostponedConstraints());
+				}
+			}
 			
 			if (userReadDto != null) {
 				userReadDto.getAssignedThrough().add(user.getAssignedThrough());
@@ -260,6 +271,7 @@ public class ReadOnlyApi {
 				userReadDto.setUserId(user.getUser().getUserId());
 				userReadDto.setUuid(user.getUser().getUuid());
 				userReadDto.setExtUuid(user.getUser().getExtUuid());
+				userReadDto.setPostponedConstraints(postponedConstraints.stream().map(p -> new PostponedConstraintReadDTO(p)).collect(Collectors.toList()));
 
 				dto.getAssignments().add(userReadDto);
 			}

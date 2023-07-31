@@ -69,9 +69,11 @@ public class RequestApproveController {
 		if (!settingsService.isRequestApproveEnabled()) {
 			return "redirect:/error";
 		}
-
-		model.addAttribute("requests", requestApproveService.getPendingRequestsAuthorizationManager());
 		
+		User user = userService.getByUserId(SecurityUtil.getUserId());
+		model.addAttribute("requests", requestApproveService.getPendingRequestsAuthorizationManager());
+		model.addAttribute("userUuid", (user != null) ? user.getUuid() : "");
+
 		// update badge in UI
 		long count = requestApproveService.getPendingRequestsAuthorizationManager().size();
 		request.getSession().setAttribute(SessionConstants.SESSION_REQUEST_COUNT, count);

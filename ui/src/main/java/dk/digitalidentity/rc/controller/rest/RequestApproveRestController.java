@@ -11,6 +11,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -217,6 +218,38 @@ public class RequestApproveRestController {
 		notify(request, orgUnit, template);
 		
 		return new ResponseEntity<>(HttpStatus.OK);
+	}
+	
+	@PostMapping("/rest/requestapprove/requests/flipAssign/{id}")
+	public ResponseEntity<?> Assign(@PathVariable long id, @RequestHeader("confirm") boolean confirm){
+		RequestApprove request = requestApproveService.getById(id);
+		if (request == null) {
+			return ResponseEntity.notFound().build();
+		}
+
+		User user = userService.getByUserId(SecurityUtil.getUserId());
+		if (user == null) {
+			return ResponseEntity.badRequest().build();
+		}
+
+		if (StringUtils.hasLength(request.getAdminUuid())) {
+			if (!confirm || request.getAdminUuid().equals(user.getUuid())) {
+				request.setAdminName(null);
+				request.setAdminUuid(null);
+			}
+			else {
+				request.setAdminUuid(user.getUuid());
+				request.setAdminName(user.getName());
+			}
+		}
+		else {
+			request.setAdminUuid(user.getUuid());
+			request.setAdminName(user.getName());
+		}
+		
+		requestApproveService.save(request);
+
+		return ResponseEntity.ok("");
 	}
 	
 	@ResponseBody

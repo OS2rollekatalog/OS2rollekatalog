@@ -11,6 +11,9 @@ public class NemLogin {
 	@FeatureDocumentation(name = "NemLog-in", description = "Integration til NemLog-ins IdM API til synkronisering af brugergrupper")
 	private boolean enabled = false;
 
+	// remove once we know this works as intended :)
+	private boolean userDryRunOnly = true;
+	
 	private String keystoreLocation;
 	private String keystorePassword;
 	private String baseUrl = "https://services.nemlog-in.dk";

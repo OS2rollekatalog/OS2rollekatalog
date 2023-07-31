@@ -49,7 +49,6 @@ import dk.digitalidentity.rc.dao.model.UserRole;
 import dk.digitalidentity.rc.dao.model.UserRoleEmailTemplate;
 import dk.digitalidentity.rc.dao.model.enums.ConstraintValueType;
 import dk.digitalidentity.rc.dao.model.enums.ItSystemType;
-import dk.digitalidentity.rc.dao.model.enums.NemLoginConstraintType;
 import dk.digitalidentity.rc.security.RequireAdministratorRole;
 import dk.digitalidentity.rc.security.RequireRequesterOrReadAccessRole;
 import dk.digitalidentity.rc.security.SecurityUtil;
@@ -453,9 +452,11 @@ public class UserRoleRestController {
             return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
         }
 
-        role.setName(userRoleForm.getName());
-        role.setDescription(userRoleForm.getDescription());
-        
+		if (role.getLinkedSystemRole() == null) {
+			role.setName(userRoleForm.getName());
+			role.setDescription(userRoleForm.getDescription());
+		}
+
         if (role.isRequireManagerAction()) {
         	if (role.getUserRoleEmailTemplate() == null) {
         		UserRoleEmailTemplate userRoleEmailTemplate = new UserRoleEmailTemplate();
@@ -472,42 +473,6 @@ public class UserRoleRestController {
 
         return new ResponseEntity<>(HttpStatus.OK);
     }
-    
-	@PostMapping(value = "/rest/userroles/edit/{id}/nemlogin/{type}")
-	public ResponseEntity<String> editRoleAsync(@PathVariable long id, @PathVariable NemLoginConstraintType type, @RequestParam String value) {
-		UserRole role = userRoleService.getById(id);
-		if (role == null) {
-			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
-		}
-
-		if (type.equals(NemLoginConstraintType.NONE)) {
-			role.setNemloginConstraintType(type);
-			role.setNemloginConstraintValue(null);
-		}
-		else if (type.equals(NemLoginConstraintType.SENR)) {
-			if (!Pattern.matches("\\d{8}", value)) {
-				return new ResponseEntity<>("Afgrænsning på SE valgt, men værdien er ikke gyldig", HttpStatus.BAD_REQUEST);
-			}
-
-			role.setNemloginConstraintType(type);
-			role.setNemloginConstraintValue(value);
-		}
-		else if (type.equals(NemLoginConstraintType.PNR)) {
-			if (!Pattern.matches("\\d{10}", value)) {
-				return new ResponseEntity<>("Afgrænsning på P-nummer valgt, men værdien er ikke gyldig", HttpStatus.BAD_REQUEST);
-			}
-
-			role.setNemloginConstraintType(type);
-			role.setNemloginConstraintValue(value);
-		}
-		else {
-			return new ResponseEntity<>("Den valgte afgrænsningstype er ikke kendt", HttpStatus.BAD_REQUEST);
-		}
-
-		userRoleService.save(role);
-
-		return new ResponseEntity<>(HttpStatus.OK);
-	}
 
     // we have to use the deprecated method to get inactive assignments and users/orgunits
     @SuppressWarnings("deprecation")

@@ -1,3 +1,8 @@
+2023.07.31 - Release 2023r2
+- [ROL-241](https://os2web.atlassian.net/browse/ROL-241) – Rollebuket: vis korrekt 'tildelt via'
+- [ROL-245](https://os2web.atlassian.net/browse/ROL-245) – Reservering af anmodninger
+- [ROL-263](https://os2web.atlassian.net/browse/ROL-263) – MitID Erhverv - omlægge rettighedsstyring til direkte tildeling på brugere fremfor brugergrupper
+
 2023.04.21 - Release 2023r1
 - [ROL-82](https://os2web.atlassian.net/browse/ROL-82) – Integration med NemLogin3 API'erne
 - [ROL-239](https://os2web.atlassian.net/browse/ROL-239) – Email-advisering når en bruger med "simple" rettigheder bliver lukket

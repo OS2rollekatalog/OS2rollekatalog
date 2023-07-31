@@ -36,6 +36,7 @@ public class SettingsService {
 	private static final String SETTING_AD_ATTESTATION = "AttestationADEnabled";
 	private static final String SETTING_RUN_CICS = "RunCics";
 	private static final String SETTING_IT_SYSTEM_DEFAULT_HIDDEN_ENABLED = "ItSystemHiddenByDefault";
+	private static final String SETTING_MITID_ERHVERV_MIGRATION_PERFORMED = "MitIDErhvervMigrationPerformed";
 
 	@Autowired
 	private SettingsDao settingsDao;
@@ -459,5 +460,13 @@ public class SettingsService {
 
 	public void save(Setting setting) {
 		settingsDao.save(setting);
+	}
+
+	public boolean isMitIDErhvervMigrationPerformed() {
+		return isKeyEnabled(SETTING_MITID_ERHVERV_MIGRATION_PERFORMED);
+	}
+
+	public void setMitIDErhvervMigrationPerformed() {
+		setKeyEnabled(true, SETTING_MITID_ERHVERV_MIGRATION_PERFORMED);
 	}
 }

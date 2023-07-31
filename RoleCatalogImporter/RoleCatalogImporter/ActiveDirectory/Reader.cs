@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.DirectoryServices;
 using System.DirectoryServices.AccountManagement;
+using System.Linq;
 
 namespace RoleCatalogImporter
 {
@@ -10,11 +11,13 @@ namespace RoleCatalogImporter
         private static readonly log4net.ILog log = log4net.LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
         private string[] ousToIgnore = new string[0];
         private string SAMAccountPrefix = null;
+        private string UserFilter = null;
 
         public Reader()
         {
             ousToIgnore = Properties.Settings.Default.OUsToIgnore.Split(';');
             SAMAccountPrefix = Properties.Settings.Default.SAMAccountPrefix;
+            UserFilter = Properties.Settings.Default.UserFilter;
         }
 
         public List<ADOrgUnit> ReadOrgUnits()
@@ -136,11 +139,11 @@ namespace RoleCatalogImporter
                     searcher.PageSize = 500;
                     if (Properties.Settings.Default.IncludeDisabledUsers)
                     {
-                        searcher.Filter = "(&(objectClass=user)(objectCategory=person))";
+                        searcher.Filter = CreateFilter("!(isDeleted=TRUE)");
                     }
                     else
                     {
-                        searcher.Filter = "(&(objectClass=user)(objectCategory=person)(!(UserAccountControl:1.2.840.113556.1.4.803:=2)))";
+                        searcher.Filter = CreateFilter("!(isDeleted=TRUE)", "!(UserAccountControl:1.2.840.113556.1.4.803:=2)");
                     }
 
                     searcher.PropertiesToLoad.Add(Properties.Settings.Default.UserTitleField);
@@ -295,5 +298,20 @@ namespace RoleCatalogImporter
 
             return users;
         }
+
+        private string CreateFilter(params string[] filters)
+        {
+            var allFilters = filters.ToList();
+            allFilters.Add("objectClass=user");
+            allFilters.Add("objectCategory=person");
+
+            if (!string.IsNullOrEmpty(UserFilter))
+            {
+                allFilters.Add(UserFilter);
+            }
+
+            return string.Format("(&{0})", string.Concat(allFilters.Where(x => !String.IsNullOrEmpty(x)).Select(x => '(' + x + ')').ToArray()));
+        }
+
     }
 }

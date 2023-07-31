@@ -46,13 +46,16 @@ import dk.digitalidentity.rc.dao.model.SystemRoleAssignmentConstraintValue;
 import dk.digitalidentity.rc.dao.model.Title;
 import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserRole;
+import dk.digitalidentity.rc.dao.model.enums.ItSystemType;
 import dk.digitalidentity.rc.security.RequireAdministratorRole;
 import dk.digitalidentity.rc.security.RequireRequesterOrReadAccessRole;
 import dk.digitalidentity.rc.service.ConstraintTypeService;
 import dk.digitalidentity.rc.service.ItSystemService;
 import dk.digitalidentity.rc.service.KleService;
 import dk.digitalidentity.rc.service.OrgUnitService;
+import dk.digitalidentity.rc.service.PNumberService;
 import dk.digitalidentity.rc.service.RoleGroupService;
+import dk.digitalidentity.rc.service.SENumberService;
 import dk.digitalidentity.rc.service.Select2Service;
 import dk.digitalidentity.rc.service.SettingsService;
 import dk.digitalidentity.rc.service.SystemRoleService;
@@ -102,6 +105,12 @@ public class UserRoleController {
 
 	@Autowired
 	private RoleGroupService roleGroupService;
+	
+	@Autowired
+	private SENumberService seNumberService;
+	
+	@Autowired
+	private PNumberService pNumberService;
 
 	@InitBinder(value = { "role" })
 	public void initBinder(WebDataBinder binder) {
@@ -329,6 +338,7 @@ public class UserRoleController {
 				}
 			}
 
+			esr.setId(systemRole.getId());
 			esr.setSystemRole(systemRole);
 			editSystemRoles.add(esr);
 		}
@@ -381,6 +391,11 @@ public class UserRoleController {
 		model.addAttribute("roleId", id);
 		model.addAttribute("titlesEnabled", configuration.getTitles().isEnabled());
 		model.addAttribute("allowPostponing", role.isAllowPostponing());
+		
+		if (role.getItSystem().getSystemType().equals(ItSystemType.NEMLOGIN)) {
+			model.addAttribute("pNumberList", pNumberService.getAll());
+			model.addAttribute("sENumberList", seNumberService.getAll());
+		}
 		
 		boolean hideRolegroups = false;
 		if (role.isAllowPostponing()) {

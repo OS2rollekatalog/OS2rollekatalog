@@ -19,34 +19,33 @@ public interface OrgUnitDao extends CrudRepository<OrgUnit, String> {
 	
 	// same
 	@Deprecated
-	List<OrgUnit> getByUserRoleAssignmentsUserRole(UserRole role);
+	List<OrgUnit> findByUserRoleAssignmentsUserRole(UserRole role);
 	
 	// same
 	@Deprecated
-	List<OrgUnit> getByRoleGroupAssignmentsRoleGroup(RoleGroup role);
+	List<OrgUnit> findByRoleGroupAssignmentsRoleGroup(RoleGroup role);
 
 	List<OrgUnit> findByActiveTrue();
 	long countByActiveTrueAndUserRoleAssignmentsUserRole(UserRole role);	
 	long countByActiveTrueAndRoleGroupAssignmentsRoleGroup(RoleGroup role);
-	OrgUnit getByActiveTrueAndParentIsNull();	
-	OrgUnit getByUuidAndActiveTrue(String uuid);
-	List<OrgUnit> getByActiveTrue();
+	OrgUnit findByActiveTrueAndParentIsNull();	
+	OrgUnit findByUuidAndActiveTrue(String uuid);
 	
 	@Deprecated
-	List<OrgUnit> getByActiveTrueAndUserRoleAssignmentsUserRole(UserRole role);
-	List<OrgUnit> getByActiveTrueAndUserRoleAssignmentsUserRoleAndUserRoleAssignmentsInactive(UserRole userRole, boolean inactive);
-	List<OrgUnit> getByActiveTrueAndUserRoleAssignmentsUserRoleAndUserRoleAssignmentsInheritAndUserRoleAssignmentsInactive(UserRole role, boolean inherit, boolean inactive);
+	List<OrgUnit> findByActiveTrueAndUserRoleAssignmentsUserRole(UserRole role);
+	List<OrgUnit> findByActiveTrueAndUserRoleAssignmentsUserRoleAndUserRoleAssignmentsInactive(UserRole userRole, boolean inactive);
+	List<OrgUnit> findByActiveTrueAndUserRoleAssignmentsUserRoleAndUserRoleAssignmentsInheritAndUserRoleAssignmentsInactive(UserRole role, boolean inherit, boolean inactive);
 
 	@Deprecated
-	List<OrgUnit> getByActiveTrueAndRoleGroupAssignmentsRoleGroup(RoleGroup role);
-	List<OrgUnit> getByActiveTrueAndRoleGroupAssignmentsRoleGroupAndRoleGroupAssignmentsInactive(RoleGroup roleGroup, boolean inactive);
-	List<OrgUnit> getByActiveTrueAndRoleGroupAssignmentsRoleGroupAndRoleGroupAssignmentsInheritAndRoleGroupAssignmentsInactive(RoleGroup role, boolean inherit, boolean inactive);
-	List<OrgUnit> getByManager(User user);
-	List<OrgUnit> getByActiveTrueAndNextAttestationNotNull();
+	List<OrgUnit> findByActiveTrueAndRoleGroupAssignmentsRoleGroup(RoleGroup role);
+	List<OrgUnit> findByActiveTrueAndRoleGroupAssignmentsRoleGroupAndRoleGroupAssignmentsInactive(RoleGroup roleGroup, boolean inactive);
+	List<OrgUnit> findByActiveTrueAndRoleGroupAssignmentsRoleGroupAndRoleGroupAssignmentsInheritAndRoleGroupAssignmentsInactive(RoleGroup role, boolean inherit, boolean inactive);
+	List<OrgUnit> findByManager(User user);
+	List<OrgUnit> findByActiveTrueAndNextAttestationNotNull();
 	
-	List<OrgUnit> getByAuthorizationManagersUser(User user);
+	List<OrgUnit> findByAuthorizationManagersUser(User user);
 
-	List<OrgUnit> getByActiveTrueAndManagerNotNull();
+	List<OrgUnit> findByActiveTrueAndManagerNotNull();
 
-	List<OrgUnit> getByUuidIn(List<String> uuids);
+	List<OrgUnit> findByUuidIn(List<String> uuids);
 }

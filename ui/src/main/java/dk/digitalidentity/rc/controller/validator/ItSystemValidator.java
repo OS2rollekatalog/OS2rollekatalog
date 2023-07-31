@@ -2,8 +2,6 @@ package dk.digitalidentity.rc.controller.validator;
 
 import java.util.regex.Pattern;
 
-import dk.digitalidentity.rc.dao.model.Domain;
-import dk.digitalidentity.rc.service.DomainService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
@@ -11,8 +9,10 @@ import org.springframework.validation.Errors;
 import org.springframework.validation.Validator;
 
 import dk.digitalidentity.rc.controller.mvc.viewmodel.ItSystemForm;
+import dk.digitalidentity.rc.dao.model.Domain;
 import dk.digitalidentity.rc.dao.model.ItSystem;
 import dk.digitalidentity.rc.dao.model.enums.ItSystemType;
+import dk.digitalidentity.rc.service.DomainService;
 import dk.digitalidentity.rc.service.ItSystemService;
 
 @Component
@@ -28,7 +28,7 @@ public class ItSystemValidator implements Validator {
 	public boolean supports(Class<?> aClass) {
 		return (ItSystemForm.class.isAssignableFrom(aClass));
 	}
-
+	
 	@Override
 	public void validate(Object o, Errors errors) {
 		ItSystemForm itSystemForm = (ItSystemForm) o;
@@ -79,11 +79,15 @@ public class ItSystemValidator implements Validator {
 
 	private void checkEmailSyntax(Errors errors, ItSystemForm itSystemForm) {
 		if (itSystemForm.getEmail() != null) {
-			// Regular Expression by RFC 5322 for Email Validation
-			String regex = "^[a-zA-Z0-9_!#$%&'*+/=?`{|}~^.-]+@[a-zA-Z0-9.-]+$";
-	
-			if (!Pattern.matches(regex, itSystemForm.getEmail())) {
-				errors.rejectValue("email", "html.errors.itsystem.email.notemail");
+			String[] emails = itSystemForm.getEmail().split(";");
+			for (String email : emails) {
+
+				// Regular Expression by RFC 5322 for Email Validation
+				String regex = "^[a-zA-Z0-9_!#$%&'*+/=?`{|}~^.-]+@[a-zA-Z0-9.-]+$";
+
+				if (!Pattern.matches(regex, email)) {
+					errors.rejectValue("email", "html.errors.itsystem.email.notemail");
+				}
 			}
 		}
 	}

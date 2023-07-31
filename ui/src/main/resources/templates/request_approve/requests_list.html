@@ -18,9 +18,10 @@
 										<th class="col-md-2" th:text="#{html.my.requests.to}"></th>
 										<th class="col-md-2" th:text="#{html.my.requests.from}"></th>
 										<th class="col-md-2" th:text="#{html.my.requests.name}"></th>
-										<th class="col-md-2" th:text="#{html.my.requests.itsystem}"></th>
+										<th class="col-md-1" th:text="#{html.my.requests.itsystem}"></th>
+										<th class="col-md-2" th:text="#{html.my.requests.admin}"></th>
 										<th class="col-md-1" th:text="#{html.my.requests.request.timestamp}"></th>
-										<th class="col-md-3" th:text="#{html.my.requests.description}"></th>
+										<th class="col-md-2" th:text="#{html.my.requests.description}"></th>
 									</tr>
 								</thead>
 	
@@ -33,6 +34,12 @@
 										<td th:text="${req.request.requester.name} + ' (' + ${req.request.requester.userId} + ')'"></td>
 										<td th:text="${req.roleName}"></td>
 										<td th:text="${req.itSystemName}"></td>
+										<td>
+											<a th:attr="onclick='flipAssign(' + ${req.request.id} + ', \'' + ${req.request.adminUuid} + '\')'">
+												<em class="fa fa-fw fa-user"></em>
+												<span th:text="${req.request.adminName != null ? req.request.adminName : ''}"></span>
+											</a>
+										</td>										
 										<td th:text="${#dates.format(req.requestTimestamp, 'yyyy-MM-dd')}"></td>
 										<td th:text="${req.roleDescription}"></td>
 					    			</tr>
@@ -69,13 +76,30 @@
 			var rejectTxt = [[#{html.control.button.reject}]];
 			var confirmTxt = [[#{html.control.button.send}]];
 			var cancelTxt = [[#{html.control.button.cancel}]];
+
+			var changeStatusButtonConfirm = [[#{html.control.button.yes}]];
+			var changeStatusButtonCancel = [[#{html.control.button.no}]];
+
+			var assignTitle = [[#{html.requests.admin.assign.title}]];
+			var assignText = [[#{html.requests.admin.assign.text}]];
+
+			var reassignTitle = [[#{html.requests.admin.reassign.title}]];
+			var reassignText = [[#{html.requests.admin.reassign.text}]];
+			var reassignYesBtn = [[#{html.requests.admin.reassign.yes}]];
+			var reassignNoBtn = [[#{html.requests.admin.reassign.no}]];
+
+			var deassignTitle = [[#{html.requests.admin.deassign.title}]];
+			var deassignText = [[#{html.requests.admin.deassign.text}]];
 			
 			var rejectUrl = [[@{/rest/requestapprove/requests/reject/}]];
 			var approveUrl = [[@{/rest/requestapprove/requests/approve/}]];
 			var listUrl = [[@{/ui/users/requests/authorizationmanager}]];
+			var flipAssignUrl = [[@{/rest/requestapprove/requests/flipAssign/}]];
 			
 			var requestApproveMsg = [[#{html.my.requests.msg}]];
 			var requestApproveTitel = [[#{html.my.requests.titel}]];
+
+			var userUuid = [[${userUuid}]];
 		+]*/
 
 		var token = $("meta[name='_csrf']").attr("content");
@@ -146,6 +170,66 @@
 				}
 			});
 		}
+
+			function flipAssign(id, currentUuid) {
+				var title = assignTitle;
+				var text = assignText;
+				var yesBtn = changeStatusButtonConfirm;
+				var noBtn = changeStatusButtonCancel;
+				var reassign = false;				
+
+				// overwrite default messages of already assigned
+				if (currentUuid != 'null' ) {
+					if (currentUuid == userUuid) {
+						title = deassignTitle;
+						text = deassignText;
+					}
+					else {
+						title = reassignTitle;
+						text = reassignText;
+						yesBtn = reassignYesBtn;
+						noBtn = reassignNoBtn;
+						reassign = true;
+					}
+				}
+
+				swal({
+					html : true,
+					title : title,
+					text : text,
+					showCancelButton : true,
+					confirmButtonColor : "#4765a0",
+					confirmButtonText : yesBtn,
+					cancelButtonText : noBtn,
+					closeOnConfirm : true,
+					closeOnCancel : true
+				},
+				function(isConfirm) {
+					if (isConfirm || reassign) {
+						$.ajax({
+							url: flipAssignUrl + id,
+							headers: {
+								'X-CSRF-TOKEN': token,
+								'confirm': isConfirm
+							},
+							type: 'post',
+							contentType: 'application/json',
+							data: '',
+							success: function() {
+								location.reload();
+							},
+							error: function() {
+								$.notify({
+									message: "Fejl opstod under ændring"
+								}, {
+									status: 'danger',
+									autoHideDelay: 4000
+								});
+							}
+						});
+					}
+				});
+			}
 		
 		$(document).ready(function() {
 		    var table = $('.listTable').DataTable({
@@ -162,6 +246,7 @@
 		            { },
 		            { },
 		            { },
+					{ },
 		            { }
 		        ],
 		        "language": {
@@ -196,12 +281,12 @@
 		        if (row.child.isShown()) {
 		            row.child.hide();
 		            tr.removeClass('shown');
-		            tr.find("em").addClass('fa-chevron-right').removeClass('fa-chevron-down');
+		            tr.find("em:first").addClass('fa-chevron-right').removeClass('fa-chevron-down');
 		        }
 		        else {
 		            row.child(format(childJson)).show();
 		            tr.addClass('shown');
-		            tr.find("em").removeClass('fa-chevron-right').addClass('fa-chevron-down');
+		            tr.find("em:first").removeClass('fa-chevron-right').addClass('fa-chevron-down');
 		        }
 		    });
 		});

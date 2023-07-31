@@ -2,8 +2,8 @@ package dk.digitalidentity.rc.controller.rest;
 
 import javax.validation.Valid;
 
-import dk.digitalidentity.rc.controller.mvc.datatables.dao.model.NotificationViewInactive;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.jpa.datatables.mapping.Column;
 import org.springframework.data.jpa.datatables.mapping.DataTablesInput;
 import org.springframework.data.jpa.datatables.mapping.DataTablesOutput;
 import org.springframework.http.ResponseEntity;
@@ -15,9 +15,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RestController;
 
-import dk.digitalidentity.rc.controller.mvc.datatables.dao.NotificationDatatableDaoActive;
-import dk.digitalidentity.rc.controller.mvc.datatables.dao.NotificationDatatableDaoInactive;
-import dk.digitalidentity.rc.controller.mvc.datatables.dao.model.NotificationViewActive;
+import dk.digitalidentity.rc.controller.mvc.datatables.dao.NotificationDatatableDao;
+import dk.digitalidentity.rc.controller.mvc.datatables.dao.model.NotificationView;
 import dk.digitalidentity.rc.dao.model.Notification;
 import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.security.RequireAssignerRole;
@@ -30,11 +29,8 @@ import dk.digitalidentity.rc.service.UserService;
 public class NotificationRestController {
 
 	@Autowired
-	private NotificationDatatableDaoActive notificationDatatableDaoActive;
+	private NotificationDatatableDao notificationDatatableDao;
 	
-	@Autowired
-	private NotificationDatatableDaoInactive notificationDatatableDaoInactive;
-
 	@Autowired
 	private NotificationService notificationService;
 	
@@ -44,18 +40,20 @@ public class NotificationRestController {
 	@PostMapping("/rest/notifications/list")
 	public DataTablesOutput<?> list(@Valid @RequestBody DataTablesInput input, BindingResult bindingResult, @RequestHeader("show-inactive") boolean showInactive) {
 		if (bindingResult.hasErrors()) {
-			DataTablesOutput<NotificationViewActive> error = new DataTablesOutput<>();
+			DataTablesOutput<NotificationView> error = new DataTablesOutput<>();
 			error.setError(bindingResult.toString());
 
 			return error;
 		}
 
-		if (showInactive) {
-			return notificationDatatableDaoInactive.findAll(input);
+		// search for active
+		for (Column column : input.getColumns()) {
+			if ("active".equals(column.getData())) {
+				column.getSearch().setValue(showInactive ? "false" : "true");
+			}
 		}
-		else {
-			return notificationDatatableDaoActive.findAll(input);
-		}
+
+		return notificationDatatableDao.findAll(input);
 	}
 
 	@PostMapping("/rest/notifications/changeStatus")

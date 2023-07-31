@@ -45,12 +45,6 @@ public class UserRoleView {
 
 	@Column
 	private boolean syncFailed;
-	
-	@Column
-	private boolean pendingNemloginSync;
-
-	@Column
-	private boolean syncNemloginFailed;
 
 	@Column
 	private String delegatedFromCvr;

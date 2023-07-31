@@ -1,13 +1,15 @@
 <th:block th:fragment="postponedConstraints" xmlns="http://www.w3.org/1999/xhtml" xmlns:th="http://www.thymeleaf.org">
-	<input th:id="postponingAllowed" th:value="${postponingAllowed}" hidden>
+	<input th:id="postponingAllowed" th:value="${postponingAllowed}" hidden="hidden"></input>
+	
 	<h4 th:if="${postponingAllowed}" class="md-12" th:text="#{html.page.user.assign.userrole.constraints.header}"></h4>
+
     <div th:if="${postponingAllowed}" th:each="systemRoleAssignment : ${systemRoleAssignments}">
      	<h5 th:text="${systemRoleAssignment.systemRole.name}" style="font-weight: bold;"></h5>
 		<div class="row" th:each="postponedConstraint : ${systemRoleAssignment.postponedConstraints}">
 			<div class="col-sm-2">
 				<label th:text="${postponedConstraint.constraintType.name}" style="font-weight: normal;"></label>
 			</div>
-	
+
 			<div class="col-sm-10" style="padding-top: 6px">
 				<!-- REGEX UI -->
 				<th:block th:if="${postponedConstraint.constraintType.uiType == T(dk.digitalidentity.rc.dao.model.enums.ConstraintUIType).REGEX}">
@@ -22,7 +24,7 @@
 								</div>
 								<div class="col-sm-3">
 									<a class="btn btn-primary" th:attr="onclick='kleConstraintService.chooseKles('+${systemRoleAssignment.systemRole.id}+',\''+${postponedConstraint.constraintType.uuid}+'\');'">
-										<span>Vælg Kle</span>
+										<span>Vælg KLE</span>
 									</a>
 								</div>
 								<div class="col-sm-12">
@@ -52,12 +54,43 @@
 						<th:block th:case="'http://digital-identity.dk/constraints/itsystem/1'">
 							<div th:id="'postponed' + ${systemRoleAssignment.systemRole.id} + ${postponedConstraint.constraintType.uuid}" class="col-sm-12">
 								<div class="col-sm-12">
-									<select style="width:100%;" th:id="'postponed' + ${systemRoleAssignment.systemRole.id} + ${postponedConstraint.constraintType.uuid} + 'multiple-select'"  th:attr="data-type='itsystems',data-systemroleid=${systemRoleAssignment.systemRole.id}, data-constrainttype=${postponedConstraint.constraintType.uuid}" class="form-control m-b multiple-select constraint" name="itSystems[]" multiple="multiple"></select>
-									<input style="width:100%;" th:value="${postponedConstraint.constraintValue != null} ? ${postponedConstraint.constraintValue} : ''" type="hidden" ></input>
+									<select style="width:100%;" th:id="'postponed' + ${systemRoleAssignment.systemRole.id} + ${postponedConstraint.constraintType.uuid} + 'multiple-select'" th:attr="data-type='itsystems',data-systemroleid=${systemRoleAssignment.systemRole.id}, data-constrainttype=${postponedConstraint.constraintType.uuid}" class="form-control m-b constraint" name="itSystems[]" multiple="multiple">
+										<option th:each="option : ${itSystemList}" th:value="${option.id}" th:text="${option.text}" th:selected="${@select2Service.isSelected(postponedConstraint.constraintValue, option.id)}" ></option>
+									</select>
 								</div>
 								<div class="col-sm-12">
 									<p class="constraintValidationError" th:id="'postponed' + ${systemRoleAssignment.systemRole.id} + ${postponedConstraint.constraintType.uuid} + 'error'" style="color:red" th:text="#{html.page.user.assign.userrole.constraints.error}" hidden></p>
 								</div>
+							</div>
+						</th:block>
+
+						<!--NemLogin pnr selector-->
+						<th:block th:case="'https://nemlogin.dk/constraints/pnr/1'">
+							<div class="col-sm-12" style="padding-top: 6px;">
+								<div class="col-sm-12">
+									<select style="width:100%;" class="form-control m-b constraint" th:id="'postponed' + ${systemRoleAssignment.systemRole.id} + ${postponedConstraint.constraintType.uuid}" th:attr="data-type='pnr',data-systemroleid=${systemRoleAssignment.systemRole.id}, data-constrainttype=${postponedConstraint.constraintType.uuid}">
+										<option selected="selected" disabled="disabled" th:text="#{html.select.default}"></option>
+										<option th:each="pNumber : ${pNumberList}" th:selected="${postponedConstraint.constraintValue != null} and (${pNumber.code} eq ${#strings.toString(postponedConstraint.constraintValue)})" th:value="${pNumber.code}" th:text="${pNumber.name} +' (' + ${pNumber.code} + ')'"  />
+									</select>
+								</div>
+								<div class="col-sm-12">
+									<p class="constraintValidationError" th:id="'postponed' + ${systemRoleAssignment.systemRole.id} + ${postponedConstraint.constraintType.uuid} + 'error'" style="color:red" th:text="#{html.page.user.assign.userrole.constraints.error}" hidden></p>
+								</div>
+							</div>
+						</th:block>
+
+						<!--NemLogin senr selector-->
+						<th:block th:case="'https://nemlogin.dk/constraints/senr/1'">
+							<div class="col-sm-12" style="padding-top: 6px;" th:disabled="${selected}==false or ${constraintData != null} and ${constraintData.postponed}">
+								<div class="col-sm-12">
+									<select style="width:100%;" class="form-control m-b constraint" th:id="'postponed' + ${systemRoleAssignment.systemRole.id} + ${postponedConstraint.constraintType.uuid}" th:attr="data-type='senr',data-systemroleid=${systemRoleAssignment.systemRole.id}, data-constrainttype=${postponedConstraint.constraintType.uuid}">
+										<option selected="selected" disabled="disabled" th:text="#{html.select.default}"></option>
+										<option th:each="sENumber : ${sENumberList}" th:selected="${postponedConstraint.constraintValue != null} and (${sENumber.code} eq ${#strings.toString(postponedConstraint.constraintValue)})" th:value="${sENumber.code}" th:text="${sENumber.name} +' (' + ${sENumber.code} + ')'"  />
+									</select>
+								</div>
+							</div>
+							<div class="col-sm-12">
+								<p class="constraintValidationError" th:id="'postponed' + ${systemRoleAssignment.systemRole.id} + ${postponedConstraint.constraintType.uuid} + 'error'" style="color:red" th:text="#{html.page.user.assign.userrole.constraints.error}" hidden></p>
 							</div>
 						</th:block>
 	
@@ -131,12 +164,12 @@
 		var postponedConstraintsService;
 		var kleConstraintService;
 		var orgUnitPostponedConstraintService;
-		
+
 		$(document).ready(function() {
 			postponedConstraintsService = new PostponedConstraintsService();
 			kleConstraintService = new KleConstraintService();
 			orgUnitPostponedConstraintService = new OrgUnitPostponedConstraintService();
-			
+
 			/*[+
     		postponedConstraintsService.usersUrl = [[@{/rest/users/}]];
     		+]*/
@@ -145,33 +178,9 @@
 		function PostponedConstraintsService() {
 			this.init = function() {
 				kleConstraintService.init();
-				postponedConstraintsService.initSelects();
 				orgUnitPostponedConstraintService.init();
 			}
-			
-			this.initSelects = function() {
-				$(".multiple-select").each(function( index ) {
-					var multipleSelectField = $(this); 
-					var type = multipleSelectField.data("type");
-					var multipleSelectInput = multipleSelectField.siblings('input').val().split(",");
-					var data = {};
-	
-					if (type == 'ous') {
-						data = orgUnitList;
-					}
-					else {
-						data = itSystemList;
-					}
-	
-					multipleSelectField.select2({
-						data: data
-					});
-	
-					multipleSelectField.val(multipleSelectInput).trigger('change');
-	
-				});
-			}
-			
+
 			this.validate = function(from) {
 				$(".constraintValidationError").hide();
 				

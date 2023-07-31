@@ -79,4 +79,7 @@ public interface UserDao extends CrudRepository<User, String>, JpaSpecificationE
 
 	List<User> findByManagerSubstitutesSubstitute(User user);
 
+	List<User> findByNemloginUuidNotNull();
+
+	List<String> findUuidByNemloginUuidNotNull();
 }

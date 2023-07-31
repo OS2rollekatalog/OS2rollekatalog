@@ -34,7 +34,7 @@ public class DomainService {
 	}
 
 	public static boolean isPrimaryDomain(Domain domain) {
-		return domain.getId() == 1;
+		return "Administrativt".equals(domain.getName());
 	}
 
 	public Domain getByName(String name) {

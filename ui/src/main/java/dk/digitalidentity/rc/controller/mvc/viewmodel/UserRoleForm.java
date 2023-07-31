@@ -10,7 +10,6 @@ import dk.digitalidentity.rc.dao.model.SystemRole;
 import dk.digitalidentity.rc.dao.model.SystemRoleAssignment;
 import dk.digitalidentity.rc.dao.model.UserRole;
 import dk.digitalidentity.rc.dao.model.UserRoleEmailTemplate;
-import dk.digitalidentity.rc.dao.model.enums.NemLoginConstraintType;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -36,11 +35,7 @@ public class UserRoleForm {
     private boolean sendToAuthorizationManagers;
     private String emailTemplateTitle = "Der er tildelt en rolle der kræver leder-involvering";
     private String emailTemplateMessage = "Kære {modtager}\n<br/>\n<br/>\nRollen {rolle}, der kræver leder-involvering, er tildelt til {bruger}.";
-    
-    // only for nemLogin roles
-    private NemLoginConstraintType nemloginConstraintType;
-    private String nemloginConstraintValue;
-    
+
 	@Size(max = 4000)
 	private String description;
 
@@ -70,9 +65,7 @@ public class UserRoleForm {
     	this.requireManagerAction = userRole.isRequireManagerAction();
     	this.sendToSubstitutes = userRole.isSendToSubstitutes();
     	this.sendToAuthorizationManagers = userRole.isSendToAuthorizationManagers();
-    	this.nemloginConstraintType = userRole.getNemloginConstraintType();
-    	this.nemloginConstraintValue = userRole.getNemloginConstraintValue();
-    	
+
     	if (userRole.getUserRoleEmailTemplate() != null) {
     		this.emailTemplateTitle = userRole.getUserRoleEmailTemplate().getTitle();
     		this.emailTemplateMessage = userRole.getUserRoleEmailTemplate().getMessage();

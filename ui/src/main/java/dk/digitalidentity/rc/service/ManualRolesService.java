@@ -104,11 +104,12 @@ public class ManualRolesService {
 		for (ItSystem itSystem : itSystems) {
 			log.info("Detecting role changes on " + itSystem.getName() + " / " + itSystem.getId());
 
-			String emailAddress = itSystem.getEmail();
-			if (!StringUtils.hasLength(emailAddress)) {
+			String emailAddressesString = itSystem.getEmail();
+			if (!StringUtils.hasLength(emailAddressesString)) {
 				log.debug("No email address configured for " + itSystem.getName() + " / " + itSystem.getId());
 				continue;
 			}
+			String[] emailAddresses = emailAddressesString.split(";");
 
 			Map<Long, UserRole> userRoleMap = userRoleService.getByItSystem(itSystem).stream().collect(Collectors.toMap(UserRole::getId, Function.identity()));
 			Map<User, List<UserRole>> toAddMap = new HashMap<>();
@@ -250,13 +251,15 @@ public class ManualRolesService {
 				String title = messageSource.getMessage("html.email.manual.title", new Object[] { itSystem.getName() }, Locale.ENGLISH);
 				String message = messageSource.getMessage("html.email.manual.message.format", new Object[] { itSystem.getName(), usersAndRoles.toString() }, Locale.ENGLISH);
 
-				try {
-					emailService.sendMessage(emailAddress, title, message);
-				}
-				catch (Exception ex) {
-					log.error("Exception occured while synchronizing manual ItSystem: " + itSystem + " Exception:" + ex.getMessage());
+				for (String email : emailAddresses) {
+					try {
+						emailService.sendMessage(email, title, message);
+					}
+					catch (Exception ex) {
+						log.error("Exception occured while synchronizing manual ItSystem: " + itSystem + ". Could not send email to: " + email + ". Exception:" + ex.getMessage());
 
-					// we just continue with the next one - someone has to fix this, and then perform a full sync
+						// we just continue with the next one - someone has to fix this, and then perform a full sync
+					}
 				}
 			}
 		}

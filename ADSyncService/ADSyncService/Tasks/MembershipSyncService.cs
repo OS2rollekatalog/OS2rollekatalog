@@ -38,6 +38,13 @@ namespace ADSyncService
 
                         log.Info("Found " + adGroupMembers.Count + " existing members of " + assignment.groupName + " with expected end-result being " + assignment.samaccountNames.Count + " members");
 
+                        // log all potential members and all existing members
+                        if (log.IsDebugEnabled)
+                        {
+                            log.Debug("All AD group members: " + string.Join(",", adGroupMembers));
+                            log.Debug("All OS2rollekatalog group members: " + string.Join(",", assignment.samaccountNames));
+                        }
+
                         foreach (var userId in assignment.samaccountNames)
                         {
                             if (!adGroupMembers.Contains(userId))

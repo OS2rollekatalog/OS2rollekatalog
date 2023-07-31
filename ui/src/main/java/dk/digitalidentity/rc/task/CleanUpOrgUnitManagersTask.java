@@ -6,27 +6,28 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
-import dk.digitalidentity.rc.service.nemlogin.NemLoginService;
+import dk.digitalidentity.rc.service.OrgUnitService;
 import lombok.extern.slf4j.Slf4j;
 
 @Component
 @EnableScheduling
 @Slf4j
-public class SyncNemLoginGroupsTask {
+public class CleanUpOrgUnitManagersTask {
 	
+	@Autowired
+	private OrgUnitService orgUnitService;
+
 	@Autowired
 	private RoleCatalogueConfiguration configuration;
-	
-	@Autowired
-	private NemLoginService nemLoginService;
-	
-	@Scheduled(cron = "30 0/2 * * * ?")
-	public void syncNemLoginGroups() throws Exception {
+
+	// Run daily at 03:xx
+	@Scheduled(cron = "0 #{new java.util.Random().nextInt(55)} 3 * * ?")
+	public void removeDeletedManagers() {
 		if (!configuration.getScheduled().isEnabled()) {
 			log.debug("Scheduled jobs are disabled on this instance");
 			return;
 		}
-
-		nemLoginService.synchronizeUserRoles();
+		
+		orgUnitService.cleanupOrgUnitManagers();
 	}
 }

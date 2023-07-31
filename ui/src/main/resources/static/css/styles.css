@@ -48,12 +48,6 @@
 	margin-left: 90px;
 }
 
-.select2-container, .select2-choices {
-	height: 100px;
-}
-.select2-selection {
-	height: 100%;
-}
 .preformat {
     white-space: pre-line;
 }

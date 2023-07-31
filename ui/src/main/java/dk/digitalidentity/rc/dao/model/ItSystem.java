@@ -50,6 +50,7 @@ public class ItSystem implements AuditLoggable {
 	@Column(nullable = false, length = 64)
 	private String identifier;
 
+	// can be more than one email separated with ;
 	@Column(name = "email")
 	private String email;
 

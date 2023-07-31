@@ -15,7 +15,6 @@ import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
-import dk.digitalidentity.rc.dao.model.Domain;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -28,6 +27,7 @@ import dk.digitalidentity.rc.controller.api.model.OrganisationDTO;
 import dk.digitalidentity.rc.controller.api.model.OrganisationImportResponse;
 import dk.digitalidentity.rc.controller.api.model.PositionDTO;
 import dk.digitalidentity.rc.controller.api.model.UserDTO;
+import dk.digitalidentity.rc.dao.model.Domain;
 import dk.digitalidentity.rc.dao.model.EmailTemplate;
 import dk.digitalidentity.rc.dao.model.ItSystem;
 import dk.digitalidentity.rc.dao.model.KLEMapping;
@@ -159,14 +159,8 @@ public class OrganisationImporter {
 				newUsers.add(user);
 			}
 
-			// read existing data from database (optimize by size)
-			List<User> existingUsers = null;
-			if (newUsers.size() < 50) {
-				existingUsers = userService.getAllByExtUuidIncludingInactive(domain, newUsers.stream().map(u -> u.getExtUuid()).collect(Collectors.toSet()));
-			}
-			else {
-				existingUsers = userService.getAllIncludingInactive(domain);
-			}
+			// read existing data from database (have to read them all, as extUuid might have changed... well, we could ready by UserID I guess)
+			List<User> existingUsers = userService.getAllIncludingInactive(domain);
 
 			// this modifies existingUsers, so it now contains everything
 			processUsers(newUsers, existingUsers, existingOrgUnits, response, true, domain);
@@ -546,6 +540,7 @@ public class OrganisationImporter {
 			log.info("Creating " + toBeCreated.size() + " Users");
 
 			for (User userToCreate : toBeCreated) {
+				log.info("Creating: " + userToCreate.getUserId());
 				// if the user we are going to create, has a position, move the pointer
 				// to an existing OrgUnit, otherwise Hibernate is going to throw a hissy fit
 				if (userToCreate.getPositions() != null) {
@@ -566,7 +561,7 @@ public class OrganisationImporter {
 					}
 				}
 			}
-
+			log.info("Saving users to be created: " + toBeCreated.stream().map(User::getUserId).collect(Collectors.joining(",")));
 			userService.save(toBeCreated);
 			existingUsers.addAll(toBeCreated);
 		}
@@ -586,6 +581,7 @@ public class OrganisationImporter {
 
 						existingUser.setEmail(userToUpdate.getEmail());
 						existingUser.setNemloginUuid(userToUpdate.getNemloginUuid());
+						existingUser.setExtUuid(userToUpdate.getExtUuid());
 						existingUser.setLastUpdated(new Date());
 						existingUser.setName(userToUpdate.getName());
 						existingUser.setPhone(userToUpdate.getPhone());
@@ -816,36 +812,47 @@ public class OrganisationImporter {
 			for (User existingUser : existingUsers) {
 				if (hasSameKey(existingUser, newUser)) {
 					found = true;
-
-					if (existingUser.isDeleted()) {
-						toBeUpdated.add(newUser);
+					
+					// if the existing user is deleted AND the extUuid has changed, we delete from our DB, and perform
+					// a full create of the new user (to reflect that the source-system did a physical delete/create)
+					if (existingUser.isDeleted() && !Objects.equals(existingUser.getExtUuid(), newUser.getExtUuid())) {
+						userService.delete(existingUser);
+						found = false;
 					}
-					else if (!existingUser.getName().equals(newUser.getName())) {
-						toBeUpdated.add(newUser);
-					}
-					else if (!Objects.equals(existingUser.getCpr(), newUser.getCpr())) {
-						toBeUpdated.add(newUser);
-					}
-					else if (!newUser.getUserId().equals(existingUser.getUserId())) {
-						toBeUpdated.add(newUser);
-					}
-					else if (differentPhone(newUser, existingUser)) {
-						toBeUpdated.add(newUser);
-					}
-					else if (differentEmail(newUser, existingUser)) {
-						toBeUpdated.add(newUser);
-					}
-					else if (!Objects.equals(existingUser.getNemloginUuid(), newUser.getNemloginUuid())) {
-						toBeUpdated.add(newUser);
-					}
-					else if (!configuration.getIntegrations().getKle().isUiEnabled() && hasKleChanges(newUser, existingUser)) {
-						toBeUpdated.add(newUser);
-					}
-					else if (DomainService.isPrimaryDomain(domain) && differentPositions(newUser, existingUser)) {
-						toBeUpdated.add(newUser);
-					}
-					else if (existingUser.isDisabled() != newUser.isDisabled()) {
-						toBeUpdated.add(newUser);
+					else {
+						if (existingUser.isDeleted()) {
+							toBeUpdated.add(newUser);
+						}
+						else if (!Objects.equals(existingUser.getExtUuid(), newUser.getExtUuid())) {
+							toBeUpdated.add(newUser);							
+						}
+						else if (!existingUser.getName().equals(newUser.getName())) {
+							toBeUpdated.add(newUser);
+						}
+						else if (!Objects.equals(existingUser.getCpr(), newUser.getCpr())) {
+							toBeUpdated.add(newUser);
+						}
+						else if (!newUser.getUserId().equals(existingUser.getUserId())) {
+							toBeUpdated.add(newUser);
+						}
+						else if (differentPhone(newUser, existingUser)) {
+							toBeUpdated.add(newUser);
+						}
+						else if (differentEmail(newUser, existingUser)) {
+							toBeUpdated.add(newUser);
+						}
+						else if (!Objects.equals(existingUser.getNemloginUuid(), newUser.getNemloginUuid())) {
+							toBeUpdated.add(newUser);
+						}
+						else if (!configuration.getIntegrations().getKle().isUiEnabled() && hasKleChanges(newUser, existingUser)) {
+							toBeUpdated.add(newUser);
+						}
+						else if (DomainService.isPrimaryDomain(domain) && differentPositions(newUser, existingUser)) {
+							toBeUpdated.add(newUser);
+						}
+						else if (existingUser.isDisabled() != newUser.isDisabled()) {
+							toBeUpdated.add(newUser);
+						}
 					}
 
 					break;
@@ -867,6 +874,7 @@ public class OrganisationImporter {
 				userToCreate.setUserRoleAssignments(new ArrayList<>());
 				userToCreate.setPositions(new ArrayList<>());
 				userToCreate.setDisabled(newUser.isDisabled());
+				userToCreate.setCpr(newUser.getCpr());
 				userToCreate.setDomain(domain);
 
 				// only add positions if the user is from the primary domain
@@ -914,7 +922,7 @@ public class OrganisationImporter {
 	}
 
 	private static boolean hasSameKey(User user1, User user2) {
-		if (user1.getExtUuid().equals(user2.getExtUuid()) && user1.getUserId().equalsIgnoreCase(user2.getUserId())) {
+		if (user1.getUserId().equalsIgnoreCase(user2.getUserId())) {
 			return true;
 		}
 
@@ -1241,6 +1249,13 @@ public class OrganisationImporter {
 			
 			if (template.isEnabled()) {
 				for (UserDeletedEvent deletedEvent : deletedUsers) {
+					String emailAddressesString = deletedEvent.getEmail();
+					if (!StringUtils.hasLength(emailAddressesString)) {
+						log.debug("No email address configured for " + deletedEvent.getItSystemName() + ". Will not send emails about deleted users.");
+						continue;
+					}
+					String[] emailAddresses = emailAddressesString.split(";");
+
 					User user = deletedEvent.getUser();
 					
 					String title = template.getTitle();
@@ -1250,8 +1265,10 @@ public class OrganisationImporter {
 					String message = template.getMessage();
 					message = message.replace(EmailTemplateService.ITSYSTEM_PLACEHOLDER, deletedEvent.getItSystemName());
 					message = message.replace(EmailTemplateService.USER_PLACEHOLDER, user.getName() + " (" + user.getUserId() + ")");
-					
-					emailQueueService.queueEmail(deletedEvent.getEmail(), title, message, template, null);
+
+					for (String email: emailAddresses) {
+						emailQueueService.queueEmail(email, title, message, template, null);
+					}
 				}
 			}
 			else {

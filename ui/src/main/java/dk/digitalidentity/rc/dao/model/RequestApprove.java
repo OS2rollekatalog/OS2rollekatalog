@@ -76,6 +76,12 @@ public class RequestApprove implements AuditLoggable {
 	
 	@Column
 	private boolean emailSent;
+	
+	@Column
+	private String adminUuid;
+	
+	@Column
+	private String adminName;
 
 	@JsonIgnore
 	@Override

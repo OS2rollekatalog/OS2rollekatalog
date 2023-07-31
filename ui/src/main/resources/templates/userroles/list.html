@@ -89,7 +89,7 @@
 
 		var table = $('#listTable').DataTable({
 			'destroy': true,
-			'stateSave': false,
+			'stateSave': true,
 			'ajax': {
 				'contentType': 'application/json',
 				'url': ajaxUrl,
@@ -116,14 +116,6 @@
 						
 						if (row.pendingSync == true && row.syncFailed == true) {
 							result += '<em class="fa fa-exclamation-triangle" style="color: red;" title="' + titleFailed + '"></em> ';
-						}
-						
-						if (row.pendingNemloginSync == true && row.syncNemloginFailed == false) {
-							result += '<em class="fa fa-refresh" title="'+ titleSyncing + '"></em> ';
-						}
-
-						if (row.pendingNemloginSync == true && row.syncNemloginFailed == true) {
-							result += '<em class="fa fa-exclamation-triangle" style="color: red;" title="' + titleNlFailed + '"></em> ';
 						}
 
 						result += "<span>" + data + "</span>";

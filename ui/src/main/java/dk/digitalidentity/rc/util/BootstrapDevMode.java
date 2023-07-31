@@ -406,6 +406,7 @@ public class BootstrapDevMode {
 		ad.setIdentifier("AD");
 		ad.setName("AD");
 		ad.setCanEditThroughApi(true);
+		ad.setDomain(domainService.getPrimaryDomain());
 		ad.setSystemType(ItSystemType.AD);
 		itSystemService.save(ad);
 

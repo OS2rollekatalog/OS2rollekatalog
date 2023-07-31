@@ -8,6 +8,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.validation.Errors;
 import org.springframework.validation.Validator;
+import org.thymeleaf.util.StringUtils;
 
 @Component
 public class RolegroupValidator  implements Validator {
@@ -23,10 +24,16 @@ public class RolegroupValidator  implements Validator {
     @Override
     public void validate(Object o, Errors errors) {
         RoleGroupForm rolegroup = (RoleGroupForm) o;
-        RoleGroup alreadyExistingUser = roleGroupService.getByName(rolegroup.getName());
+        RoleGroup alreadyExistingRoleGroup = roleGroupService.getByName(rolegroup.getName());
 
-        if (alreadyExistingUser != null && alreadyExistingUser.getId() != rolegroup.getId()){
+        if (alreadyExistingRoleGroup != null && alreadyExistingRoleGroup.getId() != rolegroup.getId()){
             errors.rejectValue("name", "html.errors.rolegroup.name.unique");
+        }
+
+        if (StringUtils.isEmpty(rolegroup.getName())) {
+            errors.rejectValue("name", "html.errors.rolegroup.name.null");
+        } else if (rolegroup.getName().length() > 128) {
+            errors.rejectValue("name", "html.errors.rolegroup.name.toolong");
         }
     }
 }

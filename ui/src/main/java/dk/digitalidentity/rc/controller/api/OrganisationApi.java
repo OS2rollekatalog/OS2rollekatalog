@@ -1,5 +1,6 @@
 package dk.digitalidentity.rc.controller.api;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import org.slf4j.Logger;
@@ -10,6 +11,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -22,8 +24,12 @@ import dk.digitalidentity.rc.controller.api.model.OrganisationDTO;
 import dk.digitalidentity.rc.controller.api.model.OrganisationImportResponse;
 import dk.digitalidentity.rc.controller.api.model.UserDTO;
 import dk.digitalidentity.rc.dao.model.Domain;
+import dk.digitalidentity.rc.dao.model.KLEMapping;
+import dk.digitalidentity.rc.dao.model.OrgUnit;
+import dk.digitalidentity.rc.dao.model.enums.KleType;
 import dk.digitalidentity.rc.security.RequireApiOrganisationRole;
 import dk.digitalidentity.rc.service.DomainService;
+import dk.digitalidentity.rc.service.OrgUnitService;
 import dk.digitalidentity.rc.service.OrganisationExporter;
 import dk.digitalidentity.rc.service.OrganisationImporter;
 import dk.digitalidentity.rc.service.OrganisationImporterOld;
@@ -46,12 +52,56 @@ public class OrganisationApi {
 
 	@Autowired
 	private DomainService domainService;
+	
+	@Autowired
+	private OrgUnitService orgUnitService;
 
 	@Value("${org.errorOnOldApi:true}")
 	private boolean errorOnOldApi;
 	
+	public record KlePayload(List<String> klePerforming, List<String> kleInterest) {}
+	
+	@PostMapping(value = "/orgunit/kle/{uuid}")
+    public ResponseEntity<String> overwriteUserRoleAssignments(@PathVariable("uuid") String uuid, @RequestBody KlePayload klePayload) {
+		OrgUnit orgUnit = orgUnitService.getByUuid(uuid);
+		if (orgUnit == null) {
+	        return new ResponseEntity<>("Der findes ingen enhed med UUID = " + uuid, HttpStatus.NOT_FOUND);
+		}
+		
+		OrgUnit dummy = new OrgUnit();
+		dummy.setKles(new ArrayList<>());
+
+		if (klePayload.kleInterest() != null) {
+			for (String kle : klePayload.kleInterest()) {
+				KLEMapping mapping = new KLEMapping();
+				mapping.setOrgUnit(orgUnit);
+				mapping.setCode(kle);
+				mapping.setAssignmentType(KleType.INTEREST);
+				
+				dummy.getKles().add(mapping);
+			}
+		}
+
+		if (klePayload.klePerforming() != null) {
+			for (String kle : klePayload.klePerforming()) {
+				KLEMapping mapping = new KLEMapping();
+				mapping.setOrgUnit(orgUnit);
+				mapping.setCode(kle);
+				mapping.setAssignmentType(KleType.PERFORMING);
+				
+				dummy.getKles().add(mapping);
+			}
+		}
+
+		// TODO: not the best way to perform an update, but this is how we roll :)
+		orgUnit.getKles().clear();
+		orgUnit.getKles().addAll(dummy.getKles());
+		orgUnitService.save(orgUnit);
+		
+        return new ResponseEntity<>(HttpStatus.OK);
+	}
+	
 	@PostMapping(value = "/organisation")
-	@Transactional(rollbackFor = Exception.class)
 	public synchronized ResponseEntity<?> importOrgUnits(@RequestBody String request) {
 		if (errorOnOldApi) {
 			log.error("Calling deprecated API v1");

@@ -11,6 +11,7 @@ import org.springframework.cache.annotation.EnableCaching;
 import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 
 import dk.digitalidentity.rc.dao.OrgUnitDao;
 import dk.digitalidentity.rc.dao.model.ItSystem;
@@ -32,6 +33,22 @@ public class Select2Service {
 	@Autowired
 	private Select2Service self;
 
+	// used from html - because multi-valued constraint values are stored as comma-separated strings, and thymeleaf is not so helpful here
+	public boolean isSelected(String constraintValue, String id) {
+		if (!StringUtils.hasLength(constraintValue)) {
+			return false;
+		}
+		
+		String[] constraintValues = constraintValue.split(",");
+		for (String cv : constraintValues) {
+			if (cv.equals(id)) {
+				return true;
+			}
+		}
+		
+		return false;
+	}
+	
 	@Cacheable(value = "orgunitList")
 	public List<OrgUnitSelect2DTO> getOrgUnitList() {
 		List<OrgUnit> orgUnitList = orgUnitDao.findByActiveTrue(); // TODO: consider using service instead, so we can use Specifications

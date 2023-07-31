@@ -1,8 +1,9 @@
 DROP VIEW IF EXISTS view_notifications_active;
+DROP VIEW IF EXISTS view_notifications;
 
 GO
 
-CREATE VIEW view_notifications_active AS (
+CREATE VIEW view_notifications AS (
     SELECT
 		id,
 		notification_type,
@@ -15,6 +16,5 @@ CREATE VIEW view_notifications_active AS (
 		SUBSTRING(CONVERT(NVARCHAR(25), last_updated, 120), 1, 19) AS last_updated,
 		admin_uuid,
 		admin_name
-	FROM notifications n
-	WHERE n.active = 1
+	FROM notifications
 );
