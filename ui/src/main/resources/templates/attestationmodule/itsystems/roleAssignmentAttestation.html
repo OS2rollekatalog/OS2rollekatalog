@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html>
+<head th:replace="attestationmodule/fragments/header :: header(datatables = true, checkbox = true)" />
+<body class="top-navigation">
+    <div id="wrapper">
+        <div id="page-wrapper" class="gray-bg">
+            <div th:replace="attestationmodule/fragments/topbar :: topbar"></div>
+            <div class="wrapper wrapper-content">
+                <div class="row">
+                    <div class="col-lg-12">
+                        <div class="ibox">
+                            <div class="ibox-title">
+                                <div class="ibox-tools">
+                                    <a class="btn btn-primary" style="color: white" th:text="#{attestationmodule.html.attestation.controls.done}" th:href="@{/ui/attestation/v2}"></a>
+                                </div>
+                                <h3>
+                                    <em class="fa fa-list"></em> &nbsp
+                                    <span th:text="#{attestationmodule.html.itsystems.attestate.users.title(${attestation.itSystemName})}"></span>
+                                </h3>
+                            </div>
+
+                            <div class="ibox-content">
+                                <div class="tabs-container" id="tabs">
+                                    <ul class="nav nav-tabs" role="tablist">
+                                        <li th:if="${not #lists.isEmpty(attestation.users)}">
+                                            <a class="nav-link active mainTabs" data-toggle="tab" href="#usersTab">
+                                                <span th:text="#{attestationmodule.html.orgunits.attestate.tabs.users}"></span>
+                                                <span id="badgeUsers" class="badge badge-danger">
+                                                    <span id="badgeUsersText" th:text="${totalCount}"></span>
+                                                </span>
+                                            </a>
+                                        </li>
+                                        <li th:if="${not #lists.isEmpty(attestation.orgUnits)}">
+                                            <a th:class="${#lists.isEmpty(attestation.users)} ? 'nav-link mainTabs active' : 'nav-link mainTabs'" data-toggle="tab" href="#orgUnitsTab" id="ouTab">
+                                                <span th:text="#{attestationmodule.html.orgunits.attestate.tabs.orgUnits}"></span>
+                                                <span th:unless="${#lists.isEmpty(attestation.orgUnits)}" id="badgeOrgUnits" class="badge badge-danger">
+                                                    <span id="badgeOrgUnitsText" th:text="${orgUnitTotalCount}"></span>
+                                                </span>
+                                            </a>
+                                        </li>
+                                    </ul>
+                                    <div class="tab-content">
+                                        <div role="tabpanel" id="usersTab" class="tab-pane mainTabs active" th:if="${not #lists.isEmpty(attestation.users)}">
+                                            <div class="panel-body">
+                                                <div class="userRoleRow col-lg-12" th:each="user : ${attestation.users}" th:id="'userRow' + ${userStat.index}" style="display:none">
+                                                    <h3 class="m-b-md" th:text="${user.userName}"></h3>
+                                                    <div class="row col-lg-12">
+                                                        <b style="padding-left: 0px;" th:text="#{attestationmodule.html.orgunits.attestate.user.userid}" class="col-lg-2"></b>
+                                                        <p th:text="${user.userId}" class="col-lg-10"></p>
+                                                    </div>
+                                                    <div class="row col-lg-12">
+                                                        <b style="padding-left: 0px;" th:text="#{attestationmodule.html.orgunits.attestate.user.position}" class="col-lg-2"></b>
+                                                        <p th:text="${user.position}" class="col-lg-10"></p>
+                                                    </div>
+                                                    <div style="display:none" th:id="'remarkRow' + ${user.userUuid}">
+                                                        <b th:text="#{attestationmodule.html.itsystems.attestate.role.done.remark}"></b>
+                                                        <pre th:id="'remarkPre' + ${user.userUuid}"></pre>
+                                                    </div>
+                                                    <div class="row m-t-sm">
+                                                        <table class="table table-striped table-bordered table-hover" >
+                                                            <thead>
+                                                            <tr>
+                                                                <th th:text="#{attestationmodule.html.itsystems.attestate.roleassignments.userRoles.name}" class="col-lg-2"></th>
+                                                                <th th:text="#{attestationmodule.html.itsystems.attestate.roleassignments.userRoles.description}" class="col-lg-7"></th>
+                                                                <th th:text="#{attestationmodule.html.itsystems.attestate.roleassignments.userRoles.assignedThrough}" class="col-lg-3"></th>
+                                                            </tr>
+                                                            </thead>
+
+                                                            <tbody>
+                                                            <tr th:each="userRole : ${user.userRoles}">
+                                                                <td th:text="${userRole.roleName}" class="col-lg-2"></td>
+                                                                <td class="col-lg-7">
+                                                                    <pre class="pre-like-p" th:text="${userRole.roleDescription}"></pre>
+                                                                </td>
+                                                                <td th:if="${userRole.assignedThrough != null}" class="col-lg-3">
+                                                                    <span th:if="${userRole.assignedThroughName != null}" th:text="#{__${userRole.assignedThrough.message}__} + ' - ' + ${userRole.assignedThroughName}"></span>
+                                                                    <span th:unless="${userRole.assignedThroughName != null}" th:text="#{__${userRole.assignedThrough.message}__}"></span>
+                                                                </td>
+                                                                <td th:unless="${userRole.assignedThrough != null}" class="col-lg-3"></td>
+                                                            </tr>
+                                                            </tbody>
+                                                        </table>
+                                                    </div>
+
+                                                    <div class="row m-t-sm">
+                                                        <div class="form-group" style="margin-left: 15px;" th:id="'checkboxRow' + ${user.userUuid}">
+                                                            <input th:attr="data-id=${user.userUuid}" type="checkbox" class="i-checks readCheckbox">
+                                                            <label th:text="#{attestationmodule.html.attestation.controls.approve.read}" style="margin-left: 15px;"></label>
+                                                        </div>
+                                                    </div>
+
+                                                    <div class="row col-lg-12 m-t-sm">
+                                                        <button th:unless="${user.readOnly}" class="approveBtn btn btn-primary col-lg-2" th:id="'approveBtn' + ${user.userUuid}" th:attr="data-number=${userStat.index}, data-uuid=${user.userUuid}" disabled="disabled">
+                                                            <em class="fa-fw fa fa-check"></em>
+                                                            <span th:text="#{attestationmodule.html.attestation.controls.approve}"></span>
+                                                        </button>
+                                                        &nbsp;
+                                                        <button th:unless="${user.readOnly}" class="rejectBtn btn btn-danger col-lg-2" th:id="'rejectBtn' + ${user.userUuid}" th:attr="data-number=${userStat.index},data-uuid=${user.userUuid}">
+                                                            <em class="fa-fw fa fa-ban"></em>
+                                                            <span th:text="#{attestationmodule.html.attestation.controls.reject}"></span>
+                                                        </button>
+                                                        <p style="display: none;" th:id="'alreadyDone' + ${user.userUuid}" th:text="#{attestationmodule.html.itsystems.attestate.role.done}"></p>
+                                                        <p th:if="${user.readOnly}" th:text="#{attestationmodule.html.orgunits.attestate.users.self}"></p>
+
+                                                        <div class="row ml-auto" style="margin-right: 15px;">
+                                                            <button class="btn btn-primary btn-back" style="width: 60px" th:attr="data-number=${userStat.index}" th:unless="${userStat.index == 0}">
+                                                                <i class="fa fa-chevron-left"></i>
+                                                            </button>
+                                                            <p class="navBtnsText" th:text="${userStat.index+1} + ' / ' + ${totalCount}"></p>
+                                                            <button class="btn btn-primary btn-forth" style="width: 60px" th:attr="data-number=${userStat.index}" th:unless="${totalCount == userStat.index + 1}">
+                                                                <i class="fa fa-chevron-right"></i>
+                                                            </button>
+                                                            <p th:if="${totalCount == userStat.index + 1}" style="width: 60px;"></p>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div role="tabpanel" id="orgUnitsTab" th:if="${not #lists.isEmpty(attestation.orgUnits)}" th:class="${#lists.isEmpty(attestation.users)} ? 'tab-pane mainTabs active' : 'tab-pane mainTabs'">
+                                            <div class="panel-body">
+                                                <div class="orgUnitRow col-lg-12" th:each="ou : ${attestation.orgUnits}" th:id="'orgUnitRow' + ${ouStat.index}" style="display:none">
+                                                    <h3 class="m-b-md" th:text="${ou.orgUnitName}"></h3>
+                                                    <div class="row col-lg-12">
+                                                        <b style="padding-left: 0px;" th:text="#{attestationmodule.html.itsystems.attestate.orgUnit.uuid}" class="col-lg-2"></b>
+                                                        <p th:text="${ou.orgUnitUuid}" class="col-lg-10"></p>
+                                                    </div>
+                                                    <div style="display:none" th:id="'orgUnitRemarkRow' + ${ou.orgUnitUuid}">
+                                                        <b th:text="#{attestationmodule.html.itsystems.attestate.role.done.remark}"></b>
+                                                        <pre th:id="'orgUnitRemarkPre' + ${ou.orgUnitUuid}"></pre>
+                                                    </div>
+
+                                                    <div class="row m-t-sm">
+                                                        <table class="table table-striped table-bordered table-hover" >
+                                                            <thead>
+                                                            <tr>
+                                                                <th th:text="#{attestationmodule.html.itsystems.orgunits.attestate.roleassignments.userRoles.name}" class="col-lg-2"></th>
+                                                                <th th:text="#{attestationmodule.html.itsystems.orgunits.attestate.roleassignments.userRoles.description}" class="col-lg-4"></th>
+                                                                <th th:text="#{attestationmodule.html.itsystems.orgunits.attestate.roleassignments.userRoles.inherit}" class="col-lg-1"></th>
+                                                                <th th:text="#{attestationmodule.html.itsystems.orgunits.attestate.roleassignments.userRoles.titles}" class="col-lg-2"></th>
+                                                                <th th:text="#{attestationmodule.html.itsystems.orgunits.attestate.roleassignments.userRoles.exceptedUsers}" class="col-lg-3"></th>
+                                                            </tr>
+                                                            </thead>
+
+                                                            <tbody>
+                                                            <tr th:each="userRole : ${ou.userRoles}">
+                                                                <td th:text="${userRole.roleName}" class="col-lg-2"></td>
+                                                                <td class="col-lg-4">
+                                                                    <pre class="pre-like-p" th:text="${userRole.roleDescription}"></pre>
+                                                                </td>
+                                                                <td class="col-lg-1" style="text-align: center;">
+                                                                    <em th:if="${userRole.inherit}" class="fa fa-fw fa-check"></em>
+                                                                </td>
+                                                                <td class="col-lg-2">
+                                                                    <div th:if="${!#lists.isEmpty(userRole.titles)}">
+                                                                        <ul>
+                                                                            <li th:each="title : ${userRole.titles}" th:text="${title}"></li>
+                                                                        </ul>
+                                                                    </div>
+                                                                </td>
+                                                                <td class="col-lg-3">
+                                                                    <ul>
+                                                                        <li th:each="exceptedUser : ${userRole.exceptedUsers}" th:text="${exceptedUser.name} + ' (' + ${exceptedUser.userId} + ')'"></li>
+                                                                    </ul>
+                                                                </td>
+                                                            </tr>
+                                                            </tbody>
+                                                        </table>
+                                                    </div>
+
+                                                    <div class="row m-t-sm">
+                                                        <div class="form-group" style="margin-left: 15px;" th:id="'orgUnitheckboxRow' + ${ou.orgUnitUuid}">
+                                                            <input th:attr="data-id=${ou.orgUnitUuid}" type="checkbox" class="i-checks orgUnitReadCheckbox">
+                                                            <label th:text="#{attestationmodule.html.attestation.controls.approve.read}" style="margin-left: 15px;"></label>
+                                                        </div>
+                                                    </div>
+
+                                                    <div class="row col-lg-12 m-t-sm">
+                                                        <button class="approveOrgUnitBtn btn btn-primary col-lg-2" th:id="'approveOrgUnitBtn' + ${ou.orgUnitUuid}" th:attr="data-number=${ouStat.index}, data-uuid=${ou.orgUnitUuid}" disabled="disabled">
+                                                            <em class="fa-fw fa fa-check"></em>
+                                                            <span th:text="#{attestationmodule.html.attestation.controls.approve}"></span>
+                                                        </button>
+                                                        &nbsp;
+                                                        <button class="rejectOrgUnitBtn btn btn-danger col-lg-2" th:id="'rejectOrgUnitBtn' + ${ou.orgUnitUuid}" th:attr="data-number=${ouStat.index},data-uuid=${ou.orgUnitUuid}">
+                                                            <em class="fa-fw fa fa-ban"></em>
+                                                            <span th:text="#{attestationmodule.html.attestation.controls.reject}"></span>
+                                                        </button>
+                                                        <p style="display: none;" th:id="'orgUnitlreadyDone' + ${ou.orgUnitUuid}" th:text="#{attestationmodule.html.itsystems.attestate.role.done}"></p>
+
+                                                        <div class="row ml-auto" style="margin-right: 15px;">
+                                                            <button class="btn btn-primary orgUnit-btn-back" style="width: 60px" th:attr="data-number=${ouStat.index}" th:unless="${ouStat.index == 0}">
+                                                                <i class="fa fa-chevron-left"></i>
+                                                            </button>
+                                                            <p class="navBtnsText" th:text="${ouStat.index+1} + ' / ' + ${orgUnitTotalCount}"></p>
+                                                            <button class="btn btn-primary orgUnit-btn-forth" style="width: 60px" th:attr="data-number=${ouStat.index}" th:unless="${orgUnitTotalCount == ouStat.index + 1}">
+                                                                <i class="fa fa-chevron-right"></i>
+                                                            </button>
+                                                            <p th:if="${orgUnitTotalCount == ouStat.index + 1}" style="width: 60px;"></p>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="userRemarkModalPlaceholder"></div>
+
+    <div class="modal fade" id="remarkModal" role="dialog" aria-hidden="true">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3 class="modal-title"  th:text="#{attestationmodule.html.itsystems.attestate.reject.title}"></h3>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <input id="idInput" style="display:none;">
+                    <input id="numberInput" style="display:none;">
+                    <form>
+                        <div class="form-group">
+                            <label for="remarkField" class="col-form-label" th:text="#{attestationmodule.html.itsystems.attestate.reject.text}"></label>
+                            <textarea class="form-control" id="remarkField" rows="4"></textarea>
+                            <p style="display:none; color: red;" id="remarkError" th:text="#{attestationmodule.html.itsystems.attestate.reject.remarks.error}"></p>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal" th:text="#{attestationmodule.html.attestation.controls.cancel}"></button>
+                    <button type="button" class="btn btn-primary" id="modalSaveOrgUnitBtn" th:text="#{attestationmodule.html.attestation.controls.save}"></button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div th:replace="attestationmodule/fragments/footer :: scripts(datatables = true, checkbox = true)"></div>
+    <div th:replace="attestationmodule/fragments/userRemarkModal :: userRemarkModalScript"></div>
+
+    <script th:inline="javascript">
+    /*<![CDATA[*/
+		/*[+
+            var restUrl = [[@{/rest/attestation/v2/itsystems}]];
+            var itSystemId = [[${attestation.itSystemId}]];
+            var totalNumber = [[${totalCount}]];
+            var orgUnitTotalCount = [[${orgUnitTotalCount}]];
+            var uiUrl = [[@{/ui/attestation/v2/itsystems/}]];
+            var attestationUuid = [[${attestation.attestationUuid}]];
+		+]*/
+
+        var token = $("meta[name='_csrf']").attr("content");
+        var userService, orgUnitService;
+		$(document).ready(function(){
+            userService = new UserService();
+            userService.init();
+
+            orgUnitService = new OrgUnitService();
+            orgUnitService.init();
+		});
+
+		function UserService() {
+		    this.init = function() {
+		       $(".userRoleRow").first().show();
+		       $(".btn-back").click(userService.handleBack);
+		       $(".btn-forth").click(userService.handleForth);
+		       $(".approveBtn").click(userService.handleApprove);
+		       $(".rejectBtn").click(userService.openModal);
+		       $(".readCheckbox").on('ifChanged', userService.handleReadCheckbox);
+		       $("#modalSaveBtn").click(userService.handleReject);
+
+		       $('.table').DataTable({
+                    "bSort": false,
+                    "paging": false,
+                    "responsive": true,
+                    "dom": "<'row'<'col-sm-12'tr>>",
+                    "language": {
+                        "search":	   "Søg",
+                        "lengthMenu":   "_MENU_ rækker per side",
+                        "info":		 "Viser _START_ til _END_ af _TOTAL_ rækker",
+                        "zeroRecords":  "Ingen data...",
+                        "infoEmpty":	"",
+                        "infoFiltered": "(ud af _MAX_ rækker)",
+                        "paginate": {
+                            "previous": "Forrige",
+                            "next": "Næste"
+                        }
+                    }
+               });
+		    }
+
+		    this.openModal = function() {
+		        var uuid = $(this).data("uuid");
+		        var number = $(this).data("number");
+		        $("#userRemarkModalPlaceholder").load(uiUrl + attestationUuid + "/users/" + uuid + "/userRemarkFragment?number=" + number, function () {
+		            $('#userRemarkModal').modal('toggle');
+		            userRemarkModalService.init();
+		            $("#modalSaveBtn").click(userService.handleReject);
+				});
+		    }
+
+		    this.handleBack = function() {
+		        var number = $(this).data("number");
+		        var minusOne = number - 1;
+                $("#userRow" + number).first().hide();
+                $("#userRow" + minusOne).first().show();
+		    }
+
+		    this.handleForth = function() {
+                var number = $(this).data("number");
+		        var plusOne = number + 1;
+                $("#userRow" + number).first().hide();
+                $("#userRow" + plusOne).first().show();
+		    }
+
+		    this.handleApprove = function() {
+		        var userUuid = $(this).data("uuid");
+		        var number = $(this).data("number");
+                var plusOne = number + 1;
+
+                $.ajax({
+					url : restUrl + "/" + itSystemId + "/users/" + userUuid + "/approve",
+					method : 'POST',
+					headers: {
+						'X-CSRF-TOKEN': token
+					},
+					success : function(response) {
+						$("#approveBtn" + userUuid).hide();
+						$("#rejectBtn" + userUuid).hide();
+						$("#alreadyDone" + userUuid).show();
+						$("#checkboxRow" + userUuid).hide();
+
+						userService.handleBadgeAndPageSwitch(userUuid, number);
+					},
+					error: function(jqXHR, textStatus, error) {
+						switch (jqXHR.status) {
+							case 400:
+								toastr.warning(jqXHR.responseText);
+								break;
+							default:
+								toastr.warning('Teknisk fejl: ' + jqXHR.responseText);
+								break;
+						}
+					}
+				});
+		    }
+
+		    this.handleReadCheckbox = function() {
+		        var id = $(this).data("id");
+		        var checked = $(this).prop("checked");
+
+		        if (checked) {
+                    $("#approveBtn" + id).attr("disabled", false);
+		        } else {
+                    $("#approveBtn" + id).attr("disabled", true);
+		        }
+		    }
+
+		    this.handleReject = function() {
+		        var notApproved = userRemarkModalService.getNotApprovedRoles();
+		        var userUuid = $("#userUuidInput").val();
+		        var remark = $("#userRemarkField").val();
+		        var numberString = $("#userNumberInput").val();
+		        var number = parseInt(numberString);
+                var plusOne = number + 1;
+                var body = {
+                    "remarks" : remark,
+                    "notApproved" : notApproved
+                }
+
+                $.ajax({
+                   url : restUrl + "/" + itSystemId + "/users/" + userUuid + "/reject",
+                   headers: {
+                      "content-type": "application/json",
+                      'X-CSRF-TOKEN': token
+                   },
+                   method: 'POST',
+                   data: JSON.stringify(body),
+                   success: function(data, textStatus, jQxhr) {
+                        $("#approveBtn" + userUuid).hide();
+                        $("#rejectBtn" + userUuid).hide();
+                        $("#alreadyDone" + userUuid).show();
+                        $('#userRemarkModal').modal('toggle');
+                        $("#remarkRow" + userUuid).show();
+                        $("#remarkPre" + userUuid).text(remark);
+                        $("#checkboxRow" + userUuid).hide();
+
+                        userService.handleBadgeAndPageSwitch(userUuid, number);
+                   },
+                   error: function(jqXHR, textStatus, error) {
+                        switch (jqXHR.status) {
+                            case 400:
+                                toastr.warning(jqXHR.responseText);
+                                break;
+                            default:
+                                toastr.warning('Teknisk fejl: ' + jqXHR.responseText);
+                                break;
+                        }
+                        $("#userRemarkError").show();
+                   }
+                });
+		    }
+
+		    this.handleBadgeAndPageSwitch = function(userId, number) {
+
+		        // update badges
+		        var userCount = $("#badgeUsersText").text();
+                var userCountInt = parseInt(userCount);
+                if (userCountInt > 1) {
+                    $("#badgeUsersText").text(userCountInt - 1);
+                } else {
+                    $("#badgeUsers").hide();
+                }
+
+                // change to next page if any next page
+                var plusOne = number + 1;
+                if (plusOne != totalNumber) {
+                    $("#userRow" + number).first().hide();
+                    $("#userRow" + plusOne).first().show();
+                } else {
+                    // change to orgUnitPane
+                    $(".mainTabs").removeClass('active');
+                    $("#ouTab").addClass('active');
+                    $("#orgUnitsTab").addClass('active');
+                }
+		    }
+		}
+
+		function OrgUnitService() {
+		    this.init = function() {
+               $(".orgUnitRow").first().show();
+		       $(".orgUnit-btn-back").click(orgUnitService.handleBack);
+		       $(".orgUnit-btn-forth").click(orgUnitService.handleForth);
+		       $(".approveOrgUnitBtn").click(orgUnitService.handleApprove);
+		       $(".rejectOrgUnitBtn").click(orgUnitService.openModal);
+		       $(".orgUnitReadCheckbox").on('ifChanged', orgUnitService.handleReadCheckbox);
+		       $("#modalSaveOrgUnitBtn").click(orgUnitService.handleReject);
+		    }
+
+		    this.handleReadCheckbox = function() {
+		        var id = $(this).data("id");
+		        var checked = $(this).prop("checked");
+
+		        if (checked) {
+                    $("#approveOrgUnitBtn" + id).attr("disabled", false);
+		        } else {
+                    $("#approveOrgUnitBtn" + id).attr("disabled", true);
+		        }
+		    }
+
+		    this.handleBack = function() {
+		        var number = $(this).data("number");
+		        var minusOne = number - 1;
+                $("#orgUnitRow" + number).first().hide();
+                $("#orgUnitRow" + minusOne).first().show();
+		    }
+
+		    this.handleForth = function() {
+                var number = $(this).data("number");
+		        var plusOne = number + 1;
+                $("#orgUnitRow" + number).first().hide();
+                $("#orgUnitRow" + plusOne).first().show();
+		    }
+
+		    this.openModal = function() {
+		        var id = $(this).data("uuid");
+		        var number = $(this).data("number");
+		        $("#idInput").val(id);
+		        $("#numberInput").val(number);
+                $("#remarkError").hide();
+                $("#remarkField").val("");
+                $("#modalSaveOrgUnitBtn").show();
+                $('#remarkModal').modal('toggle');
+		    }
+
+		    this.handleApprove = function() {
+		        var ouUuid = $(this).data("uuid");
+		        var remark = $("#remarkField").val();
+		        var numberString = $(this).data("number");
+		        var number = parseInt(numberString);
+
+                $.ajax({
+					url : restUrl + "/" + itSystemId + "/orgunits/" + ouUuid + "/approve",
+					method : 'POST',
+					headers: {
+						'X-CSRF-TOKEN': token
+					},
+					success : function(response) {
+						$("#approveOrgUnitBtn" + ouUuid).hide();
+						$("#rejectOrgUnitBtn" + ouUuid).hide();
+						$("#alreadyDoneOrgUnit" + ouUuid).show();
+						$("#orgUnitheckboxRow" + ouUuid).hide();
+
+						orgUnitService.handleBadgeAndPageSwitch(number);
+					},
+					error: function(jqXHR, textStatus, error) {
+						switch (jqXHR.status) {
+							case 400:
+								toastr.warning(jqXHR.responseText);
+								break;
+							default:
+								toastr.warning('Teknisk fejl: ' + jqXHR.responseText);
+								break;
+						}
+					}
+				});
+		    }
+
+            this.handleReject = function() {
+		        var remark = $("#remarkField").val();
+		        var ouUuid = $("#idInput").val();
+		        var remark = $("#remarkField").val();
+		        var numberString = $("#numberInput").val();
+		        var number = parseInt(numberString);
+
+                $.ajax({
+                   url : restUrl + "/" + itSystemId + "/orgunits/" + ouUuid + "/reject",
+                   headers: {
+                      "content-type": "application/json",
+                      'X-CSRF-TOKEN': token
+                   },
+                   method: 'POST',
+                   data: remark == "" ? " " : remark,
+                   success: function(data, textStatus, jQxhr) {
+                        $("#approveOrgUnitBtn" + ouUuid).hide();
+                        $("#rejectOrgUnitBtn" + ouUuid).hide();
+                        $("#alreadyDoneOrgUnit" + ouUuid).show();
+                        $('#remarkModal').modal('toggle');
+                        $("#orgUnitRemarkRow" + ouUuid).show();
+                        $("#orgUnitRemarkPre" + ouUuid).text(remark);
+
+                        orgUnitService.handleBadgeAndPageSwitch(number);
+                   },
+                   error: function(jqXHR, textStatus, error) {
+                        switch (jqXHR.status) {
+                            case 400:
+                                toastr.warning(jqXHR.responseText);
+                                break;
+                            default:
+                                toastr.warning('Teknisk fejl: ' + jqXHR.responseText);
+                                break;
+                        }
+                        $("#remarkError").show();
+                   }
+                });
+		    }
+
+		    this.handleBadgeAndPageSwitch = function(number) {
+
+		        // update badges
+		        var orgUnitCount = $("#badgeOrgUnitsText").text();
+                var orgUnitCountInt = parseInt(orgUnitCount);
+                if (orgUnitCountInt > 1) {
+                    $("#badgeOrgUnitsText").text(orgUnitCountInt - 1);
+                } else {
+                    $("#badgeOrgUnits").hide();
+                }
+
+                // change to next page if any next page
+                var plusOne = number + 1;
+                if (plusOne != orgUnitTotalCount) {
+                    $("#orgUnitRow" + number).first().hide();
+                    $("#orgUnitRow" + plusOne).first().show();
+                }
+		    }
+		}
+
+    /*]]>*/
+	</script>
+
+</body>
+</html>

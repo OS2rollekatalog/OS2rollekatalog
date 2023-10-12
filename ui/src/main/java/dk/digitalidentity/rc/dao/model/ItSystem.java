@@ -106,6 +106,10 @@ public class ItSystem implements AuditLoggable {
 	@JoinColumn(name = "domain_id")
 	private Domain domain;
 
+	@ManyToOne(fetch = FetchType.LAZY)
+	@JoinColumn(name = "attestation_responsible_uuid")
+	private User attestationResponsible;
+
 	@JsonIgnore
 	@Override
 	public String getEntityId() {

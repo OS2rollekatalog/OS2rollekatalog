@@ -1,9 +1,5 @@
 package dk.digitalidentity.rc.controller.api.model;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.stream.Collectors;
-
 import dk.digitalidentity.rc.dao.model.Position;
 import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserKLEMapping;
@@ -11,6 +7,10 @@ import dk.digitalidentity.rc.dao.model.enums.KleType;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.stream.Collectors;
 
 @Getter
 @Setter
@@ -59,5 +59,20 @@ public class UserDTO {
 				}
 			});
 		}
+	}
+
+	public UserDTO(String extUuid, String userId, String name, String email, String phone, String cpr, String nemloginUuid, boolean doNotInherit, boolean disabled, List<PositionDTO> positions, List<String> klePerforming, List<String> kleInterest) {
+		this.extUuid = extUuid;
+		this.userId = userId;
+		this.name = name;
+		this.email = email;
+		this.phone = phone;
+		this.cpr = cpr;
+		this.nemloginUuid = nemloginUuid;
+		this.doNotInherit = doNotInherit;
+		this.disabled = disabled;
+		this.positions = positions;
+		this.klePerforming = klePerforming;
+		this.kleInterest = kleInterest;
 	}
 }

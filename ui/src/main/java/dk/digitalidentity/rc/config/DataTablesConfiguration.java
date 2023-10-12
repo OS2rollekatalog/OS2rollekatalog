@@ -5,7 +5,7 @@ import org.springframework.data.jpa.datatables.repository.DataTablesRepositoryFa
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 
 @Configuration
-@EnableJpaRepositories(repositoryFactoryBeanClass = DataTablesRepositoryFactoryBean.class, basePackages = "dk.digitalidentity.rc.controller.mvc.datatables.dao")
+@EnableJpaRepositories(repositoryFactoryBeanClass = DataTablesRepositoryFactoryBean.class, basePackages = {"dk.digitalidentity.rc.controller.mvc.datatables.dao"})
 public class DataTablesConfiguration {
 	
 }

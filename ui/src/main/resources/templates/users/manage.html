@@ -155,9 +155,9 @@
 		</section>
 	</div>
 
-	<div th:replace="users/fragments/user_user_role_modal :: userUserRoleModal(positions = ${user.positions})"></div>
+	<div th:replace="users/fragments/user_user_role_modal :: userUserRoleModal(positions = ${user.positions}, possibleOrgUnits = ${roleAssignmentOrgUnits})"></div>
 	<div th:replace="users/fragments/role_assignment_edit_modal :: roleAssignmentEditModal"></div>
-	<div th:replace="users/fragments/user_role_group_modal :: userRoleGroupModal(positions = ${user.positions})"></div>
+	<div th:replace="users/fragments/user_role_group_modal :: userRoleGroupModal(positions = ${user.positions}, possibleOrgUnits = ${roleAssignmentOrgUnits})"></div>
 	<div th:replace="users/fragments/postponed_constraint_kle_modal :: postponedConstraintsKLEModal"></div>
 	<div th:replace="userroles/fragments/constraint_ou_modal :: OUModal"></div>
 
@@ -197,6 +197,7 @@
 		var orgUnitList = [[${orgUnitList}]];
 		var itSystemList = [[${itSystemList}]];
 		var treeOUs = [[${treeOUs}]];
+		var possibleOrgUnits = [[${roleAssignmentOrgUnits}]];
 		
 		var baseUrl = [[@{/}]];
 
@@ -312,10 +313,12 @@
 				var startDate = parent.dataset.startdate;
 				var stopDate = parent.dataset.stopdate;
 				var assignedThrough = parent.dataset.assignedthrough;
+				var orgUnit = parent.dataset.ouuuid;
 				
-				userRoleEditModalService.showModal(user, startDate, stopDate, type, assignmentId, assignedThrough);
+				userRoleEditModalService.showModal(user, startDate, stopDate, type, assignmentId, assignedThrough, orgUnit, possibleOrgUnits);
 				userRoleEditModalService.loadPostponedConstraintsFragment(assignmentId, type, user);
 			}
+
 			this.addUserRole = function (elem) {
 				var roleid = elem.dataset.roleid;
 

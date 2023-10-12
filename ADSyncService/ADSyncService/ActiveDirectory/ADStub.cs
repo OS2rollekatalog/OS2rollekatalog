@@ -11,7 +11,9 @@ namespace ADSyncService
         private static string groupOU = Properties.Settings.Default.CreateDeleteFeature_OU;
         private static string cprAttribute = Properties.Settings.Default.MembershipSyncFeature_CprAttribute;
 
-        public List<string> GetGroupMembers(string groupId)
+        // note, the groupInGroup parameter should only be true when doing an initial import - when making membershipSync updates
+        // the group in group thing is way to complex to solve here (and introduces nasty side-effects if actually implemented)
+        public List<string> GetGroupMembers(string groupId, bool groupInGroup = false)
         {
             log.Debug("Looking for members of " + groupId);
 
@@ -29,7 +31,7 @@ namespace ADSyncService
                     else
                     {
                         // argument to GetMembers indicate we want direct members, not indirect members
-                        foreach (Principal member in group.GetMembers(false))
+                        foreach (Principal member in group.GetMembers(groupInGroup))
                         {
                             if (member is GroupPrincipal)
                             {

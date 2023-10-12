@@ -10,9 +10,8 @@ BEGIN
   SELECT CURRENT_TIMESTAMP, o.uuid, o.name, o.parent_uuid, o.manager
   FROM ous o
   WHERE o.active = 1;
-  
-  INSERT INTO history_ous_users (history_ous_id, user_uuid, title_uuid)
-  SELECT ho.id, u.uuid, p.title_uuid
+  INSERT INTO history_ous_users (history_ous_id, user_uuid, title_uuid, do_not_inherit)
+  SELECT ho.id, u.uuid, p.title_uuid, p.do_not_inherit
   FROM history_ous ho
   JOIN positions p ON p.ou_uuid = ho.ou_uuid
   JOIN users u ON u.uuid = p.user_uuid
@@ -33,6 +32,6 @@ BEGIN
   SELECT CURRENT_TIMESTAMP, t.uuid, t.name
   FROM titles t
   WHERE t.active = 1;
-  
+
 END
 GO

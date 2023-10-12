@@ -15,6 +15,8 @@ BEGIN
 		,role_it_system_id
 		,role_it_system_name
 		,role_role_group
+		,role_role_group_id
+		,ou_uuid
 		,assigned_through_type
 		,assigned_through_uuid
 		,assigned_through_name
@@ -32,6 +34,8 @@ BEGIN
 		,it.id
 		,it.name
 		,NULL
+		,NULL
+        ,urm.ou_uuid
 		,'DIRECT'
 		,NULL
 		,NULL
@@ -62,7 +66,9 @@ BEGIN
 		,it.id
 		,it.name
 		,rg.name
-		,'DIRECT'
+	    ,rg.id
+	    ,urg.ou_uuid
+		,'ROLEGROUP'
 		,NULL
 		,NULL
 		,urg.assigned_by_user_id
@@ -86,6 +92,8 @@ BEGIN
 		,it.id
 		,it.name
 		,NULL
+		,NULL
+	    ,p.ou_uuid
 		,'POSITION'
 		,ou.uuid
 		,CONCAT(p.name, ' i ', ou.name)
@@ -110,6 +118,8 @@ BEGIN
 		,it.id
 		,it.name
 		,rg.name
+		,rg.id
+        ,p.ou_uuid
 		,'POSITION'
 		,ou.uuid
 		,CONCAT(p.name, ' i ', ou.name)

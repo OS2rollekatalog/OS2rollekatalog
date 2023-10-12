@@ -20,4 +20,6 @@ public class ItSystemForm {
 	private ItSystemType systemType;
 
 	private String domain;
+
+	private String selectedResponsibleUuid;
 }

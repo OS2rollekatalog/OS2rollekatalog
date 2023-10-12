@@ -2,6 +2,9 @@ package dk.digitalidentity.rc.controller.validator;
 
 import java.util.regex.Pattern;
 
+import dk.digitalidentity.rc.dao.model.Domain;
+import dk.digitalidentity.rc.service.DomainService;
+import dk.digitalidentity.rc.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
@@ -23,6 +26,9 @@ public class ItSystemValidator implements Validator {
 
 	@Autowired
 	private DomainService domainService;
+
+	@Autowired
+	private UserService userService;
 
 	@Override
 	public boolean supports(Class<?> aClass) {
@@ -73,6 +79,12 @@ public class ItSystemValidator implements Validator {
 			Domain domain = domainService.getByName(itSystemForm.getDomain());
 			if (domain == null) {
 				errors.rejectValue("domain", "html.errors.itsystem.domain.notempty");
+			}
+		}
+
+		if (StringUtils.hasLength(itSystemForm.getSelectedResponsibleUuid())) {
+			if (userService.getByUuid(itSystemForm.getSelectedResponsibleUuid()) == null) {
+				errors.rejectValue("selectedResponsibleUuid", "html.errors.itsystem.selectedResponsibleUuid.notfound");
 			}
 		}
 	}

@@ -3,6 +3,7 @@ package dk.digitalidentity.rc.controller.mvc.viewmodel;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+import java.util.Objects;
 
 import dk.digitalidentity.rc.dao.model.ManagerSubstitute;
 import dk.digitalidentity.rc.dao.model.OrgUnit;
@@ -14,7 +15,7 @@ import lombok.Setter;
 @Setter
 public class AttestationOrgUnit {
 	private boolean canEdit;
-	private boolean attestationPdfAVailable = false;
+	private boolean attestationPdfAvailable = false;
 	private String uuid;
 	private String managerName;
 	private String managerPosition;
@@ -52,13 +53,15 @@ public class AttestationOrgUnit {
 
 			substitutes = new ArrayList<>();
 			for (ManagerSubstitute ms : ou.getManager().getManagerSubstitutes()) {
-				substitutes.add(ms.getSubstitute().getName());
+				if (Objects.equals(ms.getOrgUnit().getUuid(), ou.getUuid())) {
+					substitutes.add(ms.getSubstitute().getName());
+				}
 			}
 		}
 		
 		// trick to avoid loading the PDF from DB
 		if (ou.getLastAttested() != null) {
-			attestationPdfAVailable = true;
+			attestationPdfAvailable = true;
 		}
 	}
 }

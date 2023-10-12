@@ -254,6 +254,11 @@ public class UserApi {
 			}
 		}
 
+		// very well, then find all of them
+		if (itSystems == null) {
+			itSystems = itSystemService.getAll();
+		}
+		
 		if (itSystems != null) {
 			itSystems = itSystems.stream().filter(its -> its.isAccessBlocked() == false).collect(Collectors.toList());
 		}
@@ -291,6 +296,11 @@ public class UserApi {
 				log.warn("could not find itSystem: " + itSystemIdentifier);
 				return new ResponseEntity<>(HttpStatus.NOT_FOUND);
 			}
+		}
+
+		// very well, then find all of them
+		if (itSystems == null) {
+			itSystems = itSystemService.getAll();
 		}
 
 		if (itSystems != null) {

@@ -75,6 +75,15 @@
 									</div>
 								</div>
 							</fieldset>
+
+							<fieldset>
+								<div class="form-group">
+									<label class="col-sm-2 control-label" th:text="#{html.entity.itsystem.attestationResponsible}"></label>
+									<div class="col-sm-8">
+										<input th:field="${attestationResponsibleName}" readonly="readonly" class="form-control" />
+									</div>
+								</div>
+							</fieldset>
 							
 							<fieldset>
 								<div class="form-group">
@@ -126,7 +135,7 @@
 									</div>
 								</div>
 							</fieldset>
- 
+
 							<fieldset th:if="${#strings.toString(itsystem.systemType)} == 'SAML'">
 								<div class="form-group">
 									<label class="col-sm-2 control-label" th:text="#{html.entity.itsystem.subscribedto}"></label>
@@ -135,7 +144,6 @@
 									</div>
 								</div>
 							</fieldset>
-
 						</form>
 
 						<form class="form-horizontal" th:if="${#strings.toString(itsystem.systemType)} == 'AD'">

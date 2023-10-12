@@ -1,7 +1,8 @@
 package dk.digitalidentity.rc.dao.history.model;
 
-import java.time.LocalDate;
-import java.util.Set;
+import lombok.Getter;
+import lombok.Setter;
+import org.hibernate.annotations.BatchSize;
 
 import javax.persistence.CascadeType;
 import javax.persistence.Column;
@@ -10,19 +11,18 @@ import javax.persistence.FetchType;
 import javax.persistence.Id;
 import javax.persistence.OneToMany;
 import javax.persistence.Table;
-
-import org.hibernate.annotations.BatchSize;
-
-import lombok.Getter;
+import java.time.LocalDate;
+import java.util.Set;
 
 @Entity
 @Table(name = "history_it_systems")
 @Getter
+@Setter
 public class HistoryItSystem {
 
 	@Id
 	private long id;
-	
+
 	@Column
 	private LocalDate dato;
 
@@ -34,7 +34,10 @@ public class HistoryItSystem {
 
 	@Column
 	private boolean itSystemHidden;
-	
+
+	@Column(name = "attestation_responsible_uuid")
+	private String attestationResponsible;
+
 	@BatchSize(size = 50)
 	@OneToMany(mappedBy = "historyItSystem", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
 	private Set<HistorySystemRole> historySystemRoles;

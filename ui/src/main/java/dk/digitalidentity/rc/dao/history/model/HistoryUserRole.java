@@ -1,6 +1,8 @@
 package dk.digitalidentity.rc.dao.history.model;
 
-import java.util.Set;
+import lombok.Getter;
+import lombok.Setter;
+import org.hibernate.annotations.BatchSize;
 
 import javax.persistence.CascadeType;
 import javax.persistence.Column;
@@ -11,14 +13,12 @@ import javax.persistence.JoinColumn;
 import javax.persistence.ManyToOne;
 import javax.persistence.OneToMany;
 import javax.persistence.Table;
-
-import org.hibernate.annotations.BatchSize;
-
-import lombok.Getter;
+import java.util.Set;
 
 @Entity
 @Table(name = "history_user_roles")
 @Getter
+@Setter
 public class HistoryUserRole {
 
 	@Id
@@ -35,6 +35,12 @@ public class HistoryUserRole {
 	
 	@Column
 	private String userRoleDelegatedFromCvr;
+
+	@Column
+	private boolean roleAssignmentAttestationByAttestationResponsible;
+
+	@Column(name = "`sensitive_role`")
+	private Boolean sensitiveRole;
 	
 	@BatchSize(size = 50)
 	@ManyToOne(fetch = FetchType.LAZY)

@@ -235,6 +235,7 @@ public class RoleGroupController {
 		
 		if (user != null) {
 			model.addAttribute("positions", user.getPositions());
+			model.addAttribute("possibleOrgUnits", orgUnitService.getOrgUnitsForUser(user));
 		}
 		
 		return "users/fragments/user_role_group_modal :: userRoleGroupModal";

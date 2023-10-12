@@ -1,7 +1,5 @@
 package dk.digitalidentity.rc.test.ui.service;
 
-import java.util.concurrent.atomic.AtomicReference;
-
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebElement;
 import org.openqa.selenium.chrome.ChromeDriver;
@@ -9,6 +7,8 @@ import org.openqa.selenium.chrome.ChromeOptions;
 import org.openqa.selenium.remote.DesiredCapabilities;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+
+import java.util.concurrent.atomic.AtomicReference;
 
 @Service
 public class LoginService {
@@ -74,7 +74,8 @@ public class LoginService {
         ChromeOptions options = new ChromeOptions();
         options.addArguments("window-size=1024,768");
 
-        DesiredCapabilities capabilities = DesiredCapabilities.chrome();
+        DesiredCapabilities capabilities = new DesiredCapabilities();
+        capabilities.setBrowserName("chrome");
         capabilities.setCapability(ChromeOptions.CAPABILITY, options);
         capabilities.setJavascriptEnabled(true);
         driver = new ChromeDriver(capabilities);

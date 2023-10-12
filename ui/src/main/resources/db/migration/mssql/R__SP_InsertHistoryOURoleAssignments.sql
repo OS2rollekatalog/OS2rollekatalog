@@ -14,6 +14,7 @@ BEGIN
 		,role_it_system_id
 		,role_it_system_name
 		,role_role_group
+		,role_role_group_id
 		,assigned_through_type
 		,assigned_through_uuid
 		,assigned_through_name
@@ -29,6 +30,7 @@ BEGIN
 		,ur.name
 		,it.id
 		,it.name
+		, NULL
 		, NULL
 		,'DIRECT'
 		,NULL
@@ -58,6 +60,7 @@ BEGIN
 		,it.id
 		,it.name
 		,rg.name
+	    ,rg.id
 		,'DIRECT'
 		,NULL
 		,NULL
@@ -118,6 +121,7 @@ BEGIN
 		,assigned_by_user_id
 		,assigned_by_name
 		,assigned_when
+		,inherit
 	)
 	SELECT
 		CURRENT_TIMESTAMP
@@ -132,6 +136,7 @@ BEGIN
 		,our.assigned_by_user_id
 		,our.assigned_by_name
 		,our.assigned_timestamp
+	    ,orig_ou_uuid=cte.ou_uuid
 	FROM cte
 	JOIN ou_roles our ON our.id = cte.id
 	JOIN ous ou ON ou.uuid = our.ou_uuid
@@ -177,6 +182,7 @@ BEGIN
 		,role_it_system_id
 		,role_it_system_name
 		,role_role_group
+		,role_role_group_id
 		,assigned_through_type
 		,assigned_through_uuid
 		,assigned_through_name
@@ -192,6 +198,7 @@ BEGIN
 		,it.id
 		,it.name
 		,rg.name
+	    ,rg.id
 		,'ORGUNIT'
 		,orig_ou_uuid
 		,orig_ou_name

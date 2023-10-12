@@ -1,7 +1,8 @@
 package dk.digitalidentity.rc.dao.history.model;
 
-import java.time.LocalDate;
-import java.util.Date;
+import dk.digitalidentity.rc.service.model.AssignedThrough;
+import lombok.Getter;
+import lombok.Setter;
 
 import javax.persistence.Column;
 import javax.persistence.Entity;
@@ -9,13 +10,13 @@ import javax.persistence.EnumType;
 import javax.persistence.Enumerated;
 import javax.persistence.Id;
 import javax.persistence.Table;
-
-import dk.digitalidentity.rc.service.model.AssignedThrough;
-import lombok.Getter;
+import java.time.LocalDate;
+import java.util.Date;
 
 @Entity
 @Table(name = "history_role_assignments")
 @Getter
+@Setter
 public class HistoryRoleAssignment {
 
 	@Id
@@ -35,6 +36,9 @@ public class HistoryRoleAssignment {
 
 	@Column
 	private String roleRoleGroup;
+
+	@Column
+	private Long roleRoleGroupId;
 
 	@Enumerated(EnumType.STRING)
 	@Column
@@ -57,4 +61,8 @@ public class HistoryRoleAssignment {
 	
 	@Column
 	private String postponedConstraints;
+
+	@Column(name = "ou_uuid")
+	private String orgUnitUuid;
+
 }

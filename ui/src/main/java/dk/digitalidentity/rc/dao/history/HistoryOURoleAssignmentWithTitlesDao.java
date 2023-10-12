@@ -1,6 +1,8 @@
 package dk.digitalidentity.rc.dao.history;
 
+import java.time.LocalDate;
 import java.util.List;
+import java.util.stream.Stream;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -8,6 +10,9 @@ import org.springframework.data.jpa.repository.Query;
 import dk.digitalidentity.rc.dao.history.model.HistoryOURoleAssignmentWithTitles;
 
 public interface HistoryOURoleAssignmentWithTitlesDao extends JpaRepository<HistoryOURoleAssignmentWithTitles, Long> {
+
+    @Query("SELECT hra FROM HistoryOURoleAssignmentWithTitles hra WHERE hra.dato=?1")
+    Stream<HistoryOURoleAssignmentWithTitles> streamByDate(final LocalDate when);
 
     @Query("SELECT hra FROM HistoryOURoleAssignmentWithTitles hra WHERE YEAR(hra.dato)=?1 AND MONTH(hra.dato)=?2 AND DAY(hra.dato)=?3")
     List<HistoryOURoleAssignmentWithTitles> findByDate(Integer year, Integer month, Integer day);

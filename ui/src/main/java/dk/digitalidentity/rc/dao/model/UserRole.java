@@ -81,6 +81,9 @@ public class UserRole implements AuditLoggable {
 	@Column(nullable = false)
 	private boolean sendToAuthorizationManagers;
 
+	@Column
+	private boolean roleAssignmentAttestationByAttestationResponsible;
+
 	@OneToOne(mappedBy = "userRole", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
 	private UserRoleEmailTemplate userRoleEmailTemplate;
 

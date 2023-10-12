@@ -1,11 +1,14 @@
 
 package dk.digitalidentity.rc.controller.api;
 
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.List;
-import java.util.Objects;
-
+import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
+import dk.digitalidentity.rc.dao.model.ManagerSubstitute;
+import dk.digitalidentity.rc.dao.model.OrgUnit;
+import dk.digitalidentity.rc.dao.model.User;
+import dk.digitalidentity.rc.security.RequireApiOrganisationRole;
+import dk.digitalidentity.rc.service.OrgUnitService;
+import dk.digitalidentity.rc.service.UserService;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -15,14 +18,10 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
-import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
-import dk.digitalidentity.rc.dao.model.ManagerSubstitute;
-import dk.digitalidentity.rc.dao.model.OrgUnit;
-import dk.digitalidentity.rc.dao.model.User;
-import dk.digitalidentity.rc.security.RequireApiOrganisationRole;
-import dk.digitalidentity.rc.service.OrgUnitService;
-import dk.digitalidentity.rc.service.UserService;
-import lombok.extern.slf4j.Slf4j;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.List;
+import java.util.Objects;
 
 @Slf4j
 @RestController
@@ -65,6 +64,7 @@ public class ManagerSubstituteApi {
 			for (ManagerSubstitute substitute : manager.getManagerSubstitutes()) {
 				rManager.substitutes().add(new SubstituteRecord(substitute.getSubstitute().getName(), substitute.getSubstitute().getUserId(), substitute.getOrgUnit().getUuid()));
 			}
+			result.add(rManager);
 		}
 
 		return new ResponseEntity<>(result, HttpStatus.OK);
@@ -85,7 +85,7 @@ public class ManagerSubstituteApi {
 			return new ResponseEntity<>("Det angivne userId peger ikke på en leder", HttpStatus.BAD_REQUEST);
 		}
 
-		if (input.substitutes() == null || input.substitutes().size() != 0) {
+		if (input.substitutes() == null || input.substitutes().size() != 1) {
 			return new ResponseEntity<>("Angiv én og kun én stedfortræder når der tilføjes", HttpStatus.BAD_REQUEST);
 		}
 		
@@ -136,7 +136,7 @@ public class ManagerSubstituteApi {
 			return new ResponseEntity<>("Det angivne userId peger ikke på en leder", HttpStatus.BAD_REQUEST);
 		}
 
-		if (input.substitutes() == null || input.substitutes().size() != 0) {
+		if (input.substitutes() == null || input.substitutes().size() != 1) {
 			return new ResponseEntity<>("Angiv én og kun én stedfortræder når der fjernes", HttpStatus.BAD_REQUEST);
 		}
 		

@@ -8,6 +8,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import dk.digitalidentity.rc.dao.model.enums.EmailTemplatePlaceholder;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -273,11 +274,11 @@ public class RequestApproveService {
 				EmailTemplate template = emailTemplateService.findByTemplateType(EmailTemplateType.WAITING_REQUESTS_ROLE_ASSIGNERS);
 				if (template.isEnabled()) {
 					String title = template.getTitle();
-					title = title.replace(EmailTemplateService.RECEIVER_PLACEHOLDER, "rolletildeler");
-					title = title.replace(EmailTemplateService.COUNT_PLACEHOLDER, Integer.toString(count));
+					title = title.replace(EmailTemplatePlaceholder.RECEIVER_PLACEHOLDER.getPlaceholder(), "rolletildeler");
+					title = title.replace(EmailTemplatePlaceholder.COUNT_PLACEHOLDER.getPlaceholder(), Integer.toString(count));
 					String message = template.getMessage();
-					message = message.replace(EmailTemplateService.RECEIVER_PLACEHOLDER, "rolletildeler");
-					message = message.replace(EmailTemplateService.COUNT_PLACEHOLDER, Integer.toString(count));
+					message = message.replace(EmailTemplatePlaceholder.RECEIVER_PLACEHOLDER.getPlaceholder(), "rolletildeler");
+					message = message.replace(EmailTemplatePlaceholder.COUNT_PLACEHOLDER.getPlaceholder(), Integer.toString(count));
 					emailQueueService.queueEmail(settingsService.getRequestApproveServicedeskEmail(), title, message, template, null);
 					for (RequestApprove requestApprove : requestApproves) {
 						requestApprove.setEmailSent(true);

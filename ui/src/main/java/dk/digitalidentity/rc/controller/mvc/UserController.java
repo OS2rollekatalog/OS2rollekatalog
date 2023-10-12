@@ -9,6 +9,7 @@ import java.util.stream.Collectors;
 
 import dk.digitalidentity.rc.service.PNumberService;
 import dk.digitalidentity.rc.service.SENumberService;
+import dk.digitalidentity.rc.controller.mvc.viewmodel.SelectOUDTO;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.access.AccessDeniedException;
@@ -172,6 +173,8 @@ public class UserController {
 				.collect(Collectors.toList());
 
 		model.addAttribute("treeOUs", treeOUs);
+
+		model.addAttribute("roleAssignmentOrgUnits", orgUnitService.getOrgUnitsForUser(user).stream().map(o -> new SelectOUDTO(o)).collect(Collectors.toList()));
 		
 		return "users/manage";
 	}

@@ -428,6 +428,7 @@ public class UserRoleController {
 		User user = userService.getByUuid(uuid);
 		if (user != null) {
 			model.addAttribute("positions", user.getPositions());
+			model.addAttribute("possibleOrgUnits", orgUnitService.getOrgUnitsForUser(user));
 		}
 		
 		return "users/fragments/user_user_role_modal :: userUserRoleModal";	

@@ -1,18 +1,5 @@
 package dk.digitalidentity.rc.service;
 
-import java.time.LocalDate;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Map;
-import java.util.function.Function;
-import java.util.stream.Collectors;
-
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
 import dk.digitalidentity.rc.dao.history.HistoryItSystemDao;
 import dk.digitalidentity.rc.dao.history.HistoryKleAssignmentDao;
 import dk.digitalidentity.rc.dao.history.HistoryManagerDao;
@@ -35,6 +22,19 @@ import dk.digitalidentity.rc.dao.history.model.HistoryOURoleAssignmentWithTitles
 import dk.digitalidentity.rc.dao.history.model.HistoryRoleAssignment;
 import dk.digitalidentity.rc.dao.history.model.HistoryTitle;
 import dk.digitalidentity.rc.dao.history.model.HistoryUser;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDate;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @Service
 public class HistoryService {
@@ -100,17 +100,20 @@ public class HistoryService {
 	}
 
 	public Map<String, HistoryOU> getOUs(LocalDate localDate) {
-		return historyOUDao.findByDate(localDate.getYear(), localDate.getMonthValue(), localDate.getDayOfMonth())
+		return historyOUDao.findByDate(localDate)
 				.stream()
 				.collect(Collectors.toMap(HistoryOU::getOuUuid, Function.identity()));
 	}
 
 	public HistoryOU getOU(LocalDate localDate, String uuid) {
-		return historyOUDao.findByDateAndUuid(localDate.getYear(), localDate.getMonthValue(), localDate.getDayOfMonth(), uuid);
+		return historyOUDao.findFirstByDatoAndOuUuidOrderByIdDesc(localDate, uuid);
 	}
 
+	@Transactional
 	public List<HistoryItSystem> getItSystems(LocalDate localDate) {
-		return historyItSystemDao.findByDate(localDate.getYear(), localDate.getMonthValue(), localDate.getDayOfMonth());
+		try (final Stream<HistoryItSystem> byDate = historyItSystemDao.streamByDate(localDate)) {
+			return byDate.collect(Collectors.toList());
+		}
 	}
 
 	public Map<String, List<HistoryKleAssignment>> getKleAssignments(LocalDate localDate) {
@@ -133,26 +136,28 @@ public class HistoryService {
 		return historyOUKleAssignmentDao.findByDateAndOuUuid(localDate.getYear(), localDate.getMonthValue(), localDate.getDayOfMonth(), ouUuid);
 	}
 
+	@Transactional
 	public Map<String, List<HistoryRoleAssignment>> getRoleAssignments(LocalDate localDate) {
-		return historyRoleAssignmentDao.findByDate(localDate.getYear(), localDate.getMonthValue(), localDate.getDayOfMonth())
-				.stream()
-				.collect(Collectors.groupingBy(HistoryRoleAssignment::getUserUuid));
+		try (Stream<HistoryRoleAssignment> historyRoleAssignmentStream = historyRoleAssignmentDao.streamByDate(localDate)) {
+			return historyRoleAssignmentStream
+					.collect(Collectors.groupingBy(HistoryRoleAssignment::getUserUuid));
+		}
 	}
 
 	public Map<String, List<HistoryRoleAssignment>> getRoleAssignments(LocalDate localDate, List<Long> itSystemIds) {
-		return historyRoleAssignmentDao.findByDateAndItSystems(localDate.getYear(), localDate.getMonthValue(), localDate.getDayOfMonth(), itSystemIds)
+		return historyRoleAssignmentDao.findByDateAndItSystems(localDate, itSystemIds)
 				.stream()
 				.collect(Collectors.groupingBy(HistoryRoleAssignment::getUserUuid));
 	}
 
 	public Map<String, List<HistoryOURoleAssignment>> getOURoleAssignments(LocalDate localDate) {
-		return historyOURoleAssignmentDao.findByDate(localDate.getYear(), localDate.getMonthValue(), localDate.getDayOfMonth())
+		return historyOURoleAssignmentDao.findByDate(localDate)
 				.stream()
 				.collect(Collectors.groupingBy(HistoryOURoleAssignment::getOuUuid));
 	}
 
 	public Map<String, List<HistoryOURoleAssignment>> getOURoleAssignments(LocalDate localDate, List<Long> itSystemIds) {
-		return historyOURoleAssignmentDao.findByDateAndItSystems(localDate.getYear(), localDate.getMonthValue(), localDate.getDayOfMonth(), itSystemIds)
+		return historyOURoleAssignmentDao.findByDateAndItSystems(localDate, itSystemIds)
 				.stream()
 				.collect(Collectors.groupingBy(HistoryOURoleAssignment::getOuUuid));
 	}
@@ -256,6 +261,21 @@ public class HistoryService {
 		else {
 			jdbcTemplate.update("CALL SP_InsertHistoryOURoleAssignmentsWithExceptions();");
 		}
+	}
+
+	@Transactional
+	public void deleteHistoryForDay(final LocalDate date) {
+		jdbcTemplate.update("DELETE FROM history_users WHERE dato = ?", date);
+		jdbcTemplate.update("DELETE FROM history_ous WHERE dato = ?", date);
+		jdbcTemplate.update("DELETE FROM history_role_assignments WHERE dato = ?", date);
+		jdbcTemplate.update("DELETE FROM history_kle_assignments WHERE dato = ?", date);
+		jdbcTemplate.update("DELETE FROM history_it_systems WHERE dato = ?", date);
+		jdbcTemplate.update("DELETE FROM history_managers WHERE dato = ?", date);
+		jdbcTemplate.update("DELETE FROM history_ou_role_assignments WHERE dato = ?", date);
+		jdbcTemplate.update("DELETE FROM history_role_assignment_titles WHERE dato = ?", date);
+		jdbcTemplate.update("DELETE FROM history_titles WHERE dato = ?", date);
+		jdbcTemplate.update("DELETE FROM history_role_assignment_excepted_users WHERE dato = ?", date);
+		jdbcTemplate.update("DELETE FROM history_user_roles_system_roles");
 	}
 
 	@Transactional

@@ -1,20 +1,5 @@
 package dk.digitalidentity.rc.security;
 
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
-import java.util.stream.Collectors;
-
-import javax.servlet.http.HttpServletRequest;
-import javax.transaction.Transactional;
-
-import dk.digitalidentity.samlmodule.model.SamlGrantedAuthority;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.security.core.userdetails.UsernameNotFoundException;
-import org.springframework.stereotype.Component;
-import org.springframework.web.context.request.RequestContextHolder;
-import org.springframework.web.context.request.ServletRequestAttributes;
-
 import dk.digitalidentity.rc.config.Constants;
 import dk.digitalidentity.rc.config.SessionConstants;
 import dk.digitalidentity.rc.dao.model.ItSystem;
@@ -30,8 +15,21 @@ import dk.digitalidentity.rc.service.ReportTemplateService;
 import dk.digitalidentity.rc.service.RequestApproveService;
 import dk.digitalidentity.rc.service.SettingsService;
 import dk.digitalidentity.rc.service.UserService;
+import dk.digitalidentity.samlmodule.model.SamlGrantedAuthority;
 import dk.digitalidentity.samlmodule.model.SamlLoginPostProcessor;
 import dk.digitalidentity.samlmodule.model.TokenUser;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
+import org.springframework.stereotype.Component;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
+
+import javax.servlet.http.HttpServletRequest;
+import javax.transaction.Transactional;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Component
 @Transactional
@@ -140,9 +138,18 @@ public class RolePostProcessor implements SamlLoginPostProcessor {
 			authorities.add(new SamlGrantedAuthority(Constants.ROLE_READ_ACCESS));
 		}
 
+		if (roles.contains(Constants.ROLE_ATTESTATION_ADMINISTRATOR)) {
+			authorities.add(new SamlGrantedAuthority(Constants.ROLE_ATTESTATION_ADMINISTRATOR));
+		}
+
 		// Users without roles but with assigned Reports templates
 		if (roles.size() == 0 && reportTemplateService.getByUser(user).size() > 0) {
 			authorities.add(new SamlGrantedAuthority(Constants.ROLE_TEMPLATE_ACCESS));
+		}
+
+		// check if user is it system responsible
+		if (!itSystemService.findByAttestationResponsible(user).isEmpty()) {
+			authorities.add(new SamlGrantedAuthority(Constants.ROLE_IT_SYSTEM_RESPONSIBLE));
 		}
 		
 		tokenUser.setAuthorities(authorities);

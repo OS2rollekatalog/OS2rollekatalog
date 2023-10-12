@@ -522,6 +522,10 @@ public class KspCicsService {
 					continue;
 				}
 			}
+			else {
+				// already seen, then flag it as processed for cleanup after the run
+				processed.add(dirtyProfile);
+			}
 		}
 
 		// cleanup queue

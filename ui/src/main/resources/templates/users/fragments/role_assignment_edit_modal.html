@@ -5,7 +5,7 @@
 			<!-- Modal content-->
 			<div class="modal-content">
 				<div class="modal-header">
-					<h4 th:text="#{html.page.users.list.modal}"></h4>
+					<h4 th:text="#{html.page.users.list.modal.edit}"></h4>
 				</div>
 	
 				<div class="modal-body" style="overflow-y: initial !important;">
@@ -38,6 +38,17 @@
 							</div>
 						</div>
 					</div>
+
+					<div style="height: 70px;">
+						<h4 class="md-12">
+							<span th:text="#{html.word.orgUnit}" class="col-md-11" style="padding: 0px;"></span>
+							<a class="col-md-1" th:replace="fragments/help :: help (title=#{html.help.roleAssignment.orgUnit.title}, content=#{html.help.roleAssignment.orgUnit.body})"></a>
+						</h4>
+						<div class="form-group col-md-12">
+							<select class="form-control" id="editRoleOUSelect">
+							</select>
+						</div>
+					</div>
 				</div>
 	
 				<div class="modal-footer">
@@ -54,6 +65,10 @@
 		/*<![CDATA[*/
 
 		//Don't use global variables here so that they don't conflict with main page.
+
+		/*[+
+			var missingPostponedConstraintService = [[${missingPostponedConstraintService}]];
+		+]*/
 
 		var userRoleEditModalService;
 		var modalAjaxService;
@@ -75,16 +90,23 @@
 
 			this.init = function(){
 				$('#closeEditModal').click(userRoleEditModalService.closeModal);
-				$('#updateBtn').on( "click", function() {
-	            	postponedConstraintsService.validate("edit");
-	            });
-				
+
+				if (!missingPostponedConstraintService) {
+					$('#updateBtn').on( "click", function() {
+						postponedConstraintsService.validate("edit");
+					});
+				} else {
+					$('#updateBtn').on( "click", function() {
+						userRoleEditModalService.updateClicked();
+					});
+				}
+
 				userRoleEditModalService.modal().on('shown.bs.modal', function() {
 					$("#updateBtn").focus();
 				});
 			}
 
-			this.showModal = function (user, startDate, stopDate, type, assignmentId, assignedThrough) {
+			this.showModal = function (user, startDate, stopDate, type, assignmentId, assignedThrough, selectedOrgUnit, possibleOrgUnits) {
 				var editModal = userRoleEditModalService.modal();
 				editModal.modal({
 				    backdrop: 'static',
@@ -103,6 +125,17 @@
 					$('#stopDatePickerEdit').data("DateTimePicker").date(stopDate);
 				}
 
+				// init the ou select
+				$("#editRoleOUSelect").empty();
+				for (let i = 0; i < possibleOrgUnits.length; i++) {
+					var current = possibleOrgUnits[i];
+					if (current.uuid == selectedOrgUnit) {
+						$("#editRoleOUSelect").append('<option selected="selected" value="' + current.uuid + '">' + current.name + '</option>');
+					} else {
+						$("#editRoleOUSelect").append('<option value="' + current.uuid + '">' + current.name + '</option>');
+					}
+				}
+
 				//This doesn't have to be passed through attributes it could be variables in userRoleEditModalService
 				editModal.attr("type", type);
 				editModal.attr("assignmentId", assignmentId);
@@ -116,13 +149,18 @@
 				var userUuid = editModal.attr("user");
 				var assignedThrough = editModal.attr("assignedthrough");
 				var type = editModal.attr("type");
+				var selectedOU = $("#editRoleOUSelect").val();
 
 				var startDate = $('#startDatePickerEdit').data('date');
 				var stopDate = $('#stopDatePickerEdit').data('date');
 				var dates = "?startDate=" + startDate + "&stopDate=" + stopDate;
 				
-				var updateRestEndpoint = userRoleEditModalService.usersUrl + userUuid + '/editassignment/' + type + '/'+ assignedThrough + '/' + assignmentId + dates;
-				var constraints = postponedConstraintsService.getConstraintList();
+				var updateRestEndpoint = userRoleEditModalService.usersUrl + userUuid + '/editassignment/' + type + '/'+ assignedThrough + '/' + assignmentId + dates + "&ouuuid=" + selectedOU;
+				var constraints = [];
+				if (!missingPostponedConstraintService) {
+				 	constraints = postponedConstraintsService.getConstraintList();
+				}
+
 				$.ajax({
 	    			   url: updateRestEndpoint,
 	    			   contentType: 'application/json',

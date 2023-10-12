@@ -13,6 +13,8 @@ import java.util.stream.Stream;
 
 import javax.servlet.http.HttpServletResponse;
 
+import dk.digitalidentity.rc.dao.model.ItSystem;
+import dk.digitalidentity.rc.service.ItSystemService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -79,6 +81,9 @@ public class ReportController {
 	
 	@Autowired
 	private PositionService positionService;
+
+	@Autowired
+	private ItSystemService itSystemService;
 
 	@RequireTemplateAccessOrReadAccessRole
 	@GetMapping("/ui/report/templates")
@@ -311,11 +316,29 @@ public class ReportController {
 			case USER_ROLE_WITHOUT_SYSTEM_ROLES:
 				model.addAttribute("userRoles", generateUserRolesWithoutSystemRolesReport());
 				return "reports/custom/user_roles_without_system_roles";
+			case ITSYSTEMS_WITHOUT_ATTESTATION_RESPONSIBLE:
+				model.addAttribute("itSystems", generateItSystemWithoutSystemResponsibleReport());
+				return "reports/custom/itsystem_without_system_responsible";
 		}
 
 		return "redirect:/ui/report/custom";
 	}
-	
+
+	record ItSystemWithoutSystemResponsibleReport(long id, String name, String identifier, String type, boolean inactiveSystemResponsible) {}
+	private List<ItSystemWithoutSystemResponsibleReport> generateItSystemWithoutSystemResponsibleReport() {
+		List<ItSystemWithoutSystemResponsibleReport> result = new ArrayList<>();
+		List<ItSystem> allSystems = itSystemService.getAll();
+		for (ItSystem system : allSystems) {
+			if (system.getAttestationResponsible() == null) {
+				result.add(new ItSystemWithoutSystemResponsibleReport(system.getId(), system.getName(), system.getIdentifier(), system.getSystemType().getMessage(), false));
+			}
+			else if (system.getAttestationResponsible() != null && (system.getAttestationResponsible().isDeleted() || system.getAttestationResponsible().isDisabled())) {
+				result.add(new ItSystemWithoutSystemResponsibleReport(system.getId(), system.getName(), system.getIdentifier(), system.getSystemType().getMessage(), true));
+			}
+		}
+		return result;
+	}
+
 	private List<UserRole> generateUserRolesWithSensitiveFlagReport() {
 		return userRoleService.getAllSensitiveRoles();
 	}

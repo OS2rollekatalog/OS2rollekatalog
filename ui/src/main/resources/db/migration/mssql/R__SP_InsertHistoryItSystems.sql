@@ -7,8 +7,8 @@ CREATE OR ALTER PROC SP_InsertHistoryItSystems
 AS
 BEGIN
   INSERT INTO history_it_systems (
-    dato, it_system_id, it_system_name, it_system_hidden)
-  SELECT CURRENT_TIMESTAMP, it.id, it.name, it.hidden
+    dato, it_system_id, it_system_name, it_system_hidden, attestation_responsible_uuid)
+  SELECT CURRENT_TIMESTAMP, it.id, it.name, it.hidden, it.attestation_responsible_uuid
   FROM it_systems it;
   
   INSERT INTO history_system_roles (
@@ -19,15 +19,15 @@ BEGIN
   WHERE hit.dato = CAST(CURRENT_TIMESTAMP AS DATE);
 
   INSERT INTO history_user_roles (
-    history_it_systems_id, user_role_id, user_role_name, user_role_description, user_role_delegated_from_cvr)
-  SELECT hit.id, ur.id, ur.name, ur.description, ur.delegated_from_cvr
+    history_it_systems_id, user_role_id, user_role_name, user_role_description, user_role_delegated_from_cvr, sensitive_role, role_assignment_attestation_by_attestation_responsible)
+  SELECT hit.id, ur.id, ur.name, ur.description, ur.delegated_from_cvr, ur.sensitive_role, ur.role_assignment_attestation_by_attestation_responsible
   FROM history_it_systems hit
   JOIN user_roles ur ON ur.it_system_id = hit.it_system_id
   WHERE hit.dato = CAST(CURRENT_TIMESTAMP AS DATE);
 
   INSERT INTO history_user_roles_system_roles (
-    history_user_roles_id, system_role_assignments_id, system_role_name)
-  SELECT hur.id, sra.id, sr.name
+    history_user_roles_id, system_role_assignments_id, system_role_name, system_role_id, system_role_description)
+  SELECT hur.id, sra.id, sr.name, sr.id, sr.description
   FROM history_it_systems hit
   JOIN history_user_roles hur ON hur.history_it_systems_id = hit.id
   JOIN user_roles ur ON ur.id = hur.user_role_id

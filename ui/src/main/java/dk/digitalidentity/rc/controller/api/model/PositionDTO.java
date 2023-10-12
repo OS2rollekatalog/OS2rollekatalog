@@ -21,4 +21,11 @@ public class PositionDTO {
 		this.titleUuid = position.getTitle() != null ? position.getTitle().getUuid() : null;
 		this.doNotInherit = position.isDoNotInherit();
 	}
+
+	public PositionDTO(String name, String orgUnitUuid, String titleUuid, boolean doNotInherit) {
+		this.name = name;
+		this.orgUnitUuid = orgUnitUuid;
+		this.titleUuid = titleUuid;
+		this.doNotInherit = doNotInherit;
+	}
 }

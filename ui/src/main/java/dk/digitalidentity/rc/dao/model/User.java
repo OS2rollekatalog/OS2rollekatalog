@@ -90,6 +90,10 @@ public class User implements AuditLoggable {
 	@OneToMany(mappedBy = "manager", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
 	private List<ManagerSubstitute> managerSubstitutes;
 
+	@BatchSize(size = 50)
+	@OneToMany(mappedBy = "substitute", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
+	private List<ManagerSubstitute> substituteFor;
+
 	@JsonIgnore
 	@Override
 	public String getEntityId() {

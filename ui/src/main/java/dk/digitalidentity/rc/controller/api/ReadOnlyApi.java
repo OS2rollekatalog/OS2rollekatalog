@@ -9,7 +9,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
-import dk.digitalidentity.rc.controller.api.dto.read.PostponedConstraintReadDTO;
+import dk.digitalidentity.rc.controller.api.dto.read.*;
 import dk.digitalidentity.rc.dao.model.Domain;
 import dk.digitalidentity.rc.dao.model.PostponedConstraint;
 import dk.digitalidentity.rc.dao.model.UserUserRoleAssignment;
@@ -31,14 +31,6 @@ import dk.digitalidentity.rc.controller.api.dto.ConstraintValue;
 import dk.digitalidentity.rc.controller.api.dto.RoleAssignmentWithContraints;
 import dk.digitalidentity.rc.controller.api.dto.RoleAssignmentsWithContraints;
 import dk.digitalidentity.rc.controller.api.dto.UserRoleDTO;
-import dk.digitalidentity.rc.controller.api.dto.read.RoleGroupReadDTO;
-import dk.digitalidentity.rc.controller.api.dto.read.RoleGroupWithUserRolesReadDTO;
-import dk.digitalidentity.rc.controller.api.dto.read.UserReadDTO;
-import dk.digitalidentity.rc.controller.api.dto.read.UserReadRoleSystemRole;
-import dk.digitalidentity.rc.controller.api.dto.read.UserReadSystemRoleConstraintValue;
-import dk.digitalidentity.rc.controller.api.dto.read.UserReadWrapperDTO;
-import dk.digitalidentity.rc.controller.api.dto.read.UserRoleExtendedReadDTO;
-import dk.digitalidentity.rc.controller.api.dto.read.UserRoleReadDTO;
 import dk.digitalidentity.rc.dao.model.ItSystem;
 import dk.digitalidentity.rc.dao.model.RoleGroup;
 import dk.digitalidentity.rc.dao.model.SystemRoleAssignment;
@@ -150,7 +142,7 @@ public class ReadOnlyApi {
 	}
 	
 	@RequestMapping(value = "/api/read/itsystem/{system}", method = RequestMethod.GET)
-	public ResponseEntity<List<UserReadWrapperDTO>> getUsersWithGivenUserRoles(@PathVariable("system") String itSystemIdentifier, @RequestParam(name = "indirectRoles", defaultValue = "false") boolean findIndirectlyAssignedRoles, @RequestParam(name = "withDescription", defaultValue = "false") boolean withDescription, @RequestParam(name = "domain", required = false) String domain, @RequestParam(name = "includePostponedConstraints", defaultValue = "false") boolean includePostponedConstraints) {
+	public ResponseEntity<List<UserReadWrapperDTO>> getUsersWithGivenUserRoles(@PathVariable("system") String itSystemIdentifier, @RequestParam(name = "indirectRoles", defaultValue = "false") boolean findIndirectlyAssignedRoles, @RequestParam(name = "withDescription", defaultValue = "false") boolean withDescription, @RequestParam(name = "withConstraintTypeValueSet", defaultValue = "false") boolean withConstraintTypeValueSet, @RequestParam(name = "domain", required = false) String domain, @RequestParam(name = "includePostponedConstraints", defaultValue = "false") boolean includePostponedConstraints) {
 		Domain foundDomain = domainService.getDomainOrPrimary(domain);
 		if (foundDomain == null) {
 			return new ResponseEntity<>(HttpStatus.NOT_FOUND);
@@ -179,7 +171,7 @@ public class ReadOnlyApi {
 
 		List<UserRole> userRoles = userRoleService.getByItSystem(itSystem);
 		for (UserRole userRole : userRoles) {
-			UserReadWrapperDTO dto = getUsersWithUserRole(userRole, findIndirectlyAssignedRoles, withDescription, foundDomain, includePostponedConstraints);
+			UserReadWrapperDTO dto = getUsersWithUserRole(userRole, findIndirectlyAssignedRoles, withDescription, withConstraintTypeValueSet, foundDomain, includePostponedConstraints);
 
 			result.add(dto);
 		}
@@ -199,12 +191,12 @@ public class ReadOnlyApi {
 			return new ResponseEntity<>(HttpStatus.NOT_FOUND);
 		}
 
-		UserReadWrapperDTO dto = getUsersWithUserRole(userRole, findIndirectlyAssignedRoles, withDescription, foundDomain, false);
+		UserReadWrapperDTO dto = getUsersWithUserRole(userRole, findIndirectlyAssignedRoles, withDescription, false, foundDomain, false);
 
 		return new ResponseEntity<>(dto, HttpStatus.OK);
 	}
 
-	private UserReadWrapperDTO getUsersWithUserRole(UserRole userRole, boolean indirect, boolean withDescription, Domain domain, boolean includePostponedConstraints) {
+	private UserReadWrapperDTO getUsersWithUserRole(UserRole userRole, boolean indirect, boolean withDescription, boolean withConstraintTypeValueSet, Domain domain, boolean includePostponedConstraints) {
 		UserReadWrapperDTO dto = new UserReadWrapperDTO();
 		dto.setRoleId(userRole.getId());
 		dto.setRoleIdentifier(userRole.getIdentifier());
@@ -230,7 +222,10 @@ public class ReadOnlyApi {
 				else {
 					dtoConstraintValue.setConstraintValue("*** DYNAMIC ***");
 				}
-				
+				if( withConstraintTypeValueSet ) {
+					var constraintTypeValueSet = constraintValue.getConstraintType().getValueSet().stream().map(v -> new UserReadConstraintTypeValueSetDTO(v.getConstraintKey(),v.getConstraintValue())).collect(Collectors.toList());
+					dtoConstraintValue.setConstraintTypeValueSet(constraintTypeValueSet);
+				}
 				dtoAssignment.getRoleConstraintValues().add(dtoConstraintValue);
 			}
 			

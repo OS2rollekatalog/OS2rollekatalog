@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html>
+<head th:replace="attestationmodule/fragments/header :: header(datatables = true, checkbox = true)" />
+<body class="top-navigation">
+    <div id="wrapper">
+        <div id="page-wrapper" class="gray-bg">
+            <div th:replace="attestationmodule/fragments/topbar :: topbar"></div>
+            <div class="wrapper wrapper-content">
+                <div class="row">
+                    <div class="col-lg-12">
+                        <div class="ibox">
+                            <div class="ibox-title">
+                                <div class="ibox-tools">
+                                    <a class="btn btn-primary" style="color: white" th:text="#{attestationmodule.html.attestation.controls.done}" th:href="@{/ui/attestation/v2}"></a>
+                                </div>
+                                <h3>
+                                    <em class="fa fa-list"></em> &nbsp
+                                    <span th:text="#{attestationmodule.html.itsystems.attestate.title(${itsystem.itSystemName})}"></span>
+                                </h3>
+                            </div>
+
+                            <div class="ibox-content">
+                                <div class="userRoleRow col-lg-12" th:each="userRole : ${itsystem.userRoles}" th:id="'userRoleRow' + ${userRoleStat.index}" style="display:none">
+                                    <div class="row col-lg-12">
+                                        <b style="padding-left: 0px;" th:text="#{attestationmodule.html.itsystems.attestate.role.name}" class="col-lg-2"></b>
+                                        <p th:text="${userRole.roleName}" class="col-lg-10"></p>
+                                    </div>
+                                    <div class="row col-lg-12">
+                                        <b style="padding-left: 0px;" th:text="#{attestationmodule.html.itsystems.attestate.role.description}" class="col-lg-2"></b>
+                                        <p th:text="${userRole.roleDescription}" class="col-lg-10"></p>
+                                    </div>
+                                    <div style="display:none" th:id="'remarkRow' + ${userRole.roleId}">
+                                        <b th:text="#{attestationmodule.html.itsystems.attestate.role.done.remark}"></b>
+                                        <pre th:id="'remarkPre' + ${userRole.roleId}"></pre>
+                                    </div>
+                                    <div class="row m-t-sm">
+                                        <table style="padding-right:0px !important;" class="table table-striped table-bordered table-hover" >
+                                            <thead>
+                                                <tr>
+                                                    <th th:text="#{attestationmodule.html.itsystems.attestate.table.systemrole}" class="col-lg-2"></th>
+                                                    <th th:text="#{attestationmodule.html.itsystems.attestate.table.systemrole.description}" class="col-lg-5"></th>
+                                                    <th th:text="#{attestationmodule.html.itsystems.attestate.table.systemrole.constraints}" class="col-lg-5"></th>
+                                                </tr>
+                                            </thead>
+
+                                            <tbody>
+                                                <tr th:each="systemRole : ${userRole.systemRoles}">
+                                                    <td th:text="${systemRole.systemRoleName}" class="col-lg-2"></td>
+                                                    <td th:text="${systemRole.systemRoleDescription}" class="col-lg-5"></td>
+                                                    <td class="col-lg-5">
+                                                        <ul>
+                                                            <li th:each="constraint : ${systemRole.constraints}" th:text="${@attestationConstraintService.caption(constraint)}"></li>
+                                                        </ul>
+                                                    </td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+
+                                    <div class="row m-t-sm">
+                                        <div class="form-group" style="margin-left: 15px;" th:id="'checkboxRow' + ${userRole.roleId}">
+                                            <input th:attr="data-id=${userRole.roleId}" type="checkbox" class="i-checks readCheckbox">
+                                            <label th:text="#{attestationmodule.html.attestation.controls.approve.read}" style="margin-left: 15px;"></label>
+                                        </div>
+                                    </div>
+
+                                    <div class="row col-lg-12 m-t-sm">
+                                        <button class="approveBtn btn btn-primary col-lg-2" th:id="'approveBtn' + ${userRole.roleId}" th:attr="data-id=${userRole.roleId}, data-number=${userRoleStat.index}" disabled="disabled">
+                                            <em class="fa-fw fa fa-check"></em>
+                                            <span th:text="#{attestationmodule.html.attestation.controls.approve}"></span>
+                                        </button>
+                                        &nbsp;
+                                        <button class="rejectBtn btn btn-danger col-lg-2" data-toggle="modal" data-target="#remarkModal" th:id="'rejectBtn' + ${userRole.roleId}" th:attr="data-id=${userRole.roleId}, data-number=${userRoleStat.index}">
+                                            <em class="fa-fw fa fa-ban"></em>
+                                            <span th:text="#{attestationmodule.html.attestation.controls.reject}"></span>
+                                        </button>
+                                        <p style="display: none;" th:id="'alreadyDone' + ${userRole.roleId}" th:text="#{attestationmodule.html.itsystems.attestate.role.done}"></p>
+                                        <div class="row ml-auto" style="margin-right: 15px;">
+                                            <button class="btn btn-primary btn-back" style="width: 60px" th:attr="data-number=${userRoleStat.index}" th:unless="${userRoleStat.index == 0}">
+                                                <i class="fa fa-chevron-left"></i>
+                                            </button>
+                                            <p class="navBtnsText" th:text="${userRoleStat.index+1} + ' / ' + ${totalCount}"></p>
+                                            <button class="btn btn-primary btn-forth" style="width: 60px" th:attr="data-number=${userRoleStat.index}" th:unless="${totalCount == userRoleStat.index + 1}">
+                                                <i class="fa fa-chevron-right"></i>
+                                            </button>
+                                            <p th:if="${totalCount == userRoleStat.index + 1}" style="width: 60px;"></p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="remarkModal" role="dialog" aria-hidden="true">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3 class="modal-title"  th:text="#{attestationmodule.html.itsystems.attestate.reject.title}"></h3>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <input id="idInput" style="display:none;">
+                    <input id="numberInput" style="display:none;">
+                    <form>
+                        <div class="form-group">
+                            <label for="remarkField" class="col-form-label" th:text="#{attestationmodule.html.itsystems.attestate.reject.text}"></label>
+                            <textarea class="form-control" id="remarkField" rows="4"></textarea>
+                            <p style="display:none; color: red;" id="remarkError" th:text="#{attestationmodule.html.itsystems.attestate.reject.remarks.error}"></p>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal" th:text="#{attestationmodule.html.attestation.controls.cancel}"></button>
+                    <button type="button" class="btn btn-primary" id="modalSaveBtn" th:text="#{attestationmodule.html.attestation.controls.save}"></button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div th:replace="attestationmodule/fragments/footer :: scripts(datatables = true, checkbox = true)"></div>
+
+    <script th:inline="javascript">
+    /*<![CDATA[*/
+		/*[+
+            var restUrl = [[@{/rest/attestation/v2/itsystems}]];
+            var itSystemId = [[${itsystem.itSystemId}]];
+            var totalNumber = [[${totalCount}]];
+		+]*/
+
+        var token = $("meta[name='_csrf']").attr("content");
+        var userRoleService;
+		$(document).ready(function(){
+            userRoleService = new UserRoleService();
+            userRoleService.init();
+		});
+
+		function UserRoleService() {
+		    this.init = function() {
+		       $(".userRoleRow").first().show();
+		       $(".btn-back").click(userRoleService.handleBack);
+		       $(".btn-forth").click(userRoleService.handleForth);
+		       $(".approveBtn").click(userRoleService.handleApprove);
+		       $(".readCheckbox").on('ifChanged', userRoleService.handleReadCheckbox);
+		       $("#modalSaveBtn").click(userRoleService.handleReject);
+
+		       $('#remarkModal').on('show.bs.modal', function (event) {
+                  var id = $(event.relatedTarget).data('id')
+                  var number = $(event.relatedTarget).data('number')
+                  $("#idInput").val(id);
+                  $("#numberInput").val(number);
+                  $("#remarkError").hide();
+                  $("#remarkField").val("");
+               })
+
+		       $('.table').DataTable({
+                    "bSort": false,
+                    "paging": false,
+                    "responsive": true,
+                    "dom": "<'row'<'col-sm-12'tr>>",
+                    "language": {
+                        "search":	   "Søg",
+                        "lengthMenu":   "_MENU_ rækker per side",
+                        "info":		 "Viser _START_ til _END_ af _TOTAL_ rækker",
+                        "zeroRecords":  "Ingen data...",
+                        "infoEmpty":	"",
+                        "infoFiltered": "(ud af _MAX_ rækker)",
+                        "paginate": {
+                            "previous": "Forrige",
+                            "next": "Næste"
+                        }
+                    }
+               });
+		    }
+
+		    this.handleBack = function() {
+		        var number = $(this).data("number");
+		        var minusOne = number - 1;
+                $("#userRoleRow" + number).first().hide();
+                $("#userRoleRow" + minusOne).first().show();
+		    }
+
+		    this.handleForth = function() {
+                var number = $(this).data("number");
+		        var plusOne = number + 1;
+                $("#userRoleRow" + number).first().hide();
+                $("#userRoleRow" + plusOne).first().show();
+		    }
+
+		    this.handleApprove = function() {
+		        var userRoleId = $(this).data("id");
+                var number = $(this).data("number");
+                var plusOne = number + 1;
+
+                $.ajax({
+					url : restUrl + "/" + itSystemId + "/userroles/" + userRoleId + "/approve",
+					method : 'POST',
+					headers: {
+						'X-CSRF-TOKEN': token
+					},
+					success : function(response) {
+						$("#approveBtn" + userRoleId).hide();
+						$("#rejectBtn" + userRoleId).hide();
+						$("#alreadyDone" + userRoleId).show();
+						$("#checkboxRow" + userRoleId).hide();
+
+						// change to next page if any next page
+						if (plusOne != totalNumber) {
+						    $("#userRoleRow" + number).first().hide();
+                            $("#userRoleRow" + plusOne).first().show();
+						}
+					},
+					error: function(jqXHR, textStatus, error) {
+						switch (jqXHR.status) {
+							case 400:
+								toastr.warning(jqXHR.responseText);
+								break;
+							default:
+								toastr.warning('Teknisk fejl: ' + jqXHR.responseText);
+								break;
+						}
+					}
+				});
+		    }
+
+		    this.handleReadCheckbox = function() {
+		        var id = $(this).data("id");
+		        var checked = $(this).prop("checked");
+
+		        if (checked) {
+                    $("#approveBtn" + id).attr("disabled", false);
+		        } else {
+                    $("#approveBtn" + id).attr("disabled", true);
+		        }
+		    }
+
+		    this.handleReject = function() {
+		        var userRoleId = $("#idInput").val();
+		        var remark = $("#remarkField").val();
+		        var numberString = $("#numberInput").val();
+		        var number = parseInt(numberString);
+                var plusOne = number + 1;
+
+                $.ajax({
+                   url : restUrl + "/" + itSystemId + "/userroles/" + userRoleId + "/reject",
+                   headers: {
+                      "content-type": "application/json",
+                      'X-CSRF-TOKEN': token
+                   },
+                   method: 'POST',
+                   data: remark,
+                   success: function(data, textStatus, jQxhr) {
+                        $("#approveBtn" + userRoleId).hide();
+                        $("#rejectBtn" + userRoleId).hide();
+                        $("#alreadyDone" + userRoleId).show();
+                        $('#remarkModal').modal('toggle');
+                        $("#remarkRow" + userRoleId).show();
+                        $("#remarkPre" + userRoleId).text(remark);
+                        $("#checkboxRow" + userRoleId).hide();
+
+                        // change to next page if any next page
+						if (plusOne != totalNumber) {
+						    $("#userRoleRow" + number).first().hide();
+                            $("#userRoleRow" + plusOne).first().show();
+						}
+                   },
+                   error: function(jqXHR, textStatus, error) {
+                        switch (jqXHR.status) {
+                            case 400:
+                                toastr.warning(jqXHR.responseText);
+                                break;
+                            default:
+                                toastr.warning('Teknisk fejl: ' + jqXHR.responseText);
+                                break;
+                        }
+                        $("#remarkError").show();
+                   }
+                });
+		    }
+		}
+
+    /*]]>*/
+	</script>
+
+</body>
+</html>

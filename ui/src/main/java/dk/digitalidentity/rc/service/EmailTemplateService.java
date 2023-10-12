@@ -1,26 +1,18 @@
 package dk.digitalidentity.rc.service;
 
-import java.util.ArrayList;
-import java.util.List;
-
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Service;
-
 import dk.digitalidentity.rc.dao.EmailTemplateDao;
 import dk.digitalidentity.rc.dao.model.EmailTemplate;
 import dk.digitalidentity.rc.dao.model.enums.EmailTemplateType;
+import org.apache.commons.lang.StringUtils;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 public class EmailTemplateService {
-	public static final String RECEIVER_PLACEHOLDER = "{modtager}";
-	public static final String ORGUNIT_PLACEHOLDER = "{enhed}";
-	public static final String MANAGER_PLACEHOLDER = "{leder}";
-	public static final String ROLE_PLACEHOLDER = "{rolle}";
-	public static final String USER_PLACEHOLDER = "{bruger}";
-	public static final String COUNT_PLACEHOLDER = "{antal}";
-	public static final String ITSYSTEM_PLACEHOLDER = "{itsystem}";
-	public static final String REQUESTER_PLACEHOLDER = "{anmoder}";
-	
 	@Autowired
 	private EmailTemplateDao emailTemplateDao;
 
@@ -34,6 +26,19 @@ public class EmailTemplateService {
 		return result;
 	}
 
+	/**
+	 * Returns all {@link EmailTemplate}s that where the type does not start with supplied prefix
+	 */
+	public List<EmailTemplate> findFiltered(final String excludePrefix) {
+		final List<EmailTemplate> allTemplates = findAll();
+		if (excludePrefix == null) {
+			return allTemplates;
+		}
+		return allTemplates.stream()
+				.filter(t -> !StringUtils.startsWithIgnoreCase(t.getTemplateType().name(), excludePrefix))
+				.collect(Collectors.toList());
+	}
+
 	public EmailTemplate findByTemplateType(EmailTemplateType type) {
 		EmailTemplate template = emailTemplateDao.findByTemplateType(type);
 		if (template == null) {
@@ -42,27 +47,67 @@ public class EmailTemplateService {
 			String message = "Besked";
 			
 			switch (type) {
-				case REMOVE_UNIT_ROLES:
-					title = "Roller til sletning";
-					message = "Kære {modtager}\n<br/>\n<br/>\nDer er et ønske om, at nogle roller skal fjernes. De berørte roller kan ses af den vedhæftede pdf.";
+				case ATTESTATION_REQUEST_FOR_CHANGE:
+					title = "Ændrings anmodning";
+					message = "Der er modtaget en anmodning fra {anmoder} om følgende ændring: <br/>\n\"{ændring}\"\n<br/>\n<br/>{ændringsønsker}\n<br/>\n<br/>For brugeren {bruger}";
 					break;
-				case ATTESTATION_DOCUMENTATION:
-					title = "Attesteringsrapport";
-					message = "Kære {modtager}\n<br/>\n<br/>\nDer er vedhæftet en attesteringsrapport til denne mail, hvor ændringer for enheden, der er attesteret kan ses.";
+				case ATTESTATION_REQUEST_FOR_ROLE_CHANGE:
+					title = "Ændrings anmodning til rolle";
+					message = "Der er modtaget en anmodning fra {anmoder} om ændringer til rollen: {rolle} på it-systemet: {itsystem}";
+					break;
+				case ATTESTATION_REQUEST_FOR_REMOVAL:
+					title = "Slette anmodning";
+					message = "Der er modtaget en anmodning fra {anmoder} om sletning af følgende bruger {bruger}";
 					break;
 				case ATTESTATION_NOTIFICATION:
 					title = "Det er tid til attestering";
 					message = "Kære {modtager}\n<br/>\n<br/>\nDet er tid til, at der skal attesteres roller for enheden: {enhed}.";
 					break;
-				case ATTESTATION_REMINDER:
+				case ATTESTATION_REMINDER_3_DAYS:
 					title = "Påmindelse/rykker for attestering";
-					message = "Kære {modtager}\n<br/>\n<br/>\nDet er tid til, at der skal attesteres roller for enheden: {enhed}.";
+					message = "Kære {modtager}\n<br/>\n<br/>\nDer er tre dage til at der skal være attesteret roller for enheden: {enhed}.";
+					break;
+				case ATTESTATION_REMINDER_10_DAYS:
+					title = "Påmindelse/rykker for attestering";
+					message = "Kære {modtager}\n<br/>\n<br/>\nDer er ti dage til at der skal være attesteret roller for enheden: {enhed}.";
 					break;
 				case ATTESTATION_REMINDER_THIRDPARTY:
 					title = "Manglende attestering";
 					message = "Kære {modtager}\n<br/>\n<br/>\nDet er tid til, at der skal attesteres roller for enheden: {enhed}. Der er sendt en eller flere rykkere til leder og eventuel stedfortræder, men en attestering er endnu ikke udført.";
 					break;
-				case SUBSTITUTE:
+				case ATTESTATION_SENSITIVE_NOTIFICATION:
+					title = "Det er tid til attestering af følsomme roller";
+					message = "Kære {modtager}\n<br/>\n<br/>\nDet er tid til, at der skal attesteres følsomme roller for enheden: {enhed}.";
+					break;
+				case ATTESTATION_SENSITIVE_REMINDER_3_DAYS:
+					title = "Påmindelse/rykker for attestering af følsomme roller";
+					message = "Kære {modtager}\n<br/>\n<br/>\nDer er tre dage til at der skal være attesteret følsomme roller for enheden: {enhed}.";
+					break;
+				case ATTESTATION_SENSITIVE_REMINDER_10_DAYS:
+					title = "Påmindelse/rykker for attestering af følsomme roller";
+					message = "Kære {modtager}\n<br/>\n<br/>\nDer er ti dage til at der skal være attesteret følsomme roller for enheden: {enhed}.";
+					break;
+				case ATTESTATION_SENSITIVE_REMINDER_THIRDPARTY:
+					title = "Manglende attestering af følsomme roller";
+					message = "Kære {modtager}\n<br/>\n<br/>\nDet er tid til, at der skal attesteres følsomme roller for enheden: {enhed}. Der er sendt en eller flere rykkere til leder og eventuel stedfortræder, men en attestering er endnu ikke udført.";
+					break;
+				case ATTESTATION_IT_SYSTEM_NOTIFICATION:
+					title = "Det er tid til attestering af rolleopbygning";
+					message = "Kære {modtager}\n<br/>\n<br/>\nDet er tid til, at der skal attesteres rolleopbygning for it-systemet: {itsystem}.";
+					break;
+				case ATTESTATION_IT_SYSTEM_REMINDER_3_DAYS:
+					title = "Påmindelse/rykker for attestering af rolleopbygning";
+					message = "Kære {modtager}\n<br/>\n<br/>\nDer er tre dage til at der skal være attesteret rolleopbygning for it-systemet: {itsystem}.";
+					break;
+				case ATTESTATION_IT_SYSTEM_REMINDER_10_DAYS:
+					title = "Påmindelse/rykker for attestering af rolleopbygning";
+					message = "Kære {modtager}\n<br/>\n<br/>\nDer er ti dage til at der skal være attesteret rolleopbygning for it-systemet: {itsystem}.";
+					break;
+				case ATTESTATION_IT_SYSTEM_REMINDER_THIRDPARTY:
+					title = "Manglende attestering af rolleopbygning";
+					message = "Kære {modtager}\n<br/>\n<br/>\nDet er tid til, at der skal attesteres rolleopbygning for it-systemet: {itsystem}. Der er sendt en eller flere rykkere til leder og eventuel stedfortræder, men en attestering er endnu ikke udført.";
+					break;
+					case SUBSTITUTE:
 					title = "Du er blevet udpeget som stedfortræder";
 					message = "Kære {modtager}\n<br/>\n<br/>\nDu er blevet udpeget til stedfortræder for {leder} for enheden {enhed}.";
 					break;

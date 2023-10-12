@@ -1,19 +1,22 @@
 package dk.digitalidentity.rc.service;
 
-import java.text.SimpleDateFormat;
-import java.util.Arrays;
-import java.util.Date;
-import java.util.HashSet;
-import java.util.Set;
-
+import dk.digitalidentity.rc.dao.SettingsDao;
+import dk.digitalidentity.rc.dao.model.OrgUnit;
+import dk.digitalidentity.rc.dao.model.Setting;
+import dk.digitalidentity.rc.dao.model.enums.CheckupIntervalEnum;
+import dk.digitalidentity.rc.dao.model.enums.NotificationType;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
-import dk.digitalidentity.rc.dao.SettingsDao;
-import dk.digitalidentity.rc.dao.model.Setting;
-import dk.digitalidentity.rc.dao.model.enums.CheckupIntervalEnum;
-import dk.digitalidentity.rc.dao.model.enums.NotificationType;
+import java.text.SimpleDateFormat;
+import java.time.LocalDate;
+import java.util.Arrays;
+import java.util.Date;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Service
 public class SettingsService {
@@ -21,22 +24,21 @@ public class SettingsService {
 	private static final String SETTING_REQUEST_APPROVE_SERVICEDESK_EMAIL = "RequestApproveServicedeskEmail";
 	private static final String SETTING_SCHEDULED_ATTESTATION_ENABLED = "ScheduledAttestationEnabled";
 	private static final String SETTING_SCHEDULED_ATTESTATION_INTERVAL = "ScheduledAttestationInterval";
-	private static final String SETTING_SCHEDULED_ATTESTATION_INTERVAL_SENSITIVE = "ScheduledAttestationIntervalSensitive";
-	private static final String SETTING_SCHEDULED_ATTESTATION_DAY_IN_MONTH = "ScheduledAttestationDayInMonth";
-	private static final String SETTING_SCHEDULED_ATTESTATION_FILTER = "ScheduledAttestationFilter";
+	private static final String SETTING_SCHEDULED_ATTESTATION_FILTER_OLD = "ScheduledAttestationFilter";
+	private static final String SETTING_SCHEDULED_ATTESTATION_EXCEPTED_ORG_UNITS = "ScheduledAttestationExceptedOrgUnits";
 	private static final String SETTING_SCHEDULED_ATTESTATION_LAST_RUN = "ScheduledAttestationLastRun";
 	private static final String SETTING_IT_SYSTEM_CHANGE_EMAIL = "ItSystemChangeEmail";
-	private static final String SETTING_REMOVAL_OF_UNIT_ROLES_EMAIL = "RemovalOfUnitRolesEmail";
-	private static final String SETTING_REMINDER_COUNT = "ReminderCount";
-	private static final String SETTING_REMINDER_INTERVAL = "ReminderInterval";
-	private static final String SETTING_DAYS_BEFORE_DEADLINE = "DaysBeforeDeadline";
-	private static final String SETTING_EMAIL_AFTER_REMINDERS = "EmailAfterReminders";
-	private static final String SETTING_EMAIL_ATTESTATION_REPORT = "EmailAttestationReport";
-	private static final String SETTING_ATTESTATION_ROLE_DELETION_ENABLED = "AttestationRoleDeletionEnabled";
+	private static final String SETTING_ATTESTATIONCHANGE_EMAIL = "RemovalOfUnitRolesEmail";
 	private static final String SETTING_AD_ATTESTATION = "AttestationADEnabled";
 	private static final String SETTING_RUN_CICS = "RunCics";
 	private static final String SETTING_IT_SYSTEM_DEFAULT_HIDDEN_ENABLED = "ItSystemHiddenByDefault";
+	private static final String SETTING_FIRST_ATTESTATION_DATE = "FirstAttestationDate";
 	private static final String SETTING_MITID_ERHVERV_MIGRATION_PERFORMED = "MitIDErhvervMigrationPerformed";
+
+	private static final String SETTING_SYNC_ASSIGNMENTS_TO_OU_PERFORMED = "SyncOrgUnitOnRoleAssignmentsPerformed";
+
+	@Autowired
+	private OrgUnitService orgUnitService;
 
 	@Autowired
 	private SettingsDao settingsDao;
@@ -69,8 +71,8 @@ public class SettingsService {
 		settingsDao.save(setting);
 	}
 	
-	public String getRemovalOfUnitRolesEmail() {
-		Setting setting = settingsDao.findByKey(SETTING_REMOVAL_OF_UNIT_ROLES_EMAIL);
+	public String getAttestationChangeEmail() {
+		Setting setting = settingsDao.findByKey(SETTING_ATTESTATIONCHANGE_EMAIL);
 		if (setting == null) {
 			return "";
 		}
@@ -78,203 +80,87 @@ public class SettingsService {
 		return setting.getValue();
 	}
 	
-	public void setRemovalOfUnitRolesEmail(String email) {
-		Setting setting = settingsDao.findByKey(SETTING_REMOVAL_OF_UNIT_ROLES_EMAIL);
+	public void setAttestationChangeEmail(String email) {
+		Setting setting = settingsDao.findByKey(SETTING_ATTESTATIONCHANGE_EMAIL);
 		if (setting == null) {
 			setting = new Setting();
-			setting.setKey(SETTING_REMOVAL_OF_UNIT_ROLES_EMAIL);
+			setting.setKey(SETTING_ATTESTATIONCHANGE_EMAIL);
 		}
 		
 		setting.setValue(email);
 		settingsDao.save(setting);
 	}
-	
-	public int getReminderCount() {
-		Setting setting = settingsDao.findByKey(SETTING_REMINDER_COUNT);
-		if (setting == null || !StringUtils.hasLength(setting.getValue())) {
-			return 2;
-		}
-		
-		int count = 2;
-		try {
-			count = Integer.parseInt(setting.getValue());
-		}
-		catch (Exception ex) {
-			; // ignore
-		}
-		
 
-		return count;
-	}
-	
-	public void setReminderCount(long count) {
-		Setting setting = settingsDao.findByKey(SETTING_REMINDER_COUNT);
-		if (setting == null) {
-			setting = new Setting();
-			setting.setKey(SETTING_REMINDER_COUNT);
-		}
-		
-		setting.setValue(Long.toString(count));
-		settingsDao.save(setting);
-	}
-	
-	public int getReminderInterval() {
-		Setting setting = settingsDao.findByKey(SETTING_REMINDER_INTERVAL);
-		if (setting == null || !StringUtils.hasLength(setting.getValue())) {
-			return 7;
-		}
-		
-		int interval = 7;
-		try {
-			interval = Integer.parseInt(setting.getValue());
-		}
-		catch (Exception ex) {
-			; // ignore
-		}
-		
-		return interval;
-	}
-	
-	public void setReminderInterval(long interval) {
-		Setting setting = settingsDao.findByKey(SETTING_REMINDER_INTERVAL);
-		if (setting == null) {
-			setting = new Setting();
-			setting.setKey(SETTING_REMINDER_INTERVAL);
-		}
-		
-		setting.setValue(Long.toString(interval));
-		settingsDao.save(setting);
-	}
-	
-	public int getDaysBeforeDeadline() {
-		Setting setting = settingsDao.findByKey(SETTING_DAYS_BEFORE_DEADLINE);
-		if (setting == null || !StringUtils.hasLength(setting.getValue())) {
-			return 7;
-		}
-
-		int daysBeforeDeadline = 7;
-		try {
-			daysBeforeDeadline = Integer.parseInt(setting.getValue());
-		}
-		catch (Exception ex) {
-			; // ignore
-		}
-
-		return daysBeforeDeadline;
-	}
-	
-	public void setDaysBeforeDeadline(long days) {
-		Setting setting = settingsDao.findByKey(SETTING_DAYS_BEFORE_DEADLINE);
-		if (setting == null) {
-			setting = new Setting();
-			setting.setKey(SETTING_DAYS_BEFORE_DEADLINE);
-		}
-		
-		setting.setValue(Long.toString(days));
-		settingsDao.save(setting);
-	}
-	
-	public String getEmailAttestationReport() {
-		Setting setting = settingsDao.findByKey(SETTING_EMAIL_ATTESTATION_REPORT);
-		if (setting == null) {
-			return "";
-		}
-
-		return setting.getValue();
-	}
-	
-	public void setEmailAttestationReport(String email) {
-		Setting setting = settingsDao.findByKey(SETTING_EMAIL_ATTESTATION_REPORT);
-		if (setting == null) {
-			setting = new Setting();
-			setting.setKey(SETTING_EMAIL_ATTESTATION_REPORT);
-		}
-		
-		setting.setValue(email);
-		settingsDao.save(setting);
-	}
-	
-	public String getEmailAfterReminders() {
-		Setting setting = settingsDao.findByKey(SETTING_EMAIL_AFTER_REMINDERS);
-		if (setting == null) {
-			return "";
-		}
-
-		return setting.getValue();
-	}
-	
-	public void setEmailAfterReminders(String email) {
-		Setting setting = settingsDao.findByKey(SETTING_EMAIL_AFTER_REMINDERS);
-		if (setting == null) {
-			setting = new Setting();
-			setting.setKey(SETTING_EMAIL_AFTER_REMINDERS);
-		}
-		
-		setting.setValue(email);
-		settingsDao.save(setting);
-	}
-	
 	public Set<String> getScheduledAttestationFilter() {
-		Setting setting = settingsDao.findByKey(SETTING_SCHEDULED_ATTESTATION_FILTER);
+		Setting setting = settingsDao.findByKey(SETTING_SCHEDULED_ATTESTATION_EXCEPTED_ORG_UNITS);
+		Setting oldSetting = settingsDao.findByKey(SETTING_SCHEDULED_ATTESTATION_FILTER_OLD);
+
+		// migration from old attestation module
+		if (oldSetting != null && StringUtils.hasLength(oldSetting.getValue())) {
+			List<String> includedOrgUnits = Arrays.asList(oldSetting.getValue().split(","));
+			List<OrgUnit> allOrgUnits = orgUnitService.getAll();
+			String excludedOrgUnits = allOrgUnits.stream().map(OrgUnit::getUuid).filter(uuid -> !includedOrgUnits.contains(uuid)).collect(Collectors.joining(","));
+
+			if (setting == null) {
+				setting = new Setting();
+				setting.setKey(SETTING_SCHEDULED_ATTESTATION_EXCEPTED_ORG_UNITS);
+			}
+			setting.setValue(excludedOrgUnits);
+
+			// save
+			setting = settingsDao.save(setting);
+			settingsDao.delete(oldSetting);
+		}
+
 		if (setting == null || !StringUtils.hasLength(setting.getValue())) {
 			return new HashSet<>();
 		}
 		
-		String[] tokens = setting.getValue().split(",");
+		String[] uuids = setting.getValue().split(",");
 		
-		return new HashSet<String>(Arrays.asList(tokens));
+		return new HashSet<>(Arrays.asList(uuids));
 	}
-	
-	public void setScheduledAttestationDayInMonth(long dayInMonth) {
-		Setting setting = settingsDao.findByKey(SETTING_SCHEDULED_ATTESTATION_DAY_IN_MONTH);
-		if (setting == null) {
-			setting = new Setting();
-			setting.setKey(SETTING_SCHEDULED_ATTESTATION_DAY_IN_MONTH);
-		}
-		
-		// panic filter
-		if (dayInMonth < 1) {
-			dayInMonth = 1;
-		}
-		else if (dayInMonth > 28) {
-			dayInMonth = 28;
-		}
 
-		setting.setValue(Long.toString(dayInMonth));
-		settingsDao.save(setting);
-	}
-	
-	public long getScheduledAttestationDayInMonth() {
-		Setting setting = settingsDao.findByKey(SETTING_SCHEDULED_ATTESTATION_DAY_IN_MONTH);
-		if (setting == null || !StringUtils.hasLength(setting.getValue())) {
-			return 10;
-		}
-		
-		long dayInMonth = 10;
-		try {
-			dayInMonth = Long.parseLong(setting.getValue());
-		}
-		catch (Exception ex) {
-			; // ignore
-		}
-
-		if (dayInMonth < 1 || dayInMonth > 28) {
-			dayInMonth = 10;
-		}
-
-		return dayInMonth;
-	}
-	
 	public void setScheduledAttestationFilter(Set<String> filter) {
-		Setting setting = settingsDao.findByKey(SETTING_SCHEDULED_ATTESTATION_FILTER);
+		Setting setting = settingsDao.findByKey(SETTING_SCHEDULED_ATTESTATION_EXCEPTED_ORG_UNITS);
 		if (setting == null) {
 			setting = new Setting();
-			setting.setKey(SETTING_SCHEDULED_ATTESTATION_FILTER);
+			setting.setKey(SETTING_SCHEDULED_ATTESTATION_EXCEPTED_ORG_UNITS);
 		}
 		
 		setting.setValue(String.join(",", filter));
 		settingsDao.save(setting);
 	}
+
+	public LocalDate getFirstAttestationDate() {
+		Setting setting = settingsDao.findByKey(SETTING_FIRST_ATTESTATION_DATE);
+		if (setting == null) {
+			return LocalDate.now().plusMonths(1);
+		}
+
+		return LocalDate.parse(setting.getValue());
+	}
+
+	public void setFirstAttestationDate(LocalDate date) {
+		Setting setting = settingsDao.findByKey(SETTING_FIRST_ATTESTATION_DATE);
+		if (setting == null) {
+			setting = new Setting();
+			setting.setKey(SETTING_FIRST_ATTESTATION_DATE);
+		}
+
+		setting.setValue(date.toString());
+		settingsDao.save(setting);
+	}
+
+	public boolean firstAttestationDateIsNull() {
+		Setting setting = settingsDao.findByKey(SETTING_FIRST_ATTESTATION_DATE);
+		if (setting == null) {
+			return true;
+		}
+
+		return false;
+	}
+
 
 	/// helper methods
 
@@ -314,6 +200,13 @@ public class SettingsService {
 			return CheckupIntervalEnum.EVERY_HALF_YEAR;
 		}
 
+		// migration from old attestation module
+		if (setting.getValue().equals("MONTHLY") || setting.getValue().equals("QUARTERLY")) {
+			setting.setValue(CheckupIntervalEnum.EVERY_HALF_YEAR.toString());
+			settingsDao.save(setting);
+			return CheckupIntervalEnum.EVERY_HALF_YEAR;
+		}
+
 		return CheckupIntervalEnum.valueOf(setting.getValue());
 	}
 	
@@ -322,26 +215,6 @@ public class SettingsService {
 		if (setting == null) {
 			setting = new Setting();
 			setting.setKey(SETTING_SCHEDULED_ATTESTATION_INTERVAL);
-		}
-		
-		setting.setValue(interval.toString());
-		settingsDao.save(setting);
-	}
-	
-	public CheckupIntervalEnum getScheduledAttestationIntervalSensitive() {
-		Setting setting = settingsDao.findByKey(SETTING_SCHEDULED_ATTESTATION_INTERVAL_SENSITIVE);
-		if (setting == null) {
-			return CheckupIntervalEnum.QUARTERLY;
-		}
-
-		return CheckupIntervalEnum.valueOf(setting.getValue());
-	}
-
-	public void setScheduledAttestationIntervalSensitive(CheckupIntervalEnum interval) {
-		Setting setting = settingsDao.findByKey(SETTING_SCHEDULED_ATTESTATION_INTERVAL_SENSITIVE);
-		if (setting == null) {
-			setting = new Setting();
-			setting.setKey(SETTING_SCHEDULED_ATTESTATION_INTERVAL_SENSITIVE);
 		}
 		
 		setting.setValue(interval.toString());
@@ -397,15 +270,7 @@ public class SettingsService {
 		setting.setValue(email);
 		settingsDao.save(setting);
 	}
-	
-	public boolean isAttestationRoleDeletionEnabled() {
-		return isKeyEnabled(SETTING_ATTESTATION_ROLE_DELETION_ENABLED);
-	}
 
-	public void setAttestationRoleDeletionEnabled(boolean enabled) {
-		setKeyEnabled(enabled, SETTING_ATTESTATION_ROLE_DELETION_ENABLED);
-	}
-	
 	public boolean isADAttestationEnabled() {
 		return isKeyEnabled(SETTING_AD_ATTESTATION);
 	}
@@ -468,5 +333,13 @@ public class SettingsService {
 
 	public void setMitIDErhvervMigrationPerformed() {
 		setKeyEnabled(true, SETTING_MITID_ERHVERV_MIGRATION_PERFORMED);
+	}
+
+	public boolean isSyncOrgUnitOnRoleAssignmentsPerformed() {
+		return isKeyEnabled(SETTING_SYNC_ASSIGNMENTS_TO_OU_PERFORMED);
+	}
+
+	public void setSyncOrgUnitOnRoleAssignmentsPerformed() {
+		setKeyEnabled(true, SETTING_SYNC_ASSIGNMENTS_TO_OU_PERFORMED);
 	}
 }

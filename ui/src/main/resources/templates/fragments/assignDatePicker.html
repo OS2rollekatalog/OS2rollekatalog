@@ -47,6 +47,14 @@
 			icons: icons,
 			minDate: new Date(new Date(new Date().toISOString().substr(0, 10)).getTime() - (4 * 60 * 60 * 1000))
 		};
+
+		var attestationDatePickerOptions = {
+			format: "YYYY-MM-DD",
+			locale: 'da',
+			allowInputToggle: true,
+			showClear: true,
+			icons: icons
+		};
 		
 		var defaultStopDatePickerOptions = {
 			format: "YYYY-MM-DD",
@@ -74,6 +82,8 @@
 				//Edit dialog for userRoles and RoleGroup assignments in ORGUNITS
 				$('#startDatePickerEditOU').datetimepicker(defaultStartDatePickerOptions);
 				$('#stopDatePickerEditOU').datetimepicker(defaultStopDatePickerOptions);
+				// Settings -> attestation -> first attestation date
+				$('#attestationStartDate').datetimepicker(attestationDatePickerOptions);
 				
 				// UserRoles
 				$("#startDatePicker").on("dp.change", function (e) {

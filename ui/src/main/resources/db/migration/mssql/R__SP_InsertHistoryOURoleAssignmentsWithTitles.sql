@@ -16,6 +16,7 @@ BEGIN
         ,role_it_system_id
         ,role_it_system_name
         ,role_role_group
+        ,role_role_group_id
         ,assigned_by_user_id
         ,assigned_by_name
         ,assigned_when)
@@ -27,6 +28,7 @@ BEGIN
         ,MAX(ur.name)
         ,MAX(it.id)
         ,MAX(it.name)
+        ,NULL
         ,NULL
         ,MAX(our.assigned_by_user_id)
         ,MAX(our.assigned_by_name)
@@ -56,6 +58,7 @@ BEGIN
         ,MAX(it.id)
         ,MAX(it.name)
         ,MAX(rg.name)
+        ,MAX(rg.id)
         ,MAX(ourg.assigned_by_user_id)
         ,MAX(ourg.assigned_by_name)
         ,MAX(ourg.assigned_timestamp)

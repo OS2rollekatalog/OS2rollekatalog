@@ -9,6 +9,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import dk.digitalidentity.rc.dao.model.OrgUnit;
+import dk.digitalidentity.rc.dao.model.User;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -112,6 +113,10 @@ public class ItSystemService {
 
 	public List<ItSystem> findByIdentifier(String identifier) {
 		return filterDeleted(itSystemDao.findByIdentifier(identifier));
+	}
+
+	public List<ItSystem> findByAttestationResponsible(User user) {
+		return itSystemDao.findByAttestationResponsible(user);
 	}
 
 	// TODO: use count

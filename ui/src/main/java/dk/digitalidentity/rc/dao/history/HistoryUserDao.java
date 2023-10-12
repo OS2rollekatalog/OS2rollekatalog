@@ -1,5 +1,6 @@
 package dk.digitalidentity.rc.dao.history;
 
+import java.time.LocalDate;
 import java.util.List;
 
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -11,5 +12,7 @@ public interface HistoryUserDao extends JpaRepository<HistoryUser, Long> {
 
     @Query("SELECT hu FROM HistoryUser hu WHERE YEAR(hu.dato)=?1 AND MONTH(hu.dato)=?2 AND DAY(hu.dato)=?3")
     List<HistoryUser> findByDate(Integer year, Integer month, Integer day);
+
+    HistoryUser findFirstByDatoAndUserUuid(final LocalDate day, final String userUuid);
 
 }

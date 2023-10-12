@@ -65,7 +65,7 @@
 								<span th:text="${assignment.itSystem?.name}"></span>
 								<span th:if="${assignment.itSystem?.paused == true}" class="badge badge-warning" th:text="#{html.page.itsystem.list.paused}"></span>
 							</td>
-							<td th:attr="data-assignmentid=${assignment.assignmentId}, data-roleid=${assignment.roleId}, data-type=${assignment.type}, data-startDate=${assignment.startDate}, data-stopDate=${assignment.stopDate}, data-assignedthrough=${assignment.assignedThrough}, data-name=${assignment.name}">
+							<td th:attr="data-assignmentid=${assignment.assignmentId}, data-roleid=${assignment.roleId}, data-type=${assignment.type}, data-startDate=${assignment.startDate}, data-stopDate=${assignment.stopDate}, data-assignedthrough=${assignment.assignedThrough}, data-name=${assignment.name}, data-ouuuid=${assignment.orgUnitUuid}">
 								<a
 									href="#"
 									th:if="${assignment.canEdit}"

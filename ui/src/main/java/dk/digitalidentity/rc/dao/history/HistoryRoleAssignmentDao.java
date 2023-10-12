@@ -1,17 +1,20 @@
 package dk.digitalidentity.rc.dao.history;
 
+import java.time.LocalDate;
 import java.util.List;
+import java.util.stream.Stream;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 
 import dk.digitalidentity.rc.dao.history.model.HistoryRoleAssignment;
+import org.springframework.data.repository.query.Param;
 
 public interface HistoryRoleAssignmentDao extends JpaRepository<HistoryRoleAssignment, Long> {
 
-    @Query("SELECT hra FROM HistoryRoleAssignment hra WHERE YEAR(hra.dato)=?1 AND MONTH(hra.dato)=?2 AND DAY(hra.dato)=?3")
-    List<HistoryRoleAssignment> findByDate(Integer year, Integer month, Integer day);
+    @Query("SELECT hra FROM HistoryRoleAssignment hra WHERE hra.dato=:dato")
+    Stream<HistoryRoleAssignment> streamByDate(@Param("dato") final LocalDate dato);
 
-    @Query("SELECT hra FROM HistoryRoleAssignment hra WHERE YEAR(hra.dato)=?1 AND MONTH(hra.dato)=?2 AND DAY(hra.dato)=?3 AND hra.roleItSystemId IN ?4")
-    List<HistoryRoleAssignment> findByDateAndItSystems(Integer year, Integer month, Integer day, List<Long> itSystemIds);
+    @Query("SELECT hra FROM HistoryRoleAssignment hra WHERE hra.dato=:dato AND hra.roleItSystemId IN :itSystemIds")
+    List<HistoryRoleAssignment> findByDateAndItSystems(@Param("dato") final LocalDate dato, @Param("itSystemIds") final List<Long> itSystemIds);
 }

@@ -1,3 +1,6 @@
+2023.10.13 - Release 2023r3
+- [ROL-210](https://os2web.atlassian.net/browse/ROL-210) - Nyt Attesteringsmodul
+
 2023.07.31 - Release 2023r2
 - [ROL-241](https://os2web.atlassian.net/browse/ROL-241) – Rollebuket: vis korrekt 'tildelt via'
 - [ROL-245](https://os2web.atlassian.net/browse/ROL-245) – Reservering af anmodninger

@@ -844,9 +844,17 @@
 				var stopDate = parent.dataset.stopdate;
 				var user = parent.dataset.user;
 				var type = 'USERROLE';
+				var orgUnit = parent.dataset.ouuuid;
 
-				userRoleEditModalService.showModal(user, startDate, stopDate, type, assignmentId, 'DIRECT');
-				userRoleEditModalService.loadPostponedConstraintsFragment(assignmentId, type, user);
+				// fetch possible orgUnits and call service
+				$.ajax({
+					method: "GET",
+					url: userRestUrl + user + "/orgunits",
+					success: function (response) {
+						userRoleEditModalService.showModal(user, startDate, stopDate, type, assignmentId, 'DIRECT', orgUnit, response);
+						userRoleEditModalService.loadPostponedConstraintsFragment(assignmentId, type, user);
+					}
+				});
 			}
 
 			this.addUserRole = function (elem) {

@@ -139,7 +139,7 @@ public class UserServiceAuditInterceptor {
 
 	private void auditAddRoleGroup(JoinPoint jp) {
 		Object[] args = jp.getArgs();
-		if (!((args.length == 4) && args[0] instanceof User && args[1] instanceof RoleGroup)) {
+		if (!((args.length == 4 || args.length == 5) && args[0] instanceof User && args[1] instanceof RoleGroup)) {
 			log.error("Method signature on addRoleGroup does not match expectation");
 			return;
 		}

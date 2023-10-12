@@ -36,7 +36,7 @@
 				</ul>
 			</td>
 
-			<td th:if="${showEdit == true}" th:attr="data-assignmentid=${mapping.assignment.assignmentId}, data-user=${mapping.userUuid}, data-startDate=${mapping.assignment.startDate}, data-stopDate=${mapping.assignment.stopDate}, data-name=${mapping.assignment.name}">
+			<td th:if="${showEdit == true}" th:attr="data-assignmentid=${mapping.assignment.assignmentId}, data-user=${mapping.userUuid}, data-startDate=${mapping.assignment.startDate}, data-stopDate=${mapping.assignment.stopDate}, data-name=${mapping.assignment.name}, data-ouuuid=${mapping.assignment.orgUnitUuid}">
 				<a
 					href="#"
 					th:if="${mapping.assignment.canEdit}"

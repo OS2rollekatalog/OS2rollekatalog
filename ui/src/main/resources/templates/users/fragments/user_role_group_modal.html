@@ -55,6 +55,18 @@
 						</div>
 					</div>
 				</div>
+
+                <div style="height: 70px;">
+                    <h4 class="md-12">
+                        <span th:text="#{html.word.orgUnit}" class="col-md-11" style="padding: 0px;"></span>
+                        <a class="col-md-1" th:replace="fragments/help :: help (title=#{html.help.roleAssignment.orgUnit.title}, content=#{html.help.roleAssignment.orgUnit.body})"></a>
+                    </h4>
+                    <div class="form-group col-md-12">
+                        <select class="form-control" id="addRoleOUSelect">
+                            <option th:each="ou : ${possibleOrgUnits}" th:value="${ou.uuid}" th:text="${ou.name}"></option>
+                        </select>
+                    </div>
+                </div>
             </div>
 
             <div class="modal-footer">
@@ -115,7 +127,7 @@
 				var dates = "?startDate=" + startDate + "&stopDate=" + stopDate;
 
 				$.ajax({
-	    			   url: roleGroupModalService.usersUrl + userUuid + '/addgroup/' + roleid + dates,
+	    			   url: roleGroupModalService.usersUrl + userUuid + '/addgroup/' + roleid + dates + '&ouuuid=' + $("#addRoleOUSelect").val(),
 	    			   contentType: 'application/json',
 	    			   headers: {
 	    			      'X-CSRF-TOKEN': token

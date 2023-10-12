@@ -1,11 +1,11 @@
 package dk.digitalidentity.rc.config;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-
 import javax.persistence.AttributeConverter;
 import javax.persistence.Converter;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
 
 @Converter
 public class StringListConverter implements AttributeConverter<List<String>, String> {
@@ -17,6 +17,9 @@ public class StringListConverter implements AttributeConverter<List<String>, Str
 
 	@Override
 	public List<String> convertToEntityAttribute(String joined) {
+		if ("".equals(joined)) {
+			return Collections.emptyList();
+		}
 		return new ArrayList<>(Arrays.asList(joined.split(",")));
 	}
 }

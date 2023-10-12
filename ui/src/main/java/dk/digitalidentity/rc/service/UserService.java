@@ -1,28 +1,5 @@
 package dk.digitalidentity.rc.service;
 
-import java.time.LocalDate;
-import java.util.ArrayList;
-import java.util.Base64;
-import java.util.Calendar;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.Set;
-import java.util.stream.Collectors;
-
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.cache.annotation.EnableCaching;
-import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.jdbc.core.RowMapper;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-import org.springframework.util.StringUtils;
-
 import dk.digitalidentity.rc.config.Constants;
 import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.UserRoleNotAssignedDTO;
@@ -85,6 +62,28 @@ import dk.digitalidentity.rc.service.model.UserWithRoleAndDates;
 import dk.digitalidentity.rc.util.IdentifierGenerator;
 import dk.digitalidentity.rc.util.StreamExtensions;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.EnableCaching;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.RowMapper;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
+
+import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.Base64;
+import java.util.Calendar;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -305,8 +304,12 @@ public class UserService {
 		}
 	}
 
-	@AuditLogIntercepted
 	public void addRoleGroup(User user, RoleGroup roleGroup, LocalDate startDate, LocalDate stopDate) {
+		self.addRoleGroup(user, roleGroup, startDate, stopDate, null);
+	}
+
+	@AuditLogIntercepted
+	public void addRoleGroup(User user, RoleGroup roleGroup, LocalDate startDate, LocalDate stopDate, OrgUnit orgUnit) {
 		UserRoleGroupAssignment assignment = new UserRoleGroupAssignment();
 		assignment.setUser(user);
 		assignment.setRoleGroup(roleGroup);
@@ -316,14 +319,51 @@ public class UserService {
 		assignment.setStartDate((startDate == null || LocalDate.now().equals(startDate)) ? null : startDate);
 		assignment.setStopDate(stopDate);
 		assignment.setInactive(startDate != null ? startDate.isAfter(LocalDate.now()) : false);
+
+		List<OrgUnit> orgUnits = orgUnitService.getOrgUnitsForUser(user);
+		if (orgUnits == null || orgUnits.isEmpty()) {
+			log.error("Tried to add roleGroup with name " + roleGroup.getName() + " to user with userId " + user.getUserId() + ", but user has no positions/orgunits. Not adding role." );
+			return;
+		}
+
+		if (orgUnit != null) {
+			if (orgUnits.stream().noneMatch(o -> o.getUuid().equals(orgUnit.getUuid()))) {
+				assignment.setOrgUnit(orgUnits.get(0));
+			} else {
+				assignment.setOrgUnit(orgUnit);
+			}
+		} else {
+			assignment.setOrgUnit(orgUnits.get(0));
+		}
+
 		user.getRoleGroupAssignments().add(assignment);
 	}
 
-	@AuditLogIntercepted
 	public void editRoleGroupAssignment(User user, UserRoleGroupAssignment roleGroupAssignment, LocalDate startDate, LocalDate stopDate) {
+		self.editRoleGroupAssignment(user, roleGroupAssignment, startDate, stopDate, null);
+	}
+
+	@AuditLogIntercepted
+	public void editRoleGroupAssignment(User user, UserRoleGroupAssignment roleGroupAssignment, LocalDate startDate, LocalDate stopDate, OrgUnit orgUnit) {
 		roleGroupAssignment.setStartDate((startDate == null || LocalDate.now().equals(startDate)) ? null : startDate);
 		roleGroupAssignment.setStopDate(stopDate);
 		roleGroupAssignment.setInactive(startDate != null ? startDate.isAfter(LocalDate.now()) : false);
+
+		List<OrgUnit> orgUnits = orgUnitService.getOrgUnitsForUser(user);
+		if (orgUnits == null || orgUnits.isEmpty()) {
+			log.warn("Editing roleGroup assignment. Rolegroup with name " + roleGroupAssignment.getRoleGroup().getName() + " to user with userId " + user.getUserId() + ", but user has no positions/orgunits." );
+			return;
+		}
+
+		if (orgUnit != null) {
+			if (orgUnits.stream().noneMatch(o -> o.getUuid().equals(orgUnit.getUuid()))) {
+				roleGroupAssignment.setOrgUnit(orgUnits.get(0));
+			} else {
+				roleGroupAssignment.setOrgUnit(orgUnit);
+			}
+		} else {
+			roleGroupAssignment.setOrgUnit(orgUnits.get(0));
+		}
 	}
 
 	@AuditLogIntercepted
@@ -369,11 +409,15 @@ public class UserService {
 	}
 	
 	public void addUserRole(User user, UserRole userRole, LocalDate startDate, LocalDate stopDate) {
-		self.addUserRole(user, userRole, startDate, stopDate, null);
+		self.addUserRole(user, userRole, startDate, stopDate, null, null);
+	}
+
+	public void addUserRole(User user, UserRole userRole, LocalDate startDate, LocalDate stopDate, List<PostponedConstraint> postponedConstraints) {
+		self.addUserRole(user, userRole, startDate, stopDate, postponedConstraints, null);
 	}
 
 	@AuditLogIntercepted
-	public void addUserRole(User user, UserRole userRole, LocalDate startDate, LocalDate stopDate, List<PostponedConstraint> postponedConstraints) {
+	public void addUserRole(User user, UserRole userRole, LocalDate startDate, LocalDate stopDate, List<PostponedConstraint> postponedConstraints, OrgUnit orgUnit) {
 		if (userRole.getItSystem().getIdentifier().equals(Constants.ROLE_CATALOGUE_IDENTIFIER)
 				&& !SecurityUtil.getRoles().contains(Constants.ROLE_ADMINISTRATOR)
 				&& !SecurityUtil.getRoles().contains(Constants.ROLE_SYSTEM)) {
@@ -389,8 +433,23 @@ public class UserService {
 		assignment.setStartDate((startDate == null || LocalDate.now().equals(startDate)) ? null : startDate);
 		assignment.setStopDate(stopDate);
 		assignment.setInactive(startDate != null ? startDate.isAfter(LocalDate.now()) : false);
-		
-		
+
+		List<OrgUnit> orgUnits = orgUnitService.getOrgUnitsForUser(user);
+		if (orgUnits == null || orgUnits.isEmpty()) {
+			log.error("Tried to add role with identifier " + userRole.getIdentifier() + " to user with userId " + user.getUserId() + ", but user has no positions/orgunits. Not adding role." );
+			return;
+		}
+
+		if (orgUnit != null) {
+			if (orgUnits.stream().noneMatch(o -> o.getUuid().equals(orgUnit.getUuid()))) {
+				assignment.setOrgUnit(orgUnits.get(0));
+			} else {
+				assignment.setOrgUnit(orgUnit);
+			}
+		} else {
+			assignment.setOrgUnit(orgUnits.get(0));
+		}
+
 		if (postponedConstraints != null) {
 			for (PostponedConstraint postponedConstraint : postponedConstraints) {
 				postponedConstraint.setUserUserRoleAssignment(assignment);
@@ -404,11 +463,16 @@ public class UserService {
 
 	@AuditLogIntercepted
 	public void editUserRoleAssignment(User user, UserUserRoleAssignment userRoleAssignment, LocalDate startDate, LocalDate stopDate) {
-		editUserRoleAssignment(user, userRoleAssignment, startDate, stopDate, null);
+		editUserRoleAssignment(user, userRoleAssignment, startDate, stopDate, null, null);
 	}
 
 	@AuditLogIntercepted
 	public void editUserRoleAssignment(User user, UserUserRoleAssignment userRoleAssignment, LocalDate startDate, LocalDate stopDate, List<PostponedConstraint> postponedConstraints) {
+		editUserRoleAssignment(user, userRoleAssignment, startDate, stopDate, postponedConstraints, null);
+	}
+
+	@AuditLogIntercepted
+	public void editUserRoleAssignment(User user, UserUserRoleAssignment userRoleAssignment, LocalDate startDate, LocalDate stopDate, List<PostponedConstraint> postponedConstraints, OrgUnit orgUnit) {
 		if (userRoleAssignment.getUserRole().getItSystem().getIdentifier().equals(Constants.ROLE_CATALOGUE_IDENTIFIER)
 				&& !SecurityUtil.getRoles().contains(Constants.ROLE_ADMINISTRATOR)
 				&& !SecurityUtil.getRoles().contains(Constants.ROLE_SYSTEM)) {
@@ -426,6 +490,22 @@ public class UserService {
 				postponedConstraint.setUserUserRoleAssignment(userRoleAssignment);
 				userRoleAssignment.getPostponedConstraints().add(postponedConstraint);
 			}
+		}
+
+		List<OrgUnit> orgUnits = orgUnitService.getOrgUnitsForUser(user);
+		if (orgUnits == null || orgUnits.isEmpty()) {
+			log.warn("Editing role assignment. Userrole with identifier " + userRoleAssignment.getUserRole().getIdentifier() + " to user with userId " + user.getUserId() + ", but user has no positions/orgunits." );
+			return;
+		}
+
+		if (orgUnit != null) {
+			if (orgUnits.stream().noneMatch(o -> o.getUuid().equals(orgUnit.getUuid()))) {
+				userRoleAssignment.setOrgUnit(orgUnits.get(0));
+			} else {
+				userRoleAssignment.setOrgUnit(orgUnit);
+			}
+		} else {
+			userRoleAssignment.setOrgUnit(orgUnits.get(0));
 		}
 	}
 
@@ -2306,90 +2386,18 @@ public class UserService {
 	public User getLatestUpdatedUser() {
 		return userDao.getTopByDeletedFalseOrderByLastUpdatedDesc();
 	}
-	
-	public void removeAllDirectlyAssignedRolesAndInformUser(User user) {
-		if (user.getUserRoleAssignments().size() == 0 && user.getRoleGroupAssignments().size() == 0) {
-			return;
-		}
 
-		StringBuilder builder = new StringBuilder();
-
-		builder.append("Til " + user.getName() + "<br/><br/>");
-		builder.append("I forbindelse med en organisatorisk opdatering er følgende rettigheder blevet fjernet:<br/><ul>");
-		
-		removeAllDirectlyAssignedRoles(user, builder);
-		
-		builder.append("</ul>");
-		
-		if (user.getEmail() != null && !user.isDeleted() && user.getEmail().length() > 0) {
-			emailService.sendMessage(user.getEmail(), "Ændringer i dine rettigheder", builder.toString());
-		}
-	}
-
-	private void removeAllDirectlyAssignedRoles(User user, StringBuilder builder) {
-		while (user.getUserRoleAssignments().size() > 0) {
+	public void removeAllDirectlyAssignedRoles(User user) {
+		while (!user.getUserRoleAssignments().isEmpty()) {
 			UserRole role = user.getUserRoleAssignments().get(0).getUserRole();
 			removeUserRole(user, role);
-
-			builder.append("<li>Jobfunktionsrollen " + role.getName() + " i " + role.getItSystem().getName() + "</li>");
-			
 			log.info("Removing userRole '" + role.getItSystem().getName() + "/" + role.getName() + " (" + role.getId() + ")' from user '" + user.getUserId() + "'");
 		}
-		
-		while (user.getUserRoleAssignments().size() > 0) {
+
+		while (!user.getRoleGroupAssignments().isEmpty()) {
 			RoleGroup role = user.getRoleGroupAssignments().get(0).getRoleGroup();
 			removeRoleGroup(user, role);
-
-			builder.append("<li>Rollebuketten " + role.getName() + "</li>");
-
 			log.info("Removing roleGroup '" + role.getName() + " (" + role.getId() + ")' from user '" + user.getUserId() + "'");
-		}
-	}
-
-	public void removeAllDirectAndOrgUnitAssignedRolesAndInformUser(User user, OrgUnit orgUnit) {
-		// get all relevant positions
-		List<Position> positions = new ArrayList<>();
-		for (Position position : user.getPositions()) {
-			if (position.getOrgUnit().getUuid().equals(orgUnit.getUuid())) {
-				positions.add(position);
-			}
-		}
-		
-		if (positions.size() == 0 && user.getUserRoleAssignments().size() == 0 && user.getRoleGroupAssignments().size() == 0) {
-			return;
-		}
-
-		StringBuilder builder = new StringBuilder();
-
-		builder.append("Til " + user.getName() + "<br/><br/>");
-		builder.append("I forbindelse med en organisatorisk opdatering er følgende rettigheder blevet fjernet:<br/><ul>");
-
-		removeAllDirectlyAssignedRoles(user, builder);
-		
-		for (Position position : positions) {
-			while (position.getUserRoleAssignments().size() > 0) {
-				UserRole role = position.getUserRoleAssignments().get(0).getUserRole();
-				positionService.removeUserRole(position, role);
-
-				builder.append("<li>Jobfunktionsrollen " + role.getName() + " i " + role.getItSystem().getName() + "</li>");
-				
-				log.info("Removing userRole '" + role.getItSystem().getName() + "/" + role.getName() + " (" + role.getId() + ")' from user '" + user.getUserId() + "'");
-			}
-			
-			while (position.getRoleGroupAssignments().size() > 0) {
-				RoleGroup role = position.getRoleGroupAssignments().get(0).getRoleGroup();
-				positionService.removeRoleGroup(position, role);
-
-				builder.append("<li>Rollebuketten " + role.getName() + "</li>");
-
-				log.info("Removing roleGroup '" + role.getName() + " (" + role.getId() + ")' from user '" + user.getUserId() + "'");
-			}
-		}
-		
-		builder.append("</ul>");
-		
-		if (user.getEmail() != null && !user.isDeleted() && user.getEmail().length() > 0) {
-			emailService.sendMessage(user.getEmail(), "Ændringer i dine rettigheder", builder.toString());
 		}
 	}
 

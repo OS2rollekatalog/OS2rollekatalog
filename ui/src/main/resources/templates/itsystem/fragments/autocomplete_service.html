@@ -1,0 +1,52 @@
+<th:block th:fragment="autocompleteServiceScript" xmlns="http://www.w3.org/1999/xhtml" xmlns:th="http://www.thymeleaf.org">
+    <script th:inline="javascript" type="text/javascript">
+		/*<![CDATA[*/
+
+        /*[+
+			var autocompleteUrl = [[@{/rest/manager/substitute}]];
+			var searchFieldId = [[${searchFieldId}]];
+			var uuidFieldId = [[${uuidFieldId}]];
+		+]*/
+
+        var autoCompleteService;
+		$(document).ready(function() {
+            autoCompleteService = new AutoCompleteService();
+			autoCompleteService.init();
+		});
+
+		function AutoCompleteService() {
+			this.init = function() {
+				var searchField = $("#" + searchFieldId);
+
+				searchField.autocomplete({
+					serviceUrl: autocompleteUrl + "/search/person",
+					onSelect: function(suggestion) {
+						$(this).val(suggestion.value);
+
+						$("#" + uuidFieldId).val(suggestion.data);
+						$("#" + uuidFieldId).trigger("change");
+					},
+					preventBadQueries: true,
+					triggerSelectOnValidInput: false,
+					transformResult: function(response) {
+						// filter results to not show manager
+						var responseObject = $.parseJSON(response);
+						if (!responseObject || responseObject == null) {
+							return {
+								suggestions: []
+							}
+						}
+
+						return {
+							suggestions: responseObject.suggestions
+						};
+					}
+				});
+			};
+
+		}
+
+		/*]]>*/
+
+	</script>
+</th:block>

@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html>
+<head th:replace="fragments/header :: header (title=#{html.page.attestations.title})"></head>
+<body>
+<div class="wrapper">
+    <header th:replace="fragments/navbar :: navbar-header(subpage = 'reports')"></header>
+    <aside th:replace="fragments/navbar :: navbar-aside (page = 'old_attestations', subpage = 'reports')"></aside>
+
+    <section>
+        <div class="content-wrapper">
+            <h3 th:text="#{html.navbar.attestations.old}"></h3>
+            <div class="panel panel-default">
+                <div class="panel-heading"></div>
+                <div class="panel-body">
+                    <div class="table-responsive">
+                        <table id="listTable" class="table table-striped table-hover listTable">
+                            <thead>
+                                <tr>
+                                    <th class="col-md-2" th:text="#{html.page.attestations.old.ou}"></th>
+                                    <th class="col-md-3" th:text="#{html.page.attestations.old.manager}"></th>
+                                    <th class="col-md-3" th:text="#{html.page.attestations.old.substitute}"></th>
+                                    <th class="col-md-3" th:text="#{html.page.attestations.old.lastAttested}"></th>
+                                    <th class="col-md-1" th:text="#{html.control.operations}"></th>
+                                </tr>
+                            </thead>
+
+                            <tbody>
+                                <tr th:each="ou : ${ous}">
+                                    <td th:text="${ou.name}"></td>
+
+                                    <td>
+                                        <div th:if="${ou.managerName} != null">
+                                            <div th:text="${ou.managerName}"></div>
+                                            <span style="color: grey;" th:text="${ou.managerPosition}"></span>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div th:if="${ou.managerName} != null AND ${#lists.size(ou.substitutes) > 0}">
+                                            <th:block th:each="substitute : ${ou.substitutes}">
+                                                <div th:text="${substitute}"></div>
+                                            </th:block>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div th:if="${ou.lastAttested != null}">
+                                            <div th:text="${#dates.format(ou.lastAttested, 'dd-MM-yyyy')}"></div>
+                                            <span style="color: grey;" th:text="'af: ' + ${ou.lastAttestedBy}"></span>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <a sec:authorize="hasRole('ROLE_ADMINISTRATOR')" th:if="${ou.attestationPdfAvailable} == true" th:href="'/rest/admin/attestations/old/'+${ou.uuid}+'/download'"><i style="color:black;" class="fa-fw fa fa-download" ></i></a>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+</div>
+
+<nav th:replace="fragments/footer :: footer"></nav>
+<script th:inline="javascript">
+		/*<![CDATA[*/
+
+		/*[+
+			var searchTxt = [[#{html.datatables.search}]];
+			var dropdownTxt = [[#{html.datatables.dropdown}]];
+			var infoDefaultTxt = [[#{html.datatables.info.default}]];
+			var infoEmptyTxt = [[#{html.datatables.info.empty}]];
+			var infoFilteredTxt = [[#{html.datatables.info.filtered}]];
+			var prevTxt = [[#{html.datatables.prev}]];
+			var nextTxt = [[#{html.datatables.next}]];
+		+]*/
+
+		var token = $("meta[name='_csrf']").attr("content");
+		var attestationService;
+		$(document).ready(function() {
+			attestationService = new AttestationService();
+
+			attestationService.init();
+		});
+
+		function AttestationService() {
+			/*[+
+			var fastforwardTitle = [[#{html.page.attestation.fastforward.title}]];
+			var fastforwardText = [[#{html.page.attestation.fastforward.text}]];
+			var yesBtnTxt = [[#{html.control.button.yes}]];
+			var cancelBtnTxt = [[#{html.control.button.no}]];
+			+]*/
+
+			this.init = function() {
+				var table = $('#listTable').DataTable({
+					"pageLength" : 25,
+					"responsive" : true,
+					'language': {
+						"search":       searchTxt,
+						"lengthMenu":   dropdownTxt,
+						"info":         infoDefaultTxt,
+						"zeroRecords":  infoEmptyTxt,
+						"infoEmpty":    "",
+						"infoFiltered": infoFilteredTxt,
+						"paginate": {
+							"next": nextTxt,
+							"previous": prevTxt
+						}
+					}
+				});
+			}
+		}
+		/*]]>*/
+	</script>
+</body>
+</html>

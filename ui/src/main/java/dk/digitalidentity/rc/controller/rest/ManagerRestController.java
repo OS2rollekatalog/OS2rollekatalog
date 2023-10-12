@@ -7,6 +7,7 @@ import java.util.Objects;
 
 import javax.validation.Valid;
 
+import dk.digitalidentity.rc.dao.model.enums.EmailTemplatePlaceholder;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.jpa.datatables.mapping.DataTablesInput;
 import org.springframework.data.jpa.datatables.mapping.DataTablesOutput;
@@ -184,14 +185,14 @@ public class ManagerRestController {
 
 			if (template.isEnabled()) {
 				String title = template.getTitle();
-				title = title.replace(EmailTemplateService.RECEIVER_PLACEHOLDER, substitute.getName());
-				title = title.replace(EmailTemplateService.MANAGER_PLACEHOLDER, manager.getName());
-				title = title.replace(EmailTemplateService.ORGUNIT_PLACEHOLDER, orgUnit.getName());
+				title = title.replace(EmailTemplatePlaceholder.RECEIVER_PLACEHOLDER.getPlaceholder(), substitute.getName());
+				title = title.replace(EmailTemplatePlaceholder.MANAGER_PLACEHOLDER.getPlaceholder(), manager.getName());
+				title = title.replace(EmailTemplatePlaceholder.ORGUNIT_PLACEHOLDER.getPlaceholder(), orgUnit.getName());
 
 				String message = template.getMessage();
-				message = message.replace(EmailTemplateService.RECEIVER_PLACEHOLDER, substitute.getName());
-				message = message.replace(EmailTemplateService.MANAGER_PLACEHOLDER, manager.getName());
-				message = message.replace(EmailTemplateService.ORGUNIT_PLACEHOLDER, orgUnit.getName());
+				message = message.replace(EmailTemplatePlaceholder.RECEIVER_PLACEHOLDER.getPlaceholder(), substitute.getName());
+				message = message.replace(EmailTemplatePlaceholder.MANAGER_PLACEHOLDER.getPlaceholder(), manager.getName());
+				message = message.replace(EmailTemplatePlaceholder.ORGUNIT_PLACEHOLDER.getPlaceholder(), orgUnit.getName());
 				emailQueueService.queueEmail(substituteEmail, title, message, template, null);
 			}
 			else {

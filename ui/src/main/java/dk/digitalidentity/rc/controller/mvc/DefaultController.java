@@ -1,12 +1,8 @@
 package dk.digitalidentity.rc.controller.mvc;
 
-import java.util.ArrayList;
-import java.util.Enumeration;
-import java.util.List;
-import java.util.Map;
-
-import javax.servlet.http.HttpServletRequest;
-
+import dk.digitalidentity.rc.config.Constants;
+import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
+import dk.digitalidentity.rc.security.SecurityUtil;
 import org.opensaml.saml.common.SAMLException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -26,9 +22,11 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.context.request.ServletWebRequest;
 import org.springframework.web.context.request.WebRequest;
 
-import dk.digitalidentity.rc.config.Constants;
-import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
-import dk.digitalidentity.rc.security.SecurityUtil;
+import javax.servlet.http.HttpServletRequest;
+import java.util.ArrayList;
+import java.util.Enumeration;
+import java.util.List;
+import java.util.Map;
 
 @Controller
 @PropertySource("classpath:git.properties")
@@ -49,10 +47,7 @@ public class DefaultController implements ErrorController {
 	
 	@GetMapping("/")
 	public String index(Model model) {
-		if (SecurityUtil.hasRole(Constants.ROLE_SUBSTITUTE) || SecurityUtil.hasRole(Constants.ROLE_MANAGER)) {
-			return "redirect:/ui/users/attestations";
-		}
-		else if (SecurityUtil.hasRole(Constants.ROLE_READ_ACCESS)) {
+		if (SecurityUtil.hasRole(Constants.ROLE_READ_ACCESS)) {
 			return "redirect:/ui/users/list";
 		}
 		
@@ -72,10 +67,6 @@ public class DefaultController implements ErrorController {
 	public String reportIndex() {
 		if (SecurityUtil.hasRole(Constants.ROLE_TEMPLATE_ACCESS) || SecurityUtil.hasRole(Constants.ROLE_READ_ACCESS)) {
 			return "redirect:/ui/report/templates";
-		}
-
-		if (SecurityUtil.hasRole(Constants.ROLE_SUBSTITUTE) || SecurityUtil.hasRole(Constants.ROLE_MANAGER)) {
-			return "redirect:/ui/users/attestations";
 		}
 
 		return "redirect:/";

@@ -1,5 +1,9 @@
 package dk.digitalidentity.rc.dao.history.model;
 
+import lombok.Getter;
+import lombok.Setter;
+import org.hibernate.annotations.BatchSize;
+
 import javax.persistence.Column;
 import javax.persistence.Entity;
 import javax.persistence.FetchType;
@@ -8,13 +12,10 @@ import javax.persistence.JoinColumn;
 import javax.persistence.ManyToOne;
 import javax.persistence.Table;
 
-import org.hibernate.annotations.BatchSize;
-
-import lombok.Getter;
-
 @Entity
 @Table(name = "history_ous_users")
 @Getter
+@Setter
 public class HistoryOUUser {
 
 	@Id
@@ -30,5 +31,8 @@ public class HistoryOUUser {
 	
 	@Column
 	private String titleUuid;
+
+	@Column
+	private Boolean doNotInherit;
 
 }

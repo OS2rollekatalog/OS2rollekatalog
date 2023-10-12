@@ -12,7 +12,7 @@ public class KspCics {
 	private boolean enabled = false;
 	
 	private boolean enabledOutgoing = false;
-	private String url = "https://intewswlbs-wm.kmd.dk/KMD.YH.KSPAabenSpml/KspAabenSpml.asmx";
+	private String url = "https://int-ewswlbs-wm3q2021.kmd.dk/KMD.YH.KSPAabenSpml/KSPAabenSPML.asmx";
 	private String losid;
 	private String keystoreLocation;
 	private String keystorePassword;

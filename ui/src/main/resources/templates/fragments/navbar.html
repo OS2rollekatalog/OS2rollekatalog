@@ -305,18 +305,11 @@
 									<span th:text="#{html.navbar.substitute.choose}"></span>
 								</a>
 							</li>
-							
-							<li th:class="${page == 'admin.attestation'} ? 'active' : ''" sec:authorize="hasRole('ROLE_ADMINISTRATOR')">
-								<a th:href="@{/ui/admin/attestations}">
-									<em class="fa fa-check"></em>
-									<span th:text="#{html.navbar.attestations.admin}"></span>
-								</a>
-							</li>
-	
-							<li th:class="${page == 'attestation'} ? 'active' : ''" sec:authorize="hasRole('ROLE_MANAGER') or hasRole('ROLE_SUBSTITUTE')">
-								<a th:href="@{/ui/users/attestations}">
-									<em class="fa fa-check"></em>
-									<span th:text="#{html.navbar.attestations}"></span>
+
+							<li th:class="${page == 'old_attestations'} ? 'active' : ''" sec:authorize="hasRole('ROLE_ADMINISTRATOR')">
+								<a th:href="@{/ui/admin/attestations/old}">
+									<em class="fa fa-download"></em>
+									<span th:text="#{html.navbar.attestations.old}"></span>
 								</a>
 							</li>
 						</th:block>

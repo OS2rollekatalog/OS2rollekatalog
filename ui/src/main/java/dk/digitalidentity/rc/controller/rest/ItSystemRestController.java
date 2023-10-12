@@ -7,6 +7,7 @@ import java.util.regex.Pattern;
 
 import dk.digitalidentity.rc.controller.rest.model.OUFilterDTO;
 import dk.digitalidentity.rc.dao.model.OrgUnit;
+import dk.digitalidentity.rc.dao.model.User;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpStatus;
@@ -407,6 +408,39 @@ public class ItSystemRestController {
 
 			userRoleService.delete(userRole);
 		}
+
+		return new ResponseEntity<>(HttpStatus.OK);
+	}
+
+	@PostMapping(value = "/rest/itsystem/attestationResponsible")
+	public ResponseEntity<String> editItSystemAttestationResponsible(long id, String uuid) {
+		ItSystem itSystem = itSystemService.getById(id);
+		if (itSystem == null) {
+			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+		}
+
+		// can be null
+		User user = userService.getByUuid(uuid);
+		itSystem.setAttestationResponsible(user);
+		itSystemService.save(itSystem);
+
+		return new ResponseEntity<>(HttpStatus.OK);
+	}
+
+	@PostMapping(value = "/rest/itsystem/userroles/{userRoleId}/roleAssignmentAttestationByAttestationResponsible")
+	public ResponseEntity<String> editItSystemRoleAssignmentAttestationByAttestationResponsible(@PathVariable long userRoleId, long id, boolean roleAssignmentAttestationByAttestationResponsible) {
+		ItSystem itSystem = itSystemService.getById(id);
+		if (itSystem == null) {
+			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+		}
+
+		UserRole userRole = userRoleService.getById(userRoleId);
+		if (userRole == null || userRole.getItSystem().getId() != itSystem.getId()) {
+			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+		}
+
+		userRole.setRoleAssignmentAttestationByAttestationResponsible(roleAssignmentAttestationByAttestationResponsible);
+		userRoleService.save(userRole);
 
 		return new ResponseEntity<>(HttpStatus.OK);
 	}

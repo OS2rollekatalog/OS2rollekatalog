@@ -1,20 +1,5 @@
 package dk.digitalidentity.rc.service;
 
-import java.time.LocalDate;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.stream.Collectors;
-
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.MessageSource;
-import org.springframework.stereotype.Service;
-import org.springframework.util.StringUtils;
-
 import dk.digitalidentity.rc.controller.mvc.viewmodel.ReportForm;
 import dk.digitalidentity.rc.dao.history.model.HistoryItSystem;
 import dk.digitalidentity.rc.dao.history.model.HistoryKleAssignment;
@@ -29,6 +14,20 @@ import dk.digitalidentity.rc.dao.history.model.HistoryTitle;
 import dk.digitalidentity.rc.dao.history.model.HistoryUser;
 import dk.digitalidentity.rc.service.model.UserRoleAssignmentReportEntry;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.MessageSource;
+import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
+
+import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -91,22 +90,14 @@ public class ReportService {
 	                String assignedBy = roleAssignment.getAssignedByName() + " (" + roleAssignment.getAssignedByUserId() + ")";
 	
 	                // Creating assigned Through string
-	                String assignedThroughStr = "";
-	                switch (roleAssignment.getAssignedThroughType()) {
-	                    case DIRECT:
-	                    case ROLEGROUP:
-	                        assignedThroughStr = messageSource.getMessage("xls.role.assigned.trough.type.direct", null, locale);
-	                        break;
-	                    case POSITION:
-	                        assignedThroughStr = messageSource.getMessage("xls.role.assigned.trough.type.position", null, locale);
-	                        break;
-	                    case ORGUNIT:
-	                        assignedThroughStr = messageSource.getMessage("xls.role.assigned.trough.type.orgunit", null, locale);
-	                        break;
-	                    case TITLE:
-	                        assignedThroughStr = messageSource.getMessage("xls.role.assigned.trough.type.title", null, locale);
-	                        break;
-	                }
+					String assignedThroughMessageCode = switch (roleAssignment.getAssignedThroughType()) {
+						case DIRECT -> "xls.role.assigned.trough.type.direct";
+						case ROLEGROUP -> "xls.role.assigned.trough.type.direct_group";
+						case POSITION -> "xls.role.assigned.trough.type.position";
+						case ORGUNIT -> "xls.role.assigned.trough.type.orgunit";
+						case TITLE -> "xls.role.assigned.trough.type.title";
+					};
+					String assignedThroughStr = messageSource.getMessage(assignedThroughMessageCode, null, locale);
 	
 	                if (StringUtils.hasLength(roleAssignment.getAssignedThroughName())) {
 	                    assignedThroughStr += ": " + roleAssignment.getAssignedThroughName();
@@ -148,6 +139,11 @@ public class ReportService {
     				continue;
     			}
 
+				// The users position has doNotInherit set, so the user does not get any roles from this OU.
+				if (historyOuUser.getDoNotInherit()) {
+					continue;
+				}
+
         		List<HistoryOURoleAssignmentWithTitles> userTitleAssignments = null;
         		
         		String titleUuid = historyOuUser.getTitleUuid();
@@ -159,6 +155,7 @@ public class ReportService {
         		}
 
         		// ok, time to generate records
+
 
                 String userName = user.getUserName();
                 String userId = user.getUserUserId();
@@ -233,6 +230,7 @@ public class ReportService {
             List<HistoryOURoleAssignmentWithExceptions> ouRoleAssignmentWithExceptions = entry.getValue();
         	HistoryOU orgUnit = orgUnits.get(entry.getKey());
 
+
             for (HistoryOURoleAssignmentWithExceptions ouRoleAssignment : ouRoleAssignmentWithExceptions) {
 
                 // Get ItSystem by id
@@ -247,6 +245,10 @@ public class ReportService {
                 String assignedThroughStr = messageSource.getMessage("xls.role.assigned.trough.type.orgunit", null, locale) + ": " + orgUnit.getOuName();
 
                 for (HistoryOUUser user : orgUnit.getUsers()) {
+					// The users position has doNotInherit set, so the user does not get any roles from this OU.
+					if (user.getDoNotInherit()) {
+						continue;
+					}
                 	if (ouRoleAssignment.getUserUuids().contains(user.getUserUuid())) {
                 		continue;
                 	}

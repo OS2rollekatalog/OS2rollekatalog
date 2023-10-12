@@ -1,18 +1,5 @@
 package dk.digitalidentity.rc.security;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-
-import dk.digitalidentity.samlmodule.model.SamlGrantedAuthority;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.GrantedAuthority;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.stereotype.Component;
-
 import dk.digitalidentity.rc.config.Constants;
 import dk.digitalidentity.rc.dao.model.Client;
 import dk.digitalidentity.rc.dao.model.ItSystem;
@@ -22,7 +9,19 @@ import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserRole;
 import dk.digitalidentity.rc.service.ItSystemService;
 import dk.digitalidentity.rc.service.UserService;
+import dk.digitalidentity.samlmodule.model.SamlGrantedAuthority;
 import dk.digitalidentity.samlmodule.model.TokenUser;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.stereotype.Component;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
 
 @Component
 public class SecurityUtil {
@@ -110,6 +109,42 @@ public class SecurityUtil {
 		}
 
 		return requester;
+	}
+
+	public static boolean isSystemResponsible() {
+		boolean systemResponsible = false;
+
+		if (isLoggedIn()) {
+			for (GrantedAuthority grantedAuthority : (SecurityContextHolder.getContext().getAuthentication()).getAuthorities()) {
+				if (grantedAuthority.getAuthority().equals(Constants.ROLE_IT_SYSTEM_RESPONSIBLE)) {
+					systemResponsible = true;
+				}
+			}
+		}
+
+		return systemResponsible;
+	}
+
+	public static boolean isAdmin() {
+		boolean admin = false;
+
+		if (isLoggedIn()) {
+			for (GrantedAuthority grantedAuthority : (SecurityContextHolder.getContext().getAuthentication()).getAuthorities()) {
+				if (grantedAuthority.getAuthority().equals(Constants.ROLE_ADMINISTRATOR)) {
+					admin = true;
+				}
+			}
+		}
+
+		return admin;
+	}
+
+	public static boolean isAttestationAdminOrAdmin() {
+		return isLoggedIn() &&
+			SecurityContextHolder.getContext().getAuthentication().getAuthorities().stream()
+					.map(GrantedAuthority::getAuthority)
+					.anyMatch(a -> a.equals(Constants.ROLE_ATTESTATION_ADMINISTRATOR)
+							|| a.equals(Constants.ROLE_ADMINISTRATOR));
 	}
 
 	private static boolean isLoggedIn() {

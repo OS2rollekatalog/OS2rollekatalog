@@ -27,6 +27,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
+import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 
@@ -102,7 +103,7 @@ public class NemLoginService {
 
 	@Autowired
 	private DirtyNemLoginUserDao dirtyNemLoginUserDao;
-
+	
 	public void addRoleGroupToQueue(RoleGroup roleGroup) {
 		if (roleGroup != null && roleGroup.getUserRoleAssignments() != null) {
 			List<UserRole> userRoles = roleGroup.getUserRoleAssignments().stream().map(ura -> ura.getUserRole()).collect(Collectors.toList());
@@ -545,7 +546,8 @@ public class NemLoginService {
 
 		List<AssignedRole> assignedNemLoginRoles = getRolesForUser(user);
 		if (assignedNemLoginRoles == null) {
-			throw new Exception("assignedNemLoginRoles for user with NemLoginUuid " + user.getUuid() + " was null. Should at least be empty. Won't sync user's nemLogin roles.");
+			log.warn("assignedNemLoginRoles for user with NemLoginUuid " + user.getUuid() + " was null. Should at least be empty. Won't sync user's nemLogin roles.");
+			return;
 		}
 
 		// remove roles
@@ -678,6 +680,9 @@ public class NemLoginService {
 		HttpEntity<String> request = new HttpEntity<>(headers);
 		try {
 			ResponseEntity<AssignedRole[]> response = restTemplate.exchange(url, HttpMethod.GET, request, AssignedRole[].class);
+			
+			// this checking is not really needed, as an exception is throw, but experience shows that updating the core framework sometimes
+			// changes the default behavior of the framework, so let's be safe :)
 			if (response.getStatusCodeValue() == 200 && response.getBody() != null) {
 				return Arrays.asList(response.getBody());
 			}
@@ -687,9 +692,47 @@ public class NemLoginService {
 			}
 		}
 		catch (Exception ex) {
-			log.error("Failed to fetch roles assigned to user with nemloginUuid " + user.getNemloginUuid() + " from nemloginApi.", ex);
+			// if the user does not exist, the MitID Erhverv API will return HTTP 500 (and not 404), so we should do an extra check to see if the user
+			// exists, and then log something more relevant in that case
+			if (!userExists(user)) {
+				log.warn("User does not exist in MitID Erhverv with UUID: " + user.getNemloginUuid() + " / " + user.getUserId());
+			}
+			else {
+				log.error("Failed to fetch roles assigned to user with nemloginUuid " + user.getNemloginUuid() + " from nemloginApi.", ex);
+			}
+			
 			return null;
 		}
+	}
+	
+	private boolean userExists(User user) {
+		String url = config.getIntegrations().getNemLogin().getBaseUrl() + "/api/administration/identity/employee/" + user.getNemloginUuid();
+		HttpHeaders headers = getHeader();
+
+		HttpEntity<String> request = new HttpEntity<>(headers);
+		try {
+			ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.GET, request, String.class);
+			
+			// this checking is not really needed, as an exception is throw, but experience shows that updating the core framework sometimes
+			// changes the default behavior of the framework, so let's be safe :)
+			if (response.getStatusCodeValue() == 200 && response.getBody() != null) {
+				return true;
+			}
+			else if (response.getStatusCodeValue() == 404) {
+				return false;
+			}
+
+			log.warn("Failed to verify user existence of user with nemloginUuid " + user.getNemloginUuid() + " from nemloginApi. Code " + response.getStatusCodeValue() + " body: " + response.getBody());
+		}
+		catch (HttpStatusCodeException ex) {
+			if (ex.getRawStatusCode() == 404) {
+				return false;
+			}
+			
+			log.warn("Failed to verify user existence of user with nemloginUuid " + user.getNemloginUuid() + " from nemloginApi. Code " + ex.getRawStatusCode(), ex);
+		}
+
+		return false;
 	}
 
 	record RoleBody(Scope scope, List<String> roleUuids) {}

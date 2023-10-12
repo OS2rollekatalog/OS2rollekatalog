@@ -1,11 +1,10 @@
 package dk.digitalidentity.rc.security;
 
+import dk.digitalidentity.rc.service.ClientService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-
-import dk.digitalidentity.rc.service.ClientService;
 
 @Configuration
 public class ApiSecurityFilterConfiguration {
@@ -18,7 +17,7 @@ public class ApiSecurityFilterConfiguration {
 		ApiSecurityFilter filter = new ApiSecurityFilter(clientService);
 
 		FilterRegistrationBean<ApiSecurityFilter> filterRegistrationBean = new FilterRegistrationBean<>(filter);
-		filterRegistrationBean.addUrlPatterns("/api/*");
+		filterRegistrationBean.addUrlPatterns("/api/*", "/manage/info", "/manage/prometheus");
 		filterRegistrationBean.setOrder(100);
 
 		return filterRegistrationBean;

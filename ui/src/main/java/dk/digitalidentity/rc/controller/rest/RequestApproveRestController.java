@@ -1,22 +1,5 @@
 package dk.digitalidentity.rc.controller.rest;
 
-import java.security.Principal;
-import java.util.List;
-
-import javax.servlet.http.HttpServletRequest;
-
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
-import org.springframework.web.bind.annotation.ResponseBody;
-import org.springframework.web.bind.annotation.RestController;
-
-import org.springframework.util.StringUtils;
-
 import dk.digitalidentity.rc.controller.rest.model.MultipleUserRequestDTO;
 import dk.digitalidentity.rc.controller.rest.model.RejectForm;
 import dk.digitalidentity.rc.dao.model.AuthorizationManager;
@@ -27,6 +10,7 @@ import dk.digitalidentity.rc.dao.model.RoleGroup;
 import dk.digitalidentity.rc.dao.model.RoleGroupUserRoleAssignment;
 import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserRole;
+import dk.digitalidentity.rc.dao.model.enums.EmailTemplatePlaceholder;
 import dk.digitalidentity.rc.dao.model.enums.EmailTemplateType;
 import dk.digitalidentity.rc.dao.model.enums.EntityType;
 import dk.digitalidentity.rc.dao.model.enums.EventType;
@@ -38,6 +22,7 @@ import dk.digitalidentity.rc.security.RequireRequesterRole;
 import dk.digitalidentity.rc.security.SecurityUtil;
 import dk.digitalidentity.rc.service.EmailQueueService;
 import dk.digitalidentity.rc.service.EmailTemplateService;
+import dk.digitalidentity.rc.service.ItSystemService;
 import dk.digitalidentity.rc.service.OrgUnitService;
 import dk.digitalidentity.rc.service.RequestApproveService;
 import dk.digitalidentity.rc.service.RoleGroupService;
@@ -45,6 +30,20 @@ import dk.digitalidentity.rc.service.SettingsService;
 import dk.digitalidentity.rc.service.UserRoleService;
 import dk.digitalidentity.rc.service.UserService;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.util.StringUtils;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
+import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.web.bind.annotation.RestController;
+
+import javax.servlet.http.HttpServletRequest;
+import java.security.Principal;
+import java.util.List;
 
 @Slf4j
 @RestController
@@ -76,6 +75,9 @@ public class RequestApproveRestController {
 
 	@Autowired
 	private OrgUnitService orgUnitService;
+
+	@Autowired
+	private ItSystemService itSystemService;
 
 	@RequireAssignerRole
 	@PostMapping("/rest/requestapprove/requests/approve/{id}")
@@ -148,11 +150,11 @@ public class RequestApproveRestController {
 			
 			if (template.isEnabled()) {
 				String title = template.getTitle();
-				title = title.replace(EmailTemplateService.RECEIVER_PLACEHOLDER, requestedFor.getName());
-				title = title.replace(EmailTemplateService.ROLE_PLACEHOLDER, roleName);
+				title = title.replace(EmailTemplatePlaceholder.RECEIVER_PLACEHOLDER.getPlaceholder(), requestedFor.getName());
+				title = title.replace(EmailTemplatePlaceholder.ROLE_NAME.getPlaceholder(), roleName);
 				String message = template.getMessage();
-				message = message.replace(EmailTemplateService.RECEIVER_PLACEHOLDER, requestedFor.getName());
-				message = message.replace(EmailTemplateService.ROLE_PLACEHOLDER, roleName);
+				message = message.replace(EmailTemplatePlaceholder.RECEIVER_PLACEHOLDER.getPlaceholder(), requestedFor.getName());
+				message = message.replace(EmailTemplatePlaceholder.ROLE_NAME.getPlaceholder(), roleName);
 				emailQueueService.queueEmail(requestedFor.getEmail(), title, message, template, null);
 			}
 			else {
@@ -268,7 +270,7 @@ public class RequestApproveRestController {
 		
 		OrgUnit orgUnit = orgUnitService.getByUuid(request.getOrgUnitUuid());
 		if (orgUnit == null) {
-			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+			return new ResponseEntity<>("Enheden blev ikke fundet", HttpStatus.BAD_REQUEST);
 		}
 		
 		if (request.getRoleType().equals("roleGroup")) {
@@ -279,9 +281,9 @@ public class RequestApproveRestController {
 
 			for (RoleGroupUserRoleAssignment assignment : roleGroup.getUserRoleAssignments()) {
 				if (assignment.getUserRole().getItSystem().isOuFilterEnabled()) {
-					List<String> uuids = assignment.getUserRole().getItSystem().getOrgUnitFilterOrgUnits().stream().map(OrgUnit::getUuid).toList();
+					List<String> uuids = itSystemService.getOUFilterUuidsWithChildren(assignment.getUserRole().getItSystem());
 					if (!uuids.contains(orgUnit.getUuid())) {
-						return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+						return new ResponseEntity<>("Kan ikke godkende anmodningen da it-systemet er omfattet af enhedsfilter", HttpStatus.BAD_REQUEST);
 					}
 				}
 			}
@@ -298,13 +300,13 @@ public class RequestApproveRestController {
 		else if (request.getRoleType().equals("userRole")) {
 			UserRole userRole = userRoleService.getById(request.getRoleId());
 			if (userRole == null || !userRole.isCanRequest()) {
-				return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+				return new ResponseEntity<>("Der kan ikke anmodes om den givne rolle", HttpStatus.BAD_REQUEST);
 			}
 
 			if (userRole.getItSystem().isOuFilterEnabled()) {
-				List<String> uuids = userRole.getItSystem().getOrgUnitFilterOrgUnits().stream().map(OrgUnit::getUuid).toList();
+				List<String> uuids = itSystemService.getOUFilterUuidsWithChildren(userRole.getItSystem());
 				if (!uuids.contains(orgUnit.getUuid())) {
-					return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+					return new ResponseEntity<>("Kan ikke godkende anmodningen da it-systemet er omfattet af enhedsfilter", HttpStatus.BAD_REQUEST);
 				}
 			}
 
@@ -319,7 +321,7 @@ public class RequestApproveRestController {
 		}
 		else {
 			log.warn("Unknown role type: " + request.getRoleType());
-			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+			return new ResponseEntity<>("Ukendt rolletype", HttpStatus.BAD_REQUEST);
 		}
 
 		return new ResponseEntity<>(HttpStatus.OK);
@@ -348,15 +350,15 @@ public class RequestApproveRestController {
 				if (manager != null) {
 					if (StringUtils.hasLength(manager.getEmail())) {
 						String title = template.getTitle();
-						title = title.replace(EmailTemplateService.RECEIVER_PLACEHOLDER, manager.getName());
-						title = title.replace(EmailTemplateService.ROLE_PLACEHOLDER, roleName);
-						title = title.replace(EmailTemplateService.USER_PLACEHOLDER, request.getRequestedFor().getName());
-						title = title.replace(EmailTemplateService.REQUESTER_PLACEHOLDER, request.getRequester().getName());
+						title = title.replace(EmailTemplatePlaceholder.RECEIVER_PLACEHOLDER.getPlaceholder(), manager.getName());
+						title = title.replace(EmailTemplatePlaceholder.ROLE_NAME.getPlaceholder(), roleName);
+						title = title.replace(EmailTemplatePlaceholder.USER_PLACEHOLDER.getPlaceholder(), request.getRequestedFor().getName());
+						title = title.replace(EmailTemplatePlaceholder.REQUESTER_PLACEHOLDER.getPlaceholder(), request.getRequester().getName());
 						String message = template.getMessage();
-						message = message.replace(EmailTemplateService.RECEIVER_PLACEHOLDER, manager.getName());
-						message = message.replace(EmailTemplateService.ROLE_PLACEHOLDER, roleName);
-						message = message.replace(EmailTemplateService.USER_PLACEHOLDER, request.getRequestedFor().getName());
-						message = message.replace(EmailTemplateService.REQUESTER_PLACEHOLDER, request.getRequester().getName());
+						message = message.replace(EmailTemplatePlaceholder.RECEIVER_PLACEHOLDER.getPlaceholder(), manager.getName());
+						message = message.replace(EmailTemplatePlaceholder.ROLE_NAME.getPlaceholder(), roleName);
+						message = message.replace(EmailTemplatePlaceholder.USER_PLACEHOLDER.getPlaceholder(), request.getRequestedFor().getName());
+						message = message.replace(EmailTemplatePlaceholder.REQUESTER_PLACEHOLDER.getPlaceholder(), request.getRequester().getName());
 						emailQueueService.queueEmail(manager.getEmail(), title, message, template, null);
 					}
 				}
@@ -370,15 +372,15 @@ public class RequestApproveRestController {
 
 						if (StringUtils.hasLength(authorizationManager.getEmail())) {
 							String title = template.getTitle();
-							title = title.replace(EmailTemplateService.RECEIVER_PLACEHOLDER, authorizationManager.getName());
-							title = title.replace(EmailTemplateService.ROLE_PLACEHOLDER, roleName);
-							title = title.replace(EmailTemplateService.USER_PLACEHOLDER, request.getRequestedFor().getName());
-							title = title.replace(EmailTemplateService.REQUESTER_PLACEHOLDER, request.getRequester().getName());
+							title = title.replace(EmailTemplatePlaceholder.RECEIVER_PLACEHOLDER.getPlaceholder(), authorizationManager.getName());
+							title = title.replace(EmailTemplatePlaceholder.ROLE_NAME.getPlaceholder(), roleName);
+							title = title.replace(EmailTemplatePlaceholder.USER_PLACEHOLDER.getPlaceholder(), request.getRequestedFor().getName());
+							title = title.replace(EmailTemplatePlaceholder.REQUESTER_PLACEHOLDER.getPlaceholder(), request.getRequester().getName());
 							String message = template.getMessage();
-							message = message.replace(EmailTemplateService.RECEIVER_PLACEHOLDER, authorizationManager.getName());
-							message = message.replace(EmailTemplateService.ROLE_PLACEHOLDER, roleName);
-							message = message.replace(EmailTemplateService.USER_PLACEHOLDER, request.getRequestedFor().getName());
-							message = message.replace(EmailTemplateService.REQUESTER_PLACEHOLDER, request.getRequester().getName());
+							message = message.replace(EmailTemplatePlaceholder.RECEIVER_PLACEHOLDER.getPlaceholder(), authorizationManager.getName());
+							message = message.replace(EmailTemplatePlaceholder.ROLE_NAME.getPlaceholder(), roleName);
+							message = message.replace(EmailTemplatePlaceholder.USER_PLACEHOLDER.getPlaceholder(), request.getRequestedFor().getName());
+							message = message.replace(EmailTemplatePlaceholder.REQUESTER_PLACEHOLDER.getPlaceholder(), request.getRequester().getName());
 							emailQueueService.queueEmail(authorizationManager.getEmail(), title, message, template, null);
 						}
 					}

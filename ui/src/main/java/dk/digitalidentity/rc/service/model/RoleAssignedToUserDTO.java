@@ -32,6 +32,9 @@ public class RoleAssignedToUserDTO {
 	private List<SystemRoleAssignmentDTO> systemRoleAssignments;
 	private boolean ineffective = false;
 
+	// only for directly assigned roles
+	private String orgUnitUuid;
+
 	public static RoleAssignedToUserDTO fromRoleGroupUserRoleAssignment(RoleGroupUserRoleAssignment assignment, LocalDate startDate, LocalDate stopDate) {
 		RoleAssignedToUserDTO dto = new RoleAssignedToUserDTO();
 		dto.setAssignmentId(assignment.getId());
@@ -61,6 +64,7 @@ public class RoleAssignedToUserDTO {
 		dto.setStartDate(assignment.getStartDate());
 		dto.setStopDate(assignment.getStopDate());
 		dto.setCanEdit(false);
+		dto.setOrgUnitUuid(assignment.getOrgUnit() != null ? assignment.getOrgUnit().getUuid() : null);
 		
 		return dto;
 	}
@@ -76,6 +80,7 @@ public class RoleAssignedToUserDTO {
 		dto.setStartDate(assignment.getStartDate());
 		dto.setStopDate(assignment.getStopDate());
 		dto.setCanEdit(false);
+		dto.setOrgUnitUuid(assignment.getOrgUnit() != null ? assignment.getOrgUnit().getUuid() : null);
 		
 		return dto;
 	}

@@ -1,0 +1,55 @@
+<th:block th:fragment="roleGroupsTable" xmlns="http://www.w3.org/1999/xhtml" xmlns:th="http://www.thymeleaf.org">
+    <th:block th:unless="${#lists.isEmpty(roleGroupsForTable)}">
+        <b th:text="#{attestationmodule.html.orgunits.attestate.user.tabs.roles.roleGroups}"></b>
+        <table class="roleTable table table-striped table-bordered table-hover" >
+            <thead>
+            <tr>
+                <th th:text="#{attestationmodule.html.orgunits.attestate.user.tabs.roles.roleGroups.roleGroup}" class="col-lg-2"></th>
+                <th th:text="#{attestationmodule.html.orgunits.attestate.user.tabs.roles.roleGroups.roles}" th:class="${showInherit} ? 'col-lg-9' : 'col-lg-10'"></th>
+                <th th:if="${showInherit}" th:text="#{attestationmodule.html.orgunits.attestate.user.tabs.roles.userRoles.inherit}" class="col-lg-1"></th>
+            </tr>
+            </thead>
+
+            <tbody>
+            <tr th:each="roleGroup : ${roleGroupsForTable}">
+                <td th:text="${roleGroup.groupName}" class="col-lg-2"></td>
+                <td th:class="${showInherit} ? 'col-lg-9' : 'col-lg-10'">
+                    <b th:text="#{attestationmodule.html.orgunits.attestate.user.tabs.roles.roleGroups.description}"></b>
+                    <pre class="pre-like-p" th:text="${roleGroup.groupDescription}"></pre>
+                    <div th:if="${orgUnitAssignments && !#lists.isEmpty(roleGroup.titles)}">
+                        <b th:text="#{attestationmodule.html.orgunits.attestate.user.tabs.roles.roleGroups.titles}"></b>
+                        <ul>
+                            <li th:each="title : ${roleGroup.titles}" th:text="${title}"></li>
+                        </ul>
+                    </div>
+                    <div th:if="${orgUnitAssignments && #lists.isEmpty(roleGroup.titles)}">
+                        <p><b>Tildeles alle medarbejdere</b></p>
+                    </div>
+                    <div th:if="${orgUnitAssignments && !#lists.isEmpty(roleGroup.exceptedUsers)}">
+                        <b th:text="#{attestationmodule.html.orgunits.attestate.user.tabs.roles.roleGroups.exceptedUsers}"></b>
+                        <ul>
+                            <li th:each="exceptedUser : ${roleGroup.exceptedUsers}" th:text="${exceptedUser.name} + ' (' + ${exceptedUser.userId} + ')'"></li>
+                        </ul>
+                    </div>
+                    <b th:text="#{attestationmodule.html.orgunits.attestate.user.tabs.roles.roleGroups.userRoles}"></b>
+                    <div th:each="userRole : ${roleGroup.userRoles}" class="m-t-sm">
+                        <div class="expandable">
+                            <i class="fa fa-chevron-down"></i>
+                            &nbsp;
+                            <span th:text="${userRole.roleName}"></span>
+                            <small class="assignedThroughLabel" th:if="${verify && userRole.assignedThroughName != null}" th:text="'(' + #{__${userRole.assignedThrough.message}__} + ' - ' + ${userRole.assignedThroughName} + ')'"></small>
+                            <small class="assignedThroughLabel" th:if="${verify && userRole.assignedThroughName == null}" th:text="'(' + #{__${userRole.assignedThrough.message}__} + ')'"></small>
+                        </div>
+                        <div class="expandable-content" style="display:none;">
+                            <div class="expandable-content-description" th:text="${userRole.roleDescription}"></div>
+                        </div>
+                    </div>
+                </td>
+                <td th:if="${showInherit}" class="col-lg-1">
+                    <em th:if="${roleGroup.inherit}" class="fa fa-check"></em>
+                </td>
+            </tr>
+            </tbody>
+        </table>
+    </th:block>
+</th:block>

@@ -116,7 +116,7 @@
 	
 	<script th:replace="ous/fragments/ou_roles_modal :: ouRoleGroupModalScript(titlesEnabled=${titlesEnabled})"></script>
 	<script th:replace="ous/fragments/ou_roles_edit_modal :: ouRolesEditModalScript(titlesEnabled=${titlesEnabled})"></script>
-	<script th:replace="users/fragments/role_assignment_edit_modal :: roleAssignmentEditModalScript"></script>
+	<script th:replace="users/fragments/role_assignment_edit_modal :: roleAssignmentEditModalScript(missingPostponedConstraintService = true)"></script>
 	<script th:replace="users/fragments/user_role_group_modal :: userRoleGroupModalScript"></script>
 	
 	<script th:inline="javascript">

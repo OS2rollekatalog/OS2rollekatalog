@@ -16,4 +16,9 @@ public class ManagerDTO {
         this.uuid = manager.getUuid();
         this.userId = manager.getUserId();
     }
+    
+    public ManagerDTO(String uuid, String userId) {
+        this.uuid = uuid;
+        this.userId = userId;
+    }
 }

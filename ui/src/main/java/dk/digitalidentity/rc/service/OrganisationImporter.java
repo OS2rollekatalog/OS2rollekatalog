@@ -1,25 +1,5 @@
 package dk.digitalidentity.rc.service;
 
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.Set;
-import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.function.Function;
-import java.util.function.Predicate;
-import java.util.stream.Collectors;
-
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-import org.springframework.util.StringUtils;
-
 import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
 import dk.digitalidentity.rc.controller.api.model.ManagerDTO;
 import dk.digitalidentity.rc.controller.api.model.OrgUnitDTO;
@@ -39,6 +19,7 @@ import dk.digitalidentity.rc.dao.model.Title;
 import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserKLEMapping;
 import dk.digitalidentity.rc.dao.model.UserRole;
+import dk.digitalidentity.rc.dao.model.enums.EmailTemplatePlaceholder;
 import dk.digitalidentity.rc.dao.model.enums.EmailTemplateType;
 import dk.digitalidentity.rc.dao.model.enums.ItSystemType;
 import dk.digitalidentity.rc.dao.model.enums.KleType;
@@ -53,6 +34,25 @@ import dk.digitalidentity.rc.service.model.UserDeletedEvent;
 import dk.digitalidentity.rc.service.model.UserMovedPositions;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
+
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.Set;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Function;
+import java.util.function.Predicate;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -535,6 +535,7 @@ public class OrganisationImporter {
 
 		// get list of all MANUAL itSystems
 		List<ItSystem> simpleItSystems = itSystemService.getBySystemType(ItSystemType.MANUAL);
+		final List<User> usersWithAttachedPositions = new ArrayList<>();
 
 		if (toBeCreated.size() > 0) {
 			log.info("Creating " + toBeCreated.size() + " Users");
@@ -550,6 +551,7 @@ public class OrganisationImporter {
 					for (Position position : positions) {
 						for (OrgUnit existingOrgUnit : existingOrgUnits) {
 							if (position.getOrgUnit().getUuid().equals(existingOrgUnit.getUuid())) {
+
 								checkOrgUnitForNewTitles(position, existingOrgUnit);
 								
 								position.setOrgUnit(existingOrgUnit);
@@ -560,10 +562,15 @@ public class OrganisationImporter {
 						}						
 					}
 				}
+				usersWithAttachedPositions.add(userService.save(userToCreate));
 			}
-			log.info("Saving users to be created: " + toBeCreated.stream().map(User::getUserId).collect(Collectors.joining(",")));
+
+			// flag all for saving (and yes, this is the 2nd call, but this also ensures position updates are stored correctly)
 			userService.save(toBeCreated);
-			existingUsers.addAll(toBeCreated);
+
+			log.info("Saving users to be created: " + toBeCreated.stream().map(User::getUserId).collect(Collectors.joining(",")));
+
+			existingUsers.addAll(usersWithAttachedPositions);
 		}
 		
 		if (toBeUpdated.size() > 0) {
@@ -877,13 +884,17 @@ public class OrganisationImporter {
 				userToCreate.setCpr(newUser.getCpr());
 				userToCreate.setDomain(domain);
 
+				// we need to tell Hibernate that we intend to persist this newly created object, otherwise it does not
+				// exist in the Hibernate context, and intercepted events (like the addPosition below), which has side-effects
+				// like persisting other objects that references users (and then it needs to exists i the hibernate context first)
+				userService.save(userToCreate);
+				
 				// only add positions if the user is from the primary domain
 				if (DomainService.isPrimaryDomain(domain)) {
 					for (Position p : newUser.getPositions()) {
 						addPosition(userToCreate, p);
 					}
 				}
-
 
 				toBeCreated.add(userToCreate);
 			}
@@ -1259,12 +1270,12 @@ public class OrganisationImporter {
 					User user = deletedEvent.getUser();
 					
 					String title = template.getTitle();
-					title = title.replace(EmailTemplateService.ITSYSTEM_PLACEHOLDER, deletedEvent.getItSystemName());
-					title = title.replace(EmailTemplateService.USER_PLACEHOLDER, user.getName() + " (" + user.getUserId() + ")");
+					title = title.replace(EmailTemplatePlaceholder.ITSYSTEM_PLACEHOLDER.getPlaceholder(), deletedEvent.getItSystemName());
+					title = title.replace(EmailTemplatePlaceholder.USER_PLACEHOLDER.getPlaceholder(), user.getName() + " (" + user.getUserId() + ")");
 					
 					String message = template.getMessage();
-					message = message.replace(EmailTemplateService.ITSYSTEM_PLACEHOLDER, deletedEvent.getItSystemName());
-					message = message.replace(EmailTemplateService.USER_PLACEHOLDER, user.getName() + " (" + user.getUserId() + ")");
+					message = message.replace(EmailTemplatePlaceholder.ITSYSTEM_PLACEHOLDER.getPlaceholder(), deletedEvent.getItSystemName());
+					message = message.replace(EmailTemplatePlaceholder.USER_PLACEHOLDER.getPlaceholder(), user.getName() + " (" + user.getUserId() + ")");
 
 					for (String email: emailAddresses) {
 						emailQueueService.queueEmail(email, title, message, template, null);

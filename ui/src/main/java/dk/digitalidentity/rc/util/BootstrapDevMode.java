@@ -1,18 +1,5 @@
 package dk.digitalidentity.rc.util;
 
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.List;
-import java.util.UUID;
-
-import dk.digitalidentity.rc.service.DomainService;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.scheduling.annotation.EnableScheduling;
-import org.springframework.scheduling.annotation.Scheduled;
-import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
-
 import dk.digitalidentity.rc.config.Constants;
 import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
 import dk.digitalidentity.rc.controller.api.model.OrgUnitDTO;
@@ -40,10 +27,22 @@ import dk.digitalidentity.rc.dao.model.enums.ConstraintValueType;
 import dk.digitalidentity.rc.dao.model.enums.ItSystemType;
 import dk.digitalidentity.rc.dao.model.enums.RoleType;
 import dk.digitalidentity.rc.service.ConstraintTypeService;
+import dk.digitalidentity.rc.service.DomainService;
 import dk.digitalidentity.rc.service.ItSystemService;
 import dk.digitalidentity.rc.service.OrgUnitService;
 import dk.digitalidentity.rc.service.OrganisationImporter;
 import dk.digitalidentity.rc.service.SystemRoleService;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.scheduling.annotation.EnableScheduling;
+import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.List;
+import java.util.UUID;
 
 @Transactional(rollbackFor = Exception.class)
 @Component
@@ -117,6 +116,8 @@ public class BootstrapDevMode {
 			importOrganisation();
 			
 			findUserOneAndMakeHimAdmin();
+
+			setItSystemResponsible();
 		}
 
 		// when running tests (and only when running tests), we need
@@ -143,6 +144,7 @@ public class BootstrapDevMode {
 	private void findUserOneAndMakeHimAdmin() {
 		User user1 = userDao.findByUserIdAndDomainAndDeletedFalse("user1", domainService.getPrimaryDomain());
 		User bsg = userDao.findByUserIdAndDomainAndDeletedFalse("bsg", domainService.getPrimaryDomain());
+		User kbp = userDao.findByUserIdAndDomainAndDeletedFalse("kbp", domainService.getPrimaryDomain());
 		UserRole administrator = userRoleDao.getByIdentifier("administrator");
 		
 		UserUserRoleAssignment assignment = new UserUserRoleAssignment();
@@ -151,7 +153,7 @@ public class BootstrapDevMode {
 		assignment.setAssignedByUserId("system");
 		assignment.setAssignedTimestamp(new Date());
 		assignment.setUserRole(administrator);
-		
+
 		user1.getUserRoleAssignments().add(assignment);
 		userDao.save(user1);
 		
@@ -161,9 +163,27 @@ public class BootstrapDevMode {
 		assignment.setAssignedByUserId("system");
 		assignment.setAssignedTimestamp(new Date());
 		assignment.setUserRole(administrator);
-		
+
 		bsg.getUserRoleAssignments().add(assignment);
 		userDao.save(bsg);
+
+		assignment = new UserUserRoleAssignment();
+		assignment.setUser(kbp);
+		assignment.setAssignedByName("Systembruger");
+		assignment.setAssignedByUserId("system");
+		assignment.setAssignedTimestamp(new Date());
+		assignment.setUserRole(administrator);
+
+		kbp.getUserRoleAssignments().add(assignment);
+		userDao.save(kbp);
+	}
+
+	private void setItSystemResponsible() {
+		User bsg = userDao.findByUserIdAndDomainAndDeletedFalse("bsg", domainService.getPrimaryDomain());
+		itSystemService.getAll()
+				.forEach(system -> {
+					system.setAttestationResponsible(bsg);
+				});
 	}
 
 	private void importOrganisation() throws Exception {
@@ -236,6 +256,12 @@ public class BootstrapDevMode {
 		p.setOrgUnitUuid(kommune.getUuid());
 		bsg.getPositions().add(p);
 
+		UserDTO kbp = createUser(users, "Kaspar Tester", "kbp");
+		p = new PositionDTO();
+		p.setName("Tester");
+		p.setOrgUnitUuid(kommune.getUuid());
+		kbp.getPositions().add(p);
+
 		UserDTO viggo = createUser(users, "Viggo Mortensen", "vmort");
 		p = new PositionDTO();
 		p.setName("Borgmester");
@@ -286,6 +312,9 @@ public class BootstrapDevMode {
 			assignment.setAssignedByName("system");
 			assignment.setAssignedByUserId("system");
 			assignment.setAssignedTimestamp(new Date());
+			if (user.getPositions() != null && user.getPositions().size() > 0) {
+				assignment.setOrgUnit(user.getPositions().get(0).getOrgUnit());
+			}
 			user.getUserRoleAssignments().add(assignment);
 		}
 
@@ -305,6 +334,7 @@ public class BootstrapDevMode {
 			userRole.setName(itSystem.getName() + " role " + i);
 			userRole.setItSystem(itSystem);
 			userRole.setSystemRoleAssignments(new ArrayList<>());
+			userRole.setRoleAssignmentAttestationByAttestationResponsible(true);
 
 			SystemRole systemRole = systemRoles.get(0);
 			SystemRoleAssignment sra = new SystemRoleAssignment();

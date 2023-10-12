@@ -13,8 +13,11 @@ import javax.validation.Valid;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.OUListForm;
 import dk.digitalidentity.rc.dao.model.Domain;
 import dk.digitalidentity.rc.dao.model.OrgUnit;
+import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.service.DomainService;
 import dk.digitalidentity.rc.service.OrgUnitService;
+import dk.digitalidentity.rc.service.SettingsService;
+import dk.digitalidentity.rc.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -86,6 +89,12 @@ public class ItSystemController {
 
 	@Autowired
 	private DomainService domainService;
+
+	@Autowired
+	private UserService userService;
+
+	@Autowired
+	private SettingsService settingsService;
 
 	@InitBinder(value = { "itSystemForm" })
 	public void initBinderItSystemForm(WebDataBinder binder) {
@@ -169,6 +178,10 @@ public class ItSystemController {
 		itSystem.setIdentifier(itSystemForm.getIdentifier());
 		itSystem.setEmail(itSystemForm.getEmail());
 
+		// can be null
+		User user = userService.getByUuid(itSystemForm.getSelectedResponsibleUuid());
+		itSystem.setAttestationResponsible(user);
+
 		switch (itSystemForm.getSystemType()) {
 			case AD:
 				itSystem.setSystemType(ItSystemType.AD);
@@ -207,6 +220,7 @@ public class ItSystemController {
 		model.addAttribute("itsystem", itSystem);
 		model.addAttribute("systemRoles", systemRoles);
 		model.addAttribute("userRoles", userRoleService.getByItSystem(itSystem));
+		model.addAttribute("attestationResponsibleName", itSystem.getAttestationResponsible() == null ? "" : itSystem.getAttestationResponsible().getName() + " (" + itSystem.getAttestationResponsible().getUserId() + ")");
 
 		Optional<ItSystemMaster> subscribedTo = itSystemMasterService.findAll().stream().filter(its -> Objects.equals(its.getMasterId(), itSystem.getSubscribedTo())).findAny();
 		model.addAttribute("subscribedTo", subscribedTo.isPresent() ? subscribedTo.get().getName() : "");
@@ -244,6 +258,9 @@ public class ItSystemController {
 		model.addAttribute("convertSystemRolesForm", convertSystemRolesForm);
 		model.addAttribute("allOUs", ouListForms);
 		model.addAttribute("selectedOUs", itSystem.getOrgUnitFilterOrgUnits().stream().map(OrgUnit::getUuid).toList());
+		model.addAttribute("attestationResponsibleName", itSystem.getAttestationResponsible() == null ? "" : itSystem.getAttestationResponsible().getName() + " (" + itSystem.getAttestationResponsible().getUserId() + ")");
+		model.addAttribute("attestationResponsibleUuid", itSystem.getAttestationResponsible() == null ? "" : itSystem.getAttestationResponsible().getUuid());
+		model.addAttribute("attestationEnabled", settingsService.isScheduledAttestationEnabled());
 
 		return "itsystem/edit";
 	}

@@ -34,7 +34,7 @@ namespace RoleCatalogImporter
                     orgUnit.name = ou.Name;
                     orgUnit.uuid = ou.Uuid;
 
-                    if (ADUrl.Contains(ou.Dn))
+                    if (ADUrl.EndsWith(ou.Dn,StringComparison.InvariantCultureIgnoreCase))
                     {
                         orgUnit.parentOrgUnitUuid = null;
                     }

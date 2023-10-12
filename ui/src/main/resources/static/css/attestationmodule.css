@@ -1,0 +1,51 @@
+.actionColumn {
+	width: 80px !important;
+}
+
+.dateColumn {
+    width: 80px !important;
+}
+
+.progressColumn {
+   width: 600px !important;
+}
+
+pre {
+  font-family: inherit;
+}
+
+.pre-like-p {
+    background-color: inherit;
+    border: 0px;
+    padding: 0px;
+}
+
+.navActive {
+	font-weight: bold !important;
+	color: #1ab394 !important;
+}
+
+.navBtnsText {
+    padding-left: 5px;
+    padding-right: 5px;
+    margin-top: 8px;
+    margin-bottom: 8px;
+    width: 60px;
+    text-align: center;
+}
+
+.expandable {
+    cursor: pointer;
+}
+
+.expandable-content-description {
+    background-color: white;
+}
+
+.assignedThroughLabel {
+    font-weight: bold;
+}
+
+.passedDeadline {
+    color: red;
+}

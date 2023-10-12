@@ -1,27 +1,5 @@
 package dk.digitalidentity.rc.service;
 
-import java.time.LocalDate;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
-import java.util.Set;
-import java.util.UUID;
-import java.util.function.Function;
-import java.util.stream.Collectors;
-
-import org.jsoup.Jsoup;
-import org.jsoup.nodes.Document;
-import org.jsoup.nodes.Element;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.MessageSource;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-import org.springframework.util.StringUtils;
-
 import dk.digitalidentity.rc.controller.mvc.viewmodel.InlineImageDTO;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.ReportForm;
 import dk.digitalidentity.rc.dao.history.model.HistoryItSystem;
@@ -37,10 +15,32 @@ import dk.digitalidentity.rc.dao.model.OrgUnit;
 import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserRole;
 import dk.digitalidentity.rc.dao.model.UserRoleEmailTemplate;
+import dk.digitalidentity.rc.dao.model.enums.EmailTemplatePlaceholder;
 import dk.digitalidentity.rc.dao.model.enums.ItSystemType;
 import dk.digitalidentity.rc.service.model.UserRoleAssignmentReportEntry;
 import dk.digitalidentity.rc.util.StreamExtensions;
 import lombok.extern.slf4j.Slf4j;
+import org.jsoup.Jsoup;
+import org.jsoup.nodes.Document;
+import org.jsoup.nodes.Element;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.MessageSource;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
+
+import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -308,14 +308,14 @@ public class ManualRolesService {
 			List<InlineImageDTO> inlineImages = transformImages(template);
 			
 			String title = template.getTitle();
-			title = title.replace(EmailTemplateService.RECEIVER_PLACEHOLDER, recipientNames);
-			title = title.replace(EmailTemplateService.ROLE_PLACEHOLDER, userRole.getName());
-			title = title.replace(EmailTemplateService.USER_PLACEHOLDER, user.getName() + " (" + user.getUserId() + ")");
+			title = title.replace(EmailTemplatePlaceholder.RECEIVER_PLACEHOLDER.getPlaceholder(), recipientNames);
+			title = title.replace(EmailTemplatePlaceholder.ROLE_NAME.getPlaceholder(), userRole.getName());
+			title = title.replace(EmailTemplatePlaceholder.USER_PLACEHOLDER.getPlaceholder(), user.getName() + " (" + user.getUserId() + ")");
 
 			String message = template.getMessage();
-			message = message.replace(EmailTemplateService.RECEIVER_PLACEHOLDER, recipientNames);
-			message = message.replace(EmailTemplateService.ROLE_PLACEHOLDER, userRole.getName());
-			message = message.replace(EmailTemplateService.USER_PLACEHOLDER, user.getName() + " (" + user.getUserId() + ")");
+			message = message.replace(EmailTemplatePlaceholder.RECEIVER_PLACEHOLDER.getPlaceholder(), recipientNames);
+			message = message.replace(EmailTemplatePlaceholder.ROLE_NAME.getPlaceholder(), userRole.getName());
+			message = message.replace(EmailTemplatePlaceholder.USER_PLACEHOLDER.getPlaceholder(), user.getName() + " (" + user.getUserId() + ")");
 			
 			emailService.sendMessage(recipientMails, title, message, inlineImages);
 			

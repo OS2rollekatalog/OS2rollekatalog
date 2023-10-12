@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html>
+<body>
+<div th:fragment="topbar" class="row border-bottom white-bg">
+    <nav class="navbar navbar-expand-lg navbar-static-top"
+         role="navigation">
+        <a th:href="@{/ui/attestation/v2}" class="navbar-brand" style="background: white;">
+            <div class="brand-logo">
+                <img th:src="@{/img/logo.png}" alt="Logo" class="img-responsive" style="height: 25px;"/>
+            </div>
+        </a>
+
+        <button class="navbar-toggler" type="button" data-toggle="collapse"
+                data-target="#navbar" aria-expanded="false"
+                aria-label="Toggle navigation">
+            <i class="fa fa-reorder"></i>
+        </button>
+
+			<div class="navbar-collapse collapse" id="navbar">
+				<ul class="nav navbar-nav mr-auto">
+
+					<th:block sec:authorize="isAuthenticated()">
+						<li>
+							<a role="button" th:href="@{/ui/attestation/v2}" th:class="${page == 'dashboard'} ? 'navActive' : ''" th:text="#{attestationmodule.topbar.dashboard}"></a>
+						</li>
+						<li sec:authorize="hasRole('ROLE_ADMINISTRATOR') or hasRole('ROLE_ATTESTATION_ADMINISTRATOR')">
+							<a role="button" th:href="@{/ui/attestation/v2/admin}" th:class="${page == 'admin'} ? 'navActive' : ''" th:text="#{attestationmodule.topbar.admin}"></a>
+						</li>
+                        <li>
+                            <a role="button" th:href="@{/ui/attestation/v2/reports}" th:class="${page == 'reports'} ? 'navActive' : ''" th:text="#{attestationmodule.topbar.reports}"></a>
+                        </li>
+					</th:block>
+				</ul>
+
+            <ul sec:authorize="isAuthenticated()" class="d-none d-lg-inline nav navbar-top-links navbar-right ">
+                <li class="dropdown show">
+                    <a data-toggle="dropdown" href="#" aria-expanded="true"> <i class="fa fa-user"></i></a>
+                    <ul class="dropdown-menu">
+                        <li>
+                            <a th:href="@{/saml/logout}">
+                                <i class="fa fa-sign-out"></i> &nbsp; Log ud
+                            </a>
+                        </li>
+                    </ul>
+                </li>
+            </ul>
+        </div>
+    </nav>
+</div>
+</body>
+</html>

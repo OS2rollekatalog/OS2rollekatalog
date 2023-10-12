@@ -16,6 +16,7 @@ import javax.persistence.JoinColumn;
 import javax.persistence.ManyToOne;
 import javax.persistence.OneToMany;
 
+import dk.digitalidentity.rc.dao.history.model.HistoryUserRole;
 import org.hibernate.annotations.BatchSize;
 
 import dk.digitalidentity.rc.dao.serializer.LocalDateAttributeConverter;
@@ -62,4 +63,8 @@ public class UserUserRoleAssignment {
 	
 	@OneToMany(mappedBy = "userUserRoleAssignment", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
 	private List<PostponedConstraint> postponedConstraints;
+
+	@ManyToOne(fetch = FetchType.LAZY)
+	@JoinColumn(name = "ou_uuid")
+	private OrgUnit orgUnit;
 }

@@ -112,7 +112,7 @@ namespace ADSyncService
                             itSystemData.systemRoles.Add(systemRole);
 
                             // add members
-                            List<string> members = adStub.GetGroupMembers(group.Uuid);
+                            List<string> members = adStub.GetGroupMembers(group.Uuid, true);
                             if (members != null)
                             {
                                 foreach (var member in members)
@@ -126,7 +126,7 @@ namespace ADSyncService
                         }
                         else if (ReImportUsersEnabled())
                         {
-                            List<string> members = adStub.GetGroupMembers(group.Uuid);
+                            List<string> members = adStub.GetGroupMembers(group.Uuid, true);
                             if (members != null)
                             {
                                 log.Info("Re-importing users to " + itSystemData.name);

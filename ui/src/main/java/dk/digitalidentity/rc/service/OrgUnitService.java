@@ -1,5 +1,51 @@
 package dk.digitalidentity.rc.service;
 
+import dk.digitalidentity.rc.config.Constants;
+import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
+import dk.digitalidentity.rc.dao.OrgUnitDao;
+import dk.digitalidentity.rc.dao.OrgUnitRoleGroupAssignmentDao;
+import dk.digitalidentity.rc.dao.OrgUnitUserRoleAssignmentDao;
+import dk.digitalidentity.rc.dao.RoleGroupDao;
+import dk.digitalidentity.rc.dao.TitleDao;
+import dk.digitalidentity.rc.dao.UserDao;
+import dk.digitalidentity.rc.dao.model.AuthorizationManager;
+import dk.digitalidentity.rc.dao.model.KLEMapping;
+import dk.digitalidentity.rc.dao.model.ManagerSubstitute;
+import dk.digitalidentity.rc.dao.model.OrgUnit;
+import dk.digitalidentity.rc.dao.model.OrgUnitRoleGroupAssignment;
+import dk.digitalidentity.rc.dao.model.OrgUnitUserRoleAssignment;
+import dk.digitalidentity.rc.dao.model.Position;
+import dk.digitalidentity.rc.dao.model.RoleGroup;
+import dk.digitalidentity.rc.dao.model.Title;
+import dk.digitalidentity.rc.dao.model.User;
+import dk.digitalidentity.rc.dao.model.UserRole;
+import dk.digitalidentity.rc.dao.model.UserRoleGroupAssignment;
+import dk.digitalidentity.rc.dao.model.UserUserRoleAssignment;
+import dk.digitalidentity.rc.dao.model.enums.KleType;
+import dk.digitalidentity.rc.dao.model.enums.OrgUnitLevel;
+import dk.digitalidentity.rc.exceptions.OrgUnitNotFoundException;
+import dk.digitalidentity.rc.log.AuditLogIntercepted;
+import dk.digitalidentity.rc.security.SecurityUtil;
+import dk.digitalidentity.rc.service.model.AssignedThrough;
+import dk.digitalidentity.rc.service.model.OrgUnitAssignedToUserRoleDTO;
+import dk.digitalidentity.rc.service.model.OrgUnitWithRole;
+import dk.digitalidentity.rc.service.model.OrgUnitWithRole2;
+import dk.digitalidentity.rc.service.model.RoleAssignedToOrgUnitDTO;
+import dk.digitalidentity.rc.service.model.RoleWithDateDTO;
+import dk.digitalidentity.rc.util.StreamExtensions;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.collections4.CollectionUtils;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.EnableCaching;
+import org.springframework.scheduling.annotation.EnableScheduling;
+import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
+
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.ArrayList;
@@ -15,48 +61,6 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
-
-import org.apache.commons.collections4.CollectionUtils;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.cache.annotation.CacheEvict;
-import org.springframework.cache.annotation.Cacheable;
-import org.springframework.cache.annotation.EnableCaching;
-import org.springframework.scheduling.annotation.EnableScheduling;
-import org.springframework.scheduling.annotation.Scheduled;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-import org.springframework.util.StringUtils;
-
-import dk.digitalidentity.rc.config.Constants;
-import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
-import dk.digitalidentity.rc.dao.OrgUnitDao;
-import dk.digitalidentity.rc.dao.OrgUnitRoleGroupAssignmentDao;
-import dk.digitalidentity.rc.dao.OrgUnitUserRoleAssignmentDao;
-import dk.digitalidentity.rc.dao.RoleGroupDao;
-import dk.digitalidentity.rc.dao.TitleDao;
-import dk.digitalidentity.rc.dao.UserDao;
-import dk.digitalidentity.rc.dao.model.AuthorizationManager;
-import dk.digitalidentity.rc.dao.model.KLEMapping;
-import dk.digitalidentity.rc.dao.model.OrgUnit;
-import dk.digitalidentity.rc.dao.model.OrgUnitRoleGroupAssignment;
-import dk.digitalidentity.rc.dao.model.OrgUnitUserRoleAssignment;
-import dk.digitalidentity.rc.dao.model.RoleGroup;
-import dk.digitalidentity.rc.dao.model.Title;
-import dk.digitalidentity.rc.dao.model.User;
-import dk.digitalidentity.rc.dao.model.UserRole;
-import dk.digitalidentity.rc.dao.model.enums.KleType;
-import dk.digitalidentity.rc.dao.model.enums.OrgUnitLevel;
-import dk.digitalidentity.rc.exceptions.OrgUnitNotFoundException;
-import dk.digitalidentity.rc.log.AuditLogIntercepted;
-import dk.digitalidentity.rc.security.SecurityUtil;
-import dk.digitalidentity.rc.service.model.AssignedThrough;
-import dk.digitalidentity.rc.service.model.OrgUnitAssignedToUserRoleDTO;
-import dk.digitalidentity.rc.service.model.OrgUnitWithRole;
-import dk.digitalidentity.rc.service.model.OrgUnitWithRole2;
-import dk.digitalidentity.rc.service.model.RoleAssignedToOrgUnitDTO;
-import dk.digitalidentity.rc.service.model.RoleWithDateDTO;
-import dk.digitalidentity.rc.util.StreamExtensions;
-import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 @Service
@@ -102,6 +106,9 @@ public class OrgUnitService {
 	
 	@Autowired
 	private ManagerSubstituteService managerSubstituteService;
+
+	@Value("${environment.dev:false}")
+	private boolean devEnvironment;
 	
 	// dao methods
 
@@ -141,6 +148,18 @@ public class OrgUnitService {
 		return orgUnitDao.findByUuidAndActiveTrue(uuid);
 	}
 
+	public List<OrgUnit> getByManagerMatchingUserAndSubstitute(User manager, User substitite) {
+		List<OrgUnit> orgUnits = new ArrayList<>();
+		
+		for (ManagerSubstitute sub : manager.getManagerSubstitutes()) {
+			if (Objects.equals(sub.getSubstitute().getUuid(), substitite.getUuid())) {
+				orgUnits.add(sub.getOrgUnit());
+			}
+		}
+		
+		return orgUnits;
+	}
+	
 	// used when we need direct match with manager, ignoring substitutes (e.g. during login)
 	public List<OrgUnit> getByManagerMatchingUser(User user) {
 		return orgUnitDao.findByManager(user);
@@ -211,7 +230,7 @@ public class OrgUnitService {
 					List<User> managers = securityUtil.getManagersBySubstitute();
 					
 					for (User manager : managers) {
-						result.addAll(getByManagerMatchingUser(manager));
+						result.addAll(getByManagerMatchingUserAndSubstitute(manager, user));
 					}
 				}
 			}
@@ -1178,5 +1197,83 @@ public class OrgUnitService {
 				save(orgUnit);
 			}
 		}
+	}
+
+	@Transactional
+	public void removeRoleAssignmentsWithoutOU() {
+		List<User> users = userService.getAll();
+		try {
+			SecurityUtil.loginSystemAccount();
+			for (User user : users) {
+				List<OrgUnit> orgUnits = getOrgUnitsForUser(user);
+				if (orgUnits.isEmpty()) {
+					userService.removeAllDirectlyAssignedRoles(user);
+				}
+			}
+		} finally {
+			SecurityUtil.logoutSystemAccount();
+		}
+	}
+
+	@Transactional
+	public void syncOrgUnitOnRoleAssignments() {
+		List<User> users = userService.getAll();
+		for (User user : users) {
+			List<OrgUnit> orgUnits = getOrgUnitsForUser(user);
+			if (orgUnits.isEmpty()) {
+				continue;
+			}
+
+			// set orgUnit on assignments
+			boolean changes = false;
+			for (UserUserRoleAssignment userRoleAssignment : user.getUserRoleAssignments()) {
+				if (userRoleAssignment.getOrgUnit() == null) {
+					userRoleAssignment.setOrgUnit(orgUnits.get(0));
+					changes = true;
+				} else {
+
+					// check if the orgUnit on the assignment is one of the possible OrgUnits. If not set the role assignment OrgUnit to first of list
+					if (orgUnits.stream().noneMatch(o -> o.getUuid().equals(userRoleAssignment.getOrgUnit().getUuid()))) {
+						userRoleAssignment.setOrgUnit(orgUnits.get(0));
+						changes = true;
+					}
+				}
+			}
+			for (UserRoleGroupAssignment roleGroupAssignment : user.getRoleGroupAssignments()) {
+				if (roleGroupAssignment.getOrgUnit() == null) {
+					roleGroupAssignment.setOrgUnit(orgUnits.get(0));
+					changes = true;
+				} else {
+
+					// check if the orgUnit on the assignment is one of the possible OrgUnits. If not set the role assignment OrgUnit to first of list
+					if (orgUnits.stream().noneMatch(o -> o.getUuid().equals(roleGroupAssignment.getOrgUnit().getUuid()))) {
+						roleGroupAssignment.setOrgUnit(orgUnits.get(0));
+						changes = true;
+					}
+				}
+			}
+
+			if (changes) {
+				userService.save(user);
+			}
+		}
+
+		SecurityUtil.logoutSystemAccount();
+	}
+
+	public List<OrgUnit> getOrgUnitsForUser(User user) {
+		List<OrgUnit> orgUnits = new ArrayList<>();
+		List<String> addedUuids = new ArrayList<>();
+
+		if (user.getPositions() != null) {
+			for (Position position : user.getPositions()) {
+				if (!addedUuids.contains(position.getOrgUnit().getUuid())) {
+					orgUnits.add(position.getOrgUnit());
+					addedUuids.add(position.getOrgUnit().getUuid());
+				}
+			}
+		}
+
+		return orgUnits;
 	}
 }

@@ -1,9 +1,10 @@
 package dk.digitalidentity.rc.controller.api.dto;
 
-import java.util.List;
-
+import dk.digitalidentity.rc.attestation.model.dto.UserRoleDTO;
 import lombok.Getter;
 import lombok.Setter;
+
+import java.util.List;
 
 @Getter
 @Setter

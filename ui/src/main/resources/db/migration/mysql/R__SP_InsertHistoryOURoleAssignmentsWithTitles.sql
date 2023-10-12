@@ -12,11 +12,11 @@ CREATE PROCEDURE SP_InsertHistoryOURoleAssignmentsWithTitles()
 BEGIN
   INSERT INTO history_role_assignment_titles (
     dato, ou_uuid, title_uuids,
-    role_id, role_name, role_it_system_id, role_it_system_name, role_role_group,
+    role_id, role_name, role_it_system_id, role_it_system_name, role_role_group, role_role_group_id,
     assigned_by_user_id, assigned_by_name, assigned_when)
   SELECT
     CURRENT_TIMESTAMP, o.uuid, GROUP_CONCAT(oureu.title_uuid),
-    ur.id, ur.name, it.id, it.name, NULL,
+    ur.id, ur.name, it.id, it.name, NULL, NULL,
     our.assigned_by_user_id, our.assigned_by_name, our.assigned_timestamp
   FROM ou_roles our
   JOIN ous o ON o.uuid = our.ou_uuid
@@ -29,11 +29,11 @@ BEGIN
   -- user roles through rolegroups from direct assignments
   INSERT INTO history_role_assignment_titles (
     dato, ou_uuid, title_uuids,
-    role_id, role_name, role_it_system_id, role_it_system_name, role_role_group,
+    role_id, role_name, role_it_system_id, role_it_system_name, role_role_group, role_role_group_id,
     assigned_by_user_id, assigned_by_name, assigned_when)
   SELECT
     CURRENT_TIMESTAMP, o.uuid, GROUP_CONCAT(ourgeu.title_uuid),
-    ur.id, ur.name, it.id, it.name, rg.name,
+    ur.id, ur.name, it.id, it.name, rg.name, rg.id,
     ourg.assigned_by_user_id, ourg.assigned_by_name, ourg.assigned_timestamp
   FROM ou_rolegroups ourg
   JOIN ous o ON o.uuid = ourg.ou_uuid

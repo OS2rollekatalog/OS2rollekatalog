@@ -56,4 +56,8 @@ public class UserRoleGroupAssignment {
 	
 	@Column
 	private boolean inactive;
+
+	@ManyToOne(fetch = FetchType.LAZY)
+	@JoinColumn(name = "ou_uuid")
+	private OrgUnit orgUnit;
 }

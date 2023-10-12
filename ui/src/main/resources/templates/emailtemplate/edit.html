@@ -75,13 +75,28 @@
 											<button type="button" style="margin-right: 5px;" class="btn btn-lg btn-warning col-xs-2 buttonTest" th:text="#{html.page.email_template.test}"></button>
 										</div>
 									</div>
+
+									<div class="form-group">
+										<div class="col-sm-offset-2 col-sm-8">
+											<h4 th:text="#{html.entity.email_template.placeholders}"></h4>
+											<p th:text="#{html.entity.email_template.placeholders.intro}"></p>
+											<table class="table">
+												<thead>
+												<tr>
+													<th th:text="#{html.entity.email_template.placeholders.placeholder}" style="width: 250px;"/>
+													<th th:text="#{html.entity.email_template.placeholders.description}"/>
+												</tr>
+												</thead>
+												<tbody>
+													<tr th:each="placeholder : ${template.emailTemplatePlaceholders}">
+														<td th:text="${placeholder.placeholder}"/>
+														<td th:text="#{${placeholder.description}}"/>
+													</tr>
+												</tbody>
+											</table>
+										</div>
+									</div>
 								</form>
-							</div>
-						</div>
-						
-						<div class="row">
-							<div class="col-lg-offset-2 col-lg-8">
-								<em th:utext="#{html.page.email_template.footer}"></em>
 							</div>
 						</div>
 					</div>

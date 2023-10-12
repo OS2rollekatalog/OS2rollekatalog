@@ -1,6 +1,7 @@
 package dk.digitalidentity.rc.dao;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 
 import dk.digitalidentity.rc.dao.model.Domain;

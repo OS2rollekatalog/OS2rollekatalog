@@ -16,17 +16,19 @@ BEGIN
         ,role_it_system_id
         ,role_it_system_name
         ,role_role_group
+        ,role_role_group_id
         ,assigned_by_user_id
         ,assigned_by_name
         ,assigned_when)
     SELECT
         CURRENT_TIMESTAMP
         ,MAX(o.uuid)
-        ,STRING_AGG(oureu.user_uuid, ',')
+        ,COALESCE(STRING_AGG(oureu.user_uuid, ','), '')
         ,MAX(ur.id)
         ,MAX(ur.name)
         ,MAX(it.id)
         ,MAX(it.name)
+        ,NULL
         ,NULL
         ,MAX(our.assigned_by_user_id)
         ,MAX(our.assigned_by_name)
@@ -35,7 +37,7 @@ BEGIN
         JOIN ous o ON o.uuid = our.ou_uuid
         JOIN user_roles ur ON ur.id = our.role_id
         JOIN it_systems it ON it.id = ur.it_system_id
-        JOIN ou_roles_excepted_users oureu ON oureu.ou_roles_id = our.id
+        LEFT JOIN ou_roles_excepted_users oureu ON oureu.ou_roles_id = our.id
     WHERE
         our.inherit = 0
         AND o.active = 1
@@ -50,12 +52,13 @@ BEGIN
     SELECT
         CURRENT_TIMESTAMP
         ,MAX(o.uuid)
-        ,STRING_AGG(ourgeu.user_uuid, ',')
+        ,COALESCE(STRING_AGG(ourgeu.user_uuid, ','), '')
         ,ur.id
         ,MAX(ur.name)
         ,MAX(it.id)
         ,MAX(it.name)
         ,MAX(rg.name)
+        ,MAX(rg.id)
         ,MAX(ourg.assigned_by_user_id)
         ,MAX(ourg.assigned_by_name)
         ,MAX(ourg.assigned_timestamp)
@@ -65,7 +68,7 @@ BEGIN
         JOIN rolegroup_roles rgr ON rgr.rolegroup_id = ourg.rolegroup_id
         JOIN user_roles ur ON ur.id = rgr.role_id
         JOIN it_systems it ON it.id = ur.it_system_id
-        JOIN ou_rolegroups_excepted_users ourgeu ON ourgeu.ou_rolegroups_id = ourg.rolegroup_id
+        LEFT JOIN ou_rolegroups_excepted_users ourgeu ON ourgeu.ou_rolegroups_id = ourg.rolegroup_id
     WHERE
         ourg.inherit = 0
         AND o.active = 1
