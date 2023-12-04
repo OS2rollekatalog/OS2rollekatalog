@@ -199,15 +199,12 @@
 	</style>
 
 	<div th:replace="ous/fragments/ou_roles_modal :: ouRolesModal(titles = ${titles})"></div>
-	<div th:replace="ous/fragments/ou_roles_edit_modal :: ouRolesEditModal(titles = ${titles})"></div>
 
 	<nav th:replace="fragments/footer :: footer"></nav>
 	
 	<script th:replace="fragments/datatables :: datatables "></script>
 	<script th:replace="fragments/assignDatePicker :: content "></script>
-	<script th:replace="ous/fragments/ou_roles_modal :: ouRoleGroupModalScript(titlesEnabled=${titlesEnabled})"></script>
-	<script th:replace="ous/fragments/ou_roles_edit_modal :: ouRolesEditModalScript(titlesEnabled=${titlesEnabled})"></script>
-
+	<script th:replace="ous/fragments/ou_roles_modal :: ouRolesModalScript(titlesEnabled=${titlesEnabled})"></script>
 
 	<script th:inline="javascript">
 		/*<![CDATA[*/
@@ -287,6 +284,9 @@
 			
 			//Initialize tabs
 			rolesService.loadRolesFragment();
+
+			// set parentService for editing roleassignments
+			commonService.parentService = rolesService;
 		});
 
 		function addCheckboxListeners() {
@@ -496,6 +496,7 @@
 					}
 				}
 			}
+
 			this.addRoleAssignment = function (elem) {
 				ouRolesModalService.roleType = String(elem.dataset.objtype);
 				ouRolesModalService.roleId = elem.dataset.roleid;

@@ -1,15 +1,14 @@
 package dk.digitalidentity.rc.dao;
 
 import java.util.List;
-import java.util.Optional;
 import java.util.Set;
 
-import dk.digitalidentity.rc.dao.model.Domain;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.CrudRepository;
 import org.springframework.data.repository.query.Param;
 
+import dk.digitalidentity.rc.dao.model.Domain;
 import dk.digitalidentity.rc.dao.model.RoleGroup;
 import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserRole;

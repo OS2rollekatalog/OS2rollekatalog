@@ -4,7 +4,7 @@
 #define AppId "{{5008e124-582e-41cd-9ae0-edd6c0daddb6}"
 #define AppSourceDir "\\VBOXSVR\brian\projects\role-catalogue\RoleCatalogImporter\RoleCatalogImporter\bin\Debug\"
 #define AppName "RoleCatalogueImporter"
-#define AppVersion "1.6.0"
+#define AppVersion "1.7.0"
 #define AppPublisher "Digital Identity"
 #define AppURL "http://digital-identity.dk/"
 #define AppExeName "RoleCatalogueImporter.exe"

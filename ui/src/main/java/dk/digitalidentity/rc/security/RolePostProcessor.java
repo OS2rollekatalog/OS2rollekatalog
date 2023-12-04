@@ -138,7 +138,7 @@ public class RolePostProcessor implements SamlLoginPostProcessor {
 			authorities.add(new SamlGrantedAuthority(Constants.ROLE_READ_ACCESS));
 		}
 
-		if (roles.contains(Constants.ROLE_ATTESTATION_ADMINISTRATOR)) {
+		if (roles.contains(Constants.ROLE_ATTESTATION_ADMINISTRATOR_ID)) {
 			authorities.add(new SamlGrantedAuthority(Constants.ROLE_ATTESTATION_ADMINISTRATOR));
 		}
 

@@ -39,7 +39,7 @@
                                         <tr th:each="orgUnit : ${orgUnits}">
                                             <td th:text="${orgUnit.name}"></td>
                                             <td th:text="${orgUnit.path}"></td>
-                                            <td style="text-align: center;"><a onclick="return downloadReport(this)" th:href="${'/rest/attestation/v2/reports/download/orgunits/' + orgUnit.uuid}"><em style="color: #212529" class="fa fa-download"></em></a></td>
+                                            <td style="text-align: center;"><a onclick="return downloadReport(this)" th:href="@{${'/rest/attestation/v2/reports/download/orgunits/' + orgUnit.uuid}}"><em style="color: #212529" class="fa fa-download"></em></a></td>
                                         </tr>
                                     </tbody>
                                 </table>
@@ -58,7 +58,7 @@
                                     <tbody>
                                         <tr th:each="system : ${itSystems}">
                                             <td th:text="${system.name}"></td>
-                                            <td style="text-align: center;"><a onclick="return downloadReport(this)" th:href="${'/rest/attestation/v2/reports/download/itsystems/' + system.id}"><em style="color: #212529" class="fa fa-download"></em></a></td>
+                                            <td style="text-align: center;"><a onclick="return downloadReport(this)" th:href="@{${'/rest/attestation/v2/reports/download/itsystems/' + system.id}}"><em style="color: #212529" class="fa fa-download"></em></a></td>
                                         </tr>
                                     </tbody>
                                 </table>
@@ -77,7 +77,7 @@
                                     <tbody>
                                     <tr>
                                         <td th:text="#{attestationmodule.html.reports.all.name}"></td>
-                                        <td style="text-align: center; width: 80px"><a onclick="return downloadReport(this)" th:href="${'/rest/attestation/v2/reports/download/all'}"><em style="color: #212529" class="fa fa-download"></em></a></td>
+                                        <td style="text-align: center; width: 80px"><a onclick="return downloadReport(this)" th:href="@{${'/rest/attestation/v2/reports/download/all'}}"><em style="color: #212529" class="fa fa-download"></em></a></td>
                                     </tr>
                                     </tbody>
                                 </table>

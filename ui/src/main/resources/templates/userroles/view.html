@@ -236,9 +236,7 @@
 	<script th:replace="fragments/assignDatePicker :: content "></script>
 	<script th:replace="users/fragments/role_assignment_edit_modal :: roleAssignmentEditModalScript"></script>
 	<script th:replace="users/fragments/user_user_role_modal :: userUserRoleModalScript(page='userrole')"></script>
-	<script th:replace="ous/fragments/ou_roles_modal :: ouRoleGroupModalScript(titlesEnabled=${titlesEnabled})"></script>
-	<script th:replace="ous/fragments/ou_roles_edit_modal :: ouRolesEditModalScript(titlesEnabled=${titlesEnabled})"></script>
-	
+
 	<script th:inline="javascript">
 		/*<![CDATA[*/
 			
@@ -275,8 +273,6 @@
 			userRoleEditModalService.parentService = userService;
 			
 			orgUnitService.loadRolesFragment();
-			ouRolesModalService.parentService = orgUnitService;
-			ouRolesEditModalService.parentService = orgUnitService;
 
 			if (infoMessage != null) {
 				notificationService.showInfoNotification(infoMessage);

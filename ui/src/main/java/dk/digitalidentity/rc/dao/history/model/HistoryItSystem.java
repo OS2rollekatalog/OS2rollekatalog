@@ -27,7 +27,7 @@ public class HistoryItSystem {
 	private LocalDate dato;
 
 	@Column
-	private long itSystemId;
+	private Long itSystemId;
 	
 	@Column
 	private String itSystemName;

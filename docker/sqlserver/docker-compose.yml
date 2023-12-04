@@ -1,0 +1,13 @@
+version: '3.3'
+services:
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2019-latest
+    environment:
+      ACCEPT_EULA: "Y"
+      SA_PASSWORD: "Test1234"
+      MSSQL_PID: "Developer"
+    restart: always
+    ports:
+      - "1433:1433"
+    expose:
+      - '1433'

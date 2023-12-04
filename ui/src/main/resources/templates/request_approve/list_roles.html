@@ -14,8 +14,10 @@
 						<table id="listTable1" class="table table-striped table-hover listTable">
 							<thead>
 								<tr>
-									<th class="col-md-7" th:text="#{html.entity.user.name}"></th>
-									<th class="col-md-4" th:text="#{html.page.users.manage.assignment.type}"></th>
+									<th class="col-md-2" th:text="#{html.entity.user.name}"></th>
+									<th class="col-md-2" th:text="#{html.entity.itsystem}"></th>
+									<th class="col-md-5" th:text="#{html.entity.userrole.description}"></th>
+									<th class="col-md-2" th:text="#{html.page.users.manage.assignment.type}"></th>
 									<th class="col-md-1">Anmod</th>
 								</tr>
 							</thead>
@@ -23,6 +25,8 @@
 							<tbody>
 								 <tr th:each="role : ${roles}">
 									<td th:text="${role.name}"></td>
+									<td th:text="${role.itSystemName}"></td>
+									<td th:text="${role.description}"></td>
 									<td th:if="${#strings.equals(role.type, 'userRole')}" th:text="#{html.role.assignment.type.userrole}"></td>
 								 	<td th:unless="${#strings.equals(role.type, 'userRole')}" th:text="#{html.role.assignment.type.rolegroup}"></td>
 								 	<td>

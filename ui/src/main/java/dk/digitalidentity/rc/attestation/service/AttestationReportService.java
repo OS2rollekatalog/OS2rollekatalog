@@ -1,5 +1,31 @@
 package dk.digitalidentity.rc.attestation.service;
 
+import static dk.digitalidentity.rc.attestation.AttestationConstants.CET_ZONE_ID;
+import static dk.digitalidentity.rc.attestation.AttestationConstants.REPORT_LOCK_NAME;
+
+import java.time.LocalDate;
+import java.time.ZonedDateTime;
+import java.util.Collection;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Objects;
+import java.util.function.Supplier;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+
+import javax.persistence.EntityManager;
+import javax.persistence.FlushModeType;
+import javax.persistence.PersistenceContext;
+
+import org.apache.commons.collections4.ListUtils;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.MessageSource;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import dk.digitalidentity.rc.attestation.dao.AttestationDao;
 import dk.digitalidentity.rc.attestation.dao.AttestationUserRoleAssignmentDao;
 import dk.digitalidentity.rc.attestation.model.dto.RoleAssignmentReportRowDTO;
@@ -15,47 +41,25 @@ import dk.digitalidentity.rc.attestation.model.entity.temporal.AssignedThroughTy
 import dk.digitalidentity.rc.attestation.model.entity.temporal.AttestationUserRoleAssignment;
 import dk.digitalidentity.rc.dao.model.ItSystem;
 import dk.digitalidentity.rc.dao.model.OrgUnit;
-import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.collections4.ListUtils;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.MessageSource;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
-import javax.persistence.EntityManager;
-import javax.persistence.FlushModeType;
-import javax.persistence.PersistenceContext;
-import java.time.LocalDate;
-import java.time.ZonedDateTime;
-import java.util.Collection;
-import java.util.Comparator;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
-import java.util.Objects;
-import java.util.function.Supplier;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
-
-import static dk.digitalidentity.rc.attestation.AttestationConstants.CET_ZONE_ID;
-import static dk.digitalidentity.rc.attestation.AttestationConstants.REPORT_LOCK_NAME;
-
-
-@Slf4j
 @Service
 public class AttestationReportService {
 
 	@Autowired
 	private MessageSource messageSource;
+
 	@Autowired
 	private AttestationDao attestationDao;
+	
 	@Autowired
 	private AttestationUserRoleAssignmentDao attestationUserRoleAssignmentDao;
+	
 	@Autowired
 	private AttestationCachedUserService cachedUserService;
+	
 	@Autowired
 	private AttestationLockService lockService;
+	
 	@PersistenceContext
 	private EntityManager entityManager;
 

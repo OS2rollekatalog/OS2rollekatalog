@@ -3,6 +3,7 @@ package dk.digitalidentity.rc.controller.mvc;
 import dk.digitalidentity.rc.config.Constants;
 import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
 import dk.digitalidentity.rc.security.SecurityUtil;
+import dk.digitalidentity.rc.service.FrontPageLinkService;
 import org.opensaml.saml.common.SAMLException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -44,12 +45,17 @@ public class DefaultController implements ErrorController {
 	
 	@Autowired
 	private RoleCatalogueConfiguration configuration;
+
+	@Autowired
+	private FrontPageLinkService frontPageLinkService;
 	
 	@GetMapping("/")
 	public String index(Model model) {
 		if (SecurityUtil.hasRole(Constants.ROLE_READ_ACCESS)) {
 			return "redirect:/ui/users/list";
 		}
+
+		model.addAttribute("links", frontPageLinkService.getAllActive());
 		
 		return "index";
 	}
@@ -68,7 +74,9 @@ public class DefaultController implements ErrorController {
 		if (SecurityUtil.hasRole(Constants.ROLE_TEMPLATE_ACCESS) || SecurityUtil.hasRole(Constants.ROLE_READ_ACCESS)) {
 			return "redirect:/ui/report/templates";
 		}
-
+		if (SecurityUtil.hasRole(Constants.ROLE_SUBSTITUTE) || SecurityUtil.hasRole(Constants.ROLE_MANAGER)) {
+			return "redirect:/ui/manager/substitute";
+		}
 		return "redirect:/";
 	}
 

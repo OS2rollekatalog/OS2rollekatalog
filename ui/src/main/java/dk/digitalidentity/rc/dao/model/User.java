@@ -16,6 +16,7 @@ import javax.persistence.TemporalType;
 
 import org.hibernate.annotations.BatchSize;
 import org.hibernate.annotations.UpdateTimestamp;
+import org.springframework.util.StringUtils;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 
@@ -103,5 +104,33 @@ public class User implements AuditLoggable {
 	@Override
 	public String getEntityName() {
 		return name + " (" + userId + ")";
+	}
+
+	@JsonIgnore
+	public String getFirstname() {
+		if (!StringUtils.hasLength(name)) {
+			return "Ukendt";
+		}
+		
+		int idx = name.lastIndexOf(" ");
+		if (idx <= 0) {
+			return name;
+		}
+		
+		return name.substring(0, idx);
+	}
+	
+	@JsonIgnore
+	public String getLastname() {
+		if (!StringUtils.hasLength(name)) {
+			return "Ukendtsen";
+		}
+
+		int idx = name.lastIndexOf(" ");
+		if (idx <= 0 || idx == name.length()) {
+			return name;
+		}
+
+		return name.substring(idx + 1);
 	}
 }

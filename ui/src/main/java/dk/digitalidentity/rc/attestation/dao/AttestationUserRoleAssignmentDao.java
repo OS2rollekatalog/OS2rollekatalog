@@ -45,7 +45,7 @@ public interface AttestationUserRoleAssignmentDao extends CrudRepository<Attesta
     @Query(nativeQuery = true, value = "SELECT * FROM attestation_user_role_assignments s2 " +
             "INNER JOIN (SELECT max(s.id) as id FROM attestation_user_role_assignments s " +
             "WHERE s.valid_from <= :validAt AND (s.valid_to > :validAt or s.valid_to is null) AND s.responsible_ou_uuid is not null " +
-            "GROUP BY s.responsible_ou_uuid, s.user_uuid, s.sensitive_role) as sub on sub.id = s2.id")
+            "GROUP BY s.responsible_ou_uuid, s.user_uuid, s.sensitive_role, s.assigned_through_type) as sub on sub.id = s2.id")
     List<AttestationUserRoleAssignment> findValidGroupByResponsibleOuAndUserUuidAndSensitiveRole(@Param("validAt") final LocalDate validAt);
 
     @Query("SELECT a FROM AttestationUserRoleAssignment a WHERE a.itSystemId=:itSystemId AND a.validFrom<=:to AND (a.validTo > :from OR a.validTo is null)")
@@ -58,7 +58,7 @@ public interface AttestationUserRoleAssignmentDao extends CrudRepository<Attesta
             @Param("from") final LocalDate from,
             @Param("to") final LocalDate to);
 
-    @Query("SELECT a.id FROM AttestationUserRoleAssignment a WHERE a.roleOuUuid=:ouUuid AND a.validFrom<=:to AND (a.validTo > :from OR a.validTo is null)")
+    @Query("SELECT a.id FROM AttestationUserRoleAssignment a WHERE a.responsibleOuUuid=:ouUuid AND a.validFrom<=:to AND (a.validTo > :from OR a.validTo is null)")
     List<Long> listAssignmentIdsValidBetweenForRoleOu(@Param("ouUuid") final String ouUuid,
                                                       @Param("from") final LocalDate from,
                                                       @Param("to") final LocalDate to);

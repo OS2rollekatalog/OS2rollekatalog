@@ -1,5 +1,28 @@
 package dk.digitalidentity.rc.service;
 
+import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.Base64;
+import java.util.Calendar;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.EnableCaching;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.RowMapper;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
+
 import dk.digitalidentity.rc.config.Constants;
 import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.UserRoleNotAssignedDTO;
@@ -62,28 +85,6 @@ import dk.digitalidentity.rc.service.model.UserWithRoleAndDates;
 import dk.digitalidentity.rc.util.IdentifierGenerator;
 import dk.digitalidentity.rc.util.StreamExtensions;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.cache.annotation.EnableCaching;
-import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.jdbc.core.RowMapper;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-import org.springframework.util.StringUtils;
-
-import java.time.LocalDate;
-import java.util.ArrayList;
-import java.util.Base64;
-import java.util.Calendar;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.Set;
-import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -109,9 +110,6 @@ public class UserService {
 	@Autowired
 	private JdbcTemplate jdbcTemplate;
 
-	@Autowired
-	private EmailService emailService;
-	
 	@Autowired
 	private ItSystemService itSystemService;
 	
@@ -321,18 +319,13 @@ public class UserService {
 		assignment.setInactive(startDate != null ? startDate.isAfter(LocalDate.now()) : false);
 
 		List<OrgUnit> orgUnits = orgUnitService.getOrgUnitsForUser(user);
-		if (orgUnits == null || orgUnits.isEmpty()) {
-			log.error("Tried to add roleGroup with name " + roleGroup.getName() + " to user with userId " + user.getUserId() + ", but user has no positions/orgunits. Not adding role." );
-			return;
-		}
-
 		if (orgUnit != null) {
 			if (orgUnits.stream().noneMatch(o -> o.getUuid().equals(orgUnit.getUuid()))) {
 				assignment.setOrgUnit(orgUnits.get(0));
 			} else {
 				assignment.setOrgUnit(orgUnit);
 			}
-		} else {
+		} else if (!orgUnits.isEmpty()) {
 			assignment.setOrgUnit(orgUnits.get(0));
 		}
 
@@ -350,18 +343,13 @@ public class UserService {
 		roleGroupAssignment.setInactive(startDate != null ? startDate.isAfter(LocalDate.now()) : false);
 
 		List<OrgUnit> orgUnits = orgUnitService.getOrgUnitsForUser(user);
-		if (orgUnits == null || orgUnits.isEmpty()) {
-			log.warn("Editing roleGroup assignment. Rolegroup with name " + roleGroupAssignment.getRoleGroup().getName() + " to user with userId " + user.getUserId() + ", but user has no positions/orgunits." );
-			return;
-		}
-
 		if (orgUnit != null) {
 			if (orgUnits.stream().noneMatch(o -> o.getUuid().equals(orgUnit.getUuid()))) {
 				roleGroupAssignment.setOrgUnit(orgUnits.get(0));
 			} else {
 				roleGroupAssignment.setOrgUnit(orgUnit);
 			}
-		} else {
+		} else if (!orgUnits.isEmpty()) {
 			roleGroupAssignment.setOrgUnit(orgUnits.get(0));
 		}
 	}
@@ -435,10 +423,6 @@ public class UserService {
 		assignment.setInactive(startDate != null ? startDate.isAfter(LocalDate.now()) : false);
 
 		List<OrgUnit> orgUnits = orgUnitService.getOrgUnitsForUser(user);
-		if (orgUnits == null || orgUnits.isEmpty()) {
-			log.error("Tried to add role with identifier " + userRole.getIdentifier() + " to user with userId " + user.getUserId() + ", but user has no positions/orgunits. Not adding role." );
-			return;
-		}
 
 		if (orgUnit != null) {
 			if (orgUnits.stream().noneMatch(o -> o.getUuid().equals(orgUnit.getUuid()))) {
@@ -446,7 +430,7 @@ public class UserService {
 			} else {
 				assignment.setOrgUnit(orgUnit);
 			}
-		} else {
+		} else if (!orgUnits.isEmpty()) {
 			assignment.setOrgUnit(orgUnits.get(0));
 		}
 
@@ -493,18 +477,13 @@ public class UserService {
 		}
 
 		List<OrgUnit> orgUnits = orgUnitService.getOrgUnitsForUser(user);
-		if (orgUnits == null || orgUnits.isEmpty()) {
-			log.warn("Editing role assignment. Userrole with identifier " + userRoleAssignment.getUserRole().getIdentifier() + " to user with userId " + user.getUserId() + ", but user has no positions/orgunits." );
-			return;
-		}
-
 		if (orgUnit != null) {
 			if (orgUnits.stream().noneMatch(o -> o.getUuid().equals(orgUnit.getUuid()))) {
 				userRoleAssignment.setOrgUnit(orgUnits.get(0));
 			} else {
 				userRoleAssignment.setOrgUnit(orgUnit);
 			}
-		} else {
+		} else if (!orgUnits.isEmpty()) {
 			userRoleAssignment.setOrgUnit(orgUnits.get(0));
 		}
 	}

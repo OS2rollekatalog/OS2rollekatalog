@@ -31,14 +31,17 @@ namespace ADSyncService
                     else
                     {
                         // argument to GetMembers indicate we want direct members, not indirect members
-                        foreach (Principal member in group.GetMembers(groupInGroup))
+                        using (var groupMembers = group.GetMembers(groupInGroup))
                         {
-                            if (member is GroupPrincipal)
+                            foreach (Principal member in groupMembers)
                             {
-                                continue;
-                            }
+                                if (member is GroupPrincipal)
+                                {
+                                    continue;
+                                }
 
-                            members.Add(member.SamAccountName.ToLower());
+                                members.Add(member.SamAccountName.ToLower());
+                            }
                         }
                     }
                 }

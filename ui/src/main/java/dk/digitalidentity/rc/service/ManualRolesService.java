@@ -63,6 +63,9 @@ public class ManualRolesService {
 
 	@Autowired
 	private ReportService reportService;
+
+	@Autowired
+	private HistoryService historyService;
 	
 	@Autowired
 	private ManagerSubstituteService managerSubstituteService;
@@ -96,6 +99,18 @@ public class ManualRolesService {
 
 	@Transactional
 	public void notifyServicedesk() {
+		// Fail-safe: In case there is no history record for today or yesterday, log an error and do nothing.
+		final LocalDate now = LocalDate.now();
+		final LocalDate yesterday = now.minusDays(1L);
+		if (!historyService.hasHistoryBeenGenerated(now)) {
+			log.error("Not notifying service desk, history missing for " + now);
+			return;
+		}
+		if (!historyService.hasHistoryBeenGenerated(yesterday)) {
+			log.error("Not notifying service desk, history missing for " + yesterday);
+			return;
+		}
+
 		// TODO: this will fail if there are multiple users with the same userId (and since we added domains, that is possible), so
 		// we need to do some refactoring on this entire feature *sigh*
 		Map<String, User> userMap = userService.getAll().stream().collect(Collectors.toMap(User::getUserId, Function.identity()));

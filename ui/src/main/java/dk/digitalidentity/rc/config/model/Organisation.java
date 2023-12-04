@@ -10,4 +10,8 @@ public class Organisation {
 	
 	@FeatureDocumentation(name = "Organisationsniveauer", description = "Indlæs organisationsniveauer fra ekstern kilde")
 	private boolean getLevelsFromApi = false;
+
+	@FeatureDocumentation(name = "InkluderPositioner", description = "Ved indlæsning via API, inkluder positioner fra sekundære domæner")
+	private boolean includePositionsFromSecondaryDomains = true;
+
 }

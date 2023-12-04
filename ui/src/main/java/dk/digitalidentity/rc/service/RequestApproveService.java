@@ -8,6 +8,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import dk.digitalidentity.rc.config.SessionConstants;
 import dk.digitalidentity.rc.dao.model.enums.EmailTemplatePlaceholder;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -28,6 +29,8 @@ import dk.digitalidentity.rc.dao.model.enums.RequestApproveStatus;
 import dk.digitalidentity.rc.security.AccessConstraintService;
 import dk.digitalidentity.rc.service.model.RequestApproveWrapper;
 import lombok.extern.slf4j.Slf4j;
+
+import javax.servlet.http.HttpServletRequest;
 
 @Slf4j
 @Service
@@ -295,5 +298,13 @@ public class RequestApproveService {
 	// TODO: optimize
 	public long count() {
 		return getPendingRequestsAuthorizationManager().size();
+	}
+
+	@Transactional
+	public void setCount(HttpServletRequest request) {
+		long count = requestApproveService.count();
+		if (count > 0) {
+			request.getSession().setAttribute(SessionConstants.SESSION_REQUEST_COUNT, count);
+		}
 	}
 }

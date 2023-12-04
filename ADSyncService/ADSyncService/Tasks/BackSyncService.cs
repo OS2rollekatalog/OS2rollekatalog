@@ -14,6 +14,7 @@ namespace ADSyncService
         private static log4net.ILog log = log4net.LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
         private static StringCollection ous = Properties.Settings.Default.BackSyncFeature_OUs;
         private static bool convertToUserRoles = Properties.Settings.Default.BackSyncFeature_CreateUserRoles;
+        private static bool groupsInGroupOnSync = Properties.Settings.Default.BackSyncFeature_GroupsInGroupOnSync;
 
         public static void SyncGroupsToRoleCatalogue(RoleCatalogueStub roleCatalogueStub, ADStub adStub)
         {
@@ -112,7 +113,7 @@ namespace ADSyncService
                             itSystemData.systemRoles.Add(systemRole);
 
                             // add members
-                            List<string> members = adStub.GetGroupMembers(group.Uuid, true);
+                            List<string> members = adStub.GetGroupMembers(group.Uuid, groupsInGroupOnSync);
                             if (members != null)
                             {
                                 foreach (var member in members)
@@ -126,7 +127,7 @@ namespace ADSyncService
                         }
                         else if (ReImportUsersEnabled())
                         {
-                            List<string> members = adStub.GetGroupMembers(group.Uuid, true);
+                            List<string> members = adStub.GetGroupMembers(group.Uuid, groupsInGroupOnSync);
                             if (members != null)
                             {
                                 log.Info("Re-importing users to " + itSystemData.name);

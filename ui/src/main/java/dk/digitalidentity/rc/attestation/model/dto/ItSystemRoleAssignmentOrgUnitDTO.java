@@ -18,6 +18,6 @@ public class ItSystemRoleAssignmentOrgUnitDTO {
 	private String orgUnitName;
 	private String verifiedByUserId;
 	private String remarks;
-	private boolean readOnly = false;
+	private boolean readOnly;
 	private List<OrgUnitUserRoleAssignmentDTO> userRoles;
 }

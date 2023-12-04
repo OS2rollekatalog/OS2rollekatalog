@@ -215,5 +215,14 @@ namespace ADSyncService.Properties {
                 return ((global::System.Collections.Specialized.StringCollection)(this["ReadonlyItSystemFeature_SystemMap"]));
             }
         }
+        
+        [global::System.Configuration.ApplicationScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("True")]
+        public bool BackSyncFeature_GroupsInGroupOnSync {
+            get {
+                return ((bool)(this["BackSyncFeature_GroupsInGroupOnSync"]));
+            }
+        }
     }
 }

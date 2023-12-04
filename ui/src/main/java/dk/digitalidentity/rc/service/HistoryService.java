@@ -78,6 +78,15 @@ public class HistoryService {
 	@Value("${spring.datasource.url:}")
 	private String dataSourceUrl;
 
+
+	/**
+	 * Check if the history job has succeeded.
+	 * There is no real good way of doing that atm. so just check if there is any users at current date.
+	 */
+	public boolean hasHistoryBeenGenerated(final LocalDate date) {
+		return historyUserDao.countByDato(date) > 0;
+	}
+
 	public List<HistoryManager> getManagers(LocalDate localDate) {
 		return historyManagerDao.findByDate(localDate.getYear(), localDate.getMonthValue(), localDate.getDayOfMonth()).stream()
 				.sorted(new Comparator<HistoryManager>() {

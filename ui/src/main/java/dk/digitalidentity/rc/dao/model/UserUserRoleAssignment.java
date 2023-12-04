@@ -16,7 +16,6 @@ import javax.persistence.JoinColumn;
 import javax.persistence.ManyToOne;
 import javax.persistence.OneToMany;
 
-import dk.digitalidentity.rc.dao.history.model.HistoryUserRole;
 import org.hibernate.annotations.BatchSize;
 
 import dk.digitalidentity.rc.dao.serializer.LocalDateAttributeConverter;
@@ -35,7 +34,7 @@ public class UserUserRoleAssignment {
 	@ManyToOne(fetch = FetchType.LAZY)
 	@JoinColumn(name = "user_uuid")
 	private User user;
-	
+
 	@BatchSize(size = 50)
 	@ManyToOne(fetch = FetchType.LAZY)
 	@JoinColumn(name = "role_id")

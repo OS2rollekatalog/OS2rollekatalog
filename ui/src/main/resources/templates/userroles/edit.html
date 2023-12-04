@@ -495,8 +495,7 @@
 	<script th:replace="fragments/assignDatePicker :: content "></script>
 	<script th:replace="users/fragments/role_assignment_edit_modal :: roleAssignmentEditModalScript"></script>
 	<script th:replace="users/fragments/user_user_role_modal :: userUserRoleModalScript(page='userrole')"></script>
-	<script th:replace="ous/fragments/ou_roles_modal :: ouRoleGroupModalScript(titlesEnabled=${titlesEnabled})"></script>
-	<script th:replace="ous/fragments/ou_roles_edit_modal :: ouRolesEditModalScript(titlesEnabled=${titlesEnabled})"></script>
+	<script th:replace="ous/fragments/ou_roles_modal :: ouRolesModalScript(titlesEnabled=${titlesEnabled})"></script>
 	<script th:replace="users/fragments/assign_user_role_postponed_data_constraints :: postponedConstraintsScript"></script>
 
 	<div id="userScriptHolder">
@@ -578,9 +577,10 @@
 			userService.loadRolesFragment();
 			userRoleModalService.parentService = userService;
 			userRoleEditModalService.parentService = userService;
+
+			// orgUnit role assignments
 			orgUnitService.loadRolesFragment();
-			ouRolesModalService.parentService = orgUnitService;
-			ouRolesEditModalService.parentService = orgUnitService;
+			commonService.parentService = orgUnitService;
 
 			$("#name").change(handleChangeOnInput);
 			$("#description").change(handleChangeOnInput);
@@ -963,7 +963,7 @@
 
 				$("#ouUserRoleEditModal").load(UIUrl + "fragments/ou/" + ou + "?edit=true", function() {
 					datePickerService.init();
-					ouRolesEditModalService.init();
+					commonService.init();
 					
 					ouRolesEditModalService.assignmentId = assignmentId;
 					ouRolesEditModalService.ouUuid = ou;
@@ -982,7 +982,7 @@
 				
 				$("#ouUserRoleModal").load(UIUrl + "fragments/ou/" + ouRolesModalService.ouUuid, function() {
 					datePickerService.init();
-					ouRolesModalService.init();
+					commonService.init();
 
 					ouRolesModalService.showAssignModal(titlesEnabled, null, null, null);
 				});

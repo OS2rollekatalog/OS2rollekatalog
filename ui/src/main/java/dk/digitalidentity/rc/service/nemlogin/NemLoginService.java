@@ -446,6 +446,8 @@ public class NemLoginService {
 		List<DirtyNemLoginUser> processed = new ArrayList<>();
 		Set<String> seen = new HashSet<>();
 
+		Set<String> systemRoleIdentifiers = systemRoleService.findByItSystem(itSystem).stream().map(sr -> sr.getIdentifier()).collect(Collectors.toSet());
+
 		for (DirtyNemLoginUser dirtyUser : dirtyUsers) {
 			if (!seen.contains(dirtyUser.getUser().getUuid())) {
 				log.info("Checking for NemLog-in role modifications on user with uuid: " + dirtyUser.getUser().getUuid());
@@ -455,7 +457,7 @@ public class NemLoginService {
 					seen.add(dirtyUser.getUser().getUuid());
 
 					if (dirtyUser.getUser().getNemloginUuid() != null && !dirtyUser.getUser().isDeleted()) {
-						syncNemLoginRolesForUser(dirtyUser.getUser(), itSystem);
+						syncNemLoginRolesForUser(dirtyUser.getUser(), itSystem, systemRoleIdentifiers);
 					}
 
 					processed.add(dirtyUser);
@@ -486,11 +488,13 @@ public class NemLoginService {
 			return;
 		}
 		ItSystem itSystem = itSystems.get(0);
-
+		
+		Set<String> systemRoleIdentifiers = systemRoleService.findByItSystem(itSystem).stream().map(sr -> sr.getIdentifier()).collect(Collectors.toSet());
+		
 		for (User user : userService.getAllWithNemLoginUuid()) {
 			try {
 				if (!user.isDeleted()) {
-					syncNemLoginRolesForUser(user, itSystem);
+					syncNemLoginRolesForUser(user, itSystem, systemRoleIdentifiers);
 				}
 			}
 			catch (Exception ex) {
@@ -501,7 +505,7 @@ public class NemLoginService {
 		log.info("Full NemLog-In role sync completed");
 	}
 
-	private void syncNemLoginRolesForUser(User user, ItSystem itSystem) throws Exception {
+	private void syncNemLoginRolesForUser(User user, ItSystem itSystem, Set<String> nemloginRoleIdentifiers) throws Exception {
 		List<UserRoleAssignmentWithInfo> assignedUserRoles = userService.getAllUserRolesAssignmentsWithInfo(user, Collections.singletonList(itSystem));
 
 		Set<String> systemRoleIdentifiersNoConstraints = new HashSet<>();
@@ -585,7 +589,9 @@ public class NemLoginService {
 			}
 
 			if (delete) {
-				deleteRoleFromUser(user, assignedRole);
+				if (nemloginRoleIdentifiers.contains(assignedRole.getUuid())) {
+					deleteRoleFromUser(user, assignedRole);
+				}
 			}
 		}
 
@@ -615,8 +621,20 @@ public class NemLoginService {
 		}
 	}
 
-	@Cacheable("token")
 	public String fetchToken() {
+		String token = self.fetchTokenCached();
+		if (StringUtils.hasLength(token)) {
+			return token;
+		}
+		
+		// attempt once more
+		self.cleanUpToken();
+		
+		return self.fetchTokenCached();
+	}
+	
+	@Cacheable(value = "token", unless = "#result == null")
+	public String fetchTokenCached() {
 		String url = config.getIntegrations().getNemLogin().getBaseUrl() + "/api/administration/idmlogin/tls/authenticate";
 		String accessToken = null;
 		
@@ -647,7 +665,8 @@ public class NemLoginService {
 		;
 	}
 	
-	@Scheduled(fixedRate = 5 * 60 * 1000)
+	// the tokens are valid for 1 hour, so we refresh at least once per 30 minutes
+	@Scheduled(fixedRate = 30 * 60 * 1000)
 	public void cleanUpTask() {
 		self.cleanUpToken();
 	}
@@ -784,15 +803,7 @@ public class NemLoginService {
 			log.error("Failed to add role with uuid " + roleUuid + " to user with nemloginUuid " + user.getNemloginUuid() + " from nemloginApi.", ex);
 		}
 	}
-	
-	private HttpHeaders getHeader() {
-		HttpHeaders headers = new HttpHeaders();
-		headers.add("Content-Type", "application/json");
-		headers.add("Authorization", "Bearer " + self.fetchToken());
-
-		return headers;
-	}
-	
+		
 	private record SeNumberDTORecord(String seNumber) {}
 	public List<SENumber> getAllSENR() {
 		String SENRResourceUrl = config.getIntegrations().getNemLogin().getBaseUrl() + "/api/administration/organization/senumber";
@@ -858,7 +869,7 @@ public class NemLoginService {
 		String cvrResourceUrl = config.getIntegrations().getCvr().getBaseUrl() + "/CVR/HentCVRData/1/rest/hentProduktionsenhedMedPNummer?ppNummer=" + pnr;
 		String apiKey = config.getIntegrations().getCvr().getApiKey();
 
-		HttpEntity<String> request = new HttpEntity<>(getHeaders(apiKey));
+		HttpEntity<String> request = new HttpEntity<>(getCvrHeader(apiKey));
 		try {
 			ResponseEntity<PUnitLookupDTORecord> response = restTemplate.exchange(cvrResourceUrl, HttpMethod.GET, request, PUnitLookupDTORecord.class);
 			PUnitLookupDTORecord post = response.getBody();
@@ -871,12 +882,19 @@ public class NemLoginService {
 		}
 	}
 	
-	private HttpHeaders getHeaders(String apiKey) {
+	private HttpHeaders getCvrHeader(String apiKey) {
 		HttpHeaders headers = new HttpHeaders();
 		headers.add("Content-Type", "application/json");
-		headers.add("Authorization", "Bearer " + self.fetchToken());
 		headers.add(apiKey, apiKey);
 		
+		return headers;
+	}
+	
+	private HttpHeaders getHeader() {
+		HttpHeaders headers = new HttpHeaders();
+		headers.add("Content-Type", "application/json");
+		headers.add("Authorization", "Bearer " + fetchToken());
+
 		return headers;
 	}
 }

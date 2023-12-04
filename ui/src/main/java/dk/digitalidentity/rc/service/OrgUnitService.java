@@ -361,45 +361,66 @@ public class OrgUnitService {
 		}
 		
 		// Save changes to excepted users if there has been any change
-		if (assignment.isContainsExceptedUsers()) {
-			Collection<User> usersById = (exceptedUsers != null && exceptedUsers.size() > 0) ? (CollectionUtils.emptyIfNull(userDao.findByUuidInAndDeletedFalse(exceptedUsers))) : Collections.emptyList();
-			if (usersById.isEmpty()) {
-				removeRoleGroupAssignment(ou, assignment.getId());
-				return true;
-			}
-			else {
-				Set<String> toBeSaved = usersById.stream().map(User::getUuid).collect(Collectors.toSet());
-				Set<String> alreadySaved = CollectionUtils.emptyIfNull(assignment.getExceptedUsers()).stream().map(User::getUuid).collect(Collectors.toSet());
-		
-				Collection<String> intersection = CollectionUtils.intersection(toBeSaved, alreadySaved);
-				if (intersection.size() != toBeSaved.size() || intersection.size() != alreadySaved.size()) {
-					assignment.setExceptedUsers(new ArrayList<>(usersById));
-					modified = true;
-				}
+		Collection<User> usersById = (exceptedUsers != null && !exceptedUsers.isEmpty()) ? (CollectionUtils.emptyIfNull(userDao.findByUuidInAndDeletedFalse(exceptedUsers))) : Collections.emptyList();
+		if (usersById.isEmpty()) {
+			assignment.setContainsExceptedUsers(false);
+			assignment.setExceptedUsers(new ArrayList<>());
+			modified = true;
+		} else {
+			Set<String> toBeSaved = usersById.stream().map(User::getUuid).collect(Collectors.toSet());
+			Set<String> alreadySaved = CollectionUtils.emptyIfNull(assignment.getExceptedUsers()).stream().map(User::getUuid).collect(Collectors.toSet());
+
+			Collection<String> intersection = CollectionUtils.intersection(toBeSaved, alreadySaved);
+			if (intersection.size() != toBeSaved.size() || intersection.size() != alreadySaved.size()) {
+				assignment.setContainsExceptedUsers(true);
+				assignment.setExceptedUsers(new ArrayList<>(usersById));
+				assignment.setInherit(false);
+				modified = true;
 			}
 		}
 
-		if (assignment.isContainsTitles()) {
-			if (titleUuids != null && !titleUuids.isEmpty()) {
-				// Remove
-				for (Iterator<Title> iterator = assignment.getTitles().iterator(); iterator.hasNext();) {
-					Title title = iterator.next();
-					if (!titleUuids.contains(title.getUuid())) {
-						iterator.remove();
-						modified = true;
-					}
+		// only set titles if no excepted users
+		if (!assignment.isContainsExceptedUsers() && titleUuids != null && !titleUuids.isEmpty()) {
+			// Remove
+			for (Iterator<Title> iterator = assignment.getTitles().iterator(); iterator.hasNext();) {
+				Title title = iterator.next();
+				if (!titleUuids.contains(title.getUuid())) {
+					iterator.remove();
+					modified = true;
 				}
-				// Add
-				List<Title> selectedTitles = titleDao.findByUuidInAndActiveTrue(titleUuids);
-				for (Title title : selectedTitles) {
-					if (!assignment.getTitles().contains(title)) {
-						assignment.getTitles().add(title);
-						modified = true;
-					}
+			}
+			// Add
+			List<Title> selectedTitles = titleDao.findByUuidInAndActiveTrue(titleUuids);
+			for (Title title : selectedTitles) {
+				if (!assignment.getTitles().contains(title)) {
+					assignment.getTitles().add(title);
+					modified = true;
 				}
+			}
+
+			if (assignment.getTitles().isEmpty()) {
+				assignment.setContainsTitles(false);
+				modified = true;
 			} else {
-				removeRoleGroupAssignment(ou, assignment.getId());
-				return true;
+				assignment.setContainsTitles(true);
+				assignment.setInherit(false);
+			}
+		} else {
+			assignment.setContainsTitles(false);
+			assignment.setTitles(new ArrayList<>());
+			modified = true;
+		}
+
+		// inherit is only possible if no excepted users and no titles
+		if (!assignment.isContainsExceptedUsers() && !assignment.isContainsTitles()) {
+			if (assignment.isInherit() && !inherit) {
+				assignment.setInherit(false);
+				modified = true;
+			}
+
+			if (!assignment.isInherit() && inherit) {
+				assignment.setInherit(true);
+				modified = true;
 			}
 		}
 
@@ -467,44 +488,66 @@ public class OrgUnitService {
 		}
 		
 		// Save changes to excepted users if there has been any change
-		if (assignment.isContainsExceptedUsers()) {
-			Collection<User> usersById = (exceptedUsers != null && exceptedUsers.size() > 0) ? (CollectionUtils.emptyIfNull(userDao.findByUuidInAndDeletedFalse(exceptedUsers))) : Collections.emptyList();
-			if (usersById.isEmpty()) {
-				removeUserRoleAssignment(ou, assignment.getId());
-				return true;
-			} else {
-				Set<String> toBeSaved = usersById.stream().map(User::getUuid).collect(Collectors.toSet());
-				Set<String> alreadySaved = CollectionUtils.emptyIfNull(assignment.getExceptedUsers()).stream().map(User::getUuid).collect(Collectors.toSet());
-		
-				Collection<String> intersection = CollectionUtils.intersection(toBeSaved, alreadySaved);
-				if (intersection.size() != toBeSaved.size() || intersection.size() != alreadySaved.size()) {
-					assignment.setExceptedUsers(new ArrayList<>(usersById));
-					modified = true;
-				}
+		Collection<User> usersById = (exceptedUsers != null && !exceptedUsers.isEmpty()) ? (CollectionUtils.emptyIfNull(userDao.findByUuidInAndDeletedFalse(exceptedUsers))) : Collections.emptyList();
+		if (usersById.isEmpty()) {
+			assignment.setContainsExceptedUsers(false);
+			assignment.setExceptedUsers(new ArrayList<>());
+			modified = true;
+		} else {
+			Set<String> toBeSaved = usersById.stream().map(User::getUuid).collect(Collectors.toSet());
+			Set<String> alreadySaved = CollectionUtils.emptyIfNull(assignment.getExceptedUsers()).stream().map(User::getUuid).collect(Collectors.toSet());
+
+			Collection<String> intersection = CollectionUtils.intersection(toBeSaved, alreadySaved);
+			if (intersection.size() != toBeSaved.size() || intersection.size() != alreadySaved.size()) {
+				assignment.setContainsExceptedUsers(true);
+				assignment.setExceptedUsers(new ArrayList<>(usersById));
+				assignment.setInherit(false);
+				modified = true;
 			}
 		}
 
-		if (assignment.isContainsTitles()) {
-			if (titleUuids != null && !titleUuids.isEmpty()) {
-				// Remove
-				for (Iterator<Title> iterator = assignment.getTitles().iterator(); iterator.hasNext();) {
-					Title title = iterator.next();
-					if (!titleUuids.contains(title.getUuid())) {
-						iterator.remove();
-						modified = true;
-					}
+		// only set titles if no excepted users
+		if (!assignment.isContainsExceptedUsers() && titleUuids != null && !titleUuids.isEmpty()) {
+			// Remove
+			for (Iterator<Title> iterator = assignment.getTitles().iterator(); iterator.hasNext();) {
+				Title title = iterator.next();
+				if (!titleUuids.contains(title.getUuid())) {
+					iterator.remove();
+					modified = true;
 				}
-				// Add
-				List<Title> selectedTitles = titleDao.findByUuidInAndActiveTrue(titleUuids);
-				for (Title title : selectedTitles) {
-					if (!assignment.getTitles().contains(title)) {
-						assignment.getTitles().add(title);
-						modified = true;
-					}
+			}
+			// Add
+			List<Title> selectedTitles = titleDao.findByUuidInAndActiveTrue(titleUuids);
+			for (Title title : selectedTitles) {
+				if (!assignment.getTitles().contains(title)) {
+					assignment.getTitles().add(title);
+					modified = true;
 				}
+			}
+
+			if (assignment.getTitles().isEmpty()) {
+				assignment.setContainsTitles(false);
+				modified = true;
 			} else {
-				removeUserRoleAssignment(ou, assignment.getId());
-				return true;
+				assignment.setContainsTitles(true);
+				assignment.setInherit(false);
+			}
+		} else {
+			assignment.setContainsTitles(false);
+			assignment.setTitles(new ArrayList<>());
+			modified = true;
+		}
+
+		// inherit is only possible if no excepted users and no titles
+		if (!assignment.isContainsExceptedUsers() && !assignment.isContainsTitles()) {
+			if (assignment.isInherit() && !inherit) {
+				assignment.setInherit(false);
+				modified = true;
+			}
+
+			if (!assignment.isInherit() && inherit) {
+				assignment.setInherit(true);
+				modified = true;
 			}
 		}
 

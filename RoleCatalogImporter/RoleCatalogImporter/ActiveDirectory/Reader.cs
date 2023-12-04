@@ -162,6 +162,10 @@ namespace RoleCatalogImporter
                     {
                         searcher.PropertiesToLoad.Add(Properties.Settings.Default.NemLoginUUIDField);
                     }
+                    else if (Properties.Settings.Default.ReadAltSecIdentities)
+                    {
+                        searcher.PropertiesToLoad.Add("altSecurityIdentities");
+                    }
 
                     if (!string.IsNullOrEmpty(Properties.Settings.Default.UserEmailField))
                     {
@@ -189,15 +193,6 @@ namespace RoleCatalogImporter
                             {
                                 Guid guid = new Guid((byte[])res.Properties["objectGUID"][0]);
                                 uuid = guid.ToString().ToLower();
-                            }
-
-                            string nemLoginUuid = null;
-                            if (!string.IsNullOrEmpty(Properties.Settings.Default.NemLoginUUIDField))
-                            {
-                                if (res.Properties.Contains(Properties.Settings.Default.NemLoginUUIDField))
-                                {
-                                    nemLoginUuid = (string)res.Properties[Properties.Settings.Default.NemLoginUUIDField][0];
-                                }
                             }
 
                             string dn = (string)res.Properties["distinguishedname"][0];
@@ -232,6 +227,45 @@ namespace RoleCatalogImporter
                                 if (cpr.Length != 10)
                                 {
                                     cpr = null;
+                                }
+                            }
+
+                            string nemLoginUuid = null;
+                            if (!string.IsNullOrEmpty(Properties.Settings.Default.NemLoginUUIDField))
+                            {
+                                if (res.Properties.Contains(Properties.Settings.Default.NemLoginUUIDField))
+                                {
+                                    nemLoginUuid = (string)res.Properties[Properties.Settings.Default.NemLoginUUIDField][0];
+                                }
+                            }
+                            else if (Properties.Settings.Default.ReadAltSecIdentities)
+                            {
+                                try
+                                {
+                                    ResultPropertyValueCollection altSecIdentities = (ResultPropertyValueCollection)res.Properties["altSecurityIdentities"];
+
+                                    for (int i = 0; i < altSecIdentities.Count; i++)
+                                    {
+                                        string val = (string)altSecIdentities[i];
+                                        if (val == null)
+                                        {
+                                            continue;
+                                        }
+
+                                        if (val.StartsWith("NL3UUID-ACTIVE-NSIS"))
+                                        {
+                                            string[] tokens = val.Split('.');
+                                            if (tokens.Length >= 3)
+                                            {
+                                                nemLoginUuid = tokens[2];
+                                                break;
+                                            }
+                                        }
+                                    }
+                                }
+                                catch (Exception ex)
+                                {
+                                    log.Warn("Failed to parse altSecurityIdentities for user " + userId, ex);
                                 }
                             }
 
