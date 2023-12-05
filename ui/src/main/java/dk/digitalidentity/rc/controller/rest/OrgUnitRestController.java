@@ -229,6 +229,15 @@ public class OrgUnitRestController {
 			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
 		}
 
+		OrgUnitUserRoleAssignment assignment = ou.getUserRoleAssignments().stream().filter(ura -> ura.getId() == assignmentId).findAny().orElse(null);
+		if (assignment == null) {
+			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+		}
+
+		if (assignment.getUserRole().getItSystem().getSystemType() == ItSystemType.AD && assignment.getUserRole().getItSystem().isReadonly()) {
+			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+		}
+
 		LocalDate startDate = null, stopDate = null;
 		if (StringUtils.hasLength(startDateStr)) {
 			try {
@@ -252,15 +261,6 @@ public class OrgUnitRestController {
 			}
 		}
 
-		OrgUnitUserRoleAssignment assignment = ou.getUserRoleAssignments().stream().filter(ura -> ura.getId() == assignmentId).findAny().orElse(null);
-		if (assignment == null) {
-			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
-		}
-
-		if (assignment.getUserRole().getItSystem().getSystemType() == ItSystemType.AD && assignment.getUserRole().getItSystem().isReadonly()) {
-			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
-		}
-		
 		if (orgUnitService.updateUserRoleAssignment(ou, assignment, inherit, startDate, stopDate, (payload != null ? payload.getExceptedUserUuids() : null), (payload != null ? payload.getTitleUuids(): null))) {
 			orgUnitService.save(ou);
 		}
@@ -366,6 +366,11 @@ public class OrgUnitRestController {
 			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
 		}
 
+		OrgUnitRoleGroupAssignment assignment = ou.getRoleGroupAssignments().stream().filter(rga -> rga.getId() == assignmentId).findAny().orElse(null);
+		if(assignment == null) {
+			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+		}
+
 		LocalDate startDate = null, stopDate = null;
 		if (StringUtils.hasLength(startDateStr)) {
 			try {
@@ -384,11 +389,6 @@ public class OrgUnitRestController {
 			}
 		}
 
-		OrgUnitRoleGroupAssignment assignment = ou.getRoleGroupAssignments().stream().filter(rga -> rga.getId() == assignmentId).findAny().orElse(null);
-		if(assignment == null) {
-			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
-		}
-		
 		if (orgUnitService.updateRoleGroupAssignment(ou, assignment, inherit, startDate, stopDate, (payload != null ? payload.getExceptedUserUuids() : null), (payload != null ? payload.getTitleUuids(): null))) {
 			orgUnitService.save(ou);
 		}

@@ -9,8 +9,10 @@ import dk.digitalidentity.rc.attestation.model.entity.AttestationUser;
 import dk.digitalidentity.rc.attestation.model.entity.temporal.AttestationOuRoleAssignment;
 import dk.digitalidentity.rc.attestation.model.entity.temporal.AttestationUserRoleAssignment;
 import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
+import dk.digitalidentity.rc.dao.OrgUnitDao;
 import dk.digitalidentity.rc.dao.history.HistoryUserDao;
 import dk.digitalidentity.rc.dao.history.model.HistoryUser;
+import dk.digitalidentity.rc.dao.model.OrgUnit;
 import dk.digitalidentity.rc.dao.model.enums.CheckupIntervalEnum;
 import dk.digitalidentity.rc.service.SettingsService;
 import lombok.extern.slf4j.Slf4j;
@@ -28,6 +30,8 @@ import java.util.HashSet;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @Slf4j
 @Component
@@ -46,6 +50,8 @@ public class UserAttestationTrackerService {
     private AttestationUserDao attestationUserDao;
     @Autowired
     private HistoryUserDao historyUserDao;
+    @Autowired
+    private OrgUnitDao orgUnitDao;
 
     @PersistenceContext
     private EntityManager entityManager;
@@ -79,7 +85,8 @@ public class UserAttestationTrackerService {
                 a.setUsersForAttestation(Collections.emptySet());
             });
         entityManager.flush();
-        final Set<String> exemptedOus = settingsService.getScheduledAttestationFilter();
+        final Set<String> exemptedOus = findExemptedOUs();
+
         // Ensure we have attestations for all direct assignments
         // We should create attestation for all ou assignments that are not inherited.
         ouAssignmentsDao.findValidGroupByResponsibleOuUuidAndSensitiveRole(when).stream()
@@ -91,6 +98,24 @@ public class UserAttestationTrackerService {
                 .filter(a -> !exemptedOus.contains(a.getResponsibleOuUuid()))
                 .filter(a -> !a.isInherited())
                 .forEach(a -> ensureWeHaveOrganisationAttestationFor(a, when, a.isSensitiveRole() ? deadlineSensitive : deadlineNormal));
+    }
+
+    private Set<String> findExemptedOUs() {
+        return settingsService.getScheduledAttestationFilter().stream()
+                .map(uuid -> orgUnitDao.findById(uuid))
+                .filter(Optional::isPresent)
+                .flatMap(ou -> getChildrenRecursive(ou.get(), 0))
+                .map(OrgUnit::getUuid)
+                .collect(Collectors.toSet());
+    }
+
+    private Stream<OrgUnit> getChildrenRecursive(final OrgUnit orgUnit, int level) {
+        if (level > 15) {
+            log.warn("Recursive loop detected reached level ${}, current ou: ${}", level, orgUnit.getUuid());
+            return Stream.empty();
+        }
+        return Stream.concat(Stream.of(orgUnit), orgUnit.getChildren().stream()
+                .flatMap(ou -> getChildrenRecursive(ou, level + 1)));
     }
 
     static int cntUA = 0;

@@ -106,7 +106,7 @@ namespace RoleCatalogImporter.Properties {
         
         [global::System.Configuration.ApplicationScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("LDAP://OU=Kommune,DC=digitalidentity,DC=dk")]
+        [global::System.Configuration.DefaultSettingValueAttribute("LDAP://OU=Kombit,DC=digitalidentity,DC=dk")]
         public string ADUrl {
             get {
                 return ((string)(this["ADUrl"]));
@@ -173,6 +173,15 @@ namespace RoleCatalogImporter.Properties {
         public string UserFilter {
             get {
                 return ((string)(this["UserFilter"]));
+            }
+        }
+        
+        [global::System.Configuration.ApplicationScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("False")]
+        public bool ReadAltSecIdentities {
+            get {
+                return ((bool)(this["ReadAltSecIdentities"]));
             }
         }
     }

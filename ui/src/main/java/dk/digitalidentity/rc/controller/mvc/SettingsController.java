@@ -21,7 +21,6 @@ import dk.digitalidentity.rc.controller.mvc.viewmodel.OUListForm;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.SettingsForm;
 import dk.digitalidentity.rc.controller.validator.SettingFormValidator;
 import dk.digitalidentity.rc.dao.model.Notification;
-import dk.digitalidentity.rc.dao.model.enums.CheckupIntervalEnum;
 import dk.digitalidentity.rc.dao.model.enums.NotificationType;
 import dk.digitalidentity.rc.security.RequireAdministratorRole;
 import dk.digitalidentity.rc.service.NotificationService;

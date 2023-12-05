@@ -173,7 +173,7 @@ public class RoleAssignmentApi {
     }
 
     @RequestMapping(value = "/api/ou/{ouUuid}/assign/userrole/{userRoleId}", method = RequestMethod.PUT)
-    public ResponseEntity<String> assignUserRoleToOrgUnit(@PathVariable("userRoleId") long userRoleId, @PathVariable("ouUuid") String ouUuid, @RequestParam(name = "startDate", required = false) LocalDate startDate, @RequestParam(name = "stopDate", required = false) LocalDate stopDate) {
+    public ResponseEntity<String> assignUserRoleToOrgUnit(@PathVariable("userRoleId") long userRoleId, @PathVariable("ouUuid") String ouUuid, @RequestParam(name = "startDate", required = false) LocalDate startDate, @RequestParam(name = "stopDate", required = false) LocalDate stopDate, @RequestParam(name = "inherit", required = false, defaultValue = "false") boolean inherit) {
         OrgUnit ou = orgUnitService.getByUuid(ouUuid);
         UserRole userRole = userRoleService.getById(userRoleId);
 
@@ -183,14 +183,14 @@ public class RoleAssignmentApi {
             return new ResponseEntity<>(ErrorMessage.USER_ROLE_NOT_FOUND, HttpStatus.NOT_FOUND);
         }
 
-		orgUnitService.addUserRole(ou, userRole, false, startDate, stopDate, new HashSet<>(), new HashSet<>());
+		orgUnitService.addUserRole(ou, userRole, inherit, startDate, stopDate, new HashSet<>(), new HashSet<>());
 		orgUnitService.save(ou);
 
         return new ResponseEntity<>(HttpStatus.OK);
     }
 
     @RequestMapping(value = "/api/ou/{ouUuid}/assign/rolegroup/{roleGroupId}", method = RequestMethod.PUT)
-    public ResponseEntity<String> assignRoleGroupToOrgUnit(@PathVariable("roleGroupId") long roleGroupId, @PathVariable("ouUuid") String ouUuid, @RequestParam(name = "startDate", required = false) LocalDate startDate, @RequestParam(name = "stopDate", required = false) LocalDate stopDate) {
+    public ResponseEntity<String> assignRoleGroupToOrgUnit(@PathVariable("roleGroupId") long roleGroupId, @PathVariable("ouUuid") String ouUuid, @RequestParam(name = "startDate", required = false) LocalDate startDate, @RequestParam(name = "stopDate", required = false) LocalDate stopDate, @RequestParam(name = "inherit", required = false, defaultValue = "false") boolean inherit) {
         OrgUnit ou = orgUnitService.getByUuid(ouUuid);
         RoleGroup roleGroup = roleGroupService.getById(roleGroupId);
 
@@ -200,7 +200,7 @@ public class RoleAssignmentApi {
             return new ResponseEntity<>(ErrorMessage.ROLE_GROUP_NOT_FOUND, HttpStatus.NOT_FOUND);
         }
 
-		orgUnitService.addRoleGroup(ou, roleGroup, false, startDate, stopDate, new HashSet<>(), new HashSet<>());
+		orgUnitService.addRoleGroup(ou, roleGroup, inherit, startDate, stopDate, new HashSet<>(), new HashSet<>());
 		orgUnitService.save(ou);
 
         return new ResponseEntity<>(HttpStatus.OK);

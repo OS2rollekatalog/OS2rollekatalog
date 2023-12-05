@@ -1,3 +1,12 @@
+2023.12.04 - Release 2023r4
+- [ROL-268](https://os2web.atlassian.net/browse/ROL-268) - Mulighed for at redigere i allerede tildelt rettigheder
+- [ROL-275](https://os2web.atlassian.net/browse/ROL-275) - Integration til Danmarks Miljøportals Provisioning API
+- [ROL-274](https://os2web.atlassian.net/browse/ROL-274) - Ændringer til anmodningsprocessen
+- [ROL-265](https://os2web.atlassian.net/browse/ROL-265) - Flere valgmuligheder for opsætning af forside på rollekataloget
+- [ROL-263](https://os2web.atlassian.net/browse/ROL-263) - MitID Erhverv - omlægge rettighedsstyring til direkte tildeling på brugere fremfor brugergrupper
+- [ROL-245](https://os2web.atlassian.net/browse/ROL-245) - Reservering af anmodninger
+- [ROL-242](https://os2web.atlassian.net/browse/ROL-242) - Rapport: rollebuketter
+
 2023.10.13 - Release 2023r3
 - [ROL-210](https://os2web.atlassian.net/browse/ROL-210) - Nyt Attesteringsmodul
 

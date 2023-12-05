@@ -5,8 +5,8 @@
 			<!-- Modal content-->
 			<div class="modal-content">
 				<div class="modal-header">
-					<button type="button" class="close" onclick="ouRolesModalService.closeModal();">&times;</button>
-					<h4 th:text="#{html.page.ous.edit.title.choose}"></h4>
+					<button type="button" class="close" onclick="commonService.closeModal();">&times;</button>
+					<h4 id="ouRolesModalHeader" th:text="#{html.page.ous.edit.title.choose}"></h4>
 				</div>
 
 				<div class="modal-body" style="overflow-y: initial !important;">
@@ -56,7 +56,6 @@
 						</div>
 
 						<div id="ou_roles_excepted_users_menu" class="tab-pane" th:classappend="${titles != null and titles.size() > 0} ? '' : 'active'">
-							<div th:replace="ous/fragments/ou_excepted_users :: table"></div>
 						</div>
 					</div>
 					
@@ -90,8 +89,8 @@
 				</div>
 
 				<div class="modal-footer">
-					<button type="button" disabled="disabled" id="titleAssignTitlesButton" class="btn btn-primary" onclick="ouRolesModalService.handleTitleRoleAssignment()" th:text="#{html.page.ous.edit.button.assign}"></button>
-					<button type="button" disabled="disabled" id="assignWithExceptionsButton" class="btn btn-primary" onclick="ouRolesModalService.handleExceptedRoleAssignment()" th:text="#{html.page.ous.edit.button.assign.exceptedusers}"></button>
+					<button type="button" disabled="disabled" id="titleAssignTitlesButton" class="btn btn-primary" onclick="commonService.handleTitleRoleAssignment()" th:text="#{html.page.ous.edit.button.assign}"></button>
+					<button type="button" disabled="disabled" id="assignWithExceptionsButton" class="btn btn-primary" onclick="commonService.handleExceptedRoleAssignment()" th:text="#{html.page.ous.edit.button.assign.exceptedusers}"></button>
 					<div class="btn-group" id="titleInheritButton">
                         <button id="assignAllButton" type="button" style="margin-left: 5px;" class="btn btn-primary dropdown-toggle" data-toggle="dropdown">
                         	<span>
@@ -100,18 +99,18 @@
 							</span>
                         </button>
 						<ul class="dropdown-menu">
-			    			<li><a href="#" onclick="ouRolesModalService.handleEveryoneRoleAssignment(false)" id="assignEveryoneChoiceDropdownForTestCases" th:text="#{html.page.ous.edit.button.assign.all}"></a></li>
-	                		<li><a href="#" onclick="ouRolesModalService.handleEveryoneRoleAssignment(true)" th:text="#{html.page.ous.edit.button.assign.all.inheritance}"></a></li>
+			    			<li><a href="#" onclick="commonService.handleEveryoneRoleAssignment(false)" id="assignEveryoneChoiceDropdownForTestCases" th:text="#{html.page.ous.edit.button.assign.all}"></a></li>
+	                		<li><a href="#" onclick="commonService.handleEveryoneRoleAssignment(true)" th:text="#{html.page.ous.edit.button.assign.all.inheritance}"></a></li>
 			  			</ul>
 			  		</div>
-			  		<button type="button" class="btn btn-warning" style="margin-left: 5px;" onclick="ouRolesModalService.closeModal();" th:text="#{html.control.button.cancel}"></button>
+			  		<button type="button" class="btn btn-warning" style="margin-left: 5px;" onclick="commonService.closeModal();" th:text="#{html.control.button.cancel}"></button>
 				</div>
 			</div>
 		</div>
 	</div>
 </th:block>
 
-<th:block th:fragment="ouRoleGroupModalScript" xmlns="http://www.w3.org/1999/xhtml" xmlns:th="http://www.thymeleaf.org">
+<th:block th:fragment="ouRolesModalScript" xmlns="http://www.w3.org/1999/xhtml" xmlns:th="http://www.thymeleaf.org">
 	<script th:inline="javascript" type="text/javascript">
 		/*<![CDATA[*/
 		
@@ -120,31 +119,38 @@
 		+]*/
 
 		var ouRolesModalService;
+		var ouRolesEditModalService;
+		var commonService;
 		var notifikationService;
-		var titles = [];
 		var checkedTitlesFetched;
+		var loadedEditTitles = [];
 
 		$(document).ready(function() {
 			ouRolesModalService = new OURolesModalService();
-            ouRolesModalService.init();
+            ouRolesEditModalService = new OURolesEditModalService();
+            commonService = new CommonService();
+            commonService.init();
 
     		/*[+
-    		ouRolesModalService.fieldUpdatedMsg = [[#{html.entity.rolegroup.updatedmsg}]];
-    		ouRolesModalService.fieldNotUpdatedMsg = [[#{html.entity.rolegroup.failedupdatemsg}]];
-    		ouRolesModalService.restUrl = [[@{/rest/ous/}]];
-    		ouRolesModalService.uiUrl = [[@{/ui/ous/manage/}]];
+    			commonService.fieldUpdatedMsg = [[#{html.entity.rolegroup.updatedmsg}]];
+    			commonService.fieldNotUpdatedMsg = [[#{html.entity.rolegroup.failedupdatemsg}]];
+    			commonService.restUrl = [[@{/rest/ous/}]];
+    			commonService.uiUrl = [[@{/ui/ous/manage/}]];
+    			commonService.editMode = false;
+    			ouRolesModalService.header = [[#{html.page.ous.edit.title.choose}]];
+    			ouRolesEditModalService.header = [[#{html.page.ous.edit.title.choose.edit}]];
     		+]*/
             
             notifikationService = new NotificationService();
         });
-		
-		function OURolesModalService() {
+
+        function CommonService() {
 			this.init = function() {
 				$('#modal-ou').on('shown.bs.modal', function(e) {
 
 					// Add checkboxlisteners to modal
-					ouRolesModalService.addTitleCheckboxListeners();
-					ouRolesModalService.addExceptedUsersCheckboxListeners();
+					commonService.addTitleCheckboxListeners();
+					commonService.addExceptedUsersCheckboxListeners();
 				})
 
 				// Add change tab event handler
@@ -157,13 +163,13 @@
 						$("#titleAssignTitlesButton").show();
 						$("#assignWithExceptionsButton").hide();
 
-						ouRolesModalService.handleTitleCheckbox();
-					} 
+						commonService.handleTitleCheckbox();
+					}
 					else if (tabType == 'ou_roles_excepted_users_menu') {
 						$("#titleAssignTitlesButton").hide();
 						$("#assignWithExceptionsButton").show();
 
-						ouRolesModalService.handleExceptedUsersCheckbox();
+						commonService.handleExceptedUsersCheckbox();
 					}
 				});
 			}
@@ -171,25 +177,111 @@
 			this.addTitleCheckboxListeners = function(){
 				// makes sure the title checkboxes on the modal dialogue modifies the underlying datastructure on changes
 				$('.title-checkbox').off("change");
-				$('.title-checkbox').change(ouRolesModalService.handleTitleCheckbox);
+				$('.title-checkbox').change(commonService.handleTitleCheckbox);
 			}
 
 			this.addExceptedUsersCheckboxListeners = function() {
 				$('.exceptedusers-checkbox').off("change");
-				$('.exceptedusers-checkbox').change(ouRolesModalService.handleExceptedUsersCheckbox);
+				$('.exceptedusers-checkbox').change(commonService.handleExceptedUsersCheckbox);
 			}
-			
+
+			this.handleTitleCheckbox = function() {
+				var anythingChecked = ($('#ou_roles_listTable1 input:checkbox:checked').length > 0);
+
+				if (!anythingChecked) {
+					$("#titleAssignTitlesButton").prop('disabled', true);
+					$("#assignAllButton").prop('disabled', false);
+				}
+				else {
+					$("#titleAssignTitlesButton").prop('disabled', false);
+					$("#assignAllButton").prop('disabled', true);
+				}
+
+				for (var i = 0; i < loadedEditTitles.length; i++) {
+					if (loadedEditTitles[i].id == $(this).data('id')) {
+						loadedEditTitles[i].state.checked = this.checked;
+					}
+				}
+			}
+
+			this.handleExceptedUsersCheckbox = function() {
+				var anythingChecked = $('#modal-ou .exceptedusers-checkbox:checked').length > 0;
+
+				if (!anythingChecked) {
+					$("#assignWithExceptionsButton").prop('disabled', true);
+					$("#assignAllButton").prop('disabled', false);
+				}
+				else {
+					$("#assignWithExceptionsButton").prop('disabled', false);
+					$("#assignWithExceptionsButton").show();
+					$("#assignAllButton").prop('disabled', true);
+				}
+			}
+
+			this.closeModal = function() {
+				$('#modal-ou').modal('hide');
+				commonService.resetUI();
+			}
+
+			this.resetUI = function() {
+				$('.title-checkbox').removeAttr('checked');
+				$('.exceptedusers-checkbox').removeAttr('checked');
+				$('.nav-tabs a[href="#ou_roles_title_menu"]').tab('show');
+			}
+
+			// wrapper around assignRole that gets the list of selected excepted users
+			this.handleExceptedRoleAssignment = function() {
+				var exceptedUsers = [];
+				var exceptedUsersChbx = $('#modal-ou .exceptedusers-checkbox:checked');
+				for (var i = 0; i < exceptedUsersChbx.length; i++) {
+					exceptedUsers.push($(exceptedUsersChbx[i]).data('id'));
+				}
+
+				if (commonService.editMode) {
+					ouRolesEditModalService.assignRole(ouRolesEditModalService.roleType, false, ouRolesEditModalService.assignmentId, [], exceptedUsers);
+				} else {
+					ouRolesModalService.assignRole(ouRolesModalService.roleType, false, ouRolesModalService.roleId, [], exceptedUsers);
+				}
+			}
+
+			// wrapper around assignRole that reads the list of checked title UUIDs called by button click
+			this.handleTitleRoleAssignment = function() {
+				var titleUuids = [];
+
+				$('#ou_roles_listTable1 input:checkbox:checked').each(function(index) {
+					titleUuids.push($(this).data('id'));
+				});
+
+				if (commonService.editMode) {
+					ouRolesEditModalService.assignRole(ouRolesEditModalService.roleType, false, ouRolesEditModalService.assignmentId, titleUuids, []);
+				} else {
+					ouRolesModalService.assignRole(ouRolesModalService.roleType, false, ouRolesModalService.roleId, titleUuids, []);
+				}
+			}
+
+			// wrapper around assignRole that assigns to everyone called by button click
+			this.handleEveryoneRoleAssignment = function(inherit) {
+				if (commonService.editMode) {
+					ouRolesEditModalService.assignRole(ouRolesEditModalService.roleType, inherit, ouRolesEditModalService.assignmentId, [], []);
+				} else {
+					ouRolesModalService.assignRole(ouRolesModalService.roleType, inherit, ouRolesModalService.roleId, [], []);
+				}
+			}
+		}
+		
+		function OURolesModalService() {
 			this.showAssignModal = function(titlesEnabled, checkedTitles, startDate, stopDate) {
 				$('#stopDatePickerOU').data("DateTimePicker").clear();
 				$('#startDatePickerOU').data("DateTimePicker").clear();
 				$('#startDatePickerOU').data("DateTimePicker").date(new Date());
 
 				// Reset UI
-				$('#modal-ou-edit #dataTabs').show();
-				$('#modal-ou-edit .tab-content').show();
+				$('#modal-ou #dataTabs').show();
+				$('#modal-ou .tab-content').show();
+				commonService.editMode = false;
 
 				// Fetch possible excepted users for this OU
-				var url = ouRolesModalService.uiUrl + "users/" + ouRolesModalService.ouUuid;
+				var url = commonService.uiUrl + "users/" + ouRolesModalService.ouUuid;
 				$("#ou_roles_excepted_users_menu").load(url, function() {
 					fragShowDataTableFun('#ou_roles_listTable2', 0);
 				});
@@ -207,10 +299,11 @@
 					$("#assignWithExceptionsButton").show();
 				}
 
-				ouRolesModalService.handleTitleCheckbox();
-				ouRolesModalService.handleExceptedUsersCheckbox();
+				commonService.handleTitleCheckbox();
+				commonService.handleExceptedUsersCheckbox();
 
 				$("#titleInheritButton").show();
+				$("#ouRolesModalHeader").text(ouRolesModalService.header);
 
 				$("#modal-ou").modal({
 					backdrop: 'static',
@@ -219,7 +312,7 @@
 			}
 			
 			this.assignRole = function(objType, inherit, id, titleUuids, exceptedUserUuids) {
-				var endpoint = ouRolesModalService.restUrl + 'add' + objType + '/' + ouRolesModalService.ouUuid + '/' + id;
+				var endpoint = commonService.restUrl + 'add' + objType + '/' + ouRolesModalService.ouUuid + '/' + id;
 
 				var startDate = $('#startDatePickerOU').data('date');
 				var stopDate = $('#stopDatePickerOU').data('date');
@@ -242,8 +335,8 @@
 	    			      'exceptedUserUuids' : exceptedUserUuids
 					}),
 					error : function(response) {
-						notifikationService.showErrorNotification(ouRolesModalService.fieldNotUpdatedMsg);
-						ouRolesModalService.closeModal();
+						notifikationService.showErrorNotification(commonService.fieldNotUpdatedMsg);
+						commonService.closeModal();
 					},
 					success : function(response) {
 						if (response.success) {
@@ -252,91 +345,203 @@
 								notifikationService.showWarnNotification(optionalSuccessMessage);
 							}
 							else {
-								notifikationService.showInfoNotification(ouRolesModalService.fieldUpdatedMsg);
+								notifikationService.showInfoNotification(commonService.fieldUpdatedMsg);
 							}
 						}
 						else {
 							// TODO: should we inform the user that we did not make any change?
-							notifikationService.showInfoNotification(ouRolesModalService.fieldUpdatedMsg);
+							notifikationService.showInfoNotification(commonService.fieldUpdatedMsg);
 						}
 						
-						ouRolesModalService.closeModal();
+						commonService.closeModal();
 						if (objType == "role") {
-							rolesService.loadAddUserRoleFragment();
+							commonService.parentService.loadAddUserRoleFragment();
 						} else if (objType == "rolegroup") {
-							rolesService.loadAddRoleGroupFragment();
+							commonService.parentService.loadAddRoleGroupFragment();
 						}
 					}
 				});
-
-				// TODO: I doubt this works with failures
-				// TODO: what to do with this? should not be in fragment. Belongs to ous/edit.html
-				//updateCheckboxSorting(objType, id, true);
 			}
-			
-			// wrapper around assignRole that gets the list of selected excepted users
-			this.handleExceptedRoleAssignment = function() {
+		}
+
+		function OURolesEditModalService() {
+			this.loadTitles = function(loadCheckedTitles, cbFun) {
+				var endpoint = commonService.restUrl + 'titles/' + ouRolesEditModalService.ouUuid;
+
+				$.ajax({
+					url: endpoint,
+					method: "GET",
+					error: function(response) {
+						notificationService.showErrorNotification(commonService.fieldNotUpdatedMsg);
+					},
+					success : function(response) {
+						loadedEditTitles = response;
+
+						if (loadCheckedTitles) {
+							ouRolesEditModalService.fetchCheckedTitles(cbFun);
+						}
+						else if (cbFun) {
+							cbFun();
+						}
+					}
+				});
+			}
+
+			this.fetchCheckedTitles = function(cbFun) {
+				$.ajax({
+					url: commonService.restUrl + ouRolesEditModalService.ouUuid + "/" + ouRolesEditModalService.roleType + "/" + ouRolesEditModalService.assignmentId + "/titles",
+					method: "GET",
+					error : function(response) {
+						notificationService.showErrorNotification(commonService.fieldNotUpdatedMsg);
+					},
+					success : function(response) {
+						checkedTitlesFetched = response;
+
+						if (cbFun) {
+							cbFun();
+						}
+					}
+				});
+			}
+
+			this.showAssignModal = function(titlesEnabled, checkedTitles, startDate, stopDate, assignmentType, assignmentId) {
+				if (startDate) {
+					$('#startDatePickerOU').data("DateTimePicker").date(startDate);
+				}
+				else {
+					$('#startDatePickerOU').data("DateTimePicker").clear();
+					$('#startDatePickerOU').data("DateTimePicker").date(new Date());
+				}
+
+				if (stopDate) {
+					$('#stopDatePickerOU').data("DateTimePicker").date(stopDate);
+				}
+				else {
+					$('#stopDatePickerOU').data("DateTimePicker").clear();
+				}
+
+				// Reset UI
+				$('#modal-ou #dataTabs').show();
+				$('#modal-ou .tab-content').show();
+				commonService.editMode = true;
+
+				// Clear old title selection
+				if (titlesEnabled) {
+					ouRolesEditModalService.clearTitleSelection();
+				}
+
+				// Clear old exceptedUsers selection
+				ouRolesEditModalService.clearExceptedUsersSelection();
+
+				// Fetch excepted users (if any), and check checkboxes
+				var url = commonService.uiUrl + ouRolesEditModalService.roleType + "/exceptedusers2/" + ouRolesEditModalService.ouUuid + "/" + assignmentId;
+				$("#ou_roles_excepted_users_menu").load(url, function() {
+					fragShowDataTableFun('#ou_roles_listTable2', 0);
+					if (assignmentType == 0) {
+						commonService.handleExceptedUsersCheckbox();
+					}
+				});
+
+				// Excepted users case
+				if (assignmentType == 0) {
+					// select tab
+					$('#modal-ou a[data-toggle="tab"][href="#ou_roles_excepted_users_menu"]').tab('show');
+				}
+
+				// Titles case
+				else if (assignmentType >= 1 && titlesEnabled) {
+					ouRolesEditModalService.loadTitles(true, function() {
+						// Check the boxes corrosponding to the list of checked titles from the backend
+						if (checkedTitles != null) {
+							for (var i = 0; i < loadedEditTitles.length; i++) {
+								loadedEditTitles[i].state.checked = (checkedTitles.indexOf(loadedEditTitles[i].id) > -1);
+								$('#modal-ou .title-checkbox[data-id=' + loadedEditTitles[i].id + ']').prop('checked', loadedEditTitles[i].state.checked);
+							}
+						}
+						else if (checkedTitlesFetched) {
+							for (var i = 0; i < loadedEditTitles.length; i++) {
+								loadedEditTitles[i].state.checked = (checkedTitlesFetched != null && checkedTitlesFetched.indexOf(loadedEditTitles[i].id) > -1);
+								$('#modal-ou .title-checkbox[data-id=' + loadedEditTitles[i].id + ']').prop('checked', loadedEditTitles[i].state.checked);
+							}
+						}
+
+						// select tab
+						$('#modal-ou a[data-toggle="tab"][href="#ou_roles_title_menu"]').tab('show');
+						commonService.handleTitleCheckbox();
+					});
+				}
+
+				$("#modal-ou").attr('assignmentId', assignmentId);
+				$("#ouRolesModalHeader").text(ouRolesEditModalService.header);
+
+				$("#modal-ou").modal({
+					backdrop: 'static',
+					keyboard: false
+				});
+			}
+
+			this.assignRole = function(objType, inherit, id, titleUuids, exceptedUserUuids) {
+				var endpoint = commonService.restUrl + 'edit' + objType + '/' + ouRolesEditModalService.ouUuid + '/' + id;
+				var startDate = $('#startDatePickerOU').data('date');
+				var stopDate = $('#stopDatePickerOU').data('date');
+				var dates = "?startDate=" + startDate + "&stopDate=" + stopDate;
+				endpoint = endpoint + dates;
+
+				if (inherit) {
+					endpoint = endpoint + "&inherit=true";
+				}
+
+				$.ajax({
+					url: endpoint,
+					method: "POST",
+					headers: {
+						'X-CSRF-TOKEN': token
+					},
+	                contentType: 'application/json',
+	                data: JSON.stringify({
+	    			      'titleUuids': titleUuids,
+	    			      'exceptedUserUuids' : exceptedUserUuids
+					}),
+					error : function(response) {
+						notificationService.showErrorNotification(commonService.fieldNotUpdatedMsg);
+						setTimeout(function(){ commonService.parentService.loadRolesFragment(); }, 200);
+						commonService.closeModal();
+					},
+					success : function(response) {
+						notificationService.showInfoNotification(commonService.fieldUpdatedMsg);
+						setTimeout(function(){ commonService.parentService.loadRolesFragment(); }, 200);
+						commonService.closeModal();
+					}
+				});
+
+			}
+
+			this.saveChanges = function() {
+				//Get titles
+				var titleUuids = [];
+				for (var i = 0; i < loadedEditTitles.length; i++) {
+					if (loadedEditTitles[i].state.checked) {
+						titleUuids.push(loadedEditTitles[i].id);
+					}
+				}
+				//Get excepted users
 				var exceptedUsers = [];
-				var exceptedUsersChbx = $('#modal-ou .exceptedusers-checkbox:checked');
+				var exceptedUsersChbx = $('#modal-ou-edit  .exceptedusers-checkbox:checked');
 				for (var i = 0; i < exceptedUsersChbx.length; i++) {
 					exceptedUsers.push($(exceptedUsersChbx[i]).data('id'));
 				}
-				
-				ouRolesModalService.assignRole(ouRolesModalService.roleType, false, ouRolesModalService.roleId, [], exceptedUsers);
+
+				ouRolesEditModalService.assignRole(ouRolesEditModalService.roleType, ouRolesEditModalService.inherit, ouRolesEditModalService.assignmentId, titleUuids, exceptedUsers);
 			}
 
-			// wrapper around assignRole that reads the list of checked title UUIDs called by button click
-			this.handleTitleRoleAssignment = function() {
-				var titleUuids = [];
-
-				$('#ou_roles_listTable1 input:checkbox:checked').each(function(index) {
-					titleUuids.push($(this).data('id'));
-				});
-
-				ouRolesModalService.assignRole(ouRolesModalService.roleType, false, ouRolesModalService.roleId, titleUuids, []);
-			}
-			
-			// wrapper around assignRole that assigns to everyone called by button click
-			this.handleEveryoneRoleAssignment = function(inherit) {
-				ouRolesModalService.assignRole(ouRolesModalService.roleType, inherit, ouRolesModalService.roleId, [], []);
-			}
-
-			this.closeModal = function() {
-				$('#modal-ou').modal('hide');
-				ouRolesModalService.resetUI();
-			}
-
-			this.resetUI = function() {
-				$('.title-checkbox').removeAttr('checked');
-				$('.exceptedusers-checkbox').removeAttr('checked');
-				$('.nav-tabs a[href="#ou_roles_title_menu"]').tab('show');
-			}
-			
-			this.handleTitleCheckbox = function() {				
-				var anythingChecked = ($('#ou_roles_listTable1 input:checkbox:checked').length > 0);
-
-				if (!anythingChecked) {
-					$("#titleAssignTitlesButton").prop('disabled', true);
-					$("#assignAllButton").prop('disabled', false);
-				}
-				else {
-					$("#titleAssignTitlesButton").prop('disabled', false);
-					$("#assignAllButton").prop('disabled', true);
+			this.clearTitleSelection = function() {
+				for (var i = 0; i < loadedEditTitles.length; i++) {
+					loadedEditTitles[i].state.checked = false;
 				}
 			}
 
-			this.handleExceptedUsersCheckbox = function() {
-				var anythingChecked = $('#modal-ou .exceptedusers-checkbox:checked').length > 0;
-				
-				if (!anythingChecked) {
-					$("#assignWithExceptionsButton").prop('disabled', true);
-					$("#assignAllButton").prop('disabled', false);
-				}
-				else {
-					$("#assignWithExceptionsButton").prop('disabled', false);
-					$("#assignWithExceptionsButton").show();
-					$("#assignAllButton").prop('disabled', true);
-				}
+			this.clearExceptedUsersSelection = function() {
+				$('#modal-ou .exceptedusers-checkbox:checked').removeAttr('checked');
 			}
 		}
 		

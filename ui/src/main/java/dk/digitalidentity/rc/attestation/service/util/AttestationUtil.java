@@ -1,5 +1,11 @@
 package dk.digitalidentity.rc.attestation.service.util;
 
+import static dk.digitalidentity.rc.attestation.model.entity.Attestation.AttestationType.IT_SYSTEM_ROLES_ATTESTATION;
+
+import java.util.List;
+import java.util.Set;
+import java.util.function.Predicate;
+import java.util.stream.Stream;
 
 import dk.digitalidentity.rc.attestation.model.entity.Attestation;
 import dk.digitalidentity.rc.attestation.model.entity.BaseUserAttestationEntry;
@@ -7,18 +13,8 @@ import dk.digitalidentity.rc.attestation.model.entity.ItSystemRoleAttestationEnt
 import dk.digitalidentity.rc.attestation.model.entity.temporal.AttestationOuRoleAssignment;
 import dk.digitalidentity.rc.attestation.model.entity.temporal.AttestationSystemRoleAssignment;
 import dk.digitalidentity.rc.attestation.model.entity.temporal.AttestationUserRoleAssignment;
-import lombok.extern.slf4j.Slf4j;
 
-import java.util.List;
-import java.util.Set;
-import java.util.function.Predicate;
-import java.util.stream.Stream;
-
-import static dk.digitalidentity.rc.attestation.model.entity.Attestation.AttestationType.IT_SYSTEM_ROLES_ATTESTATION;
-
-@Slf4j
 public abstract class AttestationUtil {
-
 
     public static boolean hasUserAssignmentAttestationBeenPerformed(final Attestation attestation, final AttestationUserRoleAssignment assignment) {
         return switch (attestation.getAttestationType()) {

@@ -22,9 +22,9 @@ import java.util.Date;
 @Slf4j
 @Component
 @EnableScheduling
-
 public class AttestationTask {
-    @Autowired
+
+	@Autowired
     private ItSystemAttestationTrackerService systemAttestationTracker;
 
     @Autowired
@@ -51,27 +51,34 @@ public class AttestationTask {
         if (!configuration.getScheduled().isEnabled()) {
             return;
         }
-        log.info("Attestation tracker running");
+        
         if (!settingsService.isScheduledAttestationEnabled()) {
-            log.info("Attestation not enabled, no tracking needed");
+            log.debug("Attestation not enabled, no tracking needed");
             return;
         }
+        
+        log.info("Attestation tracker running");
+
         final LocalDate now = LocalDate.now();
         try {
             final LocalDate lastRun = settingsService.getScheduledAttestationLastRun().toInstant()
                     .atZone(ZoneId.systemDefault())
                     .toLocalDate();
+            
             if (!now.isAfter(lastRun)) {
                 throw new AttestationDataUpdaterException("Cannot update attestation more than once pr. day");
             }
+            
             updateAssignments(now);
             updateTrackers(now);
             settingsService.setScheduledAttestationLastRun(new Date());
 
             log.info("Attestation tracker done");
-        } catch (final AttestationDataUpdaterException e) {
+        }
+        catch (final AttestationDataUpdaterException e) {
             log.info("Failed to update attestations: " + e.getMessage());
-        } catch (final Exception e) {
+        }
+        catch (final Exception e) {
             log.error("Failed to update attestations", e);
         }
     }

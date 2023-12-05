@@ -197,13 +197,13 @@ public class RequestApproveRestController {
 		
 		
 		switch(request.getRoleType()) {
-			case USERROLE:
+			case ROLEGROUP:
 				RoleGroup roleGroup = roleGroupService.getById(request.getRoleId());
 				if (roleGroup != null) {
 					auditLogger.log(request.getRequestedFor(), EventType.REJECT_REQUEST, roleGroup);
 				}
 				break;
-			case ROLEGROUP:
+			case USERROLE:
 				UserRole userRole = userRoleService.getById(request.getRoleId());
 				if (userRole != null) {
 					auditLogger.log(request.getRequestedFor(), EventType.REJECT_REQUEST, userRole);

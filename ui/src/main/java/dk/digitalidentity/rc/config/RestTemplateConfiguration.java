@@ -1,11 +1,5 @@
 package dk.digitalidentity.rc.config;
 
-import java.io.IOException;
-import java.security.cert.X509Certificate;
-import java.util.Iterator;
-
-import javax.net.ssl.SSLContext;
-
 import org.apache.http.client.config.CookieSpecs;
 import org.apache.http.client.config.RequestConfig;
 import org.apache.http.conn.ssl.DefaultHostnameVerifier;
@@ -26,6 +20,11 @@ import org.springframework.util.ResourceUtils;
 import org.springframework.util.StringUtils;
 import org.springframework.web.client.ResponseErrorHandler;
 import org.springframework.web.client.RestTemplate;
+
+import javax.net.ssl.SSLContext;
+import java.io.IOException;
+import java.security.cert.X509Certificate;
+import java.util.Iterator;
 
 @Configuration
 public class RestTemplateConfiguration {
@@ -127,7 +126,7 @@ public class RestTemplateConfiguration {
 
 			SSLConnectionSocketFactory f = new SSLConnectionSocketFactory(sslContext, 
 				    new String[] { "TLSv1.2" },
-				    new String[] { "TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384" },
+				    new String[] { "TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384", "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256" },
 				    new DefaultHostnameVerifier());
 			
 			client = HttpClients.custom()
@@ -184,8 +183,8 @@ public class RestTemplateConfiguration {
 
 			SSLConnectionSocketFactory f = new SSLConnectionSocketFactory(sslContext, 
 				    new String[] { "TLSv1.2" },
-				    new String[] { "TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384" },
-				    new DefaultHostnameVerifier());
+					new String[] { "TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384", "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256" },
+					new DefaultHostnameVerifier());
 			
 			client = HttpClients.custom()
 				        .setDefaultRequestConfig(RequestConfig.custom().setCookieSpec(CookieSpecs.STANDARD).build())

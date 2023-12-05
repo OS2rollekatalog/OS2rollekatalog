@@ -14,4 +14,5 @@ public class Integrations {
 	private AppManager appManager = new AppManager();
 	private NemLogin nemLogin = new NemLogin();
 	private Cvr cvr = new Cvr();
+	private DMP dmp = new DMP();
 }

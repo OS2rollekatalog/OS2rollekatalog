@@ -12,6 +12,7 @@ import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
 import dk.digitalidentity.rc.dao.OrgUnitDao;
 import dk.digitalidentity.rc.dao.UserDao;
 import dk.digitalidentity.rc.dao.model.EmailTemplate;
+import dk.digitalidentity.rc.dao.model.ManagerSubstitute;
 import dk.digitalidentity.rc.dao.model.OrgUnit;
 import dk.digitalidentity.rc.dao.model.Position;
 import dk.digitalidentity.rc.dao.model.User;
@@ -177,15 +178,27 @@ public class AttestationEmailNotificationService {
                     .flatMap(ou -> findManagersManager(fResponsibleUser, ou, 0).stream())
                     .collect(Collectors.toList());
         } else if (responsibleUser != null) {
-            // Find substitutes(stedfortrædere)
-            return Stream.concat(Stream.of(responsibleUser), userDao.findByManagerSubstitutesSubstitute(responsibleUser).stream())
-                    .collect(Collectors.toList());
+            if (attestation.getAttestationType() == Attestation.AttestationType.ORGANISATION_ATTESTATION) {
+                // Find substitutes(stedfortrædere)
+                final List<User> substitutes = orgUnitDao.findById(attestation.getResponsibleOuUuid())
+                        .stream()
+                        .map(OrgUnit::getManager)
+                        .filter(Objects::nonNull)
+                        .flatMap(manager -> manager.getManagerSubstitutes().stream())
+                        .filter(s -> s.getOrgUnit().getUuid().equals(attestation.getResponsibleOuUuid()))
+                        .map(ManagerSubstitute::getSubstitute)
+                        .toList();
+                return Stream.concat(Stream.of(responsibleUser), substitutes.stream())
+                        .collect(Collectors.toList());
+            } else {
+                return Collections.singletonList(responsibleUser);
+            }
         }
         return null;
     }
 
     private List<User> findManagersManager(final User manager, final OrgUnit ou, int depth) {
-        if (depth > 0) {
+        if (depth > 10) {
             // In case the OU hierarchy have circular structure, bail out here
             return Collections.emptyList();
         }

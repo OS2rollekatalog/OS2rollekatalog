@@ -22,8 +22,8 @@ public class NemLoginUpdateTask {
 	@Autowired
 	private RoleCatalogueConfiguration configuration;
 	
-	// run once every 5 minutes
-	@Scheduled(cron = "0 #{new java.util.Random().nextInt(4)}/5 * * * ?")
+	// run once every 5 minutes during "daytime"
+	@Scheduled(cron = "0 #{new java.util.Random().nextInt(4)}/5 6-23 * * ?")
 	public void syncDirtyUserRolesAssignments() {
 		if (!configuration.getIntegrations().getNemLogin().isEnabled() || !configuration.getScheduled().isEnabled()) {
 			return;
@@ -33,7 +33,7 @@ public class NemLoginUpdateTask {
 	}
 
 	// run once every night
-	@Scheduled(cron = " 0 #{new java.util.Random().nextInt(55)} 3 ? * *")
+	@Scheduled(cron = " 0 #{new java.util.Random().nextInt(55)} 5 ? * *")
 	public void fullSyncRoleAssignments() {
 		if (!configuration.getIntegrations().getNemLogin().isEnabled() || !configuration.getScheduled().isEnabled()) {
 			return;

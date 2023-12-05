@@ -20,6 +20,6 @@ public class ItSystemRoleAssignmentUserDTO {
 	private String position;
 	private String verifiedByUserId;
 	private String remarks;
-	private boolean readOnly = false;
+	private boolean readOnly;
 	private List<ItSystemRoleAssignmentUserRoleDTO> userRoles;
 }

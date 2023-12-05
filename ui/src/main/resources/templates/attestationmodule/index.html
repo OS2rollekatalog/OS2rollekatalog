@@ -65,7 +65,7 @@
                                                     </div>
                                                 </td>
                                                 <td th:text="${orgUnit.deadline}" th:class="${orgUnit.passedDeadline} ? 'passedDeadline' : ''"></td>
-                                                <td style="text-align: center;"><a th:unless="${orgUnit.readOnly} OR (${orgUnit.numberAttestated == orgUnit.totalNumber} AND ${orgUnit.orgUnitRolesVerified})" sec:authorize="hasRole('ROLE_MANAGER') or hasRole('ROLE_SUBSTITUTE')" th:href="${'/ui/attestation/v2/orgunits/' + orgUnit.id}"><em style="color: #212529" class="fa fa-pencil"></em></a></td>
+                                                <td style="text-align: center;"><a th:unless="${orgUnit.readOnly} OR (${orgUnit.numberAttestated == orgUnit.totalNumber} AND ${orgUnit.orgUnitRolesVerified})" sec:authorize="hasRole('ROLE_MANAGER') or hasRole('ROLE_SUBSTITUTE')" th:href="@{${'/ui/attestation/v2/orgunits/' + orgUnit.id}}"><em style="color: #212529" class="fa fa-pencil"></em></a></td>
                                             </tr>
                                         </tbody>
                                     </table>
@@ -94,7 +94,7 @@
                                                 </div>
                                             </td>
                                             <td th:text="${system.deadline}" th:class="${system.passedDeadline} ? 'passedDeadline' : ''"></td>
-                                            <td style="text-align: center;"><a th:unless="${system.numberAttestated == system.totalNumber}" sec:authorize="hasRole('ROLE_IT_SYSTEM_RESPONSIBLE')" th:href="${'/ui/attestation/v2/itsystems/' + system.id}"><em style="color: #212529" class="fa fa-pencil"></em></a></td>
+                                            <td style="text-align: center;"><a th:unless="${system.numberAttestated == system.totalNumber}" sec:authorize="hasRole('ROLE_IT_SYSTEM_RESPONSIBLE')" th:href="@{${'/ui/attestation/v2/itsystems/' + system.id}}"><em style="color: #212529" class="fa fa-pencil"></em></a></td>
                                         </tr>
                                         </tbody>
                                     </table>
@@ -139,7 +139,7 @@
                                                 </div>
                                             </td>
                                             <td th:text="${system.deadline}" th:class="${system.passedDeadline} ? 'passedDeadline' : ''"></td>
-                                            <td style="text-align: center;"><a th:unless="${system.numberAttestated == system.totalNumber} AND ${system.orgUnitRolesVerified}" sec:authorize="hasRole('ROLE_IT_SYSTEM_RESPONSIBLE')" th:href="${'/ui/attestation/v2/itsystems/' + system.id + '/roleassignments'}"><em style="color: #212529" class="fa fa-pencil"></em></a></td>
+                                            <td style="text-align: center;"><a th:unless="${system.numberAttestated == system.totalNumber} AND ${system.orgUnitRolesVerified}" sec:authorize="hasRole('ROLE_IT_SYSTEM_RESPONSIBLE')" th:href="@{${'/ui/attestation/v2/itsystems/' + system.id + '/roleassignments'}}"><em style="color: #212529" class="fa fa-pencil"></em></a></td>
                                         </tr>
                                         </tbody>
                                     </table>

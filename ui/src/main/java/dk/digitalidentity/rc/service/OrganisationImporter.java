@@ -565,9 +565,6 @@ public class OrganisationImporter {
 				usersWithAttachedPositions.add(userService.save(userToCreate));
 			}
 
-			// flag all for saving (and yes, this is the 2nd call, but this also ensures position updates are stored correctly)
-			userService.save(toBeCreated);
-
 			log.info("Saving users to be created: " + toBeCreated.stream().map(User::getUserId).collect(Collectors.joining(",")));
 
 			existingUsers.addAll(usersWithAttachedPositions);
@@ -612,65 +609,60 @@ public class OrganisationImporter {
 							}
 						}
 
-						// only update positions if user is from primary domain
-						if (DomainService.isPrimaryDomain(domain)) {
-							if (differentPositions(userToUpdate, existingUser)) {
+						if (includePositions(domain) && differentPositions(userToUpdate, existingUser)) {
+							UserMovedPositions movedPositionEvent = null;
+							if (!existingUser.getUserRoleAssignments().isEmpty() || !existingUser.getRoleGroupAssignments().isEmpty()) {
+								movedPositionEvent = new UserMovedPositions();
+								movedPositionEvent.setUser(existingUser);
+							}
 
-								UserMovedPositions movedPositionEvent = null;
-								if (!existingUser.getUserRoleAssignments().isEmpty() || !existingUser.getRoleGroupAssignments().isEmpty()) {
-									movedPositionEvent = new UserMovedPositions();
-									movedPositionEvent.setUser(existingUser);
-								}
+							// do the switcheroo to make Hibernate happy on all the userToUpdate's positions
+							for (Position userToUpdatePosition : userToUpdate.getPositions()) {
+								for (OrgUnit existingOrgUnit : existingOrgUnits) {
+									if (userToUpdatePosition.getOrgUnit().getUuid().equals(existingOrgUnit.getUuid())) {
+										checkOrgUnitForNewTitles(userToUpdatePosition, existingOrgUnit);
 
-								// do the switcheroo to make Hibernate happy on all the userToUpdate's positions
-								for (Position userToUpdatePosition : userToUpdate.getPositions()) {
-									for (OrgUnit existingOrgUnit : existingOrgUnits) {
-										if (userToUpdatePosition.getOrgUnit().getUuid().equals(existingOrgUnit.getUuid())) {
-											checkOrgUnitForNewTitles(userToUpdatePosition, existingOrgUnit);
+										userToUpdatePosition.setOrgUnit(existingOrgUnit);
 
-											userToUpdatePosition.setOrgUnit(existingOrgUnit);
-
-											break;
-										}
-									}
-
-									userToUpdatePosition.setUser(existingUser);
-								}
-
-								// if there are new positions add them to existing object
-								for (Position newPosition : userToUpdate.getPositions()) {
-									if (!containsPosition(newPosition, existingUser.getPositions())) {
-										checkOrgUnitForNewTitles(newPosition, newPosition.getOrgUnit());
-										addPosition(existingUser, newPosition);
-
-										if (movedPositionEvent != null) {
-											movedPositionEvent.getNewPositions().add(new MovedPostion(newPosition.getOrgUnit().getName(), newPosition.getName()));
-										}
+										break;
 									}
 								}
 
-								// remove if existing user has positions that are not in the new one
-								List<Position> positionsToRemove = new ArrayList<>();
-								for (Position existingPosition : existingUser.getPositions()) {
-									if (!containsPosition(existingPosition, userToUpdate.getPositions())) {
-										positionsToRemove.add(existingPosition);
+								userToUpdatePosition.setUser(existingUser);
+							}
 
-										if (movedPositionEvent != null) {
-											movedPositionEvent.getOldPositions().add(new MovedPostion(existingPosition.getOrgUnit().getName(), existingPosition.getName()));
-										}
+							// if there are new positions add them to existing object
+							for (Position newPosition : userToUpdate.getPositions()) {
+								if (!containsPosition(newPosition, existingUser.getPositions())) {
+									checkOrgUnitForNewTitles(newPosition, newPosition.getOrgUnit());
+									addPosition(existingUser, newPosition);
+
+									if (movedPositionEvent != null) {
+										movedPositionEvent.getNewPositions().add(new MovedPostion(newPosition.getOrgUnit().getName(), newPosition.getName()));
 									}
-								}
-
-								for (Position positionToRemove : positionsToRemove) {
-									userService.removePosition(existingUser, positionToRemove);
-								}
-
-								if (movedPositionEvent != null && !movedPositionEvent.getNewPositions().isEmpty() && !movedPositionEvent.getOldPositions().isEmpty()) {
-									events.get().getUsersMovedPostions().add(movedPositionEvent);
 								}
 							}
-						}
 
+							// remove if existing user has positions that are not in the new one
+							List<Position> positionsToRemove = new ArrayList<>();
+							for (Position existingPosition : existingUser.getPositions()) {
+								if (!containsPosition(existingPosition, userToUpdate.getPositions())) {
+									positionsToRemove.add(existingPosition);
+
+									if (movedPositionEvent != null) {
+										movedPositionEvent.getOldPositions().add(new MovedPostion(existingPosition.getOrgUnit().getName(), existingPosition.getName()));
+									}
+								}
+							}
+
+							for (Position positionToRemove : positionsToRemove) {
+								userService.removePosition(existingUser, positionToRemove);
+							}
+
+							if (movedPositionEvent != null && !movedPositionEvent.getNewPositions().isEmpty() && !movedPositionEvent.getOldPositions().isEmpty()) {
+								events.get().getUsersMovedPostions().add(movedPositionEvent);
+							}
+						}
 						userService.save(existingUser);
 
 						break;
@@ -854,7 +846,7 @@ public class OrganisationImporter {
 						else if (!configuration.getIntegrations().getKle().isUiEnabled() && hasKleChanges(newUser, existingUser)) {
 							toBeUpdated.add(newUser);
 						}
-						else if (DomainService.isPrimaryDomain(domain) && differentPositions(newUser, existingUser)) {
+						else if (includePositions(domain) && differentPositions(newUser, existingUser)) {
 							toBeUpdated.add(newUser);
 						}
 						else if (existingUser.isDisabled() != newUser.isDisabled()) {
@@ -888,9 +880,8 @@ public class OrganisationImporter {
 				// exist in the Hibernate context, and intercepted events (like the addPosition below), which has side-effects
 				// like persisting other objects that references users (and then it needs to exists i the hibernate context first)
 				userService.save(userToCreate);
-				
-				// only add positions if the user is from the primary domain
-				if (DomainService.isPrimaryDomain(domain)) {
+
+				if (includePositions(domain)) {
 					for (Position p : newUser.getPositions()) {
 						addPosition(userToCreate, p);
 					}
@@ -923,7 +914,11 @@ public class OrganisationImporter {
 			}
 		}
 	}
-	
+
+	private boolean includePositions(Domain domain) {
+		return DomainService.isPrimaryDomain(domain) || configuration.getOrganisation().isIncludePositionsFromSecondaryDomains();
+	}
+
 	private static boolean hasSameKey(ManagerDTO managerDto, User manager) {
 		if (managerDto.getUserId().equalsIgnoreCase(manager.getUserId()) && managerDto.getUuid().equals(manager.getExtUuid())) {
 			return true;

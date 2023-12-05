@@ -8,7 +8,6 @@ import lombok.NoArgsConstructor;
 
 import java.util.List;
 
-
 @Data
 @Builder
 @AllArgsConstructor
@@ -23,7 +22,7 @@ public class UserAttestationDTO {
     private String remarks;
     private boolean adRemoval;
     private boolean manager;
-    private boolean readOnly = false;
+    private boolean readOnly;
     private List<RoleGroupDTO> roleGroups;
     private List<UserRoleItSystemDTO> userRolesPrItSystem;
     private List<RoleGroupDTO> doNotVerifyRoleGroups;

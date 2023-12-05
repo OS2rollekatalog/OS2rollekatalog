@@ -2,9 +2,6 @@ package dk.digitalidentity.rc.controller.validator;
 
 import java.util.regex.Pattern;
 
-import dk.digitalidentity.rc.dao.model.Domain;
-import dk.digitalidentity.rc.service.DomainService;
-import dk.digitalidentity.rc.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
@@ -17,6 +14,7 @@ import dk.digitalidentity.rc.dao.model.ItSystem;
 import dk.digitalidentity.rc.dao.model.enums.ItSystemType;
 import dk.digitalidentity.rc.service.DomainService;
 import dk.digitalidentity.rc.service.ItSystemService;
+import dk.digitalidentity.rc.service.UserService;
 
 @Component
 public class ItSystemValidator implements Validator {

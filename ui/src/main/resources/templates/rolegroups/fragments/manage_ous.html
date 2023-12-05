@@ -1,6 +1,6 @@
 <th:block th:fragment="ous" xmlns="http://www.w3.org/1999/xhtml" xmlns:th="http://www.thymeleaf.org">
 	<th:block sec:authorize="hasRole('ROLE_ASSIGNER')" th:if="${showEdit == true}">
-		<a href="#" id="addUserRoleAssignment" class="btn btn-lg btn-primary" style="width:auto;" th:text="#{html.page.role.add.orgunit}" onclick="orgUnitService.loadAddUserRoleFragment()"></a>
+		<a href="#" id="addUserRoleAssignment" class="btn btn-lg btn-primary" style="width:auto;" th:text="#{html.page.role.add.orgunit}" onclick="orgUnitService.loadAddRoleGroupFragment()"></a>
 	</th:block>
 	<table id="listTableOus" class="table table-striped table-hover listTable">
 		<thead>

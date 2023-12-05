@@ -339,6 +339,12 @@
 									<span th:text="#{html.navbar.features}"></span>
 								</a>
 							</li>
+							<li th:class="${page == 'frontPageLinks'} ? 'active' : ''">
+								<a th:href="@{/ui/frontpage/links}">
+									<em class="fa fa-link"></em>
+									<span th:text="#{html.navbar.settings.frontPageLinks}"></span>
+								</a>
+							</li>
 						</th:block>
 						
 						<th:block sec:authorize="hasRole('ROLE_ADMINISTRATOR') or hasRole('ROLE_MANAGER') or hasRole('ROLE_SUBSTITUTE')">

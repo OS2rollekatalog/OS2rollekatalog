@@ -466,11 +466,7 @@ public class UserRoleController {
 		
 		model.addAttribute("titlesEnabled", titlesEnabled);
 
-		if (edit) {
-			return "ous/fragments/ou_roles_edit_modal :: ouRolesEditModal";
-		} else {
-			return "ous/fragments/ou_roles_modal :: ouRolesModal";
-		}
+		return "ous/fragments/ou_roles_modal :: ouRolesModal";
 	}
 
 	private User getUserOrThrow(String userId) throws Exception {

@@ -114,8 +114,6 @@
 	<script th:replace="fragments/datatables :: datatables(orderColumnValue=1) "></script>
 	<script th:replace="fragments/assignDatePicker :: content "></script>
 	
-	<script th:replace="ous/fragments/ou_roles_modal :: ouRoleGroupModalScript(titlesEnabled=${titlesEnabled})"></script>
-	<script th:replace="ous/fragments/ou_roles_edit_modal :: ouRolesEditModalScript(titlesEnabled=${titlesEnabled})"></script>
 	<script th:replace="users/fragments/role_assignment_edit_modal :: roleAssignmentEditModalScript(missingPostponedConstraintService = true)"></script>
 	<script th:replace="users/fragments/user_role_group_modal :: userRoleGroupModalScript"></script>
 	
@@ -155,12 +153,7 @@
 		
 		$("document").ready(function() {
 			userService.loadRolesFragment();
-			//Edit RoleGroup assignemnet on User modal
-			userRoleEditModalService.parentService = userService;
-			
 			orgUnitService.loadRolesFragment();
-			//Edit RoleGroup assignmnet on OrgUnit modal
-			ouRolesEditModalService.parentService = orgUnitService;
 
 			if (infoMessage != null) {
 				notificationService.showInfoNotification(infoMessage);

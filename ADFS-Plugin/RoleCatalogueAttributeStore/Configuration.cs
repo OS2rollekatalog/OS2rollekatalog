@@ -58,7 +58,7 @@ namespace RoleCatalogueAttributeStore
 
             if (config.ContainsKey("Domain"))
             {
-                ApiKey = config["Domain"];
+                Domain = config["Domain"];
             } else
             {
                 Domain = null;

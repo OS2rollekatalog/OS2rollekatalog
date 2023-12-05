@@ -266,11 +266,7 @@ public class RoleGroupController {
 		
 		model.addAttribute("titlesEnabled", titlesEnabled);
 
-		if (edit) {
-			return "ous/fragments/ou_roles_edit_modal :: ouRolesEditModal";
-		} else {
-			return "ous/fragments/ou_roles_modal :: ouRolesModal";
-		}
+		return "ous/fragments/ou_roles_modal :: ouRolesModal";
 	}
 
 	private List<EditUserRoleRow> getAddRoles(RoleGroup rolegroup) {
