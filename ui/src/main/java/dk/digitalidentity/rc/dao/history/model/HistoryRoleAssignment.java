@@ -64,5 +64,8 @@ public class HistoryRoleAssignment {
 
 	@Column(name = "ou_uuid")
 	private String orgUnitUuid;
+	
+	@Column(name = "notify_by_email_if_manual_system")
+	private boolean notifyByEmailIfManualSystem = true;
 
 }

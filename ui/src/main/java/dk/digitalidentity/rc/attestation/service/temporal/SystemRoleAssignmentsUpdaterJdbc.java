@@ -34,6 +34,7 @@ public class SystemRoleAssignmentsUpdaterJdbc {
         progressCount = 0;
         List<HistoryItSystem> itSystems = temporalDao.listHistoryItSystems(when);
         final long recordCount = itSystems.stream()
+                .filter(system -> !system.isAttestationExempt())
                 .flatMap(system ->
                     temporalDao.listHistoryUserRoles(system.getId()).stream()
                             .flatMap(role ->

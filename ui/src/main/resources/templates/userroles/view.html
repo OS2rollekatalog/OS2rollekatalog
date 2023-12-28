@@ -151,7 +151,7 @@
 								</div>
 							</fieldset>
 
-							<ul class="nav nav-tabs">
+							<ul class="nav nav-tabs" th:title="${allowPostponing} ? #{html.page.userroles.edit.tab.ous.disabled} : ''">
 								<li class="active">
 									<a data-toggle="tab" href="#roles_menu" th:text="#{html.entity.userrole.systemroles}"></a>
 								</li>
@@ -164,7 +164,7 @@
 									<a data-toggle="tab" href="#users_menu" th:text="#{html.entity.userrole.users}"></a>
 								</li>
 
-								<li>
+								<li th:class="${allowPostponing} ? 'disabled' : ''">
 									<a data-toggle="tab" href="#ous_menu" th:text="#{html.entity.userrole.orgunits}"></a>
 								</li>
 							</ul>
@@ -223,6 +223,14 @@
 		.table .checkbox {
 			margin-left: 10px;
 			width: auto;
+		}
+
+		.nav.nav-tabs > li.disabled {
+			pointer-events: none;
+
+			a {
+				color: silver;
+			}
 		}
 	</style>
 

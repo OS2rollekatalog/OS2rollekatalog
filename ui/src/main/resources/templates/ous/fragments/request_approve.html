@@ -25,7 +25,7 @@
 		</div>
 	</div>
 
-	<div th:case="true" class="form-group" sec:authorize="hasRole('ROLE_ADMINISTRATOR')" th:if="${@settingsService.isRequestApproveEnabled() == true}">
+	<div th:case="true" class="form-group" sec:authorize="hasRole('ROLE_ADMINISTRATOR') or hasRole('ROLE_READ_ACCESS')" th:if="${@settingsService.isRequestApproveEnabled() == true}">
 		<label class="col-sm-2 control-label" th:text="#{html.page.ous.edit.authorizationManager}"></label>
 
 		<div class="col-sm-8">
@@ -45,7 +45,7 @@
 						<td th:text="${authManager.user.name}"></td>
 						<td th:text="${authManager.user.userId}"></td>
 						<td>
-							<a onclick="autoCompleteService.removeAuthManager(this); return false;" th:data-uuid="${authManager.user.uuid}"><em class="fa fa-fw fa-times"></em></a>
+							<a sec:authorize="hasRole('ROLE_ADMINISTRATOR')" onclick="autoCompleteService.removeAuthManager(this); return false;" th:data-uuid="${authManager.user.uuid}"><em class="fa fa-fw fa-times"></em></a>
 						</td>
 					</tr>
 				</tbody>

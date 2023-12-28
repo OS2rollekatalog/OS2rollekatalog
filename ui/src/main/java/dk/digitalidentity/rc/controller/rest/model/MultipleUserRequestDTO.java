@@ -2,6 +2,7 @@ package dk.digitalidentity.rc.controller.rest.model;
 
 import java.util.List;
 
+import dk.digitalidentity.rc.dao.model.enums.RequestAction;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -13,4 +14,6 @@ public class MultipleUserRequestDTO {
 	private Long roleId;
 	private String roleType;
 	private String orgUnitUuid;
+	private RequestAction action;
+	private List<PostponedConstraintDTO> constraints;
 }

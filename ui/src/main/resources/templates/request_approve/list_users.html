@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html>
-<head th:replace="fragments/header :: header (title=#{html.page.rolegroup.edit.title})"></head>
+<head th:replace="fragments/header :: header (customTitle=#{html.page.requestapprove.choose_users.title})"></head>
 <body>
 	<div class="wrapper">
 	    <header th:replace="fragments/navbar :: navbar-header(subpage = 'roles')"></header>
@@ -28,6 +28,7 @@
 									<td th:text="${user.userId}"></td>
 								 	<td>
 										<a th:href="'/ui/requestapprove/users/' + ${user.uuid} + '/roles'" ><em class="fa fa-plus"></em></a>
+										<a th:href="'/ui/requestapprove/users/' + ${user.uuid} + '/remove'" ><em class="fa fa-minus"></em></a>
 										<a th:href="'/ui/users/manage/' + ${user.uuid}" ><em class="fa fa-search"></em></a>
 									</td>
 								</tr>

@@ -57,7 +57,6 @@ public class EmailService {
 		log.info("Sending email '" + subject + "' to '" + email + "'");
 
 		Transport transport = null;
-
 		try {
 			Properties props = System.getProperties();
 			props.put("mail.transport.protocol", "smtps");

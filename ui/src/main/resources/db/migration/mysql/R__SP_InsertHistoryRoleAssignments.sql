@@ -14,11 +14,11 @@ BEGIN
     dato, user_uuid,
     role_id, role_name, role_it_system_id, role_it_system_name, role_role_group, role_role_group_id,
     assigned_through_type, assigned_through_uuid, assigned_through_name,
-    assigned_by_user_id, assigned_by_name, assigned_when, postponed_constraints, ou_uuid)
+    assigned_by_user_id, assigned_by_name, assigned_when, postponed_constraints, ou_uuid, notify_by_email_if_manual_system)
   SELECT CURRENT_TIMESTAMP, u.uuid,
     ur.id, ur.name, it.id, it.name, NULL, NULL,
     'DIRECT', NULL, NULL,
-    urm.assigned_by_user_id, urm.assigned_by_name, urm.assigned_timestamp, sub_constraints.combined_constraints, urm.ou_uuid
+    urm.assigned_by_user_id, urm.assigned_by_name, urm.assigned_timestamp, sub_constraints.combined_constraints, urm.ou_uuid, urm.notify_by_email_if_manual_system
   FROM user_roles_mapping urm
   JOIN users u ON u.uuid = urm.user_uuid
   JOIN user_roles ur ON ur.id = urm.role_id

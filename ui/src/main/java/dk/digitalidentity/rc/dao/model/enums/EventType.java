@@ -29,6 +29,7 @@ public enum EventType {
 	AUTH_MANAGER_ADDED("html.enum.eventtype.add_auth_manager"),
 	AUTH_MANAGER_REMOVED("html.enum.eventtype.remove_auth_manager"),
 	REQUEST_ROLE_FOR("html.enum.eventtype.request"),
+	REQUEST_ROLE_REMOVAL_FOR("html.enum.eventtype.removal_request"),
 	APPROVE_REQUEST("html.enum.eventtype.approve_request"),
 	REJECT_REQUEST("html.enum.eventtype.reject_request"),
 	

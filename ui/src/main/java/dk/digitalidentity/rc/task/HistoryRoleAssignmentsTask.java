@@ -1,15 +1,14 @@
 package dk.digitalidentity.rc.task;
 
-import java.util.Date;
-
+import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
+import dk.digitalidentity.rc.service.HistoryService;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
-import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
-import dk.digitalidentity.rc.service.HistoryService;
-import lombok.extern.slf4j.Slf4j;
+import java.util.Date;
 
 @Component
 @EnableScheduling
@@ -24,7 +23,7 @@ public class HistoryRoleAssignmentsTask {
 
 	@Scheduled(cron = "0 #{new java.util.Random().nextInt(55)} 4 * * ?")
 	// enable this to execute script at bootup
-	//@Scheduled(fixedDelay = 24 * 60 * 60 * 1000)
+//	@Scheduled(fixedDelay = 24 * 60 * 60 * 1000)
 	public void generateHistory() {
 		if (!configuration.getScheduled().isEnabled() ||
 			!configuration.getScheduled().getHistory().isEnabled()) {

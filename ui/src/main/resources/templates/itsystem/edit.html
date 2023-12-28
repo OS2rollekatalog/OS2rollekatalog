@@ -84,7 +84,12 @@
 								<div class="form-group">
 									<label class="col-sm-2 control-label" th:text="#{html.entity.itsystem.attestationResponsible}"></label>
 									<div class="col-sm-8">
-										<input class="form-control" id="search_person" th:value="${attestationResponsibleName}" onclick="return false;" />
+										<div class="input-group">
+											<input class="form-control" id="search_person" th:value="${attestationResponsibleName}" onclick="return false;" />
+											<span class="input-group-addon removeSystemResponsibleBtn" onclick="itSystemService.handleRemoveSystemResponsible()">
+												<span style="color: red;" class="fa fa-times"></span>
+											</span>
+										</div>
 									</div>
 								</div>
 							</fieldset>
@@ -94,6 +99,20 @@
 									<label class="col-sm-2 control-label" th:text="#{html.entity.itsystem.notes}"></label>
 									<div class="col-sm-8">
 										<textarea rows="5" th:field="*{notes}" class="form-control"></textarea>
+									</div>
+								</div>
+							</fieldset>
+
+							<fieldset th:if="${attestationEnabled}">
+								<div class="form-group">
+									<label class="col-sm-2 control-label" th:text="#{html.entity.itsystem.att_exempt}"></label>
+									<div class="col-sm-1">
+										<div class="checkbox c-checkbox">
+											<label>
+												<input id="att-exempt-checkbox" type="checkbox" data-flag="hidden" th:attr="checked=${itsystem.attestationExempt}" />
+												<span class="fa fa-check"></span>
+											</label>
+										</div>
 									</div>
 								</div>
 							</fieldset>
@@ -294,7 +313,10 @@
 													<td th:text="${systemRole.name}"></td>
 													<td th:text="${systemRole.identifier}"></td>
 													<td class="preformat" th:text="${systemRole.description}"></td>
-													<td><em class="fa fa-fw" th:classappend="${systemRole.inUse} ? fa-check : ''"></em></td>
+													<td>
+														<p th:text="${systemRole.inUse} ? '1' : '0'" hidden="hidden"></p>
+														<em class="fa fa-fw" th:classappend="${systemRole.inUse} ? fa-check : ''"></em>
+													</td>
 													<td th:text="${systemRole.weight}"></td>
 													<td>
 														<th:block th:if="${itsystem.readonly} == false">
@@ -838,8 +860,7 @@
 	<script th:inline="javascript">
 	/*<![CDATA[*/
 		var token = $("meta[name='_csrf']").attr("content");
-		var ouFilterService;
-		var itsystemId;
+		var ouFilterService, itSystemService;
 		/*[+
 			var itSystemType = [[${#strings.toString(itsystem.systemType)}]];
 			var readonly = [[${itsystem.readonly}]];
@@ -853,15 +874,17 @@
 			var fieldNotUpdatedMsgOUFilter = [[#{html.entity.itsystem.notUpdatedMsgOUFilter}]];
 			var fieldNotUpdatedNotesMsg = [[#{html.entity.itsystem.notUpdatedNotesMsg}]];
 			var fieldNotUpdatedEmailMsg = [[#{html.entity.itsystem.notUpdatedEmailMsg}]];
+			var attestationResponsibleUrl = [[@{/rest/itsystem/attestationResponsible}]];
+			var itsystemId = [[${itsystem.id}]];
 		+]*/
 
 		$("document").ready(function() {
 			$('[data-toggle="popover"]').popover({
 				container: 'body'
 			});
-			itsystemId = $("#id").val();
 			ouFilterService = new OUFilterService();
 			ouFilterService.init();
+			itSystemService = new ITSystemService();
 
 				/*[+
 					var url = [[@{/ui/itsystem/edit/}]] + itsystemId;
@@ -874,9 +897,9 @@
 					var accessBlockedUrl = [[@{/rest/itsystem/accessBlocked}]];
 					var apiManagedRoleAssignmentsUrl = [[@{/rest/itsystem/apiManagedRoleAssignments}]];
 					var hiddenUrl = [[@{/rest/itsystem/hidden}]];
+					var attExemptUrl = [[@{/rest/itsystem/attestationExempt}]];
 					var notesUrl = [[@{/rest/itsystem/notes}]];
 					var subscribedToUrl = [[@{/rest/itsystem/subscribedTo}]];
-					var attestationResponsibleUrl = [[@{/rest/itsystem/attestationResponsible}]];
 					var subscribedToMaster = [[${itsystem.subscribedTo != null}]];
 					var roleAssignmentAttestationByAttestationResponsibleUrl = [[@{/rest/itsystem/userroles/}]];
 				+]*/
@@ -889,12 +912,13 @@
 			$("#readonly-checkbox").change(handleChangeOnReadOnly);
 			$("#canEditThroughApi-checkbox").change(handleChangeOnCanEditThroughApi);
 			$('#hidden-checkbox').change(handleChangeOnHidden);
+			$('#att-exempt-checkbox').change(handleChangeAttExempt);
 			$('#accessBlocked-checkbox').change(handleChangeOnAccessBlocked);
 			$('#apiManagedRoleAssignments-checkbox').change(handleChangeOnApiManagedRoleAssignmentsUrl);
 			$('#subscribedToCheckbox').change(toggleDisabledCheckbox);
 			$('#subscribedTo').change(handleChangeOnSubscribedTo);
 			$('.canrequest-checkbox').change(handleCanRequestCheckboxChange);
-			$("#selectedResponsibleUuid").change(handleChangeOnInputAttestationResponsible);
+			$("#selectedResponsibleUuid").change(itSystemService.handleChangeOnInputAttestationResponsible);
 			$(".roleAssignmentAttestationByAttestationResponsible-checkbox").change(handleChangeOnRoleAssignmentAttestationByAttestationResponsible);
 
 			//assign relevant listeners again on page change
@@ -1001,38 +1025,6 @@
 					method: 'POST',
 					data: {
 						'email': objNotificationEmail,
-						'id': itsystemId
-					},
-					headers: {
-						'X-CSRF-TOKEN': token
-					},
-					error: function(response) {
-						$.notify({
-							message: fieldNotUpdatedMsg + ""
-						},{
-							status: 'danger',
-							autoHideDelay: 4000
-						});
-					},
-					success: function(response) {
-						$.notify({
-							message: fieldUpdatedMsg
-						},{
-							status: 'success',
-							autoHideDelay: 2000
-						});
-					}
-				});
-			}
-
-			function handleChangeOnInputAttestationResponsible() {
-				var objAttestationResponsible = $("#selectedResponsibleUuid").val();
-
-				$.ajax({
-					url: attestationResponsibleUrl,
-					method: 'POST',
-					data: {
-						'uuid': objAttestationResponsible,
 						'id': itsystemId
 					},
 					headers: {
@@ -1191,6 +1183,37 @@
 					method: 'POST',
 					data: {
 						'canEditThroughApi': objCanEditApi,
+						'id': itsystemId
+					},
+					headers: {
+						'X-CSRF-TOKEN': token
+					},
+					error: function(response) {
+						$.notify({
+							message: fieldNotUpdatedMsg + ""
+						},{
+							status: 'danger',
+							autoHideDelay: 4000
+						});
+					},
+					success: function(response) {
+						$.notify({
+							message: fieldUpdatedMsg
+						},{
+							status: 'success',
+							autoHideDelay: 2000
+						});
+					}
+				});
+			}
+
+			function handleChangeAttExempt() {
+				var objAttExempt = $("#att-exempt-checkbox").is(":checked");
+				$.ajax({
+					url: attExemptUrl,
+					method: 'POST',
+					data: {
+						'attestationExempt': objAttExempt,
 						'id': itsystemId
 					},
 					headers: {
@@ -1797,6 +1820,50 @@
 				});
 			}
 		}
+
+
+		function ITSystemService() {
+			this.handleChangeOnInputAttestationResponsible = function() {
+				var objAttestationResponsible = $("#selectedResponsibleUuid").val();
+				itSystemService.updateResponsible(objAttestationResponsible)
+
+			}
+			this.handleRemoveSystemResponsible = function() {
+				itSystemService.updateResponsible(null)
+				$("#search_person").val("")
+			}
+
+			this.updateResponsible = function(objAttestationResponsible) {
+				$.ajax({
+					url: attestationResponsibleUrl,
+					method: 'POST',
+					data: {
+						'uuid': objAttestationResponsible,
+						'id': itsystemId
+					},
+					headers: {
+						'X-CSRF-TOKEN': token
+					},
+					error: function(response) {
+						$.notify({
+							message: fieldNotUpdatedMsg + ""
+						},{
+							status: 'danger',
+							autoHideDelay: 4000
+						});
+					},
+					success: function(response) {
+						$.notify({
+							message: fieldUpdatedMsg
+						},{
+							status: 'success',
+							autoHideDelay: 2000
+						});
+					}
+				});
+			}
+		}
+
 	/*]]>*/
 	</script>
 </body>

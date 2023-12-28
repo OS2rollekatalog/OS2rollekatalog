@@ -38,6 +38,9 @@ public class HistoryItSystem {
 	@Column(name = "attestation_responsible_uuid")
 	private String attestationResponsible;
 
+	@Column(name = "attestation_exempt")
+	private boolean attestationExempt;
+
 	@BatchSize(size = 50)
 	@OneToMany(mappedBy = "historyItSystem", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
 	private Set<HistorySystemRole> historySystemRoles;

@@ -14,7 +14,8 @@ public enum EmailTemplatePlaceholder {
 	ITSYSTEM_PLACEHOLDER("{itsystem}", "html.enum.placeholders.description.role_itsystem"),
 	REQUESTER_PLACEHOLDER("{anmoder}", "html.enum.placeholders.description.requester"),
 	CHANGE_REQUESTED_PLACEHOLDER("{ændring}", "html.enum.placeholders.description.change"),
-	LIST_OF_CHANGE_REQUESTS("{ændringsønsker}", "html.enum.placeholders.description.changeList");
+	LIST_OF_CHANGE_REQUESTS("{ændringsønsker}", "html.enum.placeholders.description.changeList"),
+	ATTESTATION_DEADLINE("{deadline}", "html.enum.placeholders.description.deadline");
 
 	private String placeholder;
 	private String description;

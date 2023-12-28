@@ -20,6 +20,7 @@ public class TitleServiceAuditInterceptor {
 	@Autowired
 	private AuditLogger auditLogger;
 
+	// TitleService does not have these methods anymore - I don't think this interceptor is used
 	@AfterReturning(value = "execution(* dk.digitalidentity.rc.service.TitleService.*(..)) && @annotation(AuditLogIntercepted)", returning = "retVal")
 	public void interceptAfter(JoinPoint jp, Object retVal) {
 		switch(jp.getSignature().getName()) {

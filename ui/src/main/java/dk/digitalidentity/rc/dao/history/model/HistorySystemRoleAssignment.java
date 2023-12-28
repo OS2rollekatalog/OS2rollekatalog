@@ -28,7 +28,7 @@ public class HistorySystemRoleAssignment {
 	private String systemRoleName;
 
 	@Column
-	private long systemRoleId;
+	private Long systemRoleId;
 
 	@Column
 	private String systemRoleDescription;

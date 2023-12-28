@@ -26,6 +26,7 @@ import dk.digitalidentity.rc.security.AccessConstraintService;
 import dk.digitalidentity.rc.security.RequireAdministratorRole;
 import dk.digitalidentity.rc.security.RequireAssignerRole;
 import dk.digitalidentity.rc.security.RequireReadAccessOrManagerRole;
+import dk.digitalidentity.rc.security.RequireRequesterOrAssignerRole;
 import dk.digitalidentity.rc.service.ConstraintTypeService;
 import dk.digitalidentity.rc.service.KleService;
 import dk.digitalidentity.rc.service.OrgUnitService;
@@ -259,6 +260,7 @@ public class UserRestController {
 			@RequestParam(name = "startDate", required = false) String startDateStr,
 			@RequestParam(name = "stopDate", required = false) String stopDateStr,
 			@RequestParam(name = "ouuuid", required = false) String orgUnitUuid,
+			@RequestParam(name = "notify", required = false) boolean shouldNotify,
 			@RequestBody List<PostponedConstraintDTO> postponedConstraints) {
 
 		User user = userService.getByUuid(userUuid);
@@ -312,7 +314,7 @@ public class UserRestController {
 		}
 
 		try {
-			userService.addUserRole(user, userRole, startDate, stopDate, postponedConstraintsForAssignment, orgUnit);
+			userService.addUserRole(user, userRole, startDate, stopDate, postponedConstraintsForAssignment, orgUnit, shouldNotify);
 		}
 		catch (SecurityException ex) {
 			return new ResponseEntity<>(ex.getMessage(), HttpStatus.FORBIDDEN);
@@ -720,7 +722,7 @@ public class UserRestController {
 		return new ResponseEntity<>(HttpStatus.OK);
 	}
 	
-	@RequireAssignerRole
+	@RequireRequesterOrAssignerRole
 	@PostMapping(value = "/rest/users/constraints/validate")
 	@ResponseBody
 	public HttpEntity<?> validatePostponedConstraints(@RequestBody List<PostponedConstraintDTO> postponedConstraints) {

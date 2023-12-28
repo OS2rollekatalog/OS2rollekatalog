@@ -162,6 +162,7 @@ public class UserRoleController {
 		}
 		
 		model.addAttribute("hideRolegroups", hideRolegroups);
+		model.addAttribute("allowPostponing", role.isAllowPostponing());
 
 		return "userroles/view";
 	}

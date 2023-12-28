@@ -1,7 +1,9 @@
 package dk.digitalidentity.rc.dao.model;
 
 import java.util.Date;
+import java.util.List;
 
+import javax.persistence.CascadeType;
 import javax.persistence.Column;
 import javax.persistence.Entity;
 import javax.persistence.EnumType;
@@ -12,11 +14,13 @@ import javax.persistence.GenerationType;
 import javax.persistence.Id;
 import javax.persistence.JoinColumn;
 import javax.persistence.ManyToOne;
+import javax.persistence.OneToMany;
 import javax.persistence.Table;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 
 import dk.digitalidentity.rc.dao.model.enums.EntityType;
+import dk.digitalidentity.rc.dao.model.enums.RequestAction;
 import dk.digitalidentity.rc.dao.model.enums.RequestApproveStatus;
 import dk.digitalidentity.rc.log.AuditLoggable;
 import lombok.Getter;
@@ -51,7 +55,11 @@ public class RequestApprove implements AuditLoggable {
 	@Enumerated(EnumType.STRING)
 	@Column(nullable = false)
 	private EntityType roleType;
-
+	
+	@Enumerated(EnumType.STRING)
+	@Column
+	private RequestAction requestAction;
+	
 	@Column
 	private Long roleId;
 	
@@ -82,6 +90,9 @@ public class RequestApprove implements AuditLoggable {
 	
 	@Column
 	private String adminName;
+
+	@OneToMany(mappedBy = "requestApprove", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
+	private List<RequestApprovePostponedConstraint> requestApprovePostponedConstraints;
 
 	@JsonIgnore
 	@Override

@@ -1,18 +1,30 @@
 package dk.digitalidentity.rc.controller.mvc;
 
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Objects;
-import java.util.stream.Collectors;
-
-import javax.servlet.http.HttpServletRequest;
-
+import dk.digitalidentity.rc.config.SessionConstants;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.RequestForm;
+import dk.digitalidentity.rc.controller.mvc.viewmodel.RequestUserDTO;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.RoleDTO;
+import dk.digitalidentity.rc.dao.model.OrgUnit;
 import dk.digitalidentity.rc.dao.model.Position;
+import dk.digitalidentity.rc.dao.model.RoleGroup;
 import dk.digitalidentity.rc.dao.model.RoleGroupUserRoleAssignment;
+import dk.digitalidentity.rc.dao.model.User;
+import dk.digitalidentity.rc.dao.model.UserRole;
+import dk.digitalidentity.rc.exceptions.NotFoundException;
+import dk.digitalidentity.rc.security.RequireAssignerRole;
+import dk.digitalidentity.rc.security.RequireRequesterRole;
+import dk.digitalidentity.rc.security.SecurityUtil;
 import dk.digitalidentity.rc.service.ItSystemService;
+import dk.digitalidentity.rc.service.OrgUnitService;
+import dk.digitalidentity.rc.service.RequestApproveService;
+import dk.digitalidentity.rc.service.RoleGroupService;
+import dk.digitalidentity.rc.service.SettingsService;
+import dk.digitalidentity.rc.service.UserRoleService;
+import dk.digitalidentity.rc.service.UserService;
+import dk.digitalidentity.rc.service.model.RoleAssignedToUserDTO;
+import dk.digitalidentity.rc.service.model.RoleAssignmentType;
+import dk.digitalidentity.rc.service.model.UserWithRole;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -20,23 +32,15 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestParam;
 
-import dk.digitalidentity.rc.config.SessionConstants;
-import dk.digitalidentity.rc.controller.mvc.viewmodel.RequestUserDTO;
-import dk.digitalidentity.rc.dao.model.OrgUnit;
-import dk.digitalidentity.rc.dao.model.RoleGroup;
-import dk.digitalidentity.rc.dao.model.User;
-import dk.digitalidentity.rc.dao.model.UserRole;
-import dk.digitalidentity.rc.security.RequireAssignerRole;
-import dk.digitalidentity.rc.security.RequireRequesterRole;
-import dk.digitalidentity.rc.security.SecurityUtil;
-import dk.digitalidentity.rc.service.OrgUnitService;
-import dk.digitalidentity.rc.service.RequestApproveService;
-import dk.digitalidentity.rc.service.RoleGroupService;
-import dk.digitalidentity.rc.service.SettingsService;
-import dk.digitalidentity.rc.service.UserRoleService;
-import dk.digitalidentity.rc.service.UserService;
-import dk.digitalidentity.rc.service.model.UserWithRole;
-import lombok.extern.slf4j.Slf4j;
+import javax.servlet.http.HttpServletRequest;
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Objects;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+
+import static dk.digitalidentity.rc.service.model.AssignedThrough.DIRECT;
 
 @Slf4j
 @Controller
@@ -106,10 +110,10 @@ public class RequestApproveController {
 
 			for (RoleGroupUserRoleAssignment assignment : roleGroup.getUserRoleAssignments()) {
 				if (assignment.getUserRole().getItSystem().isOuFilterEnabled()) {
-					continue;
+					List<String> ouFilterUuids = itSystemService.getOUFilterUuidsWithChildren(assignment.getUserRole().getItSystem());
+					orgUnits = orgUnits.stream().filter(o -> ouFilterUuids.contains(o.getUuid())).toList();
+					
 				}
-				List<String> ouFilterUuids = itSystemService.getOUFilterUuidsWithChildren(assignment.getUserRole().getItSystem());
-				orgUnits = orgUnits.stream().filter(o -> ouFilterUuids.contains(o.getUuid())).toList();
 			}
 		}
 		else if (roleType.equals("userRole")) {
@@ -206,7 +210,9 @@ public class RequestApproveController {
 			}
 		}
 
-		model.addAttribute("users", userDTOs);		
+		model.addAttribute("users", userDTOs);
+
+		userService.addPostponedListsToModel(model);
 		
 		return "request_approve/choose_users";
 	}
@@ -254,23 +260,44 @@ public class RequestApproveController {
 	}
 
 	@RequireRequesterRole
+	@GetMapping("/ui/requestapprove/users/{uuid}/remove")
+	public String requestRoleRemovalForUser(Model model, @PathVariable String uuid) {
+		final User user = userService.getOptionalByUuid(uuid)
+				.orElseThrow(() -> new NotFoundException("Bruger med uuid ikke fundet: " + uuid));
+		List<RoleAssignedToUserDTO> allUserRoleAndRoleGroupAssignments = userService.getAllUserRoleAndRoleGroupAssignments(user).stream()
+				.filter(a -> a.getAssignedThrough() == DIRECT)
+				.toList();
+		Stream<RoleAssignedToUserDTO> roleAssignmentsWhereRemovalCanBeRequested = allUserRoleAndRoleGroupAssignments.stream()
+				.filter(a -> a.getType() == RoleAssignmentType.USERROLE)
+				.filter(a -> userRoleService.getById(a.getRoleId()).isCanRequest());
+		Stream<RoleAssignedToUserDTO> groupAssignmentsWhereRemovalCanBeRequested = allUserRoleAndRoleGroupAssignments.stream()
+				.filter(a -> a.getType() == RoleAssignmentType.ROLEGROUP)
+				.filter(a -> roleGroupService.getById(a.getRoleId()).isCanRequest());
+		List<RoleAssignedToUserDTO> canRequestRoles = Stream.concat(roleAssignmentsWhereRemovalCanBeRequested, groupAssignmentsWhereRemovalCanBeRequested)
+				.collect(Collectors.toList());
+		List<RoleAssignedToUserDTO> readOnlyAssignments = allUserRoleAndRoleGroupAssignments.stream()
+				.filter(a -> !canRequestRoles.contains(a))
+				.toList();
+
+		List<OrgUnit> userOrgUnits = user.getPositions().stream().map(Position::getOrgUnit).toList();
+		model.addAttribute("canRequestAssignments", canRequestRoles);
+		model.addAttribute("readOnlyAssignments", readOnlyAssignments);
+		model.addAttribute("user", user);
+		model.addAttribute("requestForm", new RequestForm(user.getUuid()));
+		model.addAttribute("orgUnitUuid", userOrgUnits.get(0).getUuid()); // a bit of a hack, but better than not having the information
+		return "request_approve/list_roles_removal";
+	}
+
+	@RequireRequesterRole
 	@GetMapping("/ui/requestapprove/users/{uuid}/roles")
 	public String requestRoleForUser(Model model, @PathVariable String uuid) {
 		if (!settingsService.isRequestApproveEnabled()) {
 			return "redirect:/error";
 		}
-
-		User loggedInUser = userService.getByUserId(SecurityUtil.getUserId());
-		if (loggedInUser == null) {
-			log.warn("Unable to find user for user id: " + SecurityUtil.getUserId());
-			return "redirect:/error";
-		}
-
-		User user = userService.getByUuid(uuid);
-		if (user == null) {
-			log.warn("Unable to find user for user uuid: " + uuid);
-			return "redirect:/error";
-		}
+		User loggedInUser = userService.getOptionalByUserId(SecurityUtil.getUserId())
+				.orElseThrow(() -> new NotFoundException("Unable to find user for user id: " + SecurityUtil.getUserId()));
+		User user = userService.getOptionalByUuid(uuid)
+				.orElseThrow(() -> new NotFoundException("Bruger med uuid ikke fundet: " + uuid));
 		
 		List<OrgUnit> userOrgUnits = user.getPositions().stream().map(Position::getOrgUnit).toList();
 		List<UserRole> userRoles = userRoleService.getAllRequestable();
@@ -319,13 +346,18 @@ public class RequestApproveController {
 		}
 
 		List<RoleDTO> roles = new ArrayList<>();
-		roles.addAll(userRoles.stream().map(r -> new RoleDTO(r)).toList());
-		roles.addAll(roleGroups.stream().map(r -> new RoleDTO(r)).toList());
-
+		roles.addAll(userRoles.stream().map(RoleDTO::new).toList());
+		roles.addAll(roleGroups.stream().map(RoleDTO::new).toList());
+		List<Long> currentUserRoleIds = user.getUserRoleAssignments().stream().map( r -> r.getUserRole().getId()).collect(Collectors.toList());
+		List<Long>currentRoleGroupIds = user.getRoleGroupAssignments().stream().map(rg -> rg.getRoleGroup().getId()).collect(Collectors.toList());
 		model.addAttribute("roles", roles);
+		model.addAttribute("currentRoles", currentUserRoleIds);
+		model.addAttribute("currentRoleGroups", currentRoleGroupIds);
 		model.addAttribute("user", user);
 		model.addAttribute("orgUnitUuid", userOrgUnits.get(0).getUuid()); // a bit of a hack, but better than not having the information
 		model.addAttribute("requestForm", new RequestForm(user.getUuid()));
+
+		userService.addPostponedListsToModel(model);
 
 		return "request_approve/list_roles";
 	}

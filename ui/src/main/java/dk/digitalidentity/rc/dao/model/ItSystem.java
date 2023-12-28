@@ -1,7 +1,11 @@
 package dk.digitalidentity.rc.dao.model;
 
-import java.util.Date;
-import java.util.List;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import dk.digitalidentity.rc.dao.model.enums.ItSystemType;
+import dk.digitalidentity.rc.log.AuditLoggable;
+import lombok.Data;
+import org.hibernate.annotations.LazyCollection;
+import org.hibernate.annotations.LazyCollectionOption;
 
 import javax.persistence.Column;
 import javax.persistence.Entity;
@@ -18,14 +22,8 @@ import javax.persistence.OneToMany;
 import javax.persistence.Table;
 import javax.persistence.Temporal;
 import javax.persistence.TemporalType;
-
-import com.fasterxml.jackson.annotation.JsonIgnore;
-
-import dk.digitalidentity.rc.dao.model.enums.ItSystemType;
-import dk.digitalidentity.rc.log.AuditLoggable;
-import lombok.Data;
-import org.hibernate.annotations.LazyCollection;
-import org.hibernate.annotations.LazyCollectionOption;
+import java.util.Date;
+import java.util.List;
 
 @Entity
 @Table(name = "it_systems")
@@ -109,6 +107,9 @@ public class ItSystem implements AuditLoggable {
 	@ManyToOne(fetch = FetchType.LAZY)
 	@JoinColumn(name = "attestation_responsible_uuid")
 	private User attestationResponsible;
+
+	@Column
+	private boolean attestationExempt;
 
 	@JsonIgnore
 	@Override

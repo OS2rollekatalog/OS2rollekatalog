@@ -1,8 +1,9 @@
 package dk.digitalidentity.rc.dao.model;
 
-import java.time.LocalDate;
-import java.util.Date;
-import java.util.List;
+import dk.digitalidentity.rc.dao.serializer.LocalDateAttributeConverter;
+import lombok.Getter;
+import lombok.Setter;
+import org.hibernate.annotations.BatchSize;
 
 import javax.persistence.CascadeType;
 import javax.persistence.Column;
@@ -15,12 +16,9 @@ import javax.persistence.Id;
 import javax.persistence.JoinColumn;
 import javax.persistence.ManyToOne;
 import javax.persistence.OneToMany;
-
-import org.hibernate.annotations.BatchSize;
-
-import dk.digitalidentity.rc.dao.serializer.LocalDateAttributeConverter;
-import lombok.Getter;
-import lombok.Setter;
+import java.time.LocalDate;
+import java.util.Date;
+import java.util.List;
 
 @Entity(name = "user_roles_mapping")
 @Getter
@@ -56,6 +54,9 @@ public class UserUserRoleAssignment {
     @Convert(converter = LocalDateAttributeConverter.class)
 	@Column
 	private LocalDate stopDate;
+
+	@Column
+	private String stopDateUser;
 	
 	@Column
 	private boolean inactive;
@@ -66,4 +67,7 @@ public class UserUserRoleAssignment {
 	@ManyToOne(fetch = FetchType.LAZY)
 	@JoinColumn(name = "ou_uuid")
 	private OrgUnit orgUnit;
+	
+	@Column(name = "notify_by_email_if_manual_system")
+	private boolean notifyByEmailIfManualSystem = true;
 }

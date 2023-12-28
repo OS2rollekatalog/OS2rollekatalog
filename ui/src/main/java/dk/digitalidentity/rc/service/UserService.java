@@ -1,30 +1,9 @@
 package dk.digitalidentity.rc.service;
 
-import java.time.LocalDate;
-import java.util.ArrayList;
-import java.util.Base64;
-import java.util.Calendar;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.Set;
-import java.util.stream.Collectors;
-
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.cache.annotation.EnableCaching;
-import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.jdbc.core.RowMapper;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-import org.springframework.util.StringUtils;
-
 import dk.digitalidentity.rc.config.Constants;
 import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
+import dk.digitalidentity.rc.controller.mvc.viewmodel.KleDTO;
+import dk.digitalidentity.rc.controller.mvc.viewmodel.OUListForm;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.UserRoleNotAssignedDTO;
 import dk.digitalidentity.rc.dao.PositionRoleGroupAssignmentDao;
 import dk.digitalidentity.rc.dao.PositionUserRoleAssignmentDao;
@@ -32,8 +11,10 @@ import dk.digitalidentity.rc.dao.RoleGroupDao;
 import dk.digitalidentity.rc.dao.UserDao;
 import dk.digitalidentity.rc.dao.UserRoleGroupAssignmentDao;
 import dk.digitalidentity.rc.dao.UserUserRoleAssignmentDao;
+import dk.digitalidentity.rc.dao.model.ConstraintType;
 import dk.digitalidentity.rc.dao.model.Domain;
 import dk.digitalidentity.rc.dao.model.ItSystem;
+import dk.digitalidentity.rc.dao.model.Kle;
 import dk.digitalidentity.rc.dao.model.ManagerSubstitute;
 import dk.digitalidentity.rc.dao.model.OrgUnit;
 import dk.digitalidentity.rc.dao.model.OrgUnitRoleGroupAssignment;
@@ -42,6 +23,7 @@ import dk.digitalidentity.rc.dao.model.Position;
 import dk.digitalidentity.rc.dao.model.PositionRoleGroupAssignment;
 import dk.digitalidentity.rc.dao.model.PositionUserRoleAssignment;
 import dk.digitalidentity.rc.dao.model.PostponedConstraint;
+import dk.digitalidentity.rc.dao.model.RequestApprovePostponedConstraint;
 import dk.digitalidentity.rc.dao.model.RoleGroup;
 import dk.digitalidentity.rc.dao.model.RoleGroupUserRoleAssignment;
 import dk.digitalidentity.rc.dao.model.SystemRole;
@@ -58,7 +40,9 @@ import dk.digitalidentity.rc.dao.model.enums.ConstraintValueType;
 import dk.digitalidentity.rc.dao.model.enums.EventType;
 import dk.digitalidentity.rc.dao.model.enums.ItSystemType;
 import dk.digitalidentity.rc.dao.model.enums.KleType;
+import dk.digitalidentity.rc.exceptions.NotFoundException;
 import dk.digitalidentity.rc.exceptions.UserNotFoundException;
+import dk.digitalidentity.rc.log.AuditLogContextHolder;
 import dk.digitalidentity.rc.log.AuditLogIntercepted;
 import dk.digitalidentity.rc.log.AuditLogger;
 import dk.digitalidentity.rc.security.SecurityUtil;
@@ -85,6 +69,30 @@ import dk.digitalidentity.rc.service.model.UserWithRoleAndDates;
 import dk.digitalidentity.rc.util.IdentifierGenerator;
 import dk.digitalidentity.rc.util.StreamExtensions;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.EnableCaching;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.RowMapper;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.ui.Model;
+import org.springframework.util.StringUtils;
+
+import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.Base64;
+import java.util.Calendar;
+import java.util.Comparator;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -137,6 +145,9 @@ public class UserService {
 	@Autowired
 	private DomainService domainService;
 
+	@Autowired
+	private Select2Service select2Service;
+
 	// dao methods
 
 	public User save(User user) {
@@ -163,17 +174,27 @@ public class UserService {
 		return userDao.findByExtUuidAndDeletedFalse(uuid);
 	}
 
+	@Deprecated // Please use the version returning optional
 	public User getByUuid(String uuid) {
+		return userDao.findByUuidAndDeletedFalse(uuid).orElse(null);
+	}
+
+	public Optional<User> getOptionalByUuid(String uuid) {
 		return userDao.findByUuidAndDeletedFalse(uuid);
 	}
 
 	// using the default domain - used when getting user from SecurityUtil, Principal and simulating logins
+	@Deprecated // Please use the version returning optional
 	public User getByUserId(String userId) {
+		return userDao.findByUserIdAndDomainAndDeletedFalse(userId, domainService.getPrimaryDomain()).orElse(null);
+	}
+	// using the default domain - used when getting user from SecurityUtil, Principal and simulating logins
+	public Optional<User> getOptionalByUserId(String userId) {
 		return userDao.findByUserIdAndDomainAndDeletedFalse(userId, domainService.getPrimaryDomain());
 	}
 
 	public User getByUserId(String userId, Domain domain) {
-		return userDao.findByUserIdAndDomainAndDeletedFalse(userId, domain);
+		return userDao.findByUserIdAndDomainAndDeletedFalse(userId, domain).orElse(null);
 	}
 	
 	public List<User> findByCpr(String cpr) {
@@ -194,7 +215,7 @@ public class UserService {
 		return userDao.findByDomainAndDeletedFalse(domain);
 	}
 
-	public List<User> getAll() {
+		public List<User> getAll() {
 		return userDao.findByDeletedFalse();
 	}
 	
@@ -308,14 +329,17 @@ public class UserService {
 
 	@AuditLogIntercepted
 	public void addRoleGroup(User user, RoleGroup roleGroup, LocalDate startDate, LocalDate stopDate, OrgUnit orgUnit) {
+		String userFullname = SecurityUtil.getUserFullname();
+		String userId = SecurityUtil.getUserId();
 		UserRoleGroupAssignment assignment = new UserRoleGroupAssignment();
 		assignment.setUser(user);
 		assignment.setRoleGroup(roleGroup);
-		assignment.setAssignedByName(SecurityUtil.getUserFullname());
-		assignment.setAssignedByUserId(SecurityUtil.getUserId());
+		assignment.setAssignedByName(userFullname);
+		assignment.setAssignedByUserId(userId);
 		assignment.setAssignedTimestamp(new Date());
 		assignment.setStartDate((startDate == null || LocalDate.now().equals(startDate)) ? null : startDate);
 		assignment.setStopDate(stopDate);
+		assignment.setStopDateUser(userId);
 		assignment.setInactive(startDate != null ? startDate.isAfter(LocalDate.now()) : false);
 
 		List<OrgUnit> orgUnits = orgUnitService.getOrgUnitsForUser(user);
@@ -342,6 +366,9 @@ public class UserService {
 		roleGroupAssignment.setStopDate(stopDate);
 		roleGroupAssignment.setInactive(startDate != null ? startDate.isAfter(LocalDate.now()) : false);
 
+		String userId = SecurityUtil.getUserId();
+		roleGroupAssignment.setStopDateUser(userId);
+
 		List<OrgUnit> orgUnits = orgUnitService.getOrgUnitsForUser(user);
 		if (orgUnit != null) {
 			if (orgUnits.stream().noneMatch(o -> o.getUuid().equals(orgUnit.getUuid()))) {
@@ -361,6 +388,7 @@ public class UserService {
 				UserRoleGroupAssignment assignment = iterator.next();
 				
 				if (assignment.getRoleGroup().equals(roleGroup)) {
+					AuditLogContextHolder.getContext().setStopDateUserId(assignment.getStopDateUser());
 					iterator.remove();
 				}
 			}
@@ -377,6 +405,7 @@ public class UserService {
 			UserRoleGroupAssignment a = iterator.next();
 			
 			if (assignment.getId() == a.getId()) {
+				AuditLogContextHolder.getContext().setStopDateUserId(assignment.getStopDateUser());
 				iterator.remove();
 				break;
 			}
@@ -395,23 +424,44 @@ public class UserService {
 
 		return false;
 	}
-	
+
+	public void addUserRole(User user, UserRole userRole, List<RequestApprovePostponedConstraint> constraints) {
+		List<PostponedConstraint> postponedConstraintsForAssignment = new ArrayList<>();
+		for (RequestApprovePostponedConstraint requestConstraint : constraints) {
+			SystemRole systemRole = requestConstraint.getSystemRole();
+			ConstraintType constraintType = requestConstraint.getConstraintType();
+			if (systemRole == null || constraintType == null) {
+				continue;
+			}
+
+			PostponedConstraint postponedConstraint = new PostponedConstraint();
+			postponedConstraint.setConstraintType(constraintType);
+			postponedConstraint.setSystemRole(systemRole);
+			postponedConstraint.setValue(requestConstraint.getValue());
+
+			postponedConstraintsForAssignment.add(postponedConstraint);
+		}
+		self.addUserRole(user, userRole, null, null, postponedConstraintsForAssignment, null, true);
+	}
+
 	public void addUserRole(User user, UserRole userRole, LocalDate startDate, LocalDate stopDate) {
-		self.addUserRole(user, userRole, startDate, stopDate, null, null);
+		self.addUserRole(user, userRole, startDate, stopDate, null, null, true);
 	}
 
 	public void addUserRole(User user, UserRole userRole, LocalDate startDate, LocalDate stopDate, List<PostponedConstraint> postponedConstraints) {
-		self.addUserRole(user, userRole, startDate, stopDate, postponedConstraints, null);
+		self.addUserRole(user, userRole, startDate, stopDate, postponedConstraints, null, true);
 	}
 
 	@AuditLogIntercepted
-	public void addUserRole(User user, UserRole userRole, LocalDate startDate, LocalDate stopDate, List<PostponedConstraint> postponedConstraints, OrgUnit orgUnit) {
+	public void addUserRole(User user, UserRole userRole, LocalDate startDate, LocalDate stopDate, List<PostponedConstraint> postponedConstraints, OrgUnit orgUnit, boolean notifyByEmail) {
 		if (userRole.getItSystem().getIdentifier().equals(Constants.ROLE_CATALOGUE_IDENTIFIER)
 				&& !SecurityUtil.getRoles().contains(Constants.ROLE_ADMINISTRATOR)
 				&& !SecurityUtil.getRoles().contains(Constants.ROLE_SYSTEM)) {
 			throw new SecurityException("Kun administratorer kan tildele Rollekatalog roller");
 		}
 
+		String userFullname = SecurityUtil.getUserFullname();
+		String userId = SecurityUtil.getUserId();
 		UserUserRoleAssignment assignment = new UserUserRoleAssignment();
 		assignment.setUser(user);
 		assignment.setUserRole(userRole);
@@ -421,6 +471,8 @@ public class UserService {
 		assignment.setStartDate((startDate == null || LocalDate.now().equals(startDate)) ? null : startDate);
 		assignment.setStopDate(stopDate);
 		assignment.setInactive(startDate != null ? startDate.isAfter(LocalDate.now()) : false);
+		assignment.setStopDateUser(userId);
+		assignment.setNotifyByEmailIfManualSystem(notifyByEmail);
 
 		List<OrgUnit> orgUnits = orgUnitService.getOrgUnitsForUser(user);
 
@@ -467,6 +519,10 @@ public class UserService {
 		userRoleAssignment.setStopDate(stopDate);
 		userRoleAssignment.setInactive(startDate != null ? startDate.isAfter(LocalDate.now()) : false);
 
+		String userFullname = SecurityUtil.getUserFullname();
+		String userId = SecurityUtil.getUserId();
+		userRoleAssignment.setStopDateUser(userId);
+
 		if (postponedConstraints != null) {
 			userRoleAssignment.getPostponedConstraints().removeAll(userRoleAssignment.getPostponedConstraints());
 				
@@ -502,6 +558,7 @@ public class UserService {
 				UserUserRoleAssignment userRoleAssignment = iterator.next();
 				
 				if (userRoleAssignment.getUserRole().equals(userRole)) {
+					AuditLogContextHolder.getContext().setStopDateUserId(userRoleAssignment.getStopDateUser());
 					iterator.remove();
 				}
 			}
@@ -518,6 +575,7 @@ public class UserService {
 			UserUserRoleAssignment a = iterator.next();
 			
 			if (assignment.getId() == a.getId()) {
+				AuditLogContextHolder.getContext().setStopDateUserId(assignment.getStopDateUser());
 				iterator.remove();
 				break;
 			}
@@ -545,33 +603,24 @@ public class UserService {
 
 	// TODO: this method is only used by the ReadOnlyApi, and very likely noone has any use for
 	//       this method, so deprecate it in future versions of the API
-	public List<UserRole> getUserRolesAssignedDirectly(String id, Domain domain) throws UserNotFoundException {
-		User user = userDao.findByUuidAndDeletedFalse(id);
-		if (user == null) {
-			User byUserId = userDao.findByUserIdAndDomainAndDeletedFalse(id, domain);
-
-			if (byUserId == null) {
-				throw new UserNotFoundException("User with id '" + id + "' was not found in the database");
-			}
-			user = byUserId;
-		}
-
-		return user.getUserRoleAssignments().stream().map(ura -> ura.getUserRole()).collect(Collectors.toList());
+	public List<UserRole> getUserRolesAssignedDirectly(String id, Domain domain) {
+		User user = userDao.findByUuidAndDeletedFalse(id).orElseGet(
+				() -> userDao.findByUserIdAndDomainAndDeletedFalse(id, domain)
+						.orElseThrow(() -> new NotFoundException("User with id '" + id + "' was not found in the database"))
+		);
+		return user.getUserRoleAssignments().stream().map(UserUserRoleAssignment::getUserRole).collect(Collectors.toList());
 	}
 
 	// TODO: this method is only used by the ReadOnlyApi, and very likely noone has any use for
 	//       this method, so deprecate it in future versions of the API
-	public List<RoleGroup> getRoleGroupsAssignedDirectly(String uuid) throws UserNotFoundException {
-		User user = userDao.findByUuidAndDeletedFalse(uuid);
-		if (user == null) {
-			throw new UserNotFoundException("User with uuid '" + uuid + "' was not found in the database");
-		}
-
-		return user.getRoleGroupAssignments().stream().map(ura -> ura.getRoleGroup()).collect(Collectors.toList());
+	public List<RoleGroup> getRoleGroupsAssignedDirectly(String uuid) {
+		User user = userDao.findByUuidAndDeletedFalse(uuid)
+				.orElseThrow(() -> new NotFoundException("User with uuid '" + uuid + "' was not found in the database"));
+		return user.getRoleGroupAssignments().stream().map(UserRoleGroupAssignment::getRoleGroup).collect(Collectors.toList());
 	}
 
 	public String getUserNameId(String userId, Domain domain) throws UserNotFoundException {
-		User user = userDao.findByUserIdAndDomainAndDeletedFalse(userId, domain);
+		User user = userDao.findByUserIdAndDomainAndDeletedFalse(userId, domain).orElse(null);
 		if (user == null) {
 			List<User> users = userDao.findByExtUuidAndDeletedFalse(userId);
 			if (users.size() != 1) {
@@ -604,7 +653,7 @@ public class UserService {
 	 * Returns all UserRoles, no matter how they are assigned to the user
 	 */
 	public List<UserRole> getAllUserRoles(String userId, Domain domain, List<ItSystem> itSystems) throws UserNotFoundException {
-		User user = userDao.findByUserIdAndDomainAndDeletedFalse(userId, domain);
+		User user = userDao.findByUserIdAndDomainAndDeletedFalse(userId, domain).orElse(null);
 		if (user == null) {
 			throw new UserNotFoundException("User with userId '" + userId + "' was not found in the database");
 		}
@@ -1212,6 +1261,30 @@ public class UserService {
 		}
 
 		return new ArrayList<>(result);
+	}
+
+	public void addPostponedListsToModel(Model model) {
+		List<Kle> kles = kleService.findAll();
+		List<KleDTO> kleConstraintDTOS = new ArrayList<>();
+		for (Kle kle : kles) {
+			KleDTO kleDTO = new KleDTO();
+			kleDTO.setId(kle.getCode());
+			kleDTO.setParent(kle.getParent().equals("0") ? "#" : kle.getParent());
+
+			String code = kle.getCode().replaceAll("\\.\\*", "");
+			kleDTO.setText(kle.isActive() ? code + " " + kle.getName() : code + " " + kle.getName() + " [UDGÅET]");
+			kleConstraintDTOS.add(kleDTO);
+		}
+
+		model.addAttribute("kleList", kleConstraintDTOS);
+
+		List<OUListForm> treeOUs = orgUnitService.getAllCached()
+				.stream()
+				.map(ou -> new OUListForm(ou, false))
+				.sorted(Comparator.comparing(OUListForm::getText))
+				.collect(Collectors.toList());
+
+		model.addAttribute("treeOUs", treeOUs);
 	}
 	
 	private void getAllRoleGroupsFromOrgUnit(List<RoleGroupAssignmentWithInfo> result, OrgUnit orgUnit, boolean inheritOnly, User user) {

@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html>
+<head th:replace="fragments/header :: header (customTitle=#{html.page.requestapprove.role_removal.title})"></head>
+<body>
+<div class="wrapper">
+    <header th:replace="fragments/navbar :: navbar-header(subpage = 'roles')"></header>
+    <aside th:replace="fragments/navbar :: navbar-aside (page = 'users_request', subpage = 'roles')"></aside>
+    <section>
+        <div class="content-wrapper">
+            <div class="panel panel-default">
+                <div class="panel-body">
+                    <p th:text="#{html.page.requestapprove.list_roles_removal.text(${user.name})}"></p>
+
+                    <table id="listTable1" class="table table-striped table-hover listTable">
+                        <thead>
+                        <tr>
+                            <th class="col-md-2" th:text="#{html.entity.user.name}"></th>
+                            <th class="col-md-2" th:text="#{html.entity.itsystem}"></th>
+                            <th class="col-md-5" th:text="#{html.entity.userrole.description}"></th>
+                            <th class="col-md-2" th:text="#{html.page.users.manage.assignment.type}"></th>
+                            <th class="col-md-1">Anmod</th>
+                        </tr>
+                        </thead>
+
+                        <tbody>
+                        <tr th:each="assignment : ${canRequestAssignments}">
+                            <td th:text="${assignment.name}"></td>
+                            <td th:text="${assignment.itSystem?.name}"></td>
+                            <td th:text="${assignment.description}"></td>
+                            <td th:if="${#strings.equals(assignment.type, 'USERROLE')}" th:text="#{html.role.assignment.type.userrole}"></td>
+                            <td th:unless="${#strings.equals(assignment.type, 'USERROLE')}" th:text="#{html.role.assignment.type.rolegroup}"></td>
+                            <td>
+                                <a th:if="${#strings.equals(assignment.type, 'USERROLE')}" class="requestRemovalUserRoleBtn" th:attr="data-id=${assignment.roleId}, data-type=${assignment.type}" ><em class="fa fa-minus"></em></a>
+                                <a th:unless="${#strings.equals(assignment.type, 'USERROLE')}" class="requestRemovalRoleGroupBtn" th:attr="data-id=${assignment.roleId}, data-type=${assignment.type}" ><em class="fa fa-minus"></em></a>
+                            </td>
+                        </tr>
+                        <tr th:each="roAssignment : ${readOnlyAssignments}">
+                            <td th:text="${roAssignment.name}"></td>
+                            <td th:text="${roAssignment.itSystem?.name}"></td>
+                            <td th:text="${roAssignment.description}"></td>
+                            <td th:if="${#strings.equals(roAssignment.type, 'USERROLE')}" th:text="#{html.role.assignment.type.userrole}"></td>
+                            <td th:unless="${#strings.equals(roAssignment.type, 'USERROLE')}" th:text="#{html.role.assignment.type.rolegroup}"></td>
+                            <td>
+                            </td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </section>
+</div>
+
+<div th:replace="request_approve/fragments/request_modal :: requestRoleModal"></div>
+
+
+<nav th:replace="fragments/footer :: footer"></nav>
+<script th:replace="fragments/datatables :: datatables"></script>
+<script th:replace="request_approve/fragments/request_modal :: requestRoleModalScript"></script>
+
+<script th:inline="javascript">
+    /*<![CDATA[*/
+
+    /*[+
+        var orgUnitUuid = [[${orgUnitUuid}]];
+        var url = [[@{/rest/requestapprove/request/role}]];
+        var redirectUri = [[@{/ui/my/requests}]];
+        var requestUserUuid = [[${requestForm.userUuid}]];
+        var baseUrl = [[@{/}]];
+    +]*/
+
+    var token = $("meta[name='_csrf']").attr("content");
+
+    $("document").ready(function() {
+        // add listeners initially
+        requestRoleModalService.setSuccessHandler(() => {
+            window.location.href = redirectUri;
+        })
+        $(".requestRemovalUserRoleBtn").click(function() {
+            requestRoleModalService.showRequestRoleRemovalDialog(orgUnitUuid, requestUserUuid, $(this).data("id"));
+        });
+        $(".requestRemovalRoleGroupBtn").click(function() {
+            requestRoleModalService.showRequestRoleGroupRemovalDialog(orgUnitUuid, requestUserUuid, $(this).data("id"));
+        });
+
+        // add listeners on table draw
+        $('#listTable1').on('draw.dt', function() {
+            $('.requestRemovalUserRoleBtn').off('click');
+            $(".requestRemovalUserRoleBtn").click(function() {
+                requestRoleModalService.showRequestRoleRemovalDialog(orgUnitUuid, requestUserUuid, $(this).data("id"));
+            });
+            $('.requestRemovalRoleGroupBtn').off('click');
+            $(".requestRemovalRoleGroupBtn").click(function() {
+                requestRoleModalService.showRequestRoleGroupRemovalDialog(orgUnitUuid, requestUserUuid, $(this).data("id"));
+            });
+        });
+    });
+
+    /*]]>*/
+</script>
+</body>
+</html>

@@ -1,0 +1,177 @@
+<div th:fragment="requestRoleModal" class="modal fade" id="modal-request-role" role="dialog" xmlns="http://www.w3.org/1999/xhtml" xmlns:th="http://www.thymeleaf.org">
+
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form class="form-horizontal">
+                <div class="modal-header">
+                    <h4 id="requestDialogTitle" th:text="#{html.page.roles.request.modal.header}"></h4>
+                </div>
+
+                <div class="modal-body">
+                    <div id="postponedConstraintsPlaceholder"></div>
+                    <h4 th:text="#{html.page.roles.request.modal.header.reason}"></h4>
+                    <span th:text="#{html.page.roles.request.modal.body}"></span>
+                    <textarea id="reasonField" required="required" oninvalid="this.setCustomValidity('Angiv begrundelse')"
+                              oninput="this.setCustomValidity('')" rows="8" class="form-control" style="margin-top: 10px;"></textarea>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" style="display: none" id="requestRoleDialogBtn" onclick="postponedConstraintsService.validate('requestRole');" class="btn btn-primary" th:text="#{html.control.button.request}"></button>
+                    <button type="button" style="display: none" id="requestRoleRemovalDialogBtn" onclick="requestRoleModalService.performRoleRequest();" class="btn btn-primary" th:text="#{html.control.button.request}"></button>
+                    <button type="button" class="btn btn-danger" id="closeModalBtn" th:text="#{html.control.button.cancel}"></button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<th:block th:fragment="requestRoleModalScript" xmlns="http://www.w3.org/1999/xhtml" xmlns:th="http://www.thymeleaf.org">
+    <script th:inline="javascript" type="text/javascript">
+        /*<![CDATA[*/
+
+        /*[+
+        var requestUrl = [[@{/rest/requestapprove/request/role}]];
+        var token = $("meta[name='_csrf']").attr("content");
+        var requestFailedMsg = [[#{html.entity.user.request.failed}]];
+        var requestDialogAddTitle = [[#{html.page.roles.request.modal.header}]];
+        var requestDialogRemoveTitle = [[#{html.page.roles.request.remove.modal.header}]];
+        +]*/
+
+        var requestRoleModalService = new RequestRoleModalService();
+        $(document).ready(function() {
+            requestRoleModalService.init();
+        });
+        $("#modal-request-role #closeModalBtn").click(function() {
+            $("#modal-request-role #reasonField").val('');
+            $("#modal-request-role").modal('hide');
+        });
+
+        $("#modal-request-role").on('shown.bs.modal', function() {
+            $("#modal-request-role #reasonField").focus();
+        });
+
+        function RequestRoleModalService() {
+            this.init = function() {
+                this.roleId = null;
+                this.userUuid = null;
+                this.orgUnitUuid = null;
+                this.action = null;
+                this.constraints = [];
+            }
+
+            this.performRoleRequest = function() {
+                var reason = $("#modal-request-role #reasonField").val();
+                if (typeof postponedConstraintsService !== 'undefined') {
+                    // Constraint service might not be defined for removal requests
+                    this.constraints = postponedConstraintsService.getConstraintList();
+                }
+                requestRoleModalService.call(reason);
+            }
+
+            this.showRequestRoleDialog = function(orgUnitUuid, userUuid, roleId) {
+                this.validate();
+                $("#requestDialogTitle").text(requestDialogAddTitle);
+                $("#requestRoleDialogBtn").show();
+                postponedConstraintsService.loadPostponedConstraintsFragment(roleId);
+                this.userUuid = userUuid;
+                this.roleId = roleId;
+                this.roleType = 'userRole';
+                this.orgUnitUuid = orgUnitUuid;
+                this.action = 'ADD';
+                $("#modal-request-role").modal({
+                    backdrop: 'static',
+                    keyboard: false
+                });
+            }
+
+            this.showRequestRoleGroupDialog = function(orgUnitUuid, userUuid, roleGroupId) {
+                this.validate();
+                $("#requestDialogTitle").text(requestDialogAddTitle);
+                $("#requestRoleDialogBtn").show();
+                this.userUuid = userUuid;
+                this.roleId = roleGroupId;
+                this.roleType = 'roleGroup';
+                this.orgUnitUuid = orgUnitUuid;
+                this.action = 'ADD';
+                $("#modal-request-role").modal({
+                    backdrop: 'static',
+                    keyboard: false
+                });
+            }
+
+            this.showRequestRoleRemovalDialog = function(orgUnitUuid, userUuid, roleId) {
+                this.validate();
+                $("#requestDialogTitle").text(requestDialogRemoveTitle);
+                $("#requestRoleRemovalDialogBtn").show();
+                this.userUuid = userUuid;
+                this.roleId = roleId;
+                this.roleType = 'userRole';
+                this.orgUnitUuid = orgUnitUuid;
+                this.action = 'REMOVE';
+                $("#modal-request-role").modal({
+                    backdrop: 'static',
+                    keyboard: false
+                });
+            }
+
+            this.showRequestRoleGroupRemovalDialog = function(orgUnitUuid, userUuid, roleGroupId) {
+                this.validate();
+                $("#requestDialogTitle").text(requestDialogRemoveTitle);
+                $("#requestRoleRemovalDialogBtn").show();
+                this.userUuid = userUuid;
+                this.roleId = roleGroupId;
+                this.roleType = 'roleGroup';
+                this.orgUnitUuid = orgUnitUuid;
+                this.action = 'REMOVE';
+                $("#modal-request-role").modal({
+                    backdrop: 'static',
+                    keyboard: false
+                });
+            }
+
+            this.setSuccessHandler = function(successHandler) {
+                this.successHandler = successHandler;
+            }
+
+            this.validate = function() {
+                if (!this.successHandler) {
+                    throw new Error("successHandler should have been defined for RequestRoleModalService to work");
+                }
+            }
+
+            this.call = function(reason) {
+                $.ajax({
+                    url: requestUrl,
+                    method: 'POST',
+                    headers: {
+                        'X-CSRF-TOKEN': token
+                    },
+                    context: this,
+                    contentType: "application/json",
+                    data: JSON.stringify({
+                        "reason" : reason,
+                        "selectedUsers" : [this.userUuid],
+                        "roleId" : this.roleId,
+                        "roleType" : this.roleType,
+                        "orgUnitUuid" : this.orgUnitUuid,
+                        "action" : this.action,
+                        "constraints" : this.constraints
+                    }),
+                    error: function(response) {
+                        $.notify({
+                            message: requestFailedMsg
+                        },{
+                            status: 'danger',
+                            autoHideDelay: 4000
+                        });
+                    },
+                    success: function(response) {
+                        this.successHandler();
+                    }
+                });
+            }
+        }
+
+        /*]]>*/
+    </script>
+</th:block>

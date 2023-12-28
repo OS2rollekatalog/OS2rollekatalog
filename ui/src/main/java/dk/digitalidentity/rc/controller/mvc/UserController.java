@@ -7,9 +7,9 @@ import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
+import dk.digitalidentity.rc.controller.mvc.viewmodel.SelectOUDTO;
 import dk.digitalidentity.rc.service.PNumberService;
 import dk.digitalidentity.rc.service.SENumberService;
-import dk.digitalidentity.rc.controller.mvc.viewmodel.SelectOUDTO;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.access.AccessDeniedException;
@@ -25,7 +25,6 @@ import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.AvailableRoleGroupDTO;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.AvailableUserRoleDTO;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.KleDTO;
-import dk.digitalidentity.rc.controller.mvc.viewmodel.OUListForm;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.SystemRoleAssignmentConstraintValueDTO;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.SystemRoleAssignmentDTO;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.UserRoleNotAssignedDTO;
@@ -149,33 +148,13 @@ public class UserController {
 		
 		model.addAttribute("kleUiEnabled", configuration.getIntegrations().getKle().isUiEnabled());
 		model.addAttribute("canEditKle", SecurityUtil.hasRole(Constants.ROLE_ASSIGNER) || SecurityUtil.hasRole(Constants.ROLE_KLE_ADMINISTRATOR));
-
-		// TODO: refactor at some point, so we can use the above KLE list instead of this one...
-		List<KleDTO> kleConstraintDTOS = new ArrayList<>();
-		for (Kle kle : kles) {
-			KleDTO kleDTO = new KleDTO();
-			kleDTO.setId(kle.getCode());
-			kleDTO.setParent(kle.getParent().equals("0") ? "#" : kle.getParent());
-
-			String code = kle.getCode().replaceAll("\\.\\*", "");
-			kleDTO.setText(kle.isActive() ? code + " " + kle.getName() : code + " " + kle.getName() + " [UDGÅET]");
-			kleConstraintDTOS.add(kleDTO);
-		}
-		
-		model.addAttribute("kleList", kleConstraintDTOS);
+		model.addAttribute("roleAssignmentOrgUnits", orgUnitService.getOrgUnitsForUser(user).stream().map(o -> new SelectOUDTO(o)).collect(Collectors.toList()));
 		model.addAttribute("orgUnitList", select2Service.getOrgUnitList());
 		model.addAttribute("itSystemList", select2Service.getItSystemList());
-		
-		List<OUListForm> treeOUs = orgUnitService.getAllCached()
-				.stream()
-				.map(ou -> new OUListForm(ou, false))
-				.sorted(Comparator.comparing(OUListForm::getText))
-				.collect(Collectors.toList());
 
-		model.addAttribute("treeOUs", treeOUs);
+		// TODO: refactor at some point, so we can use the above KLE list instead of this one...
+		userService.addPostponedListsToModel(model);
 
-		model.addAttribute("roleAssignmentOrgUnits", orgUnitService.getOrgUnitsForUser(user).stream().map(o -> new SelectOUDTO(o)).collect(Collectors.toList()));
-		
 		return "users/manage";
 	}
 

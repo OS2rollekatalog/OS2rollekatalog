@@ -1,14 +1,5 @@
 package dk.digitalidentity.rc.service;
 
-import java.time.LocalDate;
-import java.util.Date;
-import java.util.Iterator;
-import java.util.List;
-import java.util.stream.Collectors;
-
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Service;
-
 import dk.digitalidentity.rc.config.Constants;
 import dk.digitalidentity.rc.dao.PositionDao;
 import dk.digitalidentity.rc.dao.model.OrgUnit;
@@ -19,8 +10,17 @@ import dk.digitalidentity.rc.dao.model.RoleGroup;
 import dk.digitalidentity.rc.dao.model.Title;
 import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserRole;
+import dk.digitalidentity.rc.log.AuditLogContextHolder;
 import dk.digitalidentity.rc.log.AuditLogIntercepted;
 import dk.digitalidentity.rc.security.SecurityUtil;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+import java.time.LocalDate;
+import java.util.Date;
+import java.util.Iterator;
+import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 public class PositionService {
@@ -41,15 +41,18 @@ public class PositionService {
 
 	@AuditLogIntercepted
 	public void addRoleGroup(Position position, RoleGroup roleGroup, LocalDate startDate, LocalDate stopDate) {
+		String userFullname = SecurityUtil.getUserFullname();
+		String userId = SecurityUtil.getUserId();
 		PositionRoleGroupAssignment assignment = new PositionRoleGroupAssignment();
 		assignment.setPosition(position);
 		assignment.setRoleGroup(roleGroup);
-		assignment.setAssignedByName(SecurityUtil.getUserFullname());
-		assignment.setAssignedByUserId(SecurityUtil.getUserId());
+		assignment.setAssignedByName(userFullname);
+		assignment.setAssignedByUserId(userId);
 		assignment.setAssignedTimestamp(new Date());
 		assignment.setStartDate((startDate == null || LocalDate.now().equals(startDate)) ? null : startDate);
 		assignment.setStopDate(stopDate);
 		assignment.setInactive(startDate != null ? startDate.isAfter(LocalDate.now()) : false);
+		assignment.setStopDateUser(userId);
 		position.getRoleGroupAssignments().add(assignment);
 	}
 
@@ -60,6 +63,8 @@ public class PositionService {
 			existingRoleGroupAssignment.setStartDate((startDate == null || LocalDate.now().equals(startDate)) ? null : startDate);
 			existingRoleGroupAssignment.setStopDate(stopDate);
 			existingRoleGroupAssignment.setInactive(startDate != null ? startDate.isAfter(LocalDate.now()) : false);
+			String userId = SecurityUtil.getUserId();
+			existingRoleGroupAssignment.setStopDateUser(userId);
 
 			return true;
 		}
@@ -74,6 +79,7 @@ public class PositionService {
 				PositionRoleGroupAssignment assignment = iterator.next();
 				
 				if (assignment.getRoleGroup().equals(roleGroup)) {
+					AuditLogContextHolder.getContext().setStopDateUserId(assignment.getStopDateUser());
 					iterator.remove();
 				}
 			}
@@ -90,6 +96,7 @@ public class PositionService {
 			PositionRoleGroupAssignment a = iterator.next();
 			
 			if (assignment.getId() == a.getId()) {
+				AuditLogContextHolder.getContext().setStopDateUserId(assignment.getStopDateUser());
 				iterator.remove();
 				break;
 			}
@@ -117,6 +124,10 @@ public class PositionService {
 	public void editRoleGroupAssignment(User user, PositionRoleGroupAssignment assignment, LocalDate startDate, LocalDate stopDate) {
 		assignment.setStartDate(startDate);
 		assignment.setStopDate(stopDate);
+
+		String userFullname = SecurityUtil.getUserFullname();
+		String userId = SecurityUtil.getUserId();
+		assignment.setStopDateUser(userId);
 	}
 
 	@AuditLogIntercepted
@@ -127,14 +138,17 @@ public class PositionService {
 			throw new SecurityException("Kun administratorer kan tildele Rollekatalog roller");
 		}
 
+		String userFullname = SecurityUtil.getUserFullname();
+		String userId = SecurityUtil.getUserId();
 		PositionUserRoleAssignment assignment = new PositionUserRoleAssignment();
 		assignment.setPosition(position);
 		assignment.setUserRole(userRole);
-		assignment.setAssignedByName(SecurityUtil.getUserFullname());
-		assignment.setAssignedByUserId(SecurityUtil.getUserId());
+		assignment.setAssignedByName(userFullname);
+		assignment.setAssignedByUserId(userId);
 		assignment.setAssignedTimestamp(new Date());
 		assignment.setStartDate((startDate == null || LocalDate.now().equals(startDate)) ? null : startDate);
 		assignment.setStopDate(stopDate);
+		assignment.setStopDateUser(userId);
 		assignment.setInactive(startDate != null ? startDate.isAfter(LocalDate.now()) : false);
 		position.getUserRoleAssignments().add(assignment);
 	}
@@ -151,6 +165,9 @@ public class PositionService {
 			exitstingUserRoleAssignment.setStartDate((startDate == null || LocalDate.now().equals(startDate)) ? null : startDate);
 			exitstingUserRoleAssignment.setStopDate(stopDate);
 			exitstingUserRoleAssignment.setInactive(startDate != null ? startDate.isAfter(LocalDate.now()) : false);
+
+			String userId = SecurityUtil.getUserId();
+			exitstingUserRoleAssignment.setStopDateUser(userId);
 
 			return true;
 		}
@@ -171,6 +188,7 @@ public class PositionService {
 				PositionUserRoleAssignment userRoleAssignment = iterator.next();
 				
 				if (userRoleAssignment.getUserRole().equals(userRole)) {
+					AuditLogContextHolder.getContext().setStopDateUserId(userRoleAssignment.getStopDateUser());
 					iterator.remove();
 				}
 			}
@@ -187,6 +205,7 @@ public class PositionService {
 			PositionUserRoleAssignment a = iterator.next();
 			
 			if (assignment.getId() == a.getId()) {
+				AuditLogContextHolder.getContext().setStopDateUserId(assignment.getStopDateUser());
 				iterator.remove();
 				break;
 			}
@@ -227,6 +246,9 @@ public class PositionService {
 
 		assignment.setStartDate(startDate);
 		assignment.setStopDate(stopDate);
+
+		String userId = SecurityUtil.getUserId();
+		assignment.setStopDateUser(userId);
 	}
 	
 	// ONLY use this from our bulk cleanup method, which does its own auditlogging

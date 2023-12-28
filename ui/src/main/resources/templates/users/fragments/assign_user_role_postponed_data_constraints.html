@@ -181,6 +181,23 @@
 				orgUnitPostponedConstraintService.init();
 			}
 
+			this.loadPostponedConstraintsFragment = function(roleId) {
+				$("#postponedConstraintsPlaceholder").empty();
+				$("#editPostponedConstraintsPlaceholder").empty();
+
+				$("#postponedConstraintsPlaceholder").load(baseUrl + "ui/users/manage/postponedconstraints/" + roleId, function () {
+					postponedConstraintsService.init();
+
+					var postponingAllowed = $("#postponingAllowed").val();
+					if (postponingAllowed == "true") {
+						$("#positionTable").hide();
+					}
+					else {
+						$("#positionTable").show();
+					}
+				});
+			}
+
 			this.validate = function(from) {
 				$(".constraintValidationError").hide();
 				
@@ -198,6 +215,10 @@
 	    					   userRoleEditModalService.updateClicked();
 	    				   } else if (from == "assignRoleDirectlyClicked") {
 	    					   userRoleModalService.assignRoleDirectlyClicked();
+	    				   } else if (from == "requestRole") {
+							   requestRoleModalService.performRoleRequest();
+	    				   } else if (from == "requestRoleMultipleUsers") {
+	    				   	   userService.request()
 	    				   }
 	    			   },
 	    			   error: function(response) {

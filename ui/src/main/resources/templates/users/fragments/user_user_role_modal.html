@@ -69,6 +69,18 @@
 							</select>
 						</div>
 					</div>
+
+					<h4 id="notifyTitle"  th:text="#{html.page.assign.direct.checkbox.shouldNotifyEmailManualITSystem}"></h4>
+					<div class="container">
+						<div class="row">
+							<div > 
+								<div class="form-check form-check-reverse" style="display:flex; align-items: center">
+									<label id="notifyText" class="form-check-label" for="notifyId" th:text="#{html.page.assign.direct.checkbox.shouldNotifyEmailManualITSystem.leadingText}"></label>
+									<input type="checkbox" id="notifyId" class="form-check-input" style="margin-left: 15px; margin-top: 10px;"></input>
+								</div>
+							</div>
+						</div>
+					</div>
 	            </div>
 	
 	            <div class="modal-footer">
@@ -90,7 +102,6 @@
 		$(document).ready(function() {
             userRoleModalService = new UserRoleModalService();
             modalAjaxService = new ModalAjaxService();
-
             /*[+
     		userRoleModalService.usersUrl = [[@{/rest/users/}]];
 			userRoleModalService.fieldUpdatedMsg = [[#{html.entity.rolegroup.updatedmsg}]];
@@ -105,6 +116,7 @@
 		function UserRoleModalService() {
 			this.init = function(){
 				var modal = $("#modal-positions");
+				$('#notifyDiv').replaceWith('<div> <span >Test</span><input type="checkbox" id="notifyId"></input></div>');
 
 	            $('.assign_role').click(userRoleModalService.assignRoleClicked);
 	            
@@ -122,21 +134,40 @@
 			this.closeModal = function() {
 				var modal = $("#modal-positions");
 				modal.modal('hide');
+
+				
+			}
+
+			this.setManual = function(boolean) {
+				if(boolean) {
+					$("#notifyId").show();
+					$("#notifyText").show();
+					$("#notifyTitle").show();
+				}
+				else {
+					$("#notifyId").hide();
+					$("#notifyText").hide();
+					$("#notifyTitle").hide();
+				}
+
 			}
 			
 			this.assignRoleDirectlyClicked = function() {
 				var modal = $("#modal-positions");
 				var roleid = modal.attr("roleid");
 				var userUuid = modal.attr("userUuid");
-				
 				var startDate = $('#startDatePicker').data('date');
 				var stopDate = $('#stopDatePicker').data('date');
 				var dates = "?startDate=" + startDate + "&stopDate=" + stopDate;
 				
 				var constraints = postponedConstraintsService.getConstraintList();
+				var notify = true;
+				if($("#notifyId").is(':checked')) {
+					notify = false;
+				}
 				
 				$.ajax({
-	    			   url: userRoleModalService.usersUrl + userUuid + '/addrole/' + roleid + dates + '&ouuuid=' + $("#addRoleOUSelect").val(),
+	    			   url: userRoleModalService.usersUrl + userUuid + '/addrole/' + roleid + dates + '&ouuuid=' + $("#addRoleOUSelect").val()+ '&notify=' + notify,
 	    			   contentType: 'application/json',
 	    			   headers: {
 	    			      'X-CSRF-TOKEN': token
@@ -145,7 +176,7 @@
 	    			   data : JSON.stringify(constraints),
 	    			   success: function(response) {
 	    				   modalAjaxService.showInfoNotification(userRoleModalService.fieldUpdatedMsg);
-	    				   rolesService.loadAddUserRoleFragment();
+						   userRoleModalService.parentService.loadAddUserRoleFragment();
 	    			   },
 	    			   error: function(response) {
 	    				   var msg = (response.responseText != null && response.responseText.length > 0) ? response.responseText : userRoleModalService.fieldNotUpdatedMsg;
@@ -176,7 +207,7 @@
 	    			   type: 'post',
 	    			   success: function(response) {
 	    				   modalAjaxService.showInfoNotification(userRoleModalService.fieldUpdatedMsg);
-	    				   rolesService.loadAddUserRoleFragment();
+						   userRoleModalService.parentService.loadAddUserRoleFragment();
 	    			   },
 	    			   error: function(response) {
 	    				   var msg = (response.responseText != null && response.responseText.length > 0) ? response.responseText : userRoleModalService.fieldNotUpdatedMsg;

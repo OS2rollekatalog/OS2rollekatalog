@@ -7,8 +7,8 @@ CREATE OR ALTER PROC SP_InsertHistoryItSystems
 AS
 BEGIN
   INSERT INTO history_it_systems (
-    dato, it_system_id, it_system_name, it_system_hidden, attestation_responsible_uuid)
-  SELECT CURRENT_TIMESTAMP, it.id, it.name, it.hidden, it.attestation_responsible_uuid
+    dato, it_system_id, it_system_name, it_system_hidden, attestation_responsible_uuid, attestation_exempt)
+  SELECT CURRENT_TIMESTAMP, it.id, it.name, it.hidden, it.attestation_responsible_uuid, it.attestation_exempt
   FROM it_systems it;
   
   INSERT INTO history_system_roles (

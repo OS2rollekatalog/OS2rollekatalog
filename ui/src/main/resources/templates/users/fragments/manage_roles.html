@@ -39,7 +39,7 @@
 								<div th:text="#{__${assignment.type.message}__}" style="font-size: smaller; color: black;"></div>
 								<div th:if="${assignment.ineffective}" style="font-size: smaller; color: red;" th:text="#{html.page.users.manage.assignment.ineffective}"></div>
 							</td>
-							
+
 							<td>
 								<div th:each="systemRoleAssignment : ${assignment.systemRoleAssignments}">
 									<span style="font-weight: bold;" th:text="${systemRoleAssignment.systemRole.name}"></span>
@@ -48,12 +48,12 @@
 									</ul>
 								</div>
 							</td>
-							
+
 							<td>
 								<span th:text="#{__${assignment.assignedThrough.message}__}"></span>
 								<div th:if="${assignment.assignedThroughName != null}" th:text="${assignment.assignedThroughName}" style="font-size: smaller; color: black;"></div>
 							</td>
-							
+
 							<td>
 								<ul th:if="${assignment.startDate != null or assignment.stopDate != null}" style="padding-left: 0px; list-style-type: none; margin-bottom: 0px;">
 									<li th:if="${assignment.startDate != null}" th:text="#{html.word.assigned} + ' ' + ${assignment.startDate}"></li>
@@ -65,13 +65,22 @@
 								<span th:text="${assignment.itSystem?.name}"></span>
 								<span th:if="${assignment.itSystem?.paused == true}" class="badge badge-warning" th:text="#{html.page.itsystem.list.paused}"></span>
 							</td>
-							<td th:attr="data-assignmentid=${assignment.assignmentId}, data-roleid=${assignment.roleId}, data-type=${assignment.type}, data-startDate=${assignment.startDate}, data-stopDate=${assignment.stopDate}, data-assignedthrough=${assignment.assignedThrough}, data-name=${assignment.name}, data-ouuuid=${assignment.orgUnitUuid}">
+							<td th:attr="data-assignmentid=${assignment.assignmentId}, data-roleid=${assignment.roleId}, data-type=${assignment.type},
+							data-startDate=${assignment.startDate}, data-stopDate=${assignment.stopDate}, data-assignedthrough=${assignment.assignedThrough},
+							data-name=${assignment.name}, data-ouuuid=${assignment.orgUnitUuid}">
 								<a
 									href="#"
 									th:if="${assignment.canEdit}"
 									sec:authorize="hasRole('ROLE_ASSIGNER')"
 									onclick="rolesService.editRoleAssignment(this)">
 									<em class="fa fa-pencil"></em></a>
+								<a
+										href="#"
+										th:if="${@settingsService.isRequestApproveEnabled() == true && assignment.assignedThrough.name() == 'DIRECT'}"
+										sec:authorize="hasRole('ROLE_REQUESTER') and not hasRole('ROLE_ASSIGNER')"
+										onclick="rolesService.requestRoleRemoval(this)">
+									<em class="fa fa-minus"></em>
+								</a>
 								<a
 									href="#"
 									th:if="${assignment.canEdit}"
@@ -85,5 +94,6 @@
 				</table>
 			</div>
 		</div>
+
 	</fieldset>
 </th:block>

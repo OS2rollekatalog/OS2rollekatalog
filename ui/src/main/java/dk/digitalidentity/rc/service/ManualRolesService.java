@@ -37,6 +37,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.function.Function;
@@ -94,7 +95,7 @@ public class ManualRolesService {
             }
         }
 
-		return reportService.getUserRoleAssignmentReportEntries(users, orgUnits, itSystems, userRoleAssignments, ouRoleAssignments, ouRoleAssignmentsWithExceptions, titleRoleAssignments, itSystemNameMapping, Locale.ENGLISH, false);
+		return reportService.getUserRoleAssignmentReportEntries(users, orgUnits, itSystems, userRoleAssignments, ouRoleAssignments, ouRoleAssignmentsWithExceptions, titleRoleAssignments, itSystemNameMapping, Locale.ENGLISH, false, false);
 	}
 
 	@Transactional
@@ -151,9 +152,8 @@ public class ManualRolesService {
 				// compare with yesterday
 				for (UserRoleAssignmentReportEntry assignment : todayAssignmentsForUser) {
 					boolean existedYesterday = yesterdayAssignmentsForUser.stream().anyMatch(a -> a.getRoleId() == assignment.getRoleId());
-
+					
 					if (!existedYesterday) {
-						log.info("role " + assignment.getRoleId() + " has been assigned to " + userId);
 						
 						UserRole userRole = userRoleMap.get(assignment.getRoleId());
 						if (userRole == null) {
@@ -172,6 +172,18 @@ public class ManualRolesService {
 							usersRoles = new ArrayList<UserRole>();
 							toAddMap.put(user, usersRoles);
 						}
+						
+						String infoMsg = "role " + assignment.getRoleId() + " has been assigned to " + userId;
+						if(!assignment.isNotifyByEmailIfManualSystem()) {
+							infoMsg += " and email has been opted out of.";
+							log.info(infoMsg);
+							if (userRole.isRequireManagerAction()) {
+								notifyManagerActionRequired(user, userRole);
+							}
+							continue;
+						}
+						
+						log.info(infoMsg);
 						
 						usersRoles.add(userRole);
 					}
@@ -223,27 +235,30 @@ public class ManualRolesService {
 				StringBuilder usersAndRoles = new StringBuilder();
 
 				for (User user : toAddMap.keySet()) {
-					usersAndRoles.append(messageSource.getMessage("html.email.manual.message.user", new Object[] { user.getName(), user.getUserId(), user.getExtUuid() }, Locale.ENGLISH));
-					usersAndRoles.append("<ul>");
-					List<UserRole> toAdd = toAddMap.get(user);
-					List<UserRole> toRemove = toRemoveMap.get(user);
-					
-					for (UserRole userRole : toAdd) {
-						usersAndRoles.append(messageSource.getMessage("html.email.manual.message.addRole", new Object[] { userRole.getName() }, Locale.ENGLISH));
-					
-						// handle manager action required email template
-						if (userRole.isRequireManagerAction()) {
-							notifyManagerActionRequired(user, userRole);
-						}					
-					}
-					
-					if (toRemove != null) {
-						for (UserRole userRole : toRemove) {
-							usersAndRoles.append(messageSource.getMessage("html.email.manual.message.removeRole", new Object[] { userRole.getName() }, Locale.ENGLISH));
+					if(!toAddMap.get(user).isEmpty() || Objects.nonNull(toRemoveMap.get(user))) {
+						
+						usersAndRoles.append(messageSource.getMessage("html.email.manual.message.user", new Object[] { user.getName(), user.getUserId(), user.getExtUuid() }, Locale.ENGLISH));
+						usersAndRoles.append("<ul>");
+						List<UserRole> toAdd = toAddMap.get(user);
+						List<UserRole> toRemove = toRemoveMap.get(user);
+						
+						for (UserRole userRole : toAdd) {
+							usersAndRoles.append(messageSource.getMessage("html.email.manual.message.addRole", new Object[] { userRole.getName(), userRole.getDescription() }, Locale.ENGLISH));
+							
+							// handle manager action required email template
+							if (userRole.isRequireManagerAction()) {
+								notifyManagerActionRequired(user, userRole);
+							}
 						}
-					}
+						
+						if (toRemove != null) {
+							for (UserRole userRole : toRemove) {
+								usersAndRoles.append(messageSource.getMessage("html.email.manual.message.removeRole", new Object[] { userRole.getName(), userRole.getDescription() }, Locale.ENGLISH));
+							}
+						}
 
-					usersAndRoles.append("</ul>");
+						usersAndRoles.append("</ul>");
+					}
 				}
 				
 				for (User user : toRemoveMap.keySet()) {
@@ -266,14 +281,17 @@ public class ManualRolesService {
 				String title = messageSource.getMessage("html.email.manual.title", new Object[] { itSystem.getName() }, Locale.ENGLISH);
 				String message = messageSource.getMessage("html.email.manual.message.format", new Object[] { itSystem.getName(), usersAndRoles.toString() }, Locale.ENGLISH);
 
-				for (String email : emailAddresses) {
-					try {
-						emailService.sendMessage(email, title, message);
-					}
-					catch (Exception ex) {
-						log.error("Exception occured while synchronizing manual ItSystem: " + itSystem + ". Could not send email to: " + email + ". Exception:" + ex.getMessage());
-
-						// we just continue with the next one - someone has to fix this, and then perform a full sync
+				if(!usersAndRoles.isEmpty()) {
+					
+					for (String email : emailAddresses) {
+						try {
+							emailService.sendMessage(email, title, message);
+						}
+						catch (Exception ex) {
+							log.error("Exception occured while synchronizing manual ItSystem: " + itSystem + ". Could not send email to: " + email + ". Exception:" + ex.getMessage());
+							
+							// we just continue with the next one - someone has to fix this, and then perform a full sync
+						}
 					}
 				}
 			}

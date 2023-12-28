@@ -21,25 +21,29 @@ public class AuditLogger {
 	private AuditLogEntryDao auditLogEntryDao;
 
 	public void log(AuditLoggable entity, EventType eventType, String description) {
-		log(entity, eventType, null, description);
+		log(entity, eventType, null, description, null);
 	}
 
 	public void log(AuditLoggable entity, EventType eventType) {
-		log(entity, eventType, null, null);
+		log(entity, eventType, null, null, null);
 	}
 	
 	public void log(AuditLoggable entity, EventType eventType, AuditLoggable secondaryEntity) {
-		log(entity, eventType, secondaryEntity, null);
+		log(entity, eventType, secondaryEntity, null, null);
 	}
 
-	public void log(AuditLoggable entity, EventType eventType, AuditLoggable secondaryEntity, String description) {
-		String user = null;
+	public void log(AuditLoggable entity, EventType eventType, AuditLoggable secondaryEntity, String stopDateUser) {
+		log(entity, eventType, secondaryEntity, null, stopDateUser);
+	}
 
-		if (SecurityContextHolder.getContext().getAuthentication() != null) {
-			user = (String) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-		}
-		else {
-			user = "System";
+	public void log(AuditLoggable entity, EventType eventType, AuditLoggable secondaryEntity, String description, String stopdateUser) {
+		String user = null;
+		String loggedInUser = SecurityContextHolder.getContext().getAuthentication() == null ? "system" : (String) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+
+		if (stopdateUser != null && loggedInUser.equalsIgnoreCase("system")) {
+			user = "System på vegne af " + stopdateUser;
+		} else {
+			user = loggedInUser;
 		}
 
 		AuditLog entry = new AuditLog();

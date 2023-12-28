@@ -17,6 +17,7 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * JDBC Notice!
@@ -40,16 +41,19 @@ public class OuAssignmentsUpdaterJdbc {
         progressCount = 0;
         List<HistoryOURoleAssignment> ouAssignments = temporalDao.listHistoryOURoleAssignmentsByDate(when);
         ouAssignments.stream().map(a -> toOuRoleAssignment(a, when))
+                .filter(Objects::nonNull)
                 .peek(a -> logProgress())
                 .forEach(a -> persist(when, a));
 
         final List<HistoryOURoleAssignmentWithExceptions> ouWithExceptionsAssignments = temporalDao.listHistoryOURoleAssignmentWithExceptionsByDate(when);
         ouWithExceptionsAssignments.stream().map(a -> toOuRoleAssignment(a, when))
+                .filter(Objects::nonNull)
                 .peek(a -> logProgress())
                 .forEach(a -> persist(when, a));
 
         final List<HistoryOURoleAssignmentWithTitles> ouWithTitlesAssignments = temporalDao.listHistoryOURoleAssignmentWithTitlesByDate(when);
         ouWithTitlesAssignments.stream().map(a -> toOuRoleAssignment(a, when))
+                .filter(Objects::nonNull)
                 .peek(a -> logProgress())
                 .forEach(a -> persist(when, a));
 
@@ -80,6 +84,9 @@ public class OuAssignmentsUpdaterJdbc {
                 .withRole(historyOURoleAssignment.getRoleId())
                 .withRoleGroup(historyOURoleAssignment.getRoleRoleGroupId())
                 .getContext();
+        if (context.isItSystemExempt()) {
+            return null;
+        }
         boolean inherited = historyOURoleAssignment.getAssignedThroughType() == AssignedThrough.ORGUNIT
                 && !StringUtils.equals(historyOURoleAssignment.getAssignedThroughUuid(), historyOURoleAssignment.getOuUuid());
         final String responsibleUuid = getResponsibleUserUuid(historyOURoleAssignment.getRoleRoleGroupId(), context);
@@ -116,6 +123,9 @@ public class OuAssignmentsUpdaterJdbc {
                 .withRole(historyOURoleAssignmentWithTitles.getRoleId())
                 .withRoleGroup(historyOURoleAssignmentWithTitles.getRoleRoleGroupId())
                 .getContext();
+        if (context.isItSystemExempt()) {
+            return null;
+        }
         final String responsibleUuid = getResponsibleUserUuid(historyOURoleAssignmentWithTitles.getRoleRoleGroupId(), context);
         final String responsibleOuUuid = responsibleUuid == null ? historyOURoleAssignmentWithTitles.getOuUuid() : null;
         final String responsibleOuName = responsibleUuid == null ? context.ouName() : null;
@@ -151,6 +161,9 @@ public class OuAssignmentsUpdaterJdbc {
                 .withRole(historyOURoleAssignmentWithExceptions.getRoleId())
                 .withRoleGroup(historyOURoleAssignmentWithExceptions.getRoleRoleGroupId())
                 .getContext();
+        if (context.isItSystemExempt()) {
+            return null;
+        }
         final String responsibleUuid = getResponsibleUserUuid(historyOURoleAssignmentWithExceptions.getRoleRoleGroupId(), context);
         final String responsibleOuUuid = responsibleUuid == null ? historyOURoleAssignmentWithExceptions.getOuUuid() : null;
         final String responsibleOuName = responsibleUuid == null ? context.ouName() : null;
@@ -182,8 +195,8 @@ public class OuAssignmentsUpdaterJdbc {
         String responsibleUuid = null;
         final boolean itSystemResponsible = roleRoleGroupId == null
                 && context.isRoleAssignmentAttestationByAttestationResponsible();
-        if (itSystemResponsible && context.getCurrentItSystem().getAttestationResponsible() != null) {
-            responsibleUuid = context.getCurrentItSystem().getAttestationResponsible().getUuid();
+        if (itSystemResponsible && context.attestationResponsible() != null) {
+            responsibleUuid = context.attestationResponsible().getUuid();
         }
         return responsibleUuid;
     }

@@ -174,7 +174,7 @@
 								</li>
 
 								<th:block th:if="${@settingsService.isRequestApproveEnabled() == true}">
-									<li sec:authorize="hasRole('ROLE_ASSIGNER')" th:class="${page == 'requests_authorization_manager'} ? 'active' : ''">
+									<li sec:authorize="hasRole('ROLE_ASSIGNER')" th:class="${page == 'authorizationmanager'} ? 'active' : ''">
 										<a th:href="@{/ui/users/requests/authorizationmanager}">
 											<em class="fa fa-comment-o"></em>
 											<span th:text="#{html.navbar.requestapprove}"></span>
@@ -189,14 +189,14 @@
 							<span th:text="#{html.navbar.personal}"></span>
 						</li>
 	
-						<li sec:authorize="isAuthenticated()">
+						<li sec:authorize="isAuthenticated()" th:class="${page == 'my'} ? 'active' : ''">
 							<a th:href="@{/ui/my}">
 								<em class="fa fa-id-card"></em>
 								<span th:text="#{html.navbar.my}"></span>
 							</a>
 						</li>
 						
-						<li sec:authorize="hasRole('ROLE_REQUESTER')" th:if="${@settingsService.isRequestApproveEnabled() == true}">
+						<li sec:authorize="hasRole('ROLE_REQUESTER')" th:if="${@settingsService.isRequestApproveEnabled() == true}" th:class="${page == 'my_requests'} ? 'active' : ''">
 							<a th:href="@{/ui/my/requests}">
 								<em class="fa fa-comment-o"></em>
 								<span th:text="#{html.navbar.requests}"></span>

@@ -120,9 +120,7 @@ public class HistoryService {
 
 	@Transactional
 	public List<HistoryItSystem> getItSystems(LocalDate localDate) {
-		try (final Stream<HistoryItSystem> byDate = historyItSystemDao.streamByDate(localDate)) {
-			return byDate.collect(Collectors.toList());
-		}
+		return historyItSystemDao.findByDate(localDate);
 	}
 
 	public Map<String, List<HistoryKleAssignment>> getKleAssignments(LocalDate localDate) {

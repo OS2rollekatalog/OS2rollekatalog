@@ -4,7 +4,7 @@
 <body>
 	<div class="wrapper">
 		<header th:replace="fragments/navbar :: navbar-header(subpage = 'roles')"></header>
-		<aside th:replace="fragments/navbar :: navbar-aside (page = 'requests_authorization_manager', subpage = 'roles')"></aside>
+		<aside th:replace="fragments/navbar :: navbar-aside (page = 'authorizationmanager', subpage = 'roles')"></aside>
  
 		<section>
 			<div class="content-wrapper">
@@ -16,6 +16,7 @@
 								<thead>
 									<tr>
 										<th class="col-md-2" th:text="#{html.my.requests.to}"></th>
+										<th class="col-md-1" th:text="#{html.my.requests.requestAction}"></th>
 										<th class="col-md-2" th:text="#{html.my.requests.from}"></th>
 										<th class="col-md-2" th:text="#{html.my.requests.name}"></th>
 										<th class="col-md-1" th:text="#{html.my.requests.itsystem}"></th>
@@ -31,6 +32,7 @@
 											<em class="fa fa-chevron-right"></em> &nbsp;
 											<span th:text="${req.request.requestedFor} != null ? (${req.request.requestedFor.name} + ' (' + ${req.request.requestedFor.userId} + ')') : ''"></span>
 										</td>
+										<td th:text="#{${req.request.requestAction.title}}"></td>
 										<td th:text="${req.request.requester.name} + ' (' + ${req.request.requester.userId} + ')'"></td>
 										<td th:text="${req.roleName}"></td>
 										<td th:text="${req.itSystemName}"></td>
@@ -72,7 +74,8 @@
 			
 			var yesTxt = [[#{html.control.button.yes}]];
 			var noTxt = [[#{html.control.button.no}]];
-			var approveTxt = [[#{html.control.button.approve}]];
+			var approveAddTxt = [[#{html.control.button.approve.add}]];
+			var approveRemoveTxt = [[#{html.control.button.approve.remove}]];
 			var rejectTxt = [[#{html.control.button.reject}]];
 			var confirmTxt = [[#{html.control.button.send}]];
 			var cancelTxt = [[#{html.control.button.cancel}]];
@@ -98,6 +101,7 @@
 			
 			var requestApproveMsg = [[#{html.my.requests.msg}]];
 			var requestApproveTitel = [[#{html.my.requests.titel}]];
+			var requestApproveConstraintTitel = [[#{html.my.requests.postponedConstraints}]];
 
 			var userUuid = [[${userUuid}]];
 		+]*/
@@ -247,7 +251,8 @@
 		            { },
 		            { },
 					{ },
-		            { }
+		            { },
+					{ }
 		        ],
 		        "language": {
 		            "search":       searchTxt,
@@ -263,12 +268,18 @@
 				childJson = childJson.replace(/'/g,'"');
 
 				var child = JSON.parse(childJson);
-				
-				return "<h4 class=\"row\">" + requestApproveTitel + " " + child.userId + "</h4>" +
+
+				var constraintString = "";
+				if (child.constraints != "") {
+					constraintString = "<h4 class=\"row\">" + requestApproveConstraintTitel + "</h4>" + child.constraints;
+				}
+
+				return constraintString +
+					   "<h4 class=\"row\">" + requestApproveTitel + " " + child.userId + "</h4>" +
 					   "<div class=\"row\">" + requestApproveMsg + "</div>" +
 					   "<pre style=\"border: 1px solid black; white-space: pre-wrap;\">" + child.reason + "</pre><br/>" +
 					   "<div class=\"row\">" +
-					   "<button class=\"btn btn-lg btn-primary\" onclick=\"accept(" + child.id + ");\" style=\"margin-right: 10px;\">" + approveTxt + "</button>" +
+					   "<button class=\"btn btn-lg btn-primary\" onclick=\"accept(" + child.id + ");\" style=\"margin-right: 10px;\">" + (child.action === "REMOVE" ? approveRemoveTxt : approveAddTxt) + "</button>" +
 					   "<button class=\"btn btn-lg btn-danger\" onclick=\"reject(" + child.id + ");\">" + rejectTxt + "</button>" +
 					   "</div></div>";
 			}

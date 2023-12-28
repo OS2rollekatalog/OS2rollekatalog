@@ -314,6 +314,7 @@ public class ItSystemUsersAttestationService {
                                     .roleDescription(a.getRoleDescription())
                                     .exceptedUsers(a.getExceptedUserUuids().stream()
                                             .map(uuid -> userService.getByUuid(uuid))
+                                            .filter(Objects::nonNull)
                                             .map(u -> ExceptedUserDTO.builder()
                                                     .userId(u.getUserId())
                                                     .name(u.getName())
