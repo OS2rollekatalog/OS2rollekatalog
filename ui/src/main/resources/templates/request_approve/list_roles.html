@@ -42,92 +42,59 @@
 	    </section>
 	</div>
 
-	<div class="modal fade" id="modal-request-user-role" role="dialog">
-		<div class="modal-dialog">
-			<div class="modal-content">
-				<form class="form-horizontal" method="post" th:action="@{/ui/userroles/request}" th:object="${requestForm}">
-					<input type="hidden" id="userUuidUR" th:field="*{userUuid}"/>
-					<input type="hidden" id="roleIdUR" th:field="*{roleId}"/>
-					<div class="modal-header">
-						<h4 th:text="#{html.page.roles.request.modal.header}"></h4>
-					</div>
+	<div th:replace="request_approve/fragments/request_modal :: requestRoleModal"></div>
 
-					<div class="modal-body">
-						<span th:text="#{html.page.roles.request.modal.body}"></span>
-						<textarea id="reasonFieldUR" required="required" oninvalid="this.setCustomValidity('Angiv begrundelse')" oninput="this.setCustomValidity('')" rows="8" class="form-control" th:field="*{reason}" style="margin-top: 10px;"></textarea>
-					</div>
+	<div th:replace="users/fragments/postponed_constraint_kle_modal :: postponedConstraintsKLEModal"></div>
+	<div th:replace="userroles/fragments/constraint_ou_modal :: OUModal"></div>
 
-					<div class="modal-footer">
-						<button type="button" onclick="requestUserRole();" class="btn btn-primary" th:text="#{html.control.button.request}"></button>
-						<button type="button" class="btn btn-danger" id="closeModalBtnUR" th:text="#{html.control.button.cancel}"></button>
-					</div>
-				</form>
-			</div>
-		</div>
-	</div>
-
-	<div class="modal fade" id="modal-request-role-group" role="dialog">
-		<div class="modal-dialog">
-			<div class="modal-content">
-				<form class="form-horizontal" method="post" th:action="@{/ui/rolegroups/request}" th:object="${requestForm}">
-					<input type="hidden" id="userUuidRG" th:field="*{userUuid}"/>
-					<input type="hidden" id="roleIdRG" th:field="*{roleId}"/>
-					<div class="modal-header">
-						<h4 th:text="#{html.page.roles.request.modal.header}"></h4>
-					</div>
-
-					<div class="modal-body">
-						<span th:text="#{html.page.roles.request.modal.body}"></span>
-						<textarea id="reasonFieldRG" required="required" oninvalid="this.setCustomValidity('Angiv begrundelse')" oninput="this.setCustomValidity('')" rows="8" class="form-control" th:field="*{reason}" style="margin-top: 10px;"></textarea>
-					</div>
-
-					<div class="modal-footer">
-						<button type="button" onclick="requestRoleGroup();" class="btn btn-primary" th:text="#{html.control.button.request}"></button>
-						<button type="button" class="btn btn-danger" id="closeModalBtnRG" th:text="#{html.control.button.cancel}"></button>
-					</div>
-				</form>
-			</div>
-		</div>
-	</div>
 
 	<nav th:replace="fragments/footer :: footer"></nav>
 	<script th:replace="fragments/datatables :: datatables"></script>
+	<script th:replace="request_approve/fragments/request_modal :: requestRoleModalScript"></script>
+	<script th:replace="users/fragments/assign_user_role_postponed_data_constraints :: postponedConstraintsScript"></script>
 
 	<script th:inline="javascript">
 		/*<![CDATA[*/
-			
+
 			/*[+
 				var orgUnitUuid = [[${orgUnitUuid}]];
 				var url = [[@{/rest/requestapprove/request/role}]];
 				var redirectUri = [[@{/ui/my/requests}]];
-				var fieldNotUpdatedMsg = [[#{html.entity.rolegroup.failedupdatemsg}]];
+				var requestUserUuid = [[${requestForm.userUuid}]];
+				var baseUrl = [[@{/}]];
+				var kleList = [[${kleList}]];
+				var treeOUs = [[${treeOUs}]];
 			+]*/
 
 			var token = $("meta[name='_csrf']").attr("content");
 
-			function requestUserRole() {
-				var reason = $('#reasonFieldUR').val();
-				var selectedUsers = [$('#userUuidUR').val()];
-				var roleId = $('#roleIdUR').val();
-				var roleType = 'userRole';
-				
-				call(reason, selectedUsers, roleId, roleType);
-										
-				$("#modal-request-user-role").modal('hide');
-			}
-			
-			function requestRoleGroup() {
-				var reason = $('#reasonFieldRG').val();
-				var selectedUsers = [$('#userUuidRG').val()];
-				var roleId = $('#roleIdRG').val();
-				var roleType = 'roleGroup';
-				
-				call(reason, selectedUsers, roleId, roleType);
-										
-				$("#modal-request-user-role").modal('hide');
-			}
-			
-			function call(reason, selectedUsers, roleId, roleType) {
+			$("document").ready(function() {
+				// add listeners initially
+				requestRoleModalService.setSuccessHandler(() => {
+					window.location.href = redirectUri;
+				})
+				$(".requestUserRoleBtn").click(function() {
+					requestRoleModalService.showRequestRoleDialog(orgUnitUuid, requestUserUuid, $(this).data("id"),
+							postponedConstraintsService.getConstraintList());
+				});
+				$(".requestRoleGroupBtn").click(function() {
+					requestRoleModalService.showRequestRoleGroupDialog(orgUnitUuid, requestUserUuid, $(this).data("id"));
+				});
+
+				// add listeners on table draw
+				$('#listTable1').on('draw.dt', function() {
+					$('.requestUserRoleBtn').off('click');
+					$(".requestUserRoleBtn").click(function() {
+						requestRoleModalService.showRequestRoleDialog(orgUnitUuid, requestUserUuid, $(this).data("id"));
+					});
+					$('.requestRoleGroupBtn').off('click');
+					$(".requestRoleGroupBtn").click(function() {
+						requestRoleModalService.showRequestRoleGroupDialog(orgUnitUuid, requestUserUuid, $(this).data("id"));
+					});
+				});
+			});
+
+			function call(reason, selectedUsers, roleId, roleType, action, constraints) {
 				$.ajax({
 					url: url,
 					method: 'POST',
@@ -140,7 +107,9 @@
 					   "selectedUsers" : selectedUsers,
 					   "roleId" : roleId,
 					   "roleType" : roleType,
-					   "orgUnitUuid" : orgUnitUuid
+					   "orgUnitUuid" : orgUnitUuid,
+					   "action" : action,
+					   "constraints" : constraints
 					}),
 					error: function(response) {
 	    				$.notify({
@@ -155,67 +124,6 @@
 	    			}
 				});
 			}
-		
-			$("document").ready(function() {
-				// add listeners initially
-				$(".requestUserRoleBtn").click(function() {
-					$("#roleIdUR").val($(this).data("id"));
-					$("#modal-request-user-role").modal({
-						backdrop: 'static',
-						keyboard: false
-					});
-				});
-
-				$(".requestRoleGroupBtn").click(function() {
-					$("#roleIdRG").val($(this).data("id"));
-					$("#modal-request-role-group").modal({
-						backdrop: 'static',
-						keyboard: false
-					});
-				});
-
-				// add listeners on table draw
-				$('#listTable1').on('draw.dt', function() {
-					$('.requestUserRoleBtn').off('click');
-					$(".requestUserRoleBtn").click(function() {
-						$("#roleIdUR").val($(this).data("id"));
-						$("#modal-request-user-role").modal({
-							backdrop: 'static',
-							keyboard: false
-						});
-					});
-
-					$('.requestRoleGroupBtn').off('click');
-					$(".requestRoleGroupBtn").click(function() {
-						$("#roleIdRG").val($(this).data("id"));
-						$("#modal-request-role-group").modal({
-							backdrop: 'static',
-							keyboard: false
-						});
-					});
-				});
-
-				// user role modal
-				$("#modal-request-user-role").on('shown.bs.modal', function() {
-					$("#reasonFieldUR").focus();
-				});
-
-				$("#closeModalBtnUR").click(function() {
-					$("#reasonFieldUR").val('');
-					$("#modal-request-user-role").modal('hide');
-				});
-
-				// role group modal
-				$("#modal-request-role-group").on('shown.bs.modal', function() {
-					$("#reasonFieldRG").focus();
-				});
-
-				$("#closeModalBtnRG").click(function() {
-					$("#reasonFieldRG").val('');
-					$("#modal-request-role-group").modal('hide');
-				});
-			});
-			
 		/*]]>*/
 	</script>
 </body>

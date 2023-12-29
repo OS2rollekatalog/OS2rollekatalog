@@ -578,7 +578,7 @@ public class ReportXlsxView extends AbstractXlsxStreamingView {
 
         createHeaderRow(sheet, headers);
 
-        List<UserRoleAssignmentReportEntry> userRoleAssignmentReportEntry = reportService.getUserRoleAssignmentReportEntries(users, allOrgUnits, itSystems, userRoleAssignments, ouRoleAssignments, ouRoleAssignmentsWithExceptions, titleRoleAssignments, itSystemNameMapping, locale, showInactiveUsers);
+        List<UserRoleAssignmentReportEntry> userRoleAssignmentReportEntry = reportService.getUserRoleAssignmentReportEntries(users, allOrgUnits, itSystems, userRoleAssignments, ouRoleAssignments, ouRoleAssignmentsWithExceptions, titleRoleAssignments, itSystemNameMapping, locale, showInactiveUsers, true);
         
         int row = 1;
         for (UserRoleAssignmentReportEntry entry : userRoleAssignmentReportEntry) {

@@ -15,6 +15,7 @@ import dk.digitalidentity.rc.dao.model.enums.EmailTemplateType;
 import dk.digitalidentity.rc.dao.model.enums.EntityType;
 import dk.digitalidentity.rc.dao.model.enums.EventType;
 import dk.digitalidentity.rc.dao.model.enums.ItSystemType;
+import dk.digitalidentity.rc.dao.model.enums.RequestAction;
 import dk.digitalidentity.rc.dao.model.enums.RequestApproveStatus;
 import dk.digitalidentity.rc.log.AuditLogger;
 import dk.digitalidentity.rc.security.RequireAssignerRole;
@@ -44,6 +45,7 @@ import org.springframework.web.bind.annotation.RestController;
 import javax.servlet.http.HttpServletRequest;
 import java.security.Principal;
 import java.util.List;
+import java.util.Objects;
 
 @Slf4j
 @RestController
@@ -112,17 +114,28 @@ public class RequestApproveRestController {
 			case USERROLE:
 				UserRole userRole = userRoleService.getById(request.getRoleId());
 				if (userRole != null) {
-					userService.addUserRole(request.getRequestedFor(), userRole, null, null);
-					roleName = userRole.getName();
-					manualItSystem = userRole.getItSystem().getSystemType().equals(ItSystemType.MANUAL);
-					
-					auditLogger.log(request.getRequestedFor(), EventType.APPROVE_REQUEST, userRole);
+					if (Objects.equals(request.getRequestAction(), RequestAction.REMOVE)) {
+						userService.removeUserRole(request.getRequestedFor(), userRole);
+						auditLogger.log(request.getRequestedFor(), EventType.APPROVE_REQUEST, userRole);
+					} else {
+						userService.addUserRole(request.getRequestedFor(), userRole, request.getRequestApprovePostponedConstraints());
+						roleName = userRole.getName();
+						manualItSystem = userRole.getItSystem().getSystemType().equals(ItSystemType.MANUAL);
+						
+						auditLogger.log(request.getRequestedFor(), EventType.APPROVE_REQUEST, userRole);
+					}
 				}
 				break;
 			case ROLEGROUP:
 				RoleGroup roleGroup = roleGroupService.getById(request.getRoleId());
 				if (roleGroup != null) {
-					userService.addRoleGroup(request.getRequestedFor(), roleGroup, null, null);
+					if (Objects.equals(request.getRequestAction(), RequestAction.REMOVE)) {
+						userService.removeRoleGroup(request.getRequestedFor(), roleGroup);
+						auditLogger.log(request.getRequestedFor(), EventType.APPROVE_REQUEST, roleGroup);
+					} else {
+						userService.addRoleGroup(request.getRequestedFor(), roleGroup, null, null);
+						auditLogger.log(request.getRequestedFor(), EventType.APPROVE_REQUEST, roleGroup);
+					}
 					roleName = roleGroup.getName();
 					
 					for (RoleGroupUserRoleAssignment userRoleAssignment : roleGroup.getUserRoleAssignments()) {
@@ -131,8 +144,6 @@ public class RequestApproveRestController {
 							break;
 						}
 					}
-					
-					auditLogger.log(request.getRequestedFor(), EventType.APPROVE_REQUEST, roleGroup);
 				}
 				break;
 			default:
@@ -291,14 +302,20 @@ public class RequestApproveRestController {
 			for (String uuid : request.getSelectedUsers()) {
 				User selectedUser = userService.getByUuid(uuid);
 				if (selectedUser != null) {
-					requestApproveService.requestRoleGroup(roleGroup, user, request.getReason(), selectedUser, orgUnit);
+					if(request.getAction().equals(RequestAction.REMOVE)) {
+						requestApproveService.requestRoleGroupRemoval(roleGroup, user, request.getReason(), selectedUser, orgUnit);
+						auditLogger.log(selectedUser, EventType.REQUEST_ROLE_REMOVAL_FOR, roleGroup);
+					} else {
+						requestApproveService.requestRoleGroup(roleGroup, user, request.getReason(), selectedUser, orgUnit);
+						auditLogger.log(selectedUser, EventType.REQUEST_ROLE_FOR, roleGroup);
+					}
 
-					auditLogger.log(selectedUser, EventType.REQUEST_ROLE_FOR, roleGroup);
 				}
 			}
 		}
 		else if (request.getRoleType().equals("userRole")) {
 			UserRole userRole = userRoleService.getById(request.getRoleId());
+			var roles = userRoleService.getAll();
 			if (userRole == null || !userRole.isCanRequest()) {
 				return new ResponseEntity<>("Der kan ikke anmodes om den givne rolle", HttpStatus.BAD_REQUEST);
 			}
@@ -313,9 +330,14 @@ public class RequestApproveRestController {
 			for (String uuid : request.getSelectedUsers()) {
 				User selectedUser = userService.getByUuid(uuid);
 				if (selectedUser != null) {
-					requestApproveService.requestUserRole(userRole, user, request.getReason(), selectedUser, orgUnit);
-
-					auditLogger.log(selectedUser, EventType.REQUEST_ROLE_FOR, userRole);
+					if (Objects.equals(RequestAction.REMOVE, request.getAction())) {
+						requestApproveService.requestUserRoleRemoval(userRole, user, request.getReason(), selectedUser, orgUnit);
+						auditLogger.log(selectedUser, EventType.REQUEST_ROLE_REMOVAL_FOR, userRole);
+					}
+					else {
+						requestApproveService.requestUserRole(userRole, user, request.getReason(), selectedUser, orgUnit, request.getConstraints());
+						auditLogger.log(selectedUser, EventType.REQUEST_ROLE_FOR, userRole);
+					}
 				}
 			}
 		}

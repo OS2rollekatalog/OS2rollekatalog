@@ -1,9 +1,9 @@
 package dk.digitalidentity.rc.service.model;
 
-import java.util.Date;
-
 import lombok.Getter;
 import lombok.Setter;
+
+import java.util.Date;
 
 @Getter
 @Setter
@@ -20,4 +20,5 @@ public class UserRoleAssignmentReportEntry {
 	private Date assignedWhen;
 	private String assignedThrough;
 	private String postponedConstraints = "";
+	private boolean notifyByEmailIfManualSystem = true;
 }

@@ -39,7 +39,7 @@ public class KOMBITTasks {
 		}
 	}
 
-	@Scheduled(cron = "0 #{new java.util.Random().nextInt(55)} 6,12,18 * * ?")
+	@Scheduled(cron = "${cron.kombit.itsystems:0 #{new java.util.Random().nextInt(55)} 6,12,18 * * ?}")
 	public void importItSystems() {
 		if (initialized) {
 			kombitService.readAndUpdateItSystems();

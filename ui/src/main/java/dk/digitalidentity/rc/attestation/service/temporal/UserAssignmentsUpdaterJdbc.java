@@ -23,7 +23,9 @@ import org.springframework.transaction.support.TransactionTemplate;
 import javax.persistence.EntityManager;
 import javax.persistence.FlushModeType;
 import java.time.LocalDate;
+import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 import static org.springframework.transaction.TransactionDefinition.ISOLATION_READ_UNCOMMITTED;
@@ -61,7 +63,8 @@ public class UserAssignmentsUpdaterJdbc {
                     .flatMap(itSystem -> {
                         log.info("Processing it-system: " + itSystem.getItSystemName());
                         return temporalDao.streamHistoryRoleAssignmentsByItSystemAndDate(when, itSystem.getItSystemId()).stream()
-                                .map(r -> toUserRoleAssignment(itSystem, r));
+                                .map(r -> toUserRoleAssignment(itSystem, r))
+                                .filter(Objects::nonNull);
                     })
                     .peek(a -> {
                         logProgress();
@@ -171,6 +174,9 @@ public class UserAssignmentsUpdaterJdbc {
                 .withRoleGroup(historyRoleAssignment.getRoleRoleGroupId())
                 .withUser(historyRoleAssignment.getUserUuid())
                 .getContext();
+        if (context.isItSystemExempt()) {
+            return null;
+        }
 
         boolean itSystemResponsible = historyRoleAssignment.getRoleRoleGroupId() == null
                 && context.isRoleAssignmentAttestationByAttestationResponsible();
@@ -209,6 +215,9 @@ public class UserAssignmentsUpdaterJdbc {
                 .withRole(assignment.getRoleId())
                 .withRoleGroup(assignment.getRoleRoleGroupId())
                 .getContext();
+        if (context.isItSystemExempt()) {
+            return Collections.emptyList();
+        }
 
         boolean itSystemResponsible = assignment.getRoleRoleGroupId() == null
                 && context.isRoleAssignmentAttestationByAttestationResponsible();
@@ -249,6 +258,7 @@ public class UserAssignmentsUpdaterJdbc {
                             .roleOuName(context.ouName())
                             .build();
                 })
+                .filter(Objects::nonNull)
                 .collect(Collectors.toList());
     }
 
@@ -259,6 +269,9 @@ public class UserAssignmentsUpdaterJdbc {
                 .withRole(assignment.getRoleId())
                 .withRoleGroup(assignment.getRoleRoleGroupId())
                 .getContext();
+        if (context.isItSystemExempt()) {
+            return Collections.emptyList();
+        }
 
         boolean itSystemResponsible = assignment.getRoleRoleGroupId() == null
                 && context.isRoleAssignmentAttestationByAttestationResponsible();
@@ -311,6 +324,9 @@ public class UserAssignmentsUpdaterJdbc {
                 .withRole(assignment.getRoleId())
                 .withRoleGroup(assignment.getRoleRoleGroupId())
                 .getContext();
+        if (context.isItSystemExempt()) {
+            return Collections.emptyList();
+        }
 
         boolean itSystemResponsible = assignment.getRoleRoleGroupId() == null
                 && context.isRoleAssignmentAttestationByAttestationResponsible();

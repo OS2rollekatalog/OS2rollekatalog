@@ -1,27 +1,5 @@
 package dk.digitalidentity.rc.attestation.service;
 
-import static dk.digitalidentity.rc.attestation.model.Mapper.userRoleGroups;
-import static dk.digitalidentity.rc.util.StreamExtensions.distinctByKey;
-
-import java.time.LocalDate;
-import java.time.ZonedDateTime;
-import java.util.List;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.function.Predicate;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
-
-import javax.persistence.EntityManager;
-import javax.persistence.FlushModeType;
-import javax.persistence.PersistenceContext;
-
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpStatus;
-import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.server.ResponseStatusException;
-
 import dk.digitalidentity.rc.attestation.dao.AttestationDao;
 import dk.digitalidentity.rc.attestation.dao.AttestationOuAssignmentsDao;
 import dk.digitalidentity.rc.attestation.dao.AttestationUserRoleAssignmentDao;
@@ -53,7 +31,28 @@ import dk.digitalidentity.rc.dao.model.Title;
 import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.service.ManagerSubstituteService;
 import dk.digitalidentity.rc.service.OrgUnitService;
+import dk.digitalidentity.rc.service.SettingsService;
 import dk.digitalidentity.rc.service.UserService;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
+
+import javax.persistence.EntityManager;
+import javax.persistence.FlushModeType;
+import javax.persistence.PersistenceContext;
+import java.time.LocalDate;
+import java.time.ZonedDateTime;
+import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.function.Predicate;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+
+import static dk.digitalidentity.rc.attestation.model.Mapper.userRoleGroups;
+import static dk.digitalidentity.rc.util.StreamExtensions.distinctByKey;
 
 @Component
 public class OrganisationAttestationService {
@@ -90,6 +89,9 @@ public class OrganisationAttestationService {
     
 	@Autowired
     private TitleDao titleDao;
+
+    @Autowired
+    private SettingsService settingsService;
     
 	@PersistenceContext
     private EntityManager entityManager;
@@ -413,6 +415,7 @@ public class OrganisationAttestationService {
                                     .adRemoval(entry.map(OrganisationUserAttestationEntry::isAdRemoval).orElse(false))
                                     .build();
                         })
+                .filter(u -> settingsService.isADAttestationEnabled() || !u.getUserRolesPrItSystem().isEmpty() || !u.getRoleGroups().isEmpty())
                 .filter(u -> !undecidedUsersOnly || (u.getRemarks() == null && u.getVerifiedByUserId() == null))
                 .collect(Collectors.toList());
     }

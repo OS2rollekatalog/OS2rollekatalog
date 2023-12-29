@@ -24,6 +24,7 @@ BEGIN
 		,assigned_by_name
 		,assigned_when
 		,postponed_constraints
+        ,notify_by_email_if_manual_system
 	)
 	-- user roles from direct assignments
 	SELECT
@@ -43,6 +44,7 @@ BEGIN
 		,urm.assigned_by_name
 		,urm.assigned_timestamp
 		,sub_constraints.combined_constraints
+	    ,urm.notify_by_email_if_manual_system
 	FROM user_roles_mapping urm
 	JOIN users u ON u.uuid = urm.user_uuid
 	JOIN user_roles ur ON ur.id = urm.role_id
@@ -75,6 +77,7 @@ BEGIN
 		,urg.assigned_by_name
 		,urg.assigned_timestamp
 		,NULL
+        ,1
 	FROM user_rolegroups urg
 	JOIN rolegroup rg ON urg.rolegroup_id = rg.id
 	JOIN users u ON u.uuid = urg.user_uuid
@@ -101,6 +104,7 @@ BEGIN
 		,pr.assigned_by_name
 		,pr.assigned_timestamp
 		,NULL
+        ,1
 	FROM position_roles pr
 	JOIN positions p on p.id = pr.position_id
 	JOIN users u ON u.uuid = p.user_uuid
@@ -127,6 +131,7 @@ BEGIN
 		,prg.assigned_by_name
 		,prg.assigned_timestamp
 		,NULL
+        ,1
 	FROM position_rolegroups prg
 	JOIN rolegroup rg ON prg.rolegroup_id = rg.id
 	JOIN positions p on p.id = prg.position_id

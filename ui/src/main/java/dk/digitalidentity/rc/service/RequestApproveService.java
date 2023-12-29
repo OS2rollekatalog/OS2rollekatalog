@@ -1,5 +1,35 @@
 package dk.digitalidentity.rc.service;
 
+import dk.digitalidentity.rc.config.SessionConstants;
+import dk.digitalidentity.rc.controller.rest.model.PostponedConstraintDTO;
+import dk.digitalidentity.rc.dao.RequestApproveDao;
+import dk.digitalidentity.rc.dao.model.ConstraintType;
+import dk.digitalidentity.rc.dao.model.EmailTemplate;
+import dk.digitalidentity.rc.dao.model.OrgUnit;
+import dk.digitalidentity.rc.dao.model.PostponedConstraint;
+import dk.digitalidentity.rc.dao.model.RequestApprove;
+import dk.digitalidentity.rc.dao.model.RequestApprovePostponedConstraint;
+import dk.digitalidentity.rc.dao.model.RoleGroup;
+import dk.digitalidentity.rc.dao.model.RoleGroupUserRoleAssignment;
+import dk.digitalidentity.rc.dao.model.SystemRole;
+import dk.digitalidentity.rc.dao.model.User;
+import dk.digitalidentity.rc.dao.model.UserRole;
+import dk.digitalidentity.rc.dao.model.enums.EmailTemplatePlaceholder;
+import dk.digitalidentity.rc.dao.model.enums.EmailTemplateType;
+import dk.digitalidentity.rc.dao.model.enums.EntityType;
+import dk.digitalidentity.rc.dao.model.enums.RequestAction;
+import dk.digitalidentity.rc.dao.model.enums.RequestApproveStatus;
+import dk.digitalidentity.rc.security.AccessConstraintService;
+import dk.digitalidentity.rc.service.model.RequestApproveWrapper;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
+
+import javax.servlet.http.HttpServletRequest;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Collections;
@@ -7,30 +37,6 @@ import java.util.Date;
 import java.util.Iterator;
 import java.util.List;
 import java.util.stream.Collectors;
-
-import dk.digitalidentity.rc.config.SessionConstants;
-import dk.digitalidentity.rc.dao.model.enums.EmailTemplatePlaceholder;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-import org.springframework.util.StringUtils;
-
-import dk.digitalidentity.rc.dao.RequestApproveDao;
-import dk.digitalidentity.rc.dao.model.EmailTemplate;
-import dk.digitalidentity.rc.dao.model.OrgUnit;
-import dk.digitalidentity.rc.dao.model.RequestApprove;
-import dk.digitalidentity.rc.dao.model.RoleGroup;
-import dk.digitalidentity.rc.dao.model.RoleGroupUserRoleAssignment;
-import dk.digitalidentity.rc.dao.model.User;
-import dk.digitalidentity.rc.dao.model.UserRole;
-import dk.digitalidentity.rc.dao.model.enums.EmailTemplateType;
-import dk.digitalidentity.rc.dao.model.enums.EntityType;
-import dk.digitalidentity.rc.dao.model.enums.RequestApproveStatus;
-import dk.digitalidentity.rc.security.AccessConstraintService;
-import dk.digitalidentity.rc.service.model.RequestApproveWrapper;
-import lombok.extern.slf4j.Slf4j;
-
-import javax.servlet.http.HttpServletRequest;
 
 @Slf4j
 @Service
@@ -59,7 +65,13 @@ public class RequestApproveService {
 	
 	@Autowired
 	private AccessConstraintService accessConstraintService;
-	
+
+	@Autowired
+	private SystemRoleService systemRoleService;
+
+	@Autowired
+	private ConstraintTypeService constraintTypeService;
+
 	public RequestApprove getById(long id) {
 		return requestApproveDao.getById(id);
 	}
@@ -129,7 +141,28 @@ public class RequestApproveService {
 		return wrapRequests(requests);
 	}
 	
-	public boolean requestUserRole(UserRole userRole, User requestedBy, String reason, User requestedFor, OrgUnit orgUnit) {
+	public boolean requestUserRoleRemoval(UserRole userRole, User requestedBy, String reason, User requestedFor, OrgUnit orgUnit) {
+		if (!settingsService.isRequestApproveEnabled()) {
+			log.warn("User " + requestedBy.getUserId() + " attempting to request role when request/approval is turned off!");
+			return false;
+		}
+		else if (userRole == null) {
+			log.warn("User " + requestedBy.getUserId() + " attempting to request role that does not exist");
+			return false;
+		}
+		else if (!userRoleService.canRequestRole(userRole, requestedBy)) {
+			log.warn("User " + requestedBy.getUserId() + " attempting to request role that user is not allowed to request: " + userRole.getId());
+			return false;
+		}
+		
+		RequestApproveStatus status = RequestApproveStatus.REQUESTED;
+		
+		createRequest(reason, requestedBy, userRole.getId(), EntityType.USERROLE, status, requestedFor, orgUnit, RequestAction.REMOVE, null);
+		
+		return true;
+	}
+	
+	public boolean requestUserRole(UserRole userRole, User requestedBy, String reason, User requestedFor, OrgUnit orgUnit, List<PostponedConstraintDTO> constraints) {
 		if (!settingsService.isRequestApproveEnabled()) {
 			log.warn("User " + requestedBy.getUserId() + " attempting to request role when request/approval is turned off!");
 			return false;
@@ -145,8 +178,25 @@ public class RequestApproveService {
 		
 		RequestApproveStatus status = RequestApproveStatus.REQUESTED;
 
-		createRequest(reason, requestedBy, userRole.getId(), EntityType.USERROLE, status, requestedFor, orgUnit);
+		createRequest(reason, requestedBy, userRole.getId(), EntityType.USERROLE, status, requestedFor, orgUnit, RequestAction.ADD, constraints);
 		
+		return true;
+	}
+	public boolean requestRoleGroupRemoval(RoleGroup roleGroup, User requestedBy, String reason, User requestedFor, OrgUnit orgUnit)  {
+		if (!settingsService.isRequestApproveEnabled()) {
+			log.warn("User " + requestedBy.getUserId() + " attempting to request rolegroup  removal when request is turned off!");
+			return false;
+		}
+		else if (roleGroup == null) {
+			log.warn("User " + requestedBy.getUserId() + " attempting to request rolegroup removal of rolegroup that does not exist");
+			return false;
+		}
+		else if (!roleGroupService.canRequestRole(roleGroup, requestedBy)) {
+			log.warn("User " + requestedBy.getUserId() + " attempting to request role that user is not allowed to request: " + roleGroup.getId());
+			return false;
+		}
+		
+		createRequest(reason, requestedBy, roleGroup.getId(), EntityType.ROLEGROUP, RequestApproveStatus.REQUESTED, requestedFor, orgUnit, RequestAction.REMOVE, null);
 		return true;
 	}
 	
@@ -166,14 +216,15 @@ public class RequestApproveService {
 		
 		RequestApproveStatus status = RequestApproveStatus.REQUESTED;
 		
-		createRequest(reason, requestedBy, roleGroup.getId(), EntityType.ROLEGROUP, status, requestedFor, orgUnit);
+		createRequest(reason, requestedBy, roleGroup.getId(), EntityType.ROLEGROUP, status, requestedFor, orgUnit, RequestAction.ADD, null);
 
 		return true;
 		
 	}
 	
-	private void createRequest(String reason, User user, long roleId, EntityType roleType, RequestApproveStatus status, User requestedFor, OrgUnit orgUnit) {
+	private void createRequest(String reason, User user, long roleId, EntityType roleType, RequestApproveStatus status, User requestedFor, OrgUnit orgUnit, RequestAction requestAction, List<PostponedConstraintDTO> constraints) {
 		RequestApprove request = new RequestApprove();
+		boolean existingRequest = false;
 		
 		// is there an existing request, then overwrite it (resetting timestamps, status, etc ;))
 		List<RequestApprove> requests = requestApproveDao.getByRequester(user);
@@ -181,11 +232,13 @@ public class RequestApproveService {
 			if (req.getRoleType().equals(roleType) && req.getRoleId() == roleId) {
 				if (requestedFor == null) {
 					request = req;
+					existingRequest = true;
 					break;
 				}
 				else {
 					if (req.getRequestedFor().equals(requestedFor)) {
 						request = req;
+						existingRequest = true;
 						break;
 					}
 				}
@@ -203,12 +256,43 @@ public class RequestApproveService {
 		request.setStatus(status);
 		request.setStatusTimestamp(new Date());
 		request.setOrgUnit(orgUnit);
+		request.setRequestAction(requestAction);
 		
 		if (requestedFor == null) {
 			request.setRequestedFor(user);
 		}
 		else {
 			request.setRequestedFor(requestedFor);
+		}
+
+		if (request.getRequestApprovePostponedConstraints() == null) {
+			request.setRequestApprovePostponedConstraints(new ArrayList<>());
+		}
+
+		if (existingRequest) {
+			request.getRequestApprovePostponedConstraints().clear();
+		}
+
+		if (constraints != null && !constraints.isEmpty()) {
+			List<RequestApprovePostponedConstraint> postponedConstraintsForRequest = new ArrayList<>();
+			for (PostponedConstraintDTO postponedConstraintDTO : constraints) {
+				SystemRole systemRole = systemRoleService.getById(postponedConstraintDTO.getSystemRoleId());
+				ConstraintType constraintType = constraintTypeService.getByUuid(postponedConstraintDTO.getConstraintTypeUuid());
+				if (systemRole == null || constraintType == null) {
+					continue;
+				}
+
+				RequestApprovePostponedConstraint postponedConstraint = new RequestApprovePostponedConstraint();
+				postponedConstraint.setConstraintType(constraintType);
+				postponedConstraint.setSystemRole(systemRole);
+				postponedConstraint.setValue(postponedConstraintDTO.getValue());
+				postponedConstraint.setRequestApprove(request);
+
+				postponedConstraintsForRequest.add(postponedConstraint);
+			}
+
+
+			request.getRequestApprovePostponedConstraints().addAll(postponedConstraintsForRequest);
 		}
 		
 		requestApproveDao.save(request);
@@ -222,17 +306,19 @@ public class RequestApproveService {
 			wrapper.setRequest(request);
 			wrapper.setRequestTimestamp(request.getRequestTimestamp());
 
-			String reason = request.getReason()
-					.replace("\\", "\\\\")
-					.replace("\b", "\\b")
-					.replace("\f", "\\f")
-					.replace("\n", "\\n")
-					.replace("\r", "\\r")
-					.replace("\t", "\\t")
-					.replace("\'", "\\'")
-					.replace("\"", "\\\"");
+			String reason = replaceForJSON(request.getReason());
+
+			String postponedConstraints = "";
+			if (request.getRequestApprovePostponedConstraints() != null && !request.getRequestApprovePostponedConstraints().isEmpty()) {
+				StringBuilder builder = new StringBuilder();
+				for (RequestApprovePostponedConstraint requestApprovePostponedConstraint : request.getRequestApprovePostponedConstraints()) {
+					String constraint = "<b>" + requestApprovePostponedConstraint.getConstraintType().getName() + ":</b> " + requestApprovePostponedConstraint.getValue() + "<br/>";
+					builder.append(replaceForJSON(constraint));
+				}
+				postponedConstraints = builder.toString();
+			}
 			
-			wrapper.setChildJson("{'id':" + request.getId() + ",'reason':'" + reason + "','userId':'" + request.getRequester().getName() + " (" + request.getRequester().getUserId() + ")" + "'}");
+			wrapper.setChildJson("{'id':" + request.getId() + ",'reason':'" + reason + "','userId':'" + request.getRequester().getName() + " (" + request.getRequester().getUserId() + ")','action':'" + request.getRequestAction().name() + "','constraints':'" + postponedConstraints + "'}");
 
 			switch (request.getRoleType()) {
 				case USERROLE:
@@ -264,7 +350,18 @@ public class RequestApproveService {
 		
 		return result;
 	}
-	
+
+	private String replaceForJSON(String string) {
+		return string.replace("\\", "\\\\")
+				.replace("\b", "\\b")
+				.replace("\f", "\\f")
+				.replace("\n", "\\n")
+				.replace("\r", "\\r")
+				.replace("\t", "\\t")
+				.replace("\'", "\\'")
+				.replace("\"", "\\\"");
+	}
+
 	@Transactional
 	public void sendMailToRoleAssigner() {
 		List<RequestApproveStatus> stati = new ArrayList<>();

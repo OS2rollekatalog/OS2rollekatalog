@@ -162,7 +162,7 @@ public class AccessConstraintService {
 	}
 
 	public boolean isAssignmentAllowed(OrgUnit ou) {
-		if (!isOUAccessable(ou,true)) {
+		if (!isOUAccessable(ou,false)) {
 			return false;
 		}
 		

@@ -1,19 +1,40 @@
 package dk.digitalidentity.rc.controller.api;
 
-import java.lang.reflect.Type;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.stream.Collectors;
-
-import dk.digitalidentity.rc.controller.api.dto.read.*;
+import dk.digitalidentity.rc.controller.api.dto.ConstraintValue;
+import dk.digitalidentity.rc.controller.api.dto.RoleAssignmentWithContraints;
+import dk.digitalidentity.rc.controller.api.dto.RoleAssignmentsWithContraints;
+import dk.digitalidentity.rc.controller.api.dto.UserRoleDTO;
+import dk.digitalidentity.rc.controller.api.dto.read.PostponedConstraintReadDTO;
+import dk.digitalidentity.rc.controller.api.dto.read.RoleGroupReadDTO;
+import dk.digitalidentity.rc.controller.api.dto.read.RoleGroupWithUserRolesReadDTO;
+import dk.digitalidentity.rc.controller.api.dto.read.UserReadConstraintTypeValueSetDTO;
+import dk.digitalidentity.rc.controller.api.dto.read.UserReadDTO;
+import dk.digitalidentity.rc.controller.api.dto.read.UserReadRoleSystemRole;
+import dk.digitalidentity.rc.controller.api.dto.read.UserReadSystemRoleConstraintValue;
+import dk.digitalidentity.rc.controller.api.dto.read.UserReadWrapperDTO;
+import dk.digitalidentity.rc.controller.api.dto.read.UserRoleExtendedReadDTO;
+import dk.digitalidentity.rc.controller.api.dto.read.UserRoleReadDTO;
 import dk.digitalidentity.rc.dao.model.Domain;
+import dk.digitalidentity.rc.dao.model.ItSystem;
 import dk.digitalidentity.rc.dao.model.PostponedConstraint;
+import dk.digitalidentity.rc.dao.model.RoleGroup;
+import dk.digitalidentity.rc.dao.model.SystemRoleAssignment;
+import dk.digitalidentity.rc.dao.model.SystemRoleAssignmentConstraintValue;
+import dk.digitalidentity.rc.dao.model.User;
+import dk.digitalidentity.rc.dao.model.UserRole;
 import dk.digitalidentity.rc.dao.model.UserUserRoleAssignment;
+import dk.digitalidentity.rc.dao.model.enums.ConstraintValueType;
+import dk.digitalidentity.rc.exceptions.OrgUnitNotFoundException;
+import dk.digitalidentity.rc.security.RequireApiReadAccessRole;
 import dk.digitalidentity.rc.service.DomainService;
+import dk.digitalidentity.rc.service.ItSystemService;
+import dk.digitalidentity.rc.service.OrgUnitService;
+import dk.digitalidentity.rc.service.RoleGroupService;
+import dk.digitalidentity.rc.service.UserRoleService;
+import dk.digitalidentity.rc.service.UserService;
+import dk.digitalidentity.rc.service.model.Constraint;
+import dk.digitalidentity.rc.service.model.PrivilegeGroup;
+import dk.digitalidentity.rc.service.model.UserWithRole;
 import org.modelmapper.ModelMapper;
 import org.modelmapper.TypeToken;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -27,28 +48,14 @@ import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import dk.digitalidentity.rc.controller.api.dto.ConstraintValue;
-import dk.digitalidentity.rc.controller.api.dto.RoleAssignmentWithContraints;
-import dk.digitalidentity.rc.controller.api.dto.RoleAssignmentsWithContraints;
-import dk.digitalidentity.rc.controller.api.dto.UserRoleDTO;
-import dk.digitalidentity.rc.dao.model.ItSystem;
-import dk.digitalidentity.rc.dao.model.RoleGroup;
-import dk.digitalidentity.rc.dao.model.SystemRoleAssignment;
-import dk.digitalidentity.rc.dao.model.SystemRoleAssignmentConstraintValue;
-import dk.digitalidentity.rc.dao.model.User;
-import dk.digitalidentity.rc.dao.model.UserRole;
-import dk.digitalidentity.rc.dao.model.enums.ConstraintValueType;
-import dk.digitalidentity.rc.exceptions.OrgUnitNotFoundException;
-import dk.digitalidentity.rc.exceptions.UserNotFoundException;
-import dk.digitalidentity.rc.security.RequireApiReadAccessRole;
-import dk.digitalidentity.rc.service.ItSystemService;
-import dk.digitalidentity.rc.service.OrgUnitService;
-import dk.digitalidentity.rc.service.RoleGroupService;
-import dk.digitalidentity.rc.service.UserRoleService;
-import dk.digitalidentity.rc.service.UserService;
-import dk.digitalidentity.rc.service.model.Constraint;
-import dk.digitalidentity.rc.service.model.PrivilegeGroup;
-import dk.digitalidentity.rc.service.model.UserWithRole;
+import java.lang.reflect.Type;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.stream.Collectors;
 
 @RequireApiReadAccessRole
 @RestController
@@ -284,12 +291,7 @@ public class ReadOnlyApi {
 			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
 		}
 
-		try {
-			roles = userService.getUserRolesAssignedDirectly(uuid, foundDomain);
-		}
-		catch (UserNotFoundException e) {
-			return new ResponseEntity<>(HttpStatus.NOT_FOUND);
-		}
+		roles = userService.getUserRolesAssignedDirectly(uuid, foundDomain);
 
 		Type targetListType = new TypeToken<List<UserRoleReadDTO>>() {}.getType();
 		List<UserRoleReadDTO> result = mapper.map(roles, targetListType);
@@ -299,14 +301,7 @@ public class ReadOnlyApi {
 
 	@RequestMapping(value = "/api/read/user/{uuid}/rolegroups", method = RequestMethod.GET)
 	public ResponseEntity<List<RoleGroupReadDTO>> getUserRoleGroups(@PathVariable("uuid") String uuid) {
-		List<RoleGroup> roles = new ArrayList<>();
-
-		try {
-			roles = userService.getRoleGroupsAssignedDirectly(uuid);
-		}
-		catch (UserNotFoundException e) {
-			return new ResponseEntity<>(HttpStatus.NOT_FOUND);
-		}
+		List<RoleGroup> roles = userService.getRoleGroupsAssignedDirectly(uuid);
 
 		Type targetListType = new TypeToken<List<RoleGroupReadDTO>>() {}.getType();
 		List<RoleGroupReadDTO> result = mapper.map(roles, targetListType);

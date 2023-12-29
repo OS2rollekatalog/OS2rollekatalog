@@ -80,7 +80,7 @@
 								<div class="form-group">
 									<label class="col-sm-2 control-label" th:text="#{html.entity.itsystem.attestationResponsible}"></label>
 									<div class="col-sm-8">
-										<input th:field="${attestationResponsibleName}" readonly="readonly" class="form-control" />
+										<input th:value="${attestationResponsibleName}" readonly="readonly" class="form-control" />
 									</div>
 								</div>
 							</fieldset>
@@ -93,6 +93,21 @@
 									</div>
 								</div>
 							</fieldset>
+
+							<fieldset th:if="${attestationEnabled}">
+								<div class="form-group">
+									<label class="col-sm-2 control-label" th:text="#{html.entity.itsystem.att_exempt}"></label>
+									<div class="col-sm-1">
+										<div class="checkbox c-checkbox">
+											<label>
+												<input id="att-exempt-checkbox" type="checkbox" data-flag="hidden" th:attr="checked=${itsystem.attestationExempt}" disabled="disabled"/>
+												<span class="fa fa-check"></span>
+											</label>
+										</div>
+									</div>
+								</div>
+							</fieldset>
+
 
 							<fieldset>
 								<div class="form-group">
@@ -176,7 +191,9 @@
 													<td th:text="${systemRole.name}"></td>
 													<td th:text="${systemRole.identifier}"></td>
 													<td class="preformat" th:text="${systemRole.description}"></td>
-													<td><em class="fa fa-fw" th:classappend="${systemRole.inUse} ? fa-check : ''"></em></td>
+													<td>
+														<p th:text="${systemRole.inUse} ? '1' : '0'" hidden="hidden"></p>
+														<em class="fa fa-fw" th:classappend="${systemRole.inUse} ? fa-check : ''"></em></td>
 													<td th:text="${systemRole.weight}"></td>
 													<td>
 														<a th:href="@{/ui/systemrole/{id}/userroles(id=${systemRole.id})}"><em class="fa fa-list"></em></a>

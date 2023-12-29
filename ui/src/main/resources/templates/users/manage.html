@@ -160,7 +160,7 @@
 	<div th:replace="users/fragments/user_role_group_modal :: userRoleGroupModal(positions = ${user.positions}, possibleOrgUnits = ${roleAssignmentOrgUnits})"></div>
 	<div th:replace="users/fragments/postponed_constraint_kle_modal :: postponedConstraintsKLEModal"></div>
 	<div th:replace="userroles/fragments/constraint_ou_modal :: OUModal"></div>
-
+	<div th:replace="request_approve/fragments/request_modal :: requestRoleModal"></div>
 	<nav th:replace="fragments/footer :: footer"></nav>
 
 	<script th:replace="fragments/datatables :: datatables "></script>
@@ -169,6 +169,7 @@
 	<script th:replace="users/fragments/role_assignment_edit_modal :: roleAssignmentEditModalScript(page='user')"></script>
 	<script th:replace="users/fragments/user_role_group_modal :: userRoleGroupModalScript(listTable='listTable2', page='user')"></script>
 	<script th:replace="users/fragments/assign_user_role_postponed_data_constraints :: postponedConstraintsScript"></script>
+	<script th:replace="request_approve/fragments/request_modal :: requestRoleModalScript"></script>
 
 	<script th:inline="javascript">
 		/*<![CDATA[*/
@@ -198,7 +199,8 @@
 		var itSystemList = [[${itSystemList}]];
 		var treeOUs = [[${treeOUs}]];
 		var possibleOrgUnits = [[${roleAssignmentOrgUnits}]];
-		
+		var reqRedirectUri = [[@{/ui/my/requests}]];
+
 		var baseUrl = [[@{/}]];
 
 		+]*/
@@ -236,6 +238,7 @@
 			rolesService.loadRolesFragment();
 			//Init userrole edit modal
 			userRoleEditModalService.parentService = rolesService;
+			userRoleModalService.parentService = rolesService;
 		});
 
 		function RolesService() {
@@ -257,6 +260,21 @@
 				$("#roles_menu").load(UIUrl + user + "/addRoleGroup", function () {
 					fragShowDataTableFun('#listTable_u_rg', 0);
 				});
+			}
+
+			this.requestRoleRemoval = function (elem) {
+				var parent = elem.parentElement;
+				var type = parent.dataset.type;
+				var orgUnitUuid = parent.dataset.ouuuid;
+				var roleId = parent.dataset.roleid;
+				requestRoleModalService.setSuccessHandler(() => {
+					window.location.href = reqRedirectUri;
+				})
+				if (type === 'ROLEGROUP') {
+					requestRoleModalService.showRequestRoleGroupRemovalDialog(orgUnitUuid, user, roleId);
+				} else  {
+					requestRoleModalService.showRequestRoleRemovalDialog(orgUnitUuid, user, roleId);
+				}
 			}
 
 			this.deleteRoleAssignment = function(elem) {
@@ -331,9 +349,11 @@
 				$('#stopDatePicker').data("DateTimePicker").clear();
 				$('#startDatePicker').data("DateTimePicker").clear();
 				$('#startDatePicker').data("DateTimePicker").date(new Date());
+				$('#notifyId').attr('checked', false);
 
 				modal.attr("roleid", roleid);
 				modal.attr("userUuid", user);
+				userRoleModalService.setManual( elem.dataset.systemtype == 'MANUAL' ? true : false);
 
 			}
 			this.addRoleGroup = function (elem) {

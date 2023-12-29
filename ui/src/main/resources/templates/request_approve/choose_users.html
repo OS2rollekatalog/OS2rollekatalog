@@ -60,18 +60,23 @@
 	            </div>
 	
 	            <div class="modal-body">
+					<div id="postponedConstraintsPlaceholder"></div>
+					<h4 th:text="#{html.page.roles.request.modal.header.reason}"></h4>
            			<span th:text="#{html.page.roles.request.modal.body}"></span>
 					<textarea id="reasonField" rows="8" class="form-control" style="margin-top: 10px;"></textarea>
 					<span id="errormsg" style="color: red;" th:text="#{html.page.roles.request.modal.body.required}" hidden></span>
 	            </div>
 	
 				<div class="modal-footer">
-					<button type="submit" class="btn btn-primary" th:text="#{html.control.button.request}" onclick="userService.request()"></button>
+					<button type="submit" class="btn btn-primary" th:text="#{html.control.button.request}" onclick="postponedConstraintsService.validate('requestRoleMultipleUsers');"></button>
 					<button type="button" class="btn btn-danger" th:text="#{html.control.button.cancel}" data-dismiss="modal"></button>
 				</div>
 	        </div>
 	    </div>
 	</div>
+
+	<div th:replace="users/fragments/postponed_constraint_kle_modal :: postponedConstraintsKLEModal"></div>
+	<div th:replace="userroles/fragments/constraint_ou_modal :: OUModal"></div>
 	
 	<style>
 	.table .checkbox {
@@ -82,6 +87,7 @@
 
 	<nav th:replace="fragments/footer :: footer"></nav>
 	<script th:replace="fragments/datatables :: datatables(orderColumnValue=1) "></script>
+	<script th:replace="users/fragments/assign_user_role_postponed_data_constraints :: postponedConstraintsScript"></script>
 
 	<script th:inline="javascript">
 		/*<![CDATA[*/
@@ -95,6 +101,10 @@
 				var userRoleUrl = [[@{/ui/userroles/view/}]];
 				var roleGroupUrl = [[@{/ui/rolegroups/view/}]];
 				var fieldNotUpdatedMsg = [[#{html.entity.rolegroup.failedupdatemsg}]];
+				var baseUrl = [[@{/}]];
+
+				var kleList = [[${kleList}]];
+				var treeOUs = [[${treeOUs}]];
 			+]*/
 
 			var token = $("meta[name='_csrf']").attr("content");
@@ -150,6 +160,7 @@
 							closeOnConfirm : true
 						});
 					} else {
+						postponedConstraintsService.loadPostponedConstraintsFragment(roleId);
 						$("#errormsg").hide();
 						$("#reasonField").val("");
 						$("#modal-request").modal({
@@ -179,7 +190,9 @@
 							   "selectedUsers" : selectedUsers,
 							   "roleId" : roleId,
 							   "roleType" : roleType,
-							   "orgUnitUuid" : orgUnitUuid
+							   "orgUnitUuid" : orgUnitUuid,
+							   "action" : 'ADD',
+							   "constraints" : postponedConstraintsService.getConstraintList()
 							}),
 							error: function(response) {
 			    				$.notify({

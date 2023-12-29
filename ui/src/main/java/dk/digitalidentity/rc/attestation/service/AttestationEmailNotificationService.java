@@ -30,6 +30,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
@@ -123,7 +124,7 @@ public class AttestationEmailNotificationService {
         final EmailTemplate template = sensitiveOnly(attestation)
                 ? findSensitiveEmailTemplate(mailType)
                 : findEmailTemplate(attestationType, mailType);
-        final User systemResponsible = attestation.getResponsibleUserUuid() != null ? userDao.findByUuidAndDeletedFalse(attestation.getResponsibleUserUuid()) : null;
+        final User systemResponsible = attestation.getResponsibleUserUuid() != null ? userDao.findByUuidAndDeletedFalse(attestation.getResponsibleUserUuid()).orElse(null) : null;
         if (template.isEnabled()) {
             final List<User> targetUsers = findTargetUsers(attestation, mailType == AttestationMail.MailType.ESCALATION_REMINDER);
             if (targetUsers == null) {
@@ -153,7 +154,7 @@ public class AttestationEmailNotificationService {
         boolean systemEscalation = escalation && attestation.getResponsibleUserUuid() != null;
         User responsibleUser = null;
         if (attestation.getResponsibleUserUuid() != null) {
-            responsibleUser = userDao.findByUuidAndDeletedFalse(attestation.getResponsibleUserUuid());
+            responsibleUser = userDao.findByUuidAndDeletedFalse(attestation.getResponsibleUserUuid()).orElse(null);
         }
         if (responsibleUser == null && attestation.getResponsibleOuUuid() != null) {
             responsibleUser = orgUnitDao.findById(attestation.getResponsibleOuUuid())
@@ -268,6 +269,7 @@ public class AttestationEmailNotificationService {
             case ORGUNIT_PLACEHOLDER -> findOrgUnitName(attestation);
             case ITSYSTEM_PLACEHOLDER -> attestation.getItSystemName();
             case SYSTEM_RESPONSIBLE_PLACEHOLDER -> systemResponsible != null ? systemResponsible.getName() : "ukendt";
+            case ATTESTATION_DEADLINE -> attestation.getDeadline() != null ? attestation.getDeadline().format(DateTimeFormatter.ofPattern("dd/MM/yyyy")) : "ukendt";
             default -> {
                 log.warn(placeholder.getPlaceholder() + " is not resolved in AttestationEmailNotificationService");
                 yield placeholder.getPlaceholder();
@@ -312,7 +314,7 @@ public class AttestationEmailNotificationService {
             return orgUnitDao.findById(attestation.getResponsibleOuUuid()).map(OrgUnit::getName).orElse(null);
         }
         if (attestation.getResponsibleUserUuid() != null) {
-            return userDao.findByUuidAndDeletedFalse(attestation.getResponsibleUserUuid())
+            return userDao.findByUuidAndDeletedFalse(attestation.getResponsibleUserUuid()).orElseThrow()
                     .getPositions().stream().map(Position::getOrgUnit)
                     .filter(Objects::nonNull)
                     .map(OrgUnit::getName)

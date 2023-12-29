@@ -57,68 +57,38 @@ public class ReportService {
 			Map<String, List<HistoryOURoleAssignmentWithTitles>> titleRoleAssignments,
 			Map<Long, String> itSystemNameMapping,
 			Locale locale,
-			boolean showInactiveUsers) {
+			boolean showInactiveUsers,
+			boolean onlyResponsibleOU) {
         
 		List<UserRoleAssignmentReportEntry> result = new ArrayList<>();
 		
         for (Map.Entry<String, List<HistoryRoleAssignment>> entry : userRoleAssignments.entrySet()) {
-            HistoryUser user = users.get(entry.getKey());
+			HistoryUser user = users.get(entry.getKey());
 
-            // Skip inactive users if showInactive users = false
+			// Skip inactive users if showInactive users = false
 			if (!showInactiveUsers && !user.isUserActive()) {
 				continue;
 			}
 
-            String userName = user.getUserName();
-            String userId = user.getUserUserId();
-            String employeeId = user.getUserExtUuid();
-            boolean userActive = user.isUserActive();
-            
-            List<HistoryOU> positions = getPositions(orgUnits, user);
-            for (HistoryOU position : positions) {
-	            List<HistoryRoleAssignment> roleAssignments = entry.getValue();
-	            for (HistoryRoleAssignment roleAssignment : roleAssignments) {
-	
-	            	// Get ItSystem by id
-	                Optional<HistoryItSystem> first = itSystems.stream().filter(itSystem -> itSystem.getItSystemId() == roleAssignment.getRoleItSystemId()).findFirst();
-	                String itSystem = "";
-	                if (first.isPresent()) {
-	                    HistoryItSystem historyItSystem = first.get();
-	                    itSystem = historyItSystem.getItSystemName();
-	                }
-	
-	                String assignedBy = roleAssignment.getAssignedByName() + " (" + roleAssignment.getAssignedByUserId() + ")";
-	
-	                // Creating assigned Through string
-					String assignedThroughMessageCode = switch (roleAssignment.getAssignedThroughType()) {
-						case DIRECT -> "xls.role.assigned.trough.type.direct";
-						case ROLEGROUP -> "xls.role.assigned.trough.type.direct_group";
-						case POSITION -> "xls.role.assigned.trough.type.position";
-						case ORGUNIT -> "xls.role.assigned.trough.type.orgunit";
-						case TITLE -> "xls.role.assigned.trough.type.title";
-					};
-					String assignedThroughStr = messageSource.getMessage(assignedThroughMessageCode, null, locale);
-	
-	                if (StringUtils.hasLength(roleAssignment.getAssignedThroughName())) {
-	                    assignedThroughStr += ": " + roleAssignment.getAssignedThroughName();
-	                }
-	
-	                UserRoleAssignmentReportEntry row = new UserRoleAssignmentReportEntry();
-	                row.setUserName(userName);
-	                row.setUserId(userId);
-	                row.setEmployeeId(employeeId);
-	                row.setOrgUnitName(position.getOuName());
-	                row.setOrgUnitUUID(position.getOuUuid());
-	                row.setUserActive(userActive);
-	                row.setRoleId(roleAssignment.getRoleId());
-	                row.setItSystem(itSystem);
-	                row.setAssignedBy(assignedBy);
-	                row.setAssignedWhen(roleAssignment.getAssignedWhen());
-	                row.setAssignedThrough(assignedThroughStr);
-	                row.setPostponedConstraints(roleAssignment.getPostponedConstraints());
-	                result.add(row);
-	            }
-        	}
+			String userName = user.getUserName();
+			String userId = user.getUserUserId();
+			String employeeId = user.getUserExtUuid();
+			boolean userActive = user.isUserActive();
+
+			List<HistoryRoleAssignment> roleAssignments = entry.getValue();
+
+			for (HistoryRoleAssignment roleAssignment : roleAssignments) {
+				if (onlyResponsibleOU && roleAssignment.getOrgUnitUuid() != null) {
+
+					HistoryOU ou = orgUnits.get(roleAssignment.getOrgUnitUuid());
+					addRow(itSystems, locale, result, userName, userId, employeeId, userActive, roleAssignment, ou);
+				} else {
+					List<HistoryOU> positions = getPositions(orgUnits, user);
+					for (HistoryOU position : positions) {
+							addRow(itSystems, locale, result, userName, userId, employeeId, userActive, roleAssignment, position);
+					}
+				}
+			}
         }
 
         for (HistoryOU ou : orgUnits.values()) {
@@ -280,6 +250,47 @@ public class ReportService {
         return result;
 	}
 
+	private void addRow(List<HistoryItSystem> itSystems, Locale locale, List<UserRoleAssignmentReportEntry> result, String userName, String userId, String employeeId, boolean userActive, HistoryRoleAssignment roleAssignment, HistoryOU ou) {
+		// Get ItSystem by id
+		Optional<HistoryItSystem> first = itSystems.stream().filter(itSystem -> itSystem.getItSystemId() == roleAssignment.getRoleItSystemId()).findFirst();
+		String itSystem = "";
+		if (first.isPresent()) {
+			HistoryItSystem historyItSystem = first.get();
+			itSystem = historyItSystem.getItSystemName();
+		}
+
+		String assignedBy = roleAssignment.getAssignedByName() + " (" + roleAssignment.getAssignedByUserId() + ")";
+
+		// Creating assigned Through string
+		String assignedThroughMessageCode = switch (roleAssignment.getAssignedThroughType()) {
+			case DIRECT -> "xls.role.assigned.trough.type.direct";
+			case ROLEGROUP -> "xls.role.assigned.trough.type.direct_group";
+			case POSITION -> "xls.role.assigned.trough.type.position";
+			case ORGUNIT -> "xls.role.assigned.trough.type.orgunit";
+			case TITLE -> "xls.role.assigned.trough.type.title";
+		};
+		String assignedThroughStr = messageSource.getMessage(assignedThroughMessageCode, null, locale);
+
+		if (StringUtils.hasLength(roleAssignment.getAssignedThroughName())) {
+			assignedThroughStr += ": " + roleAssignment.getAssignedThroughName();
+		}
+
+		UserRoleAssignmentReportEntry row = new UserRoleAssignmentReportEntry();
+		row.setUserName(userName);
+		row.setUserId(userId);
+		row.setEmployeeId(employeeId);
+		row.setOrgUnitName(ou.getOuName());
+		row.setOrgUnitUUID(ou.getOuUuid());
+		row.setUserActive(userActive);
+		row.setRoleId(roleAssignment.getRoleId());
+		row.setItSystem(itSystem);
+		row.setAssignedBy(assignedBy);
+		row.setAssignedWhen(roleAssignment.getAssignedWhen());
+		row.setAssignedThrough(assignedThroughStr);
+		row.setPostponedConstraints(roleAssignment.getPostponedConstraints());
+		result.add(row);
+	}
+
 	private List<HistoryOU> getPositions(Map<String, HistoryOU> orgUnits, HistoryUser user) {
 		return orgUnits.values().stream().filter( ou -> ou.getUsers().stream().anyMatch(ouUser -> Objects.equals(ouUser.getUserUuid(), user.getUserUuid()))).collect(Collectors.toList());
 	}
@@ -380,6 +391,11 @@ public class ReportService {
 			users.keySet().removeIf(k -> !userUUIDs.contains(k));
 			userRoleAssignments.entrySet().removeIf(e -> !userUUIDs.contains(e.getKey()));
 			userKleAssignments.entrySet().removeIf(e -> !userUUIDs.contains(e.getKey()));
+
+			// filter out role assignments where responsible ou is not in ouFilter
+			for (Map.Entry<String, List<HistoryRoleAssignment>> entry : userRoleAssignments.entrySet()) {
+				entry.getValue().removeIf(v -> !finalOuFilter.contains(v.getOrgUnitUuid()));
+			}
 		}
 
 		Map<String, Object> model = new HashMap<>();

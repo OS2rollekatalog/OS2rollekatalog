@@ -62,7 +62,7 @@
 			allowInputToggle: true,
 			showClear: true,
 			icons: icons,
-			minDate: new Date(new Date().getTime() + (24 * 60 * 60 * 1000)),
+			minDate: new Date(),
 			useCurrent: false //Important! See issue #1075
 		}
 		
@@ -89,9 +89,9 @@
 				$("#startDatePicker").on("dp.change", function (e) {
 					var minDate;
 					if (e.date) {
-						minDate = new Date(e.date + 24 * 60 * 60 * 1000);
+						minDate = new Date(e.date);
 					} else {
-						minDate = new Date(new Date().getTime() + 24 * 60 * 60 * 1000);
+						minDate = new Date();
 					}
 					$('#stopDatePicker').data("DateTimePicker").minDate(minDate);
 					
@@ -110,9 +110,9 @@
 				$("#groupStartDatePicker").on("dp.change", function (e) {
 					var minDate;
 					if (e.date) {
-						minDate = new Date(e.date + 24 * 60 * 60 * 1000);
+						minDate = new Date(e.date);
 					} else {
-						minDate = new Date(new Date().getTime() + 24 * 60 * 60 * 1000);
+						minDate = new Date();
 					}
 					$('#groupStopDatePicker').data("DateTimePicker").minDate(minDate);
 					
@@ -131,9 +131,9 @@
 				$("#startDatePickerOU").on("dp.change", function (e) {
 					var minDate;
 					if (e.date) {
-						minDate = new Date(e.date + 24 * 60 * 60 * 1000);
+						minDate = new Date(e.date);
 					} else {
-						minDate = new Date(new Date().getTime() + 24 * 60 * 60 * 1000);
+						minDate = new Date();
 					}
 					$('#stopDatePickerOU').data("DateTimePicker").minDate(minDate);
 					
@@ -152,9 +152,9 @@
 				$("#startDatePickerEdit").on("dp.change", function (e) {
 					var minDate;
 					if (e.date) {
-						minDate = new Date(e.date + 24 * 60 * 60 * 1000);
+						minDate = new Date(e.date);
 					} else {
-						minDate = new Date(new Date().getTime() + 24 * 60 * 60 * 1000);
+						minDate = new Date();
 					}
 					$('#stopDatePickerEdit').data("DateTimePicker").minDate(minDate);
 					
@@ -173,9 +173,9 @@
 				$("#startDatePickerEditOU").on("dp.change", function (e) {
 					var minDate;
 					if (e.date) {
-						minDate = new Date(e.date + 24 * 60 * 60 * 1000);
+						minDate = new Date(e.date);
 					} else {
-						minDate = new Date(new Date().getTime() + 24 * 60 * 60 * 1000);
+						minDate = new Date();
 					}
 					$('#stopDatePickerEditOU').data("DateTimePicker").minDate(minDate);
 					

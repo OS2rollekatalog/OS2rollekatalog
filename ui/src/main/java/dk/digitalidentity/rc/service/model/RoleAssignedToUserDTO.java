@@ -1,8 +1,5 @@
 package dk.digitalidentity.rc.service.model;
 
-import java.time.LocalDate;
-import java.util.List;
-
 import dk.digitalidentity.rc.controller.mvc.viewmodel.SystemRoleAssignmentDTO;
 import dk.digitalidentity.rc.dao.model.ItSystem;
 import dk.digitalidentity.rc.dao.model.OrgUnitRoleGroupAssignment;
@@ -14,6 +11,9 @@ import dk.digitalidentity.rc.dao.model.UserRoleGroupAssignment;
 import dk.digitalidentity.rc.dao.model.UserUserRoleAssignment;
 import lombok.Getter;
 import lombok.Setter;
+
+import java.time.LocalDate;
+import java.util.List;
 
 @Getter
 @Setter

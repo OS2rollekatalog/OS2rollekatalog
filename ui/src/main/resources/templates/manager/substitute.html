@@ -76,7 +76,7 @@
 						</div>
 						<div class="form-group">
 							<label class="col-lg-2 control-label" th:text="#{html.page.manager.substitute.orgunit}"></label>
-							<select style="margin-left: 10px; width: 500px; display: inline-block;" class="form-control col-lg-8" id="selectedOrgUnit" th:disabled="${#lists.size(orgUnits) == 0}">
+							<select style="margin-left: 10px; width: 500px; display: inline-block;" class="form-control col-lg-8" id="selectedOrgUnit" th:disabled="${#lists.size(orgUnits) == 0}" multiple>
 								<option th:each="ou : ${orgUnits}" th:value="${ou.uuid}" th:text="${ou.name}"></option>
 							</select>
 							<p id="selectedOrgUnitError" style="display:none" class="text-error col-lg-8 col-lg-offset-2" th:text="#{html.page.manager.substitute.modal.select.orgUnit.error}"></p>
@@ -225,14 +225,14 @@
 			
 			this.addSubstitute = function() {
 				var substituteUuid = $("#selectedSubstituteUuid").val();
-				var orgUnitUuid = $("#selectedOrgUnit").val();
+				var orgUnitUuids = $("#selectedOrgUnit").val();
 
 				if (!substituteUuid || substituteUuid == null || substituteUuid === "") {
 					$("#selectedSubstituteError").show();
 					return;
 				}
 				
-				if (!orgUnitUuid || orgUnitUuid == null || orgUnitUuid === "") {
+				if (!orgUnitUuids || orgUnitUuids == null || orgUnitUuids.length === 0) {
 					$("#selectedOrgUnitError").show();
 					return;
 				}
@@ -246,7 +246,7 @@
 					},
 					data: JSON.stringify({
 						substitute: { uuid: substituteUuid },
-						orgUnit: { uuid: orgUnitUuid },
+						orgUnitUUIDs: orgUnitUuids,
 						manager: { uuid: managerUuid }
 					})
 				}).done(function (data) {

@@ -19,7 +19,7 @@ import dk.digitalidentity.rc.dao.model.OrgUnit;
 import dk.digitalidentity.rc.dao.model.RoleGroup;
 import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserRole;
-import lombok.Data;
+import lombok.Setter;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
@@ -60,7 +60,7 @@ public final class UpdaterContextService {
     @Autowired
     private AttestationCachedOuService cachedOuService;
 
-    @Data
+    @Setter
     public final class UpdaterContext {
         private LocalDate when;
         private UserRole currentRole;
@@ -140,6 +140,16 @@ public final class UpdaterContextService {
             return currentItSystem != null
                     ? currentItSystem.getName()
                     : historyItSystem.getItSystemName();
+        }
+
+        public boolean isItSystemExempt() {
+            return currentItSystem != null
+                    ? currentItSystem.isAttestationExempt()
+                    : historyItSystem.isAttestationExempt();
+        }
+
+        public User attestationResponsible() {
+            return currentItSystem.getAttestationResponsible();
         }
 
         public String responsibleUserUuid() {

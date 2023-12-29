@@ -1,3 +1,17 @@
+2023.12.28 - Release 2023r5
+- [ROL-260](https://os2web.atlassian.net/browse/ROL-260) - Tilføje beskrivelsen fra Jobfunktionsrollen ved ændringsemailen på manuelle bestillinger
+- [ROL-262](https://os2web.atlassian.net/browse/ROL-262) - Anmod om fjernelse af en rettighed
+- [ROL-266](https://os2web.atlassian.net/browse/ROL-266) - Aktivt fravælge advisering på tildeling af manuelle it-systemer
+- [ROL-278](https://os2web.atlassian.net/browse/ROL-278) - Bedre overblik over hvem der har fjernet en JFR (auditlog)
+- [ROL-281](https://os2web.atlassian.net/browse/ROL-281) - Filtreret liste af brugere når man trækker en rapport
+- [ROL-282](https://os2web.atlassian.net/browse/ROL-282) - Attestationsmodul. Visning af beskrivelse for jobfunktionsrolle
+- [ROL-284](https://os2web.atlassian.net/browse/ROL-284) - Rapport: data, der udtrækkes på 'enhed'
+- [ROL-291](https://os2web.atlassian.net/browse/ROL-291) - Attesteringsmodul. Mail-skabeloner: ny pladsholder
+- [ROL-299](https://os2web.atlassian.net/browse/ROL-299) - Jobfunktionsroller og udskudt afgrænsning
+- [ROL-304](https://os2web.atlassian.net/browse/ROL-304) - Ændre så medarbejdere uden rettigheder ikke attesteres, medmindre ad-attestering er slået til
+- [ROL-304](https://os2web.atlassian.net/browse/ROL-304) - Fritag it-system fra attestering, it-systemet vil heller ikke fremgå i attesterings rapport
+- [ROL-304](https://os2web.atlassian.net/browse/ROL-304) - Linje med "mail-skabeloner bliver aktiveret" når der gemmes indstillinger for attesterings modulet
+
 2023.12.04 - Release 2023r4
 - [ROL-268](https://os2web.atlassian.net/browse/ROL-268) - Mulighed for at redigere i allerede tildelt rettigheder
 - [ROL-275](https://os2web.atlassian.net/browse/ROL-275) - Integration til Danmarks Miljøportals Provisioning API

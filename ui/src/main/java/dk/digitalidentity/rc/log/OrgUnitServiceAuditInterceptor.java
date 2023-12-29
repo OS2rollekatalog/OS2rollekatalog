@@ -1,11 +1,5 @@
 package dk.digitalidentity.rc.log;
 
-import org.aspectj.lang.JoinPoint;
-import org.aspectj.lang.annotation.AfterReturning;
-import org.aspectj.lang.annotation.Aspect;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Component;
-
 import dk.digitalidentity.rc.dao.model.KLEMapping;
 import dk.digitalidentity.rc.dao.model.OrgUnit;
 import dk.digitalidentity.rc.dao.model.OrgUnitRoleGroupAssignment;
@@ -15,6 +9,11 @@ import dk.digitalidentity.rc.dao.model.UserRole;
 import dk.digitalidentity.rc.dao.model.enums.EventType;
 import dk.digitalidentity.rc.dao.model.enums.KleType;
 import lombok.extern.slf4j.Slf4j;
+import org.aspectj.lang.JoinPoint;
+import org.aspectj.lang.annotation.AfterReturning;
+import org.aspectj.lang.annotation.Aspect;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
 
 @Slf4j
 @Aspect
@@ -26,40 +25,44 @@ public class OrgUnitServiceAuditInterceptor {
 
 	@AfterReturning(value = "execution(* dk.digitalidentity.rc.service.OrgUnitService.*(..)) && @annotation(AuditLogIntercepted)")
 	public void interceptAfter(JoinPoint jp) {
-		switch(jp.getSignature().getName()) {
-			case "addRoleGroup":
-				auditAddRoleGroup(jp);
-				break;
-			case "removeRoleGroup":
-				auditRemoveRoleGroup(jp);
-				break;
-			case "removeRoleGroupAssignment":
-				auditRemoveRoleGroupAssignment(jp);
-				break;
-			case "updateRoleGroupAssignment":
-				auditUpdateRoleGroupAssignment(jp);
-				break;
-			case "addUserRole":
-				auditAddUserRole(jp);
-				break;
-			case "removeUserRole":
-				auditRemoveUserRole(jp);
-				break;
-			case "removeUserRoleAssignment":
-				auditRemoveUserRoleAssignment(jp);
-				break;
-			case "updateUserRoleAssignment":
-				auditUpdateUserRoleAssignment(jp);
-				break;
-			case "addKLE":
-				auditAddKle(jp);
-				break;
-			case "removeKLE":
-				auditRemoveKle(jp);
-				break;
-			default:
-				log.error("Failed to intercept method: " + jp.getSignature().getName());
-				break;
+		try {
+			switch(jp.getSignature().getName()) {
+				case "addRoleGroup":
+					auditAddRoleGroup(jp);
+					break;
+				case "removeRoleGroup":
+					auditRemoveRoleGroup(jp);
+					break;
+				case "removeRoleGroupAssignment":
+					auditRemoveRoleGroupAssignment(jp);
+					break;
+				case "updateRoleGroupAssignment":
+					auditUpdateRoleGroupAssignment(jp);
+					break;
+				case "addUserRole":
+					auditAddUserRole(jp);
+					break;
+				case "removeUserRole":
+					auditRemoveUserRole(jp);
+					break;
+				case "removeUserRoleAssignment":
+					auditRemoveUserRoleAssignment(jp);
+					break;
+				case "updateUserRoleAssignment":
+					auditUpdateUserRoleAssignment(jp);
+					break;
+				case "addKLE":
+					auditAddKle(jp);
+					break;
+				case "removeKLE":
+					auditRemoveKle(jp);
+					break;
+				default:
+					log.error("Failed to intercept method: " + jp.getSignature().getName());
+					break;
+			}
+		} finally {
+			AuditLogContextHolder.clearContext();
 		}
 	}
 
@@ -110,7 +113,7 @@ public class OrgUnitServiceAuditInterceptor {
 			return;
 		}
 
-		auditLogger.log((OrgUnit) args[0], EventType.REMOVE_USER_ROLE, (UserRole) args[1]);
+		auditLogger.log((OrgUnit) args[0], EventType.REMOVE_USER_ROLE, (UserRole) args[1], AuditLogContextHolder.getContext().getStopDateUserId());
 	}
 	
 	private void auditUpdateUserRoleAssignment(JoinPoint jp) {
@@ -119,7 +122,7 @@ public class OrgUnitServiceAuditInterceptor {
 			log.error("Method signature on updateUserRoleAssignment does not match expectation");
 			return;
 		}
-		
+
 		UserRole userRole = ((OrgUnitUserRoleAssignment) args[1]).getUserRole();
 
 		auditLogger.log((OrgUnit) args[0], EventType.EDIT_USER_ROLE_ASSIGNMENT, userRole);
@@ -134,7 +137,7 @@ public class OrgUnitServiceAuditInterceptor {
 		
 		UserRole userRole = ((OrgUnitUserRoleAssignment) args[1]).getUserRole();
 
-		auditLogger.log((OrgUnit) args[0], EventType.REMOVE_USER_ROLE, userRole);
+		auditLogger.log((OrgUnit) args[0], EventType.REMOVE_USER_ROLE, userRole, AuditLogContextHolder.getContext().getStopDateUserId());
 	}
 
 	private void auditAddRoleGroup(JoinPoint jp) {
@@ -154,7 +157,7 @@ public class OrgUnitServiceAuditInterceptor {
 			return;
 		}
 
-		auditLogger.log((OrgUnit) args[0], EventType.REMOVE_ROLE_GROUP, (RoleGroup) args[1]);
+		auditLogger.log((OrgUnit) args[0], EventType.REMOVE_ROLE_GROUP, (RoleGroup) args[1], AuditLogContextHolder.getContext().getStopDateUserId());
 	}
 	
 	private void auditUpdateRoleGroupAssignment(JoinPoint jp) {
@@ -178,6 +181,6 @@ public class OrgUnitServiceAuditInterceptor {
 		
 		RoleGroup roleGroup = ((OrgUnitRoleGroupAssignment) args[1]).getRoleGroup();
 
-		auditLogger.log((OrgUnit) args[0], EventType.REMOVE_ROLE_GROUP, roleGroup);
+		auditLogger.log((OrgUnit) args[0], EventType.REMOVE_ROLE_GROUP, roleGroup, AuditLogContextHolder.getContext().getStopDateUserId());
 	}
 }

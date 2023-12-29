@@ -1,23 +1,37 @@
 package dk.digitalidentity.rc.controller.mvc;
 
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.List;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.UUID;
-import java.util.stream.Collectors;
-
-import javax.validation.Valid;
-
+import dk.digitalidentity.rc.controller.mvc.viewmodel.ConvertSystemRolesForm;
+import dk.digitalidentity.rc.controller.mvc.viewmodel.ItSystemForm;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.OUListForm;
+import dk.digitalidentity.rc.controller.mvc.viewmodel.SystemRoleForm;
+import dk.digitalidentity.rc.controller.mvc.viewmodel.SystemRoleViewModel;
+import dk.digitalidentity.rc.controller.validator.ItSystemValidator;
+import dk.digitalidentity.rc.controller.validator.SystemRoleValidator;
 import dk.digitalidentity.rc.dao.model.Domain;
+import dk.digitalidentity.rc.dao.model.ItSystem;
+import dk.digitalidentity.rc.dao.model.ItSystemMaster;
 import dk.digitalidentity.rc.dao.model.OrgUnit;
+import dk.digitalidentity.rc.dao.model.PendingADGroupOperation;
+import dk.digitalidentity.rc.dao.model.SystemRole;
+import dk.digitalidentity.rc.dao.model.SystemRoleAssignment;
 import dk.digitalidentity.rc.dao.model.User;
+import dk.digitalidentity.rc.dao.model.UserRole;
+import dk.digitalidentity.rc.dao.model.enums.ADGroupType;
+import dk.digitalidentity.rc.dao.model.enums.ItSystemType;
+import dk.digitalidentity.rc.dao.model.enums.RoleType;
+import dk.digitalidentity.rc.security.RequireAdministratorRole;
+import dk.digitalidentity.rc.security.RequireReadAccessRole;
+import dk.digitalidentity.rc.security.SecurityUtil;
 import dk.digitalidentity.rc.service.DomainService;
+import dk.digitalidentity.rc.service.ItSystemMasterService;
+import dk.digitalidentity.rc.service.ItSystemService;
 import dk.digitalidentity.rc.service.OrgUnitService;
+import dk.digitalidentity.rc.service.PendingADUpdateService;
 import dk.digitalidentity.rc.service.SettingsService;
+import dk.digitalidentity.rc.service.SystemRoleService;
+import dk.digitalidentity.rc.service.UserRoleService;
 import dk.digitalidentity.rc.service.UserService;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -30,30 +44,14 @@ import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 
-import dk.digitalidentity.rc.controller.mvc.viewmodel.ConvertSystemRolesForm;
-import dk.digitalidentity.rc.controller.mvc.viewmodel.ItSystemForm;
-import dk.digitalidentity.rc.controller.mvc.viewmodel.SystemRoleForm;
-import dk.digitalidentity.rc.controller.mvc.viewmodel.SystemRoleViewModel;
-import dk.digitalidentity.rc.controller.validator.ItSystemValidator;
-import dk.digitalidentity.rc.controller.validator.SystemRoleValidator;
-import dk.digitalidentity.rc.dao.model.ItSystem;
-import dk.digitalidentity.rc.dao.model.ItSystemMaster;
-import dk.digitalidentity.rc.dao.model.PendingADGroupOperation;
-import dk.digitalidentity.rc.dao.model.SystemRole;
-import dk.digitalidentity.rc.dao.model.SystemRoleAssignment;
-import dk.digitalidentity.rc.dao.model.UserRole;
-import dk.digitalidentity.rc.dao.model.enums.ADGroupType;
-import dk.digitalidentity.rc.dao.model.enums.ItSystemType;
-import dk.digitalidentity.rc.dao.model.enums.RoleType;
-import dk.digitalidentity.rc.security.RequireAdministratorRole;
-import dk.digitalidentity.rc.security.RequireReadAccessRole;
-import dk.digitalidentity.rc.security.SecurityUtil;
-import dk.digitalidentity.rc.service.ItSystemMasterService;
-import dk.digitalidentity.rc.service.ItSystemService;
-import dk.digitalidentity.rc.service.PendingADUpdateService;
-import dk.digitalidentity.rc.service.SystemRoleService;
-import dk.digitalidentity.rc.service.UserRoleService;
-import lombok.extern.slf4j.Slf4j;
+import javax.validation.Valid;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Slf4j
 @RequireReadAccessRole
@@ -224,6 +222,7 @@ public class ItSystemController {
 
 		Optional<ItSystemMaster> subscribedTo = itSystemMasterService.findAll().stream().filter(its -> Objects.equals(its.getMasterId(), itSystem.getSubscribedTo())).findAny();
 		model.addAttribute("subscribedTo", subscribedTo.isPresent() ? subscribedTo.get().getName() : "");
+		model.addAttribute("attestationEnabled", settingsService.isScheduledAttestationEnabled());
 
 		return "itsystem/view";
 	}

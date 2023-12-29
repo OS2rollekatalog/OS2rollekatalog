@@ -1,17 +1,17 @@
 package dk.digitalidentity.rc.dao;
 
-import java.util.List;
-import java.util.Set;
-
+import dk.digitalidentity.rc.dao.model.Domain;
+import dk.digitalidentity.rc.dao.model.RoleGroup;
+import dk.digitalidentity.rc.dao.model.User;
+import dk.digitalidentity.rc.dao.model.UserRole;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.CrudRepository;
 import org.springframework.data.repository.query.Param;
 
-import dk.digitalidentity.rc.dao.model.Domain;
-import dk.digitalidentity.rc.dao.model.RoleGroup;
-import dk.digitalidentity.rc.dao.model.User;
-import dk.digitalidentity.rc.dao.model.UserRole;
+import java.util.List;
+import java.util.Optional;
+import java.util.Set;
 
 public interface UserDao extends CrudRepository<User, String>, JpaSpecificationExecutor<User> {
 
@@ -47,10 +47,11 @@ public interface UserDao extends CrudRepository<User, String>, JpaSpecificationE
 	List<User> findByDeletedTrue();
 	long countByDeletedFalseAndUserRoleAssignmentsUserRole(UserRole userRole);
 	long countByDeletedFalseAndRoleGroupAssignmentsRoleGroup(RoleGroup role);
-	User findByUuidAndDeletedFalse(String uuid);
+	Optional<User> findByUuidAndDeletedFalse(String uuid);
+
 	List<User> findByUuidInAndDeletedFalse(Set<String> uuids);
 	List<User> findByExtUuidAndDeletedFalse(String uuid);
-	User findByUserIdAndDomainAndDeletedFalse(String userId, Domain domain);
+	Optional<User> findByUserIdAndDomainAndDeletedFalse(String userId, Domain domain);
 	
 	// use the versions below that filters on active/inactive flag
 	@Deprecated

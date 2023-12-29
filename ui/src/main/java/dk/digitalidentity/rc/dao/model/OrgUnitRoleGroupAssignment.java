@@ -64,6 +64,9 @@ public class OrgUnitRoleGroupAssignment {
     @Convert(converter = LocalDateAttributeConverter.class)
 	@Column
 	private LocalDate stopDate;
+
+	@Column
+	private String stopDateUser;
 	
 	@Column
 	private boolean inactive;

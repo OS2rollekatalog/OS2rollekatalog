@@ -1,5 +1,6 @@
 package dk.digitalidentity.rc.controller.rest;
 
+import java.lang.reflect.Array;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
@@ -7,6 +8,9 @@ import java.util.Objects;
 
 import javax.validation.Valid;
 
+import dk.digitalidentity.rc.controller.api.model.ManagerSubstituteDTO;
+import dk.digitalidentity.rc.controller.api.model.OrgUnitDTO;
+import dk.digitalidentity.rc.controller.rest.model.UserDTO;
 import dk.digitalidentity.rc.dao.model.enums.EmailTemplatePlaceholder;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.jpa.datatables.mapping.DataTablesInput;
@@ -110,96 +114,113 @@ public class ManagerRestController {
 
 		AutoCompleteResult result = new AutoCompleteResult();
 		result.setSuggestions(suggestions);
-
 		return new ResponseEntity<>(result, HttpStatus.OK);
 	}
 
+	record ManagerSubRecord(UserDTO manager, ManagerSubstituteDTO substitute, String[] orgUnitUUIDs){}
+	
 	@RequireAdministratorOrManagerRole
 	@PostMapping("/rest/manager/substitute/add")
 	@ResponseBody
-	public ResponseEntity<?> addSubstitute(@RequestBody ManagerSubstituteAssignmentDTO body) {
+	public ResponseEntity<?> addSubstitute(@RequestBody ManagerSubRecord body) {
 		if (roleCatalogueConfiguration.getSubstituteManagerAPI().isEnabled()) {
 			return ResponseEntity.badRequest().build();
 		}
-
+		List<ManagerSubstitute> subs = new ArrayList<>();
+		
 		User manager = null;
-		if (body.getManager() == null) {
+		
+
+		if (body.manager == null) {
 			manager = userService.getByUserId(SecurityUtil.getUserId());
 		}
 		else {
-			manager = userService.getByUuid(body.getManager().getUuid());
+			manager = userService.getByUuid(body.manager.getUuid());
 		}
-
+		
 		// we need a manager to add the substitute on, otherwise...
 		if (manager == null) {
 			return ResponseEntity.badRequest().build();
 		}
 		
-		OrgUnit orgUnit = orgUnitService.getByUuid(body.getOrgUnit().getUuid());
-		if (orgUnit == null) {
-			return ResponseEntity.badRequest().build();
-		}
-
-		User substitute = userService.getByUuid(body.getSubstitute().getUuid());
+		User substitute = userService.getByUuid(body.substitute.getUuid());
 		if (substitute == null) {
 			return ResponseEntity.badRequest().build();
 		}
-
+		
 		// substitute cannot be the same as manager
 		if (Objects.equals(substitute.getUuid(), manager.getUuid())) {
 			return ResponseEntity.badRequest().build();
 		}
-
+		
 		// someone needs to be logged in for this to work
 		User loggedInUser = userService.getByUserId(SecurityUtil.getUserId());
 		if (loggedInUser == null) {
 			return ResponseEntity.badRequest().build();
 		}
-
+		
 		// only admins can change on other users
 		if (!SecurityUtil.hasRole(Constants.ROLE_ADMINISTRATOR) && !Objects.equals(loggedInUser.getUuid(), manager.getUuid())) {
 			return ResponseEntity.badRequest().build();
 		}
-
-		// check if substitute already assigned to selected orgUnit
-		if (manager.getManagerSubstitutes().stream().anyMatch(m -> m.getSubstitute().equals(substitute) && m.getOrgUnit().equals(orgUnit))) {
-			return ResponseEntity.badRequest().body(substitute.getName() + " er allerede tildelt som stedfortræder i " + orgUnit.getName());
-		}
-
-		auditLogger.log(manager, EventType.ADMIN_ASSIGNED_MANAGER_SUBSTITUTE, substitute);
 		
-		ManagerSubstitute managerSubstituteMapping = new ManagerSubstitute();
-		managerSubstituteMapping.setManager(manager);
-		managerSubstituteMapping.setSubstitute(substitute);
-		managerSubstituteMapping.setOrgUnit(orgUnit);
-		managerSubstituteMapping.setAssignedBy(loggedInUser.getName() + " (" + loggedInUser.getUserId() + ")");
-		managerSubstituteMapping.setAssignedTts(new Date());
+		if(body.orgUnitUUIDs.length < 1) {
+			return ResponseEntity.badRequest().build();
+		}
 		
-		manager.getManagerSubstitutes().add(managerSubstituteMapping);
-
-		userService.save(manager);
-
-		String substituteEmail = substitute.getEmail();
-		if (substituteEmail != null) {
-			EmailTemplate template = emailTemplateService.findByTemplateType(EmailTemplateType.SUBSTITUTE);
-
-			if (template.isEnabled()) {
-				String title = template.getTitle();
-				title = title.replace(EmailTemplatePlaceholder.RECEIVER_PLACEHOLDER.getPlaceholder(), substitute.getName());
-				title = title.replace(EmailTemplatePlaceholder.MANAGER_PLACEHOLDER.getPlaceholder(), manager.getName());
-				title = title.replace(EmailTemplatePlaceholder.ORGUNIT_PLACEHOLDER.getPlaceholder(), orgUnit.getName());
-
-				String message = template.getMessage();
-				message = message.replace(EmailTemplatePlaceholder.RECEIVER_PLACEHOLDER.getPlaceholder(), substitute.getName());
-				message = message.replace(EmailTemplatePlaceholder.MANAGER_PLACEHOLDER.getPlaceholder(), manager.getName());
-				message = message.replace(EmailTemplatePlaceholder.ORGUNIT_PLACEHOLDER.getPlaceholder(), orgUnit.getName());
-				emailQueueService.queueEmail(substituteEmail, title, message, template, null);
+		for(var oU : body.orgUnitUUIDs) {
+			OrgUnit orgUnit = orgUnitService.getByUuid(oU);
+			if (orgUnit == null) {
+				return ResponseEntity.badRequest().body("Der skal vælges en organisations enhed");
 			}
-			else {
-				log.info("Email template with type " + template.getTemplateType() + " is disabled. Email was not sent.");
+			
+			
+			// check if substitute already assigned to selected orgUnit
+			if (manager.getManagerSubstitutes().stream().anyMatch(m -> m.getSubstitute().equals(substitute) && m.getOrgUnit().equals(orgUnit))) {
+				return ResponseEntity.badRequest().body(substitute.getName() + " er allerede tildelt som stedfortræder i " + orgUnit.getName());
+			}
+			ManagerSubstitute managerSubstituteMapping = new ManagerSubstitute();
+			managerSubstituteMapping.setManager(manager);
+			managerSubstituteMapping.setSubstitute(substitute);
+			managerSubstituteMapping.setOrgUnit(orgUnit);
+			managerSubstituteMapping.setAssignedBy(loggedInUser.getName() + " (" + loggedInUser.getUserId() + ")");
+			managerSubstituteMapping.setAssignedTts(new Date());
+			
+			subs.add(managerSubstituteMapping);
+			
+		}
+		
+		for(ManagerSubstitute sub : subs) {
+			manager.getManagerSubstitutes().add(sub);
+			
+			userService.save(manager);
+			auditLogger.log(manager, EventType.ADMIN_ASSIGNED_MANAGER_SUBSTITUTE, substitute);
+			
+			String substituteEmail = substitute.getEmail();
+			if (substituteEmail != null) {
+				EmailTemplate template = emailTemplateService.findByTemplateType(EmailTemplateType.SUBSTITUTE);
+				
+				if (template.isEnabled()) {
+					String title = template.getTitle();
+					title = title.replace(EmailTemplatePlaceholder.RECEIVER_PLACEHOLDER.getPlaceholder(), substitute.getName());
+					title = title.replace(EmailTemplatePlaceholder.MANAGER_PLACEHOLDER.getPlaceholder(), manager.getName());
+					title = title.replace(EmailTemplatePlaceholder.ORGUNIT_PLACEHOLDER.getPlaceholder(), sub.getOrgUnit().getName());
+					
+					String message = template.getMessage();
+					message = message.replace(EmailTemplatePlaceholder.RECEIVER_PLACEHOLDER.getPlaceholder(), substitute.getName());
+					message = message.replace(EmailTemplatePlaceholder.MANAGER_PLACEHOLDER.getPlaceholder(), manager.getName());
+					message = message.replace(EmailTemplatePlaceholder.ORGUNIT_PLACEHOLDER.getPlaceholder(), sub.getOrgUnit().getName());
+					emailQueueService.queueEmail(substituteEmail, title, message, template, null);
+				}
+				else {
+					log.info("Email template with type " + template.getTemplateType() + " is disabled. Email was not sent.");
+				}
 			}
 		}
-
+		
+		
+		
+		
 		return new ResponseEntity<>(HttpStatus.OK);
 	}
 

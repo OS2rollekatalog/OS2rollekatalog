@@ -544,8 +544,8 @@
 					]
 				});
 
-	            // selecting in the JSTree
-				$("#hierarchy").on("select_node.jstree", function(e, data) {
+	            // selecting and deselecting in the JSTree
+				$("#hierarchy").on("changed.jstree", function(e, data) {
 	                var ous = $('#hierarchy').jstree('get_selected');
 
 	                // Remember date
@@ -590,10 +590,14 @@
 				// Toggle filter it system
 				$('#itsystemCheckbox').change(function () {
 					if (this.checked)  {
-					  	$('#itsystemToggle').fadeIn('fast');
+						$('#itsystemToggle').fadeIn('fast');
+						$('#realShowUsers').val(0);
+						$('#realShowUsers').parent().hide();
 					} else {
 						$('#itsystemToggle').fadeOut('fast');
 	                    $('#itSystemSelectPicker').selectpicker('val', '');
+						$('#realShowUsers').val($('#UserColumnCheckbox').val());
+						$('#realShowUsers').parent().show();
 					}
 				});
 				$('#itsystemCheckbox').trigger('change');

@@ -13,7 +13,7 @@
 					<a th:href="@{/ui/userroles/list}" class="btn btn-default">
 						<span><i class="fa fa-arrow-left"></i></span>
 					</a>
-					<span th:text="#{html.page.userroles.addrole.title}"></span>
+					<span th:text="#{html.page.userroles.editrole.title}"></span>
 				</h3>
 				
 				<div class="panel panel-default">
@@ -154,7 +154,7 @@
 						</form>
 
 						<form class="form-horizontal">
-							<ul class="nav nav-tabs">
+							<ul class="nav nav-tabs" th:title="${allowPostponing} ? #{html.page.userroles.edit.tab.ous.disabled} : ''">
 								<li th:class="active">
 	                            	<a data-toggle="tab" href="#roles_menu" th:text="#{html.entity.userrole.roleassignments}"></a>
 		                        </li>
@@ -164,7 +164,7 @@
 		                        <li>
 	                            	<a data-toggle="tab" href="#users_menu" th:text="#{html.page.userroles.edit.tab.users}"></a>
 		                        </li>
-		                        <li>
+		                        <li th:class="${allowPostponing} ? 'disabled' : ''">
 	                            	<a data-toggle="tab" id="outab" href="#ous_menu" th:text="#{html.page.userroles.edit.tab.ous}"></a>
 	                            </li>
 		                    </ul>
@@ -516,6 +516,14 @@
 		}
 		.popover {
 			width: 300px;
+		}
+
+		.nav.nav-tabs > li.disabled {
+			pointer-events: none;
+
+			a {
+				color: silver;
+			}
 		}
 	</style>
 

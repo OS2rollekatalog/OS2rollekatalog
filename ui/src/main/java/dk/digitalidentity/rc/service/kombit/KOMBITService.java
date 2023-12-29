@@ -1,30 +1,5 @@
 package dk.digitalidentity.rc.service.kombit;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.UUID;
-import java.util.stream.Collectors;
-
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpMethod;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.client.HttpStatusCodeException;
-import org.springframework.web.client.ResourceAccessException;
-import org.springframework.web.client.RestTemplate;
-
 import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
 import dk.digitalidentity.rc.dao.UserRoleDao;
 import dk.digitalidentity.rc.dao.model.ConstraintType;
@@ -59,6 +34,30 @@ import dk.digitalidentity.rc.service.kombit.dto.KOMBITUserRoleDTO;
 import dk.digitalidentity.rc.service.kombit.dto.KOMBITVaerdiListeDTO;
 import dk.digitalidentity.rc.util.IdentifierGenerator;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.client.HttpStatusCodeException;
+import org.springframework.web.client.ResourceAccessException;
+import org.springframework.web.client.RestTemplate;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -481,12 +480,10 @@ public class KOMBITService {
 	private boolean deleteUserRole(PendingKOMBITUpdate pendingKOMBITUpdate) {
 		if (pendingKOMBITUpdate.getUserRoleUuid() == null) {
 			log.error("Cannot delete UserRole without UUID.");
-
 			return true;
 		}
 
 		String url = configuration.getIntegrations().getKombit().getUrl() + "/jobfunktionsroller/" + pendingKOMBITUpdate.getUserRoleUuid();
-
 		try {
 			int timeoutCount = 0;
 			do {
@@ -506,9 +503,13 @@ public class KOMBITService {
 			} while (true);
 
 			return true;
-		}
-		catch (HttpStatusCodeException ex) {
-			log.error("Failed to delete UserRole: " + pendingKOMBITUpdate.getUserRoleUuid() + " / " + ex.getResponseBodyAsString(), ex);
+		} catch (final HttpStatusCodeException ex) {
+			if (ex.getStatusCode() == HttpStatus.NOT_FOUND) {
+				log.warn("UserRole {} not found, assuming its already been deleted", pendingKOMBITUpdate.getUserRoleUuid());
+				return true;
+			} else {
+				log.error("Failed to delete UserRole: " + pendingKOMBITUpdate.getUserRoleUuid() + " / " + ex.getResponseBodyAsString(), ex);
+			}
 		}
 
 		return false;

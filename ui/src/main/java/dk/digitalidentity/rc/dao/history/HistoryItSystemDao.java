@@ -6,7 +6,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDate;
-import java.util.stream.Stream;
+import java.util.List;
 
 public interface HistoryItSystemDao extends JpaRepository<HistoryItSystem, Long> {
 
@@ -16,6 +16,9 @@ public interface HistoryItSystemDao extends JpaRepository<HistoryItSystem, Long>
     HistoryItSystem findFirstByDatoAndItSystemId(final LocalDate dato, Long itSystemId);
 
     @Query("SELECT hit FROM HistoryItSystem hit WHERE hit.dato=:dato")
-    Stream<HistoryItSystem> streamByDate(@Param("dato") LocalDate dato);
+    List<HistoryItSystem> findByDate(@Param("dato") LocalDate dato);
+
+    @Query("SELECT hit.itSystemId FROM HistoryItSystem hit WHERE hit.dato=:dato AND hit.attestationExempt=true")
+    List<Long> findItSystemIDsByAttestationExemptAndDate(@Param("dato") LocalDate dato);
 
 }

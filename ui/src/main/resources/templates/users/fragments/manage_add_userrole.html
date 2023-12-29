@@ -27,7 +27,8 @@
 								<a
 									href="#"
 									onclick="rolesService.addUserRole(this); return false;"
-									th:attr="data-roleid=${role.id}">
+									th:attr="data-roleid=${role.id}"
+									th:attrappend="data-systemType=${role.itSystem?.systemType}">
 									<em class="fa fa-plus"></em>
 								</a>
 							</td>

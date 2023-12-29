@@ -24,6 +24,7 @@ import dk.digitalidentity.rc.dao.model.UserUserRoleAssignment;
 import dk.digitalidentity.rc.dao.model.enums.KleType;
 import dk.digitalidentity.rc.dao.model.enums.OrgUnitLevel;
 import dk.digitalidentity.rc.exceptions.OrgUnitNotFoundException;
+import dk.digitalidentity.rc.log.AuditLogContextHolder;
 import dk.digitalidentity.rc.log.AuditLogIntercepted;
 import dk.digitalidentity.rc.security.SecurityUtil;
 import dk.digitalidentity.rc.service.model.AssignedThrough;
@@ -219,7 +220,7 @@ public class OrgUnitService {
 
 		String userId = SecurityUtil.getUserId();
 		if (userId != null) {
-			User user = userDao.findByUserIdAndDomainAndDeletedFalse(userId, domainService.getPrimaryDomain());
+			User user = userDao.findByUserIdAndDomainAndDeletedFalse(userId, domainService.getPrimaryDomain()).orElse(null);
 
 			if (user != null) {
 				if (SecurityUtil.hasRole(Constants.ROLE_MANAGER)) {
@@ -323,6 +324,8 @@ public class OrgUnitService {
 
 	@AuditLogIntercepted
 	public void addRoleGroup(OrgUnit ou, RoleGroup roleGroup, boolean inherit, LocalDate startDate, LocalDate stopDate, Set<String> exceptedUsers, Set<String> titles) {
+		String userFullname = SecurityUtil.getUserFullname();
+		String userId = SecurityUtil.getUserId();
 		OrgUnitRoleGroupAssignment assignment = new OrgUnitRoleGroupAssignment();
 		assignment.setOrgUnit(ou);
 		assignment.setInherit(inherit);
@@ -330,6 +333,7 @@ public class OrgUnitService {
 		assignment.setStartDate((startDate == null || LocalDate.now().equals(startDate)) ? null : startDate);
 		assignment.setStopDate(stopDate);
 		assignment.setInactive(startDate != null ? startDate.isAfter(LocalDate.now()) : false);
+		assignment.setStopDateUser(userFullname + "(" + userId + ")");
 		
 		if (configuration.getTitles().isEnabled() && (titles != null && !titles.isEmpty())) {
 			Collection<Title> titlesByUuid = CollectionUtils.emptyIfNull(titleDao.findByUuidInAndActiveTrue(titles));
@@ -343,8 +347,8 @@ public class OrgUnitService {
 		
 		ou.getRoleGroupAssignments().add(assignment);
 
-		assignment.setAssignedByName(SecurityUtil.getUserFullname());
-		assignment.setAssignedByUserId(SecurityUtil.getUserId());
+		assignment.setAssignedByName(userFullname);
+		assignment.setAssignedByUserId(userId);
 		assignment.setAssignedTimestamp(new Date());
 	}
 
@@ -357,6 +361,10 @@ public class OrgUnitService {
 			assignment.setStartDate((startDate == null || LocalDate.now().equals(startDate)) ? null : startDate);
 			assignment.setStopDate(stopDate);
 			assignment.setInactive(startDate != null ? startDate.isAfter(LocalDate.now()) : false);
+
+			String userId = SecurityUtil.getUserId();
+			assignment.setStopDateUser(userId);
+
 			modified = true;
 		}
 		
@@ -470,9 +478,13 @@ public class OrgUnitService {
 		
 		ou.getUserRoleAssignments().add(assignment);
 
-		assignment.setAssignedByName(SecurityUtil.getUserFullname());
-		assignment.setAssignedByUserId(SecurityUtil.getUserId());
+		String userFullname = SecurityUtil.getUserFullname();
+		String userId = SecurityUtil.getUserId();
+		assignment.setAssignedByName(userFullname);
+		assignment.setAssignedByUserId(userId);
 		assignment.setAssignedTimestamp(new Date());
+
+		assignment.setStopDateUser(userId);
 	}
 
 	@AuditLogIntercepted
@@ -484,6 +496,10 @@ public class OrgUnitService {
 			assignment.setStartDate(startDate);
 			assignment.setStopDate(stopDate);
 			assignment.setInactive(startDate != null && startDate.isAfter(LocalDate.now()));
+
+			String userId = SecurityUtil.getUserId();
+			assignment.setStopDateUser(userId);
+
 			modified = true;
 		}
 		
@@ -566,6 +582,7 @@ public class OrgUnitService {
 			OrgUnitUserRoleAssignment mapping = iterator.next();
 
 			if (mapping.getUserRole().getId() == userRole.getId()) {
+				AuditLogContextHolder.getContext().setStopDateUserId(mapping.getStopDateUser());
 				iterator.remove();
 				return true;
 			}
@@ -580,6 +597,7 @@ public class OrgUnitService {
 			OrgUnitUserRoleAssignment a = iterator.next();
 			
 			if (assignment.getId() == a.getId()) {
+				AuditLogContextHolder.getContext().setStopDateUserId(assignment.getStopDateUser());
 				iterator.remove();
 				break;
 			}
@@ -611,6 +629,7 @@ public class OrgUnitService {
 			OrgUnitRoleGroupAssignment a = iterator.next();
 			
 			if (assignment.getId() == a.getId()) {
+				AuditLogContextHolder.getContext().setStopDateUserId(assignment.getStopDateUser());
 				iterator.remove();
 				break;
 			}

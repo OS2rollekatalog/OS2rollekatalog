@@ -1,30 +1,13 @@
 package dk.digitalidentity.rc.controller.rest;
 
-import java.util.Arrays;
-import java.util.Date;
-import java.util.List;
-import java.util.regex.Pattern;
-
-import dk.digitalidentity.rc.controller.rest.model.OUFilterDTO;
-import dk.digitalidentity.rc.dao.model.OrgUnit;
-import dk.digitalidentity.rc.dao.model.User;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-import org.springframework.ui.Model;
-import org.springframework.util.StringUtils;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.ResponseBody;
-import org.springframework.web.bind.annotation.RestController;
-
 import dk.digitalidentity.rc.config.Constants;
+import dk.digitalidentity.rc.controller.rest.model.OUFilterDTO;
 import dk.digitalidentity.rc.dao.model.ItSystem;
+import dk.digitalidentity.rc.dao.model.OrgUnit;
 import dk.digitalidentity.rc.dao.model.PendingADGroupOperation;
 import dk.digitalidentity.rc.dao.model.SystemRole;
 import dk.digitalidentity.rc.dao.model.SystemRoleAssignment;
+import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserRole;
 import dk.digitalidentity.rc.dao.model.enums.ADGroupType;
 import dk.digitalidentity.rc.dao.model.enums.ItSystemType;
@@ -37,6 +20,22 @@ import dk.digitalidentity.rc.service.SystemRoleService;
 import dk.digitalidentity.rc.service.UserRoleService;
 import dk.digitalidentity.rc.service.UserService;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.ui.Model;
+import org.springframework.util.StringUtils;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.web.bind.annotation.RestController;
+
+import java.util.Arrays;
+import java.util.Date;
+import java.util.List;
+import java.util.regex.Pattern;
 
 @Slf4j
 @RequireAdministratorRole
@@ -290,6 +289,19 @@ public class ItSystemRestController {
 		}
 
 		itSystem.setHidden(hidden);
+		itSystemService.save(itSystem);
+
+		return new ResponseEntity<>(HttpStatus.OK);
+	}
+
+	@PostMapping(value = "/rest/itsystem/attestationExempt")
+	public ResponseEntity<String> editItSystemAttestationExempt(long id, boolean attestationExempt) {
+		ItSystem itSystem = itSystemService.getById(id);
+		if (itSystem == null) {
+			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+		}
+
+		itSystem.setAttestationExempt(attestationExempt);
 		itSystemService.save(itSystem);
 
 		return new ResponseEntity<>(HttpStatus.OK);

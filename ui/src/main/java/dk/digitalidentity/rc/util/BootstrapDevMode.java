@@ -142,9 +142,10 @@ public class BootstrapDevMode {
 	}
 
 	private void findUserOneAndMakeHimAdmin() {
-		User user1 = userDao.findByUserIdAndDomainAndDeletedFalse("user1", domainService.getPrimaryDomain());
-		User bsg = userDao.findByUserIdAndDomainAndDeletedFalse("bsg", domainService.getPrimaryDomain());
-		User kbp = userDao.findByUserIdAndDomainAndDeletedFalse("kbp", domainService.getPrimaryDomain());
+		User user1 = userDao.findByUserIdAndDomainAndDeletedFalse("user1", domainService.getPrimaryDomain()).orElseThrow();
+		User bsg = userDao.findByUserIdAndDomainAndDeletedFalse("bsg", domainService.getPrimaryDomain()).orElseThrow();
+		User kbp = userDao.findByUserIdAndDomainAndDeletedFalse("kbp", domainService.getPrimaryDomain()).orElseThrow();
+		User and = userDao.findByUserIdAndDomainAndDeletedFalse("and", domainService.getPrimaryDomain()).orElseThrow();
 		UserRole administrator = userRoleDao.getByIdentifier("administrator");
 		
 		UserUserRoleAssignment assignment = new UserUserRoleAssignment();
@@ -176,10 +177,20 @@ public class BootstrapDevMode {
 
 		kbp.getUserRoleAssignments().add(assignment);
 		userDao.save(kbp);
+		
+		assignment = new UserUserRoleAssignment();
+		assignment.setUser(kbp);
+		assignment.setAssignedByName("Systembruger");
+		assignment.setAssignedByUserId("system");
+		assignment.setAssignedTimestamp(new Date());
+		assignment.setUserRole(administrator);
+		
+		kbp.getUserRoleAssignments().add(assignment);
+		userDao.save(kbp);
 	}
 
 	private void setItSystemResponsible() {
-		User bsg = userDao.findByUserIdAndDomainAndDeletedFalse("bsg", domainService.getPrimaryDomain());
+		User bsg = userDao.findByUserIdAndDomainAndDeletedFalse("bsg", domainService.getPrimaryDomain()).orElseThrow();
 		itSystemService.getAll()
 				.forEach(system -> {
 					system.setAttestationResponsible(bsg);
@@ -261,6 +272,12 @@ public class BootstrapDevMode {
 		p.setName("Tester");
 		p.setOrgUnitUuid(kommune.getUuid());
 		kbp.getPositions().add(p);
+		
+		UserDTO and = createUser(users, "Andreas Duffy", "and");
+		p = new PositionDTO();
+		p.setName("p");
+		p.setOrgUnitUuid(kommune.getUuid());
+		and.getPositions().add(p);
 
 		UserDTO viggo = createUser(users, "Viggo Mortensen", "vmort");
 		p = new PositionDTO();
