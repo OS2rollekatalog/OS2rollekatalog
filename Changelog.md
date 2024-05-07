@@ -1,3 +1,17 @@
+2024.05.07 - Release 2024r1
+- [ROL-308](https://os2web.atlassian.net/browse/ROL-308) API nøgler i PAM løsning
+- [ROL-329](https://os2web.atlassian.net/browse/ROL-329) Attestering: Ny mailskabelon
+- [ROL-327](https://os2web.atlassian.net/browse/ROL-327) Ny rolle til rapport udtræk
+- [ROL-312](https://os2web.atlassian.net/browse/ROL-312) Opgradere til Spring Boot 3.2 og Java 21
+- [ROL-307](https://os2web.atlassian.net/browse/ROL-307) Emailskabeloner: beskrivelse
+- [ROL-302](https://os2web.atlassian.net/browse/ROL-302) "Tildelingsperiode" fremgå af rapporter i Excel
+- [ROL-316](https://os2web.atlassian.net/browse/ROL-316) Attesteringsmodul: konfigurabel indstilling om man ønsker at modtage ændringer eller ej
+- [ROL-313](https://os2web.atlassian.net/browse/ROL-313) Fast rapport over it-systemer hvor attestering er fravalgt
+- [ROL-303](https://os2web.atlassian.net/browse/ROL-303) Attestering: ændring af mail der sendes ved leders anmodning om ændringer
+- [ROL-287](https://os2web.atlassian.net/browse/ROL-287) Udvidelse af administration af Rollebuketter igennem API
+- [ROL-306](https://os2web.atlassian.net/browse/ROL-315) Attestering: Der ønskes en selvstændig 'fane' i Administration således alt opsætning til attesteringsmodulet foregår samlet
+- [ROL-315](https://os2web.atlassian.net/browse/ROL-315) - Test af hvilke rettigheder rollekataloget roller giver adgang til
+
 2023.12.28 - Release 2023r5
 - [ROL-260](https://os2web.atlassian.net/browse/ROL-260) - Tilføje beskrivelsen fra Jobfunktionsrollen ved ændringsemailen på manuelle bestillinger
 - [ROL-262](https://os2web.atlassian.net/browse/ROL-262) - Anmod om fjernelse af en rettighed
