@@ -1,12 +1,15 @@
 package dk.digitalidentity.rc.controller.rest;
 
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.nio.charset.Charset;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.UUID;
-
+import dk.digitalidentity.rc.controller.mvc.viewmodel.EmailTemplateDTO;
+import dk.digitalidentity.rc.controller.mvc.viewmodel.InlineImageDTO;
+import dk.digitalidentity.rc.dao.model.EmailTemplate;
+import dk.digitalidentity.rc.dao.model.User;
+import dk.digitalidentity.rc.security.RequireAdministratorRole;
+import dk.digitalidentity.rc.security.SecurityUtil;
+import dk.digitalidentity.rc.service.EmailService;
+import dk.digitalidentity.rc.service.EmailTemplateService;
+import dk.digitalidentity.rc.service.UserService;
+import lombok.extern.slf4j.Slf4j;
 import org.htmlcleaner.BrowserCompactXmlSerializer;
 import org.htmlcleaner.CleanerProperties;
 import org.htmlcleaner.HtmlCleaner;
@@ -23,16 +26,12 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.RestController;
 
-import dk.digitalidentity.rc.controller.mvc.viewmodel.EmailTemplateDTO;
-import dk.digitalidentity.rc.controller.mvc.viewmodel.InlineImageDTO;
-import dk.digitalidentity.rc.dao.model.EmailTemplate;
-import dk.digitalidentity.rc.dao.model.User;
-import dk.digitalidentity.rc.security.RequireAdministratorRole;
-import dk.digitalidentity.rc.security.SecurityUtil;
-import dk.digitalidentity.rc.service.EmailService;
-import dk.digitalidentity.rc.service.EmailTemplateService;
-import dk.digitalidentity.rc.service.UserService;
-import lombok.extern.slf4j.Slf4j;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.nio.charset.Charset;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.UUID;
 
 @Slf4j
 @RequireAdministratorRole
@@ -52,6 +51,7 @@ public class EmailTemplateRestController {
 	@ResponseBody
 	public ResponseEntity<String> updateTemplate(@RequestBody EmailTemplateDTO emailTemplateDTO, @RequestParam("tryEmail") boolean tryEmail) {
 		toXHTML(emailTemplateDTO);
+		toValid3ByteUTF8String(emailTemplateDTO);
 		
 		if (tryEmail) {
 			User user = userService.getByUserId(SecurityUtil.getUserId());
@@ -77,13 +77,14 @@ public class EmailTemplateRestController {
 			template.setMessage(emailTemplateDTO.getMessage());
 			template.setTitle(emailTemplateDTO.getTitle());
 			template.setEnabled(emailTemplateDTO.isEnabled());
+			template.setNotes(emailTemplateDTO.getNotes());
 			emailTemplateService.save(template);
 		}
 		
 		return new ResponseEntity<>(HttpStatus.OK);
 	}
-	
-	
+
+
 	private List<InlineImageDTO> transformImages(EmailTemplateDTO emailTemplateDTO) {
 		List<InlineImageDTO> inlineImages = new ArrayList<>();
 		String message = emailTemplateDTO.getMessage();
@@ -135,5 +136,34 @@ public class EmailTemplateRestController {
 				log.error("could not parse: " + emailTemplateDTO.getMessage());
 			}
 		}
+	}
+
+	/*
+	* we can store anything above 3 bytes - so replace it with the ?-icon
+	* found here: https://stackoverflow.com/questions/9260836/how-to-replace-remove-4-byte-characters-from-a-utf-8-string-in-java
+	*/
+	public void toValid3ByteUTF8String(EmailTemplateDTO emailTemplateDTO)  {
+		String LAST_3_BYTE_UTF_CHAR = "\uFFFF";
+		String REPLACEMENT_CHAR = "\uFFFD";
+		String message = emailTemplateDTO.getMessage();
+		final int length = message.length();
+		StringBuilder builder = new StringBuilder(length);
+		for (int offset = 0; offset < length; ) {
+			final int codepoint = message.codePointAt(offset);
+
+			// do something with the codepoint
+			if (codepoint > LAST_3_BYTE_UTF_CHAR.codePointAt(0)) {
+				builder.append(REPLACEMENT_CHAR);
+			} else {
+				if (Character.isValidCodePoint(codepoint)) {
+					builder.appendCodePoint(codepoint);
+				} else {
+					builder.append(REPLACEMENT_CHAR);
+				}
+			}
+			offset += Character.charCount(codepoint);
+		}
+
+		emailTemplateDTO.setMessage(builder.toString());
 	}
 }

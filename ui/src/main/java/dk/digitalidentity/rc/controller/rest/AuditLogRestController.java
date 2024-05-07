@@ -1,11 +1,10 @@
 package dk.digitalidentity.rc.controller.rest;
 
-import java.util.List;
-import java.util.Locale;
-import java.util.stream.Collectors;
-
-import javax.validation.Valid;
-
+import dk.digitalidentity.rc.controller.mvc.datatables.dao.AuditLogViewDao;
+import dk.digitalidentity.rc.controller.mvc.datatables.dao.model.AuditLogView;
+import dk.digitalidentity.rc.controller.mvc.datatables.dao.model.dto.AuditLogDTO;
+import dk.digitalidentity.rc.security.RequireAdministratorRole;
+import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.MessageSource;
 import org.springframework.data.jpa.datatables.mapping.DataTablesInput;
@@ -15,10 +14,9 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
-import dk.digitalidentity.rc.controller.mvc.datatables.dao.AuditLogViewDao;
-import dk.digitalidentity.rc.controller.mvc.datatables.dao.model.AuditLogView;
-import dk.digitalidentity.rc.controller.mvc.datatables.dao.model.dto.AuditLogDTO;
-import dk.digitalidentity.rc.security.RequireAdministratorRole;
+import java.util.List;
+import java.util.Locale;
+import java.util.stream.Collectors;
 
 @RequireAdministratorRole
 @RestController

@@ -230,7 +230,9 @@ public class ReadOnlyApi {
 					dtoConstraintValue.setConstraintValue("*** DYNAMIC ***");
 				}
 				if( withConstraintTypeValueSet ) {
-					var constraintTypeValueSet = constraintValue.getConstraintType().getValueSet().stream().map(v -> new UserReadConstraintTypeValueSetDTO(v.getConstraintKey(),v.getConstraintValue())).collect(Collectors.toList());
+					var constraintTypeValueSet = constraintValue.getConstraintType().getValueSet().stream()
+							.map(v -> new UserReadConstraintTypeValueSetDTO(v.getConstraintKey(),v.getConstraintValue()))
+							.collect(Collectors.toList());
 					dtoConstraintValue.setConstraintTypeValueSet(constraintTypeValueSet);
 				}
 				dtoAssignment.getRoleConstraintValues().add(dtoConstraintValue);
@@ -300,8 +302,12 @@ public class ReadOnlyApi {
 	}
 
 	@RequestMapping(value = "/api/read/user/{uuid}/rolegroups", method = RequestMethod.GET)
-	public ResponseEntity<List<RoleGroupReadDTO>> getUserRoleGroups(@PathVariable("uuid") String uuid) {
-		List<RoleGroup> roles = userService.getRoleGroupsAssignedDirectly(uuid);
+	public ResponseEntity<List<RoleGroupReadDTO>> getUserRoleGroups(@PathVariable("uuid") String uuid, @RequestParam(name = "domain", required = false) String domain) {
+		Domain foundDomain = domainService.getDomainOrPrimary(domain);
+		if (foundDomain == null) {
+			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+		}
+		List<RoleGroup> roles = userService.getRoleGroupsAssignedDirectly(uuid, foundDomain);
 
 		Type targetListType = new TypeToken<List<RoleGroupReadDTO>>() {}.getType();
 		List<RoleGroupReadDTO> result = mapper.map(roles, targetListType);

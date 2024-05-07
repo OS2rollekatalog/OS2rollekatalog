@@ -1,11 +1,11 @@
 <!DOCTYPE html>
 <html>
-<head th:replace="fragments/header :: header (title=#{html.page.userroles.addrole.title})"></head>
+<head th:replace="~{fragments/header :: header (title=#{html.page.userroles.addrole.title})}"></head>
 <body>
 
 	<div class="wrapper">
-		<header th:replace="fragments/navbar :: navbar-header(subpage = 'roles')"></header>
-		<aside th:replace="fragments/navbar :: navbar-aside (page = 'userroles.list', subpage = 'roles')"></aside>
+		<header th:replace="~{fragments/navbar :: navbar-header(subpage = 'roles')}"></header>
+		<aside th:replace="~{fragments/navbar :: navbar-aside (page = 'userroles.list', subpage = 'roles')}"></aside>
 
 		<section>
 			<div class="content-wrapper">
@@ -444,7 +444,7 @@
 						<span class="fa fa-check"></span>
 					</label>
 					<label class="control-label" th:text="#{html.constraint.postpone}"></label>
-					<a th:replace="fragments/help :: help (title=#{html.help.constraint.postpone.title}, content=#{html.help.constraint.postpone.body})"></a>
+					<a th:replace="~{fragments/help :: help (title=#{html.help.constraint.postpone.title}, content=#{html.help.constraint.postpone.body})}"></a>
 				</div>
 			</div>
 			
@@ -485,18 +485,18 @@
 	<div id="userUserRoleModal"></div>
 	<div id="ouUserRoleModal"></div>
 	<div id="ouUserRoleEditModal"></div>
-	<div th:replace="users/fragments/postponed_constraint_kle_modal :: postponedConstraintsKLEModal"></div>
-	<div th:replace="users/fragments/user_user_role_modal :: userUserRoleModal"></div>
-	<div th:replace="users/fragments/role_assignment_edit_modal :: roleAssignmentEditModal"></div>
-	<div th:replace="userroles/fragments/constraint_ou_modal :: OUModal"></div>
-	<nav th:replace="fragments/footer :: footer"></nav>
+	<div th:replace="~{users/fragments/postponed_constraint_kle_modal :: postponedConstraintsKLEModal}"></div>
+	<div th:replace="~{users/fragments/user_user_role_modal :: userUserRoleModal}"></div>
+	<div th:replace="~{users/fragments/role_assignment_edit_modal :: roleAssignmentEditModal}"></div>
+	<div th:replace="~{userroles/fragments/constraint_ou_modal :: OUModal}"></div>
+	<nav th:replace="~{fragments/footer :: footer}"></nav>
 
-	<script th:replace="fragments/datatables :: datatables "></script>
-	<script th:replace="fragments/assignDatePicker :: content "></script>
-	<script th:replace="users/fragments/role_assignment_edit_modal :: roleAssignmentEditModalScript"></script>
-	<script th:replace="users/fragments/user_user_role_modal :: userUserRoleModalScript(page='userrole')"></script>
-	<script th:replace="ous/fragments/ou_roles_modal :: ouRolesModalScript(titlesEnabled=${titlesEnabled})"></script>
-	<script th:replace="users/fragments/assign_user_role_postponed_data_constraints :: postponedConstraintsScript"></script>
+	<script th:replace="~{fragments/datatables :: datatables}"></script>
+	<script th:replace="~{fragments/assignDatePicker :: content}"></script>
+	<script th:replace="~{users/fragments/role_assignment_edit_modal :: roleAssignmentEditModalScript}"></script>
+	<script th:replace="~{users/fragments/user_user_role_modal :: userUserRoleModalScript(page='userrole')}"></script>
+	<script th:replace="~{ous/fragments/ou_roles_modal :: ouRolesModalScript(titlesEnabled=${titlesEnabled})}"></script>
+	<script th:replace="~{users/fragments/assign_user_role_postponed_data_constraints :: postponedConstraintsScript}"></script>
 
 	<div id="userScriptHolder">
 	</div>
@@ -638,6 +638,7 @@
 			});
 
 			$('.useronly-checkbox').change(flagCheckboxChange);
+			$('.useronly-checkbox').change(handleOUBtn);
 			$('.inherit-checkbox').change(flagCheckboxChange);
 			$('.sensitive-checkbox').change(flagCheckboxChange);
 			$('.canrequest-checkbox').change(flagCheckboxChange);
@@ -726,9 +727,7 @@
 					headers: {
 						'X-CSRF-TOKEN': token
 					},
-					error: function(response) {
-						notificationService.showErrorNotification(response.responseText);
-					},
+					error: defaultErrorHandler,
 					success: function(response) {
 						notificationService.showInfoNotification(fieldUpdatedMsg);
 					}
@@ -766,9 +765,7 @@
 						headers: {
 							'X-CSRF-TOKEN': token
 						},
-						error: function(response) {
-							notificationService.showErrorNotification(unlinkFromSystemRoleErrorMessage);
-						},
+						error: errorHandler(unlinkFromSystemRoleErrorMessage),
 						success: function(response) {
 							location.reload();
 						}
@@ -832,9 +829,7 @@
 							headers: {
 								'X-CSRF-TOKEN': token
 							},
-							error: function(response) {
-								notificationService.showErrorNotification(deleteRoleAssignmentErrorMessage);
-							},
+							error: errorHandler(deleteRoleAssignmentErrorMessage),
 							success: function(response) {
 								userService.loadRolesFragment();
 
@@ -861,7 +856,8 @@
 					success: function (response) {
 						userRoleEditModalService.showModal(user, startDate, stopDate, type, assignmentId, 'DIRECT', orgUnit, response);
 						userRoleEditModalService.loadPostponedConstraintsFragment(assignmentId, type, user);
-					}
+					},
+					error: defaultErrorHandler
 				});
 			}
 
@@ -947,9 +943,7 @@
 							headers: {
 								'X-CSRF-TOKEN': token
 							},
-							error: function(response) {
-								notificationService.showErrorNotification(deleteRoleAssignmentErrorMessage);
-							},
+							error: errorHandler(deleteRoleAssignmentErrorMessage),
 							success: function(response) {
 								orgUnitService.loadRolesFragment();
 
@@ -1043,13 +1037,15 @@
 				headers: {
 					'X-CSRF-TOKEN': token
 				},
-				error: function(response) {
-					notificationService.showErrorNotification(response.responseText);
-				},
+				error: defaultErrorHandler,
 				success: function(response) {
 					notificationService.showInfoNotification(fieldUpdatedMsg);
 				}
 			});
+		}
+
+		function handleOUBtn() {
+			orgUnitService.loadRolesFragment();
 		}
 
 		function addGroupsCheckboxListeners(table){
@@ -1085,12 +1081,11 @@
 				},
 				error : function(response) {
 					onError();
-					
-					notificationService.showErrorNotification(fieldNotUpdatedMsg);
+					errorHandler(fieldNotUpdatedMsg)();
 				},
 				success : function(response) {	
 					onSuccess();
-					
+
 					notificationService.showInfoNotification(fieldUpdatedMsg);
 				}
 			});
@@ -1107,8 +1102,7 @@
 				},
 				error : function(response) {
 					onError();
-					
-					notificationService.showErrorNotification(fieldNotUpdatedMsg);
+					errorHandler(fieldNotUpdatedMsg)(response);
 				},
 				success : function(response) {	
 					onSuccess();
@@ -1167,8 +1161,7 @@
 				},
 				error : function(response) {
 					onError();
-					
-					notificationService.showErrorNotification(fieldNotUpdatedMsg);
+					errorHandler(fieldNotUpdatedMsg)(response);
 				},
 				success : function(response) {	
 					onSuccess();
@@ -1189,8 +1182,7 @@
 				},
 				error : function(response) {
 					onError();
-					
-					notificationService.showErrorNotification(fieldNotUpdatedMsg);
+					errorHandler(fieldNotUpdatedMsg)(response);
 				},
 				success : function(response) {	
 					onSuccess();
@@ -1241,14 +1233,7 @@
 					constraintValueType: constraintValueType,
 					postpone: postpone
 				},
-				error : function(response) {
-					var msg = fieldNotUpdatedMsg;
-					if (response.responseText != null && response.responseText != '') {
-						msg = response.responseText;
-					}
-
-					notificationService.showErrorNotification(msg);
-				},
+				error : errorHandler(fieldNotUpdatedMsg),
 				success : function(response) {
 					notificationService.showInfoNotification(fieldUpdatedMsg);
 					
@@ -1294,9 +1279,7 @@
 				data: {
 					constraintUuid: constraintUuid
 				},
-				error : function(response) {
-					notificationService.showErrorNotification(fieldNotUpdatedMsg);
-				},
+				error : errorHandler(fieldNotUpdatedMsg),
 				success : function(response) {
 					notificationService.showInfoNotification(fieldUpdatedMsg);
 				}
@@ -1502,9 +1485,7 @@
 		        headers: {
 		            'X-CSRF-TOKEN': token
 		        },
-				error: function(response) {
-					notificationService.showErrorNotification(fieldNotUpdatedMsg);
-				},
+				error: errorHandler(fieldNotUpdatedMsg),
 				success: function(response) {
 					notificationService.showInfoNotification(fieldUpdatedMsg);
 				}

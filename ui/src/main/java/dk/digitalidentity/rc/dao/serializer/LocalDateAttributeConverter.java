@@ -1,8 +1,8 @@
 package dk.digitalidentity.rc.dao.serializer;
 
-import java.time.LocalDate;
+import jakarta.persistence.AttributeConverter;
 
-import javax.persistence.AttributeConverter;
+import java.time.LocalDate;
 
 public class LocalDateAttributeConverter implements AttributeConverter<LocalDate, String> {
 

@@ -96,6 +96,8 @@ public class DMPService {
 		List<DMPUser> dmpUsers = stub.getUsers();
 		Set<String> usersWithDmpRole = getAllUsersInItSystemWithADmpRole();
 
+		log.info("Running deleteUsers job - got " + usersWithDmpRole.size() + " users with roles in OS2rollekatalog and " + dmpUsers.size() + " users in DMP");
+
 		for (DMPUser dmpUser : dmpUsers) {
 			// ignore users without an externalUserId
 			if (dmpUser.getExternalUserIds() == null || dmpUser.getExternalUserIds().isEmpty()) {
@@ -116,19 +118,34 @@ public class DMPService {
 		}
 	}
 
+	private static long staticErrorCount = 0;
+	
 	// reads all roles from DMP, compares them with the local system, and performs necessary updates
 	@Transactional(rollbackFor = Exception.class)
 	public void synchronizeDMPRoles() {
 		Map<String, List<DMPRole>> dmpRoleMap = new HashMap<>();
 		
-		// read from DMP
-		List<DMPApplication> applications = stub.getApplications();
-		for (DMPApplication application : applications) {
-			List<DMPRole> dmpRoles = stub.getRolesForApplication(application);
-			
-			dmpRoleMap.put(application.getId(), dmpRoles);
+		try {
+			// read from DMP
+			List<DMPApplication> applications = stub.getApplications();
+			for (DMPApplication application : applications) {
+				List<DMPRole> dmpRoles = stub.getRolesForApplication(application);
+				
+				dmpRoleMap.put(application.getId(), dmpRoles);
+			}
 		}
-		
+		catch (Exception ex) {
+			if (++staticErrorCount > 7) {
+				log.error("Failed to synchronize against DMP - count " + staticErrorCount, ex);
+			}
+			else {
+				log.warn("Failed to synchronize against DMP", ex);
+			}
+			return;
+		}
+
+		staticErrorCount = 0;
+
 		// ensure itsystem exists
 		ItSystem itSystem = itSystemService.getFirstByIdentifier(DMP_IT_SYSTEM_IDENTIFIER);
 		if (itSystem == null) {

@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html>
-<head th:replace="fragments/header :: header (title=#{html.page.rolegroup.edit.title})"></head>
+<head th:replace="~{fragments/header :: header (title=#{html.page.rolegroup.edit.title})}"></head>
 <body>
 	<div class="wrapper">
-	    <header th:replace="fragments/navbar :: navbar-header(subpage = 'roles')"></header>
-	    <aside th:replace="fragments/navbar :: navbar-aside (page = 'users_request', subpage = 'roles')"></aside>
+	    <header th:replace="~{fragments/navbar :: navbar-header(subpage = 'roles')}"></header>
+	    <aside th:replace="~{fragments/navbar :: navbar-aside (page = 'users_request', subpage = 'roles')}"></aside>
 	    <section>
 	        <div class="content-wrapper">
 	            <div class="panel panel-default">
@@ -42,16 +42,16 @@
 	    </section>
 	</div>
 
-	<div th:replace="request_approve/fragments/request_modal :: requestRoleModal"></div>
+	<div th:replace="~{request_approve/fragments/request_modal :: requestRoleModal}"></div>
 
-	<div th:replace="users/fragments/postponed_constraint_kle_modal :: postponedConstraintsKLEModal"></div>
-	<div th:replace="userroles/fragments/constraint_ou_modal :: OUModal"></div>
+	<div th:replace="~{users/fragments/postponed_constraint_kle_modal :: postponedConstraintsKLEModal}"></div>
+	<div th:replace="~{userroles/fragments/constraint_ou_modal :: OUModal}"></div>
 
 
-	<nav th:replace="fragments/footer :: footer"></nav>
-	<script th:replace="fragments/datatables :: datatables"></script>
-	<script th:replace="request_approve/fragments/request_modal :: requestRoleModalScript"></script>
-	<script th:replace="users/fragments/assign_user_role_postponed_data_constraints :: postponedConstraintsScript"></script>
+	<nav th:replace="~{fragments/footer :: footer}"></nav>
+	<script th:replace="~{fragments/datatables :: datatables}"></script>
+	<script th:replace="~{request_approve/fragments/request_modal :: requestRoleModalScript}"></script>
+	<script th:replace="~{users/fragments/assign_user_role_postponed_data_constraints :: postponedConstraintsScript}"></script>
 
 	<script th:inline="javascript">
 		/*<![CDATA[*/
@@ -111,14 +111,7 @@
 					   "action" : action,
 					   "constraints" : constraints
 					}),
-					error: function(response) {
-	    				$.notify({
-	    					message: fieldNotUpdatedMsg
-	    				},{
-	    					status: 'danger',
-	    					autoHideDelay: 4000
-	    				});
-	    			},
+					error: errorHandler(fieldNotUpdatedMsg),
 	    			success: function(response) {
     					window.location.href = redirectUri;
 	    			}

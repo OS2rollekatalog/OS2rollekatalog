@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html>
-<head th:replace="fragments/header :: header (title=#{html.report.users_with_duplicate_rolegroup_assignments})"></head>
+<head th:replace="~{fragments/header :: header (title=#{html.report.users_with_duplicate_rolegroup_assignments})}"></head>
 <body>
 <div class="wrapper">
-	<header th:replace="fragments/navbar :: navbar-header(subpage = 'reports')"></header>
-	<aside th:replace="fragments/navbar :: navbar-aside (page = 'report.custom', subpage = 'reports')"></aside>
+	<header th:replace="~{fragments/navbar :: navbar-header(subpage = 'reports')}"></header>
+	<aside th:replace="~{fragments/navbar :: navbar-aside (page = 'report.custom', subpage = 'reports')}"></aside>
 
 	<section>
 			<div class="content-wrapper">
@@ -47,8 +47,8 @@
 	</section>
 </div>
 
-<nav th:replace="fragments/footer :: footer"></nav>
-<script th:replace="fragments/datatables :: datatables "></script>
+<nav th:replace="~{fragments/footer :: footer}"></nav>
+<script th:replace="~{fragments/datatables :: datatables}"></script>
 
 <script th:inline="javascript">
 	/*<![CDATA[*/
@@ -89,9 +89,7 @@
 							headers: {
 								'X-CSRF-TOKEN': token
 							},
-							error : function(response) {
-								$.notify({ message: txtCleanupFailed },{ status: 'danger', autoHideDelay: 4000 });
-							},
+							error : errorHandler(txtCleanupFailed),
 							success : function(response) {
 								$.notify({ message: txtCleanupSucceeded },{ status: 'success', autoHideDelay: 4000 });
 								setTimeout(function() {

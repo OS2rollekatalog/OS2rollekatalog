@@ -1,26 +1,5 @@
 package dk.digitalidentity.rc.controller.rest;
 
-import java.util.List;
-import java.util.Locale;
-
-import javax.validation.Valid;
-
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.support.ResourceBundleMessageSource;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-import org.springframework.validation.BindingResult;
-import org.springframework.validation.ObjectError;
-import org.springframework.web.bind.WebDataBinder;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.InitBinder;
-import org.springframework.web.bind.annotation.ModelAttribute;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.ResponseBody;
-import org.springframework.web.bind.annotation.RestController;
-
 import dk.digitalidentity.rc.controller.mvc.viewmodel.RoleGroupDeleteStatus;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.RoleGroupForm;
 import dk.digitalidentity.rc.controller.validator.RolegroupValidator;
@@ -35,6 +14,23 @@ import dk.digitalidentity.rc.service.PositionService;
 import dk.digitalidentity.rc.service.RoleGroupService;
 import dk.digitalidentity.rc.service.UserRoleService;
 import dk.digitalidentity.rc.service.UserService;
+import jakarta.validation.Valid;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.validation.BindingResult;
+import org.springframework.validation.ObjectError;
+import org.springframework.web.bind.WebDataBinder;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.InitBinder;
+import org.springframework.web.bind.annotation.ModelAttribute;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.web.bind.annotation.RestController;
+
+import java.util.List;
 
 @RequireAdministratorRole
 @RestController
@@ -57,9 +53,6 @@ public class RolegroupRestController {
 
     @Autowired
     private RolegroupValidator rolegroupValidator;
-
-	@Autowired
-	private ResourceBundleMessageSource resourceBundle;
 
     @InitBinder
     public void initBinder(WebDataBinder binder) {
@@ -171,15 +164,15 @@ public class RolegroupRestController {
     }
 
     @PostMapping(value = "/rest/rolegroups/edit")
-    public ResponseEntity<String> editRoleGroupAsync(@Valid @ModelAttribute("rolegroup") RoleGroupForm roleGroupForm, BindingResult bindingResult, Locale locale) {
+    public ResponseEntity<String> editRoleGroupAsync(@Valid @ModelAttribute("rolegroup") RoleGroupForm roleGroupForm, BindingResult bindingResult) {
         if (bindingResult.hasErrors()) {
 			StringBuilder stringBuilder = new StringBuilder();
-			for (ObjectError error : bindingResult.getAllErrors()) {
-				if (error.getCode() != null) {
-					stringBuilder.append(resourceBundle.getMessage(error.getCode(), null, locale));
-					stringBuilder.append(".<br/>");
-				}
-			}
+            for (ObjectError error : bindingResult.getAllErrors()) {
+                if (error.getCode() != null) {
+                    stringBuilder.append(error.getDefaultMessage());
+                    stringBuilder.append("<br>");
+                }
+            }
             return new ResponseEntity<>(stringBuilder.toString(), HttpStatus.BAD_REQUEST);
         }
         RoleGroup roleGroup = roleGroupService.getById(roleGroupForm.getId());

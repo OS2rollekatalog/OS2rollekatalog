@@ -1,13 +1,5 @@
 package dk.digitalidentity.rc.interceptor;
 
-import java.time.LocalDate;
-import java.util.List;
-import java.util.Set;
-
-import org.aspectj.lang.annotation.Aspect;
-import org.aspectj.lang.annotation.Before;
-import org.springframework.beans.factory.annotation.Autowired;
-
 import dk.digitalidentity.rc.dao.model.OrgUnit;
 import dk.digitalidentity.rc.dao.model.OrgUnitRoleGroupAssignment;
 import dk.digitalidentity.rc.dao.model.OrgUnitUserRoleAssignment;
@@ -20,6 +12,14 @@ import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserRole;
 import dk.digitalidentity.rc.dao.model.UserRoleGroupAssignment;
 import dk.digitalidentity.rc.dao.model.UserUserRoleAssignment;
+import org.aspectj.lang.annotation.Aspect;
+import org.aspectj.lang.annotation.Before;
+import org.springframework.beans.factory.annotation.Autowired;
+
+import java.time.LocalDate;
+import java.util.List;
+import java.util.Set;
+
 
 @Aspect
 public class RoleChangeInterceptor {
@@ -29,6 +29,13 @@ public class RoleChangeInterceptor {
 
 	// UserService
 
+	@Before("execution(* dk.digitalidentity.rc.service.UserService.editUserRoleAssignment(dk.digitalidentity.rc.dao.model.User, dk.digitalidentity.rc.dao.model.UserUserRoleAssignment, ..)) && args(user, assignment, ..)")
+	public void interceptEditAssignment(final User user, dk.digitalidentity.rc.dao.model.UserUserRoleAssignment assignment) {
+		for (RoleChangeHook hook : hooks) {
+			hook.interceptEditUserRoleAssignmentOnUser(user, assignment);
+		}
+	}
+
 	@Before("execution(* dk.digitalidentity.rc.service.UserService.activateUser(dk.digitalidentity.rc.dao.model.User)) && args(user)")
 	public void interceptActivateUser(User user) {
 		for (RoleChangeHook hook : hooks) {
@@ -36,9 +43,8 @@ public class RoleChangeInterceptor {
 		}
 	}
 
-	@Before("execution(* dk.digitalidentity.rc.service.UserService.addRoleGroup(dk.digitalidentity.rc.dao.model.User, dk.digitalidentity.rc.dao.model.RoleGroup, java.time.LocalDate, java.time.LocalDate)) && args(user, roleGroup, startDate, stopDate)")
+	@Before("execution(* dk.digitalidentity.rc.service.UserService.addRoleGroup(dk.digitalidentity.rc.dao.model.User, dk.digitalidentity.rc.dao.model.RoleGroup, java.time.LocalDate, java.time.LocalDate, ..)) && args(user, roleGroup, startDate, stopDate, ..)")
 	public void interceptAddRoleGroupAssignmentOnUser(User user, RoleGroup roleGroup, LocalDate startDate, LocalDate stopDate) {
-		
 		// skip assignments that are active in the future (we will get a direct event-call later)
 		if (startDate != null && startDate.isAfter(LocalDate.now())) {
 			return;

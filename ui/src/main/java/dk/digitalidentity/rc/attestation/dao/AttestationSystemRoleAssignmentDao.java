@@ -22,6 +22,7 @@ public interface AttestationSystemRoleAssignmentDao extends JpaRepository<Attest
     @Query(value = "SELECT s FROM AttestationSystemRoleAssignment s WHERE s.validFrom <= :validAt AND (s.validTo > :validAt or s.validTo is null) AND s.itSystemId=:itSystemId")
     Stream<AttestationSystemRoleAssignment> streamValidAttestationsByItSystemId(@Param("validAt") final LocalDate validAt, @Param("itSystemId") final Long itSystemId);
 
-    Stream<AttestationSystemRoleAssignment> streamAllByValidFromGreaterThanEqual(final LocalDate validAfter);
+    @Query(value = "SELECT s FROM AttestationSystemRoleAssignment s WHERE s.validFrom <= :validAt AND (s.validTo > :validAt or s.validTo is null)")
+    Stream<AttestationSystemRoleAssignment> streamAllValidAssignments(@Param("validAt") final LocalDate validAt);
 
 }

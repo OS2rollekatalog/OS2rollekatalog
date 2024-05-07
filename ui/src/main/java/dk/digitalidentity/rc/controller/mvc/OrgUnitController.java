@@ -1,22 +1,5 @@
 package dk.digitalidentity.rc.controller.mvc;
 
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.Set;
-import java.util.stream.Collectors;
-
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Controller;
-import org.springframework.ui.Model;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestMapping;
-
 import dk.digitalidentity.rc.config.Constants;
 import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.AvailableRoleGroupDTO;
@@ -51,6 +34,22 @@ import dk.digitalidentity.rc.service.UserService;
 import dk.digitalidentity.rc.service.model.AssignedThrough;
 import dk.digitalidentity.rc.service.model.RoleAssignedToOrgUnitDTO;
 import dk.digitalidentity.rc.service.model.RoleAssignmentType;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Controller;
+import org.springframework.ui.Model;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestMapping;
+
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @RequireReadAccessOrManagerRole
 @Controller
@@ -100,7 +99,7 @@ public class OrgUnitController {
 	public String manage(Model model, @PathVariable("uuid") String uuid) {
 		OrgUnit ou = orgUnitService.getByUuid(uuid);
 		if (ou == null) {
-			return "redirect:../list";
+			return "redirect:list";
 		}
 
 		boolean readOnly = !(SecurityUtil.hasRole(Constants.ROLE_ASSIGNER) || SecurityUtil.hasRole(Constants.ROLE_KLE_ADMINISTRATOR));
@@ -148,7 +147,26 @@ public class OrgUnitController {
 			
 			List<String> titleFormsUuids = titleForms.stream().map(t -> t.getId()).collect(Collectors.toList());
 			titleForms.addAll(ou.getTitles().stream().filter(t -> !titleFormsUuids.contains(t.getUuid())).map(t -> new TitleListForm(t, true)).collect(Collectors.toList()));
-			
+
+			// add titles without positions if they are used for assignments
+			List<String> newTitleFormsUuids = titleForms.stream().map(t -> t.getId()).collect(Collectors.toList());
+			for (OrgUnitUserRoleAssignment userRoleAssignment : ou.getUserRoleAssignments()) {
+				for (Title title : userRoleAssignment.getTitles()) {
+					if (!newTitleFormsUuids.contains(title.getUuid())) {
+						titleForms.add(new TitleListForm(title, false, true));
+						newTitleFormsUuids.add(title.getUuid());
+					}
+				}
+			}
+			for (OrgUnitRoleGroupAssignment roleGroupAssignment : ou.getRoleGroupAssignments()) {
+				for (Title title : roleGroupAssignment.getTitles()) {
+					if (!newTitleFormsUuids.contains(title.getUuid())) {
+						titleForms.add(new TitleListForm(title, false, true));
+						newTitleFormsUuids.add(title.getUuid());
+					}
+				}
+			}
+
 			model.addAttribute("titles", titleForms);
 		}
 		else {
@@ -165,7 +183,7 @@ public class OrgUnitController {
 	public String getAssignedRolesFragment(Model model, @PathVariable("uuid") String uuid) {
 		OrgUnit ou = orgUnitService.getByUuid(uuid);
 		if (ou == null) {
-			return "redirect:../list";
+			return "redirect:list";
 		}
 		
 		boolean readOnly = !(SecurityUtil.hasRole(Constants.ROLE_ASSIGNER) || SecurityUtil.hasRole(Constants.ROLE_KLE_ADMINISTRATOR));
@@ -228,7 +246,7 @@ public class OrgUnitController {
 	public String getAddUserRoleFragment(Model model, @PathVariable("uuid") String uuid) {
 		OrgUnit ou = orgUnitService.getByUuid(uuid);
 		if (ou == null) {
-			return "redirect:../list";
+			return "redirect:list";
 		}
 
 		List<AvailableUserRoleDTO> roles = getAvailableUserRoles(ou);
@@ -242,7 +260,7 @@ public class OrgUnitController {
 	public String getAddRoleGroupFragment(Model model, @PathVariable("uuid") String uuid) {
 		OrgUnit ou = orgUnitService.getByUuid(uuid);
 		if (ou == null) {
-			return "redirect:../list";
+			return "redirect:list";
 		}
 
 		List<AvailableRoleGroupDTO> roleGroups = getAvailableRoleGroups(ou);
@@ -255,7 +273,7 @@ public class OrgUnitController {
 	public String getKleFragment(Model model, @PathVariable("uuid") String uuid, @PathVariable("type") String type) {
 		OrgUnit ou = orgUnitService.getByUuid(uuid);
 		if (ou == null) {
-			return "redirect:../list";
+			return "redirect:list";
 		}
 		
 		switch (type) {
@@ -267,7 +285,7 @@ public class OrgUnitController {
 			break;
 
 		default:
-			return "redirect:../list";
+			return "redirect:list";
 		}
 
 		return "fragments/manage_kle :: kle";
@@ -277,7 +295,7 @@ public class OrgUnitController {
 	public String getKleEditFragment(Model model, @PathVariable("uuid") String uuid, @PathVariable("type") String type) {
 		OrgUnit ou = orgUnitService.getByUuid(uuid);
 		if (ou == null) {
-			return "redirect:../list";
+			return "redirect:list";
 		}
 		
 		switch (type) {
@@ -289,7 +307,7 @@ public class OrgUnitController {
 			break;
 
 		default:
-			return "redirect:../list";
+			return "redirect:list";
 		}
 
 		return "fragments/manage_kle_edit :: kleEdit";
@@ -300,7 +318,7 @@ public class OrgUnitController {
 	public String getExceptedUsersRoleFragment(Model model, @PathVariable("uuid") String uuid) {
 		OrgUnit ou = orgUnitService.getByUuid(uuid);
 		if (ou == null) {
-			return "redirect:../list";
+			return "redirect:list";
 		}
 
 		// Get users
@@ -321,7 +339,7 @@ public class OrgUnitController {
 	public String getExceptedUsersRoleFragment2(Model model, @PathVariable("uuid") String uuid, @PathVariable("assignmentId") long assignmentId) {
 		OrgUnit ou = orgUnitService.getByUuid(uuid);
 		if (ou == null) {
-			return "redirect:../list";
+			return "redirect:list";
 		}
 
 		// Get users
@@ -346,7 +364,7 @@ public class OrgUnitController {
 	public String getExceptedUsersRoleGroupFragment(Model model, @PathVariable("uuid") String uuid, @PathVariable("rolegroupid") long roleGroupId) {
 		OrgUnit ou = orgUnitService.getByUuid(uuid);
 		if (ou == null) {
-			return "redirect:../list";
+			return "redirect:list";
 		}
 
 		// Get users
@@ -383,7 +401,7 @@ public class OrgUnitController {
 	public String getExceptedUsersRoleGroupFragment2(Model model, @PathVariable("uuid") String uuid, @PathVariable("assignmentId") long assignmentId) {
 		OrgUnit ou = orgUnitService.getByUuid(uuid);
 		if (ou == null) {
-			return "redirect:../list";
+			return "redirect:list";
 		}
 
 		// Get users
@@ -408,7 +426,7 @@ public class OrgUnitController {
 	public String getRequestApproveFragment(Model model, @PathVariable("uuid") String uuid) {
 		OrgUnit ou = orgUnitService.getByUuid(uuid);
 		if (ou == null) {
-			return "redirect:../list";
+			return "redirect:list";
 		}
 
 		boolean readOnly = !(SecurityUtil.hasRole(Constants.ROLE_ASSIGNER) || SecurityUtil.hasRole(Constants.ROLE_KLE_ADMINISTRATOR));

@@ -14,7 +14,43 @@ namespace RoleCatalogueAttributeStore
             string[][] outputValues = new string[1][];
             switch (query)
             {
-                // TODO: create a much better query lookup language, that can return multiple values in one call
+                // new single REST query operations
+                case "fullLookup":
+                    {
+                        AttributeStoreLogger.Debug("Performing full lookup on user '" + parameters[0] + "' for it-system '" + parameters[1] + "'");
+
+                        UserResponse response = RoleCatalogueStub.GetUserResponse(parameters[0], parameters[1]);
+
+                        outputValues[0] = new string[1] { Newtonsoft.Json.JsonConvert.SerializeObject(response) };
+                    }
+                    break;
+                case "extractNameID":
+                    {
+                        UserResponse response = Newtonsoft.Json.JsonConvert.DeserializeObject<UserResponse>(parameters[0]);
+
+                        outputValues[0] = new string[1] { response.nameID };
+                    }
+                    break;
+                case "extractOioBpp":
+                    {
+                        UserResponse response = Newtonsoft.Json.JsonConvert.DeserializeObject<UserResponse>(parameters[0]);
+
+                        outputValues[0] = new string[1] { response.oioBPP };
+                    }
+                    break;
+                case "extractRoleNames":
+                    {
+                        UserResponse response = Newtonsoft.Json.JsonConvert.DeserializeObject<UserResponse>(parameters[0]);
+
+                        outputValues = new string[response.roleMap.Count][];
+                        int i = 0;
+                        foreach (string key in response.roleMap.Keys)
+                        {
+                            outputValues[i++] = new string[1] { response.roleMap[key] };
+                        }
+                    }
+                    break;
+
                 case "getNameID":
                 case "nameid": // legacy command
                     AttributeStoreLogger.Debug("Performing NameID lookup on user '" + parameters[0] + "'");

@@ -4,6 +4,7 @@ import dk.digitalidentity.rc.config.Constants;
 import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
 import dk.digitalidentity.rc.security.SecurityUtil;
 import dk.digitalidentity.rc.service.FrontPageLinkService;
+import jakarta.servlet.http.HttpServletRequest;
 import org.opensaml.saml.common.SAMLException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -23,7 +24,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.context.request.ServletWebRequest;
 import org.springframework.web.context.request.WebRequest;
 
-import javax.servlet.http.HttpServletRequest;
 import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.List;
@@ -71,7 +71,7 @@ public class DefaultController implements ErrorController {
 	
 	@GetMapping("/ui/reportmenu")
 	public String reportIndex() {
-		if (SecurityUtil.hasRole(Constants.ROLE_TEMPLATE_ACCESS) || SecurityUtil.hasRole(Constants.ROLE_READ_ACCESS)) {
+		if (SecurityUtil.hasRole(Constants.ROLE_TEMPLATE_ACCESS) || SecurityUtil.hasRole(Constants.ROLE_REPORT_ACCESS)) {
 			return "redirect:/ui/report/templates";
 		}
 		if (SecurityUtil.hasRole(Constants.ROLE_SUBSTITUTE) || SecurityUtil.hasRole(Constants.ROLE_MANAGER)) {

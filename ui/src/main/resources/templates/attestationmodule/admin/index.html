@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html>
-<head th:replace="attestationmodule/fragments/header :: header(datatables = true)" />
+<head th:replace="~{attestationmodule/fragments/header :: header(datatables = true)}"></head>
 <body class="top-navigation">
 <div id="wrapper">
     <div id="page-wrapper" class="gray-bg">
-        <div th:replace="attestationmodule/fragments/topbar :: topbar(page = 'admin')"></div>
+        <div th:replace="~{attestationmodule/fragments/topbar :: topbar(page = 'admin')}"></div>
         <div class="wrapper wrapper-content">
             <div class="row">
                 <div class="col-lg-12">
@@ -53,6 +53,7 @@
                                     <thead>
                                     <tr>
                                         <th th:text="#{attestationmodule.html.admin.itsystems.name}"></th>
+                                        <th th:text="#{attestationmodule.html.admin.itsystems.type}"></th>
                                         <th th:text="#{attestationmodule.html.admin.itsystems.status}"></th>
                                     </tr>
                                     </thead>
@@ -60,6 +61,7 @@
                                     <tbody>
                                     <tr th:each="system : ${itSystems}">
                                         <td th:text="${system.name}"></td>
+                                        <td th:text="${system.path}"></td>
                                         <td th:text="#{attestationmodule.html.admin.orgunits.status.not_started}" th:if="${system.status == T(dk.digitalidentity.rc.attestation.controller.mvc.AttestationAdminController.AttestationStatus).NOT_STARTED}"></td>
                                         <td th:text="#{attestationmodule.html.admin.orgunits.status.in_progress}" th:if="${system.status == T(dk.digitalidentity.rc.attestation.controller.mvc.AttestationAdminController.AttestationStatus).ON_GOING}"></td>
                                         <td th:text="#{attestationmodule.html.admin.orgunits.status.done}" th:if="${system.status == T(dk.digitalidentity.rc.attestation.controller.mvc.AttestationAdminController.AttestationStatus).FINISHED}"></td>
@@ -76,7 +78,7 @@
     </div>
 </div>
 
-<div th:replace="attestationmodule/fragments/footer :: scripts(datatables = true)"></div>
+<div th:replace="~{attestationmodule/fragments/footer :: scripts(datatables = true)}"></div>
 
 <script th:inline="javascript">
     $(document).ready(function(){

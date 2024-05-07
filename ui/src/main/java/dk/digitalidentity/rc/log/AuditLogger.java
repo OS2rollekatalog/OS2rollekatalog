@@ -1,18 +1,17 @@
 package dk.digitalidentity.rc.log;
 
-import java.util.Date;
-
-import javax.servlet.http.HttpServletRequest;
-
+import dk.digitalidentity.rc.dao.model.AuditLog;
+import dk.digitalidentity.rc.dao.model.enums.EntityType;
+import dk.digitalidentity.rc.dao.model.enums.EventType;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.saml2.provider.service.authentication.Saml2AuthenticatedPrincipal;
 import org.springframework.stereotype.Component;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
-import dk.digitalidentity.rc.dao.model.AuditLog;
-import dk.digitalidentity.rc.dao.model.enums.EntityType;
-import dk.digitalidentity.rc.dao.model.enums.EventType;
+import java.util.Date;
 
 @Component
 public class AuditLogger {
@@ -38,7 +37,9 @@ public class AuditLogger {
 
 	public void log(AuditLoggable entity, EventType eventType, AuditLoggable secondaryEntity, String description, String stopdateUser) {
 		String user = null;
-		String loggedInUser = SecurityContextHolder.getContext().getAuthentication() == null ? "system" : (String) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+		String loggedInUser = SecurityContextHolder.getContext().getAuthentication() == null
+				? "system"
+				: extractPrincipal();
 
 		if (stopdateUser != null && loggedInUser.equalsIgnoreCase("system")) {
 			user = "System på vegne af " + stopdateUser;
@@ -65,6 +66,14 @@ public class AuditLogger {
 		entry.setDescription(description);
 		
 		auditLogEntryDao.save(entry);
+	}
+
+	private static String extractPrincipal() {
+		Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+		if (principal instanceof Saml2AuthenticatedPrincipal) {
+			return ((Saml2AuthenticatedPrincipal) principal).getName();
+		}
+		return (String) principal;
 	}
 
 	private static String getClientIp() {

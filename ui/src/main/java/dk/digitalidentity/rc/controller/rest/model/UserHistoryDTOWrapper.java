@@ -1,24 +1,20 @@
 package dk.digitalidentity.rc.controller.rest.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import dk.digitalidentity.rc.dao.model.UserHistory;
+import lombok.Getter;
+import lombok.Setter;
+import org.springframework.context.MessageSource;
+
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
-import org.joda.time.format.DateTimeFormat;
-import org.joda.time.format.DateTimeFormatter;
-import org.springframework.context.MessageSource;
-
-import com.fasterxml.jackson.annotation.JsonIgnore;
-
-import dk.digitalidentity.rc.dao.model.UserHistory;
-
-import lombok.Getter;
-import lombok.Setter;
-
 @Getter
 @Setter
 public class UserHistoryDTOWrapper {
-	private static final DateTimeFormatter timeStampFormat = DateTimeFormat.forPattern("yyyy-MM-dd HH:mm");
+	private static final DateTimeFormatter timeStampFormat = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
 
 	private List<UserHistoryDTO> data;
 
@@ -41,7 +37,7 @@ public class UserHistoryDTOWrapper {
 			historyDTO.setRoleName(history.getRoleName());
 			historyDTO.setSystemName(history.getSystemName());
 			historyDTO.setUsername(history.getUsername());
-			historyDTO.setTimestamp(timeStampFormat.print(history.getTimestamp().getTime()));
+			historyDTO.setTimestamp(timeStampFormat.format(history.getTimestamp().toInstant()));
 			historyDTO.setEventType(messageSource.getMessage(history.getEventType().getMessage(), null, locale));
 
 			data.add(historyDTO);

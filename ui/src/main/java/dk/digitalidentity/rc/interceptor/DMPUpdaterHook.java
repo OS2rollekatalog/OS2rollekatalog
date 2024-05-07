@@ -1,10 +1,5 @@
 package dk.digitalidentity.rc.interceptor;
 
-import java.util.Objects;
-
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Component;
-
 import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
 import dk.digitalidentity.rc.dao.model.OrgUnit;
 import dk.digitalidentity.rc.dao.model.Position;
@@ -12,7 +7,12 @@ import dk.digitalidentity.rc.dao.model.RoleGroup;
 import dk.digitalidentity.rc.dao.model.SystemRoleAssignment;
 import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserRole;
+import dk.digitalidentity.rc.dao.model.UserUserRoleAssignment;
 import dk.digitalidentity.rc.service.dmp.DMPService;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
+
+import java.util.Objects;
 
 @Component
 public class DMPUpdaterHook implements RoleChangeHook {
@@ -51,6 +51,10 @@ public class DMPUpdaterHook implements RoleChangeHook {
 		if (enabled && Objects.equals(userRole.getItSystem().getIdentifier(), DMPService.DMP_IT_SYSTEM_IDENTIFIER)) {
 			dmpService.queueUser(user);
 		}
+	}
+
+	@Override
+	public void interceptEditUserRoleAssignmentOnUser(User user, UserUserRoleAssignment assignment) {
 	}
 
 	@Override

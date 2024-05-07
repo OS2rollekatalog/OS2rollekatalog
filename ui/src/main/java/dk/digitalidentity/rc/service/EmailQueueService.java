@@ -1,12 +1,12 @@
 package dk.digitalidentity.rc.service;
 
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.List;
-import java.util.UUID;
-
-import javax.transaction.Transactional;
-
+import dk.digitalidentity.rc.controller.mvc.viewmodel.InlineImageDTO;
+import dk.digitalidentity.rc.dao.EmailQueueDao;
+import dk.digitalidentity.rc.dao.model.AttachmentFile;
+import dk.digitalidentity.rc.dao.model.EmailQueue;
+import dk.digitalidentity.rc.dao.model.EmailTemplate;
+import jakarta.transaction.Transactional;
+import lombok.extern.slf4j.Slf4j;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
@@ -14,12 +14,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
-import dk.digitalidentity.rc.controller.mvc.viewmodel.InlineImageDTO;
-import dk.digitalidentity.rc.dao.EmailQueueDao;
-import dk.digitalidentity.rc.dao.model.AttachmentFile;
-import dk.digitalidentity.rc.dao.model.EmailQueue;
-import dk.digitalidentity.rc.dao.model.EmailTemplate;
-import lombok.extern.slf4j.Slf4j;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.List;
+import java.util.UUID;
 
 @Slf4j
 @Service

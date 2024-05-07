@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html>
-<head th:replace="attestationmodule/fragments/header :: header(datatables = true, checkbox = true)" />
+<head th:replace="~{attestationmodule/fragments/header :: header(datatables = true, checkbox = true)}" />
 <body class="top-navigation">
     <div id="wrapper">
         <div id="page-wrapper" class="gray-bg">
-            <div th:replace="attestationmodule/fragments/topbar :: topbar"></div>
+            <div th:replace="~{attestationmodule/fragments/topbar :: topbar}"></div>
             <div class="wrapper wrapper-content">
                 <div class="row">
                     <div class="col-lg-12">
@@ -95,7 +95,7 @@
                                                             <span th:text="#{attestationmodule.html.attestation.controls.approve}"></span>
                                                         </button>
                                                         &nbsp;
-                                                        <button th:unless="${user.readOnly}" class="rejectBtn btn btn-danger col-lg-2" th:id="'rejectBtn' + ${user.userUuid}" th:attr="data-number=${userStat.index},data-uuid=${user.userUuid}">
+                                                        <button  th:if="${changeRequestsEnabled}" th:unless="${user.readOnly}" class="rejectBtn btn btn-danger col-lg-2" th:id="'rejectBtn' + ${user.userUuid}" th:attr="data-number=${userStat.index},data-uuid=${user.userUuid}">
                                                             <em class="fa-fw fa fa-ban"></em>
                                                             <span th:text="#{attestationmodule.html.attestation.controls.reject}"></span>
                                                         </button>
@@ -180,7 +180,7 @@
                                                             <span th:text="#{attestationmodule.html.attestation.controls.approve}"></span>
                                                         </button>
                                                         &nbsp;
-                                                        <button class="rejectOrgUnitBtn btn btn-danger col-lg-2" th:id="'rejectOrgUnitBtn' + ${ou.orgUnitUuid}" th:attr="data-number=${ouStat.index},data-uuid=${ou.orgUnitUuid}">
+                                                        <button th:if="${changeRequestsEnabled}" class="rejectOrgUnitBtn btn btn-danger col-lg-2" th:id="'rejectOrgUnitBtn' + ${ou.orgUnitUuid}" th:attr="data-number=${ouStat.index},data-uuid=${ou.orgUnitUuid}">
                                                             <em class="fa-fw fa fa-ban"></em>
                                                             <span th:text="#{attestationmodule.html.attestation.controls.reject}"></span>
                                                         </button>
@@ -240,8 +240,8 @@
         </div>
     </div>
 
-    <div th:replace="attestationmodule/fragments/footer :: scripts(datatables = true, checkbox = true)"></div>
-    <div th:replace="attestationmodule/fragments/userRemarkModal :: userRemarkModalScript"></div>
+    <div th:replace="~{attestationmodule/fragments/footer :: scripts(datatables = true, checkbox = true)}"></div>
+    <div th:replace="~{attestationmodule/fragments/userRemarkModal :: userRemarkModalScript}"></div>
 
     <script th:inline="javascript">
     /*<![CDATA[*/
@@ -337,16 +337,7 @@
 
 						userService.handleBadgeAndPageSwitch(userUuid, number);
 					},
-					error: function(jqXHR, textStatus, error) {
-						switch (jqXHR.status) {
-							case 400:
-								toastr.warning(jqXHR.responseText);
-								break;
-							default:
-								toastr.warning('Teknisk fejl: ' + jqXHR.responseText);
-								break;
-						}
-					}
+					error: defaultErrorHandler
 				});
 		    }
 
@@ -392,17 +383,7 @@
 
                         userService.handleBadgeAndPageSwitch(userUuid, number);
                    },
-                   error: function(jqXHR, textStatus, error) {
-                        switch (jqXHR.status) {
-                            case 400:
-                                toastr.warning(jqXHR.responseText);
-                                break;
-                            default:
-                                toastr.warning('Teknisk fejl: ' + jqXHR.responseText);
-                                break;
-                        }
-                        $("#userRemarkError").show();
-                   }
+                   error: defaultErrorHandler
                 });
 		    }
 
@@ -498,16 +479,7 @@
 
 						orgUnitService.handleBadgeAndPageSwitch(number);
 					},
-					error: function(jqXHR, textStatus, error) {
-						switch (jqXHR.status) {
-							case 400:
-								toastr.warning(jqXHR.responseText);
-								break;
-							default:
-								toastr.warning('Teknisk fejl: ' + jqXHR.responseText);
-								break;
-						}
-					}
+					error: defaultErrorHandler
 				});
 		    }
 
@@ -537,14 +509,7 @@
                         orgUnitService.handleBadgeAndPageSwitch(number);
                    },
                    error: function(jqXHR, textStatus, error) {
-                        switch (jqXHR.status) {
-                            case 400:
-                                toastr.warning(jqXHR.responseText);
-                                break;
-                            default:
-                                toastr.warning('Teknisk fejl: ' + jqXHR.responseText);
-                                break;
-                        }
+                       defaultErrorHandler(jqXHR);
                         $("#remarkError").show();
                    }
                 });

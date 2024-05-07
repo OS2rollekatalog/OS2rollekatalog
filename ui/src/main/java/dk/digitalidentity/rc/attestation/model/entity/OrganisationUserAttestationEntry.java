@@ -1,15 +1,14 @@
 package dk.digitalidentity.rc.attestation.model.entity;
 
 
+import jakarta.persistence.Entity;
+import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import lombok.ToString;
 import lombok.experimental.SuperBuilder;
-
-import javax.persistence.Entity;
-import javax.persistence.Table;
 
 /**
  * This class will contain attestations for a users roles within an organisation.

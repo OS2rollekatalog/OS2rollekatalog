@@ -13,6 +13,7 @@ import dk.digitalidentity.rc.dao.model.UserRole;
 import dk.digitalidentity.rc.service.ItSystemService;
 import dk.digitalidentity.rc.service.UserRoleService;
 import dk.digitalidentity.rc.service.UserService;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
@@ -31,8 +32,8 @@ import static dk.digitalidentity.rc.attestation.service.util.AttestationUtil.has
 import static dk.digitalidentity.rc.attestation.service.util.AttestationUtil.hasRoleAssignmentAttestationBeenPerformed;
 import static dk.digitalidentity.rc.attestation.service.util.AttestationValidation.validateAttestationOfItSystemUserRoleIsNotPerformed;
 
+@Slf4j
 @Component
-
 public class ItSystemUserRolesAttestationService {
     @Autowired
     private AttestationSystemRoleAssignmentDao attestationSystemRoleAssignmentDAO;
@@ -48,6 +49,20 @@ public class ItSystemUserRolesAttestationService {
     private AttestationEmailNotificationService notificationService;
     @Autowired
     private UserRoleService userRoleService;
+
+
+    @Transactional
+    public void finishOutstandingAttestations() {
+        // Only consider attestations that are less than a month old
+        final LocalDate since = LocalDate.now().minusMonths(1);
+        attestationDao.findByAttestationTypeAndDeadlineIsGreaterThanEqual(Attestation.AttestationType.IT_SYSTEM_ROLES_ATTESTATION, since).stream()
+                .filter(a -> a.getVerifiedAt() == null)
+                .filter(a -> isItSystemUserRoleAttestationDone(a.getCreatedAt(), a))
+                .forEach(a -> {
+                    a.setVerifiedAt(ZonedDateTime.now());
+                    log.warn("Attestation finished but not verified, id: {}", a.getId());
+                });
+    }
 
     @Transactional
     public List<ItSystemAttestationDTO> listAllItSystemsForAttestation(final LocalDate when) {
@@ -72,7 +87,6 @@ public class ItSystemUserRolesAttestationService {
                     .collect(Collectors.toList());
         }
     }
-
 
 
     @Transactional

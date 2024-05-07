@@ -81,9 +81,10 @@ public class AttestationV2Controller {
 					long verifiedOrgUnit = its.getOrgUnits().stream()
 							.filter(o -> o.getVerifiedByUserId() != null || o.getRemarks() != null)
 							.count();
+					long orgsLeft = totalOrgUnit - verifiedOrgUnit;
 					return new AttestationOverviewDTO(readOnly, its.getItSystemName(), String.valueOf(its.getItSystemId()), verified,
-							total - verified, total, its.getDeadline(), its.getDeadline().isBefore(now), false,
-							null, verifiedOrgUnit, totalOrgUnit - verifiedOrgUnit, totalOrgUnit);
+							total - verified, total, its.getDeadline(), its.getDeadline().isBefore(now), orgsLeft == 0,
+							null, verifiedOrgUnit, orgsLeft, totalOrgUnit);
 				})
 				.collect(Collectors.toList());
 	}

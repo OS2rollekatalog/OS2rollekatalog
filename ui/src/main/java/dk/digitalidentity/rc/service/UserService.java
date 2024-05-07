@@ -103,6 +103,9 @@ public class UserService {
 	@Autowired
 	private UserDao userDao;
 
+//	@Autowired
+//	OpenSaml4AuthenticationProvider openSaml4AuthenticationProvider;
+
 	@Autowired
 	private KleService kleService;
 
@@ -321,10 +324,6 @@ public class UserService {
 		if (!user.getPositions().contains(position)) {
 			user.getPositions().add(position);
 		}
-	}
-
-	public void addRoleGroup(User user, RoleGroup roleGroup, LocalDate startDate, LocalDate stopDate) {
-		self.addRoleGroup(user, roleGroup, startDate, stopDate, null);
 	}
 
 	@AuditLogIntercepted
@@ -613,9 +612,11 @@ public class UserService {
 
 	// TODO: this method is only used by the ReadOnlyApi, and very likely noone has any use for
 	//       this method, so deprecate it in future versions of the API
-	public List<RoleGroup> getRoleGroupsAssignedDirectly(String uuid) {
-		User user = userDao.findByUuidAndDeletedFalse(uuid)
-				.orElseThrow(() -> new NotFoundException("User with uuid '" + uuid + "' was not found in the database"));
+	public List<RoleGroup> getRoleGroupsAssignedDirectly(String id, Domain domain) {
+		User user = userDao.findByUuidAndDeletedFalse(id).orElseGet(
+				() -> userDao.findByUserIdAndDomainAndDeletedFalse(id, domain)
+						.orElseThrow(() -> new NotFoundException("User with id '" + id + "' was not found in the database"))
+		);
 		return user.getRoleGroupAssignments().stream().map(UserRoleGroupAssignment::getRoleGroup).collect(Collectors.toList());
 	}
 
@@ -1072,7 +1073,7 @@ public class UserService {
 				
 				seenRoleGroups.add(assignment.getRoleId());
 
-				RoleGroup roleGroup = roleGroupDao.findById(assignment.getRoleId());
+				RoleGroup roleGroup = roleGroupDao.findById(assignment.getRoleId()).orElse(null);
 
 				if (roleGroup != null && roleGroup.getUserRoleAssignments() != null) {
 					for (RoleGroupUserRoleAssignment userRoleAssignment : roleGroup.getUserRoleAssignments()) {

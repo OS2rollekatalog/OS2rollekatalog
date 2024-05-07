@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html>
-<head th:replace="fragments/header :: header (customTitle='Der er opstået en fejl!')"></head>
+<head th:replace="~{fragments/header :: header (customTitle='Der er opstået en fejl!')}"></head>
 <body>
 	<div class="wrapper">
-		<header th:replace="fragments/navbar :: navbar-header"></header>
-		<aside th:replace="fragments/navbar :: navbar-aside (page = 'index')"></aside>
+		<header th:replace="~{fragments/navbar :: navbar-header}"></header>
+		<aside th:replace="~{fragments/navbar :: navbar-aside (page = 'index')}"></aside>
  
 		<section>
 			<div class="content-wrapper">
@@ -26,6 +26,6 @@
 	    </section>
 	</div>
 	
-	<nav th:replace="fragments/footer :: footer"></nav>
+	<nav th:replace="~{fragments/footer :: footer}"></nav>
 </body>
 </html>

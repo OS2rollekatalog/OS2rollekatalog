@@ -1,16 +1,14 @@
 package dk.digitalidentity.rc.config;
 
-import java.util.ArrayList;
-import java.util.EnumSet;
-import java.util.List;
-
-import javax.servlet.DispatcherType;
-
+import dk.digitalidentity.rc.filter.InternetExplorerHttpsFontFilter;
+import jakarta.servlet.DispatcherType;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
-import dk.digitalidentity.rc.filter.InternetExplorerHttpsFontFilter;
+import java.util.ArrayList;
+import java.util.EnumSet;
+import java.util.List;
 
 @Configuration
 public class IEFontFixConfiguration {

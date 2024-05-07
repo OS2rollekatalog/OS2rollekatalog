@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html>
-<head th:replace="fragments/header :: header (title=#{html.page.userroles.view.title})"></head>
+<head th:replace="~{fragments/header :: header (title=#{html.page.userroles.view.title})}"></head>
 <body>
 	<div class="wrapper">
-		<header th:replace="fragments/navbar :: navbar-header(subpage = 'roles')"></header>
-		<aside th:replace="fragments/navbar :: navbar-aside (page = 'userroles.view', subpage = 'roles')"></aside>
+		<header th:replace="~{fragments/navbar :: navbar-header(subpage = 'roles')}"></header>
+		<aside th:replace="~{fragments/navbar :: navbar-aside (page = 'userroles.view', subpage = 'roles')}"></aside>
  
 		<section>
 			<div class="content-wrapper">
@@ -237,11 +237,11 @@
 	<div id="ouUserRoleModal"></div>
 	<div id="ouUserRoleEditModal"></div>
 	<div th:replace="users/fragments/user_user_role_modal :: userUserRoleModal"></div>
-	<div th:replace="users/fragments/role_assignment_edit_modal :: roleAssignmentEditModal"></div>
-    <nav th:replace="fragments/footer :: footer"></nav>
+	<div th:replace="~{users/fragments/role_assignment_edit_modal :: roleAssignmentEditModal}"></div>
+    <nav th:replace="~{fragments/footer :: footer}"></nav>
 
-	<script th:replace="fragments/datatables :: datatables "></script>
-	<script th:replace="fragments/assignDatePicker :: content "></script>
+	<script th:replace="~{fragments/datatables :: datatables}"></script>
+	<script th:replace="~{fragments/assignDatePicker :: content}"></script>
 	<script th:replace="users/fragments/role_assignment_edit_modal :: roleAssignmentEditModalScript"></script>
 	<script th:replace="users/fragments/user_user_role_modal :: userUserRoleModalScript(page='userrole')"></script>
 

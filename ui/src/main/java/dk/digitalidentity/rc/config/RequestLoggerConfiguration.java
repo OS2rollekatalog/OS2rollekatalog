@@ -1,18 +1,16 @@
 package dk.digitalidentity.rc.config;
 
-import java.util.ArrayList;
-import java.util.EnumSet;
-import java.util.List;
-
-import javax.servlet.DispatcherType;
-
+import dk.digitalidentity.rc.log.RequestLogger;
+import dk.digitalidentity.rc.log.SecurityLogger;
+import jakarta.servlet.DispatcherType;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.Ordered;
 
-import dk.digitalidentity.rc.log.RequestLogger;
-import dk.digitalidentity.rc.log.SecurityLogger;
+import java.util.ArrayList;
+import java.util.EnumSet;
+import java.util.List;
 
 @Configuration
 public class RequestLoggerConfiguration {

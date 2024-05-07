@@ -18,4 +18,5 @@ public class RoleAssignmentDTO {
 	private long roleId;
 	private String roleName;
 	private RoleType roleType;
+	private String itSystemName;
 }

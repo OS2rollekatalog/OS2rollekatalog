@@ -13,11 +13,11 @@ BEGIN
   INSERT INTO history_role_assignment_excepted_users (
     dato, ou_uuid, user_uuids,
     role_id, role_name, role_it_system_id, role_it_system_name, role_role_group, role_role_group_id,
-    assigned_by_user_id, assigned_by_name, assigned_when)
+    assigned_by_user_id, assigned_by_name, assigned_when, start_date, stop_date)
   SELECT
     CURRENT_TIMESTAMP, o.uuid, COALESCE(GROUP_CONCAT(oureu.user_uuid), ''),
     ur.id, ur.name, it.id, it.name, NULL, NULL,
-    our.assigned_by_user_id, our.assigned_by_name, our.assigned_timestamp
+    our.assigned_by_user_id, our.assigned_by_name, our.assigned_timestamp, our.start_date, our.stop_date
   FROM ou_roles our
   JOIN ous o ON o.uuid = our.ou_uuid
   JOIN user_roles ur ON ur.id = our.role_id
@@ -30,11 +30,11 @@ BEGIN
   INSERT INTO history_role_assignment_excepted_users (
     dato, ou_uuid, user_uuids,
     role_id, role_name, role_it_system_id, role_it_system_name, role_role_group, role_role_group_id,
-    assigned_by_user_id, assigned_by_name, assigned_when)
+    assigned_by_user_id, assigned_by_name, assigned_when, start_date, stop_date)
   SELECT
     CURRENT_TIMESTAMP, o.uuid, COALESCE(GROUP_CONCAT(ourgeu.user_uuid), ''),
     ur.id, ur.name, it.id, it.name, rg.name, rg.id,
-    ourg.assigned_by_user_id, ourg.assigned_by_name, ourg.assigned_timestamp
+    ourg.assigned_by_user_id, ourg.assigned_by_name, ourg.assigned_timestamp, ourg.start_date, ourg.stop_date
   FROM ou_rolegroups ourg
   JOIN ous o ON o.uuid = ourg.ou_uuid
   JOIN rolegroup rg ON ourg.rolegroup_id = rg.id

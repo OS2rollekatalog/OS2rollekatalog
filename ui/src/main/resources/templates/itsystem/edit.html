@@ -1,11 +1,11 @@
 <!DOCTYPE html>
 <html xmlns="http://www.w3.org/1999/xhtml" xmlns:th="http://www.thymeleaf.org">
-<head th:replace="fragments/header :: header (title=#{html.page.itsystem.edit.title})"></head>
+<head th:replace="~{fragments/header :: header (title=#{html.page.itsystem.edit.title})}"></head>
 <body>
 
 	<div class="wrapper">
-		<header th:replace="fragments/navbar :: navbar-header(subpage = 'roles')"></header>
-		<aside th:replace="fragments/navbar :: navbar-aside (page = 'itsystem.list', subpage = 'roles')"></aside>
+		<header th:replace="~{fragments/navbar :: navbar-header(subpage = 'roles')}"></header>
+		<aside th:replace="~{fragments/navbar :: navbar-aside (page = 'itsystem.list', subpage = 'roles')}"></aside>
 
 		<section>
 			<div class="content-wrapper">
@@ -831,9 +831,9 @@
 		</div>
 	</div>
 
-	<nav th:replace="fragments/footer :: footer"></nav>
-	<script th:replace="fragments/datatables :: datatables "></script>
-	<script th:replace="itsystem/fragments/autocomplete_service :: autocompleteServiceScript(searchFieldId='search_person', uuidFieldId='selectedResponsibleUuid')"></script>
+	<nav th:replace="~{fragments/footer :: footer}"></nav>
+	<script th:replace="~{fragments/datatables :: datatables}"></script>
+	<script th:replace="~{itsystem/fragments/autocomplete_service :: autocompleteServiceScript(searchFieldId='search_person', uuidFieldId='selectedResponsibleUuid')}"></script>
 
 	<style>
 		.autocomplete-suggestions { border: 1px solid #999; background: #FFF; overflow: auto; width: 500px !important; }
@@ -964,14 +964,7 @@
 					headers: {
 						'X-CSRF-TOKEN': token
 					},
-					error: function(response) {
-						$.notify({
-							message: fieldNotUpdatedMsg + ""
-						},{
-							status: 'danger',
-							autoHideDelay: 4000
-						});
-					},
+					error: errorHandler(fieldNotUpdatedMsg),
 					success: function(response) {
 						$.notify({
 							message: fieldUpdatedMsg
@@ -998,12 +991,7 @@
 					},
 					error: function(response) {
 						$("#emailValidationFail").show();
-						$.notify({
-							message: fieldNotUpdatedEmailMsg + ""
-						},{
-							status: 'danger',
-							autoHideDelay: 4000
-						});
+						errorHandler(fieldNotUpdatedEmailMsg)(response);
 					},
 					success: function(response) {
 						$("#emailValidationFail").hide();
@@ -1030,14 +1018,7 @@
 					headers: {
 						'X-CSRF-TOKEN': token
 					},
-					error: function(response) {
-						$.notify({
-							message: fieldNotUpdatedMsg + ""
-						},{
-							status: 'danger',
-							autoHideDelay: 4000
-						});
-					},
+					error: errorHandler(fieldNotUpdatedMsg),
 					success: function(response) {
 						$.notify({
 							message: fieldUpdatedMsg
@@ -1062,14 +1043,7 @@
 					headers: {
 						'X-CSRF-TOKEN': token
 					},
-					error: function(response) {
-						$.notify({
-							message: fieldNotUpdatedMsg + ""
-						},{
-							status: 'danger',
-							autoHideDelay: 4000
-						});
-					},
+					error: errorHandler(fieldNotUpdatedMsg + ""),
 					success: function(response) {
 						$.notify({
 							message: fieldUpdatedMsg
@@ -1094,14 +1068,7 @@
 					headers: {
 						'X-CSRF-TOKEN': token
 					},
-					error: function(response) {
-						$.notify({
-							message: fieldNotUpdatedMsg + ""
-						},{
-							status: 'danger',
-							autoHideDelay: 4000
-						});
-					},
+					error: errorHandler(fieldNotUpdatedMsg + ""),
 					success: function(response) {
 						readonly = objReadonly;
 						toggleAddAdRoleBtnDisabled(objReadonly);
@@ -1132,14 +1099,7 @@
 					headers: {
 						'X-CSRF-TOKEN': token
 					},
-					error: function(response) {
-						$.notify({
-							message: fieldNotUpdatedMsg + ""
-						},{
-							status: 'danger',
-							autoHideDelay: 4000
-						});
-					},
+					error: errorHandler(fieldNotUpdatedMsg),
 					success: function(response) {
 						$.notify({
 							message: fieldUpdatedMsg
@@ -1188,14 +1148,7 @@
 					headers: {
 						'X-CSRF-TOKEN': token
 					},
-					error: function(response) {
-						$.notify({
-							message: fieldNotUpdatedMsg + ""
-						},{
-							status: 'danger',
-							autoHideDelay: 4000
-						});
-					},
+					error: errorHandler(fieldNotUpdatedMsg),
 					success: function(response) {
 						$.notify({
 							message: fieldUpdatedMsg
@@ -1219,14 +1172,7 @@
 					headers: {
 						'X-CSRF-TOKEN': token
 					},
-					error: function(response) {
-						$.notify({
-							message: fieldNotUpdatedMsg + ""
-						},{
-							status: 'danger',
-							autoHideDelay: 4000
-						});
-					},
+					error: errorHandler(fieldNotUpdatedMsg),
 					success: function(response) {
 						$.notify({
 							message: fieldUpdatedMsg
@@ -1251,14 +1197,7 @@
 					headers: {
 						'X-CSRF-TOKEN': token
 					},
-					error: function(response) {
-						$.notify({
-							message: fieldNotUpdatedMsg + ""
-						},{
-							status: 'danger',
-							autoHideDelay: 4000
-						});
-					},
+					error: errorHandler(fieldNotUpdatedMsg),
 					success: function(response) {
 						$.notify({
 							message: fieldUpdatedMsg
@@ -1283,14 +1222,7 @@
 					headers: {
 						'X-CSRF-TOKEN': token
 					},
-					error: function(response) {
-						$.notify({
-							message: fieldNotUpdatedMsg + ""
-						},{
-							status: 'danger',
-							autoHideDelay: 4000
-						});
-					},
+					error: errorHandler(fieldNotUpdatedMsg),
 					success: function(response) {
 						$.notify({
 							message: fieldUpdatedMsg
@@ -1351,14 +1283,7 @@
 					headers: {
 						'X-CSRF-TOKEN': token
 					},
-					error: function(response) {
-						$.notify({
-							message: fieldNotUpdatedMsg + ""
-						},{
-							status: 'danger',
-							autoHideDelay: 4000
-						});
-					},
+					error: errorHandler(fieldNotUpdatedMsg),
 					success: function(response) {
 						$.notify({
 							message: fieldUpdatedMsg
@@ -1383,14 +1308,7 @@
 					headers: {
 						'X-CSRF-TOKEN': token
 					},
-					error: function(response) {
-						$.notify({
-							message: fieldNotUpdatedNotesMsg + ""
-						},{
-							status: 'danger',
-							autoHideDelay: 4000
-						});
-					},
+					error: errorHandler(fieldNotUpdatedNotesMsg),
 					success: function(response) {
 						$.notify({
 							message: fieldUpdatedMsg
@@ -1422,14 +1340,7 @@
 					headers: {
 						'X-CSRF-TOKEN': token
 					},
-					error: function(response) {
-						$.notify({
-							message: fieldNotUpdatedMsg + ""
-						},{
-							status: 'danger',
-							autoHideDelay: 4000
-						});
-					},
+					error: errorHandler(fieldNotUpdatedMsg),
 					success: function(response) {
 						$.notify({
 							message: fieldUpdatedMsg
@@ -1574,14 +1485,7 @@
 							success: function() {
 								window.location.href = url;
 							},
-							error: function() {
-								$.notify({
-									message: roleNotDeletedMsg
-								},{
-									status: 'danger',
-									autoHideDelay: 4000
-								});
-							}
+							error: errorHandler(roleNotDeletedMsg)
 						});
 					}
 				}
@@ -1628,15 +1532,8 @@
 							success: function() {
 								location.reload(true);
 							},
-							error: function() {
-								$.notify({
-									message: rolesNotDeletedMsg
-								},{
-									status: 'danger',
-									autoHideDelay: 4000
-								});
-							}
-						});
+							error: errorHandler(rolesNotDeletedMsg)
+						})
 					}
 				}
 			);
@@ -1663,14 +1560,7 @@
 				headers: {
 					'X-CSRF-TOKEN': token
 				},
-				error: function(response) {
-					$.notify({
-						message: response.responseText
-					},{
-						status: 'danger',
-						autoHideDelay: 4000
-					});
-				},
+				error: defaultErrorHandler,
 				success: function(response) {
 					$.notify({
 						message: fieldUpdatedMsg
@@ -1760,14 +1650,7 @@
 					headers: {
 						'X-CSRF-TOKEN': token
 					},
-					error: function(response) {
-						$.notify({
-							message: fieldNotUpdatedMsgOUFilter
-						},{
-							status: 'danger',
-							autoHideDelay: 4000
-						});
-					},
+					error: errorHandler(fieldNotUpdatedMsgOUFilter),
 					success: function(response) {
 						$.notify({
 							message: fieldUpdatedMsg
@@ -1805,14 +1688,7 @@
 						'id': itsystemId,
 						'selectedOUs': selected
 					}),
-					error: function(response) {
-						$.notify({
-							message: response.responseText
-						},{
-							status: 'danger',
-							autoHideDelay: 4000
-						});
-					},
+					error: defaultErrorHandler,
 					success: function(response) {
 						$("#modal-ou-filter").modal("hide");
 						location.reload();
@@ -1844,14 +1720,7 @@
 					headers: {
 						'X-CSRF-TOKEN': token
 					},
-					error: function(response) {
-						$.notify({
-							message: fieldNotUpdatedMsg + ""
-						},{
-							status: 'danger',
-							autoHideDelay: 4000
-						});
-					},
+					error: errorHandler(fieldNotUpdatedMsg),
 					success: function(response) {
 						$.notify({
 							message: fieldUpdatedMsg

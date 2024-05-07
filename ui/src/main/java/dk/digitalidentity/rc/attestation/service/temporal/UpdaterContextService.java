@@ -26,6 +26,8 @@ import org.springframework.stereotype.Component;
 import java.time.LocalDate;
 import java.util.Objects;
 
+import static dk.digitalidentity.rc.util.NullSafe.nullSafe;
+
 
 @Component
 public final class UpdaterContextService {
@@ -154,7 +156,7 @@ public final class UpdaterContextService {
 
         public String responsibleUserUuid() {
             return currentItSystem != null
-                    ? currentItSystem.getAttestationResponsible().getUuid()
+                    ? nullSafe(() -> currentItSystem.getAttestationResponsible().getUuid())
                     : historyItSystem.getAttestationResponsible();
         }
 

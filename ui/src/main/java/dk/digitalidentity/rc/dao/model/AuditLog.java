@@ -1,11 +1,15 @@
 package dk.digitalidentity.rc.dao.model;
 
-import lombok.Data;
-
-import javax.persistence.*;
-
 import dk.digitalidentity.rc.dao.model.enums.EntityType;
 import dk.digitalidentity.rc.dao.model.enums.EventType;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import lombok.Data;
 
 import java.util.Date;
 

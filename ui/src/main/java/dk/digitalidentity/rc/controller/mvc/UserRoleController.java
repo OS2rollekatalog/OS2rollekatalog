@@ -1,28 +1,5 @@
 package dk.digitalidentity.rc.controller.mvc;
 
-import java.security.Principal;
-import java.time.LocalDate;
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.List;
-import java.util.UUID;
-import java.util.stream.Collectors;
-
-import javax.validation.Valid;
-
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Controller;
-import org.springframework.ui.Model;
-import org.springframework.util.StringUtils;
-import org.springframework.validation.BindingResult;
-import org.springframework.web.bind.WebDataBinder;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.InitBinder;
-import org.springframework.web.bind.annotation.ModelAttribute;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-
 import dk.digitalidentity.rc.config.Constants;
 import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.EditRolegroupRow;
@@ -65,6 +42,27 @@ import dk.digitalidentity.rc.service.model.OrgUnitWithRole2;
 import dk.digitalidentity.rc.service.model.UserWithRole;
 import dk.digitalidentity.rc.service.model.UserWithRole2;
 import dk.digitalidentity.rc.service.model.UserWithRoleAndDates;
+import jakarta.validation.Valid;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Controller;
+import org.springframework.ui.Model;
+import org.springframework.util.StringUtils;
+import org.springframework.validation.BindingResult;
+import org.springframework.web.bind.WebDataBinder;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.InitBinder;
+import org.springframework.web.bind.annotation.ModelAttribute;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+
+import java.security.Principal;
+import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
+import java.util.UUID;
+import java.util.stream.Collectors;
 
 @RequireRequesterOrReadAccessRole
 @Controller
@@ -126,7 +124,7 @@ public class UserRoleController {
 	public String view(Model model, @PathVariable("id") long id, Principal principal) throws Exception {
 		UserRole role = userRoleService.getById(id);
 		if (role == null) {
-			return "redirect:../list";
+			return "redirect:list";
 		}
 
 		UserRoleForm roleForm = new UserRoleForm(role, false, false);
@@ -171,7 +169,7 @@ public class UserRoleController {
 	public String assignedUsersFragment(Model model, @PathVariable("id") long userRoleId, @RequestParam(name = "showEdit", required = false, defaultValue = "false") boolean showEdit) {
 		UserRole role = userRoleService.getById(userRoleId);
 		if (role == null) {
-			return "redirect:../list";
+			return "redirect:list";
 		}
 
 		List<UserWithRole2> usersWithRoleMapping = userService.getActiveUsersWithUserRole(role);
@@ -185,7 +183,7 @@ public class UserRoleController {
 	public String assignedUsersFragmentView(Model model, @PathVariable("id") long userRoleId) {
 		UserRole role = userRoleService.getById(userRoleId);
 		if (role == null) {
-			return "redirect:../list";
+			return "redirect:list";
 		}
 
 		List<UserWithRole> usersWithRole = userService.getUsersWithUserRole(role, true);
@@ -198,7 +196,7 @@ public class UserRoleController {
 	public String availableUsersFragment(Model model, @PathVariable("id") long userRoleId) {
 		UserRole role = userRoleService.getById(userRoleId);
 		if (role == null) {
-			return "redirect:../list";
+			return "redirect:list";
 		}
 
 		List<User> usersFromDb = userService.getAll();
@@ -211,12 +209,13 @@ public class UserRoleController {
 	public String assignedOrgUnitsFragment(Model model, @PathVariable("id") long userRoleId, @RequestParam(name = "showEdit", required = false, defaultValue = "false") boolean showEdit) {
 		UserRole role = userRoleService.getById(userRoleId);
 		if (role == null) {
-			return "redirect:../list";
+			return "redirect:list";
 		}
 
 		List<OrgUnitWithRole2> orgUnitsWithRole = orgUnitService.getActiveOrgUnitsWithUserRole(role);
 		model.addAttribute("orgUnitMapping", orgUnitsWithRole);
 		model.addAttribute("showEdit", showEdit);
+		model.addAttribute("showCreateBtn", !role.isUserOnly());
 
 		return "userroles/fragments/manage_ous :: ous";
 	}
@@ -225,7 +224,7 @@ public class UserRoleController {
 	public String availableOrgUnitsFragment(Model model, @PathVariable("id") long userRoleId) {
 		UserRole role = userRoleService.getById(userRoleId);
 		if (role == null) {
-			return "redirect:../list";
+			return "redirect:list";
 		}
 
 		List<OrgUnit> ousFromDb = orgUnitService.getAllCached();
@@ -273,7 +272,7 @@ public class UserRoleController {
 	public String editGetUserFragment(Model model, @PathVariable("id") long id) {
 		UserRole role = userRoleService.getById(id);
 		if (role == null) {
-			return "redirect:../list";
+			return "redirect:list";
 		}
 
 		List<User> usersFromDb = userService.getAll();
@@ -317,7 +316,7 @@ public class UserRoleController {
 	public String editGet(Model model, @PathVariable("id") long id) {
 		UserRole role = userRoleService.getById(id);
 		if (role == null) {
-			return "redirect:../list";
+			return "redirect:list";
 		}
 		
 		UserRoleForm userRoleForm = new UserRoleForm(role, false, false);

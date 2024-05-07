@@ -112,9 +112,7 @@ public class ManualRolesService {
 			return;
 		}
 
-		// TODO: this will fail if there are multiple users with the same userId (and since we added domains, that is possible), so
-		// we need to do some refactoring on this entire feature *sigh*
-		Map<String, User> userMap = userService.getAll().stream().collect(Collectors.toMap(User::getUserId, Function.identity()));
+		Map<String, User> userMap = userService.getAll().stream().collect(Collectors.toMap(u -> u.getDomain().getId() + "!" + u.getUserId(), Function.identity()));
 		
 		List<ItSystem> itSystems = itSystemService.getBySystemTypeIn(Arrays.asList(ItSystemType.MANUAL, ItSystemType.AD, ItSystemType.SAML));
 		for (ItSystem itSystem : itSystems) {
@@ -135,13 +133,13 @@ public class ManualRolesService {
 			List<UserRoleAssignmentReportEntry> yesterdayAssignments = getHistoricalAssignments(LocalDate.now().minusDays(1L), itSystem.getId());
 
 			// should filter out duplicates and then compare - maybe collect on userUuid first
-			Map<String, List<UserRoleAssignmentReportEntry>> todayAssignmentsMap = todayAssignments.stream().collect(Collectors.groupingBy(UserRoleAssignmentReportEntry::getUserId));
-			Map<String, List<UserRoleAssignmentReportEntry>> yesterdayAssignmentsMap = yesterdayAssignments.stream().collect(Collectors.groupingBy(UserRoleAssignmentReportEntry::getUserId));
+			Map<String, List<UserRoleAssignmentReportEntry>> todayAssignmentsMap = todayAssignments.stream().collect(Collectors.groupingBy(u -> u.getDomainId() + "!" + u.getUserId()));
+			Map<String, List<UserRoleAssignmentReportEntry>> yesterdayAssignmentsMap = yesterdayAssignments.stream().collect(Collectors.groupingBy(u -> u.getDomainId() + "!" + u.getUserId()));
 			
 			// find added roles
-			for (String userId : todayAssignmentsMap.keySet()) {
-				List<UserRoleAssignmentReportEntry> todayAssignmentsForUser = todayAssignmentsMap.get(userId);
-				List<UserRoleAssignmentReportEntry> yesterdayAssignmentsForUser = yesterdayAssignmentsMap.get(userId);
+			for (String domainAndUserId : todayAssignmentsMap.keySet()) {
+				List<UserRoleAssignmentReportEntry> todayAssignmentsForUser = todayAssignmentsMap.get(domainAndUserId);
+				List<UserRoleAssignmentReportEntry> yesterdayAssignmentsForUser = yesterdayAssignmentsMap.get(domainAndUserId);
 				if (yesterdayAssignmentsForUser == null) {
 					yesterdayAssignmentsForUser = new ArrayList<>();
 				}
@@ -161,9 +159,9 @@ public class ManualRolesService {
 							continue;
 						}
 
-						User user = userMap.get(userId);
+						User user = userMap.get(domainAndUserId);
 						if (user == null) {
-							log.warn("Unknown user: " + userId);
+							log.warn("Unknown user: " + domainAndUserId);
 							continue;
 						}
 
@@ -173,7 +171,7 @@ public class ManualRolesService {
 							toAddMap.put(user, usersRoles);
 						}
 						
-						String infoMsg = "role " + assignment.getRoleId() + " has been assigned to " + userId;
+						String infoMsg = "role " + assignment.getRoleId() + " has been assigned to " + domainAndUserId;
 						if(!assignment.isNotifyByEmailIfManualSystem()) {
 							infoMsg += " and email has been opted out of.";
 							log.info(infoMsg);
@@ -191,9 +189,9 @@ public class ManualRolesService {
 			}
 			
 			// find removed roles
-			for (String userId : yesterdayAssignmentsMap.keySet()) {
-				List<UserRoleAssignmentReportEntry> yesterdayAssignmentsForUser = yesterdayAssignmentsMap.get(userId);
-				List<UserRoleAssignmentReportEntry> todayAssignmentsForUser = todayAssignmentsMap.get(userId);
+			for (String domainAndUserId : yesterdayAssignmentsMap.keySet()) {
+				List<UserRoleAssignmentReportEntry> yesterdayAssignmentsForUser = yesterdayAssignmentsMap.get(domainAndUserId);
+				List<UserRoleAssignmentReportEntry> todayAssignmentsForUser = todayAssignmentsMap.get(domainAndUserId);
 				if (todayAssignmentsForUser == null) {
 					todayAssignmentsForUser = new ArrayList<>();
 				}
@@ -206,7 +204,7 @@ public class ManualRolesService {
 					boolean existsToday = todayAssignmentsForUser.stream().anyMatch(a -> a.getRoleId() == assignment.getRoleId());
 
 					if (!existsToday) {
-						log.info("role " + assignment.getRoleId() + " has been removed from " + userId);
+						log.info("role " + assignment.getRoleId() + " has been removed from " + domainAndUserId);
 						
 						UserRole userRole = userRoleMap.get(assignment.getRoleId());
 						if (userRole == null) {
@@ -214,9 +212,9 @@ public class ManualRolesService {
 							continue;
 						}
 
-						User user = userMap.get(userId);
+						User user = userMap.get(domainAndUserId);
 						if (user == null) {
-							log.warn("Unknown user: " + userId);
+							log.warn("Unknown user: " + domainAndUserId);
 							continue;
 						}
 
@@ -272,7 +270,7 @@ public class ManualRolesService {
 
 					List<UserRole> toRemove = toRemoveMap.get(user);
 					for (UserRole userRole : toRemove) {
-						usersAndRoles.append(messageSource.getMessage("html.email.manual.message.removeRole", new Object[] { userRole.getName() }, Locale.ENGLISH));
+						usersAndRoles.append(messageSource.getMessage("html.email.manual.message.removeRole", new Object[] { userRole.getName(), userRole.getDescription() }, Locale.ENGLISH));
 					}
 
 					usersAndRoles.append("</ul>");

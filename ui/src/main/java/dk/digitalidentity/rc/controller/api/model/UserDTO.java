@@ -17,6 +17,7 @@ import java.util.stream.Collectors;
 @NoArgsConstructor
 public class UserDTO {
 	private String extUuid;
+	private String uuid;
 	private String userId;
 	private String name;
 	private String email;
@@ -31,6 +32,7 @@ public class UserDTO {
 
 	public UserDTO(User user) {
 		this.extUuid = user.getExtUuid();
+		this.uuid = user.getUuid();
 		this.userId = user.getUserId();
 		this.name = user.getName();
 		this.email = user.getEmail();

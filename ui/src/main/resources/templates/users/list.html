@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html>
-<head th:replace="fragments/header :: header (title=#{html.page.users.list.title})"></head>
+<head th:replace="~{fragments/header :: header (title=#{html.page.users.list.title})}"></head>
 <body>
 	<div class="wrapper">
-		<header th:replace="fragments/navbar :: navbar-header(subpage = 'roles')"></header>
-		<aside th:replace="fragments/navbar :: navbar-aside (page = 'users', subpage = 'roles')"></aside>
+		<header th:replace="~{fragments/navbar :: navbar-header(subpage = 'roles')}"></header>
+		<aside th:replace="~{fragments/navbar :: navbar-aside (page = 'users', subpage = 'roles')}"></aside>
 
 		<section>
 			<div class="content-wrapper">
@@ -45,7 +45,7 @@
 		</section>
 	</div>
 
-	<nav th:replace="fragments/footer :: footer"></nav>
+	<nav th:replace="~{fragments/footer :: footer}"></nav>
 
 	<script th:inline="javascript">
 		/*<![CDATA[*/
@@ -202,13 +202,7 @@
 						headers: {
 							'X-CSRF-TOKEN': token
 						},
-						error: function(response) {
-							$.notify({
-								message: cicsErrorMsg,
-								status: 'danger',
-								timeout: 4000
-							});
-						},
+						error: errorHandler(cicsErrorMsg),
 						success: function(response) {
 							$.notify({
 								message: cicsSuccessMsg,

@@ -1,16 +1,5 @@
 package dk.digitalidentity.rc.controller.api.v2;
 
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.List;
-
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
-
 import dk.digitalidentity.rc.controller.api.dto.AuditLogHeadDTO;
 import dk.digitalidentity.rc.dao.model.AuditLog;
 import dk.digitalidentity.rc.dao.model.enums.EntityType;
@@ -23,10 +12,22 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.List;
 
 @RestController
 @RequireApiAuditlogAccessRole
 @SecurityRequirement(name = "ApiKey")
+@Tag(name = "Auditlog API V2")
 public class AuditLogApiV2 {
 	
     @Autowired

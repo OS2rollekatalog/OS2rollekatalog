@@ -1,5 +1,5 @@
 <th:block th:fragment="ous" xmlns="http://www.w3.org/1999/xhtml" xmlns:th="http://www.thymeleaf.org">
-	<th:block sec:authorize="hasRole('ROLE_ASSIGNER')" th:if="${showEdit == true}">
+	<th:block sec:authorize="hasRole('ROLE_ASSIGNER')" th:if="${showEdit == true AND showCreateBtn == true}">
 		<a href="#" id="addUserRoleAssignment" class="btn btn-lg btn-primary" style="width:auto;" th:text="#{html.page.role.add.orgunit}" onclick="orgUnitService.loadAddUserRoleFragment()"></a>
 	</th:block>
 

@@ -3,7 +3,7 @@
 <head th:fragment="header">
 	<meta charset="utf-8" />
 	<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
-	<meta name="_csrf" th:content="${_csrf.token}" />
+	<meta name="_csrf" th:content="${_csrf.token}" th:if="${_csrf != null}"/>
 
     <title th:text="${customTitle != null ? customTitle : 'OS2rollekatalog'}"></title>
 
@@ -22,7 +22,8 @@
 	<link rel="stylesheet" th:href="@{/css/bootstrap-select.min.css}" />
 	<link rel="stylesheet" th:href="@{/webjars/Eonasdan-bootstrap-datetimepicker/4.17.47/css/bootstrap-datetimepicker.css}" />
 	<link rel="stylesheet" th:href="@{/webjars/summernote/0.8.10/summernote.css}" />
-	
+	<script th:src="@{/js/errors.js}"></script>
+
 	<style>
 		.table > tbody > tr > td {
 			vertical-align: top !important;

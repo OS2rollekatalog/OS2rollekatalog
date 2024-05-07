@@ -452,7 +452,26 @@ public class OrgUnitRestController {
 			
 			List<String> titleFormsUuids = titleForms.stream().map(t -> t.getId()).collect(Collectors.toList());
 			titleForms.addAll(ou.getTitles().stream().filter(t -> !titleFormsUuids.contains(t.getUuid())).map(t -> new TitleListForm(t, true)).collect(Collectors.toList()));
-			
+
+			// add titles without positions if they are used for assignments
+			List<String> newTitleFormsUuids = titleForms.stream().map(t -> t.getId()).collect(Collectors.toList());
+			for (OrgUnitUserRoleAssignment userRoleAssignment : ou.getUserRoleAssignments()) {
+				for (Title title : userRoleAssignment.getTitles()) {
+					if (!newTitleFormsUuids.contains(title.getUuid())) {
+						titleForms.add(new TitleListForm(title, false, true));
+						newTitleFormsUuids.add(title.getUuid());
+					}
+				}
+			}
+			for (OrgUnitRoleGroupAssignment roleGroupAssignment : ou.getRoleGroupAssignments()) {
+				for (Title title : roleGroupAssignment.getTitles()) {
+					if (!newTitleFormsUuids.contains(title.getUuid())) {
+						titleForms.add(new TitleListForm(title, false, true));
+						newTitleFormsUuids.add(title.getUuid());
+					}
+				}
+			}
+
 			return new ResponseEntity<>(titleForms, HttpStatus.OK);
 		}
 		else {

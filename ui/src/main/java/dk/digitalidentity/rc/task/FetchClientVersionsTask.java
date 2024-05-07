@@ -1,17 +1,5 @@
 package dk.digitalidentity.rc.task;
 
-import java.util.List;
-import java.util.Objects;
-import java.util.stream.Collectors;
-
-import javax.transaction.Transactional;
-
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.scheduling.annotation.EnableScheduling;
-import org.springframework.scheduling.annotation.Scheduled;
-import org.springframework.stereotype.Component;
-import org.springframework.util.StringUtils;
-
 import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
 import dk.digitalidentity.rc.dao.model.Client;
 import dk.digitalidentity.rc.dao.model.enums.VersionStatusEnum;
@@ -19,7 +7,17 @@ import dk.digitalidentity.rc.service.AppManagerService;
 import dk.digitalidentity.rc.service.ClientService;
 import dk.digitalidentity.rc.service.model.ApplicationApiDTO;
 import dk.digitalidentity.rc.util.Version;
+import jakarta.transaction.Transactional;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.scheduling.annotation.EnableScheduling;
+import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.stereotype.Component;
+import org.springframework.util.StringUtils;
+
+import java.util.List;
+import java.util.Objects;
+import java.util.stream.Collectors;
 
 @EnableScheduling
 @Component
@@ -53,13 +51,13 @@ public class FetchClientVersionsTask {
 	}
 
 	@Transactional(rollbackOn = Exception.class)
-	private void executeTask() {
+	public void executeTask() {
 		List<ApplicationApiDTO> extClients = appManagerService.getApplications();
 		if (extClients == null) {
 			return;
 		}
 
-		List<Client> dbClients = clientService.findAll().stream().filter(c -> !org.apache.commons.lang.StringUtils.isBlank(c.getApplicationIdentifier())).collect(Collectors.toList());
+		List<Client> dbClients = clientService.findAll().stream().filter(c -> !org.apache.commons.lang3.StringUtils.isBlank(c.getApplicationIdentifier())).collect(Collectors.toList());
 		for (Client client : dbClients) {
 
 			// find matching client in api call
@@ -71,7 +69,7 @@ public class FetchClientVersionsTask {
 				client.setMinimumVersion(clientDTO.getMinimumVersion());
 
 				if (client.getVersion() != null && client.getNewestVersion() != null && client.getMinimumVersion() != null) {
-					if (org.apache.commons.lang.StringUtils.isBlank(client.getVersion())) {
+					if (org.apache.commons.lang3.StringUtils.isBlank(client.getVersion())) {
 						client.setVersionStatus(VersionStatusEnum.UNKNOWN);
 					}
 					else {

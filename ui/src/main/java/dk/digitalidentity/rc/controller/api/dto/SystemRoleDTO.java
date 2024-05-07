@@ -1,14 +1,13 @@
 package dk.digitalidentity.rc.controller.api.dto;
 
-import java.util.List;
-
-import javax.validation.constraints.NotBlank;
-import javax.validation.constraints.Pattern;
-
 import dk.digitalidentity.rc.dao.model.SystemRole;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+
+import java.util.List;
 
 @Getter
 @Setter

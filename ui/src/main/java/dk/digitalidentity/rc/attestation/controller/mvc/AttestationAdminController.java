@@ -22,7 +22,6 @@ import org.springframework.web.bind.annotation.GetMapping;
 
 import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -64,10 +63,6 @@ public class AttestationAdminController {
             return "attestationmodule/error";
         }
 
-        if (!SecurityUtil.isAdmin()) {
-            return "attestationmodule/error";
-        }
-
         final List<AttestationStatusListDTO> ouStatusList = toOuStatusList(attestationAdminService.findAllCurrentOrganisationAttestations());
         final List<AttestationStatusListDTO> itSystemStatusList = toSystemStatusList(attestationAdminService.findAllCurrentItSystemRoleAttestations(),
                 attestationAdminService.findAllCurrentItSystemUserAttestations());
@@ -79,15 +74,12 @@ public class AttestationAdminController {
 
     private List<AttestationStatusListDTO> toSystemStatusList(final List<Attestation> attestations, List<Attestation> userAttestations) {
         Stream<Attestation> allAttestations = Stream.concat(attestations.stream(), userAttestations.stream());
-        Map<Long, List<Attestation>> attestationsByItSystem = allAttestations
-                .collect(Collectors.toMap(Attestation::getItSystemId, Collections::singletonList, (a, b) -> List.of(a.get(0), b.get(0))));
-        return attestationsByItSystem.values().stream()
+        return allAttestations
                 .map(a -> {
-                    AttestationStatus status = findAttestationStatus(a.get(0));
-                    if (a.size() > 1 && status == AttestationStatus.NOT_STARTED) {
-                        status = findAttestationStatus(a.get(1));
-                    }
-                    return new AttestationStatusListDTO(a.get(0).getItSystemName(), null, Collections.emptyList(), "", status);
+                    final AttestationStatus status = findAttestationStatus(a);
+                    return new AttestationStatusListDTO(a.getItSystemName(), null,
+                            Collections.emptyList(), a.getAttestationType() == Attestation.AttestationType.IT_SYSTEM_ATTESTATION
+                            ? "Rolleopbygning" : "Rolletildelinger", status);
                 })
                 .collect(Collectors.toList());
     }

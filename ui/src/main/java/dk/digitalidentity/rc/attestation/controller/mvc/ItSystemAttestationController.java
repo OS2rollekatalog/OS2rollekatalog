@@ -7,6 +7,7 @@ import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.security.RequireItSystemResponsibleRole;
 import dk.digitalidentity.rc.security.SecurityUtil;
 import dk.digitalidentity.rc.service.ItSystemService;
+import dk.digitalidentity.rc.service.SettingsService;
 import dk.digitalidentity.rc.service.UserService;
 import io.micrometer.core.annotation.Timed;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -28,6 +29,9 @@ public class ItSystemAttestationController {
 	@Autowired
 	private ItSystemService itSystemService;
 
+	@Autowired
+	private SettingsService settingsService;
+
 	@GetMapping(value = "/ui/attestation/v2/itsystems/{id}")
 	@Timed("attestation.controller.mvc.it_system_attestation_controller.index.timer")
 	public String index(Model model, @PathVariable long id) {
@@ -48,6 +52,7 @@ public class ItSystemAttestationController {
 		ItSystemAttestationDTO attestation = attestationService.getAttestation(id, true);
 		model.addAttribute("itsystem", attestation);
 		model.addAttribute("totalCount", attestation.getUserRoles().size());
+		model.addAttribute("changeRequestsEnabled", settingsService.isAttestationRequestChangesEnabled());
 
 		return "attestationmodule/itsystems/attestate";
 	}

@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html>
+<head th:replace="~{fragments/header :: header (title=#{html.report.itsystems_without_attestation_responsible})}"></head>
+<body>
+<div class="wrapper">
+	<header th:replace="~{fragments/navbar :: navbar-header(subpage = 'reports')}"></header>
+	<aside th:replace="~{fragments/navbar :: navbar-aside (page = 'report.custom', subpage = 'reports')}"></aside>
+
+	<section>
+			<div class="content-wrapper">
+				<h3 th:text="#{html.report.itsystems_without_attestation}"></h3>
+				<div class="panel panel-default">
+					<div class="panel-heading"></div>
+					<div class="panel-body">
+						<table class="listTable table table-responsive table-striped">
+							<thead>
+								<tr>
+									<th class="col-md-3" th:text="#{html.entity.itsystem.name}"></th>
+									<th class="col-md-3" th:text="#{html.entity.itsystem.identifier}"></th>
+									<th class="col-md-3" th:text="#{html.entity.itsystem.type}"></th>
+									<th class="col-md-1" th:text="#{html.control.operations}"></th>
+								</tr>
+							</thead>
+
+							<tbody>
+								<tr th:each="system : ${itSystems}">
+									<td th:text="${system.name}"></td>
+									<td th:text="${system.identifier}"></td>
+									<td th:text="#{__${system.type}__}"></td>
+									<td>
+										<th:block sec:authorize="hasRole('ROLE_ADMINISTRATOR')">
+											<a th:href="@{/ui/itsystem/edit/{id}(id=${system.id})}"><em class="fa fa-pencil"></em></a>
+										</th:block>
+									</td>
+								</tr>
+							</tbody>
+						</table>
+					</div>
+				</div>
+			</div>
+	</section>
+</div>
+
+<nav th:replace="~{fragments/footer :: footer}"></nav>
+<script th:replace="~{fragments/datatables :: datatables}"></script>
+</body>
+</html>

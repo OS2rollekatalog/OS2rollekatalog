@@ -1,11 +1,16 @@
 package dk.digitalidentity.rc.config;
 
+import org.apache.hc.client5.http.config.RequestConfig;
+import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
+import org.apache.hc.client5.http.impl.classic.HttpClients;
+import org.apache.hc.client5.http.impl.io.PoolingHttpClientConnectionManagerBuilder;
+import org.apache.hc.client5.http.socket.LayeredConnectionSocketFactory;
+import org.apache.hc.client5.http.ssl.SSLConnectionSocketFactoryBuilder;
+import org.apache.hc.core5.http.io.SocketConfig;
+import org.apache.hc.core5.http.ssl.TLS;
+import org.apache.hc.core5.util.Timeout;
 import org.apache.http.client.config.CookieSpecs;
-import org.apache.http.client.config.RequestConfig;
 import org.apache.http.conn.ssl.DefaultHostnameVerifier;
-import org.apache.http.conn.ssl.SSLConnectionSocketFactory;
-import org.apache.http.impl.client.CloseableHttpClient;
-import org.apache.http.impl.client.HttpClients;
 import org.apache.http.ssl.SSLContextBuilder;
 import org.apache.http.ssl.TrustStrategy;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -23,6 +28,11 @@ import org.springframework.web.client.RestTemplate;
 
 import javax.net.ssl.SSLContext;
 import java.io.IOException;
+import java.security.KeyManagementException;
+import java.security.KeyStoreException;
+import java.security.NoSuchAlgorithmException;
+import java.security.UnrecoverableKeyException;
+import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
 import java.util.Iterator;
 
@@ -34,17 +44,22 @@ public class RestTemplateConfiguration {
 
 	@Bean(name = "defaultRestTemplate")
 	public RestTemplate defaultRestTemplate() {
-		CloseableHttpClient client = HttpClients.custom()
-				.setDefaultRequestConfig(RequestConfig.custom().setCookieSpec(CookieSpecs.STANDARD).build())
-				.build();
+		final PoolingHttpClientConnectionManagerBuilder managerBuilder = PoolingHttpClientConnectionManagerBuilder.create();
 
-		HttpComponentsClientHttpRequestFactory requestFactory = new HttpComponentsClientHttpRequestFactory();
+		final HttpComponentsClientHttpRequestFactory requestFactory = new HttpComponentsClientHttpRequestFactory();
 		requestFactory.setConnectionRequestTimeout(3 * 60 * 1000);
 		requestFactory.setConnectTimeout(3 * 60 * 1000);
-		requestFactory.setReadTimeout(3 * 60 * 1000);
-		requestFactory.setHttpClient(client);
-		
-		RestTemplate restTemplate = new RestTemplate(requestFactory);
+		managerBuilder.setDefaultSocketConfig(
+				SocketConfig.custom().setSoTimeout(Timeout.ofMinutes(3)).build()
+		);
+
+		requestFactory.setHttpClient(
+				HttpClients.custom()
+						.setDefaultRequestConfig(RequestConfig.custom().setCookieSpec(CookieSpecs.STANDARD).build())
+						.setConnectionManager(managerBuilder.build())
+						.build()
+		);
+		final RestTemplate restTemplate = new RestTemplate(requestFactory);
 		
 		// TODO: not needed once we move to our new KLE master (STS Klassifikation)
 		// remove jackson XML converter, as it does not play well with KLE XML
@@ -64,36 +79,35 @@ public class RestTemplateConfiguration {
 	
 	@Bean(name = "kspCicsRestTemplate")
 	public RestTemplate kspCicsRestTemplate() throws Exception {
-		TrustStrategy acceptingTrustStrategy = (X509Certificate[] chain, String authType) -> true;
+		final TrustStrategy acceptingTrustStrategy = (X509Certificate[] chain, String authType) -> true;
 
-		CloseableHttpClient client = null;
+		final PoolingHttpClientConnectionManagerBuilder managerBuilder = PoolingHttpClientConnectionManagerBuilder.create();
 		if (configuration.getIntegrations().getKspcics().isEnabled()) {
-			SSLContext sslContext = SSLContextBuilder.create()
+			final SSLContext sslContext = SSLContextBuilder.create()
 			                .loadKeyMaterial(
 			                		ResourceUtils.getFile(configuration.getIntegrations().getKspcics().getKeystoreLocation()),
 			                		configuration.getIntegrations().getKspcics().getKeystorePassword().toCharArray(),
 			                		configuration.getIntegrations().getKspcics().getKeystorePassword().toCharArray())
 			                .loadTrustMaterial(acceptingTrustStrategy)
 			                .build();
-			
-			client = HttpClients.custom()
-				        .setDefaultRequestConfig(RequestConfig.custom().setCookieSpec(CookieSpecs.STANDARD).build())
-						.setSSLContext(sslContext)
-						.build();			
-		}
-		else {
-			client = HttpClients.custom()
-						.setDefaultRequestConfig(RequestConfig.custom().setCookieSpec(CookieSpecs.STANDARD).build())
-						.build();
+			managerBuilder.setSSLSocketFactory(SSLConnectionSocketFactoryBuilder.create()
+					.setSslContext(sslContext)
+					.build());
 		}
 
-		HttpComponentsClientHttpRequestFactory requestFactory = new HttpComponentsClientHttpRequestFactory();
+		final HttpComponentsClientHttpRequestFactory requestFactory = new HttpComponentsClientHttpRequestFactory();
 		requestFactory.setConnectionRequestTimeout(3 * 60 * 1000);
 		requestFactory.setConnectTimeout(3 * 60 * 1000);
-		requestFactory.setReadTimeout(3 * 60 * 1000);
+		managerBuilder.setDefaultSocketConfig(
+				SocketConfig.custom().setSoTimeout(Timeout.ofMinutes(3)).build()
+		);
+		final CloseableHttpClient client = HttpClients.custom()
+				.setDefaultRequestConfig(RequestConfig.custom().setCookieSpec(CookieSpecs.STANDARD).build())
+				.setConnectionManager(managerBuilder.build())
+				.build();
 		requestFactory.setHttpClient(client);
 
-		RestTemplate restTemplate = new RestTemplate(requestFactory);
+		final RestTemplate restTemplate = new RestTemplate(requestFactory);
 		restTemplate.setErrorHandler(new ResponseErrorHandler() {
 			
 			@Override
@@ -112,42 +126,25 @@ public class RestTemplateConfiguration {
 	
 	@Bean(name = "kombitRestTemplate")
 	public RestTemplate kombitRestTemplate() throws Exception {
-		TrustStrategy acceptingTrustStrategy = (X509Certificate[] chain, String authType) -> true;
+		final TrustStrategy acceptingTrustStrategy = (X509Certificate[] chain, String authType) -> true;
+		final PoolingHttpClientConnectionManagerBuilder managerBuilder = PoolingHttpClientConnectionManagerBuilder.create();
 
-		CloseableHttpClient client = null;
 		if (configuration.getIntegrations().getKombit().isEnabled() && StringUtils.hasLength(configuration.getIntegrations().getKombit().getKeystoreLocation())) {
-			SSLContext sslContext = SSLContextBuilder.create()
-			                .loadKeyMaterial(
-			                		ResourceUtils.getFile(configuration.getIntegrations().getKombit().getKeystoreLocation()),
-			                		configuration.getIntegrations().getKombit().getKeystorePassword().toCharArray(),
-			                		configuration.getIntegrations().getKombit().getKeystorePassword().toCharArray())
-			                .loadTrustMaterial(acceptingTrustStrategy)
-			                .build();
-
-			SSLConnectionSocketFactory f = new SSLConnectionSocketFactory(sslContext, 
-				    new String[] { "TLSv1.2" },
-				    new String[] { "TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384", "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256" },
-				    new DefaultHostnameVerifier());
-			
-			client = HttpClients.custom()
-				        .setDefaultRequestConfig(RequestConfig.custom().setCookieSpec(CookieSpecs.STANDARD).build())
-				        .setSSLSocketFactory(f)
-						.build();
+			managerBuilder.setSSLSocketFactory(kombitSocketFactory(acceptingTrustStrategy));
 		}
-		else {
-			client = HttpClients.custom()
-						.setDefaultRequestConfig(RequestConfig.custom().setCookieSpec(CookieSpecs.STANDARD).build())
-						.build();
-		}
-
-		HttpComponentsClientHttpRequestFactory requestFactory = new HttpComponentsClientHttpRequestFactory();
+		final CloseableHttpClient client = HttpClients.custom()
+				.setDefaultRequestConfig(RequestConfig.custom().setCookieSpec(CookieSpecs.STANDARD).build())
+				.setConnectionManager(managerBuilder.build())
+				.build();
+		final HttpComponentsClientHttpRequestFactory requestFactory = new HttpComponentsClientHttpRequestFactory();
 		requestFactory.setConnectionRequestTimeout(3 * 60 * 1000);
 		requestFactory.setConnectTimeout(3 * 60 * 1000);
-		requestFactory.setReadTimeout(3 * 60 * 1000);
-		
+		managerBuilder.setDefaultSocketConfig(
+				SocketConfig.custom().setSoTimeout(Timeout.ofMinutes(3)).build()
+		);
 		requestFactory.setHttpClient(client);
 
-		RestTemplate restTemplate = new RestTemplate(requestFactory);
+		final RestTemplate restTemplate = new RestTemplate(requestFactory);
 		/* NOPE, not until we rewrite the usage to deal with statuscodes instead
 		restTemplate.setErrorHandler(new ResponseErrorHandler() {
 			
@@ -169,42 +166,24 @@ public class RestTemplateConfiguration {
 	
 	@Bean(name = "kombitTestRestTemplate")
 	public RestTemplate kombitTestRestTemplate() throws Exception {
-		TrustStrategy acceptingTrustStrategy = (X509Certificate[] chain, String authType) -> true;
-
-		CloseableHttpClient client = null;
+		final TrustStrategy acceptingTrustStrategy = (X509Certificate[] chain, String authType) -> true;
+		final PoolingHttpClientConnectionManagerBuilder managerBuilder = PoolingHttpClientConnectionManagerBuilder.create();
 		if (configuration.getIntegrations().getKombit().isTestEnabled() && StringUtils.hasLength(configuration.getIntegrations().getKombit().getTestKeystoreLocation())) {
-			SSLContext sslContext = SSLContextBuilder.create()
-			                .loadKeyMaterial(
-			                		ResourceUtils.getFile(configuration.getIntegrations().getKombit().getTestKeystoreLocation()),
-			                		configuration.getIntegrations().getKombit().getTestKeystorePassword().toCharArray(),
-			                		configuration.getIntegrations().getKombit().getTestKeystorePassword().toCharArray())
-			                .loadTrustMaterial(acceptingTrustStrategy)
-			                .build();
-
-			SSLConnectionSocketFactory f = new SSLConnectionSocketFactory(sslContext, 
-				    new String[] { "TLSv1.2" },
-					new String[] { "TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384", "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256" },
-					new DefaultHostnameVerifier());
-			
-			client = HttpClients.custom()
-				        .setDefaultRequestConfig(RequestConfig.custom().setCookieSpec(CookieSpecs.STANDARD).build())
-				        .setSSLSocketFactory(f)
-						.build();
-		}
-		else {
-			client = HttpClients.custom()
-						.setDefaultRequestConfig(RequestConfig.custom().setCookieSpec(CookieSpecs.STANDARD).build())
-						.build();
+			managerBuilder.setSSLSocketFactory(kombitSocketFactory(acceptingTrustStrategy));
 		}
 
-		HttpComponentsClientHttpRequestFactory requestFactory = new HttpComponentsClientHttpRequestFactory();
+		final HttpComponentsClientHttpRequestFactory requestFactory = new HttpComponentsClientHttpRequestFactory();
 		requestFactory.setConnectionRequestTimeout(3 * 60 * 1000);
 		requestFactory.setConnectTimeout(3 * 60 * 1000);
-		requestFactory.setReadTimeout(3 * 60 * 1000);
-		
-		requestFactory.setHttpClient(client);
+		managerBuilder.setDefaultSocketConfig(
+				SocketConfig.custom().setSoTimeout(Timeout.ofMinutes(3)).build()
+		);
+		requestFactory.setHttpClient(HttpClients.custom()
+				.setDefaultRequestConfig(RequestConfig.custom().setCookieSpec(CookieSpecs.STANDARD).build())
+				.setConnectionManager(managerBuilder.build())
+				.build());
 
-		RestTemplate restTemplate = new RestTemplate(requestFactory);
+		final RestTemplate restTemplate = new RestTemplate(requestFactory);
 		/* NOPE, not until we rewrite the usage to deal with statuscodes instead
 		restTemplate.setErrorHandler(new ResponseErrorHandler() {
 			
@@ -222,36 +201,35 @@ public class RestTemplateConfiguration {
 
 		return restTemplate;
 	}
-	
+
 	@Bean(name = "nemLoginRestTemplate")
 	public RestTemplate nemLoginRestTemplate() throws Exception {
-		TrustStrategy acceptingTrustStrategy = (X509Certificate[] chain, String authType) -> true;
-		CloseableHttpClient client = null;
+		final TrustStrategy acceptingTrustStrategy = (X509Certificate[] chain, String authType) -> true;
+
+		final PoolingHttpClientConnectionManagerBuilder managerBuilder = PoolingHttpClientConnectionManagerBuilder.create();
 		if (configuration.getIntegrations().getNemLogin().isEnabled() && StringUtils.hasLength(configuration.getIntegrations().getNemLogin().getKeystoreLocation()) && StringUtils.hasLength(configuration.getIntegrations().getNemLogin().getKeystorePassword())) {
-			SSLContext sslContext = SSLContextBuilder.create()
+			final SSLContext sslContext = SSLContextBuilder.create()
 			                .loadKeyMaterial(
 			                		ResourceUtils.getFile(configuration.getIntegrations().getNemLogin().getKeystoreLocation()),
 			                		configuration.getIntegrations().getNemLogin().getKeystorePassword().toCharArray(),
 			                		configuration.getIntegrations().getNemLogin().getKeystorePassword().toCharArray())
 			                .loadTrustMaterial(acceptingTrustStrategy)
 			                .build();
-			
-			client = HttpClients.custom()
-				        .setDefaultRequestConfig(RequestConfig.custom().setCookieSpec(CookieSpecs.STANDARD).build())
-						.setSSLContext(sslContext)
-						.build();			
+			managerBuilder.setSSLSocketFactory(SSLConnectionSocketFactoryBuilder.create()
+					.setSslContext(sslContext)
+					.build());
 		}
-		else {
-			client = HttpClients.custom()
-						.setDefaultRequestConfig(RequestConfig.custom().setCookieSpec(CookieSpecs.STANDARD).build())
-						.build();
-		}
-		HttpComponentsClientHttpRequestFactory requestFactory = new HttpComponentsClientHttpRequestFactory();
+		final HttpComponentsClientHttpRequestFactory requestFactory = new HttpComponentsClientHttpRequestFactory();
 		requestFactory.setConnectionRequestTimeout(3 * 60 * 1000);
 		requestFactory.setConnectTimeout(3 * 60 * 1000);
-		requestFactory.setReadTimeout(3 * 60 * 1000);
-		requestFactory.setHttpClient(client);
-		RestTemplate restTemplate = new RestTemplate(requestFactory);
+		managerBuilder.setDefaultSocketConfig(
+				SocketConfig.custom().setSoTimeout(Timeout.ofMinutes(3)).build()
+		);
+		requestFactory.setHttpClient(HttpClients.custom()
+				.setDefaultRequestConfig(RequestConfig.custom().setCookieSpec(CookieSpecs.STANDARD).build())
+				.setConnectionManager(managerBuilder.build())
+				.build());
+		final RestTemplate restTemplate = new RestTemplate(requestFactory);
 		restTemplate.setErrorHandler(new ResponseErrorHandler() {
 			
 			@Override
@@ -264,5 +242,22 @@ public class RestTemplateConfiguration {
 			}
 		});
 		return restTemplate;
+	}
+
+
+	private LayeredConnectionSocketFactory kombitSocketFactory(TrustStrategy acceptingTrustStrategy) throws NoSuchAlgorithmException, KeyManagementException, KeyStoreException, UnrecoverableKeyException, CertificateException, IOException {
+		final SSLContext sslContext = SSLContextBuilder.create()
+				.loadKeyMaterial(
+						ResourceUtils.getFile(configuration.getIntegrations().getKombit().getTestKeystoreLocation()),
+						configuration.getIntegrations().getKombit().getTestKeystorePassword().toCharArray(),
+						configuration.getIntegrations().getKombit().getTestKeystorePassword().toCharArray())
+				.loadTrustMaterial(acceptingTrustStrategy)
+				.build();
+        return SSLConnectionSocketFactoryBuilder.create()
+				.setCiphers("TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384", "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256")
+				.setSslContext(sslContext)
+				.setHostnameVerifier(new DefaultHostnameVerifier())
+				.setTlsVersions(TLS.V_1_2, TLS.V_1_3)
+				.build();
 	}
 }

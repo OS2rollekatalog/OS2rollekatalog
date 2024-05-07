@@ -24,16 +24,18 @@
                         <thead>
                             <tr>
                                 <th th:text="#{attestationmodule.html.orgunits.attestate.remarks.table.checkbox}" class="col-lg-2"></th>
-                                <th th:text="#{attestationmodule.html.orgunits.attestate.remarks.table.roleName}" class="col-lg-6"></th>
-                                <th th:text="#{attestationmodule.html.orgunits.attestate.remarks.table.roleType}" class="col-lg-4"></th>
+                                <th th:text="#{attestationmodule.html.orgunits.attestate.remarks.table.itSystem}" class="col-lg-4"></th>
+                                <th th:text="#{attestationmodule.html.orgunits.attestate.remarks.table.roleName}" class="col-lg-3"></th>
+                                <th th:text="#{attestationmodule.html.orgunits.attestate.remarks.table.roleType}" class="col-lg-3"></th>
                             </tr>
                         </thead>
 
                         <tbody>
                             <tr th:each="role : ${roleAssignments}">
                                 <td class="col-lg-2">
-                                    <input th:attr="data-id=${role.roleId},data-name=${role.roleName},data-type=${role.roleType}" type="checkbox" class="i-checks remarkCheckbox">
+                                    <input th:attr="data-id=${role.roleId},data-name=${role.roleName},data-type=${role.roleType},data-itsystemname=${role.itSystemName}" type="checkbox" class="i-checks remarkCheckbox">
                                 </td>
+                                <td th:text="${role.itSystemName}"></td>
                                 <td th:text="${role.roleName}" class="col-lg-6"></td>
                                 <td th:text="#{__${role.roleType.message}__}" class="col-lg-4"></td>
                             </tr>
@@ -105,6 +107,7 @@
                     var id = $(checkbox).data("id");
                     var name = $(checkbox).data("name");
                     var type = $(checkbox).data("type");
+                    var itSystemName = $(checkbox).data("itsystemname");
                     var checked = $(checkbox).iCheck('update')[0].checked;
 
                     if (checked) {
@@ -112,6 +115,7 @@
 							"roleId" : id,
 							"roleName" : name,
 							"roleType" : type,
+                            "itSystemName": itSystemName
 					    }
 					    notApproved.push(notApprovedObj);
                     }

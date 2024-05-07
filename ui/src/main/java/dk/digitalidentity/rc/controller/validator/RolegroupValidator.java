@@ -24,7 +24,7 @@ public class RolegroupValidator  implements Validator {
     @Override
     public void validate(Object o, Errors errors) {
         RoleGroupForm rolegroup = (RoleGroupForm) o;
-        RoleGroup alreadyExistingRoleGroup = roleGroupService.getByName(rolegroup.getName());
+        RoleGroup alreadyExistingRoleGroup = roleGroupService.getByName(rolegroup.getName()).orElse(null);
 
         if (alreadyExistingRoleGroup != null && alreadyExistingRoleGroup.getId() != rolegroup.getId()){
             errors.rejectValue("name", "html.errors.rolegroup.name.unique");

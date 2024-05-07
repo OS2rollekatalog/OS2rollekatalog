@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html>
-<head th:replace="fragments/header :: header (title=#{html.page.rolegroup.new.title})"></head>
+<head th:replace="~{fragments/header :: header (title=#{html.page.rolegroup.new.title})}"></head>
 <body>
 	<div class="wrapper">
-		<header th:replace="fragments/navbar :: navbar-header(subpage = 'roles')"></header>
-		<aside th:replace="fragments/navbar :: navbar-aside (page = 'rolegroups.new', subpage = 'roles')"></aside>
+		<header th:replace="~{fragments/navbar :: navbar-header(subpage = 'roles')}"></header>
+		<aside th:replace="~{fragments/navbar :: navbar-aside (page = 'rolegroups.new', subpage = 'roles')}"></aside>
  
 		<section>
 			<div class="content-wrapper">
@@ -18,7 +18,7 @@
 				<div class="panel panel-default">
 					<div class="panel-heading"></div>
 					<div class="panel-body">
-						<form class="form-horizontal" th:object="${rolegroup}"  method="post" th:action="@{/ui/rolegroups/new/}">
+						<form class="form-horizontal" th:object="${rolegroup}"  method="post" th:action="@{/ui/rolegroups/new}">
 							<input th:field="*{id}" type="hidden" />
 
 							<fieldset>
@@ -56,6 +56,6 @@
 	    </section>
     </div>
 
-    <nav th:replace="fragments/footer :: footer"></nav>
+    <nav th:replace="~{fragments/footer :: footer}"></nav>
 </body>
 </html>

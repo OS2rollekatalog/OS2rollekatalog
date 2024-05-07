@@ -1,13 +1,14 @@
 package dk.digitalidentity.rc.controller.mvc;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
-
-import javax.servlet.http.HttpServletRequest;
-
+import dk.digitalidentity.rc.config.SessionConstants;
+import dk.digitalidentity.rc.dao.model.Notification;
+import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.enums.NotificationType;
+import dk.digitalidentity.rc.security.RequireAssignerRole;
+import dk.digitalidentity.rc.security.SecurityUtil;
+import dk.digitalidentity.rc.service.NotificationService;
+import dk.digitalidentity.rc.service.UserService;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.MessageSource;
 import org.springframework.context.support.ResourceBundleMessageSource;
@@ -16,13 +17,10 @@ import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 
-import dk.digitalidentity.rc.config.SessionConstants;
-import dk.digitalidentity.rc.dao.model.Notification;
-import dk.digitalidentity.rc.dao.model.User;
-import dk.digitalidentity.rc.security.RequireAssignerRole;
-import dk.digitalidentity.rc.security.SecurityUtil;
-import dk.digitalidentity.rc.service.NotificationService;
-import dk.digitalidentity.rc.service.UserService;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 
 @Controller
 @RequireAssignerRole

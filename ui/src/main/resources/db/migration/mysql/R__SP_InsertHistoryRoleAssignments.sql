@@ -14,11 +14,12 @@ BEGIN
     dato, user_uuid,
     role_id, role_name, role_it_system_id, role_it_system_name, role_role_group, role_role_group_id,
     assigned_through_type, assigned_through_uuid, assigned_through_name,
-    assigned_by_user_id, assigned_by_name, assigned_when, postponed_constraints, ou_uuid, notify_by_email_if_manual_system)
+    assigned_by_user_id, assigned_by_name, assigned_when, postponed_constraints, ou_uuid, notify_by_email_if_manual_system, start_date, stop_date)
   SELECT CURRENT_TIMESTAMP, u.uuid,
     ur.id, ur.name, it.id, it.name, NULL, NULL,
     'DIRECT', NULL, NULL,
-    urm.assigned_by_user_id, urm.assigned_by_name, urm.assigned_timestamp, sub_constraints.combined_constraints, urm.ou_uuid, urm.notify_by_email_if_manual_system
+    urm.assigned_by_user_id, urm.assigned_by_name, urm.assigned_timestamp, sub_constraints.combined_constraints, urm.ou_uuid, urm.notify_by_email_if_manual_system,
+    urm.start_date, urm.stop_date
   FROM user_roles_mapping urm
   JOIN users u ON u.uuid = urm.user_uuid
   JOIN user_roles ur ON ur.id = urm.role_id
@@ -39,11 +40,11 @@ BEGIN
     dato, user_uuid,
     role_id, role_name, role_it_system_id, role_it_system_name, role_role_group, role_role_group_id,
     assigned_through_type, assigned_through_uuid, assigned_through_name,
-    assigned_by_user_id, assigned_by_name, assigned_when, ou_uuid)
+    assigned_by_user_id, assigned_by_name, assigned_when, ou_uuid, start_date, stop_date)
   SELECT CURRENT_TIMESTAMP, u.uuid,
     ur.id, ur.name, it.id, it.name, rg.name, rg.id,
     'ROLEGROUP', NULL, NULL,
-    urg.assigned_by_user_id, urg.assigned_by_name, urg.assigned_timestamp, urg.ou_uuid
+    urg.assigned_by_user_id, urg.assigned_by_name, urg.assigned_timestamp, urg.ou_uuid, urg.start_date, urg.stop_date
   FROM user_rolegroups urg
   JOIN rolegroup rg ON urg.rolegroup_id = rg.id
   JOIN users u ON u.uuid = urg.user_uuid
@@ -58,11 +59,11 @@ BEGIN
     dato, user_uuid,
     role_id, role_name, role_it_system_id, role_it_system_name, role_role_group, role_role_group_id,
     assigned_through_type, assigned_through_uuid, assigned_through_name,
-    assigned_by_user_id, assigned_by_name, assigned_when, ou_uuid)
+    assigned_by_user_id, assigned_by_name, assigned_when, ou_uuid, start_date, stop_date)
   SELECT CURRENT_TIMESTAMP, u.uuid,
     ur.id, ur.name, it.id, it.name, NULL, NULL,
     'POSITION', ou.uuid, CONCAT(p.name, ' i ', ou.name),
-    pr.assigned_by_user_id, pr.assigned_by_name, pr.assigned_timestamp, p.ou_uuid
+    pr.assigned_by_user_id, pr.assigned_by_name, pr.assigned_timestamp, p.ou_uuid, pr.start_date, pr.stop_date
   FROM position_roles pr
   JOIN positions p ON p.id = pr.position_id
   JOIN users u ON u.uuid = p.user_uuid
@@ -77,11 +78,11 @@ BEGIN
     dato, user_uuid,
     role_id, role_name, role_it_system_id, role_it_system_name, role_role_group, role_role_group_id,
     assigned_through_type, assigned_through_uuid, assigned_through_name,
-    assigned_by_user_id, assigned_by_name, assigned_when, ou_uuid)
+    assigned_by_user_id, assigned_by_name, assigned_when, ou_uuid, start_date, stop_date)
   SELECT CURRENT_TIMESTAMP, u.uuid,
     ur.id, ur.name, it.id, it.name, rg.name, rg.id,
     'POSITION', ou.uuid, CONCAT(p.name, ' i ', ou.name),
-    prg.assigned_by_user_id, prg.assigned_by_name, prg.assigned_timestamp, p.ou_uuid
+    prg.assigned_by_user_id, prg.assigned_by_name, prg.assigned_timestamp, p.ou_uuid, prg.start_date, prg.stop_date
   FROM position_rolegroups prg
   JOIN rolegroup rg ON prg.rolegroup_id = rg.id
   JOIN positions p ON p.id = prg.position_id

@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
-<head th:replace="fragments/header :: header (title=#{html.setting.title})"></head>
+<head th:replace="~{fragments/header :: header (title=#{html.setting.title})}"></head>
 <body>
 <div class="wrapper">
-    <header th:replace="fragments/navbar :: navbar-header(subpage = 'administration')"></header>
-    <aside th:replace="fragments/navbar :: navbar-aside (page = 'settings', subpage = 'administration')"></aside>
+    <header th:replace="~{fragments/navbar :: navbar-header(subpage = 'administration')}"></header>
+    <aside th:replace="~{fragments/navbar :: navbar-aside (page = 'settings', subpage = 'administration')}"></aside>
 
     <section>
         <div class="content-wrapper">
@@ -12,13 +12,6 @@
 			<div class="panel panel-default" style="padding-left: 20px; padding-right: 20px;">
 				<form id="setting-form" class="form-horizontal" method="post" th:object="${settingsForm}" th:action="@{/ui/settings}">
 					<input type="hidden" th:field="*{requestApproveEnabled}" />
-					<input type="hidden" th:field="*{scheduledAttestationEnabled}" />
-					<input type="hidden" th:field="*{adAttestationEnabled}" />
-					<input type="hidden" th:field="*{firstAttestationDate}" />
-					<select th:field="*{scheduledAttestationFilter}" multiple="multiple" class="form-control" style="display: none;">
-						<option th:each="ou : ${allOUs}" th:value="${ou.id}" th:text="${ou.text}" th:selected="${settingsForm.getScheduledAttestationFilter().contains(ou.id)}"></option>
-					</select>
-
 					<div class="panel-heading">
 						<h4 th:text="#{html.setting.general}"></h4>
 					</div>
@@ -30,7 +23,7 @@
 								<div class="col-sm-8">
 									<input th:field="*{servicedeskEmail}" class="form-control" />
 								</div>
-								<a th:replace="fragments/help :: help (title=#{html.help.servicedesk.email.title}, content=#{html.help.servicedesk.email.body})"></a>
+								<a th:replace="~{fragments/help :: help (title=#{html.help.servicedesk.email.title}, content=#{html.help.servicedesk.email.body})}"></a>
 							</div>
 						</fieldset>
 						
@@ -40,7 +33,7 @@
 								<div class="col-sm-8">
 									<input th:field="*{itSystemChangeEmail}" class="form-control" />
 								</div>
-								<a th:replace="fragments/help :: help (title=#{html.help.roleadmin.email.title}, content=#{html.help.roleadmin.email.body})"></a>
+								<a th:replace="~{fragments/help :: help (title=#{html.help.roleadmin.email.title}, content=#{html.help.roleadmin.email.body})}"></a>
 							</div>
 						</fieldset>
 					</div>
@@ -65,98 +58,7 @@
 						</fieldset>
 					</div>
 
-					<div class="panel-heading">
-						<h4 th:text="#{html.setting.attestation.scheduled}"></h4>
-					</div>
-
-					<div class="panel-body">
-						<fieldset>
-							<div class="form-group">
-								<label class="col-sm-3 control-label" th:text="#{html.setting.attestation.scheduled.enabled}"></label>
-								<div class="col-sm-1">
-									<div class="checkbox c-checkbox">
-										<label>
-											<input id="scheduled-attestation-checkbox" type="checkbox" th:attr="checked=${settingsForm.scheduledAttestationEnabled}" />
-											<span class="fa fa-check"></span>
-										</label>
-									</div>
-								</div>
-							</div>
-						</fieldset>
-						
-						<div id="scheduledAttestationSubsettings" style="display: none;">
-							<fieldset>
-								<div class="form-group">
-									<label class="col-sm-3 control-label" th:text="#{html.setting.attestation.scheduled.firstAttestation}"></label>
-									<div class="col-sm-8">
-										<div class="input-group date" id="attestationStartDate">
-											<input type="text" class="form-control"/>
-											<span class="input-group-addon">
-												<span class="fa fa-calendar"></span>
-											</span>
-										</div>
-										<ul th:if="${#fields.hasErrors('firstAttestationDate')}" class="error">
-											<li class="error" th:each="err : ${#fields.errors('firstAttestationDate')}" th:text="${err}"></li>
-										</ul>
-									</div>
-								</div>
-							</fieldset>
-							<fieldset>
-								<div class="form-group">
-									<label class="col-sm-3 control-label" th:text="#{html.setting.attestation.scheduled.interval}"></label>
-									<div class="col-sm-8">
-										<select th:field="*{scheduledAttestationInterval}" class="form-control">
-											<option th:each="interval : ${T(dk.digitalidentity.rc.dao.model.enums.CheckupIntervalEnum).values()}"
-													th:value="${interval}" th:text="#{__${interval.getMessage()}__}"
-													th:selected="${interval} == *{scheduledAttestationInterval}"></option>
-										</select>
-									</div>
-								</div>
-							</fieldset>
-							<fieldset>
-								<div class="form-group">
-									<label class="col-sm-3 control-label" th:text="#{html.setting.remove.role.email}"></label>
-									<div class="col-sm-8">
-										<input th:field="*{attestationChangeEmail}" class="form-control" />
-										<ul th:if="${#fields.hasErrors('attestationChangeEmail')}" class="error">
-											<li class="error" th:each="err : ${#fields.errors('attestationChangeEmail')}" th:text="${err}"></li>
-										</ul>
-									</div>
-									<a th:replace="fragments/help :: help (title=#{html.help.remove.role.title}, content=#{html.help.remove.role.body})"></a>
-								</div>
-							</fieldset>
-							<fieldset>
-								<div class="form-group">
-									<label class="col-sm-3 control-label" th:text="#{html.setting.attestation.scheduled.ad.enabled}"></label>
-									<div class="col-sm-1">
-										<div class="checkbox c-checkbox">
-											<label>
-												<input id="attestation-ad-checkbox" type="checkbox" th:attr="checked=${settingsForm.adAttestationEnabled}" />
-												<span class="fa fa-check"></span>
-											</label>
-										</div>
-									</div>
-								</div>
-							</fieldset>
-							<fieldset>
-								<div class="form-group">
-									<label class="col-sm-3 control-label" th:text="#{html.setting.attestation.scheduled.filter}"></label>
-
-									<div class="col-sm-8">
-										<button type="button" onclick="chooseOU()" class="btn btn-primary" th:text="#{html.setting.attestation.scheduled.pickou}"></button>
-										<br/><br/>
-										<em id="filterZeroTxt" th:style="${(#lists.size(settingsForm.scheduledAttestationFilter) > 0) ? 'display: none': ''}" th:text="'Ingen enheder fravalgt'"></em>
-										<em id="filterOneTxt" th:style="${(#lists.size(settingsForm.scheduledAttestationFilter) != 1) ? 'display: none' : ''}" th:text="'Én enhed fravalgt (og alle underliggende enheder)'"></em>
-										<em id="filterMultiTxt" th:style="${(#lists.size(settingsForm.scheduledAttestationFilter) lt 2) ? 'display: none' : ''}">
-											<span id="filterMultiValue" th:text="${#lists.size(settingsForm.scheduledAttestationFilter)}"></span>
-											<span th:text="'enheder (og alle underliggende enheder) er fravalgt'"></span>
-										</em>
-									</div>
-								</div>
-							</fieldset>
-							<div class="label label-danger col-md-offset-1 col-md-10 m-5" style="font-size: medium;   display: inline-table; line-height: initial;" th:utext="#{html.setting.attestation.scheduled.warning}"></div>
-						</div>
-					</div>
+					<hr>
 
 					<fieldset>
 						<div class="form-group">
@@ -171,31 +73,8 @@
     </section>
 </div>
 
-<div class="modal fade bd-example-modal-lg" id="modal-ou" role="dialog">
-	<div class="modal-dialog modal-lg">
-
-		<!-- Modal content-->
-		<div class="modal-content">
-			<div class="modal-header">
-				<button type="button" class="close" data-dismiss="modal">&times;</button>
-				<h4 th:text="#{html.word.search}"></h4>
-			</div>
-
-			<div class="modal-body">
-				<input class="form-control" id="ou-tree-search" style="margin-bottom: 5px;" />
-				<div id="ou-tree"></div>
-			</div>
-
-			<div class="modal-footer">
-				<button type="button" id="save" class="btn btn-primary" onclick="saveOUs()" th:text="#{html.control.button.ok}"></button>
-				<button type="button" class="btn btn-danger" data-dismiss="modal" th:text="#{html.control.button.cancel}"></button>
-			</div>
-		</div>
-	</div>
-</div>
-
-<div th:replace="fragments/footer :: footer"></div>
-<script th:replace="fragments/assignDatePicker :: content "></script>
+<div th:replace="~{fragments/footer :: footer}"></div>
+<script th:replace="~{fragments/assignDatePicker :: content}"></script>
 
 
 <style>
@@ -208,70 +87,17 @@
 		/*<![CDATA[*/
 
         /*[+
-		 var allOUs = [[${allOUs}]];
-         var selectedOUs = [[${settingsForm.scheduledAttestationFilter}]];
          var successMsg = [[#{html.setting.update.msg.success}]];
          var failedMsg = [[#{html.setting.update.msg.failed}]];
-         var firstAttestationDate = [[${settingsForm.firstAttestationDate}]];
          +]*/
-
- 		function chooseOU() {
- 			$('#modal-ou').modal('show');
- 		}
-		
-		function saveOUs(){
-			var codes = $('#ou-tree').jstree('get_selected', true);
-
-			$("#scheduledAttestationFilter").empty();
-
-			for (var i = 0; i < codes.length; i++) {
-				$("#scheduledAttestationFilter").append('<option value=\"' + codes[i].id + '\" selected="selected"> ' + codes[i].text + "</option>");
-			}
-
-			$('#filterZeroTxt').hide();
-			$('#filterOneTxt').hide();
-			$('#filterMultiTxt').hide();
-
-			if (codes.length == 0) {
-				$('#filterZeroTxt').show();
-			}
-			else if (codes.length == 1) {
-				$('#filterOneTxt').show();
-			}
-			else {
-				$('#filterMultiTxt').show();
-				$('#filterMultiValue').text(codes.length);
-			}
-			
-			$('#modal-ou').modal('hide');
-		}
 
 		$("document").ready(function() {
 			var saved = [[${saved}]];
-			
-			$("#scheduled-attestation-checkbox").change(function() {
-				$("#scheduledAttestationEnabled").val(this.checked);
-				
-				if (this.checked) {
-					$("#scheduledAttestationSubsettings").show();
-				}
-				else {
-					$("#scheduledAttestationSubsettings").hide();
-				}
-			});
-			
-			if ($("#scheduledAttestationEnabled").val() == "true") {
-				$("#scheduledAttestationSubsettings").show();
-			}
 
 			$("#requestapprove-checkbox").change(function() {
 				$("#requestApproveEnabled").val(this.checked);
 			});
 
-			$("#attestation-ad-checkbox").change(function() {
-				$("#adAttestationEnabled").val(this.checked);
-			});
-			
 			if (typeof saved != "undefined" && saved != null) {
 			    if (saved) {
                     $.notify({
@@ -289,64 +115,6 @@
                     });
                 }
             }
-			
-			// JSTree stuff
-
-	 		$('#modal-ou').on('shown.bs.modal', function() {
-	 			$('#ou-tree-search').focus();
-	 		})
-
-			$("#ou-tree").jstree({
-				"core": {
-					"data": allOUs,
-					"themes": {
-						"icons": false
-					}
-				},
-				"search" : {
-					"show_only_matches": true,
-					"search_callback": function(str, node) {
-						return (node.text.toUpperCase().startsWith(str.toUpperCase()));
-					}
-				},
-				"checkbox" : {
-					"keep_selected_style" : false,
-					"three_state": false,
-					"cascade": "undetermined"
-				},
-				"plugins" : [
-					"checkbox", "search"
-				]
-			});
-			
-			// searching in the JSTree
-			var to = false;
-			$('#ou-tree-search').keyup(function() {
-				if (to) {
-					clearTimeout(to);
-				}
-
-				to = setTimeout(function() {
-					var v = $('#ou-tree-search').val();
-
-					$('#ou-tree').jstree(true).search(v);
-				}, 400);
-			});
-			
-			// selecting in the JSTree
-			$('#ou-tree').on("ready.jstree", function(e, data) {
-				$('#ou-tree').jstree('select_node', selectedOUs);
-			});
-
-			// init datepicker
-			$('#attestationStartDate').data("DateTimePicker").date(new Date(firstAttestationDate));
-			$("#attestationStartDate").on("dp.change", function (e) {
-				if (!$('#attestationStartDate').data('date')) {
-					$('#attestationStartDate').data("DateTimePicker").date(firstAttestationDate);
-				}
-
-				$("#firstAttestationDate").val($('#attestationStartDate').data('date'));
-			});
 		});
 		
 		/*]]>*/

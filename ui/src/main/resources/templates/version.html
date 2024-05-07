@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html>
-<head th:replace="fragments/header :: header (title=#{html.page.index.title})"></head>
+<head th:replace="~{fragments/header :: header (title=#{html.page.index.title})}"></head>
 <body>
 	<div class="wrapper">
-		<header th:replace="fragments/navbar :: navbar-header"></header>
-		<aside th:replace="fragments/navbar :: navbar-aside (page = 'index')"></aside>
+		<header th:replace="~{fragments/navbar :: navbar-header}"></header>
+		<aside th:replace="~{fragments/navbar :: navbar-aside (page = 'index')}"></aside>
  
 		<section>
 			<div class="content-wrapper">
@@ -15,8 +15,10 @@
 								I anvender allerede den nyeste udgave af OS2rollekatalog.
 						</p>
 						<p th:unless="${@roleCatalogueConfiguration.checkVersion()}">
-								I anvender version <b th:text="${@roleCatalogueConfiguration.version}"></b> af OS2rollekatalog, og den nyeste udgave af OS2rollekatalog er <b th:text="${@roleCatalogueConfiguration.latestVersion}"></b>.
-								I kan med fordel få opdateret til den nyeste udgave, ved at kontakte <a href="mailto:kontakt@digital-identity.dk">Digital Identity</a> og bede dem opdatere jer til nyeste udgave.
+								I anvender version <b th:text="${@roleCatalogueConfiguration.version}"></b> af OS2rollekatalog, og den nyeste udgave af OS2rollekatalog er <b th:text="${@roleCatalogueConfiguration.latestVersion}"></b>.<br>
+							    Se liste med ændringer her: <a href="https://github.com/OS2rollekatalog/OS2rollekatalog/blob/master/Changelog.md">https://github.com/OS2rollekatalog/OS2rollekatalog/blob/master/Changelog.md</a>.<br><br>
+								I kan med fordel få opdateret til den nyeste udgave, ved at kontakte <a href="mailto:kontakt@digital-identity.dk">Digital Identity</a> og bede dem opdatere jer til nyeste udgave.<br>
+
 						</p>
 					</div>
 				</div>
@@ -24,6 +26,6 @@
 		</section>
 	</div>
 	
-	<nav th:replace="fragments/footer :: footer"></nav>
+	<nav th:replace="~{fragments/footer :: footer}"></nav>
 </body>
 </html>

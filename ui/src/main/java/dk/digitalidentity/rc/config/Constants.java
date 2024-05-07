@@ -6,6 +6,7 @@ public class Constants {
 	// Spring Security constants
 	public static final String ROLE_ATTESTATION_ADMINISTRATOR = "ROLE_ATTESTATION_ADMINISTRATOR";
 	public static final String ROLE_ADMINISTRATOR = "ROLE_ADMINISTRATOR";
+	public static final String ROLE_REPORT_ACCESS = "ROLE_REPORT_ACCESS";
 	public static final String ROLE_ASSIGNER = "ROLE_ASSIGNER";
 	public static final String ROLE_READ_ACCESS = "ROLE_READ_ACCESS";
 	public static final String ROLE_KLE_ADMINISTRATOR = "ROLE_KLE_ADMINISTRATOR";
@@ -22,6 +23,7 @@ public class Constants {
 	public static final String ROLE_READ_ACCESS_ID = "http://rollekatalog.dk/readaccess";
 	public static final String ROLE_KLE_ADMINISTRATOR_ID = "http://rollekatalog.dk/kleadmin";
 	public static final String ROLE_ATTESTATION_ADMINISTRATOR_ID = "http://rollekatalog.dk/attestationadmin";
+	public static final String ROLE_REPORT_ACCESS_ID = "http://rollekatalog.dk/reportaccess";
 
 	// KOMBIT ID's for special constraints handled by the UI
 	public static final String KLE_CONSTRAINT_ENTITY_ID = "http://sts.kombit.dk/constraints/KLE/1";

@@ -40,6 +40,8 @@ import dk.digitalidentity.rc.service.model.AssignedThrough;
 import dk.digitalidentity.rc.service.model.RoleAssignmentType;
 import dk.digitalidentity.rc.service.model.RoleGroupAssignedToUser;
 import dk.digitalidentity.rc.service.model.UserRoleAssignedToUser;
+import jakarta.persistence.criteria.Predicate;
+import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -61,8 +63,6 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.RestController;
 
-import javax.persistence.criteria.Predicate;
-import javax.validation.Valid;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.HashSet;

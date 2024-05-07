@@ -9,7 +9,8 @@ public enum ReportType {
 	USER_ROLE_WITH_SENSITIVE_FLAG("html.report.user_roles_with_sensitive_flag"),
 	USERS_WITH_DUPLICATE_USERROLE_ASSIGNMENTS("html.report.users_with_duplicate_userrole_assignments"),
 	USERS_WITH_DUPLICATE_ROLEGROUP_ASSIGNMENTS("html.report.users_with_duplicate_rolegroup_assignments"),
-	ITSYSTEMS_WITHOUT_ATTESTATION_RESPONSIBLE("html.report.itsystems_without_attestation_responsible");
+	ITSYSTEMS_WITHOUT_ATTESTATION_RESPONSIBLE("html.report.itsystems_without_attestation_responsible"),
+	ITSYSTEMS_WITHOUT_ATTESTATION("html.report.itsystems_without_attestation");
 
 	private String title;
 

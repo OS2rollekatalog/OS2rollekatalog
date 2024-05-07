@@ -1,140 +1,266 @@
 package dk.digitalidentity.rc.controller.api.v2;
 
+import dk.digitalidentity.rc.controller.api.exception.BadRequestException;
+import dk.digitalidentity.rc.controller.api.mapper.RoleMapper;
+import dk.digitalidentity.rc.controller.api.mapper.UserMapper;
+import dk.digitalidentity.rc.controller.api.model.ExceptionResponseAM;
+import dk.digitalidentity.rc.controller.api.model.SystemRoleAssignmentAM;
+import dk.digitalidentity.rc.controller.api.model.UserAM2;
+import dk.digitalidentity.rc.controller.api.model.UserRoleAM;
+import dk.digitalidentity.rc.dao.model.ItSystem;
+import dk.digitalidentity.rc.dao.model.SystemRole;
+import dk.digitalidentity.rc.dao.model.SystemRoleAssignment;
 import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserRole;
 import dk.digitalidentity.rc.security.RequireApiReadAccessRole;
+import dk.digitalidentity.rc.security.RequireApiRoleManagementRole;
+import dk.digitalidentity.rc.service.ItSystemService;
+import dk.digitalidentity.rc.service.SystemRoleService;
 import dk.digitalidentity.rc.service.UserRoleService;
 import dk.digitalidentity.rc.service.UserService;
 import dk.digitalidentity.rc.service.model.UserWithRole;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
-import org.springframework.beans.factory.annotation.Autowired;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Date;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @RestController
 @RequireApiReadAccessRole
 @SecurityRequirement(name = "ApiKey")
+@RequiredArgsConstructor
+@Tag(name = "User-role API V2")
 public class UserRoleApiV2 {
+	private final UserRoleService userRoleService;
+	private final UserService userService;
+	private final ItSystemService itSystemService;
+	private final SystemRoleService systemRoleService;
 
-	@Autowired
-	private UserRoleService userRoleService;
 
-	@Autowired
-	private UserService userService;
-	
-	record UserRoleRecord(@Schema(description = "") long id,
-			@Schema(description = "") String name,
-			@Schema(description = "") String identifier,
-			@Schema(description = "") String description,
-			@Schema(description = "") String delegatedFromCvr,
-			@Schema(description = "") boolean userOnly,
-			@Schema(description = "") boolean canRequest,
-			@Schema(description = "") boolean sensitiveRole) {
-	}
-	
 	@ApiResponses(value = {
 			@ApiResponse(responseCode = "200", description = "Returns a list of all userroles."),
-			@ApiResponse(responseCode = "404", description ="No userroles were found.")
+			@ApiResponse(responseCode = "500", description = "Internal Server Error", content =
+					{ @Content(mediaType = "application/json", schema = @Schema(implementation = ExceptionResponseAM.class)) })
 			
 	})
 	@Operation(summary = "Get all userroles.", description = "Returns all the userroles that exist.")
 	@GetMapping("/api/v2/userrole")
-	public ResponseEntity<List<UserRoleRecord>> getAllUserRoles(){		
-		List<UserRoleRecord> result = new ArrayList<>();
+	public ResponseEntity<List<UserRoleAM>> getAllUserRoles() {
+		List<UserRoleAM> result = new ArrayList<>();
 		List<UserRole> userRoles = userRoleService.getAll();
-		
-		if (userRoles == null) {
-			return new ResponseEntity<>(HttpStatus.NOT_FOUND);
-		}
-		
 		for (UserRole userRole : userRoles) {
-			result.add(new UserRoleRecord(	userRole.getId(),userRole.getName(),userRole.getIdentifier(),
-											userRole.getIdentifier(), userRole.getDelegatedFromCvr(),
-											userRole.isUserOnly(),
-											userRole.isCanRequest(),userRole.isSensitiveRole()));
+			result.add(RoleMapper.toApi(userRole));
 		}
-
 		return new ResponseEntity<>(result,HttpStatus.OK);
 	}
-	
-	@ApiResponses(value = { @ApiResponse(responseCode = "200", description = "Returns userrole by id."),
-			@ApiResponse(responseCode = "404", description = "userrole not found.") })
-	@Operation(summary = "Get userrole by ID.", description = "Returns the userrole for the specified ID.")
+
+	@ApiResponses(value = {
+			@ApiResponse(responseCode = "200", description = "Returns userrole by id."),
+			@ApiResponse(responseCode = "404", description = "Userrole not found", content =
+					{@Content(mediaType = "application/json", schema = @Schema(implementation = ExceptionResponseAM.class))}),
+			@ApiResponse(responseCode = "500", description = "Internal Server Error", content =
+					{ @Content(mediaType = "application/json", schema = @Schema(implementation = ExceptionResponseAM.class)) })
+	})
+	@Operation(summary = "Get userrole by ID.")
 	@GetMapping("/api/v2/userrole/{id}")
-	public ResponseEntity<UserRoleRecord> getUserRole(@Parameter(description = "The unique ID for userrole.", example="1") @PathVariable("id")long id) {
-		UserRoleRecord result;
-		UserRole userRole = userRoleService.getById(id);
-		
-		if (userRole == null) {
-			return new ResponseEntity<>(HttpStatus.NOT_FOUND);
-		}
-		
-		result = new UserRoleRecord(userRole.getId(),userRole.getName(),userRole.getIdentifier(),
-											userRole.getIdentifier(), userRole.getDelegatedFromCvr(),
-											userRole.isUserOnly(),
-											userRole.isCanRequest(),userRole.isSensitiveRole());
-
-		return new ResponseEntity<>(result,HttpStatus.OK);
+	public ResponseEntity<UserRoleAM> getUserRole(@Parameter(description = "The unique ID for userrole.", example="1", required = true) @PathVariable("id") long id) {
+		final UserRole userRole = userRoleService.getOptionalById(id)
+				.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
+		return new ResponseEntity<>(RoleMapper.toApi(userRole),HttpStatus.OK);
 	}
-	
-	record UserRecord(@Schema(description = "ID of user") String userId,
-			@Schema(description = "Name of user") String name,
-			@Schema(description = "Extern ID") String extId
-
-	) {}
 	
 	@ApiResponses(value = {
 			@ApiResponse(responseCode = "200", description = "All users with the specified userrole "),
-			@ApiResponse(responseCode = "404", description = "No users found") })
-	@Operation(summary = "Get all users with userrole by id")
+			@ApiResponse(responseCode = "404", description = "Userrole not found", content =
+					{ @Content(mediaType = "application/json", schema = @Schema(implementation = ExceptionResponseAM.class)) }),
+			@ApiResponse(responseCode = "500", description = "Internal Server Error", content =
+					{ @Content(mediaType = "application/json", schema = @Schema(implementation = ExceptionResponseAM.class)) })
+	})
+	@Operation(summary = "Get all users with userrole id")
 	@GetMapping(value = "/api/v2/userrole/{id}/users")
-	public ResponseEntity<List<UserRecord>> getUsersWithRole(@Parameter(description = "Unique ID for the userrole.", example = "1") @PathVariable("id")long id) {
-		List<User> users = getAllUsersWithRoleById(id);
-		if (users == null) {
-			return new ResponseEntity<>(HttpStatus.NOT_FOUND);
-		}
-		
-		List<UserRecord> result = new ArrayList<>();
-		for (User user : users) {
-			result.add(new UserRecord(user.getUserId(),user.getName(),user.getExtUuid()));
-		}
- 		
+	public ResponseEntity<List<UserAM2>> getUsersWithRole(@Parameter(description = "Unique ID for the userrole.", example = "1") @PathVariable("id")long id) {
+		final List<UserAM2> result = getAllUsersWithRoleById(id).stream()
+				.map(UserMapper::toApi)
+				.collect(Collectors.toList());
 		return new ResponseEntity<>(result,HttpStatus.OK);
 	}
-	
+
+	@ApiResponses(value = {
+			@ApiResponse(responseCode = "204", description = "Userrole was deleted"),
+			@ApiResponse(responseCode = "404", description = "Userrole not found", content =
+					{ @Content(mediaType = "application/json", schema = @Schema(implementation = ExceptionResponseAM.class)) }),
+			@ApiResponse(responseCode = "500", description = "Internal Server Error", content =
+					{ @Content(mediaType = "application/json", schema = @Schema(implementation = ExceptionResponseAM.class)) })
+	})
+	@Operation(summary = "Deletes userrole with the associated id")
+	@DeleteMapping(value = "/api/v2/userrole/{id}")
+	@RequireApiRoleManagementRole
+	@Transactional
+	public ResponseEntity<?> deleteRole(@Parameter(description = "Unique ID for the userrole.", example = "1") @PathVariable long id) {
+		UserRole userRole = userRoleService.getOptionalById(id)
+				.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
+		userRoleService.delete(userRole);
+		return new ResponseEntity<>(HttpStatus.NO_CONTENT);
+
+	}
+
+	@ApiResponses(value = {
+			@ApiResponse(responseCode = "200", description = "UserRole was successfully updated"),
+			@ApiResponse(responseCode = "400", description = "Requestbody was not in expected format", content =
+					{ @Content(mediaType = "application/json", schema = @Schema(implementation = ExceptionResponseAM.class)) }),
+			@ApiResponse(responseCode = "409", description = "The ID in the requestbody did not match that of they url.", content =
+					{ @Content(mediaType = "application/json", schema = @Schema(implementation = ExceptionResponseAM.class)) }),
+			@ApiResponse(responseCode = "404", description = "Userrole or it-system not found", content =
+					{ @Content(mediaType = "application/json", schema = @Schema(implementation = ExceptionResponseAM.class)) }),
+			@ApiResponse(responseCode = "500", description = "Internal Server Error", content =
+					{ @Content(mediaType = "application/json", schema = @Schema(implementation = ExceptionResponseAM.class)) })
+	})
+	@Operation(summary = "Update a userrole with the data specified in the requestbody, does not support partial update, all values should be included")
+	@PutMapping(value = "/api/v2/userrole/{id}")
+	@RequireApiRoleManagementRole
+	@Transactional
+	public ResponseEntity<?> updateRole(@PathVariable("id") final long roleId,
+										@RequestBody @Valid UserRoleAM userRoleDTO) {
+		if (userRoleDTO.getId() != null && userRoleDTO.getId() != roleId) {
+			throw new ResponseStatusException(HttpStatus.CONFLICT, "Id mismatch");
+		}
+		UserRole userRole = userRoleService.getOptionalById(roleId)
+				.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
+		ItSystem itSystem = itSystemService.getOptionalById(userRoleDTO.getItSystemId())
+				.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "It System was not found"));
+		validateUserRoleRequest(itSystem, userRoleDTO);
+
+		setUserRoleProperties(userRoleDTO, itSystem, userRole);
+
+		userRoleService.save(userRole);
+		return new ResponseEntity<>(HttpStatus.OK);
+	}
+
+	@ApiResponses(value = {
+			@ApiResponse(responseCode = "201", description = "Successfully created new UserRole"),
+			@ApiResponse(responseCode = "400", description = "Requestbody was not in expected format", content =
+					{ @Content(mediaType = "application/json", schema = @Schema(implementation = ExceptionResponseAM.class)) }),
+			@ApiResponse(responseCode = "404", description = "It-system not found", content =
+					{ @Content(mediaType = "application/json", schema = @Schema(implementation = ExceptionResponseAM.class)) }),
+			@ApiResponse(responseCode = "500", description = "Internal Server Error", content =
+					{ @Content(mediaType = "application/json", schema = @Schema(implementation = ExceptionResponseAM.class)) })
+	})
+	@Operation(summary = "Creates a userrole with the data specified in the requestbody")
+	@PostMapping(value = "/api/v2/userrole")
+	@RequireApiRoleManagementRole
+	@Transactional
+	public ResponseEntity<UserRoleAM> createRole(@RequestBody @Valid UserRoleAM userRoleDTO) {
+		ItSystem itSystem = itSystemService.getOptionalById(userRoleDTO.getItSystemId())
+				.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "It System was not found"));
+		validateUserRoleRequest(itSystem, userRoleDTO);
+
+		final UserRole userRole = setUserRoleProperties(userRoleDTO, itSystem, new UserRole());
+		final UserRole result = userRoleService.save(userRole);
+		return new ResponseEntity<>(RoleMapper.toApi(result), HttpStatus.CREATED);
+	}
+
+	private void validateUserRoleRequest(final ItSystem itSystem, final UserRoleAM userRoleDTO) {
+		if (userRoleDTO.getSystemRoleAssignments() == null) {
+			return;
+		}
+		userRoleDTO.getSystemRoleAssignments().stream()
+				.map(systemRoleAssignmentApiDTO -> systemRoleService.getOptionalById(systemRoleAssignmentApiDTO.getSystemRoleId())
+                        .orElseThrow(() -> new BadRequestException("System role not found")))
+				.forEach(s -> {
+					if (s.getItSystem().getId() != itSystem.getId()) {
+						throw new BadRequestException("Can only add system roles from same it-system");
+					}
+				});
+	}
+
+	private UserRole setUserRoleProperties(final UserRoleAM userRoleAM, final ItSystem itSystem, final UserRole target) {
+		final Set<Long> currentSystemRoleIds = target.getSystemRoleAssignments() != null
+				? target.getSystemRoleAssignments().stream()
+						.map(sa -> sa.getSystemRole().getId())
+						.collect(Collectors.toSet())
+				: Collections.emptySet();
+		final Set<Long> wanedSystemRoleIds = userRoleAM.getSystemRoleAssignments() != null
+				? userRoleAM.getSystemRoleAssignments().stream().map(SystemRoleAssignmentAM::getSystemRoleId).collect(Collectors.toSet())
+				: Collections.emptySet();
+		final Set<Long> toRemove = new HashSet<>(currentSystemRoleIds);
+		toRemove.removeAll(wanedSystemRoleIds);
+		final Set<Long> toAdd = new HashSet<>(wanedSystemRoleIds);
+		toAdd.removeAll(currentSystemRoleIds);
+		toRemove.stream()
+				.map(systemId -> target.getSystemRoleAssignments().stream()
+						.filter(a -> systemId.equals(a.getSystemRole().getId()))
+						.findFirst()
+						.orElse(null)
+				)
+				.filter(Objects::nonNull)
+				.forEach(systemRoleAssignment -> userRoleService.removeSystemRoleAssignment(target, systemRoleAssignment));
+		toAdd.forEach(systemRoleId -> userRoleService.addSystemRoleAssignment(target, createAssignment(target, systemRoleId)));
+		target.setName(userRoleAM.getName());
+		target.setIdentifier(userRoleAM.getIdentifier());
+		target.setDescription(userRoleAM.getDescription());
+		target.setDelegatedFromCvr(userRoleAM.getDelegatedFromCvr());
+		target.setUserOnly(userRoleAM.isUserOnly());
+		target.setCanRequest(userRoleAM.isCanRequest());
+		target.setSensitiveRole(userRoleAM.isSensitiveRole());
+		target.setItSystem(itSystem);
+
+		return target;
+	}
+
+	private SystemRoleAssignment createAssignment(UserRole userRole, Long systemRoleId) {
+		SystemRole systemRole = systemRoleService.getOptionalById(systemRoleId)
+				.orElseThrow(() -> new BadRequestException("System role noget found"));
+		SystemRoleAssignment systemRoleAssignment = new SystemRoleAssignment();
+		systemRoleAssignment.setAssignedByName("Systembruger");
+		systemRoleAssignment.setAssignedByUserId("Systembruger");
+		systemRoleAssignment.setAssignedTimestamp(new Date());
+		systemRoleAssignment.setSystemRole(systemRole);
+		systemRoleAssignment.setUserRole(userRole);
+		systemRoleAssignment.setConstraintValues(new ArrayList<>());
+		return systemRoleAssignment;
+	}
+
 	private List<User> getAllUsersWithRoleById(long id) {
 		List<User> users = new ArrayList<>();
-
-		UserRole userRole = userRoleService.getById(id);
-		if (userRole == null) {
-			return users;
-		}
-		
+		UserRole userRole = userRoleService.getOptionalById(id)
+				.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User role not found"));
 		List<UserWithRole> usersWithRole = userService.getUsersWithUserRole(userRole, true);
-
 		for (UserWithRole userWithRole : usersWithRole) {
 			if (userWithRole.getUser().isDeleted() || userWithRole.getUser().isDisabled()) {
 				continue;
 			}
-
-			// mere nøjagtigt tjek - Andreas
 			if (users.stream().noneMatch(u -> Objects.equals(u.getUuid(), userWithRole.getUser().getUuid()))) {
 				users.add(userWithRole.getUser());
 			}
 		}
-
 		return users;
 	}
+
+
+
 }

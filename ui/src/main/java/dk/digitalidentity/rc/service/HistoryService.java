@@ -1,5 +1,6 @@
 package dk.digitalidentity.rc.service;
 
+import dk.digitalidentity.rc.dao.history.HistoryDateDao;
 import dk.digitalidentity.rc.dao.history.HistoryItSystemDao;
 import dk.digitalidentity.rc.dao.history.HistoryKleAssignmentDao;
 import dk.digitalidentity.rc.dao.history.HistoryManagerDao;
@@ -11,6 +12,7 @@ import dk.digitalidentity.rc.dao.history.HistoryOURoleAssignmentWithTitlesDao;
 import dk.digitalidentity.rc.dao.history.HistoryRoleAssignmentDao;
 import dk.digitalidentity.rc.dao.history.HistoryTitleDao;
 import dk.digitalidentity.rc.dao.history.HistoryUserDao;
+import dk.digitalidentity.rc.dao.history.model.HistoryDate;
 import dk.digitalidentity.rc.dao.history.model.HistoryItSystem;
 import dk.digitalidentity.rc.dao.history.model.HistoryKleAssignment;
 import dk.digitalidentity.rc.dao.history.model.HistoryManager;
@@ -73,6 +75,9 @@ public class HistoryService {
 	private HistoryOURoleAssignmentWithTitlesDao historyOURoleAssignmentWithTitlesDao;
 
 	@Autowired
+	private HistoryDateDao historyDateDao;
+
+	@Autowired
 	private JdbcTemplate jdbcTemplate;
 
 	@Value("${spring.datasource.url:}")
@@ -84,7 +89,7 @@ public class HistoryService {
 	 * There is no real good way of doing that atm. so just check if there is any users at current date.
 	 */
 	public boolean hasHistoryBeenGenerated(final LocalDate date) {
-		return historyUserDao.countByDato(date) > 0;
+		return historyDateDao.findById(date).isPresent();
 	}
 
 	public List<HistoryManager> getManagers(LocalDate localDate) {
@@ -268,6 +273,19 @@ public class HistoryService {
 		else {
 			jdbcTemplate.update("CALL SP_InsertHistoryOURoleAssignmentsWithExceptions();");
 		}
+	}
+
+	public LocalDate lastGeneratedDate() {
+		return historyDateDao.findFirstByOrderByDatoDesc()
+				.map(HistoryDate::getDato)
+				.orElse(LocalDate.EPOCH);
+	}
+
+	@Transactional
+	public void generateDate() {
+		final HistoryDate dato = new HistoryDate();
+		dato.setDato(LocalDate.now());
+		historyDateDao.save(dato);
 	}
 
 	@Transactional

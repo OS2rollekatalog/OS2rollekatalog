@@ -1,12 +1,12 @@
 package dk.digitalidentity.rc.controller.api;
 
-import java.util.List;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.stream.Collectors;
-
-import javax.validation.Valid;
-
+import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
+import dk.digitalidentity.rc.controller.api.dto.TitleDTO;
+import dk.digitalidentity.rc.dao.model.Title;
+import dk.digitalidentity.rc.security.RequireApiOrganisationRole;
+import dk.digitalidentity.rc.service.TitleService;
+import jakarta.validation.Valid;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -16,12 +16,10 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RestController;
 
-import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
-import dk.digitalidentity.rc.controller.api.dto.TitleDTO;
-import dk.digitalidentity.rc.dao.model.Title;
-import dk.digitalidentity.rc.security.RequireApiOrganisationRole;
-import dk.digitalidentity.rc.service.TitleService;
-import lombok.extern.slf4j.Slf4j;
+import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.stream.Collectors;
 
 @RequireApiOrganisationRole
 @Slf4j

@@ -1,22 +1,10 @@
 package dk.digitalidentity.rc.service;
 
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
-import java.util.stream.Collectors;
-
-import javax.transaction.Transactional;
-
-import dk.digitalidentity.rc.dao.model.Domain;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Service;
-
 import dk.digitalidentity.rc.dao.DirtyADGroupDao;
 import dk.digitalidentity.rc.dao.PendingADGroupOperationDao;
 import dk.digitalidentity.rc.dao.SystemRoleDao;
 import dk.digitalidentity.rc.dao.model.DirtyADGroup;
+import dk.digitalidentity.rc.dao.model.Domain;
 import dk.digitalidentity.rc.dao.model.ItSystem;
 import dk.digitalidentity.rc.dao.model.PendingADGroupOperation;
 import dk.digitalidentity.rc.dao.model.Position;
@@ -25,6 +13,16 @@ import dk.digitalidentity.rc.dao.model.SystemRole;
 import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserRole;
 import dk.digitalidentity.rc.dao.model.enums.ItSystemType;
+import jakarta.transaction.Transactional;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Service
 public class PendingADUpdateService {

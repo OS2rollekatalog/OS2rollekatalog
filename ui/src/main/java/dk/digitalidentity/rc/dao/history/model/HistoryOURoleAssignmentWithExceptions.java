@@ -1,14 +1,14 @@
 package dk.digitalidentity.rc.dao.history.model;
 
 import dk.digitalidentity.rc.config.StringListConverter;
+import jakarta.persistence.Column;
+import jakarta.persistence.Convert;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.Setter;
 
-import javax.persistence.Column;
-import javax.persistence.Convert;
-import javax.persistence.Entity;
-import javax.persistence.Id;
-import javax.persistence.Table;
 import java.time.LocalDate;
 import java.util.Date;
 import java.util.List;
@@ -58,4 +58,9 @@ public class HistoryOURoleAssignmentWithExceptions {
 	
 	@Column
 	private Date assignedWhen;
+
+	@Column
+	private LocalDate startDate;
+	@Column
+	private LocalDate stopDate;
 }

@@ -1,13 +1,12 @@
 package dk.digitalidentity.rc.config;
 
-import javax.sql.DataSource;
-
+import dk.digitalidentity.rc.security.ExtendedUserDetailsManager;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.core.userdetails.UserDetailsService;
 
-import dk.digitalidentity.rc.security.ExtendedUserDetailsManager;
+import javax.sql.DataSource;
 
 @Configuration
 public class DaoBasedWebSecurityConfiguration {

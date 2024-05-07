@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html>
-<head th:replace="fragments/header :: header (title=#{html.page.rolegroup.edit.title})"></head>
+<head th:replace="~{fragments/header :: header (title=#{html.page.rolegroup.edit.title})}"></head>
 <body>
 <div class="wrapper">
-    <header th:replace="fragments/navbar :: navbar-header(subpage = 'roles')"></header>
-    <aside th:replace="fragments/navbar :: navbar-aside (page = 'rolegroups.list', subpage = 'roles')"></aside>
+    <header th:replace="~{fragments/navbar :: navbar-header(subpage = 'roles')}"></header>
+    <aside th:replace="~{fragments/navbar :: navbar-aside (page = 'rolegroups.list', subpage = 'roles')}"></aside>
     <section>
         <div class="content-wrapper">
             <h3>
@@ -137,15 +137,15 @@
 	<div id="userRoleGroupModal"></div>
 	<div id="ouRoleGroupModal"></div>
 	<div id="ouRoleGroupEditModal"></div>
-	<div th:replace="users/fragments/role_assignment_edit_modal :: roleAssignmentEditModal"></div>
-	<nav th:replace="fragments/footer :: footer"></nav>
+	<div th:replace="~{users/fragments/role_assignment_edit_modal :: roleAssignmentEditModal}"></div>
+	<nav th:replace="~{fragments/footer :: footer}"></nav>
 	
-	<script th:replace="fragments/datatables :: datatables(orderColumnValue=1) "></script>
-	<script th:replace="fragments/assignDatePicker :: content "></script>
+	<script th:replace="~{fragments/datatables :: datatables(orderColumnValue=1)}"></script>
+	<script th:replace="~{fragments/assignDatePicker :: content}"></script>
 	
-	<script th:replace="ous/fragments/ou_roles_modal :: ouRolesModalScript(titlesEnabled=${titlesEnabled})"></script>
-	<script th:replace="users/fragments/role_assignment_edit_modal :: roleAssignmentEditModalScript(missingPostponedConstraintService = true)"></script>
-	<script th:replace="users/fragments/user_role_group_modal :: userRoleGroupModalScript"></script>
+	<script th:replace="~{ous/fragments/ou_roles_modal :: ouRolesModalScript(titlesEnabled=${titlesEnabled})}"></script>
+	<script th:replace="~{users/fragments/role_assignment_edit_modal :: roleAssignmentEditModalScript(missingPostponedConstraintService = true)}"></script>
+	<script th:replace="~{users/fragments/user_role_group_modal :: userRoleGroupModalScript}"></script>
 
 	<script th:inline="javascript">
 		/*<![CDATA[*/
@@ -191,6 +191,7 @@
 				$("#description").change(handleChangeOnInput);
 				
 				$('.useronly-checkbox').change(flagCheckboxChange);
+				$('.useronly-checkbox').change(handleOUBtn);
 				$('.canrequest-checkbox').change(flagCheckboxChange);
 				
 				function addCheckboxListeners() {
@@ -222,13 +223,7 @@
 				            'X-CSRF-TOKEN': token
 				        },
 						data: roleGroup,
-						error: function(response) {
-							if (response.responseText != null) {
-								notificationService.showErrorNotification(response.responseText);
-							} else {
-								notificationService.showErrorNotification(fieldNotUpdatedMsg);
-							}
-		    			},
+						error: errorHandler(fieldNotUpdatedMsg),
 		    			success: function(response) {
 		    				notificationService.showInfoNotification(fieldUpdatedMsg);
 		    			}
@@ -242,9 +237,7 @@
 				        headers: {
 				            'X-CSRF-TOKEN': token
 				        },
-		    			error: function(response) {
-							notificationService.showErrorNotification(errorMsg);
-		    			},
+		    			error: errorHandler(errorMsg),
 		    			success: function(response) {
 		    				notificationService.showInfoNotification(okMsg);
 		    			}
@@ -282,13 +275,15 @@
 						headers: {
 							'X-CSRF-TOKEN': token
 						},
-						error: function(response) {
-							notificationService.showErrorNotification(response.responseText);
-						},
+						error: defaultErrorHandler,
 						success: function(response) {	
 		    				notificationService.showInfoNotification(fieldUpdatedMsg);
 						}
 					});
+				}
+
+				function handleOUBtn() {
+					orgUnitService.loadRolesFragment();
 				}
 			});
 			
@@ -347,9 +342,7 @@
 								headers: {
 									'X-CSRF-TOKEN': token
 								},
-								error: function(response) {
-									notificationService.showErrorNotification(deleteRoleAssignmentErrorMessage);
-								},
+								error: errorHandler(deleteRoleAssignmentErrorMessage),
 								success: function(response) {
 									userService.loadRolesFragment();
 									
@@ -457,9 +450,7 @@
 								headers: {
 									'X-CSRF-TOKEN': token
 								},
-								error: function(response) {
-									notificationService.showErrorNotification(deleteRoleAssignmentErrorMessage);
-								},
+								error: errorHandler(deleteRoleAssignmentErrorMessage),
 								success: function(response) {
 									orgUnitService.loadRolesFragment();
 									

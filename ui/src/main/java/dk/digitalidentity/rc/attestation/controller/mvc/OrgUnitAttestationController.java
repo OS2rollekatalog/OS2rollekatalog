@@ -56,6 +56,7 @@ public class OrgUnitAttestationController {
 		model.addAttribute("totalCount", attestation.getUserAttestations().size());
 		model.addAttribute("adAttestationEnabled", settingsService.isADAttestationEnabled());
 		model.addAttribute("orgUnitTotalCount", calculateOrgUnitCount(attestation));
+		model.addAttribute("changeRequestsEnabled", settingsService.isAttestationRequestChangesEnabled());
 
 		return "attestationmodule/orgunits/attestate";
 	}

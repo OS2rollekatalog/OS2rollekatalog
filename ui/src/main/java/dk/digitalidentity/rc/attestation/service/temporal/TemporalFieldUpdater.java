@@ -1,9 +1,9 @@
 package dk.digitalidentity.rc.attestation.service.temporal;
 
 import dk.digitalidentity.rc.attestation.annotation.PartOfNaturalKey;
-import org.apache.commons.lang.StringUtils;
+import jakarta.persistence.Id;
+import org.apache.commons.lang3.StringUtils;
 
-import javax.persistence.Id;
 import java.lang.reflect.Field;
 
 public abstract class TemporalFieldUpdater {

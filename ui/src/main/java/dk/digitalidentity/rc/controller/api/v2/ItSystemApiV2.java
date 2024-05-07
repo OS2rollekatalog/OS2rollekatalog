@@ -1,16 +1,7 @@
 package dk.digitalidentity.rc.controller.api.v2;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Objects;
-
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RestController;
-
+import dk.digitalidentity.rc.controller.api.mapper.RoleMapper;
+import dk.digitalidentity.rc.controller.api.model.UserRoleAM;
 import dk.digitalidentity.rc.dao.model.ItSystem;
 import dk.digitalidentity.rc.dao.model.SystemRole;
 import dk.digitalidentity.rc.dao.model.User;
@@ -18,6 +9,7 @@ import dk.digitalidentity.rc.dao.model.UserRole;
 import dk.digitalidentity.rc.dao.model.enums.ItSystemType;
 import dk.digitalidentity.rc.security.RequireApiItSystemRole;
 import dk.digitalidentity.rc.service.ItSystemService;
+import dk.digitalidentity.rc.service.PendingADUpdateService;
 import dk.digitalidentity.rc.service.SystemRoleService;
 import dk.digitalidentity.rc.service.UserRoleService;
 import dk.digitalidentity.rc.service.UserService;
@@ -28,10 +20,25 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.server.ResponseStatusException;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Objects;
+import java.util.stream.Collectors;
 
 @RestController
 @RequireApiItSystemRole
 @SecurityRequirement(name = "ApiKey")
+@Tag(name = "IT-system API V2")
 public class ItSystemApiV2 {
 
 	@Autowired
@@ -46,6 +53,10 @@ public class ItSystemApiV2 {
 	@Autowired
 	private UserService userService;
 
+	@Autowired
+	private PendingADUpdateService pendingADUpdateService;
+
+	@Schema(name = "ItSystem")
 	record ItSystemRecord(@Schema(description = "Unique ID for the it-system") long id,
 			@Schema(description = "Name of the it-system") String name,
 			@Schema(description = "Technical ID key for the it-system (not always unique)") String identifier,
@@ -101,49 +112,38 @@ public class ItSystemApiV2 {
 		return new ResponseEntity<>(result, HttpStatus.OK);
 	}
 
-	record userRoleRecord(@Schema(description = "Unique ID for the userrole ") long id,
-			@Schema(description = "Name of the userrole") String name,
-			@Schema(description = "Unique identifier of userrole") String identifier,
-			@Schema(description = "Description of userrole") String description,
-			@Schema(description = "The CVR of the organisation that have assigned this UserRole to your organization") String delegatedFromCvr) {
-	}
-
 	@Operation(summary = "Get userroles for specific it-system by id", description = "Returns the specific it-system by a given id")
 	@GetMapping("/api/v2/itsystem/{id}/userroles")
-	public ResponseEntity<List<userRoleRecord>> getSystemUserRoles(
+	public ResponseEntity<List<UserRoleAM>> getSystemUserRoles(
 			@Parameter(description = "Unique ID for the it-system", example = "1") @PathVariable("id") Long id) {
-
-		List<userRoleRecord> result = new ArrayList<>();
 		ItSystem itSystem = itSystemService.getById(id);
 		List<UserRole> userRoles = userRoleService.getByItSystem(itSystem);
 
 		if (itSystem == null) {
 			return new ResponseEntity<>(HttpStatus.NOT_FOUND);
 		}
-
-		for (UserRole userRole : userRoles) {
-			result.add(new userRoleRecord(userRole.getId(), userRole.getName(), userRole.getIdentifier(),
-					userRole.getDescription(), userRole.getDelegatedFromCvr()));
-		}
-
+		List<UserRoleAM> result = userRoles.stream()
+				.map(RoleMapper::toApi)
+				.collect(Collectors.toList());
 		return new ResponseEntity<>(result, HttpStatus.OK);
 	}
 
-	record systemRoleRecord(@Schema(description = "Unique ID for the system role") long id,
-			@Schema(description = "Name of the role") String name,
-			@Schema(description = "Unique identifier of systemrole") String identifier,
-			@Schema(description = "Description of systemrole") String description,
-			@Schema(description = "The weight of a role, used to order hierarchical roles and only assign the strongest one (Useful in the case of different pricing tiers / Licences in a product)") int weight) {
+	@Schema(name = "SystemRole")
+	record SystemRoleRecord(@Schema(description = "Unique ID for the system role") long id,
+							@Schema(description = "Name of the role") String name,
+							@Schema(description = "Unique identifier of systemrole") String identifier,
+							@Schema(description = "Description of systemrole") String description,
+							@Schema(description = "The weight of a role, used to order hierarchical roles and only assign the strongest one (Useful in the case of different pricing tiers / Licences in a product)") int weight) {
 	}
 
 	@ApiResponses(value = { @ApiResponse(responseCode = "200", description = "All systemroles for specified it-system"),
 			@ApiResponse(responseCode = "404", description = "It-system not found.") })
 	@Operation(summary = "Get all systemroles by itsystem id", description = "Returns all systemroles by it-system id")
 	@GetMapping("/api/v2/itsystem/{id}/systemroles")
-	public ResponseEntity<List<systemRoleRecord>> getSystemRoles(
+	public ResponseEntity<List<SystemRoleRecord>> getSystemRoles(
 			@Parameter(description = "Unique ID for the it-system") @PathVariable("id") long id) {
 
-		List<systemRoleRecord> result = new ArrayList<>();
+		List<SystemRoleRecord> result = new ArrayList<>();
 		ItSystem itSystem = itSystemService.getById(id);
 		List<SystemRole> systemRoles = systemRoleService.findByItSystem(itSystem);
 
@@ -152,7 +152,7 @@ public class ItSystemApiV2 {
 		}
 
 		for (SystemRole role : systemRoles) {
-			result.add(new systemRoleRecord(role.getId(), role.getName(), role.getIdentifier(), role.getDescription(), role.getWeight()));
+			result.add(new SystemRoleRecord(role.getId(), role.getName(), role.getIdentifier(), role.getDescription(), role.getWeight()));
 		}
 
 		return new ResponseEntity<>(result, HttpStatus.OK);
@@ -200,6 +200,16 @@ public class ItSystemApiV2 {
 		}
 
 		return new ResponseEntity<List<UserRecord>>(result, HttpStatus.OK);
+	}
+
+	@ApiResponses(value = { @ApiResponse(responseCode = "202", description = "It-system has been marked dirty"),
+			@ApiResponse(responseCode = "404", description = "It System not found.") })
+	@Operation(summary = "Touch an it-system", description = "This will mark the it-system as dirty and synchronize its roles to AD")
+	@PostMapping(value = "/api/v2/itsystem/{id}/touch")
+	public ResponseEntity<?> touchItSystem(@Parameter(description = "Unique ID for the it-system", example = "1") @PathVariable("id") Long id) {
+		final ItSystem itSystem = itSystemService.getOptionalById(id).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
+		pendingADUpdateService.addItSystemToQueue(itSystem);
+		return ResponseEntity.accepted().build();
 	}
 
 	private List<User> getAllUsersInItSystemWithARole(ItSystem itSystem) {

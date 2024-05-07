@@ -42,7 +42,7 @@
 					<div style="height: 70px;">
 						<h4 class="md-12">
 							<span th:text="#{html.word.orgUnit}" class="col-md-11" style="padding: 0px;"></span>
-							<a class="col-md-1" th:replace="fragments/help :: help (title=#{html.help.roleAssignment.orgUnit.title}, content=#{html.help.roleAssignment.orgUnit.body})"></a>
+							<a class="col-md-1" th:replace="~{fragments/help :: help (title=#{html.help.roleAssignment.orgUnit.title}, content=#{html.help.roleAssignment.orgUnit.body})}"></a>
 						</h4>
 						<div class="form-group col-md-12">
 							<select class="form-control" id="editRoleOUSelect">
@@ -172,10 +172,7 @@
 	    			   success: function(response) {
 	    				   modalAjaxService.showInfoNotification(userRoleEditModalService.fieldUpdatedMsg);
 	    			   },
-	    			   error: function(response) {
-	    				   var msg = (response.responseText != null && response.responseText.length > 0) ? response.responseText : userRoleEditModalService.fieldNotUpdatedMsg;
-						   modalAjaxService.showErrorNotification(msg);
-	    			   }
+	    			   error: errorHandler(userRoleEditModalService.fieldNotUpdatedMsg)
 	    		});
 				
 				setTimeout(function(){ userRoleEditModalService.parentService.loadRolesFragment(); }, 200);

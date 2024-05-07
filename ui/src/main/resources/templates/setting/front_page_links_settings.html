@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
-<head th:replace="fragments/header :: header (title=#{html.frontPageLinks.title})"></head>
+<head th:replace="~{fragments/header :: header (title=#{html.frontPageLinks.title})}"></head>
 <body>
 <div class="wrapper">
-    <header th:replace="fragments/navbar :: navbar-header(subpage = 'administration')"></header>
-    <aside th:replace="fragments/navbar :: navbar-aside (page = 'frontPageLinks', subpage = 'administration')"></aside>
+    <header th:replace="~{fragments/navbar :: navbar-header(subpage = 'administration')}"></header>
+    <aside th:replace="~{fragments/navbar :: navbar-aside (page = 'frontPageLinks', subpage = 'administration')}"></aside>
 
     <section>
         <div class="content-wrapper">
@@ -146,7 +146,7 @@
     </div>
 </div>
 
-<div th:replace="fragments/footer :: footer"></div>
+<div th:replace="~{fragments/footer :: footer}"></div>
 
 <script th:inline="javascript">
 		/*<![CDATA[*/
@@ -229,15 +229,7 @@
 					}
 				}).done(function (data) {
 					location.reload(true);
-				}).fail(function (jqXHR, textStatus, errorThrown) {
-					var msg = jqXHR.responseText || msgError;
-					$.notify({
-						message: msg
-					}, {
-						status: 'danger',
-						autoHideDelay: 4000
-					});
-				});
+				}).fail(errorHandler(msgError));
 			}
 
 			this.setActive = function() {
@@ -267,15 +259,7 @@
 						status: 'success',
 						autoHideDelay: 4000
 					});
-				}).fail(function (jqXHR, textStatus, errorThrown) {
-					var msg = jqXHR.responseText || msgError;
-					$.notify({
-						message: msg
-					}, {
-						status: 'danger',
-						autoHideDelay: 4000
-					});
-				});
+				}).fail(errorHandler(msgError));
 			}
 
 			this.save = function() {
@@ -303,13 +287,7 @@
 					location.reload(true);
 				}).fail(function (jqXHR, textStatus, errorThrown) {
 					$("#linkModal").modal("hide");
-					var msg = jqXHR.responseText || msgError;
-					$.notify({
-						message: msg
-					}, {
-						status: 'danger',
-						autoHideDelay: 4000
-					});
+                    errorHandler(msgError)(jqXHR);
 				});
 			}
 		}

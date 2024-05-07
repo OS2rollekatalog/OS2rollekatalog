@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
-<head th:replace="fragments/header :: header (title=#{html.page.itsystem.new.title})"></head>
+<head th:replace="~{fragments/header :: header (title=#{html.page.itsystem.new.title})}"></head>
 <body>
 	<div class="wrapper">
-		<header th:replace="fragments/navbar :: navbar-header(subpage = 'roles')"></header>
-		<aside th:replace="fragments/navbar :: navbar-aside (page = 'itsystem.new.' + ${itSystemForm.systemType}, subpage = 'roles')"></aside>
+		<header th:replace="~{fragments/navbar :: navbar-header(subpage = 'roles')}"></header>
+		<aside th:replace="~{fragments/navbar :: navbar-aside (page = 'itsystem.new.' + ${itSystemForm.systemType}, subpage = 'roles')}"></aside>
  
 		<section>
 			<div class="content-wrapper">
@@ -99,8 +99,8 @@
 	    </section>
     </div>
 
-    <nav th:replace="fragments/footer :: footer"></nav>
-	<script th:replace="itsystem/fragments/autocomplete_service :: autocompleteServiceScript(searchFieldId='search_person', uuidFieldId='selectedResponsibleUuid')"></script>
+    <nav th:replace="~{fragments/footer :: footer}"></nav>
+	<script th:replace="~{itsystem/fragments/autocomplete_service :: autocompleteServiceScript(searchFieldId='search_person', uuidFieldId='selectedResponsibleUuid')}"></script>
 
 	<style>
 		.autocomplete-suggestions { border: 1px solid #999; background: #FFF; overflow: auto; width: 500px !important; }

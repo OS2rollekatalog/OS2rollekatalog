@@ -1,10 +1,13 @@
 package dk.digitalidentity.rc.controller.mvc;
 
-import java.util.List;
-import java.util.UUID;
-
-import javax.validation.Valid;
-
+import dk.digitalidentity.rc.controller.mvc.viewmodel.ClientDTO;
+import dk.digitalidentity.rc.controller.validator.ClientDTOValidator;
+import dk.digitalidentity.rc.dao.model.Client;
+import dk.digitalidentity.rc.dao.model.enums.AccessRole;
+import dk.digitalidentity.rc.dao.model.enums.VersionStatusEnum;
+import dk.digitalidentity.rc.security.RequireAdministratorRole;
+import dk.digitalidentity.rc.service.ClientService;
+import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -16,13 +19,8 @@ import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 
-import dk.digitalidentity.rc.controller.mvc.viewmodel.ClientDTO;
-import dk.digitalidentity.rc.controller.validator.ClientDTOValidator;
-import dk.digitalidentity.rc.dao.model.Client;
-import dk.digitalidentity.rc.dao.model.enums.AccessRole;
-import dk.digitalidentity.rc.dao.model.enums.VersionStatusEnum;
-import dk.digitalidentity.rc.security.RequireAdministratorRole;
-import dk.digitalidentity.rc.service.ClientService;
+import java.util.List;
+import java.util.UUID;
 
 @RequireAdministratorRole
 @Controller

@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html>
-<head th:replace="fragments/header :: header (customTitle=#{html.page.requestapprove.role_removal.title})"></head>
+<head th:replace="~{fragments/header :: header (customTitle=#{html.page.requestapprove.role_removal.title})}"></head>
 <body>
 <div class="wrapper">
-    <header th:replace="fragments/navbar :: navbar-header(subpage = 'roles')"></header>
-    <aside th:replace="fragments/navbar :: navbar-aside (page = 'users_request', subpage = 'roles')"></aside>
+    <header th:replace="~{fragments/navbar :: navbar-header(subpage = 'roles')}"></header>
+    <aside th:replace="~{fragments/navbar :: navbar-aside (page = 'users_request', subpage = 'roles')}"></aside>
     <section>
         <div class="content-wrapper">
             <div class="panel panel-default">
@@ -51,12 +51,12 @@
     </section>
 </div>
 
-<div th:replace="request_approve/fragments/request_modal :: requestRoleModal"></div>
+<div th:replace="~{request_approve/fragments/request_modal :: requestRoleModal}"></div>
 
 
-<nav th:replace="fragments/footer :: footer"></nav>
-<script th:replace="fragments/datatables :: datatables"></script>
-<script th:replace="request_approve/fragments/request_modal :: requestRoleModalScript"></script>
+<nav th:replace="~{fragments/footer :: footer}"></nav>
+<script th:replace="~{fragments/datatables :: datatables}"></script>
+<script th:replace="~{request_approve/fragments/request_modal :: requestRoleModalScript}"></script>
 
 <script th:inline="javascript">
     /*<![CDATA[*/

@@ -157,14 +157,7 @@
                         "action" : this.action,
                         "constraints" : this.constraints
                     }),
-                    error: function(response) {
-                        $.notify({
-                            message: requestFailedMsg
-                        },{
-                            status: 'danger',
-                            autoHideDelay: 4000
-                        });
-                    },
+                    error: errorHandler(requestFailedMsg),
                     success: function(response) {
                         this.successHandler();
                     }

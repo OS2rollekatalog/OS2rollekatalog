@@ -1,19 +1,5 @@
 package dk.digitalidentity.rc.service;
 
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
-
-import javax.persistence.EntityManager;
-
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Service;
-import org.springframework.util.StringUtils;
-
 import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
 import dk.digitalidentity.rc.controller.api.dto.OrganisationV2DTO;
 import dk.digitalidentity.rc.controller.api.model.FullOrgUnitAM;
@@ -29,7 +15,19 @@ import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserKLEMapping;
 import dk.digitalidentity.rc.dao.model.enums.KleType;
 import dk.digitalidentity.rc.dao.model.enums.OrgUnitLevel;
+import jakarta.persistence.EntityManager;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
+
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 
 @Slf4j
 @Service

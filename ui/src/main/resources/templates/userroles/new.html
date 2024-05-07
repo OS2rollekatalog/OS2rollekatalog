@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html>
-<head th:replace="fragments/header :: header (title=#{html.page.userroles.new.title})"></head>
+<head th:replace="~{fragments/header :: header (title=#{html.page.userroles.new.title})}"></head>
 <body>
 	<div class="wrapper">
-		<header th:replace="fragments/navbar :: navbar-header(subpage = 'roles')"></header>
-		<aside th:replace="fragments/navbar :: navbar-aside (page = 'userroles.new', subpage = 'roles')"></aside>
+		<header th:replace="~{fragments/navbar :: navbar-header(subpage = 'roles')}"></header>
+		<aside th:replace="~{fragments/navbar :: navbar-aside (page = 'userroles.new', subpage = 'roles')}"></aside>
  
 		<section>
 			<div class="content-wrapper">
@@ -28,7 +28,7 @@
 										    <li th:each="err : ${#fields.errors('name')}" th:text="${err}"></li>
 										</ul>
 					                </div>
-									<a th:replace="fragments/help :: help (title=#{html.entity.userrole.name}, content=#{html.entity.userrole.name.help})"></a>
+									<a th:replace="~{fragments/help :: help (title=#{html.entity.userrole.name}, content=#{html.entity.userrole.name.help})}"></a>
 						        </div>
 					        </fieldset>
 
@@ -40,7 +40,7 @@
 											<option th:each="itSystem : ${itSystems}" th:value="${itSystem.id}" th:text="${itSystem.name}" th:selected="${itSystem} == *{itSystem}" th:attr="data-type=${itSystem.systemType}"></option>
 										</select>
 									</div>
-									<a th:replace="fragments/help :: help (title=#{html.entity.itsystem.type}, content=#{html.entity.userrole.itsystem.help})"></a>
+									<a th:replace="~{fragments/help :: help (title=#{html.entity.itsystem.type}, content=#{html.entity.userrole.itsystem.help})}"></a>
 								</div>
 							</fieldset>
 							
@@ -80,7 +80,7 @@
 											</label>
 										</div>
 									</div>
-									<a th:replace="fragments/help :: help (title=#{html.help.constraint.postpone.title}, content=#{html.help.constraint.postpone.body})"></a>
+									<a th:replace="~{fragments/help :: help (title=#{html.help.constraint.postpone.title}, content=#{html.help.constraint.postpone.body})}"></a>
 								</div>
 							</fieldset>
 
@@ -90,7 +90,7 @@
 					                <div class="col-sm-8">
 										<textarea th:field="*{description}" class="form-control" th:placeholder="#{html.entity.userrole.description.placeholder}"></textarea>
 					                </div>
-									<a th:replace="fragments/help :: help (title=#{html.entity.userrole.description}, content=#{html.entity.userrole.description.help})"></a>
+									<a th:replace="~{fragments/help :: help (title=#{html.entity.userrole.description}, content=#{html.entity.userrole.description.help})}"></a>
 						        </div>	
 							</fieldset>
 
@@ -109,7 +109,7 @@
 	    </section>
     </div>
 
-    <nav th:replace="fragments/footer :: footer"></nav>
+    <nav th:replace="~{fragments/footer :: footer}"></nav>
     
 	<script th:inline="javascript">
 		/*<![CDATA[*/

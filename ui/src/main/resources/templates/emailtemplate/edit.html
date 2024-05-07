@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
-<head th:replace="fragments/header :: header"></head>
+<head th:replace="~{fragments/header :: header}"></head>
 <body>
 	<div class="wrapper">
-		<header th:replace="fragments/navbar :: navbar-header(subpage = 'administration')"></header>
-		<aside th:replace="fragments/navbar :: navbar-aside (page = 'mail', subpage = 'administration')"></aside>
+		<header th:replace="~{fragments/navbar :: navbar-header(subpage = 'administration')}"></header>
+		<aside th:replace="~{fragments/navbar :: navbar-aside (subpage = 'administration')}"></aside>
  
 		<section>
 			<div class="content-wrapper">
@@ -13,7 +13,11 @@
 				<div class="panel panel-default">
 					<div class="panel-heading"></div>
 
-					<div class="panel-body">
+					<div th:if="${disabled}" class="panel-body">
+						<p th:text="#{html.page.email_template.edit.attestation.disabled}"></p>
+					</div>
+
+					<div th:unless="${disabled}" class="panel-body">
 						<div class="row" style="margin-bottom: 30px;">
 							<div class="col-lg-10 col-lg-offset-1">
 								<h3 style="margin-top: 0px;" th:text="#{html.page.email_template.header}"></h3>
@@ -29,7 +33,7 @@
 
 										<div class="col-sm-8">
 											<select class="form-control m-b col-sm-8" id="templateDropdown">
-												<option th:each="template : ${templates}" th:value="${template.id}" th:text="#{__${template.templateTypeText}__}"></option>
+												<option th:each="template : ${templates}" th:value="${template.id}" th:text="${@emailTemplateService.getTemplateName(template.id)}"></option>
 											</select>
 										</div>
 									</div>
@@ -66,6 +70,13 @@
 										<label class="col-sm-2 control-label" th:text="#{html.entity.email_template.message}"></label>
 										<div class="col-sm-8">
 											<textarea name="message" th:text="${template.message}" class="mb-0 preformat" rows="10" style="width:100%;"></textarea>
+										</div>
+									</div>
+
+									<div class="form-group">
+										<label class="col-sm-2 control-label" th:text="#{html.entity.email_template.notes}"></label>
+										<div class="col-sm-8">
+											<textarea name="notes" th:text="${template.notes}" class="mb-0 form-control" rows="3" style="width:100%;"></textarea>
 										</div>
 									</div>
 									
@@ -105,7 +116,7 @@
 		</section>
 	</div>
 	
-	<div th:replace="fragments/footer :: footer"></div>
+	<div th:replace="~{fragments/footer :: footer}"></div>
 
 	<script th:inline="javascript">
 	/*<![CDATA[*/
@@ -230,24 +241,7 @@
 						autoHideDelay: 2000
 					});
 				}
-			}).fail(function(jqXHR, textStatus, errorThrown) {
-				if (jqXHR.status) {
-					$.notify({
-						message: jqXHR.responseText
-					}, {
-						status: 'danger',
-						autoHideDelay: 4000
-					});
-				}
-				else {
-					$.notify({
-						message: msgFail
-					}, {
-						status: 'danger',
-						autoHideDelay: 4000
-					});
-				}
-			});
+			}).fail(errorHandler(msgFail));
 		}
 		
 	/*]]>*/

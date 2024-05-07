@@ -17,6 +17,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.saml2.provider.service.authentication.Saml2AuthenticatedPrincipal;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
@@ -148,7 +149,9 @@ public class SecurityUtil {
 	}
 
 	private static boolean isLoggedIn() {
-		if (SecurityContextHolder.getContext().getAuthentication() != null && SecurityContextHolder.getContext().getAuthentication().getDetails() != null && SecurityContextHolder.getContext().getAuthentication().getDetails() instanceof TokenUser) {
+		if (SecurityContextHolder.getContext().getAuthentication() != null
+				&& SecurityContextHolder.getContext().getAuthentication().getDetails() != null
+				&& SecurityContextHolder.getContext().getAuthentication().getDetails() instanceof TokenUser) {
 			return true;
 		}
 
@@ -163,13 +166,21 @@ public class SecurityUtil {
 				
 				return tokenUser.getAttributes().get(RolePostProcessor.ATTRIBUTE_USERID).toString();
 			}
-			
-			return (String) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+
+			return extractPrincipal();
 		}
 		
 		return SYSTEM_USERID;
 	}
-	
+
+	private static String extractPrincipal() {
+		Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+		if (principal instanceof Saml2AuthenticatedPrincipal) {
+			return ((Saml2AuthenticatedPrincipal) principal).getName();
+		}
+		return (String) principal;
+	}
+
 	public static String getUserFullname() {
 		if (SecurityContextHolder.getContext() != null && SecurityContextHolder.getContext().getAuthentication() != null) {
 			Object o = SecurityContextHolder.getContext().getAuthentication().getDetails();
@@ -179,7 +190,7 @@ public class SecurityUtil {
 				return tokenUser.getAttributes().get(RolePostProcessor.ATTRIBUTE_NAME).toString();
 			}
 			
-			return (String) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+			return extractPrincipal();
 		}
 
 		return SYSTEM_USERNAME;

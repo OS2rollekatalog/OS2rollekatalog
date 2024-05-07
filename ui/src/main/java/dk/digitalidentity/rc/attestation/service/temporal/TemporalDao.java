@@ -16,6 +16,7 @@ import dk.digitalidentity.rc.attestation.service.temporal.rowmapper.HistoryRoleA
 import dk.digitalidentity.rc.attestation.service.temporal.rowmapper.HistorySystemRoleAssignmentConstraintRowMapper;
 import dk.digitalidentity.rc.attestation.service.temporal.rowmapper.HistorySystemRoleAssignmentRowMapper;
 import dk.digitalidentity.rc.attestation.service.temporal.rowmapper.HistoryUserRoleRowMapper;
+import dk.digitalidentity.rc.attestation.service.temporal.rowmapper.IdRowMapper;
 import dk.digitalidentity.rc.attestation.service.temporal.rowmapper.RowMapperUtils;
 import dk.digitalidentity.rc.dao.history.model.HistoryItSystem;
 import dk.digitalidentity.rc.dao.history.model.HistoryOU;
@@ -59,6 +60,7 @@ public class TemporalDao {
     private final AttestationUserRoleAssignmentRowMapper attestationUserRoleAssignmentRowMapper = new AttestationUserRoleAssignmentRowMapper();
     private final AttestationOuRoleAssignmentRowMapper attestationOuRoleAssignmentRowMapper = new AttestationOuRoleAssignmentRowMapper();
     private final AttestationSystemRoleAssignmentRowMapper attestationSystemRoleAssignmentRowMapper = new AttestationSystemRoleAssignmentRowMapper();
+    private final IdRowMapper idRowMapper = new IdRowMapper();
 
 
     public List<HistoryOURoleAssignmentWithExceptions> listHistoryOURoleAssignmentWithExceptionsByDate(final LocalDate when) {
@@ -73,7 +75,7 @@ public class TemporalDao {
         return jdbcTemplate.query("SELECT hra.* FROM history_ou_role_assignments hra WHERE hra.dato=?", historyOURoleAssignmentRowMapper, when);
     }
 
-    public List<HistoryRoleAssignment> streamHistoryRoleAssignmentsByItSystemAndDate(final LocalDate when, final long itSystemId) {
+    public List<HistoryRoleAssignment> listHistoryRoleAssignmentsByItSystemAndDate(final LocalDate when, final long itSystemId) {
         return jdbcTemplate.query("SELECT hra.* FROM history_role_assignments hra WHERE hra.dato=? AND hra.role_it_system_id=?", historyRoleAssignmentRowMapper, when, itSystemId);
     }
 
@@ -125,9 +127,19 @@ public class TemporalDao {
         return result.get(0);
     }
 
-    public int invalidateAttestationUserRoleAssignmentsByUpdatedAtLessThan(final LocalDate updatedAt) {
-        return namedParameterJdbcTemplate.update("UPDATE attestation_user_role_assignments SET valid_to=:updated_at WHERE updated_at < :updated_at AND (valid_to > :updated_at or valid_to is null)",
-                Map.of("updated_at", updatedAt));
+    public List<Long> findAllValidUserRoleAssignmentIdsByUpdatedAtLessThan(final LocalDate updatedAt) {
+        return namedParameterJdbcTemplate.query("SELECT id FROM attestation_user_role_assignments WHERE updated_at < :updated_at AND (valid_to > :updated_at or valid_to is null)",
+                Map.of("updated_at", updatedAt), idRowMapper);
+    }
+
+    public long invalidateUserRoleAssignmentsWithIdsIn(final List<Long> ids, final LocalDate when) {
+        return namedParameterJdbcTemplate.update("UPDATE attestation_user_role_assignments SET valid_to=:when WHERE id in (:ids)",
+                Map.of("ids", ids, "when", when));
+    }
+
+    public long invalidateSystemRoleAssignmentsWithIdsIn(final List<Long> ids, final LocalDate when) {
+        return namedParameterJdbcTemplate.update("UPDATE attestation_system_role_assignments SET valid_to=:when WHERE id in (:ids)",
+                Map.of("ids", ids, "when", when));
     }
 
     public int invalidateAttestationOuRoleAssignmentsByUpdatedAtLessThan(final LocalDate updatedAt) {
@@ -135,9 +147,9 @@ public class TemporalDao {
                 Map.of("updated_at", updatedAt));
     }
 
-    public int invalidateAttestationSystemRoleAssignmentsByUpdatedAtLessThan(final LocalDate updatedAt) {
-        return namedParameterJdbcTemplate.update("UPDATE attestation_system_role_assignments SET valid_to=:updated_at WHERE updated_at < :updated_at AND (valid_to > :updated_at or valid_to is null)",
-                Map.of("updated_at", updatedAt));
+    public List<Long> findAllValidSystemRoleAssignmentIdsByUpdatedAtLessThan(final LocalDate updatedAt) {
+        return namedParameterJdbcTemplate.query("SELECT id from attestation_system_role_assignments WHERE updated_at < :updated_at AND (valid_to > :updated_at or valid_to is null)",
+                Map.of("updated_at", updatedAt), idRowMapper);
     }
 
     public void saveAttestationSystemRoleAssignment(final AttestationSystemRoleAssignment assignment) {

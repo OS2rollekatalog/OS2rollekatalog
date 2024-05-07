@@ -21,6 +21,8 @@ BEGIN
 		,assigned_by_user_id
 		,assigned_by_name
 		,assigned_when
+        ,start_date
+        ,stop_date
 	)
 	-- user roles from direct assignments
 	SELECT 
@@ -38,6 +40,8 @@ BEGIN
 		,our.assigned_by_user_id
 		,our.assigned_by_name
 		,our.assigned_timestamp
+	    ,our.start_date
+	    ,our.stop_date
 	FROM ou_roles our
 		JOIN ous o ON o.uuid = our.ou_uuid
 		JOIN user_roles ur ON ur.id = our.role_id
@@ -67,6 +71,8 @@ BEGIN
 		,ourg.assigned_by_user_id
 		,ourg.assigned_by_name
 		,ourg.assigned_timestamp
+	    ,ourg.start_date
+	    ,ourg.stop_date
 		FROM ou_rolegroups ourg
 		JOIN ous o ON o.uuid = ourg.ou_uuid
 		JOIN rolegroup rg ON ourg.rolegroup_id = rg.id
@@ -122,6 +128,8 @@ BEGIN
 		,assigned_by_name
 		,assigned_when
 		,inherit
+        ,start_date
+        ,stop_date
 	)
 	SELECT
 		CURRENT_TIMESTAMP
@@ -137,6 +145,8 @@ BEGIN
 		,our.assigned_by_name
 		,our.assigned_timestamp
 	    ,orig_ou_uuid=cte.ou_uuid
+	    ,our.start_date
+	    ,our.stop_date
 	FROM cte
 	JOIN ou_roles our ON our.id = cte.id
 	JOIN ous ou ON ou.uuid = our.ou_uuid
@@ -189,6 +199,8 @@ BEGIN
 		,assigned_by_user_id
 		,assigned_by_name
 		,assigned_when
+        ,start_date
+        ,stop_date
 	)
 	SELECT
 		CURRENT_TIMESTAMP
@@ -205,6 +217,8 @@ BEGIN
 		,ourg.assigned_by_user_id
 		,ourg.assigned_by_name
 		,ourg.assigned_timestamp
+	    ,ourg.start_date
+	    ,ourg.stop_date
 	FROM cte
 	JOIN ou_rolegroups ourg ON ourg.id = cte.id
 	JOIN rolegroup rg ON rg.id = ourg.rolegroup_id

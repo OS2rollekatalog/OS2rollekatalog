@@ -22,11 +22,9 @@ public interface AttestationDao extends CrudRepository<Attestation, Long> {
 
     List<Attestation> findByAttestationTypeAndCreatedAtGreaterThanEqual(final Attestation.AttestationType type, final LocalDate createdAtAfter);
 
-    Optional<Attestation> findFirstByAttestationTypeAndResponsibleOuUuidOrderByDeadline(final Attestation.AttestationType type, final String ouUuid);
-
     @Query("select a from Attestation a where a.attestationType=:type and a.responsibleOuUuid=:ouUuid and a.deadline >= :when")
     Optional<Attestation> findByAttestationTypeAndResponsibleOuUuidAndDeadlineGreaterThanEqual(@Param("type") final Attestation.AttestationType type, @Param("ouUuid") final String ouUuid, @Param("when") final LocalDate when);
-    Attestation findFirstByAttestationTypeAndResponsibleOuUuidOrderByDeadlineDesc(final Attestation.AttestationType type, final String ouUuid);
+    Optional<Attestation> findFirstByAttestationTypeAndResponsibleOuUuidOrderByDeadlineDesc(final Attestation.AttestationType type, final String ouUuid);
 
     Attestation findFirstByAttestationTypeAndResponsibleOuUuidAndVerifiedAtIsNotNullOrderByDeadlineDesc(final Attestation.AttestationType type, final String ouUuid);
 
@@ -37,11 +35,11 @@ public interface AttestationDao extends CrudRepository<Attestation, Long> {
     Optional<Attestation> findFirstByAttestationTypeAndItSystemIdOrderByDeadlineDesc(final Attestation.AttestationType type, final Long itSystemId);
 
     @Query(value = "select att from Attestation att " +
-            "where att.attestationType=:type and att.deadline <= :deadline and att.verifiedAt is null" +
+            "where att.attestationType=:type and att.deadline = :deadlineAt and att.verifiedAt is null" +
             " and not exists (select m from AttestationMail m where m.attestation=att and m.emailType=:emailType)")
     List<Attestation> findAttestationsWhichNeedsMail(@Param("type") final Attestation.AttestationType type,
                                                      @Param("emailType") final AttestationMail.MailType emailType,
-                                                     @Param("deadline") final LocalDate deadlineBefore);
+                                                     @Param("deadlineAt") final LocalDate deadlineAt);
 
     @Query(nativeQuery = true, value = "select a.* from attestation_attestation as a" +
             "    inner join attestation_it_system_user_attestation_entry oa on oa.attestation_id=a.id" +

@@ -39,7 +39,7 @@ public class ItSystemAttestationTrackerService {
     @Transactional(timeout = 600, propagation = Propagation.REQUIRES_NEW)
     public void updateItSystemRolesAttestations(final LocalDate when) {
         final LocalDate deadline = findNextAttestationDate(when);
-        try (Stream<AttestationSystemRoleAssignment> attestationSystemRoleAssignmentStream = systemRoleAssignmentDao.streamAllByValidFromGreaterThanEqual(when)) {
+        try (Stream<AttestationSystemRoleAssignment> attestationSystemRoleAssignmentStream = systemRoleAssignmentDao.streamAllValidAssignments(when)) {
             attestationSystemRoleAssignmentStream
                     .filter(a -> a.getResponsibleUserUuid() != null)
                     .forEach(a -> ensureWeHaveAttestationFor(a, deadline, when));
@@ -75,6 +75,9 @@ public class ItSystemAttestationTrackerService {
                                                           final LocalDate deadline,
                                                           final LocalDate when) {
         final HistoryUser historyUser = historyUserDao.findFirstByDatoAndUserUuid(when, assignment.getResponsibleUserUuid());
+        if (historyUser == null) {
+            return null;
+        }
         return attestationDao.save(Attestation.builder()
                         .attestationType(Attestation.AttestationType.IT_SYSTEM_ROLES_ATTESTATION)
                         .responsibleUserId(historyUser.getUserUserId())

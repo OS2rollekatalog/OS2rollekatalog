@@ -6,6 +6,7 @@ import dk.digitalidentity.rc.dao.model.RoleGroup;
 import dk.digitalidentity.rc.dao.model.SystemRoleAssignment;
 import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserRole;
+import dk.digitalidentity.rc.dao.model.UserUserRoleAssignment;
 
 public interface RoleChangeHook {
 
@@ -14,6 +15,7 @@ public interface RoleChangeHook {
 	public void interceptAddRoleGroupAssignmentOnUser(User user, RoleGroup roleGroup);
 	public void interceptRemoveRoleGroupAssignmentOnUser(User user, RoleGroup roleGroup);
 	public void interceptAddUserRoleAssignmentOnUser(User user, UserRole userRole);
+	public void interceptEditUserRoleAssignmentOnUser(User user, UserUserRoleAssignment assignment);
 	public void interceptRemoveUserRoleAssignmentOnUser(User user, UserRole userRole);
 	public void interceptAddPositionOnUser(User user, Position position);
 	public void interceptRemovePositionOnUser(User user, Position position);

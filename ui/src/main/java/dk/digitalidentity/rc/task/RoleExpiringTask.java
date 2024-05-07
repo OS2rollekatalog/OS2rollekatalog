@@ -6,7 +6,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
-import dk.digitalidentity.rc.service.AttestationService;
+import dk.digitalidentity.rc.service.RoleNotificationService;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
@@ -18,7 +18,7 @@ public class RoleExpiringTask {
 	private RoleCatalogueConfiguration configuration;
 	
 	@Autowired
-	private AttestationService attestationService;
+	private RoleNotificationService roleNotificationService;
 	
 	// should run every Monday morning
 	@Scheduled(cron = " 0 #{new java.util.Random().nextInt(55)} 7 ? * MON")
@@ -29,6 +29,6 @@ public class RoleExpiringTask {
 			return;
 		}
 
-		attestationService.notifyAboutExpiringRoles();
+		roleNotificationService.notifyAboutExpiringRoles();
 	}
 }

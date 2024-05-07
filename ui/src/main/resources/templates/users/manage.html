@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html>
-<head th:replace="fragments/header :: header (title=#{html.page.users.manage.title})"></head>
+<head th:replace="~{fragments/header :: header (title=#{html.page.users.manage.title})}"></head>
 <body>
 	<div class="wrapper">
-		<header th:replace="fragments/navbar :: navbar-header(subpage = 'roles')"></header>
-		<aside th:replace="fragments/navbar :: navbar-aside (page = 'users', subpage = 'roles')"></aside>
+		<header th:replace="~{fragments/navbar :: navbar-header(subpage = 'roles')}"></header>
+		<aside th:replace="~{fragments/navbar :: navbar-aside (page = 'users', subpage = 'roles')}"></aside>
  
 		<section>
 			<div class="content-wrapper">
@@ -155,21 +155,21 @@
 		</section>
 	</div>
 
-	<div th:replace="users/fragments/user_user_role_modal :: userUserRoleModal(positions = ${user.positions}, possibleOrgUnits = ${roleAssignmentOrgUnits})"></div>
-	<div th:replace="users/fragments/role_assignment_edit_modal :: roleAssignmentEditModal"></div>
-	<div th:replace="users/fragments/user_role_group_modal :: userRoleGroupModal(positions = ${user.positions}, possibleOrgUnits = ${roleAssignmentOrgUnits})"></div>
-	<div th:replace="users/fragments/postponed_constraint_kle_modal :: postponedConstraintsKLEModal"></div>
-	<div th:replace="userroles/fragments/constraint_ou_modal :: OUModal"></div>
-	<div th:replace="request_approve/fragments/request_modal :: requestRoleModal"></div>
-	<nav th:replace="fragments/footer :: footer"></nav>
+	<div th:replace="~{users/fragments/user_user_role_modal :: userUserRoleModal(positions = ${user.positions}, possibleOrgUnits = ${roleAssignmentOrgUnits})}"></div>
+	<div th:replace="~{users/fragments/role_assignment_edit_modal :: roleAssignmentEditModal}"></div>
+	<div th:replace="~{users/fragments/user_role_group_modal :: userRoleGroupModal(positions = ${user.positions}, possibleOrgUnits = ${roleAssignmentOrgUnits})}"></div>
+	<div th:replace="~{users/fragments/postponed_constraint_kle_modal :: postponedConstraintsKLEModal}"></div>
+	<div th:replace="~{userroles/fragments/constraint_ou_modal :: OUModal}"></div>
+	<div th:replace="~{request_approve/fragments/request_modal :: requestRoleModal}"></div>
+	<nav th:replace="~{fragments/footer :: footer}"></nav>
 
-	<script th:replace="fragments/datatables :: datatables "></script>
-	<script th:replace="fragments/assignDatePicker :: content "></script>
-	<script th:replace="users/fragments/user_user_role_modal :: userUserRoleModalScript(userRoleListTableId='listTable1', page='user')"></script>
-	<script th:replace="users/fragments/role_assignment_edit_modal :: roleAssignmentEditModalScript(page='user')"></script>
-	<script th:replace="users/fragments/user_role_group_modal :: userRoleGroupModalScript(listTable='listTable2', page='user')"></script>
-	<script th:replace="users/fragments/assign_user_role_postponed_data_constraints :: postponedConstraintsScript"></script>
-	<script th:replace="request_approve/fragments/request_modal :: requestRoleModalScript"></script>
+	<script th:replace="~{fragments/datatables :: datatables}"></script>
+	<script th:replace="~{fragments/assignDatePicker :: content}"></script>
+	<script th:replace="~{users/fragments/user_user_role_modal :: userUserRoleModalScript(userRoleListTableId='listTable1', page='user')}"></script>
+	<script th:replace="~{users/fragments/role_assignment_edit_modal :: roleAssignmentEditModalScript(page='user')}"></script>
+	<script th:replace="~{users/fragments/user_role_group_modal :: userRoleGroupModalScript(listTable='listTable2', page='user')}"></script>
+	<script th:replace="~{users/fragments/assign_user_role_postponed_data_constraints :: postponedConstraintsScript}"></script>
+	<script th:replace="~{request_approve/fragments/request_modal :: requestRoleModalScript}"></script>
 
 	<script th:inline="javascript">
 		/*<![CDATA[*/
@@ -310,13 +310,7 @@
 								headers: {
 									'X-CSRF-TOKEN': token
 								},
-								error: function(response) {
-									$.notify({
-										message: errorMessage,
-										status: 'danger',
-										timeout: 4000
-									});
-								},
+								error: errorHandler(errorMessage),
 								success: function(response) {
 									rolesService.loadRolesFragment();
 								}
@@ -494,14 +488,7 @@
 						"type": element.dataset.type,
 						'X-CSRF-TOKEN': token
 					},
-					error: function(response) {
-						$.notify({
-							message: fieldNotUpdatedMsg
-						}, {
-							status: 'danger',
-							autoHideDelay: 4000
-						});
-					},
+					error: errorHandler(fieldNotUpdatedMsg),
 					success: function(response) {
 						kleService.loadViewFragment(element.dataset.type);
 						$.notify({

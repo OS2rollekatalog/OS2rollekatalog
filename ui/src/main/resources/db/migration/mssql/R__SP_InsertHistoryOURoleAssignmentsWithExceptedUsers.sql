@@ -19,7 +19,10 @@ BEGIN
         ,role_role_group_id
         ,assigned_by_user_id
         ,assigned_by_name
-        ,assigned_when)
+        ,assigned_when
+        ,start_date
+        ,stop_date
+    )
     SELECT
         CURRENT_TIMESTAMP
         ,MAX(o.uuid)
@@ -33,6 +36,8 @@ BEGIN
         ,MAX(our.assigned_by_user_id)
         ,MAX(our.assigned_by_name)
         ,MAX(our.assigned_timestamp)
+        ,MAX(our.start_date)
+        ,MAX(our.stop_date)
     FROM ou_roles our
         JOIN ous o ON o.uuid = our.ou_uuid
         JOIN user_roles ur ON ur.id = our.role_id
@@ -62,6 +67,8 @@ BEGIN
         ,MAX(ourg.assigned_by_user_id)
         ,MAX(ourg.assigned_by_name)
         ,MAX(ourg.assigned_timestamp)
+        ,MAX(ourg.start_date)
+        ,MAX(ourg.stop_date)
     FROM ou_rolegroups ourg
         JOIN ous o ON o.uuid = ourg.ou_uuid
         JOIN rolegroup rg ON ourg.rolegroup_id = rg.id

@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html>
-<head th:replace="attestationmodule/fragments/header :: header(datatables = true)" />
+<head th:replace="~{attestationmodule/fragments/header :: header(datatables = true)}"></head>
 <body class="top-navigation">
     <div id="wrapper">
         <div id="page-wrapper" class="gray-bg">
-            <div th:replace="attestationmodule/fragments/topbar :: topbar(page = 'dashboard')"></div>
+            <div th:replace="~{attestationmodule/fragments/topbar :: topbar(page = 'dashboard')}"></div>
             <div class="wrapper wrapper-content">
                 <div class="row">
                     <div class="col-lg-12">
@@ -152,7 +152,7 @@
         </div>
     </div>
 
-    <div th:replace="attestationmodule/fragments/footer :: scripts(datatables = true)"></div>
+    <div th:replace="~{attestationmodule/fragments/footer :: scripts(datatables = true)}"></div>
 
     <script th:inline="javascript">
 		$(document).ready(function(){

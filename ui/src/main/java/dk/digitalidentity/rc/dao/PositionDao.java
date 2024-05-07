@@ -1,15 +1,14 @@
 package dk.digitalidentity.rc.dao;
 
-import java.util.List;
-
-import org.springframework.data.jpa.repository.Query;
-import org.springframework.data.repository.CrudRepository;
-
 import dk.digitalidentity.rc.dao.model.OrgUnit;
 import dk.digitalidentity.rc.dao.model.Position;
 import dk.digitalidentity.rc.dao.model.RoleGroup;
 import dk.digitalidentity.rc.dao.model.Title;
 import dk.digitalidentity.rc.dao.model.UserRole;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.CrudRepository;
+
+import java.util.List;
 
 public interface PositionDao extends CrudRepository<Position, String> {
 
@@ -30,6 +29,6 @@ public interface PositionDao extends CrudRepository<Position, String> {
 
 	List<Position> findByTitle(Title title);
 
-	@Query("SELECT u.uuid FROM users u JOIN positions p ON p.user = u WHERE u.deleted = 0 AND p.orgUnit = ?1")
+	@Query("SELECT u.uuid FROM users u JOIN positions p ON p.user = u WHERE u.deleted = false AND p.orgUnit = ?1")
 	List<String> findUserUuidByOrgUnit(OrgUnit orgUnit);
 }

@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html>
-<head th:replace="attestationmodule/fragments/header :: header(datatables = true, checkbox = true)" />
+<head th:replace="~{attestationmodule/fragments/header :: header(datatables = true, checkbox = true)}" />
 <body class="top-navigation">
     <div id="wrapper">
         <div id="page-wrapper" class="gray-bg">
-            <div th:replace="attestationmodule/fragments/topbar :: topbar"></div>
+            <div th:replace="~{attestationmodule/fragments/topbar :: topbar}"></div>
             <div class="wrapper wrapper-content">
                 <div class="row">
                     <div class="col-lg-12">
@@ -73,8 +73,8 @@
                                                                         <p th:if="!${#lists.isEmpty(user.userRolesPrItSystem)} OR !${#lists.isEmpty(user.roleGroups)}" th:text="#{attestationmodule.html.orgunits.attestate.user.tabs.roles.explainer}"></p>
                                                                         <p th:if="${#lists.isEmpty(user.userRolesPrItSystem)} AND ${#lists.isEmpty(user.roleGroups)}" th:text="#{attestationmodule.html.orgunits.attestate.user.tabs.noroles.explainer}"></p>
                                                                         <br/>
-                                                                        <div th:replace="attestationmodule/orgunits/fragments/ItSystemUserRoleTable :: itSystemUserRoleTable(userRolesForTable = ${user.userRolesPrItSystem}, verify=false, orgUnitAssignments = false, showInherit = false)"></div>
-                                                                        <div th:replace="attestationmodule/orgunits/fragments/RoleGroupsTable :: roleGroupsTable(roleGroupsForTable = ${user.roleGroups}, verify=false, orgUnitAssignments = false, showInherit = false)"></div>
+                                                                        <div th:replace="~{attestationmodule/orgunits/fragments/ItSystemUserRoleTable :: itSystemUserRoleTable(userRolesForTable = ${user.userRolesPrItSystem}, verify=false, orgUnitAssignments = false, showInherit = false)}"></div>
+                                                                        <div th:replace="~{attestationmodule/orgunits/fragments/RoleGroupsTable :: roleGroupsTable(roleGroupsForTable = ${user.roleGroups}, verify=false, orgUnitAssignments = false, showInherit = false)}"></div>
                                                                     </div>
                                                                 </div>
                                                                 <div role="tabpanel" th:id="'otherRolesTab' + ${user.userUuid}" class="tab-pane">
@@ -82,8 +82,8 @@
                                                                         <p th:if="!${#lists.isEmpty(user.doNotVerifyUserRolesPrItSystem)} OR !${#lists.isEmpty(user.doNotVerifyRoleGroups)}" th:text="#{attestationmodule.html.orgunits.attestate.user.tabs.otherRoles.explainer}"></p>
                                                                         <p th:if="${#lists.isEmpty(user.doNotVerifyUserRolesPrItSystem)} AND ${#lists.isEmpty(user.doNotVerifyRoleGroups)}" th:text="#{attestationmodule.html.orgunits.attestate.user.tabs.otherRoles.empty.explainer}"></p>
                                                                         <br/>
-                                                                        <div th:replace="attestationmodule/orgunits/fragments/ItSystemUserRoleTable :: itSystemUserRoleTable(userRolesForTable = ${user.doNotVerifyUserRolesPrItSystem}, verify=true, orgUnitAssignments = false, showInherit = false)"></div>
-                                                                        <div th:replace="attestationmodule/orgunits/fragments/RoleGroupsTable :: roleGroupsTable(roleGroupsForTable = ${user.doNotVerifyRoleGroups}, verify=true, orgUnitAssignments = false, showInherit = false)"></div>
+                                                                        <div th:replace="~{attestationmodule/orgunits/fragments/ItSystemUserRoleTable :: itSystemUserRoleTable(userRolesForTable = ${user.doNotVerifyUserRolesPrItSystem}, verify=true, orgUnitAssignments = false, showInherit = false)}"></div>
+                                                                        <div th:replace="~{attestationmodule/orgunits/fragments/RoleGroupsTable :: roleGroupsTable(roleGroupsForTable = ${user.doNotVerifyRoleGroups}, verify=true, orgUnitAssignments = false, showInherit = false)}"></div>
                                                                     </div>
                                                                 </div>
                                                             </div>
@@ -102,7 +102,7 @@
                                                                 <span th:text="#{attestationmodule.html.attestation.controls.approve}"></span>
                                                             </button>
                                                             &nbsp;
-                                                            <button th:unless="${user.readOnly}" class="rejectBtn btn btn-danger col-lg-2" th:id="'rejectBtn' + ${user.userUuid}" th:attr="data-uuid=${user.userUuid}, data-number=${userStat.index}">
+                                                            <button  th:if="${changeRequestsEnabled}" th:unless="${user.readOnly}" class="rejectBtn btn btn-danger col-lg-2" th:id="'rejectBtn' + ${user.userUuid}" th:attr="data-uuid=${user.userUuid}, data-number=${userStat.index}">
                                                                 <em class="fa-fw fa fa-ban"></em>
                                                                 <span th:text="#{attestationmodule.html.attestation.controls.reject}"></span>
                                                             </button>
@@ -135,8 +135,8 @@
                                                 <p th:text="#{attestationmodule.html.orgunits.attestate.tabs.orgUnit.explainer}"></p>
                                                 <br/>
                                                 <br/>
-                                                <div th:replace="attestationmodule/orgunits/fragments/ItSystemUserRoleTable :: itSystemUserRoleTable(userRolesForTable = ${attestation.orgUnitUserRoleAssignmentsPrItSystem}, verify=false, orgUnitAssignments = true, showInherit = true)"></div>
-                                                <div th:replace="attestationmodule/orgunits/fragments/RoleGroupsTable :: roleGroupsTable(roleGroupsForTable = ${attestation.orgUnitRoleGroupAssignments}, verify=false, orgUnitAssignments = true, showInherit = true)"></div>
+                                                <div th:replace="~{attestationmodule/orgunits/fragments/ItSystemUserRoleTable :: itSystemUserRoleTable(userRolesForTable = ${attestation.orgUnitUserRoleAssignmentsPrItSystem}, verify=false, orgUnitAssignments = true, showInherit = true)}"></div>
+                                                <div th:replace="~{attestationmodule/orgunits/fragments/RoleGroupsTable :: roleGroupsTable(roleGroupsForTable = ${attestation.orgUnitRoleGroupAssignments}, verify=false, orgUnitAssignments = true, showInherit = true)}"></div>
 
                                                 <div class="row m-t-lg">
                                                     <div class="form-group" style="margin-left: 15px;" th:id="'checkboxOrgUnitRow' + ${attestation.ouUuid}">
@@ -151,7 +151,7 @@
                                                         <span th:text="#{attestationmodule.html.attestation.controls.approve}"></span>
                                                     </button>
                                                     &nbsp;
-                                                    <button th:unless="${attestation.orgUnitRolesVerified}" class="rejectOrgUnitBtn btn btn-danger col-lg-2" data-toggle="modal" data-target="#remarkModal" th:id="'rejectOrgUnitBtn' + ${attestation.ouUuid}" th:attr="data-uuid=${attestation.ouUuid}">
+                                                    <button th:if="${changeRequestsEnabled}" th:unless="${attestation.orgUnitRolesVerified}" class="rejectOrgUnitBtn btn btn-danger col-lg-2" data-toggle="modal" data-target="#remarkModal" th:id="'rejectOrgUnitBtn' + ${attestation.ouUuid}" th:attr="data-uuid=${attestation.ouUuid}">
                                                         <em class="fa-fw fa fa-ban"></em>
                                                         <span th:text="#{attestationmodule.html.attestation.controls.reject}"></span>
                                                     </button>
@@ -234,8 +234,8 @@
         </div>
     </div>
 
-    <div th:replace="attestationmodule/fragments/footer :: scripts(datatables = true, checkbox = true)"></div>
-    <div th:replace="attestationmodule/fragments/userRemarkModal :: userRemarkModalScript"></div>
+    <div th:replace="~{attestationmodule/fragments/footer :: scripts(datatables = true, checkbox = true)}"></div>
+    <div th:replace="~{attestationmodule/fragments/userRemarkModal :: userRemarkModalScript}"></div>
 
     <script th:inline="javascript">
     /*<![CDATA[*/
@@ -364,16 +364,7 @@
 
 						userService.handleBadgeAndPageSwitch(userId, number);
 					},
-					error: function(jqXHR, textStatus, error) {
-						switch (jqXHR.status) {
-							case 400:
-								toastr.warning(jqXHR.responseText);
-								break;
-							default:
-								toastr.warning('Teknisk fejl: ' + jqXHR.responseText);
-								break;
-						}
-					}
+					error: defaultErrorHandler
 				});
 		    }
 
@@ -409,14 +400,7 @@
                         userService.handleBadgeAndPageSwitch(userUuid, number);
                    },
                    error: function(jqXHR, textStatus, error) {
-                        switch (jqXHR.status) {
-                            case 400:
-                                toastr.warning(jqXHR.responseText);
-                                break;
-                            default:
-                                toastr.warning('Teknisk fejl: ' + jqXHR.responseText);
-                                break;
-                        }
+                       defaultErrorHandler(jqXHR);
                         $("#userRemarkError").show();
                    }
                 });
@@ -457,16 +441,7 @@
 
                                 userService.handleBadgeAndPageSwitch(userId, number);
                            },
-                           error: function(jqXHR, textStatus, error) {
-                                switch (jqXHR.status) {
-                                    case 400:
-                                        toastr.warning(jqXHR.responseText);
-                                        break;
-                                    default:
-                                        toastr.warning('Teknisk fejl: ' + jqXHR.responseText);
-                                        break;
-                                }
-                           }
+                           error: defaultErrorHandler
                         });
                     }
                 });
@@ -536,16 +511,7 @@
 						$("#alreadyDoneOrgUnit" + orgUnitUuid).show();
 						$("#badgeOrgUnits").hide();
 					},
-					error: function(jqXHR, textStatus, error) {
-						switch (jqXHR.status) {
-							case 400:
-								toastr.warning(jqXHR.responseText);
-								break;
-							default:
-								toastr.warning('Teknisk fejl: ' + jqXHR.responseText);
-								break;
-						}
-					}
+					error: defaultErrorHandler
 				});
 		    }
 
@@ -569,14 +535,7 @@
                         $("#badgeOrgUnits").hide();
                    },
                    error: function(jqXHR, textStatus, error) {
-                        switch (jqXHR.status) {
-                            case 400:
-                                toastr.warning(jqXHR.responseText);
-                                break;
-                            default:
-                                toastr.warning('Teknisk fejl: ' + jqXHR.responseText);
-                                break;
-                        }
+                       defaultErrorHandler(jqXHR);
                         $("#remarkError").show();
                    }
                 });

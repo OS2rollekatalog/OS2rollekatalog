@@ -1,22 +1,5 @@
 package dk.digitalidentity.rc.controller.api.v2;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Date;
-import java.util.List;
-import java.util.Objects;
-
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RestController;
-
 import dk.digitalidentity.rc.dao.model.ManagerSubstitute;
 import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.security.RequireApiOrganisationRole;
@@ -28,10 +11,28 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RestController;
+
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Date;
+import java.util.List;
+import java.util.Objects;
 
 @RestController
 @RequireApiOrganisationRole
 @SecurityRequirement(name = "ApiKey")
+@Tag(name = "Manager and substitutes API V2")
 public class ManagerSubstituteApiV2 {
 
 	@Autowired
@@ -40,12 +41,14 @@ public class ManagerSubstituteApiV2 {
     @Autowired
     private OrgUnitService orgUnitService;
 
+    @Schema(name = "Manager")
     record ManagerRecord(
             @Schema(description = "Unique ID for manager, which is uuid from managers user profile") String uuid,
             @Schema(description = "Name of manager") String name,
             @Schema(description = "Username for manager") String userId,
             @Schema(description = "List of all assigned substitutes for manager") List<ManagerSubstituteRecord> managerSubstitutes) {}
 
+    @Schema(name = "ManagerSubstitute")
     record ManagerSubstituteRecord(
             @Schema(description = "Unique ID for the substitute, which is uuid from subs user profile") String uuid,
             @Schema(description = "Name of the substitute") String name,

@@ -1,14 +1,13 @@
 package dk.digitalidentity.rc.attestation.service.temporal;
 
+import dk.digitalidentity.rc.attestation.annotation.PartOfNaturalKey;
+import jakarta.xml.bind.DatatypeConverter;
+
 import java.lang.reflect.Field;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.Collection;
 import java.util.stream.Collectors;
-
-import javax.xml.bind.DatatypeConverter;
-
-import dk.digitalidentity.rc.attestation.annotation.PartOfNaturalKey;
 
 public abstract class TemporalHasher {
     private static final MessageDigest md;
