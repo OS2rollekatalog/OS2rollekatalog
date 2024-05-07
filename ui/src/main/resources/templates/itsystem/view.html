@@ -1,11 +1,11 @@
 <!DOCTYPE html>
 <html xmlns="http://www.w3.org/1999/xhtml" xmlns:th="http://www.thymeleaf.org">
-<head th:replace="fragments/header :: header (title=#{html.page.itsystem.view.title})"></head>
+<head th:replace="~{fragments/header :: header (title=#{html.page.itsystem.view.title})}"></head>
 <body>
 
 	<div class="wrapper">
-		<header th:replace="fragments/navbar :: navbar-header(subpage = 'roles')"></header>
-		<aside th:replace="fragments/navbar :: navbar-aside (page = 'itsystem.list', subpage = 'roles')"></aside>
+		<header th:replace="~{fragments/navbar :: navbar-header(subpage = 'roles')}"></header>
+		<aside th:replace="~{fragments/navbar :: navbar-aside (page = 'itsystem.list', subpage = 'roles')}"></aside>
 
 		<section>
 			<div class="content-wrapper">
@@ -378,8 +378,8 @@
 		</section>
 	</div>
 
-	<nav th:replace="fragments/footer :: footer"></nav>
-	<script th:replace="fragments/datatables :: datatables "></script>
+	<nav th:replace="~{fragments/footer :: footer}"></nav>
+	<script th:replace="~{fragments/datatables :: datatables}"></script>
 
 </body>
 </html>

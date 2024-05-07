@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html>
-<head th:replace="fragments/header :: header (title=#{html.page.ous.mange.title})"></head>
+<head th:replace="~{fragments/header :: header (title=#{html.page.ous.mange.title})}"></head>
 <body>
 	<div class="wrapper">
-		<header th:replace="fragments/navbar :: navbar-header(subpage = 'roles')"></header>
-		<aside th:replace="fragments/navbar :: navbar-aside (page = 'ous', subpage = 'roles')"></aside>
+		<header th:replace="~{fragments/navbar :: navbar-header(subpage = 'roles')}"></header>
+		<aside th:replace="~{fragments/navbar :: navbar-aside (page = 'ous', subpage = 'roles')}"></aside>
 
 		<section>
 			<div class="content-wrapper">
@@ -175,7 +175,7 @@
 							</div>
 
 							<div id="users_menu" th:if="${allowAccessToOu == true}" class="tab-pane fade">
-								<div th:replace="ous/fragments/ou_users :: orgUnitUsers(users = ${users})"></div>
+								<div th:replace="~{ous/fragments/ou_users :: orgUnitUsers(users = ${users})}"></div>
 							</div>
 						</div>
 					</div>
@@ -198,13 +198,13 @@
 		.autocomplete-group strong { display: block; border-bottom: 1px solid #000; }
 	</style>
 
-	<div th:replace="ous/fragments/ou_roles_modal :: ouRolesModal(titles = ${titles})"></div>
+	<div th:replace="~{ous/fragments/ou_roles_modal :: ouRolesModal(titles = ${titles})}"></div>
 
-	<nav th:replace="fragments/footer :: footer"></nav>
+	<nav th:replace="~{fragments/footer :: footer}"></nav>
 	
-	<script th:replace="fragments/datatables :: datatables "></script>
-	<script th:replace="fragments/assignDatePicker :: content "></script>
-	<script th:replace="ous/fragments/ou_roles_modal :: ouRolesModalScript(titlesEnabled=${titlesEnabled})"></script>
+	<script th:replace="~{fragments/datatables :: datatables}"></script>
+	<script th:replace="~{fragments/assignDatePicker :: content}"></script>
+	<script th:replace="~{ous/fragments/ou_roles_modal :: ouRolesModalScript(titlesEnabled=${titlesEnabled})}"></script>
 
 	<script th:inline="javascript">
 		/*<![CDATA[*/
@@ -305,14 +305,7 @@
 				headers: {
 					'X-CSRF-TOKEN': token
 				},
-				error: function(response) {
-					$.notify({
-						message: response.responseText
-					}, {
-						status: 'danger',
-						autoHideDelay: 4000
-					});
-				},
+				error: defaultErrorHandler,
 				success: function(response) {	
 					$.notify({
 						message: fieldUpdatedMsg
@@ -341,14 +334,7 @@
 				headers: {
 					'X-CSRF-TOKEN': token
 				},
-				error: function(response) {
-					$.notify({
-						message: response.responseText
-					}, {
-						status: 'danger',
-						autoHideDelay: 4000
-					});
-				},
+				error: defaultErrorHandler,
 				success: function(response) {	
 					$.notify({
 						message: fieldUpdatedMsg
@@ -418,13 +404,7 @@
 								headers: {
 									'X-CSRF-TOKEN': token
 								},
-								error: function(response) {
-									$.notify({
-										message: errorMessage,
-										status: 'danger',
-										timeout: 4000
-									});
-								},
+								error: errorHandler(errorMessage),
 								success: function(response) {
 									rolesService.loadRolesFragment();
 								}
@@ -458,9 +438,7 @@
 							headers: {
 								'X-CSRF-TOKEN': token
 							},
-							error : function(response) {
-								showErrorNotification(fieldNotUpdatedMsg);
-							},
+							error : errorHandler(fieldNotUpdatedMsg),
 							success : function(response) {
 								ouRolesEditModalService.showAssignModal(titlesEnabled, response, startDate, stopDate, assignmentType, assignmentId);
 							}
@@ -483,9 +461,7 @@
 							headers: {
 								'X-CSRF-TOKEN': token
 							},
-							error : function(response) {
-								showErrorNotification(fieldNotUpdatedMsg);
-							},
+							error: errorHandler(fieldNotUpdatedMsg),
 							success : function(response) {
 								ouRolesEditModalService.showAssignModal(titlesEnabled, response, startDate, stopDate, assignmentType, assignmentId);
 							}
@@ -540,15 +516,8 @@
 					data: personUuid
 				}).done(function (data) {
 					reloadRequestApproveFragment();
-				}).fail(function (jqXHR, textStatus, errorThrown) {
-					$.notify({
-						message: msgAssignFailure
-					}, {
-						status: 'danger',
-						autoHideDelay: 4000
-					});
-				});
-			};
+				}).fail(errorHandler(msgAssignFailure));
+			}
 			
 			this.addAuthManager = function(personUuid) {
 				$.ajax({
@@ -561,15 +530,8 @@
 					data: personUuid
 				}).done(function (data) {
 					reloadRequestApproveFragment();
-				}).fail(function (jqXHR, textStatus, errorThrown) {
-					$.notify({
-						message: msgAssignFailure
-					}, {
-						status: 'danger',
-						autoHideDelay: 4000
-					});
-				});
-			};
+				}).fail(errorHandler(msgAssignFailure));
+			}
 		}
 
 		/*]]>*/
@@ -688,14 +650,7 @@
 						"type": element.dataset.type,
 						'X-CSRF-TOKEN': token
 					},
-					error: function(response) {
-						$.notify({
-							message: fieldNotUpdatedMsg
-						}, {
-							status: 'danger',
-							autoHideDelay: 4000
-						});
-					},
+					error: errorHandler(fieldNotUpdatedMsg),
 					success: function(response) {
 						kleService.loadViewFragment(element.dataset.type);
 						$.notify({

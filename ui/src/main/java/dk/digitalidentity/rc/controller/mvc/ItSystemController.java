@@ -31,6 +31,7 @@ import dk.digitalidentity.rc.service.SettingsService;
 import dk.digitalidentity.rc.service.SystemRoleService;
 import dk.digitalidentity.rc.service.UserRoleService;
 import dk.digitalidentity.rc.service.UserService;
+import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
@@ -44,7 +45,6 @@ import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 
-import javax.validation.Valid;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
@@ -205,7 +205,7 @@ public class ItSystemController {
 	public String viewItSystem(Model model, @PathVariable("id") long id) {
 		ItSystem itSystem = itSystemService.getById(id);
 		if (itSystem == null) {
-			return "redirect:../list";
+			return "redirect:list";
 		}
 
 		SystemRoleForm systemRoleForm = new SystemRoleForm();
@@ -232,7 +232,7 @@ public class ItSystemController {
 	public String editItSystem(Model model, @PathVariable("id") long id) {
 		ItSystem itSystem = itSystemService.getById(id);
 		if (itSystem == null) {
-			return "redirect:../list";
+			return "redirect:list";
 		}
 
 		SystemRoleForm systemRoleForm = new SystemRoleForm();
@@ -269,7 +269,7 @@ public class ItSystemController {
 	public String addSystemRoleToItSystem(Model model, @PathVariable("systemid") long systemId, @Valid @ModelAttribute("systemRoleForm") SystemRoleForm systemRoleForm, BindingResult bindingResult) {
 		ItSystem itSystem = itSystemService.getById(systemId);
 		if (itSystem == null || (!itSystem.getSystemType().equals(ItSystemType.AD) && !itSystem.getSystemType().equals(ItSystemType.SAML) && !itSystem.getSystemType().equals(ItSystemType.MANUAL))) {
-			return "redirect:../../list";
+			return "redirect:../list";
 		}
 
 		if (systemRoleForm.getIdentifier().length() == 0) {
@@ -342,15 +342,15 @@ public class ItSystemController {
 	public String convertSystemRoles(Model model, @PathVariable("id") long id, @ModelAttribute("convertSystemRolesForm") ConvertSystemRolesForm convertSystemRolesForm) {
 		ItSystem itSystem = itSystemService.getById(id);
 		if (itSystem == null) {
-			return "redirect:../../list";
+			return "redirect:../list";
 		}
 
 		if (itSystem.getSystemType().equals(ItSystemType.AD) && itSystem.isReadonly()) {
-			return "redirect:../../list";
+			return "redirect:../list";
 		}
 
 		if (itSystem.getSystemType().equals(ItSystemType.KSPCICS)) {
-			return "redirect:../../list";
+			return "redirect:../list";
 		}
 
 		List<SystemRole> systemRoles = systemRoleService.getByItSystem(itSystem).stream()
@@ -389,6 +389,6 @@ public class ItSystemController {
 			userRoleService.save(userRole);
 		}
 
-		return "redirect:../../edit/" + itSystem.getId();
+		return "redirect:../edit/" + itSystem.getId();
 	}
 }

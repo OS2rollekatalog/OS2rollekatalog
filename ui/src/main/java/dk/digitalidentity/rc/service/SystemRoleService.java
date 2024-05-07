@@ -1,16 +1,16 @@
 package dk.digitalidentity.rc.service;
 
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
-
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Service;
-
 import dk.digitalidentity.rc.dao.SystemRoleDao;
 import dk.digitalidentity.rc.dao.model.ItSystem;
 import dk.digitalidentity.rc.dao.model.SystemRole;
 import dk.digitalidentity.rc.dao.model.UserRole;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+import java.util.HashSet;
+import java.util.List;
+import java.util.Optional;
+import java.util.Set;
 
 @Service
 public class SystemRoleService {
@@ -23,6 +23,10 @@ public class SystemRoleService {
 
 	public SystemRole getById(long id) {
 		return systemRoleDao.findById(id);
+	}
+
+	public Optional<SystemRole> getOptionalById(long id) {
+		return Optional.ofNullable(systemRoleDao.findById(id));
 	}
 
 	public List<SystemRole> getByItSystem(ItSystem itSystem) {

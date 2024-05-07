@@ -1,11 +1,17 @@
 package dk.digitalidentity.rc.controller.mvc;
 
-import java.util.Date;
-import java.util.List;
-import java.util.stream.Collectors;
-
-import javax.validation.Valid;
-
+import dk.digitalidentity.rc.controller.mvc.viewmodel.AttestationSettingsForm;
+import dk.digitalidentity.rc.controller.mvc.viewmodel.OUListForm;
+import dk.digitalidentity.rc.controller.mvc.viewmodel.SettingsForm;
+import dk.digitalidentity.rc.controller.validator.AttestationSettingFormValidator;
+import dk.digitalidentity.rc.dao.model.Notification;
+import dk.digitalidentity.rc.dao.model.enums.NotificationType;
+import dk.digitalidentity.rc.security.RequireAdministratorRole;
+import dk.digitalidentity.rc.service.NotificationService;
+import dk.digitalidentity.rc.service.OrgUnitService;
+import dk.digitalidentity.rc.service.SettingsService;
+import jakarta.validation.Valid;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -17,16 +23,9 @@ import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
-import dk.digitalidentity.rc.controller.mvc.viewmodel.OUListForm;
-import dk.digitalidentity.rc.controller.mvc.viewmodel.SettingsForm;
-import dk.digitalidentity.rc.controller.validator.SettingFormValidator;
-import dk.digitalidentity.rc.dao.model.Notification;
-import dk.digitalidentity.rc.dao.model.enums.NotificationType;
-import dk.digitalidentity.rc.security.RequireAdministratorRole;
-import dk.digitalidentity.rc.service.NotificationService;
-import dk.digitalidentity.rc.service.OrgUnitService;
-import dk.digitalidentity.rc.service.SettingsService;
-import lombok.extern.slf4j.Slf4j;
+import java.util.Date;
+import java.util.List;
+import java.util.stream.Collectors;
 
 @Slf4j
 @RequireAdministratorRole
@@ -40,14 +39,14 @@ public class SettingsController {
 	private OrgUnitService orgUnitService;
 	
 	@Autowired
-	private SettingFormValidator settingFormValidator;
+	private AttestationSettingFormValidator attestationSettingFormValidator;
 	
 	@Autowired
 	private NotificationService notificationService;
 
-	@InitBinder
+	@InitBinder(value="attestationSettingsForm")
 	public void initBinder(WebDataBinder binder) {
-		binder.addValidators(settingFormValidator);
+		binder.addValidators(attestationSettingFormValidator);
 	}
 
 	@GetMapping(value = "/ui/settings")
@@ -57,28 +56,11 @@ public class SettingsController {
 		return "setting/settings";
 	}
 
-	private void populateModel(Model model) {
-		SettingsForm settingsForm = new SettingsForm();
+	@GetMapping(value = "/ui/settings/attestation")
+	public String attestationSettings(Model model) {
+		populateModelAttestation(model);
 
-		settingsForm.setRequestApproveEnabled(settingsService.isRequestApproveEnabled());
-		settingsForm.setServicedeskEmail(settingsService.getRequestApproveServicedeskEmail());
-
-		settingsForm.setItSystemChangeEmail(settingsService.getItSystemChangeEmail());
-
-		settingsForm.setAttestationChangeEmail(settingsService.getAttestationChangeEmail());
-		settingsForm.setScheduledAttestationEnabled(settingsService.isScheduledAttestationEnabled());
-		settingsForm.setScheduledAttestationInterval(settingsService.getScheduledAttestationInterval());
-		settingsForm.setScheduledAttestationFilter(settingsService.getScheduledAttestationFilter());
-		settingsForm.setAdAttestationEnabled(settingsService.isADAttestationEnabled());
-		settingsForm.setFirstAttestationDate(settingsService.getFirstAttestationDate());
-
-		List<OUListForm> allOUs = orgUnitService.getAllCached()
-				.stream()
-				.map(ou -> new OUListForm(ou, false))
-				.collect(Collectors.toList());
-
-		model.addAttribute("allOUs", allOUs);
-		model.addAttribute("settingsForm", settingsForm);
+		return "setting/attestation_settings";
 	}
 
 	@PostMapping(value = "/ui/settings")
@@ -92,19 +74,11 @@ public class SettingsController {
 		}
 		
 		boolean requestApproveBefore = settingsService.isRequestApproveEnabled();
-		boolean attestationBefore = settingsService.isScheduledAttestationEnabled();
 
 		settingsService.setRequestApproveEnabled(settingsForm.isRequestApproveEnabled());
 		settingsService.setRequestApproveServicedeskEmail(settingsForm.getServicedeskEmail());
 
 		settingsService.setItSystemChangeEmail(settingsForm.getItSystemChangeEmail());
-
-		settingsService.setAttestationChangeEmail(settingsForm.getAttestationChangeEmail());
-		settingsService.setScheduledAttestationEnabled(settingsForm.isScheduledAttestationEnabled());
-		settingsService.setScheduledAttestationInterval(settingsForm.getScheduledAttestationInterval());
-		settingsService.setScheduledAttestationFilter(settingsForm.getScheduledAttestationFilter());
-		settingsService.setADAttestationEnabled(settingsForm.isAdAttestationEnabled());
-		settingsService.setFirstAttestationDate(settingsForm.getFirstAttestationDate());
 
 		redirectAttributes.addFlashAttribute("saved", true);
 		
@@ -116,8 +90,32 @@ public class SettingsController {
 
 			notificationService.save(notification);
 		}
-		
-		if (!attestationBefore && settingsForm.isScheduledAttestationEnabled()) {
+
+		return "redirect:/ui/settings";
+	}
+
+	@PostMapping(value = "/ui/settings/attestation")
+	public String updateAttestationSettings(Model model, @Valid @ModelAttribute("attestationSettingsForm") AttestationSettingsForm attestationSettingsForm, BindingResult bindingResult, RedirectAttributes redirectAttributes) {
+		if (bindingResult.hasErrors()) {
+			model.addAttribute(bindingResult.getAllErrors());
+
+			log.warn("Bad settingsform - unable to save");
+			return "setting/attestation_settings";
+		}
+
+		boolean attestationBefore = settingsService.isScheduledAttestationEnabled();
+
+		settingsService.setAttestationChangeEmail(attestationSettingsForm.getAttestationChangeEmail());
+		settingsService.setScheduledAttestationEnabled(attestationSettingsForm.isScheduledAttestationEnabled());
+		settingsService.setScheduledAttestationInterval(attestationSettingsForm.getScheduledAttestationInterval());
+		settingsService.setScheduledAttestationFilter(attestationSettingsForm.getScheduledAttestationFilter());
+		settingsService.setADAttestationEnabled(attestationSettingsForm.isAdAttestationEnabled());
+		settingsService.setFirstAttestationDate(attestationSettingsForm.getFirstAttestationDate());
+		settingsService.setAttestationRequestChangesEnabled(attestationSettingsForm.isChangeRequestsEnabled());
+
+		redirectAttributes.addFlashAttribute("saved", true);
+
+		if (!attestationBefore && attestationSettingsForm.isScheduledAttestationEnabled()) {
 			Notification notification = new Notification();
 			notification.setActive(true);
 			notification.setCreated(new Date());
@@ -126,6 +124,36 @@ public class SettingsController {
 			notificationService.save(notification);
 		}
 
-		return "redirect:/ui/settings";
+		return "redirect:/ui/settings/attestation";
+	}
+
+	private void populateModel(Model model) {
+		SettingsForm settingsForm = new SettingsForm();
+
+		settingsForm.setRequestApproveEnabled(settingsService.isRequestApproveEnabled());
+		settingsForm.setServicedeskEmail(settingsService.getRequestApproveServicedeskEmail());
+		settingsForm.setItSystemChangeEmail(settingsService.getItSystemChangeEmail());
+
+		model.addAttribute("settingsForm", settingsForm);
+	}
+
+	private void populateModelAttestation(Model model) {
+		AttestationSettingsForm settingsForm = new AttestationSettingsForm();
+
+		settingsForm.setAttestationChangeEmail(settingsService.getAttestationChangeEmail());
+		settingsForm.setScheduledAttestationEnabled(settingsService.isScheduledAttestationEnabled());
+		settingsForm.setScheduledAttestationInterval(settingsService.getScheduledAttestationInterval());
+		settingsForm.setScheduledAttestationFilter(settingsService.getScheduledAttestationFilter());
+		settingsForm.setAdAttestationEnabled(settingsService.isADAttestationEnabled());
+		settingsForm.setFirstAttestationDate(settingsService.getFirstAttestationDate());
+		settingsForm.setChangeRequestsEnabled(settingsService.isAttestationRequestChangesEnabled());
+
+		List<OUListForm> allOUs = orgUnitService.getAllCached()
+				.stream()
+				.map(ou -> new OUListForm(ou, false))
+				.collect(Collectors.toList());
+
+		model.addAttribute("allOUs", allOUs);
+		model.addAttribute("attestationSettingsForm", settingsForm);
 	}
 }

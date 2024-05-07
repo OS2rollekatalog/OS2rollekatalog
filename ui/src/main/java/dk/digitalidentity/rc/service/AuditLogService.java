@@ -1,16 +1,16 @@
 package dk.digitalidentity.rc.service;
 
-import java.util.Calendar;
-import java.util.Date;
-
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
-
 import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
 import dk.digitalidentity.rc.controller.mvc.datatables.dao.AuditLogViewDao;
 import dk.digitalidentity.rc.controller.mvc.datatables.dao.model.AuditLogView;
 import dk.digitalidentity.rc.log.AuditLogEntryDao;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Sort;
+import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.Calendar;
+import java.util.Date;
 
 @Component
 public class AuditLogService {
@@ -34,6 +34,6 @@ public class AuditLogService {
 	}
 	
 	public Iterable<AuditLogView> downloadAuditLog() {
-		return auditLogViewDao.findAll();
+		return auditLogViewDao.findAll(Sort.unsorted());
 	}
 }

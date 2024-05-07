@@ -17,15 +17,15 @@ public interface AttestationOuAssignmentsDao extends CrudRepository<AttestationO
     List<AttestationOuRoleAssignment> listValidNotInheritedAssignmentsWithResponsibleUser(@Param("validAt") final LocalDate validAt, @Param("responsibleUuid") final String responsibleUser);
 
     @Query(nativeQuery = true, value = "SELECT * FROM attestation_ou_role_assignments s2 " +
-            "INNER JOIN (SELECT max(s.id) as id FROM attestation_ou_role_assignments s " +
+            "INNER JOIN (SELECT max(s.id) as sid FROM attestation_ou_role_assignments s " +
             "WHERE s.valid_from <= :validAt AND (s.valid_to > :validAt or s.valid_to is null) and s.responsible_user_uuid is not null " +
-            "GROUP BY s.responsible_user_uuid, s.sensitive_role) as sub on sub.id = s2.id")
+            "GROUP BY s.responsible_user_uuid, s.sensitive_role) as sub on sub.sid = s2.id")
     List<AttestationOuRoleAssignment> findValidGroupByResponsibleUserUuidAndSensitiveRole(@Param("validAt") final LocalDate validAt);
 
     @Query(nativeQuery = true, value = "SELECT * FROM attestation_ou_role_assignments s2 " +
-            "INNER JOIN (SELECT max(s.id) as id FROM attestation_ou_role_assignments s " +
+            "INNER JOIN (SELECT max(s.id) as sid FROM attestation_ou_role_assignments s " +
             "WHERE s.valid_from <= :validAt AND (s.valid_to > :validAt or s.valid_to is null) AND s.responsible_ou_uuid is not null " +
-            "GROUP BY s.responsible_ou_uuid, s.sensitive_role) as sub on sub.id = s2.id")
+            "GROUP BY s.responsible_ou_uuid, s.sensitive_role) as sub on sub.sid = s2.id")
     List<AttestationOuRoleAssignment> findValidGroupByResponsibleOuUuidAndSensitiveRole(@Param("validAt") final LocalDate validAt);
 
 }

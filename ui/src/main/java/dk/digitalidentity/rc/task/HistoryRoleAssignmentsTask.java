@@ -8,6 +8,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
+import java.time.LocalDate;
 import java.util.Date;
 
 @Component
@@ -30,9 +31,13 @@ public class HistoryRoleAssignmentsTask {
 
 			return;
 		}
-		
-		Date now = new Date();
-		
+		final LocalDate today = LocalDate.now();
+		if (!historyService.lastGeneratedDate().isBefore(today)) {
+			log.error("Last history generated happened on or after today ?!");
+			return;
+		}
+
+		final Date startTime = new Date();
 		historyService.generateOrganisationHistory();
 		historyService.generateItSytemHistory();
 		historyService.generateRoleAssignmentHistory();
@@ -40,8 +45,11 @@ public class HistoryRoleAssignmentsTask {
 		historyService.generateOURoleAssignmentHistory();
 		historyService.generateTitleRoleAssignmentHistory();
 		historyService.generateExceptedUsersHistory();
+
+		// Keep this last, so we can se what dates the generation where successful
+		historyService.generateDate();
 		
-		log.info("Generating historic role assignments took " + ((new Date().getTime() - now.getTime()) / 1000) + " seconds");
+		log.info("Generating historic role assignments took " + ((new Date().getTime() - startTime.getTime()) / 1000) + " seconds");
 	}
 	
 	@Scheduled(cron = "0 #{new java.util.Random().nextInt(55)} 5 * * ?")

@@ -1,24 +1,5 @@
 package dk.digitalidentity.rc.controller.mvc;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
-import java.util.Objects;
-
-import javax.servlet.http.HttpServletResponse;
-
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.MessageSource;
-import org.springframework.stereotype.Controller;
-import org.springframework.ui.Model;
-import org.springframework.util.StringUtils;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.servlet.ModelAndView;
-
 import dk.digitalidentity.rc.config.Constants;
 import dk.digitalidentity.rc.controller.mvc.xlsview.ManagersXlsxView;
 import dk.digitalidentity.rc.controller.rest.model.ManagerSubstituteAssignmentDTO;
@@ -30,6 +11,23 @@ import dk.digitalidentity.rc.security.RequireReadAccessRole;
 import dk.digitalidentity.rc.security.SecurityUtil;
 import dk.digitalidentity.rc.service.OrgUnitService;
 import dk.digitalidentity.rc.service.UserService;
+import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.MessageSource;
+import org.springframework.stereotype.Controller;
+import org.springframework.ui.Model;
+import org.springframework.util.StringUtils;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.servlet.ModelAndView;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Objects;
 
 @Controller
 public class ManagerController {
@@ -62,7 +60,9 @@ public class ManagerController {
 		List<OrgUnitDTO> orgUnitDTOs = new ArrayList<>();
 		List<OrgUnit> managerOrgUnits = orgUnitService.getByManagerMatchingUser(manager);
 		for (OrgUnit orgUnit : managerOrgUnits) {
-			orgUnitDTOs.add(new OrgUnitDTO(orgUnit.getUuid(), orgUnit.getName()));
+			if (orgUnit.isActive()) {
+				orgUnitDTOs.add(new OrgUnitDTO(orgUnit.getUuid(), orgUnit.getName()));
+			}
 		}
 		
 		List<ManagerSubstituteAssignmentDTO> substitutesDTO = manager.getManagerSubstitutes().stream().map(ManagerSubstituteAssignmentDTO::new).toList();

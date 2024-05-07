@@ -47,7 +47,10 @@
       <HintPath>..\packages\log4net.2.0.15\lib\net45\log4net.dll</HintPath>
     </Reference>
     <Reference Include="Microsoft.IdentityServer.ClaimsPolicy">
-      <HintPath>..\claimspolicy\WindowsServer2019\Microsoft.IdentityServer.ClaimsPolicy.dll</HintPath>
+      <HintPath>..\claimspolicy\WindowsServer2016\Microsoft.IdentityServer.ClaimsPolicy.dll</HintPath>
+    </Reference>
+    <Reference Include="Newtonsoft.Json, Version=13.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
+      <HintPath>..\packages\Newtonsoft.Json.13.0.3\lib\net45\Newtonsoft.Json.dll</HintPath>
     </Reference>
     <Reference Include="RestSharp, Version=106.13.0.0, Culture=neutral, PublicKeyToken=598062e77f915f75, processorArchitecture=MSIL">
       <HintPath>..\packages\RestSharp.106.13.0\lib\net452\RestSharp.dll</HintPath>
@@ -67,6 +70,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Configuration.cs" />
+    <Compile Include="DummyDTO.cs" />
     <Compile Include="RoleCatalogueStub.cs" />
     <Compile Include="AttributeStoreLogger.cs" />
     <Compile Include="RoleCatalogueAttributeStore.cs" />

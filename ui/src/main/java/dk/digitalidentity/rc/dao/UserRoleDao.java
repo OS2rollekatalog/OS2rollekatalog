@@ -1,15 +1,13 @@
 package dk.digitalidentity.rc.dao;
 
-import java.util.List;
-
-import org.springframework.data.repository.CrudRepository;
-
 import dk.digitalidentity.rc.dao.model.ItSystem;
 import dk.digitalidentity.rc.dao.model.SystemRole;
 import dk.digitalidentity.rc.dao.model.UserRole;
+import org.springframework.data.repository.CrudRepository;
+
+import java.util.List;
 
 public interface UserRoleDao extends CrudRepository<UserRole, Long> {
-	UserRole findById(long id);
 	UserRole getByNameAndItSystem(String name, ItSystem itSystem);
 	List<UserRole> findAll();
 	List<UserRole> findByCanRequestTrue();

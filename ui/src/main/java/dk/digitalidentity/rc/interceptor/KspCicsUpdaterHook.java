@@ -1,19 +1,19 @@
 package dk.digitalidentity.rc.interceptor;
 
-import java.util.List;
-import java.util.stream.Collectors;
-
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Component;
-
 import dk.digitalidentity.rc.dao.model.OrgUnit;
 import dk.digitalidentity.rc.dao.model.Position;
 import dk.digitalidentity.rc.dao.model.RoleGroup;
 import dk.digitalidentity.rc.dao.model.SystemRoleAssignment;
 import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserRole;
+import dk.digitalidentity.rc.dao.model.UserUserRoleAssignment;
 import dk.digitalidentity.rc.service.UserService;
 import dk.digitalidentity.rc.service.cics.KspCicsService;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
+
+import java.util.List;
+import java.util.stream.Collectors;
 
 @Component
 public class KspCicsUpdaterHook implements RoleChangeHook {
@@ -50,6 +50,10 @@ public class KspCicsUpdaterHook implements RoleChangeHook {
 		if (userService.hasCicsUser(user)) {
 			kspCicsService.addUserRoleToQueue(userRole);
 		}
+	}
+
+	@Override
+	public void interceptEditUserRoleAssignmentOnUser(User user, UserUserRoleAssignment assignment) {
 	}
 
 	@Override

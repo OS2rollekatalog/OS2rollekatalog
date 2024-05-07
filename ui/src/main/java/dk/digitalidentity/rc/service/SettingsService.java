@@ -30,12 +30,11 @@ public class SettingsService {
 	private static final String SETTING_IT_SYSTEM_CHANGE_EMAIL = "ItSystemChangeEmail";
 	private static final String SETTING_ATTESTATIONCHANGE_EMAIL = "RemovalOfUnitRolesEmail";
 	private static final String SETTING_AD_ATTESTATION = "AttestationADEnabled";
+	private static final String SETTING_ALLOW_CHANGE_REQUEST_ATTESTATION = "AttestationAllowChanges";
 	private static final String SETTING_RUN_CICS = "RunCics";
 	private static final String SETTING_IT_SYSTEM_DEFAULT_HIDDEN_ENABLED = "ItSystemHiddenByDefault";
 	private static final String SETTING_FIRST_ATTESTATION_DATE = "FirstAttestationDate";
 	private static final String SETTING_MITID_ERHVERV_MIGRATION_PERFORMED = "MitIDErhvervMigrationPerformed";
-
-	private static final String SETTING_SYNC_ASSIGNMENTS_TO_OU_PERFORMED = "SyncOrgUnitOnRoleAssignmentsPerformed";
 
 	@Autowired
 	private OrgUnitService orgUnitService;
@@ -278,7 +277,19 @@ public class SettingsService {
 	public void setADAttestationEnabled(boolean enabled) {
 		setKeyEnabled(enabled, SETTING_AD_ATTESTATION);
 	}
-	
+
+	public boolean isAttestationRequestChangesEnabled() {
+		final Setting setting = settingsDao.findByKey(SETTING_ALLOW_CHANGE_REQUEST_ATTESTATION);
+		if (setting == null) {
+			return true;
+		}
+		return setting.getValue().equals("true");
+	}
+
+	public void setAttestationRequestChangesEnabled(final boolean enabled) {
+		setKeyEnabled(enabled, SETTING_ALLOW_CHANGE_REQUEST_ATTESTATION);
+	}
+
 	public boolean isNotificationTypeEnabled(NotificationType notificationType) {
 		return getBooleanWithDefault(notificationType.toString(), true);
 	}
@@ -335,11 +346,4 @@ public class SettingsService {
 		setKeyEnabled(true, SETTING_MITID_ERHVERV_MIGRATION_PERFORMED);
 	}
 
-	public boolean isSyncOrgUnitOnRoleAssignmentsPerformed() {
-		return isKeyEnabled(SETTING_SYNC_ASSIGNMENTS_TO_OU_PERFORMED);
-	}
-
-	public void setSyncOrgUnitOnRoleAssignmentsPerformed() {
-		setKeyEnabled(true, SETTING_SYNC_ASSIGNMENTS_TO_OU_PERFORMED);
-	}
 }

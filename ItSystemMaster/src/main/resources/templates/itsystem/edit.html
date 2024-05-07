@@ -1,11 +1,11 @@
 <!DOCTYPE html>
 <html>
-<head th:replace="fragments/header :: header (title=#{html.page.itsystem.edit.title})" />
+<head th:replace="~{fragments/header :: header (title=#{html.page.itsystem.edit.title})}"></head>
 <body>
 
 	<div class="wrapper">
-		<header th:replace="fragments/navbar :: navbar-header" />
-		<aside th:replace="fragments/navbar :: navbar-aside (page = 'itsystem.list')" />
+		<header th:replace="~{fragments/navbar :: navbar-header}"></header>
+		<aside th:replace="~{fragments/navbar :: navbar-aside (page = 'itsystem.list')}"></aside>
 
 		<section>
 			<div class="content-wrapper">
@@ -143,8 +143,8 @@
 		</div>
 	</div>
 	
-	<nav th:replace="fragments/footer :: footer" />
-	<script th:replace="fragments/datatables :: datatables " />
+	<nav th:replace="~{fragments/footer :: footer}"></nav>
+	<script th:replace="~{fragments/datatables :: datatables}"></script>
 	
 	<style>
 		.table .checkbox {
@@ -186,14 +186,7 @@
 					headers: {
 						'X-CSRF-TOKEN': token
 					},
-					error: function(response) {
-						$.notify({
-							message: fieldNotUpdatedMsg + ""
-						},{
-							status: 'danger',
-							autoHideDelay: 4000
-						});
-					},
+					error: errorHandler(fieldNotUpdatedMsg),
 					success: function(response) {
 						$.notify({
 							message: fieldUpdatedMsg
@@ -277,18 +270,11 @@
 							success: function() {
 								window.location.href = url;
 							},
-							error: function() {
-								$.notify({
-									message: roleNotDeletedMsg
-								},{
-									status: 'danger',
-									autoHideDelay: 4000
-								});
-							}
-						});
+							error: errorHandler(roleNotDeletedMsg)
+						})
 					}
 				}
-			);
+			)
 		}
 
 

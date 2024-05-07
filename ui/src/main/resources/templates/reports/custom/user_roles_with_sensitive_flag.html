@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html>
-<head th:replace="fragments/header :: header (title=#{html.report.user_roles_with_sensitive_flag})"></head>
+<head th:replace="~{fragments/header :: header (title=#{html.report.user_roles_with_sensitive_flag})}"></head>
 <body>
 <div class="wrapper">
-	<header th:replace="fragments/navbar :: navbar-header(subpage = 'reports')"></header>
-	<aside th:replace="fragments/navbar :: navbar-aside (page = 'report.custom', subpage = 'reports')"></aside>
+	<header th:replace="~{fragments/navbar :: navbar-header(subpage = 'reports')}"></header>
+	<aside th:replace="~{fragments/navbar :: navbar-aside (page = 'report.custom', subpage = 'reports')}"></aside>
 
 	<section>
 			<div class="content-wrapper">
@@ -41,7 +41,7 @@
 	</section>
 </div>
 
-<nav th:replace="fragments/footer :: footer"></nav>
-<script th:replace="fragments/datatables :: datatables "></script>
+<nav th:replace="~{fragments/footer :: footer}"></nav>
+<script th:replace="~{fragments/datatables :: datatables}"></script>
 </body>
 </html>

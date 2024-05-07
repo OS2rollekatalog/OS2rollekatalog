@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html>
-<head th:replace="fragments/header :: header (title=#{html.page.report.full.title})"></head>
+<head th:replace="~{fragments/header :: header (title=#{html.page.report.full.title})}"></head>
 <body>
 	<div class="wrapper">
-		<header th:replace="fragments/navbar :: navbar-header(subpage = 'reports')"></header>
-		<aside th:replace="fragments/navbar :: navbar-aside (page = 'report.full', subpage = 'reports')"></aside>
+		<header th:replace="~{fragments/navbar :: navbar-header(subpage = 'reports')}"></header>
+		<aside th:replace="~{fragments/navbar :: navbar-aside (page = 'report.full', subpage = 'reports')}"></aside>
 
 		<section>
 			<div class="content-wrapper">
@@ -33,7 +33,7 @@
 							<hr/>
 
 							<block id="filterOptions">
-								<div th:replace="reports/fragments/filterOptionsFragment :: filterOptions(allItSystems = ${allItSystems}, allManagers = ${allManagers})"></div>
+								<div th:replace="~{reports/fragments/filterOptionsFragment :: filterOptions(allItSystems = ${allItSystems}, allManagers = ${allManagers})}"></div>
 							</block>
 
 							<hr/>
@@ -216,7 +216,7 @@
 		}
 	</style>
 
-	<nav th:replace="fragments/footer :: footer"></nav>
+	<nav th:replace="~{fragments/footer :: footer}"></nav>
 
 	<script th:inline="javascript">
 		/*<![CDATA[*/
@@ -347,14 +347,7 @@
 							autoHideDelay: 4000
 						});
 					},
-					error: function(response) {
-						$.notify({
-							message: fieldNotUpdatedMsg
-						}, {
-							status: 'danger',
-							autoHideDelay: 4000
-						});
-					},
+					error: errorHandler(fieldNotUpdatedMsg),
 					data: JSON.stringify(dataObj)
 				});
 			}
@@ -455,9 +448,7 @@
 						filterService.refreshCheckbox();
 						filterService.units();
 					},
-					error: function(response) {
-						
-					}
+					error: defaultErrorHandler
 				});
 			}
 		}
@@ -591,12 +582,12 @@
 				$('#itsystemCheckbox').change(function () {
 					if (this.checked)  {
 						$('#itsystemToggle').fadeIn('fast');
-						$('#realShowUsers').val(0);
+						$('#realShowUsers').val(false);
 						$('#realShowUsers').parent().hide();
 					} else {
 						$('#itsystemToggle').fadeOut('fast');
 	                    $('#itSystemSelectPicker').selectpicker('val', '');
-						$('#realShowUsers').val($('#UserColumnCheckbox').val());
+						$('#realShowUsers').val($('#UserColumnCheckbox').prop( "checked"));
 						$('#realShowUsers').parent().show();
 					}
 				});

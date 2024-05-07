@@ -30,6 +30,7 @@ import dk.digitalidentity.rc.service.RoleGroupService;
 import dk.digitalidentity.rc.service.SettingsService;
 import dk.digitalidentity.rc.service.UserRoleService;
 import dk.digitalidentity.rc.service.UserService;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -42,7 +43,6 @@ import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.RestController;
 
-import javax.servlet.http.HttpServletRequest;
 import java.security.Principal;
 import java.util.List;
 import java.util.Objects;
@@ -133,7 +133,7 @@ public class RequestApproveRestController {
 						userService.removeRoleGroup(request.getRequestedFor(), roleGroup);
 						auditLogger.log(request.getRequestedFor(), EventType.APPROVE_REQUEST, roleGroup);
 					} else {
-						userService.addRoleGroup(request.getRequestedFor(), roleGroup, null, null);
+						userService.addRoleGroup(request.getRequestedFor(), roleGroup, null, null, request.getOrgUnit());
 						auditLogger.log(request.getRequestedFor(), EventType.APPROVE_REQUEST, roleGroup);
 					}
 					roleName = roleGroup.getName();
@@ -152,9 +152,11 @@ public class RequestApproveRestController {
 		
 		request.setStatus(RequestApproveStatus.ASSIGNED);
 		request = requestApproveService.save(request);
-		
+
 		if (requestedFor.getEmail() != null) {
-			EmailTemplate template = emailTemplateService.findByTemplateType(EmailTemplateType.APPROVED_ROLE_REQUEST_USER);
+			EmailTemplate template = request.getRequestAction() == RequestAction.REMOVE
+					? emailTemplateService.findByTemplateType(EmailTemplateType.APPROVED_ROLE_REQUEST_REMOVAL_USER)
+					: emailTemplateService.findByTemplateType(EmailTemplateType.APPROVED_ROLE_REQUEST_USER);
 			if (manualItSystem) {
 				template = emailTemplateService.findByTemplateType(EmailTemplateType.APPROVED_MANUAL_ROLE_REQUEST_USER);
 			}
@@ -172,7 +174,7 @@ public class RequestApproveRestController {
 				log.info("Email template with type " + template.getTemplateType() + " is disabled. Email was not sent.");
 			}
 		}
-		
+
 		// notifying manager and authorizationManager
 		OrgUnit orgUnit = request.getOrgUnit();
 		EmailTemplate template = emailTemplateService.findByTemplateType(EmailTemplateType.APPROVED_ROLE_REQUEST_MANAGER);
@@ -351,6 +353,7 @@ public class RequestApproveRestController {
 	
 	private void notify(RequestApprove request, OrgUnit orgUnit, EmailTemplate template) {
 		if (template.isEnabled()) {
+			final String action = request.getRequestAction() == RequestAction.ADD ? "tildelt" : "fjernet";
 			if (orgUnit != null) {
 				String roleName = "";
 				if (request.getRoleType().equals(EntityType.USERROLE)) {
@@ -376,11 +379,13 @@ public class RequestApproveRestController {
 						title = title.replace(EmailTemplatePlaceholder.ROLE_NAME.getPlaceholder(), roleName);
 						title = title.replace(EmailTemplatePlaceholder.USER_PLACEHOLDER.getPlaceholder(), request.getRequestedFor().getName());
 						title = title.replace(EmailTemplatePlaceholder.REQUESTER_PLACEHOLDER.getPlaceholder(), request.getRequester().getName());
+						title = title.replace(EmailTemplatePlaceholder.REQUEST_OPERATION_PLACEHOLDER.getPlaceholder(), action);
 						String message = template.getMessage();
 						message = message.replace(EmailTemplatePlaceholder.RECEIVER_PLACEHOLDER.getPlaceholder(), manager.getName());
 						message = message.replace(EmailTemplatePlaceholder.ROLE_NAME.getPlaceholder(), roleName);
 						message = message.replace(EmailTemplatePlaceholder.USER_PLACEHOLDER.getPlaceholder(), request.getRequestedFor().getName());
 						message = message.replace(EmailTemplatePlaceholder.REQUESTER_PLACEHOLDER.getPlaceholder(), request.getRequester().getName());
+						message = message.replace(EmailTemplatePlaceholder.REQUEST_OPERATION_PLACEHOLDER.getPlaceholder(), action);
 						emailQueueService.queueEmail(manager.getEmail(), title, message, template, null);
 					}
 				}
@@ -398,11 +403,13 @@ public class RequestApproveRestController {
 							title = title.replace(EmailTemplatePlaceholder.ROLE_NAME.getPlaceholder(), roleName);
 							title = title.replace(EmailTemplatePlaceholder.USER_PLACEHOLDER.getPlaceholder(), request.getRequestedFor().getName());
 							title = title.replace(EmailTemplatePlaceholder.REQUESTER_PLACEHOLDER.getPlaceholder(), request.getRequester().getName());
+							title = title.replace(EmailTemplatePlaceholder.REQUEST_OPERATION_PLACEHOLDER.getPlaceholder(), action);
 							String message = template.getMessage();
 							message = message.replace(EmailTemplatePlaceholder.RECEIVER_PLACEHOLDER.getPlaceholder(), authorizationManager.getName());
 							message = message.replace(EmailTemplatePlaceholder.ROLE_NAME.getPlaceholder(), roleName);
 							message = message.replace(EmailTemplatePlaceholder.USER_PLACEHOLDER.getPlaceholder(), request.getRequestedFor().getName());
 							message = message.replace(EmailTemplatePlaceholder.REQUESTER_PLACEHOLDER.getPlaceholder(), request.getRequester().getName());
+							message = message.replace(EmailTemplatePlaceholder.REQUEST_OPERATION_PLACEHOLDER.getPlaceholder(), action);
 							emailQueueService.queueEmail(authorizationManager.getEmail(), title, message, template, null);
 						}
 					}

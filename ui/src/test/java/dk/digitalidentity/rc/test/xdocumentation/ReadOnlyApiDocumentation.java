@@ -1,43 +1,6 @@
 package dk.digitalidentity.rc.test.xdocumentation;
 
-import static org.springframework.restdocs.headers.HeaderDocumentation.headerWithName;
-import static org.springframework.restdocs.headers.HeaderDocumentation.requestHeaders;
-import static org.springframework.restdocs.mockmvc.MockMvcRestDocumentation.document;
-import static org.springframework.restdocs.mockmvc.MockMvcRestDocumentation.documentationConfiguration;
-import static org.springframework.restdocs.mockmvc.RestDocumentationRequestBuilders.get;
-import static org.springframework.restdocs.operation.preprocess.Preprocessors.preprocessResponse;
-import static org.springframework.restdocs.operation.preprocess.Preprocessors.prettyPrint;
-import static org.springframework.restdocs.payload.PayloadDocumentation.fieldWithPath;
-import static org.springframework.restdocs.payload.PayloadDocumentation.responseFields;
-import static org.springframework.restdocs.payload.PayloadDocumentation.subsectionWithPath;
-import static org.springframework.restdocs.request.RequestDocumentation.parameterWithName;
-import static org.springframework.restdocs.request.RequestDocumentation.pathParameters;
-import static org.springframework.restdocs.request.RequestDocumentation.requestParameters;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
-
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.restdocs.JUnitRestDocumentation;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.context.TestPropertySource;
-import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
-import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.setup.MockMvcBuilders;
-import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.context.WebApplicationContext;
-
+import dk.digitalidentity.rc.TestContainersConfiguration;
 import dk.digitalidentity.rc.config.Constants;
 import dk.digitalidentity.rc.dao.model.OrgUnit;
 import dk.digitalidentity.rc.dao.model.RoleGroup;
@@ -53,21 +16,57 @@ import dk.digitalidentity.rc.service.UserService;
 import dk.digitalidentity.rc.util.BootstrapDevMode;
 import dk.digitalidentity.samlmodule.model.SamlGrantedAuthority;
 import dk.digitalidentity.samlmodule.model.TokenUser;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.Import;
+import org.springframework.restdocs.RestDocumentationContextProvider;
+import org.springframework.restdocs.RestDocumentationExtension;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.TestPropertySource;
+import org.springframework.test.context.junit.jupiter.SpringExtension;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.context.WebApplicationContext;
 
-@RunWith(SpringJUnit4ClassRunner.class)
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.DEFINED_PORT)
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+
+import static org.springframework.restdocs.headers.HeaderDocumentation.headerWithName;
+import static org.springframework.restdocs.headers.HeaderDocumentation.requestHeaders;
+import static org.springframework.restdocs.mockmvc.MockMvcRestDocumentation.document;
+import static org.springframework.restdocs.mockmvc.MockMvcRestDocumentation.documentationConfiguration;
+import static org.springframework.restdocs.mockmvc.RestDocumentationRequestBuilders.get;
+import static org.springframework.restdocs.operation.preprocess.Preprocessors.preprocessResponse;
+import static org.springframework.restdocs.operation.preprocess.Preprocessors.prettyPrint;
+import static org.springframework.restdocs.payload.PayloadDocumentation.fieldWithPath;
+import static org.springframework.restdocs.payload.PayloadDocumentation.responseFields;
+import static org.springframework.restdocs.payload.PayloadDocumentation.subsectionWithPath;
+import static org.springframework.restdocs.request.RequestDocumentation.parameterWithName;
+import static org.springframework.restdocs.request.RequestDocumentation.pathParameters;
+import static org.springframework.restdocs.request.RequestDocumentation.queryParameters;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+@ExtendWith({SpringExtension.class, RestDocumentationExtension.class})
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @TestPropertySource(locations = "classpath:test.properties")
 @ActiveProfiles({ "test" })
 @Transactional(rollbackFor = Exception.class)
+@Import(TestContainersConfiguration.class)
 public class ReadOnlyApiDocumentation {
 	private static String testUserUUID = BootstrapDevMode.userUUID;
 	private static String testOrgUnitUUID = BootstrapDevMode.orgUnitUUID;
 	private static String actualTestUserUUID = null;
 	private static long roleGroupId = 0;
 	private MockMvc mockMvc;
-
-	@Rule
-	public JUnitRestDocumentation restDocumentation = new JUnitRestDocumentation("target/generated-snippets");
 
     @Autowired
     private BootstrapDevMode bootstrapper;
@@ -87,8 +86,8 @@ public class ReadOnlyApiDocumentation {
 	@Autowired
 	private RoleGroupService roleGroupService;
 
-	@Before
-	public void setUp() throws Exception {
+	@BeforeEach
+	public void setUp(final RestDocumentationContextProvider restDocumentation) throws Exception {
 		bootstrapper.init(true);
 
 		// this is a bit of a hack, but we fake that the api logged in using a token,
@@ -119,13 +118,13 @@ public class ReadOnlyApiDocumentation {
 			UserRole userRole = userRoleService.getAll().get(2);
 			RoleGroup roleGroup = roleGroupService.getAll().get(0);
 			roleGroupId = roleGroup.getId();
-			userService.addRoleGroup(user, roleGroup, null, null);
+			userService.addRoleGroup(user, roleGroup, null, null, null);
 			userService.addUserRole(user, userRole, null,  null);
 			orgUnitService.addUserRole(ou, userRole, false, null, null, new HashSet<>(), new HashSet<>());
 			orgUnitService.addRoleGroup(ou, roleGroup, false, null, null, new HashSet<>(), new HashSet<>());
 
 			this.mockMvc = MockMvcBuilders.webAppContextSetup(this.context)
-										  .apply(documentationConfiguration(this.restDocumentation)
+										  .apply(documentationConfiguration(restDocumentation)
 												  .uris()
 												  .withHost("www.rollekatalog.dk")
 												  .withPort(443)
@@ -301,8 +300,8 @@ public class ReadOnlyApiDocumentation {
 				requestHeaders(
 					headerWithName("ApiKey").description("Secret key required to call API")
 				),
-				requestParameters(
-					parameterWithName("indirectRoles").description("set this to true if the result should contain indirect role assignments (through rolegroups, positions and orgunits). Default is false.").optional()
+				queryParameters(
+						parameterWithName("indirectRoles").description("set this to true if the result should contain indirect role assignments (through rolegroups, positions and orgunits). Default is false.").optional()
 				),
 				pathParameters(
 					parameterWithName("id").description("The ID of the role to search for")
@@ -318,12 +317,14 @@ public class ReadOnlyApiDocumentation {
 					fieldWithPath("systemRoles[].roleConstraintValues[]").description("An array of constraints applied to this system role mapping"),
 					fieldWithPath("systemRoles[].roleConstraintValues[].constraintType").description("The unique identifier for the constraint type"),
 					fieldWithPath("systemRoles[].roleConstraintValues[].constraintValue").description("The actual constraint value (contrains '*** DYNAMIC ***' for dynamically computed values)"),
+					fieldWithPath("systemRoles[].roleConstraintValues[].constraintTypeValueSet").description("Constraint value sets from kombit"),
 					fieldWithPath("assignments[]").description("An array of role assignments for this user role"),
 					fieldWithPath("assignments[].uuid").description("The internal UUID of the user assigned the role"),
 					fieldWithPath("assignments[].extUuid").description("The external (KOMBIT) UUID of the user assigned the role"),
 					fieldWithPath("assignments[].userId").description("The userId of the user assigned the role"),
 					fieldWithPath("assignments[].name").description("The name of the user assigned the role"),
-					fieldWithPath("assignments[].assignedThrough[]").description("An array of enums indicating how the user is assigned this role. Legal values are: DIRECTLY, ROLEGROUP, POSITION, POSITION_ROLEGROUP, ORGUNIT, ORGUNIT_ROLEGROUP")
+					fieldWithPath("assignments[].assignedThrough[]").description("An array of enums indicating how the user is assigned this role. Legal values are: DIRECTLY, ROLEGROUP, POSITION, POSITION_ROLEGROUP, ORGUNIT, ORGUNIT_ROLEGROUP"),
+					fieldWithPath("assignments[].postponedConstraints[]").description("List of postponed constraints")
 				)
 			)
 		);
@@ -339,7 +340,7 @@ public class ReadOnlyApiDocumentation {
 				requestHeaders(
 					headerWithName("ApiKey").description("Secret key required to call API")
 				),
-				requestParameters(
+				queryParameters(
 					parameterWithName("indirectRoles").description("set this to true if the result should contain indirect role assignments (through rolegroups, positions and orgunits). Default is false.").optional()
 				),
 				pathParameters(
@@ -356,12 +357,14 @@ public class ReadOnlyApiDocumentation {
 					fieldWithPath("[]systemRoles[].roleConstraintValues[]").description("An array of constraints applied to this system role mapping"),
 					fieldWithPath("[]systemRoles[].roleConstraintValues[].constraintType").description("The unique identifier for the constraint type"),
 					fieldWithPath("[]systemRoles[].roleConstraintValues[].constraintValue").description("The actual constraint value (contrains '*** DYNAMIC ***' for dynamically computed values)"),
+					fieldWithPath("[]systemRoles[].roleConstraintValues[].constraintTypeValueSet").description("Constraint value sets from kombit"),
 					fieldWithPath("[]assignments[]").description("An array of role assignments for this user role"),
 					fieldWithPath("[]assignments[].uuid").description("The internal UUID of the user assigned the role"),
 					fieldWithPath("[]assignments[].extUuid").description("The external (KOMBIT) UUID of the user assigned the role"),
 					fieldWithPath("[]assignments[].userId").description("The userId of the user assigned the role"),
 					fieldWithPath("[]assignments[].name").description("The name of the user assigned the role"),
-					fieldWithPath("[]assignments[].assignedThrough[]").description("An array of enums indicating how the user is assigned this role. Legal values are: DIRECTLY, ROLEGROUP, POSITION, POSITION_ROLEGROUP, ORGUNIT, ORGUNIT_ROLEGROUP")
+					fieldWithPath("[]assignments[].assignedThrough[]").description("An array of enums indicating how the user is assigned this role. Legal values are: DIRECTLY, ROLEGROUP, POSITION, POSITION_ROLEGROUP, ORGUNIT, ORGUNIT_ROLEGROUP"),
+					fieldWithPath("[]assignments[].postponedConstraints[]").description("List of postponed constraints")
 				)
 			)
 		);

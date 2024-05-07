@@ -1,17 +1,33 @@
 package dk.digitalidentity.rc.controller.rest;
 
-import java.lang.reflect.Array;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.List;
-import java.util.Objects;
-
-import javax.validation.Valid;
-
+import dk.digitalidentity.rc.config.Constants;
+import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
 import dk.digitalidentity.rc.controller.api.model.ManagerSubstituteDTO;
-import dk.digitalidentity.rc.controller.api.model.OrgUnitDTO;
+import dk.digitalidentity.rc.controller.mvc.datatables.dao.AttestationViewDao;
+import dk.digitalidentity.rc.controller.mvc.datatables.dao.model.AttestationView;
+import dk.digitalidentity.rc.controller.rest.model.AutoCompleteResult;
+import dk.digitalidentity.rc.controller.rest.model.ManagerSubstituteAssignmentDTO;
 import dk.digitalidentity.rc.controller.rest.model.UserDTO;
+import dk.digitalidentity.rc.controller.rest.model.ValueData;
+import dk.digitalidentity.rc.dao.model.EmailTemplate;
+import dk.digitalidentity.rc.dao.model.ManagerSubstitute;
+import dk.digitalidentity.rc.dao.model.OrgUnit;
+import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.enums.EmailTemplatePlaceholder;
+import dk.digitalidentity.rc.dao.model.enums.EmailTemplateType;
+import dk.digitalidentity.rc.dao.model.enums.EventType;
+import dk.digitalidentity.rc.log.AuditLogger;
+import dk.digitalidentity.rc.security.RequireAdministratorOrManagerRole;
+import dk.digitalidentity.rc.security.RequireAdministratorRole;
+import dk.digitalidentity.rc.security.RequireAssignerOrManagerRole;
+import dk.digitalidentity.rc.security.SecurityUtil;
+import dk.digitalidentity.rc.service.EmailQueueService;
+import dk.digitalidentity.rc.service.EmailTemplateService;
+import dk.digitalidentity.rc.service.ManagerSubstituteService;
+import dk.digitalidentity.rc.service.OrgUnitService;
+import dk.digitalidentity.rc.service.UserService;
+import jakarta.validation.Valid;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.jpa.datatables.mapping.DataTablesInput;
 import org.springframework.data.jpa.datatables.mapping.DataTablesOutput;
@@ -25,30 +41,10 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.RestController;
 
-import dk.digitalidentity.rc.config.Constants;
-import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
-import dk.digitalidentity.rc.controller.mvc.datatables.dao.AttestationViewDao;
-import dk.digitalidentity.rc.controller.mvc.datatables.dao.model.AttestationView;
-import dk.digitalidentity.rc.controller.rest.model.AutoCompleteResult;
-import dk.digitalidentity.rc.controller.rest.model.ManagerSubstituteAssignmentDTO;
-import dk.digitalidentity.rc.controller.rest.model.ValueData;
-import dk.digitalidentity.rc.dao.model.EmailTemplate;
-import dk.digitalidentity.rc.dao.model.ManagerSubstitute;
-import dk.digitalidentity.rc.dao.model.OrgUnit;
-import dk.digitalidentity.rc.dao.model.User;
-import dk.digitalidentity.rc.dao.model.enums.EmailTemplateType;
-import dk.digitalidentity.rc.dao.model.enums.EventType;
-import dk.digitalidentity.rc.log.AuditLogger;
-import dk.digitalidentity.rc.security.RequireAdministratorOrManagerRole;
-import dk.digitalidentity.rc.security.RequireAdministratorRole;
-import dk.digitalidentity.rc.security.RequireAssignerOrManagerRole;
-import dk.digitalidentity.rc.security.SecurityUtil;
-import dk.digitalidentity.rc.service.EmailQueueService;
-import dk.digitalidentity.rc.service.EmailTemplateService;
-import dk.digitalidentity.rc.service.ManagerSubstituteService;
-import dk.digitalidentity.rc.service.OrgUnitService;
-import dk.digitalidentity.rc.service.UserService;
-import lombok.extern.slf4j.Slf4j;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.List;
+import java.util.Objects;
 
 @Slf4j
 @RestController

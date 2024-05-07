@@ -49,7 +49,11 @@
 											</div>
 										</td>
 
-										<td><span th:text="${title.name} + ' '"></span><span th:if="${title.emptyTitle}" class="badge" style="background-color: #ff8517; color: #FFFFFF;" th:text="#{html.page.ous.edit.tab.titles.empty}"></span></td>
+										<td>
+											<span th:text="${title.name} + ' '"></span>
+											<span th:if="${title.emptyTitle}" class="badge" style="background-color: #ff8517; color: #FFFFFF;" th:text="#{html.page.ous.edit.tab.titles.empty}"></span>
+											<span th:if="${title.onAssignmentButNotPosition}" class="badge" style="background-color: grey; color: #FFFFFF;" th:text="#{html.page.ous.edit.tab.titles.inactive}"></span>
+										</td>
 									</tr>
 								</tbody>
 							</table>
@@ -335,7 +339,7 @@
 	    			      'exceptedUserUuids' : exceptedUserUuids
 					}),
 					error : function(response) {
-						notifikationService.showErrorNotification(commonService.fieldNotUpdatedMsg);
+						errorHandler(commonService.fieldNotUpdatedMsg)(response);
 						commonService.closeModal();
 					},
 					success : function(response) {
@@ -371,9 +375,7 @@
 				$.ajax({
 					url: endpoint,
 					method: "GET",
-					error: function(response) {
-						notificationService.showErrorNotification(commonService.fieldNotUpdatedMsg);
-					},
+					error: errorHandler(commonService.fieldNotUpdatedMsg),
 					success : function(response) {
 						loadedEditTitles = response;
 
@@ -391,9 +393,7 @@
 				$.ajax({
 					url: commonService.restUrl + ouRolesEditModalService.ouUuid + "/" + ouRolesEditModalService.roleType + "/" + ouRolesEditModalService.assignmentId + "/titles",
 					method: "GET",
-					error : function(response) {
-						notificationService.showErrorNotification(commonService.fieldNotUpdatedMsg);
-					},
+					error : errorHandler(commonService.fieldNotUpdatedMsg),
 					success : function(response) {
 						checkedTitlesFetched = response;
 
@@ -503,7 +503,7 @@
 	    			      'exceptedUserUuids' : exceptedUserUuids
 					}),
 					error : function(response) {
-						notificationService.showErrorNotification(commonService.fieldNotUpdatedMsg);
+						errorHandler(commonService.fieldNotUpdatedMsg)(response);
 						setTimeout(function(){ commonService.parentService.loadRolesFragment(); }, 200);
 						commonService.closeModal();
 					},

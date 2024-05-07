@@ -1,14 +1,15 @@
 package dk.digitalidentity.rc.security;
 
-import java.util.List;
-
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.Setter;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.User;
 
-import lombok.Data;
-import lombok.EqualsAndHashCode;
+import java.util.List;
 
-@Data
+@Getter
+@Setter
 @EqualsAndHashCode(callSuper = true)
 public class ExtendedUser extends User {
 	private static final long serialVersionUID = 1L;

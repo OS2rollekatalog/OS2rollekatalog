@@ -1,20 +1,30 @@
 package dk.digitalidentity.rc.attestation.service.util;
 
-import static dk.digitalidentity.rc.attestation.model.entity.Attestation.AttestationType.IT_SYSTEM_ROLES_ATTESTATION;
-
-import java.util.List;
-import java.util.Set;
-import java.util.function.Predicate;
-import java.util.stream.Stream;
-
 import dk.digitalidentity.rc.attestation.model.entity.Attestation;
+import dk.digitalidentity.rc.attestation.model.entity.AttestationUser;
 import dk.digitalidentity.rc.attestation.model.entity.BaseUserAttestationEntry;
 import dk.digitalidentity.rc.attestation.model.entity.ItSystemRoleAttestationEntry;
 import dk.digitalidentity.rc.attestation.model.entity.temporal.AttestationOuRoleAssignment;
 import dk.digitalidentity.rc.attestation.model.entity.temporal.AttestationSystemRoleAssignment;
 import dk.digitalidentity.rc.attestation.model.entity.temporal.AttestationUserRoleAssignment;
 
+import java.util.List;
+import java.util.Set;
+import java.util.function.Predicate;
+import java.util.stream.Stream;
+
+import static dk.digitalidentity.rc.attestation.model.entity.Attestation.AttestationType.IT_SYSTEM_ROLES_ATTESTATION;
+
 public abstract class AttestationUtil {
+
+    public static boolean isSensitiveUser(final Attestation attestation, final String userUuid) {
+        return !attestation.isSensitive() || // if this is sensitive, we only want users with sensitive roles
+                        attestation.getUsersForAttestation().stream()
+                                .filter(ua -> ua.getUserUuid().equals(userUuid))
+                                .findFirst()
+                                .map(AttestationUser::isSensitiveRoles)
+                                .orElse(false);
+    }
 
     public static boolean hasUserAssignmentAttestationBeenPerformed(final Attestation attestation, final AttestationUserRoleAssignment assignment) {
         return switch (attestation.getAttestationType()) {
@@ -44,6 +54,7 @@ public abstract class AttestationUtil {
                                                               final Predicate<AttestationUserRoleAssignment> filterPredicate) {
         return assignments.stream()
                 .filter(filterPredicate)
+                .filter(a -> !attestation.isSensitive() || isSensitiveUser(attestation, a.getUserUuid()))
                 .allMatch(a -> hasUserAssignmentAttestationBeenPerformed(attestation, a));
     }
 

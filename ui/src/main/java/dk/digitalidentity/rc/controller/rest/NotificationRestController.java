@@ -1,7 +1,14 @@
 package dk.digitalidentity.rc.controller.rest;
 
-import javax.validation.Valid;
-
+import dk.digitalidentity.rc.controller.mvc.datatables.dao.NotificationDatatableDao;
+import dk.digitalidentity.rc.controller.mvc.datatables.dao.model.NotificationView;
+import dk.digitalidentity.rc.dao.model.Notification;
+import dk.digitalidentity.rc.dao.model.User;
+import dk.digitalidentity.rc.security.RequireAssignerRole;
+import dk.digitalidentity.rc.security.SecurityUtil;
+import dk.digitalidentity.rc.service.NotificationService;
+import dk.digitalidentity.rc.service.UserService;
+import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.jpa.datatables.mapping.Column;
 import org.springframework.data.jpa.datatables.mapping.DataTablesInput;
@@ -14,15 +21,6 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RestController;
-
-import dk.digitalidentity.rc.controller.mvc.datatables.dao.NotificationDatatableDao;
-import dk.digitalidentity.rc.controller.mvc.datatables.dao.model.NotificationView;
-import dk.digitalidentity.rc.dao.model.Notification;
-import dk.digitalidentity.rc.dao.model.User;
-import dk.digitalidentity.rc.security.RequireAssignerRole;
-import dk.digitalidentity.rc.security.SecurityUtil;
-import dk.digitalidentity.rc.service.NotificationService;
-import dk.digitalidentity.rc.service.UserService;
 
 @RestController
 @RequireAssignerRole

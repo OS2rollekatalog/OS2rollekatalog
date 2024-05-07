@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
-<head th:replace="fragments/header :: header (title=#{html.featureDocumentation.title})"></head>
+<head th:replace="~{fragments/header :: header (title=#{html.featureDocumentation.title})}"></head>
 <body>
 <div class="wrapper">
-    <header th:replace="fragments/navbar :: navbar-header(subpage = 'administration')"></header>
-    <aside th:replace="fragments/navbar :: navbar-aside (page = 'featureDocumentation', subpage = 'administration')"></aside>
+    <header th:replace="~{fragments/navbar :: navbar-header(subpage = 'administration')}"></header>
+    <aside th:replace="~{fragments/navbar :: navbar-aside (page = 'featureDocumentation', subpage = 'administration')}"></aside>
 
     <section>
         <div class="content-wrapper">
@@ -45,7 +45,7 @@
 	}
 </style>
 
-<div th:replace="fragments/footer :: footer"></div>
+<div th:replace="~{fragments/footer :: footer}"></div>
 
 <script th:inline="javascript">
 		/*<![CDATA[*/

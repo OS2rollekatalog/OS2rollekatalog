@@ -415,9 +415,6 @@ public class KOMBITService {
 		do {
 			try {
 				ResponseEntity<KOMBITUserRoleDTO> userRoleResponse = restTemplate.exchange(url, HttpMethod.GET, null, KOMBITUserRoleDTO.class);
-				if (userRoleResponse.getStatusCodeValue() > 299) {
-					return createUserRole(pendingKOMBITUpdate);
-				}
 				
 				userRoleDTO = userRoleResponse.getBody();
 				break;
@@ -431,6 +428,20 @@ public class KOMBITService {
 
 				log.warn("Timeout when calling: " + url + ", ex = " + ex.getMessage());
 			}
+			catch (HttpStatusCodeException ex) {
+				if (ex.getStatusCode().equals(HttpStatus.NOT_FOUND)) {
+					pendingKOMBITUpdate.setFailed(true);
+					pendingKOMBITUpdateService.save(pendingKOMBITUpdate);
+
+					log.warn("Failed to read UserRole: " + userRole.getId() + " / " + ex.getResponseBodyAsString());
+				}
+				else {
+					log.error("Failed to read UserRole: " + userRole.getId() + " / " + ex.getResponseBodyAsString(), ex);
+				}
+				
+				return false;
+			}
+			
 		} while (true);
 
 		userRoleDTO.setBeskrivelse(userRole.getDescription());

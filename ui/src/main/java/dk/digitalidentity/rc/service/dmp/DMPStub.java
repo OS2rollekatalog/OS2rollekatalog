@@ -91,16 +91,11 @@ public class DMPStub {
 
 		HttpEntity<String> request = new HttpEntity<>(headers);
 
-		try {
-			ResponseEntity<DMPApplication[]> response = restTemplate.exchange(url, HttpMethod.GET, request, DMPApplication[].class);
+		ResponseEntity<DMPApplication[]> response = restTemplate.exchange(url, HttpMethod.GET, request, DMPApplication[].class);
 
-			applications = Arrays.asList(response.getBody());
+		applications = Arrays.asList(response.getBody());
 
-			log.info("Found " + applications.size() + " applications in DMP");
-		}
-		catch (Exception ex) {
-			log.error("Failed to fetch all applications from dmpApi", ex);
-		}
+		log.info("Found " + applications.size() + " applications in DMP");
 		
 		return applications;
 	}
@@ -115,16 +110,11 @@ public class DMPStub {
 
 		HttpEntity<String> request = new HttpEntity<>(headers);
 
-		try {
-			ResponseEntity<DMPRole[]> response = restTemplate.exchange(url, HttpMethod.GET, request, DMPRole[].class);
+		ResponseEntity<DMPRole[]> response = restTemplate.exchange(url, HttpMethod.GET, request, DMPRole[].class);
 
-			roles = Arrays.asList(response.getBody());
+		roles = Arrays.asList(response.getBody());
 
-			log.info("Found " + roles.size() + " roles in DMP for application " + application.getName());
-		}
-		catch (Exception ex) {
-			log.error("Failed to fetch all roles for application '" + application.getName() + " / " + application.getId() + "' from dmpApi", ex);
-		}
+		log.info("Found " + roles.size() + " roles in DMP for application " + application.getName());
 		
 		return roles;
 	}
@@ -193,7 +183,7 @@ public class DMPStub {
 		try {
 			restTemplate.exchange(url, HttpMethod.PUT, request, String.class);
 
-			log.info("Assigned roles for " + user.getUserId() + " (total " + roles.getUserRoleAssignments().size() + ")");
+			log.info("Assigned roles for " + user.getUserId() + " (total " + roles.getUserRoleAssignments().size() + ") - details : " + roles.getUserRoleAssignments().stream().map(r -> r.getRoleId()).collect(Collectors.toSet()));
 		}
 		catch (Exception ex) {
 			if (ex instanceof HttpStatusCodeException ex2) {

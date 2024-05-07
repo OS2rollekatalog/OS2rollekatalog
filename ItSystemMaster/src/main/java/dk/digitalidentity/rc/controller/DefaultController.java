@@ -1,10 +1,8 @@
 package dk.digitalidentity.rc.controller;
 
-import java.util.Map;
-
-import javax.servlet.http.HttpServletRequest;
-
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.web.error.ErrorAttributeOptions;
 import org.springframework.boot.web.servlet.error.DefaultErrorAttributes;
 import org.springframework.boot.web.servlet.error.ErrorAttributes;
 import org.springframework.boot.web.servlet.error.ErrorController;
@@ -15,6 +13,8 @@ import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.context.request.ServletWebRequest;
 import org.springframework.web.context.request.WebRequest;
+
+import java.util.Map;
 
 @Controller
 public class DefaultController implements ErrorController {
@@ -53,12 +53,11 @@ public class DefaultController implements ErrorController {
 		return new ResponseEntity<>(body, status);
 	}
 
-	@Override
-	public String getErrorPath() {
-		return "/error";
-	}
-
 	private Map<String, Object> getErrorAttributes(WebRequest request, boolean includeStackTrace) {
-		return errorAttributes.getErrorAttributes(request, includeStackTrace);
+		final ErrorAttributeOptions options = ErrorAttributeOptions.defaults();
+		if (includeStackTrace) {
+			options.including(ErrorAttributeOptions.Include.STACK_TRACE);
+		}
+		return errorAttributes.getErrorAttributes(request, options);
 	}
 }

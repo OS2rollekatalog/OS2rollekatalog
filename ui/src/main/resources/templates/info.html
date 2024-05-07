@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html>
-<head th:replace="fragments/header :: header (title=#{html.page.index.title})"></head>
+<head th:replace="~{fragments/header :: header (title=#{html.page.index.title})}"></head>
 <body>
 	<div class="wrapper">
 		<section style="margin-left: 7%; margin-right: 7%; margin-top: 7%;">
@@ -47,6 +47,6 @@
 	    </section>
 	</div>
 	
-	<nav th:replace="fragments/footer :: footer"></nav>
+	<nav th:replace="~{fragments/footer :: footer}"></nav>
 </body>
 </html>

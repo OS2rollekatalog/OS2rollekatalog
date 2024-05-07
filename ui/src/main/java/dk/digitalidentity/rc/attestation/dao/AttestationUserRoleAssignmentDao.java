@@ -37,15 +37,15 @@ public interface AttestationUserRoleAssignmentDao extends CrudRepository<Attesta
                                                                                                @Param("responsibleUserUuid") final String responsibleUserUuid,
                                                                                                @Param("itSystemId") final long itSystemId);
     @Query(nativeQuery = true, value = "SELECT * FROM attestation_user_role_assignments s2 " +
-            "INNER JOIN (SELECT max(s.id) as id FROM attestation_user_role_assignments s " +
+            "INNER JOIN (SELECT max(s.id) as sid FROM attestation_user_role_assignments s " +
             "WHERE s.valid_from <= :validAt AND (s.valid_to > :validAt or s.valid_to is null) AND s.responsible_user_uuid is not null " +
-            "GROUP BY s.responsible_user_uuid, s.user_uuid, s.sensitive_role, s.it_system_id) as sub on sub.id = s2.id")
+            "GROUP BY s.responsible_user_uuid, s.user_uuid, s.inherited, s.sensitive_role, s.it_system_id) as sub on sub.sid = s2.id")
     List<AttestationUserRoleAssignment> findValidGroupByResponsibleUserUuidAndUserUuidAndSensitiveRoleAndItSystem(@Param("validAt") final LocalDate validAt);
 
     @Query(nativeQuery = true, value = "SELECT * FROM attestation_user_role_assignments s2 " +
-            "INNER JOIN (SELECT max(s.id) as id FROM attestation_user_role_assignments s " +
+            "INNER JOIN (SELECT max(s.id) as sid FROM attestation_user_role_assignments s " +
             "WHERE s.valid_from <= :validAt AND (s.valid_to > :validAt or s.valid_to is null) AND s.responsible_ou_uuid is not null " +
-            "GROUP BY s.responsible_ou_uuid, s.user_uuid, s.sensitive_role, s.assigned_through_type) as sub on sub.id = s2.id")
+            "GROUP BY s.responsible_ou_uuid, s.user_uuid, s.inherited, s.sensitive_role, s.assigned_through_type) as sub on sub.sid = s2.id")
     List<AttestationUserRoleAssignment> findValidGroupByResponsibleOuAndUserUuidAndSensitiveRole(@Param("validAt") final LocalDate validAt);
 
     @Query("SELECT a FROM AttestationUserRoleAssignment a WHERE a.itSystemId=:itSystemId AND a.validFrom<=:to AND (a.validTo > :from OR a.validTo is null)")

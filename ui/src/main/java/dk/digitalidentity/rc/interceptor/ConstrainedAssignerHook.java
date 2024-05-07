@@ -1,16 +1,16 @@
 package dk.digitalidentity.rc.interceptor;
 
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Component;
-
 import dk.digitalidentity.rc.dao.model.OrgUnit;
 import dk.digitalidentity.rc.dao.model.Position;
 import dk.digitalidentity.rc.dao.model.RoleGroup;
 import dk.digitalidentity.rc.dao.model.SystemRoleAssignment;
 import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserRole;
+import dk.digitalidentity.rc.dao.model.UserUserRoleAssignment;
 import dk.digitalidentity.rc.security.AccessConstraintService;
 import dk.digitalidentity.rc.security.SecurityUtil;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
 
 @Component
 public class ConstrainedAssignerHook implements RoleChangeHook {
@@ -42,6 +42,10 @@ public class ConstrainedAssignerHook implements RoleChangeHook {
 		if (!assignerRoleConstraint.isAssignmentAllowed(user, userRole)) {
 			throw new SecurityException("User " + SecurityUtil.getUserId() + " is prohibited from modifying user: " + user.getEntityId());
 		}
+	}
+
+	@Override
+	public void interceptEditUserRoleAssignmentOnUser(User user, UserUserRoleAssignment assignment) {
 	}
 
 	@Override

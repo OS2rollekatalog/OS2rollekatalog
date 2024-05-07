@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html>
-<head th:replace="fragments/header :: header (title=#{html.page.rolegroup.view.title})"></head>
+<head th:replace="~{fragments/header :: header (title=#{html.page.rolegroup.view.title})}"></head>
 <body>
 	<div class="wrapper">
-		<header th:replace="fragments/navbar :: navbar-header(subpage = 'roles')"></header>
-		<aside th:replace="fragments/navbar :: navbar-aside (page = 'rolegroups.new', subpage = 'roles')"></aside>
+		<header th:replace="~{fragments/navbar :: navbar-header(subpage = 'roles')}"></header>
+		<aside th:replace="~{fragments/navbar :: navbar-aside (page = 'rolegroups.new', subpage = 'roles')}"></aside>
  
 		<section>
 			<div class="content-wrapper">
@@ -108,14 +108,14 @@
 	<div id="userRoleGroupModal"></div>
 	<div id="ouRoleGroupModal"></div>
 	<div id="ouRoleGroupEditModal"></div>
-	<div th:replace="users/fragments/role_assignment_edit_modal :: roleAssignmentEditModal"></div>
-	<nav th:replace="fragments/footer :: footer"></nav>
+	<div th:replace="~{users/fragments/role_assignment_edit_modal :: roleAssignmentEditModal}"></div>
+	<nav th:replace="~{fragments/footer :: footer}"></nav>
 	
-	<script th:replace="fragments/datatables :: datatables(orderColumnValue=1) "></script>
-	<script th:replace="fragments/assignDatePicker :: content "></script>
+	<script th:replace="~{fragments/datatables :: datatables(orderColumnValue=1)}"></script>
+	<script th:replace="~{fragments/assignDatePicker :: content}"></script>
 	
-	<script th:replace="users/fragments/role_assignment_edit_modal :: roleAssignmentEditModalScript(missingPostponedConstraintService = true)"></script>
-	<script th:replace="users/fragments/user_role_group_modal :: userRoleGroupModalScript"></script>
+	<script th:replace="~{users/fragments/role_assignment_edit_modal :: roleAssignmentEditModalScript(missingPostponedConstraintService = true)}"></script>
+	<script th:replace="~{users/fragments/user_role_group_modal :: userRoleGroupModalScript}"></script>
 	
 	<script th:inline="javascript">
 		/*<![CDATA[*/

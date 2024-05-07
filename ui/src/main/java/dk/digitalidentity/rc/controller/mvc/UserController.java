@@ -1,30 +1,11 @@
 package dk.digitalidentity.rc.controller.mvc;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Objects;
-import java.util.stream.Collectors;
-
-import dk.digitalidentity.rc.controller.mvc.viewmodel.SelectOUDTO;
-import dk.digitalidentity.rc.service.PNumberService;
-import dk.digitalidentity.rc.service.SENumberService;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.security.access.AccessDeniedException;
-import org.springframework.stereotype.Controller;
-import org.springframework.ui.Model;
-import org.springframework.util.StringUtils;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestMapping;
-
 import dk.digitalidentity.rc.config.Constants;
 import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.AvailableRoleGroupDTO;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.AvailableUserRoleDTO;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.KleDTO;
+import dk.digitalidentity.rc.controller.mvc.viewmodel.SelectOUDTO;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.SystemRoleAssignmentConstraintValueDTO;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.SystemRoleAssignmentDTO;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.UserRoleNotAssignedDTO;
@@ -46,12 +27,15 @@ import dk.digitalidentity.rc.dao.model.enums.KleType;
 import dk.digitalidentity.rc.security.AccessConstraintService;
 import dk.digitalidentity.rc.security.RequireAssignerRole;
 import dk.digitalidentity.rc.security.RequireReadAccessOrRequesterOrManagerRole;
+import dk.digitalidentity.rc.security.RequireRequesterOrAssignerRole;
 import dk.digitalidentity.rc.security.SecurityUtil;
 import dk.digitalidentity.rc.service.DomainService;
 import dk.digitalidentity.rc.service.ItSystemService;
 import dk.digitalidentity.rc.service.KleService;
 import dk.digitalidentity.rc.service.ManagerSubstituteService;
 import dk.digitalidentity.rc.service.OrgUnitService;
+import dk.digitalidentity.rc.service.PNumberService;
+import dk.digitalidentity.rc.service.SENumberService;
 import dk.digitalidentity.rc.service.Select2Service;
 import dk.digitalidentity.rc.service.UserRoleService;
 import dk.digitalidentity.rc.service.UserService;
@@ -59,6 +43,22 @@ import dk.digitalidentity.rc.service.model.AssignedThrough;
 import dk.digitalidentity.rc.service.model.RoleAssignedToUserDTO;
 import dk.digitalidentity.rc.service.model.RoleAssignmentType;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.stereotype.Controller;
+import org.springframework.ui.Model;
+import org.springframework.util.StringUtils;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestMapping;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Objects;
+import java.util.stream.Collectors;
 
 @Slf4j
 @RequireReadAccessOrRequesterOrManagerRole
@@ -187,7 +187,7 @@ public class UserController {
 	public String getAssignedRolesFragment(Model model, @PathVariable("uuid") String uuid) {
 		User user = userService.getByUuid(uuid);
 		if (user == null) {
-			return "redirect:../list";
+			return "redirect:list";
 		}
 		
 		verifyRequesterOrManagerAccess(user);
@@ -312,7 +312,13 @@ public class UserController {
 				}
 			}
 			else if (assignment.getType() == RoleAssignmentType.ROLEGROUP) {
-				if (editable && directlyAssignedRole) {
+				boolean internalRole = user.getRoleGroupAssignments().stream().filter(rga -> rga.getRoleGroup().getId() == assignment.getRoleId())
+						.filter(rga -> rga.getRoleGroup().getUserRoleAssignments() != null)
+						.flatMap(rga -> rga.getRoleGroup().getUserRoleAssignments().stream())
+						.filter(rg -> rg.getUserRole() != null)
+						.anyMatch(rg -> rg.getUserRole().getItSystem().getIdentifier().equals(Constants.ROLE_CATALOGUE_IDENTIFIER));
+				if ((internalRole && SecurityUtil.getRoles().contains(Constants.ROLE_ADMINISTRATOR) && directlyAssignedRole)
+						|| (editable && directlyAssignedRole)) {
 					assignment.setCanEdit(true);
 				}
 			}
@@ -329,7 +335,7 @@ public class UserController {
 	public String getAddUserRoleFragment(Model model, @PathVariable("uuid") String uuid) {
 		User user = userService.getByUuid(uuid);
 		if (user == null) {
-			return "redirect:../list";
+			return "redirect:list";
 		}
 
 		List<AvailableUserRoleDTO> roles = helper.getAvailableUserRoles(user);
@@ -343,7 +349,7 @@ public class UserController {
 	public String getAddRoleGroupFragment(Model model, @PathVariable("uuid") String uuid) {
 		User user = userService.getByUuid(uuid);
 		if (user == null) {
-			return "redirect:../list";
+			return "redirect:list";
 		}
 
 		List<AvailableRoleGroupDTO> roleGroups = helper.getAvailableRoleGroups(user);
@@ -352,7 +358,7 @@ public class UserController {
 		return "users/fragments/manage_add_rolegroup :: addRoleGroup";
 	}
 	
-	@RequireAssignerRole
+	@RequireRequesterOrAssignerRole
 	@RequestMapping(value = "/ui/users/manage/postponedconstraints/{roleId}")
 	public String getPostponedConstraintsFragment(Model model, @PathVariable("roleId") long roleId) {
 		List<SystemRoleAssignmentDTO> systemRoleAssignmentsDTOs = new ArrayList<>();
@@ -470,7 +476,7 @@ public class UserController {
 	public String getKleFragment(Model model, @PathVariable("uuid") String uuid, @PathVariable("type") String type) {
 		User user = userService.getByUuid(uuid);
 		if (user == null) {
-			return "redirect:../list";
+			return "redirect:list";
 		}
 		
 		switch (type) {
@@ -482,7 +488,7 @@ public class UserController {
 			break;
 
 		default:
-			return "redirect:../list";
+			return "redirect:list";
 		}
 
 		return "fragments/manage_kle :: kle";
@@ -492,7 +498,7 @@ public class UserController {
 	public String getKleEditFragment(Model model, @PathVariable("uuid") String uuid, @PathVariable("type") String type) {
 		User user = userService.getByUuid(uuid);
 		if (user == null) {
-			return "redirect:../list";
+			return "redirect:list";
 		}
 		
 		switch (type) {
@@ -504,7 +510,7 @@ public class UserController {
 			break;
 
 		default:
-			return "redirect:../list";
+			return "redirect:list";
 		}
 
 		return "fragments/manage_kle_edit :: kleEdit";

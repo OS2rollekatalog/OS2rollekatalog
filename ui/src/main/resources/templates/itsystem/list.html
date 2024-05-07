@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html>
-<head th:replace="fragments/header :: header (title=#{html.page.itsystem.list.title})"></head>
+<head th:replace="~{fragments/header :: header (title=#{html.page.itsystem.list.title})}"></head>
 <body>
 	<div class="wrapper">
-		<header th:replace="fragments/navbar :: navbar-header(subpage = 'roles')"></header>
-		<aside th:replace="fragments/navbar :: navbar-aside (page = 'itsystem.list', subpage = 'roles')"></aside>
+		<header th:replace="~{fragments/navbar :: navbar-header(subpage = 'roles')}"></header>
+		<aside th:replace="~{fragments/navbar :: navbar-aside (page = 'itsystem.list', subpage = 'roles')}"></aside>
  
 		<section>
 			<div class="content-wrapper">
@@ -61,9 +61,9 @@
 	    </section>
 	</div>
 
-	<nav th:replace="fragments/footer :: footer"></nav>
+	<nav th:replace="~{fragments/footer :: footer}"></nav>
 
-	<script th:replace="fragments/datatables :: datatables "></script>
+	<script th:replace="~{fragments/datatables :: datatables}"></script>
 
 	<script th:inline="javascript">
 	/*<![CDATA[*/

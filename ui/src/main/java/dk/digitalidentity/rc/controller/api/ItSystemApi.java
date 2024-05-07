@@ -1,5 +1,36 @@
 package dk.digitalidentity.rc.controller.api;
 
+import dk.digitalidentity.rc.controller.api.dto.ItSystemDTO;
+import dk.digitalidentity.rc.controller.api.dto.ItSystemWithSystemRolesDTO;
+import dk.digitalidentity.rc.controller.api.dto.SystemRoleDTO;
+import dk.digitalidentity.rc.controller.api.dto.UserRoleDTO;
+import dk.digitalidentity.rc.dao.model.Domain;
+import dk.digitalidentity.rc.dao.model.ItSystem;
+import dk.digitalidentity.rc.dao.model.SystemRole;
+import dk.digitalidentity.rc.dao.model.SystemRoleAssignment;
+import dk.digitalidentity.rc.dao.model.User;
+import dk.digitalidentity.rc.dao.model.UserRole;
+import dk.digitalidentity.rc.dao.model.enums.ItSystemType;
+import dk.digitalidentity.rc.dao.model.enums.RoleType;
+import dk.digitalidentity.rc.security.RequireApiItSystemRole;
+import dk.digitalidentity.rc.service.DomainService;
+import dk.digitalidentity.rc.service.ItSystemService;
+import dk.digitalidentity.rc.service.SystemRoleService;
+import dk.digitalidentity.rc.service.UserRoleService;
+import dk.digitalidentity.rc.service.UserService;
+import dk.digitalidentity.rc.service.model.UserWithRole;
+import jakarta.validation.Valid;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
@@ -11,39 +42,6 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
-
-import javax.validation.Valid;
-
-import dk.digitalidentity.rc.dao.model.Domain;
-import dk.digitalidentity.rc.service.DomainService;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
-
-import dk.digitalidentity.rc.controller.api.dto.ItSystemDTO;
-import dk.digitalidentity.rc.controller.api.dto.ItSystemWithSystemRolesDTO;
-import dk.digitalidentity.rc.controller.api.dto.SystemRoleDTO;
-import dk.digitalidentity.rc.controller.api.dto.UserRoleDTO;
-import dk.digitalidentity.rc.dao.model.ItSystem;
-import dk.digitalidentity.rc.dao.model.SystemRole;
-import dk.digitalidentity.rc.dao.model.SystemRoleAssignment;
-import dk.digitalidentity.rc.dao.model.User;
-import dk.digitalidentity.rc.dao.model.UserRole;
-import dk.digitalidentity.rc.dao.model.enums.ItSystemType;
-import dk.digitalidentity.rc.dao.model.enums.RoleType;
-import dk.digitalidentity.rc.security.RequireApiItSystemRole;
-import dk.digitalidentity.rc.service.ItSystemService;
-import dk.digitalidentity.rc.service.SystemRoleService;
-import dk.digitalidentity.rc.service.UserRoleService;
-import dk.digitalidentity.rc.service.UserService;
-import dk.digitalidentity.rc.service.model.UserWithRole;
-import lombok.extern.slf4j.Slf4j;
 
 @RequireApiItSystemRole
 @Slf4j

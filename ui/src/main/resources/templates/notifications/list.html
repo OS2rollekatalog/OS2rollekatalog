@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html>
-<head th:replace="fragments/header :: header"></head>
+<head th:replace="~{fragments/header :: header}"></head>
 <body>
 	<div class="wrapper">
-		<header th:replace="fragments/navbar :: navbar-header(subpage = 'reports')"></header>
-		<aside th:replace="fragments/navbar :: navbar-aside (page = 'notifications', subpage = 'reports')"></aside>
+		<header th:replace="~{fragments/navbar :: navbar-header(subpage = 'reports')}"></header>
+		<aside th:replace="~{fragments/navbar :: navbar-aside (page = 'notifications', subpage = 'reports')}"></aside>
 
 		<section>
 			<div class="content-wrapper">
@@ -62,7 +62,7 @@
 		</section>
 	</div>
 
-	<nav th:replace="fragments/footer :: footer"></nav>
+	<nav th:replace="~{fragments/footer :: footer}"></nav>
 	<script th:inline="javascript">
 		/*<![CDATA[*/
 
@@ -182,14 +182,7 @@
 								var selectedValue = $("#notificationTypeSelect").val();
 								notificationService.loadDataTables(status, selectedValue);
 							},
-							error: function(jqXhr, textStatus, errorThrown) {
-								$.notify({
-									message: changeStatusErrorMsg
-								}, {
-									status: 'danger',
-									autoHideDelay: 4000
-								});
-							}
+							error: errorHandler(changeStatusErrorMsg)
 						});
 					}
 				});
@@ -325,14 +318,7 @@
 								var selectedValue = $("#notificationTypeSelect").val();
 								notificationService.loadDataTables(status, selectedValue);
 							},
-							error: function(jqXhr, textStatus, errorThrown) {
-								$.notify({
-									message: changeStatusErrorMsg
-								}, {
-									status: 'danger',
-									autoHideDelay: 4000
-								});
-							}
+							error: errorHandler(changeStatusErrorMsg)
 						});
 					}
 				});

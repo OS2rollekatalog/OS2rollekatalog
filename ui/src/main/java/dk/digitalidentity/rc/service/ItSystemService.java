@@ -1,27 +1,27 @@
 package dk.digitalidentity.rc.service;
 
+import dk.digitalidentity.rc.config.Constants;
+import dk.digitalidentity.rc.dao.ItSystemDao;
+import dk.digitalidentity.rc.dao.model.ItSystem;
+import dk.digitalidentity.rc.dao.model.OrgUnit;
+import dk.digitalidentity.rc.dao.model.RoleGroup;
+import dk.digitalidentity.rc.dao.model.SystemRole;
+import dk.digitalidentity.rc.dao.model.User;
+import dk.digitalidentity.rc.dao.model.UserRole;
+import dk.digitalidentity.rc.dao.model.enums.ItSystemType;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
-
-import dk.digitalidentity.rc.dao.model.OrgUnit;
-import dk.digitalidentity.rc.dao.model.User;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
-import dk.digitalidentity.rc.config.Constants;
-import dk.digitalidentity.rc.dao.ItSystemDao;
-import dk.digitalidentity.rc.dao.model.ItSystem;
-import dk.digitalidentity.rc.dao.model.RoleGroup;
-import dk.digitalidentity.rc.dao.model.SystemRole;
-import dk.digitalidentity.rc.dao.model.UserRole;
-import dk.digitalidentity.rc.dao.model.enums.ItSystemType;
-import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 @Service
@@ -81,6 +81,10 @@ public class ItSystemService {
 
 	public ItSystem getById(long id) {
 		return filterDeleted(itSystemDao.findById(id));
+	}
+
+	public Optional<ItSystem> getOptionalById(long id) {
+		return Optional.ofNullable(itSystemDao.findById(id));
 	}
 
 	public ItSystem getByUuid(String uuid) {

@@ -1,5 +1,42 @@
 package dk.digitalidentity.rc.test.xdocumentation;
 
+import dk.digitalidentity.rc.TestContainersConfiguration;
+import dk.digitalidentity.rc.config.Constants;
+import dk.digitalidentity.rc.dao.model.RoleGroup;
+import dk.digitalidentity.rc.dao.model.User;
+import dk.digitalidentity.rc.dao.model.UserRole;
+import dk.digitalidentity.rc.dao.model.enums.AccessRole;
+import dk.digitalidentity.rc.security.RolePostProcessor;
+import dk.digitalidentity.rc.service.ItSystemService;
+import dk.digitalidentity.rc.service.RoleGroupService;
+import dk.digitalidentity.rc.service.UserRoleService;
+import dk.digitalidentity.rc.service.UserService;
+import dk.digitalidentity.rc.util.BootstrapDevMode;
+import dk.digitalidentity.samlmodule.model.SamlGrantedAuthority;
+import dk.digitalidentity.samlmodule.model.TokenUser;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.Import;
+import org.springframework.restdocs.RestDocumentationContextProvider;
+import org.springframework.restdocs.RestDocumentationExtension;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.TestPropertySource;
+import org.springframework.test.context.junit.jupiter.SpringExtension;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.context.WebApplicationContext;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
 import static org.springframework.restdocs.headers.HeaderDocumentation.headerWithName;
 import static org.springframework.restdocs.headers.HeaderDocumentation.requestHeaders;
 import static org.springframework.restdocs.mockmvc.MockMvcRestDocumentation.document;
@@ -17,54 +54,16 @@ import static org.springframework.restdocs.request.RequestDocumentation.paramete
 import static org.springframework.restdocs.request.RequestDocumentation.pathParameters;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.restdocs.JUnitRestDocumentation;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.context.TestPropertySource;
-import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
-import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.setup.MockMvcBuilders;
-import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.context.WebApplicationContext;
-
-import dk.digitalidentity.rc.config.Constants;
-import dk.digitalidentity.rc.dao.model.RoleGroup;
-import dk.digitalidentity.rc.dao.model.User;
-import dk.digitalidentity.rc.dao.model.UserRole;
-import dk.digitalidentity.rc.dao.model.enums.AccessRole;
-import dk.digitalidentity.rc.security.RolePostProcessor;
-import dk.digitalidentity.rc.service.ItSystemService;
-import dk.digitalidentity.rc.service.RoleGroupService;
-import dk.digitalidentity.rc.service.UserRoleService;
-import dk.digitalidentity.rc.service.UserService;
-import dk.digitalidentity.rc.util.BootstrapDevMode;
-import dk.digitalidentity.samlmodule.model.SamlGrantedAuthority;
-import dk.digitalidentity.samlmodule.model.TokenUser;
-
-@RunWith(SpringJUnit4ClassRunner.class)
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.DEFINED_PORT)
+@ExtendWith({SpringExtension.class, RestDocumentationExtension.class})
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @TestPropertySource(locations = "classpath:test.properties")
 @ActiveProfiles({ "test" })
 @Transactional(rollbackFor = Exception.class)
+@Import(TestContainersConfiguration.class)
 public class ItSystemApiDocumentation {
 	private static String testUserId = "bbog";
 	private MockMvc mockMvc;
 	private long itSystemId = 0;
-
-	@Rule
-	public JUnitRestDocumentation restDocumentation = new JUnitRestDocumentation("target/generated-snippets");
 
     @Autowired
     private BootstrapDevMode bootstrapper;
@@ -84,8 +83,8 @@ public class ItSystemApiDocumentation {
 	@Autowired
 	private WebApplicationContext context;
 
-	@Before
-	public void setUp() throws Exception {
+	@BeforeEach
+	public void setUp(final RestDocumentationContextProvider restDocumentation) throws Exception {
 		bootstrapper.init(false);
 
 		// this is a bit of a hack, but we fake that the api logged in using a token,
@@ -112,13 +111,13 @@ public class ItSystemApiDocumentation {
 		User user = userService.getByUserId(testUserId);
 		UserRole userRole = userRoleService.getAll().get(2);
 		RoleGroup roleGroup = roleGroupService.getAll().get(0);
-		userService.addRoleGroup(user, roleGroup, null, null);
+		userService.addRoleGroup(user, roleGroup, null, null, null);
 		userService.addUserRole(user, userRole, null, null);
 
 		itSystemId = itSystemService.getAll().stream().filter(its -> its.isCanEditThroughApi()).findFirst().get().getId();
 		
 		this.mockMvc = MockMvcBuilders.webAppContextSetup(this.context)
-									  .apply(documentationConfiguration(this.restDocumentation)
+									  .apply(documentationConfiguration(restDocumentation)
 											  .uris()
 											  .withHost("www.rollekatalog.dk")
 											  .withPort(443)
@@ -142,7 +141,7 @@ public class ItSystemApiDocumentation {
 							)
 					));
 	}
-	
+
 	@Test
 	public void getItSystem() throws Exception {
 		this.mockMvc.perform(get("/api/itsystem/manage/{id}", itSystemId).header("ApiKey", "f7d8ea9e-53fe-4948-b600-fbc94d4eb0fb"))

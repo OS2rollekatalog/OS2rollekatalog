@@ -1,35 +1,5 @@
 package dk.digitalidentity.rc.controller.mvc.xlsview;
 
-import java.text.SimpleDateFormat;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
-import java.util.Map.Entry;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.Set;
-import java.util.function.Function;
-import java.util.stream.Collectors;
-
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-
-import org.apache.poi.ss.usermodel.Cell;
-import org.apache.poi.ss.usermodel.CellStyle;
-import org.apache.poi.ss.usermodel.Font;
-import org.apache.poi.ss.usermodel.Row;
-import org.apache.poi.ss.usermodel.Sheet;
-import org.apache.poi.ss.usermodel.Workbook;
-import org.springframework.context.support.ResourceBundleMessageSource;
-import org.springframework.util.StringUtils;
-import org.springframework.web.servlet.view.document.AbstractXlsxStreamingView;
-
 import dk.digitalidentity.rc.controller.mvc.viewmodel.ReportForm;
 import dk.digitalidentity.rc.dao.history.model.HistoryItSystem;
 import dk.digitalidentity.rc.dao.history.model.HistoryKleAssignment;
@@ -49,6 +19,35 @@ import dk.digitalidentity.rc.service.ItSystemService;
 import dk.digitalidentity.rc.service.OrgUnitService;
 import dk.digitalidentity.rc.service.ReportService;
 import dk.digitalidentity.rc.service.model.UserRoleAssignmentReportEntry;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import org.apache.poi.ss.usermodel.Cell;
+import org.apache.poi.ss.usermodel.CellStyle;
+import org.apache.poi.ss.usermodel.Font;
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.ss.usermodel.Workbook;
+import org.springframework.context.support.ResourceBundleMessageSource;
+import org.springframework.util.StringUtils;
+import org.springframework.web.servlet.view.document.AbstractXlsxStreamingView;
+
+import java.text.SimpleDateFormat;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.Set;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 public class ReportXlsxView extends AbstractXlsxStreamingView {
     private LocalDate filterDate;
@@ -147,12 +146,12 @@ public class ReportXlsxView extends AbstractXlsxStreamingView {
 				createOUKLESheet(workbook);
 			}
 		}
-		
+
+        if (reportForm.isShowUserRoles()) {
+            createUserRoleSheet(workbook, reportForm.isShowInactiveUsers());
+        }
+
 		if (reportForm.isShowUsers()) {
-			if (reportForm.isShowUserRoles()) {
-				createUserRoleSheet(workbook, reportForm.isShowInactiveUsers());
-			}
-			
 			if (reportForm.isShowKLE()) {
 				createUserKLESheet(workbook, reportForm.isShowInactiveUsers());
 			}
@@ -369,7 +368,8 @@ public class ReportXlsxView extends AbstractXlsxStreamingView {
         headers.add("xls.role.name");
         headers.add("xls.role.it.system");
         headers.add("xls.role.assigned.by");
-        headers.add("xls.role.date");
+        headers.add("xls.role.start_date");
+        headers.add("xls.role.stop_date");
         headers.add("xls.role.assigned.through");
         headers.add("xls.report.ou.roles.exceptedusers");
         headers.add("xls.report.ou.roles.titles");
@@ -422,7 +422,8 @@ public class ReportXlsxView extends AbstractXlsxStreamingView {
                 createCell(dataRow, column++, itSystemNameMapping.get(ouRoleAssignment.getRoleId()), null);
                 createCell(dataRow, column++, itSystem, null);
                 createCell(dataRow, column++, assignedBy, null);
-                createCell(dataRow, column++, dateFormatter.format(ouRoleAssignment.getAssignedWhen()), null);
+                createCell(dataRow, column++, dateFormatter.format(bestStartDate(ouRoleAssignment.getAssignedWhen(), ouRoleAssignment.getStartDate())), null);
+                createCell(dataRow, column++, formatLocalDateTime(atEndOfDay(ouRoleAssignment.getStopDate())), null);
                 createCell(dataRow, column++, assignedThroughStr, null);
             }
         }
@@ -467,7 +468,8 @@ public class ReportXlsxView extends AbstractXlsxStreamingView {
                 createCell(dataRow, column++, itSystemNameMapping.get(ouRoleAssignment.getRoleId()), null);
                 createCell(dataRow, column++, itSystem, null);
                 createCell(dataRow, column++, assignedBy, null);
-                createCell(dataRow, column++, dateFormatter.format(ouRoleAssignment.getAssignedWhen()), null);
+                createCell(dataRow, column++, dateFormatter.format(bestStartDate(ouRoleAssignment.getAssignedWhen(), ouRoleAssignment.getStartDate())), null);
+                createCell(dataRow, column++, formatLocalDateTime(atEndOfDay(ouRoleAssignment.getStopDate())), null);
                 createCell(dataRow, column++, messageSource.getMessage("xls.role.assigned.trough.type.direct", null, locale), null);
                 createCell(dataRow, column++, exceptionStr.toString(), wrapStyle);
             }
@@ -514,7 +516,8 @@ public class ReportXlsxView extends AbstractXlsxStreamingView {
                 createCell(dataRow, column++, itSystemNameMapping.get(ouRoleAssignment.getRoleId()), null);
                 createCell(dataRow, column++, itSystem, null);
                 createCell(dataRow, column++, assignedBy, null);
-                createCell(dataRow, column++, dateFormatter.format(ouRoleAssignment.getAssignedWhen()), null);
+                createCell(dataRow, column++, dateFormatter.format(bestStartDate(ouRoleAssignment.getAssignedWhen(), ouRoleAssignment.getStartDate())), null);
+                createCell(dataRow, column++, formatLocalDateTime(atEndOfDay(ouRoleAssignment.getStopDate())), null);
                 createCell(dataRow, column++, messageSource.getMessage("xls.role.assigned.trough.type.direct", null, locale), null);
                 createCell(dataRow, column++, "", null);
                 createCell(dataRow, column++, exceptionStr.toString(), wrapStyle);
@@ -572,7 +575,8 @@ public class ReportXlsxView extends AbstractXlsxStreamingView {
         headers.add("xls.role.name");
         headers.add("xls.role.it.system");
         headers.add("xls.role.assigned.by");
-        headers.add("xls.role.date");
+        headers.add("xls.role.start_date");
+        headers.add("xls.role.stop_date");
         headers.add("xls.role.assigned.through");
         headers.add("xls.role.postponedconstraints");
 
@@ -594,7 +598,8 @@ public class ReportXlsxView extends AbstractXlsxStreamingView {
             createCell(dataRow, column++, itSystemNameMapping.get(entry.getRoleId()), null);
             createCell(dataRow, column++, entry.getItSystem(), null);
             createCell(dataRow, column++, entry.getAssignedBy(), null);
-            createCell(dataRow, column++, dateFormatter.format(entry.getAssignedWhen()), null);
+            createCell(dataRow, column++, dateFormatter.format(bestStartDate(entry.getAssignedWhen(), entry.getStartDate())), null);
+            createCell(dataRow, column++, formatLocalDateTime(atEndOfDay(entry.getStopDate())), null);
             createCell(dataRow, column++, entry.getAssignedThrough(), null);
             createCell(dataRow, column++, entry.getPostponedConstraints(), null);
         }
@@ -740,7 +745,11 @@ public class ReportXlsxView extends AbstractXlsxStreamingView {
     }
 
     private static void createCell(Row header, int column, String value, CellStyle style) {
-        Cell cell = header.createCell(column);
+        if (value != null && value.length() > 32767) {
+			value = value.substring(0, 32767 - 3) + "...";
+		}
+
+		Cell cell = header.createCell(column);
         cell.setCellValue(value);
 
         if (style != null) {
@@ -756,5 +765,30 @@ public class ReportXlsxView extends AbstractXlsxStreamingView {
             String localeSpecificHeader = messageSource.getMessage(header, null, locale);
             createCell(headerRow, column++, localeSpecificHeader, headerStyle);
         }
+    }
+
+    private static Date bestStartDate(final Date assigned, final LocalDate startDate) {
+        if (startDate != null) {
+            return java.sql.Timestamp.valueOf(atStartOfDay(startDate));
+        }
+        return assigned;
+    }
+
+    private String formatLocalDateTime(final LocalDateTime when) {
+        if (when == null) {
+            return null;
+        }
+        return dateFormatter.format(java.sql.Timestamp.valueOf(when));
+    }
+
+    private static LocalDateTime atStartOfDay(final LocalDate when) {
+        return when == null ? null : when.atStartOfDay();
+    }
+
+    private static LocalDateTime atEndOfDay(final LocalDate when) {
+        if (when == null) {
+            return null;
+        }
+        return when.plusDays(1).atStartOfDay().minusSeconds(1);
     }
 }

@@ -1,32 +1,7 @@
 package dk.digitalidentity.rc.service.cics;
 
-import java.time.LocalDateTime;
-import java.time.ZoneId;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Date;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.Set;
-import java.util.stream.Collectors;
-
-import javax.annotation.PostConstruct;
-
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.ResponseEntity;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-import org.springframework.util.StringUtils;
-import org.springframework.web.client.RestTemplate;
-
 import com.fasterxml.jackson.databind.MapperFeature;
 import com.fasterxml.jackson.dataformat.xml.XmlMapper;
-
 import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
 import dk.digitalidentity.rc.dao.AltAccountDao;
 import dk.digitalidentity.rc.dao.DirtyKspCicsUserProfileDao;
@@ -35,6 +10,7 @@ import dk.digitalidentity.rc.dao.model.DirtyKspCicsUserProfile;
 import dk.digitalidentity.rc.dao.model.ItSystem;
 import dk.digitalidentity.rc.dao.model.KspCicsUnmatchedUser;
 import dk.digitalidentity.rc.dao.model.Notification;
+import dk.digitalidentity.rc.dao.model.OrgUnit;
 import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserRole;
 import dk.digitalidentity.rc.dao.model.UserUserRoleAssignment;
@@ -46,6 +22,7 @@ import dk.digitalidentity.rc.security.SecurityUtil;
 import dk.digitalidentity.rc.service.ItSystemService;
 import dk.digitalidentity.rc.service.KspCicsUnmatchedUserService;
 import dk.digitalidentity.rc.service.NotificationService;
+import dk.digitalidentity.rc.service.OrgUnitService;
 import dk.digitalidentity.rc.service.UserRoleService;
 import dk.digitalidentity.rc.service.UserService;
 import dk.digitalidentity.rc.service.cics.model.KspChangePasswordResponse;
@@ -58,7 +35,30 @@ import dk.digitalidentity.rc.service.cics.model.kmd.ModifyWrapper;
 import dk.digitalidentity.rc.service.cics.model.kmd.SearchEntry;
 import dk.digitalidentity.rc.service.cics.model.kmd.SearchWrapper;
 import dk.digitalidentity.rc.service.model.UserRoleAssignmentWithInfo;
+import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
+import org.springframework.web.client.RestTemplate;
+
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Date;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -179,6 +179,9 @@ public class KspCicsService {
 
 	@Autowired
 	private UserService userService;
+
+	@Autowired
+	private OrgUnitService orgUnitService;
 	
 	@Autowired
 	private DirtyKspCicsUserProfileDao dirtyKspCicsUserProfileDao;
@@ -291,7 +294,7 @@ public class KspCicsService {
 							
 							for (AltAccount matchingAltAccount : matchingAltAccounts) {
 								User user = matchingAltAccount.getUser();
-								
+								List<OrgUnit> orgUnits = orgUnitService.getOrgUnitsForUser(user);
 								// bypass intercepter to avoid filling the dirty_ksp_cics_user_profiles table
 								UserUserRoleAssignment assignment = new UserUserRoleAssignment();
 								assignment.setUser(user);
@@ -299,6 +302,7 @@ public class KspCicsService {
 								assignment.setAssignedByName("KSP/CICS");
 								assignment.setAssignedByUserId("KSP/CICS");
 								assignment.setAssignedTimestamp(Date.from(LocalDateTime.of(1979, 5, 21, 8, 0).atZone(ZoneId.systemDefault()).toInstant()));
+								assignment.setOrgUnit(orgUnits != null && !orgUnits.isEmpty() ? orgUnits.get(0) : null);
 								user.getUserRoleAssignments().add(assignment);
 								userService.save(user);
 							}
@@ -627,7 +631,7 @@ public class KspCicsService {
 
 					KspChangePasswordResponse result = new KspChangePasswordResponse();
 					result.setSuccess(false);
-					result.setHttp(response.getStatusCode());
+					result.setHttp(HttpStatus.valueOf(response.getStatusCode().value()));
 					result.setResponse(response.getBody());
 
 					return result;

@@ -1,5 +1,26 @@
 package dk.digitalidentity.rc.controller.rest;
 
+import dk.digitalidentity.rc.controller.mvc.viewmodel.OUListForm;
+import dk.digitalidentity.rc.controller.mvc.viewmodel.ReportForm;
+import dk.digitalidentity.rc.controller.rest.model.UserListDTO;
+import dk.digitalidentity.rc.dao.model.ReportTemplate;
+import dk.digitalidentity.rc.dao.model.User;
+import dk.digitalidentity.rc.security.AccessConstraintService;
+import dk.digitalidentity.rc.security.RequireReportAccessRole;
+import dk.digitalidentity.rc.service.HistoryService;
+import dk.digitalidentity.rc.service.ReportTemplateService;
+import dk.digitalidentity.rc.service.UserService;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.MessageSource;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.util.StringUtils;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RestController;
+
 import java.time.DateTimeException;
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -8,30 +29,7 @@ import java.util.Locale;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.MessageSource;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RestController;
-
-import org.springframework.util.StringUtils;
-
-import dk.digitalidentity.rc.controller.mvc.viewmodel.OUListForm;
-import dk.digitalidentity.rc.controller.mvc.viewmodel.ReportForm;
-import dk.digitalidentity.rc.controller.rest.model.UserListDTO;
-import dk.digitalidentity.rc.dao.model.ReportTemplate;
-import dk.digitalidentity.rc.dao.model.User;
-import dk.digitalidentity.rc.security.AccessConstraintService;
-import dk.digitalidentity.rc.security.RequireReadAccessRole;
-import dk.digitalidentity.rc.service.HistoryService;
-import dk.digitalidentity.rc.service.ReportTemplateService;
-import dk.digitalidentity.rc.service.UserService;
-
-@RequireReadAccessRole
+@RequireReportAccessRole
 @RestController
 public class ReportRestController {
 

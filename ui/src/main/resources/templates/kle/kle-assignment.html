@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html>
-<head th:replace="fragments/header :: header (title=#{html.page.kle.kle.assignment})"></head>
+<head th:replace="~{fragments/header :: header (title=#{html.page.kle.kle.assignment})}"></head>
 <body>
 	<div class="wrapper">
-		<header th:replace="fragments/navbar :: navbar-header(subpage = 'reports')"></header>
-		<aside th:replace="fragments/navbar :: navbar-aside (page = 'kle.assignment', subpage = 'reports')"></aside>
+		<header th:replace="~{fragments/navbar :: navbar-header(subpage = 'reports')}"></header>
+		<aside th:replace="~{fragments/navbar :: navbar-aside (page = 'kle.assignment', subpage = 'reports')}"></aside>
 		<section>
 			<div class="content-wrapper">
 				<h3>
@@ -25,7 +25,7 @@
 		</section>
 	</div>
 
-	<nav th:replace="fragments/footer :: footer"></nav>
+	<nav th:replace="~{fragments/footer :: footer}"></nav>
 
 	<script th:inline="javascript">
 		/*<![CDATA[*/

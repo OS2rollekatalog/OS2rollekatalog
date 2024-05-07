@@ -1,13 +1,5 @@
 package dk.digitalidentity.rc.service;
 
-import java.util.Date;
-import java.util.Iterator;
-import java.util.List;
-import java.util.stream.Collectors;
-
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Service;
-
 import dk.digitalidentity.rc.dao.RoleGroupDao;
 import dk.digitalidentity.rc.dao.model.RoleGroup;
 import dk.digitalidentity.rc.dao.model.RoleGroupUserRoleAssignment;
@@ -15,6 +7,14 @@ import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserRole;
 import dk.digitalidentity.rc.log.AuditLogIntercepted;
 import dk.digitalidentity.rc.security.SecurityUtil;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+import java.util.Date;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Service
 public class RoleGroupService {
@@ -75,10 +75,14 @@ public class RoleGroupService {
 	}
 
 	public RoleGroup getById(long roleGroupId) {
+		return roleGroupDao.findById(roleGroupId).orElse(null);
+	}
+
+	public Optional<RoleGroup> getOptionalById(long roleGroupId) {
 		return roleGroupDao.findById(roleGroupId);
 	}
 
-	public RoleGroup getByName(String name) {
+	public Optional<RoleGroup> getByName(String name) {
 		return roleGroupDao.findByName(name);
 	}
 	

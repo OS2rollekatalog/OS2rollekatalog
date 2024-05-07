@@ -1,10 +1,11 @@
 package dk.digitalidentity.rc.service;
 
-import java.util.Arrays;
-import java.util.List;
-
-import javax.annotation.PostConstruct;
-
+import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
+import dk.digitalidentity.rc.dao.ClientDao;
+import dk.digitalidentity.rc.dao.model.Client;
+import dk.digitalidentity.rc.dao.model.enums.AccessRole;
+import dk.digitalidentity.rc.dao.model.enums.VersionStatusEnum;
+import jakarta.annotation.PostConstruct;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
@@ -13,11 +14,8 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
-import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
-import dk.digitalidentity.rc.dao.ClientDao;
-import dk.digitalidentity.rc.dao.model.Client;
-import dk.digitalidentity.rc.dao.model.enums.AccessRole;
-import dk.digitalidentity.rc.dao.model.enums.VersionStatusEnum;
+import java.util.Arrays;
+import java.util.List;
 
 @Service
 @EnableScheduling

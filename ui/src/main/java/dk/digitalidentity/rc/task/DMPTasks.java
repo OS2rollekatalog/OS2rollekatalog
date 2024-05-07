@@ -47,7 +47,7 @@ public class DMPTasks {
 	}
 	
 	// every night we delete users from DMP without roles
-	@Scheduled(cron = "0 #{new java.util.Random().nextInt(55)} 21 * * ?")
+	@Scheduled(cron = "${cron.dmp.cleanup:0 #{new java.util.Random().nextInt(55)} 21 * * ?}")
 	public void deleteUsers() {
 		if (config.getScheduled().isEnabled() && config.getIntegrations().getDmp().isEnabled()) {
 			dmpService.deleteUsers();

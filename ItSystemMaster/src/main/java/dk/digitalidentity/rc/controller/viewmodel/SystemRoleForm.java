@@ -1,7 +1,6 @@
 package dk.digitalidentity.rc.controller.viewmodel;
 
-import javax.validation.constraints.Size;
-
+import jakarta.validation.constraints.Size;
 import lombok.Data;
 
 @Data

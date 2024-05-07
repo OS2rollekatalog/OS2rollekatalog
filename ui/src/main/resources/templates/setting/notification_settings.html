@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
-<head th:replace="fragments/header :: header (title=#{html.setting.notifications.title})"></head>
+<head th:replace="~{fragments/header :: header (title=#{html.setting.notifications.title})}"></head>
 <body>
 <div class="wrapper">
-    <header th:replace="fragments/navbar :: navbar-header(subpage = 'administration')"></header>
-    <aside th:replace="fragments/navbar :: navbar-aside (page = 'notificationSettings', subpage = 'administration')"></aside>
+    <header th:replace="~{fragments/navbar :: navbar-header(subpage = 'administration')}"></header>
+    <aside th:replace="~{fragments/navbar :: navbar-aside (page = 'notificationSettings', subpage = 'administration')}"></aside>
 
     <section>
         <div class="content-wrapper">
@@ -49,7 +49,7 @@
     </section>
 </div>
 
-<div th:replace="fragments/footer :: footer"></div>
+<div th:replace="~{fragments/footer :: footer}"></div>
 
 <script th:inline="javascript">
 		/*<![CDATA[*/
@@ -127,14 +127,7 @@
 								status: 'success',
 								autoHideDelay: 4000
 							});
-						}).fail(function (jqXHR, textStatus, errorThrown) {
-							$.notify({
-								message: failedMsg
-							},{
-								status: 'warning',
-								autoHideDelay: 4000
-							});
-						});
+						}).fail(errorHandler(failedMsg));
 					});
 				}
 				else {

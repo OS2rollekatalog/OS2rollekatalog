@@ -1,26 +1,25 @@
 package dk.digitalidentity.rc.security;
 
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Objects;
-
-import javax.servlet.Filter;
-import javax.servlet.FilterChain;
-import javax.servlet.FilterConfig;
-import javax.servlet.ServletException;
-import javax.servlet.ServletRequest;
-import javax.servlet.ServletResponse;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-
 import dk.digitalidentity.rc.dao.model.Client;
 import dk.digitalidentity.rc.dao.model.enums.AccessRole;
 import dk.digitalidentity.rc.service.ClientService;
 import dk.digitalidentity.samlmodule.model.SamlGrantedAuthority;
+import jakarta.servlet.Filter;
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.FilterConfig;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.ServletRequest;
+import jakarta.servlet.ServletResponse;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
 
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Objects;
+
 @Slf4j
-public class ApiSecurityFilter implements Filter {
+public class  ApiSecurityFilter implements Filter {
 	private static final String ROLE_API = "ROLE_API_";
 
 	private ClientService clientService;

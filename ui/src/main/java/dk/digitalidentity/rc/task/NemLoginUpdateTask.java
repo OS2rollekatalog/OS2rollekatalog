@@ -33,7 +33,7 @@ public class NemLoginUpdateTask {
 	}
 
 	// run once every night
-	@Scheduled(cron = " 0 #{new java.util.Random().nextInt(55)} 5 ? * *")
+	@Scheduled(cron = "${cron.nemlogin.fullSync:0 #{new java.util.Random().nextInt(55)} 5 * * ?}")
 	public void fullSyncRoleAssignments() {
 		if (!configuration.getIntegrations().getNemLogin().isEnabled() || !configuration.getScheduled().isEnabled()) {
 			return;
@@ -43,7 +43,7 @@ public class NemLoginUpdateTask {
 	}
 	
 	// period sync of systemRoles from MitID Erhverv to OS2rollekatalog
-	@Scheduled(cron = " 0 #{new java.util.Random().nextInt(55)} 3,10,14 ? * *")
+	@Scheduled(cron = "0 #{new java.util.Random().nextInt(55)} 3,10,14 * * ?")
 	public void syncNemLoginRoles() throws Exception {
 		if (!configuration.getScheduled().isEnabled() || !configuration.getIntegrations().getNemLogin().isEnabled()) {
 			log.debug("Scheduled jobs are disabled on this instance");

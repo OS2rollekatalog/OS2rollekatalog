@@ -18,6 +18,7 @@ import dk.digitalidentity.rc.attestation.model.entity.Attestation;
 import dk.digitalidentity.rc.attestation.model.entity.BaseUserAttestationEntry;
 import dk.digitalidentity.rc.attestation.model.entity.ItSystemOrganisationAttestationEntry;
 import dk.digitalidentity.rc.attestation.model.entity.ItSystemUserAttestationEntry;
+import dk.digitalidentity.rc.attestation.model.entity.temporal.AssignedThroughType;
 import dk.digitalidentity.rc.attestation.model.entity.temporal.AttestationOuRoleAssignment;
 import dk.digitalidentity.rc.attestation.model.entity.temporal.AttestationUserRoleAssignment;
 import dk.digitalidentity.rc.dao.TitleDao;
@@ -26,6 +27,7 @@ import dk.digitalidentity.rc.dao.model.Title;
 import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.service.ItSystemService;
 import dk.digitalidentity.rc.service.UserService;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
@@ -48,6 +50,7 @@ import static dk.digitalidentity.rc.attestation.service.util.AttestationValidati
 import static dk.digitalidentity.rc.util.StreamExtensions.distinctByKey;
 
 
+@Slf4j
 @Component
 public class ItSystemUsersAttestationService {
     @Autowired
@@ -81,21 +84,16 @@ public class ItSystemUsersAttestationService {
     private TitleDao titleDao;
 
     @Transactional
-    public List<ItSystemRoleAttestationDTO> listAllItSystemUsersForAttestation(final LocalDate when) {
-        return attestationDao.findByAttestationTypeAndDeadlineIsGreaterThanEqual(Attestation.AttestationType.IT_SYSTEM_ATTESTATION, when).stream()
-            .map(attestation -> {
-                    final List<AttestationUserRoleAssignment> userRoleAssignments = attestationUserRoleAssignmentDao.listValidAssignmentsByResponsibleUserUuid(when, attestation.getResponsibleUserUuid());
-                    final List<AttestationOuRoleAssignment> ouRoleAssignments = attestationOuAssignmentsDao.listValidNotInheritedAssignmentsWithResponsibleUser(when, attestation.getResponsibleUserUuid());
-                    return ItSystemRoleAttestationDTO.builder()
-                            .itSystemId(attestation.getItSystemId())
-                            .itSystemName(attestation.getItSystemName())
-                            .attestationUuid(attestation.getUuid())
-                            .deadline(attestation.getDeadline())
-                            .users(buildUserAttestations(attestation, userRoleAssignments, false))
-                            .orgUnits(buildOrgUnitAttestations(attestation, ouRoleAssignments))
-                            .build();
-                })
-                .collect(Collectors.toList());
+    public void finishOutstandingAttestations() {
+        // Only consider attestations that are less than a month old
+        final LocalDate since = LocalDate.now().minusMonths(1);
+        attestationDao.findByAttestationTypeAndDeadlineIsGreaterThanEqual(Attestation.AttestationType.IT_SYSTEM_ATTESTATION, since).stream()
+                .filter(a -> a.getVerifiedAt() == null)
+                .filter(a -> isItSystemUserAttestationDone(a.getCreatedAt(), a))
+                .forEach(a -> {
+                    a.setVerifiedAt(ZonedDateTime.now());
+                    log.warn("Attestation finished but not verified, id: {}", a.getId());
+                });
     }
 
     @Transactional
@@ -141,6 +139,7 @@ public class ItSystemUsersAttestationService {
                         .roleType(r.getRoleGroupId() != null ? RoleType.ROLEGROUP : RoleType.USERROLE)
                         .roleId(r.getRoleGroupId() != null ?  r.getRoleGroupId() : r.getUserRoleId())
                         .roleName(r.getRoleGroupId() != null ? r.getRoleGroupName() : r.getUserRoleName())
+                        .itSystemName(r.getItSystemName())
                         .build())
                 .collect(Collectors.toList());
     }
@@ -243,7 +242,9 @@ public class ItSystemUsersAttestationService {
 
     private boolean isItSystemUserAttestationDone(final LocalDate when, final Attestation attestation) {
         final List<AttestationUserRoleAssignment> assignments =
-                attestationUserRoleAssignmentDao.listValidAssignmentsByResponsibleUserUuid(when, attestation.getResponsibleUserUuid());
+                attestationUserRoleAssignmentDao.listValidAssignmentsByResponsibleUserUuid(when, attestation.getResponsibleUserUuid()).stream()
+                        .filter(a -> a.getAssignedThroughType() == AssignedThroughType.DIRECT)
+                        .collect(Collectors.toList());
         final List<AttestationOuRoleAssignment> ouRoleAssignments = attestationOuAssignmentsDao.listValidNotInheritedAssignmentsWithResponsibleUser(when, attestation.getResponsibleUserUuid());
 
         return hasAllUserAttestationsBeenPerformed(attestation, assignments, p -> Objects.equals(p.getItSystemId(), attestation.getItSystemId())) &&
@@ -266,6 +267,8 @@ public class ItSystemUsersAttestationService {
                 .filter(a -> a.getItSystemId().equals(attestation.getItSystemId()))
                 .toList();
         return relevantAssignments.stream()
+                // Assigned through OUs do not need to show up, since the OU assignment will be attestated
+                .filter(a -> a.getAssignedThroughType() == AssignedThroughType.DIRECT)
                 .filter(distinctByKey(AttestationUserRoleAssignment::getUserUuid))
                 .filter(a -> !undecidedUsersOnly || !hasUserDecisionBeenMade(attestation, a.getUserUuid()))
                 .map(r -> {

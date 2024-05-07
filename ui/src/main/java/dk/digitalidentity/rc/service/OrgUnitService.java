@@ -1286,29 +1286,22 @@ public class OrgUnitService {
 				continue;
 			}
 
-			// set orgUnit on assignments
 			boolean changes = false;
 			for (UserUserRoleAssignment userRoleAssignment : user.getUserRoleAssignments()) {
-				if (userRoleAssignment.getOrgUnit() == null) {
-					userRoleAssignment.setOrgUnit(orgUnits.get(0));
-					changes = true;
-				} else {
-
+				if (userRoleAssignment.getOrgUnit() != null) {
 					// check if the orgUnit on the assignment is one of the possible OrgUnits. If not set the role assignment OrgUnit to first of list
 					if (orgUnits.stream().noneMatch(o -> o.getUuid().equals(userRoleAssignment.getOrgUnit().getUuid()))) {
+						log.debug("Changing OU for roleGroupAssignment: {}", userRoleAssignment.getId());
 						userRoleAssignment.setOrgUnit(orgUnits.get(0));
 						changes = true;
 					}
 				}
 			}
 			for (UserRoleGroupAssignment roleGroupAssignment : user.getRoleGroupAssignments()) {
-				if (roleGroupAssignment.getOrgUnit() == null) {
-					roleGroupAssignment.setOrgUnit(orgUnits.get(0));
-					changes = true;
-				} else {
-
+				if (roleGroupAssignment.getOrgUnit() != null) {
 					// check if the orgUnit on the assignment is one of the possible OrgUnits. If not set the role assignment OrgUnit to first of list
 					if (orgUnits.stream().noneMatch(o -> o.getUuid().equals(roleGroupAssignment.getOrgUnit().getUuid()))) {
+						log.debug("Changing OU for roleGroupAssignment: {}", roleGroupAssignment.getId());
 						roleGroupAssignment.setOrgUnit(orgUnits.get(0));
 						changes = true;
 					}

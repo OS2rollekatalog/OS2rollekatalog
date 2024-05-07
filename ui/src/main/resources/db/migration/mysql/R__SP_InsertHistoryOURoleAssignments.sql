@@ -20,12 +20,12 @@ BEGIN
     dato, ou_uuid,
     role_id, role_name, role_it_system_id, role_it_system_name,
     assigned_through_type, assigned_through_uuid, assigned_through_name,
-    assigned_by_user_id, assigned_by_name, assigned_when, `inherit`)
+    assigned_by_user_id, assigned_by_name, assigned_when, `inherit`, start_date, stop_date)
   SELECT
     CURRENT_TIMESTAMP, ou.uuid,
     ur.id, ur.name, it.id, it.name,
     'ORGUNIT', orig_ou_uuid, orig_ou_name,
-    our.assigned_by_user_id, our.assigned_by_name, our.assigned_timestamp, orig_ou_uuid = ou_roles_ou_uuid
+    our.assigned_by_user_id, our.assigned_by_name, our.assigned_timestamp, orig_ou_uuid = ou_roles_ou_uuid, our.start_date, our.stop_date
   FROM ou_roles our
     JOIN ous ou ON ou.uuid = ou_roles_ou_uuid
     JOIN user_roles ur ON ur.id = our.role_id
@@ -95,12 +95,12 @@ DELIMITER $$
       dato, ou_uuid,
       role_id, role_name, role_it_system_id, role_it_system_name, role_role_group, role_role_group_id,
       assigned_through_type, assigned_through_uuid, assigned_through_name,
-      assigned_by_user_id, assigned_by_name, assigned_when, `inherit`)
+      assigned_by_user_id, assigned_by_name, assigned_when, `inherit`, start_date, stop_date)
     SELECT
       CURRENT_TIMESTAMP, ou.uuid,
       ur.id, ur.name, it.id, it.name, rg.name, rg.id,
       'ORGUNIT', orig_ou_uuid, orig_ou_name,
-      ourg.assigned_by_user_id, ourg.assigned_by_name, ourg.assigned_timestamp, 0
+      ourg.assigned_by_user_id, ourg.assigned_by_name, ourg.assigned_timestamp, 0, ourg.start_date, ourg.stop_date
     FROM ou_rolegroups ourg
       JOIN ous ou ON ou.uuid = ou_roles_ou_uuid
       JOIN rolegroup rg ON rg.id = ourg.rolegroup_id
@@ -164,11 +164,11 @@ BEGIN
     dato, ou_uuid,
     role_id, role_name, role_it_system_id, role_it_system_name, role_role_group, role_role_group_id,
     assigned_through_type, assigned_through_uuid, assigned_through_name,
-    assigned_by_user_id, assigned_by_name, assigned_when, inherit)
+    assigned_by_user_id, assigned_by_name, assigned_when, inherit, start_date, stop_date)
   SELECT CURRENT_TIMESTAMP, o.uuid,
     ur.id, ur.name, it.id, it.name, NULL, NULL,
     'DIRECT', NULL, NULL,
-    our.assigned_by_user_id, our.assigned_by_name, our.assigned_timestamp, 0
+    our.assigned_by_user_id, our.assigned_by_name, our.assigned_timestamp, 0, our.start_date, our.stop_date
   FROM ou_roles our
   JOIN ous o ON o.uuid = our.ou_uuid
   JOIN user_roles ur ON ur.id = our.role_id
@@ -180,11 +180,11 @@ BEGIN
     dato, ou_uuid,
     role_id, role_name, role_it_system_id, role_it_system_name, role_role_group, role_role_group_id,
     assigned_through_type, assigned_through_uuid, assigned_through_name,
-    assigned_by_user_id, assigned_by_name, assigned_when, inherit)
+    assigned_by_user_id, assigned_by_name, assigned_when, inherit, start_date, stop_date)
   SELECT CURRENT_TIMESTAMP, o.uuid,
     ur.id, ur.name, it.id, it.name, rg.name, rg.id,
     'DIRECT', NULL, NULL,
-    ourg.assigned_by_user_id, ourg.assigned_by_name, ourg.assigned_timestamp, 0
+    ourg.assigned_by_user_id, ourg.assigned_by_name, ourg.assigned_timestamp, 0, ourg.start_date, ourg.stop_date
   FROM ou_rolegroups ourg
   JOIN ous o ON o.uuid = ourg.ou_uuid
   JOIN rolegroup rg ON ourg.rolegroup_id = rg.id

@@ -10,6 +10,7 @@ import dk.digitalidentity.rc.service.ItSystemService;
 import dk.digitalidentity.rc.service.OrgUnitService;
 import dk.digitalidentity.rc.service.UserService;
 import io.micrometer.core.annotation.Timed;
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.stereotype.Controller;
@@ -19,11 +20,9 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.servlet.ModelAndView;
 
-import javax.servlet.http.HttpServletResponse;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
@@ -51,19 +50,19 @@ public class AttestationReportController {
 	@GetMapping(value = "/ui/attestation/v2/reports")
 	@Timed("attestation.controller.mvc.attestation_report_controller.reports.timer")
 	public String reports(Model model) {
-		User user = userService.getByUserId(SecurityUtil.getUserId());
+		User user = userService.getOptionalByUserId(SecurityUtil.getUserId()).orElse(null);
 		if (user == null) {
 			return "attestationmodule/error";
 		}
 
 		boolean isAdmin = SecurityUtil.isAttestationAdminOrAdmin();
-		Set<AttestationOrgUnitReportListDTO> managedOrgUnits = new HashSet<>();
-		Set<AttestationITSystemReportListDTO> managedITSystems = new HashSet<>();
+		Set<AttestationOrgUnitReportListDTO> managedOrgUnits;
+		Set<AttestationITSystemReportListDTO> managedITSystems;
 
 
 		if (isAdmin) {
 			managedOrgUnits = orgUnitService.getAll().stream().map(o -> new AttestationOrgUnitReportListDTO(o.getUuid(), o.getName(), buildBreadcrumbs(o))).collect(Collectors.toSet());
-			managedITSystems = itSystemService.getAll().stream().map(i -> new AttestationITSystemReportListDTO(i.getId(), i.getName())).collect(Collectors.toSet());
+			managedITSystems = itSystemService.getVisible().stream().map(i -> new AttestationITSystemReportListDTO(i.getId(), i.getName())).collect(Collectors.toSet());
 		} else {
 			managedOrgUnits = orgUnitService.getByManagerMatchingUser(user).stream().map(o -> new AttestationOrgUnitReportListDTO(o.getUuid(), o.getName(), buildBreadcrumbs(o))).collect(Collectors.toSet());
 			managedITSystems = itSystemService.findByAttestationResponsible(user).stream().map(i -> new AttestationITSystemReportListDTO(i.getId(), i.getName())).collect(Collectors.toSet());

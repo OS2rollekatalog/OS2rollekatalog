@@ -1,5 +1,45 @@
 package dk.digitalidentity.rc.controller.mvc;
 
+import dk.digitalidentity.rc.config.Constants;
+import dk.digitalidentity.rc.controller.mvc.viewmodel.ItSystemChoice;
+import dk.digitalidentity.rc.controller.mvc.viewmodel.OUListForm;
+import dk.digitalidentity.rc.controller.mvc.viewmodel.ReportForm;
+import dk.digitalidentity.rc.controller.mvc.viewmodel.UserWithDuplicateRoleAssignmentDTO;
+import dk.digitalidentity.rc.controller.mvc.xlsview.ReportXlsxView;
+import dk.digitalidentity.rc.dao.history.model.HistoryItSystem;
+import dk.digitalidentity.rc.dao.model.ItSystem;
+import dk.digitalidentity.rc.dao.model.OrgUnit;
+import dk.digitalidentity.rc.dao.model.Position;
+import dk.digitalidentity.rc.dao.model.ReportTemplate;
+import dk.digitalidentity.rc.dao.model.RoleGroup;
+import dk.digitalidentity.rc.dao.model.User;
+import dk.digitalidentity.rc.dao.model.UserRole;
+import dk.digitalidentity.rc.dao.model.enums.ReportType;
+import dk.digitalidentity.rc.security.RequireReportAccessRole;
+import dk.digitalidentity.rc.security.RequireTemplateAccessOrReportAccessRole;
+import dk.digitalidentity.rc.security.SecurityUtil;
+import dk.digitalidentity.rc.service.HistoryService;
+import dk.digitalidentity.rc.service.ItSystemService;
+import dk.digitalidentity.rc.service.OrgUnitService;
+import dk.digitalidentity.rc.service.PositionService;
+import dk.digitalidentity.rc.service.ReportService;
+import dk.digitalidentity.rc.service.ReportTemplateService;
+import dk.digitalidentity.rc.service.RoleGroupService;
+import dk.digitalidentity.rc.service.UserRoleService;
+import dk.digitalidentity.rc.service.UserService;
+import dk.digitalidentity.rc.service.model.RoleGroupAssignmentWithInfo;
+import dk.digitalidentity.rc.service.model.UserRoleAssignmentWithInfo;
+import jakarta.servlet.http.HttpServletResponse;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Controller;
+import org.springframework.ui.Model;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.servlet.ModelAndView;
+
 import java.time.DateTimeException;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
@@ -11,50 +51,8 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import javax.servlet.http.HttpServletResponse;
-
-import dk.digitalidentity.rc.dao.model.ItSystem;
-import dk.digitalidentity.rc.service.ItSystemService;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Controller;
-import org.springframework.ui.Model;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.servlet.ModelAndView;
-
-import dk.digitalidentity.rc.config.Constants;
-import dk.digitalidentity.rc.controller.mvc.viewmodel.ItSystemChoice;
-import dk.digitalidentity.rc.controller.mvc.viewmodel.OUListForm;
-import dk.digitalidentity.rc.controller.mvc.viewmodel.ReportForm;
-import dk.digitalidentity.rc.controller.mvc.viewmodel.UserWithDuplicateRoleAssignmentDTO;
-import dk.digitalidentity.rc.controller.mvc.xlsview.ReportXlsxView;
-import dk.digitalidentity.rc.dao.history.model.HistoryItSystem;
-import dk.digitalidentity.rc.dao.model.OrgUnit;
-import dk.digitalidentity.rc.dao.model.Position;
-import dk.digitalidentity.rc.dao.model.ReportTemplate;
-import dk.digitalidentity.rc.dao.model.RoleGroup;
-import dk.digitalidentity.rc.dao.model.User;
-import dk.digitalidentity.rc.dao.model.UserRole;
-import dk.digitalidentity.rc.dao.model.enums.ReportType;
-import dk.digitalidentity.rc.security.RequireReadAccessRole;
-import dk.digitalidentity.rc.security.RequireTemplateAccessOrReadAccessRole;
-import dk.digitalidentity.rc.security.SecurityUtil;
-import dk.digitalidentity.rc.service.HistoryService;
-import dk.digitalidentity.rc.service.OrgUnitService;
-import dk.digitalidentity.rc.service.PositionService;
-import dk.digitalidentity.rc.service.ReportService;
-import dk.digitalidentity.rc.service.ReportTemplateService;
-import dk.digitalidentity.rc.service.RoleGroupService;
-import dk.digitalidentity.rc.service.UserRoleService;
-import dk.digitalidentity.rc.service.UserService;
-import dk.digitalidentity.rc.service.model.RoleGroupAssignmentWithInfo;
-import dk.digitalidentity.rc.service.model.UserRoleAssignmentWithInfo;
-import lombok.extern.slf4j.Slf4j;
-
 @Slf4j
-@RequireReadAccessRole
+@RequireReportAccessRole
 @Controller
 public class ReportController {
 
@@ -85,12 +83,12 @@ public class ReportController {
 	@Autowired
 	private ItSystemService itSystemService;
 
-	@RequireTemplateAccessOrReadAccessRole
+	@RequireTemplateAccessOrReportAccessRole
 	@GetMapping("/ui/report/templates")
 	public String templatesReport(Model model) {
 		List<ReportTemplate> templates = new ArrayList<>();
 		
-		if (SecurityUtil.hasRole(Constants.ROLE_READ_ACCESS)) {
+		if (SecurityUtil.hasRole(Constants.ROLE_REPORT_ACCESS)) {
 			templates = reportTemplateService.getAll();
 		}
 		else if (SecurityUtil.hasRole(Constants.ROLE_TEMPLATE_ACCESS)) {
@@ -235,7 +233,7 @@ public class ReportController {
 		return new ModelAndView(new ReportXlsxView(), model);
 	}
 
-	@RequireTemplateAccessOrReadAccessRole
+	@RequireTemplateAccessOrReportAccessRole
 	@GetMapping(value = "/ui/report/download/template/{id}")
 	public ModelAndView downloadReportFromTemplate(@PathVariable("id") Long id, HttpServletResponse response, Locale loc) {		
 		List<ReportTemplate> templates = null;
@@ -319,15 +317,30 @@ public class ReportController {
 			case ITSYSTEMS_WITHOUT_ATTESTATION_RESPONSIBLE:
 				model.addAttribute("itSystems", generateItSystemWithoutSystemResponsibleReport());
 				return "reports/custom/itsystem_without_system_responsible";
+			case ITSYSTEMS_WITHOUT_ATTESTATION:
+				model.addAttribute("itSystems", generateItSystemWithoutAttestationReport());
+				return "reports/custom/itsystem_without_attestation";
 		}
 
 		return "redirect:/ui/report/custom";
 	}
 
+	record ItSystemWithoutAttestationReport(long id, String name, String identifier, String type) {}
+	private List<ItSystemWithoutAttestationReport> generateItSystemWithoutAttestationReport() {
+		List<ItSystemWithoutAttestationReport> result = new ArrayList<>();
+		List<ItSystem> allSystems = itSystemService.getVisible();
+		for (ItSystem system : allSystems) {
+			if (system.isAttestationExempt()) {
+				result.add(new ItSystemWithoutAttestationReport(system.getId(), system.getName(), system.getIdentifier(), system.getSystemType().getMessage()));
+			}
+		}
+		return result;
+	}
+
 	record ItSystemWithoutSystemResponsibleReport(long id, String name, String identifier, String type, boolean inactiveSystemResponsible) {}
 	private List<ItSystemWithoutSystemResponsibleReport> generateItSystemWithoutSystemResponsibleReport() {
 		List<ItSystemWithoutSystemResponsibleReport> result = new ArrayList<>();
-		List<ItSystem> allSystems = itSystemService.getAll();
+		List<ItSystem> allSystems = itSystemService.getVisible();
 		for (ItSystem system : allSystems) {
 			if (system.getAttestationResponsible() == null) {
 				result.add(new ItSystemWithoutSystemResponsibleReport(system.getId(), system.getName(), system.getIdentifier(), system.getSystemType().getMessage(), false));

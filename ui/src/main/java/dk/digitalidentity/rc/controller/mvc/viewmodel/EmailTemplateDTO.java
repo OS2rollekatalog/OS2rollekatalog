@@ -19,6 +19,7 @@ public class EmailTemplateDTO {
 	private long id;
 	private String title;
 	private String message;
+	private String notes;
 	private String templateTypeText;
 	private boolean enabled;
 	private List<EmailTemplatePlaceholder> emailTemplatePlaceholders;

@@ -1,36 +1,5 @@
 package dk.digitalidentity.rc.service.nemlogin;
 
-import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Set;
-import java.util.stream.Collectors;
-
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.cache.annotation.CacheEvict;
-import org.springframework.cache.annotation.Cacheable;
-import org.springframework.cache.annotation.EnableCaching;
-import org.springframework.core.ParameterizedTypeReference;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpMethod;
-import org.springframework.http.ResponseEntity;
-import org.springframework.scheduling.annotation.EnableScheduling;
-import org.springframework.scheduling.annotation.Scheduled;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-import org.springframework.util.StringUtils;
-import org.springframework.web.client.HttpStatusCodeException;
-import org.springframework.web.client.RestClientException;
-import org.springframework.web.client.RestTemplate;
-
 import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
 import dk.digitalidentity.rc.dao.DirtyNemLoginUserDao;
 import dk.digitalidentity.rc.dao.model.ConstraintType;
@@ -66,13 +35,49 @@ import dk.digitalidentity.rc.service.nemlogin.model.NemLoginRole;
 import dk.digitalidentity.rc.service.nemlogin.model.Scope;
 import dk.digitalidentity.rc.service.nemlogin.model.TokenResponse;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.EnableCaching;
+import org.springframework.core.ParameterizedTypeReference;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.ResponseEntity;
+import org.springframework.scheduling.annotation.EnableScheduling;
+import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
+import org.springframework.web.client.HttpStatusCodeException;
+import org.springframework.web.client.RestClientException;
+import org.springframework.web.client.RestTemplate;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @EnableCaching
 @EnableScheduling
 @Slf4j
 @Service
 public class NemLoginService {
-	
+	private final ObjectMapper objectMapper = new ObjectMapper();
+
 	@Qualifier("nemLoginRestTemplate")
 	@Autowired
 	private RestTemplate restTemplate;
@@ -201,8 +206,9 @@ public class NemLoginService {
 		log.info("Performing migration of existing role assignments in MitID Erhverv to OS2rollekatalog");
 
 		try {
+			// We do not know the exact time this was assigned, so use start of current date
+			final Date assignedAt = Date.from(LocalDate.now().atStartOfDay(ZoneId.of("Europe/Paris")).toInstant());
 			SecurityUtil.loginSystemAccount();
-
 			List<User> nemLoginUsers = userService.getAllWithNemLoginUuid();
 			for (User user : nemLoginUsers) {
 				List<AssignedRole> assignedRoles = getRolesForUser(user);
@@ -246,6 +252,7 @@ public class NemLoginService {
 						systemRoleAssignment.setConstraintValues(new ArrayList<>());
 						systemRoleAssignment.setAssignedByName("Systembruger");
 						systemRoleAssignment.setAssignedByUserId("system");
+						systemRoleAssignment.setAssignedTimestamp(assignedAt);
 
 						if (assignedRole.getScope().getType().equals("SE")) {
 							existingUserRole.setName(assignedRole.getName() + " med senr");
@@ -491,7 +498,14 @@ public class NemLoginService {
 		
 		Set<String> systemRoleIdentifiers = systemRoleService.findByItSystem(itSystem).stream().map(sr -> sr.getIdentifier()).collect(Collectors.toSet());
 		
-		for (User user : userService.getAllWithNemLoginUuid()) {
+		List<User> users = userService.getAllWithNemLoginUuid();
+		log.info("Synchronizing roles for " + users.size() + " users");
+		int count = 0;
+		for (User user : users) {
+			if (++count % 100 == 0) {
+				log.info("Completed " + count + " users");
+			}
+
 			try {
 				if (!user.isDeleted()) {
 					syncNemLoginRolesForUser(user, itSystem, systemRoleIdentifiers);
@@ -698,12 +712,18 @@ public class NemLoginService {
 
 		HttpEntity<String> request = new HttpEntity<>(headers);
 		try {
-			ResponseEntity<AssignedRole[]> response = restTemplate.exchange(url, HttpMethod.GET, request, AssignedRole[].class);
+			ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.GET, request, String.class);
 			
 			// this checking is not really needed, as an exception is throw, but experience shows that updating the core framework sometimes
 			// changes the default behavior of the framework, so let's be safe :)
 			if (response.getStatusCodeValue() == 200 && response.getBody() != null) {
-				return Arrays.asList(response.getBody());
+				try {
+					return Arrays.asList(objectMapper.readValue(response.getBody(), AssignedRole[].class));
+				}
+				catch (Exception ex) {
+					log.error("Invalid response from NL3 on getRolesForUser: " + response.getBody(), ex);
+					return null;
+				}
 			}
 			else {
 				log.error("Failed to fetch roles assigned to user with nemloginUuid " + user.getNemloginUuid() + " from nemloginApi. Code " + response.getStatusCodeValue() + " body: " + response.getBody());

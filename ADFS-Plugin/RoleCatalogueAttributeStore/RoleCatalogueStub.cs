@@ -99,7 +99,7 @@ namespace RoleCatalogueAttributeStore
             return response.Data.oioBPP;
         }
 
-        public static string GetOIOBPP(string userid, string itsystem)
+        public static UserResponse GetUserResponse(string userid, string itsystem)
         {
             userid = GetUserId(userid);
             var client = new RestClient();
@@ -112,7 +112,7 @@ namespace RoleCatalogueAttributeStore
 
             var query = "";
             var domain = Configuration.GetInstance().Domain;
-            if (!String.IsNullOrEmpty(domain))
+            if (!string.IsNullOrEmpty(domain))
             {
                 query = $"&domain={domain}";
             }
@@ -130,21 +130,31 @@ namespace RoleCatalogueAttributeStore
                 response.Data = new UserResponse()
                 {
                     oioBPP = "",
-                    nameID = ""
+                    nameID = "",
+                    dataRoles = new List<string>(),
+                    functionRoles = new List<string>(),
+                    roleMap = new Dictionary<string, string>(),
+                    systemRoles = new List<string>(),
+                    userRoles = new List<string>()
                 };
             }
-            else
-            {
-                StringBuilder builder = new StringBuilder();
-                builder.Append("Roles issued\n");
-                builder.Append("Timestamp: " + DateTime.Now.ToString("yyyy/MM/dd HH:mm:ss") + "\n");
-                builder.Append("User: " + response.Data.nameID + "\n");
-                builder.Append("OIO-BPP: " + response.Data.oioBPP + "\n");
-                builder.Append("RoleMap: " + RoleMapToString(response.Data.roleMap));
-                AttributeStoreLogger.Info(builder.ToString());
-            }
 
-            return response.Data.oioBPP;
+            return response.Data;
+        }
+
+        public static string GetOIOBPP(string userid, string itsystem)
+        {
+            UserResponse userResponse = GetUserResponse(userid, itsystem);
+
+            StringBuilder builder = new StringBuilder();
+            builder.Append("Roles issued\n");
+            builder.Append("Timestamp: " + DateTime.Now.ToString("yyyy/MM/dd HH:mm:ss") + "\n");
+            builder.Append("User: " + userResponse.nameID + "\n");
+            builder.Append("OIO-BPP: " + userResponse.oioBPP + "\n");
+            builder.Append("RoleMap: " + RoleMapToString(userResponse.roleMap));
+            AttributeStoreLogger.Info(builder.ToString());
+
+            return userResponse.oioBPP;
         }
 
         private static string RoleMapToString(Dictionary<string, string> map)

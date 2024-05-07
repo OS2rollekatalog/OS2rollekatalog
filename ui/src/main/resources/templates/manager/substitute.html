@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html>
-<head th:replace="fragments/header :: header (title=#{html.page.manager.substitute})"></head>
+<head th:replace="~{fragments/header :: header (title=#{html.page.manager.substitute})}"></head>
 <body>
 	<div class="wrapper">
-		<header th:replace="fragments/navbar :: navbar-header(subpage = 'reports')"></header>
-		<aside th:replace="fragments/navbar :: navbar-aside (page = ${page}, subpage = 'reports')"></aside>
+		<header th:replace="~{fragments/navbar :: navbar-header(subpage = 'reports')}"></header>
+		<aside th:replace="~{fragments/navbar :: navbar-aside (page = ${page}, subpage = 'reports')}"></aside>
 
 		<section>
 			<div class="content-wrapper">
@@ -92,8 +92,8 @@
 		</div>
 	</div>
 
-	<nav th:replace="fragments/footer :: footer"></nav>
-	<script th:replace="fragments/datatables :: datatables "></script>
+	<nav th:replace="~{fragments/footer :: footer}"></nav>
+	<script th:replace="~{fragments/datatables :: datatables}"></script>
 
 	<style>
 		.autocomplete-suggestions { border: 1px solid #999; background: #FFF; overflow: auto; width: 500px !important; }
@@ -209,14 +209,7 @@
 								success: function() {
 									location.reload(true);
 								},
-								error: function() {
-									$.notify({
-										message: errorMsg
-									},{
-										status: 'danger',
-										autoHideDelay: 4000
-									});
-								}
+								error: errorHandler(errorMsg)
 							});
 						}
 					}
@@ -253,13 +246,7 @@
 					location.reload(true);
 				}).fail(function (jqXHR, textStatus, errorThrown) {
 					$("#addSubstituteModal").modal("hide");
-					var msg = jqXHR.responseText || msgAssignFailure;
-					$.notify({
-						message: msg
-					}, {
-						status: 'danger',
-						autoHideDelay: 4000
-					});
+					errorHandler(msgAssignFailure)(jqXHR);
 				});
 			};
 		}

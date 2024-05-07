@@ -1,31 +1,5 @@
 package dk.digitalidentity.rc.attestation.service;
 
-import static dk.digitalidentity.rc.attestation.AttestationConstants.CET_ZONE_ID;
-import static dk.digitalidentity.rc.attestation.AttestationConstants.REPORT_LOCK_NAME;
-
-import java.time.LocalDate;
-import java.time.ZonedDateTime;
-import java.util.Collection;
-import java.util.Comparator;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
-import java.util.Objects;
-import java.util.function.Supplier;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
-
-import javax.persistence.EntityManager;
-import javax.persistence.FlushModeType;
-import javax.persistence.PersistenceContext;
-
-import org.apache.commons.collections4.ListUtils;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.MessageSource;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
 import dk.digitalidentity.rc.attestation.dao.AttestationDao;
 import dk.digitalidentity.rc.attestation.dao.AttestationUserRoleAssignmentDao;
 import dk.digitalidentity.rc.attestation.model.dto.RoleAssignmentReportRowDTO;
@@ -41,6 +15,30 @@ import dk.digitalidentity.rc.attestation.model.entity.temporal.AssignedThroughTy
 import dk.digitalidentity.rc.attestation.model.entity.temporal.AttestationUserRoleAssignment;
 import dk.digitalidentity.rc.dao.model.ItSystem;
 import dk.digitalidentity.rc.dao.model.OrgUnit;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.FlushModeType;
+import jakarta.persistence.PersistenceContext;
+import org.apache.commons.collections4.ListUtils;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.MessageSource;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDate;
+import java.time.ZonedDateTime;
+import java.util.Collection;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Objects;
+import java.util.function.Supplier;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+
+import static dk.digitalidentity.rc.attestation.AttestationConstants.CET_ZONE_ID;
+import static dk.digitalidentity.rc.attestation.AttestationConstants.REPORT_LOCK_NAME;
 
 @Service
 public class AttestationReportService {
@@ -210,10 +208,7 @@ public class AttestationReportService {
 	private VerificationInformationDTO findVerificationInformation(final AttestationUserRoleAssignment assignment,
 																   final ZonedDateTime from, final ZonedDateTime to) {
 		final VerificationInformationDTO verificationInformation = new VerificationInformationDTO();
-		if (assignment.getResponsibleUserUuid() != null) {
-			final Attestation attestation = findNewestAttestation(attestationDao.findItSystemUserAttestationsForUser(assignment.getItSystemId(), assignment.getUserUuid(), from, to));
-			return findVerificationInformationForSystemUserAttestation(assignment, attestation);
-		} else if (assignment.getResponsibleOuUuid() != null) {
+		if (assignment.getResponsibleOuUuid() != null) {
 			if (assignment.getAssignedThroughUuid() == null || assignment.getAssignedThroughUuid().equals(assignment.getResponsibleOuUuid())) {
 				// Same OU so lookup the org user entry
 				final Attestation attestation = findNewestAttestation(attestationDao.findOrganisationUserAttestationsForUser(assignment.getResponsibleOuUuid(), assignment.getUserUuid(), from, to));
@@ -230,6 +225,9 @@ public class AttestationReportService {
 					.collect(Collectors.toList());
 			final Attestation attestation = findNewestAttestation(itSystemUserAttestations);
 			return findVerificationInformationForSystemOuAttestation(assignment, attestation);
+		} else if (assignment.getResponsibleUserUuid() != null) {
+			final Attestation attestation = findNewestAttestation(attestationDao.findItSystemUserAttestationsForUser(assignment.getItSystemId(), assignment.getUserUuid(), from, to));
+			return findVerificationInformationForSystemUserAttestation(assignment, attestation);
 		}
 		return verificationInformation;
 	}

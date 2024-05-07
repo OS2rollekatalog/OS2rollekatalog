@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html>
-<head th:replace="fragments/header :: header (title=#{html.page.report.assign.title})"></head>
+<head th:replace="~{fragments/header :: header (title=#{html.page.report.assign.title})}"></head>
 <body>
 	<div class="wrapper">
-		<header th:replace="fragments/navbar :: navbar-header(subpage = 'reports')"></header>
-		<aside th:replace="fragments/navbar :: navbar-aside (page = 'report', subpage = 'reports')"></aside>
+		<header th:replace="~{fragments/navbar :: navbar-header(subpage = 'reports')}"></header>
+		<aside th:replace="~{fragments/navbar :: navbar-aside (page = 'report', subpage = 'reports')}"></aside>
 
 		<section>
 			<div class="content-wrapper">
@@ -53,7 +53,7 @@
 		}
 	</style>
 
-	<nav th:replace="fragments/footer :: footer"></nav>
+	<nav th:replace="~{fragments/footer :: footer}"></nav>
 
 	<script th:inline="javascript">
 		/*<![CDATA[*/
@@ -167,14 +167,7 @@
 					$.ajax({
 						url: backendUrl+ "/users/" + templateId,
 						method: "GET",
-							error: function(response) {
-								$.notify({
-									message: 'Could not connect to user database!'
-								},{
-									status: 'danger',
-									autoHideDelay: 4000
-								});
-							},
+							error: errorHandler('Could not connect to user database!'),
 							success: function(response) {
 								allUsers = response;
 								updateTable();
@@ -209,14 +202,7 @@
 					headers: {
 						'X-CSRF-TOKEN': token
 					},
-					error: function(response) {
-						$.notify({
-							message: fieldNotUpdatedMsg + ""
-						},{
-							status: 'danger',
-							autoHideDelay: 4000
-						});
-					},
+					error: errorHandler(fieldNotUpdatedMsg + ""),
 					success: function(response) {
 						$('#sortLabel-' + uuid).text((checked) ? "1" : "0");
 

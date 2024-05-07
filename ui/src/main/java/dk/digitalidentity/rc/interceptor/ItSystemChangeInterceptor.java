@@ -1,19 +1,5 @@
 package dk.digitalidentity.rc.interceptor;
 
-import java.util.List;
-import java.util.Objects;
-
-import javax.persistence.EntityManager;
-import javax.persistence.PersistenceContext;
-
-import org.aspectj.lang.ProceedingJoinPoint;
-import org.aspectj.lang.annotation.Around;
-import org.aspectj.lang.annotation.Aspect;
-import org.aspectj.lang.annotation.Before;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Component;
-import org.springframework.util.StringUtils;
-
 import dk.digitalidentity.rc.dao.model.ConstraintTypeSupport;
 import dk.digitalidentity.rc.dao.model.ItSystem;
 import dk.digitalidentity.rc.dao.model.ItSystemChange;
@@ -22,7 +8,19 @@ import dk.digitalidentity.rc.dao.model.enums.ItSystemChangeEventType;
 import dk.digitalidentity.rc.service.ItSystemChangeService;
 import dk.digitalidentity.rc.service.ItSystemService;
 import dk.digitalidentity.rc.service.SystemRoleService;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 import lombok.extern.slf4j.Slf4j;
+import org.aspectj.lang.ProceedingJoinPoint;
+import org.aspectj.lang.annotation.Around;
+import org.aspectj.lang.annotation.Aspect;
+import org.aspectj.lang.annotation.Before;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
+import org.springframework.util.StringUtils;
+
+import java.util.List;
+import java.util.Objects;
 
 @Aspect
 @Slf4j

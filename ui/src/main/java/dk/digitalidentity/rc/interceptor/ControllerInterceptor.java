@@ -1,14 +1,12 @@
 package dk.digitalidentity.rc.interceptor;
 
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-
+import dk.digitalidentity.rc.service.RequestApproveService;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import org.aspectj.lang.annotation.Aspect;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.servlet.HandlerInterceptor;
 import org.springframework.web.servlet.ModelAndView;
-
-import dk.digitalidentity.rc.service.RequestApproveService;
 
 @Aspect
 public class ControllerInterceptor implements HandlerInterceptor {

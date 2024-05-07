@@ -1,20 +1,26 @@
 package dk.digitalidentity.rc.service;
 
+import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
 import dk.digitalidentity.rc.dao.EmailTemplateDao;
 import dk.digitalidentity.rc.dao.model.EmailTemplate;
 import dk.digitalidentity.rc.dao.model.enums.EmailTemplateType;
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.MessageSource;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.Collectors;
+import java.util.Locale;
 
 @Service
 public class EmailTemplateService {
 	@Autowired
 	private EmailTemplateDao emailTemplateDao;
+	@Autowired
+	private MessageSource messageSource;
+	@Autowired
+	private RoleCatalogueConfiguration configuration;
 
 	public List<EmailTemplate> findAll() {
 		List<EmailTemplate> result = new ArrayList<>();
@@ -26,17 +32,26 @@ public class EmailTemplateService {
 		return result;
 	}
 
-	/**
-	 * Returns all {@link EmailTemplate}s that where the type does not start with supplied prefix
-	 */
-	public List<EmailTemplate> findFiltered(final String excludePrefix) {
-		final List<EmailTemplate> allTemplates = findAll();
-		if (excludePrefix == null) {
-			return allTemplates;
+	public String getTemplateName(final Long templateId) {
+		final EmailTemplate template = emailTemplateDao.findById(templateId)
+				.orElseThrow(() -> new RuntimeException("Template not found " + templateId));
+		final String title = messageSource.getMessage(template.getTemplateType().getMessage(), null, Locale.ENGLISH);
+		if (title.contains("{days_reminder_1}")) {
+			return StringUtils.replace(title, "{days_reminder_1}", "" + configuration.getAttestation().getReminder1DaysBeforeDeadline());
 		}
-		return allTemplates.stream()
-				.filter(t -> !StringUtils.startsWithIgnoreCase(t.getTemplateType().name(), excludePrefix))
-				.collect(Collectors.toList());
+		if (title.contains("{days_reminder_2}")) {
+			return StringUtils.replace(title, "{days_reminder_2}", "" + configuration.getAttestation().getReminder2DaysBeforeDeadline());
+		}
+		if (title.contains("{days_reminder_3}")) {
+			return StringUtils.replace(title, "{days_reminder_3}", "" + configuration.getAttestation().getReminder3DaysAfterDeadline());
+		}
+		if (title.contains("{notification_days}")) {
+			return StringUtils.replace(title, "{notification_days}", "" + configuration.getAttestation().getNotifyDaysBeforeDeadline());
+		}
+		if (title.contains("{thirdpart_days}")) {
+			return StringUtils.replace(title, "{thirdpart_days}", "" + configuration.getAttestation().getEscalationReminderDaysAfterDeadline());
+		}
+		return title;
 	}
 
 	public EmailTemplate findByTemplateType(EmailTemplateType type) {
@@ -45,6 +60,7 @@ public class EmailTemplateService {
 			template = new EmailTemplate();
 			String title = "Overskrift";
 			String message = "Besked";
+			boolean enabled = true;
 			
 			switch (type) {
 				case ATTESTATION_REQUEST_FOR_CHANGE:
@@ -63,13 +79,18 @@ public class EmailTemplateService {
 					title = "Det er tid til attestering";
 					message = "Kære {modtager}\n<br/>\n<br/>\nDet er tid til, at der skal attesteres roller for enheden: {enhed}.";
 					break;
-				case ATTESTATION_REMINDER_3_DAYS:
+				case ATTESTATION_REMINDER1:
+					title = "Påmindelse/rykker for attestering";
+					message = "Kære {modtager}\n<br/>\n<br/>\nDer er ti dage til at der skal være attesteret roller for enheden: {enhed}.";
+					break;
+				case ATTESTATION_REMINDER2:
 					title = "Påmindelse/rykker for attestering";
 					message = "Kære {modtager}\n<br/>\n<br/>\nDer er tre dage til at der skal være attesteret roller for enheden: {enhed}.";
 					break;
-				case ATTESTATION_REMINDER_10_DAYS:
+				case ATTESTATION_REMINDER3:
 					title = "Påmindelse/rykker for attestering";
-					message = "Kære {modtager}\n<br/>\n<br/>\nDer er ti dage til at der skal være attesteret roller for enheden: {enhed}.";
+					message = "Kære {modtager}\n<br/>\n<br/>\nDet er frem dage siden at der skulle have være attesteret roller for enheden: {enhed}.";
+					enabled = false;
 					break;
 				case ATTESTATION_REMINDER_THIRDPARTY:
 					title = "Manglende attestering";
@@ -79,13 +100,18 @@ public class EmailTemplateService {
 					title = "Det er tid til attestering af følsomme roller";
 					message = "Kære {modtager}\n<br/>\n<br/>\nDet er tid til, at der skal attesteres følsomme roller for enheden: {enhed}.";
 					break;
-				case ATTESTATION_SENSITIVE_REMINDER_3_DAYS:
+				case ATTESTATION_SENSITIVE_REMINDER1:
+					title = "Påmindelse/rykker for attestering af følsomme roller";
+					message = "Kære {modtager}\n<br/>\n<br/>\nDer er ti dage til at der skal være attesteret følsomme roller for enheden: {enhed}.";
+					break;
+				case ATTESTATION_SENSITIVE_REMINDER2:
 					title = "Påmindelse/rykker for attestering af følsomme roller";
 					message = "Kære {modtager}\n<br/>\n<br/>\nDer er tre dage til at der skal være attesteret følsomme roller for enheden: {enhed}.";
 					break;
-				case ATTESTATION_SENSITIVE_REMINDER_10_DAYS:
+				case ATTESTATION_SENSITIVE_REMINDER3:
 					title = "Påmindelse/rykker for attestering af følsomme roller";
-					message = "Kære {modtager}\n<br/>\n<br/>\nDer er ti dage til at der skal være attesteret følsomme roller for enheden: {enhed}.";
+					message = "Kære {modtager}\n<br/>\n<br/>\nDer er tre dage til at der skal være attesteret følsomme roller for enheden: {enhed}.";
+					enabled = false;
 					break;
 				case ATTESTATION_SENSITIVE_REMINDER_THIRDPARTY:
 					title = "Manglende attestering af følsomme roller";
@@ -95,13 +121,18 @@ public class EmailTemplateService {
 					title = "Det er tid til attestering af rolleopbygning";
 					message = "Kære {modtager}\n<br/>\n<br/>\nDet er tid til, at der skal attesteres rolleopbygning for it-systemet: {itsystem}.";
 					break;
-				case ATTESTATION_IT_SYSTEM_REMINDER_3_DAYS:
+				case ATTESTATION_IT_SYSTEM_REMINDER1:
+					title = "Påmindelse/rykker for attestering af rolleopbygning";
+					message = "Kære {modtager}\n<br/>\n<br/>\nDer er ti dage til at der skal være attesteret rolleopbygning for it-systemet: {itsystem}.";
+					break;
+				case ATTESTATION_IT_SYSTEM_REMINDER2:
 					title = "Påmindelse/rykker for attestering af rolleopbygning";
 					message = "Kære {modtager}\n<br/>\n<br/>\nDer er tre dage til at der skal være attesteret rolleopbygning for it-systemet: {itsystem}.";
 					break;
-				case ATTESTATION_IT_SYSTEM_REMINDER_10_DAYS:
+				case ATTESTATION_IT_SYSTEM_REMINDER3:
 					title = "Påmindelse/rykker for attestering af rolleopbygning";
-					message = "Kære {modtager}\n<br/>\n<br/>\nDer er ti dage til at der skal være attesteret rolleopbygning for it-systemet: {itsystem}.";
+					message = "Kære {modtager}\n<br/>\n<br/>\nDer er tre dage til at der skal være attesteret rolleopbygning for it-systemet: {itsystem}.";
+					enabled = false;
 					break;
 				case ATTESTATION_IT_SYSTEM_REMINDER_THIRDPARTY:
 					title = "Manglende attestering af rolleopbygning";
@@ -119,13 +150,17 @@ public class EmailTemplateService {
 					title = "Du har fået tildelt en rolle";
 					message = "Kære {modtager}\n<br/>\n<br/>\nEn autorisationsansvarlig eller leder har anmodet om rollen {rolle} til dig. Den er nu tildelt.";
 					break;
+				case APPROVED_ROLE_REQUEST_REMOVAL_USER:
+					title = "Du har fået fjernet en rolle";
+					message = "Kære {modtager}\n<br/>\n<br/>\nEn autorisationsansvarlig eller leder har anmodet om at få rollen {rolle} fjernet. Den er nu fjernet.";
+					break;
 				case APPROVED_ROLE_REQUEST_MANAGER:
 					title = "En anmodning om en rolle er godkendt";
-					message = "Kære {modtager}\n<br/>\n<br/>\nRollen {rolle} {anmoder} har anmodet om til {bruger}, er nu tildelt.";
+					message = "Kære {modtager}\n<br/>\n<br/>\nRollen {rolle} {anmoder} har anmodet om til {bruger}, er nu {operation}.";
 					break;
 				case REJECTED_ROLE_REQUEST_MANAGER:
 					title = "En anmodning om en rolle er afvist";
-					message = "Kære {modtager}\n<br/>\n<br/>\nRollen {rolle} {anmoder} har anmodet om til {bruger}, er blevet afvist.";
+					message = "Kære {modtager}\n<br/>\n<br/>\nRollen {rolle} {anmoder} har bedt om at få {operation} for {bruger}, er blevet afvist.";
 					break;
 				case WAITING_REQUESTS_ROLE_ASSIGNERS:
 					title = "Der er afventende rolleanmodninger";
@@ -137,7 +172,7 @@ public class EmailTemplateService {
 					break;
 				case APPROVED_MANUAL_ROLE_REQUEST_MANAGER:
 					title = "En anmodning om en rolle er godkendt";
-					message = "Kære {modtager}\n<br/>\n<br/>\nRollen {rolle} {anmoder} har anmodet om til {bruger}, er nu tildelt.";
+					message = "Kære {modtager}\n<br/>\n<br/>\nRollen {rolle} {anmoder} har bedt om at få {operation} for {bruger}, er nu godkendt.";
 					break;
 				case USER_WITH_MANUAL_ITSYSTEM_DELETED:
 					title = "En bruger med manuelle roller er blevet nedlagt";
@@ -148,7 +183,7 @@ public class EmailTemplateService {
 			template.setTitle(title);
 			template.setMessage(message);
 			template.setTemplateType(type);
-			template.setEnabled(true);
+			template.setEnabled(enabled);
 			
 			template = emailTemplateDao.save(template);
 		}

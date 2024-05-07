@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html>
-<head th:replace="fragments/header :: header (title=#{html.page.itsystem.list.title})" />
+<head th:replace="~{fragments/header :: header (title=#{html.page.itsystem.list.title})}" />
 <body>
 	<div class="wrapper">
-		<header th:replace="fragments/navbar :: navbar-header" />
-		<aside th:replace="fragments/navbar :: navbar-aside (page = 'itsystem.list')" />
+		<header th:replace="~{fragments/navbar :: navbar-header}"></header>
+		<aside th:replace="~{fragments/navbar :: navbar-aside (page = 'itsystem.list')}"></aside>
  
 		<section>
 			<div class="content-wrapper">
@@ -36,9 +36,9 @@
 	    </section>
 	</div>
 
-	<nav th:replace="fragments/footer :: footer" />
+	<nav th:replace="~{fragments/footer :: footer}"></nav>
 
-	<script th:replace="fragments/datatables :: datatables " />
+	<script th:replace="~{fragments/datatables :: datatables}"></script>
 
 </body>
 </html>

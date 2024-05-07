@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html>
-<head th:replace="fragments/header :: header (title=#{html.page.userroles.list.title})"></head>
+<head th:replace="~{fragments/header :: header (title=#{html.page.userroles.list.title})}"></head>
 <body>
 	<div class="wrapper">
-		<header th:replace="fragments/navbar :: navbar-header (subpage = 'roles')"></header>
-		<aside th:replace="fragments/navbar :: navbar-aside (page = 'userroles.list', subpage = 'roles')"></aside>
+		<header th:replace="~{fragments/navbar :: navbar-header (subpage = 'roles')}"></header>
+		<aside th:replace="~{fragments/navbar :: navbar-aside (page = 'userroles.list', subpage = 'roles')}"></aside>
 
 		<section>
 			<div class="content-wrapper">
@@ -49,9 +49,9 @@
 		text-align: center;
 	}
 	</style>
-	<nav th:replace="fragments/footer :: footer"></nav>
+	<nav th:replace="~{fragments/footer :: footer}"></nav>
 
-	<script th:replace="fragments/datatables :: datatables "></script>
+	<script th:replace="~{fragments/datatables :: datatables}"></script>
 	<script th:inline="javascript">
 	/*<![CDATA[*/
 		
@@ -238,7 +238,7 @@
 					return {
 						url: urL,
 						cache: false,
-						error: errorCallback,
+						error: errorHandler(errorMsg),
 						success: successCallback
 				}
 			}; 
@@ -273,22 +273,14 @@
 								url: deleteURI,
 								success: function() {
 									window.location.href = urlList;
-								}
+								},
+								error: defaultErrorHandler
 							});
 						}
 					}
 				);
 			}
-		
-			function errorCallback(result){
-				$.notify({
-					message: errorMsg
-				},{
-					status: 'danger',
-					autoHideDelay: 4000
-				});
-			}
-			
+
 			$.ajax(getAjaxObject(tryDeleteURI));
 			
 			});

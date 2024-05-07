@@ -13,10 +13,18 @@ public class TitleListForm {
 	private String name;
 	private TitleListFormState state = new TitleListFormState();
 	private boolean emptyTitle;
-	
+	private boolean onAssignmentButNotPosition;
+
 	public TitleListForm(Title title, boolean emptyTitle) {
 		this.id = title.getUuid();
 		this.name = title.getName();
 		this.emptyTitle = emptyTitle;
+	}
+
+	public TitleListForm(Title title, boolean emptyTitle, boolean onAssignmentButNotPosition) {
+		this.id = title.getUuid();
+		this.name = title.getName();
+		this.emptyTitle = emptyTitle;
+		this.onAssignmentButNotPosition = onAssignmentButNotPosition;
 	}
 }

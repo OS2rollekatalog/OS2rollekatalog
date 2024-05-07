@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html>
-<head th:replace="attestationmodule/fragments/header :: header" />
+<head th:replace="~{attestationmodule/fragments/header :: header}"></head>
 <body class="top-navigation">
 	<div id="wrapper">
 	    <div id="page-wrapper" class="gray-bg">
-			<div th:replace="attestationmodule/fragments/topbar :: topbar" />
+			<div th:replace="~{attestationmodule/fragments/topbar :: topbar}"></div>
 
 	        <div class="wrapper wrapper-content">
 	            <div class="row">
@@ -26,6 +26,6 @@
 	    </div>
 	</div>
 
-	<div th:replace="attestationmodule/fragments/footer :: scripts" />
+	<div th:replace="~{attestationmodule/fragments/footer :: scripts}" />
 </body>
 </html>

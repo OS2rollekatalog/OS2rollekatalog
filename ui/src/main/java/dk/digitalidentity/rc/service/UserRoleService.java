@@ -1,15 +1,5 @@
 package dk.digitalidentity.rc.service;
 
-import java.util.List;
-import java.util.Objects;
-import java.util.stream.Collectors;
-
-import javax.transaction.Transactional;
-
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Service;
-
-import dk.digitalidentity.rc.config.Constants;
 import dk.digitalidentity.rc.dao.UserRoleDao;
 import dk.digitalidentity.rc.dao.model.ItSystem;
 import dk.digitalidentity.rc.dao.model.SystemRole;
@@ -17,7 +7,15 @@ import dk.digitalidentity.rc.dao.model.SystemRoleAssignment;
 import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserRole;
 import dk.digitalidentity.rc.log.AuditLogIntercepted;
+import jakarta.transaction.Transactional;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -86,16 +84,11 @@ public class UserRoleService {
 		return userRoleDao.findByCanRequestTrue();
 	}
 
-	public List<UserRole> getAllExceptRoleCatalogue() {
-		List<ItSystem> roleCatalogue = itSystemService.findByIdentifier(Constants.ROLE_CATALOGUE_IDENTIFIER);
-		if (roleCatalogue == null || roleCatalogue.size() != 1) {
-			throw new RuntimeException("Role Catalogue does not exist as an ItSystem!");
-		}
-
-		return userRoleDao.findAll().stream().filter(it -> !(it.getItSystem().equals(roleCatalogue.get(0)))).collect(Collectors.toList());
+	public UserRole getById(long roleId) {
+		return userRoleDao.findById(roleId).orElse(null);
 	}
 
-	public UserRole getById(long roleId) {
+	public Optional<UserRole> getOptionalById(long roleId) {
 		return userRoleDao.findById(roleId);
 	}
 

@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
-<head th:replace="fragments/header :: header" />
+<head th:replace="~{fragments/header :: header}"></head>
 <body>
 	<div class="wrapper">
-		<header th:replace="fragments/navbar :: navbar-header" />
-		<aside th:replace="fragments/navbar :: navbar-aside (page = 'index')" />
+		<header th:replace="~{fragments/navbar :: navbar-header}"></header>
+		<aside th:replace="~{fragments/navbar :: navbar-aside (page = 'index')}"></aside>
  
 		<section>
 			<div class="content-wrapper">
@@ -41,6 +41,6 @@
 	    </section>
 	</div>
 
-	<nav th:replace="fragments/footer :: footer" />
+	<nav th:replace="~{fragments/footer :: footer}"></nav>
 </body>
 </html>

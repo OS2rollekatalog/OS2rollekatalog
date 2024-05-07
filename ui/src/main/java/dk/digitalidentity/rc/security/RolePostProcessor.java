@@ -18,14 +18,14 @@ import dk.digitalidentity.rc.service.UserService;
 import dk.digitalidentity.samlmodule.model.SamlGrantedAuthority;
 import dk.digitalidentity.samlmodule.model.SamlLoginPostProcessor;
 import dk.digitalidentity.samlmodule.model.TokenUser;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Component;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
-import javax.servlet.http.HttpServletRequest;
-import javax.transaction.Transactional;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -121,6 +121,7 @@ public class RolePostProcessor implements SamlLoginPostProcessor {
 			authorities.add(new SamlGrantedAuthority(Constants.ROLE_ADMINISTRATOR));
 			authorities.add(new SamlGrantedAuthority(Constants.ROLE_ASSIGNER));
 			authorities.add(new SamlGrantedAuthority(Constants.ROLE_READ_ACCESS));
+			authorities.add(new SamlGrantedAuthority(Constants.ROLE_REPORT_ACCESS));
 			authorities.add(new SamlGrantedAuthority(Constants.ROLE_KLE_ADMINISTRATOR));
 			setNotifications();
 		}
@@ -140,6 +141,11 @@ public class RolePostProcessor implements SamlLoginPostProcessor {
 
 		if (roles.contains(Constants.ROLE_ATTESTATION_ADMINISTRATOR_ID)) {
 			authorities.add(new SamlGrantedAuthority(Constants.ROLE_ATTESTATION_ADMINISTRATOR));
+		}
+
+		if (roles.contains(Constants.ROLE_REPORT_ACCESS_ID)) {
+			authorities.add(new SamlGrantedAuthority(Constants.ROLE_REPORT_ACCESS));
+			authorities.add(new SamlGrantedAuthority(Constants.ROLE_READ_ACCESS));
 		}
 
 		// Users without roles but with assigned Reports templates

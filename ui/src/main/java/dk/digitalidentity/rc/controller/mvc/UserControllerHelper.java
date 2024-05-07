@@ -1,13 +1,5 @@
 package dk.digitalidentity.rc.controller.mvc;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.stream.Collectors;
-
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Component;
-
 import dk.digitalidentity.rc.config.Constants;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.AvailableRoleGroupDTO;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.AvailableUserRoleDTO;
@@ -21,6 +13,13 @@ import dk.digitalidentity.rc.service.UserRoleService;
 import dk.digitalidentity.rc.service.UserService;
 import dk.digitalidentity.rc.service.model.RoleAssignedToUserDTO;
 import dk.digitalidentity.rc.service.model.RoleAssignmentType;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Component;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.stream.Collectors;
 
 @Component
 public class UserControllerHelper {
@@ -48,7 +47,7 @@ public class UserControllerHelper {
 
 		//filter out RC internal roles
 		if (!SecurityUtil.getRoles().contains(Constants.ROLE_ADMINISTRATOR)) {
-			userRoles = userRoles.stream().filter(role -> !role.getItSystem().getIdentifier().equals(Constants.ROLE_CATALOGUE_IDENTIFIER)).collect(Collectors.toList());
+			userRoles = userRoles.stream().filter(role -> !isRoleCatalogueRole(role)).collect(Collectors.toList());
 		}
 
 		for (UserRole role : userRoles) {
@@ -72,6 +71,14 @@ public class UserControllerHelper {
 		roleGroups = assignerRoleConstraint.filterRoleGroupsUserCanAssign(roleGroups);
 		List<RoleAssignedToUserDTO> assignments = userService.getAllUserRoleAndRoleGroupAssignments(user);
 
+		//filter out groups containing RC roles
+		if (!SecurityUtil.getRoles().contains(Constants.ROLE_ADMINISTRATOR)) {
+			roleGroups = roleGroups.stream()
+					.filter(rg -> rg.getUserRoleAssignments().stream()
+                            .noneMatch(a -> isRoleCatalogueRole(a.getUserRole())))
+					.collect(Collectors.toList());
+		}
+
 		for (RoleGroup roleGroup : roleGroups) {
 			AvailableRoleGroupDTO rgr = new AvailableRoleGroupDTO();
 			rgr.setId(roleGroup.getId());
@@ -83,5 +90,9 @@ public class UserControllerHelper {
 		}
 
 		return addRoleGroups;
+	}
+
+	private static boolean isRoleCatalogueRole(final UserRole userRole) {
+		return userRole.getItSystem().getIdentifier().equals(Constants.ROLE_CATALOGUE_IDENTIFIER);
 	}
 }

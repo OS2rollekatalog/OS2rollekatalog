@@ -20,7 +20,7 @@
 						</a>
 					</li>
 					
-					<li class="nav-item" th:classappend="${subpage == 'reports'} ? 'bold' : ''" sec:authorize="hasRole('ROLE_READ_ACCESS') or hasRole('ROLE_TEMPLATE_ACCESS') or hasRole('ROLE_ADMINISTRATOR') or hasRole('ROLE_MANAGER') or hasRole('ROLE_SUBSTITUTE') or hasRole('ROLE_KLE_ADMINISTRATOR')">
+					<li class="nav-item" th:classappend="${subpage == 'reports'} ? 'bold' : ''" sec:authorize="hasRole('ROLE_REPORT_ACCESS') or hasRole('ROLE_TEMPLATE_ACCESS') or hasRole('ROLE_ADMINISTRATOR') or hasRole('ROLE_MANAGER') or hasRole('ROLE_SUBSTITUTE') or hasRole('ROLE_KLE_ADMINISTRATOR')">
 						<a th:href="@{/ui/reportmenu}">
 							<em class="fa fa-fw fa-book"></em>
 							<span th:text="#{html.navbar.sub.reports}"></span>
@@ -205,12 +205,12 @@
 					</th:block>
 
 					<th:block sec:authorize="isAuthenticated()" th:if="${subpage == 'reports'}">
-						<th:block sec:authorize="hasRole('ROLE_READ_ACCESS') or hasRole('ROLE_TEMPLATE_ACCESS')">
+						<th:block sec:authorize="hasRole('ROLE_REPORT_ACCESS') or hasRole('ROLE_TEMPLATE_ACCESS')">
 							<li class="nav-heading">
 								<span th:text="#{html.navbar.reports}"></span>
 							</li>
 	
-	                        <li th:class="${page == 'report.full'} ? 'active' : ''" sec:authorize="hasRole('ROLE_READ_ACCESS')">
+	                        <li th:class="${page == 'report.full'} ? 'active' : ''" sec:authorize="hasRole('ROLE_REPORT_ACCESS')">
 								<a th:href="@{/ui/report/configure}">
 									<em class="fa fa-file-excel-o"></em>
 	                             	<span th:text="#{html.navbar.report.configure}"></span>
@@ -224,7 +224,7 @@
 	                           </a>
 	                        </li>
 
-	                        <li th:class="${page == 'report.custom'} ? 'active' : ''" sec:authorize="hasRole('ROLE_READ_ACCESS')">
+	                        <li th:class="${page == 'report.custom'} ? 'active' : ''" sec:authorize="hasRole('ROLE_REPORT_ACCESS')">
 								<a th:href="@{/ui/report/custom}">
 									<em class="fa fa-file-excel-o"></em>
 	                              	<span th:text="#{html.navbar.report.custom}"></span>
@@ -346,7 +346,7 @@
 								</a>
 							</li>
 						</th:block>
-						
+
 						<th:block sec:authorize="hasRole('ROLE_ADMINISTRATOR') or hasRole('ROLE_MANAGER') or hasRole('ROLE_SUBSTITUTE')">
 							<li class="nav-heading">
 								<span th:text="#{html.navbar.mail}"></span>
@@ -356,6 +356,25 @@
 								<a th:href="@{/ui/admin/mailtemplates}">
 									<em class="fa fa-envelope"></em>
 									<span th:text="#{html.navbar.emailTemplate}"></span>
+								</a>
+							</li>
+						</th:block>
+
+						<th:block sec:authorize="hasRole('ROLE_ADMINISTRATOR')">
+							<li class="nav-heading">
+								<span th:text="#{html.navbar.attestation}"></span>
+							</li>
+
+							<li th:class="${page == 'attestationSettings'} ? 'active' : ''">
+								<a th:href="@{/ui/settings/attestation}">
+									<em class="fa fa-cogs"></em>
+									<span th:text="#{html.navbar.settings.attestation}"></span>
+								</a>
+							</li>
+							<li th:class="${page == 'attestationMail'} ? 'active' : ''">
+								<a th:href="@{/ui/admin/mailtemplates/attestation}">
+									<em class="fa fa-envelope"></em>
+									<span th:text="#{html.navbar.emailTemplate.attestation}"></span>
 								</a>
 							</li>
 						</th:block>
@@ -399,7 +418,8 @@
 					</li>
 
 					<li sec:authorize="isAuthenticated()">
-						<a th:href="@{/saml/logout}">
+						<form th:action="@{/logout}" id="logout_form" method="post"></form>
+						<a href="#" onclick="$('#logout_form').submit();">
 							<em class="fa fa-sign-out"></em>
 							<span th:text="#{html.navbar.logout}"></span>
 						</a>
