@@ -1,5 +1,6 @@
 package dk.digitalidentity.rc.service.model;
 
+import dk.digitalidentity.rc.dao.model.OrgUnit;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.Setter;
@@ -8,6 +9,6 @@ import lombok.Setter;
 @Setter
 @AllArgsConstructor
 public class MovedPostion {
-	private String orgUnitName;
+	private OrgUnit orgUnit;
 	private String positionName;
 }

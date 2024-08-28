@@ -23,7 +23,7 @@ public class NemLoginUpdateTask {
 	private RoleCatalogueConfiguration configuration;
 	
 	// run once every 5 minutes during "daytime"
-	@Scheduled(cron = "0 #{new java.util.Random().nextInt(4)}/5 6-23 * * ?")
+	@Scheduled(cron = "#{new java.util.Random().nextInt(60)} #{new java.util.Random().nextInt(5)}/5 6-23 * * ?")
 	public void syncDirtyUserRolesAssignments() {
 		if (!configuration.getIntegrations().getNemLogin().isEnabled() || !configuration.getScheduled().isEnabled()) {
 			return;
@@ -32,8 +32,8 @@ public class NemLoginUpdateTask {
 		nemLoginService.updateUserRoleAssignments();
 	}
 
-	// run once every night
-	@Scheduled(cron = "${cron.nemlogin.fullSync:0 #{new java.util.Random().nextInt(55)} 5 * * ?}")
+	// run once every "night" - they don't like being called before 6:00 - to many errors
+	@Scheduled(cron = "${cron.nemlogin.fullSync:#{new java.util.Random().nextInt(60)} #{new java.util.Random().nextInt(60)} 6 * * ?}")
 	public void fullSyncRoleAssignments() {
 		if (!configuration.getIntegrations().getNemLogin().isEnabled() || !configuration.getScheduled().isEnabled()) {
 			return;
@@ -43,7 +43,7 @@ public class NemLoginUpdateTask {
 	}
 	
 	// period sync of systemRoles from MitID Erhverv to OS2rollekatalog
-	@Scheduled(cron = "0 #{new java.util.Random().nextInt(55)} 3,10,14 * * ?")
+	@Scheduled(cron = "#{new java.util.Random().nextInt(60)} #{new java.util.Random().nextInt(60)} 3,10,14 * * ?")
 	public void syncNemLoginRoles() throws Exception {
 		if (!configuration.getScheduled().isEnabled() || !configuration.getIntegrations().getNemLogin().isEnabled()) {
 			log.debug("Scheduled jobs are disabled on this instance");

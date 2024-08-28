@@ -37,7 +37,7 @@ public class SystemRoleAssignmentsUpdaterJdbc {
     @Autowired
     private TemporalDao temporalDao;
 
-    @Transactional()
+    @Transactional
     public void updateItSystemAssignments(final LocalDate when) {
         TransactionTemplate transactionTemplate = new TransactionTemplate(transactionManager);
         transactionTemplate.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);

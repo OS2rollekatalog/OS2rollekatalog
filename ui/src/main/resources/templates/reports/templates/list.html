@@ -51,10 +51,10 @@
 	                                <i th:if="${reportTemplate.showInactiveUsers}" class="fa fa-check"></i>
 	                            </td>
 	                            <td>
-	                                <a sec:authorize="hasRole('ROLE_READ_ACCESS')" th:href="@{/ui/report/configure/template/{id}(id=${reportTemplate.id})}"><em class="fa fa-file-text"></em></a>
+	                                <a sec:authorize="hasRole('ROLE_REPORT_ACCESS')" th:href="@{/ui/report/configure/template/{id}(id=${reportTemplate.id})}"><em class="fa fa-file-text"></em></a>
 	                                <a sec:authorize="hasRole('ROLE_TEMPLATE_ACCESS')" th:href="@{/ui/report/download/template/{id}(id=${reportTemplate.id})}"><em class="fa fa-file-text"></em></a>
-	                                <a sec:authorize="hasRole('ROLE_READ_ACCESS')" href="#" onclick="openConfirmDeleteDialog(this);" th:attr="data-id=${reportTemplate.id}"><em class="fa fa-remove"></em></a>
-	                                <a sec:authorize="hasRole('ROLE_READ_ACCESS')" th:href="@{/ui/report/assign/{id}(id=${reportTemplate.id})}"><em class="fa fa-user-plus"></em></a>
+	                                <a sec:authorize="hasRole('ROLE_REPORT_ACCESS')" href="#" onclick="openConfirmDeleteDialog(this);" th:attr="data-id=${reportTemplate.id}"><em class="fa fa-remove"></em></a>
+	                                <a sec:authorize="hasRole('ROLE_REPORT_ACCESS')" th:href="@{/ui/report/assign/{id}(id=${reportTemplate.id})}"><em class="fa fa-user-plus"></em></a>
 	                            </td>
 	                        </tr>
                         </tbody>

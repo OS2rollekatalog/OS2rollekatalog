@@ -1,10 +1,10 @@
 package dk.digitalidentity.rc.controller.mvc;
 
-import dk.digitalidentity.rc.config.Constants;
-import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
-import dk.digitalidentity.rc.security.SecurityUtil;
-import dk.digitalidentity.rc.service.FrontPageLinkService;
-import jakarta.servlet.http.HttpServletRequest;
+import java.util.ArrayList;
+import java.util.Enumeration;
+import java.util.List;
+import java.util.Map;
+
 import org.opensaml.saml.common.SAMLException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -24,10 +24,11 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.context.request.ServletWebRequest;
 import org.springframework.web.context.request.WebRequest;
 
-import java.util.ArrayList;
-import java.util.Enumeration;
-import java.util.List;
-import java.util.Map;
+import dk.digitalidentity.rc.config.Constants;
+import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
+import dk.digitalidentity.rc.security.SecurityUtil;
+import dk.digitalidentity.rc.service.FrontPageLinkService;
+import jakarta.servlet.http.HttpServletRequest;
 
 @Controller
 @PropertySource("classpath:git.properties")
@@ -74,9 +75,15 @@ public class DefaultController implements ErrorController {
 		if (SecurityUtil.hasRole(Constants.ROLE_TEMPLATE_ACCESS) || SecurityUtil.hasRole(Constants.ROLE_REPORT_ACCESS)) {
 			return "redirect:/ui/report/templates";
 		}
+		
 		if (SecurityUtil.hasRole(Constants.ROLE_SUBSTITUTE) || SecurityUtil.hasRole(Constants.ROLE_MANAGER)) {
 			return "redirect:/ui/manager/substitute";
 		}
+		
+		if (SecurityUtil.hasRole(Constants.ROLE_KLE_ADMINISTRATOR)) {
+			return "redirect:/ui/kle/ou";
+		}
+		
 		return "redirect:/";
 	}
 

@@ -1,5 +1,11 @@
 package dk.digitalidentity.rc.config;
 
+import java.io.IOException;
+import java.security.cert.X509Certificate;
+import java.util.Iterator;
+
+import javax.net.ssl.SSLContext;
+
 import org.apache.hc.client5.http.config.RequestConfig;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
 import org.apache.hc.client5.http.impl.classic.HttpClients;
@@ -25,16 +31,6 @@ import org.springframework.util.ResourceUtils;
 import org.springframework.util.StringUtils;
 import org.springframework.web.client.ResponseErrorHandler;
 import org.springframework.web.client.RestTemplate;
-
-import javax.net.ssl.SSLContext;
-import java.io.IOException;
-import java.security.KeyManagementException;
-import java.security.KeyStoreException;
-import java.security.NoSuchAlgorithmException;
-import java.security.UnrecoverableKeyException;
-import java.security.cert.CertificateException;
-import java.security.cert.X509Certificate;
-import java.util.Iterator;
 
 @Configuration
 public class RestTemplateConfiguration {
@@ -130,7 +126,14 @@ public class RestTemplateConfiguration {
 		final PoolingHttpClientConnectionManagerBuilder managerBuilder = PoolingHttpClientConnectionManagerBuilder.create();
 
 		if (configuration.getIntegrations().getKombit().isEnabled() && StringUtils.hasLength(configuration.getIntegrations().getKombit().getKeystoreLocation())) {
-			managerBuilder.setSSLSocketFactory(kombitSocketFactory(acceptingTrustStrategy));
+			final SSLContext sslContext = SSLContextBuilder.create()
+					.loadKeyMaterial(
+							ResourceUtils.getFile(configuration.getIntegrations().getKombit().getKeystoreLocation()),
+							configuration.getIntegrations().getKombit().getKeystorePassword().toCharArray(),
+							configuration.getIntegrations().getKombit().getKeystorePassword().toCharArray())
+					.loadTrustMaterial(acceptingTrustStrategy)
+					.build();
+			managerBuilder.setSSLSocketFactory(kombitSocketFactory(sslContext));
 		}
 		final CloseableHttpClient client = HttpClients.custom()
 				.setDefaultRequestConfig(RequestConfig.custom().setCookieSpec(CookieSpecs.STANDARD).build())
@@ -169,7 +172,14 @@ public class RestTemplateConfiguration {
 		final TrustStrategy acceptingTrustStrategy = (X509Certificate[] chain, String authType) -> true;
 		final PoolingHttpClientConnectionManagerBuilder managerBuilder = PoolingHttpClientConnectionManagerBuilder.create();
 		if (configuration.getIntegrations().getKombit().isTestEnabled() && StringUtils.hasLength(configuration.getIntegrations().getKombit().getTestKeystoreLocation())) {
-			managerBuilder.setSSLSocketFactory(kombitSocketFactory(acceptingTrustStrategy));
+			final SSLContext sslContext = SSLContextBuilder.create()
+					.loadKeyMaterial(
+							ResourceUtils.getFile(configuration.getIntegrations().getKombit().getTestKeystoreLocation()),
+							configuration.getIntegrations().getKombit().getTestKeystorePassword().toCharArray(),
+							configuration.getIntegrations().getKombit().getTestKeystorePassword().toCharArray())
+					.loadTrustMaterial(acceptingTrustStrategy)
+					.build();
+			managerBuilder.setSSLSocketFactory(kombitSocketFactory(sslContext));
 		}
 
 		final HttpComponentsClientHttpRequestFactory requestFactory = new HttpComponentsClientHttpRequestFactory();
@@ -229,6 +239,7 @@ public class RestTemplateConfiguration {
 				.setDefaultRequestConfig(RequestConfig.custom().setCookieSpec(CookieSpecs.STANDARD).build())
 				.setConnectionManager(managerBuilder.build())
 				.build());
+
 		final RestTemplate restTemplate = new RestTemplate(requestFactory);
 		restTemplate.setErrorHandler(new ResponseErrorHandler() {
 			
@@ -241,18 +252,12 @@ public class RestTemplateConfiguration {
 			public void handleError(ClientHttpResponse response) throws IOException {
 			}
 		});
+
 		return restTemplate;
 	}
 
 
-	private LayeredConnectionSocketFactory kombitSocketFactory(TrustStrategy acceptingTrustStrategy) throws NoSuchAlgorithmException, KeyManagementException, KeyStoreException, UnrecoverableKeyException, CertificateException, IOException {
-		final SSLContext sslContext = SSLContextBuilder.create()
-				.loadKeyMaterial(
-						ResourceUtils.getFile(configuration.getIntegrations().getKombit().getTestKeystoreLocation()),
-						configuration.getIntegrations().getKombit().getTestKeystorePassword().toCharArray(),
-						configuration.getIntegrations().getKombit().getTestKeystorePassword().toCharArray())
-				.loadTrustMaterial(acceptingTrustStrategy)
-				.build();
+	private LayeredConnectionSocketFactory kombitSocketFactory(final SSLContext sslContext)  {
         return SSLConnectionSocketFactoryBuilder.create()
 				.setCiphers("TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384", "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256")
 				.setSslContext(sslContext)

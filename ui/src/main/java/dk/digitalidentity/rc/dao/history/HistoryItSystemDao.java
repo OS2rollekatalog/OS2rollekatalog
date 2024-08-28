@@ -18,7 +18,4 @@ public interface HistoryItSystemDao extends JpaRepository<HistoryItSystem, Long>
     @Query("SELECT hit FROM HistoryItSystem hit WHERE hit.dato=:dato")
     List<HistoryItSystem> findByDate(@Param("dato") LocalDate dato);
 
-    @Query("SELECT hit.itSystemId FROM HistoryItSystem hit WHERE hit.dato=:dato AND hit.attestationExempt=true")
-    List<Long> findItSystemIDsByAttestationExemptAndDate(@Param("dato") LocalDate dato);
-
 }

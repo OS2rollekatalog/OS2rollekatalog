@@ -1,0 +1,40 @@
+<div class="panel" th:classappend="${color.getPanelClass()}">
+    <div class="panel-heading">
+        Status
+    </div>
+    <div class="panel-body">
+        <b><span th:text="|Udtrukket ${#temporals.format(attestationDetails.overview.createdAt, 'dd/MM-yyyy')}|"></span></b><br>
+        <span th:text="|Mangler attestering af ${attestationDetails.overview.getNumberToAttestate()} medarbejdere og ${attestationDetails.overview.getOrgUnitNumberToAttestate()} enheder|"></span>
+    </div>
+</div>
+<div class="panel panel-info">
+    <div class="panel-heading">Sendte notifikationer</div>
+    <div class="panel-body">
+        <table class="col-md-12 table-light">
+            <tbody>
+            <tr th:each="email: ${attestationDetails.getSentEmails()}" style="background-color: white">
+                <td class="col-md-2">
+                    <b>
+                        <span th:text="${email.getTemplate()}"></span><br/>
+                    </b>
+                    <span th:text="|Sendt ${#temporals.format(email.getSentAt(), 'dd/MM-yyyy HH:mm')}|"></span>
+                </td>
+                <td class="col-md-8" >
+                    <table class="col-md-12">
+                        <thead>
+                            <tr style="background-color: white">
+                                <th class="p-1" >Modtagere</th>
+                                <th class="p-1" >Email</th>
+                            </tr>
+                        </thead>
+                        <tr th:each="rec : ${email.getReceivers()}" style="background-color: white">
+                            <td class="p-1" th:text="${rec.getUserName()}"></td>
+                            <td class="p-1" th:text="${rec.getEmail()}"></td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+</div>

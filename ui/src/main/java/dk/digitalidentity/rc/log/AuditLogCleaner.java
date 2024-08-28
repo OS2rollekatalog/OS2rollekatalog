@@ -20,8 +20,8 @@ public class AuditLogCleaner {
 	@Autowired
 	private RoleCatalogueConfiguration configuration;
 
-	// run every night at 03:00 on Saturdays
-    @Scheduled(cron = "0 0 3 * * SAT")
+	// run every night at 03:xx on Saturdays
+    @Scheduled(cron = "0 #{new java.util.Random().nextInt(60)} 3 * * SAT")
     public void cleanupAuditLogs() {
 		if (!configuration.getScheduled().isEnabled()) {
 			log.info("Scheduled jobs are disabled on this instance");

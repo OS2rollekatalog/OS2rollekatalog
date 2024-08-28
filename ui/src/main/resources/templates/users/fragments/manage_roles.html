@@ -76,7 +76,7 @@
 									<em class="fa fa-pencil"></em></a>
 								<a
 										href="#"
-										th:if="${@settingsService.isRequestApproveEnabled() == true && assignment.assignedThrough.name() == 'DIRECT'}"
+										th:if="${@settingsService.isRequestApproveEnabled() == true && assignment.canRequest}"
 										sec:authorize="hasRole('ROLE_REQUESTER') and not hasRole('ROLE_ASSIGNER')"
 										onclick="rolesService.requestRoleRemoval(this)">
 									<em class="fa fa-minus"></em>

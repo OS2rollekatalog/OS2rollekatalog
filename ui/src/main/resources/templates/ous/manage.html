@@ -83,7 +83,7 @@
 											</fieldset>
 
 											<fieldset id="requestApproveFragment" th:if="${@settingsService.isRequestApproveEnabled() == true}">
-												<div th:replace="ous/fragments/request_approve :: requestApproveTable(ou = ${ou}, editable = ${editable})"></div>
+												<div th:replace="~{ous/fragments/request_approve :: requestApproveTable(ou = ${ou}, editable = ${editable})}"></div>
 											</fieldset>
 
 											<th:block th:switch="${editable}">
@@ -213,6 +213,8 @@
 		var url = [[@{/rest/ous/}]];
 		var urlUi = [[@{/ui/ous/manage/}]];
 		var ou = [[${ou.uuid}]];
+		var fieldNotUpdatedMsg = [[#{html.entity.rolegroup.failedupdatemsg}]];
+		var fieldUpdatedMsg = [[#{html.entity.rolegroup.updatedmsg}]];
 
 		var success = [[#{html.default.message.success}]];
 		var failed = [[#{html.default.message.error}]];
@@ -542,8 +544,6 @@
 
 		/*[+
 			var allKles = [[${allKles}]];
-			var fieldUpdatedMsg = [[#{html.entity.rolegroup.updatedmsg}]];
-			var fieldNotUpdatedMsg = [[#{html.entity.rolegroup.failedupdatemsg}]];
 		+]*/
 	
 		var kleService = new KleService();

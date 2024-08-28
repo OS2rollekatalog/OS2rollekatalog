@@ -1,7 +1,10 @@
 package dk.digitalidentity.rc.controller.api;
 
-import java.util.List;
-
+import dk.digitalidentity.rc.controller.api.dto.AuditLogHeadDTO;
+import dk.digitalidentity.rc.dao.model.AuditLog;
+import dk.digitalidentity.rc.log.AuditLogEntryDao;
+import dk.digitalidentity.rc.security.RequireApiAuditlogAccessRole;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -9,13 +12,11 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.RestController;
 
-import dk.digitalidentity.rc.controller.api.dto.AuditLogHeadDTO;
-import dk.digitalidentity.rc.dao.model.AuditLog;
-import dk.digitalidentity.rc.log.AuditLogEntryDao;
-import dk.digitalidentity.rc.security.RequireApiAuditlogAccessRole;
+import java.util.List;
 
 @RequireApiAuditlogAccessRole
 @RestController
+@SecurityRequirement(name = "ApiKey")
 public class AuditLogApi {
 
 	@Autowired

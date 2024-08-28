@@ -1,15 +1,14 @@
 package dk.digitalidentity.rc.controller.rest;
 
-import dk.digitalidentity.rc.controller.mvc.viewmodel.EmailTemplateDTO;
-import dk.digitalidentity.rc.controller.mvc.viewmodel.InlineImageDTO;
-import dk.digitalidentity.rc.dao.model.EmailTemplate;
-import dk.digitalidentity.rc.dao.model.User;
-import dk.digitalidentity.rc.security.RequireAdministratorRole;
-import dk.digitalidentity.rc.security.SecurityUtil;
-import dk.digitalidentity.rc.service.EmailService;
-import dk.digitalidentity.rc.service.EmailTemplateService;
-import dk.digitalidentity.rc.service.UserService;
-import lombok.extern.slf4j.Slf4j;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.nio.charset.Charset;
+import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
+
 import org.htmlcleaner.BrowserCompactXmlSerializer;
 import org.htmlcleaner.CleanerProperties;
 import org.htmlcleaner.HtmlCleaner;
@@ -26,12 +25,18 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.nio.charset.Charset;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.UUID;
+import dk.digitalidentity.rc.attestation.model.entity.AttestationRun;
+import dk.digitalidentity.rc.attestation.service.AttestationRunService;
+import dk.digitalidentity.rc.controller.mvc.viewmodel.EmailTemplateDTO;
+import dk.digitalidentity.rc.controller.mvc.viewmodel.InlineImageDTO;
+import dk.digitalidentity.rc.dao.model.EmailTemplate;
+import dk.digitalidentity.rc.dao.model.User;
+import dk.digitalidentity.rc.security.RequireAdministratorRole;
+import dk.digitalidentity.rc.security.SecurityUtil;
+import dk.digitalidentity.rc.service.EmailService;
+import dk.digitalidentity.rc.service.EmailTemplateService;
+import dk.digitalidentity.rc.service.UserService;
+import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 @RequireAdministratorRole
@@ -39,7 +44,7 @@ import java.util.UUID;
 public class EmailTemplateRestController {
 
 	@Autowired
-	private  EmailTemplateService emailTemplateService;
+	private EmailTemplateService emailTemplateService;
 	
 	@Autowired
 	private EmailService emailService;
@@ -47,12 +52,16 @@ public class EmailTemplateRestController {
 	@Autowired
 	private UserService userService;
 
+	@Autowired
+	private AttestationRunService attestationRunService;
+
 	@PostMapping(value = "/rest/mailtemplates")
 	@ResponseBody
 	public ResponseEntity<String> updateTemplate(@RequestBody EmailTemplateDTO emailTemplateDTO, @RequestParam("tryEmail") boolean tryEmail) {
 		toXHTML(emailTemplateDTO);
 		toValid3ByteUTF8String(emailTemplateDTO);
 		
+		boolean noEmailSentWarning = false;
 		if (tryEmail) {
 			User user = userService.getByUserId(SecurityUtil.getUserId());
 
@@ -60,7 +69,7 @@ public class EmailTemplateRestController {
 				String email = user.getEmail();
 				if (email != null) {
 					List<InlineImageDTO> inlineImages = transformImages(emailTemplateDTO);
-					emailService.sendMessage(email, emailTemplateDTO.getTitle(), emailTemplateDTO.getMessage(), inlineImages);
+					emailService.sendMessage(email, emailTemplateDTO.getTitle(), emailTemplateDTO.getMessage(), inlineImages, null);
 					
 					return new ResponseEntity<>("Test email sendt til " + email, HttpStatus.OK);
 				}
@@ -78,10 +87,29 @@ public class EmailTemplateRestController {
 			template.setTitle(emailTemplateDTO.getTitle());
 			template.setEnabled(emailTemplateDTO.isEnabled());
 			template.setNotes(emailTemplateDTO.getNotes());
+
+			if (template.getTemplateType().isAllowDaysBeforeDeadline()) {
+				int validDays = Math.clamp(emailTemplateDTO.getDaysBeforeEvent(), -30, 30);
+				if (findAffectedAttestations(template, validDays)) {
+					noEmailSentWarning = true;
+				}
+				template.setDaysBeforeEvent(validDays);
+			}
 			emailTemplateService.save(template);
 		}
 		
-		return new ResponseEntity<>(HttpStatus.OK);
+		return new ResponseEntity<>(noEmailSentWarning ? "Bemærk mailen kan ikke nå at blive sendt i indeværende rul." : null, HttpStatus.OK);
+	}
+
+
+	private boolean findAffectedAttestations(EmailTemplate template, int validDays) {
+		final Optional<AttestationRun> currentRun = attestationRunService.getCurrentRun();
+		
+		if (currentRun.isEmpty()) {
+			return false;
+		}
+
+		return currentRun.get().getDeadline().minusDays(validDays).isAfter(LocalDate.now());
 	}
 
 

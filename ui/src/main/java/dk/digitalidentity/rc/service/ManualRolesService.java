@@ -165,12 +165,6 @@ public class ManualRolesService {
 							continue;
 						}
 
-						List<UserRole> usersRoles = toAddMap.get(user);
-						if (usersRoles == null) {
-							usersRoles = new ArrayList<UserRole>();
-							toAddMap.put(user, usersRoles);
-						}
-						
 						String infoMsg = "role " + assignment.getRoleId() + " has been assigned to " + domainAndUserId;
 						if(!assignment.isNotifyByEmailIfManualSystem()) {
 							infoMsg += " and email has been opted out of.";
@@ -180,8 +174,8 @@ public class ManualRolesService {
 							}
 							continue;
 						}
-						
-						log.info(infoMsg);
+                        List<UserRole> usersRoles = toAddMap.computeIfAbsent(user, k -> new ArrayList<>());
+                        log.info(infoMsg);
 						
 						usersRoles.add(userRole);
 					}
@@ -283,7 +277,7 @@ public class ManualRolesService {
 					
 					for (String email : emailAddresses) {
 						try {
-							emailService.sendMessage(email, title, message);
+							emailService.sendMessage(email, title, message, null);
 						}
 						catch (Exception ex) {
 							log.error("Exception occured while synchronizing manual ItSystem: " + itSystem + ". Could not send email to: " + email + ". Exception:" + ex.getMessage());
@@ -348,7 +342,7 @@ public class ManualRolesService {
 			message = message.replace(EmailTemplatePlaceholder.ROLE_NAME.getPlaceholder(), userRole.getName());
 			message = message.replace(EmailTemplatePlaceholder.USER_PLACEHOLDER.getPlaceholder(), user.getName() + " (" + user.getUserId() + ")");
 			
-			emailService.sendMessage(recipientMails, title, message, inlineImages);
+			emailService.sendMessage(recipientMails, title, message, inlineImages, null);
 			
 			// we need to set the original message again because for some reason the template is saved to the db
 			template.setMessage(orgMessage);

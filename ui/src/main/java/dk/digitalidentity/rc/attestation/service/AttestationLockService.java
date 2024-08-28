@@ -30,6 +30,13 @@ public class AttestationLockService {
         lockDao.saveAndFlush(lock);
     }
 
+    @Transactional
+    public boolean isLocked(final String lockName) {
+        AttestationLock lock = lockDao.findById(lockName)
+                .orElseGet(() -> AttestationLock.builder().lockId(lockName).build());
+        return lock.getAcquiredAt() != null && lock.getAcquiredAt().isAfter(LocalDateTime.now().minusSeconds(LOCK_TIMEOUT_S));
+    }
+
     // We need a new transaction, so we are sure the lock is written at the end of this methods
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void releaseLock(String lockName) {

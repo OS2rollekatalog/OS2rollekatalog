@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.DirectoryServices;
 using System.DirectoryServices.AccountManagement;
 using System.Linq;
@@ -54,12 +55,28 @@ namespace ADSyncService
         {
             List<Group> res = new List<Group>();
 
+            bool subSearch = false;
+            if (ouDn.EndsWith("*"))
+            {
+                subSearch = true;
+                ouDn = ouDn.Substring(0, ouDn.Length - 1);
+            }
+
             using (PrincipalContext context = new PrincipalContext(ContextType.Domain, null, ouDn))
             {
                 GroupPrincipal template = new GroupPrincipal(context);
                 using (PrincipalSearcher searcher = new PrincipalSearcher(template))
                 {
-                    ((DirectorySearcher)searcher.GetUnderlyingSearcher()).SearchScope = SearchScope.OneLevel;
+                    if (subSearch)
+                    {
+                        ((DirectorySearcher)searcher.GetUnderlyingSearcher()).SearchScope = SearchScope.Subtree;
+                    }
+                    else
+                    {
+                        ((DirectorySearcher)searcher.GetUnderlyingSearcher()).SearchScope = SearchScope.OneLevel;
+                    }
+
+                    log.Info("Searching in " + ouDn);
 
                     using (var result = searcher.FindAll())
                     {

@@ -195,20 +195,20 @@ public class RoleNotificationService {
 						EmailTemplate template = emailTemplateService.findByTemplateType(EmailTemplateType.ROLE_EXPIRING);
 						
 						if (template.isEnabled()) {
-							AttachmentFile attachmentFile = new AttachmentFile();
-							attachmentFile.setContent(pdf);
-							attachmentFile.setFilename("Rettighedsudløb.pdf");
-							List<AttachmentFile> attachments = new ArrayList<>();
-							attachments.add(attachmentFile);
-							
 							for (User substitute : substitutes) {
+								AttachmentFile attachmentFile = new AttachmentFile();
+								attachmentFile.setContent(pdf);
+								attachmentFile.setFilename("Rettighedsudløb.pdf");
+								List<AttachmentFile> attachments = new ArrayList<>();
+								attachments.add(attachmentFile);
+								
 								String title = template.getTitle();
 								title = title.replace(EmailTemplatePlaceholder.RECEIVER_PLACEHOLDER.getPlaceholder(), substitute.getName());
 								title = title.replace(EmailTemplatePlaceholder.ORGUNIT_PLACEHOLDER.getPlaceholder(), ou.getName());
 								String message = template.getMessage();
 								message = message.replace(EmailTemplatePlaceholder.RECEIVER_PLACEHOLDER.getPlaceholder(), substitute.getName());
 								message = message.replace(EmailTemplatePlaceholder.ORGUNIT_PLACEHOLDER.getPlaceholder(), ou.getName());
-								emailQueueService.queueEmail(substitute.getEmail(), title, message, template, attachments);
+								emailQueueService.queueEmail(substitute.getEmail(), title, message, template, attachments, null);
 							}
 						}
 						else {
@@ -231,7 +231,7 @@ public class RoleNotificationService {
 							String message = template.getMessage();
 							message = message.replace(EmailTemplatePlaceholder.RECEIVER_PLACEHOLDER.getPlaceholder(), manager.getName());
 							message = message.replace(EmailTemplatePlaceholder.ORGUNIT_PLACEHOLDER.getPlaceholder(), ou.getName());
-							emailQueueService.queueEmail(managerEmail, title, message, template, attachments);
+							emailQueueService.queueEmail(managerEmail, title, message, template, attachments, null);
 						}
 						else {
 							log.info("Email template with type " + template.getTemplateType() + " is disabled. Email was not sent.");

@@ -409,6 +409,8 @@
                     $("#ouTab").addClass('active');
                     $("#orgUnitsTab").addClass('active');
                 }
+
+                $("html, body").animate({ scrollTop: 0 }, "slow");
 		    }
 		}
 
@@ -532,6 +534,8 @@
                     $("#orgUnitRow" + number).first().hide();
                     $("#orgUnitRow" + plusOne).first().show();
                 }
+
+                $("html, body").animate({ scrollTop: 0 }, "slow");
 		    }
 		}
 

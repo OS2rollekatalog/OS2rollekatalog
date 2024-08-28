@@ -24,8 +24,7 @@
                                             <tr>
                                                 <th th:text="#{attestationmodule.html.dashboard.orgunits.name}"></th>
                                                 <th th:text="#{attestationmodule.html.dashboard.orgunits.substitutes}"></th>
-                                                <th class="progressColumn" th:text="#{attestationmodule.html.dashboard.status_users}" style="max-width: 20em"></th>
-                                                <th class="progressColumn" th:text="#{attestationmodule.html.dashboard.status_org}" style="max-width: 20em"></th>
+                                                <th class="progressColumn" th:text="#{attestationmodule.html.dashboard.status}" style="max-width: 40em"></th>
                                                 <th class="dateColumn" th:text="#{attestationmodule.html.dashboard.deadline}"></th>
                                                 <th class="actionColumn" th:text="#{html.control.operations}"></th>
                                             </tr>
@@ -40,32 +39,18 @@
                                                     </ul>
                                                 </td>
                                                 <td>
-                                                    <div class="row">
-                                                        <div class="col-lg-12">
-                                                            <p th:if="${orgUnit.numberToAttestate == 0}" th:text="#{attestationmodule.html.dashboard.orgUnits.users.completed}"></p>
-                                                            <p th:unless="${orgUnit.numberToAttestate == 0}" th:text="#{attestationmodule.html.dashboard.orgunits.progress(${orgUnit.numberToAttestate})}"></p>
-                                                            <div class="progress progress-mini">
-                                                                <div class="progress-bar" th:style="'width:' + ( ${orgUnit.totalNumber} == 0  ? '100' : (${orgUnit.numberAttestated * 1.0} / ${orgUnit.totalNumber}) * 100.0 ) + '%;'" aria-valuemin="0" aria-valuemax="100"></div>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                </td>
-                                                <td>
                                                     <div class="row" >
                                                         <div class="col-lg-12">
-                                                            <p th:if="${orgUnit.orgUnitRolesVerified}" th:text="#{attestationmodule.html.dashboard.orgUnits.orgunit.completed}"></p>
-                                                            <p th:unless="${orgUnit.orgUnitRolesVerified}" th:text="#{attestationmodule.html.dashboard.orgUnits.orgunit.progress}"></p>
-                                                            <div th:if="${orgUnit.orgUnitRolesVerified}" class="progress progress-mini">
-                                                                <div class="progress-bar" style="width:100%;" aria-valuemin="0" aria-valuemax="100"></div>
-                                                            </div>
-                                                            <div th:unless="${orgUnit.orgUnitRolesVerified}" class="progress progress-mini">
-                                                                <div class="progress-bar" style="width:0%;" aria-valuemin="0" aria-valuemax="100"></div>
+                                                            <p th:if="${orgUnit.orgUnitNumberToAttestate == 0 && orgUnit.numberToAttestate == 0}" th:text="#{attestationmodule.html.dashboard.completed}"></p>
+                                                            <p th:unless="${orgUnit.orgUnitNumberToAttestate == 0 && orgUnit.numberToAttestate == 0}"><span th:text="|Mangler attestering for ${orgUnit.numberToAttestate} medarbejdere|"></span><span th:text="| og ${orgUnit.orgUnitNumberToAttestate} enheder|"></span></p>
+                                                            <div class="progress progress-mini">
+                                                                <div class="progress-bar" th:style="'width:' + ( ${orgUnit.totalNumber + orgUnit.orgUnitTotalNumber} == 0  ? '100' : (${(orgUnit.numberAttestated + orgUnit.getOrgUnitNumberAttestated) * 1.0} / ${orgUnit.totalNumber + orgUnit.orgUnitTotalNumber}) * 100.0 ) + '%;'" aria-valuemin="0" aria-valuemax="100"></div>
                                                             </div>
                                                         </div>
                                                     </div>
                                                 </td>
                                                 <td th:text="${orgUnit.deadline}" th:class="${orgUnit.passedDeadline} ? 'passedDeadline' : ''"></td>
-                                                <td style="text-align: center;"><a th:unless="${orgUnit.readOnly} OR (${orgUnit.numberAttestated == orgUnit.totalNumber} AND ${orgUnit.orgUnitRolesVerified})" sec:authorize="hasRole('ROLE_MANAGER') or hasRole('ROLE_SUBSTITUTE')" th:href="@{${'/ui/attestation/v2/orgunits/' + orgUnit.id}}"><em style="color: #212529" class="fa fa-pencil"></em></a></td>
+                                                <td style="text-align: center;"><a th:unless="${orgUnit.readOnly} OR (${orgUnit.numberAttestated == orgUnit.totalNumber} AND ${orgUnit.orgUnitNumberToAttestate == 0})" sec:authorize="hasRole('ROLE_MANAGER') or hasRole('ROLE_SUBSTITUTE')" th:href="@{${'/ui/attestation/v2/orgunits/' + orgUnit.id}}"><em style="color: #212529" class="fa fa-pencil"></em></a></td>
                                             </tr>
                                         </tbody>
                                     </table>
@@ -106,8 +91,7 @@
                                         <thead>
                                         <tr>
                                             <th th:text="#{attestationmodule.html.dashboard.itsystems.name}"></th>
-                                            <th class="progressColumn" th:text="#{attestationmodule.html.dashboard.status_users}" style="max-width: 20em"></th>
-                                            <th class="progressColumn" th:text="#{attestationmodule.html.dashboard.status_org}" style="max-width: 20em"></th>
+                                            <th class="progressColumn" th:text="#{attestationmodule.html.dashboard.status}" style="max-width: 40em"></th>
                                             <th class="dateColumn" th:text="#{attestationmodule.html.dashboard.deadline}"></th>
                                             <th class="actionColumn" th:text="#{html.control.operations}"></th>
                                         </tr>
@@ -119,27 +103,16 @@
                                             <td>
                                                 <div class="row" >
                                                     <div class="col-lg-12">
-                                                        <p th:if="${system.numberToAttestate == 0}" th:text="#{attestationmodule.html.dashboard.completed}"></p>
-                                                        <p th:unless="${system.numberToAttestate == 0}" th:text="#{attestationmodule.html.dashboard.orgunits.progress(${system.numberToAttestate})}"></p>
+                                                        <p th:if="${system.orgUnitNumberToAttestate == 0 && system.numberToAttestate == 0}" th:text="#{attestationmodule.html.dashboard.completed}"></p>
+                                                        <p th:unless="${system.orgUnitNumberToAttestate == 0 && system.numberToAttestate == 0}"><span th:text="|Mangler attestering for ${system.numberToAttestate} medarbejdere|"></span><span th:text="| og ${system.orgUnitNumberToAttestate} enheder|"></span></p>
                                                         <div class="progress progress-mini">
-                                                            <div class="progress-bar" th:style="'width:' + ( ${system.totalNumber} == 0  ? '100' : (${system.numberAttestated * 1.0} / ${system.totalNumber}) * 100.0 ) + '%;'" aria-valuemin="0" aria-valuemax="100"></div>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </td>
-                                            <td>
-                                                <div class="row" >
-                                                    <div class="col-lg-12">
-                                                        <p th:if="${system.orgUnitNumberToAttestate == 0}" th:text="#{attestationmodule.html.dashboard.completed}"></p>
-                                                        <p th:unless="${system.orgUnitNumberToAttestate == 0}" th:text="#{attestationmodule.html.dashboard.orgunits.orgunits.progress(${system.orgUnitNumberToAttestate})}"></p>
-                                                        <div class="progress progress-mini">
-                                                            <div class="progress-bar" th:style="'width:' + ( ${system.orgUnitTotalNumber} == 0  ? '100' : (${system.orgUnitNumberAttestated * 1.0} / ${system.orgUnitTotalNumber}) * 100.0 ) + '%;'" aria-valuemin="0" aria-valuemax="100"></div>
+                                                            <div class="progress-bar" th:style="'width:' + ( ${system.totalNumber + system.orgUnitTotalNumber} == 0  ? '100' : (${(system.numberAttestated + system.getOrgUnitNumberAttestated) * 1.0} / ${system.totalNumber + system.orgUnitTotalNumber}) * 100.0 ) + '%;'" aria-valuemin="0" aria-valuemax="100"></div>
                                                         </div>
                                                     </div>
                                                 </div>
                                             </td>
                                             <td th:text="${system.deadline}" th:class="${system.passedDeadline} ? 'passedDeadline' : ''"></td>
-                                            <td style="text-align: center;"><a th:unless="${system.numberAttestated == system.totalNumber} AND ${system.orgUnitRolesVerified}" sec:authorize="hasRole('ROLE_IT_SYSTEM_RESPONSIBLE')" th:href="@{${'/ui/attestation/v2/itsystems/' + system.id + '/roleassignments'}}"><em style="color: #212529" class="fa fa-pencil"></em></a></td>
+                                            <td style="text-align: center;"><a th:unless="${system.numberAttestated == system.totalNumber} AND ${system.orgUnitNumberToAttestate == 0}" sec:authorize="hasRole('ROLE_IT_SYSTEM_RESPONSIBLE')" th:href="@{${'/ui/attestation/v2/itsystems/' + system.id + '/roleassignments'}}"><em style="color: #212529" class="fa fa-pencil"></em></a></td>
                                         </tr>
                                         </tbody>
                                     </table>

@@ -10,7 +10,9 @@ public enum ReportType {
 	USERS_WITH_DUPLICATE_USERROLE_ASSIGNMENTS("html.report.users_with_duplicate_userrole_assignments"),
 	USERS_WITH_DUPLICATE_ROLEGROUP_ASSIGNMENTS("html.report.users_with_duplicate_rolegroup_assignments"),
 	ITSYSTEMS_WITHOUT_ATTESTATION_RESPONSIBLE("html.report.itsystems_without_attestation_responsible"),
-	ITSYSTEMS_WITHOUT_ATTESTATION("html.report.itsystems_without_attestation");
+	ITSYSTEMS_WITHOUT_ATTESTATION("html.report.itsystems_without_attestation"),
+	ITSYSTEM_SYSTEM_OWNERS("html.report.itsystem_system_owners"),
+	ITSYSTEM_ATTESTATION_RESPONSIBLE("html.report.itsystem_attestation_responsible");
 
 	private String title;
 

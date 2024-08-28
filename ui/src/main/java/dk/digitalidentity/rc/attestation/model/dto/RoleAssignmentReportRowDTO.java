@@ -21,11 +21,17 @@ public class RoleAssignmentReportRowDTO {
 	private String position;
 	private String orgUnit;
 	private String userRoleName;
+	private Long itSystemId;
 	private String itSystemName;
 	private String roleGroupName;
 	private RoleStatus status;
 	private LocalDate assignedFrom;
 	private LocalDate assignedTo;
+	private String assignedThrough;
+	private String assignedThroughType;
+	private String responsibleUser;
+	private String responsibleOu;
+	private boolean inherited;
 	private AttestationStatus attestationStatus;
 	private LocalDate verifiedAt;
 	private String verifiedByName;

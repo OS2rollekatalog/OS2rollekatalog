@@ -94,7 +94,7 @@ public class RoleGroupController {
 	public String view(Model model, @PathVariable("id") long id, Principal principal) throws Exception {
 		RoleGroup roleGroup = roleGroupService.getById(id);
 		if (roleGroup == null) {
-			return "redirect:list";
+			return "redirect:../list";
 		}
 
 		RoleGroupForm roleGroupForm = mapper.map(roleGroup, RoleGroupForm.class);
@@ -122,7 +122,7 @@ public class RoleGroupController {
 	public String edit(Model model, @PathVariable("id") long id) {
 		RoleGroup roleGroup = roleGroupService.getById(id);
 		if (roleGroup == null) {
-			return "redirect:list";
+			return "redirect:../list";
 		}
 
 		RoleGroupForm roleGroupForm = mapper.map(roleGroup, RoleGroupForm.class);
@@ -162,7 +162,7 @@ public class RoleGroupController {
 	public String assignedUsersFragment(Model model, @PathVariable("id") long roleGroupId, @RequestParam(name = "showEdit", required = false, defaultValue = "false") boolean showEdit) {
 		RoleGroup group = roleGroupService.getById(roleGroupId);
 		if (group == null) {
-			return "redirect:list";
+			return "redirect:../list";
 		}
 
 		List<UserWithRole2> usersWithRoleMapping = userService.getActiveUsersWithRoleGroup(group);
@@ -177,7 +177,7 @@ public class RoleGroupController {
 	public String assignedUsersFragmentView(Model model, @PathVariable("id") long roleGroupId) {
 		RoleGroup group = roleGroupService.getById(roleGroupId);
 		if (group == null) {
-			return "redirect:list";
+			return "redirect:../list";
 		}
 
 		List<UserWithRole> usersWithRoleMapping = userService.getUsersWithRoleGroup(group, true);
@@ -190,7 +190,7 @@ public class RoleGroupController {
 	public String availableUsersFragment(Model model, @PathVariable("id") long roleGroupId) {
 		RoleGroup group = roleGroupService.getById(roleGroupId);
 		if (group == null) {
-			return "redirect:list";
+			return "redirect:../list";
 		}
 
 		List<User> usersFromDb = userService.getAll();
@@ -203,7 +203,7 @@ public class RoleGroupController {
 	public String assignedOrgUnitsFragment(Model model, @PathVariable("id") long roleGroupId, @RequestParam(name = "showEdit", required = false, defaultValue = "false") boolean showEdit) {
 		RoleGroup group = roleGroupService.getById(roleGroupId);
 		if (group == null) {
-			return "redirect:list";
+			return "redirect:../list";
 		}
 
 		List<OrgUnitWithRole2> orgUnitsWithRole = orgUnitService.getActiveOrgUnitsWithRoleGroup(group);
@@ -218,7 +218,7 @@ public class RoleGroupController {
 	public String availableOrgUnitsFragment(Model model, @PathVariable("id") long roleGroupId) {
 		RoleGroup group = roleGroupService.getById(roleGroupId);
 		if (group == null) {
-			return "redirect:list";
+			return "redirect:../list";
 		}
 
 		List<OrgUnit> ousFromDb = orgUnitService.getAllCached();

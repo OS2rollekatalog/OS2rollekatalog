@@ -66,6 +66,20 @@ namespace ADSyncService
 
             schedule.ScheduleJob(job3, trigger3);
             schedule.TriggerJob(job3.Key);
+
+            // logUploader job
+            IJobDetail logUploaderJob = JobBuilder.Create<LogUploaderJob>()
+                .WithIdentity("logUploaderJob", "group4")
+                .Build();
+            ITrigger logUploaderTrigger = TriggerBuilder.Create()
+                .WithIdentity("trigger4", "group4")
+                .WithSimpleSchedule(x => x
+                    .WithIntervalInMinutes(5)
+                    .RepeatForever())
+                .StartNow()
+                .Build();
+            schedule.ScheduleJob(logUploaderJob, logUploaderTrigger);
+            schedule.TriggerJob(logUploaderJob.Key);
         }
 
         public void Start()

@@ -41,6 +41,9 @@ public class EmailQueue {
 	
 	@Column
 	private String email;
+
+	@Column
+	private String cc;
 	
 	@Column
 	@Temporal(TemporalType.TIMESTAMP)

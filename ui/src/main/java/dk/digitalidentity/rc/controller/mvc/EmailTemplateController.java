@@ -39,6 +39,7 @@ public class EmailTemplateController {
 						.enabled(t.isEnabled())
 						.emailTemplatePlaceholders(t.getTemplateType().getEmailTemplatePlaceholders())
 						.notes(t.getNotes())
+						.allowDaysBeforeEvent(false)
 						.build())
 				.collect(Collectors.toList());
 
@@ -64,6 +65,8 @@ public class EmailTemplateController {
 							.enabled(t.isEnabled())
 							.emailTemplatePlaceholders(t.getTemplateType().getEmailTemplatePlaceholders())
 							.notes(t.getNotes())
+							.allowDaysBeforeEventFeature(t.getTemplateType().isAllowDaysBeforeDeadline())
+							.daysBeforeEvent(t.getDaysBeforeEvent())
 							.build())
 					.collect(Collectors.toList());
 		}
@@ -71,8 +74,26 @@ public class EmailTemplateController {
 		model.addAttribute("templates", templateDTOs);
 		model.addAttribute("page", "attestationMail");
 		model.addAttribute("disabled", !enabled);
-		model.addAttribute("notifyDaysBeforeDeadline", roleCatalogueConfiguration.getAttestation().getNotifyDaysBeforeDeadline());
 
 		return "emailtemplate/edit";
+	}
+
+	@GetMapping("/ui/admin/mailtemplates/attestation/templates")
+	public String editTemplatesDropdown(Model model) {
+		boolean enabled = settingsService.isScheduledAttestationEnabled();
+		List<EmailTemplateDTO> templateDTOs = new ArrayList<>();
+		if (enabled) {
+			List<EmailTemplate> templates = emailTemplateService.findAll();
+			templateDTOs = templates.stream()
+					.filter(t -> t.getTemplateType().isAttestation())
+					.map(t -> EmailTemplateDTO.builder()
+							.id(t.getId())
+							.build())
+					.collect(Collectors.toList());
+		}
+
+		model.addAttribute("templates", templateDTOs);
+		
+		return "emailtemplate/fragments/templates_dropdown :: templates_dropdown";
 	}
 }

@@ -1,5 +1,6 @@
 package dk.digitalidentity.rc.config;
 
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.session.jdbc.MySqlJdbcIndexedSessionRepositoryCustomizer;
@@ -23,8 +24,13 @@ public class SessionCacheConfiguration {
 		return serializer;
 	}
 
+	@Bean
+	@ConditionalOnProperty(
+			value = "spring.datasource.driver-class-name",
+			havingValue = "com.mysql.cj.jdbc.Driver",
+			matchIfMissing = true
+	)
 	// Spring Session JDBC optimizations for MySQL
-    @Bean
     public MySqlJdbcIndexedSessionRepositoryCustomizer sessionRepositoryCustomizer() {
         return new MySqlJdbcIndexedSessionRepositoryCustomizer();
     }

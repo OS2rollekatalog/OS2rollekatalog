@@ -1,3 +1,25 @@
+2024.08.28 - Release 2024r2
+- [ROL-361](https://os2web.atlassian.net/browse/ROL-361) Attestering: Rapport tilføjelse
+- [ROL-359](https://os2web.atlassian.net/browse/ROL-359) Oversigt / rapport over aktuelle attestering
+- [ROL-346](https://os2web.atlassian.net/browse/ROL-346) Attestering: det er kun enheder, der er valgt attestering for, der skal vises i oversigten
+- [ROL-343](https://os2web.atlassian.net/browse/ROL-343) Overblik over systemansvarlige i rollekataloget
+- [ROL-339](https://os2web.atlassian.net/browse/ROL-339) Attestering: Mail til systemansvarlig, der skal godkende roller - men hvor er den hvor de skal godkende tildelinger?
+- [ROL-338](https://os2web.atlassian.net/browse/ROL-338) Attestering: Ny mailskabelon
+- [ROL-337](https://os2web.atlassian.net/browse/ROL-337) Attestering: Advis på om systemejer eller systemansvarlig fratræder
+- [ROL-336](https://os2web.atlassian.net/browse/ROL-336) Attestering: Der sendes mails ud per enhed og ikke per leder - burde det ikke være per leder?
+- [ROL-332](https://os2web.atlassian.net/browse/ROL-332) Attestering: Systemansvarlig: JFR der ikke er tildelt en enhed må ikke stå som 'Gennemført'
+- [ROL-331](https://os2web.atlassian.net/browse/ROL-331) Attestering: Mere logisk opmærkning af om en rolle er følsom
+- [ROL-330](https://os2web.atlassian.net/browse/ROL-330) IT System til brug i Attestering: Felt til angivelse af systemejer
+- [ROL-328](https://os2web.atlassian.net/browse/ROL-328) Attestering - mulighed for selv at vælge tidsinterval for udsendelse af mailskabeloner
+- [ROL-325](https://os2web.atlassian.net/browse/ROL-325) Excel eksport af faste rapporter
+- [ROL-321](https://os2web.atlassian.net/browse/ROL-321) JFR: 'Følsom (attesteres oftere)' kan ikke ses på en JFR efter anmærkning
+- [ROL-320](https://os2web.atlassian.net/browse/ROL-320) Attestering: Mulighed for at opmærke JFR med særlig SÆRLIG følsom (attesteres oftere endnu)
+- [ROL-318](https://os2web.atlassian.net/browse/ROL-318) Ønske om forbedret audit log
+- [ROL-314](https://os2web.atlassian.net/browse/ROL-314) Attesteringsmodul. Mulighed for at se om en attestering er følsom i rapport & oversigt.
+- [ROL-310](https://os2web.atlassian.net/browse/ROL-310) Mailskabeloner i stedet for advis
+- [ROL-370](https://os2web.atlassian.net/browse/ROL-370) Attestering: Attestering af AD konti
+- [ROL-356](https://os2web.atlassian.net/browse/ROL-356) Opdater dokumentation
+
 2024.05.07 - Release 2024r1
 - [ROL-308](https://os2web.atlassian.net/browse/ROL-308) API nøgler i PAM løsning
 - [ROL-329](https://os2web.atlassian.net/browse/ROL-329) Attestering: Ny mailskabelon

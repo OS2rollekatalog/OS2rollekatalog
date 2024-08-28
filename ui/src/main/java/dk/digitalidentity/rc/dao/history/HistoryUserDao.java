@@ -9,8 +9,8 @@ import java.util.List;
 
 public interface HistoryUserDao extends JpaRepository<HistoryUser, Long> {
 
-    @Query("SELECT hu FROM HistoryUser hu WHERE YEAR(hu.dato)=?1 AND MONTH(hu.dato)=?2 AND DAY(hu.dato)=?3")
-    List<HistoryUser> findByDate(Integer year, Integer month, Integer day);
+    @Query("SELECT hu FROM HistoryUser hu WHERE hu.dato=?1")
+    List<HistoryUser> findByDate(LocalDate date);
 
     HistoryUser findFirstByDatoAndUserUuid(final LocalDate day, final String userUuid);
 

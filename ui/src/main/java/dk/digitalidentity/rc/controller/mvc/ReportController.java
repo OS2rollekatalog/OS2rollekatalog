@@ -1,11 +1,35 @@
 package dk.digitalidentity.rc.controller.mvc;
 
+import java.time.DateTimeException;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Optional;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.MessageSource;
+import org.springframework.context.i18n.LocaleContextHolder;
+import org.springframework.stereotype.Controller;
+import org.springframework.ui.Model;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.servlet.ModelAndView;
+
 import dk.digitalidentity.rc.config.Constants;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.ItSystemChoice;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.OUListForm;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.ReportForm;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.UserWithDuplicateRoleAssignmentDTO;
 import dk.digitalidentity.rc.controller.mvc.xlsview.ReportXlsxView;
+import dk.digitalidentity.rc.controller.mvc.xlsview.XlsView;
 import dk.digitalidentity.rc.dao.history.model.HistoryItSystem;
 import dk.digitalidentity.rc.dao.model.ItSystem;
 import dk.digitalidentity.rc.dao.model.OrgUnit;
@@ -31,25 +55,6 @@ import dk.digitalidentity.rc.service.model.RoleGroupAssignmentWithInfo;
 import dk.digitalidentity.rc.service.model.UserRoleAssignmentWithInfo;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Controller;
-import org.springframework.ui.Model;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.servlet.ModelAndView;
-
-import java.time.DateTimeException;
-import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
-import java.util.Optional;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 @Slf4j
 @RequireReportAccessRole
@@ -82,6 +87,9 @@ public class ReportController {
 
 	@Autowired
 	private ItSystemService itSystemService;
+
+	@Autowired
+	private MessageSource messageSource;
 
 	@RequireTemplateAccessOrReportAccessRole
 	@GetMapping("/ui/report/templates")
@@ -320,9 +328,233 @@ public class ReportController {
 			case ITSYSTEMS_WITHOUT_ATTESTATION:
 				model.addAttribute("itSystems", generateItSystemWithoutAttestationReport());
 				return "reports/custom/itsystem_without_attestation";
+			case ITSYSTEM_ATTESTATION_RESPONSIBLE:
+				model.addAttribute("users", generateItSystemAttestationResponsibleReport());
+				return "reports/custom/itsystem_attestation_responsible";
+			case ITSYSTEM_SYSTEM_OWNERS:
+				model.addAttribute("users", generateItSystemSystemOwnerReport());
+				return "reports/custom/itsystem_system_owner";
 		}
 
 		return "redirect:/ui/report/custom";
+	}
+
+	@GetMapping("/ui/report/custom/{reportType}/download")
+	public ModelAndView downloadCustomReport(HttpServletResponse response, @PathVariable("reportType") ReportType report) {
+		final Locale locale = LocaleContextHolder.getLocale();
+
+		ArrayList<ArrayList<Object>> rows = new ArrayList<>();
+		ArrayList<String> headers = new ArrayList<>();
+
+		switch (report) {
+		case USER_ROLE_WITH_SYSTEM_ROLE_THAT_COULD_BE_CONSTRAINT_BUT_ISNT: {
+			headers.add(messageSource.getMessage("html.entity.userrole.name", null, locale));
+			headers.add(messageSource.getMessage("html.entity.itsystem.type", null, locale));
+			headers.add(messageSource.getMessage("html.entity.userrole.description", null, locale));
+
+			List<UserRole> userRoles = generateUserRolesWithoutDataConstraintsReport();
+			for (UserRole userRole : userRoles) {
+				ArrayList<Object> row = new ArrayList<>();
+				row.add(userRole.getName());
+				row.add(userRole.getItSystem().getName());
+				row.add(userRole.getDescription());
+
+				rows.add(row);
+			}
+		}
+			break;
+		case USER_ROLE_WITH_SENSITIVE_FLAG: {
+			headers.add(messageSource.getMessage("html.entity.userrole.name", null, locale));
+			headers.add(messageSource.getMessage("html.entity.itsystem.type", null, locale));
+			headers.add(messageSource.getMessage("html.entity.userrole.description", null, locale));
+
+			List<UserRole> userRoles = generateUserRolesWithSensitiveFlagReport();
+			for (UserRole userRole : userRoles) {
+				ArrayList<Object> row = new ArrayList<>();
+				row.add(userRole.getName());
+				row.add(userRole.getItSystem().getName());
+				row.add(userRole.getDescription());
+
+				rows.add(row);
+			}
+		}
+			break;
+
+		case USERS_WITH_DUPLICATE_USERROLE_ASSIGNMENTS: {
+			headers.add(messageSource.getMessage("html.entity.user.name", null, locale));
+			headers.add(messageSource.getMessage("html.entity.user.userId", null, locale));
+			headers.add(messageSource.getMessage("html.entity.userrole.type", null, locale));
+			headers.add(messageSource.getMessage("html.entity.itsystem", null, locale));
+			headers.add(messageSource.getMessage("html.page.report.duplicate.via", null, locale));
+
+			List<UserWithDuplicateRoleAssignmentDTO> result = generateUsersWithDuplicateRoleAssignmentsReport();
+			for (UserWithDuplicateRoleAssignmentDTO user : result) {
+				ArrayList<Object> row = new ArrayList<>();
+				row.add(user.getName());
+				row.add(user.getUserId());
+				row.add(user.getUserRole().getName());
+				row.add(user.getUserRole().getItSystem().getName());
+				row.add(user.getMessage());
+
+				rows.add(row);
+			}
+		}
+			break;
+		case USERS_WITH_DUPLICATE_ROLEGROUP_ASSIGNMENTS: {
+			headers.add(messageSource.getMessage("html.entity.user.name", null, locale));
+			headers.add(messageSource.getMessage("html.entity.user.userId", null, locale));
+			headers.add(messageSource.getMessage("html.entity.rolegroup.type", null, locale));
+			headers.add(messageSource.getMessage("html.page.report.duplicate.via", null, locale));
+
+			List<UserWithDuplicateRoleAssignmentDTO> result = generateUsersWithDuplicateRoleGroupAssignmentsReport();
+			for (UserWithDuplicateRoleAssignmentDTO user : result) {
+				ArrayList<Object> row = new ArrayList<>();
+				row.add(user.getName());
+				row.add(user.getUserId());
+				row.add(user.getRoleGroup().getName());
+				row.add(user.getMessage());
+
+				rows.add(row);
+			}
+		}
+			break;
+		case USER_ROLE_WITHOUT_ASSIGNMENTS: {
+			headers.add(messageSource.getMessage("html.entity.userrole.name", null, locale));
+			headers.add(messageSource.getMessage("html.entity.itsystem.type", null, locale));
+			headers.add(messageSource.getMessage("html.entity.userrole.description", null, locale));
+
+			List<UserRole> userRoles = generateUserRolesWithoutAssignmentsReport();
+			for (UserRole userRole : userRoles) {
+				ArrayList<Object> row = new ArrayList<>();
+				row.add(userRole.getName());
+				row.add(userRole.getItSystem().getName());
+				row.add(userRole.getDescription());
+
+				rows.add(row);
+			}
+
+		}
+			break;
+		case USER_ROLE_WITHOUT_SYSTEM_ROLES: {
+			headers.add(messageSource.getMessage("html.entity.userrole.name", null, locale));
+			headers.add(messageSource.getMessage("html.entity.itsystem.type", null, locale));
+			headers.add(messageSource.getMessage("html.entity.userrole.description", null, locale));
+
+			List<UserRole> userRoles = generateUserRolesWithoutSystemRolesReport();
+			for (UserRole userRole : userRoles) {
+				ArrayList<Object> row = new ArrayList<>();
+				row.add(userRole.getName());
+				row.add(userRole.getItSystem().getName());
+				row.add(userRole.getDescription());
+
+				rows.add(row);
+			}
+
+		}
+			break;
+		case ITSYSTEMS_WITHOUT_ATTESTATION_RESPONSIBLE: {
+			headers.add(messageSource.getMessage("html.entity.itsystem.name", null, locale));
+			headers.add(messageSource.getMessage("html.entity.itsystem.identifier", null, locale));
+			headers.add(messageSource.getMessage("html.entity.itsystem.type", null, locale));
+			headers.add(messageSource.getMessage("html.entity.itsystem.inactiveAttestationResponsible", null, locale));
+
+			List<ItSystemWithoutSystemResponsibleReport> result = generateItSystemWithoutSystemResponsibleReport();
+			for (ItSystemWithoutSystemResponsibleReport itsystem : result) {
+				ArrayList<Object> row = new ArrayList<>();
+				row.add(itsystem.name);
+				row.add(itsystem.identifier);
+				row.add(messageSource.getMessage(itsystem.type, null, locale));
+				row.add(itsystem.inactiveSystemResponsible ? "Ja" : "Nej");
+
+				rows.add(row);
+			}
+
+		}
+			break;
+		case ITSYSTEMS_WITHOUT_ATTESTATION: {
+			headers.add(messageSource.getMessage("html.entity.itsystem.name", null, locale));
+			headers.add(messageSource.getMessage("html.entity.itsystem.identifier", null, locale));
+			headers.add(messageSource.getMessage("html.entity.itsystem.type", null, locale));
+
+			List<ItSystemWithoutAttestationReport> result = generateItSystemWithoutAttestationReport();
+			for (ItSystemWithoutAttestationReport itsystem : result) {
+				ArrayList<Object> row = new ArrayList<>();
+				row.add(itsystem.name);
+				row.add(itsystem.identifier);
+				row.add(messageSource.getMessage(itsystem.type, null, locale));
+
+				rows.add(row);
+			}
+		}
+			break;
+		case ITSYSTEM_ATTESTATION_RESPONSIBLE: {
+			headers.add(messageSource.getMessage("html.entity.itsystem.name", null, locale));
+			headers.add(messageSource.getMessage("html.entity.user.name", null, locale));
+			headers.add(messageSource.getMessage("html.entity.user.email", null, locale));
+
+			List<ItSystemAttestationResponsibleRecord> result = generateItSystemAttestationResponsibleReport();
+			for (ItSystemAttestationResponsibleRecord user : result) {
+				ArrayList<Object> row = new ArrayList<>();
+				row.add(user.itSystemName);
+				row.add(user.name);
+				row.add(user.email);
+
+				rows.add(row);
+			}
+
+		}
+			break;
+		case ITSYSTEM_SYSTEM_OWNERS: {
+			headers.add(messageSource.getMessage("html.entity.itsystem.name", null, locale));
+			headers.add(messageSource.getMessage("html.entity.user.name", null, locale));
+			headers.add(messageSource.getMessage("html.entity.user.email", null, locale));
+
+			List<ItSystemSystemOwnerRecord> result = generateItSystemSystemOwnerReport();
+			for (ItSystemSystemOwnerRecord user : result) {
+				ArrayList<Object> row = new ArrayList<>();
+				row.add(user.itSystemName);
+				row.add(user.name);
+				row.add(user.email);
+
+				rows.add(row);
+			}
+		}
+			break;
+		}
+		
+		Map<String, Object> model = new HashMap<>();
+		model.put("headers", headers);
+		model.put("rows", rows);
+		model.put("sheetName", "report");
+
+		response.setContentType("application/ms-excel");
+		response.setHeader("Content-Disposition", "attachment; filename=\"report.xls\"");
+
+		return new ModelAndView(new XlsView(), model);
+	}
+
+	record ItSystemSystemOwnerRecord(String itSystemName, String name, String email) {}
+	private List<ItSystemSystemOwnerRecord> generateItSystemSystemOwnerReport() {
+		List<ItSystemSystemOwnerRecord> result = new ArrayList<>();
+		List<ItSystem> allSystems = itSystemService.getVisible();
+		for (ItSystem system : allSystems) {
+			if (system.getSystemOwner() != null) {
+				result.add(new ItSystemSystemOwnerRecord(system.getName(), system.getSystemOwner().getName(), system.getSystemOwner().getEmail()));
+			}
+		}
+		return result;
+	}
+
+	record ItSystemAttestationResponsibleRecord(String itSystemName, String name, String email) {}
+	private List<ItSystemAttestationResponsibleRecord> generateItSystemAttestationResponsibleReport() {
+		List<ItSystemAttestationResponsibleRecord> result = new ArrayList<>();
+		List<ItSystem> allSystems = itSystemService.getVisible();
+		for (ItSystem system : allSystems) {
+			if (system.getAttestationResponsible() != null) {
+				result.add(new ItSystemAttestationResponsibleRecord(system.getName(), system.getAttestationResponsible().getName(), system.getAttestationResponsible().getEmail()));
+			}
+		}
+		return result;
 	}
 
 	record ItSystemWithoutAttestationReport(long id, String name, String identifier, String type) {}
@@ -495,15 +727,12 @@ public class ReportController {
 	}
 
 	private List<ItSystemChoice> parseItSystems(LocalDate localDate) {
-		List<HistoryItSystem> itSystems = historyService.getItSystems(localDate);
-
-		List<ItSystemChoice> result = itSystems.stream()
-				.map(it -> new ItSystemChoice(it))
+		final List<HistoryItSystem> itSystems = historyService.getItSystems(localDate);
+		return itSystems.stream()
+                .filter(its -> !its.isItSystemHidden())
+                .map(ItSystemChoice::new)
+				.sorted((sys1, sys2) -> sys1.getItSystemName().compareToIgnoreCase(sys2.getItSystemName()))
 				.collect(Collectors.toList());
-
-		result.sort((sys1, sys2) -> sys1.getItSystemName().compareToIgnoreCase(sys2.getItSystemName()));
-		
-		return result;
 	}
 
 	private List<OUListForm> parseOuTree(LocalDate localDate) {

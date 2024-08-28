@@ -34,7 +34,7 @@ Her er de disse 2 sektioner man kan tilpasse og kommentere ind/ud. Der er en sek
 
 OS2rollekatalog forudsætter at man har oprettet selve databasen (dvs rod-skemaet), men rollekataloget håndterer selv at oprette de nødvendige tabller, hvilket klares af Flyway frameworket.
 
-OS2rollekatalog forudsætter endvidere at man har en Microsoft AD FS server der kan håndtere login til applikationen. Det er udenfor scope af denne vejledning at beskrive hvordan man opsætter en AD FS server, men det underliggende AD skal have en bruger med brugernavnet "user1", da dette er default-administratoren i rollekataloget når man kører i udvikler-mode. Med denne bruger kan man logge ind som administrator i et nyopsat test-rollekatalog.
+OS2rollekatalog forudsætter endvidere at man har en Microsoft AD FS server der kan håndtere login til applikationen. Det er udenfor scope af denne vejledning at beskrive hvordan man opsætter en AD FS server, men det underliggende AD skal have en bruger med brugernavnet "rolunittest01", da dette er default-administratoren i rollekataloget når man kører i udvikler-mode. Med denne bruger kan man logge ind som administrator i et nyopsat test-rollekatalog.
 
 Man skal pege på den AD FS server man opsætter via application.properties filen, hvor man skal tilrette denne linje
 

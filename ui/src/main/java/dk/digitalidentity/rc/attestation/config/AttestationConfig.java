@@ -5,7 +5,7 @@ import lombok.Data;
 @Data
 public class AttestationConfig {
 
-    private Boolean alwaysRunTracker = false;
+    private Boolean alwaysRunTracker = true;
     private Integer daysForAttestation = 30;
     private Integer notifyDaysBeforeDeadline = 20;
     private Integer reminder1DaysBeforeDeadline = 10;

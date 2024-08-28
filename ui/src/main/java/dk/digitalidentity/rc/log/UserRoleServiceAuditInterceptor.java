@@ -1,5 +1,9 @@
 package dk.digitalidentity.rc.log;
 
+import dk.digitalidentity.rc.dao.model.SystemRoleAssignment;
+import dk.digitalidentity.rc.dao.model.UserRole;
+import dk.digitalidentity.rc.dao.model.enums.EventType;
+import lombok.extern.slf4j.Slf4j;
 import org.aspectj.lang.JoinPoint;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.AfterReturning;
@@ -8,11 +12,6 @@ import org.aspectj.lang.annotation.Aspect;
 import org.aspectj.lang.annotation.Before;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
-
-import dk.digitalidentity.rc.dao.model.SystemRoleAssignment;
-import dk.digitalidentity.rc.dao.model.UserRole;
-import dk.digitalidentity.rc.dao.model.enums.EventType;
-import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 @Aspect
@@ -27,6 +26,9 @@ public class UserRoleServiceAuditInterceptor {
 		switch(jp.getSignature().getName()) {
 			case "save":
 			case "delete":
+			case "updateSystemRoleConstraint":
+			case "addSystemRoleConstraint":
+			case "removeSystemRoleConstraint":
 				break;
 			case "addSystemRoleAssignment":
 				auditAddSystemRoleAssignment(jp, retVal);
@@ -46,6 +48,9 @@ public class UserRoleServiceAuditInterceptor {
 			case "addSystemRoleAssignment":
 			case "removeSystemRoleAssignment":
 			case "save":
+			case "updateSystemRoleConstraint":
+			case "addSystemRoleConstraint":
+			case "removeSystemRoleConstraint":
 				break;
 			case "delete":
 				auditDelete(jp);
@@ -65,6 +70,12 @@ public class UserRoleServiceAuditInterceptor {
 				return jp.proceed();
 			case "save":
 				return auditSave(jp);
+			case "addSystemRoleConstraint":
+				return auditSystemRoleAssignmentUpdate(jp, EventType.ADD_ASSIGNMENT_CONSTRAINT);
+			case "updateSystemRoleConstraint":
+				return auditSystemRoleAssignmentUpdate(jp, EventType.EDIT_ASSIGNMENT_CONSTRAINT);
+			case "removeSystemRoleConstraint":
+				return auditSystemRoleAssignmentUpdate(jp, EventType.REMOVE_SYSTEM_ROLE_CONSTRAINT);
 			default:
 				log.error("Failed to intercept method: " + jp.getSignature().getName());
 				return jp.proceed();
@@ -103,6 +114,16 @@ public class UserRoleServiceAuditInterceptor {
         }
         
         return jp.proceed();
+	}
+
+	private Object auditSystemRoleAssignmentUpdate(final ProceedingJoinPoint jp, final EventType eventType) throws Throwable {
+		Object[] args = jp.getArgs();
+		if (args.length >= 1 && args[0] instanceof SystemRoleAssignment) {
+			auditLogger.log(((SystemRoleAssignment) args[0]).getUserRole(), eventType, ((SystemRoleAssignment) args[0]).getSystemRole());
+		} else {
+			log.error("Method signature does not match expectation");
+		}
+		return jp.proceed();
 	}
 
 	private void auditAddSystemRoleAssignment(JoinPoint jp, Object retVal) {

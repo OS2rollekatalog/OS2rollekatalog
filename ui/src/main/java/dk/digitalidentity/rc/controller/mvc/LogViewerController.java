@@ -1,9 +1,9 @@
 package dk.digitalidentity.rc.controller.mvc;
 
-import dk.digitalidentity.rc.controller.mvc.xlsview.AuditLogXlsxView;
-import dk.digitalidentity.rc.security.RequireAdministratorRole;
-import dk.digitalidentity.rc.service.AuditLogService;
-import jakarta.servlet.http.HttpServletResponse;
+import java.util.HashMap;
+import java.util.Locale;
+import java.util.Map;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.MessageSource;
 import org.springframework.stereotype.Controller;
@@ -11,11 +11,12 @@ import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.servlet.ModelAndView;
 
-import java.util.HashMap;
-import java.util.Locale;
-import java.util.Map;
+import dk.digitalidentity.rc.controller.mvc.xlsview.AuditLogXlsxView;
+import dk.digitalidentity.rc.security.RequireAssignerRole;
+import dk.digitalidentity.rc.service.AuditLogService;
+import jakarta.servlet.http.HttpServletResponse;
 
-@RequireAdministratorRole
+@RequireAssignerRole
 @Controller
 public class LogViewerController {
 	

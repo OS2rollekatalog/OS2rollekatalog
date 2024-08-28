@@ -22,6 +22,9 @@ public interface AttestationDao extends CrudRepository<Attestation, Long> {
 
     List<Attestation> findByAttestationTypeAndCreatedAtGreaterThanEqual(final Attestation.AttestationType type, final LocalDate createdAtAfter);
 
+    List<Attestation> findByAttestationTypeAndCreatedAtGreaterThanEqualAndVerifiedAtIsNotNull(final Attestation.AttestationType type, final LocalDate createdAtAfter);
+
+
     @Query("select a from Attestation a where a.attestationType=:type and a.responsibleOuUuid=:ouUuid and a.deadline >= :when")
     Optional<Attestation> findByAttestationTypeAndResponsibleOuUuidAndDeadlineGreaterThanEqual(@Param("type") final Attestation.AttestationType type, @Param("ouUuid") final String ouUuid, @Param("when") final LocalDate when);
     Optional<Attestation> findFirstByAttestationTypeAndResponsibleOuUuidOrderByDeadlineDesc(final Attestation.AttestationType type, final String ouUuid);
@@ -71,4 +74,6 @@ public interface AttestationDao extends CrudRepository<Attestation, Long> {
                                                             @Param("to") final ZonedDateTime to);
 
     Attestation findByUuid(final String uuid);
+
+    List<Attestation> findByAttestationRunIsNull();
 }

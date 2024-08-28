@@ -12,8 +12,10 @@ public enum EventType {
 
 	ASSIGN_USER_ROLE("html.enum.eventtype.assign_user_role"),
 	REMOVE_USER_ROLE("html.enum.eventtype.remove_user_role"),
-	EDIT_USER_ROLE_ASSIGNMENT("html.enum.eventtype.edit_user_role_assignment"),
-	
+	EDIT_ASSIGNMENT_CONSTRAINT("html.enum.eventtype.edit_assignment_constraint"),
+	ADD_ASSIGNMENT_CONSTRAINT("html.enum.eventtype.add_assignment_constraint"),
+	REMOVE_SYSTEM_ROLE_CONSTRAINT("html.enum.eventtype.remove_assignment_constraint"),
+
 	ASSIGN_ROLE_GROUP("html.enum.eventtype.assign_role_group"),
 	REMOVE_ROLE_GROUP("html.enum.eventtype.remove_role_group"),
 	EDIT_ROLE_GROUP_ASSIGNMENT("html.enum.eventtype.edit_role_group_assignment"),
@@ -36,7 +38,11 @@ public enum EventType {
 	PERFORMED_USERROLE_CLEANUP("html.enum.eventtype.cleanup.userroles"),
 	PERFORMED_ROLEGROUP_CLEANUP("html.enum.eventtype.cleanup.rolegroups"),
 	
-	ADMIN_ASSIGNED_MANAGER_SUBSTITUTE("html.enum.eventtype.admin_assigned_manager_substitute");
+	ADMIN_ASSIGNED_MANAGER_SUBSTITUTE("html.enum.eventtype.admin_assigned_manager_substitute"),
+	
+	// deprecated - keeping them to make sure existing loglines still work
+	EDIT_USER_ROLE_ASSIGNMENT("html.enum.eventtype.edit_user_role_assignment"),
+	EDIT_SYMSTEMROLE("html.enum.eventtype.edit_systemrole");
 
 	private String message;
 	

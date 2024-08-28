@@ -6,7 +6,6 @@ import dk.digitalidentity.rc.attestation.model.entity.temporal.AssignedThroughTy
 import dk.digitalidentity.rc.attestation.model.entity.temporal.AttestationUserRoleAssignment;
 import dk.digitalidentity.rc.dao.OrgUnitDao;
 import dk.digitalidentity.rc.dao.UserDao;
-import dk.digitalidentity.rc.dao.history.HistoryOUDao;
 import dk.digitalidentity.rc.dao.history.model.HistoryItSystem;
 import dk.digitalidentity.rc.dao.history.model.HistoryOU;
 import dk.digitalidentity.rc.dao.history.model.HistoryOURoleAssignment;
@@ -24,6 +23,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionDefinition;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import java.time.LocalDate;
@@ -56,10 +56,9 @@ public class UserAssignmentsUpdaterJdbc {
     @Autowired
     private OrgUnitDao orgUnitDao;
     @Autowired
-    private HistoryOUDao historyOUDao;
-    @Autowired
     private EntityManager entityManager;
 
+    @Transactional
     public void updateUserRoleAssignments(final LocalDate when) {
         TransactionTemplate transactionTemplate = new TransactionTemplate(transactionManager);
         transactionTemplate.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
@@ -151,16 +150,13 @@ public class UserAssignmentsUpdaterJdbc {
     }
 
     private String getOuName(final LocalDate when, final String ouUuid) {
-        final OrgUnit ou = orgUnitDao.findByUuidAndActiveTrue(ouUuid);
-        if (ou == null) {
-            final HistoryOU historyOU = historyOUDao.findFirstByDatoAndOuUuidOrderByIdDesc(when, ouUuid);
-            if (historyOU != null) {
-                return historyOU.getOuName();
-            }
-        } else {
-            return ou.getName();
-        }
-        return null;
+        return temporalDao.findActiveOUByUuid(ouUuid)
+                .map(OrgUnit::getName)
+                .orElseGet(
+                        () -> temporalDao.findHistoricOUByUuid(when, ouUuid)
+                                .map(HistoryOU::getOuName)
+                                .orElse(null)
+                );
     }
 
     private String getResponsibleOuUuid(final String ouUuid, final String currentUserUuid,

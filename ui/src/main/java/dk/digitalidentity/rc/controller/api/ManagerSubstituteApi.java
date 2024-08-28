@@ -8,6 +8,7 @@ import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.security.RequireApiOrganisationRole;
 import dk.digitalidentity.rc.service.OrgUnitService;
 import dk.digitalidentity.rc.service.UserService;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -26,6 +27,7 @@ import java.util.Objects;
 @Slf4j
 @RestController
 @RequireApiOrganisationRole
+@SecurityRequirement(name = "ApiKey")
 public class ManagerSubstituteApi {
 
 	@Autowired

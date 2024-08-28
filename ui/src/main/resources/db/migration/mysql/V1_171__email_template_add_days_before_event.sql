@@ -1,0 +1,1 @@
+ALTER TABLE email_templates ADD days_before_event INT NULL;

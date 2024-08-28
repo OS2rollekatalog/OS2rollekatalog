@@ -109,8 +109,8 @@
 							</fieldset>
 							
 							<fieldset>
-								<div class="form-group">
-									<label class="col-sm-3 control-label" th:text="#{html.role.flag.useronly}"></label>
+								<div class="form-group" style="justify-content: center; display: flex">
+									<label class="col-sm-2 control-label" th:text="#{html.role.flag.useronly}"></label>
 									<div class="col-sm-1">
 										<div class="checkbox c-checkbox">
 											<label>
@@ -120,6 +120,7 @@
 										</div>
 									</div>
 
+									<th:block th:if="${@settingsService.isRequestApproveEnabled()}">
 									<label class="col-sm-2 control-label" th:text="#{html.role.flag.canrequest}"></label>
 									<div class="col-sm-1">
 										<div class="checkbox c-checkbox">
@@ -129,17 +130,30 @@
 											</label>
 										</div>
 									</div>
+									</th:block>
 
-
-									<label class="col-sm-2 control-label" th:text="#{html.role.flag.sensitive}"></label>
-									<div class="col-sm-1">
-										<div class="checkbox c-checkbox">
-											<label>
-												<input class="sensitive-checkbox" type="checkbox" data-flag="sensitive" th:attr="checked=${role.sensitiveRole}" />
-												<span class="fa fa-check"></span>
-											</label>
+									<th:block th:if="${@settingsService.isScheduledAttestationEnabled()}">
+										<label class="col-sm-2 control-label" th:text="#{html.role.flag.sensitive}"></label>
+										<div class="col-sm-1">
+											<div class="checkbox c-checkbox">
+												<label>
+													<input class="sensitive-checkbox" type="checkbox" data-flag="sensitive" th:attr="checked=${role.sensitiveRole}" />
+													<span class="fa fa-check"></span>
+												</label>
+											</div>
 										</div>
-									</div>
+
+										<label class="col-sm-2 control-label" th:text="#{html.entity.itsystem.roleAssignmentAttestationByAttestationResponsible}"></label>
+										<div class="col-sm-1">
+											<div class="checkbox c-checkbox">
+												<label>
+													<input class="by-attestation-responsible-checkbox" type="checkbox" data-flag="attestationByAttestationResponsible" th:attr="checked=${role.roleAssignmentAttestationByAttestationResponsible}" />
+													<span class="fa fa-check"></span>
+												</label>
+											</div>
+										</div>
+
+									</th:block>
 								</div>
 							</fieldset>
 							
@@ -642,6 +656,7 @@
 			$('.inherit-checkbox').change(flagCheckboxChange);
 			$('.sensitive-checkbox').change(flagCheckboxChange);
 			$('.canrequest-checkbox').change(flagCheckboxChange);
+			$('.by-attestation-responsible-checkbox').change(flagCheckboxChange);
 
 			// Add event handler
 			// When data in the datatable is updated reassign checkboxes on change handler

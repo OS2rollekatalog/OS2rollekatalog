@@ -1,10 +1,9 @@
 package dk.digitalidentity.rc.controller.rest;
 
-import dk.digitalidentity.rc.controller.mvc.datatables.dao.AuditLogViewDao;
-import dk.digitalidentity.rc.controller.mvc.datatables.dao.model.AuditLogView;
-import dk.digitalidentity.rc.controller.mvc.datatables.dao.model.dto.AuditLogDTO;
-import dk.digitalidentity.rc.security.RequireAdministratorRole;
-import jakarta.validation.Valid;
+import java.util.List;
+import java.util.Locale;
+import java.util.stream.Collectors;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.MessageSource;
 import org.springframework.data.jpa.datatables.mapping.DataTablesInput;
@@ -14,11 +13,13 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.List;
-import java.util.Locale;
-import java.util.stream.Collectors;
+import dk.digitalidentity.rc.controller.mvc.datatables.dao.AuditLogViewDao;
+import dk.digitalidentity.rc.controller.mvc.datatables.dao.model.AuditLogView;
+import dk.digitalidentity.rc.controller.mvc.datatables.dao.model.dto.AuditLogDTO;
+import dk.digitalidentity.rc.security.RequireAssignerRole;
+import jakarta.validation.Valid;
 
-@RequireAdministratorRole
+@RequireAssignerRole
 @RestController
 public class AuditLogRestController {
 
@@ -43,7 +44,9 @@ public class AuditLogRestController {
 	}
 
 	private DataTablesOutput<AuditLogDTO> convertAuditLogDataTablesModelToDTO(DataTablesOutput<AuditLogView> output, Locale locale) {
-		List<AuditLogDTO> dataWithMessages = output.getData().stream().map(auditlog -> new AuditLogDTO(auditlog, messageSource, locale)).collect(Collectors.toList());
+		List<AuditLogDTO> dataWithMessages = output.getData().stream()
+				.map(auditlog -> new AuditLogDTO(auditlog, messageSource, locale))
+				.collect(Collectors.toList());
 
 		DataTablesOutput<AuditLogDTO> result = new DataTablesOutput<>();
 		result.setData(dataWithMessages);

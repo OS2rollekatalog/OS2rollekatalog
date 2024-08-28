@@ -1,11 +1,11 @@
 CREATE OR REPLACE VIEW view_datatables_auditlogs AS (
-	SELECT a.id, a.timestamp, a.username, a.entity_type, a.entity_name, a.event_type, a.secondary_entity_name
+	SELECT a.id, a.timestamp, a.username, a.entity_type, a.entity_name, a.event_type, a.secondary_entity_name, a.description
 	FROM audit_log a
 	WHERE a.event_type in (
 	  'ASSIGN_KLE', 'REMOVE_KLE',
 	  'ASSIGN_SYSTEMROLE', 'REMOVE_SYSTEMROLE',
 	  'ASSIGN_ROLE_GROUP', 'REMOVE_ROLE_GROUP', 'EDIT_ROLE_GROUP_ASSIGNMENT',
-	  'ASSIGN_USER_ROLE', 'REMOVE_USER_ROLE', 'EDIT_USER_ROLE_ASSIGNMENT',
+	  'ASSIGN_USER_ROLE', 'REMOVE_USER_ROLE', 'ADD_ASSIGNMENT_CONSTRAINT', 'EDIT_ASSIGNMENT_CONSTRAINT', 'REMOVE_SYSTEM_ROLE_CONSTRAINT',
 	  'AUTH_MANAGER_ADDED', 'AUTH_MANAGER_REMOVED', 'REQUEST_ROLE_FOR', 'APPROVE_REQUEST', 'REJECT_REQUEST',
 	  'PERFORMED_USERROLE_CLEANUP', 'PERFORMED_ROLEGROUP_CLEANUP',
 	  'ATTESTED_ORGUNIT',

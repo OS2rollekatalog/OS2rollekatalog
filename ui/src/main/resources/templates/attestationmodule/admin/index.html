@@ -19,57 +19,91 @@
                         <div class="ibox-content">
                             <p th:text="#{attestationmodule.html.admin.explainer}"></p>
 
-                            <h3 th:text="#{attestationmodule.html.admin.orgunits}" th:unless="${#lists.isEmpty(ouStatusList)}"></h3>
-                            <div class="table-responsive" th:unless="${#lists.isEmpty(ouStatusList)}">
-                                <table id="orgUnitTable" style="padding-right:0px !important;" class="table table-striped table-bordered table-hover" >
-                                    <thead>
-                                    <tr>
-                                        <th th:text="#{attestationmodule.html.admin.orgunits.name}"></th>
-                                        <th th:text="#{attestationmodule.html.admin.orgunits.path}"></th>
-                                        <th th:text="#{attestationmodule.html.admin.orgunits.manager}"></th>
-                                        <th th:text="#{attestationmodule.html.admin.orgunits.substitutes}"></th>
-                                        <th th:text="#{attestationmodule.html.admin.orgunits.status}"></th>
-                                    </tr>
-                                    </thead>
+                            <div class="tabs-container" id="tabs">
+                                <ul class="nav nav-tabs" role="tablist">
+                                    <li th:each="run, itr: ${attestationRuns}"><a class="nav-link" data-toggle="tab" th:href="${'#ovtab' + itr.index}" th:class="${itr.index == 0 ? 'nav-link active' : 'nav-link'}">
+                                        <span th:text="${#temporals.format(run.deadline, 'dd/MM-yyyy')}"></span>
+                                        <span class="label label-info" th:if="${run.sensitive}" th:text="#{attestationmodule.html.admin.sensitive}"></span>
+                                        <span class="label label-danger" th:unless="${run.finished}" th:text="#{attestationmodule.html.admin.open}"></span>
+                                    </a>
+                                    </li>
+                                </ul>
+                                <div class="tab-content">
+                                    <div th:each="run, itr: ${attestationRuns}" role="tabpanel" th:id="${'ovtab' + itr.index}"
+                                         th:class="${itr.index == 0 ? 'tab-pane active' : 'tab-pane'}">
+                                        <div class="panel-body">
+                                            <div class="jumbotron">
+                                                <span style="font-size: small">Udtrukket <span th:text="${#temporals.format(run.createdAt, 'dd/MM-yyyy')}"></span> med deadline <span th:text="${#temporals.format(run.deadline, 'dd/MM-yyyy')}"></span></span><br/><br/>
+                                                <span style="font-size: small"><span th:text="${run.finishedAttestations}"></span> attesteringer ud af <span th:text="${run.totalAttestations}"></span> gennemført</span><br><br>
+                                                <span><a class="btn btn-white" th:href="@{/ui/attestation/v2/admin/report/{id}(id=${run.id})}"><i class="fa fa-download">&nbspDownload oversigt</i></a></span>
+                                            </div>
+                                            <h3 th:text="#{attestationmodule.html.admin.orgunits}" th:unless="${#lists.isEmpty(run.ouStatus)}"></h3>
+                                            <div class="table-responsive" th:unless="${#lists.isEmpty(run.ouStatus)}">
+                                                <table th:id="|orgUnitTable${itr.index}|" style="padding-right:0px !important;" class="table table-striped table-bordered table-hover" >
+                                                    <thead>
+                                                    <tr>
+                                                        <th style="display: none"></th>
+                                                        <th></th>
+                                                        <th th:text="#{attestationmodule.html.admin.orgunits.name}"></th>
+                                                        <th th:text="#{attestationmodule.html.admin.orgunits.path}"></th>
+                                                        <th th:text="#{attestationmodule.html.admin.orgunits.manager}"></th>
+                                                        <th th:text="#{attestationmodule.html.admin.orgunits.substitutes}"></th>
+                                                        <th th:text="#{attestationmodule.html.admin.orgunits.status}"></th>
+                                                    </tr>
+                                                    </thead>
 
-                                    <tbody>
-                                    <tr th:each="orgUnit : ${ouStatusList}">
-                                        <td th:text="${orgUnit.name}"></td>
-                                        <td th:text="${orgUnit.path}"></td>
-                                        <td th:text="${orgUnit.manager?.name}"></td>
-                                        <td>
-                                            <ul><li th:each="sub : ${orgUnit.substitutes}" th:text="${sub?.name}"></li></ul>
-                                        </td>
-                                        <td th:text="#{attestationmodule.html.admin.orgunits.status.not_started}" th:if="${orgUnit.status == T(dk.digitalidentity.rc.attestation.controller.mvc.AttestationAdminController.AttestationStatus).NOT_STARTED}"></td>
-                                        <td th:text="#{attestationmodule.html.admin.orgunits.status.in_progress}" th:if="${orgUnit.status == T(dk.digitalidentity.rc.attestation.controller.mvc.AttestationAdminController.AttestationStatus).ON_GOING}"></td>
-                                        <td th:text="#{attestationmodule.html.admin.orgunits.status.done}" th:if="${orgUnit.status == T(dk.digitalidentity.rc.attestation.controller.mvc.AttestationAdminController.AttestationStatus).FINISHED}"></td>
-                                    </tr>
-                                    </tbody>
-                                </table>
+                                                    <tbody>
+                                                    <tr th:each="orgUnit : ${run.ouStatus}">
+                                                        <td style="display: none" th:text="${orgUnit.id}"></td>
+                                                        <td class="dt-control"></td>
+                                                        <td th:text="${orgUnit.name}"></td>
+                                                        <td th:text="${orgUnit.path}"></td>
+                                                        <td th:text="${orgUnit.manager?.name}"></td>
+                                                        <td>
+                                                            <ul><li th:each="sub : ${orgUnit.substitutes}" th:text="${sub?.name}"></li></ul>
+                                                        </td>
+                                                        <td th:text="#{attestationmodule.html.admin.orgunits.status.not_started}" th:if="${orgUnit.status == T(dk.digitalidentity.rc.attestation.model.dto.enums.AdminAttestationStatus).NOT_STARTED}"></td>
+                                                        <td th:text="#{attestationmodule.html.admin.orgunits.status.in_progress}" th:if="${orgUnit.status == T(dk.digitalidentity.rc.attestation.model.dto.enums.AdminAttestationStatus).ON_GOING}"></td>
+                                                        <td th:text="#{attestationmodule.html.admin.orgunits.status.done}" th:if="${orgUnit.status == T(dk.digitalidentity.rc.attestation.model.dto.enums.AdminAttestationStatus).FINISHED}"></td>
+                                                    </tr>
+                                                    </tbody>
+                                                </table>
+                                            </div>
+
+
+                                            <h3 th:text="#{attestationmodule.html.admin.itsystems}" th:unless="${#lists.isEmpty(run.systemStatus)}"></h3>
+                                            <div class="table-responsive" th:unless="${#lists.isEmpty(run.systemStatus)}">
+                                                <table th:id="|itSystemsTable${itr.index}|" style="padding-right:0px !important;" class="table table-striped table-bordered table-hover" >
+                                                    <thead>
+                                                    <tr>
+                                                        <th style="display: none"></th>
+                                                        <th></th>
+                                                        <th th:text="#{attestationmodule.html.admin.itsystems.name}"></th>
+                                                        <th th:text="#{attestationmodule.html.admin.itsystems.type}"></th>
+                                                        <th th:text="#{attestationmodule.html.admin.itsystems.responsible}"></th>
+                                                        <th th:text="#{attestationmodule.html.admin.itsystems.status}"></th>
+                                                    </tr>
+                                                    </thead>
+
+                                                    <tbody>
+                                                    <tr th:each="system : ${run.systemStatus}">
+                                                        <td style="display: none" th:text="${system.id}"></td>
+                                                        <td class="dt-control"></td>
+                                                        <td th:text="${system.name}"></td>
+                                                        <td th:text="${system.path}"></td>
+                                                        <td th:text="${system.responsibleUser?.name}"></td>
+                                                        <td th:text="#{attestationmodule.html.admin.orgunits.status.not_started}" th:if="${system.status == T(dk.digitalidentity.rc.attestation.model.dto.enums.AdminAttestationStatus).NOT_STARTED}"></td>
+                                                        <td th:text="#{attestationmodule.html.admin.orgunits.status.in_progress}" th:if="${system.status == T(dk.digitalidentity.rc.attestation.model.dto.enums.AdminAttestationStatus).ON_GOING}"></td>
+                                                        <td th:text="#{attestationmodule.html.admin.orgunits.status.done}" th:if="${system.status == T(dk.digitalidentity.rc.attestation.model.dto.enums.AdminAttestationStatus).FINISHED}"></td>
+                                                    </tr>
+                                                    </tbody>
+                                                </table>
+                                            </div>
+
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
-                            <h3 th:text="#{attestationmodule.html.admin.itsystems}" th:unless="${#lists.isEmpty(itSystems)}"></h3>
-                            <div class="table-responsive" th:unless="${#lists.isEmpty(itSystems)}">
-                                <table id="itSystemsTable" style="padding-right:0px !important;" class="table table-striped table-bordered table-hover" >
-                                    <thead>
-                                    <tr>
-                                        <th th:text="#{attestationmodule.html.admin.itsystems.name}"></th>
-                                        <th th:text="#{attestationmodule.html.admin.itsystems.type}"></th>
-                                        <th th:text="#{attestationmodule.html.admin.itsystems.status}"></th>
-                                    </tr>
-                                    </thead>
-
-                                    <tbody>
-                                    <tr th:each="system : ${itSystems}">
-                                        <td th:text="${system.name}"></td>
-                                        <td th:text="${system.path}"></td>
-                                        <td th:text="#{attestationmodule.html.admin.orgunits.status.not_started}" th:if="${system.status == T(dk.digitalidentity.rc.attestation.controller.mvc.AttestationAdminController.AttestationStatus).NOT_STARTED}"></td>
-                                        <td th:text="#{attestationmodule.html.admin.orgunits.status.in_progress}" th:if="${system.status == T(dk.digitalidentity.rc.attestation.controller.mvc.AttestationAdminController.AttestationStatus).ON_GOING}"></td>
-                                        <td th:text="#{attestationmodule.html.admin.orgunits.status.done}" th:if="${system.status == T(dk.digitalidentity.rc.attestation.controller.mvc.AttestationAdminController.AttestationStatus).FINISHED}"></td>
-                                    </tr>
-                                    </tbody>
-                                </table>
-                            </div>
-
                         </div>
                     </div>
                 </div>
@@ -81,42 +115,85 @@
 <div th:replace="~{attestationmodule/fragments/footer :: scripts(datatables = true)}"></div>
 
 <script th:inline="javascript">
-    $(document).ready(function(){
-        $('#orgUnitTable').DataTable({
-            "pageLength" : 25,
-            "responsive" : true,
-            "autoWidth" : false,
-            "language" : {
-                "search" : "Søg",
-                "lengthMenu" : "_MENU_ rækker per side",
-                "info" : "Viser _START_ til _END_ af _TOTAL_ rækker",
-                "zeroRecords" : "Ingen data...",
-                "infoEmpty" : "",
-                "infoFiltered" : "(ud af _MAX_ rækker)",
-                "paginate" : {
-                    "previous" : "Forrige",
-                    "next" : "Næste"
-                }
+    /*<![CDATA[*/
+    /*[+
+    let detailsUrl = [[@{/ui/attestation/v2/admin/details}]];
+    let runCount = [[${attestationRuns.size()}]];
+    +]*/
+
+    function formatDetails ( rowData ) {
+        let div = $('<div/>')
+            .addClass( 'loading' )
+            .text( 'Henter...' );
+        $.ajax( {
+            url: `${detailsUrl}/${rowData[0]}` ,
+            data: {
+                name: rowData.name
+            },
+            success: function ( data ) {
+                div.html( data )
+                    .removeClass( 'loading' );
             }
-        });
-        $('#itSystemsTable').DataTable({
-            "pageLength" : 25,
-            "responsive" : true,
-            "autoWidth" : false,
-            "language" : {
-                "search" : "Søg",
-                "lengthMenu" : "_MENU_ rækker per side",
-                "info" : "Viser _START_ til _END_ af _TOTAL_ rækker",
-                "zeroRecords" : "Ingen data...",
-                "infoEmpty" : "",
-                "infoFiltered" : "(ud af _MAX_ rækker)",
-                "paginate" : {
-                    "previous" : "Forrige",
-                    "next" : "Næste"
+        } );
+
+        return div;
+    }
+
+    function openCloseDetails (table, e) {
+        let tr = e.target.closest('tr');
+        let row = table.row(tr);
+        if (row.child.isShown()) {
+            row.child.hide();
+        } else {
+            row.child(formatDetails(row.data(), true)).show();
+        }
+    }
+
+    $(document).ready(function() {
+
+        for (let i=0; i<runCount; ++i) {
+            let ouTable = $(`#orgUnitTable${i}`).DataTable({
+                "pageLength" : 25,
+                "responsive" : true,
+                "autoWidth" : false,
+                "language" : {
+                    "search" : "Søg",
+                    "lengthMenu" : "_MENU_ rækker per side",
+                    "info" : "Viser _START_ til _END_ af _TOTAL_ rækker",
+                    "zeroRecords" : "Ingen data...",
+                    "infoEmpty" : "",
+                    "infoFiltered" : "(ud af _MAX_ rækker)",
+                    "paginate" : {
+                        "previous" : "Forrige",
+                        "next" : "Næste"
+                    }
                 }
-            }
-        });
+            });
+            ouTable.on('click', 'td.dt-control', e => openCloseDetails(ouTable, e));
+
+            let itsTable = $(`#itSystemsTable${i}`).DataTable({
+                "pageLength" : 25,
+                "responsive" : true,
+                "autoWidth" : false,
+                "language" : {
+                    "search" : "Søg",
+                    "lengthMenu" : "_MENU_ rækker per side",
+                    "info" : "Viser _START_ til _END_ af _TOTAL_ rækker",
+                    "zeroRecords" : "Ingen data...",
+                    "infoEmpty" : "",
+                    "infoFiltered" : "(ud af _MAX_ rækker)",
+                    "paginate" : {
+                        "previous" : "Forrige",
+                        "next" : "Næste"
+                    }
+                }
+            });
+            itsTable.on('click', 'td.dt-control', e => openCloseDetails(itsTable, e));
+        }
+
     });
+
+    /*]]>*/
 </script>
 
 </body>

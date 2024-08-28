@@ -1278,7 +1278,34 @@ public class OrgUnitService {
 	}
 
 	@Transactional
-	public void syncOrgUnitOnRoleAssignments() {
+	public void assignResponsibleOuOnAssignments() {
+		List<User> users = userService.getAll();
+		for (User user : users) {
+			List<OrgUnit> orgUnits = getOrgUnitsForUser(user);
+			if (orgUnits.isEmpty()) {
+				continue;
+			}
+			for (UserUserRoleAssignment userRoleAssignment : user.getUserRoleAssignments()) {
+				if (userRoleAssignment.getOrgUnit() == null) {
+					log.info("UserRole does not have responsible OU, assigning users first OU {}", userRoleAssignment.getId());
+					userRoleAssignment.setOrgUnit(orgUnits.getFirst());
+				}
+			}
+			for (UserRoleGroupAssignment roleGroupAssignment : user.getRoleGroupAssignments()) {
+				if (roleGroupAssignment.getOrgUnit() == null) {
+					log.info("RoleGroup does not have responsible OU, assigning users first OU {}", roleGroupAssignment.getId());
+					roleGroupAssignment.setOrgUnit(orgUnits.getFirst());
+				}
+			}
+		}
+	}
+
+	/**
+	 * This methods will look through all direct assignments and check if the user is still associated with the responsible ou
+	 * if not the responsible ou will be changed to one of the users current ou's.
+	 */
+	@Transactional
+	public void updateOrgUnitOnRoleAssignments() {
 		List<User> users = userService.getAll();
 		for (User user : users) {
 			List<OrgUnit> orgUnits = getOrgUnitsForUser(user);

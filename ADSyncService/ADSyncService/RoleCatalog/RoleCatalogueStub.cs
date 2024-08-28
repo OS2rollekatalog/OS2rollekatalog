@@ -9,13 +9,22 @@ namespace ADSyncService
     class RoleCatalogueStub
     {
         private static readonly log4net.ILog log = log4net.LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
-        private static string apiKey = Properties.Settings.Default.ApiKey;
+        private static string apiKey = null;
         private static string baseUrl;
         private static string domain = Properties.Settings.Default.Domain;
 
         public RoleCatalogueStub()
         {
             ServicePointManager.ServerCertificateValidationCallback += (sender, cert, chain, error) => { return true; };
+
+            if (Properties.Settings.Default.UsePAM)
+            {
+                apiKey = PAMService.GetApiKey();
+            }
+            else
+            {
+                apiKey = Properties.Settings.Default.ApiKey;
+            }
 
             baseUrl = Properties.Settings.Default.ApiUrl;
 
@@ -247,6 +256,26 @@ namespace ADSyncService
             {
                 log.Error("Reset operation call failed", ex);
             }
+        }
+
+        public bool GetShouldUploadLog()
+        {
+            RestClient client = new RestClient(baseUrl);
+
+            var request = new RestRequest("/api/uploadLog", Method.GET);
+            request.AddHeader("ApiKey", apiKey);
+            request.JsonSerializer = NewtonsoftJsonSerializer.Default;
+
+            var result = client.Execute<string>(request);
+            if (result.StatusCode.Equals(HttpStatusCode.OK))
+            {
+                if (result.Data != null)
+                {
+                    return Boolean.Parse(result.Data);
+                }
+            }
+
+            return false;
         }
 
         private static bool ReImportUsersEnabled()

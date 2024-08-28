@@ -15,4 +15,9 @@ public class Email {
 	private String username;
 	private String password;
 	private String host;
+	private String port;
+	private String protocol = "smtps";
+	private boolean auth = true;
+	private boolean startTlsEnabled = true;
+	private boolean startTlsRequired = true;
 }

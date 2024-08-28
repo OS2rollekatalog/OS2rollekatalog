@@ -22,6 +22,7 @@ public class AuditLogDTO {
 	private String eventType;
 	private String secondaryEntityName;
 	private String username;
+	private String description;
 
 	public AuditLogDTO(AuditLogView auditlog, MessageSource messageSource, Locale locale) {
 		this.timestamp = auditlog.getTimestamp();
@@ -30,5 +31,6 @@ public class AuditLogDTO {
 		this.eventType = messageSource.getMessage(auditlog.getEventType().getMessage(), null, locale);
 		this.secondaryEntityName = auditlog.getSecondaryEntityName();
 		this.username = auditlog.getUsername();
+		this.description = auditlog.getDescription();
 	}
 }

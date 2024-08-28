@@ -376,7 +376,7 @@ public class RequestApproveService {
 					String message = template.getMessage();
 					message = message.replace(EmailTemplatePlaceholder.RECEIVER_PLACEHOLDER.getPlaceholder(), "rolletildeler");
 					message = message.replace(EmailTemplatePlaceholder.COUNT_PLACEHOLDER.getPlaceholder(), Integer.toString(count));
-					emailQueueService.queueEmail(settingsService.getRequestApproveServicedeskEmail(), title, message, template, null);
+					emailQueueService.queueEmail(settingsService.getRequestApproveServicedeskEmail(), title, message, template, null, null);
 					for (RequestApprove requestApprove : requestApproves) {
 						requestApprove.setEmailSent(true);
 						requestApproveService.save(requestApprove);

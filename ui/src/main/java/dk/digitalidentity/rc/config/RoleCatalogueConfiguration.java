@@ -22,8 +22,8 @@ import java.util.Objects;
 @Setter
 @ConfigurationProperties(prefix = "rc")
 public class RoleCatalogueConfiguration {
-	private String version = "2024 r1";
-	private String latestVersion = "2024 r1";
+	private String version = "2024 r2";
+	private String latestVersion = "2024 r2";
 
 	private AttestationConfig attestation = new AttestationConfig();
 	private Customer customer = new Customer();
@@ -38,6 +38,7 @@ public class RoleCatalogueConfiguration {
 
 	private boolean syncRoleAssignmentOrgUnitOnStartup = false;
 	private boolean removeRolesAssignmentsWithoutOU = false;
+	private boolean assignResponsibleOuOnAssignmentsIfMissing = true;
 
 	// enable for new un-released features
 	private boolean experimental = false;

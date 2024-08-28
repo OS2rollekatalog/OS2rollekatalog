@@ -1,5 +1,38 @@
 package dk.digitalidentity.rc.service.nemlogin;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
+import java.util.stream.Collectors;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.EnableCaching;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.ResponseEntity;
+import org.springframework.scheduling.annotation.EnableScheduling;
+import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
+import org.springframework.web.client.RestTemplate;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
 import dk.digitalidentity.rc.dao.DirtyNemLoginUserDao;
 import dk.digitalidentity.rc.dao.model.ConstraintType;
@@ -35,41 +68,6 @@ import dk.digitalidentity.rc.service.nemlogin.model.NemLoginRole;
 import dk.digitalidentity.rc.service.nemlogin.model.Scope;
 import dk.digitalidentity.rc.service.nemlogin.model.TokenResponse;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.cache.annotation.CacheEvict;
-import org.springframework.cache.annotation.Cacheable;
-import org.springframework.cache.annotation.EnableCaching;
-import org.springframework.core.ParameterizedTypeReference;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpMethod;
-import org.springframework.http.ResponseEntity;
-import org.springframework.scheduling.annotation.EnableScheduling;
-import org.springframework.scheduling.annotation.Scheduled;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-import org.springframework.util.StringUtils;
-import org.springframework.web.client.HttpStatusCodeException;
-import org.springframework.web.client.RestClientException;
-import org.springframework.web.client.RestTemplate;
-
-import com.fasterxml.jackson.databind.ObjectMapper;
-
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.ZoneId;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Set;
-import java.util.stream.Collectors;
 
 @EnableCaching
 @EnableScheduling
@@ -650,30 +648,21 @@ public class NemLoginService {
 	@Cacheable(value = "token", unless = "#result == null")
 	public String fetchTokenCached() {
 		String url = config.getIntegrations().getNemLogin().getBaseUrl() + "/api/administration/idmlogin/tls/authenticate";
-		String accessToken = null;
 		
 		HttpHeaders headers = new HttpHeaders();
 		headers.add("Content-Type", "application/json");
-		
-		HttpEntity<String> request = new HttpEntity<>(headers);
-		
-		try {
-			ResponseEntity<TokenResponse> response = restTemplate.exchange(url, HttpMethod.POST, request, TokenResponse.class);
+		headers.add("Accept", "application/json");
 
-			if (response.getStatusCodeValue() == 200 && response.getBody() != null) {
-				accessToken = response.getBody().getAccessToken();
-			}
-			else {
-				log.error("Failed to fetch token from nemloginApi");
-			}
-		}
-		catch (Exception ex) {
-			log.error("Failed to fetch token from nemloginApi", ex);
+		HttpEntity<String> request = new HttpEntity<>("{}", headers);
+		
+		TokenResponse response = invokeRestTemplate("fetchTokenCached", url, HttpMethod.POST, request, TokenResponse.class);
+		if (response != null) {
+			return response.getAccessToken();
 		}
 		
-		return accessToken;
+		return null;
 	}
-	
+		
 	@CacheEvict(value = "token", allEntries = true)
 	public void cleanUpToken() {
 		;
@@ -688,60 +677,35 @@ public class NemLoginService {
 	private List<NemLoginRole> getAllRoles() {
 		String url = config.getIntegrations().getNemLogin().getBaseUrl() + "/api/administration/rights/categorizedRoles";
 		HttpHeaders headers = getHeader();
-		
 		HttpEntity<String> request = new HttpEntity<>(headers);
-		try {
-			ResponseEntity<NemLoginAllRolesResponse> response = restTemplate.exchange(url, HttpMethod.GET, request, NemLoginAllRolesResponse.class);
-			if (response.getStatusCodeValue() == 200 && response.getBody() != null) {
-				return response.getBody().getRoles();
-			}
-			else {
-				log.error("Failed to fetch all roles from nemloginApi. Won't sync roles. Code " + response.getStatusCodeValue() + " body: " + response.getBody());
-				return null;
-			}
+		
+		NemLoginAllRolesResponse response = invokeRestTemplate("getAllRoles", url, HttpMethod.GET, request, NemLoginAllRolesResponse.class);
+		if (response != null) {
+			return response.getRoles();
 		}
-		catch (Exception ex) {
-			log.error("Failed to fetch all roles from nemloginApi. Won't sync roles.", ex);
-			return null;
-		}
+
+		return null;
 	}
 
 	private List<AssignedRole> getRolesForUser(User user) {
 		String url = config.getIntegrations().getNemLogin().getBaseUrl() + "/api/administration/rights/identity/" + user.getNemloginUuid() + "/roles";
 		HttpHeaders headers = getHeader();
-
 		HttpEntity<String> request = new HttpEntity<>(headers);
-		try {
-			ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.GET, request, String.class);
-			
-			// this checking is not really needed, as an exception is throw, but experience shows that updating the core framework sometimes
-			// changes the default behavior of the framework, so let's be safe :)
-			if (response.getStatusCodeValue() == 200 && response.getBody() != null) {
-				try {
-					return Arrays.asList(objectMapper.readValue(response.getBody(), AssignedRole[].class));
-				}
-				catch (Exception ex) {
-					log.error("Invalid response from NL3 on getRolesForUser: " + response.getBody(), ex);
-					return null;
-				}
-			}
-			else {
-				log.error("Failed to fetch roles assigned to user with nemloginUuid " + user.getNemloginUuid() + " from nemloginApi. Code " + response.getStatusCodeValue() + " body: " + response.getBody());
-				return null;
-			}
+		
+		AssignedRole[] response = invokeRestTemplate("getRolesForUser: " + user.getUserId(), url, HttpMethod.GET, request, AssignedRole[].class);
+		if (response != null) {
+			return Arrays.asList(response);
 		}
-		catch (Exception ex) {
+		
+		/* generic approach prevents us from doing this bit of logic... let's see what we can do, perhaps an optional ErrorHandler?
 			// if the user does not exist, the MitID Erhverv API will return HTTP 500 (and not 404), so we should do an extra check to see if the user
 			// exists, and then log something more relevant in that case
 			if (!userExists(user)) {
 				log.warn("User does not exist in MitID Erhverv with UUID: " + user.getNemloginUuid() + " / " + user.getUserId());
 			}
-			else {
-				log.error("Failed to fetch roles assigned to user with nemloginUuid " + user.getNemloginUuid() + " from nemloginApi.", ex);
-			}
-			
-			return null;
-		}
+		*/
+
+		return null;
 	}
 	
 	private boolean userExists(User user) {
@@ -749,26 +713,10 @@ public class NemLoginService {
 		HttpHeaders headers = getHeader();
 
 		HttpEntity<String> request = new HttpEntity<>(headers);
-		try {
-			ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.GET, request, String.class);
-			
-			// this checking is not really needed, as an exception is throw, but experience shows that updating the core framework sometimes
-			// changes the default behavior of the framework, so let's be safe :)
-			if (response.getStatusCodeValue() == 200 && response.getBody() != null) {
-				return true;
-			}
-			else if (response.getStatusCodeValue() == 404) {
-				return false;
-			}
 
-			log.warn("Failed to verify user existence of user with nemloginUuid " + user.getNemloginUuid() + " from nemloginApi. Code " + response.getStatusCodeValue() + " body: " + response.getBody());
-		}
-		catch (HttpStatusCodeException ex) {
-			if (ex.getRawStatusCode() == 404) {
-				return false;
-			}
-			
-			log.warn("Failed to verify user existence of user with nemloginUuid " + user.getNemloginUuid() + " from nemloginApi. Code " + ex.getRawStatusCode(), ex);
+		String response = invokeRestTemplate("userExists: " + user.getUserId(), url, HttpMethod.GET, request, String.class);
+		if (response != null) {
+			return true;
 		}
 
 		return false;
@@ -786,16 +734,10 @@ public class NemLoginService {
 
 		RoleBody roleBody = new RoleBody(assignedRole.getScope(), Collections.singletonList(assignedRole.getUuid()));
 		HttpEntity<RoleBody> request = new HttpEntity<>(roleBody, headers);
-		try {
-			ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.DELETE, request, String.class);
-			if (response.getStatusCodeValue() == 204) {
-				log.info("Removed NemLog-In role with uuid " + assignedRole.getUuid() + " from user with nemloginUuid " + user.getNemloginUuid());
-			} else {
-				log.error("Failed to delete role with uuid " + assignedRole.getUuid() + " assigned to user with nemloginUuid " + user.getNemloginUuid() + " from nemloginApi. Code " + response.getStatusCodeValue() + " body: " + response.getBody());
-			}
-		}
-		catch (Exception ex) {
-			log.error("Failed to delete role with uuid " + assignedRole.getUuid() + " assigned to user with nemloginUuid " + user.getNemloginUuid() + " from nemloginApi.", ex);
+
+		String result = invokeRestTemplate("deleteRoleFromUser: " + user.getUserId(), url, HttpMethod.DELETE, request, String.class);
+		if (result != null) {
+			log.info("Removed NemLog-In role with uuid " + assignedRole.getUuid() + " from user with nemloginUuid " + user.getNemloginUuid());
 		}
 	}
 
@@ -807,33 +749,25 @@ public class NemLoginService {
 		
 		String url = config.getIntegrations().getNemLogin().getBaseUrl() + "/api/administration/rights/identity/" + user.getNemloginUuid() + "/roles";
 		HttpHeaders headers = getHeader();
-
 		RoleBody roleBody = new RoleBody(scope, Collections.singletonList(roleUuid));
 		HttpEntity<RoleBody> request = new HttpEntity<>(roleBody, headers);
-		try {
-			ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.POST, request, String.class);
-			if (response.getStatusCodeValue() == 204) {
-				log.info("Added NemLog-In role with uuid " + roleUuid + " to user with nemloginUuid " + user.getNemloginUuid());
-			}
-			else {
-				log.error("Failed to add role with uuid " + roleUuid + " to user with nemloginUuid " + user.getNemloginUuid() + " from nemloginApi. Code " + response.getStatusCodeValue() + " body: " + response.getBody());
-			}
-		}
-		catch (Exception ex) {
-			log.error("Failed to add role with uuid " + roleUuid + " to user with nemloginUuid " + user.getNemloginUuid() + " from nemloginApi.", ex);
+				
+		String response = invokeRestTemplate("addRoleToUser: " + user.getUserId(), url, HttpMethod.POST, request, String.class);
+		if (response != null) {
+			log.info("Added NemLog-In role with uuid " + roleUuid + " to user with nemloginUuid " + user.getNemloginUuid());
 		}
 	}
 		
 	private record SeNumberDTORecord(String seNumber) {}
 	public List<SENumber> getAllSENR() {
 		String SENRResourceUrl = config.getIntegrations().getNemLogin().getBaseUrl() + "/api/administration/organization/senumber";
-
 		HttpEntity<String> request = new HttpEntity<>(getHeader());
-		try {
-			ResponseEntity<List<SeNumberDTORecord>> response = restTemplate.exchange(SENRResourceUrl, HttpMethod.GET, request, new ParameterizedTypeReference<List<SeNumberDTORecord>>(){});
+		
+		SeNumberDTORecord[] response = invokeRestTemplate("getAllSENR", SENRResourceUrl, HttpMethod.GET, request, SeNumberDTORecord[].class);
+		if (response != null) {
 			List<SENumber> retList = new ArrayList<>();
 			
-			for (SeNumberDTORecord record : response.getBody()) {
+			for (SeNumberDTORecord record : response) {
 				SENumber se = new SENumber();
 				se.setCode(record.seNumber);
 				se.setName(record.seNumber);
@@ -843,39 +777,31 @@ public class NemLoginService {
 			
 			return retList;
 		}
-		catch (Exception ex) {
-			log.error("Failed to get SEnumbers", ex);
 
-			return null;
-		}
+		return null;
 	}
 	
-	private record PNumberDTORecord(long pNumber, String cvrNumber, int mainActivity, boolean mainDivision) {}
+	private record PNumberDTORecord(long pNumber, String cvrNumber, String name, String streetName, String streetBuildingIdentifier) {}
 	public List<PNumber> getAllPNR() {
 		String PNRResourceUrl = config.getIntegrations().getNemLogin().getBaseUrl() + "/api/administration/organization/productionunits";
 		HttpEntity<String> request = new HttpEntity<>(getHeader());
 
-		try {
+		PNumberDTORecord[] response = invokeRestTemplate("getAllPNR", PNRResourceUrl, HttpMethod.GET, request, PNumberDTORecord[].class);
+		if (response != null) {
 			List<PNumber> retList = new ArrayList<>();
-
-			ResponseEntity<List<PNumberDTORecord>> response = restTemplate.exchange(PNRResourceUrl, HttpMethod.GET, request, new ParameterizedTypeReference<List<PNumberDTORecord>>(){});
-			List<PNumberDTORecord> responseBody = response.getBody();
-
-			for (PNumberDTORecord record : responseBody) {
+		
+			for (PNumberDTORecord record : response) {
 				PNumber pNumber = new PNumber();
 				pNumber.setCode(String.valueOf(record.pNumber));
-				pNumber.setName(String.valueOf(record.pNumber));
+				pNumber.setName(String.valueOf(record.name));
 
 				retList.add(pNumber);
 			}
 			
 			return retList;
 		}
-		catch (Exception ex) {
-			log.error("Failed to get Pnumbers", ex);
 
-			return null;
-		}
+		return null;
 	}
 	
 	private record PUnitLookupDTORecord(String number, String street, String postalCode, String city, String name){}
@@ -885,21 +811,16 @@ public class NemLoginService {
 			return null;
 		}
 		
-		RestTemplate restTemplate = new RestTemplate();
 		String cvrResourceUrl = config.getIntegrations().getCvr().getBaseUrl() + "/CVR/HentCVRData/1/rest/hentProduktionsenhedMedPNummer?ppNummer=" + pnr;
 		String apiKey = config.getIntegrations().getCvr().getApiKey();
-
 		HttpEntity<String> request = new HttpEntity<>(getCvrHeader(apiKey));
-		try {
-			ResponseEntity<PUnitLookupDTORecord> response = restTemplate.exchange(cvrResourceUrl, HttpMethod.GET, request, PUnitLookupDTORecord.class);
-			PUnitLookupDTORecord post = response.getBody();
+		
+		PUnitLookupDTORecord response = invokeRestTemplate("PUnitLookupDTORecord", cvrResourceUrl, HttpMethod.GET, request, PUnitLookupDTORecord.class);
+		if (response != null) {
+			return response.name;
+		}
 
-			return post.name;
-		}
-		catch (RestClientException ex) {
-			log.warn("Failed to lookup: " + pnr, ex);
-			return null;
-		}
+		return null;
 	}
 	
 	private HttpHeaders getCvrHeader(String apiKey) {
@@ -913,8 +834,43 @@ public class NemLoginService {
 	private HttpHeaders getHeader() {
 		HttpHeaders headers = new HttpHeaders();
 		headers.add("Content-Type", "application/json");
+		headers.remove("Accept");
+		headers.add("Accept", "application/json");
 		headers.add("Authorization", "Bearer " + fetchToken());
 
 		return headers;
+	}
+
+	// safe way to invoke restTemplate.exchange() with all the error handling needed :)
+	private <T> T invokeRestTemplate(String operation, String url, HttpMethod method, HttpEntity<?> request, Class<T> clazz) {
+		try {
+			ResponseEntity<String> response = restTemplate.exchange(url,  method, request, String.class);
+			
+			try {
+				if (response.getStatusCode().is2xxSuccessful()) {
+					if (response.getBody() == null) {
+						if (clazz.equals(String.class)) {
+							return clazz.cast(new String(""));
+						}
+
+						log.error(operation + " : body was null on response");
+					}
+					else {
+						return clazz.cast(objectMapper.readValue(response.getBody(), clazz));
+					}
+				}
+				else {
+					log.error(operation + " : got HTTP " + response.getStatusCode() + " with body : " + response.getBody());
+				}
+			}
+			catch (Exception ex) {
+				log.error(operation + " : exception when parsing responseBody: " + response.getBody(), ex);
+			}
+		}
+		catch (Exception ex) {
+			log.error(operation + " : exception when invoking restTemplate", ex);			
+		}
+
+		return null;
 	}
 }

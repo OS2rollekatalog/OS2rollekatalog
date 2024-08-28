@@ -43,6 +43,7 @@ public class AuditLogXlsxView extends AbstractXlsxStreamingView {
         headers.add("html.page.log.event");
         headers.add("html.page.log.target");
         headers.add("html.page.log.change");
+        headers.add("html.page.log.details");
 
         createHeaderRow(messageSource, locale, sheet, headers, headerStyle);
 
@@ -58,6 +59,7 @@ public class AuditLogXlsxView extends AbstractXlsxStreamingView {
             createCell(dataRow, 2, eventType, null);
             createCell(dataRow, 3, log.getEntityName() + " (" + entityType + ")", null);
             createCell(dataRow, 4, log.getSecondaryEntityName(), null);
+            createCell(dataRow, 5, log.getDescription(), null);
         }
 	}
 

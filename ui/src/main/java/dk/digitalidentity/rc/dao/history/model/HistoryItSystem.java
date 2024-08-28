@@ -38,6 +38,9 @@ public class HistoryItSystem {
 	@Column(name = "attestation_responsible_uuid")
 	private String attestationResponsible;
 
+	@Column(name = "system_owner_uuid")
+	private String systemOwner;
+
 	@Column(name = "attestation_exempt")
 	private boolean attestationExempt;
 

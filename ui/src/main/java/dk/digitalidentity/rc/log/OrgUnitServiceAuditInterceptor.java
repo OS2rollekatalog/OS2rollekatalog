@@ -125,7 +125,7 @@ public class OrgUnitServiceAuditInterceptor {
 
 		UserRole userRole = ((OrgUnitUserRoleAssignment) args[1]).getUserRole();
 
-		auditLogger.log((OrgUnit) args[0], EventType.EDIT_USER_ROLE_ASSIGNMENT, userRole);
+		auditLogger.log((OrgUnit) args[0], EventType.EDIT_ASSIGNMENT_CONSTRAINT, userRole);
 	}
 	
 	private void auditRemoveUserRoleAssignment(JoinPoint jp) {

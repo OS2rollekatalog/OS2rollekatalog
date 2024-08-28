@@ -2,46 +2,48 @@
     <script th:inline="javascript" type="text/javascript">
 		/*<![CDATA[*/
 
-        /*[+
+		/*[+
 			var autocompleteUrl = [[@{/rest/manager/substitute}]];
-			var searchFieldId = [[${searchFieldId}]];
-			var uuidFieldId = [[${uuidFieldId}]];
+			var searchFieldIds = [[${searchFieldIds}]];
+			var uuidFieldIds = [[${uuidFieldIds}]];
 		+]*/
 
-        var autoCompleteService;
+		var autoCompleteService;
 		$(document).ready(function() {
-            autoCompleteService = new AutoCompleteService();
+			autoCompleteService = new AutoCompleteService();
 			autoCompleteService.init();
 		});
 
 		function AutoCompleteService() {
 			this.init = function() {
-				var searchField = $("#" + searchFieldId);
-
-				searchField.autocomplete({
-					serviceUrl: autocompleteUrl + "/search/person",
-					onSelect: function(suggestion) {
-						$(this).val(suggestion.value);
-
-						$("#" + uuidFieldId).val(suggestion.data);
-						$("#" + uuidFieldId).trigger("change");
-					},
-					preventBadQueries: true,
-					triggerSelectOnValidInput: false,
-					transformResult: function(response) {
-						// filter results to not show manager
-						var responseObject = $.parseJSON(response);
-						if (!responseObject || responseObject == null) {
-							return {
-								suggestions: []
+				for (let index = 0; index < searchFieldIds.length; ++index) {
+					var searchField = $("#" + searchFieldIds[index]);
+	
+					searchField.autocomplete({
+						serviceUrl: autocompleteUrl + "/search/person",
+						onSelect: function(suggestion) {
+							$(this).val(suggestion.value);
+	
+							$("#" + uuidFieldIds[index]).val(suggestion.data);
+							$("#" + uuidFieldIds[index]).trigger("change");
+						},
+						preventBadQueries: true,
+						triggerSelectOnValidInput: false,
+						transformResult: function(response) {
+							// filter results to not show manager
+							var responseObject = $.parseJSON(response);
+							if (!responseObject || responseObject == null) {
+								return {
+									suggestions: []
+								}
 							}
+	
+							return {
+								suggestions: responseObject.suggestions
+							};
 						}
-
-						return {
-							suggestions: responseObject.suggestions
-						};
-					}
-				});
+					});
+				}
 			};
 
 		}

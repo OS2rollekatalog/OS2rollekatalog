@@ -15,6 +15,7 @@ import dk.digitalidentity.rc.attestation.model.dto.RoleAssignmentDTO;
 import dk.digitalidentity.rc.attestation.model.dto.enums.AssignedThroughAttestation;
 import dk.digitalidentity.rc.attestation.model.dto.enums.RoleType;
 import dk.digitalidentity.rc.attestation.model.entity.Attestation;
+import dk.digitalidentity.rc.attestation.model.entity.AttestationRun;
 import dk.digitalidentity.rc.attestation.model.entity.BaseUserAttestationEntry;
 import dk.digitalidentity.rc.attestation.model.entity.ItSystemOrganisationAttestationEntry;
 import dk.digitalidentity.rc.attestation.model.entity.ItSystemUserAttestationEntry;
@@ -37,6 +38,7 @@ import org.springframework.web.server.ResponseStatusException;
 import java.time.LocalDate;
 import java.time.ZonedDateTime;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
@@ -96,38 +98,50 @@ public class ItSystemUsersAttestationService {
                 });
     }
 
+
     @Transactional
-    public List<ItSystemRoleAttestationDTO> listItSystemUsersForAttestation(final LocalDate when, final String userUuid) {
-        final List<AttestationUserRoleAssignment> userRoleAssignments = attestationUserRoleAssignmentDao.listValidAssignmentsByResponsibleUserUuid(when, userUuid);
-        final List<AttestationOuRoleAssignment> ouRoleAssignments = attestationOuAssignmentsDao.listValidNotInheritedAssignmentsWithResponsibleUser(when, userUuid);
-        return attestationDao.findByAttestationTypeAndResponsibleUserUuidOrderByDeadlineDesc(Attestation.AttestationType.IT_SYSTEM_ATTESTATION, userUuid).stream()
-                .map(attestation -> ItSystemRoleAttestationDTO.builder()
-                        .itSystemId(attestation.getItSystemId())
-                        .itSystemName(attestation.getItSystemName())
-                        .attestationUuid(attestation.getUuid())
-                        .deadline(attestation.getDeadline())
-                        .users(buildUserAttestations(attestation, userRoleAssignments, false))
-                        .orgUnits(buildOrgUnitAttestations(attestation, ouRoleAssignments))
-                        .build())
+    public List<ItSystemRoleAttestationDTO> listItSystemUsersForAttestation(final AttestationRun run, final String userUuid) {
+        return run.getAttestations().stream()
+                .filter(a -> a.getAttestationType() == Attestation.AttestationType.IT_SYSTEM_ATTESTATION && userUuid.equals(a.getResponsibleUserUuid()))
+                .map(attestation -> {
+                    final List<AttestationUserRoleAssignment> userRoleAssignments = attestationUserRoleAssignmentDao.listValidAssignmentsByResponsibleUserUuid(attestation.getCreatedAt(), userUuid);
+                    final List<AttestationOuRoleAssignment> ouRoleAssignments = attestationOuAssignmentsDao.listValidNotInheritedAssignmentsWithResponsibleUser(attestation.getCreatedAt(), userUuid);
+                    return ItSystemRoleAttestationDTO.builder()
+                            .createdAt(attestation.getCreatedAt())
+                            .itSystemId(attestation.getItSystemId())
+                            .itSystemName(attestation.getItSystemName())
+                            .attestationUuid(attestation.getUuid())
+                            .deadline(run.getDeadline())
+                            .users(buildUserAttestations(attestation, userRoleAssignments, false))
+                            .orgUnits(buildOrgUnitAttestations(attestation, ouRoleAssignments))
+                            .build();
+                })
+                .sorted(Comparator.comparing(ItSystemRoleAttestationDTO::getDeadline).reversed())
+                .filter(distinctByKey(ItSystemRoleAttestationDTO::getItSystemId))
                 .toList();
     }
 
     @Transactional
     public ItSystemRoleAttestationDTO getAttestation(final long itSystemId, final boolean undecidedUsersOnly, String currentUserUuid) {
-        final LocalDate when = LocalDate.now();
         final Attestation attestation = attestationDao.findFirstByAttestationTypeAndItSystemIdOrderByDeadlineDesc(Attestation.AttestationType.IT_SYSTEM_ATTESTATION, itSystemId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Attestation not found"));
+        return getAttestation(attestation, undecidedUsersOnly);
+    }
+
+    @Transactional
+    public ItSystemRoleAttestationDTO getAttestation(final Attestation attestation, final boolean undecidedUsersOnly) {
         final List<AttestationUserRoleAssignment> userRoleAssignments = attestationUserRoleAssignmentDao
-                .listValidAssignmentsByResponsibleUserUuidAndItSystemId(when, attestation.getResponsibleUserUuid(), itSystemId);
-        final List<AttestationOuRoleAssignment> ouRoleAssignments = attestationOuAssignmentsDao.listValidNotInheritedAssignmentsWithResponsibleUser(when, attestation.getResponsibleUserUuid());
+                .listValidAssignmentsByResponsibleUserUuidAndItSystemId(attestation.getCreatedAt(), attestation.getResponsibleUserUuid(), attestation.getItSystemId());
+        final List<AttestationOuRoleAssignment> ouRoleAssignments = attestationOuAssignmentsDao.listValidNotInheritedAssignmentsWithResponsibleUser(attestation.getCreatedAt(), attestation.getResponsibleUserUuid());
         return ItSystemRoleAttestationDTO.builder()
+                .createdAt(attestation.getCreatedAt())
+                .deadline(attestation.getDeadline())
                 .itSystemId(attestation.getItSystemId())
                 .itSystemName(attestation.getItSystemName())
                 .users(buildUserAttestations(attestation, userRoleAssignments, undecidedUsersOnly))
                 .orgUnits(buildOrgUnitAttestations(attestation, ouRoleAssignments))
                 .build();
     }
-
 
     @Transactional
     public List<RoleAssignmentDTO> getUserRoleAssignments(final String responsibleUserUuid, final String userUuid) {

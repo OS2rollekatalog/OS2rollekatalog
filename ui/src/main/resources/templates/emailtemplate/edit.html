@@ -32,9 +32,7 @@
 										<label class="col-sm-2 control-label" th:text="#{html.entity.email_template.template}"></label>
 
 										<div class="col-sm-8">
-											<select class="form-control m-b col-sm-8" id="templateDropdown">
-												<option th:each="template : ${templates}" th:value="${template.id}" th:text="${@emailTemplateService.getTemplateName(template.id)}"></option>
-											</select>
+											<div th:replace="~{emailtemplate/fragments/templates_dropdown :: templates_dropdown}"></div>
 										</div>
 									</div>
 								</form>
@@ -52,12 +50,31 @@
 										<div class="col-sm-8">
 											<div class="checkbox c-checkbox">
 												<label>
-													<input class="checkboxFancy" th:checked="${template.enabled}" type="checkbox" />
+													<input class="checkboxEnabled" th:checked="${template.enabled}" type="checkbox" />
 													<span class="fa fa-check"></span>
 												</label>
 											</div>
 										</div>
 									</div>
+
+									<th:block th:if="${template.allowDaysBeforeEventFeature}">
+									<div class="form-group" id="allowDaysBeforeEventFormGroup">
+										<label class="col-sm-2 control-label">
+											<span th:text="#{html.entity.email_template.days_before_event}"></span><br/>
+											<small th:text="#{html.entity.email_template.days_before_event.hint}"></small>
+										</label>
+										<div class="col-sm-8">
+											<div class="row">
+												<div class="col-sm-2">
+													<input name="daysBeforeEvent" type="number" min="-30" max="30" step="1" class="form-control" th:value="${template.daysBeforeEvent}"/>
+												</div>
+												<div class="col-sm-2">
+													<p class="form-control-static">(fra -30 til +30 dage)</p>
+												</div>
+											</div>
+										</div>
+									</div>
+									</th:block>
 
 									<div class="form-group">
 										<label class="col-sm-2 control-label" th:text="#{html.entity.email_template.name}"></label>
@@ -65,6 +82,7 @@
 											<input name="title" th:value="${template.title}" class="form-control" />
 										</div>
 									</div>
+
 
 									<div class="form-group">
 										<label class="col-sm-2 control-label" th:text="#{html.entity.email_template.message}"></label>
@@ -123,6 +141,7 @@
 
 	/*[+
 		var restUrl = [[@{/rest/mailtemplates}]];
+		var templatesDropdownUrl = [[@{/ui/admin/mailtemplates/attestation/templates}]];
 		var msgSuccess = [[#{html.page.email_template.success}]];
 		var msgFail = [[#{html.page.email_template.failure}]];
 		var msgFailDelete = [[#{html.page.email_template.failure.removeattachment}]];
@@ -180,13 +199,13 @@
 				save(data, true);
 			});
 			
-			$('.checkboxFancy').change(function() {
+			$('.checkboxEnabled').change(function() {
 				var oForm = $('#template' + $("#templateDropdown").val());
-				var checkboxValue = oForm.find('.checkboxFancy')[0].checked;
+				var checkboxValue = oForm.find('.checkboxEnabled')[0].checked;
 				
 				oForm.find("input[name=enabled]")[0].value = checkboxValue;
 			});
-			
+
 			// display currently chosen template
 			$('#template' + $("#templateDropdown").val()).show();
 			
@@ -241,7 +260,28 @@
 						autoHideDelay: 2000
 					});
 				}
+				refreshTemplatesDropdown();
 			}).fail(errorHandler(msgFail));
+		}
+
+		function refreshTemplatesDropdown() {
+	        $.ajax( {
+	            url: templatesDropdownUrl,
+	            success: function (data) {
+					var currentValue = $("#templateDropdown").val();
+	                $('#templateDropdown').parent().html(data);
+	                
+	    			$('#templateDropdown').change(function() {
+	    				// hide all
+	    				$('.templateForm').hide();
+	    				
+	    				// show chosen
+	    				$('#template' + $("#templateDropdown").val()).show();
+	    			});
+	    			
+	    			$("#templateDropdown").val(currentValue);
+	            }
+	        });
 		}
 		
 	/*]]>*/

@@ -21,6 +21,7 @@ import dk.digitalidentity.rc.service.UserRoleService;
 import dk.digitalidentity.rc.service.UserService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.support.ResourceBundleMessageSource;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -35,6 +36,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
+import java.util.Locale;
 import java.util.regex.Pattern;
 
 @Slf4j
@@ -62,6 +64,9 @@ public class ItSystemRestController {
 
 	@Autowired
 	private PositionService positionService;
+
+	@Autowired
+	private ResourceBundleMessageSource resourceBundle;
 
 	@PostMapping(value = { "/rest/systemrole/delete/{id}" })
 	@ResponseBody
@@ -130,7 +135,7 @@ public class ItSystemRestController {
     @PostMapping(value = "/rest/itsystem/name")
     public ResponseEntity<String> editItSystemName(long id, String name) {
     	if (name == null || name.length() < 2) {
-            return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+            return new ResponseEntity<>(resourceBundle.getMessage("validation.error.itsystem.name.short", null, Locale.ENGLISH), HttpStatus.BAD_REQUEST);
         }
     
     	ItSystem itSystem = itSystemService.getById(id);
@@ -140,7 +145,7 @@ public class ItSystemRestController {
     	
     	ItSystem existingSystem = itSystemService.getFirstByName(name);
     	if (existingSystem != null && existingSystem.getId() != itSystem.getId()) {
-            return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+			return new ResponseEntity<>(resourceBundle.getMessage("validation.error.itsystem.name.exist", null, Locale.ENGLISH), HttpStatus.BAD_REQUEST);
     	}
     	
     	itSystem.setName(name);
@@ -434,6 +439,21 @@ public class ItSystemRestController {
 		// can be null
 		User user = userService.getByUuid(uuid);
 		itSystem.setAttestationResponsible(user);
+		itSystemService.save(itSystem);
+
+		return new ResponseEntity<>(HttpStatus.OK);
+	}
+
+	@PostMapping(value = "/rest/itsystem/systemOwner")
+	public ResponseEntity<String> editItSystemSystemResponsible(long id, String uuid) {
+		ItSystem itSystem = itSystemService.getById(id);
+		if (itSystem == null) {
+			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+		}
+
+		// can be null
+		User user = userService.getByUuid(uuid);
+		itSystem.setSystemOwner(user);
 		itSystemService.save(itSystem);
 
 		return new ResponseEntity<>(HttpStatus.OK);

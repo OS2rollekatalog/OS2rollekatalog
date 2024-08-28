@@ -1,9 +1,11 @@
 package dk.digitalidentity.rc.service;
 
 import dk.digitalidentity.rc.dao.UserRoleDao;
+import dk.digitalidentity.rc.dao.model.ConstraintType;
 import dk.digitalidentity.rc.dao.model.ItSystem;
 import dk.digitalidentity.rc.dao.model.SystemRole;
 import dk.digitalidentity.rc.dao.model.SystemRoleAssignment;
+import dk.digitalidentity.rc.dao.model.SystemRoleAssignmentConstraintValue;
 import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserRole;
 import dk.digitalidentity.rc.log.AuditLogIntercepted;
@@ -26,6 +28,36 @@ public class UserRoleService {
 
 	@Autowired
 	private ItSystemService itSystemService;
+
+	public Optional<SystemRoleAssignmentConstraintValue> findConstraintValue(final ConstraintType constraintType, final SystemRoleAssignment assignment) {
+		return assignment.getConstraintValues().stream()
+				.filter(c -> c.getConstraintType().getUuid().equals(constraintType.getUuid()))
+				.findFirst();
+	}
+
+	@AuditLogIntercepted
+	public void addSystemRoleConstraint(final SystemRoleAssignment assignment, final SystemRoleAssignmentConstraintValue constraintValue) {
+		assignment.getConstraintValues().add(constraintValue);
+	}
+
+	@AuditLogIntercepted
+	public void updateSystemRoleConstraint(final SystemRoleAssignment assignment, final SystemRoleAssignmentConstraintValue constraintValue) {
+		final SystemRoleAssignmentConstraintValue foundConstraint = findConstraintValue(constraintValue.getConstraintType(), assignment)
+				.orElseThrow(IllegalArgumentException::new);
+		foundConstraint.setConstraintValue(constraintValue.getConstraintValue());
+		foundConstraint.setSystemRoleAssignment(constraintValue.getSystemRoleAssignment());
+		foundConstraint.setConstraintType(constraintValue.getConstraintType());
+		foundConstraint.setConstraintValueType(constraintValue.getConstraintValueType());
+		foundConstraint.setPostponed(constraintValue.isPostponed());
+		foundConstraint.setConstraintIdentifier(constraintValue.getConstraintIdentifier());
+		assignment.getConstraintValues().add(foundConstraint);
+	}
+
+	@AuditLogIntercepted
+	public void removeSystemRoleConstraint(final SystemRoleAssignment assignment, final ConstraintType type) {
+		findConstraintValue(type, assignment)
+				.ifPresent(c -> assignment.getConstraintValues().remove(c));
+	}
 
 	@AuditLogIntercepted
 	public boolean addSystemRoleAssignment(UserRole userRole, SystemRoleAssignment systemRoleAssignment) {

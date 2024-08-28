@@ -148,8 +148,8 @@ public class RolePostProcessor implements SamlLoginPostProcessor {
 			authorities.add(new SamlGrantedAuthority(Constants.ROLE_READ_ACCESS));
 		}
 
-		// Users without roles but with assigned Reports templates
-		if (roles.size() == 0 && reportTemplateService.getByUser(user).size() > 0) {
+		// Users without report access but with assigned Reports templates
+		if (!roles.contains(Constants.ROLE_REPORT_ACCESS_ID) && !roles.contains(Constants.ROLE_ADMINISTRATOR) && !reportTemplateService.getByUser(user).isEmpty()) {
 			authorities.add(new SamlGrantedAuthority(Constants.ROLE_TEMPLATE_ACCESS));
 		}
 
