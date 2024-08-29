@@ -36,12 +36,12 @@ public class EmailService {
 	private RoleCatalogueConfiguration configuration;
 
 	@Async
-	public void sendMessage(String email, String subject, String message) {
-		sendMessage(email, subject, message, new ArrayList<InlineImageDTO>());
+	public void sendMessage(String email, String subject, String message, String cc) {
+		sendMessage(email, subject, message, new ArrayList<InlineImageDTO>(), cc);
 	}
 	
 	@Async
-	public void sendMessage(String email, String subject, String message, List<InlineImageDTO> inlineImages) {
+	public void sendMessage(String email, String subject, String message, List<InlineImageDTO> inlineImages, String cc) {
 		if (!configuration.getIntegrations().getEmail().isEnabled()) {
 			log.warn("email server is not configured - not sending emails!");
 			return;
@@ -52,21 +52,27 @@ public class EmailService {
 			return;
 		}
 		
-		log.info("Sending email '" + subject + "' to '" + email + "'");
+		log.info("Sending email '" + subject + "' to '" + email + "'" + (StringUtils.hasLength(cc) ? " and CC: '" + cc + "'" : ""));
 
 		Transport transport = null;
 		try {
 			Properties props = System.getProperties();
-			props.put("mail.transport.protocol", "smtps");
-			props.put("mail.smtp.port", 25);
-			props.put("mail.smtp.auth", "true");
-			props.put("mail.smtp.starttls.enable", "true");
-			props.put("mail.smtp.starttls.required", "true");
-			Session session = Session.getDefaultInstance(props);
+			String protocol = configuration.getIntegrations().getEmail().getProtocol();
+			props.put("mail.transport.protocol", protocol);
+			props.put("mail."+protocol+".port", "" + configuration.getIntegrations().getEmail().getPort());
+			props.put("mail."+protocol+".auth", configuration.getIntegrations().getEmail().isAuth() ? "true" : "false");
+			props.put("mail."+protocol+".starttls.enable", configuration.getIntegrations().getEmail().isStartTlsEnabled() ? "true" : "false");
+			props.put("mail."+protocol+".starttls.required", configuration.getIntegrations().getEmail().isStartTlsRequired() ? "true" : "false");
+			Session session = Session.getInstance(props);
 
 			MimeMessage msg = new MimeMessage(session);
 			msg.setFrom(new InternetAddress(configuration.getIntegrations().getEmail().getFrom(), "OS2rollekatalog"));
 			msg.setRecipients(Message.RecipientType.TO, InternetAddress.parse(email));
+
+			if (StringUtils.hasLength(cc)) {
+				msg.setRecipients(Message.RecipientType.CC, InternetAddress.parse(cc));
+			}
+
 			msg.setSubject(subject, "UTF-8");
 
 			MimeBodyPart messageBodyPart = new MimeBodyPart();
@@ -119,12 +125,12 @@ public class EmailService {
 	}
 
 	@Async
-	public void sendMessageWithAttachments(String email, String subject, String message, List<AttachmentFile> attachments) {
-		sendMessageWithAttachments(email, subject, message, attachments, new ArrayList<InlineImageDTO>());
+	public void sendMessageWithAttachments(String email, String subject, String message, List<AttachmentFile> attachments, String cc) {
+		sendMessageWithAttachments(email, subject, message, attachments, new ArrayList<InlineImageDTO>(), cc);
 	}
 	
 	@Async
-	public void sendMessageWithAttachments(String email, String subject, String message, List<AttachmentFile> attachments, List<InlineImageDTO> inlineImages) {
+	public void sendMessageWithAttachments(String email, String subject, String message, List<AttachmentFile> attachments, List<InlineImageDTO> inlineImages, String cc) {
 		if (!configuration.getIntegrations().getEmail().isEnabled()) {
 			log.warn("email server is not configured - not sending emails!");
 			return;
@@ -149,6 +155,11 @@ public class EmailService {
 			MimeMessage msg = new MimeMessage(session);
 			msg.setFrom(new InternetAddress(configuration.getIntegrations().getEmail().getFrom(), "OS2rollekatalog"));
 			msg.setRecipients(Message.RecipientType.TO, InternetAddress.parse(email));
+			
+			if (StringUtils.hasLength(cc)) {
+				msg.setRecipients(Message.RecipientType.CC, InternetAddress.parse(cc));
+			}
+			
 			msg.setSubject(subject, "UTF-8");
 
 			MimeBodyPart htmlBodyPart = new MimeBodyPart();
@@ -195,7 +206,7 @@ public class EmailService {
 			transport.addTransportListener(new TransportErrorHandler());
 			transport.sendMessage(msg, msg.getAllRecipients());
 			
-			log.info("Sending email '" + subject + "' to " + email);
+			log.info("Sending email '" + subject + "' to '" + email + "'" + (StringUtils.hasLength(cc) ? " and CC: '" + cc + "'" : ""));
 		}
 		catch (Exception ex) {
 			log.error("Failed to send email", ex);

@@ -4,11 +4,15 @@ import java.util.Date;
 import java.util.List;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 
 import dk.digitalidentity.rc.dao.model.AuditLog;
 
 public interface AuditLogEntryDao extends JpaRepository<AuditLog, Long> {
+
+	@Modifying
+	@Query(value = "DELETE FROM audit_log WHERE timestamp < ?1 LIMIT 25000 ", nativeQuery = true)
 	void deleteByTimestampBefore(Date before);
 
 	@Query(value = "SELECT max(id) FROM audit_log", nativeQuery = true)

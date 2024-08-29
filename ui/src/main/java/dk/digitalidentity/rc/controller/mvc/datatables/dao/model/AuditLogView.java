@@ -43,4 +43,7 @@ public class AuditLogView {
 	@Column
 	private String secondaryEntityName;
 
+	@Column
+	private String description;
+
 }

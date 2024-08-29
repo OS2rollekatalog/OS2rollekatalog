@@ -56,5 +56,20 @@
     <Setting Name="ReadAltSecIdentities" Type="System.Boolean" Scope="Application">
       <Value Profile="(Default)">False</Value>
     </Setting>
+    <setting name="UsePAM" Type="System.Boolean" Scope="Application">
+      <value Profile="(Default)">False</value>
+    </setting>
+    <setting name="CyberArkAppId" Type="System.String" Scope="Application">
+      <Value Profile="(Default)" />
+    </setting>
+    <setting name="CyberArkSafe" Type="System.String" Scope="Application">
+      <Value Profile="(Default)" />
+    </setting>
+    <setting name="CyberArkObject" Type="System.String" Scope="Application">
+      <Value Profile="(Default)" />
+    </setting>
+    <setting name="CyberArkAPI" Type="System.String" Scope="Application">
+      <Value Profile="(Default)" />
+    </setting>
   </Settings>
 </SettingsFile>

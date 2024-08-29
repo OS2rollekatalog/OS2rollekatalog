@@ -12,6 +12,8 @@ import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
 import java.util.Date;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @Component
 public class AuditLogger {
@@ -19,23 +21,15 @@ public class AuditLogger {
 	@Autowired
 	private AuditLogEntryDao auditLogEntryDao;
 
-	public void log(AuditLoggable entity, EventType eventType, String description) {
-		log(entity, eventType, null, description, null);
-	}
-
 	public void log(AuditLoggable entity, EventType eventType) {
-		log(entity, eventType, null, null, null);
+		log(entity, eventType, null, null);
 	}
 	
 	public void log(AuditLoggable entity, EventType eventType, AuditLoggable secondaryEntity) {
-		log(entity, eventType, secondaryEntity, null, null);
+		log(entity, eventType, secondaryEntity, null);
 	}
 
-	public void log(AuditLoggable entity, EventType eventType, AuditLoggable secondaryEntity, String stopDateUser) {
-		log(entity, eventType, secondaryEntity, null, stopDateUser);
-	}
-
-	public void log(AuditLoggable entity, EventType eventType, AuditLoggable secondaryEntity, String description, String stopdateUser) {
+	public void log(AuditLoggable entity, EventType eventType, AuditLoggable secondaryEntity, String stopdateUser) {
 		String user = null;
 		String loggedInUser = SecurityContextHolder.getContext().getAuthentication() == null
 				? "system"
@@ -63,9 +57,19 @@ public class AuditLogger {
 			entry.setSecondaryEntityName(secondaryEntity.getEntityName());
 		}
 
-		entry.setDescription(description);
+		entry.setDescription(buildDescription());
 		
 		auditLogEntryDao.save(entry);
+	}
+
+	private static String buildDescription() {
+		final Map<String, String> arguments = AuditLogContextHolder.getContext().getArguments();
+		if (arguments != null) {
+			return arguments.entrySet().stream()
+					.map(e -> e.getKey() + "=" + e.getValue())
+					.collect(Collectors.joining(", "));
+		}
+		return null;
 	}
 
 	private static String extractPrincipal() {

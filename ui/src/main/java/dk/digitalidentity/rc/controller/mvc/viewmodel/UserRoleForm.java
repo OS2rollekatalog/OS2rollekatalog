@@ -33,7 +33,8 @@ public class UserRoleForm {
     private boolean sendToSubstitutes;
     private boolean sendToAuthorizationManagers;
     private String emailTemplateTitle = "Der er tildelt en rolle der kræver leder-involvering";
-    private String emailTemplateMessage = "Kære {modtager}\n<br/>\n<br/>\nRollen {rolle}, der kræver leder-involvering, er tildelt til {bruger}.";
+	private String emailTemplateMessage = "Kære {modtager}\n<br/>\n<br/>\nRollen {rolle}, der kræver leder-involvering, er tildelt til {bruger}.";
+	private boolean roleAssignmentAttestationByAttestationResponsible;
 
 	@Size(max = 4000)
 	private String description;
@@ -64,6 +65,7 @@ public class UserRoleForm {
     	this.requireManagerAction = userRole.isRequireManagerAction();
     	this.sendToSubstitutes = userRole.isSendToSubstitutes();
     	this.sendToAuthorizationManagers = userRole.isSendToAuthorizationManagers();
+		this.roleAssignmentAttestationByAttestationResponsible = userRole.isRoleAssignmentAttestationByAttestationResponsible();
 
     	if (userRole.getUserRoleEmailTemplate() != null) {
     		this.emailTemplateTitle = userRole.getUserRoleEmailTemplate().getTitle();
@@ -89,7 +91,7 @@ public class UserRoleForm {
     	userRole.setRequireManagerAction(this.requireManagerAction);
     	userRole.setSendToSubstitutes(this.sendToSubstitutes);
     	userRole.setSendToAuthorizationManagers(this.sendToAuthorizationManagers);
-    	
+    	userRole.setRoleAssignmentAttestationByAttestationResponsible(this.roleAssignmentAttestationByAttestationResponsible);
     	if (this.isRequireManagerAction()) {
     		UserRoleEmailTemplate template = new UserRoleEmailTemplate();
     		template.setTitle(this.emailTemplateTitle);

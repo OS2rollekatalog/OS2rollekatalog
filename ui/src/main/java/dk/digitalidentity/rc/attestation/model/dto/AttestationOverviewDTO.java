@@ -15,6 +15,7 @@ import java.util.List;
 @NoArgsConstructor
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class AttestationOverviewDTO {
+    private LocalDate createdAt;
     private boolean readOnly;
     private String name;
     private String id;
@@ -23,10 +24,8 @@ public class AttestationOverviewDTO {
     private long totalNumber;
     private LocalDate deadline;
     private boolean passedDeadline;
-    private boolean orgUnitRolesVerified;
     private List<String> substitutes;
 
-    // theese fields are only relevant for itSystemRoleAssignmentAttestation
     private long orgUnitNumberAttestated;
     private long orgUnitNumberToAttestate;
     private long orgUnitTotalNumber;

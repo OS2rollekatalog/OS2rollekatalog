@@ -15,6 +15,7 @@ import java.util.List;
 @NoArgsConstructor
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class ItSystemAttestationDTO {
+    LocalDate createdAt;
     private String attestationUuid;
     private long itSystemId;
     private String itSystemName;

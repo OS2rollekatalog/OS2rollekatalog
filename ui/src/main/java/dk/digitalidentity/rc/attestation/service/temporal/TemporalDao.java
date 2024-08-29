@@ -17,6 +17,7 @@ import dk.digitalidentity.rc.attestation.service.temporal.rowmapper.HistorySyste
 import dk.digitalidentity.rc.attestation.service.temporal.rowmapper.HistorySystemRoleAssignmentRowMapper;
 import dk.digitalidentity.rc.attestation.service.temporal.rowmapper.HistoryUserRoleRowMapper;
 import dk.digitalidentity.rc.attestation.service.temporal.rowmapper.IdRowMapper;
+import dk.digitalidentity.rc.attestation.service.temporal.rowmapper.OrgUnitRowMapper;
 import dk.digitalidentity.rc.attestation.service.temporal.rowmapper.RowMapperUtils;
 import dk.digitalidentity.rc.dao.history.model.HistoryItSystem;
 import dk.digitalidentity.rc.dao.history.model.HistoryOU;
@@ -28,6 +29,7 @@ import dk.digitalidentity.rc.dao.history.model.HistoryRoleAssignment;
 import dk.digitalidentity.rc.dao.history.model.HistorySystemRoleAssignment;
 import dk.digitalidentity.rc.dao.history.model.HistorySystemRoleAssignmentConstraint;
 import dk.digitalidentity.rc.dao.history.model.HistoryUserRole;
+import dk.digitalidentity.rc.dao.model.OrgUnit;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
@@ -38,6 +40,7 @@ import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 @Service
 public class TemporalDao {
@@ -60,7 +63,19 @@ public class TemporalDao {
     private final AttestationUserRoleAssignmentRowMapper attestationUserRoleAssignmentRowMapper = new AttestationUserRoleAssignmentRowMapper();
     private final AttestationOuRoleAssignmentRowMapper attestationOuRoleAssignmentRowMapper = new AttestationOuRoleAssignmentRowMapper();
     private final AttestationSystemRoleAssignmentRowMapper attestationSystemRoleAssignmentRowMapper = new AttestationSystemRoleAssignmentRowMapper();
+
+    private final OrgUnitRowMapper orgUnitRowMapper = new OrgUnitRowMapper();
     private final IdRowMapper idRowMapper = new IdRowMapper();
+
+    public Optional<OrgUnit> findActiveOUByUuid(final String uuid) {
+        final List<OrgUnit> foundOus = jdbcTemplate.query("SELECT ou.* FROM ous ou WHERE uuid=? and active=1", orgUnitRowMapper, uuid);
+        return !foundOus.isEmpty() ? Optional.of(foundOus.getFirst()) : Optional.empty();
+    }
+
+    public Optional<HistoryOU> findHistoricOUByUuid(final LocalDate when, final String uuid) {
+        final List<HistoryOU> foundOus = jdbcTemplate.query("SELECT hou.* FROM history_ous hou WHERE hou.dato=? and hou.ou_uuid=?", historyOURowMapper, when, uuid);
+        return !foundOus.isEmpty() ? Optional.of(foundOus.getFirst()) : Optional.empty();
+    }
 
 
     public List<HistoryOURoleAssignmentWithExceptions> listHistoryOURoleAssignmentWithExceptionsByDate(final LocalDate when) {

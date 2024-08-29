@@ -22,5 +22,8 @@ public class EmailTemplateDTO {
 	private String notes;
 	private String templateTypeText;
 	private boolean enabled;
+	private boolean allowDaysBeforeEvent;
+	private boolean allowDaysBeforeEventFeature;
+	private Integer daysBeforeEvent;
 	private List<EmailTemplatePlaceholder> emailTemplatePlaceholders;
 }

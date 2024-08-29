@@ -1,13 +1,13 @@
 package dk.digitalidentity.rc.attestation.dao;
 
 import dk.digitalidentity.rc.attestation.model.entity.temporal.AttestationUserRoleAssignment;
+import dk.digitalidentity.rc.attestation.model.dto.temporal.AttestationUserRoleAssignmentDto;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.CrudRepository;
 import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDate;
 import java.util.List;
-import java.util.stream.Stream;
 
 public interface AttestationUserRoleAssignmentDao extends CrudRepository<AttestationUserRoleAssignment, Long> {
 
@@ -48,27 +48,17 @@ public interface AttestationUserRoleAssignmentDao extends CrudRepository<Attesta
             "GROUP BY s.responsible_ou_uuid, s.user_uuid, s.inherited, s.sensitive_role, s.assigned_through_type) as sub on sub.sid = s2.id")
     List<AttestationUserRoleAssignment> findValidGroupByResponsibleOuAndUserUuidAndSensitiveRole(@Param("validAt") final LocalDate validAt);
 
-    @Query("SELECT a FROM AttestationUserRoleAssignment a WHERE a.itSystemId=:itSystemId AND a.validFrom<=:to AND (a.validTo > :from OR a.validTo is null)")
-    Stream<AttestationUserRoleAssignment> streamAssignmentValidBetweenForItSystem(@Param("itSystemId") final Long itSystemId,
-            @Param("from") final LocalDate from,
-            @Param("to") final LocalDate to);
+    @Query("SELECT a.id FROM AttestationUserRoleAssignment a WHERE a.itSystemId=:itSystemId AND a.validFrom<=:to AND (a.validTo > :from OR a.validTo is null) ORDER BY a.userId ASC, a.updatedAt DESC")
+    List<Long> listAssignmentValidBetweenForItSystem(@Param("itSystemId") final Long itSystemId, @Param("from") final LocalDate from, @Param("to") final LocalDate to);
 
-    @Query("SELECT a FROM AttestationUserRoleAssignment a WHERE a.roleOuUuid=:ouUuid AND a.validFrom<=:to AND (a.validTo > :from OR a.validTo is null)")
-    Stream<AttestationUserRoleAssignment> streamAssignmentValidBetweenForRoleOu(@Param("ouUuid") final String ouUuid,
-            @Param("from") final LocalDate from,
-            @Param("to") final LocalDate to);
-
-    @Query("SELECT a.id FROM AttestationUserRoleAssignment a WHERE a.responsibleOuUuid=:ouUuid AND a.validFrom<=:to AND (a.validTo > :from OR a.validTo is null)")
+    @Query("SELECT a.id FROM AttestationUserRoleAssignment a WHERE a.responsibleOuUuid=:ouUuid AND a.validFrom<=:to AND (a.validTo > :from OR a.validTo is null) ORDER BY a.userId ASC, a.updatedAt DESC")
     List<Long> listAssignmentIdsValidBetweenForRoleOu(@Param("ouUuid") final String ouUuid,
                                                       @Param("from") final LocalDate from,
                                                       @Param("to") final LocalDate to);
 
-    @Query("SELECT a FROM AttestationUserRoleAssignment a WHERE a.validFrom<=:to AND (a.validTo > :from OR a.validTo is null)")
-    Stream<AttestationUserRoleAssignment> streamAllAssignmentValidBetween(@Param("from") final LocalDate from, @Param("to") final LocalDate to);
-
-    @Query("SELECT a.id FROM AttestationUserRoleAssignment a WHERE a.validFrom<=:to AND (a.validTo > :from OR a.validTo is null)")
+    @Query("SELECT a.id FROM AttestationUserRoleAssignment a WHERE a.validFrom<=:to AND (a.validTo > :from OR a.validTo is null) ORDER BY a.userId ASC, a.updatedAt DESC")
     List<Long> listAssignmentIdsValidBetween(@Param("from") final LocalDate from, @Param("to") final LocalDate to);
 
-    List<AttestationUserRoleAssignment> findByIdIn(List<Long> ids);
+    List<AttestationUserRoleAssignmentDto> findByIdIn(List<Long> ids);
 
 }

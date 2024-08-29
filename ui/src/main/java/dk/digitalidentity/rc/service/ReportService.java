@@ -1,6 +1,24 @@
 package dk.digitalidentity.rc.service;
 
+import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.MessageSource;
+import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
+
 import dk.digitalidentity.rc.controller.mvc.viewmodel.ReportForm;
+import dk.digitalidentity.rc.dao.OrgUnitDao;
 import dk.digitalidentity.rc.dao.history.model.HistoryItSystem;
 import dk.digitalidentity.rc.dao.history.model.HistoryKleAssignment;
 import dk.digitalidentity.rc.dao.history.model.HistoryOU;
@@ -12,22 +30,9 @@ import dk.digitalidentity.rc.dao.history.model.HistoryOUUser;
 import dk.digitalidentity.rc.dao.history.model.HistoryRoleAssignment;
 import dk.digitalidentity.rc.dao.history.model.HistoryTitle;
 import dk.digitalidentity.rc.dao.history.model.HistoryUser;
+import dk.digitalidentity.rc.dao.model.OrgUnit;
 import dk.digitalidentity.rc.service.model.UserRoleAssignmentReportEntry;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.MessageSource;
-import org.springframework.stereotype.Service;
-import org.springframework.util.StringUtils;
-
-import java.time.LocalDate;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -44,6 +49,9 @@ public class ReportService {
 
 	@Autowired
 	private OrgUnitService orgUnitService;
+
+	@Autowired
+	private OrgUnitDao orgUnitDao;
 
 	// used to be part of ReportXlsView code, but moved here because our ManualRolesService also
 	// needs these computations
@@ -282,6 +290,27 @@ public class ReportService {
 			assignedThroughStr += ": " + roleAssignment.getAssignedThroughName();
 		}
 
+		String postponedConstraints = null;
+		
+		if (roleAssignment.getPostponedConstraints() != null) {
+			StringBuilder sb = new StringBuilder();
+			String regex = "Organisation: ([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})";
+			Pattern pattern = Pattern.compile(regex);
+			for (String line : roleAssignment.getPostponedConstraints().split("\\n")) {
+				Matcher matcher = pattern.matcher(line);
+				if (matcher.matches()) {
+					String orgUuid = matcher.group(1);
+					OrgUnit orgUnit = orgUnitDao.findById(orgUuid).orElse(null);
+					if (orgUnit != null) {
+						sb.append("Organisation: " + orgUnit.getName() + "\n");
+					}
+				} else {
+					sb.append(line + "\n");
+				}
+			}
+			postponedConstraints = sb.toString();
+		}
+
 		UserRoleAssignmentReportEntry row = new UserRoleAssignmentReportEntry();
 		row.setDomainId(user.getDomainId());
 		row.setUserName(user.getUserName());
@@ -295,7 +324,7 @@ public class ReportService {
 		row.setAssignedBy(assignedBy);
 		row.setAssignedWhen(roleAssignment.getAssignedWhen());
 		row.setAssignedThrough(assignedThroughStr);
-		row.setPostponedConstraints(roleAssignment.getPostponedConstraints());
+		row.setPostponedConstraints(postponedConstraints);
 		row.setStartDate(roleAssignment.getStartDate());
 		row.setStopDate(roleAssignment.getStopDate());
 		result.add(row);

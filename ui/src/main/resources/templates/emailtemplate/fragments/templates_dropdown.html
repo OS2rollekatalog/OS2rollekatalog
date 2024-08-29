@@ -1,0 +1,5 @@
+<th:block th:fragment="templates_dropdown" xmlns="http://www.w3.org/1999/xhtml" xmlns:th="http://www.thymeleaf.org">
+	<select class="form-control m-b col-sm-8" id="templateDropdown">
+		<option th:each="template : ${templates}" th:value="${template.id}" th:text="${@emailTemplateService.getTemplateName(template.id)}"></option>
+	</select>
+</th:block>

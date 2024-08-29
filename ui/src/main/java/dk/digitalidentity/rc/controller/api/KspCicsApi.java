@@ -1,5 +1,10 @@
 package dk.digitalidentity.rc.controller.api;
 
+import dk.digitalidentity.rc.controller.api.dto.ChangeCicsPasswordDTO;
+import dk.digitalidentity.rc.security.RequireApiCicsAdminRole;
+import dk.digitalidentity.rc.service.cics.KspCicsService;
+import dk.digitalidentity.rc.service.cics.model.KspChangePasswordResponse;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -8,13 +13,9 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.RestController;
 
-import dk.digitalidentity.rc.controller.api.dto.ChangeCicsPasswordDTO;
-import dk.digitalidentity.rc.security.RequireApiCicsAdminRole;
-import dk.digitalidentity.rc.service.cics.KspCicsService;
-import dk.digitalidentity.rc.service.cics.model.KspChangePasswordResponse;
-
 @RequireApiCicsAdminRole
 @RestController
+@SecurityRequirement(name = "ApiKey")
 public class KspCicsApi {
 
 	@Autowired

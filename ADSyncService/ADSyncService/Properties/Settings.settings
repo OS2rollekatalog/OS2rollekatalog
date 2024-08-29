@@ -1,4 +1,4 @@
-﻿<?xml version='1.0' encoding='utf-8'?>
+﻿<?xml version="1.0" encoding="UTF-8"?>
 <SettingsFile xmlns="http://schemas.microsoft.com/VisualStudio/2004/01/settings" CurrentProfile="(Default)" GeneratedClassNamespace="ADSyncService.Properties" GeneratedClassName="Settings">
   <Profiles />
   <Settings>
@@ -51,27 +51,27 @@
       <Value Profile="(Default)" />
     </Setting>
     <Setting Name="MembershipSyncFeature_AttributeMap" Type="System.Collections.Specialized.StringCollection" Scope="Application">
-      <Value Profile="(Default)">&lt;?xml version="1.0" encoding="utf-16"?&gt;
-&lt;ArrayOfString xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"&gt;
+      <Value Profile="(Default)">&lt;?xml version=&quot;1.0&quot; encoding=&quot;utf-16&quot;?&gt;
+&lt;ArrayOfString xmlns:xsd=&quot;http://www.w3.org/2001/XMLSchema&quot; xmlns:xsi=&quot;http://www.w3.org/2001/XMLSchema-instance&quot;&gt;
   &lt;string&gt;someGroupName;someAttribute;someAttributeValue&lt;/string&gt;
 &lt;/ArrayOfString&gt;</Value>
     </Setting>
     <Setting Name="BackSyncFeature_OUs" Type="System.Collections.Specialized.StringCollection" Scope="Application">
-      <Value Profile="(Default)">&lt;?xml version="1.0" encoding="utf-16"?&gt;
-&lt;ArrayOfString xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"&gt;
+      <Value Profile="(Default)">&lt;?xml version=&quot;1.0&quot; encoding=&quot;utf-16&quot;?&gt;
+&lt;ArrayOfString xmlns:xsd=&quot;http://www.w3.org/2001/XMLSchema&quot; xmlns:xsi=&quot;http://www.w3.org/2001/XMLSchema-instance&quot;&gt;
   &lt;string&gt;2399;OU=system1,OU=Groups,DC=digitalidentity,DC=dk&lt;/string&gt;
   &lt;string&gt;2400;OU=system2,OU=Groups,DC=digitalidentity,DC=dk&lt;/string&gt;
 &lt;/ArrayOfString&gt;</Value>
     </Setting>
     <Setting Name="ItSystemGroupFeature_SystemMap" Type="System.Collections.Specialized.StringCollection" Scope="Application">
-      <Value Profile="(Default)">&lt;?xml version="1.0" encoding="utf-16"?&gt;
-&lt;ArrayOfString xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"&gt;
+      <Value Profile="(Default)">&lt;?xml version=&quot;1.0&quot; encoding=&quot;utf-16&quot;?&gt;
+&lt;ArrayOfString xmlns:xsd=&quot;http://www.w3.org/2001/XMLSchema&quot; xmlns:xsi=&quot;http://www.w3.org/2001/XMLSchema-instance&quot;&gt;
   &lt;string&gt;1;CN=ItSystemOne,OU=Groups,DC=digitalidentity,DC=dk&lt;/string&gt;
 &lt;/ArrayOfString&gt;</Value>
     </Setting>
     <Setting Name="ReadonlyItSystemFeature_SystemMap" Type="System.Collections.Specialized.StringCollection" Scope="Application">
-      <Value Profile="(Default)">&lt;?xml version="1.0" encoding="utf-16"?&gt;
-&lt;ArrayOfString xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"&gt;
+      <Value Profile="(Default)">&lt;?xml version=&quot;1.0&quot; encoding=&quot;utf-16&quot;?&gt;
+&lt;ArrayOfString xmlns:xsd=&quot;http://www.w3.org/2001/XMLSchema&quot; xmlns:xsi=&quot;http://www.w3.org/2001/XMLSchema-instance&quot;&gt;
   &lt;string&gt;2408;OU=subgroup1,OU=groups,DC=digitalidentity,DC=dk&lt;/string&gt;
   &lt;string&gt;2409;OU=subgroup2,OU=groups,DC=digitalidentity,DC=dk&lt;/string&gt;
 &lt;/ArrayOfString&gt;</Value>
@@ -79,5 +79,54 @@
     <Setting Name="BackSyncFeature_GroupsInGroupOnSync" Type="System.Boolean" Scope="Application">
       <Value Profile="(Default)">True</Value>
     </Setting>
+    <setting name="UsePAM" Type="System.Boolean" Scope="Application">
+      <value Profile="(Default)">False</value>
+    </setting>
+    <setting name="CyberArkAppId" Type="System.String" Scope="Application">
+      <Value Profile="(Default)" />
+    </setting>
+    <setting name="CyberArkSafe" Type="System.String" Scope="Application">
+      <Value Profile="(Default)" />
+    </setting>
+    <setting name="CyberArkObject" Type="System.String" Scope="Application">
+      <Value Profile="(Default)" />
+    </setting>
+    <setting name="CyberArkAPI" Type="System.String" Scope="Application">
+      <Value Profile="(Default)" />
+    </setting>
+    <setting name="LogUploaderEnabled" Type="System.Boolean" Scope="Application">
+      <value Profile="(Default)">False</value>
+    </setting>
+    <setting name="LogUploaderFileShareUrl" Type="System.String" Scope="Application">
+      <Value Profile="(Default)" />
+    </setting>
+    <setting name="LogUploaderFileShareApiKey" Type="System.String" Scope="Application">
+      <Value Profile="(Default)" />
+    </setting>
+    <Setting Name="LogUploaderEnabled" Type="System.Boolean" Scope="Application">
+      <Value Profile="(Default)">False</Value>
+    </Setting>
+    <Setting Name="LogUploaderFileShareUrl" Type="System.String" Scope="Application">
+      <Value Profile="(Default)" />
+    </Setting>
+    <Setting Name="LogUploaderFileShareApiKey" Type="System.String" Scope="Application">
+      <Value Profile="(Default)" />
+    </Setting>
+    <Setting Name="UsePAM" Type="System.Boolean" Scope="Application">
+      <Value Profile="(Default)">False</Value>
+    </Setting>
+    <Setting Name="CyberArkAppId" Type="System.String" Scope="Application">
+      <Value Profile="(Default)" />
+    </Setting>
+    <Setting Name="CyberArkSafe" Type="System.String" Scope="Application">
+      <Value Profile="(Default)" />
+    </Setting>
+    <Setting Name="CyberArkObject" Type="System.String" Scope="Application">
+      <Value Profile="(Default)" />
+    </Setting>
+    <Setting Name="CyberArkAPI" Type="System.String" Scope="Application">
+      <Value Profile="(Default)" />
+    </Setting>
   </Settings>
 </SettingsFile>
+

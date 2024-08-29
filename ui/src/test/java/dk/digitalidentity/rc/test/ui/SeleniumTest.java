@@ -104,10 +104,10 @@ public class SeleniumTest {
             driver.executeScript("HRD.selection('AD AUTHORITY')");
 
         }
-        if (driver.getTitle().equals("Sign In")) {
-            WebElement usernameInputBox = driver.findElement(By.name("UserName"));
-            WebElement passwordInputBox = driver.findElement(By.name("Password"));
-            WebElement submitButton = driver.findElement(By.id("submitButton"));
+        if (driver.getTitle().equals("OS2faktor")) {
+            WebElement usernameInputBox = driver.findElement(By.name("username"));
+            WebElement passwordInputBox = driver.findElement(By.name("password"));
+            WebElement submitButton = driver.findElement(By.className("btn-primary"));
 
             usernameInputBox.click();
             usernameInputBox.clear();

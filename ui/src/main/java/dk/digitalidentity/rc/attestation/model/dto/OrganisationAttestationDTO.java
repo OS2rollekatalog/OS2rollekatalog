@@ -15,6 +15,7 @@ import java.util.List;
 @NoArgsConstructor
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class OrganisationAttestationDTO {
+    private LocalDate createdAt;
     private String attestationUuid;
     private String ouUuid;
     private String ouName;

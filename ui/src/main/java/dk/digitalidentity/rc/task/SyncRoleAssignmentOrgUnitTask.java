@@ -28,9 +28,12 @@ public class SyncRoleAssignmentOrgUnitTask {
 			log.debug("Scheduled jobs are disabled on this instance");
 			return;
 		}
-		performSyncOrgUnitOnRoleAssignments();
+		updateOrgUnitOnRoleAssignments();
 		if (configuration.isRemoveRolesAssignmentsWithoutOU()) {
 			cleanupRoleAssignmentsWithoutOU();
+		}
+		if (configuration.isAssignResponsibleOuOnAssignmentsIfMissing()) {
+			assignResponsibleOuIfMissing();
 		}
 	}
 
@@ -43,7 +46,16 @@ public class SyncRoleAssignmentOrgUnitTask {
 			log.debug("Scheduled jobs are disabled on this instance");
 			return;
 		}
-		performSyncOrgUnitOnRoleAssignments();
+		if (configuration.isAssignResponsibleOuOnAssignmentsIfMissing()) {
+			assignResponsibleOuIfMissing();
+		}
+		updateOrgUnitOnRoleAssignments();
+	}
+
+	private void assignResponsibleOuIfMissing() {
+		log.info("Assigning OU to direct assignments started");
+		orgUnitService.assignResponsibleOuOnAssignments();
+		log.info("Assigning OU to direct assignments completed");
 	}
 
 	private void cleanupRoleAssignmentsWithoutOU() {
@@ -52,9 +64,9 @@ public class SyncRoleAssignmentOrgUnitTask {
 		log.info("Removing assignments without OU completed");
 	}
 
-	private void performSyncOrgUnitOnRoleAssignments() {
-		log.info("Syncing OrgUnit on role assignments started");
-		orgUnitService.syncOrgUnitOnRoleAssignments();
-		log.info("Syncing OrgUnit on role assignments completed");
+	private void updateOrgUnitOnRoleAssignments() {
+		log.info("Updating OrgUnit on role assignments started");
+		orgUnitService.updateOrgUnitOnRoleAssignments();
+		log.info("Updating OrgUnit on role assignments completed");
 	}
 }

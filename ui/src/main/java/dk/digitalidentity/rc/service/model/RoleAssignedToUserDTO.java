@@ -29,6 +29,7 @@ public class RoleAssignedToUserDTO {
 	private LocalDate startDate;
 	private LocalDate stopDate;
 	private boolean canEdit;
+	private boolean canRequest;
 	private List<SystemRoleAssignmentDTO> systemRoleAssignments;
 	private boolean ineffective = false;
 
@@ -45,6 +46,7 @@ public class RoleAssignedToUserDTO {
 		dto.setAssignedThroughName(assignment.getRoleGroup().getName());
 		dto.setItSystem(assignment.getUserRole().getItSystem());
 		dto.setDescription(assignment.getUserRole().getDescription());
+		dto.setCanRequest(assignment.getUserRole().isCanRequest());
 		dto.setStartDate(startDate);
 		dto.setStopDate(stopDate);
 		dto.setCanEdit(false);
@@ -64,6 +66,7 @@ public class RoleAssignedToUserDTO {
 		dto.setStartDate(assignment.getStartDate());
 		dto.setStopDate(assignment.getStopDate());
 		dto.setCanEdit(false);
+		dto.setCanRequest(assignment.getUserRole().isCanRequest());
 		dto.setOrgUnitUuid(assignment.getOrgUnit() != null ? assignment.getOrgUnit().getUuid() : null);
 		
 		return dto;
@@ -80,6 +83,7 @@ public class RoleAssignedToUserDTO {
 		dto.setStartDate(assignment.getStartDate());
 		dto.setStopDate(assignment.getStopDate());
 		dto.setCanEdit(false);
+		dto.setCanRequest(assignment.getRoleGroup().isCanRequest());
 		dto.setOrgUnitUuid(assignment.getOrgUnit() != null ? assignment.getOrgUnit().getUuid() : null);
 		
 		return dto;
@@ -97,6 +101,7 @@ public class RoleAssignedToUserDTO {
 		dto.setStartDate(assignment.getStartDate());
 		dto.setStopDate(assignment.getStopDate());
 		dto.setCanEdit(false);
+		dto.setCanRequest(false);
 		
 		return dto;
 	}
@@ -112,6 +117,7 @@ public class RoleAssignedToUserDTO {
 		dto.setStartDate(assignment.getStartDate());
 		dto.setStopDate(assignment.getStopDate());
 		dto.setCanEdit(false);
+		dto.setCanRequest(false);
 		
 		return dto;
 	}
@@ -136,6 +142,7 @@ public class RoleAssignedToUserDTO {
 		dto.setStartDate(assignment.getStartDate());
 		dto.setStopDate(assignment.getStopDate());
 		dto.setCanEdit(false);
+		dto.setCanRequest(false);
 		
 		return dto;
 	}
@@ -159,6 +166,7 @@ public class RoleAssignedToUserDTO {
 		dto.setStartDate(assignment.getStartDate());
 		dto.setStopDate(assignment.getStopDate());
 		dto.setCanEdit(false);
+		dto.setCanRequest(false);
 		
 		return dto;
 	}

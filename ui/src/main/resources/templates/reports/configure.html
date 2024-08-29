@@ -317,6 +317,11 @@
 			}
 
 			this.saveTemplate = function() {
+				let unitFilter = []
+				let ous = $('#realOUs').val();
+				if (ous !== '') {
+					unitFilter = ous.split(",");
+				}
 				var dataObj = {
 					"name": $('#templateName').val(),
 					"showUsers": $('#realShowUsers').val(),
@@ -327,7 +332,7 @@
 					"showInactiveUsers": $('#realShowInactiveUsers').val(),
 					"itsystemFilter" : $('#itSystemSelectPicker').val(),
 					"managerFilter": $('#managerSelect').val(),
-					"unitFilter" : $('#hierarchy').jstree("get_top_selected")
+					"unitFilter" : unitFilter
 				}
 
 				templateService.closeSaveTemplate();

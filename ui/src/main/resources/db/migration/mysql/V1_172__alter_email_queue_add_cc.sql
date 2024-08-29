@@ -1,0 +1,1 @@
+ALTER TABLE email_queue ADD COLUMN cc TEXT NULL;

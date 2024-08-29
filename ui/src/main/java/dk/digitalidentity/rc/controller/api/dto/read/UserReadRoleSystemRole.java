@@ -10,5 +10,6 @@ import lombok.Setter;
 public class UserReadRoleSystemRole {	
 	private String roleName;
 	private String roleIdentifier;
+	private int weight;
 	private List<UserReadSystemRoleConstraintValue> roleConstraintValues;
 }

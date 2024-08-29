@@ -1,75 +1,93 @@
 package dk.digitalidentity.rc.attestation.service;
 
-import dk.digitalidentity.rc.attestation.dao.AttestationDao;
-import dk.digitalidentity.rc.attestation.model.entity.Attestation;
-import dk.digitalidentity.rc.dao.model.ItSystem;
-import dk.digitalidentity.rc.dao.model.OrgUnit;
-import dk.digitalidentity.rc.service.ItSystemService;
-import dk.digitalidentity.rc.service.OrgUnitService;
-import jakarta.persistence.EntityManager;
-import jakarta.persistence.FlushModeType;
-import jakarta.persistence.PersistenceContext;
+import static dk.digitalidentity.rc.attestation.service.AttestationOverviewService.buildItSystemOverview;
+import static dk.digitalidentity.rc.attestation.service.AttestationOverviewService.buildItSystemUsersOverview;
+
+import java.util.List;
+import java.util.Optional;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
-import java.util.Optional;
-import java.util.stream.Collectors;
+import dk.digitalidentity.rc.attestation.dao.AttestationDao;
+import dk.digitalidentity.rc.attestation.dao.AttestationRunDao;
+import dk.digitalidentity.rc.attestation.dao.ItSystemRoleAttestationEntryDao;
+import dk.digitalidentity.rc.attestation.dao.ItSystemUserAttestationEntryDao;
+import dk.digitalidentity.rc.attestation.dao.OrganisationUserAttestationEntryDao;
+
+import dk.digitalidentity.rc.attestation.model.AttestationMailMapper;
+import dk.digitalidentity.rc.attestation.model.dto.AdminAttestationDetailsDTO;
+import dk.digitalidentity.rc.attestation.model.dto.AttestationOverviewDTO;
+import dk.digitalidentity.rc.attestation.model.dto.enums.AdminAttestationStatus;
+import dk.digitalidentity.rc.attestation.model.entity.Attestation;
+import dk.digitalidentity.rc.attestation.model.entity.AttestationRun;
 
 @Service
 public class AttestationAdminService {
-
     @Autowired
     private AttestationDao attestationDao;
-
     @Autowired
-    private OrgUnitService orgUnitService;
-
+    private OrganisationUserAttestationEntryDao organisationUserAttestationEntryDao;
     @Autowired
-    private ItSystemService itSystemService;
+    private ItSystemUserAttestationEntryDao itSystemUserAttestationEntryDao;
+    @Autowired
+    private ItSystemRoleAttestationEntryDao itSystemRoleAttestationEntryDao;
+    @Autowired
+    private AttestationRunDao attestationRunDao;
+    @Autowired
+    private ItSystemUserRolesAttestationService itSystemUserRolesAttestationService;
+    @Autowired
+    private ItSystemUsersAttestationService itSystemUsersAttestationService;
+    @Autowired
+    private OrganisationAttestationService organisationAttestationService;
+    @Autowired
+    private AttestationOverviewService attestationOverviewService;
+    @Autowired
+    private AttestationMailMapper mailMapper;
 
-    @PersistenceContext
-    private EntityManager entityManager;
+    public List<AttestationRun> findNewestRuns(final int limit) {
+        return attestationRunDao.findLatestRuns(limit);
+    }
 
-    @Transactional
-    public List<Attestation> findAllCurrentOrganisationAttestations() {
-        entityManager.setFlushMode(FlushModeType.COMMIT);
-        return orgUnitService.getAllCached().stream()
-                .map(this::findAttestation)
-                .filter(Optional::isPresent)
-                .map(Optional::get)
-                .collect(Collectors.toList());
+    public Optional<Attestation> getAttestation(final Long attestationId) {
+        return attestationDao.findById(attestationId);
     }
 
     @Transactional
-    public List<Attestation> findAllCurrentItSystemRoleAttestations() {
-        entityManager.setFlushMode(FlushModeType.COMMIT);
-        return itSystemService.getAll().stream()
-                .map(this::findItSystemRolesAttestation)
-                .filter(Optional::isPresent)
-                .map(Optional::get)
-                .collect(Collectors.toList());
+    public AdminAttestationDetailsDTO findAttestationDetails(final Attestation attestation) {
+        final AttestationOverviewDTO overview = switch (attestation.getAttestationType()) {
+            case ORGANISATION_ATTESTATION -> attestationOverviewService.buildOrgUnitOverview(organisationAttestationService.getAttestation(attestation, "", false), true);
+            case IT_SYSTEM_ROLES_ATTESTATION -> buildItSystemOverview(itSystemUserRolesAttestationService.getItSystemAttestation(attestation), true);
+            case IT_SYSTEM_ATTESTATION -> buildItSystemUsersOverview(itSystemUsersAttestationService.getAttestation(attestation, false), true);
+        };
+        return AdminAttestationDetailsDTO.builder()
+                .overview(overview)
+                .attestationType(attestation.getAttestationType())
+                .sentEmails(mailMapper.sentMail(attestation))
+                .id(attestation.getId())
+                .build();
     }
 
-    @Transactional
-    public List<Attestation> findAllCurrentItSystemUserAttestations() {
-        entityManager.setFlushMode(FlushModeType.COMMIT);
-        return itSystemService.getAll().stream()
-                .map(this::findItSystemUserAttestation)
-                .filter(Optional::isPresent)
-                .map(Optional::get)
-                .collect(Collectors.toList());
+    public AdminAttestationStatus findAttestationStatus(final Attestation attestation) {
+        if (attestation.getVerifiedAt() != null) {
+            return AdminAttestationStatus.FINISHED;
+        }
+        if (attestation.getAttestationType() == Attestation.AttestationType.ORGANISATION_ATTESTATION) {
+            if (organisationUserAttestationEntryDao.countByAttestationId(attestation.getId()) > 0) {
+                return AdminAttestationStatus.ON_GOING;
+            }
+        } else if (attestation.getAttestationType() == Attestation.AttestationType.IT_SYSTEM_ATTESTATION) {
+
+            if (itSystemUserAttestationEntryDao.countByAttestationId(attestation.getId()) > 0) {
+                return AdminAttestationStatus.ON_GOING;
+            }
+        } else if (attestation.getAttestationType() == Attestation.AttestationType.IT_SYSTEM_ROLES_ATTESTATION) {
+            if (itSystemRoleAttestationEntryDao.countByAttestationId(attestation.getId()) > 0) {
+                return AdminAttestationStatus.ON_GOING;
+            }
+        }
+        return AdminAttestationStatus.NOT_STARTED;
     }
 
-    private Optional<Attestation> findItSystemRolesAttestation(final ItSystem itSystem) {
-        return attestationDao.findFirstByAttestationTypeAndItSystemIdOrderByDeadlineDesc(Attestation.AttestationType.IT_SYSTEM_ROLES_ATTESTATION, itSystem.getId());
-    }
-    private Optional<Attestation> findItSystemUserAttestation(final ItSystem itSystem) {
-        return attestationDao.findFirstByAttestationTypeAndItSystemIdOrderByDeadlineDesc(Attestation.AttestationType.IT_SYSTEM_ATTESTATION, itSystem.getId());
-    }
-
-    private Optional<Attestation> findAttestation(final OrgUnit ou) {
-        return attestationDao.findFirstByAttestationTypeAndResponsibleOuUuidOrderByDeadlineDesc(Attestation.AttestationType.ORGANISATION_ATTESTATION, ou.getUuid());
-    }
 }

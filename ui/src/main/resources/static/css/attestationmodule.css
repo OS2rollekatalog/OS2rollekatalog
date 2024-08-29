@@ -18,6 +18,8 @@ pre {
     background-color: inherit;
     border: 0px;
     padding: 0px;
+    white-space: pre-wrap;
+    overflow-wrap: break-word;
 }
 
 .navActive {
@@ -40,6 +42,8 @@ pre {
 
 .expandable-content-description {
     background-color: white;
+    white-space: pre-wrap;
+    overflow-wrap: break-word;
 }
 
 .assignedThroughLabel {
@@ -49,3 +53,37 @@ pre {
 .passedDeadline {
     color: red;
 }
+
+
+table.dataTable td.dt-control {
+    text-align: center;
+    cursor: pointer;
+}
+table.dataTable td.dt-control:before {
+    display: inline-block;
+    box-sizing: border-box;
+    content: "";
+    border-top: 5px solid transparent;
+    border-left: 10px solid rgba(0, 0, 0, 0.5);
+    border-bottom: 5px solid transparent;
+    border-right: 0px solid transparent;
+}
+table.dataTable tr.dt-hasChild td.dt-control:before {
+    border-top: 10px solid rgba(0, 0, 0, 0.5);
+    border-left: 5px solid transparent;
+    border-bottom: 0px solid transparent;
+    border-right: 5px solid transparent;
+}
+
+html.dark table.dataTable td.dt-control:before,
+:root[data-bs-theme=dark] table.dataTable td.dt-control:before,
+:root[data-theme=dark] table.dataTable td.dt-control:before {
+    border-left-color: rgba(255, 255, 255, 0.5);
+}
+html.dark table.dataTable tr.dt-hasChild td.dt-control:before,
+:root[data-bs-theme=dark] table.dataTable tr.dt-hasChild td.dt-control:before,
+:root[data-theme=dark] table.dataTable tr.dt-hasChild td.dt-control:before {
+    border-top-color: rgba(255, 255, 255, 0.5);
+    border-left-color: transparent;
+}
+

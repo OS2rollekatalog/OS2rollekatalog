@@ -14,9 +14,9 @@ public interface HistoryOURoleAssignmentWithExceptionsDao extends JpaRepository<
     @Query("SELECT hra FROM HistoryOURoleAssignmentWithExceptions hra WHERE hra.dato=?1")
     Stream<HistoryOURoleAssignmentWithExceptions> streamByDate(final LocalDate localDate);
 
-    @Query("SELECT hra FROM HistoryOURoleAssignmentWithExceptions hra WHERE YEAR(hra.dato)=?1 AND MONTH(hra.dato)=?2 AND DAY(hra.dato)=?3")
-    List<HistoryOURoleAssignmentWithExceptions> findByDate(Integer year, Integer month, Integer day);
+    @Query("SELECT hra FROM HistoryOURoleAssignmentWithExceptions hra WHERE hra.dato=?1")
+    List<HistoryOURoleAssignmentWithExceptions> findByDate(LocalDate date);
 
-    @Query("SELECT hra FROM HistoryOURoleAssignmentWithExceptions hra WHERE YEAR(hra.dato)=?1 AND MONTH(hra.dato)=?2 AND DAY(hra.dato)=?3 AND hra.roleItSystemId IN ?4")
-    List<HistoryOURoleAssignmentWithExceptions> findByDateAndItSystems(Integer year, Integer month, Integer day, List<Long> itSystemIds);
+    @Query("SELECT hra FROM HistoryOURoleAssignmentWithExceptions hra WHERE hra.dato=?1 AND hra.roleItSystemId IN ?2")
+    List<HistoryOURoleAssignmentWithExceptions> findByDateAndItSystems(LocalDate date, List<Long> itSystemIds);
 }

@@ -42,4 +42,7 @@ public class EmailTemplate {
 	
 	@Column
 	private boolean enabled;
+
+	@Column
+	private Integer daysBeforeEvent;
 }

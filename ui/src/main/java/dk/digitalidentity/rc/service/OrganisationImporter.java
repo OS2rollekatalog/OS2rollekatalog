@@ -610,10 +610,12 @@ public class OrganisationImporter {
 						}
 
 						if (includePositions(domain) && differentPositions(userToUpdate, existingUser)) {
-							UserMovedPositions movedPositionEvent = null;
-							if (!existingUser.getUserRoleAssignments().isEmpty() || !existingUser.getRoleGroupAssignments().isEmpty()) {
-								movedPositionEvent = new UserMovedPositions();
-								movedPositionEvent.setUser(existingUser);
+							UserMovedPositions movedPositionEvent = new UserMovedPositions();
+							movedPositionEvent.setUser(existingUser);
+
+							boolean userHasNoRoles = false;
+							if (existingUser.getUserRoleAssignments().isEmpty() && existingUser.getRoleGroupAssignments().isEmpty()) {
+								userHasNoRoles = true;
 							}
 
 							// do the switcheroo to make Hibernate happy on all the userToUpdate's positions
@@ -638,7 +640,7 @@ public class OrganisationImporter {
 									addPosition(existingUser, newPosition);
 
 									if (movedPositionEvent != null) {
-										movedPositionEvent.getNewPositions().add(new MovedPostion(newPosition.getOrgUnit().getName(), newPosition.getName()));
+										movedPositionEvent.getNewPositions().add(new MovedPostion(newPosition.getOrgUnit(), newPosition.getName()));
 									}
 								}
 							}
@@ -650,7 +652,7 @@ public class OrganisationImporter {
 									positionsToRemove.add(existingPosition);
 
 									if (movedPositionEvent != null) {
-										movedPositionEvent.getOldPositions().add(new MovedPostion(existingPosition.getOrgUnit().getName(), existingPosition.getName()));
+										movedPositionEvent.getOldPositions().add(new MovedPostion(existingPosition.getOrgUnit(), existingPosition.getName()));
 									}
 								}
 							}
@@ -659,8 +661,12 @@ public class OrganisationImporter {
 								userService.removePosition(existingUser, positionToRemove);
 							}
 
-							if (movedPositionEvent != null && !movedPositionEvent.getNewPositions().isEmpty() && !movedPositionEvent.getOldPositions().isEmpty()) {
+							if (!userHasNoRoles && !movedPositionEvent.getNewPositions().isEmpty() && !movedPositionEvent.getOldPositions().isEmpty()) {
 								events.get().getUsersMovedPostions().add(movedPositionEvent);
+							}
+							
+							if (userService.isSystemOwnerOrAttestationResponsible(existingUser)) {
+								events.get().getSystemOwnerOrAttestationResponsibleMovedPostions().add(movedPositionEvent);
 							}
 						}
 						userService.save(existingUser);
@@ -672,7 +678,7 @@ public class OrganisationImporter {
 		}
 		
 		if (toBeDeleted.size() > 0) {
-			log.info("Deleting " + toBeDeleted.size() + " Users");
+			log.info("Soft-deleting " + toBeDeleted.size() + " Users : " + toBeDeleted.stream().map(User::getUserId).collect(Collectors.joining(",")));
 
 			for (User userToDelete : toBeDeleted) {
 				handleUserDeletedEvent(simpleItSystems, userToDelete);
@@ -815,6 +821,7 @@ public class OrganisationImporter {
 					// if the existing user is deleted AND the extUuid has changed, we delete from our DB, and perform
 					// a full create of the new user (to reflect that the source-system did a physical delete/create)
 					if (existingUser.isDeleted() && !Objects.equals(existingUser.getExtUuid(), newUser.getExtUuid())) {
+						log.info("Performing physical delete on " + existingUser.getUserId() + " - extUuid mismatch with new user " + existingUser.getExtUuid() + " / " + newUser.getExtUuid());
 						userService.delete(existingUser);
 						found = false;
 					}
@@ -1235,8 +1242,9 @@ public class OrganisationImporter {
 		Set<OrgUnit> newOrgUnits = events.get().getNewOrgUnits();
 		Set<OrgUnitWithNewAndOldParentDTO> parentChangedOrgUnits = events.get().getOrgUnitsWithNewParent();
 		Set<OrgUnitWithTitlesDTO> orgUnitsWithNewTitles = events.get().getOrgUnitsWithNewTitles();
-		Set<UserMovedPositions> UsersWhoMovedPositions = events.get().getUsersMovedPostions();
+		Set<UserMovedPositions> usersWhoMovedPositions = events.get().getUsersMovedPostions();
 		Set<UserDeletedEvent> deletedUsers = events.get().getDeletedUsers();
+		Set<UserMovedPositions> ownersWhoMovedPositions = events.get().getSystemOwnerOrAttestationResponsibleMovedPostions();
 
 		handleNewOrgUnits(newOrgUnits);
 
@@ -1244,7 +1252,9 @@ public class OrganisationImporter {
 
 		handleNewTitles(orgUnitsWithNewTitles);
 		
-		handleUserPositionChange(UsersWhoMovedPositions);
+		handleUserPositionChange(usersWhoMovedPositions);
+
+		handleSystemOwnerOrAttestationResponsible(ownersWhoMovedPositions);
 
 		handleUserDeleteEvents(deletedUsers);
 	}
@@ -1273,7 +1283,7 @@ public class OrganisationImporter {
 					message = message.replace(EmailTemplatePlaceholder.USER_PLACEHOLDER.getPlaceholder(), user.getName() + " (" + user.getUserId() + ")");
 
 					for (String email: emailAddresses) {
-						emailQueueService.queueEmail(email, title, message, template, null);
+						emailQueueService.queueEmail(email, title, message, template, null, null);
 					}
 				}
 			}
@@ -1283,18 +1293,18 @@ public class OrganisationImporter {
 		}
 	}
 
-	private void handleUserPositionChange(Set<UserMovedPositions> UsersWhoMovedPositions) {
+	private void handleUserPositionChange(Set<UserMovedPositions> usersWhoMovedPositions) {
 		if (settingsService.isNotificationTypeEnabled(NotificationType.USER_MOVED_POSITIONS)) {
-			for (UserMovedPositions event : UsersWhoMovedPositions) {
+			for (UserMovedPositions event : usersWhoMovedPositions) {
 				String oneOrMoreNew = event.getNewPositions().size() == 1 ? "Ny stilling:" : "Nye stillinger:";
 				String oneOrMoreOld = event.getOldPositions().size() == 1 ? "Fratrådt stilling:" : "Fratrådte stillinger:";
 				String message = "Brugeren " + event.getUser().getName() + " (" + event.getUser().getUserId() + ") har skiftet afdeling.\n" + oneOrMoreNew + "\n";
 				for (MovedPostion newPosition : event.getNewPositions()) {
-					message += newPosition.getPositionName() + " i " + newPosition.getOrgUnitName() + "\n";
+					message += newPosition.getPositionName() + " i " + newPosition.getOrgUnit().getName() + "\n";
 				}
 				message += "\n" + oneOrMoreOld + "\n";
 				for (MovedPostion oldPosition : event.getOldPositions()) {
-					message += oldPosition.getPositionName() + " i " + oldPosition.getOrgUnitName() + "\n";
+					message += oldPosition.getPositionName() + " i " + oldPosition.getOrgUnit().getName() + "\n";
 				}
 				
 				Notification moveNotification = new Notification();
@@ -1302,6 +1312,74 @@ public class OrganisationImporter {
 				moveNotification.setCreated(new Date());
 				moveNotification.setMessage(message);
 				moveNotification.setNotificationType(NotificationType.USER_MOVED_POSITIONS);
+				moveNotification.setAffectedEntityName(event.getUser().getName());
+				moveNotification.setAffectedEntityType(NotificationEntityType.USERS);
+				moveNotification.setAffectedEntityUuid(event.getUser().getUuid());
+
+				notificationService.save(moveNotification);
+			}
+		}
+		
+		EmailTemplate template = emailTemplateService.findByTemplateType(EmailTemplateType.USER_WITH_DIRECT_ROLES_CHANGED_ORGUNIT);
+		if (template.isEnabled()) {
+			for (UserMovedPositions event : usersWhoMovedPositions) {
+
+				if (event.getUser().getUserRoleAssignments().isEmpty() && event.getUser().getRoleGroupAssignments().isEmpty()) {
+					continue;
+				}
+
+				List<User> managers = event.getNewPositions().stream().map(u -> u.getOrgUnit().getManager()).filter(Objects::nonNull).distinct().toList();
+				
+				String newPositionsList = "";
+				for (MovedPostion newPosition : event.getNewPositions()) {
+					newPositionsList += newPosition.getPositionName() + " i " + newPosition.getOrgUnit().getName() + "\n";
+				}
+				
+				String oldPositionsList = "";
+				for (MovedPostion oldPosition : event.getOldPositions()) {
+					oldPositionsList += oldPosition.getPositionName() + " i " + oldPosition.getOrgUnit().getName() + "\n";
+				}
+
+				for (User manager : managers) {
+					String title = template.getTitle();
+					title = title.replace(EmailTemplatePlaceholder.RECEIVER_PLACEHOLDER.getPlaceholder(), manager.getName());
+					title = title.replace(EmailTemplatePlaceholder.USER_PLACEHOLDER.getPlaceholder(), event.getUser().getName());
+					
+					String emailMessage = template.getMessage();
+					emailMessage = emailMessage.replace(EmailTemplatePlaceholder.RECEIVER_PLACEHOLDER.getPlaceholder(), manager.getName());
+					emailMessage = emailMessage.replace(EmailTemplatePlaceholder.USER_PLACEHOLDER.getPlaceholder(), event.getUser().getName());
+
+					emailMessage = emailMessage.replace(EmailTemplatePlaceholder.NEW_POSITIONS_PLACEHOLDER.getPlaceholder(), newPositionsList);
+					emailMessage = emailMessage.replace(EmailTemplatePlaceholder.OLD_POSITIONS_PLACEHOLDER.getPlaceholder(), oldPositionsList);
+					emailQueueService.queueEmail(manager.getEmail(), title, emailMessage, template, null, null);
+				}
+			}
+		}
+		else {
+			log.info("Email template with type " + template.getTemplateType() + " is disabled. Email was not sent.");
+		}
+	}
+	
+	private void handleSystemOwnerOrAttestationResponsible(Set<UserMovedPositions> usersWhoMovedPositions) {
+		if (settingsService.isNotificationTypeEnabled(NotificationType.SYSTEM_OWNER_OR_RESPONSIBLE_MOVED_POSITIONS)) {
+			for (UserMovedPositions event : usersWhoMovedPositions) {
+				String oneOrMoreNew = event.getNewPositions().size() == 1 ? "Ny stilling:" : "Nye stillinger:";
+				String oneOrMoreOld = event.getOldPositions().size() == 1 ? "Fratrådt stilling:" : "Fratrådte stillinger:";
+				
+				String message = "Systemansvarlig eller systemejer  " + event.getUser().getName() + " (" + event.getUser().getUserId() + ") har skiftet afdeling.\n" + oneOrMoreNew + "\n";
+				for (MovedPostion newPosition : event.getNewPositions()) {
+					message += newPosition.getPositionName() + " i " + newPosition.getOrgUnit().getName() + "\n";
+				}
+				message += "\n" + oneOrMoreOld + "\n";
+				for (MovedPostion oldPosition : event.getOldPositions()) {
+					message += oldPosition.getPositionName() + " i " + oldPosition.getOrgUnit().getName() + "\n";
+				}
+				
+				Notification moveNotification = new Notification();
+				moveNotification.setActive(true);
+				moveNotification.setCreated(new Date());
+				moveNotification.setMessage(message);
+				moveNotification.setNotificationType(NotificationType.SYSTEM_OWNER_OR_RESPONSIBLE_MOVED_POSITIONS);
 				moveNotification.setAffectedEntityName(event.getUser().getName());
 				moveNotification.setAffectedEntityType(NotificationEntityType.USERS);
 				moveNotification.setAffectedEntityUuid(event.getUser().getUuid());
@@ -1346,7 +1424,7 @@ public class OrganisationImporter {
 				UserRoleAndRoleGroupListWrapper newWrapper = new UserRoleAndRoleGroupListWrapper();
 				newWrapper.setRoleGroups(new ArrayList<RoleGroup>());
 				newWrapper.setUserRoles(new ArrayList<UserRole>());
-
+	
 				if (dto.getNewParent() != null) {
 					newWrapper = inheritedRoles(dto.getNewParent(), newWrapper);
 				}
@@ -1354,7 +1432,7 @@ public class OrganisationImporter {
 				UserRoleAndRoleGroupListWrapper oldWrapper = new UserRoleAndRoleGroupListWrapper();
 				oldWrapper.setRoleGroups(new ArrayList<RoleGroup>());
 				oldWrapper.setUserRoles(new ArrayList<UserRole>());
-
+	
 				if (dto.getOldParent() != null) {
 					oldWrapper = inheritedRoles(dto.getOldParent(), oldWrapper);
 				}
@@ -1394,7 +1472,7 @@ public class OrganisationImporter {
 							message += "Jobfunktionsrollen " +  userRole.getName() + " fra it-systemet " + userRole.getItSystem().getName() + "\n";
 						}
 					}
-					
+
 					Notification moveNotification = new Notification();
 					moveNotification.setActive(true);
 					moveNotification.setCreated(new Date());
@@ -1407,6 +1485,26 @@ public class OrganisationImporter {
 					notificationService.save(moveNotification);
 				}
 			}
+		}
+			
+		//Send email
+		EmailTemplate template = emailTemplateService.findByTemplateType(EmailTemplateType.ORGUNIT_NEW_PARENT);
+		if (template.isEnabled()) {
+			for (OrgUnitWithNewAndOldParentDTO dto : parentChangedOrgUnits) {
+				User manager = dto.getNewParent().getManager();
+
+				String title = template.getTitle();
+				title = title.replace(EmailTemplatePlaceholder.RECEIVER_PLACEHOLDER.getPlaceholder(), manager.getName());
+				title = title.replace(EmailTemplatePlaceholder.ORGUNIT_PLACEHOLDER.getPlaceholder(), dto.getNewParent().getName());
+				
+				String emailMessage = template.getMessage();
+				emailMessage = emailMessage.replace(EmailTemplatePlaceholder.RECEIVER_PLACEHOLDER.getPlaceholder(), manager.getName());
+				emailMessage = emailMessage.replace(EmailTemplatePlaceholder.ORGUNIT_PLACEHOLDER.getPlaceholder(), dto.getNewParent().getName());
+				emailQueueService.queueEmail(manager.getEmail(), title, emailMessage, template, null, null);
+			}
+		}
+		else {
+			log.info("Email template with type " + template.getTemplateType() + " is disabled. Email was not sent.");
 		}
 	}
 
@@ -1455,6 +1553,25 @@ public class OrganisationImporter {
 					moveNotification.setAffectedEntityUuid(orgUnit.getUuid());
 	
 					notificationService.save(moveNotification);
+
+					//Send email
+					EmailTemplate template = emailTemplateService.findByTemplateType(EmailTemplateType.ORGUNIT_NEW_PARENT);
+					
+					User manager = orgUnit.getManager();
+					
+					if (template.isEnabled()) {
+						String title = template.getTitle();
+						title = title.replace(EmailTemplatePlaceholder.RECEIVER_PLACEHOLDER.getPlaceholder(), manager.getName());
+						title = title.replace(EmailTemplatePlaceholder.ORGUNIT_PLACEHOLDER.getPlaceholder(), orgUnit.getName());
+						
+						String emailMessage = template.getMessage();
+						emailMessage = emailMessage.replace(EmailTemplatePlaceholder.RECEIVER_PLACEHOLDER.getPlaceholder(), manager.getName());
+						emailMessage = emailMessage.replace(EmailTemplatePlaceholder.ORGUNIT_PLACEHOLDER.getPlaceholder(), orgUnit.getName());
+						emailQueueService.queueEmail(manager.getEmail(), title, emailMessage, template, null, null);
+					}
+					else {
+						log.info("Email template with type " + template.getTemplateType() + " is disabled. Email was not sent.");
+					}
 				}
 			}
 		}

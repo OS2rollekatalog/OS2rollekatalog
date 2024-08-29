@@ -168,7 +168,7 @@ public class RequestApproveRestController {
 				String message = template.getMessage();
 				message = message.replace(EmailTemplatePlaceholder.RECEIVER_PLACEHOLDER.getPlaceholder(), requestedFor.getName());
 				message = message.replace(EmailTemplatePlaceholder.ROLE_NAME.getPlaceholder(), roleName);
-				emailQueueService.queueEmail(requestedFor.getEmail(), title, message, template, null);
+				emailQueueService.queueEmail(requestedFor.getEmail(), title, message, template, null, null);
 			}
 			else {
 				log.info("Email template with type " + template.getTemplateType() + " is disabled. Email was not sent.");
@@ -386,7 +386,7 @@ public class RequestApproveRestController {
 						message = message.replace(EmailTemplatePlaceholder.USER_PLACEHOLDER.getPlaceholder(), request.getRequestedFor().getName());
 						message = message.replace(EmailTemplatePlaceholder.REQUESTER_PLACEHOLDER.getPlaceholder(), request.getRequester().getName());
 						message = message.replace(EmailTemplatePlaceholder.REQUEST_OPERATION_PLACEHOLDER.getPlaceholder(), action);
-						emailQueueService.queueEmail(manager.getEmail(), title, message, template, null);
+						emailQueueService.queueEmail(manager.getEmail(), title, message, template, null, null);
 					}
 				}
 				
@@ -410,7 +410,7 @@ public class RequestApproveRestController {
 							message = message.replace(EmailTemplatePlaceholder.USER_PLACEHOLDER.getPlaceholder(), request.getRequestedFor().getName());
 							message = message.replace(EmailTemplatePlaceholder.REQUESTER_PLACEHOLDER.getPlaceholder(), request.getRequester().getName());
 							message = message.replace(EmailTemplatePlaceholder.REQUEST_OPERATION_PLACEHOLDER.getPlaceholder(), action);
-							emailQueueService.queueEmail(authorizationManager.getEmail(), title, message, template, null);
+							emailQueueService.queueEmail(authorizationManager.getEmail(), title, message, template, null, null);
 						}
 					}
 				}

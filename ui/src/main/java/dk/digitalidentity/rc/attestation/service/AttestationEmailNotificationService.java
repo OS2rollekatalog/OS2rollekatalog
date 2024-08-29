@@ -1,5 +1,25 @@
 package dk.digitalidentity.rc.attestation.service;
 
+import java.time.LocalDate;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+
+import org.apache.commons.lang3.StringUtils;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
+
+import com.mysema.commons.lang.Pair;
+
 import dk.digitalidentity.rc.attestation.dao.AttestationDao;
 import dk.digitalidentity.rc.attestation.dao.AttestationMailDao;
 import dk.digitalidentity.rc.attestation.exception.AttestationEmailNotificationException;
@@ -7,10 +27,13 @@ import dk.digitalidentity.rc.attestation.model.dto.RoleAssignmentDTO;
 import dk.digitalidentity.rc.attestation.model.dto.enums.RoleType;
 import dk.digitalidentity.rc.attestation.model.entity.Attestation;
 import dk.digitalidentity.rc.attestation.model.entity.AttestationMail;
-import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
+import dk.digitalidentity.rc.attestation.model.entity.AttestationMailReceiver;
+import dk.digitalidentity.rc.attestation.model.entity.AttestationRun;
+import dk.digitalidentity.rc.dao.ItSystemDao;
 import dk.digitalidentity.rc.dao.OrgUnitDao;
 import dk.digitalidentity.rc.dao.UserDao;
 import dk.digitalidentity.rc.dao.model.EmailTemplate;
+import dk.digitalidentity.rc.dao.model.ItSystem;
 import dk.digitalidentity.rc.dao.model.ManagerSubstitute;
 import dk.digitalidentity.rc.dao.model.OrgUnit;
 import dk.digitalidentity.rc.dao.model.Position;
@@ -21,27 +44,11 @@ import dk.digitalidentity.rc.service.EmailQueueService;
 import dk.digitalidentity.rc.service.EmailTemplateService;
 import dk.digitalidentity.rc.service.SettingsService;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang3.StringUtils;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Propagation;
-import org.springframework.transaction.annotation.Transactional;
-
-import java.time.LocalDate;
-import java.time.ZonedDateTime;
-import java.time.format.DateTimeFormatter;
-import java.util.Collections;
-import java.util.List;
-import java.util.Objects;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 
 @Slf4j
 @Component
 public class AttestationEmailNotificationService {
-    @Autowired
-    private RoleCatalogueConfiguration configuration;
 
     @Autowired
     private AttestationDao attestationDao;
@@ -67,6 +74,12 @@ public class AttestationEmailNotificationService {
     @Autowired
     private OrgUnitDao orgUnitDao;
 
+    @Autowired
+    private AttestationRunService attestationRunService;
+
+    @Autowired
+    private ItSystemDao itSystemDao;
+
 
     public void sendRequestForAdRemoval(final String requester, final String user, final String responsibleOu) {
         final EmailTemplate template = emailTemplateService.findByTemplateType(EmailTemplateType.ATTESTATION_REQUEST_FOR_REMOVAL);
@@ -74,7 +87,7 @@ public class AttestationEmailNotificationService {
         final String title = resolveRequestChangeMailTitle(requester, user, null, responsibleOu, template);
         final String email = settingsService.getAttestationChangeEmail();
         log.info("Sending request for deletion notification (leder=" + requester + ", user=" + user + ")");
-        emailQueueService.queueEmail(email, title, message, template, null);
+        emailQueueService.queueEmail(email, title, message, template, null, null);
     }
 
 
@@ -84,7 +97,7 @@ public class AttestationEmailNotificationService {
         final String title = resolveRequestChangeMailTitle(requester, user, null, null, template);
         final String email = settingsService.getAttestationChangeEmail();
         log.info("Sending request for change notification (leder=" + requester + ", change=" + change + ")");
-        emailQueueService.queueEmail(email, title, message, template, null);
+        emailQueueService.queueEmail(email, title, message, template, null, null);
     }
 
     public void sendRequestForRoleChange(final String requester, final String userRole, final String itSystem) {
@@ -93,33 +106,81 @@ public class AttestationEmailNotificationService {
         final String title = resolveRequestForRoleChangeMailTitle(requester, userRole, itSystem, template);
         final String email = settingsService.getAttestationChangeEmail();
         log.info("Sending request for role change notification (leder=" + requester + ", it-system=" + itSystem + ", userRole=" + userRole + ")");
-        emailQueueService.queueEmail(email, title, message, template, null);
+        emailQueueService.queueEmail(email, title, message, template, null, null);
     }
 
+    @Transactional
     public void sendItSystemNotifications(final LocalDate now) {
-        sendEmails(Attestation.AttestationType.IT_SYSTEM_ROLES_ATTESTATION, AttestationMail.MailType.INFORMATION, now, configuration.getAttestation().getNotifyDaysBeforeDeadline());
-        sendEmails(Attestation.AttestationType.IT_SYSTEM_ROLES_ATTESTATION, AttestationMail.MailType.REMINDER_1, now, configuration.getAttestation().getReminder1DaysBeforeDeadline());
-        sendEmails(Attestation.AttestationType.IT_SYSTEM_ROLES_ATTESTATION, AttestationMail.MailType.REMINDER_2, now, configuration.getAttestation().getReminder2DaysBeforeDeadline());
-        sendEmails(Attestation.AttestationType.IT_SYSTEM_ROLES_ATTESTATION, AttestationMail.MailType.REMINDER_3, now, -configuration.getAttestation().getReminder3DaysAfterDeadline());
-        sendEmails(Attestation.AttestationType.IT_SYSTEM_ROLES_ATTESTATION, AttestationMail.MailType.ESCALATION_REMINDER, now, -configuration.getAttestation().getEscalationReminderDaysAfterDeadline());
+        sendEmails(Attestation.AttestationType.IT_SYSTEM_ROLES_ATTESTATION, AttestationMail.MailType.INFORMATION, now);
+        sendEmails(Attestation.AttestationType.IT_SYSTEM_ROLES_ATTESTATION, AttestationMail.MailType.REMINDER_1, now);
+        sendEmails(Attestation.AttestationType.IT_SYSTEM_ROLES_ATTESTATION, AttestationMail.MailType.REMINDER_2, now);
+        sendEmails(Attestation.AttestationType.IT_SYSTEM_ROLES_ATTESTATION, AttestationMail.MailType.REMINDER_3, now);
+        sendEmails(Attestation.AttestationType.IT_SYSTEM_ROLES_ATTESTATION, AttestationMail.MailType.ESCALATION_REMINDER, now);
+
+        sendEmails(Attestation.AttestationType.IT_SYSTEM_ATTESTATION, AttestationMail.MailType.INFORMATION, now);
+        sendEmails(Attestation.AttestationType.IT_SYSTEM_ATTESTATION, AttestationMail.MailType.REMINDER_1, now);
+        sendEmails(Attestation.AttestationType.IT_SYSTEM_ATTESTATION, AttestationMail.MailType.REMINDER_2, now);
+        sendEmails(Attestation.AttestationType.IT_SYSTEM_ATTESTATION, AttestationMail.MailType.REMINDER_3, now);
+        sendEmails(Attestation.AttestationType.IT_SYSTEM_ATTESTATION, AttestationMail.MailType.ESCALATION_REMINDER, now);
     }
 
+    @Transactional
     public void sendOrganisationNotifications(final LocalDate now) {
-        sendEmails(Attestation.AttestationType.ORGANISATION_ATTESTATION, AttestationMail.MailType.INFORMATION, now, configuration.getAttestation().getNotifyDaysBeforeDeadline());
-        sendEmails(Attestation.AttestationType.ORGANISATION_ATTESTATION, AttestationMail.MailType.REMINDER_1, now, configuration.getAttestation().getReminder1DaysBeforeDeadline());
-        sendEmails(Attestation.AttestationType.ORGANISATION_ATTESTATION, AttestationMail.MailType.REMINDER_2, now, configuration.getAttestation().getReminder2DaysBeforeDeadline());
-        sendEmails(Attestation.AttestationType.ORGANISATION_ATTESTATION, AttestationMail.MailType.REMINDER_3, now, -configuration.getAttestation().getReminder3DaysAfterDeadline());
-        sendEmails(Attestation.AttestationType.ORGANISATION_ATTESTATION, AttestationMail.MailType.ESCALATION_REMINDER, now, -configuration.getAttestation().getEscalationReminderDaysAfterDeadline());
+        sendEmailsOrganisation(Attestation.AttestationType.ORGANISATION_ATTESTATION, AttestationMail.MailType.INFORMATION, now);
+        sendEmailsOrganisation(Attestation.AttestationType.ORGANISATION_ATTESTATION, AttestationMail.MailType.REMINDER_1, now);
+        sendEmailsOrganisation(Attestation.AttestationType.ORGANISATION_ATTESTATION, AttestationMail.MailType.REMINDER_2, now);
+        sendEmailsOrganisation(Attestation.AttestationType.ORGANISATION_ATTESTATION, AttestationMail.MailType.REMINDER_3, now);
+        sendEmailsOrganisation(Attestation.AttestationType.ORGANISATION_ATTESTATION, AttestationMail.MailType.ESCALATION_REMINDER, now);
     }
+    
+	private void sendEmails(final Attestation.AttestationType attestationType, final AttestationMail.MailType mailType, final LocalDate now) {
+        final Optional<AttestationRun> run = attestationRunService.getCurrentRun();
+        if (run.isEmpty()) {
+            return;
+        }
+        final EmailTemplate template = run.get().isSensitive() ? findSensitiveEmailTemplate(mailType) : findEmailTemplate(attestationType, mailType);
+        int daysBefore =  template.getDaysBeforeEvent();
+		final List<Attestation> attestations = attestationDao.findAttestationsWhichNeedsMail(attestationType, mailType, now.plusDays(daysBefore));
+		attestations.forEach(a -> self.sendEmail(a.getId(), attestationType, mailType));
+	}
 
-    private void sendEmails(final Attestation.AttestationType attestationType, final AttestationMail.MailType mailType,
-                            final LocalDate now, final Integer daysBefore) {
-        final List<Attestation> attestations = attestationDao.findAttestationsWhichNeedsMail(attestationType, mailType, now.plusDays(daysBefore));
-        attestations.forEach(a -> self.sendEmail(a.getId(), attestationType, mailType));
-    }
+	private void sendEmailsOrganisation(final Attestation.AttestationType attestationType, final AttestationMail.MailType mailType, final LocalDate now) {
+		final Optional<AttestationRun> run = attestationRunService.getCurrentRun();
+		if (run.isEmpty()) {
+			return;
+		}
+		
+		final EmailTemplate template = run.get().isSensitive() ? findSensitiveEmailTemplate(mailType) : findEmailTemplate(attestationType, mailType);
+
+		int daysBefore =  template.getDaysBeforeEvent();
+		LocalDate deadlineDate = now.plusDays(daysBefore);
+
+		final List<Attestation> attestations = run.get().getAttestations().stream()
+                .filter(a -> a.getMails().stream().noneMatch(mail -> mail.getEmailTemplateType() == template.getTemplateType()))
+                .filter(att -> att.getDeadline().isEqual(deadlineDate)).toList();
+
+		boolean escalation = mailType == AttestationMail.MailType.ESCALATION_REMINDER;
+		Map<Attestation, List<User>> attestationTargetUsers = null;
+		if (escalation) {
+			attestationTargetUsers = attestations.stream()
+                    .map(att -> Pair.of(att, findTargetUsers(att, true)))
+                    .collect(Collectors.toMap(Pair::getFirst, Pair::getSecond));
+		} else {
+			attestationTargetUsers = attestations.stream()
+                    .map(att -> Pair.of(att, findTargetUsers(att, false)))
+                    .collect(Collectors.toMap(Pair::getFirst, Pair::getSecond));
+		}
+		
+		Map<User, List<Attestation>> targetUsersAttestation = attestationTargetUsers.entrySet().stream()
+				.flatMap(x -> x.getValue().stream().map(v -> Pair.of(x.getKey(), v)))
+				.collect(Collectors.toMap(Pair::getSecond, xx -> Collections.singletonList(xx.getFirst()),
+                        (a, b) -> Stream.concat(a.stream(), b.stream()).collect(Collectors.toList())));
+
+		targetUsersAttestation.forEach((key, value) -> self.sendEmailsOrganisation(key, value.stream().map(Attestation::getId).toList(), mailType, template));
+	}
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public void sendEmail(final Long attestationId, final Attestation.AttestationType attestationType,  AttestationMail.MailType mailType) {
+    public void sendEmail(final Long attestationId, final Attestation.AttestationType attestationType, AttestationMail.MailType mailType) {
         final Attestation attestation = attestationDao.findById(attestationId)
                 .orElseThrow(() -> new AttestationEmailNotificationException("Failed to send notification, attestation with id %d not found", attestationId));
         final EmailTemplate template = attestation.isSensitive()
@@ -127,27 +188,121 @@ public class AttestationEmailNotificationService {
                 : findEmailTemplate(attestationType, mailType);
         final User systemResponsible = attestation.getResponsibleUserUuid() != null ? userDao.findByUuidAndDeletedFalse(attestation.getResponsibleUserUuid()).orElse(null) : null;
         if (template.isEnabled()) {
-            final List<User> targetUsers = findTargetUsers(attestation, mailType == AttestationMail.MailType.ESCALATION_REMINDER);
+            boolean escalation = mailType == AttestationMail.MailType.ESCALATION_REMINDER;
+            final List<User> targetUsers = findTargetUsers(attestation, escalation);
+
+            // In case this is an escalation we need to find the user that was supposed handle the attestation
+            User user;
+            if (escalation) {
+                List<User> users = findTargetUsers(attestation, false);
+                user = (users != null && !users.isEmpty()) ? users.getFirst() : null;
+            } else {
+                user = null;
+            }
             if (targetUsers == null) {
                 log.warn("No target users was found for attestation with id: " + attestation.getId());
                 return;
             }
-            targetUsers.forEach(receiver -> {
-                final String message = resolveMessage(attestation, receiver, systemResponsible, template);
-                final String title = resolveTitle(attestation, receiver, systemResponsible, template);
-                final String email = receiver.getEmail();
-                log.info("Sending attestation notification (" + attestation.getItSystemName() + ", " + template.getTemplateType().name() + ", " + mailType.name() + " to " + email + ")");
-                emailQueueService.queueEmail(email, title, message, template, null);
+            
+            final List<AttestationMailReceiver> mailReceivers = targetUsers.stream()
+                    .flatMap(receiver -> {
+                        final String message = resolveMessage(attestation, receiver, user, systemResponsible, template, null);
+                        final String title = resolveTitle(attestation, receiver, user, systemResponsible, template);
+                        final String email = receiver.getEmail();
+                        final Optional<User> cc = findSystemOwner(attestation);
+                        log.info("Sending attestation notification ({}, {}, {} to {})", attestation.getItSystemName(),
+                                template.getTemplateType().name(), mailType.name(), email);
+                        final String ccEmail = cc.map(User::getEmail).orElse(null);
+                        emailQueueService.queueEmail(email, title, message, template, null, email.equals(ccEmail) ? null : ccEmail);
+                        final List<AttestationMailReceiver> receivers = new ArrayList<>();
+                        receivers.add(AttestationMailReceiver.builder()
+                                .receiverType(AttestationMailReceiver.ReceiverType.TO)
+                                .userUuid(receiver.getUuid())
+                                .email(receiver.getEmail())
+                                .title(title)
+                                .message(message)
+                                .email(email)
+                                .build());
+                        if (ccEmail != null && !ccEmail.equals(email)) {
+                            receivers.add(AttestationMailReceiver.builder()
+                                    .receiverType(AttestationMailReceiver.ReceiverType.CC)
+                                    .userUuid(cc.map(User::getUuid).orElse(null))
+                                    .email(ccEmail)
+                                    .title(title)
+                                    .message(message)
+                                    .email(email)
+                                    .build());
+                        }
+                        return receivers.stream();
+                    })
+                    .toList();
+            final AttestationMail mail = attestationMailDao.save(AttestationMail.builder()
+                    .attestation(attestation)
+                    .emailTemplateType(template.getTemplateType())
+                    .emailType(mailType)
+                    .sentAt(ZonedDateTime.now())
+                    .build());
+            mailReceivers.forEach(r -> {
+                r.setMail(mail);
+                mail.getReceivers().add(r);
             });
-            attestation.getMails()
-                    .add(attestationMailDao.save(AttestationMail.builder()
-                            .attestation(attestation)
-                            .emailTemplateType(template.getTemplateType())
-                            .emailType(mailType)
-                            .sentAt(ZonedDateTime.now())
-                            .build()));
+            attestation.getMails().add(mail);
         } else {
             log.info(template.getTitle() + " is disabled, notification not sent for attestation: " + attestation.getUuid());
+        }
+    }
+
+    //New and better :)
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void sendEmailsOrganisation(User targetUser, List<Long> attestationIds, AttestationMail.MailType mailType, EmailTemplate template) {
+        final User receiver = userDao.findByUuidAndDeletedFalse(targetUser.getUuid()).orElseThrow(() -> new AttestationEmailNotificationException("Failed to send notification, user with uuid %d not found", targetUser.getUuid()));
+        
+        //Build a list of attestations
+        final List<Attestation> attestations = attestationIds.stream()
+                .map(id -> attestationDao.findById(id).orElseThrow(() -> new AttestationEmailNotificationException("Failed to send notification, attestation with id %d not found", id)))
+                .toList();
+		if (template.isEnabled()) {
+            boolean escalation = mailType == AttestationMail.MailType.ESCALATION_REMINDER;
+            
+            // In case this is an escalation we need to find the user that was supposed handle the attestation
+            User user;
+            if (escalation) {
+                List<User> users = findTargetUsers(attestations.getFirst(), false);
+                user = (users != null && !users.isEmpty()) ? users.getFirst() : null;
+            } else {
+                user = null;
+            }
+            
+            final String message = resolveMessage(attestations.get(0), receiver, user, null, template, attestations);
+            final String title = resolveTitle(attestations.get(0), receiver, user, null, template);
+            final String email = receiver.getEmail();
+            log.info("Sending attestation notification ({}, {}, {} to {})", attestations.get(0).getItSystemName(),
+                    template.getTemplateType().name(), mailType.name(), email);
+            emailQueueService.queueEmail(email, title, message, template, null, null);
+
+
+            for (Attestation attestation : attestations) {
+                final AttestationMailReceiver mailReceiver =  AttestationMailReceiver.builder()
+                        .receiverType(AttestationMailReceiver.ReceiverType.TO)
+                        .userUuid(receiver.getUuid())
+                        .email(receiver.getEmail())
+                        .title(title)
+                        .message(message)
+                        .email(email)
+                        .build();
+
+                final AttestationMail mail = attestationMailDao.save(AttestationMail.builder()
+                        .attestation(attestation)
+                        .emailTemplateType(template.getTemplateType())
+                        .emailType(mailType)
+                        .sentAt(ZonedDateTime.now())
+                        .build());
+                mailReceiver.setMail(mail);
+                mail.getReceivers().add(mailReceiver);
+                attestation.getMails().add(mail);
+            }
+        } else {
+            log.info("{} is disabled, notification not sent.", template.getTitle());
         }
     }
 
@@ -214,18 +369,22 @@ public class AttestationEmailNotificationService {
         return Collections.emptyList();
     }
 
-    private String resolveTitle(Attestation attestation, User user, User systemResponsible, EmailTemplate template) {
+    private String resolveTitle(Attestation attestation, User receiver, final User user, User systemResponsible, EmailTemplate template) {
         String title = template.getTitle();
-        for (final EmailTemplatePlaceholder placeholder : template.getTemplateType().getEmailTemplatePlaceholders()) {
-            title = StringUtils.replace(title, placeholder.getPlaceholder(), placeholderValue(attestation, user, systemResponsible, placeholder));
+        // For backwards compatibility we need to replace for {enhed} also
+        final List<EmailTemplatePlaceholder> emailTemplatePlaceholders = Stream.concat(template.getTemplateType().getEmailTemplatePlaceholders().stream(), Stream.of(EmailTemplatePlaceholder.ORGUNIT_PLACEHOLDER)).toList();
+        for (final EmailTemplatePlaceholder placeholder : emailTemplatePlaceholders) {
+            title = StringUtils.replace(title, placeholder.getPlaceholder(), placeholderValue(attestation, receiver, user, systemResponsible, placeholder, null));
         }
         return title;
     }
 
-    private String resolveMessage(final Attestation attestation, final User user, final User systemResponsible, final EmailTemplate template) {
+    private String resolveMessage(final Attestation attestation, final User receiver, final User user, final User systemResponsible, final EmailTemplate template, List<Attestation> attestations) {
         String message = template.getMessage();
-        for (final EmailTemplatePlaceholder placeholder : template.getTemplateType().getEmailTemplatePlaceholders()) {
-            message = StringUtils.replace(message, placeholder.getPlaceholder(), placeholderValue(attestation, user, systemResponsible, placeholder));
+        // For backwards compatibility we need to replace for {enhed} also
+        final List<EmailTemplatePlaceholder> emailTemplatePlaceholders = Stream.concat(template.getTemplateType().getEmailTemplatePlaceholders().stream(), Stream.of(EmailTemplatePlaceholder.ORGUNIT_PLACEHOLDER)).toList();
+        for (final EmailTemplatePlaceholder placeholder : emailTemplatePlaceholders) {
+            message = StringUtils.replace(message, placeholder.getPlaceholder(), placeholderValue(attestation, receiver, user, systemResponsible, placeholder, attestations));
         }
         return message;
     }
@@ -242,7 +401,7 @@ public class AttestationEmailNotificationService {
     private String resolveRequestChangeMailMessage(final String requester, final String user, final String change, final EmailTemplate template, List<RoleAssignmentDTO> notApproved, final String ou) {
         String message = template.getMessage();
         for (final EmailTemplatePlaceholder placeholder : template.getTemplateType().getEmailTemplatePlaceholders()) {
-            message = StringUtils.replace(message, placeholder.getPlaceholder(), placeholderValue(requester, change, user, null, null, notApproved, null, placeholder));
+            message = StringUtils.replace(message, placeholder.getPlaceholder(), placeholderValue(requester, change, user, null, null, notApproved, ou, placeholder));
         }
         return message;
     }
@@ -264,13 +423,15 @@ public class AttestationEmailNotificationService {
         return message;
     }
 
-    private String placeholderValue(final Attestation attestation, final User user, final User systemResponsible, final EmailTemplatePlaceholder placeholder) {
+    private String placeholderValue(final Attestation attestation, final User receiver, final User user, final User systemResponsible, final EmailTemplatePlaceholder placeholder, final List<Attestation> attestations) {
         return switch (placeholder) {
-            case RECEIVER_PLACEHOLDER -> user != null ? user.getName() : "ukendt";
-            case ORGUNIT_PLACEHOLDER -> findOrgUnitName(attestation);
+            case RECEIVER_PLACEHOLDER -> receiver != null ? receiver.getName() : "ukendt";
+            case ORGUNIT_PLACEHOLDER -> attestations != null ? attestations.stream().map(this::findOrgUnitName).collect(Collectors.joining(", ")) : "";
+            case USER_PLACEHOLDER -> user != null ? user.getName() : placeholder.getPlaceholder();
             case ITSYSTEM_PLACEHOLDER -> attestation.getItSystemName();
             case SYSTEM_RESPONSIBLE_PLACEHOLDER -> systemResponsible != null ? systemResponsible.getName() : "ukendt";
             case ATTESTATION_DEADLINE -> attestation.getDeadline() != null ? attestation.getDeadline().format(DateTimeFormatter.ofPattern("dd/MM/yyyy")) : "ukendt";
+            case ORGUNITS_PLACEHOLDER -> attestations != null ? attestations.stream().map(this::findOrgUnitName).collect(Collectors.joining(", ")) : "";
             default -> {
                 log.warn(placeholder.getPlaceholder() + " is not resolved in AttestationEmailNotificationService");
                 yield placeholder.getPlaceholder();
@@ -326,23 +487,43 @@ public class AttestationEmailNotificationService {
         return "Ukendt";
     }
 
+    private Optional<User> findSystemOwner(final Attestation attestation) {
+        Optional<ItSystem> itSystem = itSystemDao.findById(attestation.getItSystemId());
+        return itSystem.map(ItSystem::getSystemOwner);
+    }
+
     private EmailTemplate findEmailTemplate(final Attestation.AttestationType attestationType,  AttestationMail.MailType mailType) {
         return switch (mailType) {
-            case INFORMATION -> attestationType == Attestation.AttestationType.ORGANISATION_ATTESTATION
-                    ? emailTemplateService.findByTemplateType(EmailTemplateType.ATTESTATION_NOTIFICATION)
-                    : emailTemplateService.findByTemplateType(EmailTemplateType.ATTESTATION_IT_SYSTEM_NOTIFICATION);
-            case REMINDER_1 -> attestationType == Attestation.AttestationType.ORGANISATION_ATTESTATION
-                    ? emailTemplateService.findByTemplateType(EmailTemplateType.ATTESTATION_REMINDER1)
-                    : emailTemplateService.findByTemplateType(EmailTemplateType.ATTESTATION_IT_SYSTEM_REMINDER1);
-            case REMINDER_2 -> attestationType == Attestation.AttestationType.ORGANISATION_ATTESTATION
-                    ? emailTemplateService.findByTemplateType(EmailTemplateType.ATTESTATION_REMINDER2)
-                    : emailTemplateService.findByTemplateType(EmailTemplateType.ATTESTATION_IT_SYSTEM_REMINDER2);
-            case REMINDER_3 -> attestationType == Attestation.AttestationType.ORGANISATION_ATTESTATION
-                    ? emailTemplateService.findByTemplateType(EmailTemplateType.ATTESTATION_REMINDER3)
-                    : emailTemplateService.findByTemplateType(EmailTemplateType.ATTESTATION_IT_SYSTEM_REMINDER3);
-            case ESCALATION_REMINDER -> attestationType == Attestation.AttestationType.ORGANISATION_ATTESTATION
-                    ? emailTemplateService.findByTemplateType(EmailTemplateType.ATTESTATION_REMINDER_THIRDPARTY)
-                    : emailTemplateService.findByTemplateType(EmailTemplateType.ATTESTATION_IT_SYSTEM_REMINDER_THIRDPARTY);
+            case INFORMATION -> 
+                switch (attestationType) {
+                    case ORGANISATION_ATTESTATION -> emailTemplateService.findByTemplateType(EmailTemplateType.ATTESTATION_NOTIFICATION);
+                    case IT_SYSTEM_ATTESTATION -> emailTemplateService.findByTemplateType(EmailTemplateType.ATTESTATION_IT_SYSTEM_ASSIGNMENT_NOTIFICATION);
+                    case IT_SYSTEM_ROLES_ATTESTATION -> emailTemplateService.findByTemplateType(EmailTemplateType.ATTESTATION_IT_SYSTEM_NOTIFICATION);
+                };
+            case REMINDER_1 ->
+                switch (attestationType) {
+                    case ORGANISATION_ATTESTATION -> emailTemplateService.findByTemplateType(EmailTemplateType.ATTESTATION_REMINDER1);
+                    case IT_SYSTEM_ATTESTATION -> emailTemplateService.findByTemplateType(EmailTemplateType.ATTESTATION_IT_SYSTEM_ASSIGNMENT_REMINDER1);
+                    case IT_SYSTEM_ROLES_ATTESTATION -> emailTemplateService.findByTemplateType(EmailTemplateType.ATTESTATION_IT_SYSTEM_REMINDER1);
+                };
+            case REMINDER_2 ->
+                switch (attestationType) {
+                    case ORGANISATION_ATTESTATION -> emailTemplateService.findByTemplateType(EmailTemplateType.ATTESTATION_REMINDER2);
+                    case IT_SYSTEM_ATTESTATION -> emailTemplateService.findByTemplateType(EmailTemplateType.ATTESTATION_IT_SYSTEM_ASSIGNMENT_REMINDER2);
+                    case IT_SYSTEM_ROLES_ATTESTATION -> emailTemplateService.findByTemplateType(EmailTemplateType.ATTESTATION_IT_SYSTEM_REMINDER2);
+                };
+            case REMINDER_3 ->
+                switch (attestationType) {
+                    case ORGANISATION_ATTESTATION -> emailTemplateService.findByTemplateType(EmailTemplateType.ATTESTATION_REMINDER3);
+                    case IT_SYSTEM_ATTESTATION -> emailTemplateService.findByTemplateType(EmailTemplateType.ATTESTATION_IT_SYSTEM_ASSIGNMENT_REMINDER3);
+                    case IT_SYSTEM_ROLES_ATTESTATION -> emailTemplateService.findByTemplateType(EmailTemplateType.ATTESTATION_IT_SYSTEM_REMINDER3);
+                };
+            case ESCALATION_REMINDER ->
+                switch (attestationType) {
+                    case ORGANISATION_ATTESTATION -> emailTemplateService.findByTemplateType(EmailTemplateType.ATTESTATION_REMINDER_THIRDPARTY);
+                    case IT_SYSTEM_ATTESTATION -> emailTemplateService.findByTemplateType(EmailTemplateType.ATTESTATION_IT_SYSTEM_ASSIGNMENT_REMINDER_THIRDPARTY);
+                    case IT_SYSTEM_ROLES_ATTESTATION -> emailTemplateService.findByTemplateType(EmailTemplateType.ATTESTATION_IT_SYSTEM_REMINDER_THIRDPARTY);
+                };
         };
     }
 

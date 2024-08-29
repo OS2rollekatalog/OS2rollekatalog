@@ -205,7 +205,7 @@ public class ItSystemController {
 	public String viewItSystem(Model model, @PathVariable("id") long id) {
 		ItSystem itSystem = itSystemService.getById(id);
 		if (itSystem == null) {
-			return "redirect:list";
+			return "redirect:../list";
 		}
 
 		SystemRoleForm systemRoleForm = new SystemRoleForm();
@@ -219,6 +219,7 @@ public class ItSystemController {
 		model.addAttribute("systemRoles", systemRoles);
 		model.addAttribute("userRoles", userRoleService.getByItSystem(itSystem));
 		model.addAttribute("attestationResponsibleName", itSystem.getAttestationResponsible() == null ? "" : itSystem.getAttestationResponsible().getName() + " (" + itSystem.getAttestationResponsible().getUserId() + ")");
+		model.addAttribute("systemOwnerName", itSystem.getSystemOwner() == null ? "" : itSystem.getSystemOwner().getName() + " (" + itSystem.getSystemOwner().getUserId() + ")");
 
 		Optional<ItSystemMaster> subscribedTo = itSystemMasterService.findAll().stream().filter(its -> Objects.equals(its.getMasterId(), itSystem.getSubscribedTo())).findAny();
 		model.addAttribute("subscribedTo", subscribedTo.isPresent() ? subscribedTo.get().getName() : "");
@@ -232,7 +233,7 @@ public class ItSystemController {
 	public String editItSystem(Model model, @PathVariable("id") long id) {
 		ItSystem itSystem = itSystemService.getById(id);
 		if (itSystem == null) {
-			return "redirect:list";
+			return "redirect:../list";
 		}
 
 		SystemRoleForm systemRoleForm = new SystemRoleForm();
@@ -260,6 +261,8 @@ public class ItSystemController {
 		model.addAttribute("attestationResponsibleName", itSystem.getAttestationResponsible() == null ? "" : itSystem.getAttestationResponsible().getName() + " (" + itSystem.getAttestationResponsible().getUserId() + ")");
 		model.addAttribute("attestationResponsibleUuid", itSystem.getAttestationResponsible() == null ? "" : itSystem.getAttestationResponsible().getUuid());
 		model.addAttribute("attestationEnabled", settingsService.isScheduledAttestationEnabled());
+		model.addAttribute("systemOwnerName", itSystem.getSystemOwner() == null ? "" : itSystem.getSystemOwner().getName() + " (" + itSystem.getSystemOwner().getUserId() + ")");
+		model.addAttribute("systemOwnerUuid", itSystem.getSystemOwner() == null ? "" : itSystem.getSystemOwner().getUuid());
 
 		return "itsystem/edit";
 	}
@@ -269,7 +272,7 @@ public class ItSystemController {
 	public String addSystemRoleToItSystem(Model model, @PathVariable("systemid") long systemId, @Valid @ModelAttribute("systemRoleForm") SystemRoleForm systemRoleForm, BindingResult bindingResult) {
 		ItSystem itSystem = itSystemService.getById(systemId);
 		if (itSystem == null || (!itSystem.getSystemType().equals(ItSystemType.AD) && !itSystem.getSystemType().equals(ItSystemType.SAML) && !itSystem.getSystemType().equals(ItSystemType.MANUAL))) {
-			return "redirect:../list";
+			return "redirect:../../list";
 		}
 
 		if (systemRoleForm.getIdentifier().length() == 0) {
@@ -342,15 +345,15 @@ public class ItSystemController {
 	public String convertSystemRoles(Model model, @PathVariable("id") long id, @ModelAttribute("convertSystemRolesForm") ConvertSystemRolesForm convertSystemRolesForm) {
 		ItSystem itSystem = itSystemService.getById(id);
 		if (itSystem == null) {
-			return "redirect:../list";
+			return "redirect:../../list";
 		}
 
 		if (itSystem.getSystemType().equals(ItSystemType.AD) && itSystem.isReadonly()) {
-			return "redirect:../list";
+			return "redirect:../../list";
 		}
 
 		if (itSystem.getSystemType().equals(ItSystemType.KSPCICS)) {
-			return "redirect:../list";
+			return "redirect:../../list";
 		}
 
 		List<SystemRole> systemRoles = systemRoleService.getByItSystem(itSystem).stream()
@@ -389,6 +392,6 @@ public class ItSystemController {
 			userRoleService.save(userRole);
 		}
 
-		return "redirect:../edit/" + itSystem.getId();
+		return "redirect:../../edit/" + itSystem.getId();
 	}
 }

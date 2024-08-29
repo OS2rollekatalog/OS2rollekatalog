@@ -25,11 +25,12 @@
 							<table class="table table-striped table-hover listTable">
 								<thead>
 									<tr>
-										<th class="col-md-2" th:text="#{html.page.log.timestamp}"></th>
+										<th class="col-md-1" th:text="#{html.page.log.timestamp}"></th>
 										<th class="col-md-1" th:text="#{html.page.log.auditor}"></th>
 										<th class="col-md-3" th:text="#{html.page.log.event}"></th>
 										<th class="col-md-3" th:text="#{html.page.log.target}"></th>
-										<th class="col-md-3" th:text="#{html.page.log.change}"></th>
+										<th class="col-md-2" th:text="#{html.page.log.change}"></th>
+										<th class="col-md-2" th:text="#{html.page.log.details}"></th>
 									</tr>
 								</thead>
 
@@ -93,6 +94,8 @@
 					}
 				}, {
 					data : 'secondaryEntityName'
+				}, {
+					data: 'description'
 				}],
 				'paging':    true,
 				'ordering':  true,

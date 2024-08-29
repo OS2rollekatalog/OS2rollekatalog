@@ -1,8 +1,12 @@
 package dk.digitalidentity.rc.controller.api;
 
-import java.util.ArrayList;
-import java.util.UUID;
-
+import dk.digitalidentity.rc.controller.api.dto.ConstraintValuesDTO;
+import dk.digitalidentity.rc.dao.model.ConstraintType;
+import dk.digitalidentity.rc.dao.model.ConstraintTypeValueSet;
+import dk.digitalidentity.rc.dao.model.enums.ConstraintUIType;
+import dk.digitalidentity.rc.security.RequireApiRoleManagementRole;
+import dk.digitalidentity.rc.service.ConstraintTypeService;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -11,16 +15,13 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import dk.digitalidentity.rc.controller.api.dto.ConstraintValuesDTO;
-import dk.digitalidentity.rc.dao.model.ConstraintType;
-import dk.digitalidentity.rc.dao.model.ConstraintTypeValueSet;
-import dk.digitalidentity.rc.dao.model.enums.ConstraintUIType;
-import dk.digitalidentity.rc.security.RequireApiRoleManagementRole;
-import dk.digitalidentity.rc.service.ConstraintTypeService;
+import java.util.ArrayList;
+import java.util.UUID;
 
 @RequireApiRoleManagementRole
 @RestController
 @RequestMapping("/api")
+@SecurityRequirement(name = "ApiKey")
 public class ConstraintApi {
 	
 	@Autowired

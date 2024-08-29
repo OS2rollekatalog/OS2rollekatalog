@@ -7,10 +7,10 @@ import dk.digitalidentity.rc.attestation.service.OrganisationAttestationService;
 import dk.digitalidentity.rc.attestation.service.temporal.OuAssignmentsUpdaterJdbc;
 import dk.digitalidentity.rc.attestation.service.temporal.SystemRoleAssignmentsUpdaterJdbc;
 import dk.digitalidentity.rc.attestation.service.temporal.UserAssignmentsUpdaterJdbc;
+import dk.digitalidentity.rc.attestation.service.tracker.AttestationRunTrackerService;
 import dk.digitalidentity.rc.attestation.service.tracker.ItSystemAttestationTrackerService;
 import dk.digitalidentity.rc.attestation.service.tracker.UserAttestationTrackerService;
 import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
-import dk.digitalidentity.rc.dao.model.enums.CheckupIntervalEnum;
 import dk.digitalidentity.rc.service.HistoryService;
 import dk.digitalidentity.rc.service.SettingsService;
 import io.micrometer.core.annotation.Timed;
@@ -34,6 +34,9 @@ public class AttestationTask {
 
     @Autowired
     private UserAttestationTrackerService userAttestationTracker;
+
+    @Autowired
+    private AttestationRunTrackerService attestationRunTrackerService;
 
     @Autowired
     private SystemRoleAssignmentsUpdaterJdbc systemRoleAssignmentsUpdaterJdbc;
@@ -109,7 +112,7 @@ public class AttestationTask {
             final LocalDate lastRun = settingsService.getScheduledAttestationLastRun().toInstant()
                     .atZone(ZoneId.systemDefault())
                     .toLocalDate();
-            
+
             if (!now.isAfter(lastRun)) {
                 throw new AttestationDataUpdaterException("Cannot update attestation more than once pr. day");
             }
@@ -129,37 +132,17 @@ public class AttestationTask {
     }
 
     private void updateTrackers(LocalDate now) {
-        final LocalDate deadline = findNextAttestationDate(now);
-        if (configuration.getAttestation().getAlwaysRunTracker()
-                || deadline.isEqual(now.plusDays(configuration.getAttestation().getDaysForAttestation()))) {
-            // Only update attestations exactly DaysForAttestation before deadline
-            userAttestationTracker.updateSystemUserAttestations(now);
-            userAttestationTracker.updateOrganisationUserAttestations(now);
-            systemAttestationTracker.updateItSystemRolesAttestations(now);
-        }
+        attestationRunTrackerService.migrateAttestationsWithoutRun();
+        attestationRunTrackerService.updateRuns(now);
+        userAttestationTracker.updateSystemUserAttestations(now);
+        userAttestationTracker.updateOrganisationUserAttestations(now);
+        systemAttestationTracker.updateItSystemRolesAttestations(now);
     }
 
     private void updateAssignments(LocalDate now) {
         userAssignmentsUpdaterJdbc.updateUserRoleAssignments(now);
         ouAssignmentsUpdaterJdbc.updateOuAssignments(now);
         systemRoleAssignmentsUpdaterJdbc.updateItSystemAssignments(now);
-    }
-
-    private LocalDate findNextAttestationDate(final LocalDate when) {
-        final CheckupIntervalEnum interval = settingsService.getScheduledAttestationInterval();
-        LocalDate deadline = settingsService.getFirstAttestationDate();
-        while (deadline.isBefore(when)) {
-            deadline = deadline.plusMonths(intervalToMonths(interval));
-        }
-        return deadline;
-    }
-
-    // NOTE: Interval is halfed since we need to run on sensitive attestations also.
-    private static int intervalToMonths(final CheckupIntervalEnum intervalEnum) {
-        return switch (intervalEnum) {
-            case YEARLY -> 6;
-            case EVERY_HALF_YEAR -> 3;
-        };
     }
 
 }

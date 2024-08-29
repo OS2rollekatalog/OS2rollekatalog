@@ -55,6 +55,54 @@
 								</div>
 							</fieldset>
 							
+							<fieldset>
+								<div class="form-group" style="justify-content: center; display: flex">
+									<label class="col-sm-3 control-label" th:text="#{html.role.flag.useronly}"></label>
+									<div class="col-sm-1">
+										<div class="checkbox c-checkbox">
+											<label>
+												<input type="checkbox" th:attr="checked=${role.userOnly}" disabled/>
+												<span class="fa fa-check"></span>
+											</label>
+										</div>
+									</div>
+
+									<th:block th:if="${@settingsService.isRequestApproveEnabled()}">
+									<label class="col-sm-2 control-label" th:text="#{html.role.flag.canrequest}"></label>
+									<div class="col-sm-1">
+										<div class="checkbox c-checkbox">
+											<label>
+												<input type="checkbox" th:attr="checked=${role.canRequest}" disabled/>
+												<span class="fa fa-check"></span>
+											</label>
+										</div>
+									</div>
+									</th:block>
+
+									<th:block th:if="${@settingsService.isScheduledAttestationEnabled()}">
+									<label class="col-sm-2 control-label" th:text="#{html.role.flag.sensitive}"></label>
+									<div class="col-sm-1">
+										<div class="checkbox c-checkbox">
+											<label>
+												<input type="checkbox" th:attr="checked=${role.sensitiveRole}" disabled/>
+												<span class="fa fa-check"></span>
+											</label>
+										</div>
+									</div>
+
+									<label class="col-sm-2 control-label" th:text="#{html.entity.itsystem.roleAssignmentAttestationByAttestationResponsible}"></label>
+									<div class="col-sm-1">
+										<div class="checkbox c-checkbox">
+											<label>
+												<input class="by-attestation-responsible-checkbox" type="checkbox" th:attr="checked=${role.roleAssignmentAttestationByAttestationResponsible}" disabled/>
+												<span class="fa fa-check"></span>
+											</label>
+										</div>
+									</div>
+									</th:block>
+								</div>
+							</fieldset>
+							
 							<fieldset th:if="${#strings.equals(role.itSystem.systemType, 'MANUAL')}">
 								<div class="form-group">
 									<label class="col-sm-2 control-label" th:text="#{html.page.userroles.new.require_manager_action.label}"></label>
@@ -232,18 +280,19 @@
 				color: silver;
 			}
 		}
+
 	</style>
 
 	<div id="ouUserRoleModal"></div>
 	<div id="ouUserRoleEditModal"></div>
-	<div th:replace="users/fragments/user_user_role_modal :: userUserRoleModal"></div>
+	<div th:replace="~{users/fragments/user_user_role_modal :: userUserRoleModal}"></div>
 	<div th:replace="~{users/fragments/role_assignment_edit_modal :: roleAssignmentEditModal}"></div>
     <nav th:replace="~{fragments/footer :: footer}"></nav>
 
 	<script th:replace="~{fragments/datatables :: datatables}"></script>
 	<script th:replace="~{fragments/assignDatePicker :: content}"></script>
-	<script th:replace="users/fragments/role_assignment_edit_modal :: roleAssignmentEditModalScript"></script>
-	<script th:replace="users/fragments/user_user_role_modal :: userUserRoleModalScript(page='userrole')"></script>
+	<script th:replace="~{users/fragments/role_assignment_edit_modal :: roleAssignmentEditModalScript}"></script>
+	<script th:replace="~{users/fragments/user_user_role_modal :: userUserRoleModalScript(page='userrole')}"></script>
 
 	<script th:inline="javascript">
 		/*<![CDATA[*/

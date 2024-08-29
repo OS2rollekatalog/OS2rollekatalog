@@ -11,6 +11,8 @@
     <TargetFrameworkVersion>v4.8</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
+    <IsWebBootstrapper>false</IsWebBootstrapper>
+    <TargetFrameworkProfile />
     <PublishUrl>publish\</PublishUrl>
     <Install>true</Install>
     <InstallFrom>Disk</InstallFrom>
@@ -22,11 +24,9 @@
     <UpdateRequired>false</UpdateRequired>
     <MapFileExtensions>true</MapFileExtensions>
     <ApplicationRevision>0</ApplicationRevision>
-    <ApplicationVersion>1.0.0.%2a</ApplicationVersion>
-    <IsWebBootstrapper>false</IsWebBootstrapper>
+    <ApplicationVersion>2.4.2.%2a</ApplicationVersion>
     <UseApplicationTrust>false</UseApplicationTrust>
     <BootstrapperEnabled>true</BootstrapperEnabled>
-    <TargetFrameworkProfile />
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <PlatformTarget>AnyCPU</PlatformTarget>
@@ -90,6 +90,9 @@
     <Compile Include="Application.cs" />
     <Compile Include="Configuration.cs" />
     <Compile Include="NewtonsoftJsonSerializer.cs" />
+    <Compile Include="LogUploader\LogUploaderService.cs" />
+    <Compile Include="PAM\Model\CyberArk.cs" />
+    <Compile Include="PAM\PAMService.cs" />
     <Compile Include="Tasks\ReadonlyItSystemService.cs" />
     <Compile Include="Tasks\ReadonlyItSystemSyncJob.cs" />
     <Compile Include="RoleCatalog\ItSystemData.cs" />
@@ -110,6 +113,7 @@
     <Compile Include="Tasks\ItSystemGroupService.cs" />
     <Compile Include="Tasks\MembershipSyncService.cs" />
     <Compile Include="Tasks\NightSyncJob.cs" />
+    <Compile Include="Tasks\LogUploaderJob.cs" />
     <Compile Include="Tasks\SyncJob.cs" />
   </ItemGroup>
   <ItemGroup>

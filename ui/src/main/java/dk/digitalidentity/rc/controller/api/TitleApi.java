@@ -5,6 +5,7 @@ import dk.digitalidentity.rc.controller.api.dto.TitleDTO;
 import dk.digitalidentity.rc.dao.model.Title;
 import dk.digitalidentity.rc.security.RequireApiOrganisationRole;
 import dk.digitalidentity.rc.service.TitleService;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -24,6 +25,7 @@ import java.util.stream.Collectors;
 @RequireApiOrganisationRole
 @Slf4j
 @RestController
+@SecurityRequirement(name = "ApiKey")
 public class TitleApi {
 
 	@Autowired

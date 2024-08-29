@@ -12,7 +12,9 @@ import org.springframework.transaction.annotation.Transactional;
 import dk.digitalidentity.rc.dao.PNumberDao;
 import dk.digitalidentity.rc.dao.model.PNumber;
 import dk.digitalidentity.rc.service.nemlogin.NemLoginService;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 @Service
 public class PNumberService {
 
@@ -46,6 +48,11 @@ public class PNumberService {
 	@Transactional
 	public void updatePNR() {
 		List<PNumber> newPNrs = nemLoginService.getAllPNR();
+		if (newPNrs == null || newPNrs.size() == 0) {
+			log.error("Got 0 pNr from NemLog-in, aborting update");
+			return;
+		}
+
 		List<PNumber> oldPNrs = this.getAll();
 
 		List<String> oldCodes = oldPNrs.stream().map(o -> o.getCode()).toList();

@@ -19,7 +19,7 @@ For ikke at smadre evt udviklerdata man måtte have i sin lokale SQL database, a
 Det skal sikres at den konfigurerede databaseforbindelse matcher en faktisk kørende SQL database. Det anbefales at anvende et andet schema-navn til afviklingen af tests, end det man bruger til lokal udvikling, da data i databasen vil blive overskrevet ved afvikling af testcases.
 
 ### AD FS brugerkonto
-Alle tests af brugergrænsefladen afvikles ved at der foretages et login ind mod en kørende AD FS server. I samme konfigurationsfil som databaseforbindelsen opsættes til testcases, er det også muligt at angive brugernavn og kodeord til den bruger man anvender til testcases. Det anbefales at brugernavnet er "user1", da de testdata der dannes under afviklingen af testcases forventer at administratoren i løsningen har dette brugernavn.
+Alle tests af brugergrænsefladen afvikles ved at der foretages et login ind mod en kørende AD FS server. I samme konfigurationsfil som databaseforbindelsen opsættes til testcases, er det også muligt at angive brugernavn og kodeord til den bruger man anvender til testcases. Det anbefales at brugernavnet er "rolunittest01", da de testdata der dannes under afviklingen af testcases forventer at administratoren i løsningen har dette brugernavn.
 
 ### Afvikling af dokumentationstests
 Alle tests der tester (og dokumenterer) API'erne ligger i folderen

@@ -1,5 +1,35 @@
 package dk.digitalidentity.rc.controller.rest;
 
+import java.security.Principal;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.List;
+import java.util.Locale;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
+
+import org.apache.commons.lang3.ObjectUtils;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.jpa.datatables.mapping.DataTablesInput;
+import org.springframework.data.jpa.datatables.mapping.DataTablesOutput;
+import org.springframework.data.jpa.domain.Specification;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.validation.BindingResult;
+import org.springframework.validation.ObjectError;
+import org.springframework.web.bind.WebDataBinder;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.InitBinder;
+import org.springframework.web.bind.annotation.ModelAttribute;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.server.ResponseStatusException;
+
 import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
 import dk.digitalidentity.rc.controller.mvc.datatables.dao.UserRoleViewDao;
 import dk.digitalidentity.rc.controller.mvc.datatables.dao.model.UserRoleView;
@@ -19,6 +49,8 @@ import dk.digitalidentity.rc.dao.model.UserRole;
 import dk.digitalidentity.rc.dao.model.UserRoleEmailTemplate;
 import dk.digitalidentity.rc.dao.model.enums.ConstraintValueType;
 import dk.digitalidentity.rc.dao.model.enums.ItSystemType;
+import dk.digitalidentity.rc.log.AuditLogArgument;
+import dk.digitalidentity.rc.log.AuditLogContextHolder;
 import dk.digitalidentity.rc.security.RequireAdministratorRole;
 import dk.digitalidentity.rc.security.RequireRequesterOrReadAccessRole;
 import dk.digitalidentity.rc.security.SecurityUtil;
@@ -33,35 +65,6 @@ import dk.digitalidentity.rc.util.IdentifierGenerator;
 import jakarta.persistence.criteria.Predicate;
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.support.ResourceBundleMessageSource;
-import org.springframework.data.jpa.datatables.mapping.DataTablesInput;
-import org.springframework.data.jpa.datatables.mapping.DataTablesOutput;
-import org.springframework.data.jpa.domain.Specification;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-import org.springframework.util.StringUtils;
-import org.springframework.validation.BindingResult;
-import org.springframework.validation.ObjectError;
-import org.springframework.web.bind.WebDataBinder;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.InitBinder;
-import org.springframework.web.bind.annotation.ModelAttribute;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.ResponseBody;
-import org.springframework.web.bind.annotation.RestController;
-
-import java.security.Principal;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.List;
-import java.util.Locale;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 
 @RequireAdministratorRole
 @Slf4j
@@ -100,9 +103,6 @@ public class UserRoleRestController {
 
     @Autowired
 	private SecurityUtil securityUtil;
-
-    @Autowired
-    private ResourceBundleMessageSource resourceBundle;
 
     @InitBinder(value = { "role" })
     public void initBinder(WebDataBinder binder) {
@@ -209,6 +209,10 @@ public class UserRoleRestController {
         		role.setSensitiveRole(active);
         		userRoleService.save(role);
         		break;
+            case "attestationByAttestationResponsible":
+                role.setRoleAssignmentAttestationByAttestationResponsible(active);
+                userRoleService.save(role);
+                break;
         	default:
         		return new ResponseEntity<>("Ukendt flag: " + flag, HttpStatus.BAD_REQUEST);
         }
@@ -309,90 +313,55 @@ public class UserRoleRestController {
 
     @PostMapping(value = "/rest/userroles/edit/{roleId}/addConstraint/{systemRoleId}")
     @ResponseBody
-    public ResponseEntity<String> addConstraint(@PathVariable("roleId") long roleId, @PathVariable("systemRoleId") long systemRoleId, String constraintUuid, String constraintValue, ConstraintValueType constraintValueType, boolean postpone) {
-        UserRole role = userRoleService.getById(roleId);
-        if (role == null) {
-            return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
-        }
-        
-        SystemRole systemRole = systemRoleService.getById(systemRoleId);
-        if (systemRole == null) {
-            return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
-        }
-
-        SystemRoleAssignment roleAssignment = null;
-        for (SystemRoleAssignment assignment : role.getSystemRoleAssignments()) {
-            if (assignment.getSystemRole().equals(systemRole)) {
-                roleAssignment = assignment;
-                break;
-            }
-        }
-        
-        if (roleAssignment == null) {
-            return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
-        }
-        
-        ConstraintType constraintType = constraintTypeService.getByUuid(constraintUuid);
-        if (constraintType == null) {
-        	return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
-        }
-
-        if (constraintValueType == null) {
-        	constraintValueType = ConstraintValueType.VALUE;
-		}
-
+    public ResponseEntity<String> addConstraint(@PathVariable("roleId") final long roleId,
+                                                @PathVariable("systemRoleId") final long systemRoleId,
+                                                final String constraintUuid,
+                                                @AuditLogArgument(name = "Værdi") final String constraintValue,
+                                                ConstraintValueType constraintValueType,
+                                                @AuditLogArgument(name = "Udskudt") final boolean postpone) {
+        final UserRole role = userRoleService.getOptionalById(roleId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST));
+        final SystemRole systemRole = systemRoleService.getOptionalById(systemRoleId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST));
+        final SystemRoleAssignment roleAssignment = role.getSystemRoleAssignments().stream().filter(r -> r.getSystemRole().equals(systemRole)).findFirst()
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST));
+        final ConstraintType constraintType = constraintTypeService.getByUuidOptional(constraintUuid)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST));
+        constraintValueType = ObjectUtils.defaultIfNull(constraintValueType, ConstraintValueType.VALUE);
+        AuditLogContextHolder.getContext().addArgument("Type", constraintType.getName());
         // perform regex validation (if needed)
-        if (constraintValueType.equals(ConstraintValueType.VALUE) && constraintType.getRegex() != null && constraintType.getRegex().length() > 0) {
+        if (constraintValueType.equals(ConstraintValueType.VALUE) && constraintType.getRegex() != null && !constraintType.getRegex().isEmpty()) {
         	try {
         		Pattern pattern = Pattern.compile(constraintType.getRegex());
         		Matcher matcher = pattern.matcher(constraintValue);
         		if (!matcher.matches()) {
-        			log.warn("Input does not match regular expression: " + constraintValue + " for regex: " + constraintType.getRegex());
+                    log.warn("Input does not match regular expression: {} for regex: {}", constraintValue, constraintType.getRegex());
 
         			return new ResponseEntity<>("Ugyldig dataafgrænsningsværdi!", HttpStatus.BAD_REQUEST);
         		}
         	}
         	catch (Exception ex) {
-        		log.warn("Unable to perform regex validation (giving it a free pass) on '" + constraintType.getEntityId() + "'. Message = " + ex.getMessage());
+                log.warn("Unable to perform regex validation (giving it a free pass) on '{}'. Message = {}", constraintType.getEntityId(), ex.getMessage());
         	}
         }
 
-        SystemRoleAssignmentConstraintValue systemRoleAssignmentConstraintValue = null;
-        for (SystemRoleAssignmentConstraintValue srcav : roleAssignment.getConstraintValues()) {
-        	if (srcav.getConstraintType().getUuid().equals(constraintType.getUuid())) {
-        		systemRoleAssignmentConstraintValue = srcav;
-                systemRoleAssignmentConstraintValue.setConstraintValue(constraintValue);
-                systemRoleAssignmentConstraintValue.setConstraintValueType(constraintValueType);
-                systemRoleAssignmentConstraintValue.setPostponed(postpone);
-                if (!StringUtils.hasLength(systemRoleAssignmentConstraintValue.getConstraintIdentifier())) {
-                	systemRoleAssignmentConstraintValue.setConstraintIdentifier(IdentifierGenerator.buildKombitConstraintIdentifier(
-                		configuration.getIntegrations().getKombit().getDomain(),
-                		systemRole,
-                		roleAssignment,
-                		constraintType
-                	));
-                }
-        		break;
-        	}
-		}
-        
-        if (systemRoleAssignmentConstraintValue == null) {
-        	systemRoleAssignmentConstraintValue = new SystemRoleAssignmentConstraintValue();
-            systemRoleAssignmentConstraintValue.setConstraintValue(constraintValue);
-            systemRoleAssignmentConstraintValue.setSystemRoleAssignment(roleAssignment);
-            systemRoleAssignmentConstraintValue.setConstraintType(constraintType);
-            systemRoleAssignmentConstraintValue.setConstraintValueType(constraintValueType);
-            systemRoleAssignmentConstraintValue.setPostponed(postpone);
-            systemRoleAssignmentConstraintValue.setConstraintIdentifier(IdentifierGenerator.buildKombitConstraintIdentifier(
-            	configuration.getIntegrations().getKombit().getDomain(),
-        		systemRole,
-        		roleAssignment,
-        		constraintType
-            ));
+        final SystemRoleAssignmentConstraintValue systemRoleAssignmentConstraintValue = new SystemRoleAssignmentConstraintValue();
+        systemRoleAssignmentConstraintValue.setConstraintValue(constraintValue);
+        systemRoleAssignmentConstraintValue.setSystemRoleAssignment(roleAssignment);
+        systemRoleAssignmentConstraintValue.setConstraintType(constraintType);
+        systemRoleAssignmentConstraintValue.setConstraintValueType(constraintValueType);
+        systemRoleAssignmentConstraintValue.setPostponed(postpone);
+        systemRoleAssignmentConstraintValue.setConstraintIdentifier(IdentifierGenerator.buildKombitConstraintIdentifier(
+            configuration.getIntegrations().getKombit().getDomain(),
+            systemRole,
+            roleAssignment,
+            constraintType
+        ));
+        if (userRoleService.findConstraintValue(constraintType, roleAssignment).isPresent()) {
+            userRoleService.updateSystemRoleConstraint(roleAssignment, systemRoleAssignmentConstraintValue);
+        } else {
+            userRoleService.addSystemRoleConstraint(roleAssignment, systemRoleAssignmentConstraintValue);
         }
-        
-		roleAssignment.getConstraintValues().add(systemRoleAssignmentConstraintValue);
-        
         userRoleService.save(role);
 
         return new ResponseEntity<>(HttpStatus.OK);
@@ -401,45 +370,16 @@ public class UserRoleRestController {
     @PostMapping(value = "/rest/userroles/edit/{roleId}/removeConstraint/{systemRoleId}")
     @ResponseBody
     public ResponseEntity<String> removeConstraint(@PathVariable("roleId") long roleId, @PathVariable("systemRoleId") long systemRoleId, String constraintUuid) {
-        UserRole role = userRoleService.getById(roleId);
-        if (role == null) {
-            return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
-        }
-        
-        SystemRole systemRole = systemRoleService.getById(systemRoleId);
-        if (systemRole == null) {
-            return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
-        }
-
-        SystemRoleAssignment roleAssignment = null;
-        for (SystemRoleAssignment assignment : role.getSystemRoleAssignments()) {
-            if (assignment.getSystemRole().equals(systemRole)) {
-                roleAssignment = assignment;
-                break;
-            }
-        }
-        
-        if (roleAssignment == null) {
-            return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
-        }
-        
-        ConstraintType constraintType = constraintTypeService.getByUuid(constraintUuid);
-        if (constraintType == null) {
-        	return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
-        }
-
-        SystemRoleAssignmentConstraintValue systemRoleAssignmentConstraintValue = null;
-        for (SystemRoleAssignmentConstraintValue srcav : roleAssignment.getConstraintValues()) {
-        	if (srcav.getConstraintType().getUuid().equals(constraintType.getUuid())) {
-        		systemRoleAssignmentConstraintValue = srcav;
-        		break;
-        	}
-		}
-
-        if (systemRoleAssignmentConstraintValue != null) {
-        	roleAssignment.getConstraintValues().remove(systemRoleAssignmentConstraintValue);
-        }
-
+        final UserRole role = userRoleService.getOptionalById(roleId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST));
+        final SystemRole systemRole = systemRoleService.getOptionalById(systemRoleId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST));
+        final SystemRoleAssignment roleAssignment = role.getSystemRoleAssignments().stream().filter(r -> r.getSystemRole().equals(systemRole)).findFirst()
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST));
+        final ConstraintType constraintType = constraintTypeService.getByUuidOptional(constraintUuid)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST));
+        AuditLogContextHolder.getContext().addArgument("Type", constraintType.getName());
+        userRoleService.removeSystemRoleConstraint(roleAssignment, constraintType);
         userRoleService.save(role);
 
         return new ResponseEntity<>(HttpStatus.OK);

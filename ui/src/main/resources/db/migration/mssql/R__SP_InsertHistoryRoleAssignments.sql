@@ -140,8 +140,8 @@ BEGIN
 		,prg.assigned_timestamp
 		,NULL
         ,1
-	    ,urg.start_date
-	    ,urg.stop_date
+	    ,prg.start_date
+	    ,prg.stop_date
 	FROM position_rolegroups prg
 	JOIN rolegroup rg ON prg.rolegroup_id = rg.id
 	JOIN positions p on p.id = prg.position_id

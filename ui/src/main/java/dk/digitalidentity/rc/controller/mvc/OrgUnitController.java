@@ -99,7 +99,7 @@ public class OrgUnitController {
 	public String manage(Model model, @PathVariable("uuid") String uuid) {
 		OrgUnit ou = orgUnitService.getByUuid(uuid);
 		if (ou == null) {
-			return "redirect:list";
+			return "redirect:../list";
 		}
 
 		boolean readOnly = !(SecurityUtil.hasRole(Constants.ROLE_ASSIGNER) || SecurityUtil.hasRole(Constants.ROLE_KLE_ADMINISTRATOR));
@@ -183,7 +183,7 @@ public class OrgUnitController {
 	public String getAssignedRolesFragment(Model model, @PathVariable("uuid") String uuid) {
 		OrgUnit ou = orgUnitService.getByUuid(uuid);
 		if (ou == null) {
-			return "redirect:list";
+			return "redirect:../list";
 		}
 		
 		boolean readOnly = !(SecurityUtil.hasRole(Constants.ROLE_ASSIGNER) || SecurityUtil.hasRole(Constants.ROLE_KLE_ADMINISTRATOR));
@@ -246,7 +246,7 @@ public class OrgUnitController {
 	public String getAddUserRoleFragment(Model model, @PathVariable("uuid") String uuid) {
 		OrgUnit ou = orgUnitService.getByUuid(uuid);
 		if (ou == null) {
-			return "redirect:list";
+			return "redirect:../list";
 		}
 
 		List<AvailableUserRoleDTO> roles = getAvailableUserRoles(ou);
@@ -260,7 +260,7 @@ public class OrgUnitController {
 	public String getAddRoleGroupFragment(Model model, @PathVariable("uuid") String uuid) {
 		OrgUnit ou = orgUnitService.getByUuid(uuid);
 		if (ou == null) {
-			return "redirect:list";
+			return "redirect:../list";
 		}
 
 		List<AvailableRoleGroupDTO> roleGroups = getAvailableRoleGroups(ou);
@@ -273,7 +273,7 @@ public class OrgUnitController {
 	public String getKleFragment(Model model, @PathVariable("uuid") String uuid, @PathVariable("type") String type) {
 		OrgUnit ou = orgUnitService.getByUuid(uuid);
 		if (ou == null) {
-			return "redirect:list";
+			return "redirect:../list";
 		}
 		
 		switch (type) {
@@ -285,7 +285,7 @@ public class OrgUnitController {
 			break;
 
 		default:
-			return "redirect:list";
+			return "redirect:../list";
 		}
 
 		return "fragments/manage_kle :: kle";
@@ -295,7 +295,7 @@ public class OrgUnitController {
 	public String getKleEditFragment(Model model, @PathVariable("uuid") String uuid, @PathVariable("type") String type) {
 		OrgUnit ou = orgUnitService.getByUuid(uuid);
 		if (ou == null) {
-			return "redirect:list";
+			return "redirect:../list";
 		}
 		
 		switch (type) {
@@ -307,7 +307,7 @@ public class OrgUnitController {
 			break;
 
 		default:
-			return "redirect:list";
+			return "redirect:../list";
 		}
 
 		return "fragments/manage_kle_edit :: kleEdit";
@@ -318,7 +318,7 @@ public class OrgUnitController {
 	public String getExceptedUsersRoleFragment(Model model, @PathVariable("uuid") String uuid) {
 		OrgUnit ou = orgUnitService.getByUuid(uuid);
 		if (ou == null) {
-			return "redirect:list";
+			return "redirect:../list";
 		}
 
 		// Get users
@@ -339,7 +339,7 @@ public class OrgUnitController {
 	public String getExceptedUsersRoleFragment2(Model model, @PathVariable("uuid") String uuid, @PathVariable("assignmentId") long assignmentId) {
 		OrgUnit ou = orgUnitService.getByUuid(uuid);
 		if (ou == null) {
-			return "redirect:list";
+			return "redirect:../list";
 		}
 
 		// Get users
@@ -364,7 +364,7 @@ public class OrgUnitController {
 	public String getExceptedUsersRoleGroupFragment(Model model, @PathVariable("uuid") String uuid, @PathVariable("rolegroupid") long roleGroupId) {
 		OrgUnit ou = orgUnitService.getByUuid(uuid);
 		if (ou == null) {
-			return "redirect:list";
+			return "redirect:../list";
 		}
 
 		// Get users
@@ -401,7 +401,7 @@ public class OrgUnitController {
 	public String getExceptedUsersRoleGroupFragment2(Model model, @PathVariable("uuid") String uuid, @PathVariable("assignmentId") long assignmentId) {
 		OrgUnit ou = orgUnitService.getByUuid(uuid);
 		if (ou == null) {
-			return "redirect:list";
+			return "redirect:../list";
 		}
 
 		// Get users
@@ -426,7 +426,7 @@ public class OrgUnitController {
 	public String getRequestApproveFragment(Model model, @PathVariable("uuid") String uuid) {
 		OrgUnit ou = orgUnitService.getByUuid(uuid);
 		if (ou == null) {
-			return "redirect:list";
+			return "redirect:../list";
 		}
 
 		boolean readOnly = !(SecurityUtil.hasRole(Constants.ROLE_ASSIGNER) || SecurityUtil.hasRole(Constants.ROLE_KLE_ADMINISTRATOR));

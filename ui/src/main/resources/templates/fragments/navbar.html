@@ -20,7 +20,7 @@
 						</a>
 					</li>
 					
-					<li class="nav-item" th:classappend="${subpage == 'reports'} ? 'bold' : ''" sec:authorize="hasRole('ROLE_REPORT_ACCESS') or hasRole('ROLE_TEMPLATE_ACCESS') or hasRole('ROLE_ADMINISTRATOR') or hasRole('ROLE_MANAGER') or hasRole('ROLE_SUBSTITUTE') or hasRole('ROLE_KLE_ADMINISTRATOR')">
+					<li class="nav-item" th:classappend="${subpage == 'reports'} ? 'bold' : ''" sec:authorize="hasRole('ROLE_ASSIGNER') or hasRole('ROLE_REPORT_ACCESS') or hasRole('ROLE_TEMPLATE_ACCESS') or hasRole('ROLE_ADMINISTRATOR') or hasRole('ROLE_MANAGER') or hasRole('ROLE_SUBSTITUTE') or hasRole('ROLE_KLE_ADMINISTRATOR')">
 						<a th:href="@{/ui/reportmenu}">
 							<em class="fa fa-fw fa-book"></em>
 							<span th:text="#{html.navbar.sub.reports}"></span>
@@ -230,61 +230,61 @@
 	                              	<span th:text="#{html.navbar.report.custom}"></span>
 	                           </a>
 	                        </li>
+	                    </th:block>
 	                        
-							<th:block sec:authorize="hasRole('ROLE_KLE_ADMINISTRATOR')">
-								<li th:if="${@roleCatalogueConfiguration.getIntegrations().getKle().isUiEnabled() == true}">
-									<a href="#kle" data-toggle="collapse">
-										<em class="fa fa-thumb-tack"></em>
-										<span th:text="#{html.navbar.kle}"></span>
-									</a>
-			
-									<ul id="kle" class="nav sidebar-subnav collapse">
-										<li class="sidebar-subnav-header"></li>
-										<li th:class="${page == 'kle.ous'} ? 'active' : ''">
-											<a th:href="@{/ui/kle/ou}">
-												<span th:text="#{html.navbar.kle.ous}"></span>
-											</a>
-										</li>
-										<li th:class="${page == 'kle.mapped'} ? 'active' : ''">
-											<a th:href="@{/ui/kle/mapped}">
-												<span th:text="#{html.navbar.kle.mapped}"></span>
-											</a>
-										</li>
-										<li th:class="${page == 'kle.assignment'} ? 'active' : ''">
-											<a th:href="@{/ui/kle/assignment}">
-												<span th:text="#{html.navbar.kle.assignment}"></span>
-											</a>
-										</li>
-									</ul>
-								</li>
-							</th:block>
+						<th:block sec:authorize="hasRole('ROLE_KLE_ADMINISTRATOR')">
+							<li th:if="${@roleCatalogueConfiguration.getIntegrations().getKle().isUiEnabled() == true}">
+								<a href="#kle" data-toggle="collapse">
+									<em class="fa fa-thumb-tack"></em>
+									<span th:text="#{html.navbar.kle}"></span>
+								</a>
+		
+								<ul id="kle" class="nav sidebar-subnav collapse">
+									<li class="sidebar-subnav-header"></li>
+									<li th:class="${page == 'kle.ous'} ? 'active' : ''">
+										<a th:href="@{/ui/kle/ou}">
+											<span th:text="#{html.navbar.kle.ous}"></span>
+										</a>
+									</li>
+									<li th:class="${page == 'kle.mapped'} ? 'active' : ''">
+										<a th:href="@{/ui/kle/mapped}">
+											<span th:text="#{html.navbar.kle.mapped}"></span>
+										</a>
+									</li>
+									<li th:class="${page == 'kle.assignment'} ? 'active' : ''">
+										<a th:href="@{/ui/kle/assignment}">
+											<span th:text="#{html.navbar.kle.assignment}"></span>
+										</a>
+									</li>
+								</ul>
+							</li>
+						</th:block>
 
-							<th:block sec:authorize="hasRole('ROLE_ADMINISTRATOR')">
-								<li class="nav-heading">
+						<th:block sec:authorize="hasRole('ROLE_ADMINISTRATOR') or hasRole('ROLE_ASSIGNER')">
+							<li class="nav-heading">
+								<span th:text="#{html.navbar.audit}"></span>
+							</li>
+
+          					<li th:class="${page == 'log.audit'} ? 'active' : ''">
+								<a th:href="@{/ui/logs/audit}">
+									<em class="fa fa-table"></em>
 									<span th:text="#{html.navbar.audit}"></span>
-								</li>
-	
-	          					<li th:class="${page == 'log.audit'} ? 'active' : ''">
-									<a th:href="@{/ui/logs/audit}">
-										<em class="fa fa-table"></em>
-										<span th:text="#{html.navbar.audit}"></span>
-									</a>
-								</li>
-							</th:block>
-							
-							<th:block sec:authorize="hasRole('ROLE_ASSIGNER')">
-								<li class="nav-heading">
+								</a>
+							</li>
+						</th:block>
+						
+						<th:block sec:authorize="hasRole('ROLE_ASSIGNER')">
+							<li class="nav-heading">
+								<span th:text="#{html.navbar.notifications}"></span>
+							</li>
+
+							<li th:class="${page == 'notifications'} ? 'active' : ''">
+								<a th:href="@{/ui/notifications/list}">
+									<em class="fa fa-tasks"></em>
 									<span th:text="#{html.navbar.notifications}"></span>
-								</li>
-	
-								<li th:class="${page == 'notifications'} ? 'active' : ''">
-									<a th:href="@{/ui/notifications/list}">
-										<em class="fa fa-tasks"></em>
-										<span th:text="#{html.navbar.notifications}"></span>
-										<span class="badge" style="background-color: red;" th:text="${session.SESSION_NOTIFICATION_COUNT}" th:unless="${session == null || session.SESSION_NOTIFICATION_COUNT == 0}"></span>
-									</a>
-								</li>
-							</th:block>
+									<span class="badge" style="background-color: red;" th:text="${session.SESSION_NOTIFICATION_COUNT}" th:unless="${session == null || session.SESSION_NOTIFICATION_COUNT == 0}"></span>
+								</a>
+							</li>
 						</th:block>
 
 						<th:block sec:authorize="hasRole('ROLE_ADMINISTRATOR') or hasRole('ROLE_MANAGER') or hasRole('ROLE_SUBSTITUTE') or hasRole('ROLE_READ_ACCESS')">

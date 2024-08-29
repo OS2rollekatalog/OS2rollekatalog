@@ -66,7 +66,7 @@ public class ItSystemService {
 	}
 
 	public ItSystem getFirstByName(String name) {
-		List<ItSystem> result = itSystemDao.findByIdentifier(name);
+		List<ItSystem> result = itSystemDao.findByName(name);
 		result = filterDeleted(result);
 		if (result != null && result.size() > 0) {
 			return result.get(0);
@@ -121,6 +121,10 @@ public class ItSystemService {
 
 	public List<ItSystem> findByAttestationResponsible(User user) {
 		return itSystemDao.findByAttestationResponsible(user);
+	}
+
+	public List<ItSystem> findByAttestationResponsibleOrSystemOwner(User user) {
+		return itSystemDao.findByAttestationResponsibleOrSystemOwner(user, user);
 	}
 
 	// TODO: use count

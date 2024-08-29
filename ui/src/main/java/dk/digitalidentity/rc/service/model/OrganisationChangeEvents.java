@@ -15,6 +15,7 @@ public class OrganisationChangeEvents {
 	private Set<OrgUnitWithTitlesDTO> orgUnitsWithNewTitles;
 	private Set<UserMovedPositions> usersMovedPostions;
 	private Set<UserDeletedEvent> deletedUsers;
+	private Set<UserMovedPositions> systemOwnerOrAttestationResponsibleMovedPostions;
 	
 	public OrganisationChangeEvents() {
 		newOrgUnits = new HashSet<>();
@@ -22,5 +23,6 @@ public class OrganisationChangeEvents {
 		orgUnitsWithNewTitles = new HashSet<>();
 		usersMovedPostions = new HashSet<>();
 		deletedUsers = new HashSet<>();
+		systemOwnerOrAttestationResponsibleMovedPostions = new HashSet<>();
 	}
 }

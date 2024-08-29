@@ -17,6 +17,9 @@ public enum EmailTemplatePlaceholder {
 	LIST_OF_CHANGE_REQUESTS("{ændringsønsker}", "html.enum.placeholders.description.changeList"),
 	ATTESTATION_DEADLINE("{deadline}", "html.enum.placeholders.description.deadline"),
 	REQUEST_OPERATION_PLACEHOLDER("{operation}", "html.enum.placeholders.description.operation"),
+	NEW_POSITIONS_PLACEHOLDER("{ny_stillinger}", "html.enum.placeholders.description.new_positions"),
+	OLD_POSITIONS_PLACEHOLDER("{tidligere_stillinger}", "html.enum.placeholders.description.old_positions"),
+	ORGUNITS_PLACEHOLDER("{enheder}", "html.enum.placeholders.description.orgunits"),
 	;
 
 	private String placeholder;

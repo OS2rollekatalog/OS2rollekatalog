@@ -4,3 +4,7 @@
 # 2022-10-05  -  2.0.3  -  itsystemgroup feature cron can now be configured
 # 2023-03-11  -  2.1.0  -  support a Domain setting, allowing for specific "skole" lookup on users
 # 2023-09-11  -  2.2.0  -  supports initial load of backSync members through group-in-group memberships
+# 2024-05-07  -  2.3.1  -  added cyberark pam for api-key retrieval
+# 2024-05-07  -  2.4.0  -  support * wildcard on DNs for OUs
+# 2024-05-08  -  2.4.1  -  added support for automatic log upload
+# 2024-08-28  -  2.4.2  -  fixed typo in default application config

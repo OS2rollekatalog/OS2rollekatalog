@@ -19,6 +19,7 @@ import dk.digitalidentity.rc.service.SystemRoleService;
 import dk.digitalidentity.rc.service.UserRoleService;
 import dk.digitalidentity.rc.service.UserService;
 import dk.digitalidentity.rc.service.model.UserWithRole;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -46,6 +47,7 @@ import java.util.stream.Collectors;
 @RequireApiItSystemRole
 @Slf4j
 @RestController
+@SecurityRequirement(name = "ApiKey")
 public class ItSystemApi {
 
 	@Autowired

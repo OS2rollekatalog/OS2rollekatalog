@@ -5,15 +5,17 @@ import dk.digitalidentity.rc.attestation.dao.AttestationOuAssignmentsDao;
 import dk.digitalidentity.rc.attestation.dao.AttestationUserDao;
 import dk.digitalidentity.rc.attestation.dao.AttestationUserRoleAssignmentDao;
 import dk.digitalidentity.rc.attestation.model.entity.Attestation;
+import dk.digitalidentity.rc.attestation.model.entity.AttestationRun;
 import dk.digitalidentity.rc.attestation.model.entity.AttestationUser;
 import dk.digitalidentity.rc.attestation.model.entity.temporal.AttestationOuRoleAssignment;
 import dk.digitalidentity.rc.attestation.model.entity.temporal.AttestationUserRoleAssignment;
 import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
 import dk.digitalidentity.rc.dao.OrgUnitDao;
+import dk.digitalidentity.rc.dao.UserDao;
 import dk.digitalidentity.rc.dao.history.HistoryUserDao;
 import dk.digitalidentity.rc.dao.history.model.HistoryUser;
 import dk.digitalidentity.rc.dao.model.OrgUnit;
-import dk.digitalidentity.rc.dao.model.enums.CheckupIntervalEnum;
+import dk.digitalidentity.rc.dao.model.Position;
 import dk.digitalidentity.rc.service.SettingsService;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.FlushModeType;
@@ -27,6 +29,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -38,6 +41,8 @@ import java.util.stream.Stream;
 public class UserAttestationTrackerService {
     @Autowired
     private RoleCatalogueConfiguration configuration;
+    @Autowired
+    private AttestationRunTrackerService runTrackerService;
     @Autowired
     private AttestationUserRoleAssignmentDao userRoleAssignmentDao;
     @Autowired
@@ -52,57 +57,65 @@ public class UserAttestationTrackerService {
     private HistoryUserDao historyUserDao;
     @Autowired
     private OrgUnitDao orgUnitDao;
+    @Autowired
+    private UserDao userDao;
 
     @PersistenceContext
     private EntityManager entityManager;
 
     @Transactional(timeout = 600, propagation = Propagation.REQUIRES_NEW)
     public void updateSystemUserAttestations(final LocalDate when) {
-        cnt = cntUA = cntOu = 0;
+        cnt = cntUA = cntOu = ouAdCnt = 0;
         entityManager.setFlushMode(FlushModeType.COMMIT);
-        final LocalDate deadlineNormal = findNextAttestationDate(when, false);
-        final LocalDate deadlineSensitive = findNextAttestationDate(when, true);
-        final boolean normalRun = shouldCreateAttestation(when, deadlineNormal);
-        final boolean sensitiveRun = !normalRun && shouldCreateAttestation(when, deadlineSensitive);
+        runTrackerService.getAttestationRun(when).ifPresent(run -> {
+            userRoleAssignmentDao.findValidGroupByResponsibleUserUuidAndUserUuidAndSensitiveRoleAndItSystem(when)
+                    .forEach(a -> ensureWeHaveSystemUsersAttestationFor(run, a, when));
 
-        userRoleAssignmentDao.findValidGroupByResponsibleUserUuidAndUserUuidAndSensitiveRoleAndItSystem(when)
-                .forEach(a -> ensureWeHaveSystemUsersAttestationFor(a, sensitiveRun, when, a.isSensitiveRole() ? deadlineSensitive : deadlineNormal));
-
-        // Ensure we have attestations for all direct OU assignments
-        // We should create attestation for all ou assignments that are not inherited.
-        ouAssignmentsDao.findValidGroupByResponsibleUserUuidAndSensitiveRole(when)
-                    .forEach(a -> ensureWeHaveSystemUsersAttestationForOu(a, sensitiveRun, when, a.isSensitiveRole() ? deadlineSensitive : deadlineNormal));
+            // Ensure we have attestations for all direct OU assignments
+            // We should create attestation for all ou assignments that are not inherited.
+            ouAssignmentsDao.findValidGroupByResponsibleUserUuidAndSensitiveRole(when)
+                    .forEach(a -> ensureWeHaveSystemUsersAttestationForOu(run, a, when));
+        });
     }
 
     @Transactional(timeout = 600, propagation = Propagation.REQUIRES_NEW)
     public void updateOrganisationUserAttestations(final LocalDate when) {
         cnt = cntUA = cntOu = 0;
         entityManager.setFlushMode(FlushModeType.COMMIT);
-        final LocalDate deadlineNormal = findNextAttestationDate(when, false);
-        final LocalDate deadlineSensitive = findNextAttestationDate(when, true);
-        final boolean normalRun = shouldCreateAttestation(when, deadlineNormal);
-        final boolean sensitiveRun = !normalRun && shouldCreateAttestation(when, deadlineSensitive);
-        // We start by deleting all attestation users
-        // Reason for this is that the org hierarchy changes over time, so it's easier to just start from scratch every time.
-        attestationDao.findByAttestationTypeAndDeadlineIsGreaterThanEqual(Attestation.AttestationType.ORGANISATION_ATTESTATION, when)
-            .forEach(a -> {
-                attestationUserDao.deleteAll(a.getUsersForAttestation());
-                a.setUsersForAttestation(Collections.emptySet());
-            });
-        entityManager.flush();
-        final Set<String> exemptedOus = findExemptedOUs();
+        runTrackerService.getAttestationRun(when).ifPresent(run -> {
+            // We start by deleting all attestation users
+            // Reason for this is that the org hierarchy changes over time, so it's easier to just start from scratch every time.
+            attestationDao.findByAttestationTypeAndDeadlineIsGreaterThanEqual(Attestation.AttestationType.ORGANISATION_ATTESTATION, when)
+                    .forEach(a -> {
+                        attestationUserDao.deleteAll(a.getUsersForAttestation());
+                        a.setUsersForAttestation(Collections.emptySet());
+                    });
+            entityManager.flush();
+            final Set<String> exemptedOus = findExemptedOUs();
 
-        // Ensure we have attestations for all direct assignments
-        // We should create attestation for all ou assignments that are not inherited.
-        ouAssignmentsDao.findValidGroupByResponsibleOuUuidAndSensitiveRole(when).stream()
-                .filter(a -> !exemptedOus.contains(a.getResponsibleOuUuid()))
-                .forEach(a -> ensureWeHaveOrganisationAttestationForOu(a, sensitiveRun, when, a.isSensitiveRole() ? deadlineSensitive : deadlineNormal));
+            // Ensure we have attestations for all direct assignments
+            // We should create attestation for all ou assignments that are not inherited.
+            ouAssignmentsDao.findValidGroupByResponsibleOuUuidAndSensitiveRole(when).stream()
+                    .filter(a -> !exemptedOus.contains(a.getResponsibleOuUuid()))
+                    .forEach(a -> ensureWeHaveOrganisationAttestationForOu(run, a, when));
 
-        userRoleAssignmentDao.findValidGroupByResponsibleOuAndUserUuidAndSensitiveRole(when).stream()
-                // DO not create attestation for OUs that have been exempt in settings
-                .filter(a -> !exemptedOus.contains(a.getResponsibleOuUuid()))
-                .filter(a -> !a.isInherited())
-                .forEach(a -> ensureWeHaveOrganisationAttestationFor(a, sensitiveRun, when, a.isSensitiveRole() ? deadlineSensitive : deadlineNormal));
+            userRoleAssignmentDao.findValidGroupByResponsibleOuAndUserUuidAndSensitiveRole(when).stream()
+                    // DO not create attestation for OUs that have been exempt in settings
+                    .filter(a -> !exemptedOus.contains(a.getResponsibleOuUuid()))
+                    .filter(a -> !a.isInherited())
+                    .forEach(a -> ensureWeHaveOrganisationAttestationFor(run, a, when));
+
+            if (settingsService.isADAttestationEnabled() && !run.isSensitive() && !run.isSuperSensitive()) {
+                // If AD attestation is enabled we want to make sure all org units with employees have attestations
+                userDao.findByDeletedFalse().stream()
+                        .filter(u -> !u.isDisabled())
+                        .flatMap(u -> u.getPositions().stream().map(Position::getOrgUnit).filter(Objects::nonNull).map(OrgUnit::getUuid))
+                        .filter(uuid -> !exemptedOus.contains(uuid))
+                        .distinct()
+                        .forEach(uuid -> ensureWeHaveOrganisationAttestationFor(run, uuid, when));
+            }
+        });
+
     }
 
     private Set<String> findExemptedOUs() {
@@ -124,8 +137,12 @@ public class UserAttestationTrackerService {
     }
 
     static int cntUA = 0;
-    private void ensureWeHaveSystemUsersAttestationFor(final AttestationUserRoleAssignment assignment, boolean sensitive,
-                                                       final LocalDate when, final LocalDate deadline) {
+    private void ensureWeHaveSystemUsersAttestationFor(final AttestationRun run,
+                                                       final AttestationUserRoleAssignment assignment,
+                                                       final LocalDate when) {
+        if (run.isSensitive() && !assignment.isSensitiveRole()) {
+            return;
+        }
         Attestation attestation = findSystemUsersAttestationFor(assignment, when).orElse(null);
         // It the user has been deleted it will be null, and we cannot do anything sensible
         final HistoryUser historyUser = historyUserDao.findFirstByDatoAndUserUuid(when, assignment.getResponsibleUserUuid());
@@ -133,12 +150,12 @@ public class UserAttestationTrackerService {
             return;
         }
         if (attestation == null) {
-            if (deadline.minusDays(configuration.getAttestation().getDaysForAttestation()).isAfter(when)) {
+            if (run.getDeadline().minusDays(configuration.getAttestation().getDaysForAttestation()).isAfter(when)) {
                 // Deadline is in the future do not create an attestation entity yet
                 return;
             } else {
                 // Deadline is soon we need to create a new attestation
-                attestation = createItSystemUsersAttestationFor(assignment, sensitive, when, deadline);
+                attestation = createItSystemUsersAttestationFor(run, assignment, run.isSensitive(), when, run.getDeadline());
             }
         } else {
             // If we have another open attestation for this it-system the responsible manager might have changed, in that
@@ -155,16 +172,20 @@ public class UserAttestationTrackerService {
         }
     }
 
-    private void ensureWeHaveSystemUsersAttestationForOu(final AttestationOuRoleAssignment assignment, boolean sensitive,
-                                                         final LocalDate when, final LocalDate deadline) {
+    private void ensureWeHaveSystemUsersAttestationForOu(final AttestationRun run,
+                                                         final AttestationOuRoleAssignment assignment,
+                                                         final LocalDate when) {
+        if (run.isSensitive() && !assignment.isSensitiveRole()) {
+            return;
+        }
         Attestation attestation = findSystemUsersAttestationFor(assignment, when).orElse(null);
         if (attestation == null) {
-            if (deadline.minusDays(configuration.getAttestation().getDaysForAttestation()).isAfter(when)) {
+            if (run.getDeadline().minusDays(configuration.getAttestation().getDaysForAttestation()).isAfter(when)) {
                 // Deadline is in the future do not create an attestation entity yet
                 return;
             } else {
                 // Deadline is soon we need to create a new attestation
-                attestation = createItSystemUsersAttestationFor(assignment, sensitive, when, deadline);
+                attestation = createItSystemUsersAttestationFor(run, assignment, run.isSensitive(), when, run.getDeadline());
             }
         }
         if (cntUA++ % 100 == 0) {
@@ -173,16 +194,20 @@ public class UserAttestationTrackerService {
     }
 
     static int cntOu = 0;
-    private void ensureWeHaveOrganisationAttestationForOu(final AttestationOuRoleAssignment assignment, boolean sensitive,
-                                                          final LocalDate when, final LocalDate deadline) {
+    private void ensureWeHaveOrganisationAttestationForOu(final AttestationRun run,
+                                                          final AttestationOuRoleAssignment assignment,
+                                                          final LocalDate when) {
+        if (run.isSensitive() && !assignment.isSensitiveRole()) {
+            return;
+        }
         Attestation attestation = findOrganisationAttestationFor(assignment, when).orElse(null);
         if (attestation == null) {
-            if (deadline.minusDays(configuration.getAttestation().getDaysForAttestation()).isAfter(when)) {
+            if (run.getDeadline().minusDays(configuration.getAttestation().getDaysForAttestation()).isAfter(when)) {
                 // Deadline is in the future do not create an attestation entity yet
                 return;
             } else {
                 // Deadline is soon we need to create a new attestation
-                attestation = createOrganisationUsersAttestationFor(assignment, sensitive, when, deadline);
+                attestation = createOrganisationUsersAttestationFor(run, assignment, run.isSensitive(), when, run.getDeadline());
             }
         }
         if (cntOu++ % 100 == 0) {
@@ -191,21 +216,53 @@ public class UserAttestationTrackerService {
     }
 
     static int cnt = 0;
-    private void ensureWeHaveOrganisationAttestationFor(final AttestationUserRoleAssignment assignment, boolean sensitive,
-                                                        final LocalDate when, final LocalDate deadline) {
+    private void ensureWeHaveOrganisationAttestationFor(final AttestationRun run,
+                                                        final AttestationUserRoleAssignment assignment,
+                                                        final LocalDate when) {
+        if (run.isSensitive() && !assignment.isSensitiveRole()) {
+            return;
+        }
         Attestation attestation = findOrganisationAttestationFor(assignment, when).orElse(null);
         if (attestation == null) {
-            if (deadline.minusDays(configuration.getAttestation().getDaysForAttestation()).isAfter(when)) {
+            if (run.getDeadline().minusDays(configuration.getAttestation().getDaysForAttestation()).isAfter(when)) {
                 // Deadline is in the future do not create an attestation entity yet
                 return;
             } else {
                 // Deadline is soon we need to create a new attestation
-                attestation = createOrganisationUsersAttestationFor(assignment, sensitive, when, deadline);
+                attestation = createOrganisationUsersAttestationFor(run, assignment, run.isSensitive(), when, run.getDeadline());
             }
         }
         addUser(attestation, assignment);
         if (cnt++ % 100 == 0) {
             log.info("Attestation for organisation role " + attestation.getUuid() + " found, progress count=" + cnt);
+        }
+    }
+
+    static int ouAdCnt = 0;
+    private void ensureWeHaveOrganisationAttestationFor(final AttestationRun run,
+                                                        final String responsibleOuUuid,
+                                                        final LocalDate when) {
+        if (run.isSensitive() || run.isSuperSensitive()) {
+            // This method creates a OU attestation event though there is no role assignment, this is
+            // used when AD attestation is enabled an all OUs should be attestated.
+            // So we NEVER wants this to happen for sensitive runs.
+            return;
+        }
+        Attestation attestation = findOrganisationAttestationFor(responsibleOuUuid, when).orElse(null);
+        if (attestation == null) {
+            if (run.getDeadline().minusDays(configuration.getAttestation().getDaysForAttestation()).isAfter(when)) {
+                // Deadline is in the future do not create an attestation entity yet
+                return;
+            } else {
+                // Deadline is soon we need to create a new attestation
+                final Optional<OrgUnit> optOu = orgUnitDao.findById(responsibleOuUuid);
+                if (optOu.isPresent()) {
+                    attestation = createOrganisationUsersAttestationFor(run, responsibleOuUuid, optOu.get().getName(), false, when, run.getDeadline());
+                }
+            }
+        }
+        if (ouAdCnt++ % 100 == 0) {
+            log.info("Attestation for organisation " + attestation.getUuid() + " found, progress count=" + ouAdCnt);
         }
     }
 
@@ -229,22 +286,17 @@ public class UserAttestationTrackerService {
                 Attestation.AttestationType.ORGANISATION_ATTESTATION, assignment.getResponsibleOuUuid(), when);
     }
 
-    private Attestation createOrganisationUsersAttestationFor(final AttestationUserRoleAssignment assignment, boolean sensitive,
-                                                              final LocalDate when, final LocalDate deadline) {
-        return attestationDao.save(Attestation.builder()
-                .attestationType(Attestation.AttestationType.ORGANISATION_ATTESTATION)
-                .sensitive(sensitive)
-                .responsibleOuUuid(assignment.getResponsibleOuUuid())
-                .responsibleOuName(assignment.getResponsibleOuName())
-                .deadline(deadline)
-                .createdAt(when)
-                .uuid(UUID.randomUUID().toString())
-                .build()
-        );
+
+    private Optional<Attestation> findOrganisationAttestationFor(final String ouUuid, final LocalDate when) {
+        return attestationDao.findByAttestationTypeAndResponsibleOuUuidAndDeadlineGreaterThanEqual(
+                Attestation.AttestationType.ORGANISATION_ATTESTATION, ouUuid, when);
     }
-    private Attestation createOrganisationUsersAttestationFor(final AttestationOuRoleAssignment assignment, boolean sensitive,
+
+    private Attestation createOrganisationUsersAttestationFor(final AttestationRun run,
+                                                              final AttestationUserRoleAssignment assignment, boolean sensitive,
                                                               final LocalDate when, final LocalDate deadline) {
         return attestationDao.save(Attestation.builder()
+                .attestationRun(run)
                 .attestationType(Attestation.AttestationType.ORGANISATION_ATTESTATION)
                 .sensitive(sensitive)
                 .responsibleOuUuid(assignment.getResponsibleOuUuid())
@@ -256,10 +308,46 @@ public class UserAttestationTrackerService {
         );
     }
 
-    private Attestation createItSystemUsersAttestationFor(final AttestationUserRoleAssignment assignment, boolean sensitive,
+    private Attestation createOrganisationUsersAttestationFor(final AttestationRun run,
+                                                              final AttestationOuRoleAssignment assignment, boolean sensitive,
+                                                              final LocalDate when, final LocalDate deadline) {
+        return attestationDao.save(Attestation.builder()
+                .attestationRun(run)
+                .attestationType(Attestation.AttestationType.ORGANISATION_ATTESTATION)
+                .sensitive(sensitive)
+                .responsibleOuUuid(assignment.getResponsibleOuUuid())
+                .responsibleOuName(assignment.getResponsibleOuName())
+                .deadline(deadline)
+                .createdAt(when)
+                .uuid(UUID.randomUUID().toString())
+                .build()
+        );
+    }
+
+    private Attestation createOrganisationUsersAttestationFor(final AttestationRun run,
+                                                              final String responsibleOuUuid,
+                                                              final String responsibleOuName,
+                                                              boolean sensitive, final LocalDate when,
+                                                              final LocalDate deadline) {
+        return attestationDao.save(Attestation.builder()
+                .attestationRun(run)
+                .attestationType(Attestation.AttestationType.ORGANISATION_ATTESTATION)
+                .sensitive(sensitive)
+                .responsibleOuUuid(responsibleOuUuid)
+                .responsibleOuName(responsibleOuName)
+                .deadline(deadline)
+                .createdAt(when)
+                .uuid(UUID.randomUUID().toString())
+                .build()
+        );
+    }
+
+    private Attestation createItSystemUsersAttestationFor(final AttestationRun run,
+                                                          final AttestationUserRoleAssignment assignment, boolean sensitive,
                                                           final LocalDate when, final LocalDate deadline) {
         final HistoryUser historyUser = historyUserDao.findFirstByDatoAndUserUuid(when, assignment.getResponsibleUserUuid());
         return attestationDao.save(Attestation.builder()
+                .attestationRun(run)
                 .attestationType(Attestation.AttestationType.IT_SYSTEM_ATTESTATION)
                 .sensitive(sensitive)
                 .itSystemId(assignment.getItSystemId())
@@ -274,10 +362,12 @@ public class UserAttestationTrackerService {
     }
 
 
-    private Attestation createItSystemUsersAttestationFor(final AttestationOuRoleAssignment assignment, boolean sensitive,
+    private Attestation createItSystemUsersAttestationFor(final AttestationRun run,
+                                                          final AttestationOuRoleAssignment assignment, boolean sensitive,
                                                           final LocalDate when, final LocalDate deadline) {
         final HistoryUser historyUser = historyUserDao.findFirstByDatoAndUserUuid(when, assignment.getResponsibleUserUuid());
         return attestationDao.save(Attestation.builder()
+                .attestationRun(run)
                 .attestationType(Attestation.AttestationType.IT_SYSTEM_ATTESTATION)
                 .sensitive(sensitive)
                 .itSystemId(assignment.getItSystemId())
@@ -309,38 +399,6 @@ public class UserAttestationTrackerService {
         if (assignment.isSensitiveRole()) {
             attestationUser.setSensitiveRoles(true);
         }
-    }
-
-    private LocalDate findNextAttestationDate(final LocalDate when, final boolean sensitive) {
-        final CheckupIntervalEnum interval = settingsService.getScheduledAttestationInterval();
-        LocalDate deadline = settingsService.getFirstAttestationDate();
-        while (deadline.isBefore(when)) {
-            deadline = deadline.plusMonths(sensitive
-                    ? sensitiveIntervalToMonths(interval)
-                    : intervalToMonths(interval));
-        }
-        return deadline;
-    }
-
-    private boolean shouldCreateAttestation(final LocalDate now, final LocalDate deadline) {
-        return !deadline.minusDays(configuration.getAttestation().getDaysForAttestation()).isAfter(now);
-    }
-
-    /**
-     * Intervals are halved for sensitive roles.
-     */
-    private static int sensitiveIntervalToMonths(final CheckupIntervalEnum intervalEnum) {
-        return switch (intervalEnum) {
-            case YEARLY -> 6;
-            case EVERY_HALF_YEAR -> 3;
-        };
-    }
-
-    private static int intervalToMonths(final CheckupIntervalEnum intervalEnum) {
-        return switch (intervalEnum) {
-            case YEARLY -> 12;
-            case EVERY_HALF_YEAR -> 6;
-        };
     }
 
 }

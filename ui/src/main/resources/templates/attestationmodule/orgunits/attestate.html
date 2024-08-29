@@ -361,7 +361,6 @@
 						$("#rejectBtn" + userId).hide();
 						$("#requestDeleteBtn" + userId).hide();
 						$("#alreadyDone" + userId).show();
-
 						userService.handleBadgeAndPageSwitch(userId, number);
 					},
 					error: defaultErrorHandler
@@ -469,6 +468,8 @@
                     $("#ouTab").addClass('active');
                     $("#orgUnitsTab").addClass('active');
                 }
+
+                $("html, body").animate({ scrollTop: 0 }, "slow");
 		    }
 		}
 

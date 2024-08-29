@@ -2,9 +2,9 @@
 ; To generate the installer, define the variable MyAppSourceDir MUST point to the Directory where the dll's should be copied from
 ; The script may be executed from the console-mode compiler - iscc "c:\isetup\samples\my script.iss" or from the Inno Setup Compiler UI
 #define AppId "{{5008e124-582e-41cd-9ae0-edd6c0daddb6}"
-#define AppSourceDir "\\VBOXSVR\brian\projects\role-catalogue\RoleCatalogImporter\RoleCatalogImporter\bin\Debug\"
+#define AppSourceDir "..\RoleCatalogImporter\bin\Debug\"
 #define AppName "RoleCatalogueImporter"
-#define AppVersion "1.7.0"
+#define AppVersion "1.7.1"
 #define AppPublisher "Digital Identity"
 #define AppURL "http://digital-identity.dk/"
 #define AppExeName "RoleCatalogueImporter.exe"
@@ -26,8 +26,8 @@ Compression=lzma
 SolidCompression=yes
 SourceDir={#AppSourceDir}
 OutputDir=..\..\..\Installer
-SetupIconFile={#AppSourceDir}\..\..\..\Installer\di.ico
-UninstallDisplayIcon={#AppSourceDir}\..\..\..\Installer\di.ico
+SetupIconFile=..\..\..\Installer\di.ico
+UninstallDisplayIcon=..\..\..\Installer\di.ico
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"

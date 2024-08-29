@@ -41,7 +41,7 @@ public class ItSystem implements AuditLoggable {
 	@Column
 	private Date lastUpdated;
 
-	@Column(nullable = false, length = 64)
+	@Column(nullable = false)
 	private String name;
 
 	@JsonIgnore
@@ -107,6 +107,10 @@ public class ItSystem implements AuditLoggable {
 	@ManyToOne(fetch = FetchType.LAZY)
 	@JoinColumn(name = "attestation_responsible_uuid")
 	private User attestationResponsible;
+
+	@ManyToOne(fetch = FetchType.LAZY)
+	@JoinColumn(name = "system_owner_uuid")
+	private User systemOwner;
 
 	@Column
 	private boolean attestationExempt;

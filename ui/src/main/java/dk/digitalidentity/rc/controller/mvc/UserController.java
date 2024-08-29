@@ -187,7 +187,7 @@ public class UserController {
 	public String getAssignedRolesFragment(Model model, @PathVariable("uuid") String uuid) {
 		User user = userService.getByUuid(uuid);
 		if (user == null) {
-			return "redirect:list";
+			return "redirect:../list";
 		}
 		
 		verifyRequesterOrManagerAccess(user);
@@ -335,7 +335,7 @@ public class UserController {
 	public String getAddUserRoleFragment(Model model, @PathVariable("uuid") String uuid) {
 		User user = userService.getByUuid(uuid);
 		if (user == null) {
-			return "redirect:list";
+			return "redirect:../list";
 		}
 
 		List<AvailableUserRoleDTO> roles = helper.getAvailableUserRoles(user);
@@ -349,7 +349,7 @@ public class UserController {
 	public String getAddRoleGroupFragment(Model model, @PathVariable("uuid") String uuid) {
 		User user = userService.getByUuid(uuid);
 		if (user == null) {
-			return "redirect:list";
+			return "redirect:../list";
 		}
 
 		List<AvailableRoleGroupDTO> roleGroups = helper.getAvailableRoleGroups(user);
@@ -476,7 +476,7 @@ public class UserController {
 	public String getKleFragment(Model model, @PathVariable("uuid") String uuid, @PathVariable("type") String type) {
 		User user = userService.getByUuid(uuid);
 		if (user == null) {
-			return "redirect:list";
+			return "redirect:../list";
 		}
 		
 		switch (type) {
@@ -488,7 +488,7 @@ public class UserController {
 			break;
 
 		default:
-			return "redirect:list";
+			return "redirect:../list";
 		}
 
 		return "fragments/manage_kle :: kle";
@@ -498,7 +498,7 @@ public class UserController {
 	public String getKleEditFragment(Model model, @PathVariable("uuid") String uuid, @PathVariable("type") String type) {
 		User user = userService.getByUuid(uuid);
 		if (user == null) {
-			return "redirect:list";
+			return "redirect:../list";
 		}
 		
 		switch (type) {
@@ -510,7 +510,7 @@ public class UserController {
 			break;
 
 		default:
-			return "redirect:list";
+			return "redirect:../list";
 		}
 
 		return "fragments/manage_kle_edit :: kleEdit";

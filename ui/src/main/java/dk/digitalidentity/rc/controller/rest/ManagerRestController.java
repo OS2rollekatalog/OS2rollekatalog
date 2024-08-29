@@ -206,7 +206,7 @@ public class ManagerRestController {
 					message = message.replace(EmailTemplatePlaceholder.RECEIVER_PLACEHOLDER.getPlaceholder(), substitute.getName());
 					message = message.replace(EmailTemplatePlaceholder.MANAGER_PLACEHOLDER.getPlaceholder(), manager.getName());
 					message = message.replace(EmailTemplatePlaceholder.ORGUNIT_PLACEHOLDER.getPlaceholder(), sub.getOrgUnit().getName());
-					emailQueueService.queueEmail(substituteEmail, title, message, template, null);
+					emailQueueService.queueEmail(substituteEmail, title, message, template, null, null);
 				}
 				else {
 					log.info("Email template with type " + template.getTemplateType() + " is disabled. Email was not sent.");

@@ -10,7 +10,7 @@ import org.springframework.data.repository.CrudRepository;
 
 import java.util.List;
 
-public interface PositionDao extends CrudRepository<Position, String> {
+public interface PositionDao extends CrudRepository<Position, Long> {
 
 	List<Position> findAll();
 	

@@ -1,26 +1,30 @@
 package dk.digitalidentity.rc.service;
 
-import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
-import dk.digitalidentity.rc.dao.EmailTemplateDao;
-import dk.digitalidentity.rc.dao.model.EmailTemplate;
-import dk.digitalidentity.rc.dao.model.enums.EmailTemplateType;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+import org.apache.commons.lang3.RegExUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.MessageSource;
 import org.springframework.stereotype.Service;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Locale;
+import dk.digitalidentity.rc.dao.EmailTemplateDao;
+import dk.digitalidentity.rc.dao.model.EmailTemplate;
+import dk.digitalidentity.rc.dao.model.enums.EmailTemplateType;
 
 @Service
 public class EmailTemplateService {
+	
+	private final static Pattern PATTERN = Pattern.compile("(\\{[\\w]+\\})");
+	
 	@Autowired
 	private EmailTemplateDao emailTemplateDao;
 	@Autowired
 	private MessageSource messageSource;
-	@Autowired
-	private RoleCatalogueConfiguration configuration;
 
 	public List<EmailTemplate> findAll() {
 		List<EmailTemplate> result = new ArrayList<>();
@@ -36,20 +40,15 @@ public class EmailTemplateService {
 		final EmailTemplate template = emailTemplateDao.findById(templateId)
 				.orElseThrow(() -> new RuntimeException("Template not found " + templateId));
 		final String title = messageSource.getMessage(template.getTemplateType().getMessage(), null, Locale.ENGLISH);
-		if (title.contains("{days_reminder_1}")) {
-			return StringUtils.replace(title, "{days_reminder_1}", "" + configuration.getAttestation().getReminder1DaysBeforeDeadline());
-		}
-		if (title.contains("{days_reminder_2}")) {
-			return StringUtils.replace(title, "{days_reminder_2}", "" + configuration.getAttestation().getReminder2DaysBeforeDeadline());
-		}
-		if (title.contains("{days_reminder_3}")) {
-			return StringUtils.replace(title, "{days_reminder_3}", "" + configuration.getAttestation().getReminder3DaysAfterDeadline());
-		}
-		if (title.contains("{notification_days}")) {
-			return StringUtils.replace(title, "{notification_days}", "" + configuration.getAttestation().getNotifyDaysBeforeDeadline());
-		}
-		if (title.contains("{thirdpart_days}")) {
-			return StringUtils.replace(title, "{thirdpart_days}", "" + configuration.getAttestation().getEscalationReminderDaysAfterDeadline());
+		
+		if (template.getTemplateType().isAllowDaysBeforeDeadline()) {
+			Matcher m = PATTERN.matcher(title);
+			if (m.find()) {
+				Integer daysBeforeEvent = template.getDaysBeforeEvent();
+				String result = StringUtils.replace(title, m.group(1), "" + Math.abs(daysBeforeEvent));
+				result = RegExUtils.replaceAll(result, "før deadline|efter deadline", daysBeforeEvent >= 0 ? "før deadline" : "efter deadline");
+				return result;
+			}
 		}
 		return title;
 	}
@@ -138,7 +137,34 @@ public class EmailTemplateService {
 					title = "Manglende attestering af rolleopbygning";
 					message = "Kære {modtager}\n<br/>\n<br/>\nDet er tid til, at der skal attesteres rolleopbygning for it-systemet: {itsystem}. Der er sendt en eller flere rykkere til leder og eventuel stedfortræder, men en attestering er endnu ikke udført.";
 					break;
-					case SUBSTITUTE:
+
+				case ATTESTATION_IT_SYSTEM_ASSIGNMENT_NOTIFICATION:
+					title = "Det er tid til attestering af rolletildelinger for {itsystem}";
+					message = "Kære {modtager}\n<br/>\n<br/>\nDet er tid til, at der skal attesteres rolletildelinger for it-systemet: {itsystem}.";
+					enabled = false;
+					break;
+				case ATTESTATION_IT_SYSTEM_ASSIGNMENT_REMINDER1:
+					title = "Påmindelse/rykker for attestering af rolletildelinger for {itsystem}";
+					message = "Kære {modtager}\n<br/>\n<br/>\nDer er ti dage til at der skal være attesteret rolletildelinger for it-systemet: {itsystem}.";
+					enabled = false;
+					break;
+				case ATTESTATION_IT_SYSTEM_ASSIGNMENT_REMINDER2:
+					title = "Påmindelse/rykker for attestering af rolletildelinger for {itsystem}";
+					message = "Kære {modtager}\n<br/>\n<br/>\nDer er tre dage til at der skal være attesteret rolletildelinger for it-systemet: {itsystem}.";
+					enabled = false;
+					break;
+				case ATTESTATION_IT_SYSTEM_ASSIGNMENT_REMINDER3:
+					title = "Påmindelse/rykker for attestering af rolletildelinger for {itsystem}";
+					message = "Kære {modtager}\n<br/>\n<br/>\nDer er tre dage siden der skulle have været være attesteret rolletildelinger for it-systemet: {itsystem}.";
+					enabled = false;
+					break;
+				case ATTESTATION_IT_SYSTEM_ASSIGNMENT_REMINDER_THIRDPARTY:
+					title = "Manglende attestering af rolletildelinger for {itsystem}";
+					message = "Kære {modtager}\n<br/>\n<br/>\nDet er tid til, at der skal attesteres rolletildelinger for it-systemet: {itsystem}. Der er sendt en eller flere rykkere til leder og eventuel stedfortræder, men en attestering er endnu ikke udført.";
+					enabled = false;
+					break;
+
+				case SUBSTITUTE:
 					title = "Du er blevet udpeget som stedfortræder";
 					message = "Kære {modtager}\n<br/>\n<br/>\nDu er blevet udpeget til stedfortræder for {leder} for enheden {enhed}.";
 					break;
@@ -176,7 +202,17 @@ public class EmailTemplateService {
 					break;
 				case USER_WITH_MANUAL_ITSYSTEM_DELETED:
 					title = "En bruger med manuelle roller er blevet nedlagt";
-					message = "Til den ansvarlige for {itsystem}\n<\br>\nBrugeren {bruger} er blevet nedlagt, og denne bruger har adgange i {itsystem}, som muligvis kræver manuel behandling";
+					message = "Til den ansvarlige for {itsystem}\n<br/>\nBrugeren {bruger} er blevet nedlagt, og denne bruger har adgange i {itsystem}, som muligvis kræver manuel behandling";
+					break;
+				case ORGUNIT_NEW_PARENT:
+					title = "En enhed har fået en ny overliggende enhed";
+					message = "Kære {modtager} Der er oprettet en ny enhed med navnet {enhed}. Som leder er du ansvarlig for at dine medarbejdere kun har de rettigheder, som de arbejdsmæssigt er berettiget til. Du bedes derfor tjekke rettighederne i din organisation og tage stilling til om der skal foretages ændringer.";
+					enabled = false;
+					break;
+				case USER_WITH_DIRECT_ROLES_CHANGED_ORGUNIT:
+					title = "En bruger med direkte tildelte rettigheder har skiftet afdeling.";
+					message = "Kære {modtager} Brugeren {bruger} har skiftet afdeling.\n<br/>\n<br/>Ny stillinger:\n<br/>{ny_stillinger}\n<br/>Fratrådt stilling:\n<br/>{tidligere_stillinger}\n<br/>\n<br/>Som leder er du ansvarlig for at dine medarbejdere kun har de rettigheder, som de arbejdsmæssigt er berettiget til. Direkte tildelinger er givet i den tidligere stilling. Du bedes derfor tjekke de direkte tildelte rettigheder og tage stilling til om de skal bibeholdes eller fratages brugeren.";
+					enabled = false;
 					break;
 			}
 			

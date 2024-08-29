@@ -1,7 +1,6 @@
-﻿using System;
-using RestSharp;
+﻿using RestSharp;
+using System;
 using System.Net;
-using Newtonsoft.Json;
 
 namespace RoleCatalogImporter
 {
@@ -9,12 +8,20 @@ namespace RoleCatalogImporter
     {
         private static readonly log4net.ILog log = log4net.LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
         private static Uri uri = new Uri(Properties.Settings.Default.ApiUrl);
-        private static string apiKey = Properties.Settings.Default.ApiKey;
+        private static string apiKey = null;
         private static string domain = Properties.Settings.Default.Domain;
 
         public Importer()
         {
             ServicePointManager.ServerCertificateValidationCallback += (sender, certificate, chain, sslPolicyErrors) => true;
+
+            if (Properties.Settings.Default.UsePAM)
+            {
+                apiKey = PAMService.GetApiKey();
+            } else
+            {
+                apiKey = Properties.Settings.Default.ApiKey;
+            }
         }
 
         public bool Import(Organisation organisation)

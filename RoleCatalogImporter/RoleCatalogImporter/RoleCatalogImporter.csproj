@@ -93,6 +93,8 @@
     <Compile Include="Application.cs" />
     <Compile Include="Configuration.cs" />
     <Compile Include="NewtonsoftJsonSerializer.cs" />
+	<Compile Include="PAM\Model\CyberArk.cs" />
+    <Compile Include="PAM\PAMService.cs" />
     <Compile Include="RoleCatalog\Importer.cs" />
     <Compile Include="RoleCatalog\Manager.cs" />
     <Compile Include="RoleCatalog\Organisation.cs" />

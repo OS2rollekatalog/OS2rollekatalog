@@ -94,9 +94,13 @@
 <div th:replace="~{attestationmodule/fragments/footer :: scripts(datatables = true)}"></div>
 
 <script th:inline="javascript">
+    /*<![CDATA[*/
+    /*[+
+        let preflightUrl = [[@{/rest/attestation/v2/reports/}]];
+    +]*/
         var currentDate = null;
         function downloadReport(source) {
-            var url = "";
+            let url = "";
             if (currentDate != null) {
                 url = source.href.split('?')[0] + "?since=" + encodeURIComponent(currentDate.toISOString().split('T')[0]);
             } else {
@@ -105,7 +109,7 @@
             const response = confirm("Download af rapporter kan tage flere minutter, og der kan kun hentes en rapport af gangen.\n Forsæt?");
             if (response) {
                 $.ajax({
-                    url: url,
+                    url: preflightUrl,
                     xhrFields: {
                         responseType: 'blob'
                     },
@@ -172,6 +176,7 @@
                 "autoWidth" : false
 			});
 		});
+    /*]]>*/
 	</script>
 
 </body>

@@ -1,5 +1,18 @@
 package dk.digitalidentity.rc.util;
 
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.List;
+import java.util.UUID;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.event.EventListener;
+import org.springframework.scheduling.annotation.EnableScheduling;
+import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
+
 import dk.digitalidentity.rc.config.Constants;
 import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
 import dk.digitalidentity.rc.controller.api.model.OrgUnitDTO;
@@ -32,17 +45,6 @@ import dk.digitalidentity.rc.service.ItSystemService;
 import dk.digitalidentity.rc.service.OrgUnitService;
 import dk.digitalidentity.rc.service.OrganisationImporter;
 import dk.digitalidentity.rc.service.SystemRoleService;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.scheduling.annotation.EnableScheduling;
-import org.springframework.scheduling.annotation.Scheduled;
-import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
-
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.List;
-import java.util.UUID;
 
 @Transactional(rollbackFor = Exception.class)
 @Component
@@ -88,10 +90,8 @@ public class BootstrapDevMode {
 	@Autowired
 	private DomainService domainService;
 
-	// run every 8 hours, but wait 15 seconds after boot... kinda need a run-once
-	// here instead ;)
-	@Scheduled(fixedDelay = 8 * 60 * 60 * 1000, initialDelay = 15 * 1000)
-	public void init() throws Exception {
+	@EventListener(ApplicationReadyEvent.class)
+	public void runOnStartup() throws Exception {
 		if (configuration.getScheduled().isEnabled()) {
 			init(false);
 		}
@@ -142,21 +142,21 @@ public class BootstrapDevMode {
 	}
 
 	private void findUserOneAndMakeHimAdmin() {
-		User user1 = userDao.findByUserIdAndDomainAndDeletedFalse("user1", domainService.getPrimaryDomain()).orElseThrow();
+		User rolunittest01 = userDao.findByUserIdAndDomainAndDeletedFalse("rolunittest01", domainService.getPrimaryDomain()).orElseThrow();
 		User bsg = userDao.findByUserIdAndDomainAndDeletedFalse("bsg", domainService.getPrimaryDomain()).orElseThrow();
 		User kbp = userDao.findByUserIdAndDomainAndDeletedFalse("kbp", domainService.getPrimaryDomain()).orElseThrow();
 		User and = userDao.findByUserIdAndDomainAndDeletedFalse("and", domainService.getPrimaryDomain()).orElseThrow();
 		UserRole administrator = userRoleDao.getByIdentifier("administrator");
 		
 		UserUserRoleAssignment assignment = new UserUserRoleAssignment();
-		assignment.setUser(user1);
+		assignment.setUser(rolunittest01);
 		assignment.setAssignedByName("Systembruger");
 		assignment.setAssignedByUserId("system");
 		assignment.setAssignedTimestamp(new Date());
 		assignment.setUserRole(administrator);
 
-		user1.getUserRoleAssignments().add(assignment);
-		userDao.save(user1);
+		rolunittest01.getUserRoleAssignments().add(assignment);
+		userDao.save(rolunittest01);
 		
 		assignment = new UserUserRoleAssignment();
 		assignment.setUser(bsg);
@@ -255,11 +255,11 @@ public class BootstrapDevMode {
 		p.setOrgUnitUuid(kommune.getUuid());
 		gert.getPositions().add(p);
 
-		UserDTO user1 = createUser(users, "Justin McCase", "user1");
+		UserDTO rolunittest01 = createUser(users, "Justin McCase", "rolunittest01");
 		p = new PositionDTO();
 		p.setName("Alt-mulig-mand");
 		p.setOrgUnitUuid(kommune.getUuid());
-		user1.getPositions().add(p);
+		rolunittest01.getPositions().add(p);
 
 		UserDTO bsg = createUser(users, "Brian Tester", "bsg");
 		p = new PositionDTO();

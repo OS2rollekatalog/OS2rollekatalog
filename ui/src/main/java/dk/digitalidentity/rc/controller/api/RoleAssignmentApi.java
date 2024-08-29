@@ -11,6 +11,7 @@ import dk.digitalidentity.rc.service.OrgUnitService;
 import dk.digitalidentity.rc.service.RoleGroupService;
 import dk.digitalidentity.rc.service.UserRoleService;
 import dk.digitalidentity.rc.service.UserService;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -31,6 +32,7 @@ import java.util.stream.Collectors;
 
 @RequireApiRoleManagementRole
 @RestController
+@SecurityRequirement(name = "ApiKey")
 public class RoleAssignmentApi {
     private static class ErrorMessage {
         private static String USER_NOT_FOUND = "User not found.";

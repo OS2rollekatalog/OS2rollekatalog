@@ -190,7 +190,7 @@
 		<dependency>
 			<groupId>com.microsoft.sqlserver</groupId>
 			<artifactId>mssql-jdbc</artifactId>
-			<version>12.6.0.jre11</version>
+			<version>12.6.2.jre11</version>
 		</dependency>
 
 		<dependency>
@@ -208,7 +208,7 @@
 		<dependency>
 			<groupId>org.flywaydb</groupId>
 			<artifactId>flyway-sqlserver</artifactId>
-			<version>10.11.0</version>
+			<version>10.15.0</version>
 		</dependency>
 
 		<dependency>
@@ -385,10 +385,16 @@
 	</dependencies>
 
 	<repositories>
-		<repository>
-			<id>shared-resources</id>
-			<name>Shared Resources</name>
-			<url>https://mvn.digital-identity.dk/release</url>
-		</repository>
+                <repository>
+                        <id>1-maven-repository</id>
+                        <name>Maven Repository</name>
+                        <url>https://repo.maven.apache.org/maven2/</url>
+                 </repository>
+
+                <repository>
+                        <id>2-shared-resources</id>
+                        <name>Shared Resources</name>
+                        <url>https://mvn.digital-identity.dk/release</url>
+                </repository>
 	</repositories>
 </project>

@@ -35,6 +35,7 @@ import dk.digitalidentity.rc.service.UserService;
 import dk.digitalidentity.rc.service.model.Constraint;
 import dk.digitalidentity.rc.service.model.PrivilegeGroup;
 import dk.digitalidentity.rc.service.model.UserWithRole;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import org.modelmapper.ModelMapper;
 import org.modelmapper.TypeToken;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -59,6 +60,7 @@ import java.util.stream.Collectors;
 
 @RequireApiReadAccessRole
 @RestController
+@SecurityRequirement(name = "ApiKey")
 public class ReadOnlyApi {
 
 	@Autowired
@@ -237,7 +239,8 @@ public class ReadOnlyApi {
 				}
 				dtoAssignment.getRoleConstraintValues().add(dtoConstraintValue);
 			}
-			
+
+			dtoAssignment.setWeight(assignment.getSystemRole().getWeight());
 			dto.getSystemRoles().add(dtoAssignment);
 		}
 

@@ -1,5 +1,31 @@
 package dk.digitalidentity.rc.service;
 
+import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.Base64;
+import java.util.Calendar;
+import java.util.Comparator;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
+
+import org.apache.commons.lang3.StringEscapeUtils;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.EnableCaching;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.RowMapper;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.ui.Model;
+import org.springframework.util.StringUtils;
+
 import dk.digitalidentity.rc.config.Constants;
 import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.KleDTO;
@@ -69,30 +95,6 @@ import dk.digitalidentity.rc.service.model.UserWithRoleAndDates;
 import dk.digitalidentity.rc.util.IdentifierGenerator;
 import dk.digitalidentity.rc.util.StreamExtensions;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.cache.annotation.EnableCaching;
-import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.jdbc.core.RowMapper;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-import org.springframework.ui.Model;
-import org.springframework.util.StringUtils;
-
-import java.time.LocalDate;
-import java.util.ArrayList;
-import java.util.Base64;
-import java.util.Calendar;
-import java.util.Comparator;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.Set;
-import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -148,9 +150,6 @@ public class UserService {
 	@Autowired
 	private DomainService domainService;
 
-	@Autowired
-	private Select2Service select2Service;
-
 	// dao methods
 
 	public User save(User user) {
@@ -187,7 +186,6 @@ public class UserService {
 	}
 
 	// using the default domain - used when getting user from SecurityUtil, Principal and simulating logins
-	@Deprecated // Please use the version returning optional
 	public User getByUserId(String userId) {
 		return userDao.findByUserIdAndDomainAndDeletedFalse(userId, domainService.getPrimaryDomain()).orElse(null);
 	}
@@ -251,11 +249,11 @@ public class UserService {
 	}
 
 	public List<User> getAllWithNemLoginUuid() {
-		return userDao.findByNemloginUuidNotNull();
+		return userDao.findByNemloginUuidNotNullAndDeletedFalseAndDisabledFalse();
 	}
 
 	public List<String> getAllUuidsWithNemLoginUuid() {
-		return userDao.findUuidByNemloginUuidNotNull();
+		return userDao.findUuidByNemloginUuidNotNullAndDeletedFalseAndDisabledFalse();
 	}
 
 	// utility methods
@@ -459,7 +457,6 @@ public class UserService {
 			throw new SecurityException("Kun administratorer kan tildele Rollekatalog roller");
 		}
 
-		String userFullname = SecurityUtil.getUserFullname();
 		String userId = SecurityUtil.getUserId();
 		UserUserRoleAssignment assignment = new UserUserRoleAssignment();
 		assignment.setUser(user);
@@ -518,7 +515,6 @@ public class UserService {
 		userRoleAssignment.setStopDate(stopDate);
 		userRoleAssignment.setInactive(startDate != null ? startDate.isAfter(LocalDate.now()) : false);
 
-		String userFullname = SecurityUtil.getUserFullname();
 		String userId = SecurityUtil.getUserId();
 		userRoleAssignment.setStopDateUser(userId);
 
@@ -1954,7 +1950,7 @@ public class UserService {
 
 			for (Constraint constraint : privilegeGroup.getConstraints()) {
 				if (constraint.getParameter() != null && constraint.getParameter().length() > 0) {
-					builder.append("<Constraint Name=\"" + constraint.getParameter() + "\">" + constraint.getValue() + "</Constraint>");
+					builder.append("<Constraint Name=\"" + constraint.getParameter() + "\">" + StringEscapeUtils.escapeXml10(constraint.getValue()) + "</Constraint>");
 				}
 			}
 			builder.append("</PrivilegeGroup>");
@@ -2456,6 +2452,10 @@ public class UserService {
 
 	public List<User> getSubstitutesManager(User user) {
 		return userDao.findByManagerSubstitutesSubstitute(user);
+	}
+
+	public boolean isSystemOwnerOrAttestationResponsible(User user) {
+		return !itSystemService.findByAttestationResponsibleOrSystemOwner(user).isEmpty();
 	}
 
 	@Transactional(rollbackFor = Exception.class)

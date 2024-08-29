@@ -186,7 +186,7 @@ public class ItSystemChangeUpdateService {
 			String message = messageSource.getMessage("html.email.it.system.change.message.body", new Object[] { body.toString() }, locale);
 			
 			try {
-				emailService.sendMessage(emailAddress, title, message);
+				emailService.sendMessage(emailAddress, title, message, null);
 			}
 			catch (Exception ex) {
 				log.error("Exception occured while sending global email about ItSystem's SystemRole changes. Exception:" + ex.getMessage());
@@ -194,7 +194,7 @@ public class ItSystemChangeUpdateService {
 			
 			if (StringUtils.hasLength(itSystem.getNotificationEmail())) {
 				try {
-					emailService.sendMessage(itSystem.getNotificationEmail(), title, message);
+					emailService.sendMessage(itSystem.getNotificationEmail(), title, message, null);
 				}
 				catch (Exception ex) {
 					log.error("Exception occured while sending direct email about ItSystem's SystemRole changes. Exception:" + ex.getMessage());

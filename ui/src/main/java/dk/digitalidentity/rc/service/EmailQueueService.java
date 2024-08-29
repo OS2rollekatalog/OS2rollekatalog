@@ -29,7 +29,7 @@ public class EmailQueueService {
 	@Autowired
 	private EmailService emailService;
 	
-	public void queueEmail(String email, String title, String message, EmailTemplate template, List<AttachmentFile> attachments) {
+	public void queueEmail(String email, String title, String message, EmailTemplate template, List<AttachmentFile> attachments, String cc) {
 		if (!StringUtils.hasLength(email)) {
 			log.info("Not sending email '" + title + "' because no recipient email supplied");
 			return;
@@ -41,6 +41,7 @@ public class EmailQueueService {
 		mail.setTitle(title);
 		mail.setDeliveryTts(new Date());
 		mail.setEmailTemplate(template);
+		mail.setCc(cc);
 		if (attachments != null) {
 			mail.addAllAttachments(attachments);
 		}
@@ -63,18 +64,18 @@ public class EmailQueueService {
 					List<InlineImageDTO> inlineImages = transformImages(email);
 
 					if (attachments != null) {
-						emailService.sendMessageWithAttachments(email.getEmail(), email.getTitle(), email.getMessage(), attachments, inlineImages);
+						emailService.sendMessageWithAttachments(email.getEmail(), email.getTitle(), email.getMessage(), attachments, inlineImages, email.getCc());
 					}
 					else {
-						emailService.sendMessage(email.getEmail(), email.getTitle(), email.getMessage(), inlineImages);
+						emailService.sendMessage(email.getEmail(), email.getTitle(), email.getMessage(), inlineImages, email.getCc());
 					}
 				}
 				else {
 					if (attachments != null) {
-						emailService.sendMessageWithAttachments(email.getEmail(), email.getTitle(), email.getMessage(), attachments);
+						emailService.sendMessageWithAttachments(email.getEmail(), email.getTitle(), email.getMessage(), attachments, email.getCc());
 					}
 					else {
-						emailService.sendMessage(email.getEmail(), email.getTitle(), email.getMessage());
+						emailService.sendMessage(email.getEmail(), email.getTitle(), email.getMessage(), email.getCc());
 					}
 				}
 			}
