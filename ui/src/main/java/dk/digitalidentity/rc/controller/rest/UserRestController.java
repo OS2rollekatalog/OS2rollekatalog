@@ -19,7 +19,6 @@ import dk.digitalidentity.rc.dao.model.UserKLEMapping;
 import dk.digitalidentity.rc.dao.model.UserRole;
 import dk.digitalidentity.rc.dao.model.UserRoleGroupAssignment;
 import dk.digitalidentity.rc.dao.model.UserUserRoleAssignment;
-import dk.digitalidentity.rc.dao.model.enums.ConstraintUIType;
 import dk.digitalidentity.rc.dao.model.enums.ItSystemType;
 import dk.digitalidentity.rc.dao.model.enums.KleType;
 import dk.digitalidentity.rc.security.AccessConstraintService;
@@ -31,6 +30,7 @@ import dk.digitalidentity.rc.service.ConstraintTypeService;
 import dk.digitalidentity.rc.service.KleService;
 import dk.digitalidentity.rc.service.OrgUnitService;
 import dk.digitalidentity.rc.service.PositionService;
+import dk.digitalidentity.rc.service.PostponedConstraintService;
 import dk.digitalidentity.rc.service.RoleGroupService;
 import dk.digitalidentity.rc.service.SettingsService;
 import dk.digitalidentity.rc.service.SystemRoleService;
@@ -69,8 +69,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -113,6 +111,9 @@ public class UserRestController {
 
 	@Autowired
 	private OrgUnitService orgUnitService;
+
+	@Autowired
+	private PostponedConstraintService postponedConstraintService;
 
 	@RequireAssignerRole
 	@PostMapping("/rest/users/cleanupDuplicateRoleAssignments")
@@ -738,25 +739,10 @@ public class UserRestController {
 	            return new ResponseEntity<>("En eller flere afgrænsningstyper kan ikke findes", HttpStatus.BAD_REQUEST);
 	        }
 	        
-	        // perform regex validation (if needed)
-	        if (constraintType.getUiType().equals(ConstraintUIType.REGEX) && constraintType.getRegex() != null && constraintType.getRegex().length() > 0) {
-	        	try {
-	        		Pattern pattern = Pattern.compile(constraintType.getRegex());
-	        		Matcher matcher = pattern.matcher(postponedConstraintDTO.getValue());
-	        		if (!matcher.matches()) {
-	        			log.warn("Input does not match regular expression: " + postponedConstraintDTO.getValue() + " for regex: " + constraintType.getRegex());
-	        			errorIds.add(postponedConstraintDTO.getSystemRoleId() + postponedConstraintDTO.getConstraintTypeUuid());
-	        		}
-	        	}
-	        	catch (Exception ex) {
-	        		log.warn("Unable to perform regex validation (giving it a free pass) on '" + constraintType.getEntityId() + "'. Message = " + ex.getMessage());
-	        	}
-	        }
+	        boolean isValid = postponedConstraintService.isValidConstraint(constraintType, postponedConstraintDTO.getValue(), systemRole.getId());
 	        
-	        //Check that it has a value
-	        if (!StringUtils.hasLength(postponedConstraintDTO.getValue())) {
-	        	log.warn("Value is null or empty for system role id  " + postponedConstraintDTO.getSystemRoleId() + " and constraint type " + postponedConstraintDTO.getConstraintTypeUuid());
-    			errorIds.add(postponedConstraintDTO.getSystemRoleId() + postponedConstraintDTO.getConstraintTypeUuid());
+	        if (!isValid) {
+	            errorIds.add(postponedConstraintDTO.getSystemRoleId() + postponedConstraintDTO.getConstraintTypeUuid());
 	        }
 		}
 

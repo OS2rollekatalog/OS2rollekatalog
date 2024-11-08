@@ -1,4 +1,6 @@
-﻿using ADSyncService.Properties;
+﻿using ADSyncService.Email;
+using ADSyncService.Properties;
+using Microsoft.Graph.Models;
 using System;
 using System.Collections.Generic;
 using System.Collections.Specialized;
@@ -15,6 +17,7 @@ namespace ADSyncService
         private static StringCollection ous = Properties.Settings.Default.BackSyncFeature_OUs;
         private static bool convertToUserRoles = Properties.Settings.Default.BackSyncFeature_CreateUserRoles;
         private static bool groupsInGroupOnSync = Properties.Settings.Default.BackSyncFeature_GroupsInGroupOnSync;
+        private static EmailService emailService = EmailService.Instance;
 
         public static void SyncGroupsToRoleCatalogue(RoleCatalogueStub roleCatalogueStub, ADStub adStub)
         {
@@ -151,6 +154,7 @@ namespace ADSyncService
                     if (ex is System.DirectoryServices.AccountManagement.PrincipalOperationException)
                     {
                         log.Error("Unable to find OU with dn (skipping): " + ouRaw, ex);
+                        emailService.EnqueueMail("Unable to find OU with dn (skipping): " + ouRaw, ex);
                     }
                     else
                     {

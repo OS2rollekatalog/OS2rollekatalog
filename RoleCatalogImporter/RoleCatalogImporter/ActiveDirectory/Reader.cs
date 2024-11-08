@@ -1,8 +1,10 @@
-﻿using System;
+﻿using RoleCatalogImporter.Email;
+using System;
 using System.Collections.Generic;
 using System.DirectoryServices;
 using System.DirectoryServices.AccountManagement;
 using System.Linq;
+using System.Security.Policy;
 
 namespace RoleCatalogImporter
 {
@@ -12,19 +14,23 @@ namespace RoleCatalogImporter
         private string[] ousToIgnore = new string[0];
         private string SAMAccountPrefix = null;
         private string UserFilter = null;
+        private string ExtraOU = null;
+        private string ADUrl;
 
         public Reader()
         {
             ousToIgnore = Properties.Settings.Default.OUsToIgnore.Split(';');
             SAMAccountPrefix = Properties.Settings.Default.SAMAccountPrefix;
             UserFilter = Properties.Settings.Default.UserFilter;
+            ExtraOU = Properties.Settings.Default.AdditionalADOU;
+            ADUrl = Properties.Settings.Default.ADUrl;
         }
 
         public List<ADOrgUnit> ReadOrgUnits()
         {
             List<ADOrgUnit> orgUnits = new List<ADOrgUnit>();
 
-            using (DirectoryEntry startingPoint = new DirectoryEntry(Properties.Settings.Default.ADUrl))
+            using (DirectoryEntry startingPoint = new DirectoryEntry(ADUrl))
             {
                 using (DirectorySearcher searcher = new DirectorySearcher(startingPoint))
                 {
@@ -120,6 +126,78 @@ namespace RoleCatalogImporter
                             }
 
                             orgUnits.Add(ou);
+                        }
+                    }
+                }
+            }
+
+            // special case where we want to read ONE extra OU into OS2rollekatalog, which is outside the main structure
+            if (!string.IsNullOrEmpty(ExtraOU))
+            {
+                ADOrgUnit root = null;
+                foreach (ADOrgUnit ou in orgUnits)
+                {
+                    if (ADUrl.EndsWith(ou.Dn, StringComparison.InvariantCultureIgnoreCase))
+                    {
+                        root = ou;
+                        break;
+                    }
+                }
+
+                // only if we have a root
+                if (root != null)
+                {
+                    using (DirectoryEntry startingPoint = new DirectoryEntry(ExtraOU))
+                    {
+                        using (DirectorySearcher searcher = new DirectorySearcher(startingPoint))
+                        {
+                            searcher.PageSize = 500;
+                            searcher.Filter = "(objectCategory=organizationalUnit)";
+                            searcher.PropertiesToLoad.Add("objectGUID");
+                            searcher.PropertiesToLoad.Add("name");
+                            searcher.PropertiesToLoad.Add("ou");
+                            searcher.PropertiesToLoad.Add(Properties.Settings.Default.OrgUnitNameField);
+                            searcher.PropertiesToLoad.Add("distinguishedname");
+
+                            using (var resultSet = searcher.FindAll())
+                            {
+                                foreach (SearchResult res in resultSet)
+                                {
+                                    Guid uuid = new Guid((byte[])res.Properties["objectGUID"][0]);
+                                    string dn = (string)res.Properties["distinguishedname"][0];
+                                    string name;
+                                    if (res.Properties.Contains(Properties.Settings.Default.OrgUnitNameField))
+                                    {
+                                        name = (string)res.Properties[Properties.Settings.Default.OrgUnitNameField][0];
+                                    }
+                                    else if (res.Properties.Contains("name"))
+                                    {
+                                        name = (string)res.Properties["name"][0];
+                                    }
+                                    else
+                                    {
+                                        name = (string)res.Properties["ou"][0];
+                                    }
+
+                                    var parent = res.GetDirectoryEntry()?.Parent;
+
+                                    ADOrgUnit ou = new ADOrgUnit();
+                                    ou.Uuid = uuid.ToString().ToLower();
+                                    ou.Name = name;
+                                    ou.Dn = dn;
+
+                                    if (ExtraOU.EndsWith(ou.Dn, StringComparison.InvariantCultureIgnoreCase))
+                                    {
+                                        ou.ParentUUID = root.Uuid;
+                                    }
+                                    else
+                                    {
+                                        ou.ParentUUID = parent.Guid.ToString().ToLower();
+                                    }
+
+                                    orgUnits.Add(ou);
+                                }
+                            }
                         }
                     }
                 }

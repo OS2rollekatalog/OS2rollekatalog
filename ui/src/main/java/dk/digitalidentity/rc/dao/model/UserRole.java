@@ -53,6 +53,9 @@ public class UserRole implements AuditLoggable {
 	@Column
 	private boolean sensitiveRole;
 
+	@Column
+	private boolean extraSensitiveRole;
+
 	@ManyToOne(fetch = FetchType.EAGER)
 	@JoinColumn(name = "it_system_id")
 	private ItSystem itSystem;

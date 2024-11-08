@@ -23,7 +23,7 @@
 			fragShowDataTableFun('.listTable', orderColumn);
 		});
 	
-		function fragShowDataTableFun(jqSelector, orderColumn) {
+		function fragShowDataTableFun(jqSelector, orderColumn, pagingLength = 100) {
 		    return $(jqSelector).DataTable({
 		        'paging':   true,
 		        'ordering': true,
@@ -34,7 +34,7 @@
 		        'info':     true,
                 'stateSave': true,
                 'stateDuration': 0,
-				"pageLength": 100,
+				"pageLength": pagingLength,
 		        "language": {
 		            "search":       searchTxt,
 		            "lengthMenu":   dropdownTxt,
@@ -50,7 +50,7 @@
 		    });
 		}
 		
-		function showDataTableWithHiddenColumns(jqSelector, orderColumn, hideColumns) {
+		function showDataTableWithHiddenColumns(jqSelector, orderColumn, hideColumns, pagingLength = 100) {
 		    return $(jqSelector).DataTable({
 		        'paging':   true,
 		        'ordering': true,
@@ -60,7 +60,7 @@
 		        "autoWidth": false,
 		        'info':     true,
                 'stateSave': true,
-				"pageLength": 100,
+				"pageLength": pagingLength,
 				'columnDefs': [
 			        { "targets": hideColumns, visible: false },
 			    ],

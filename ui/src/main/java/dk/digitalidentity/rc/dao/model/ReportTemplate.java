@@ -41,6 +41,9 @@ public class ReportTemplate {
 	@Column
 	private boolean showUserRoles;
 
+	@Column
+	private boolean showNegativeRoles;
+
 	@Column(name = "show_kle")
 	private boolean showKLE;
 

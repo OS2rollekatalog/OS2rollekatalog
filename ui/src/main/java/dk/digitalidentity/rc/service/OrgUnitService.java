@@ -21,6 +21,7 @@ import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserRole;
 import dk.digitalidentity.rc.dao.model.UserRoleGroupAssignment;
 import dk.digitalidentity.rc.dao.model.UserUserRoleAssignment;
+import dk.digitalidentity.rc.dao.model.enums.ContainsTitles;
 import dk.digitalidentity.rc.dao.model.enums.KleType;
 import dk.digitalidentity.rc.dao.model.enums.OrgUnitLevel;
 import dk.digitalidentity.rc.exceptions.OrgUnitNotFoundException;
@@ -323,7 +324,7 @@ public class OrgUnitService {
 	}
 
 	@AuditLogIntercepted
-	public void addRoleGroup(OrgUnit ou, RoleGroup roleGroup, boolean inherit, LocalDate startDate, LocalDate stopDate, Set<String> exceptedUsers, Set<String> titles) {
+	public void addRoleGroup(OrgUnit ou, RoleGroup roleGroup, boolean inherit, LocalDate startDate, LocalDate stopDate, Set<String> exceptedUsers, Set<String> titles, boolean negativeTitles) {
 		String userFullname = SecurityUtil.getUserFullname();
 		String userId = SecurityUtil.getUserId();
 		OrgUnitRoleGroupAssignment assignment = new OrgUnitRoleGroupAssignment();
@@ -337,7 +338,15 @@ public class OrgUnitService {
 		
 		if (configuration.getTitles().isEnabled() && (titles != null && !titles.isEmpty())) {
 			Collection<Title> titlesByUuid = CollectionUtils.emptyIfNull(titleDao.findByUuidInAndActiveTrue(titles));
-			assignment.setContainsTitles(!titlesByUuid.isEmpty());
+			if(titlesByUuid.isEmpty()) {
+				assignment.setContainsTitles(ContainsTitles.NO);
+			}
+			else if (negativeTitles) {
+				assignment.setContainsTitles(ContainsTitles.NEGATIVE);
+			}
+			else {
+				assignment.setContainsTitles(ContainsTitles.POSITIVE);
+			}
 			assignment.setTitles(new ArrayList<>(titlesByUuid));
 		} else {
 			Collection<User> usersById = CollectionUtils.emptyIfNull(userDao.findByUuidInAndDeletedFalse(exceptedUsers));
@@ -352,8 +361,12 @@ public class OrgUnitService {
 		assignment.setAssignedTimestamp(new Date());
 	}
 
+	public void addRoleGroup(OrgUnit ou, RoleGroup roleGroup, boolean inherit, LocalDate startDate, LocalDate stopDate, Set<String> exceptedUsers, Set<String> titles) {
+		addRoleGroup(ou, roleGroup, inherit, startDate, stopDate, exceptedUsers, titles, false);
+	}
+
 	@AuditLogIntercepted
-	public boolean updateRoleGroupAssignment(OrgUnit ou, OrgUnitRoleGroupAssignment assignment, boolean inherit, LocalDate startDate, LocalDate stopDate, Set<String> exceptedUsers, Set<String> titleUuids) {
+	public boolean updateRoleGroupAssignment(OrgUnit ou, OrgUnitRoleGroupAssignment assignment, boolean inherit, LocalDate startDate, LocalDate stopDate, Set<String> exceptedUsers, Set<String> titleUuids, boolean negativeTiles) {
 		boolean modified = false;
 	
 		if (!Objects.equals(assignment.getStartDate(), startDate) || !Objects.equals(assignment.getStopDate(), stopDate)) {
@@ -407,20 +420,25 @@ public class OrgUnitService {
 			}
 
 			if (assignment.getTitles().isEmpty()) {
-				assignment.setContainsTitles(false);
+				assignment.setContainsTitles(ContainsTitles.NO);
 				modified = true;
+			} else if (negativeTiles) {
+				if(assignment.getContainsTitles() != ContainsTitles.NEGATIVE) {
+					assignment.setContainsTitles(ContainsTitles.NEGATIVE);
+					modified = true;
+				}
 			} else {
-				assignment.setContainsTitles(true);
+				assignment.setContainsTitles(ContainsTitles.POSITIVE);
 				assignment.setInherit(false);
 			}
 		} else {
-			assignment.setContainsTitles(false);
+			assignment.setContainsTitles(ContainsTitles.NO);
 			assignment.setTitles(new ArrayList<>());
 			modified = true;
 		}
 
-		// inherit is only possible if no excepted users and no titles
-		if (!assignment.isContainsExceptedUsers() && !assignment.isContainsTitles()) {
+		// inherit is only possible if no excepted users and titles isn't positive
+		if (!assignment.isContainsExceptedUsers() && assignment.getContainsTitles() == ContainsTitles.POSITIVE) {
 			if (assignment.isInherit() && !inherit) {
 				assignment.setInherit(false);
 				modified = true;
@@ -441,6 +459,10 @@ public class OrgUnitService {
 		return modified;
 	}
 
+	public boolean updateRoleGroupAssignment(OrgUnit ou, OrgUnitRoleGroupAssignment assignment, boolean inherit, LocalDate startDate, LocalDate stopDate, Set<String> exceptedUsers, Set<String> titleUuids) {
+		return updateRoleGroupAssignment(ou, assignment, inherit, startDate, stopDate, exceptedUsers, titleUuids, false);
+	}
+
 	@AuditLogIntercepted
 	public boolean removeRoleGroup(OrgUnit ou, RoleGroup roleGroup) {
 		for (Iterator<OrgUnitRoleGroupAssignment> iterator = ou.getRoleGroupAssignments().iterator(); iterator.hasNext();) {
@@ -456,7 +478,7 @@ public class OrgUnitService {
 	}
 
 	@AuditLogIntercepted
-	public void addUserRole(OrgUnit ou, UserRole userRole, boolean inherit, LocalDate startDate, LocalDate stopDate, Set<String> exceptedUsers, Set<String> titles) {
+	public void addUserRole(OrgUnit ou, UserRole userRole, boolean inherit, LocalDate startDate, LocalDate stopDate, Set<String> exceptedUsers, Set<String> titles, boolean negativeTitles) {
 		OrgUnitUserRoleAssignment assignment = new OrgUnitUserRoleAssignment();
 		assignment.setOrgUnit(ou);
 		assignment.setInherit(inherit);
@@ -467,10 +489,16 @@ public class OrgUnitService {
 		
 		if (configuration.getTitles().isEnabled() && (titles != null && !titles.isEmpty())) {
 			Collection<Title> titlesByUuid = CollectionUtils.emptyIfNull(titleDao.findByUuidInAndActiveTrue(titles));
-			assignment.setContainsTitles(!titlesByUuid.isEmpty());
+			if(negativeTitles) {
+				assignment.setContainsTitles(ContainsTitles.NEGATIVE);
+			}
+			else {
+				assignment.setContainsTitles(ContainsTitles.POSITIVE);
+			}
 			assignment.setTitles(new ArrayList<>(titlesByUuid));
 		}
 		else {
+			assignment.setContainsTitles(ContainsTitles.NO);
 			Collection<User> usersById = CollectionUtils.emptyIfNull(userDao.findByUuidInAndDeletedFalse(exceptedUsers));
 			assignment.setContainsExceptedUsers(!usersById.isEmpty());
 			assignment.setExceptedUsers(new ArrayList<>(usersById));
@@ -487,8 +515,13 @@ public class OrgUnitService {
 		assignment.setStopDateUser(userId);
 	}
 
+	//Method overloading to avoid breaking code base
+	public void addUserRole(OrgUnit ou, UserRole userRole, boolean inherit, LocalDate startDate, LocalDate stopDate, Set<String> exceptedUsers, Set<String> titles) {
+		addUserRole(ou, userRole, inherit, startDate, stopDate, exceptedUsers, titles, false);
+	}
+
 	@AuditLogIntercepted
-	public boolean updateUserRoleAssignment(OrgUnit ou, OrgUnitUserRoleAssignment assignment, boolean inherit, LocalDate startDate, LocalDate stopDate, Set<String> exceptedUsers, Set<String> titleUuids) {
+	public boolean updateUserRoleAssignment(OrgUnit ou, OrgUnitUserRoleAssignment assignment, boolean inherit, LocalDate startDate, LocalDate stopDate, Set<String> exceptedUsers, Set<String> titleUuids, boolean negativeTitles) {
 		boolean modified = false;
 
 		if (!Objects.equals(assignment.getStartDate(), startDate) || !Objects.equals(assignment.getStopDate(), stopDate)) {
@@ -542,20 +575,25 @@ public class OrgUnitService {
 			}
 
 			if (assignment.getTitles().isEmpty()) {
-				assignment.setContainsTitles(false);
+				assignment.setContainsTitles(ContainsTitles.NO);
 				modified = true;
+			} else if (negativeTitles) {
+				if(assignment.getContainsTitles() != ContainsTitles.NEGATIVE) {
+					assignment.setContainsTitles(ContainsTitles.NEGATIVE);
+					modified = true;
+				}
 			} else {
-				assignment.setContainsTitles(true);
+				assignment.setContainsTitles(ContainsTitles.POSITIVE);
 				assignment.setInherit(false);
 			}
 		} else {
-			assignment.setContainsTitles(false);
+			assignment.setContainsTitles(ContainsTitles.NO);
 			assignment.setTitles(new ArrayList<>());
 			modified = true;
 		}
 
 		// inherit is only possible if no excepted users and no titles
-		if (!assignment.isContainsExceptedUsers() && !assignment.isContainsTitles()) {
+		if (!assignment.isContainsExceptedUsers() && assignment.getContainsTitles() == ContainsTitles.NO) {
 			if (assignment.isInherit() && !inherit) {
 				assignment.setInherit(false);
 				modified = true;
@@ -574,6 +612,11 @@ public class OrgUnitService {
 		}
 
 		return modified;
+	}
+
+	//Method overloading to avoid breaking code base
+	public boolean updateUserRoleAssignment(OrgUnit ou, OrgUnitUserRoleAssignment assignment, boolean inherit, LocalDate startDate, LocalDate stopDate, Set<String> exceptedUsers, Set<String> titleUuids) {
+		return updateUserRoleAssignment(ou, assignment, inherit, startDate, stopDate, exceptedUsers, titleUuids, false);
 	}
 
 	@AuditLogIntercepted
@@ -668,6 +711,28 @@ public class OrgUnitService {
 				.collect(Collectors.toList());
 	}
 
+	public List<Title> getContainsTitlesForOrgUnit(OrgUnit orgUnit, ContainsTitles containsTitles) {
+		return orgUnitUserRoleAssignmentDao.findByOrgUnitAndContainsTitles(orgUnit, containsTitles)
+				.stream()
+				.filter(orgUnitUserRoleAssignment -> !orgUnitUserRoleAssignment.getTitles().isEmpty())
+				.flatMap(orgUnitUserRoleAssignment -> orgUnitUserRoleAssignment.getTitles().stream())
+				.filter(StreamExtensions.distinctByKey(Title::getUuid))
+				.toList();
+	}
+
+	public List<Title> getContainsTitlesAndInheritanceForOrgUnit(OrgUnit orgUnit, ContainsTitles containsTitles, boolean inheritance) {
+		return orgUnitUserRoleAssignmentDao.findByOrgUnitAndContainsTitlesAndInherit(orgUnit, containsTitles, inheritance)
+				.stream()
+				.filter(orgUnitUserRoleAssignment -> !orgUnitUserRoleAssignment.getTitles().isEmpty())
+				.flatMap(orgUnitUserRoleAssignment -> orgUnitUserRoleAssignment.getTitles().stream())
+				.filter(StreamExtensions.distinctByKey(Title::getUuid))
+				.toList();
+	}
+
+	public List<Title> getAllTitles() {
+		return titleDao.findAll();
+	}
+
 	public List<UserRole> getUserRoles(OrgUnit orgUnit, boolean inherit) {
 		return getUserRolesWithUserFilter(orgUnit, inherit, null);
 	}
@@ -686,7 +751,7 @@ public class OrgUnitService {
 			userRoles = orgUnit.getUserRoleAssignments().stream().map(r -> r.getUserRole()).collect(Collectors.toList());
 		}
 		else {
-			userRoles = orgUnit.getUserRoleAssignments().stream().filter(r -> !r.isContainsTitles()).map(r -> r.getUserRole()).collect(Collectors.toList());
+			userRoles = orgUnit.getUserRoleAssignments().stream().filter(r -> r.getContainsTitles() == ContainsTitles.NO).map(r -> r.getUserRole()).collect(Collectors.toList());
 		}
 
 		return userRoles;
@@ -721,7 +786,7 @@ public class OrgUnitService {
 				userRoleAssignments = orgUnit.getUserRoleAssignments().stream().map(RoleAssignedToOrgUnitDTO::fromUserRoleAssignment).collect(Collectors.toList());
 			}
 			else {
-				userRoleAssignments = orgUnit.getUserRoleAssignments().stream().filter(r -> !r.isContainsTitles()).map(RoleAssignedToOrgUnitDTO::fromUserRoleAssignment).collect(Collectors.toList());
+				userRoleAssignments = orgUnit.getUserRoleAssignments().stream().filter(r -> r.getContainsTitles() == ContainsTitles.NO).map(RoleAssignedToOrgUnitDTO::fromUserRoleAssignment).collect(Collectors.toList());
 			}
 
 			resultSet.addAll(userRoleAssignments);
@@ -755,7 +820,7 @@ public class OrgUnitService {
 				userRoles = orgUnit.getUserRoleAssignments().stream().map(r -> r.getUserRole()).collect(Collectors.toList());
 			}
 			else {
-				userRoles = orgUnit.getUserRoleAssignments().stream().filter(r -> !r.isContainsTitles()).map(r -> r.getUserRole()).collect(Collectors.toList());
+				userRoles = orgUnit.getUserRoleAssignments().stream().filter(r -> r.getContainsTitles() == ContainsTitles.NO).map(r -> r.getUserRole()).collect(Collectors.toList());
 			}
 			
 			resultSet.addAll(userRoles);
@@ -807,7 +872,7 @@ public class OrgUnitService {
 			if (configuration.getTitles().isEnabled()) {
 				roleGroupAssignments = orgUnit.getRoleGroupAssignments().stream().map(RoleAssignedToOrgUnitDTO::fromRoleGroupAssignment).collect(Collectors.toList());
 			} else {
-				roleGroupAssignments = orgUnit.getRoleGroupAssignments().stream().filter(r -> !r.isContainsTitles()).map(RoleAssignedToOrgUnitDTO::fromRoleGroupAssignment).collect(Collectors.toList());
+				roleGroupAssignments = orgUnit.getRoleGroupAssignments().stream().filter(r -> r.getContainsTitles() == ContainsTitles.NO).map(RoleAssignedToOrgUnitDTO::fromRoleGroupAssignment).collect(Collectors.toList());
 			}
 
 			resultSet.addAll(roleGroupAssignments);
@@ -832,7 +897,7 @@ public class OrgUnitService {
 			roleGroups = orgUnit.getRoleGroupAssignments().stream().map(r -> r.getRoleGroup()).collect(Collectors.toList());
 		}
 		else {
-			roleGroups = orgUnit.getRoleGroupAssignments().stream().filter(r -> !r.isContainsTitles()).map(r -> r.getRoleGroup()).collect(Collectors.toList());
+			roleGroups = orgUnit.getRoleGroupAssignments().stream().filter(r -> r.getContainsTitles() == ContainsTitles.NO).map(r -> r.getRoleGroup()).collect(Collectors.toList());
 		}
 		
 		return roleGroups;
@@ -844,7 +909,7 @@ public class OrgUnitService {
 		if (configuration.getTitles().isEnabled()) {
 			roleGroupAssignments = orgUnit.getRoleGroupAssignments();
 		} else {
-			roleGroupAssignments = orgUnit.getRoleGroupAssignments().stream().filter(rga -> !rga.isContainsTitles())
+			roleGroupAssignments = orgUnit.getRoleGroupAssignments().stream().filter(rga -> rga.getContainsTitles() == ContainsTitles.NO)
 					.collect(Collectors.toList());
 		}
 		return roleGroupAssignments.stream().map(r -> RoleWithDateDTO.builder()
@@ -860,7 +925,7 @@ public class OrgUnitService {
 		if (configuration.getTitles().isEnabled()) {
 			userRoleAssignments = orgUnit.getUserRoleAssignments();
 		} else {
-			userRoleAssignments = orgUnit.getUserRoleAssignments().stream().filter(ura -> !ura.isContainsTitles())
+			userRoleAssignments = orgUnit.getUserRoleAssignments().stream().filter(ura -> ura.getContainsTitles() == ContainsTitles.NO)
 					.collect(Collectors.toList());
 		}
 
@@ -883,7 +948,7 @@ public class OrgUnitService {
 			if (configuration.getTitles().isEnabled()) {
 				roleGroups = orgUnit.getRoleGroupAssignments().stream().map(r -> r.getRoleGroup()).collect(Collectors.toList());
 			} else {
-				roleGroups = orgUnit.getRoleGroupAssignments().stream().filter(r -> !r.isContainsTitles()).map(r -> r.getRoleGroup()).collect(Collectors.toList());
+				roleGroups = orgUnit.getRoleGroupAssignments().stream().filter(r -> r.getContainsTitles() == ContainsTitles.NO).map(r -> r.getRoleGroup()).collect(Collectors.toList());
 			}
 			
 			resultSet.addAll(roleGroups);
@@ -1042,7 +1107,7 @@ public class OrgUnitService {
 				mapping.setCanEdit(false);
 				mapping.setStartDate(userUserRoleAssignment.getStartDate());
 				mapping.setStopDate(userUserRoleAssignment.getStopDate());
-				if (userUserRoleAssignment.isContainsTitles()) {
+				if (userUserRoleAssignment.getContainsTitles() != ContainsTitles.NO) {
 					mapping.setAssignmentType(userUserRoleAssignment.getTitles().size());// assigned through titles
 				} else if (userUserRoleAssignment.isContainsExceptedUsers()) {
 					mapping.setAssignmentType(0);// Assigned to all with exceptions
@@ -1069,7 +1134,7 @@ public class OrgUnitService {
 					mapping.setCanEdit(false);
 					mapping.setStartDate(userUserRoleAssignment.getStartDate());
 					mapping.setStopDate(userUserRoleAssignment.getStopDate());
-					if (userUserRoleAssignment.isContainsTitles()) {
+					if (userUserRoleAssignment.getContainsTitles() != ContainsTitles.NO) {
 						mapping.setAssignmentType(userUserRoleAssignment.getTitles().size());// assigned through titles
 					} else if (userUserRoleAssignment.isContainsExceptedUsers()) {
 						mapping.setAssignmentType(0);// Assigned to all with exceptions
@@ -1099,7 +1164,7 @@ public class OrgUnitService {
 				mapping.setCanEdit(false);
 				mapping.setStartDate(userUserRoleAssignment.getStartDate());
 				mapping.setStopDate(userUserRoleAssignment.getStopDate());
-				if (userUserRoleAssignment.isContainsTitles()) {
+				if (userUserRoleAssignment.getContainsTitles() != ContainsTitles.NO) {
 					mapping.setAssignmentType(userUserRoleAssignment.getTitles().size());// assigned through titles
 				} else if (userUserRoleAssignment.isContainsExceptedUsers()) {
 					mapping.setAssignmentType(0);// Assigned to all with exceptions

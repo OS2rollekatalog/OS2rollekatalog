@@ -1,4 +1,5 @@
-﻿using log4net.Config;
+﻿using ADSyncService.Email;
+using log4net.Config;
 using Quartz;
 using Quartz.Impl;
 using System;
@@ -31,10 +32,10 @@ namespace ADSyncService
             jobKey = job.Key;
 
             ITrigger trigger = TriggerBuilder.Create()
-              .WithIdentity("trigger", "group1")
-              .WithCronSchedule(Properties.Settings.Default.CronSchedule)
-              .StartNow()
-              .Build();
+                .WithIdentity("trigger", "group1")
+                .WithCronSchedule(Properties.Settings.Default.CronSchedule)
+                .StartNow()
+                .Build();
 
             schedule.ScheduleJob(job, trigger);
             schedule.TriggerJob(job.Key);
@@ -46,10 +47,10 @@ namespace ADSyncService
             Random random = new Random();
             var itSystemsGroupsCron = String.IsNullOrEmpty(Properties.Settings.Default.ItSystemGroupFeature_Cron) ? $"0 {random.Next(0, 59)} 2 ? * *" : Properties.Settings.Default.ItSystemGroupFeature_Cron;
             ITrigger trigger2 = TriggerBuilder.Create()
-              .WithIdentity("trigger2", "group2")
-              .WithCronSchedule(itSystemsGroupsCron)
-              .StartNow()
-              .Build();
+                .WithIdentity("trigger2", "group2")
+                .WithCronSchedule(itSystemsGroupsCron)
+                .StartNow()
+                .Build();
 
             schedule.ScheduleJob(itSystemsGroupsJob, trigger2);
             schedule.TriggerJob(itSystemsGroupsJob.Key);
@@ -59,10 +60,10 @@ namespace ADSyncService
                 .Build();
 
             ITrigger trigger3 = TriggerBuilder.Create()
-              .WithIdentity("trigger3", "group3")
-              .WithCronSchedule("0 " + random.Next(0, 59) + " 5,12,17 ? * *")
-              .StartNow()
-              .Build();
+                .WithIdentity("trigger3", "group3")
+                .WithCronSchedule("0 " + random.Next(0, 59) + " 5,12,17 ? * *")
+                .StartNow()
+                .Build();
 
             schedule.ScheduleJob(job3, trigger3);
             schedule.TriggerJob(job3.Key);
@@ -78,8 +79,26 @@ namespace ADSyncService
                     .RepeatForever())
                 .StartNow()
                 .Build();
+
             schedule.ScheduleJob(logUploaderJob, logUploaderTrigger);
             schedule.TriggerJob(logUploaderJob.Key);
+
+            // email send task
+            IJobDetail errorLogEmailJob = JobBuilder.Create<EmailJob>()
+                .WithIdentity("errorLogEmailJob", "group5")
+                .Build();
+
+            ITrigger errorLogEmailTrigger = TriggerBuilder.Create()
+                .WithIdentity("trigger5", "group5")
+                .WithSimpleSchedule(x => x
+                    .WithIntervalInMinutes(15)
+                    //.WithIntervalInSeconds(5)
+                    .RepeatForever())
+                .StartNow()
+                .Build();
+
+            schedule.ScheduleJob(errorLogEmailJob, errorLogEmailTrigger);
+            schedule.TriggerJob(errorLogEmailJob.Key);
         }
 
         public void Start()

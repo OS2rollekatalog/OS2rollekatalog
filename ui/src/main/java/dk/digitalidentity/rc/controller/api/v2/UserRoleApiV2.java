@@ -1,24 +1,31 @@
 package dk.digitalidentity.rc.controller.api.v2;
 
+import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
 import dk.digitalidentity.rc.controller.api.exception.BadRequestException;
 import dk.digitalidentity.rc.controller.api.mapper.RoleMapper;
 import dk.digitalidentity.rc.controller.api.mapper.UserMapper;
 import dk.digitalidentity.rc.controller.api.model.ExceptionResponseAM;
 import dk.digitalidentity.rc.controller.api.model.SystemRoleAssignmentAM;
+import dk.digitalidentity.rc.controller.api.model.SystemRoleAssignmentConstraintValueAM;
 import dk.digitalidentity.rc.controller.api.model.UserAM2;
 import dk.digitalidentity.rc.controller.api.model.UserRoleAM;
+import dk.digitalidentity.rc.dao.model.ConstraintType;
 import dk.digitalidentity.rc.dao.model.ItSystem;
 import dk.digitalidentity.rc.dao.model.SystemRole;
 import dk.digitalidentity.rc.dao.model.SystemRoleAssignment;
+import dk.digitalidentity.rc.dao.model.SystemRoleAssignmentConstraintValue;
 import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserRole;
+import dk.digitalidentity.rc.dao.model.enums.ConstraintValueType;
 import dk.digitalidentity.rc.security.RequireApiReadAccessRole;
 import dk.digitalidentity.rc.security.RequireApiRoleManagementRole;
+import dk.digitalidentity.rc.service.ConstraintTypeService;
 import dk.digitalidentity.rc.service.ItSystemService;
 import dk.digitalidentity.rc.service.SystemRoleService;
 import dk.digitalidentity.rc.service.UserRoleService;
 import dk.digitalidentity.rc.service.UserService;
 import dk.digitalidentity.rc.service.model.UserWithRole;
+import dk.digitalidentity.rc.util.IdentifierGenerator;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -29,6 +36,7 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.transaction.annotation.Transactional;
@@ -45,8 +53,10 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -60,7 +70,8 @@ public class UserRoleApiV2 {
 	private final UserService userService;
 	private final ItSystemService itSystemService;
 	private final SystemRoleService systemRoleService;
-
+	private final ConstraintTypeService constraintTypeService;
+	private final RoleCatalogueConfiguration configuration;
 
 	@ApiResponses(value = {
 			@ApiResponse(responseCode = "200", description = "Returns a list of all userroles."),
@@ -179,7 +190,9 @@ public class UserRoleApiV2 {
 				.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "It System was not found"));
 		validateUserRoleRequest(itSystem, userRoleDTO);
 
-		final UserRole userRole = setUserRoleProperties(userRoleDTO, itSystem, new UserRole());
+		UserRole target = new UserRole();
+		target.setItSystem(itSystem);
+		final UserRole userRole = setUserRoleProperties(userRoleDTO, itSystem, target);
 		final UserRole result = userRoleService.save(userRole);
 		return new ResponseEntity<>(RoleMapper.toApi(result), HttpStatus.CREATED);
 	}
@@ -211,15 +224,10 @@ public class UserRoleApiV2 {
 		toRemove.removeAll(wanedSystemRoleIds);
 		final Set<Long> toAdd = new HashSet<>(wanedSystemRoleIds);
 		toAdd.removeAll(currentSystemRoleIds);
-		toRemove.stream()
-				.map(systemId -> target.getSystemRoleAssignments().stream()
-						.filter(a -> systemId.equals(a.getSystemRole().getId()))
-						.findFirst()
-						.orElse(null)
-				)
-				.filter(Objects::nonNull)
-				.forEach(systemRoleAssignment -> userRoleService.removeSystemRoleAssignment(target, systemRoleAssignment));
-		toAdd.forEach(systemRoleId -> userRoleService.addSystemRoleAssignment(target, createAssignment(target, systemRoleId)));
+		if (target.getSystemRoleAssignments() == null) {
+			target.setSystemRoleAssignments(new ArrayList<>());
+		}
+
 		target.setName(userRoleAM.getName());
 		target.setIdentifier(userRoleAM.getIdentifier());
 		target.setDescription(userRoleAM.getDescription());
@@ -229,7 +237,59 @@ public class UserRoleApiV2 {
 		target.setSensitiveRole(userRoleAM.isSensitiveRole());
 		target.setItSystem(itSystem);
 
-		return target;
+		toRemove.stream()
+				.map(systemId -> target.getSystemRoleAssignments().stream()
+						.filter(a -> systemId.equals(a.getSystemRole().getId()))
+						.findFirst()
+						.orElse(null)
+				)
+				.filter(Objects::nonNull)
+				.forEach(systemRoleAssignment -> userRoleService.removeSystemRoleAssignment(target, systemRoleAssignment));
+		toAdd.forEach(systemRoleId -> userRoleService.addSystemRoleAssignment(target, createAssignment(target, systemRoleId)));
+		final UserRole savedTarget = userRoleService.save(target);
+		updateConstraints(savedTarget, userRoleAM);
+
+		return savedTarget;
+	}
+
+	private void updateConstraints(final UserRole userRole, final UserRoleAM userRoleAM) {
+		if (userRoleAM.getSystemRoleAssignments() == null) {
+			return; // Do not update if element was missing
+		}
+		userRoleAM.getSystemRoleAssignments().forEach(systemRoleAssignmentAM -> {
+				final SystemRoleAssignment assignment = findSystemRoleAssignment(userRole, systemRoleAssignmentAM)
+						.orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "System role assignment not found"));
+				final List<SystemRoleAssignmentConstraintValue> constraintValues = systemRoleAssignmentAM.getConstraintValues()
+						.stream().map(c -> {
+							final ConstraintType constraintType = constraintTypeService.findById(c.getConstraintTypeId())
+									.orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Constraint type not found"));
+							final SystemRoleAssignmentConstraintValue value = new SystemRoleAssignmentConstraintValue();
+							value.setConstraintValue(c.getConstraintValue());
+							value.setConstraintValueType(ConstraintValueType.valueOf(c.getConstraintValueType().name()));
+							value.setConstraintIdentifier(c.getConstraintIdentifier());
+							value.setPostponed(c.isPostponed());
+							value.setSystemRoleAssignment(assignment);
+							value.setConstraintType(constraintType);
+							if (StringUtils.isEmpty(value.getConstraintIdentifier())) {
+								value.setConstraintIdentifier(IdentifierGenerator.buildKombitConstraintIdentifier(
+										configuration.getIntegrations().getKombit().getDomain(),
+										assignment.getSystemRole(),
+										assignment,
+										constraintType
+								));
+							}
+							return value;
+						})
+						.toList();
+				assignment.getConstraintValues().clear();
+				assignment.getConstraintValues().addAll(constraintValues);
+			});
+	}
+
+	private Optional<SystemRoleAssignment> findSystemRoleAssignment(final UserRole userRole, final SystemRoleAssignmentAM systemRoleAssignmentAM) {
+		return userRole.getSystemRoleAssignments().stream()
+				.filter(s -> s.getSystemRole().getId() == systemRoleAssignmentAM.getSystemRoleId())
+				.findFirst();
 	}
 
 	private SystemRoleAssignment createAssignment(UserRole userRole, Long systemRoleId) {

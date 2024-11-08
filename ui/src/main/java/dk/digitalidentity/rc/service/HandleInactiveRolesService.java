@@ -12,6 +12,7 @@ import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserRole;
 import dk.digitalidentity.rc.dao.model.UserRoleGroupAssignment;
 import dk.digitalidentity.rc.dao.model.UserUserRoleAssignment;
+import dk.digitalidentity.rc.dao.model.enums.ContainsTitles;
 import dk.digitalidentity.rc.interceptor.RoleChangeInterceptor;
 import dk.digitalidentity.rc.security.SecurityUtil;
 import lombok.extern.slf4j.Slf4j;
@@ -96,7 +97,7 @@ public class HandleInactiveRolesService {
 	}
 
 	private boolean handlePositionRoleGroups(Position position) {
-		List<RoleGroup> removeRoleGroups = new ArrayList<>();
+		List<PositionRoleGroupAssignment> removeRoleGroupAssignments = new ArrayList<>();
 		boolean hasChanges = false;
 
 		for (PositionRoleGroupAssignment assignment : position.getRoleGroupAssignments()) {
@@ -113,16 +114,16 @@ public class HandleInactiveRolesService {
 					}
 					break;
 				case EXPIRED:
-					removeRoleGroups.add(assignment.getRoleGroup());
+				    removeRoleGroupAssignments.add(assignment);
 					break;
 				case INACTIVE:
 					break;
 			}
 		}
 
-		if (removeRoleGroups.size() > 0) {
-			for (RoleGroup roleGroup : removeRoleGroups) {
-				positionService.removeRoleGroup(position, roleGroup);
+		if (!removeRoleGroupAssignments.isEmpty()) {
+			for (PositionRoleGroupAssignment roleGroupAssignment : removeRoleGroupAssignments) {
+				positionService.removeRoleGroupAssignment(position, roleGroupAssignment);
 			}
 			
 			hasChanges = true;
@@ -132,7 +133,7 @@ public class HandleInactiveRolesService {
 	}
 
 	private boolean handlePositionUserRoles(Position position) {
-		List<UserRole> removeUserRoles = new ArrayList<>();
+		List<PositionUserRoleAssignment> removeUserRoleAssignments = new ArrayList<>();
 		boolean hasChanges = false;
 
 		for (PositionUserRoleAssignment assignment : position.getUserRoleAssignments()) {
@@ -149,16 +150,16 @@ public class HandleInactiveRolesService {
 					}
 					break;
 				case EXPIRED:
-					removeUserRoles.add(assignment.getUserRole());
+					removeUserRoleAssignments.add(assignment);
 					break;
 				case INACTIVE:
 					break;
 			}
 		}
 
-		if (removeUserRoles.size() > 0) {
-			for (UserRole userRole : removeUserRoles) {
-				positionService.removeUserRole(position, userRole);
+		if (!removeUserRoleAssignments.isEmpty()) {
+			for (PositionUserRoleAssignment userRoleAssignment : removeUserRoleAssignments) {
+				positionService.removeUserRoleAssignment(position, userRoleAssignment);
 			}
 			
 			hasChanges = true;
@@ -168,7 +169,7 @@ public class HandleInactiveRolesService {
 	}
 
 	private boolean handleOrgUnitRoleGroups(OrgUnit orgUnit) {
-		List<RoleGroup> removeRoleGroups = new ArrayList<>();
+		List<OrgUnitRoleGroupAssignment> removeRoleGroupAssignments = new ArrayList<>();
 		boolean hasChanges = false;
 
 		for (OrgUnitRoleGroupAssignment assignment : orgUnit.getRoleGroupAssignments()) {
@@ -187,7 +188,7 @@ public class HandleInactiveRolesService {
 							exceptedUsers = assignment.getExceptedUsers().stream().map(User::getUuid).collect(Collectors.toSet());
 						}
 						
-						if (assignment.isContainsTitles()) {
+						if (assignment.getContainsTitles() != ContainsTitles.NO) {
 							titles = assignment.getTitles().stream().map(Title::getUuid).collect(Collectors.toSet());
 						}
 
@@ -195,16 +196,16 @@ public class HandleInactiveRolesService {
 					}
 					break;
 				case EXPIRED:
-					removeRoleGroups.add(assignment.getRoleGroup());
+					removeRoleGroupAssignments.add(assignment);
 					break;
 				case INACTIVE:
 					break;
 			}
 		}
 
-		if (removeRoleGroups.size() > 0) {
-			for (RoleGroup roleGroup : removeRoleGroups) {
-				orgUnitService.removeRoleGroup(orgUnit, roleGroup);
+		if (!removeRoleGroupAssignments.isEmpty()) {
+			for (OrgUnitRoleGroupAssignment roleGroupAssignment : removeRoleGroupAssignments) {
+				orgUnitService.removeRoleGroupAssignment(orgUnit, roleGroupAssignment);
 			}
 
 			hasChanges = true;
@@ -216,7 +217,7 @@ public class HandleInactiveRolesService {
 	private boolean handleOrgUnitUserRoles(OrgUnit orgUnit) {
 		boolean hasChanges = false;
 
-		List<UserRole> removeUserRoles = new ArrayList<>();
+		List<OrgUnitUserRoleAssignment> removeUserRoleAssignments = new ArrayList<>();
 		for (OrgUnitUserRoleAssignment assignment : orgUnit.getUserRoleAssignments()) {
 			Result result = handle(assignment.getStartDate(), assignment.getStopDate());
 
@@ -232,7 +233,7 @@ public class HandleInactiveRolesService {
 						if (assignment.isContainsExceptedUsers()) {
 							exceptedUsers = assignment.getExceptedUsers().stream().map(User::getUuid).collect(Collectors.toSet());
 						}
-						else if (assignment.isContainsTitles()) {
+						else if (assignment.getContainsTitles() != ContainsTitles.NO) {
 							titles = assignment.getTitles().stream().map(Title::getUuid).collect(Collectors.toSet());
 						}
 
@@ -240,16 +241,16 @@ public class HandleInactiveRolesService {
 					}
 					break;
 				case EXPIRED:
-					removeUserRoles.add(assignment.getUserRole());
+					removeUserRoleAssignments.add(assignment);
 					break;
 				case INACTIVE:
 					break;
 			}
 		}
 
-		if (removeUserRoles.size() > 0) {
-			for (UserRole userRole : removeUserRoles) {
-				orgUnitService.removeUserRole(orgUnit, userRole);
+		if (!removeUserRoleAssignments.isEmpty()) {
+			for (OrgUnitUserRoleAssignment userRoleAssignment : removeUserRoleAssignments) {
+				orgUnitService.removeUserRoleAssignment(orgUnit, userRoleAssignment);
 			}
 
 			hasChanges = true;
@@ -259,7 +260,7 @@ public class HandleInactiveRolesService {
 	}
 
 	private boolean handleUserRoleGroups(User user) {
-		List<RoleGroup> removeRoleGroups = new ArrayList<>();
+		List<UserRoleGroupAssignment> removeRoleGroupAssignments = new ArrayList<>();
 		boolean hasChanges = false;
 		
 		for (UserRoleGroupAssignment assignment : user.getRoleGroupAssignments()) {
@@ -276,16 +277,16 @@ public class HandleInactiveRolesService {
 					}
 					break;
 				case EXPIRED:
-					removeRoleGroups.add(assignment.getRoleGroup());
+					removeRoleGroupAssignments.add(assignment);
 					break;
 				case INACTIVE:
 					break;
 			}
 		}
 
-		if (removeRoleGroups.size() > 0) {
-			for (RoleGroup roleGroup : removeRoleGroups) {
-				userService.removeRoleGroup(user, roleGroup);
+		if (!removeRoleGroupAssignments.isEmpty()) {
+			for (UserRoleGroupAssignment roleGroupAssignment : removeRoleGroupAssignments) {
+				userService.removeRoleGroupAssignment(user, roleGroupAssignment);
 			}
 			
 			hasChanges = true;
@@ -295,7 +296,7 @@ public class HandleInactiveRolesService {
 	}
 
 	private boolean handleUserUserRoles(User user) {
-		List<UserRole> removeUserRoles = new ArrayList<>();
+		List<UserUserRoleAssignment> removeUserRoleAssignments = new ArrayList<>();
 		boolean hasChanges = false;
 
 		for (UserUserRoleAssignment assignment : user.getUserRoleAssignments()) {
@@ -311,16 +312,16 @@ public class HandleInactiveRolesService {
 					}
 					break;
 				case EXPIRED:
-					removeUserRoles.add(assignment.getUserRole());
+					removeUserRoleAssignments.add(assignment);
 					break;
 				case INACTIVE:
 					break;
 			}
 		}
 
-		if (removeUserRoles.size() > 0) {
-			for (UserRole userRole : removeUserRoles) {
-				userService.removeUserRole(user, userRole);
+		if (!removeUserRoleAssignments.isEmpty()) {
+			for (UserUserRoleAssignment userRoleAssignment : removeUserRoleAssignments) {
+				userService.removeUserRoleAssignment(user, userRoleAssignment);
 			}
 
 			hasChanges = true;

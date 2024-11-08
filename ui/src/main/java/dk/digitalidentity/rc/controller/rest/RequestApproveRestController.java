@@ -118,7 +118,7 @@ public class RequestApproveRestController {
 						userService.removeUserRole(request.getRequestedFor(), userRole);
 						auditLogger.log(request.getRequestedFor(), EventType.APPROVE_REQUEST, userRole);
 					} else {
-						userService.addUserRole(request.getRequestedFor(), userRole, request.getRequestApprovePostponedConstraints());
+						userService.addUserRoleReqApprove(request.getRequestedFor(), userRole, request.getRequestApprovePostponedConstraints(), request.getOrgUnit());
 						roleName = userRole.getName();
 						manualItSystem = userRole.getItSystem().getSystemType().equals(ItSystemType.MANUAL);
 						

@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head th:replace="~{fragments/header :: header (title=#{html.page.users.manage.title})}"></head>
-<body>
+<body class="layout-fixed">
 	<div class="wrapper">
 		<header th:replace="~{fragments/navbar :: navbar-header(subpage = 'roles')}"></header>
 		<aside th:replace="~{fragments/navbar :: navbar-aside (page = 'users', subpage = 'roles')}"></aside>
@@ -20,7 +20,7 @@
 				<div class="panel panel-default">
 					<div class="panel-heading"></div>
 					<div class="panel-body">
-						<div class="panel-group" id="accordion" role="tablist" aria-multiselectable="true">
+						<div class="panel-group sticky" id="accordion" role="tablist" aria-multiselectable="true">
 							<div class="panel panel-default">
 								<div class="panel-heading" role="tab" id="stamdataHeading">
 									<h4 class="panel-title">
@@ -244,21 +244,21 @@
 		function RolesService() {
 			this.loadRolesFragment = function () {
 				$("#roles_menu").load(UIUrl + user + "/roles", function () {
-					hideColumn = [1];
-					currentTable = showDataTableWithHiddenColumns('#listTable', 0, hideColumn);
+					hideColumn = [1,5];
+					currentTable = showDataTableWithHiddenColumns('#listTable', 0, hideColumn, 10);
 					dataTablesRefreshIcons($('#dataTableDropdown'));
 				});
 			}
 
 			this.loadAddUserRoleFragment = function () {
 				$("#roles_menu").load(UIUrl + user + "/addUserRole", function () {
-					fragShowDataTableFun('#listTable_u_ur', 0);
+					fragShowDataTableFun('#listTable_u_ur', 0, 10);
 				});
 			}
 
 			this.loadAddRoleGroupFragment = function () {
 				$("#roles_menu").load(UIUrl + user + "/addRoleGroup", function () {
-					fragShowDataTableFun('#listTable_u_rg', 0);
+					fragShowDataTableFun('#listTable_u_rg', 0, 10);
 				});
 			}
 

@@ -8,15 +8,15 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.MessageSource;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
-import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.servlet.ModelAndView;
 
 import dk.digitalidentity.rc.controller.mvc.xlsview.AuditLogXlsxView;
-import dk.digitalidentity.rc.security.RequireAssignerRole;
+import dk.digitalidentity.rc.security.RequireAdminOrAuditlog;
 import dk.digitalidentity.rc.service.AuditLogService;
 import jakarta.servlet.http.HttpServletResponse;
 
-@RequireAssignerRole
+@RequireAdminOrAuditlog
 @Controller
 public class LogViewerController {
 	
@@ -26,12 +26,12 @@ public class LogViewerController {
 	@Autowired
 	private MessageSource messageSource;
 
-	@RequestMapping(value = "/ui/logs/audit")
+	@GetMapping(value = "/ui/logs/audit")
 	public String audit(Model model) {
 		return "logs/list-audit";
 	}
 	
-	@RequestMapping(value = "/ui/logs/audit/download")
+	@GetMapping(value = "/ui/logs/audit/download")
 	public ModelAndView download(HttpServletResponse response, Locale loc) {
 		Map<String, Object> model = new HashMap<>();
 		model.put("logs", auditLogService.downloadAuditLog());

@@ -11,4 +11,5 @@ public interface ConstraintTypeDao extends CrudRepository<ConstraintType, Long> 
 	Optional<ConstraintType> findByUuid(String uuid);
 
 	List<ConstraintType> findByEntityId(String entityId);
+
 }

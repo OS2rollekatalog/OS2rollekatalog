@@ -20,6 +20,7 @@ public class ReportForm {
     private boolean showUsers;
     private boolean showOUs;
     private boolean showUserRoles;
+    private boolean showNegativeRoles;
     private boolean showKLE;
     private boolean showItSystems;
     private boolean showInactiveUsers;

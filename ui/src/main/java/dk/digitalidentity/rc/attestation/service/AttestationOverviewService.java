@@ -80,7 +80,7 @@ public class AttestationOverviewService {
         final List<OrgUnitRoleGroupAssignmentDTO> orgGroupAssignments = organisationAttestationDto.getOrgUnitRoleGroupAssignments();
         boolean hasOrgAssignments = !((orgRoleAssignments == null || orgRoleAssignments.isEmpty()) && (orgGroupAssignments == null || orgGroupAssignments.isEmpty()));
         int orgsAttestated = (hasOrgAssignments && organisationAttestationDto.isOrgUnitRolesVerified()) ? 1 : 0;
-        int orgsToAttestate = (hasOrgAssignments) ? 1 : 0;
+        int orgsToAttestate = (hasOrgAssignments && !organisationAttestationDto.isOrgUnitRolesVerified()) ? 1 : 0;
 
         LocalDate now = LocalDate.now();
         return new AttestationOverviewDTO(organisationAttestationDto.getCreatedAt(), readOnly, organisationAttestationDto.getOuName(), organisationAttestationDto.getOuUuid(),

@@ -196,14 +196,16 @@ public class UserController {
 		boolean editable = !readOnly && assignerRoleConstraint.isUserAccessable(user, true);
 
 		List<RoleAssignedToUserDTO> assignments = userService.getAllUserRoleAndRoleGroupAssignments(user);
+		assignments.addAll(userService.getAllNegativeUserRolesAndRoleGroups(user));
 		for (RoleAssignedToUserDTO assignment : assignments) {
 			boolean directlyAssignedRole = assignment.getAssignedThrough() == AssignedThrough.DIRECT || assignment.getAssignedThrough() == AssignedThrough.POSITION;
-
-			if (assignment.getType() == RoleAssignmentType.USERROLE) {
+			if (assignment.getType() == RoleAssignmentType.USERROLE || assignment.getType() == RoleAssignmentType.NEGATIVE) {
+				final UserRole userRole = userRoleService.getById(assignment.getRoleId());
 				boolean internalRole = assignment.getItSystem().getIdentifier().equals(Constants.ROLE_CATALOGUE_IDENTIFIER);
 				// We allow editing of internal roles when user is an Administrator (which also allows editing other roles)
 				// or if user can edit and role is "directly" assigned
-				if ((internalRole && SecurityUtil.getRoles().contains(Constants.ROLE_ADMINISTRATOR) && directlyAssignedRole) || (editable && directlyAssignedRole)) {
+				boolean userRoleEditable = !readOnly && editable && assignerRoleConstraint.isAssignmentAllowed(user, userRole);
+				if ((internalRole && SecurityUtil.getRoles().contains(Constants.ROLE_ADMINISTRATOR) && directlyAssignedRole) || (userRoleEditable && directlyAssignedRole)) {
 					assignment.setCanEdit(true);
 				}
 				
@@ -216,6 +218,8 @@ public class UserController {
 				if (!kspCicsAccount && assignment.getItSystem().getSystemType().equals(ItSystemType.KSPCICS)) {
 					assignment.setIneffective(true);
 				}
+
+				assignment.setDescription(userRole.getDescription());
 				
 				// TODO: this block of code is duplicated in multiple places - could it be extracted to a utility method somewhere?
 				// it is also found in AttestationController

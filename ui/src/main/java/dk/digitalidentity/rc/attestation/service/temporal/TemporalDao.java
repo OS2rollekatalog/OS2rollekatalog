@@ -9,6 +9,7 @@ import dk.digitalidentity.rc.attestation.service.temporal.rowmapper.AttestationU
 import dk.digitalidentity.rc.attestation.service.temporal.rowmapper.HistoryItSystemRowMapper;
 import dk.digitalidentity.rc.attestation.service.temporal.rowmapper.HistoryOURoleAssignmentRowMapper;
 import dk.digitalidentity.rc.attestation.service.temporal.rowmapper.HistoryOURoleAssignmentWithExceptionsRowMapper;
+import dk.digitalidentity.rc.attestation.service.temporal.rowmapper.HistoryOURoleAssignmentWithNegativeTitlesRowMapper;
 import dk.digitalidentity.rc.attestation.service.temporal.rowmapper.HistoryOURoleAssignmentWithTitlesRowMapper;
 import dk.digitalidentity.rc.attestation.service.temporal.rowmapper.HistoryOURowMapper;
 import dk.digitalidentity.rc.attestation.service.temporal.rowmapper.HistoryOUUserRowMapper;
@@ -23,6 +24,7 @@ import dk.digitalidentity.rc.dao.history.model.HistoryItSystem;
 import dk.digitalidentity.rc.dao.history.model.HistoryOU;
 import dk.digitalidentity.rc.dao.history.model.HistoryOURoleAssignment;
 import dk.digitalidentity.rc.dao.history.model.HistoryOURoleAssignmentWithExceptions;
+import dk.digitalidentity.rc.dao.history.model.HistoryOURoleAssignmentWithNegativeTitles;
 import dk.digitalidentity.rc.dao.history.model.HistoryOURoleAssignmentWithTitles;
 import dk.digitalidentity.rc.dao.history.model.HistoryOUUser;
 import dk.digitalidentity.rc.dao.history.model.HistoryRoleAssignment;
@@ -59,6 +61,7 @@ public class TemporalDao {
     private final HistoryOURoleAssignmentRowMapper historyOURoleAssignmentRowMapper = new HistoryOURoleAssignmentRowMapper();
     private final HistoryOURoleAssignmentWithExceptionsRowMapper historyOURoleAssignmentWithExceptionsRowMapper = new HistoryOURoleAssignmentWithExceptionsRowMapper();
     private final HistoryOURoleAssignmentWithTitlesRowMapper historyOURoleAssignmentWithTitlesRowMapper = new HistoryOURoleAssignmentWithTitlesRowMapper();
+    private final HistoryOURoleAssignmentWithNegativeTitlesRowMapper historyOURoleAssignmentWithNegativeTitlesRowMapper = new HistoryOURoleAssignmentWithNegativeTitlesRowMapper();
     private final HistoryOUUserRowMapper historyOUUserRowMapper = new HistoryOUUserRowMapper();
     private final AttestationUserRoleAssignmentRowMapper attestationUserRoleAssignmentRowMapper = new AttestationUserRoleAssignmentRowMapper();
     private final AttestationOuRoleAssignmentRowMapper attestationOuRoleAssignmentRowMapper = new AttestationOuRoleAssignmentRowMapper();
@@ -84,6 +87,10 @@ public class TemporalDao {
 
     public List<HistoryOURoleAssignmentWithTitles> listHistoryOURoleAssignmentWithTitlesByDate(final LocalDate when) {
         return jdbcTemplate.query("SELECT hra.* FROM history_role_assignment_titles hra WHERE hra.dato=?", historyOURoleAssignmentWithTitlesRowMapper, when);
+    }
+
+    public List<HistoryOURoleAssignmentWithNegativeTitles> listHistoryOURoleAssignmentWithNegativeTitlesByDate(final LocalDate when) {
+        return jdbcTemplate.query("SELECT hra.* FROM history_role_assignment_negative_titles hra WHERE hra.dato=?", historyOURoleAssignmentWithNegativeTitlesRowMapper, when);
     }
 
     public List<HistoryOURoleAssignment> listHistoryOURoleAssignmentsByDate(final LocalDate when) {
@@ -132,6 +139,10 @@ public class TemporalDao {
             return null;
         }
         return result.get(0);
+    }
+
+    public List<AttestationOuRoleAssignment> findAllValidOuRoleAssignment(final LocalDate when) {
+        return jdbcTemplate.query("SELECT * FROM attestation_ou_role_assignments a WHERE valid_from <= ? AND (valid_to > ? or valid_to is null)", attestationOuRoleAssignmentRowMapper, when, when);
     }
 
     public AttestationSystemRoleAssignment findValidSystemRoleAssignmentWithHash(final LocalDate when, final String hash) {
@@ -246,17 +257,18 @@ public class TemporalDao {
         parameters.put("inherited", assignment.isInherited());
         parameters.put("inherit", assignment.isInherit());
         parameters.put("sensitive_role", assignment.isSensitiveRole());
+        parameters.put("excepted_title_uuids", RowMapperUtils.joinFromList(assignment.getExceptedTitleUuids()));
         namedParameterJdbcTemplate.update("INSERT INTO attestation_ou_role_assignments (record_hash, updated_at, valid_from, valid_to," +
                 "                                                    assigned_through_name, assigned_through_type, assigned_through_uuid," +
                 "                                                    inherited, it_system_id, it_system_name, role_description, role_id," +
                 "                                                    role_name, role_group_name, role_group_id, role_group_description," +
                 "                                                    sensitive_role, ou_name, ou_uuid, excepted_user_uuids, title_uuids," +
                 "                                                    responsible_user_uuid, responsible_ou_name, responsible_ou_uuid," +
-                "                                                    inherit) " +
+                "                                                    inherit, excepted_title_uuids) " +
                 " VALUES (:record_hash, :updated_at, :valid_from, :valid_to, :assigned_through_name, :assigned_through_type, :assigned_through_uuid," +
                 "         :inherited, :it_system_id, :it_system_name, :role_description, :role_id, :role_name, :role_group_name, " +
                 "         :role_group_id, :role_group_description, :sensitive_role, :ou_name, :ou_uuid, :excepted_user_uuids, " +
-                "         :title_uuids, :responsible_user_uuid, :responsible_ou_name, :responsible_ou_uuid, :inherit)",
+                "         :title_uuids, :responsible_user_uuid, :responsible_ou_name, :responsible_ou_uuid, :inherit, :excepted_title_uuids)",
                 parameters);
 
     }
@@ -289,6 +301,7 @@ public class TemporalDao {
         in.addValue("inherited", assignment.isInherited());
         in.addValue("inherit", assignment.isInherit());
         in.addValue("sensitive_role", assignment.isSensitiveRole());
+        in.addValue("excepted_title_uuids", RowMapperUtils.joinFromList(assignment.getExceptedTitleUuids()));
 
         return namedParameterJdbcTemplate.update("UPDATE attestation_ou_role_assignments SET " +
                 "record_hash=:record_hash, updated_at=:updated_at, valid_from=:valid_from, valid_to=:valid_to, assigned_through_name=:assigned_through_name, " +
@@ -297,7 +310,7 @@ public class TemporalDao {
                 "role_name=:role_name, role_group_name=:role_group_name, role_group_id=:role_group_id, role_group_description=:role_group_description, " +
                 "sensitive_role=:sensitive_role, ou_name=:ou_name, ou_uuid=:ou_uuid, excepted_user_uuids=:excepted_user_uuids, " +
                 "title_uuids=:title_uuids, responsible_user_uuid=:responsible_user_uuid, responsible_ou_name=:responsible_ou_name, " +
-                "responsible_ou_uuid=:responsible_ou_uuid, inherit=:inherit " +
+                "responsible_ou_uuid=:responsible_ou_uuid, inherit=:inherit, excepted_title_uuids=:excepted_title_uuids " +
                 " WHERE id=:id", in);
     }
 

@@ -16,6 +16,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import dk.digitalidentity.rc.dao.model.enums.ContainsTitles;
 import org.apache.commons.lang3.StringEscapeUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.EnableCaching;
@@ -422,7 +423,7 @@ public class UserService {
 		return false;
 	}
 
-	public void addUserRole(User user, UserRole userRole, List<RequestApprovePostponedConstraint> constraints) {
+	public void addUserRoleReqApprove(User user, UserRole userRole, List<RequestApprovePostponedConstraint> constraints, OrgUnit orgUnit) {
 		List<PostponedConstraint> postponedConstraintsForAssignment = new ArrayList<>();
 		for (RequestApprovePostponedConstraint requestConstraint : constraints) {
 			SystemRole systemRole = requestConstraint.getSystemRole();
@@ -438,7 +439,7 @@ public class UserService {
 
 			postponedConstraintsForAssignment.add(postponedConstraint);
 		}
-		self.addUserRole(user, userRole, null, null, postponedConstraintsForAssignment, null, true);
+		self.addUserRole(user, userRole, null, null, postponedConstraintsForAssignment, orgUnit, true);
 	}
 
 	public void addUserRole(User user, UserRole userRole, LocalDate startDate, LocalDate stopDate) {
@@ -962,8 +963,8 @@ public class UserService {
 				
 				List<OrgUnitUserRoleAssignment> assignments = position.getOrgUnit().getUserRoleAssignments()
 					.stream()
-					.filter(ura -> ura.isContainsTitles() && ura.getTitles().contains(position.getTitle()))
-					.collect(Collectors.toList());
+					.filter(ura -> (ura.getContainsTitles() == ContainsTitles.POSITIVE && ura.getTitles().contains(position.getTitle()))|| (ura.getContainsTitles() == ContainsTitles.NEGATIVE && !ura.getTitles().contains(position.getTitle())))
+					.toList();
 				
 				for (OrgUnitUserRoleAssignment assignment : assignments) {
 					if (assignment.isInactive()) {
@@ -987,8 +988,8 @@ public class UserService {
 					
 					List<OrgUnitRoleGroupAssignment> roleGroupAssignments = position.getOrgUnit().getRoleGroupAssignments()
 							.stream()
-							.filter(ura -> ura.isContainsTitles() && ura.getTitles().contains(position.getTitle()))
-							.collect(Collectors.toList());
+							.filter(ura -> (ura.getContainsTitles() == ContainsTitles.POSITIVE && ura.getTitles().contains(position.getTitle()))|| (ura.getContainsTitles() == ContainsTitles.NEGATIVE && !ura.getTitles().contains(position.getTitle())))
+							.toList();
 						
 					for (OrgUnitRoleGroupAssignment assignment : roleGroupAssignments) {
 						if (assignment.isInactive()) {
@@ -1106,10 +1107,17 @@ public class UserService {
 			}
 
 			// Filter out assignments through title that don't include the user's title
-			if (roleMapping.isContainsTitles() && !roleMapping.getTitles().contains(title)) {
+			if (roleMapping.getContainsTitles() == ContainsTitles.POSITIVE && !roleMapping.getTitles().contains(title)) {
 				continue;
 			}
-			
+			//Checks if any of titles are present
+			else if (roleMapping.getContainsTitles() == ContainsTitles.NEGATIVE) {
+				Optional<Title> negativeMatch = roleMapping.getTitles().stream().filter(negativeTitle -> negativeTitle.equals(title)).findAny();
+				if(negativeMatch.isPresent()) {
+					continue;
+				}
+			}
+
 			result.add(RoleAssignedToUserDTO.fromOrgUnitUserRoleAssignment(roleMapping));
 		}
 
@@ -1133,16 +1141,70 @@ public class UserService {
 			}
 
 			// Filter out assignments through title that don't include the user's title
-			if (roleGroupMapping.isContainsTitles() && !roleGroupMapping.getTitles().contains(title)) {
+			if (roleGroupMapping.getContainsTitles() == ContainsTitles.POSITIVE && !roleGroupMapping.getTitles().contains(title)) {
 				continue;
 			}
-	
+			//Checks if any of titles are present
+			else if (roleGroupMapping.getContainsTitles() == ContainsTitles.NEGATIVE) {
+				Optional<Title> negativeMatch = roleGroupMapping.getTitles().stream().filter(negativeTitle -> negativeTitle.equals(title)).findAny();
+				if(negativeMatch.isPresent()) {
+					continue;
+				}
+			}
+
 			result.add(RoleAssignedToUserDTO.fromOrgUnitRoleGroupAssignment(roleGroupMapping));
 		}
 		
 		// recursive upwards in the hierarchy (only inherited roles)
 		if (orgUnit.getParent() != null) {
 			getAllUserRolesAndRoleGroupsFromOrgUnit(result, orgUnit.getParent(), true, user, title);
+		}
+	}
+
+	//
+	public List<RoleAssignedToUserDTO> getAllNegativeUserRolesAndRoleGroups(User user) {
+		List<RoleAssignedToUserDTO> result = new ArrayList<>();
+
+		for (Position position : user.getPositions()) {
+			if (!position.isDoNotInherit()) {
+				// recursive through all OrgUnits from here and up
+				getAllNegativeUserRolesAndRoleGroupsFromOrgUnit(result, position.getOrgUnit(), false, user, position.getTitle());
+			}
+		}
+		return new ArrayList<>(result);
+	}
+
+	private void getAllNegativeUserRolesAndRoleGroupsFromOrgUnit(List<RoleAssignedToUserDTO> result, OrgUnit orgUnit, boolean inheritOnly, User user, Title title) {
+		for (OrgUnitUserRoleAssignment roleMapping : orgUnit.getUserRoleAssignments()) {
+			if(inheritOnly && !roleMapping.isInherit()) {
+				continue;
+			}
+
+			if (roleMapping.getContainsTitles() == ContainsTitles.NEGATIVE) {
+				Optional<Title> negativeMatch = roleMapping.getTitles().stream().filter(negativeTitle -> negativeTitle.equals(title)).findAny();
+				if(negativeMatch.isPresent()) {
+					result.add(RoleAssignedToUserDTO.fromNegativeOrgUnitUserRoleAssignment(roleMapping));
+				}
+
+			}
+		}
+
+		for (OrgUnitRoleGroupAssignment roleMapping : orgUnit.getRoleGroupAssignments()) {
+			if(inheritOnly && !roleMapping.isInherit()) {
+				continue;
+			}
+
+			if (roleMapping.getContainsTitles() == ContainsTitles.NEGATIVE) {
+				Optional<Title> negativeMatch = roleMapping.getTitles().stream().filter(negativeTitle -> negativeTitle.equals(title)).findAny();
+				if(negativeMatch.isPresent()) {
+					result.add(RoleAssignedToUserDTO.fromNegativeOrgUnitRoleGroupAssignment(roleMapping));
+				}
+
+			}
+		}
+		// recursive upwards in the hierarchy (only inherited roles)
+		if (orgUnit.getParent() != null) {
+			getAllNegativeUserRolesAndRoleGroupsFromOrgUnit(result, orgUnit.getParent(), true, user, title);
 		}
 	}
 
@@ -1232,7 +1294,7 @@ public class UserService {
 				// position.title (RoleGroups)
 				List<OrgUnitRoleGroupAssignment> titleAssignments = position.getOrgUnit().getRoleGroupAssignments()
 						.stream()
-						.filter(ura -> ura.isContainsTitles() && ura.getTitles().contains(position.getTitle()))
+						.filter(ura -> (ura.getContainsTitles() == ContainsTitles.POSITIVE && ura.getTitles().contains(position.getTitle()))|| (ura.getContainsTitles() == ContainsTitles.NEGATIVE && !ura.getTitles().contains(position.getTitle())))
 						.collect(Collectors.toList());
 				
 				for (OrgUnitRoleGroupAssignment assignment : titleAssignments) {
@@ -1304,7 +1366,7 @@ public class UserService {
 				}
 			}
 			
-			if (roleGroupMapping.isContainsTitles()) {
+			if (roleGroupMapping.getContainsTitles() != ContainsTitles.NO) {
 				boolean match = roleGroupMapping.getTitles()
 						.stream()
 						.anyMatch(t -> user.getPositions()
@@ -1356,7 +1418,7 @@ public class UserService {
 				}
 			}
 			
-			if (roleMapping.isContainsTitles()) {
+			if (roleMapping.getContainsTitles() != ContainsTitles.NO) {
 				boolean match = roleMapping.getTitles()
 						.stream()
 						.anyMatch(t -> user.getPositions()
@@ -1405,7 +1467,7 @@ public class UserService {
 					}
 				}
 
-				if (roleGroupMapping.isContainsTitles()) {
+				if (roleGroupMapping.getContainsTitles() != ContainsTitles.NO) {
 					boolean match = roleGroupMapping.getTitles()
 							.stream()
 							.anyMatch(t -> user.getPositions()
@@ -1588,7 +1650,7 @@ public class UserService {
 					}
 
 					// if titles are disabled and this assignment contains titles, skip it
-					if (!configuration.getTitles().isEnabled() && orgUnitUserRoleAssignment.isContainsTitles()) {
+					if (!configuration.getTitles().isEnabled() && orgUnitUserRoleAssignment.getContainsTitles() != ContainsTitles.NO) {
 						continue;
 					}
 
@@ -1603,7 +1665,7 @@ public class UserService {
 							continue;
 						}
 						
-						if (orgUnitUserRoleAssignment.isContainsTitles() && !orgUnitUserRoleAssignment.getTitles().contains(position.getTitle())) {
+						if ((orgUnitUserRoleAssignment.getContainsTitles() == ContainsTitles.POSITIVE && !orgUnitUserRoleAssignment.getTitles().contains(position.getTitle())) || (orgUnitUserRoleAssignment.getContainsTitles() == ContainsTitles.NEGATIVE && orgUnitUserRoleAssignment.getTitles().contains(position.getTitle()))) {
 							continue;
 						}
 						
@@ -1611,7 +1673,7 @@ public class UserService {
 							UserWithRole mapping = new UserWithRole();
 							mapping.setUser(position.getUser());
 
-							if (orgUnitUserRoleAssignment.isContainsTitles()) {
+							if (orgUnitUserRoleAssignment.getContainsTitles() != ContainsTitles.NO) {
 								mapping.setAssignedThrough(AssignedThrough.TITLE);
 							}
 							else {
@@ -1643,7 +1705,7 @@ public class UserService {
 						}
 						
 						// if titles are disabled and this assignment contains titles, skip it
-						if (!configuration.getTitles().isEnabled() && orgUnitRoleGroupAssignment.isContainsTitles()) {
+						if (!configuration.getTitles().isEnabled() && orgUnitRoleGroupAssignment.getContainsTitles() != ContainsTitles.NO) {
 							continue;
 						}
 
@@ -1658,7 +1720,7 @@ public class UserService {
 								continue;
 							}
 
-							if (orgUnitRoleGroupAssignment.isContainsTitles() && !orgUnitRoleGroupAssignment.getTitles().contains(position.getTitle())) {
+							if ((orgUnitRoleGroupAssignment.getContainsTitles() == ContainsTitles.POSITIVE && !orgUnitRoleGroupAssignment.getTitles().contains(position.getTitle())) || (orgUnitRoleGroupAssignment.getContainsTitles() == ContainsTitles.NEGATIVE && orgUnitRoleGroupAssignment.getTitles().contains(position.getTitle()))) {
 								continue;
 							}
 							
@@ -1666,7 +1728,7 @@ public class UserService {
 								UserWithRole mapping = new UserWithRole();
 								mapping.setUser(position.getUser());
 								
-								if (orgUnitRoleGroupAssignment.isContainsTitles()) {
+								if (orgUnitRoleGroupAssignment.getContainsTitles() != ContainsTitles.NO) {
 									mapping.setAssignedThrough(AssignedThrough.TITLE);
 								}
 								else {
@@ -1894,7 +1956,7 @@ public class UserService {
 					}
 
 					ArrayList<String> titles = new ArrayList<>();
-					if (configuration.getTitles().isEnabled() && orgUnitRoleGroupAssignment.isContainsTitles()) {
+					if (configuration.getTitles().isEnabled() && orgUnitRoleGroupAssignment.getContainsTitles() != ContainsTitles.NO) {
 						titles.addAll(orgUnitRoleGroupAssignment.getTitles().stream().map(Title::getUuid).collect(Collectors.toList()));
 					}
 	
@@ -1905,7 +1967,7 @@ public class UserService {
 						}
 
 						// titles enabled and title assignment, but not title-match, skip
-						if (configuration.getTitles().isEnabled() && orgUnitRoleGroupAssignment.isContainsTitles()) {
+						if (configuration.getTitles().isEnabled() && orgUnitRoleGroupAssignment.getContainsTitles() != ContainsTitles.NO) {
 							if (position.getTitle() == null || !titles.contains(position.getTitle().getUuid())) {
 								continue;
 							}

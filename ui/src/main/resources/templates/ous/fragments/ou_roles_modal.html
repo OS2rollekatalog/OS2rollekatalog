@@ -20,11 +20,19 @@
 
 					<ul class="nav nav-tabs" id="dataTabs">
 						<li th:if="${titles != null and titles.size() > 0}" class="active">
-							<a data-toggle="tab" data-tab-type="ou_roles_title_menu" href="#ou_roles_title_menu" th:text="#{html.page.ous.edit.tab.titles}"></a>
+							<a data-toggle="tab" data-tab-type="ou_roles_title_menu" href="#ou_roles_title_menu" style="white-space: pre" th:text="#{html.page.ous.edit.tab.titles}"></a>
 						</li>
 
 						<li th:class="${titles != null and titles.size() > 0} ? '' : 'active'">
-							<a data-toggle="tab" data-tab-type="ou_roles_excepted_users_menu" href="#ou_roles_excepted_users_menu" th:text="#{html.page.ous.edit.tab.exceptedusers}"></a>
+							<a data-toggle="tab" data-tab-type="ou_roles_excepted_users_menu" href="#ou_roles_excepted_users_menu" style="white-space: pre" th:text="#{html.page.ous.edit.tab.exceptedusers}"></a>
+						</li>
+
+						<li>
+							<a data-toggle="tab" data-tab-type="ou_roles_title_inherited_menu" href="#ou_roles_title_inherited_menu" style="white-space: pre" th:text="#{html.page.ous.edit.tab.excepttitlesinherented}"></a>
+						</li>
+
+						<li>
+							<a data-toggle="tab" data-tab-type="ou_roles_title_disinherited_menu" href="#ou_roles_title_disinherited_menu" style="white-space: pre" th:text="#{html.page.ous.edit.tab.excepttitlesdisinherented}"></a>
 						</li>
 					</ul>
 
@@ -59,8 +67,70 @@
 							</table>
 						</div>
 
-						<div id="ou_roles_excepted_users_menu" class="tab-pane" th:classappend="${titles != null and titles.size() > 0} ? '' : 'active'">
+						<div id="ou_roles_excepted_users_menu" class="tab-pane">
 						</div>
+
+						<div id="ou_roles_title_inherited_menu" class="tab-pane">
+							<table id="ou_roles_listTable3" class="table table-striped">
+								<thead>
+								<tr>
+									<th class="col-md-2" th:text="#{html.entity.title.checked}"></th>
+									<th class="col-md-10" th:text="#{html.entity.title.name}"></th>
+								</tr>
+								</thead>
+
+								<tbody>
+									<tr th:each="negative : ${negativeTitles}">
+										<td>
+											<div class="checkbox c-checkbox">
+												<label>
+													<input class="inherited-checkbox" type="checkbox" th:attr="data-id=${negative.id}, checked=${negative.state.checked}" />
+													<span class="fa fa-check"></span>
+												</label>
+											</div>
+										</td>
+
+										<td>
+											<span th:text="${negative.name} + ' '"></span>
+											<span th:if="${negative.emptyTitle}" class="badge" style="background-color: #ff8517; color: #FFFFFF;" th:text="#{html.page.ous.edit.tab.titles.empty}"></span>
+											<span th:if="${negative.onAssignmentButNotPosition}" class="badge" style="background-color: grey; color: #FFFFFF;" th:text="#{html.page.ous.edit.tab.titles.inactive}"></span>
+										</td>
+									</tr>
+								</tbody>
+							</table>
+						</div>
+
+						<div id="ou_roles_title_disinherited_menu" class="tab-pane">
+							<table id="ou_roles_listTable4" class="table table-striped">
+								<thead>
+								<tr>
+									<th class="col-md-2" th:text="#{html.entity.title.checked}"></th>
+									<th class="col-md-10" th:text="#{html.entity.title.name}"></th>
+								</tr>
+								</thead>
+
+								<tbody>
+									<tr th:each="title : ${titles}">
+										<td>
+											<div class="checkbox c-checkbox">
+												<label>
+													<input class="disinherited-checkbox" type="checkbox" th:attr="data-id=${title.id}, checked=${title.state.checked}" />
+													<span class="fa fa-check"></span>
+												</label>
+											</div>
+										</td>
+
+										<td>
+											<span th:text="${title.name} + ' '"></span>
+											<span th:if="${title.emptyTitle}" class="badge" style="background-color: #ff8517; color: #FFFFFF;" th:text="#{html.page.ous.edit.tab.titles.empty}"></span>
+											<span th:if="${title.onAssignmentButNotPosition}" class="badge" style="background-color: grey; color: #FFFFFF;" th:text="#{html.page.ous.edit.tab.titles.inactive}"></span>
+										</td>
+									</tr>
+								</tbody>
+							</table>
+						</div>
+
+
 					</div>
 					
 	               	<div style="height: 70px;">
@@ -95,6 +165,8 @@
 				<div class="modal-footer">
 					<button type="button" disabled="disabled" id="titleAssignTitlesButton" class="btn btn-primary" onclick="commonService.handleTitleRoleAssignment()" th:text="#{html.page.ous.edit.button.assign}"></button>
 					<button type="button" disabled="disabled" id="assignWithExceptionsButton" class="btn btn-primary" onclick="commonService.handleExceptedRoleAssignment()" th:text="#{html.page.ous.edit.button.assign.exceptedusers}"></button>
+					<button type="button" disabled="disabled" id="assignNegativeWithInheritanceButton" class="btn btn-primary" onclick="commonService.handleNegativeAssignment(true)" th:text="#{html.page.ous.edit.tab.excepttitlesinherented}"></button>
+					<button type="button" disabled="disabled" id="assignNegativeWithoutInheritanceButton" class="btn btn-primary" onclick="commonService.handleNegativeAssignment(false)" th:text="#{html.page.ous.edit.tab.excepttitlesdisinherented}"></button>
 					<div class="btn-group" id="titleInheritButton">
                         <button id="assignAllButton" type="button" style="margin-left: 5px;" class="btn btn-primary dropdown-toggle" data-toggle="dropdown">
                         	<span>
@@ -128,6 +200,9 @@
 		var notifikationService;
 		var checkedTitlesFetched;
 		var loadedEditTitles = [];
+		var loadedNegativeEditTitles = [];
+		var loadedNegativeInheritedEditTitles = [];
+
 
 		$(document).ready(function() {
 			ouRolesModalService = new OURolesModalService();
@@ -150,11 +225,18 @@
 
         function CommonService() {
 			this.init = function() {
+
+				$("#assignNegativeWithInheritanceButton").hide();
+				$("#assignNegativeWithoutInheritanceButton").hide();
+				fragShowDataTableFun('#ou_roles_listTable3', 0, 10);
+
 				$('#modal-ou').on('shown.bs.modal', function(e) {
 
 					// Add checkboxlisteners to modal
 					commonService.addTitleCheckboxListeners();
 					commonService.addExceptedUsersCheckboxListeners();
+					commonService.addInheritedCheckboxListeners();
+					commonService.addDisinheritedCheckboxListeners();
 				})
 
 				// Add change tab event handler
@@ -166,14 +248,34 @@
 					if (tabType == 'ou_roles_title_menu') {
 						$("#titleAssignTitlesButton").show();
 						$("#assignWithExceptionsButton").hide();
+						$("#assignNegativeWithInheritanceButton").hide();
+						$("#assignNegativeWithoutInheritanceButton").hide();
 
 						commonService.handleTitleCheckbox();
 					}
 					else if (tabType == 'ou_roles_excepted_users_menu') {
 						$("#titleAssignTitlesButton").hide();
 						$("#assignWithExceptionsButton").show();
+						$("#assignNegativeWithInheritanceButton").hide();
+						$("#assignNegativeWithoutInheritanceButton").hide();
 
 						commonService.handleExceptedUsersCheckbox();
+					}
+					else if (tabType == 'ou_roles_title_inherited_menu') {
+						$("#titleAssignTitlesButton").hide();
+						$("#assignWithExceptionsButton").hide();
+						$("#assignNegativeWithInheritanceButton").show();
+						$("#assignNegativeWithoutInheritanceButton").hide();
+
+						commonService.handleInheritedCheckbox();
+					}
+					else if (tabType == 'ou_roles_title_disinherited_menu') {
+						$("#titleAssignTitlesButton").hide();
+						$("#assignWithExceptionsButton").hide();
+						$("#assignNegativeWithInheritanceButton").hide();
+						$("#assignNegativeWithoutInheritanceButton").show();
+
+						commonService.handleDisinheritedCheckbox();
 					}
 				});
 			}
@@ -189,16 +291,30 @@
 				$('.exceptedusers-checkbox').change(commonService.handleExceptedUsersCheckbox);
 			}
 
+			this.addInheritedCheckboxListeners = function() {
+				$('.inherited-checkbox').off("change");
+				$('.inherited-checkbox').change(commonService.handleInheritedCheckbox);
+			}
+
+			this.addDisinheritedCheckboxListeners = function() {
+				$('.disinherited-checkbox').off("change");
+				$('.disinherited-checkbox').change(commonService.handleDisinheritedCheckbox);
+			}
+
 			this.handleTitleCheckbox = function() {
 				var anythingChecked = ($('#ou_roles_listTable1 input:checkbox:checked').length > 0);
 
 				if (!anythingChecked) {
 					$("#titleAssignTitlesButton").prop('disabled', true);
 					$("#assignAllButton").prop('disabled', false);
+					$("#assignWithExceptionsButton").prop('disabled', true);
+					$("#assignNegativeWithoutInheritanceButton").prop('disabled', true);
 				}
 				else {
 					$("#titleAssignTitlesButton").prop('disabled', false);
 					$("#assignAllButton").prop('disabled', true);
+					$("#assignWithExceptionsButton").prop('disabled', true);
+					$("#assignNegativeWithoutInheritanceButton").prop('disabled', true);
 				}
 
 				for (var i = 0; i < loadedEditTitles.length; i++) {
@@ -209,16 +325,68 @@
 			}
 
 			this.handleExceptedUsersCheckbox = function() {
-				var anythingChecked = $('#modal-ou .exceptedusers-checkbox:checked').length > 0;
+				var anythingChecked = ($('#ou_roles_listTable2 .exceptedusers-checkbox:checked').length > 0);
 
 				if (!anythingChecked) {
 					$("#assignWithExceptionsButton").prop('disabled', true);
 					$("#assignAllButton").prop('disabled', false);
+					$("#assignWithExceptionsButton").prop('disabled', true);
+					$("#assignNegativeWithoutInheritanceButton").prop('disabled', true);
 				}
 				else {
 					$("#assignWithExceptionsButton").prop('disabled', false);
 					$("#assignWithExceptionsButton").show();
 					$("#assignAllButton").prop('disabled', true);
+					$("#assignNegativeWithInheritanceButton").prop('disabled', true);
+					$("#assignNegativeWithoutInheritanceButton").prop('disabled', true);
+				}
+			}
+
+			this.handleInheritedCheckbox = function() {
+				var anythingChecked = ($('#ou_roles_listTable3 input:checkbox:checked').length > 0);
+
+				if (!anythingChecked) {
+					$("#assignAllButton").prop('disabled', false);
+					$("#assignWithExceptionsButton").prop('disabled', true);
+					$("#assignNegativeWithInheritanceButton").prop('disabled', true);
+					$("#assignNegativeWithoutInheritanceButton").prop('disabled', true);
+				}
+				else {
+					$("#assignNegativeWithInheritanceButton").prop('disabled', false);
+					$("#assignNegativeWithInheritanceButton").show();
+					$("#assignAllButton").prop('disabled', true);
+					$("#assignWithExceptionsButton").prop('disabled', true);
+					$("#assignNegativeWithoutInheritanceButton").prop('disabled', true);
+				}
+
+				for (var i = 0; i < loadedNegativeInheritedEditTitles.length; i++) {
+					if (loadedNegativeInheritedEditTitles[i].id == $(this).data('id')) {
+						loadedNegativeInheritedEditTitles[i].state.checked = this.checked;
+					}
+				}
+			}
+
+			this.handleDisinheritedCheckbox = function() {
+				var anythingChecked = ($('#ou_roles_listTable4 input:checkbox:checked').length > 0);
+
+				if (!anythingChecked) {
+					$("#assignAllButton").prop('disabled', false);
+					$("#assignWithExceptionsButton").prop('disabled', true);
+					$("#assignNegativeWithInheritanceButton").prop('disabled', true);
+					$("#assignNegativeWithoutInheritanceButton").prop('disabled', true);
+				}
+				else {
+					$("#assignNegativeWithoutInheritanceButton").prop('disabled', false);
+					$("#assignNegativeWithoutInheritanceButton").show();
+					$("#assignAllButton").prop('disabled', true);
+					$("#assignWithExceptionsButton").prop('disabled', true);
+					$("#assignNegativeWithInheritanceButton").prop('disabled', true);
+				}
+
+				for (var i = 0; i < loadedNegativeEditTitles.length; i++) {
+					if (loadedNegativeEditTitles[i].id == $(this).data('id')) {
+						loadedNegativeEditTitles[i].state.checked = this.checked;
+					}
 				}
 			}
 
@@ -230,6 +398,8 @@
 			this.resetUI = function() {
 				$('.title-checkbox').removeAttr('checked');
 				$('.exceptedusers-checkbox').removeAttr('checked');
+				$('.inherited-checkbox').removeAttr('checked');
+				$('.disinherited-checkbox').removeAttr('checked');
 				$('.nav-tabs a[href="#ou_roles_title_menu"]').tab('show');
 			}
 
@@ -271,10 +441,32 @@
 					ouRolesModalService.assignRole(ouRolesModalService.roleType, inherit, ouRolesModalService.roleId, [], []);
 				}
 			}
+
+			this.handleNegativeAssignment = function(inherit) {
+
+				var titleUuids = [];
+				if(inherit){
+					$('#ou_roles_listTable3 input:checkbox:checked').each(function(index) {
+						titleUuids.push($(this).data('id'));
+					});
+				}
+				else{
+					$('#ou_roles_listTable4 input:checkbox:checked').each(function(index) {
+						titleUuids.push($(this).data('id'));
+					});
+				}
+
+
+				if (commonService.editMode) {
+					ouRolesEditModalService.assignRole(ouRolesEditModalService.roleType, inherit, ouRolesEditModalService.assignmentId, titleUuids, [], true);
+				} else {
+					ouRolesModalService.assignRole(ouRolesModalService.roleType, inherit, ouRolesModalService.roleId, titleUuids, [], true);
+				}
+			}
 		}
 		
 		function OURolesModalService() {
-			this.showAssignModal = function(titlesEnabled, checkedTitles, startDate, stopDate) {
+			this.showAssignModal = function(titlesEnabled, checkedTitles, startDate, stopDate, checkedNegativeTitles = null, checkedNegativeInheritedTitles = null) {
 				$('#stopDatePickerOU').data("DateTimePicker").clear();
 				$('#startDatePickerOU').data("DateTimePicker").clear();
 				$('#startDatePickerOU').data("DateTimePicker").date(new Date());
@@ -287,7 +479,7 @@
 				// Fetch possible excepted users for this OU
 				var url = commonService.uiUrl + "users/" + ouRolesModalService.ouUuid;
 				$("#ou_roles_excepted_users_menu").load(url, function() {
-					fragShowDataTableFun('#ou_roles_listTable2', 0);
+					fragShowDataTableFun('#ou_roles_listTable2', 0, 10);
 				});
 				
 				if (titlesEnabled) {
@@ -305,6 +497,8 @@
 
 				commonService.handleTitleCheckbox();
 				commonService.handleExceptedUsersCheckbox();
+				commonService.handleInheritedCheckbox();
+				commonService.handleDisinheritedCheckbox();
 
 				$("#titleInheritButton").show();
 				$("#ouRolesModalHeader").text(ouRolesModalService.header);
@@ -315,7 +509,7 @@
 				});
 			}
 			
-			this.assignRole = function(objType, inherit, id, titleUuids, exceptedUserUuids) {
+			this.assignRole = function(objType, inherit, id, titleUuids, exceptedUserUuids, negativeAssisgnment = false) {
 				var endpoint = commonService.restUrl + 'add' + objType + '/' + ouRolesModalService.ouUuid + '/' + id;
 
 				var startDate = $('#startDatePickerOU').data('date');
@@ -325,6 +519,9 @@
 				
 				if (inherit) {
 					endpoint = endpoint + "&inherit=true";
+				}
+				if (negativeAssisgnment) {
+					endpoint = endpoint + "&negativeAssignment=true";
 				}
 				
 				$.ajax({
@@ -404,7 +601,77 @@
 				});
 			}
 
-			this.showAssignModal = function(titlesEnabled, checkedTitles, startDate, stopDate, assignmentType, assignmentId) {
+			this.loadNegativeTitles = function(loadNegativeCheckedTitles, cbFun) {
+				var endpoint = commonService.restUrl + 'negativetitles/' + ouRolesEditModalService.ouUuid;
+
+				$.ajax({
+					url: endpoint,
+					method: "GET",
+					error: errorHandler(commonService.fieldNotUpdatedMsg),
+					success : function(response) {
+						loadedNegativeEditTitles = response;
+
+						if (loadNegativeCheckedTitles) {
+							ouRolesEditModalService.fetchCheckedNegativeTitles(cbFun);
+						}
+						else if (cbFun) {
+							cbFun();
+						}
+					}
+				});
+			}
+
+			this.fetchCheckedNegativeTitles = function(cbFun) {
+				$.ajax({
+					url: commonService.restUrl + ouRolesEditModalService.ouUuid + "/" + ouRolesEditModalService.roleType + "/" + ouRolesEditModalService.assignmentId + "/negativetitles",
+					method: "GET",
+					error : errorHandler(commonService.fieldNotUpdatedMsg),
+					success : function(response) {
+						checkedNegativeTitlesFetched = response;
+
+						if (cbFun) {
+							cbFun();
+						}
+					}
+				});
+			}
+
+			this.loadNegativeInheritedTitles = function(loadNegativeInheritedCheckedTitles, cbFun) {
+				var endpoint = commonService.restUrl + 'negativeinheritedtitles/' + ouRolesEditModalService.ouUuid;
+
+				$.ajax({
+					url: endpoint,
+					method: "GET",
+					error: errorHandler(commonService.fieldNotUpdatedMsg),
+					success : function(response) {
+						loadedNegativeInheritedEditTitles = response;
+
+						if (loadNegativeInheritedCheckedTitles) {
+							ouRolesEditModalService.fetchCheckedNegativeInheritedTitles(cbFun);
+						}
+						else if (cbFun) {
+							cbFun();
+						}
+					}
+				});
+			}
+
+			this.fetchCheckedNegativeInheritedTitles = function(cbFun) {
+				$.ajax({
+					url: commonService.restUrl + ouRolesEditModalService.ouUuid + "/" + ouRolesEditModalService.roleType + "/" + ouRolesEditModalService.assignmentId + "/negativeinheritedtitles",
+					method: "GET",
+					error : errorHandler(commonService.fieldNotUpdatedMsg),
+					success : function(response) {
+						checkedNegativeInheritedTitlesFetched = response;
+
+						if (cbFun) {
+							cbFun();
+						}
+					}
+				});
+			}
+
+			this.showAssignModal = function(titlesEnabled, checkedTitles, startDate, stopDate, assignmentType, assignmentId, checkedNegativeTitles = null, checkedNegativeInheritedTitles = null) {
 				if (startDate) {
 					$('#startDatePickerOU').data("DateTimePicker").date(startDate);
 				}
@@ -425,9 +692,10 @@
 				$('#modal-ou .tab-content').show();
 				commonService.editMode = true;
 
-				// Clear old title selection
+				// Clear old title selection (including negative titles)
 				if (titlesEnabled) {
 					ouRolesEditModalService.clearTitleSelection();
+					ouRolesEditModalService.clearNegativeTitleSelection();
 				}
 
 				// Clear old exceptedUsers selection
@@ -436,7 +704,7 @@
 				// Fetch excepted users (if any), and check checkboxes
 				var url = commonService.uiUrl + ouRolesEditModalService.roleType + "/exceptedusers2/" + ouRolesEditModalService.ouUuid + "/" + assignmentId;
 				$("#ou_roles_excepted_users_menu").load(url, function() {
-					fragShowDataTableFun('#ou_roles_listTable2', 0);
+					fragShowDataTableFun('#ou_roles_listTable2', 0, 10);
 					if (assignmentType == 0) {
 						commonService.handleExceptedUsersCheckbox();
 					}
@@ -471,6 +739,44 @@
 					});
 				}
 
+				// Negative cases
+				if(titlesEnabled){
+					ouRolesEditModalService.loadNegativeTitles(true, function() {
+						// Check the boxes corrosponding to the list of checked titles from the backend
+						if (checkedNegativeTitles != null) {
+							for (var i = 0; i < loadedNegativeEditTitles.length; i++) {
+								loadedNegativeEditTitles[i].state.checked = (checkedNegativeTitles.indexOf(loadedNegativeEditTitles[i].id) > -1);
+								$('#modal-ou .disinherited-checkbox[data-id=' + loadedNegativeEditTitles[i].id + ']').prop('checked', loadedNegativeEditTitles[i].state.checked);
+							}
+						}
+						else if (checkedNegativeTitlesFetched) {
+							for (var i = 0; i < loadedNegativeEditTitles.length; i++) {
+								loadedNegativeEditTitles[i].state.checked = (checkedNegativeTitlesFetched != null && checkedNegativeTitlesFetched.indexOf(loadedNegativeEditTitles[i].id) > -1);
+								$('#modal-ou .disinherited-checkbox[data-id=' + loadedNegativeEditTitles[i].id + ']').prop('checked', loadedNegativeEditTitles[i].state.checked);
+							}
+						}
+						commonService.handleDisinheritedCheckbox();
+					});
+
+					ouRolesEditModalService.loadNegativeInheritedTitles(true, function() {
+						// Check the boxes corrosponding to the list of checked titles from the backend
+						if (checkedNegativeInheritedTitles != null) {
+							for (var i = 0; i < loadedNegativeInheritedEditTitles.length; i++) {
+								loadedNegativeInheritedEditTitles[i].state.checked = (checkedNegativeInheritedTitles.indexOf(loadedNegativeInheritedEditTitles[i].id) > -1);
+								$('#modal-ou .inherited-checkbox[data-id=' + loadedNegativeInheritedEditTitles[i].id + ']').prop('checked', loadedNegativeInheritedEditTitles[i].state.checked);
+							}
+						}
+						else if (checkedNegativeInheritedTitlesFetched) {
+							for (var i = 0; i < loadedNegativeInheritedEditTitles.length; i++) {
+								loadedNegativeInheritedEditTitles[i].state.checked = (checkedNegativeInheritedTitlesFetched != null && checkedNegativeInheritedTitlesFetched.indexOf(loadedNegativeInheritedEditTitles[i].id) > -1);
+								$('#modal-ou .inherited-checkbox[data-id=' + loadedNegativeInheritedEditTitles[i].id + ']').prop('checked', loadedNegativeInheritedEditTitles[i].state.checked);
+							}
+						}
+						commonService.handleInheritedCheckbox();
+					});
+				}
+
+
 				$("#modal-ou").attr('assignmentId', assignmentId);
 				$("#ouRolesModalHeader").text(ouRolesEditModalService.header);
 
@@ -480,7 +786,7 @@
 				});
 			}
 
-			this.assignRole = function(objType, inherit, id, titleUuids, exceptedUserUuids) {
+			this.assignRole = function(objType, inherit, id, titleUuids, exceptedUserUuids, negativeAssisgnment = false) {
 				var endpoint = commonService.restUrl + 'edit' + objType + '/' + ouRolesEditModalService.ouUuid + '/' + id;
 				var startDate = $('#startDatePickerOU').data('date');
 				var stopDate = $('#stopDatePickerOU').data('date');
@@ -489,6 +795,9 @@
 
 				if (inherit) {
 					endpoint = endpoint + "&inherit=true";
+				}
+				if (negativeAssisgnment) {
+					endpoint = endpoint + "&negativeAssignment=true";
 				}
 
 				$.ajax({
@@ -524,6 +833,16 @@
 						titleUuids.push(loadedEditTitles[i].id);
 					}
 				}
+				for (var i = 0; i < loadedNegativeInheritedEditTitles.length; i++) {
+					if (loadedNegativeInheritedEditTitles[i].state.checked) {
+						titleUuids.push(loadedNegativeInheritedEditTitles[i].id);
+					}
+				}
+				for (var i = 0; i < loadedNegativeEditTitles.length; i++) {
+					if (loadedNegativeEditTitles[i].state.checked) {
+						titleUuids.push(loadedNegativeEditTitles[i].id);
+					}
+				}
 				//Get excepted users
 				var exceptedUsers = [];
 				var exceptedUsersChbx = $('#modal-ou-edit  .exceptedusers-checkbox:checked');
@@ -535,13 +854,16 @@
 			}
 
 			this.clearTitleSelection = function() {
-				for (var i = 0; i < loadedEditTitles.length; i++) {
-					loadedEditTitles[i].state.checked = false;
-				}
+				$('#modal-ou .title-checkbox:checked').removeAttr('checked');
 			}
-
 			this.clearExceptedUsersSelection = function() {
 				$('#modal-ou .exceptedusers-checkbox:checked').removeAttr('checked');
+			}
+			this.clearNegativeInheritedTitleSelection = function() {
+				$('#modal-ou .inherited-checkbox:checked').removeAttr('checked');
+			}
+			this.clearNegativeTitleSelection = function() {
+				$('#modal-ou .disinherited-checkbox:checked').removeAttr('checked');
 			}
 		}
 		

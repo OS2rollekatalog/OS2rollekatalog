@@ -1,6 +1,7 @@
 ﻿using log4net.Config;
 using Quartz;
 using Quartz.Impl;
+using RoleCatalogImporter.Email;
 using System;
 using System.IO;
 
@@ -38,6 +39,21 @@ namespace RoleCatalogImporter
 
             schedule.ScheduleJob(job, trigger);
             schedule.TriggerJob(job.Key);
+
+            // email send task
+            IJobDetail errorLogEmailJob = JobBuilder.Create<EmailJob>()
+                .WithIdentity("errorLogEmailJob", "group2")
+                .Build();
+            ITrigger errorLogEmailTrigger = TriggerBuilder.Create()
+                .WithIdentity("trigger2", "group2")
+                .WithSimpleSchedule(x => x
+                    .WithIntervalInMinutes(15)
+                    //.WithIntervalInSeconds(5)
+                    .RepeatForever())
+                .StartNow()
+                .Build();
+            schedule.ScheduleJob(errorLogEmailJob, errorLogEmailTrigger);
+            schedule.TriggerJob(errorLogEmailJob.Key);
         }
 
         public void Start()

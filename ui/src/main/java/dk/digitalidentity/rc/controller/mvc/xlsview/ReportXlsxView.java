@@ -7,9 +7,11 @@ import dk.digitalidentity.rc.dao.history.model.HistoryOU;
 import dk.digitalidentity.rc.dao.history.model.HistoryOUKleAssignment;
 import dk.digitalidentity.rc.dao.history.model.HistoryOURoleAssignment;
 import dk.digitalidentity.rc.dao.history.model.HistoryOURoleAssignmentWithExceptions;
+import dk.digitalidentity.rc.dao.history.model.HistoryOURoleAssignmentWithNegativeTitles;
 import dk.digitalidentity.rc.dao.history.model.HistoryOURoleAssignmentWithTitles;
 import dk.digitalidentity.rc.dao.history.model.HistoryOUUser;
 import dk.digitalidentity.rc.dao.history.model.HistoryRoleAssignment;
+import dk.digitalidentity.rc.dao.history.model.HistorySystemRole;
 import dk.digitalidentity.rc.dao.history.model.HistorySystemRoleAssignment;
 import dk.digitalidentity.rc.dao.history.model.HistorySystemRoleAssignmentConstraint;
 import dk.digitalidentity.rc.dao.history.model.HistoryTitle;
@@ -63,6 +65,7 @@ public class ReportXlsxView extends AbstractXlsxStreamingView {
     private Map<String, List<HistoryOURoleAssignmentWithExceptions>> ouRoleAssignmentsWithExceptions;
     private Map<String, List<HistoryOUKleAssignment>> ouKLEAssignments;
     private Map<String, List<HistoryOURoleAssignmentWithTitles>> titleRoleAssignments;
+    private Map<String, List<HistoryOURoleAssignmentWithNegativeTitles>> negativeRoleAssignments;
     private Map<Long, String> itSystemNameMapping;
     private SimpleDateFormat dateFormatter;
     private ResourceBundleMessageSource messageSource;
@@ -96,6 +99,7 @@ public class ReportXlsxView extends AbstractXlsxStreamingView {
         ouRoleAssignmentsWithExceptions = (Map<String, List<HistoryOURoleAssignmentWithExceptions>>) model.get("ouRoleAssignmentsWithExceptions");
         userRoleAssignments = (Map<String, List<HistoryRoleAssignment>>) model.get("userRoleAssignments");
 		titleRoleAssignments = (Map<String, List<HistoryOURoleAssignmentWithTitles>>) model.get("titleRoleAssignments");
+        negativeRoleAssignments = (Map<String, List<HistoryOURoleAssignmentWithNegativeTitles>>) model.get("negativeRoleAssignments");
 		ouUsers = (List<HistoryOUUser>) model.get("ouUsers");
 
 		if (titles != null) {
@@ -149,6 +153,10 @@ public class ReportXlsxView extends AbstractXlsxStreamingView {
 
         if (reportForm.isShowUserRoles()) {
             createUserRoleSheet(workbook, reportForm.isShowInactiveUsers());
+        }
+
+        if (reportForm.isShowNegativeRoles()) {
+            createNegativeUserRoleSheet(workbook, reportForm.isShowInactiveUsers());
         }
 
 		if (reportForm.isShowUsers()) {
@@ -228,6 +236,7 @@ public class ReportXlsxView extends AbstractXlsxStreamingView {
         headers.add("xls.report.roles.user.role.name");
         headers.add("xls.report.roles.user.role.description");
         headers.add("xls.report.roles.system.role.name");
+        headers.add("xls.report.roles.system.role.weight");
         headers.add("xls.report.roles.constraint");
 
         createHeaderRow(sheet, headers);
@@ -242,6 +251,8 @@ public class ReportXlsxView extends AbstractXlsxStreamingView {
                     createCell(dataRow, column++, userRole.getUserRoleName(), null);
                     createCell(dataRow, column++, userRole.getUserRoleDescription(), null);
                     createCell(dataRow, column++, systemRoleAssignment.getSystemRoleName(), null);
+                    createCell(dataRow, column++, String.valueOf(itSystem.getHistorySystemRoles().stream().filter(historySystemRole -> historySystemRole.getSystemRoleId() == systemRoleAssignment.getSystemRoleId()).map(HistorySystemRole::getWeight).findFirst().orElse(1L)), null);
+
 
                     StringBuilder constraintCell = new StringBuilder();
                     for (HistorySystemRoleAssignmentConstraint constraint : systemRoleAssignment.getHistoryConstraints()) {
@@ -589,6 +600,49 @@ public class ReportXlsxView extends AbstractXlsxStreamingView {
             Row dataRow = sheet.createRow(row++);
             int column = 0;
             
+            createCell(dataRow, column++, entry.getUserName(), null);
+            createCell(dataRow, column++, entry.getUserId(), null);
+            createCell(dataRow, column++, entry.getEmployeeId(), null);
+            createCell(dataRow, column++, entry.getOrgUnitName(), null);
+            createCell(dataRow, column++, entry.getOrgUnitUUID(), null);
+            createCell(dataRow, column++, entry.isUserActive() ? "aktiv" : "inaktiv", null);
+            createCell(dataRow, column++, itSystemNameMapping.get(entry.getRoleId()), null);
+            createCell(dataRow, column++, entry.getItSystem(), null);
+            createCell(dataRow, column++, entry.getAssignedBy(), null);
+            createCell(dataRow, column++, dateFormatter.format(bestStartDate(entry.getAssignedWhen(), entry.getStartDate())), null);
+            createCell(dataRow, column++, formatLocalDateTime(atEndOfDay(entry.getStopDate())), null);
+            createCell(dataRow, column++, entry.getAssignedThrough(), null);
+            createCell(dataRow, column++, entry.getPostponedConstraints(), null);
+        }
+    }
+
+    private void createNegativeUserRoleSheet(Workbook workbook, boolean showInactiveUsers) {
+        Sheet sheet = workbook.createSheet(messageSource.getMessage("xls.report.user.roles.sheet.negativetitle", null, locale));
+
+        ArrayList<String> headers = new ArrayList<>();
+        headers.add("xls.user.name");
+        headers.add("xls.user.id");
+        headers.add("xls.role.employee.id");
+        headers.add("xls.role.ou.name");
+        headers.add("xls.role.ou.uuid");
+        headers.add("xls.user.active");
+        headers.add("xls.role.name");
+        headers.add("xls.role.it.system");
+        headers.add("xls.role.assigned.by");
+        headers.add("xls.role.start_date");
+        headers.add("xls.role.stop_date");
+        headers.add("xls.role.assigned.through");
+        headers.add("xls.role.postponedconstraints");
+
+        createHeaderRow(sheet, headers);
+
+        List<UserRoleAssignmentReportEntry> userRoleAssignmentReportEntry = reportService.getNegativeUserRoleAssignmentReportEntries(users, allOrgUnits, itSystems, negativeRoleAssignments, locale, showInactiveUsers);
+
+        int row = 1;
+        for (UserRoleAssignmentReportEntry entry : userRoleAssignmentReportEntry) {
+            Row dataRow = sheet.createRow(row++);
+            int column = 0;
+
             createCell(dataRow, column++, entry.getUserName(), null);
             createCell(dataRow, column++, entry.getUserId(), null);
             createCell(dataRow, column++, entry.getEmployeeId(), null);

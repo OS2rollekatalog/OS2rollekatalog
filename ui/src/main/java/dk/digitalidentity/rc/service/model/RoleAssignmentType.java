@@ -2,7 +2,8 @@ package dk.digitalidentity.rc.service.model;
 
 public enum RoleAssignmentType {
 	ROLEGROUP("html.role.assignment.type.rolegroup"),
-	USERROLE("html.role.assignment.type.userrole");
+	USERROLE("html.role.assignment.type.userrole"),
+	NEGATIVE("html.role.assignment.type.negative");
 
 	private String message;
 

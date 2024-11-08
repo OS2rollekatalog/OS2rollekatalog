@@ -35,6 +35,10 @@ public class SettingsService {
 	private static final String SETTING_IT_SYSTEM_DEFAULT_HIDDEN_ENABLED = "ItSystemHiddenByDefault";
 	private static final String SETTING_FIRST_ATTESTATION_DATE = "FirstAttestationDate";
 	private static final String SETTING_MITID_ERHVERV_MIGRATION_PERFORMED = "MitIDErhvervMigrationPerformed";
+	private static final String SETTING_BLOCK_ALL_EMAIL_TRANSMISSIONS = "BlockAllEmailTransmissions";
+	private static final String SETTING_EMAIL_QUEUE_LIMIT = "EmailQueueLimit";
+	private static final String SETTING_CURRENT_INSTALLED_RANK = "currentInstalledRank";
+	
 
 	@Autowired
 	private OrgUnitService orgUnitService;
@@ -344,6 +348,52 @@ public class SettingsService {
 
 	public void setMitIDErhvervMigrationPerformed() {
 		setKeyEnabled(true, SETTING_MITID_ERHVERV_MIGRATION_PERFORMED);
+	}
+
+	public boolean isBlockAllEmailTransmissions() {
+		return getBooleanWithDefault(SETTING_BLOCK_ALL_EMAIL_TRANSMISSIONS, false);
+	}
+
+	public void setBlockAllEmailTransmissions(boolean enabled) {
+		setKeyEnabled(enabled, SETTING_BLOCK_ALL_EMAIL_TRANSMISSIONS);
+	}
+
+	public int getEmailQueueLimit() {
+		Setting setting = settingsDao.findByKey(SETTING_EMAIL_QUEUE_LIMIT);
+		if (setting == null) {
+			return 0;
+		}
+
+		return Integer.parseInt(setting.getValue());
+	}
+
+	public void setEmailQueueLimit(int size) {
+		Setting setting = settingsDao.findByKey(SETTING_EMAIL_QUEUE_LIMIT);
+		if (setting == null) {
+			setting = new Setting();
+			setting.setKey(SETTING_EMAIL_QUEUE_LIMIT);
+		}
+
+		setting.setValue(Integer.toString(size));
+		settingsDao.save(setting);
+	}
+
+	public int getCurrentInstalledRank() {
+		Setting setting = settingsDao.findByKey(SETTING_CURRENT_INSTALLED_RANK);
+		if(setting == null) {
+			return 0;
+		}
+		return Integer.parseInt(setting.getValue());
+	}
+
+	public void setCurrentInstalledRank(int rank) {
+		Setting setting = settingsDao.findByKey(SETTING_CURRENT_INSTALLED_RANK);
+		if(setting == null) {
+			setting = new Setting();
+			setting.setKey(SETTING_CURRENT_INSTALLED_RANK);
+		}
+		setting.setValue(Integer.toString(rank));
+		settingsDao.save(setting);
 	}
 
 }

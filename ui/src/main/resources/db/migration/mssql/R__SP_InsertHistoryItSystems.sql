@@ -12,15 +12,15 @@ BEGIN
   FROM it_systems it;
   
   INSERT INTO history_system_roles (
-    history_it_systems_id, system_role_id, system_role_name, system_role_description)
-  SELECT hit.id, sr.id, sr.name, sr.description
+    history_it_systems_id, system_role_id, system_role_name, system_role_description, weight)
+  SELECT hit.id, sr.id, sr.name, sr.description, sr.weight
   FROM history_it_systems hit
   JOIN system_roles sr ON sr.it_system_id = hit.it_system_id
   WHERE hit.dato = CAST(CURRENT_TIMESTAMP AS DATE);
 
   INSERT INTO history_user_roles (
-    history_it_systems_id, user_role_id, user_role_name, user_role_description, user_role_delegated_from_cvr, sensitive_role, role_assignment_attestation_by_attestation_responsible)
-  SELECT hit.id, ur.id, ur.name, ur.description, ur.delegated_from_cvr, ur.sensitive_role, ur.role_assignment_attestation_by_attestation_responsible
+    history_it_systems_id, user_role_id, user_role_name, user_role_description, user_role_delegated_from_cvr, sensitive_role, extra_sensitive_role, role_assignment_attestation_by_attestation_responsible)
+  SELECT hit.id, ur.id, ur.name, ur.description, ur.delegated_from_cvr, ur.sensitive_role, ur.extra_sensitive_role, ur.role_assignment_attestation_by_attestation_responsible
   FROM history_it_systems hit
   JOIN user_roles ur ON ur.it_system_id = hit.it_system_id
   WHERE hit.dato = CAST(CURRENT_TIMESTAMP AS DATE);

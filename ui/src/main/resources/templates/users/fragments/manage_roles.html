@@ -11,6 +11,7 @@
 				<li><a href="#" data-cid="2" onclick="return dataTablesToggleColumn(this);"><em class="fa fa-fw"></em><span th:text="#{html.enum.assignmenttype}"></span></a></li>
 				<li><a href="#" data-cid="3" onclick="return dataTablesToggleColumn(this);"><em class="fa fa-fw"></em><span th:text="#{html.word.validity}"></span></a></li>
 				<li><a href="#" data-cid="4" onclick="return dataTablesToggleColumn(this);"><em class="fa fa-fw"></em><span th:text="#{html.page.users.manage.assignment.itsystem}"></span></a></li>
+				<li><a href="#" data-cid="5" onclick="return dataTablesToggleColumn(this);"><em class="fa fa-fw"></em><span th:text="#{html.page.users.manage.assignment.description}"></span></a></li>
 			</ul>
 		</div>
 		<th:block th:if="${editable}" sec:authorize="hasRole('ROLE_ASSIGNER')">
@@ -28,6 +29,7 @@
 							<th class="col-md-2" th:text="#{html.enum.assignmenttype}"></th>
 							<th class="col-md-2" th:text="#{html.word.validity}"></th>
 							<th class="col-md-2" th:text="#{html.page.users.manage.assignment.itsystem}"></th>
+							<th class="col-md-2" th:text="#{html.page.users.manage.assignment.description}"></th>
 							<th class="col-md-1" th:text="#{html.control.operations}"></th>
 						</tr>
 					</thead>
@@ -36,7 +38,7 @@
 						<tr th:each="assignment : ${assignments}">
 							<td>
 								<span th:text="${assignment.name}"></span>
-								<div th:text="#{__${assignment.type.message}__}" style="font-size: smaller; color: black;"></div>
+								<div th:text="#{__${assignment.type.message}__}" th:style="|font-size: smaller; color: ${assignment.type.name() == 'NEGATIVE' ? 'red' : 'black'};|" th:data-name="${assignment.type}"></div>
 								<div th:if="${assignment.ineffective}" style="font-size: smaller; color: red;" th:text="#{html.page.users.manage.assignment.ineffective}"></div>
 							</td>
 
@@ -65,6 +67,7 @@
 								<span th:text="${assignment.itSystem?.name}"></span>
 								<span th:if="${assignment.itSystem?.paused == true}" class="badge badge-warning" th:text="#{html.page.itsystem.list.paused}"></span>
 							</td>
+							<td th:text="${assignment.description}"></td>
 							<td th:attr="data-assignmentid=${assignment.assignmentId}, data-roleid=${assignment.roleId}, data-type=${assignment.type},
 							data-startDate=${assignment.startDate}, data-stopDate=${assignment.stopDate}, data-assignedthrough=${assignment.assignedThrough},
 							data-name=${assignment.name}, data-ouuuid=${assignment.orgUnitUuid}">

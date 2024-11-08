@@ -1,4 +1,8 @@
-﻿using Quartz;
+﻿using ADSyncService.Email;
+using Quartz;
+using System;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace ADSyncService
 {
@@ -11,6 +15,7 @@ namespace ADSyncService
         private static bool backSyncEnabled = Properties.Settings.Default.BackSyncFeature_Enabled;
 
         private RoleCatalogueStub roleCatalogueStub = new RoleCatalogueStub();
+        private EmailService emailService = EmailService.Instance;
         private ADStub adStub = new ADStub();
 
         public void Execute(IJobExecutionContext context)
@@ -24,6 +29,7 @@ namespace ADSyncService
                 catch (System.Exception ex)
                 {
                     log.Error("Create/Delete of groups failed", ex);
+                    emailService.EnqueueMail("Create/Delete of groups failed", ex);
                 }
             }
 
@@ -36,6 +42,7 @@ namespace ADSyncService
                 catch (System.Exception ex)
                 {
                     log.Error("Membership sync failed", ex);
+                    emailService.EnqueueMail("Membership sync failed", ex);
                 }
             }
 
@@ -48,6 +55,7 @@ namespace ADSyncService
                 catch (System.Exception ex)
                 {
                     log.Error("BackSync failed", ex);
+                    emailService.EnqueueMail("BackSync failed", ex);
                 }
             }
         }

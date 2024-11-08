@@ -15,8 +15,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.util.Optional;
 
-import static dk.digitalidentity.rc.attestation.AttestationConstants.FINISHED_DAYS_AFTER_DEADLINE;
-
 @Service
 public class AttestationRunTrackerService {
     @Autowired
@@ -29,20 +27,22 @@ public class AttestationRunTrackerService {
     private AttestationDao attestationDao;
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public void updateRuns(final LocalDate when) {
+    public void updateRuns(final LocalDate when) throws Exception {
         // Check if any runs have expired
         attestationRunDao.findByFinishedFalse().stream()
-                .filter(r -> r.getDeadline().isBefore(LocalDate.now().minusDays(FINISHED_DAYS_AFTER_DEADLINE)))
+                .filter(r -> r.getDeadline().isBefore(LocalDate.now().minusDays(configuration.getAttestation().getCurrentAttestationActiveDaysAfterDeadline())))
                 .forEach(r -> r.setFinished(true));
         // Now check if we need to create a new run
-        final LocalDate deadlineNormal = findNextAttestationDate(when, false);
-        final LocalDate deadlineSensitive = findNextAttestationDate(when, true);
+        final LocalDate deadlineNormal = findNextAttestationDate(when, false, false);
+        final LocalDate deadlineSensitive = findNextAttestationDate(when, true, false);
+        final LocalDate deadlineExtraSensitive = findNextAttestationDate(when, false, true);
         // Check if we already have an attestation run active
         final boolean normalRun = shouldCreateAttestationRun(when, deadlineNormal);
         final boolean sensitiveRun = !normalRun && shouldCreateAttestationRun(when, deadlineSensitive);
-        if (normalRun || sensitiveRun) {
+        final boolean extraSensitiveRun = !normalRun && shouldCreateAttestationRun(when, deadlineExtraSensitive);
+        if (normalRun || sensitiveRun || extraSensitiveRun) {
             getAttestationRun(when)
-                    .orElseGet(() -> createNewAttestationRun(sensitiveRun ? deadlineSensitive : deadlineNormal, sensitiveRun));
+                    .orElseGet(() -> createNewAttestationRun(extraSensitiveRun ? deadlineExtraSensitive : (sensitiveRun ? deadlineSensitive : deadlineNormal), sensitiveRun, extraSensitiveRun));
         }
     }
 
@@ -61,7 +61,7 @@ public class AttestationRunTrackerService {
         if (att.getAttestationRun() == null) {
             attestationRunDao.findByDeadlineIs(att.getDeadline())
                     .ifPresentOrElse(att::setAttestationRun,
-                            () -> att.setAttestationRun(createNewAttestationRun(att.getDeadline(), att.isSensitive())));
+                            () -> att.setAttestationRun(createNewAttestationRun(att.getDeadline(), att.isSensitive(), false)));
         }
     }
 
@@ -69,10 +69,10 @@ public class AttestationRunTrackerService {
         return attestationRunDao.findFirstByFinishedFalseAndDeadlineGreaterThanEqual(when);
     }
 
-    private AttestationRun createNewAttestationRun(final LocalDate deadline, final boolean sensitive) {
+    private AttestationRun createNewAttestationRun(final LocalDate deadline, final boolean sensitive, final boolean extraSensitive) {
         final AttestationRun attestationRun = AttestationRun.builder()
                 .createdAt(LocalDate.now())
-                .superSensitive(false) // TODO
+                .extraSensitive(extraSensitive)
                 .sensitive(sensitive)
                 .finished(false)
                 .deadline(deadline)
@@ -80,19 +80,33 @@ public class AttestationRunTrackerService {
         return attestationRunDao.save(attestationRun);
     }
 
-    private LocalDate findNextAttestationDate(final LocalDate when, final boolean sensitive) {
+    private LocalDate findNextAttestationDate(final LocalDate when, final boolean sensitive, final boolean extraSensitive) {
         final CheckupIntervalEnum interval = settingsService.getScheduledAttestationInterval();
         LocalDate deadline = settingsService.getFirstAttestationDate();
         while (deadline.isBefore(when)) {
-            deadline = deadline.plusMonths(sensitive
-                    ? sensitiveIntervalToMonths(interval)
-                    : intervalToMonths(interval));
+            if (extraSensitive) {
+                deadline = deadline.plusMonths(extraSensitiveIntervalToMonths(interval));
+            } else if (sensitive) {
+                deadline = deadline.plusMonths(sensitiveIntervalToMonths(interval));
+            } else {
+                deadline = deadline.plusMonths(intervalToMonths(interval));
+            }
         }
         return deadline;
     }
 
     private boolean shouldCreateAttestationRun(final LocalDate now, final LocalDate deadline) {
         return !deadline.minusDays(configuration.getAttestation().getDaysForAttestation()).isAfter(now);
+    }
+
+    /**
+     * Intervals are quartered for extra sensitive roles only when interval is YEARLY.
+     */
+    private static int extraSensitiveIntervalToMonths(final CheckupIntervalEnum intervalEnum) {
+        return switch (intervalEnum) {
+            case YEARLY -> 3;
+            case EVERY_HALF_YEAR -> throw new RuntimeException("Trying to calculate extra sensitive with EVERY_HALF_YEAR interval");
+        };
     }
 
     /**

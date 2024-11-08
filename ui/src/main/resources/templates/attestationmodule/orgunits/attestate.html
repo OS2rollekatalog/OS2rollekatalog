@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head th:replace="~{attestationmodule/fragments/header :: header(datatables = true, checkbox = true)}" />
-<body class="top-navigation">
+<body class="top-navigation layout-fixed">
     <div id="wrapper">
         <div id="page-wrapper" class="gray-bg">
             <div th:replace="~{attestationmodule/fragments/topbar :: topbar}"></div>
@@ -139,7 +139,7 @@
                                                 <div th:replace="~{attestationmodule/orgunits/fragments/RoleGroupsTable :: roleGroupsTable(roleGroupsForTable = ${attestation.orgUnitRoleGroupAssignments}, verify=false, orgUnitAssignments = true, showInherit = true)}"></div>
 
                                                 <div class="row m-t-lg">
-                                                    <div class="form-group" style="margin-left: 15px;" th:id="'checkboxOrgUnitRow' + ${attestation.ouUuid}">
+                                                    <div class="form-group" style="margin-left: 15px;" th:id="'checkboxOrgUnitRow' + ${attestation.ouUuid}" th:unless="${attestation.orgUnitRolesVerified}">
                                                         <input th:attr="data-id=${attestation.ouUuid}" type="checkbox" class="i-checks readOrgUnitCheckbox">
                                                         <label th:text="#{attestationmodule.html.attestation.controls.approve.read}" style="margin-left: 15px;"></label>
                                                     </div>

@@ -20,4 +20,5 @@ public class OrgUnitUserRoleAssignmentDTO {
     private List<ExceptedUserDTO> exceptedUsers;
     private List<String> titles;
     private boolean inherit;
+    private List<String> exceptedTitles;
 }

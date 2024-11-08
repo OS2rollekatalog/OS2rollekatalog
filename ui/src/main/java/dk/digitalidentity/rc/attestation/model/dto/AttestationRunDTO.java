@@ -21,7 +21,7 @@ public class AttestationRunDTO {
     private boolean sensitive;
     private long totalAttestations;
     private long finishedAttestations;
-    private boolean superSensitive;
+    private boolean extraSensitive;
     private boolean finished;
     private List<AttestationStatusListDTO> ouStatus;
     private List<AttestationStatusListDTO> systemStatus;

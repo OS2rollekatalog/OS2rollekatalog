@@ -174,6 +174,8 @@ public class OrgUnitController {
 		}
 		model.addAttribute("titlesEnabled", titlesEnabled);
 
+		List<TitleListForm> negativeTiltes = orgUnitService.getAllTitles().stream().map(title -> new TitleListForm(title, false)).toList();
+		model.addAttribute("negativeTitles", negativeTiltes);
 
 		return "ous/manage";
 	}

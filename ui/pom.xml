@@ -29,6 +29,22 @@
 					</addResources>
 				</configuration>
 			</plugin>
+			<plugin>
+				<groupId>org.springframework.boot</groupId>
+				<artifactId>spring-boot-maven-plugin</artifactId>
+				<configuration>
+					<image>
+						<name>rollekatalog</name>
+						<tags>latest</tags>
+						<env>
+							<BP_JVM_VERSION>21</BP_JVM_VERSION>
+							<BP_JVM_CDS_ENABLED>true</BP_JVM_CDS_ENABLED>
+							<BPE_TZ>Europe/Copenhagen</BPE_TZ>
+							<BPE_LANG>C.UTF-8</BPE_LANG>
+						</env>
+					</image>
+				</configuration>
+			</plugin>
 
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
@@ -365,7 +381,7 @@
 		<dependency>
 			<groupId>dk.digitalidentity.webjars</groupId>
 			<artifactId>inspinia-webjar-lib</artifactId>
-			<version>1.0.0</version>
+			<version>1.0.3</version>
 		</dependency>
 		
 		<!-- https://www.baeldung.com/java-with-jsoup -->
@@ -373,6 +389,18 @@
 			<groupId>org.jsoup</groupId>
 			<artifactId>jsoup</artifactId>
 			<version>1.17.2</version>
+		</dependency>
+
+		<dependency>
+			<groupId>com.microsoft.graph</groupId>
+			<artifactId>microsoft-graph</artifactId>
+			<version>6.19.0</version>
+		</dependency>
+
+		<dependency>
+			<groupId>com.azure</groupId>
+			<artifactId>azure-identity</artifactId>
+			<version>1.14.0</version>
 		</dependency>
 		
 		<!-- This is apparently needed to be added to send base64 inline images.
@@ -385,16 +413,16 @@
 	</dependencies>
 
 	<repositories>
-                <repository>
-                        <id>1-maven-repository</id>
-                        <name>Maven Repository</name>
-                        <url>https://repo.maven.apache.org/maven2/</url>
-                 </repository>
+		<repository>
+			<id>1-maven-repository</id>
+			<name>Maven Repository</name>
+			<url>https://repo.maven.apache.org/maven2/</url>
+		</repository>
 
-                <repository>
-                        <id>2-shared-resources</id>
-                        <name>Shared Resources</name>
-                        <url>https://mvn.digital-identity.dk/release</url>
-                </repository>
+		<repository>
+			<id>2-shared-resources</id>
+			<name>Shared Resources</name>
+			<url>https://mvn.digital-identity.dk/release</url>
+		</repository>
 	</repositories>
 </project>

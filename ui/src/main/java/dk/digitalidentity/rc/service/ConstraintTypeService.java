@@ -3,6 +3,7 @@ package dk.digitalidentity.rc.service;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.stream.StreamSupport;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -15,6 +16,10 @@ public class ConstraintTypeService {
 
     @Autowired
     private ConstraintTypeDao constraintTypeDao;
+
+	public Optional<ConstraintType> findById(final Long constraintTypeId) {
+		return constraintTypeDao.findById(constraintTypeId);
+	}
     
     public ConstraintType getByUuid(String uuid) {
     	return constraintTypeDao.findByUuid(uuid).orElse(null);
@@ -33,9 +38,13 @@ public class ConstraintTypeService {
     			return ct;
     		}
     	}
-    	
+
     	return null;
     }
+
+	public List<ConstraintType> getAll() {
+		return StreamSupport.stream(constraintTypeDao.findAll().spliterator(), false).toList();
+	}
 
 	public ConstraintType save(ConstraintType entity) {
 		return constraintTypeDao.save(entity);

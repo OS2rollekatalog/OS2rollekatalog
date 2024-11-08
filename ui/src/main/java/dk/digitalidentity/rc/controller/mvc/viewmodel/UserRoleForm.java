@@ -22,6 +22,7 @@ public class UserRoleForm {
 	private boolean userOnly;
 	private boolean canRequest;
 	private boolean sensitiveRole;
+	private boolean extraSensitiveRole;
     private ItSystem itSystem;
     private List<SystemRoleAssignment> systemRoleAssignments;
     private List<RoleGroup> roleGroups;
@@ -56,6 +57,7 @@ public class UserRoleForm {
     	this.description = userRole.getDescription();
     	this.itSystem = userRole.getItSystem();
     	this.sensitiveRole = userRole.isSensitiveRole();
+    	this.extraSensitiveRole = userRole.isExtraSensitiveRole();
     	this.systemRoleAssignments = userRole.getSystemRoleAssignments();
     	this.delegatedFromCvr = userRole.getDelegatedFromCvr();
     	this.pendingSync = pendingSync;
@@ -84,6 +86,7 @@ public class UserRoleForm {
     	userRole.setDescription(this.description);
     	userRole.setItSystem(this.itSystem);
     	userRole.setSensitiveRole(this.sensitiveRole);
+    	userRole.setExtraSensitiveRole(this.extraSensitiveRole);
     	userRole.setSystemRoleAssignments(this.systemRoleAssignments);
     	userRole.setDelegatedFromCvr(this.delegatedFromCvr);
     	userRole.setLinkedSystemRole(this.linkedSystemRole);

@@ -86,7 +86,7 @@ namespace ADSyncService
                     if (!found)
                     {
                         SystemRole systemRole = new SystemRole();
-                        systemRole.description = "";
+                        systemRole.description = group.Description;
                         systemRole.identifier = group.Uuid;
                         systemRole.name = group.Name;
                         systemRole.users = new List<string>();

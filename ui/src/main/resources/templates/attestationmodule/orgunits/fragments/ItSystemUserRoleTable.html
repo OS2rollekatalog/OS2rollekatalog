@@ -32,12 +32,22 @@
                                     <li th:each="exceptedUser : ${userRole.exceptedUsers}" th:text="${exceptedUser.name} + ' (' + ${exceptedUser.userId} + ')'"></li>
                                 </ul>
                             </div>
+                            <div th:if="${orgUnitAssignments && !#lists.isEmpty(userRole.exceptedTitles)}">
+                                <b th:text="#{attestationmodule.html.orgunits.attestate.user.tabs.roles.roleGroups.negativeTitles}"></b>
+                                <ul>
+                                    <li th:each="exceptedTitle : ${userRole.exceptedTitles}" th:text="${exceptedTitle}"></li>
+                                </ul>
+                            </div>
                         </div>
                         <div class="expandable-content">
                             <b th:if="${showInherit} AND ${userRole.inherit}" th:text="#{attestationmodule.html.orgunits.attestate.user.tabs.roles.userRoles.inherit}"></b>
                             <pre class="expandable-content-description" th:text="${userRole.roleDescription}"></pre>
 
                         </div>
+                        <p th:if="!${#lists.isEmpty(itSystem.userRoles)} AND !${#strings.isEmpty(userRole.postponedConstraints)}">
+                            <span th:text="#{attestationmodule.html.orgunits.attestate.user.tabs.roles.roleGroups.postponedConstraints}"></span></br>
+                            <span th:text="${userRole.postponedConstraints}"></span>
+                        </p>
                     </div>
                 </td>
             </tr>

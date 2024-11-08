@@ -127,6 +127,7 @@ public class ReportController {
 		reportForm.setShowUsers(true);
 		reportForm.setShowOUs(false);
 		reportForm.setShowUserRoles(true);
+		reportForm.setShowNegativeRoles(false);
 		reportForm.setShowKLE(true);
 		reportForm.setShowItSystems(true);
 		reportForm.setShowInactiveUsers(false);
@@ -150,6 +151,7 @@ public class ReportController {
 			reportForm.setShowUsers(reportTemplate.isShowUsers());
 			reportForm.setShowOUs(reportTemplate.isShowOUs());
 			reportForm.setShowUserRoles(reportTemplate.isShowUserRoles());
+			reportForm.setShowNegativeRoles(reportTemplate.isShowNegativeRoles());
 			reportForm.setShowKLE(reportTemplate.isShowKLE());
 			reportForm.setShowItSystems(reportTemplate.isShowItSystems());
 			reportForm.setShowInactiveUsers(reportTemplate.isShowInactiveUsers());
@@ -205,6 +207,7 @@ public class ReportController {
 			reportForm.setShowUsers(reportTemplate.isShowUsers());
 			reportForm.setShowOUs(reportTemplate.isShowOUs());
 			reportForm.setShowUserRoles(reportTemplate.isShowUserRoles());
+			reportForm.setShowNegativeRoles(reportTemplate.isShowNegativeRoles());
 			reportForm.setShowKLE(reportTemplate.isShowKLE());
 			reportForm.setShowItSystems(reportTemplate.isShowItSystems());
 			reportForm.setShowInactiveUsers(reportTemplate.isShowInactiveUsers());
@@ -273,6 +276,7 @@ public class ReportController {
 		reportForm.setShowKLE(template.isShowKLE());
 		reportForm.setShowOUs(template.isShowOUs());
 		reportForm.setShowUserRoles(template.isShowUserRoles());
+		reportForm.setShowNegativeRoles(template.isShowNegativeRoles());
 		reportForm.setShowUsers(template.isShowUsers());
 		reportForm.setName(template.getName());
 

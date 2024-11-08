@@ -5,6 +5,7 @@ import dk.digitalidentity.rc.attestation.model.entity.temporal.AssignedThroughTy
 import dk.digitalidentity.rc.attestation.model.entity.temporal.AttestationOuRoleAssignment;
 import dk.digitalidentity.rc.dao.history.model.HistoryOURoleAssignment;
 import dk.digitalidentity.rc.dao.history.model.HistoryOURoleAssignmentWithExceptions;
+import dk.digitalidentity.rc.dao.history.model.HistoryOURoleAssignmentWithNegativeTitles;
 import dk.digitalidentity.rc.dao.history.model.HistoryOURoleAssignmentWithTitles;
 import dk.digitalidentity.rc.service.model.AssignedThrough;
 import jakarta.transaction.Transactional;
@@ -35,7 +36,6 @@ public class OuAssignmentsUpdaterJdbc {
     @Autowired
     private UpdaterContextService updaterContextService;
 
-
     @Transactional
     public void updateOuAssignments(final LocalDate when) {
         progressCount = 0;
@@ -53,6 +53,12 @@ public class OuAssignmentsUpdaterJdbc {
 
         final List<HistoryOURoleAssignmentWithTitles> ouWithTitlesAssignments = temporalDao.listHistoryOURoleAssignmentWithTitlesByDate(when);
         ouWithTitlesAssignments.stream().map(a -> toOuRoleAssignment(a, when))
+                .filter(Objects::nonNull)
+                .peek(a -> logProgress())
+                .forEach(a -> persist(when, a));
+
+        final List<HistoryOURoleAssignmentWithNegativeTitles> ouWithNegativeTitlesAssignments = temporalDao.listHistoryOURoleAssignmentWithNegativeTitlesByDate(when);
+        ouWithNegativeTitlesAssignments.stream().map(a -> toOuRoleAssignment(a, when))
                 .filter(Objects::nonNull)
                 .peek(a -> logProgress())
                 .forEach(a -> persist(when, a));
@@ -75,6 +81,14 @@ public class OuAssignmentsUpdaterJdbc {
             assignment.setValidFrom(now);
             assignment.setUpdatedAt(now);
             temporalDao.saveAttestationOuRoleAssignment(assignment);
+        }
+    }
+
+    public void updateAllOuHashOnly(final LocalDate now) {
+        List<AttestationOuRoleAssignment> assignments = temporalDao.findAllValidOuRoleAssignment(now);
+        for (AttestationOuRoleAssignment assignment : assignments) {
+            assignment.setRecordHash(TemporalHasher.hashEntity(assignment));
+            temporalDao.updateAttestationOuRoleAssignment(assignment);
         }
     }
 
@@ -114,6 +128,7 @@ public class OuAssignmentsUpdaterJdbc {
                 .inherited(inherited)
                 .inherit(historyOURoleAssignment.getInherit())
                 .sensitiveRole(context.isRoleSensitive())
+                .exceptedTitleUuids(Collections.emptyList())
                 .build();
     }
 
@@ -152,6 +167,46 @@ public class OuAssignmentsUpdaterJdbc {
                 .inherited(false)
                 .inherit(false)
                 .sensitiveRole(context.isRoleSensitive())
+                .exceptedTitleUuids(Collections.emptyList())
+                .build();
+    }
+
+    private AttestationOuRoleAssignment toOuRoleAssignment(final HistoryOURoleAssignmentWithNegativeTitles historyOURoleAssignmentWithNegativeTitles, final LocalDate when) {
+        final UpdaterContextService.UpdaterContext context = updaterContextService.contextBuilder(when, historyOURoleAssignmentWithNegativeTitles.getRoleItSystemId())
+                .withOrgUnit(historyOURoleAssignmentWithNegativeTitles.getOuUuid())
+                .withRole(historyOURoleAssignmentWithNegativeTitles.getRoleId())
+                .withRoleGroup(historyOURoleAssignmentWithNegativeTitles.getRoleRoleGroupId())
+                .getContext();
+        if (context.isItSystemExempt()) {
+            return null;
+        }
+        final String responsibleUuid = getResponsibleUserUuid(historyOURoleAssignmentWithNegativeTitles.getRoleRoleGroupId(), context);
+        final String responsibleOuUuid = responsibleUuid == null ? historyOURoleAssignmentWithNegativeTitles.getOuUuid() : null;
+        final String responsibleOuName = responsibleUuid == null ? context.ouName() : null;
+
+        return AttestationOuRoleAssignment.builder()
+                .roleId(historyOURoleAssignmentWithNegativeTitles.getRoleId())
+                .roleName(context.roleName())
+                .roleDescription(context.roleDescription())
+                .roleGroupId(historyOURoleAssignmentWithNegativeTitles.getRoleRoleGroupId())
+                .roleGroupName(historyOURoleAssignmentWithNegativeTitles.getRoleRoleGroup())
+                .roleGroupDescription(context.roleGroupDescription())
+                .ouUuid(historyOURoleAssignmentWithNegativeTitles.getOuUuid())
+                .ouName(context.ouName())
+                .responsibleUserUuid(responsibleUuid)
+                .responsibleOuUuid(responsibleOuUuid)
+                .responsibleOuName(responsibleOuName)
+                .titleUuids(Collections.emptyList())
+                .assignedThroughType(AssignedThroughType.ORGUNIT)
+                .assignedThroughName(context.ouName())
+                .assignedThroughUuid(historyOURoleAssignmentWithNegativeTitles.getOuUuid())
+                .exceptedUserUuids(Collections.emptyList())
+                .itSystemId(historyOURoleAssignmentWithNegativeTitles.getRoleItSystemId())
+                .itSystemName(context.itSystemName())
+                .inherited(false)
+                .inherit(false)
+                .sensitiveRole(context.isRoleSensitive())
+                .exceptedTitleUuids(new ArrayList<>(historyOURoleAssignmentWithNegativeTitles.getTitleUuids()))
                 .build();
     }
 

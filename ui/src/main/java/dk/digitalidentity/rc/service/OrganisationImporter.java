@@ -35,9 +35,11 @@ import dk.digitalidentity.rc.service.model.UserMovedPositions;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.ArrayList;
 import java.util.Date;
@@ -86,8 +88,8 @@ public class OrganisationImporter {
 	@Autowired
 	private EmailQueueService emailQueueService;
 	
-	@Transactional(rollbackFor = Exception.class)
-	public OrganisationImportResponse fullSync(OrganisationDTO organisation, Domain domain) throws Exception {
+	@Transactional
+	public OrganisationImportResponse fullSync(OrganisationDTO organisation, Domain domain) {
 		boolean isPrimaryDomain = DomainService.isPrimaryDomain(domain);
 		events.set(new OrganisationChangeEvents());
 
@@ -98,7 +100,7 @@ public class OrganisationImporter {
 			ValidationResult validation = validateOrganisation(organisation);
 			if (!validation.isValid()) {
 				log.warn("Rejecting payload: " + validation.message);
-				throw new Exception(validation.message);
+				throw new ResponseStatusException(HttpStatus.BAD_REQUEST, validation.message);
 			}
 
 			// convert payload to internal data structure with all relationships established
@@ -134,8 +136,8 @@ public class OrganisationImporter {
 		}
 	}
 
-	@Transactional(rollbackFor = Exception.class)
-	public OrganisationImportResponse deltaSync(List<UserDTO> users, Domain domain) throws Exception {
+	@Transactional
+	public OrganisationImportResponse deltaSync(List<UserDTO> users, Domain domain) {
 		events.set(new OrganisationChangeEvents());
 		
 		try {
@@ -145,7 +147,7 @@ public class OrganisationImporter {
 			ValidationResult validation = validateUsers(users, null);
 			if (validation != null && !validation.isValid()) {
 				log.warn("Rejecting payload: " + validation.message);
-				throw new Exception(validation.message);
+				throw new ResponseStatusException(HttpStatus.BAD_REQUEST, validation.message);
 			}
 
 			// convert payload to internal data structure with all relationships established
@@ -638,10 +640,9 @@ public class OrganisationImporter {
 								if (!containsPosition(newPosition, existingUser.getPositions())) {
 									checkOrgUnitForNewTitles(newPosition, newPosition.getOrgUnit());
 									addPosition(existingUser, newPosition);
-
-									if (movedPositionEvent != null) {
-										movedPositionEvent.getNewPositions().add(new MovedPostion(newPosition.getOrgUnit(), newPosition.getName()));
-									}
+								}
+								if (!userHasNoRoles && hasPositionChanged(newPosition, existingUser.getPositions())) {
+									movedPositionEvent.getNewPositions().add(new MovedPostion(newPosition.getOrgUnit(), newPosition.getName()));
 								}
 							}
 
@@ -650,10 +651,9 @@ public class OrganisationImporter {
 							for (Position existingPosition : existingUser.getPositions()) {
 								if (!containsPosition(existingPosition, userToUpdate.getPositions())) {
 									positionsToRemove.add(existingPosition);
-
-									if (movedPositionEvent != null) {
-										movedPositionEvent.getOldPositions().add(new MovedPostion(existingPosition.getOrgUnit(), existingPosition.getName()));
-									}
+								}
+								if (!userHasNoRoles && hasPositionChanged(existingPosition, userToUpdate.getPositions())) {
+									movedPositionEvent.getOldPositions().add(new MovedPostion(existingPosition.getOrgUnit(), existingPosition.getName()));
 								}
 							}
 
@@ -1182,6 +1182,17 @@ public class OrganisationImporter {
 		}
 
 		return false;
+	}
+
+	/**
+	 * This method only checks user, ou and name, so it should only be used to check if users should be notified
+	 * NOT good for checking if data should be updated.
+	 */
+	private static boolean hasPositionChanged(final Position position, final List<Position> positions) {
+		return positions.stream()
+				.noneMatch(p -> p.getName().equals(position.getName()) &&
+						p.getOrgUnit().getUuid().equals(position.getOrgUnit().getUuid()) &&
+						hasSameKey(p.getUser(), position.getUser()));
 	}
 
 	// TODO: this method is not 100% foolproof, but it works for most cases, and will suffice

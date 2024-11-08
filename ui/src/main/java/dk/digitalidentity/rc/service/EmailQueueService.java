@@ -1,5 +1,6 @@
 package dk.digitalidentity.rc.service;
 
+import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.InlineImageDTO;
 import dk.digitalidentity.rc.dao.EmailQueueDao;
 import dk.digitalidentity.rc.dao.model.AttachmentFile;
@@ -15,6 +16,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.Date;
 import java.util.List;
 import java.util.UUID;
@@ -28,6 +30,9 @@ public class EmailQueueService {
 	
 	@Autowired
 	private EmailService emailService;
+
+	@Autowired
+	private SettingsService settingsService;
 	
 	public void queueEmail(String email, String title, String message, EmailTemplate template, List<AttachmentFile> attachments, String cc) {
 		if (!StringUtils.hasLength(email)) {
@@ -52,6 +57,14 @@ public class EmailQueueService {
 	@Transactional
 	public void sendPending() {
 		List<EmailQueue> emails = findPending();
+		
+		int limit = settingsService.getEmailQueueLimit();
+		if (limit != 0 && (emails.size() > limit)) {
+			log.error("Too many emails in the queue. BlockingAllEmailTransmissions.");
+			settingsService.setBlockAllEmailTransmissions(true);
+
+			return;
+		}
 		
 		for (EmailQueue email : emails) {
 			EmailTemplate template = email.getEmailTemplate();
@@ -98,7 +111,15 @@ public class EmailQueueService {
 	
 	private List<EmailQueue> findPending() {
 		Date tts = new Date();
+
+		Calendar cal = Calendar.getInstance();
+		cal.add(Calendar.SECOND, -5);
+		Date fiveSecondsBefore = cal.getTime();
 		
+		if (emailQueueDao.countByDeliveryTtsAfter(fiveSecondsBefore) > 0) {
+			return new ArrayList<EmailQueue>();
+		}
+
 		return emailQueueDao.findByDeliveryTtsBefore(tts);
 	}
 	

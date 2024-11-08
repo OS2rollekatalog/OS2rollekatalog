@@ -1,4 +1,5 @@
 ﻿using Quartz;
+using RoleCatalogImporter.Email;
 using System;
 using System.Collections.Generic;
 
@@ -8,6 +9,7 @@ namespace RoleCatalogImporter
     {
         private static log4net.ILog log = log4net.LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
         private static string ADUrl = Properties.Settings.Default.ADUrl;
+        private EmailService emailService = EmailService.Instance;
 
         public void Execute(IJobExecutionContext context)
         {
@@ -106,6 +108,7 @@ namespace RoleCatalogImporter
             catch (Exception ex)
             {
                 log.Error("Failed to synchronize data", ex);
+                emailService.EnqueueMail("Failed to synchronize data", ex);
             }
         }
     }

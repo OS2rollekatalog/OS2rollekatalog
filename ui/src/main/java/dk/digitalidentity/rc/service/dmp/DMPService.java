@@ -111,7 +111,7 @@ public class DMPService {
 
 			// cleanup all of them, just in case there is more than one
 			for (String userId : dmpUser.getExternalUserIds()) {
-				if (!usersWithDmpRole.contains(userId)) {
+				if (!usersWithDmpRole.contains(userId.toLowerCase())) {
 					stub.deleteUser(userId);
 				}
 			}
@@ -320,7 +320,7 @@ public class DMPService {
 				String userId = userWithUserRole.getUser().getUserId().toLowerCase();
 
 				if (!assignedDmpRoles.containsKey(userId)) {
-					assignedDmpRoles.put(userId, systemRoles);
+					assignedDmpRoles.put(userId, new HashSet<>(systemRoles));
 				}
 				else {
 					assignedDmpRoles.get(userId).addAll(systemRoles);

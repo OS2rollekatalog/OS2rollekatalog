@@ -1,8 +1,10 @@
 package dk.digitalidentity.rc.attestation.controller.mvc;
 
+import dk.digitalidentity.rc.attestation.model.dto.OrgUnitRoleGroupAssignmentDTO;
 import dk.digitalidentity.rc.attestation.model.dto.OrgUnitUserRoleAssignmentItSystemDTO;
 import dk.digitalidentity.rc.attestation.model.dto.OrganisationAttestationDTO;
 import dk.digitalidentity.rc.attestation.model.dto.RoleAssignmentDTO;
+import dk.digitalidentity.rc.attestation.model.dto.RoleAssignmentSinceLastAttestationDTO;
 import dk.digitalidentity.rc.attestation.service.OrganisationAttestationService;
 import dk.digitalidentity.rc.dao.model.OrgUnit;
 import dk.digitalidentity.rc.dao.model.User;

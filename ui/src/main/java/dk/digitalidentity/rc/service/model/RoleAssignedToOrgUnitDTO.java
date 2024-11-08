@@ -6,6 +6,7 @@ import dk.digitalidentity.rc.dao.model.ItSystem;
 import dk.digitalidentity.rc.dao.model.OrgUnitRoleGroupAssignment;
 import dk.digitalidentity.rc.dao.model.OrgUnitUserRoleAssignment;
 import dk.digitalidentity.rc.dao.model.RoleGroupUserRoleAssignment;
+import dk.digitalidentity.rc.dao.model.enums.ContainsTitles;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -25,6 +26,7 @@ public class RoleAssignedToOrgUnitDTO {
 	private boolean canEdit;
 	
 	// This is different than the other similar code
+	// -3 contains excepted titles
 	// -2 inherit
 	// -1 everyone
 	//  0 contains excepted users
@@ -61,12 +63,15 @@ public class RoleAssignedToOrgUnitDTO {
 		dto.setStartDate(assignment.getStartDate());
 		dto.setStopDate(assignment.getStopDate());
 		dto.setAssignedThrough(AssignedThrough.DIRECT);
-		
-		if (assignment.isContainsTitles()) {
+
+		if (assignment.getContainsTitles() == ContainsTitles.POSITIVE) {
 			dto.setAssignmentType(assignment.getTitles().size());// assigned through titles
 		}
 		else if (assignment.isContainsExceptedUsers()) {
-			dto.setAssignmentType(0);// Assigned to all with exceptions
+			dto.setAssignmentType(0);// Assigned to all users with exceptions
+		}
+		else if (assignment.getContainsTitles() == ContainsTitles.NEGATIVE) {
+			dto.setAssignmentType(-3);// Assigned to all titles with exceptions
 		}
 		else {
 			dto.setAssignmentType(assignment.isInherit() ? -2 : -1);// Assigned to all or with inheritance
@@ -88,12 +93,15 @@ public class RoleAssignedToOrgUnitDTO {
 		dto.setCanEdit(false);
 		dto.setStartDate(assignment.getStartDate());
 		dto.setStopDate(assignment.getStopDate());
-		
-		if (assignment.isContainsTitles()) {
+
+		if (assignment.getContainsTitles() == ContainsTitles.POSITIVE) {
 			dto.setAssignmentType(assignment.getTitles().size());// assigned through titles
 		}
 		else if (assignment.isContainsExceptedUsers()) {
-			dto.setAssignmentType(0);// Assigned to all with exceptions
+			dto.setAssignmentType(0);// Assigned to all users with exceptions
+		}
+		else if (assignment.getContainsTitles() == ContainsTitles.NEGATIVE) {
+			dto.setAssignmentType(-3);// Assigned to all titles with exceptions
 		}
 		else {
 			dto.setAssignmentType(assignment.isInherit() ? -2 : -1);// Assigned to all or with inheritance
@@ -112,12 +120,15 @@ public class RoleAssignedToOrgUnitDTO {
 		dto.setStartDate(assignment.getStartDate());
 		dto.setStopDate(assignment.getStopDate());
 		dto.setAssignedThrough(AssignedThrough.DIRECT);
-		
-		if (assignment.isContainsTitles()) {
+
+		if (assignment.getContainsTitles() == ContainsTitles.POSITIVE) {
 			dto.setAssignmentType(assignment.getTitles().size());// assigned through titles
 		}
 		else if (assignment.isContainsExceptedUsers()) {
-			dto.setAssignmentType(0);// Assigned to all with exceptions
+			dto.setAssignmentType(0);// Assigned to all users with exceptions
+		}
+		else if (assignment.getContainsTitles() == ContainsTitles.NEGATIVE) {
+			dto.setAssignmentType(-3);// Assigned to all titles with exceptions
 		}
 		else {
 			dto.setAssignmentType(assignment.isInherit() ? -2 : -1);// Assigned to all or with inheritance
@@ -138,12 +149,15 @@ public class RoleAssignedToOrgUnitDTO {
 		dto.setCanEdit(false);
 		dto.setStartDate(assignment.getStartDate());
 		dto.setStopDate(assignment.getStopDate());
-		
-		if (assignment.isContainsTitles()) {
+
+		if (assignment.getContainsTitles() == ContainsTitles.POSITIVE) {
 			dto.setAssignmentType(assignment.getTitles().size());// assigned through titles
 		}
 		else if (assignment.isContainsExceptedUsers()) {
-			dto.setAssignmentType(0);// Assigned to all with exceptions
+			dto.setAssignmentType(0);// Assigned to all users with exceptions
+		}
+		else if (assignment.getContainsTitles() == ContainsTitles.NEGATIVE) {
+			dto.setAssignmentType(-3);// Assigned to all titles with exceptions
 		}
 		else {
 			dto.setAssignmentType(assignment.isInherit() ? -2 : -1);// Assigned to all or with inheritance
