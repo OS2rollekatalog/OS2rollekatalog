@@ -78,4 +78,6 @@ public class AttestationUserRoleAssignment extends TemporalAssignmentBase {
     private boolean inherited;
     @Column
     private boolean sensitiveRole;
+    @Column
+    private String postponedConstraints;
 }

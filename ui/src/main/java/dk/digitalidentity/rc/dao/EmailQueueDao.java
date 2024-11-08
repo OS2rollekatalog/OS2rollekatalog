@@ -10,4 +10,5 @@ import dk.digitalidentity.rc.dao.model.EmailQueue;
 
 public interface EmailQueueDao extends CrudRepository<EmailQueue, Long> {
 	List<EmailQueue> findByDeliveryTtsBefore(Date tts);
+	long countByDeliveryTtsAfter(Date tts);
 }

@@ -2,6 +2,7 @@ package dk.digitalidentity.rc.controller.api.mapper;
 
 import dk.digitalidentity.rc.controller.api.model.SystemRoleAssignmentAM;
 import dk.digitalidentity.rc.controller.api.model.UserRoleAM;
+import dk.digitalidentity.rc.dao.model.SystemRoleAssignment;
 import dk.digitalidentity.rc.dao.model.UserRole;
 
 import java.util.Collections;
@@ -21,8 +22,15 @@ public abstract class RoleMapper {
                 .sensitiveRole(userRole.isSensitiveRole())
                 .itSystemId(userRole.getItSystem().getId())
                 .systemRoleAssignments(userRole.getSystemRoleAssignments() != null
-                        ? userRole.getSystemRoleAssignments().stream().map(s -> SystemRoleAssignmentAM.builder().systemRoleId(s.getId()).build()).collect(Collectors.toList())
+                        ? userRole.getSystemRoleAssignments().stream().map(RoleMapper::toApi).collect(Collectors.toList())
                         : Collections.emptyList())
+                .build();
+    }
+
+    public static SystemRoleAssignmentAM toApi(final SystemRoleAssignment systemRoleAssignment) {
+        return SystemRoleAssignmentAM.builder()
+                .systemRoleId(systemRoleAssignment.getSystemRole().getId())
+                .constraintValues(ConstraintMapper.toApi(systemRoleAssignment.getConstraintValues()))
                 .build();
     }
 

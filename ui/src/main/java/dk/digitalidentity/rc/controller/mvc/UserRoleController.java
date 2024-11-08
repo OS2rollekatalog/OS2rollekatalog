@@ -200,8 +200,10 @@ public class UserRoleController {
 		}
 
 		List<User> usersFromDb = userService.getAll();
+		List<String> alreadyAssignedUUIDs = userService.getUsersWithUserRole(role, true).stream().map(userWithRole-> userWithRole.getUser().getUuid()).toList();
 
 		model.addAttribute("users", usersFromDb);
+		model.addAttribute("alreadyAssignedUUIDs", alreadyAssignedUUIDs);
 		return "userroles/fragments/manage_add_users :: addUsers";
 	}
 

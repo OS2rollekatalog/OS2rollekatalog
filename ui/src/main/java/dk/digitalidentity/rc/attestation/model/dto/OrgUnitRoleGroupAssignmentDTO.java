@@ -21,4 +21,5 @@ public class OrgUnitRoleGroupAssignmentDTO {
     private List<String> titles;
     private List<OrgUnitUserRoleAssignmentDTO> userRoles;
     private boolean inherit;
+    private List<String> exceptedTitles;
 }

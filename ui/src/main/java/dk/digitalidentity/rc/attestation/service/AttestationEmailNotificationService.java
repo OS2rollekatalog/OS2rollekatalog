@@ -100,10 +100,10 @@ public class AttestationEmailNotificationService {
         emailQueueService.queueEmail(email, title, message, template, null, null);
     }
 
-    public void sendRequestForRoleChange(final String requester, final String userRole, final String itSystem) {
+    public void sendRequestForRoleChange(final String requester, final String userRole, final String itSystem, final String remark) {
         final EmailTemplate template = emailTemplateService.findByTemplateType(EmailTemplateType.ATTESTATION_REQUEST_FOR_ROLE_CHANGE);
-        final String message = resolveRequestForRoleChangeMailMessage(requester, userRole, itSystem, template);
-        final String title = resolveRequestForRoleChangeMailTitle(requester, userRole, itSystem, template);
+        final String message = resolveRequestForRoleChangeMailMessage(requester, userRole, itSystem, remark, template);
+        final String title = resolveRequestForRoleChangeMailTitle(requester, userRole, itSystem, remark, template);
         final String email = settingsService.getAttestationChangeEmail();
         log.info("Sending request for role change notification (leder=" + requester + ", it-system=" + itSystem + ", userRole=" + userRole + ")");
         emailQueueService.queueEmail(email, title, message, template, null, null);
@@ -156,6 +156,8 @@ public class AttestationEmailNotificationService {
 		LocalDate deadlineDate = now.plusDays(daysBefore);
 
 		final List<Attestation> attestations = run.get().getAttestations().stream()
+                .filter(att -> att.getAttestationType() == attestationType)
+                .filter(att -> att.getVerifiedAt() == null)
                 .filter(a -> a.getMails().stream().noneMatch(mail -> mail.getEmailTemplateType() == template.getTemplateType()))
                 .filter(att -> att.getDeadline().isEqual(deadlineDate)).toList();
 
@@ -164,10 +166,12 @@ public class AttestationEmailNotificationService {
 		if (escalation) {
 			attestationTargetUsers = attestations.stream()
                     .map(att -> Pair.of(att, findTargetUsers(att, true)))
+                    .filter(p -> p.getSecond() != null)
                     .collect(Collectors.toMap(Pair::getFirst, Pair::getSecond));
 		} else {
-			attestationTargetUsers = attestations.stream()
+            attestationTargetUsers = attestations.stream()
                     .map(att -> Pair.of(att, findTargetUsers(att, false)))
+                    .filter(p -> p.getSecond() != null)
                     .collect(Collectors.toMap(Pair::getFirst, Pair::getSecond));
 		}
 		
@@ -407,18 +411,18 @@ public class AttestationEmailNotificationService {
     }
 
 
-    private String resolveRequestForRoleChangeMailTitle(final String requester, final String role, final String itSystem, final EmailTemplate template) {
+    private String resolveRequestForRoleChangeMailTitle(final String requester, final String role, final String itSystem, final String remark, final EmailTemplate template) {
         String title = template.getTitle();
         for (final EmailTemplatePlaceholder placeholder : template.getTemplateType().getEmailTemplatePlaceholders()) {
-            title = StringUtils.replace(title, placeholder.getPlaceholder(), placeholderValue(requester, null, null, role, itSystem, null, null, placeholder));
+            title = StringUtils.replace(title, placeholder.getPlaceholder(), placeholderValue(requester, remark, null, role, itSystem, null, null, placeholder));
         }
         return title;
     }
 
-    private String resolveRequestForRoleChangeMailMessage(final String requester, final String role, final String itSystem, final EmailTemplate template) {
+    private String resolveRequestForRoleChangeMailMessage(final String requester, final String role, final String itSystem, final String remark, final EmailTemplate template) {
         String message = template.getMessage();
         for (final EmailTemplatePlaceholder placeholder : template.getTemplateType().getEmailTemplatePlaceholders()) {
-            message = StringUtils.replace(message, placeholder.getPlaceholder(), placeholderValue(requester, null, null, role, itSystem, null, null, placeholder));
+            message = StringUtils.replace(message, placeholder.getPlaceholder(), placeholderValue(requester, remark, null, role, itSystem, null, null, placeholder));
         }
         return message;
     }

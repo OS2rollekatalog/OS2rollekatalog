@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head th:replace="~{fragments/header :: header (title=#{html.page.ous.mange.title})}"></head>
-<body>
+<body class="layout-fixed">
 	<div class="wrapper">
 		<header th:replace="~{fragments/navbar :: navbar-header(subpage = 'roles')}"></header>
 		<aside th:replace="~{fragments/navbar :: navbar-aside (page = 'ous', subpage = 'roles')}"></aside>
@@ -357,20 +357,20 @@
 		function RolesService() {
 			this.loadRolesFragment = function () {
 				$("#roles_menu").load(urlUi + ou + "/roles", function () {
-					currentTable = fragShowDataTableFun('#listTable', 0);
+					currentTable = fragShowDataTableFun('#listTable', 0, 10);
 					dataTablesRefreshIcons($('#dataTableDropdown'));
 				});
 			}
 
 			this.loadAddUserRoleFragment = function () {
 				$("#roles_menu").load(urlUi + ou + "/addUserRole", function () {
-					fragShowDataTableFun('#listTable_ou_ur', 0);
+					fragShowDataTableFun('#listTable_ou_ur', 0, 10);
 				});
 			}
 
 			this.loadAddRoleGroupFragment = function () {
 				$("#roles_menu").load(urlUi + ou + "/addRoleGroup", function () {
-					fragShowDataTableFun('#listTable_ou_rg', 0);
+					fragShowDataTableFun('#listTable_ou_rg', 0, 10);
 				});
 			}
 
@@ -433,6 +433,33 @@
 					ouRolesEditModalService.inherit = assignmentType == -2;
 
 					if (titlesEnabled) {
+						var negativeResponse;
+						$.ajax({
+							url: url + ou + "/" + ouRolesEditModalService.roleType + "/" + assignmentId + "/negativetitles",
+							method: "GET",
+							headers: {
+								'X-CSRF-TOKEN': token
+							},
+							error : errorHandler(negativeResponse = null),
+							success : function(response) {
+								negativeResponse = response;
+							}
+						});
+
+						var negativeInheritedResponse;
+						$.ajax({
+							url: url + ou + "/" + ouRolesEditModalService.roleType + "/" + assignmentId + "/negativeinheritedtitles",
+							method: "GET",
+							headers: {
+								'X-CSRF-TOKEN': token
+							},
+							error : errorHandler(negativeResponse = null),
+							success : function(response) {
+								negativeResponse = response;
+							}
+						});
+
+
 						// fetch already selected titles
 						$.ajax({
 							url: url + ou + "/" + ouRolesEditModalService.roleType + "/" + assignmentId + "/titles", 
@@ -442,7 +469,7 @@
 							},
 							error : errorHandler(fieldNotUpdatedMsg),
 							success : function(response) {
-								ouRolesEditModalService.showAssignModal(titlesEnabled, response, startDate, stopDate, assignmentType, assignmentId);
+								ouRolesEditModalService.showAssignModal(titlesEnabled, response, startDate, stopDate, assignmentType, assignmentId, negativeResponse, negativeInheritedResponse);
 							}
 						});
 					}
@@ -613,7 +640,7 @@
 							}
 						},
 						"plugins" : [
-							"wholerow", "search", "checkbox"
+							"checkbox", "search"
 						]
 				});
 	

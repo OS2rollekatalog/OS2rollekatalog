@@ -8,6 +8,7 @@ import dk.digitalidentity.rc.dao.history.HistoryOUDao;
 import dk.digitalidentity.rc.dao.history.HistoryOUKleAssignmentDao;
 import dk.digitalidentity.rc.dao.history.HistoryOURoleAssignmentDao;
 import dk.digitalidentity.rc.dao.history.HistoryOURoleAssignmentWithExceptionsDao;
+import dk.digitalidentity.rc.dao.history.HistoryOURoleAssignmentWithNegativeTitlesDao;
 import dk.digitalidentity.rc.dao.history.HistoryOURoleAssignmentWithTitlesDao;
 import dk.digitalidentity.rc.dao.history.HistoryRoleAssignmentDao;
 import dk.digitalidentity.rc.dao.history.HistoryTitleDao;
@@ -20,6 +21,7 @@ import dk.digitalidentity.rc.dao.history.model.HistoryOU;
 import dk.digitalidentity.rc.dao.history.model.HistoryOUKleAssignment;
 import dk.digitalidentity.rc.dao.history.model.HistoryOURoleAssignment;
 import dk.digitalidentity.rc.dao.history.model.HistoryOURoleAssignmentWithExceptions;
+import dk.digitalidentity.rc.dao.history.model.HistoryOURoleAssignmentWithNegativeTitles;
 import dk.digitalidentity.rc.dao.history.model.HistoryOURoleAssignmentWithTitles;
 import dk.digitalidentity.rc.dao.history.model.HistoryRoleAssignment;
 import dk.digitalidentity.rc.dao.history.model.HistoryTitle;
@@ -73,6 +75,9 @@ public class HistoryService {
 
 	@Autowired
 	private HistoryOURoleAssignmentWithTitlesDao historyOURoleAssignmentWithTitlesDao;
+
+	@Autowired
+	private HistoryOURoleAssignmentWithNegativeTitlesDao historyOURoleAssignmentWithNegativeTitlesDao;
 
 	@Autowired
 	private HistoryDateDao historyDateDao;
@@ -198,6 +203,21 @@ public class HistoryService {
 				.collect(Collectors.groupingBy(HistoryOURoleAssignmentWithTitles::getOuUuid));
 	}
 
+	//TODO: Work in progress
+	@Transactional
+	public Map<String, List<HistoryOURoleAssignmentWithNegativeTitles>> getOURoleAssignmentsWithNegativeTitles(LocalDate localDate) {
+		return historyOURoleAssignmentWithNegativeTitlesDao.findByDate(localDate)
+				.stream()
+				.collect(Collectors.groupingBy(HistoryOURoleAssignmentWithNegativeTitles::getOuUuid));
+	}
+
+	//TODO: Work in progress
+	public Map<String, List<HistoryOURoleAssignmentWithNegativeTitles>> getOURoleAssignmentsWithNegativeTitles(LocalDate localDate, List<Long> itSystemIds) {
+		return historyOURoleAssignmentWithNegativeTitlesDao.findByDateAndItSystems(localDate, itSystemIds)
+				.stream()
+				.collect(Collectors.groupingBy(HistoryOURoleAssignmentWithNegativeTitles::getOuUuid));
+	}
+
 	@Transactional
 	public void generateOrganisationHistory() {
 
@@ -265,6 +285,17 @@ public class HistoryService {
 	}
 
 	@Transactional
+	public void generateNegativeTitleRoleAssignmentHistory() {
+
+		if (dataSourceUrl.startsWith("jdbc:sqlserver")) {
+			jdbcTemplate.update("EXEC SP_InsertHistoryOURoleAssignmentsWithNegativeTitles;");
+		}
+		else {
+			jdbcTemplate.update("CALL SP_InsertHistoryOURoleAssignmentsWithNegativeTitles();");
+		}
+	}
+
+	@Transactional
 	public void generateExceptedUsersHistory() {
 
 		if (dataSourceUrl.startsWith("jdbc:sqlserver")) {
@@ -299,6 +330,7 @@ public class HistoryService {
 		jdbcTemplate.update("DELETE FROM history_ou_role_assignments WHERE dato = ?", date);
 		jdbcTemplate.update("DELETE FROM history_role_assignment_titles WHERE dato = ?", date);
 		jdbcTemplate.update("DELETE FROM history_titles WHERE dato = ?", date);
+		jdbcTemplate.update("DELETE FROM history_role_assignment_negative_titles WHERE dato = ?", date);
 		jdbcTemplate.update("DELETE FROM history_role_assignment_excepted_users WHERE dato = ?", date);
 		jdbcTemplate.update("DELETE FROM history_user_roles_system_roles");
 	}
@@ -317,6 +349,7 @@ public class HistoryService {
 			jdbcTemplate.update("DELETE FROM history_ou_role_assignments WHERE (dato < GETDATE() - " + retentionPeriod + ") OR (dato < DATEADD(month, -2, GETDATE()) AND DAY(dato) NOT IN (7, 14, 21, 28))");
 			jdbcTemplate.update("DELETE FROM history_role_assignment_titles WHERE (dato < GETDATE() - " + retentionPeriod + ") OR (dato < DATEADD(month, -2, GETDATE()) AND DAY(dato) NOT IN (7, 14, 21, 28))");
 			jdbcTemplate.update("DELETE FROM history_titles WHERE (dato < GETDATE() - " + retentionPeriod + ") OR (dato < DATEADD(month, -2, GETDATE()) AND DAY(dato) NOT IN (7, 14, 21, 28))");
+			jdbcTemplate.update("DELETE FROM history_role_assignment_negative_titles WHERE (dato < GETDATE() - " + retentionPeriod + ") OR (dato < DATEADD(month, -2, GETDATE()) AND DAY(dato) NOT IN (7, 14, 21, 28))");
 			jdbcTemplate.update("DELETE FROM history_role_assignment_excepted_users WHERE (dato < GETDATE() - " + retentionPeriod + ") OR (dato < DATEADD(month, -2, GETDATE()) AND DAY(dato) NOT IN (7, 14, 21, 28))");
 			jdbcTemplate.update("DELETE FROM history_ou_kle_assignments WHERE (dato < GETDATE() - " + retentionPeriod + ") OR (dato < DATEADD(month, -2, GETDATE()) AND DAY(dato) NOT IN (7, 14, 21, 28))");
 		}
@@ -330,6 +363,7 @@ public class HistoryService {
 			jdbcTemplate.update("DELETE FROM history_ou_role_assignments WHERE dato < (NOW() - INTERVAL " + retentionPeriod + " DAY) OR (dato < (NOW() - INTERVAL 2 MONTH) AND DAY(dato) NOT IN (7, 14, 21, 28));");
 			jdbcTemplate.update("DELETE FROM history_role_assignment_titles WHERE dato < (NOW() - INTERVAL " + retentionPeriod + " DAY) OR (dato < (NOW() - INTERVAL 2 MONTH) AND DAY(dato) NOT IN (7, 14, 21, 28));");
 			jdbcTemplate.update("DELETE FROM history_titles WHERE dato < (NOW() - INTERVAL " + retentionPeriod + " DAY) OR (dato < (NOW() - INTERVAL 2 MONTH) AND DAY(dato) NOT IN (7, 14, 21, 28));");
+			jdbcTemplate.update("DELETE FROM history_role_assignment_negative_titles WHERE dato < (NOW() - INTERVAL " + retentionPeriod + " DAY) OR (dato < (NOW() - INTERVAL 2 MONTH) AND DAY(dato) NOT IN (7, 14, 21, 28));");
 			jdbcTemplate.update("DELETE FROM history_role_assignment_excepted_users WHERE dato < (NOW() - INTERVAL " + retentionPeriod + " DAY) OR (dato < (NOW() - INTERVAL 2 MONTH) AND DAY(dato) NOT IN (7, 14, 21, 28));");
 			jdbcTemplate.update("DELETE FROM history_ou_kle_assignments WHERE dato < (NOW() - INTERVAL " + retentionPeriod + " DAY) OR (dato < (NOW() - INTERVAL 2 MONTH) AND DAY(dato) NOT IN (7, 14, 21, 28)) LIMIT 50000;");
 		}

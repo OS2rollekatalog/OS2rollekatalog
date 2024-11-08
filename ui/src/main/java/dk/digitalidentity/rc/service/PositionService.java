@@ -302,4 +302,6 @@ public class PositionService {
 	public List<Position> findByOrgUnit(OrgUnit ou) {
 		return positionDao.findByOrgUnit(ou);
 	}
+
+	public List<Position> findAll() { return positionDao.findAll(); }
 }

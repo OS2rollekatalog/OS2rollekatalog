@@ -1,4 +1,5 @@
-﻿using System;
+﻿using ADSyncService.Email;
+using System;
 using System.Collections.Generic;
 using System.DirectoryServices;
 using System.DirectoryServices.AccountManagement;
@@ -11,6 +12,7 @@ namespace ADSyncService
         private static log4net.ILog log = log4net.LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
         private static string groupOU = Properties.Settings.Default.CreateDeleteFeature_OU;
         private static string cprAttribute = Properties.Settings.Default.MembershipSyncFeature_CprAttribute;
+        private EmailService emailService = EmailService.Instance;
 
         // note, the groupInGroup parameter should only be true when doing an initial import - when making membershipSync updates
         // the group in group thing is way to complex to solve here (and introduces nasty side-effects if actually implemented)
@@ -27,6 +29,7 @@ namespace ADSyncService
                     if (group == null)
                     {
                         log.Error("Group does not exist: " + groupId);
+                        emailService.EnqueueMail("Group does not exist: " + groupId);
                         return null;
                     }
                     else
@@ -161,6 +164,7 @@ namespace ADSyncService
                         if (user == null || group == null)
                         {
                             log.Error("User or group does not exist: " + userId + " / " + groupId);
+                            emailService.EnqueueMail("User or group does not exist: " + userId + " / " + groupId);
                             return;
                         }
 
@@ -191,6 +195,7 @@ namespace ADSyncService
                         if (user == null || group == null)
                         {
                             log.Error("User or group does not exist: " + userId + " / " + groupId);
+                            emailService.EnqueueMail("User or group does not exist: " + userId + " / " + groupId);
                             return;
                         }
 

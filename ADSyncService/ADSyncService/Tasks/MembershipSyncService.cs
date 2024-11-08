@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using ADSyncService.Email;
+using System.Collections.Generic;
 using System.Linq;
 
 namespace ADSyncService
@@ -7,6 +8,7 @@ namespace ADSyncService
     {
         private static log4net.ILog log = log4net.LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
         private static bool ignoreUsersWithoutCpr = Properties.Settings.Default.MembershipSyncFeature_IgnoreUsersWithoutCpr;
+        private static EmailService emailService = EmailService.Instance;
 
         public static void SynchronizeGroupMemberships(RoleCatalogueStub roleCatalogueStub, ADStub adStub)
         {
@@ -87,6 +89,7 @@ namespace ADSyncService
                     catch (System.Exception ex)
                     {
                         log.Error("Failed to update group: " + assignment.groupName + ". Cause: " + ex.Message);
+                        emailService.EnqueueMail("Failed to update group: " + assignment.groupName, ex);
                     }
                 }
 

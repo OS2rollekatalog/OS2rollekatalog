@@ -91,7 +91,7 @@ public class ItSystemUsersAttestationService {
         final LocalDate since = LocalDate.now().minusMonths(1);
         attestationDao.findByAttestationTypeAndDeadlineIsGreaterThanEqual(Attestation.AttestationType.IT_SYSTEM_ATTESTATION, since).stream()
                 .filter(a -> a.getVerifiedAt() == null)
-                .filter(a -> isItSystemUserAttestationDone(a.getCreatedAt(), a))
+                .filter(a -> isItSystemUserAttestationDone(a))
                 .forEach(a -> {
                     a.setVerifiedAt(ZonedDateTime.now());
                     log.warn("Attestation finished but not verified, id: {}", a.getId());
@@ -175,7 +175,7 @@ public class ItSystemUsersAttestationService {
                         .createdAt(ZonedDateTime.now())
                         .build());
         attestation.getItSystemUserAttestationEntries().add(entry);
-        if (isItSystemUserAttestationDone(when, attestation)) {
+        if (isItSystemUserAttestationDone(attestation)) {
             attestation.setVerifiedAt(ZonedDateTime.now());
         }
     }
@@ -197,7 +197,7 @@ public class ItSystemUsersAttestationService {
                         .remarks(remarks)
                         .build());
         attestation.getItSystemUserAttestationEntries().add(entry);
-        if (isItSystemUserAttestationDone(when, attestation)) {
+        if (isItSystemUserAttestationDone(attestation)) {
             attestation.setVerifiedAt(ZonedDateTime.now());
         }
         final User user = userService.getByUuid(userUuid);
@@ -222,7 +222,7 @@ public class ItSystemUsersAttestationService {
                         .createdAt(ZonedDateTime.now())
                         .build());
         attestation.getItSystemOrganisationAttestationEntries().add(entry);
-        if (isItSystemUserAttestationDone(when, attestation)) {
+        if (isItSystemUserAttestationDone(attestation)) {
             attestation.setVerifiedAt(ZonedDateTime.now());
         }
     }
@@ -245,7 +245,7 @@ public class ItSystemUsersAttestationService {
                         .remarks(remarks)
                         .build());
         attestation.getItSystemOrganisationAttestationEntries().add(entry);
-        if (isItSystemUserAttestationDone(when, attestation)) {
+        if (isItSystemUserAttestationDone(attestation)) {
             attestation.setVerifiedAt(ZonedDateTime.now());
         }
         final User user = userService.getByUuid(performedByUserId);
@@ -254,12 +254,12 @@ public class ItSystemUsersAttestationService {
         }
     }
 
-    private boolean isItSystemUserAttestationDone(final LocalDate when, final Attestation attestation) {
+    private boolean isItSystemUserAttestationDone(final Attestation attestation) {
         final List<AttestationUserRoleAssignment> assignments =
-                attestationUserRoleAssignmentDao.listValidAssignmentsByResponsibleUserUuid(when, attestation.getResponsibleUserUuid()).stream()
+                attestationUserRoleAssignmentDao.listValidAssignmentsByResponsibleUserUuid(attestation.getCreatedAt(), attestation.getResponsibleUserUuid()).stream()
                         .filter(a -> a.getAssignedThroughType() == AssignedThroughType.DIRECT)
                         .collect(Collectors.toList());
-        final List<AttestationOuRoleAssignment> ouRoleAssignments = attestationOuAssignmentsDao.listValidNotInheritedAssignmentsWithResponsibleUser(when, attestation.getResponsibleUserUuid());
+        final List<AttestationOuRoleAssignment> ouRoleAssignments = attestationOuAssignmentsDao.listValidNotInheritedAssignmentsWithResponsibleUser(attestation.getCreatedAt(), attestation.getResponsibleUserUuid());
 
         return hasAllUserAttestationsBeenPerformed(attestation, assignments, p -> Objects.equals(p.getItSystemId(), attestation.getItSystemId())) &&
                 hasAllOuAttestationsBeenPerformed(attestation, ouRoleAssignments, p -> Objects.equals(p.getItSystemId(), attestation.getItSystemId()));

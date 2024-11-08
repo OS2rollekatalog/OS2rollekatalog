@@ -1,3 +1,16 @@
+2024.11.06 - Release 2024r3
+- [ROL-177](https://os2web.atlassian.net/browse/ROL-177) Alle AD sync services skal laves så de også kan bruges i Azure Ad
+- [ROL-300](https://os2web.atlassian.net/browse/ROL-300) Vi benytter vægtning i OS2rollekatalog til at afgøre tildeling af jobfunktionsroller. Problemet er, en rapport fra IT-systemet i OS2rollekatalog ikke indeholder vægtningen.
+- [ROL-322](https://os2web.atlassian.net/browse/ROL-322) Negativ/forbudt rolletildeling
+- [ROL-324](https://os2web.atlassian.net/browse/ROL-324) Ekstra kolonne i brugeroversigten
+- [ROL-335](https://os2web.atlassian.net/browse/ROL-335) Ændre funktionen ved at scrolle
+- [ROL-344](https://os2web.atlassian.net/browse/ROL-344) Modtage email adviseringer på lokale fejl
+- [ROL-355](https://os2web.atlassian.net/browse/ROL-355) AUDITLOG: den er kun tilgængelig via ADMINISTRATOR
+- [ROL-384](https://os2web.atlassian.net/browse/ROL-384) Attestering: Udskudt dataafgrænsning skal fremgå af attesteringen
+- [ROL-383](https://os2web.atlassian.net/browse/ROL-383) Udlæsning af navne på pnumre fra NemLog-in, og ændring i visningen
+- [ROL-381](https://os2web.atlassian.net/browse/ROL-381) Allerede tildelte roller vises ikke
+- [ROL-320](https://os2web.atlassian.net/browse/ROL-320) Attestering: Mulighed for at opmærke JFR med særlig SÆRLIG følsom (attesteres oftere endnu)
+
 2024.08.28 - Release 2024r2
 - [ROL-361](https://os2web.atlassian.net/browse/ROL-361) Attestering: Rapport tilføjelse
 - [ROL-359](https://os2web.atlassian.net/browse/ROL-359) Oversigt / rapport over aktuelle attestering

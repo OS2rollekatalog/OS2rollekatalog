@@ -1,9 +1,12 @@
-﻿using Topshelf;
+﻿using ADSyncService.Email;
+using System;
+using Topshelf;
 
 namespace ADSyncService
 {
     internal static class Configuration
     {
+        private static EmailService emailService = EmailService.Instance;
         internal static void Configure()
         {
             HostFactory.Run(configure =>
@@ -19,6 +22,10 @@ namespace ADSyncService
                 configure.SetServiceName("ADSyncService");
                 configure.SetDisplayName("ADSyncService");
                 configure.SetDescription("Synkroniserer AD gruppemedlemsskaber fra OS2rollekatalog");
+                configure.OnException(e =>
+                {
+                    emailService.EnqueueMail("Error occurred in Topshelf", e);
+                });
             });
         }
     }

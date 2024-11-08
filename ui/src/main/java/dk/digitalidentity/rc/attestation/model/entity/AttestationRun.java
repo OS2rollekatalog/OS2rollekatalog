@@ -39,8 +39,8 @@ public class AttestationRun {
     @Column(name = "`sensitive`")
     private boolean sensitive;
 
-    @Column(name = "`super_sensitive`")
-    private boolean superSensitive;
+    @Column(name = "`extra_sensitive`")
+    private boolean extraSensitive;
 
     @Column
     private LocalDate deadline;

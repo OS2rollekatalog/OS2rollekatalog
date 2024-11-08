@@ -9,6 +9,7 @@ import dk.digitalidentity.rc.dao.model.PositionUserRoleAssignment;
 import dk.digitalidentity.rc.dao.model.RoleGroupUserRoleAssignment;
 import dk.digitalidentity.rc.dao.model.UserRoleGroupAssignment;
 import dk.digitalidentity.rc.dao.model.UserUserRoleAssignment;
+import dk.digitalidentity.rc.dao.model.enums.ContainsTitles;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -128,8 +129,8 @@ public class RoleAssignedToUserDTO {
 		dto.setRoleId(assignment.getUserRole().getId());
 		dto.setName(assignment.getUserRole().getName());
 		dto.setType(RoleAssignmentType.USERROLE);
-		
-		if (!assignment.isContainsTitles()) {
+
+		if (assignment.getContainsTitles() != ContainsTitles.NO) {
 			dto.setAssignedThrough(AssignedThrough.ORGUNIT);
 		}
 		else {
@@ -153,8 +154,8 @@ public class RoleAssignedToUserDTO {
 		dto.setRoleId(assignment.getRoleGroup().getId());
 		dto.setName(assignment.getRoleGroup().getName());
 		dto.setType(RoleAssignmentType.ROLEGROUP);
-		
-		if (!assignment.isContainsTitles()) {
+
+		if (assignment.getContainsTitles() != ContainsTitles.NO) {
 			dto.setAssignedThrough(AssignedThrough.ORGUNIT);
 		}
 		else {
@@ -168,6 +169,41 @@ public class RoleAssignedToUserDTO {
 		dto.setCanEdit(false);
 		dto.setCanRequest(false);
 		
+		return dto;
+	}
+
+	public static RoleAssignedToUserDTO fromNegativeOrgUnitUserRoleAssignment(OrgUnitUserRoleAssignment assignment) {
+		RoleAssignedToUserDTO dto = new RoleAssignedToUserDTO();
+		dto.setAssignmentId(assignment.getId());
+		dto.setRoleId(assignment.getUserRole().getId());
+		dto.setName(assignment.getUserRole().getName());
+		dto.setAssignedThrough(AssignedThrough.TITLE);
+		dto.setType(RoleAssignmentType.NEGATIVE);
+		dto.setAssignedThroughName(assignment.getOrgUnit().getName());
+		dto.setItSystem(assignment.getUserRole().getItSystem());
+		dto.setDescription(assignment.getUserRole().getDescription());
+		dto.setStartDate(assignment.getStartDate());
+		dto.setStopDate(assignment.getStopDate());
+		dto.setCanEdit(false);
+		dto.setCanRequest(false);
+
+		return dto;
+	}
+
+	public static RoleAssignedToUserDTO fromNegativeOrgUnitRoleGroupAssignment(OrgUnitRoleGroupAssignment assignment) {
+		RoleAssignedToUserDTO dto = new RoleAssignedToUserDTO();
+		dto.setAssignmentId(assignment.getId());
+		dto.setRoleId(assignment.getRoleGroup().getId());
+		dto.setName(assignment.getRoleGroup().getName());
+		dto.setAssignedThrough(AssignedThrough.TITLE);
+		dto.setType(RoleAssignmentType.NEGATIVE);
+		dto.setAssignedThroughName(assignment.getOrgUnit().getName());
+		dto.setDescription(assignment.getRoleGroup().getDescription());
+		dto.setStartDate(assignment.getStartDate());
+		dto.setStopDate(assignment.getStopDate());
+		dto.setCanEdit(false);
+		dto.setCanRequest(false);
+
 		return dto;
 	}
 }

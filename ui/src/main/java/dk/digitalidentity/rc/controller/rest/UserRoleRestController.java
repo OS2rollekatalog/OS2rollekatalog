@@ -209,6 +209,10 @@ public class UserRoleRestController {
         		role.setSensitiveRole(active);
         		userRoleService.save(role);
         		break;
+            case "extra-sensitive":
+                role.setExtraSensitiveRole(active);
+                userRoleService.save(role);
+                break;
             case "attestationByAttestationResponsible":
                 role.setRoleAssignmentAttestationByAttestationResponsible(active);
                 userRoleService.save(role);

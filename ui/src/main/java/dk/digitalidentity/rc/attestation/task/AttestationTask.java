@@ -15,6 +15,8 @@ import dk.digitalidentity.rc.service.HistoryService;
 import dk.digitalidentity.rc.service.SettingsService;
 import io.micrometer.core.annotation.Timed;
 import lombok.extern.slf4j.Slf4j;
+import org.flywaydb.core.Flyway;
+import org.flywaydb.core.api.MigrationInfo;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -65,28 +67,8 @@ public class AttestationTask {
     @Autowired
     private HistoryService historyService;
 
-    @Timed(longTask = true, value = "attestation.finish_outstanding_task.timer")
-    @Scheduled(cron = "${rc.attestation.finish_outstanding_cron}")
-//    @Scheduled(fixedDelay = 10000000L)
-    public void finishOutstandingAttestations() {
-        // This task will look through unfinished attestestations and finish them in case they are done
-        if (!configuration.getScheduled().isEnabled()) {
-            return;
-        }
-
-        if (!settingsService.isScheduledAttestationEnabled()) {
-            log.debug("Attestation not enabled, no tracking needed");
-            return;
-        }
-        log.info("Attestation finish outstanding running");
-
-        organisationAttestationService.finishOutstandingAttestations();
-        itSystemUsersAttestationService.finishOutstandingAttestations();
-        itSystemUserRolesAttestationService.finishOutstandingAttestations();
-
-        log.info("Attestation finish outstanding done");
-
-    }
+    @Autowired
+    private Flyway flyway;
 
     @Timed(longTask = true, value = "attestation.attestation_task.timer")
     @Scheduled(cron = "${rc.attestation.attestation_cron}")
@@ -116,7 +98,15 @@ public class AttestationTask {
             if (!now.isAfter(lastRun)) {
                 throw new AttestationDataUpdaterException("Cannot update attestation more than once pr. day");
             }
-            
+
+            //if flyway installRank is strictly greather than the last recorded installedRank in settings,
+            // it updates all the ou hash values but not any other values.
+            MigrationInfo[] version = flyway.info().applied();
+            if(version.length > 0 && version[version.length-1].getInstalledRank() > settingsService.getCurrentInstalledRank()) {
+                ouAssignmentsUpdaterJdbc.updateAllOuHashOnly(now);
+                settingsService.setCurrentInstalledRank(version[version.length-1].getInstalledRank());
+            }
+
             updateAssignments(now);
             updateTrackers(now);
             settingsService.setScheduledAttestationLastRun(new Date());
@@ -131,7 +121,7 @@ public class AttestationTask {
         }
     }
 
-    private void updateTrackers(LocalDate now) {
+    private void updateTrackers(LocalDate now) throws Exception {
         attestationRunTrackerService.migrateAttestationsWithoutRun();
         attestationRunTrackerService.updateRuns(now);
         userAttestationTracker.updateSystemUserAttestations(now);

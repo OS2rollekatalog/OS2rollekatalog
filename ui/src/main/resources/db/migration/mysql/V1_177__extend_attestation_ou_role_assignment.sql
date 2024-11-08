@@ -1,0 +1,1 @@
+ALTER TABLE attestation_ou_role_assignments ADD COLUMN excepted_title_uuids TEXT DEFAULT '';

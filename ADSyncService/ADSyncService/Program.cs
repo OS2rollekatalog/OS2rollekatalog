@@ -1,15 +1,34 @@
 ﻿
+using ADSyncService.Email;
+using System;
 using System.Net;
 
 namespace ADSyncService
 {
     class Program
     {
+        private static EmailService emailService = EmailService.Instance;
         static void Main(string[] args)
         {
-            ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
+            try
+            {
+                AppDomain.CurrentDomain.UnhandledException += CurrentDomain_UnhandledException;
+                ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
 
-            Configuration.Configure();
+                Configuration.Configure();
+            }
+            catch (Exception ex)
+            {
+                emailService.EnqueueMail("Error occurred in ADSyncService", ex);
+            }
+        }
+
+        private static void CurrentDomain_UnhandledException(object sender, UnhandledExceptionEventArgs e)
+        {
+            if (e != null && e.ExceptionObject != null)
+            {
+                emailService.EnqueueMail("UnhandledException found.", (Exception)e.ExceptionObject);
+            }
         }
     }
 }

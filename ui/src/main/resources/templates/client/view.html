@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
 <head th:replace="~{fragments/header :: header}"></head>
-<body>
+<body class="layout-fixed">
 	<div class="wrapper">
 		<header th:replace="~{fragments/navbar :: navbar-header (subpage = 'administration')}"></header>
 		<aside th:replace="~{fragments/navbar :: navbar-aside (page = 'clients.list', subpage = 'administration')}"></aside>

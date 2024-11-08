@@ -167,6 +167,7 @@ public class OrganisationAttestationService {
         final String orgUnitUuid = attestation.getResponsibleOuUuid();
         final List<AttestationUserRoleAssignment> userAssignments = userRoleAssignmentDao.listValidAssignmentsByResponsibleOu(attestation.getCreatedAt(), orgUnitUuid);
         final List<AttestationOuRoleAssignment> organisationAssignments = ouAssignmentsDao.listValidNotInheritedAssignmentsForOu(attestation.getCreatedAt(), orgUnitUuid);
+        organisationAssignments.addAll(ouAssignmentsDao.listValidAssignmentsWithExceptedTilesForOu(attestation.getCreatedAt(), orgUnitUuid));
         final var ouName = userAssignments.stream().filter(r -> r.getResponsibleOuName() != null)
                 .findFirst().map(AttestationUserRoleAssignment::getResponsibleOuName).orElse("");
 
@@ -321,9 +322,13 @@ public class OrganisationAttestationService {
     }
 
     private boolean isOrganisationAttestationDone(final Attestation attestation, final LocalDate when) {
-        if (attestation.getOrganisationRolesAttestationEntry() == null) {
+        final List<AttestationOuRoleAssignment> organisationAssignments =
+                ouAssignmentsDao.listValidNotInheritedAssignmentsForOu(attestation.getCreatedAt(), attestation.getResponsibleOuUuid());
+        final List<OrgUnitRoleGroupAssignmentDTO> orgUnitRoleGroupAssignments = orgUnitRoleGroups(organisationAssignments);
+        if (attestation.getOrganisationRolesAttestationEntry() == null && (!orgUnitRoleGroupAssignments.isEmpty() || !organisationAssignments.isEmpty())) {
             return false;
         }
+
         final List<String> processedUserUuid = attestation.getOrganisationUserAttestationEntries().stream()
                 .map(BaseUserAttestationEntry::getUserUuid)
                 .toList();
@@ -531,6 +536,7 @@ public class OrganisationAttestationService {
                                                     .name(attestationUserService.userNameFromUuidCached(u))
                                                     .build())
                                             .collect(Collectors.toList()))
+                                    .exceptedTitles(a.getExceptedTitleUuids().stream().map(et -> titleDao.findById(et).map(Title::getName).orElse(et)).toList())
                                     .groupId(a.getRoleGroupId())
                                     .userRoles(toOuUserAssignmentDTOs(orgRoleGroupAssignments, a.getRoleGroupId()))
                                     .inherit(!a.isInherited() && a.getAssignedThroughType() == AssignedThroughType.ORGUNIT)
@@ -555,6 +561,7 @@ public class OrganisationAttestationService {
                                 : null)
                         .responsible(a.getResponsibleUserUuid() != null ?
                                 attestationUserService.userNameFromUuidCached(a.getResponsibleUserUuid()) : null)
+                        .postponedConstraints(a.getPostponedConstraints())
                         .build())
                 .collect(Collectors.toList());
     }
@@ -586,6 +593,7 @@ public class OrganisationAttestationService {
                                 .build())
                         .collect(Collectors.toList()))
                 .titles(titles)
+                .exceptedTitles(assignment.getExceptedTitleUuids().stream().map(et -> titleDao.findById(et).map(Title::getName).orElse(et)).toList())
                 .roleDescription(assignment.getRoleDescription())
                 .roleName(assignment.getRoleName())
                 .build();

@@ -133,6 +133,18 @@
 									</th:block>
 
 									<th:block th:if="${@settingsService.isScheduledAttestationEnabled()}">
+										<th:block th:if="${@settingsService.getScheduledAttestationInterval() == T(dk.digitalidentity.rc.dao.model.enums.CheckupIntervalEnum).YEARLY}">
+										<label class="col-sm-2 control-label" th:text="#{html.role.flag.extra.sensitive}"></label>
+										<div class="col-sm-1">
+											<div class="checkbox c-checkbox">
+												<label>
+													<input class="extra-sensitive-checkbox" type="checkbox" data-flag="extra-sensitive" th:attr="checked=${role.extraSensitiveRole}" />
+													<span class="fa fa-check"></span>
+												</label>
+											</div>
+										</div>
+										</th:block>
+
 										<label class="col-sm-2 control-label" th:text="#{html.role.flag.sensitive}"></label>
 										<div class="col-sm-1">
 											<div class="checkbox c-checkbox">
@@ -388,7 +400,7 @@
 											th:attrappend="onchange='updateConstraintChoice('+ ${editSystemRole.systemRole.id} + ',\'' + ${supportedConstraintType.constraintType.uuid} +'\'' + ',\'VALUE\')'"
 											th:disabled="${selected}==false or ${constraintData != null} and ${constraintData.postponed}">
 										<option selected="selected" disabled="disabled" th:text="#{html.select.default}"></option>
-										<option th:each="pNumber : ${pNumberList}" th:selected="${selected} and ${constraintData != null} and (${pNumber.code} eq ${#strings.toString(constraintData.constraintValue)})" th:value="${pNumber.code}" th:text="${pNumber.name} +' (' + ${pNumber.code} + ')'"  />
+										<option th:each="pNumber : ${pNumberList}" th:selected="${selected} and ${constraintData != null} and (${pNumber.code} eq ${#strings.toString(constraintData.constraintValue)})" th:value="${pNumber.code}" th:text="${pNumber.code} +' (' + ${pNumber.name} + ')'"  />
 									</select>
 								</div>
 							</div>
@@ -655,6 +667,7 @@
 			$('.useronly-checkbox').change(handleOUBtn);
 			$('.inherit-checkbox').change(flagCheckboxChange);
 			$('.sensitive-checkbox').change(flagCheckboxChange);
+			$('.extra-sensitive-checkbox').change(flagCheckboxChange);
 			$('.canrequest-checkbox').change(flagCheckboxChange);
 			$('.by-attestation-responsible-checkbox').change(flagCheckboxChange);
 

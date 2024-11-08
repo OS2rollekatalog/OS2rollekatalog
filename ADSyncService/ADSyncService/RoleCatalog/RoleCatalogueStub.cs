@@ -3,6 +3,7 @@ using RestSharp;
 using System.Net;
 using System.Collections.Generic;
 using System.Configuration;
+using ADSyncService.Email;
 
 namespace ADSyncService
 {
@@ -12,6 +13,7 @@ namespace ADSyncService
         private static string apiKey = null;
         private static string baseUrl;
         private static string domain = Properties.Settings.Default.Domain;
+        private EmailService emailService = EmailService.Instance;
 
         public RoleCatalogueStub()
         {
@@ -53,10 +55,12 @@ namespace ADSyncService
                 }
 
                 log.Error("OperationData call failed (" + result.StatusCode + ") : " + result.Content);
+                emailService.EnqueueMail("OperationData call failed (" + result.StatusCode + ") : " + result.Content);
             }
             catch (Exception ex)
             {
                 log.Error("OperationData call failed", ex);
+                emailService.EnqueueMail("OperationData call failed", ex);
             }
 
             // return empty result to ensure sync job does nothing
@@ -102,6 +106,7 @@ namespace ADSyncService
             }
 
             log.Error("Read ItSystem members call failed (" + result.StatusCode + ") : " + result.Content);
+            emailService.EnqueueMail("Read ItSystem members call failed (" + result.StatusCode + ") : " + result.Content);
             return null;
         }
 
@@ -122,6 +127,7 @@ namespace ADSyncService
             }
 
             log.Error("Read ItSystem Data call failed (" + result.StatusCode + ") : " + result.Content);
+            emailService.EnqueueMail("Read ItSystem Data call failed (" + result.StatusCode + ") : " + result.Content);
             return null;
         }
 
@@ -148,6 +154,7 @@ namespace ADSyncService
             }
 
             log.Error("Set ItSystem Data call failed (" + result.StatusCode + ") : " + result.Content);
+            emailService.EnqueueMail("Set ItSystem Data call failed (" + result.StatusCode + ") : " + result.Content);
         }
 
         public SyncData GetSyncData()
@@ -192,10 +199,12 @@ namespace ADSyncService
                 }
 
                 log.Error("Sync call failed (" + result.StatusCode + ") : " + result.Content);
+                emailService.EnqueueMail("Sync call failed (" + result.StatusCode + ") : " + result.Content);
             }
             catch (Exception ex)
             {
                 log.Error("Sync call failed", ex);
+                emailService.EnqueueMail("Sync call failed", ex);
             }
 
             // return empty result to ensure sync job does nothing
@@ -224,11 +233,13 @@ namespace ADSyncService
                 else
                 {
                     log.Error("Reset call failed (" + result.StatusCode + ") : " + result.Content);
+                    emailService.EnqueueMail("Reset call failed (" + result.StatusCode + ") : " + result.Content);
                 }
             }
             catch (Exception ex)
             {
                 log.Error("Reset call failed", ex);
+                emailService.EnqueueMail("Reset call failed", ex);
             }
         }
 
@@ -250,11 +261,13 @@ namespace ADSyncService
                 else
                 {
                     log.Error("Reset operation call failed (" + result.StatusCode + ") : " + result.Content);
+                    emailService.EnqueueMail("Reset operation call failed (" + result.StatusCode + ") : " + result.Content);
                 }
             }
             catch (Exception ex)
             {
                 log.Error("Reset operation call failed", ex);
+                emailService.EnqueueMail("Reset operation call failed", ex);
             }
         }
 

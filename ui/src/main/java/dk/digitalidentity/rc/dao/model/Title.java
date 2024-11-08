@@ -5,6 +5,9 @@ import dk.digitalidentity.rc.log.AuditLoggable;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.JoinTable;
+import jakarta.persistence.ManyToMany;
 import jakarta.persistence.Temporal;
 import jakarta.persistence.TemporalType;
 import lombok.Getter;
@@ -12,6 +15,8 @@ import lombok.Setter;
 import org.hibernate.annotations.UpdateTimestamp;
 
 import java.util.Date;
+import java.util.LinkedHashSet;
+import java.util.Set;
 
 @Entity(name = "titles")
 @Getter
@@ -35,7 +40,7 @@ public class Title implements AuditLoggable {
 	@Column
 	private boolean active;
 
-	@JsonIgnore
+    @JsonIgnore
 	@Override
 	public String getEntityName() {
 		return name;

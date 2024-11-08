@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head th:replace="~{attestationmodule/fragments/header :: header(datatables = true)}"></head>
-<body class="top-navigation">
+<body class="top-navigation layout-fixed">
 <div id="wrapper">
     <div id="page-wrapper" class="gray-bg">
         <div th:replace="~{attestationmodule/fragments/topbar :: topbar(page = 'admin')}"></div>
@@ -24,6 +24,8 @@
                                     <li th:each="run, itr: ${attestationRuns}"><a class="nav-link" data-toggle="tab" th:href="${'#ovtab' + itr.index}" th:class="${itr.index == 0 ? 'nav-link active' : 'nav-link'}">
                                         <span th:text="${#temporals.format(run.deadline, 'dd/MM-yyyy')}"></span>
                                         <span class="label label-info" th:if="${run.sensitive}" th:text="#{attestationmodule.html.admin.sensitive}"></span>
+                                        <span class="label label-info" th:if="${run.extraSensitive}" th:text="#{attestationmodule.html.admin.extra.sensitive}"></span>
+                                        
                                         <span class="label label-danger" th:unless="${run.finished}" th:text="#{attestationmodule.html.admin.open}"></span>
                                     </a>
                                     </li>
@@ -147,6 +149,7 @@
         } else {
             row.child(formatDetails(row.data(), true)).show();
         }
+        $(tr).toggleClass('dt-hasChild');
     }
 
     $(document).ready(function() {

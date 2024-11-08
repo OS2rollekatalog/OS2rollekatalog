@@ -6,6 +6,7 @@ import java.util.Date;
 import java.util.List;
 import java.util.UUID;
 
+import dk.digitalidentity.rc.dao.model.enums.ContainsTitles;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -154,6 +155,9 @@ public class DataGenerator {
 				mapping.setAssignedByUserId("system");
 				mapping.setAssignedTimestamp(new Date());
 				mapping.setOrgUnit(orgUnit);
+				//testing different values of ContainsTitles
+				//implemented with mod 2 avoid illegal values not between 0-2
+				mapping.setContainsTitles(ContainsTitles.values()[j%2]);
 
 				rgs.add(mapping);
 			}
@@ -169,6 +173,10 @@ public class DataGenerator {
 				mapping.setAssignedByUserId("system");
 				mapping.setAssignedTimestamp(new Date());
 				mapping.setOrgUnit(orgUnit);
+				//testing different values of ContainsTitles
+				//implemented with mod 2 avoid illegal values not between 0-2
+				mapping.setContainsTitles(ContainsTitles.values()[j%2]);
+
 				
 				rs.add(mapping);				
 			}

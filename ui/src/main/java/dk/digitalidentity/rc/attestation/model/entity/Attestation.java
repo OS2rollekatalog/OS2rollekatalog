@@ -27,6 +27,7 @@ import org.hibernate.annotations.BatchSize;
 import java.time.LocalDate;
 import java.time.ZonedDateTime;
 import java.util.HashSet;
+import java.util.Objects;
 import java.util.Set;
 
 @Getter
@@ -128,4 +129,8 @@ public class Attestation {
     @BatchSize(size = 500)
     private Set<AttestationMail> mails = new HashSet<>();
 
+    @Override
+    public int hashCode() {
+        return Objects.hashCode(id);
+    }
 }

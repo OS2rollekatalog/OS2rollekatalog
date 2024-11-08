@@ -1,4 +1,6 @@
 ﻿
+using ADSyncService.Email;
+
 namespace ADSyncService
 {
     class CreateDeleteService
@@ -6,6 +8,7 @@ namespace ADSyncService
         private static log4net.ILog log = log4net.LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
         private static bool createGroupsEnabled = Properties.Settings.Default.CreateDeleteFeature_CreateEnabled;
         private static bool deleteGroupsEnabled = Properties.Settings.Default.CreateDeleteFeature_DeleteEnabled;
+        private static EmailService emailService = EmailService.Instance;
 
         public static void PerformGroupOperations(RoleCatalogueStub roleCatalogueStub, ADStub adStub)
         {
@@ -48,10 +51,12 @@ namespace ADSyncService
                         if (operation.active)
                         {
                             log.Error("Failed to create group: " + operation.systemRoleIdentifier + ". Cause: " + ex.Message, ex);
+                            emailService.EnqueueMail("Failed to create group: " + operation.systemRoleIdentifier, ex);
                         }
                         else
                         {
                             log.Error("Failed to delete group: " + operation.systemRoleIdentifier + ". Cause: " + ex.Message, ex);
+                            emailService.EnqueueMail("Failed to delete group: " + operation.systemRoleIdentifier, ex);
                         }
                     }
                 }

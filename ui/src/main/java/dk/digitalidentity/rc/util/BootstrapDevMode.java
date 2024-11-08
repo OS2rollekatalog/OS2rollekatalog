@@ -146,6 +146,7 @@ public class BootstrapDevMode {
 		User bsg = userDao.findByUserIdAndDomainAndDeletedFalse("bsg", domainService.getPrimaryDomain()).orElseThrow();
 		User kbp = userDao.findByUserIdAndDomainAndDeletedFalse("kbp", domainService.getPrimaryDomain()).orElseThrow();
 		User and = userDao.findByUserIdAndDomainAndDeletedFalse("and", domainService.getPrimaryDomain()).orElseThrow();
+		User skr = userDao.findByUserIdAndDomainAndDeletedFalse("skr", domainService.getPrimaryDomain()).orElseThrow();
 		UserRole administrator = userRoleDao.getByIdentifier("administrator");
 		
 		UserUserRoleAssignment assignment = new UserUserRoleAssignment();
@@ -179,14 +180,24 @@ public class BootstrapDevMode {
 		userDao.save(kbp);
 		
 		assignment = new UserUserRoleAssignment();
-		assignment.setUser(kbp);
+		assignment.setUser(and);
 		assignment.setAssignedByName("Systembruger");
 		assignment.setAssignedByUserId("system");
 		assignment.setAssignedTimestamp(new Date());
 		assignment.setUserRole(administrator);
-		
-		kbp.getUserRoleAssignments().add(assignment);
-		userDao.save(kbp);
+
+		and.getUserRoleAssignments().add(assignment);
+		userDao.save(and);
+
+		assignment = new UserUserRoleAssignment();
+		assignment.setUser(skr);
+		assignment.setAssignedByName("Systembruger");
+		assignment.setAssignedByUserId("system");
+		assignment.setAssignedTimestamp(new Date());
+		assignment.setUserRole(administrator);
+
+		skr.getUserRoleAssignments().add(assignment);
+		userDao.save(skr);
 	}
 
 	private void setItSystemResponsible() {
@@ -237,10 +248,12 @@ public class BootstrapDevMode {
 		p = new PositionDTO();
 		p.setName("Skolelæreinde");
 		p.setOrgUnitUuid(bakkeskolen.getUuid());
+		p.setTitleUuid(titleDao.findAll().getFirst().getUuid());
 		frederikke.getPositions().add(p);
 		p = new PositionDTO();
 		p.setName("Skolelæreinde");
 		p.setOrgUnitUuid(aaskolen.getUuid());
+		p.setTitleUuid(titleDao.findAll().getLast().getUuid());
 		frederikke.getPositions().add(p);
 
 		UserDTO freja = createUser(users, "Freja Irkeda", "fnui");
@@ -284,6 +297,13 @@ public class BootstrapDevMode {
 		p.setName("Borgmester");
 		p.setOrgUnitUuid(kommune.getUuid());
 		viggo.getPositions().add(p);
+
+		UserDTO skr = createUser(users, "Sune Koch Rønnow", "skr");
+		p = new PositionDTO();
+		p.setName("Udvikler");
+		p.setOrgUnitUuid(kommune.getUuid());
+		p.setTitleUuid(titleDao.findAll().getFirst().getUuid());
+		skr.getPositions().add(p);
 
 		OrganisationDTO payload = new OrganisationDTO();
 		payload.setOrgUnits(orgUnits);
@@ -392,7 +412,7 @@ public class BootstrapDevMode {
 		constraintType.setUuid("9366d0e0-52bd-464c-8e2f-c8b63b021e52");
 		constraintType.setName("KLE");
 		constraintType.setUiType(ConstraintUIType.REGEX);
-		constraintType.setRegex(".");
+		constraintType.setRegex(".*");
 		constraintType = constraintTypeService.save(constraintType);
 		
 		ConstraintType constraintType2 = new ConstraintType();
@@ -400,7 +420,7 @@ public class BootstrapDevMode {
 		constraintType2.setUuid("9366d0e0-52bd-464c-8e2f-c8b63b021e51");
 		constraintType2.setName("Organisation");
 		constraintType2.setUiType(ConstraintUIType.REGEX);
-		constraintType2.setRegex(".");
+		constraintType2.setRegex(".*");
 		constraintType2 = constraintTypeService.save(constraintType2);
 		
 		ConstraintType constraintType3 = new ConstraintType();
@@ -408,7 +428,7 @@ public class BootstrapDevMode {
 		constraintType3.setUuid("9366d0e0-52bd-464c-8e2f-c8b63b021e57");
 		constraintType3.setName("Organisation");
 		constraintType3.setUiType(ConstraintUIType.REGEX);
-		constraintType3.setRegex(".");
+		constraintType3.setRegex(".*");
 		constraintType3 = constraintTypeService.save(constraintType3);
 
 		ItSystem kombit = new ItSystem();

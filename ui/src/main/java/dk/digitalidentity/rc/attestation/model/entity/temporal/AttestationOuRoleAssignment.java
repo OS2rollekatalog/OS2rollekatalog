@@ -85,5 +85,10 @@ public class AttestationOuRoleAssignment extends TemporalAssignmentBase {
     private boolean inherit;
     @Column
     private boolean sensitiveRole;
+    @Column
+    @Convert(converter = StringListConverter.class)
+    @PartOfNaturalKey
+    @Builder.Default
+    private List<String> exceptedTitleUuids = Collections.emptyList();
 
 }

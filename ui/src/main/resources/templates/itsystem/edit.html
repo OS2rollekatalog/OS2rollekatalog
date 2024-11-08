@@ -353,13 +353,14 @@
 									<div class="table-responsive">
 										<table id="listTable" class="table table-striped listTable userRoleTable">
 											<thead>
-												<tr>
+												<tr th:with="attestationIntervalYearly=${@settingsService.getScheduledAttestationInterval() == T(dk.digitalidentity.rc.dao.model.enums.CheckupIntervalEnum).YEARLY}">
 													<th class="col-md-1" data-orderable="false" th:text="#{html.role.flag.useronly}"></th>
 													<th class="col-md-1" th:if="${@settingsService.isRequestApproveEnabled()}" data-orderable="false" th:text="#{html.entity.userrole.canRequest}"></th>
-													<th class="col-md-1" th:if="${attestationEnabled}" data-orderable="false" th:text="#{html.role.flag.sensitive}"></th>
-													<th class="col-md-1" th:if="${attestationEnabled}" data-orderable="false" th:text="#{html.entity.itsystem.roleAssignmentAttestationByAttestationResponsible}"></th>
+													<th th:if="${attestationEnabled} and ${attestationIntervalYearly}" class="col-md-1" data-orderable="false" th:text="#{html.role.flag.extra.sensitive}"></th>
+													<th th:if="${attestationEnabled}" class="col-md-1" data-orderable="false" th:text="#{html.role.flag.sensitive}"></th>
+													<th th:if="${attestationEnabled}" class="col-md-1" data-orderable="false" th:text="#{html.entity.itsystem.roleAssignmentAttestationByAttestationResponsible}"></th>
 													<th th:class="'col-md-' + ${@settingsService.isRequestApproveEnabled() ? 2 : 3}" th:text="#{html.entity.userrole.name}"></th>
-													<th class="col-md-5" th:text="#{html.entity.userrole.description}"></th>
+													<th th:class="'col-md-' + ${7 - (attestationEnabled ? 2 : 0) - ((attestationEnabled && attestationIntervalYearly) ? 1 : 0)}" th:text="#{html.entity.userrole.description}"></th>
 													<th class="col-md-1" th:text="#{html.control.operations}"></th>
 												</tr>
 											</thead>
@@ -377,6 +378,14 @@
 														<div class="checkbox c-checkbox">
 															<label>
 																<input style="padding-top:2px; padding-bottom:2px" class="canrequest-checkbox" type="checkbox" th:attr="data-roleid=${role.id},checked=${role.canRequest}" data-fieldname="canrequest"/>
+																<span class="fa fa-check"></span>
+															</label>
+														</div>
+													</td>
+													<td class="col-md-1" th:if="${attestationEnabled} and ${@settingsService.getScheduledAttestationInterval() == T(dk.digitalidentity.rc.dao.model.enums.CheckupIntervalEnum).YEARLY}">
+														<div class="checkbox c-checkbox">
+															<label>
+																<input style="padding-top:2px; padding-bottom:2px" class="extra-sensitive-checkbox" type="checkbox" th:attr="data-roleid=${role.id},checked=${role.extraSensitiveRole}" data-fieldname="extra-sensitive" />
 																<span class="fa fa-check"></span>
 															</label>
 														</div>
@@ -467,13 +476,14 @@
 									<div class="table-responsive">
 										<table id="listTable" class="table table-striped listTable userRoleTable">
 											<thead>
-												<tr>
+												<tr th:with="attestationIntervalYearly=${@settingsService.getScheduledAttestationInterval() == T(dk.digitalidentity.rc.dao.model.enums.CheckupIntervalEnum).YEARLY}">
 													<th class="col-md-1" data-orderable="false" th:text="#{html.role.flag.useronly}"></th>
-													<th class="col-md-1" th:if="${@settingsService.isRequestApproveEnabled()}"  data-orderable="false" th:text="#{html.entity.userrole.canRequest}"></th>
+													<th class="col-md-1" th:if="${@settingsService.isRequestApproveEnabled()}" data-orderable="false" th:text="#{html.entity.userrole.canRequest}"></th>
+													<th th:if="${attestationEnabled} and ${attestationIntervalYearly}" class="col-md-1" data-orderable="false" th:text="#{html.role.flag.extra.sensitive}"></th>
 													<th th:if="${attestationEnabled}" class="col-md-1" data-orderable="false" th:text="#{html.role.flag.sensitive}"></th>
 													<th th:if="${attestationEnabled}" class="col-md-1" data-orderable="false" th:text="#{html.entity.itsystem.roleAssignmentAttestationByAttestationResponsible}"></th>
 													<th th:class="'col-md-' + ${@settingsService.isRequestApproveEnabled() ? 2 : 3}" th:text="#{html.entity.userrole.name}"></th>
-													<th class="col-md-5" th:text="#{html.entity.userrole.description}"></th>
+													<th th:class="'col-md-' + ${7 - (attestationEnabled ? 2 : 0) - ((attestationEnabled && attestationIntervalYearly) ? 1 : 0)}" th:text="#{html.entity.userrole.description}"></th>
 													<th class="col-md-1" th:text="#{html.control.operations}"></th>
 												</tr>
 											</thead>
@@ -491,6 +501,14 @@
 														<div class="checkbox c-checkbox">
 															<label>
 																<input style="padding-top:2px; padding-bottom:2px" class="canrequest-checkbox" type="checkbox" th:attr="data-roleid=${role.id},checked=${role.canRequest}" data-fieldname="canrequest" />
+																<span class="fa fa-check"></span>
+															</label>
+														</div>
+													</td>
+													<td class="col-md-1" th:if="${attestationEnabled} and ${@settingsService.getScheduledAttestationInterval() == T(dk.digitalidentity.rc.dao.model.enums.CheckupIntervalEnum).YEARLY}">
+														<div class="checkbox c-checkbox">
+															<label>
+																<input style="padding-top:2px; padding-bottom:2px" class="extra-sensitive-checkbox" type="checkbox" th:attr="data-roleid=${role.id},checked=${role.extraSensitiveRole}" data-fieldname="extra-sensitive" />
 																<span class="fa fa-check"></span>
 															</label>
 														</div>
@@ -577,17 +595,18 @@
 									<div class="table-responsive">
 										<table id="listTable" class="table table-striped listTable userRoleTable">
 											<thead>
-												<tr>
+												<tr th:with="attestationIntervalYearly=${@settingsService.getScheduledAttestationInterval() == T(dk.digitalidentity.rc.dao.model.enums.CheckupIntervalEnum).YEARLY}">
 													<th class="col-md-1" data-orderable="false" th:text="#{html.role.flag.useronly}"></th>
 													<th class="col-md-1" th:if="${@settingsService.isRequestApproveEnabled()}" data-orderable="false" th:text="#{html.entity.userrole.canRequest}"></th>
-													<th  th:if="${attestationEnabled}" class="col-md-1" data-orderable="false" th:text="#{html.role.flag.sensitive}"></th>
+													<th th:if="${attestationEnabled} and ${attestationIntervalYearly}" class="col-md-1" data-orderable="false" th:text="#{html.role.flag.extra.sensitive}"></th>
+													<th th:if="${attestationEnabled}" class="col-md-1" data-orderable="false" th:text="#{html.role.flag.sensitive}"></th>
 													<th th:if="${attestationEnabled}" class="col-md-1" data-orderable="false" th:text="#{html.entity.itsystem.roleAssignmentAttestationByAttestationResponsible}"></th>
 													<th th:class="'col-md-' + ${@settingsService.isRequestApproveEnabled() ? 2 : 3}" th:text="#{html.entity.userrole.name}"></th>
-													<th class="col-md-5" th:text="#{html.entity.userrole.description}"></th>
+													<th th:class="'col-md-' + ${7 - (attestationEnabled ? 2 : 0) - ((attestationEnabled && attestationIntervalYearly) ? 1 : 0)}" th:text="#{html.entity.userrole.description}"></th>
 													<th class="col-md-1" th:text="#{html.control.operations}"></th>
 												</tr>
 											</thead>
-											<tbody> 
+											<tbody>
 												<tr th:each="role : ${userRoles}">
 													<td class="col-md-1"> <!-- Checkbox  useronly-->
 														<div class="checkbox c-checkbox">
@@ -601,6 +620,14 @@
 														<div class="checkbox c-checkbox">
 															<label>
 																<input style="padding-top:2px; padding-bottom:2px" class="canrequest-checkbox" type="checkbox" th:attr="data-roleid=${role.id},checked=${role.canRequest}" data-fieldname="canrequest"/>
+																<span class="fa fa-check"></span>
+															</label>
+														</div>
+													</td>
+													<td class="col-md-1" th:if="${attestationEnabled} and ${@settingsService.getScheduledAttestationInterval() == T(dk.digitalidentity.rc.dao.model.enums.CheckupIntervalEnum).YEARLY}">
+														<div class="checkbox c-checkbox">
+															<label>
+																<input style="padding-top:2px; padding-bottom:2px" class="extra-sensitive-checkbox" type="checkbox" th:attr="data-roleid=${role.id},checked=${role.extraSensitiveRole}" data-fieldname="extra-sensitive" />
 																<span class="fa fa-check"></span>
 															</label>
 														</div>
@@ -991,6 +1018,7 @@
 			$('.canrequest-checkbox').change(handleUserroleChange);
 			$('.useronly-checkbox').change(handleUserroleChange);
 			$('.sensitive-checkbox').change(handleUserroleChange);
+			$('.extra-sensitive-checkbox').change(handleUserroleChange);
 			$(".roleAssignmentAttestationByAttestationResponsible-checkbox").change(handleUserroleChange);
 			$("#selectedAttestationResponsibleUuid").change(itSystemService.handleChangeOnInputAttestationResponsible);
 			$("#selectedSystemOwnerUuid").change(itSystemService.handleChangeOnInputSystemOwner);
@@ -1005,6 +1033,9 @@
 
 				$('.sensitive-checkbox').off('change');
 				$('.sensitive-checkbox').change(handleUserroleChange);
+
+				$('.extra-sensitive-checkbox').off('change');
+				$('.extra-sensitive-checkbox').change(handleUserroleChange);
 
 				$(".roleAssignmentAttestationByAttestationResponsible-checkbox").off('change');
 				$(".roleAssignmentAttestationByAttestationResponsible-checkbox").change(handleUserroleChange);

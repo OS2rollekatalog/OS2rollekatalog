@@ -63,10 +63,13 @@ public class AttestationAdminController {
     @Transactional
     @GetMapping(value = "/ui/attestation/v2/admin/details/{attestationId}")
     public String ouDetails(final Model model, final @PathVariable("attestationId") Long attestationId) {
-        final Attestation attestation = attestationAdminService.getAttestation(attestationId).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
-        final AdminAttestationDetailsDTO attestationDetails = attestationAdminService.findAttestationDetails(attestation);
-        model.addAttribute("attestationDetails", attestationDetails);
-        model.addAttribute("color", adminColorForOverview(attestation, attestationDetails.getOverview()));
+        final AdminAttestationDetailsDTO attestationDetails = manualTransactionService.doInReadOnlyTransaction(() -> {
+            final Attestation attestation = attestationAdminService.getAttestation(attestationId).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
+            final AdminAttestationDetailsDTO details = attestationAdminService.findAttestationDetails(attestation);
+            model.addAttribute("attestationDetails", details);
+            model.addAttribute("color", adminColorForOverview(attestation, details.getOverview()));
+            return details;
+        });
         if (attestationDetails.getAttestationType() == Attestation.AttestationType.IT_SYSTEM_ROLES_ATTESTATION) {
             return "attestationmodule/admin/details_roles";
         }

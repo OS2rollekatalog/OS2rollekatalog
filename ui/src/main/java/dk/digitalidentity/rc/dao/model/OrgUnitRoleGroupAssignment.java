@@ -1,10 +1,13 @@
 package dk.digitalidentity.rc.dao.model;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import dk.digitalidentity.rc.dao.model.enums.ContainsTitles;
 import dk.digitalidentity.rc.dao.serializer.LocalDateAttributeConverter;
 import jakarta.persistence.Column;
 import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -80,5 +83,7 @@ public class OrgUnitRoleGroupAssignment {
 	public boolean containsExceptedUsers;
 	
 	@Column
-	public boolean containsTitles;
+	@Enumerated(EnumType.ORDINAL)
+	//Default value allows for documentations test to run unchanged since ContainsTitle changed to enum
+	public ContainsTitles containsTitles = ContainsTitles.NO;
 }

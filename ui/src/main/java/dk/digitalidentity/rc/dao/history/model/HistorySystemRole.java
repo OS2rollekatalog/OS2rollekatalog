@@ -26,6 +26,9 @@ public class HistorySystemRole {
 
 	@Column
 	private String systemRoleDescription;
+
+	@Column
+	private long weight;
 	
 	@BatchSize(size = 50)
 	@ManyToOne(fetch = FetchType.LAZY)

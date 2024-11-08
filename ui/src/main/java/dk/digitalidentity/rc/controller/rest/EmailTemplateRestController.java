@@ -109,7 +109,7 @@ public class EmailTemplateRestController {
 			return false;
 		}
 
-		return currentRun.get().getDeadline().minusDays(validDays).isAfter(LocalDate.now());
+		return currentRun.get().getDeadline().minusDays(validDays).isBefore(LocalDate.now());
 	}
 
 
@@ -174,6 +174,9 @@ public class EmailTemplateRestController {
 		String LAST_3_BYTE_UTF_CHAR = "\uFFFF";
 		String REPLACEMENT_CHAR = "\uFFFD";
 		String message = emailTemplateDTO.getMessage();
+		if (message == null) {
+			return;
+		}
 		final int length = message.length();
 		StringBuilder builder = new StringBuilder(length);
 		for (int offset = 0; offset < length; ) {

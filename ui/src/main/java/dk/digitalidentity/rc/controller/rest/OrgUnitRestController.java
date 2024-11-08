@@ -6,8 +6,10 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
+import dk.digitalidentity.rc.dao.model.enums.ContainsTitles;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpStatus;
@@ -179,6 +181,7 @@ public class OrgUnitRestController {
 			@RequestParam(name = "inherit", required = false, defaultValue = "false") boolean inherit,
 			@RequestParam(name = "startDate", required = false) String startDateStr,
 			@RequestParam(name = "stopDate", required = false) String stopDateStr,
+			@RequestParam(name = "negativeAssignment", required = false, defaultValue = "false") boolean negativeAssignment,
 			@RequestBody StringArrayWrapper payload) {
 		OrgUnit ou = orgUnitService.getByUuid(uuid);
 		UserRole role = userRoleService.getById(roleId);
@@ -209,7 +212,7 @@ public class OrgUnitRestController {
 			}
 		}
 
-		orgUnitService.addUserRole(ou, role, inherit, startDate, stopDate, (payload != null ? payload.getExceptedUserUuids() : null),(payload != null ? payload.getTitleUuids() : null));
+		orgUnitService.addUserRole(ou, role, inherit, startDate, stopDate, (payload != null ? payload.getExceptedUserUuids() : null),(payload != null ? payload.getTitleUuids() : null), (payload != null && negativeAssignment));
 		orgUnitService.save(ou);
 
 		return new ResponseEntity<>(HttpStatus.OK);
@@ -222,6 +225,7 @@ public class OrgUnitRestController {
 			@RequestParam(name = "inherit", required = false, defaultValue = "false") boolean inherit,
 			@RequestParam(name = "startDate", required = false) String startDateStr,
 			@RequestParam(name = "stopDate", required = false) String stopDateStr,
+			@RequestParam(name = "negativeAssignment", required = false, defaultValue = "false") boolean negativeAssignment,
 			@RequestBody StringArrayWrapper payload) {
 
 		OrgUnit ou = orgUnitService.getByUuid(uuid);
@@ -261,7 +265,7 @@ public class OrgUnitRestController {
 			}
 		}
 
-		if (orgUnitService.updateUserRoleAssignment(ou, assignment, inherit, startDate, stopDate, (payload != null ? payload.getExceptedUserUuids() : null), (payload != null ? payload.getTitleUuids(): null))) {
+		if (orgUnitService.updateUserRoleAssignment(ou, assignment, inherit, startDate, stopDate, (payload != null ? payload.getExceptedUserUuids() : null), (payload != null ? payload.getTitleUuids(): null), (payload != null && negativeAssignment))) {
 			orgUnitService.save(ou);
 		}
 
@@ -319,6 +323,7 @@ public class OrgUnitRestController {
 			@RequestParam(name = "inherit", required = false, defaultValue = "false") boolean inherit,
 			@RequestParam(name = "startDate", required = false) String startDateStr,
 			@RequestParam(name = "stopDate", required = false) String stopDateStr,
+			@RequestParam(name = "negativeAssignment", required = false, defaultValue = "false") boolean negativeAssignment,
 			@RequestBody StringArrayWrapper payload) {
 		
 		OrgUnit ou = orgUnitService.getByUuid(uuid);
@@ -346,7 +351,7 @@ public class OrgUnitRestController {
 			}
 		}
 
-		orgUnitService.addRoleGroup(ou, roleGroup, inherit, startDate, stopDate, (payload != null ? payload.getExceptedUserUuids() : null),(payload != null ? payload.getTitleUuids() : null));
+		orgUnitService.addRoleGroup(ou, roleGroup, inherit, startDate, stopDate, (payload != null ? payload.getExceptedUserUuids() : null),(payload != null ? payload.getTitleUuids() : null), (payload != null && negativeAssignment));
 		orgUnitService.save(ou);
 
 		return new ResponseEntity<>(HttpStatus.OK);
@@ -359,6 +364,7 @@ public class OrgUnitRestController {
 			@RequestParam(name = "inherit", required = false, defaultValue = "false") boolean inherit,
 			@RequestParam(name = "startDate", required = false) String startDateStr,
 			@RequestParam(name = "stopDate", required = false) String stopDateStr,
+			@RequestParam(name = "negativeAssignment", required = false, defaultValue = "false") boolean negativeAssignment,
 			@RequestBody StringArrayWrapper payload) {
 		OrgUnit ou = orgUnitService.getByUuid(uuid);
 
@@ -389,7 +395,7 @@ public class OrgUnitRestController {
 			}
 		}
 
-		if (orgUnitService.updateRoleGroupAssignment(ou, assignment, inherit, startDate, stopDate, (payload != null ? payload.getExceptedUserUuids() : null), (payload != null ? payload.getTitleUuids(): null))) {
+		if (orgUnitService.updateRoleGroupAssignment(ou, assignment, inherit, startDate, stopDate, (payload != null ? payload.getExceptedUserUuids() : null), (payload != null ? payload.getTitleUuids(): null), (payload != null && negativeAssignment))) {
 			orgUnitService.save(ou);
 		}
 
@@ -424,12 +430,58 @@ public class OrgUnitRestController {
 		}
 		
 		List<OrgUnitUserRoleAssignment> titlesAssignedToOuWithUserRole = ou.getUserRoleAssignments().stream()
+				.filter(ura -> ura.getContainsTitles() == ContainsTitles.POSITIVE)
 				.filter(ura -> ura.getId() == roleAssignmentId)
-				.collect(Collectors.toList());
+				.toList();
 		
 		List<String> titleUuids = titlesAssignedToOuWithUserRole.stream()
 				.flatMap(ura -> ura.getTitles().stream())
-				.map(Title::getUuid).collect(Collectors.toList());
+				.map(Title::getUuid)
+				.toList();
+
+		return new ResponseEntity<>(titleUuids, HttpStatus.OK);
+	}
+
+	@RequireAssignerRole
+	@GetMapping("/rest/ous/{uuid}/role/{assignmentId}/negativetitles")
+	public ResponseEntity<List<String>> getNegativeRoleOus(@PathVariable("uuid") String uuid, @PathVariable("assignmentId") long roleAssignmentId) {
+		OrgUnit ou = orgUnitService.getByUuid(uuid);
+		if (ou == null) {
+			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+		}
+
+		List<OrgUnitUserRoleAssignment> titlesAssignedToOuWithUserRole = ou.getUserRoleAssignments().stream()
+				.filter(ura -> ura.getContainsTitles() == ContainsTitles.NEGATIVE)
+				.filter(Predicate.not(OrgUnitUserRoleAssignment::isInherit))
+				.filter(ura -> ura.getId() == roleAssignmentId)
+				.toList();
+
+		List<String> titleUuids = titlesAssignedToOuWithUserRole.stream()
+				.flatMap(ura -> ura.getTitles().stream())
+				.map(Title::getUuid)
+				.toList();
+
+		return new ResponseEntity<>(titleUuids, HttpStatus.OK);
+	}
+
+	@RequireAssignerRole
+	@GetMapping("/rest/ous/{uuid}/role/{assignmentId}/negativeinheritedtitles")
+	public ResponseEntity<List<String>> getNegativeInheritedRoleOus(@PathVariable("uuid") String uuid, @PathVariable("assignmentId") long roleAssignmentId) {
+		OrgUnit ou = orgUnitService.getByUuid(uuid);
+		if (ou == null) {
+			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+		}
+
+		List<OrgUnitUserRoleAssignment> titlesAssignedToOuWithUserRole = ou.getUserRoleAssignments().stream()
+				.filter(ura -> ura.getContainsTitles() == ContainsTitles.NEGATIVE)
+				.filter(OrgUnitUserRoleAssignment::isInherit)
+				.filter(ura -> ura.getId() == roleAssignmentId)
+				.toList();
+
+		List<String> titleUuids = titlesAssignedToOuWithUserRole.stream()
+				.flatMap(ura -> ura.getTitles().stream())
+				.map(Title::getUuid)
+				.toList();
 
 		return new ResponseEntity<>(titleUuids, HttpStatus.OK);
 	}
@@ -440,12 +492,10 @@ public class OrgUnitRestController {
     	if (ou == null) {
     		return new ResponseEntity<>(HttpStatus.NOT_FOUND);
     	}
-    	
-    	boolean titlesEnabled = configuration.getTitles().isEnabled();
-    	if (titlesEnabled) {
-			List<Title> titles = orgUnitService.getTitles(ou);
 
-			List<TitleListForm> titleForms = titles
+		if (configuration.getTitles().isEnabled()) {
+
+			List<TitleListForm> titleForms = orgUnitService.getContainsTitlesForOrgUnit(ou, ContainsTitles.POSITIVE)
 					.stream()
 					.map(title -> new TitleListForm(title, false))
 					.collect(Collectors.toList());
@@ -478,6 +528,92 @@ public class OrgUnitRestController {
 			return new ResponseEntity<>(null, HttpStatus.OK);
 		}
     }
+
+	@GetMapping(value = "/rest/ous/negativetitles/{uuid}")
+	public ResponseEntity<List<TitleListForm>> getNegativeTitlesFromOU(@PathVariable("uuid") String uuid) {
+		OrgUnit ou = orgUnitService.getByUuid(uuid);
+		if (ou == null) {
+			return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+		}
+
+		if (configuration.getTitles().isEnabled()) {
+
+			List<TitleListForm> titleForms = orgUnitService.getContainsTitlesAndInheritanceForOrgUnit(ou, ContainsTitles.NEGATIVE, false)
+					.stream()
+					.map(title -> new TitleListForm(title, false))
+					.collect(Collectors.toList());
+
+			List<String> titleFormsUuids = titleForms.stream().map(TitleListForm::getId).toList();
+			titleForms.addAll(ou.getTitles().stream().filter(t -> !titleFormsUuids.contains(t.getUuid())).map(t -> new TitleListForm(t, true)).toList());
+
+			// add titles without positions if they are used for assignments
+			List<String> newTitleFormsUuids = titleForms.stream().map(TitleListForm::getId).collect(Collectors.toList());
+			for (OrgUnitUserRoleAssignment userRoleAssignment : ou.getUserRoleAssignments()) {
+				for (Title title : userRoleAssignment.getTitles()) {
+					if (!newTitleFormsUuids.contains(title.getUuid())) {
+						titleForms.add(new TitleListForm(title, false, true));
+						newTitleFormsUuids.add(title.getUuid());
+					}
+				}
+			}
+			for (OrgUnitRoleGroupAssignment roleGroupAssignment : ou.getRoleGroupAssignments()) {
+				for (Title title : roleGroupAssignment.getTitles()) {
+					if (!newTitleFormsUuids.contains(title.getUuid())) {
+						titleForms.add(new TitleListForm(title, false, true));
+						newTitleFormsUuids.add(title.getUuid());
+					}
+				}
+			}
+
+			return new ResponseEntity<>(titleForms, HttpStatus.OK);
+		}
+		else {
+			return new ResponseEntity<>(null, HttpStatus.OK);
+		}
+	}
+
+	@GetMapping(value = "/rest/ous/negativeinheritedtitles/{uuid}")
+	public ResponseEntity<List<TitleListForm>> getNegativeInheritedTitlesFromOU(@PathVariable("uuid") String uuid) {
+		OrgUnit ou = orgUnitService.getByUuid(uuid);
+		if (ou == null) {
+			return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+		}
+
+		if (configuration.getTitles().isEnabled()) {
+
+			List<TitleListForm> titleForms = orgUnitService.getContainsTitlesAndInheritanceForOrgUnit(ou, ContainsTitles.NEGATIVE, true)
+					.stream()
+					.map(title -> new TitleListForm(title, false))
+					.collect(Collectors.toList());
+
+			List<String> titleFormsUuids = titleForms.stream().map(TitleListForm::getId).toList();
+			titleForms.addAll(ou.getTitles().stream().filter(t -> !titleFormsUuids.contains(t.getUuid())).map(t -> new TitleListForm(t, true)).toList());
+
+			// add titles without positions if they are used for assignments
+			List<String> newTitleFormsUuids = titleForms.stream().map(TitleListForm::getId).collect(Collectors.toList());
+			for (OrgUnitUserRoleAssignment userRoleAssignment : ou.getUserRoleAssignments()) {
+				for (Title title : userRoleAssignment.getTitles()) {
+					if (!newTitleFormsUuids.contains(title.getUuid())) {
+						titleForms.add(new TitleListForm(title, false, true));
+						newTitleFormsUuids.add(title.getUuid());
+					}
+				}
+			}
+			for (OrgUnitRoleGroupAssignment roleGroupAssignment : ou.getRoleGroupAssignments()) {
+				for (Title title : roleGroupAssignment.getTitles()) {
+					if (!newTitleFormsUuids.contains(title.getUuid())) {
+						titleForms.add(new TitleListForm(title, false, true));
+						newTitleFormsUuids.add(title.getUuid());
+					}
+				}
+			}
+
+			return new ResponseEntity<>(titleForms, HttpStatus.OK);
+		}
+		else {
+			return new ResponseEntity<>(null, HttpStatus.OK);
+		}
+	}
 	
 	@RequireAssignerRole
 	@GetMapping("/rest/ous/{uuid}/rolegroup/{assignmentId}/titles")
@@ -488,12 +624,58 @@ public class OrgUnitRestController {
 		}
 
 		List<OrgUnitRoleGroupAssignment> titlesAssignedToOuWithRoleGroup = ou.getRoleGroupAssignments().stream()
+				.filter(rga -> rga.getContainsTitles() == ContainsTitles.POSITIVE)
 				.filter(rga -> rga.getId() == assignmentId)
-				.collect(Collectors.toList());
+				.toList();
 		
 		List<String> titleUuids = titlesAssignedToOuWithRoleGroup.stream()
 				.flatMap(ura -> ura.getTitles().stream())
-				.map(Title::getUuid).collect(Collectors.toList());
+				.map(Title::getUuid)
+				.toList();
+
+		return new ResponseEntity<>(titleUuids, HttpStatus.OK);
+	}
+
+	@RequireAssignerRole
+	@GetMapping("/rest/ous/{uuid}/rolegroup/{assignmentId}/negativetitles")
+	public ResponseEntity<List<String>> getNegativeRoleGroupOus(@PathVariable("uuid") String uuid, @PathVariable("assignmentId") long assignmentId) {
+		OrgUnit ou = orgUnitService.getByUuid(uuid);
+		if (ou == null) {
+			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+		}
+
+		List<OrgUnitRoleGroupAssignment> titlesAssignedToOuWithRoleGroup = ou.getRoleGroupAssignments().stream()
+				.filter(rga -> rga.getContainsTitles() == ContainsTitles.NEGATIVE)
+				.filter(Predicate.not(OrgUnitRoleGroupAssignment::isInherit))
+				.filter(rga -> rga.getId() == assignmentId)
+				.toList();
+
+		List<String> titleUuids = titlesAssignedToOuWithRoleGroup.stream()
+				.flatMap(ura -> ura.getTitles().stream())
+				.map(Title::getUuid)
+				.toList();
+
+		return new ResponseEntity<>(titleUuids, HttpStatus.OK);
+	}
+
+	@RequireAssignerRole
+	@GetMapping("/rest/ous/{uuid}/rolegroup/{assignmentId}/negativeinheritedtitles")
+	public ResponseEntity<List<String>> getNegativeInheritedRoleGroupOus(@PathVariable("uuid") String uuid, @PathVariable("assignmentId") long assignmentId) {
+		OrgUnit ou = orgUnitService.getByUuid(uuid);
+		if (ou == null) {
+			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+		}
+
+		List<OrgUnitRoleGroupAssignment> titlesAssignedToOuWithRoleGroup = ou.getRoleGroupAssignments().stream()
+				.filter(rga -> rga.getContainsTitles() == ContainsTitles.NEGATIVE)
+				.filter(OrgUnitRoleGroupAssignment::isInherit)
+				.filter(rga -> rga.getId() == assignmentId)
+				.toList();
+
+		List<String> titleUuids = titlesAssignedToOuWithRoleGroup.stream()
+				.flatMap(ura -> ura.getTitles().stream())
+				.map(Title::getUuid)
+				.toList();
 
 		return new ResponseEntity<>(titleUuids, HttpStatus.OK);
 	}

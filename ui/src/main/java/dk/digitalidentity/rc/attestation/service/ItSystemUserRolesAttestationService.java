@@ -59,7 +59,7 @@ public class ItSystemUserRolesAttestationService {
         final LocalDate since = LocalDate.now().minusMonths(1);
         attestationDao.findByAttestationTypeAndDeadlineIsGreaterThanEqual(Attestation.AttestationType.IT_SYSTEM_ROLES_ATTESTATION, since).stream()
                 .filter(a -> a.getVerifiedAt() == null)
-                .filter(a -> isItSystemUserRoleAttestationDone(a.getCreatedAt(), a))
+                .filter(a -> isItSystemUserRoleAttestationDone(a))
                 .forEach(a -> {
                     a.setVerifiedAt(ZonedDateTime.now());
                     log.warn("Attestation finished but not verified, id: {}", a.getId());
@@ -116,7 +116,7 @@ public class ItSystemUserRolesAttestationService {
                 .remarks(null)
                 .build());
         attestation.getItSystemUserRoleAttestationEntries().add(attachedUserRoleAttestation);
-        if (isItSystemUserRoleAttestationDone(when, attestation)) {
+        if (isItSystemUserRoleAttestationDone(attestation)) {
             attestation.setVerifiedAt(ZonedDateTime.now());
         }
     }
@@ -137,7 +137,7 @@ public class ItSystemUserRolesAttestationService {
                 .remarks(remarks)
                 .build());
         attestation.getItSystemUserRoleAttestationEntries().add(attachedUserRoleAttestation);
-        if (isItSystemUserRoleAttestationDone(when, attestation)) {
+        if (isItSystemUserRoleAttestationDone(attestation)) {
             attestation.setVerifiedAt(ZonedDateTime.now());
         }
 
@@ -147,7 +147,7 @@ public class ItSystemUserRolesAttestationService {
             Optional<UserRole> userRole = userRoleService.getByItSystem(itSystem).stream()
                     .filter(r -> r.getId() == userRoleId)
                     .findFirst();
-            userRole.ifPresent(role -> notificationService.sendRequestForRoleChange(userNameAndID(performingUser), role.getName(), itSystem.getName()));
+            userRole.ifPresent(role -> notificationService.sendRequestForRoleChange(userNameAndID(performingUser), role.getName(), itSystem.getName(), remarks));
         }
     }
 
@@ -162,8 +162,8 @@ public class ItSystemUserRolesAttestationService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Attestation not found"));
     }
 
-    private boolean isItSystemUserRoleAttestationDone(final LocalDate when, final Attestation attestation) {
-        List<AttestationSystemRoleAssignment> attestations = attestationSystemRoleAssignmentDAO.listValidAttestationsByResponsibleUser(when, attestation.getResponsibleUserUuid());
+    private boolean isItSystemUserRoleAttestationDone(final Attestation attestation) {
+        List<AttestationSystemRoleAssignment> attestations = attestationSystemRoleAssignmentDAO.listValidAttestationsByResponsibleUser(attestation.getCreatedAt(), attestation.getResponsibleUserUuid());
         if (hasAllRoleAssignmentAttestationsBeenPerformed(attestation, attestations.stream(), p -> p.getItSystemId() == attestation.getItSystemId())) {
             return true;
         }

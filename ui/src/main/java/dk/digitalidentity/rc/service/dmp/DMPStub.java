@@ -49,7 +49,7 @@ public class DMPStub {
 	@Autowired
 	private DMPStub self;
 	
-	@Cacheable("token")
+	@Cacheable("dmp-token")
 	public String fetchToken() {
 		String url = config.getIntegrations().getDmp().getTokenUrl();
 		String accessToken = null;
@@ -76,7 +76,7 @@ public class DMPStub {
 		return accessToken;
 	}
 	
-	@CacheEvict(value = "token", allEntries = true)
+	@CacheEvict(value = "dmp-token", allEntries = true)
 	public void cleanUpToken() {
 		;
 	}

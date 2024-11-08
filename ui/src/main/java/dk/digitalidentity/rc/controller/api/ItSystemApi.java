@@ -306,7 +306,7 @@ public class ItSystemApi {
 			}
 
 			if (!user.getUserRoleAssignments().stream().anyMatch(ura -> ura.getUserRole().getId() == userRole.getId())) {
-				userService.addUserRole(user, userRole, null, null);
+				userService.addUserRole(user, userRole, null, null, null);
 			}
 		}
 

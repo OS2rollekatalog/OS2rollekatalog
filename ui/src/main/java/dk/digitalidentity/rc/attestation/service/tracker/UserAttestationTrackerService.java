@@ -9,6 +9,7 @@ import dk.digitalidentity.rc.attestation.model.entity.AttestationRun;
 import dk.digitalidentity.rc.attestation.model.entity.AttestationUser;
 import dk.digitalidentity.rc.attestation.model.entity.temporal.AttestationOuRoleAssignment;
 import dk.digitalidentity.rc.attestation.model.entity.temporal.AttestationUserRoleAssignment;
+import dk.digitalidentity.rc.attestation.service.AttestationCachedItSystemService;
 import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
 import dk.digitalidentity.rc.dao.OrgUnitDao;
 import dk.digitalidentity.rc.dao.UserDao;
@@ -59,6 +60,8 @@ public class UserAttestationTrackerService {
     private OrgUnitDao orgUnitDao;
     @Autowired
     private UserDao userDao;
+    @Autowired
+    private AttestationCachedItSystemService cachedItSystemService;
 
     @PersistenceContext
     private EntityManager entityManager;
@@ -97,15 +100,17 @@ public class UserAttestationTrackerService {
             // We should create attestation for all ou assignments that are not inherited.
             ouAssignmentsDao.findValidGroupByResponsibleOuUuidAndSensitiveRole(when).stream()
                     .filter(a -> !exemptedOus.contains(a.getResponsibleOuUuid()))
+                    .filter(a -> !cachedItSystemService.isItSystemExempt(a.getItSystemId()))
                     .forEach(a -> ensureWeHaveOrganisationAttestationForOu(run, a, when));
 
             userRoleAssignmentDao.findValidGroupByResponsibleOuAndUserUuidAndSensitiveRole(when).stream()
                     // DO not create attestation for OUs that have been exempt in settings
                     .filter(a -> !exemptedOus.contains(a.getResponsibleOuUuid()))
                     .filter(a -> !a.isInherited())
+                    .filter(a -> !cachedItSystemService.isItSystemExempt(a.getItSystemId()))
                     .forEach(a -> ensureWeHaveOrganisationAttestationFor(run, a, when));
 
-            if (settingsService.isADAttestationEnabled() && !run.isSensitive() && !run.isSuperSensitive()) {
+            if (settingsService.isADAttestationEnabled() && !run.isSensitive() && !run.isExtraSensitive()) {
                 // If AD attestation is enabled we want to make sure all org units with employees have attestations
                 userDao.findByDeletedFalse().stream()
                         .filter(u -> !u.isDisabled())
@@ -242,7 +247,7 @@ public class UserAttestationTrackerService {
     private void ensureWeHaveOrganisationAttestationFor(final AttestationRun run,
                                                         final String responsibleOuUuid,
                                                         final LocalDate when) {
-        if (run.isSensitive() || run.isSuperSensitive()) {
+        if (run.isSensitive() || run.isExtraSensitive()) {
             // This method creates a OU attestation event though there is no role assignment, this is
             // used when AD attestation is enabled an all OUs should be attestated.
             // So we NEVER wants this to happen for sensitive runs.

@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head th:replace="~{fragments/header :: header (title=#{html.page.requests.title})}"></head>
-<body>
+<body class="layout-fixed">
 	<div class="wrapper">
 		<header th:replace="~{fragments/navbar :: navbar-header(subpage = 'roles')}"></header>
 		<aside th:replace="~{fragments/navbar :: navbar-aside (page = 'authorizationmanager', subpage = 'roles')}"></aside>
@@ -118,14 +118,13 @@
 				confirmButtonColor : "#4765a0",
 				confirmButtonText : confirmTxt,
 				cancelButtonText : cancelTxt,
-				closeOnConfirm : true,
+				closeOnConfirm : false,
 				closeOnCancel : true
 			},
 			function (reason) {
 				if (reason === false) {
-					; // cancelled window
-				}
-				else {
+					swal.close(); // cancelled window
+				} else {
 					if (!reason) {
 					    swal.showInputError("Angiv en årsag for afvisningen");
 					    return false;
@@ -140,6 +139,7 @@
 							url: rejectUrl + id,
 							success: function() {
 								window.location.href = listUrl;
+								swal.close(); // cancelled window
 							},
 							error: defaultErrorHandler
 						});

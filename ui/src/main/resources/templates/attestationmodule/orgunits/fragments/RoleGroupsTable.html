@@ -31,6 +31,12 @@
                             <li th:each="exceptedUser : ${roleGroup.exceptedUsers}" th:text="${exceptedUser.name} + ' (' + ${exceptedUser.userId} + ')'"></li>
                         </ul>
                     </div>
+                    <div th:if="${orgUnitAssignments && !#lists.isEmpty(roleGroup.exceptedTitles)}">
+                        <b th:text="#{attestationmodule.html.orgunits.attestate.user.tabs.roles.roleGroups.negativeTitles}"></b>
+                        <ul>
+                            <li th:each="exceptedTitle : ${roleGroup.exceptedTitles}" th:text="${exceptedTitle}"></li>
+                        </ul>
+                    </div>
                     <b th:text="#{attestationmodule.html.orgunits.attestate.user.tabs.roles.roleGroups.userRoles}"></b>
                     <div th:each="userRole : ${roleGroup.userRoles}" class="m-t-sm">
                         <div class="expandable active">

@@ -13,7 +13,7 @@ public interface TitleDao extends CrudRepository<Title, String>, JpaSpecificatio
 	// not really deprecated, but findAll() should only be used when we want
 	// to access entities that have been deleted, so this is used as a warning
 	// to the developer
-	@Deprecated
+	//@Deprecated
 	List<Title> findAll();
 
 	List<Title> getByActiveTrue();

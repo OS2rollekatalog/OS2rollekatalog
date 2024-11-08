@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head th:replace="~{fragments/header :: header (title=#{html.page.report.full.title})}"></head>
-<body>
+<body class="layout-fixed">
 	<div class="wrapper">
 		<header th:replace="~{fragments/navbar :: navbar-header(subpage = 'reports')}"></header>
 		<aside th:replace="~{fragments/navbar :: navbar-aside (page = 'report.full', subpage = 'reports')}"></aside>
@@ -75,6 +75,19 @@
 									<div class="checkbox c-checkbox">
 										<label>
 											<input id="UserRolesColumnCheckbox" type="checkbox" th:attr="checked=${reportForm.showUserRoles}" onchange="columnService.columnChoiceTrigger(this, 'ShowUserRoles')"/>
+											<span class="fa fa-check"></span>
+										</label>
+									</div>
+								</div>
+							</div>
+
+							<div class="form-group" style="margin-bottom: 20px">
+								<input class="column-choice" id="realShowNegativeRoles" th:field="*{showNegativeRoles}" type="hidden">
+								<label class="col-sm-3 control-label" th:text="#{html.page.report.column.negativeroles}"></label>
+								<div class="col-sm-9">
+									<div class="checkbox c-checkbox">
+										<label>
+											<input id="NegativeColumnCheckbox" type="checkbox" th:attr="checked=${reportForm.showNegativeRoles}" onchange="columnService.columnChoiceTrigger(this, 'ShowNegativeRoles')"/>
 											<span class="fa fa-check"></span>
 										</label>
 									</div>
@@ -327,6 +340,7 @@
 					"showUsers": $('#realShowUsers').val(),
 					"showOUs": $('#realShowOUs').val(),
 					"showUserRoles": $('#realShowUserRoles').val(),
+					"showNegativeRoles": $('#realShowNegativeRoles').val(),
 					"showKLE": $('#realShowKLE').val(),
 					"showItSystems": $('#realShowItSystems').val(),
 					"showInactiveUsers": $('#realShowInactiveUsers').val(),

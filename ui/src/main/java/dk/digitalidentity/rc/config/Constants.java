@@ -16,10 +16,12 @@ public class Constants {
 	public static final String ROLE_SUBSTITUTE = "ROLE_SUBSTITUTE";
 	public static final String ROLE_TEMPLATE_ACCESS = "ROLE_TEMPLATE_ACCESS";
 	public static final String ROLE_IT_SYSTEM_RESPONSIBLE = "ROLE_IT_SYSTEM_RESPONSIBLE";
+	public static final String ROLE_AUDITLOG = "ROLE_AUDITLOG";
 
 	// role catalogue IDs for assignables roles
 	public static final String ROLE_ADMINISTRATOR_ID = "http://rollekatalog.dk/administrator";
 	public static final String ROLE_ASSIGNER_ID = "http://rollekatalog.dk/assigner";
+	public static final String ROLE_GLOBAL_ASSIGNER_ID = "http://rollekatalog.dk/global_assigner";
 	public static final String ROLE_READ_ACCESS_ID = "http://rollekatalog.dk/readaccess";
 	public static final String ROLE_KLE_ADMINISTRATOR_ID = "http://rollekatalog.dk/kleadmin";
 	public static final String ROLE_ATTESTATION_ADMINISTRATOR_ID = "http://rollekatalog.dk/attestationadmin";

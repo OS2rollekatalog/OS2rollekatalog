@@ -60,7 +60,7 @@ public class AttestationRunMapper {
                 run.isSensitive(),
                 totalAttestations,
                 finishedAttestations,
-                run.isSuperSensitive(),
+                run.isExtraSensitive(),
                 run.isFinished(),
                 toOuStatusList(ouAttestations),
                 toSystemStatusList(systemAttestations, Collections.emptyList())

@@ -55,6 +55,7 @@ public class ReportRestController {
 		reportTemplate.setShowUsers(reportForm.isShowUsers());
 		reportTemplate.setShowOUs(reportForm.isShowOUs());
 		reportTemplate.setShowUserRoles(reportForm.isShowUserRoles());
+		reportTemplate.setShowNegativeRoles(reportForm.isShowNegativeRoles());
 		reportTemplate.setShowKLE(reportForm.isShowKLE());
 		reportTemplate.setShowItSystems(reportForm.isShowItSystems());
 		reportTemplate.setShowInactiveUsers(reportForm.isShowInactiveUsers());

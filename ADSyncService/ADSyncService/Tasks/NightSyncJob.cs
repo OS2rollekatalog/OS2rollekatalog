@@ -1,4 +1,5 @@
-﻿using Quartz;
+﻿using ADSyncService.Email;
+using Quartz;
 
 namespace ADSyncService
 {
@@ -9,6 +10,7 @@ namespace ADSyncService
 
         private RoleCatalogueStub roleCatalogueStub = new RoleCatalogueStub();
         private ADStub adStub = new ADStub();
+        private EmailService emailService = EmailService.Instance;
 
         public void Execute(IJobExecutionContext context)
         {
@@ -23,6 +25,7 @@ namespace ADSyncService
                 catch (System.Exception ex)
                 {
                     log.Error("Update of it-system groups failed", ex);
+                    emailService.EnqueueMail("Update of it-system groups failed", ex);
                 }
             }
         }

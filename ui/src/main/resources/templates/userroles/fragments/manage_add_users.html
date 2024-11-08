@@ -13,7 +13,10 @@
 
 			<tbody>
 				<tr th:each="user : ${users}">
-					<td th:text="${user.name}"></td>
+					<td >
+						<div th:text="${user.name}"></div>
+						<div th:if="${#lists.contains(alreadyAssignedUUIDs, user.uuid)}" style="font-size: smaller; color: red;">Tildelt</div>
+					</td>
 					<td th:text="${user.userId}"></td>
 					<td>
 						<ul style="list-style: none;">

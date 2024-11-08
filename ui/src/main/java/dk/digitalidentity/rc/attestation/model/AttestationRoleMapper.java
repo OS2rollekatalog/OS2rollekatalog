@@ -60,6 +60,7 @@ public class AttestationRoleMapper {
                         ? AssignedThroughAttestation.valueOf(r.getAssignedThroughType().name())
                         : null)
                 .assignedThroughName(r.getAssignedThroughName())
+                .postponedConstraints(r.getPostponedConstraints())
                 .build();
     }
 

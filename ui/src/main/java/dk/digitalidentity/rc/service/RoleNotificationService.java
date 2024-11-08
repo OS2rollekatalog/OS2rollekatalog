@@ -8,6 +8,7 @@ import java.util.Date;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import dk.digitalidentity.rc.dao.model.enums.ContainsTitles;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -100,7 +101,7 @@ public class RoleNotificationService {
 			}
 			
 			// finding assignments with stopDate within 14 days for titles associated with the OU
-			List<OrgUnitUserRoleAssignment> userRoleAssigments = ou.getUserRoleAssignments().stream().filter(ura->ura.isContainsTitles()).collect(Collectors.toList());
+			List<OrgUnitUserRoleAssignment> userRoleAssigments = ou.getUserRoleAssignments().stream().filter(ura->ura.getContainsTitles() != ContainsTitles.NO).collect(Collectors.toList());
 			for (OrgUnitUserRoleAssignment oura : userRoleAssigments) {
 				if (oura.getStopDate() != null && oura.getStopDate().isBefore(modifiedDate)) {
 					for (Title title : oura.getTitles()) {
@@ -110,7 +111,7 @@ public class RoleNotificationService {
 				}
 			}
 			
-			List<OrgUnitRoleGroupAssignment> roleGroupAssigments = ou.getRoleGroupAssignments().stream().filter(rga->rga.isContainsTitles()).collect(Collectors.toList());
+			List<OrgUnitRoleGroupAssignment> roleGroupAssigments = ou.getRoleGroupAssignments().stream().filter(rga->rga.getContainsTitles() != ContainsTitles.NO).collect(Collectors.toList());
 			for (OrgUnitRoleGroupAssignment orga : roleGroupAssigments) {
 				if (orga.getStopDate() != null && orga.getStopDate().isBefore(modifiedDate)) {
 					for (Title title : orga.getTitles()) {

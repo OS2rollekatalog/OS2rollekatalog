@@ -2,16 +2,21 @@ package dk.digitalidentity.rc.service;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
+import dk.digitalidentity.rc.dao.history.HistoryOUDao;
+import dk.digitalidentity.rc.dao.history.model.HistoryOURoleAssignmentWithNegativeTitles;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.MessageSource;
 import org.springframework.stereotype.Service;
@@ -37,7 +42,9 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 @Service
 public class ReportService {
-    
+	@Autowired
+	private HistoryOUDao historyOUDao;
+
 	@Autowired
 	private MessageSource messageSource;
 
@@ -264,6 +271,119 @@ public class ReportService {
         return result;
 	}
 
+	public List<UserRoleAssignmentReportEntry> getNegativeUserRoleAssignmentReportEntries(
+			Map<String, HistoryUser> users,
+			Map<String, HistoryOU> orgUnits,
+			List<HistoryItSystem> itSystems,
+			Map<String, List<HistoryOURoleAssignmentWithNegativeTitles>> negativeTitleRoleAssignments,
+			Locale locale,
+			boolean showInactiveUsers) {
+
+		List<UserRoleAssignmentReportEntry> result = new ArrayList<>();
+
+        List<HistoryOURoleAssignmentWithNegativeTitles> negativeAssignments = negativeTitleRoleAssignments.values().stream().flatMap(List::stream).toList();
+
+		for (HistoryOU ou : orgUnits.values()) {
+			if (ou.getUsers() == null || ou.getUsers().isEmpty()) {
+				continue;
+			}
+
+			List<HistoryOURoleAssignmentWithNegativeTitles> negativeAssignmentsForOU = negativeAssignments.stream().filter(nt -> uuidOfUnitAndParents(ou, LocalDate.now()).contains(nt.getOuUuid())).toList();
+			if(negativeAssignmentsForOU == null) {
+				continue;
+			}
+			else if (negativeAssignmentsForOU.isEmpty()) {
+				continue;
+			}
+
+			for (HistoryOUUser historyOuUser : ou.getUsers()) {
+				HistoryUser user = users.get(historyOuUser.getUserUuid());
+				if (user == null) {
+					continue;
+				}
+
+				// Skip inactive users if showInactive users = false
+				if (!showInactiveUsers && !user.isUserActive()) {
+					continue;
+				}
+
+				// The users position has doNotInherit set, so the user does not get any roles from this OU.
+				if (historyOuUser.getDoNotInherit()) {
+					continue;
+				}
+
+				List<HistoryOURoleAssignmentWithNegativeTitles> userNegativeTitleAssignments = null;
+				String titleUuid = historyOuUser.getTitleUuid();
+				if (titleUuid != null) {
+					userNegativeTitleAssignments = negativeAssignmentsForOU;
+					if (!userNegativeTitleAssignments.isEmpty()) {
+						userNegativeTitleAssignments = userNegativeTitleAssignments.stream().filter(t -> !t.getTitleUuids().contains(historyOuUser.getTitleUuid())).toList();
+					}
+				}
+
+				// ok, time to generate records
+				long domainId = user.getDomainId();
+				String userName = user.getUserName();
+				String userId = user.getUserUserId();
+				String employeeId = user.getUserExtUuid();
+				boolean userActive = user.isUserActive();
+
+				if (userNegativeTitleAssignments != null) {
+					for (HistoryOURoleAssignmentWithNegativeTitles roleAssignment : userNegativeTitleAssignments) {
+
+						// Get ItSystem by id
+						Optional<HistoryItSystem> first = itSystems.stream().filter(itSystem -> itSystem.getItSystemId() == roleAssignment.getRoleItSystemId()).findFirst();
+						String itSystem = "";
+						if (first.isPresent()) {
+							HistoryItSystem historyItSystem = first.get();
+							itSystem = historyItSystem.getItSystemName();
+						}
+
+						String assignedBy = roleAssignment.getAssignedByName() + " (" + roleAssignment.getAssignedByUserId() + ")";
+						String assignedThroughStr = messageSource.getMessage("xls.role.assigned.trough.type.negativetitle", null, locale) + ": " + (ou.getOuName());
+
+						UserRoleAssignmentReportEntry row = new UserRoleAssignmentReportEntry();
+						row.setDomainId(domainId);
+						row.setUserName(userName);
+						row.setUserId(userId);
+						row.setEmployeeId(employeeId);
+						row.setOrgUnitName(ou.getOuName());
+						row.setOrgUnitUUID(ou.getOuUuid());
+						row.setUserActive(userActive);
+						row.setRoleId(roleAssignment.getRoleId());
+						row.setItSystem(itSystem);
+						row.setAssignedBy(assignedBy);
+						row.setAssignedWhen(roleAssignment.getAssignedWhen());
+						row.setAssignedThrough(assignedThroughStr);
+						row.setStartDate(roleAssignment.getStartDate());
+						row.setStopDate(roleAssignment.getStopDate());
+						result.add(row);
+					}
+				}
+
+			}
+		}
+		return result;
+	}
+
+	private List<String> uuidOfUnitAndParents(HistoryOU ou, LocalDate localDate) {
+		Set<String> uuidSet = new HashSet<>();
+		uuidSet.add(ou.getOuUuid());
+		HistoryOU parent;
+		if(ou.getOuParentUuid() == null || ou.getOuParentUuid().isEmpty()) {
+			return uuidSet.stream().toList();
+		}
+		else{
+			parent = historyOUDao.findFirstByDatoAndOuUuidOrderByIdDesc(localDate, ou.getOuParentUuid());
+		}
+		if(parent != null) {
+			uuidSet.addAll(uuidOfUnitAndParents(parent, localDate));
+		}
+		return uuidSet.stream().toList();
+	}
+
+
+
 	private void addRow(List<HistoryItSystem> itSystems, Locale locale, List<UserRoleAssignmentReportEntry> result,
 						HistoryUser user, HistoryRoleAssignment roleAssignment, HistoryOU ou) {
 		// Get ItSystem by id
@@ -351,6 +471,8 @@ public class ReportService {
 		Map<String, List<HistoryOURoleAssignment>> ouRoleAssignments;
 		Map<String, List<HistoryOURoleAssignmentWithExceptions>> ouRoleAssignmentsWithExceptions;
 		Map<String, List<HistoryRoleAssignment>> userRoleAssignments;
+		Map<String, List<HistoryOURoleAssignmentWithNegativeTitles>> negativeRoleAssignments;
+
 		
 		List<HistoryOUUser> historyOUUsers = orgUnits
 				.entrySet()
@@ -367,12 +489,14 @@ public class ReportService {
 			
 			ouRoleAssignments = historyService.getOURoleAssignments(localDate, itSystemFilter);
 			userRoleAssignments = historyService.getRoleAssignments(localDate, itSystemFilter);
+			negativeRoleAssignments = historyService.getOURoleAssignmentsWithNegativeTitles(localDate, itSystemFilter);
 			titleRoleAssignments = historyService.getOURoleAssignmentsWithTitles(localDate, itSystemFilter);
 			ouRoleAssignmentsWithExceptions = historyService.getOURoleAssignmentsWithExceptions(localDate, itSystemFilter);
 		}
 		else {
 			ouRoleAssignments = historyService.getOURoleAssignments(localDate);
 			userRoleAssignments = historyService.getRoleAssignments(localDate);
+			negativeRoleAssignments = historyService.getOURoleAssignmentsWithNegativeTitles(localDate);
 			titleRoleAssignments = historyService.getOURoleAssignmentsWithTitles(localDate);
 			ouRoleAssignmentsWithExceptions = historyService.getOURoleAssignmentsWithExceptions(localDate);
 		}
@@ -400,6 +524,7 @@ public class ReportService {
 				ouKleAssignments = new HashMap<>();
 				ouRoleAssignments = new HashMap<>();
 				userRoleAssignments = new HashMap<>();
+				negativeRoleAssignments = new HashMap<>();
 			}
 		}
 
@@ -452,6 +577,7 @@ public class ReportService {
 		
 		model.put("users", users);
 		model.put("userRoleAssignments", userRoleAssignments);
+		model.put("negativeRoleAssignments", negativeRoleAssignments);
 		model.put("userKLEAssignments", userKleAssignments);
 		model.put("reportForm", reportForm);
 		model.put("reportService", this);

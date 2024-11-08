@@ -1,4 +1,5 @@
-﻿using System;
+﻿using ADSyncService.Email;
+using System;
 using System.IO;
 using System.Net.Http;
 
@@ -13,6 +14,7 @@ namespace ADSyncService
         private static string domain = Properties.Settings.Default.Domain;
 
         private RoleCatalogueStub roleCatalogueStub = new RoleCatalogueStub();
+        private EmailService emailService = EmailService.Instance;
 
         // has to be the same as the path specified in the log section in appsettings.json minus the file name
         private readonly string logFilePath = "C:/logs/ADSyncService/system.log";
@@ -35,6 +37,7 @@ namespace ADSyncService
                 catch (Exception ex)
                 {
                     log.Error("Failed to upload requested logfile", ex);
+                    emailService.EnqueueMail("Failed to upload requested logfile", ex);
                 }
             }
         }
