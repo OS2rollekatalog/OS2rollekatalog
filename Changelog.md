@@ -1,4 +1,4 @@
-2024.11.06 - Release 2024r4
+2024.12.18 - Release 2024r4
 - [ROL-395](https://os2web.atlassian.net/browse/ROL-395) Auditlog - alt skal logges
 - [ROL-376](https://os2web.atlassian.net/browse/ROL-376) Konfiguration af hvilket felt i AD rollenavne skal importeres fra
 - [ROL-372](https://os2web.atlassian.net/browse/ROL-372) Kan ikke se bruger i oversigt over hvem Jobfunktionsrollen er tildelt
