@@ -27,11 +27,11 @@
 							<a data-toggle="tab" data-tab-type="ou_roles_excepted_users_menu" href="#ou_roles_excepted_users_menu" style="white-space: pre" th:text="#{html.page.ous.edit.tab.exceptedusers}"></a>
 						</li>
 
-						<li>
+						<li th:if="${titles != null and titles.size() > 0}">
 							<a data-toggle="tab" data-tab-type="ou_roles_title_inherited_menu" href="#ou_roles_title_inherited_menu" style="white-space: pre" th:text="#{html.page.ous.edit.tab.excepttitlesinherented}"></a>
 						</li>
 
-						<li>
+						<li th:if="${titles != null and titles.size() > 0}">
 							<a data-toggle="tab" data-tab-type="ou_roles_title_disinherited_menu" href="#ou_roles_title_disinherited_menu" style="white-space: pre" th:text="#{html.page.ous.edit.tab.excepttitlesdisinherented}"></a>
 						</li>
 					</ul>
@@ -70,7 +70,7 @@
 						<div id="ou_roles_excepted_users_menu" class="tab-pane">
 						</div>
 
-						<div id="ou_roles_title_inherited_menu" class="tab-pane">
+						<div id="ou_roles_title_inherited_menu" class="tab-pane"  th:if="${titles != null and titles.size() > 0}">
 							<table id="ou_roles_listTable3" class="table table-striped">
 								<thead>
 								<tr>
@@ -100,7 +100,7 @@
 							</table>
 						</div>
 
-						<div id="ou_roles_title_disinherited_menu" class="tab-pane">
+						<div id="ou_roles_title_disinherited_menu" class="tab-pane"  th:if="${titles != null and titles.size() > 0}"s>
 							<table id="ou_roles_listTable4" class="table table-striped">
 								<thead>
 								<tr>
@@ -202,6 +202,9 @@
 		var loadedEditTitles = [];
 		var loadedNegativeEditTitles = [];
 		var loadedNegativeInheritedEditTitles = [];
+		var selectedNegativeEditTitles = [];
+		var selectedNegativeInheritedEditTitles = [];
+		var selectedExceptedUsers = [];
 
 
 		$(document).ready(function() {
@@ -225,19 +228,10 @@
 
         function CommonService() {
 			this.init = function() {
-
+				let self = this;
 				$("#assignNegativeWithInheritanceButton").hide();
 				$("#assignNegativeWithoutInheritanceButton").hide();
-				fragShowDataTableFun('#ou_roles_listTable3', 0, 10);
-
-				$('#modal-ou').on('shown.bs.modal', function(e) {
-
-					// Add checkboxlisteners to modal
-					commonService.addTitleCheckboxListeners();
-					commonService.addExceptedUsersCheckboxListeners();
-					commonService.addInheritedCheckboxListeners();
-					commonService.addDisinheritedCheckboxListeners();
-				})
+				fragShowDataTableFun('#ou_roles_listTable3', 0, 25);
 
 				// Add change tab event handler
 				$('a[data-toggle="tab"]').on("shown.bs.tab", function (e) {
@@ -250,37 +244,35 @@
 						$("#assignWithExceptionsButton").hide();
 						$("#assignNegativeWithInheritanceButton").hide();
 						$("#assignNegativeWithoutInheritanceButton").hide();
-
-						commonService.handleTitleCheckbox();
 					}
 					else if (tabType == 'ou_roles_excepted_users_menu') {
 						$("#titleAssignTitlesButton").hide();
 						$("#assignWithExceptionsButton").show();
 						$("#assignNegativeWithInheritanceButton").hide();
 						$("#assignNegativeWithoutInheritanceButton").hide();
-
-						commonService.handleExceptedUsersCheckbox();
 					}
 					else if (tabType == 'ou_roles_title_inherited_menu') {
 						$("#titleAssignTitlesButton").hide();
 						$("#assignWithExceptionsButton").hide();
 						$("#assignNegativeWithInheritanceButton").show();
 						$("#assignNegativeWithoutInheritanceButton").hide();
-
-						commonService.handleInheritedCheckbox();
 					}
 					else if (tabType == 'ou_roles_title_disinherited_menu') {
 						$("#titleAssignTitlesButton").hide();
 						$("#assignWithExceptionsButton").hide();
 						$("#assignNegativeWithInheritanceButton").hide();
 						$("#assignNegativeWithoutInheritanceButton").show();
-
-						commonService.handleDisinheritedCheckbox();
 					}
 				});
 			}
 
-			this.addTitleCheckboxListeners = function(){
+			this.setupCheckboxListeners = () => {
+				commonService.addTitleCheckboxListeners();
+				commonService.addInheritedCheckboxListeners();
+				commonService.addDisinheritedCheckboxListeners();
+			}
+
+			this.addTitleCheckboxListeners = function() {
 				// makes sure the title checkboxes on the modal dialogue modifies the underlying datastructure on changes
 				$('.title-checkbox').off("change");
 				$('.title-checkbox').change(commonService.handleTitleCheckbox);
@@ -325,8 +317,14 @@
 			}
 
 			this.handleExceptedUsersCheckbox = function() {
-				var anythingChecked = ($('#ou_roles_listTable2 .exceptedusers-checkbox:checked').length > 0);
+				let dataId = $(this).data('id');
+				if (this.checked) {
+					selectedExceptedUsers.push(dataId);
+				} else {
+					selectedExceptedUsers = selectedExceptedUsers.filter(id => id !== dataId);
+				}
 
+				var anythingChecked = selectedExceptedUsers.length > 0;
 				if (!anythingChecked) {
 					$("#assignWithExceptionsButton").prop('disabled', true);
 					$("#assignAllButton").prop('disabled', false);
@@ -343,8 +341,13 @@
 			}
 
 			this.handleInheritedCheckbox = function() {
-				var anythingChecked = ($('#ou_roles_listTable3 input:checkbox:checked').length > 0);
-
+				let dataId = $(this).data('id');
+				if (this.checked) {
+					selectedNegativeInheritedEditTitles.push(dataId);
+				} else {
+					selectedNegativeInheritedEditTitles = selectedNegativeInheritedEditTitles.filter(id => id !== dataId);
+				}
+				var anythingChecked = selectedNegativeInheritedEditTitles.length > 0;
 				if (!anythingChecked) {
 					$("#assignAllButton").prop('disabled', false);
 					$("#assignWithExceptionsButton").prop('disabled', true);
@@ -360,15 +363,20 @@
 				}
 
 				for (var i = 0; i < loadedNegativeInheritedEditTitles.length; i++) {
-					if (loadedNegativeInheritedEditTitles[i].id == $(this).data('id')) {
+					if (loadedNegativeInheritedEditTitles[i].id == dataId) {
 						loadedNegativeInheritedEditTitles[i].state.checked = this.checked;
 					}
 				}
 			}
 
 			this.handleDisinheritedCheckbox = function() {
-				var anythingChecked = ($('#ou_roles_listTable4 input:checkbox:checked').length > 0);
-
+				let dataId = $(this).data('id');
+				if (this.checked) {
+					selectedNegativeEditTitles.push(dataId);
+				} else {
+					selectedNegativeEditTitles = selectedNegativeEditTitles.filter(id => id !== dataId);
+				}
+				var anythingChecked = selectedNegativeEditTitles.length > 0;
 				if (!anythingChecked) {
 					$("#assignAllButton").prop('disabled', false);
 					$("#assignWithExceptionsButton").prop('disabled', true);
@@ -405,16 +413,10 @@
 
 			// wrapper around assignRole that gets the list of selected excepted users
 			this.handleExceptedRoleAssignment = function() {
-				var exceptedUsers = [];
-				var exceptedUsersChbx = $('#modal-ou .exceptedusers-checkbox:checked');
-				for (var i = 0; i < exceptedUsersChbx.length; i++) {
-					exceptedUsers.push($(exceptedUsersChbx[i]).data('id'));
-				}
-
 				if (commonService.editMode) {
-					ouRolesEditModalService.assignRole(ouRolesEditModalService.roleType, false, ouRolesEditModalService.assignmentId, [], exceptedUsers);
+					ouRolesEditModalService.assignRole(ouRolesEditModalService.roleType, false, ouRolesEditModalService.assignmentId, [], selectedExceptedUsers);
 				} else {
-					ouRolesModalService.assignRole(ouRolesModalService.roleType, false, ouRolesModalService.roleId, [], exceptedUsers);
+					ouRolesModalService.assignRole(ouRolesModalService.roleType, false, ouRolesModalService.roleId, [], selectedExceptedUsers);
 				}
 			}
 
@@ -444,18 +446,12 @@
 
 			this.handleNegativeAssignment = function(inherit) {
 
-				var titleUuids = [];
+				var titleUuids;
 				if(inherit){
-					$('#ou_roles_listTable3 input:checkbox:checked').each(function(index) {
-						titleUuids.push($(this).data('id'));
-					});
+					titleUuids = selectedNegativeInheritedEditTitles;
+				} else {
+					titleUuids = selectedNegativeEditTitles;
 				}
-				else{
-					$('#ou_roles_listTable4 input:checkbox:checked').each(function(index) {
-						titleUuids.push($(this).data('id'));
-					});
-				}
-
 
 				if (commonService.editMode) {
 					ouRolesEditModalService.assignRole(ouRolesEditModalService.roleType, inherit, ouRolesEditModalService.assignmentId, titleUuids, [], true);
@@ -476,12 +472,22 @@
 				$('#modal-ou .tab-content').show();
 				commonService.editMode = false;
 
+				selectedNegativeInheritedEditTitles = [];
+				selectedNegativeEditTitles = [];
+				selectedExceptedUsers = [];
+
 				// Fetch possible excepted users for this OU
 				var url = commonService.uiUrl + "users/" + ouRolesModalService.ouUuid;
 				$("#ou_roles_excepted_users_menu").load(url, function() {
-					fragShowDataTableFun('#ou_roles_listTable2', 0, 10);
+					fragShowDataTableFun('#ou_roles_listTable2', 0, 25);
+
+					// add listeners
+					commonService.addExceptedUsersCheckboxListeners();
+					$('#ou_roles_listTable2').on('draw.dt', function(e) {
+						commonService.addExceptedUsersCheckboxListeners();
+					})
 				});
-				
+
 				if (titlesEnabled) {
 					$('.title-checkbox').removeAttr('checked');
 					$('a[data-toggle="tab"][href="#ou_roles_title_menu"]').tab('show');
@@ -495,10 +501,14 @@
 					$("#assignWithExceptionsButton").show();
 				}
 
-				commonService.handleTitleCheckbox();
-				commonService.handleExceptedUsersCheckbox();
-				commonService.handleInheritedCheckbox();
-				commonService.handleDisinheritedCheckbox();
+				// remove old event listeners from all tables but the excepted users table
+				$('#modal-ou .table:not(#ou_roles_listTable2)').off();
+
+				// add listeners now and e.g on page change (draw) for the tables
+				commonService.setupCheckboxListeners();
+				$('#modal-ou .table:not(#ou_roles_listTable2)').on('draw.dt', function(e) {
+					commonService.setupCheckboxListeners();
+				})
 
 				$("#titleInheritButton").show();
 				$("#ouRolesModalHeader").text(ouRolesModalService.header);
@@ -691,6 +701,9 @@
 				$('#modal-ou #dataTabs').show();
 				$('#modal-ou .tab-content').show();
 				commonService.editMode = true;
+				selectedNegativeInheritedEditTitles = [];
+				selectedNegativeEditTitles = [];
+				selectedExceptedUsers = [];
 
 				// Clear old title selection (including negative titles)
 				if (titlesEnabled) {
@@ -704,10 +717,24 @@
 				// Fetch excepted users (if any), and check checkboxes
 				var url = commonService.uiUrl + ouRolesEditModalService.roleType + "/exceptedusers2/" + ouRolesEditModalService.ouUuid + "/" + assignmentId;
 				$("#ou_roles_excepted_users_menu").load(url, function() {
-					fragShowDataTableFun('#ou_roles_listTable2', 0, 10);
-					if (assignmentType == 0) {
-						commonService.handleExceptedUsersCheckbox();
-					}
+					fragShowDataTableFun('#ou_roles_listTable2', 0, 25);
+
+					// fetch all rows from the datatable and add the checked checkboxes to selectedExceptedUsers
+					var allRows = $('#ou_roles_listTable2').DataTable().rows().nodes();
+					$(allRows).each(function() {
+						// Find checkboxen i rækken
+						var checkbox = $(this).find('input[type="checkbox"]');
+						if (checkbox.length > 0 && checkbox.is(':checked')) {
+							// Tilføj til listen, hvis den er tjekket
+							selectedExceptedUsers.push(checkbox.data('id'));
+						}
+					});
+
+					// add listeners
+					commonService.addExceptedUsersCheckboxListeners();
+					$('#ou_roles_listTable2').on('draw.dt', function(e) {
+						commonService.addExceptedUsersCheckboxListeners();
+					})
 				});
 
 				// Excepted users case
@@ -719,7 +746,7 @@
 				// Titles case
 				else if (assignmentType >= 1 && titlesEnabled) {
 					ouRolesEditModalService.loadTitles(true, function() {
-						// Check the boxes corrosponding to the list of checked titles from the backend
+						// Check the boxes corresponding to the list of checked titles from the backend
 						if (checkedTitles != null) {
 							for (var i = 0; i < loadedEditTitles.length; i++) {
 								loadedEditTitles[i].state.checked = (checkedTitles.indexOf(loadedEditTitles[i].id) > -1);
@@ -742,11 +769,17 @@
 				// Negative cases
 				if(titlesEnabled){
 					ouRolesEditModalService.loadNegativeTitles(true, function() {
-						// Check the boxes corrosponding to the list of checked titles from the backend
+						// Check the boxes corresponding to the list of checked titles from the backend
 						if (checkedNegativeTitles != null) {
 							for (var i = 0; i < loadedNegativeEditTitles.length; i++) {
 								loadedNegativeEditTitles[i].state.checked = (checkedNegativeTitles.indexOf(loadedNegativeEditTitles[i].id) > -1);
 								$('#modal-ou .disinherited-checkbox[data-id=' + loadedNegativeEditTitles[i].id + ']').prop('checked', loadedNegativeEditTitles[i].state.checked);
+							}
+							checkedNegativeTitles.forEach(l => {
+								selectedNegativeEditTitles.push(l);
+							});
+							if (checkedNegativeTitles.length > 0) {
+								$('#modal-ou a[data-toggle="tab"][href="#ou_roles_title_disinherited_menu"]').tab('show');
 							}
 						}
 						else if (checkedNegativeTitlesFetched) {
@@ -755,27 +788,43 @@
 								$('#modal-ou .disinherited-checkbox[data-id=' + loadedNegativeEditTitles[i].id + ']').prop('checked', loadedNegativeEditTitles[i].state.checked);
 							}
 						}
-						commonService.handleDisinheritedCheckbox();
 					});
 
 					ouRolesEditModalService.loadNegativeInheritedTitles(true, function() {
-						// Check the boxes corrosponding to the list of checked titles from the backend
+						// Check the boxes corresponding to the list of checked titles from the backend
 						if (checkedNegativeInheritedTitles != null) {
 							for (var i = 0; i < loadedNegativeInheritedEditTitles.length; i++) {
 								loadedNegativeInheritedEditTitles[i].state.checked = (checkedNegativeInheritedTitles.indexOf(loadedNegativeInheritedEditTitles[i].id) > -1);
-								$('#modal-ou .inherited-checkbox[data-id=' + loadedNegativeInheritedEditTitles[i].id + ']').prop('checked', loadedNegativeInheritedEditTitles[i].state.checked);
+							}
+							checkedNegativeInheritedTitles.forEach(l => {
+								selectedNegativeInheritedEditTitles.push(l);
+							});
+							if (checkedNegativeInheritedTitles.length > 0) {
+								$('#modal-ou a[data-toggle="tab"][href="#ou_roles_title_inherited_menu"]').tab('show');
 							}
 						}
 						else if (checkedNegativeInheritedTitlesFetched) {
 							for (var i = 0; i < loadedNegativeInheritedEditTitles.length; i++) {
 								loadedNegativeInheritedEditTitles[i].state.checked = (checkedNegativeInheritedTitlesFetched != null && checkedNegativeInheritedTitlesFetched.indexOf(loadedNegativeInheritedEditTitles[i].id) > -1);
-								$('#modal-ou .inherited-checkbox[data-id=' + loadedNegativeInheritedEditTitles[i].id + ']').prop('checked', loadedNegativeInheritedEditTitles[i].state.checked);
+								if (loadedNegativeInheritedEditTitles[i].state.checked) {
+									selectedNegativeInheritedEditTitles.push(loadedNegativeInheritedEditTitles[i].id);
+								}
 							}
 						}
-						commonService.handleInheritedCheckbox();
+						$("#ou_roles_listTable3").DataTable().rows().nodes().to$().find('input[type="checkbox"]').each(function(e) {
+							$(this).prop('checked', (selectedNegativeInheritedEditTitles.indexOf(this.dataset.id) > -1));
+						});
 					});
 				}
 
+				// remove old event listeners from all tables but the excepted users table
+				$('#modal-ou .table:not(#ou_roles_listTable2)').off();
+
+				// add listeners now and e.g on page change (draw) for the tables
+				commonService.setupCheckboxListeners();
+				$('#modal-ou .table:not(#ou_roles_listTable2)').on('draw.dt', function(e) {
+					commonService.setupCheckboxListeners();
+				})
 
 				$("#modal-ou").attr('assignmentId', assignmentId);
 				$("#ouRolesModalHeader").text(ouRolesEditModalService.header);
@@ -823,34 +872,6 @@
 					}
 				});
 
-			}
-
-			this.saveChanges = function() {
-				//Get titles
-				var titleUuids = [];
-				for (var i = 0; i < loadedEditTitles.length; i++) {
-					if (loadedEditTitles[i].state.checked) {
-						titleUuids.push(loadedEditTitles[i].id);
-					}
-				}
-				for (var i = 0; i < loadedNegativeInheritedEditTitles.length; i++) {
-					if (loadedNegativeInheritedEditTitles[i].state.checked) {
-						titleUuids.push(loadedNegativeInheritedEditTitles[i].id);
-					}
-				}
-				for (var i = 0; i < loadedNegativeEditTitles.length; i++) {
-					if (loadedNegativeEditTitles[i].state.checked) {
-						titleUuids.push(loadedNegativeEditTitles[i].id);
-					}
-				}
-				//Get excepted users
-				var exceptedUsers = [];
-				var exceptedUsersChbx = $('#modal-ou-edit  .exceptedusers-checkbox:checked');
-				for (var i = 0; i < exceptedUsersChbx.length; i++) {
-					exceptedUsers.push($(exceptedUsersChbx[i]).data('id'));
-				}
-
-				ouRolesEditModalService.assignRole(ouRolesEditModalService.roleType, ouRolesEditModalService.inherit, ouRolesEditModalService.assignmentId, titleUuids, exceptedUsers);
 			}
 
 			this.clearTitleSelection = function() {

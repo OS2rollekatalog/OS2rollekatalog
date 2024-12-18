@@ -261,19 +261,34 @@ public class AttestationReportService {
 
 	private VerificationInformationDTO findVerificationInformationForOUAttestation(final AttestationUserRoleAssignmentDto assignment, final Attestation attestation) {
 		final VerificationInformationDTO result = new VerificationInformationDTO();
-		final OrganisationUserAttestationEntry entry = lookupOrganisationUserEntry(attestation, assignment);
-		if (entry != null) {
-			if (entry.getRemarks() != null) {
-				result.status = AttestationStatus.REMARKS;
-			} else if (entry.isAdRemoval()) {
-				result.status = AttestationStatus.DELETE;
-			} else {
-				result.status = AttestationStatus.APPROVED;
+		if (assignment.getAssignedThroughType().equals(AssignedThroughType.ORGUNIT)) {
+			final OrganisationRoleAttestationEntry entry = lookupOrganisationEntry(attestation);
+			if (entry != null) {
+				result.verifiedByName = cachedUserService.userNameFromUuidCached(entry.getPerformedByUserUuid());
+				result.remark = entry.getRemarks();
+				result.verifiedByUserId = entry.getPerformedByUserId();
+				result.verifiedAt = entry.getCreatedAt().toLocalDate();
+				if (result.remark != null) {
+					result.status = AttestationStatus.REMARKS;
+				} else {
+					result.status = AttestationStatus.APPROVED;
+				}
 			}
-			result.remark = entry.getRemarks();
-			result.verifiedByName = cachedUserService.userNameFromUuidCached(entry.getPerformedByUserUuid());
-			result.verifiedByUserId = entry.getPerformedByUserId();
-			result.verifiedAt = entry.getCreatedAt().toLocalDate();
+		} else {
+			final OrganisationUserAttestationEntry entry = lookupOrganisationUserEntry(attestation, assignment);
+			if (entry != null) {
+				result.verifiedByName = cachedUserService.userNameFromUuidCached(entry.getPerformedByUserUuid());
+				result.remark = entry.getRemarks();
+				result.verifiedByUserId = entry.getPerformedByUserId();
+				result.verifiedAt = entry.getCreatedAt().toLocalDate();
+				if (result.remark != null) {
+					result.status = AttestationStatus.REMARKS;
+				} else if (entry.isAdRemoval()) {
+					result.status = AttestationStatus.DELETE;
+				} else {
+					result.status = AttestationStatus.APPROVED;
+				}
+			}
 		}
 		return result;
 	}
@@ -349,6 +364,10 @@ public class AttestationReportService {
 				.filter(a -> Objects.equals(a.getUserUuid(), assignment.getUserUuid()))
 				.findFirst()
 				.orElse(null);
+	}
+
+	private static OrganisationRoleAttestationEntry lookupOrganisationEntry(final Attestation attestation) {
+		return attestation.getOrganisationRolesAttestationEntry();
 	}
 
 }

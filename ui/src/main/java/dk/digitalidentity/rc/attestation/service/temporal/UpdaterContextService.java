@@ -88,6 +88,12 @@ public final class UpdaterContextService {
                     : (historyRole.getSensitiveRole() != null && historyRole.getSensitiveRole());
         }
 
+        public boolean isRoleExtraSensitive() {
+            return currentRole != null
+                    ? currentRole.isExtraSensitiveRole()
+                    : (historyRole.getExtraSensitiveRole() != null && historyRole.getExtraSensitiveRole());
+        }
+
         public String ouName() {
             return currentOu != null
                     ? currentOu.getName()

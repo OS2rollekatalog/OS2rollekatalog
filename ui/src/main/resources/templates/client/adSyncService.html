@@ -1,0 +1,688 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/header :: header}"></head>
+<body>
+<div class="wrapper">
+    <header th:replace="~{fragments/navbar :: navbar-header (subpage = 'administration')}"></header>
+    <aside th:replace="~{fragments/navbar :: navbar-aside (page = 'clients.adSyncService' + ${clientID}, subpage = 'administration')}"></aside>
+
+    <section>
+        <div class="content-wrapper">
+            <h3 th:text="${clientName}"></h3>
+
+            <div class="panel panel-default">
+                <div class="panel-heading"></div>
+                <div th:unless="${configured}" class="panel-body" th:text="#{html.client.adsync.notConfigured}"></div>
+                <div th:if="${configured}" class="panel-body">
+                    <div class="panel-group sticky" th:if="${clientErrors != null}">
+                        <div class="panel panel-default">
+                            <h4 th:utext="${#strings.replace(clientErrors, '&#10;', '<br />')}"></h4>
+                        </div>
+                    </div>
+                    <div class="panel-group sticky" id="accordion" role="tablist" aria-multiselectable="true">
+                        <div class="panel panel-default">
+                            <div class="panel-heading" role="tab" id="createDeleteHeading">
+                                <h4 class="panel-title">
+                                    <a class="caretLink" role="button" data-toggle="collapse" data-parent="#accordion" href="#collapseCreateDelete" aria-expanded="false" aria-controls="collapseOne">
+                                        <em class="fa fa-caret-right caretIcon"></em>&nbsp;
+                                        <span th:text="#{html.heading.adsync.createdelete}"></span>
+                                    </a>
+                                </h4>
+                            </div>
+
+                            <div id="collapseCreateDelete" class="panel-collapse collapse" role="tabpanel" aria-labelledby="createDeleteHeading">
+                                <div class="panel-body">
+                                    <div class="form-group row">
+                                        <label class="col-lg-4 control-label" th:text="#{html.client.adsync.createDeleteFeatureEnabled}"></label>
+                                        <div class="col-lg-1">
+                                            <div class="checkbox c-checkbox">
+                                                <label>
+                                                    <input type="checkbox" id="createDeleteFeatureEnabled" th:checked="${settings.createDeleteFeatureEnabled}">
+                                                    <span class="fa fa-check"></span>
+                                                </label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="form-group row">
+                                        <label class="col-lg-4 control-label" th:text="#{html.client.adsync.createDeleteFeatureCreateEnabled}"></label>
+                                        <div class="col-lg-1">
+                                            <div class="checkbox c-checkbox">
+                                                <label>
+                                                    <input type="checkbox" id="createDeleteFeatureCreateEnabled" th:checked="${settings.createDeleteFeatureCreateEnabled}">
+                                                    <span class="fa fa-check"></span>
+                                                </label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="form-group row">
+                                        <label class="col-lg-4 control-label" th:text="#{html.client.adsync.createDeleteFeatureDeleteEnabled}"></label>
+                                        <div class="col-lg-1">
+                                            <div class="checkbox c-checkbox">
+                                                <label>
+                                                    <input type="checkbox" id="createDeleteFeatureDeleteEnabled" th:checked="${settings.createDeleteFeatureDeleteEnabled}">
+                                                    <span class="fa fa-check"></span>
+                                                </label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="form-group row">
+                                        <label class="col-lg-4 control-label" th:text="#{html.client.adsync.createDeleteFeatureOU}"></label>
+                                        <div class="col-lg-8">
+                                            <input class="form-control m-b" th:value="${settings.createDeleteFeatureOU}" id="createDeleteFeatureOU">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="panel panel-default">
+                            <div class="panel-heading" role="tab" id="membershipSyncHeading">
+                                <h4 class="panel-title">
+                                    <a class="caretLink" role="button" data-toggle="collapse" data-parent="#accordion" href="#collapseMembershipSync" aria-expanded="false" aria-controls="collapseOne">
+                                        <em class="fa fa-caret-right caretIcon"></em>&nbsp;
+                                        <span th:text="#{html.heading.adsync.membershipsync}"></span>
+                                    </a>
+                                </h4>
+                            </div>
+
+                            <div id="collapseMembershipSync" class="panel-collapse collapse" role="tabpanel" aria-labelledby="membershipSyncHeading">
+                                <div class="panel-body">
+                                    <div class="form-group row">
+                                        <label class="col-lg-4 control-label" th:text="#{html.client.adsync.membershipSyncFeatureEnabled}"></label>
+                                        <div class="col-lg-1">
+                                            <div class="checkbox c-checkbox">
+                                                <label>
+                                                    <input type="checkbox" id="membershipSyncFeatureEnabled" th:checked="${settings.membershipSyncFeatureEnabled}">
+                                                    <span class="fa fa-check"></span>
+                                                </label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="form-group row">
+                                        <label class="col-lg-4 control-label" th:text="#{html.client.adsync.membershipSyncFeatureIgnoreUsersWithoutCpr}"></label>
+                                        <div class="col-lg-1">
+                                            <div class="checkbox c-checkbox">
+                                                <label>
+                                                    <input type="checkbox" id="membershipSyncFeatureIgnoreUsersWithoutCpr" th:checked="${settings.membershipSyncFeatureIgnoreUsersWithoutCpr}">
+                                                    <span class="fa fa-check"></span>
+                                                </label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="form-group row">
+                                        <label class="col-lg-4 control-label" th:text="#{html.client.adsync.membershipSyncFeatureCprAttribute}"></label>
+                                        <div class="col-lg-8">
+                                            <input class="form-control m-b" th:value="${settings.membershipSyncFeatureCprAttribute}" id="membershipSyncFeatureCprAttribute">
+                                        </div>
+                                    </div>
+                                    <div class="form-group row">
+                                        <label class="col-lg-4 control-label" th:text="#{html.client.adsync.membershipSyncFeatureAttributeMap}"></label>
+                                        <div class="col-lg-8">
+                                            <btn class="btn btn-primary" style="margin-bottom: 15px;" th:text="#{html.control.button.add}" onclick="modalService.openSimpleModal()"></btn>
+                                            <ul id="membershipSyncFeatureAttributeMapList">
+                                                <li th:each="item : ${settings.membershipSyncFeatureAttributeMap}">
+                                                    <span th:text="${item}"></span> &nbsp;
+                                                    <em class="fa fa-times membershipSyncFeatureAttributeMapRemove" th:attr="data-val=${item}"></em>
+                                                </li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="panel panel-default">
+                            <div class="panel-heading" role="tab" id="backsyncHeading">
+                                <h4 class="panel-title">
+                                    <a class="caretLink" role="button" data-toggle="collapse" data-parent="#accordion" href="#collapseBacksync" aria-expanded="false" aria-controls="collapseOne">
+                                        <em class="fa fa-caret-right caretIcon"></em>&nbsp;
+                                        <span th:text="#{html.heading.adsync.backsync}"></span>
+                                    </a>
+                                </h4>
+                            </div>
+
+                            <div id="collapseBacksync" class="panel-collapse collapse" role="tabpanel" aria-labelledby="backsyncHeading">
+                                <div class="panel-body">
+                                    <div class="form-group row">
+                                        <label class="col-lg-4 control-label" th:text="#{html.client.adsync.backSyncFeatureEnabled}"></label>
+                                        <div class="col-lg-1">
+                                            <div class="checkbox c-checkbox">
+                                                <label>
+                                                    <input type="checkbox" id="backSyncFeatureEnabled" th:checked="${settings.backSyncFeatureEnabled}">
+                                                    <span class="fa fa-check"></span>
+                                                </label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="form-group row">
+                                        <label class="col-lg-4 control-label" th:text="#{html.client.adsync.backSyncFeatureGroupsInGroupOnSync}"></label>
+                                        <div class="col-lg-1">
+                                            <div class="checkbox c-checkbox">
+                                                <label>
+                                                    <input type="checkbox" id="backSyncFeatureGroupsInGroupOnSync" th:checked="${settings.backSyncFeatureGroupsInGroupOnSync}">
+                                                    <span class="fa fa-check"></span>
+                                                </label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="form-group row">
+                                        <label class="col-lg-4 control-label" th:text="#{html.client.adsync.backSyncFeatureNameAttribute}"></label>
+                                        <div class="col-lg-8">
+                                            <input class="form-control m-b" th:value="${settings.backSyncFeatureNameAttribute}" id="backSyncFeatureNameAttribute">
+                                        </div>
+                                    </div>
+                                    <div class="form-group row">
+                                        <label class="col-lg-4 control-label" th:text="#{html.client.adsync.backSyncFeatureCreateUserRoles}"></label>
+                                        <div class="col-lg-1">
+                                            <div class="checkbox c-checkbox">
+                                                <label>
+                                                    <input type="checkbox" id="backSyncFeatureCreateUserRoles" th:checked="${settings.backSyncFeatureCreateUserRoles}">
+                                                    <span class="fa fa-check"></span>
+                                                </label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="form-group row">
+                                        <label class="col-lg-4 control-label" th:text="#{html.client.adsync.backSyncFeatureOUs}"></label>
+                                        <div class="col-lg-8">
+                                            <btn class="btn btn-primary" style="margin-bottom: 15px;" th:text="#{html.control.button.add}" onclick="modalService.openBackSyncFeatureOUsModal()"></btn>
+                                            <ul id="backSyncFeatureOUsList">
+                                                <li th:each="item : ${settings.backSyncFeatureOUs}">
+                                                    <span th:text="${item}"></span> &nbsp;
+                                                    <em class="fa fa-times backSyncFeatureOUsRemove" th:attr="data-val=${item}"></em>
+                                                </li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="panel panel-default">
+                            <div class="panel-heading" role="tab" id="itsystemHeading">
+                                <h4 class="panel-title">
+                                    <a class="caretLink" role="button" data-toggle="collapse" data-parent="#accordion" href="#collapseITsystem" aria-expanded="false" aria-controls="collapseOne">
+                                        <em class="fa fa-caret-right caretIcon"></em>&nbsp;
+                                        <span th:text="#{html.heading.adsync.itsystem}"></span>
+                                    </a>
+                                </h4>
+                            </div>
+
+                            <div id="collapseITsystem" class="panel-collapse collapse" role="tabpanel" aria-labelledby="itsystemHeading">
+                                <div class="panel-body">
+                                    <div class="form-group row">
+                                        <label class="col-lg-4 control-label" th:text="#{html.client.adsync.itSystemGroupFeatureEnabled}"></label>
+                                        <div class="col-lg-1">
+                                            <div class="checkbox c-checkbox">
+                                                <label>
+                                                    <input type="checkbox" id="itSystemGroupFeatureEnabled" th:checked="${settings.itSystemGroupFeatureEnabled}">
+                                                    <span class="fa fa-check"></span>
+                                                </label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="form-group row">
+                                        <label class="col-lg-4 control-label" th:text="#{html.client.adsync.itSystemGroupFeatureSystemMap}"></label>
+                                        <div class="col-lg-8">
+                                            <btn class="btn btn-primary" style="margin-bottom: 15px;" th:text="#{html.control.button.add}" onclick="modalService.openItSystemGroupFeatureSystemMapModal()"></btn>
+                                            <ul id="itSystemGroupFeatureSystemMapList">
+                                                <li th:each="item : ${settings.itSystemGroupFeatureSystemMap}">
+                                                    <span th:text="${item}"></span> &nbsp;
+                                                    <em class="fa fa-times itSystemGroupFeatureSystemMapRemove" th:attr="data-val=${item}"></em>
+                                                </li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="panel panel-default">
+                            <div class="panel-heading" role="tab" id="itsystemReadonlyHeading">
+                                <h4 class="panel-title">
+                                    <a class="caretLink" role="button" data-toggle="collapse" data-parent="#accordion" href="#collapseITsystemReadonly" aria-expanded="false" aria-controls="collapseOne">
+                                        <em class="fa fa-caret-right caretIcon"></em>&nbsp;
+                                        <span th:text="#{html.heading.adsync.itsystemReadonly}"></span>
+                                    </a>
+                                </h4>
+                            </div>
+
+                            <div id="collapseITsystemReadonly" class="panel-collapse collapse" role="tabpanel" aria-labelledby="itsystemReadonlyHeading">
+                                <div class="panel-body">
+                                    <div class="form-group row">
+                                        <label class="col-lg-4 control-label" th:text="#{html.client.adsync.readonlyItSystemFeatureEnabled}"></label>
+                                        <div class="col-lg-1">
+                                            <div class="checkbox c-checkbox">
+                                                <label>
+                                                    <input type="checkbox" id="readonlyItSystemFeatureEnabled" th:checked="${settings.readonlyItSystemFeatureEnabled}">
+                                                    <span class="fa fa-check"></span>
+                                                </label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="form-group row">
+                                        <label class="col-lg-4 control-label" th:text="#{html.client.adsync.readonlyItSystemFeatureNameAttribute}"></label>
+                                        <div class="col-lg-8">
+                                            <input class="form-control m-b" th:value="${settings.readonlyItSystemFeatureNameAttribute}" id="readonlyItSystemFeatureNameAttribute">
+                                        </div>
+                                    </div>
+                                    <div class="form-group row">
+                                        <label class="col-lg-4 control-label" th:text="#{html.client.adsync.readonlyItSystemFeatureSystemMap}"></label>
+                                        <div class="col-lg-8">
+                                            <btn class="btn btn-primary" style="margin-bottom: 15px;" th:text="#{html.control.button.add}" onclick="modalService.openReadonlyItSystemFeatureSystemMapModal()"></btn>
+                                            <ul id="readonlyItSystemFeatureSystemMapList">
+                                                <li th:each="item : ${settings.readonlyItSystemFeatureSystemMap}">
+                                                    <span th:text="${item}"></span> &nbsp;
+                                                    <em class="fa fa-times readonlyItSystemFeatureSystemMapRemove" th:attr="data-val=${item}"></em>
+                                                </li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="panel panel-default">
+                            <div class="panel-heading" role="tab" id="logUploaderHeading">
+                                <h4 class="panel-title">
+                                    <a class="caretLink" role="button" data-toggle="collapse" data-parent="#accordion" href="#collapseLogUploader" aria-expanded="false" aria-controls="collapseOne">
+                                        <em class="fa fa-caret-right caretIcon"></em>&nbsp;
+                                        <span th:text="#{html.heading.adsync.loguploader}"></span>
+                                    </a>
+                                </h4>
+                            </div>
+
+                            <div id="collapseLogUploader" class="panel-collapse collapse" role="tabpanel" aria-labelledby="logUploaderHeading">
+                                <div class="panel-body">
+                                    <div class="form-group row">
+                                        <label class="col-lg-4 control-label" th:text="#{html.client.adsync.logUploaderEnabled}"></label>
+                                        <div class="col-lg-1">
+                                            <div class="checkbox c-checkbox">
+                                                <label>
+                                                    <input type="checkbox" id="logUploaderEnabled" th:checked="${settings.logUploaderEnabled}">
+                                                    <span class="fa fa-check"></span>
+                                                </label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="form-group row">
+                                        <label class="col-lg-4 control-label" th:text="#{html.client.adsync.logUploaderFileShareUrl}"></label>
+                                        <div class="col-lg-8">
+                                            <input class="form-control m-b" th:value="${settings.logUploaderFileShareUrl}" id="logUploaderFileShareUrl">
+                                        </div>
+                                    </div>
+                                    <div class="form-group row">
+                                        <label class="col-lg-4 control-label" th:text="#{html.client.adsync.logUploaderFileShareApiKey}"></label>
+                                        <div class="col-lg-8">
+                                            <input class="form-control m-b" th:value="${settings.logUploaderFileShareApiKey}" id="logUploaderFileShareApiKey">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="panel panel-default">
+                            <div class="panel-heading" role="tab" id="emailHeading">
+                                <h4 class="panel-title">
+                                    <a class="caretLink" role="button" data-toggle="collapse" data-parent="#accordion" href="#collapseEmail" aria-expanded="false" aria-controls="collapseOne">
+                                        <em class="fa fa-caret-right caretIcon"></em>&nbsp;
+                                        <span th:text="#{html.heading.adsync.email}"></span>
+                                    </a>
+                                </h4>
+                            </div>
+
+                            <div id="collapseEmail" class="panel-collapse collapse" role="tabpanel" aria-labelledby="emailHeading">
+                                <div class="panel-body">
+                                    <div class="form-group row">
+                                        <label class="col-lg-4 control-label" th:text="#{html.client.adsync.sendErrorEmailFeatureEnabled}"></label>
+                                        <div class="col-lg-1">
+                                            <div class="checkbox c-checkbox">
+                                                <label>
+                                                    <input type="checkbox" id="sendErrorEmailFeatureEnabled" th:checked="${settings.sendErrorEmailFeatureEnabled}">
+                                                    <span class="fa fa-check"></span>
+                                                </label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="form-group row">
+                                        <label class="col-lg-4 control-label" th:text="#{html.client.adsync.sendingUserEmail}"></label>
+                                        <div class="col-lg-8">
+                                            <input class="form-control m-b" th:value="${settings.sendingUserEmail}" id="sendingUserEmail">
+                                        </div>
+                                    </div>
+                                    <div class="form-group row">
+                                        <label class="col-lg-4 control-label" th:text="#{html.client.adsync.recipientEmail}"></label>
+                                        <div class="col-lg-8">
+                                            <input class="form-control m-b" th:value="${settings.recipientEmail}" id="recipientEmail">
+                                        </div>
+                                    </div>
+                                    <div class="form-group row">
+                                        <label class="col-lg-4 control-label" th:text="#{html.client.adsync.tenantId}"></label>
+                                        <div class="col-lg-8">
+                                            <input class="form-control m-b" th:value="${settings.tenantId}" id="tenantId">
+                                        </div>
+                                    </div>
+                                    <div class="form-group row">
+                                        <label class="col-lg-4 control-label" th:text="#{html.client.adsync.clientId}"></label>
+                                        <div class="col-lg-8">
+                                            <input class="form-control m-b" th:value="${settings.clientId}" id="clientId">
+                                        </div>
+                                    </div>
+                                    <div class="form-group row">
+                                        <label class="col-lg-4 control-label" th:text="#{html.client.adsync.clientSecret}"></label>
+                                        <div class="col-lg-8">
+                                            <input class="form-control m-b" th:value="${settings.clientSecret}" id="clientSecret">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row" style="text-align:right; padding: 15px;">
+                        <button class="btn btn-primary" onclick="settingService.save();" th:text="#{html.control.button.save}"></button>
+                        <button class="btn btn-danger" onclick="window.location.reload();" th:text="#{html.control.button.cancel}"></button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+</div>
+
+<!-- simple modal -->
+<div class="modal fade bd-example-modal-lg" id="simpleModal" role="dialog">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal">&times;</button>
+                <h4 th:text="#{html.client.adsync.modal.simple.title}"></h4>
+            </div>
+
+            <div class="modal-body">
+                <div class="form-group row">
+                    <label class="col-lg-4 control-label" th:text="#{html.client.adsync.modal.simple.group}"></label>
+                    <div class="col-lg-8">
+                        <input class="form-control m-b simpleModalField" id="simpleModalGroup">
+                    </div>
+                </div>
+                <div class="form-group row">
+                    <label class="col-lg-4 control-label" th:text="#{html.client.adsync.modal.simple.attribute}"></label>
+                    <div class="col-lg-8">
+                        <input class="form-control m-b simpleModalField" id="simpleModalAttribute">
+                    </div>
+                </div>
+                <div class="form-group row">
+                    <label class="col-lg-4 control-label" th:text="#{html.client.adsync.modal.simple.value}"></label>
+                    <div class="col-lg-8">
+                        <input class="form-control m-b simpleModalField" id="simpleModalValue">
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button type="button" class="btn btn-primary" onclick="modalService.addFromSimpleModal()" th:text="#{html.control.button.add}"></button>
+                <button type="button" class="btn btn-danger" data-dismiss="modal" th:text="#{html.control.button.cancel}"></button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- itsystem modal -->
+<div class="modal fade bd-example-modal-lg" id="itSystemModal" role="dialog">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal">&times;</button>
+                <h4 th:text="#{html.client.adsync.modal.itsystem.title}"></h4>
+            </div>
+
+            <div class="modal-body">
+                <input id="mapType" hidden>
+                <div class="form-group row">
+                    <label class="col-lg-4 control-label" th:text="#{html.client.adsync.modal.itsystem.itsystem}"></label>
+                    <div class="col-lg-8">
+                        <select style="width:100%;" id="itSystemModalItSystem" class="form-control m-b itSystemModalField">
+                            <option th:each="option : ${itSystemList}" th:value="${option.id}" th:text="${option.text} + ' (id: ' + ${option.id} + ')'"  ></option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group row">
+                    <label id="ouDNLabel" class="col-lg-4 control-label" th:text="#{html.client.adsync.modal.itsystem.oudn}" hidden="hidden"></label>
+                    <label id="groupDNLabel" class="col-lg-4 control-label" th:text="#{html.client.adsync.modal.itsystem.groupdn}" hidden="hidden"></label>
+                    <div class="col-lg-8">
+                        <input class="form-control m-b itSystemModalField" id="itSystemModalDN">
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button type="button" onclick="modalService.addFromITSystemModal()" class="btn btn-primary" th:text="#{html.control.button.add}"></button>
+                <button type="button" class="btn btn-danger" data-dismiss="modal" th:text="#{html.control.button.cancel}"></button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div th:replace="~{fragments/footer :: footer}"></div>
+
+    <script th:inline="javascript">
+        /*<![CDATA[*/
+
+        /*[+
+            var clientId = [[${clientID}]];
+            var settings = [[${settings}]];
+            var swalTitleTxt = [[#{html.client.adsync.swal.title}]];
+            var swalBodyTxt = [[#{html.client.adsync.swal.body}]];
+            var updateSettingsConfirmTxt = [[#{html.client.adsync.swal.confirm}]];
+            var updateSettingsCancelTxt = [[#{html.client.adsync.swal.cancel}]];
+            var updateFailedMsg = [[#{html.client.adsync.update.fail}]];
+            var settingsUpdatedMsg = [[#{html.client.adsync.update.success}]];
+            var url = [[@{/rest/client/adsyncservice/}]];
+        +]*/
+
+        var token = $("meta[name='_csrf']").attr("content");
+        var settingService, modalService;
+        var membershipSyncFeatureAttributeMap = [];
+        var backSyncFeatureOUs = [];
+        var itSystemGroupFeatureSystemMap = [];
+        var readonlyItSystemFeatureSystemMap = [];
+        $(document).ready(function () {
+            settingService = new SettingService();
+            modalService = new ModalService();
+            settingService.init();
+        });
+
+        function ModalService() {
+            this.openSimpleModal = function() {
+                $(".simpleModalField").val("");
+                $("#simpleModal").modal('show');
+            }
+
+            this.openBackSyncFeatureOUsModal = function() {
+                $("#mapType").val("backSyncFeatureOUs");
+                $("#ouDNLabel").attr("hidden", false);
+                $("#groupDNLabel").attr("hidden", true);
+                $(".itSystemModalField").val("");
+                $("#itSystemModal").modal('show');
+            }
+
+            this.openItSystemGroupFeatureSystemMapModal = function() {
+                $("#mapType").val("itSystemGroupFeatureSystemMap");
+                $("#ouDNLabel").attr("hidden", true);
+                $("#groupDNLabel").attr("hidden", false);
+                $(".itSystemModalField").val("");
+                $("#itSystemModal").modal('show');
+            }
+
+            this.openReadonlyItSystemFeatureSystemMapModal = function() {
+                $("#mapType").val("readonlyItSystemFeatureSystemMap");
+                $("#ouDNLabel").attr("hidden", true);
+                $("#groupDNLabel").attr("hidden", false);
+                $(".itSystemModalField").val("");
+                $("#itSystemModal").modal('show');
+            }
+
+            this.addFromSimpleModal = function() {
+                var group = $("#simpleModalGroup").val();
+                var attribute = $("#simpleModalAttribute").val();
+                var value = $("#simpleModalValue").val();
+                var fullValue = group + ";" + attribute + ";" + value;
+                membershipSyncFeatureAttributeMap.push(fullValue);
+
+                var html = '<li><span>' + fullValue + '</span>&nbsp; <em class="fa fa-times membershipSyncFeatureAttributeMapRemove" data-val="' + fullValue + '"></em></li>'
+                $('#membershipSyncFeatureAttributeMapList').append(html);
+
+                settingService.addListeners();
+
+                $("#simpleModal").modal('hide');
+            }
+
+            this.addFromITSystemModal = function() {
+                var itSystem = $("#itSystemModalItSystem").val();
+                var dn = $("#itSystemModalDN").val();
+                var fullValue = itSystem + ";" + dn;
+                var mapType = $("#mapType").val();
+
+                if (mapType === "backSyncFeatureOUs") {
+                    backSyncFeatureOUs.push(fullValue);
+                    var html = '<li><span>' + fullValue + '</span>&nbsp; <em class="fa fa-times backSyncFeatureOUsRemove" data-val="' + fullValue + '"></em></li>'
+                    $('#backSyncFeatureOUsList').append(html);
+                } else if (mapType === "itSystemGroupFeatureSystemMap") {
+                    itSystemGroupFeatureSystemMap.push(fullValue);
+                    var html = '<li><span>' + fullValue + '</span>&nbsp; <em class="fa fa-times itSystemGroupFeatureSystemMapRemove" data-val="' + fullValue + '"></em></li>'
+                    $('#itSystemGroupFeatureSystemMapList').append(html);
+                } else if (mapType === "readonlyItSystemFeatureSystemMap") {
+                    readonlyItSystemFeatureSystemMap.push(fullValue);
+                    var html = '<li><span>' + fullValue + '</span>&nbsp; <em class="fa fa-times readonlyItSystemFeatureSystemMapRemove" data-val="' + fullValue + '"></em></li>'
+                    $('#readonlyItSystemFeatureSystemMapList').append(html);
+                }
+
+                settingService.addListeners();
+
+                $("#itSystemModal").modal('hide');
+            }
+        }
+
+        function SettingService() {
+            this.init = function() {
+                settingService.addListeners();
+                membershipSyncFeatureAttributeMap = settings.membershipSyncFeatureAttributeMap;
+                backSyncFeatureOUs = settings.backSyncFeatureOUs;
+                itSystemGroupFeatureSystemMap = settings.itSystemGroupFeatureSystemMap;
+                readonlyItSystemFeatureSystemMap = settings.readonlyItSystemFeatureSystemMap;
+            }
+
+           this.removeFromList = function(listId, valueToRemove, list) {
+                $('#' + listId + ' li').filter(function() {
+                    return $(this).find('span').text() === valueToRemove;
+                }).remove();
+
+                const index = list.indexOf(valueToRemove);
+                if (index > -1) {
+                    list.splice(index, 1);
+                }
+           }
+
+           this.addListeners = function() {
+                $(".membershipSyncFeatureAttributeMapRemove").off();
+                $(".membershipSyncFeatureAttributeMapRemove").on("click", function() {
+                    settingService.removeFromList("membershipSyncFeatureAttributeMapList", $(this).data("val"), membershipSyncFeatureAttributeMap);
+                });
+
+                $(".backSyncFeatureOUsRemove").off();
+                $(".backSyncFeatureOUsRemove").on("click", function() {
+                    settingService.removeFromList("backSyncFeatureOUsList", $(this).data("val"), backSyncFeatureOUs);
+                });
+
+                $(".itSystemGroupFeatureSystemMapRemove").off();
+                $(".itSystemGroupFeatureSystemMapRemove").on("click", function() {
+                    settingService.removeFromList("itSystemGroupFeatureSystemMapList", $(this).data("val"), itSystemGroupFeatureSystemMap);
+                });
+
+                $(".readonlyItSystemFeatureSystemMapRemove").off();
+                $(".readonlyItSystemFeatureSystemMapRemove").on("click", function() {
+                    settingService.removeFromList("readonlyItSystemFeatureSystemMapList", $(this).data("val"), readonlyItSystemFeatureSystemMap);
+                });
+
+                $(".caretLink").off();
+                $(".caretLink").on("click", function () {
+                    var icon = $(this).find(".caretIcon");
+                    icon.toggleClass("fa-caret-down");
+                    icon.toggleClass("fa-caret-right");
+                });
+           }
+
+            this.save = function() {
+                var payload = {
+                    "createDeleteFeatureEnabled": $('#createDeleteFeatureEnabled').prop('checked'),
+                    "createDeleteFeatureCreateEnabled": $('#createDeleteFeatureCreateEnabled').prop('checked'),
+                    "createDeleteFeatureDeleteEnabled": $('#createDeleteFeatureDeleteEnabled').prop('checked'),
+                    "createDeleteFeatureOU": $('#createDeleteFeatureOU').val(),
+                    "membershipSyncFeatureEnabled": $('#membershipSyncFeatureEnabled').prop('checked'),
+                    "membershipSyncFeatureIgnoreUsersWithoutCpr": $('#membershipSyncFeatureIgnoreUsersWithoutCpr').prop('checked'),
+                    "membershipSyncFeatureCprAttribute": $('#membershipSyncFeatureCprAttribute').val(),
+                    "membershipSyncFeatureAttributeMap": membershipSyncFeatureAttributeMap,
+                    "backSyncFeatureEnabled": $('#backSyncFeatureEnabled').prop('checked'),
+                    "backSyncFeatureGroupsInGroupOnSync": $('#backSyncFeatureGroupsInGroupOnSync').prop('checked'),
+                    "backSyncFeatureCreateUserRoles": $('#backSyncFeatureCreateUserRoles').prop('checked'),
+                    "backSyncFeatureOUs": backSyncFeatureOUs,
+                    "backSyncFeatureNameAttribute": $('#backSyncFeatureNameAttribute').val(),
+                    "itSystemGroupFeatureEnabled": $('#itSystemGroupFeatureEnabled').prop('checked'),
+                    "itSystemGroupFeatureSystemMap": itSystemGroupFeatureSystemMap,
+                    "readonlyItSystemFeatureEnabled": $('#readonlyItSystemFeatureEnabled').prop('checked'),
+                    "readonlyItSystemFeatureSystemMap": readonlyItSystemFeatureSystemMap,
+                    "readonlyItSystemFeatureNameAttribute": $('#readonlyItSystemFeatureNameAttribute').val(),
+                    "logUploaderEnabled": $('#logUploaderEnabled').prop('checked'),
+                    "logUploaderFileShareUrl": $('#logUploaderFileShareUrl').val(),
+                    "logUploaderFileShareApiKey": $('#logUploaderFileShareApiKey').val(),
+                    "sendErrorEmailFeatureEnabled": $('#sendErrorEmailFeatureEnabled').prop('checked'),
+                    "sendingUserEmail": $('#sendingUserEmail').val(),
+                    "recipientEmail": $('#recipientEmail').val(),
+                    "tenantId": $('#tenantId').val(),
+                    "clientId": $('#clientId').val(),
+                    "clientSecret": $('#clientSecret').val(),
+                }
+
+                swal({
+						html: true,
+						title : swalTitleTxt,
+						text : swalBodyTxt,
+						type : "warning",
+						showCancelButton : true,
+						confirmButtonColor : "#5d9cec",
+						confirmButtonText : updateSettingsConfirmTxt,
+						cancelButtonText : updateSettingsCancelTxt,
+						closeOnConfirm : true,
+						closeOnCancel : true
+				},
+				function (isConfirm) {
+                    if (isConfirm) {
+                        $.ajax({
+                            url: url + clientId,
+                            method: "POST",
+                            headers: {
+                                'X-CSRF-TOKEN': token
+                            },
+                            contentType: 'application/json',
+                            data: JSON.stringify(payload),
+                            error : function(response) {
+                                errorHandler(updateFailedMsg)(response);
+                            },
+                            success : function(response) {
+                                $.notify({
+                                    message: settingsUpdatedMsg,
+                                    status: 'success',
+                                    timeout: 2000
+                                });
+
+                                window.location.reload();
+                            }
+                        });
+                    }
+				});
+            }
+        }
+
+        /*]]>*/
+    </script>
+</body>
+</html>

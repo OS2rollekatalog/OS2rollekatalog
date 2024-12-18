@@ -1,5 +1,6 @@
 package dk.digitalidentity.rc.dao.model;
 
+import dk.digitalidentity.rc.log.AuditLoggable;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -14,7 +15,7 @@ import lombok.Setter;
 @Setter
 @Entity
 @Table(name = "front_page_links")
-public class FrontPageLink {
+public class FrontPageLink implements AuditLoggable{
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	private long id;
@@ -42,4 +43,14 @@ public class FrontPageLink {
 	@Column
 	@NotNull
 	private boolean editable;
+
+	@Override
+	public String getEntityName() {
+		return title;
+	}
+
+	@Override
+	public String getEntityId() {
+		return Long.toString(id);
+	}
 }

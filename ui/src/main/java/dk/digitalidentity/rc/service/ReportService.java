@@ -5,9 +5,11 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
@@ -24,6 +26,7 @@ import org.springframework.util.StringUtils;
 
 import dk.digitalidentity.rc.controller.mvc.viewmodel.ReportForm;
 import dk.digitalidentity.rc.dao.OrgUnitDao;
+import dk.digitalidentity.rc.dao.history.model.GenericRoleAssignment;
 import dk.digitalidentity.rc.dao.history.model.HistoryItSystem;
 import dk.digitalidentity.rc.dao.history.model.HistoryKleAssignment;
 import dk.digitalidentity.rc.dao.history.model.HistoryOU;
@@ -455,7 +458,8 @@ public class ReportService {
 	}
 
 	public Map<String, Object> getReportModel(ReportForm reportForm, Locale loc) {
-		LocalDate localDate = (reportForm.getDate() == null || !StringUtils.hasLength(reportForm.getDate())) ? LocalDate.now() : LocalDate.parse(reportForm.getDate());
+	    LocalDate localDate = parseAndHandleFutureDate(reportForm.getDate());
+		LocalDate displayDate = LocalDate.parse(reportForm.getDate());
 		List<String> ouFilter = reportForm.getOrgUnits();
 		List<Long> itSystemFilter = reportForm.getItSystems();
 		String manager = reportForm.getManager();
@@ -500,6 +504,13 @@ public class ReportService {
 			titleRoleAssignments = historyService.getOURoleAssignmentsWithTitles(localDate);
 			ouRoleAssignmentsWithExceptions = historyService.getOURoleAssignmentsWithExceptions(localDate);
 		}
+		
+		//Now that we store also the inactive roles we need filter them out
+	    filterRoleAssignments(displayDate, ouRoleAssignments);
+	    filterRoleAssignments(displayDate, userRoleAssignments);
+	    filterRoleAssignments(displayDate, negativeRoleAssignments);
+	    filterRoleAssignments(displayDate, titleRoleAssignments);
+	    filterRoleAssignments(displayDate, ouRoleAssignmentsWithExceptions);
 		
 		// TODO: det er uheldigt at vi filtrerer OU'ere væk... vi skal bruge dem alle sammen, så måske sende både ALLE OU'ere og de filtrerede med rundt (hvis det er relevant),
 		//       da vi nu skal nedarve fra dem... og det er lige så fjollet hvis vi fjerner rettigheder, da vi også skal bruge dem... hmmm
@@ -563,7 +574,7 @@ public class ReportService {
 		}
 
 		Map<String, Object> model = new HashMap<>();
-		model.put("filterDate", localDate);
+		model.put("filterDate", displayDate);
 		model.put("itSystems", itSystems);
 
 		model.put("orgUnits", orgUnits);
@@ -592,4 +603,39 @@ public class ReportService {
 		
 		return model;
 	}
+
+    private <T> void filterRoleAssignments(LocalDate displayDate, Map<String, List<T>> userRoleAssignments) {
+        for (Entry<String, List<T>> entry : userRoleAssignments.entrySet()) {
+	        for (Iterator<T> itr = entry.getValue().iterator(); itr.hasNext();) {
+	            GenericRoleAssignment historyRoleAssignment = (GenericRoleAssignment) itr.next();
+                log.debug("UserRole: {} start: {} stop: {}", historyRoleAssignment.getRoleId(), historyRoleAssignment.getStartDate(), historyRoleAssignment.getStopDate());
+                //If the startDate is null means the role is active
+                if (historyRoleAssignment.getStartDate() != null) {
+                    log.debug("StartDate {} is after SelectedDate: {} => {}", historyRoleAssignment.getStartDate(), displayDate, (historyRoleAssignment.getStartDate().isAfter(displayDate)));
+                    if (historyRoleAssignment.getStartDate().isAfter(displayDate)) {
+                        log.debug("Removing: {}", historyRoleAssignment.getRoleId() + " not active at that time.");
+                        itr.remove();
+                    }
+                }
+                //if the stopDate is null means it never expires
+                if (historyRoleAssignment.getStopDate() != null) {
+                    log.debug("SelectedDate {} is after StopDate {} => {}", displayDate, historyRoleAssignment.getStopDate(), (displayDate.isAfter(historyRoleAssignment.getStopDate())));
+                    if (displayDate.isAfter(historyRoleAssignment.getStopDate())) {
+                        log.debug("Removing: {}", historyRoleAssignment.getRoleId() + " expired at that time.");
+                        itr.remove();
+                    }
+                }
+            }
+        }
+    }
+
+    private LocalDate parseAndHandleFutureDate(String reportFormDate) {
+        if (reportFormDate != null && StringUtils.hasLength(reportFormDate)) {
+            LocalDate parsedDate = LocalDate.parse(reportFormDate);
+            if (parsedDate.isEqual(LocalDate.now()) || parsedDate.isBefore(LocalDate.now())) {
+                return parsedDate;
+            }
+        }
+        return LocalDate.now();
+    }
 }

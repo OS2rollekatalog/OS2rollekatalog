@@ -220,6 +220,9 @@
     <Compile Include="LogUploader\LogUploaderService.cs" />
     <Compile Include="PAM\Model\CyberArk.cs" />
     <Compile Include="PAM\PAMService.cs" />
+    <Compile Include="RemoteConfiguration\RemoteConfigurationService.cs" />
+    <Compile Include="RemoteConfiguration\RemoteConfigurationJob.cs" />
+    <Compile Include="RemoteConfiguration\RemoteConfiguration.cs" />
     <Compile Include="Tasks\ReadonlyItSystemService.cs" />
     <Compile Include="Tasks\ReadonlyItSystemSyncJob.cs" />
     <Compile Include="RoleCatalog\ItSystemData.cs" />
@@ -274,5 +277,6 @@
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
   </ItemGroup>
+  <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

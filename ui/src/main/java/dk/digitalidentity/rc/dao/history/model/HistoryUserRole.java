@@ -43,7 +43,7 @@ public class HistoryUserRole {
 	private Boolean sensitiveRole;
 
 	@Column(name = "`extra_sensitive_role`")
-	private boolean extraSensitiveRole;
+	private Boolean extraSensitiveRole;
 	
 	@BatchSize(size = 50)
 	@ManyToOne(fetch = FetchType.LAZY)

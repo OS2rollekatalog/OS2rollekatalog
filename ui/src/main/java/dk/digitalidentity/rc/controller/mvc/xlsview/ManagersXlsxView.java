@@ -53,8 +53,11 @@ public class ManagersXlsxView extends AbstractXlsxView {
 
         int row = 1;
         for (User manager : managers) {
-        	if (manager.getManagerSubstitutes().size() > 0) {
+        	if (!manager.getManagerSubstitutes().isEmpty()) {
 	        	for (ManagerSubstitute substitute : manager.getManagerSubstitutes()) {
+	        		if (substitute.getSubstitute().isDeleted()) {
+	        			continue;
+	        		}
 		            Row dataRow = sheet.createRow(row++);
 		
 		            String assignedBy = "";
@@ -87,7 +90,7 @@ public class ManagersXlsxView extends AbstractXlsxView {
 	            createCell(dataRow, 5, "", null);
 	            createCell(dataRow, 6, "", null);
 	            createCell(dataRow, 7, "", null);
-	            createCell(dataRow, 8, "", null);        		
+	            createCell(dataRow, 8, "", null);
         	}
         }
         

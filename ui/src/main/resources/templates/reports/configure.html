@@ -402,6 +402,7 @@
 			this.init = function() {
 				var date2MonthsAgo = new Date(new Date().setMonth(new Date().getMonth()-2));
 				var date6MonthsAgo = new Date(new Date().setMonth(new Date().getMonth()-6));
+				var date12MonthsFromNow = new Date(new Date().setMonth(new Date().getMonth()+12));
 
 				//Enable last two months
 				var enabledDates = getDates( date2MonthsAgo, new Date());
@@ -418,13 +419,18 @@
 					
 					enabledDates.push(olderDates[i]);
 				}
+			    //Enable future dates
+			    var futureDates = getDates(new Date(),date12MonthsFromNow);
+			    for (i = 0; i < futureDates.length; i ++ ) {
+                    enabledDates.push(futureDates[i]);
+                }
 				
 				// Initialize DatePicker
 				$('#datePicker').datetimepicker({
 					inline: true,
 					format: 'YYYY-MM-DD',
 					minDate: moment().subtract(6, 'months'),
-					maxDate: moment().add(0.5, 'months'),
+					maxDate: moment().add(12, 'months'),
 					enabledDates: enabledDates,
 					defaultDate: new Date()
 				});

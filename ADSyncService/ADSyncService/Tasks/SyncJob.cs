@@ -10,21 +10,29 @@ namespace ADSyncService
     internal class SyncJob : IJob
     {
         private static log4net.ILog log = log4net.LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
-        private static bool membershipSyncEnabled = Properties.Settings.Default.MembershipSyncFeature_Enabled;
-        private static bool createDeleteEnabled = Properties.Settings.Default.CreateDeleteFeature_Enabled;
-        private static bool backSyncEnabled = Properties.Settings.Default.BackSyncFeature_Enabled;
 
+        private RemoteConfigurationService remoteConfiguration = RemoteConfigurationService.Instance;
         private RoleCatalogueStub roleCatalogueStub = new RoleCatalogueStub();
         private EmailService emailService = EmailService.Instance;
         private ADStub adStub = new ADStub();
+        private BackSyncService backSyncService = new BackSyncService();
+        private CreateDeleteService createDeleteService = new CreateDeleteService();
+        private MembershipSyncService membershipSyncService = new MembershipSyncService();
 
         public void Execute(IJobExecutionContext context)
         {
+             bool membershipSyncEnabled = remoteConfiguration.GetConfiguration().membershipSyncFeatureEnabled;
+             bool createDeleteEnabled = remoteConfiguration.GetConfiguration().createDeleteFeatureEnabled;
+             bool backSyncEnabled = remoteConfiguration.GetConfiguration().backSyncFeatureEnabled;
+            log.Info("membershipSyncEnabled: " + membershipSyncEnabled);
+            log.Info("createDeleteEnabled: " + createDeleteEnabled);
+            log.Info("backSyncEnabled: " + backSyncEnabled);
+
             if (createDeleteEnabled)
             {
                 try
                 {
-                    CreateDeleteService.PerformGroupOperations(roleCatalogueStub, adStub);
+                    createDeleteService.PerformGroupOperations(roleCatalogueStub, adStub);
                 }
                 catch (System.Exception ex)
                 {
@@ -37,7 +45,7 @@ namespace ADSyncService
             {
                 try
                 {
-                    MembershipSyncService.SynchronizeGroupMemberships(roleCatalogueStub, adStub);
+                    membershipSyncService.SynchronizeGroupMemberships(roleCatalogueStub, adStub);
                 }
                 catch (System.Exception ex)
                 {
@@ -50,7 +58,7 @@ namespace ADSyncService
             {
                 try
                 {
-                    BackSyncService.SyncGroupsToRoleCatalogue(roleCatalogueStub, adStub);
+                    backSyncService.SyncGroupsToRoleCatalogue(roleCatalogueStub, adStub);
                 }
                 catch (System.Exception ex)
                 {

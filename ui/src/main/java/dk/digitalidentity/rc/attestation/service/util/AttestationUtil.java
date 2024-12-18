@@ -1,6 +1,7 @@
 package dk.digitalidentity.rc.attestation.service.util;
 
 import dk.digitalidentity.rc.attestation.model.entity.Attestation;
+import dk.digitalidentity.rc.attestation.model.entity.AttestationRun;
 import dk.digitalidentity.rc.attestation.model.entity.AttestationUser;
 import dk.digitalidentity.rc.attestation.model.entity.BaseUserAttestationEntry;
 import dk.digitalidentity.rc.attestation.model.entity.ItSystemRoleAttestationEntry;
@@ -52,9 +53,10 @@ public abstract class AttestationUtil {
 
     public static boolean hasAllUserAttestationsBeenPerformed(final Attestation attestation, final List<AttestationUserRoleAssignment> assignments,
                                                               final Predicate<AttestationUserRoleAssignment> filterPredicate) {
+        final AttestationRun run = attestation.getAttestationRun();
         return assignments.stream()
                 .filter(filterPredicate)
-                .filter(a -> !attestation.isSensitive() || isSensitiveUser(attestation, a.getUserUuid()))
+                .filter(a -> (!run.isSensitive() && !run.isExtraSensitive()) || isSensitiveUser(attestation, a.getUserUuid()))
                 .allMatch(a -> hasUserAssignmentAttestationBeenPerformed(attestation, a));
     }
 

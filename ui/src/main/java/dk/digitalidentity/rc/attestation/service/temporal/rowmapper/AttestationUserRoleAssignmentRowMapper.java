@@ -40,6 +40,7 @@ public class AttestationUserRoleAssignmentRowMapper implements RowMapper<Attesta
         assignment.setAssignedThroughUuid(rs.getString("assigned_through_uuid"));
         assignment.setInherited(rs.getBoolean("inherited"));
         assignment.setSensitiveRole(rs.getBoolean("sensitive_role"));
+        assignment.setExtraSensitiveRole(rs.getBoolean("extra_sensitive_role"));
         return assignment;
     }
 

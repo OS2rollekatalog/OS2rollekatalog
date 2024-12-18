@@ -12,4 +12,6 @@ public class ClientDTO {
 	private String accessRole;
 	private String version;
 	private boolean outdated;
+	private String integration;
+	private String domain;
 }

@@ -17,8 +17,8 @@
 
 		<tbody>
 		<tr th:each="mapping : ${userRoleMapping}">
-			<td th:text="${mapping.userName}"></td>
-			<td th:text="${mapping.userUserId}"></td>
+			<td th:text="${mapping.user.name}"></td>
+			<td th:text="${mapping.user.userId}"></td>
 
 			<td th:text="#{__${mapping.assignment.assignedThrough.message}__}"></td>
 
@@ -32,11 +32,11 @@
 
 			<td>
 				<ul style="list-style: none; padding-left: 0px;">
-					<li th:each="position : ${mapping.positions}" th:text="${position.name} + ' i ' + ${position.orgUnit.name}"></li>
+					<li th:each="position : ${mapping.user.positions}" th:text="${position.name} + ' i ' + ${position.orgUnit.name}"></li>
 				</ul>
 			</td>
 
-			<td th:if="${showEdit == true}" th:attr="data-assignmentid=${mapping.assignment.assignmentId}, data-user=${mapping.userUuid}, data-startDate=${mapping.assignment.startDate}, data-stopDate=${mapping.assignment.stopDate}, data-name=${mapping.assignment.name}, data-ouuuid=${mapping.assignment.orgUnitUuid}">
+			<td th:if="${showEdit == true}" th:attr="data-assignmentid=${mapping.assignment.assignmentId}, data-user=${mapping.user.uuid}, data-startDate=${mapping.assignment.startDate}, data-stopDate=${mapping.assignment.stopDate}, data-name=${mapping.assignment.name}, data-ouuuid=${mapping.assignment.orgUnitUuid}">
 				<a
 					href="#"
 					th:if="${mapping.assignment.canEdit}"

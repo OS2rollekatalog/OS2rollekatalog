@@ -1,3 +1,11 @@
+2024.11.06 - Release 2024r4
+- [ROL-395](https://os2web.atlassian.net/browse/ROL-395) Auditlog - alt skal logges
+- [ROL-376](https://os2web.atlassian.net/browse/ROL-376) Konfiguration af hvilket felt i AD rollenavne skal importeres fra
+- [ROL-372](https://os2web.atlassian.net/browse/ROL-372) Kan ikke se bruger i oversigt over hvem Jobfunktionsrollen er tildelt
+- [ROL-394](https://os2web.atlassian.net/browse/ROL-394) Attestering: det skal være muligt at fravælge mail til leder, når der opsat en stedfortræde
+- [ROL-365](https://os2web.atlassian.net/browse/ROL-365) Forbedret administration af integration imellem ROL og AD
+- [ROL-358](https://os2web.atlassian.net/browse/ROL-358) Mulighed for rapporter der afspejler fremtidige rettighedstildelinger
+
 2024.11.06 - Release 2024r3
 - [ROL-177](https://os2web.atlassian.net/browse/ROL-177) Alle AD sync services skal laves så de også kan bruges i Azure Ad
 - [ROL-300](https://os2web.atlassian.net/browse/ROL-300) Vi benytter vægtning i OS2rollekatalog til at afgøre tildeling af jobfunktionsroller. Problemet er, en rapport fra IT-systemet i OS2rollekatalog ikke indeholder vægtningen.

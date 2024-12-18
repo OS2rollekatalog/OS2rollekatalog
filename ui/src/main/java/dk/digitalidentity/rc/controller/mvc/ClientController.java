@@ -2,11 +2,16 @@ package dk.digitalidentity.rc.controller.mvc;
 
 import dk.digitalidentity.rc.controller.mvc.viewmodel.ClientDTO;
 import dk.digitalidentity.rc.controller.validator.ClientDTOValidator;
+import dk.digitalidentity.rc.dao.model.ADConfiguration;
 import dk.digitalidentity.rc.dao.model.Client;
 import dk.digitalidentity.rc.dao.model.enums.AccessRole;
+import dk.digitalidentity.rc.dao.model.enums.ClientIntegrationType;
 import dk.digitalidentity.rc.dao.model.enums.VersionStatusEnum;
 import dk.digitalidentity.rc.security.RequireAdministratorRole;
+import dk.digitalidentity.rc.service.ADConfigurationService;
 import dk.digitalidentity.rc.service.ClientService;
+import dk.digitalidentity.rc.service.DomainService;
+import dk.digitalidentity.rc.service.Select2Service;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
@@ -32,9 +37,18 @@ public class ClientController {
 	@Autowired
 	private ClientDTOValidator clientDTOValidator;
 
-	@InitBinder
+	@Autowired
+	private DomainService domainService;
+
+	@Autowired
+	private ADConfigurationService adConfigurationService;
+
+	@Autowired
+	private Select2Service select2Service;
+
+	@InitBinder("clientDTO")
 	public void initClientBinder(WebDataBinder binder) {
-		binder.setValidator(clientDTOValidator);
+		binder.addValidators(clientDTOValidator);
 	}
 
 	@GetMapping("/ui/client/list")
@@ -53,6 +67,7 @@ public class ClientController {
 
 		model.addAttribute("client", clientDTO);
 		model.addAttribute("accessRoles", AccessRole.values());
+		model.addAttribute("domains", domainService.getAll());
 
 		return "client/new";
 	}
@@ -63,6 +78,7 @@ public class ClientController {
 			model.addAttribute(bindingResult.getAllErrors());
 			model.addAttribute("client", clientDTO);
 			model.addAttribute("accessRoles", AccessRole.values());
+			model.addAttribute("domains", domainService.getAll());
 
 			return "client/new";
 		}
@@ -72,6 +88,11 @@ public class ClientController {
 		client.setApiKey(clientDTO.getApiKey());
 		client.setAccessRole(AccessRole.valueOf(clientDTO.getAccessRole()));
 		client.setVersionStatus(VersionStatusEnum.UNKNOWN);
+		client.setClientIntegrationType(ClientIntegrationType.valueOf(clientDTO.getIntegration()));
+
+		if (ClientIntegrationType.valueOf(clientDTO.getIntegration()).equals(ClientIntegrationType.AD_SYNC_SERVICE)) {
+			client.setDomain(domainService.getByName(clientDTO.getDomain()));
+		}
 
 		clientService.save(client);
 
@@ -91,8 +112,11 @@ public class ClientController {
 		clientDTO.setAccessRole(client.getAccessRole().getMessageId());
 		clientDTO.setVersion(client.getVersion());
 		clientDTO.setOutdated(client.getVersionStatus() == VersionStatusEnum.OUTDATED);
+		clientDTO.setIntegration(client.getClientIntegrationType().getMessage());
+		clientDTO.setDomain(client.getDomain() == null ? null : client.getDomain().getName());
 
 		model.addAttribute("client", clientDTO);
+		model.addAttribute("isADSyncServiceClient", client.getClientIntegrationType().equals(ClientIntegrationType.AD_SYNC_SERVICE));
 
 		return "client/view";
 	}
@@ -109,9 +133,13 @@ public class ClientController {
 		clientDTO.setName(client.getName());
 		clientDTO.setApiKey(client.getApiKey());
 		clientDTO.setAccessRole(client.getAccessRole().name());
+		clientDTO.setIntegration(client.getClientIntegrationType().name());
+		clientDTO.setDomain(client.getDomain() == null ? null : client.getDomain().getName());
 
 		model.addAttribute("client", clientDTO);
 		model.addAttribute("accessRoles", AccessRole.values());
+		model.addAttribute("domains", domainService.getAll());
+
 
 		return "client/edit";
 	}
@@ -122,6 +150,7 @@ public class ClientController {
 			model.addAttribute(bindingResult.getAllErrors());
 			model.addAttribute("client", clientDTO);
 			model.addAttribute("accessRoles", AccessRole.values());
+			model.addAttribute("domains", domainService.getAll());
 
 			return "client/edit";
 		}
@@ -134,6 +163,11 @@ public class ClientController {
 		client.setName(clientDTO.getName());
 		client.setApiKey(clientDTO.getApiKey());
 		client.setAccessRole(AccessRole.valueOf(clientDTO.getAccessRole()));
+		client.setClientIntegrationType(ClientIntegrationType.valueOf(clientDTO.getIntegration()));
+
+		if (ClientIntegrationType.valueOf(clientDTO.getIntegration()).equals(ClientIntegrationType.AD_SYNC_SERVICE)) {
+			client.setDomain(domainService.getByName(clientDTO.getDomain()));
+		}
 
 		clientService.save(client);
 
@@ -149,4 +183,25 @@ public class ClientController {
 
 		return "redirect:/ui/client/list";
 	}
+
+	@GetMapping("/ui/client/adsyncservice/{clientId}")
+	public String adSyncServiceClient(@PathVariable long clientId, Model model) {
+		Client client = clientService.getClientById(clientId);
+		if (client == null || !client.getClientIntegrationType().equals(ClientIntegrationType.AD_SYNC_SERVICE)) {
+			return "redirect:/ui/client/list";
+		}
+
+		select2Service.clearCache(); // We always want new it-systems
+		ADConfiguration adConfiguration = adConfigurationService.getByClient(client);
+		if (adConfiguration != null) {
+			model.addAttribute("configured", true);
+			model.addAttribute("settings", adConfiguration.getJson());
+			model.addAttribute("clientErrors", adConfiguration.getErrorMessage());
+		}
+		model.addAttribute("clientID", clientId);
+		model.addAttribute("clientName", client.getName());
+		model.addAttribute("itSystemList", select2Service.getItSystemList());
+		return "client/adSyncService";
+	}
+
 }

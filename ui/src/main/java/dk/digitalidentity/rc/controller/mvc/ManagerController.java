@@ -65,7 +65,7 @@ public class ManagerController {
 			}
 		}
 		
-		List<ManagerSubstituteAssignmentDTO> substitutesDTO = manager.getManagerSubstitutes().stream().map(ManagerSubstituteAssignmentDTO::new).toList();
+		List<ManagerSubstituteAssignmentDTO> substitutesDTO = manager.getManagerSubstitutes().stream().filter(s -> !s.getSubstitute().isDeleted()).map(ManagerSubstituteAssignmentDTO::new).toList();
 		
 		model.addAttribute("managerUuid", manager.getUuid());
 		model.addAttribute("managerName", manager.getName());

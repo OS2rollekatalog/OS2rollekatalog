@@ -49,6 +49,31 @@
 									</div>
 
 									<div class="form-group">
+										<label class="col-sm-2 control-label" th:text="#{html.client.integration}"></label>
+										<div class="col-sm-8">
+											<select class="form-control m-b" th:field="*{integration}" id="integrationSelect">
+												<option th:each="integration : ${T(dk.digitalidentity.rc.dao.model.enums.ClientIntegrationType).values()}" th:value="${integration}" th:text="#{${integration.getMessage()}}"></option>
+											</select>
+											<ul th:if="${#fields.hasErrors('integration')}" class="error">
+												<li th:each="err : ${#fields.errors('integration')}" th:text="${err}"></li>
+											</ul>
+										</div>
+									</div>
+
+									<div class="form-group" id="adSyncServiceDomain" style="display: none;">
+										<label class="col-sm-2 control-label" th:text="#{html.client.domain}"></label>
+										<div class="col-sm-8">
+											<select class="form-control m-b" th:field="*{domain}">
+												<option value="">Vælg domæne</option>
+												<option th:each="domain : ${domains}" th:value="${domain.name}" th:text="${domain.name}"></option>
+											</select>
+											<ul th:if="${#fields.hasErrors('domain')}" class="error">
+												<li th:each="err : ${#fields.errors('domain')}" th:text="${err}"></li>
+											</ul>
+										</div>
+									</div>
+
+									<div class="form-group">
 										<div class="col-sm-offset-2 col-sm-10">
 											<button type="submit" style="margin-right: 5px;" class="btn btn-lg btn-primary col-xs-2"  th:text="#{html.control.button.save}"></button>
 											<a th:href="@{/ui/client/list}" style="margin-right: 5px;" class="btn btn-lg btn-danger col-xs-2" th:text="#{html.control.button.cancel}"></a>
@@ -64,5 +89,33 @@
 	</div>
 
     <div th:replace="~{fragments/footer :: footer}"></div>
+
+	<script th:inline="javascript">
+		/*<![CDATA[*/
+
+        /*[+
+
+        +]*/
+
+            var token = $("meta[name='_csrf']").attr("content");
+
+            $(document).ready(function () {
+				$("#integrationSelect").change(toggleAdSyncServiceDomain);
+				toggleAdSyncServiceDomain();
+
+            });
+
+            function toggleAdSyncServiceDomain() {
+            	var adSyncServiceDomain = $("#adSyncServiceDomain");
+				var integrationField = $("#integrationSelect");
+				if (integrationField.val() === 'AD_SYNC_SERVICE') {
+					adSyncServiceDomain.css("display", "block");
+				} else {
+					adSyncServiceDomain.css("display", "none");
+				}
+			}
+
+        /*]]>*/
+	</script>
 </body>
 </html>

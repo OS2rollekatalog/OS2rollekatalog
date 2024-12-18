@@ -403,6 +403,14 @@
 									<span th:text="#{html.navbar.client}"></span>
 								</a>
 							</li>
+
+							<li th:each="client : ${@clientService.findADSyncServices()}" th:class="${page == 'clients.adSyncService' + client.id} ? 'active' : ''">
+								<a th:href="'/ui/client/adsyncservice/' + ${client.id}" th:with="adError=${@ADConfigurationService.hasError(client)}">
+									<em class="fa fa-list"></em>
+									<em class="fa fa-warning" th:if="${adError != null}" data-toggle="tooltip" data-placement="right" data-html="true" th:title="${adError}"></em>
+									<span th:text="${client.name}"></span>
+								</a>
+							</li>
 						</th:block>
 					</th:block>
 					

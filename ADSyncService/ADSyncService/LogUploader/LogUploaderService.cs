@@ -8,19 +8,19 @@ namespace ADSyncService
     class LogUploaderService
     {
         private static readonly log4net.ILog log = log4net.LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
-        private static bool enabled = Properties.Settings.Default.LogUploaderEnabled;
-        private static string url = Properties.Settings.Default.LogUploaderFileShareUrl;
-        private static string apiKey = Properties.Settings.Default.LogUploaderFileShareApiKey;
+        
         private static string domain = Properties.Settings.Default.Domain;
 
         private RoleCatalogueStub roleCatalogueStub = new RoleCatalogueStub();
         private EmailService emailService = EmailService.Instance;
+        private RemoteConfigurationService remoteConfigurationService = RemoteConfigurationService.Instance;
 
         // has to be the same as the path specified in the log section in appsettings.json minus the file name
         private readonly string logFilePath = "C:/logs/ADSyncService/system.log";
 
         public void CheckForLogRequest()
         {
+            bool enabled = remoteConfigurationService.GetConfiguration().logUploaderEnabled;
             if (enabled)
             {
                 try
@@ -51,7 +51,8 @@ namespace ADSyncService
 
         public void UploadFile(string fileName, Stream fileStream)
         {
-
+            string url = remoteConfigurationService.GetConfiguration().logUploaderFileShareUrl;
+            string apiKey = remoteConfigurationService.GetConfiguration().logUploaderFileShareApiKey;
             byte[] payload = null;
             using (var memoryStream = new MemoryStream())
             {

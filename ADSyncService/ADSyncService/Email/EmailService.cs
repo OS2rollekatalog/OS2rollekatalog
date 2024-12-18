@@ -14,12 +14,7 @@ namespace ADSyncService.Email
     public class EmailService
     {
         private static readonly log4net.ILog log = log4net.LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
-        private static string tenantId = Properties.Settings.Default.TenantId;
-        private static string clientId = Properties.Settings.Default.ClientId;
-        private static string clientSecret = Properties.Settings.Default.ClientSecret;
-        private static string user = Properties.Settings.Default.User;
-        private static string recipientEmail = Properties.Settings.Default.RecipientEmail;
-        private static bool featureEnabled = Properties.Settings.Default.SendErrorEmailFeature_Enabled;
+        private RemoteConfigurationService remoteConfigurationService = RemoteConfigurationService.Instance;
 
         private static readonly Lazy<EmailService> lazy = new Lazy<EmailService>(() => new EmailService());
         public static EmailService Instance { get { return lazy.Value; } }
@@ -33,6 +28,12 @@ namespace ADSyncService.Email
 
         public void init()
         {
+            string tenantId = remoteConfigurationService.GetConfiguration().tenantId;
+            string clientId = remoteConfigurationService.GetConfiguration().clientId;
+            string clientSecret = remoteConfigurationService.GetConfiguration().clientSecret;
+            string user = remoteConfigurationService.GetConfiguration().sendingUserEmail;
+            bool featureEnabled = remoteConfigurationService.GetConfiguration().sendErrorEmailFeatureEnabled;
+
             if (!featureEnabled)
             {
                 log.Debug("Sending emails with error messages is DISABLED.");
@@ -61,7 +62,9 @@ namespace ADSyncService.Email
 
         public void EnqueueMail(string errorMessage, Exception e)
         {
+            bool featureEnabled = remoteConfigurationService.GetConfiguration().sendErrorEmailFeatureEnabled;
             if (!featureEnabled) { return; }
+            string recipientEmail = remoteConfigurationService.GetConfiguration().recipientEmail;
             var requestBody = new SendMailPostRequestBody
             {
                 Message = new Message
@@ -102,7 +105,9 @@ namespace ADSyncService.Email
         }
         public void EnqueueMail(string message)
         {
+            bool featureEnabled = remoteConfigurationService.GetConfiguration().sendErrorEmailFeatureEnabled;
             if (!featureEnabled) { return; }
+            string recipientEmail = remoteConfigurationService.GetConfiguration().recipientEmail;
             var requestBody = new SendMailPostRequestBody
             {
                 Message = new Message
@@ -133,6 +138,8 @@ namespace ADSyncService.Email
 
         public void SendPendingEmails()
         {
+            bool featureEnabled = remoteConfigurationService.GetConfiguration().sendErrorEmailFeatureEnabled;
+            string user = remoteConfigurationService.GetConfiguration().sendingUserEmail;
             if (!featureEnabled) { return; }
             if (!initialized) {  init(); }
 

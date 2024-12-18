@@ -1,5 +1,9 @@
 package dk.digitalidentity.rc.dao.history.model;
 
+import java.time.LocalDate;
+import java.util.Date;
+import java.util.List;
+
 import dk.digitalidentity.rc.config.StringListConverter;
 import jakarta.persistence.Column;
 import jakarta.persistence.Convert;
@@ -9,15 +13,11 @@ import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.Setter;
 
-import java.time.LocalDate;
-import java.util.Date;
-import java.util.List;
-
 @Entity
 @Table(name = "history_role_assignment_negative_titles")
 @Getter
 @Setter
-public class HistoryOURoleAssignmentWithNegativeTitles {
+public class HistoryOURoleAssignmentWithNegativeTitles implements GenericRoleAssignment {
 
 	@Id
 	private long id;

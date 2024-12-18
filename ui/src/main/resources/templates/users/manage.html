@@ -245,20 +245,20 @@
 			this.loadRolesFragment = function () {
 				$("#roles_menu").load(UIUrl + user + "/roles", function () {
 					hideColumn = [1,5];
-					currentTable = showDataTableWithHiddenColumns('#listTable', 0, hideColumn, 10);
+					currentTable = showDataTableWithHiddenColumns('#listTable', 0, hideColumn, 100);
 					dataTablesRefreshIcons($('#dataTableDropdown'));
 				});
 			}
 
 			this.loadAddUserRoleFragment = function () {
 				$("#roles_menu").load(UIUrl + user + "/addUserRole", function () {
-					fragShowDataTableFun('#listTable_u_ur', 0, 10);
+					fragShowDataTableFun('#listTable_u_ur', 0, 100);
 				});
 			}
 
 			this.loadAddRoleGroupFragment = function () {
 				$("#roles_menu").load(UIUrl + user + "/addRoleGroup", function () {
-					fragShowDataTableFun('#listTable_u_rg', 0, 10);
+					fragShowDataTableFun('#listTable_u_rg', 0, 100);
 				});
 			}
 

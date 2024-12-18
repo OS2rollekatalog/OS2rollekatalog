@@ -307,6 +307,12 @@ public class OrganisationAttestationService {
         if (isOrganisationAttestationDone(attestation, attestation.getCreatedAt())) {
             attestation.setVerifiedAt(ZonedDateTime.now());
         }
+        final User user = userService.getByUuid(performedByUserId);
+        if (user != null) {
+            emailNotificationService.sendRequestForChangeMail(
+                    userNameAndID(user),
+                    userNameAndID(user), remarks, Collections.emptyList());
+        }
     }
 
     private OrganisationAttestationDTO markCurrentUserReadonly(final String currentUserUuid, final OrganisationAttestationDTO organisationAttestationDto) {
@@ -332,8 +338,9 @@ public class OrganisationAttestationService {
         final List<String> processedUserUuid = attestation.getOrganisationUserAttestationEntries().stream()
                 .map(BaseUserAttestationEntry::getUserUuid)
                 .toList();
+        final AttestationRun run = attestation.getAttestationRun();
         final List<AttestationUserRoleAssignment> userAssignments = userRoleAssignmentDao.listValidAssignmentsByResponsibleOu(when, attestation.getResponsibleOuUuid()).stream()
-                .filter(a -> !attestation.isSensitive() || isSensitiveUser(attestation, a.getUserUuid()))
+                .filter(a -> (!run.isSensitive() && !run.isExtraSensitive()) || isSensitiveUser(attestation, a.getUserUuid()))
                 .filter(a -> a.getAssignedThroughType() == AssignedThroughType.DIRECT)
                 .toList();
         return userAssignments.stream()
@@ -425,8 +432,9 @@ public class OrganisationAttestationService {
         final var userRoleAssignments = assignments.stream()
                 .filter(p -> p.getRoleGroupId() == null)
                 .toList();
+        final AttestationRun run = attestation.getAttestationRun();
         return distinctAssignments.stream()
-                        .filter(a -> !attestation.isSensitive() || // if this is sensitive, we only want users with sensitive roles
+                        .filter(a -> (!run.isSensitive() && !run.isExtraSensitive()) || // if this is sensitive, we only want users with sensitive roles
                                         isSensitiveUser(attestation, a.getUserUuid()))
                         .map(u -> {
                             final Optional<OrganisationUserAttestationEntry> entry = findUserAttestation(attestation, u);

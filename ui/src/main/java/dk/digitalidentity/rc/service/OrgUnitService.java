@@ -438,7 +438,7 @@ public class OrgUnitService {
 		}
 
 		// inherit is only possible if no excepted users and titles isn't positive
-		if (!assignment.isContainsExceptedUsers() && assignment.getContainsTitles() == ContainsTitles.POSITIVE) {
+		if (!assignment.isContainsExceptedUsers() && assignment.getContainsTitles() != ContainsTitles.POSITIVE) {
 			if (assignment.isInherit() && !inherit) {
 				assignment.setInherit(false);
 				modified = true;
@@ -580,6 +580,10 @@ public class OrgUnitService {
 			} else if (negativeTitles) {
 				if(assignment.getContainsTitles() != ContainsTitles.NEGATIVE) {
 					assignment.setContainsTitles(ContainsTitles.NEGATIVE);
+					modified = true;
+				}
+				if (assignment.isInherit() != inherit) {
+					assignment.setInherit(inherit);
 					modified = true;
 				}
 			} else {

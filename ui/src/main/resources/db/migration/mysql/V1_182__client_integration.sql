@@ -1,0 +1,15 @@
+ALTER TABLE client ADD COLUMN client_integration_type VARCHAR(36) NOT NULL DEFAULT 'GENERIC';
+ALTER TABLE client ADD COLUMN domain_id BIGINT NULL;
+ALTER TABLE client ADD CONSTRAINT FK_CLIENT_ON_DOMAIN FOREIGN KEY (domain_id) REFERENCES domains (id);
+
+CREATE TABLE ad_configuration (
+   id BIGINT AUTO_INCREMENT NOT NULL PRIMARY KEY,
+   version INT NOT NULL,
+   updated_at datetime NOT NULL,
+   updated_by VARCHAR(255) NOT NULL,
+   error_message TEXT NULL,
+   json JSON NULL,
+   client_id BIGINT NOT NULL,
+   CONSTRAINT FK_AD_CONFIGURATION_ON_CLIENT FOREIGN KEY (client_id) REFERENCES client (id),
+   CONSTRAINT UQ_VERSION_CLIENT UNIQUE (version, client_id)
+);

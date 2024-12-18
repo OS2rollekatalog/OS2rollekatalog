@@ -9,4 +9,5 @@ import lombok.Setter;
 public class UserWithRole {
 	private User user;
 	private AssignedThrough assignedThrough;
+	private RoleAssignedToUserDTO assignment;
 }

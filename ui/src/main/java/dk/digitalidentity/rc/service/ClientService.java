@@ -3,8 +3,11 @@ package dk.digitalidentity.rc.service;
 import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
 import dk.digitalidentity.rc.dao.ClientDao;
 import dk.digitalidentity.rc.dao.model.Client;
+import dk.digitalidentity.rc.dao.model.Domain;
 import dk.digitalidentity.rc.dao.model.enums.AccessRole;
+import dk.digitalidentity.rc.dao.model.enums.ClientIntegrationType;
 import dk.digitalidentity.rc.dao.model.enums.VersionStatusEnum;
+import dk.digitalidentity.rc.log.AuditLogIntercepted;
 import jakarta.annotation.PostConstruct;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
@@ -64,16 +67,30 @@ public class ClientService {
 		return clientDao.findById(id);
 	}
 
+	@AuditLogIntercepted
 	public void delete(Client client) {
 		clientDao.delete(client);
 	}
 
+	@AuditLogIntercepted
 	public Client save(Client client) {
 		return clientDao.save(client);
 	}
 
 	public List<Client> findAll() {
 		return clientDao.findAll();
+	}
+
+	// is used in thymeleaf
+	public List<Client> findADSyncServices() {
+		return clientDao.findByClientIntegrationType(ClientIntegrationType.AD_SYNC_SERVICE);
+	}
+
+	public Client getClientByDomain(Domain domain) {
+		if (domain == null) {
+			return null;
+		}
+		return clientDao.findByDomain(domain);
 	}
 
 	// run every 10 minutes

@@ -10,7 +10,7 @@ import java.util.List;
 
 public interface AttestationOuAssignmentsDao extends CrudRepository<AttestationOuRoleAssignment, Long> {
 
-    @Query(value = "SELECT s FROM AttestationOuRoleAssignment s WHERE s.validFrom <= :validAt AND (s.validTo > :validAt or s.validTo is null) AND s.ouUuid=:ouUuid AND s.inherited=false AND s.exceptedTitleUuids is null")
+    @Query(value = "SELECT s FROM AttestationOuRoleAssignment s WHERE s.validFrom <= :validAt AND (s.validTo > :validAt or s.validTo is null) AND s.ouUuid=:ouUuid AND s.inherited=false AND (s.exceptedTitleUuids is null or s.exceptedTitleUuids = '') ")
     List<AttestationOuRoleAssignment> listValidNotInheritedAssignmentsForOu(@Param("validAt") final LocalDate validAt, @Param("ouUuid") final String ouUuid);
 
     @Query(value = "SELECT s FROM AttestationOuRoleAssignment s WHERE s.validFrom <= :validAt AND (s.validTo > :validAt or s.validTo is null) AND s.ouUuid=:ouUuid AND s.exceptedTitleUuids is not null AND LENGTH(s.exceptedTitleUuids) > 0")

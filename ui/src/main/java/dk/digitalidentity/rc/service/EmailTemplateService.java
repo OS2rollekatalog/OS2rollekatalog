@@ -15,6 +15,7 @@ import org.springframework.stereotype.Service;
 import dk.digitalidentity.rc.dao.EmailTemplateDao;
 import dk.digitalidentity.rc.dao.model.EmailTemplate;
 import dk.digitalidentity.rc.dao.model.enums.EmailTemplateType;
+import dk.digitalidentity.rc.log.AuditLogIntercepted;
 
 @Service
 public class EmailTemplateService {
@@ -227,6 +228,7 @@ public class EmailTemplateService {
 		return template;
 	}
 
+	@AuditLogIntercepted
 	public EmailTemplate save(EmailTemplate template) {
 		return emailTemplateDao.save(template);
 	}

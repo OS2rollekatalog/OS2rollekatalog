@@ -23,7 +23,7 @@ BEGIN
   JOIN user_roles ur ON ur.id = our.role_id
   JOIN it_systems it ON it.id = ur.it_system_id
   JOIN ou_roles_titles oureu ON oureu.ou_roles_id = our.id
-  WHERE o.active = 1 AND our.inactive = 0 AND our.contains_titles = 2
+  WHERE o.active = 1 AND our.contains_titles = 2
   GROUP BY our.id;
 
   -- user roles through rolegroups from direct assignments
@@ -42,7 +42,7 @@ BEGIN
   JOIN user_roles ur ON ur.id = rgr.role_id
   JOIN it_systems it ON it.id = ur.it_system_id
   JOIN ou_rolegroups_titles ourgeu ON ourgeu.ou_rolegroups_id = ourg.id
-  WHERE o.active = 1 AND ourg.inactive = 0 AND ourg.contains_titles = 2
+  WHERE o.active = 1 AND ourg.contains_titles = 2
   GROUP BY ourg.id, ur.id;
 
 END $$

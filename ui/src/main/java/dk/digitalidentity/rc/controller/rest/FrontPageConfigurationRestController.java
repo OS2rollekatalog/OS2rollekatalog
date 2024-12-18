@@ -1,6 +1,9 @@
 package dk.digitalidentity.rc.controller.rest;
 
 import dk.digitalidentity.rc.dao.model.FrontPageLink;
+import dk.digitalidentity.rc.dao.model.enums.EventType;
+import dk.digitalidentity.rc.log.AuditLogContextHolder;
+import dk.digitalidentity.rc.log.AuditLogger;
 import dk.digitalidentity.rc.service.FrontPageLinkService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpEntity;
@@ -18,6 +21,9 @@ public class FrontPageConfigurationRestController {
 
 	@Autowired
 	private FrontPageLinkService frontPageLinkService;
+
+	@Autowired
+	private AuditLogger auditLogger;
 
 	record SaveDTO(long id, String title, String icon, String link, String description) {}
 	@PostMapping(value = { "/rest/frontpage/links/save" })
@@ -40,6 +46,9 @@ public class FrontPageConfigurationRestController {
 		}
 
 		frontPageLinkService.save(frontPageLink);
+		AuditLogContextHolder.getContext().addArgument("URL", frontPageLink.getLink());
+		auditLogger.log(frontPageLink, EventType.FRONT_PAGE_LINK_CREATED);
+		AuditLogContextHolder.clearContext();
 
 		return new ResponseEntity<>(HttpStatus.OK);
 	}
@@ -53,6 +62,9 @@ public class FrontPageConfigurationRestController {
 		}
 
 		frontPageLinkService.delete(frontPageLink);
+		AuditLogContextHolder.getContext().addArgument("URL", frontPageLink.getLink());
+		auditLogger.log(frontPageLink, EventType.FRONT_PAGE_LINK_REMOVED);
+		AuditLogContextHolder.clearContext();
 
 		return new ResponseEntity<>(HttpStatus.OK);
 	}
@@ -67,6 +79,9 @@ public class FrontPageConfigurationRestController {
 
 		frontPageLink.setActive(active);
 		frontPageLinkService.save(frontPageLink);
+		AuditLogContextHolder.getContext().addArgument("URL", frontPageLink.getLink());
+		auditLogger.log(frontPageLink, EventType.FRONT_PAGE_LINK_CHANGED);
+		AuditLogContextHolder.clearContext();
 
 		return new ResponseEntity<>(HttpStatus.OK);
 	}

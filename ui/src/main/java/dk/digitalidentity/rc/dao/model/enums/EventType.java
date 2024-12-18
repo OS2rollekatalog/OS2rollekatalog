@@ -4,7 +4,7 @@ import lombok.Getter;
 
 @Getter
 public enum EventType {
-	LOGIN_LOCAL(""),      // login to Role Catalogue
+	LOGIN_LOCAL(""),	  // login to Role Catalogue
 	LOGIN_EXTERNAL(""),   // login to some external system (i.e. SAML lookup from AD FS or similar)
 
 	CREATE(""),
@@ -39,6 +39,18 @@ public enum EventType {
 	PERFORMED_ROLEGROUP_CLEANUP("html.enum.eventtype.cleanup.rolegroups"),
 	
 	ADMIN_ASSIGNED_MANAGER_SUBSTITUTE("html.enum.eventtype.admin_assigned_manager_substitute"),
+
+	SETTINGS_CHANGED("html.enum.eventtype.setting_changed"),
+	
+	FRONT_PAGE_LINK_CREATED("html.enum.eventtype.front_page_link_created"),
+	FRONT_PAGE_LINK_CHANGED("html.enum.eventtype.front_page_link_changed"),
+	FRONT_PAGE_LINK_REMOVED("html.enum.eventtype.front_page_link_removed"),
+
+	EMAIL_TEMPLATE_CHANGED("html.enum.eventtype.email_template_changed"),
+
+	CLIENT_CREATED("html.enum.eventtype.client_created"),
+	CLIENT_CHANGED("html.enum.eventtype.client_changed"),
+	CLIENT_REMOVED("html.enum.eventtype.client_removed"),
 	
 	// deprecated - keeping them to make sure existing loglines still work
 	EDIT_USER_ROLE_ASSIGNMENT("html.enum.eventtype.edit_user_role_assignment"),

@@ -70,6 +70,30 @@ public class AttestationTask {
     @Autowired
     private Flyway flyway;
 
+
+    @Timed(longTask = true, value = "attestation.finish_outstanding_task.timer")
+    @Scheduled(cron = "${rc.attestation.finish_outstanding_cron}")
+//    @Scheduled(fixedDelay = 10000000L)
+    public void finishOutstandingAttestations() {
+        // This task will look through unfinished attestestations and finish them in case they are done
+        if (!configuration.getScheduled().isEnabled()) {
+            return;
+        }
+
+        if (!settingsService.isScheduledAttestationEnabled()) {
+            log.debug("Attestation not enabled, no tracking needed");
+            return;
+        }
+        log.info("Attestation finish outstanding running");
+
+        organisationAttestationService.finishOutstandingAttestations();
+        itSystemUsersAttestationService.finishOutstandingAttestations();
+        itSystemUserRolesAttestationService.finishOutstandingAttestations();
+
+        log.info("Attestation finish outstanding done");
+
+    }
+
     @Timed(longTask = true, value = "attestation.attestation_task.timer")
     @Scheduled(cron = "${rc.attestation.attestation_cron}")
 //    @Scheduled(fixedDelay = 10000000L)

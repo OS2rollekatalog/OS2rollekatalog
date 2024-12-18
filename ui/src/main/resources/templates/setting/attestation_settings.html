@@ -12,6 +12,7 @@
 			<div class="panel panel-default" style="padding-left: 20px; padding-right: 20px;">
 				<form id="setting-form" class="form-horizontal" method="post" th:object="${attestationSettingsForm}" th:action="@{/ui/settings/attestation}">
 					<input type="hidden" th:field="*{scheduledAttestationEnabled}" />
+					<input type="hidden" th:field="*{dontSendMailToManager}" />
 					<input type="hidden" th:field="*{adAttestationEnabled}" />
 					<input type="hidden" th:field="*{firstAttestationDate}" />
 					<input type="hidden" th:field="*{changeRequestsEnabled}" />
@@ -77,6 +78,19 @@
 										</ul>
 									</div>
 									<a th:replace="~{fragments/help :: help (title=#{html.help.remove.role.title}, content=#{html.help.remove.role.body})}"></a>
+								</div>
+							</fieldset>
+							<fieldset>
+								<div class="form-group">
+									<label class="col-sm-3 control-label" th:text="#{html.setting.attestation.dont_send_email_to_leader}"></label>
+									<div class="col-sm-1">
+										<div class="checkbox c-checkbox">
+											<label>
+												<input id="dont-send-mail-to-manager-checkbox" type="checkbox" th:attr="checked=${attestationSettingsForm.dontSendMailToManager}" />
+												<span class="fa fa-check"></span>
+											</label>
+										</div>
+									</div>
 								</div>
 							</fieldset>
 							<fieldset>
@@ -230,6 +244,10 @@
 			if ($("#scheduledAttestationEnabled").val() == "true") {
 				$("#scheduledAttestationSubsettings").show();
 			}
+
+			$("#dont-send-mail-to-manager-checkbox").change(function() {
+				$("#dontSendMailToManager").val(this.checked);
+			});
 
 			$("#attestation-ad-checkbox").change(function() {
 				$("#adAttestationEnabled").val(this.checked);

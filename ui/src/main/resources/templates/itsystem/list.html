@@ -43,6 +43,7 @@
                                             <span th:text="${itsystem.name}"></span>
                                             <span th:if="${itsystem.accessBlocked == true}" class="label label-danger" th:text="#{html.page.itsystem.list.access_blocked}"></span>
                                             <span th:if="${itsystem.paused == true}" class="badge badge-warning" th:text="#{html.page.itsystem.list.paused}"></span>
+                                            <span th:each="badge : ${itsystem.adSyncServiceLabels}" class="badge badge-success" th:text="${badge}"></span>
                                         </td>
 								    	<td th:text="${itsystem.identifier}"></td>
 								    	<td th:text="#{__${itsystem.systemType.message}__}"></td>

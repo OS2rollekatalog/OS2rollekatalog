@@ -26,7 +26,8 @@ public class RoleAssignedToOrgUnitDTO {
 	private boolean canEdit;
 	
 	// This is different than the other similar code
-	// -3 contains excepted titles
+	// -4 contains excepted titles
+	// -3 contains excepted titles with inherit
 	// -2 inherit
 	// -1 everyone
 	//  0 contains excepted users
@@ -70,8 +71,11 @@ public class RoleAssignedToOrgUnitDTO {
 		else if (assignment.isContainsExceptedUsers()) {
 			dto.setAssignmentType(0);// Assigned to all users with exceptions
 		}
-		else if (assignment.getContainsTitles() == ContainsTitles.NEGATIVE) {
+		else if (assignment.isInherit() && assignment.getContainsTitles() == ContainsTitles.NEGATIVE) {
 			dto.setAssignmentType(-3);// Assigned to all titles with exceptions
+		}
+		else if (assignment.getContainsTitles() == ContainsTitles.NEGATIVE) {
+			dto.setAssignmentType(-4);// Assigned to all titles with exceptions inherited
 		}
 		else {
 			dto.setAssignmentType(assignment.isInherit() ? -2 : -1);// Assigned to all or with inheritance
@@ -100,8 +104,11 @@ public class RoleAssignedToOrgUnitDTO {
 		else if (assignment.isContainsExceptedUsers()) {
 			dto.setAssignmentType(0);// Assigned to all users with exceptions
 		}
+		else if (assignment.isInherit() && assignment.getContainsTitles() == ContainsTitles.NEGATIVE) {
+			dto.setAssignmentType(-3);// Assigned to all titles with exceptions inherited
+		}
 		else if (assignment.getContainsTitles() == ContainsTitles.NEGATIVE) {
-			dto.setAssignmentType(-3);// Assigned to all titles with exceptions
+			dto.setAssignmentType(-4);// Assigned to all titles with exceptions
 		}
 		else {
 			dto.setAssignmentType(assignment.isInherit() ? -2 : -1);// Assigned to all or with inheritance
@@ -127,8 +134,11 @@ public class RoleAssignedToOrgUnitDTO {
 		else if (assignment.isContainsExceptedUsers()) {
 			dto.setAssignmentType(0);// Assigned to all users with exceptions
 		}
+		else if (assignment.isInherit() && assignment.getContainsTitles() == ContainsTitles.NEGATIVE) {
+			dto.setAssignmentType(-3);// Assigned to all titles with exceptions inherited
+		}
 		else if (assignment.getContainsTitles() == ContainsTitles.NEGATIVE) {
-			dto.setAssignmentType(-3);// Assigned to all titles with exceptions
+			dto.setAssignmentType(-4);// Assigned to all titles with exceptions
 		}
 		else {
 			dto.setAssignmentType(assignment.isInherit() ? -2 : -1);// Assigned to all or with inheritance
@@ -156,8 +166,11 @@ public class RoleAssignedToOrgUnitDTO {
 		else if (assignment.isContainsExceptedUsers()) {
 			dto.setAssignmentType(0);// Assigned to all users with exceptions
 		}
+		else if (assignment.isInherit() && assignment.getContainsTitles() == ContainsTitles.NEGATIVE) {
+			dto.setAssignmentType(-3);// Assigned to all titles with exceptions inherited
+		}
 		else if (assignment.getContainsTitles() == ContainsTitles.NEGATIVE) {
-			dto.setAssignmentType(-3);// Assigned to all titles with exceptions
+			dto.setAssignmentType(-4);// Assigned to all titles with exceptions
 		}
 		else {
 			dto.setAssignmentType(assignment.isInherit() ? -2 : -1);// Assigned to all or with inheritance

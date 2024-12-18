@@ -70,7 +70,7 @@
 								<div class="col-sm-12">
 									<select style="width:100%;" class="form-control m-b constraint" th:id="'postponed' + ${systemRoleAssignment.systemRole.id} + ${postponedConstraint.constraintType.uuid}" th:attr="data-type='pnr',data-systemroleid=${systemRoleAssignment.systemRole.id}, data-constrainttype=${postponedConstraint.constraintType.uuid}">
 										<option selected="selected" disabled="disabled" th:text="#{html.select.default}"></option>
-										<option th:each="pNumber : ${pNumberList}" th:selected="${postponedConstraint.constraintValue != null} and (${pNumber.code} eq ${#strings.toString(postponedConstraint.constraintValue)})" th:value="${pNumber.code}" th:text="${pNumber.name} +' (' + ${pNumber.code} + ')'"  />
+										<option th:each="pNumber : ${pNumberList}" th:selected="${postponedConstraint.constraintValue != null} and (${pNumber.code} eq ${#strings.toString(postponedConstraint.constraintValue)})" th:value="${pNumber.code}" th:text="${pNumber.code} +' (' + ${pNumber.name} + ')'"  />
 									</select>
 								</div>
 								<div class="col-sm-12">
@@ -85,7 +85,7 @@
 								<div class="col-sm-12">
 									<select style="width:100%;" class="form-control m-b constraint" th:id="'postponed' + ${systemRoleAssignment.systemRole.id} + ${postponedConstraint.constraintType.uuid}" th:attr="data-type='senr',data-systemroleid=${systemRoleAssignment.systemRole.id}, data-constrainttype=${postponedConstraint.constraintType.uuid}">
 										<option selected="selected" disabled="disabled" th:text="#{html.select.default}"></option>
-										<option th:each="sENumber : ${sENumberList}" th:selected="${postponedConstraint.constraintValue != null} and (${sENumber.code} eq ${#strings.toString(postponedConstraint.constraintValue)})" th:value="${sENumber.code}" th:text="${sENumber.name} +' (' + ${sENumber.code} + ')'"  />
+										<option th:each="sENumber : ${sENumberList}" th:selected="${postponedConstraint.constraintValue != null} and (${sENumber.code} eq ${#strings.toString(postponedConstraint.constraintValue)})" th:value="${sENumber.code}" th:text="${sENumber.code} +' (' + ${sENumber.name} + ')'"  />
 									</select>
 								</div>
 							</div>

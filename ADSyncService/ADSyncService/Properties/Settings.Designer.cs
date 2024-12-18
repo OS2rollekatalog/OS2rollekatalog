@@ -12,7 +12,7 @@ namespace ADSyncService.Properties {
     
     
     [global::System.Runtime.CompilerServices.CompilerGeneratedAttribute()]
-    [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.VisualStudio.Editors.SettingsDesigner.SettingsSingleFileGenerator", "17.11.0.0")]
+    [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.VisualStudio.Editors.SettingsDesigner.SettingsSingleFileGenerator", "17.12.0.0")]
     internal sealed partial class Settings : global::System.Configuration.ApplicationSettingsBase {
         
         private static Settings defaultInstance = ((Settings)(global::System.Configuration.ApplicationSettingsBase.Synchronized(new Settings())));
@@ -101,15 +101,6 @@ namespace ADSyncService.Properties {
         public string ItSystemGroupFeature_Cron {
             get {
                 return ((string)(this["ItSystemGroupFeature_Cron"]));
-            }
-        }
-        
-        [global::System.Configuration.ApplicationScopedSettingAttribute()]
-        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("")]
-        public string Domain {
-            get {
-                return ((string)(this["Domain"]));
             }
         }
         
@@ -245,7 +236,7 @@ namespace ADSyncService.Properties {
         
         [global::System.Configuration.ApplicationScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("https://192.168.50.165:8090")]
+        [global::System.Configuration.DefaultSettingValueAttribute("https://kommune.rollekatalog.dk")]
         public string ApiUrl {
             get {
                 return ((string)(this["ApiUrl"]));
@@ -299,7 +290,7 @@ namespace ADSyncService.Properties {
         
         [global::System.Configuration.ApplicationScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("psu@digital-identity.dk")]
+        [global::System.Configuration.DefaultSettingValueAttribute("sendinguser@email")]
         public string User {
             get {
                 return ((string)(this["User"]));
@@ -308,7 +299,7 @@ namespace ADSyncService.Properties {
         
         [global::System.Configuration.ApplicationScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("psu@digital-identity.dk")]
+        [global::System.Configuration.DefaultSettingValueAttribute("receipient@email")]
         public string RecipientEmail {
             get {
                 return ((string)(this["RecipientEmail"]));
@@ -317,7 +308,7 @@ namespace ADSyncService.Properties {
         
         [global::System.Configuration.ApplicationScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("")]
+        [global::System.Configuration.DefaultSettingValueAttribute("app-tenant-id")]
         public string TenantId {
             get {
                 return ((string)(this["TenantId"]));
@@ -326,7 +317,7 @@ namespace ADSyncService.Properties {
         
         [global::System.Configuration.ApplicationScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("")]
+        [global::System.Configuration.DefaultSettingValueAttribute("app-client-id")]
         public string ClientId {
             get {
                 return ((string)(this["ClientId"]));
@@ -335,7 +326,7 @@ namespace ADSyncService.Properties {
         
         [global::System.Configuration.ApplicationScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("")]
+        [global::System.Configuration.DefaultSettingValueAttribute("client-secret")]
         public string ClientSecret {
             get {
                 return ((string)(this["ClientSecret"]));
@@ -344,10 +335,46 @@ namespace ADSyncService.Properties {
         
         [global::System.Configuration.ApplicationScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("True")]
+        [global::System.Configuration.DefaultSettingValueAttribute("False")]
         public bool SendErrorEmailFeature_Enabled {
             get {
                 return ((bool)(this["SendErrorEmailFeature_Enabled"]));
+            }
+        }
+        
+        [global::System.Configuration.ApplicationScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("True")]
+        public bool RemoteConfiguration_Enabled {
+            get {
+                return ((bool)(this["RemoteConfiguration_Enabled"]));
+            }
+        }
+        
+        [global::System.Configuration.ApplicationScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("Administrativt")]
+        public string Domain {
+            get {
+                return ((string)(this["Domain"]));
+            }
+        }
+        
+        [global::System.Configuration.ApplicationScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("info")]
+        public string BackSyncFeature_NameAttribute {
+            get {
+                return ((string)(this["BackSyncFeature_NameAttribute"]));
+            }
+        }
+        
+        [global::System.Configuration.ApplicationScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("")]
+        public string ReadonlyItSystemFeature_NameAttribute {
+            get {
+                return ((string)(this["ReadonlyItSystemFeature_NameAttribute"]));
             }
         }
     }

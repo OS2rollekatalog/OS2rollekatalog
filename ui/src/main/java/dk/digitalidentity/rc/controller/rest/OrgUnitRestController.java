@@ -10,6 +10,7 @@ import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 import dk.digitalidentity.rc.dao.model.enums.ContainsTitles;
+import dk.digitalidentity.rc.security.AccessConstraintService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpStatus;
@@ -55,11 +56,14 @@ import dk.digitalidentity.rc.service.UserRoleService;
 import dk.digitalidentity.rc.service.UserService;
 import dk.digitalidentity.rc.service.model.RoleAssignmentType;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.web.server.ResponseStatusException;
 
 @Slf4j
 @RequireReadAccessRole
 @RestController
 public class OrgUnitRestController {
+	@Autowired
+	private AccessConstraintService accessConstraintService;
 
 	@Autowired
 	private OrgUnitService orgUnitService;
@@ -109,6 +113,7 @@ public class OrgUnitRestController {
 		return new ResponseEntity<>(HttpStatus.OK);
 	}
 
+	@RequireKleAdministratorRole
 	@PostMapping(value = "/rest/ous/updateAll/kle")
 	@ResponseBody
 	public HttpEntity<String> updateKle(@RequestHeader("uuid") String uuid, @RequestHeader("type") String type, @RequestBody List<String> codes) {
@@ -165,7 +170,7 @@ public class OrgUnitRestController {
 		List<OrgUnitLevel> allowedLevels = orgUnitService.getAllowedLevels(ou);
 		
 		if (!allowedLevels.contains(level)) {
-			return new ResponseEntity<>("Tildeling ikke lovlig", HttpStatus.FORBIDDEN);
+			return new ResponseEntity<>("Tildeling ikke lovlig", HttpStatus.BAD_REQUEST);
 		}
 
 		ou.setLevel(level);
@@ -185,7 +190,9 @@ public class OrgUnitRestController {
 			@RequestBody StringArrayWrapper payload) {
 		OrgUnit ou = orgUnitService.getByUuid(uuid);
 		UserRole role = userRoleService.getById(roleId);
-
+		if (!accessConstraintService.isAssignmentAllowed(ou, role)) {
+			throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Ikke tilladt");
+		}
 		if (ou == null || role == null) {
 			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
 		}
@@ -227,7 +234,6 @@ public class OrgUnitRestController {
 			@RequestParam(name = "stopDate", required = false) String stopDateStr,
 			@RequestParam(name = "negativeAssignment", required = false, defaultValue = "false") boolean negativeAssignment,
 			@RequestBody StringArrayWrapper payload) {
-
 		OrgUnit ou = orgUnitService.getByUuid(uuid);
 		if (ou == null) {
 			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
@@ -240,6 +246,10 @@ public class OrgUnitRestController {
 
 		if (assignment.getUserRole().getItSystem().getSystemType() == ItSystemType.AD && assignment.getUserRole().getItSystem().isReadonly()) {
 			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+		}
+
+		if (!accessConstraintService.isAssignmentAllowed(ou, assignment.getUserRole())) {
+			throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Ikke tilladt");
 		}
 
 		LocalDate startDate = null, stopDate = null;
@@ -281,10 +291,18 @@ public class OrgUnitRestController {
 		}
 
 		if (type == RoleAssignmentType.USERROLE) {
+			if (!accessConstraintService.isUserRoleAssignmentAllowed(ou, assignmentId)) {
+				throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Ikke tilladt");
+			}
+
 			if (orgUnitService.removeUserRoleAssignment(ou, assignmentId)) {
 				orgUnitService.save(ou);
 			}
 		} else if (type == RoleAssignmentType.ROLEGROUP) {
+			if (!accessConstraintService.isUserRoleGroupAssignmentAllowed(ou, assignmentId)) {
+				throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Ikke tilladt");
+			}
+
 			if (orgUnitService.removeRoleGroupAssignment(ou, assignmentId)) {
 				orgUnitService.save(ou);
 			}
@@ -296,6 +314,7 @@ public class OrgUnitRestController {
 	@RequireAssignerRole
 	@PostMapping(value = "/rest/ous/removerole/{uuid}/{roleid}")
 	public ResponseEntity<String> removeRoleAsync(@PathVariable("uuid") String uuid, @PathVariable("roleid") long roleId) {
+		// TODO Add access check!!
 		OrgUnit ou = orgUnitService.getByUuid(uuid);
 		UserRole role = userRoleService.getById(roleId);
 
@@ -325,12 +344,15 @@ public class OrgUnitRestController {
 			@RequestParam(name = "stopDate", required = false) String stopDateStr,
 			@RequestParam(name = "negativeAssignment", required = false, defaultValue = "false") boolean negativeAssignment,
 			@RequestBody StringArrayWrapper payload) {
-		
 		OrgUnit ou = orgUnitService.getByUuid(uuid);
 		RoleGroup roleGroup = roleGroupService.getById(roleGroupId);
 
 		if (ou == null || roleGroup == null) {
 			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+		}
+
+		if (!accessConstraintService.isAssignmentAllowed(ou, roleGroup)) {
+			throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Ikke tilladt");
 		}
 		
 		LocalDate startDate = null, stopDate = null;
@@ -377,6 +399,10 @@ public class OrgUnitRestController {
 			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
 		}
 
+		if (!accessConstraintService.isAssignmentAllowed(ou, assignment.getRoleGroup())) {
+			throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Ikke tilladt");
+		}
+
 		LocalDate startDate = null, stopDate = null;
 		if (StringUtils.hasLength(startDateStr)) {
 			try {
@@ -410,6 +436,10 @@ public class OrgUnitRestController {
 
 		if (ou == null || roleGroup == null) {
 			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+		}
+
+		if (!accessConstraintService.isAssignmentAllowed(ou, roleGroup)) {
+			throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Ikke tilladt");
 		}
 
 		if (ou.getRoleGroupAssignments().stream().anyMatch(a -> a.getRoleGroup().getId() == roleGroup.getId())) {

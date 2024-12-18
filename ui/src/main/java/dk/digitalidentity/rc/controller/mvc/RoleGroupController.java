@@ -165,7 +165,7 @@ public class RoleGroupController {
 			return "redirect:../list";
 		}
 
-		List<UserWithRole2> usersWithRoleMapping = userService.getActiveUsersWithRoleGroup(group);
+		List<UserWithRole> usersWithRoleMapping = userService.getUsersWithRoleGroup(group, true);
 		model.addAttribute("userRoleMapping", usersWithRoleMapping);
 		model.addAttribute("showEdit", showEdit);
 

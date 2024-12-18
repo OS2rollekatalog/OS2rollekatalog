@@ -251,9 +251,11 @@ public class ReportXlsxView extends AbstractXlsxStreamingView {
                     createCell(dataRow, column++, userRole.getUserRoleName(), null);
                     createCell(dataRow, column++, userRole.getUserRoleDescription(), null);
                     createCell(dataRow, column++, systemRoleAssignment.getSystemRoleName(), null);
-                    createCell(dataRow, column++, String.valueOf(itSystem.getHistorySystemRoles().stream().filter(historySystemRole -> historySystemRole.getSystemRoleId() == systemRoleAssignment.getSystemRoleId()).map(HistorySystemRole::getWeight).findFirst().orElse(1L)), null);
-
-
+                    createCell(dataRow, column++, String.valueOf(itSystem.getHistorySystemRoles().stream()
+                            .filter(historySystemRole -> historySystemRole.getSystemRoleId() == systemRoleAssignment.getSystemRoleId())
+                            .map(HistorySystemRole::getWeight)
+                            .filter(Objects::nonNull)
+                            .findFirst().orElse(1L)), null);
                     StringBuilder constraintCell = new StringBuilder();
                     for (HistorySystemRoleAssignmentConstraint constraint : systemRoleAssignment.getHistoryConstraints()) {
                     	switch (constraint.getConstraintValueType()) {
