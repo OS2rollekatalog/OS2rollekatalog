@@ -206,15 +206,20 @@ public class OrgUnitController {
 
 			if (assignment.getType() == RoleAssignmentType.USERROLE) {
 				boolean internalRole = assignment.getItSystem().getIdentifier().equals(Constants.ROLE_CATALOGUE_IDENTIFIER);
-
+				boolean assignmentAllowed = directlyAssignedRole
+						&& editable
+						&& assignerRoleConstraint.isUserRoleAssignmentAllowed(ou, assignment.getAssignmentId());
 				// We allow editing of internal roles when user is an Administrator (which also allows editing other roles)
 				// or if user can edit and role is "directly" assigned
-				if ((internalRole && SecurityUtil.getRoles().contains(Constants.ROLE_ADMINISTRATOR) && directlyAssignedRole) || (editable && directlyAssignedRole)) {
+				if (assignmentAllowed || (internalRole && SecurityUtil.getRoles().contains(Constants.ROLE_ADMINISTRATOR) && directlyAssignedRole)) {
 					assignment.setCanEdit(true);
 				}
 			}
 			else if (assignment.getType() == RoleAssignmentType.ROLEGROUP) {
-				if (editable && directlyAssignedRole) {
+				boolean assignmentAllowed = editable
+						&& directlyAssignedRole
+						&& assignerRoleConstraint.isUserRoleGroupAssignmentAllowed(ou, assignment.getAssignmentId());
+				if (assignmentAllowed) {
 					assignment.setCanEdit(true);
 				}
 				

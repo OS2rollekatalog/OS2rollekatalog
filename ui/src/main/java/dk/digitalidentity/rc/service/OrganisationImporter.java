@@ -637,31 +637,30 @@ public class OrganisationImporter {
 
 							// if there are new positions add them to existing object
 							for (Position newPosition : userToUpdate.getPositions()) {
+								if (!userHasNoRoles && hasPositionChanged(newPosition, existingUser.getPositions())) {
+									movedPositionEvent.getNewPositions().add(new MovedPostion(newPosition.getOrgUnit(), newPosition.getName()));
+								}
 								if (!containsPosition(newPosition, existingUser.getPositions())) {
 									checkOrgUnitForNewTitles(newPosition, newPosition.getOrgUnit());
 									addPosition(existingUser, newPosition);
-								}
-								if (!userHasNoRoles && hasPositionChanged(newPosition, existingUser.getPositions())) {
-									movedPositionEvent.getNewPositions().add(new MovedPostion(newPosition.getOrgUnit(), newPosition.getName()));
 								}
 							}
 
 							// remove if existing user has positions that are not in the new one
 							List<Position> positionsToRemove = new ArrayList<>();
 							for (Position existingPosition : existingUser.getPositions()) {
-								if (!containsPosition(existingPosition, userToUpdate.getPositions())) {
-									positionsToRemove.add(existingPosition);
-								}
 								if (!userHasNoRoles && hasPositionChanged(existingPosition, userToUpdate.getPositions())) {
 									movedPositionEvent.getOldPositions().add(new MovedPostion(existingPosition.getOrgUnit(), existingPosition.getName()));
+								}
+								if (!containsPosition(existingPosition, userToUpdate.getPositions())) {
+									positionsToRemove.add(existingPosition);
 								}
 							}
 
 							for (Position positionToRemove : positionsToRemove) {
 								userService.removePosition(existingUser, positionToRemove);
 							}
-
-							if (!userHasNoRoles && !movedPositionEvent.getNewPositions().isEmpty() && !movedPositionEvent.getOldPositions().isEmpty()) {
+							if (!userHasNoRoles && (!movedPositionEvent.getNewPositions().isEmpty() && !movedPositionEvent.getOldPositions().isEmpty())) {
 								events.get().getUsersMovedPostions().add(movedPositionEvent);
 							}
 							

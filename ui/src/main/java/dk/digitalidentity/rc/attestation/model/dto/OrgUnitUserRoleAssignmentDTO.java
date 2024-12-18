@@ -21,4 +21,5 @@ public class OrgUnitUserRoleAssignmentDTO {
     private List<String> titles;
     private boolean inherit;
     private List<String> exceptedTitles;
+    private String postponedConstraints; // never set
 }

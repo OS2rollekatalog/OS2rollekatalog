@@ -130,7 +130,7 @@ public class RoleAssignedToUserDTO {
 		dto.setName(assignment.getUserRole().getName());
 		dto.setType(RoleAssignmentType.USERROLE);
 
-		if (assignment.getContainsTitles() != ContainsTitles.NO) {
+		if (assignment.getContainsTitles() == ContainsTitles.NO) {
 			dto.setAssignedThrough(AssignedThrough.ORGUNIT);
 		}
 		else {
@@ -155,7 +155,7 @@ public class RoleAssignedToUserDTO {
 		dto.setName(assignment.getRoleGroup().getName());
 		dto.setType(RoleAssignmentType.ROLEGROUP);
 
-		if (assignment.getContainsTitles() != ContainsTitles.NO) {
+		if (assignment.getContainsTitles() == ContainsTitles.NO) {
 			dto.setAssignedThrough(AssignedThrough.ORGUNIT);
 		}
 		else {
@@ -186,7 +186,6 @@ public class RoleAssignedToUserDTO {
 		dto.setStopDate(assignment.getStopDate());
 		dto.setCanEdit(false);
 		dto.setCanRequest(false);
-
 		return dto;
 	}
 
@@ -196,14 +195,13 @@ public class RoleAssignedToUserDTO {
 		dto.setRoleId(assignment.getRoleGroup().getId());
 		dto.setName(assignment.getRoleGroup().getName());
 		dto.setAssignedThrough(AssignedThrough.TITLE);
-		dto.setType(RoleAssignmentType.NEGATIVE);
+		dto.setType(RoleAssignmentType.NEGATIVE_ROLEGROUP);
 		dto.setAssignedThroughName(assignment.getOrgUnit().getName());
 		dto.setDescription(assignment.getRoleGroup().getDescription());
 		dto.setStartDate(assignment.getStartDate());
 		dto.setStopDate(assignment.getStopDate());
 		dto.setCanEdit(false);
 		dto.setCanRequest(false);
-
 		return dto;
 	}
 }

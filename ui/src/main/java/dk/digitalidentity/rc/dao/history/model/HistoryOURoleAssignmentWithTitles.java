@@ -17,7 +17,7 @@ import java.util.List;
 @Table(name = "history_role_assignment_titles")
 @Getter
 @Setter
-public class HistoryOURoleAssignmentWithTitles {
+public class HistoryOURoleAssignmentWithTitles implements GenericRoleAssignment {
 
 	@Id
 	private long id;

@@ -172,7 +172,7 @@ public class UserRoleController {
 			return "redirect:../list";
 		}
 
-		List<UserWithRole2> usersWithRoleMapping = userService.getActiveUsersWithUserRole(role);
+		List<UserWithRole> usersWithRoleMapping = userService.getUsersWithUserRole(role, true);
 		model.addAttribute("userRoleMapping", usersWithRoleMapping);
 		model.addAttribute("showEdit", showEdit);
 		

@@ -257,17 +257,18 @@ public class TemporalDao {
         parameters.put("inherited", assignment.isInherited());
         parameters.put("inherit", assignment.isInherit());
         parameters.put("sensitive_role", assignment.isSensitiveRole());
+        parameters.put("extra_sensitive_role", assignment.isExtraSensitiveRole());
         parameters.put("excepted_title_uuids", RowMapperUtils.joinFromList(assignment.getExceptedTitleUuids()));
         namedParameterJdbcTemplate.update("INSERT INTO attestation_ou_role_assignments (record_hash, updated_at, valid_from, valid_to," +
                 "                                                    assigned_through_name, assigned_through_type, assigned_through_uuid," +
                 "                                                    inherited, it_system_id, it_system_name, role_description, role_id," +
                 "                                                    role_name, role_group_name, role_group_id, role_group_description," +
-                "                                                    sensitive_role, ou_name, ou_uuid, excepted_user_uuids, title_uuids," +
+                "                                                    sensitive_role, extra_sensitive_role, ou_name, ou_uuid, excepted_user_uuids, title_uuids," +
                 "                                                    responsible_user_uuid, responsible_ou_name, responsible_ou_uuid," +
                 "                                                    inherit, excepted_title_uuids) " +
                 " VALUES (:record_hash, :updated_at, :valid_from, :valid_to, :assigned_through_name, :assigned_through_type, :assigned_through_uuid," +
                 "         :inherited, :it_system_id, :it_system_name, :role_description, :role_id, :role_name, :role_group_name, " +
-                "         :role_group_id, :role_group_description, :sensitive_role, :ou_name, :ou_uuid, :excepted_user_uuids, " +
+                "         :role_group_id, :role_group_description, :sensitive_role, :extra_sensitive_role, :ou_name, :ou_uuid, :excepted_user_uuids, " +
                 "         :title_uuids, :responsible_user_uuid, :responsible_ou_name, :responsible_ou_uuid, :inherit, :excepted_title_uuids)",
                 parameters);
 
@@ -301,6 +302,7 @@ public class TemporalDao {
         in.addValue("inherited", assignment.isInherited());
         in.addValue("inherit", assignment.isInherit());
         in.addValue("sensitive_role", assignment.isSensitiveRole());
+        in.addValue("extra_sensitive_role", assignment.isExtraSensitiveRole());
         in.addValue("excepted_title_uuids", RowMapperUtils.joinFromList(assignment.getExceptedTitleUuids()));
 
         return namedParameterJdbcTemplate.update("UPDATE attestation_ou_role_assignments SET " +
@@ -308,7 +310,7 @@ public class TemporalDao {
                 "assigned_through_type=:assigned_through_type, assigned_through_uuid=:assigned_through_uuid, inherited=:inherited, " +
                 "it_system_id=:it_system_id, it_system_name=it_system_name, role_description=:role_description, role_id=:role_id, " +
                 "role_name=:role_name, role_group_name=:role_group_name, role_group_id=:role_group_id, role_group_description=:role_group_description, " +
-                "sensitive_role=:sensitive_role, ou_name=:ou_name, ou_uuid=:ou_uuid, excepted_user_uuids=:excepted_user_uuids, " +
+                "sensitive_role=:sensitive_role, extra_sensitive_role=:extra_sensitive_role, ou_name=:ou_name, ou_uuid=:ou_uuid, excepted_user_uuids=:excepted_user_uuids, " +
                 "title_uuids=:title_uuids, responsible_user_uuid=:responsible_user_uuid, responsible_ou_name=:responsible_ou_name, " +
                 "responsible_ou_uuid=:responsible_ou_uuid, inherit=:inherit, excepted_title_uuids=:excepted_title_uuids " +
                 " WHERE id=:id", in);
@@ -342,18 +344,19 @@ public class TemporalDao {
         parameters.put("assigned_through_uuid", assignment.getAssignedThroughUuid());
         parameters.put("inherited", assignment.isInherited());
         parameters.put("sensitive_role", assignment.isSensitiveRole());
+        parameters.put("extra_sensitive_role", assignment.isExtraSensitiveRole());
         parameters.put("manager", assignment.isManager());
         namedParameterJdbcTemplate.update("INSERT INTO attestation_user_role_assignments (record_hash, updated_at, valid_from, valid_to," +
                 "                                                      assigned_through_name, assigned_through_type," +
                 "                                                      assigned_through_uuid, inherited, responsible_ou_name," +
                 "                                                      responsible_ou_uuid, manager, responsible_user_uuid," +
-                "                                                      sensitive_role, user_role_description, role_group_id," +
+                "                                                      sensitive_role, extra_sensitive_role, user_role_description, role_group_id," +
                 "                                                      role_group_name, role_group_description, user_role_id," +
                 "                                                      user_role_name, user_uuid, user_id, user_name, it_system_id," +
                 "                                                      it_system_name, role_ou_uuid, role_ou_name) " +
                 "VALUES (:record_hash, :updated_at, :valid_from, :valid_to, " +
                 "        :assigned_through_name, :assigned_through_type, :assigned_through_uuid, :inherited, :responsible_ou_name, " +
-                "        :responsible_ou_uuid, :manager, :responsible_user_uuid, :sensitive_role, :user_role_description, :role_group_id, " +
+                "        :responsible_ou_uuid, :manager, :responsible_user_uuid, :sensitive_role, :extra_sensitive_role, :user_role_description, :role_group_id, " +
                 "        :role_group_name, :role_group_description, :user_role_id, " +
                 "        :user_role_name, :user_uuid, :user_id, :user_name, :it_system_id, :it_system_name, :role_ou_uuid, :role_ou_name)",
                 parameters);
@@ -375,6 +378,7 @@ public class TemporalDao {
         in.addValue("manager", assignment.isManager());
         in.addValue("responsible_user_uuid", assignment.getResponsibleUserUuid());
         in.addValue("sensitive_role", assignment.isSensitiveRole());
+        in.addValue("extra_sensitive_role", assignment.isExtraSensitiveRole());
         in.addValue("user_role_description", assignment.getUserRoleDescription());
         in.addValue("role_group_id", assignment.getRoleGroupId());
         in.addValue("role_group_name", assignment.getRoleGroupName());
@@ -392,7 +396,7 @@ public class TemporalDao {
                 "record_hash = :record_hash, updated_at = :updated_at, valid_from = :valid_from, valid_to = :valid_to, " +
                 "assigned_through_name = :assigned_through_name, assigned_through_type = :assigned_through_type, assigned_through_uuid = :assigned_through_uuid, " +
                 "inherited = :inherited, responsible_ou_name = :responsible_ou_name, responsible_ou_uuid = :responsible_ou_uuid, manager = :manager, " +
-                "responsible_user_uuid = :responsible_user_uuid, sensitive_role = :sensitive_role, user_role_description = :user_role_description, " +
+                "responsible_user_uuid = :responsible_user_uuid, sensitive_role = :sensitive_role, extra_sensitive_role = :extra_sensitive_role, user_role_description = :user_role_description, " +
                 "role_group_id = :role_group_id, role_group_name = :role_group_name, role_group_description = :role_group_description, " +
                 "user_role_id = :user_role_id, user_role_name = :user_role_name, user_uuid = :user_uuid, user_id = :user_id, user_name = :user_name, " +
                 "it_system_id = :it_system_id, it_system_name = :it_system_name, role_ou_uuid = :role_ou_uuid, role_ou_name = :role_ou_name " +

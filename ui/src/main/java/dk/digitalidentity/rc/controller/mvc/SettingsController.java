@@ -112,6 +112,7 @@ public class SettingsController {
 		settingsService.setADAttestationEnabled(attestationSettingsForm.isAdAttestationEnabled());
 		settingsService.setFirstAttestationDate(attestationSettingsForm.getFirstAttestationDate());
 		settingsService.setAttestationRequestChangesEnabled(attestationSettingsForm.isChangeRequestsEnabled());
+		settingsService.setDontSendMailToManagerEnabled(attestationSettingsForm.isDontSendMailToManager());
 
 		redirectAttributes.addFlashAttribute("saved", true);
 
@@ -147,6 +148,7 @@ public class SettingsController {
 		settingsForm.setAdAttestationEnabled(settingsService.isADAttestationEnabled());
 		settingsForm.setFirstAttestationDate(settingsService.getFirstAttestationDate());
 		settingsForm.setChangeRequestsEnabled(settingsService.isAttestationRequestChangesEnabled());
+		settingsForm.setDontSendMailToManager(settingsService.isDontSendMailToManagerEnabled());
 
 		List<OUListForm> allOUs = orgUnitService.getAllCached()
 				.stream()

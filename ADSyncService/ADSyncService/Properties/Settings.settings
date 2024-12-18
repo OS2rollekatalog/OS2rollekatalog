@@ -29,9 +29,6 @@
     <Setting Name="ItSystemGroupFeature_Cron" Type="System.String" Scope="Application">
       <Value Profile="(Default)" />
     </Setting>
-    <Setting Name="Domain" Type="System.String" Scope="Application">
-      <Value Profile="(Default)" />
-    </Setting>
     <Setting Name="MembershipSyncFeature_AttributeMap" Type="System.Collections.Specialized.StringCollection" Scope="Application">
       <Value Profile="(Default)">&lt;?xml version="1.0" encoding="utf-16"?&gt;
 &lt;ArrayOfString xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"&gt;
@@ -86,7 +83,7 @@
       <Value Profile="(Default)" />
     </Setting>
     <Setting Name="ApiUrl" Type="System.String" Scope="Application">
-      <Value Profile="(Default)">https://192.168.50.165:8090</Value>
+      <Value Profile="(Default)">https://kommune.rollekatalog.dk</Value>
     </Setting>
     <Setting Name="CreateDeleteFeature_CreateEnabled" Type="System.Boolean" Scope="Application">
       <Value Profile="(Default)">False</Value>
@@ -104,22 +101,34 @@
       <Value Profile="(Default)">False</Value>
     </Setting>
     <Setting Name="User" Type="System.String" Scope="Application">
-      <Value Profile="(Default)">psu@digital-identity.dk</Value>
+      <Value Profile="(Default)">sendinguser@email</Value>
     </Setting>
     <Setting Name="RecipientEmail" Type="System.String" Scope="Application">
-      <Value Profile="(Default)">psu@digital-identity.dk</Value>
+      <Value Profile="(Default)">receipient@email</Value>
     </Setting>
     <Setting Name="TenantId" Type="System.String" Scope="Application">
-      <Value Profile="(Default)" />
+      <Value Profile="(Default)">app-tenant-id</Value>
     </Setting>
     <Setting Name="ClientId" Type="System.String" Scope="Application">
-      <Value Profile="(Default)" />
+      <Value Profile="(Default)">app-client-id</Value>
     </Setting>
     <Setting Name="ClientSecret" Type="System.String" Scope="Application">
-      <Value Profile="(Default)" />
+      <Value Profile="(Default)">client-secret</Value>
     </Setting>
     <Setting Name="SendErrorEmailFeature_Enabled" Type="System.Boolean" Scope="Application">
+      <Value Profile="(Default)">False</Value>
+    </Setting>
+    <Setting Name="RemoteConfiguration_Enabled" Type="System.Boolean" Scope="Application">
       <Value Profile="(Default)">True</Value>
+    </Setting>
+    <Setting Name="Domain" Type="System.String" Scope="Application">
+      <Value Profile="(Default)">Administrativt</Value>
+    </Setting>
+    <Setting Name="BackSyncFeature_NameAttribute" Type="System.String" Scope="Application">
+      <Value Profile="(Default)">info</Value>
+    </Setting>
+    <Setting Name="ReadonlyItSystemFeature_NameAttribute" Type="System.String" Scope="Application">
+      <Value Profile="(Default)" />
     </Setting>
   </Settings>
 </SettingsFile>

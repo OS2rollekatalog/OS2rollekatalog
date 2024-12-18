@@ -45,6 +45,24 @@
 
 									<fieldset>
 										<div class="form-group">
+											<label class="col-sm-2 control-label" th:text="#{html.client.integration}"></label>
+											<div class="col-sm-8">
+												<div th:text="#{*{integration}}" class="preformat form-control" style="height: auto !important;" readonly="readonly"></div>
+											</div>
+										</div>
+									</fieldset>
+
+									<fieldset th:if="${isADSyncServiceClient}">
+										<div class="form-group">
+											<label class="col-sm-2 control-label" th:text="#{html.client.domain}"></label>
+											<div class="col-sm-8">
+												<div th:text="*{domain}" class="preformat form-control" style="height: auto !important;" readonly="readonly"></div>
+											</div>
+										</div>
+									</fieldset>
+
+									<fieldset>
+										<div class="form-group">
 											<label class="col-sm-2 control-label" th:text="#{html.client.version}"></label>
 											<div class="col-sm-8">
 												<div class="form-control" style="height: auto !important;" readonly="readonly">

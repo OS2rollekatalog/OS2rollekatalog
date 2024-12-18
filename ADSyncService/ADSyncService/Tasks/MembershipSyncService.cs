@@ -7,11 +7,13 @@ namespace ADSyncService
     class MembershipSyncService
     {
         private static log4net.ILog log = log4net.LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
-        private static bool ignoreUsersWithoutCpr = Properties.Settings.Default.MembershipSyncFeature_IgnoreUsersWithoutCpr;
         private static EmailService emailService = EmailService.Instance;
+        private RemoteConfigurationService remoteConfigurationService = RemoteConfigurationService.Instance;
 
-        public static void SynchronizeGroupMemberships(RoleCatalogueStub roleCatalogueStub, ADStub adStub)
+        public void SynchronizeGroupMemberships(RoleCatalogueStub roleCatalogueStub, ADStub adStub)
         {
+            bool ignoreUsersWithoutCpr = remoteConfigurationService.GetConfiguration().membershipSyncFeatureIgnoreUsersWithoutCpr;
+
             // retrieve map that contains settings for updating user attributes based on group membership.
             var attributeMap = GetAttributeMap();
 
@@ -98,10 +100,10 @@ namespace ADSyncService
             }
         }
 
-        private static List<KeyValuePair<string, KeyValuePair<string, string>>> GetAttributeMap()
+        private List<KeyValuePair<string, KeyValuePair<string, string>>> GetAttributeMap()
         {
             // result is KeyValuePair( groupName, KeyValuePair( attributeName, attributeValue ))
-            var settingsMap = Properties.Settings.Default.MembershipSyncFeature_AttributeMap;
+            var settingsMap = remoteConfigurationService.GetConfiguration().membershipSyncFeatureAttributeMap;
             var result = new List<KeyValuePair<string, KeyValuePair<string, string>>>();
             if (settingsMap != null)
             {

@@ -1,44 +1,35 @@
 package dk.digitalidentity.rc.service;
 
-import dk.digitalidentity.rc.dao.SettingsDao;
-import dk.digitalidentity.rc.dao.model.OrgUnit;
-import dk.digitalidentity.rc.dao.model.Setting;
-import dk.digitalidentity.rc.dao.model.enums.CheckupIntervalEnum;
-import dk.digitalidentity.rc.dao.model.enums.NotificationType;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Service;
-import org.springframework.util.StringUtils;
-
 import java.text.SimpleDateFormat;
 import java.time.LocalDate;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
+import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.MessageSource;
+import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
+
+import dk.digitalidentity.rc.dao.SettingsDao;
+import dk.digitalidentity.rc.dao.model.OrgUnit;
+import dk.digitalidentity.rc.dao.model.Setting;
+import dk.digitalidentity.rc.dao.model.enums.CheckupIntervalEnum;
+import dk.digitalidentity.rc.dao.model.enums.EventType;
+import dk.digitalidentity.rc.dao.model.enums.NotificationType;
+import dk.digitalidentity.rc.dao.model.enums.Settings;
+import dk.digitalidentity.rc.log.AuditLogContextHolder;
+import dk.digitalidentity.rc.log.AuditLogger;
+import lombok.extern.slf4j.Slf4j;
+
+@Slf4j
 @Service
 public class SettingsService {
-	private static final String SETTING_REQUEST_APPROVE_ENABLED = "RequestApproveEnabled";
-	private static final String SETTING_REQUEST_APPROVE_SERVICEDESK_EMAIL = "RequestApproveServicedeskEmail";
-	private static final String SETTING_SCHEDULED_ATTESTATION_ENABLED = "ScheduledAttestationEnabled";
-	private static final String SETTING_SCHEDULED_ATTESTATION_INTERVAL = "ScheduledAttestationInterval";
-	private static final String SETTING_SCHEDULED_ATTESTATION_FILTER_OLD = "ScheduledAttestationFilter";
-	private static final String SETTING_SCHEDULED_ATTESTATION_EXCEPTED_ORG_UNITS = "ScheduledAttestationExceptedOrgUnits";
-	private static final String SETTING_SCHEDULED_ATTESTATION_LAST_RUN = "ScheduledAttestationLastRun";
-	private static final String SETTING_IT_SYSTEM_CHANGE_EMAIL = "ItSystemChangeEmail";
-	private static final String SETTING_ATTESTATIONCHANGE_EMAIL = "RemovalOfUnitRolesEmail";
-	private static final String SETTING_AD_ATTESTATION = "AttestationADEnabled";
-	private static final String SETTING_ALLOW_CHANGE_REQUEST_ATTESTATION = "AttestationAllowChanges";
-	private static final String SETTING_RUN_CICS = "RunCics";
-	private static final String SETTING_IT_SYSTEM_DEFAULT_HIDDEN_ENABLED = "ItSystemHiddenByDefault";
-	private static final String SETTING_FIRST_ATTESTATION_DATE = "FirstAttestationDate";
-	private static final String SETTING_MITID_ERHVERV_MIGRATION_PERFORMED = "MitIDErhvervMigrationPerformed";
-	private static final String SETTING_BLOCK_ALL_EMAIL_TRANSMISSIONS = "BlockAllEmailTransmissions";
-	private static final String SETTING_EMAIL_QUEUE_LIMIT = "EmailQueueLimit";
-	private static final String SETTING_CURRENT_INSTALLED_RANK = "currentInstalledRank";
-	
 
 	@Autowired
 	private OrgUnitService orgUnitService;
@@ -46,16 +37,27 @@ public class SettingsService {
 	@Autowired
 	private SettingsDao settingsDao;
 
+	@Autowired
+	private AuditLogger auditLogger;
+	
+	@Autowired
+	private MessageSource messageSource;
+
 	public boolean isRequestApproveEnabled() {
-		return isKeyEnabled(SETTING_REQUEST_APPROVE_ENABLED);
+		return isKeyEnabled(Settings.SETTING_REQUEST_APPROVE_ENABLED.getKey());
 	}
 	
 	public void setRequestApproveEnabled(boolean enabled) {
-		setKeyEnabled(enabled, SETTING_REQUEST_APPROVE_ENABLED);
+		boolean changed = setKeyEnabled(enabled, Settings.SETTING_REQUEST_APPROVE_ENABLED.getKey());
+		if (changed) {
+			AuditLogContextHolder.getContext().addArgument("Ny værdi", (enabled ? "true" : "false"));
+			auditLogger.logSetting(settingsDao.findByKey(Settings.SETTING_REQUEST_APPROVE_ENABLED.getKey()), null, null, getPrettyName(Settings.SETTING_REQUEST_APPROVE_ENABLED));
+			AuditLogContextHolder.clearContext();
+		}
 	}
 
 	public String getRequestApproveServicedeskEmail() {
-		Setting setting = settingsDao.findByKey(SETTING_REQUEST_APPROVE_SERVICEDESK_EMAIL);
+		Setting setting = settingsDao.findByKey(Settings.SETTING_REQUEST_APPROVE_SERVICEDESK_EMAIL.getKey());
 		if (setting == null) {
 			return "";
 		}
@@ -64,18 +66,11 @@ public class SettingsService {
 	}
 	
 	public void setRequestApproveServicedeskEmail(String email) {
-		Setting setting = settingsDao.findByKey(SETTING_REQUEST_APPROVE_SERVICEDESK_EMAIL);
-		if (setting == null) {
-			setting = new Setting();
-			setting.setKey(SETTING_REQUEST_APPROVE_SERVICEDESK_EMAIL);
-		}
-		
-		setting.setValue(email);
-		settingsDao.save(setting);
+		createOrUpdateSetting(Settings.SETTING_REQUEST_APPROVE_SERVICEDESK_EMAIL, email);
 	}
 	
 	public String getAttestationChangeEmail() {
-		Setting setting = settingsDao.findByKey(SETTING_ATTESTATIONCHANGE_EMAIL);
+		Setting setting = settingsDao.findByKey(Settings.SETTING_ATTESTATIONCHANGE_EMAIL.getKey());
 		if (setting == null) {
 			return "";
 		}
@@ -84,19 +79,12 @@ public class SettingsService {
 	}
 	
 	public void setAttestationChangeEmail(String email) {
-		Setting setting = settingsDao.findByKey(SETTING_ATTESTATIONCHANGE_EMAIL);
-		if (setting == null) {
-			setting = new Setting();
-			setting.setKey(SETTING_ATTESTATIONCHANGE_EMAIL);
-		}
-		
-		setting.setValue(email);
-		settingsDao.save(setting);
+		createOrUpdateSetting(Settings.SETTING_ATTESTATIONCHANGE_EMAIL, email);
 	}
 
 	public Set<String> getScheduledAttestationFilter() {
-		Setting setting = settingsDao.findByKey(SETTING_SCHEDULED_ATTESTATION_EXCEPTED_ORG_UNITS);
-		Setting oldSetting = settingsDao.findByKey(SETTING_SCHEDULED_ATTESTATION_FILTER_OLD);
+		Setting setting = settingsDao.findByKey(Settings.SETTING_SCHEDULED_ATTESTATION_EXCEPTED_ORG_UNITS.getKey());
+		Setting oldSetting = settingsDao.findByKey(Settings.SETTING_SCHEDULED_ATTESTATION_FILTER_OLD.getKey());
 
 		// migration from old attestation module
 		if (oldSetting != null && StringUtils.hasLength(oldSetting.getValue())) {
@@ -106,7 +94,7 @@ public class SettingsService {
 
 			if (setting == null) {
 				setting = new Setting();
-				setting.setKey(SETTING_SCHEDULED_ATTESTATION_EXCEPTED_ORG_UNITS);
+				setting.setKey(Settings.SETTING_SCHEDULED_ATTESTATION_EXCEPTED_ORG_UNITS.getKey());
 			}
 			setting.setValue(excludedOrgUnits);
 
@@ -125,18 +113,11 @@ public class SettingsService {
 	}
 
 	public void setScheduledAttestationFilter(Set<String> filter) {
-		Setting setting = settingsDao.findByKey(SETTING_SCHEDULED_ATTESTATION_EXCEPTED_ORG_UNITS);
-		if (setting == null) {
-			setting = new Setting();
-			setting.setKey(SETTING_SCHEDULED_ATTESTATION_EXCEPTED_ORG_UNITS);
-		}
-		
-		setting.setValue(String.join(",", filter));
-		settingsDao.save(setting);
+		createOrUpdateSetting(Settings.SETTING_SCHEDULED_ATTESTATION_EXCEPTED_ORG_UNITS, String.join(",", filter));
 	}
 
 	public LocalDate getFirstAttestationDate() {
-		Setting setting = settingsDao.findByKey(SETTING_FIRST_ATTESTATION_DATE);
+		Setting setting = settingsDao.findByKey(Settings.SETTING_FIRST_ATTESTATION_DATE.getKey());
 		if (setting == null) {
 			return LocalDate.now().plusMonths(1);
 		}
@@ -145,27 +126,39 @@ public class SettingsService {
 	}
 
 	public void setFirstAttestationDate(LocalDate date) {
-		Setting setting = settingsDao.findByKey(SETTING_FIRST_ATTESTATION_DATE);
-		if (setting == null) {
-			setting = new Setting();
-			setting.setKey(SETTING_FIRST_ATTESTATION_DATE);
-		}
-
-		setting.setValue(date.toString());
-		settingsDao.save(setting);
+		createOrUpdateSetting(Settings.SETTING_FIRST_ATTESTATION_DATE, date.toString());
 	}
 
 	public boolean firstAttestationDateIsNull() {
-		Setting setting = settingsDao.findByKey(SETTING_FIRST_ATTESTATION_DATE);
-		if (setting == null) {
-			return true;
-		}
-
-		return false;
+		Setting setting = settingsDao.findByKey(Settings.SETTING_FIRST_ATTESTATION_DATE.getKey());
+		return setting == null;
 	}
 
 
 	/// helper methods
+
+	private void createOrUpdateSetting(Settings settingEnum, String value) {
+		Setting setting = settingsDao.findByKey(settingEnum.getKey());
+		if (setting == null) {
+			setting = new Setting();
+			setting.setKey(settingEnum.getKey());
+		}
+
+		boolean changed = !Objects.equals(setting.getValue(), value);
+		setting.setValue(value);
+		settingsDao.save(setting);
+
+		if (changed) {
+			//Enrich orgUnit uuid so it looks better in auditlog page
+			if (Objects.equals(settingEnum, Settings.SETTING_SCHEDULED_ATTESTATION_EXCEPTED_ORG_UNITS) && value != null) {
+					value = Arrays.asList(value.split(",")).stream().map(uuid -> orgUnitService.getByUuid(uuid)).filter(Objects::nonNull).map(ou -> ou.getName()).collect(Collectors.joining(","));
+			}
+
+			AuditLogContextHolder.getContext().addArgument("Ny værdi", value);
+			auditLogger.logSetting(setting, null, null, getPrettyName(settingEnum));
+			AuditLogContextHolder.clearContext();
+		}
+	}
 
 	private boolean isKeyEnabled(String key) {
 		Setting setting = settingsDao.findByKey(key);
@@ -178,27 +171,52 @@ public class SettingsService {
 		return false;
 	}
 	
-	private void setKeyEnabled(boolean enabled, String key) {
+	/**
+	 * Sets the value for given key
+	 * @return returns true if setting was changed.
+	 * @param enabled
+	 * @param key
+	 */
+	private boolean setKeyEnabled(boolean enabled, String key) {
 		Setting setting = settingsDao.findByKey(key);
+		boolean changed = false;
 		if (setting == null) {
 			setting = new Setting();
 			setting.setKey(key);
 		}
 		
+		changed = !Objects.equals(setting.getValue(), (enabled ? "true" : "false"));
 		setting.setValue(enabled ? "true" : "false");
 		settingsDao.save(setting);
+		return changed;
+	}
+
+	private String getPrettyName(Settings settingEnum) {
+        String prettyName;
+        try {
+            prettyName = messageSource.getMessage(settingEnum.getMessage(), null, new Locale("da-DK"));
+        } catch (Exception e) {
+            log.warn("Entry missing in messages.properties for " + settingEnum, e);
+            prettyName = null;
+        }
+        return prettyName;
 	}
 
 	public boolean isScheduledAttestationEnabled() {
-		return isKeyEnabled(SETTING_SCHEDULED_ATTESTATION_ENABLED);
+		return isKeyEnabled(Settings.SETTING_SCHEDULED_ATTESTATION_ENABLED.getKey());
 	}
 
 	public void setScheduledAttestationEnabled(boolean enabled) {
-		setKeyEnabled(enabled, SETTING_SCHEDULED_ATTESTATION_ENABLED);
+		boolean changed = setKeyEnabled(enabled, Settings.SETTING_SCHEDULED_ATTESTATION_ENABLED.getKey());
+		if (changed) {
+			AuditLogContextHolder.getContext().addArgument("Ny værdi", (enabled ? "true" : "false"));
+			auditLogger.logSetting(settingsDao.findByKey(Settings.SETTING_SCHEDULED_ATTESTATION_ENABLED.getKey()), null, null, getPrettyName(Settings.SETTING_SCHEDULED_ATTESTATION_ENABLED));
+			AuditLogContextHolder.clearContext();
+		}
 	}
 
 	public CheckupIntervalEnum getScheduledAttestationInterval() {
-		Setting setting = settingsDao.findByKey(SETTING_SCHEDULED_ATTESTATION_INTERVAL);
+		Setting setting = settingsDao.findByKey(Settings.SETTING_SCHEDULED_ATTESTATION_INTERVAL.getKey());
 		if (setting == null) {
 			return CheckupIntervalEnum.EVERY_HALF_YEAR;
 		}
@@ -214,21 +232,14 @@ public class SettingsService {
 	}
 	
 	public void setScheduledAttestationInterval(CheckupIntervalEnum interval) {
-		Setting setting = settingsDao.findByKey(SETTING_SCHEDULED_ATTESTATION_INTERVAL);
-		if (setting == null) {
-			setting = new Setting();
-			setting.setKey(SETTING_SCHEDULED_ATTESTATION_INTERVAL);
-		}
-		
-		setting.setValue(interval.toString());
-		settingsDao.save(setting);
+		createOrUpdateSetting(Settings.SETTING_SCHEDULED_ATTESTATION_INTERVAL, interval.toString());
 	}
 	
 	public Date getScheduledAttestationLastRun() {
 		SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd");
 
 		try {
-			Setting setting = settingsDao.findByKey(SETTING_SCHEDULED_ATTESTATION_LAST_RUN);
+			Setting setting = settingsDao.findByKey(Settings.SETTING_SCHEDULED_ATTESTATION_LAST_RUN.getKey());
 			if (setting == null) {
 				return format.parse("1979-05-21");
 			}
@@ -243,19 +254,11 @@ public class SettingsService {
 	public void setScheduledAttestationLastRun(Date date) {
 		SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd");
 		String dateString = format.format(date);
-
-		Setting setting = settingsDao.findByKey(SETTING_SCHEDULED_ATTESTATION_LAST_RUN);
-		if (setting == null) {
-			setting = new Setting();
-			setting.setKey(SETTING_SCHEDULED_ATTESTATION_LAST_RUN);
-		}
-		
-		setting.setValue(dateString);
-		settingsDao.save(setting);
+		createOrUpdateSetting(Settings.SETTING_SCHEDULED_ATTESTATION_LAST_RUN, dateString);
 	}
 
 	public String getItSystemChangeEmail() {
-		Setting setting = settingsDao.findByKey(SETTING_IT_SYSTEM_CHANGE_EMAIL);
+		Setting setting = settingsDao.findByKey(Settings.SETTING_IT_SYSTEM_CHANGE_EMAIL.getKey());
 		if (setting == null) {
 			return "";
 		}
@@ -264,26 +267,32 @@ public class SettingsService {
 	}
 
 	public void setItSystemChangeEmail(String email) {
-		Setting setting = settingsDao.findByKey(SETTING_IT_SYSTEM_CHANGE_EMAIL);
-		if (setting == null) {
-			setting = new Setting();
-			setting.setKey(SETTING_IT_SYSTEM_CHANGE_EMAIL);
-		}
-		
-		setting.setValue(email);
-		settingsDao.save(setting);
+		createOrUpdateSetting(Settings.SETTING_IT_SYSTEM_CHANGE_EMAIL, email);
 	}
 
 	public boolean isADAttestationEnabled() {
-		return isKeyEnabled(SETTING_AD_ATTESTATION);
+		return isKeyEnabled(Settings.SETTING_AD_ATTESTATION.getKey());
 	}
 
 	public void setADAttestationEnabled(boolean enabled) {
-		setKeyEnabled(enabled, SETTING_AD_ATTESTATION);
+		boolean changed = setKeyEnabled(enabled, Settings.SETTING_AD_ATTESTATION.getKey());
+		if (changed) {
+			AuditLogContextHolder.getContext().addArgument("Ny værdi", (enabled ? "true" : "false"));
+			auditLogger.logSetting(settingsDao.findByKey(Settings.SETTING_AD_ATTESTATION.getKey()), null, null, getPrettyName(Settings.SETTING_AD_ATTESTATION));
+			AuditLogContextHolder.clearContext();
+		}
+	}
+
+	public boolean isDontSendMailToManagerEnabled() {
+		return isKeyEnabled(Settings.SETTING_DONT_SEND_MAIL_TO_MANAGER.getKey());
+	}
+
+	public void setDontSendMailToManagerEnabled(boolean enabled) {
+		setKeyEnabled(enabled, Settings.SETTING_DONT_SEND_MAIL_TO_MANAGER.getKey());
 	}
 
 	public boolean isAttestationRequestChangesEnabled() {
-		final Setting setting = settingsDao.findByKey(SETTING_ALLOW_CHANGE_REQUEST_ATTESTATION);
+		final Setting setting = settingsDao.findByKey(Settings.SETTING_ALLOW_CHANGE_REQUEST_ATTESTATION.getKey());
 		if (setting == null) {
 			return true;
 		}
@@ -291,7 +300,12 @@ public class SettingsService {
 	}
 
 	public void setAttestationRequestChangesEnabled(final boolean enabled) {
-		setKeyEnabled(enabled, SETTING_ALLOW_CHANGE_REQUEST_ATTESTATION);
+		boolean changed = setKeyEnabled(enabled, Settings.SETTING_ALLOW_CHANGE_REQUEST_ATTESTATION.getKey());
+		if (changed) {
+			AuditLogContextHolder.getContext().addArgument("Ny værdi", (enabled ? "true" : "false"));
+			auditLogger.logSetting(settingsDao.findByKey(Settings.SETTING_ALLOW_CHANGE_REQUEST_ATTESTATION.getKey()), null, null, getPrettyName(Settings.SETTING_ALLOW_CHANGE_REQUEST_ATTESTATION));
+			AuditLogContextHolder.clearContext();
+		}
 	}
 
 	public boolean isNotificationTypeEnabled(NotificationType notificationType) {
@@ -309,29 +323,43 @@ public class SettingsService {
 	
 	public void setNotificationTypeEnabled(NotificationType notificationType, boolean enabled) {
 		Setting setting = settingsDao.findByKey(notificationType.toString());
+		boolean changed = false;
 		if (setting == null) {
 			setting = new Setting();
 			setting.setKey(notificationType.toString());
 		}
 
+		changed = !Objects.equals(setting.getValue(), (enabled ? "true" : "false"));
 		setting.setValue(Boolean.toString(enabled));
 		settingsDao.save(setting);
+		
+		if (changed) {
+			AuditLogContextHolder.getContext().addArgument("Ny værdi", (enabled ? "true" : "false"));
+			String prettyname = messageSource.getMessage(notificationType.getMessage(), null, new Locale("da-DK"));
+			auditLogger.logSetting(setting, null, null, prettyname);
+			AuditLogContextHolder.clearContext();
+		}
 	}
 	
 	public boolean isRunCics() {
-		return isKeyEnabled(SETTING_RUN_CICS);
+		return isKeyEnabled(Settings.SETTING_RUN_CICS.getKey());
 	}
 	
 	public void setRunCics(boolean enabled) {
-		setKeyEnabled(enabled, SETTING_RUN_CICS);
+		setKeyEnabled(enabled, Settings.SETTING_RUN_CICS.getKey());
 	}
 
 	public boolean isItSystemsHiddenByDefault() {
-		return isKeyEnabled(SETTING_IT_SYSTEM_DEFAULT_HIDDEN_ENABLED);
+		return isKeyEnabled(Settings.SETTING_IT_SYSTEM_DEFAULT_HIDDEN_ENABLED.getKey());
 	}
 
 	public void setItSystemsHiddenByDefault(boolean enabled) {
-		setKeyEnabled(enabled, SETTING_IT_SYSTEM_DEFAULT_HIDDEN_ENABLED);
+		boolean changed = setKeyEnabled(enabled, Settings.SETTING_IT_SYSTEM_DEFAULT_HIDDEN_ENABLED.getKey());
+		if (changed) {
+			AuditLogContextHolder.getContext().addArgument("Ny værdi", (enabled ? "true" : "false"));
+			auditLogger.logSetting(settingsDao.findByKey(Settings.SETTING_IT_SYSTEM_DEFAULT_HIDDEN_ENABLED.getKey()), null, null, getPrettyName(Settings.SETTING_IT_SYSTEM_DEFAULT_HIDDEN_ENABLED));
+			AuditLogContextHolder.clearContext();
+		}
 	}
 
 	public Setting getByKey(String key) {
@@ -343,23 +371,23 @@ public class SettingsService {
 	}
 
 	public boolean isMitIDErhvervMigrationPerformed() {
-		return isKeyEnabled(SETTING_MITID_ERHVERV_MIGRATION_PERFORMED);
+		return isKeyEnabled(Settings.SETTING_MITID_ERHVERV_MIGRATION_PERFORMED.getKey());
 	}
 
 	public void setMitIDErhvervMigrationPerformed() {
-		setKeyEnabled(true, SETTING_MITID_ERHVERV_MIGRATION_PERFORMED);
+		setKeyEnabled(true, Settings.SETTING_MITID_ERHVERV_MIGRATION_PERFORMED.getKey());
 	}
 
 	public boolean isBlockAllEmailTransmissions() {
-		return getBooleanWithDefault(SETTING_BLOCK_ALL_EMAIL_TRANSMISSIONS, false);
+		return getBooleanWithDefault(Settings.SETTING_BLOCK_ALL_EMAIL_TRANSMISSIONS.getKey(), false);
 	}
 
 	public void setBlockAllEmailTransmissions(boolean enabled) {
-		setKeyEnabled(enabled, SETTING_BLOCK_ALL_EMAIL_TRANSMISSIONS);
+		setKeyEnabled(enabled, Settings.SETTING_BLOCK_ALL_EMAIL_TRANSMISSIONS.getKey());
 	}
 
 	public int getEmailQueueLimit() {
-		Setting setting = settingsDao.findByKey(SETTING_EMAIL_QUEUE_LIMIT);
+		Setting setting = settingsDao.findByKey(Settings.SETTING_EMAIL_QUEUE_LIMIT.getKey());
 		if (setting == null) {
 			return 0;
 		}
@@ -368,10 +396,10 @@ public class SettingsService {
 	}
 
 	public void setEmailQueueLimit(int size) {
-		Setting setting = settingsDao.findByKey(SETTING_EMAIL_QUEUE_LIMIT);
+		Setting setting = settingsDao.findByKey(Settings.SETTING_EMAIL_QUEUE_LIMIT.getKey());
 		if (setting == null) {
 			setting = new Setting();
-			setting.setKey(SETTING_EMAIL_QUEUE_LIMIT);
+			setting.setKey(Settings.SETTING_EMAIL_QUEUE_LIMIT.getKey());
 		}
 
 		setting.setValue(Integer.toString(size));
@@ -379,7 +407,7 @@ public class SettingsService {
 	}
 
 	public int getCurrentInstalledRank() {
-		Setting setting = settingsDao.findByKey(SETTING_CURRENT_INSTALLED_RANK);
+		Setting setting = settingsDao.findByKey(Settings.SETTING_CURRENT_INSTALLED_RANK.getKey());
 		if(setting == null) {
 			return 0;
 		}
@@ -387,10 +415,10 @@ public class SettingsService {
 	}
 
 	public void setCurrentInstalledRank(int rank) {
-		Setting setting = settingsDao.findByKey(SETTING_CURRENT_INSTALLED_RANK);
+		Setting setting = settingsDao.findByKey(Settings.SETTING_CURRENT_INSTALLED_RANK.getKey());
 		if(setting == null) {
 			setting = new Setting();
-			setting.setKey(SETTING_CURRENT_INSTALLED_RANK);
+			setting.setKey(Settings.SETTING_CURRENT_INSTALLED_RANK.getKey());
 		}
 		setting.setValue(Integer.toString(rank));
 		settingsDao.save(setting);

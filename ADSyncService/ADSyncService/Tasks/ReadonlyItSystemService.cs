@@ -6,10 +6,11 @@ namespace ADSyncService
     class ReadonlyItSystemService
     {
         private static log4net.ILog log = log4net.LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
-        private static StringCollection systemMap = Properties.Settings.Default.ReadonlyItSystemFeature_SystemMap;
+        private RemoteConfigurationService remoteConfigurationService = RemoteConfigurationService.Instance;
 
-        public static void PerformUpdate(RoleCatalogueStub roleCatalogueStub, ADStub adStub)
+        public void PerformUpdate(RoleCatalogueStub roleCatalogueStub, ADStub adStub)
         {
+            List<string> systemMap = remoteConfigurationService.GetConfiguration().readonlyItSystemFeatureSystemMap;
             foreach (string mapRaw in systemMap)
             {
                 var map = mapRaw.Replace("&amp;", "&");
@@ -23,7 +24,8 @@ namespace ADSyncService
                 string itSystemId = tokens[0];
                 string ouDn = tokens[1];
 
-                var allGroups = adStub.GetAllGroups(ouDn);
+                string nameAttribute = remoteConfigurationService.GetConfiguration().readonlyItSystemFeatureNameAttribute;
+                var allGroups = adStub.GetAllGroups(ouDn, nameAttribute);
    
                 ItSystemData itSystemData = roleCatalogueStub.GetItSystemData(itSystemId);
                 if (itSystemData == null)
@@ -55,6 +57,7 @@ namespace ADSyncService
                                 }
                             }
                             systemRole.name = group.Name;
+                            systemRole.description = group.Description;
 
                             break;
                         }

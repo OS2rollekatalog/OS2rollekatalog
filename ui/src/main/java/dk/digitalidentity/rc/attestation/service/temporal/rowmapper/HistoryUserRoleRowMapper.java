@@ -17,6 +17,7 @@ public class HistoryUserRoleRowMapper implements RowMapper<HistoryUserRole> {
         historyUserRole.setUserRoleDelegatedFromCvr(rs.getString("user_role_delegated_from_cvr"));
         historyUserRole.setRoleAssignmentAttestationByAttestationResponsible(rs.getBoolean("role_assignment_attestation_by_attestation_responsible"));
         historyUserRole.setSensitiveRole(rs.getBoolean("sensitive_role"));
+        historyUserRole.setExtraSensitiveRole(rs.getBoolean("extra_sensitive_role"));
         return historyUserRole;
     }
 }

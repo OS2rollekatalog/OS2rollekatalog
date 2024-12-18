@@ -53,8 +53,8 @@
                                 <td th:text="${link.title}"></td>
                                 <td th:text="${link.description}"></td>
                                 <td style="text-align: center;">
-                                    <em th:if="${link.editable}" class="fa fa-pencil editBtn" th:attr="data-id=${link.id}"></em> &nbsp;
-                                    <em th:if="${link.editable}" class="fa fa-times removeBtn" th:attr="data-id=${link.id}"></em>
+                                    <em th:if="${link.editable}" class="fa fa-pencil editBtn" th:attr="data-id=${link.id}" style="cursor: pointer;"></em> &nbsp;
+                                    <em th:if="${link.editable}" class="fa fa-times removeBtn" th:attr="data-id=${link.id},data-title=${link.title}" style="cursor: pointer;"></em>
                                 </td>
                             </tr>
                             </tbody>
@@ -154,6 +154,11 @@
         /*[+
 			var modalCreateHeader = [[#{html.frontPageLinks.list.modal.header.create}]];
 			var modalEditHeader = [[#{html.frontPageLinks.list.modal.header.edit}]];
+			var deleteTitle = [[#{html.frontPageLinks.list.delete.header}]];
+			var deleteText = [[#{html.frontPageLinks.list.delete.text}]];
+			var deleteCancelBtn = [[#{html.control.button.cancel}]];
+			var deleteConfirmBtn = [[#{html.control.button.delete}]];
+			var modalEditHeader = [[#{html.frontPageLinks.list.modal.header.edit}]];
 			var msgError = [[#{html.frontPageLinks.list.modal.error}]];
 			var msgSuccess = [[#{html.default.message.success}]];
 			var links = [[${links}]];
@@ -219,17 +224,36 @@
 			}
 
 			this.delete = function() {
-			    var id = $(this).data("id");
-			    $.ajax({
-					method : "POST",
-					url: restUrl + id + "/delete",
-					contentType: "application/json; charset=utf-8",
-					headers: {
-						'X-CSRF-TOKEN': token
+				var id = $(this).data("id");
+				var title = $(this).data("title");
+
+				swal({
+					html: true,
+					title : deleteTitle,
+					text : deleteText + "<br/><br/><b><q>" + title + "</q></b>",
+					type : "warning",
+					showCancelButton : true,
+					confirmButtonColor : "#DD6B55",
+					confirmButtonText : deleteConfirmBtn,
+					cancelButtonText : deleteCancelBtn,
+					closeOnConfirm : true,
+					closeOnCancel : true
+				},
+					function (isConfirm) {
+						if (isConfirm) {
+							$.ajax({
+								method : "POST",
+								url: restUrl + id + "/delete",
+								contentType: "application/json; charset=utf-8",
+								headers: {
+									'X-CSRF-TOKEN': token
+								}
+							}).done(function (data) {
+								location.reload(true);
+							}).fail(errorHandler(msgError));
+						}
 					}
-				}).done(function (data) {
-					location.reload(true);
-				}).fail(errorHandler(msgError));
+				);
 			}
 
 			this.setActive = function() {

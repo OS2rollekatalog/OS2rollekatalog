@@ -7,6 +7,8 @@ import dk.digitalidentity.rc.controller.mvc.viewmodel.SystemRoleForm;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.SystemRoleViewModel;
 import dk.digitalidentity.rc.controller.validator.ItSystemValidator;
 import dk.digitalidentity.rc.controller.validator.SystemRoleValidator;
+import dk.digitalidentity.rc.dao.model.ADConfiguration;
+import dk.digitalidentity.rc.dao.model.Client;
 import dk.digitalidentity.rc.dao.model.Domain;
 import dk.digitalidentity.rc.dao.model.ItSystem;
 import dk.digitalidentity.rc.dao.model.ItSystemMaster;
@@ -22,6 +24,8 @@ import dk.digitalidentity.rc.dao.model.enums.RoleType;
 import dk.digitalidentity.rc.security.RequireAdministratorRole;
 import dk.digitalidentity.rc.security.RequireReadAccessRole;
 import dk.digitalidentity.rc.security.SecurityUtil;
+import dk.digitalidentity.rc.service.ADConfigurationService;
+import dk.digitalidentity.rc.service.ClientService;
 import dk.digitalidentity.rc.service.DomainService;
 import dk.digitalidentity.rc.service.ItSystemMasterService;
 import dk.digitalidentity.rc.service.ItSystemService;
@@ -47,7 +51,9 @@ import org.springframework.web.bind.annotation.PostMapping;
 
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
@@ -94,6 +100,12 @@ public class ItSystemController {
 	@Autowired
 	private SettingsService settingsService;
 
+	@Autowired
+	private ClientService clientService;
+
+	@Autowired
+	private ADConfigurationService adConfigurationService;
+
 	@InitBinder(value = { "itSystemForm" })
 	public void initBinderItSystemForm(WebDataBinder binder) {
 		binder.addValidators(itSystemValidator);
@@ -104,6 +116,7 @@ public class ItSystemController {
 		binder.addValidators(systemRoleValidator);
 	}
 
+	record ITSystemListDTO(long id, String name, boolean hidden, String identifier, ItSystemType systemType, boolean accessBlocked, boolean paused, List<String> adSyncServiceLabels) {}
 	@GetMapping(value = { "/ui/itsystem", "/ui/itsystem/list" })
 	public String list(Model model) {
 		List<ItSystem> itSystems = itSystemService.getAll();
@@ -116,9 +129,46 @@ public class ItSystemController {
 		}
 
 		itSystems = itSystems.stream().filter(its -> its.isDeleted() == false).collect(Collectors.toList());
-		model.addAttribute("itsystems", itSystems);
+
+		Map<Long, List<String>> mappingsForLabel = getMappingsForLabel();
+		List<ITSystemListDTO> listDTOS = itSystems.stream().map(i -> new ITSystemListDTO(i.getId(), i.getName(), i.isHidden(), i.getIdentifier(), i.getSystemType(), i.isAccessBlocked(), i.isPaused(), mappingsForLabel.get(i.getId()))).collect(Collectors.toList());
+		model.addAttribute("itsystems", listDTOS);
 
 		return "itsystem/list";
+	}
+
+	private Map<Long, List<String>> getMappingsForLabel() {
+		Map<Long, List<String>> result = new HashMap<>();
+		List<Client> clients = clientService.findADSyncServices();
+		for (Client client : clients) {
+			ADConfiguration adConfiguration = adConfigurationService.getByClient(client);
+			if (adConfiguration != null && adConfiguration.getJson() != null && adConfiguration.getJson().getItSystemGroupFeatureSystemMap() != null) {
+				for (String mapping : adConfiguration.getJson().getItSystemGroupFeatureSystemMap()) {
+					try {
+						String[] split = mapping.split(";");
+						long id = Long.parseLong(split[0]);
+						String dn = split[1];
+						String cn = "";
+						for (String part : dn.split(",")) {
+							if (part.startsWith("CN=")) {
+								cn = part.substring(3);
+								break;
+							}
+						}
+
+						if (!result.containsKey(id)) {
+							result.put(id, new ArrayList<>());
+						}
+
+						result.get(id).add("ADGruppe: " + cn);
+					} catch (Exception ex) {
+						log.warn("Possibly malformed ItSystemGroupFeatureSystemMap mapping: " + mapping);
+					}
+				}
+			}
+		}
+
+		return result;
 	}
 
 	@RequireAdministratorRole

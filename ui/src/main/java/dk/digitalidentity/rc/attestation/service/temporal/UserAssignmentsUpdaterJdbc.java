@@ -248,6 +248,7 @@ public class UserAssignmentsUpdaterJdbc {
                 .assignedThroughUuid(historyRoleAssignment.getAssignedThroughUuid())
                 .inherited(false)
                 .sensitiveRole(context.isRoleSensitive())
+                .extraSensitiveRole(context.isRoleExtraSensitive())
                 .roleOuUuid(context.ouUuid())
                 .roleOuName(context.ouName())
                 .postponedConstraints(historyRoleAssignment.getPostponedConstraints())
@@ -304,6 +305,7 @@ public class UserAssignmentsUpdaterJdbc {
                             .manager(!itSystemResponsible && isManager)
                             .inherited(inherited)
                             .sensitiveRole(context.isRoleSensitive())
+                            .extraSensitiveRole(context.isRoleExtraSensitive())
                             .roleOuUuid(context.ouUuid())
                             .roleOuName(context.ouName())
                             .build();
@@ -362,6 +364,7 @@ public class UserAssignmentsUpdaterJdbc {
                             .assignedThroughType(AssignedThroughType.ORGUNIT)
                             .inherited(false)
                             .sensitiveRole(context.isRoleSensitive())
+                            .extraSensitiveRole(context.isRoleExtraSensitive())
                             .roleOuUuid(context.ouUuid())
                             .roleOuName(context.ouName())
                             .build();
@@ -418,6 +421,7 @@ public class UserAssignmentsUpdaterJdbc {
                             .assignedThroughType(AssignedThroughType.ORGUNIT)
                             .inherited(false)
                             .sensitiveRole(context.isRoleSensitive())
+                            .extraSensitiveRole(context.isRoleExtraSensitive())
                             .roleOuUuid(context.ouUuid())
                             .roleOuName(context.ouName())
                             .build();
@@ -472,6 +476,7 @@ public class UserAssignmentsUpdaterJdbc {
                             .assignedThroughType(AssignedThroughType.ORGUNIT)
                             .inherited(false)
                             .sensitiveRole(context.isRoleSensitive())
+                            .extraSensitiveRole(context.isRoleExtraSensitive())
                             .roleOuUuid(context.ouUuid())
                             .roleOuName(context.ouName())
                             .build();

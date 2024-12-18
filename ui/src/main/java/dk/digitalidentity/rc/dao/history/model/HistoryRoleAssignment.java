@@ -1,5 +1,8 @@
 package dk.digitalidentity.rc.dao.history.model;
 
+import java.time.LocalDate;
+import java.util.Date;
+
 import dk.digitalidentity.rc.service.model.AssignedThrough;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -10,14 +13,11 @@ import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.Setter;
 
-import java.time.LocalDate;
-import java.util.Date;
-
 @Entity
 @Table(name = "history_role_assignments")
 @Getter
 @Setter
-public class HistoryRoleAssignment {
+public class HistoryRoleAssignment implements GenericRoleAssignment {
 
 	@Id
 	private long id;

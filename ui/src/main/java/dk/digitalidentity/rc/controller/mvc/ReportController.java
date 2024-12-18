@@ -199,6 +199,10 @@ public class ReportController {
 		catch (DateTimeException e) {
 			return "reports/fragments/filterOptionsFragment :: filterOptions";
 		}
+		
+		if (LocalDate.now().isBefore(date)) {
+			date = LocalDate.now();
+		}
 
 		ReportForm reportForm = new ReportForm();
 		

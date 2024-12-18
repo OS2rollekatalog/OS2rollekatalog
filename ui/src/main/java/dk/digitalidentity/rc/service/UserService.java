@@ -32,6 +32,7 @@ import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.KleDTO;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.OUListForm;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.UserRoleNotAssignedDTO;
+import dk.digitalidentity.rc.dao.OrgUnitUserRoleAssignmentDao;
 import dk.digitalidentity.rc.dao.PositionRoleGroupAssignmentDao;
 import dk.digitalidentity.rc.dao.PositionUserRoleAssignmentDao;
 import dk.digitalidentity.rc.dao.RoleGroupDao;
@@ -144,6 +145,9 @@ public class UserService {
 	
 	@Autowired
 	private PositionRoleGroupAssignmentDao positionRoleGroupAssignmentDao;
+
+	@Autowired
+	private OrgUnitUserRoleAssignmentDao orgUnitUserRoleAssignmentDao;
 	
 	@Autowired
 	private UserService self;
@@ -1586,14 +1590,20 @@ public class UserService {
 
 	public List<UserWithRole> getUsersWithUserRole(UserRole userRole, boolean findIndirectlyAssignedRoles) {
 		List<UserWithRole> result = new ArrayList<>();
+
+		boolean canEdit = SecurityUtil.getRoles().contains(Constants.ROLE_ADMINISTRATOR);
 		
 		// this we ALWAYS need to do
 		for (User user : userDao.findByDeletedFalseAndUserRoleAssignmentsUserRoleAndUserRoleAssignmentsInactive(userRole, false)) {
 			UserWithRole mapping = new UserWithRole();
 			mapping.setUser(user);
 			mapping.setAssignedThrough(AssignedThrough.DIRECT);
+            UserUserRoleAssignment userRoleAssignment = user.getUserRoleAssignments().stream().filter(ura -> ura.getUserRole() == userRole).findAny()
+                    .orElseThrow(() -> new RuntimeException("UserRole " + userRole.getId() + " should be asigned to user with id: " + user.getUuid()));
+            mapping.setAssignment(RoleAssignedToUserDTO.fromUserRoleAssignment(userRoleAssignment));
+            mapping.getAssignment().setCanEdit(canEdit);
 
-			result.add(mapping);
+            result.add(mapping);
 		}
 
 		// get rolegroups that have the userrole included
@@ -1605,6 +1615,10 @@ public class UserService {
 				UserWithRole mapping = new UserWithRole();
 				mapping.setUser(user);
 				mapping.setAssignedThrough(AssignedThrough.ROLEGROUP);
+		        UserRoleGroupAssignment roleGroupAssignment = user.getRoleGroupAssignments().stream().filter(rga -> rga.getRoleGroup() == roleGroup).findAny()
+		                .orElseThrow(() -> new RuntimeException("RoleGroup " + roleGroup.getId() + " should be assigned to user with uuid: " + user.getUuid()));
+		        mapping.setAssignment(RoleAssignedToUserDTO.fromRoleGroupAssignment(roleGroupAssignment));
+		        mapping.getAssignment().setCanEdit(false);
 
 				result.add(mapping);
 			}
@@ -1615,28 +1629,34 @@ public class UserService {
 			// titles or position assignements (depending on configuration)
 			if (!configuration.getTitles().isEnabled()) {
 				// get positions that have userRole assigned
-				for (Position position : positionService.getAllWithRole(userRole, false)) {
-					if (!position.getUser().isDeleted()) {
-						UserWithRole mapping = new UserWithRole();
-						mapping.setUser(position.getUser());
-						mapping.setAssignedThrough(AssignedThrough.POSITION);
-		
-						result.add(mapping);
-					}
-				}
+                for (PositionUserRoleAssignment assignment : positionUserRoleAssignmentDao.findByUserRole(userRole)) {
+                        if (assignment.getPosition().getUser().isDeleted()) {
+                            continue;
+                        }
+                        UserWithRole mapping = new UserWithRole();
+                        mapping.setUser(assignment.getPosition().getUser());
+                        mapping.setAssignedThrough(AssignedThrough.POSITION);
+                        mapping.setAssignment(RoleAssignedToUserDTO.fromPositionUserRoleAssignment(assignment));
+                        mapping.getAssignment().setCanEdit(false);
+
+                        result.add(mapping);
+                }
 	
-				// get positions that have roleGroup assigned
-				for (RoleGroup roleGroup : roleGroups) {
-					for (Position position : positionService.getAllWithRoleGroup(roleGroup, false)) {
-						if (!position.getUser().isDeleted()) {
-							UserWithRole mapping = new UserWithRole();
-							mapping.setUser(position.getUser());
-							mapping.setAssignedThrough(AssignedThrough.POSITION);
-		
-							result.add(mapping);
-						}
-					}
-				}
+//				// get positions that have roleGroup assigned
+                for (RoleGroup roleGroup : roleGroups) {
+                    for (PositionRoleGroupAssignment assignment : positionRoleGroupAssignmentDao.findByRoleGroup(roleGroup)) {
+                        if (assignment.getPosition().getUser().isDeleted()) {
+                            continue;
+                        }
+                        UserWithRole mapping = new UserWithRole();
+                        mapping.setUser(assignment.getPosition().getUser());
+                        mapping.setAssignedThrough(AssignedThrough.POSITION);
+                        mapping.setAssignment(RoleAssignedToUserDTO.fromPositionRoleGroupAssignment(assignment));
+                        mapping.getAssignment().setCanEdit(false);
+    
+                        result.add(mapping);
+                    }
+                }
 			}
 
 			// get ous that have userRole assigned
@@ -1679,6 +1699,9 @@ public class UserService {
 							else {
 								mapping.setAssignedThrough(AssignedThrough.ORGUNIT);
 							}
+							
+							mapping.setAssignment(RoleAssignedToUserDTO.fromOrgUnitUserRoleAssignment(orgUnitUserRoleAssignment));
+							mapping.getAssignment().setCanEdit(false);
 		
 							result.add(mapping);
 						}
@@ -1686,7 +1709,7 @@ public class UserService {
 
 					// check if the assignment to the OrgUnit is flagged with inherit
 					if (orgUnitUserRoleAssignment.isInherit()) {
-						List<UserWithRole> inherited = getUserRoleMappingsRecursive(orgUnit.getChildren(), AssignedThrough.ORGUNIT);
+						List<UserWithRole> inherited = getUserRoleMappingsRecursive(orgUnit.getChildren(), RoleAssignedToUserDTO.fromOrgUnitUserRoleAssignment(orgUnitUserRoleAssignment), AssignedThrough.ORGUNIT);
 						result.addAll(inherited);
 					}
 				}
@@ -1727,7 +1750,7 @@ public class UserService {
 							if (!position.getUser().isDeleted() && !position.isDoNotInherit()) {
 								UserWithRole mapping = new UserWithRole();
 								mapping.setUser(position.getUser());
-								
+								mapping.setAssignment(RoleAssignedToUserDTO.fromOrgUnitRoleGroupAssignment(orgUnitRoleGroupAssignment));
 								if (orgUnitRoleGroupAssignment.getContainsTitles() != ContainsTitles.NO) {
 									mapping.setAssignedThrough(AssignedThrough.TITLE);
 								}
@@ -1741,7 +1764,7 @@ public class UserService {
 
 						// check if the assignment to the OrgUnit is flagged with inherit
 						if (orgUnitRoleGroupAssignment.isInherit()) {
-							List<UserWithRole> inherited = getUserRoleMappingsRecursive(orgUnit.getChildren(), AssignedThrough.ORGUNIT);
+							List<UserWithRole> inherited = getUserRoleMappingsRecursive(orgUnit.getChildren(), RoleAssignedToUserDTO.fromOrgUnitRoleGroupAssignment(orgUnitRoleGroupAssignment), AssignedThrough.ORGUNIT);
 							result.addAll(inherited);
 						}
 					}
@@ -1886,10 +1909,10 @@ public class UserService {
 		return result;
 	}
 
-	private List<UserWithRole> getUserRoleMappingsRecursive(List<OrgUnit> children, AssignedThrough assignedThrough) {
+	private List<UserWithRole> getUserRoleMappingsRecursive(List<OrgUnit> children, RoleAssignedToUserDTO inheritedAssignmentDTO, AssignedThrough assignedThrough) {
 		List<UserWithRole> result = new ArrayList<>();
 		
-		if (children != null) {	
+		if (children != null) {
 			for (OrgUnit child : children) {
 				if (!child.isActive()) {
 					continue;
@@ -1900,12 +1923,14 @@ public class UserService {
 						UserWithRole mapping = new UserWithRole();
 						mapping.setUser(position.getUser());
 						mapping.setAssignedThrough(assignedThrough);
+						mapping.setAssignment(inheritedAssignmentDTO);
+						mapping.getAssignment().setCanEdit(false);
 
 						result.add(mapping);
 					}
 				}
 
-				List<UserWithRole> inherited = getUserRoleMappingsRecursive(child.getChildren(), assignedThrough);
+				List<UserWithRole> inherited = getUserRoleMappingsRecursive(child.getChildren(), inheritedAssignmentDTO, assignedThrough);
 				result.addAll(inherited);
 			}
 		}
@@ -1916,6 +1941,8 @@ public class UserService {
 	@Deprecated
 	public List<UserWithRole> getUsersWithRoleGroup(RoleGroup roleGroup, boolean findIndirectlyAssignedRoleGroups) {
 		List<UserWithRole> result = new ArrayList<>();
+		
+		boolean canEdit = SecurityUtil.getRoles().contains(Constants.ROLE_ADMINISTRATOR);
 
 		// get users that have roleGroup assigned
 		for (User user : userDao.findByDeletedFalseAndRoleGroupAssignmentsRoleGroupAndRoleGroupAssignmentsInactive(roleGroup, false)) {
@@ -1923,21 +1950,29 @@ public class UserService {
 			mapping.setUser(user);
 			mapping.setAssignedThrough(AssignedThrough.DIRECT);
 
+			UserRoleGroupAssignment roleGroupAssignment = user.getRoleGroupAssignments().stream().filter(rga -> rga.getRoleGroup() == roleGroup).findAny()
+                    .orElseThrow(() -> new RuntimeException("RoleGroup " + roleGroup.getId() + " should be assigned to user with uuid: " + user.getUuid()));
+            mapping.setAssignment(RoleAssignedToUserDTO.fromRoleGroupAssignment(roleGroupAssignment));
+            mapping.getAssignment().setCanEdit(canEdit);
+
 			result.add(mapping);
 		}
 
 		if (findIndirectlyAssignedRoleGroups) {
 			if (!configuration.getTitles().isEnabled()) {
 				// get positions that have roleGroup assigned
-				for (Position position : positionService.getAllWithRoleGroup(roleGroup, false)) {
-					if (!position.getUser().isDeleted()) {
-						UserWithRole mapping = new UserWithRole();
-						mapping.setUser(position.getUser());
-						mapping.setAssignedThrough(AssignedThrough.POSITION);
-		
-						result.add(mapping);
-					}
-				}
+                for (PositionRoleGroupAssignment assignment : positionRoleGroupAssignmentDao.findByRoleGroup(roleGroup)) {
+                    if (assignment.getPosition().getUser().isDeleted()) {
+                        continue;
+                    }
+                    UserWithRole mapping = new UserWithRole();
+                    mapping.setUser(assignment.getPosition().getUser());
+                    mapping.setAssignedThrough(AssignedThrough.POSITION);
+                    mapping.setAssignment(RoleAssignedToUserDTO.fromPositionRoleGroupAssignment(assignment));
+                    mapping.getAssignment().setCanEdit(false);
+
+                    result.add(mapping);
+                }
 			}
 
 			// get ous that have roleGroup assigned
@@ -1977,6 +2012,9 @@ public class UserService {
 							UserWithRole mapping = new UserWithRole();
 							mapping.setUser(position.getUser());
 							mapping.setAssignedThrough(AssignedThrough.ORGUNIT);
+							
+                            mapping.setAssignment(RoleAssignedToUserDTO.fromOrgUnitRoleGroupAssignment(orgUnitRoleGroupAssignment));
+                            mapping.getAssignment().setCanEdit(false);
 		
 							result.add(mapping);
 						}
@@ -1984,7 +2022,7 @@ public class UserService {
 
 					// check if the assignment to the OrgUnit is flagged with inherit
 					if (orgUnitRoleGroupAssignment.isInherit()) {
-						List<UserWithRole> inherited = getUserRoleMappingsRecursive(orgUnit.getChildren(), AssignedThrough.ORGUNIT);
+						List<UserWithRole> inherited = getUserRoleMappingsRecursive(orgUnit.getChildren(), RoleAssignedToUserDTO.fromOrgUnitRoleGroupAssignment(orgUnitRoleGroupAssignment), AssignedThrough.ORGUNIT);
 						result.addAll(inherited);
 					}
 				}

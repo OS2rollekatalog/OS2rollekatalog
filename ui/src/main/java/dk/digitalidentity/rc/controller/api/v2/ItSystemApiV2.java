@@ -1,13 +1,30 @@
 package dk.digitalidentity.rc.controller.api.v2;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Objects;
+import java.util.stream.Collectors;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.server.ResponseStatusException;
+
 import dk.digitalidentity.rc.controller.api.mapper.RoleMapper;
 import dk.digitalidentity.rc.controller.api.model.UserRoleAM;
+import dk.digitalidentity.rc.dao.model.Domain;
 import dk.digitalidentity.rc.dao.model.ItSystem;
 import dk.digitalidentity.rc.dao.model.SystemRole;
 import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserRole;
 import dk.digitalidentity.rc.dao.model.enums.ItSystemType;
 import dk.digitalidentity.rc.security.RequireApiItSystemRole;
+import dk.digitalidentity.rc.service.DomainService;
 import dk.digitalidentity.rc.service.ItSystemService;
 import dk.digitalidentity.rc.service.PendingADUpdateService;
 import dk.digitalidentity.rc.service.SystemRoleService;
@@ -21,19 +38,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.server.ResponseStatusException;
-
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Objects;
-import java.util.stream.Collectors;
+import jakarta.validation.Valid;
 
 @RestController
 @RequireApiItSystemRole
@@ -56,6 +61,9 @@ public class ItSystemApiV2 {
 	@Autowired
 	private PendingADUpdateService pendingADUpdateService;
 
+	@Autowired
+	private DomainService domainService;
+
 	@Schema(name = "ItSystem")
 	record ItSystemRecord(@Schema(description = "Unique ID for the it-system") long id,
 			@Schema(description = "Name of the it-system") String name,
@@ -67,7 +75,11 @@ public class ItSystemApiV2 {
 			@Schema(description = "Whether it-system can be edited via api") boolean canEditThroughApi,
 			@Schema(description = "Is it-system deleted") boolean deleted,
 			@Schema(description = "Used for blocking access to an IT-Systems associated UserRoles for any API call. No User will have roles from the IT-System assigned.") boolean accesBlocked,
-			@Schema(description = "True for IT-Systems used for assigning roles via the V2 API") boolean apiManagedRoleAssignments) {
+			@Schema(description = "True for IT-Systems used for assigning roles via the V2 API") boolean apiManagedRoleAssignments,
+			@Schema(description = "Domain name when system type is AD") String domain,
+			@Schema(description = "E-mail address") String email,
+			@Schema(description = "UUID of the user responsible for attestation") String responsibleUserUuid
+			) {
 	}
 
 	@ApiResponses(value = { @ApiResponse(responseCode = "200", description = "Returns the list of all it-systems."),
@@ -83,10 +95,12 @@ public class ItSystemApiV2 {
 		}
 
 		for (ItSystem itSystem : itSystems) {
-			result.add(new ItSystemRecord(itSystem.getId(), itSystem.getName(), itSystem.getIdentifier(),
-					itSystem.getSystemType(), itSystem.isPaused(), itSystem.isHidden(), itSystem.isReadonly(),
-					itSystem.isCanEditThroughApi(), itSystem.isDeleted(), itSystem.isAccessBlocked(),
-					itSystem.isApiManagedRoleAssignments()));
+			result.add(new ItSystemRecord(itSystem.getId(), itSystem.getName(), itSystem.getIdentifier(), itSystem.getSystemType(),
+					itSystem.isPaused(), itSystem.isHidden(), itSystem.isReadonly(), itSystem.isCanEditThroughApi(),
+					itSystem.isDeleted(), itSystem.isAccessBlocked(), itSystem.isApiManagedRoleAssignments(),
+					(itSystem.getDomain() != null ? itSystem.getDomain().getName() : null),
+					itSystem.getEmail(),
+					(itSystem.getAttestationResponsible() != null ? itSystem.getAttestationResponsible().getUuid() : null)));
 		}
 
 		return new ResponseEntity<>(result, HttpStatus.OK);
@@ -104,10 +118,60 @@ public class ItSystemApiV2 {
 			return new ResponseEntity<>(HttpStatus.NOT_FOUND);
 		}
 
-		ItSystemRecord result = new ItSystemRecord(itSystem.getId(), itSystem.getName(), itSystem.getIdentifier(),
-				itSystem.getSystemType(), itSystem.isPaused(), itSystem.isHidden(), itSystem.isReadonly(),
-				itSystem.isCanEditThroughApi(), itSystem.isDeleted(), itSystem.isAccessBlocked(),
-				itSystem.isApiManagedRoleAssignments());
+		ItSystemRecord result = new ItSystemRecord(itSystem.getId(), itSystem.getName(), itSystem.getIdentifier(), itSystem.getSystemType(),
+				itSystem.isPaused(), itSystem.isHidden(), itSystem.isReadonly(), itSystem.isCanEditThroughApi(),
+				itSystem.isDeleted(), itSystem.isAccessBlocked(), itSystem.isApiManagedRoleAssignments(),
+				(itSystem.getDomain() != null ? itSystem.getDomain().getName() : null),
+				itSystem.getEmail(),
+				(itSystem.getAttestationResponsible() != null ? itSystem.getAttestationResponsible().getUuid() : null));
+
+		return new ResponseEntity<>(result, HttpStatus.OK);
+	}
+
+	@ApiResponses(value = {
+			@ApiResponse(responseCode = "200", description = "New it-system was successfuly created."),
+			@ApiResponse(responseCode = "400", description = "Domain not found or Unknown system type.")
+			})
+	@Operation(summary = "Creates an it system with the data specified in the requestbody", description = "If specified systemType is AD the domain field is mandatory.")
+	@PostMapping("/api/v2/itsystem")
+	public ResponseEntity<ItSystemRecord> createItSystem(@RequestBody @Valid ItSystemRecord itSystemBody) {
+		Domain domain = domainService.getByName(itSystemBody.domain);
+		if (itSystemBody.systemtype == ItSystemType.AD && domain == null) {
+			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Missing Domain on creating new AD it-system");
+		}
+
+		final ItSystem newItSystem = new ItSystem();
+		newItSystem.setName(itSystemBody.name);
+		newItSystem.setIdentifier(itSystemBody.identifier);
+		newItSystem.setEmail(itSystemBody.email);
+		
+		// can be null
+		userService.getOptionalByUuid(itSystemBody.responsibleUserUuid).ifPresent(newItSystem::setAttestationResponsible);
+
+		switch (itSystemBody.systemtype) {
+			case AD:
+				newItSystem.setSystemType(ItSystemType.AD);
+				newItSystem.setPaused(true);
+				newItSystem.setDomain(domain);
+				break;
+			case SAML:
+				newItSystem.setSystemType(ItSystemType.SAML);
+				break;
+			case MANUAL:
+				newItSystem.setSystemType(ItSystemType.MANUAL);
+				break;
+			default:
+				throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Unknown systemtype: " + itSystemBody.systemtype);
+		}
+		
+		ItSystem savedItSystem = itSystemService.save(newItSystem);
+		
+		ItSystemRecord result = new ItSystemRecord(savedItSystem.getId(), savedItSystem.getName(), savedItSystem.getIdentifier(), savedItSystem.getSystemType(),
+				savedItSystem.isPaused(), savedItSystem.isHidden(), savedItSystem.isReadonly(), savedItSystem.isCanEditThroughApi(),
+				savedItSystem.isDeleted(), savedItSystem.isAccessBlocked(), savedItSystem.isApiManagedRoleAssignments(),
+				(savedItSystem.getDomain() != null ? savedItSystem.getDomain().getName() : null),
+				savedItSystem.getEmail(),
+				(savedItSystem.getAttestationResponsible() != null ? savedItSystem.getAttestationResponsible().getUuid() : null));
 
 		return new ResponseEntity<>(result, HttpStatus.OK);
 	}

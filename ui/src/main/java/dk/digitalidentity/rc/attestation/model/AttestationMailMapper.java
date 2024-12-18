@@ -60,6 +60,11 @@ public class AttestationMailMapper {
             case ATTESTATION_IT_SYSTEM_REMINDER2 -> "overview.enum.email.message.type.attestation_it_system_reminder2";
             case ATTESTATION_IT_SYSTEM_REMINDER3 -> "overview.enum.email.message.type.attestation_it_system_reminder3";
             case ATTESTATION_IT_SYSTEM_REMINDER_THIRDPARTY -> "overview.enum.email.message.type.attestation_it_system_reminder_thirdparty";
+            case ATTESTATION_IT_SYSTEM_ASSIGNMENT_NOTIFICATION -> "overview.enum.email.message.type.attestation_it_system_assignment_notification";
+            case ATTESTATION_IT_SYSTEM_ASSIGNMENT_REMINDER1 -> "overview.enum.email.message.type.attestation_it_system_assignment_reminder1";
+            case ATTESTATION_IT_SYSTEM_ASSIGNMENT_REMINDER2 -> "overview.enum.email.message.type.attestation_it_system_assignment_reminder2";
+            case ATTESTATION_IT_SYSTEM_ASSIGNMENT_REMINDER3 -> "overview.enum.email.message.type.attestation_it_system_assignment_reminder3";
+            case ATTESTATION_IT_SYSTEM_ASSIGNMENT_REMINDER_THIRDPARTY -> "overview.enum.email.message.type.attestation_it_system_assignment_reminder_thirdparty";
             default -> "";
         };
         return messageSource.getMessage(messageLookupKey, null, Locale.ENGLISH);

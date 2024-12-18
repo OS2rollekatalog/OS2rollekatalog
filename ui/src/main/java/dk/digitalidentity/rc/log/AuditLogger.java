@@ -1,6 +1,7 @@
 package dk.digitalidentity.rc.log;
 
 import dk.digitalidentity.rc.dao.model.AuditLog;
+import dk.digitalidentity.rc.dao.model.Setting;
 import dk.digitalidentity.rc.dao.model.enums.EntityType;
 import dk.digitalidentity.rc.dao.model.enums.EventType;
 import jakarta.servlet.http.HttpServletRequest;
@@ -50,6 +51,44 @@ public class AuditLogger {
 		entry.setEntityType(EntityType.getEntityType(entity));
 		entry.setEntityName(entity.getEntityName());
 		entry.setEventType(eventType);
+
+		if (secondaryEntity != null) {
+			entry.setSecondaryEntityId(secondaryEntity.getEntityId());
+			entry.setSecondaryEntityType(EntityType.getEntityType(secondaryEntity));
+			entry.setSecondaryEntityName(secondaryEntity.getEntityName());
+		}
+
+		entry.setDescription(buildDescription());
+		
+		auditLogEntryDao.save(entry);
+	}
+
+	public void logSetting(Setting entity, AuditLoggable secondaryEntity, String stopdateUser, String prettyName) {
+		String user = null;
+		String loggedInUser = SecurityContextHolder.getContext().getAuthentication() == null
+				? "system"
+				: extractPrincipal();
+
+		if (stopdateUser != null && loggedInUser.equalsIgnoreCase("system")) {
+			user = "System på vegne af " + stopdateUser;
+		} else {
+			user = loggedInUser;
+		}
+
+		AuditLog entry = new AuditLog();
+		entry.setUsername(user);
+		entry.setIpAddress(getClientIp());
+		entry.setTimestamp(new Date());
+
+		entry.setEntityId(entity.getEntityId());
+		entry.setEntityType(EntityType.getEntityType(entity));
+		entry.setEventType(EventType.SETTINGS_CHANGED);
+		
+		if (prettyName != null) {
+			entry.setEntityName(prettyName);
+		} else {
+			entry.setEntityName(entity.getEntityName());
+		}
 
 		if (secondaryEntity != null) {
 			entry.setSecondaryEntityId(secondaryEntity.getEntityId());

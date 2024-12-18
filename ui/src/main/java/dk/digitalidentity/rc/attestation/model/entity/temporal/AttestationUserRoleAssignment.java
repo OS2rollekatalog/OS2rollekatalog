@@ -79,5 +79,7 @@ public class AttestationUserRoleAssignment extends TemporalAssignmentBase {
     @Column
     private boolean sensitiveRole;
     @Column
+    private boolean extraSensitiveRole;
+    @Column
     private String postponedConstraints;
 }

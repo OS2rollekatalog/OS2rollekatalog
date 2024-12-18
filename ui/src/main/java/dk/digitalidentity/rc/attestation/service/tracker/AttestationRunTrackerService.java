@@ -32,6 +32,7 @@ public class AttestationRunTrackerService {
         attestationRunDao.findByFinishedFalse().stream()
                 .filter(r -> r.getDeadline().isBefore(LocalDate.now().minusDays(configuration.getAttestation().getCurrentAttestationActiveDaysAfterDeadline())))
                 .forEach(r -> r.setFinished(true));
+        boolean yearly = settingsService.getScheduledAttestationInterval() == CheckupIntervalEnum.YEARLY;
         // Now check if we need to create a new run
         final LocalDate deadlineNormal = findNextAttestationDate(when, false, false);
         final LocalDate deadlineSensitive = findNextAttestationDate(when, true, false);
@@ -39,7 +40,7 @@ public class AttestationRunTrackerService {
         // Check if we already have an attestation run active
         final boolean normalRun = shouldCreateAttestationRun(when, deadlineNormal);
         final boolean sensitiveRun = !normalRun && shouldCreateAttestationRun(when, deadlineSensitive);
-        final boolean extraSensitiveRun = !normalRun && shouldCreateAttestationRun(when, deadlineExtraSensitive);
+        final boolean extraSensitiveRun = !normalRun && yearly && shouldCreateAttestationRun(when, deadlineExtraSensitive);
         if (normalRun || sensitiveRun || extraSensitiveRun) {
             getAttestationRun(when)
                     .orElseGet(() -> createNewAttestationRun(extraSensitiveRun ? deadlineExtraSensitive : (sensitiveRun ? deadlineSensitive : deadlineNormal), sensitiveRun, extraSensitiveRun));
@@ -104,8 +105,7 @@ public class AttestationRunTrackerService {
      */
     private static int extraSensitiveIntervalToMonths(final CheckupIntervalEnum intervalEnum) {
         return switch (intervalEnum) {
-            case YEARLY -> 3;
-            case EVERY_HALF_YEAR -> throw new RuntimeException("Trying to calculate extra sensitive with EVERY_HALF_YEAR interval");
+            case YEARLY, EVERY_HALF_YEAR -> 3;
         };
     }
 

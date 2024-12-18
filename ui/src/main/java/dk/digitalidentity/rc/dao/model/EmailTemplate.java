@@ -2,6 +2,7 @@ package dk.digitalidentity.rc.dao.model;
 
 
 import dk.digitalidentity.rc.dao.model.enums.EmailTemplateType;
+import dk.digitalidentity.rc.log.AuditLoggable;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -18,7 +19,7 @@ import lombok.Setter;
 @Setter
 @Entity
 @Table(name = "email_templates")
-public class EmailTemplate {
+public class EmailTemplate implements AuditLoggable {
 
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -45,4 +46,14 @@ public class EmailTemplate {
 
 	@Column
 	private Integer daysBeforeEvent;
+
+	@Override
+    public String getEntityName() {
+	    return "";
+    }
+
+    @Override
+    public String getEntityId() {
+        return Long.toString(id);
+    }
 }

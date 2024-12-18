@@ -14,13 +14,14 @@ namespace ADSyncService
     class BackSyncService
     {
         private static log4net.ILog log = log4net.LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
-        private static StringCollection ous = Properties.Settings.Default.BackSyncFeature_OUs;
-        private static bool convertToUserRoles = Properties.Settings.Default.BackSyncFeature_CreateUserRoles;
-        private static bool groupsInGroupOnSync = Properties.Settings.Default.BackSyncFeature_GroupsInGroupOnSync;
-        private static EmailService emailService = EmailService.Instance;
+        private EmailService emailService = EmailService.Instance;
+        private RemoteConfigurationService remoteConfigurationService = RemoteConfigurationService.Instance;
 
-        public static void SyncGroupsToRoleCatalogue(RoleCatalogueStub roleCatalogueStub, ADStub adStub)
+        public void SyncGroupsToRoleCatalogue(RoleCatalogueStub roleCatalogueStub, ADStub adStub)
         {
+            List<string> ous = remoteConfigurationService.GetConfiguration().backSyncFeatureOUs;
+            bool convertToUserRoles = remoteConfigurationService.GetConfiguration().backSyncFeatureCreateUserRoles;
+            bool groupsInGroupOnSync = remoteConfigurationService.GetConfiguration().backSyncFeatureGroupsInGroupOnSync;
             foreach (string ouRaw in ous)
             {
                 try
@@ -37,7 +38,8 @@ namespace ADSyncService
                     string itSystemId = tokens[0];
                     string ouDn = tokens[1];
 
-                    var groups = adStub.GetAllGroups(ouDn);
+                    string nameAttribute = remoteConfigurationService.GetConfiguration().backSyncFeatureNameAttribute;
+                    var groups = adStub.GetAllGroups(ouDn, nameAttribute);
                     if (groups == null)
                     {
                         log.Warn("Got 0 groups from OU: " + ouDn);
@@ -164,7 +166,7 @@ namespace ADSyncService
             }
         }
 
-        private static bool ReImportUsersEnabled()
+        private bool ReImportUsersEnabled()
         {
             string reImportUsers = ConfigurationManager.AppSettings["ReImportUsers"];
             return reImportUsers != null && reImportUsers.Equals("Yes");

@@ -38,7 +38,7 @@
 						<tr th:each="assignment : ${assignments}">
 							<td>
 								<span th:text="${assignment.name}"></span>
-								<div th:text="#{__${assignment.type.message}__}" th:style="|font-size: smaller; color: ${assignment.type.name() == 'NEGATIVE' ? 'red' : 'black'};|" th:data-name="${assignment.type}"></div>
+								<div th:text="#{__${assignment.type.message}__}" th:style="|font-size: smaller; color: ${(assignment.type.name() == 'NEGATIVE' || assignment.type.name() == 'NEGATIVE_ROLEGROUP') ? 'red' : 'black'};|" th:data-name="${assignment.type}"></div>
 								<div th:if="${assignment.ineffective}" style="font-size: smaller; color: red;" th:text="#{html.page.users.manage.assignment.ineffective}"></div>
 							</td>
 

@@ -10,9 +10,8 @@ namespace ADSyncService
     class ADStub
     {
         private static log4net.ILog log = log4net.LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
-        private static string groupOU = Properties.Settings.Default.CreateDeleteFeature_OU;
-        private static string cprAttribute = Properties.Settings.Default.MembershipSyncFeature_CprAttribute;
         private EmailService emailService = EmailService.Instance;
+        private RemoteConfigurationService remoteConfigurationService = RemoteConfigurationService.Instance;
 
         // note, the groupInGroup parameter should only be true when doing an initial import - when making membershipSync updates
         // the group in group thing is way to complex to solve here (and introduces nasty side-effects if actually implemented)
@@ -54,7 +53,7 @@ namespace ADSyncService
             return members;
         }
 
-        public List<Group> GetAllGroups(string ouDn)
+        public List<Group> GetAllGroups(string ouDn, string nameAttribute)
         {
             List<Group> res = new List<Group>();
 
@@ -88,9 +87,10 @@ namespace ADSyncService
                             GroupPrincipal groupPrincipal = group as GroupPrincipal;
                             if (groupPrincipal != null)
                             {
+                                DirectoryEntry dir = group.GetUnderlyingObject() as DirectoryEntry;
                                 Group g = new Group();
                                 g.Uuid = groupPrincipal.Guid.ToString().ToLower();
-                                g.Name = groupPrincipal.Name;
+                                g.Name = getNameAttribute(dir, nameAttribute);
                                 g.Description = (groupPrincipal.Description != null) ? ((groupPrincipal.Description.Length > 200) ? groupPrincipal.Description.Substring(0, 200) : groupPrincipal.Description) : "";
 
                                 res.Add(g);
@@ -101,6 +101,18 @@ namespace ADSyncService
             }
 
             return res;
+        }
+
+        private string getNameAttribute(DirectoryEntry dir, string nameAttribute)
+        {
+            if (!string.IsNullOrEmpty(nameAttribute))
+            {
+                if (dir.Properties.Contains(nameAttribute)) {
+                    return dir.Properties[nameAttribute].Value as string;
+                }
+            }
+
+            return dir.Properties["Name"].Value as string;
         }
 
         public void UpdateAttribute(string userId, string attributeName, string attributeValue)
@@ -215,6 +227,7 @@ namespace ADSyncService
 
         public void CreateGroup(string systemRoleIdentifier, string itSystemIdentifier, string adGroupType, bool universel)
         {
+            string groupOU = remoteConfigurationService.GetConfiguration().createDeleteFeatureOU;
             string contextPath = "OU=" + itSystemIdentifier + "," + groupOU;
 
             // make sure contextPath exists
@@ -286,6 +299,7 @@ namespace ADSyncService
 
         public bool HasCpr(string userId)
         {
+            string cprAttribute = remoteConfigurationService.GetConfiguration().membershipSyncFeatureCprAttribute;
             using (PrincipalContext context = new PrincipalContext(ContextType.Domain))
             {
                 using (UserPrincipal user = UserPrincipal.FindByIdentity(context, userId))
@@ -310,6 +324,7 @@ namespace ADSyncService
 
         public void DeleteGroup(string systemRoleIdentifier, string itSystemIdentifier)
         {
+            string groupOU = remoteConfigurationService.GetConfiguration().createDeleteFeatureOU;
             string contextPath = "OU=" + itSystemIdentifier + "," + groupOU;
 
             using (PrincipalContext context = new PrincipalContext(ContextType.Domain, null, contextPath))
@@ -323,6 +338,18 @@ namespace ADSyncService
                         log.Info("Deleted security group: " + systemRoleIdentifier + " in " + contextPath);
                     }
                 }
+            }
+        }
+
+        public bool EntityExistsInAD(string distinguishedName)
+        {
+            try
+            {
+                return DirectoryEntry.Exists("LDAP://" + distinguishedName);
+            } catch (Exception e)
+            {
+                log.Warn("InvaliddistinguishedName ", e);
+                return false;
             }
         }
     }

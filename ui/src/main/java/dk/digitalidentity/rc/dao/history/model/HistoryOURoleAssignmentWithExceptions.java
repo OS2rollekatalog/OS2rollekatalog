@@ -17,7 +17,7 @@ import java.util.List;
 @Table(name = "history_role_assignment_excepted_users")
 @Getter
 @Setter
-public class HistoryOURoleAssignmentWithExceptions {
+public class HistoryOURoleAssignmentWithExceptions implements GenericRoleAssignment {
 
 	@Id
 	private long id;

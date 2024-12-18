@@ -526,8 +526,33 @@ public class NemLoginService {
 		
 		for (UserRoleAssignmentWithInfo userRoleAssignmentWithInfo : assignedUserRoles) {
 			for (SystemRoleAssignment systemRoleAssignment : userRoleAssignmentWithInfo.getUserRole().getSystemRoleAssignments()) {
-				if (userRoleAssignmentWithInfo.getPostponedConstraints() == null) {
-					systemRoleIdentifiersNoConstraints.add(systemRoleAssignment.getSystemRole().getIdentifier());
+				if (userRoleAssignmentWithInfo.getPostponedConstraints() == null || userRoleAssignmentWithInfo.getPostponedConstraints().size() == 0) {
+					boolean anyConstraint = false;
+					
+					if (systemRoleAssignment.getConstraintValues() != null) {
+						for (SystemRoleAssignmentConstraintValue constraintValue : systemRoleAssignment.getConstraintValues()) {
+							if (constraintValue.getConstraintType().getEntityId().equals("https://nemlogin.dk/constraints/pnr/1")) {
+								anyConstraint = true;
+								if (!systemRoleIdentifiersPnrConstraints.containsKey(systemRoleAssignment.getSystemRole().getIdentifier())) {
+									systemRoleIdentifiersPnrConstraints.put(systemRoleAssignment.getSystemRole().getIdentifier(), new HashSet<>());
+								}
+
+								systemRoleIdentifiersPnrConstraints.get(systemRoleAssignment.getSystemRole().getIdentifier()).add(constraintValue.getConstraintValue());
+							}
+							else if (constraintValue.getConstraintType().getEntityId().equals("https://nemlogin.dk/constraints/senr/1")) {
+								anyConstraint = true;
+								if (!systemRoleIdentifiersSenrConstraints.containsKey(systemRoleAssignment.getSystemRole().getIdentifier())) {
+									systemRoleIdentifiersSenrConstraints.put(systemRoleAssignment.getSystemRole().getIdentifier(), new HashSet<>());
+								}
+
+								systemRoleIdentifiersSenrConstraints.get(systemRoleAssignment.getSystemRole().getIdentifier()).add(constraintValue.getConstraintValue());
+							}
+						}
+					}
+
+					if (!anyConstraint) {
+						systemRoleIdentifiersNoConstraints.add(systemRoleAssignment.getSystemRole().getIdentifier());
+					}
 				}
 				else {
 					boolean anyPostponedConstraint = false;
@@ -552,7 +577,7 @@ public class NemLoginService {
 							}
 						}
 					}
-
+					
 					if (!anyPostponedConstraint) {
 						systemRoleIdentifiersNoConstraints.add(systemRoleAssignment.getSystemRole().getIdentifier());
 					}

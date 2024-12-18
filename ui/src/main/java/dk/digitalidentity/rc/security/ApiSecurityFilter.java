@@ -2,6 +2,7 @@ package dk.digitalidentity.rc.security;
 
 import dk.digitalidentity.rc.dao.model.Client;
 import dk.digitalidentity.rc.dao.model.enums.AccessRole;
+import dk.digitalidentity.rc.dao.model.enums.ClientIntegrationType;
 import dk.digitalidentity.rc.service.ClientService;
 import dk.digitalidentity.samlmodule.model.SamlGrantedAuthority;
 import jakarta.servlet.Filter;
@@ -77,6 +78,10 @@ public class  ApiSecurityFilter implements Filter {
 				case AUDITLOG_ACCESS:
 					authorities.add(new SamlGrantedAuthority(ROLE_API + AccessRole.AUDITLOG_ACCESS.toString()));
 					break;
+			}
+
+			if (client.getClientIntegrationType().equals(ClientIntegrationType.AD_SYNC_SERVICE)) {
+				authorities.add(new SamlGrantedAuthority(ROLE_API + "AD_SYNC_SERVICE"));
 			}
 
 			String tlsVersion = request.getHeader("x-amzn-tls-version");

@@ -6,10 +6,11 @@ namespace ADSyncService
     class ItSystemGroupService
     {
         private static log4net.ILog log = log4net.LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
-        private static StringCollection systemMap = Properties.Settings.Default.ItSystemGroupFeature_SystemMap;
+        private RemoteConfigurationService remoteConfigurationService = RemoteConfigurationService.Instance;
 
-        public static void PerformUpdate(RoleCatalogueStub roleCatalogueStub, ADStub adStub)
+        public void PerformUpdate(RoleCatalogueStub roleCatalogueStub, ADStub adStub)
         {
+            List<string> systemMap = remoteConfigurationService.GetConfiguration().itSystemGroupFeatureSystemMap;
             foreach (string mapRaw in systemMap)
             {
                 var map = mapRaw.Replace("&amp;", "&");

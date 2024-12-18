@@ -14,6 +14,7 @@ public class AttestationSettingsForm {
 	private boolean scheduledAttestationEnabled;
 	private CheckupIntervalEnum scheduledAttestationInterval;
 	private Set<String> scheduledAttestationFilter;
+	private boolean dontSendMailToManager;
 	private boolean adAttestationEnabled;
 	private boolean changeRequestsEnabled;
 	private String attestationChangeEmail;

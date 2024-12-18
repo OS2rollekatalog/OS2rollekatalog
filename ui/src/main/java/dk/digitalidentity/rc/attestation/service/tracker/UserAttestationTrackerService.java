@@ -141,11 +141,21 @@ public class UserAttestationTrackerService {
                 .flatMap(ou -> getChildrenRecursive(ou, level + 1)));
     }
 
+    private boolean shouldDisregardAssignment(final AttestationRun run, boolean assignmentSensitive, boolean assignmentSuperSensitive) {
+        if (run.isSensitive() && (!assignmentSensitive && !assignmentSuperSensitive)) {
+            return true;
+        }
+        if (run.isExtraSensitive() && !assignmentSuperSensitive) {
+            return true;
+        }
+        return false;
+    }
+
     static int cntUA = 0;
     private void ensureWeHaveSystemUsersAttestationFor(final AttestationRun run,
                                                        final AttestationUserRoleAssignment assignment,
                                                        final LocalDate when) {
-        if (run.isSensitive() && !assignment.isSensitiveRole()) {
+        if (shouldDisregardAssignment(run, assignment.isSensitiveRole(), assignment.isExtraSensitiveRole())) {
             return;
         }
         Attestation attestation = findSystemUsersAttestationFor(assignment, when).orElse(null);
@@ -180,7 +190,7 @@ public class UserAttestationTrackerService {
     private void ensureWeHaveSystemUsersAttestationForOu(final AttestationRun run,
                                                          final AttestationOuRoleAssignment assignment,
                                                          final LocalDate when) {
-        if (run.isSensitive() && !assignment.isSensitiveRole()) {
+        if (shouldDisregardAssignment(run, assignment.isSensitiveRole(), assignment.isExtraSensitiveRole())) {
             return;
         }
         Attestation attestation = findSystemUsersAttestationFor(assignment, when).orElse(null);
@@ -202,7 +212,7 @@ public class UserAttestationTrackerService {
     private void ensureWeHaveOrganisationAttestationForOu(final AttestationRun run,
                                                           final AttestationOuRoleAssignment assignment,
                                                           final LocalDate when) {
-        if (run.isSensitive() && !assignment.isSensitiveRole()) {
+        if (shouldDisregardAssignment(run, assignment.isSensitiveRole(), assignment.isExtraSensitiveRole())) {
             return;
         }
         Attestation attestation = findOrganisationAttestationFor(assignment, when).orElse(null);
@@ -224,7 +234,7 @@ public class UserAttestationTrackerService {
     private void ensureWeHaveOrganisationAttestationFor(final AttestationRun run,
                                                         final AttestationUserRoleAssignment assignment,
                                                         final LocalDate when) {
-        if (run.isSensitive() && !assignment.isSensitiveRole()) {
+        if (shouldDisregardAssignment(run, assignment.isSensitiveRole(), assignment.isExtraSensitiveRole())) {
             return;
         }
         Attestation attestation = findOrganisationAttestationFor(assignment, when).orElse(null);
@@ -248,7 +258,7 @@ public class UserAttestationTrackerService {
                                                         final String responsibleOuUuid,
                                                         final LocalDate when) {
         if (run.isSensitive() || run.isExtraSensitive()) {
-            // This method creates a OU attestation event though there is no role assignment, this is
+            // This method creates a OU attestations even though there is no role assignment, this is
             // used when AD attestation is enabled an all OUs should be attestated.
             // So we NEVER wants this to happen for sensitive runs.
             return;
@@ -401,7 +411,7 @@ public class UserAttestationTrackerService {
                     attestation.setUsersForAttestation(attestationUsers);
                     return user;
                 });
-        if (assignment.isSensitiveRole()) {
+        if (assignment.isSensitiveRole() || assignment.isExtraSensitiveRole()) {
             attestationUser.setSensitiveRoles(true);
         }
     }

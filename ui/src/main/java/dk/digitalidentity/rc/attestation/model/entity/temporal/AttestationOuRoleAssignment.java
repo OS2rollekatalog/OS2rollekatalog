@@ -86,6 +86,8 @@ public class AttestationOuRoleAssignment extends TemporalAssignmentBase {
     @Column
     private boolean sensitiveRole;
     @Column
+    private boolean extraSensitiveRole;
+    @Column
     @Convert(converter = StringListConverter.class)
     @PartOfNaturalKey
     @Builder.Default

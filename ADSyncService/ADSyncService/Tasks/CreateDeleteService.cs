@@ -6,12 +6,13 @@ namespace ADSyncService
     class CreateDeleteService
     {
         private static log4net.ILog log = log4net.LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
-        private static bool createGroupsEnabled = Properties.Settings.Default.CreateDeleteFeature_CreateEnabled;
-        private static bool deleteGroupsEnabled = Properties.Settings.Default.CreateDeleteFeature_DeleteEnabled;
         private static EmailService emailService = EmailService.Instance;
+        private RemoteConfigurationService remoteConfigurationService = RemoteConfigurationService.Instance;
 
-        public static void PerformGroupOperations(RoleCatalogueStub roleCatalogueStub, ADStub adStub)
+        public void PerformGroupOperations(RoleCatalogueStub roleCatalogueStub, ADStub adStub)
         {
+            bool createGroupsEnabled = remoteConfigurationService.GetConfiguration().createDeleteFeatureCreateEnabled;
+            bool deleteGroupsEnabled = remoteConfigurationService.GetConfiguration().createDeleteFeatureDeleteEnabled;
             var operationData = roleCatalogueStub.GetOperationData();
 
             // if we have pending operations, perform them

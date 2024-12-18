@@ -14,6 +14,7 @@ namespace ADSyncService
         private static string baseUrl;
         private static string domain = Properties.Settings.Default.Domain;
         private EmailService emailService = EmailService.Instance;
+        private RemoteConfigurationService remoteConfigurationService = RemoteConfigurationService.Instance;
 
         public RoleCatalogueStub()
         {
@@ -42,7 +43,13 @@ namespace ADSyncService
             {
                 RestClient client = new RestClient(baseUrl);
 
-                var request = new RestRequest("/api/ad/v2/operations", Method.GET);
+                string query = "";
+                if (!String.IsNullOrEmpty(domain))
+                {
+                    query = $"?domain={domain}";
+                }
+
+                var request = new RestRequest("/api/ad/v2/operations" + query, Method.GET);
                 request.AddHeader("ApiKey", apiKey);
                 request.JsonSerializer = NewtonsoftJsonSerializer.Default;
 
@@ -135,12 +142,17 @@ namespace ADSyncService
         {
             RestClient client = new RestClient(baseUrl);
 
-            string updateUserAssignments = "";
+            string query = "";
+            if (!string.IsNullOrEmpty(domain))
+            {
+                query = $"?domain={domain}";
+            }
+
             if (ReImportUsersEnabled())
             {
-                updateUserAssignments = "?updateUserAssignments=true";
+                query += (query.Length > 0) ? "&updateUserAssignments=true" : "?updateUserAssignments=true";
             }
-            var request = new RestRequest("/api/itsystem/manage/" + itSystemId + updateUserAssignments, Method.POST);
+            var request = new RestRequest("/api/itsystem/manage/" + itSystemId + query, Method.POST);
             request.RequestFormat = DataFormat.Json;
             request.AddHeader("Content-Type", "application/json");
             request.AddHeader("ApiKey", apiKey);
@@ -220,8 +232,13 @@ namespace ADSyncService
             try
             {
                 RestClient client = new RestClient(baseUrl);
+                string query = "?maxHead=" + maxHead;
+                if (!String.IsNullOrEmpty(domain))
+                {
+                    query += $"&domain={domain}";
+                }
 
-                var request = new RestRequest("/api/ad/v2/sync/" + head + "?maxHead=" + maxHead, Method.DELETE);
+                var request = new RestRequest("/api/ad/v2/sync/" + head + query, Method.DELETE);
                 request.AddHeader("ApiKey", apiKey);
                 request.JsonSerializer = NewtonsoftJsonSerializer.Default;
 
@@ -248,8 +265,13 @@ namespace ADSyncService
             try
             {
                 RestClient client = new RestClient(baseUrl);
+                string query = "";
+                if (!String.IsNullOrEmpty(domain))
+                {
+                    query = $"?domain={domain}";
+                }
 
-                var request = new RestRequest("/api/ad/v2/operations/" + head, Method.DELETE);
+                var request = new RestRequest("/api/ad/v2/operations/" + head + query, Method.DELETE);
                 request.AddHeader("ApiKey", apiKey);
                 request.JsonSerializer = NewtonsoftJsonSerializer.Default;
 
@@ -290,6 +312,83 @@ namespace ADSyncService
 
             return false;
         }
+
+        public RemoteConfiguration GetConfiguration()
+        {
+            try
+            {
+                RestClient client = new RestClient(baseUrl);
+
+                var request = new RestRequest("/api/v2/ad/getConfiguration/" + domain, Method.GET);
+                request.AddHeader("ApiKey", apiKey);
+                request.JsonSerializer = NewtonsoftJsonSerializer.Default;
+
+                var result = client.Execute<RemoteConfiguration>(request);
+                if (result.StatusCode.Equals(HttpStatusCode.OK))
+                {
+                    log.Debug("ConfigurationFromRC-data retrieved: " + result.Content);
+                    return result.Data;
+                } else if (result.StatusCode.Equals(HttpStatusCode.NoContent))
+                {
+                    SetConfigurationInRC();
+                    return GetConfiguration();
+                } else if (result.StatusCode.Equals(HttpStatusCode.NotFound))
+                {
+                    return null;
+                }
+
+                log.Error("Get configuration from RC call failed (" + result.StatusCode + ") : " + result.Content);
+                emailService.EnqueueMail("Get configuration from RC call failed (" + result.StatusCode + ") : " + result.Content);
+            }
+            catch (Exception ex)
+            {
+                log.Error("Get configuration from RC call failed", ex);
+                emailService.EnqueueMail("Get configuration from RC call failed", ex);
+            }
+
+            return null;
+        }
+
+        public void SetConfigurationInRC()
+        {
+            RestClient client = new RestClient(baseUrl);
+            var request = new RestRequest("/api/v2/ad/writeConfiguration/" + domain, Method.POST);
+            request.RequestFormat = DataFormat.Json;
+            request.AddHeader("Content-Type", "application/json");
+            request.AddHeader("ApiKey", apiKey);
+            request.JsonSerializer = NewtonsoftJsonSerializer.Default;
+            request.AddJsonBody(remoteConfigurationService.GetLocalConfiguration());
+
+            var result = client.Execute(request);
+            if (result.StatusCode.Equals(HttpStatusCode.OK))
+            {
+                return;
+            }
+
+            log.Error("SetConfigurationInRC call failed (" + result.StatusCode + ") : " + result.Content);
+            emailService.EnqueueMail("SetConfigurationInRC call failed (" + result.StatusCode + ") : " + result.Content);
+        }
+
+        public void SendConfigurationError(string errorMsg)
+        {
+            RestClient client = new RestClient(baseUrl);
+            var request = new RestRequest("/api/v2/ad/error/" + domain, Method.POST);
+            request.RequestFormat = DataFormat.Json;
+            request.AddHeader("Content-Type", "application/json");
+            request.AddHeader("ApiKey", apiKey);
+            request.AddParameter("text/plain", errorMsg, ParameterType.RequestBody);
+
+            var result = client.Execute(request);
+            if (result.StatusCode.Equals(HttpStatusCode.OK))
+            {
+                return;
+            }
+
+            log.Error("SendConfigurationError call failed (" + result.StatusCode + ") : " + result.Content);
+            emailService.EnqueueMail("SendConfigurationError call failed (" + result.StatusCode + ") : " + result.Content);
+        }
+
+        
 
         private static bool ReImportUsersEnabled()
         {

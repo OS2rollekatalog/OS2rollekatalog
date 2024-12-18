@@ -357,20 +357,20 @@
 		function RolesService() {
 			this.loadRolesFragment = function () {
 				$("#roles_menu").load(urlUi + ou + "/roles", function () {
-					currentTable = fragShowDataTableFun('#listTable', 0, 10);
+					currentTable = fragShowDataTableFun('#listTable', 0, 100);
 					dataTablesRefreshIcons($('#dataTableDropdown'));
 				});
 			}
 
 			this.loadAddUserRoleFragment = function () {
 				$("#roles_menu").load(urlUi + ou + "/addUserRole", function () {
-					fragShowDataTableFun('#listTable_ou_ur', 0, 10);
+					fragShowDataTableFun('#listTable_ou_ur', 0, 100);
 				});
 			}
 
 			this.loadAddRoleGroupFragment = function () {
 				$("#roles_menu").load(urlUi + ou + "/addRoleGroup", function () {
-					fragShowDataTableFun('#listTable_ou_rg', 0, 10);
+					fragShowDataTableFun('#listTable_ou_rg', 0, 100);
 				});
 			}
 
@@ -455,7 +455,7 @@
 							},
 							error : errorHandler(negativeResponse = null),
 							success : function(response) {
-								negativeResponse = response;
+								negativeInheritedResponse = response;
 							}
 						});
 

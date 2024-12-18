@@ -152,7 +152,7 @@ public class AccessConstraintService {
 		
 		return (filterUserRolesUserCanAssign(Collections.singletonList(userRole)).size() > 0);
 	}
-	
+
 	public boolean isAssignmentAllowed(User user, RoleGroup roleGroup) {
 		if (!isUserAccessable(user, true)) {
 			return false;
@@ -167,6 +167,20 @@ public class AccessConstraintService {
 		}
 		
 		return true;
+	}
+
+	public boolean isUserRoleAssignmentAllowed(final OrgUnit ou, final Long ouRoleAssignmentId) {
+		return ou.getUserRoleAssignments()
+				.stream().filter(ura -> ura.getId() == ouRoleAssignmentId).findAny()
+				.map(a -> isAssignmentAllowed(ou, a.getUserRole()))
+				.orElseThrow(() -> new IllegalArgumentException("Could not lookup ouRoleAssignment " + ouRoleAssignmentId));
+	}
+
+	public boolean isUserRoleGroupAssignmentAllowed(final OrgUnit ou, final Long ouRoleGroupAssignmentId) {
+		return ou.getRoleGroupAssignments()
+				.stream().filter(ura -> ura.getId() == ouRoleGroupAssignmentId).findAny()
+				.map(a -> isAssignmentAllowed(ou, a.getRoleGroup()))
+				.orElseThrow(() -> new IllegalArgumentException("Could not lookup ouRoleGroupAssignment " + ouRoleGroupAssignmentId));
 	}
 
 	public boolean isKleAssignmentAllowed(OrgUnit ou) {

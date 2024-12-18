@@ -5,6 +5,7 @@ import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -323,21 +324,21 @@ public class AttestationEmailNotificationService {
         }
 
         if (systemEscalation && responsibleUser != null) {
-            return responsibleUser.getPositions().stream()
+            return getManagerOrSubstitute(responsibleUser.getPositions().stream()
                     .map(Position::getOrgUnit)
                     .map(OrgUnit::getManager)
                     .filter(Objects::nonNull)
                     .findFirst().map(Collections::singletonList)
-                    .orElse(Collections.emptyList());
+                    .orElse(Collections.emptyList()));
         } else if (escalation && responsibleUser != null) {
             final User fResponsibleUser = responsibleUser;
             // Find the manager's manager(s)
-            return responsibleUser.getPositions().stream()
+            return getManagerOrSubstitute(responsibleUser.getPositions().stream()
                     .map(Position::getOrgUnit)
                     .filter(ou -> ou.getManager() != null
                             && ou.getManager().getUuid().equals(fResponsibleUser.getUuid()))
                     .flatMap(ou -> findManagersManager(fResponsibleUser, ou, 0).stream())
-                    .collect(Collectors.toList());
+                    .collect(Collectors.toList()));
         } else if (responsibleUser != null) {
             if (attestation.getAttestationType() == Attestation.AttestationType.ORGANISATION_ATTESTATION) {
                 // Find substitutes(stedfortrædere)
@@ -349,6 +350,10 @@ public class AttestationEmailNotificationService {
                         .filter(s -> s.getOrgUnit().getUuid().equals(attestation.getResponsibleOuUuid()))
                         .map(ManagerSubstitute::getSubstitute)
                         .toList();
+                // don't send to manager if has substitutes
+                if (!settingsService.isDontSendMailToManagerEnabled() && !substitutes.isEmpty()) {
+                    return substitutes;
+                }
                 return Stream.concat(Stream.of(responsibleUser), substitutes.stream())
                         .collect(Collectors.toList());
             } else {
@@ -356,6 +361,33 @@ public class AttestationEmailNotificationService {
             }
         }
         return null;
+    }
+
+    private List<User> getManagerOrSubstitute(List<User> targetUsers) {
+        if (!settingsService.isDontSendMailToManagerEnabled()) {
+            return targetUsers;
+        } else {
+            List<User> result = new ArrayList<>();
+            for (User user : targetUsers) {
+                // Find substitutes(stedfortrædere)
+                List<User> substitutes = orgUnitDao.findById(user.getUuid())
+                        .stream()
+                        .map(OrgUnit::getManager)
+                        .filter(Objects::nonNull)
+                        .flatMap(manager -> manager.getManagerSubstitutes().stream())
+                        .filter(s -> s.getOrgUnit().getUuid().equals(user.getUuid()))
+                        .map(ManagerSubstitute::getSubstitute)
+                        .toList();
+                
+                if (substitutes != null && !substitutes.isEmpty()) {
+                    result.addAll(substitutes);
+                } else {
+                    result.add(user);
+                }
+            }
+            
+            return result;
+        }
     }
 
     private List<User> findManagersManager(final User manager, final OrgUnit ou, int depth) {

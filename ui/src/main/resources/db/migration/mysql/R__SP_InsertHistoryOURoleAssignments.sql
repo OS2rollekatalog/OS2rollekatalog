@@ -31,7 +31,6 @@ BEGIN
     JOIN user_roles ur ON ur.id = our.role_id
     JOIN it_systems it ON it.id = ur.it_system_id
   WHERE our.id = ou_roles_id
-  AND our.inactive = 0
   AND our.contains_excepted_users = 0
   AND our.contains_titles = 0;
 
@@ -57,7 +56,7 @@ BEGIN
   DECLARE ou_roles_ou_uuid VARCHAR(36);
   DECLARE ou_name VARCHAR(255);
   DECLARE cursorInherited CURSOR FOR
-    SELECT our.id, our.ou_uuid, o.name FROM ou_roles our JOIN ous o ON o.uuid = our.ou_uuid WHERE our.inherit = 1 AND o.active = 1 AND our.inactive = 0;
+    SELECT our.id, our.ou_uuid, o.name FROM ou_roles our JOIN ous o ON o.uuid = our.ou_uuid WHERE our.inherit = 1 AND o.active = 1;
   DECLARE CONTINUE HANDLER FOR NOT FOUND SET finished = 1;
 
   SET max_sp_recursion_depth=255;
@@ -107,7 +106,7 @@ DELIMITER $$
       JOIN rolegroup_roles rgr ON rgr.rolegroup_id = ourg.rolegroup_id
       JOIN user_roles ur ON ur.id = rgr.role_id
       JOIN it_systems it ON it.id = ur.it_system_id
-    WHERE ourg.id = ou_roles_id AND ourg.inactive = 0 AND ourg.contains_excepted_users = 0 AND ourg.contains_titles = 0;
+    WHERE ourg.id = ou_roles_id AND ourg.contains_excepted_users = 0 AND ourg.contains_titles = 0;
 
     OPEN cursorChildren;
 
@@ -131,7 +130,7 @@ BEGIN
   DECLARE ou_roles_ou_uuid VARCHAR(36);
   DECLARE ou_name VARCHAR(255);
   DECLARE cursorInherited CURSOR FOR
-    SELECT ourg.id, ourg.ou_uuid, o.name FROM ou_rolegroups ourg JOIN ous o ON o.uuid = ourg.ou_uuid WHERE ourg.inherit = 1 AND o.active = 1 AND ourg.inactive = 0;
+    SELECT ourg.id, ourg.ou_uuid, o.name FROM ou_rolegroups ourg JOIN ous o ON o.uuid = ourg.ou_uuid WHERE ourg.inherit = 1 AND o.active = 1;
   DECLARE CONTINUE HANDLER FOR NOT FOUND SET finished = 1;
  
   SET max_sp_recursion_depth=255;
@@ -173,7 +172,7 @@ BEGIN
   JOIN ous o ON o.uuid = our.ou_uuid
   JOIN user_roles ur ON ur.id = our.role_id
   JOIN it_systems it ON it.id = ur.it_system_id
-  WHERE our.inherit = 0 AND o.active = 1 AND our.inactive = 0 AND our.contains_excepted_users = 0 AND our.contains_titles = 0;
+  WHERE our.inherit = 0 AND o.active = 1 AND our.contains_excepted_users = 0 AND our.contains_titles = 0;
 
   -- user roles through rolegroups from direct assignments
   INSERT INTO history_ou_role_assignments (
@@ -191,7 +190,7 @@ BEGIN
   JOIN rolegroup_roles rgr ON rgr.rolegroup_id = ourg.rolegroup_id
   JOIN user_roles ur ON ur.id = rgr.role_id
   JOIN it_systems it ON it.id = ur.it_system_id
-  WHERE ourg.inherit = 0 AND o.active = 1 AND ourg.inactive = 0 AND ourg.contains_excepted_users = 0 AND ourg.contains_titles = 0;
+  WHERE ourg.inherit = 0 AND o.active = 1 AND ourg.contains_excepted_users = 0 AND ourg.contains_titles = 0;
 
   -- user roles from orgunits (inherited)
   CALL SP_InsertHistoryOURoleAssignmentsOUInherit();

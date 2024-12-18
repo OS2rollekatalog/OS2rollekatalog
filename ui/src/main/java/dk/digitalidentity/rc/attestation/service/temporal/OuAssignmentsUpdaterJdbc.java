@@ -128,6 +128,7 @@ public class OuAssignmentsUpdaterJdbc {
                 .inherited(inherited)
                 .inherit(historyOURoleAssignment.getInherit())
                 .sensitiveRole(context.isRoleSensitive())
+                .extraSensitiveRole(context.isRoleExtraSensitive())
                 .exceptedTitleUuids(Collections.emptyList())
                 .build();
     }
@@ -167,6 +168,7 @@ public class OuAssignmentsUpdaterJdbc {
                 .inherited(false)
                 .inherit(false)
                 .sensitiveRole(context.isRoleSensitive())
+                .extraSensitiveRole(context.isRoleExtraSensitive())
                 .exceptedTitleUuids(Collections.emptyList())
                 .build();
     }
@@ -206,6 +208,7 @@ public class OuAssignmentsUpdaterJdbc {
                 .inherited(false)
                 .inherit(false)
                 .sensitiveRole(context.isRoleSensitive())
+                .extraSensitiveRole(context.isRoleExtraSensitive())
                 .exceptedTitleUuids(new ArrayList<>(historyOURoleAssignmentWithNegativeTitles.getTitleUuids()))
                 .build();
     }
@@ -243,6 +246,7 @@ public class OuAssignmentsUpdaterJdbc {
                 .inherited(false)
                 .inherit(false)
                 .sensitiveRole(context.isRoleSensitive())
+                .extraSensitiveRole(context.isRoleExtraSensitive())
                 .build();
     }
 

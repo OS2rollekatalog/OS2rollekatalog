@@ -1,9 +1,9 @@
 package dk.digitalidentity.rc.service;
 
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Optional;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -26,13 +26,7 @@ public class PNumberService {
 
 	public List<PNumber> getAll() {
 		List<PNumber> pNumbers = pNumberDao.findAll();
-
-		Collections.sort(pNumbers, new Comparator<PNumber>() {
-			@Override
-			public int compare(final PNumber p1, final PNumber p2) {
-				return p1.getName().compareTo(p2.getName());
-			}
-		});
+		pNumbers.sort(Comparator.comparing(PNumber::getName));
 
 		return pNumbers;
 	}
@@ -48,23 +42,22 @@ public class PNumberService {
 	@Transactional
 	public void updatePNR() {
 		List<PNumber> newPNrs = nemLoginService.getAllPNR();
-		if (newPNrs == null || newPNrs.size() == 0) {
+		if (newPNrs == null || newPNrs.isEmpty()) {
 			log.error("Got 0 pNr from NemLog-in, aborting update");
 			return;
 		}
 
 		List<PNumber> oldPNrs = this.getAll();
+		List<String> oldCodes = oldPNrs.stream().map(PNumber::getCode).toList();
+		List<String> newCodes = newPNrs.stream().map(PNumber::getCode).toList();
 
-		List<String> oldCodes = oldPNrs.stream().map(o -> o.getCode()).toList();
-		List<String> newCodes = newPNrs.stream().map(o -> o.getCode()).toList();
-		
 		// add
 		for (PNumber newPNr : newPNrs) {
 			if (!oldCodes.contains(newPNr.getCode())) {
 				save(newPNr);
 			}
 		}
-		
+
 		// remove
 		for (Iterator<PNumber> iterator = oldPNrs.iterator(); iterator.hasNext();) {
 			PNumber oldPNr = iterator.next();
@@ -73,5 +66,11 @@ public class PNumberService {
 				delete(oldPNr);
 			}
 		}
+
+		// update
+		oldPNrs.forEach(old ->
+				newPNrs.stream().filter(o -> o.getCode().equals(old.getCode()))
+						.findFirst()
+						.ifPresent(o -> old.setName(o.getName())));
 	}
 }

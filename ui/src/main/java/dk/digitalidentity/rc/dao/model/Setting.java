@@ -1,5 +1,8 @@
 package dk.digitalidentity.rc.dao.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+
+import dk.digitalidentity.rc.log.AuditLoggable;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -11,7 +14,7 @@ import lombok.Setter;
 @Getter
 @Setter
 @Entity
-public class Setting {
+public class Setting implements AuditLoggable {
 
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -22,5 +25,16 @@ public class Setting {
 
 	@Column(name="setting_value")
 	private String value;
+
+	@Override
+	public String getEntityName() {
+		return key;
+	}
+
+	@JsonIgnore
+	@Override
+	public String getEntityId() {
+		return Long.toString(id);
+	}
 
 }

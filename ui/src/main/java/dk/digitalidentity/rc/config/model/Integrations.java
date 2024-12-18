@@ -15,5 +15,5 @@ public class Integrations {
 	private NemLogin nemLogin = new NemLogin();
 	private Cvr cvr = new Cvr();
 	private DMP dmp = new DMP();
-	private Entrald entrald = new Entrald();
+	private EntraID entraID = new EntraID();
 }

@@ -4,7 +4,7 @@
 <body>
 <div class="wrapper">
 	<header th:replace="~{fragments/navbar :: navbar-header(subpage = 'reports')}"></header>
-	<aside th:replace="fragments/navbar :: navbar-aside (page = 'notifications', subpage = 'reports')"></aside>
+	<aside th:replace="~{fragments/navbar :: navbar-aside (page = 'notifications', subpage = 'reports')}"></aside>
 
 	<section>
 		<div class="content-wrapper">
