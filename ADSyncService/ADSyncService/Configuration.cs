@@ -7,6 +7,7 @@ namespace ADSyncService
     internal static class Configuration
     {
         private static EmailService emailService = EmailService.Instance;
+        private static log4net.ILog log = log4net.LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
         internal static void Configure()
         {
             HostFactory.Run(configure =>
@@ -24,6 +25,7 @@ namespace ADSyncService
                 configure.SetDescription("Synkroniserer AD gruppemedlemsskaber fra OS2rollekatalog");
                 configure.OnException(e =>
                 {
+                    log.Error(e);
                     emailService.EnqueueMail("Error occurred in Topshelf", e);
                 });
             });

@@ -104,7 +104,7 @@ public class AdSyncConfigurationApiV2 {
 			@ApiResponse(responseCode = "404", description = "No client found")})
 	@Operation(summary = "Receives errors from the client if ADSyncService can't translate the configuration")
 	@PostMapping("/api/v2/ad/error/{domain}")
-	public ResponseEntity<HttpStatus> error(@PathVariable String domain, @RequestBody String errorMessage) {
+	public ResponseEntity<HttpStatus> error(@PathVariable String domain, @RequestBody(required = false) String errorMessage) {
 		Domain realDomain = domainService.getByName(domain);
 		Client client = clientService.getClientByDomain(realDomain);
 		if (client == null) {
@@ -120,7 +120,7 @@ public class AdSyncConfigurationApiV2 {
 		adConfiguration.setErrorMessage(errorMessage);
 		adConfigurationService.save(adConfiguration);
 
-		log.error("Received ADSyncService error from domain {}. Message: {}", domain, errorMessage);
+		log.warn("Received ADSyncService error from domain {}. Message: {}", domain, errorMessage);
 
 		return new ResponseEntity<>(HttpStatus.OK);
 	}

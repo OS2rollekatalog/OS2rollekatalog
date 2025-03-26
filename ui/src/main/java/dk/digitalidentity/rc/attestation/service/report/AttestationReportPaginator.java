@@ -21,14 +21,16 @@ public class AttestationReportPaginator {
     private final AttestationReportService service;
     private final List<List<Long>> rowIdPages;
     private final LocalDate since;
+    private final LocalDate to;
     private final Predicate<RoleAssignmentReportRowDTO> rowFilter;
     private int currentPage = 0;
 
     public AttestationReportPaginator(final AttestationReportService service, final List<Long> rowIdPages,
-                                      final LocalDate since, final Predicate<RoleAssignmentReportRowDTO> rowFilter) {
+                                      final LocalDate since, final LocalDate to, final Predicate<RoleAssignmentReportRowDTO> rowFilter) {
         this.service = service;
         this.rowIdPages = ListUtils.partition(rowIdPages, PAGE_SIZE);
         this.since = since;
+        this.to = to;
         this.rowFilter = rowFilter;
     }
 
@@ -41,7 +43,7 @@ public class AttestationReportPaginator {
             return Collections.emptyList();
         }
         log.info("Current page {} of {}", currentPage, rowIdPages.size());
-        return service.getUserRoleRows(since, rowIdPages.get(currentPage++)).stream()
+        return service.getUserRoleRows(since, to, rowIdPages.get(currentPage++)).stream()
                 .filter(rowFilter)
                 .collect(Collectors.toList());
     }

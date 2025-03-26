@@ -48,6 +48,7 @@ public interface UserDao extends CrudRepository<User, String>, JpaSpecificationE
 	long countByDeletedFalseAndUserRoleAssignmentsUserRole(UserRole userRole);
 	long countByDeletedFalseAndRoleGroupAssignmentsRoleGroup(RoleGroup role);
 	Optional<User> findByUuidAndDeletedFalse(String uuid);
+	Optional<User> findByUuid(String uuid);
 
 	List<User> findByUuidInAndDeletedFalse(Set<String> uuids);
 	List<User> findByExtUuidAndDeletedFalse(String uuid);
@@ -83,4 +84,6 @@ public interface UserDao extends CrudRepository<User, String>, JpaSpecificationE
 	List<User> findByNemloginUuidNotNullAndDeletedFalseAndDisabledFalse();
 
 	List<String> findUuidByNemloginUuidNotNullAndDeletedFalseAndDisabledFalse();
+
+	List<User> findByUuidIn(Set<String> uuids);
 }

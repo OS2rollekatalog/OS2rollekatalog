@@ -5,7 +5,7 @@ import dk.digitalidentity.rc.controller.api.mapper.UserMapper;
 import dk.digitalidentity.rc.controller.api.model.ExceptionResponseAM;
 import dk.digitalidentity.rc.controller.api.model.RoleGroupAM;
 import dk.digitalidentity.rc.controller.api.model.UserAM2;
-import dk.digitalidentity.rc.controller.api.model.UserRoleAssignmentAM;
+import dk.digitalidentity.rc.controller.api.model.UserRoleGroupAssignmentAM;
 import dk.digitalidentity.rc.dao.model.RoleGroup;
 import dk.digitalidentity.rc.security.RequireApiReadAccessRole;
 import dk.digitalidentity.rc.security.RequireApiRoleManagementRole;
@@ -166,7 +166,7 @@ public class UserRoleGroupApiV2 {
                 ? target.getUserRoleAssignments().stream().map(a -> a.getUserRole().getId()).collect(Collectors.toSet())
                 : Collections.emptySet();
         final Set<Long> wantedUserRoleIds = userRoleGroupRecord.getUserRoles() != null
-                ? userRoleGroupRecord.getUserRoles().stream().map(UserRoleAssignmentAM::getUserRoleId).collect(Collectors.toSet())
+                ? userRoleGroupRecord.getUserRoles().stream().map(UserRoleGroupAssignmentAM::getUserRoleId).collect(Collectors.toSet())
                 : Collections.emptySet();
         final Set<Long> toRemove = new HashSet<>(currentUserRoleIds);
         toRemove.removeAll(wantedUserRoleIds);

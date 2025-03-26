@@ -1,0 +1,2 @@
+ALTER TABLE attestation_user_role_assignments
+ADD assigned_from DATE;

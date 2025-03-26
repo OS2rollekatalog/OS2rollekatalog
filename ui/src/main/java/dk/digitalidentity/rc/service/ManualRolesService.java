@@ -6,6 +6,7 @@ import dk.digitalidentity.rc.dao.history.model.HistoryItSystem;
 import dk.digitalidentity.rc.dao.history.model.HistoryOU;
 import dk.digitalidentity.rc.dao.history.model.HistoryOURoleAssignment;
 import dk.digitalidentity.rc.dao.history.model.HistoryOURoleAssignmentWithExceptions;
+import dk.digitalidentity.rc.dao.history.model.HistoryOURoleAssignmentWithNegativeTitles;
 import dk.digitalidentity.rc.dao.history.model.HistoryOURoleAssignmentWithTitles;
 import dk.digitalidentity.rc.dao.history.model.HistoryRoleAssignment;
 import dk.digitalidentity.rc.dao.history.model.HistoryUser;
@@ -87,6 +88,7 @@ public class ManualRolesService {
 		Map<String, List<HistoryOURoleAssignmentWithExceptions>> ouRoleAssignmentsWithExceptions = (Map<String, List<HistoryOURoleAssignmentWithExceptions>>) model.get("ouRoleAssignmentsWithExceptions");
 		Map<String, List<HistoryRoleAssignment>> userRoleAssignments = (Map<String, List<HistoryRoleAssignment>>) model.get("userRoleAssignments");
 		Map<String, List<HistoryOURoleAssignmentWithTitles>> titleRoleAssignments = (Map<String, List<HistoryOURoleAssignmentWithTitles>>) model.get("titleRoleAssignments");
+		Map<String, List<HistoryOURoleAssignmentWithNegativeTitles>> negativeOuRolesAssignments = (Map<String, List<HistoryOURoleAssignmentWithNegativeTitles>>) model.get("negativeRoleAssignments");
 
 		Map<Long, String> itSystemNameMapping = new HashMap<>();
         for (HistoryItSystem itSystem : itSystems) {
@@ -95,7 +97,7 @@ public class ManualRolesService {
             }
         }
 
-		return reportService.getUserRoleAssignmentReportEntries(users, orgUnits, itSystems, userRoleAssignments, ouRoleAssignments, ouRoleAssignmentsWithExceptions, titleRoleAssignments, itSystemNameMapping, Locale.ENGLISH, false, false);
+		return reportService.getUserRoleAssignmentReportEntries(users, orgUnits, itSystems, userRoleAssignments, ouRoleAssignments, negativeOuRolesAssignments, ouRoleAssignmentsWithExceptions, titleRoleAssignments, itSystemNameMapping, Locale.ENGLISH, false, false);
 	}
 
 	@Transactional

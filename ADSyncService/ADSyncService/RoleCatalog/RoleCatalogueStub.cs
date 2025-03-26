@@ -4,6 +4,7 @@ using System.Net;
 using System.Collections.Generic;
 using System.Configuration;
 using ADSyncService.Email;
+using System.Collections.Specialized;
 
 namespace ADSyncService
 {
@@ -169,19 +170,23 @@ namespace ADSyncService
             emailService.EnqueueMail("Set ItSystem Data call failed (" + result.StatusCode + ") : " + result.Content);
         }
 
-        public SyncData GetSyncData()
+        public SyncData GetSyncData(bool fullSync)
         {
             try
             {
                 RestClient client = new RestClient(baseUrl);
+                NameValueCollection queryString = System.Web.HttpUtility.ParseQueryString(string.Empty);
 
-                string query = "";
                 if (!string.IsNullOrEmpty(domain))
                 {
-                    query = $"?domain={domain}";
+                    queryString.Add("domain", domain);
                 }
 
-                var request = new RestRequest("/api/ad/v2/sync" + query, Method.GET);
+                if (fullSync) {
+                    queryString.Add("fullsync", "true");
+                }
+
+                var request = new RestRequest("/api/ad/v2/sync" + "?" + queryString.ToString(), Method.GET);
                 request.AddHeader("ApiKey", apiKey);
                 request.JsonSerializer = NewtonsoftJsonSerializer.Default;
 
@@ -387,8 +392,6 @@ namespace ADSyncService
             log.Error("SendConfigurationError call failed (" + result.StatusCode + ") : " + result.Content);
             emailService.EnqueueMail("SendConfigurationError call failed (" + result.StatusCode + ") : " + result.Content);
         }
-
-        
 
         private static bool ReImportUsersEnabled()
         {

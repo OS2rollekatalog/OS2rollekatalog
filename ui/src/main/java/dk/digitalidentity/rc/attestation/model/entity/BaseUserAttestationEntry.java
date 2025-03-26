@@ -1,6 +1,8 @@
 package dk.digitalidentity.rc.attestation.model.entity;
 
+import jakarta.persistence.CollectionTable;
 import jakarta.persistence.Column;
+import jakarta.persistence.ElementCollection;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -16,6 +18,8 @@ import lombok.ToString;
 import lombok.experimental.SuperBuilder;
 
 import java.time.ZonedDateTime;
+import java.util.List;
+import java.util.Set;
 
 @Getter
 @Setter

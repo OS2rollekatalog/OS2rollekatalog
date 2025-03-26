@@ -4,6 +4,7 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 
+import dk.digitalidentity.rc.controller.api.model.PostponedConstraintAM;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -53,17 +54,13 @@ public class RoleAssignmentApiV2 {
 	private final DomainService domainService;
 	private final PostponedConstraintService postponedConstraintService;
 
-	@Schema(name = "PostponedConstraint")
-	record PostponedConstraintRecord(@Schema(description = "Constraint value") String value, @Schema(description = "Id of a ConstrainType")  Long constraintTypeId, @Schema(description = "Id of a SystemRole") Long systemRoleId) {
-	}
-	
-	@Schema(name = "UserUserRoleAssignment")
+	@Schema(name = "UserUserRoleAssignmentRequest")
     record UserUserRoleAssignmentRecord (
     		@Schema(description = "Assignment start date") LocalDate startDate,
 			@Schema(description = "Assignment end date") LocalDate stopDate,
 			@Schema(description = "Assign only if the role is not already assigned") boolean onlyIfNotAssigned,
 			@Schema(description = "domain") String domain,
-			@Schema(description = "List of postponed constraints") List<PostponedConstraintRecord> postponedConstraints) {}
+			@Schema(description = "List of postponed constraints") List<PostponedConstraintAM> postponedConstraints) {}
 	
 	@ApiResponses(value = {
 			@ApiResponse(responseCode = "200", description = "UserRole was successfully assigned to user"),
@@ -106,9 +103,9 @@ public class RoleAssignmentApiV2 {
 
 		List<PostponedConstraint> resultConstaints = new ArrayList<>();
 		
-		for (PostponedConstraintRecord record : body.postponedConstraints) {
-			SystemRole systemRole = systemRoleService.getById(record.systemRoleId);
-			ConstraintType constraintType = constraintTypeService.findById(record.constraintTypeId).orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "ConstraintType not found"));
+		for (PostponedConstraintAM record : body.postponedConstraints) {
+			SystemRole systemRole = systemRoleService.getById(record.getSystemRoleId());
+			ConstraintType constraintType = constraintTypeService.findById(record.getConstraintTypeId()).orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "ConstraintType not found"));
 			
 			boolean found = userRole.getSystemRoleAssignments().stream().noneMatch( sra -> sra.getConstraintValues().stream().noneMatch(cv -> cv.isPostponed() && cv.getConstraintType() == constraintType));
 			
@@ -116,14 +113,14 @@ public class RoleAssignmentApiV2 {
 				throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Provided ConstraintType is not assigned to UserRole");
 			}
 			
-			if (!postponedConstraintService.isValidConstraint(constraintType, record.value, systemRole.getId())) {
+			if (!postponedConstraintService.isValidConstraint(constraintType, record.getValue(), systemRole.getId())) {
 			    throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Constraint validation failed.");
 			}
 			
 			PostponedConstraint postponedConstraint = new PostponedConstraint();
 			postponedConstraint.setConstraintType(constraintType);
 			postponedConstraint.setSystemRole(systemRole);
-			postponedConstraint.setValue(record.value);
+			postponedConstraint.setValue(record.getValue());
 			resultConstaints.add(postponedConstraint);
 		}
 

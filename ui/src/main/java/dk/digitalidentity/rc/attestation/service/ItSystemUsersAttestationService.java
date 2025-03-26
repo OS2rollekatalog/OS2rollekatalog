@@ -43,6 +43,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import static dk.digitalidentity.rc.attestation.service.util.AttestationUtil.hasAllOuAttestationsBeenPerformed;
@@ -182,10 +183,11 @@ public class ItSystemUsersAttestationService {
 
     @Transactional
     public void rejectUser(final long itSystemId, final String userUuid, final String remarks, final List<RoleAssignmentDTO> notApproved, final String performedByUserId) {
-        final LocalDate when = LocalDate.now();
         final Attestation attestation = findAttestation(itSystemId, performedByUserId);
         validateAttestationOfItSystemUserIsNotPerformed(attestation, userUuid);
 
+        final Set<String> notApprovedUserRoles = getNotApprovedUserRoles(notApproved);
+        final Set<String> notApprovedRoleGroups = getNotApprovedRoleGoups(notApproved);
         final User performingUser = userService.getByUserId(performedByUserId);
         final ItSystemUserAttestationEntry entry = itSystemUserAttestationEntryDao.save(
                 ItSystemUserAttestationEntry.builder()
@@ -195,6 +197,8 @@ public class ItSystemUsersAttestationService {
                         .performedByUserUuid(performingUser.getUuid())
                         .createdAt(ZonedDateTime.now())
                         .remarks(remarks)
+                        .rejectedRoleGroupIds(notApprovedRoleGroups)
+                        .rejectedUserRoleIds(notApprovedUserRoles)
                         .build());
         attestation.getItSystemUserAttestationEntries().add(entry);
         if (isItSystemUserAttestationDone(attestation)) {
@@ -204,6 +208,30 @@ public class ItSystemUsersAttestationService {
         if (user != null) {
             notificationService.sendRequestForChangeMail(userNameAndID(performingUser), userNameAndID(user), remarks, notApproved);
         }
+    }
+
+    private Set<String> getNotApprovedRoleGoups(List<RoleAssignmentDTO> notApproved) {
+        Set<String> result = new HashSet<>();
+        if (notApproved != null) {
+            for (RoleAssignmentDTO roleAssignmentDTO : notApproved) {
+                if (roleAssignmentDTO.getRoleType().equals(RoleType.ROLEGROUP)) {
+                    result.add(roleAssignmentDTO.getRoleId() + "");
+                }
+            }
+        }
+        return result;
+    }
+
+    private Set<String> getNotApprovedUserRoles(List<RoleAssignmentDTO> notApproved) {
+        Set<String> result = new HashSet<>();
+        if (notApproved != null) {
+            for (RoleAssignmentDTO roleAssignmentDTO : notApproved) {
+                if (roleAssignmentDTO.getRoleType().equals(RoleType.USERROLE)) {
+                    result.add(roleAssignmentDTO.getRoleId() + "");
+                }
+            }
+        }
+        return result;
     }
 
     @Transactional
@@ -306,6 +334,7 @@ public class ItSystemUsersAttestationService {
                                             .assignedThrough(a.getAssignedThroughType() != null
                                                     ? AssignedThroughAttestation.valueOf(a.getAssignedThroughType().name())
                                                     : null)
+											.postponedConstraints(a.getPostponedConstraints())
                                             .build())
                                     .collect(Collectors.toList())
                             )

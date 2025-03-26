@@ -289,6 +289,9 @@
 
 			// set parentService for editing roleassignments
 			commonService.parentService = rolesService;
+
+			// init table
+			fragShowDataTableFun('#ousUsersTable', 0, 100, "ou_manage_list_of_users");
 		});
 
 		function addCheckboxListeners() {
@@ -357,20 +360,20 @@
 		function RolesService() {
 			this.loadRolesFragment = function () {
 				$("#roles_menu").load(urlUi + ou + "/roles", function () {
-					currentTable = fragShowDataTableFun('#listTable', 0, 100);
+					currentTable = fragShowDataTableFun('#listTable', 0, 100, "ou_manage_list_of_roles");
 					dataTablesRefreshIcons($('#dataTableDropdown'));
 				});
 			}
 
 			this.loadAddUserRoleFragment = function () {
 				$("#roles_menu").load(urlUi + ou + "/addUserRole", function () {
-					fragShowDataTableFun('#listTable_ou_ur', 0, 100);
+					fragShowDataTableFun('#listTable_ou_ur', 0, 100, "ou_manage_add_user_role_table");
 				});
 			}
 
 			this.loadAddRoleGroupFragment = function () {
 				$("#roles_menu").load(urlUi + ou + "/addRoleGroup", function () {
-					fragShowDataTableFun('#listTable_ou_rg', 0, 100);
+					fragShowDataTableFun('#listTable_ou_rg', 0, 100, "ou_manage_add_role_group_table");
 				});
 			}
 
@@ -432,73 +435,14 @@
 					ouRolesEditModalService.assignmentId = assignmentId;
 					ouRolesEditModalService.inherit = assignmentType == -2;
 
-					if (titlesEnabled) {
-						var negativeResponse;
-						$.ajax({
-							url: url + ou + "/" + ouRolesEditModalService.roleType + "/" + assignmentId + "/negativetitles",
-							method: "GET",
-							headers: {
-								'X-CSRF-TOKEN': token
-							},
-							error : errorHandler(negativeResponse = null),
-							success : function(response) {
-								negativeResponse = response;
-							}
-						});
-
-						var negativeInheritedResponse;
-						$.ajax({
-							url: url + ou + "/" + ouRolesEditModalService.roleType + "/" + assignmentId + "/negativeinheritedtitles",
-							method: "GET",
-							headers: {
-								'X-CSRF-TOKEN': token
-							},
-							error : errorHandler(negativeResponse = null),
-							success : function(response) {
-								negativeInheritedResponse = response;
-							}
-						});
-
-
-						// fetch already selected titles
-						$.ajax({
-							url: url + ou + "/" + ouRolesEditModalService.roleType + "/" + assignmentId + "/titles", 
-							method: "GET",
-							headers: {
-								'X-CSRF-TOKEN': token
-							},
-							error : errorHandler(fieldNotUpdatedMsg),
-							success : function(response) {
-								ouRolesEditModalService.showAssignModal(titlesEnabled, response, startDate, stopDate, assignmentType, assignmentId, negativeResponse, negativeInheritedResponse);
-							}
-						});
-					}
-					else {
-						ouRolesEditModalService.showAssignModal(titlesEnabled, null, startDate, stopDate, assignmentType, assignmentId);
-					}
+					ouRolesEditModalService.showAssignModal(titlesEnabled, startDate, stopDate, assignmentType, assignmentId);
 				} else if (type == 'ROLEGROUP') {
 					ouRolesEditModalService.roleType = 'rolegroup';
 					ouRolesEditModalService.roleId = roleid;
 					ouRolesEditModalService.assignmentId = assignmentId;
 					ouRolesEditModalService.inherit = assignmentType == -2;
 					
-					if (titlesEnabled) {
-						// fetch already selected titles
-						$.ajax({
-							url: url + ou + "/" + ouRolesEditModalService.roleType + "/" + assignmentId + "/titles", 
-							method: "GET",
-							headers: {
-								'X-CSRF-TOKEN': token
-							},
-							error: errorHandler(fieldNotUpdatedMsg),
-							success : function(response) {
-								ouRolesEditModalService.showAssignModal(titlesEnabled, response, startDate, stopDate, assignmentType, assignmentId);
-							}
-						});
-					}
-					else {
-						ouRolesEditModalService.showAssignModal(titlesEnabled, null, startDate, stopDate, assignmentType, assignmentId);
-					}
+					ouRolesEditModalService.showAssignModal(titlesEnabled, startDate, stopDate, assignmentType, assignmentId);
 				}
 			}
 
@@ -511,7 +455,7 @@
 					}
 				}
 
-				ouRolesModalService.showAssignModal(titlesEnabled, false, null, null, null);
+				ouRolesModalService.showAssignModal(titlesEnabled, null, null);
 			}
 		}
 		

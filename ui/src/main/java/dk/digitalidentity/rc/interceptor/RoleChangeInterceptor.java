@@ -168,7 +168,7 @@ public class RoleChangeInterceptor {
 
 	// OrgUnitService
 
-	@Before("execution(* dk.digitalidentity.rc.service.OrgUnitService.addRoleGroup(dk.digitalidentity.rc.dao.model.OrgUnit, dk.digitalidentity.rc.dao.model.RoleGroup, boolean, java.time.LocalDate, java.time.LocalDate, java.util.Set, java.util.Set)) && args(ou, roleGroup, inherit, startDate, stopDate, exceptedUsers, titles)")
+	@Before("execution(* dk.digitalidentity.rc.service.OrgUnitService.addRoleGroup(dk.digitalidentity.rc.dao.model.OrgUnit, dk.digitalidentity.rc.dao.model.RoleGroup, boolean, java.time.LocalDate, java.time.LocalDate, java.util.Set, java.util.Set, ..)) && args(ou, roleGroup, inherit, startDate, stopDate, exceptedUsers, titles, ..)")
 	public void interceptAddRoleGroupAssignmentOnOrgUnit(OrgUnit ou, RoleGroup roleGroup, boolean inherit, LocalDate startDate, LocalDate stopDate, Set<String> exceptedUsers, Set<String> titles) {
 
 		// skip assignments that are active in the future (we will get a direct event-call later)
@@ -195,7 +195,7 @@ public class RoleChangeInterceptor {
 		}
 	}
 	
-	@Before("execution(* dk.digitalidentity.rc.service.OrgUnitService.addUserRole(dk.digitalidentity.rc.dao.model.OrgUnit, dk.digitalidentity.rc.dao.model.UserRole, boolean, java.time.LocalDate, java.time.LocalDate, java.util.Set, java.util.Set)) && args(ou, userRole, inherit, startDate, stopDate, exceptedUsers, titles)")
+	@Before("execution(* dk.digitalidentity.rc.service.OrgUnitService.addUserRole(dk.digitalidentity.rc.dao.model.OrgUnit, dk.digitalidentity.rc.dao.model.UserRole, boolean, java.time.LocalDate, java.time.LocalDate, java.util.Set, java.util.Set, ..)) && args(ou, userRole, inherit, startDate, stopDate, exceptedUsers, titles, ..)")
 	public void interceptAddUserRoleAssignmentOnOrgUnit(OrgUnit ou, UserRole userRole, boolean inherit, LocalDate startDate, LocalDate stopDate, Set<String> exceptedUsers, Set<String> titles) {
 
 		// skip assignments that are active in the future (we will get a direct event-call later)

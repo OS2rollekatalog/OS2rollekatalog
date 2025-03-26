@@ -8,4 +8,5 @@ import lombok.Setter;
 public class PositionAM {
 	private String name;
 	private String orgUnitUuid;
+	private boolean isPrimary;
 }

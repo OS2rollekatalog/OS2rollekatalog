@@ -60,6 +60,9 @@ public class Position implements AuditLoggable {
 	@CreationTimestamp
 	private Date created;
 
+	@Column(name = "primary_position")
+	private boolean isPrimary;
+
 	@JsonIgnore
 	@Override
 	public String getEntityId() {

@@ -72,7 +72,7 @@ public class AttestationRunMapper {
         return allAttestations
                 .map(a -> {
                     final AdminAttestationStatus status = attestationAdminService.findAttestationStatus(a);
-                    Optional<User> optionalByUuid = userService.getOptionalByUuid(a.getResponsibleUserUuid());
+                    Optional<User> optionalByUuid = userService.getOptionalByUuidIncludingDeleted(a.getResponsibleUserUuid());
                     return new AttestationStatusListDTO(a.getId(), a.getItSystemName(), null,
                             Collections.emptyList(), optionalByUuid.orElse(null), a.getAttestationType() == Attestation.AttestationType.IT_SYSTEM_ROLES_ATTESTATION
                             ? "Rolleopbygning" : "Rolletildelinger", status);

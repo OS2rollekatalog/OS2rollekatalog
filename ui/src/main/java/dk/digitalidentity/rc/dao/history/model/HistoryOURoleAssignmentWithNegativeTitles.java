@@ -5,9 +5,12 @@ import java.util.Date;
 import java.util.List;
 
 import dk.digitalidentity.rc.config.StringListConverter;
+import dk.digitalidentity.rc.service.model.AssignedThrough;
 import jakarta.persistence.Column;
 import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import lombok.Getter;
@@ -61,6 +64,21 @@ public class HistoryOURoleAssignmentWithNegativeTitles implements GenericRoleAss
 
 	@Column
 	private LocalDate startDate;
+
 	@Column
 	private LocalDate stopDate;
+
+	@Enumerated(EnumType.STRING)
+	@Column
+	private AssignedThrough assignedThroughType;
+
+	@Column
+	private String assignedThroughUuid;
+
+	@Column
+	private String assignedThroughName;
+
+	@Column
+	private Boolean inherit;
+
 }

@@ -16,23 +16,6 @@
 					</thead>
 
 					<tbody>
-						<tr th:each="role : ${roles}">
-							<td>
-								<span th:text="${role.name}"></span>
-								<div th:if="${role.alreadyAssigned}" th:text="#{html.page.user.assign.already.assigned}" style="font-size: smaller; color: red;"></div>
-							</td>
-							<td th:text="${role.itSystem?.name}"></td>
-							<td th:text="${role.description}"></td>
-							<td>
-								<a
-									href="#"
-									onclick="rolesService.addUserRole(this); return false;"
-									th:attr="data-roleid=${role.id}"
-									th:attrappend="data-systemType=${role.itSystem?.systemType}">
-									<em class="fa fa-plus"></em>
-								</a>
-							</td>
-						</tr>
 					</tbody>
 				</table>
 			</div>

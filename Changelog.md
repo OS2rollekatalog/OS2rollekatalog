@@ -1,4 +1,19 @@
-2024.12.18 - Release 2024r4
+2024.03.26 - Release 2024r1
+- [ROL-363](https://os2web.atlassian.net/browse/ROL-363) Optimering af sync imellem ROL og AD grupper (kontinuerlig sync)
+- [ROL-369](https://os2web.atlassian.net/browse/ROL-369) Modernisering af listen til udvælgelse af it-system
+- [ROL-294](https://os2web.atlassian.net/browse/ROL-294) Attesteringsmodul: Kommentarer pr rolle
+- [ROL-419](https://os2web.atlassian.net/browse/ROL-419) Rollekataloget: jobfunktionsroller bliver slettet
+- [ROL-393](https://os2web.atlassian.net/browse/ROL-393) Nedarvning af rettigheder
+- [ROL-405](https://os2web.atlassian.net/browse/ROL-405) Uhensigtsmæssighed på liste over bruger på en jobfunktionsrolle
+- [ROL-409](https://os2web.atlassian.net/browse/ROL-409) Attestation: særlig rapport til revision
+- [ROL-410](https://os2web.atlassian.net/browse/ROL-410) Attestation: Holdes altid åbent helt indtil næste attestationsrul
+- [ROL-413](https://os2web.atlassian.net/browse/ROL-413) Kontakt e-mail på KOMBIT IT-systemer: Vil det være muligt at få Kontakt e-mail på KOMBIT systemer, så det er muligt at få en e-mail, når der er ændringer i rettighedstildelinger på IT-systemets JFR?
+- [ROL-414](https://os2web.atlassian.net/browse/ROL-414) Attestation: Start dato når it-system "indmeldes" til attestation
+- [ROL-415](https://os2web.atlassian.net/browse/ROL-415) Attestation: Primær ansættelse
+- [ROL-419](https://os2web.atlassian.net/browse/ROL-419) Rollekataloget: jobfunktionsroller bliver slettet
+- [ROL-438](https://os2web.atlassian.net/browse/ROL-438) Lange svartider
+
+2024.11.06 - Release 2024r4
 - [ROL-395](https://os2web.atlassian.net/browse/ROL-395) Auditlog - alt skal logges
 - [ROL-376](https://os2web.atlassian.net/browse/ROL-376) Konfiguration af hvilket felt i AD rollenavne skal importeres fra
 - [ROL-372](https://os2web.atlassian.net/browse/ROL-372) Kan ikke se bruger i oversigt over hvem Jobfunktionsrollen er tildelt

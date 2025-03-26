@@ -28,7 +28,7 @@ public class HistoryRoleAssignmentRowMapper implements RowMapper<HistoryRoleAssi
         assignment.setAssignedThroughName(rs.getString("assigned_through_name"));
         assignment.setAssignedByUserId(rs.getString("assigned_by_user_id"));
         assignment.setAssignedByName(rs.getString("assigned_by_name"));
-        assignment.setAssignedWhen(rs.getDate("assigned_when"));
+        assignment.setAssignedWhen(rs.getTimestamp("assigned_when"));
         assignment.setPostponedConstraints(rs.getString("postponed_constraints"));
         assignment.setOrgUnitUuid(rs.getString("ou_uuid"));
         return assignment;

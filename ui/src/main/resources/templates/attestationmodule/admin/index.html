@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html>
+<html xmlns:th="http://www.thymeleaf.org">
 <head th:replace="~{attestationmodule/fragments/header :: header(datatables = true)}"></head>
 <body class="top-navigation layout-fixed">
 <div id="wrapper">
@@ -21,88 +21,26 @@
 
                             <div class="tabs-container" id="tabs">
                                 <ul class="nav nav-tabs" role="tablist">
-                                    <li th:each="run, itr: ${attestationRuns}"><a class="nav-link" data-toggle="tab" th:href="${'#ovtab' + itr.index}" th:class="${itr.index == 0 ? 'nav-link active' : 'nav-link'}">
+                                    <li th:each="run, itr: ${simpleAttestationRuns}"><a class="nav-link" th:attr="data-run-id=${run.id}" data-toggle="tab" th:href="${'#ovtab' + run.id}" >
                                         <span th:text="${#temporals.format(run.deadline, 'dd/MM-yyyy')}"></span>
                                         <span class="label label-info" th:if="${run.sensitive}" th:text="#{attestationmodule.html.admin.sensitive}"></span>
                                         <span class="label label-info" th:if="${run.extraSensitive}" th:text="#{attestationmodule.html.admin.extra.sensitive}"></span>
-                                        
+
                                         <span class="label label-danger" th:unless="${run.finished}" th:text="#{attestationmodule.html.admin.open}"></span>
                                     </a>
                                     </li>
                                 </ul>
                                 <div class="tab-content">
-                                    <div th:each="run, itr: ${attestationRuns}" role="tabpanel" th:id="${'ovtab' + itr.index}"
-                                         th:class="${itr.index == 0 ? 'tab-pane active' : 'tab-pane'}">
-                                        <div class="panel-body">
-                                            <div class="jumbotron">
-                                                <span style="font-size: small">Udtrukket <span th:text="${#temporals.format(run.createdAt, 'dd/MM-yyyy')}"></span> med deadline <span th:text="${#temporals.format(run.deadline, 'dd/MM-yyyy')}"></span></span><br/><br/>
-                                                <span style="font-size: small"><span th:text="${run.finishedAttestations}"></span> attesteringer ud af <span th:text="${run.totalAttestations}"></span> gennemført</span><br><br>
-                                                <span><a class="btn btn-white" th:href="@{/ui/attestation/v2/admin/report/{id}(id=${run.id})}"><i class="fa fa-download">&nbspDownload oversigt</i></a></span>
-                                            </div>
-                                            <h3 th:text="#{attestationmodule.html.admin.orgunits}" th:unless="${#lists.isEmpty(run.ouStatus)}"></h3>
-                                            <div class="table-responsive" th:unless="${#lists.isEmpty(run.ouStatus)}">
-                                                <table th:id="|orgUnitTable${itr.index}|" style="padding-right:0px !important;" class="table table-striped table-bordered table-hover" >
-                                                    <thead>
-                                                    <tr>
-                                                        <th style="display: none"></th>
-                                                        <th></th>
-                                                        <th th:text="#{attestationmodule.html.admin.orgunits.name}"></th>
-                                                        <th th:text="#{attestationmodule.html.admin.orgunits.path}"></th>
-                                                        <th th:text="#{attestationmodule.html.admin.orgunits.manager}"></th>
-                                                        <th th:text="#{attestationmodule.html.admin.orgunits.substitutes}"></th>
-                                                        <th th:text="#{attestationmodule.html.admin.orgunits.status}"></th>
-                                                    </tr>
-                                                    </thead>
+<!--                                    <div  role="tabpanel" th:id="${'ovtab' + attestationRun.id}"-->
+<!--                                         th:class="${'navcontent_'+attestationRun.id + ' tab-pane active'}">-->
+<!--                                        <div th:replace="~{attestationmodule/admin/index_tabcontent_fragment :: index_tabcontent}"></div>-->
 
-                                                    <tbody>
-                                                    <tr th:each="orgUnit : ${run.ouStatus}">
-                                                        <td style="display: none" th:text="${orgUnit.id}"></td>
-                                                        <td class="dt-control"></td>
-                                                        <td th:text="${orgUnit.name}"></td>
-                                                        <td th:text="${orgUnit.path}"></td>
-                                                        <td th:text="${orgUnit.manager?.name}"></td>
-                                                        <td>
-                                                            <ul><li th:each="sub : ${orgUnit.substitutes}" th:text="${sub?.name}"></li></ul>
-                                                        </td>
-                                                        <td th:text="#{attestationmodule.html.admin.orgunits.status.not_started}" th:if="${orgUnit.status == T(dk.digitalidentity.rc.attestation.model.dto.enums.AdminAttestationStatus).NOT_STARTED}"></td>
-                                                        <td th:text="#{attestationmodule.html.admin.orgunits.status.in_progress}" th:if="${orgUnit.status == T(dk.digitalidentity.rc.attestation.model.dto.enums.AdminAttestationStatus).ON_GOING}"></td>
-                                                        <td th:text="#{attestationmodule.html.admin.orgunits.status.done}" th:if="${orgUnit.status == T(dk.digitalidentity.rc.attestation.model.dto.enums.AdminAttestationStatus).FINISHED}"></td>
-                                                    </tr>
-                                                    </tbody>
-                                                </table>
-                                            </div>
+<!--                                    </div>-->
+                                    <div th:each="run, itr : ${simpleAttestationRuns}" role="tabpanel" th:id="${'ovtab' + run.id}"
+                                         th:class="${'navcontent_'+run.id  + ' tab-pane'}">
 
 
-                                            <h3 th:text="#{attestationmodule.html.admin.itsystems}" th:unless="${#lists.isEmpty(run.systemStatus)}"></h3>
-                                            <div class="table-responsive" th:unless="${#lists.isEmpty(run.systemStatus)}">
-                                                <table th:id="|itSystemsTable${itr.index}|" style="padding-right:0px !important;" class="table table-striped table-bordered table-hover" >
-                                                    <thead>
-                                                    <tr>
-                                                        <th style="display: none"></th>
-                                                        <th></th>
-                                                        <th th:text="#{attestationmodule.html.admin.itsystems.name}"></th>
-                                                        <th th:text="#{attestationmodule.html.admin.itsystems.type}"></th>
-                                                        <th th:text="#{attestationmodule.html.admin.itsystems.responsible}"></th>
-                                                        <th th:text="#{attestationmodule.html.admin.itsystems.status}"></th>
-                                                    </tr>
-                                                    </thead>
-
-                                                    <tbody>
-                                                    <tr th:each="system : ${run.systemStatus}">
-                                                        <td style="display: none" th:text="${system.id}"></td>
-                                                        <td class="dt-control"></td>
-                                                        <td th:text="${system.name}"></td>
-                                                        <td th:text="${system.path}"></td>
-                                                        <td th:text="${system.responsibleUser?.name}"></td>
-                                                        <td th:text="#{attestationmodule.html.admin.orgunits.status.not_started}" th:if="${system.status == T(dk.digitalidentity.rc.attestation.model.dto.enums.AdminAttestationStatus).NOT_STARTED}"></td>
-                                                        <td th:text="#{attestationmodule.html.admin.orgunits.status.in_progress}" th:if="${system.status == T(dk.digitalidentity.rc.attestation.model.dto.enums.AdminAttestationStatus).ON_GOING}"></td>
-                                                        <td th:text="#{attestationmodule.html.admin.orgunits.status.done}" th:if="${system.status == T(dk.digitalidentity.rc.attestation.model.dto.enums.AdminAttestationStatus).FINISHED}"></td>
-                                                    </tr>
-                                                    </tbody>
-                                                </table>
-                                            </div>
-
-                                        </div>
+                                        <!-- Other Tab Content is loaded dynamically -->
                                     </div>
                                 </div>
                             </div>
@@ -115,12 +53,16 @@
 </div>
 
 <div th:replace="~{attestationmodule/fragments/footer :: scripts(datatables = true)}"></div>
+<script th:src="@{/js/service/TabService.js}"></script>
 
 <script th:inline="javascript">
     /*<![CDATA[*/
     /*[+
+    const token = $("meta[name='_csrf']").attr("content");
     let detailsUrl = [[@{/ui/attestation/v2/admin/details}]];
-    let runCount = [[${attestationRuns.size()}]];
+    let tabContentUrl = [[@{/ui/attestation/v2/admin/run/}]];
+    let runCount = [[${simpleAttestationRuns.size()}]];
+    let tabService;
     +]*/
 
     function formatDetails ( rowData ) {
@@ -153,9 +95,35 @@
     }
 
     $(document).ready(function() {
+        initNavTabs()
 
-        for (let i=0; i<runCount; ++i) {
-            let ouTable = $(`#orgUnitTable${i}`).DataTable({
+    });
+
+    function initNavTabs(){
+        tabService = new TabService()
+        const navTabElements = document.querySelectorAll(`.nav-link`)
+
+        //Init the first tab, presuming it has already been loaded with the page
+<!--        if (navTabElements.length > 0) {-->
+<!--            const id = navTabElements[0].getAttribute('run-id')-->
+<!--            initDatatable(id)-->
+<!--        }-->
+
+        for (const navTab of navTabElements){
+            const id = navTab.getAttribute('data-run-id')
+
+            const containerElement = document.getElementById(`ovtab${id}`)
+            const url = `${tabContentUrl}${id}`
+            tabService.initLoadContentOnClick(navTab, containerElement, url, () => initDatatable(id))
+
+        }
+
+        navTabElements[0].click()
+
+    }
+
+    function initDatatable (runId) {
+        let ouTable = $(`#orgUnitTable${runId}`).DataTable({
                 "pageLength" : 25,
                 "responsive" : true,
                 "autoWidth" : false,
@@ -174,7 +142,7 @@
             });
             ouTable.on('click', 'td.dt-control', e => openCloseDetails(ouTable, e));
 
-            let itsTable = $(`#itSystemsTable${i}`).DataTable({
+            let itsTable = $(`#itSystemsTable${runId}`).DataTable({
                 "pageLength" : 25,
                 "responsive" : true,
                 "autoWidth" : false,
@@ -192,9 +160,7 @@
                 }
             });
             itsTable.on('click', 'td.dt-control', e => openCloseDetails(itsTable, e));
-        }
-
-    });
+    }
 
     /*]]>*/
 </script>

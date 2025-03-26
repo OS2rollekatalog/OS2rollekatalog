@@ -315,8 +315,7 @@ public class UserController {
 					assignment.setSystemRoleAssignments(systemRoleAssignmentsDTOs);
 				}
 			}
-			else if (assignment.getType() == RoleAssignmentType.ROLEGROUP
-					|| assignment.getType() == RoleAssignmentType.NEGATIVE_ROLEGROUP) {
+			else if (assignment.getType() == RoleAssignmentType.ROLEGROUP) {
 				boolean internalRole = user.getRoleGroupAssignments().stream().filter(rga -> rga.getRoleGroup().getId() == assignment.getRoleId())
 						.filter(rga -> rga.getRoleGroup().getUserRoleAssignments() != null)
 						.flatMap(rga -> rga.getRoleGroup().getUserRoleAssignments().stream())

@@ -17,7 +17,12 @@ import lombok.ToString;
 @Schema(name = "User")
 public class UserAM2 {
 	private String uuid;
+	@Schema(description = "ID of user")
 	private String userId;
+	@Schema(description = "external UUID")
 	private String extUuid;
+	@Schema(description = "Name of user")
 	private String name;
+	@Schema(deprecated = true, description = "Also external UUID kept here for backwards compatability, will be removed in future")
+	private String extId;
 }

@@ -49,12 +49,30 @@
 								</div>
 							</div>
 						</th:block>
-	
+
+						<!-- TODO duplicated-->
+						<!-- organisation selector -->
+						<th:block th:case="'http://digital-identity.dk/constraints/orgunit/1'">
+							<div class="col-sm-12" th:id="'postponed' + ${systemRoleAssignment.systemRole.id} + ${postponedConstraint.constraintType.uuid}">
+								<div class="col-sm-9">
+									<input class="form-control m-b constraint" style="width:100%;" th:value="${postponedConstraint.constraintValue != null} ? ${postponedConstraint.constraintValue} : ''" th:attr="data-type='ous', data-systemroleid=${systemRoleAssignment.systemRole.id}, data-constrainttype=${postponedConstraint.constraintType.uuid}, id='postponed' + ${systemRoleAssignment.systemRole.id} + ${postponedConstraint.constraintType.uuid} + 'input'">
+								</div>
+								<div class="col-sm-3">
+									<a class="btn btn-primary" th:attr="onclick='orgUnitPostponedConstraintService.chooseOUs('+${systemRoleAssignment.systemRole.id}+',\''+${postponedConstraint.constraintType.uuid}+'\');'">
+										<span>Vælg enheder</span>
+									</a>
+								</div>
+								<div class="col-sm-12">
+									<p class="constraintValidationError" th:id="'postponed' + ${systemRoleAssignment.systemRole.id} + ${postponedConstraint.constraintType.uuid} + 'error'" style="color:red" th:text="#{html.page.user.assign.userrole.constraints.error}" hidden></p>
+								</div>
+							</div>
+						</th:block>
+
 						<!--it system selector-->
 						<th:block th:case="'http://digital-identity.dk/constraints/itsystem/1'">
 							<div th:id="'postponed' + ${systemRoleAssignment.systemRole.id} + ${postponedConstraint.constraintType.uuid}" class="col-sm-12">
 								<div class="col-sm-12">
-									<select style="width:100%;" th:id="'postponed' + ${systemRoleAssignment.systemRole.id} + ${postponedConstraint.constraintType.uuid} + 'multiple-select'" th:attr="data-type='itsystems',data-systemroleid=${systemRoleAssignment.systemRole.id}, data-constrainttype=${postponedConstraint.constraintType.uuid}" class="form-control m-b constraint" name="itSystems[]" multiple="multiple">
+									<select style="width:100%;" th:id="'postponed' + ${systemRoleAssignment.systemRole.id} + ${postponedConstraint.constraintType.uuid} + 'multiple-select'" th:attr="data-type='itsystems',data-systemroleid=${systemRoleAssignment.systemRole.id}, data-constrainttype=${postponedConstraint.constraintType.uuid}" class="form-control m-b constraint select2ItSystemPostponed" name="itSystems[]" multiple="multiple">
 										<option th:each="option : ${itSystemList}" th:value="${option.id}" th:text="${option.text}" th:selected="${@select2Service.isSelected(postponedConstraint.constraintValue, option.id)}" ></option>
 									</select>
 								</div>
@@ -179,6 +197,7 @@
 			this.init = function() {
 				kleConstraintService.init();
 				orgUnitPostponedConstraintService.init();
+				$(".select2ItSystemPostponed").select2();
 			}
 
 			this.loadPostponedConstraintsFragment = function(roleId) {

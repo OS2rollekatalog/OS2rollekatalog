@@ -38,49 +38,49 @@ import lombok.extern.slf4j.Slf4j;
 @Component
 @EnableCaching
 public class DMPStub {
-	
+
 	@Qualifier("defaultRestTemplate")
 	@Autowired
 	private RestTemplate restTemplate;
-	
+
 	@Autowired
 	private RoleCatalogueConfiguration config;
-	
+
 	@Autowired
 	private DMPStub self;
-	
+
 	@Cacheable("dmp-token")
 	public String fetchToken() {
 		String url = config.getIntegrations().getDmp().getTokenUrl();
 		String accessToken = null;
-		
+
 		HttpHeaders headers = new HttpHeaders();
 		headers.add("Content-Type", "application/x-www-form-urlencoded");
-		
+
 		MultiValueMap<String, String> body = new LinkedMultiValueMap<>();
 		body.add("grant_type", "client_credentials");
 		body.add("client_id", config.getIntegrations().getDmp().getClientId());
 		body.add("client_secret", config.getIntegrations().getDmp().getClientSecret());
 
 		HttpEntity<MultiValueMap<String, String>> request = new HttpEntity<>(body, headers);
-		
+
 		try {
 			ResponseEntity<TokenResponse> response = restTemplate.exchange(url, HttpMethod.POST, request, TokenResponse.class);
 
 			accessToken = response.getBody().getAccess_token();
 		}
 		catch (Exception ex) {
-			log.error("Failed to fetch token from nemloginApi", ex);
+			log.error("Failed to fetch token from DMP", ex);
 		}
-		
+
 		return accessToken;
 	}
-	
+
 	@CacheEvict(value = "dmp-token", allEntries = true)
 	public void cleanUpToken() {
 		;
 	}
-	
+
 	public List<DMPApplication> getApplications() {
 		String url = config.getIntegrations().getDmp().getServiceUrl() + "/applications";
 		List<DMPApplication> applications = new ArrayList<>();
@@ -96,10 +96,10 @@ public class DMPStub {
 		applications = Arrays.asList(response.getBody());
 
 		log.info("Found " + applications.size() + " applications in DMP");
-		
+
 		return applications;
 	}
-	
+
 	public List<DMPRole> getRolesForApplication(DMPApplication application) {
 		String url = config.getIntegrations().getDmp().getServiceUrl() + "/applications/" + application.getId() + "/roles";
 		List<DMPRole> roles = new ArrayList<>();
@@ -115,10 +115,10 @@ public class DMPStub {
 		roles = Arrays.asList(response.getBody());
 
 		log.info("Found " + roles.size() + " roles in DMP for application " + application.getName());
-		
+
 		return roles;
 	}
-	
+
 	public List<DMPUser> getUsers() {
 		String url = config.getIntegrations().getDmp().getServiceUrl() + "/users";
 		List<DMPUser> users = new ArrayList<>();
@@ -139,10 +139,10 @@ public class DMPStub {
 		catch (Exception ex) {
 			log.error("Failed to fetch all users from dmpApi", ex);
 		}
-		
+
 		return users;
 	}
-	
+
 	// WARN: will return HTTP 200 with empty role array on userId that does not exist in DMP
 	public List<DMPRole> getRolesForUser(String userId) {
 		String url = config.getIntegrations().getDmp().getServiceUrl() + "/users/" + userId + "/role-assignments";
@@ -166,10 +166,10 @@ public class DMPStub {
 		catch (Exception ex) {
 			log.error("Failed to fetch all roles for user " + userId + " from dmpApi", ex);
 		}
-		
+
 		return roles;
 	}
-	
+
 	// NOTE: Will return HTTP 400 on calls for user that does not exist in DMP with message "Entity was not found: User (xxx)"
 	public boolean setRolesForUser(User user, DMPSetRoleAssignmentsRequest roles) {
 		String url = config.getIntegrations().getDmp().getServiceUrl() + "/users/" + user.getUserId() + "/role-assignments";
@@ -195,7 +195,7 @@ public class DMPStub {
 							.builder()
 							.users(new ArrayList<>())
 							.build();
-					
+
 					createUserRequest.getUsers().add(DMPCreateUser
 							.builder()
 							.externalUserId(user.getUserId())
@@ -203,20 +203,20 @@ public class DMPStub {
 							.lastName(getLastName(user))
 							.email(getEmail(user))
 							.build());
-					
+
 					if (createUser(createUserRequest)) {
 						// try assigning again now that the user exists
-						
+
 						try {
 							restTemplate.exchange(url, HttpMethod.PUT, request, String.class);
-	
+
 							log.info("Assigned roles for newly created user " + user.getUserId() + " (total " + roles.getUserRoleAssignments().size() + ")");
-							
+
 							return true;
 						}
 						catch (Exception ex3) {
 							log.error("Failed to set roles for user " + user.getUserId() + " using dmpApi", ex3);
-							return false;							
+							return false;
 						}
 					}
 					else {
@@ -227,13 +227,13 @@ public class DMPStub {
 			}
 
 			log.error("Failed to set roles for user " + user.getUserId() + " using dmpApi", ex);
-			
+
 			return false;
 		}
-		
+
 		return true;
 	}
-	
+
 	public boolean createUser(DMPCreateUserRequest createRequest) {
 		String url = config.getIntegrations().getDmp().getServiceUrl() + "/users";
 
@@ -250,13 +250,13 @@ public class DMPStub {
 		}
 		catch (Exception ex) {
 			log.error("Failed to create user " + createRequest.getUsers().get(0).getExternalUserId() + " using dmpApi", ex);
-			
+
 			return false;
 		}
-		
+
 		return true;
 	}
-	
+
 	public boolean deleteUser(String userId) {
 		String url = config.getIntegrations().getDmp().getServiceUrl() + "/users/" + userId;
 
@@ -273,13 +273,13 @@ public class DMPStub {
 		}
 		catch (Exception ex) {
 			log.error("Failed to delete user " + userId + " using dmpApi", ex);
-			
+
 			return false;
 		}
-		
+
 		return true;
 	}
-	
+
 	public boolean overwriteAllRoleAssignments(DMPOverwriteRoleAssignmentsRequest body) {
 		String url = config.getIntegrations().getDmp().getServiceUrl() + "/role-assignments";
 
@@ -296,18 +296,18 @@ public class DMPStub {
 		}
 		catch (Exception ex) {
 			log.error("Failed to perform full overwrite of all role assignments", ex);
-			
+
 			return false;
 		}
-		
+
 		return true;
 	}
-	
+
 	private String getEmail(User user) {
 		if (StringUtils.hasLength(user.getEmail())) {
 			return user.getEmail();
 		}
-		
+
 		return config.getIntegrations().getDmp().getDummyEmail().replace("{userId}", user.getUserId());
 	}
 
@@ -315,14 +315,14 @@ public class DMPStub {
 		if (!StringUtils.hasLength(user.getName())) {
 			return "Ukendtsen";
 		}
-		
+
 		String name = user.getName().trim();
 		if (!name.contains(" ")) {
 			return "Ukendtsen";
 		}
-		
+
 		String[] parts = name.split(" ");
-		
+
 		return parts[parts.length - 1];
 	}
 
@@ -330,14 +330,14 @@ public class DMPStub {
 		if (!StringUtils.hasLength(user.getName())) {
 			return "Ukendt";
 		}
-		
+
 		String name = user.getName().trim();
 		if (!name.contains(" ")) {
 			return name;
 		}
 
 		int cutPoint = name.lastIndexOf(" ");
-		
+
 		return name.substring(0, cutPoint);
 	}
 }

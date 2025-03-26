@@ -45,30 +45,30 @@ public class DMPService {
 
 	@Autowired
 	private DMPStub stub;
-	
+
 	@Autowired
 	private ItSystemService itSystemService;
-	
+
 	@Autowired
 	private SystemRoleService systemRoleService;
-	
+
 	@Autowired
 	private UserService userService;
 
 	@Autowired
 	private DmpQueueDao dmpQueueDao;
-	
+
 	@Autowired
 	private UserRoleService userRoleService;
-	
+
 	@Autowired
 	private PositionService positionService;
-	
+
 	// perform a delta sync on all userRoles
 	@Transactional
 	public void deltaSyncRoles() {
 		List<DmpQueue> fullQueue = dmpQueueDao.findAll();
-		
+
 		if (fullQueue.isEmpty()) {
 			return;
 		}
@@ -81,12 +81,12 @@ public class DMPService {
 		List<User> users = fullQueue.stream().map(q -> q.getUser()).collect(Collectors.toList());
 		syncRoles(users, false);
 	}
-	
+
 	// perform a full sync on all userRoles
 	@Transactional
 	public void fullSyncRoles() {
 		List<User> users = userService.getAll();
-		
+
 		syncRoles(users, true);
 	}
 
@@ -119,18 +119,18 @@ public class DMPService {
 	}
 
 	private static long staticErrorCount = 0;
-	
+
 	// reads all roles from DMP, compares them with the local system, and performs necessary updates
 	@Transactional(rollbackFor = Exception.class)
 	public void synchronizeDMPRoles() {
 		Map<String, List<DMPRole>> dmpRoleMap = new HashMap<>();
-		
+
 		try {
 			// read from DMP
 			List<DMPApplication> applications = stub.getApplications();
 			for (DMPApplication application : applications) {
 				List<DMPRole> dmpRoles = stub.getRolesForApplication(application);
-				
+
 				dmpRoleMap.put(application.getId(), dmpRoles);
 			}
 		}
@@ -155,26 +155,26 @@ public class DMPService {
 			itSystem.setSystemType(ItSystemType.SAML);
 			itSystem = itSystemService.save(itSystem);
 		}
-		
+
 		// read existing roles
 		List<SystemRole> systemRoles = systemRoleService.getByItSystem(itSystem);
-		
+
 		// to add/update
 		List<SystemRole> toSave = new ArrayList<>();
 		for (String dmpApplicationId : dmpRoleMap.keySet()) {
 			for (DMPRole dmpRole : dmpRoleMap.get(dmpApplicationId)) {
 				String generatedIdentifier = dmpApplicationId + ":" + dmpRole.getId();
-				
+
 				boolean found = false;
 				for (SystemRole systemRole : systemRoles) {
 					if (Objects.equals(systemRole.getIdentifier(), generatedIdentifier)) {
 						boolean changes = false;
-						
+
 						if (!Objects.equals(dmpRole.getDescription(), systemRole.getDescription())) {
 							systemRole.setDescription(dmpRole.getDescription());
 							changes = true;
 						}
-						
+
 						if (!Objects.equals(dmpRole.getName(), systemRole.getName())) {
 							systemRole.setName(dmpRole.getName());
 							changes = true;
@@ -184,15 +184,15 @@ public class DMPService {
 							toSave.add(systemRole);
 							log.info("Updating " + systemRole.getName() + " / " + systemRole.getId());
 						}
-						
+
 						found = true;
 						break;
 					}
 				}
-				
+
 				if (!found) {
 					log.info("Creating " + dmpRole.getName());
-					
+
 					SystemRole systemRole = new SystemRole();
 					systemRole.setDescription(dmpRole.getDescription());
 					systemRole.setIdentifier(generatedIdentifier);
@@ -200,30 +200,30 @@ public class DMPService {
 					systemRole.setName(dmpRole.getName());
 					systemRole.setRoleType(RoleType.BOTH);
 					systemRole.setWeight(1);
-					
+
 					toSave.add(systemRole);
 				}
 			}
 		}
-		
+
 		if (toSave.size() > 0) {
 			systemRoleService.save(toSave);
 		}
-		
+
 		// to remove
 		for (SystemRole systemRole : systemRoles) {
 			boolean found = false;
-			
+
 			for (String dmpApplicationId : dmpRoleMap.keySet()) {
 				for (DMPRole dmpRole : dmpRoleMap.get(dmpApplicationId)) {
 					String generatedIdentifier = dmpApplicationId + ":" + dmpRole.getId();
-					
+
 					if (Objects.equals(systemRole.getIdentifier(), generatedIdentifier)) {
 						found = true;
 						break;
 					}
 				}
-				
+
 				// break the outer loop as well
 				if (found) {
 					break;
@@ -236,22 +236,23 @@ public class DMPService {
 			}
 		}
 	}
-	
-	public void queueUser(User user) {
-		DmpQueue queue = new DmpQueue();
-		queue.setTts(LocalDateTime.now());
-		queue.setUser(user);
-		queue.setUserUuid(user.getUuid());
 
-		// because the user_uuid is the primary key, this will either perform an update or a create :)
-		dmpQueueDao.save(queue);
+	public void queueUser(User user) {
+		dmpQueueDao.findByUser(user)
+			.orElseGet(() -> {
+				DmpQueue dmpQueue = new DmpQueue();
+				dmpQueue.setUser(user);
+				dmpQueue.setUserUuid(user.getUuid());
+				dmpQueue.setTts(LocalDateTime.now());
+				return dmpQueueDao.save(dmpQueue);
+			});
 	}
 
 	public void queueOrgUnit(OrgUnit ou, boolean inherit) {
 		List<User> users = new ArrayList<>();
-		
+
 		findUsersByOu(ou, inherit, users);
-		
+
 		for (User user : users) {
 			queueUser(user);
 		}
@@ -259,7 +260,7 @@ public class DMPService {
 
 	public void queueUserRole(UserRole userRole) {
 		List<UserWithRole> usersWithRole = userService.getUsersWithUserRole(userRole, true);
-		
+
 		for (UserWithRole userWithUserRole : usersWithRole) {
 			queueUser(userWithUserRole.getUser());
 		}
@@ -268,14 +269,14 @@ public class DMPService {
 	private void findUsersByOu(OrgUnit ou, boolean recursive, List<User> users) {
 		List<Position> positions = positionService.findByOrgUnit(ou);
 		List<User> positionUsers = positions.stream().map(p -> p.getUser()).collect(Collectors.toList());
-		
+
 		// add any we have not seen before
 		for (User positionUser : positionUsers) {
 			if (!users.stream().anyMatch(u -> Objects.equals(u.getUuid(), positionUser.getUuid()))) {
 				users.add(positionUser);
 			}
 		}
-		
+
 		if (recursive) {
 			for (OrgUnit child : ou.getChildren()) {
 				findUsersByOu(child, recursive, users);
@@ -289,7 +290,7 @@ public class DMPService {
 			log.warn("Not performing DMP synchronization - no DMP it-system available");
 			return;
 		}
-		
+
 		Map<String, Set<String>> assignedDmpRoles = new HashMap<>();
 		List<UserRole> userRoles = userRoleService.getByItSystem(itSystem);
 		for (UserRole userRole : userRoles) {
@@ -303,7 +304,7 @@ public class DMPService {
 				if (tokens.length > 1) {
 					systemRoleIdentifier = tokens [1];
 				}
-				
+
 				systemRoles.add(systemRoleIdentifier);
 			}
 
@@ -332,10 +333,10 @@ public class DMPService {
 		if (assignedDmpRoles.size() == 0) {
 			return;
 		}
-		
+
 		for (User user : users) {
 			String userId = user.getUserId().toLowerCase();
-			
+
 			// if we have 0 assignments on this user, the nightly job will perform cleanup
 			Set<String> assignments = assignedDmpRoles.get(userId);
 			if (assignments == null || assignments.size() == 0) {
@@ -355,7 +356,7 @@ public class DMPService {
 			stub.setRolesForUser(user, setRoleRequest);
 		}
 	}
-	
+
 	private Set<String> getAllUsersInItSystemWithADmpRole() {
 		ItSystem itSystem = itSystemService.getFirstByIdentifier(DMP_IT_SYSTEM_IDENTIFIER);
 		if (itSystem == null) {

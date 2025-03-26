@@ -130,5 +130,11 @@
     <Setting Name="ReadonlyItSystemFeature_NameAttribute" Type="System.String" Scope="Application">
       <Value Profile="(Default)" />
     </Setting>
+    <Setting Name="FullMembershipSyncFeature_Enabled" Type="System.Boolean" Scope="Application">
+      <Value Profile="(Default)">True</Value>
+    </Setting>
+    <Setting Name="FullMembershipSyncFeature_Cron" Type="System.String" Scope="Application">
+      <Value Profile="(Default)">0 0 5-23 ? * *</Value>
+    </Setting>
   </Settings>
 </SettingsFile>

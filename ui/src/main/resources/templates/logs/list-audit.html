@@ -66,6 +66,7 @@
 
 			auditLogTable = $('.listTable').DataTable({
 				destroy: true,
+				searchDelay: 1000,
 				'ajax': {
 					'contentType': 'application/json',
 					'url': ajaxUrl,

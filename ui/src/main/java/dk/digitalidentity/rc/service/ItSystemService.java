@@ -9,6 +9,7 @@ import dk.digitalidentity.rc.dao.model.SystemRole;
 import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserRole;
 import dk.digitalidentity.rc.dao.model.enums.ItSystemType;
+import io.micrometer.common.util.StringUtils;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -16,6 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.Collections;
 import java.util.Date;
 import java.util.HashSet;
 import java.util.List;
@@ -117,6 +119,31 @@ public class ItSystemService {
 
 	public List<ItSystem> findByIdentifier(String identifier) {
 		return filterDeleted(itSystemDao.findByIdentifier(identifier));
+	}
+
+	/**
+	 * This method will return a list of it-systems looked up by identifier, if no identifier is supplier all it-systems are returned.
+	 * If an identifier is set, we will try using the identifier as identifier, uuid or id and return the found it-system.
+	 */
+	public List<ItSystem> findByAnyIdentifier(final String itSystemIdentifier) {
+		if (itSystemIdentifier == null || itSystemIdentifier.isEmpty()) {
+			return getAll();
+		}
+		final List<ItSystem> itSystems = findByIdentifier(itSystemIdentifier);
+		if (itSystems != null && !itSystems.isEmpty()) {
+			return itSystems;
+		}
+		final ItSystem itSystem = getByUuid(itSystemIdentifier);
+		if (itSystem != null) {
+			return Collections.singletonList(itSystem);
+		}
+		try {
+			final ItSystem itSystemById = getById(Long.parseLong(itSystemIdentifier));
+			return Collections.singletonList(itSystemById);
+		} catch (Exception ex) {
+			; // ignore
+		}
+		return Collections.emptyList();
 	}
 
 	public List<ItSystem> findByAttestationResponsible(User user) {

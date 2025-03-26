@@ -1,535 +1,321 @@
-<!DOCTYPE html>
-<html>
-<head th:replace="~{fragments/header :: header (title=#{html.page.userroles.addrole.title})}"></head>
-<body>
-
-	<div class="wrapper">
-		<header th:replace="~{fragments/navbar :: navbar-header(subpage = 'roles')}"></header>
-		<aside th:replace="~{fragments/navbar :: navbar-aside (page = 'userroles.list', subpage = 'roles')}"></aside>
-
-		<section>
-			<div class="content-wrapper">
-				<h3>
-					<a th:href="@{/ui/userroles/list}" class="btn btn-default">
-						<span><i class="fa fa-arrow-left"></i></span>
-					</a>
-					<span th:text="#{html.page.userroles.editrole.title}"></span>
-				</h3>
-				
-				<div class="panel panel-default">
-					<div class="panel-heading"></div>
-					<div class="panel-body">
-
-						<form id="role-form" class="form-horizontal" th:object="${role}">
-							<input th:field="*{id}" type="hidden" />
-							<input th:field="*{itSystem}" type="hidden" />
-
-							<fieldset>
-								<div class="form-group">
-									<label class="col-sm-3 control-label" th:text="#{html.entity.userrole.name}"></label>
-									<div class="col-sm-8">
-										<input th:field="*{name}" class="form-control" th:readonly="${#strings.toString(role.itSystem.systemType)} == 'KSPCICS' OR ${role.linkedSystemRole != null}" />
-									</div>
-								</div>
-							</fieldset>
-
-							<fieldset>
-								<div class="form-group">
-									<label class="col-sm-3 control-label" th:text="#{html.entity.userrole.description}"></label>
-									<div class="col-sm-8">
-										<textarea th:field="*{description}" class="form-control" th:readonly="${#strings.toString(role.itSystem.systemType)} == 'KSPCICS' OR ${role.linkedSystemRole != null}"></textarea>
-									</div>
-								</div>
-							</fieldset>
-
-							<fieldset th:if="${#strings.equals(role.itSystem.systemType, 'MANUAL')}">
-								<div class="form-group">
-									<label class="col-sm-3 control-label" th:text="#{html.page.userroles.new.require_manager_action.label}"></label>
-									<div class="col-sm-8">
-										<div class="checkbox c-checkbox">
-											<label>
-												<input type="checkbox" id="requireManagerActionCheckbox" name="requireManagerAction" th:checked="${role.requireManagerAction}"/>
-												<span class="fa fa-check"></span>
-											</label>
-										</div>
-									</div>
-								</div>
-								
-								<div id="requireManagerActionRow" th:hidden="${!role.requireManagerAction}">
-									<div class="form-group">
-										<label class="col-sm-3 control-label" th:text="#{html.page.userroles.new.send_to_manager.label}"></label>
-										<div class="col-sm-8">
-											<div class="checkbox c-checkbox">
-												<label>
-													<input type="checkbox" checked="checked" disabled="disabled"/>
-													<span class="fa fa-check"></span>
-												</label>
-											</div>
-										</div>
-									</div>
-									
-									<div class="form-group">
-										<label class="col-sm-3 control-label" th:text="#{html.page.userroles.new.send_to_substitutes.label}"></label>
-										<div class="col-sm-8">
-											<div class="checkbox c-checkbox">
-												<label>
-													<input type="checkbox" id="sendToSubstitutes" name="sendToSubstitutes" th:checked="${role.sendToSubstitutes}"/>
-													<span class="fa fa-check"></span>
-												</label>
-											</div>
-										</div>
-									</div>
-									
-									<div class="form-group">
-										<label class="col-sm-3 control-label" th:text="#{html.page.userroles.new.send_to_authorization_managers.label}"></label>
-										<div class="col-sm-8">
-											<div class="checkbox c-checkbox">
-												<label>
-													<input type="checkbox" id="sendToAuthorizationManagers" name="sendToAuthorizationManagers" th:checked="${role.sendToAuthorizationManagers}"/>
-													<span class="fa fa-check"></span>
-												</label>
-											</div>
-										</div>
-									</div>
-									
-									<div class="form-group" style="margin-top: 10px;">
-										<label class="col-sm-3 control-label" th:text="#{html.page.userroles.new.email_template.title}"></label>
-										<div class="col-sm-8">
-											<input th:field="*{emailTemplateTitle}" class="form-control" />
-										</div>
-									</div>
-
-									<div class="form-group">
-										<label class="col-sm-3 control-label" th:text="#{html.page.userroles.new.email_template.message}"></label>
-										<div class="col-sm-8">
-											<textarea th:field="*{emailTemplateMessage}" class="mb-0 preformat" rows="10" style="width:100%;"></textarea>
-										</div>
-									</div>
-								</div>
-							</fieldset>
-							
-							<fieldset>
-								<div class="form-group" style="justify-content: center; display: flex">
-									<label class="col-sm-2 control-label" th:text="#{html.role.flag.useronly}"></label>
-									<div class="col-sm-1">
-										<div class="checkbox c-checkbox">
-											<label>
-												<input class="useronly-checkbox" type="checkbox" data-flag="useronly" th:attr="checked=${role.userOnly}" />
-												<span class="fa fa-check"></span>
-											</label>
-										</div>
-									</div>
-
-									<th:block th:if="${@settingsService.isRequestApproveEnabled()}">
-									<label class="col-sm-2 control-label" th:text="#{html.role.flag.canrequest}"></label>
-									<div class="col-sm-1">
-										<div class="checkbox c-checkbox">
-											<label>
-												<input class="canrequest-checkbox" type="checkbox" data-flag="canrequest" th:attr="checked=${role.canRequest}" />
-												<span class="fa fa-check"></span>
-											</label>
-										</div>
-									</div>
-									</th:block>
-
-									<th:block th:if="${@settingsService.isScheduledAttestationEnabled()}">
-										<th:block th:if="${@settingsService.getScheduledAttestationInterval() == T(dk.digitalidentity.rc.dao.model.enums.CheckupIntervalEnum).YEARLY}">
-										<label class="col-sm-2 control-label" th:text="#{html.role.flag.extra.sensitive}"></label>
-										<div class="col-sm-1">
-											<div class="checkbox c-checkbox">
-												<label>
-													<input class="extra-sensitive-checkbox" type="checkbox" data-flag="extra-sensitive" th:attr="checked=${role.extraSensitiveRole}" />
-													<span class="fa fa-check"></span>
-												</label>
-											</div>
-										</div>
-										</th:block>
-
-										<label class="col-sm-2 control-label" th:text="#{html.role.flag.sensitive}"></label>
-										<div class="col-sm-1">
-											<div class="checkbox c-checkbox">
-												<label>
-													<input class="sensitive-checkbox" type="checkbox" data-flag="sensitive" th:attr="checked=${role.sensitiveRole}" />
-													<span class="fa fa-check"></span>
-												</label>
-											</div>
-										</div>
-
-										<label class="col-sm-2 control-label" th:text="#{html.entity.itsystem.roleAssignmentAttestationByAttestationResponsible}"></label>
-										<div class="col-sm-1">
-											<div class="checkbox c-checkbox">
-												<label>
-													<input class="by-attestation-responsible-checkbox" type="checkbox" data-flag="attestationByAttestationResponsible" th:attr="checked=${role.roleAssignmentAttestationByAttestationResponsible}" />
-													<span class="fa fa-check"></span>
-												</label>
-											</div>
-										</div>
-
-									</th:block>
-								</div>
-							</fieldset>
-							
-							<fieldset th:if="${role.linkedSystemRole != null}">
-								<div class="form-group">
-									<div class="col-sm-12">
-										<button type="button" onclick="removeLinkToSystemRole();" class="btn btn-primary btn-lg" style="width: 250px;"><i class="fa fa-chain-broken"></i>&nbsp;<span th:text="#{html.page.userroles.edit.unlink}"></span></button>
-										<span style="margin-left: 25px;" th:text="#{html.role.flag.linked.description}"></span>
-									</div>
-								</div>
-							</fieldset>
-						</form>
-
-						<form class="form-horizontal">
-							<ul class="nav nav-tabs" th:title="${allowPostponing} ? #{html.page.userroles.edit.tab.ous.disabled} : ''">
-								<li th:class="active">
-	                            	<a data-toggle="tab" href="#roles_menu" th:text="#{html.entity.userrole.roleassignments}"></a>
-		                        </li>
-		                        <li th:unless="${hideRolegroups}">
-	                            	<a data-toggle="tab" href="#groups_menu" th:text="#{html.entity.userrole.rolegroupassignments}"></a>
-		                        </li>
-		                        <li>
-	                            	<a data-toggle="tab" href="#users_menu" th:text="#{html.page.userroles.edit.tab.users}"></a>
-		                        </li>
-		                        <li th:class="${allowPostponing} ? 'disabled' : ''">
-	                            	<a data-toggle="tab" id="outab" href="#ous_menu" th:text="#{html.page.userroles.edit.tab.ous}"></a>
-	                            </li>
-		                    </ul>
-	                    
-							<div class="tab-content">
-								<div id="roles_menu" class="tab-pane fade in active">
-									<table id="listTable" class="table table-striped">
-										<thead>
-											<tr>
-												<th class="col-md-1" th:text="#{html.entity.rolegroup.enabled}"></th>
-												<th class="col-md-4" th:text="#{html.entity.rolegroup.name}"></th>
-												<th class="col-md-7" th:text="#{html.entity.rolegroup.description}"></th>
-											</tr>
-										</thead>
-	
-										<tbody>
-											 <tr th:each="editSystemRole : ${editSystemRoles}">
-												<td>
-													<div class="checkbox c-checkbox">
-														<label>
-															<input class="role-checkbox" type="checkbox" th:attr="data-roleid=${editSystemRole.systemRole.id}, checked=${editSystemRole.checked}" />
-															<span class="fa fa-check"></span>
-														</label>
-													</div>
-												</td>
-												<td th:text="${editSystemRole.systemRole.name}"></td>
-												<td class="preformat" th:text="${editSystemRole.systemRole.description}"></td>
-											</tr>
-										</tbody>
-									</table>
-								</div>
-							
-								<div th:unless="${hideRolegroups}" id="groups_menu" class="tab-pane fade in">
-									<table id="listTable3" class="table table-striped">
-										<thead>
-											<tr>
-												<th class="col-md-1" th:text="#{html.page.userroles.addrole.rolegroup.contained}"></th>
-												<th class="col-md-4" th:text="#{html.page.userroles.addrole.rolegroup.name}"></th>
-												<th class="col-md-7" th:text="#{html.page.userroles.addrole.rolegroup.description}"></th>
-											</tr>
-										</thead>
-	
-										<tbody>
-											 <tr th:each="editRoleGroup : ${editRoleGroups}">
-												<td>
-													<div class="checkbox c-checkbox">
-														<label>
-															<input class="group-checkbox" type="checkbox" th:attr="data-groupid=${editRoleGroup.roleGroup.id}, checked=${editRoleGroup.checked}" />
-															<span class="fa fa-check"></span>
-														</label>
-													</div>
-												</td>
-												<td th:text="${editRoleGroup.roleGroup.name}"></td>
-												<td class="preformat" th:text="${editRoleGroup.roleGroup.description}"></td>
-											</tr>
-										</tbody>
-									</table>
-								</div>
-
-								<div id="users_menu" class="tab-pane fade">
-								</div>
-
-								<div id="ous_menu" class="tab-pane fade">
-								</div>
-							</div>
-						</form>
-					</div>
-				</div>
-			</div>
-		</section>
-	</div>
-
-	<div style="display: none;" th:each="editSystemRole : ${editSystemRoles}" th:attr="id='constraints-' + ${editSystemRole.systemRole.id}">
-		<div th:if="${#lists.isEmpty(editSystemRole.systemRole.supportedConstraintTypes)}">
-			<span id="no-constraints"></span>
-		</div>
- 
-		<div class="row" th:each="supportedConstraintType : ${editSystemRole.systemRole.supportedConstraintTypes}"
-			 th:with="selected=${#maps.containsKey(editSystemRole.selectedConstraints, supportedConstraintType.constraintType.uuid) or supportedConstraintType.mandatory == true},
-			          constraintData=${editSystemRole.selectedConstraints.get(supportedConstraintType.constraintType.uuid)}" >
-
-			<div class="col-sm-1">&nbsp;</div>
-			<div class="col-sm-2">
-				<div class="checkbox c-checkbox">
-					<label class="control-label">
-						<input class="constraint-checkbox" th:disabled="${supportedConstraintType.mandatory == true}" type="checkbox" 
-						th:attr="id='constraint-checkbox' + ${editSystemRole.systemRole.id} + ${supportedConstraintType.constraintType.uuid}"
-						th:attrappend="onclick='toggleDisabled('+${editSystemRole.systemRole.id}+',\''+${supportedConstraintType.constraintType.uuid}+'\');'" th:checked="${selected}"></input>
-
-						<span class="fa fa-check"></span>
-					</label>
-
-					<label class="control-label" th:text="${supportedConstraintType.constraintType.name}"></label>
-
-					<em th:if="${supportedConstraintType.constraintType.description !=null and #strings.length(supportedConstraintType.constraintType.description) > 0}" class="fa fa-question" data-toggle="popover" data-trigger="hover" data-placement="top" th:attr="data-content=${supportedConstraintType.constraintType.description}"></em>
-
-					<span style="display: none;" class="constraintTypeHolder" th:text="${supportedConstraintType.constraintType.uuid}"></span>
-				</div>
-			</div>
-
-			<div class="col-sm-6" style="padding-top: 6px">
-				<!-- REGEX UI -->
-				<th:block th:if="${supportedConstraintType.constraintType.uiType == T(dk.digitalidentity.rc.dao.model.enums.ConstraintUIType).REGEX}">
-
-					<th:block th:switch="${supportedConstraintType.constraintType.entityId}">
-
-						<!-- KLE selector -->
-						<th:block th:case="'http://sts.kombit.dk/constraints/KLE/1'">
-							<select style="width:100%;" class="form-control m-b" th:disabled="${selected}==false or ${constraintData != null} and ${constraintData.postponed}"
-							        th:attr="id=${editSystemRole.systemRole.id} + ${supportedConstraintType.constraintType.uuid}"
-							        th:attrappend="onchange='updateComboConstraintValue('+ ${editSystemRole.systemRole.id} + ',\'' + ${supportedConstraintType.constraintType.uuid} +'\'' + ',\'KLE\')'">
-
-								<option selected="selected" th:text="#{html.select.default}"></option>
-								<option th:selected="${selected} and ${constraintData != null} and ('INHERITED' eq ${#strings.toString(constraintData.constraintValueType)})" th:value="INHERITED" th:text="#{html.constraint.kle.inherited}"></option>
-								<option th:selected="${selected} and ${constraintData != null} and ('EXTENDED_INHERITED' eq ${#strings.toString(constraintData.constraintValueType)})" th:value="EXTENDED_INHERITED" th:text="#{html.constraint.kle.extended}"></option>
-								<option th:selected="${selected} and ${constraintData != null} and ('READ_AND_WRITE' eq ${#strings.toString(constraintData.constraintValueType)})" th:value="READ_AND_WRITE" th:text="#{html.constraint.kle.read_and_write}"></option>
-								<option th:selected="${selected} and ${constraintData != null} and ('VALUE' eq ${#strings.toString(constraintData.constraintValueType)})" th:value="VALUE" th:text="#{html.constraint.kle.value}"></option>
-								
-							</select>
-
-							<div class="col-sm-12" th:attr="id=${editSystemRole.systemRole.id} + ${supportedConstraintType.constraintType.uuid} + 'freetext'" style="padding-top: 6px; display: none;">
-								<div class="col-sm-9">
-									<input disabled="disabled" hidden="hidden" th:value="${constraintData != null} ? ${constraintData.constraintValue} : ''" th:attr="id=${editSystemRole.systemRole.id} + ${supportedConstraintType.constraintType.uuid} + 'values'"/>
-									<input class="form-control m-b" style="width:100%;" th:attr="id=${editSystemRole.systemRole.id} + ${supportedConstraintType.constraintType.uuid} + 'input'">
-								</div>
-								<div class="col-sm-3">
-									<a class="btn btn-primary" th:attr="onclick='chooseKles('+${editSystemRole.systemRole.id}+',\''+${supportedConstraintType.constraintType.uuid}+'\');'">
-										<span>Vælg Kle</span>
-									</a>
-								</div>
-							</div>
-						</th:block>
-	
-						<!-- organisation selector -->
-						<th:block th:case="'http://sts.kombit.dk/constraints/orgenhed/1'">
-							<select style="width:100%;" class="form-control m-b" th:disabled="${selected}==false or ${constraintData != null} and ${constraintData.postponed}"
-							        th:attr="id=${editSystemRole.systemRole.id} + ${supportedConstraintType.constraintType.uuid}"
-							        th:attrappend="onchange='updateComboConstraintValue('+ ${editSystemRole.systemRole.id} + ',\'' + ${supportedConstraintType.constraintType.uuid} +'\'' + ',\'OU\')'">
-
-								<option selected="selected" disabled="disabled" th:text="#{html.select.default}"></option>
-								<option th:selected="${selected} and ${constraintData != null} and ('INHERITED' eq ${#strings.toString(constraintData.constraintValueType)})" th:value="INHERITED" th:text="#{html.constraint.organisation.inherited}"></option>
-								<option th:selected="${selected} and ${constraintData != null} and ('EXTENDED_INHERITED' eq ${#strings.toString(constraintData.constraintValueType)})" th:value="EXTENDED_INHERITED" th:text="#{html.constraint.organisation.extended}"></option>
-								<option th:selected="${selected} and ${constraintData != null} and ('LEVEL_1' eq ${#strings.toString(constraintData.constraintValueType)})" th:value="LEVEL_1" th:text="#{html.constraint.organisation.level.1}"></option>
-								<option th:selected="${selected} and ${constraintData != null} and ('LEVEL_2' eq ${#strings.toString(constraintData.constraintValueType)})" th:value="LEVEL_2" th:text="#{html.constraint.organisation.level.2}"></option>
-								<option th:selected="${selected} and ${constraintData != null} and ('LEVEL_3' eq ${#strings.toString(constraintData.constraintValueType)})" th:value="LEVEL_3" th:text="#{html.constraint.organisation.level.3}"></option>
-								<option th:selected="${selected} and ${constraintData != null} and ('LEVEL_4' eq ${#strings.toString(constraintData.constraintValueType)})" th:value="LEVEL_4" th:text="#{html.constraint.organisation.level.4}"></option>
-								<option th:selected="${selected} and ${constraintData != null} and ('LEVEL_5' eq ${#strings.toString(constraintData.constraintValueType)})" th:value="LEVEL_5" th:text="#{html.constraint.organisation.level.5}"></option>
-								<option th:selected="${selected} and ${constraintData != null} and ('LEVEL_6' eq ${#strings.toString(constraintData.constraintValueType)})" th:value="LEVEL_6" th:text="#{html.constraint.organisation.level.6}"></option>
-								<option th:selected="${selected} and ${constraintData != null} and ('VALUE' eq ${#strings.toString(constraintData.constraintValueType)})" th:value="VALUE" th:text="#{html.constraint.organisation.value}"></option>
-							</select>
-
-							<div class="col-sm-12" th:attr="id=${editSystemRole.systemRole.id} + ${supportedConstraintType.constraintType.uuid} + 'freetext'" style="padding-top: 6px; display: none;">
-								<div class="col-sm-9">
-									<input disabled="disabled" hidden="hidden" th:value="${constraintData != null} ? ${constraintData.constraintValue} : ''" th:attr="id=${editSystemRole.systemRole.id} + ${supportedConstraintType.constraintType.uuid} + 'values'"/>
-									<input class="form-control m-b" style="width:100%;" th:attr="id=${editSystemRole.systemRole.id} + ${supportedConstraintType.constraintType.uuid} + 'input'">
-								</div>
-								<div class="col-sm-3">
-									<a class="btn btn-primary" th:attr="onclick='orgUnitConstraintService.chooseOUs('+${editSystemRole.systemRole.id}+',\''+${supportedConstraintType.constraintType.uuid}+'\');'">
-										<span>Vælg enheder</span>
-									</a>
-								</div>
-							</div>
-						</th:block>
-						
-						<!-- TODO: duplicate block of the above - can we merge into one case? -->
-						<!-- organisation selector -->
-						<th:block th:case="'http://digital-identity.dk/constraints/orgunit/1'">
-							<select style="width:100%;" class="form-control m-b" th:disabled="${selected}==false or ${constraintData != null} and ${constraintData.postponed}"
-							        th:attr="id=${editSystemRole.systemRole.id} + ${supportedConstraintType.constraintType.uuid}"
-							        th:attrappend="onchange='updateComboConstraintValue('+ ${editSystemRole.systemRole.id} + ',\'' + ${supportedConstraintType.constraintType.uuid} +'\'' + ',\'OU\')'">
-									
-								<option selected="selected" disabled="disabled" th:text="#{html.select.default}"></option>
-								<option th:selected="${selected} and ${constraintData != null} and ('INHERITED' eq ${#strings.toString(constraintData.constraintValueType)})" th:value="INHERITED" th:text="#{html.constraint.organisation.inherited}"></option>
-								<option th:selected="${selected} and ${constraintData != null} and ('EXTENDED_INHERITED' eq ${#strings.toString(constraintData.constraintValueType)})" th:value="EXTENDED_INHERITED" th:text="#{html.constraint.organisation.extended}"></option>
-								<option th:selected="${selected} and ${constraintData != null} and ('VALUE' eq ${#strings.toString(constraintData.constraintValueType)})" th:value="VALUE" th:text="#{html.constraint.organisation.value}"></option>
-							</select>
-							
-							<div class="col-sm-12" th:attr="id=${editSystemRole.systemRole.id} + ${supportedConstraintType.constraintType.uuid} + 'freetext'" style="padding-top: 6px; display: none;">
-								<div class="col-sm-9">
-									<input disabled="disabled" hidden="hidden" th:value="${constraintData != null} ? ${constraintData.constraintValue} : ''" th:attr="id=${editSystemRole.systemRole.id} + ${supportedConstraintType.constraintType.uuid} + 'values'"/>
-									<input class="form-control m-b" style="width:100%;" th:attr="id=${editSystemRole.systemRole.id} + ${supportedConstraintType.constraintType.uuid} + 'input'">
-								</div>
-								<div class="col-sm-3">
-									<a class="btn btn-primary" th:attr="onclick='orgUnitConstraintService.chooseOUs('+${editSystemRole.systemRole.id}+',\''+${supportedConstraintType.constraintType.uuid}+'\');'">
-										<span>Vælg enheder</span>
-									</a>
-								</div>
-							</div>
-						</th:block>
-						
-						<!--it system selector-->
-						<th:block th:case="'http://digital-identity.dk/constraints/itsystem/1'">
-							<div th:attr="id=${editSystemRole.systemRole.id} + ${supportedConstraintType.constraintType.uuid}" class="col-sm-12" style="padding-top: 6px;" th:disabled="${selected}==false or ${constraintData != null} and ${constraintData.postponed}">
-								<div class="col-sm-12">
-									<select style="width:100%;" th:attr="id=${editSystemRole.systemRole.id} + ${supportedConstraintType.constraintType.uuid} + 'multiple-select'" class="form-control m-b" name="itSystems[]" multiple="multiple" th:disabled="${selected}==false or ${constraintData != null} and ${constraintData.postponed}">
-										<option th:each="option : ${itSystemList}" th:value="${option.id}" th:text="${option.text}"  ></option>
-									</select>
-								</div>
-							</div>
-						</th:block>
-
-						<!--NemLogin pnr selector-->
-						<th:block th:case="'https://nemlogin.dk/constraints/pnr/1'">
-							<div class="col-sm-12" style="padding-top: 6px;" th:disabled="${selected}==false or ${constraintData != null} and ${constraintData.postponed}">
-								<div class="col-sm-12">
-									<select style="width:100%;" class="form-control" th:attr="id=${editSystemRole.systemRole.id} + ${supportedConstraintType.constraintType.uuid}"
-											th:attrappend="onchange='updateConstraintChoice('+ ${editSystemRole.systemRole.id} + ',\'' + ${supportedConstraintType.constraintType.uuid} +'\'' + ',\'VALUE\')'"
-											th:disabled="${selected}==false or ${constraintData != null} and ${constraintData.postponed}">
-										<option selected="selected" disabled="disabled" th:text="#{html.select.default}"></option>
-										<option th:each="pNumber : ${pNumberList}" th:selected="${selected} and ${constraintData != null} and (${pNumber.code} eq ${#strings.toString(constraintData.constraintValue)})" th:value="${pNumber.code}" th:text="${pNumber.code} +' (' + ${pNumber.name} + ')'"  />
-									</select>
-								</div>
-							</div>
-						</th:block>
-
-						<!--NemLogin senr selector-->
-						<th:block th:case="'https://nemlogin.dk/constraints/senr/1'">
-							<div class="col-sm-12" style="padding-top: 6px;" th:disabled="${selected}==false or ${constraintData != null} and ${constraintData.postponed}">
-								<div class="col-sm-12">
-									<select style="width:100%;" class="form-control" th:attr="id=${editSystemRole.systemRole.id} + ${supportedConstraintType.constraintType.uuid}"
-											th:attrappend="onchange='updateConstraintChoice('+ ${editSystemRole.systemRole.id} + ',\'' + ${supportedConstraintType.constraintType.uuid} +'\'' + ',\'VALUE\')'"
-											th:disabled="${selected}==false or ${constraintData != null} and ${constraintData.postponed}">
-										<option selected="selected" disabled="disabled" th:text="#{html.select.default}"></option>
-										<option th:each="sENumber : ${sENumberList}" th:selected="${selected} and ${constraintData != null} and (${sENumber.code} eq ${#strings.toString(constraintData.constraintValue)})" th:value="${sENumber.code}" th:text="${sENumber.name} +' (' + ${sENumber.code} + ')'"  />
-									</select>
-								</div>
-							</div>
-						</th:block>
-
-						<!-- default freetext field -->
-						<th:block th:case="*">
-							<input style="width:100%;" class="form-control m-b" th:disabled="${selected}==false or ${constraintData != null} and ${constraintData.postponed}"
-								   th:attr="id=${editSystemRole.systemRole.id} + ${supportedConstraintType.constraintType.uuid}"
-								   th:attrappend="onchange='updateConstraintChoice('+ ${editSystemRole.systemRole.id} + ',\'' + ${supportedConstraintType.constraintType.uuid} +'\'' + ',\'VALUE\')'"
-								   th:value="${constraintData != null} ? ${constraintData.constraintValue} : ''"></input>
-						</th:block>
-					</th:block>
-					
-				</th:block>
-				
-				<!-- COMBO_SINGLE UI -->
-				<th:block th:if="${supportedConstraintType.constraintType.uiType == T(dk.digitalidentity.rc.dao.model.enums.ConstraintUIType).COMBO_SINGLE}">
-					<select style="width:100%;" class="form-control m-b" th:disabled="${selected}==false or ${constraintData != null} and ${constraintData.postponed}"
-					        th:attr="id=${editSystemRole.systemRole.id} + ${supportedConstraintType.constraintType.uuid}"
-					        th:attrappend="onchange='updateConstraintChoice('+ ${editSystemRole.systemRole.id} + ',\'' + ${supportedConstraintType.constraintType.uuid} +'\'' + ',\'VALUE\')'">
-
-						<option selected="selected" disabled="disabled" th:text="#{html.select.default}"></option>
-						<option th:each="type : ${supportedConstraintType.constraintType.valueSet}" th:value="${type.constraintKey}" th:text="${type.constraintValue}"
-  							    th:selected="${selected} and ${constraintData != null} and (${type.constraintKey} eq ${constraintData.constraintValue})"></option>
-
-					</select>
-				</th:block>
-				
-				<!-- COMBO_MULTI -->
-				<th:block th:if="${supportedConstraintType.constraintType.uiType == T(dk.digitalidentity.rc.dao.model.enums.ConstraintUIType).COMBO_MULTI}">
-					<select style="width:100%;" class="form-control m-b" th:disabled="${selected}==false or ${constraintData != null} and ${constraintData.postponed}" multiple="multiple"
-					        th:attr="id=${editSystemRole.systemRole.id} + ${supportedConstraintType.constraintType.uuid}"
-					        th:attrappend="onchange='updateConstraintChoice('+ ${editSystemRole.systemRole.id} + ',\'' + ${supportedConstraintType.constraintType.uuid} +'\'' + ',\'VALUE\')'">
-
-						<option th:each="type : ${supportedConstraintType.constraintType.valueSet}" th:value="${type.constraintKey}" th:text="${type.constraintValue}"
-  							    th:selected="${selected} and ${constraintData != null} and ${constraintData.constraintValue != null} and (${#strings.contains(constraintData.constraintValue, type.constraintKey)})"></option>
-
-					</select>
-				</th:block>
-
-				<div class="clearfix"></div>
-			</div>
-			
-			<div class="col-sm-2" th:if="${allowPostponing}">
-				<div class="checkbox c-checkbox">
-					<label class="control-label">
-						<input class="postpone-checkbox" th:disabled="${!selected}" type="checkbox" 
-						th:attr="id='postpone' + ${editSystemRole.systemRole.id} + ${supportedConstraintType.constraintType.uuid}"
-						th:attrappend="onchange='saveConstraintChoice('+ ${editSystemRole.systemRole.id} + ',\'' + ${supportedConstraintType.constraintType.uuid} + '\',\'POSTPONED\',\'\',true)'"
-						th:checked="${constraintData != null} and ${constraintData.postponed}"></input>
-
-						<span class="fa fa-check"></span>
-					</label>
-					<label class="control-label" th:text="#{html.constraint.postpone}"></label>
-					<a th:replace="~{fragments/help :: help (title=#{html.help.constraint.postpone.title}, content=#{html.help.constraint.postpone.body})}"></a>
-				</div>
-			</div>
-			
-		</div>
-	</div>
-
-	<div class="modal fade bd-example-modal-lg" id="modal-kle" role="dialog">
-			<div class="modal-dialog modal-lg">
-	
-				<!-- Modal content-->
-				<div class="modal-content">
-					<div class="modal-header">
-						<button type="button" class="close" data-dismiss="modal">&times;</button>
-						<h4 th:text="#{html.page.userrole.kle.modal}"></h4>
-					</div>
-	
-					<div class="modal-body" style="height:800px;">
-						<input type="hidden" id="modal-systemRoleId"/>
-						<input type="hidden" id="modal-constraintUuid"/>
-						<div id="modal-error" style="display:none;color:#FF0000;">
-							<label th:text="#{html.errors.kle.code.not.valid}"></label>
-							<ul id="modal-errors">
-
-							</ul>
-						</div>
-						<input class="form-control" id="kle-tree-search" style="margin-bottom: 5px;" th:placeholder="#{html.page.userrole.kle.modal.search}"/>
-						<div id="kle-tree"></div>
-					</div>
-	
-					<div class="modal-footer">
-						<button type="button" id="save" class="btn btn-primary" onclick="kleModalSaveConstraints()" th:text="#{html.control.button.save}"></button>
-						<button type="button" class="btn btn-danger" data-dismiss="modal" th:text="#{html.control.button.cancel}"></button>
-					</div>
-				</div>
-			</div>
-	</div>
-
-	<div id="userUserRoleModal"></div>
-	<div id="ouUserRoleModal"></div>
-	<div id="ouUserRoleEditModal"></div>
-	<div th:replace="~{users/fragments/postponed_constraint_kle_modal :: postponedConstraintsKLEModal}"></div>
-	<div th:replace="~{users/fragments/user_user_role_modal :: userUserRoleModal}"></div>
-	<div th:replace="~{users/fragments/role_assignment_edit_modal :: roleAssignmentEditModal}"></div>
-	<div th:replace="~{userroles/fragments/constraint_ou_modal :: OUModal}"></div>
-	<nav th:replace="~{fragments/footer :: footer}"></nav>
-
-	<script th:replace="~{fragments/datatables :: datatables}"></script>
-	<script th:replace="~{fragments/assignDatePicker :: content}"></script>
-	<script th:replace="~{users/fragments/role_assignment_edit_modal :: roleAssignmentEditModalScript}"></script>
-	<script th:replace="~{users/fragments/user_user_role_modal :: userUserRoleModalScript(page='userrole')}"></script>
-	<script th:replace="~{ous/fragments/ou_roles_modal :: ouRolesModalScript(titlesEnabled=${titlesEnabled})}"></script>
-	<script th:replace="~{users/fragments/assign_user_role_postponed_data_constraints :: postponedConstraintsScript}"></script>
-
-	<div id="userScriptHolder">
-	</div>
-	
-	<!-- TODO: we need to add some styling that makes the datepickers show at the bottom and overflowing the modal 
+<!doctype html>
+<html xmlns:th="http://www.thymeleaf.org">
+ <head th:replace="~{fragments/header :: header (title=#{html.page.userroles.addrole.title})}"></head>
+ <body>
+  <div class="wrapper">
+   <header th:replace="~{fragments/navbar :: navbar-header(subpage = 'roles')}"></header>
+   <aside th:replace="~{fragments/navbar :: navbar-aside (page = 'userroles.list', subpage = 'roles')}"></aside>
+   <section>
+    <div class="content-wrapper">
+     <h3><a th:href="@{/ui/userroles/list}" class="btn btn-default"> <span><i class="fa fa-arrow-left"></i></span> </a> <span th:text="#{html.page.userroles.editrole.title}"></span></h3>
+     <div class="panel panel-default">
+      <div class="panel-heading"></div>
+      <div class="panel-body">
+       <form id="role-form" class="form-horizontal" th:object="${role}">
+        <input th:field="*{id}" type="hidden"> <input th:field="*{itSystem}" type="hidden">
+        <fieldset>
+         <div class="form-group">
+          <label class="col-sm-3 control-label" th:text="#{html.entity.userrole.name}"></label>
+          <div class="col-sm-8">
+           <input th:field="*{name}" class="form-control" th:readonly="${#strings.toString(role.itSystem.systemType)} == 'KSPCICS' OR ${role.linkedSystemRole != null}">
+          </div>
+         </div>
+        </fieldset>
+        <fieldset>
+         <div class="form-group">
+          <label class="col-sm-3 control-label" th:text="#{html.entity.userrole.description}"></label>
+          <div class="col-sm-8">
+           <textarea th:field="*{description}" class="form-control" th:readonly="${#strings.toString(role.itSystem.systemType)} == 'KSPCICS' OR ${role.linkedSystemRole != null}"></textarea>
+          </div>
+         </div>
+        </fieldset>
+        <fieldset th:if="${#strings.equals(role.itSystem.systemType, 'MANUAL')}">
+         <div class="form-group">
+          <label class="col-sm-3 control-label" th:text="#{html.page.userroles.new.require_manager_action.label}"></label>
+          <div class="col-sm-8">
+           <div class="checkbox c-checkbox">
+            <label> <input type="checkbox" id="requireManagerActionCheckbox" name="requireManagerAction" th:checked="${role.requireManagerAction}"> <span class="fa fa-check"></span> </label>
+           </div>
+          </div>
+         </div>
+         <div id="requireManagerActionRow" th:hidden="${!role.requireManagerAction}">
+          <div class="form-group">
+           <label class="col-sm-3 control-label" th:text="#{html.page.userroles.new.send_to_manager.label}"></label>
+           <div class="col-sm-8">
+            <div class="checkbox c-checkbox">
+             <label> <input type="checkbox" checked disabled> <span class="fa fa-check"></span> </label>
+            </div>
+           </div>
+          </div>
+          <div class="form-group">
+           <label class="col-sm-3 control-label" th:text="#{html.page.userroles.new.send_to_substitutes.label}"></label>
+           <div class="col-sm-8">
+            <div class="checkbox c-checkbox">
+             <label> <input type="checkbox" id="sendToSubstitutes" name="sendToSubstitutes" th:checked="${role.sendToSubstitutes}"> <span class="fa fa-check"></span> </label>
+            </div>
+           </div>
+          </div>
+          <div class="form-group">
+           <label class="col-sm-3 control-label" th:text="#{html.page.userroles.new.send_to_authorization_managers.label}"></label>
+           <div class="col-sm-8">
+            <div class="checkbox c-checkbox">
+             <label> <input type="checkbox" id="sendToAuthorizationManagers" name="sendToAuthorizationManagers" th:checked="${role.sendToAuthorizationManagers}"> <span class="fa fa-check"></span> </label>
+            </div>
+           </div>
+          </div>
+          <div class="form-group" style="margin-top: 10px;">
+           <label class="col-sm-3 control-label" th:text="#{html.page.userroles.new.email_template.title}"></label>
+           <div class="col-sm-8">
+            <input th:field="*{emailTemplateTitle}" class="form-control">
+           </div>
+          </div>
+          <div class="form-group">
+           <label class="col-sm-3 control-label" th:text="#{html.page.userroles.new.email_template.message}"></label>
+           <div class="col-sm-8">
+            <textarea th:field="*{emailTemplateMessage}" class="mb-0 preformat" rows="10" style="width:100%;"></textarea>
+           </div>
+          </div>
+         </div>
+        </fieldset>
+        <fieldset>
+         <div class="form-group" style="justify-content: center; display: flex">
+          <label class="col-sm-2 control-label" th:text="#{html.role.flag.useronly}"></label>
+          <div class="col-sm-1">
+           <div class="checkbox c-checkbox">
+            <label> <input class="useronly-checkbox" type="checkbox" data-flag="useronly" th:attr="checked=${role.userOnly}"> <span class="fa fa-check"></span> </label>
+           </div>
+          </div><th:block th:if="${@settingsService.isRequestApproveEnabled()}">
+           <label class="col-sm-2 control-label" th:text="#{html.role.flag.canrequest}"></label>
+           <div class="col-sm-1">
+            <div class="checkbox c-checkbox">
+             <label> <input class="canrequest-checkbox" type="checkbox" data-flag="canrequest" th:attr="checked=${role.canRequest}"> <span class="fa fa-check"></span> </label>
+            </div>
+           </div>
+          </th:block> <th:block th:if="${@settingsService.isScheduledAttestationEnabled()}">
+           <th:block th:if="${@settingsService.getScheduledAttestationInterval() == T(dk.digitalidentity.rc.dao.model.enums.CheckupIntervalEnum).YEARLY}">
+            <label class="col-sm-2 control-label" th:text="#{html.role.flag.extra.sensitive}"></label>
+            <div class="col-sm-1">
+             <div class="checkbox c-checkbox">
+              <label> <input class="extra-sensitive-checkbox" type="checkbox" data-flag="extra-sensitive" th:attr="checked=${role.extraSensitiveRole}"> <span class="fa fa-check"></span> </label>
+             </div>
+            </div>
+           </th:block>
+           <label class="col-sm-2 control-label" th:text="#{html.role.flag.sensitive}"></label>
+           <div class="col-sm-1">
+            <div class="checkbox c-checkbox">
+             <label> <input class="sensitive-checkbox" type="checkbox" data-flag="sensitive" th:attr="checked=${role.sensitiveRole}"> <span class="fa fa-check"></span> </label>
+            </div>
+           </div>
+           <label class="col-sm-2 control-label" th:text="#{html.entity.itsystem.roleAssignmentAttestationByAttestationResponsible}"></label>
+           <div class="col-sm-1">
+            <div class="checkbox c-checkbox">
+             <label> <input class="by-attestation-responsible-checkbox" type="checkbox" data-flag="attestationByAttestationResponsible" th:attr="checked=${role.roleAssignmentAttestationByAttestationResponsible}"> <span class="fa fa-check"></span> </label>
+            </div>
+           </div>
+          </th:block>
+         </div>
+        </fieldset>
+        <fieldset th:if="${role.linkedSystemRole != null}">
+         <div class="form-group">
+          <div class="col-sm-12">
+           <button type="button" onclick="removeLinkToSystemRole();" class="btn btn-primary btn-lg" style="width: 250px;"><i class="fa fa-chain-broken"></i>&nbsp;<span th:text="#{html.page.userroles.edit.unlink}"></span></button><span style="margin-left: 25px;" th:text="#{html.role.flag.linked.description}"></span>
+          </div>
+         </div>
+        </fieldset>
+       </form>
+       <form class="form-horizontal">
+        <ul class="nav nav-tabs" th:title="${allowPostponing} ? #{html.page.userroles.edit.tab.ous.disabled} : ''">
+         <li th:class="active"><a data-toggle="tab" href="#roles_menu" th:text="#{html.entity.userrole.roleassignments}"></a></li>
+         <li th:unless="${hideRolegroups}"><a data-toggle="tab" href="#groups_menu" th:text="#{html.entity.userrole.rolegroupassignments}"></a></li>
+         <li><a data-toggle="tab" href="#users_menu" th:text="#{html.page.userroles.edit.tab.users}"></a></li>
+         <li th:class="${allowPostponing} ? 'disabled' : ''"><a data-toggle="tab" id="outab" href="#ous_menu" th:text="#{html.page.userroles.edit.tab.ous}"></a></li>
+        </ul>
+        <div class="tab-content">
+         <div id="roles_menu" class="tab-pane fade in active">
+          <table id="listTable" class="table table-striped">
+           <thead>
+            <tr>
+             <th class="col-md-1" th:text="#{html.entity.rolegroup.enabled}"></th>
+             <th class="col-md-4" th:text="#{html.entity.rolegroup.name}"></th>
+             <th class="col-md-7" th:text="#{html.entity.rolegroup.description}"></th>
+            </tr>
+           </thead>
+           <tbody>
+            <tr th:each="editSystemRole : ${editSystemRoles}">
+             <td>
+              <div class="checkbox c-checkbox">
+               <label> <input class="role-checkbox" type="checkbox" th:attr="data-roleid=${editSystemRole.systemRole.id}, checked=${editSystemRole.checked}"> <span class="fa fa-check"></span> </label>
+              </div></td>
+             <td th:text="${editSystemRole.systemRole.name}"></td>
+             <td class="preformat" th:text="${editSystemRole.systemRole.description}"></td>
+            </tr>
+           </tbody>
+          </table>
+         </div>
+         <div th:unless="${hideRolegroups}" id="groups_menu" class="tab-pane fade in">
+          <table id="listTable3" class="table table-striped">
+           <thead>
+            <tr>
+             <th class="col-md-1" th:text="#{html.page.userroles.addrole.rolegroup.contained}"></th>
+             <th class="col-md-4" th:text="#{html.page.userroles.addrole.rolegroup.name}"></th>
+             <th class="col-md-7" th:text="#{html.page.userroles.addrole.rolegroup.description}"></th>
+            </tr>
+           </thead>
+           <tbody>
+            <tr th:each="editRoleGroup : ${editRoleGroups}">
+             <td>
+              <div class="checkbox c-checkbox">
+               <label> <input class="group-checkbox" type="checkbox" th:attr="data-groupid=${editRoleGroup.roleGroup.id}, checked=${editRoleGroup.checked}"> <span class="fa fa-check"></span> </label>
+              </div></td>
+             <td th:text="${editRoleGroup.roleGroup.name}"></td>
+             <td class="preformat" th:text="${editRoleGroup.roleGroup.description}"></td>
+            </tr>
+           </tbody>
+          </table>
+         </div>
+         <div id="users_menu" class="tab-pane fade">
+         </div>
+         <div id="ous_menu" class="tab-pane fade">
+         </div>
+        </div>
+       </form>
+      </div>
+     </div>
+    </div>
+   </section>
+  </div>
+  <div style="display: none;" th:each="editSystemRole : ${editSystemRoles}" th:attr="id='constraints-' + ${editSystemRole.systemRole.id}">
+   <div th:if="${#lists.isEmpty(editSystemRole.systemRole.supportedConstraintTypes)}">
+    <span id="no-constraints"></span>
+   </div>
+   <div class="row" th:each="supportedConstraintType : ${editSystemRole.systemRole.supportedConstraintTypes}" th:with="selected=${#maps.containsKey(editSystemRole.selectedConstraints, supportedConstraintType.constraintType.uuid) or supportedConstraintType.mandatory == true},
+			          constraintData=${editSystemRole.selectedConstraints.get(supportedConstraintType.constraintType.uuid)}">
+    <div class="col-sm-1">
+     &nbsp;
+    </div>
+    <div class="col-sm-2">
+     <div class="checkbox c-checkbox">
+      <label class="control-label"> <input class="constraint-checkbox" th:disabled="${supportedConstraintType.mandatory == true}" type="checkbox" th:attr="id='constraint-checkbox' + ${editSystemRole.systemRole.id} + ${supportedConstraintType.constraintType.uuid}" th:attrappend="onclick='toggleDisabled('+${editSystemRole.systemRole.id}+',\''+${supportedConstraintType.constraintType.uuid}+'\');'" th:checked="${selected}"> <span class="fa fa-check"></span> </label> <label class="control-label" th:text="${supportedConstraintType.constraintType.name}"></label> <em th:if="${supportedConstraintType.constraintType.description !=null and #strings.length(supportedConstraintType.constraintType.description) > 0}" class="fa fa-question" data-toggle="popover" data-trigger="hover" data-placement="top" th:attr="data-content=${supportedConstraintType.constraintType.description}"></em> <span style="display: none;" class="constraintTypeHolder" th:text="${supportedConstraintType.constraintType.uuid}"></span>
+     </div>
+    </div>
+    <div class="col-sm-6" style="padding-top: 6px">
+     <!-- REGEX UI --> <th:block th:if="${supportedConstraintType.constraintType.uiType == T(dk.digitalidentity.rc.dao.model.enums.ConstraintUIType).REGEX}">
+      <th:block th:switch="${supportedConstraintType.constraintType.entityId}">
+       <!-- KLE selector -->
+       <th:block th:case="'http://sts.kombit.dk/constraints/KLE/1'">
+        <select style="width:100%;" class="form-control m-b" th:disabled="${selected}==false or ${constraintData != null} and ${constraintData.postponed}" th:attr="id=${editSystemRole.systemRole.id} + ${supportedConstraintType.constraintType.uuid}" th:attrappend="onchange='updateComboConstraintValue('+ ${editSystemRole.systemRole.id} + ',\'' + ${supportedConstraintType.constraintType.uuid} +'\'' + ',\'KLE\')'"> <option selected th:text="#{html.select.default}"></option> <option th:selected="${selected} and ${constraintData != null} and ('INHERITED' eq ${#strings.toString(constraintData.constraintValueType)})" th:value="INHERITED" th:text="#{html.constraint.kle.inherited}"></option> <option th:selected="${selected} and ${constraintData != null} and ('EXTENDED_INHERITED' eq ${#strings.toString(constraintData.constraintValueType)})" th:value="EXTENDED_INHERITED" th:text="#{html.constraint.kle.extended}"></option> <option th:selected="${selected} and ${constraintData != null} and ('READ_AND_WRITE' eq ${#strings.toString(constraintData.constraintValueType)})" th:value="READ_AND_WRITE" th:text="#{html.constraint.kle.read_and_write}"></option> <option th:selected="${selected} and ${constraintData != null} and ('VALUE' eq ${#strings.toString(constraintData.constraintValueType)})" th:value="VALUE" th:text="#{html.constraint.kle.value}"></option> </select>
+        <div class="col-sm-12" th:attr="id=${editSystemRole.systemRole.id} + ${supportedConstraintType.constraintType.uuid} + 'freetext'" style="padding-top: 6px; display: none;">
+         <div class="col-sm-9">
+          <input disabled hidden th:value="${constraintData != null} ? ${constraintData.constraintValue} : ''" th:attr="id=${editSystemRole.systemRole.id} + ${supportedConstraintType.constraintType.uuid} + 'values'"> <input class="form-control m-b" style="width:100%;" th:attr="id=${editSystemRole.systemRole.id} + ${supportedConstraintType.constraintType.uuid} + 'input'">
+         </div>
+         <div class="col-sm-3">
+          <a class="btn btn-primary" th:attr="onclick='chooseKles('+${editSystemRole.systemRole.id}+',\''+${supportedConstraintType.constraintType.uuid}+'\');'"> <span>Vælg Kle</span> </a>
+         </div>
+        </div>
+       </th:block> <!-- organisation selector -->
+       <th:block th:case="'http://sts.kombit.dk/constraints/orgenhed/1'">
+        <select style="width:100%;" class="form-control m-b" th:disabled="${selected}==false or ${constraintData != null} and ${constraintData.postponed}" th:attr="id=${editSystemRole.systemRole.id} + ${supportedConstraintType.constraintType.uuid}" th:attrappend="onchange='updateComboConstraintValue('+ ${editSystemRole.systemRole.id} + ',\'' + ${supportedConstraintType.constraintType.uuid} +'\'' + ',\'OU\')'"> <option selected disabled th:text="#{html.select.default}"></option> <option th:selected="${selected} and ${constraintData != null} and ('INHERITED' eq ${#strings.toString(constraintData.constraintValueType)})" th:value="INHERITED" th:text="#{html.constraint.organisation.inherited}"></option> <option th:selected="${selected} and ${constraintData != null} and ('EXTENDED_INHERITED' eq ${#strings.toString(constraintData.constraintValueType)})" th:value="EXTENDED_INHERITED" th:text="#{html.constraint.organisation.extended}"></option> <option th:selected="${selected} and ${constraintData != null} and ('LEVEL_1' eq ${#strings.toString(constraintData.constraintValueType)})" th:value="LEVEL_1" th:text="#{html.constraint.organisation.level.1}"></option> <option th:selected="${selected} and ${constraintData != null} and ('LEVEL_2' eq ${#strings.toString(constraintData.constraintValueType)})" th:value="LEVEL_2" th:text="#{html.constraint.organisation.level.2}"></option> <option th:selected="${selected} and ${constraintData != null} and ('LEVEL_3' eq ${#strings.toString(constraintData.constraintValueType)})" th:value="LEVEL_3" th:text="#{html.constraint.organisation.level.3}"></option> <option th:selected="${selected} and ${constraintData != null} and ('LEVEL_4' eq ${#strings.toString(constraintData.constraintValueType)})" th:value="LEVEL_4" th:text="#{html.constraint.organisation.level.4}"></option> <option th:selected="${selected} and ${constraintData != null} and ('LEVEL_5' eq ${#strings.toString(constraintData.constraintValueType)})" th:value="LEVEL_5" th:text="#{html.constraint.organisation.level.5}"></option> <option th:selected="${selected} and ${constraintData != null} and ('LEVEL_6' eq ${#strings.toString(constraintData.constraintValueType)})" th:value="LEVEL_6" th:text="#{html.constraint.organisation.level.6}"></option> <option th:selected="${selected} and ${constraintData != null} and ('VALUE' eq ${#strings.toString(constraintData.constraintValueType)})" th:value="VALUE" th:text="#{html.constraint.organisation.value}"></option> </select>
+        <div class="col-sm-12" th:attr="id=${editSystemRole.systemRole.id} + ${supportedConstraintType.constraintType.uuid} + 'freetext'" style="padding-top: 6px; display: none;">
+         <div class="col-sm-9">
+          <input disabled hidden th:value="${constraintData != null} ? ${constraintData.constraintValue} : ''" th:attr="id=${editSystemRole.systemRole.id} + ${supportedConstraintType.constraintType.uuid} + 'values'"> <input class="form-control m-b" style="width:100%;" th:attr="id=${editSystemRole.systemRole.id} + ${supportedConstraintType.constraintType.uuid} + 'input'">
+         </div>
+         <div class="col-sm-3">
+          <a class="btn btn-primary" th:attr="onclick='orgUnitConstraintService.chooseOUs('+${editSystemRole.systemRole.id}+',\''+${supportedConstraintType.constraintType.uuid}+'\');'"> <span>Vælg enheder</span> </a>
+         </div>
+        </div>
+       </th:block> <!-- TODO: duplicate block of the above - can we merge into one case? --> <!-- organisation selector -->
+       <th:block th:case="'http://digital-identity.dk/constraints/orgunit/1'">
+        <select style="width:100%;" class="form-control m-b" th:disabled="${selected}==false or ${constraintData != null} and ${constraintData.postponed}" th:attr="id=${editSystemRole.systemRole.id} + ${supportedConstraintType.constraintType.uuid}" th:attrappend="onchange='updateComboConstraintValue('+ ${editSystemRole.systemRole.id} + ',\'' + ${supportedConstraintType.constraintType.uuid} +'\'' + ',\'OU\')'"> <option selected disabled th:text="#{html.select.default}"></option> <option th:selected="${selected} and ${constraintData != null} and ('INHERITED' eq ${#strings.toString(constraintData.constraintValueType)})" th:value="INHERITED" th:text="#{html.constraint.organisation.inherited}"></option> <option th:selected="${selected} and ${constraintData != null} and ('EXTENDED_INHERITED' eq ${#strings.toString(constraintData.constraintValueType)})" th:value="EXTENDED_INHERITED" th:text="#{html.constraint.organisation.extended}"></option> <option th:selected="${selected} and ${constraintData != null} and ('VALUE' eq ${#strings.toString(constraintData.constraintValueType)})" th:value="VALUE" th:text="#{html.constraint.organisation.value}"></option> </select>
+        <div class="col-sm-12" th:attr="id=${editSystemRole.systemRole.id} + ${supportedConstraintType.constraintType.uuid} + 'freetext'" style="padding-top: 6px; display: none;">
+         <div class="col-sm-9">
+          <input disabled hidden th:value="${constraintData != null} ? ${constraintData.constraintValue} : ''" th:attr="id=${editSystemRole.systemRole.id} + ${supportedConstraintType.constraintType.uuid} + 'values'"> <input class="form-control m-b" style="width:100%;" th:attr="id=${editSystemRole.systemRole.id} + ${supportedConstraintType.constraintType.uuid} + 'input'">
+         </div>
+         <div class="col-sm-3">
+          <a class="btn btn-primary" th:attr="onclick='orgUnitConstraintService.chooseOUs('+${editSystemRole.systemRole.id}+',\''+${supportedConstraintType.constraintType.uuid}+'\');'"> <span>Vælg enheder</span> </a>
+         </div>
+        </div>
+       </th:block> <!--it system selector-->
+       <th:block th:case="'http://digital-identity.dk/constraints/itsystem/1'">
+        <div th:attr="id=${editSystemRole.systemRole.id} + ${supportedConstraintType.constraintType.uuid}" class="col-sm-12" style="padding-top: 6px;" th:disabled="${selected}==false or ${constraintData != null} and ${constraintData.postponed}">
+         <div class="col-sm-12">
+          <select style="width:100%;" th:attr="id=${editSystemRole.systemRole.id} + ${supportedConstraintType.constraintType.uuid} + 'multiple-select'" class="form-control m-b" name="itSystems[]" multiple th:disabled="${selected}==false or ${constraintData != null} and ${constraintData.postponed}"> <option th:each="option : ${itSystemList}" th:value="${option.id}" th:text="${option.text}"></option> </select>
+         </div>
+        </div>
+       </th:block> <!--NemLogin pnr selector-->
+       <th:block th:case="'https://nemlogin.dk/constraints/pnr/1'">
+        <div class="col-sm-12" style="padding-top: 6px;" th:disabled="${selected}==false or ${constraintData != null} and ${constraintData.postponed}">
+         <div class="col-sm-12">
+          <select style="width:100%;" class="form-control" th:attr="id=${editSystemRole.systemRole.id} + ${supportedConstraintType.constraintType.uuid}" th:attrappend="onchange='updateConstraintChoice('+ ${editSystemRole.systemRole.id} + ',\'' + ${supportedConstraintType.constraintType.uuid} +'\'' + ',\'VALUE\')'" th:disabled="${selected}==false or ${constraintData != null} and ${constraintData.postponed}"> <option selected disabled th:text="#{html.select.default}"></option> <option th:each="pNumber : ${pNumberList}" th:selected="${selected} and ${constraintData != null} and (${pNumber.code} eq ${#strings.toString(constraintData.constraintValue)})" th:value="${pNumber.code}" th:text="${pNumber.code} +' (' + ${pNumber.name} + ')'"></option> </select>
+         </div>
+        </div>
+       </th:block> <!--NemLogin senr selector-->
+       <th:block th:case="'https://nemlogin.dk/constraints/senr/1'">
+        <div class="col-sm-12" style="padding-top: 6px;" th:disabled="${selected}==false or ${constraintData != null} and ${constraintData.postponed}">
+         <div class="col-sm-12">
+          <select style="width:100%;" class="form-control" th:attr="id=${editSystemRole.systemRole.id} + ${supportedConstraintType.constraintType.uuid}" th:attrappend="onchange='updateConstraintChoice('+ ${editSystemRole.systemRole.id} + ',\'' + ${supportedConstraintType.constraintType.uuid} +'\'' + ',\'VALUE\')'" th:disabled="${selected}==false or ${constraintData != null} and ${constraintData.postponed}"> <option selected disabled th:text="#{html.select.default}"></option> <option th:each="sENumber : ${sENumberList}" th:selected="${selected} and ${constraintData != null} and (${sENumber.code} eq ${#strings.toString(constraintData.constraintValue)})" th:value="${sENumber.code}" th:text="${sENumber.name} +' (' + ${sENumber.code} + ')'"></option> </select>
+         </div>
+        </div>
+       </th:block> <!-- default freetext field -->
+       <th:block th:case="*">
+        <input style="width:100%;" class="form-control m-b" th:disabled="${selected}==false or ${constraintData != null} and ${constraintData.postponed}" th:attr="id=${editSystemRole.systemRole.id} + ${supportedConstraintType.constraintType.uuid}" th:attrappend="onchange='updateConstraintChoice('+ ${editSystemRole.systemRole.id} + ',\'' + ${supportedConstraintType.constraintType.uuid} +'\'' + ',\'VALUE\')'" th:value="${constraintData != null} ? ${constraintData.constraintValue} : ''">
+       </th:block>
+      </th:block>
+     </th:block> <!-- COMBO_SINGLE UI --> <th:block th:if="${supportedConstraintType.constraintType.uiType == T(dk.digitalidentity.rc.dao.model.enums.ConstraintUIType).COMBO_SINGLE}">
+      <select style="width:100%;" class="form-control m-b" th:disabled="${selected}==false or ${constraintData != null} and ${constraintData.postponed}" th:attr="id=${editSystemRole.systemRole.id} + ${supportedConstraintType.constraintType.uuid}" th:attrappend="onchange='updateConstraintChoice('+ ${editSystemRole.systemRole.id} + ',\'' + ${supportedConstraintType.constraintType.uuid} +'\'' + ',\'VALUE\')'"> <option selected disabled th:text="#{html.select.default}"></option> <option th:each="type : ${supportedConstraintType.constraintType.valueSet}" th:value="${type.constraintKey}" th:text="${type.constraintValue}" th:selected="${selected} and ${constraintData != null} and (${type.constraintKey} eq ${constraintData.constraintValue})"></option> </select>
+     </th:block> <!-- COMBO_MULTI --> <th:block th:if="${supportedConstraintType.constraintType.uiType == T(dk.digitalidentity.rc.dao.model.enums.ConstraintUIType).COMBO_MULTI}">
+      <select style="width:100%;" class="form-control m-b" th:disabled="${selected}==false or ${constraintData != null} and ${constraintData.postponed}" multiple th:attr="id=${editSystemRole.systemRole.id} + ${supportedConstraintType.constraintType.uuid}" th:attrappend="onchange='updateConstraintChoice('+ ${editSystemRole.systemRole.id} + ',\'' + ${supportedConstraintType.constraintType.uuid} +'\'' + ',\'VALUE\')'"> <option th:each="type : ${supportedConstraintType.constraintType.valueSet}" th:value="${type.constraintKey}" th:text="${type.constraintValue}" th:selected="${selected} and ${constraintData != null} and ${constraintData.constraintValue != null} and (${#strings.contains(constraintData.constraintValue, type.constraintKey)})"></option> </select>
+     </th:block>
+     <div class="clearfix"></div>
+    </div>
+    <div class="col-sm-2" th:if="${allowPostponing}">
+     <div class="checkbox c-checkbox">
+      <label class="control-label"> <input class="postpone-checkbox" th:disabled="${!selected}" type="checkbox" th:attr="id='postpone' + ${editSystemRole.systemRole.id} + ${supportedConstraintType.constraintType.uuid}" th:attrappend="onchange='saveConstraintChoice('+ ${editSystemRole.systemRole.id} + ',\'' + ${supportedConstraintType.constraintType.uuid} + '\',\'POSTPONED\',\'\',true)'" th:checked="${constraintData != null} and ${constraintData.postponed}"> <span class="fa fa-check"></span> </label> <label class="control-label" th:text="#{html.constraint.postpone}"></label> <a th:replace="~{fragments/help :: help (title=#{html.help.constraint.postpone.title}, content=#{html.help.constraint.postpone.body})}"></a>
+     </div>
+    </div>
+   </div>
+  </div>
+  <div class="modal fade bd-example-modal-lg" id="modal-kle" role="dialog">
+   <div class="modal-dialog modal-lg">
+    <!-- Modal content-->
+    <div class="modal-content">
+     <div class="modal-header">
+      <button type="button" class="close" data-dismiss="modal">×</button>
+      <h4 th:text="#{html.page.userrole.kle.modal}"></h4>
+     </div>
+     <div class="modal-body" style="height:800px;">
+      <input type="hidden" id="modal-systemRoleId"> <input type="hidden" id="modal-constraintUuid">
+      <div id="modal-error" style="display:none;color:#FF0000;">
+       <label th:text="#{html.errors.kle.code.not.valid}"></label>
+       <ul id="modal-errors">
+       </ul>
+      </div><input class="form-control" id="kle-tree-search" style="margin-bottom: 5px;" th:placeholder="#{html.page.userrole.kle.modal.search}">
+      <div id="kle-tree"></div>
+     </div>
+     <div class="modal-footer">
+      <button type="button" id="save" class="btn btn-primary" onclick="kleModalSaveConstraints()" th:text="#{html.control.button.save}"></button>
+      <button type="button" class="btn btn-danger" data-dismiss="modal" th:text="#{html.control.button.cancel}"></button>
+     </div>
+    </div>
+   </div>
+  </div>
+  <div id="userUserRoleModal"></div>
+  <div id="ouUserRoleModal"></div>
+  <div id="ouUserRoleEditModal"></div>
+  <div th:replace="~{users/fragments/postponed_constraint_kle_modal :: postponedConstraintsKLEModal}"></div>
+  <div th:replace="~{users/fragments/user_user_role_modal :: userUserRoleModal}"></div>
+  <div th:replace="~{users/fragments/role_assignment_edit_modal :: roleAssignmentEditModal}"></div>
+  <div th:replace="~{userroles/fragments/constraint_ou_modal :: OUModal}"></div>
+  <nav th:replace="~{fragments/footer :: footer}"></nav>
+  <script th:replace="~{fragments/datatables :: datatables}"></script>
+  <script th:replace="~{fragments/assignDatePicker :: content}"></script>
+  <script th:replace="~{users/fragments/role_assignment_edit_modal :: roleAssignmentEditModalScript}"></script>
+  <script th:replace="~{users/fragments/user_user_role_modal :: userUserRoleModalScript(page='userrole')}"></script>
+  <script th:replace="~{ous/fragments/ou_roles_modal :: ouRolesModalScript(titlesEnabled=${titlesEnabled})}"></script>
+  <script th:replace="~{users/fragments/assign_user_role_postponed_data_constraints :: postponedConstraintsScript}"></script>
+  <div id="userScriptHolder">
+  </div><!-- TODO: we need to add some styling that makes the datepickers show at the bottom and overflowing the modal
 	The modal ou_roles_modal shows at the top-->
-	<style>
+  <style>
 		.table .checkbox {
 			margin-left: 10px;
 			width: auto;
@@ -552,8 +338,8 @@
 			}
 		}
 	</style>
-
-	<script th:inline="javascript">
+  <script th:src="@{/js/service/DatatableService.js}"></script>
+  <script th:inline="javascript">
 		/*<![CDATA[*/
 
 		/*[+
@@ -715,9 +501,7 @@
 			
 			orgUnitConstraintService.init();
 			
-			
 			managerActionService.init();
-			
 		});
 		
 		function ManagerActionService() {
@@ -821,7 +605,56 @@
 
 			this.loadAddUserRoleFragment = function () {
 				$("#users_menu").load(UIUrl + roleId + "/availableUsersFragment", function () {
-					fragShowDataTableFun('#listTableUsersAdd', 0);
+					//TODO
+					//fragShowDataTableFun('#listTableUsersAdd', 0);
+
+				const columnDefOptions = [
+					{
+						targets: [0],
+						data: 'name',
+						render: (data, type, row, meta) => {
+							if (type === 'display') {
+								let html = '<div>'
+								html += '<div>'
+								html += `<span>${data}</span>`
+								html += row.disabled ? `<span class="badge badge-warning">Deaktiveret</span>` : ''
+								html += '</div>'
+								html += row.isAlreadyAssigned ? `<div style="font-size: smaller; color: red;">Tildelt</div>` : ''
+								html += '</div>'
+								return html
+							} else { return data; }
+						}
+					},
+					{
+						targets: [1],
+						data: 'userId',
+					},
+					{
+						targets: [2],
+						data: 'positions',
+						render: (data, type, row, meta) => {
+							let html = '<ul style="list-style: none;">'
+							for (const position of data) {
+								html += `<li>${position.name} i ${position.orgUnit.name}</li>`
+							}
+							html += '</ul>'
+							return html
+						},
+					},
+					{
+						targets: [3],
+						data: 'uuid',
+						orderable: false,
+						searchable:false,
+						sortable:false,
+						render: (data, type, row, meta) => {
+							return data ? `<a href="#"onclick="userService.addUserRoleByUuid('${data}')"><em class="fa fa-plus"></em></a>` : null;
+						},
+					}
+
+				]
+
+					const table = new DatatableService().initDefaultServersideTable('#listTableUsersAdd', `${userRestUrl}available/${roleId}`, columnDefOptions)
 				});
 			}
 
@@ -902,6 +735,30 @@
 					    keyboard: false
 					});
 					
+					userRoleModalService.loadPostponedConstraintsFragment(roleId);
+					$('#stopDatePicker').data("DateTimePicker").clear();
+					$('#startDatePicker').data("DateTimePicker").clear();
+					$('#startDatePicker').data("DateTimePicker").date(new Date());
+
+					modal.attr("roleid", roleId);
+					modal.attr("userUuid", user);
+				});
+
+			}
+
+			this.addUserRoleByUuid = function (uuid) {
+				var user = uuid;
+				$("#userUserRoleModal").load(UIUrl + "fragments/" + user, function(){
+					var modal = $("#modal-positions");
+					datePickerService.init();
+					userRoleModalService.init();
+					userRoleModalService.parentService = userService;
+
+					modal.modal({
+					    backdrop: 'static',
+					    keyboard: false
+					});
+
 					userRoleModalService.loadPostponedConstraintsFragment(roleId);
 					$('#stopDatePicker').data("DateTimePicker").clear();
 					$('#startDatePicker').data("DateTimePicker").clear();
@@ -1001,7 +858,7 @@
 					ouRolesEditModalService.roleType = 'role'; // UserRole
 					ouRolesEditModalService.roleId = roleId;
 
-					ouRolesEditModalService.showAssignModal(titlesEnabled, null, startDate, stopDate, assignmentType, assignmentId);
+					ouRolesEditModalService.showAssignModal(titlesEnabled, startDate, stopDate, assignmentType, assignmentId);
 				});
 			}
 
@@ -1014,7 +871,7 @@
 					datePickerService.init();
 					commonService.init();
 
-					ouRolesModalService.showAssignModal(titlesEnabled, null, null, null);
+					ouRolesModalService.showAssignModal(titlesEnabled, null, null);
 				});
 
 			}
@@ -1239,7 +1096,6 @@
 		
 		function updateConstraintChoice(systemRoleId, constraintUuid, constraintValueType) {
 			var constraintValue = $("#" + systemRoleId + constraintUuid).val();
-			
 			saveConstraintChoice(systemRoleId, constraintUuid, constraintValueType, constraintValue, false);
 		}
 		
@@ -1264,7 +1120,7 @@
 				error : errorHandler(fieldNotUpdatedMsg),
 				success : function(response) {
 					notificationService.showInfoNotification(fieldUpdatedMsg);
-					
+
 					var elem;
 					if (constraintUuid == itSystemConstraintUuid){
 						elem = $("#" + systemRoleId + constraintUuid + "multiple-select");
@@ -1272,7 +1128,7 @@
 					else {
 						elem = $("#" + systemRoleId + constraintUuid);
 					}
-					
+
 					if (postpone) {
 						elem.attr("disabled", "disabled");
 						hideFreetext(systemRoleId, constraintUuid);
@@ -1284,7 +1140,7 @@
 						var postponeCheckbox = $("#postpone" + systemRoleId + constraintUuid);
 						postponeCheckbox.attr("disabled", "disabled");
 						constraintCheckbox.prop("checked", false);
-						
+
 						elem.attr("disabled", "disabled");
 						removeConstraintChoice(systemRoleId, constraintUuid); // disabling should remove the constraint
 						elem.val('');
@@ -1453,13 +1309,15 @@
 					
 					multipleSelectField.add(newOption);
 				});
-				
+
 				var select = document.getElementById(systemRoleId + constraintUuid + "multiple-select");
 				for (var i = 0; i < select.options.length; i++) {
 					if (constraintVals2.includes(select.options[i].value)) {
 						select.options[i].selected = "selected";
 					}
 				}
+
+				multipleSelectField.select2();
 			}
 			
 			multipleSelectField.show();
@@ -1467,11 +1325,10 @@
 	
 			$("#" + systemRoleId + constraintUuid + "freetext").show();
 
-			multipleSelectField.unbind("change");
-			multipleSelectField.on("change", function() {
+			multipleSelectField.off("change.custom");
+			multipleSelectField.on("change.custom", function() {
 				var constraintValueType = $("#" + systemRoleId + constraintUuid).val();
 				var constraintValue = (multipleSelectField.val() != null) ? multipleSelectField.val().join(",") : '';
-
 				saveConstraintChoice(systemRoleId, constraintUuid, constraintValueType, constraintValue, false);
 			});
 		}
@@ -1793,5 +1650,5 @@
 
 		/*]]>*/
 	</script>
-</body>
+ </body>
 </html>

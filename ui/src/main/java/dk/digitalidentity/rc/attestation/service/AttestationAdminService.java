@@ -1,27 +1,27 @@
 package dk.digitalidentity.rc.attestation.service;
 
-import static dk.digitalidentity.rc.attestation.service.AttestationOverviewService.buildItSystemOverview;
-import static dk.digitalidentity.rc.attestation.service.AttestationOverviewService.buildItSystemUsersOverview;
-
-import java.util.List;
-import java.util.Optional;
-
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
 import dk.digitalidentity.rc.attestation.dao.AttestationDao;
 import dk.digitalidentity.rc.attestation.dao.AttestationRunDao;
 import dk.digitalidentity.rc.attestation.dao.ItSystemRoleAttestationEntryDao;
 import dk.digitalidentity.rc.attestation.dao.ItSystemUserAttestationEntryDao;
 import dk.digitalidentity.rc.attestation.dao.OrganisationUserAttestationEntryDao;
-
 import dk.digitalidentity.rc.attestation.model.AttestationMailMapper;
 import dk.digitalidentity.rc.attestation.model.dto.AdminAttestationDetailsDTO;
 import dk.digitalidentity.rc.attestation.model.dto.AttestationOverviewDTO;
+import dk.digitalidentity.rc.attestation.model.dto.AttestationRunView;
 import dk.digitalidentity.rc.attestation.model.dto.enums.AdminAttestationStatus;
 import dk.digitalidentity.rc.attestation.model.entity.Attestation;
 import dk.digitalidentity.rc.attestation.model.entity.AttestationRun;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDate;
+import java.util.List;
+import java.util.Optional;
+
+import static dk.digitalidentity.rc.attestation.service.AttestationOverviewService.buildItSystemOverview;
+import static dk.digitalidentity.rc.attestation.service.AttestationOverviewService.buildItSystemUsersOverview;
 
 @Service
 public class AttestationAdminService {
@@ -46,9 +46,26 @@ public class AttestationAdminService {
     @Autowired
     private AttestationMailMapper mailMapper;
 
+    public Optional<AttestationRun> findById(long id) {
+        return attestationRunDao.findById(id);
+    }
+
+    public AttestationRun findNextRun(LocalDate after) {
+        return attestationRunDao.findFirstByCreatedAtAfterOrderByCreatedAtAsc(after);
+    }
+
+    public List<AttestationRun> findAllRunsSorted() {
+        return attestationRunDao.findAllRunsSorted();
+    }
+
     public List<AttestationRun> findNewestRuns(final int limit) {
         return attestationRunDao.findLatestRuns(limit);
     }
+
+    public List<AttestationRunView> findIdsOfLatestRuns(final int limit) {
+        return attestationRunDao.findLatestRunsSimple(limit);
+    }
+
 
     public Optional<Attestation> getAttestation(final Long attestationId) {
         return attestationDao.findById(attestationId);

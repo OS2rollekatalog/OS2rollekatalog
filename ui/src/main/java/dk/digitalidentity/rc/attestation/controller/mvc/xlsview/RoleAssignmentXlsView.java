@@ -8,6 +8,8 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
+import dk.digitalidentity.rc.attestation.model.dto.ADAttestationUserDTO;
+import dk.digitalidentity.rc.attestation.model.dto.enums.AttestationStatus;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
@@ -29,6 +31,8 @@ public class RoleAssignmentXlsView extends AttestationXlsView {
 	private String itSystemName;
 	private LocalDate fromDate;
 	private LocalDate toDate;
+	private boolean includeUsers;
+	private List<ADAttestationUserDTO> adUsersAttestation;
 
 	public RoleAssignmentXlsView(final AttestationLockService lockService) {
 		this.lockService = lockService;
@@ -58,11 +62,53 @@ public class RoleAssignmentXlsView extends AttestationXlsView {
 		itSystemName = (String) model.get("itSystemName");
 		fromDate = (LocalDate) model.get("from");
 		toDate = (LocalDate) model.get("to");
+		includeUsers = (boolean) model.get("includeUsers");
+		adUsersAttestation = (List<ADAttestationUserDTO>) model.get("adUsersAttestation");
 
 		createSharedResources(workbook);
 
 		// Create Sheets
 		lockedScope(() -> createPersonsSheet(workbook));
+
+		if (includeUsers) {
+			lockedScope(() -> createADUserSheet(workbook));
+		}
+	}
+
+	private void createADUserSheet(Workbook workbook) {
+		Sheet sheet = workbook.createSheet(messageSource.getMessage("attestationmodule.xls.report.orgunits.ad.title", null, locale));
+
+		createTitleRow(sheet, messageSource.getMessage("attestationmodule.xls.report.orgunits.ad.title", null, locale));
+
+		ArrayList<String> headers = new ArrayList<>();
+		headers.add(messageSource.getMessage("attestationmodule.xls.report.orgunits.ad.uuid", null, locale));
+		headers.add(messageSource.getMessage("attestationmodule.xls.report.orgunits.userName", null, locale));
+		headers.add(messageSource.getMessage("attestationmodule.xls.report.orgunits.userId", null, locale));
+		headers.add(messageSource.getMessage("attestationmodule.xls.report.orgunits.responsibleOu", null, locale));
+		headers.add(messageSource.getMessage("attestationmodule.xls.report.orgunits.responsibleUser", null, locale));
+		headers.add(messageSource.getMessage("attestationmodule.xls.report.orgunits.verifiedAt", null, locale));
+
+		createHeaderRow(sheet, headers);
+
+		int row = 5;
+		for (ADAttestationUserDTO entry : adUsersAttestation) {
+				Row dataRow = sheet.createRow(row++);
+				int column = 0;
+
+				createCell(dataRow, column++, entry.getUuid(), null);
+				createCell(dataRow, column++, entry.getName(), null);
+				createCell(dataRow, column++, entry.getUsername(), null);
+				createCell(dataRow, column++, entry.getResponsibleOU(), null);
+				createCell(dataRow, column++, entry.getResponsibleUser(), null);
+				createCell(dataRow, column++, entry.getVerifiedAt() == null ? "" : entry.getVerifiedAt().toString(), null);
+		}
+
+		sheet.setColumnWidth(0, 45 * 256);
+		sheet.setColumnWidth(1, 45 * 256);
+		sheet.setColumnWidth(2, 15 * 256);
+		sheet.setColumnWidth(3, 45 * 256);
+		sheet.setColumnWidth(4, 45 * 256);
+		sheet.setColumnWidth(5, 20 * 256);
 	}
 
 	private void createPersonsSheet(Workbook workbook) {
@@ -80,8 +126,9 @@ public class RoleAssignmentXlsView extends AttestationXlsView {
 		headers.add(messageSource.getMessage("attestationmodule.xls.report.orgunits.itSystem", null, locale));
 		headers.add(messageSource.getMessage("attestationmodule.xls.report.orgunits.roleGroup", null, locale));
 		headers.add(messageSource.getMessage("attestationmodule.xls.report.orgunits.roleStatus", null, locale));
+		headers.add(messageSource.getMessage("attestationmodule.xls.report.orgunits.validFrom", null, locale));
+		headers.add(messageSource.getMessage("attestationmodule.xls.report.orgunits.validTo", null, locale));
 		headers.add(messageSource.getMessage("attestationmodule.xls.report.orgunits.assignedFrom", null, locale));
-		headers.add(messageSource.getMessage("attestationmodule.xls.report.orgunits.assignedTo", null, locale));
 		headers.add(messageSource.getMessage("attestationmodule.xls.report.orgunits.inherited", null, locale));
 		headers.add(messageSource.getMessage("attestationmodule.xls.report.orgunits.assignedThroughType", null, locale));
 		headers.add(messageSource.getMessage("attestationmodule.xls.report.orgunits.assignedThrough", null, locale));
@@ -100,6 +147,13 @@ public class RoleAssignmentXlsView extends AttestationXlsView {
 				Row dataRow = sheet.createRow(row++);
 				int column = 0;
 
+				String attestationStatusMessage = entry.getAttestationStatus().getMessage();
+				if (entry.getAttestationStatus().equals(AttestationStatus.NOT_VERIFIED) && entry.getValidTo() != null && entry.getAttestationCreatedAt() != null) {
+					if (entry.getValidTo().isBefore(entry.getAttestationCreatedAt())) {
+						attestationStatusMessage = "attestationmodule.enums.attestationStatus.notVerified.outsideAttestation";
+					}
+				}
+
 				createCell(dataRow, column++, entry.getUserName(), null);
 				createCell(dataRow, column++, entry.getUserUserId(), null);
 				createCell(dataRow, column++, entry.getPosition(), null);
@@ -110,13 +164,13 @@ public class RoleAssignmentXlsView extends AttestationXlsView {
 				createCell(dataRow, column++, messageSource.getMessage(entry.getStatus().getMessage(), null, locale), null);
 				createCell(dataRow, column++, entry.getAssignedFrom() == null ? "" : entry.getAssignedFrom().toString(), null);
 				createCell(dataRow, column++, entry.getAssignedTo() == null ? "" : entry.getAssignedTo().toString(), null);
+				createCell(dataRow, column++, entry.getOriginallyAssignedFrom() == null ? "" : entry.getOriginallyAssignedFrom().toString(), null);
 				createCell(dataRow, column++, entry.isInherited() ? "Ja" : "Nej", null);
 				createCell(dataRow, column++, entry.getAssignedThroughType(), null);
 				createCell(dataRow, column++, entry.getAssignedThrough(), null);
 				createCell(dataRow, column++, entry.getResponsibleOu(), null);
 				createCell(dataRow, column++, entry.getResponsibleUser(), null);
-
-				createCell(dataRow, column++, messageSource.getMessage(entry.getAttestationStatus().getMessage(), null, locale), null);
+				createCell(dataRow, column++, messageSource.getMessage(attestationStatusMessage, null, locale), null);
 				createCell(dataRow, column++, entry.getVerifiedAt() == null ? "" : entry.getVerifiedAt().toString(), null);
 				createCell(dataRow, column++, entry.getVerifiedByName() == null ? "" : entry.getVerifiedByName() + " (" + entry.getVerifiedByUserId() + ")", null);
 				createCell(dataRow, column++, entry.getRemark(), null);

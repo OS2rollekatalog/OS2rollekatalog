@@ -9,6 +9,10 @@ import com.microsoft.graph.models.ReferenceCreate;
 import com.microsoft.graph.models.User;
 import com.microsoft.graph.models.UserCollectionResponse;
 import com.microsoft.graph.serviceclient.GraphServiceClient;
+import com.microsoft.kiota.RequestInformation;
+import com.microsoft.kiota.serialization.AdditionalDataHolder;
+import com.microsoft.kiota.serialization.Parsable;
+import com.microsoft.kiota.serialization.ParsableFactory;
 import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
 import dk.digitalidentity.rc.dao.model.ItSystem;
 import dk.digitalidentity.rc.dao.model.SystemRole;
@@ -23,11 +27,11 @@ import dk.digitalidentity.rc.service.UserService;
 import dk.digitalidentity.rc.service.model.UserWithRole;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
@@ -38,6 +42,8 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.Function;
+import java.util.function.Supplier;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -65,7 +71,7 @@ public class EntraIDService {
 	private GraphServiceClient graphClient;
 
 	@Transactional
-	public void backSync() {
+	public void backSync() throws ReflectiveOperationException {
 		log.info("Starting EntraID backSync");
 		SecurityUtil.loginSystemAccount();
 		initializeClient();
@@ -137,9 +143,9 @@ public class EntraIDService {
 				// add missing members
 				for (String username : usersWithRoleInRC) {
 					if (!memberUsernames.contains(username)) {
-						User userWithUsername = allAzureUsers.stream().filter(u -> u.getMailNickname().equals(username)).findAny().orElse(null);
+						User userWithUsername = allAzureUsers.stream().filter(u -> u.getMailNickname().equalsIgnoreCase(username)).findAny().orElse(null);
 						if (userWithUsername == null) {
-							log.debug("Failed to find user in Azure with username " + username + ". Can not add member to group " + group);
+							log.debug("Failed to find user in Azure with username " + username + ". Can not add member to group " + group.getDisplayName());
 							continue;
 						}
 
@@ -151,10 +157,10 @@ public class EntraIDService {
 				// remove members
 				for (String memberUsername : memberUsernames) {
 					if (!usersWithRoleInRC.contains(memberUsername)) {
-						User userWithUsername = allAzureUsers.stream().filter(u -> u.getMailNickname().equals(memberUsername)).findAny().orElse(null);
+						User userWithUsername = allAzureUsers.stream().filter(u -> u.getMailNickname().equalsIgnoreCase(memberUsername)).findAny().orElse(null);
 						if (userWithUsername == null) {
 							// should never happen
-							log.debug("Failed to find user in Azure with username " + memberUsername + ". Can not remove member from group " + group);
+							log.debug("Failed to find user in Azure with username " + memberUsername + ". Can not remove member from group " + group.getDisplayName());
 							continue;
 						}
 
@@ -172,13 +178,21 @@ public class EntraIDService {
 	}
 
 	public void addMemberToGroup(String groupId, String userId) {
-		ReferenceCreate referenceCreate = new ReferenceCreate();
-		referenceCreate.setOdataId("https://graph.microsoft.com/v1.0/directoryObjects/" + userId);
-		graphClient.groups().byGroupId(groupId).members().ref().post(referenceCreate);
+		try {
+			ReferenceCreate referenceCreate = new ReferenceCreate();
+			referenceCreate.setOdataId("https://graph.microsoft.com/v1.0/directoryObjects/" + userId);
+			graphClient.groups().byGroupId(groupId).members().ref().post(referenceCreate);
+		} catch (Exception e) {
+			log.warn("Failed to remove member from group {}: {}", groupId, userId, e);
+		}
 	}
 
 	public void removeMemberFromGroup(String groupId, String userId) {
-		graphClient.groups().byGroupId(groupId).members().byDirectoryObjectId(userId).ref().delete();
+		try {
+			graphClient.groups().byGroupId(groupId).members().byDirectoryObjectId(userId).ref().delete();
+		} catch (Exception e) {
+            log.warn("Failed to remove member from group {}: {}", groupId, userId, e);
+		}
 	}
 
 	private Set<String> getUsersWithUserRole(UserRole userRole) {
@@ -190,7 +204,7 @@ public class EntraIDService {
 				continue;
 			}
 
-			users.add(userWithRole.getUser().getUserId());
+			users.add(StringUtils.lowerCase(userWithRole.getUser().getUserId()));
 		}
 
 		return users;
@@ -242,7 +256,7 @@ public class EntraIDService {
 		}
 	}
 
-	private void handleUserRoles(ItSystem itSystem, List<UserRole> userRoles, List<Group> groups, List<dk.digitalidentity.rc.dao.model.User> dbUsers) {
+	private void handleUserRoles(ItSystem itSystem, List<UserRole> userRoles, List<Group> groups, List<dk.digitalidentity.rc.dao.model.User> dbUsers) throws ReflectiveOperationException {
 		// update user role to match name of system role
 		List<SystemRole> finalSystemRoles = systemRoleService.findByItSystem(itSystem);
 		List<UserRole> toBeUpdated = userRoles.stream()
@@ -325,7 +339,7 @@ public class EntraIDService {
 
 		// assign
 		for (String userId : assignedUsers) {
-			dk.digitalidentity.rc.dao.model.User user = users.stream().filter(u -> u.getUserId().equals(userId)).findAny().orElse(null);
+			dk.digitalidentity.rc.dao.model.User user = users.stream().filter(u -> u.getUserId().equalsIgnoreCase(userId)).findAny().orElse(null);
 			if (user == null) {
 				log.warn("EntraIDSync: Unable to find user with userID: " + userId + " while updating UserRoles.");
 				continue;
@@ -347,12 +361,18 @@ public class EntraIDService {
 		}
 	}
 
-	private Set<String> getMembers(Group group) {
-		UserCollectionResponse result = graphClient.groups().byGroupId(group.getId()).members().graphUser().get(requestConfiguration -> {
-			requestConfiguration.queryParameters.select = new String []{"id", "mailNickname"};
-		});
+	private Set<String> getMembers(Group group) throws ReflectiveOperationException {
+		final List<User> members = iterateResource(UserCollectionResponse::createFromDiscriminatorValue,
+				() -> graphClient.groups().byGroupId(Objects.requireNonNull(group.getId())).members().graphUser().get(requestConfiguration -> {
+                    assert requestConfiguration.queryParameters != null;
+                    requestConfiguration.queryParameters.select = new String[]{"id", "mailNickname"};
+				}),
+				requestInformation -> {
+					log.debug("Preparing to get next members group page");
+					return requestInformation;
+				});
 
-		return result.getValue().stream().map(User::getMailNickname).collect(Collectors.toSet());
+		return members.stream().map(User::getMailNickname).map(StringUtils::lowerCase).collect(Collectors.toSet());
 	}
 
 	private Map<Long, List<Group>> generateItSystemGroupMap(List<Group> groups) {
@@ -389,60 +409,32 @@ public class EntraIDService {
 
 	@SneakyThrows
     public List<Group> getRCGroups()  {
-		ArrayList<Group> groups = new ArrayList<>();
+		final List<Group> allGroups = iterateResource(GroupCollectionResponse::createFromDiscriminatorValue,
+				() -> graphClient.groups().get(),
+				requestInformation -> {
+					log.debug("Preparing to get next group page");
+					return requestInformation;
+				}
+		);
 
-		GroupCollectionResponse groupResponse = graphClient.groups().get();
-
-		PageIterator<Group, GroupCollectionResponse> pageIterator =
-				new PageIterator.Builder<Group, GroupCollectionResponse>()
-						.client(graphClient)
-						// response from the first request
-						.collectionPage(Objects.requireNonNull(groupResponse))
-						// factory to create a new collection response
-						.collectionPageFactory(GroupCollectionResponse::createFromDiscriminatorValue)
-						// callback executed for each item in the collection
-						.processPageItemCallback( group -> {
-							groups.add(group);
-							return true;
-						}).build();
-
-		pageIterator.iterate();
-
-		log.info("Found " +  groups.size() + " total groups in Azure");
-		List<Group> filteredGroups = groups.stream().filter(g -> g.getDescription() != null && g.getDescription().contains(configuration.getIntegrations().getEntraID().getRoleCatalogKey())).toList();
-		log.info(filteredGroups.size() + " of those groups are RC groups");
-
+        log.info("Found {} total groups in Azure", allGroups.size());
+		List<Group> filteredGroups = allGroups.stream().filter(g -> g.getDescription() != null && g.getDescription().contains(configuration.getIntegrations().getEntraID().getRoleCatalogKey())).toList();
+        log.info("{} of those groups are RC groups", filteredGroups.size());
 		return filteredGroups;
 	}
 
 	public List<User> getAllAzureUsers() throws ReflectiveOperationException {
-		ArrayList<User> users = new ArrayList<>();
-
-		UserCollectionResponse userResponse = graphClient.users().get( requestConfiguration -> {
-			requestConfiguration.queryParameters.select = new String[] {"id, mailNickname"};
-		});
-
-		PageIterator<User, UserCollectionResponse> pageIterator =
-				new PageIterator.Builder<User, UserCollectionResponse>()
-						.client(graphClient)
-						// response from the first request
-						.collectionPage(Objects.requireNonNull(userResponse))
-						// factory to create a new collection response
-						.collectionPageFactory(UserCollectionResponse::createFromDiscriminatorValue)
-						// used to configure subsequent requests
-						.requestConfigurator( requestInfo -> {
-							// re-add the query parameters to subsequent requests
-							requestInfo.addQueryParameter("%24select", new String[] {"id, mailNickname"});
-							return requestInfo;
-						})
-						// callback executed for each item in the collection
-						.processPageItemCallback( user -> {
-							users.add(user);
-							return true;
-						}).build();
-
-		pageIterator.iterate();
-		return users;
+		return iterateResource(UserCollectionResponse::createFromDiscriminatorValue,
+				() -> graphClient.users().get( requestConfiguration -> {
+                    assert requestConfiguration.queryParameters != null;
+                    requestConfiguration.queryParameters.select = new String[] {"id, mailNickname"};
+				}),
+				requestInfo -> {
+					log.debug("Preparing to get next user page");
+					// re-add the query parameters to subsequent requests
+					requestInfo.addQueryParameter("%24select", new String[] {"id, mailNickname"});
+					return requestInfo;
+				});
 	}
 
 	public Long findItSystemIdForGroup(Group group) {
@@ -462,5 +454,31 @@ public class EntraIDService {
 
 		log.warn("Failed to find it-system id for EntraID group with name: " + group.getDisplayName() + ". Will not sync group to RC");
 		return null;
+	}
+
+	/**
+	 * Paginate through a resource, and return a list containing all the results
+	 */
+	private <T extends Parsable, R extends Parsable & AdditionalDataHolder> List<T> iterateResource(
+			final ParsableFactory<R> collectionPageFactory,
+			final Supplier<R> firstRequest,
+			final Function<RequestInformation, RequestInformation> requestConfigurator
+			) throws ReflectiveOperationException {
+		final List<T> resources = new ArrayList<>();
+		final PageIterator<T, R> pageIterator = new PageIterator.Builder<T, R>()
+				.client(graphClient)
+				// response from the first request
+				.collectionPage(Objects.requireNonNull(firstRequest.get()))
+				// factory to create a new collection response
+				.collectionPageFactory(collectionPageFactory)
+				// used to configure subsequent requests
+				.requestConfigurator(requestConfigurator::apply)
+				// callback executed for each item in the collection
+				.processPageItemCallback(entity -> {
+					resources.add(entity);
+					return true;
+				}).build();
+		pageIterator.iterate();
+		return resources;
 	}
 }

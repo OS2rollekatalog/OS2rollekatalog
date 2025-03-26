@@ -1,6 +1,7 @@
 package dk.digitalidentity.rc.dao.model;
 
-import jakarta.persistence.CascadeType;
+import java.util.List;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
@@ -12,8 +13,6 @@ import jakarta.persistence.JoinTable;
 import jakarta.persistence.OneToMany;
 import lombok.Getter;
 import lombok.Setter;
-
-import java.util.List;
 
 @Entity
 @Getter
@@ -62,7 +61,7 @@ public class ReportTemplate {
 	@Column
 	private String itsystemFilter;
 
-	@OneToMany(cascade = CascadeType.ALL, fetch = FetchType.EAGER)
+	@OneToMany(fetch = FetchType.EAGER)
 	@JoinTable(name = "report_template_user", joinColumns = { @JoinColumn(name = "template_id") }, inverseJoinColumns = { @JoinColumn(name = "user_uuid") })
 	private List<User> users;
 }

@@ -20,7 +20,7 @@ public class EntraIDlMembershipSyncTask {
 	private EntraIDService entraIDService;
 
 	// every five minutes at minute 02
-	@Scheduled(cron = "0 0/5 * * * ?")
+	@Scheduled(cron = "${rc.integrations.entraID.membershipSyncTask.cron}")
 	public void sync() {
 		if (!configuration.getScheduled().isEnabled()) {
 			log.debug("Scheduled jobs are disabled on this instance");

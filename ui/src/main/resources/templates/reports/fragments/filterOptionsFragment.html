@@ -18,7 +18,7 @@
 
         <div class="form-group" id="itsystemToggle" style="display: none;">
             <div class="col-sm-offset-3 col-sm-8">
-                <select id="itSystemSelectPicker" th:field="${reportForm.itSystems}" class="selectpicker form-control" multiple="multiple" data-lang="da_DK" title="Ingen it-systemer er valgt">
+                <select id="itSystemSelectPicker" th:field="${reportForm.itSystems}" class="selectpicker form-control" multiple="multiple" data-lang="da_DK" data-dropup-auto="false" title="Ingen it-systemer er valgt">
                     <option th:each="itSystem : ${allItSystems}" th:value="${itSystem.itSystemId}" th:text="${itSystem.itSystemName}">
                     </option>
                 </select>

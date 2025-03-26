@@ -4,7 +4,7 @@
 #define AppId "{{d438b389-0f50-4b9e-8311-6e9f81774587}"
 #define AppSourceDir "..\ADSyncService\bin\Debug\"
 #define AppName "ADSyncService"
-#define AppVersion "2.4.2"
+#define AppVersion "2.4.3"
 #define AppPublisher "Digital Identity"
 #define AppURL "http://digital-identity.dk/"
 #define AppExeName "ADSyncService.exe"
@@ -34,6 +34,7 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 Source: "*.exe"; DestDir: "{app}"; Flags: "ignoreversion";
 Source: "*.txt"; DestDir: "{app}"; Flags: "ignoreversion";
 Source: "*.dll"; DestDir: "{app}"; Flags: "ignoreversion";
+Source: "runtimes\win-x86\native\*.dll"; DestDir: "{app}"; Flags: "ignoreversion";
 Source: "*.pdb"; DestDir: "{app}"; Flags: "ignoreversion";
 Source: "Log.config"; DestDir: "{app}"; Flags: "ignoreversion onlyifdoesntexist";
 Source: "ADSyncService.exe.config"; DestDir: "{app}"; Flags: "ignoreversion onlyifdoesntexist";

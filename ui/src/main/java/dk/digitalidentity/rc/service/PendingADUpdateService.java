@@ -12,6 +12,7 @@ import dk.digitalidentity.rc.dao.model.RoleGroup;
 import dk.digitalidentity.rc.dao.model.SystemRole;
 import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserRole;
+import dk.digitalidentity.rc.dao.model.enums.ADGroupType;
 import dk.digitalidentity.rc.dao.model.enums.ItSystemType;
 import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -47,6 +48,22 @@ public class PendingADUpdateService {
 	
 	public PendingADGroupOperation save(PendingADGroupOperation operation) {
 		return pendingADGroupOperationDao.save(operation);
+	}
+
+	public void addSystemRole(final SystemRole systemRole, final ADGroupType adGroupType, final boolean universal) {
+		if (systemRole.getItSystem().getSystemType().equals(ItSystemType.AD) && !adGroupType.equals(ADGroupType.NONE)) {
+			PendingADGroupOperation operation = new PendingADGroupOperation();
+			operation.setActive(true);
+			operation.setItSystemIdentifier(systemRole.getItSystem().getIdentifier());
+			operation.setSystemRoleId(systemRole.getId());
+			operation.setSystemRoleIdentifier(systemRole.getIdentifier());
+			operation.setTimestamp(new Date());
+			operation.setAdGroupType(adGroupType);
+			operation.setUniversal(universal);
+			operation.setDomain(systemRole.getItSystem().getDomain());
+
+			save(operation);
+		}
 	}
 
 	// we always add to queue, duplicates are dealt with elsewhere

@@ -29,6 +29,7 @@ import dk.digitalidentity.rc.security.SecurityUtil;
 import dk.digitalidentity.rc.service.KleService;
 import dk.digitalidentity.rc.service.OrgUnitService;
 import dk.digitalidentity.rc.service.RoleGroupService;
+import dk.digitalidentity.rc.service.TitleService;
 import dk.digitalidentity.rc.service.UserRoleService;
 import dk.digitalidentity.rc.service.UserService;
 import dk.digitalidentity.rc.service.model.AssignedThrough;
@@ -75,6 +76,9 @@ public class OrgUnitController {
 
     @Autowired
     private RoleCatalogueConfiguration configuration;
+
+	@Autowired
+	private TitleService titleService;
 
     @Value("#{servletContext.contextPath}")
     private String servletContextPath;
@@ -168,14 +172,14 @@ public class OrgUnitController {
 			}
 
 			model.addAttribute("titles", titleForms);
+
+			List<TitleListForm> allTitles = titleService.getAll().stream().map(title -> new TitleListForm(title, false)).toList();
+			model.addAttribute("allTitles", allTitles);
 		}
 		else {
 			model.addAttribute("titles", null);
 		}
 		model.addAttribute("titlesEnabled", titlesEnabled);
-
-		List<TitleListForm> negativeTiltes = orgUnitService.getAllTitles().stream().map(title -> new TitleListForm(title, false)).toList();
-		model.addAttribute("negativeTitles", negativeTiltes);
 
 		return "ous/manage";
 	}

@@ -28,6 +28,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
@@ -227,7 +228,10 @@ public class UserAssignmentsUpdaterJdbc {
                 && context.isRoleAssignmentAttestationByAttestationResponsible();
         final String responsibleOu = getResponsibleOuUuid(historyRoleAssignment.getOrgUnitUuid(), historyRoleAssignment.getUserUuid(),
                 context.isManager(), itSystemResponsible);
-        return AttestationUserRoleAssignment.builder()
+		final LocalDate assignedFrom = historyRoleAssignment.getAssignedWhen() != null
+			? historyRoleAssignment.getAssignedWhen().toInstant().atZone(ZoneId.systemDefault()).toLocalDate()
+			: null;
+		return AttestationUserRoleAssignment.builder()
                 .itSystemId(itSystem.getItSystemId())
                 .itSystemName(itSystem.getItSystemName())
                 .userUuid(historyRoleAssignment.getUserUuid())
@@ -252,6 +256,7 @@ public class UserAssignmentsUpdaterJdbc {
                 .roleOuUuid(context.ouUuid())
                 .roleOuName(context.ouName())
                 .postponedConstraints(historyRoleAssignment.getPostponedConstraints())
+                .assignedFrom(assignedFrom)
                 .build();
     }
 
@@ -308,6 +313,9 @@ public class UserAssignmentsUpdaterJdbc {
                             .extraSensitiveRole(context.isRoleExtraSensitive())
                             .roleOuUuid(context.ouUuid())
                             .roleOuName(context.ouName())
+                            .assignedFrom(assignment.getAssignedWhen().toInstant()
+                                    .atZone(ZoneId.systemDefault())
+                                    .toLocalDate())
                             .build();
                 })
                 .filter(Objects::nonNull)
@@ -367,6 +375,9 @@ public class UserAssignmentsUpdaterJdbc {
                             .extraSensitiveRole(context.isRoleExtraSensitive())
                             .roleOuUuid(context.ouUuid())
                             .roleOuName(context.ouName())
+                            .assignedFrom(assignment.getAssignedWhen().toInstant()
+                                    .atZone(ZoneId.systemDefault())
+                                    .toLocalDate())
                             .build();
                 })
                 .collect(Collectors.toList());
@@ -424,6 +435,9 @@ public class UserAssignmentsUpdaterJdbc {
                             .extraSensitiveRole(context.isRoleExtraSensitive())
                             .roleOuUuid(context.ouUuid())
                             .roleOuName(context.ouName())
+                            .assignedFrom(assignment.getAssignedWhen().toInstant()
+                                    .atZone(ZoneId.systemDefault())
+                                    .toLocalDate())
                             .build();
                 })
                 .collect(Collectors.toList());
@@ -479,6 +493,9 @@ public class UserAssignmentsUpdaterJdbc {
                             .extraSensitiveRole(context.isRoleExtraSensitive())
                             .roleOuUuid(context.ouUuid())
                             .roleOuName(context.ouName())
+                            .assignedFrom(assignment.getAssignedWhen().toInstant()
+                                    .atZone(ZoneId.systemDefault())
+                                    .toLocalDate())
                             .build();
                 })
                 .toList();

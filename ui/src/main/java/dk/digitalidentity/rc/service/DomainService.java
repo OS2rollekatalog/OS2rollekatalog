@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
 import java.util.List;
+import java.util.Optional;
 
 @Slf4j
 @Service
@@ -23,6 +24,10 @@ public class DomainService {
 		}
 		
 		return primary;
+	}
+
+	public Optional<Domain> getDomainOrPrimaryOptional(String name) {
+		return Optional.ofNullable(getDomainOrPrimary(name));
 	}
 
 	public Domain getDomainOrPrimary(String name) {

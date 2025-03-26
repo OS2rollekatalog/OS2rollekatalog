@@ -6,7 +6,6 @@ import dk.digitalidentity.rc.controller.api.mapper.RoleMapper;
 import dk.digitalidentity.rc.controller.api.mapper.UserMapper;
 import dk.digitalidentity.rc.controller.api.model.ExceptionResponseAM;
 import dk.digitalidentity.rc.controller.api.model.SystemRoleAssignmentAM;
-import dk.digitalidentity.rc.controller.api.model.SystemRoleAssignmentConstraintValueAM;
 import dk.digitalidentity.rc.controller.api.model.UserAM2;
 import dk.digitalidentity.rc.controller.api.model.UserRoleAM;
 import dk.digitalidentity.rc.dao.model.ConstraintType;
@@ -24,6 +23,7 @@ import dk.digitalidentity.rc.service.ItSystemService;
 import dk.digitalidentity.rc.service.SystemRoleService;
 import dk.digitalidentity.rc.service.UserRoleService;
 import dk.digitalidentity.rc.service.UserService;
+import dk.digitalidentity.rc.service.model.RoleAssignmentType;
 import dk.digitalidentity.rc.service.model.UserWithRole;
 import dk.digitalidentity.rc.util.IdentifierGenerator;
 import io.swagger.v3.oas.annotations.Operation;
@@ -53,7 +53,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
 import java.util.HashSet;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -85,7 +84,7 @@ public class UserRoleApiV2 {
 		List<UserRoleAM> result = new ArrayList<>();
 		List<UserRole> userRoles = userRoleService.getAll();
 		for (UserRole userRole : userRoles) {
-			result.add(RoleMapper.toApi(userRole));
+			result.add(RoleMapper.userRoleToApi(userRole));
 		}
 		return new ResponseEntity<>(result,HttpStatus.OK);
 	}
@@ -102,7 +101,7 @@ public class UserRoleApiV2 {
 	public ResponseEntity<UserRoleAM> getUserRole(@Parameter(description = "The unique ID for userrole.", example="1", required = true) @PathVariable("id") long id) {
 		final UserRole userRole = userRoleService.getOptionalById(id)
 				.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
-		return new ResponseEntity<>(RoleMapper.toApi(userRole),HttpStatus.OK);
+		return new ResponseEntity<>(RoleMapper.userRoleToApi(userRole),HttpStatus.OK);
 	}
 	
 	@ApiResponses(value = {
@@ -194,7 +193,7 @@ public class UserRoleApiV2 {
 		target.setItSystem(itSystem);
 		final UserRole userRole = setUserRoleProperties(userRoleDTO, itSystem, target);
 		final UserRole result = userRoleService.save(userRole);
-		return new ResponseEntity<>(RoleMapper.toApi(result), HttpStatus.CREATED);
+		return new ResponseEntity<>(RoleMapper.userRoleToApi(result), HttpStatus.CREATED);
 	}
 
 	private void validateUserRoleRequest(final ItSystem itSystem, final UserRoleAM userRoleDTO) {

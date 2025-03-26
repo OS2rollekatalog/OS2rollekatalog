@@ -2,7 +2,6 @@ package dk.digitalidentity.rc.service;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -71,15 +70,17 @@ public class ReportService {
 			List<HistoryItSystem> itSystems,
 			Map<String, List<HistoryRoleAssignment>> userRoleAssignments,
 			Map<String, List<HistoryOURoleAssignment>> ouRoleAssignments,
+			Map<String, List<HistoryOURoleAssignmentWithNegativeTitles>> negativeOuRoleAssignments,
 			Map<String, List<HistoryOURoleAssignmentWithExceptions>> ouRoleAssignmentsWithExceptions,
 			Map<String, List<HistoryOURoleAssignmentWithTitles>> titleRoleAssignments,
 			Map<Long, String> itSystemNameMapping,
 			Locale locale,
 			boolean showInactiveUsers,
 			boolean onlyResponsibleOU) {
-        
 		List<UserRoleAssignmentReportEntry> result = new ArrayList<>();
-		
+		// Add all assignment based on negative title ou assignmnets
+		result.addAll(getNegativeUserRoleAssignmentReportEntries(users, orgUnits, itSystems, negativeOuRoleAssignments, locale, showInactiveUsers, false));
+
         for (Map.Entry<String, List<HistoryRoleAssignment>> entry : userRoleAssignments.entrySet()) {
 			HistoryUser user = users.get(entry.getKey());
 
@@ -193,7 +194,7 @@ public class ReportService {
 	
 	                    String assignedBy = roleAssignment.getAssignedByName() + " (" + roleAssignment.getAssignedByUserId() + ")";
 	                    	                    
-	                    String assignedThroughStr = messageSource.getMessage("xls.role.assigned.trough.type.title", null, locale) + ": " + ou.getOuName();
+	                    String assignedThroughStr = messageSource.getMessage("xls.role.assigned.trough.type.title", null, locale) + ": " + ((roleAssignment.getAssignedThroughName() != null) ? roleAssignment.getAssignedThroughName() : ou.getOuName());
 
 	                    UserRoleAssignmentReportEntry row = new UserRoleAssignmentReportEntry();
 						row.setDomainId(domainId);
@@ -270,7 +271,7 @@ public class ReportService {
                 }
             }
         }
-        
+		ReportSystemRoleWeightService.addSystemRoleWeights(itSystems, result);
         return result;
 	}
 
@@ -280,7 +281,8 @@ public class ReportService {
 			List<HistoryItSystem> itSystems,
 			Map<String, List<HistoryOURoleAssignmentWithNegativeTitles>> negativeTitleRoleAssignments,
 			Locale locale,
-			boolean showInactiveUsers) {
+			boolean showInactiveUsers,
+			boolean notAssignedRows) {
 
 		List<UserRoleAssignmentReportEntry> result = new ArrayList<>();
 
@@ -291,13 +293,10 @@ public class ReportService {
 				continue;
 			}
 
-			List<HistoryOURoleAssignmentWithNegativeTitles> negativeAssignmentsForOU = negativeAssignments.stream().filter(nt -> uuidOfUnitAndParents(ou, LocalDate.now()).contains(nt.getOuUuid())).toList();
-			if(negativeAssignmentsForOU == null) {
-				continue;
-			}
-			else if (negativeAssignmentsForOU.isEmpty()) {
-				continue;
-			}
+			List<HistoryOURoleAssignmentWithNegativeTitles> negativeAssignmentsForOU = negativeAssignments.stream().filter(nt -> nt.getOuUuid().equals(ou.getOuUuid())).toList();
+            if (negativeAssignmentsForOU.isEmpty()) {
+                continue;
+            }
 
 			for (HistoryOUUser historyOuUser : ou.getUsers()) {
 				HistoryUser user = users.get(historyOuUser.getUserUuid());
@@ -318,11 +317,16 @@ public class ReportService {
 				List<HistoryOURoleAssignmentWithNegativeTitles> userNegativeTitleAssignments = null;
 				String titleUuid = historyOuUser.getTitleUuid();
 				if (titleUuid != null) {
-					userNegativeTitleAssignments = negativeAssignmentsForOU;
-					if (!userNegativeTitleAssignments.isEmpty()) {
-						userNegativeTitleAssignments = userNegativeTitleAssignments.stream().filter(t -> !t.getTitleUuids().contains(historyOuUser.getTitleUuid())).toList();
-					}
-				}
+                    userNegativeTitleAssignments = negativeAssignmentsForOU.stream()
+                            .filter(t -> {
+                                boolean contained = t.getTitleUuids().contains(historyOuUser.getTitleUuid());
+                                if (notAssignedRows) {
+                                    return contained;
+                                } else
+                                    return !contained;
+                            })
+                            .toList();
+                }
 
 				// ok, time to generate records
 				long domainId = user.getDomainId();

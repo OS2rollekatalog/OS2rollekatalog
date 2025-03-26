@@ -14,6 +14,7 @@ import jakarta.servlet.ServletResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -101,6 +102,7 @@ public class  ApiSecurityFilter implements Filter {
 			if (clientChanged) {
 				Client clientFromDb = clientService.getClientById(client.getId());
 				clientFromDb.setTlsVersion(client.getTlsVersion());
+				clientFromDb.setVersion(client.getVersion());
 				clientService.save(clientFromDb);
 			}
 			
@@ -113,7 +115,8 @@ public class  ApiSecurityFilter implements Filter {
 	}
 
 	private static void unauthorized(HttpServletResponse response, String message, String authHeader) throws IOException {
-		log.warn(message + " (authHeader = " + authHeader + ")");
+		final String shortenedApiKey = StringUtils.substring(authHeader, 0, Math.min(4, authHeader.length())) + ".....";
+        log.warn("{} (authHeader = {})", message, shortenedApiKey);
 		response.sendError(401, message);
 	}
 

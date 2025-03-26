@@ -1,4 +1,5 @@
 ﻿using ADSyncService.Email;
+using Microsoft.Graph.Models;
 using System;
 using System.Collections.Generic;
 using System.DirectoryServices;
@@ -27,8 +28,7 @@ namespace ADSyncService
                 {
                     if (group == null)
                     {
-                        log.Error("Group does not exist: " + groupId);
-                        emailService.EnqueueMail("Group does not exist: " + groupId);
+                        log.Warn("Group does not exist: " + groupId);
                         return null;
                     }
                     else
@@ -38,7 +38,7 @@ namespace ADSyncService
                         {
                             foreach (Principal member in groupMembers)
                             {
-                                if (member is GroupPrincipal)
+                                if (!(member is UserPrincipal))
                                 {
                                     continue;
                                 }
@@ -112,7 +112,7 @@ namespace ADSyncService
                 }
             }
 
-            return dir.Properties["Name"].Value as string;
+            return dir.Properties["name"].Value as string;
         }
 
         public void UpdateAttribute(string userId, string attributeName, string attributeValue)
@@ -352,5 +352,28 @@ namespace ADSyncService
                 return false;
             }
         }
+
+        public DateTime? GetGroupLastUpdated(string groupId)
+        {
+            using (PrincipalContext context = new PrincipalContext(ContextType.Domain))
+            {
+                using (GroupPrincipal group = GroupPrincipal.FindByIdentity(context, groupId))
+                {
+                    if (group == null)
+                    {
+                        log.Debug("Failed to get whenchanged. Group does not exist: " + groupId);
+                        return null;
+                    }
+                    else
+                    {
+                        using (DirectoryEntry directoryEntry = (DirectoryEntry)group.GetUnderlyingObject())
+                        {
+                            return (DateTime?)directoryEntry.Properties["whenchanged"].Value;
+                        }
+                    }
+                }
+            }
+        }
+
     }
 }

@@ -5,6 +5,7 @@ import dk.digitalidentity.rc.attestation.model.AttestationRunMapper;
 import dk.digitalidentity.rc.attestation.model.dto.AdminAttestationDetailsDTO;
 import dk.digitalidentity.rc.attestation.model.dto.AttestationOverviewDTO;
 import dk.digitalidentity.rc.attestation.model.dto.AttestationRunDTO;
+import dk.digitalidentity.rc.attestation.model.dto.AttestationRunView;
 import dk.digitalidentity.rc.attestation.model.dto.enums.AdminAttestationStatus;
 import dk.digitalidentity.rc.attestation.model.dto.enums.AttestationAdminColor;
 import dk.digitalidentity.rc.attestation.model.entity.Attestation;
@@ -54,10 +55,26 @@ public class AttestationAdminController {
         if (user == null) {
             return "attestationmodule/error";
         }
-        final List<AttestationRunDTO> attestationRuns = manualTransactionService.doInReadOnlyTransaction(() ->
-                runMapper.toRunDTOList(attestationAdminService.findNewestRuns(4)));
-        model.addAttribute("attestationRuns", attestationRuns);
+        List<AttestationRunView> simpleAttestationRuns = attestationAdminService.findIdsOfLatestRuns(4);
+        model.addAttribute("simpleAttestationRuns", simpleAttestationRuns);
         return "attestationmodule/admin/index";
+    }
+
+    @Transactional
+    @GetMapping(value = "/ui/attestation/v2/admin/run/{id}")
+    @Timed("attestation.controller.mvc.attestation_admin_controller.index.timer")
+    public String indexTabContent(final Model model, @PathVariable long id) {
+        User user = userService.getByUserId(SecurityUtil.getUserId());
+        if (user == null) {
+            return "attestationmodule/error";
+        }
+
+        AttestationRun attestationRun = attestationRunService.getRun(id)
+                .orElseThrow();
+        final AttestationRunDTO attestationRunDTO = manualTransactionService.doInReadOnlyTransaction(() ->
+                runMapper.toRunDTO(attestationRun));
+        model.addAttribute("attestationRun", attestationRunDTO);
+        return "attestationmodule/admin/index_tabcontent_fragment :: index_tabcontent";
     }
 
     @Transactional

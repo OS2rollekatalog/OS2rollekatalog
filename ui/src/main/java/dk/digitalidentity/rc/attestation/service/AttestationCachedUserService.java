@@ -52,6 +52,15 @@ public class AttestationCachedUserService {
                 .orElse("ukendt");
     }
 
+    @Cacheable(value = CACHE_PREFIX + "UserPrimaryPosition")
+    public Boolean hasPrimaryPositionIn(final String userUuid, final String ouUuid) {
+        return userDao.findByUuid(userUuid)
+                .map(u -> u.getPositions().stream()
+                    .filter(p -> p.getOrgUnit() != null && p.getOrgUnit().getEntityId() != null && p.getOrgUnit().getEntityId().equals(ouUuid))
+                    .anyMatch(Position::isPrimary))
+                .orElse(false);
+    }
+
     /**
      * Note cache are cleared on a schedule by {@link dk.digitalidentity.rc.attestation.task.AttestationCacheTTLTask}
      */

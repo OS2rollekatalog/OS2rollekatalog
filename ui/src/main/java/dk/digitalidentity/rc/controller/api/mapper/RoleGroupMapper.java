@@ -1,7 +1,7 @@
 package dk.digitalidentity.rc.controller.api.mapper;
 
 import dk.digitalidentity.rc.controller.api.model.RoleGroupAM;
-import dk.digitalidentity.rc.controller.api.model.UserRoleAssignmentAM;
+import dk.digitalidentity.rc.controller.api.model.UserRoleGroupAssignmentAM;
 import dk.digitalidentity.rc.dao.model.RoleGroup;
 
 import java.util.Collections;
@@ -18,7 +18,7 @@ public abstract class RoleGroupMapper {
                 .canRequest(roleGroup.isCanRequest())
                 .userRoles(roleGroup.getUserRoleAssignments() != null
                         ? roleGroup.getUserRoleAssignments().stream()
-                        .map(a -> UserRoleAssignmentAM.builder()
+                        .map(a -> UserRoleGroupAssignmentAM.builder()
                                 .userRoleId(a.getUserRole().getId())
                                 .assignedByUserId(a.getAssignedByUserId())
                                 .assignedByName(a.getAssignedByName())

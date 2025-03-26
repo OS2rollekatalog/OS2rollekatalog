@@ -138,6 +138,10 @@ public class SettingsService {
 	/// helper methods
 
 	private void createOrUpdateSetting(Settings settingEnum, String value) {
+		createOrUpdateSetting(settingEnum, value, true);
+	}
+
+	private void createOrUpdateSetting(Settings settingEnum, String value, final boolean auditLog) {
 		Setting setting = settingsDao.findByKey(settingEnum.getKey());
 		if (setting == null) {
 			setting = new Setting();
@@ -151,12 +155,15 @@ public class SettingsService {
 		if (changed) {
 			//Enrich orgUnit uuid so it looks better in auditlog page
 			if (Objects.equals(settingEnum, Settings.SETTING_SCHEDULED_ATTESTATION_EXCEPTED_ORG_UNITS) && value != null) {
-					value = Arrays.asList(value.split(",")).stream().map(uuid -> orgUnitService.getByUuid(uuid)).filter(Objects::nonNull).map(ou -> ou.getName()).collect(Collectors.joining(","));
+					value = Arrays.asList(value.split(",")).stream()
+							.map(uuid -> orgUnitService.getByUuid(uuid)).filter(Objects::nonNull)
+							.map(ou -> ou.getName()).collect(Collectors.joining(","));
 			}
-
-			AuditLogContextHolder.getContext().addArgument("Ny værdi", value);
-			auditLogger.logSetting(setting, null, null, getPrettyName(settingEnum));
-			AuditLogContextHolder.clearContext();
+			if (auditLog) {
+				AuditLogContextHolder.getContext().addArgument("Ny værdi", value);
+				auditLogger.logSetting(setting, null, null, getPrettyName(settingEnum));
+				AuditLogContextHolder.clearContext();
+			}
 		}
 	}
 
@@ -254,7 +261,7 @@ public class SettingsService {
 	public void setScheduledAttestationLastRun(Date date) {
 		SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd");
 		String dateString = format.format(date);
-		createOrUpdateSetting(Settings.SETTING_SCHEDULED_ATTESTATION_LAST_RUN, dateString);
+		createOrUpdateSetting(Settings.SETTING_SCHEDULED_ATTESTATION_LAST_RUN, dateString, false);
 	}
 
 	public String getItSystemChangeEmail() {

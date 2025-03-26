@@ -123,7 +123,7 @@ public class AttestationTask {
                 throw new AttestationDataUpdaterException("Cannot update attestation more than once pr. day");
             }
 
-            //if flyway installRank is strictly greather than the last recorded installedRank in settings,
+            //if flyway installRank is strictly greater than the last recorded installedRank in settings,
             // it updates all the ou hash values but not any other values.
             MigrationInfo[] version = flyway.info().applied();
             if(version.length > 0 && version[version.length-1].getInstalledRank() > settingsService.getCurrentInstalledRank()) {

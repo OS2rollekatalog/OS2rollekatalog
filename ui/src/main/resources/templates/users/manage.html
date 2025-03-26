@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html>
+<html xmlns:th="http://www.thymeleaf.org">>
 <head th:replace="~{fragments/header :: header (title=#{html.page.users.manage.title})}"></head>
 <body class="layout-fixed">
 	<div class="wrapper">
@@ -170,7 +170,7 @@
 	<script th:replace="~{users/fragments/user_role_group_modal :: userRoleGroupModalScript(listTable='listTable2', page='user')}"></script>
 	<script th:replace="~{users/fragments/assign_user_role_postponed_data_constraints :: postponedConstraintsScript}"></script>
 	<script th:replace="~{request_approve/fragments/request_modal :: requestRoleModalScript}"></script>
-
+	<script th:src="@{/js/service/DatatableService.js}"></script>
 	<script th:inline="javascript">
 		/*<![CDATA[*/
 		
@@ -202,6 +202,7 @@
 		var reqRedirectUri = [[@{/ui/my/requests}]];
 
 		var baseUrl = [[@{/}]];
+		let datatableService ;
 
 		+]*/
 		var token = $("meta[name='_csrf']").attr("content");
@@ -212,6 +213,8 @@
 		modalGroups = $("#modal-groups");
 
 		$(document).ready(function () {
+			datatableService = new DatatableService()
+
 			$('#stamdataLink').on('click', function () {
 				$('#caretIcon').toggleClass('fa-caret-right');
 				$('#caretIcon').toggleClass('fa-caret-down');
@@ -245,20 +248,60 @@
 			this.loadRolesFragment = function () {
 				$("#roles_menu").load(UIUrl + user + "/roles", function () {
 					hideColumn = [1,5];
-					currentTable = showDataTableWithHiddenColumns('#listTable', 0, hideColumn, 100);
+					currentTable = showDataTableWithHiddenColumns('#listTable', 0, hideColumn, 100, "user_manage_list_of_roles");
 					dataTablesRefreshIcons($('#dataTableDropdown'));
 				});
 			}
 
-			this.loadAddUserRoleFragment = function () {
-				$("#roles_menu").load(UIUrl + user + "/addUserRole", function () {
-					fragShowDataTableFun('#listTable_u_ur', 0, 100);
-				});
-			}
+		this.loadAddUserRoleFragment = function () {
+			$("#roles_menu").load(UIUrl + user + "/addUserRole", function () {
+				// fragShowDataTableFun('#listTable_u_ur', 0, 100, "user_manage_add_user_role_table");
+
+				const columnDefOptions = [
+					{
+						targets: [0],
+						data: 'name',
+						render: (data, type, row, meta) => {
+							if (type === 'display') {
+								let html = '<div>'
+								html += '<div>'
+								html += `<span>${data}</span>`
+								html += '</div>'
+								html += row.alreadyAssigned ? `<div style="font-size: smaller; color: red;">Tildelt</div>` : ''
+								html += '</div>'
+								return html
+							} else { return data; }
+						}
+					},
+					{
+						targets: [1],
+						data: 'itSystem.name',
+					},
+					{
+						targets: [2],
+						data: 'description',
+					},
+					{
+						targets: [3],
+						data: 'id',
+						orderable: false,
+						searchable:false,
+						sortable:false,
+						render: (data, type, row, meta) => {
+							return data ? `<a href="#" onclick="rolesService.addUserRole(this)" data-roleid="${data}" data-systemType=${row.itSystem.systemType}"><em class="fa fa-plus"></em></a>` : null;
+						},
+					}
+
+				]
+
+				const table = new DatatableService().initDefaultServersideTable('#listTable_u_ur', `${restUrl}${user}/available`, columnDefOptions)
+			});
+		}
+
 
 			this.loadAddRoleGroupFragment = function () {
 				$("#roles_menu").load(UIUrl + user + "/addRoleGroup", function () {
-					fragShowDataTableFun('#listTable_u_rg', 0, 100);
+					fragShowDataTableFun('#listTable_u_rg', 0, 100, "user_manage_add_role_group_table");
 				});
 			}
 

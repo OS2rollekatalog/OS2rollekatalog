@@ -372,20 +372,7 @@ public class ItSystemController {
 		}
 
 		systemRole = systemRoleService.save(systemRole);
-
-		if (systemRole.getItSystem().getSystemType().equals(ItSystemType.AD) && !systemRoleForm.getAdGroupType().equals(ADGroupType.NONE)) {
-			PendingADGroupOperation operation = new PendingADGroupOperation();
-			operation.setActive(true);
-			operation.setItSystemIdentifier(systemRole.getItSystem().getIdentifier());
-			operation.setSystemRoleId(systemRole.getId());
-			operation.setSystemRoleIdentifier(systemRole.getIdentifier());
-			operation.setTimestamp(new Date());
-			operation.setAdGroupType(systemRoleForm.getAdGroupType());
-			operation.setUniversal(systemRoleForm.isUniversal());
-			operation.setDomain(systemRole.getItSystem().getDomain());
-
-			pendingADUpdateService.save(operation);
-		}
+		pendingADUpdateService.addSystemRole(systemRole, systemRoleForm.getAdGroupType(), systemRoleForm.isUniversal());
 
 		return "redirect:";
 	}

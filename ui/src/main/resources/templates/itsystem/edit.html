@@ -726,7 +726,7 @@
 							</div>
 						</fieldset>
 						
-						<fieldset>
+						<fieldset id="createanduniversalfieldset">
 							<div class="form-group">
 								<label class="col-sm-3 control-label" th:text="#{html.entity.adgroup.create}"></label>
 								<div class="col-sm-9">
@@ -1191,6 +1191,7 @@
 							status: 'success',
 							autoHideDelay: 2000
 						});
+						setTimeout( ()=> location.reload(), 1000)
 					}
 				});
 			}
@@ -1482,7 +1483,7 @@
 
 			$("#adGroupType").val("NONE");
 			$("#universalFieldSet").hide();
-			
+
 			$("#adSystemRoleName").focus();
 		}
 		
@@ -1510,11 +1511,11 @@
 			$("#adSystemRoleIdentifier").prop("readonly", true);
 			$("#adSystemRoleDescription").val(tds.get(2).innerHTML);
 			$("#adSystemRoleWeight").val(tds.get(4).innerHTML);
+			$("#createanduniversalfieldset").hide();
 
 			$("#modal-ad-systemrole").modal("show");
 			
 			$("#adGroupType").val("NONE");
-			$("#universalFieldSet").hide();
 		}
 		
 		function editSamlRole(roleRow) {
@@ -1624,7 +1625,10 @@
 		}
 		
 		function convertSystemRolesToUserRoles() {
-			$("#modal-convert-systemroles").modal("show");
+			const objReadonly = $("#readonly-checkbox").is(":checked");
+			if (!objReadonly) {
+				$("#modal-convert-systemroles").modal("show");
+			}
 		}
 
 		function handleUserroleChange() {

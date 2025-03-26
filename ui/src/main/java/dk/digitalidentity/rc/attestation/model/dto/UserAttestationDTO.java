@@ -27,4 +27,5 @@ public class UserAttestationDTO {
     private List<UserRoleItSystemDTO> userRolesPrItSystem;
     private List<RoleGroupDTO> doNotVerifyRoleGroups;
     private List<UserRoleItSystemDTO> doNotVerifyUserRolesPrItSystem;
+    private boolean isPrimary;
 }

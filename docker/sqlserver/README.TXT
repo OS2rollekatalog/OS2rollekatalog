@@ -3,4 +3,4 @@ and change the application.properties configuration to use the SQL Server databa
 
 After startup, find the pid of the container and run this against the pid
 
-docker exec -it <pid> /opt/mssql-tools/bin/sqlcmd -S localhost -U SA -P 'Test1234' -Q 'CREATE DATABASE rc'
+docker exec -it <docker-container-id> /opt/mssql-tools18/bin/sqlcmd -C -S localhost -U SA -P 'Test1234' -Q 'CREATE DATABASE rc'

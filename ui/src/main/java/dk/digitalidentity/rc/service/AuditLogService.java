@@ -32,7 +32,16 @@ public class AuditLogService {
 
 		auditLogEntryDao.deleteByTimestampBefore(before);
 	}
-	
+
+	@Transactional
+	public void cleanupExternalLoginAuditlogs() {
+		Calendar cal = Calendar.getInstance();
+		cal.add(Calendar.MONTH, -1);
+		Date before = cal.getTime();
+
+		auditLogEntryDao.deleteLoginExternalByTimestampBefore(before);
+	}
+
 	public Iterable<AuditLogView> downloadAuditLog() {
 		return auditLogViewDao.findAll(Sort.unsorted());
 	}

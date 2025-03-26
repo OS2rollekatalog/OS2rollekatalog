@@ -16,11 +16,14 @@ import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.annotations.BatchSize;
 import org.hibernate.annotations.UpdateTimestamp;
+import org.hibernate.envers.Audited;
+import org.hibernate.envers.NotAudited;
 import org.springframework.util.StringUtils;
 
 import java.util.Date;
 import java.util.List;
 
+@Audited
 @Entity(name = "users")
 @Getter
 @Setter
@@ -63,31 +66,39 @@ public class User implements AuditLoggable {
 	@Column
 	private String nemloginUuid;
 
+	@NotAudited
 	@OneToMany(mappedBy = "user", fetch = FetchType.LAZY, cascade= CascadeType.ALL, orphanRemoval = true)
 	private List<AltAccount> altAccounts;
-	
+
+	@NotAudited
 	@OneToMany(mappedBy = "user", fetch = FetchType.EAGER, cascade = CascadeType.ALL, orphanRemoval = true)
 	private List<Position> positions;
 
+	@NotAudited
 	@OneToMany(mappedBy = "user", fetch = FetchType.LAZY, cascade= CascadeType.ALL, orphanRemoval = true)
 	private List<UserKLEMapping> kles;
 
+	@NotAudited
 	@BatchSize(size = 50)
 	@OneToMany(mappedBy = "user", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
 	private List<UserUserRoleAssignment> userRoleAssignments;
-	
+
+	@NotAudited
 	@BatchSize(size = 50)
 	@OneToMany(mappedBy = "user", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
 	private List<UserRoleGroupAssignment> roleGroupAssignments;
 
+	@NotAudited
 	@ManyToOne(fetch = FetchType.LAZY)
 	@JoinColumn(name = "domain_id")
 	private Domain domain;
-	
+
+	@NotAudited
 	@BatchSize(size = 50)
 	@OneToMany(mappedBy = "manager", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
 	private List<ManagerSubstitute> managerSubstitutes;
 
+	@NotAudited
 	@BatchSize(size = 50)
 	@OneToMany(mappedBy = "substitute", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
 	private List<ManagerSubstitute> substituteFor;

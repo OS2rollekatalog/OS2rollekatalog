@@ -38,7 +38,6 @@ public class OrgUnitUserRoleAssignment {
 	@JoinColumn(name = "ou_uuid")
 	private OrgUnit orgUnit;
 	
-	@BatchSize(size = 50)
 	@ManyToOne(fetch = FetchType.LAZY)
 	@JoinColumn(name = "role_id")
 	private UserRole userRole;

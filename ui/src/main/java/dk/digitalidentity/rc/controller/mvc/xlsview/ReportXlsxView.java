@@ -512,15 +512,39 @@ public class ReportXlsxView extends AbstractXlsxStreamingView {
                 // Creating assigned by
                 String assignedBy = ouRoleAssignment.getAssignedByName() + " (" + ouRoleAssignment.getAssignedByUserId() + ")";
 
-                // Creating Excepted users string
-                StringBuilder exceptionStr = new StringBuilder();
+                // Creating title string
+                StringBuilder titleString = new StringBuilder();
                 for (String titleUuid : ouRoleAssignment.getTitleUuids()) {
-                	if (exceptionStr.length() > 0) {
-                		exceptionStr.append("\n");
+                	if (titleString.length() > 0) {
+                		titleString.append("\n");
                 	}
 
-                    exceptionStr.append(titleMap.containsKey(titleUuid) ? titleMap.get(titleUuid).getTitleName() : titleUuid + "");
+                    titleString.append(titleMap.containsKey(titleUuid) ? titleMap.get(titleUuid).getTitleName() : titleUuid + "");
                 }
+
+				// Creating assigned Through string
+				String assignedThroughStr = "";
+				switch (ouRoleAssignment.getAssignedThroughType()) {
+					case DIRECT:
+						assignedThroughStr = messageSource.getMessage("xls.role.assigned.trough.type.direct", null, locale);
+						break;
+					case ROLEGROUP:
+						assignedThroughStr = messageSource.getMessage("xls.role.assigned.trough.type.direct_group", null, locale);
+						break;
+					case POSITION:
+						assignedThroughStr = messageSource.getMessage("xls.role.assigned.trough.type.position", null, locale);
+						break;
+					case ORGUNIT:
+						assignedThroughStr = messageSource.getMessage("xls.role.assigned.trough.type.orgunit", null, locale);
+						break;
+					case TITLE:
+						assignedThroughStr = messageSource.getMessage("xls.role.assigned.trough.type.title", null, locale);
+						break;
+				}
+
+				if (StringUtils.hasLength(ouRoleAssignment.getAssignedThroughName())) {
+					assignedThroughStr += ": " + ouRoleAssignment.getAssignedThroughName();
+				}
 
                 Row dataRow = sheet.createRow(row++);
                 int column = 0;
@@ -531,9 +555,9 @@ public class ReportXlsxView extends AbstractXlsxStreamingView {
                 createCell(dataRow, column++, assignedBy, null);
                 createCell(dataRow, column++, dateFormatter.format(bestStartDate(ouRoleAssignment.getAssignedWhen(), ouRoleAssignment.getStartDate())), null);
                 createCell(dataRow, column++, formatLocalDateTime(atEndOfDay(ouRoleAssignment.getStopDate())), null);
-                createCell(dataRow, column++, messageSource.getMessage("xls.role.assigned.trough.type.direct", null, locale), null);
+                createCell(dataRow, column++, assignedThroughStr, null);
                 createCell(dataRow, column++, "", null);
-                createCell(dataRow, column++, exceptionStr.toString(), wrapStyle);
+                createCell(dataRow, column++, titleString.toString(), wrapStyle);
             }
         }
     }
@@ -587,6 +611,8 @@ public class ReportXlsxView extends AbstractXlsxStreamingView {
         headers.add("xls.user.active");
         headers.add("xls.role.name");
         headers.add("xls.role.it.system");
+        headers.add("xls.role.it.system_role_weight");
+        headers.add("xls.role.it.weight_result");
         headers.add("xls.role.assigned.by");
         headers.add("xls.role.start_date");
         headers.add("xls.role.stop_date");
@@ -595,7 +621,7 @@ public class ReportXlsxView extends AbstractXlsxStreamingView {
 
         createHeaderRow(sheet, headers);
 
-        List<UserRoleAssignmentReportEntry> userRoleAssignmentReportEntry = reportService.getUserRoleAssignmentReportEntries(users, allOrgUnits, itSystems, userRoleAssignments, ouRoleAssignments, ouRoleAssignmentsWithExceptions, titleRoleAssignments, itSystemNameMapping, locale, showInactiveUsers, true);
+        List<UserRoleAssignmentReportEntry> userRoleAssignmentReportEntry = reportService.getUserRoleAssignmentReportEntries(users, allOrgUnits, itSystems, userRoleAssignments, ouRoleAssignments, negativeRoleAssignments, ouRoleAssignmentsWithExceptions, titleRoleAssignments, itSystemNameMapping, locale, showInactiveUsers, true);
         
         int row = 1;
         for (UserRoleAssignmentReportEntry entry : userRoleAssignmentReportEntry) {
@@ -610,6 +636,8 @@ public class ReportXlsxView extends AbstractXlsxStreamingView {
             createCell(dataRow, column++, entry.isUserActive() ? "aktiv" : "inaktiv", null);
             createCell(dataRow, column++, itSystemNameMapping.get(entry.getRoleId()), null);
             createCell(dataRow, column++, entry.getItSystem(), null);
+            createCell(dataRow, column++, "" + entry.getSystemRoleWeight(), null);
+            createCell(dataRow, column++, "" + entry.getItSystemResultWeight(), null);
             createCell(dataRow, column++, entry.getAssignedBy(), null);
             createCell(dataRow, column++, dateFormatter.format(bestStartDate(entry.getAssignedWhen(), entry.getStartDate())), null);
             createCell(dataRow, column++, formatLocalDateTime(atEndOfDay(entry.getStopDate())), null);
@@ -638,7 +666,7 @@ public class ReportXlsxView extends AbstractXlsxStreamingView {
 
         createHeaderRow(sheet, headers);
 
-        List<UserRoleAssignmentReportEntry> userRoleAssignmentReportEntry = reportService.getNegativeUserRoleAssignmentReportEntries(users, allOrgUnits, itSystems, negativeRoleAssignments, locale, showInactiveUsers);
+        List<UserRoleAssignmentReportEntry> userRoleAssignmentReportEntry = reportService.getNegativeUserRoleAssignmentReportEntries(users, allOrgUnits, itSystems, negativeRoleAssignments, locale, showInactiveUsers, true);
 
         int row = 1;
         for (UserRoleAssignmentReportEntry entry : userRoleAssignmentReportEntry) {

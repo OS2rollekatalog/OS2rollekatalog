@@ -10,28 +10,7 @@
 					<th class="col-md-1" th:text="#{html.control.operations}"></th>
 				</tr>
 			</thead>
-
 			<tbody>
-				<tr th:each="user : ${users}">
-					<td >
-						<div th:text="${user.name}"></div>
-						<div th:if="${#lists.contains(alreadyAssignedUUIDs, user.uuid)}" style="font-size: smaller; color: red;">Tildelt</div>
-					</td>
-					<td th:text="${user.userId}"></td>
-					<td>
-						<ul style="list-style: none;">
-							<li th:each="position : ${user.positions}" th:text="${position.name} + ' i ' + ${position.orgUnit.name}"></li>
-						</ul>
-					</td>
-					<td>
-						<a
-							href="#"
-							onclick="userService.addUserRole(this)"
-							th:attr="data-user=${user.uuid}">
-							<em class="fa fa-plus"></em>
-						</a>
-					</td>
-				</tr>
 			</tbody>
 		</table>
 	</div>

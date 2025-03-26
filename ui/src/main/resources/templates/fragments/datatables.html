@@ -23,8 +23,9 @@
 			fragShowDataTableFun('.listTable', orderColumn);
 		});
 	
-		function fragShowDataTableFun(jqSelector, orderColumn, pagingLength = 100) {
+		function fragShowDataTableFun(jqSelector, orderColumn, pagingLength = 100, stateId = null) {
 		    return $(jqSelector).DataTable({
+		        'destroy': true,
 		        'paging':   true,
 		        'ordering': true,
 		        'order': [
@@ -33,6 +34,16 @@
 		        "autoWidth": false,
 		        'info':     true,
                 'stateSave': true,
+                'stateSaveCallback': function(settings, data) {
+					let defaultKey = "DataTables_" + settings.sTableId + "_" + window.location.pathname;
+					let key = stateId == null ? defaultKey : stateId;
+					localStorage.setItem(key, JSON.stringify(data));
+				},
+				'stateLoadCallback': function(settings) {
+					let defaultKey = "DataTables_" + settings.sTableId + "_" + window.location.pathname;
+					let key = stateId == null ? defaultKey : stateId;
+					return JSON.parse(localStorage.getItem(key));
+				},
                 'stateDuration': 0,
 				"pageLength": pagingLength,
 		        "language": {
@@ -50,7 +61,7 @@
 		    });
 		}
 		
-		function showDataTableWithHiddenColumns(jqSelector, orderColumn, hideColumns, pagingLength = 100) {
+		function showDataTableWithHiddenColumns(jqSelector, orderColumn, hideColumns, pagingLength = 100, stateId = null) {
 		    return $(jqSelector).DataTable({
 		        'paging':   true,
 		        'ordering': true,
@@ -60,6 +71,16 @@
 		        "autoWidth": false,
 		        'info':     true,
                 'stateSave': true,
+                'stateSaveCallback': function(settings, data) {
+					let defaultKey = "DataTables_" + settings.sTableId + "_" + window.location.pathname;
+					let key = stateId == null ? defaultKey : stateId;
+					localStorage.setItem(key, JSON.stringify(data));
+				},
+				'stateLoadCallback': function(settings) {
+					let defaultKey = "DataTables_" + settings.sTableId + "_" + window.location.pathname;
+					let key = stateId == null ? defaultKey : stateId;
+					return JSON.parse(localStorage.getItem(key));
+				},
 				"pageLength": pagingLength,
 				'columnDefs': [
 			        { "targets": hideColumns, visible: false },
