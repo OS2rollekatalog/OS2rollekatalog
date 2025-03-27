@@ -1,7 +1,15 @@
 package dk.digitalidentity.rc.dao.model;
 
+import java.util.Date;
+import java.util.List;
+
+import com.fasterxml.jackson.annotation.JsonBackReference;
+import org.hibernate.annotations.BatchSize;
+import org.hibernate.annotations.UpdateTimestamp;
+
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+
 import dk.digitalidentity.rc.dao.model.enums.OrgUnitLevel;
 import dk.digitalidentity.rc.log.AuditLoggable;
 import jakarta.persistence.CascadeType;
@@ -21,11 +29,6 @@ import jakarta.persistence.Temporal;
 import jakarta.persistence.TemporalType;
 import lombok.Getter;
 import lombok.Setter;
-import org.hibernate.annotations.BatchSize;
-import org.hibernate.annotations.UpdateTimestamp;
-
-import java.util.Date;
-import java.util.List;
 
 @Getter
 @Setter
@@ -40,6 +43,7 @@ public class OrgUnit implements AuditLoggable {
 	@Column(name = "name")
 	private String name;
 
+	@JsonBackReference
 	@ManyToOne(fetch = FetchType.LAZY)
 	@JoinColumn(name = "parent_uuid")
 	private OrgUnit parent;
@@ -63,6 +67,7 @@ public class OrgUnit implements AuditLoggable {
 	// TODO: do we REALLY want to cascade everything to the children?
 	//       on next major refactor, see what the effects of removing this is,
 	//       as it will fix a lot of issues on importing org data
+	@JsonBackReference
 	@OneToMany(fetch = FetchType.LAZY, mappedBy = "parent", cascade = CascadeType.ALL)
 	private List<OrgUnit> children;
 	
@@ -102,7 +107,7 @@ public class OrgUnit implements AuditLoggable {
 	@OneToMany(mappedBy = "orgUnit", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
 	private List<AuthorizationManager> authorizationManagers;
 
-	@ManyToMany(cascade = CascadeType.ALL)
+	@ManyToMany
 	@JoinTable(
 	  name = "ou_title_mapping", 
 	  joinColumns = @JoinColumn(name = "orgunit_uuid"), 

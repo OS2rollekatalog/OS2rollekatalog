@@ -12,6 +12,10 @@ import dk.digitalidentity.rc.dao.model.AuditLog;
 public interface AuditLogEntryDao extends JpaRepository<AuditLog, Long> {
 
 	@Modifying
+	@Query(value = "DELETE FROM audit_log WHERE event_type = 'LOGIN_EXTERNAL' AND timestamp < ?1 LIMIT 10000 ", nativeQuery = true)
+	void deleteLoginExternalByTimestampBefore(Date before);
+
+	@Modifying
 	@Query(value = "DELETE FROM audit_log WHERE timestamp < ?1 LIMIT 25000 ", nativeQuery = true)
 	void deleteByTimestampBefore(Date before);
 

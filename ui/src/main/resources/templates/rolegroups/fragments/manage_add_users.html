@@ -13,7 +13,12 @@
 
 			<tbody>
 				<tr th:each="user : ${users}">
-					<td th:text="${user.name}"></td>
+					<td>
+						<div>
+							<span th:text="${user.name}"></span>
+							<span th:if="${user.disabled == true}" class="badge badge-warning" th:text="#{html.entity.user.disabled}"></span>
+						</div>
+					</td>
 					<td th:text="${user.userId}"></td>
 					<td>
 						<ul style="list-style: none;">

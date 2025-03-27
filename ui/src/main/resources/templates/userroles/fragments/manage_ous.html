@@ -18,6 +18,7 @@
 			<td th:text="${mapping.ouName}"></td>
 
 			<th:block th:switch="${mapping.assignment.assignmentType}">
+				<td th:case="-5" th:text="#{html.entity.ou.assigned.all.title.inherit}"></td>
 				<td th:case="-4" th:text="#{html.entity.ou.assigned.all.title.exceptions}"></td>
 				<td th:case="-3" th:text="#{html.entity.ou.assigned.all.title.exceptions.inherit}"></td>
 				<td th:case="-2" th:text="#{html.entity.ou.assigned.inherit}"></td>

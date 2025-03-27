@@ -15,7 +15,10 @@
 
 		<tbody>
 		<tr th:each="mapping : ${userRoleMapping}">
-			<td th:text="${mapping.user.name}"></td>
+			<td>
+				<span th:text="${mapping.user.name}"></span>
+				<span th:if="${mapping.user.disabled == true}" class="badge badge-warning" th:text="#{html.entity.user.disabled}"></span>
+			</td>
 			<td th:text="#{__${mapping.assignedThrough.message}__}"></td>
 			<td th:text="${mapping.user.userId}"></td>
 			<td>

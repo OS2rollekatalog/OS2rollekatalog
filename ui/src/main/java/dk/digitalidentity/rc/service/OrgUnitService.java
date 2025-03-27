@@ -366,7 +366,7 @@ public class OrgUnitService {
 	}
 
 	@AuditLogIntercepted
-	public boolean updateRoleGroupAssignment(OrgUnit ou, OrgUnitRoleGroupAssignment assignment, boolean inherit, LocalDate startDate, LocalDate stopDate, Set<String> exceptedUsers, Set<String> titleUuids, boolean negativeTiles) {
+	public boolean updateRoleGroupAssignment(OrgUnit ou, OrgUnitRoleGroupAssignment assignment, boolean inherit, LocalDate startDate, LocalDate stopDate, Set<String> exceptedUsers, Set<String> titleUuids, boolean negativeTitles) {
 		boolean modified = false;
 	
 		if (!Objects.equals(assignment.getStartDate(), startDate) || !Objects.equals(assignment.getStopDate(), stopDate)) {
@@ -420,16 +420,20 @@ public class OrgUnitService {
 			}
 
 			if (assignment.getTitles().isEmpty()) {
-				assignment.setContainsTitles(ContainsTitles.NO);
-				modified = true;
-			} else if (negativeTiles) {
-				if(assignment.getContainsTitles() != ContainsTitles.NEGATIVE) {
+				if (!assignment.getContainsTitles().equals(ContainsTitles.NO)) {
+					assignment.setContainsTitles(ContainsTitles.NO);
+					modified = true;
+				}
+			} else if (negativeTitles) {
+				if (!assignment.getContainsTitles().equals(ContainsTitles.NEGATIVE)) {
 					assignment.setContainsTitles(ContainsTitles.NEGATIVE);
 					modified = true;
 				}
 			} else {
-				assignment.setContainsTitles(ContainsTitles.POSITIVE);
-				assignment.setInherit(false);
+				if (!assignment.getContainsTitles().equals(ContainsTitles.POSITIVE)) {
+					assignment.setContainsTitles(ContainsTitles.POSITIVE);
+					modified = true;
+				}
 			}
 		} else {
 			assignment.setContainsTitles(ContainsTitles.NO);
@@ -437,17 +441,10 @@ public class OrgUnitService {
 			modified = true;
 		}
 
-		// inherit is only possible if no excepted users and titles isn't positive
-		if (!assignment.isContainsExceptedUsers() && assignment.getContainsTitles() != ContainsTitles.POSITIVE) {
-			if (assignment.isInherit() && !inherit) {
-				assignment.setInherit(false);
-				modified = true;
-			}
-
-			if (!assignment.isInherit() && inherit) {
-				assignment.setInherit(true);
-				modified = true;
-			}
+		// inherit is only possible if no excepted users
+		if (!assignment.isContainsExceptedUsers() && assignment.isInherit() != inherit) {
+			assignment.setInherit(inherit);
+			modified = true;
 		}
 
 		if (modified) {
@@ -575,20 +572,20 @@ public class OrgUnitService {
 			}
 
 			if (assignment.getTitles().isEmpty()) {
-				assignment.setContainsTitles(ContainsTitles.NO);
-				modified = true;
+				if (!assignment.getContainsTitles().equals(ContainsTitles.NO)) {
+					assignment.setContainsTitles(ContainsTitles.NO);
+					modified = true;
+				}
 			} else if (negativeTitles) {
-				if(assignment.getContainsTitles() != ContainsTitles.NEGATIVE) {
+				if (!assignment.getContainsTitles().equals(ContainsTitles.NEGATIVE)) {
 					assignment.setContainsTitles(ContainsTitles.NEGATIVE);
 					modified = true;
 				}
-				if (assignment.isInherit() != inherit) {
-					assignment.setInherit(inherit);
+			} else {
+				if (!assignment.getContainsTitles().equals(ContainsTitles.POSITIVE)) {
+					assignment.setContainsTitles(ContainsTitles.POSITIVE);
 					modified = true;
 				}
-			} else {
-				assignment.setContainsTitles(ContainsTitles.POSITIVE);
-				assignment.setInherit(false);
 			}
 		} else {
 			assignment.setContainsTitles(ContainsTitles.NO);
@@ -596,17 +593,10 @@ public class OrgUnitService {
 			modified = true;
 		}
 
-		// inherit is only possible if no excepted users and no titles
-		if (!assignment.isContainsExceptedUsers() && assignment.getContainsTitles() == ContainsTitles.NO) {
-			if (assignment.isInherit() && !inherit) {
-				assignment.setInherit(false);
-				modified = true;
-			}
-
-			if (!assignment.isInherit() && inherit) {
-				assignment.setInherit(true);
-				modified = true;
-			}
+		// inherit is only possible if no excepted users
+		if (!assignment.isContainsExceptedUsers() && assignment.isInherit() != inherit) {
+			assignment.setInherit(inherit);
+			modified = true;
 		}
 
 		if (modified) {
@@ -733,10 +723,6 @@ public class OrgUnitService {
 				.toList();
 	}
 
-	public List<Title> getAllTitles() {
-		return titleDao.findAll();
-	}
-
 	public List<UserRole> getUserRoles(OrgUnit orgUnit, boolean inherit) {
 		return getUserRolesWithUserFilter(orgUnit, inherit, null);
 	}
@@ -777,9 +763,11 @@ public class OrgUnitService {
 	 */
 	private void getUserRoleAssignmentsRecursive(Set<RoleAssignedToOrgUnitDTO> resultSet, OrgUnit orgUnit, boolean inheritOnly) {
 		if (inheritOnly) {
-			//Inherited
+			// inherited
 			List<RoleAssignedToOrgUnitDTO> userRoleAssignments = orgUnit.getUserRoleAssignments().stream().filter(OrgUnitUserRoleAssignment::isInherit).map(RoleAssignedToOrgUnitDTO::fromUserRoleAssignmentIndirect).collect(Collectors.toList());
 
+			for (RoleAssignedToOrgUnitDTO userRoleAssignment : userRoleAssignments) {
+			}
 			resultSet.addAll(userRoleAssignments);
 		}
 		else {

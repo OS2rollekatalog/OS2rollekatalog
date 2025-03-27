@@ -346,6 +346,7 @@ public class TemporalDao {
         parameters.put("sensitive_role", assignment.isSensitiveRole());
         parameters.put("extra_sensitive_role", assignment.isExtraSensitiveRole());
         parameters.put("manager", assignment.isManager());
+        parameters.put("postponed_constraints", assignment.getPostponedConstraints());
         namedParameterJdbcTemplate.update("INSERT INTO attestation_user_role_assignments (record_hash, updated_at, valid_from, valid_to," +
                 "                                                      assigned_through_name, assigned_through_type," +
                 "                                                      assigned_through_uuid, inherited, responsible_ou_name," +
@@ -353,12 +354,12 @@ public class TemporalDao {
                 "                                                      sensitive_role, extra_sensitive_role, user_role_description, role_group_id," +
                 "                                                      role_group_name, role_group_description, user_role_id," +
                 "                                                      user_role_name, user_uuid, user_id, user_name, it_system_id," +
-                "                                                      it_system_name, role_ou_uuid, role_ou_name) " +
+                "                                                      it_system_name, role_ou_uuid, role_ou_name, postponed_constraints) " +
                 "VALUES (:record_hash, :updated_at, :valid_from, :valid_to, " +
                 "        :assigned_through_name, :assigned_through_type, :assigned_through_uuid, :inherited, :responsible_ou_name, " +
                 "        :responsible_ou_uuid, :manager, :responsible_user_uuid, :sensitive_role, :extra_sensitive_role, :user_role_description, :role_group_id, " +
                 "        :role_group_name, :role_group_description, :user_role_id, " +
-                "        :user_role_name, :user_uuid, :user_id, :user_name, :it_system_id, :it_system_name, :role_ou_uuid, :role_ou_name)",
+                "        :user_role_name, :user_uuid, :user_id, :user_name, :it_system_id, :it_system_name, :role_ou_uuid, :role_ou_name, :postponed_constraints)",
                 parameters);
     }
 
@@ -392,6 +393,7 @@ public class TemporalDao {
         in.addValue("it_system_name", assignment.getItSystemName());
         in.addValue("role_ou_uuid", assignment.getRoleOuUuid());
         in.addValue("role_ou_name", assignment.getRoleOuName());
+		in.addValue("postponed_constraints", assignment.getPostponedConstraints());
         return namedParameterJdbcTemplate.update("UPDATE attestation_user_role_assignments SET " +
                 "record_hash = :record_hash, updated_at = :updated_at, valid_from = :valid_from, valid_to = :valid_to, " +
                 "assigned_through_name = :assigned_through_name, assigned_through_type = :assigned_through_type, assigned_through_uuid = :assigned_through_uuid, " +
@@ -399,7 +401,7 @@ public class TemporalDao {
                 "responsible_user_uuid = :responsible_user_uuid, sensitive_role = :sensitive_role, extra_sensitive_role = :extra_sensitive_role, user_role_description = :user_role_description, " +
                 "role_group_id = :role_group_id, role_group_name = :role_group_name, role_group_description = :role_group_description, " +
                 "user_role_id = :user_role_id, user_role_name = :user_role_name, user_uuid = :user_uuid, user_id = :user_id, user_name = :user_name, " +
-                "it_system_id = :it_system_id, it_system_name = :it_system_name, role_ou_uuid = :role_ou_uuid, role_ou_name = :role_ou_name " +
+                "it_system_id = :it_system_id, it_system_name = :it_system_name, role_ou_uuid = :role_ou_uuid, role_ou_name = :role_ou_name, postponed_constraints=:postponed_constraints " +
                 "WHERE id=:id", in);
     }
 }

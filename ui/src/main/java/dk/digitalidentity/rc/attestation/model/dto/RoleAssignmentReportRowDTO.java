@@ -27,6 +27,7 @@ public class RoleAssignmentReportRowDTO {
 	private RoleStatus status;
 	private LocalDate assignedFrom;
 	private LocalDate assignedTo;
+	private LocalDate originallyAssignedFrom;
 	private String assignedThrough;
 	private String assignedThroughType;
 	private String responsibleUser;
@@ -37,4 +38,6 @@ public class RoleAssignmentReportRowDTO {
 	private String verifiedByName;
 	private String verifiedByUserId;
 	private String remark;
+	private LocalDate attestationCreatedAt;
+	private LocalDate validTo;
 }

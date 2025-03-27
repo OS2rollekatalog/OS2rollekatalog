@@ -26,6 +26,7 @@ public class RoleAssignedToOrgUnitDTO {
 	private boolean canEdit;
 	
 	// This is different than the other similar code
+	// -5 contains selected titles with inherit
 	// -4 contains excepted titles
 	// -3 contains excepted titles with inherit
 	// -2 inherit
@@ -65,7 +66,10 @@ public class RoleAssignedToOrgUnitDTO {
 		dto.setStopDate(assignment.getStopDate());
 		dto.setAssignedThrough(AssignedThrough.DIRECT);
 
-		if (assignment.getContainsTitles() == ContainsTitles.POSITIVE) {
+		if (assignment.isInherit() && assignment.getContainsTitles() == ContainsTitles.POSITIVE) {
+			dto.setAssignmentType(-5); // assigned to selected titles with inherit
+		}
+		else if (assignment.getContainsTitles() == ContainsTitles.POSITIVE) {
 			dto.setAssignmentType(assignment.getTitles().size());// assigned through titles
 		}
 		else if (assignment.isContainsExceptedUsers()) {
@@ -98,7 +102,10 @@ public class RoleAssignedToOrgUnitDTO {
 		dto.setStartDate(assignment.getStartDate());
 		dto.setStopDate(assignment.getStopDate());
 
-		if (assignment.getContainsTitles() == ContainsTitles.POSITIVE) {
+		if (assignment.isInherit() && assignment.getContainsTitles() == ContainsTitles.POSITIVE) {
+			dto.setAssignmentType(-5); // assigned to selected titles with inherit
+		}
+		else if (assignment.getContainsTitles() == ContainsTitles.POSITIVE) {
 			dto.setAssignmentType(assignment.getTitles().size());// assigned through titles
 		}
 		else if (assignment.isContainsExceptedUsers()) {
@@ -128,7 +135,10 @@ public class RoleAssignedToOrgUnitDTO {
 		dto.setStopDate(assignment.getStopDate());
 		dto.setAssignedThrough(AssignedThrough.DIRECT);
 
-		if (assignment.getContainsTitles() == ContainsTitles.POSITIVE) {
+		if (assignment.isInherit() && assignment.getContainsTitles() == ContainsTitles.POSITIVE) {
+			dto.setAssignmentType(-5); // assigned to selected titles with inherit
+		}
+		else if (assignment.getContainsTitles() == ContainsTitles.POSITIVE) {
 			dto.setAssignmentType(assignment.getTitles().size());// assigned through titles
 		}
 		else if (assignment.isContainsExceptedUsers()) {
@@ -160,7 +170,10 @@ public class RoleAssignedToOrgUnitDTO {
 		dto.setStartDate(assignment.getStartDate());
 		dto.setStopDate(assignment.getStopDate());
 
-		if (assignment.getContainsTitles() == ContainsTitles.POSITIVE) {
+		if (assignment.isInherit() && assignment.getContainsTitles() == ContainsTitles.POSITIVE) {
+			dto.setAssignmentType(-5); // assigned to selected titles with inherit
+		}
+		else if (assignment.getContainsTitles() == ContainsTitles.POSITIVE) {
 			dto.setAssignmentType(assignment.getTitles().size());// assigned through titles
 		}
 		else if (assignment.isContainsExceptedUsers()) {

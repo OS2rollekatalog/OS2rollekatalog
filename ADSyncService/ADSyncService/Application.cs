@@ -129,6 +129,20 @@ namespace ADSyncService
 
             schedule.ScheduleJob(errorLogEmailJob, errorLogEmailTrigger);
             schedule.TriggerJob(errorLogEmailJob.Key);
+
+            //new fullsync memberships job
+            IJobDetail fullMembershipSyncJob = JobBuilder.Create<FullMembershipSyncJob>()
+             .WithIdentity("fullMembershipSyncJob", "group7")
+             .Build();
+
+            ITrigger fullMembershipSyncTrigger = TriggerBuilder.Create()
+                .WithIdentity("trigger7", "group7")
+                .WithCronSchedule(Properties.Settings.Default.FullMembershipSyncFeature_Cron)
+                .StartNow()
+                .Build();
+
+            schedule.ScheduleJob(fullMembershipSyncJob, fullMembershipSyncTrigger);
+            schedule.TriggerJob(fullMembershipSyncJob.Key);
         }
 
         public void Start()

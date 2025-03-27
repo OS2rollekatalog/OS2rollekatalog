@@ -69,6 +69,9 @@
     <Reference Include="Microsoft.Bcl.TimeProvider, Version=8.0.0.1, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
       <HintPath>packages\Microsoft.Bcl.TimeProvider.8.0.1\lib\net462\Microsoft.Bcl.TimeProvider.dll</HintPath>
     </Reference>
+    <Reference Include="Microsoft.Data.Sqlite, Version=9.0.0.0, Culture=neutral, PublicKeyToken=adb9793829ddae60, processorArchitecture=MSIL">
+      <HintPath>packages\Microsoft.Data.Sqlite.Core.9.0.0\lib\netstandard2.0\Microsoft.Data.Sqlite.dll</HintPath>
+    </Reference>
     <Reference Include="Microsoft.Graph, Version=5.61.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL">
       <HintPath>packages\Microsoft.Graph.5.61.0\lib\netstandard2.0\Microsoft.Graph.dll</HintPath>
     </Reference>
@@ -131,6 +134,15 @@
     </Reference>
     <Reference Include="RestSharp, Version=106.13.0.0, Culture=neutral, PublicKeyToken=598062e77f915f75, processorArchitecture=MSIL">
       <HintPath>packages\RestSharp.106.13.0\lib\net452\RestSharp.dll</HintPath>
+    </Reference>
+    <Reference Include="SQLitePCLRaw.batteries_v2, Version=2.1.10.2445, Culture=neutral, PublicKeyToken=8226ea5df37bcae9, processorArchitecture=MSIL">
+      <HintPath>packages\SQLitePCLRaw.bundle_e_sqlite3.2.1.10\lib\net461\SQLitePCLRaw.batteries_v2.dll</HintPath>
+    </Reference>
+    <Reference Include="SQLitePCLRaw.core, Version=2.1.10.2445, Culture=neutral, PublicKeyToken=1488e028ca7ab535, processorArchitecture=MSIL">
+      <HintPath>packages\SQLitePCLRaw.core.2.1.10\lib\netstandard2.0\SQLitePCLRaw.core.dll</HintPath>
+    </Reference>
+    <Reference Include="SQLitePCLRaw.provider.dynamic_cdecl, Version=2.1.10.2445, Culture=neutral, PublicKeyToken=b68184102cba0b3b, processorArchitecture=MSIL">
+      <HintPath>packages\SQLitePCLRaw.provider.dynamic_cdecl.2.1.10\lib\netstandard2.0\SQLitePCLRaw.provider.dynamic_cdecl.dll</HintPath>
     </Reference>
     <Reference Include="Std.UriTemplate, Version=1.0.6.0, Culture=neutral, PublicKeyToken=c118b0afb4598f9a, processorArchitecture=MSIL">
       <HintPath>packages\Std.UriTemplate.1.0.6\lib\netstandard2.0\Std.UriTemplate.dll</HintPath>
@@ -220,9 +232,11 @@
     <Compile Include="LogUploader\LogUploaderService.cs" />
     <Compile Include="PAM\Model\CyberArk.cs" />
     <Compile Include="PAM\PAMService.cs" />
+    <Compile Include="Persistance\PersistenceService.cs" />
     <Compile Include="RemoteConfiguration\RemoteConfigurationService.cs" />
     <Compile Include="RemoteConfiguration\RemoteConfigurationJob.cs" />
     <Compile Include="RemoteConfiguration\RemoteConfiguration.cs" />
+    <Compile Include="Tasks\MembershipSyncService.cs" />
     <Compile Include="Tasks\ReadonlyItSystemService.cs" />
     <Compile Include="Tasks\ReadonlyItSystemSyncJob.cs" />
     <Compile Include="RoleCatalog\ItSystemData.cs" />
@@ -241,10 +255,11 @@
     <Compile Include="Tasks\BackSyncService.cs" />
     <Compile Include="Tasks\CreateDeleteService.cs" />
     <Compile Include="Tasks\ItSystemGroupService.cs" />
-    <Compile Include="Tasks\MembershipSyncService.cs" />
     <Compile Include="Tasks\NightSyncJob.cs" />
     <Compile Include="Tasks\LogUploaderJob.cs" />
+    <Compile Include="Tasks\FullMembershipSyncJob.cs" />
     <Compile Include="Tasks\SyncJob.cs" />
+    <Compile Include="Util\ListExtensions.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />
@@ -277,6 +292,46 @@
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
   </ItemGroup>
-  <ItemGroup />
+  <ItemGroup>
+    <PackageReference Include="Azure.Identity">
+      <Version>1.13.0</Version>
+    </PackageReference>
+    <PackageReference Include="Common.Logging">
+      <Version>3.4.1</Version>
+    </PackageReference>
+    <PackageReference Include="log4net">
+      <Version>2.0.15</Version>
+    </PackageReference>
+    <PackageReference Include="Microsoft.Data.Sqlite">
+      <Version>9.0.2</Version>
+    </PackageReference>
+    <PackageReference Include="Microsoft.Graph">
+      <Version>5.61.0</Version>
+    </PackageReference>
+    <PackageReference Include="Microsoft.IdentityModel.Validators">
+      <Version>8.1.1</Version>
+    </PackageReference>
+    <PackageReference Include="Newtonsoft.Json">
+      <Version>13.0.3</Version>
+    </PackageReference>
+    <PackageReference Include="Quartz">
+      <Version>2.6.2</Version>
+    </PackageReference>
+    <PackageReference Include="RestSharp">
+      <Version>106.13.0</Version>
+    </PackageReference>
+    <PackageReference Include="System.Memory">
+      <Version>4.5.5</Version>
+    </PackageReference>
+    <PackageReference Include="System.Runtime.CompilerServices.Unsafe">
+      <Version>6.0.0</Version>
+    </PackageReference>
+    <PackageReference Include="System.Text.Json">
+      <Version>8.0.5</Version>
+    </PackageReference>
+    <PackageReference Include="Topshelf">
+      <Version>4.1.0</Version>
+    </PackageReference>
+  </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

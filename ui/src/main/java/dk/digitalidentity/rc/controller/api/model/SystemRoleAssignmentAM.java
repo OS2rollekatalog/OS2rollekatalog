@@ -1,6 +1,5 @@
 package dk.digitalidentity.rc.controller.api.model;
 
-import dk.digitalidentity.rc.dao.model.SystemRoleAssignmentConstraintValue;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
@@ -22,6 +21,9 @@ public class SystemRoleAssignmentAM {
     @Schema(description = "")
     @NotNull
     private long systemRoleId;
+
+    @Schema(description = "")
+    private String systemRoleIdentifier;
 
     @Schema(description = "")
     @Valid

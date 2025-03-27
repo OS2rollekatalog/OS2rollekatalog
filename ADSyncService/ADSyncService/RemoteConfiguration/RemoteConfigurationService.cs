@@ -122,6 +122,11 @@ namespace ADSyncService
             if (!valid)
             {
                 roleCatalogueStub.SendConfigurationError(errorMsg);
+            } 
+            else
+            {
+                // Clear the error if configuration is valid
+                roleCatalogueStub.SendConfigurationError("");
             }
 
             return valid;
@@ -146,6 +151,8 @@ namespace ADSyncService
             configuration.membershipSyncFeatureAttributeMap = ConvertToList(Properties.Settings.Default.MembershipSyncFeature_AttributeMap);
             configuration.membershipSyncFeatureEnabled = Properties.Settings.Default.MembershipSyncFeature_Enabled;
             configuration.membershipSyncFeatureIgnoreUsersWithoutCpr = Properties.Settings.Default.MembershipSyncFeature_IgnoreUsersWithoutCpr;
+
+            configuration.fullMembershipSyncFeatureEnabled = Properties.Settings.Default.FullMembershipSyncFeature_Enabled;
 
             configuration.backSyncFeatureEnabled = Properties.Settings.Default.BackSyncFeature_Enabled;
             configuration.backSyncFeatureOUs = ConvertToList(Properties.Settings.Default.BackSyncFeature_OUs);

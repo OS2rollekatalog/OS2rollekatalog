@@ -33,7 +33,6 @@ public class HistorySystemRoleAssignment {
 	@Column
 	private String systemRoleDescription;
 
-	@BatchSize(size = 50)
 	@ManyToOne(fetch = FetchType.LAZY)
 	@JoinColumn(name = "history_user_roles_id")
 	private HistoryUserRole historyUserRole;

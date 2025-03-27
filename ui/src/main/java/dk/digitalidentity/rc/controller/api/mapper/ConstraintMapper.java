@@ -27,6 +27,7 @@ public abstract class ConstraintMapper {
                 .constraintIdentifier(constraintValue.getConstraintIdentifier())
                 .constraintValueType(ConstraintValueTypeAM.valueOf(constraintValue.getConstraintValueType().name()))
                 .constraintTypeId(constraintValue.getConstraintType().getId())
+                .constraintTypeEntityId(constraintValue.getConstraintType().getEntityId())
                 .constraintValue(constraintValue.getConstraintValue())
                 .postponed(constraintValue.isPostponed())
                 .build();

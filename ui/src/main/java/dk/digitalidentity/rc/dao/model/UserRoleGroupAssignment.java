@@ -30,7 +30,6 @@ public class UserRoleGroupAssignment {
 	@JoinColumn(name = "user_uuid")
 	private User user;
 	
-	@BatchSize(size = 50)
 	@ManyToOne(fetch = FetchType.LAZY)
 	@JoinColumn(name = "rolegroup_id")
 	private RoleGroup roleGroup;

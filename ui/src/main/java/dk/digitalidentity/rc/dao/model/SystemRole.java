@@ -38,7 +38,7 @@ public class SystemRole implements AuditLoggable {
 	private String uuid;
 
 	@JsonIgnore
-	@Column(nullable = false, length = 64)
+	@Column(nullable = false, length = 255)
 	private String name;
 
 	@Column(nullable = false, length = 128)

@@ -6,6 +6,7 @@ import lombok.Value;
 
 import java.io.Serializable;
 import java.time.LocalDate;
+import java.util.Date;
 
 /**
  * DTO for {@link AttestationUserRoleAssignment}
@@ -38,4 +39,5 @@ public class AttestationUserRoleAssignmentDto implements Serializable {
     String assignedThroughUuid;
     boolean inherited;
     boolean sensitiveRole;
+    LocalDate assignedFrom;
 }

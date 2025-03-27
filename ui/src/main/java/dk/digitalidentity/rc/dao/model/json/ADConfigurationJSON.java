@@ -20,6 +20,7 @@ public class ADConfigurationJSON {
 	private List<String> membershipSyncFeatureAttributeMap;
 	private boolean membershipSyncFeatureEnabled;
 	private boolean membershipSyncFeatureIgnoreUsersWithoutCpr;
+	private boolean fullMembershipSyncFeatureEnabled;
 
 	// backsync feature settings
 	private boolean backSyncFeatureEnabled;

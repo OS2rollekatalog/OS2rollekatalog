@@ -28,7 +28,7 @@ public class HistoryOURoleAssignmentRowMapper implements RowMapper<HistoryOURole
         historyOURoleAssignment.setAssignedThroughName(rs.getString("assigned_through_name"));
         historyOURoleAssignment.setAssignedByUserId(rs.getString("assigned_by_user_id"));
         historyOURoleAssignment.setAssignedByName(rs.getString("assigned_by_name"));
-        historyOURoleAssignment.setAssignedWhen(rs.getDate("assigned_when"));
+        historyOURoleAssignment.setAssignedWhen(rs.getTimestamp("assigned_when"));
         return historyOURoleAssignment;
     }
 }

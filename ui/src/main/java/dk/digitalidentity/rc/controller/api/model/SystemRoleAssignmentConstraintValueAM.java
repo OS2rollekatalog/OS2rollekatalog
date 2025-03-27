@@ -21,6 +21,9 @@ public class SystemRoleAssignmentConstraintValueAM {
     @NotNull
     private Long constraintTypeId;
 
+    @Schema(description = "The entityId of the constraint", accessMode = Schema.AccessMode.READ_ONLY)
+    private String constraintTypeEntityId;
+
     @Schema(description = "Value type")
     private ConstraintValueTypeAM constraintValueType;
 

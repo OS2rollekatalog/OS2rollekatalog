@@ -29,7 +29,6 @@ public class ManagerSubstitute {
 	@JoinColumn(name = "manager_uuid")
 	private User manager;
 
-	@BatchSize(size = 50)
 	@ManyToOne(fetch = FetchType.LAZY)
 	@JoinColumn(name = "substitute_uuid")
 	private User substitute;

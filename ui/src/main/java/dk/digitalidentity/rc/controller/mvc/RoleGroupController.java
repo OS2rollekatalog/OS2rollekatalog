@@ -1,7 +1,6 @@
 package dk.digitalidentity.rc.controller.mvc;
 
 import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
-import dk.digitalidentity.rc.controller.mvc.viewmodel.EditUserRoleRow;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.RoleGroupForm;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.TitleListForm;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.UserRoleAddOrgUnitDTO;
@@ -10,18 +9,17 @@ import dk.digitalidentity.rc.dao.model.OrgUnit;
 import dk.digitalidentity.rc.dao.model.RoleGroup;
 import dk.digitalidentity.rc.dao.model.Title;
 import dk.digitalidentity.rc.dao.model.User;
-import dk.digitalidentity.rc.dao.model.UserRole;
 import dk.digitalidentity.rc.security.RequireAdministratorRole;
 import dk.digitalidentity.rc.security.RequireRequesterOrReadAccessRole;
 import dk.digitalidentity.rc.security.SecurityUtil;
 import dk.digitalidentity.rc.service.OrgUnitService;
 import dk.digitalidentity.rc.service.RoleGroupService;
 import dk.digitalidentity.rc.service.SettingsService;
+import dk.digitalidentity.rc.service.TitleService;
 import dk.digitalidentity.rc.service.UserRoleService;
 import dk.digitalidentity.rc.service.UserService;
 import dk.digitalidentity.rc.service.model.OrgUnitWithRole2;
 import dk.digitalidentity.rc.service.model.UserWithRole;
-import dk.digitalidentity.rc.service.model.UserWithRole2;
 import jakarta.validation.Valid;
 import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -37,7 +35,6 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 
 import java.security.Principal;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -68,6 +65,9 @@ public class RoleGroupController {
 	
 	@Autowired
     private RoleCatalogueConfiguration configuration;
+
+	@Autowired
+	private TitleService titleService;
 
 	@InitBinder(value = { "rolegroup" })
 	public void initBinder(WebDataBinder binder) {
@@ -129,7 +129,7 @@ public class RoleGroupController {
 		boolean titlesEnabled = configuration.getTitles().isEnabled();
 		
 		model.addAttribute("rolegroup", roleGroupForm);
-		model.addAttribute("roles", getAddRoles(roleGroup));
+//		model.addAttribute("roles", getAddRoles(roleGroup));
 		model.addAttribute("titlesEnabled", titlesEnabled);
 
 		return "rolegroups/edit";
@@ -258,6 +258,9 @@ public class RoleGroupController {
 			titleForms.addAll(orgUnit.getTitles().stream().filter(t -> !titleFormsUuids.contains(t.getUuid())).map(t -> new TitleListForm(t, true)).collect(Collectors.toList()));
 			
 			model.addAttribute("titles", titleForms);
+
+			List<TitleListForm> allTitles = titleService.getAll().stream().map(title -> new TitleListForm(title, false)).toList();
+			model.addAttribute("allTitles", allTitles);
 		}
 		else {
 			model.addAttribute("titles", null);
@@ -266,46 +269,6 @@ public class RoleGroupController {
 		model.addAttribute("titlesEnabled", titlesEnabled);
 
 		return "ous/fragments/ou_roles_modal :: ouRolesModal";
-	}
-
-	private List<EditUserRoleRow> getAddRoles(RoleGroup rolegroup) {
-		List<EditUserRoleRow> addRoles = new ArrayList<>();
-
-		// note that we filter out roles that are part of the role catalogue, as
-		// they should never be in a role group
-		for (UserRole role : userRoleService.getAll()) {
-			// filter roles from deleted itSystems
-			if (role.getItSystem().isDeleted()) {
-				continue;
-			}
-			
-			// filter out roles that allows postponing
-			if (role.isAllowPostponing()) {
-				continue;
-			}
-
-			UserRole newRole = new UserRole();
-			newRole.setDescription(role.getDescription());
-			newRole.setId(role.getId());
-			newRole.setIdentifier(role.getIdentifier());
-			newRole.setItSystem(role.getItSystem());
-			newRole.setName(role.getName());
-			newRole.setSystemRoleAssignments(role.getSystemRoleAssignments());
-
-			EditUserRoleRow roleWithAssignment = new EditUserRoleRow();
-			roleWithAssignment.setRole(newRole);
-
-			if (rolegroup.getUserRoleAssignments().stream().map(ura -> ura.getUserRole()).collect(Collectors.toList()).contains(role)) {
-				roleWithAssignment.setChecked(true);
-			}
-			else {
-				roleWithAssignment.setChecked(false);
-			}
-
-			addRoles.add(roleWithAssignment);
-		}
-
-		return addRoles;
 	}
 
 	private User getUserOrThrow(String userId) throws Exception {

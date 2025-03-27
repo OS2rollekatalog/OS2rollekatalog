@@ -106,11 +106,16 @@ public class RequestApproveService {
 					}
 				} else if (request.getRoleType() == EntityType.ROLEGROUP) {
 					RoleGroup rg = roleGroupService.getById(request.getRoleId());
-					for (UserRole userRole : rg.getUserRoleAssignments().stream().map(RoleGroupUserRoleAssignment::getUserRole).toList()) {
-						if (!itSystems.contains(userRole.getItSystem().getId())) {
-							iterator.remove();
-							break;
+					if (rg != null) {
+						for (UserRole userRole : rg.getUserRoleAssignments().stream().map(RoleGroupUserRoleAssignment::getUserRole).toList()) {
+							if (!itSystems.contains(userRole.getItSystem().getId())) {
+								iterator.remove();
+								break;
+							}
 						}
+					} else {
+						// We have a new module for handling requests coming up, so no need to sing and dance, just log it and forget
+						log.error("Role group {} not found for pending request - manual cleanup needed", request.getRoleId());
 					}
 				}
 			}

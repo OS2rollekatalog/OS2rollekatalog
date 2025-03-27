@@ -202,7 +202,7 @@ public class ItSystemRestController {
 	}
 	
 	@PostMapping(value = "/rest/itsystem/notificationemail")
-	public ResponseEntity<String> editItSystemnNotificationEmail(long id, String email) {
+	public ResponseEntity<String> editItSystemNotificationEmail(long id, String email) {
 		ItSystem itSystem = itSystemService.getById(id);
 		if (itSystem == null) {
 			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);

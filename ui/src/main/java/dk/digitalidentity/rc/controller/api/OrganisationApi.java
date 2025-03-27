@@ -15,6 +15,10 @@ import dk.digitalidentity.rc.service.OrgUnitService;
 import dk.digitalidentity.rc.service.OrganisationExporter;
 import dk.digitalidentity.rc.service.OrganisationImporter;
 import dk.digitalidentity.rc.service.OrganisationImporterOld;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.slf4j.Logger;
@@ -184,6 +188,11 @@ public class OrganisationApi {
 		}
 	}
 
+	@ApiResponses(value={
+			@ApiResponse(responseCode = "200", description = "Get the current organization structure", content = {
+					@Content(mediaType = "application/json", schema = @Schema(implementation = OrganisationDTO.class))
+			})
+	})
 	@GetMapping(value = "/organisation/v3")
 	@Transactional(rollbackFor = Exception.class)
 	public synchronized ResponseEntity<?> getOrgUnitsHierarchy() {

@@ -3,7 +3,9 @@ package dk.digitalidentity.rc.util;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+import java.util.Random;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -15,6 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import dk.digitalidentity.rc.config.Constants;
 import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
+import dk.digitalidentity.rc.controller.api.model.ManagerDTO;
 import dk.digitalidentity.rc.controller.api.model.OrgUnitDTO;
 import dk.digitalidentity.rc.controller.api.model.OrganisationDTO;
 import dk.digitalidentity.rc.controller.api.model.PositionDTO;
@@ -45,10 +48,17 @@ import dk.digitalidentity.rc.service.ItSystemService;
 import dk.digitalidentity.rc.service.OrgUnitService;
 import dk.digitalidentity.rc.service.OrganisationImporter;
 import dk.digitalidentity.rc.service.SystemRoleService;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.FlushModeType;
+import jakarta.persistence.PersistenceContext;
+import lombok.extern.slf4j.Slf4j;
+
+import org.apache.commons.lang3.time.StopWatch;
 
 @Transactional(rollbackFor = Exception.class)
 @Component
 @EnableScheduling
+@Slf4j
 public class BootstrapDevMode {
 	// two "hardcoded" UUIDs that can be referenced by the tests in our code
 	public static final String orgUnitUUID = UUID.randomUUID().toString();
@@ -90,6 +100,9 @@ public class BootstrapDevMode {
 	@Autowired
 	private DomainService domainService;
 
+    @PersistenceContext
+    private EntityManager entityManager;
+
 	@EventListener(ApplicationReadyEvent.class)
 	public void runOnStartup() throws Exception {
 		if (configuration.getScheduled().isEnabled()) {
@@ -102,7 +115,11 @@ public class BootstrapDevMode {
 		if (!devEnvironment) {
 			return;
 		}
-		
+
+        entityManager.setFlushMode(FlushModeType.COMMIT);
+
+        var stopWatch = new StopWatch();
+        stopWatch.start();
 		// do not bootstrap if there is already data in the system
 		if (orgUnitService.getRoot() == null) {
 			createTitles();
@@ -120,25 +137,25 @@ public class BootstrapDevMode {
 			setItSystemResponsible();
 		}
 
+
 		// when running tests (and only when running tests), we need
 		// at least one user with all roles assigned
 		if (force) {
 			assignRoles();
 		}
+        stopWatch.stop();
+
+        log.info("Init finished: " + stopWatch.getTime(TimeUnit.SECONDS) + " seconds" );
 	}
 	
 	private void createTitles() {
-		Title title = new Title();
-		title.setActive(true);
-		title.setName("Title One");
-		title.setUuid(UUID.randomUUID().toString());
-		titleDao.save(title);
-
-		title = new Title();
-		title.setActive(true);
-		title.setName("Title Two");
-		title.setUuid(UUID.randomUUID().toString());
-		titleDao.save(title);
+        for(int i = 0; i < 100; i++) {
+            var title = new Title();
+            title.setActive(true);
+            title.setName("Title" + i);
+            title.setUuid(UUID.randomUUID().toString());
+            titleDao.save(title);
+        }
 	}
 
 	private void findUserOneAndMakeHimAdmin() {
@@ -147,6 +164,7 @@ public class BootstrapDevMode {
 		User kbp = userDao.findByUserIdAndDomainAndDeletedFalse("kbp", domainService.getPrimaryDomain()).orElseThrow();
 		User and = userDao.findByUserIdAndDomainAndDeletedFalse("and", domainService.getPrimaryDomain()).orElseThrow();
 		User skr = userDao.findByUserIdAndDomainAndDeletedFalse("skr", domainService.getPrimaryDomain()).orElseThrow();
+		User jls = userDao.findByUserIdAndDomainAndDeletedFalse("jls", domainService.getPrimaryDomain()).orElseThrow();
 		UserRole administrator = userRoleDao.getByIdentifier("administrator");
 		
 		UserUserRoleAssignment assignment = new UserUserRoleAssignment();
@@ -198,6 +216,16 @@ public class BootstrapDevMode {
 
 		skr.getUserRoleAssignments().add(assignment);
 		userDao.save(skr);
+
+		assignment = new UserUserRoleAssignment();
+		assignment.setUser(jls);
+		assignment.setAssignedByName("Systembruger");
+		assignment.setAssignedByUserId("system");
+		assignment.setAssignedTimestamp(new Date());
+		assignment.setUserRole(administrator);
+
+		jls.getUserRoleAssignments().add(assignment);
+		userDao.save(jls);
 	}
 
 	private void setItSystemResponsible() {
@@ -237,8 +265,60 @@ public class BootstrapDevMode {
 		miljoe.setParentOrgUnitUuid(teknik.getUuid());
 		landbrug.setParentOrgUnitUuid(miljoe.getUuid());
 
-		UserDTO bente = createUser(users, "Bente Børgesen", "bbog");
 		PositionDTO p = new PositionDTO();
+
+        String[] positions_lut = {
+            "Sagsbehandler",
+            "Skolelæreinde",
+            "Forstanderinde",
+            "Sekretær",
+            "Alt-mulig-mand",
+            "Tester",
+            "Borgmester",
+            "Udvikler"
+        };
+
+        var titles      = titleDao.findAll();
+        var title_it    = titles.iterator();
+        var title_lut   = new Title[100];
+        for(int i = 0; i < 100; i++) {
+            title_lut[i] = title_it.next();
+        }
+
+        // TODO: Dont spam console with users
+        var user_amount = 5000;
+        var rand        = new Random();
+        for(int i = 0; i < user_amount; i++) {
+            var user = createUser(users, "Bruger " + i, "b" + i);
+            user.setUuid(UUID.randomUUID().toString());
+
+            // Generate random amount of positions(1-3)
+            for(var num = 0; num < rand.nextInt(1, 3); num++) {
+                p = new PositionDTO();
+                p.setName(positions_lut[rand.nextInt(8)]);
+                p.setOrgUnitUuid(orgUnits.get(rand.nextInt(orgUnits.size())).getUuid());
+
+                // Give 30% of positions a title
+                if(rand.nextInt(10) <= 2) {
+                    var title_num = rand.nextBoolean() ? 10 : 100;
+                    p.setTitleUuid(title_lut[rand.nextInt(title_num)].getUuid());
+                }
+
+                user.getPositions().add(p);
+            }
+        }
+
+        // Set 10 random users as manager
+        for(int i = 0; i < orgUnits.size(); i++) {
+            var org_unit  = orgUnits.get(i);
+            var rand_user = users.get(rand.nextInt(user_amount));
+            var manager   = new ManagerDTO(rand_user.getExtUuid(), rand_user.getUserId());
+
+            org_unit.setManager(manager);
+        }
+
+		UserDTO bente = createUser(users, "Bente Børgesen", "bbog");
+		p = new PositionDTO();
 		p.setName("Sagsbehandler");
 		p.setOrgUnitUuid(arbejdsmarked.getUuid());
 		bente.getPositions().add(p);
@@ -304,6 +384,13 @@ public class BootstrapDevMode {
 		p.setOrgUnitUuid(kommune.getUuid());
 		p.setTitleUuid(titleDao.findAll().getFirst().getUuid());
 		skr.getPositions().add(p);
+
+		UserDTO jls = createUser(users, "Julius Larsen Seerup", "jls");
+		p = new PositionDTO();
+		p.setName("Udvikler");
+		p.setOrgUnitUuid(kommune.getUuid());
+		p.setTitleUuid(titleDao.findAll().getFirst().getUuid());
+		jls.getPositions().add(p);
 
 		OrganisationDTO payload = new OrganisationDTO();
 		payload.setOrgUnits(orgUnits);

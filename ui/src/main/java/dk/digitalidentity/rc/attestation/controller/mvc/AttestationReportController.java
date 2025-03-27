@@ -1,5 +1,11 @@
 package dk.digitalidentity.rc.attestation.controller.mvc;
 
+import dk.digitalidentity.rc.attestation.model.AttestationRunMapper;
+import dk.digitalidentity.rc.attestation.model.dto.AttestationRunDTO;
+import dk.digitalidentity.rc.attestation.model.entity.AttestationRun;
+import dk.digitalidentity.rc.attestation.service.AttestationAdminService;
+import dk.digitalidentity.rc.attestation.service.AttestationRunService;
+import dk.digitalidentity.rc.attestation.service.ManualTransactionService;
 import dk.digitalidentity.rc.attestation.service.OrganisationAttestationService;
 import dk.digitalidentity.rc.dao.model.OrgUnit;
 import dk.digitalidentity.rc.dao.model.User;
@@ -32,8 +38,12 @@ public class AttestationReportController {
 	@Autowired
 	private ItSystemService itSystemService;
 
+	@Autowired
+	private AttestationAdminService attestationAdminService;
+
 	record AttestationOrgUnitReportListDTO(String uuid, String name, String path) {}
 	record AttestationITSystemReportListDTO(long id, String name) {}
+	record AttestationRunReportListDTO(long id, String deadline, boolean finished, boolean sensitive, boolean extraSensitive) {}
 	@GetMapping(value = "/ui/attestation/v2/reports")
 	@Timed("attestation.controller.mvc.attestation_report_controller.reports.timer")
 	public String reports(Model model) {
@@ -46,7 +56,9 @@ public class AttestationReportController {
 		Set<AttestationOrgUnitReportListDTO> managedOrgUnits;
 		Set<AttestationITSystemReportListDTO> managedITSystems;
 
-		final List<OrgUnit> allOrgUnitsWithAttestations = organisationAttestationService.getAllOrgUnitsWithAttestations();
+		final LocalDate when = LocalDate.now();
+
+		final List<OrgUnit> allOrgUnitsWithAttestations = organisationAttestationService.getAllOrgUnitsWithAttestations(when);
 		if (isAdmin) {
 			managedOrgUnits = allOrgUnitsWithAttestations.stream().map(o -> new AttestationOrgUnitReportListDTO(o.getUuid(), o.getName(), buildBreadcrumbs(o))).collect(Collectors.toSet());
 			managedITSystems = itSystemService.getVisible().stream()
@@ -73,6 +85,11 @@ public class AttestationReportController {
 		model.addAttribute("isAdmin", isAdmin);
 		model.addAttribute("since", LocalDate.now().minusYears(1)
 				.format(DateTimeFormatter.ofPattern("dd/MM-yyyy")));
+
+		if (isAdmin) {
+			List<AttestationRun> attestationRuns = attestationAdminService.findAllRunsSorted();
+			model.addAttribute("attestationRuns", attestationRuns.stream().map(r -> new AttestationRunReportListDTO(r.getId(), r.getDeadline().format(DateTimeFormatter.ofPattern("dd/MM-yyyy")), r.isFinished(), r.isSensitive(), r.isExtraSensitive())).collect(Collectors.toList()));
+		}
 
 		return "attestationmodule/reports/reports";
 	}

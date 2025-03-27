@@ -13,8 +13,8 @@ public interface AttestationOuAssignmentsDao extends CrudRepository<AttestationO
     @Query(value = "SELECT s FROM AttestationOuRoleAssignment s WHERE s.validFrom <= :validAt AND (s.validTo > :validAt or s.validTo is null) AND s.ouUuid=:ouUuid AND s.inherited=false AND (s.exceptedTitleUuids is null or s.exceptedTitleUuids = '') ")
     List<AttestationOuRoleAssignment> listValidNotInheritedAssignmentsForOu(@Param("validAt") final LocalDate validAt, @Param("ouUuid") final String ouUuid);
 
-    @Query(value = "SELECT s FROM AttestationOuRoleAssignment s WHERE s.validFrom <= :validAt AND (s.validTo > :validAt or s.validTo is null) AND s.ouUuid=:ouUuid AND s.exceptedTitleUuids is not null AND LENGTH(s.exceptedTitleUuids) > 0")
-    List<AttestationOuRoleAssignment> listValidAssignmentsWithExceptedTilesForOu(@Param("validAt") final LocalDate validAt, @Param("ouUuid") final String ouUuid);
+    @Query(value = "SELECT s FROM AttestationOuRoleAssignment s WHERE s.validFrom <= :validAt AND (s.validTo > :validAt or s.validTo is null) AND s.ouUuid=:ouUuid AND s.inherited=false AND s.exceptedTitleUuids is not null AND LENGTH(s.exceptedTitleUuids) > 0")
+    List<AttestationOuRoleAssignment> listValidNotInheritedAssignmentsWithExceptedTilesForOu(@Param("validAt") final LocalDate validAt, @Param("ouUuid") final String ouUuid);
 
     @Query(value = "SELECT s FROM AttestationOuRoleAssignment s WHERE s.validFrom <= :validAt AND (s.validTo > :validAt or s.validTo is null) AND s.responsibleUserUuid=:responsibleUuid AND s.inherited=false")
     List<AttestationOuRoleAssignment> listValidNotInheritedAssignmentsWithResponsibleUser(@Param("validAt") final LocalDate validAt, @Param("responsibleUuid") final String responsibleUser);

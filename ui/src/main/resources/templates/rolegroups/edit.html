@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html>
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:th="http://www.thymeleaf.org">
 <head th:replace="~{fragments/header :: header (title=#{html.page.rolegroup.edit.title})}"></head>
 <body>
 <div class="wrapper">
@@ -89,26 +89,7 @@
 		                            <th class="col-md-3" th:text="#{html.entity.rolegroup.description}"></th>
 		                        </tr>
 		                        </thead>
-		
 		                        <tbody>
-		                        <tr th:each="addRole : ${roles}" th:id="${addRole.role.id}+'row'">
-									<td>
-										<div>
-											<div class="checkbox c-checkbox">
-												<label>
-													<input class="checkboxaction" th:id="${addRole.role.id}" type="checkbox"
-															th:value="${rolegroup.id}" th:checked="${addRole.checked}" th:disabled="${addRole.role.itSystem.readonly}"
-																data-objtype="role"/>
-														<span class="fa fa-check"></span>
-												</label>
-											</div>
-										</div>
-										<label th:id="${addRole.role.id}+'sortLabel'" style="display:none" th:text="${addRole.checked}"></label>
-									</td>
-		                            <td th:text="${addRole.role.name}"></td>
-		                            <td th:text="${addRole.role.itSystem.name}"></td>
-		                            <td th:text="${addRole.role.description}"></td>
-		                        </tr>
 		                        </tbody>
 		                    </table>
 						</div>
@@ -146,6 +127,7 @@
 	<script th:replace="~{ous/fragments/ou_roles_modal :: ouRolesModalScript(titlesEnabled=${titlesEnabled})}"></script>
 	<script th:replace="~{users/fragments/role_assignment_edit_modal :: roleAssignmentEditModalScript(missingPostponedConstraintService = true)}"></script>
 	<script th:replace="~{users/fragments/user_role_group_modal :: userRoleGroupModalScript}"></script>
+	<script th:src="@{/js/service/DatatableService.js}"></script>
 
 	<script th:inline="javascript">
 		/*<![CDATA[*/
@@ -170,6 +152,7 @@
 				
 				var titlesEnabled = [[${titlesEnabled}]];
 				var roleId = [[${rolegroup.id}]];
+				let userroleTableService;
 			+]*/
 
 			var token = $("meta[name='_csrf']").attr("content");
@@ -179,6 +162,11 @@
 			var notificationService = new NotificationService();
 			
 			$("document").ready( function() {
+				userroleTableService = new UserroleTableService()
+				userroleTableService.onDocumentReady()
+				userroleTableService.initUserroleTable(roleId)
+
+
 				userService.loadRolesFragment();
 				// edit RoleGroup assignemnet on User modal
 				userRoleEditModalService.parentService = userService;
@@ -193,102 +181,99 @@
 				$('.useronly-checkbox').change(flagCheckboxChange);
 				$('.useronly-checkbox').change(handleOUBtn);
 				$('.canrequest-checkbox').change(flagCheckboxChange);
-				
-				function addCheckboxListeners() {
-					$('.checkboxaction').off("change");
-					$('.checkboxaction').change(handleCheckboxChange);
-				}
 
 				addCheckboxListeners();
 
-				$('#listTable').on( 'draw.dt', function () {
-					addCheckboxListeners();
-				});
-				
-				function handleChangeOnInput() {
-					var objId = $("#id").val();
-					var objName = $("#name").val();
-					var objDescription = $("#description").val();
-					
-					var roleGroup = {
-						id: objId,
-						name: objName,
-						description: objDescription
-					};
+			});
 
-					$.ajax({
-						url: url + 'edit',
-						method: 'POST',
-				        headers: {
-				            'X-CSRF-TOKEN': token
-				        },
-						data: roleGroup,
-						error: errorHandler(fieldNotUpdatedMsg),
-		    			success: function(response) {
-		    				notificationService.showInfoNotification(fieldUpdatedMsg);
-		    			}
-					});
+			function handleChangeOnInput() {
+				var objId = $("#id").val();
+				var objName = $("#name").val();
+				var objDescription = $("#description").val();
+
+				var roleGroup = {
+					id: objId,
+					name: objName,
+					description: objDescription
 				};
 
-				function getAjaxObject(urL, okMsg, errorMsg){
-		    		return {
-		    			url: urL,
-						method: 'POST',
-				        headers: {
-				            'X-CSRF-TOKEN': token
-				        },
-		    			error: errorHandler(errorMsg),
-		    			success: function(response) {
-		    				notificationService.showInfoNotification(okMsg);
-		    			}
-		    		}
-		    	};
+				$.ajax({
+					url: url + 'edit',
+					method: 'POST',
+					headers: {
+						'X-CSRF-TOKEN': token
+					},
+					data: roleGroup,
+					error: errorHandler(fieldNotUpdatedMsg),
+					success: function(response) {
+						notificationService.showInfoNotification(fieldUpdatedMsg);
+					}
+				});
+			};
 
-				function handleCheckboxChange() {		
-					var objType = String(this.dataset.objtype)
-					if (this.checked) {
-						$.ajax(getAjaxObject(url + 'add' + objType + '/' + this.value + '/' + this.id,fieldUpdatedMsg, fieldNotUpdatedMsg));
+			function getAjaxObject(urL, okMsg, errorMsg){
+				return {
+					url: urL,
+					method: 'POST',
+					headers: {
+						'X-CSRF-TOKEN': token
+					},
+					error: errorHandler(errorMsg),
+					success: function(response) {
+						notificationService.showInfoNotification(okMsg);
 					}
-					else {
-						$.ajax(getAjaxObject(url + 'remove' + objType + '/' + this.value + '/' + this.id,fieldUpdatedMsg, fieldNotUpdatedMsg));
-					}
-					
-					var label = $("#"+this.id+"sortLabel");
-					label.text(this.checked);
-					$("#listTable").dataTable().api().row("#"+this.id+"row").invalidate('dom').draw();
 				}
-				
-				function flagCheckboxChange() {
-					var flag = String(this.dataset.flag);
-					var updateUrl = url + "flag/" + roleId + "/" + flag;
+			};
 
-					if (this.checked) {
-						updateUrl = updateUrl + "?active=true";
-					}
-					else {
-						updateUrl = updateUrl + "?active=false";
-					}
-					
-					$.ajax({
-						url: updateUrl,
-						method: "POST",
-						headers: {
-							'X-CSRF-TOKEN': token
-						},
-						error: defaultErrorHandler,
-						success: function(response) {	
-		    				notificationService.showInfoNotification(fieldUpdatedMsg);
-						}
-					});
+			function handleCheckboxChange() {
+				var objType = String(this.dataset.objtype)
+				if (this.checked) {
+					$.ajax(getAjaxObject(url + 'add' + objType + '/' + this.value + '/' + this.id,fieldUpdatedMsg, fieldNotUpdatedMsg));
+				}
+				else {
+					$.ajax(getAjaxObject(url + 'remove' + objType + '/' + this.value + '/' + this.id,fieldUpdatedMsg, fieldNotUpdatedMsg));
 				}
 
-				function handleOUBtn() {
-					orgUnitService.loadRolesFragment();
+				var label = $("#"+this.id+"sortLabel");
+				label.text(this.checked);
+				$("#listTable").dataTable().api().row("#"+this.id+"row").invalidate('dom').draw();
+			}
+
+			function flagCheckboxChange() {
+				var flag = String(this.dataset.flag);
+				var updateUrl = url + "flag/" + roleId + "/" + flag;
+
+				if (this.checked) {
+					updateUrl = updateUrl + "?active=true";
 				}
-			});
-			
+				else {
+					updateUrl = updateUrl + "?active=false";
+				}
+
+				$.ajax({
+					url: updateUrl,
+					method: "POST",
+					headers: {
+						'X-CSRF-TOKEN': token
+					},
+					error: defaultErrorHandler,
+					success: function(response) {
+						notificationService.showInfoNotification(fieldUpdatedMsg);
+					}
+				});
+			}
+
+			function handleOUBtn() {
+				orgUnitService.loadRolesFragment();
+			}
+
+			function addCheckboxListeners() {
+				$('.checkboxaction').off("change");
+				$('.checkboxaction').change(handleCheckboxChange);
+			}
+
 			function UserService() {
-			/*[+
+				/*[+
 				var userRestUrl = [[@{/rest/users/}]];
 				var deleteRoleAssignmentTitleTxt = [[#{html.page.manage.roles.delete.title}]];
 				var deleteRoleAssignmentBodyTxt = [[#{html.page.manage.roles.delete.body}]];
@@ -296,7 +281,7 @@
 				var deleteRoleAssignmentSuccessMessage = [[#{html.page.manage.roles.delete.success}]];
 				var yesBtnTxt = [[#{html.control.button.yes}]];
 				var cancelBtnTxt = [[#{html.control.button.cancel}]];
-			+]*/
+				+]*/
 
 				this.loadRolesFragment = function () {
 					$("#users_menu").load(UIUrl + roleId + "/assignedUsersFragment?showEdit=true", function () {
@@ -345,8 +330,8 @@
 								error: errorHandler(deleteRoleAssignmentErrorMessage),
 								success: function(response) {
 									userService.loadRolesFragment();
-									
-				    				notificationService.showInfoNotification(deleteRoleAssignmentSuccessMessage);
+
+									notificationService.showInfoNotification(deleteRoleAssignmentSuccessMessage);
 								}
 							});
 						}
@@ -479,7 +464,7 @@
 						ouRolesEditModalService.roleId = roleId; //get current roleGroup id
 						ouRolesEditModalService.inherit = (assignmentType == -2);
 
-						ouRolesEditModalService.showAssignModal(titlesEnabled, null, startDate, stopDate, assignmentType, assignmentId);
+						ouRolesEditModalService.showAssignModal(titlesEnabled, startDate, stopDate, assignmentType, assignmentId);
 					});
 				}
 
@@ -493,7 +478,7 @@
 						commonService.init();
 						commonService.parentService = orgUnitService;
 						
-						ouRolesModalService.showAssignModal(titlesEnabled, null, null, null);
+						ouRolesModalService.showAssignModal(titlesEnabled, null, null);
 					});
 				}
 			}
@@ -521,6 +506,67 @@
 						status: 'danger',
 						timeout: 4000
 					});
+				}
+			}
+
+			class UserroleTableService {
+				constructor(){}
+
+				onDocumentReady () {
+					$('#listTable').on( 'draw.dt', function () {
+						addCheckboxListeners();
+					});
+				}
+
+				initUserroleTable (rolegroupId) {
+					const columnDefOptions = [
+						{
+							targets: [0],
+							data: 'id',
+							orderable: false,
+							searchable:false,
+							sortable:false,
+							render: (data, type, row, meta) => {
+								if (type === 'display') {
+									return '<div class="checkbox c-checkbox"> '+
+									'<label>'+
+									`<input class="checkboxaction" id="${data}" type="checkbox" `+
+									`value="${rolegroupId}" `+ `${row.selected ? 'checked ' : ''}` + `${row.readOnly ? 'disabled ' : ''}` +
+									'data-objtype="role"/> '+
+									'<span class="fa fa-check"></span> '+
+									'</label>'+
+									'</div>'
+								} else { return data; }
+							}
+						},
+						{
+							targets: [1],
+							data: 'name',
+							render: (data, type, row, meta) => {
+								if (type === 'display') {
+									let html = '<div>'
+									html += '<div>'
+									html += `<span>${data}</span>`
+									html += '</div>'
+									html += row.alreadyAssigned ? `<div style="font-size: smaller; color: red;">Tildelt</div>` : ''
+									html += '</div>'
+									return html
+								} else { return data; }
+							}
+						},
+						{
+							targets: [2],
+							data: 'itSystem.name',
+						},
+						{
+							targets: [3],
+							data: 'description',
+						}
+					]
+
+					const table = new DatatableService().initDefaultServersideTable('#listTable', `${url}${rolegroupId}/userroles`, columnDefOptions)
+					addCheckboxListeners();
+					return table
 				}
 			}
 		/*]]>*/

@@ -13,6 +13,7 @@ import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Optional;
 
 @Service
@@ -28,12 +29,8 @@ public class AttestationRunTrackerService {
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void updateRuns(final LocalDate when) throws Exception {
-        // Check if any runs have expired
-        attestationRunDao.findByFinishedFalse().stream()
-                .filter(r -> r.getDeadline().isBefore(LocalDate.now().minusDays(configuration.getAttestation().getCurrentAttestationActiveDaysAfterDeadline())))
-                .forEach(r -> r.setFinished(true));
         boolean yearly = settingsService.getScheduledAttestationInterval() == CheckupIntervalEnum.YEARLY;
-        // Now check if we need to create a new run
+        // Check if we need to create a new run
         final LocalDate deadlineNormal = findNextAttestationDate(when, false, false);
         final LocalDate deadlineSensitive = findNextAttestationDate(when, true, false);
         final LocalDate deadlineExtraSensitive = findNextAttestationDate(when, false, true);
@@ -42,8 +39,18 @@ public class AttestationRunTrackerService {
         final boolean sensitiveRun = !normalRun && shouldCreateAttestationRun(when, deadlineSensitive);
         final boolean extraSensitiveRun = !normalRun && yearly && shouldCreateAttestationRun(when, deadlineExtraSensitive);
         if (normalRun || sensitiveRun || extraSensitiveRun) {
-            getAttestationRun(when)
-                    .orElseGet(() -> createNewAttestationRun(extraSensitiveRun ? deadlineExtraSensitive : (sensitiveRun ? deadlineSensitive : deadlineNormal), sensitiveRun, extraSensitiveRun));
+            List<AttestationRun> unfinishedRuns = getActiveAttestationRunsDesc(when);
+            //Find or create the active run
+            AttestationRun activeRun = unfinishedRuns.isEmpty() ?
+                    createNewAttestationRun(extraSensitiveRun ? deadlineExtraSensitive : (sensitiveRun ? deadlineSensitive : deadlineNormal), sensitiveRun, extraSensitiveRun)
+                    : unfinishedRuns.getFirst();
+            //Close all other than the active one
+            for (AttestationRun run : unfinishedRuns) {
+                if (!run.getId().equals(activeRun.getId())) {
+                    run.setFinished(true);
+                }
+            }
+
         }
     }
 
@@ -66,8 +73,12 @@ public class AttestationRunTrackerService {
         }
     }
 
-    public Optional<AttestationRun> getAttestationRun(final LocalDate when) {
-        return attestationRunDao.findFirstByFinishedFalseAndDeadlineGreaterThanEqual(when);
+    public Optional<AttestationRun> getAttestationRun() {
+        return attestationRunDao.findFirstByFinishedFalseOrderByDeadlineDesc();
+    }
+
+    public List<AttestationRun> getActiveAttestationRunsDesc(final LocalDate when) {
+        return attestationRunDao.findByFinishedFalseAndDeadlineGreaterThanEqualOrderByDeadlineDesc(when);
     }
 
     private AttestationRun createNewAttestationRun(final LocalDate deadline, final boolean sensitive, final boolean extraSensitive) {
@@ -96,6 +107,12 @@ public class AttestationRunTrackerService {
         return deadline;
     }
 
+    /**
+     * Returns true if current date is within XX (default 30) days before deadline
+     * @param now
+     * @param deadline
+     * @return
+     */
     private boolean shouldCreateAttestationRun(final LocalDate now, final LocalDate deadline) {
         return !deadline.minusDays(configuration.getAttestation().getDaysForAttestation()).isAfter(now);
     }

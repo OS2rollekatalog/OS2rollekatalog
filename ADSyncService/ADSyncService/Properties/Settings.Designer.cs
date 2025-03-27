@@ -377,5 +377,23 @@ namespace ADSyncService.Properties {
                 return ((string)(this["ReadonlyItSystemFeature_NameAttribute"]));
             }
         }
+        
+        [global::System.Configuration.ApplicationScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("True")]
+        public bool FullMembershipSyncFeature_Enabled {
+            get {
+                return ((bool)(this["FullMembershipSyncFeature_Enabled"]));
+            }
+        }
+        
+        [global::System.Configuration.ApplicationScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("0 0 5-23 ? * *")]
+        public string FullMembershipSyncFeature_Cron {
+            get {
+                return ((string)(this["FullMembershipSyncFeature_Cron"]));
+            }
+        }
     }
 }

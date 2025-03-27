@@ -5,13 +5,22 @@ import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
+import dk.digitalidentity.rc.controller.api.model.ADGroupTypeAM;
+import dk.digitalidentity.rc.controller.api.model.SystemRoleAM;
+import dk.digitalidentity.rc.controller.api.model.UserAM2;
+import dk.digitalidentity.rc.dao.model.enums.ADGroupType;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -44,6 +53,7 @@ import jakarta.validation.Valid;
 @RequireApiItSystemRole
 @SecurityRequirement(name = "ApiKey")
 @Tag(name = "IT-system API V2")
+@Transactional
 public class ItSystemApiV2 {
 
 	@Autowired
@@ -187,70 +197,132 @@ public class ItSystemApiV2 {
 			return new ResponseEntity<>(HttpStatus.NOT_FOUND);
 		}
 		List<UserRoleAM> result = userRoles.stream()
-				.map(RoleMapper::toApi)
+				.map(RoleMapper::userRoleToApi)
 				.collect(Collectors.toList());
 		return new ResponseEntity<>(result, HttpStatus.OK);
 	}
 
-	@Schema(name = "SystemRole")
-	record SystemRoleRecord(@Schema(description = "Unique ID for the system role") long id,
-							@Schema(description = "Name of the role") String name,
-							@Schema(description = "Unique identifier of systemrole") String identifier,
-							@Schema(description = "Description of systemrole") String description,
-							@Schema(description = "The weight of a role, used to order hierarchical roles and only assign the strongest one (Useful in the case of different pricing tiers / Licences in a product)") int weight) {
-	}
-
-	@ApiResponses(value = { @ApiResponse(responseCode = "200", description = "All systemroles for specified it-system"),
-			@ApiResponse(responseCode = "404", description = "It-system not found.") })
+	@ApiResponses(value = {
+			@ApiResponse(responseCode = "200", description = "All systemroles for specified it-system"),
+			@ApiResponse(responseCode = "404", description = "It-system not found.")
+	})
 	@Operation(summary = "Get all systemroles by itsystem id", description = "Returns all systemroles by it-system id")
 	@GetMapping("/api/v2/itsystem/{id}/systemroles")
-	public ResponseEntity<List<SystemRoleRecord>> getSystemRoles(
+	public List<SystemRoleAM> getSystemRoles(
 			@Parameter(description = "Unique ID for the it-system") @PathVariable("id") long id) {
-
-		List<SystemRoleRecord> result = new ArrayList<>();
-		ItSystem itSystem = itSystemService.getById(id);
-		List<SystemRole> systemRoles = systemRoleService.findByItSystem(itSystem);
-
+		final ItSystem itSystem = itSystemService.getById(id);
+		final List<SystemRole> systemRoles = systemRoleService.findByItSystem(itSystem);
 		if (systemRoles == null || itSystem == null) {
-			return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+			throw new ResponseStatusException(HttpStatus.NOT_FOUND);
 		}
-
-		for (SystemRole role : systemRoles) {
-			result.add(new SystemRoleRecord(role.getId(), role.getName(), role.getIdentifier(), role.getDescription(), role.getWeight()));
-		}
-
-		return new ResponseEntity<>(result, HttpStatus.OK);
+		return RoleMapper.systemRolesToApi(systemRoles);
 	}
-	
-	record UserRecord(@Schema(description = "ID of user") String userId,
-			@Schema(description = "Name of user") String name, @Schema(description = "Extern ID") String extId
-	) {}
+
+	@ApiResponses(value = {
+			@ApiResponse(responseCode = "201", description = "System-role created"),
+			@ApiResponse(responseCode = "404", description = "It-system not found.")
+	})
+	@Operation(summary = "Create a new system-role", description = "Returns the newly created system-role")
+	@PostMapping("/api/v2/itsystem/{id}/systemroles")
+	@ResponseStatus(HttpStatus.CREATED)
+	public SystemRoleAM createSystemRole(@Parameter(description = "Unique ID for the it-system", example = "1") @PathVariable("id") final long itSystemId,
+										 @RequestParam(value = "adGroupType", required = false, defaultValue = "NONE") final ADGroupTypeAM adGroupType,
+										 @Parameter(description = "If this is an AD group, should it be universal") @RequestParam(value = "universal", required = false, defaultValue = "false") final boolean universal,
+										 @RequestBody@Valid final SystemRoleAM systemRoleAM) {
+		final ItSystem itSystem = itSystemService.getOptionalById(itSystemId)
+				.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
+		final SystemRole systemRole = RoleMapper.systemRoleToEntity(systemRoleAM);
+		systemRole.setItSystem(itSystem);
+		final SystemRole saveSystemRole = systemRoleService.save(systemRole);
+		if (adGroupType != ADGroupTypeAM.NONE) {
+			pendingADUpdateService.addSystemRole(saveSystemRole, ADGroupType.valueOf(adGroupType.name()), universal);
+		}
+
+		return RoleMapper.systemRolesToApi(saveSystemRole);
+	}
+
+	@ApiResponses(value = {
+			@ApiResponse(responseCode = "204", description = "System-role deleted"),
+			@ApiResponse(responseCode = "404", description = "It-system or system-role not found.")
+	})
+	@Operation(summary = "Delete a system-role")
+	@DeleteMapping("/api/v2/itsystem/{itSystemId}/systemroles/{systemRoleId}")
+	@ResponseStatus(HttpStatus.NO_CONTENT)
+	public void deleteSystemRole(@Parameter(description = "Unique ID of the it-system", example = "1") @PathVariable("itSystemId") final long itSystemId,
+								 @Parameter(description = "Unique ID of the systemRole", example = "1") @PathVariable("systemRoleId") final long systemRoleId) {
+		final ItSystem itSystem = itSystemService.getOptionalById(itSystemId)
+				.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
+		systemRoleService.getOptionalById(systemRoleId)
+				.ifPresentOrElse(
+						s -> {
+							if (itSystem.getId() != s.getItSystem().getId()) {
+								throw new ResponseStatusException(HttpStatus.CONFLICT, "System role it-system doesnt match");
+							}
+							systemRoleService.delete(s);
+						},
+						() -> {
+							throw new ResponseStatusException(HttpStatus.NOT_FOUND);
+						}
+				);
+	}
+
+
+	@ApiResponses(value = {
+			@ApiResponse(responseCode = "204", description = "System-role updated"),
+			@ApiResponse(responseCode = "404", description = "It-system or system-role not found.")
+	})
+	@Operation(summary = "Update an existing system-role, NOTE! constraint types cannot be update")
+	@PutMapping("/api/v2/itsystem/{itSystemId}/systemroles/{systemRoleId}")
+	@ResponseStatus(HttpStatus.NO_CONTENT)
+	public void updateSystemRole(@Parameter(description = "Unique ID of the it-system", example = "1") @PathVariable("itSystemId") final long itSystemId,
+								 @Parameter(description = "Unique ID of the systemRole", example = "1") @PathVariable("systemRoleId") final long systemRoleId,
+								 @RequestBody @Valid final SystemRoleAM systemRoleAM) {
+		final ItSystem itSystem = itSystemService.getOptionalById(itSystemId)
+				.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
+		systemRoleService.getOptionalById(systemRoleId)
+				.ifPresentOrElse(
+						s -> {
+							if (itSystem.getId() != s.getItSystem().getId()) {
+								throw new ResponseStatusException(HttpStatus.CONFLICT, "System role it-system doesnt match");
+							}
+							if (systemRoleAM.getName() != null) {
+								s.setName(systemRoleAM.getName());
+							}
+							if (systemRoleAM.getDescription() != null) {
+								s.setDescription(systemRoleAM.getDescription());
+							}
+							if (systemRoleAM.getWeight() != null) {
+								s.setWeight(systemRoleAM.getWeight());
+							}
+						},
+						() -> {
+							throw new ResponseStatusException(HttpStatus.NOT_FOUND);
+						}
+				);
+	}
 
 	@ApiResponses(value = {
 			@ApiResponse(responseCode = "200", description = "All users with a userrole in the specified it-system"),
 			@ApiResponse(responseCode = "404", description = "it-system not found.") })
 	@Operation(summary = "Get all users by itsystem id", description = "Returns all users for an it-system by it-system id")
 	@GetMapping(value = "/api/v2/itsystem/{id}/users")
-	public ResponseEntity<List<UserRecord>> getUsersForItSystem(@Parameter(description = "Unique ID for the it-system", example = "1") @PathVariable("id") String id) {
-		List<UserRecord> result = new ArrayList<UserRecord>();
+	public List<UserAM2> getUsersForItSystem(@Parameter(description = "Unique ID for the it-system", example = "1") @PathVariable("id") String id) {
+		List<UserAM2> result = new ArrayList<UserAM2>();
 		ItSystem itSystem = null;
 
 		try {
 			itSystem = itSystemService.getById(Long.parseLong(id));
-		}
-		catch (Exception ignored) {
+		} catch (Exception ignored) {
 			// ignore badly formatted ID
 		}
 
 		if (itSystem == null) {
 			itSystem = itSystemService.getFirstByIdentifier(id);
-
 			if (itSystem == null) {
 				// we also allow looking up using UUID for KOMBIT based it-systems
 				itSystem = itSystemService.getByUuid(id);
-
 				if (itSystem == null) {
-					return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+					throw new ResponseStatusException(HttpStatus.NOT_FOUND);
 				}
 			}
 		}
@@ -260,10 +332,15 @@ public class ItSystemApiV2 {
 		
 		// map to record
 		for (User user : users) {
-			result.add(new UserRecord(user.getUserId(), user.getName(), user.getExtUuid()));
+			result.add(UserAM2.builder()
+							.userId(user.getUserId())
+							.extId(user.getExtUuid())
+							.name(user.getName())
+							.extUuid(user.getExtUuid())
+					.build());
 		}
 
-		return new ResponseEntity<List<UserRecord>>(result, HttpStatus.OK);
+		return result;
 	}
 
 	@ApiResponses(value = { @ApiResponse(responseCode = "202", description = "It-system has been marked dirty"),

@@ -66,7 +66,7 @@
 
                             <h3 th:text="#{attestationmodule.html.reports.all}" th:if="${isAdmin}"></h3>
                             <div class="table-responsive" th:if="${isAdmin}">
-                                <table id="allRolesTable" style="padding-right:0px !important;" class="table table-striped table-bordered table-hover" >
+                                <table id="allRolesTable" style="padding-right:0px !important;" class="simpleTable table table-striped table-bordered table-hover" >
                                     <thead>
                                     <tr style="display: none">
                                         <th></th>
@@ -78,6 +78,38 @@
                                     <tr>
                                         <td th:text="#{attestationmodule.html.reports.all.name}"></td>
                                         <td style="text-align: center; width: 80px"><a onclick="return downloadReport(this)" th:href="@{${'/rest/attestation/v2/reports/download/all'}}"><em style="color: #212529" class="fa fa-download"></em></a></td>
+                                    </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <h3 th:text="#{attestationmodule.html.reports.audit}" th:if="${isAdmin}"></h3>
+                            <p th:text="#{attestationmodule.html.reports.audit.explainer}"></p>
+                            <div class="table-responsive" th:if="${isAdmin}">
+                                <table id="auditTable" style="padding-right:0px !important;" class="simpleTable table table-striped table-bordered table-hover" >
+                                    <thead>
+                                    <tr>
+                                        <th th:text="#{attestationmodule.html.reports.audit.deadline}"></th>
+                                        <th class="actionColumn" th:text="#{attestationmodule.html.reports.audit.finished}"></th>
+                                        <th class="actionColumn" th:text="#{attestationmodule.html.reports.audit.sensitive}"></th>
+                                        <th class="actionColumn" th:text="#{attestationmodule.html.reports.audit.extraSensitive}"></th>
+                                        <th class="actionColumn" th:text="#{html.control.operations}"></th>
+                                    </tr>
+                                    </thead>
+
+                                    <tbody>
+                                    <tr th:each="run : ${attestationRuns}">
+                                        <td th:text="${run.deadline}"></td>
+                                        <td style="text-align: center;">
+                                            <em th:if="${run.finished}" class="fa fa-check"></em>
+                                        </td>
+                                        <td style="text-align: center;">
+                                            <em th:if="${run.sensitive}" class="fa fa-check"></em>
+                                        </td>
+                                        <td style="text-align: center;">
+                                            <em th:if="${run.extraSensitive}" class="fa fa-check"></em>
+                                        </td>
+                                        <td style="text-align: center;"><a onclick="return downloadReport(this)" th:href="@{${'/rest/attestation/v2/reports/download/audit/' + run.id}}"><em style="color: #212529" class="fa fa-download"></em></a></td>
                                     </tr>
                                     </tbody>
                                 </table>
@@ -98,15 +130,20 @@
     /*[+
         let preflightUrl = [[@{/rest/attestation/v2/reports/}]];
     +]*/
-        var currentDate = null;
+        let currentDate = null;
+        Date.prototype.addHours = function(h) {
+            this.setTime(this.getTime() + (h*60*60*1000));
+            return this;
+        }
         function downloadReport(source) {
             let url = "";
             if (currentDate != null) {
-                url = source.href.split('?')[0] + "?since=" + encodeURIComponent(currentDate.toISOString().split('T')[0]);
+                // toISOString converts to UTC so make sure to add some hours first, so we don`t get a day before.
+                url = source.href.split('?')[0] + "?since=" + encodeURIComponent(currentDate.addHours(12).toISOString().split('T')[0]);
             } else {
                 url = source.href;
             }
-            const response = confirm("Download af rapporter kan tage flere minutter, og der kan kun hentes en rapport af gangen.\n Forsæt?");
+            const response = confirm("Download af rapporter kan tage flere minutter, og der kan kun hentes en rapport af gangen.\nForsæt?");
             if (response) {
                 $.ajax({
                     url: preflightUrl,
@@ -174,6 +211,26 @@
                 "paging": false,
                 "responsive" : true,
                 "autoWidth" : false
+			});
+			$('#auditTable').DataTable({
+                "columnDefs": [
+                    { "orderable": false, "targets": 4 }
+                ],
+				"pageLength" : 25,
+                "responsive" : true,
+                "autoWidth" : false,
+                "language" : {
+                    "search" : "Søg",
+                    "lengthMenu" : "_MENU_ rækker per side",
+                    "info" : "Viser _START_ til _END_ af _TOTAL_ rækker",
+                    "zeroRecords" : "Ingen data...",
+                    "infoEmpty" : "",
+                    "infoFiltered" : "(ud af _MAX_ rækker)",
+                    "paginate" : {
+                        "previous" : "Forrige",
+                        "next" : "Næste"
+                    }
+                }
 			});
 		});
     /*]]>*/

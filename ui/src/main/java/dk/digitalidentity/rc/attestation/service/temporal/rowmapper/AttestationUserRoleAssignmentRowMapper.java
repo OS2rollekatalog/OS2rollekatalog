@@ -41,6 +41,8 @@ public class AttestationUserRoleAssignmentRowMapper implements RowMapper<Attesta
         assignment.setInherited(rs.getBoolean("inherited"));
         assignment.setSensitiveRole(rs.getBoolean("sensitive_role"));
         assignment.setExtraSensitiveRole(rs.getBoolean("extra_sensitive_role"));
+		assignment.setPostponedConstraints(rs.getString("postponed_constraints"));
+		assignment.setAssignedFrom(RowMapperUtils.nullSafeLocalDate(rs.getDate("assigned_from")));
         return assignment;
     }
 

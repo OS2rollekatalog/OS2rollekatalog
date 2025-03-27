@@ -37,7 +37,7 @@ public class ItSystemAttestationTrackerService {
 
     @Transactional(timeout = 600, propagation = Propagation.REQUIRES_NEW)
     public void updateItSystemRolesAttestations(final LocalDate when) {
-        runTrackerService.getAttestationRun(when)
+        runTrackerService.getAttestationRun()
                 .filter(a -> !a.isSensitive())
                 .ifPresent(run -> {
                     try (Stream<AttestationSystemRoleAssignment> attestationSystemRoleAssignmentStream = systemRoleAssignmentDao.streamAllValidAssignments(when)) {
@@ -49,7 +49,9 @@ public class ItSystemAttestationTrackerService {
     }
 
     private void ensureWeHaveAttestationFor(final AttestationRun run, final AttestationSystemRoleAssignment assignment, final LocalDate when) {
-
+        if (run.isExtraSensitive() || run.isSensitive()) {
+            return;
+        }
         Attestation attestation = findItSystemRolesAttestationFor(assignment, when).orElse(null);
         if (attestation == null) {
             if (!run.getDeadline().minusDays(configuration.getAttestation().getDaysForAttestation()).isAfter(when)) {
@@ -98,5 +100,4 @@ public class ItSystemAttestationTrackerService {
         return attestationDao.findByAttestationTypeAndItSystemIdAndDeadlineGreaterThanEqual(
                 Attestation.AttestationType.IT_SYSTEM_ROLES_ATTESTATION, assignment.getItSystemId(), when);
     }
-
 }

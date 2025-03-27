@@ -36,9 +36,11 @@
 					<image>
 						<name>rollekatalog</name>
 						<tags>latest</tags>
+						<pullPolicy>IF_NOT_PRESENT</pullPolicy>
+						<builder>paketobuildpacks/builder-jammy-base</builder>
 						<env>
 							<BP_JVM_VERSION>21</BP_JVM_VERSION>
-							<BP_JVM_CDS_ENABLED>true</BP_JVM_CDS_ENABLED>
+<!--							<BP_JVM_CDS_ENABLED>true</BP_JVM_CDS_ENABLED>-->
 							<BPE_TZ>Europe/Copenhagen</BPE_TZ>
 							<BPE_LANG>C.UTF-8</BPE_LANG>
 						</env>
@@ -174,7 +176,6 @@
 		<dependency>
 			<groupId>org.apache.httpcomponents.client5</groupId>
 			<artifactId>httpclient5</artifactId>
-			<version>5.3.1</version>
 		</dependency>
 
 		<dependency>
@@ -207,19 +208,19 @@
 		<dependency>
 			<groupId>org.flywaydb</groupId>
 			<artifactId>flyway-core</artifactId>
-			<version>10.11.0</version>
+			<version>11.1.0</version>
 		</dependency>
 
 		<dependency>
 			<groupId>org.flywaydb</groupId>
 			<artifactId>flyway-mysql</artifactId>
-			<version>10.11.0</version>
+			<version>11.1.0</version>
 		</dependency>
 
 		<dependency>
 			<groupId>org.flywaydb</groupId>
 			<artifactId>flyway-sqlserver</artifactId>
-			<version>10.15.0</version>
+			<version>11.1.0</version>
 		</dependency>
 
 		<dependency>
@@ -397,6 +398,11 @@
 			<groupId>com.azure</groupId>
 			<artifactId>azure-identity</artifactId>
 			<version>1.14.0</version>
+		</dependency>
+
+		<dependency>
+			<groupId>org.springframework.data</groupId>
+			<artifactId>spring-data-envers</artifactId>
 		</dependency>
 		
 		<!-- This is apparently needed to be added to send base64 inline images.

@@ -12,6 +12,4 @@ public class AttestationConfig {
     private Integer reminder2DaysBeforeDeadline = 3;
     private Integer reminder3DaysAfterDeadline = 5;
     private Integer escalationReminderDaysAfterDeadline = 5;
-    private Integer currentAttestationActiveDaysAfterDeadline = 80;
-
 }

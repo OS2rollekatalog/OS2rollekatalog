@@ -20,8 +20,8 @@ public class EntraIDBackSyncTask {
 	private EntraIDService entraIDService;
 
 	// every 30 minutes starting at minute 02
-	@Scheduled(cron = "0 2/30 * * * ?")
-	public void sync() {
+	@Scheduled(cron = "${rc.integrations.entraID.backSyncTask.cron}")
+	public void sync() throws ReflectiveOperationException {
 		if (!configuration.getScheduled().isEnabled()) {
 			log.debug("Scheduled jobs are disabled on this instance");
 			return;

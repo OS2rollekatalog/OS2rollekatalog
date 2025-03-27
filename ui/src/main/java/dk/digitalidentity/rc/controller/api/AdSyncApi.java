@@ -5,10 +5,13 @@ import dk.digitalidentity.rc.controller.api.dto.ADOperationsResult;
 import dk.digitalidentity.rc.controller.api.dto.ADSyncResult;
 import dk.digitalidentity.rc.dao.model.DirtyADGroup;
 import dk.digitalidentity.rc.dao.model.Domain;
+import dk.digitalidentity.rc.dao.model.ItSystem;
 import dk.digitalidentity.rc.dao.model.SystemRole;
 import dk.digitalidentity.rc.dao.model.UserRole;
+import dk.digitalidentity.rc.dao.model.enums.ItSystemType;
 import dk.digitalidentity.rc.security.RequireApiReadAccessRole;
 import dk.digitalidentity.rc.service.DomainService;
+import dk.digitalidentity.rc.service.ItSystemService;
 import dk.digitalidentity.rc.service.PendingADUpdateService;
 import dk.digitalidentity.rc.service.SystemRoleService;
 import dk.digitalidentity.rc.service.UserService;
@@ -27,6 +30,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -52,6 +56,9 @@ public class AdSyncApi {
 
 	@Autowired
 	private DomainService domainService;
+
+	@Autowired
+	private ItSystemService itSystemService;
 
 	@GetMapping("/api/ad/v2/operations")
 	public ResponseEntity<ADOperationsResult> getPendingOperations(@RequestParam(name = "domain", required = false) String domain) {
@@ -92,7 +99,7 @@ public class AdSyncApi {
 	}
 
 	@GetMapping("/api/ad/v2/sync")
-	public ResponseEntity<ADSyncResult> getPendingUpdates(@RequestParam(name = "domain", required = false) String domain) {
+	public ResponseEntity<ADSyncResult> getPendingUpdates(@RequestParam(name = "domain", required = false) String domain, @RequestParam(name = "fullsync", required = false, defaultValue = "false") boolean fullSync) {
 		Domain foundDomain = domainService.getDomainOrPrimary(domain);
 		if (foundDomain == null) {
 			return new ResponseEntity<>(HttpStatus.NOT_FOUND);
@@ -101,8 +108,26 @@ public class AdSyncApi {
 		ADSyncResult result = new ADSyncResult();
 		result.setAssignments(new ArrayList<ADGroupAssignments>());
 
-		// compute sets of userIds and itSystemIds that are dirty, filtered for duplicates
-		List<DirtyADGroup> updates = pendingADUpdateService.find100(foundDomain);
+		List<DirtyADGroup> updates = new ArrayList<>();
+
+		if (!fullSync) {
+			// compute sets of userIds and itSystemIds that are dirty, filtered for duplicates
+			updates = pendingADUpdateService.find100(foundDomain);
+		} else {
+			List<ItSystem> allADSystems = itSystemService.getBySystemType(ItSystemType.AD).stream().filter(s -> s.getDomain() != null && foundDomain.getId() == s.getDomain().getId()).toList();
+			for (ItSystem itSystem : allADSystems) {
+				List<SystemRole> systemRoles = systemRoleService.findByItSystem(itSystem);
+				for (SystemRole systemRole : systemRoles) {
+					DirtyADGroup dirtyADGroup = new DirtyADGroup();
+					dirtyADGroup.setDomain(foundDomain);
+					dirtyADGroup.setIdentifier(systemRole.getIdentifier());
+					dirtyADGroup.setItSystemId(itSystem.getId());
+					dirtyADGroup.setTimestamp(new Date());
+					
+					updates.add(dirtyADGroup);
+				}
+			}
+		}
 		
 		// compute max
 		long maxId = 0;

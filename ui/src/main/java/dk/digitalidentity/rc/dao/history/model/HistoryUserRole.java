@@ -44,8 +44,7 @@ public class HistoryUserRole {
 
 	@Column(name = "`extra_sensitive_role`")
 	private Boolean extraSensitiveRole;
-	
-	@BatchSize(size = 50)
+
 	@ManyToOne(fetch = FetchType.LAZY)
 	@JoinColumn(name = "history_it_systems_id")
 	private HistoryItSystem historyItSystem;

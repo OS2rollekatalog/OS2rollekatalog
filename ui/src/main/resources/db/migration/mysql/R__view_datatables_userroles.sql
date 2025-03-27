@@ -6,7 +6,7 @@ CREATE OR REPLACE VIEW view_datatables_userroles AS (
 	    its.id AS it_system_id,
 	    its.name AS it_system_name,
 	    its.system_type AS it_system_type,
-	    ur.can_request AS can_request,
+ 	    ur.can_request AS can_request,
 	    IF(pku.id IS NULL, FALSE, TRUE) AS pending_sync,
 	    IF(pku.failed IS NULL, FALSE, pku.failed) AS sync_failed,
 	    ur.delegated_from_cvr AS delegated_from_cvr

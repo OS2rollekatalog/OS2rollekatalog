@@ -1,4 +1,5 @@
 ﻿using ADSyncService.Email;
+using ADSyncService.Persistance;
 using Quartz;
 using System;
 using System.Threading;
@@ -18,6 +19,7 @@ namespace ADSyncService
         private BackSyncService backSyncService = new BackSyncService();
         private CreateDeleteService createDeleteService = new CreateDeleteService();
         private MembershipSyncService membershipSyncService = new MembershipSyncService();
+        private readonly PersistenceService persistenceService = new PersistenceService();
 
         public void Execute(IJobExecutionContext context)
         {
@@ -45,7 +47,9 @@ namespace ADSyncService
             {
                 try
                 {
-                    membershipSyncService.SynchronizeGroupMemberships(roleCatalogueStub, adStub);
+                    // retrieve any changes from role catalogue
+                    var syncData = roleCatalogueStub.GetSyncData(fullSync: false);
+                    membershipSyncService.SynchronizeGroupMemberships(roleCatalogueStub, adStub, persistenceService, syncData);
                 }
                 catch (System.Exception ex)
                 {

@@ -36,11 +36,11 @@ import dk.digitalidentity.rc.service.SENumberService;
 import dk.digitalidentity.rc.service.Select2Service;
 import dk.digitalidentity.rc.service.SettingsService;
 import dk.digitalidentity.rc.service.SystemRoleService;
+import dk.digitalidentity.rc.service.TitleService;
 import dk.digitalidentity.rc.service.UserRoleService;
 import dk.digitalidentity.rc.service.UserService;
 import dk.digitalidentity.rc.service.model.OrgUnitWithRole2;
 import dk.digitalidentity.rc.service.model.UserWithRole;
-import dk.digitalidentity.rc.service.model.UserWithRole2;
 import dk.digitalidentity.rc.service.model.UserWithRoleAndDates;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -109,6 +109,9 @@ public class UserRoleController {
 	
 	@Autowired
 	private PNumberService pNumberService;
+
+	@Autowired
+	private TitleService titleService;
 
 	@InitBinder(value = { "role" })
 	public void initBinder(WebDataBinder binder) {
@@ -461,6 +464,9 @@ public class UserRoleController {
 			titleForms.addAll(orgUnit.getTitles().stream().filter(t -> !titleFormsUuids.contains(t.getUuid())).map(t -> new TitleListForm(t, true)).collect(Collectors.toList()));
 			
 			model.addAttribute("titles", titleForms);
+
+			List<TitleListForm> allTitles = titleService.getAll().stream().map(title -> new TitleListForm(title, false)).toList();
+			model.addAttribute("allTitles", allTitles);
 		}
 		else {
 			model.addAttribute("titles", null);

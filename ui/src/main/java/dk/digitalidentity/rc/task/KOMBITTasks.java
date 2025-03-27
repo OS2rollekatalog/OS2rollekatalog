@@ -5,11 +5,13 @@ import dk.digitalidentity.rc.dao.model.enums.ItSystemType;
 import dk.digitalidentity.rc.service.ItSystemService;
 import dk.digitalidentity.rc.service.kombit.KOMBITService;
 import jakarta.annotation.PostConstruct;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
+@Slf4j
 @Component
 @EnableScheduling
 public class KOMBITTasks {
@@ -44,8 +46,9 @@ public class KOMBITTasks {
 		}
 	}
 	
-	@Scheduled(cron = "#{new java.util.Random().nextInt(59)} 0/2 6-21 * * ?")
+	@Scheduled(cron = "${cron.kombit.userroles:#{new java.util.Random().nextInt(59)} 0/2 6-21 * * ?}")
 	public void processUserRolesFromUpdateQueue() {
+		log.info("Processing user roles from update queue, initialized={}", initialized);
 		if (initialized) {
 			kombitService.synchronizeUserRoles();
 		}

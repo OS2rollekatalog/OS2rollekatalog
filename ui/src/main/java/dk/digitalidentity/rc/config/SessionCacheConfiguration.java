@@ -27,7 +27,7 @@ public class SessionCacheConfiguration {
 	@Bean
 	@ConditionalOnProperty(
 			value = "spring.datasource.driver-class-name",
-			havingValue = "com.mysql.cj.jdbc.Driver",
+			havingValue = "org.mariadb.jdbc.Driver",
 			matchIfMissing = true
 	)
 	// Spring Session JDBC optimizations for MySQL

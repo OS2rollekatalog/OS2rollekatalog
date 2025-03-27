@@ -8,3 +8,4 @@
 # 2024-05-07  -  2.4.0  -  support * wildcard on DNs for OUs
 # 2024-05-08  -  2.4.1  -  added support for automatic log upload
 # 2024-08-28  -  2.4.2  -  fixed typo in default application config
+# 2024-03-25  -  2.4.3  -  multithreaded and remoteconfig

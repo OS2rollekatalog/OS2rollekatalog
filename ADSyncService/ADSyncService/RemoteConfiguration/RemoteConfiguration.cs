@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 
 namespace ADSyncService
 {
@@ -13,6 +14,8 @@ namespace ADSyncService
         public List<string> membershipSyncFeatureAttributeMap { get; set; }
         public bool membershipSyncFeatureEnabled { get; set; }
         public bool membershipSyncFeatureIgnoreUsersWithoutCpr { get; set; }
+
+        public bool fullMembershipSyncFeatureEnabled { get; set; }
 
         public bool backSyncFeatureEnabled { get; set; }
         public List<string> backSyncFeatureOUs { get; set; }

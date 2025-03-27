@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -282,17 +283,20 @@ public class AccessConstraintService {
 							.getConstraintValues()
 							.stream()
 							.filter(c -> c.getConstraintType().getEntityId().equals(Constants.INTERNAL_ITSYSTEM_CONSTRAINT_ENTITY_ID))
-							.collect(Collectors.toList());
+							.filter(c -> StringUtils.isNotBlank(c.getConstraintValue()))
+							.toList();
 					
 					// at least one RoleAssigner role with no constraints on itSystems, gives full access
-					if (filteredConstraints == null || filteredConstraints.size() == 0) {
+					if (filteredConstraints.isEmpty()) {
 						return null;
 					}
 
 					// if constrained on itSystems, sum up (could be assigned the role multiple times)
 					for (SystemRoleAssignmentConstraintValue constraintValue : filteredConstraints) {
 						for (String val : constraintValue.getConstraintValue().split(",")) {
-							resultSet.add(Long.parseLong(val));
+							if (StringUtils.isNumeric(val)) {
+								resultSet.add(Long.parseLong(val));
+							}
 						}
 					}
 				}

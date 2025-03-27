@@ -29,5 +29,5 @@ public class RoleGroupAM {
     @Schema(description = "")
     private Boolean canRequest;
     @Schema(description = "Ids of the JFR associated with the rolegroup")
-    private List<UserRoleAssignmentAM> userRoles;
+    private List<UserRoleGroupAssignmentAM> userRoles;
 }

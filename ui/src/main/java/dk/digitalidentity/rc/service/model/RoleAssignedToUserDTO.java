@@ -7,6 +7,7 @@ import dk.digitalidentity.rc.dao.model.OrgUnitUserRoleAssignment;
 import dk.digitalidentity.rc.dao.model.PositionRoleGroupAssignment;
 import dk.digitalidentity.rc.dao.model.PositionUserRoleAssignment;
 import dk.digitalidentity.rc.dao.model.RoleGroupUserRoleAssignment;
+import dk.digitalidentity.rc.dao.model.Title;
 import dk.digitalidentity.rc.dao.model.UserRoleGroupAssignment;
 import dk.digitalidentity.rc.dao.model.UserUserRoleAssignment;
 import dk.digitalidentity.rc.dao.model.enums.ContainsTitles;
@@ -14,7 +15,10 @@ import lombok.Getter;
 import lombok.Setter;
 
 import java.time.LocalDate;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Getter
 @Setter
@@ -33,6 +37,8 @@ public class RoleAssignedToUserDTO {
 	private boolean canRequest;
 	private List<SystemRoleAssignmentDTO> systemRoleAssignments;
 	private boolean ineffective = false;
+	private ContainsTitles containsTitles = ContainsTitles.NO;
+	private List<String> titleUuids = Collections.emptyList();
 
 	// only for directly assigned roles
 	private String orgUnitUuid;
@@ -51,7 +57,6 @@ public class RoleAssignedToUserDTO {
 		dto.setStartDate(startDate);
 		dto.setStopDate(stopDate);
 		dto.setCanEdit(false);
-		
 		return dto;
 	}
 
@@ -69,7 +74,6 @@ public class RoleAssignedToUserDTO {
 		dto.setCanEdit(false);
 		dto.setCanRequest(assignment.getUserRole().isCanRequest());
 		dto.setOrgUnitUuid(assignment.getOrgUnit() != null ? assignment.getOrgUnit().getUuid() : null);
-		
 		return dto;
 	}
 
@@ -86,7 +90,6 @@ public class RoleAssignedToUserDTO {
 		dto.setCanEdit(false);
 		dto.setCanRequest(assignment.getRoleGroup().isCanRequest());
 		dto.setOrgUnitUuid(assignment.getOrgUnit() != null ? assignment.getOrgUnit().getUuid() : null);
-		
 		return dto;
 	}
 
@@ -132,11 +135,13 @@ public class RoleAssignedToUserDTO {
 
 		if (assignment.getContainsTitles() == ContainsTitles.NO) {
 			dto.setAssignedThrough(AssignedThrough.ORGUNIT);
-		}
-		else {
+		} else {
 			dto.setAssignedThrough(AssignedThrough.TITLE);
 		}
-		
+		dto.setContainsTitles(assignment.getContainsTitles());
+		if (assignment.getTitles() != null) {
+			dto.setTitleUuids(assignment.getTitles().stream().map(Title::getUuid).collect(Collectors.toList()));
+		}
 		dto.setAssignedThroughName(assignment.getOrgUnit().getName());
 		dto.setItSystem(assignment.getUserRole().getItSystem());
 		dto.setDescription(assignment.getUserRole().getDescription());
@@ -161,7 +166,10 @@ public class RoleAssignedToUserDTO {
 		else {
 			dto.setAssignedThrough(AssignedThrough.TITLE);
 		}
-		
+		dto.setContainsTitles(assignment.getContainsTitles());
+		if (assignment.getTitles() != null) {
+			dto.setTitleUuids(assignment.getTitles().stream().map(Title::getUuid).collect(Collectors.toList()));
+		}
 		dto.setAssignedThroughName(assignment.getOrgUnit().getName());
 		dto.setDescription(assignment.getRoleGroup().getDescription());
 		dto.setStartDate(assignment.getStartDate());
@@ -171,6 +179,7 @@ public class RoleAssignedToUserDTO {
 		
 		return dto;
 	}
+
 
 	public static RoleAssignedToUserDTO fromNegativeOrgUnitUserRoleAssignment(OrgUnitUserRoleAssignment assignment) {
 		RoleAssignedToUserDTO dto = new RoleAssignedToUserDTO();
@@ -186,6 +195,10 @@ public class RoleAssignedToUserDTO {
 		dto.setStopDate(assignment.getStopDate());
 		dto.setCanEdit(false);
 		dto.setCanRequest(false);
+		dto.setContainsTitles(assignment.getContainsTitles());
+		if (assignment.getTitles() != null) {
+			dto.setTitleUuids(assignment.getTitles().stream().map(Title::getUuid).collect(Collectors.toList()));
+		}
 		return dto;
 	}
 
@@ -202,6 +215,11 @@ public class RoleAssignedToUserDTO {
 		dto.setStopDate(assignment.getStopDate());
 		dto.setCanEdit(false);
 		dto.setCanRequest(false);
+		dto.setContainsTitles(assignment.getContainsTitles());
+		if (assignment.getTitles() != null) {
+			dto.setTitleUuids(assignment.getTitles().stream().map(Title::getUuid).collect(Collectors.toList()));
+		}
 		return dto;
 	}
 }
+

@@ -26,7 +26,7 @@ public class HistoryOURoleAssignmentWithExceptionsRowMapper implements RowMapper
         historyOURoleAssignmentWithExceptions.setRoleRoleGroupId(zeroIsNull(rs.getLong("role_role_group_id")));
         historyOURoleAssignmentWithExceptions.setAssignedByUserId(rs.getString("assigned_by_user_id"));
         historyOURoleAssignmentWithExceptions.setAssignedByName(rs.getString("assigned_by_name"));
-        historyOURoleAssignmentWithExceptions.setAssignedWhen(rs.getDate("assigned_when"));
+        historyOURoleAssignmentWithExceptions.setAssignedWhen(rs.getTimestamp("assigned_when"));
         return historyOURoleAssignmentWithExceptions;
     }
 }

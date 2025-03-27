@@ -20,7 +20,6 @@ public class HistoryOUUser {
 	@Id
 	private long id;
 
-	@BatchSize(size = 50)
 	@ManyToOne(fetch = FetchType.LAZY)
 	@JoinColumn(name = "history_ous_id")
 	private HistoryOU historyOU;

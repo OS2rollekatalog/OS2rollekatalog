@@ -8,7 +8,6 @@ import jakarta.persistence.MapsId;
 import jakarta.persistence.OneToOne;
 import lombok.Getter;
 import lombok.Setter;
-import org.hibernate.annotations.BatchSize;
 
 import java.time.LocalDateTime;
 
@@ -22,10 +21,10 @@ public class DmpQueue {
 	private String userUuid;
 
     @MapsId
-	@BatchSize(size = 50)
 	@OneToOne(fetch = FetchType.LAZY)
 	private User user;
 
 	@Column
 	private LocalDateTime tts;
+
 }

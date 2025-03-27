@@ -18,6 +18,8 @@ public class UserRoleAssignmentReportEntry {
 	private boolean userActive;
 	private long roleId;
 	private String itSystem;
+	private long systemRoleWeight; // This will contain the highest systemRole weight for this JFR
+	private long itSystemResultWeight; // This will contain the highest systemRole weight for the users for the it-system
 	private String assignedBy;
 	private Date assignedWhen;
 	private String assignedThrough;

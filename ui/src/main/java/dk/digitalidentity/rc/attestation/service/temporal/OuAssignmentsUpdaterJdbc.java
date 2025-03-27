@@ -142,6 +142,8 @@ public class OuAssignmentsUpdaterJdbc {
         if (context.isItSystemExempt()) {
             return null;
         }
+        boolean inherited = historyOURoleAssignmentWithTitles.getAssignedThroughType() == AssignedThrough.ORGUNIT
+                && !StringUtils.equals(historyOURoleAssignmentWithTitles.getAssignedThroughUuid(), historyOURoleAssignmentWithTitles.getOuUuid());
         final String responsibleUuid = getResponsibleUserUuid(historyOURoleAssignmentWithTitles.getRoleRoleGroupId(), context);
         final String responsibleOuUuid = responsibleUuid == null ? historyOURoleAssignmentWithTitles.getOuUuid() : null;
         final String responsibleOuName = responsibleUuid == null ? context.ouName() : null;
@@ -160,13 +162,13 @@ public class OuAssignmentsUpdaterJdbc {
                 .responsibleOuName(responsibleOuName)
                 .titleUuids(new ArrayList<>(historyOURoleAssignmentWithTitles.getTitleUuids()))
                 .assignedThroughType(AssignedThroughType.ORGUNIT)
-                .assignedThroughName(context.ouName())
-                .assignedThroughUuid(historyOURoleAssignmentWithTitles.getOuUuid())
+                .assignedThroughName(historyOURoleAssignmentWithTitles.getAssignedThroughName() == null ? context.ouName() : historyOURoleAssignmentWithTitles.getAssignedThroughName())
+                .assignedThroughUuid(historyOURoleAssignmentWithTitles.getAssignedThroughUuid() == null ? historyOURoleAssignmentWithTitles.getOuUuid() : historyOURoleAssignmentWithTitles.getAssignedThroughUuid())
                 .exceptedUserUuids(Collections.emptyList())
                 .itSystemId(historyOURoleAssignmentWithTitles.getRoleItSystemId())
                 .itSystemName(context.itSystemName())
-                .inherited(false)
-                .inherit(false)
+                .inherited(inherited)
+                .inherit(historyOURoleAssignmentWithTitles.getInherit())
                 .sensitiveRole(context.isRoleSensitive())
                 .extraSensitiveRole(context.isRoleExtraSensitive())
                 .exceptedTitleUuids(Collections.emptyList())
@@ -185,6 +187,9 @@ public class OuAssignmentsUpdaterJdbc {
         final String responsibleUuid = getResponsibleUserUuid(historyOURoleAssignmentWithNegativeTitles.getRoleRoleGroupId(), context);
         final String responsibleOuUuid = responsibleUuid == null ? historyOURoleAssignmentWithNegativeTitles.getOuUuid() : null;
         final String responsibleOuName = responsibleUuid == null ? context.ouName() : null;
+
+        boolean inherited = historyOURoleAssignmentWithNegativeTitles.getAssignedThroughType() == AssignedThrough.ORGUNIT
+                && !StringUtils.equals(historyOURoleAssignmentWithNegativeTitles.getAssignedThroughUuid(), historyOURoleAssignmentWithNegativeTitles.getOuUuid());
 
         return AttestationOuRoleAssignment.builder()
                 .roleId(historyOURoleAssignmentWithNegativeTitles.getRoleId())
@@ -205,8 +210,8 @@ public class OuAssignmentsUpdaterJdbc {
                 .exceptedUserUuids(Collections.emptyList())
                 .itSystemId(historyOURoleAssignmentWithNegativeTitles.getRoleItSystemId())
                 .itSystemName(context.itSystemName())
-                .inherited(false)
-                .inherit(false)
+                .inherited(inherited)
+                .inherit(historyOURoleAssignmentWithNegativeTitles.getInherit())
                 .sensitiveRole(context.isRoleSensitive())
                 .extraSensitiveRole(context.isRoleExtraSensitive())
                 .exceptedTitleUuids(new ArrayList<>(historyOURoleAssignmentWithNegativeTitles.getTitleUuids()))

@@ -59,7 +59,7 @@
 								</div>
 							</fieldset>
 
-							<fieldset th:if="${#lists.contains({'MANUAL','AD','SAML'}, #strings.toString(itSystemForm.systemType))}">
+							<fieldset >
 								<div class="form-group">
 									<label class="col-sm-2 control-label" th:text="#{html.entity.itsystem.email}"></label>
 									<div class="col-sm-8">
@@ -100,7 +100,7 @@
     </div>
 
     <nav th:replace="~{fragments/footer :: footer}"></nav>
-	<script th:replace="~{itsystem/fragments/autocomplete_service :: autocompleteServiceScript(searchFieldId='search_person', uuidFieldId='selectedResponsibleUuid')}"></script>
+	<script th:replace="~{itsystem/fragments/autocomplete_service :: autocompleteServiceScript(searchFieldIds=${ {'search_person'} }, uuidFieldIds=${ {'selectedResponsibleUuid'} })}"></script>
 
 	<style>
 		.autocomplete-suggestions { border: 1px solid #999; background: #FFF; overflow: auto; width: 500px !important; }

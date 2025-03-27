@@ -20,4 +20,5 @@ public class ItSystemRoleAssignmentUserRoleDTO {
 	private String assignedThroughName; // can be null
 	private String verifiedByUserId;
 	private String remarks;
+	private String postponedConstraints;
 }
