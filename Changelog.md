@@ -1,4 +1,4 @@
-2024.03.26 - Release 2025r1
+2025.03.26 - Release 2025r1
 - [ROL-363](https://os2web.atlassian.net/browse/ROL-363) Optimering af sync imellem ROL og AD grupper (kontinuerlig sync)
 - [ROL-369](https://os2web.atlassian.net/browse/ROL-369) Modernisering af listen til udvælgelse af it-system
 - [ROL-294](https://os2web.atlassian.net/browse/ROL-294) Attesteringsmodul: Kommentarer pr rolle
