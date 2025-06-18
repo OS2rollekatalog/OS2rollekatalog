@@ -12,10 +12,11 @@ import dk.digitalidentity.rc.security.SecurityUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
-@Component
+// TODO MAKE THIS COMPATIBLE WITH ROLE REQUEST MODULE
+//@Component
 public class ConstrainedAssignerHook implements RoleChangeHook {
 
-	@Autowired
+//	@Autowired
 	private AccessConstraintService assignerRoleConstraint;
 
 	@Override
@@ -29,9 +30,9 @@ public class ConstrainedAssignerHook implements RoleChangeHook {
 	public void interceptRemoveRoleGroupAssignmentOnUser(User user, RoleGroup roleGroup) {
 		if (!assignerRoleConstraint.isAssignmentAllowed(user, roleGroup)) {
 			throw new SecurityException("User " + SecurityUtil.getUserId() + " is prohibited from modifying user: " + user.getEntityId());
-		}		
+		}
 	}
-	
+
 	@Override
 	public void interceptActivateUser(User user) {
 		; // not relevant

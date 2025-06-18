@@ -107,6 +107,18 @@ namespace ADSyncService
                 }
             }
 
+            if (configuration.itSystemGroupFeatureRoleMap != null)
+            {
+                foreach (var groupDN in configuration.itSystemGroupFeatureRoleMap)
+                {
+                    if (!adStub.EntityExistsInAD(groupDN.Split(';')[1]))
+                    {
+                        errorMsg += "Konfigureret itSystemGroupFeatureRoleMap gruppe: " + groupDN + " eksisterer ikke i AD\n";
+                        valid = false;
+                    }
+                }
+            }
+
             if (configuration.readonlyItSystemFeatureSystemMap != null)
             {
                 foreach (var groupDN in configuration.readonlyItSystemFeatureSystemMap)
@@ -162,6 +174,7 @@ namespace ADSyncService
 
             configuration.itSystemGroupFeatureEnabled = Properties.Settings.Default.ItSystemGroupFeature_Enabled;
             configuration.itSystemGroupFeatureSystemMap = ConvertToList(Properties.Settings.Default.ItSystemGroupFeature_SystemMap);
+            configuration.itSystemGroupFeatureRoleMap = ConvertToList(Properties.Settings.Default.ItSystemGroupFeature_RoleMap);
 
             configuration.readonlyItSystemFeatureEnabled = Properties.Settings.Default.ReadonlyItSystemFeature_Enabled;
             configuration.readonlyItSystemFeatureSystemMap = ConvertToList(Properties.Settings.Default.ReadonlyItSystemFeature_SystemMap);
@@ -177,6 +190,8 @@ namespace ADSyncService
             configuration.tenantId = Properties.Settings.Default.TenantId;
             configuration.clientId = Properties.Settings.Default.ClientId;
             configuration.clientSecret = Properties.Settings.Default.ClientSecret;
+
+            configuration.includeNotesInDescription = Properties.Settings.Default.IncludeNotesInDescription;
 
             localConfiguration = configuration;
         }

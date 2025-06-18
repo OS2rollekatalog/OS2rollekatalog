@@ -16,7 +16,6 @@ import dk.digitalidentity.rc.service.OrgUnitService;
 import dk.digitalidentity.rc.service.RoleGroupService;
 import dk.digitalidentity.rc.service.SettingsService;
 import dk.digitalidentity.rc.service.TitleService;
-import dk.digitalidentity.rc.service.UserRoleService;
 import dk.digitalidentity.rc.service.UserService;
 import dk.digitalidentity.rc.service.model.OrgUnitWithRole2;
 import dk.digitalidentity.rc.service.model.UserWithRole;
@@ -35,6 +34,8 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 
 import java.security.Principal;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -44,9 +45,6 @@ public class RoleGroupController {
 
 	@Autowired
 	private ModelMapper mapper;
-
-	@Autowired
-	private UserRoleService userRoleService;
 
 	@Autowired
 	private RoleGroupService roleGroupService;
@@ -62,7 +60,7 @@ public class RoleGroupController {
 
 	@Autowired
 	private OrgUnitService orgUnitService;
-	
+
 	@Autowired
     private RoleCatalogueConfiguration configuration;
 
@@ -76,13 +74,11 @@ public class RoleGroupController {
 
 	@GetMapping(value = { "/ui/rolegroups/list" })
 	public String list(Model model, Principal principal) throws Exception {
-		List<RoleGroup> roles = roleGroupService.getAll();
+		List<RoleGroup> roles = Collections.emptyList();
 
 		// requesters needs to have the list filtered
-		if (SecurityUtil.isRequesterAndOnlyRequester()) {
-			User user = getUserOrThrow(principal.getName());
-
-			roles = roleGroupService.whichRolesCanBeRequestedByUser(roles, user);
+		if (!SecurityUtil.isRequesterAndOnlyRequester()) {
+			roles = roleGroupService.getAll();
 		}
 
 		model.addAttribute("roleGroups", roles);
@@ -98,21 +94,13 @@ public class RoleGroupController {
 		}
 
 		RoleGroupForm roleGroupForm = mapper.map(roleGroup, RoleGroupForm.class);
-		
+
 		// remove userRoles from soft-deleted it-systems until they are really deleted
 		roleGroupForm.setUserRoleAssignments(roleGroup.getUserRoleAssignments().stream()
 				.filter(a -> a.getUserRole().getItSystem().isDeleted() == false)
 				.collect(Collectors.toList()));
 
 		model.addAttribute("rolegroup", roleGroupForm);
-
-		boolean canRequest = false;
-		if (settingsService.isRequestApproveEnabled()) {
-			User user = getUserOrThrow(principal.getName());
-			canRequest = roleGroupService.canRequestRole(roleGroup, user);
-		}
-
-		model.addAttribute("canRequest", canRequest);
 
 		return "rolegroups/view";
 	}
@@ -127,7 +115,7 @@ public class RoleGroupController {
 
 		RoleGroupForm roleGroupForm = mapper.map(roleGroup, RoleGroupForm.class);
 		boolean titlesEnabled = configuration.getTitles().isEnabled();
-		
+
 		model.addAttribute("rolegroup", roleGroupForm);
 //		model.addAttribute("roles", getAddRoles(roleGroup));
 		model.addAttribute("titlesEnabled", titlesEnabled);
@@ -171,7 +159,7 @@ public class RoleGroupController {
 
 		return "rolegroups/fragments/manage_users :: users";
 	}
-	
+
 	@SuppressWarnings("deprecation")
 	@GetMapping(value = "/ui/rolegroups/{id}/assignedUsersFragmentView")
 	public String assignedUsersFragmentView(Model model, @PathVariable("id") long roleGroupId) {
@@ -227,25 +215,25 @@ public class RoleGroupController {
 		model.addAttribute("ous", availableOrgUnits);
 		return "rolegroups/fragments/manage_add_ous :: addOrgUnits";
 	}
-	
+
 	@GetMapping(value = "/ui/rolegroups/fragments/{uuid}")
 	public String getFragment(Model model, @PathVariable("uuid") String uuid) {
 		User user = userService.getByUuid(uuid);
-		
+
 		if (user != null) {
 			model.addAttribute("positions", user.getPositions());
 			model.addAttribute("possibleOrgUnits", orgUnitService.getOrgUnitsForUser(user));
 		}
-		
+
 		return "users/fragments/user_role_group_modal :: userRoleGroupModal";
-		
+
 	}
-	
+
 	@GetMapping(value = "/ui/rolegroups/fragments/ou/{uuid}")
 	public String getOUFragment(Model model, @PathVariable("uuid") String uuid, @RequestParam(name = "edit", required = false, defaultValue = "false") boolean edit) {
 		OrgUnit orgUnit = orgUnitService.getByUuid(uuid);
 		boolean titlesEnabled = configuration.getTitles().isEnabled();
-		
+
 		if (titlesEnabled && orgUnit != null) {
 			List<Title> titles = orgUnitService.getTitles(orgUnit);
 
@@ -253,10 +241,10 @@ public class RoleGroupController {
 					.stream()
 					.map(title -> new TitleListForm(title, false))
 					.collect(Collectors.toList());
-			
+
 			List<String> titleFormsUuids = titleForms.stream().map(t -> t.getId()).collect(Collectors.toList());
 			titleForms.addAll(orgUnit.getTitles().stream().filter(t -> !titleFormsUuids.contains(t.getUuid())).map(t -> new TitleListForm(t, true)).collect(Collectors.toList()));
-			
+
 			model.addAttribute("titles", titleForms);
 
 			List<TitleListForm> allTitles = titleService.getAll().stream().map(title -> new TitleListForm(title, false)).toList();
@@ -265,7 +253,7 @@ public class RoleGroupController {
 		else {
 			model.addAttribute("titles", null);
 		}
-		
+
 		model.addAttribute("titlesEnabled", titlesEnabled);
 
 		return "ous/fragments/ou_roles_modal :: ouRolesModal";

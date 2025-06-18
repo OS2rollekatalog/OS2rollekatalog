@@ -1,12 +1,13 @@
 package dk.digitalidentity.rc.task;
 
+import dk.digitalidentity.rc.rolerequest.dao.RoleRequestDao;
+import dk.digitalidentity.rc.rolerequest.service.RequestService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
-import dk.digitalidentity.rc.service.RequestApproveService;
 import dk.digitalidentity.rc.service.SettingsService;
 import lombok.extern.slf4j.Slf4j;
 
@@ -14,16 +15,18 @@ import lombok.extern.slf4j.Slf4j;
 @EnableScheduling
 @Slf4j
 public class CleanupRequestResponseTask {
+	@Autowired
+	private RoleRequestDao roleRequestDao;
 
 	@Autowired
-	private RequestApproveService requestApproveService;
+	private RequestService rolerequestService;
 
 	@Autowired
 	private SettingsService settingsService;
 
 	@Autowired
 	private RoleCatalogueConfiguration configuration;
-		
+
 	// Run daily at 04:xx
 	@Scheduled(cron = "0 #{new java.util.Random().nextInt(55)} 4 * * ?")
 	public void sendNotifications() {
@@ -36,6 +39,6 @@ public class CleanupRequestResponseTask {
 			return;
 		}
 
-		requestApproveService.deleteOld();
+		rolerequestService.deleteOld();
 	}
 }

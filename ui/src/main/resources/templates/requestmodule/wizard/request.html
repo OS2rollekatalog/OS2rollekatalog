@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:th="http://www.thymeleaf.org">
+<head
+	th:replace="~{requestmodule/fragments/header :: header(wizard = true, checkbox = true, datatables = true)}"></head>
+<body class="top-navigation layout-fixed">
+<div id="wrapper">
+	<div id="page-wrapper" class="gray-bg">
+		<div th:replace="~{requestmodule/fragments/topbar :: topbar(page = 'request')}"></div>
+		<div class="wrapper wrapper-content">
+			<div class="row">
+				<div class="col-lg-12">
+					<div class="ibox">
+						<div class="ibox-title">
+							<h3>
+								<em class="fa fa-plus"></em> &nbsp
+								<span th:text="#{requestmodule.html.request.title}"></span>
+								<span th:if="${titleAddition != null}" th:text="${titleAddition}"></span>
+							</h3>
+						</div>
+
+						<div class="ibox-content">
+							<div id="requestWizard">
+								<h2 th:text="#{requestmodule.html.request.wizard.employment.title}"></h2>
+								<section>
+									<h3 th:text="#{requestmodule.html.request.wizard.employment.subtitle}"></h3>
+									<table class="table table-striped">
+										<thead>
+										<tr>
+											<th th:text="#{requestmodule.html.request.wizard.employment.table.choose}"
+												class="col-lg-1"></th>
+											<th th:text="#{requestmodule.html.request.wizard.employment.table.orgUnit}"
+												class="col-lg-6"></th>
+											<th th:text="#{requestmodule.html.request.wizard.employment.table.position}"
+												class="col-lg-5"></th>
+										</tr>
+										</thead>
+										<tbody>
+										<tr th:each="employment,iter : ${employments}">
+											<td>
+												<input class="employeeRadioButton"
+													th:checked="${iter.index} == 0 AND ${iter.size} == 1"
+													   type="radio" th:value="${employment.id}"
+													   th:id="'employment' + ${employment.id}" name="employmentId"
+													   th:attr="data-ou=${employment.orgUnitName}, data-position=${employment.position}">
+											</td>
+											<td th:text="${employment.orgUnitName}"></td>
+											<td th:text="${employment.position}"></td>
+										</tr>
+										</tbody>
+									</table>
+								</section>
+
+								<h2 ></h2>
+								<section>
+									<div class="col-dm-12 d-flex justify-content-between">
+
+										<h3 th:text="#{requestmodule.html.request.wizard.roles.subtitle}"></h3>
+										<div >
+											<label for="hideAlreadyAssignedSelector" th:text="#{requestmodule.html.request.wizard.roles.showalreadyassigned}"></label>
+											<input id="hideAlreadyAssignedSelector" type="checkbox" value="true" checked/>
+										</div>
+									</div>
+									<div id="roleListPlaceholder"></div>
+								</section>
+
+								<h2 th:text="#{requestmodule.html.request.wizard.reason.title}"></h2>
+								<section>
+									<h3 th:text="#{requestmodule.html.request.wizard.reason.subtitle}"></h3>
+									<textarea class="form-control" rows="10" id="reason"
+											  th:disabled="${reasonSetting == T(dk.digitalidentity.rc.rolerequest.model.enums.ReasonOption).NONE}"></textarea>
+								</section>
+
+								<h2 th:text="#{requestmodule.html.request.wizard.confirm.title}"></h2>
+								<section>
+									<h3 th:text="#{requestmodule.html.request.wizard.confirm.subtitle}"></h3>
+
+									<p th:text="#{requestmodule.html.request.wizard.confirm.roles}"></p>
+									<table class="table table-striped" id="confirmRolesTable">
+										<thead>
+										<tr>
+											<th th:text="#{requestmodule.html.request.wizard.confirm.roles.type}"
+												class="col-lg-3"></th>
+											<th th:text="#{requestmodule.html.request.wizard.confirm.roles.itsystem}"
+												class="col-lg-3"></th>
+											<th th:text="#{requestmodule.html.request.wizard.confirm.roles.name}"
+												class="col-lg-3"></th>
+											<th th:text="#{requestmodule.html.request.wizard.confirm.roles.approver}"
+												class="col-lg-3"></th>
+										</tr>
+										</thead>
+										<tbody>
+										</tbody>
+									</table>
+
+									<th:block
+										th:unless="${reasonSetting == T(dk.digitalidentity.rc.rolerequest.model.enums.ReasonOption).NONE}">
+										<p th:text="#{requestmodule.html.request.wizard.confirm.reason}"></p>
+										<pre id="confirmReason"></pre>
+									</th:block>
+
+									<p th:text="#{requestmodule.html.request.wizard.confirm.for}"></p>
+									<pre id="confirmFor"></pre>
+								</section>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+</div>
+
+<div id="userrole-constraint-modal-container"></div>
+<div
+	th:replace="~{requestmodule/fragments/footer :: scripts(wizard = true, checkbox = true, datatables = true, jstree = true)}"></div>
+<script
+	th:replace="~{users/fragments/assign_user_role_postponed_data_constraints :: postponedConstraintsScript}"></script>
+	<script th:src="@{/js/rolerequest/wizard.js}"></script>
+	<script th:src="@{/js/DatatableService.js}"></script>
+
+<script th:inline="javascript">
+	/*<![CDATA[*/
+	/*[+
+	var baseUrl = [[@{/ui/request/wizard}]];
+	let detailsUrl = [[@{/ui/request/rolegroups}]];
+	let restUrl = [[@{/rest/rolerequest}]];
+
+	var userUuid = [[${userUuid}]];
+	var reasonSetting = [[${reasonSetting}]];
+	var employments = [[${employments}]];
+	var onlyRecommendRoles = [[${onlyRecommendRoles}]];
+
+	var userRoleText = [[#{html.navbar.jobroles}]];
+	var roleGroupText = [[#{html.navbar.rolegroups}]];
+	let datatableService;
+	+]*/
+
+	var token = $("meta[name='_csrf']").attr("content");
+
+	var chosenEmploymentId;
+	var chosenEmploymentChanged = false;
+	var chosenRolesDTOs = [];
+	var chosenUserRoleIds = [];
+	var chosenRoleGroupIds = [];
+	var kleList = [[${kleList}]];
+	var treeOUs = [[${treeOUs}]];
+	var requestService, roleFragmentService, roleGroupService, userRoleService, expandableRoleGroupTableService, constraintService, networkService;
+	$(document).ready(function(){
+		requestService = new RequestService();
+		roleFragmentService = new RoleFragmentService();
+		roleGroupService = new RoleGroupService();
+		userRoleService = new UserRoleService();
+		constraintService = new ConstraintService();
+		networkService = new NetworkService(token);
+		expandableRoleGroupTableService = new ExpandableRoleGroupTableService();
+		datatableService = new DatatableService();
+
+		requestService.init();
+
+	});
+
+	/*]]>*/
+</script>
+
+</body>
+</html>

@@ -70,7 +70,7 @@ public class UserAttestationTrackerService {
 	public void updateSystemUserAttestations(final LocalDate when) {
 		cnt = cntUA = cntOu = ouAdCnt = 0;
 		entityManager.setFlushMode(FlushModeType.COMMIT);
-		runTrackerService.getAttestationRun().ifPresent(run -> {
+		runTrackerService.getAttestationRunWithDeadlineNotAfter(when).ifPresent(run -> {
 			userRoleAssignmentDao.findValidGroupByResponsibleUserUuidAndUserUuidAndSensitiveRoleAndItSystem(when)
 					.forEach(a -> ensureWeHaveSystemUsersAttestationFor(run, a, when));
 
@@ -85,7 +85,7 @@ public class UserAttestationTrackerService {
 	public void updateOrganisationUserAttestations(final LocalDate when) {
 		cnt = cntUA = cntOu = 0;
 		entityManager.setFlushMode(FlushModeType.COMMIT);
-		runTrackerService.getAttestationRun().ifPresent(run -> {
+		runTrackerService.getAttestationRunWithDeadlineNotAfter(when).ifPresent(run -> {
 			// We start by deleting all attestation users
 			// Reason for this is that the org hierarchy changes over time, so it's easier to just start from scratch every time.
 			attestationDao.findByAttestationTypeAndDeadlineIsGreaterThanEqual(Attestation.AttestationType.ORGANISATION_ATTESTATION, when)

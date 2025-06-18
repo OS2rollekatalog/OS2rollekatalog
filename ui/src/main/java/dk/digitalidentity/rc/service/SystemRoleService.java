@@ -4,11 +4,13 @@ import dk.digitalidentity.rc.dao.SystemRoleDao;
 import dk.digitalidentity.rc.dao.model.ItSystem;
 import dk.digitalidentity.rc.dao.model.SystemRole;
 import dk.digitalidentity.rc.dao.model.UserRole;
+import dk.digitalidentity.rc.service.model.UserWithRole;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
@@ -17,7 +19,7 @@ public class SystemRoleService {
 
 	@Autowired
 	private SystemRoleDao systemRoleDao;
-	
+
 	@Autowired
 	private UserRoleService userRoleService;
 
@@ -66,19 +68,19 @@ public class SystemRoleService {
 	public Iterable<SystemRole> save(List<SystemRole> systemRoles) {
 		return systemRoleDao.saveAll(systemRoles);
 	}
-	
+
 	public List<UserRole> userRolesWithSystemRole(SystemRole systemRole) {
-		
+
 		// find all potential candidates
 		List<UserRole> candidates = userRoleService.getByItSystem(systemRole.getItSystem());
 
 		// filter
 		candidates.removeIf(ur -> !ur.getSystemRoleAssignments().stream().anyMatch(sysRoleAssignment -> systemRole.getId() == sysRoleAssignment.getSystemRole().getId()));
-		
+
 		return candidates;
 
 	}
-	
+
 	public boolean isInUse(SystemRole systemRole) {
 		if (userRoleService.countBySystemRoleAssignmentsSystemRole(systemRole) > 0) {
 			return true;
@@ -86,17 +88,17 @@ public class SystemRoleService {
 
 		return false;
 	}
-	
+
 	public boolean belongsToItSystemWithDifferentWeight(SystemRole systemRole) {
 		if (systemRole == null) {
 			return false;
 		}
-		
+
 		Set<Integer> weights = new HashSet<>();
 		for (SystemRole sr : getByItSystem(systemRole.getItSystem())) {
 			weights.add(sr.getWeight());
 		}
-		
+
 		return weights.size() > 1;
 	}
 }

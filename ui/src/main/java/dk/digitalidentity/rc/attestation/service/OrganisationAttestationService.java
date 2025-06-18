@@ -217,7 +217,6 @@ public class OrganisationAttestationService {
 				.collect(Collectors.toList());
 	}
 
-
 	@Transactional
 	public void verifyUser(final String orgUnitUuid, final String userUuid, final String performedByUserId) {
 		final User user = userService.getByUserId(performedByUserId);
@@ -322,27 +321,33 @@ public class OrganisationAttestationService {
 	}
 
 	@Transactional
-	public void rejectOrgUnitRoles(final String orgUnitUuid, final String performedByUserId, final String remarks) {
+	public void rejectOrgUnitRoles(final String orgUnitUuid, final String performedByUserId, final String remarks, final List<RoleAssignmentDTO> notApprovedRoleAssignments) {
 		final Attestation attestation = attestationDao.findFirstByAttestationTypeAndResponsibleOuUuidOrderByDeadlineDesc(
 				Attestation.AttestationType.ORGANISATION_ATTESTATION, orgUnitUuid).orElse(null);
 		ensureOrgRoleEntryDoesntExist(attestation);
+
+		final Set<String> notApprovedUserRoles = getNotApprovedUserRoles(notApprovedRoleAssignments);
+		final Set<String> notApprovedRoleGroups = getNotApprovedRoleGoups(notApprovedRoleAssignments);
+
+		final String performedByUserUuid = userService.getByUserId(performedByUserId).getUuid();
 		attestation.setOrganisationRolesAttestationEntry(
 				organisationRoleAttestationEntryDao.save(OrganisationRoleAttestationEntry.builder()
 						.attestation(attestation)
 						.createdAt(ZonedDateTime.now())
 						.performedByUserId(performedByUserId)
-						.performedByUserUuid(userService.getByUserId(performedByUserId).getUuid())
+						.performedByUserUuid(performedByUserUuid)
+						.rejectedUserRoleIds(notApprovedUserRoles)
+						.rejectedRoleGroupIds(notApprovedRoleGroups)
 						.remarks(remarks)
 						.build()));
 		if (isOrganisationAttestationDone(attestation, attestation.getCreatedAt())) {
 			attestation.setVerifiedAt(ZonedDateTime.now());
 		}
-		final User user = userService.getByUuid(performedByUserId);
-		if (user != null) {
+		userService.getOptionalByUuid(performedByUserUuid).ifPresent(user -> {
 			emailNotificationService.sendRequestForChangeMail(
-					userNameAndID(user),
-					userNameAndID(user), remarks, Collections.emptyList());
-		}
+				userNameAndID(user),
+				"Enhed("  + orgUnitService.getByUuid(orgUnitUuid).getName() + ")", remarks, notApprovedRoleAssignments);
+		});
 	}
 
 	private OrganisationAttestationDTO markCurrentUserReadonly(final String currentUserUuid, final OrganisationAttestationDTO organisationAttestationDto) {

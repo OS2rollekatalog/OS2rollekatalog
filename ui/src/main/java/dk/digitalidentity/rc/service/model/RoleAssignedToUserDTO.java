@@ -34,7 +34,6 @@ public class RoleAssignedToUserDTO {
 	private LocalDate startDate;
 	private LocalDate stopDate;
 	private boolean canEdit;
-	private boolean canRequest;
 	private List<SystemRoleAssignmentDTO> systemRoleAssignments;
 	private boolean ineffective = false;
 	private ContainsTitles containsTitles = ContainsTitles.NO;
@@ -42,6 +41,9 @@ public class RoleAssignedToUserDTO {
 
 	// only for directly assigned roles
 	private String orgUnitUuid;
+
+	// only for directly assigned user roles
+	private String caseNumber;
 
 	public static RoleAssignedToUserDTO fromRoleGroupUserRoleAssignment(RoleGroupUserRoleAssignment assignment, LocalDate startDate, LocalDate stopDate) {
 		RoleAssignedToUserDTO dto = new RoleAssignedToUserDTO();
@@ -53,7 +55,6 @@ public class RoleAssignedToUserDTO {
 		dto.setAssignedThroughName(assignment.getRoleGroup().getName());
 		dto.setItSystem(assignment.getUserRole().getItSystem());
 		dto.setDescription(assignment.getUserRole().getDescription());
-		dto.setCanRequest(assignment.getUserRole().isCanRequest());
 		dto.setStartDate(startDate);
 		dto.setStopDate(stopDate);
 		dto.setCanEdit(false);
@@ -72,8 +73,8 @@ public class RoleAssignedToUserDTO {
 		dto.setStartDate(assignment.getStartDate());
 		dto.setStopDate(assignment.getStopDate());
 		dto.setCanEdit(false);
-		dto.setCanRequest(assignment.getUserRole().isCanRequest());
 		dto.setOrgUnitUuid(assignment.getOrgUnit() != null ? assignment.getOrgUnit().getUuid() : null);
+		dto.setCaseNumber(assignment.getCaseNumber());
 		return dto;
 	}
 
@@ -88,7 +89,6 @@ public class RoleAssignedToUserDTO {
 		dto.setStartDate(assignment.getStartDate());
 		dto.setStopDate(assignment.getStopDate());
 		dto.setCanEdit(false);
-		dto.setCanRequest(assignment.getRoleGroup().isCanRequest());
 		dto.setOrgUnitUuid(assignment.getOrgUnit() != null ? assignment.getOrgUnit().getUuid() : null);
 		return dto;
 	}
@@ -105,8 +105,7 @@ public class RoleAssignedToUserDTO {
 		dto.setStartDate(assignment.getStartDate());
 		dto.setStopDate(assignment.getStopDate());
 		dto.setCanEdit(false);
-		dto.setCanRequest(false);
-		
+
 		return dto;
 	}
 
@@ -121,8 +120,7 @@ public class RoleAssignedToUserDTO {
 		dto.setStartDate(assignment.getStartDate());
 		dto.setStopDate(assignment.getStopDate());
 		dto.setCanEdit(false);
-		dto.setCanRequest(false);
-		
+
 		return dto;
 	}
 
@@ -148,8 +146,7 @@ public class RoleAssignedToUserDTO {
 		dto.setStartDate(assignment.getStartDate());
 		dto.setStopDate(assignment.getStopDate());
 		dto.setCanEdit(false);
-		dto.setCanRequest(false);
-		
+
 		return dto;
 	}
 
@@ -175,8 +172,7 @@ public class RoleAssignedToUserDTO {
 		dto.setStartDate(assignment.getStartDate());
 		dto.setStopDate(assignment.getStopDate());
 		dto.setCanEdit(false);
-		dto.setCanRequest(false);
-		
+
 		return dto;
 	}
 
@@ -194,7 +190,6 @@ public class RoleAssignedToUserDTO {
 		dto.setStartDate(assignment.getStartDate());
 		dto.setStopDate(assignment.getStopDate());
 		dto.setCanEdit(false);
-		dto.setCanRequest(false);
 		dto.setContainsTitles(assignment.getContainsTitles());
 		if (assignment.getTitles() != null) {
 			dto.setTitleUuids(assignment.getTitles().stream().map(Title::getUuid).collect(Collectors.toList()));
@@ -214,7 +209,6 @@ public class RoleAssignedToUserDTO {
 		dto.setStartDate(assignment.getStartDate());
 		dto.setStopDate(assignment.getStopDate());
 		dto.setCanEdit(false);
-		dto.setCanRequest(false);
 		dto.setContainsTitles(assignment.getContainsTitles());
 		if (assignment.getTitles() != null) {
 			dto.setTitleUuids(assignment.getTitles().stream().map(Title::getUuid).collect(Collectors.toList()));

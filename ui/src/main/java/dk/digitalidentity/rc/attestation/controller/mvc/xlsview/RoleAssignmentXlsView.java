@@ -62,7 +62,7 @@ public class RoleAssignmentXlsView extends AttestationXlsView {
 		itSystemName = (String) model.get("itSystemName");
 		fromDate = (LocalDate) model.get("from");
 		toDate = (LocalDate) model.get("to");
-		includeUsers = (boolean) model.get("includeUsers");
+		includeUsers = (boolean) (model.get("includeUsers") != null ? model.get("includeUsers") : false);
 		adUsersAttestation = (List<ADAttestationUserDTO>) model.get("adUsersAttestation");
 
 		createSharedResources(workbook);
@@ -123,6 +123,7 @@ public class RoleAssignmentXlsView extends AttestationXlsView {
 		headers.add(messageSource.getMessage("attestationmodule.xls.report.orgunits.position", null, locale));
 		headers.add(messageSource.getMessage("attestationmodule.xls.report.orgunits.orgUnit", null, locale));
 		headers.add(messageSource.getMessage("attestationmodule.xls.report.orgunits.userRole", null, locale));
+		headers.add(messageSource.getMessage("attestationmodule.xls.report.orgunits.postponedConstraints", null, locale));
 		headers.add(messageSource.getMessage("attestationmodule.xls.report.orgunits.itSystem", null, locale));
 		headers.add(messageSource.getMessage("attestationmodule.xls.report.orgunits.roleGroup", null, locale));
 		headers.add(messageSource.getMessage("attestationmodule.xls.report.orgunits.roleStatus", null, locale));
@@ -159,6 +160,7 @@ public class RoleAssignmentXlsView extends AttestationXlsView {
 				createCell(dataRow, column++, entry.getPosition(), null);
 				createCell(dataRow, column++, entry.getOrgUnit(), null);
 				createCell(dataRow, column++, entry.getUserRoleName(), null);
+				createCell(dataRow, column++, entry.getPostponedConstraints(), null);
 				createCell(dataRow, column++, entry.getItSystemName(), null);
 				createCell(dataRow, column++, entry.getRoleGroupName(), null);
 				createCell(dataRow, column++, messageSource.getMessage(entry.getStatus().getMessage(), null, locale), null);
@@ -183,20 +185,21 @@ public class RoleAssignmentXlsView extends AttestationXlsView {
 		sheet.setColumnWidth(4, 30 * 256);
 		sheet.setColumnWidth(5, 30 * 256);
 		sheet.setColumnWidth(6, 30 * 256);
-		sheet.setColumnWidth(7, 18 * 256);
+		sheet.setColumnWidth(7, 30 * 256);
 		sheet.setColumnWidth(8, 18 * 256);
 		sheet.setColumnWidth(9, 18 * 256);
+		sheet.setColumnWidth(10, 18 * 256);
 
-		sheet.setColumnWidth(10, 15 * 256);
-		sheet.setColumnWidth(11, 18 * 256);
+		sheet.setColumnWidth(11, 15 * 256);
 		sheet.setColumnWidth(12, 18 * 256);
-		sheet.setColumnWidth(13, 35 * 256);
+		sheet.setColumnWidth(13, 18 * 256);
 		sheet.setColumnWidth(14, 35 * 256);
+		sheet.setColumnWidth(15, 35 * 256);
 
-		sheet.setColumnWidth(15, 25 * 256);
 		sheet.setColumnWidth(16, 25 * 256);
-		sheet.setColumnWidth(17, 50 * 256);
+		sheet.setColumnWidth(17, 25 * 256);
 		sheet.setColumnWidth(18, 50 * 256);
+		sheet.setColumnWidth(19, 50 * 256);
 
 	}
 

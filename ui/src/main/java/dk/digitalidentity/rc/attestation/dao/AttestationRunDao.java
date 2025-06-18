@@ -14,6 +14,8 @@ public interface AttestationRunDao extends CrudRepository<AttestationRun, Long> 
 
     Optional<AttestationRun> findFirstByFinishedFalseOrderByDeadlineDesc();
 
+    Optional<AttestationRun> findFirstByFinishedFalseAndDeadlineGreaterThanEqual(final LocalDate deadline);
+
     Optional<AttestationRun> findByDeadlineIs(final LocalDate deadline);
 
     List<AttestationRun> findByFinishedFalse();
@@ -32,5 +34,5 @@ public interface AttestationRunDao extends CrudRepository<AttestationRun, Long> 
     @Query("select r from AttestationRun r order by r.deadline desc")
     List<AttestationRun> findAllRunsSorted();
 
-    List<AttestationRun> findByFinishedFalseAndDeadlineGreaterThanEqualOrderByDeadlineDesc(LocalDate deadline);
+    List<AttestationRun> findByFinishedFalseOrderByDeadlineDesc();
 }

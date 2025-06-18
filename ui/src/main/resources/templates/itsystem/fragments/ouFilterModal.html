@@ -1,0 +1,26 @@
+<th:block th:fragment="ou_filter_modal" xmlns="http://www.w3.org/1999/xhtml" xmlns:th="http://www.thymeleaf.org">
+    <div class="modal fade" id="modal-ou-filter" role="dialog">
+        <div class="modal-dialog">
+
+            <!-- Modal content-->
+            <div class="modal-content">
+                <div class="modal-header">
+                    <button type="button" class="close" data-dismiss="modal">&times;</button>
+                    <h4 th:text="#{html.page.itsystem.edit.modal.oufilter.title}"></h4>
+                </div>
+
+                <div class="modal-body">
+                    <p th:text="#{html.page.itsystem.edit.modal.oufilter.description}"></p>
+                    <hr/>
+                    <input class="form-control" id="ou-filter-tree-search" style="margin-bottom: 5px;" />
+                    <div id="ou-filter-tree"></div>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="submit" id="oufilterSave" class="btn btn-primary" th:text="#{html.control.button.save}"></button>
+                    <button type="button" class="btn btn-danger" data-dismiss="modal" th:text="#{html.control.button.cancel}"></button>
+                </div>
+            </div>
+        </div>
+    </div>
+</th:block>

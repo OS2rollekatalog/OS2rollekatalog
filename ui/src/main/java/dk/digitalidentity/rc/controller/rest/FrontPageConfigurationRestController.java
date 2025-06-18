@@ -34,6 +34,7 @@ public class FrontPageConfigurationRestController {
 			frontPageLink = new FrontPageLink();
 			frontPageLink.setActive(true);
 			frontPageLink.setEditable(true);
+			frontPageLink.setDeletable(true);
 		}
 
 		if (frontPageLink.isEditable()) {

@@ -51,6 +51,9 @@ public class ReportTemplate {
 
 	@Column
 	private boolean showInactiveUsers;
+
+	@Column
+	private boolean showSystemRoles;
 	
 	@Column
 	private String managerFilter;

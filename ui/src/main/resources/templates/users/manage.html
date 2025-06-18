@@ -1,15 +1,16 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org">>
+<html xmlns="http://www.w3.org/1999/xhtml"
+	  xmlns:th="http://www.thymeleaf.org">
 <head th:replace="~{fragments/header :: header (title=#{html.page.users.manage.title})}"></head>
 <body class="layout-fixed">
 	<div class="wrapper">
 		<header th:replace="~{fragments/navbar :: navbar-header(subpage = 'roles')}"></header>
 		<aside th:replace="~{fragments/navbar :: navbar-aside (page = 'users', subpage = 'roles')}"></aside>
- 
+
 		<section>
 			<div class="content-wrapper">
 				<h3>
- <!-- this never works as intended (to many ways to navigate to a user) 
+ <!-- this never works as intended (to many ways to navigate to a user)
 					<a th:href="@{/ui/users/list}" class="btn btn-default">
 						<span><i class="fa fa-arrow-left"></i> </span>
 					</a>
@@ -44,7 +45,7 @@
 													</div>
 												</div>
 											</fieldset>
-											
+
 											<fieldset th:if="*{nemloginUuid} != null">
 												<div class="form-group">
 													<label class="col-sm-2 control-label" th:text="#{html.entity.user.nemlogin_uuid}"></label>
@@ -53,7 +54,7 @@
 													</div>
 												</div>
 											</fieldset>
-											
+
 											<fieldset>
 												<div class="form-group">
 													<label class="col-sm-2 control-label" th:text="#{html.entity.user.positions}"></label>
@@ -72,7 +73,7 @@
 													</div>
 												</div>
 											</fieldset>
-											
+
 											<fieldset th:if="${#lists.size(user.altAccounts) > 0}">
 												<div class="form-group">
 													<label class="col-sm-2 control-label" th:text="#{html.entity.user.altaccounts}"></label>
@@ -107,7 +108,7 @@
 								<a data-toggle="tab" href="#kle_interest_menu" th:if="${kleUiEnabled == true}" th:text="#{html.page.ous.list.kleinterest}"></a>
 							</li>
 						</ul>
-	
+
 						<div class="tab-content">
 							<div id="roles_menu" class="tab-pane fade in active">
 							</div>
@@ -133,7 +134,7 @@
 									</tbody>
 								</table>
 							</div>
-	
+
 							<div id="kle_performing_menu" th:if="${kleUiEnabled == true}" class="tab-pane fade">
 								<div th:if="${canEditKle}">
 									<button id="editBtnPerforming" class="btn btn-lg btn-primary" style="margin-bottom: 20px;" th:text="#{html.page.users.manage.kle.edit}" onclick="kleService.loadEditFragment('PERFORMING')"></button>
@@ -160,7 +161,6 @@
 	<div th:replace="~{users/fragments/user_role_group_modal :: userRoleGroupModal(positions = ${user.positions}, possibleOrgUnits = ${roleAssignmentOrgUnits})}"></div>
 	<div th:replace="~{users/fragments/postponed_constraint_kle_modal :: postponedConstraintsKLEModal}"></div>
 	<div th:replace="~{userroles/fragments/constraint_ou_modal :: OUModal}"></div>
-	<div th:replace="~{request_approve/fragments/request_modal :: requestRoleModal}"></div>
 	<nav th:replace="~{fragments/footer :: footer}"></nav>
 
 	<script th:replace="~{fragments/datatables :: datatables}"></script>
@@ -169,15 +169,15 @@
 	<script th:replace="~{users/fragments/role_assignment_edit_modal :: roleAssignmentEditModalScript(page='user')}"></script>
 	<script th:replace="~{users/fragments/user_role_group_modal :: userRoleGroupModalScript(listTable='listTable2', page='user')}"></script>
 	<script th:replace="~{users/fragments/assign_user_role_postponed_data_constraints :: postponedConstraintsScript}"></script>
-	<script th:replace="~{request_approve/fragments/request_modal :: requestRoleModalScript}"></script>
-	<script th:src="@{/js/service/DatatableService.js}"></script>
+
+	<script th:src="@{/js/DatatableService.js}"></script>
 	<script th:inline="javascript">
 		/*<![CDATA[*/
-		
+
 		/*[+
 		var UIUrl = [[@{/ui/users/manage/}]];
 		var restUrl = [[@{/rest/users/}]];
-		
+
 		var user = [[${user.uuid}]];
 
 		var searchTxt = [[#{html.datatables.search}]];
@@ -185,7 +185,7 @@
 		var infoDefaultTxt = [[#{html.datatables.info.default}]];
 		var infoEmptyTxt = [[#{html.datatables.info.empty}]];
 		var infoFilteredTxt = [[#{html.datatables.info.filtered}]];
-		
+
 		//Delete role assignment swal
 		var deleteRoleAssignmentTitleTxt = [[#{html.page.manage.roles.delete.title}]];
 		var deleteRoleAssignmentBodyTxt = [[#{html.page.manage.roles.delete.body}]];
@@ -193,7 +193,7 @@
 
 		var deleteAssignmentConfirmTxt = [[#{html.control.button.yes}]];
 		var deleteAssignmentCancelTxt = [[#{html.control.button.cancel}]];
-		
+
 		var kleList = [[${kleList}]];
 		var orgUnitList = [[${orgUnitList}]];
 		var itSystemList = [[${itSystemList}]];
@@ -208,7 +208,7 @@
 		var token = $("meta[name='_csrf']").attr("content");
 
 		var rolesService = new RolesService();
-		
+
 		modal = $("#modal-positions");
 		modalGroups = $("#modal-groups");
 
@@ -225,7 +225,7 @@
 			if (selectedTab != null) {
 				$('a[data-toggle="tab"][href="' + selectedTab + '"]').tab('show');
 			}
-			
+
 			// setup tab memory
 			$('#dataTabs a').click(function (e) {
 				e.preventDefault();
@@ -295,6 +295,10 @@
 				]
 
 				const table = new DatatableService().initDefaultServersideTable('#listTable_u_ur', `${restUrl}${user}/available`, columnDefOptions)
+
+				//focus the search field
+				const searchInput = table.table().container().querySelector('.dataTables_filter input')
+				searchInput.focus()
 			});
 		}
 
@@ -328,11 +332,11 @@
 				var roleName = parent.dataset.name;
 
 				var endpoint = restUrl + user + '/removeassignment/' + type + '/' + assignedThrough + '/' + assignmentId;
-				
+
 				var titleTxt = deleteRoleAssignmentTitleTxt + '"' + roleName + '"';
 				var bodyTxt = deleteRoleAssignmentBodyTxt;
 				var errorMessage = deleteRoleAssignmentErrorMessage;
-				
+
 				swal({
 						html: true,
 						title : titleTxt,
@@ -369,8 +373,9 @@
 				var stopDate = parent.dataset.stopdate;
 				var assignedThrough = parent.dataset.assignedthrough;
 				var orgUnit = parent.dataset.ouuuid;
-				
-				userRoleEditModalService.showModal(user, startDate, stopDate, type, assignmentId, assignedThrough, orgUnit, possibleOrgUnits);
+				var caseNumber = parent.dataset.casenumber;
+
+				userRoleEditModalService.showModal(user, startDate, stopDate, type, assignmentId, assignedThrough, orgUnit, possibleOrgUnits, caseNumber);
 				userRoleEditModalService.loadPostponedConstraintsFragment(assignmentId, type, user);
 			}
 
@@ -411,13 +416,13 @@
 
 				modalGroups.attr("rolegroupid", groupId);
 				modalGroups.attr("userUuid", user);
-					
+
 			}
 		}
 
 		/*]]>*/
 	</script>
-	
+
 	<script th:if="${kleUiEnabled == true}" th:inline="javascript">
 		/*<![CDATA[*/
 
@@ -426,9 +431,9 @@
 			var fieldUpdatedMsg = [[#{html.entity.rolegroup.updatedmsg}]];
 			var fieldNotUpdatedMsg = [[#{html.entity.rolegroup.failedupdatemsg}]];
 		+]*/
-	
+
 		var kleService = new KleService();
-		
+
 		$(document).ready(function () {
 			kleService.loadViewFragment('PERFORMING');
 			kleService.loadViewFragment('INTEREST');
@@ -486,10 +491,10 @@
 									else if (kleValue.length > 2) {
 										kleValue = kleValue.substr(0, 2) + "." + kleValue.substr(2);
 									}
-									
+
 									return (node.text.startsWith(kleValue));
 								}
-	
+
 								return (node.text.toUpperCase().includes(str.toUpperCase()));
 							}
 						},
@@ -497,27 +502,27 @@
 							"wholerow", "search", "checkbox"
 						]
 				});
-	
+
 				// Select all already selected klecodes in the tree.
 				$('#' + id).on("ready.jstree", function(e, data) {
 					$('#' + id).jstree('select_node', selected);
 				});
-	
+
 				// Searching in the JSTree
 				var to = false;
 				$('#' + search).keyup(function () {
 					if (to) {
 						clearTimeout(to);
 					}
-	
+
 					to = setTimeout(function () {
 						var v = $('#' + search).val();
-	
+
 						$('#' + id).jstree(true).search(v);
 					}, 400);
 				});
 			};
-			
+
 			this.saveChanges = function (element) {
 				var id = 'Kle' + element.dataset.type;
 				var codes = $('#' + id).jstree('get_top_selected');
@@ -544,12 +549,12 @@
 					data: JSON.stringify(codes)
 				});
 			}
-			
+
 			this.abortChanges = function (element) {
 				kleService.loadViewFragment(element.dataset.type);
 			}
 		}
-	
+
 		/*]]>*/
 	</script>
 

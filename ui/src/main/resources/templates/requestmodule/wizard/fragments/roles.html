@@ -1,0 +1,40 @@
+<th:block th:fragment="rolesForWizard" xmlns="http://www.w3.org/1999/xhtml" xmlns:th="http://www.thymeleaf.org">
+    <div class="tabs-container" id="tabs">
+        <ul class="nav nav-tabs" role="tablist">
+            <li>
+                <a class="nav-link active" data-toggle="tab" href="#recommendedUserRolesTab" th:text="#{requestmodule.html.request.wizard.roles.recommendedUserRolesTab}"></a>
+            </li>
+            <li th:unless="${onlyRecommendRoles}">
+                <a id="allUserRolesNavLink" class="nav-link" data-toggle="tab" href="#userRolesTab" th:text="#{requestmodule.html.request.wizard.roles.userRoles}"></a>
+            </li>
+            <li>
+                <a class="nav-link" data-toggle="tab" href="#recommendedRoleGroupsTab" th:text="#{requestmodule.html.request.wizard.roles.recommendedRoleGroupsTab}"></a>
+            </li>
+            <li th:unless="${onlyRecommendRoles}">
+                <a id="allRoleGroupsNavLink" class="nav-link" data-toggle="tab" href="#roleGroupsTab" th:text="#{requestmodule.html.request.wizard.roles.roleGroups}"></a>
+            </li>
+        </ul>
+        <div class="tab-content">
+            <div role="tabpanel" id="recommendedUserRolesTab" class="tab-pane active">
+                <div class="panel-body">
+					<div th:replace="~{requestmodule/wizard/fragments/recommended_roles_tables :: recommendedUserRolesFragment}"></div>
+                </div>
+            </div>
+            <div th:unless="${onlyRecommendRoles}" role="tabpanel" id="userRolesTab" class="tab-pane">
+                <div id="AllUserRoleTableContainer" class="panel-body">
+                    <div th:replace="~{requestmodule/wizard/fragments/all_roles_tables :: allUserRolesFragment}"></div>
+                </div>
+            </div>
+            <div role="tabpanel" id="recommendedRoleGroupsTab" class="tab-pane">
+                <div class="panel-body">
+					<div th:replace="~{requestmodule/wizard/fragments/recommended_roles_tables :: recommendedRoleGroupsFragment}"></div>
+                </div>
+            </div>
+            <div th:unless="${onlyRecommendRoles}" role="tabpanel" id="roleGroupsTab" class="tab-pane">
+                <div id="AllRoleGroupTableContainer" class="panel-body">
+					<div th:replace="~{requestmodule/wizard/fragments/all_roles_tables :: allRoleGroupsFragment}"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</th:block>

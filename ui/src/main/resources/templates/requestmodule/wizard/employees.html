@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml"
+	  xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{requestmodule/fragments/header :: header(datatables = true)}"></head>
+<body class="top-navigation layout-fixed">
+<div id="wrapper">
+    <div id="page-wrapper" class="gray-bg">
+        <div th:replace="~{requestmodule/fragments/topbar :: topbar(page = 'employeeRequests')}"></div>
+        <div class="wrapper wrapper-content">
+            <div class="row">
+                <div class="col-lg-12">
+                    <div class="ibox">
+                        <div class="ibox-title">
+                            <h3>
+                                <em class="fa fa-plus"></em> &nbsp
+                                <span th:text="#{requestmodule.html.request.title}"></span>
+                                <span th:if="${titleAddition != null}" th:text="${titleAddition}"></span>
+                            </h3>
+                        </div>
+
+                        <div class="ibox-content">
+                            <table id="employeeTable" style="padding-right:0px !important;" class="table table-striped table-bordered table-hover" >
+                                <thead>
+                                <tr>
+                                    <th></th>
+                                    <th></th>
+                                    <th th:text="#{requestmodule.html.request.wizard.employees.name}"></th>
+									<th th:text="#{requestmodule.html.request.wizard.employees.userid}"></th>
+                                    <th th:text="#{requestmodule.html.request.wizard.employees.positions}"></th>
+                                    <th th:text="#{html.control.operations}" style="width: 150px;"></th>
+                                </tr>
+                                </thead>
+
+                                <tbody>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<div th:replace="~{requestmodule/fragments/request_removal_modal :: requestRemovalModal}"></div>
+
+<div th:replace="~{requestmodule/fragments/footer :: scripts(datatables = true)}"></div>
+<script th:src="@{/js/rolerequest/employees.js}"></script>
+<script th:src="@{/js/rolerequest/index.js}"></script>
+<script th:src="@{/js/DatatableService.js}"></script>
+
+<script th:inline="javascript">
+    /*<![CDATA[*/
+    /*[+
+    	const detailsUrl = [[@{/ui/request/rolegroups}]];
+        var userDetailsUrl = [[@{/ui/request/users}]]
+		const restUrl = [[@{/rest/rolerequest}]];
+		const tableUrl = [[@{/rest/rolerequest/employees}]];
+		const reasonRequirement = [[${reasonRequirement}]];
+    +]*/
+
+    var token = $("meta[name='_csrf']").attr("content");
+    var employeeService, requestService, datatableService, expandableRoleGroupTableService;
+    $(document).ready(function(){
+        datatableService = new DatatableService();
+        expandableRoleGroupTableService = new ExpandableRoleGroupTableService();
+
+        employeeService = new EmployeeService();
+        employeeService.init();
+
+        requestService = new RequestService();
+    });
+
+    /*]]>*/
+</script>
+
+</body>
+</html>

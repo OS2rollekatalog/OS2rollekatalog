@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.w3.org/1999/html">
+<head th:replace="~{fragments/header :: header (title=#{html.report.rolerequest.authorization_managers})}"></head>
+<body>
+<div class="wrapper">
+	<header th:replace="~{fragments/navbar :: navbar-header(subpage = 'reports')}"></header>
+	<aside th:replace="~{fragments/navbar :: navbar-aside (page = 'report.custom', subpage = 'reports')}"></aside>
+
+	<section>
+			<div class="content-wrapper">
+				<h3 th:text="#{html.report.rolerequest.authorization_managers}"></h3>
+				<div class="panel panel-default">
+					<div class="panel-heading"></div>
+					<div class="panel-body">
+						<table class="listTable table table-responsive table-striped">
+							<thead>
+								<tr>
+									<th class="col-md-3" th:text="#{html.entity.user.name}"></th>
+									<th class="col-md-5" th:text="#{xls.report.orgunit.sheet.title}"></th>
+									<th class="col-md-1" th:text="#{html.control.operations}"></th>
+								</tr>
+							</thead>
+
+							<tbody>
+								<tr th:each="user : ${users}">
+									<td th:text="${user.name} + ' (' + ${user.username} + ')'"></td>
+									<td>
+										<ul>
+											<li th:each="ou : ${user.orgUnits}" th:text="${ou}"></li>
+										</ul>
+									</td>
+									<td>
+										<th:block sec:authorize="hasRole('ROLE_ASSIGNER')">
+											<a th:href="@{/ui/users/manage/{uuid}(uuid=${user.uuid})}"><em class="fa fa-pencil"></em></a>
+										</th:block>
+									</td>
+								</tr>
+							</tbody>
+						</table>
+					</div>
+				</div>
+			</div>
+	</section>
+</div>
+
+<nav th:replace="~{fragments/footer :: footer}"></nav>
+<script th:replace="~{fragments/datatables :: datatables}"></script>
+</body>
+</html>

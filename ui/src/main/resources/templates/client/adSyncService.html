@@ -244,6 +244,18 @@
                                             </ul>
                                         </div>
                                     </div>
+                                    <div class="form-group row">
+                                        <label class="col-lg-4 control-label" th:text="#{html.client.adsync.itSystemGroupFeatureRoleMap}"></label>
+                                        <div class="col-lg-8">
+                                            <btn class="btn btn-primary" style="margin-bottom: 15px;" th:text="#{html.control.button.add}" onclick="modalService.openItSystemGroupFeatureRoleMapModal()"></btn>
+                                            <ul id="itSystemGroupFeatureRoleMapList">
+                                                <li th:each="item : ${settings.itSystemGroupFeatureRoleMap}">
+                                                    <span th:text="${item}"></span> &nbsp;
+                                                    <em class="fa fa-times itSystemGroupFeatureRoleMapRemove" th:attr="data-val=${item}"></em>
+                                                </li>
+                                            </ul>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -388,6 +400,32 @@
                                 </div>
                             </div>
                         </div>
+                        <div class="panel panel-default">
+                            <div class="panel-heading" role="tab" id="generalHeading">
+                                <h4 class="panel-title">
+                                    <a class="caretLink" role="button" data-toggle="collapse" data-parent="#accordion" href="#collapseGeneral" aria-expanded="false" aria-controls="collapseOne">
+                                        <em class="fa fa-caret-right caretIcon"></em>&nbsp;
+                                        <span th:text="#{html.heading.adsync.general}"></span>
+                                    </a>
+                                </h4>
+                            </div>
+
+                            <div id="collapseGeneral" class="panel-collapse collapse" role="tabpanel" aria-labelledby="generalHeading">
+                                <div class="panel-body">
+                                    <div class="form-group row">
+                                        <label class="col-lg-4 control-label" th:text="#{html.client.adsync.includeNotesInDescription}"></label>
+                                        <div class="col-lg-1">
+                                            <div class="checkbox c-checkbox">
+                                                <label>
+                                                    <input type="checkbox" id="includeNotesInDescription" th:checked="${settings.includeNotesInDescription}">
+                                                    <span class="fa fa-check"></span>
+                                                </label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                     <div class="row" style="text-align:right; padding: 15px;">
                         <button class="btn btn-primary" onclick="settingService.save();" th:text="#{html.control.button.save}"></button>
@@ -452,6 +490,7 @@
                     <label class="col-lg-4 control-label" th:text="#{html.client.adsync.modal.itsystem.itsystem}"></label>
                     <div class="col-lg-8">
                         <select style="width:100%;" id="itSystemModalItSystem" class="form-control m-b itSystemModalField select2ItSystems">
+                            <option value="" text=""></option>
                             <option th:each="option : ${itSystemList}" th:value="${option.id}" th:text="${option.text} + ' (id: ' + ${option.id} + ')'"  ></option>
                         </select>
                     </div>
@@ -463,10 +502,48 @@
                         <input class="form-control m-b itSystemModalField" id="itSystemModalDN">
                     </div>
                 </div>
+                <br/>
+                <b id="itSystemModalError" th:text="#{html.client.adsync.modal.error}" style="color:red;" hidden="hidden"></b>
             </div>
 
             <div class="modal-footer">
                 <button type="button" onclick="modalService.addFromITSystemModal()" class="btn btn-primary" th:text="#{html.control.button.add}"></button>
+                <button type="button" class="btn btn-danger" data-dismiss="modal" th:text="#{html.control.button.cancel}"></button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- userRole modal -->
+<div class="modal fade bd-example-modal-lg" id="userRoleModal" role="dialog">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal">&times;</button>
+                <h4 th:text="#{html.client.adsync.modal.userRole.title}"></h4>
+            </div>
+
+            <div class="modal-body">
+                <div class="form-group row">
+                    <label class="col-lg-4 control-label" th:text="#{html.client.adsync.modal.userRole.role}"></label>
+                    <div class="col-lg-8">
+                        <select style="width:100%;" id="userRoleModalRole" class="form-control m-b userRoleModalField">
+                            <option value="" text=""></option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group row">
+                    <label class="col-lg-4 control-label" th:text="#{html.client.adsync.modal.userRole.groupdn}"></label>
+                    <div class="col-lg-8">
+                        <input class="form-control m-b userRoleModalField" id="userRoleModalDN">
+                    </div>
+                </div>
+                <br/>
+                <b id="userRoleModalError" th:text="#{html.client.adsync.modal.error}" style="color:red;" hidden="hidden"></b>
+            </div>
+
+            <div class="modal-footer">
+                <button type="button" onclick="modalService.addFromUserRoleModal()" class="btn btn-primary" th:text="#{html.control.button.add}"></button>
                 <button type="button" class="btn btn-danger" data-dismiss="modal" th:text="#{html.control.button.cancel}"></button>
             </div>
         </div>
@@ -488,6 +565,7 @@
             var updateFailedMsg = [[#{html.client.adsync.update.fail}]];
             var settingsUpdatedMsg = [[#{html.client.adsync.update.success}]];
             var url = [[@{/rest/client/adsyncservice/}]];
+            var userRoleRestUrl = [[@{/rest/userroles/search}]];
         +]*/
 
         var token = $("meta[name='_csrf']").attr("content");
@@ -496,6 +574,7 @@
         var backSyncFeatureOUs = [];
         var itSystemGroupFeatureSystemMap = [];
         var readonlyItSystemFeatureSystemMap = [];
+        var itSystemGroupFeatureRoleMap = [];
         $(document).ready(function () {
             settingService = new SettingService();
             modalService = new ModalService();
@@ -513,6 +592,7 @@
                 $("#ouDNLabel").attr("hidden", false);
                 $("#groupDNLabel").attr("hidden", true);
                 $(".itSystemModalField").val("");
+                $("#itSystemModalError").attr("hidden", true);
                 $("#itSystemModal").modal('show');
             }
 
@@ -521,7 +601,14 @@
                 $("#ouDNLabel").attr("hidden", true);
                 $("#groupDNLabel").attr("hidden", false);
                 $(".itSystemModalField").val("");
+                $("#itSystemModalError").attr("hidden", true);
                 $("#itSystemModal").modal('show');
+            }
+
+            this.openItSystemGroupFeatureRoleMapModal = function() {
+                $(".userRoleModalField").val("");
+                $("#userRoleModalError").attr("hidden", true);
+                $("#userRoleModal").modal('show');
             }
 
             this.openReadonlyItSystemFeatureSystemMapModal = function() {
@@ -529,6 +616,7 @@
                 $("#ouDNLabel").attr("hidden", true);
                 $("#groupDNLabel").attr("hidden", false);
                 $(".itSystemModalField").val("");
+                $("#itSystemModalError").attr("hidden", true);
                 $("#itSystemModal").modal('show');
             }
 
@@ -553,35 +641,91 @@
                 var fullValue = itSystem + ";" + dn;
                 var mapType = $("#mapType").val();
 
-                if (mapType === "backSyncFeatureOUs") {
-                    backSyncFeatureOUs.push(fullValue);
-                    var html = '<li><span>' + fullValue + '</span>&nbsp; <em class="fa fa-times backSyncFeatureOUsRemove" data-val="' + fullValue + '"></em></li>'
-                    $('#backSyncFeatureOUsList').append(html);
-                } else if (mapType === "itSystemGroupFeatureSystemMap") {
-                    itSystemGroupFeatureSystemMap.push(fullValue);
-                    var html = '<li><span>' + fullValue + '</span>&nbsp; <em class="fa fa-times itSystemGroupFeatureSystemMapRemove" data-val="' + fullValue + '"></em></li>'
-                    $('#itSystemGroupFeatureSystemMapList').append(html);
-                } else if (mapType === "readonlyItSystemFeatureSystemMap") {
-                    readonlyItSystemFeatureSystemMap.push(fullValue);
-                    var html = '<li><span>' + fullValue + '</span>&nbsp; <em class="fa fa-times readonlyItSystemFeatureSystemMapRemove" data-val="' + fullValue + '"></em></li>'
-                    $('#readonlyItSystemFeatureSystemMapList').append(html);
+                if (itSystem == null || itSystem.length == 0 || dn == null || dn.length == 0 ) {
+                    $("#itSystemModalError").attr("hidden", false);
+                } else {
+
+                    if (mapType === "backSyncFeatureOUs") {
+                        backSyncFeatureOUs.push(fullValue);
+                        var html = '<li><span>' + fullValue + '</span>&nbsp; <em class="fa fa-times backSyncFeatureOUsRemove" data-val="' + fullValue + '"></em></li>'
+                        $('#backSyncFeatureOUsList').append(html);
+                    } else if (mapType === "itSystemGroupFeatureSystemMap") {
+                        itSystemGroupFeatureSystemMap.push(fullValue);
+                        var html = '<li><span>' + fullValue + '</span>&nbsp; <em class="fa fa-times itSystemGroupFeatureSystemMapRemove" data-val="' + fullValue + '"></em></li>'
+                        $('#itSystemGroupFeatureSystemMapList').append(html);
+                    } else if (mapType === "readonlyItSystemFeatureSystemMap") {
+                        readonlyItSystemFeatureSystemMap.push(fullValue);
+                        var html = '<li><span>' + fullValue + '</span>&nbsp; <em class="fa fa-times readonlyItSystemFeatureSystemMapRemove" data-val="' + fullValue + '"></em></li>'
+                        $('#readonlyItSystemFeatureSystemMapList').append(html);
+                    }
+
+                    settingService.addListeners();
+                    $("#itSystemModal").modal('hide');
                 }
+            }
 
-                settingService.addListeners();
+            this.addFromUserRoleModal = function() {
+                var userRole = $("#userRoleModalRole").val();
+                var dn = $("#userRoleModalDN").val();
+                var fullValue = userRole + ";" + dn;
 
-                $("#itSystemModal").modal('hide');
+                if (userRole == null || userRole.length == 0 || dn == null || dn.length == 0 ) {
+                    $("#userRoleModalError").attr("hidden", false);
+                } else {
+                    itSystemGroupFeatureRoleMap.push(fullValue);
+                    var html = '<li><span>' + fullValue + '</span>&nbsp; <em class="fa fa-times itSystemGroupFeatureRoleMapRemove" data-val="' + fullValue + '"></em></li>'
+                    $('#itSystemGroupFeatureRoleMapList').append(html);
+
+                    settingService.addListeners();
+
+                    $("#userRoleModal").modal('hide');
+                }
             }
         }
 
         function SettingService() {
             this.init = function() {
                 settingService.addListeners();
-                membershipSyncFeatureAttributeMap = settings.membershipSyncFeatureAttributeMap;
-                backSyncFeatureOUs = settings.backSyncFeatureOUs;
-                itSystemGroupFeatureSystemMap = settings.itSystemGroupFeatureSystemMap;
-                readonlyItSystemFeatureSystemMap = settings.readonlyItSystemFeatureSystemMap;
+                membershipSyncFeatureAttributeMap = settings.membershipSyncFeatureAttributeMap == null ? [] : settings.membershipSyncFeatureAttributeMap;
+                backSyncFeatureOUs = settings.backSyncFeatureOUs == null ? [] : settings.backSyncFeatureOUs;
+                itSystemGroupFeatureSystemMap = settings.itSystemGroupFeatureSystemMap == null ? [] : settings.itSystemGroupFeatureSystemMap;
+                readonlyItSystemFeatureSystemMap = settings.readonlyItSystemFeatureSystemMap == null ? [] : settings.readonlyItSystemFeatureSystemMap;
+                itSystemGroupFeatureRoleMap = settings.itSystemGroupFeatureRoleMap == null ? [] : settings.itSystemGroupFeatureRoleMap;
 
                 $(".select2ItSystems").select2();
+                $("#userRoleModalRole").select2({
+                    placeholder: "",
+                    allowClear: true,
+                    ajax: {
+                        url: userRoleRestUrl,
+                        dataType: 'json',
+                        delay: 250,
+                        data: function(params) {
+                            return {
+                                q: params.term,
+                                page: params.page || 1
+                            };
+                        },
+                        processResults: function(data, params) {
+                            params.page = params.page || 1;
+                            return {
+                                results: data.results,
+                                pagination: {
+                                    more: data.pagination
+                                }
+                            };
+                        },
+                        cache: true
+                    },
+                    minimumInputLength: 1,
+                    language: {
+                        inputTooShort: function(args) {
+                            const remaining = args.minimum - args.input.length;
+                            return `Indtast venligst ${remaining} eller flere tegn`;
+                        }
+                    }
+                });
+
             }
 
            this.removeFromList = function(listId, valueToRemove, list) {
@@ -609,6 +753,11 @@
                 $(".itSystemGroupFeatureSystemMapRemove").off();
                 $(".itSystemGroupFeatureSystemMapRemove").on("click", function() {
                     settingService.removeFromList("itSystemGroupFeatureSystemMapList", $(this).data("val"), itSystemGroupFeatureSystemMap);
+                });
+
+                $(".itSystemGroupFeatureRoleMapRemove").off();
+                $(".itSystemGroupFeatureRoleMapRemove").on("click", function() {
+                    settingService.removeFromList("itSystemGroupFeatureRoleMapList", $(this).data("val"), itSystemGroupFeatureRoleMap);
                 });
 
                 $(".readonlyItSystemFeatureSystemMapRemove").off();
@@ -641,6 +790,7 @@
                     "backSyncFeatureNameAttribute": $('#backSyncFeatureNameAttribute').val(),
                     "itSystemGroupFeatureEnabled": $('#itSystemGroupFeatureEnabled').prop('checked'),
                     "itSystemGroupFeatureSystemMap": itSystemGroupFeatureSystemMap,
+                    "itSystemGroupFeatureRoleMap": itSystemGroupFeatureRoleMap,
                     "readonlyItSystemFeatureEnabled": $('#readonlyItSystemFeatureEnabled').prop('checked'),
                     "readonlyItSystemFeatureSystemMap": readonlyItSystemFeatureSystemMap,
                     "readonlyItSystemFeatureNameAttribute": $('#readonlyItSystemFeatureNameAttribute').val(),
@@ -653,6 +803,7 @@
                     "tenantId": $('#tenantId').val(),
                     "clientId": $('#clientId').val(),
                     "clientSecret": $('#clientSecret').val(),
+                    "includeNotesInDescription": $("#includeNotesInDescription").prop('checked')
                 }
 
                 swal({

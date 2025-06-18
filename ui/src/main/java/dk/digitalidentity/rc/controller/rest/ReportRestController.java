@@ -59,6 +59,7 @@ public class ReportRestController {
 		reportTemplate.setShowKLE(reportForm.isShowKLE());
 		reportTemplate.setShowItSystems(reportForm.isShowItSystems());
 		reportTemplate.setShowInactiveUsers(reportForm.isShowInactiveUsers());
+		reportTemplate.setShowSystemRoles(reportForm.isShowSystemRoles());
 		
 		if (reportForm.getItsystemFilter() != null && reportForm.getItsystemFilter().length > 0) {
 			StringBuilder builder = new StringBuilder();

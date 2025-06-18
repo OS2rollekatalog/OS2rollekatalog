@@ -115,8 +115,8 @@ public class  ApiSecurityFilter implements Filter {
 	}
 
 	private static void unauthorized(HttpServletResponse response, String message, String authHeader) throws IOException {
-		final String shortenedApiKey = StringUtils.substring(authHeader, 0, Math.min(4, authHeader.length())) + ".....";
-        log.warn("{} (authHeader = {})", message, shortenedApiKey);
+		final String shortenedApiKey = (authHeader != null) ? StringUtils.substring(authHeader, 0, Math.min(4, authHeader.length())) + "....." : "<null>";
+		log.warn("{} (authHeader = {})", message, shortenedApiKey);
 		response.sendError(401, message);
 	}
 

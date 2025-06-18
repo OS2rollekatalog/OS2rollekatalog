@@ -54,7 +54,7 @@
                                 <td th:text="${link.description}"></td>
                                 <td style="text-align: center;">
                                     <em th:if="${link.editable}" class="fa fa-pencil editBtn" th:attr="data-id=${link.id}" style="cursor: pointer;"></em> &nbsp;
-                                    <em th:if="${link.editable}" class="fa fa-times removeBtn" th:attr="data-id=${link.id},data-title=${link.title}" style="cursor: pointer;"></em>
+                                    <em th:if="${link.deletable}" class="fa fa-times removeBtn" th:attr="data-id=${link.id},data-title=${link.title}" style="cursor: pointer;"></em>
                                 </td>
                             </tr>
                             </tbody>

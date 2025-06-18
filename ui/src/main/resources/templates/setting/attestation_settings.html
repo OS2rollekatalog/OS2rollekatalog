@@ -4,7 +4,7 @@
 <body>
 <div class="wrapper">
     <header th:replace="~{fragments/navbar :: navbar-header(subpage = 'administration')}"></header>
-    <aside th:replace="~{fragments/navbar :: navbar-aside (page = 'settings', subpage = 'administration')}"></aside>
+    <aside th:replace="~{fragments/navbar :: navbar-aside (page = 'attestationSettings', subpage = 'administration')}"></aside>
 
     <section>
         <div class="content-wrapper">
@@ -38,7 +38,7 @@
 								</div>
 							</div>
 						</fieldset>
-						
+
 						<div id="scheduledAttestationSubsettings" style="display: none;">
 							<fieldset>
 								<div class="form-group">
@@ -152,28 +152,7 @@
     </section>
 </div>
 
-<div class="modal fade bd-example-modal-lg" id="modal-ou" role="dialog">
-	<div class="modal-dialog modal-lg">
-
-		<!-- Modal content-->
-		<div class="modal-content">
-			<div class="modal-header">
-				<button type="button" class="close" data-dismiss="modal">&times;</button>
-				<h4 th:text="#{html.word.search}"></h4>
-			</div>
-
-			<div class="modal-body">
-				<input class="form-control" id="ou-tree-search" style="margin-bottom: 5px;" />
-				<div id="ou-tree"></div>
-			</div>
-
-			<div class="modal-footer">
-				<button type="button" id="save" class="btn btn-primary" onclick="saveOUs()" th:text="#{html.control.button.ok}"></button>
-				<button type="button" class="btn btn-danger" data-dismiss="modal" th:text="#{html.control.button.cancel}"></button>
-			</div>
-		</div>
-	</div>
-</div>
+<div th:replace="~{setting/fragments/choose_ou_modal :: chooseOUFragment}"></div>
 
 <div th:replace="~{fragments/footer :: footer}"></div>
 <script th:replace="~{fragments/assignDatePicker :: content}"></script>
@@ -199,7 +178,7 @@
  		function chooseOU() {
  			$('#modal-ou').modal('show');
  		}
-		
+
 		function saveOUs(){
 			var codes = $('#ou-tree').jstree('get_selected', true);
 
@@ -223,16 +202,16 @@
 				$('#filterMultiTxt').show();
 				$('#filterMultiValue').text(codes.length);
 			}
-			
+
 			$('#modal-ou').modal('hide');
 		}
 
 		$("document").ready(function() {
 			var saved = [[${saved}]];
-			
+
 			$("#scheduled-attestation-checkbox").change(function() {
 				$("#scheduledAttestationEnabled").val(this.checked);
-				
+
 				if (this.checked) {
 					$("#scheduledAttestationSubsettings").show();
 				}
@@ -240,7 +219,7 @@
 					$("#scheduledAttestationSubsettings").hide();
 				}
 			});
-			
+
 			if ($("#scheduledAttestationEnabled").val() == "true") {
 				$("#scheduledAttestationSubsettings").show();
 			}
@@ -274,7 +253,7 @@
                     });
                 }
             }
-			
+
 			// JSTree stuff
 
 	 		$('#modal-ou').on('shown.bs.modal', function() {
@@ -303,7 +282,7 @@
 					"checkbox", "search"
 				]
 			});
-			
+
 			// searching in the JSTree
 			var to = false;
 			$('#ou-tree-search').keyup(function() {
@@ -317,7 +296,7 @@
 					$('#ou-tree').jstree(true).search(v);
 				}, 400);
 			});
-			
+
 			// selecting in the JSTree
 			$('#ou-tree').on("ready.jstree", function(e, data) {
 				$('#ou-tree').jstree('select_node', selectedOUs);
@@ -333,7 +312,7 @@
 				$("#firstAttestationDate").val($('#attestationStartDate').data('date'));
 			});
 		});
-		
+
 		/*]]>*/
 	</script>
 </body>

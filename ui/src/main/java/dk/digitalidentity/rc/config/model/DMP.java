@@ -17,7 +17,6 @@ public class DMP {
 	// users cannot be created without an email, and it must be unique, so a temlate is required
 	private String dummyEmail = "noemail-{userId}@kommune.dk";
 
-	// TODO: We do not know for sure that these URIs will work....
 	private String tokenUrl = "https://log-in.miljoeportal.dk/runtime/oauth2/token.idp";
-	private String serviceUrl = "https://brugerstyring.miljoeportal.dk/external/api";
+	private String serviceUrl = "https://brugerstyring.dk/external/api";
 }

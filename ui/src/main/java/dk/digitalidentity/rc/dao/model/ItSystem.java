@@ -3,6 +3,8 @@ package dk.digitalidentity.rc.dao.model;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import dk.digitalidentity.rc.dao.model.enums.ItSystemType;
 import dk.digitalidentity.rc.log.AuditLoggable;
+import dk.digitalidentity.rc.rolerequest.model.enums.ApproverOption;
+import dk.digitalidentity.rc.rolerequest.model.enums.RequesterOption;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -58,7 +60,7 @@ public class ItSystem implements AuditLoggable {
 
 	@Column
 	private String notes;
-	
+
 	@Column
 	private boolean paused;
 
@@ -73,7 +75,7 @@ public class ItSystem implements AuditLoggable {
 
 	@Column
 	private boolean canEditThroughApi;
-	
+
 	@Column
 	private String notificationEmail;
 
@@ -87,7 +89,7 @@ public class ItSystem implements AuditLoggable {
 	@Column
 	private boolean accessBlocked;
 
-	// TODO: this is the new field for the v2 API's, we should merge this with "canEditThroughApi" above, once 
+	// TODO: this is the new field for the v2 API's, we should merge this with "canEditThroughApi" above, once
 	//       we figure out the full API configuration.
 	@Column
 	private boolean apiManagedRoleAssignments;
@@ -112,8 +114,20 @@ public class ItSystem implements AuditLoggable {
 	@JoinColumn(name = "system_owner_uuid")
 	private User systemOwner;
 
+	@ManyToOne(fetch = FetchType.LAZY)
+	@JoinColumn(name = "kitos_it_system_id")
+	private KitosITSystem kitosITSystem;
+
 	@Column
 	private boolean attestationExempt;
+
+	@Enumerated(EnumType.STRING)
+	@Column
+	private RequesterOption requesterPermission;
+
+	@Enumerated(EnumType.STRING)
+	@Column
+	private ApproverOption approverPermission;
 
 	@JsonIgnore
 	@Override

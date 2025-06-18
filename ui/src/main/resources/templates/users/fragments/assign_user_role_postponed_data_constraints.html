@@ -1,6 +1,6 @@
 <th:block th:fragment="postponedConstraints" xmlns="http://www.w3.org/1999/xhtml" xmlns:th="http://www.thymeleaf.org">
 	<input th:id="postponingAllowed" th:value="${postponingAllowed}" hidden="hidden"></input>
-	
+
 	<h4 th:if="${postponingAllowed}" class="md-12" th:text="#{html.page.user.assign.userrole.constraints.header}"></h4>
 
     <div th:if="${postponingAllowed}" th:each="systemRoleAssignment : ${systemRoleAssignments}">
@@ -13,9 +13,9 @@
 			<div class="col-sm-10" style="padding-top: 6px">
 				<!-- REGEX UI -->
 				<th:block th:if="${postponedConstraint.constraintType.uiType == T(dk.digitalidentity.rc.dao.model.enums.ConstraintUIType).REGEX}">
-					
+
 					<th:block th:switch="${postponedConstraint.constraintType.entityId}">
-	
+
 						<!-- KLE selector -->
 						<th:block th:case="'http://sts.kombit.dk/constraints/KLE/1'">
 							<div class="col-sm-12" th:id="'postponed' + ${systemRoleAssignment.systemRole.id} + ${postponedConstraint.constraintType.uuid}">
@@ -32,7 +32,7 @@
 								</div>
 							</div>
 						</th:block>
-	
+
 						<!-- organisation selector -->
 						<th:block th:case="'http://sts.kombit.dk/constraints/orgenhed/1'">
 							<div class="col-sm-12" th:id="'postponed' + ${systemRoleAssignment.systemRole.id} + ${postponedConstraint.constraintType.uuid}">
@@ -111,10 +111,10 @@
 								<p class="constraintValidationError" th:id="'postponed' + ${systemRoleAssignment.systemRole.id} + ${postponedConstraint.constraintType.uuid} + 'error'" style="color:red" th:text="#{html.page.user.assign.userrole.constraints.error}" hidden></p>
 							</div>
 						</th:block>
-	
+
 						<!-- default freetext field -->
 						<th:block th:case="*">
-							<div th:id="'postponed' + ${systemRoleAssignment.systemRole.id} + ${postponedConstraint.constraintType.uuid}" class="col-sm-12">	
+							<div th:id="'postponed' + ${systemRoleAssignment.systemRole.id} + ${postponedConstraint.constraintType.uuid}" class="col-sm-12">
 								<div class="col-sm-12">
 									<input style="width:100%;" class="form-control m-b constraint"
 									   		th:id="'postponed' + ${systemRoleAssignment.systemRole.id} + ${postponedConstraint.constraintType.uuid}"
@@ -128,7 +128,7 @@
 						</th:block>
 					</th:block>
 				</th:block>
-				
+
 				<!-- COMBO_SINGLE UI -->
 				<th:block th:if="${postponedConstraint.constraintType.uiType == T(dk.digitalidentity.rc.dao.model.enums.ConstraintUIType).COMBO_SINGLE}">
 					<div class="col-sm-12">
@@ -136,11 +136,11 @@
 							<select style="width:100%;" class="form-control m-b constraint" th:disabled="${selected}==false or ${constraintData != null} and ${constraintData.postponed}"
 							        th:id="'postponed' + ${systemRoleAssignment.systemRole.id} + ${postponedConstraint.constraintType.uuid}"
 							        th:attr="data-type='combosingle', data-systemroleid=${systemRoleAssignment.systemRole.id}, data-constrainttype=${postponedConstraint.constraintType.uuid}">
-			
+
 								<option selected="selected" disabled="disabled" th:text="#{html.select.default}"></option>
 								<option th:each="type : ${postponedConstraint.constraintType.valueSet}" th:value="${type.constraintKey}" th:text="${type.constraintValue}"
 			 							th:selected="${postponedConstraint.constraintValue != null} and (${type.constraintKey} eq ${postponedConstraint.constraintValue})"></option>
-			
+
 							</select>
 						</div>
 						<div class="col-sm-12">
@@ -148,18 +148,18 @@
 						</div>
 					</div>
 				</th:block>
-				
+
 				<!-- COMBO_MULTI -->
 				<th:block th:if="${postponedConstraint.constraintType.uiType == T(dk.digitalidentity.rc.dao.model.enums.ConstraintUIType).COMBO_MULTI}">
 					<div class="col-sm-12">
 						<div class="col-sm-12">
-							<select style="width:100%;" class="form-control m-b constraint" th:disabled="${selected}==false or ${constraintData != null} and ${constraintData.postponed}" multiple="multiple"
+							<select style="width:100%;" class="form-control m-b constraint select2ComboMultiPostponed" th:disabled="${selected}==false or ${constraintData != null} and ${constraintData.postponed}" multiple="multiple"
 							        th:id="'postponed' + ${systemRoleAssignment.systemRole.id} + ${postponedConstraint.constraintType.uuid}"
 							        th:attr="data-type='combomulti', data-systemroleid=${systemRoleAssignment.systemRole.id}, data-constrainttype=${postponedConstraint.constraintType.uuid}">
-			
+
 								<option th:each="type : ${postponedConstraint.constraintType.valueSet}" th:value="${type.constraintKey}" th:text="${type.constraintValue}"
 			 							th:selected="${postponedConstraint.constraintValue != null} and (${#arrays.contains(#strings.arraySplit(postponedConstraint.constraintValue,','), type.constraintKey)})"></option>
-			
+
 							</select>
 						</div>
 						<div class="col-sm-12">
@@ -167,10 +167,10 @@
 						</div>
 					</div>
 				</th:block>
-	
+
 				<div class="clearfix"></div>
 			</div>
-			
+
 		</div>
 	</div>
 </th:block>
@@ -178,7 +178,7 @@
 <th:block th:fragment="postponedConstraintsScript" xmlns="http://www.w3.org/1999/xhtml" xmlns:th="http://www.thymeleaf.org">
 	<script th:inline="javascript" type="text/javascript">
 		/*<![CDATA[*/
-		
+
 		var postponedConstraintsService;
 		var kleConstraintService;
 		var orgUnitPostponedConstraintService;
@@ -192,12 +192,13 @@
     		postponedConstraintsService.usersUrl = [[@{/rest/users/}]];
     		+]*/
         });
-		
+
 		function PostponedConstraintsService() {
 			this.init = function() {
 				kleConstraintService.init();
 				orgUnitPostponedConstraintService.init();
 				$(".select2ItSystemPostponed").select2();
+				$(".select2ComboMultiPostponed").select2();
 			}
 
 			this.loadPostponedConstraintsFragment = function(roleId) {
@@ -219,7 +220,7 @@
 
 			this.validate = function(from) {
 				$(".constraintValidationError").hide();
-				
+
 				var constraints = postponedConstraintsService.getConstraintList();
 				$.ajax({
 	    			   url: postponedConstraintsService.usersUrl + "constraints/validate",
@@ -247,7 +248,7 @@
 	    			   }
 	    		});
 			}
-			
+
 			this.getConstraintList = function() {
 				var constraintList = [];
 				$(".constraint").each(function(index) {
@@ -256,7 +257,7 @@
 					var systemRoleId = field.data("systemroleid");
 					var constraintType = field.data("constrainttype");
 					var val = field.val();
-					
+
 					if (Array.isArray(val)) {
 						var valString = "";
 						for (const element of val) {
@@ -264,41 +265,41 @@
 						}
 						val = valString.substring(0, valString.length - 1);
 					}
-					
+
 					var constraint = {
 						type: type,
 						systemRoleId: systemRoleId,
 						constraintTypeUuid: constraintType,
 						value: val
 					};
-					
+
 					constraintList.push(constraint);
 				});
-				
+
 				return constraintList;
 			}
 		}
-		
+
 		function KleConstraintService() {
 			this.init = function() {
 				kleConstraintService.initJSTree("kle-constraint-tree", "kle-constraint-tree-search");
-				
+
 				//Focus search bar on show
 				$('#modal-kle-constraint').on('shown.bs.modal', function () {
 		    		$('#kle-constraint-tree-search').focus();
 				})
 			}
-			
+
 			//KLE Constraint modal
 			//Show modal
 			this.chooseKles = function(systemRoleId, constraintUuid) {
-				//Get input field kle values 
+				//Get input field kle values
 				var kles = $("#postponed" + systemRoleId + constraintUuid + "input").val().replace(/\.\*/g, "").split(",");
 
 				//Remember what opened the modal
 				$("#modal-kle-constraint-systemRoleId").val(systemRoleId);
 				$("#modal-kle-constraint-constraintUuid").val(constraintUuid);
-							
+
 				//Parse and save kle values
 				var selected = [];
 				var parseErrors = [];
@@ -332,7 +333,7 @@
 
 				$('#modal-kle-constraint').modal('show');
 			}
-			
+
 			//Save and close modal
 			this.kleModalSaveConstraints = function() {
 				var systemRoleId  = $("#modal-kle-constraint-systemRoleId").val();
@@ -356,7 +357,7 @@
 				$('#modal-kle-constraint').modal('hide');
 				kleInput.trigger('change');
 			}
-			
+
 			//Initialize KLE tree in modal
 			this.initJSTree = function(id, search) {
 				$('#' + id).jstree({
@@ -383,7 +384,7 @@
 									else if (kleValue.length > 2) {
 										kleValue = kleValue.substr(0, 2) + "." + kleValue.substr(2);
 									}
-									
+
 									return (node.text.startsWith(kleValue));
 								}
 
@@ -410,7 +411,7 @@
 				});
 			};
 		}
-		
+
 		function OrgUnitPostponedConstraintService() {
 			this.init = function() {
 				//Focus search bar on show
@@ -421,20 +422,20 @@
 				$('#modal-ou').on('shown.bs.modal', function () {
 		    		$('#ou-tree-search').focus();
 				})
-				
+
 				//init OU jstree
 				orgUnitPostponedConstraintService.initOUJSTree("ou-tree", "ou-tree-search", treeOUs);
 			}
-			
+
 			//OU Constraint modal
 			//Show modal
 			this.chooseOUs = function(systemRoleId, constraintUuid) {
-				//Get input field kle values 
+				//Get input field kle values
 				var ous = $("#postponed" + systemRoleId + constraintUuid + "input").val().split(",");
 				//Remember what opened the modal
 				$("#modal-ou-systemRoleId").val(systemRoleId);
 				$("#modal-ou-constraintUuid").val(constraintUuid);
-							
+
 				//Parse and save kle values
 				var selected = [];
 				var parseErrors = [];
@@ -468,10 +469,10 @@
 
 				$(".postponed-constraint-save-btn").show();
 				$(".constraint-save-btn").hide();
-				
+
 				$('#modal-ou').modal('show');
 			}
-			
+
 			//Save and close modal
 			this.oUModalSaveConstraints = function() {
 				var systemRoleId  = $("#modal-ou-systemRoleId").val();

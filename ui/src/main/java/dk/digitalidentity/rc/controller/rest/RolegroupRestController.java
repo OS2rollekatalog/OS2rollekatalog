@@ -1,5 +1,7 @@
 package dk.digitalidentity.rc.controller.rest;
 
+import dk.digitalidentity.rc.controller.mvc.datatables.dao.UserRoleForRoleGroupViewDao;
+import dk.digitalidentity.rc.controller.mvc.datatables.dao.model.UserRoleForRoleGroupView;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.AvailableITSystemDTO;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.RoleGroupDeleteStatus;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.RoleGroupForm;
@@ -10,6 +12,8 @@ import dk.digitalidentity.rc.dao.model.RoleGroup;
 import dk.digitalidentity.rc.dao.model.RoleGroupUserRoleAssignment;
 import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserRole;
+import dk.digitalidentity.rc.rolerequest.model.enums.ApproverOption;
+import dk.digitalidentity.rc.rolerequest.model.enums.RequesterOption;
 import dk.digitalidentity.rc.security.RequireAdministratorRole;
 import dk.digitalidentity.rc.service.OrgUnitService;
 import dk.digitalidentity.rc.service.PositionService;
@@ -20,6 +24,7 @@ import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.jpa.datatables.mapping.DataTablesInput;
 import org.springframework.data.jpa.datatables.mapping.DataTablesOutput;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.BindingResult;
@@ -58,6 +63,9 @@ public class RolegroupRestController {
 
 	@Autowired
 	private RolegroupValidator rolegroupValidator;
+
+	@Autowired
+	private UserRoleForRoleGroupViewDao userRoleForRoleGroupViewDao;
 
 	@InitBinder
 	public void initBinder(WebDataBinder binder) {
@@ -131,25 +139,58 @@ public class RolegroupRestController {
 					}
 				}
 				break;
-			case "canrequest":
-				role.setCanRequest(active);
-				roleGroupService.save(role);
-				break;
 			default:
 				return new ResponseEntity<>("Ukendt flag: " + flag, HttpStatus.BAD_REQUEST);
 		}
+		return new ResponseEntity<>(HttpStatus.OK);
+	}
+
+	record RequesterChangeRequest(RequesterOption requesterPermission) {}
+	@PostMapping(value = "/rest/rolegroups/{roleId}/requester")
+	public ResponseEntity<String> setRequesterPermission(@PathVariable("roleId") long roleId, @RequestBody RequesterChangeRequest requesterChangeRequest, BindingResult bindingResult) {
+		RoleGroup role = roleGroupService.getById(roleId);
+		if (role == null) {
+			return new ResponseEntity<>("Ukendt Jobfunktionsrolle", HttpStatus.BAD_REQUEST);
+		}
+
+		if (requesterChangeRequest.requesterPermission == null ) {
+			role.setRequesterPermission(RequesterOption.INHERIT);
+		} else {
+			role.setRequesterPermission(requesterChangeRequest.requesterPermission);
+		}
+
+		roleGroupService.save(role);
 
 		return new ResponseEntity<>(HttpStatus.OK);
 	}
 
-	// we have to use deprecated method to ensure that we update inactive users and assignments
-	@SuppressWarnings("deprecation")
-	@PostMapping(value = "/rest/rolegroups/delete/{id}")
-	public ResponseEntity<String> deleteRolegroup(@PathVariable("id") long id) {
-		RoleGroup roleGroup = roleGroupService.getById(id);
-		if (roleGroup == null) {
-			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+	record ApproverChangeRequest(ApproverOption approverPermission) {}
+	@PostMapping(value = "/rest/rolegroups/{roleId}/approver")
+	public ResponseEntity<String> setApproverPermission(@PathVariable("roleId") long roleId, @RequestBody ApproverChangeRequest approverChangeRequest, BindingResult bindingResult) {
+		RoleGroup role = roleGroupService.getById(roleId);
+		if (role == null) {
+			return new ResponseEntity<>("Ukendt Jobfunktionsrolle", HttpStatus.BAD_REQUEST);
 		}
+
+		if (approverChangeRequest.approverPermission == null ) {
+			role.setApproverPermission(ApproverOption.INHERIT);
+		} else {
+			role.setApproverPermission(approverChangeRequest.approverPermission);
+		}
+
+		roleGroupService.save(role);
+
+		return new ResponseEntity<>(HttpStatus.OK);
+	}
+
+    // we have to use deprecated method to ensure that we update inactive users and assignments
+    @SuppressWarnings("deprecation")
+    @PostMapping(value = "/rest/rolegroups/delete/{id}")
+    public ResponseEntity<String> deleteRolegroup(@PathVariable("id") long id) {
+        RoleGroup roleGroup = roleGroupService.getById(id);
+        if (roleGroup == null) {
+            return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+        }
 
 		List<OrgUnit> ous = orgUnitService.getAllWithRoleGroupIncludingInactive(roleGroup);
 		for (OrgUnit ou : ous) {
@@ -229,40 +270,18 @@ public class RolegroupRestController {
 		return new ResponseEntity<>(HttpStatus.OK);
 	}
 
-	public record SelectableUserRoleDTO(long id, String name, String description, AvailableITSystemDTO itSystem,
-										boolean selected, boolean readOnly) {
-	}
-
 	@PostMapping("/rest/rolegroups/{rolegroupId}/userroles")
-	public DataTablesOutput<SelectableUserRoleDTO> getUserRoleDatatableForUser(@RequestBody DataTablesInput input, BindingResult bindingResult, @PathVariable long rolegroupId) {
+	public DataTablesOutput<UserRoleForRoleGroupView> getUserRoleDatatableForUser(@RequestBody DataTablesInput input, BindingResult bindingResult, @PathVariable long rolegroupId) {
 
 		if (bindingResult.hasErrors()) {
-			DataTablesOutput<SelectableUserRoleDTO> error = new DataTablesOutput<>();
+			DataTablesOutput<UserRoleForRoleGroupView> error = new DataTablesOutput<>();
 			error.setError(bindingResult.toString());
 			return error;
 		}
 
 		RoleGroup rolegroup = roleGroupService.getById(rolegroupId);
 
-		DataTablesOutput<UserRole> userroleOutput = userRoleService.getAllItsystemNotDeletedNotPostponedAsDatatable(input);
-
-		DataTablesOutput<SelectableUserRoleDTO> output = new DataTablesOutput<>();
-		output.setRecordsFiltered(userroleOutput.getRecordsFiltered());
-		output.setDraw(userroleOutput.getDraw());
-		output.setError(userroleOutput.getError());
-		output.setSearchPanes(userroleOutput.getSearchPanes());
-		output.setRecordsTotal(userroleOutput.getRecordsTotal());
-		output.setData(userroleOutput.getData().stream().map(userrole ->
-				new SelectableUserRoleDTO(
-						userrole.getId(),
-						userrole.getName(),
-						userrole.getDescription(),
-						new AvailableITSystemDTO(userrole.getItSystem().getName(), userrole.getItSystem().getSystemType().toString()),
-						rolegroup.getUserRoleAssignments().stream().map(RoleGroupUserRoleAssignment::getUserRole).toList().contains(userrole),
-						userrole.getItSystem().isReadonly()
-				)
-		).toList());
-
-		return output;
+		Specification<UserRoleForRoleGroupView> specification = UserRoleForRoleGroupViewDao.hasRoleGroupId(rolegroup.getId());
+		return userRoleForRoleGroupViewDao.findAll(input, specification);
 	}
 }

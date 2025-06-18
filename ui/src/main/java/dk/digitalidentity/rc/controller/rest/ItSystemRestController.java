@@ -3,6 +3,7 @@ package dk.digitalidentity.rc.controller.rest;
 import dk.digitalidentity.rc.config.Constants;
 import dk.digitalidentity.rc.controller.rest.model.OUFilterDTO;
 import dk.digitalidentity.rc.dao.model.ItSystem;
+import dk.digitalidentity.rc.dao.model.KitosITSystem;
 import dk.digitalidentity.rc.dao.model.OrgUnit;
 import dk.digitalidentity.rc.dao.model.PendingADGroupOperation;
 import dk.digitalidentity.rc.dao.model.SystemRole;
@@ -11,8 +12,11 @@ import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserRole;
 import dk.digitalidentity.rc.dao.model.enums.ADGroupType;
 import dk.digitalidentity.rc.dao.model.enums.ItSystemType;
+import dk.digitalidentity.rc.rolerequest.model.enums.ApproverOption;
+import dk.digitalidentity.rc.rolerequest.model.enums.RequesterOption;
 import dk.digitalidentity.rc.security.RequireAdministratorRole;
 import dk.digitalidentity.rc.service.ItSystemService;
+import dk.digitalidentity.rc.service.KitosITSystemService;
 import dk.digitalidentity.rc.service.OrgUnitService;
 import dk.digitalidentity.rc.service.PendingADUpdateService;
 import dk.digitalidentity.rc.service.PositionService;
@@ -32,6 +36,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.Arrays;
 import java.util.Date;
@@ -49,10 +54,10 @@ public class ItSystemRestController {
 
 	@Autowired
 	private SystemRoleService systemRoleService;
-	
+
 	@Autowired
 	private UserRoleService userRoleService;
-		
+
 	@Autowired
 	private PendingADUpdateService pendingADUpdateService;
 
@@ -68,18 +73,21 @@ public class ItSystemRestController {
 	@Autowired
 	private ResourceBundleMessageSource resourceBundle;
 
+	@Autowired
+	private KitosITSystemService kitosITSystemService;
+
 	@PostMapping(value = { "/rest/systemrole/delete/{id}" })
 	@ResponseBody
 	public HttpEntity<String> deleteSystemRole(Model model, @PathVariable("id") long id) {
 		SystemRole systemRole = systemRoleService.getById(id);
 
 		if (systemRole == null || (!systemRole.getItSystem().getSystemType().equals(ItSystemType.AD) &&
-								   !systemRole.getItSystem().getSystemType().equals(ItSystemType.SAML) &&
-								   !systemRole.getItSystem().getSystemType().equals(ItSystemType.MANUAL))) {
+				!systemRole.getItSystem().getSystemType().equals(ItSystemType.SAML) &&
+				!systemRole.getItSystem().getSystemType().equals(ItSystemType.MANUAL))) {
 
 			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
 		}
-		
+
 		List<UserRole> userRoles = userRoleService.getByItSystem(systemRole.getItSystem());
 		if (userRoles != null) {
 			for (UserRole userRole : userRoles) {
@@ -105,54 +113,54 @@ public class ItSystemRestController {
 
 			pendingADUpdateService.save(operation);
 		}
-		
+
 		return new ResponseEntity<>(HttpStatus.OK);
 	}
-	
-    @PostMapping(value = "/rest/itsystem/delete/{id}")
-    public ResponseEntity<String> deleteItSystemAsync(@PathVariable("id") long id) {
-        ItSystem itSystem = itSystemService.getById(id);
-        if (itSystem == null) {
-            return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
-        }
 
-        log.info("Deleting it-system " + itSystem.getName() + " with id " + itSystem.getId());
-
-        if (itSystem.getSystemType().equals(ItSystemType.KOMBIT) ||
-        	itSystem.getSystemType().equals(ItSystemType.KSPCICS) ||
-        	itSystem.getIdentifier().equals(Constants.ROLE_CATALOGUE_IDENTIFIER)) {
-        	return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
-        }
-        
-        // delete itsystem
-        itSystem.setDeleted(true);
-        itSystem.setDeletedTimestamp(new Date());
-        itSystemService.save(itSystem);
-
-        return new ResponseEntity<>(HttpStatus.OK);
-    }
-
-    @PostMapping(value = "/rest/itsystem/name")
-    public ResponseEntity<String> editItSystemName(long id, String name) {
-    	if (name == null || name.length() < 2) {
-            return new ResponseEntity<>(resourceBundle.getMessage("validation.error.itsystem.name.short", null, Locale.ENGLISH), HttpStatus.BAD_REQUEST);
-        }
-    
-    	ItSystem itSystem = itSystemService.getById(id);
-    	if (itSystem == null) {
+	@PostMapping(value = "/rest/itsystem/delete/{id}")
+	public ResponseEntity<String> deleteItSystemAsync(@PathVariable("id") long id) {
+		ItSystem itSystem = itSystemService.getById(id);
+		if (itSystem == null) {
 			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
 		}
-    	
-    	ItSystem existingSystem = itSystemService.getFirstByName(name);
-    	if (existingSystem != null && existingSystem.getId() != itSystem.getId()) {
-			return new ResponseEntity<>(resourceBundle.getMessage("validation.error.itsystem.name.exist", null, Locale.ENGLISH), HttpStatus.BAD_REQUEST);
-    	}
-    	
-    	itSystem.setName(name);
-    	itSystemService.save(itSystem);
 
-        return new ResponseEntity<>(HttpStatus.OK);
-    }
+		log.info("Deleting it-system " + itSystem.getName() + " with id " + itSystem.getId());
+
+		if (itSystem.getSystemType().equals(ItSystemType.KOMBIT) ||
+				itSystem.getSystemType().equals(ItSystemType.KSPCICS) ||
+				itSystem.getIdentifier().equals(Constants.ROLE_CATALOGUE_IDENTIFIER)) {
+			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+		}
+
+		// delete itsystem
+		itSystem.setDeleted(true);
+		itSystem.setDeletedTimestamp(new Date());
+		itSystemService.save(itSystem);
+
+		return new ResponseEntity<>(HttpStatus.OK);
+	}
+
+	@PostMapping(value = "/rest/itsystem/name")
+	public ResponseEntity<String> editItSystemName(long id, String name) {
+		if (name == null || name.length() < 2) {
+			return new ResponseEntity<>(resourceBundle.getMessage("validation.error.itsystem.name.short", null, Locale.ENGLISH), HttpStatus.BAD_REQUEST);
+		}
+
+		ItSystem itSystem = itSystemService.getById(id);
+		if (itSystem == null) {
+			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+		}
+
+		ItSystem existingSystem = itSystemService.getFirstByName(name);
+		if (existingSystem != null && existingSystem.getId() != itSystem.getId()) {
+			return new ResponseEntity<>(resourceBundle.getMessage("validation.error.itsystem.name.exist", null, Locale.ENGLISH), HttpStatus.BAD_REQUEST);
+		}
+
+		itSystem.setName(name);
+		itSystemService.save(itSystem);
+
+		return new ResponseEntity<>(HttpStatus.OK);
+	}
 
 	@PostMapping(value = "/rest/itsystem/email")
 	public ResponseEntity<String> editItSystemEmail(long id, String email) {
@@ -170,7 +178,7 @@ public class ItSystemRestController {
 				return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
 			}
 		}
-		
+
 		if ((itSystem.getSystemType() == ItSystemType.AD || itSystem.getSystemType() == ItSystemType.SAML) && (StringUtils.hasLength(email) && !isEmailCorrect(email))) {
 			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
 		}
@@ -200,7 +208,7 @@ public class ItSystemRestController {
 
 		return success;
 	}
-	
+
 	@PostMapping(value = "/rest/itsystem/notificationemail")
 	public ResponseEntity<String> editItSystemNotificationEmail(long id, String email) {
 		ItSystem itSystem = itSystemService.getById(id);
@@ -213,6 +221,29 @@ public class ItSystemRestController {
 
 		return new ResponseEntity<>(HttpStatus.OK);
 	}
+
+	@PostMapping(value = "/rest/itsystem/kitositsystem")
+	public ResponseEntity<String> editItSystemKitosITSystem(long id, Long kitosITSystemId) {
+		ItSystem itSystem = itSystemService.getById(id);
+		if (itSystem == null) {
+			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+		}
+
+		if (kitosITSystemId == null) {
+			itSystem.setKitosITSystem(null);
+			itSystemService.save(itSystem);
+		} else {
+			KitosITSystem kitosITSystem = kitosITSystemService.findById(kitosITSystemId).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Kitos IT System not found"));
+
+			itSystem.setKitosITSystem(kitosITSystem);
+			itSystem = itSystemService.save(itSystem);
+
+			List<User> allUsers = userService.getAll();
+			itSystemService.handleSingleITSystemKitosOwnerAndResponsible(itSystem, allUsers);
+		}
+
+		return new ResponseEntity<>(HttpStatus.OK);
+	}
     
     @PostMapping(value = "/rest/itsystem/notes")
     public ResponseEntity<String> editItSystemNotes(long id, String notes) {
@@ -220,59 +251,57 @@ public class ItSystemRestController {
     	if (itSystem == null) {
 			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
 		}
-    	
-    	itSystem.setNotes(notes);
-    	itSystemService.save(itSystem);
 
-        return new ResponseEntity<>(HttpStatus.OK);
-    }
-    
-    @PostMapping(value = "/rest/itsystem/paused")
-    public ResponseEntity<String> editItSystemPaused(long id, boolean paused) {
-    	ItSystem itSystem = itSystemService.getById(id);
-    	if (itSystem == null) {
-			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
-		}
-    	
-    	itSystem.setPaused(paused);
-    	itSystemService.save(itSystem);
+		itSystem.setNotes(notes);
+		itSystemService.save(itSystem);
 
-    	if (!paused) {
-    		// if the pause flag is removed, add the full it-system
-    		// to the queue for synchronization
-    		pendingADUpdateService.addItSystemToQueue(itSystem);
-    	}
-    	else {
-    		pendingADUpdateService.removeItSystemFromQueue(itSystem);
-    	}
-    	
-        return new ResponseEntity<>(HttpStatus.OK);
-    }
+		return new ResponseEntity<>(HttpStatus.OK);
+	}
 
-    @PostMapping(value = "/rest/itsystem/readonly")
-    public ResponseEntity<String> editItSystemReadonly(long id, boolean readonly) {
-    	ItSystem itSystem = itSystemService.getById(id);
-    	if (itSystem == null || itSystem.getSystemType() != ItSystemType.AD) {
+	@PostMapping(value = "/rest/itsystem/paused")
+	public ResponseEntity<String> editItSystemPaused(long id, boolean paused) {
+		ItSystem itSystem = itSystemService.getById(id);
+		if (itSystem == null) {
 			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
 		}
 
-    	itSystem.setReadonly(readonly);
-    	itSystemService.save(itSystem);
+		itSystem.setPaused(paused);
+		itSystemService.save(itSystem);
 
-    	if (!readonly) {
-    		pendingADUpdateService.addItSystemToQueue(itSystem);
-    	}
-    	else {
-    		pendingADUpdateService.removeItSystemFromQueue(itSystem);
-    	}
+		if (!paused) {
+			// if the pause flag is removed, add the full it-system
+			// to the queue for synchronization
+			pendingADUpdateService.addItSystemToQueue(itSystem);
+		} else {
+			pendingADUpdateService.removeItSystemFromQueue(itSystem);
+		}
 
-    	return new ResponseEntity<>(HttpStatus.OK);
-    }
+		return new ResponseEntity<>(HttpStatus.OK);
+	}
 
-    @PostMapping(value = "/rest/itsystem/canEditThroughApi")
-    public ResponseEntity<String> editItSystemCanEditThroughApi(long id, boolean canEditThroughApi) {
-    	ItSystem itSystem = itSystemService.getById(id);
-    	if (itSystem == null) {
+	@PostMapping(value = "/rest/itsystem/readonly")
+	public ResponseEntity<String> editItSystemReadonly(long id, boolean readonly) {
+		ItSystem itSystem = itSystemService.getById(id);
+		if (itSystem == null || itSystem.getSystemType() != ItSystemType.AD) {
+			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+		}
+
+		itSystem.setReadonly(readonly);
+		itSystemService.save(itSystem);
+
+		if (!readonly) {
+			pendingADUpdateService.addItSystemToQueue(itSystem);
+		} else {
+			pendingADUpdateService.removeItSystemFromQueue(itSystem);
+		}
+
+		return new ResponseEntity<>(HttpStatus.OK);
+	}
+
+	@PostMapping(value = "/rest/itsystem/canEditThroughApi")
+	public ResponseEntity<String> editItSystemCanEditThroughApi(long id, boolean canEditThroughApi) {
+		ItSystem itSystem = itSystemService.getById(id);
+		if (itSystem == null) {
 			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
 		}
 
@@ -280,11 +309,11 @@ public class ItSystemRestController {
 			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
 		}
 
-    	itSystem.setCanEditThroughApi(canEditThroughApi);
-    	itSystemService.save(itSystem);
+		itSystem.setCanEditThroughApi(canEditThroughApi);
+		itSystemService.save(itSystem);
 
-        return new ResponseEntity<>(HttpStatus.OK);
-    }
+		return new ResponseEntity<>(HttpStatus.OK);
+	}
 
 	@PostMapping(value = "/rest/itsystem/hidden")
 	public ResponseEntity<String> editItSystemHidden(long id, boolean hidden) {
@@ -387,7 +416,7 @@ public class ItSystemRestController {
 
 		return new ResponseEntity<>(HttpStatus.OK);
 	}
-	
+
 	// TODO: really should use the count() method instead
 	@SuppressWarnings("deprecation")
 	@PostMapping(value = "/rest/itsystem/userrole/unused/{id}")
@@ -417,7 +446,7 @@ public class ItSystemRestController {
 			if (orgUnitService.countAllWithRole(userRole) > 0) {
 				continue;
 			}
-			
+
 			// check if assigned to position
 			if (positionService.getAllWithRole(userRole).size() > 0) {
 				continue;
@@ -476,5 +505,40 @@ public class ItSystemRestController {
 
 		return new ResponseEntity<>(HttpStatus.OK);
 	}
+
+	@PostMapping(value = "/rest/itsystem/requester")
+	public ResponseEntity<String> requesterChange(long id, String requesterPermission) {
+		ItSystem itSystem = itSystemService.getById(id);
+		if (itSystem == null) {
+			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+		}
+
+		if (requesterPermission == null || requesterPermission.isEmpty()) {
+			itSystem.setRequesterPermission(RequesterOption.INHERIT);
+		} else {
+			itSystem.setRequesterPermission(RequesterOption.valueOf(requesterPermission));
+		}
+		itSystemService.save(itSystem);
+
+		return new ResponseEntity<>(HttpStatus.OK);
+	}
+
+	@PostMapping(value = "/rest/itsystem/approver")
+	public ResponseEntity<String> approverChange(long id, String approverPermission) {
+		ItSystem itSystem = itSystemService.getById(id);
+		if (itSystem == null) {
+			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+		}
+
+		if (approverPermission == null || approverPermission.isEmpty()) {
+			itSystem.setApproverPermission(null);
+		} else {
+			itSystem.setApproverPermission(ApproverOption.valueOf(approverPermission));
+		}
+		itSystemService.save(itSystem);
+
+		return new ResponseEntity<>(HttpStatus.OK);
+	}
+
 
 }

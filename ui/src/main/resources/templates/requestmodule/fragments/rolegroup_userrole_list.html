@@ -1,0 +1,19 @@
+<th:block th:fragment="itSystemUserRoleTable" xmlns="http://www.w3.org/1999/xhtml" xmlns:th="http://www.thymeleaf.org">
+    <table class="roleGroupUserRoleTable table table-striped table-bordered table-hover" >
+        <thead>
+        <tr>
+            <th th:text="#{requestmodule.html.dashboard.tabs.roles.itsystem}" class="col-lg-3"></th>
+            <th th:text="#{requestmodule.html.dashboard.tabs.roles.role}" class="col-lg-4"></th>
+            <th th:text="#{requestmodule.html.dashboard.tabs.roles.description}" class="col-lg-5"></th>
+        </tr>
+        </thead>
+
+        <tbody>
+        <tr th:each="userRole : ${userRoles}">
+            <td th:text="${userRole.itSystemName}" class="col-lg-3"></td>
+            <td th:text="${userRole.name}" class="col-lg-4"></td>
+            <td th:text="${userRole.description}" class="col-lg-5"></td>
+        </tr>
+        </tbody>
+    </table>
+</th:block>

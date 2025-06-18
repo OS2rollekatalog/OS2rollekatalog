@@ -3,13 +3,14 @@ package dk.digitalidentity.rc.service;
 import dk.digitalidentity.rc.config.Constants;
 import dk.digitalidentity.rc.dao.ItSystemDao;
 import dk.digitalidentity.rc.dao.model.ItSystem;
+import dk.digitalidentity.rc.dao.model.KitosITSystemUser;
 import dk.digitalidentity.rc.dao.model.OrgUnit;
 import dk.digitalidentity.rc.dao.model.RoleGroup;
 import dk.digitalidentity.rc.dao.model.SystemRole;
 import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserRole;
 import dk.digitalidentity.rc.dao.model.enums.ItSystemType;
-import io.micrometer.common.util.StringUtils;
+import dk.digitalidentity.rc.dao.model.enums.KitosRole;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -49,7 +50,7 @@ public class ItSystemService {
 
 	@Autowired
 	private RoleGroupService roleGroupService;
-		
+
 	public List<ItSystem> getAll() {
 		List<ItSystem> result = itSystemDao.findAll();
 		result = filterDeleted(result);
@@ -92,7 +93,7 @@ public class ItSystemService {
 	public ItSystem getByUuid(String uuid) {
 		return filterDeleted(itSystemDao.findByUuid(uuid));
 	}
-	
+
 	public ItSystem getByUuidIncludingDeleted(String uuid) {
 		return itSystemDao.findByUuid(uuid);
 	}
@@ -104,7 +105,7 @@ public class ItSystemService {
 	public List<ItSystem> getBySystemTypeIn(List<ItSystemType> systemTypes) {
 		return filterDeleted(itSystemDao.findBySystemTypeIn(systemTypes));
 	}
-	
+
 	public List<ItSystem> getBySystemTypeIncludingDeleted(ItSystemType systemType) {
 		return itSystemDao.findBySystemType(systemType);
 	}
@@ -158,31 +159,31 @@ public class ItSystemService {
 	@SuppressWarnings("deprecation")
 	public int getUnusedUserRolesCount(ItSystem itSystem) {
 		int sum = 0;
-		
+
 		List<UserRole> userRoles = userRoleService.getByItSystem(itSystem);
 		for (UserRole userRole : userRoles) {
 			if (userService.countAllWithRole(userRole) > 0) {
 				continue;
 			}
-			
+
 			if (orgUnitService.countAllWithRole(userRole) > 0) {
 				continue;
 			}
-			
+
 			if (positionService.getAllWithRole(userRole).size() > 0) {
 				continue;
 			}
 
 			sum++;
 		}
-		
+
 		return sum;
 	}
-	
+
 	public List<ItSystem> getVisible() {
 		List<ItSystem> result = itSystemDao.findByHiddenFalse();
 		result = filterDeleted(result);
-		
+
 		return result.stream().sorted((o1, o2) -> o1.getName().toLowerCase().compareTo(o2.getName().toLowerCase())).collect(Collectors.toList());
 	}
 
@@ -260,8 +261,56 @@ public class ItSystemService {
 		}
 	}
 
+	@Transactional
+	public void syncKitosOwnersAndResponsibles() {
+		List<ItSystem> systems = itSystemDao.findByKitosITSystemNotNull();
+		if (systems.isEmpty()) {
+			return;
+		}
+
+		List<User> allUsers = userService.getAll();
+		for (ItSystem system : systems) {
+			handleSingleITSystemKitosOwnerAndResponsible(system, allUsers);
+		}
+	}
+
+	public void handleSingleITSystemKitosOwnerAndResponsible(ItSystem system, List<User> allUsers) {
+		if (system.getKitosITSystem().getKitosUsers() == null) {
+			system.setAttestationResponsible(null);
+			system.setSystemOwner(null);
+		} else {
+			User owner = findUserForKitosRole(KitosRole.SYSTEM_OWNER, system, allUsers);
+			User responsible = findUserForKitosRole(KitosRole.SYSTEM_RESPONSIBLE, system, allUsers);
+			system.setSystemOwner(owner);
+			system.setAttestationResponsible(responsible);
+		}
+		itSystemDao.save(system);
+	}
+
+	private User findUserForKitosRole(KitosRole kitosRole, ItSystem system, List<User> allUsers) {
+		List<KitosITSystemUser> kitosUsers = system.getKitosITSystem().getKitosUsers().stream()
+				.filter(u -> u.getRole().equals(kitosRole))
+				.collect(Collectors.toList());
+
+		for (KitosITSystemUser kitosUser : kitosUsers) {
+			User match = allUsers.stream()
+					.filter(u -> kitosUser.getName().equalsIgnoreCase(u.getName()) && kitosUser.getEmail().equalsIgnoreCase(u.getEmail()))
+					.findFirst().orElse(null);
+
+			if (match != null) {
+				return match;
+			}
+		}
+
+		return null;
+	}
+
+	public long systemResponsibleCount(User user){
+		return itSystemDao.countByAttestationResponsible(user);
+	}
+
 	//UTILITY METHODS
-	
+
 	private List<ItSystem> filterDeleted(List<ItSystem> itSystems) {
 		return itSystems == null ? null
 				: itSystems.stream().filter(its -> its.isDeleted() == false).collect(Collectors.toList());

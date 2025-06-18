@@ -12,6 +12,7 @@ import dk.digitalidentity.rc.controller.mvc.viewmodel.UserRoleForm;
 import dk.digitalidentity.rc.controller.validator.UserRoleValidator;
 import dk.digitalidentity.rc.controller.viewmodel.EditSystemRoleRow;
 import dk.digitalidentity.rc.dao.model.ConstraintType;
+import dk.digitalidentity.rc.dao.model.ConstraintTypeSupport;
 import dk.digitalidentity.rc.dao.model.ItSystem;
 import dk.digitalidentity.rc.dao.model.Kle;
 import dk.digitalidentity.rc.dao.model.OrgUnit;
@@ -23,6 +24,7 @@ import dk.digitalidentity.rc.dao.model.SystemRoleAssignmentConstraintValue;
 import dk.digitalidentity.rc.dao.model.Title;
 import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserRole;
+import dk.digitalidentity.rc.dao.model.enums.ConstraintUIType;
 import dk.digitalidentity.rc.dao.model.enums.ItSystemType;
 import dk.digitalidentity.rc.security.RequireAdministratorRole;
 import dk.digitalidentity.rc.security.RequireRequesterOrReadAccessRole;
@@ -60,7 +62,11 @@ import java.security.Principal;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -86,8 +92,8 @@ public class UserRoleController {
 	@Autowired
 	private ConstraintTypeService constraintTypeService;
 
-	@Autowired
-	private SettingsService settingsService;
+    @Autowired
+    private SettingsService settingsService;
 
 	@Autowired
 	private UserService userService;
@@ -97,16 +103,16 @@ public class UserRoleController {
 
 	@Autowired
 	private OrgUnitService orgUnitService;
-	
+
 	@Autowired
 	private RoleCatalogueConfiguration configuration;
 
 	@Autowired
 	private RoleGroupService roleGroupService;
-	
+
 	@Autowired
 	private SENumberService seNumberService;
-	
+
 	@Autowired
 	private PNumberService pNumberService;
 
@@ -139,29 +145,21 @@ public class UserRoleController {
 		roleForm.setRoleGroups(roleGroups);
 		model.addAttribute("role", roleForm);
 
-		boolean canRequest = false;
-		if (settingsService.isRequestApproveEnabled()) {
-			User user = getUserOrThrow(principal.getName());
-			canRequest = userRoleService.canRequestRole(role, user);
-		}
-
-		model.addAttribute("canRequest", canRequest);
-
 		boolean titlesEnabled = configuration.getTitles().isEnabled();
 		model.addAttribute("titlesEnabled", titlesEnabled);
-		
+
 		boolean hideRolegroups = false;
 		if (role.isAllowPostponing()) {
 			hideRolegroups = true;
 		}
-		
+
 		List<ItSystem> roleCatalogue = itSystemService.findByIdentifier(Constants.ROLE_CATALOGUE_IDENTIFIER);
 		if (roleCatalogue != null && roleCatalogue.size() >= 1) {
 			if (role.getItSystem().equals(roleCatalogue.get(0))) {
 				hideRolegroups = true;
 			}
 		}
-		
+
 		model.addAttribute("hideRolegroups", hideRolegroups);
 		model.addAttribute("allowPostponing", role.isAllowPostponing());
 
@@ -178,10 +176,10 @@ public class UserRoleController {
 		List<UserWithRole> usersWithRoleMapping = userService.getUsersWithUserRole(role, true);
 		model.addAttribute("userRoleMapping", usersWithRoleMapping);
 		model.addAttribute("showEdit", showEdit);
-		
+
 		return "userroles/fragments/manage_users :: users";
 	}
-	
+
 	@GetMapping(value = "/ui/userroles/{id}/assignedUsersFragmentView")
 	public String assignedUsersFragmentView(Model model, @PathVariable("id") long userRoleId) {
 		UserRole role = userRoleService.getById(userRoleId);
@@ -191,7 +189,7 @@ public class UserRoleController {
 
 		List<UserWithRole> usersWithRole = userService.getUsersWithUserRole(role, true);
 		model.addAttribute("userRoleMapping", usersWithRole);
-		
+
 		return "userroles/fragments/view_users :: users";
 	}
 
@@ -259,19 +257,19 @@ public class UserRoleController {
 		}
 
 		UserRole role = roleForm.toUserRole();
-		
+
 		if (!StringUtils.hasLength(roleForm.getIdentifier())) {
 			role.setIdentifier("id-" + UUID.randomUUID().toString());
 		}
 		else {
 			role.setIdentifier(roleForm.getIdentifier().replaceAll("[\\s]", ""));
 		}
-		
+
 		role = userRoleService.save(role);
 
 		return "redirect:edit/" + role.getId();
 	}
-	
+
 	@RequireAdministratorRole
 	@GetMapping(value = "/ui/userroles/edit/{id}/userFragment")
 	public String editGetUserFragment(Model model, @PathVariable("id") long id) {
@@ -285,12 +283,12 @@ public class UserRoleController {
 
 		List<String> uuidsWithRole = usersWithRole.stream().map(u -> u.getUser().getUuid()).collect(Collectors.toList());
 		List<UserRoleCheckedDTO> users = new ArrayList<>();
-		
+
 		for (User user : usersFromDb) {
 			LocalDate startDate = null;
 			LocalDate stopDate = null;
 			boolean checked = false;
-			
+
 			if (uuidsWithRole.contains(user.getUuid())) {
 				checked = true;
 				//We know it exists because of the if, and there should only be one
@@ -298,7 +296,7 @@ public class UserRoleController {
 				startDate = userWithRole.getStartDate();
 				stopDate = userWithRole.getStopDate();
 			}
-			
+
 			UserRoleCheckedDTO dto = new UserRoleCheckedDTO();
 			dto.setName(user.getName());
 			dto.setUuid(user.getUuid());
@@ -306,7 +304,7 @@ public class UserRoleController {
 			dto.setChecked(checked);
 			dto.setStartDate(startDate);
 			dto.setStopDate(stopDate);
-			
+
 			users.add(dto);
 		}
 
@@ -323,11 +321,12 @@ public class UserRoleController {
 		if (role == null) {
 			return "redirect:../list";
 		}
-		
+
 		UserRoleForm userRoleForm = new UserRoleForm(role, false, false);
 		ItSystem itSystem = role.getItSystem();
 		List<SystemRole> systemRoles = systemRoleService.getByItSystem(itSystem);
 		List<EditSystemRoleRow> editSystemRoles = new ArrayList<>();
+		Map<Long, Set<String>> systemRoleComboMultiConstraintUuids = new HashMap<>();
 
 		for (SystemRole systemRole : systemRoles) {
 			EditSystemRoleRow esr = new EditSystemRoleRow();
@@ -346,6 +345,15 @@ public class UserRoleController {
 			esr.setId(systemRole.getId());
 			esr.setSystemRole(systemRole);
 			editSystemRoles.add(esr);
+
+			for (ConstraintTypeSupport supportedConstraintType : systemRole.getSupportedConstraintTypes()) {
+				if (supportedConstraintType.getConstraintType().getUiType().equals(ConstraintUIType.COMBO_MULTI)) {
+					if (!systemRoleComboMultiConstraintUuids.containsKey(systemRole.getId())) {
+						systemRoleComboMultiConstraintUuids.put(systemRole.getId(), new HashSet<>());
+					}
+					systemRoleComboMultiConstraintUuids.get(systemRole.getId()).add(supportedConstraintType.getConstraintType().getUuid());
+				}
+			}
 		}
 
 		List<EditRolegroupRow> editRoleGroups = new ArrayList<>();
@@ -396,27 +404,28 @@ public class UserRoleController {
 		model.addAttribute("roleId", id);
 		model.addAttribute("titlesEnabled", configuration.getTitles().isEnabled());
 		model.addAttribute("allowPostponing", role.isAllowPostponing());
-		
+		model.addAttribute("systemRoleComboMultiConstraintUuids", systemRoleComboMultiConstraintUuids);
+
 		if (role.getItSystem().getSystemType().equals(ItSystemType.NEMLOGIN)) {
 			model.addAttribute("pNumberList", pNumberService.getAll());
 			model.addAttribute("sENumberList", seNumberService.getAll());
 		}
-		
+
 		boolean hideRolegroups = false;
 		if (role.isAllowPostponing()) {
 			hideRolegroups = true;
 		}
-		
+
 		List<ItSystem> roleCatalogue = itSystemService.findByIdentifier(Constants.ROLE_CATALOGUE_IDENTIFIER);
 		if (roleCatalogue != null && roleCatalogue.size() >= 1) {
 			if (role.getItSystem().equals(roleCatalogue.get(0))) {
 				hideRolegroups = true;
 			}
 		}
-		
+
 		model.addAttribute("hideRolegroups", hideRolegroups);
-		
-		
+
+
 		List<OUListForm> treeOUs = orgUnitService.getAllCached()
 				.stream()
 				.map(ou -> new OUListForm(ou, false))
@@ -425,25 +434,36 @@ public class UserRoleController {
 
 		model.addAttribute("treeOUs", treeOUs);
 
+		if (!itSystem.isOuFilterEnabled()) {
+			model.addAttribute("possibleFilterOus", treeOUs.stream().map(o -> o.getId()).collect(Collectors.toSet()));
+		} else {
+			model.addAttribute("possibleFilterOus", itSystemService.getOUFilterUuidsWithChildren(itSystem));
+		}
+
+		model.addAttribute("selectedFilterOUs", role.getOrgUnitFilterOrgUnits().stream().map(OrgUnit::getUuid).toList());
+
+		model.addAttribute("caseNumberEnabled", settingsService.isCaseNumberEnabled());
+
 		return "userroles/edit";
 	}
-	
+
 	@GetMapping(value = "/ui/userroles/fragments/{uuid}")
 	public String getFragment(Model model, @PathVariable("uuid") String uuid) {
 		User user = userService.getByUuid(uuid);
 		if (user != null) {
 			model.addAttribute("positions", user.getPositions());
 			model.addAttribute("possibleOrgUnits", orgUnitService.getOrgUnitsForUser(user));
+			model.addAttribute("caseNumberEnabled", settingsService.isCaseNumberEnabled());
 		}
-		
-		return "users/fragments/user_user_role_modal :: userUserRoleModal";	
+
+		return "users/fragments/user_user_role_modal :: userUserRoleModal";
 	}
-	
+
 	@GetMapping(value = "/ui/userroles/scriptFragment")
 	public String getFragmentScripts(Model model) {
 		model.addAttribute("userRoleListTableId", "listTable1");
 		model.addAttribute("page", "role");
-		
+
 		return "users/fragments/user_user_role_modal :: userUserRoleModalScript";
 	}
 
@@ -459,10 +479,10 @@ public class UserRoleController {
 					.stream()
 					.map(title -> new TitleListForm(title, false))
 					.collect(Collectors.toList());
-			
+
 			List<String> titleFormsUuids = titleForms.stream().map(t -> t.getId()).collect(Collectors.toList());
 			titleForms.addAll(orgUnit.getTitles().stream().filter(t -> !titleFormsUuids.contains(t.getUuid())).map(t -> new TitleListForm(t, true)).collect(Collectors.toList()));
-			
+
 			model.addAttribute("titles", titleForms);
 
 			List<TitleListForm> allTitles = titleService.getAll().stream().map(title -> new TitleListForm(title, false)).toList();
@@ -471,7 +491,7 @@ public class UserRoleController {
 		else {
 			model.addAttribute("titles", null);
 		}
-		
+
 		model.addAttribute("titlesEnabled", titlesEnabled);
 
 		return "ous/fragments/ou_roles_modal :: ouRolesModal";

@@ -1,6 +1,9 @@
 package dk.digitalidentity.rc.controller.api.model;
 
+import dk.digitalidentity.rc.rolerequest.model.enums.ApproverOption;
+import dk.digitalidentity.rc.rolerequest.model.enums.RequesterOption;
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.persistence.Column;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.Positive;
@@ -32,7 +35,7 @@ public class UserRoleAM {
     private String delegatedFromCvr;
     @Schema(description = "")
     private boolean userOnly;
-    @Schema(description = "")
+    @Schema(description = "", deprecated = true)
     private boolean canRequest;
     @Schema(description = "")
     private boolean sensitiveRole;
@@ -42,5 +45,10 @@ public class UserRoleAM {
     @Valid
     @Schema(description = "")
     private List<SystemRoleAssignmentAM> systemRoleAssignments;
+
+    @Column
+    private RequesterOption requesterPermission;
+    @Column
+    private ApproverOption approverPermission;
 
 }

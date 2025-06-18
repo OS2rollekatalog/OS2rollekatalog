@@ -18,6 +18,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.util.StringUtils;
+import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.RestTemplate;
 
@@ -220,7 +221,7 @@ public class DMPStub {
 						}
 					}
 					else {
-						log.error("Cannot assign roles to " + user.getUserId() + " because the user does not exist in DMP, and creating the user failed");
+						log.warn("Cannot assign roles to " + user.getUserId() + " because the user does not exist in DMP, and creating the user failed");
 						return false;
 					}
 				}
@@ -246,10 +247,12 @@ public class DMPStub {
 		try {
 			restTemplate.exchange(url, HttpMethod.POST, request, String.class);
 
-			log.info("Created user " + createRequest.getUsers().get(0).getExternalUserId());
-		}
-		catch (Exception ex) {
-			log.error("Failed to create user " + createRequest.getUsers().get(0).getExternalUserId() + " using dmpApi", ex);
+            log.info("Created user {}", createRequest.getUsers().getFirst().getExternalUserId());
+		} catch (final HttpClientErrorException e) {
+            log.warn("Failed to create user {} using dmpApi", createRequest.getUsers().getFirst().getExternalUserId(), e);
+			return false;
+		} catch (Exception ex) {
+            log.error("Failed to create user {} using dmpApi", createRequest.getUsers().getFirst().getExternalUserId(), ex);
 
 			return false;
 		}

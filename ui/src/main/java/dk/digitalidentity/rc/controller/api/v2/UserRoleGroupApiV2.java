@@ -12,6 +12,7 @@ import dk.digitalidentity.rc.security.RequireApiRoleManagementRole;
 import dk.digitalidentity.rc.service.RoleGroupService;
 import dk.digitalidentity.rc.service.UserRoleService;
 import dk.digitalidentity.rc.service.UserService;
+import dk.digitalidentity.rc.service.model.UserWithRole;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -155,7 +156,8 @@ public class UserRoleGroupApiV2 {
     public ResponseEntity<List<UserAM2>> getByUsersByRoleGroupId(@PathVariable long id) {
         final RoleGroup roleGroup = roleGroupService.getOptionalById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
-        final List<UserAM2> result = userService.getByRoleGroupsIncludingInactive(roleGroup).stream()
+        final List<UserAM2> result = userService.getUsersWithRoleGroup(roleGroup, true).stream()
+                .map(UserWithRole::getUser)
                 .map(UserMapper::toApi)
                 .collect(Collectors.toList());
         return new ResponseEntity<>(result, HttpStatus.OK);
@@ -187,7 +189,12 @@ public class UserRoleGroupApiV2 {
         target.setName(userRoleGroupRecord.getName());
         target.setDescription(userRoleGroupRecord.getDescription());
         target.setUserOnly(userRoleGroupRecord.getUserOnly());
-        target.setCanRequest(userRoleGroupRecord.getCanRequest());
+		if (userRoleGroupRecord.getRequesterPermission() != null) {
+			target.setRequesterPermission(userRoleGroupRecord.getRequesterPermission());
+		}
+		if (userRoleGroupRecord.getApproverPermission() != null) {
+			target.setApproverPermission(userRoleGroupRecord.getApproverPermission());
+		}
         return target;
     }
 

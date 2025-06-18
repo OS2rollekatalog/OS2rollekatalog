@@ -25,6 +25,7 @@ namespace ADSyncService
 
         public bool itSystemGroupFeatureEnabled { get; set; }
         public List<string> itSystemGroupFeatureSystemMap { get; set; }
+        public List<string> itSystemGroupFeatureRoleMap { get; set; }
 
         public bool readonlyItSystemFeatureEnabled { get; set; }
         public List<string> readonlyItSystemFeatureSystemMap { get; set; }
@@ -40,5 +41,7 @@ namespace ADSyncService
         public string tenantId { get; set; }
         public string clientId { get; set; }
         public string clientSecret { get; set; }
+
+        public bool includeNotesInDescription { get; set; }
     }
 }

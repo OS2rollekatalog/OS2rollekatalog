@@ -44,6 +44,10 @@ public class FrontPageLink implements AuditLoggable{
 	@NotNull
 	private boolean editable;
 
+	@Column
+	@NotNull
+	private boolean deletable;
+
 	@Override
 	public String getEntityName() {
 		return title;

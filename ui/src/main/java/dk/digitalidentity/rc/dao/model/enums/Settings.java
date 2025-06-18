@@ -22,7 +22,15 @@ public enum Settings {
     SETTING_BLOCK_ALL_EMAIL_TRANSMISSIONS("BlockAllEmailTransmissions", null),
     SETTING_EMAIL_QUEUE_LIMIT("EmailQueueLimit", null),
     SETTING_CURRENT_INSTALLED_RANK("currentInstalledRank", null),
-    SETTING_DONT_SEND_MAIL_TO_MANAGER("DontSendMailToMangerEnabled", null);
+    SETTING_DONT_SEND_MAIL_TO_MANAGER("DontSendMailToMangerEnabled", null),
+	SETTING_VIKAR_REGEX("VikarRegEx", null),
+    SETTING_ROLEREQUEST_REQUESTER("allowedrequesters", null),
+    SETTING_ROLEREQUEST_APPROVER("allowedrapprovers", null),
+    SETTING_ROLEREQUEST_REASON("requestreason", null),
+    SETTING_ROLEREQUEST_ONLY_RECOMMENDED_ROLES("onlyrecommendedroles", null),
+    SETTING_CASE_NUMBER_ENABLED("caseNumberEnabled", "html.setting.caseNumber.enabled"),
+    SETTING_EXCLUDED_OUS("ExcludedOUs", "html.setting.pickou");
+
 
     private String key;
     private String message;

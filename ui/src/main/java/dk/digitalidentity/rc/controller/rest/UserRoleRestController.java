@@ -9,8 +9,16 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
+import dk.digitalidentity.rc.dao.UserRoleSelect2Dao;
+import dk.digitalidentity.rc.service.Select2Service;
+import dk.digitalidentity.rc.service.model.UserRoleSelect2DTO;
+import dk.digitalidentity.rc.controller.rest.model.OUFilterDTO;
+import dk.digitalidentity.rc.rolerequest.model.enums.ApproverOption;
+import dk.digitalidentity.rc.rolerequest.model.enums.RequesterOption;
 import org.apache.commons.lang3.ObjectUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.jpa.datatables.mapping.DataTablesInput;
 import org.springframework.data.jpa.datatables.mapping.DataTablesOutput;
 import org.springframework.data.jpa.domain.Specification;
@@ -91,7 +99,7 @@ public class UserRoleRestController {
 
     @Autowired
     private SystemRoleService systemRoleService;
-    
+
     @Autowired
     private ConstraintTypeService constraintTypeService;
 
@@ -104,6 +112,9 @@ public class UserRoleRestController {
     @Autowired
 	private SecurityUtil securityUtil;
 
+	@Autowired
+	private Select2Service select2Service;
+
     @InitBinder(value = { "role" })
     public void initBinder(WebDataBinder binder) {
         binder.addValidators(userRoleValidator);
@@ -112,23 +123,15 @@ public class UserRoleRestController {
     @RequireRequesterOrReadAccessRole
     @PostMapping("/rest/userroles/list")
 	public DataTablesOutput<UserRoleView> list(@Valid @RequestBody DataTablesInput input, Principal principal) throws Exception {
-
-		// requesters needs to have the list filtered
+		// requesters cannot se any rows, they should move on to the request module
 		if (SecurityUtil.isRequesterAndOnlyRequester()) {
-			User user = getUserOrThrow(principal.getName());
-
-			// TODO: not very performance-friendly, look into making this smarter
-			List<UserRole> roles = userRoleService.getAll();
-			roles = userRoleService.whichRolesCanBeRequestedByUser(roles, user);
-			List<Long> selectedUserRoles = roles.stream().map(UserRole::getId).toList();
-
-			return userRoleViewDao.findAll(input, getUserRoleByIdIn(selectedUserRoles));
+			return new DataTablesOutput<>();
 		}
 
 		// people with restricted read-only access will be limited
 		else if (securityUtil.hasRestrictedReadAccess()) {
 			List<Long> itSystems = securityUtil.getRestrictedReadAccessItSystems();
-			
+
 			return userRoleViewDao.findAll(input, getUserRolesByItSystem(itSystems));
 		}
 
@@ -156,12 +159,12 @@ public class UserRoleRestController {
 
 			return criteriaBuilder.or(predicates.toArray(Predicate[]::new));
 		};
-		
+
 		return specification;
 	}
-	
+
 	// SELECT * FROM "view" WHERE id LIKE ('') OR id LIKE ('') OR id LIKE ('') ...
-	private Specification<UserRoleView> getUserRoleByIdIn(List<Long> userRoleIds) {		
+	private Specification<UserRoleView> getUserRoleByIdIn(List<Long> userRoleIds) {
 		Specification<UserRoleView> specification = null;
 		specification = (Specification<UserRoleView>) (root, query, criteriaBuilder) -> {
 			List<Predicate> predicates = new ArrayList<>(userRoleIds.size());
@@ -172,10 +175,10 @@ public class UserRoleRestController {
 
 			return criteriaBuilder.or(predicates.toArray(Predicate[]::new));
 		};
-		
+
 		return specification;
 	}
-    
+
     @PostMapping(value = "/rest/userroles/flag/{roleId}/{flag}")
     @ResponseBody
     public ResponseEntity<String> setSystemRoleFlag(@PathVariable("roleId") long roleId, @PathVariable("flag") String flag, @RequestParam(name = "active") boolean active) {
@@ -183,27 +186,23 @@ public class UserRoleRestController {
         if (role == null) {
             return new ResponseEntity<>("Ukendt Jobfunktionsrolle", HttpStatus.BAD_REQUEST);
         }
-        
+
         switch (flag) {
         	case "useronly":
         		role.setUserOnly(active);
         		userRoleService.save(role);
-        		
+
         		if (active) {
         			// also need inactive assignments for this
         			@SuppressWarnings("deprecation")
 					List<OrgUnit> orgUnitsWithRole = orgUnitService.getByUserRole(role);
-        			
+
         			// if assigned to an OrgUnit already, return a warning (HTTP 400 is not really
         			// suitable for this, but there does not seem to be HTTP codes to return warnings)
         			if (orgUnitsWithRole.size() > 0) {
         	            return new ResponseEntity<>("Opdateret - bemærk eksisterende enheder har denne rolle tildelt allerede!", HttpStatus.BAD_REQUEST);
         			}
         		}
-        		break;
-        	case "canrequest":
-        		role.setCanRequest(active);
-        		userRoleService.save(role);
         		break;
         	case "sensitive":
         		role.setSensitiveRole(active);
@@ -223,7 +222,47 @@ public class UserRoleRestController {
 
         return new ResponseEntity<>(HttpStatus.OK);
     }
-    
+
+	record RequesterChangeRequest(RequesterOption requesterPermission) {}
+	@PostMapping(value = "/rest/userroles/{roleId}/requester")
+	@ResponseBody
+	public ResponseEntity<String> setRequesterPermission(@PathVariable("roleId") long roleId, @RequestBody RequesterChangeRequest requesterChangeRequest) {
+		UserRole role = userRoleService.getById(roleId);
+		if (role == null) {
+			return new ResponseEntity<>("Ukendt Jobfunktionsrolle", HttpStatus.BAD_REQUEST);
+		}
+
+		if (requesterChangeRequest.requesterPermission == null ) {
+			role.setRequesterPermission(RequesterOption.INHERIT);
+		} else {
+			role.setRequesterPermission(requesterChangeRequest.requesterPermission);
+		}
+
+		userRoleService.save(role);
+
+		return new ResponseEntity<>(HttpStatus.OK);
+	}
+
+	record ApproverChangeRequest(ApproverOption approverPermission) {}
+	@PostMapping(value = "/rest/userroles/{roleId}/approver")
+	@ResponseBody
+	public ResponseEntity<String> setApproverPermission(@PathVariable("roleId") long roleId, @RequestBody ApproverChangeRequest approverChangeRequest) {
+		UserRole role = userRoleService.getById(roleId);
+		if (role == null) {
+			return new ResponseEntity<>("Ukendt Jobfunktionsrolle", HttpStatus.BAD_REQUEST);
+		}
+
+		if (approverChangeRequest.approverPermission == null ) {
+			role.setApproverPermission(ApproverOption.INHERIT);
+		} else {
+			role.setApproverPermission(approverChangeRequest.approverPermission);
+		}
+
+		userRoleService.save(role);
+
+		return new ResponseEntity<>(HttpStatus.OK);
+	}
+
     @PostMapping(value = "/rest/userroles/manageraction/{roleId}/{field}")
     @ResponseBody
     public ResponseEntity<String> setManagerAction(@PathVariable("roleId") long roleId, @PathVariable("field") String field, @RequestParam(name = "checked") boolean checked) {
@@ -231,7 +270,7 @@ public class UserRoleRestController {
         if (role == null) {
             return new ResponseEntity<>("Ukendt Jobfunktionsrolle", HttpStatus.BAD_REQUEST);
         }
-        
+
         switch (field) {
         	case "requireManagerAction":
         		role.setRequireManagerAction(checked);
@@ -254,7 +293,7 @@ public class UserRoleRestController {
 
         return new ResponseEntity<>(HttpStatus.OK);
     }
-    
+
     @PostMapping(value = "/rest/userroles/edit/{roleId}/addSystemRole/{systemRoleId}")
     @ResponseBody
     public ResponseEntity<String> addSystemRole(@PathVariable("roleId") long roleId, @PathVariable("systemRoleId") long systemRoleId) {
@@ -280,10 +319,10 @@ public class UserRoleRestController {
                 roleAssignment.setAssignedByName(SecurityUtil.getUserFullname());
                 roleAssignment.setAssignedByUserId(SecurityUtil.getUserId());
                 roleAssignment.setAssignedTimestamp(new Date());
-                
+
                 userRoleService.addSystemRoleAssignment(role, roleAssignment);
                 userRoleService.save(role);
-                
+
                 return new ResponseEntity<>(HttpStatus.OK);
             }
         }
@@ -370,7 +409,7 @@ public class UserRoleRestController {
 
         return new ResponseEntity<>(HttpStatus.OK);
     }
-    
+
     @PostMapping(value = "/rest/userroles/edit/{roleId}/removeConstraint/{systemRoleId}")
     @ResponseBody
     public ResponseEntity<String> removeConstraint(@PathVariable("roleId") long roleId, @PathVariable("systemRoleId") long systemRoleId, String constraintUuid) {
@@ -485,7 +524,7 @@ public class UserRoleRestController {
         }
 
         status.setSuccess(true);
-        
+
         long count = orgUnitService.countAllWithRole(userRole);
         if (count > 0) {
         	status.setOus(count);
@@ -532,4 +571,60 @@ public class UserRoleRestController {
 
         return new ResponseEntity<>(HttpStatus.OK);
     }
+
+	@PostMapping("/rest/userroles/ouFilterEnabled")
+	public ResponseEntity<String> editOUFilterEnabled(long id, boolean ouFilterEnabled) {
+		UserRole role = userRoleService.getById(id);
+		if (role == null) {
+			return new ResponseEntity<>("Ukendt Jobfunktionsrolle", HttpStatus.BAD_REQUEST);
+		}
+
+		role.setOuFilterEnabled(ouFilterEnabled);
+		if (!ouFilterEnabled) {
+			role.getOrgUnitFilterOrgUnits().clear();
+		}
+		userRoleService.save(role);
+
+		return new ResponseEntity<>(HttpStatus.OK);
+	}
+
+	@ResponseBody
+	@PostMapping(value = "/rest/userroles/oufilter")
+	public ResponseEntity<String> editOUFilter(@RequestBody OUFilterDTO dto) {
+		UserRole role = userRoleService.getById(dto.getId());
+		if (role == null) {
+			return new ResponseEntity<>("Ukendt Jobfunktionsrolle", HttpStatus.BAD_REQUEST);
+		}
+
+		List<OrgUnit> ous = orgUnitService.getByUuidIn(dto.getSelectedOUs());
+		role.getOrgUnitFilterOrgUnits().clear();
+		role.getOrgUnitFilterOrgUnits().addAll(ous);
+		role = userRoleService.save(role);
+
+		return new ResponseEntity<>(HttpStatus.OK);
+	}
+
+	public record Select2Response(List<UserRoleSelect2DTO> results, boolean pagination) {}
+	@GetMapping("/rest/userroles/search")
+	public Select2Response searchUserRoles(
+			@RequestParam(name = "q", required = false) String searchTerm,
+			@RequestParam(name = "page", defaultValue = "1") int page) {
+
+		PageRequest pageable = PageRequest.of(page - 1, 20);
+
+		Page<UserRole> rolesPage;
+		if (searchTerm == null || searchTerm.isBlank()) {
+			rolesPage = select2Service.findAllSearchableUserroles(pageable);
+		} else {
+			rolesPage = select2Service.searchUserroles(searchTerm, pageable);
+		}
+
+		List<UserRoleSelect2DTO> results = rolesPage.stream()
+				.map(role -> new UserRoleSelect2DTO(role.getId(), role.getName(), role.getItSystem().getName()))
+				.toList();
+
+		boolean hasMore = rolesPage.hasNext();
+
+		return new Select2Response(results, hasMore);
+	}
 }

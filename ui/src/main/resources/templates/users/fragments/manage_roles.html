@@ -4,7 +4,7 @@
 			<button type="button" style="width: auto !important;" class="btn btn-primary btn-lg dropdown-toggle" data-toggle="dropdown">
 				<em class="fa fa-fw fa-cog"></em>
 			</button>
-			
+
 			<ul class="dropdown-menu" role="menu" id="dataTableDropdown">
 				<li><a href="#" data-cid="0" onclick="return dataTablesToggleColumn(this);"><em class="fa fa-fw"></em><span th:text="#{html.page.users.manage.assignment.name}"></span></a></li>
 				<li><a href="#" data-cid="1" onclick="return dataTablesToggleColumn(this);"><em class="fa fa-fw"></em><span th:text="#{html.page.users.manage.assignment.postponed}"></span></a></li>
@@ -12,6 +12,7 @@
 				<li><a href="#" data-cid="3" onclick="return dataTablesToggleColumn(this);"><em class="fa fa-fw"></em><span th:text="#{html.word.validity}"></span></a></li>
 				<li><a href="#" data-cid="4" onclick="return dataTablesToggleColumn(this);"><em class="fa fa-fw"></em><span th:text="#{html.page.users.manage.assignment.itsystem}"></span></a></li>
 				<li><a href="#" data-cid="5" onclick="return dataTablesToggleColumn(this);"><em class="fa fa-fw"></em><span th:text="#{html.page.users.manage.assignment.description}"></span></a></li>
+				<li th:if="${caseNumberEnabled}"><a href="#" data-cid="6" onclick="return dataTablesToggleColumn(this);"><em class="fa fa-fw"></em><span th:text="#{html.page.users.manage.assignment.caseNumber}"></span></a></li>
 			</ul>
 		</div>
 		<th:block th:if="${editable}" sec:authorize="hasRole('ROLE_ASSIGNER')">
@@ -25,11 +26,12 @@
 					<thead>
 						<tr>
 							<th class="col-md-2" th:text="#{html.page.users.manage.assignment.name}"></th>
-							<th class="col-md-2" th:text="#{html.page.users.manage.assignment.postponed}"></th>
+							<th class="col-md-1" th:text="#{html.page.users.manage.assignment.postponed}"></th>
 							<th class="col-md-2" th:text="#{html.enum.assignmenttype}"></th>
-							<th class="col-md-2" th:text="#{html.word.validity}"></th>
+							<th class="col-md-1" th:text="#{html.word.validity}"></th>
 							<th class="col-md-2" th:text="#{html.page.users.manage.assignment.itsystem}"></th>
 							<th class="col-md-2" th:text="#{html.page.users.manage.assignment.description}"></th>
+							<th th:if="${caseNumberEnabled}" class="col-md-1" th:text="#{html.page.users.manage.assignment.caseNumber}"></th>
 							<th class="col-md-1" th:text="#{html.control.operations}"></th>
 						</tr>
 					</thead>
@@ -68,22 +70,16 @@
 								<span th:if="${assignment.itSystem?.paused == true}" class="badge badge-warning" th:text="#{html.page.itsystem.list.paused}"></span>
 							</td>
 							<td th:text="${assignment.description}"></td>
+							<td th:if="${caseNumberEnabled}" th:text="${assignment.caseNumber}"></td>
 							<td th:attr="data-assignmentid=${assignment.assignmentId}, data-roleid=${assignment.roleId}, data-type=${assignment.type},
 							data-startDate=${assignment.startDate}, data-stopDate=${assignment.stopDate}, data-assignedthrough=${assignment.assignedThrough},
-							data-name=${assignment.name}, data-ouuuid=${assignment.orgUnitUuid}">
+							data-name=${assignment.name}, data-ouuuid=${assignment.orgUnitUuid}, data-casenumber=${assignment.caseNumber}">
 								<a
 									href="#"
 									th:if="${assignment.canEdit}"
 									sec:authorize="hasRole('ROLE_ASSIGNER')"
 									onclick="rolesService.editRoleAssignment(this)">
 									<em class="fa fa-pencil"></em></a>
-								<a
-										href="#"
-										th:if="${@settingsService.isRequestApproveEnabled() == true && assignment.canRequest}"
-										sec:authorize="hasRole('ROLE_REQUESTER') and not hasRole('ROLE_ASSIGNER')"
-										onclick="rolesService.requestRoleRemoval(this)">
-									<em class="fa fa-minus"></em>
-								</a>
 								<a
 									href="#"
 									th:if="${assignment.canEdit}"

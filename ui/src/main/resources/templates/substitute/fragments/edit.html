@@ -1,0 +1,63 @@
+<th:block th:fragment="editModal" xmlns="http://www.w3.org/1999/xhtml" xmlns:th="http://www.thymeleaf.org"
+          xmlns:sec="http://www.thymeleaf.org/thymeleaf-extras-springsecurity4">
+  <div class="modal fade" id="editModal" role="dialog">
+    <div class="modal-dialog">
+
+      <!-- Modal content-->
+      <div class="modal-content">
+        <div class="modal-header">
+          <button type="button" class="close" data-dismiss="modal">&times;</button>
+          <h4 th:text="#{html.page.substitute.modal.edit.title}"></h4>
+        </div>
+
+        <div class="modal-body" style="padding:2rem 4rem;">
+          <form class="form-horizontal">
+            <div class="form-group">
+              <label for="managerSelection" class="control-label" th:text="#{html.page.substitute.modal.form.label.manager}"></label>
+              <select id="managerSelection" class="col-lg-8 form-control">
+                <option th:value="null" th:text="#{html.page.substitute.modal.form.select.manager}"></option>
+                <option th:each="manager : ${managers}" th:value="${manager.uuid}" th:text="${manager.name}" th:selected="${manager.selected == true}"></option>
+              </select>
+              <p id="selectedManagerError" style="display:none"
+                 class="text-danger col-lg-8"
+                 th:text="#{html.page.substitute.modal.form.error.manager}"></p>
+            </div>
+
+            <input id="selectedSubstituteUuid" th:value="${substitute.uuid}" hidden>
+            <div class="form-group">
+              <label for="search_person" class="control-label" th:text="#{html.page.substitute.modal.form.label.substitute}"></label>
+              <input
+                      class="col-lg-8 form-control" id="search_person" onclick="return false;" th:value="${substitute.name}" />
+              <p id="selectedSubstituteError" style="display:none"
+                 class="text-danger col-lg-8"
+                 th:text="#{html.page.substitute.modal.form.error.substitute}"></p>
+            </div>
+            <div class="form-group">
+              <label for="selectedOrgUnit" class="control-label"
+                     th:text="#{html.page.substitute.modal.form.label.orgunit}"></label>
+              <select
+                      class="form-control col-lg-8" id="selectedOrgUnit"
+                      th:disabled="${#lists.size(orgUnits) == 0}">
+                <option th:replace="~{substitute/fragments/edit :: orgUnitOptions}"></option>
+              </select>
+              <p id="selectedOrgUnitError" style="display:none"
+                 class="text-warning col-lg-8"
+                 th:text="#{html.page.substitute.modal.form.error.ou}"></p>
+            </div>
+          </form>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-primary" th:onclick="'substituteListService.onEditManagerSubstitute('+ ${id} +')'"
+                  th:text="#{html.control.button.save}"></button>
+          <button type="button" class="btn btn-danger" data-dismiss="modal"
+                  th:text="#{html.control.button.cancel}"></button>
+        </div>
+      </div>
+    </div>
+  </div>
+</th:block>
+
+<th:block th:fragment="orgUnitOptions" xmlns="http://www.w3.org/1999/xhtml" xmlns:th="http://www.thymeleaf.org">
+  <option th:each="ou : ${orgUnits}" th:value="${ou.uuid}" th:text="${ou.name}" th:selected="${ou.selected == true}"></option>
+</th:block>

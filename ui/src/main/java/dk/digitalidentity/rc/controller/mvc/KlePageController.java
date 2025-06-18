@@ -197,7 +197,7 @@ public class KlePageController {
 		List<OrgUnit> children = new ArrayList<OrgUnit>();
 
 		for (OrgUnit unit : orgUnit.getChildren()) {
-			if (unit.isActive()) {
+			if (orgUnitService.isActiveAndIncluded(unit)) {
 				children.add(unit);
 				children.addAll(getAllChildren(unit));
 			}

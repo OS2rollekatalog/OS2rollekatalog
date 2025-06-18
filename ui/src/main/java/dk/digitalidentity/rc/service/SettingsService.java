@@ -2,6 +2,8 @@ package dk.digitalidentity.rc.service;
 
 import java.text.SimpleDateFormat;
 import java.time.LocalDate;
+import java.time.OffsetDateTime;
+import java.time.ZonedDateTime;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.HashSet;
@@ -11,7 +13,12 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import dk.digitalidentity.rc.rolerequest.model.enums.ApproverOption;
+import dk.digitalidentity.rc.rolerequest.model.enums.ReasonOption;
+import dk.digitalidentity.rc.rolerequest.model.enums.RequesterOption;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.context.MessageSource;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -20,7 +27,6 @@ import dk.digitalidentity.rc.dao.SettingsDao;
 import dk.digitalidentity.rc.dao.model.OrgUnit;
 import dk.digitalidentity.rc.dao.model.Setting;
 import dk.digitalidentity.rc.dao.model.enums.CheckupIntervalEnum;
-import dk.digitalidentity.rc.dao.model.enums.EventType;
 import dk.digitalidentity.rc.dao.model.enums.NotificationType;
 import dk.digitalidentity.rc.dao.model.enums.Settings;
 import dk.digitalidentity.rc.log.AuditLogContextHolder;
@@ -39,14 +45,14 @@ public class SettingsService {
 
 	@Autowired
 	private AuditLogger auditLogger;
-	
+
 	@Autowired
 	private MessageSource messageSource;
 
 	public boolean isRequestApproveEnabled() {
 		return isKeyEnabled(Settings.SETTING_REQUEST_APPROVE_ENABLED.getKey());
 	}
-	
+
 	public void setRequestApproveEnabled(boolean enabled) {
 		boolean changed = setKeyEnabled(enabled, Settings.SETTING_REQUEST_APPROVE_ENABLED.getKey());
 		if (changed) {
@@ -64,11 +70,11 @@ public class SettingsService {
 
 		return setting.getValue();
 	}
-	
+
 	public void setRequestApproveServicedeskEmail(String email) {
 		createOrUpdateSetting(Settings.SETTING_REQUEST_APPROVE_SERVICEDESK_EMAIL, email);
 	}
-	
+
 	public String getAttestationChangeEmail() {
 		Setting setting = settingsDao.findByKey(Settings.SETTING_ATTESTATIONCHANGE_EMAIL.getKey());
 		if (setting == null) {
@@ -77,7 +83,7 @@ public class SettingsService {
 
 		return setting.getValue();
 	}
-	
+
 	public void setAttestationChangeEmail(String email) {
 		createOrUpdateSetting(Settings.SETTING_ATTESTATIONCHANGE_EMAIL, email);
 	}
@@ -106,9 +112,9 @@ public class SettingsService {
 		if (setting == null || !StringUtils.hasLength(setting.getValue())) {
 			return new HashSet<>();
 		}
-		
+
 		String[] uuids = setting.getValue().split(",");
-		
+
 		return new HashSet<>(Arrays.asList(uuids));
 	}
 
@@ -177,12 +183,12 @@ public class SettingsService {
 
 		return false;
 	}
-	
+
 	/**
 	 * Sets the value for given key
-	 * @return returns true if setting was changed.
 	 * @param enabled
 	 * @param key
+	 * @return returns true if setting was changed.
 	 */
 	private boolean setKeyEnabled(boolean enabled, String key) {
 		Setting setting = settingsDao.findByKey(key);
@@ -191,7 +197,7 @@ public class SettingsService {
 			setting = new Setting();
 			setting.setKey(key);
 		}
-		
+
 		changed = !Objects.equals(setting.getValue(), (enabled ? "true" : "false"));
 		setting.setValue(enabled ? "true" : "false");
 		settingsDao.save(setting);
@@ -199,14 +205,14 @@ public class SettingsService {
 	}
 
 	private String getPrettyName(Settings settingEnum) {
-        String prettyName;
-        try {
-            prettyName = messageSource.getMessage(settingEnum.getMessage(), null, new Locale("da-DK"));
-        } catch (Exception e) {
-            log.warn("Entry missing in messages.properties for " + settingEnum, e);
-            prettyName = null;
-        }
-        return prettyName;
+		String prettyName;
+		try {
+			prettyName = messageSource.getMessage(settingEnum.getMessage(), null, new Locale("da-DK"));
+		} catch (Exception e) {
+			log.warn("Entry missing in messages.properties for " + settingEnum, e);
+			prettyName = null;
+		}
+		return prettyName;
 	}
 
 	public boolean isScheduledAttestationEnabled() {
@@ -237,11 +243,11 @@ public class SettingsService {
 
 		return CheckupIntervalEnum.valueOf(setting.getValue());
 	}
-	
+
 	public void setScheduledAttestationInterval(CheckupIntervalEnum interval) {
 		createOrUpdateSetting(Settings.SETTING_SCHEDULED_ATTESTATION_INTERVAL, interval.toString());
 	}
-	
+
 	public Date getScheduledAttestationLastRun() {
 		SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd");
 
@@ -250,18 +256,31 @@ public class SettingsService {
 			if (setting == null) {
 				return format.parse("1979-05-21");
 			}
-	
+
 			return format.parse(setting.getValue());
 		}
 		catch (Exception ex) {
 			throw new RuntimeException("Failed to parse", ex);
 		}
 	}
-	
+
 	public void setScheduledAttestationLastRun(Date date) {
 		SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd");
 		String dateString = format.format(date);
 		createOrUpdateSetting(Settings.SETTING_SCHEDULED_ATTESTATION_LAST_RUN, dateString, false);
+	}
+
+	public String getVikarRegEx() {
+		Setting setting = settingsDao.findByKey(Settings.SETTING_VIKAR_REGEX.getKey());
+		if (setting == null) {
+			return "";
+		}
+
+		return setting.getValue();
+	}
+
+	public void setVikarRegEx(String regex) {
+		createOrUpdateSetting(Settings.SETTING_VIKAR_REGEX, regex);
 	}
 
 	public String getItSystemChangeEmail() {
@@ -275,6 +294,24 @@ public class SettingsService {
 
 	public void setItSystemChangeEmail(String email) {
 		createOrUpdateSetting(Settings.SETTING_IT_SYSTEM_CHANGE_EMAIL, email);
+	}
+
+	@Cacheable(value = "excludedOUs")
+	public Set<String> getExcludedOUs() {
+		Setting setting = settingsDao.findByKey(Settings.SETTING_EXCLUDED_OUS.getKey());
+
+		if (setting == null || !StringUtils.hasLength(setting.getValue())) {
+			return new HashSet<>();
+		}
+
+		String[] uuids = setting.getValue().split(",");
+
+		return new HashSet<>(Arrays.asList(uuids));
+	}
+
+	@CacheEvict(value = "excludedOUs", allEntries = true)
+	public void setExcludedOUs(Set<String> filter) {
+		createOrUpdateSetting(Settings.SETTING_EXCLUDED_OUS, String.join(",", filter));
 	}
 
 	public boolean isADAttestationEnabled() {
@@ -318,7 +355,7 @@ public class SettingsService {
 	public boolean isNotificationTypeEnabled(NotificationType notificationType) {
 		return getBooleanWithDefault(notificationType.toString(), true);
 	}
-	
+
 	private boolean getBooleanWithDefault(String key, boolean defaultValue) {
 		Setting setting = settingsDao.findByKey(key);
 		if (setting != null) {
@@ -327,7 +364,7 @@ public class SettingsService {
 
 		return defaultValue;
 	}
-	
+
 	public void setNotificationTypeEnabled(NotificationType notificationType, boolean enabled) {
 		Setting setting = settingsDao.findByKey(notificationType.toString());
 		boolean changed = false;
@@ -339,7 +376,7 @@ public class SettingsService {
 		changed = !Objects.equals(setting.getValue(), (enabled ? "true" : "false"));
 		setting.setValue(Boolean.toString(enabled));
 		settingsDao.save(setting);
-		
+
 		if (changed) {
 			AuditLogContextHolder.getContext().addArgument("Ny værdi", (enabled ? "true" : "false"));
 			String prettyname = messageSource.getMessage(notificationType.getMessage(), null, new Locale("da-DK"));
@@ -347,11 +384,11 @@ public class SettingsService {
 			AuditLogContextHolder.clearContext();
 		}
 	}
-	
+
 	public boolean isRunCics() {
 		return isKeyEnabled(Settings.SETTING_RUN_CICS.getKey());
 	}
-	
+
 	public void setRunCics(boolean enabled) {
 		setKeyEnabled(enabled, Settings.SETTING_RUN_CICS.getKey());
 	}
@@ -431,4 +468,97 @@ public class SettingsService {
 		settingsDao.save(setting);
 	}
 
+	public RequesterOption getRolerequestRequester() {
+		Setting setting = settingsDao.findByKey(Settings.SETTING_ROLEREQUEST_REQUESTER.getKey());
+		if (setting == null) {
+			return RequesterOption.NONE;
+		}
+
+		return RequesterOption.valueOf(setting.getValue());
+	}
+
+	public void setRolerequestRequester(RequesterOption requesterSetting) {
+		Setting setting = settingsDao.findByKey(Settings.SETTING_ROLEREQUEST_REQUESTER.getKey());
+		if (setting == null) {
+			setting = new Setting();
+			setting.setKey(Settings.SETTING_ROLEREQUEST_REQUESTER.getKey());
+		}
+		setting.setValue(requesterSetting.name());
+		settingsDao.save(setting);
+
+	}
+
+	public ApproverOption getRolerequestApprover() {
+		Setting setting = settingsDao.findByKey(Settings.SETTING_ROLEREQUEST_APPROVER.getKey());
+		if (setting == null) {
+			return ApproverOption.MANAGERORAUTHRESPONSIBLE;
+		}
+
+		return ApproverOption.valueOf(setting.getValue());
+	}
+
+	public void setRolerequestApprover(ApproverOption approverSetting) {
+		Setting setting = settingsDao.findByKey(Settings.SETTING_ROLEREQUEST_APPROVER.getKey());
+		if (setting == null) {
+			setting = new Setting();
+			setting.setKey(Settings.SETTING_ROLEREQUEST_APPROVER.getKey());
+		}
+		setting.setValue(approverSetting.name());
+		settingsDao.save(setting);
+	}
+
+	public ReasonOption getRolerequestReason() {
+		Setting setting = settingsDao.findByKey(Settings.SETTING_ROLEREQUEST_REASON.getKey());
+		if (setting == null) {
+			return ReasonOption.OBLIGATORY;
+		}
+
+		return ReasonOption.valueOf(setting.getValue());
+	}
+
+	public void setRolerequestReason(ReasonOption approverSetting) {
+		Setting setting = settingsDao.findByKey(Settings.SETTING_ROLEREQUEST_REASON.getKey());
+		if (setting == null) {
+			setting = new Setting();
+			setting.setKey(Settings.SETTING_ROLEREQUEST_REASON.getKey());
+		}
+		setting.setValue(approverSetting.name());
+		settingsDao.save(setting);
+	}
+
+	public boolean getOnlyRecommendRoles() {
+		return isKeyEnabled(Settings.SETTING_ROLEREQUEST_ONLY_RECOMMENDED_ROLES.getKey());
+	}
+
+	public void setOnlyRecommendRoles(boolean enabled) {
+		setKeyEnabled(enabled, Settings.SETTING_ROLEREQUEST_ONLY_RECOMMENDED_ROLES.getKey());
+	}
+
+	public void setZonedDateTime(final String kitosKey, final ZonedDateTime zonedDateTime) {
+		Setting setting = settingsDao.findByKey(kitosKey);
+		if(setting == null) {
+			setting = new Setting();
+			setting.setKey(kitosKey);
+		}
+		setting.setValue(zonedDateTime.toOffsetDateTime().toString());
+		settingsDao.save(setting);
+	}
+
+	public ZonedDateTime getZonedDateTime(final String kitosKey, final ZonedDateTime defaultVal) {
+		Setting setting = settingsDao.findByKey(kitosKey);
+		return setting == null ? defaultVal : OffsetDateTime.parse(setting.getValue()).toZonedDateTime();
+	}
+
+	public boolean isCaseNumberEnabled() {
+		return isKeyEnabled(Settings.SETTING_CASE_NUMBER_ENABLED.getKey());
+	}
+
+	public void setCaseNumberEnabled(boolean enabled) {
+		boolean changed = setKeyEnabled(enabled, Settings.SETTING_CASE_NUMBER_ENABLED.getKey());
+		if (changed) {
+			AuditLogContextHolder.getContext().addArgument("Ny værdi", (enabled ? "true" : "false"));
+			auditLogger.logSetting(settingsDao.findByKey(Settings.SETTING_CASE_NUMBER_ENABLED.getKey()), null, null, getPrettyName(Settings.SETTING_CASE_NUMBER_ENABLED));
+			AuditLogContextHolder.clearContext();
+		}
+	}
 }

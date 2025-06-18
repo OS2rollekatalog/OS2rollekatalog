@@ -1,0 +1,1 @@
+ALTER TABLE report_template ADD show_system_roles BIT(1) NOT NULL DEFAULT FALSE;

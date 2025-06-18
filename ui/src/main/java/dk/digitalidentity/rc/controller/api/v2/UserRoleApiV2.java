@@ -9,6 +9,7 @@ import dk.digitalidentity.rc.controller.api.model.SystemRoleAssignmentAM;
 import dk.digitalidentity.rc.controller.api.model.UserAM2;
 import dk.digitalidentity.rc.controller.api.model.UserRoleAM;
 import dk.digitalidentity.rc.dao.model.ConstraintType;
+import dk.digitalidentity.rc.dao.model.Domain;
 import dk.digitalidentity.rc.dao.model.ItSystem;
 import dk.digitalidentity.rc.dao.model.SystemRole;
 import dk.digitalidentity.rc.dao.model.SystemRoleAssignment;
@@ -16,9 +17,11 @@ import dk.digitalidentity.rc.dao.model.SystemRoleAssignmentConstraintValue;
 import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserRole;
 import dk.digitalidentity.rc.dao.model.enums.ConstraintValueType;
+import dk.digitalidentity.rc.rolerequest.model.enums.RequesterOption;
 import dk.digitalidentity.rc.security.RequireApiReadAccessRole;
 import dk.digitalidentity.rc.security.RequireApiRoleManagementRole;
 import dk.digitalidentity.rc.service.ConstraintTypeService;
+import dk.digitalidentity.rc.service.DomainService;
 import dk.digitalidentity.rc.service.ItSystemService;
 import dk.digitalidentity.rc.service.SystemRoleService;
 import dk.digitalidentity.rc.service.UserRoleService;
@@ -46,6 +49,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -71,12 +75,13 @@ public class UserRoleApiV2 {
 	private final SystemRoleService systemRoleService;
 	private final ConstraintTypeService constraintTypeService;
 	private final RoleCatalogueConfiguration configuration;
+	private final DomainService domainService;
 
 	@ApiResponses(value = {
 			@ApiResponse(responseCode = "200", description = "Returns a list of all userroles."),
 			@ApiResponse(responseCode = "500", description = "Internal Server Error", content =
 					{ @Content(mediaType = "application/json", schema = @Schema(implementation = ExceptionResponseAM.class)) })
-			
+
 	})
 	@Operation(summary = "Get all userroles.", description = "Returns all the userroles that exist.")
 	@GetMapping("/api/v2/userrole")
@@ -103,7 +108,7 @@ public class UserRoleApiV2 {
 				.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
 		return new ResponseEntity<>(RoleMapper.userRoleToApi(userRole),HttpStatus.OK);
 	}
-	
+
 	@ApiResponses(value = {
 			@ApiResponse(responseCode = "200", description = "All users with the specified userrole "),
 			@ApiResponse(responseCode = "404", description = "Userrole not found", content =
@@ -113,8 +118,20 @@ public class UserRoleApiV2 {
 	})
 	@Operation(summary = "Get all users with userrole id")
 	@GetMapping(value = "/api/v2/userrole/{id}/users")
-	public ResponseEntity<List<UserAM2>> getUsersWithRole(@Parameter(description = "Unique ID for the userrole.", example = "1") @PathVariable("id")long id) {
-		final List<UserAM2> result = getAllUsersWithRoleById(id).stream()
+	public ResponseEntity<List<UserAM2>> getUsersWithRole(@Parameter(description = "Unique ID for the userrole.", example = "1") @PathVariable("id")long id, @RequestParam(name = "domain", required = false) String domain) {
+		Domain foundDomain = domainService.getByName(domain);
+		if (domain != null && foundDomain == null) {
+			return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+		}
+
+		List<User> users = getAllUsersWithRoleById(id);
+		if (foundDomain != null) {
+			users = users
+					.stream().filter(u -> Objects.equals(foundDomain.getName(), u.getDomain().getName()))
+					.collect(Collectors.toList());
+		}
+
+		final List<UserAM2> result = users.stream()
 				.map(UserMapper::toApi)
 				.collect(Collectors.toList());
 		return new ResponseEntity<>(result,HttpStatus.OK);
@@ -232,9 +249,14 @@ public class UserRoleApiV2 {
 		target.setDescription(userRoleAM.getDescription());
 		target.setDelegatedFromCvr(userRoleAM.getDelegatedFromCvr());
 		target.setUserOnly(userRoleAM.isUserOnly());
-		target.setCanRequest(userRoleAM.isCanRequest());
 		target.setSensitiveRole(userRoleAM.isSensitiveRole());
 		target.setItSystem(itSystem);
+		if (userRoleAM.getRequesterPermission() != null) {
+			target.setRequesterPermission(userRoleAM.getRequesterPermission());
+		}
+		if (userRoleAM.getApproverPermission() != null) {
+			target.setApproverPermission(userRoleAM.getApproverPermission());
+		}
 
 		toRemove.stream()
 				.map(systemId -> target.getSystemRoleAssignments().stream()

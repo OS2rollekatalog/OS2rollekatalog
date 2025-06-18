@@ -5,7 +5,7 @@
 	<div class="wrapper">
 		<header th:replace="~{fragments/navbar :: navbar-header(subpage = 'roles')}"></header>
 		<aside th:replace="~{fragments/navbar :: navbar-aside (page = 'rolegroups.new', subpage = 'roles')}"></aside>
- 
+
 		<section>
 			<div class="content-wrapper">
 				<h3>
@@ -37,11 +37,33 @@
 								</div>
 							</fieldset>
 
-							<fieldset sec:authorize="hasRole('ROLE_REQUESTER')" th:if="${canRequest && @settingsService.isRequestApproveEnabled() == true}">
+							<fieldset th:if="${@settingsService.isRequestApproveEnabled()}">
 								<div class="form-group">
-									<label class="col-sm-2 control-label" th:text="#{html.entity.view.action.label}"></label>
+
+									<label class="col-sm-2 control-label"
+										   th:text="#{html.entity.itsystem.requestersetting}"></label>
 									<div class="col-sm-8">
-										<a class="btn btn-lg btn-primary" th:text="#{html.entity.view.action.request}" th:href="@{/ui/requestapprove/request/step1/role/{id}?type=roleGroup(id=${rolegroup.id})}"></a>
+										<select id="requesterSettingsSelect" class="form-control" disabled
+												th:field="*{requesterPermission}"
+												th:attr="data-groupid=${rolegroup.id}">
+											<option th:each="requesterOpt : ${T(dk.digitalidentity.rc.rolerequest.model.enums.RequesterOption).values()}"
+													th:value="${requesterOpt}"
+													th:text="#{__${requesterOpt.getMessage()}__}"></option>
+										</select>
+
+									</div>
+								</div>
+								<div class="form-group mt-3" style="margin-top:1.5rem;">
+									<label class="col-sm-2 control-label"
+										   th:text="#{html.entity.itsystem.approversetting}"></label>
+									<div class="col-sm-8">
+										<select id="approverSettingsSelect" class="form-control" disabled
+												th:field="*{approverPermission}"
+												th:attr="data-groupid=${rolegroup.id}">
+											<option th:each="approverOpt : ${T(dk.digitalidentity.rc.rolerequest.model.enums.ApproverOption).values()}"
+													th:value="${approverOpt}"
+													th:text="#{__${approverOpt.getMessage()}__}"></option>
+										</select>
 									</div>
 								</div>
 							</fieldset>
@@ -49,7 +71,7 @@
 							<fieldset sec:authorize="hasRole('ROLE_ADMINISTRATOR')">
 								<div class="form-group">
 									<label class="col-sm-2 control-label" th:text="#{html.entity.view.action.label}"></label>
-									
+
 									<div class="col-sm-8">
 										<a th:href="@{/ui/rolegroups/edit/{id}(id=${rolegroup.id})}">
 											<span class="btn btn-lg btn-primary" th:text="#{html.entity.view.action.edit}"></span>
@@ -63,11 +85,11 @@
 						  	<li class="active">
 								<a data-toggle="tab" href="#roles_menu" th:text="#{html.page.rolegroup.list.roles}"></a>
 							</li>
-							
+
 							<li>
 								<a data-toggle="tab" href="#users_menu" th:text="#{html.entity.userrole.users}"></a>
 							</li>
-							
+
 							<li>
 								<a data-toggle="tab" href="#ous_menu" th:text="#{html.entity.userrole.orgunits}"></a>
 							</li>
@@ -82,7 +104,7 @@
 											<th class="col-md-3" th:text="#{html.entity.rolegroup.itsystem}"></th>
 											<th class="col-md-6" th:text="#{html.entity.rolegroup.description}"></th>
 										</tr>
-									</thead>				
+									</thead>
 									<tbody>
 									    <tr th:each="assignment : ${rolegroup.userRoleAssignments}">
 									    	<td th:text="${assignment.userRole.name}"></td>
@@ -110,16 +132,16 @@
 	<div id="ouRoleGroupEditModal"></div>
 	<div th:replace="~{users/fragments/role_assignment_edit_modal :: roleAssignmentEditModal}"></div>
 	<nav th:replace="~{fragments/footer :: footer}"></nav>
-	
+
 	<script th:replace="~{fragments/datatables :: datatables(orderColumnValue=1)}"></script>
 	<script th:replace="~{fragments/assignDatePicker :: content}"></script>
-	
+
 	<script th:replace="~{users/fragments/role_assignment_edit_modal :: roleAssignmentEditModalScript(missingPostponedConstraintService = true)}"></script>
 	<script th:replace="~{users/fragments/user_role_group_modal :: userRoleGroupModalScript}"></script>
-	
+
 	<script th:inline="javascript">
 		/*<![CDATA[*/
-			
+
 		/*[+
 			var url = [[@{/rest/rolegroups/}]];
 			var roleId = [[${rolegroup.id}]];
@@ -129,28 +151,28 @@
 			var UIUrl = [[@{/ui/rolegroups/}]];
 			var userRestUrl = [[@{/rest/users/}]];
 			var ouRestUrl = [[@{/rest/ous/}]];
-			
+
 			//Delete role assignment swal
 			var deleteRoleAssignmentTitleTxt = [[#{html.page.manage.roles.delete.title}]];
 			var deleteRoleAssignmentBodyTxt = [[#{html.page.manage.roles.delete.body}]];
 			var deleteRoleAssignmentErrorMessage = [[#{html.page.manage.roles.delete.error}]];
-			
+
 			var deleteAssignmentConfirmTxt = [[#{html.control.button.yes}]];
 			var deleteAssignmentCancelTxt = [[#{html.control.button.cancel}]];
-			
+
 			var titlesEnabled = [[${titlesEnabled}]];
 			var roleId = [[${rolegroup.id}]];
-				
+
 			var infoMessage = [[${infoMessage}]];
 			var errorMessage = [[${errorMessage}]];
 		+]*/
 
 		var token = $("meta[name='_csrf']").attr("content");
-		
+
 		var userService = new UserService();
 		var orgUnitService = new OrgUnitService();
 		var notificationService = new NotificationService();
-		
+
 		$("document").ready(function() {
 			userService.loadRolesFragment();
 			orgUnitService.loadRolesFragment();
@@ -179,7 +201,7 @@
 				});
 			}
 		}
-		
+
 		function NotificationService() {
 			this.showInfoNotification = function(message) {
 				$.notify({
@@ -188,7 +210,7 @@
 					timeout: 2000
 				});
 			}
-			
+
 			this.showWarnNotification = function(message) {
 				$.notify({
 					message: message,

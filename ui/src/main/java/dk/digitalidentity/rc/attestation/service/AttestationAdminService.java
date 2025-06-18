@@ -58,10 +58,6 @@ public class AttestationAdminService {
         return attestationRunDao.findAllRunsSorted();
     }
 
-    public List<AttestationRun> findNewestRuns(final int limit) {
-        return attestationRunDao.findLatestRuns(limit);
-    }
-
     public List<AttestationRunView> findIdsOfLatestRuns(final int limit) {
         return attestationRunDao.findLatestRunsSimple(limit);
     }

@@ -6,6 +6,8 @@ import dk.digitalidentity.rc.dao.model.SystemRole;
 import dk.digitalidentity.rc.dao.model.SystemRoleAssignment;
 import dk.digitalidentity.rc.dao.model.UserRole;
 import dk.digitalidentity.rc.dao.model.UserRoleEmailTemplate;
+import dk.digitalidentity.rc.rolerequest.model.enums.ApproverOption;
+import dk.digitalidentity.rc.rolerequest.model.enums.RequesterOption;
 import jakarta.validation.constraints.Size;
 import lombok.Getter;
 import lombok.Setter;
@@ -20,7 +22,6 @@ public class UserRoleForm {
     private String uuid;
     private String delegatedFromCvr;
 	private boolean userOnly;
-	private boolean canRequest;
 	private boolean sensitiveRole;
 	private boolean extraSensitiveRole;
     private ItSystem itSystem;
@@ -36,24 +37,28 @@ public class UserRoleForm {
     private String emailTemplateTitle = "Der er tildelt en rolle der kræver leder-involvering";
 	private String emailTemplateMessage = "Kære {modtager}\n<br/>\n<br/>\nRollen {rolle}, der kræver leder-involvering, er tildelt til {bruger}.";
 	private boolean roleAssignmentAttestationByAttestationResponsible;
+	private boolean ouFilterEnabled;
+	private RequesterOption requesterPermission = RequesterOption.NONE;
+	private ApproverOption approverPermission = ApproverOption.ADMINONLY;
 
 	@Size(max = 4000)
 	private String description;
 
-	@Size(min = 5, max = 64, message = "{validation.role.name}")
+	@Size(min = 2, max = 64, message = "{validation.role.name}")
 	private String name;
 
     public UserRoleForm() {
-    	
+
     }
-    
+
     public UserRoleForm(UserRole userRole, boolean pendingSync, boolean syncFailed) {
     	this.id = userRole.getId();
     	this.name = userRole.getName();
     	this.identifier = userRole.getIdentifier();
     	this.userOnly = userRole.isUserOnly();
     	this.uuid = userRole.getUuid();
-    	this.canRequest = userRole.isCanRequest();
+    	this.requesterPermission = userRole.getRequesterPermission();
+    	this.approverPermission	 = userRole.getApproverPermission();
     	this.description = userRole.getDescription();
     	this.itSystem = userRole.getItSystem();
     	this.sensitiveRole = userRole.isSensitiveRole();
@@ -68,13 +73,14 @@ public class UserRoleForm {
     	this.sendToSubstitutes = userRole.isSendToSubstitutes();
     	this.sendToAuthorizationManagers = userRole.isSendToAuthorizationManagers();
 		this.roleAssignmentAttestationByAttestationResponsible = userRole.isRoleAssignmentAttestationByAttestationResponsible();
+		this.ouFilterEnabled = userRole.isOuFilterEnabled();
 
     	if (userRole.getUserRoleEmailTemplate() != null) {
     		this.emailTemplateTitle = userRole.getUserRoleEmailTemplate().getTitle();
     		this.emailTemplateMessage = userRole.getUserRoleEmailTemplate().getMessage();
     	}
     }
-    
+
     public UserRole toUserRole() {
     	UserRole userRole = new UserRole();
     	userRole.setId(this.id);
@@ -82,7 +88,8 @@ public class UserRoleForm {
     	userRole.setIdentifier(this.identifier);
     	userRole.setUserOnly(this.userOnly);
     	userRole.setUuid(this.uuid);
-    	userRole.setCanRequest(this.canRequest);
+    	userRole.setRequesterPermission(this.requesterPermission);
+    	userRole.setApproverPermission(this.approverPermission);
     	userRole.setDescription(this.description);
     	userRole.setItSystem(this.itSystem);
     	userRole.setSensitiveRole(this.sensitiveRole);
@@ -95,6 +102,7 @@ public class UserRoleForm {
     	userRole.setSendToSubstitutes(this.sendToSubstitutes);
     	userRole.setSendToAuthorizationManagers(this.sendToAuthorizationManagers);
     	userRole.setRoleAssignmentAttestationByAttestationResponsible(this.roleAssignmentAttestationByAttestationResponsible);
+		userRole.setOuFilterEnabled(this.ouFilterEnabled);
     	if (this.isRequireManagerAction()) {
     		UserRoleEmailTemplate template = new UserRoleEmailTemplate();
     		template.setTitle(this.emailTemplateTitle);
@@ -102,7 +110,7 @@ public class UserRoleForm {
     		template.setUserRole(userRole);
     		userRole.setUserRoleEmailTemplate(template);
     	}
-    	
+
     	return userRole;
     }
 }

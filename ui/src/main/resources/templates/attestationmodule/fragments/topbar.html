@@ -16,30 +16,47 @@
             <i class="fa fa-reorder"></i>
         </button>
 
-			<div class="navbar-collapse collapse" id="navbar">
-				<ul class="nav navbar-nav mr-auto">
+        <div class="navbar-collapse collapse" id="navbar">
+            <ul class="nav navbar-nav mr-auto">
 
-					<th:block sec:authorize="isAuthenticated()">
-						<li>
-							<a role="button" th:href="@{/ui/attestation/v2}" th:class="${page == 'dashboard'} ? 'navActive' : ''" th:text="#{attestationmodule.topbar.dashboard}"></a>
-						</li>
-						<li sec:authorize="hasRole('ROLE_ADMINISTRATOR') or hasRole('ROLE_ATTESTATION_ADMINISTRATOR')">
-							<a role="button" th:href="@{/ui/attestation/v2/admin}" th:class="${page == 'admin'} ? 'navActive' : ''" th:text="#{attestationmodule.topbar.admin}"></a>
-						</li>
-                        <li>
-                            <a role="button" th:href="@{/ui/attestation/v2/reports}" th:class="${page == 'reports'} ? 'navActive' : ''" th:text="#{attestationmodule.topbar.reports}"></a>
-                        </li>
-					</th:block>
-				</ul>
+                <th:block sec:authorize="isAuthenticated()">
+                    <li>
+                        <a role="button" th:href="@{/ui/attestation/v2}" th:class="${page == 'dashboard'} ? 'navActive' : ''" th:text="#{attestationmodule.topbar.dashboard}"></a>
+                    </li>
+                    <li sec:authorize="hasRole('ROLE_ADMINISTRATOR') or hasRole('ROLE_ATTESTATION_ADMINISTRATOR')">
+                        <a role="button" th:href="@{/ui/attestation/v2/admin}" th:class="${page == 'admin'} ? 'navActive' : ''" th:text="#{attestationmodule.topbar.admin}"></a>
+                    </li>
+                    <li>
+                        <a role="button" th:href="@{/ui/attestation/v2/reports}" th:class="${page == 'reports'} ? 'navActive' : ''" th:text="#{attestationmodule.topbar.reports}"></a>
+                    </li>
+                </th:block>
+            </ul>
 
-            <ul sec:authorize="isAuthenticated()" class="d-none d-lg-inline nav navbar-top-links navbar-right ">
+            <ul sec:authorize="isAuthenticated()" class="d-none d-lg-inline nav navbar-top-links navbar-right">
                 <li class="dropdown show">
-                    <a data-toggle="dropdown" href="#" aria-expanded="true"> <i class="fa fa-user"></i></a>
-                    <ul class="dropdown-menu">
+                    <a data-toggle="dropdown" href="#" aria-expanded="true"> <i class="fa fa-sitemap"></i>
+						<span th:text="#{html.navbar.shortcuts}"></span>
+						<span th:if="${waitingRequestsCount} != 0" class="badge badge-primary" th:text="${waitingRequestsCount}"></span>
+					</a>
+                    <ul class="dropdown-menu" style="width: 210px;">
+                        <li>
+                            <a href="/ui/my">
+                                <i class="fa fa-cogs"></i> &nbsp;
+                                <span th:text="#{html.navbar.shortcuts.main}"></span>
+                            </a>
+                        </li>
+                        <li>
+                            <a href="/ui/request">
+                                <i class="fa fa-handshake-o"></i> &nbsp;
+                                <span th:text="#{html.navbar.shortcuts.request}"></span>
+								<span th:if="${waitingRequestsCount} != 0" class="badge badge-primary" th:text="${waitingRequestsCount}"></span>
+                            </a>
+                        </li>
                         <li>
                             <form th:action="@{/logout}" id="logout_form" method="post"></form>
                             <a href="#" onclick="$('#logout_form').submit();">
-                                <i class="fa fa-sign-out"></i> &nbsp; Log ud
+                                <i class="fa fa-sign-out"></i> &nbsp;
+                                <span th:text="#{html.navbar.logout}"></span>
                             </a>
                         </li>
                     </ul>

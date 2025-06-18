@@ -3,6 +3,7 @@ package dk.digitalidentity.rc.controller.mvc.xlsview;
 import dk.digitalidentity.rc.config.Constants;
 import dk.digitalidentity.rc.dao.model.ConstraintTypeValueSet;
 import dk.digitalidentity.rc.dao.model.ItSystem;
+import dk.digitalidentity.rc.dao.model.OrgUnit;
 import dk.digitalidentity.rc.dao.model.SystemRoleAssignment;
 import dk.digitalidentity.rc.dao.model.SystemRoleAssignmentConstraintValue;
 import dk.digitalidentity.rc.service.ItSystemService;
@@ -132,7 +133,7 @@ public class XlsUtil {
 								break;
 						}
 						break;
-					case Constants.KOMBIT_ITSYSTEM_CONSTRAINT_ENTITY_ID:
+					case Constants.KOMBIT_ITSYSTEM_CONSTRAINT_ENTITY_ID, Constants.INTERNAL_ITSYSTEM_CONSTRAINT_ENTITY_ID:
 						values = new ArrayList<>();
 						constraintValues = constraintValue.getConstraintValue().split(",");
 
@@ -153,6 +154,49 @@ public class XlsUtil {
 							}
 						}
 						value = values.stream().collect(Collectors.joining(", "));
+						break;
+					case Constants.INTERNAL_ORGUNIT_CONSTRAINT_ENTITY_ID:
+						switch (constraintValue.getConstraintValueType()) {
+							case EXTENDED_INHERITED:
+								value = instance.messageSource.getMessage("html.constraint.organisation.extended", null, locale);
+								break;
+							case INHERITED:
+								value = instance.messageSource.getMessage("html.constraint.organisation.inherited", null, locale);
+								break;
+							case LEVEL_1 :
+							case LEVEL_2 :
+							case LEVEL_3 :
+							case LEVEL_4 :
+							case LEVEL_5 :
+							case LEVEL_6 :
+							case POSTPONED:
+								log.warn("Wrong constraint value type was used");
+								break;
+							case READ_AND_WRITE:
+								log.warn("An READ/WRITE was assigned as a constraint on OrgUnit");
+								break;
+							case VALUE:
+								values = new ArrayList<>();
+								constraintValues = constraintValue.getConstraintValue().split(",");
+								for (String uuid : constraintValues) {
+									OrgUnit ou = null;
+									try {
+										ou = instance.orgUnitService.getByUuid(uuid);
+									}
+									catch (Exception ex) {
+										; // ignore bad values ;)
+									}
+
+									if (ou == null) {
+										values.add(uuid);
+									}
+									else {
+										values.add(ou.getName());
+									}
+								}
+								value = values.stream().collect(Collectors.joining(", "));
+								break;
+						}
 						break;
 					default:
 						switch (constraintValue.getConstraintType().getUiType()) {

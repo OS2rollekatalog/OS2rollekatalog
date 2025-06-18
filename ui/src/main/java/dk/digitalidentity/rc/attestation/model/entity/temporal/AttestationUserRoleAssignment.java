@@ -13,8 +13,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.util.Date;
+import java.util.Objects;
 
 @Getter
 @Setter
@@ -89,4 +88,36 @@ public class AttestationUserRoleAssignment extends TemporalAssignmentBase {
 
     @Column
     private LocalDate assignedFrom;
+
+    /**
+     * Compare two objects, all fields except temporal fields and the id
+     */
+    public boolean contentEquals(AttestationUserRoleAssignment that) {
+        return userRoleId == that.userRoleId
+                && manager == that.manager
+                && inherited == that.inherited
+                && sensitiveRole == that.sensitiveRole
+                && extraSensitiveRole == that.extraSensitiveRole
+                && Objects.equals(userUuid, that.userUuid)
+                && Objects.equals(userId, that.userId)
+                && Objects.equals(userName, that.userName)
+                && Objects.equals(userRoleName, that.userRoleName)
+                && Objects.equals(userRoleDescription, that.userRoleDescription)
+                && Objects.equals(roleGroupId, that.roleGroupId)
+                && Objects.equals(roleGroupName, that.roleGroupName)
+                && Objects.equals(roleGroupDescription, that.roleGroupDescription)
+                && Objects.equals(itSystemId, that.itSystemId)
+                && Objects.equals(itSystemName, that.itSystemName)
+                && Objects.equals(responsibleUserUuid, that.responsibleUserUuid)
+                && Objects.equals(responsibleOuName, that.responsibleOuName)
+                && Objects.equals(roleOuUuid, that.roleOuUuid)
+                && Objects.equals(roleOuName, that.roleOuName)
+                && Objects.equals(responsibleOuUuid, that.responsibleOuUuid)
+                && assignedThroughType == that.assignedThroughType
+                && Objects.equals(assignedThroughName, that.assignedThroughName)
+                && Objects.equals(assignedThroughUuid, that.assignedThroughUuid)
+                && Objects.equals(postponedConstraints, that.postponedConstraints)
+                && Objects.equals(assignedFrom, that.assignedFrom);
+    }
+
 }

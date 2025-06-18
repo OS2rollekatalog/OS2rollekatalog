@@ -2,8 +2,10 @@ package dk.digitalidentity.rc.attestation.service.temporal;
 
 import dk.digitalidentity.rc.attestation.model.entity.temporal.AttestationOuRoleAssignment;
 import dk.digitalidentity.rc.attestation.model.entity.temporal.AttestationSystemRoleAssignment;
+import dk.digitalidentity.rc.attestation.model.entity.temporal.AttestationSystemRoleAssignmentConstraint;
 import dk.digitalidentity.rc.attestation.model.entity.temporal.AttestationUserRoleAssignment;
 import dk.digitalidentity.rc.attestation.service.temporal.rowmapper.AttestationOuRoleAssignmentRowMapper;
+import dk.digitalidentity.rc.attestation.service.temporal.rowmapper.AttestationSystemRoleAssignmentConstraintsRowMapper;
 import dk.digitalidentity.rc.attestation.service.temporal.rowmapper.AttestationSystemRoleAssignmentRowMapper;
 import dk.digitalidentity.rc.attestation.service.temporal.rowmapper.AttestationUserRoleAssignmentRowMapper;
 import dk.digitalidentity.rc.attestation.service.temporal.rowmapper.HistoryItSystemRowMapper;
@@ -36,12 +38,16 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
+import org.springframework.jdbc.support.GeneratedKeyHolder;
+import org.springframework.jdbc.support.KeyHolder;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 
 @Service
@@ -66,6 +72,7 @@ public class TemporalDao {
     private final AttestationUserRoleAssignmentRowMapper attestationUserRoleAssignmentRowMapper = new AttestationUserRoleAssignmentRowMapper();
     private final AttestationOuRoleAssignmentRowMapper attestationOuRoleAssignmentRowMapper = new AttestationOuRoleAssignmentRowMapper();
     private final AttestationSystemRoleAssignmentRowMapper attestationSystemRoleAssignmentRowMapper = new AttestationSystemRoleAssignmentRowMapper();
+    private final AttestationSystemRoleAssignmentConstraintsRowMapper attestationSystemRoleAssignmentConstraintsRowMapper = new AttestationSystemRoleAssignmentConstraintsRowMapper();
 
     private final OrgUnitRowMapper orgUnitRowMapper = new OrgUnitRowMapper();
     private final IdRowMapper idRowMapper = new IdRowMapper();
@@ -125,12 +132,12 @@ public class TemporalDao {
         return jdbcTemplate.query("SELECT * FROM history_ous_users WHERE history_ous_id=?", historyOUUserRowMapper, historyOuId);
     }
 
-    public AttestationUserRoleAssignment findValidUserRoleAssignmentWithHash(final LocalDate when, final String hash) {
+    public Optional<AttestationUserRoleAssignment> findValidUserRoleAssignmentWithHash(final LocalDate when, final String hash) {
         List<AttestationUserRoleAssignment> result = jdbcTemplate.query("SELECT * FROM attestation_user_role_assignments a WHERE a.record_hash = ? and valid_from <= ? AND (valid_to > ? or valid_to is null)", attestationUserRoleAssignmentRowMapper, hash, when, when);
         if (result.isEmpty()) {
-            return null;
+            return Optional.empty();
         }
-        return result.get(0);
+        return Optional.of(result.getFirst());
     }
 
     public AttestationOuRoleAssignment findValidOuRoleAssignmentWithHash(final LocalDate when, final String hash) {
@@ -146,7 +153,12 @@ public class TemporalDao {
     }
 
     public AttestationSystemRoleAssignment findValidSystemRoleAssignmentWithHash(final LocalDate when, final String hash) {
-        List<AttestationSystemRoleAssignment> result = jdbcTemplate.query("SELECT * FROM attestation_system_role_assignments a WHERE a.record_hash = ? and valid_from <= ? AND (valid_to > ? or valid_to is null)", attestationSystemRoleAssignmentRowMapper, hash, when, when);
+        final List<AttestationSystemRoleAssignment> result = jdbcTemplate.query("SELECT * FROM attestation_system_role_assignments a WHERE a.record_hash = ? and valid_from <= ? AND (valid_to > ? or valid_to is null)", attestationSystemRoleAssignmentRowMapper, hash, when, when);
+        result.forEach(r -> {
+            final List<AttestationSystemRoleAssignmentConstraint> constraints = jdbcTemplate.query("SELECT * FROM attestation_system_role_assignment_constraints WHERE attestation_system_role_assignments_id=?", attestationSystemRoleAssignmentConstraintsRowMapper, r.getId());
+            constraints.forEach(c -> c.setAssignment(r));
+            r.setConstraints(new HashSet<>(constraints));
+        });
         if (result.isEmpty()) {
             return null;
         }
@@ -161,6 +173,11 @@ public class TemporalDao {
     public long invalidateUserRoleAssignmentsWithIdsIn(final List<Long> ids, final LocalDate when) {
         return namedParameterJdbcTemplate.update("UPDATE attestation_user_role_assignments SET valid_to=:when WHERE id in (:ids)",
                 Map.of("ids", ids, "when", when));
+    }
+
+    public long setUpdatedTimestampForUserRoleAssignmentsWithIdsIn(final List<Long> ids, final LocalDate updatedAt) {
+        return namedParameterJdbcTemplate.update("UPDATE attestation_user_role_assignments SET updated_at=:updatedAt WHERE id in (:ids)",
+                Map.of("ids", ids, "updatedAt", updatedAt));
     }
 
     public long invalidateSystemRoleAssignmentsWithIdsIn(final List<Long> ids, final LocalDate when) {
@@ -179,6 +196,7 @@ public class TemporalDao {
     }
 
     public void saveAttestationSystemRoleAssignment(final AttestationSystemRoleAssignment assignment) {
+        final KeyHolder keyHolder = new GeneratedKeyHolder();
         Map<String, Object> parameters = new HashMap<>();
         parameters.put("id", assignment.getId());
         parameters.put("valid_from", assignment.getValidFrom());
@@ -200,10 +218,13 @@ public class TemporalDao {
                 "                                 user_role_id, user_role_name) " +
                 "VALUES (:record_hash, :updated_at, :valid_from, :valid_to, :it_system_id, :it_system_name, :responsible_user_uuid, " +
                 "        :system_role_description, :system_role_id, :system_role_name, :user_role_description, :user_role_id, :user_role_name)",
-                parameters
+                new MapSqlParameterSource(parameters),
+                keyHolder,
+                new String[] { "id" }
         );
+        assignment.setId(Objects.requireNonNull(keyHolder.getKey()).longValue());
+        insertAttestationSystemRoleAssignmentConstraints(assignment);
     }
-
     public int updateAttestationSystemRoleAssignment(final AttestationSystemRoleAssignment assignment) {
         MapSqlParameterSource in = new MapSqlParameterSource();
         in.addValue("id", assignment.getId());
@@ -220,13 +241,28 @@ public class TemporalDao {
         in.addValue("user_role_description", assignment.getUserRoleDescription());
         in.addValue("user_role_id", assignment.getUserRoleId());
         in.addValue("user_role_name", assignment.getUserRoleName());
-
+        namedParameterJdbcTemplate.update("DELETE FROM attestation_system_role_assignment_constraints WHERE attestation_system_role_assignments_id=:id", in);
+        insertAttestationSystemRoleAssignmentConstraints(assignment);
         return namedParameterJdbcTemplate.update("UPDATE attestation_system_role_assignments SET " +
                 "record_hash=:record_hash, updated_at=:updated_at, valid_from=:valid_from, valid_to=:valid_to, it_system_id=:it_system_id, "+
                 "it_system_name=:it_system_name, responsible_user_uuid=:responsible_user_uuid, system_role_description=:system_role_description, " +
                 "system_role_id=:system_role_id, system_role_name=:system_role_name, user_role_description=:user_role_description, " +
                 "user_role_id=:user_role_id, user_role_name=:user_role_name " +
                 " WHERE id=:id", in);
+    }
+
+    private void insertAttestationSystemRoleAssignmentConstraints(AttestationSystemRoleAssignment assignment) {
+        if (assignment.getConstraints() != null && !assignment.getConstraints().isEmpty() && assignment.getId() != null) {
+            assignment.getConstraints().forEach(constraint -> {
+                final Map<String, Object> constraintParameters = new HashMap<>();
+                constraintParameters.put("attestation_system_role_assignments_id", assignment.getId());
+                constraintParameters.put("name", constraint.getName());
+                constraintParameters.put("value_type", constraint.getValueType().name());
+                constraintParameters.put("value", constraint.getValue());
+                namedParameterJdbcTemplate.update("INSERT INTO attestation_system_role_assignment_constraints (attestation_system_role_assignments_id, name, value_Type, value) " +
+                        "VALUES (:attestation_system_role_assignments_id, :name, :value_type, :value)", constraintParameters);
+            });
+        }
     }
 
     public void saveAttestationOuRoleAssignment(final AttestationOuRoleAssignment assignment) {
@@ -347,6 +383,7 @@ public class TemporalDao {
         parameters.put("extra_sensitive_role", assignment.isExtraSensitiveRole());
         parameters.put("manager", assignment.isManager());
         parameters.put("postponed_constraints", assignment.getPostponedConstraints());
+        parameters.put("assigned_from", assignment.getAssignedFrom());
         namedParameterJdbcTemplate.update("INSERT INTO attestation_user_role_assignments (record_hash, updated_at, valid_from, valid_to," +
                 "                                                      assigned_through_name, assigned_through_type," +
                 "                                                      assigned_through_uuid, inherited, responsible_ou_name," +
@@ -354,12 +391,12 @@ public class TemporalDao {
                 "                                                      sensitive_role, extra_sensitive_role, user_role_description, role_group_id," +
                 "                                                      role_group_name, role_group_description, user_role_id," +
                 "                                                      user_role_name, user_uuid, user_id, user_name, it_system_id," +
-                "                                                      it_system_name, role_ou_uuid, role_ou_name, postponed_constraints) " +
+                "                                                      it_system_name, role_ou_uuid, role_ou_name, postponed_constraints, assigned_from) " +
                 "VALUES (:record_hash, :updated_at, :valid_from, :valid_to, " +
                 "        :assigned_through_name, :assigned_through_type, :assigned_through_uuid, :inherited, :responsible_ou_name, " +
                 "        :responsible_ou_uuid, :manager, :responsible_user_uuid, :sensitive_role, :extra_sensitive_role, :user_role_description, :role_group_id, " +
                 "        :role_group_name, :role_group_description, :user_role_id, " +
-                "        :user_role_name, :user_uuid, :user_id, :user_name, :it_system_id, :it_system_name, :role_ou_uuid, :role_ou_name, :postponed_constraints)",
+                "        :user_role_name, :user_uuid, :user_id, :user_name, :it_system_id, :it_system_name, :role_ou_uuid, :role_ou_name, :postponed_constraints, :assigned_from) ",
                 parameters);
     }
 
@@ -394,6 +431,7 @@ public class TemporalDao {
         in.addValue("role_ou_uuid", assignment.getRoleOuUuid());
         in.addValue("role_ou_name", assignment.getRoleOuName());
 		in.addValue("postponed_constraints", assignment.getPostponedConstraints());
+        in.addValue("assigned_from", assignment.getAssignedFrom());
         return namedParameterJdbcTemplate.update("UPDATE attestation_user_role_assignments SET " +
                 "record_hash = :record_hash, updated_at = :updated_at, valid_from = :valid_from, valid_to = :valid_to, " +
                 "assigned_through_name = :assigned_through_name, assigned_through_type = :assigned_through_type, assigned_through_uuid = :assigned_through_uuid, " +
@@ -401,7 +439,8 @@ public class TemporalDao {
                 "responsible_user_uuid = :responsible_user_uuid, sensitive_role = :sensitive_role, extra_sensitive_role = :extra_sensitive_role, user_role_description = :user_role_description, " +
                 "role_group_id = :role_group_id, role_group_name = :role_group_name, role_group_description = :role_group_description, " +
                 "user_role_id = :user_role_id, user_role_name = :user_role_name, user_uuid = :user_uuid, user_id = :user_id, user_name = :user_name, " +
-                "it_system_id = :it_system_id, it_system_name = :it_system_name, role_ou_uuid = :role_ou_uuid, role_ou_name = :role_ou_name, postponed_constraints=:postponed_constraints " +
+                "it_system_id = :it_system_id, it_system_name = :it_system_name, role_ou_uuid = :role_ou_uuid, role_ou_name = :role_ou_name, postponed_constraints=:postponed_constraints, " +
+                "assigned_from = :assigned_from " +
                 "WHERE id=:id", in);
     }
 }

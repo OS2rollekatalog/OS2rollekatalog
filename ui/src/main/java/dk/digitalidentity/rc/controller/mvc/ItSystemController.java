@@ -1,5 +1,6 @@
 package dk.digitalidentity.rc.controller.mvc;
 
+import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.ConvertSystemRolesForm;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.ItSystemForm;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.OUListForm;
@@ -31,6 +32,7 @@ import dk.digitalidentity.rc.service.ItSystemMasterService;
 import dk.digitalidentity.rc.service.ItSystemService;
 import dk.digitalidentity.rc.service.OrgUnitService;
 import dk.digitalidentity.rc.service.PendingADUpdateService;
+import dk.digitalidentity.rc.service.Select2Service;
 import dk.digitalidentity.rc.service.SettingsService;
 import dk.digitalidentity.rc.service.SystemRoleService;
 import dk.digitalidentity.rc.service.UserRoleService;
@@ -105,6 +107,12 @@ public class ItSystemController {
 
 	@Autowired
 	private ADConfigurationService adConfigurationService;
+
+	@Autowired
+	private Select2Service select2Service;
+
+	@Autowired
+	private RoleCatalogueConfiguration configuration;
 
 	@InitBinder(value = { "itSystemForm" })
 	public void initBinderItSystemForm(WebDataBinder binder) {
@@ -310,6 +318,8 @@ public class ItSystemController {
 		model.addAttribute("selectedOUs", itSystem.getOrgUnitFilterOrgUnits().stream().map(OrgUnit::getUuid).toList());
 		model.addAttribute("attestationResponsibleName", itSystem.getAttestationResponsible() == null ? "" : itSystem.getAttestationResponsible().getName() + " (" + itSystem.getAttestationResponsible().getUserId() + ")");
 		model.addAttribute("attestationResponsibleUuid", itSystem.getAttestationResponsible() == null ? "" : itSystem.getAttestationResponsible().getUuid());
+		model.addAttribute("kitosITSystemId", itSystem.getKitosITSystem() == null || !configuration.getIntegrations().getKitos().isEnabled() ? null : itSystem.getKitosITSystem().getId());
+		model.addAttribute("select2KitosITSystems", select2Service.getKitosITSystemList());
 		model.addAttribute("attestationEnabled", settingsService.isScheduledAttestationEnabled());
 		model.addAttribute("systemOwnerName", itSystem.getSystemOwner() == null ? "" : itSystem.getSystemOwner().getName() + " (" + itSystem.getSystemOwner().getUserId() + ")");
 		model.addAttribute("systemOwnerUuid", itSystem.getSystemOwner() == null ? "" : itSystem.getSystemOwner().getUuid());

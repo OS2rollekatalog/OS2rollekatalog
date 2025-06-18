@@ -1,3 +1,21 @@
+2025.06.18 - Anmod/Godkend - Release 2025r2
+- [ROL-362](https://os2web.atlassian.net/browse/ROL-459) Ny anmod/godkend modul!
+- [ROL-362](https://os2web.atlassian.net/browse/ROL-362) AD-integration: Benytte "Noter" i stedet for "Beskrivelse"
+- [ROL-391](https://os2web.atlassian.net/browse/ROL-391) Opdatering af driftsdokumentation
+- [ROL-399](https://os2web.atlassian.net/browse/ROL-399) Attestering: Bedre overblik over opsatte stedfortrædere (+ evt personlige godkendere)
+- [ROL-400](https://os2web.atlassian.net/browse/ROL-400) Universel indstilling til hele Rollekataloget
+- [ROL-420](https://os2web.atlassian.net/browse/ROL-420) Attesteringsmodul: Attestering af enhedens rettigheder fungerer som på bruger
+- [ROL-430](https://os2web.atlassian.net/browse/ROL-430) Advis: man viser systemejers ændringer (enhed/stilling) men ikke hvilke system man er ejer/ansvarlig for
+- [ROL-432](https://os2web.atlassian.net/browse/ROL-432) Tildeling af Rollekatalogets egne roller
+- [ROL-437](https://os2web.atlassian.net/browse/ROL-437) Mulighed for at trække en rapport i Rollekataloget via API. Det kan eksempelvis benyttes som en del af en automatisering af nogle processer i tildeling af Microsoft Licenser. Der er lavet en tilsvarende udvidelse af API til SOFD som delvist kan kopieres.
+- [ROL-439](https://os2web.atlassian.net/browse/ROL-439) Udbyg AD-sync så roller i ikke-AD IT-systemer kan styre AD grupper
+- [ROL-440](https://os2web.atlassian.net/browse/ROL-440) Udvidelse af ny funktion til udvælgelse af afgrænsning
+- [ROL-441](https://os2web.atlassian.net/browse/ROL-441) Opmærke en rolletildeling med et sagsnummer
+- [ROL-442](https://os2web.atlassian.net/browse/ROL-442) Ved opsætning af stedfortræder skal enheder sorteres alfabetisk
+- [ROL-443](https://os2web.atlassian.net/browse/ROL-443) Tilføjelse til rapport
+- [ROL-436](https://os2web.atlassian.net/browse/ROL-436) API-vedligehold af systemansvarlig og systemejer
+
+
 2025.03.26 - Release 2025r1
 - [ROL-363](https://os2web.atlassian.net/browse/ROL-363) Optimering af sync imellem ROL og AD grupper (kontinuerlig sync)
 - [ROL-369](https://os2web.atlassian.net/browse/ROL-369) Modernisering af listen til udvælgelse af it-system

@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml"
+      xmlns:th="http://www.thymeleaf.org"
+	  xmlns:sec="http://www.thymeleaf.org/thymeleaf-extras-springsecurity4">
+<body>
+<div th:fragment="topbar" class="row border-bottom white-bg">
+    <nav class="navbar navbar-expand-lg navbar-static-top"
+         role="navigation">
+        <a th:href="@{/ui/request}" class="navbar-brand" style="background: white;">
+            <div class="brand-logo">
+                <img th:src="@{/img/logo.png}" alt="Logo" class="img-responsive" style="height: 25px;"/>
+            </div>
+        </a>
+
+        <button class="navbar-toggler" type="button" data-toggle="collapse"
+                data-target="#navbar" aria-expanded="false"
+                aria-label="Toggle navigation">
+            <i class="fa fa-reorder"></i>
+        </button>
+
+        <div class="navbar-collapse collapse" id="navbar">
+            <ul class="nav navbar-nav mr-auto">
+
+                <th:block sec:authorize="isAuthenticated()">
+                    <li>
+                        <a role="button" th:href="@{/ui/request}" th:class="${page == 'dashboard'} ? 'navActive' : ''" th:text="#{requestmodule.topbar.dashboard}"></a>
+                    </li>
+                    <li>
+                        <a role="button" th:href="@{/ui/request/myrequests}" th:class="${page == 'myRequests'} ? 'navActive' : ''" th:text="#{requestmodule.topbar.myRequests}"></a>
+                    </li>
+                    <li th:if="${isAdmin || isManagerOrSubstituteAnywhere || isSystemOwnerAnywhere || isRequestAuthorizedAnywhere || isAuthorizationResponsibleAnywhere}">
+                        <a role="button" th:href="@{/ui/request/employees}" th:class="${page == 'employeeRequests'} ? 'navActive' : ''" th:text="#{requestmodule.topbar.employeeRequest}"></a>
+                    </li>
+                    <li th:if="${isAdmin || isManagerOrSubstituteAnywhere || isSystemOwnerAnywhere || isRequestAuthorizedAnywhere || isAuthorizationResponsibleAnywhere}">
+                        <a role="button" th:href="@{/ui/request/pending}" th:class="${page == 'pendingRequests'} ? 'navActive' : ''">
+							<span th:text="#{requestmodule.topbar.pendingRequest}"></span>
+							<span class="badge badge-primary" th:text="${waitingRequestsCount}"></span></a>
+                    </li>
+                    <li>
+                        <a role="button" th:href="@{/ui/request/requestlog}" th:class="${page == 'requestlog'} ? 'navActive' : ''" th:text="#{requestmodule.topbar.log}"></a>
+                    </li>
+                </th:block>
+            </ul>
+
+            <ul sec:authorize="isAuthenticated()" class="d-none d-lg-inline nav navbar-top-links navbar-right">
+                <li class="dropdown show">
+                    <a data-toggle="dropdown" href="#" aria-expanded="true"> <i class="fa fa-sitemap"></i> <span th:text="#{html.navbar.shortcuts}"></span></a>
+                    <ul class="dropdown-menu" style="width: 200px;">
+                        <li>
+                            <a href="/ui/my">
+                                <i class="fa fa-cogs"></i> &nbsp;
+                                <span th:text="#{html.navbar.shortcuts.main}"></span>
+                            </a>
+                        </li>
+                        <li>
+                            <a href="/ui/attestation/v2">
+                                <i class="fa fa-check"></i> &nbsp;
+                                <span th:text="#{html.navbar.shortcuts.attestation}"></span>
+                            </a>
+                        </li>
+                        <li>
+                            <form th:action="@{/logout}" id="logout_form" method="post"></form>
+                            <a href="#" onclick="$('#logout_form').submit();">
+                                <i class="fa fa-sign-out"></i> &nbsp;
+                                <span th:text="#{html.navbar.logout}"></span>
+                            </a>
+                        </li>
+                    </ul>
+                </li>
+            </ul>
+        </div>
+    </nav>
+</div>
+</body>
+</html>

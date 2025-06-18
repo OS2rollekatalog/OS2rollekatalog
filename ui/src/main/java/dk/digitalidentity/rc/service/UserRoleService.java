@@ -1,26 +1,27 @@
 package dk.digitalidentity.rc.service;
 
 import dk.digitalidentity.rc.config.Constants;
-import dk.digitalidentity.rc.controller.mvc.datatables.dao.UserroleDatatableDao;
+import dk.digitalidentity.rc.controller.mvc.datatables.dao.UserRoleDatatableDao;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.AvailableITSystemDTO;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.UserRoleDTO;
 import dk.digitalidentity.rc.dao.UserRoleDao;
 import dk.digitalidentity.rc.dao.model.ConstraintType;
 import dk.digitalidentity.rc.dao.model.ItSystem;
+import dk.digitalidentity.rc.dao.model.OrgUnit;
 import dk.digitalidentity.rc.dao.model.SystemRole;
 import dk.digitalidentity.rc.dao.model.SystemRoleAssignment;
 import dk.digitalidentity.rc.dao.model.SystemRoleAssignmentConstraintValue;
 import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserRole;
 import dk.digitalidentity.rc.log.AuditLogIntercepted;
-import dk.digitalidentity.rc.security.AccessConstraintService;
+import dk.digitalidentity.rc.rolerequest.model.enums.ApproverOption;
+import dk.digitalidentity.rc.rolerequest.model.enums.RequesterOption;
+import dk.digitalidentity.rc.rolerequest.service.RequestService;
 import dk.digitalidentity.rc.security.SecurityUtil;
+import dk.digitalidentity.rc.security.AccessConstraintService;
 import dk.digitalidentity.rc.service.model.RoleAssignedToUserDTO;
 import dk.digitalidentity.rc.service.model.RoleAssignmentType;
-import jakarta.persistence.criteria.CriteriaBuilder;
-import jakarta.persistence.criteria.CriteriaQuery;
 import jakarta.persistence.criteria.Predicate;
-import jakarta.persistence.criteria.Root;
 import jakarta.transaction.Transactional;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -30,10 +31,11 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.stream.Collectors;
+import java.util.Set;
 
 @Slf4j
 @Service
@@ -43,13 +45,13 @@ public class UserRoleService {
 	private UserRoleDao userRoleDao;
 
 	@Autowired
-	private UserroleDatatableDao userroleDatatableDao;
+	private UserRoleDatatableDao userroleDatatableDao;
 
 	@Autowired
 	private ItSystemService itSystemService;
 
 	@Autowired
-	private AccessConstraintService assignerRoleConstraint;
+	private RequestService rolerequestService;
 
 	@Autowired
 	private UserService userService;
@@ -139,8 +141,24 @@ public class UserRoleService {
 		return userRoleDao.findAll();
 	}
 
-	public List<UserRole> getAllRequestable() {
-		return userRoleDao.findByCanRequestTrue();
+	public List<UserRole> getAllRequestable(User recievingUser) {
+		return rolerequestService.getRequestableUserRoles(recievingUser).toList();
+	}
+
+	public List<UserRole> getUserRolesWithRequesterPermissions(List<RequesterOption> permissions) {
+		return userRoleDao.findByRequesterPermissionIn(permissions);
+	}
+
+	public List<UserRole> getUserRolesWithInheritedPermissionsMatching(List<RequesterOption> permissions) {
+		//Treat null values as INHERIT values
+		if (permissions.contains(RequesterOption.INHERIT)) {
+			return userRoleDao.findByRequesterPermissionAndItSystem_RequesterPermissionInOrItSystem_RequesterPermissionNull(RequesterOption.INHERIT, permissions);
+		}
+		return userRoleDao.findByRequesterPermissionAndItSystem_RequesterPermissionIn(RequesterOption.INHERIT, permissions);
+	}
+
+	public List<UserRole> getUserRolesWithApproverPermissions( List<ApproverOption> permissions) {
+		return userRoleDao.findByApproverPermissionIn(permissions);
 	}
 
 	public UserRole getById(long roleId) {
@@ -157,22 +175,6 @@ public class UserRoleService {
 
 	public UserRole getByIdentifier(String identifier) {
 		return userRoleDao.getByIdentifier(identifier);
-	}
-
-	public boolean canRequestRole(UserRole role, User user) {
-		if (!role.isCanRequest()) {
-			return false;
-		}
-		return true;
-	}
-
-	// TODO: bør man ikke filtere på hvilke systemer som brugeren faktisk kan anmode om?
-	public List<UserRole> whichRolesCanBeRequestedByUser(List<UserRole> roles, User user) {
-
-		// filter on canRequest
-		roles = roles.stream().filter(r -> r.isCanRequest()).collect(Collectors.toList());
-
-		return roles;
 	}
 
 	@Transactional
@@ -238,6 +240,29 @@ public class UserRoleService {
 		return userRoleDao.getByDelegatedFromCvrNotNullAndItSystemIdentifierNot(itSystemIdentifier);
 	}
 
+	public List<String> getOUFilterUuidsWithChildren(UserRole userRole) {
+		Set<String> selectedOUs = new HashSet<>();
+		for (OrgUnit ou : userRole.getOrgUnitFilterOrgUnits()) {
+			if (!selectedOUs.contains(ou.getUuid())) {
+				addChildrenRecursive(ou, selectedOUs);
+			}
+		}
+
+		return new ArrayList<>(selectedOUs);
+	}
+
+	private void addChildrenRecursive(OrgUnit ou, Set<String> selectedOUs) {
+		selectedOUs.add(ou.getUuid());
+
+		if (ou.getChildren() == null || ou.getChildren().isEmpty()) {
+			return;
+		}
+
+		for (OrgUnit child : ou.getChildren()) {
+			addChildrenRecursive(child, selectedOUs);
+		}
+	}
+
 
 	public DataTablesOutput<UserRoleDTO> getAvailableAsDatatable(DataTablesInput input, User user) {
 		final List<Long> itSystemsUserCanEdit = accessConstraintService.itSystemsUserCanEdit();
@@ -272,7 +297,7 @@ public class UserRoleService {
 
 	public DataTablesOutput<UserRole> getAllItsystemNotDeletedNotPostponedAsDatatable(DataTablesInput input) {
 		return userroleDatatableDao.findAll(input, Specification
-				.where(UserroleDatatableDao.itSystemNotDeleted()
-						.and(UserroleDatatableDao.notAllowPostponing())));
+				.where(UserRoleDatatableDao.itSystemNotDeleted()
+						.and(UserRoleDatatableDao.notAllowPostponing())));
 	}
 }

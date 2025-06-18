@@ -14,7 +14,8 @@
 					<div class="panel-heading"></div>
 
 					<div th:if="${disabled}" class="panel-body">
-						<p th:text="#{html.page.email_template.edit.attestation.disabled}"></p>
+						<p th:if="${page} == 'attestationMail'" th:text="#{html.page.email_template.edit.attestation.disabled}"></p>
+						<p th:if="${page} == 'requestMail'" th:text="#{html.page.email_template.edit.request.disabled}"></p>
 					</div>
 
 					<div th:unless="${disabled}" class="panel-body">
@@ -141,7 +142,7 @@
 
 	/*[+
 		var restUrl = [[@{/rest/mailtemplates}]];
-		var templatesDropdownUrl = [[@{/ui/admin/mailtemplates/attestation/templates}]];
+		var templatesDropdownUrl = [[${templatesDropdownUrl}]];
 		var msgSuccess = [[#{html.page.email_template.success}]];
 		var msgFail = [[#{html.page.email_template.failure}]];
 		var msgFailDelete = [[#{html.page.email_template.failure.removeattachment}]];

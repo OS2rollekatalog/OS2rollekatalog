@@ -8,11 +8,11 @@ import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserRole;
 import dk.digitalidentity.rc.dao.model.enums.EventType;
 import dk.digitalidentity.rc.log.AuditLogger;
+import dk.digitalidentity.rc.rolerequest.service.RequestService;
 import dk.digitalidentity.rc.service.ItSystemService;
 import dk.digitalidentity.rc.service.NotificationService;
 import dk.digitalidentity.rc.service.OrgUnitService;
 import dk.digitalidentity.rc.service.ReportTemplateService;
-import dk.digitalidentity.rc.service.RequestApproveService;
 import dk.digitalidentity.rc.service.SettingsService;
 import dk.digitalidentity.rc.service.UserService;
 import dk.digitalidentity.samlmodule.model.SamlGrantedAuthority;
@@ -41,27 +41,27 @@ public class RolePostProcessor implements SamlLoginPostProcessor {
 
 	@Autowired
 	private UserService userService;
-	
+
 	@Autowired
 	private AuditLogger auditLogger;
-	
+
 	@Autowired
 	private SettingsService settingsService;
-	
+
 	@Autowired
 	private ItSystemService itSystemService;
-	
+
 	@Autowired
 	private ReportTemplateService reportTemplateService;
-	
-	@Autowired 
+
+	@Autowired
 	private NotificationService notificationService;
-	
+
 	@Autowired
 	private OrgUnitService orgUnitService;
-	
+
 	@Autowired
-	private RequestApproveService requestApproveService;
+	private RequestService rolerequestService;
 
 	@Override
 	public void process(TokenUser tokenUser) {
@@ -71,7 +71,7 @@ public class RolePostProcessor implements SamlLoginPostProcessor {
 		if (user == null) {
 			throw new UsernameNotFoundException("Brugeren " + principal + " er ikke kendt af rollekataloget!");
 		}
-		
+
 		auditLogger.log(user, EventType.LOGIN_LOCAL);
 
 		tokenUser.getAttributes().put(ATTRIBUTE_USERID, user.getUserId());
@@ -89,7 +89,7 @@ public class RolePostProcessor implements SamlLoginPostProcessor {
 				}
 			}
 		}
-		
+
 		Set<SamlGrantedAuthority> authorities = new HashSet<>();
 
 		// if any manager has flagged this user as a substitute, add the substitute role and keep track of the list of managers
@@ -104,7 +104,7 @@ public class RolePostProcessor implements SamlLoginPostProcessor {
 
 		// check if the request/approve feature is enabled
 		if (settingsService.isRequestApproveEnabled()) {
-			
+
 			// it is only a substitute/manager or an authorization manager that can request roles, check if the user is a substitute, authorization manager or a manager
 			if (managers.size() > 0 || !orgUnitService.getByAuthorizationManagerMatchingUser(user).isEmpty() || !orgUnitService.getByManagerMatchingUser(user).isEmpty()) {
 				authorities.add(new SamlGrantedAuthority(Constants.ROLE_REQUESTER));
@@ -148,6 +148,10 @@ public class RolePostProcessor implements SamlLoginPostProcessor {
 			authorities.add(new SamlGrantedAuthority(Constants.ROLE_ATTESTATION_ADMINISTRATOR));
 		}
 
+		if (roles.contains(Constants.ROLE_REQUESTAUTHORIZED)) {
+			authorities.add(new SamlGrantedAuthority(Constants.ROLE_REQUESTAUTHORIZED));
+		}
+
 		if (roles.contains(Constants.ROLE_REPORT_ACCESS_ID)) {
 			authorities.add(new SamlGrantedAuthority(Constants.ROLE_REPORT_ACCESS));
 			authorities.add(new SamlGrantedAuthority(Constants.ROLE_READ_ACCESS));
@@ -162,40 +166,21 @@ public class RolePostProcessor implements SamlLoginPostProcessor {
 		if (!itSystemService.findByAttestationResponsible(user).isEmpty()) {
 			authorities.add(new SamlGrantedAuthority(Constants.ROLE_IT_SYSTEM_RESPONSIBLE));
 		}
-		
+
 		tokenUser.setAuthorities(authorities);
-		
-		// set number of requests on session if user is role assigner
-		if (authorities.stream().anyMatch(a -> a.getAuthority().equals(Constants.ROLE_ASSIGNER))) {
-			setRequests();
-		}
 	}
-	
+
 	private void setNotifications() {
 		HttpServletRequest request = getRequest();
-		
+
 		if (request != null) {
 			long count = notificationService.countActive();
 			if (count > 0) {
 				request.getSession().setAttribute(SessionConstants.SESSION_NOTIFICATION_COUNT, count);
 			}
+		}
+	}
 
-			count = requestApproveService.count();
-			if (count > 0) {
-				request.getSession().setAttribute(SessionConstants.SESSION_REQUEST_COUNT, count);
-			}
-		}
-	}
-	
-	private void setRequests() {
-		HttpServletRequest request = getRequest();
-		
-		if (request != null) {
-			long count = requestApproveService.getPendingRequestsAuthorizationManager().size();
-			request.getSession().setAttribute(SessionConstants.SESSION_REQUEST_COUNT, count);
-		}
-	}
-	
 	private static HttpServletRequest getRequest() {
 		try {
 			return ((ServletRequestAttributes) RequestContextHolder.currentRequestAttributes()).getRequest();

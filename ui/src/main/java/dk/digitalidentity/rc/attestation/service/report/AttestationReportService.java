@@ -7,6 +7,7 @@ import dk.digitalidentity.rc.attestation.model.dto.enums.AttestationStatus;
 import dk.digitalidentity.rc.attestation.model.dto.enums.RoleStatus;
 import dk.digitalidentity.rc.attestation.model.entity.Attestation;
 import dk.digitalidentity.rc.attestation.model.entity.AttestationRun;
+import dk.digitalidentity.rc.attestation.model.entity.AttestationUser;
 import dk.digitalidentity.rc.attestation.model.entity.ItSystemOrganisationAttestationEntry;
 import dk.digitalidentity.rc.attestation.model.entity.ItSystemUserAttestationEntry;
 import dk.digitalidentity.rc.attestation.model.entity.OrganisationRoleAttestationEntry;
@@ -32,7 +33,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
-import java.util.Collection;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
@@ -40,7 +41,6 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 import static dk.digitalidentity.rc.attestation.AttestationConstants.CET_ZONE_ID;
 
@@ -199,6 +199,7 @@ public class AttestationReportService {
 				.verifiedByName(verificationInformation.verifiedByName)
 				.roleGroupName(assignment.getRoleGroupName())
 				.userRoleName(assignment.getUserRoleName())
+				.postponedConstraints(assignment.getPostponedConstraints())
 				.remark(verificationInformation.remark)
 				.userName(assignment.getUserName())
 				.userUserId(assignment.getUserId())
@@ -409,15 +410,6 @@ public class AttestationReportService {
 			}
 		}
 		return result;
-	}
-
-	@SafeVarargs
-	private static Attestation findNewestAttestation(final List<Attestation> ... attestations) {
-		return Stream.of(attestations)
-				.flatMap(Collection::stream)
-				.filter(a -> a.getDeadline() != null)
-				.max(Comparator.comparing(Attestation::getDeadline))
-				.orElse(null);
 	}
 
 	private static ItSystemOrganisationAttestationEntry lookupItSystemOuEntry(final Attestation attestation,

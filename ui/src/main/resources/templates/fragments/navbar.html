@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html>
+<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/thymeleaf-extras-springsecurity4">
 <body>
 	<header th:fragment="navbar-header" class="topnavbar-wrapper">
 		<nav role="navigation" class="navbar topnavbar">
@@ -19,7 +19,7 @@
 							<span th:text="#{html.navbar.sub.roles}"></span>
 						</a>
 					</li>
-					
+
 					<li class="nav-item" th:classappend="${subpage == 'reports'} ? 'bold' : ''" sec:authorize="hasRole('ROLE_ASSIGNER') or hasRole('ROLE_REPORT_ACCESS') or hasRole('ROLE_TEMPLATE_ACCESS') or hasRole('ROLE_ADMINISTRATOR') or hasRole('ROLE_MANAGER') or hasRole('ROLE_SUBSTITUTE') or hasRole('ROLE_KLE_ADMINISTRATOR')">
 						<a th:href="@{/ui/reportmenu}">
 							<em class="fa fa-fw fa-book"></em>
@@ -27,7 +27,7 @@
 							<span class="badge" style="background-color: red;" th:text="${session.SESSION_NOTIFICATION_COUNT}" th:unless="${session == null || session.SESSION_NOTIFICATION_COUNT == 0}"></span>
 						</a>
 					</li>
-					
+
 					<li class="nav-item" th:classappend="${subpage == 'administration'} ? 'bold' : ''" sec:authorize="hasRole('ROLE_ADMINISTRATOR')">
 						<a th:href="@{/ui/settings}">
 							<em class="fa fa-fw fa-cogs"></em>
@@ -40,9 +40,9 @@
 							<em class="fa fa-fw fa-warning"></em>
 							<span th:text="#{html.navbar.sub.version}"></span>
 						</a>
-					</li>					
+					</li>
 				</ul>
-				
+
 				<ul class="nav navbar-nav navbar-right">
 					<li class="nav-item">
 						<a th:href="@{/download/brugermanual.pdf}" target="_blank">
@@ -50,6 +50,38 @@
 							<span>Brugermanual</span>
 						</a>
 					</li>
+
+					<ul sec:authorize="isAuthenticated()" class="nav-item d-none d-lg-inline nav navbar-top-links navbar-right" style="padding-right: 30px; margin-top: 7px;">
+						<li class="dropdown show">
+							<a data-toggle="dropdown" href="#" aria-expanded="true" style="color: white;">
+								<i class="fa fa-sitemap"></i>
+								<span th:text="#{html.navbar.shortcuts}"></span>
+								<span th:if="${waitingRequestsCount} != 0" class="badge badge-primary" style="background-color:red;" th:text="${waitingRequestsCount}"></span>
+							</a>
+							<ul class="dropdown-menu" style="width: 200px;">
+								<li>
+									<a href="/ui/attestation/v2">
+										<i class="fa fa-check"></i> &nbsp;
+										<span th:text="#{html.navbar.shortcuts.attestation}"></span>
+									</a>
+								</li>
+								<li th:if="${@settingsService.isRequestApproveEnabled() == true}">
+									<a href="/ui/request">
+										<i class="fa fa-handshake-o"></i> &nbsp;
+										<span th:text="#{html.navbar.shortcuts.request}"></span>
+										<span th:if="${waitingRequestsCount} != 0" class="badge badge-primary" style="background-color:red;" th:text="${waitingRequestsCount}"></span>
+									</a>
+								</li>
+								<li>
+									<form th:action="@{/logout}" id="logout_form" method="post"></form>
+									<a href="#" onclick="$('#logout_form').submit();">
+										<i class="fa fa-sign-out"></i> &nbsp;
+										<span th:text="#{html.navbar.logout}"></span>
+									</a>
+								</li>
+							</ul>
+						</li>
+					</ul>
 				</ul>
 			</div>
 		</nav>
@@ -64,13 +96,13 @@
 							<li class="nav-heading">
 								<span th:text="#{html.navbar.rolemodelling}"></span>
 							</li>
-	
+
 							<li>
 								<a href="#userroles" data-toggle="collapse">
 									<em class="fa fa-unlock-alt"></em>
 									<span th:text="#{html.navbar.jobroles}"></span>
 								</a>
-								
+
 								<ul id="userroles" class="nav sidebar-subnav collapse">
 			                        <li class="sidebar-subnav-header"></li>
 			                        <li th:class="${page == 'userroles.list'} ? 'active' : ''">
@@ -85,13 +117,13 @@
 			                        </li>
 			                    </ul>
 							</li>
-		
+
 							<li>
 								<a href="#rolegroups" data-toggle="collapse">
 									<em class="fa fa-shield"></em>
 									<span th:text="#{html.navbar.rolegroups}"></span>
 								</a>
-								
+
 								<ul id="rolegroups" class="nav sidebar-subnav collapse">
 			                        <li class="sidebar-subnav-header"></li>
 										<li th:class="${page == 'rolegroups.list'} ? 'active' : ''">
@@ -107,14 +139,14 @@
 							 	</ul>
 							</li>
 						</th:block>
-					
+
 						<th:block sec:authorize="hasRole('ROLE_READ_ACCESS')">
 							<li>
 								<a href="#itsystems" data-toggle="collapse">
 									<em class="fa fa-laptop"></em>
 									<span th:text="#{html.navbar.itsystems}"></span>
 								</a>
-		
+
 								<ul id="itsystems" class="nav sidebar-subnav collapse">
 									<li class="sidebar-subnav-header"></li>
 									<li th:class="${page == 'itsystem.list'} ? 'active' : ''">
@@ -122,19 +154,19 @@
 											<span th:text="#{html.navbar.listitsystem}"></span>
 										</a>
 									</li>
-									
+
 									<li sec:authorize="hasRole('ROLE_ADMINISTRATOR')" th:class="${page == 'itsystem.new.AD'} ? 'active' : ''">
 										<a th:href="@{/ui/itsystem/newad}">
 											<span th:text="#{html.navbar.newaditsystem}"></span>
 										</a>
 									</li>
-									
+
 									<li sec:authorize="hasRole('ROLE_ADMINISTRATOR')" th:class="${page == 'itsystem.new.SAML'} ? 'active' : ''">
 										<a th:href="@{/ui/itsystem/newsaml}">
 											<span th:text="#{html.navbar.newsamlitsystem}"></span>
 										</a>
 									</li>
-									
+
 									<li sec:authorize="hasRole('ROLE_ADMINISTRATOR')" th:class="${page == 'itsystem.new.MANUAL'} ? 'active' : ''">
 										<a th:href="@{/ui/itsystem/newmanual}">
 											<span th:text="#{html.navbar.newmanualitsystem}"></span>
@@ -143,20 +175,11 @@
 								</ul>
 							</li>
 						</th:block>
-						
+
 						<th:block>
 							<li sec:authorize="hasRole('ROLE_REQUESTER') or hasRole('ROLE_READ_ACCESS')" class="nav-heading">
 								<span th:text="#{html.navbar.rolemanagement}"></span>
 							</li>
-
-							<th:block th:if="${@settingsService.isRequestApproveEnabled() == true}" sec:authorize="hasRole('ROLE_REQUESTER')">
-								<li th:class="${page == 'users_request'} ? 'active' : ''">
-									<a th:href="@{/ui/requestapprove/users}">
-										<em class="fa fa-comment-o"></em>
-										<span th:text="#{html.navbar.users_request}"></span>
-									</a>
-								</li>
-							</th:block>
 
 							<th:block sec:authorize="hasRole('ROLE_READ_ACCESS')">
 								<li th:class="${page == 'ous'} ? 'active' : ''">
@@ -172,34 +195,17 @@
 										<span th:text="#{html.navbar.users}"></span>
 									</a>
 								</li>
-
-								<th:block th:if="${@settingsService.isRequestApproveEnabled() == true}">
-									<li sec:authorize="hasRole('ROLE_ASSIGNER')" th:class="${page == 'authorizationmanager'} ? 'active' : ''">
-										<a th:href="@{/ui/users/requests/authorizationmanager}">
-											<em class="fa fa-comment-o"></em>
-											<span th:text="#{html.navbar.requestapprove}"></span>
-											<span class="badge" style="background-color: red;" th:text="${session.SESSION_REQUEST_COUNT}" th:unless="${session == null || session.SESSION_REQUEST_COUNT == 0}"></span>
-										</a>
-									</li>
-								</th:block>
 							</th:block>
 						</th:block>
-						
+
 						<li class="nav-heading">
 							<span th:text="#{html.navbar.personal}"></span>
 						</li>
-	
+
 						<li sec:authorize="isAuthenticated()" th:class="${page == 'my'} ? 'active' : ''">
 							<a th:href="@{/ui/my}">
 								<em class="fa fa-id-card"></em>
 								<span th:text="#{html.navbar.my}"></span>
-							</a>
-						</li>
-						
-						<li sec:authorize="hasRole('ROLE_REQUESTER')" th:if="${@settingsService.isRequestApproveEnabled() == true}" th:class="${page == 'my_requests'} ? 'active' : ''">
-							<a th:href="@{/ui/my/requests}">
-								<em class="fa fa-comment-o"></em>
-								<span th:text="#{html.navbar.requests}"></span>
 							</a>
 						</li>
 					</th:block>
@@ -209,14 +215,14 @@
 							<li class="nav-heading">
 								<span th:text="#{html.navbar.reports}"></span>
 							</li>
-	
+
 	                        <li th:class="${page == 'report.full'} ? 'active' : ''" sec:authorize="hasRole('ROLE_REPORT_ACCESS')">
 								<a th:href="@{/ui/report/configure}">
 									<em class="fa fa-file-excel-o"></em>
 	                             	<span th:text="#{html.navbar.report.configure}"></span>
 	                           </a>
 	                        </li>
-	                        
+
 	                        <li th:class="${page == 'report.manager'} ? 'active' : ''">
 								<a th:href="@{/ui/report/templates}">
 									<em class="fa fa-file-excel-o"></em>
@@ -231,14 +237,14 @@
 	                           </a>
 	                        </li>
 	                    </th:block>
-	                        
+
 						<th:block sec:authorize="hasRole('ROLE_KLE_ADMINISTRATOR')">
 							<li th:if="${@roleCatalogueConfiguration.getIntegrations().getKle().isUiEnabled() == true}">
 								<a href="#kle" data-toggle="collapse">
 									<em class="fa fa-thumb-tack"></em>
 									<span th:text="#{html.navbar.kle}"></span>
 								</a>
-		
+
 								<ul id="kle" class="nav sidebar-subnav collapse">
 									<li class="sidebar-subnav-header"></li>
 									<li th:class="${page == 'kle.ous'} ? 'active' : ''">
@@ -272,7 +278,7 @@
 								</a>
 							</li>
 						</th:block>
-						
+
 						<th:block sec:authorize="hasRole('ROLE_ASSIGNER')">
 							<li class="nav-heading">
 								<span th:text="#{html.navbar.notifications}"></span>
@@ -291,14 +297,21 @@
 							<li class="nav-heading">
 								<span th:text="#{html.navbar.management}"></span>
 							</li>
-							
+
 							<li th:class="${page == 'manager.list'} ? 'active' : ''" sec:authorize="hasRole('ROLE_READ_ACCESS')">
 								<a th:href="@{/ui/manager/list}">
 									<em class="fa fa-users"></em>
 									<span th:text="#{html.navbar.manager.list}"></span>
 								</a>
 							</li>
-		
+							<li th:class="${page == 'substitute.list'} ? 'active' : ''" sec:authorize="hasRole('ROLE_READ_ACCESS')">
+								<a th:href="@{/ui/management/substitute/list}">
+									<em class="fa fa-users"></em>
+									<span th:text="#{html.navbar.management.substitute}"></span>
+								</a>
+							</li>
+
+
 							<li th:class="${page == 'manager.substitute'} ? 'active' : ''" sec:authorize="hasRole('ROLE_MANAGER')" th:if="${@roleCatalogueConfiguration.substituteManagerAPI.enabled == false}">
 								<a th:href="@{/ui/manager/substitute}">
 									<em class="fa fa-male"></em>
@@ -314,13 +327,13 @@
 							</li>
 						</th:block>
 					</th:block>
-					
+
 					<th:block sec:authorize="isAuthenticated()" th:if="${subpage == 'administration'}">
 						<th:block sec:authorize="hasRole('ROLE_ADMINISTRATOR')">
 							<li class="nav-heading" sec:authorize="isAuthenticated()">
 								<span th:text="#{html.navbar.settings}"></span>
 							</li>
-		
+
 							<li th:class="${page == 'settings'} ? 'active' : ''">
 								<a th:href="@{/ui/settings}">
 									<em class="fa fa-gears"></em>
@@ -351,7 +364,7 @@
 							<li class="nav-heading">
 								<span th:text="#{html.navbar.mail}"></span>
 							</li>
-							
+
 							<li th:class="${page == 'mail'} ? 'active' : ''" sec:authorize="hasRole('ROLE_ADMINISTRATOR')">
 								<a th:href="@{/ui/admin/mailtemplates}">
 									<em class="fa fa-envelope"></em>
@@ -378,16 +391,42 @@
 								</a>
 							</li>
 						</th:block>
-						
+
+						<th:block th:if="${@settingsService.isRequestApproveEnabled()}" sec:authorize="hasRole('ROLE_ADMINISTRATOR')">
+							<li class="nav-heading">
+								<span th:text="#{html.navbar.request}"></span>
+							</li>
+
+							<li th:class="${page == 'requestSettings'} ? 'active' : ''">
+								<a th:href="@{/ui/settings/rolerequest}">
+									<em class="fa fa-cogs"></em>
+									<span th:text="#{html.navbar.settings.request}"></span>
+								</a>
+							</li>
+							<li th:class="${page == 'requestMail'} ? 'active' : ''">
+								<a th:href="@{/ui/admin/mailtemplates/request}">
+									<em class="fa fa-envelope"></em>
+									<span th:text="#{html.navbar.emailTemplate.request}"></span>
+								</a>
+							</li>
+						</th:block>
+
 						<th:block sec:authorize="hasRole('ROLE_ADMINISTRATOR')">
 							<li class="nav-heading">
 								<span th:text="#{html.navbar.notification}"></span>
 							</li>
-							
+
 							<li th:class="${page == 'notificationSettings'} ? 'active' : ''">
 								<a th:href="@{/ui/admin/notificationsettings}">
 									<em class="fa fa-exclamation"></em>
 									<span th:text="#{html.setting.notification.title}"></span>
+								</a>
+							</li>
+
+							<li th:class="${page == 'vikarSettings'} ? 'active' : ''">
+								<a th:href="@{/ui/admin/vikarsettings}">
+									<em class="fa fa-exclamation"></em>
+									<span th:text="#{html.setting.vikar.title}"></span>
 								</a>
 							</li>
 						</th:block>
@@ -405,7 +444,7 @@
 							</li>
 
 							<li th:each="client : ${@clientService.findADSyncServices()}" th:class="${page == 'clients.adSyncService' + client.id} ? 'active' : ''">
-								<a th:href="'/ui/client/adsyncservice/' + ${client.id}" th:with="adError=${@ADConfigurationService.hasError(client)}">
+								<a th:href="@{'/ui/client/adsyncservice/' + ${client.id}}" th:with="adError=${@ADConfigurationService.hasError(client)}">
 									<em class="fa fa-list"></em>
 									<em class="fa fa-warning" th:if="${adError != null}" data-toggle="tooltip" data-placement="right" data-html="true" th:title="${adError}"></em>
 									<span th:text="${client.name}"></span>
@@ -413,11 +452,11 @@
 							</li>
 						</th:block>
 					</th:block>
-					
+
 					<li class="nav-heading">
 						<span th:text="#{html.navbar.actions}"></span>
 					</li>
-					
+
 					<li sec:authorize="!isAuthenticated()">
 						<a th:href="@{/ui/my}">
 							<em class="fa fa-sign-in"></em>
@@ -435,7 +474,7 @@
 				</ul>
 			</nav>
 		</div>
-	</aside>	
-		
+	</aside>
+
 </body>
 </html>

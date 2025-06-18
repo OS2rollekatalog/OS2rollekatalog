@@ -1,8 +1,7 @@
 package dk.digitalidentity.rc.dao;
 
-import org.springframework.data.repository.CrudRepository;
-
 import dk.digitalidentity.rc.dao.model.ManagerSubstitute;
+import org.springframework.data.repository.ListCrudRepository;
 
-public interface ManagerSubstituteDao extends CrudRepository<ManagerSubstitute, Long> {
+public interface ManagerSubstituteDao extends ListCrudRepository<ManagerSubstitute, Long> {
 }

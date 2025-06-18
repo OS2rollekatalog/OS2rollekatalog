@@ -13,6 +13,7 @@ import dk.digitalidentity.rc.dao.model.PostponedConstraint;
 import dk.digitalidentity.rc.dao.model.SystemRole;
 import dk.digitalidentity.rc.dao.model.SystemRoleAssignment;
 import dk.digitalidentity.rc.dao.model.UserRole;
+import dk.digitalidentity.rc.rolerequest.model.enums.RequesterOption;
 import dk.digitalidentity.rc.service.model.AssignedThrough;
 import dk.digitalidentity.rc.service.model.UserRoleAssignedToUser;
 import dk.digitalidentity.rc.service.model.UserRoleAssignmentWithInfo;
@@ -72,7 +73,7 @@ public abstract class RoleMapper {
                 .delegatedFromCvr(userRole.getDelegatedFromCvr())
                 .description(userRole.getDescription())
                 .userOnly(userRole.isUserOnly())
-                .canRequest(userRole.isCanRequest())
+                .canRequest(userRole.getRequesterPermission() != RequesterOption.NONE)
                 .sensitiveRole(userRole.isSensitiveRole())
                 .itSystemId(userRole.getItSystem().getId())
                 .systemRoleAssignments(userRole.getSystemRoleAssignments() != null

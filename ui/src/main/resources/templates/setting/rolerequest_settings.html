@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/header :: header (title=#{html.setting.title})}"></head>
+<body>
+<div class="wrapper">
+    <header th:replace="~{fragments/navbar :: navbar-header(subpage = 'administration')}"></header>
+    <aside th:replace="~{fragments/navbar :: navbar-aside (page = 'requestSettings', subpage = 'administration')}"></aside>
+
+    <section>
+        <div class="content-wrapper">
+            <h3 th:text="#{html.setting.rolerequest.title}"></h3>
+            <form id="setting-form" class="form-horizontal" method="post" th:action="@{/ui/settings/rolerequest}"
+                  th:object="${settingsForm}">
+				<input type="hidden" th:field="*{onlyRecommendRoles}" />
+                <div class="panel panel-default" style="padding-left: 20px; padding-right: 20px;">
+
+                    <!-- REQUESTER SETTINGS -->
+                    <div class="panel-heading">
+                        <h4 th:text="#{html.setting.rolerequest.request.title}"></h4>
+                    </div>
+
+                    <div class="panel-body">
+                        <fieldset>
+                            <div class="form-group">
+                                <label class="col-sm-3 control-label pt-1"
+                                       th:text="#{html.setting.rolerequest.request.requester.label}"
+                                       style="padding-top:0px;"></label>
+                                <div class="col-sm-8">
+                                    <div th:unless="${requestOpt == T(dk.digitalidentity.rc.rolerequest.model.enums.RequesterOption).INHERIT}" th:each="requestOpt : ${T(dk.digitalidentity.rc.rolerequest.model.enums.RequesterOption).values()}"
+                                         class="row">
+                                        <input th:id="${'requester_'+requestOpt}" class="i-checks" type="radio"
+                                               th:value="${requestOpt}" name="requester" style="width:3rem;"
+                                               th:field="*{requesterSetting}">
+                                        <label th:for="${'requester_'+requestOpt}" style="margin-bottom: 0"
+                                               th:text="#{__${requestOpt.getMessage()}__}"></label>
+										<div th:if="#{__${requestOpt.getDescription()}__} != ''" class="font-weight-light" style="margin-left: 32px; margin-bottom: 10px" th:text="#{__${requestOpt.getDescription()}__}"></div>
+                                    </div>
+
+                                </div>
+                            </div>
+                        </fieldset>
+
+                        <fieldset>
+                            <div class="form-group">
+                                <label class="col-sm-3 control-label pt-1"
+                                       th:text="#{html.setting.rolerequest.request.reason.label}"
+                                       style="padding-top:0px;"></label>
+                                <div class="col-sm-8">
+                                    <div  th:each="requestOpt : ${T(dk.digitalidentity.rc.rolerequest.model.enums.ReasonOption).values()}"
+                                         class="row">
+                                        <input th:id="${'reason_'+requestOpt}" class="i-checks" type="radio"
+                                               th:value="${requestOpt}" name="reason" style="width:3rem;"
+                                               th:field="*{reasonSetting}">
+                                        <label th:for="${'reason_'+requestOpt}" class=""
+                                               th:text="#{__${requestOpt.getMessage()}__}"></label>
+                                    </div>
+
+                                </div>
+                            </div>
+                        </fieldset>
+
+						<fieldset>
+							<div class="form-group">
+								<label class="col-sm-3 control-label pt-1"
+									   th:text="#{html.setting.rolerequest.request.onlyRecommendRoles.label}"
+									   style="padding-top:0px;"></label>
+								<div class="col-sm-8 row">
+									<div class="checkbox c-checkbox">
+										<label>
+											<input id="onlyRecommendRolesCheckbox" type="checkbox" th:attr="checked=${settingsForm.onlyRecommendRoles}" />
+											<span class="fa fa-check"></span>
+										</label>
+										<a th:replace="~{fragments/help :: help (title=#{html.setting.rolerequest.request.onlyRecommendRoles.label}, content=#{html.setting.rolerequest.request.onlyRecommendRoles.explainer})}"></a>
+									</div>
+								</div>
+							</div>
+						</fieldset>
+                    </div>
+                </div>
+
+
+                <!-- APPROVER SETTINGS -->
+                <div class="panel panel-default" style="padding-left: 20px; padding-right: 20px;">
+                    <div class="panel-heading">
+                        <h4 th:text="#{html.setting.rolerequest.approve.title}"></h4>
+                    </div>
+
+                    <div class="panel-body">
+                        <fieldset>
+                            <div class="form-group">
+                                <label class="col-sm-3 control-label pt-0"
+                                       th:text="#{html.setting.rolerequest.approve.approver.label}"
+                                       style="padding-top:0px;"></label>
+                                <div class="col-sm-8">
+                                    <div th:unless="${approverOpt == T(dk.digitalidentity.rc.rolerequest.model.enums.ApproverOption).INHERIT}" th:each="approverOpt : ${T(dk.digitalidentity.rc.rolerequest.model.enums.ApproverOption).values()}"
+                                         class="row gap-2 d-flex">
+                                        <input th:id="${'approver_'+approverOpt}" class="i-checks" type="radio"
+                                               th:value="${approverOpt}" name="approver" style="width:3rem;"
+                                               th:field="*{approverSetting}">
+                                        <label th:for="${'approver_'+approverOpt}" style="margin-bottom: 0"
+                                               th:text="#{__${approverOpt.getMessage()}__}"></label>
+										<div th:if="#{__${approverOpt.getDescription()}__} != ''" class="font-weight-light" style="margin-left: 32px; margin-bottom: 10px" th:text="#{__${approverOpt.getDescription()}__}"></div>
+                                    </div>
+
+                                </div>
+                            </div>
+                        </fieldset>
+                    </div>
+                </div>
+
+
+                <!-- CONSTRAINT  LIST SETTINGS -->
+                <div class="panel panel-default" style="padding-left: 20px; padding-right: 20px;">
+                    <div class="panel-heading">
+                        <h4 th:text="#{html.setting.rolerequest.constraint.title}"></h4>
+                    </div>
+
+                    <div class="panel-body">
+                        <fieldset>
+                            <div class="form-group">
+                                <label class="col-sm-3 control-label pt-0"
+                                       th:text="#{html.setting.rolerequest.constraint.label}"
+                                       style="padding-top:0px;"></label>
+                                <div class="col-sm-8">
+                                    <div class="" style="display:flex; margin-left:-15px; margin-right:-15px; gap:1rem; align-items:center; margin-bottom:1rem;">
+
+
+                                            <input id="constraintCreationInput" type="text" class="form-control"
+                                                   th:placeholder="#{html.setting.rolerequest.constraint.create.placeholder}">
+
+                                            <button id="createConstraintBtn" type="button"
+                                                    class="btn btn-primary btn-lg">
+                                                <em class="fa fa-plus-circle"></em>
+                                                <span th:text="#{html.setting.rolerequest.constraint.create}"></span>
+                                            </button>
+
+                                    </div>
+
+                                    <div class="row">
+                                        <select id="constraintList" class="form-control" multiple>
+                                            <option th:each="constraint : *{constraints}"
+                                                    th:value="${constraint.id}"
+                                                    th:text="${constraint.value}"></option>
+                                        </select>
+                                    </div>
+
+                                    <div class="row">
+                                        <button id="deleteConstraintBtn" type="button"
+                                                class="btn btn-primary btn-lg pull-right" style="margin-top:1rem;">
+                                            <em class="fa fa-times"></em>
+                                            <span th:text="#{html.setting.rolerequest.constraint.delete}"></span>
+                                        </button>
+                                    </div>
+
+
+                                </div>
+                            </div>
+                        </fieldset>
+                    </div>
+                </div>
+
+                <div class="panel panel-default" style="padding-left: 20px; padding-right: 20px;">
+                    <div class="panel-heading"></div>
+                    <div class="panel-body">
+                        <fieldset>
+                            <div class="form-group">
+                                <div class="col-md-offset-1 col-md-10">
+                                    <button type="submit" class="btn btn-primary btn-block"
+                                            th:text="#{html.control.button.save}"></button>
+                                </div>
+                            </div>
+                        </fieldset>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </section>
+</div>
+
+<div th:replace="~{fragments/footer :: footer}"></div>
+<script th:replace="~{fragments/assignDatePicker :: content}"></script>
+
+
+<style>
+    .error {
+        color: red;
+    }
+</style>
+
+<script th:inline="javascript">
+    /*<![CDATA[*/
+    /*[+
+        var token = $("meta[name='_csrf']").attr("content");
+        var deleteURL = [[@{/rest/rolerequest/constraint/delete}]];
+        var createURL = [[@{/rest/rolerequest/constraint/create}]];
+     +]*/
+
+    /*]]>*/
+</script>
+<script th:src="@{/js/rolerequest/settings.js}"></script>
+</body>
+</html>

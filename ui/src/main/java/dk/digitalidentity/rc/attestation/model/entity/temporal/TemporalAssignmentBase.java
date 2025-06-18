@@ -26,4 +26,5 @@ public class TemporalAssignmentBase {
     private LocalDate updatedAt;
     @Column
     private String recordHash;
+
 }

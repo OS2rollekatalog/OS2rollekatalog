@@ -12,7 +12,10 @@ public enum ReportType {
 	ITSYSTEMS_WITHOUT_ATTESTATION_RESPONSIBLE("html.report.itsystems_without_attestation_responsible"),
 	ITSYSTEMS_WITHOUT_ATTESTATION("html.report.itsystems_without_attestation"),
 	ITSYSTEM_SYSTEM_OWNERS("html.report.itsystem_system_owners"),
-	ITSYSTEM_ATTESTATION_RESPONSIBLE("html.report.itsystem_attestation_responsible");
+	ITSYSTEM_ATTESTATION_RESPONSIBLE("html.report.itsystem_attestation_responsible"),
+	ROLEREQUEST_AUTOMATIC_ROLES("html.report.rolerequest.automatic"),
+	ROLEREQUEST_REQUESTAUTHORIZED("html.report.rolerequest.request_authorized"),
+	ROLEREQUEST_AUTHORIZATION_MANAGERS("html.report.rolerequest.authorization_managers");
 
 	private String title;
 

@@ -1,196 +1,204 @@
 <!DOCTYPE html>
-<html>
+<html xmlns:th="http://www.thymeleaf.org">
 <head th:replace="~{fragments/header :: header (title=#{html.page.rolegroups.list.title})}"></head>
 <body class="layout-fixed">
-	<div class="wrapper">
-		<header th:replace="~{fragments/navbar :: navbar-header(subpage = 'roles')}"></header>
-		<aside th:replace="~{fragments/navbar :: navbar-aside (page = 'rolegroups.list', subpage = 'roles')}"></aside>
+<div class="wrapper">
+	<header th:replace="~{fragments/navbar :: navbar-header(subpage = 'roles')}"></header>
+	<aside th:replace="~{fragments/navbar :: navbar-aside (page = 'rolegroups.list', subpage = 'roles')}"></aside>
 
-		<section>
-			<div class="content-wrapper">
-				<div class="panel panel-default">
-					<div class="panel-heading"></div>
-					<div class="panel-body">
-						<div class="table-responsive">
-							<table id="listTable" class="table table-striped table-hover listTable">
-								<thead>
-									<tr>
-										<th class="col-md-4" th:text="#{html.entity.userrole.name}"></th>
-										<th th:class="'col-md-' + ${@settingsService.isRequestApproveEnabled() ? 6 : 7}" th:text="#{html.entity.userrole.description}"></th>
-										<th class="col-md-1" th:if="${@settingsService.isRequestApproveEnabled()}"  th:text="#{html.entity.userrole.canRequest}"></th>
-										<th class="col-md-1" th:text="#{html.control.operations}"></th>
-									</tr>
-								</thead>
+	<section>
+		<div class="content-wrapper">
+			<div class="panel panel-default">
+				<div class="panel-heading"></div>
+				<div class="panel-body">
+					<div class="table-responsive">
+						<table id="listTable" class="table table-striped table-hover listTable">
+							<thead>
+							<tr>
+								<th class="col-md-2" th:text="#{html.entity.userrole.name}"></th>
+								<th class="col-md-6" th:text="#{html.entity.userrole.description}"></th>
+								<th th:if="${@settingsService.isRequestApproveEnabled()}"
+									th:text="#{html.entity.userrole.requestpermission}"></th>
+								<th th:if="${@settingsService.isRequestApproveEnabled()}"
+									th:text="#{html.entity.userrole.approvepermission}"></th>
 
-								<tbody>
-									<tr th:each="roleGroup : ${roleGroups}">
-										<td th:text="${roleGroup.name}"></td>
-										<td th:text="${roleGroup.description}"></td>
-										<td th:if="${@settingsService.isRequestApproveEnabled()}">
-											<em th:if="${roleGroup.canRequest}" class="fa fa-check"></em>
-										</td>
-										<td>
-											<a th:href="@{/ui/rolegroups/view/{id}(id=${roleGroup.id})}"><em class="fa fa-search"></em></a>
-											<th:block sec:authorize="hasRole('ROLE_ADMINISTRATOR')">
-												<a th:href="@{/ui/rolegroups/edit/{id}(id=${roleGroup.id})}"><em class="fa fa-pencil"></em></a>
-												<a href="#" class="openConfirmDeleteDialog" th:attr="data-id=${roleGroup.id}"><em class="fa fa-remove"></em></a>
-											</th:block>
-										</td>
-									</tr>
-								</tbody>
-								<tfoot>
-									<tr>
-										<th class="input-filter"></th>
-										<th class="input-filter"></th>
-										<th th:if="${@settingsService.isRequestApproveEnabled()}">&nbsp;</th>
-										<th>&nbsp;</th>
-									</tr>
-								</tfoot>
-							</table>
-						</div>
+								<th class="col-md-1" th:text="#{html.control.operations}"></th>
+							</tr>
+							</thead>
+
+							<tbody>
+							<tr th:each="roleGroup : ${roleGroups}">
+								<td th:text="${roleGroup.name}"></td>
+								<td th:text="${roleGroup.description}"></td>
+								<td th:if="${@settingsService.isRequestApproveEnabled()}"
+									th:text=" #{__${roleGroup.requesterPermission.getMessage()}__}"></td>
+								<td th:if="${@settingsService.isRequestApproveEnabled()}"
+									th:text="#{__${roleGroup.approverPermission.getMessage()}__}"></td>
+								<td>
+									<a th:href="@{/ui/rolegroups/view/{id}(id=${roleGroup.id})}"><em
+										class="fa fa-search"></em></a>
+									<th:block sec:authorize="hasRole('ROLE_ADMINISTRATOR')">
+										<a th:href="@{/ui/rolegroups/edit/{id}(id=${roleGroup.id})}"><em
+											class="fa fa-pencil"></em></a>
+										<a href="#" class="openConfirmDeleteDialog"
+										   th:attr="data-id=${roleGroup.id}"><em class="fa fa-remove"></em></a>
+									</th:block>
+								</td>
+							</tr>
+							</tbody>
+							<tfoot>
+							<tr>
+								<th class="input-filter"></th>
+								<th class="input-filter"></th>
+								<th th:if="${@settingsService.isRequestApproveEnabled()}">&nbsp;</th>
+								<th>&nbsp;</th>
+							</tr>
+							</tfoot>
+						</table>
 					</div>
 				</div>
 			</div>
-		</section>
-	</div>
+		</div>
+	</section>
+</div>
 
-	<nav th:replace="~{fragments/footer :: footer}"></nav>
+<nav th:replace="~{fragments/footer :: footer}"></nav>
 
-	<script th:replace="~{fragments/datatables :: datatables}"></script>
-	<script th:inline="javascript">
-		/*<![CDATA[*/
-			
-		// This method replaces occurence of {0} with text from parameter
-		String.prototype.format = function () {
-				var args = [].slice.call(arguments);
-				return this.replace(/(\{\d+\})/g, function (a) {
-						return args[+(a.substr(1,a.length-2))||0];
-				});
-		};
+<script th:replace="~{fragments/datatables :: datatables}"></script>
+<script th:inline="javascript">
+	/*<![CDATA[*/
 
-		$("document").ready(function() {
-			// 1. Setup - add a text input to each footer cell
-			$('#listTable tfoot th').each( function () {
-				if ($(this).hasClass('input-filter')) {
-					$(this).html('<input type="text" class="form-control input-sm" placeholder="Søg" />');
-				}
+	// This method replaces occurence of {0} with text from parameter
+	String.prototype.format = function () {
+			var args = [].slice.call(arguments);
+			return this.replace(/(\{\d+\})/g, function (a) {
+					return args[+(a.substr(1,a.length-2))||0];
 			});
+	};
 
-			var table = $('#listTable').DataTable();
-			
-			// 2. move search boxes to top
-			var r = $('#listTable tfoot tr');
-			r.find('th').each(function(){
-				$(this).css('padding', 8);
-			});
-			$('#listTable thead').append(r);
-			$('#search_0').css('text-align', 'center');
+	$("document").ready(function() {
+		// 1. Setup - add a text input to each footer cell
+		$('#listTable tfoot th').each( function () {
+			if ($(this).hasClass('input-filter')) {
+				$(this).html('<input type="text" class="form-control input-sm" placeholder="Søg" />');
+			}
+		});
 
-		    // 2.5 Restore state
-		    var state = table.state.loaded();
-		    if (state) {
-		      table.columns().eq(0).each(function(colIdx) {
-		        var colSearch = state.columns[colIdx].search;
-		        
-		        if (colSearch.search) {
-		          $('input', table.column(colIdx).footer()).val(colSearch.search);
-		        }
-		      });
+		var table = $('#listTable').DataTable();
 
-		      table.draw();
-		    }
+		// 2. move search boxes to top
+		var r = $('#listTable tfoot tr');
+		r.find('th').each(function(){
+			$(this).css('padding', 8);
+		});
+		$('#listTable thead').append(r);
+		$('#search_0').css('text-align', 'center');
 
-			// 3. Apply the search
-			$.each($('.input-filter', table.table().header()), function () {
-				var column = table.column($(this).index());
+		// 2.5 Restore state
+		var state = table.state.loaded();
+		if (state) {
+		  table.columns().eq(0).each(function(colIdx) {
+			var colSearch = state.columns[colIdx].search;
 
-				$('input', this).on('keyup change', function () {
-					if (column.search() !== this.value) {
-						column
-							.search(this.value)
-							.draw();
-					}
-				});
-			});
+			if (colSearch.search) {
+			  $('input', table.column(colIdx).footer()).val(colSearch.search);
+			}
+		  });
 
-			$(document.body).on('click', '.openConfirmDeleteDialog', function(e) {
-				e.preventDefault();
+		  table.draw();
+		}
 
-				var id = $(this).data('id');
+		// 3. Apply the search
+		$.each($('.input-filter', table.table().header()), function () {
+			var column = table.column($(this).index());
 
-				/*[+
-					var tryDeleteURI = [[@{/rest/rolegroups/trydelete/}]] + id;
-					var url = [[@{/ui/rolegroups/list}]];
-					var deleteURI = [[@{/rest/rolegroups/delete/}]] + id;
-					var titleTxt = [[#{html.entity.rolegroup.delete.confirm.title}]];
-					var bodyTxt = [[#{html.entity.rolegroup.delete.confirm.body}]];
-					var bodyTxtAdditional = [[#{html.entity.rolegroup.delete.confirm.body.additional}]];
-					var cancelTxt = [[#{html.control.button.cancel}]];
-					var confirmTxt = [[#{html.control.button.delete}]];
-					var errorMsg = [[#{html.default.message.error}]];
-				+]*/
-				var token = $("meta[name='_csrf']").attr("content");
-
-				function getAjaxObject(urL) {
-					return {
-						url : urL,
-						cache : false,
-						error : errorCallback,
-						success : successCallback
-					}
+			$('input', this).on('keyup change', function () {
+				if (column.search() !== this.value) {
+					column
+						.search(this.value)
+						.draw();
 				}
-
-				function successCallback(result) {
-					if (result.success==false) {
-						var ous = "Enheder: " + result.ous;;
-						var users = "Brugere: " + result.users;
-
-						bodyTxt = bodyTxtAdditional.format(ous, users);
-					}
-
-					swal({
-						html: true,
-						title : titleTxt,
-						text : bodyTxt,
-						type : "warning",
-						showCancelButton : true,
-						confirmButtonColor : "#DD6B55",
-						confirmButtonText : confirmTxt,
-						cancelButtonText : cancelTxt,
-						closeOnConfirm : true,
-						closeOnCancel : true
-					},
-					function(isConfirm) {
-						if (isConfirm) {
-							$.ajax({
-								type: "POST",
-								url: deleteURI,
-								headers: {
-									'X-CSRF-TOKEN': token
-								},
-								success:
-									function(){	window.location.href = url;},
-								error: defaultErrorHandler
-							});
-
-						}
-					});
-				}
-
-				function errorCallback(result) {
-					$.notify({
-						message : errorMsg
-					},
-					{
-						status : 'danger',
-						autoHideDelay : 4000
-					});
-				}
-
-				$.ajax(getAjaxObject(tryDeleteURI));
 			});
 		});
-		/*]]>*/
-	</script>
+
+		$(document.body).on('click', '.openConfirmDeleteDialog', function(e) {
+			e.preventDefault();
+
+			var id = $(this).data('id');
+
+			/*[+
+				var tryDeleteURI = [[@{/rest/rolegroups/trydelete/}]] + id;
+				var url = [[@{/ui/rolegroups/list}]];
+				var deleteURI = [[@{/rest/rolegroups/delete/}]] + id;
+				var titleTxt = [[#{html.entity.rolegroup.delete.confirm.title}]];
+				var bodyTxt = [[#{html.entity.rolegroup.delete.confirm.body}]];
+				var bodyTxtAdditional = [[#{html.entity.rolegroup.delete.confirm.body.additional}]];
+				var cancelTxt = [[#{html.control.button.cancel}]];
+				var confirmTxt = [[#{html.control.button.delete}]];
+				var errorMsg = [[#{html.default.message.error}]];
+			+]*/
+			var token = $("meta[name='_csrf']").attr("content");
+
+			function getAjaxObject(urL) {
+				return {
+					url : urL,
+					cache : false,
+					error : errorCallback,
+					success : successCallback
+				}
+			}
+
+			function successCallback(result) {
+				if (result.success==false) {
+					var ous = "Enheder: " + result.ous;;
+					var users = "Brugere: " + result.users;
+
+					bodyTxt = bodyTxtAdditional.format(ous, users);
+				}
+
+				swal({
+					html: true,
+					title : titleTxt,
+					text : bodyTxt,
+					type : "warning",
+					showCancelButton : true,
+					confirmButtonColor : "#DD6B55",
+					confirmButtonText : confirmTxt,
+					cancelButtonText : cancelTxt,
+					closeOnConfirm : true,
+					closeOnCancel : true
+				},
+				function(isConfirm) {
+					if (isConfirm) {
+						$.ajax({
+							type: "POST",
+							url: deleteURI,
+							headers: {
+								'X-CSRF-TOKEN': token
+							},
+							success:
+								function(){	window.location.href = url;},
+							error: defaultErrorHandler
+						});
+
+					}
+				});
+			}
+
+			function errorCallback(result) {
+				$.notify({
+					message : errorMsg
+				},
+				{
+					status : 'danger',
+					autoHideDelay : 4000
+				});
+			}
+
+			$.ajax(getAjaxObject(tryDeleteURI));
+		});
+	});
+	/*]]>*/
+</script>
 </body>
 </html>

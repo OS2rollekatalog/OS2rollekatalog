@@ -40,7 +40,7 @@
                                 </div>
                             </div>
                         </fieldset>
-                        
+
 						<fieldset>
 							<div class="form-group">
 								<label class="col-sm-2 control-label" th:text="#{html.role.flag.useronly}"></label>
@@ -52,20 +52,42 @@
 										</label>
 									</div>
 								</div>
-								
-								<label class="col-sm-2 control-label" th:text="#{html.role.flag.canrequest}"></label>
-								<div class="col-sm-1">
-									<div class="checkbox c-checkbox">
-										<label>
-											<input class="canrequest-checkbox" type="checkbox" data-flag="canrequest" th:attr="checked=${rolegroup.canRequest}" />
-											<span class="fa fa-check"></span>
-										</label>
-									</div>
+
+							</div>
+						</fieldset>
+
+						<fieldset th:if="${@settingsService.isRequestApproveEnabled()}">
+							<div class="form-group">
+
+								<label class="col-sm-2 control-label"
+									   th:text="#{html.entity.itsystem.requestersetting}"></label>
+								<div class="col-sm-8">
+									<select id="requesterSettingsSelect" class="form-control"
+											th:field="*{requesterPermission}"
+											th:attr="data-groupid=${rolegroup.id}">
+										<option th:each="requesterOpt : ${T(dk.digitalidentity.rc.rolerequest.model.enums.RequesterOption).values()}"
+												th:value="${requesterOpt}"
+												th:text="#{__${requesterOpt.getMessage()}__}"></option>
+									</select>
+
+								</div>
+							</div>
+							<div class="form-group mt-3" style="margin-top:1.5rem;">
+								<label class="col-sm-2 control-label"
+									   th:text="#{html.entity.itsystem.approversetting}"></label>
+								<div class="col-sm-8">
+									<select id="approverSettingsSelect" class="form-control"
+											th:field="*{approverPermission}"
+											th:attr="data-groupid=${rolegroup.id}">
+										<option th:each="approverOpt : ${T(dk.digitalidentity.rc.rolerequest.model.enums.ApproverOption).values()}"
+												th:value="${approverOpt}"
+												th:text="#{__${approverOpt.getMessage()}__}"></option>
+									</select>
 								</div>
 							</div>
 						</fieldset>
                     </form>
-					
+
 					<ul class="nav nav-tabs">
 						<li th:class="active">
                            	<a data-toggle="tab" href="#roles_menu" th:text="#{html.page.rolegroup.list.roles}"></a>
@@ -77,7 +99,7 @@
                           	<a data-toggle="tab" id="outab" href="#ous_menu" th:text="#{html.page.userroles.edit.tab.ous}"></a>
                        </li>
                     </ul>
-                    
+
                     <div class="tab-content">
 						<div id="roles_menu" class="tab-pane fade in active">
 		                    <table id="listTable" class="table table-striped table-hover listTable">
@@ -89,14 +111,33 @@
 		                            <th class="col-md-3" th:text="#{html.entity.rolegroup.description}"></th>
 		                        </tr>
 		                        </thead>
+
 		                        <tbody>
+		                        <tr th:each="addRole : ${roles}" th:id="${addRole.role.id}+'row'">
+									<td>
+										<div>
+											<div class="checkbox c-checkbox">
+												<label>
+													<input class="checkboxaction" th:id="${addRole.role.id}" type="checkbox"
+															th:value="${rolegroup.id}" th:checked="${addRole.checked}" th:disabled="${addRole.role.itSystem.readonly}"
+																data-objtype="role"/>
+														<span class="fa fa-check"></span>
+												</label>
+											</div>
+										</div>
+										<label th:id="${addRole.role.id}+'sortLabel'" style="display:none" th:text="${addRole.checked}"></label>
+									</td>
+		                            <td th:text="${addRole.role.name}"></td>
+		                            <td th:text="${addRole.role.itSystem.name}"></td>
+		                            <td th:text="${addRole.role.description}"></td>
+		                        </tr>
 		                        </tbody>
 		                    </table>
 						</div>
-						
+
 						<div id="users_menu" class="tab-pane fade">
 						</div>
-						
+
 						<div id="ous_menu" class="tab-pane fade">
 						</div>
 					</div>
@@ -106,7 +147,7 @@
     </section>
 </div>
 
-	<!-- TODO: we need to add some styling that makes the datepickers show at the bottom and overflowing the modal 
+	<!-- TODO: we need to add some styling that makes the datepickers show at the bottom and overflowing the modal
 	The modal ou_roles_modal shows at the top-->
 	<style>
 		.table .checkbox {
@@ -120,394 +161,454 @@
 	<div id="ouRoleGroupEditModal"></div>
 	<div th:replace="~{users/fragments/role_assignment_edit_modal :: roleAssignmentEditModal}"></div>
 	<nav th:replace="~{fragments/footer :: footer}"></nav>
-	
+
 	<script th:replace="~{fragments/datatables :: datatables(orderColumnValue=1)}"></script>
 	<script th:replace="~{fragments/assignDatePicker :: content}"></script>
-	
+
 	<script th:replace="~{ous/fragments/ou_roles_modal :: ouRolesModalScript(titlesEnabled=${titlesEnabled})}"></script>
 	<script th:replace="~{users/fragments/role_assignment_edit_modal :: roleAssignmentEditModalScript(missingPostponedConstraintService = true)}"></script>
 	<script th:replace="~{users/fragments/user_role_group_modal :: userRoleGroupModalScript}"></script>
-	<script th:src="@{/js/service/DatatableService.js}"></script>
+	<script th:src="@{/js/DatatableService.js}"></script>
 
 	<script th:inline="javascript">
 		/*<![CDATA[*/
-			
-			/*[+
-				var url = [[@{/rest/rolegroups/}]];
-				var roleId = [[${rolegroup.id}]];
-				var fieldUpdatedMsg = [[#{html.entity.rolegroup.updatedmsg}]];
-				var fieldNotUpdatedMsg = [[#{html.entity.rolegroup.failedupdatemsg}]];
 
-				var UIUrl = [[@{/ui/rolegroups/}]];
-				var userRestUrl = [[@{/rest/users/}]];
-				var ouRestUrl = [[@{/rest/ous/}]];
-				
-				//Delete role assignment swal
-				var deleteRoleAssignmentTitleTxt = [[#{html.page.manage.roles.delete.title}]];
-				var deleteRoleAssignmentBodyTxt = [[#{html.page.manage.roles.delete.body}]];
-				var deleteRoleAssignmentErrorMessage = [[#{html.page.manage.roles.delete.error}]];
-				
-				var deleteAssignmentConfirmTxt = [[#{html.control.button.yes}]];
-				var deleteAssignmentCancelTxt = [[#{html.control.button.cancel}]];
-				
-				var titlesEnabled = [[${titlesEnabled}]];
-				var roleId = [[${rolegroup.id}]];
+        /*[+
+        var url = [[@{/rest/rolegroups/}]];
+        var roleId = [[${rolegroup.id}]];
+        var fieldUpdatedMsg = [[#{html.entity.rolegroup.updatedmsg}]];
+        var fieldNotUpdatedMsg = [[#{html.entity.rolegroup.failedupdatemsg}]];
+
+        var UIUrl = [[@{/ui/rolegroups/}]];
+        var userRestUrl = [[@{/rest/users/}]];
+        var ouRestUrl = [[@{/rest/ous/}]];
+
+        //Delete role assignment swal
+        var deleteRoleAssignmentTitleTxt = [[#{html.page.manage.roles.delete.title}]];
+        var deleteRoleAssignmentBodyTxt = [[#{html.page.manage.roles.delete.body}]];
+        var deleteRoleAssignmentErrorMessage = [[#{html.page.manage.roles.delete.error}]];
+
+        var deleteAssignmentConfirmTxt = [[#{html.control.button.yes}]];
+        var deleteAssignmentCancelTxt = [[#{html.control.button.cancel}]];
+
+        var titlesEnabled = [[${titlesEnabled}]];
+        var roleId = [[${rolegroup.id}]];
 				let userroleTableService;
-			+]*/
+        +]*/
 
-			var token = $("meta[name='_csrf']").attr("content");
-			
-			var userService = new UserService();
-			var orgUnitService = new OrgUnitService();
-			var notificationService = new NotificationService();
-			
-			$("document").ready( function() {
+        var token = $("meta[name='_csrf']").attr("content");
+
+        var userService = new UserService();
+        var orgUnitService = new OrgUnitService();
+        var notificationService = new NotificationService();
+        let userRoleTable;
+
+        $("document").ready( function() {
 				userroleTableService = new UserroleTableService()
 				userroleTableService.onDocumentReady()
 				userroleTableService.initUserroleTable(roleId)
 
 
-				userService.loadRolesFragment();
-				// edit RoleGroup assignemnet on User modal
-				userRoleEditModalService.parentService = userService;
-				
-				orgUnitService.loadRolesFragment();
-				// edit RoleGroup assignmnet on OrgUnit modal
-				commonService.parentService = orgUnitService;
+            userService.loadRolesFragment();
+            // edit RoleGroup assignemnet on User modal
+            userRoleEditModalService.parentService = userService;
 
-				$("#name").change(handleChangeOnInput);
-				$("#description").change(handleChangeOnInput);
-				
-				$('.useronly-checkbox').change(flagCheckboxChange);
-				$('.useronly-checkbox').change(handleOUBtn);
-				$('.canrequest-checkbox').change(flagCheckboxChange);
+            orgUnitService.loadRolesFragment();
+            // edit RoleGroup assignmnet on OrgUnit modal
+            commonService.parentService = orgUnitService;
 
-				addCheckboxListeners();
+            $("#name").change(handleChangeOnInput);
+            $("#description").change(handleChangeOnInput);
 
-			});
+            $('.useronly-checkbox').change(flagCheckboxChange);
+            $('.useronly-checkbox').change(handleOUBtn);
+            $('#requesterSettingsSelect').change(handleRoleGroupRequesterPermissionChange);
+            $('#approverSettingsSelect').change(handleRoleGroupApproverPermissionChange);
 
-			function handleChangeOnInput() {
-				var objId = $("#id").val();
-				var objName = $("#name").val();
-				var objDescription = $("#description").val();
+            addCheckboxListeners();
 
-				var roleGroup = {
-					id: objId,
-					name: objName,
-					description: objDescription
-				};
+            });
 
-				$.ajax({
-					url: url + 'edit',
-					method: 'POST',
-					headers: {
-						'X-CSRF-TOKEN': token
-					},
-					data: roleGroup,
-					error: errorHandler(fieldNotUpdatedMsg),
-					success: function(response) {
-						notificationService.showInfoNotification(fieldUpdatedMsg);
-					}
-				});
-			};
+            function handleChangeOnInput() {
+                var objId = $("#id").val();
+                var objName = $("#name").val();
+                var objDescription = $("#description").val();
 
-			function getAjaxObject(urL, okMsg, errorMsg){
-				return {
-					url: urL,
-					method: 'POST',
-					headers: {
-						'X-CSRF-TOKEN': token
-					},
-					error: errorHandler(errorMsg),
-					success: function(response) {
-						notificationService.showInfoNotification(okMsg);
-					}
-				}
-			};
+                var roleGroup = {
+                    id: objId,
+                    name: objName,
+                    description: objDescription
+                };
 
-			function handleCheckboxChange() {
-				var objType = String(this.dataset.objtype)
-				if (this.checked) {
-					$.ajax(getAjaxObject(url + 'add' + objType + '/' + this.value + '/' + this.id,fieldUpdatedMsg, fieldNotUpdatedMsg));
-				}
-				else {
-					$.ajax(getAjaxObject(url + 'remove' + objType + '/' + this.value + '/' + this.id,fieldUpdatedMsg, fieldNotUpdatedMsg));
-				}
+                $.ajax({
+                    url: url + 'edit',
+                    method: 'POST',
+                    headers: {
+                        'X-CSRF-TOKEN': token
+                    },
+                    data: roleGroup,
+                    error: errorHandler(fieldNotUpdatedMsg),
+                    success: function(response) {
+                        notificationService.showInfoNotification(fieldUpdatedMsg);
+                    }
+                });
+            };
 
-				var label = $("#"+this.id+"sortLabel");
-				label.text(this.checked);
-				$("#listTable").dataTable().api().row("#"+this.id+"row").invalidate('dom').draw();
-			}
+            function getAjaxObject(urL, okMsg, errorMsg){
+                return {
+                    url: urL,
+                    method: 'POST',
+                    headers: {
+                        'X-CSRF-TOKEN': token
+                    },
+                    error: errorHandler(errorMsg),
+                    success: function(response) {
+                        notificationService.showInfoNotification(okMsg);
+                    }
+                }
+            };
 
-			function flagCheckboxChange() {
-				var flag = String(this.dataset.flag);
-				var updateUrl = url + "flag/" + roleId + "/" + flag;
+            function handleCheckboxChange() {
+                var objType = String(this.dataset.objtype)
+                if (this.checked) {
+                    $.ajax(getAjaxObject(url + 'add' + objType + '/' + this.value + '/' + this.id,fieldUpdatedMsg, fieldNotUpdatedMsg));
+                }
+                else {
+                    $.ajax(getAjaxObject(url + 'remove' + objType + '/' + this.value + '/' + this.id,fieldUpdatedMsg, fieldNotUpdatedMsg));
+                }
 
-				if (this.checked) {
-					updateUrl = updateUrl + "?active=true";
-				}
-				else {
-					updateUrl = updateUrl + "?active=false";
-				}
+                var label = $("#"+this.id+"sortLabel");
+                label.text(this.checked);
 
-				$.ajax({
-					url: updateUrl,
-					method: "POST",
-					headers: {
-						'X-CSRF-TOKEN': token
-					},
-					error: defaultErrorHandler,
-					success: function(response) {
-						notificationService.showInfoNotification(fieldUpdatedMsg);
-					}
-				});
-			}
+            }
 
-			function handleOUBtn() {
-				orgUnitService.loadRolesFragment();
-			}
+            function flagCheckboxChange() {
+                var flag = String(this.dataset.flag);
+                var updateUrl = url + "flag/" + roleId + "/" + flag;
+
+                if (this.checked) {
+                    updateUrl = updateUrl + "?active=true";
+                }
+                else {
+                    updateUrl = updateUrl + "?active=false";
+                }
+
+                $.ajax({
+                    url: updateUrl,
+                    method: "POST",
+                    headers: {
+                        'X-CSRF-TOKEN': token
+                    },
+                    error: defaultErrorHandler,
+                    success: function(response) {
+                        notificationService.showInfoNotification(fieldUpdatedMsg);
+                    }
+                });
+            }
+
+            function handleOUBtn() {
+                orgUnitService.loadRolesFragment();
+            }
 
 			function addCheckboxListeners() {
 				$('.checkboxaction').off("change");
 				$('.checkboxaction').change(handleCheckboxChange);
 			}
 
-			function UserService() {
-				/*[+
-				var userRestUrl = [[@{/rest/users/}]];
-				var deleteRoleAssignmentTitleTxt = [[#{html.page.manage.roles.delete.title}]];
-				var deleteRoleAssignmentBodyTxt = [[#{html.page.manage.roles.delete.body}]];
-				var deleteRoleAssignmentErrorMessage = [[#{html.page.manage.roles.delete.error}]];
-				var deleteRoleAssignmentSuccessMessage = [[#{html.page.manage.roles.delete.success}]];
-				var yesBtnTxt = [[#{html.control.button.yes}]];
-				var cancelBtnTxt = [[#{html.control.button.cancel}]];
-				+]*/
+        function UserService() {
+            /*[+
+            var userRestUrl = [[@{/rest/users/}]];
+            var deleteRoleAssignmentTitleTxt = [[#{html.page.manage.roles.delete.title}]];
+            var deleteRoleAssignmentBodyTxt = [[#{html.page.manage.roles.delete.body}]];
+            var deleteRoleAssignmentErrorMessage = [[#{html.page.manage.roles.delete.error}]];
+            var deleteRoleAssignmentSuccessMessage = [[#{html.page.manage.roles.delete.success}]];
+            var yesBtnTxt = [[#{html.control.button.yes}]];
+            var cancelBtnTxt = [[#{html.control.button.cancel}]];
+            +]*/
 
-				this.loadRolesFragment = function () {
-					$("#users_menu").load(UIUrl + roleId + "/assignedUsersFragment?showEdit=true", function () {
-						fragShowDataTableFun('#listTableUsers', 0);
-					});
-				}
+            this.loadRolesFragment = function () {
+                $("#users_menu").load(UIUrl + roleId + "/assignedUsersFragment?showEdit=true", function () {
+                    fragShowDataTableFun('#listTableUsers', 0);
+                });
+            }
 
-				this.loadAddUserRoleFragment = function () {
-					$("#users_menu").load(UIUrl + roleId + "/availableUsersFragment", function () {
-						fragShowDataTableFun('#listTableUsersAdd', 0);
-					});
-				}
+            this.loadAddUserRoleFragment = function () {
+                $("#users_menu").load(UIUrl + roleId + "/availableUsersFragment", function () {
+                    fragShowDataTableFun('#listTableUsersAdd', 0);
+                });
+            }
 
-				this.deleteRoleAssignment = function(elem) {
-					var parent = elem.parentElement;
-					var assignmentId = parent.dataset.assignmentid;
-					var user = parent.dataset.user;
-					var type = parent.dataset.type;
-					var roleName = parent.dataset.name;
+            this.deleteRoleAssignment = function(elem) {
+                var parent = elem.parentElement;
+                var assignmentId = parent.dataset.assignmentid;
+                var user = parent.dataset.user;
+                var type = parent.dataset.type;
+                var roleName = parent.dataset.name;
 
-					var endpoint = userRestUrl + user + '/removeassignment/ROLEGROUP/DIRECT/' + assignmentId;
+                var endpoint = userRestUrl + user + '/removeassignment/ROLEGROUP/DIRECT/' + assignmentId;
 
-					var titleTxt = deleteRoleAssignmentTitleTxt + '"' + roleName + '"';
-					var bodyTxt = deleteRoleAssignmentBodyTxt;
-					
-					swal({
-						html: true,
-						title : titleTxt,
-						text : bodyTxt,
-						type : "warning",
-						showCancelButton : true,
-						confirmButtonColor : "#DD6B55",
-						confirmButtonText : yesBtnTxt,
-						cancelButtonText : cancelBtnTxt,
-						closeOnConfirm : true,
-						closeOnCancel : true
-					},
-					function (isConfirm) {
-						if (isConfirm) {
-							$.ajax({
-								url: endpoint,
-								method: "POST",
-								headers: {
-									'X-CSRF-TOKEN': token
-								},
-								error: errorHandler(deleteRoleAssignmentErrorMessage),
-								success: function(response) {
-									userService.loadRolesFragment();
+                var titleTxt = deleteRoleAssignmentTitleTxt + '"' + roleName + '"';
+                var bodyTxt = deleteRoleAssignmentBodyTxt;
 
-									notificationService.showInfoNotification(deleteRoleAssignmentSuccessMessage);
-								}
-							});
-						}
-					});
-				}
+                swal({
+                    html: true,
+                    title : titleTxt,
+                    text : bodyTxt,
+                    type : "warning",
+                    showCancelButton : true,
+                    confirmButtonColor : "#DD6B55",
+                    confirmButtonText : yesBtnTxt,
+                    cancelButtonText : cancelBtnTxt,
+                    closeOnConfirm : true,
+                    closeOnCancel : true
+                },
+                function (isConfirm) {
+                    if (isConfirm) {
+                        $.ajax({
+                            url: endpoint,
+                            method: "POST",
+                            headers: {
+                                'X-CSRF-TOKEN': token
+                            },
+                            error: errorHandler(deleteRoleAssignmentErrorMessage),
+                            success: function(response) {
+                                userService.loadRolesFragment();
 
-				this.editRoleAssignment = function (elem) {
-					var parent = elem.parentElement;
-					var assignmentId = parent.dataset.assignmentid;
-					var startDate = parent.dataset.startdate;
-					var stopDate = parent.dataset.stopdate;
-					var user = parent.dataset.user;
-					var type = 'ROLEGROUP';
-					var orgUnit = parent.dataset.ouuuid;
+                                notificationService.showInfoNotification(deleteRoleAssignmentSuccessMessage);
+                            }
+                        });
+                    }
+                });
+            }
 
-					// fetch possible orgUnits and call service
-					$.ajax({
-						method: "GET",
-						url: userRestUrl + user + "/orgunits",
-						success: function (response) {
-							userRoleEditModalService.showModal(user, startDate, stopDate, type, assignmentId, 'DIRECT', orgUnit, response);
-						}
-					});
-				}
+            this.editRoleAssignment = function (elem) {
+                var parent = elem.parentElement;
+                var assignmentId = parent.dataset.assignmentid;
+                var startDate = parent.dataset.startdate;
+                var stopDate = parent.dataset.stopdate;
+                var user = parent.dataset.user;
+                var type = 'ROLEGROUP';
+                var orgUnit = parent.dataset.ouuuid;
 
-				this.addRoleGroup = function (elem) {
-					var user = elem.dataset.user;
-					$("#userRoleGroupModal").load(UIUrl + "fragments/" + user, function(){
-						var modalGroups = $("#modal-groups");
-						datePickerService.init();
-						roleGroupModalService.init();
-						roleGroupModalService.parentService = userService;
+                // fetch possible orgUnits and call service
+                $.ajax({
+                    method: "GET",
+                    url: userRestUrl + user + "/orgunits",
+                    success: function (response) {
+							userRoleEditModalService.showModal(user, startDate, stopDate, type, assignmentId, 'DIRECT', orgUnit, response, null);
+                    }
+                });
+            }
 
-						modalGroups.modal({
-						    backdrop: 'static',
-						    keyboard: false
-						});
+            this.addRoleGroup = function (elem) {
+                var user = elem.dataset.user;
+                $("#userRoleGroupModal").load(UIUrl + "fragments/" + user, function(){
+                    var modalGroups = $("#modal-groups");
+                    datePickerService.init();
+                    roleGroupModalService.init();
+                    roleGroupModalService.parentService = userService;
 
-						$('#groupStopDatePicker').data("DateTimePicker").clear();
-						$('#groupStartDatePicker').data("DateTimePicker").clear();
-						$('#groupStartDatePicker').data("DateTimePicker").date(new Date());
+                    modalGroups.modal({
+                        backdrop: 'static',
+                        keyboard: false
+                    });
 
-						modalGroups.attr("rolegroupid", roleId);
-						modalGroups.attr("userUuid", user);
-					});
-				}
-			}
+                    $('#groupStopDatePicker').data("DateTimePicker").clear();
+                    $('#groupStartDatePicker').data("DateTimePicker").clear();
+                    $('#groupStartDatePicker').data("DateTimePicker").date(new Date());
 
-			function OrgUnitService() {
-			/*[+
-				var ouRestUrl = [[@{/rest/ous/}]];
-				var deleteRoleAssignmentTitleTxt = [[#{html.page.manage.roles.delete.title}]];
-				var deleteRoleAssignmentBodyTxt = [[#{html.page.manage.roles.delete.body}]];
-				var deleteRoleAssignmentErrorMessage = [[#{html.page.manage.roles.delete.error}]];
-				var deleteRoleAssignmentSuccessMessage = [[#{html.page.manage.roles.delete.success}]];
-				var yesBtnTxt = [[#{html.control.button.yes}]];
-				var cancelBtnTxt = [[#{html.control.button.cancel}]];
-			+]*/
+                    modalGroups.attr("rolegroupid", roleId);
+                    modalGroups.attr("userUuid", user);
+                });
+            }
+        }
 
-				this.loadRolesFragment = function () {
-					$("#ous_menu").load(UIUrl + roleId + "/assignedOrgUnitsFragment?showEdit=true", function () {
-						fragShowDataTableFun('#listTableOus', 0);
-					});
-				}
-				
-				this.loadAddRoleGroupFragment = function () {
-					$("#ous_menu").load(UIUrl + roleId + "/availableOrgUnitsFragment", function () {
-						fragShowDataTableFun('#listTableOusAdd', 0);
-					});
-				}
-				
-				this.deleteRoleAssignment = function(elem) {
-					var parent = elem.parentElement;
-					var assignmentId = parent.dataset.assignmentid;
-					var type = parent.dataset.type;
-					var ou = parent.dataset.orgunit;
-					var roleName = parent.dataset.name;
+        function OrgUnitService() {
+            /*[+
+            var ouRestUrl = [[@{/rest/ous/}]];
+            var deleteRoleAssignmentTitleTxt = [[#{html.page.manage.roles.delete.title}]];
+            var deleteRoleAssignmentBodyTxt = [[#{html.page.manage.roles.delete.body}]];
+            var deleteRoleAssignmentErrorMessage = [[#{html.page.manage.roles.delete.error}]];
+            var deleteRoleAssignmentSuccessMessage = [[#{html.page.manage.roles.delete.success}]];
+            var yesBtnTxt = [[#{html.control.button.yes}]];
+            var cancelBtnTxt = [[#{html.control.button.cancel}]];
+            +]*/
 
-					var endpoint = ouRestUrl + ou + '/removeassignment/ROLEGROUP/' + assignmentId;
+            this.loadRolesFragment = function () {
+                $("#ous_menu").load(UIUrl + roleId + "/assignedOrgUnitsFragment?showEdit=true", function () {
+                    fragShowDataTableFun('#listTableOus', 0);
+                });
+            }
 
-					var titleTxt = deleteRoleAssignmentTitleTxt + '"' + roleName + '"';
-					var bodyTxt = deleteRoleAssignmentBodyTxt;
+            this.loadAddRoleGroupFragment = function () {
+                $("#ous_menu").load(UIUrl + roleId + "/availableOrgUnitsFragment", function () {
+                    fragShowDataTableFun('#listTableOusAdd', 0);
+                });
+            }
 
-					swal({
-						html: true,
-						title : titleTxt,
-						text : bodyTxt,
-						type : "warning",
-						showCancelButton : true,
-						confirmButtonColor : "#DD6B55",
-						confirmButtonText : yesBtnTxt,
-						cancelButtonText : cancelBtnTxt,
-						closeOnConfirm : true,
-						closeOnCancel : true
-					},
-					function (isConfirm) {
-						if (isConfirm) {
-							$.ajax({
-								url: endpoint,
-								method: "POST",
-								headers: {
-									'X-CSRF-TOKEN': token
-								},
-								error: errorHandler(deleteRoleAssignmentErrorMessage),
-								success: function(response) {
-									orgUnitService.loadRolesFragment();
-									
-									notificationService.showInfoNotification(deleteRoleAssignmentSuccessMessage);
-								}
-							});
-						}
-					});
-				}
+            this.deleteRoleAssignment = function(elem) {
+                var parent = elem.parentElement;
+                var assignmentId = parent.dataset.assignmentid;
+                var type = parent.dataset.type;
+                var ou = parent.dataset.orgunit;
+                var roleName = parent.dataset.name;
 
-				this.editRoleAssignment = function (elem) {
-					var parent = elem.parentElement;
-					var startDate = parent.dataset.startdate;
-					var stopDate = parent.dataset.stopdate;
-					var assignmentType = parent.dataset.assignmenttype;
-					var assignmentId = parent.dataset.assignmentid;
-					var ou = parent.dataset.orgunit;
+                var endpoint = ouRestUrl + ou + '/removeassignment/ROLEGROUP/' + assignmentId;
 
-					$("#ouRoleGroupEditModal").load(UIUrl + "fragments/ou/" + ou + "?edit=true", function() {
-						datePickerService.init();
-						commonService.init();
-						
-						ouRolesEditModalService.assignmentId = assignmentId;
-						ouRolesEditModalService.ouUuid = ou;
-						ouRolesEditModalService.roleType = 'rolegroup';
-						ouRolesEditModalService.roleId = roleId; //get current roleGroup id
-						ouRolesEditModalService.inherit = (assignmentType == -2);
+                var titleTxt = deleteRoleAssignmentTitleTxt + '"' + roleName + '"';
+                var bodyTxt = deleteRoleAssignmentBodyTxt;
 
-						ouRolesEditModalService.showAssignModal(titlesEnabled, startDate, stopDate, assignmentType, assignmentId);
-					});
-				}
+                swal({
+                    html: true,
+                    title : titleTxt,
+                    text : bodyTxt,
+                    type : "warning",
+                    showCancelButton : true,
+                    confirmButtonColor : "#DD6B55",
+                    confirmButtonText : yesBtnTxt,
+                    cancelButtonText : cancelBtnTxt,
+                    closeOnConfirm : true,
+                    closeOnCancel : true
+                },
+                function (isConfirm) {
+                    if (isConfirm) {
+                        $.ajax({
+                            url: endpoint,
+                            method: "POST",
+                            headers: {
+                                'X-CSRF-TOKEN': token
+                            },
+                            error: errorHandler(deleteRoleAssignmentErrorMessage),
+                            success: function(response) {
+                                orgUnitService.loadRolesFragment();
 
-				this.addRoleAssignment = function (elem) {
-					ouRolesModalService.roleType = 'rolegroup';
-					ouRolesModalService.roleId = roleId;
-					ouRolesModalService.ouUuid = elem.dataset.orgunit;
-					
-					$("#ouRoleGroupModal").load(UIUrl + "fragments/ou/" + ouRolesModalService.ouUuid, function() {
-						datePickerService.init();
-						commonService.init();
-						commonService.parentService = orgUnitService;
-						
-						ouRolesModalService.showAssignModal(titlesEnabled, null, null);
-					});
-				}
-			}
+                                notificationService.showInfoNotification(deleteRoleAssignmentSuccessMessage);
+                            }
+                        });
+                    }
+                });
+            }
 
-			function NotificationService() {
-				this.showInfoNotification = function(message) {
-					$.notify({
-						message: message,
-						status: 'success',
-						timeout: 2000
-					});
-				}
-				
-				this.showWarnNotification = function(message) {
-					$.notify({
-						message: message,
-						status: 'warning',
-						timeout: 3000
-					});
-				}
+            this.editRoleAssignment = function (elem) {
+                var parent = elem.parentElement;
+                var startDate = parent.dataset.startdate;
+                var stopDate = parent.dataset.stopdate;
+                var assignmentType = parent.dataset.assignmenttype;
+                var assignmentId = parent.dataset.assignmentid;
+                var ou = parent.dataset.orgunit;
 
-				this.showErrorNotification = function(message) {
-					$.notify({
-						message: message,
-						status: 'danger',
-						timeout: 4000
-					});
-				}
-			}
+                $("#ouRoleGroupEditModal").load(UIUrl + "fragments/ou/" + ou + "?edit=true", function() {
+                    datePickerService.init();
+                    commonService.init();
+
+                    ouRolesEditModalService.assignmentId = assignmentId;
+                    ouRolesEditModalService.ouUuid = ou;
+                    ouRolesEditModalService.roleType = 'rolegroup';
+                    ouRolesEditModalService.roleId = roleId; //get current roleGroup id
+                    ouRolesEditModalService.inherit = (assignmentType == -2);
+
+					ouRolesEditModalService.showAssignModal(titlesEnabled, startDate, stopDate, assignmentType, assignmentId);
+                });
+            }
+
+            this.addRoleAssignment = function (elem) {
+                ouRolesModalService.roleType = 'rolegroup';
+                ouRolesModalService.roleId = roleId;
+                ouRolesModalService.ouUuid = elem.dataset.orgunit;
+
+                $("#ouRoleGroupModal").load(UIUrl + "fragments/ou/" + ouRolesModalService.ouUuid, function() {
+                    datePickerService.init();
+                    commonService.init();
+                    commonService.parentService = orgUnitService;
+
+					ouRolesModalService.showAssignModal(titlesEnabled, null, null);
+                });
+            }
+        }
+
+        function NotificationService() {
+            this.showInfoNotification = function(message) {
+                $.notify({
+                    message: message,
+                    status: 'success',
+                    timeout: 2000
+                });
+            }
+
+            this.showWarnNotification = function(message) {
+                $.notify({
+                    message: message,
+                    status: 'warning',
+                    timeout: 3000
+                });
+            }
+
+            this.showErrorNotification = function(message) {
+                $.notify({
+                    message: message,
+                    status: 'danger',
+                    timeout: 4000
+                });
+            }
+        }
+
+        async function handleRoleGroupRequesterPermissionChange() {
+            const groupId = String(this.dataset.groupid);
+            const value = String(this.value)
+            var updateUrl = url +  groupId + "/requester";
+
+            const response = await fetch(updateUrl, {
+                method: "POST",
+                headers: {
+                    'X-CSRF-TOKEN': token,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    'requesterPermission': value
+                })
+            })
+
+            if (!response.ok) {
+                defaultErrorHandler(response)
+            }
+
+            $.notify({
+                message: fieldUpdatedMsg
+            },{
+                status: 'success',
+                autoHideDelay: 4000
+            });
+        }
+
+        async function handleRoleGroupApproverPermissionChange() {
+            const groupId = String(this.dataset.groupid);
+            const value = String(this.value)
+            var updateUrl = url +  groupId + "/approver";
+
+            const response = await fetch(updateUrl, {
+                method: "POST",
+                headers: {
+                    'X-CSRF-TOKEN': token,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    'approverPermission': value
+                })
+            })
+
+            if (!response.ok) {
+                defaultErrorHandler(response)
+            }
+
+            $.notify({
+                message: fieldUpdatedMsg
+            },{
+                status: 'success',
+                autoHideDelay: 4000
+            });
+        }
+
+
 
 			class UserroleTableService {
 				constructor(){}
@@ -522,15 +623,14 @@
 					const columnDefOptions = [
 						{
 							targets: [0],
-							data: 'id',
-							orderable: false,
+							data: 'selected',
+							orderable: true,
 							searchable:false,
-							sortable:false,
 							render: (data, type, row, meta) => {
 								if (type === 'display') {
 									return '<div class="checkbox c-checkbox"> '+
 									'<label>'+
-									`<input class="checkboxaction" id="${data}" type="checkbox" `+
+									`<input class="checkboxaction" id="${row.compositeKey.id}" type="checkbox" `+
 									`value="${rolegroupId}" `+ `${row.selected ? 'checked ' : ''}` + `${row.readOnly ? 'disabled ' : ''}` +
 									'data-objtype="role"/> '+
 									'<span class="fa fa-check"></span> '+
@@ -542,21 +642,10 @@
 						{
 							targets: [1],
 							data: 'name',
-							render: (data, type, row, meta) => {
-								if (type === 'display') {
-									let html = '<div>'
-									html += '<div>'
-									html += `<span>${data}</span>`
-									html += '</div>'
-									html += row.alreadyAssigned ? `<div style="font-size: smaller; color: red;">Tildelt</div>` : ''
-									html += '</div>'
-									return html
-								} else { return data; }
-							}
 						},
 						{
 							targets: [2],
-							data: 'itSystem.name',
+							data: 'itSystemName',
 						},
 						{
 							targets: [3],
@@ -564,12 +653,12 @@
 						}
 					]
 
-					const table = new DatatableService().initDefaultServersideTable('#listTable', `${url}${rolegroupId}/userroles`, columnDefOptions)
+					userRoleTable = new DatatableService().initDefaultServersideTable('#listTable', `${url}${rolegroupId}/userroles`, columnDefOptions)
 					addCheckboxListeners();
-					return table
+					return userRoleTable
 				}
 			}
-		/*]]>*/
+        /*]]>*/
 	</script>
 </body>
 </html>

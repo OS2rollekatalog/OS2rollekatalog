@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:th="http://www.thymeleaf.org">
+<head
+	th:replace="~{requestmodule/fragments/header :: header(wizard = true, checkbox = true, datatables = true)}"></head>
+<body class="top-navigation layout-fixed">
+<div id="wrapper">
+	<div id="page-wrapper" class="gray-bg">
+		<div th:replace="~{requestmodule/fragments/topbar :: topbar(page = 'remove.request')}"></div>
+		<div class="wrapper wrapper-content">
+			<div class="row">
+				<div class="col-lg-12">
+					<div class="ibox">
+						<div class="ibox-title">
+							<h3>
+								<em class="fa fa-plus"></em> &nbsp
+								<span th:text="#{requestmodule.html.request.remove.title}"></span>
+								<span th:if="${titleAddition != null}" th:text="${titleAddition}"></span>
+							</h3>
+						</div>
+
+						<div class="ibox-content">
+							<div id="requestWizard">
+								<h2 th:text="#{requestmodule.html.request.remove.wizard.roles}"></h2>
+								<section>
+									<div class="col-dm-12 d-flex justify-content-between">
+
+										<h3 th:text="#{requestmodule.html.request.remove.wizard.roles.subtitle}"></h3>
+									</div>
+									<div class="tabs-container" id="tabs">
+										<ul class="nav nav-tabs" role="tablist">
+											<li>
+												<a class="nav-link active" data-toggle="tab" href="#userRolesTab" th:text="#{requestmodule.html.request.remove.roles.userRoles}"></a>
+											</li>
+											<li>
+												<a class="nav-link" data-toggle="tab" href="#roleGroupsTab" th:text="#{requestmodule.html.request.remove.roles.roleGroups}"></a>
+											</li>
+										</ul>
+										<div class="tab-content">
+											<div role="tabpanel" id="userRolesTab" class="tab-pane active">
+												<div class="panel-body">
+													<table id="userRoleTable" class="table table-striped table-bordered table-hover" >
+														<thead>
+														<tr>
+															<th></th>
+															<th th:text="#{requestmodule.html.dashboard.tabs.roles.itsystem}"></th>
+															<th th:text="#{requestmodule.html.dashboard.tabs.roles.role}"></th>
+															<th th:text="#{requestmodule.html.dashboard.tabs.roles.description}"></th>
+														</tr>
+														</thead>
+
+														<tbody>
+															<tr th:each="userRole : ${userRoles}">
+																<td>
+																	<input th:if="${userRole.removable}" type="checkbox" class="i-checks userRolesCheckbox" th:value="${userRole.assignmentId}" th:data-name="${userRole.name}" th:data-itsystem="${userRole.itSystemName}">
+																</td>
+																<td th:text="${userRole.itSystemName}"></td>
+																<td th:text="${userRole.name}"></td>
+																<td th:text="${userRole.description}"></td>
+															</tr>
+														</tbody>
+													</table>
+												</div>
+											</div>
+											<div role="tabpanel" id="roleGroupsTab" class="tab-pane">
+												<div class="panel-body">
+													<table id="roleGroupTable" class="table table-striped table-bordered table-hover" >
+														<thead>
+														<tr>
+															<th style="display: none"></th>
+															<th style="width: 50px;"></th>
+															<th style="width: 50px;"></th>
+															<th th:text="#{requestmodule.html.dashboard.tabs.roles.name}"></th>
+															<th th:text="#{requestmodule.html.dashboard.tabs.roles.description}"></th>
+														</tr>
+														</thead>
+
+														<tbody>
+															<tr th:each="roleGroup : ${roleGroups}">
+																<td style="display: none" th:text="${roleGroup.id}"></td>
+																<td class="dt-control"></td>
+																<td>
+																	<input th:if="${roleGroup.removable}" type="checkbox" class="i-checks roleGroupsCheckbox" th:value="${roleGroup.assignmentId}" th:data-name="${roleGroup.name}">
+																</td>
+																<td th:text="${roleGroup.name}"></td>
+																<td th:text="${roleGroup.description}"></td>
+															</tr>
+														</tbody>
+													</table>
+												</div>
+											</div>
+										</div>
+									</div>
+								</section>
+
+								<h2 th:text="#{requestmodule.html.request.wizard.reason.title}"></h2>
+								<section>
+									<h3 th:text="#{requestmodule.html.request.wizard.reason.subtitle}"></h3>
+									<textarea class="form-control" rows="10" id="reason"
+											  th:disabled="${reasonSetting == T(dk.digitalidentity.rc.rolerequest.model.enums.ReasonOption).NONE}"></textarea>
+								</section>
+
+								<h2 th:text="#{requestmodule.html.request.wizard.confirm.title}"></h2>
+								<section>
+									<h3 th:text="#{requestmodule.html.request.wizard.confirm.subtitle}"></h3>
+
+									<p th:text="#{requestmodule.html.request.remove.wizard.confirm.roles}"></p>
+									<table class="table table-striped" id="confirmRolesTable">
+										<thead>
+										<tr>
+											<th th:text="#{requestmodule.html.request.wizard.confirm.roles.type}"
+												class="col-lg-4"></th>
+											<th th:text="#{requestmodule.html.request.wizard.confirm.roles.itsystem}"
+												class="col-lg-4"></th>
+											<th th:text="#{requestmodule.html.request.wizard.confirm.roles.name}"
+												class="col-lg-4"></th>
+										</tr>
+										</thead>
+										<tbody>
+										</tbody>
+									</table>
+
+									<th:block
+										th:unless="${reasonSetting == T(dk.digitalidentity.rc.rolerequest.model.enums.ReasonOption).NONE}">
+										<p th:text="#{requestmodule.html.request.wizard.confirm.reason}"></p>
+										<pre id="confirmReason"></pre>
+									</th:block>
+								</section>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+</div>
+
+<script>
+	window.skipAutoICheckInit = true;
+</script>
+<div th:replace="~{requestmodule/fragments/footer :: scripts(wizard = true, checkbox = true, datatables = true, jstree = true)}"></div>
+<script th:src="@{/js/rolerequest/remove-wizard.js}"></script>
+<script th:src="@{/js/DatatableService.js}"></script>
+
+<script th:inline="javascript">
+	/*<![CDATA[*/
+	/*[+
+	let baseUrl = [[@{/ui/request/remove/wizard}]];
+	let detailsUrl = [[@{/ui/request/rolegroups}]];
+	let restUrl = [[@{/rest/rolerequest/remove}]];
+
+	let userUuid = [[${userUuid}]];
+	let reasonSetting = [[${reasonSetting}]];
+
+	const userRoleText = [[#{html.navbar.jobroles}]];
+	const roleGroupText = [[#{html.navbar.rolegroups}]];
+	+]*/
+
+	const token = $("meta[name='_csrf']").attr("content");
+
+	let chosenRolesDTOs = [];
+	let chosenUserRoleIds = [];
+	let chosenRoleGroupIds = [];
+	let requestService, roleService, expandableRoleGroupTableService, datatableService, roleGroupService, userRoleService;
+	$(document).ready(function(){
+		requestService = new RequestService();
+		roleService = new RoleService();
+		expandableRoleGroupTableService = new ExpandableRoleGroupTableService();
+		roleGroupService = new RoleGroupService();
+		userRoleService = new UserRoleService();
+		datatableService = new DatatableService();
+
+		requestService.init();
+	});
+
+	/*]]>*/
+</script>
+
+</body>
+</html>

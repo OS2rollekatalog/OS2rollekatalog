@@ -8,4 +8,8 @@
 # 2024-05-07  -  2.4.0  -  support * wildcard on DNs for OUs
 # 2024-05-08  -  2.4.1  -  added support for automatic log upload
 # 2024-08-28  -  2.4.2  -  fixed typo in default application config
-# 2024-03-25  -  2.4.3  -  multithreaded and remoteconfig
+# 2025-03-25  -  2.4.3  -  multithreaded and remoteconfig
+# 2025-05-07  -  2.4.4  -  sqlite connection manager added, for service stability
+# 2025-05-26 -   2.4.5  -  (ROL-439) Udbyg AD-sync så roller i ikke-AD IT-systemer kan styre AD grupper
+                           (ROL-362) AD-integration: Benytte "Noter" i stedet for "Beskrivelse"
+# 2025-06-10 -   2.4.6  -  Fix NPE in ItSystemGroupService

@@ -1,6 +1,8 @@
 package dk.digitalidentity.rc.controller.mvc.datatables.dao.model;
 
 import dk.digitalidentity.rc.dao.model.enums.ItSystemType;
+import dk.digitalidentity.rc.rolerequest.model.enums.ApproverOption;
+import dk.digitalidentity.rc.rolerequest.model.enums.RequesterOption;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -37,7 +39,12 @@ public class UserRoleView {
 	private ItSystemType itSystemType;
 
 	@Column
-	private boolean canRequest;
+	@Enumerated(EnumType.STRING)
+	private RequesterOption requesterPermission;
+
+	@Column
+	@Enumerated(EnumType.STRING)
+	private ApproverOption approverPermission;
 
 	@Column
 	private boolean pendingSync;

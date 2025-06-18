@@ -1,39 +1,66 @@
-﻿<?xml version='1.0' encoding='utf-8'?>
+<?xml version='1.0' encoding='utf-8'?>
 <SettingsFile xmlns="http://schemas.microsoft.com/VisualStudio/2004/01/settings" CurrentProfile="(Default)" GeneratedClassNamespace="ADSyncService.Properties" GeneratedClassName="Settings">
   <Profiles />
   <Settings>
     <Setting Name="CronSchedule" Type="System.String" Scope="Application">
       <Value Profile="(Default)">0 /5 5-23 ? * *</Value>
     </Setting>
+    <Setting Name="ApiUrl" Type="System.String" Scope="Application">
+      <Value Profile="(Default)">https://kommune.rollekatalog.dk</Value>
+    </Setting>
     <Setting Name="ApiKey" Type="System.String" Scope="Application">
       <Value Profile="(Default)">Test1234</Value>
     </Setting>
+    <Setting Name="Domain" Type="System.String" Scope="Application">
+      <Value Profile="(Default)">Administrativt</Value>
+    </Setting>
+    <Setting Name="RemoteConfiguration_Enabled" Type="System.Boolean" Scope="Application">
+      <Value Profile="(Default)">False</Value>
+    </Setting>
     <Setting Name="CreateDeleteFeature_Enabled" Type="System.Boolean" Scope="Application">
+      <Value Profile="(Default)">False</Value>
+    </Setting>
+    <Setting Name="CreateDeleteFeature_CreateEnabled" Type="System.Boolean" Scope="Application">
+      <Value Profile="(Default)">False</Value>
+    </Setting>
+    <Setting Name="CreateDeleteFeature_DeleteEnabled" Type="System.Boolean" Scope="Application">
       <Value Profile="(Default)">False</Value>
     </Setting>
     <Setting Name="CreateDeleteFeature_OU" Type="System.String" Scope="Application">
       <Value Profile="(Default)">OU=groups,DC=digitalidentity,DC=dk</Value>
     </Setting>
+    <Setting Name="MembershipSyncFeature_Enabled" Type="System.Boolean" Scope="Application">
+      <Value Profile="(Default)">True</Value>
+    </Setting>
     <Setting Name="MembershipSyncFeature_CprAttribute" Type="System.String" Scope="Application">
       <Value Profile="(Default)">employeeNumber</Value>
     </Setting>
-    <Setting Name="BackSyncFeature_Enabled" Type="System.Boolean" Scope="Application">
-      <Value Profile="(Default)">False</Value>
-    </Setting>
-    <Setting Name="ItSystemGroupFeature_Enabled" Type="System.Boolean" Scope="Application">
-      <Value Profile="(Default)">False</Value>
-    </Setting>
-    <Setting Name="ReadonlyItSystemFeature_Enabled" Type="System.Boolean" Scope="Application">
-      <Value Profile="(Default)">False</Value>
-    </Setting>
-    <Setting Name="ItSystemGroupFeature_Cron" Type="System.String" Scope="Application">
-      <Value Profile="(Default)" />
+    <Setting Name="MembershipSyncFeature_IgnoreUsersWithoutCpr" Type="System.Boolean" Scope="Application">
+      <Value Profile="(Default)">True</Value>
     </Setting>
     <Setting Name="MembershipSyncFeature_AttributeMap" Type="System.Collections.Specialized.StringCollection" Scope="Application">
       <Value Profile="(Default)">&lt;?xml version="1.0" encoding="utf-16"?&gt;
 &lt;ArrayOfString xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"&gt;
   &lt;string&gt;someGroupName;someAttribute;someAttributeValue&lt;/string&gt;
 &lt;/ArrayOfString&gt;</Value>
+    </Setting>
+    <Setting Name="FullMembershipSyncFeature_Enabled" Type="System.Boolean" Scope="Application">
+      <Value Profile="(Default)">False</Value>
+    </Setting>
+    <Setting Name="FullMembershipSyncFeature_Cron" Type="System.String" Scope="Application">
+      <Value Profile="(Default)">0 0 5-23 ? * *</Value>
+    </Setting>
+    <Setting Name="BackSyncFeature_Enabled" Type="System.Boolean" Scope="Application">
+      <Value Profile="(Default)">False</Value>
+    </Setting>
+    <Setting Name="BackSyncFeature_NameAttribute" Type="System.String" Scope="Application">
+      <Value Profile="(Default)">name</Value>
+    </Setting>
+    <Setting Name="BackSyncFeature_GroupsInGroupOnSync" Type="System.Boolean" Scope="Application">
+      <Value Profile="(Default)">False</Value>
+    </Setting>
+    <Setting Name="BackSyncFeature_CreateUserRoles" Type="System.Boolean" Scope="Application">
+      <Value Profile="(Default)">False</Value>
     </Setting>
     <Setting Name="BackSyncFeature_OUs" Type="System.Collections.Specialized.StringCollection" Scope="Application">
       <Value Profile="(Default)">&lt;?xml version="1.0" encoding="utf-16"?&gt;
@@ -42,11 +69,26 @@
   &lt;string&gt;2400;OU=system2,OU=Groups,DC=digitalidentity,DC=dk&lt;/string&gt;
 &lt;/ArrayOfString&gt;</Value>
     </Setting>
+    <Setting Name="ItSystemGroupFeature_Enabled" Type="System.Boolean" Scope="Application">
+      <Value Profile="(Default)">False</Value>
+    </Setting>
     <Setting Name="ItSystemGroupFeature_SystemMap" Type="System.Collections.Specialized.StringCollection" Scope="Application">
       <Value Profile="(Default)">&lt;?xml version="1.0" encoding="utf-16"?&gt;
 &lt;ArrayOfString xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"&gt;
   &lt;string&gt;1;CN=ItSystemOne,OU=Groups,DC=digitalidentity,DC=dk&lt;/string&gt;
 &lt;/ArrayOfString&gt;</Value>
+    </Setting>
+    <Setting Name="ItSystemGroupFeature_RoleMap" Type="System.Collections.Specialized.StringCollection" Scope="Application">
+      <Value Profile="(Default)">&lt;?xml version="1.0" encoding="utf-16"?&gt;
+&lt;ArrayOfString xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"&gt;
+  &lt;string&gt;1;CN=ItSystemOne,OU=Groups,DC=digitalidentity,DC=dk&lt;/string&gt;
+&lt;/ArrayOfString&gt;</Value>
+    </Setting>
+    <Setting Name="ReadonlyItSystemFeature_Enabled" Type="System.Boolean" Scope="Application">
+      <Value Profile="(Default)">False</Value>
+    </Setting>
+    <Setting Name="ReadonlyItSystemFeature_NameAttribute" Type="System.String" Scope="Application">
+      <Value Profile="(Default)" />
     </Setting>
     <Setting Name="ReadonlyItSystemFeature_SystemMap" Type="System.Collections.Specialized.StringCollection" Scope="Application">
       <Value Profile="(Default)">&lt;?xml version="1.0" encoding="utf-16"?&gt;
@@ -55,8 +97,8 @@
   &lt;string&gt;2409;OU=subgroup2,OU=groups,DC=digitalidentity,DC=dk&lt;/string&gt;
 &lt;/ArrayOfString&gt;</Value>
     </Setting>
-    <Setting Name="BackSyncFeature_GroupsInGroupOnSync" Type="System.Boolean" Scope="Application">
-      <Value Profile="(Default)">False</Value>
+    <Setting Name="ItSystemGroupFeature_Cron" Type="System.String" Scope="Application">
+      <Value Profile="(Default)" />
     </Setting>
     <Setting Name="LogUploaderEnabled" Type="System.Boolean" Scope="Application">
       <Value Profile="(Default)">False</Value>
@@ -82,24 +124,6 @@
     <Setting Name="CyberArkAPI" Type="System.String" Scope="Application">
       <Value Profile="(Default)" />
     </Setting>
-    <Setting Name="ApiUrl" Type="System.String" Scope="Application">
-      <Value Profile="(Default)">https://kommune.rollekatalog.dk</Value>
-    </Setting>
-    <Setting Name="CreateDeleteFeature_CreateEnabled" Type="System.Boolean" Scope="Application">
-      <Value Profile="(Default)">False</Value>
-    </Setting>
-    <Setting Name="CreateDeleteFeature_DeleteEnabled" Type="System.Boolean" Scope="Application">
-      <Value Profile="(Default)">False</Value>
-    </Setting>
-    <Setting Name="MembershipSyncFeature_Enabled" Type="System.Boolean" Scope="Application">
-      <Value Profile="(Default)">False</Value>
-    </Setting>
-    <Setting Name="MembershipSyncFeature_IgnoreUsersWithoutCpr" Type="System.Boolean" Scope="Application">
-      <Value Profile="(Default)">False</Value>
-    </Setting>
-    <Setting Name="BackSyncFeature_CreateUserRoles" Type="System.Boolean" Scope="Application">
-      <Value Profile="(Default)">False</Value>
-    </Setting>
     <Setting Name="User" Type="System.String" Scope="Application">
       <Value Profile="(Default)">sendinguser@email</Value>
     </Setting>
@@ -118,23 +142,8 @@
     <Setting Name="SendErrorEmailFeature_Enabled" Type="System.Boolean" Scope="Application">
       <Value Profile="(Default)">False</Value>
     </Setting>
-    <Setting Name="RemoteConfiguration_Enabled" Type="System.Boolean" Scope="Application">
-      <Value Profile="(Default)">True</Value>
-    </Setting>
-    <Setting Name="Domain" Type="System.String" Scope="Application">
-      <Value Profile="(Default)">Administrativt</Value>
-    </Setting>
-    <Setting Name="BackSyncFeature_NameAttribute" Type="System.String" Scope="Application">
-      <Value Profile="(Default)">info</Value>
-    </Setting>
-    <Setting Name="ReadonlyItSystemFeature_NameAttribute" Type="System.String" Scope="Application">
-      <Value Profile="(Default)" />
-    </Setting>
-    <Setting Name="FullMembershipSyncFeature_Enabled" Type="System.Boolean" Scope="Application">
-      <Value Profile="(Default)">True</Value>
-    </Setting>
-    <Setting Name="FullMembershipSyncFeature_Cron" Type="System.String" Scope="Application">
-      <Value Profile="(Default)">0 0 5-23 ? * *</Value>
+    <Setting Name="IncludeNotesInDescription" Type="System.Boolean" Scope="Application">
+      <Value Profile="(Default)">False</Value>
     </Setting>
   </Settings>
 </SettingsFile>

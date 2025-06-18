@@ -31,7 +31,7 @@ public class OrgUnitAttestationRestController {
 		return new ResponseEntity<>(HttpStatus.OK);
 	}
 
-	record RemarkDTO (String remarks, List<RoleAssignmentDTO> notApproved) {}
+	public record RemarkDTO (String remarks, List<RoleAssignmentDTO> notApproved) {}
 	@PostMapping("/rest/attestation/v2/orgunits/{orgUnitUuid}/users/{userUuid}/reject")
 	@Timed("attestation.controller.rest.org_unit_attestation_rest_controller.reject_user_attestation.timer")
 	public ResponseEntity<?> rejectUserAttestation(@PathVariable String orgUnitUuid, @PathVariable String userUuid, @RequestBody RemarkDTO dto) {
@@ -61,8 +61,8 @@ public class OrgUnitAttestationRestController {
 
 	@PostMapping("/rest/attestation/v2/orgunits/{orgUnitUuid}/roles/reject")
 	@Timed("attestation.controller.rest.org_unit_attestation_rest_controller.reject_org_unit_roles_attestation.timer")
-	public ResponseEntity<?> rejectOrgUnitRolesAttestation(@PathVariable String orgUnitUuid, @RequestBody String remarks) {
-		organisationAttestationService.rejectOrgUnitRoles(orgUnitUuid, SecurityUtil.getUserId(), remarks);
+	public ResponseEntity<?> rejectOrgUnitRolesAttestation(@PathVariable String orgUnitUuid, @RequestBody RemarkDTO dto) {
+		organisationAttestationService.rejectOrgUnitRoles(orgUnitUuid, SecurityUtil.getUserId(), dto.remarks, dto.notApproved);
 		return new ResponseEntity<>(HttpStatus.OK);
 	}
 

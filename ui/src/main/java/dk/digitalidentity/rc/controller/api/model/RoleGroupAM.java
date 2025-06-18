@@ -1,6 +1,9 @@
 package dk.digitalidentity.rc.controller.api.model;
 
+import dk.digitalidentity.rc.rolerequest.model.enums.ApproverOption;
+import dk.digitalidentity.rc.rolerequest.model.enums.RequesterOption;
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.persistence.Column;
 import jakarta.validation.constraints.NotEmpty;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -26,8 +29,13 @@ public class RoleGroupAM {
     private String description;
     @Schema(description = "")
     private Boolean userOnly;
-    @Schema(description = "")
+    @Schema(description = "", deprecated = true )
     private Boolean canRequest;
     @Schema(description = "Ids of the JFR associated with the rolegroup")
     private List<UserRoleGroupAssignmentAM> userRoles;
+
+    @Schema(description = "")
+    private RequesterOption requesterPermission;
+    @Schema(description = "")
+    private ApproverOption approverPermission;
 }

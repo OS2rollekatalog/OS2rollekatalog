@@ -39,7 +39,7 @@ public class AttestationRunTrackerService {
         final boolean sensitiveRun = !normalRun && shouldCreateAttestationRun(when, deadlineSensitive);
         final boolean extraSensitiveRun = !normalRun && yearly && shouldCreateAttestationRun(when, deadlineExtraSensitive);
         if (normalRun || sensitiveRun || extraSensitiveRun) {
-            List<AttestationRun> unfinishedRuns = getActiveAttestationRunsDesc(when);
+            List<AttestationRun> unfinishedRuns = getActiveAttestationRunsDesc();
             //Find or create the active run
             AttestationRun activeRun = unfinishedRuns.isEmpty() ?
                     createNewAttestationRun(extraSensitiveRun ? deadlineExtraSensitive : (sensitiveRun ? deadlineSensitive : deadlineNormal), sensitiveRun, extraSensitiveRun)
@@ -73,12 +73,12 @@ public class AttestationRunTrackerService {
         }
     }
 
-    public Optional<AttestationRun> getAttestationRun() {
-        return attestationRunDao.findFirstByFinishedFalseOrderByDeadlineDesc();
+    public Optional<AttestationRun> getAttestationRunWithDeadlineNotAfter(final LocalDate deadline) {
+        return attestationRunDao.findFirstByFinishedFalseAndDeadlineGreaterThanEqual(deadline);
     }
 
-    public List<AttestationRun> getActiveAttestationRunsDesc(final LocalDate when) {
-        return attestationRunDao.findByFinishedFalseAndDeadlineGreaterThanEqualOrderByDeadlineDesc(when);
+    public List<AttestationRun> getActiveAttestationRunsDesc() {
+        return attestationRunDao.findByFinishedFalseOrderByDeadlineDesc();
     }
 
     private AttestationRun createNewAttestationRun(final LocalDate deadline, final boolean sensitive, final boolean extraSensitive) {
