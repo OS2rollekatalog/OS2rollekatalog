@@ -14,6 +14,7 @@ import com.microsoft.kiota.serialization.AdditionalDataHolder;
 import com.microsoft.kiota.serialization.Parsable;
 import com.microsoft.kiota.serialization.ParsableFactory;
 import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
+import dk.digitalidentity.rc.config.model.AzureUsernameField;
 import dk.digitalidentity.rc.dao.model.ItSystem;
 import dk.digitalidentity.rc.dao.model.SystemRole;
 import dk.digitalidentity.rc.dao.model.SystemRoleAssignment;
@@ -28,6 +29,7 @@ import dk.digitalidentity.rc.service.model.UserWithRole;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.logging.log4j.util.Strings;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -109,6 +111,7 @@ public class EntraIDService {
 		SecurityUtil.loginSystemAccount();
 		initializeClient();
 
+		AzureUsernameField usernameField = configuration.getIntegrations().getEntraID().getUsernameField();
 		List<User> allAzureUsers = getAllAzureUsers();
 		List<Group> allGroups = getRCGroups();
 		Map<Long, List<Group>> itSystemIdGroupMap = generateItSystemGroupMap(allGroups);
@@ -140,10 +143,11 @@ public class EntraIDService {
 				int added = 0;
 				int removed = 0;
 
+				log.debug("Members in RC {} members in EntraID group {}", Strings.join(usersWithRoleInRC, ','), Strings.join(memberUsernames, ','));
 				// add missing members
 				for (String username : usersWithRoleInRC) {
 					if (!memberUsernames.contains(username)) {
-						User userWithUsername = allAzureUsers.stream().filter(u -> u.getMailNickname().equalsIgnoreCase(username)).findAny().orElse(null);
+						User userWithUsername = allAzureUsers.stream().filter(u -> UsernameUtil.matchesUsername(u, username, usernameField)).findAny().orElse(null);
 						if (userWithUsername == null) {
 							log.debug("Failed to find user in Azure with username " + username + ". Can not add member to group " + group.getDisplayName());
 							continue;
@@ -157,7 +161,7 @@ public class EntraIDService {
 				// remove members
 				for (String memberUsername : memberUsernames) {
 					if (!usersWithRoleInRC.contains(memberUsername)) {
-						User userWithUsername = allAzureUsers.stream().filter(u -> u.getMailNickname().equalsIgnoreCase(memberUsername)).findAny().orElse(null);
+						User userWithUsername = allAzureUsers.stream().filter(u -> UsernameUtil.matchesUsername(u, memberUsername, usernameField)).findAny().orElse(null);
 						if (userWithUsername == null) {
 							// should never happen
 							log.debug("Failed to find user in Azure with username " + memberUsername + ". Can not remove member from group " + group.getDisplayName());
@@ -179,6 +183,7 @@ public class EntraIDService {
 
 	public void addMemberToGroup(String groupId, String userId) {
 		try {
+			log.debug("Adding member to group {} to user {}", groupId, userId);
 			ReferenceCreate referenceCreate = new ReferenceCreate();
 			referenceCreate.setOdataId("https://graph.microsoft.com/v1.0/directoryObjects/" + userId);
 			graphClient.groups().byGroupId(groupId).members().ref().post(referenceCreate);
@@ -189,6 +194,7 @@ public class EntraIDService {
 
 	public void removeMemberFromGroup(String groupId, String userId) {
 		try {
+			log.debug("Removing member from group {} to user {}", groupId, userId);
 			graphClient.groups().byGroupId(groupId).members().byDirectoryObjectId(userId).ref().delete();
 		} catch (Exception e) {
             log.warn("Failed to remove member from group {}: {}", groupId, userId, e);
@@ -362,17 +368,20 @@ public class EntraIDService {
 	}
 
 	private Set<String> getMembers(Group group) throws ReflectiveOperationException {
+		AzureUsernameField field = configuration.getIntegrations().getEntraID().getUsernameField();
+		String graphField = UsernameUtil.getGraphFieldName(field);
+
 		final List<User> members = iterateResource(UserCollectionResponse::createFromDiscriminatorValue,
 				() -> graphClient.groups().byGroupId(Objects.requireNonNull(group.getId())).members().graphUser().get(requestConfiguration -> {
                     assert requestConfiguration.queryParameters != null;
-                    requestConfiguration.queryParameters.select = new String[]{"id", "mailNickname"};
+                    requestConfiguration.queryParameters.select = new String[]{"id", graphField};
 				}),
 				requestInformation -> {
 					log.debug("Preparing to get next members group page");
 					return requestInformation;
 				});
 
-		return members.stream().map(User::getMailNickname).map(StringUtils::lowerCase).collect(Collectors.toSet());
+		return members.stream().map(user -> UsernameUtil.getUsernameFromUser(user, field)).map(StringUtils::lowerCase).collect(Collectors.toSet());
 	}
 
 	private Map<Long, List<Group>> generateItSystemGroupMap(List<Group> groups) {
@@ -424,15 +433,18 @@ public class EntraIDService {
 	}
 
 	public List<User> getAllAzureUsers() throws ReflectiveOperationException {
+		AzureUsernameField field = configuration.getIntegrations().getEntraID().getUsernameField();
+		String graphField = UsernameUtil.getGraphFieldName(field);
+
 		return iterateResource(UserCollectionResponse::createFromDiscriminatorValue,
 				() -> graphClient.users().get( requestConfiguration -> {
                     assert requestConfiguration.queryParameters != null;
-                    requestConfiguration.queryParameters.select = new String[] {"id, mailNickname"};
+                    requestConfiguration.queryParameters.select = new String[] {"id", graphField};
 				}),
 				requestInfo -> {
 					log.debug("Preparing to get next user page");
 					// re-add the query parameters to subsequent requests
-					requestInfo.addQueryParameter("%24select", new String[] {"id, mailNickname"});
+					requestInfo.addQueryParameter("%24select", new String[] {"id", graphField});
 					return requestInfo;
 				});
 	}

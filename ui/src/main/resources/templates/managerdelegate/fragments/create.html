@@ -1,0 +1,76 @@
+<th:block th:fragment="createManagerDelegateModal" xmlns="http://www.w3.org/1999/xhtml"
+          xmlns:th="http://www.thymeleaf.org">
+    <div class="modal fade" id="createManagerModal" role="dialog">
+        <div class="modal-dialog">
+
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h4 th:text="#{html.page.managerdelegate.create.title}"></h4>
+                </div>
+
+                <!-- Modal content-->
+                <div class="modal-body">
+                    <div class="row">
+
+
+                        <div class="form-group col-sm-12">
+                            <label for="managerInput" class="col-sm-4"
+                                   th:text="#{html.page.managerdelegate.create.manager.label}"></label>
+                            <select id="managerInput" class="form-control select2-init col-lg"></select>
+                            <em id="managerWarning" class="fa fa-exclamation-circle" hidden="hidden"></em>
+                        </div>
+                        <div class="form-group col-sm-12">
+                            <label for="delegateInput" class="col-sm-4"
+                                   th:text="#{html.page.managerdelegate.create.delegate.label}"></label>
+                            <select id="delegateInput" class="form-control select2-init col-lg"></select>
+                            <em id="delegateWarning" class="fa fa-exclamation-circle" hidden="hidden"></em>
+                        </div>
+                    </div>
+                    <hr/>
+                    <div class="row">
+                        <div class="col-sm-12">
+                            <div class="form-group col-sm-6 ">
+                                <label for="fromDateInput"
+                                       th:text="#{html.page.managerdelegate.create.fromdate.label}"></label>
+                                <em id="fromWarning" class="fa fa-exclamation-circle" hidden="hidden"></em>
+                                <div class="form-group">
+                                    <div class='input-group date' id='fromDateInputContainer'>
+                                        <input type='text' id='fromDateInput' class="form-control"/>
+                                        <span class="input-group-addon">
+                                    <span class="fa fa-calendar"></span>
+                                </span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="form-group col-sm-6">
+                                <label for="toDateInput"
+                                       th:text="#{html.page.managerdelegate.create.todate.label}"></label>
+                                <em id="toWarning" class="fa fa-exclamation-circle" hidden="hidden"></em>
+                                <div class="form-group">
+                                    <div class='input-group date' id='toDateInputContainer'>
+                                        <input type='text' id='toDateInput' class="form-control"/>
+                                        <span class="input-group-addon">
+                                        <span class="fa fa-calendar"></span>
+                                    </span>
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <input type="checkbox" id="indefinitelyCheckbox"/>
+                                    <label for="indefinitelyCheckbox" class="col-8"
+                                           th:text="#{html.page.managerdelegate.create.indefinitely.label}"></label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="modal-footer">
+                    <button id="createManagerDelegateBtn" class="btn btn-primary"
+                            th:text="#{html.page.managerdelegate.create.btn.confirm}"></button>
+                    <button type="button" class="btn btn-danger" id="closeModal" data-dismiss="modal"
+                            th:text="#{html.control.button.cancel}"></button>
+                </div>
+            </div>
+        </div>
+    </div>
+</th:block>

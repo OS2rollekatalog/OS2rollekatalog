@@ -86,4 +86,8 @@ public interface UserDao extends CrudRepository<User, String>, JpaSpecificationE
 	List<String> findUuidByNemloginUuidNotNullAndDeletedFalseAndDisabledFalse();
 
 	List<User> findByUuidIn(Set<String> uuids);
+
+	List<User> findByNameContainsOrUserIdContainsAndDeletedFalse(String name, String userId);
+
+	List<User> findTop10ByDeletedFalse();
 }

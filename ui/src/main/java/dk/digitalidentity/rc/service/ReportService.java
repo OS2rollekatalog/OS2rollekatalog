@@ -1,5 +1,30 @@
 package dk.digitalidentity.rc.service;
 
+import dk.digitalidentity.rc.controller.mvc.viewmodel.ReportForm;
+import dk.digitalidentity.rc.dao.OrgUnitDao;
+import dk.digitalidentity.rc.dao.history.HistoryOUDao;
+import dk.digitalidentity.rc.dao.history.model.GenericRoleAssignment;
+import dk.digitalidentity.rc.dao.history.model.HistoryItSystem;
+import dk.digitalidentity.rc.dao.history.model.HistoryKleAssignment;
+import dk.digitalidentity.rc.dao.history.model.HistoryOU;
+import dk.digitalidentity.rc.dao.history.model.HistoryOUKleAssignment;
+import dk.digitalidentity.rc.dao.history.model.HistoryOURoleAssignment;
+import dk.digitalidentity.rc.dao.history.model.HistoryOURoleAssignmentWithExceptions;
+import dk.digitalidentity.rc.dao.history.model.HistoryOURoleAssignmentWithNegativeTitles;
+import dk.digitalidentity.rc.dao.history.model.HistoryOURoleAssignmentWithTitles;
+import dk.digitalidentity.rc.dao.history.model.HistoryOUUser;
+import dk.digitalidentity.rc.dao.history.model.HistoryRoleAssignment;
+import dk.digitalidentity.rc.dao.history.model.HistorySystemRole;
+import dk.digitalidentity.rc.dao.history.model.HistoryTitle;
+import dk.digitalidentity.rc.dao.history.model.HistoryUser;
+import dk.digitalidentity.rc.dao.model.OrgUnit;
+import dk.digitalidentity.rc.service.model.UserRoleAssignmentReportEntry;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.MessageSource;
+import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
+
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -15,31 +40,6 @@ import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
-
-import dk.digitalidentity.rc.dao.history.HistoryOUDao;
-import dk.digitalidentity.rc.dao.history.model.HistoryOURoleAssignmentWithNegativeTitles;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.MessageSource;
-import org.springframework.stereotype.Service;
-import org.springframework.util.StringUtils;
-
-import dk.digitalidentity.rc.controller.mvc.viewmodel.ReportForm;
-import dk.digitalidentity.rc.dao.OrgUnitDao;
-import dk.digitalidentity.rc.dao.history.model.GenericRoleAssignment;
-import dk.digitalidentity.rc.dao.history.model.HistoryItSystem;
-import dk.digitalidentity.rc.dao.history.model.HistoryKleAssignment;
-import dk.digitalidentity.rc.dao.history.model.HistoryOU;
-import dk.digitalidentity.rc.dao.history.model.HistoryOUKleAssignment;
-import dk.digitalidentity.rc.dao.history.model.HistoryOURoleAssignment;
-import dk.digitalidentity.rc.dao.history.model.HistoryOURoleAssignmentWithExceptions;
-import dk.digitalidentity.rc.dao.history.model.HistoryOURoleAssignmentWithTitles;
-import dk.digitalidentity.rc.dao.history.model.HistoryOUUser;
-import dk.digitalidentity.rc.dao.history.model.HistoryRoleAssignment;
-import dk.digitalidentity.rc.dao.history.model.HistoryTitle;
-import dk.digitalidentity.rc.dao.history.model.HistoryUser;
-import dk.digitalidentity.rc.dao.model.OrgUnit;
-import dk.digitalidentity.rc.service.model.UserRoleAssignmentReportEntry;
-import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 @Service
@@ -469,6 +469,7 @@ public class ReportService {
 		String manager = reportForm.getManager();
 
 		List<HistoryItSystem> itSystems = historyService.getItSystems(localDate);
+		List<HistorySystemRole> systemRoles = new ArrayList<>();
 		List<HistoryTitle> titles = historyService.getTitles(localDate);
 		Map<String, HistoryOU> orgUnits = historyService.getOUs(localDate);
 		Map<String, HistoryOU> allOrgUnits = new HashMap<>(orgUnits);
@@ -507,6 +508,11 @@ public class ReportService {
 			negativeRoleAssignments = historyService.getOURoleAssignmentsWithNegativeTitles(localDate);
 			titleRoleAssignments = historyService.getOURoleAssignmentsWithTitles(localDate);
 			ouRoleAssignmentsWithExceptions = historyService.getOURoleAssignmentsWithExceptions(localDate);
+		}
+
+		// add systemRoles based on itSystems after filter
+		for (HistoryItSystem itSystem : itSystems) {
+			systemRoles.addAll(itSystem.getHistorySystemRoles());
 		}
 		
 		//Now that we store also the inactive roles we need filter them out
@@ -580,6 +586,7 @@ public class ReportService {
 		Map<String, Object> model = new HashMap<>();
 		model.put("filterDate", displayDate);
 		model.put("itSystems", itSystems);
+		model.put("systemRoles", systemRoles);
 
 		model.put("orgUnits", orgUnits);
 		model.put("allOrgUnits", allOrgUnits);

@@ -1,7 +1,7 @@
 version: '3.3'
 services:
   db:
-    image: mariadb:10.6.14
+    image: mariadb:10.11
     environment:
       MARIADB_DATABASE: 'rc'
       MARIADB_ROOT_PASSWORD: 'Test1234'
@@ -10,8 +10,4 @@ services:
       - "3306:3306"
     expose:
       - '3306'
-    volumes:
-      - rollekatalog-db:/var/lib/mysql
-      - ./init:/docker-entrypoint-initdb.d
-volumes:
-  rollekatalog-db:
+

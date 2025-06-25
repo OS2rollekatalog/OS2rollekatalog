@@ -6,12 +6,14 @@ import dk.digitalidentity.rc.controller.api.model.PostponedConstraintAM;
 import dk.digitalidentity.rc.controller.api.model.SystemRoleAM;
 import dk.digitalidentity.rc.controller.api.model.SystemRoleAssignmentAM;
 import dk.digitalidentity.rc.controller.api.model.UserRoleAM;
+import dk.digitalidentity.rc.controller.api.model.UserShallowAM;
 import dk.digitalidentity.rc.controller.api.model.UserUserRoleAssignmentAM;
 import dk.digitalidentity.rc.dao.model.ConstraintType;
 import dk.digitalidentity.rc.dao.model.ConstraintTypeSupport;
 import dk.digitalidentity.rc.dao.model.PostponedConstraint;
 import dk.digitalidentity.rc.dao.model.SystemRole;
 import dk.digitalidentity.rc.dao.model.SystemRoleAssignment;
+import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserRole;
 import dk.digitalidentity.rc.service.model.AssignedThrough;
 import dk.digitalidentity.rc.service.model.UserRoleAssignedToUser;
@@ -26,9 +28,10 @@ import static dk.digitalidentity.rc.controller.api.mapper.TitleMapper.titleToApi
 
 public abstract class RoleMapper {
 
-    public static UserUserRoleAssignmentAM userRoleAssignmentToApi(final UserRoleAssignmentWithInfo assignment) {
+    public static UserUserRoleAssignmentAM userRoleAssignmentToApi(final UserRoleAssignmentWithInfo assignment, final User user) {
         final UserRoleAssignedToUser userRoleAssignedToUser = assignment.toUserRoleAssignedToUser();
         return UserUserRoleAssignmentAM.builder()
+                .user(UserMapper.toShallowApi(user))
                 .userRole(userRoleToApi(assignment.getUserRole()))
                 .responsibleOrgUnit(toShallowApi(userRoleAssignedToUser.getOrgUnit()))
                 .assignedThroughTitle(titleToApi(userRoleAssignedToUser.getTitle()))

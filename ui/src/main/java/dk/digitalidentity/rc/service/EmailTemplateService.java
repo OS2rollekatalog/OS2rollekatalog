@@ -96,6 +96,27 @@ public class EmailTemplateService {
 					title = "Manglende attestering";
 					message = "Kære {modtager}\n<br/>\n<br/>\nDet er tid til, at der skal attesteres roller for enheden: {enhed}. Der er sendt en eller flere rykkere til leder og eventuel stedfortræder, men en attestering er endnu ikke udført.";
 					break;
+				case ATTESTATION_MANAGERDELEGATE_NOTIFICATION:
+					title = "Det er tid til attestering";
+					message = "Kære {modtager}\n<br/>\n<br/>\nDet er tid til, at der skal attesteres roller for {delegeret_fra}, som du er personlige godkender for.";
+					break;
+				case ATTESTATION_MANAGERDELEGATE_REMINDER1:
+					title = "Påmindelse/rykker for attestering";
+					message = "Kære {modtager}\n<br/>\n<br/>\nDer er ti dage til at der skal være attesteret roller for {delegeret_fra}, som du er personlige godkender for.";
+					break;
+				case ATTESTATION_MANAGERDELEGATE_REMINDER2:
+					title = "Påmindelse/rykker for attestering";
+					message = "Kære {modtager}\n<br/>\n<br/>\nDer er tre dage til at der skal være attesteret roller for {delegeret_fra}, som du er personlige godkender for.";
+					break;
+				case ATTESTATION_MANAGERDELEGATE_REMINDER3:
+					title = "Påmindelse/rykker for attestering";
+					message = "Kære {modtager}\n<br/>\n<br/>\nDet er fem dage siden at der skulle have være attesteret roller for {delegeret_fra}, som du er personlige godkender for.";
+					enabled = false;
+					break;
+				case ATTESTATION_MANAGERDELEGATE_REMINDER_THIRDPARTY:
+					title = "Manglende attestering";
+					message = "Kære {modtager}\n<br/>\n<br/>\nDet er tid til, at der skal attesteres roller for lederen: {delegeret_fra}. Der er sendt en eller flere rykkere til den personlige godkender, men en attestering er endnu ikke udført.";
+					break;
 				case ATTESTATION_SENSITIVE_NOTIFICATION:
 					title = "Det er tid til attestering af følsomme roller";
 					message = "Kære {modtager}\n<br/>\n<br/>\nDet er tid til, at der skal attesteres følsomme roller for enheden: {enhed}.";

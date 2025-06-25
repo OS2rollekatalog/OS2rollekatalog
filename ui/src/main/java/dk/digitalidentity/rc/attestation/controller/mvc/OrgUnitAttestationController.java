@@ -1,10 +1,9 @@
 package dk.digitalidentity.rc.attestation.controller.mvc;
 
-import dk.digitalidentity.rc.attestation.model.dto.OrgUnitRoleGroupAssignmentDTO;
 import dk.digitalidentity.rc.attestation.model.dto.OrgUnitUserRoleAssignmentItSystemDTO;
 import dk.digitalidentity.rc.attestation.model.dto.OrganisationAttestationDTO;
 import dk.digitalidentity.rc.attestation.model.dto.RoleAssignmentDTO;
-import dk.digitalidentity.rc.attestation.model.dto.RoleAssignmentSinceLastAttestationDTO;
+import dk.digitalidentity.rc.attestation.model.dto.enums.RoleType;
 import dk.digitalidentity.rc.attestation.service.OrganisationAttestationService;
 import dk.digitalidentity.rc.dao.model.OrgUnit;
 import dk.digitalidentity.rc.dao.model.User;
@@ -24,6 +23,8 @@ import org.springframework.web.bind.annotation.RequestParam;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
+
+import static dk.digitalidentity.rc.attestation.model.dto.enums.RoleType.USERROLE;
 
 @RequireSubstituteOrManagerRole
 @Controller
@@ -54,11 +55,35 @@ public class OrgUnitAttestationController {
 
 		OrganisationAttestationDTO attestation = attestationService.getAttestation(uuid, user.getUuid(), true);
 
+		model.addAttribute("managerdelegate", false);
 		model.addAttribute("attestation", attestation);
 		model.addAttribute("totalCount", attestation.getUserAttestations().size());
 		model.addAttribute("adAttestationEnabled", settingsService.isADAttestationEnabled());
 		model.addAttribute("orgUnitTotalCount", calculateOrgUnitCount(attestation));
 		model.addAttribute("changeRequestsEnabled", settingsService.isAttestationRequestChangesEnabled());
+
+		return "attestationmodule/orgunits/attestate";
+	}
+
+	@GetMapping(value = "/ui/attestation/v2/orgunits/{uuid}/managerdelegate")
+	@Timed("attestation.controller.mvc.org_unit_attestation_controller.index.timer")
+	public String managerdelegateDetails(Model model, @PathVariable String uuid) {
+		User user = userService.getByUserId(SecurityUtil.getUserId());
+		if (user == null) {
+			return "attestationmodule/error";
+		}
+
+		OrganisationAttestationDTO attestation = attestationService.getManagerDelegatedAttestation(uuid, user.getUuid(), true);
+
+		model.addAttribute("managerdelegate", true);
+		model.addAttribute("attestation", attestation);
+		model.addAttribute("totalCount", attestation.getUserAttestations().size());
+		model.addAttribute("adAttestationEnabled", settingsService.isADAttestationEnabled());
+		model.addAttribute("orgUnitTotalCount", calculateOrgUnitCount(attestation));
+		model.addAttribute("changeRequestsEnabled", settingsService.isAttestationRequestChangesEnabled());
+
+		boolean descriptionRequired = settingsService.isAttestationDescriptionRequired();
+		model.addAttribute("hideDescription", !descriptionRequired && settingsService.isAttestationHideDescription());
 
 		return "attestationmodule/orgunits/attestate";
 	}
@@ -77,7 +102,40 @@ public class OrgUnitAttestationController {
 		model.addAttribute("number", number);
 		model.addAttribute("userUuid", userUuid);
 
+		boolean descriptionRequired = settingsService.isAttestationDescriptionRequired();
+		model.addAttribute("hideDescription", !descriptionRequired && settingsService.isAttestationHideDescription());
+
 		return "attestationmodule/fragments/userRemarkModal :: userRemarkModal";
+	}
+
+	public record AttestationRoleAssignmentDTO (
+			long roleId,
+			String roleName,
+			RoleType roleType,
+			String itSystemName,
+			String titles
+	) {}
+	@GetMapping(value = "/ui/attestation/v2/orgunits/{attestationUuid}/orgunit/{ouUUID}/ouRemarkFragment")
+	@Timed("attestation.controller.mvc.org_unit_attestation_controller.user_remark_fragment.timer")
+	public String orgUnitRemarkFragment(Model model, @PathVariable String attestationUuid, @PathVariable String ouUUID) {
+		User user = userService.getByUserId(SecurityUtil.getUserId());
+		if (user == null) {
+			return "attestationmodule/error";
+		}
+
+		OrganisationAttestationDTO attestation = attestationService.getAttestation(ouUUID, user.getUuid(), true);
+		List<AttestationRoleAssignmentDTO> roles = attestation.getOrgUnitUserRoleAssignmentsPrItSystem().stream()
+				.flatMap(ass -> ass.getUserRoles().stream()
+						.map(ur -> new AttestationRoleAssignmentDTO(ur.getRoleId(), ur.getRoleName(), USERROLE, ass.getItSystemName(), String.join(", ", ur.getTitles()))))
+				.toList();
+
+		model.addAttribute("roleAssignments", roles);
+		model.addAttribute("orgUnitUuid", ouUUID);
+
+		boolean descriptionRequired = settingsService.isAttestationDescriptionRequired();
+		model.addAttribute("hideDescription", !descriptionRequired && settingsService.isAttestationHideDescription());
+
+		return "attestationmodule/fragments/orgUnitRemarkModal :: orgUnitRemarkModal";
 	}
 
 	private int calculateOrgUnitCount(OrganisationAttestationDTO attestation) {

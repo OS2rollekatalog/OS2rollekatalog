@@ -165,6 +165,7 @@ public class BootstrapDevMode {
 		User and = userDao.findByUserIdAndDomainAndDeletedFalse("and", domainService.getPrimaryDomain()).orElseThrow();
 		User skr = userDao.findByUserIdAndDomainAndDeletedFalse("skr", domainService.getPrimaryDomain()).orElseThrow();
 		User jls = userDao.findByUserIdAndDomainAndDeletedFalse("jls", domainService.getPrimaryDomain()).orElseThrow();
+		User psu = userDao.findByUserIdAndDomainAndDeletedFalse("psu", domainService.getPrimaryDomain()).orElseThrow();
 		UserRole administrator = userRoleDao.getByIdentifier("administrator");
 		
 		UserUserRoleAssignment assignment = new UserUserRoleAssignment();
@@ -226,6 +227,16 @@ public class BootstrapDevMode {
 
 		jls.getUserRoleAssignments().add(assignment);
 		userDao.save(jls);
+
+		assignment = new UserUserRoleAssignment();
+		assignment.setUser(psu);
+		assignment.setAssignedByName("Systembruger");
+		assignment.setAssignedByUserId("system");
+		assignment.setAssignedTimestamp(new Date());
+		assignment.setUserRole(administrator);
+		
+		psu.getUserRoleAssignments().add(assignment);
+		userDao.save(psu);
 	}
 
 	private void setItSystemResponsible() {
@@ -391,6 +402,13 @@ public class BootstrapDevMode {
 		p.setOrgUnitUuid(kommune.getUuid());
 		p.setTitleUuid(titleDao.findAll().getFirst().getUuid());
 		jls.getPositions().add(p);
+
+		UserDTO psu = createUser(users, "Piotr Suski", "psu");
+		p = new PositionDTO();
+		p.setName("Udvikler");
+		p.setOrgUnitUuid(kommune.getUuid());
+		p.setTitleUuid(titleDao.findAll().getFirst().getUuid());
+		psu.getPositions().add(p);
 
 		OrganisationDTO payload = new OrganisationDTO();
 		payload.setOrgUnits(orgUnits);

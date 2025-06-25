@@ -11,73 +11,114 @@ namespace ADSyncService
         public void PerformUpdate(RoleCatalogueStub roleCatalogueStub, ADStub adStub)
         {
             List<string> systemMap = remoteConfigurationService.GetConfiguration().itSystemGroupFeatureSystemMap;
-            foreach (string mapRaw in systemMap)
+            if (systemMap != null)
             {
-                var map = mapRaw.Replace("&amp;", "&");
-                string[] tokens = map.Split(';');
-                if (tokens.Length != 2)
+                foreach (string mapRaw in systemMap)
                 {
-                    log.Warn("Invalid entry in ItSystemGroup update: " + map);
-                    continue;
-                }
-
-                string itSystemId = tokens[0];
-                string groupDn = tokens[1];
-
-                List<string> users = roleCatalogueStub.GetUsersInItSystem(itSystemId);
-                if (users == null)
-                {
-                    log.Warn("Unable to get users from role catalogue: " + itSystemId);
-                    continue;
-                }
-
-                List<string> members = adStub.GetGroupMembers(groupDn);
-                if (members == null)
-                {
-                    log.Warn("Unable to get members from group: " + groupDn);
-                    continue;
-                }
-
-                // to add
-                foreach (string user in users)
-                {
-                    bool found = false;
-
-                    foreach (string member in members)
+                    string[] tokens = SplitMap(mapRaw);
+                    if (tokens.Length != 2)
                     {
-                        if (string.Equals(user, member, System.StringComparison.OrdinalIgnoreCase))
-                        {
-                            found = true;
-                            break;
-                        }
+                        log.Warn("Invalid entry in itSystemGroupFeatureSystemMap update: " + mapRaw);
+                        continue;
                     }
 
-                    if (!found)
-                    {
-                        adStub.AddMember(groupDn, user);
-                    }
-                }
+                    string itSystemId = tokens[0];
+                    string groupDn = tokens[1];
 
-                // to remove
-                foreach (string member in members)
-                {
-                    bool found = false;
-
-                    foreach (string user in users)
+                    List<string> users = roleCatalogueStub.GetUsersInItSystem(itSystemId);
+                    if (users == null)
                     {
-                        if (string.Equals(user, member, System.StringComparison.OrdinalIgnoreCase))
-                        {
-                            found = true;
-                            break;
-                        }
+                        log.Warn("Unable to get users from role catalogue: " + itSystemId);
+                        continue;
                     }
 
-                    if (!found)
-                    {
-                        adStub.RemoveMember(groupDn, member);
-                    }
+                    HandleGroupMembers(adStub, groupDn, users);
                 }
             }
+
+            List<string> roleMap = remoteConfigurationService.GetConfiguration().itSystemGroupFeatureRoleMap;
+            if (roleMap != null)
+            {
+                foreach (string mapRaw in roleMap)
+                {
+                    string[] tokens = SplitMap(mapRaw);
+                    if (tokens.Length != 2)
+                    {
+                        log.Warn("Invalid entry in itSystemGroupFeatureRoleMap update: " + mapRaw);
+                        continue;
+                    }
+
+                    string roleId = tokens[0];
+                    string groupDn = tokens[1];
+
+                    List<string> users = roleCatalogueStub.GetUsersWithRole(roleId);
+                    if (users == null)
+                    {
+                        log.Warn("Unable to get users with role from role catalogue: " + roleId);
+                        continue;
+                    }
+
+                    HandleGroupMembers(adStub, groupDn, users);
+                }
+            }
+        }
+
+        private static void HandleGroupMembers(ADStub adStub, string groupDn, List<string> users)
+        {
+            List<string> members = adStub.GetGroupMembers(groupDn, groupDn);
+            if (members == null)
+            {
+                log.Warn("Unable to get members from group: " + groupDn);
+                return;
+            }
+
+            // to add
+            foreach (string user in users)
+            {
+                bool found = false;
+
+                foreach (string member in members)
+                {
+                    if (string.Equals(user, member, System.StringComparison.OrdinalIgnoreCase))
+                    {
+                        found = true;
+                        break;
+                    }
+                }
+
+                if (!found)
+                {
+                    adStub.AddMember(groupDn, user);
+                }
+            }
+
+            // to remove
+            foreach (string member in members)
+            {
+                bool found = false;
+
+                foreach (string user in users)
+                {
+                    if (string.Equals(user, member, System.StringComparison.OrdinalIgnoreCase))
+                    {
+                        found = true;
+                        break;
+                    }
+                }
+
+                if (!found)
+                {
+                    adStub.RemoveMember(groupDn, member);
+                }
+            }
+        }
+
+        private static string[] SplitMap(string mapRaw)
+        {
+            var map = mapRaw.Replace("&amp;", "&");
+            string[] tokens = map.Split(';');
+
+            return tokens;
         }
     }
 }

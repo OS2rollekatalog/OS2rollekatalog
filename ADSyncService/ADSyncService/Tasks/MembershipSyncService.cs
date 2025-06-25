@@ -105,7 +105,7 @@ namespace ADSyncService
                 }
 
                 // all members are in lower-case, for easy comparison
-                var adGroupMembers = adStub.GetGroupMembers(assignment.groupName);
+                var adGroupMembers = adStub.GetGroupMembers(assignment.groupName, assignment.groupName);
                 if (adGroupMembers == null)
                 {
                     log.Warn("Unable to get members for: " + assignment.groupName);

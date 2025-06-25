@@ -5,7 +5,6 @@ import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -13,6 +12,9 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import dk.digitalidentity.rc.dao.model.ManagerDelegate;
+import dk.digitalidentity.rc.service.ManagerDelegateService;
+import dk.digitalidentity.rc.service.OrgUnitService;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -80,6 +82,10 @@ public class AttestationEmailNotificationService {
 
     @Autowired
     private ItSystemDao itSystemDao;
+	@Autowired
+	private OrgUnitService orgUnitService;
+	@Autowired
+	private ManagerDelegateService managerDelegateService;
 
 
     public void sendRequestForAdRemoval(final String requester, final String user, final String responsibleOu) {
@@ -132,6 +138,12 @@ public class AttestationEmailNotificationService {
         sendEmailsOrganisation(Attestation.AttestationType.ORGANISATION_ATTESTATION, AttestationMail.MailType.REMINDER_2, now);
         sendEmailsOrganisation(Attestation.AttestationType.ORGANISATION_ATTESTATION, AttestationMail.MailType.REMINDER_3, now);
         sendEmailsOrganisation(Attestation.AttestationType.ORGANISATION_ATTESTATION, AttestationMail.MailType.ESCALATION_REMINDER, now);
+
+        sendEmailsOrganisation(Attestation.AttestationType.MANAGER_DELEGATED_ATTESTATION, AttestationMail.MailType.INFORMATION, now);
+        sendEmailsOrganisation(Attestation.AttestationType.MANAGER_DELEGATED_ATTESTATION, AttestationMail.MailType.REMINDER_1, now);
+        sendEmailsOrganisation(Attestation.AttestationType.MANAGER_DELEGATED_ATTESTATION, AttestationMail.MailType.REMINDER_2, now);
+        sendEmailsOrganisation(Attestation.AttestationType.MANAGER_DELEGATED_ATTESTATION, AttestationMail.MailType.REMINDER_3, now);
+        sendEmailsOrganisation(Attestation.AttestationType.MANAGER_DELEGATED_ATTESTATION, AttestationMail.MailType.ESCALATION_REMINDER, now);
     }
     
 	private void sendEmails(final Attestation.AttestationType attestationType, final AttestationMail.MailType mailType, final LocalDate now) {
@@ -278,10 +290,10 @@ public class AttestationEmailNotificationService {
                 user = null;
             }
             
-            final String message = resolveMessage(attestations.get(0), receiver, user, null, template, attestations);
-            final String title = resolveTitle(attestations.get(0), receiver, user, null, template);
+            final String message = resolveMessage(attestations.getFirst(), receiver, user, null, template, attestations);
+            final String title = resolveTitle(attestations.getFirst(), receiver, user, null, template);
             final String email = receiver.getEmail();
-            log.info("Sending attestation notification ({}, {}, {} to {})", attestations.get(0).getItSystemName(),
+            log.info("Sending attestation notification ({}, {}, {} to {})", attestations.getFirst().getItSystemName(),
                     template.getTemplateType().name(), mailType.name(), email);
             emailQueueService.queueEmail(email, title, message, template, null, null);
 
@@ -331,14 +343,33 @@ public class AttestationEmailNotificationService {
                     .findFirst().map(Collections::singletonList)
                     .orElse(Collections.emptyList()));
         } else if (escalation && responsibleUser != null) {
-            final User fResponsibleUser = responsibleUser;
-            // Find the manager's manager(s)
-            return getManagerOrSubstitute(responsibleUser.getPositions().stream()
-                    .map(Position::getOrgUnit)
-                    .filter(ou -> ou.getManager() != null
-                            && ou.getManager().getUuid().equals(fResponsibleUser.getUuid()))
-                    .flatMap(ou -> findManagersManager(fResponsibleUser, ou, 0).stream())
-                    .collect(Collectors.toList()));
+            if (attestation.getAttestationType() == Attestation.AttestationType.ORGANISATION_ATTESTATION) {
+                final User fResponsibleUser = responsibleUser;
+                // Find the manager's manager(s)
+                return getManagerOrSubstitute(responsibleUser.getPositions().stream()
+                        .map(Position::getOrgUnit)
+                        .filter(ou -> ou.getManager() != null
+                                && ou.getManager().getUuid().equals(fResponsibleUser.getUuid()))
+                        .flatMap(ou -> findManagersManager(fResponsibleUser, ou, 0).stream())
+                        .collect(Collectors.toList()));
+            } else if (attestation.getAttestationType() == Attestation.AttestationType.MANAGER_DELEGATED_ATTESTATION) {
+                //either target the manager, or any substitutes
+                // Find substitutes(stedfortrædere)
+                final List<User> substitutes = orgUnitDao.findById(attestation.getResponsibleOuUuid())
+                        .stream()
+                        .map(OrgUnit::getManager)
+                        .filter(Objects::nonNull)
+                        .flatMap(manager -> manager.getManagerSubstitutes().stream())
+                        .filter(s -> s.getOrgUnit().getUuid().equals(attestation.getResponsibleOuUuid()))
+                        .map(ManagerSubstitute::getSubstitute)
+                        .toList();
+                // don't send to manager if has substitutes
+                if (settingsService.isDontSendMailToManagerEnabled() && !substitutes.isEmpty()) {
+                    return substitutes;
+                }
+                return Stream.concat(Stream.of(responsibleUser), substitutes.stream())
+                        .collect(Collectors.toList());
+            }
         } else if (responsibleUser != null) {
             if (attestation.getAttestationType() == Attestation.AttestationType.ORGANISATION_ATTESTATION) {
                 // Find substitutes(stedfortrædere)
@@ -351,11 +382,19 @@ public class AttestationEmailNotificationService {
                         .map(ManagerSubstitute::getSubstitute)
                         .toList();
                 // don't send to manager if has substitutes
-                if (!settingsService.isDontSendMailToManagerEnabled() && !substitutes.isEmpty()) {
+                if (settingsService.isDontSendMailToManagerEnabled() && !substitutes.isEmpty()) {
                     return substitutes;
                 }
                 return Stream.concat(Stream.of(responsibleUser), substitutes.stream())
                         .collect(Collectors.toList());
+            } else if (attestation.getAttestationType() == Attestation.AttestationType.MANAGER_DELEGATED_ATTESTATION) {
+                //Find delegates for the responsible user
+                User manager = responsibleUser;
+                return managerDelegateService.getByDelegate(responsibleUser).stream()
+                        .filter(md -> md.getManager().equals(manager))
+                        .map(ManagerDelegate::getDelegate)
+                        .toList();
+
             } else {
                 return Collections.singletonList(responsibleUser);
             }
@@ -378,8 +417,7 @@ public class AttestationEmailNotificationService {
                         .filter(s -> s.getOrgUnit().getUuid().equals(user.getUuid()))
                         .map(ManagerSubstitute::getSubstitute)
                         .toList();
-                
-                if (substitutes != null && !substitutes.isEmpty()) {
+                if (!substitutes.isEmpty()) {
                     result.addAll(substitutes);
                 } else {
                     result.add(user);
@@ -468,6 +506,7 @@ public class AttestationEmailNotificationService {
             case SYSTEM_RESPONSIBLE_PLACEHOLDER -> systemResponsible != null ? systemResponsible.getName() : "ukendt";
             case ATTESTATION_DEADLINE -> attestation.getDeadline() != null ? attestation.getDeadline().format(DateTimeFormatter.ofPattern("dd/MM/yyyy")) : "ukendt";
             case ORGUNITS_PLACEHOLDER -> attestations != null ? attestations.stream().map(this::findOrgUnitName).collect(Collectors.joining(", ")) : "";
+            case MANAGERDELEGATE_PLACEHOLDER -> findDelegatedForName(attestation);
             default -> {
                 log.warn(placeholder.getPlaceholder() + " is not resolved in AttestationEmailNotificationService");
                 yield placeholder.getPlaceholder();
@@ -528,6 +567,23 @@ public class AttestationEmailNotificationService {
         return itSystem.map(ItSystem::getSystemOwner);
     }
 
+    private String findDelegatedForName(final Attestation attestation) {
+        if (attestation.getResponsibleOuUuid() == null) {
+            return "Ukendt";
+        }
+
+        var orgUnit = orgUnitDao.findById(attestation.getResponsibleOuUuid())
+                .orElse(null);
+        if (orgUnit == null) {
+            return "Ukendt";
+        }
+        var manager = orgUnitService.getManager(orgUnit);
+        return managerDelegateService.getByManager(manager).stream()
+                .map(md -> md.getManager().getName())
+                .findFirst()
+                .orElse("Ukendt");
+    }
+
     private EmailTemplate findEmailTemplate(final Attestation.AttestationType attestationType,  AttestationMail.MailType mailType) {
         return switch (mailType) {
             case INFORMATION -> 
@@ -535,30 +591,35 @@ public class AttestationEmailNotificationService {
                     case ORGANISATION_ATTESTATION -> emailTemplateService.findByTemplateType(EmailTemplateType.ATTESTATION_NOTIFICATION);
                     case IT_SYSTEM_ATTESTATION -> emailTemplateService.findByTemplateType(EmailTemplateType.ATTESTATION_IT_SYSTEM_ASSIGNMENT_NOTIFICATION);
                     case IT_SYSTEM_ROLES_ATTESTATION -> emailTemplateService.findByTemplateType(EmailTemplateType.ATTESTATION_IT_SYSTEM_NOTIFICATION);
+                    case MANAGER_DELEGATED_ATTESTATION -> emailTemplateService.findByTemplateType(EmailTemplateType.ATTESTATION_MANAGERDELEGATE_NOTIFICATION);
                 };
             case REMINDER_1 ->
                 switch (attestationType) {
                     case ORGANISATION_ATTESTATION -> emailTemplateService.findByTemplateType(EmailTemplateType.ATTESTATION_REMINDER1);
                     case IT_SYSTEM_ATTESTATION -> emailTemplateService.findByTemplateType(EmailTemplateType.ATTESTATION_IT_SYSTEM_ASSIGNMENT_REMINDER1);
                     case IT_SYSTEM_ROLES_ATTESTATION -> emailTemplateService.findByTemplateType(EmailTemplateType.ATTESTATION_IT_SYSTEM_REMINDER1);
+                    case MANAGER_DELEGATED_ATTESTATION -> emailTemplateService.findByTemplateType(EmailTemplateType.ATTESTATION_MANAGERDELEGATE_REMINDER1);
                 };
             case REMINDER_2 ->
                 switch (attestationType) {
                     case ORGANISATION_ATTESTATION -> emailTemplateService.findByTemplateType(EmailTemplateType.ATTESTATION_REMINDER2);
                     case IT_SYSTEM_ATTESTATION -> emailTemplateService.findByTemplateType(EmailTemplateType.ATTESTATION_IT_SYSTEM_ASSIGNMENT_REMINDER2);
                     case IT_SYSTEM_ROLES_ATTESTATION -> emailTemplateService.findByTemplateType(EmailTemplateType.ATTESTATION_IT_SYSTEM_REMINDER2);
+                    case MANAGER_DELEGATED_ATTESTATION -> emailTemplateService.findByTemplateType(EmailTemplateType.ATTESTATION_MANAGERDELEGATE_REMINDER2);
                 };
             case REMINDER_3 ->
                 switch (attestationType) {
                     case ORGANISATION_ATTESTATION -> emailTemplateService.findByTemplateType(EmailTemplateType.ATTESTATION_REMINDER3);
                     case IT_SYSTEM_ATTESTATION -> emailTemplateService.findByTemplateType(EmailTemplateType.ATTESTATION_IT_SYSTEM_ASSIGNMENT_REMINDER3);
                     case IT_SYSTEM_ROLES_ATTESTATION -> emailTemplateService.findByTemplateType(EmailTemplateType.ATTESTATION_IT_SYSTEM_REMINDER3);
+                    case MANAGER_DELEGATED_ATTESTATION -> emailTemplateService.findByTemplateType(EmailTemplateType.ATTESTATION_MANAGERDELEGATE_REMINDER3);
                 };
             case ESCALATION_REMINDER ->
                 switch (attestationType) {
                     case ORGANISATION_ATTESTATION -> emailTemplateService.findByTemplateType(EmailTemplateType.ATTESTATION_REMINDER_THIRDPARTY);
                     case IT_SYSTEM_ATTESTATION -> emailTemplateService.findByTemplateType(EmailTemplateType.ATTESTATION_IT_SYSTEM_ASSIGNMENT_REMINDER_THIRDPARTY);
                     case IT_SYSTEM_ROLES_ATTESTATION -> emailTemplateService.findByTemplateType(EmailTemplateType.ATTESTATION_IT_SYSTEM_REMINDER_THIRDPARTY);
+                    case MANAGER_DELEGATED_ATTESTATION -> emailTemplateService.findByTemplateType(EmailTemplateType.ATTESTATION_MANAGERDELEGATE_REMINDER_THIRDPARTY);
                 };
         };
     }

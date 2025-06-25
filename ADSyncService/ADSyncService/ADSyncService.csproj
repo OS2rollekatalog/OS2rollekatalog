@@ -69,9 +69,6 @@
     <Reference Include="Microsoft.Bcl.TimeProvider, Version=8.0.0.1, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
       <HintPath>packages\Microsoft.Bcl.TimeProvider.8.0.1\lib\net462\Microsoft.Bcl.TimeProvider.dll</HintPath>
     </Reference>
-    <Reference Include="Microsoft.Data.Sqlite, Version=9.0.0.0, Culture=neutral, PublicKeyToken=adb9793829ddae60, processorArchitecture=MSIL">
-      <HintPath>packages\Microsoft.Data.Sqlite.Core.9.0.0\lib\netstandard2.0\Microsoft.Data.Sqlite.dll</HintPath>
-    </Reference>
     <Reference Include="Microsoft.Graph, Version=5.61.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL">
       <HintPath>packages\Microsoft.Graph.5.61.0\lib\netstandard2.0\Microsoft.Graph.dll</HintPath>
     </Reference>
@@ -233,9 +230,11 @@
     <Compile Include="PAM\Model\CyberArk.cs" />
     <Compile Include="PAM\PAMService.cs" />
     <Compile Include="Persistance\PersistenceService.cs" />
+    <Compile Include="Persistance\SqliteConnectionManager.cs" />
     <Compile Include="RemoteConfiguration\RemoteConfigurationService.cs" />
     <Compile Include="RemoteConfiguration\RemoteConfigurationJob.cs" />
     <Compile Include="RemoteConfiguration\RemoteConfiguration.cs" />
+    <Compile Include="RoleCatalog\UserWithRole.cs" />
     <Compile Include="Tasks\MembershipSyncService.cs" />
     <Compile Include="Tasks\ReadonlyItSystemService.cs" />
     <Compile Include="Tasks\ReadonlyItSystemSyncJob.cs" />
@@ -259,6 +258,7 @@
     <Compile Include="Tasks\LogUploaderJob.cs" />
     <Compile Include="Tasks\FullMembershipSyncJob.cs" />
     <Compile Include="Tasks\SyncJob.cs" />
+    <Compile Include="Util\AccessChecker.cs" />
     <Compile Include="Util\ListExtensions.cs" />
   </ItemGroup>
   <ItemGroup>
@@ -303,7 +303,7 @@
       <Version>2.0.15</Version>
     </PackageReference>
     <PackageReference Include="Microsoft.Data.Sqlite">
-      <Version>9.0.2</Version>
+      <Version>9.0.4</Version>
     </PackageReference>
     <PackageReference Include="Microsoft.Graph">
       <Version>5.61.0</Version>

@@ -55,6 +55,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @Slf4j
 @Service
@@ -87,6 +88,8 @@ public class OrganisationImporter {
 
 	@Autowired
 	private EmailQueueService emailQueueService;
+
+	private record OrganisationImportContext(List<String> systemOwnerAndResponsibleUuids) {}
 	
 	@Transactional
 	public OrganisationImportResponse fullSync(OrganisationDTO organisation, Domain domain) {
@@ -102,6 +105,8 @@ public class OrganisationImporter {
 				log.warn("Rejecting payload: " + validation.message);
 				throw new ResponseStatusException(HttpStatus.BAD_REQUEST, validation.message);
 			}
+
+			final OrganisationImportContext context = buildOrganizationImportContext();
 
 			// convert payload to internal data structure with all relationships established
 			List<User> newUsers = new ArrayList<>();
@@ -119,7 +124,7 @@ public class OrganisationImporter {
 			}
 
 			// this modifies existingUsers, so it now contains everything
-			processUsers(newUsers, existingUsers, existingOrgUnits, response, false, domain);
+			processUsers(context, newUsers, existingUsers, existingOrgUnits, response, false, domain);
 
 			// both existing OrgUnits and Users have been merged with new OrgUnits and Users at this point - only if primary domain
 			if (isPrimaryDomain) {
@@ -136,6 +141,15 @@ public class OrganisationImporter {
 		}
 	}
 
+	private OrganisationImportContext buildOrganizationImportContext() {
+		final List<String> ownersAndResponsible = itSystemService.getAll().stream()
+				.flatMap(its -> Stream.of(its.getAttestationResponsible(), its.getSystemOwner()))
+				.filter(Objects::nonNull)
+				.map(User::getUuid)
+				.toList();
+		return new OrganisationImportContext(ownersAndResponsible);
+	}
+
 	@Transactional
 	public OrganisationImportResponse deltaSync(List<UserDTO> users, Domain domain) {
 		events.set(new OrganisationChangeEvents());
@@ -150,6 +164,8 @@ public class OrganisationImporter {
 				throw new ResponseStatusException(HttpStatus.BAD_REQUEST, validation.message);
 			}
 
+			final OrganisationImportContext context = buildOrganizationImportContext();
+			
 			// convert payload to internal data structure with all relationships established
 			List<User> newUsers = new ArrayList<>();
 			List<OrgUnit> existingOrgUnits = orgUnitService.getAllIncludingInactive();
@@ -165,7 +181,7 @@ public class OrganisationImporter {
 			List<User> existingUsers = userService.getAllIncludingInactive(domain);
 
 			// this modifies existingUsers, so it now contains everything
-			processUsers(newUsers, existingUsers, existingOrgUnits, response, true, domain);
+			processUsers(context, newUsers, existingUsers, existingOrgUnits, response, true, domain);
 
 			// if everything went okay so far, fire of all collected events
 			processEvents();
@@ -524,7 +540,7 @@ public class OrganisationImporter {
 	}
 
 	
-	private void processUsers(List<User> newUsers, List<User> existingUsers, List<OrgUnit> existingOrgUnits, OrganisationImportResponse response, boolean deltaSync, Domain domain) {
+	private void processUsers(OrganisationImportContext context, List<User> newUsers, List<User> existingUsers, List<OrgUnit> existingOrgUnits, OrganisationImportResponse response, boolean deltaSync, Domain domain) {
 		List<User> toBeCreated = new ArrayList<>();
 		List<User> toBeUpdated = new ArrayList<>();
 		List<User> toBeDeleted = new ArrayList<>();
@@ -663,8 +679,8 @@ public class OrganisationImporter {
 							if (!userHasNoRoles && (!movedPositionEvent.getNewPositions().isEmpty() && !movedPositionEvent.getOldPositions().isEmpty())) {
 								events.get().getUsersMovedPostions().add(movedPositionEvent);
 							}
-							
-							if (userService.isSystemOwnerOrAttestationResponsible(existingUser)) {
+
+							if (context.systemOwnerAndResponsibleUuids.contains(existingUser.getUuid())) {
 								events.get().getSystemOwnerOrAttestationResponsibleMovedPostions().add(movedPositionEvent);
 							}
 						}
@@ -1306,6 +1322,11 @@ public class OrganisationImporter {
 	private void handleUserPositionChange(Set<UserMovedPositions> usersWhoMovedPositions) {
 		if (settingsService.isNotificationTypeEnabled(NotificationType.USER_MOVED_POSITIONS)) {
 			for (UserMovedPositions event : usersWhoMovedPositions) {
+				// skip substitutes
+				if (userService.isVikar(event.getUser().getUserId())) {
+					continue;
+				}
+
 				String oneOrMoreNew = event.getNewPositions().size() == 1 ? "Ny stilling:" : "Nye stillinger:";
 				String oneOrMoreOld = event.getOldPositions().size() == 1 ? "Fratrådt stilling:" : "Fratrådte stillinger:";
 				String message = "Brugeren " + event.getUser().getName() + " (" + event.getUser().getUserId() + ") har skiftet afdeling.\n" + oneOrMoreNew + "\n";
@@ -1333,8 +1354,12 @@ public class OrganisationImporter {
 		EmailTemplate template = emailTemplateService.findByTemplateType(EmailTemplateType.USER_WITH_DIRECT_ROLES_CHANGED_ORGUNIT);
 		if (template.isEnabled()) {
 			for (UserMovedPositions event : usersWhoMovedPositions) {
-
 				if (event.getUser().getUserRoleAssignments().isEmpty() && event.getUser().getRoleGroupAssignments().isEmpty()) {
+					continue;
+				}
+
+				// skip substitutes
+				if (userService.isVikar(event.getUser().getUserId())) {
 					continue;
 				}
 
@@ -1376,7 +1401,25 @@ public class OrganisationImporter {
 				String oneOrMoreNew = event.getNewPositions().size() == 1 ? "Ny stilling:" : "Nye stillinger:";
 				String oneOrMoreOld = event.getOldPositions().size() == 1 ? "Fratrådt stilling:" : "Fratrådte stillinger:";
 				
-				String message = "Systemansvarlig eller systemejer  " + event.getUser().getName() + " (" + event.getUser().getUserId() + ") har skiftet afdeling.\n" + oneOrMoreNew + "\n";
+				List<ItSystem> itSystems = itSystemService.findByAttestationResponsibleOrSystemOwner(event.getUser());
+				List<ItSystem> responsibleFor = new ArrayList<>();
+				List<ItSystem> ownerOf = new ArrayList<>();
+				responsibleFor.addAll(itSystems.stream().filter(i -> i.getAttestationResponsible() != null).toList());
+				ownerOf.addAll(itSystems.stream().filter(i -> i.getSystemOwner() != null).toList());
+				
+				String whoText = "Systemansvarlig eller Systemejer ";
+				if (!responsibleFor.isEmpty() && !ownerOf.isEmpty()) {
+					whoText = "Systemansvarlig for "
+									+ responsibleFor.stream().map(i -> i.getName()).collect(Collectors.collectingAndThen(Collectors.toList(), joiningLastDelimiter(", ", " og ")))
+									+ " og Systemejer for " + ownerOf.stream().map(i -> i.getName()).collect(Collectors.collectingAndThen(Collectors.toList(), joiningLastDelimiter(", ", " og "))) + ".";
+				} else if (!responsibleFor.isEmpty()) {
+					whoText = "Systemansvarlig for "
+									+ responsibleFor.stream().map(i -> i.getName()).collect(Collectors.collectingAndThen(Collectors.toList(), joiningLastDelimiter(", ", " og "))) + ".";
+				} else if (!ownerOf.isEmpty()) {
+					whoText = "Systemejer for " + ownerOf.stream().map(i -> i.getName()).collect(Collectors.collectingAndThen(Collectors.toList(), joiningLastDelimiter(", ", " og "))) + ".";
+				}
+				
+				String message = whoText + "\n" + event.getUser().getName() + " (" + event.getUser().getUserId() + ") har skiftet afdeling.\n" + oneOrMoreNew + "\n";
 				for (MovedPostion newPosition : event.getNewPositions()) {
 					message += newPosition.getPositionName() + " i " + newPosition.getOrgUnit().getName() + "\n";
 				}
@@ -1397,6 +1440,15 @@ public class OrganisationImporter {
 				notificationService.save(moveNotification);
 			}
 		}
+	}
+
+	public static Function<List<String>, String> joiningLastDelimiter(String delimiter, String lastDelimiter) {
+		return list -> {
+			int last = list.size() - 1;
+			if (last < 1)
+				return String.join(delimiter, list);
+			return String.join(lastDelimiter, String.join(delimiter, list.subList(0, last)), list.get(last));
+		};
 	}
 
 	private void handleNewTitles(Set<OrgUnitWithTitlesDTO> orgUnitsWithNewTitles) {

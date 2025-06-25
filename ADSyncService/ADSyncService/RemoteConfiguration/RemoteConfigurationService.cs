@@ -87,7 +87,8 @@ namespace ADSyncService
             {
                 foreach (var ouDN in configuration.backSyncFeatureOUs)
                 {
-                    if (!adStub.EntityExistsInAD(ouDN.Split(';')[1]))
+                    string dnWithoutWildcard = ouDN.Split(';')[1].Replace("*", "");
+                    if (!adStub.EntityExistsInAD(dnWithoutWildcard))
                     {
                         errorMsg += "Konfigureret backSyncFeatureOU: " + ouDN + " eksisterer ikke i AD\n";
                         valid = false;
@@ -102,6 +103,18 @@ namespace ADSyncService
                     if (!adStub.EntityExistsInAD(groupDN.Split(';')[1]))
                     {
                         errorMsg += "Konfigureret itSystemGroupFeatureSystemMap gruppe: " + groupDN + " eksisterer ikke i AD\n";
+                        valid = false;
+                    }
+                }
+            }
+
+            if (configuration.itSystemGroupFeatureRoleMap != null)
+            {
+                foreach (var groupDN in configuration.itSystemGroupFeatureRoleMap)
+                {
+                    if (!adStub.EntityExistsInAD(groupDN.Split(';')[1]))
+                    {
+                        errorMsg += "Konfigureret itSystemGroupFeatureRoleMap gruppe: " + groupDN + " eksisterer ikke i AD\n";
                         valid = false;
                     }
                 }
@@ -162,6 +175,7 @@ namespace ADSyncService
 
             configuration.itSystemGroupFeatureEnabled = Properties.Settings.Default.ItSystemGroupFeature_Enabled;
             configuration.itSystemGroupFeatureSystemMap = ConvertToList(Properties.Settings.Default.ItSystemGroupFeature_SystemMap);
+            configuration.itSystemGroupFeatureRoleMap = ConvertToList(Properties.Settings.Default.ItSystemGroupFeature_RoleMap);
 
             configuration.readonlyItSystemFeatureEnabled = Properties.Settings.Default.ReadonlyItSystemFeature_Enabled;
             configuration.readonlyItSystemFeatureSystemMap = ConvertToList(Properties.Settings.Default.ReadonlyItSystemFeature_SystemMap);
@@ -177,6 +191,8 @@ namespace ADSyncService
             configuration.tenantId = Properties.Settings.Default.TenantId;
             configuration.clientId = Properties.Settings.Default.ClientId;
             configuration.clientSecret = Properties.Settings.Default.ClientSecret;
+
+            configuration.includeNotesInDescription = Properties.Settings.Default.IncludeNotesInDescription;
 
             localConfiguration = configuration;
         }

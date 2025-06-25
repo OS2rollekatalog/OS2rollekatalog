@@ -14,6 +14,8 @@ public enum Settings {
     SETTING_IT_SYSTEM_CHANGE_EMAIL("ItSystemChangeEmail", "html.setting.itsystem.change.email"),
     SETTING_ATTESTATIONCHANGE_EMAIL("RemovalOfUnitRolesEmail", "html.setting.remove.role.email"),
     SETTING_AD_ATTESTATION("AttestationADEnabled", "html.setting.attestation.scheduled.ad.enabled"),
+    SETTING_SCHEDULED_ATTESTATION_DESCRIPTION_REQUIRED("ScheduledAttestationDescriptionRequired", "html.setting.attestation.descriptionRequired"),
+    SETTING_SCHEDULED_ATTESTATION_HIDE_DESCRIPTION("ScheduledAttestationHideDescription", "html.setting.attestation.hideDescription"),
     SETTING_ALLOW_CHANGE_REQUEST_ATTESTATION("AttestationAllowChanges", "html.setting.attestation.changes.enabled"),
     SETTING_RUN_CICS("RunCics", null),
     SETTING_IT_SYSTEM_DEFAULT_HIDDEN_ENABLED("ItSystemHiddenByDefault", "html.setting.kombit.itsystems_hidden_by_default.enabled"),
@@ -22,7 +24,13 @@ public enum Settings {
     SETTING_BLOCK_ALL_EMAIL_TRANSMISSIONS("BlockAllEmailTransmissions", null),
     SETTING_EMAIL_QUEUE_LIMIT("EmailQueueLimit", null),
     SETTING_CURRENT_INSTALLED_RANK("currentInstalledRank", null),
-    SETTING_DONT_SEND_MAIL_TO_MANAGER("DontSendMailToMangerEnabled", null);
+    SETTING_DONT_SEND_MAIL_TO_MANAGER("DontSendMailToMangerEnabled", null),
+    SETTING_CASE_NUMBER_ENABLED("caseNumberEnabled", "html.setting.caseNumber.enabled"),
+    SETTING_EXCLUDED_OUS("ExcludedOUs", "html.setting.pickou"),
+	SETTING_VIKAR_REGEX("VikarRegEx", null),
+    SETTING_ATTESTATION_ORGUNIT_OPTIN("attestationOrgUnitOptIn",null),
+    SETTING_SCHEDULED_ATTESTATION_OPTED_IN_ORG_UNITS("ScheduledAttestationOptedInOrgUnits", "html.setting.attestation.scheduled.filter.optin");
+
 
     private String key;
     private String message;

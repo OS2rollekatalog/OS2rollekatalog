@@ -49,6 +49,15 @@
 							</select>
 						</div>
 					</div>
+
+					<div style="height: 70px;" th:if="${caseNumberEnabled}">
+						<h4 class="md-12">
+							<span th:text="#{html.page.assign.direct.caseNumber}"></span>
+						</h4>
+						<div class="form-group col-md-12">
+							<input class="form-control" id="editRoleCaseNumber"/>
+						</div>
+					</div>
 				</div>
 	
 				<div class="modal-footer">
@@ -68,6 +77,7 @@
 
 		/*[+
 			var missingPostponedConstraintService = [[${missingPostponedConstraintService}]];
+			var caseNumberEnabled = [[${caseNumberEnabled}]];
 		+]*/
 
 		var userRoleEditModalService;
@@ -106,7 +116,7 @@
 				});
 			}
 
-			this.showModal = function (user, startDate, stopDate, type, assignmentId, assignedThrough, selectedOrgUnit, possibleOrgUnits) {
+			this.showModal = function (user, startDate, stopDate, type, assignmentId, assignedThrough, selectedOrgUnit, possibleOrgUnits, caseNumber) {
 				var editModal = userRoleEditModalService.modal();
 				editModal.modal({
 				    backdrop: 'static',
@@ -136,6 +146,10 @@
 					}
 				}
 
+				if (caseNumberEnabled) {
+					$("#editRoleCaseNumber").val(caseNumber);
+				}
+
 				//This doesn't have to be passed through attributes it could be variables in userRoleEditModalService
 				editModal.attr("type", type);
 				editModal.attr("assignmentId", assignmentId);
@@ -154,8 +168,13 @@
 				var startDate = $('#startDatePickerEdit').data('date');
 				var stopDate = $('#stopDatePickerEdit').data('date');
 				var dates = "?startDate=" + startDate + "&stopDate=" + stopDate;
+
+				var caseNumberUrlPart = "";
+				if (caseNumberEnabled) {
+					caseNumberUrlPart = '&casenumber=' + $("#editRoleCaseNumber").val();
+				}
 				
-				var updateRestEndpoint = userRoleEditModalService.usersUrl + userUuid + '/editassignment/' + type + '/'+ assignedThrough + '/' + assignmentId + dates + "&ouuuid=" + selectedOU;
+				var updateRestEndpoint = userRoleEditModalService.usersUrl + userUuid + '/editassignment/' + type + '/'+ assignedThrough + '/' + assignmentId + dates + "&ouuuid=" + selectedOU + caseNumberUrlPart;
 				var constraints = [];
 				if (!missingPostponedConstraintService) {
 				 	constraints = postponedConstraintsService.getConstraintList();

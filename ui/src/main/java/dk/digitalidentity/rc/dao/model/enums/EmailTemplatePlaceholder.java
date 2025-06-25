@@ -20,12 +20,13 @@ public enum EmailTemplatePlaceholder {
 	NEW_POSITIONS_PLACEHOLDER("{ny_stillinger}", "html.enum.placeholders.description.new_positions"),
 	OLD_POSITIONS_PLACEHOLDER("{tidligere_stillinger}", "html.enum.placeholders.description.old_positions"),
 	ORGUNITS_PLACEHOLDER("{enheder}", "html.enum.placeholders.description.orgunits"),
+	MANAGERDELEGATE_PLACEHOLDER("{delegeret_fra}", "html.enum.placeholders.description.managerdelegate"),
 	;
 
-	private String placeholder;
-	private String description;
+	private final String placeholder;
+	private final String description;
 	
-	private EmailTemplatePlaceholder(String placeholder, String description) {
+	EmailTemplatePlaceholder(String placeholder, String description) {
 		this.placeholder = placeholder;
 		this.description = description;
 	}

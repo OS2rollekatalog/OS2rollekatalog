@@ -26,6 +26,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import dk.digitalidentity.rc.controller.api.mapper.RoleMapper;
 import dk.digitalidentity.rc.controller.api.model.UserRoleAM;
+import dk.digitalidentity.rc.controller.api.model.UserUserRoleAssignmentAM;
 import dk.digitalidentity.rc.dao.model.Domain;
 import dk.digitalidentity.rc.dao.model.ItSystem;
 import dk.digitalidentity.rc.dao.model.SystemRole;
@@ -39,6 +40,7 @@ import dk.digitalidentity.rc.service.PendingADUpdateService;
 import dk.digitalidentity.rc.service.SystemRoleService;
 import dk.digitalidentity.rc.service.UserRoleService;
 import dk.digitalidentity.rc.service.UserService;
+import dk.digitalidentity.rc.service.model.UserRoleAssignmentWithInfo;
 import dk.digitalidentity.rc.service.model.UserWithRole;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -341,6 +343,27 @@ public class ItSystemApiV2 {
 		}
 
 		return result;
+	}
+	
+	@ApiResponses(value = {
+			@ApiResponse(responseCode = "200", description = "All assignments made on the specified it-system"),
+			@ApiResponse(responseCode = "404", description = "it-system not found.") })
+	@Operation(summary = "Get all assignments on roles from it-system", description = "Returns all assignments on roles for an it-system by it-system id")
+	@GetMapping(value = "/api/v2/itsystem/{id}/assignments")
+	public List<List<UserUserRoleAssignmentAM>> getAssignmentsForItSystem(@Parameter(description = "Unique ID for the it-system", example = "1") @PathVariable("id") String id) {
+		final List<User> users = userService.getAll();
+
+        final List<ItSystem> itSystems = itSystemService.findByAnyIdentifier(id).stream()
+				.filter(its -> !its.isAccessBlocked())
+				.toList();
+
+		return users.stream()
+				.map(u -> userService.getAllUserRolesAssignmentsWithInfo(u, itSystems).stream()
+						.map(a -> RoleMapper.userRoleAssignmentToApi(a, u))
+						.toList()
+				)
+				.filter(l -> !l.isEmpty())
+				.toList();
 	}
 
 	@ApiResponses(value = { @ApiResponse(responseCode = "202", description = "It-system has been marked dirty"),

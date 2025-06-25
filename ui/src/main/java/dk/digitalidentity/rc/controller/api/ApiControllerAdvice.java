@@ -6,6 +6,7 @@ import dk.digitalidentity.rc.controller.api.v2.AuditLogApiV2;
 import dk.digitalidentity.rc.controller.api.v2.ConstraintApiV2;
 import dk.digitalidentity.rc.controller.api.v2.ItSystemApiV2;
 import dk.digitalidentity.rc.controller.api.v2.ManagerSubstituteApiV2;
+import dk.digitalidentity.rc.controller.api.v2.ReportApiV2;
 import dk.digitalidentity.rc.controller.api.v2.UserRoleApiV2;
 import dk.digitalidentity.rc.controller.api.v2.UserRoleGroupApiV2;
 import jakarta.servlet.http.HttpServletRequest;
@@ -23,7 +24,7 @@ import java.time.LocalDateTime;
 @Slf4j
 @ControllerAdvice(assignableTypes = {AuditLogApiV2.class, ConstraintApiV2.class, ItSystemApiV2.class, ManagerSubstituteApiV2.class, UserRoleApiV2.class, UserRoleGroupApiV2.class,
         UserApi.class, RoleAssignmentApi.class, TitleApi.class, OrganisationApi.class,
-        ManagerSubstituteApi.class, KspCicsApi.class, ItSystemManagedApi.class, ItSystemApi.class, ConstraintApi.class})
+        ManagerSubstituteApi.class, KspCicsApi.class, ItSystemManagedApi.class, ItSystemApi.class, ConstraintApi.class, ReportApiV2.class})
 public class ApiControllerAdvice {
 
     @ExceptionHandler(BadRequestException.class)

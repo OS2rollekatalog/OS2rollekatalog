@@ -42,7 +42,8 @@ public class Attestation {
     public enum AttestationType {
         ORGANISATION_ATTESTATION,
         IT_SYSTEM_ATTESTATION, // This is the user assignments attestation
-        IT_SYSTEM_ROLES_ATTESTATION // This is the user roles attestation
+        IT_SYSTEM_ROLES_ATTESTATION, // This is the user roles attestation
+        MANAGER_DELEGATED_ATTESTATION, // Attestation for manager delegates
     }
     @Id
     @Column

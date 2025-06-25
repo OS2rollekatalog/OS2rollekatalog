@@ -34,8 +34,11 @@ import org.springframework.data.jpa.datatables.mapping.DataTablesOutput;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.BindingResult;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
@@ -233,6 +236,46 @@ public class ManagerRestController {
 		}
 
 		managerSubstituteService.deleteById(body.getId());
+
+		return new ResponseEntity<>(HttpStatus.OK);
+	}
+
+	@RequireAdministratorOrManagerRole
+	@DeleteMapping("/rest/management/substitute/{id}/delete")
+	@ResponseBody
+	public ResponseEntity<?> deleteSubstitute(@PathVariable Long id) {
+		if (roleCatalogueConfiguration.getSubstituteManagerAPI().isEnabled()) {
+			return ResponseEntity.badRequest().build();
+		}
+
+		if (id == null) {
+			return ResponseEntity.badRequest().build();
+		}
+
+		managerSubstituteService.deleteById(id);
+
+		return new ResponseEntity<>(HttpStatus.OK);
+	}
+
+	public record EditSubstituteDTO (String substituteUuid, String managerUuid, String orgUnitUuid) {}
+	@RequireAdministratorOrManagerRole
+	@PutMapping("/rest/management/substitute/{id}/edit")
+	@ResponseBody
+	public ResponseEntity<?> editSubstitute(@PathVariable Long id, @RequestBody EditSubstituteDTO editSubstituteDTO) {
+		if (roleCatalogueConfiguration.getSubstituteManagerAPI().isEnabled()) {
+			return ResponseEntity.badRequest().build();
+		}
+
+		ManagerSubstitute managerSubstitute = managerSubstituteService.findById(id);
+		if (!Objects.equals(editSubstituteDTO.substituteUuid, managerSubstitute.getSubstitute().getUuid())) {
+			managerSubstitute.setSubstitute(userService.getByUserId(editSubstituteDTO.substituteUuid));
+		}
+		if (!Objects.equals(editSubstituteDTO.managerUuid, managerSubstitute.getManager().getUuid())) {
+			managerSubstitute.setManager(userService.getByUserId(editSubstituteDTO.managerUuid));
+		}
+		if (!Objects.equals(editSubstituteDTO.orgUnitUuid, managerSubstitute.getOrgUnit().getUuid())) {
+			managerSubstitute.setOrgUnit(orgUnitService.getByUuid(editSubstituteDTO.orgUnitUuid));
+		}
 
 		return new ResponseEntity<>(HttpStatus.OK);
 	}

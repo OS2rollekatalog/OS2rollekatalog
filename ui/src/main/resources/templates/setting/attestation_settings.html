@@ -4,7 +4,7 @@
 <body>
 <div class="wrapper">
     <header th:replace="~{fragments/navbar :: navbar-header(subpage = 'administration')}"></header>
-    <aside th:replace="~{fragments/navbar :: navbar-aside (page = 'settings', subpage = 'administration')}"></aside>
+    <aside th:replace="~{fragments/navbar :: navbar-aside (page = 'attestationSettings', subpage = 'administration')}"></aside>
 
     <section>
         <div class="content-wrapper">
@@ -16,8 +16,14 @@
 					<input type="hidden" th:field="*{adAttestationEnabled}" />
 					<input type="hidden" th:field="*{firstAttestationDate}" />
 					<input type="hidden" th:field="*{changeRequestsEnabled}" />
+					<input type="hidden" th:field="*{descriptionRequired}" />
+					<input type="hidden" th:field="*{hideDescription}" />
 					<select th:field="*{scheduledAttestationFilter}" multiple="multiple" class="form-control" style="display: none;">
 						<option th:each="ou : ${allOUs}" th:value="${ou.id}" th:text="${ou.text}" th:selected="${attestationSettingsForm.getScheduledAttestationFilter().contains(ou.id)}"></option>
+					</select>
+
+					<select th:field="*{scheduledAttestationOptedInOrgUnits}" multiple="multiple" class="form-control" style="display: none;">
+						<option th:if="${attestationSettingsForm.getScheduledAttestationOptedInOrgUnits().contains(ou.id)}" th:each="ou : ${allOUs}" th:value="${ou.id}" th:text="${ou.text}" th:selected="${attestationSettingsForm.getScheduledAttestationOptedInOrgUnits().contains(ou.id)}"></option>
 					</select>
 
 					<div class="panel-heading">
@@ -108,6 +114,30 @@
 							</fieldset>
 							<fieldset>
 								<div class="form-group">
+									<label class="col-sm-3 control-label" th:text="#{html.setting.attestation.descriptionRequired}"></label>
+									<div class="col-sm-1">
+										<div class="checkbox c-checkbox">
+											<label>
+												<input id="description-required-checkbox" type="checkbox" th:attr="checked=${attestationSettingsForm.descriptionRequired}" />
+												<span class="fa fa-check"></span>
+											</label>
+										</div>
+									</div>
+								</div>
+								<div class="form-group" id="hideDescriptionSection">
+									<label class="col-sm-3 control-label" th:text="#{html.setting.attestation.hideDescription}"></label>
+									<div class="col-sm-1">
+										<div class="checkbox c-checkbox">
+											<label>
+												<input id="hide-description-checkbox" type="checkbox" th:attr="checked=${attestationSettingsForm.hideDescription}" />
+												<span class="fa fa-check"></span>
+											</label>
+										</div>
+									</div>
+								</div>
+							</fieldset>
+							<fieldset>
+								<div class="form-group">
 									<label class="col-sm-3 control-label" th:text="#{html.setting.attestation.changes.enabled}"></label>
 									<div class="col-sm-1">
 										<div class="checkbox c-checkbox">
@@ -118,13 +148,25 @@
 										</div>
 									</div>
 								</div>
+
 							</fieldset>
 							<fieldset>
-								<div class="form-group">
-									<label class="col-sm-3 control-label" th:text="#{html.setting.attestation.scheduled.filter}"></label>
+								<div class="form-group" style="margin-bottom: 20px;">
+									<label class="col-sm-3 control-label" th:text="#{html.setting.attestation.ou.optin}"></label>
+									<div class="col-sm-1">
+										<div class="checkbox c-checkbox">
+											<label>
+												<input name="orgUnitOptIn" class="form-control" id="ou-optin-checkbox" type="checkbox" th:attr="checked=*{orgUnitOptIn == true}" />
+												<span class="fa fa-check"></span>
+											</label>
+										</div>
+									</div>
+								</div>
+								<div id="opt-out-section" class="form-group pt-3" th:style="${attestationSettingsForm.orgUnitOptIn ? 'display: none': ''}">
+									<label class="col-sm-3 control-label" th:text="#{html.setting.attestation.scheduled.filter.optout}"></label>
 
 									<div class="col-sm-8">
-										<button type="button" onclick="chooseOU()" class="btn btn-primary" th:text="#{html.setting.attestation.scheduled.pickou}"></button>
+										<button type="button" onclick="chooseOU()" class="btn btn-primary" th:text="#{html.setting.attestation.scheduled.pickou.optout}"></button>
 										<br/><br/>
 										<em id="filterZeroTxt" th:style="${(#lists.size(attestationSettingsForm.scheduledAttestationFilter) > 0) ? 'display: none': ''}" th:text="'Ingen enheder fravalgt'"></em>
 										<em id="filterOneTxt" th:style="${(#lists.size(attestationSettingsForm.scheduledAttestationFilter) != 1) ? 'display: none' : ''}" th:text="'Én enhed fravalgt (og alle underliggende enheder)'"></em>
@@ -133,6 +175,22 @@
 											<span th:text="'enheder (og alle underliggende enheder) er fravalgt'"></span>
 										</em>
 									</div>
+								</div>
+								<div id="opt-in-section" class="form-group pt-3" th:style="${attestationSettingsForm.orgUnitOptIn ? '': 'display: none'}">
+									<label class="col-sm-3 control-label" th:text="#{html.setting.attestation.scheduled.filter.optin}"></label>
+
+									<div class="col-sm-8">
+										<button type="button" onclick="chooseOU()" class="btn btn-primary" th:text="#{html.setting.attestation.scheduled.pickou.optin}"></button>
+										<br/><br/>
+										<em id="optInZeroTxt" th:style="${(#lists.size(attestationSettingsForm.scheduledAttestationOptedInOrgUnits) > 0) ? 'display: none': ''}" th:text="'Ingen enheder tilvalgt'"></em>
+										<em id="optInOneTxt" th:style="${(#lists.size(attestationSettingsForm.scheduledAttestationOptedInOrgUnits) != 1) ? 'display: none' : ''}" th:text="'Én enhed tilvalgt (og alle underliggende enheder)'"></em>
+										<em id="optInMultiTxt" th:style="${(#lists.size(attestationSettingsForm.scheduledAttestationOptedInOrgUnits) lt 2) ? 'display: none' : ''}">
+											<span id="optInMultiValue" th:text="${#lists.size(attestationSettingsForm.scheduledAttestationOptedInOrgUnits)}"></span>
+											<span th:text="'enheder er tilvalgt'"></span>
+										</em>
+										<div class="text-warning">Bemærk at rettigheder nedarvet fra afdelinger som ikke er tilvalgt, ikke vil blive attesteret</div>
+									</div>
+
 								</div>
 							</fieldset>
 							<div class="label label-danger col-md-offset-1 col-md-10 m-5" style="font-size: medium;   display: inline-table; line-height: initial;" th:utext="#{html.setting.attestation.scheduled.warning}"></div>
@@ -152,28 +210,7 @@
     </section>
 </div>
 
-<div class="modal fade bd-example-modal-lg" id="modal-ou" role="dialog">
-	<div class="modal-dialog modal-lg">
-
-		<!-- Modal content-->
-		<div class="modal-content">
-			<div class="modal-header">
-				<button type="button" class="close" data-dismiss="modal">&times;</button>
-				<h4 th:text="#{html.word.search}"></h4>
-			</div>
-
-			<div class="modal-body">
-				<input class="form-control" id="ou-tree-search" style="margin-bottom: 5px;" />
-				<div id="ou-tree"></div>
-			</div>
-
-			<div class="modal-footer">
-				<button type="button" id="save" class="btn btn-primary" onclick="saveOUs()" th:text="#{html.control.button.ok}"></button>
-				<button type="button" class="btn btn-danger" data-dismiss="modal" th:text="#{html.control.button.cancel}"></button>
-			</div>
-		</div>
-	</div>
-</div>
+<div th:replace="~{setting/fragments/choose_ou_modal :: chooseOUFragment}"></div>
 
 <div th:replace="~{fragments/footer :: footer}"></div>
 <script th:replace="~{fragments/assignDatePicker :: content}"></script>
@@ -190,45 +227,127 @@
 
         /*[+
 		 var allOUs = [[${allOUs}]];
-         var selectedOUs = [[${attestationSettingsForm.scheduledAttestationFilter}]];
+         const selectedOUs = [[${selectedOUs}]];
+         const optedInOuSelection = [[${optedInOuSelection}]];
+         let optIn = [[${attestationSettingsForm.isOrgUnitOptIn}]];
          var successMsg = [[#{html.setting.update.msg.success}]];
          var failedMsg = [[#{html.setting.update.msg.failed}]];
          var firstAttestationDate = [[${attestationSettingsForm.firstAttestationDate}]];
          +]*/
 
+		let excemptedOusState = selectedOUs
+		let optedInOusState = optedInOuSelection
+
  		function chooseOU() {
  			$('#modal-ou').modal('show');
  		}
+
+		 function createSelectedOptionsFor ( elementSelector, idArray) {
+			 const optedInOrgunitJQueryElement = $(elementSelector)
+			 optedInOrgunitJQueryElement.empty();
+
+			 const selectedOusAsOptions = []
+			 for (var i = 0; i < idArray.length; i++) {
+				 selectedOusAsOptions.push('<option value=\"'+idArray[i]+'\" selected="selected"></option>"');
+			 }
+			 optedInOrgunitJQueryElement.append(selectedOusAsOptions);
+		 }
+
+		 function setOrgunitSelectionTextMessages() {
+			let length = excemptedOusState.length
+			 if (optIn) {
+				 length = optedInOusState.length
+			 }
+
+			 $('#filterZeroTxt').hide();
+			 $('#filterOneTxt').hide();
+			 $('#filterMultiTxt').hide();
+			 $('#optInZeroTxt').hide();
+			 $('#optInOneTxt').hide();
+			 $('#optInMultiTxt').hide();
+
+			 if (length == 0) {
+				 $('#filterZeroTxt').show();
+				 $('#optInZeroTxt').show();
+			 }
+			 else if (length == 1) {
+				 $('#filterOneTxt').show();
+				 $('#optInOneTxt').show();
+			 }
+			 else {
+				 $('#filterMultiTxt').show();
+				 $('#optInMultiTxt').show();
+				 $('#filterMultiValue').text(length);
+				 $('#optInMultiValue').text(length);
+			 }
+		 }
+
+		 function hideOUModal(){
+			 $('#modal-ou').modal('hide');
+		 }
 		
 		function saveOUs(){
-			var codes = $('#ou-tree').jstree('get_selected', true);
 
-			$("#scheduledAttestationFilter").empty();
-
-			for (var i = 0; i < codes.length; i++) {
-				$("#scheduledAttestationFilter").append('<option value=\"' + codes[i].id + '\" selected="selected"> ' + codes[i].text + "</option>");
+			if(optIn) {
+				setOptinTreeStateFromSelection()
+				createSelectedOptionsFor("#scheduledAttestationOptedInOrgUnits", optedInOusState)
+			} else {
+				setExcemptedTreeStateFromSelection()
+				createSelectedOptionsFor("#scheduledAttestationFilter", excemptedOusState)
 			}
 
-			$('#filterZeroTxt').hide();
-			$('#filterOneTxt').hide();
-			$('#filterMultiTxt').hide();
+			setOrgunitSelectionTextMessages()
 
-			if (codes.length == 0) {
-				$('#filterZeroTxt').show();
+			hideOUModal()
+		}
+
+		function recoverOptinTreeState() {
+			$('#ou-tree').jstree('deselect_node', allOUs);
+			$('#ou-tree').jstree('select_node', optedInOusState);
+		}
+
+		function recoverExcemptedTreeState() {
+			$('#ou-tree').jstree('deselect_node', allOUs);
+			$('#ou-tree').jstree('select_node', excemptedOusState);
+		}
+
+		function setOptinTreeStateFromSelection() {
+			optedInOusState = $('#ou-tree').jstree('get_selected')
+		}
+
+		function setExcemptedTreeStateFromSelection() {
+			excemptedOusState = $('#ou-tree').jstree('get_selected')
+		}
+
+		function onOptInCheckboxChange(optInCheckElement) {
+			const checked = optInCheckElement.checked
+			const optInSectionElement = document.getElementById('opt-in-section')
+			const outOutSectionElement = document.getElementById('opt-out-section')
+			if (checked) {
+				optIn = true
+				optInSectionElement.style.display = 'flex'
+				outOutSectionElement.style.display = 'none'
+
+				recoverOptinTreeState()
+				setOrgunitSelectionTextMessages()
+			} else {
+				optIn = false
+				optInSectionElement.style.display = 'none'
+				outOutSectionElement.style.display = 'flex'
+
+				recoverExcemptedTreeState()
+				setOrgunitSelectionTextMessages()
 			}
-			else if (codes.length == 1) {
-				$('#filterOneTxt').show();
-			}
-			else {
-				$('#filterMultiTxt').show();
-				$('#filterMultiValue').text(codes.length);
-			}
-			
-			$('#modal-ou').modal('hide');
 		}
 
 		$("document").ready(function() {
 			var saved = [[${saved}]];
+
+			//Change opt in/out sections on checkbox click
+			const optInCheckElement = document.getElementById('ou-optin-checkbox')
+			optInCheckElement.addEventListener('click', (event)=> {
+				onOptInCheckboxChange(optInCheckElement)
+			})
 			
 			$("#scheduled-attestation-checkbox").change(function() {
 				$("#scheduledAttestationEnabled").val(this.checked);
@@ -256,6 +375,28 @@
 			$("#attestation-changes-checkbox").change(function() {
 				$("#changeRequestsEnabled").val(this.checked);
 			});
+
+			$("#description-required-checkbox").change(function() {
+				$("#descriptionRequired").val(this.checked);
+
+				$("#hide-description-checkbox").prop('checked', false);
+				$("#hideDescription").val(false);
+				if (this.checked) {
+					$("#hideDescriptionSection").hide();
+				} else {
+					$("#hideDescriptionSection").show();
+				}
+			});
+
+			$("#hide-description-checkbox").change(function() {
+				$("#hideDescription").val(this.checked);
+			});
+
+			if ($("#description-required-checkbox").prop('checked')) {
+				$("#hideDescriptionSection").hide();
+			} else {
+				$("#hideDescriptionSection").show();
+			}
 
 			if (typeof saved != "undefined" && saved != null) {
 			    if (saved) {
@@ -320,7 +461,11 @@
 			
 			// selecting in the JSTree
 			$('#ou-tree').on("ready.jstree", function(e, data) {
-				$('#ou-tree').jstree('select_node', selectedOUs);
+				if (optIn) {
+					recoverOptinTreeState();
+				} else {
+					recoverExcemptedTreeState();
+				}
 			});
 
 			// init datepicker

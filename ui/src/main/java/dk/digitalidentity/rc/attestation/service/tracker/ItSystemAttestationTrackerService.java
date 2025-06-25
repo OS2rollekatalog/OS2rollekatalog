@@ -37,7 +37,7 @@ public class ItSystemAttestationTrackerService {
 
     @Transactional(timeout = 600, propagation = Propagation.REQUIRES_NEW)
     public void updateItSystemRolesAttestations(final LocalDate when) {
-        runTrackerService.getAttestationRun()
+        runTrackerService.getAttestationRunWithDeadlineNotAfter(when)
                 .filter(a -> !a.isSensitive())
                 .ifPresent(run -> {
                     try (Stream<AttestationSystemRoleAssignment> attestationSystemRoleAssignmentStream = systemRoleAssignmentDao.streamAllValidAssignments(when)) {

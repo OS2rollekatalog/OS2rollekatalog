@@ -3,12 +3,14 @@ package dk.digitalidentity.rc.security;
 import dk.digitalidentity.rc.config.Constants;
 import dk.digitalidentity.rc.config.SessionConstants;
 import dk.digitalidentity.rc.dao.model.ItSystem;
+import dk.digitalidentity.rc.dao.model.ManagerDelegate;
 import dk.digitalidentity.rc.dao.model.SystemRoleAssignment;
 import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserRole;
 import dk.digitalidentity.rc.dao.model.enums.EventType;
 import dk.digitalidentity.rc.log.AuditLogger;
 import dk.digitalidentity.rc.service.ItSystemService;
+import dk.digitalidentity.rc.service.ManagerDelegateService;
 import dk.digitalidentity.rc.service.NotificationService;
 import dk.digitalidentity.rc.service.OrgUnitService;
 import dk.digitalidentity.rc.service.ReportTemplateService;
@@ -63,6 +65,9 @@ public class RolePostProcessor implements SamlLoginPostProcessor {
 	@Autowired
 	private RequestApproveService requestApproveService;
 
+	@Autowired
+	private ManagerDelegateService managerDelegateService;
+
 	@Override
 	public void process(TokenUser tokenUser) {
 		String principal = tokenUser.getUsername();
@@ -100,6 +105,12 @@ public class RolePostProcessor implements SamlLoginPostProcessor {
 					.map(m -> m.getUuid())
 					.collect(Collectors.toList())
 					.toArray(new String[0]));
+		}
+
+		// If the current user is delegated for a manager add the role
+		List<ManagerDelegate> byDelegate = managerDelegateService.getByDelegate(user);
+		if (!byDelegate.isEmpty()) {
+			authorities.add(new SamlGrantedAuthority(Constants.ROLE_MANAGER_SUBSTITUDE));
 		}
 
 		// check if the request/approve feature is enabled

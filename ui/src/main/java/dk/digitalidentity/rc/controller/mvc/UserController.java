@@ -37,6 +37,7 @@ import dk.digitalidentity.rc.service.OrgUnitService;
 import dk.digitalidentity.rc.service.PNumberService;
 import dk.digitalidentity.rc.service.SENumberService;
 import dk.digitalidentity.rc.service.Select2Service;
+import dk.digitalidentity.rc.service.SettingsService;
 import dk.digitalidentity.rc.service.UserRoleService;
 import dk.digitalidentity.rc.service.UserService;
 import dk.digitalidentity.rc.service.model.AssignedThrough;
@@ -103,6 +104,9 @@ public class UserController {
 
 	@Autowired
 	private PNumberService pNumberService;
+
+	@Autowired
+	private SettingsService settingsService;
     
     @Value("#{servletContext.contextPath}")
     private String servletContextPath;
@@ -151,6 +155,7 @@ public class UserController {
 		model.addAttribute("roleAssignmentOrgUnits", orgUnitService.getOrgUnitsForUser(user).stream().map(o -> new SelectOUDTO(o)).collect(Collectors.toList()));
 		model.addAttribute("orgUnitList", select2Service.getOrgUnitList());
 		model.addAttribute("itSystemList", select2Service.getItSystemList());
+		model.addAttribute("caseNumberEnabled", settingsService.isCaseNumberEnabled());
 
 		// TODO: refactor at some point, so we can use the above KLE list instead of this one...
 		userService.addPostponedListsToModel(model);
@@ -239,7 +244,8 @@ public class UserController {
 
 									if (postponedConstraint != null) {
 										if (postponedConstraint.getConstraintType().getUiType().equals(ConstraintUIType.REGEX)) {
-											if (postponedConstraint.getConstraintType().getEntityId().equals(Constants.OU_CONSTRAINT_ENTITY_ID)) {
+											if (postponedConstraint.getConstraintType().getEntityId().equals(Constants.OU_CONSTRAINT_ENTITY_ID) ||
+												postponedConstraint.getConstraintType().getEntityId().equals(Constants.INTERNAL_ORGUNIT_CONSTRAINT_ENTITY_ID)) {
 												String[] uuids = postponedConstraint.getValue().split(",");
 												String ouString = "";
 
@@ -253,7 +259,7 @@ public class UserController {
 														ouString += ou.getName();
 													}
 												}
-												
+
 												valueDto.setConstraintValue(ouString);
 											}
 											else if (postponedConstraint.getConstraintType().getEntityId().equals(Constants.INTERNAL_ITSYSTEM_CONSTRAINT_ENTITY_ID)) {
@@ -330,6 +336,7 @@ public class UserController {
 
 		model.addAttribute("assignments", assignments);
 		model.addAttribute("editable", editable);
+		model.addAttribute("caseNumberEnabled", settingsService.isCaseNumberEnabled());
 
 		return "users/fragments/manage_roles :: userAssignedRoles";
 	}

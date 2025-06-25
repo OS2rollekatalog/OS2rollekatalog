@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html>
+<html xmlns:th="http://www.thymeleaf.org">
 <head th:replace="~{attestationmodule/fragments/header :: header(datatables = true, checkbox = true)}" />
 <body class="top-navigation layout-fixed">
     <div id="wrapper">
@@ -97,17 +97,17 @@
                                                         </div>
 
                                                         <div class="row col-lg-12 m-t-sm">
-                                                            <button th:unless="${user.readOnly}" class="approveBtn btn btn-primary col-lg-2" th:id="'approveBtn' + ${user.userUuid}" th:attr="data-uuid=${user.userUuid}, data-number=${userStat.index}" disabled="disabled">
+                                                            <button th:unless="${user.readOnly}" class="approveBtn btn btn-primary col-lg-2" th:id="'approveBtn' + ${user.userUuid}" th:attr="data-uuid=${user.userUuid}, data-number=${userStat.index}, data-managerdelegate=${managerdelegate}" disabled="disabled">
                                                                 <em class="fa-fw fa fa-check"></em>
                                                                 <span th:text="#{attestationmodule.html.attestation.controls.approve}"></span>
                                                             </button>
                                                             &nbsp;
-                                                            <button  th:if="${changeRequestsEnabled}" th:unless="${user.readOnly}" class="rejectBtn btn btn-danger col-lg-2" th:id="'rejectBtn' + ${user.userUuid}" th:attr="data-uuid=${user.userUuid}, data-number=${userStat.index}">
+                                                            <button  th:if="${changeRequestsEnabled}" th:unless="${user.readOnly}" class="rejectBtn btn btn-danger col-lg-2" th:id="'rejectBtn' + ${user.userUuid}" th:attr="data-uuid=${user.userUuid}, data-number=${userStat.index}, data-managerdelegate=${managerdelegate}">
                                                                 <em class="fa-fw fa fa-ban"></em>
                                                                 <span th:text="#{attestationmodule.html.attestation.controls.reject}"></span>
                                                             </button>
                                                             &nbsp;
-                                                            <button th:unless="${user.readOnly}" th:if="${adAttestationEnabled}" class="requestDeleteBtn btn btn-danger col-lg-2" th:id="'requestDeleteBtn' + ${user.userUuid}" th:attr="data-uuid=${user.userUuid}, data-number=${userStat.index}">
+                                                            <button th:unless="${user.readOnly}" th:if="${adAttestationEnabled}" class="requestDeleteBtn btn btn-danger col-lg-2" th:id="'requestDeleteBtn' + ${user.userUuid}" th:attr="data-uuid=${user.userUuid}, data-number=${userStat.index}, data-managerdelegate=${managerdelegate}">
                                                                 <em class="fa-fw fa fa-trash"></em>
                                                                 <span th:text="#{attestationmodule.html.attestation.controls.requestDelete}"></span>
                                                             </button>
@@ -146,19 +146,19 @@
                                                 </div>
 
                                                 <div class="row col-lg-12 m-t-sm">
-                                                    <button th:unless="${attestation.orgUnitRolesVerified}"  class="approveOrgUnitBtn btn btn-primary col-lg-2" th:id="'approveOrgUnitBtn' + ${attestation.ouUuid}" th:attr="data-uuid=${attestation.ouUuid}" disabled="disabled">
+                                                    <button th:unless="${attestation.orgUnitRolesVerified}"  class="approveOrgUnitBtn btn btn-primary col-lg-2" th:id="'approveOrgUnitBtn' + ${attestation.ouUuid}" th:attr="data-uuid=${attestation.ouUuid}, data-managerdelegate=${managerdelegate}" disabled="disabled">
                                                         <em class="fa-fw fa fa-check"></em>
                                                         <span th:text="#{attestationmodule.html.attestation.controls.approve}"></span>
                                                     </button>
                                                     &nbsp;
-                                                    <button th:if="${changeRequestsEnabled}" th:unless="${attestation.orgUnitRolesVerified}" class="rejectOrgUnitBtn btn btn-danger col-lg-2" data-toggle="modal" data-target="#remarkModal" th:id="'rejectOrgUnitBtn' + ${attestation.ouUuid}" th:attr="data-uuid=${attestation.ouUuid}">
+                                                    <button th:if="${changeRequestsEnabled}" th:unless="${attestation.orgUnitRolesVerified}" class="rejectOrgUnitBtn btn btn-danger col-lg-2" th:id="'rejectOrgUnitBtn' + ${attestation.ouUuid}" th:attr="data-uuid=${attestation.ouUuid}, data-managerdelegate=${managerdelegate}">
                                                         <em class="fa-fw fa fa-ban"></em>
                                                         <span th:text="#{attestationmodule.html.attestation.controls.reject}"></span>
                                                     </button>
                                                     <p style="display: none;" th:id="'alreadyDoneOrgUnit' + ${attestation.ouUuid}" th:text="#{attestationmodule.html.orgunits.attestate.roles.done}"></p>
                                                     <p th:if="${attestation.orgUnitRolesVerified}" th:text="#{attestationmodule.html.orgunits.attestate.roles.done}"></p>
                                                     <div style="display:none" th:id="'remarkRowOrgUnit' + ${attestation.ouUuid}">
-                                                        <b th:text="#{attestationmodule.html.itsystems.attestate.role.done.remark}"></b>
+                                                        <p><b th:text="#{attestationmodule.html.itsystems.attestate.role.done.remark}"></b></p>
                                                         <pre th:id="'remarkPreOrgUnit' + ${attestation.ouUuid}"></pre>
                                                     </div>
                                                 </div>
@@ -207,56 +207,33 @@
     </div>
 
     <div id="userRemarkModalPlaceholder"></div>
-
-    <div class="modal fade" id="remarkModal" role="dialog" aria-hidden="true">
-        <div class="modal-dialog" role="document">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h3 class="modal-title"  th:text="#{attestationmodule.html.itsystems.attestate.reject.title}"></h3>
-                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-                        <span aria-hidden="true">&times;</span>
-                    </button>
-                </div>
-                <div class="modal-body">
-                    <form>
-                        <div class="form-group">
-                            <label for="remarkField" class="col-form-label" th:text="#{attestationmodule.html.itsystems.attestate.reject.text}"></label>
-                            <textarea class="form-control" id="remarkField" rows="4"></textarea>
-                            <p style="display:none; color: red;" id="remarkError" th:text="#{attestationmodule.html.itsystems.attestate.reject.remarks.error}"></p>
-                        </div>
-                    </form>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-dismiss="modal" th:text="#{attestationmodule.html.attestation.controls.cancel}"></button>
-                    <button type="button" class="btn btn-primary" id="modalSaveOrgUnitBtn" th:text="#{attestationmodule.html.attestation.controls.save}"></button>
-                </div>
-            </div>
-        </div>
-    </div>
+    <div id="orgUnitRemarkModalPlaceholder"></div>
 
     <div th:replace="~{attestationmodule/fragments/footer :: scripts(datatables = true, checkbox = true)}"></div>
     <div th:replace="~{attestationmodule/fragments/userRemarkModal :: userRemarkModalScript}"></div>
+    <div th:replace="~{attestationmodule/fragments/orgUnitRemarkModal :: orgUnitRemarkModalScript}"></div>
 
     <script th:inline="javascript">
     /*<![CDATA[*/
-		/*[+
-            var restUrl = [[@{/rest/attestation/v2/orgunits}]];
-            var cancelText = [[#{attestationmodule.html.attestation.controls.cancel}]];
-            var saveText = [[#{attestationmodule.html.attestation.controls.save}]];
-            var swalTitle = [[#{attestationmodule.html.itsystems.attestate.reject.title}]];
-            var swalText = [[#{attestationmodule.html.itsystems.attestate.reject.text}]];
-            var rejectRemarkErrorText = [[#{attestationmodule.html.itsystems.attestate.reject.remarks.error}]];
-            var requestDeleteTitle = [[#{attestationmodule.html.orgunits.attestate.user.delete.title}]];
-            var requestDeleteText = [[#{attestationmodule.html.orgunits.attestate.user.delete.text}]];
-            var requestDeleteSave = [[#{attestationmodule.html.orgunits.attestate.user.delete.save}]];
-            var orgUnitUuid = [[${attestation.ouUuid}]];
-            var totalNumber = [[${totalCount}]];
-            var uiUrl = [[@{/ui/attestation/v2/orgunits/}]];
-            var attestationUuid = [[${attestation.attestationUuid}]];
+        /*[+
+            const restUrl = [[@{/rest/attestation/v2/orgunits}]];
+            const cancelText = [[#{attestationmodule.html.attestation.controls.cancel}]];
+            const saveText = [[#{attestationmodule.html.attestation.controls.save}]];
+            const swalTitle = [[#{attestationmodule.html.itsystems.attestate.reject.title}]];
+            const swalText = [[#{attestationmodule.html.itsystems.attestate.reject.text}]];
+            const rejectRemarkErrorText = [[#{attestationmodule.html.itsystems.attestate.reject.remarks.error}]];
+            const requestDeleteTitle = [[#{attestationmodule.html.orgunits.attestate.user.delete.title}]];
+            const requestDeleteText = [[#{attestationmodule.html.orgunits.attestate.user.delete.text}]];
+            const requestDeleteSave = [[#{attestationmodule.html.orgunits.attestate.user.delete.save}]];
+            const orgUnitUuid = [[${attestation.ouUuid}]];
+            const totalNumber = [[${totalCount}]];
+            const uiUrl = [[@{/ui/attestation/v2/orgunits/}]];
+            const attestationUuid = [[${attestation.attestationUuid}]];
+            const hideDescription = [[${hideDescription}]];
 		+]*/
 
-        var token = $("meta[name='_csrf']").attr("content");
-        var userService, orgUnitService, historyService, utilService;
+        const token = $("meta[name='_csrf']").attr("content");
+        let userService, orgUnitService, historyService, utilService;
 		$(document).ready(function(){
             userService = new UserService();
             userService.init();
@@ -349,9 +326,10 @@
 		        var userId = $(this).data("uuid");
                 var number = $(this).data("number");
                 var plusOne = number + 1;
+                const managerdelegate = $(this).data("managerdelegate");
 
                 $.ajax({
-					url : restUrl + "/" + orgUnitUuid + "/users/" + userId + "/approve",
+					url : restUrl + "/" + orgUnitUuid + "/users/" + userId + "/approve" + "?managerdelegate=" + managerdelegate,
 					method : 'POST',
 					headers: {
 						'X-CSRF-TOKEN': token
@@ -370,17 +348,23 @@
 		    this.handleReject = function() {
                 var notApproved = userRemarkModalService.getNotApprovedRoles();
 		        var userUuid = $("#userUuidInput").val();
-		        var remark = $("#userRemarkField").val();
 		        var numberString = $("#userNumberInput").val();
 		        var number = parseInt(numberString);
                 var plusOne = number + 1;
+
+                var remark = null;
+		        if (!hideDescription) {
+		            remark = $("#userRemarkField").val();
+		        }
+
+                const managerdelegate = $(this).data("managerdelegate");
                 var body = {
                     "remarks" : remark,
                     "notApproved" : notApproved
                 }
 
                 $.ajax({
-                   url : restUrl + "/" + orgUnitUuid + "/users/" + userUuid + "/reject",
+                   url : restUrl + "/" + orgUnitUuid + "/users/" + userUuid + "/reject" + "?managerdelegate=" + managerdelegate,
                    headers: {
                       "content-type": "application/json",
                       'X-CSRF-TOKEN': token
@@ -408,6 +392,7 @@
 		    this.handleRequestDelete = function() {
 		        var userId = $(this).data("uuid");
                 var number = $(this).data("number");
+                const managerdelegate = $(this).data("managerdelegate");
 
 		        swal({
                     html: true,
@@ -426,7 +411,7 @@
                     }
                     else {
                         $.ajax({
-                           url : restUrl + "/" + orgUnitUuid + "/users/" + userId + "/delete",
+                           url : restUrl + "/" + orgUnitUuid + "/users/" + userId + "/delete" + "?managerdelegate=" + managerdelegate,
                            headers: {
                               'X-CSRF-TOKEN': token
                            },
@@ -492,16 +477,20 @@
 		        }
 		    }
 
-		    this.openModal = function() {
-                $("#remarkError").hide();
-                $("#remarkField").val("");
-                $("#modalSaveOrgUnitBtn").show();
-                $('#remarkModal').modal('toggle');
+            this.openModal = function() {
+		        const ouUuid = $(this).data("uuid");
+		        // const number = $(this).data("number");
+		        $("#orgUnitRemarkModalPlaceholder").load(uiUrl + attestationUuid + "/orgunit/" + ouUuid + "/ouRemarkFragment", function () {
+		            $('#orgUnitRemarkModal').modal('toggle');
+		            orgUnitRemarkModalService.init();
+		            $("#ouModalSaveBtn").click(orgUnitService.handleReject);
+				});
 		    }
 
 		    this.handleApprove = function() {
+                const managerdelegate = $(this).data("managerdelegate");
                 $.ajax({
-					url : restUrl + "/" + orgUnitUuid + "/roles/approve",
+					url : restUrl + "/" + orgUnitUuid + "/roles/approve" + "?managerdelegate=" + managerdelegate,
 					method : 'POST',
 					headers: {
 						'X-CSRF-TOKEN': token
@@ -517,27 +506,35 @@
 		    }
 
             this.handleReject = function() {
-		        var remark = $("#remarkField").val();
+                let remark = null;
+		        if (!hideDescription) {
+		            remark = $("#orgUnitRemarkField").val()
+		        }
+		        const data = {
+		            remarks:  remark,
+		            notApproved: orgUnitRemarkModalService.getNotApprovedRoles()
+		        }
+                const managerdelegate = $(this).data("managerdelegate");
                 $.ajax({
-                   url : restUrl + "/" + orgUnitUuid + "/roles/reject",
+                   url : restUrl + "/" + orgUnitUuid + "/roles/reject" + "?managerdelegate=" + managerdelegate,
                    headers: {
                       "content-type": "application/json",
                       'X-CSRF-TOKEN': token
                    },
                    method: 'POST',
-                   data: remark,
+                   data: JSON.stringify(data),
                    success: function(data, textStatus, jQxhr) {
                         $("#approveOrgUnitBtn" + orgUnitUuid).hide();
                         $("#rejectOrgUnitBtn" + orgUnitUuid).hide();
                         $("#alreadyDoneOrgUnit" + orgUnitUuid).show();
-                        $('#remarkModal').modal('toggle');
+                        $('#orgUnitRemarkModal').modal('toggle');
                         $("#remarkRowOrgUnit" + orgUnitUuid).show();
                         $("#remarkPreOrgUnit" + orgUnitUuid).text(remark);
                         $("#badgeOrgUnits").hide();
                    },
                    error: function(jqXHR, textStatus, error) {
                        defaultErrorHandler(jqXHR);
-                        $("#remarkError").show();
+                       $("#orgUnitRemarkError").show();
                    }
                 });
 		    }

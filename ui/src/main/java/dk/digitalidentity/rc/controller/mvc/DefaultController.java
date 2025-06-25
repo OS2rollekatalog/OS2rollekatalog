@@ -1,10 +1,10 @@
 package dk.digitalidentity.rc.controller.mvc;
 
-import java.util.ArrayList;
-import java.util.Enumeration;
-import java.util.List;
-import java.util.Map;
-
+import dk.digitalidentity.rc.config.Constants;
+import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
+import dk.digitalidentity.rc.security.SecurityUtil;
+import dk.digitalidentity.rc.service.FrontPageLinkService;
+import jakarta.servlet.http.HttpServletRequest;
 import org.opensaml.saml.common.SAMLException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -13,6 +13,8 @@ import org.springframework.boot.web.servlet.error.DefaultErrorAttributes;
 import org.springframework.boot.web.servlet.error.ErrorAttributes;
 import org.springframework.boot.web.servlet.error.ErrorController;
 import org.springframework.context.annotation.PropertySource;
+import org.springframework.core.io.ClassPathResource;
+import org.springframework.core.io.Resource;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.CredentialsExpiredException;
@@ -24,11 +26,16 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.context.request.ServletWebRequest;
 import org.springframework.web.context.request.WebRequest;
 
-import dk.digitalidentity.rc.config.Constants;
-import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
-import dk.digitalidentity.rc.security.SecurityUtil;
-import dk.digitalidentity.rc.service.FrontPageLinkService;
-import jakarta.servlet.http.HttpServletRequest;
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.Enumeration;
+import java.util.List;
+import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 @Controller
 @PropertySource("classpath:git.properties")
@@ -120,10 +127,20 @@ public class DefaultController implements ErrorController {
 	}
 
 	@GetMapping("/info")
-	public String info(Model model) {
+	public String info(Model model) throws IOException {
 		model.addAttribute("gitBuildTime", gitBuildTime.substring(0, 10));
 		model.addAttribute("gitCommitId", gitCommitId);
 		model.addAttribute("releaseVersion", configuration.getVersion());
+
+		String adSyncServiceLastVersion = readLastVersionFromChangelog("static/download/adSyncService/Changelog.txt");
+		if (adSyncServiceLastVersion != null) {
+			model.addAttribute("adSyncServiceLastVersion", adSyncServiceLastVersion);
+		}
+
+		String roleCatalogueImporterLastVersion = readLastVersionFromChangelog("static/download/roleCatalogueImporter/Changelog.txt");
+		if (roleCatalogueImporterLastVersion != null) {
+			model.addAttribute("roleCatalogueImporterLastVersion", roleCatalogueImporterLastVersion);
+		}
 
 		return "info";
 	}
@@ -212,5 +229,29 @@ public class DefaultController implements ErrorController {
 
 	private Map<String, Object> getErrorAttributes(WebRequest request, boolean includeStackTrace) {
 		return errorAttributes.getErrorAttributes(request, ErrorAttributeOptions.defaults());
+	}
+
+	private String readLastVersionFromChangelog(String classpathLocation) {
+		Resource changelogResource = new ClassPathResource(classpathLocation);
+		if (!changelogResource.exists()) {
+			return null;
+		}
+
+		Pattern versionPattern = Pattern.compile("\\b(\\d+\\.\\d+\\.\\d+)\\b");
+		String lastVersion = null;
+
+		try (BufferedReader reader = new BufferedReader(new InputStreamReader(changelogResource.getInputStream(), StandardCharsets.UTF_8))) {
+			String line;
+			while ((line = reader.readLine()) != null) {
+				Matcher matcher = versionPattern.matcher(line);
+				if (matcher.find()) {
+					lastVersion = matcher.group(1);
+				}
+			}
+		} catch (IOException e) {
+			return null;
+		}
+
+		return lastVersion;
 	}
 }

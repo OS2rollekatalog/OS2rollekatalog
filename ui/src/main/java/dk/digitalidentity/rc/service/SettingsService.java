@@ -2,6 +2,8 @@ package dk.digitalidentity.rc.service;
 
 import java.text.SimpleDateFormat;
 import java.time.LocalDate;
+import java.time.OffsetDateTime;
+import java.time.ZonedDateTime;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.HashSet;
@@ -20,7 +22,6 @@ import dk.digitalidentity.rc.dao.SettingsDao;
 import dk.digitalidentity.rc.dao.model.OrgUnit;
 import dk.digitalidentity.rc.dao.model.Setting;
 import dk.digitalidentity.rc.dao.model.enums.CheckupIntervalEnum;
-import dk.digitalidentity.rc.dao.model.enums.EventType;
 import dk.digitalidentity.rc.dao.model.enums.NotificationType;
 import dk.digitalidentity.rc.dao.model.enums.Settings;
 import dk.digitalidentity.rc.log.AuditLogContextHolder;
@@ -112,6 +113,22 @@ public class SettingsService {
 		return new HashSet<>(Arrays.asList(uuids));
 	}
 
+	public Set<String> getScheduledAttestationOptedInOrgUnits() {
+		Setting setting = settingsDao.findByKey(Settings.SETTING_SCHEDULED_ATTESTATION_OPTED_IN_ORG_UNITS.getKey());
+
+		if (setting == null || !StringUtils.hasLength(setting.getValue())) {
+			return new HashSet<>();
+		}
+
+		String[] uuids = setting.getValue().split(",");
+
+		return new HashSet<>(Arrays.asList(uuids));
+	}
+
+	public void setScheduledAttestationOptedInOrgUnits(Set<String> filter) {
+		createOrUpdateSetting(Settings.SETTING_SCHEDULED_ATTESTATION_OPTED_IN_ORG_UNITS, String.join(",", filter));
+	}
+
 	public void setScheduledAttestationFilter(Set<String> filter) {
 		createOrUpdateSetting(Settings.SETTING_SCHEDULED_ATTESTATION_EXCEPTED_ORG_UNITS, String.join(",", filter));
 	}
@@ -176,6 +193,15 @@ public class SettingsService {
 		}
 
 		return false;
+	}
+
+	private boolean getKeyOrDefault(String key, boolean defaultValue) {
+		Setting setting = settingsDao.findByKey(key);
+		if (setting != null) {
+			return "true".equals(setting.getValue());
+		}
+
+		return defaultValue;
 	}
 	
 	/**
@@ -264,6 +290,19 @@ public class SettingsService {
 		createOrUpdateSetting(Settings.SETTING_SCHEDULED_ATTESTATION_LAST_RUN, dateString, false);
 	}
 
+	public String getVikarRegEx() {
+		Setting setting = settingsDao.findByKey(Settings.SETTING_VIKAR_REGEX.getKey());
+		if (setting == null) {
+			return "";
+		}
+
+		return setting.getValue();
+	}
+	
+	public void setVikarRegEx(String regex) {
+		createOrUpdateSetting(Settings.SETTING_VIKAR_REGEX, regex);
+	}
+
 	public String getItSystemChangeEmail() {
 		Setting setting = settingsDao.findByKey(Settings.SETTING_IT_SYSTEM_CHANGE_EMAIL.getKey());
 		if (setting == null) {
@@ -275,6 +314,22 @@ public class SettingsService {
 
 	public void setItSystemChangeEmail(String email) {
 		createOrUpdateSetting(Settings.SETTING_IT_SYSTEM_CHANGE_EMAIL, email);
+	}
+
+	public Set<String> getExcludedOUs() {
+		Setting setting = settingsDao.findByKey(Settings.SETTING_EXCLUDED_OUS.getKey());
+
+		if (setting == null || !StringUtils.hasLength(setting.getValue())) {
+			return new HashSet<>();
+		}
+
+		String[] uuids = setting.getValue().split(",");
+
+		return new HashSet<>(Arrays.asList(uuids));
+	}
+
+	public void setExcludedOUs(Set<String> filter) {
+		createOrUpdateSetting(Settings.SETTING_EXCLUDED_OUS, String.join(",", filter));
 	}
 
 	public boolean isADAttestationEnabled() {
@@ -431,4 +486,66 @@ public class SettingsService {
 		settingsDao.save(setting);
 	}
 
+	public boolean isAttestationOrgUnitSelectionOptIn() {
+		return getBooleanWithDefault(Settings.SETTING_ATTESTATION_ORGUNIT_OPTIN.getKey(), false);
+	}
+
+	public void setAttestationOrgUnitSelectionOptIn(boolean optinEnabled) {
+		setKeyEnabled(optinEnabled, Settings.SETTING_ATTESTATION_ORGUNIT_OPTIN.getKey());
+	}
+
+
+	public void setZonedDateTime(final String kitosKey, final ZonedDateTime zonedDateTime) {
+		Setting setting = settingsDao.findByKey(kitosKey);
+		if(setting == null) {
+			setting = new Setting();
+			setting.setKey(kitosKey);
+		}
+		setting.setValue(zonedDateTime.toOffsetDateTime().toString());
+		settingsDao.save(setting);
+	}
+
+	public ZonedDateTime getZonedDateTime(final String kitosKey, final ZonedDateTime defaultVal) {
+		Setting setting = settingsDao.findByKey(kitosKey);
+		return setting == null ? defaultVal : OffsetDateTime.parse(setting.getValue()).toZonedDateTime();
+	}
+
+	public boolean isCaseNumberEnabled() {
+		return isKeyEnabled(Settings.SETTING_CASE_NUMBER_ENABLED.getKey());
+	}
+
+	public void setCaseNumberEnabled(boolean enabled) {
+		boolean changed = setKeyEnabled(enabled, Settings.SETTING_CASE_NUMBER_ENABLED.getKey());
+		if (changed) {
+			AuditLogContextHolder.getContext().addArgument("Ny værdi", (enabled ? "true" : "false"));
+			auditLogger.logSetting(settingsDao.findByKey(Settings.SETTING_CASE_NUMBER_ENABLED.getKey()), null, null, getPrettyName(Settings.SETTING_CASE_NUMBER_ENABLED));
+			AuditLogContextHolder.clearContext();
+		}
+	}
+
+	public boolean isAttestationDescriptionRequired() {
+		return getKeyOrDefault(Settings.SETTING_SCHEDULED_ATTESTATION_DESCRIPTION_REQUIRED.getKey(), true);
+	}
+
+	public boolean isAttestationHideDescription() {
+		return isKeyEnabled(Settings.SETTING_SCHEDULED_ATTESTATION_HIDE_DESCRIPTION.getKey());
+	}
+
+	public void setAttestationDescriptionRequired(boolean enabled) {
+		boolean changed = setKeyEnabled(enabled, Settings.SETTING_SCHEDULED_ATTESTATION_DESCRIPTION_REQUIRED.getKey());
+		if (changed) {
+			AuditLogContextHolder.getContext().addArgument("Ny værdi", (enabled ? "true" : "false"));
+			auditLogger.logSetting(settingsDao.findByKey(Settings.SETTING_SCHEDULED_ATTESTATION_DESCRIPTION_REQUIRED.getKey()), null, null, getPrettyName(Settings.SETTING_SCHEDULED_ATTESTATION_DESCRIPTION_REQUIRED));
+			AuditLogContextHolder.clearContext();
+		}
+	}
+
+	public void setAttestationHideDescription(boolean enabled) {
+		boolean changed = setKeyEnabled(enabled, Settings.SETTING_SCHEDULED_ATTESTATION_HIDE_DESCRIPTION.getKey());
+		if (changed) {
+			AuditLogContextHolder.getContext().addArgument("Ny værdi", (enabled ? "true" : "false"));
+			auditLogger.logSetting(settingsDao.findByKey(Settings.SETTING_SCHEDULED_ATTESTATION_HIDE_DESCRIPTION.getKey()), null, null, getPrettyName(Settings.SETTING_SCHEDULED_ATTESTATION_HIDE_DESCRIPTION));
+			AuditLogContextHolder.clearContext();
+		}
+	}
 }

@@ -269,10 +269,4 @@ public class UserRoleService {
 		).toList());
 		return output;
 	}
-
-	public DataTablesOutput<UserRole> getAllItsystemNotDeletedNotPostponedAsDatatable(DataTablesInput input) {
-		return userroleDatatableDao.findAll(input, Specification
-				.where(UserroleDatatableDao.itSystemNotDeleted()
-						.and(UserroleDatatableDao.notAllowPostponing())));
-	}
 }

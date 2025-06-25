@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/header :: header (title=#{html.setting.notifications.title})}"></head>
+<body>
+<div class="wrapper">
+    <header th:replace="~{fragments/navbar :: navbar-header(subpage = 'administration')}"></header>
+    <aside th:replace="~{fragments/navbar :: navbar-aside (page = 'notificationSettings', subpage = 'administration')}"></aside>
+
+    <section>
+        <div class="content-wrapper">
+			<h3 th:text="#{html.setting.vikar.title}"></h3>
+
+			<div class="panel panel-default" style="padding-left: 10px; padding-right: 10px;">
+				<div class="row" style="margin-bottom: 30px; margin-top: 30px;">
+					<div class="col-lg-offset-1 col-lg-9">
+						<p th:text="#{html.setting.vikar.body}" />
+					</div>
+				</div>
+				
+				<form id="setting-form" class="form-horizontal" method="post" th:object="${settings}" th:action="@{/ui/admin/vikarsettings}">
+					<fieldset>
+						<div class="form-group">
+							<label class="col-sm-2 control-label" th:text="#{html.setting.vikar.regex}"></label>
+							<input class="col-sm-8" type="text" th:field="*{regex}"></input>
+						</div>
+					</fieldset>
+					
+					<fieldset>
+						<div class="form-group">
+							<div class="col-md-12">
+								<button type="submit" class="btn btn-primary btn-block" th:text="#{html.control.button.save}"></button>
+							</div>
+						</div>
+					</fieldset>
+				</form>
+			</div>
+		</div>
+    </section>
+</div>
+
+<div th:replace="~{fragments/footer :: footer}"></div>
+
+</body>
+</html>

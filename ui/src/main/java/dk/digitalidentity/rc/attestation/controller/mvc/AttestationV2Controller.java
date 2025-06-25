@@ -6,9 +6,10 @@ import dk.digitalidentity.rc.attestation.service.AttestationOverviewService;
 import dk.digitalidentity.rc.attestation.service.AttestationRunService;
 import dk.digitalidentity.rc.attestation.service.ItSystemUserRolesAttestationService;
 import dk.digitalidentity.rc.attestation.service.ItSystemUsersAttestationService;
+import dk.digitalidentity.rc.attestation.service.ManagerDelegateAttestationService;
 import dk.digitalidentity.rc.attestation.service.OrganisationAttestationService;
 import dk.digitalidentity.rc.dao.model.User;
-import dk.digitalidentity.rc.security.RequireSubstituteOrManagerOrItSystemResponsibleOrAttestationAdminOrAdministratorRole;
+import dk.digitalidentity.rc.security.RequireAnyAttestationEligibleRole;
 import dk.digitalidentity.rc.security.SecurityUtil;
 import dk.digitalidentity.rc.service.UserService;
 import io.micrometer.core.annotation.Timed;
@@ -25,7 +26,7 @@ import java.util.Optional;
 import static dk.digitalidentity.rc.attestation.service.AttestationOverviewService.buildItSystemsOverviews;
 import static dk.digitalidentity.rc.attestation.service.AttestationOverviewService.buildItSystemsUsersOverviews;
 
-@RequireSubstituteOrManagerOrItSystemResponsibleOrAttestationAdminOrAdministratorRole
+@RequireAnyAttestationEligibleRole
 @Controller
 public class AttestationV2Controller {
 
@@ -50,6 +51,9 @@ public class AttestationV2Controller {
 	@Autowired
 	private AttestationRunService attestationRunService;
 
+	@Autowired
+	private ManagerDelegateAttestationService managerDelegateAttestationService;
+
 	@GetMapping(value = "/ui/attestation/v2")
 	@Timed("attestation.controller.mvc.attestation_v2_controller.index.timer")
 	public String index(Model model) {
@@ -69,10 +73,16 @@ public class AttestationV2Controller {
 		if (currentRun.isPresent() && SecurityUtil.isSystemResponsible()) {
 			itSystemUsersAttestation.addAll(buildItSystemsUsersOverviews(itSystemUsersAttestationService.listItSystemUsersForAttestation(currentRun.get(), user.getUuid()), false));
 		}
+		final List<User> delegateFor = managerDelegateAttestationService.getManagedUsersForDelegate(user);
+
+		final List<AttestationOverviewDTO> managerDelegateAttestations = currentRun.isPresent()
+				? new ArrayList<>(managerDelegateAttestationService.buildOrgUnitsOverviews(managerDelegateAttestationService.listOrganisationsForAttestation(currentRun.get(), delegateFor), user, false))
+				: Collections.emptyList();
+
 		model.addAttribute("orgUnits", orgsForAttestation);
 		model.addAttribute("itSystems", systemAttestations);
 		model.addAttribute("itSystemsForRoleAssignmentAttestation", itSystemUsersAttestation);
+		model.addAttribute("managerDelegateAttestations", managerDelegateAttestations);
 		return "attestationmodule/index";
 	}
-
 }

@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html>
+<html lang="da" xmlns:sec="http://www.thymeleaf.org/thymeleaf-extras-springsecurity4">
 <body>
 	<header th:fragment="navbar-header" class="topnavbar-wrapper">
 		<nav role="navigation" class="navbar topnavbar">
@@ -298,7 +298,21 @@
 									<span th:text="#{html.navbar.manager.list}"></span>
 								</a>
 							</li>
-		
+							<li th:class="${page == 'substitute.list'} ? 'active' : ''" sec:authorize="hasRole('ROLE_READ_ACCESS')">
+								<a th:href="@{/ui/management/substitute/list}">
+									<em class="fa fa-users"></em>
+									<span th:text="#{html.navbar.management.substitute}"></span>
+								</a>
+							</li>
+
+
+							<li th:class="${page == 'managerdelegate.list'} ? 'active' : ''" sec:authorize="hasAnyRole('ROLE_ADMINISTRATOR', 'ROLE_MANAGER', 'ROLE_SUBSTITUTE')">
+								<a th:href="@{/ui/managerdelegate/list}">
+									<em class="fa fa-users"></em>
+									<span th:text="#{html.navbar.managerdelegate.list}"></span>
+								</a>
+							</li>
+
 							<li th:class="${page == 'manager.substitute'} ? 'active' : ''" sec:authorize="hasRole('ROLE_MANAGER')" th:if="${@roleCatalogueConfiguration.substituteManagerAPI.enabled == false}">
 								<a th:href="@{/ui/manager/substitute}">
 									<em class="fa fa-male"></em>
@@ -390,6 +404,13 @@
 									<span th:text="#{html.setting.notification.title}"></span>
 								</a>
 							</li>
+
+							<li th:class="${page == 'vikarSettings'} ? 'active' : ''">
+								<a th:href="@{/ui/admin/vikarsettings}">
+									<em class="fa fa-exclamation"></em>
+									<span th:text="#{html.setting.vikar.title}"></span>
+								</a>
+							</li>
 						</th:block>
 
 						<th:block sec:authorize="hasRole('ROLE_ADMINISTRATOR')">
@@ -405,7 +426,7 @@
 							</li>
 
 							<li th:each="client : ${@clientService.findADSyncServices()}" th:class="${page == 'clients.adSyncService' + client.id} ? 'active' : ''">
-								<a th:href="'/ui/client/adsyncservice/' + ${client.id}" th:with="adError=${@ADConfigurationService.hasError(client)}">
+								<a th:href="@{'/ui/client/adsyncservice/' + ${client.id}}" th:with="adError=${@ADConfigurationService.hasError(client)}">
 									<em class="fa fa-list"></em>
 									<em class="fa fa-warning" th:if="${adError != null}" data-toggle="tooltip" data-placement="right" data-html="true" th:title="${adError}"></em>
 									<span th:text="${client.name}"></span>

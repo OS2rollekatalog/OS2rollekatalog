@@ -19,6 +19,7 @@ public interface AttestationDao extends CrudRepository<Attestation, Long> {
     List<Attestation> findByAttestationTypeAndResponsibleUserUuidOrderByDeadlineDesc(final Attestation.AttestationType type, final String userUuid);
 
     List<Attestation> findByAttestationTypeAndDeadlineIsGreaterThanEqual(final Attestation.AttestationType type, final LocalDate deadline);
+    List<Attestation> findByAttestationTypeInAndDeadlineIsGreaterThanEqual(final List<Attestation.AttestationType> type, final LocalDate deadline);
 
     List<Attestation> findByAttestationTypeAndCreatedAtGreaterThanEqual(final Attestation.AttestationType type, final LocalDate createdAtAfter);
 

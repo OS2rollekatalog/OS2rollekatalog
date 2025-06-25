@@ -20,16 +20,18 @@ public class SecurityLogCleaner {
 	@Autowired
 	private SecurityLogger securityLogger;
 
-	// run between 02:00 and 04:59 on Saturdays
-	@Scheduled(cron = "0 #{new java.util.Random().nextInt(59)} #{new java.util.Random().nextInt(3) + 2} * * SAT")
+	// run every 5 minutes between 02:00 and 03:59 (so 24 times, deleting 25.000 rows each time, for a total of 600.000 rows in total)
+	// as this is a heavy operation, we spread the load across the various running instances
+	@Scheduled(cron = "#{new java.util.Random().nextInt(59)} #{new java.util.Random().nextInt(4)}/5 2-3 * * ?")
 	public void cleanupAuditLogs() {
 		if (!configuration.getScheduled().isEnabled()) {
 			log.info("Scheduled jobs are disabled on this instance");
 			return;
 		}
 
-		log.info("Running scheduled job");
-
+		long start = System.currentTimeMillis();
 		securityLogger.clean();
+		
+		log.info("Cleanup security log took " + (System.currentTimeMillis() - start) + "ms");
 	}
 }

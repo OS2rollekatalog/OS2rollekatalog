@@ -58,6 +58,7 @@
 						</div>
 					</div>
 
+					<!-- orgUnit -->
 					<div style="height: 70px;">
 						<h4 class="md-12">
 							<span th:text="#{html.word.orgUnit}" class="col-md-11" style="padding: 0px;"></span>
@@ -70,6 +71,17 @@
 						</div>
 					</div>
 
+					<!-- caseNumber -->
+					<div style="height: 70px;" th:if="${caseNumberEnabled}">
+						<h4 class="md-12">
+							<span th:text="#{html.page.assign.direct.caseNumber}"></span>
+						</h4>
+						<div class="form-group col-md-12">
+							<input class="form-control" id="addRoleCaseNumber"/>
+						</div>
+					</div>
+
+					<!-- notify -->
 					<h4 id="notifyTitle"  th:text="#{html.page.assign.direct.checkbox.shouldNotifyEmailManualITSystem}"></h4>
 					<div class="container">
 						<div class="row">
@@ -108,6 +120,7 @@
 			userRoleModalService.fieldNotUpdatedMsg = [[#{html.entity.rolegroup.failedupdatemsg}]];
 			userRoleModalService.page = [[#{page}]];
 			titlesEnabled = [[${@roleCatalogueConfiguration.getTitles().isEnabled()}]];
+			var caseNumberEnabled = [[${caseNumberEnabled}]];
     		+]*/
 
             userRoleModalService.init();
@@ -123,6 +136,7 @@
 	      		$('.assign_role_directly').on( "click", function() {
 	            	postponedConstraintsService.validate("assignRoleDirectlyClicked");
 	            });
+
 	      		$('#closeModal').click(userRoleModalService.closeModal);
 	      		
 	      		modal.on('shown.bs.modal', function() {
@@ -134,8 +148,6 @@
 			this.closeModal = function() {
 				var modal = $("#modal-positions");
 				modal.modal('hide');
-
-				
 			}
 
 			this.setManual = function(boolean) {
@@ -159,15 +171,20 @@
 				var startDate = $('#startDatePicker').data('date');
 				var stopDate = $('#stopDatePicker').data('date');
 				var dates = "?startDate=" + startDate + "&stopDate=" + stopDate;
-				
+
 				var constraints = postponedConstraintsService.getConstraintList();
 				var notify = true;
 				if($("#notifyId").is(':checked')) {
 					notify = false;
 				}
+
+				var caseNumberUrlPart = "";
+				if (caseNumberEnabled) {
+					caseNumberUrlPart = '&casenumber=' + $("#addRoleCaseNumber").val();
+				}
 				
 				$.ajax({
-	    			   url: userRoleModalService.usersUrl + userUuid + '/addrole/' + roleid + dates + '&ouuuid=' + $("#addRoleOUSelect").val()+ '&notify=' + notify,
+	    			   url: userRoleModalService.usersUrl + userUuid + '/addrole/' + roleid + dates + '&ouuuid=' + $("#addRoleOUSelect").val()+ '&notify=' + notify + caseNumberUrlPart,
 	    			   contentType: 'application/json',
 	    			   headers: {
 	    			      'X-CSRF-TOKEN': token

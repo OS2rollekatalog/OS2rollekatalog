@@ -55,6 +55,10 @@ public class AttestationMailMapper {
             case ATTESTATION_SENSITIVE_REMINDER2 -> "overview.enum.email.message.type.attestation_sensitive_reminder2";
             case ATTESTATION_SENSITIVE_REMINDER3 -> "overview.enum.email.message.type.attestation_sensitive_reminder3";
             case ATTESTATION_SENSITIVE_REMINDER_THIRDPARTY -> "overview.enum.email.message.type.attestation_sensitive_reminder_thirdparty";
+            case ATTESTATION_MANAGERDELEGATE_NOTIFICATION -> "html.enum.email.message.type.managerdelegate.attestation_notification";
+            case ATTESTATION_MANAGERDELEGATE_REMINDER2-> "html.enum.email.message.type.managerdelegate.attestation_reminder2";
+            case ATTESTATION_MANAGERDELEGATE_REMINDER3-> "html.enum.email.message.type.managerdelegate.attestation_reminder3";
+            case ATTESTATION_MANAGERDELEGATE_REMINDER_THIRDPARTY-> "html.enum.email.message.type.managerdelegate.attestation_reminder_thirdparty";
             case ATTESTATION_IT_SYSTEM_NOTIFICATION -> "overview.enum.email.message.type.attestation_it_system_notification";
             case ATTESTATION_IT_SYSTEM_REMINDER1 -> "overview.enum.email.message.type.attestation_it_system_reminder1";
             case ATTESTATION_IT_SYSTEM_REMINDER2 -> "overview.enum.email.message.type.attestation_it_system_reminder2";

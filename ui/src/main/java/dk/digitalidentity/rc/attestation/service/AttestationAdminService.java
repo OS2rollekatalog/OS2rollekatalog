@@ -45,6 +45,8 @@ public class AttestationAdminService {
     private AttestationOverviewService attestationOverviewService;
     @Autowired
     private AttestationMailMapper mailMapper;
+	@Autowired
+	private ManagerDelegateAttestationService managerDelegateAttestationService;
 
     public Optional<AttestationRun> findById(long id) {
         return attestationRunDao.findById(id);
@@ -56,10 +58,6 @@ public class AttestationAdminService {
 
     public List<AttestationRun> findAllRunsSorted() {
         return attestationRunDao.findAllRunsSorted();
-    }
-
-    public List<AttestationRun> findNewestRuns(final int limit) {
-        return attestationRunDao.findLatestRuns(limit);
     }
 
     public List<AttestationRunView> findIdsOfLatestRuns(final int limit) {
@@ -74,9 +72,10 @@ public class AttestationAdminService {
     @Transactional
     public AdminAttestationDetailsDTO findAttestationDetails(final Attestation attestation) {
         final AttestationOverviewDTO overview = switch (attestation.getAttestationType()) {
-            case ORGANISATION_ATTESTATION -> attestationOverviewService.buildOrgUnitOverview(organisationAttestationService.getAttestation(attestation, "", false), true);
+            case ORGANISATION_ATTESTATION -> attestationOverviewService.buildOrgUnitOverview(organisationAttestationService.getAttestation(attestation, "", false, Attestation.AttestationType.ORGANISATION_ATTESTATION), true);
             case IT_SYSTEM_ROLES_ATTESTATION -> buildItSystemOverview(itSystemUserRolesAttestationService.getItSystemAttestation(attestation), true);
             case IT_SYSTEM_ATTESTATION -> buildItSystemUsersOverview(itSystemUsersAttestationService.getAttestation(attestation, false), true);
+            case MANAGER_DELEGATED_ATTESTATION -> attestationOverviewService.buildOrgUnitOverview(managerDelegateAttestationService.getAttestationDTO(attestation, "", false), true);
         };
         return AdminAttestationDetailsDTO.builder()
                 .overview(overview)
@@ -100,6 +99,10 @@ public class AttestationAdminService {
                 return AdminAttestationStatus.ON_GOING;
             }
         } else if (attestation.getAttestationType() == Attestation.AttestationType.IT_SYSTEM_ROLES_ATTESTATION) {
+            if (itSystemRoleAttestationEntryDao.countByAttestationId(attestation.getId()) > 0) {
+                return AdminAttestationStatus.ON_GOING;
+            }
+        } else if (attestation.getAttestationType() == Attestation.AttestationType.MANAGER_DELEGATED_ATTESTATION) {
             if (itSystemRoleAttestationEntryDao.countByAttestationId(attestation.getId()) > 0) {
                 return AdminAttestationStatus.ON_GOING;
             }

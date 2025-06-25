@@ -74,9 +74,10 @@ public class SystemRoleAssignmentsUpdaterJdbc {
         final AttestationSystemRoleAssignment existingRecord = temporalDao.findValidSystemRoleAssignmentWithHash(now, recordHash);
         if (existingRecord != null) {
             TemporalFieldUpdater.updateFields(existingRecord, assignment);
+            existingRecord.setConstraints(assignment.getConstraints());
             existingRecord.setUpdatedAt(now);
             if (temporalDao.updateAttestationSystemRoleAssignment(existingRecord) == 0) {
-                log.error("Failed to update AttestationSystemRoleAssignment with id=" + assignment.getId());
+                log.error("Failed to update AttestationSystemRoleAssignment with id={}", assignment.getId());
             }
         } else {
             assignment.setValidFrom(now);

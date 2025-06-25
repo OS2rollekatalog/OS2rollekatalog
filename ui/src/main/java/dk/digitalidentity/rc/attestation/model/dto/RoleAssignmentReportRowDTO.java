@@ -21,6 +21,7 @@ public class RoleAssignmentReportRowDTO {
 	private String position;
 	private String orgUnit;
 	private String userRoleName;
+	private String postponedConstraints;
 	private Long itSystemId;
 	private String itSystemName;
 	private String roleGroupName;

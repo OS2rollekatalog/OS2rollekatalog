@@ -16,9 +16,9 @@ namespace ADSyncService
 
         // note, the groupInGroup parameter should only be true when doing an initial import - when making membershipSync updates
         // the group in group thing is way to complex to solve here (and introduces nasty side-effects if actually implemented)
-        public List<string> GetGroupMembers(string groupId, bool groupInGroup = false)
+        public List<string> GetGroupMembers(string groupId, string groupName, bool groupInGroup = false)
         {
-            log.Debug("Looking for members of " + groupId);
+            log.Debug("Looking for members of " + groupName);
 
             List<string> members = new List<string>();
 
@@ -28,7 +28,7 @@ namespace ADSyncService
                 {
                     if (group == null)
                     {
-                        log.Warn("Group does not exist: " + groupId);
+                        log.Warn("Group with id " + groupId + " and name " + groupName + " does not exist");
                         return null;
                     }
                     else
@@ -91,7 +91,19 @@ namespace ADSyncService
                                 Group g = new Group();
                                 g.Uuid = groupPrincipal.Guid.ToString().ToLower();
                                 g.Name = getNameAttribute(dir, nameAttribute);
-                                g.Description = (groupPrincipal.Description != null) ? ((groupPrincipal.Description.Length > 200) ? groupPrincipal.Description.Substring(0, 200) : groupPrincipal.Description) : "";
+
+
+                                string description = groupPrincipal.Description != null ? groupPrincipal.Description : "";
+                                if (remoteConfigurationService.GetConfiguration().includeNotesInDescription)
+                                {
+                                    string notes = dir.Properties["info"]?.Value?.ToString() ?? "";
+                                    if (!string.IsNullOrWhiteSpace(notes))
+                                    {
+                                        description += "\n" + notes;
+                                    }
+                                }
+
+                                g.Description = description;
 
                                 res.Add(g);
                             }

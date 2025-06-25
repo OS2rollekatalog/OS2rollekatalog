@@ -3,6 +3,7 @@ package dk.digitalidentity.rc.controller.rest;
 import dk.digitalidentity.rc.config.Constants;
 import dk.digitalidentity.rc.controller.rest.model.OUFilterDTO;
 import dk.digitalidentity.rc.dao.model.ItSystem;
+import dk.digitalidentity.rc.dao.model.KitosITSystem;
 import dk.digitalidentity.rc.dao.model.OrgUnit;
 import dk.digitalidentity.rc.dao.model.PendingADGroupOperation;
 import dk.digitalidentity.rc.dao.model.SystemRole;
@@ -13,6 +14,7 @@ import dk.digitalidentity.rc.dao.model.enums.ADGroupType;
 import dk.digitalidentity.rc.dao.model.enums.ItSystemType;
 import dk.digitalidentity.rc.security.RequireAdministratorRole;
 import dk.digitalidentity.rc.service.ItSystemService;
+import dk.digitalidentity.rc.service.KitosITSystemService;
 import dk.digitalidentity.rc.service.OrgUnitService;
 import dk.digitalidentity.rc.service.PendingADUpdateService;
 import dk.digitalidentity.rc.service.PositionService;
@@ -32,6 +34,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.Arrays;
 import java.util.Date;
@@ -67,6 +70,9 @@ public class ItSystemRestController {
 
 	@Autowired
 	private ResourceBundleMessageSource resourceBundle;
+
+	@Autowired
+	private KitosITSystemService kitosITSystemService;
 
 	@PostMapping(value = { "/rest/systemrole/delete/{id}" })
 	@ResponseBody
@@ -210,6 +216,29 @@ public class ItSystemRestController {
 
 		itSystem.setNotificationEmail(email);
 		itSystemService.save(itSystem);
+
+		return new ResponseEntity<>(HttpStatus.OK);
+	}
+
+	@PostMapping(value = "/rest/itsystem/kitositsystem")
+	public ResponseEntity<String> editItSystemKitosITSystem(long id, Long kitosITSystemId) {
+		ItSystem itSystem = itSystemService.getById(id);
+		if (itSystem == null) {
+			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+		}
+
+		if (kitosITSystemId == null) {
+			itSystem.setKitosITSystem(null);
+			itSystemService.save(itSystem);
+		} else {
+			KitosITSystem kitosITSystem = kitosITSystemService.findById(kitosITSystemId).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Kitos IT System not found"));
+
+			itSystem.setKitosITSystem(kitosITSystem);
+			itSystem = itSystemService.save(itSystem);
+
+			List<User> allUsers = userService.getAll();
+			itSystemService.handleSingleITSystemKitosOwnerAndResponsible(itSystem, allUsers);
+		}
 
 		return new ResponseEntity<>(HttpStatus.OK);
 	}

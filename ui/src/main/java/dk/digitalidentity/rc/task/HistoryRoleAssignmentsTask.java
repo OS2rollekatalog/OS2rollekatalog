@@ -46,6 +46,7 @@ public class HistoryRoleAssignmentsTask {
 		historyService.generateTitleRoleAssignmentHistory();
 		historyService.generateNegativeTitleRoleAssignmentHistory();
 		historyService.generateExceptedUsersHistory();
+		historyService.generateManagerDelegateHistory();
 
 		// Keep this last, so we can se what dates the generation where successful
 		historyService.generateDate();
