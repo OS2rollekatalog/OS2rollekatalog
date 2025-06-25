@@ -12,8 +12,25 @@
 				<div class="panel-body" style="padding-bottom: 40px;">
 					<h3 th:text="#{html.page.info.download.importer.header}"></h3>
 					<ul>
-						<li><a th:href="@{/download/RoleCatalogueImporter.exe}" th:text="#{html.page.info.download.importer}"></a></li>
-						<li><a th:href="@{/download/ADSyncService.exe}" th:text="#{html.page.info.download.syncservice}"></a></li>
+						<li>
+							<a th:href="@{/download/roleCatalogueImporter/RoleCatalogueImporter.exe}" th:text="#{html.page.info.download.importer}"></a>
+							<b>(RoleCatalogueImporter - </b>
+							<b th:text="#{html.page.info.download.version}"></b>
+							<b th:text="${roleCatalogueImporterLastVersion}"></b>
+							<b> - </b>
+							<a th:href="@{/download/roleCatalogueImporter/Changelog.txt}" th:text="#{html.page.info.download.importer.changelog}"></a>
+							<b>)</b>
+						</li>
+
+						<li>
+							<a th:href="@{/download/adSyncService/ADSyncService.exe}" th:text="#{html.page.info.download.syncservice}"></a>
+							<b>(ADSyncService - </b>
+							<b th:text="#{html.page.info.download.version}"></b>
+							<b th:text="${adSyncServiceLastVersion}"></b>
+							<b> - </b>
+							<a th:href="@{/download/adSyncService/Changelog.txt}" th:text="#{html.page.info.download.syncservice.changelog}"></a>
+							<b>)</b>
+						</li>
 					</ul>
 
 					<h3 th:text="#{html.page.info.download.header}"></h3>
@@ -27,6 +44,7 @@
 					<ul>
 						<li><a th:href="@{/download/installationsvejledning.pdf}" th:text="#{html.page.info.install.link}"></a></li>
 						<li><a th:href="@{/download/adsyncservice.pdf}" th:text="#{html.page.info.adsyncservice.link}"></a></li>
+						<li><a th:href="@{/download/adsyncservice-upgrade.pdf}" th:text="#{html.page.info.adsyncservice.upgrade}"></a></li>
 					</ul>
 
 					<h3 th:text="#{html.page.info.api.header}"></h3>

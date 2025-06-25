@@ -1,13 +1,7 @@
 ﻿using ADSyncService.Email;
-using ADSyncService.Properties;
-using Microsoft.Graph.Models;
 using System;
 using System.Collections.Generic;
-using System.Collections.Specialized;
 using System.Configuration;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace ADSyncService
 {
@@ -118,7 +112,7 @@ namespace ADSyncService
                             itSystemData.systemRoles.Add(systemRole);
 
                             // add members
-                            List<string> members = adStub.GetGroupMembers(group.Uuid, groupsInGroupOnSync);
+                            List<string> members = adStub.GetGroupMembers(group.Uuid, group.Name, groupsInGroupOnSync);
                             if (members != null)
                             {
                                 foreach (var member in members)
@@ -132,7 +126,7 @@ namespace ADSyncService
                         }
                         else if (ReImportUsersEnabled())
                         {
-                            List<string> members = adStub.GetGroupMembers(group.Uuid, groupsInGroupOnSync);
+                            List<string> members = adStub.GetGroupMembers(group.Uuid, group.Name, groupsInGroupOnSync);
                             if (members != null)
                             {
                                 log.Info("Re-importing users to " + itSystemData.name);

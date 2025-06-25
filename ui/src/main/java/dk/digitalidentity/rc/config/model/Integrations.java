@@ -16,4 +16,5 @@ public class Integrations {
 	private Cvr cvr = new Cvr();
 	private DMP dmp = new DMP();
 	private EntraID entraID = new EntraID();
+	private Kitos kitos = new Kitos();
 }

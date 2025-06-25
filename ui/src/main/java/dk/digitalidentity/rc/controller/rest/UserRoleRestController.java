@@ -9,8 +9,13 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
+import dk.digitalidentity.rc.dao.UserRoleSelect2Dao;
+import dk.digitalidentity.rc.service.Select2Service;
+import dk.digitalidentity.rc.service.model.UserRoleSelect2DTO;
 import org.apache.commons.lang3.ObjectUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.jpa.datatables.mapping.DataTablesInput;
 import org.springframework.data.jpa.datatables.mapping.DataTablesOutput;
 import org.springframework.data.jpa.domain.Specification;
@@ -103,6 +108,9 @@ public class UserRoleRestController {
 
     @Autowired
 	private SecurityUtil securityUtil;
+
+	@Autowired
+	private Select2Service select2Service;
 
     @InitBinder(value = { "role" })
     public void initBinder(WebDataBinder binder) {
@@ -532,4 +540,28 @@ public class UserRoleRestController {
 
         return new ResponseEntity<>(HttpStatus.OK);
     }
+
+	public record Select2Response(List<UserRoleSelect2DTO> results, boolean pagination) {}
+	@GetMapping("/rest/userroles/search")
+	public Select2Response searchUserRoles(
+			@RequestParam(name = "q", required = false) String searchTerm,
+			@RequestParam(name = "page", defaultValue = "1") int page) {
+
+		PageRequest pageable = PageRequest.of(page - 1, 20);
+
+		Page<UserRole> rolesPage;
+		if (searchTerm == null || searchTerm.isBlank()) {
+			rolesPage = select2Service.findAllSearchableUserroles(pageable);
+		} else {
+			rolesPage = select2Service.searchUserroles(searchTerm, pageable);
+		}
+
+		List<UserRoleSelect2DTO> results = rolesPage.stream()
+				.map(role -> new UserRoleSelect2DTO(role.getId(), role.getName(), role.getItSystem().getName()))
+				.toList();
+
+		boolean hasMore = rolesPage.hasNext();
+
+		return new Select2Response(results, hasMore);
+	}
 }

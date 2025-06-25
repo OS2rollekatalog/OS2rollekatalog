@@ -116,7 +116,7 @@ public class ManualRolesService {
 
 		Map<String, User> userMap = userService.getAll().stream().collect(Collectors.toMap(u -> u.getDomain().getId() + "!" + u.getUserId(), Function.identity()));
 		
-		List<ItSystem> itSystems = itSystemService.getBySystemTypeIn(Arrays.asList(ItSystemType.MANUAL, ItSystemType.AD, ItSystemType.SAML));
+		List<ItSystem> itSystems = itSystemService.getBySystemTypeIn(Arrays.asList(ItSystemType.MANUAL, ItSystemType.AD, ItSystemType.SAML, ItSystemType.KOMBIT));
 		for (ItSystem itSystem : itSystems) {
 			log.info("Detecting role changes on " + itSystem.getName() + " / " + itSystem.getId());
 

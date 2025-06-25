@@ -45,7 +45,7 @@ public class UserApiV2 {
                 .stream().filter(its -> !its.isAccessBlocked()).toList();
         final List<UserRoleAssignmentWithInfo> assignmentsWithInfo = userService.getAllUserRolesAssignmentsWithInfo(user, itSystems);
         return assignmentsWithInfo.stream()
-                .map(RoleMapper::userRoleAssignmentToApi)
+                .map(a -> RoleMapper.userRoleAssignmentToApi(a, user))
                 .toList();
     }
 

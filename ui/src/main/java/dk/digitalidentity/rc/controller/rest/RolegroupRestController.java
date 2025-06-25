@@ -1,5 +1,7 @@
 package dk.digitalidentity.rc.controller.rest;
 
+import dk.digitalidentity.rc.controller.mvc.datatables.dao.UserRoleForRoleGroupViewDao;
+import dk.digitalidentity.rc.controller.mvc.datatables.dao.model.UserRoleForRoleGroupView;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.AvailableITSystemDTO;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.RoleGroupDeleteStatus;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.RoleGroupForm;
@@ -20,6 +22,7 @@ import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.jpa.datatables.mapping.DataTablesInput;
 import org.springframework.data.jpa.datatables.mapping.DataTablesOutput;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.BindingResult;
@@ -58,6 +61,9 @@ public class RolegroupRestController {
 
 	@Autowired
 	private RolegroupValidator rolegroupValidator;
+
+	@Autowired
+	private UserRoleForRoleGroupViewDao userRoleForRoleGroupViewDao;
 
 	@InitBinder
 	public void initBinder(WebDataBinder binder) {
@@ -229,40 +235,18 @@ public class RolegroupRestController {
 		return new ResponseEntity<>(HttpStatus.OK);
 	}
 
-	public record SelectableUserRoleDTO(long id, String name, String description, AvailableITSystemDTO itSystem,
-										boolean selected, boolean readOnly) {
-	}
-
 	@PostMapping("/rest/rolegroups/{rolegroupId}/userroles")
-	public DataTablesOutput<SelectableUserRoleDTO> getUserRoleDatatableForUser(@RequestBody DataTablesInput input, BindingResult bindingResult, @PathVariable long rolegroupId) {
+	public DataTablesOutput<UserRoleForRoleGroupView> getUserRoleDatatableForUser(@RequestBody DataTablesInput input, BindingResult bindingResult, @PathVariable long rolegroupId) {
 
 		if (bindingResult.hasErrors()) {
-			DataTablesOutput<SelectableUserRoleDTO> error = new DataTablesOutput<>();
+			DataTablesOutput<UserRoleForRoleGroupView> error = new DataTablesOutput<>();
 			error.setError(bindingResult.toString());
 			return error;
 		}
 
 		RoleGroup rolegroup = roleGroupService.getById(rolegroupId);
 
-		DataTablesOutput<UserRole> userroleOutput = userRoleService.getAllItsystemNotDeletedNotPostponedAsDatatable(input);
-
-		DataTablesOutput<SelectableUserRoleDTO> output = new DataTablesOutput<>();
-		output.setRecordsFiltered(userroleOutput.getRecordsFiltered());
-		output.setDraw(userroleOutput.getDraw());
-		output.setError(userroleOutput.getError());
-		output.setSearchPanes(userroleOutput.getSearchPanes());
-		output.setRecordsTotal(userroleOutput.getRecordsTotal());
-		output.setData(userroleOutput.getData().stream().map(userrole ->
-				new SelectableUserRoleDTO(
-						userrole.getId(),
-						userrole.getName(),
-						userrole.getDescription(),
-						new AvailableITSystemDTO(userrole.getItSystem().getName(), userrole.getItSystem().getSystemType().toString()),
-						rolegroup.getUserRoleAssignments().stream().map(RoleGroupUserRoleAssignment::getUserRole).toList().contains(userrole),
-						userrole.getItSystem().isReadonly()
-				)
-		).toList());
-
-		return output;
+		Specification<UserRoleForRoleGroupView> specification = UserRoleForRoleGroupViewDao.hasRoleGroupId(rolegroup.getId());
+		return userRoleForRoleGroupViewDao.findAll(input, specification);
 	}
 }

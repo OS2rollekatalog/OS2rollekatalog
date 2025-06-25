@@ -30,7 +30,6 @@ public class UserRoleEmailTemplate {
 	@NotNull
 	private String message;
 
-	@OneToOne
-	@JoinColumn(name = "user_role_id")
+	@OneToOne(mappedBy = "userRoleEmailTemplate")
 	private UserRole userRole;
 }

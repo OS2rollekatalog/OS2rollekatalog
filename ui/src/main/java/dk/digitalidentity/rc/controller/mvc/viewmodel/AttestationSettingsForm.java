@@ -6,6 +6,7 @@ import lombok.Setter;
 import org.springframework.format.annotation.DateTimeFormat;
 
 import java.time.LocalDate;
+import java.util.HashSet;
 import java.util.Set;
 
 @Getter
@@ -18,6 +19,10 @@ public class AttestationSettingsForm {
 	private boolean adAttestationEnabled;
 	private boolean changeRequestsEnabled;
 	private String attestationChangeEmail;
+	private boolean descriptionRequired;
+	private boolean hideDescription;
+	private boolean orgUnitOptIn;
+	private Set<String> scheduledAttestationOptedInOrgUnits = new HashSet<>();
 
 	@DateTimeFormat(pattern = "yyyy-MM-dd")
 	private LocalDate firstAttestationDate;

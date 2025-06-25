@@ -1,0 +1,1 @@
+CREATE INDEX security_log_tts_idx ON security_log (timestamp);

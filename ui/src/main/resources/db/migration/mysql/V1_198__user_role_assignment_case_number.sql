@@ -1,0 +1,1 @@
+ALTER TABLE user_roles_mapping ADD case_number VARCHAR(255) NULL;

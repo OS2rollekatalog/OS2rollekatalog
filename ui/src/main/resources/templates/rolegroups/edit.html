@@ -160,6 +160,7 @@
 			var userService = new UserService();
 			var orgUnitService = new OrgUnitService();
 			var notificationService = new NotificationService();
+			let userRoleTable;
 			
 			$("document").ready( function() {
 				userroleTableService = new UserroleTableService()
@@ -236,7 +237,7 @@
 
 				var label = $("#"+this.id+"sortLabel");
 				label.text(this.checked);
-				$("#listTable").dataTable().api().row("#"+this.id+"row").invalidate('dom').draw();
+
 			}
 
 			function flagCheckboxChange() {
@@ -352,7 +353,7 @@
 						method: "GET",
 						url: userRestUrl + user + "/orgunits",
 						success: function (response) {
-							userRoleEditModalService.showModal(user, startDate, stopDate, type, assignmentId, 'DIRECT', orgUnit, response);
+							userRoleEditModalService.showModal(user, startDate, stopDate, type, assignmentId, 'DIRECT', orgUnit, response, null);
 						}
 					});
 				}
@@ -522,15 +523,14 @@
 					const columnDefOptions = [
 						{
 							targets: [0],
-							data: 'id',
-							orderable: false,
+							data: 'selected',
+							orderable: true,
 							searchable:false,
-							sortable:false,
 							render: (data, type, row, meta) => {
 								if (type === 'display') {
 									return '<div class="checkbox c-checkbox"> '+
 									'<label>'+
-									`<input class="checkboxaction" id="${data}" type="checkbox" `+
+									`<input class="checkboxaction" id="${row.compositeKey.id}" type="checkbox" `+
 									`value="${rolegroupId}" `+ `${row.selected ? 'checked ' : ''}` + `${row.readOnly ? 'disabled ' : ''}` +
 									'data-objtype="role"/> '+
 									'<span class="fa fa-check"></span> '+
@@ -542,21 +542,10 @@
 						{
 							targets: [1],
 							data: 'name',
-							render: (data, type, row, meta) => {
-								if (type === 'display') {
-									let html = '<div>'
-									html += '<div>'
-									html += `<span>${data}</span>`
-									html += '</div>'
-									html += row.alreadyAssigned ? `<div style="font-size: smaller; color: red;">Tildelt</div>` : ''
-									html += '</div>'
-									return html
-								} else { return data; }
-							}
 						},
 						{
 							targets: [2],
-							data: 'itSystem.name',
+							data: 'itSystemName',
 						},
 						{
 							targets: [3],
@@ -564,9 +553,9 @@
 						}
 					]
 
-					const table = new DatatableService().initDefaultServersideTable('#listTable', `${url}${rolegroupId}/userroles`, columnDefOptions)
+					userRoleTable = new DatatableService().initDefaultServersideTable('#listTable', `${url}${rolegroupId}/userroles`, columnDefOptions)
 					addCheckboxListeners();
-					return table
+					return userRoleTable
 				}
 			}
 		/*]]>*/

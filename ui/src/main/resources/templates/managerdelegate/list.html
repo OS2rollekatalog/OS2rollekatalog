@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="da" xmlns:sec="http://www.thymeleaf.org/thymeleaf-extras-springsecurity4">
+<head th:replace="~{fragments/header :: header (title=#{html.navbar.managerdelegate.list})}"></head>
+<body class="layout-fixed">
+<div class="wrapper">
+    <header th:replace="~{fragments/navbar :: navbar-header(subpage = 'reports')}"></header>
+    <aside th:replace="~{fragments/navbar :: navbar-aside (page = 'managerdelegate.list', subpage = 'reports')}"></aside>
+
+    <section>
+        <div class="content-wrapper">
+            <h3>
+                <span th:text="#{html.navbar.managerdelegate.list}"></span>
+                <span sec:authorize="hasAnyRole('ROLE_ADMINISTRATOR', 'ROLE_MANAGER')" class="btn btn-primary btn-lg"
+                      style="float: right;" id="createModalBtn"
+                      th:text="#{html.page.managerdelegate.button.create}"></span>
+            </h3>
+            <div class="panel panel-default">
+                <div class="panel-heading"></div>
+                <div class="panel-body">
+                    <div class="table-responsive">
+                        <table id="listTable" class="table table-striped table-hover listTable">
+                            <thead>
+                            <tr>
+                                <th class="col-md-3" th:text="#{html.page.managerdelegate.name}"></th>
+                                <th class="col-md-3" th:text="#{html.page.managerdelegate.manager}"></th>
+                                <th class="col-md-2" th:text="#{html.page.managerdelegate.from}"></th>
+                                <th class="col-md-2" th:text="#{html.page.managerdelegate.to}"></th>
+                                <th class="col-md-1" th:text="#{html.control.operations}" data-orderable="false"></th>
+                            </tr>
+                            </thead>
+
+                            <tbody>
+                            <tr th:each="delegate : ${delegates}">
+                                <td th:text="${delegate.delegateName}"></td>
+                                <td th:text="${delegate.managerName}"></td>
+                                <td th:text="${#temporals.format(delegate.fromDate, 'dd-MM-yyyy')}"></td>
+                                <td th:unless="${delegate.indefinitely}"
+                                    th:text="${#temporals.format(delegate.toDate, 'dd-MM-yyyy')}"></td>
+                                <td th:if="${delegate.indefinitely}"
+                                    th:text="#{html.page.managerdelegate.to.indefinitely}"></td>
+                                <td>
+                                    <span class="editbtn" th:attr="data-id=${delegate.id}"
+                                          th:title="#{html.page.managerdelegate.edit.hint}" style="cursor: pointer"><em
+                                            class="fa fa-pencil"></em></span>
+                                    <span class="deletebtn" th:attr="data-id=${delegate.id}"
+                                          th:title="#{html.page.managerdelegate.delete.hint}"
+                                          style="cursor: pointer"><em class="fa fa-trash"></em></span>
+                                </td>
+                            </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+</div>
+
+<div id="modalContainer"></div>
+
+<nav th:replace="~{fragments/footer :: footer}"></nav>
+<script th:replace="~{fragments/datatables :: datatables}"></script>
+<script th:src="@{/js/service/DatePickerService.js}"></script>
+<script th:src="@{/js/service/Select2Service.js}"></script>
+<script th:src="@{/js/service/NetworkService.js}"></script>
+<script th:src="@{/js/managerdelegate/ManagerDelegateCrudService.js}"></script>
+<script th:inline="javascript">
+    /*<![CDATA[*/
+
+    /*[+
+        const uiURL = [[@{/ui/managerdelegate}]];
+        const restURL = [[@{/rest/managerdelegate}]];
+        const token = $("meta[name='_csrf']").attr("content");
+
+    +]*/
+
+    document.addEventListener('DOMContentLoaded', () => {
+        const managerDelegateCrudService = new ManagerDelegateCrudService()
+
+        const createButton = document.getElementById('createModalBtn')
+        createButton.addEventListener('click', () => managerDelegateCrudService.loadCreateModal())
+
+        //Event delegation for action buttons
+        const table = document.getElementById('listTable')
+        table.addEventListener('click', (event) => {
+            const editbtn = event.target.closest('.editbtn')
+            const deletebtn = event.target.closest('.deletebtn')
+            if (editbtn) {
+                const managerDelegateId = editbtn.dataset.id
+                managerDelegateCrudService.loadEditModal(managerDelegateId)
+            } else if (deletebtn) {
+                const managerDelegateId = deletebtn.dataset.id
+                managerDelegateCrudService.deleteManagerDelegate(managerDelegateId)
+            }
+
+        })
+    })
+
+</script>
+</body>
+</html>

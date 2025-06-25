@@ -11,7 +11,7 @@ import dk.digitalidentity.rc.dao.model.SecurityLog;
 public interface SecurityLogDao extends CrudRepository<SecurityLog, Long> {
 
 	@Modifying
-	@Query(nativeQuery = true, value = "DELETE FROM security_log WHERE timestamp < ?1")
+	@Query(nativeQuery = true, value = "DELETE FROM security_log WHERE timestamp < ?1 LIMIT 25000")
 	void deleteByTimestampBefore(Date before);
 
 }

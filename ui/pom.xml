@@ -404,6 +404,12 @@
 			<groupId>org.springframework.data</groupId>
 			<artifactId>spring-data-envers</artifactId>
 		</dependency>
+
+		<dependency>
+			<groupId>dk.digitalidentity</groupId>
+			<artifactId>kitos-client</artifactId>
+			<version>release-1.0.15</version>
+		</dependency>
 		
 		<!-- This is apparently needed to be added to send base64 inline images.
 		Think it has something to do with java version. Was not necessary in Java8, but is in java11 -->

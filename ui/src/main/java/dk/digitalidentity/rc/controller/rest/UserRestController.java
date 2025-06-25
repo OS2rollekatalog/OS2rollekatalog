@@ -261,6 +261,7 @@ public class UserRestController {
 												@RequestParam(name = "stopDate", required = false) String stopDateStr,
 												@RequestParam(name = "ouuuid", required = false) String orgUnitUuid,
 												@RequestParam(name = "notify", required = false) boolean shouldNotify,
+												@RequestParam(name = "casenumber", required = false) String caseNumber,
 												@RequestBody List<PostponedConstraintDTO> postponedConstraints) {
 
 		User user = userService.getByUuid(userUuid);
@@ -312,7 +313,7 @@ public class UserRestController {
 		}
 
 		try {
-			userService.addUserRole(user, userRole, startDate, stopDate, postponedConstraintsForAssignment, orgUnit, shouldNotify);
+			userService.addUserRole(user, userRole, startDate, stopDate, postponedConstraintsForAssignment, orgUnit, shouldNotify, caseNumber);
 		} catch (SecurityException ex) {
 			return new ResponseEntity<>(ex.getMessage(), HttpStatus.FORBIDDEN);
 		}
@@ -422,6 +423,7 @@ public class UserRestController {
 												 @RequestParam(name = "startDate", required = false) String startDateStr,
 												 @RequestParam(name = "stopDate", required = false) String stopDateStr,
 												 @RequestParam(name = "ouuuid", required = false) String orgUnitUuid,
+												 @RequestParam(name = "casenumber", required = false) String caseNumber,
 												 @RequestBody List<PostponedConstraintDTO> postponedConstraints) {
 
 		User user = userService.getByUuid(userUuid);
@@ -485,7 +487,7 @@ public class UserRestController {
 				}
 
 				try {
-					userService.editUserRoleAssignment(user, userRoleAssignment, startDate, stopDate, postponedConstraintsForAssignment, orgUnit);
+					userService.editUserRoleAssignment(user, userRoleAssignment, startDate, stopDate, postponedConstraintsForAssignment, orgUnit, caseNumber);
 				} catch (SecurityException ex) {
 					return new ResponseEntity<>(ex.getMessage(), HttpStatus.FORBIDDEN);
 				}

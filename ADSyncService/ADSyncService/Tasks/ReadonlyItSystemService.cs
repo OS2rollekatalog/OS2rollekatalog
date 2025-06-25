@@ -48,7 +48,7 @@ namespace ADSyncService
                         {
                             found = true;
 
-                            List<string> members = adStub.GetGroupMembers(group.Name);
+                            List<string> members = adStub.GetGroupMembers(group.Name, group.Name);
                             if (members != null)
                             {
                                 foreach (var member in members)
@@ -94,7 +94,7 @@ namespace ADSyncService
                         systemRole.name = group.Name;
                         systemRole.users = new List<string>();
 
-                        List<string> members = adStub.GetGroupMembers(group.Name);
+                        List<string> members = adStub.GetGroupMembers(group.Name, group.Name);
                         if (members != null)
                         {
                             foreach (var member in members)

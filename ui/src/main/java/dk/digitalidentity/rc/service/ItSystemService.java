@@ -3,13 +3,14 @@ package dk.digitalidentity.rc.service;
 import dk.digitalidentity.rc.config.Constants;
 import dk.digitalidentity.rc.dao.ItSystemDao;
 import dk.digitalidentity.rc.dao.model.ItSystem;
+import dk.digitalidentity.rc.dao.model.KitosITSystemUser;
 import dk.digitalidentity.rc.dao.model.OrgUnit;
 import dk.digitalidentity.rc.dao.model.RoleGroup;
 import dk.digitalidentity.rc.dao.model.SystemRole;
 import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserRole;
 import dk.digitalidentity.rc.dao.model.enums.ItSystemType;
-import io.micrometer.common.util.StringUtils;
+import dk.digitalidentity.rc.dao.model.enums.KitosRole;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -258,6 +259,50 @@ public class ItSystemService {
 				itSystemDao.delete(itSystem);
 			}
 		}
+	}
+
+	@Transactional
+	public void syncKitosOwnersAndResponsibles() {
+		List<ItSystem> systems = itSystemDao.findByKitosITSystemNotNull();
+		if (systems.isEmpty()) {
+			return;
+		}
+
+		List<User> allUsers = userService.getAll();
+		for (ItSystem system : systems) {
+			handleSingleITSystemKitosOwnerAndResponsible(system, allUsers);
+		}
+	}
+
+	public void handleSingleITSystemKitosOwnerAndResponsible(ItSystem system, List<User> allUsers) {
+		if (system.getKitosITSystem().getKitosUsers() == null) {
+			system.setAttestationResponsible(null);
+			system.setSystemOwner(null);
+		} else {
+			User owner = findUserForKitosRole(KitosRole.SYSTEM_OWNER, system, allUsers);
+			User responsible = findUserForKitosRole(KitosRole.SYSTEM_RESPONSIBLE, system, allUsers);
+			system.setSystemOwner(owner);
+			system.setAttestationResponsible(responsible);
+		}
+		itSystemDao.save(system);
+	}
+
+	private User findUserForKitosRole(KitosRole kitosRole, ItSystem system, List<User> allUsers) {
+		List<KitosITSystemUser> kitosUsers = system.getKitosITSystem().getKitosUsers().stream()
+				.filter(u -> u.getRole().equals(kitosRole))
+				.collect(Collectors.toList());
+
+		for (KitosITSystemUser kitosUser : kitosUsers) {
+			User match = allUsers.stream()
+					.filter(u -> kitosUser.getName().equalsIgnoreCase(u.getName()) && kitosUser.getEmail().equalsIgnoreCase(u.getEmail()))
+					.findFirst().orElse(null);
+
+			if (match != null) {
+				return match;
+			}
+		}
+
+		return null;
 	}
 
 	//UTILITY METHODS

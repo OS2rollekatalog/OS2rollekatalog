@@ -40,7 +40,7 @@ public class UserRoleForm {
 	@Size(max = 4000)
 	private String description;
 
-	@Size(min = 5, max = 64, message = "{validation.role.name}")
+	@Size(min = 2, max = 64, message = "{validation.role.name}")
 	private String name;
 
     public UserRoleForm() {

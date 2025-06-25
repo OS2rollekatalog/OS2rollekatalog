@@ -54,6 +54,7 @@ import java.util.stream.Collectors;
 public class ReportXlsxView extends AbstractXlsxStreamingView {
     private LocalDate filterDate;
     private List<HistoryItSystem> itSystems;
+    private List<HistorySystemRole> systemRoles;
     private Map<String, HistoryUser> users;
     private List<HistoryTitle> titles;
     private Map<String, HistoryTitle> titleMap;
@@ -92,6 +93,7 @@ public class ReportXlsxView extends AbstractXlsxStreamingView {
         orgUnits = (Map<String, HistoryOU>) model.get("orgUnits");
         allOrgUnits = (Map<String, HistoryOU>) model.get("allOrgUnits");
         itSystems = (List<HistoryItSystem>) model.get("itSystems");
+        systemRoles = (List<HistorySystemRole>) model.get("systemRoles");
         messageSource = (ResourceBundleMessageSource) model.get("messagesBundle");
         ouKLEAssignments = (Map<String, List<HistoryOUKleAssignment>>) model.get("ouKLEAssignments");
         userKLEAssignments = (Map<String, List<HistoryKleAssignment>>) model.get("userKLEAssignments");
@@ -164,7 +166,33 @@ public class ReportXlsxView extends AbstractXlsxStreamingView {
 				createUserKLESheet(workbook, reportForm.isShowInactiveUsers());
 			}
 		}
+
+		if (reportForm.isShowSystemRoles()) {
+			createSystemRolesSheet(workbook);
+		}
     }
+
+	private void createSystemRolesSheet(Workbook workbook) {
+		Sheet sheet = workbook.createSheet(messageSource.getMessage("xls.report.systemRoles.sheet.title", null, locale));
+		ArrayList<String> headers = new ArrayList<>();
+		headers.add("xls.report.systemRoles.id");
+		headers.add("xls.report.systemRoles.itSystem");
+		headers.add("xls.report.systemRoles.name");
+		headers.add("xls.report.systemRoles.description");
+
+		createHeaderRow(sheet, headers);
+
+		int row = 1;
+		for (HistorySystemRole entry : systemRoles) {
+			Row dataRow = sheet.createRow(row++);
+			int column = 0;
+
+			createCell(dataRow, column++, String.valueOf(entry.getSystemRoleId()), null);
+			createCell(dataRow, column++, entry.getHistoryItSystem().getItSystemName(), null);
+			createCell(dataRow, column++, entry.getSystemRoleName(), null);
+			createCell(dataRow, column++, entry.getSystemRoleDescription(), null);
+		}
+	}
 
 	private void createUsersSheet(Workbook workbook) {
 		Sheet sheet = workbook.createSheet(messageSource.getMessage("xls.report.users.sheet.title", null, locale));
@@ -184,11 +212,11 @@ public class ReportXlsxView extends AbstractXlsxStreamingView {
             createCell(dataRow, column++, entry.getUserUuid(), null);
             createCell(dataRow, column++, entry.getUserName(), null);
             createCell(dataRow, column++, entry.getUserUserId(), null);
-            
+
             CellStyle cs = workbook.createCellStyle();
     		cs.setWrapText(true);
     		String in = messageSource.getMessage("html.word.in", null, locale);
-    		
+
     		List<HistoryOUUser> entryOUUsers = ouUsers.stream().filter(h -> h.getUserUuid().equals(entry.getUserUuid())).toList();
     		List<String> titleStrings = new ArrayList<>();
     		for (HistoryOUUser ouUser : entryOUUsers) {

@@ -112,6 +112,10 @@ public class ItSystem implements AuditLoggable {
 	@JoinColumn(name = "system_owner_uuid")
 	private User systemOwner;
 
+	@ManyToOne(fetch = FetchType.LAZY)
+	@JoinColumn(name = "kitos_it_system_id")
+	private KitosITSystem kitosITSystem;
+
 	@Column
 	private boolean attestationExempt;
 

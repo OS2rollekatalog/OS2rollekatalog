@@ -24,4 +24,5 @@ public class ReportForm {
     private boolean showKLE;
     private boolean showItSystems;
     private boolean showInactiveUsers;
+    private boolean showSystemRoles;
 }

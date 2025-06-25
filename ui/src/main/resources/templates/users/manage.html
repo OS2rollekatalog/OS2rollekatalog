@@ -295,6 +295,10 @@
 				]
 
 				const table = new DatatableService().initDefaultServersideTable('#listTable_u_ur', `${restUrl}${user}/available`, columnDefOptions)
+
+				//focus the search field
+				const searchInput = table.table().container().querySelector('.dataTables_filter input')
+				searchInput.focus()
 			});
 		}
 
@@ -369,8 +373,9 @@
 				var stopDate = parent.dataset.stopdate;
 				var assignedThrough = parent.dataset.assignedthrough;
 				var orgUnit = parent.dataset.ouuuid;
-				
-				userRoleEditModalService.showModal(user, startDate, stopDate, type, assignmentId, assignedThrough, orgUnit, possibleOrgUnits);
+				var caseNumber = parent.dataset.casenumber;
+
+				userRoleEditModalService.showModal(user, startDate, stopDate, type, assignmentId, assignedThrough, orgUnit, possibleOrgUnits, caseNumber);
 				userRoleEditModalService.loadPostponedConstraintsFragment(assignmentId, type, user);
 			}
 

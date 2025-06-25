@@ -17,6 +17,8 @@ import java.util.List;
 @Schema(name = "UserUserRoleAssignment")
 public class UserUserRoleAssignmentAM {
     public enum AssignedThrough { DIRECT, TITLE, POSITION, ORG_UNIT, ROLE_GROUP }
+    @Schema(description = "The user that has the assignment")
+    private UserShallowAM user;
     @Schema(description = "List of postponed constraint values")
     private List<PostponedConstraintAM> postponedConstraints;
     @Schema(description = "The user role that is assigned")

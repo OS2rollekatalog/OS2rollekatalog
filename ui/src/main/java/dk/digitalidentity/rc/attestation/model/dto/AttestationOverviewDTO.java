@@ -29,4 +29,6 @@ public class AttestationOverviewDTO {
     private long orgUnitNumberAttestated;
     private long orgUnitNumberToAttestate;
     private long orgUnitTotalNumber;
+
+    private List<String> managerNames;
 }

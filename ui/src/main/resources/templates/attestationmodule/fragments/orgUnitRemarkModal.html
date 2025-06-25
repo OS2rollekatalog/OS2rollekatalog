@@ -1,0 +1,132 @@
+<th:block th:fragment="orgUnitRemarkModal" xmlns="http://www.w3.org/1999/xhtml" xmlns:th="http://www.thymeleaf.org">
+    <div class="modal fade" id="orgUnitRemarkModal" role="dialog" aria-hidden="true">
+        <div class="modal-dialog modal-xl" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3 class="modal-title"  th:text="#{attestationmodule.html.itsystems.attestate.reject.title}"></h3>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <input id="orgUnitUuidInput" th:value="${orgUnitUuid}" style="display:none;">
+                    <form th:unless="${hideDescription}">
+                        <div class="form-group">
+                            <label for="orgUnitRemarkField" class="col-form-label" th:text="#{attestationmodule.html.itsystems.attestate.reject.text}"></label>
+                            <textarea class="form-control" id="orgUnitRemarkField" rows="4"></textarea>
+                            <p style="display:none; color: red;" id="orgUnitRemarkError" th:text="#{attestationmodule.html.itsystems.attestate.reject.remarks.error}"></p>
+                        </div>
+                    </form>
+
+                    <p th:text="#{attestationmodule.html.orgunits.attestate.remarks.table.explainer.ou}"></p>
+                    <table id="orgUnitRemarkModalTable" class="table table-striped table-bordered table-hover" >
+                        <thead>
+                            <tr>
+                                <th th:text="#{attestationmodule.html.orgunits.attestate.remarks.table.checkbox}" class="col-lg-2"></th>
+                                <th th:text="#{attestationmodule.html.orgunits.attestate.remarks.table.itSystem}" class="col-lg-4"></th>
+                                <th th:text="#{attestationmodule.html.orgunits.attestate.remarks.table.roleName}" class="col-lg-3"></th>
+                                <th th:text="#{attestationmodule.html.orgunits.attestate.remarks.table.roleType}" class="col-lg-3"></th>
+                                <th th:text="#{attestationmodule.html.orgunits.attestate.remarks.table.titles}" class="col-lg-3"></th>
+                            </tr>
+                        </thead>
+
+                        <tbody>
+                            <tr th:each="role : ${roleAssignments}">
+                                <td>
+                                    <input th:attr="data-id=${role.roleId},data-name=${role.roleName},data-type=${role.roleType},data-itsystemname=${role.itSystemName}" type="checkbox" class="i-checks remarkCheckbox">
+                                </td>
+                                <td th:text="${role.itSystemName}" class="col-lg-2"></td>
+                                <td th:text="${role.roleName}" ></td>
+                                <td th:text="#{__${role.roleType.message}__}" class="col-lg-2"></td>
+                                <td th:text="${role.titles}" class="col-lg-2"></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal" th:text="#{attestationmodule.html.attestation.controls.cancel}"></button>
+                    <button type="button" class="btn btn-primary" id="ouModalSaveBtn" th:text="#{attestationmodule.html.attestation.controls.save}"></button>
+                </div>
+            </div>
+        </div>
+    </div>
+</th:block>
+
+<th:block th:fragment="orgUnitRemarkModalScript" xmlns="http://www.w3.org/1999/xhtml" xmlns:th="http://www.thymeleaf.org">
+    <script th:inline="javascript" type="text/javascript">
+		/*<![CDATA[*/
+
+		let orgUnitRemarkModalService;
+		$(document).ready(function() {
+            orgUnitRemarkModalService = new OrgUnitRemarkModalService();
+            orgUnitRemarkModalService.init();
+        });
+
+		function OrgUnitRemarkModalService() {
+			this.init = function(){
+			    $("#orgUnitRemarkError").hide();
+                $("#orgUnitRemarkField").val("");
+
+                $(".i-checks.remarkCheckbox").iCheck({
+                    checkboxClass: "icheckbox_square-green",
+                    radioClass: "iradio_square-green",
+                });
+
+                 $("#orgUnitRemarkModalTable").DataTable({
+                    "destroy": true,
+                    "paging":   true,
+                    "ordering": true,
+                    "order": [
+                        [ 1, "asc" ]
+                    ],
+                    "autoWidth": false,
+                    "info":     true,
+                    "stateSave": true,
+                    "stateDuration": 0,
+                    "pageLength": 10,
+                    "language": {
+                        "search":	   "Søg",
+                        "lengthMenu":   "_MENU_ rækker per side",
+                        "info":		 "Viser _START_ til _END_ af _TOTAL_ rækker",
+                        "zeroRecords":  "Ingen data...",
+                        "infoEmpty":	"",
+                        "infoFiltered": "(ud af _MAX_ rækker)",
+                        "paginate": {
+                            "previous": "Forrige",
+                            "next": "Næste"
+                        }
+                    }
+                });
+            };
+
+            this.getNotApprovedRoles = function() {
+                const notApproved = [];
+                $('#orgUnitRemarkModalTable').DataTable().rows().iterator('row', function(context, index){
+                    const node = $(this.row(index).node());
+			        const td = $(node).find("td:first");
+                    const checkbox = $(td).find('input').first();
+                    const id = $(checkbox).data("id");
+                    const name = $(checkbox).data("name");
+                    const type = $(checkbox).data("type");
+                    const itSystemName = $(checkbox).data("itsystemname");
+                    const checked = $(checkbox).iCheck('update')[0].checked;
+
+                    if (checked) {
+                        const notApprovedObj = {
+							"roleId" : id,
+							"roleName" : name,
+							"roleType" : type,
+                            "itSystemName": itSystemName
+					    }
+					    notApproved.push(notApprovedObj);
+                    }
+                });
+
+                return notApproved;
+            }
+		}
+
+		/*]]>*/
+
+	</script>
+</th:block>

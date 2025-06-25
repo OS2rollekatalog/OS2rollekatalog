@@ -32,9 +32,9 @@
 
 							<hr/>
 
-							<block id="filterOptions">
+							<div id="filterOptions">
 								<div th:replace="~{reports/fragments/filterOptionsFragment :: filterOptions(allItSystems = ${allItSystems}, allManagers = ${allManagers})}"></div>
-							</block>
+							</div>
 
 							<hr/>
 
@@ -120,13 +120,26 @@
 								</div>
 							</div>
 
-							<div class="form-group" style="margin-bottom: 40px">
+							<div class="form-group" style="margin-bottom: 20px">
 								<input class="column-choice" id="realShowInactiveUsers" th:field="*{showInactiveUsers}" type="hidden">
 								<label class="col-sm-3 control-label" th:text="#{html.page.report.column.show.inactive}"></label>
 								<div class="col-sm-9">
 									<div class="checkbox c-checkbox">
 										<label>
 											<input id="ShowInactiveUsersCheckbox" type="checkbox" th:attr="checked=${reportForm.showInactiveUsers}" onchange="columnService.columnChoiceTrigger(this, 'ShowInactiveUsers')"/>
+											<span class="fa fa-check"></span>
+										</label>
+									</div>
+								</div>
+							</div>
+
+							<div class="form-group" style="margin-bottom: 40px">
+								<input class="column-choice" id="realShowSystemRoles" th:field="*{showSystemRoles}" type="hidden">
+								<label class="col-sm-3 control-label" th:text="#{html.page.report.column.show.systemroles}"></label>
+								<div class="col-sm-9">
+									<div class="checkbox c-checkbox">
+										<label>
+											<input id="ShowSystemRolesCheckbox" type="checkbox" th:attr="checked=${reportForm.showSystemRoles}" onchange="columnService.columnChoiceTrigger(this, 'ShowSystemRoles')"/>
 											<span class="fa fa-check"></span>
 										</label>
 									</div>
@@ -346,7 +359,8 @@
 					"showInactiveUsers": $('#realShowInactiveUsers').val(),
 					"itsystemFilter" : $('#itSystemSelectPicker').val(),
 					"managerFilter": $('#managerSelect').val(),
-					"unitFilter" : unitFilter
+					"unitFilter" : unitFilter,
+					"showSystemRoles" : $('#realShowSystemRoles').val()
 				}
 
 				templateService.closeSaveTemplate();

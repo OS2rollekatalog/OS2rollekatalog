@@ -11,7 +11,7 @@
                 <div class="modal-body">
                     <input id="userUuidInput" th:value="${userUuid}" style="display:none;">
                     <input id="userNumberInput" th:value="${number}" style="display:none;">
-                    <form>
+                    <form th:unless="${hideDescription}">
                         <div class="form-group">
                             <label for="userRemarkField" class="col-form-label" th:text="#{attestationmodule.html.itsystems.attestate.reject.text}"></label>
                             <textarea class="form-control" id="userRemarkField" rows="4"></textarea>

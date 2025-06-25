@@ -14,7 +14,7 @@ public class RoleGroupForm {
 	private long id;
 
 	@NotNull
-	@Size(min = 5, max = 64, message="{validation.rolegroup.name}")
+	@Size(min = 2, max = 64, message="{validation.rolegroup.name}")
 	private String name;
 
 	private boolean userOnly;

@@ -957,6 +957,17 @@ public class KOMBITService {
 						case "TEXT":
 							constraintUIType = ConstraintUIType.REGEX;
 							break;
+						case "ITSYSTEM":
+							// TODO: skal vi lave custom UI til disse?
+							constraintUIType = ConstraintUIType.COMBO_SINGLE;
+							break;
+						case "ITSYSTEM_MULTI":
+							// TODO: skal vi lave custom UI til disse?
+							constraintUIType = ConstraintUIType.COMBO_MULTI;
+							break;
+						default:
+							log.error("Unknown type: " + constraintDTO.getDataafgraensningstype().getType());
+							break;
 					}
 					
 					if (!Objects.equals(constraintUIType, constraintType.getUiType())) {

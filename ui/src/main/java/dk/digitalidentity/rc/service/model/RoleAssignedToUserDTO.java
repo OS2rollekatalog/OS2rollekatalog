@@ -43,6 +43,9 @@ public class RoleAssignedToUserDTO {
 	// only for directly assigned roles
 	private String orgUnitUuid;
 
+	// only for directly assigned user roles
+	private String caseNumber;
+
 	public static RoleAssignedToUserDTO fromRoleGroupUserRoleAssignment(RoleGroupUserRoleAssignment assignment, LocalDate startDate, LocalDate stopDate) {
 		RoleAssignedToUserDTO dto = new RoleAssignedToUserDTO();
 		dto.setAssignmentId(assignment.getId());
@@ -74,6 +77,7 @@ public class RoleAssignedToUserDTO {
 		dto.setCanEdit(false);
 		dto.setCanRequest(assignment.getUserRole().isCanRequest());
 		dto.setOrgUnitUuid(assignment.getOrgUnit() != null ? assignment.getOrgUnit().getUuid() : null);
+		dto.setCaseNumber(assignment.getCaseNumber());
 		return dto;
 	}
 

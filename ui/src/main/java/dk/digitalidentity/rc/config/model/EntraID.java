@@ -15,6 +15,9 @@ public class EntraID {
 	private String clientSecret;
 	private String tenantId;
 
+	// IMPORTANT we match on username, so the field has to contain the username and only the username
+	private AzureUsernameField usernameField = AzureUsernameField.MAIL_NICKNAME;
+
 	// this should only be true if membershipSyncEnabled is false
 	// if its true the memberships has to be managed in Azure and not in RC - opposite if false
 	private boolean reImportUsersEnabled = false;

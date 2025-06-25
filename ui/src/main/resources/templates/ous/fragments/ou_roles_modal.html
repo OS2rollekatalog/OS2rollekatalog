@@ -23,7 +23,7 @@
 							<a data-toggle="tab" data-tab-type="ou_roles_title_menu" href="#ou_roles_title_menu" style="white-space: pre" th:text="#{html.page.ous.edit.tab.titles}"></a>
 						</li>
 
-						<li th:class="${titles != null and titles.size() > 0} ? '' : 'active'">
+						<li>
 							<a data-toggle="tab" data-tab-type="ou_roles_excepted_users_menu" href="#ou_roles_excepted_users_menu" style="white-space: pre" th:text="#{html.page.ous.edit.tab.exceptedusers}"></a>
 						</li>
 
@@ -488,7 +488,6 @@
 				var url = commonService.uiUrl + "users/" + ouRolesModalService.ouUuid;
 				$("#ou_roles_excepted_users_menu").load(url, function() {
 					exceptedUsersTable = fragShowDataTableFun('#ou_roles_listTable2', 0, 25);
-
 					// add listeners
 					commonService.addSimpleCheckboxListener('.exceptedusers-checkbox', commonService.handleExceptedUsersCheckbox);
 					$('#ou_roles_listTable2').on('draw.dt', function(e) {
@@ -504,8 +503,7 @@
 					$("#assignWithExceptionsButton").hide();
 				}
 				else {
-					commonService.clearDatatableSelection('.exceptedusers-checkbox', '#ou_roles_listTable2');
-					$('a[data-toggle="tab"][href="#ou_roles_excepted_users_menu"]').tab('show');
+					commonService.clearDatatableSelection('.exceptedusers-checkbox', exceptedUsersTable);
 					$("#titleAssignTitlesButton").hide();
 					$("#assignWithExceptionsButton").show();
 				}

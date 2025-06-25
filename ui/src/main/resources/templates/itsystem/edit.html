@@ -50,7 +50,7 @@
 								</div>
 							</fieldset>
 
-							<fieldset th:if="${#lists.contains({'MANUAL','AD','SAML'}, #strings.toString(itsystem.systemType))}">
+							<fieldset>
 								<div class="form-group">
 									<label class="col-sm-2 col-xs-12 control-label" th:text="#{html.entity.itsystem.email}"></label>
 									<div class="col-sm-8 col-xs-11">
@@ -69,6 +69,19 @@
 									</div>
 								</div>
 							</fieldset>
+
+							<fieldset th:if="${@roleCatalogueConfiguration.getIntegrations().getKitos().isEnabled()}">
+								<input id="selectedKitosITSystemId" th:value="${kitosITSystemId}" hidden>
+								<div class="form-group">
+									<label class="col-sm-2 control-label" th:text="#{html.entity.itsystem.kitosITSystem}"></label>
+									<div class="col-sm-8">
+										<select style="width: 100%;" class="form-control m-b" id="kitosItSystemSelector">
+											<option></option>
+											<option th:each="option : ${select2KitosITSystems}" th:value="${option.id}" th:text="${option.text}" th:selected="${option.id} == ${kitosITSystemId}"></option>
+										</select>
+									</div>
+								</div>
+							</fieldset>
 							
 							<fieldset>
 								<div class="form-group">
@@ -82,14 +95,20 @@
 							<fieldset>
 								<input id="selectedAttestationResponsibleUuid" th:value="${attestationResponsibleUuid}" hidden>
 								<div class="form-group">
-									<label class="col-sm-2 control-label" th:text="#{html.entity.itsystem.attestationResponsible}"></label>
+									<label class="col-sm-2 control-label">
+										<span th:text="#{html.entity.itsystem.attestationResponsible}"></span>
+										<em th:if="${kitosITSystemId != null && (attestationResponsibleUuid == null || attestationResponsibleUuid == '')}" class="fa fa-warning text-warning" th:title="#{html.entity.itsystem.attestationResponsible.kitosError}"></em>
+									</label>
 									<div class="col-sm-8">
-										<div class="input-group">
-											<input class="form-control" id="search_person" th:value="${attestationResponsibleName}" onclick="return false;" />
+
+										<div class="input-group" th:if="${kitosITSystemId == null}">
+											<input class="form-control" id="search_person" th:value="${attestationResponsibleName}" onclick="return false;"/>
 											<span class="input-group-addon removeAttestationResponsibleBtn" onclick="itSystemService.handleRemoveAttestationResponsible()">
 												<span style="color: red;" class="fa fa-times"></span>
 											</span>
 										</div>
+
+										<input th:unless="${kitosITSystemId == null}" disabled="disabled" class="form-control" id="search_person" th:value="${attestationResponsibleName}" onclick="return false;"/>
 									</div>
 								</div>
 							</fieldset>
@@ -97,14 +116,20 @@
 							<fieldset>
 								<input id="selectedSystemOwnerUuid" th:value="${systemOwnerUuid}" hidden>
 								<div class="form-group">
-									<label class="col-sm-2 control-label" th:text="#{html.entity.itsystem.systemOwner}"></label>
+									<label class="col-sm-2 control-label">
+										<span th:text="#{html.entity.itsystem.systemOwner}"></span>
+										<em th:if="${kitosITSystemId != null && (systemOwnerUuid == null OR systemOwnerUuid == '')}" class="fa fa-warning text-warning" th:title="#{html.entity.itsystem.systemOwner.kitosError}"></em>
+									</label>
 									<div class="col-sm-8">
-										<div class="input-group">
-											<input class="form-control" id="search_person_system" th:value="${systemOwnerName}" onclick="return false;" />
+
+										<div class="input-group" th:if="${kitosITSystemId == null}">
+											<input class="form-control" id="search_person_system" th:value="${systemOwnerName}" onclick="return false;"/>
 											<span class="input-group-addon removeSystemOwnerBtn" onclick="itSystemService.handleRemoveSystemOwner()">
 												<span style="color: red;" class="fa fa-times"></span>
 											</span>
 										</div>
+
+										<input th:unless="${kitosITSystemId == null}" disabled="disabled" class="form-control" id="search_person_system" th:value="${systemOwnerName}" onclick="return false;"/>
 									</div>
 								</div>
 							</fieldset>
@@ -989,6 +1014,7 @@
 					var nameUrl = [[@{/rest/itsystem/name}]];
 					var emailUrl = [[@{/rest/itsystem/email}]];
 					var notificationEmailUrl = [[@{/rest/itsystem/notificationemail}]];
+					var kitosITSystemUrl = [[@{/rest/itsystem/kitositsystem}]];
 					var pausedUrl = [[@{/rest/itsystem/paused}]];
 					var readonlyUrl = [[@{/rest/itsystem/readonly}]];
 					var canEditThroughApiUrl = [[@{/rest/itsystem/canEditThroughApi}]];
@@ -1022,6 +1048,12 @@
 			$(".roleAssignmentAttestationByAttestationResponsible-checkbox").change(handleUserroleChange);
 			$("#selectedAttestationResponsibleUuid").change(itSystemService.handleChangeOnInputAttestationResponsible);
 			$("#selectedSystemOwnerUuid").change(itSystemService.handleChangeOnInputSystemOwner);
+			$("#kitosItSystemSelector").change(handleChangeOnKitosITSystem);
+
+			$("#kitosItSystemSelector").select2({
+				placeholder: "",
+				allowClear: true
+			});
 
 			//assign relevant listeners again on page change
 			$('.userRoleTable').on('draw.dt', function() {
@@ -1137,6 +1169,33 @@
 							status: 'success',
 							autoHideDelay: 2000
 						});
+					}
+				});
+			}
+
+			function handleChangeOnKitosITSystem() {
+				var kitosITSystem = $("#kitosItSystemSelector").val();
+
+				$.ajax({
+					url: kitosITSystemUrl,
+					method: 'POST',
+					data: {
+						'kitosITSystemId': kitosITSystem,
+						'id': itsystemId
+					},
+					headers: {
+						'X-CSRF-TOKEN': token
+					},
+					error: errorHandler(fieldNotUpdatedMsg),
+					success: function(response) {
+						$.notify({
+							message: fieldUpdatedMsg
+						},{
+							status: 'success',
+							autoHideDelay: 2000
+						});
+
+						setTimeout( ()=> location.reload(), 1000)
 					}
 				});
 			}

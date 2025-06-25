@@ -39,14 +39,20 @@ public class AttestationRunTrackerService {
         final boolean sensitiveRun = !normalRun && shouldCreateAttestationRun(when, deadlineSensitive);
         final boolean extraSensitiveRun = !normalRun && yearly && shouldCreateAttestationRun(when, deadlineExtraSensitive);
         if (normalRun || sensitiveRun || extraSensitiveRun) {
-            List<AttestationRun> unfinishedRuns = getActiveAttestationRunsDesc(when);
+            final LocalDate expectedDeadline = extraSensitiveRun ? deadlineExtraSensitive : (sensitiveRun ? deadlineSensitive : deadlineNormal);
+            final List<AttestationRun> unfinishedRuns = getActiveAttestationRunsDesc();
+
+            // Check if the active runs, have deadline before our deadline, in that case they must be old runs,
+            // so create a new run here
+            if (unfinishedRuns.stream().allMatch(r -> r.getDeadline().isBefore(when))) {
+                unfinishedRuns.addFirst(createNewAttestationRun(expectedDeadline, sensitiveRun, extraSensitiveRun));
+            }
+
             //Find or create the active run
-            AttestationRun activeRun = unfinishedRuns.isEmpty() ?
-                    createNewAttestationRun(extraSensitiveRun ? deadlineExtraSensitive : (sensitiveRun ? deadlineSensitive : deadlineNormal), sensitiveRun, extraSensitiveRun)
-                    : unfinishedRuns.getFirst();
+            final Optional<AttestationRun> activeRun = unfinishedRuns.isEmpty() ? Optional.empty() : Optional.of(unfinishedRuns.getFirst());
             //Close all other than the active one
             for (AttestationRun run : unfinishedRuns) {
-                if (!run.getId().equals(activeRun.getId())) {
+                if (!run.getId().equals(activeRun.get().getId())) {
                     run.setFinished(true);
                 }
             }
@@ -73,12 +79,12 @@ public class AttestationRunTrackerService {
         }
     }
 
-    public Optional<AttestationRun> getAttestationRun() {
-        return attestationRunDao.findFirstByFinishedFalseOrderByDeadlineDesc();
+    public Optional<AttestationRun> getAttestationRunWithDeadlineNotAfter(final LocalDate deadline) {
+        return attestationRunDao.findFirstByFinishedFalseAndDeadlineGreaterThanEqual(deadline);
     }
 
-    public List<AttestationRun> getActiveAttestationRunsDesc(final LocalDate when) {
-        return attestationRunDao.findByFinishedFalseAndDeadlineGreaterThanEqualOrderByDeadlineDesc(when);
+    public List<AttestationRun> getActiveAttestationRunsDesc() {
+        return attestationRunDao.findByFinishedFalseOrderByDeadlineDesc();
     }
 
     private AttestationRun createNewAttestationRun(final LocalDate deadline, final boolean sensitive, final boolean extraSensitive) {

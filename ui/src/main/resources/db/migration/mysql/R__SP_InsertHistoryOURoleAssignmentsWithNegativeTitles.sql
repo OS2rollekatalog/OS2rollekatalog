@@ -21,7 +21,7 @@ BEGIN
         assigned_through_type, assigned_through_uuid, assigned_through_name,
         assigned_by_user_id, assigned_by_name, assigned_when, inherit, start_date, stop_date)
     SELECT
-                CURRENT_TIMESTAMP, ou.uuid, GROUP_CONCAT(oureu.title_uuid),
+                CURRENT_TIMESTAMP, ou.uuid, GROUP_CONCAT(DISTINCT oureu.title_uuid),
                 ur.id, ur.name, it.id, it.name,
                 'ORGUNIT', orig_ou_uuid, orig_ou_name,
                 our.assigned_by_user_id, our.assigned_by_name, our.assigned_timestamp, inherit, our.start_date, our.stop_date
@@ -180,7 +180,7 @@ BEGIN
         role_id, role_name, role_it_system_id, role_it_system_name, role_role_group, role_role_group_id,
         assigned_through_type, assigned_through_uuid, assigned_through_name,
         assigned_by_user_id, assigned_by_name, assigned_when, inherit, start_date, stop_date)
-    SELECT CURRENT_TIMESTAMP, o.uuid, GROUP_CONCAT(oureu.title_uuid),
+    SELECT CURRENT_TIMESTAMP, o.uuid, GROUP_CONCAT(DISTINCT oureu.title_uuid),
            ur.id, ur.name, it.id, it.name, NULL, NULL,
            'DIRECT', NULL, NULL,
            our.assigned_by_user_id, our.assigned_by_name, our.assigned_timestamp, 0, our.start_date, our.stop_date
@@ -198,7 +198,7 @@ BEGIN
         role_id, role_name, role_it_system_id, role_it_system_name, role_role_group, role_role_group_id,
         assigned_through_type, assigned_through_uuid, assigned_through_name,
         assigned_by_user_id, assigned_by_name, assigned_when, inherit, start_date, stop_date)
-    SELECT CURRENT_TIMESTAMP, o.uuid, GROUP_CONCAT(ourgeu.title_uuid),
+    SELECT CURRENT_TIMESTAMP, o.uuid, GROUP_CONCAT(DISTINCT ourgeu.title_uuid),
            ur.id, ur.name, it.id, it.name, rg.name, rg.id,
            'DIRECT', NULL, NULL,
            ourg.assigned_by_user_id, ourg.assigned_by_name, ourg.assigned_timestamp, 0, ourg.start_date, ourg.stop_date

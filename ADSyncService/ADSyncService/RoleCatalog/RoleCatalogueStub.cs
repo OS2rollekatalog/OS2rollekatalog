@@ -118,6 +118,45 @@ namespace ADSyncService
             return null;
         }
 
+        public List<string> GetUsersWithRole(string roleId)
+        {
+            RestClient client = new RestClient(baseUrl);
+
+            string query = "";
+            if (!String.IsNullOrEmpty(domain))
+            {
+                query = $"?domain={domain}";
+            }
+
+            var request = new RestRequest("/api/v2/userrole/" + roleId + "/users" + query, Method.GET);
+            request.AddHeader("ApiKey", apiKey);
+            request.JsonSerializer = NewtonsoftJsonSerializer.Default;
+
+            var result = client.Execute<List<UserWithRole>>(request);
+            if (result.StatusCode.Equals(HttpStatusCode.OK))
+            {
+                log.Debug("userRole members retrieved: " + result.Content);
+
+                List<string> newSamAccountNames = new List<string>();
+                if (result.Data != null)
+                {
+                    foreach (var user in result.Data)
+                    {
+                        if (!newSamAccountNames.Contains(user.userId.ToLower()))
+                        {
+                            newSamAccountNames.Add(user.userId.ToLower());
+                        }
+                    }
+                }
+
+                return newSamAccountNames;
+            }
+
+            log.Error("Read UserRole members call failed (" + result.StatusCode + ") : " + result.Content);
+            emailService.EnqueueMail("Read UserRole members call failed (" + result.StatusCode + ") : " + result.Content);
+            return null;
+        }
+
         public ItSystemData GetItSystemData(string itSystemId)
         {
             RestClient client = new RestClient(baseUrl);

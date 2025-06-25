@@ -4,7 +4,7 @@ import com.google.common.collect.Lists;
 import dk.digitalidentity.rc.attestation.exception.AttestationDataUpdaterException;
 import dk.digitalidentity.rc.attestation.model.entity.temporal.AssignedThroughType;
 import dk.digitalidentity.rc.attestation.model.entity.temporal.AttestationUserRoleAssignment;
-import dk.digitalidentity.rc.dao.OrgUnitDao;
+import dk.digitalidentity.rc.attestation.service.AttestationCachedOuService;
 import dk.digitalidentity.rc.dao.UserDao;
 import dk.digitalidentity.rc.dao.history.model.HistoryItSystem;
 import dk.digitalidentity.rc.dao.history.model.HistoryOU;
@@ -24,11 +24,11 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionDefinition;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import java.time.LocalDate;
 import java.time.ZoneId;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
@@ -56,11 +56,10 @@ public class UserAssignmentsUpdaterJdbc {
     @Autowired
     private TemporalDao temporalDao;
     @Autowired
-    private OrgUnitDao orgUnitDao;
+    private AttestationCachedOuService cachedOuService;
     @Autowired
     private EntityManager entityManager;
 
-    @Transactional
     public void updateUserRoleAssignments(final LocalDate when) {
         TransactionTemplate transactionTemplate = new TransactionTemplate(transactionManager);
         transactionTemplate.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
@@ -72,14 +71,25 @@ public class UserAssignmentsUpdaterJdbc {
         final List<HistoryItSystem> itSystemList = temporalDao.listHistoryItSystems(when);
         for (final HistoryItSystem itSystem : itSystemList) {
             log.info("Processing it-system: " + itSystem.getItSystemName());
-            Long cnt = transactionTemplate.execute(t -> temporalDao.listHistoryRoleAssignmentsByItSystemAndDate(when, itSystem.getItSystemId()).stream()
-                    .map(r -> toUserRoleAssignment(itSystem, r, when))
-                    .filter(Objects::nonNull)
-                    .peek(a -> {
-                        logProgress();
-                        persist(when, a);
-                    })
-                    .count());
+            final Long cnt = transactionTemplate.execute(t -> {
+                final List<Long> updatedIds = new ArrayList<>();
+
+                // List all the HistoryRoleAssignment for current date and update their AttestationUserRoleAssignment counterparts
+                //noinspection MappingBeforeCount
+                long processedCount = temporalDao.listHistoryRoleAssignmentsByItSystemAndDate(when, itSystem.getItSystemId()).stream()
+                        .map(r -> toUserRoleAssignment(itSystem, r, when))
+                        .filter(Objects::nonNull)
+                        .peek(a -> {
+                            logProgress();
+                            updateOrCreate(when, a, updatedIds);
+                        })
+                        .count();
+                // Now update the updated timestamp for all touched entities
+                Lists.partition(updatedIds, 500)
+                        .forEach(updatedId -> temporalDao.setUpdatedTimestampForUserRoleAssignmentsWithIdsIn(updatedId, when));
+
+                return processedCount;
+            });
             recordCount += cnt != null ? cnt : 0;
         }
         recordCount += flattenOURoles(transactionTemplate, when);
@@ -93,27 +103,53 @@ public class UserAssignmentsUpdaterJdbc {
         log.info("Invalidated " + idsToDisable.size() + " AttestationUserRoleAssignment records");
     }
 
-    private void persist(final LocalDate when, final AttestationUserRoleAssignment assignment) {
-        final String recordHash = TemporalHasher.hashEntity(assignment);
-        assignment.setRecordHash(recordHash);
-        final AttestationUserRoleAssignment existingRecord = temporalDao.findValidUserRoleAssignmentWithHash(when, recordHash);
-        if (existingRecord != null) {
-            TemporalFieldUpdater.updateFields(existingRecord, assignment);
-            existingRecord.setUpdatedAt(when);
-            if (temporalDao.updateAttestationUserRoleAssignment(existingRecord) == 0) {
-                log.error("Failed to update AttestationUserRoleAssignment with id=" + assignment.getId());
+    private void updateOrCreate(final LocalDate when, final AttestationUserRoleAssignment a, final List<Long> updatedIds) {
+        temporalDao.findValidUserRoleAssignmentWithHash(when, a.getRecordHash())
+                .ifPresentOrElse(
+                        // If a record with the calculated hash already exist, we update it
+                        existingAssignment -> updatedIds.add(
+                                update(existingAssignment, a)
+                        ),
+                        // The record does not exist, create it
+                        () -> persist(when, a)
+                );
+    }
+
+    /**
+     * @return id of the updated entity
+     */
+    private Long update(final AttestationUserRoleAssignment existingAssignment, final AttestationUserRoleAssignment updatedAssignment) {
+        // If content is the same there is no reason to update (as it fills up the binlog of mariadb etc...)
+        if (!existingAssignment.contentEquals(updatedAssignment)) {
+            final LocalDate originalAssignedFrom = existingAssignment.getAssignedFrom();
+            TemporalFieldUpdater.updateFields(existingAssignment, updatedAssignment);
+            // BEGIN Workaround, if there are multiple direct assignments that are exactly the same only the assignedDate will differ, in that case use the oldest
+            if (originalAssignedFrom != null && updatedAssignment.getAssignedFrom() != null) {
+                if (originalAssignedFrom.isBefore(updatedAssignment.getAssignedFrom())) {
+                    existingAssignment.setAssignedFrom(originalAssignedFrom);
+                }
             }
-        } else {
-            assignment.setValidFrom(when);
-            assignment.setUpdatedAt(when);
-            temporalDao.saveAttestationUserRoleAssignment(assignment);
+            // END Workaround
+            try {
+                if (temporalDao.updateAttestationUserRoleAssignment(existingAssignment) == 0) {
+                    log.error("Failed to update AttestationUserRoleAssignment with id={}", existingAssignment.getId());
+                }
+            } catch (Exception e) {
+                log.error("Failed to update AttestationUserRoleAssignment with id={}", existingAssignment.getId(), e);
+            }
         }
+        return existingAssignment.getId();
+    }
+
+    private void persist(final LocalDate when, final AttestationUserRoleAssignment assignment) {
+        assignment.setValidFrom(when);
+        assignment.setUpdatedAt(when);
+        temporalDao.saveAttestationUserRoleAssignment(assignment);
     }
 
     public long flattenOURoles(TransactionTemplate transactionTemplate, final LocalDate when) {
         final List<HistoryOU> allOus = temporalDao.listHistoryOUs(when);
         long recordCount = 0;
-
         final List<HistoryOURoleAssignment> allOuAssignments = transactionTemplate
                 .execute(t -> temporalDao.listHistoryOURoleAssignmentsByDate(when));
         recordCount += flattenAndPersistPartitioned(transactionTemplate, allOuAssignments,
@@ -144,16 +180,28 @@ public class UserAssignmentsUpdaterJdbc {
      */
     private <T> long flattenAndPersistPartitioned(final TransactionTemplate transactionTemplate, final List<T> allOuAssignments,
                                                   final Function<T, List<AttestationUserRoleAssignment>> converter, final LocalDate when) {
-        final List<List<T>> ouAssignmentsPartitions = Lists.partition(allOuAssignments, 1000);
+        final List<List<T>> ouAssignmentsPartitions = Lists.partition(allOuAssignments, 10000);
         long recordCount = 0;
+        final List<Long> updatedIds = new ArrayList<>();
         for (List<T> ouRoleAssignmentsPartition : ouAssignmentsPartitions) {
-            Long recordCountL = transactionTemplate.execute(t -> ouRoleAssignmentsPartition.stream()
+            final List<AttestationUserRoleAssignment> attestationUserRoleAssignments = ouRoleAssignmentsPartition.stream()
                     .flatMap(a -> converter.apply(a).stream())
-                    .peek(a -> logProgress())
-                    .peek(a -> persist(when, a))
-                    .count());
-            recordCount += recordCountL != null ? recordCountL : 0;
+                    .toList();
+            final List<List<AttestationUserRoleAssignment>> partitioned = Lists.partition(attestationUserRoleAssignments, 10000);
+            for (List<AttestationUserRoleAssignment> userRoleAssignments : partitioned) {
+                transactionTemplate.execute(t -> {
+                            userRoleAssignments.forEach(a -> {
+                                logProgress();
+                                updateOrCreate(when, a, updatedIds);
+                            });
+                            return null;
+                        });
+                recordCount += userRoleAssignments.size();
+            }
         }
+        // Now update the updated timestamp for all touched entities
+        Lists.partition(updatedIds, 500)
+                .forEach(updatedId -> temporalDao.setUpdatedTimestampForUserRoleAssignmentsWithIdsIn(updatedId, when));
         return recordCount;
     }
 
@@ -173,25 +221,10 @@ public class UserAssignmentsUpdaterJdbc {
             return null;
         }
         if (isManager) {
-            OrgUnit orgUnit = fintParentOuWithDifferentManager(currentUserUuid, ouUuid);
-            return orgUnit != null ? orgUnit.getUuid() : null;
+            return cachedOuService.findParentOuWithDifferentManager(currentUserUuid, ouUuid);
         } else {
             return ouUuid;
         }
-    }
-
-
-    private OrgUnit fintParentOuWithDifferentManager(final String currentUserUuid, final String ouUuid) {
-        int cnt = 0;
-        OrgUnit currentOu = orgUnitDao.findByUuidAndActiveTrue(ouUuid);
-        while (currentOu != null && currentOu.getManager() != null && currentOu.getManager().getUuid().equals(currentUserUuid)) {
-            currentOu = currentOu.getParent();
-            if (cnt++ > 10) {
-                // In case there is a loop in the organisation hierarchy
-                return null;
-            }
-        }
-        return currentOu;
     }
 
     private static HistoryOU getCurrentOu(final List<HistoryOU> allOus, final String ouUuid) {
@@ -231,7 +264,7 @@ public class UserAssignmentsUpdaterJdbc {
 		final LocalDate assignedFrom = historyRoleAssignment.getAssignedWhen() != null
 			? historyRoleAssignment.getAssignedWhen().toInstant().atZone(ZoneId.systemDefault()).toLocalDate()
 			: null;
-		return AttestationUserRoleAssignment.builder()
+        AttestationUserRoleAssignment assignment = AttestationUserRoleAssignment.builder()
                 .itSystemId(itSystem.getItSystemId())
                 .itSystemName(itSystem.getItSystemName())
                 .userUuid(historyRoleAssignment.getUserUuid())
@@ -258,6 +291,9 @@ public class UserAssignmentsUpdaterJdbc {
                 .postponedConstraints(historyRoleAssignment.getPostponedConstraints())
                 .assignedFrom(assignedFrom)
                 .build();
+        // Hash are calculated afterward, as the hash calculation needs all the fields to be filled in first.
+        assignment.setRecordHash(TemporalHasher.hashEntity(assignment));
+        return assignment;
     }
 
 
@@ -285,7 +321,7 @@ public class UserAssignmentsUpdaterJdbc {
                     final boolean isManager = context.isManager(currentUser);
                     final String responsibleOuUuid = getResponsibleOuUuid(context.ouUuid(), u.getUserUuid(), isManager, itSystemResponsible);
                     boolean inherited = assignment.getAssignedThroughType() == AssignedThrough.ORGUNIT;
-                    return AttestationUserRoleAssignment.builder()
+                    final AttestationUserRoleAssignment userRoleAssignment = AttestationUserRoleAssignment.builder()
                             .itSystemId(assignment.getRoleItSystemId())
                             .itSystemName(context.itSystemName())
                             .userId(currentUser.getUserId())
@@ -317,8 +353,10 @@ public class UserAssignmentsUpdaterJdbc {
                                     .atZone(ZoneId.systemDefault())
                                     .toLocalDate())
                             .build();
+                    // Hash are calculated afterward, as the hash calculation needs all the fields to be filled in first.
+                    userRoleAssignment.setRecordHash(TemporalHasher.hashEntity(userRoleAssignment));
+                    return userRoleAssignment;
                 })
-                .filter(Objects::nonNull)
                 .collect(Collectors.toList());
     }
 
@@ -351,7 +389,7 @@ public class UserAssignmentsUpdaterJdbc {
                             .orElseThrow();
                     final boolean isManager = context.isManager(currentUser);
                     final String responsibleOuUuid = getResponsibleOuUuid(context.ouUuid(), u.getUserUuid(), isManager, itSystemResponsible);
-                    return AttestationUserRoleAssignment.builder()
+                    final AttestationUserRoleAssignment userRoleAssignment = AttestationUserRoleAssignment.builder()
                             .itSystemId(assignment.getRoleItSystemId())
                             .itSystemName(context.itSystemName())
                             .userId(currentUser.getUserId())
@@ -379,6 +417,9 @@ public class UserAssignmentsUpdaterJdbc {
                                     .atZone(ZoneId.systemDefault())
                                     .toLocalDate())
                             .build();
+                    // Hash are calculated afterward, as the hash calculation needs all the fields to be filled in first.
+                    userRoleAssignment.setRecordHash(TemporalHasher.hashEntity(userRoleAssignment));
+                    return userRoleAssignment;
                 })
                 .collect(Collectors.toList());
     }
@@ -411,7 +452,7 @@ public class UserAssignmentsUpdaterJdbc {
                             .orElseThrow();
                     final boolean isManager = context.isManager(currentUser);
                     final String responsibleOuUuid = getResponsibleOuUuid(context.ouUuid(), u.getUserUuid(), isManager, itSystemResponsible);
-                    return AttestationUserRoleAssignment.builder()
+                    final AttestationUserRoleAssignment userRoleAssignment = AttestationUserRoleAssignment.builder()
                             .itSystemId(assignment.getRoleItSystemId())
                             .itSystemName(context.itSystemName())
                             .userId(currentUser.getUserId())
@@ -439,6 +480,9 @@ public class UserAssignmentsUpdaterJdbc {
                                     .atZone(ZoneId.systemDefault())
                                     .toLocalDate())
                             .build();
+                    // Hash are calculated afterward, as the hash calculation needs all the fields to be filled in first.
+                    userRoleAssignment.setRecordHash(TemporalHasher.hashEntity(userRoleAssignment));
+                    return userRoleAssignment;
                 })
                 .collect(Collectors.toList());
     }
@@ -469,7 +513,7 @@ public class UserAssignmentsUpdaterJdbc {
                             .orElseThrow();
                     final boolean isManager = context.isManager(currentUser);
                     final String responsibleOuUuid = getResponsibleOuUuid(context.ouUuid(), u.getUserUuid(), isManager, itSystemResponsible);
-                    return AttestationUserRoleAssignment.builder()
+                    final AttestationUserRoleAssignment userRoleAssignment = AttestationUserRoleAssignment.builder()
                             .itSystemId(assignment.getRoleItSystemId())
                             .itSystemName(context.itSystemName())
                             .userId(currentUser.getUserId())
@@ -497,6 +541,9 @@ public class UserAssignmentsUpdaterJdbc {
                                     .atZone(ZoneId.systemDefault())
                                     .toLocalDate())
                             .build();
+                    // Hash are calculated afterward, as the hash calculation needs all the fields to be filled in first.
+                    userRoleAssignment.setRecordHash(TemporalHasher.hashEntity(userRoleAssignment));
+                    return userRoleAssignment;
                 })
                 .toList();
     }
@@ -505,7 +552,7 @@ public class UserAssignmentsUpdaterJdbc {
     private static int progressCount = 0;
     private void logProgress() {
         if (++progressCount % 100 == 0) {
-            log.info("Processing user assignment, count=" + progressCount);
+            log.info("Processing user assignment, count={}", progressCount);
         }
     }
 

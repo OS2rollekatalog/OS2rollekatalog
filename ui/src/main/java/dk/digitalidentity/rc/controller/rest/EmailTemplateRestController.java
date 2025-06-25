@@ -5,6 +5,8 @@ import java.io.IOException;
 import java.nio.charset.Charset;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -114,8 +116,11 @@ public class EmailTemplateRestController {
 
 
 	private List<InlineImageDTO> transformImages(EmailTemplateDTO emailTemplateDTO) {
+		final String message = emailTemplateDTO.getMessage();
+		if (message == null) {
+			return Collections.emptyList();
+		}
 		List<InlineImageDTO> inlineImages = new ArrayList<>();
-		String message = emailTemplateDTO.getMessage();
 		Document doc = Jsoup.parse(message);
 
 		for (Element img : doc.select("img")) {

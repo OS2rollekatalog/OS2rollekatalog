@@ -1,6 +1,5 @@
 package dk.digitalidentity.rc.service;
 
-import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.InlineImageDTO;
 import dk.digitalidentity.rc.dao.EmailQueueDao;
 import dk.digitalidentity.rc.dao.model.AttachmentFile;
@@ -17,6 +16,7 @@ import org.springframework.util.StringUtils;
 
 import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.Collections;
 import java.util.Date;
 import java.util.List;
 import java.util.UUID;
@@ -124,13 +124,16 @@ public class EmailQueueService {
 	}
 	
 	private List<InlineImageDTO> transformImages(EmailQueue email) {
-		List<InlineImageDTO> inlineImages = new ArrayList<>();
 		String message = email.getMessage();
+		if (message == null) {
+			return Collections.emptyList();
+		}
+		List<InlineImageDTO> inlineImages = new ArrayList<>();
 		Document doc = Jsoup.parse(message);
 
 		for (Element img : doc.select("img")) {
 			String src = img.attr("src");
-			if (src == null || src == "") {
+			if (src.isEmpty()) {
 				continue;
 			}
 

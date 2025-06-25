@@ -56,6 +56,9 @@ public class UserUserRoleAssignment {
 
 	@Column
 	private String stopDateUser;
+
+	@Column
+	private String caseNumber;
 	
 	@Column
 	private boolean inactive;

@@ -131,6 +131,7 @@ public class ReportController {
 		reportForm.setShowKLE(true);
 		reportForm.setShowItSystems(true);
 		reportForm.setShowInactiveUsers(false);
+		reportForm.setShowSystemRoles(false);
 
 		model.addAttribute("reportForm", reportForm);
 		model.addAttribute("allItSystems", parseItSystems(now));
@@ -156,8 +157,9 @@ public class ReportController {
 			reportForm.setShowItSystems(reportTemplate.isShowItSystems());
 			reportForm.setShowInactiveUsers(reportTemplate.isShowInactiveUsers());
 			reportForm.setManagerFilter(reportTemplate.getManagerFilter());
-			reportForm.setUnitFilter((reportTemplate.getUnitFilter() != null) ? reportTemplate.getUnitFilter().split(",") : null);		
-	
+			reportForm.setUnitFilter((reportTemplate.getUnitFilter() != null) ? reportTemplate.getUnitFilter().split(",") : null);
+			reportForm.setShowSystemRoles(reportTemplate.isShowSystemRoles());
+
 			if (reportTemplate.getItsystemFilter() != null) {
 				String[] stringIds = reportTemplate.getItsystemFilter().split(",");
 				long ids[] = new long[stringIds.length];
@@ -179,6 +181,7 @@ public class ReportController {
 			reportForm.setShowKLE(true);
 			reportForm.setShowItSystems(true);
 			reportForm.setShowInactiveUsers(false);
+			reportForm.setShowSystemRoles(false);
 		}
 
 		model.addAttribute("reportForm", reportForm);

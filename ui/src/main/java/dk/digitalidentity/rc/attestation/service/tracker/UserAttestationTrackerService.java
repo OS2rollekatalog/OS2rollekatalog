@@ -13,11 +13,17 @@ import dk.digitalidentity.rc.attestation.service.AttestationCachedItSystemServic
 import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
 import dk.digitalidentity.rc.dao.OrgUnitDao;
 import dk.digitalidentity.rc.dao.UserDao;
+import dk.digitalidentity.rc.dao.history.HistoryAttestationManagerDelegateDao;
 import dk.digitalidentity.rc.dao.history.HistoryUserDao;
+import dk.digitalidentity.rc.dao.history.model.HistoryAttestationManagerDelegate;
 import dk.digitalidentity.rc.dao.history.model.HistoryUser;
 import dk.digitalidentity.rc.dao.model.OrgUnit;
 import dk.digitalidentity.rc.dao.model.Position;
+import dk.digitalidentity.rc.dao.model.User;
+import dk.digitalidentity.rc.service.ManagerDelegateService;
+import dk.digitalidentity.rc.service.OrgUnitService;
 import dk.digitalidentity.rc.service.SettingsService;
+import dk.digitalidentity.rc.service.UserService;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.FlushModeType;
 import jakarta.persistence.PersistenceContext;
@@ -29,7 +35,10 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
@@ -65,12 +74,20 @@ public class UserAttestationTrackerService {
 
 	@PersistenceContext
 	private EntityManager entityManager;
+	@Autowired
+	private ManagerDelegateService managerDelegateService;
+	@Autowired
+	private HistoryAttestationManagerDelegateDao historyAttestationManagerDelegateDao;
+	@Autowired
+	private OrgUnitService orgUnitService;
+	@Autowired
+	private UserService userService;
 
 	@Transactional(timeout = 600, propagation = Propagation.REQUIRES_NEW)
 	public void updateSystemUserAttestations(final LocalDate when) {
 		cnt = cntUA = cntOu = ouAdCnt = 0;
 		entityManager.setFlushMode(FlushModeType.COMMIT);
-		runTrackerService.getAttestationRun().ifPresent(run -> {
+		runTrackerService.getAttestationRunWithDeadlineNotAfter(when).ifPresent(run -> {
 			userRoleAssignmentDao.findValidGroupByResponsibleUserUuidAndUserUuidAndSensitiveRoleAndItSystem(when)
 					.forEach(a -> ensureWeHaveSystemUsersAttestationFor(run, a, when));
 
@@ -85,7 +102,7 @@ public class UserAttestationTrackerService {
 	public void updateOrganisationUserAttestations(final LocalDate when) {
 		cnt = cntUA = cntOu = 0;
 		entityManager.setFlushMode(FlushModeType.COMMIT);
-		runTrackerService.getAttestationRun().ifPresent(run -> {
+		runTrackerService.getAttestationRunWithDeadlineNotAfter(when).ifPresent(run -> {
 			// We start by deleting all attestation users
 			// Reason for this is that the org hierarchy changes over time, so it's easier to just start from scratch every time.
 			attestationDao.findByAttestationTypeAndDeadlineIsGreaterThanEqual(Attestation.AttestationType.ORGANISATION_ATTESTATION, when)
@@ -94,22 +111,66 @@ public class UserAttestationTrackerService {
 						a.setUsersForAttestation(Collections.emptySet());
 					});
 			entityManager.flush();
-			final Set<String> exemptedOus = findExemptedOUs();
+			final Set<String> exemptedOus;
+			final Set<String> optedInOus;
+			if (settingsService.isAttestationOrgUnitSelectionOptIn()) {
+				optedInOus = settingsService.getScheduledAttestationOptedInOrgUnits();
+				exemptedOus = new HashSet<>();
+			} else {
+				optedInOus = new HashSet<>();
+				exemptedOus = findExemptedOUs();
+			}
+
+			List<HistoryAttestationManagerDelegate> managerDelegates = historyAttestationManagerDelegateDao.findAllByDate(when);
+			List<String> delegatedManagerUuids = managerDelegates.stream().map(HistoryAttestationManagerDelegate::getManagerUuid).toList();
+
+			//construct map of orgunits containing delegated managers, for easier lookup
+			Map<String, Set<String>> managersForEachDelegatedOrgUnit = new HashMap<>();
+			for (var managerDelegate : managerDelegates) {
+				Optional<User> manager = userService.getOptionalByUuid(managerDelegate.getManagerUuid());
+				if (manager.isPresent()) {
+					List<OrgUnit> orgUnits = orgUnitService.getOrgUnitsForUser(manager.get());
+					orgUnits.stream()
+							.map(OrgUnit::getUuid)
+							.forEach(ouUuid -> {
+								if (!managersForEachDelegatedOrgUnit.containsKey(ouUuid)) {
+									managersForEachDelegatedOrgUnit.put(ouUuid, Set.of(manager.get().getUuid()));
+								} else {
+									managersForEachDelegatedOrgUnit.get(ouUuid).add(manager.get().getUuid());
+								}
+							});
+				}
+			}
 
 			// Ensure we have attestations for all direct assignments
 			// We should create attestation for all ou assignments that are not inherited.
 			ouAssignmentsDao.findValidGroupByResponsibleOuUuidAndSensitiveRole(when).stream()
-					.filter(a -> !exemptedOus.contains(a.getResponsibleOuUuid()))
-					.filter(a -> !cachedItSystemService.isItSystemExempt(a.getItSystemId()))
-					.forEach(a -> ensureWeHaveOrganisationAttestationForOu(run, a, when));
+					.filter(a -> shouldIncludeInAttestation(a.getResponsibleOuUuid(), exemptedOus, optedInOus))
+				.filter(a -> !cachedItSystemService.isItSystemExempt(a.getItSystemId()))
+				.forEach(a -> {
+					Set<String> delegatedManagersUuid = managersForEachDelegatedOrgUnit.get(a.getResponsibleOuUuid());
+					if (delegatedManagersUuid != null && !delegatedManagersUuid.isEmpty()) {
+						ensureManagerDelegateAttestation(run, a, when);
+					} else {
+						ensureWeHaveOrganisationAttestationForOu(run, a, when);
+					}
+				}
+			);
 
 			userRoleAssignmentDao.findValidGroupByResponsibleOuAndUserUuidAndSensitiveRole(when).stream()
 					// DO not create attestation for OUs that have been exempt in settings
-					.filter(a -> !exemptedOus.contains(a.getResponsibleOuUuid()))
+					.filter(a -> shouldIncludeInAttestation(a.getResponsibleOuUuid(), exemptedOus, optedInOus))
 					.filter(a -> !a.isInherited())
 					.filter(a -> !cachedItSystemService.isItSystemExempt(a.getItSystemId()))
-					.forEach(a -> ensureWeHaveOrganisationAttestationFor(run, a, when));
-
+					.forEach(a ->
+							{
+								if (delegatedManagerUuids.contains(a.getUserUuid())) {
+									ensureManagerDelegateAttestation(run, a, when);
+								} else {
+									ensureWeHaveOrganisationAttestationFor(run, a, when);
+								}
+							}
+					);
 			if (settingsService.isADAttestationEnabled() && !run.isSensitive() && !run.isExtraSensitive()) {
 				// If AD attestation is enabled we want to make sure all org units with employees have attestations
 				userDao.findByDeletedFalse().stream()
@@ -130,12 +191,24 @@ public class UserAttestationTrackerService {
 									}
 								}
 						)
-						.filter(uuid -> !exemptedOus.contains(uuid))
+						.filter(uuid -> shouldIncludeInAttestation(uuid, exemptedOus, optedInOus))
 						.distinct()
 						.forEach(uuid -> ensureWeHaveOrganisationAttestationFor(run, uuid, when));
 			}
 		});
 
+	}
+
+	private boolean shouldIncludeInAttestation(String orgunitUuid, Set<String> excludedOrgunitUuids, Set<String> includedOrgunitUuids) {
+		if (includedOrgunitUuids != null && !includedOrgunitUuids.isEmpty()) {
+			//If there is any values in inclusion list, only include those in the list
+			return includedOrgunitUuids.contains(orgunitUuid);
+		}
+		if (excludedOrgunitUuids != null && !excludedOrgunitUuids.isEmpty()) {
+			//If there is any values in exclusion list, do not include those, but include all others
+			return !excludedOrgunitUuids.contains(orgunitUuid);
+		}
+		return true;
 	}
 
 	private Set<String> findExemptedOUs() {
@@ -271,6 +344,55 @@ public class UserAttestationTrackerService {
 		}
 	}
 
+	static int cnt_md_ou = 0;
+	private void ensureManagerDelegateAttestation(final AttestationRun run,
+												  final AttestationOuRoleAssignment assignment,
+												  final LocalDate when
+	) {
+		if (shouldDisregardAssignment(run, assignment.isSensitiveRole(), assignment.isExtraSensitiveRole())) {
+			return;
+		}
+		Attestation attestation = findManagerDelegateAttestationFor(assignment.getResponsibleOuUuid(), when).orElse(null);
+		if (attestation == null) {
+			if (run.getDeadline().minusDays(configuration.getAttestation().getDaysForAttestation()).isAfter(when)) {
+				// Deadline is in the future do not create an attestation entity yet
+				return;
+			} else {
+				// Deadline is soon we need to create a new attestation
+				attestation = createManagerDelegateAttestationFor(run, assignment, run.isSensitive(), when, run.getDeadline());
+			}
+		}
+		if (cnt_md_ou++ % 100 == 0) {
+			log.info("Attestation for manager delegate ou role " + attestation.getUuid() + " found, progress count=" + cnt_md_ou);
+		}
+	}
+
+
+
+	static int cnt_md_u = 0;
+	private void ensureManagerDelegateAttestation(final AttestationRun run,
+												  final AttestationUserRoleAssignment assignment,
+												  final LocalDate when
+	) {
+		if (shouldDisregardAssignment(run, assignment.isSensitiveRole(), assignment.isExtraSensitiveRole())) {
+			return;
+		}
+		Attestation attestation = findManagerDelegateAttestationFor(assignment.getResponsibleOuUuid(), when).orElse(null);
+		if (attestation == null) {
+			if (run.getDeadline().minusDays(configuration.getAttestation().getDaysForAttestation()).isAfter(when)) {
+				// Deadline is in the future do not create an attestation entity yet
+				return;
+			} else {
+				// Deadline is soon we need to create a new attestation
+				attestation = createManagerDelegateAttestationFor(run, assignment, run.isSensitive(), when, run.getDeadline());
+			}
+		}
+		addUser(attestation, assignment);
+		if (cnt_md_u++ % 100 == 0) {
+			log.info("Attestation for manager delegate user role " + attestation.getUuid() + " found, progress count=" + cnt_md_u);
+		}
+	}
+
 	static int ouAdCnt = 0;
 
 	private void ensureWeHaveOrganisationAttestationFor(final AttestationRun run,
@@ -326,6 +448,11 @@ public class UserAttestationTrackerService {
 				Attestation.AttestationType.ORGANISATION_ATTESTATION, ouUuid, when);
 	}
 
+	private Optional<Attestation> findManagerDelegateAttestationFor(final String responsibleOuUuid, final LocalDate when) {
+		return attestationDao.findByAttestationTypeAndResponsibleOuUuidAndDeadlineGreaterThanEqual(
+				Attestation.AttestationType.MANAGER_DELEGATED_ATTESTATION, responsibleOuUuid, when);
+	}
+
 	private Attestation createOrganisationUsersAttestationFor(final AttestationRun run,
 															  final AttestationUserRoleAssignment assignment, boolean sensitive,
 															  final LocalDate when, final LocalDate deadline) {
@@ -335,6 +462,9 @@ public class UserAttestationTrackerService {
 				.sensitive(sensitive)
 				.responsibleOuUuid(assignment.getResponsibleOuUuid())
 				.responsibleOuName(assignment.getResponsibleOuName())
+						.responsibleUserUuid(assignment.getResponsibleUserUuid())
+						.responsibleUserId(assignment.getUserId())
+
 				.deadline(deadline)
 				.createdAt(when)
 				.uuid(UUID.randomUUID().toString())
@@ -374,6 +504,44 @@ public class UserAttestationTrackerService {
 				.uuid(UUID.randomUUID().toString())
 				.build()
 		);
+	}
+
+	private Attestation createManagerDelegateAttestationFor(final AttestationRun run,
+															AttestationOuRoleAssignment assignment,
+															boolean sensitive,
+															final LocalDate when, final LocalDate deadline) {
+		var attestation = attestationDao.save(Attestation.builder()
+				.attestationRun(run)
+				.attestationType(Attestation.AttestationType.MANAGER_DELEGATED_ATTESTATION)
+				.sensitive(sensitive)
+				.responsibleOuUuid(assignment.getResponsibleOuUuid())
+				.responsibleOuName(assignment.getResponsibleOuName())
+				.deadline(deadline)
+				.createdAt(when)
+				.uuid(UUID.randomUUID().toString())
+				.build()
+		);
+
+		return attestation;
+	}
+
+	private Attestation createManagerDelegateAttestationFor(final AttestationRun run,
+															AttestationUserRoleAssignment assignment,
+															boolean sensitive,
+															final LocalDate when, final LocalDate deadline) {
+		var attestation = attestationDao.save(Attestation.builder()
+				.attestationRun(run)
+				.attestationType(Attestation.AttestationType.MANAGER_DELEGATED_ATTESTATION)
+				.sensitive(sensitive)
+				.responsibleOuUuid(assignment.getResponsibleOuUuid())
+				.responsibleOuName(assignment.getResponsibleOuName())
+				.deadline(deadline)
+				.createdAt(when)
+				.uuid(UUID.randomUUID().toString())
+				.build()
+		);
+
+		return attestation;
 	}
 
 	private Attestation createItSystemUsersAttestationFor(final AttestationRun run,

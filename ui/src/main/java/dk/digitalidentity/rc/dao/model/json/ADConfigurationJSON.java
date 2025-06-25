@@ -32,6 +32,7 @@ public class ADConfigurationJSON {
 	// itSystem group feature settings
 	private boolean itSystemGroupFeatureEnabled;
 	private List<String> itSystemGroupFeatureSystemMap;
+	private List<String> itSystemGroupFeatureRoleMap;
 
 	// read only itSystem feature settings
 	private boolean readonlyItSystemFeatureEnabled;
@@ -50,5 +51,8 @@ public class ADConfigurationJSON {
 	private String tenantId;
 	private String clientId;
 	private String clientSecret;
+
+	// general settings
+	private boolean includeNotesInDescription;
 
 }

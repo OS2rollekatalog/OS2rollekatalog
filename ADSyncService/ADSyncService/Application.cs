@@ -1,5 +1,7 @@
 ﻿using ADSyncService.Email;
+using ADSyncService.Util;
 using log4net.Config;
+using Microsoft.Graph.Models;
 using Quartz;
 using Quartz.Impl;
 using Quartz.Listener;
@@ -48,7 +50,7 @@ namespace ADSyncService
 
             jobCompletedEvent.Wait();
 
-            log.Info("remoteConfigurationJob completed. Scheduling other jobs...");
+            log.Info("RemoteConfigurationJob completed. Scheduling other jobs...");
 
             ScheduleOtherJobs();
         }
@@ -171,6 +173,10 @@ namespace ADSyncService
 
         public override void JobWasExecuted(IJobExecutionContext context, JobExecutionException jobException)
         {
+            if (jobException != null)
+            {
+                Log.Error("Exception in job", jobException.InnerException);
+            }
             if (context.JobDetail.Key.Name == "remoteConfigurationJob")
             {
                 jobCompletedEvent.Set();

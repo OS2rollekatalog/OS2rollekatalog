@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
+import dk.digitalidentity.rc.exceptions.NotFoundException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -22,6 +23,10 @@ public class ManagerSubstituteService {
 	
 	@Autowired
 	private ManagerSubstituteDao managerSubstituteDao;
+
+	public ManagerSubstitute findById(long id) {
+		return managerSubstituteDao.findById(id).orElseThrow(() -> new NotFoundException("ManagerSubstitute not found"));
+	}
 
 	public boolean isSubstituteforOrgUnit(OrgUnit orgUnit) {
 		User user = getCurrentlyLoggedInUser();
@@ -80,5 +85,9 @@ public class ManagerSubstituteService {
 
 	public void deleteById(long id) {
 		managerSubstituteDao.deleteById(id);
+	}
+
+	public List<ManagerSubstitute> getAll() {
+		return managerSubstituteDao.findAll();
 	}
 }

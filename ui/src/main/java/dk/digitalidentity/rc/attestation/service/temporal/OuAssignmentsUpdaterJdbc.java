@@ -87,8 +87,11 @@ public class OuAssignmentsUpdaterJdbc {
     public void updateAllOuHashOnly(final LocalDate now) {
         List<AttestationOuRoleAssignment> assignments = temporalDao.findAllValidOuRoleAssignment(now);
         for (AttestationOuRoleAssignment assignment : assignments) {
-            assignment.setRecordHash(TemporalHasher.hashEntity(assignment));
-            temporalDao.updateAttestationOuRoleAssignment(assignment);
+            final String newHash = TemporalHasher.hashEntity(assignment);
+            if (!newHash.equals(assignment.getRecordHash())) {
+                assignment.setRecordHash(newHash);
+                temporalDao.updateAttestationOuRoleAssignment(assignment);
+            }
         }
     }
 

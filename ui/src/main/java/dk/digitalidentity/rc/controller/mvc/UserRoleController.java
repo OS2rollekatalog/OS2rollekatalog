@@ -12,6 +12,7 @@ import dk.digitalidentity.rc.controller.mvc.viewmodel.UserRoleForm;
 import dk.digitalidentity.rc.controller.validator.UserRoleValidator;
 import dk.digitalidentity.rc.controller.viewmodel.EditSystemRoleRow;
 import dk.digitalidentity.rc.dao.model.ConstraintType;
+import dk.digitalidentity.rc.dao.model.ConstraintTypeSupport;
 import dk.digitalidentity.rc.dao.model.ItSystem;
 import dk.digitalidentity.rc.dao.model.Kle;
 import dk.digitalidentity.rc.dao.model.OrgUnit;
@@ -23,6 +24,7 @@ import dk.digitalidentity.rc.dao.model.SystemRoleAssignmentConstraintValue;
 import dk.digitalidentity.rc.dao.model.Title;
 import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserRole;
+import dk.digitalidentity.rc.dao.model.enums.ConstraintUIType;
 import dk.digitalidentity.rc.dao.model.enums.ItSystemType;
 import dk.digitalidentity.rc.security.RequireAdministratorRole;
 import dk.digitalidentity.rc.security.RequireRequesterOrReadAccessRole;
@@ -60,7 +62,11 @@ import java.security.Principal;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -328,6 +334,7 @@ public class UserRoleController {
 		ItSystem itSystem = role.getItSystem();
 		List<SystemRole> systemRoles = systemRoleService.getByItSystem(itSystem);
 		List<EditSystemRoleRow> editSystemRoles = new ArrayList<>();
+		Map<Long, Set<String>> systemRoleComboMultiConstraintUuids = new HashMap<>();
 
 		for (SystemRole systemRole : systemRoles) {
 			EditSystemRoleRow esr = new EditSystemRoleRow();
@@ -346,6 +353,15 @@ public class UserRoleController {
 			esr.setId(systemRole.getId());
 			esr.setSystemRole(systemRole);
 			editSystemRoles.add(esr);
+
+			for (ConstraintTypeSupport supportedConstraintType : systemRole.getSupportedConstraintTypes()) {
+				if (supportedConstraintType.getConstraintType().getUiType().equals(ConstraintUIType.COMBO_MULTI)) {
+					if (!systemRoleComboMultiConstraintUuids.containsKey(systemRole.getId())) {
+						systemRoleComboMultiConstraintUuids.put(systemRole.getId(), new HashSet<>());
+					}
+					systemRoleComboMultiConstraintUuids.get(systemRole.getId()).add(supportedConstraintType.getConstraintType().getUuid());
+				}
+			}
 		}
 
 		List<EditRolegroupRow> editRoleGroups = new ArrayList<>();
@@ -396,7 +412,8 @@ public class UserRoleController {
 		model.addAttribute("roleId", id);
 		model.addAttribute("titlesEnabled", configuration.getTitles().isEnabled());
 		model.addAttribute("allowPostponing", role.isAllowPostponing());
-		
+		model.addAttribute("systemRoleComboMultiConstraintUuids", systemRoleComboMultiConstraintUuids);
+
 		if (role.getItSystem().getSystemType().equals(ItSystemType.NEMLOGIN)) {
 			model.addAttribute("pNumberList", pNumberService.getAll());
 			model.addAttribute("sENumberList", seNumberService.getAll());
@@ -425,6 +442,8 @@ public class UserRoleController {
 
 		model.addAttribute("treeOUs", treeOUs);
 
+		model.addAttribute("caseNumberEnabled", settingsService.isCaseNumberEnabled());
+
 		return "userroles/edit";
 	}
 	
@@ -434,6 +453,7 @@ public class UserRoleController {
 		if (user != null) {
 			model.addAttribute("positions", user.getPositions());
 			model.addAttribute("possibleOrgUnits", orgUnitService.getOrgUnitsForUser(user));
+			model.addAttribute("caseNumberEnabled", settingsService.isCaseNumberEnabled());
 		}
 		
 		return "users/fragments/user_user_role_modal :: userUserRoleModal";	
