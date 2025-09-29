@@ -19,8 +19,8 @@
 							<span th:text="#{html.navbar.sub.roles}"></span>
 						</a>
 					</li>
-					
-					<li class="nav-item" th:classappend="${subpage == 'reports'} ? 'bold' : ''" sec:authorize="hasRole('ROLE_ASSIGNER') or hasRole('ROLE_REPORT_ACCESS') or hasRole('ROLE_TEMPLATE_ACCESS') or hasRole('ROLE_ADMINISTRATOR') or hasRole('ROLE_MANAGER') or hasRole('ROLE_SUBSTITUTE') or hasRole('ROLE_KLE_ADMINISTRATOR')">
+
+					<li class="nav-item" th:classappend="${subpage == 'reports'} ? 'bold' : ''" sec:authorize="hasRole('ROLE_AUDITLOG') or hasRole('ROLE_REPORT_ACCESS') or hasRole('ROLE_TEMPLATE_ACCESS') or hasRole('ROLE_ADMINISTRATOR') or hasRole('ROLE_MANAGER') or hasRole('ROLE_SUBSTITUTE') or hasRole('ROLE_KLE_ADMINISTRATOR')">
 						<a th:href="@{/ui/reportmenu}">
 							<em class="fa fa-fw fa-book"></em>
 							<span th:text="#{html.navbar.sub.reports}"></span>
@@ -260,7 +260,7 @@
 							</li>
 						</th:block>
 
-						<th:block sec:authorize="hasRole('ROLE_ADMINISTRATOR') or hasRole('ROLE_ASSIGNER')">
+						<th:block sec:authorize="hasRole('ROLE_ADMINISTRATOR') or hasRole('ROLE_AUDITLOG')">
 							<li class="nav-heading">
 								<span th:text="#{html.navbar.audit}"></span>
 							</li>
@@ -298,7 +298,7 @@
 									<span th:text="#{html.navbar.manager.list}"></span>
 								</a>
 							</li>
-							<li th:class="${page == 'substitute.list'} ? 'active' : ''" sec:authorize="hasRole('ROLE_READ_ACCESS')">
+							<li th:class="${page == 'substitute.list'} ? 'active' : ''" sec:authorize="hasRole('ROLE_READ_ACCESS')" th:if="${@roleCatalogueConfiguration.substituteManagerAPI.enabled == false}">
 								<a th:href="@{/ui/management/substitute/list}">
 									<em class="fa fa-users"></em>
 									<span th:text="#{html.navbar.management.substitute}"></span>

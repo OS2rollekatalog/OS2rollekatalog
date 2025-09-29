@@ -25,7 +25,7 @@ public class SecurityLogger {
 	@Autowired
 	private ClientService clientService;
 
-	public void log(HttpServletRequest httpServletRequest, String ipAddress, String method, String request, String clientVersion, String tlsVersion, int responseCode) {
+	public void log(HttpServletRequest httpServletRequest, String ipAddress, String method, String request, String clientVersion, String tlsVersion, int responseCode, long processedTime) {
 		SecurityLog entry = new SecurityLog();
 
 		Client client = SecurityUtil.getClient();
@@ -56,6 +56,7 @@ public class SecurityLogger {
 		entry.setClientVersion(trim(clientVersion, 64));
 		entry.setTlsVersion(trim(tlsVersion, 64));
 		entry.setResponseCode(trim(responseCode + "", 64));
+		entry.setProcessedTime(processedTime);
 
 		securityLogDao.save(entry);
 	}

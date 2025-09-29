@@ -27,7 +27,7 @@ public class KitosSyncTask {
     private final KitosSyncService kitosService;
     private final ItSystemService itSystemService;
 
-    @Scheduled(cron = "${rc.integrations.kitos.cron : 0 0 3/6 ? * *}")
+    @Scheduled(cron = "${rc.integrations.kitos.cron:0 0 3/6 ? * *}")
 //	@Scheduled(initialDelay = 1000, fixedRate = 100000000)
     public void sync() {
         if (taskDisabled()) {
@@ -64,7 +64,7 @@ public class KitosSyncTask {
         log.info("Finished Kitos synchronisation");
     }
 
-    @Scheduled(cron = "${rc.integrations.kitos.deletion.cron : 0 10 2 * * ?}")
+    @Scheduled(cron = "${rc.integrations.kitos.deletion.cron:0 10 2 * * ?}")
     public void syncDeletions() {
         if (taskDisabled()) {
             return;
@@ -82,7 +82,7 @@ public class KitosSyncTask {
         log.info("Finished Kitos deletion synchronisation");
     }
 
-	@Scheduled(cron = "${rc.integrations.kitos.users.cron : 0 0 0/6 ? * *}")
+	@Scheduled(cron = "${rc.integrations.kitos.users.cron:0 0 0/6 ? * *}")
 	public void syncITSystemOwnersAndResponsibles() {
 		if (taskDisabled()) {
 			return;

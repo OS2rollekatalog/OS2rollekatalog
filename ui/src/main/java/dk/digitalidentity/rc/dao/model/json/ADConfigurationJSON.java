@@ -18,9 +18,11 @@ public class ADConfigurationJSON {
 	// membership sync settings
 	private String membershipSyncFeatureCprAttribute;
 	private List<String> membershipSyncFeatureAttributeMap;
+	private List<String> membershipSyncFeatureFilterMap;
 	private boolean membershipSyncFeatureEnabled;
 	private boolean membershipSyncFeatureIgnoreUsersWithoutCpr;
 	private boolean fullMembershipSyncFeatureEnabled;
+	private boolean membershipSyncFeatureDoNotRegisterDisabledUsers;
 
 	// backsync feature settings
 	private boolean backSyncFeatureEnabled;
@@ -33,6 +35,7 @@ public class ADConfigurationJSON {
 	private boolean itSystemGroupFeatureEnabled;
 	private List<String> itSystemGroupFeatureSystemMap;
 	private List<String> itSystemGroupFeatureRoleMap;
+	private boolean itSystemGroupFeatureDoNotRegisterDisabledUsers;
 
 	// read only itSystem feature settings
 	private boolean readonlyItSystemFeatureEnabled;

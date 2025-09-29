@@ -40,6 +40,7 @@
 											<input id="scheduled-attestation-checkbox" type="checkbox" th:attr="checked=${attestationSettingsForm.scheduledAttestationEnabled}" />
 											<span class="fa fa-check"></span>
 										</label>
+										<a th:replace="~{fragments/help :: help (title=#{html.help.settings.attestation.enabled.title}, content=#{html.help.settings.attestation.enabled.body})}"></a>
 									</div>
 								</div>
 							</div>
@@ -60,6 +61,7 @@
 											<li class="error" th:each="err : ${#fields.errors('firstAttestationDate')}" th:text="${err}"></li>
 										</ul>
 									</div>
+									<a th:replace="~{fragments/help :: help (title=#{html.help.settings.attestation.firstAttestationDeadline.title}, content=#{html.help.settings.attestation.firstAttestationDeadline.body})}"></a>
 								</div>
 							</fieldset>
 							<fieldset>
@@ -72,6 +74,7 @@
 													th:selected="${interval} == *{scheduledAttestationInterval}"></option>
 										</select>
 									</div>
+									<a th:replace="~{fragments/help :: help (title=#{html.help.settings.attestation.interval.title}, content=#{html.help.settings.attestation.interval.body})}"></a>
 								</div>
 							</fieldset>
 							<fieldset>
@@ -95,6 +98,7 @@
 												<input id="dont-send-mail-to-manager-checkbox" type="checkbox" th:attr="checked=${attestationSettingsForm.dontSendMailToManager}" />
 												<span class="fa fa-check"></span>
 											</label>
+											<a th:replace="~{fragments/help :: help (title=#{html.help.settings.attestation.noManagerMail.title}, content=#{html.help.settings.attestation.noManagerMail.body})}"></a>
 										</div>
 									</div>
 								</div>
@@ -108,6 +112,7 @@
 												<input id="attestation-ad-checkbox" type="checkbox" th:attr="checked=${attestationSettingsForm.adAttestationEnabled}" />
 												<span class="fa fa-check"></span>
 											</label>
+											<a th:replace="~{fragments/help :: help (title=#{html.help.settings.attestation.adAttestation.title}, content=#{html.help.settings.attestation.adAttestation.body})}"></a>
 										</div>
 									</div>
 								</div>
@@ -121,6 +126,7 @@
 												<input id="description-required-checkbox" type="checkbox" th:attr="checked=${attestationSettingsForm.descriptionRequired}" />
 												<span class="fa fa-check"></span>
 											</label>
+											<a th:replace="~{fragments/help :: help (title=#{html.help.settings.attestation.descriptionRequired.title}, content=#{html.help.settings.attestation.descriptionRequired.body})}"></a>
 										</div>
 									</div>
 								</div>
@@ -132,6 +138,7 @@
 												<input id="hide-description-checkbox" type="checkbox" th:attr="checked=${attestationSettingsForm.hideDescription}" />
 												<span class="fa fa-check"></span>
 											</label>
+											<a th:replace="~{fragments/help :: help (title=#{html.help.settings.attestation.hideDescription.title}, content=#{html.help.settings.attestation.hideDescription.body})}"></a>
 										</div>
 									</div>
 								</div>
@@ -146,6 +153,7 @@
 												<span class="fa fa-check"></span>
 											</label>
 										</div>
+										<a th:replace="~{fragments/help :: help (title=#{html.help.settings.attestation.requestChangesAfter.title}, content=#{html.help.settings.attestation.requestChangesAfter.body})}"></a>
 									</div>
 								</div>
 
@@ -159,6 +167,7 @@
 												<input name="orgUnitOptIn" class="form-control" id="ou-optin-checkbox" type="checkbox" th:attr="checked=*{orgUnitOptIn == true}" />
 												<span class="fa fa-check"></span>
 											</label>
+											<a th:replace="~{fragments/help :: help (title=#{html.help.settings.attestation.includeOusEnabled.title}, content=#{html.help.settings.attestation.includeOusEnabled.body})}"></a>
 										</div>
 									</div>
 								</div>
@@ -167,6 +176,7 @@
 
 									<div class="col-sm-8">
 										<button type="button" onclick="chooseOU()" class="btn btn-primary" th:text="#{html.setting.attestation.scheduled.pickou.optout}"></button>
+										<a th:replace="~{fragments/help :: help (title=#{html.help.settings.attestation.excludeOus.title}, content=#{html.help.settings.attestation.excludeOus.body})}"></a>
 										<br/><br/>
 										<em id="filterZeroTxt" th:style="${(#lists.size(attestationSettingsForm.scheduledAttestationFilter) > 0) ? 'display: none': ''}" th:text="'Ingen enheder fravalgt'"></em>
 										<em id="filterOneTxt" th:style="${(#lists.size(attestationSettingsForm.scheduledAttestationFilter) != 1) ? 'display: none' : ''}" th:text="'Én enhed fravalgt (og alle underliggende enheder)'"></em>
@@ -181,6 +191,7 @@
 
 									<div class="col-sm-8">
 										<button type="button" onclick="chooseOU()" class="btn btn-primary" th:text="#{html.setting.attestation.scheduled.pickou.optin}"></button>
+										<a th:replace="~{fragments/help :: help (title=#{html.help.settings.attestation.includeOus.title}, content=#{html.help.settings.attestation.includeOus.body})}"></a>
 										<br/><br/>
 										<em id="optInZeroTxt" th:style="${(#lists.size(attestationSettingsForm.scheduledAttestationOptedInOrgUnits) > 0) ? 'display: none': ''}" th:text="'Ingen enheder tilvalgt'"></em>
 										<em id="optInOneTxt" th:style="${(#lists.size(attestationSettingsForm.scheduledAttestationOptedInOrgUnits) != 1) ? 'display: none' : ''}" th:text="'Én enhed tilvalgt (og alle underliggende enheder)'"></em>

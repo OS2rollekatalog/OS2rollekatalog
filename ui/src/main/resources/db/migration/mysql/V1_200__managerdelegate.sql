@@ -12,7 +12,7 @@ CREATE TABLE manager_delegate
     CONSTRAINT fk_manager_delegate_manager FOREIGN KEY (manager_uuid) REFERENCES users (uuid) ON DELETE CASCADE,
     INDEX         idx_manager_delegate_from_date (from_date),
     INDEX         idx_manager_delegate_to_date (to_date)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_general_ci;
+);
 
 CREATE TABLE history_attestation_manager_delegate
 (

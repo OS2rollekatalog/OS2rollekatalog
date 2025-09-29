@@ -12,8 +12,10 @@ namespace ADSyncService
 
         public string membershipSyncFeatureCprAttribute { get; set; }
         public List<string> membershipSyncFeatureAttributeMap { get; set; }
+        public List<string> membershipSyncFeatureFilterMap { get; set; }
         public bool membershipSyncFeatureEnabled { get; set; }
         public bool membershipSyncFeatureIgnoreUsersWithoutCpr { get; set; }
+        public bool membershipSyncFeatureDoNotRegisterDisabledUsers { get; set; }
 
         public bool fullMembershipSyncFeatureEnabled { get; set; }
 
@@ -26,6 +28,7 @@ namespace ADSyncService
         public bool itSystemGroupFeatureEnabled { get; set; }
         public List<string> itSystemGroupFeatureSystemMap { get; set; }
         public List<string> itSystemGroupFeatureRoleMap { get; set; }
+        public bool itSystemGroupFeatureDoNotRegisterDisabledUsers { get; set; }
 
         public bool readonlyItSystemFeatureEnabled { get; set; }
         public List<string> readonlyItSystemFeatureSystemMap { get; set; }

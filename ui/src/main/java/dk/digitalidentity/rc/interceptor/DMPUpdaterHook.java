@@ -31,6 +31,13 @@ public class DMPUpdaterHook implements RoleChangeHook {
 			dmpService.queueUser(user);
 		}
 	}
+	
+	@Override
+	public void interceptFlagUserDeleted(User user) {
+		if (enabled) {
+			dmpService.queueUser(user);
+		}
+	}
 
 	@Override
 	public void interceptAddRoleGroupAssignmentOnUser(User user, RoleGroup roleGroup) {

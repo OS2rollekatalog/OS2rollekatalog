@@ -73,7 +73,9 @@ public class AttestationReportController {
 					.filter(its -> !its.isAttestationExempt())
 					.map(i -> new AttestationITSystemReportListDTO(i.getId(), i.getName()))
 					.collect(Collectors.toSet());
-			managedOrgUnits.addAll(user.getSubstituteFor().stream().map(o -> new AttestationOrgUnitReportListDTO(o.getOrgUnit().getUuid(), o.getOrgUnit().getName(), buildBreadcrumbs(o.getOrgUnit()))).collect(Collectors.toSet()));
+			managedOrgUnits.addAll(user.getSubstituteFor().stream()
+					.filter(managerSubstitute -> organisationAttestationService.hasAttestationWithinTheLastYear(managerSubstitute.getOrgUnit()))
+					.map(o -> new AttestationOrgUnitReportListDTO(o.getOrgUnit().getUuid(), o.getOrgUnit().getName(), buildBreadcrumbs(o.getOrgUnit()))).collect(Collectors.toSet()));
 		}
 
 		if (managedITSystems.isEmpty() && managedOrgUnits.isEmpty()) {

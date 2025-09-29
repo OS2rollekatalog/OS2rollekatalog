@@ -17,6 +17,8 @@ public enum Settings {
     SETTING_SCHEDULED_ATTESTATION_DESCRIPTION_REQUIRED("ScheduledAttestationDescriptionRequired", "html.setting.attestation.descriptionRequired"),
     SETTING_SCHEDULED_ATTESTATION_HIDE_DESCRIPTION("ScheduledAttestationHideDescription", "html.setting.attestation.hideDescription"),
     SETTING_ALLOW_CHANGE_REQUEST_ATTESTATION("AttestationAllowChanges", "html.setting.attestation.changes.enabled"),
+    SETTING_ALLOW_AUTOMATIC_OU_NIVEAU_MAPPING("AutomaticOrgUnitNiveau", "html.setting.autoNiveau.enabled"),
+    SETTING_OU_TO_NIVEAU("OuToNiveau", "null"),
     SETTING_RUN_CICS("RunCics", null),
     SETTING_IT_SYSTEM_DEFAULT_HIDDEN_ENABLED("ItSystemHiddenByDefault", "html.setting.kombit.itsystems_hidden_by_default.enabled"),
     SETTING_FIRST_ATTESTATION_DATE("FirstAttestationDate", "html.setting.attestation.scheduled.firstAttestation"),

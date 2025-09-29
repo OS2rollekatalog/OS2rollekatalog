@@ -1,0 +1,1 @@
+UPDATE it_systems SET last_updated = '2025-09-01' WHERE uuid = '79fd16e9-b09f-40d3-a3d1-13e1933e9860';

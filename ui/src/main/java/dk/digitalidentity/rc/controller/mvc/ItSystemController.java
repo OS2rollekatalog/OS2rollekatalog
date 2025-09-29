@@ -26,6 +26,7 @@ import dk.digitalidentity.rc.security.RequireAdministratorRole;
 import dk.digitalidentity.rc.security.RequireReadAccessRole;
 import dk.digitalidentity.rc.security.SecurityUtil;
 import dk.digitalidentity.rc.service.ADConfigurationService;
+import dk.digitalidentity.rc.service.ADGroupMappingService;
 import dk.digitalidentity.rc.service.ClientService;
 import dk.digitalidentity.rc.service.DomainService;
 import dk.digitalidentity.rc.service.ItSystemMasterService;
@@ -80,13 +81,13 @@ public class ItSystemController {
 
 	@Autowired
 	private ItSystemMasterService itSystemMasterService;
-	
+
 	@Autowired
 	private SecurityUtil securityUtil;
 
 	@Autowired
 	private UserRoleService userRoleService;
-	
+
 	@Autowired
 	private PendingADUpdateService pendingADUpdateService;
 
@@ -114,6 +115,9 @@ public class ItSystemController {
 	@Autowired
 	private RoleCatalogueConfiguration configuration;
 
+	@Autowired
+	private ADGroupMappingService adGroupMappingService;
+
 	@InitBinder(value = { "itSystemForm" })
 	public void initBinderItSystemForm(WebDataBinder binder) {
 		binder.addValidators(itSystemValidator);
@@ -132,51 +136,17 @@ public class ItSystemController {
 		// people with restricted read-only access will be limited
 		if (securityUtil.hasRestrictedReadAccess()) {
 			List<Long> itSystemIds = securityUtil.getRestrictedReadAccessItSystems();
-			
+
 			itSystems = itSystems.stream().filter(it -> itSystemIds.contains(it.getId())).collect(Collectors.toList());
 		}
 
 		itSystems = itSystems.stream().filter(its -> its.isDeleted() == false).collect(Collectors.toList());
 
-		Map<Long, List<String>> mappingsForLabel = getMappingsForLabel();
+		Map<Long, List<String>> mappingsForLabel = adGroupMappingService.getItSystemToADGroupsMap();
 		List<ITSystemListDTO> listDTOS = itSystems.stream().map(i -> new ITSystemListDTO(i.getId(), i.getName(), i.isHidden(), i.getIdentifier(), i.getSystemType(), i.isAccessBlocked(), i.isPaused(), mappingsForLabel.get(i.getId()))).collect(Collectors.toList());
 		model.addAttribute("itsystems", listDTOS);
 
 		return "itsystem/list";
-	}
-
-	private Map<Long, List<String>> getMappingsForLabel() {
-		Map<Long, List<String>> result = new HashMap<>();
-		List<Client> clients = clientService.findADSyncServices();
-		for (Client client : clients) {
-			ADConfiguration adConfiguration = adConfigurationService.getByClient(client);
-			if (adConfiguration != null && adConfiguration.getJson() != null && adConfiguration.getJson().getItSystemGroupFeatureSystemMap() != null) {
-				for (String mapping : adConfiguration.getJson().getItSystemGroupFeatureSystemMap()) {
-					try {
-						String[] split = mapping.split(";");
-						long id = Long.parseLong(split[0]);
-						String dn = split[1];
-						String cn = "";
-						for (String part : dn.split(",")) {
-							if (part.startsWith("CN=")) {
-								cn = part.substring(3);
-								break;
-							}
-						}
-
-						if (!result.containsKey(id)) {
-							result.put(id, new ArrayList<>());
-						}
-
-						result.get(id).add("ADGruppe: " + cn);
-					} catch (Exception ex) {
-						log.warn("Possibly malformed ItSystemGroupFeatureSystemMap mapping: " + mapping);
-					}
-				}
-			}
-		}
-
-		return result;
 	}
 
 	@RequireAdministratorRole
@@ -186,17 +156,17 @@ public class ItSystemController {
 		form.setSystemType(ItSystemType.AD);
 		model.addAttribute("itSystemForm", form);
 		model.addAttribute("domains", domainService.getAll());
-		
+
 		return "itsystem/new";
 	}
-	
+
 	@RequireAdministratorRole
 	@GetMapping(value = { "/ui/itsystem/newsaml" })
 	public String createGetSAML(Model model) {
 		ItSystemForm form = new ItSystemForm();
 		form.setSystemType(ItSystemType.SAML);
 		model.addAttribute("itSystemForm", form);
-		
+
 		return "itsystem/new";
 	}
 
@@ -206,7 +176,7 @@ public class ItSystemController {
 		ItSystemForm form = new ItSystemForm();
 		form.setSystemType(ItSystemType.MANUAL);
 		model.addAttribute("itSystemForm", form);
-		
+
 		return "itsystem/new";
 	}
 
@@ -253,7 +223,7 @@ public class ItSystemController {
 			default:
 				throw new Exception("Unknown systemtype: " + itSystemForm.getSystemType());
 		}
-		
+
 		itSystem = itSystemService.save(itSystem);
 
 		return "redirect:edit/" + itSystem.getId();
@@ -272,7 +242,7 @@ public class ItSystemController {
 		List<SystemRoleViewModel> systemRoles = systemRoleService.getByItSystem(itSystem).stream()
 				.map(sr -> new SystemRoleViewModel(sr, systemRoleService.isInUse(sr)))
 				.collect(Collectors.toList());
-		
+
 		model.addAttribute("itsystem", itSystem);
 		model.addAttribute("systemRoles", systemRoles);
 		model.addAttribute("userRoles", userRoleService.getByItSystem(itSystem));
@@ -338,12 +308,12 @@ public class ItSystemController {
 		if (systemRoleForm.getIdentifier().length() == 0) {
 			bindingResult.addError(new ObjectError("identifier", "html.errors.systemrole.identifier.notempty"));
 		}
-		
+
 		if (bindingResult.hasErrors()) {
 			List<SystemRoleViewModel> systemRoles = systemRoleService.getByItSystem(itSystem).stream()
 					.map(sr -> new SystemRoleViewModel(sr, systemRoleService.isInUse(sr)))
 					.collect(Collectors.toList());
-			
+
 			ConvertSystemRolesForm convertSystemRolesForm = new ConvertSystemRolesForm();
 			convertSystemRolesForm.setCreateLink(true);
 
@@ -356,27 +326,28 @@ public class ItSystemController {
 			model.addAttribute("itsystemMasterList", itSystemMasterService.findAll());
 			model.addAttribute("userRoles", userRoleService.getByItSystem(itSystem));
 			model.addAttribute("convertSystemRolesForm", convertSystemRolesForm);
+			model.addAttribute("attestationEnabled", settingsService.isScheduledAttestationEnabled());
 
 			return "itsystem/edit";
 		}
-		
+
 		SystemRole systemRole = new SystemRole();
 		if (systemRoleForm.getId() > 0) {
 			systemRole = systemRoleService.getById(systemRoleForm.getId());
-			
+
 			// only name and description can be edited on existing system roles
 			systemRole.setName(systemRoleForm.getName());
 			systemRole.setDescription(systemRoleForm.getDescription());
 		}
 		else {
 			systemRole.setName(systemRoleForm.getName());
-			systemRole.setIdentifier(systemRoleForm.getIdentifier());
+			systemRole.setIdentifier(systemRoleForm.getIdentifier().trim());
 			systemRole.setDescription(systemRoleForm.getDescription());
 			systemRole.setItSystem(itSystem);
 			systemRole.setRoleType(RoleType.BOTH);
 			systemRole.setWeight(1);
 		}
-		
+
 		if (itSystem.getSystemType().equals(ItSystemType.AD) || itSystem.getSystemType().equals(ItSystemType.SAML)) {
 			systemRole.setWeight(systemRoleForm.getWeight());
 		}
@@ -410,7 +381,7 @@ public class ItSystemController {
 		for (SystemRole systemRole : systemRoles) {
 			UserRole userRole = new UserRole();
 			userRole.setName(convertSystemRolesForm.getPrefix() + systemRole.getName());
-			
+
 			// TODO: must be a better way to safely ensure this length max (maybe setter on UserRole)
 			if (userRole.getName().length() > 64) {
 				userRole.setName(userRole.getName().substring(0, 64));

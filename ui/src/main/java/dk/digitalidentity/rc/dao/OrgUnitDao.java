@@ -3,14 +3,13 @@ package dk.digitalidentity.rc.dao;
 import java.util.List;
 import java.util.Optional;
 
-import dk.digitalidentity.rc.dao.projections.ManagerName;
-import dk.digitalidentity.rc.dao.projections.OrgUnitManagerName;
 import org.springframework.data.repository.CrudRepository;
 
 import dk.digitalidentity.rc.dao.model.OrgUnit;
 import dk.digitalidentity.rc.dao.model.RoleGroup;
 import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserRole;
+import dk.digitalidentity.rc.dao.projections.OrgUnitManagerName;
 
 public interface OrgUnitDao extends CrudRepository<OrgUnit, String> {
 	
@@ -41,7 +40,7 @@ public interface OrgUnitDao extends CrudRepository<OrgUnit, String> {
 
 	@Deprecated
 	List<OrgUnit> findByActiveTrueAndRoleGroupAssignmentsRoleGroup(RoleGroup role);
-	List<OrgUnit> findByActiveTrueAndRoleGroupAssignmentsRoleGroupAndRoleGroupAssignmentsInactive(RoleGroup roleGroup, boolean inactive);
+	List<OrgUnit> findByActiveTrueAndRoleGroupAssignmentsRoleGroupInAndRoleGroupAssignmentsInactive(List<RoleGroup> roleGroups, boolean inactive);
 	List<OrgUnit> findByActiveTrueAndRoleGroupAssignmentsRoleGroupAndRoleGroupAssignmentsInheritAndRoleGroupAssignmentsInactive(RoleGroup role, boolean inherit, boolean inactive);
 	List<OrgUnit> findByManager(User user);
 	List<OrgUnit> findByActiveTrueAndNextAttestationNotNull();

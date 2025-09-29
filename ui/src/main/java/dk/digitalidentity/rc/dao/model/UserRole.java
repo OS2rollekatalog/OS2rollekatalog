@@ -19,6 +19,8 @@ import lombok.ToString;
 
 import java.util.List;
 
+import org.hibernate.annotations.BatchSize;
+
 @Entity
 @Table(name = "user_roles")
 @ToString(exclude = { "itSystem" })
@@ -60,6 +62,7 @@ public class UserRole implements AuditLoggable {
 	@JoinColumn(name = "it_system_id")
 	private ItSystem itSystem;
 
+	@BatchSize(size = 50)
 	@OneToMany(mappedBy = "userRole", cascade = CascadeType.ALL, fetch = FetchType.LAZY, orphanRemoval = true)
 	private List<SystemRoleAssignment> systemRoleAssignments;
 
@@ -84,6 +87,12 @@ public class UserRole implements AuditLoggable {
 
 	@Column
 	private boolean roleAssignmentAttestationByAttestationResponsible;
+
+	@Column
+	private String contactEmail;
+
+	@Column(nullable = false)
+	private boolean readOnly;
 
 	@OneToOne(fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
 	@JoinColumn(name = "user_role_email_template_id")

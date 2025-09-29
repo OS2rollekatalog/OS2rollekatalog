@@ -9,7 +9,8 @@ CREATE OR REPLACE VIEW view_datatables_userroles AS (
  	    ur.can_request AS can_request,
 	    IF(pku.id IS NULL, FALSE, TRUE) AS pending_sync,
 	    IF(pku.failed IS NULL, FALSE, pku.failed) AS sync_failed,
-	    ur.delegated_from_cvr AS delegated_from_cvr
+	    ur.delegated_from_cvr AS delegated_from_cvr,
+	    ur.read_only AS read_only
 	FROM user_roles ur
 		JOIN it_systems its ON its.id = ur.it_system_id
 	    LEFT JOIN pending_kombit_updates pku ON pku.user_role_id = ur.id

@@ -4,7 +4,7 @@ import lombok.Getter;
 import lombok.Setter;
 
 import java.time.LocalDate;
-import java.util.Date;
+import java.time.LocalDateTime;
 
 @Getter
 @Setter
@@ -21,7 +21,7 @@ public class UserRoleAssignmentReportEntry {
 	private long systemRoleWeight; // This will contain the highest systemRole weight for this JFR
 	private long itSystemResultWeight; // This will contain the highest systemRole weight for the users for the it-system
 	private String assignedBy;
-	private Date assignedWhen;
+	private LocalDateTime assignedWhen;
 	private String assignedThrough;
 	private String postponedConstraints = "";
 	private boolean notifyByEmailIfManualSystem = true;

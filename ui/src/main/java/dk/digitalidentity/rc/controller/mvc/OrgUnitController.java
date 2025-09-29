@@ -489,10 +489,10 @@ public class OrgUnitController {
 		}
 
 		for (UserRole role : userRoles) {
-			if (role.isUserOnly()) {
+			if (role.isUserOnly() || role.isReadOnly()) {
 				continue;
 			}
-			
+
 			// filter out roles that allows postponing
 			if (role.isAllowPostponing()) {
 				continue;

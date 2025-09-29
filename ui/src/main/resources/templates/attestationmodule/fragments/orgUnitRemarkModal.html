@@ -43,7 +43,7 @@
                         </tbody>
                     </table>
                 </div>
-                <div class="modal-footer">
+                <div class="modal-footer" th:if="${!openInView}">
                     <button type="button" class="btn btn-secondary" data-dismiss="modal" th:text="#{attestationmodule.html.attestation.controls.cancel}"></button>
                     <button type="button" class="btn btn-primary" id="ouModalSaveBtn" th:text="#{attestationmodule.html.attestation.controls.save}"></button>
                 </div>

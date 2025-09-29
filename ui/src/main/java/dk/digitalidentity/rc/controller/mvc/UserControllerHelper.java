@@ -39,32 +39,6 @@ public class UserControllerHelper {
 	@Autowired
 	private UserService userService;
 
-	public List<AvailableUserRoleDTO> getAvailableUserRoles(User user) {
-		List<AvailableUserRoleDTO> addRoles = new ArrayList<>();
-		List<UserRole> userRoles = userRoleService.getAll();
-		userRoles = assignerRoleConstraint.filterUserRolesUserCanAssign(userRoles);
-		List<RoleAssignedToUserDTO> assignments = userService.getAllUserRoleAndRoleGroupAssignments(user);
-
-		//filter out RC internal roles
-		if (!SecurityUtil.getRoles().contains(Constants.ROLE_ADMINISTRATOR)) {
-			userRoles = userRoles.stream().filter(role -> !isRoleCatalogueRole(role)).collect(Collectors.toList());
-		}
-
-		for (UserRole role : userRoles) {
-
-			AvailableUserRoleDTO availableUserRole = new AvailableUserRoleDTO();
-			availableUserRole.setId(role.getId());
-			availableUserRole.setName(role.getName());
-			availableUserRole.setDescription(role.getDescription());
-			availableUserRole.setItSystem(role.getItSystem());
-			availableUserRole.setAlreadyAssigned(assignments.stream().filter(a -> a.getType() == RoleAssignmentType.USERROLE).anyMatch(a -> a.getRoleId() == role.getId()));
-
-			addRoles.add(availableUserRole);
-		}
-
-		return addRoles;
-	}
-
 	public List<AvailableRoleGroupDTO> getAvailableRoleGroups(User user) {
 		List<AvailableRoleGroupDTO> addRoleGroups = new ArrayList<>();
 		List<RoleGroup> roleGroups = roleGroupService.getAll();

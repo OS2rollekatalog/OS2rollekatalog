@@ -22,6 +22,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -98,6 +99,7 @@ public class AdSyncApi {
 		return new ResponseEntity<>(HttpStatus.OK);
 	}
 
+	@Transactional(readOnly = true)
 	@GetMapping("/api/ad/v2/sync")
 	public ResponseEntity<ADSyncResult> getPendingUpdates(@RequestParam(name = "domain", required = false) String domain, @RequestParam(name = "fullsync", required = false, defaultValue = "false") boolean fullSync) {
 		Domain foundDomain = domainService.getDomainOrPrimary(domain);
@@ -114,7 +116,11 @@ public class AdSyncApi {
 			// compute sets of userIds and itSystemIds that are dirty, filtered for duplicates
 			updates = pendingADUpdateService.find100(foundDomain);
 		} else {
-			List<ItSystem> allADSystems = itSystemService.getBySystemType(ItSystemType.AD).stream().filter(s -> s.getDomain() != null && foundDomain.getId() == s.getDomain().getId()).toList();
+			List<ItSystem> allADSystems = itSystemService.getBySystemType(ItSystemType.AD).stream()
+					.filter(s -> s.getDomain() != null && foundDomain.getId() == s.getDomain().getId())
+					.filter(s -> !s.isReadonly())
+					.filter(s -> !s.isPaused())
+					.toList();
 			for (ItSystem itSystem : allADSystems) {
 				List<SystemRole> systemRoles = systemRoleService.findByItSystem(itSystem);
 				for (SystemRole systemRole : systemRoles) {

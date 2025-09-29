@@ -137,6 +137,7 @@ public class ItSystemUsersAttestationService {
         return ItSystemRoleAttestationDTO.builder()
                 .createdAt(attestation.getCreatedAt())
                 .deadline(attestation.getDeadline())
+                .verifiedAt(attestation.getVerifiedAt() != null ? attestation.getVerifiedAt().toLocalDate() : null)
                 .itSystemId(attestation.getItSystemId())
                 .itSystemName(attestation.getItSystemName())
                 .users(buildUserAttestations(attestation, userRoleAssignments, undecidedUsersOnly))

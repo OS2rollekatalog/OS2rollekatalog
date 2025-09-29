@@ -16,6 +16,7 @@ BEGIN
     SELECT uuid FROM ous WHERE parent_uuid = ou_roles_ou_uuid AND active = 1;
   DECLARE CONTINUE HANDLER FOR NOT FOUND SET finished = 1;
 
+  -- Insert the main assignment record
   INSERT INTO history_ou_role_assignments (
     dato, ou_uuid,
     role_id, role_name, role_it_system_id, role_it_system_name,
@@ -30,9 +31,34 @@ BEGIN
     JOIN ous ou ON ou.uuid = ou_roles_ou_uuid
     JOIN user_roles ur ON ur.id = our.role_id
     JOIN it_systems it ON it.id = ur.it_system_id
-  WHERE our.id = ou_roles_id
-  AND our.contains_excepted_users = 0
-  AND our.contains_titles = 0;
+  WHERE our.id = ou_roles_id;
+
+  -- Insert exclusions for excepted users
+  INSERT INTO history_ou_role_assignment_exclusions (assignment_id, exclusion_type, user_uuids)
+  SELECT 
+    LAST_INSERT_ID(), 'excepted_users', GROUP_CONCAT(oureu.user_uuid)
+  FROM ou_roles our
+    JOIN ou_roles_excepted_users oureu ON oureu.ou_roles_id = our.id
+  WHERE our.id = ou_roles_id AND our.contains_excepted_users = 1
+  HAVING GROUP_CONCAT(oureu.user_uuid) IS NOT NULL;
+
+  -- Insert exclusions for positive titles
+  INSERT INTO history_ou_role_assignment_exclusions (assignment_id, exclusion_type, title_uuids)
+  SELECT 
+    LAST_INSERT_ID(), 'titles', GROUP_CONCAT(ourt.title_uuid)
+  FROM ou_roles our
+    JOIN ou_roles_titles ourt ON ourt.ou_roles_id = our.id
+  WHERE our.id = ou_roles_id AND our.contains_titles = 1
+  HAVING GROUP_CONCAT(ourt.title_uuid) IS NOT NULL;
+
+  -- Insert exclusions for negative titles
+  INSERT INTO history_ou_role_assignment_exclusions (assignment_id, exclusion_type, title_uuids)
+  SELECT 
+    LAST_INSERT_ID(), 'negative_titles', GROUP_CONCAT(ourt.title_uuid)
+  FROM ou_roles our
+    JOIN ou_roles_titles ourt ON ourt.ou_roles_id = our.id
+  WHERE our.id = ou_roles_id AND our.contains_titles = 2
+  HAVING GROUP_CONCAT(ourt.title_uuid) IS NOT NULL;
 
   OPEN cursorChildren;
 
@@ -90,6 +116,7 @@ DELIMITER $$
       SELECT uuid FROM ous WHERE parent_uuid = ou_roles_ou_uuid AND active = 1;
     DECLARE CONTINUE HANDLER FOR NOT FOUND SET finished = 1;
 
+    -- Insert the main assignment record
     INSERT INTO history_ou_role_assignments (
       dato, ou_uuid,
       role_id, role_name, role_it_system_id, role_it_system_name, role_role_group, role_role_group_id,
@@ -106,7 +133,34 @@ DELIMITER $$
       JOIN rolegroup_roles rgr ON rgr.rolegroup_id = ourg.rolegroup_id
       JOIN user_roles ur ON ur.id = rgr.role_id
       JOIN it_systems it ON it.id = ur.it_system_id
-    WHERE ourg.id = ou_roles_id AND ourg.contains_excepted_users = 0 AND ourg.contains_titles = 0;
+    WHERE ourg.id = ou_roles_id;
+
+    -- Insert exclusions for excepted users
+    INSERT INTO history_ou_role_assignment_exclusions (assignment_id, exclusion_type, user_uuids)
+    SELECT 
+      LAST_INSERT_ID(), 'excepted_users', GROUP_CONCAT(ourgeu.user_uuid)
+    FROM ou_rolegroups ourg
+      JOIN ou_rolegroups_excepted_users ourgeu ON ourgeu.ou_rolegroups_id = ourg.id
+    WHERE ourg.id = ou_roles_id AND ourg.contains_excepted_users = 1
+    HAVING GROUP_CONCAT(ourgeu.user_uuid) IS NOT NULL;
+
+    -- Insert exclusions for positive titles
+    INSERT INTO history_ou_role_assignment_exclusions (assignment_id, exclusion_type, title_uuids)
+    SELECT 
+      LAST_INSERT_ID(), 'titles', GROUP_CONCAT(ourgt.title_uuid)
+    FROM ou_rolegroups ourg
+      JOIN ou_rolegroups_titles ourgt ON ourgt.ou_rolegroups_id = ourg.id
+    WHERE ourg.id = ou_roles_id AND ourg.contains_titles = 1
+    HAVING GROUP_CONCAT(ourgt.title_uuid) IS NOT NULL;
+
+    -- Insert exclusions for negative titles
+    INSERT INTO history_ou_role_assignment_exclusions (assignment_id, exclusion_type, title_uuids)
+    SELECT 
+      LAST_INSERT_ID(), 'negative_titles', GROUP_CONCAT(ourgt.title_uuid)
+    FROM ou_rolegroups ourg
+      JOIN ou_rolegroups_titles ourgt ON ourgt.ou_rolegroups_id = ourg.id
+    WHERE ourg.id = ou_roles_id AND ourg.contains_titles = 2
+    HAVING GROUP_CONCAT(ourgt.title_uuid) IS NOT NULL;
 
     OPEN cursorChildren;
 
@@ -159,6 +213,7 @@ DROP PROCEDURE IF EXISTS SP_InsertHistoryOURoleAssignments $$
 -- user roles from direct assignments
 CREATE PROCEDURE SP_InsertHistoryOURoleAssignments()
 BEGIN
+  -- Direct role assignments 
   INSERT INTO history_ou_role_assignments (
     dato, ou_uuid,
     role_id, role_name, role_it_system_id, role_it_system_name, role_role_group, role_role_group_id,
@@ -172,9 +227,43 @@ BEGIN
   JOIN ous o ON o.uuid = our.ou_uuid
   JOIN user_roles ur ON ur.id = our.role_id
   JOIN it_systems it ON it.id = ur.it_system_id
-  WHERE our.inherit = 0 AND o.active = 1 AND our.contains_excepted_users = 0 AND our.contains_titles = 0;
+  WHERE our.inherit = 0 AND o.active = 1;
 
-  -- user roles through rolegroups from direct assignments
+  -- Insert exclusions for direct role assignments
+  INSERT INTO history_ou_role_assignment_exclusions (assignment_id, exclusion_type, user_uuids)
+  SELECT 
+    h.id, 'excepted_users', GROUP_CONCAT(oureu.user_uuid)
+  FROM history_ou_role_assignments h
+  JOIN ou_roles our ON our.ou_uuid = h.ou_uuid AND our.role_id = h.role_id 
+    AND our.assigned_by_user_id = h.assigned_by_user_id AND our.assigned_timestamp = h.assigned_when
+  JOIN ou_roles_excepted_users oureu ON oureu.ou_roles_id = our.id
+  WHERE h.dato = CURRENT_DATE() AND our.contains_excepted_users = 1 AND h.role_role_group_id IS NULL
+  GROUP BY h.id
+  HAVING GROUP_CONCAT(oureu.user_uuid) IS NOT NULL;
+
+  INSERT INTO history_ou_role_assignment_exclusions (assignment_id, exclusion_type, title_uuids)
+  SELECT 
+    h.id, 'titles', GROUP_CONCAT(ourt.title_uuid)
+  FROM history_ou_role_assignments h
+  JOIN ou_roles our ON our.ou_uuid = h.ou_uuid AND our.role_id = h.role_id 
+    AND our.assigned_by_user_id = h.assigned_by_user_id AND our.assigned_timestamp = h.assigned_when
+  JOIN ou_roles_titles ourt ON ourt.ou_roles_id = our.id
+  WHERE h.dato = CURRENT_DATE() AND our.contains_titles = 1 AND h.role_role_group_id IS NULL
+  GROUP BY h.id
+  HAVING GROUP_CONCAT(ourt.title_uuid) IS NOT NULL;
+
+  INSERT INTO history_ou_role_assignment_exclusions (assignment_id, exclusion_type, title_uuids)
+  SELECT 
+    h.id, 'negative_titles', GROUP_CONCAT(ourt.title_uuid)
+  FROM history_ou_role_assignments h
+  JOIN ou_roles our ON our.ou_uuid = h.ou_uuid AND our.role_id = h.role_id 
+    AND our.assigned_by_user_id = h.assigned_by_user_id AND our.assigned_timestamp = h.assigned_when
+  JOIN ou_roles_titles ourt ON ourt.ou_roles_id = our.id
+  WHERE h.dato = CURRENT_DATE() AND our.contains_titles = 2 AND h.role_role_group_id IS NULL
+  GROUP BY h.id
+  HAVING GROUP_CONCAT(ourt.title_uuid) IS NOT NULL;
+
+  -- Direct role assignments through role groups
   INSERT INTO history_ou_role_assignments (
     dato, ou_uuid,
     role_id, role_name, role_it_system_id, role_it_system_name, role_role_group, role_role_group_id,
@@ -190,12 +279,46 @@ BEGIN
   JOIN rolegroup_roles rgr ON rgr.rolegroup_id = ourg.rolegroup_id
   JOIN user_roles ur ON ur.id = rgr.role_id
   JOIN it_systems it ON it.id = ur.it_system_id
-  WHERE ourg.inherit = 0 AND o.active = 1 AND ourg.contains_excepted_users = 0 AND ourg.contains_titles = 0;
+  WHERE ourg.inherit = 0 AND o.active = 1;
 
-  -- user roles from orgunits (inherited)
+  -- Insert exclusions for role group assignments
+  INSERT INTO history_ou_role_assignment_exclusions (assignment_id, exclusion_type, user_uuids)
+  SELECT 
+    h.id, 'excepted_users', GROUP_CONCAT(ourgeu.user_uuid)
+  FROM history_ou_role_assignments h
+  JOIN ou_rolegroups ourg ON ourg.ou_uuid = h.ou_uuid AND ourg.rolegroup_id = h.role_role_group_id
+    AND ourg.assigned_by_user_id = h.assigned_by_user_id AND ourg.assigned_timestamp = h.assigned_when
+  JOIN ou_rolegroups_excepted_users ourgeu ON ourgeu.ou_rolegroups_id = ourg.id
+  WHERE h.dato = CURRENT_DATE() AND ourg.contains_excepted_users = 1 AND h.role_role_group_id IS NOT NULL
+  GROUP BY h.id
+  HAVING GROUP_CONCAT(ourgeu.user_uuid) IS NOT NULL;
+
+  INSERT INTO history_ou_role_assignment_exclusions (assignment_id, exclusion_type, title_uuids)
+  SELECT 
+    h.id, 'titles', GROUP_CONCAT(ourgt.title_uuid)
+  FROM history_ou_role_assignments h
+  JOIN ou_rolegroups ourg ON ourg.ou_uuid = h.ou_uuid AND ourg.rolegroup_id = h.role_role_group_id
+    AND ourg.assigned_by_user_id = h.assigned_by_user_id AND ourg.assigned_timestamp = h.assigned_when
+  JOIN ou_rolegroups_titles ourgt ON ourgt.ou_rolegroups_id = ourg.id
+  WHERE h.dato = CURRENT_DATE() AND ourg.contains_titles = 1 AND h.role_role_group_id IS NOT NULL
+  GROUP BY h.id
+  HAVING GROUP_CONCAT(ourgt.title_uuid) IS NOT NULL;
+
+  INSERT INTO history_ou_role_assignment_exclusions (assignment_id, exclusion_type, title_uuids)
+  SELECT 
+    h.id, 'negative_titles', GROUP_CONCAT(ourgt.title_uuid)
+  FROM history_ou_role_assignments h
+  JOIN ou_rolegroups ourg ON ourg.ou_uuid = h.ou_uuid AND ourg.rolegroup_id = h.role_role_group_id
+    AND ourg.assigned_by_user_id = h.assigned_by_user_id AND ourg.assigned_timestamp = h.assigned_when
+  JOIN ou_rolegroups_titles ourgt ON ourgt.ou_rolegroups_id = ourg.id
+  WHERE h.dato = CURRENT_DATE() AND ourg.contains_titles = 2 AND h.role_role_group_id IS NOT NULL
+  GROUP BY h.id
+  HAVING GROUP_CONCAT(ourgt.title_uuid) IS NOT NULL;
+
+  -- Inherited role assignments from orgunits
   CALL SP_InsertHistoryOURoleAssignmentsOUInherit();
 
-  -- user roles through rolegroups from orgunits (inherited)
+  -- Inherited role assignments through rolegroups from orgunits
   CALL SP_InsertHistoryOURoleAssignmentsOURoleGroupInherit();
 
 END $$

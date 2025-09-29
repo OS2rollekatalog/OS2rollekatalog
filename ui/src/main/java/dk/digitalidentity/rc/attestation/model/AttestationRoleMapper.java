@@ -78,6 +78,7 @@ public class AttestationRoleMapper {
                 .toList();
         return ItSystemAttestationDTO.builder()
                 .createdAt(attestation.getCreatedAt())
+                .verifiedAt(attestation.getVerifiedAt() != null ? attestation.getVerifiedAt().toLocalDate() : null)
                 .attestationUuid(attestation.getUuid())
                 .itSystemId(attestation.getItSystemId())
                 .itSystemName(attestation.getItSystemName())

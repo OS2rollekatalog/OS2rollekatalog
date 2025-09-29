@@ -461,9 +461,10 @@ public class OrganisationImporter {
 							break;
 						}
 					}
+					applyAutomaticNiveauMapping(orgUnitToCreate);
 				}
 			}
-	
+
 			// bulk-save, and then copy them all to the list of existing orgUnits
 			Iterable<OrgUnit> resultToBeCreated = orgUnitService.save(toBeCreated);
 			for (OrgUnit orgUnit : resultToBeCreated) {
@@ -490,6 +491,9 @@ public class OrganisationImporter {
 						if (configuration.getOrganisation().isGetLevelsFromApi()) {
 							existingOrgUnit.setLevel(orgUnitToUpdate.getLevel());
 						}
+						else {
+							applyAutomaticNiveauMapping(existingOrgUnit);
+						}
 
 						if (!configuration.getIntegrations().getKle().isUiEnabled()) {
 							existingOrgUnit.setInheritKle(orgUnitToUpdate.isInheritKle());
@@ -515,6 +519,7 @@ public class OrganisationImporter {
 									}
 								}
 							}
+							applyAutomaticNiveauMapping(existingOrgUnit);
 						}
 						
 						if (hasTitleChanges(existingOrgUnit, orgUnitToUpdate)) {
@@ -676,7 +681,7 @@ public class OrganisationImporter {
 							for (Position positionToRemove : positionsToRemove) {
 								userService.removePosition(existingUser, positionToRemove);
 							}
-							if (!userHasNoRoles && (!movedPositionEvent.getNewPositions().isEmpty() && !movedPositionEvent.getOldPositions().isEmpty())) {
+							if (!userHasNoRoles && (!movedPositionEvent.getNewPositions().isEmpty() && !movedPositionEvent.getOldPositions().isEmpty()) && hasNewPositionInDifferentOu(movedPositionEvent.getNewPositions(), movedPositionEvent.getOldPositions())) {
 								events.get().getUsersMovedPostions().add(movedPositionEvent);
 							}
 
@@ -698,10 +703,23 @@ public class OrganisationImporter {
 			for (User userToDelete : toBeDeleted) {
 				handleUserDeletedEvent(simpleItSystems, userToDelete);
 				
-				userToDelete.setDeleted(true);
+				userService.flagUserDeleted(userToDelete);
 				userService.save(userToDelete);
 			}
 		}
+	}
+
+	private boolean hasNewPositionInDifferentOu(Set<MovedPostion> newPositions, Set<MovedPostion> oldPositions) {
+		Set<String> oldOuUuids = oldPositions.stream()
+				.map(p -> p.getOrgUnit().getUuid())
+				.collect(Collectors.toSet());
+
+		for (MovedPostion newPosition : newPositions) {
+			if (!oldOuUuids.contains(newPosition.getOrgUnit().getUuid())) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	private void handleUserDeletedEvent(List<ItSystem> simpleItSystems, User userToDelete) {
@@ -985,6 +1003,9 @@ public class OrganisationImporter {
 					else if (hasTitleChanges(existingOrgUnit, newOrgUnit)) {
 						toBeUpdated.add(newOrgUnit);
 					}
+					else if (shouldApplyAutomaticNiveauMapping(newOrgUnit)) {
+						toBeUpdated.add(newOrgUnit);
+					}
 					
 					break;
 				}
@@ -1175,6 +1196,12 @@ public class OrganisationImporter {
 		}
 		
 		return false;
+	}
+
+	private boolean shouldApplyAutomaticNiveauMapping(OrgUnit orgUnit) {
+		return settingsService.isAutomaticNiveauMappingEnabled()
+				&& !configuration.getOrganisation().isGetLevelsFromApi()
+				&& (orgUnit.getLevel() == null || orgUnit.getLevel() == OrgUnitLevel.NONE);
 	}
 
 	private boolean differentEmail(User newUser, User existingUser) {
@@ -1822,5 +1849,41 @@ public class OrganisationImporter {
 			this.valid = valid;
 			this.message = message;
 		}
+	}
+
+	private void applyAutomaticNiveauMapping(OrgUnit orgUnit) {
+		if (!settingsService.isAutomaticNiveauMappingEnabled()) {
+			log.debug("Automatic niveau mapping is disabled");
+			return;
+		}
+        // We do not override previously set niveau values
+        if (orgUnit.getLevel() != null) {
+            return;
+        }
+
+		// Calculate the depth of this orgUnit
+		int depth = calculateOrgUnitDepth(orgUnit);
+		Map<Integer, OrgUnitLevel> depthMappings = settingsService.getNiveauMapping();
+
+		OrgUnitLevel mappedNiveau = depthMappings.get(depth);
+		if (mappedNiveau != null) {
+			orgUnit.setLevel(mappedNiveau);
+		}
+	}
+
+	private int calculateOrgUnitDepth(OrgUnit orgUnit) {
+		int depth = 1;
+		OrgUnit current = orgUnit;
+		while (current.getParent() != null) {
+			depth++;
+			// Stop and log error if we exceed 15 levels
+			if (depth > 15) {
+				log.error("OrgUnit depth calculation exceeded maximum of 15 levels at OrgUnit: {} ({}).",
+						current.getName(), current.getUuid());
+				return 15;
+			}
+			current = current.getParent();
+		}
+		return depth;
 	}
 }

@@ -1,34 +1,68 @@
 package dk.digitalidentity.rc.attestation.service.temporal.rowmapper;
 
-import dk.digitalidentity.rc.dao.history.model.HistoryOURoleAssignment;
-import dk.digitalidentity.rc.service.model.AssignedThrough;
-import org.springframework.jdbc.core.RowMapper;
-
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 
-import static dk.digitalidentity.rc.attestation.service.temporal.rowmapper.RowMapperUtils.zeroIsNull;
+import org.springframework.dao.DataAccessException;
+import org.springframework.jdbc.core.ResultSetExtractor;
 
-public class HistoryOURoleAssignmentRowMapper implements RowMapper<HistoryOURoleAssignment> {
-    @Override
-    public HistoryOURoleAssignment mapRow(ResultSet rs, int rowNum) throws SQLException {
-        final HistoryOURoleAssignment historyOURoleAssignment = new HistoryOURoleAssignment();
-        final LocalDate dato = new java.sql.Date(rs.getDate("dato").getTime()).toLocalDate();
-        historyOURoleAssignment.setId(rs.getLong("id"));
-        historyOURoleAssignment.setDato(dato);
-        historyOURoleAssignment.setOuUuid(rs.getString("ou_uuid"));
-        historyOURoleAssignment.setRoleId(rs.getLong("role_id"));
-        historyOURoleAssignment.setInherit(rs.getBoolean("inherit"));
-        historyOURoleAssignment.setRoleItSystemId(rs.getLong("role_it_system_id"));
-        historyOURoleAssignment.setRoleRoleGroup(rs.getString("role_role_group"));
-        historyOURoleAssignment.setRoleRoleGroupId(zeroIsNull(rs.getLong("role_role_group_id")));
-        historyOURoleAssignment.setAssignedThroughType(AssignedThrough.valueOf(rs.getString("assigned_through_type")));
-        historyOURoleAssignment.setAssignedThroughUuid(rs.getString("assigned_through_uuid"));
-        historyOURoleAssignment.setAssignedThroughName(rs.getString("assigned_through_name"));
-        historyOURoleAssignment.setAssignedByUserId(rs.getString("assigned_by_user_id"));
-        historyOURoleAssignment.setAssignedByName(rs.getString("assigned_by_name"));
-        historyOURoleAssignment.setAssignedWhen(rs.getTimestamp("assigned_when"));
-        return historyOURoleAssignment;
-    }
+import dk.digitalidentity.rc.dao.history.model.HistoryOURoleAssignment;
+import dk.digitalidentity.rc.dao.history.model.HistoryOURoleAssignmentExclusion;
+import dk.digitalidentity.rc.service.model.AssignedThrough;
+
+public class HistoryOURoleAssignmentRowMapper implements ResultSetExtractor<List<HistoryOURoleAssignment>> {
+	@Override
+	public List<HistoryOURoleAssignment> extractData(ResultSet rs) throws SQLException, DataAccessException {
+		Map<Long, HistoryOURoleAssignment> map = new LinkedHashMap<>();
+
+		while (rs.next()) {
+			long assignmentId = rs.getLong("assignment_id");
+			HistoryOURoleAssignment assignment = map.get(assignmentId);
+			if (assignment == null) {
+				assignment = new HistoryOURoleAssignment();
+				assignment.setId(assignmentId);
+				assignment.setDato(rs.getDate("dato").toLocalDate());
+				assignment.setOuUuid(rs.getString("ou_uuid"));
+				assignment.setRoleId(rs.getLong("role_id"));
+				assignment.setRoleName(rs.getString("role_name"));
+				assignment.setRoleItSystemId(rs.getLong("role_it_system_id"));
+				assignment.setRoleItSystemName(rs.getString("role_it_system_name"));
+				assignment.setRoleRoleGroup(rs.getString("role_role_group"));
+				assignment.setAssignedThroughType(rs.getString("assigned_through_type") != null
+                        ? AssignedThrough.valueOf(rs.getString("assigned_through_type"))
+                        : null);
+				assignment.setAssignedThroughUuid(rs.getString("assigned_through_uuid"));
+				assignment.setAssignedThroughName(rs.getString("assigned_through_name"));
+				assignment.setRoleRoleGroupId(rs.getLong("role_role_group_id"));
+				assignment.setInherit(rs.getBoolean("inherit"));
+				assignment.setAssignedByUserId(rs.getString("assigned_by_user_id"));
+				assignment.setAssignedByName(rs.getString("assigned_by_name"));
+				assignment.setAssignedWhen(rs.getTimestamp("assigned_when").toLocalDateTime());
+				assignment.setStartDate(rs.getDate("start_date") != null ? rs.getDate("start_date").toLocalDate() : null);
+				assignment.setStopDate(rs.getDate("stop_date") != null ? rs.getDate("stop_date").toLocalDate() : null);
+
+				assignment.setExclusions(new ArrayList<>());
+				map.put(assignmentId, assignment);
+			}
+
+			// Map exclusion if exists
+			Long exclusionId = rs.getLong("exclusion_id");
+			if (exclusionId != 0) {
+				HistoryOURoleAssignmentExclusion exclusion = new HistoryOURoleAssignmentExclusion();
+				exclusion.setId(exclusionId);
+				exclusion.setExclusionType(rs.getString("exclusion_type") != null
+								? HistoryOURoleAssignmentExclusion.ExclusionType.valueOf(rs.getString("exclusion_type"))
+								: null);
+				exclusion.setUserUuids(rs.getString("user_uuids"));
+				exclusion.setTitleUuids(rs.getString("title_uuids"));
+				assignment.getExclusions().add(exclusion);
+			}
+		}
+
+		return new ArrayList<>(map.values());
+	}
 }

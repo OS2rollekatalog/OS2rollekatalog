@@ -1,6 +1,7 @@
 package dk.digitalidentity.rc.attestation.controller.mvc;
 
 import dk.digitalidentity.rc.attestation.model.dto.AttestationOverviewDTO;
+import dk.digitalidentity.rc.attestation.model.dto.OrganisationAttestationDTO;
 import dk.digitalidentity.rc.attestation.model.entity.AttestationRun;
 import dk.digitalidentity.rc.attestation.service.AttestationOverviewService;
 import dk.digitalidentity.rc.attestation.service.AttestationRunService;

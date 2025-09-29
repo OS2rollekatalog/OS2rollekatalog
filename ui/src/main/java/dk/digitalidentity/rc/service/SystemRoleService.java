@@ -1,16 +1,20 @@
 package dk.digitalidentity.rc.service;
 
-import dk.digitalidentity.rc.dao.SystemRoleDao;
-import dk.digitalidentity.rc.dao.model.ItSystem;
-import dk.digitalidentity.rc.dao.model.SystemRole;
-import dk.digitalidentity.rc.dao.model.UserRole;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Service;
-
 import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.Consumer;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import dk.digitalidentity.rc.dao.SystemRoleDao;
+import dk.digitalidentity.rc.dao.model.ItSystem;
+import dk.digitalidentity.rc.dao.model.SystemRole;
+import dk.digitalidentity.rc.dao.model.UserRole;
+import dk.digitalidentity.rc.dao.model.enums.ItSystemType;
 
 @Service
 public class SystemRoleService {
@@ -33,6 +37,17 @@ public class SystemRoleService {
 		return systemRoleDao.findByItSystem(itSystem);
 	}
 
+	@Transactional
+	public List<SystemRole> getByItSystem(ItSystem itSystem, Consumer<SystemRole> consumer) {
+		List<SystemRole> systemRoles = systemRoleDao.findByItSystem(itSystem);
+		
+		if (consumer != null) {
+			systemRoles.forEach(consumer);
+		}
+		
+		return systemRoles;
+	}
+
 	public SystemRole getByUuid(String uuid) {
 		return systemRoleDao.findByUuid(uuid);
 	}
@@ -50,10 +65,12 @@ public class SystemRoleService {
 		return null;
 	}
 
+	@Transactional
 	public SystemRole save(SystemRole systemRole) {
 		return systemRoleDao.save(systemRole);
 	}
 
+	@Transactional
 	public void delete(SystemRole systemRole) {
 		systemRoleDao.delete(systemRole);
 	}
@@ -98,5 +115,26 @@ public class SystemRoleService {
 		}
 		
 		return weights.size() > 1;
+	}
+
+	@Transactional
+	public List<SystemRole> getByItSystemSystemType(ItSystemType systemType, Consumer<SystemRole> consumer) {
+		List<SystemRole> result = systemRoleDao.findByItSystemSystemType(systemType);
+		
+		if (consumer != null) {
+			result.forEach(consumer);
+		}
+
+		return result;
+	}
+
+	@Transactional
+	public void saveAll(List<SystemRole> systemRoles) {
+		systemRoleDao.saveAll(systemRoles);
+	}
+
+	@Transactional
+	public void deleteAll(List<SystemRole> systemRoles) {
+		systemRoleDao.deleteAll(systemRoles);
 	}
 }

@@ -1,28 +1,25 @@
 package dk.digitalidentity.rc.controller.rest;
 
-import dk.digitalidentity.rc.controller.mvc.datatables.dao.UserRoleForRoleGroupViewDao;
 import dk.digitalidentity.rc.controller.mvc.datatables.dao.model.UserRoleForRoleGroupView;
-import dk.digitalidentity.rc.controller.mvc.viewmodel.AvailableITSystemDTO;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.RoleGroupDeleteStatus;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.RoleGroupForm;
 import dk.digitalidentity.rc.controller.validator.RolegroupValidator;
 import dk.digitalidentity.rc.dao.model.OrgUnit;
 import dk.digitalidentity.rc.dao.model.Position;
 import dk.digitalidentity.rc.dao.model.RoleGroup;
-import dk.digitalidentity.rc.dao.model.RoleGroupUserRoleAssignment;
 import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserRole;
 import dk.digitalidentity.rc.security.RequireAdministratorRole;
 import dk.digitalidentity.rc.service.OrgUnitService;
 import dk.digitalidentity.rc.service.PositionService;
 import dk.digitalidentity.rc.service.RoleGroupService;
+import dk.digitalidentity.rc.service.RoleGroupViewService;
 import dk.digitalidentity.rc.service.UserRoleService;
 import dk.digitalidentity.rc.service.UserService;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.jpa.datatables.mapping.DataTablesInput;
 import org.springframework.data.jpa.datatables.mapping.DataTablesOutput;
-import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.BindingResult;
@@ -63,7 +60,7 @@ public class RolegroupRestController {
 	private RolegroupValidator rolegroupValidator;
 
 	@Autowired
-	private UserRoleForRoleGroupViewDao userRoleForRoleGroupViewDao;
+	private RoleGroupViewService roleGroupViewService;
 
 	@InitBinder
 	public void initBinder(WebDataBinder binder) {
@@ -210,7 +207,7 @@ public class RolegroupRestController {
 		RoleGroup rolegroup = roleGroupService.getById(rolegroupId);
 		UserRole role = userRoleService.getById(roleId);
 
-		if (rolegroup == null || role == null || role.getItSystem().isReadonly()) {
+		if (rolegroup == null || role == null || role.getItSystem().isReadonly() || role.isReadOnly()) {
 			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
 		}
 
@@ -236,17 +233,26 @@ public class RolegroupRestController {
 	}
 
 	@PostMapping("/rest/rolegroups/{rolegroupId}/userroles")
-	public DataTablesOutput<UserRoleForRoleGroupView> getUserRoleDatatableForUser(@RequestBody DataTablesInput input, BindingResult bindingResult, @PathVariable long rolegroupId) {
-
+	public DataTablesOutput<UserRoleForRoleGroupView> getUserRoleDatatableForRoleGroup(@RequestBody DataTablesInput input, BindingResult bindingResult, @PathVariable long rolegroupId) {
 		if (bindingResult.hasErrors()) {
-			DataTablesOutput<UserRoleForRoleGroupView> error = new DataTablesOutput<>();
-			error.setError(bindingResult.toString());
-			return error;
+			return createErrorResponse(bindingResult.toString());
 		}
-
+		
+		if (input == null) {
+			return createErrorResponse("DataTablesInput cannot be null");
+		}
+		
 		RoleGroup rolegroup = roleGroupService.getById(rolegroupId);
+		if (rolegroup == null) {
+			return createErrorResponse("RoleGroup with ID " + rolegroupId + " not found");
+		}
+		
+		return roleGroupViewService.findAllForRoleGroup(input, rolegroupId);
+	}
 
-		Specification<UserRoleForRoleGroupView> specification = UserRoleForRoleGroupViewDao.hasRoleGroupId(rolegroup.getId());
-		return userRoleForRoleGroupViewDao.findAll(input, specification);
+	private DataTablesOutput<UserRoleForRoleGroupView> createErrorResponse(String errorMessage) {
+		DataTablesOutput<UserRoleForRoleGroupView> error = new DataTablesOutput<>();
+		error.setError(errorMessage);
+		return error;
 	}
 }

@@ -6,6 +6,7 @@ import org.springframework.data.repository.CrudRepository;
 
 import dk.digitalidentity.rc.dao.model.ItSystem;
 import dk.digitalidentity.rc.dao.model.SystemRole;
+import dk.digitalidentity.rc.dao.model.enums.ItSystemType;
 
 public interface SystemRoleDao extends CrudRepository<SystemRole, Long> {
 	SystemRole findById(long id);
@@ -14,4 +15,5 @@ public interface SystemRoleDao extends CrudRepository<SystemRole, Long> {
 	List<SystemRole> findByItSystemAndUuidNotNull(ItSystem itSystem);
 	SystemRole findByUuid(String uuid);
 	List<SystemRole> findByIdentifierAndItSystemId(String identifier, long itSystemId);
+	List<SystemRole> findByItSystemSystemType(ItSystemType systemType);
 }

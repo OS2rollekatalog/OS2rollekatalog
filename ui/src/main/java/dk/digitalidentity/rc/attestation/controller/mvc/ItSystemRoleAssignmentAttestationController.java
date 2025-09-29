@@ -48,7 +48,8 @@ public class ItSystemRoleAssignmentAttestationController {
 		}
 
 		List<ItSystem> managedItSystems = itSystemService.findByAttestationResponsible(user);
-		if (managedItSystems.stream().noneMatch(i -> i.getId() == id)) {
+		boolean isManagingThisItSystem = managedItSystems.stream().noneMatch(i -> i.getId() == id);
+		if (isManagingThisItSystem && !SecurityUtil.isAttestationAdminOrAdmin()) {
 			return "attestationmodule/error";
 		}
 
@@ -58,7 +59,7 @@ public class ItSystemRoleAssignmentAttestationController {
 		model.addAttribute("totalCount",attestation.getUsers().size());
 		model.addAttribute("orgUnitTotalCount", attestation.getOrgUnits().size());
 		model.addAttribute("changeRequestsEnabled", settingsService.isAttestationRequestChangesEnabled());
-
+		model.addAttribute("openInView", (isManagingThisItSystem && SecurityUtil.isAttestationAdminOrAdmin()));
 		return "attestationmodule/itsystems/roleAssignmentAttestation";
 	}
 
@@ -75,6 +76,7 @@ public class ItSystemRoleAssignmentAttestationController {
 		model.addAttribute("roleAssignments", roles);
 		model.addAttribute("number", number);
 		model.addAttribute("userUuid", userUuid);
+		model.addAttribute("openInView", false);
 
 		return "attestationmodule/fragments/userRemarkModal :: userRemarkModal";
 	}

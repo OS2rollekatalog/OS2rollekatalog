@@ -18,7 +18,6 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.util.StringUtils;
-import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.RestTemplate;
 
@@ -248,11 +247,14 @@ public class DMPStub {
 			restTemplate.exchange(url, HttpMethod.POST, request, String.class);
 
             log.info("Created user {}", createRequest.getUsers().getFirst().getExternalUserId());
-		} catch (final HttpClientErrorException e) {
-            log.warn("Failed to create user {} using dmpApi", createRequest.getUsers().getFirst().getExternalUserId(), e);
-			return false;
-		} catch (Exception ex) {
-            log.error("Failed to create user {} using dmpApi", createRequest.getUsers().getFirst().getExternalUserId(), ex);
+		}
+		catch (Exception ex) {
+			if (ex.getMessage() != null && ex.getMessage().contains("Email already exists")) {
+				log.warn("Failed to create user {} using dmpApi", createRequest.getUsers().getFirst().getExternalUserId(), ex);
+			}
+			else {
+	            log.error("Failed to create user {} using dmpApi", createRequest.getUsers().getFirst().getExternalUserId(), ex);				
+			}
 
 			return false;
 		}

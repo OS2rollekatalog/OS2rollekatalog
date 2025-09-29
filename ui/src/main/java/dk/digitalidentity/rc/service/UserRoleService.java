@@ -1,5 +1,17 @@
 package dk.digitalidentity.rc.service;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.stream.Collectors;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.jpa.datatables.mapping.DataTablesInput;
+import org.springframework.data.jpa.datatables.mapping.DataTablesOutput;
+import org.springframework.data.jpa.domain.Specification;
+import org.springframework.stereotype.Service;
+
 import dk.digitalidentity.rc.config.Constants;
 import dk.digitalidentity.rc.controller.mvc.datatables.dao.UserroleDatatableDao;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.AvailableITSystemDTO;
@@ -17,23 +29,9 @@ import dk.digitalidentity.rc.security.AccessConstraintService;
 import dk.digitalidentity.rc.security.SecurityUtil;
 import dk.digitalidentity.rc.service.model.RoleAssignedToUserDTO;
 import dk.digitalidentity.rc.service.model.RoleAssignmentType;
-import jakarta.persistence.criteria.CriteriaBuilder;
-import jakarta.persistence.criteria.CriteriaQuery;
 import jakarta.persistence.criteria.Predicate;
-import jakarta.persistence.criteria.Root;
 import jakarta.transaction.Transactional;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.jpa.datatables.mapping.DataTablesInput;
-import org.springframework.data.jpa.datatables.mapping.DataTablesOutput;
-import org.springframework.data.jpa.domain.Specification;
-import org.springframework.stereotype.Service;
-
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -116,23 +114,37 @@ public class UserRoleService {
 		return userRoleDao.findByItSystem(itSystemService.getById(itSystemId));
 	}
 
+	@Transactional
 	public List<UserRole> getByItSystem(ItSystem itSystem) {
-		return userRoleDao.findByItSystem(itSystem);
+		List<UserRole> userRoles = userRoleDao.findByItSystem(itSystem);
+		
+		userRoles.forEach(ur -> ur.getSystemRoleAssignments().size());
+		
+		return userRoles;
 	}
 
+	@Transactional
 	@AuditLogIntercepted
 	public UserRole save(UserRole userRole) {
 		return userRoleDao.save(userRole);
 	}
 
+	@Transactional
 	@AuditLogIntercepted
 	public void delete(UserRole userRole) {
 		userRoleDao.delete(userRole);
 	}
 
-	// TODO: auditlog? This is not exposed in UI, so....
+	// not exposed in UI or API, so not auditlogged
+	@Transactional
 	public void deleteAll(List<UserRole> userRoles) {
 		userRoleDao.deleteAll(userRoles);
+	}
+
+	// not exposed in UI or API, so not auditlogged
+	@Transactional
+	public void saveAll(List<UserRole> userRoles) {
+		userRoleDao.saveAll(userRoles);
 	}
 
 	public List<UserRole> getAll() {
@@ -238,11 +250,11 @@ public class UserRoleService {
 		return userRoleDao.getByDelegatedFromCvrNotNullAndItSystemIdentifierNot(itSystemIdentifier);
 	}
 
-
 	public DataTablesOutput<UserRoleDTO> getAvailableAsDatatable(DataTablesInput input, User user) {
 		final List<Long> itSystemsUserCanEdit = accessConstraintService.itSystemsUserCanEdit();
-		DataTablesOutput<UserRole> UserroleOutput = userroleDatatableDao.findAll(input, (Specification<UserRole>) (root, query, criteriaBuilder) -> {
+		DataTablesOutput<UserRole> userroleOutput = userroleDatatableDao.findAll(input, (Specification<UserRole>) (root, query, criteriaBuilder) -> {
 			final List<Predicate> andPredicates = new ArrayList<>();
+			andPredicates.add(criteriaBuilder.isFalse(root.get("readOnly")));
 			if (itSystemsUserCanEdit != null) {
 				andPredicates.add(root.get("itSystem").get("id").in(itSystemsUserCanEdit));
 			}
@@ -250,16 +262,16 @@ public class UserRoleService {
 				//filter out RC internal roles
 				andPredicates.add(root.get("itSystem").get("identifier").in(Constants.ROLE_CATALOGUE_IDENTIFIER).not());
 			}
-            return criteriaBuilder.and(andPredicates.toArray(new Predicate[0]));
-        });
-		List<UserRole> userRoles = UserroleOutput.getData();
+			return criteriaBuilder.and(andPredicates.toArray(new Predicate[0]));
+		});
+		List<UserRole> userRoles = userroleOutput.getData();
 		List<RoleAssignedToUserDTO> assignments = userService.getAllUserRoleAndRoleGroupAssignments(user);
 
 		DataTablesOutput<UserRoleDTO> output = new DataTablesOutput<>();
-		output.setDraw(UserroleOutput.getDraw());
-		output.setError(UserroleOutput.getError());
-		output.setRecordsTotal(UserroleOutput.getRecordsTotal());
-		output.setRecordsFiltered(UserroleOutput.getRecordsFiltered());
+		output.setDraw(userroleOutput.getDraw());
+		output.setError(userroleOutput.getError());
+		output.setRecordsTotal(userroleOutput.getRecordsTotal());
+		output.setRecordsFiltered(userroleOutput.getRecordsFiltered());
 		output.setData(userRoles.stream().map(ur -> new UserRoleDTO(
 				ur.getId(),
 				ur.getName(),

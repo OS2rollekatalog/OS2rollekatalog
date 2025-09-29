@@ -13,6 +13,8 @@ import jakarta.persistence.Table;
 import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
 import lombok.Setter;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -29,6 +31,7 @@ public class KitosITSystem  implements AuditLoggable {
 
 	@Column
 	@NotNull
+	@JdbcTypeCode(SqlTypes.BINARY)
 	private UUID kitosUuid;
 
 	@Column

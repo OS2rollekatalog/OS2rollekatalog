@@ -27,6 +27,7 @@
 											<input id="itsystemshidden-checkbox" type="checkbox" th:attr="checked=${settingsForm.itSystemsHiddenByDefault}" />
 											<span class="fa fa-check"></span>
 										</label>
+										<a th:replace="~{fragments/help :: help (title=#{html.help.settings.kombit.hiddenSystems.title}, content=#{html.help.settings.kombit.hiddenSystems.body})}"></a>
 									</div>
 								</div>
 							</div>

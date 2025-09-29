@@ -193,7 +193,7 @@ public class UserRestController {
 		Position position = positionService.getById(positionId);
 		UserRole role = userRoleService.getById(roleId);
 
-		if (position == null || role == null) {
+		if (position == null || role == null || role.isReadOnly()) {
 			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
 		}
 
@@ -233,7 +233,7 @@ public class UserRestController {
 			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
 		}
 
-		if (role.getItSystem().getSystemType() == ItSystemType.AD && role.getItSystem().isReadonly()) {
+		if (role.isReadOnly() || (role.getItSystem().getSystemType() == ItSystemType.AD && role.getItSystem().isReadonly())) {
 			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
 		}
 
@@ -268,7 +268,7 @@ public class UserRestController {
 		UserRole userRole = userRoleService.getById(roleId);
 		OrgUnit orgUnit = orgUnitService.getByUuid(orgUnitUuid);
 
-		if (user == null || userRole == null) {
+		if (user == null || userRole == null || userRole.isReadOnly()) {
 			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
 		}
 
@@ -458,7 +458,7 @@ public class UserRestController {
 			if (type == RoleAssignmentType.USERROLE) {
 				UserUserRoleAssignment userRoleAssignment = user.getUserRoleAssignments().stream().filter(ura -> ura.getId() == assignmentId).findAny().orElse(null);
 
-				if (userRoleAssignment == null) {
+				if (userRoleAssignment == null || userRoleAssignment.getUserRole().isReadOnly()) {
 					return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
 				}
 
@@ -507,7 +507,7 @@ public class UserRestController {
 			if (type == RoleAssignmentType.USERROLE) {
 				PositionUserRoleAssignment existingAssignemnt = user.getPositions().stream().map(Position::getUserRoleAssignments).flatMap(x -> x.stream()).filter(ura -> ura.getId() == assignmentId).findAny().orElse(null);
 
-				if (existingAssignemnt == null) {
+				if (existingAssignemnt == null || existingAssignemnt.getUserRole().isReadOnly()) {
 					return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
 				}
 

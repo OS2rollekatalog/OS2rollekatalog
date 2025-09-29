@@ -31,4 +31,5 @@ public class AttestationOverviewDTO {
     private long orgUnitTotalNumber;
 
     private List<String> managerNames;
+    private LocalDate verifiedAt;
 }

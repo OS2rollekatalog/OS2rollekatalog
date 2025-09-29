@@ -33,7 +33,7 @@
                         <tbody>
                             <tr th:each="role : ${roleAssignments}">
                                 <td class="col-lg-2">
-                                    <input th:attr="data-id=${role.roleId},data-name=${role.roleName},data-type=${role.roleType},data-itsystemname=${role.itSystemName}" type="checkbox" class="i-checks remarkCheckbox">
+                                    <input th:if="${!openInView}" th:attr="data-id=${role.roleId},data-name=${role.roleName},data-type=${role.roleType},data-itsystemname=${role.itSystemName}" type="checkbox" class="i-checks remarkCheckbox">
                                 </td>
                                 <td th:text="${role.itSystemName}"></td>
                                 <td th:text="${role.roleName}" class="col-lg-6"></td>
@@ -42,7 +42,7 @@
                         </tbody>
                     </table>
                 </div>
-                <div class="modal-footer">
+                <div class="modal-footer" th:if="${!openInView}">
                     <button type="button" class="btn btn-secondary" data-dismiss="modal" th:text="#{attestationmodule.html.attestation.controls.cancel}"></button>
                     <button type="button" class="btn btn-primary" id="modalSaveBtn" th:text="#{attestationmodule.html.attestation.controls.save}"></button>
                 </div>

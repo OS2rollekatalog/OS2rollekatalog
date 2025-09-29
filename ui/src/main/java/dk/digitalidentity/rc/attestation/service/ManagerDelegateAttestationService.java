@@ -86,6 +86,7 @@ public class ManagerDelegateAttestationService {
 		var attestationDTO = markCurrentUserReadonly(currentUserUuid,
 				OrganisationAttestationDTO.builder()
 						.createdAt(attestation.getCreatedAt())
+						.verifiedAt(attestation.getVerifiedAt() != null ? attestation.getVerifiedAt().toLocalDate() : null)
 						.attestationUuid(attestation.getUuid())
 						.deadLine(attestation.getDeadline())
 						.ouName(ouName)
@@ -192,7 +193,7 @@ public class ManagerDelegateAttestationService {
 		LocalDate now = LocalDate.now();
 		return new AttestationOverviewDTO(organisationAttestationDto.getCreatedAt(), readOnly, organisationAttestationDto.getOuName(), organisationAttestationDto.getOuUuid(),
 				verified, total-verified, total, organisationAttestationDto.getDeadLine(), organisationAttestationDto.getDeadLine().isBefore(now),
-				substitutes, orgsAttestated, orgsToAttestate, hasOrgAssignments ? 1 : 0, organisationAttestationDto.getAssociatedManagerNames().stream().toList());
+				substitutes, orgsAttestated, orgsToAttestate, hasOrgAssignments ? 1 : 0, organisationAttestationDto.getAssociatedManagerNames().stream().toList(), organisationAttestationDto.getVerifiedAt());
 	}
 
 

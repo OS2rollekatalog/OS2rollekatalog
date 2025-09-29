@@ -8,6 +8,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -262,7 +263,7 @@ public class ReportController {
 
 		ReportTemplate template = null;
 		if (templates != null) {
-			Optional<ReportTemplate> oTemplate = templates.stream().filter(t -> t.getId() == id).findFirst();
+			Optional<ReportTemplate> oTemplate = templates.stream().filter(t -> Objects.equals(t.getId(), id)).findFirst();
 			if (oTemplate.isPresent()) {
 				template = oTemplate.get();
 			}
@@ -345,10 +346,14 @@ public class ReportController {
 			case ITSYSTEM_SYSTEM_OWNERS:
 				model.addAttribute("users", generateItSystemSystemOwnerReport());
 				return "reports/custom/itsystem_system_owner";
+			case ITSYSTEM_KITOS:
+				model.addAttribute("itSystems", generateItSystemWithKitosInfo());
+				return "reports/custom/itsystem_kitos";
 		}
 
 		return "redirect:/ui/report/custom";
 	}
+
 
 	@GetMapping("/ui/report/custom/{reportType}/download")
 	public ModelAndView downloadCustomReport(HttpServletResponse response, @PathVariable("reportType") ReportType report) {
@@ -358,179 +363,194 @@ public class ReportController {
 		ArrayList<String> headers = new ArrayList<>();
 
 		switch (report) {
-		case USER_ROLE_WITH_SYSTEM_ROLE_THAT_COULD_BE_CONSTRAINT_BUT_ISNT: {
-			headers.add(messageSource.getMessage("html.entity.userrole.name", null, locale));
-			headers.add(messageSource.getMessage("html.entity.itsystem.type", null, locale));
-			headers.add(messageSource.getMessage("html.entity.userrole.description", null, locale));
+			case USER_ROLE_WITH_SYSTEM_ROLE_THAT_COULD_BE_CONSTRAINT_BUT_ISNT: {
+				headers.add(messageSource.getMessage("html.entity.userrole.name", null, locale));
+				headers.add(messageSource.getMessage("html.entity.itsystem.type", null, locale));
+				headers.add(messageSource.getMessage("html.entity.userrole.description", null, locale));
 
-			List<UserRole> userRoles = generateUserRolesWithoutDataConstraintsReport();
-			for (UserRole userRole : userRoles) {
-				ArrayList<Object> row = new ArrayList<>();
-				row.add(userRole.getName());
-				row.add(userRole.getItSystem().getName());
-				row.add(userRole.getDescription());
+				List<UserRole> userRoles = generateUserRolesWithoutDataConstraintsReport();
+				for (UserRole userRole : userRoles) {
+					ArrayList<Object> row = new ArrayList<>();
+					row.add(userRole.getName());
+					row.add(userRole.getItSystem().getName());
+					row.add(userRole.getDescription());
 
-				rows.add(row);
+					rows.add(row);
+				}
 			}
-		}
-			break;
-		case USER_ROLE_WITH_SENSITIVE_FLAG: {
-			headers.add(messageSource.getMessage("html.entity.userrole.name", null, locale));
-			headers.add(messageSource.getMessage("html.entity.itsystem.type", null, locale));
-			headers.add(messageSource.getMessage("html.entity.userrole.description", null, locale));
+				break;
+			case USER_ROLE_WITH_SENSITIVE_FLAG: {
+				headers.add(messageSource.getMessage("html.entity.userrole.name", null, locale));
+				headers.add(messageSource.getMessage("html.entity.itsystem.type", null, locale));
+				headers.add(messageSource.getMessage("html.entity.userrole.description", null, locale));
 
-			List<UserRole> userRoles = generateUserRolesWithSensitiveFlagReport();
-			for (UserRole userRole : userRoles) {
-				ArrayList<Object> row = new ArrayList<>();
-				row.add(userRole.getName());
-				row.add(userRole.getItSystem().getName());
-				row.add(userRole.getDescription());
+				List<UserRole> userRoles = generateUserRolesWithSensitiveFlagReport();
+				for (UserRole userRole : userRoles) {
+					ArrayList<Object> row = new ArrayList<>();
+					row.add(userRole.getName());
+					row.add(userRole.getItSystem().getName());
+					row.add(userRole.getDescription());
 
-				rows.add(row);
+					rows.add(row);
+				}
 			}
-		}
-			break;
+				break;
 
-		case USERS_WITH_DUPLICATE_USERROLE_ASSIGNMENTS: {
-			headers.add(messageSource.getMessage("html.entity.user.name", null, locale));
-			headers.add(messageSource.getMessage("html.entity.user.userId", null, locale));
-			headers.add(messageSource.getMessage("html.entity.userrole.type", null, locale));
-			headers.add(messageSource.getMessage("html.entity.itsystem", null, locale));
-			headers.add(messageSource.getMessage("html.page.report.duplicate.via", null, locale));
+			case USERS_WITH_DUPLICATE_USERROLE_ASSIGNMENTS: {
+				headers.add(messageSource.getMessage("html.entity.user.name", null, locale));
+				headers.add(messageSource.getMessage("html.entity.user.userId", null, locale));
+				headers.add(messageSource.getMessage("html.entity.userrole.type", null, locale));
+				headers.add(messageSource.getMessage("html.entity.itsystem", null, locale));
+				headers.add(messageSource.getMessage("html.page.report.duplicate.via", null, locale));
 
-			List<UserWithDuplicateRoleAssignmentDTO> result = generateUsersWithDuplicateRoleAssignmentsReport();
-			for (UserWithDuplicateRoleAssignmentDTO user : result) {
-				ArrayList<Object> row = new ArrayList<>();
-				row.add(user.getName());
-				row.add(user.getUserId());
-				row.add(user.getUserRole().getName());
-				row.add(user.getUserRole().getItSystem().getName());
-				row.add(user.getMessage());
+				List<UserWithDuplicateRoleAssignmentDTO> result = generateUsersWithDuplicateRoleAssignmentsReport();
+				for (UserWithDuplicateRoleAssignmentDTO user : result) {
+					ArrayList<Object> row = new ArrayList<>();
+					row.add(user.getName());
+					row.add(user.getUserId());
+					row.add(user.getUserRole().getName());
+					row.add(user.getUserRole().getItSystem().getName());
+					row.add(user.getMessage());
 
-				rows.add(row);
+					rows.add(row);
+				}
 			}
-		}
-			break;
-		case USERS_WITH_DUPLICATE_ROLEGROUP_ASSIGNMENTS: {
-			headers.add(messageSource.getMessage("html.entity.user.name", null, locale));
-			headers.add(messageSource.getMessage("html.entity.user.userId", null, locale));
-			headers.add(messageSource.getMessage("html.entity.rolegroup.type", null, locale));
-			headers.add(messageSource.getMessage("html.page.report.duplicate.via", null, locale));
+				break;
+			case USERS_WITH_DUPLICATE_ROLEGROUP_ASSIGNMENTS: {
+				headers.add(messageSource.getMessage("html.entity.user.name", null, locale));
+				headers.add(messageSource.getMessage("html.entity.user.userId", null, locale));
+				headers.add(messageSource.getMessage("html.entity.rolegroup.type", null, locale));
+				headers.add(messageSource.getMessage("html.page.report.duplicate.via", null, locale));
 
-			List<UserWithDuplicateRoleAssignmentDTO> result = generateUsersWithDuplicateRoleGroupAssignmentsReport();
-			for (UserWithDuplicateRoleAssignmentDTO user : result) {
-				ArrayList<Object> row = new ArrayList<>();
-				row.add(user.getName());
-				row.add(user.getUserId());
-				row.add(user.getRoleGroup().getName());
-				row.add(user.getMessage());
+				List<UserWithDuplicateRoleAssignmentDTO> result = generateUsersWithDuplicateRoleGroupAssignmentsReport();
+				for (UserWithDuplicateRoleAssignmentDTO user : result) {
+					ArrayList<Object> row = new ArrayList<>();
+					row.add(user.getName());
+					row.add(user.getUserId());
+					row.add(user.getRoleGroup().getName());
+					row.add(user.getMessage());
 
-				rows.add(row);
+					rows.add(row);
+				}
 			}
-		}
-			break;
-		case USER_ROLE_WITHOUT_ASSIGNMENTS: {
-			headers.add(messageSource.getMessage("html.entity.userrole.name", null, locale));
-			headers.add(messageSource.getMessage("html.entity.itsystem.type", null, locale));
-			headers.add(messageSource.getMessage("html.entity.userrole.description", null, locale));
+				break;
+			case USER_ROLE_WITHOUT_ASSIGNMENTS: {
+				headers.add(messageSource.getMessage("html.entity.userrole.name", null, locale));
+				headers.add(messageSource.getMessage("html.entity.itsystem.type", null, locale));
+				headers.add(messageSource.getMessage("html.entity.userrole.description", null, locale));
 
-			List<UserRole> userRoles = generateUserRolesWithoutAssignmentsReport();
-			for (UserRole userRole : userRoles) {
-				ArrayList<Object> row = new ArrayList<>();
-				row.add(userRole.getName());
-				row.add(userRole.getItSystem().getName());
-				row.add(userRole.getDescription());
+				List<UserRole> userRoles = generateUserRolesWithoutAssignmentsReport();
+				for (UserRole userRole : userRoles) {
+					ArrayList<Object> row = new ArrayList<>();
+					row.add(userRole.getName());
+					row.add(userRole.getItSystem().getName());
+					row.add(userRole.getDescription());
 
-				rows.add(row);
+					rows.add(row);
+				}
+
 			}
+				break;
+			case USER_ROLE_WITHOUT_SYSTEM_ROLES: {
+				headers.add(messageSource.getMessage("html.entity.userrole.name", null, locale));
+				headers.add(messageSource.getMessage("html.entity.itsystem.type", null, locale));
+				headers.add(messageSource.getMessage("html.entity.userrole.description", null, locale));
 
-		}
-			break;
-		case USER_ROLE_WITHOUT_SYSTEM_ROLES: {
-			headers.add(messageSource.getMessage("html.entity.userrole.name", null, locale));
-			headers.add(messageSource.getMessage("html.entity.itsystem.type", null, locale));
-			headers.add(messageSource.getMessage("html.entity.userrole.description", null, locale));
+				List<UserRole> userRoles = generateUserRolesWithoutSystemRolesReport();
+				for (UserRole userRole : userRoles) {
+					ArrayList<Object> row = new ArrayList<>();
+					row.add(userRole.getName());
+					row.add(userRole.getItSystem().getName());
+					row.add(userRole.getDescription());
 
-			List<UserRole> userRoles = generateUserRolesWithoutSystemRolesReport();
-			for (UserRole userRole : userRoles) {
-				ArrayList<Object> row = new ArrayList<>();
-				row.add(userRole.getName());
-				row.add(userRole.getItSystem().getName());
-				row.add(userRole.getDescription());
+					rows.add(row);
+				}
 
-				rows.add(row);
 			}
+				break;
+			case ITSYSTEMS_WITHOUT_ATTESTATION_RESPONSIBLE: {
+				headers.add(messageSource.getMessage("html.entity.itsystem.name", null, locale));
+				headers.add(messageSource.getMessage("html.entity.itsystem.identifier", null, locale));
+				headers.add(messageSource.getMessage("html.entity.itsystem.type", null, locale));
+				headers.add(messageSource.getMessage("html.entity.itsystem.inactiveAttestationResponsible", null, locale));
 
-		}
-			break;
-		case ITSYSTEMS_WITHOUT_ATTESTATION_RESPONSIBLE: {
-			headers.add(messageSource.getMessage("html.entity.itsystem.name", null, locale));
-			headers.add(messageSource.getMessage("html.entity.itsystem.identifier", null, locale));
-			headers.add(messageSource.getMessage("html.entity.itsystem.type", null, locale));
-			headers.add(messageSource.getMessage("html.entity.itsystem.inactiveAttestationResponsible", null, locale));
+				List<ItSystemWithoutSystemResponsibleReport> result = generateItSystemWithoutSystemResponsibleReport();
+				for (ItSystemWithoutSystemResponsibleReport itsystem : result) {
+					ArrayList<Object> row = new ArrayList<>();
+					row.add(itsystem.name);
+					row.add(itsystem.identifier);
+					row.add(messageSource.getMessage(itsystem.type, null, locale));
+					row.add(itsystem.inactiveSystemResponsible ? "Ja" : "Nej");
 
-			List<ItSystemWithoutSystemResponsibleReport> result = generateItSystemWithoutSystemResponsibleReport();
-			for (ItSystemWithoutSystemResponsibleReport itsystem : result) {
-				ArrayList<Object> row = new ArrayList<>();
-				row.add(itsystem.name);
-				row.add(itsystem.identifier);
-				row.add(messageSource.getMessage(itsystem.type, null, locale));
-				row.add(itsystem.inactiveSystemResponsible ? "Ja" : "Nej");
+					rows.add(row);
+				}
 
-				rows.add(row);
 			}
+				break;
+			case ITSYSTEMS_WITHOUT_ATTESTATION: {
+				headers.add(messageSource.getMessage("html.entity.itsystem.name", null, locale));
+				headers.add(messageSource.getMessage("html.entity.itsystem.identifier", null, locale));
+				headers.add(messageSource.getMessage("html.entity.itsystem.type", null, locale));
 
-		}
-			break;
-		case ITSYSTEMS_WITHOUT_ATTESTATION: {
-			headers.add(messageSource.getMessage("html.entity.itsystem.name", null, locale));
-			headers.add(messageSource.getMessage("html.entity.itsystem.identifier", null, locale));
-			headers.add(messageSource.getMessage("html.entity.itsystem.type", null, locale));
+				List<ItSystemWithoutAttestationReport> result = generateItSystemWithoutAttestationReport();
+				for (ItSystemWithoutAttestationReport itsystem : result) {
+					ArrayList<Object> row = new ArrayList<>();
+					row.add(itsystem.name);
+					row.add(itsystem.identifier);
+					row.add(messageSource.getMessage(itsystem.type, null, locale));
 
-			List<ItSystemWithoutAttestationReport> result = generateItSystemWithoutAttestationReport();
-			for (ItSystemWithoutAttestationReport itsystem : result) {
-				ArrayList<Object> row = new ArrayList<>();
-				row.add(itsystem.name);
-				row.add(itsystem.identifier);
-				row.add(messageSource.getMessage(itsystem.type, null, locale));
-
-				rows.add(row);
+					rows.add(row);
+				}
 			}
-		}
-			break;
-		case ITSYSTEM_ATTESTATION_RESPONSIBLE: {
-			headers.add(messageSource.getMessage("html.entity.itsystem.name", null, locale));
-			headers.add(messageSource.getMessage("html.entity.user.name", null, locale));
-			headers.add(messageSource.getMessage("html.entity.user.email", null, locale));
+				break;
+			case ITSYSTEM_ATTESTATION_RESPONSIBLE: {
+				headers.add(messageSource.getMessage("html.entity.itsystem.name", null, locale));
+				headers.add(messageSource.getMessage("html.entity.user.name", null, locale));
+				headers.add(messageSource.getMessage("html.entity.user.email", null, locale));
 
-			List<ItSystemAttestationResponsibleRecord> result = generateItSystemAttestationResponsibleReport();
-			for (ItSystemAttestationResponsibleRecord user : result) {
-				ArrayList<Object> row = new ArrayList<>();
-				row.add(user.itSystemName);
-				row.add(user.name);
-				row.add(user.email);
+				List<ItSystemAttestationResponsibleRecord> result = generateItSystemAttestationResponsibleReport();
+				for (ItSystemAttestationResponsibleRecord user : result) {
+					ArrayList<Object> row = new ArrayList<>();
+					row.add(user.itSystemName);
+					row.add(user.name);
+					row.add(user.email);
 
-				rows.add(row);
+					rows.add(row);
+				}
+
 			}
+				break;
+			case ITSYSTEM_SYSTEM_OWNERS: {
+				headers.add(messageSource.getMessage("html.entity.itsystem.name", null, locale));
+				headers.add(messageSource.getMessage("html.entity.user.name", null, locale));
+				headers.add(messageSource.getMessage("html.entity.user.email", null, locale));
 
-		}
-			break;
-		case ITSYSTEM_SYSTEM_OWNERS: {
-			headers.add(messageSource.getMessage("html.entity.itsystem.name", null, locale));
-			headers.add(messageSource.getMessage("html.entity.user.name", null, locale));
-			headers.add(messageSource.getMessage("html.entity.user.email", null, locale));
+				List<ItSystemSystemOwnerRecord> result = generateItSystemSystemOwnerReport();
+				for (ItSystemSystemOwnerRecord user : result) {
+					ArrayList<Object> row = new ArrayList<>();
+					row.add(user.itSystemName);
+					row.add(user.name);
+					row.add(user.email);
 
-			List<ItSystemSystemOwnerRecord> result = generateItSystemSystemOwnerReport();
-			for (ItSystemSystemOwnerRecord user : result) {
-				ArrayList<Object> row = new ArrayList<>();
-				row.add(user.itSystemName);
-				row.add(user.name);
-				row.add(user.email);
-
-				rows.add(row);
+					rows.add(row);
+				}
 			}
-		}
-			break;
+				break;
+			case ITSYSTEM_KITOS: {
+				headers.add(messageSource.getMessage("html.entity.itsystem.name", null, locale));
+				headers.add(messageSource.getMessage("html.entity.itsystem.kitosITSystem", null, locale));
+				headers.add(messageSource.getMessage("html.entity.itsystem.kitosSystemOwner", null, locale));
+
+				List<ItSystemWithKitosInfo> result = generateItSystemWithKitosInfo();
+				for (ItSystemWithKitosInfo system : result) {
+					ArrayList<Object> row = new ArrayList<>();
+					row.add(system.name);
+					row.add(system.kitosSystemName);
+					row.add(system.systemOwnerName);
+
+					rows.add(row);
+				}
+			}
 		}
 		
 		Map<String, Object> model = new HashMap<>();
@@ -735,6 +755,21 @@ public class ReportController {
 				.collect(Collectors.toList());
 
 		return userRoles;
+	}
+
+	record ItSystemWithKitosInfo(long id, String name, String kitosSystemName, String systemOwnerName) {}
+	private List<ItSystemWithKitosInfo> generateItSystemWithKitosInfo() {
+		List<ItSystemWithKitosInfo> result = new ArrayList<>();
+		List<ItSystem> allSystems = itSystemService.getVisible();
+		for (ItSystem system : allSystems) {
+			if (system.getKitosITSystem() == null) {
+				result.add(new ItSystemWithKitosInfo(system.getId(), system.getName(),"", ""));
+			}
+			else {
+				result.add(new ItSystemWithKitosInfo(system.getId(), system.getName(),system.getKitosITSystem().getName(), system.getSystemOwner() != null ? system.getSystemOwner().getName() : ""));
+			}
+		}
+		return result;
 	}
 
 	private List<ItSystemChoice> parseItSystems(LocalDate localDate) {

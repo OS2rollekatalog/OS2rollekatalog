@@ -6,6 +6,9 @@
     <div class="panel-body">
         <b><span th:text="|Udtrukket ${#temporals.format(attestationDetails.overview.createdAt, 'dd/MM-yyyy')}|"></span></b><br>
         <span th:text="|Mangler attestering af ${attestationDetails.overview.getNumberToAttestate()} jobfunktionsroller|"></span>
+        <a sec:authorize="hasRole('ROLE_ADMINISTRATOR') or hasRole('ROLE_ATTESTATION_ADMINISTRATOR')" class="btn btn-primary btn-lg" style="float: right;" th:text="#{html.help.attestation.see.details}" th:href="@{/ui/attestation/v2/itsystems/{id}(id=${uuid})}">
+            <em class="fa fa-fw fa-search"></em>
+        </a>
     </div>
 </div>
 <div class="panel panel-info">

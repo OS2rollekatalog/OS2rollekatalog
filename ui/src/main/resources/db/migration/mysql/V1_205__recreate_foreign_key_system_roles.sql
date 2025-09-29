@@ -1,0 +1,18 @@
+SET @sql = (
+ SELECT CONCAT('ALTER TABLE system_roles DROP FOREIGN KEY ', CONSTRAINT_NAME)
+ FROM information_schema.KEY_COLUMN_USAGE 
+ WHERE TABLE_SCHEMA = DATABASE()
+  AND TABLE_NAME = 'system_roles' 
+  AND COLUMN_NAME = 'it_system_id'
+  AND REFERENCED_TABLE_NAME IS NOT NULL
+ LIMIT 1
+);
+
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+ALTER TABLE system_roles 
+ ADD CONSTRAINT fk_system_roles_it_system 
+ FOREIGN KEY (it_system_id) REFERENCES it_systems(id) 
+ ON DELETE CASCADE;

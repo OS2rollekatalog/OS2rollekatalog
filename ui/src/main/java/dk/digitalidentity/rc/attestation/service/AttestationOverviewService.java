@@ -43,7 +43,7 @@ public class AttestationOverviewService {
                 .count();
         long orgsLeft = totalOrgUnit - verifiedOrgUnit;
         return new AttestationOverviewDTO(itsDto.getCreatedAt(), readOnly, itsDto.getItSystemName(), String.valueOf(itsDto.getItSystemId()), verified,
-                total - verified, total, itsDto.getDeadline(), itsDto.getDeadline().isBefore(now), null, verifiedOrgUnit, orgsLeft, totalOrgUnit, new ArrayList<>());
+                total - verified, total, itsDto.getDeadline(), itsDto.getDeadline().isBefore(now), null, verifiedOrgUnit, orgsLeft, totalOrgUnit, new ArrayList<>(), itsDto.getVerifiedAt());
     }
 
     public static List<AttestationOverviewDTO> buildItSystemsUsersOverviews(final List<ItSystemRoleAttestationDTO> itSystemUsersAttestation, boolean readOnly) {
@@ -66,7 +66,7 @@ public class AttestationOverviewService {
         return new AttestationOverviewDTO(itSystemAttestation.getCreatedAt(), readOnly, itSystemAttestation.getItSystemName(), String.valueOf(itSystemAttestation.getItSystemId()),
                 verified,  itSystemAttestation.getUserRoles().size() - verified,
                 itSystemAttestation.getUserRoles().size(), itSystemAttestation.getDeadLine(),
-                itSystemAttestation.getDeadLine().isBefore(LocalDate.now()), null, 0, 0, 0, new ArrayList<>());
+                itSystemAttestation.getDeadLine().isBefore(LocalDate.now()), null, 0, 0, 0, new ArrayList<>(), itSystemAttestation.getVerifiedAt());
     }
 
     public AttestationOverviewDTO buildOrgUnitOverview(final OrganisationAttestationDTO organisationAttestationDto, boolean readOnly) {
@@ -89,6 +89,6 @@ public class AttestationOverviewService {
         LocalDate now = LocalDate.now();
         return new AttestationOverviewDTO(organisationAttestationDto.getCreatedAt(), readOnly, organisationAttestationDto.getOuName(), organisationAttestationDto.getOuUuid(),
                 verified, total-verified, total, organisationAttestationDto.getDeadLine(), organisationAttestationDto.getDeadLine().isBefore(now),
-                substitutes, orgsAttestated, orgsToAttestate, hasOrgAssignments ? 1 : 0, new ArrayList<>());
+                substitutes, orgsAttestated, orgsToAttestate, hasOrgAssignments ? 1 : 0, new ArrayList<>(), organisationAttestationDto.getVerifiedAt());
     }
 }

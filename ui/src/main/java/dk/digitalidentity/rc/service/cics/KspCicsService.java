@@ -55,6 +55,7 @@ import java.util.Collections;
 import java.util.Date;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
@@ -335,7 +336,7 @@ public class KspCicsService {
 
 	// This is called from KspCicsUpdateTask and does a periodic sync of data from KSP/CICS to OS2rollekatalog
 	// - new, updated or deleted user accounts
-	@Transactional(rollbackFor = Exception.class)
+	@Transactional
 	public void updateUsers() {
 		long newAccounts = 0;
 		long deletedAccounts = 0;
@@ -349,13 +350,18 @@ public class KspCicsService {
 		if (response != null && response.getUsers() != null && response.getUsers().size() > 0) {
 			List<KspUser> kspUsers = response.getUsers();
 
+			Map<String, List<User>> userCprMap = userService.getAll()
+				.stream()
+				.filter(u -> StringUtils.hasText(u.getCpr()))
+				.collect(Collectors.groupingBy(User::getCpr));
+
 			// find kspUsers to create/update
 			for (KspUser kspUser : kspUsers) {
 				boolean foundUser = false;
 				
 				boolean existingAltAccount = altAccounts.stream().anyMatch(a -> a.getAccountUserId().equals(kspUser.getUserId()));
 				if (!existingAltAccount) {
-					List<User> users = userService.findByCpr(kspUser.getCpr());
+					List<User> users = userCprMap.get(kspUser.getCpr());
 					if (users != null && users.size() > 0) {
 						// sort, so we have some sort of consistent matching algorithm
 						Optional<User> oUser = users.stream().sorted((u1, u2) -> u1.getUuid().compareTo(u2.getUuid())).findFirst();

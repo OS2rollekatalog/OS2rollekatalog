@@ -1,0 +1,1 @@
+ALTER TABLE user_roles ADD COLUMN contact_email VARCHAR(255) DEFAULT NULL;

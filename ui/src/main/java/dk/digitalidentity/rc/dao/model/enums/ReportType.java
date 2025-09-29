@@ -12,7 +12,8 @@ public enum ReportType {
 	ITSYSTEMS_WITHOUT_ATTESTATION_RESPONSIBLE("html.report.itsystems_without_attestation_responsible"),
 	ITSYSTEMS_WITHOUT_ATTESTATION("html.report.itsystems_without_attestation"),
 	ITSYSTEM_SYSTEM_OWNERS("html.report.itsystem_system_owners"),
-	ITSYSTEM_ATTESTATION_RESPONSIBLE("html.report.itsystem_attestation_responsible");
+	ITSYSTEM_ATTESTATION_RESPONSIBLE("html.report.itsystem_attestation_responsible"),
+	ITSYSTEM_KITOS("html.report.itsystem_kitos");
 
 	private String title;
 

@@ -2,14 +2,6 @@
 -- should only be called once per day like this
 --
 -- CALL SP_InsertHistoryOURoleAssignmentsWithTitles();
---
-
-
-
--- Stored procedure for populating history_role_assignment_negative_titles table
--- should only be called once per day like this
---
--- CALL SP_InsertHistoryOURoleAssignmentsWithNegativeTitles();
 
 DELIMITER $$
 DROP PROCEDURE IF EXISTS SP_InsertHistoryOUPositiveRoleAssignmentsOUInheritRecursive $$

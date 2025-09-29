@@ -47,7 +47,8 @@ public class AttestationRunMapper {
                 .sorted(Comparator.comparing(Attestation::getResponsibleOuName))
                 .toList();
         final List<Attestation> systemAttestations = run.getAttestations().stream()
-                .filter(a -> a.getAttestationType() != Attestation.AttestationType.ORGANISATION_ATTESTATION)
+                .filter(a -> a.getAttestationType() == Attestation.AttestationType.IT_SYSTEM_ATTESTATION ||
+                        a.getAttestationType() == Attestation.AttestationType.IT_SYSTEM_ROLES_ATTESTATION)
                 .sorted(Comparator.comparing(Attestation::getItSystemName))
                 .toList();
         final long totalAttestations = ouAttestations.size() + systemAttestations.size();

@@ -387,5 +387,28 @@ namespace ADSyncService
             }
         }
 
+        public bool IsUserActive(string userId)
+        {
+            using (PrincipalContext context = new PrincipalContext(ContextType.Domain))
+            {
+                using (UserPrincipal user = UserPrincipal.FindByIdentity(context, userId))
+                {
+                    if (user == null)
+                    {
+                        log.Debug($"User {userId} not found in Active Directory");
+                        return false;
+                    }
+
+                    if (!user.Enabled.HasValue || !user.Enabled.Value)
+                    {
+                        log.Debug($"User {userId} is disabled");
+                        return false;
+                    }
+
+                    return true;
+                }
+            }
+        }
+
     }
 }

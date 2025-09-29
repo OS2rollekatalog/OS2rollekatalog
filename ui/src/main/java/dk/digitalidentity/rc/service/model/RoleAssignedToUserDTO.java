@@ -15,7 +15,6 @@ import lombok.Getter;
 import lombok.Setter;
 
 import java.time.LocalDate;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -36,6 +35,8 @@ public class RoleAssignedToUserDTO {
 	private boolean canEdit;
 	private boolean canRequest;
 	private List<SystemRoleAssignmentDTO> systemRoleAssignments;
+	private int highestSystemRoleWeight;
+	private String ineffectiveReason;
 	private boolean ineffective = false;
 	private ContainsTitles containsTitles = ContainsTitles.NO;
 	private List<String> titleUuids = Collections.emptyList();

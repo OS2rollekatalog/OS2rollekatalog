@@ -89,7 +89,7 @@
                                                             </div>
                                                         </div>
 
-                                                        <div class="row m-t-lg">
+                                                        <div class="row m-t-lg" th:if="${!openInView}">
                                                             <div class="form-group" style="margin-left: 15px;" th:id="'checkboxRow' + ${user.userUuid}">
                                                                 <input th:attr="data-id=${user.userUuid}" type="checkbox" class="i-checks readCheckbox">
                                                                 <label th:text="#{attestationmodule.html.attestation.controls.approve.read}" style="margin-left: 15px;"></label>
@@ -97,22 +97,24 @@
                                                         </div>
 
                                                         <div class="row col-lg-12 m-t-sm">
-                                                            <button th:unless="${user.readOnly}" class="approveBtn btn btn-primary col-lg-2" th:id="'approveBtn' + ${user.userUuid}" th:attr="data-uuid=${user.userUuid}, data-number=${userStat.index}, data-managerdelegate=${managerdelegate}" disabled="disabled">
-                                                                <em class="fa-fw fa fa-check"></em>
-                                                                <span th:text="#{attestationmodule.html.attestation.controls.approve}"></span>
-                                                            </button>
-                                                            &nbsp;
-                                                            <button  th:if="${changeRequestsEnabled}" th:unless="${user.readOnly}" class="rejectBtn btn btn-danger col-lg-2" th:id="'rejectBtn' + ${user.userUuid}" th:attr="data-uuid=${user.userUuid}, data-number=${userStat.index}, data-managerdelegate=${managerdelegate}">
-                                                                <em class="fa-fw fa fa-ban"></em>
-                                                                <span th:text="#{attestationmodule.html.attestation.controls.reject}"></span>
-                                                            </button>
-                                                            &nbsp;
-                                                            <button th:unless="${user.readOnly}" th:if="${adAttestationEnabled}" class="requestDeleteBtn btn btn-danger col-lg-2" th:id="'requestDeleteBtn' + ${user.userUuid}" th:attr="data-uuid=${user.userUuid}, data-number=${userStat.index}, data-managerdelegate=${managerdelegate}">
-                                                                <em class="fa-fw fa fa-trash"></em>
-                                                                <span th:text="#{attestationmodule.html.attestation.controls.requestDelete}"></span>
-                                                            </button>
-                                                            <p style="display: none;" th:id="'alreadyDone' + ${user.userUuid}" th:text="#{attestationmodule.html.orgunits.attestate.users.done}"></p>
-                                                            <p th:if="${user.readOnly}" th:text="#{attestationmodule.html.orgunits.attestate.users.self}"></p>
+															<th:block th:if="${!openInView}">
+																<button th:unless="${user.readOnly}" class="approveBtn btn btn-primary col-lg-2" th:id="'approveBtn' + ${user.userUuid}" th:attr="data-uuid=${user.userUuid}, data-number=${userStat.index}, data-managerdelegate=${managerdelegate}" disabled="disabled">
+																	<em class="fa-fw fa fa-check"></em>
+																	<span th:text="#{attestationmodule.html.attestation.controls.approve}"></span>
+																</button>
+																&nbsp;
+																<button  th:if="${changeRequestsEnabled}" th:unless="${user.readOnly}" class="rejectBtn btn btn-danger col-lg-2" th:id="'rejectBtn' + ${user.userUuid}" th:attr="data-uuid=${user.userUuid}, data-number=${userStat.index}, data-managerdelegate=${managerdelegate}">
+																	<em class="fa-fw fa fa-ban"></em>
+																	<span th:text="#{attestationmodule.html.attestation.controls.reject}"></span>
+																</button>
+																&nbsp;
+																<button th:unless="${user.readOnly}" th:if="${adAttestationEnabled}" class="requestDeleteBtn btn btn-danger col-lg-2" th:id="'requestDeleteBtn' + ${user.userUuid}" th:attr="data-uuid=${user.userUuid}, data-number=${userStat.index}, data-managerdelegate=${managerdelegate}">
+																	<em class="fa-fw fa fa-trash"></em>
+																	<span th:text="#{attestationmodule.html.attestation.controls.requestDelete}"></span>
+																</button>
+																<p style="display: none;" th:id="'alreadyDone' + ${user.userUuid}" th:text="#{attestationmodule.html.orgunits.attestate.users.done}"></p>
+																<p th:if="${user.readOnly}" th:text="#{attestationmodule.html.orgunits.attestate.users.self}"></p>
+															</th:block>
 
                                                             <div class="row ml-auto" style="margin-right: 15px;">
                                                                 <button class="btn btn-primary btn-back" style="width: 60px" th:attr="data-number=${userStat.index}" th:unless="${userStat.index == 0}">
@@ -139,13 +141,13 @@
                                                 <div th:replace="~{attestationmodule/orgunits/fragments/RoleGroupsTable :: roleGroupsTable(roleGroupsForTable = ${attestation.orgUnitRoleGroupAssignments}, verify=false, orgUnitAssignments = true, showInherit = true)}"></div>
 
                                                 <div class="row m-t-lg">
-                                                    <div class="form-group" style="margin-left: 15px;" th:id="'checkboxOrgUnitRow' + ${attestation.ouUuid}" th:unless="${attestation.orgUnitRolesVerified}">
+                                                    <div class="form-group" style="margin-left: 15px;" th:id="'checkboxOrgUnitRow' + ${attestation.ouUuid}" th:unless="${attestation.orgUnitRolesVerified || openInView}">
                                                         <input th:attr="data-id=${attestation.ouUuid}" type="checkbox" class="i-checks readOrgUnitCheckbox">
                                                         <label th:text="#{attestationmodule.html.attestation.controls.approve.read}" style="margin-left: 15px;"></label>
                                                     </div>
                                                 </div>
 
-                                                <div class="row col-lg-12 m-t-sm">
+                                                <div class="row col-lg-12 m-t-sm" th:if="${!openInView}">
                                                     <button th:unless="${attestation.orgUnitRolesVerified}"  class="approveOrgUnitBtn btn btn-primary col-lg-2" th:id="'approveOrgUnitBtn' + ${attestation.ouUuid}" th:attr="data-uuid=${attestation.ouUuid}, data-managerdelegate=${managerdelegate}" disabled="disabled">
                                                         <em class="fa-fw fa fa-check"></em>
                                                         <span th:text="#{attestationmodule.html.attestation.controls.approve}"></span>
@@ -329,7 +331,7 @@
                 const managerdelegate = $(this).data("managerdelegate");
 
                 $.ajax({
-					url : restUrl + "/" + orgUnitUuid + "/users/" + userId + "/approve" + "?managerdelegate=" + managerdelegate,
+					url : restUrl + "/" + orgUnitUuid + "/users/" + userId + "/approve" + "?managerdelegate=" + (managerdelegate || "false"),
 					method : 'POST',
 					headers: {
 						'X-CSRF-TOKEN': token
@@ -364,7 +366,7 @@
                 }
 
                 $.ajax({
-                   url : restUrl + "/" + orgUnitUuid + "/users/" + userUuid + "/reject" + "?managerdelegate=" + managerdelegate,
+                   url : restUrl + "/" + orgUnitUuid + "/users/" + userUuid + "/reject" + "?managerdelegate=" + (managerdelegate || "false"),
                    headers: {
                       "content-type": "application/json",
                       'X-CSRF-TOKEN': token
@@ -411,7 +413,7 @@
                     }
                     else {
                         $.ajax({
-                           url : restUrl + "/" + orgUnitUuid + "/users/" + userId + "/delete" + "?managerdelegate=" + managerdelegate,
+                           url : restUrl + "/" + orgUnitUuid + "/users/" + userId + "/delete" + "?managerdelegate=" + (managerdelegate || "false"),
                            headers: {
                               'X-CSRF-TOKEN': token
                            },
@@ -490,7 +492,7 @@
 		    this.handleApprove = function() {
                 const managerdelegate = $(this).data("managerdelegate");
                 $.ajax({
-					url : restUrl + "/" + orgUnitUuid + "/roles/approve" + "?managerdelegate=" + managerdelegate,
+					url : restUrl + "/" + orgUnitUuid + "/roles/approve" + "?managerdelegate=" + (managerdelegate || "false"),
 					method : 'POST',
 					headers: {
 						'X-CSRF-TOKEN': token
@@ -516,7 +518,7 @@
 		        }
                 const managerdelegate = $(this).data("managerdelegate");
                 $.ajax({
-                   url : restUrl + "/" + orgUnitUuid + "/roles/reject" + "?managerdelegate=" + managerdelegate,
+                   url : restUrl + "/" + orgUnitUuid + "/roles/reject" + "?managerdelegate=" + (managerdelegate || "false"),
                    headers: {
                       "content-type": "application/json",
                       'X-CSRF-TOKEN': token

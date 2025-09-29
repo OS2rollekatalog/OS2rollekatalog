@@ -85,7 +85,13 @@ public class SettingsController {
 
 		settingsService.setItSystemChangeEmail(settingsForm.getItSystemChangeEmail());
 		settingsService.setCaseNumberEnabled(settingsForm.isCaseNumberEnabled());
-
+		settingsService.setAutomaticNiveauMapping(settingsForm.isAutoNiveauEnabled());
+		if (!settingsForm.isAutoNiveauEnabled()) {
+			settingsService.clearExistingNiveauMappings();
+		}
+		else {
+			settingsService.setNiveauMapping(settingsForm.getDepthToNiveauMappings());
+		}
 		settingsService.setExcludedOUs(settingsForm.getExcludedOUs());
 
 		redirectAttributes.addFlashAttribute("saved", true);
@@ -154,6 +160,8 @@ public class SettingsController {
 		settingsForm.setItSystemChangeEmail(settingsService.getItSystemChangeEmail());
 		settingsForm.setExcludedOUs(settingsService.getExcludedOUs());
 		settingsForm.setCaseNumberEnabled(settingsService.isCaseNumberEnabled());
+		settingsForm.setAutoNiveauEnabled(settingsService.isAutomaticNiveauMappingEnabled());
+		settingsForm.setDepthToNiveauMappings(settingsService.getNiveauMapping());
 
 		List<OUListForm> allOUs = orgUnitService.getAllCachedIncludingExcluded()
 				.stream()

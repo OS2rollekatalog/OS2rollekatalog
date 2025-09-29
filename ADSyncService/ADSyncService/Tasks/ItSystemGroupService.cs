@@ -1,5 +1,6 @@
-﻿using System.Collections.Specialized;
+﻿using System;
 using System.Collections.Generic;
+using System.Collections.Specialized;
 
 namespace ADSyncService
 {
@@ -11,6 +12,7 @@ namespace ADSyncService
         public void PerformUpdate(RoleCatalogueStub roleCatalogueStub, ADStub adStub)
         {
             List<string> systemMap = remoteConfigurationService.GetConfiguration().itSystemGroupFeatureSystemMap;
+            bool doNotRegisterDisabledUsers = remoteConfigurationService.GetConfiguration().itSystemGroupFeatureDoNotRegisterDisabledUsers;
             if (systemMap != null)
             {
                 foreach (string mapRaw in systemMap)
@@ -32,7 +34,7 @@ namespace ADSyncService
                         continue;
                     }
 
-                    HandleGroupMembers(adStub, groupDn, users);
+                    HandleGroupMembers(adStub, groupDn, users, doNotRegisterDisabledUsers);
                 }
             }
 
@@ -58,55 +60,48 @@ namespace ADSyncService
                         continue;
                     }
 
-                    HandleGroupMembers(adStub, groupDn, users);
+                    HandleGroupMembers(adStub, groupDn, users, doNotRegisterDisabledUsers);
                 }
             }
         }
 
-        private static void HandleGroupMembers(ADStub adStub, string groupDn, List<string> users)
+        private static void HandleGroupMembers(ADStub adStub, string groupDn, List<string> users, bool doNotRegisterDisabledUsers)
         {
-            List<string> members = adStub.GetGroupMembers(groupDn, groupDn);
+            var members = adStub.GetGroupMembers(groupDn, groupDn);
             if (members == null)
             {
                 log.Warn("Unable to get members from group: " + groupDn);
                 return;
             }
 
-            // to add
+            // Create HashSet for better performance when checking membership
+            var memberSet = new HashSet<string>(members, StringComparer.OrdinalIgnoreCase);
+            var userSet = new HashSet<string>(users, StringComparer.OrdinalIgnoreCase);
+
+            // Add users to group
             foreach (string user in users)
             {
-                bool found = false;
-
-                foreach (string member in members)
+                if (!memberSet.Contains(user))
                 {
-                    if (string.Equals(user, member, System.StringComparison.OrdinalIgnoreCase))
+                    // Check if user is active before adding if doNotRegisterDisabledUsers is true
+                    if (doNotRegisterDisabledUsers)
                     {
-                        found = true;
-                        break;
+                        bool isUserActive = adStub.IsUserActive(user);
+                        if (!isUserActive)
+                        {
+                            log.Debug($"ITSystenGroupService.HandleGroupMembers: Skipping disabled user: {user}");
+                            continue;
+                        }
                     }
-                }
 
-                if (!found)
-                {
                     adStub.AddMember(groupDn, user);
                 }
             }
 
-            // to remove
+            // Remove members not in user list
             foreach (string member in members)
             {
-                bool found = false;
-
-                foreach (string user in users)
-                {
-                    if (string.Equals(user, member, System.StringComparison.OrdinalIgnoreCase))
-                    {
-                        found = true;
-                        break;
-                    }
-                }
-
-                if (!found)
+                if (!userSet.Contains(member))
                 {
                     adStub.RemoveMember(groupDn, member);
                 }

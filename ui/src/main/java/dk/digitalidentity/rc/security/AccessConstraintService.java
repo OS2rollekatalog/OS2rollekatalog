@@ -1,15 +1,16 @@
 package dk.digitalidentity.rc.security;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 
 import dk.digitalidentity.rc.config.Constants;
 import dk.digitalidentity.rc.dao.model.ItSystem;
@@ -24,6 +25,7 @@ import dk.digitalidentity.rc.dao.model.enums.ConstraintValueType;
 import dk.digitalidentity.rc.service.ItSystemService;
 import dk.digitalidentity.rc.service.OrgUnitService;
 import dk.digitalidentity.rc.service.UserService;
+import dk.digitalidentity.rc.util.OrganisationConstraintUtil;
 
 @Service
 public class AccessConstraintService {
@@ -36,6 +38,9 @@ public class AccessConstraintService {
 	
 	@Autowired
 	private ItSystemService itSystemService;
+	
+	@Autowired
+	private OrganisationConstraintUtil organisationConstraintUtil;
 	
 	/***
 	 * Returns a list of OrgUnits that this is constrained to.
@@ -65,7 +70,6 @@ public class AccessConstraintService {
 		for (UserRole role : allRoleCatalogueRoles) {
 			for (SystemRoleAssignment systemRoleAssignment : role.getSystemRoleAssignments()) {
 				boolean readOnlyRole = false;
-
 				switch (systemRoleAssignment.getSystemRole().getIdentifier()) {
 					case Constants.ROLE_READ_ACCESS_ID:
 						readOnlyRole = true;
@@ -74,6 +78,9 @@ public class AccessConstraintService {
 					case Constants.ROLE_ASSIGNER_ID:
 						// these can be constrained, so let's examine them further
 						break;
+					case Constants.ROLE_GLOBAL_ASSIGNER_ID:
+						// Global assigner cannot be constrained
+						return null;
 					default:
 						// any other role cannot be constraint, so we skip it
 						continue;
@@ -112,15 +119,14 @@ public class AccessConstraintService {
 							break;
 						case EXTENDED_INHERITED:
 							for (Position pos : user.getPositions()) {
-								getUuidsRecursive(resultSet, pos.getOrgUnit());
+								getUuidsRecursive(pos.getOrgUnit(), resultSet);
 							}
 
 							break;
+						case SELECTED_INHERITED:
 						case VALUE:
-							for (String uuid : constraintValue.getConstraintValue().split(",")) {
-								resultSet.add(uuid);
-							}
-
+							String value = constraintValue.getConstraintValueType().equals(ConstraintValueType.VALUE) ? constraintValue.getConstraintValue() : String.join(",", organisationConstraintUtil.getOrganisationConstraintUuids(constraintValue.getConstraintValue()));
+                            resultSet.addAll(Arrays.asList(value.split(",")));
 							break;
 						default:
 							break;
@@ -137,10 +143,9 @@ public class AccessConstraintService {
 				resultSet.add(orgUnit.getUuid());
 			}
 		}
-
 		return new ArrayList<>(resultSet);
 	}
-	
+
 	// do not use from inside large loop, as the filterUsersUserCanEdit is expensive
 	public boolean isUserAccessable(User user, boolean writeAccessRequired) {
 		return (filterUsersUserCanAccess(Collections.singletonList(user), writeAccessRequired).size() > 0);
@@ -283,9 +288,9 @@ public class AccessConstraintService {
 							.getConstraintValues()
 							.stream()
 							.filter(c -> c.getConstraintType().getEntityId().equals(Constants.INTERNAL_ITSYSTEM_CONSTRAINT_ENTITY_ID))
-							.filter(c -> StringUtils.isNotBlank(c.getConstraintValue()))
+							.filter(c -> StringUtils.hasText(c.getConstraintValue()))
 							.toList();
-					
+
 					// at least one RoleAssigner role with no constraints on itSystems, gives full access
 					if (filteredConstraints.isEmpty()) {
 						return null;
@@ -294,7 +299,7 @@ public class AccessConstraintService {
 					// if constrained on itSystems, sum up (could be assigned the role multiple times)
 					for (SystemRoleAssignmentConstraintValue constraintValue : filteredConstraints) {
 						for (String val : constraintValue.getConstraintValue().split(",")) {
-							if (StringUtils.isNumeric(val)) {
+							if (org.apache.commons.lang3.StringUtils.isNumeric(val)) {
 								resultSet.add(Long.parseLong(val));
 							}
 						}
@@ -348,12 +353,12 @@ public class AccessConstraintService {
 
 		return result;
 	}
-	
-	private void getUuidsRecursive(Set<String> uuids, OrgUnit orgUnit) {
+
+	private void getUuidsRecursive(OrgUnit orgUnit, Set<String> uuids) {
 		uuids.add(orgUnit.getUuid());
-		
+
 		for (OrgUnit child : orgUnit.getChildren()) {
-			getUuidsRecursive(uuids, child);
+			getUuidsRecursive(child, uuids);
 		}
 	}
 

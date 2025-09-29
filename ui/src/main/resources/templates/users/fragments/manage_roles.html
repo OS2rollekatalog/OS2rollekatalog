@@ -11,7 +11,8 @@
 				<li><a href="#" data-cid="2" onclick="return dataTablesToggleColumn(this);"><em class="fa fa-fw"></em><span th:text="#{html.enum.assignmenttype}"></span></a></li>
 				<li><a href="#" data-cid="3" onclick="return dataTablesToggleColumn(this);"><em class="fa fa-fw"></em><span th:text="#{html.word.validity}"></span></a></li>
 				<li><a href="#" data-cid="4" onclick="return dataTablesToggleColumn(this);"><em class="fa fa-fw"></em><span th:text="#{html.page.users.manage.assignment.itsystem}"></span></a></li>
-				<li><a href="#" data-cid="5" onclick="return dataTablesToggleColumn(this);"><em class="fa fa-fw"></em><span th:text="#{html.page.users.manage.assignment.description}"></span></a></li>
+                <li><a href="#" data-cid="5" onclick="return dataTablesToggleColumn(this);"><em class="fa fa-fw"></em><span th:text="#{html.page.users.manage.assignment.itsystem.systemRole.weight}"></span></a></li>
+				<li><a href="#" data-cid="6" onclick="return dataTablesToggleColumn(this);"><em class="fa fa-fw"></em><span th:text="#{html.page.users.manage.assignment.description}"></span></a></li>
 				<li th:if="${caseNumberEnabled}"><a href="#" data-cid="6" onclick="return dataTablesToggleColumn(this);"><em class="fa fa-fw"></em><span th:text="#{html.page.users.manage.assignment.caseNumber}"></span></a></li>
 			</ul>
 		</div>
@@ -20,6 +21,18 @@
 			<a href="#" id="addRoleGroupAssignment" class="btn btn-lg btn-primary" th:text="#{html.page.users.manage.roles.add.rolegroup}" onclick="rolesService.loadAddRoleGroupFragment()"></a>
 		</th:block>
 
+        <div class="btn-group" data-toggle="buttons">
+            <label class="btn btn-lg btn-primary" id="inactiveRolesToggle">
+                <input type="checkbox" id="inactiveRolesCheckbox" class="sr-only" autocomplete="off">
+                <em class="fa fa-fw fa-check"></em> 
+                <span id="toggleText" 
+                      th:data-show-text="#{html.page.user.user_roles.show_inactive_roles}"
+                      th:data-hide-text="#{html.page.user.user_roles.hide_inactive_roles}">
+                    [[#{html.page.user.user_roles.hide_inactive_roles}]]
+                </span>
+            </label>
+        </div>
+
 		<div class="form-group" style="margin-top:10px;">
 			<div class="table-responsive">
 				<table id="listTable" class="table table-striped table-hover listTable">
@@ -27,9 +40,10 @@
 						<tr>
 							<th class="col-md-2" th:text="#{html.page.users.manage.assignment.name}"></th>
 							<th class="col-md-1" th:text="#{html.page.users.manage.assignment.postponed}"></th>
-							<th class="col-md-2" th:text="#{html.enum.assignmenttype}"></th>
+							<th class="col-md-1" th:text="#{html.enum.assignmenttype}"></th>
 							<th class="col-md-1" th:text="#{html.word.validity}"></th>
 							<th class="col-md-2" th:text="#{html.page.users.manage.assignment.itsystem}"></th>
+                            <th class="col-md-1" th:text="#{html.page.users.manage.assignment.itsystem.systemRole.weight}"></th>
 							<th class="col-md-2" th:text="#{html.page.users.manage.assignment.description}"></th>
 							<th th:if="${caseNumberEnabled}" class="col-md-1" th:text="#{html.page.users.manage.assignment.caseNumber}"></th>
 							<th class="col-md-1" th:text="#{html.control.operations}"></th>
@@ -38,10 +52,16 @@
 
 					<tbody>
 						<tr th:each="assignment : ${assignments}">
-							<td>
+							<td th:data-status="${assignment.ineffective ? 'inactive' : 'active'}">
 								<span th:text="${assignment.name}"></span>
 								<div th:text="#{__${assignment.type.message}__}" th:style="|font-size: smaller; color: ${(assignment.type.name() == 'NEGATIVE' || assignment.type.name() == 'NEGATIVE_ROLEGROUP') ? 'red' : 'black'};|" th:data-name="${assignment.type}"></div>
-								<div th:if="${assignment.ineffective}" style="font-size: smaller; color: red;" th:text="#{html.page.users.manage.assignment.ineffective}"></div>
+								<div th:if="${assignment.ineffective}" style="font-size: smaller; color: red;"
+									th:text="${assignment.ineffectiveReason == 'NEMLOGIN' 
+												 ? #messages.msg('html.page.users.manage.assignment.ineffective')
+												 : (assignment.ineffectiveReason == 'WEIGHT' 
+                                                 ? #messages.msg('html.page.users.manage.assignment.ineffective') + ' ' + #messages.msg('html.page.users.manage.assignment.ineffective.systemRoleWeight') 
+													  : '')}">
+								</div>
 							</td>
 
 							<td>
@@ -69,6 +89,9 @@
 								<span th:text="${assignment.itSystem?.name}"></span>
 								<span th:if="${assignment.itSystem?.paused == true}" class="badge badge-warning" th:text="#{html.page.itsystem.list.paused}"></span>
 							</td>
+                            <td>
+                                <span th:text="${assignment.highestSystemRoleWeight}"></span>
+                            </td>
 							<td th:text="${assignment.description}"></td>
 							<td th:if="${caseNumberEnabled}" th:text="${assignment.caseNumber}"></td>
 							<td th:attr="data-assignmentid=${assignment.assignmentId}, data-roleid=${assignment.roleId}, data-type=${assignment.type},

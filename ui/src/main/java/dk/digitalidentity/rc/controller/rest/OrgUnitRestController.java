@@ -192,7 +192,7 @@ public class OrgUnitRestController {
 		if (!accessConstraintService.isAssignmentAllowed(ou, role)) {
 			throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Ikke tilladt");
 		}
-		if (ou == null || role == null) {
+		if (ou == null || role == null || role.isReadOnly()) {
 			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
 		}
 
@@ -243,7 +243,7 @@ public class OrgUnitRestController {
 			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
 		}
 
-		if (assignment.getUserRole().getItSystem().getSystemType() == ItSystemType.AD && assignment.getUserRole().getItSystem().isReadonly()) {
+		if (assignment.getUserRole().isReadOnly() || (assignment.getUserRole().getItSystem().getSystemType() == ItSystemType.AD && assignment.getUserRole().getItSystem().isReadonly())) {
 			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
 		}
 

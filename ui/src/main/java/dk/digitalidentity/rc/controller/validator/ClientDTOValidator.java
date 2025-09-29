@@ -32,7 +32,6 @@ public class ClientDTOValidator implements Validator {
 
 	@Override
 	public void validate(Object o, Errors errors) {
-		System.out.println("Validator 1");
 		ClientDTO clientDTO = (ClientDTO) o;
 
 		if (clientDTO.getId() == 0) {
@@ -46,36 +45,29 @@ public class ClientDTOValidator implements Validator {
 				errors.rejectValue("apiKey", "mvc.errors.client.apiKey.invalid");
 			}
 		}
-		System.out.println("Validator 2");
 
 		ValidationUtils.rejectIfEmptyOrWhitespace(errors, "name", "mvc.errors.client.name.required");
 		ValidationUtils.rejectIfEmptyOrWhitespace(errors, "apiKey", "mvc.errors.client.apiKey.required");
 		ValidationUtils.rejectIfEmptyOrWhitespace(errors, "accessRole", "mvc.errors.client.accessRole.required");
-		System.out.println("Validator 4");
 
 		if (clientDTO.getName().length() < 3) {
 			errors.rejectValue("name", "mvc.errors.client.name.length");
 		}
-		System.out.println("Validator 5");
 
 		if (clientDTO.getApiKey().length() < 10) {
 			errors.rejectValue("apiKey", "mvc.errors.client.apiKey.length");
 		}
-		System.out.println("Validator 6");
 
 		if (Arrays.asList(AccessRole.values()).stream().noneMatch(ar -> ar.toString().equals(clientDTO.getAccessRole()))) {
 			errors.rejectValue("accessRole", "mvc.errors.client.accessRole.value");
 		}
-		System.out.println("Validator 7");
 
 		if (Arrays.asList(ClientIntegrationType.values()).stream().noneMatch(c -> c.toString().equals(clientDTO.getIntegration()))) {
 			errors.rejectValue("integration", "mvc.errors.client.integration.value");
 		}
-		System.out.println("Validator 8");
 
 		if (ClientIntegrationType.valueOf(clientDTO.getIntegration()).equals(ClientIntegrationType.AD_SYNC_SERVICE)) {
 			Domain domain = domainService.getByName(clientDTO.getDomain());
-			System.out.println("Validator 9");
 			if (domain == null) {
 				errors.rejectValue("domain", "mvc.errors.client.domain.none");
 			} else {
@@ -85,6 +77,5 @@ public class ClientDTOValidator implements Validator {
 				}
 			}
 		}
-		System.out.println("Validator 10");
 	}
 }

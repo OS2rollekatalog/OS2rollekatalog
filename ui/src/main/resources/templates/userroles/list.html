@@ -113,12 +113,20 @@
 						if (row.pendingSync == true && row.syncFailed == false) {
 							result += '<em class="fa fa-refresh" title="'+ titleSyncing + '"></em> ';
 						}
-						
+
 						if (row.pendingSync == true && row.syncFailed == true) {
 							result += '<em class="fa fa-exclamation-triangle" style="color: red;" title="' + titleFailed + '"></em> ';
 						}
 
 						result += "<span>" + data + "</span>";
+
+						// Add AD group badges
+                        if (row.adGroupNames && row.adGroupNames.length > 0) {
+                            row.adGroupNames.forEach(function(groupName) {
+                                result += ' <span class="badge badge-success" title="AD Gruppe">AD gruppe: ' + groupName + '</span>';
+                            });
+                        }
+
 						return result;
 					}
 				},
@@ -156,9 +164,12 @@
 						if (row.delegatedFromCvr == null) {
 							result += '<a href="' + baseUrl +'ui/userroles/view/' + row.id + '"><em class="fa fa-search"></em></a>';
 							/*[# sec:authorize="hasRole('ROLE_ADMINISTRATOR')" ]*/
-							result += '<a href="' + baseUrl +'ui/userroles/edit/' + row.id + '"><em class="fa fa-pencil"></em></a>';
-							if (row.itSystemType != 'KSPCICS') {
-								result += '<a href="#" class="openConfirmDeleteDialog" data-id="' + row.id + '"><em class="fa fa-remove"></em></a>';
+
+							if (!row.readOnly) {
+                                result += '<a href="' + baseUrl +'ui/userroles/edit/' + row.id + '"><em class="fa fa-pencil"></em></a>';
+                                if (row.itSystemType != 'KSPCICS') {
+                                    result += '<a href="#" class="openConfirmDeleteDialog" data-id="' + row.id + '"><em class="fa fa-remove"></em></a>';
+                                }
 							}
 							/*[/]*/
 						}

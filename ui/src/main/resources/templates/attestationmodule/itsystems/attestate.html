@@ -57,7 +57,7 @@
                                         </table>
                                     </div>
 
-                                    <div class="row m-t-sm">
+                                    <div class="row m-t-sm" th:if="${!openInView}">
                                         <div class="form-group" style="margin-left: 15px;" th:id="'checkboxRow' + ${userRole.roleId}">
                                             <input th:attr="data-id=${userRole.roleId}" type="checkbox" class="i-checks readCheckbox">
                                             <label th:text="#{attestationmodule.html.attestation.controls.approve.read}" style="margin-left: 15px;"></label>
@@ -65,16 +65,18 @@
                                     </div>
 
                                     <div class="row col-lg-12 m-t-sm">
-                                        <button class="approveBtn btn btn-primary col-lg-2" th:id="'approveBtn' + ${userRole.roleId}" th:attr="data-id=${userRole.roleId}, data-number=${userRoleStat.index}" disabled="disabled">
-                                            <em class="fa-fw fa fa-check"></em>
-                                            <span th:text="#{attestationmodule.html.attestation.controls.approve}"></span>
-                                        </button>
-                                        &nbsp;
-                                        <button th:if="${changeRequestsEnabled}" class="rejectBtn btn btn-danger col-lg-2" data-toggle="modal" data-target="#remarkModal" th:id="'rejectBtn' + ${userRole.roleId}" th:attr="data-id=${userRole.roleId}, data-number=${userRoleStat.index}">
-                                            <em class="fa-fw fa fa-ban"></em>
-                                            <span th:text="#{attestationmodule.html.attestation.controls.reject}"></span>
-                                        </button>
-                                        <p style="display: none;" th:id="'alreadyDone' + ${userRole.roleId}" th:text="#{attestationmodule.html.itsystems.attestate.role.done}"></p>
+										<th:block th:if="${!openInView}">
+											<button class="approveBtn btn btn-primary col-lg-2" th:id="'approveBtn' + ${userRole.roleId}" th:attr="data-id=${userRole.roleId}, data-number=${userRoleStat.index}" disabled="disabled">
+												<em class="fa-fw fa fa-check"></em>
+												<span th:text="#{attestationmodule.html.attestation.controls.approve}"></span>
+											</button>
+											&nbsp;
+											<button th:if="${changeRequestsEnabled}" class="rejectBtn btn btn-danger col-lg-2" data-toggle="modal" data-target="#remarkModal" th:id="'rejectBtn' + ${userRole.roleId}" th:attr="data-id=${userRole.roleId}, data-number=${userRoleStat.index}">
+												<em class="fa-fw fa fa-ban"></em>
+												<span th:text="#{attestationmodule.html.attestation.controls.reject}"></span>
+											</button>
+											<p style="display: none;" th:id="'alreadyDone' + ${userRole.roleId}" th:text="#{attestationmodule.html.itsystems.attestate.role.done}"></p>
+										</th:block>
                                         <div class="row ml-auto" style="margin-right: 15px;">
                                             <button class="btn btn-primary btn-back" style="width: 60px" th:attr="data-number=${userRoleStat.index}" th:unless="${userRoleStat.index == 0}">
                                                 <i class="fa fa-chevron-left"></i>

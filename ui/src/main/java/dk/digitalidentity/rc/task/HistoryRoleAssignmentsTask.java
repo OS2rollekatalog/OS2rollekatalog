@@ -18,11 +18,11 @@ public class HistoryRoleAssignmentsTask {
 
 	@Autowired
 	private RoleCatalogueConfiguration configuration;
-	
+
 	@Autowired
 	private HistoryService historyService;
 
-	@Scheduled(cron = "0 #{new java.util.Random().nextInt(55)} 4 * * ?")
+	@Scheduled(cron = "0 #{new java.util.Random().nextInt(55)} 2 * * ?")
 	// enable this to execute script at bootup
 //	@Scheduled(fixedDelay = 24 * 60 * 60 * 1000)
 	public void generateHistory() {
@@ -43,17 +43,14 @@ public class HistoryRoleAssignmentsTask {
 		historyService.generateRoleAssignmentHistory();
 		historyService.generateKleAssignmentHistory();
 		historyService.generateOURoleAssignmentHistory();
-		historyService.generateTitleRoleAssignmentHistory();
-		historyService.generateNegativeTitleRoleAssignmentHistory();
-		historyService.generateExceptedUsersHistory();
 		historyService.generateManagerDelegateHistory();
 
 		// Keep this last, so we can se what dates the generation where successful
 		historyService.generateDate();
-		
+
 		log.info("Generating historic role assignments took " + ((new Date().getTime() - startTime.getTime()) / 1000) + " seconds");
 	}
-	
+
 	@Scheduled(cron = "0 #{new java.util.Random().nextInt(55)} 5 * * ?")
 	public void deleteAncientHistory() {
 		if (!configuration.getScheduled().isEnabled() ||

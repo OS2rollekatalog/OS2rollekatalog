@@ -24,6 +24,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -50,7 +51,7 @@ public class ItSystemService {
 
 	@Autowired
 	private RoleGroupService roleGroupService;
-		
+
 	public List<ItSystem> getAll() {
 		List<ItSystem> result = itSystemDao.findAll();
 		result = filterDeleted(result);
@@ -100,6 +101,17 @@ public class ItSystemService {
 
 	public List<ItSystem> getBySystemType(ItSystemType systemType) {
 		return filterDeleted(itSystemDao.findBySystemType(systemType));
+	}
+
+	@Transactional
+	public List<ItSystem> getBySystemType(ItSystemType systemType, Consumer<ItSystem> consumer) {
+		List<ItSystem> result = itSystemDao.findBySystemType(systemType);
+		
+		if (consumer != null) {
+			result.forEach(consumer);
+		}
+		
+		return result;
 	}
 
 	public List<ItSystem> getBySystemTypeIn(List<ItSystemType> systemTypes) {
@@ -290,16 +302,17 @@ public class ItSystemService {
 	private User findUserForKitosRole(KitosRole kitosRole, ItSystem system, List<User> allUsers) {
 		List<KitosITSystemUser> kitosUsers = system.getKitosITSystem().getKitosUsers().stream()
 				.filter(u -> u.getRole().equals(kitosRole))
-				.collect(Collectors.toList());
+				.toList();
 
 		for (KitosITSystemUser kitosUser : kitosUsers) {
-			User match = allUsers.stream()
-					.filter(u -> kitosUser.getName().equalsIgnoreCase(u.getName()) && kitosUser.getEmail().equalsIgnoreCase(u.getEmail()))
-					.findFirst().orElse(null);
-
-			if (match != null) {
-				return match;
-			}
+            // Match by email, before we match by name to avoid same name troubles
+			return allUsers.stream()
+					.filter(u ->  kitosUser.getEmail().equalsIgnoreCase(u.getEmail()))
+					.findFirst()
+                    .orElseGet(() ->
+                            allUsers.stream()
+                                    .filter(u -> kitosUser.getName().equalsIgnoreCase(u.getName()))
+                                    .findFirst().orElse(null));
 		}
 
 		return null;
@@ -317,5 +330,15 @@ public class ItSystemService {
 			return null;
 		}
 		return itSystem.isDeleted() ? null : itSystem;
+	}
+
+	@Transactional
+	public void saveAll(List<ItSystem> itSystems) {
+		itSystemDao.saveAll(itSystems);
+	}
+
+	@Transactional
+	public void deleteAll(List<ItSystem> itSystems) {
+		itSystemDao.deleteAll(itSystems);
 	}
 }

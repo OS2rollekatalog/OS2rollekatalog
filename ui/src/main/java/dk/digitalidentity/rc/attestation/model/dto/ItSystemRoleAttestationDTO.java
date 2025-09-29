@@ -22,4 +22,5 @@ public class ItSystemRoleAttestationDTO {
 	private LocalDate deadline;
 	private List<ItSystemRoleAssignmentUserDTO> users;
 	private List<ItSystemRoleAssignmentOrgUnitDTO> orgUnits;
+	private LocalDate verifiedAt;
 }

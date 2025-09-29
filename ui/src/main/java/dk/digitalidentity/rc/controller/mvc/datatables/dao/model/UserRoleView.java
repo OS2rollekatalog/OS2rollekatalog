@@ -48,4 +48,7 @@ public class UserRoleView {
 	@Column
 	private String delegatedFromCvr;
 
+	@Column
+	private boolean readOnly;
+
 }

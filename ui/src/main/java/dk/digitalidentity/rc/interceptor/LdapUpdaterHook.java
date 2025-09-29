@@ -1,5 +1,10 @@
 package dk.digitalidentity.rc.interceptor;
 
+import java.util.List;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
+
 import dk.digitalidentity.rc.dao.model.OrgUnit;
 import dk.digitalidentity.rc.dao.model.OrgUnitRoleGroupAssignment;
 import dk.digitalidentity.rc.dao.model.OrgUnitUserRoleAssignment;
@@ -13,11 +18,6 @@ import dk.digitalidentity.rc.service.OrgUnitService;
 import dk.digitalidentity.rc.service.PendingADUpdateService;
 import dk.digitalidentity.rc.service.UserService;
 import dk.digitalidentity.rc.service.model.UserRoleAssignmentWithInfo;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Component;
-
-import java.util.List;
-import java.util.stream.Collectors;
 
 @Component
 public class LdapUpdaterHook implements RoleChangeHook {
@@ -33,14 +33,14 @@ public class LdapUpdaterHook implements RoleChangeHook {
 
 	@Override
 	public void interceptAddRoleGroupAssignmentOnUser(User user, RoleGroup roleGroup) {
-		if (!user.getRoleGroupAssignments().stream().map(ura -> ura.getRoleGroup()).collect(Collectors.toList()).contains(roleGroup)) {
+		if (!user.getRoleGroupAssignments().stream().map(ura -> ura.getRoleGroup()).anyMatch(g -> g.getId() == roleGroup.getId())) {
 			pendingADUpdateService.addRoleGroupToQueue(roleGroup);
 		}
 	}
 
 	@Override
 	public void interceptRemoveRoleGroupAssignmentOnUser(User user, RoleGroup roleGroup) {
-		if (user.getRoleGroupAssignments().stream().map(ura -> ura.getRoleGroup()).collect(Collectors.toList()).contains(roleGroup)) {
+		if (user.getRoleGroupAssignments().stream().map(ura -> ura.getRoleGroup()).anyMatch(g -> g.getId() == roleGroup.getId())) {
 			pendingADUpdateService.addRoleGroupToQueue(roleGroup);
 		}
 	}
@@ -52,10 +52,18 @@ public class LdapUpdaterHook implements RoleChangeHook {
 			pendingADUpdateService.addUserRoleToQueue(assignment.getUserRole());
 		}
 	}
+	
+	@Override
+	public void interceptFlagUserDeleted(User user) {
+		List<UserRoleAssignmentWithInfo> assignments = userService.getAllUserRolesAssignedToUserWithInfo(user, null, true);
+		for (UserRoleAssignmentWithInfo assignment : assignments) {
+			pendingADUpdateService.addUserRoleToQueue(assignment.getUserRole());
+		}
+	}
 
 	@Override
 	public void interceptAddUserRoleAssignmentOnUser(User user, UserRole userRole) {
-		if (!user.getUserRoleAssignments().stream().map(ura -> ura.getUserRole()).collect(Collectors.toList()).contains(userRole)) {
+		if (!user.getUserRoleAssignments().stream().map(ura -> ura.getUserRole()).anyMatch(u -> u.getId() == userRole.getId())) {
 			pendingADUpdateService.addUserRoleToQueue(userRole);
 		}
 	}
@@ -66,7 +74,7 @@ public class LdapUpdaterHook implements RoleChangeHook {
 
 	@Override
 	public void interceptRemoveUserRoleAssignmentOnUser(User user, UserRole userRole) {
-		if (user.getUserRoleAssignments().stream().map(ura -> ura.getUserRole()).collect(Collectors.toList()).contains(userRole)) {
+		if (user.getUserRoleAssignments().stream().map(ura -> ura.getUserRole()).anyMatch(u -> u.getId() == userRole.getId())) {
 			pendingADUpdateService.addUserRoleToQueue(userRole);
 		}
 	}
@@ -91,28 +99,28 @@ public class LdapUpdaterHook implements RoleChangeHook {
 
 	@Override
 	public void interceptAddRoleGroupAssignmentOnPosition(Position position, RoleGroup roleGroup) {
-      	if (!position.getRoleGroupAssignments().stream().map(ura -> ura.getRoleGroup()).collect(Collectors.toList()).contains(roleGroup)) {
+      	if (!position.getRoleGroupAssignments().stream().map(ura -> ura.getRoleGroup()).anyMatch(g -> g.getId() == roleGroup.getId())) {
 			pendingADUpdateService.addRoleGroupToQueue(roleGroup);
 		}
 	}
 
 	@Override
 	public void interceptRemoveRoleGroupAssignmentOnPosition(Position position, RoleGroup roleGroup) {
-      	if (position.getRoleGroupAssignments().stream().map(ura -> ura.getRoleGroup()).collect(Collectors.toList()).contains(roleGroup)) {
+      	if (position.getRoleGroupAssignments().stream().map(ura -> ura.getRoleGroup()).anyMatch(g -> g.getId() == roleGroup.getId())) {
 			pendingADUpdateService.addRoleGroupToQueue(roleGroup);
 		}
 	}
 
 	@Override
 	public void interceptAddUserRoleAssignmentOnPosition(Position position, UserRole userRole) {
-      	if (!position.getUserRoleAssignments().stream().map(ura -> ura.getUserRole()).collect(Collectors.toList()).contains(userRole)) {
+      	if (!position.getUserRoleAssignments().stream().map(ura -> ura.getUserRole()).anyMatch(u -> u.getId() == userRole.getId())) {
 			pendingADUpdateService.addUserRoleToQueue(userRole);
 		}
 	}
 
 	@Override
 	public void interceptRemoveUserRoleAssignmentOnPosition(Position position, UserRole userRole) {
-		if (position.getUserRoleAssignments().stream().map(ura -> ura.getUserRole()).collect(Collectors.toList()).contains(userRole)) {
+		if (position.getUserRoleAssignments().stream().map(ura -> ura.getUserRole()).anyMatch(u -> u.getId() == userRole.getId())) {
 			pendingADUpdateService.addUserRoleToQueue(userRole);
 		}
 	}

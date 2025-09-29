@@ -10,9 +10,6 @@ import dk.digitalidentity.rc.attestation.service.temporal.rowmapper.AttestationS
 import dk.digitalidentity.rc.attestation.service.temporal.rowmapper.AttestationUserRoleAssignmentRowMapper;
 import dk.digitalidentity.rc.attestation.service.temporal.rowmapper.HistoryItSystemRowMapper;
 import dk.digitalidentity.rc.attestation.service.temporal.rowmapper.HistoryOURoleAssignmentRowMapper;
-import dk.digitalidentity.rc.attestation.service.temporal.rowmapper.HistoryOURoleAssignmentWithExceptionsRowMapper;
-import dk.digitalidentity.rc.attestation.service.temporal.rowmapper.HistoryOURoleAssignmentWithNegativeTitlesRowMapper;
-import dk.digitalidentity.rc.attestation.service.temporal.rowmapper.HistoryOURoleAssignmentWithTitlesRowMapper;
 import dk.digitalidentity.rc.attestation.service.temporal.rowmapper.HistoryOURowMapper;
 import dk.digitalidentity.rc.attestation.service.temporal.rowmapper.HistoryOUUserRowMapper;
 import dk.digitalidentity.rc.attestation.service.temporal.rowmapper.HistoryRoleAssignmentRowMapper;
@@ -25,9 +22,6 @@ import dk.digitalidentity.rc.attestation.service.temporal.rowmapper.RowMapperUti
 import dk.digitalidentity.rc.dao.history.model.HistoryItSystem;
 import dk.digitalidentity.rc.dao.history.model.HistoryOU;
 import dk.digitalidentity.rc.dao.history.model.HistoryOURoleAssignment;
-import dk.digitalidentity.rc.dao.history.model.HistoryOURoleAssignmentWithExceptions;
-import dk.digitalidentity.rc.dao.history.model.HistoryOURoleAssignmentWithNegativeTitles;
-import dk.digitalidentity.rc.dao.history.model.HistoryOURoleAssignmentWithTitles;
 import dk.digitalidentity.rc.dao.history.model.HistoryOUUser;
 import dk.digitalidentity.rc.dao.history.model.HistoryRoleAssignment;
 import dk.digitalidentity.rc.dao.history.model.HistorySystemRoleAssignment;
@@ -64,10 +58,7 @@ public class TemporalDao {
     private final HistoryItSystemRowMapper historyItSystemRowMapper = new HistoryItSystemRowMapper();
     private final HistoryRoleAssignmentRowMapper historyRoleAssignmentRowMapper = new HistoryRoleAssignmentRowMapper();
     private final HistoryOURowMapper historyOURowMapper = new HistoryOURowMapper();
-    private final HistoryOURoleAssignmentRowMapper historyOURoleAssignmentRowMapper = new HistoryOURoleAssignmentRowMapper();
-    private final HistoryOURoleAssignmentWithExceptionsRowMapper historyOURoleAssignmentWithExceptionsRowMapper = new HistoryOURoleAssignmentWithExceptionsRowMapper();
-    private final HistoryOURoleAssignmentWithTitlesRowMapper historyOURoleAssignmentWithTitlesRowMapper = new HistoryOURoleAssignmentWithTitlesRowMapper();
-    private final HistoryOURoleAssignmentWithNegativeTitlesRowMapper historyOURoleAssignmentWithNegativeTitlesRowMapper = new HistoryOURoleAssignmentWithNegativeTitlesRowMapper();
+    private final HistoryOURoleAssignmentRowMapper historyOURoleAssignmentNewRowMapper = new HistoryOURoleAssignmentRowMapper();
     private final HistoryOUUserRowMapper historyOUUserRowMapper = new HistoryOUUserRowMapper();
     private final AttestationUserRoleAssignmentRowMapper attestationUserRoleAssignmentRowMapper = new AttestationUserRoleAssignmentRowMapper();
     private final AttestationOuRoleAssignmentRowMapper attestationOuRoleAssignmentRowMapper = new AttestationOuRoleAssignmentRowMapper();
@@ -87,22 +78,44 @@ public class TemporalDao {
         return !foundOus.isEmpty() ? Optional.of(foundOus.getFirst()) : Optional.empty();
     }
 
-
-    public List<HistoryOURoleAssignmentWithExceptions> listHistoryOURoleAssignmentWithExceptionsByDate(final LocalDate when) {
-        return jdbcTemplate.query("SELECT hra.* FROM history_role_assignment_excepted_users hra WHERE hra.dato=?", historyOURoleAssignmentWithExceptionsRowMapper, when);
-    }
-
-    public List<HistoryOURoleAssignmentWithTitles> listHistoryOURoleAssignmentWithTitlesByDate(final LocalDate when) {
-        return jdbcTemplate.query("SELECT hra.* FROM history_role_assignment_titles hra WHERE hra.dato=?", historyOURoleAssignmentWithTitlesRowMapper, when);
-    }
-
-    public List<HistoryOURoleAssignmentWithNegativeTitles> listHistoryOURoleAssignmentWithNegativeTitlesByDate(final LocalDate when) {
-        return jdbcTemplate.query("SELECT hra.* FROM history_role_assignment_negative_titles hra WHERE hra.dato=?", historyOURoleAssignmentWithNegativeTitlesRowMapper, when);
-    }
+    // Roles assigned to OrgUnits
 
     public List<HistoryOURoleAssignment> listHistoryOURoleAssignmentsByDate(final LocalDate when) {
-        return jdbcTemplate.query("SELECT hra.* FROM history_ou_role_assignments hra WHERE hra.dato=?", historyOURoleAssignmentRowMapper, when);
+        String sql = """
+            SELECT 
+                hra.id AS assignment_id,
+                hra.dato,
+                hra.ou_uuid,
+                hra.role_id,
+                hra.role_name,
+                hra.role_it_system_id,
+                hra.role_it_system_name,
+                hra.role_role_group,
+                hra.assigned_through_type,
+                hra.assigned_through_uuid,
+                hra.assigned_through_name,
+                hra.role_role_group_id,
+                hra.inherit,
+                hra.assigned_by_user_id,
+                hra.assigned_by_name,
+                hra.assigned_when,
+                hra.start_date,
+                hra.stop_date,
+                e.id AS exclusion_id,
+                e.exclusion_type,
+                e.user_uuids,
+                e.title_uuids
+            FROM history_ou_role_assignments hra
+            LEFT JOIN history_ou_role_assignment_exclusions e
+                   ON hra.id = e.assignment_id
+            WHERE hra.dato = ?
+            ORDER BY hra.id
+        """;
+
+        return jdbcTemplate.query(sql, historyOURoleAssignmentNewRowMapper, when);
     }
+    
+    // Roles assigned to Users
 
     public List<HistoryRoleAssignment> listHistoryRoleAssignmentsByItSystemAndDate(final LocalDate when, final long itSystemId) {
         return jdbcTemplate.query("SELECT hra.* FROM history_role_assignments hra WHERE hra.dato=? AND hra.role_it_system_id=?", historyRoleAssignmentRowMapper, when, itSystemId);

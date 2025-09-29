@@ -29,6 +29,7 @@
 											<input th:attr="data-id=${notificationtype}" class="notificationtypeCbx" type="checkbox" th:checked="${@settingsService.isNotificationTypeEnabled(notificationtype)}" />
 											<span class="fa fa-check"></span>
 										</label>
+										<a th:replace="~{fragments/help :: help (title=#{__${notificationtype.getHelpTitle()}__}, content=#{__${notificationtype.getHelpBody()}__})}"></a>
 									</span>
 								</div>
 								<input th:id="${notificationtype}" th:value="${@settingsService.isNotificationTypeEnabled(notificationtype)}" style="display: none;"/>
