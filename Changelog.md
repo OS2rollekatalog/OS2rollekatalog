@@ -1,3 +1,22 @@
+2025.09.29 - Release 2025r3
+- [ROL-397](https://os2web.atlassian.net/browse/ROL-397) Udvide NemLog-in rollestyring med organisations-rettigheder
+- [ROL-444](https://os2web.atlassian.net/browse/ROL-444) Attessteringsadministrator bør kunne se/læse alle attesteringerne
+- [ROL-446](https://os2web.atlassian.net/browse/ROL-446) Advis: En bruger med direkte tildelte rettigheder har skiftet afdeling
+- [ROL-447](https://os2web.atlassian.net/browse/ROL-447) Attestering: visning af dato for gennemførsel af attestering
+- [ROL-448](https://os2web.atlassian.net/browse/ROL-448) Vil det være muligt at få kontakt e-mail på JFR?
+- [ROL-456](https://os2web.atlassian.net/browse/ROL-456) OS2kitos integration - Rapport
+- [ROL-452](https://os2web.atlassian.net/browse/ROL-452) Øvrige informationer ved notifikation på IT-system (simpel integration)
+- [ROL-468](https://os2web.atlassian.net/browse/ROL-468) Mere overskuelig anmod/godkend opsætning
+- [ROL-367](https://os2web.atlassian.net/browse/ROL-367) Brugersystemroller: Udvælg enheder, med nedarvning
+- [ROL-382](https://os2web.atlassian.net/browse/ROL-382) Undtage personer selvom stillinger er markeret
+- [ROL-457](https://os2web.atlassian.net/browse/ROL-457) Styrke': der vises kun den rolle med gennemslag pga styrke
+- [ROL-466](https://os2web.atlassian.net/browse/ROL-466) Mulighed for at definere egne genveje
+- [ROL-469](https://os2web.atlassian.net/browse/ROL-469) Sikring af forudsætninger ved tildeling af MS Licens AD-grupper
+- [ROL-470](https://os2web.atlassian.net/browse/ROL-470) Beskrivende tekster
+- [ROL-472](https://os2web.atlassian.net/browse/ROL-472) ADSyncService \ IT-systemGroup: Forbedring/forsimpling af interface
+- [ROL-473](https://os2web.atlassian.net/browse/ROL-473) ADSyncService - håndtering af spærrede AD konti
+- [ROL-475](https://os2web.atlassian.net/browse/ROL-475) Mulighed for at slå automatisk enhedsniveau til.
+
 2025.06.25 - Release 2025r2
 - [ROL-362](https://os2web.atlassian.net/browse/ROL-362) AD-integration: Benytte "Noter" i stedet for "Beskrivelse"
 - [ROL-391](https://os2web.atlassian.net/browse/ROL-391) Opdatering af driftsdokumentation
