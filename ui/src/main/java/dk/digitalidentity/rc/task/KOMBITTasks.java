@@ -35,6 +35,8 @@ public class KOMBITTasks {
 
 			if (itSystemService.getBySystemType(ItSystemType.KOMBIT).size() <= 1) {
 				kombitService.readAndUpdateItSystems();
+				
+				kombitService.readExistingJobfunctionRoles();
 			}
 		}
 	}
@@ -43,6 +45,7 @@ public class KOMBITTasks {
 	public void importItSystems() {
 		if (initialized) {
 			kombitService.readAndUpdateItSystems();
+			kombitService.readExistingJobfunctionRoles();
 		}
 	}
 	
@@ -54,7 +57,7 @@ public class KOMBITTasks {
 		}
 	}
 
-	@Scheduled(cron = "#{new java.util.Random().nextInt(59)} 0/15 * * * *")
+	@Scheduled(cron = "#{new java.util.Random().nextInt(59)} 0/15 6-17 * * ?")
 	public void synchronizeTest() {
 		if (!configuration.getScheduled().isEnabled() || !configuration.getIntegrations().getKombit().isTestEnabled()) {
 			return;

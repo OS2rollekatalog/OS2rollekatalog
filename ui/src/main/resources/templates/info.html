@@ -55,11 +55,17 @@
 						<li><a th:href="@{/download/substituteApi.pdf}" th:text="#{html.page.info.substitute.api.pdf}"></a></li>
 						<li><a th:href="@{/download/auditlog-api.pdf}" th:text="#{html.page.info.auditlog.api.pdf}"></a></li>
 					</ul>
+					<h3 th:text="#{html.page.info.swagger.header}"></h3>
+					<p th:text="#{html.page.info.swagger.paragraph}"></p>
+					<ul>
+						<li><a th:href="@{/swagger-ui/index.html}" th:text="#{html.page.info.swagger.link}"></a></li>
+					</ul>
 
 					<h3 th:text="#{html.page.info.version.header}"></h3>
 					<span th:text="#{html.page.info.version.version} + ': ' + ${releaseVersion}"></span><br/>
 					<span th:text="#{html.page.info.version.buildId} + ': ' + ${gitCommitId}"></span><br/>
 					<span th:text="#{html.page.info.version.buildTime} + ': ' + ${gitBuildTime}"></span>
+
 				</div>
 			</div>
 	    </section>

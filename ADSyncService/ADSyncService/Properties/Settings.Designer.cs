@@ -12,7 +12,7 @@ namespace ADSyncService.Properties {
     
     
     [global::System.Runtime.CompilerServices.CompilerGeneratedAttribute()]
-    [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.VisualStudio.Editors.SettingsDesigner.SettingsSingleFileGenerator", "17.9.0.0")]
+    [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.VisualStudio.Editors.SettingsDesigner.SettingsSingleFileGenerator", "17.14.0.0")]
     internal sealed partial class Settings : global::System.Configuration.ApplicationSettingsBase {
         
         private static Settings defaultInstance = ((Settings)(global::System.Configuration.ApplicationSettingsBase.Synchronized(new Settings())));
@@ -34,10 +34,37 @@ namespace ADSyncService.Properties {
         
         [global::System.Configuration.ApplicationScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("https://kommune.rollekatalog.dk")]
+        public string ApiUrl {
+            get {
+                return ((string)(this["ApiUrl"]));
+            }
+        }
+        
+        [global::System.Configuration.ApplicationScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
         [global::System.Configuration.DefaultSettingValueAttribute("Test1234")]
         public string ApiKey {
             get {
                 return ((string)(this["ApiKey"]));
+            }
+        }
+        
+        [global::System.Configuration.ApplicationScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("Administrativt")]
+        public string Domain {
+            get {
+                return ((string)(this["Domain"]));
+            }
+        }
+        
+        [global::System.Configuration.ApplicationScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("False")]
+        public bool RemoteConfiguration_Enabled {
+            get {
+                return ((bool)(this["RemoteConfiguration_Enabled"]));
             }
         }
         
@@ -52,10 +79,37 @@ namespace ADSyncService.Properties {
         
         [global::System.Configuration.ApplicationScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("False")]
+        public bool CreateDeleteFeature_CreateEnabled {
+            get {
+                return ((bool)(this["CreateDeleteFeature_CreateEnabled"]));
+            }
+        }
+        
+        [global::System.Configuration.ApplicationScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("False")]
+        public bool CreateDeleteFeature_DeleteEnabled {
+            get {
+                return ((bool)(this["CreateDeleteFeature_DeleteEnabled"]));
+            }
+        }
+        
+        [global::System.Configuration.ApplicationScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
         [global::System.Configuration.DefaultSettingValueAttribute("OU=groups,DC=digitalidentity,DC=dk")]
         public string CreateDeleteFeature_OU {
             get {
                 return ((string)(this["CreateDeleteFeature_OU"]));
+            }
+        }
+        
+        [global::System.Configuration.ApplicationScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("True")]
+        public bool MembershipSyncFeature_Enabled {
+            get {
+                return ((bool)(this["MembershipSyncFeature_Enabled"]));
             }
         }
         
@@ -70,6 +124,44 @@ namespace ADSyncService.Properties {
         
         [global::System.Configuration.ApplicationScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("True")]
+        public bool MembershipSyncFeature_IgnoreUsersWithoutCpr {
+            get {
+                return ((bool)(this["MembershipSyncFeature_IgnoreUsersWithoutCpr"]));
+            }
+        }
+        
+        [global::System.Configuration.ApplicationScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("<?xml version=\"1.0\" encoding=\"utf-16\"?>\r\n<ArrayOfString xmlns:xsd=\"http://www.w3." +
+            "org/2001/XMLSchema\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\">\r\n  <s" +
+            "tring>someGroupName;someAttribute;someAttributeValue</string>\r\n</ArrayOfString>")]
+        public global::System.Collections.Specialized.StringCollection MembershipSyncFeature_AttributeMap {
+            get {
+                return ((global::System.Collections.Specialized.StringCollection)(this["MembershipSyncFeature_AttributeMap"]));
+            }
+        }
+        
+        [global::System.Configuration.ApplicationScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("False")]
+        public bool FullMembershipSyncFeature_Enabled {
+            get {
+                return ((bool)(this["FullMembershipSyncFeature_Enabled"]));
+            }
+        }
+        
+        [global::System.Configuration.ApplicationScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("0 0 5-23 ? * *")]
+        public string FullMembershipSyncFeature_Cron {
+            get {
+                return ((string)(this["FullMembershipSyncFeature_Cron"]));
+            }
+        }
+        
+        [global::System.Configuration.ApplicationScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
         [global::System.Configuration.DefaultSettingValueAttribute("False")]
         public bool BackSyncFeature_Enabled {
             get {
@@ -79,10 +171,74 @@ namespace ADSyncService.Properties {
         
         [global::System.Configuration.ApplicationScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("name")]
+        public string BackSyncFeature_NameAttribute {
+            get {
+                return ((string)(this["BackSyncFeature_NameAttribute"]));
+            }
+        }
+        
+        [global::System.Configuration.ApplicationScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("False")]
+        public bool BackSyncFeature_GroupsInGroupOnSync {
+            get {
+                return ((bool)(this["BackSyncFeature_GroupsInGroupOnSync"]));
+            }
+        }
+        
+        [global::System.Configuration.ApplicationScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("False")]
+        public bool BackSyncFeature_CreateUserRoles {
+            get {
+                return ((bool)(this["BackSyncFeature_CreateUserRoles"]));
+            }
+        }
+        
+        [global::System.Configuration.ApplicationScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute(@"<?xml version=""1.0"" encoding=""utf-16""?>
+<ArrayOfString xmlns:xsd=""http://www.w3.org/2001/XMLSchema"" xmlns:xsi=""http://www.w3.org/2001/XMLSchema-instance"">
+  <string>2399;OU=system1,OU=Groups,DC=digitalidentity,DC=dk</string>
+  <string>2400;OU=system2,OU=Groups,DC=digitalidentity,DC=dk</string>
+</ArrayOfString>")]
+        public global::System.Collections.Specialized.StringCollection BackSyncFeature_OUs {
+            get {
+                return ((global::System.Collections.Specialized.StringCollection)(this["BackSyncFeature_OUs"]));
+            }
+        }
+        
+        [global::System.Configuration.ApplicationScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
         [global::System.Configuration.DefaultSettingValueAttribute("False")]
         public bool ItSystemGroupFeature_Enabled {
             get {
                 return ((bool)(this["ItSystemGroupFeature_Enabled"]));
+            }
+        }
+        
+        [global::System.Configuration.ApplicationScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("<?xml version=\"1.0\" encoding=\"utf-16\"?>\r\n<ArrayOfString xmlns:xsd=\"http://www.w3." +
+            "org/2001/XMLSchema\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\">\r\n  <s" +
+            "tring>1;CN=ItSystemOne,OU=Groups,DC=digitalidentity,DC=dk</string>\r\n</ArrayOfStr" +
+            "ing>")]
+        public global::System.Collections.Specialized.StringCollection ItSystemGroupFeature_SystemMap {
+            get {
+                return ((global::System.Collections.Specialized.StringCollection)(this["ItSystemGroupFeature_SystemMap"]));
+            }
+        }
+        
+        [global::System.Configuration.ApplicationScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("<?xml version=\"1.0\" encoding=\"utf-16\"?>\r\n<ArrayOfString xmlns:xsd=\"http://www.w3." +
+            "org/2001/XMLSchema\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\">\r\n  <s" +
+            "tring>1;CN=ItSystemOne,OU=Groups,DC=digitalidentity,DC=dk</string>\r\n</ArrayOfStr" +
+            "ing>")]
+        public global::System.Collections.Specialized.StringCollection ItSystemGroupFeature_RoleMap {
+            get {
+                return ((global::System.Collections.Specialized.StringCollection)(this["ItSystemGroupFeature_RoleMap"]));
             }
         }
         
@@ -98,18 +254,31 @@ namespace ADSyncService.Properties {
         [global::System.Configuration.ApplicationScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
         [global::System.Configuration.DefaultSettingValueAttribute("")]
-        public string ItSystemGroupFeature_Cron {
+        public string ReadonlyItSystemFeature_NameAttribute {
             get {
-                return ((string)(this["ItSystemGroupFeature_Cron"]));
+                return ((string)(this["ReadonlyItSystemFeature_NameAttribute"]));
             }
         }
         
         [global::System.Configuration.ApplicationScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("False")]
-        public bool BackSyncFeature_GroupsInGroupOnSync {
+        [global::System.Configuration.DefaultSettingValueAttribute(@"<?xml version=""1.0"" encoding=""utf-16""?>
+<ArrayOfString xmlns:xsd=""http://www.w3.org/2001/XMLSchema"" xmlns:xsi=""http://www.w3.org/2001/XMLSchema-instance"">
+  <string>2408;OU=subgroup1,OU=groups,DC=digitalidentity,DC=dk</string>
+  <string>2409;OU=subgroup2,OU=groups,DC=digitalidentity,DC=dk</string>
+</ArrayOfString>")]
+        public global::System.Collections.Specialized.StringCollection ReadonlyItSystemFeature_SystemMap {
             get {
-                return ((bool)(this["BackSyncFeature_GroupsInGroupOnSync"]));
+                return ((global::System.Collections.Specialized.StringCollection)(this["ReadonlyItSystemFeature_SystemMap"]));
+            }
+        }
+        
+        [global::System.Configuration.ApplicationScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("")]
+        public string ItSystemGroupFeature_Cron {
+            get {
+                return ((string)(this["ItSystemGroupFeature_Cron"]));
             }
         }
         
@@ -187,51 +356,6 @@ namespace ADSyncService.Properties {
         
         [global::System.Configuration.ApplicationScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("https://kommune.rollekatalog.dk")]
-        public string ApiUrl {
-            get {
-                return ((string)(this["ApiUrl"]));
-            }
-        }
-        
-        [global::System.Configuration.ApplicationScopedSettingAttribute()]
-        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("False")]
-        public bool CreateDeleteFeature_CreateEnabled {
-            get {
-                return ((bool)(this["CreateDeleteFeature_CreateEnabled"]));
-            }
-        }
-        
-        [global::System.Configuration.ApplicationScopedSettingAttribute()]
-        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("False")]
-        public bool CreateDeleteFeature_DeleteEnabled {
-            get {
-                return ((bool)(this["CreateDeleteFeature_DeleteEnabled"]));
-            }
-        }
-        
-        [global::System.Configuration.ApplicationScopedSettingAttribute()]
-        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("False")]
-        public bool MembershipSyncFeature_IgnoreUsersWithoutCpr {
-            get {
-                return ((bool)(this["MembershipSyncFeature_IgnoreUsersWithoutCpr"]));
-            }
-        }
-        
-        [global::System.Configuration.ApplicationScopedSettingAttribute()]
-        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("False")]
-        public bool BackSyncFeature_CreateUserRoles {
-            get {
-                return ((bool)(this["BackSyncFeature_CreateUserRoles"]));
-            }
-        }
-        
-        [global::System.Configuration.ApplicationScopedSettingAttribute()]
-        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
         [global::System.Configuration.DefaultSettingValueAttribute("sendinguser@email")]
         public string User {
             get {
@@ -286,33 +410,6 @@ namespace ADSyncService.Properties {
         
         [global::System.Configuration.ApplicationScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("Administrativt")]
-        public string Domain {
-            get {
-                return ((string)(this["Domain"]));
-            }
-        }
-        
-        [global::System.Configuration.ApplicationScopedSettingAttribute()]
-        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("")]
-        public string ReadonlyItSystemFeature_NameAttribute {
-            get {
-                return ((string)(this["ReadonlyItSystemFeature_NameAttribute"]));
-            }
-        }
-        
-        [global::System.Configuration.ApplicationScopedSettingAttribute()]
-        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("0 0 5-23 ? * *")]
-        public string FullMembershipSyncFeature_Cron {
-            get {
-                return ((string)(this["FullMembershipSyncFeature_Cron"]));
-            }
-        }
-        
-        [global::System.Configuration.ApplicationScopedSettingAttribute()]
-        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
         [global::System.Configuration.DefaultSettingValueAttribute("False")]
         public bool IncludeNotesInDescription {
             get {
@@ -322,98 +419,30 @@ namespace ADSyncService.Properties {
         
         [global::System.Configuration.ApplicationScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("False")]
-        public bool RemoteConfiguration_Enabled {
+        [global::System.Configuration.DefaultSettingValueAttribute("<?xml version=\"1.0\" encoding=\"utf-16\"?>\r\n<ArrayOfString xmlns:xsd=\"http://www.w3." +
+            "org/2001/XMLSchema\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\">\r\n  <s" +
+            "tring>someGroupName;someAttribute;someFilterValue</string>\r\n</ArrayOfString>")]
+        public global::System.Collections.Specialized.StringCollection MembershipSyncFeature_FilterMap {
             get {
-                return ((bool)(this["RemoteConfiguration_Enabled"]));
-            }
-        }
-        
-        [global::System.Configuration.ApplicationScopedSettingAttribute()]
-        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("True")]
-        public bool MembershipSyncFeature_Enabled {
-            get {
-                return ((bool)(this["MembershipSyncFeature_Enabled"]));
+                return ((global::System.Collections.Specialized.StringCollection)(this["MembershipSyncFeature_FilterMap"]));
             }
         }
         
         [global::System.Configuration.ApplicationScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
         [global::System.Configuration.DefaultSettingValueAttribute("False")]
-        public bool FullMembershipSyncFeature_Enabled {
+        public bool MembershipSyncFeature_DoNotRegisterDisabledUsers {
             get {
-                return ((bool)(this["FullMembershipSyncFeature_Enabled"]));
+                return ((bool)(this["MembershipSyncFeature_DoNotRegisterDisabledUsers"]));
             }
         }
         
         [global::System.Configuration.ApplicationScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("name")]
-        public string BackSyncFeature_NameAttribute {
+        [global::System.Configuration.DefaultSettingValueAttribute("False")]
+        public bool ItSystemGroupFeature_DoNotRegisterDisabledUsers {
             get {
-                return ((string)(this["BackSyncFeature_NameAttribute"]));
-            }
-        }
-        
-        [global::System.Configuration.ApplicationScopedSettingAttribute()]
-        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("<?xml version=\"1.0\" encoding=\"utf-16\"?>\r\n<ArrayOfString xmlns:xsd=\"http://www.w3." +
-            "org/2001/XMLSchema\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\">\r\n  <s" +
-            "tring>someGroupName;someAttribute;someAttributeValue</string>\r\n</ArrayOfString>")]
-        public global::System.Collections.Specialized.StringCollection MembershipSyncFeature_AttributeMap {
-            get {
-                return ((global::System.Collections.Specialized.StringCollection)(this["MembershipSyncFeature_AttributeMap"]));
-            }
-        }
-        
-        [global::System.Configuration.ApplicationScopedSettingAttribute()]
-        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute(@"<?xml version=""1.0"" encoding=""utf-16""?>
-<ArrayOfString xmlns:xsd=""http://www.w3.org/2001/XMLSchema"" xmlns:xsi=""http://www.w3.org/2001/XMLSchema-instance"">
-  <string>2399;OU=system1,OU=Groups,DC=digitalidentity,DC=dk</string>
-  <string>2400;OU=system2,OU=Groups,DC=digitalidentity,DC=dk</string>
-</ArrayOfString>")]
-        public global::System.Collections.Specialized.StringCollection BackSyncFeature_OUs {
-            get {
-                return ((global::System.Collections.Specialized.StringCollection)(this["BackSyncFeature_OUs"]));
-            }
-        }
-        
-        [global::System.Configuration.ApplicationScopedSettingAttribute()]
-        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("<?xml version=\"1.0\" encoding=\"utf-16\"?>\r\n<ArrayOfString xmlns:xsd=\"http://www.w3." +
-            "org/2001/XMLSchema\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\">\r\n  <s" +
-            "tring>1;CN=ItSystemOne,OU=Groups,DC=digitalidentity,DC=dk</string>\r\n</ArrayOfStr" +
-            "ing>")]
-        public global::System.Collections.Specialized.StringCollection ItSystemGroupFeature_SystemMap {
-            get {
-                return ((global::System.Collections.Specialized.StringCollection)(this["ItSystemGroupFeature_SystemMap"]));
-            }
-        }
-        
-        [global::System.Configuration.ApplicationScopedSettingAttribute()]
-        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("<?xml version=\"1.0\" encoding=\"utf-16\"?>\r\n<ArrayOfString xmlns:xsd=\"http://www.w3." +
-            "org/2001/XMLSchema\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\">\r\n  <s" +
-            "tring>1;CN=ItSystemOne,OU=Groups,DC=digitalidentity,DC=dk</string>\r\n</ArrayOfStr" +
-            "ing>")]
-        public global::System.Collections.Specialized.StringCollection ItSystemGroupFeature_RoleMap {
-            get {
-                return ((global::System.Collections.Specialized.StringCollection)(this["ItSystemGroupFeature_RoleMap"]));
-            }
-        }
-        
-        [global::System.Configuration.ApplicationScopedSettingAttribute()]
-        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute(@"<?xml version=""1.0"" encoding=""utf-16""?>
-<ArrayOfString xmlns:xsd=""http://www.w3.org/2001/XMLSchema"" xmlns:xsi=""http://www.w3.org/2001/XMLSchema-instance"">
-  <string>2408;OU=subgroup1,OU=groups,DC=digitalidentity,DC=dk</string>
-  <string>2409;OU=subgroup2,OU=groups,DC=digitalidentity,DC=dk</string>
-</ArrayOfString>")]
-        public global::System.Collections.Specialized.StringCollection ReadonlyItSystemFeature_SystemMap {
-            get {
-                return ((global::System.Collections.Specialized.StringCollection)(this["ReadonlyItSystemFeature_SystemMap"]));
+                return ((bool)(this["ItSystemGroupFeature_DoNotRegisterDisabledUsers"]));
             }
         }
     }

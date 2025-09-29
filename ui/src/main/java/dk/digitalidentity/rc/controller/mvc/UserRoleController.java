@@ -326,7 +326,7 @@ public class UserRoleController {
 	@GetMapping(value = "/ui/userroles/edit/{id}")
 	public String editGet(Model model, @PathVariable("id") long id) {
 		UserRole role = userRoleService.getById(id);
-		if (role == null) {
+		if (role == null || role.isReadOnly()) {
 			return "redirect:../list";
 		}
 		

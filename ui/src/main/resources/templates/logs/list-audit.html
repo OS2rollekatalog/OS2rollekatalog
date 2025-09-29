@@ -14,7 +14,7 @@
 
 				<div class="panel panel-default">
 					<div class="panel-heading">
-						<a th:href="@{/ui/logs/audit/download}" class="btn btn-primary btn-lg">
+						<a id="downloadBtn" class="btn btn-primary btn-lg">
 							<em class="fa fa-fw fa-download"></em> &nbsp;
 							<span th:text="#{html.word.download}"></span>
 						</a>
@@ -58,11 +58,42 @@
 			var prevTxt = [[#{html.datatables.prev}]];
 			var nextTxt = [[#{html.datatables.next}]];
 			var ajaxUrl = [[@{/rest/logs/audit}]];
+			const auditLogDownloadUrl = [[@{/ui/logs/audit/download}]];
 		+]*/
 
 		var auditLogTable;
 
 		$(document).ready(function() {
+
+			$('#downloadBtn').on('click', function () {
+				const $btn = $(this);
+				$btn.prop('disabled', true).text('Downloader...');
+
+				$.ajax({
+					url: auditLogDownloadUrl,
+					method: 'GET',
+					xhrFields: {
+						responseType: 'blob'
+					},
+					success: function (data, status, xhr) {
+						const contentType = xhr.getResponseHeader('Content-Type') || 'application/octet-stream';
+						const blob = new Blob([data], { type: contentType });
+						const url = URL.createObjectURL(blob);
+
+						const a = document.createElement('a');
+						a.href = url;
+						a.download = 'auditlog.xlsx';
+						document.body.appendChild(a);
+						a.click();
+						document.body.removeChild(a);
+						URL.revokeObjectURL(url);
+					},
+					error: errorHandler("Fejl ved download"),
+					complete: () => {
+						$btn.prop('disabled', false).text('Download Excel');
+					}
+				});
+			});
 
 			auditLogTable = $('.listTable').DataTable({
 				destroy: true,

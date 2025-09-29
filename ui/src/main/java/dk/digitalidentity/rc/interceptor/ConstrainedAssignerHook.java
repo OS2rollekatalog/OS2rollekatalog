@@ -1,5 +1,8 @@
 package dk.digitalidentity.rc.interceptor;
 
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
+
 import dk.digitalidentity.rc.dao.model.OrgUnit;
 import dk.digitalidentity.rc.dao.model.Position;
 import dk.digitalidentity.rc.dao.model.RoleGroup;
@@ -9,8 +12,6 @@ import dk.digitalidentity.rc.dao.model.UserRole;
 import dk.digitalidentity.rc.dao.model.UserUserRoleAssignment;
 import dk.digitalidentity.rc.security.AccessConstraintService;
 import dk.digitalidentity.rc.security.SecurityUtil;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Component;
 
 @Component
 public class ConstrainedAssignerHook implements RoleChangeHook {
@@ -34,6 +35,11 @@ public class ConstrainedAssignerHook implements RoleChangeHook {
 	
 	@Override
 	public void interceptActivateUser(User user) {
+		; // not relevant
+	}
+	
+	@Override
+	public void interceptFlagUserDeleted(User user) {
 		; // not relevant
 	}
 

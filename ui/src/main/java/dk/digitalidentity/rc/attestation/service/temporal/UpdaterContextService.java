@@ -76,10 +76,14 @@ public final class UpdaterContextService {
         private HistoryUser historyUser;
 
         public String roleName() {
-            return currentRole != null ? currentRole.getName() : historyRole.getUserRoleName();
+            return currentRole != null
+                    ? currentRole.getName()
+                    : (historyRole != null ? historyRole.getUserRoleName() : "");
         }
         public String roleDescription() {
-            return currentRole != null ? currentRole.getDescription() : historyRole.getUserRoleDescription();
+            return currentRole != null
+                    ? currentRole.getDescription()
+                    : (historyRole.getUserRoleDescription() != null ? historyRole.getUserRoleDescription() : "");
         }
 
         public boolean isRoleSensitive() {

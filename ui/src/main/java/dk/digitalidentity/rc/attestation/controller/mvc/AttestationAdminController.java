@@ -80,13 +80,23 @@ public class AttestationAdminController {
     @Transactional
     @GetMapping(value = "/ui/attestation/v2/admin/details/{attestationId}")
     public String ouDetails(final Model model, final @PathVariable("attestationId") Long attestationId) {
+        boolean attestationAdminOrAdmin = SecurityUtil.isAttestationAdminOrAdmin();
+        Attestation attestation = attestationAdminService.getAttestation(attestationId).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
         final AdminAttestationDetailsDTO attestationDetails = manualTransactionService.doInReadOnlyTransaction(() -> {
-            final Attestation attestation = attestationAdminService.getAttestation(attestationId).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
             final AdminAttestationDetailsDTO details = attestationAdminService.findAttestationDetails(attestation);
             model.addAttribute("attestationDetails", details);
             model.addAttribute("color", adminColorForOverview(attestation, details.getOverview()));
+            model.addAttribute("isAttestationAdmin", attestationAdminOrAdmin);
+            if (attestationAdminOrAdmin && details.getAttestationType() != Attestation.AttestationType.IT_SYSTEM_ATTESTATION) {
+                model.addAttribute("uuid", attestation.getResponsibleOuUuid());
+            }
             return details;
         });
+        // parse it directly instead of trying to resolve a nested enum in thymeleaf
+        model.addAttribute("isItSystemAttestation", attestationDetails.getAttestationType() == Attestation.AttestationType.IT_SYSTEM_ATTESTATION);
+        if (attestationAdminOrAdmin && (attestationDetails.getAttestationType() == Attestation.AttestationType.IT_SYSTEM_ATTESTATION || attestationDetails.getAttestationType() == Attestation.AttestationType.IT_SYSTEM_ROLES_ATTESTATION)) {
+            model.addAttribute("uuid", attestation.getItSystemId());
+        }
         if (attestationDetails.getAttestationType() == Attestation.AttestationType.IT_SYSTEM_ROLES_ATTESTATION) {
             return "attestationmodule/admin/details_roles";
         }

@@ -1,5 +1,9 @@
 package dk.digitalidentity.rc.interceptor;
 
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
+import org.springframework.util.StringUtils;
+
 import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
 import dk.digitalidentity.rc.dao.model.OrgUnit;
 import dk.digitalidentity.rc.dao.model.Position;
@@ -10,9 +14,6 @@ import dk.digitalidentity.rc.dao.model.UserRole;
 import dk.digitalidentity.rc.dao.model.UserUserRoleAssignment;
 import dk.digitalidentity.rc.dao.model.enums.ItSystemType;
 import dk.digitalidentity.rc.service.nemlogin.NemLoginService;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Component;
-import org.springframework.util.StringUtils;
 
 @Component
 public class NemLoginUpdaterHook implements RoleChangeHook {
@@ -45,6 +46,13 @@ public class NemLoginUpdaterHook implements RoleChangeHook {
 			nemLoginService.addUserToQueue(user);
 		}
 	}
+	
+	@Override
+	public void interceptFlagUserDeleted(User user) {
+		if (enabled && StringUtils.hasLength(user.getNemloginUuid())) {
+			nemLoginService.addUserToQueue(user);
+		}
+	}
 
 	@Override
 	public void interceptAddUserRoleAssignmentOnUser(User user, UserRole userRole) {
@@ -70,7 +78,6 @@ public class NemLoginUpdaterHook implements RoleChangeHook {
 	@Override
 	public void interceptAddPositionOnUser(User user, Position position) {
 		if (enabled && StringUtils.hasLength(user.getNemloginUuid())) {
-			System.out.println("uuid = " + user.getUuid());
 			nemLoginService.addUserToQueue(user);
 		}
 	}

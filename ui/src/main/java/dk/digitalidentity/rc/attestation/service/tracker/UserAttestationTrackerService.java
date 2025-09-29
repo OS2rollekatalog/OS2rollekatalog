@@ -34,6 +34,7 @@ import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -147,6 +148,7 @@ public class UserAttestationTrackerService {
 			ouAssignmentsDao.findValidGroupByResponsibleOuUuidAndSensitiveRole(when).stream()
 					.filter(a -> shouldIncludeInAttestation(a.getResponsibleOuUuid(), exemptedOus, optedInOus))
 				.filter(a -> !cachedItSystemService.isItSystemExempt(a.getItSystemId()))
+				.filter(a -> !a.isInherited() )
 				.forEach(a -> {
 					Set<String> delegatedManagersUuid = managersForEachDelegatedOrgUnit.get(a.getResponsibleOuUuid());
 					if (delegatedManagersUuid != null && !delegatedManagersUuid.isEmpty()) {
@@ -173,27 +175,34 @@ public class UserAttestationTrackerService {
 					);
 			if (settingsService.isADAttestationEnabled() && !run.isSensitive() && !run.isExtraSensitive()) {
 				// If AD attestation is enabled we want to make sure all org units with employees have attestations
-				userDao.findByDeletedFalse().stream()
-						.filter(u -> !u.isDisabled())
-						.flatMap(u -> {
-							//Filters out non-primary if at least one primary position is present
+				Map<String, Set<User>> uuidToUsers =
+						userDao.findByDeletedFalse().stream()
+								.filter(u -> !u.isDisabled())
+								.flatMap(u -> {
+									Stream<String> uuids;
 									if (u.getPositions().stream().anyMatch(Position::isPrimary)) {
-										return u.getPositions().stream()
+										uuids = u.getPositions().stream()
 												.filter(Position::isPrimary)
 												.map(Position::getOrgUnit)
 												.filter(Objects::nonNull)
 												.map(OrgUnit::getUuid);
 									} else {
-										return u.getPositions().stream()
+										uuids = u.getPositions().stream()
 												.map(Position::getOrgUnit)
 												.filter(Objects::nonNull)
 												.map(OrgUnit::getUuid);
 									}
-								}
-						)
-						.filter(uuid -> shouldIncludeInAttestation(uuid, exemptedOus, optedInOus))
-						.distinct()
-						.forEach(uuid -> ensureWeHaveOrganisationAttestationFor(run, uuid, when));
+									return uuids.map(uuid -> Map.entry(uuid, u));
+								})
+								.filter(entry -> shouldIncludeInAttestation(entry.getKey(), exemptedOus, optedInOus))
+								.collect(Collectors.groupingBy(
+										Map.Entry::getKey,
+										Collectors.mapping(Map.Entry::getValue, Collectors.toSet())
+								));
+
+				uuidToUsers.forEach((ouUuid, users) -> {
+					ensureWeHaveOrganisationAttestationFor(run, ouUuid, when, users);
+				});
 			}
 		});
 
@@ -268,6 +277,9 @@ public class UserAttestationTrackerService {
 				log.info("It-system responsible changed updating attestation");
 				attestation.setResponsibleUserUuid(assignment.getResponsibleUserUuid());
 				attestation.setResponsibleUserId(historyUser.getUserUserId());
+				// When changing responsible, we need to move the date, as the assignments are frozen at created-date,
+				// and the new responsible won't be responsible for any assignments until today.
+				attestation.setCreatedAt(when);
 			}
 		}
 		addUser(attestation, assignment);
@@ -397,7 +409,7 @@ public class UserAttestationTrackerService {
 
 	private void ensureWeHaveOrganisationAttestationFor(final AttestationRun run,
 														final String responsibleOuUuid,
-														final LocalDate when) {
+														final LocalDate when, Set<User> users) {
 		if (run.isSensitive() || run.isExtraSensitive()) {
 			// This method creates a OU attestations even though there is no role assignment, this is
 			// used when AD attestation is enabled an all OUs should be attestated.
@@ -420,6 +432,24 @@ public class UserAttestationTrackerService {
 		if (ouAdCnt++ % 100 == 0) {
 			log.info("Attestation for organisation " + attestation.getUuid() + " found, progress count=" + ouAdCnt);
 		}
+
+		// Create UserAttestations and bind them to the attestation object
+		List<AttestationUser> activeDirectoryAttestations = new ArrayList<>();
+		final Attestation finalAttestation = attestation;
+		users.forEach(user -> {
+			AttestationUser byUserUuid = attestationUserDao.findByUserUuidAndAttestation(user.getUuid(), finalAttestation);
+			if (byUserUuid == null) {
+				AttestationUser attestationUser = new AttestationUser();
+				attestationUser.setAttestation(finalAttestation);
+				attestationUser.setUserUuid(user.getUuid());
+				attestationUser.setSensitiveRoles(false);
+				activeDirectoryAttestations.add(attestationUser);
+			}
+		});
+        if (!activeDirectoryAttestations.isEmpty()) {
+			attestationUserDao.saveAll(activeDirectoryAttestations);
+			log.debug("Created {} active directory attestations for attestation {}", activeDirectoryAttestations.size(), attestation.getUuid());
+        }
 	}
 
 	private Optional<Attestation> findSystemUsersAttestationFor(final AttestationUserRoleAssignment assignment, final LocalDate when) {

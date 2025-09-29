@@ -1,17 +1,44 @@
 package dk.digitalidentity.rc.controller.rest;
 
-import java.security.Principal;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.List;
-import java.util.Locale;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-import java.util.stream.Collectors;
-
-import dk.digitalidentity.rc.dao.UserRoleSelect2Dao;
+import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
+import dk.digitalidentity.rc.controller.mvc.datatables.dao.UserRoleViewDao;
+import dk.digitalidentity.rc.controller.mvc.datatables.dao.model.UserRoleView;
+import dk.digitalidentity.rc.controller.mvc.viewmodel.UserRoleDeleteStatus;
+import dk.digitalidentity.rc.controller.mvc.viewmodel.UserRoleForm;
+import dk.digitalidentity.rc.controller.rest.model.UserRoleViewDTO;
+import dk.digitalidentity.rc.controller.validator.UserRoleValidator;
+import dk.digitalidentity.rc.dao.model.ConstraintType;
+import dk.digitalidentity.rc.dao.model.ItSystem;
+import dk.digitalidentity.rc.dao.model.OrgUnit;
+import dk.digitalidentity.rc.dao.model.Position;
+import dk.digitalidentity.rc.dao.model.RoleGroup;
+import dk.digitalidentity.rc.dao.model.SystemRole;
+import dk.digitalidentity.rc.dao.model.SystemRoleAssignment;
+import dk.digitalidentity.rc.dao.model.SystemRoleAssignmentConstraintValue;
+import dk.digitalidentity.rc.dao.model.User;
+import dk.digitalidentity.rc.dao.model.UserRole;
+import dk.digitalidentity.rc.dao.model.UserRoleEmailTemplate;
+import dk.digitalidentity.rc.dao.model.enums.ConstraintValueType;
+import dk.digitalidentity.rc.dao.model.enums.ItSystemType;
+import dk.digitalidentity.rc.log.AuditLogArgument;
+import dk.digitalidentity.rc.log.AuditLogContextHolder;
+import dk.digitalidentity.rc.security.RequireAdministratorRole;
+import dk.digitalidentity.rc.security.RequireRequesterOrReadAccessRole;
+import dk.digitalidentity.rc.security.SecurityUtil;
+import dk.digitalidentity.rc.service.ADGroupMappingService;
+import dk.digitalidentity.rc.service.ConstraintTypeService;
+import dk.digitalidentity.rc.service.OrgUnitService;
+import dk.digitalidentity.rc.service.PositionService;
+import dk.digitalidentity.rc.service.RoleGroupService;
 import dk.digitalidentity.rc.service.Select2Service;
+import dk.digitalidentity.rc.service.SystemRoleService;
+import dk.digitalidentity.rc.service.UserRoleService;
+import dk.digitalidentity.rc.service.UserService;
 import dk.digitalidentity.rc.service.model.UserRoleSelect2DTO;
+import dk.digitalidentity.rc.util.IdentifierGenerator;
+import jakarta.persistence.criteria.Predicate;
+import jakarta.validation.Valid;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.ObjectUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
@@ -35,41 +62,15 @@ import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
-import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
-import dk.digitalidentity.rc.controller.mvc.datatables.dao.UserRoleViewDao;
-import dk.digitalidentity.rc.controller.mvc.datatables.dao.model.UserRoleView;
-import dk.digitalidentity.rc.controller.mvc.viewmodel.UserRoleDeleteStatus;
-import dk.digitalidentity.rc.controller.mvc.viewmodel.UserRoleForm;
-import dk.digitalidentity.rc.controller.validator.UserRoleValidator;
-import dk.digitalidentity.rc.dao.model.ConstraintType;
-import dk.digitalidentity.rc.dao.model.ItSystem;
-import dk.digitalidentity.rc.dao.model.OrgUnit;
-import dk.digitalidentity.rc.dao.model.Position;
-import dk.digitalidentity.rc.dao.model.RoleGroup;
-import dk.digitalidentity.rc.dao.model.SystemRole;
-import dk.digitalidentity.rc.dao.model.SystemRoleAssignment;
-import dk.digitalidentity.rc.dao.model.SystemRoleAssignmentConstraintValue;
-import dk.digitalidentity.rc.dao.model.User;
-import dk.digitalidentity.rc.dao.model.UserRole;
-import dk.digitalidentity.rc.dao.model.UserRoleEmailTemplate;
-import dk.digitalidentity.rc.dao.model.enums.ConstraintValueType;
-import dk.digitalidentity.rc.dao.model.enums.ItSystemType;
-import dk.digitalidentity.rc.log.AuditLogArgument;
-import dk.digitalidentity.rc.log.AuditLogContextHolder;
-import dk.digitalidentity.rc.security.RequireAdministratorRole;
-import dk.digitalidentity.rc.security.RequireRequesterOrReadAccessRole;
-import dk.digitalidentity.rc.security.SecurityUtil;
-import dk.digitalidentity.rc.service.ConstraintTypeService;
-import dk.digitalidentity.rc.service.OrgUnitService;
-import dk.digitalidentity.rc.service.PositionService;
-import dk.digitalidentity.rc.service.RoleGroupService;
-import dk.digitalidentity.rc.service.SystemRoleService;
-import dk.digitalidentity.rc.service.UserRoleService;
-import dk.digitalidentity.rc.service.UserService;
-import dk.digitalidentity.rc.util.IdentifierGenerator;
-import jakarta.persistence.criteria.Predicate;
-import jakarta.validation.Valid;
-import lombok.extern.slf4j.Slf4j;
+import java.security.Principal;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 @RequireAdministratorRole
 @Slf4j
@@ -112,14 +113,19 @@ public class UserRoleRestController {
 	@Autowired
 	private Select2Service select2Service;
 
+	@Autowired
+	private ADGroupMappingService adGroupMappingService;
+
     @InitBinder(value = { "role" })
     public void initBinder(WebDataBinder binder) {
         binder.addValidators(userRoleValidator);
     }
 
-    @RequireRequesterOrReadAccessRole
-    @PostMapping("/rest/userroles/list")
-	public DataTablesOutput<UserRoleView> list(@Valid @RequestBody DataTablesInput input, Principal principal) throws Exception {
+	@RequireRequesterOrReadAccessRole
+	@PostMapping("/rest/userroles/list")
+	public DataTablesOutput<UserRoleViewDTO> list(@Valid @RequestBody DataTablesInput input, Principal principal) throws Exception {
+
+		DataTablesOutput<UserRoleView> viewOutput;
 
 		// requesters needs to have the list filtered
 		if (SecurityUtil.isRequesterAndOnlyRequester()) {
@@ -129,20 +135,35 @@ public class UserRoleRestController {
 			List<UserRole> roles = userRoleService.getAll();
 			roles = userRoleService.whichRolesCanBeRequestedByUser(roles, user);
 			List<Long> selectedUserRoles = roles.stream().map(UserRole::getId).toList();
-
-			return userRoleViewDao.findAll(input, getUserRoleByIdIn(selectedUserRoles));
+			viewOutput = userRoleViewDao.findAll(input, getUserRoleByIdIn(selectedUserRoles));
 		}
-
 		// people with restricted read-only access will be limited
 		else if (securityUtil.hasRestrictedReadAccess()) {
 			List<Long> itSystems = securityUtil.getRestrictedReadAccessItSystems();
-			
-			return userRoleViewDao.findAll(input, getUserRolesByItSystem(itSystems));
+			viewOutput = userRoleViewDao.findAll(input, getUserRolesByItSystem(itSystems));
+		} else {
+			viewOutput = userRoleViewDao.findAll(input);
 		}
 
-		return userRoleViewDao.findAll(input);
-	}
+		Map<Long, List<String>> roleToADGroups = adGroupMappingService.getRoleToADGroupsMap();
 
+		List<UserRoleViewDTO> dtoList = viewOutput.getData().stream()
+				.map(view -> {
+					UserRoleViewDTO dto = new UserRoleViewDTO(view);
+					dto.setAdGroupNames(roleToADGroups.getOrDefault(view.getId(), new ArrayList<>()));
+					return dto;
+				})
+				.toList();
+
+		DataTablesOutput<UserRoleViewDTO> dtoOutput = new DataTablesOutput<>();
+		dtoOutput.setDraw(viewOutput.getDraw());
+		dtoOutput.setRecordsTotal(viewOutput.getRecordsTotal());
+		dtoOutput.setRecordsFiltered(viewOutput.getRecordsFiltered());
+		dtoOutput.setData(dtoList);
+		dtoOutput.setError(viewOutput.getError());
+
+		return dtoOutput;
+	}
 	private User getUserOrThrow(String userId) throws Exception {
 		User user = userService.getByUserId(userId);
 		if (user == null) {
@@ -418,6 +439,7 @@ public class UserRoleRestController {
 		if (role.getLinkedSystemRole() == null) {
 			role.setName(userRoleForm.getName());
 			role.setDescription(userRoleForm.getDescription());
+            role.setContactEmail(userRoleForm.getContactEmail());
 		}
 
         if (role.isRequireManagerAction()) {
@@ -446,7 +468,7 @@ public class UserRoleRestController {
             return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
         }
 
-		if (role.getItSystem().getSystemType().equals(ItSystemType.KSPCICS)) {
+		if (role.getItSystem().getSystemType().equals(ItSystemType.KSPCICS) || role.isReadOnly()) {
 			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
 		}
 
@@ -545,7 +567,8 @@ public class UserRoleRestController {
 	@GetMapping("/rest/userroles/search")
 	public Select2Response searchUserRoles(
 			@RequestParam(name = "q", required = false) String searchTerm,
-			@RequestParam(name = "page", defaultValue = "1") int page) {
+			@RequestParam(name = "page", defaultValue = "1") int page,
+			@RequestParam(name = "itsystem", required = false, defaultValue = "0") int itSystemId) {
 
 		PageRequest pageable = PageRequest.of(page - 1, 20);
 
@@ -557,11 +580,25 @@ public class UserRoleRestController {
 		}
 
 		List<UserRoleSelect2DTO> results = rolesPage.stream()
+				.filter(role -> itSystemId == 0 || itSystemId == role.getItSystem().getId())
 				.map(role -> new UserRoleSelect2DTO(role.getId(), role.getName(), role.getItSystem().getName()))
 				.toList();
 
 		boolean hasMore = rolesPage.hasNext();
 
 		return new Select2Response(results, hasMore);
+	}
+
+	private record UserRoleDetailDTO(long id, String name, long itSystemId, String itSystemName) {}
+	@GetMapping("/rest/userroles/{id}")
+	public ResponseEntity<UserRoleDetailDTO> getUserRoleDetails(@PathVariable Long id) {
+		UserRole userRole = userRoleService.getById(id);
+		if (userRole == null) {
+			throw new ResponseStatusException(HttpStatus.NOT_FOUND);
+		}
+
+		UserRoleDetailDTO dto = new UserRoleDetailDTO(userRole.getId(), userRole.getName(), userRole.getItSystem().getId(), userRole.getItSystem().getName());
+
+		return ResponseEntity.ok(dto);
 	}
 }

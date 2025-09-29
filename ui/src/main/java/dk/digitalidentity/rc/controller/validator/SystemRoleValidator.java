@@ -1,5 +1,8 @@
 package dk.digitalidentity.rc.controller.validator;
 
+import dk.digitalidentity.rc.dao.model.ItSystem;
+import dk.digitalidentity.rc.dao.model.enums.ItSystemType;
+import dk.digitalidentity.rc.service.ItSystemService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.validation.Errors;
@@ -14,7 +17,10 @@ public class SystemRoleValidator implements Validator {
 
 	@Autowired
 	private SystemRoleService systemRoleService;
-	
+
+	@Autowired
+	private ItSystemService itSystemService;
+
 	@Override
 	public boolean supports(Class<?> aClass) {
 		return (SystemRoleForm.class.isAssignableFrom(aClass));
@@ -25,6 +31,7 @@ public class SystemRoleValidator implements Validator {
 		SystemRoleForm systemRoleForm = (SystemRoleForm) o;
 
 		SystemRole systemRoleFromDB = systemRoleService.getFirstByIdentifierAndItSystemId(systemRoleForm.getIdentifier(), systemRoleForm.getItSystemId());
+		ItSystem itSystem = itSystemService.getById(systemRoleForm.getItSystemId());
 
 		// if a itsystem exists with that identifier
 		if (systemRoleFromDB != null && systemRoleFromDB.getId() != systemRoleForm.getId()) {
@@ -41,6 +48,11 @@ public class SystemRoleValidator implements Validator {
 		
 		if (systemRoleForm.getWeight() < 1) {
 			errors.rejectValue("weight", "html.errors.systemrole.weight.lessthanone");
+		}
+
+		if (itSystem != null && itSystem.getSystemType() == ItSystemType.AD
+                && systemRoleForm.getIdentifier().matches(".*[\\\\/\\[\\]:;|=,+*?<>\"]+.*")) {
+			errors.rejectValue("identifier", "html.errors.systemrole.identifier.invalid");
 		}
 	}
 }

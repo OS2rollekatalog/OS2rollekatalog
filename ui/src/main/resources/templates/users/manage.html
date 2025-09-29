@@ -247,61 +247,123 @@
 		function RolesService() {
 			this.loadRolesFragment = function () {
 				$("#roles_menu").load(UIUrl + user + "/roles", function () {
-					hideColumn = [1,5];
+					hideColumn = [1,6];
 					currentTable = showDataTableWithHiddenColumns('#listTable', 0, hideColumn, 100, "user_manage_list_of_roles");
 					dataTablesRefreshIcons($('#dataTableDropdown'));
+					
+					// Button initial state
+					let showInactive = window.showInactiveState !== undefined ? window.showInactiveState : true;
+
+					// Update button
+					rolesService.updateButtonAppearance(showInactive);
+					// Filter the DataTable and trigger state save
+					rolesService.filterInactiveRoles(showInactive);
+
+					$('#inactiveRolesToggle').on('click', function() {
+					    // Toggle the state
+					    showInactive = !showInactive;
+
+					    // Save to global state
+					    window.showInactiveState = showInactive;
+
+					    // Update button
+					    rolesService.updateButtonAppearance(showInactive);
+
+					    // Filter the DataTable and trigger state save
+					    rolesService.filterInactiveRoles(showInactive);
+					});
 				});
 			}
+			
+			this.updateButtonAppearance = function(isActive) {
+				const button = $('#inactiveRolesToggle');
+				const checkbox = $('#inactiveRolesCheckbox');
+				const icon = button.find('.fa');
+				const text = $('#toggleText');
+				
+				checkbox.prop('checked', isActive);
+				
+				if (isActive) {
+					$(this).addClass('active');
+					icon.removeClass('fa-check').addClass('fa-minus');
+					text.text(text.data('hide-text'));
+				} else {
+					$(this).removeClass('active');
+					icon.removeClass('fa-minus').addClass('fa-check');
+					text.text(text.data('show-text'));
+				}
+			}
 
-		this.loadAddUserRoleFragment = function () {
-			$("#roles_menu").load(UIUrl + user + "/addUserRole", function () {
-				// fragShowDataTableFun('#listTable_u_ur', 0, 100, "user_manage_add_user_role_table");
-
-				const columnDefOptions = [
-					{
-						targets: [0],
-						data: 'name',
-						render: (data, type, row, meta) => {
-							if (type === 'display') {
-								let html = '<div>'
-								html += '<div>'
-								html += `<span>${data}</span>`
-								html += '</div>'
-								html += row.alreadyAssigned ? `<div style="font-size: smaller; color: red;">Tildelt</div>` : ''
-								html += '</div>'
-								return html
-							} else { return data; }
+			this.filterInactiveRoles = function (showInactive) {
+				const table = $('#listTable').DataTable();
+				
+				if (showInactive) {
+					// Show all rows
+					table.rows().every(function() {
+						$(this.node()).show();
+					});
+				} else {
+					// Hide inactive rows
+					table.rows().every(function() {
+						const row = $(this.node());
+						if (row.find('td:first').data('status') === 'inactive') {
+							row.hide();
 						}
-					},
-					{
-						targets: [1],
-						data: 'itSystem.name',
-					},
-					{
-						targets: [2],
-						data: 'description',
-					},
-					{
-						targets: [3],
-						data: 'id',
-						orderable: false,
-						searchable:false,
-						sortable:false,
-						render: (data, type, row, meta) => {
-							return data ? `<a href="#" onclick="rolesService.addUserRole(this)" data-roleid="${data}" data-systemType=${row.itSystem.systemType}"><em class="fa fa-plus"></em></a>` : null;
+					});
+				}
+				
+				table.draw(false); // Redraw without resetting pagination
+				table.state.save();
+			}
+	
+			this.loadAddUserRoleFragment = function () {
+				$("#roles_menu").load(UIUrl + user + "/addUserRole", function () {
+					// fragShowDataTableFun('#listTable_u_ur', 0, 100, "user_manage_add_user_role_table");
+	
+					const columnDefOptions = [
+						{
+							targets: [0],
+							data: 'name',
+							render: (data, type, row, meta) => {
+								if (type === 'display') {
+									let html = '<div>'
+									html += '<div>'
+									html += `<span>${data}</span>`
+									html += '</div>'
+									html += row.alreadyAssigned ? `<div style="font-size: smaller; color: red;">Tildelt</div>` : ''
+									html += '</div>'
+									return html
+								} else { return data; }
+							}
 						},
-					}
-
-				]
-
-				const table = new DatatableService().initDefaultServersideTable('#listTable_u_ur', `${restUrl}${user}/available`, columnDefOptions)
-
-				//focus the search field
-				const searchInput = table.table().container().querySelector('.dataTables_filter input')
-				searchInput.focus()
-			});
-		}
-
+						{
+							targets: [1],
+							data: 'itSystem.name',
+						},
+						{
+							targets: [2],
+							data: 'description',
+						},
+						{
+							targets: [3],
+							data: 'id',
+							orderable: false,
+							searchable:false,
+							sortable:false,
+							render: (data, type, row, meta) => {
+								return data ? `<a href="#" onclick="rolesService.addUserRole(this)" data-roleid="${data}" data-systemType=${row.itSystem.systemType}"><em class="fa fa-plus"></em></a>` : null;
+							},
+						}
+	
+					]
+	
+					const table = new DatatableService().initDefaultServersideTable('#listTable_u_ur', `${restUrl}${user}/available`, columnDefOptions)
+	
+					//focus the search field
+					const searchInput = table.table().container().querySelector('.dataTables_filter input')
+					searchInput.focus()
+				});
+			}
 
 			this.loadAddRoleGroupFragment = function () {
 				$("#roles_menu").load(UIUrl + user + "/addRoleGroup", function () {

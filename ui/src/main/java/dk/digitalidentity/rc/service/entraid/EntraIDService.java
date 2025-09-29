@@ -32,7 +32,6 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.logging.log4j.util.Strings;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -72,12 +71,22 @@ public class EntraIDService {
 	private ClientSecretCredential clientSecretCredential;
 	private GraphServiceClient graphClient;
 
-	@Transactional
 	public void backSync() throws ReflectiveOperationException {
 		log.info("Starting EntraID backSync");
 		SecurityUtil.loginSystemAccount();
 		initializeClient();
-		List<dk.digitalidentity.rc.dao.model.User> dbUsers = userService.getAll();
+		
+		List<dk.digitalidentity.rc.dao.model.User> dbUsers = userService.getAll(u -> {
+			u.getUserRoleAssignments().forEach(ura -> {
+				ura.getUserRole().getId();
+			});
+			
+			// KSPCICS/interceptor looks at this field when modifying assignments
+			if (u.getAltAccounts() != null) {
+				u.getAltAccounts().forEach(a -> a.getAccountUserId());
+			}
+		});
+		
 		List<Group> allGroups = getRCGroups();
 		Map<Long, List<Group>> itSystemIdGroupMap = generateItSystemGroupMap(allGroups);
 		for (Map.Entry<Long, List<Group>> entry : itSystemIdGroupMap.entrySet()) {
@@ -93,7 +102,10 @@ public class EntraIDService {
 				continue;
 			}
 
-			List<SystemRole> systemRoles = systemRoleService.getByItSystem(itSystem);
+			List<SystemRole> systemRoles = systemRoleService.getByItSystem(itSystem, sr -> {
+				sr.getSupportedConstraintTypes().forEach(sc -> sc.getConstraintType().getEntityId());
+			});
+
 			List<UserRole> userRoles = userRoleService.getByItSystem(itSystem);
 
 			handleSystemRoles(systemRoles, groups, itSystem);
@@ -105,7 +117,6 @@ public class EntraIDService {
 	}
 
 	@SneakyThrows
-    @Transactional
 	public void membershipSync() {
 		log.info("Starting EntraID membershipSync");
 		SecurityUtil.loginSystemAccount();
@@ -188,7 +199,12 @@ public class EntraIDService {
 			referenceCreate.setOdataId("https://graph.microsoft.com/v1.0/directoryObjects/" + userId);
 			graphClient.groups().byGroupId(groupId).members().ref().post(referenceCreate);
 		} catch (Exception e) {
-			log.warn("Failed to remove member from group {}: {}", groupId, userId, e);
+            if (e.getMessage().contains("Insufficient privileges")) {
+                log.error("Failed to remove member from group {}: {}", groupId, userId, e);
+            }
+            else {
+                log.warn("Failed to remove member from group {}: {}", groupId, userId, e);
+            }
 		}
 	}
 
@@ -197,7 +213,12 @@ public class EntraIDService {
 			log.debug("Removing member from group {} to user {}", groupId, userId);
 			graphClient.groups().byGroupId(groupId).members().byDirectoryObjectId(userId).ref().delete();
 		} catch (Exception e) {
-            log.warn("Failed to remove member from group {}: {}", groupId, userId, e);
+            if (e.getMessage().contains("Insufficient privileges")) {
+                log.error("Failed to remove member from group {}: {}", groupId, userId, e);
+            }
+            else {
+                log.warn("Failed to remove member from group {}: {}", groupId, userId, e);
+            }
 		}
 	}
 

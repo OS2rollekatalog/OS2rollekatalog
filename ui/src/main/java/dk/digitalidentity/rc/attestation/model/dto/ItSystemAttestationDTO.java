@@ -21,4 +21,5 @@ public class ItSystemAttestationDTO {
     private String itSystemName;
     private LocalDate deadLine;
     private List<UserRoleAttestationDTO> userRoles;
+    LocalDate verifiedAt;
 }

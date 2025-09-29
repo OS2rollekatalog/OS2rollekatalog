@@ -19,6 +19,8 @@ import lombok.ToString;
 import java.util.Date;
 import java.util.List;
 
+import org.hibernate.annotations.BatchSize;
+
 @Entity
 @Table(name = "system_role_assignments")
 @Data
@@ -39,6 +41,7 @@ public class SystemRoleAssignment {
 	@JoinColumn(name = "system_role_id")
 	private SystemRole systemRole;
 
+	@BatchSize(size = 50)
     @OneToMany(mappedBy="systemRoleAssignment", cascade = CascadeType.ALL, fetch = FetchType.EAGER, orphanRemoval = true)
 	private List<SystemRoleAssignmentConstraintValue> constraintValues;
     

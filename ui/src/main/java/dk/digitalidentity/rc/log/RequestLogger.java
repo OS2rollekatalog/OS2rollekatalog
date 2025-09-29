@@ -31,6 +31,8 @@ public class RequestLogger extends OncePerRequestFilter {
 
 	@Override
 	protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {
+		long start = System.currentTimeMillis();
+
 		try {
 			filterChain.doFilter(request, response);
 		}
@@ -46,7 +48,7 @@ public class RequestLogger extends OncePerRequestFilter {
 				url += "?" + request.getQueryString();
 			}
 
-			logger.log(request, getClientIp(request), request.getMethod(), url, versionHeader, tlsVersion, response.getStatus());
+			logger.log(request, getClientIp(request), request.getMethod(), url, versionHeader, tlsVersion, response.getStatus(), System.currentTimeMillis() - start);
 		}
 	}
 }

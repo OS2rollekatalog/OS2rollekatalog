@@ -45,4 +45,7 @@ public class SecurityLog {
 
 	@Column(nullable = true)
 	private String responseCode;
+	
+	@Column(nullable = false)
+	private long processedTime;
 }

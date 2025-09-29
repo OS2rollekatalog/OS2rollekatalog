@@ -226,9 +226,10 @@ public class PositionService {
 				}
 
 				if (assignment.getId() == assignmentId) {
-					self.removeUserRoleAssignment(position, assignment);
-
-					return true;
+					if (!assignment.getUserRole().isReadOnly()) {
+						self.removeUserRoleAssignment(position, assignment);
+						return true;
+					}
 				}
 			}
 		}

@@ -3,7 +3,10 @@ using ADSyncService.Persistance;
 using ADSyncService.Util;
 using System;
 using System.Collections.Generic;
+using System.DirectoryServices;
+using System.DirectoryServices.AccountManagement;
 using System.Linq;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using static System.Windows.Forms.VisualStyles.VisualStyleElement.TrackBar;
@@ -19,16 +22,20 @@ namespace ADSyncService
         public void SynchronizeGroupMemberships(RoleCatalogueStub roleCatalogueStub, ADStub adStub, PersistenceService persistenceService, SyncData syncData)
         {
             bool ignoreUsersWithoutCpr = remoteConfigurationService.GetConfiguration().membershipSyncFeatureIgnoreUsersWithoutCpr;
+            bool doNotRegisterDisabledUsers = remoteConfigurationService.GetConfiguration().membershipSyncFeatureDoNotRegisterDisabledUsers;
 
             // retrieve map that contains settings for updating user attributes based on group membership.
             var attributeMap = GetAttributeMap();
+
+            // retrieve map that contains filters for group memberships.
+            var filterMap = GetFilterMap();
 
             // if we have changes, perform update
             if (syncData.head > 0)
             {
                 log.Info("Found potental AD group membership changes on " + syncData.assignments.Count + " group(s)");
 
-                SyncGroups(adStub, persistenceService, syncData, localCacheEnabled: false, ignoreUsersWithoutCpr, attributeMap);
+                SyncGroups(adStub, persistenceService, syncData, localCacheEnabled: false, ignoreUsersWithoutCpr, attributeMap, filterMap, doNotRegisterDisabledUsers);
 
                 // inform rolecatalogue that we are done sync'ing
                 roleCatalogueStub.ResetHead(syncData.head, syncData.maxHead);
@@ -38,16 +45,20 @@ namespace ADSyncService
         public void SynchronizeAllGroupMemberships(RoleCatalogueStub roleCatalogueStub, ADStub adStub, PersistenceService persistenceService, SyncData syncData)
         {
             bool ignoreUsersWithoutCpr = remoteConfigurationService.GetConfiguration().membershipSyncFeatureIgnoreUsersWithoutCpr;
+            bool doNotRegisterDisabledUsers = remoteConfigurationService.GetConfiguration().membershipSyncFeatureDoNotRegisterDisabledUsers;
 
             // retrieve map that contains settings for updating user attributes based on group membership.
             var attributeMap = GetAttributeMap();
 
+            // retrieve map that contains filters for group memberships.
+            var filterMap = GetFilterMap();
+
             log.Info("Found potental AD group membership changes on " + syncData.assignments.Count + " group(s)");
 
-            SyncGroups(adStub, persistenceService, syncData, localCacheEnabled: true, ignoreUsersWithoutCpr, attributeMap);
+            SyncGroups(adStub, persistenceService, syncData, localCacheEnabled: true, ignoreUsersWithoutCpr, attributeMap, filterMap, doNotRegisterDisabledUsers);
         }
 
-        private void SyncGroups(ADStub adStub, PersistenceService persistenceService, SyncData syncData, bool localCacheEnabled, bool ignoreUsersWithoutCpr, List<KeyValuePair<string, KeyValuePair<string, string>>> attributeMap)
+        private void SyncGroups(ADStub adStub, PersistenceService persistenceService, SyncData syncData, bool localCacheEnabled, bool ignoreUsersWithoutCpr, List<KeyValuePair<string, KeyValuePair<string, string>>> attributeMap, List<KeyValuePair<string, KeyValuePair<string, string>>> filterMap, bool doNotRegisterDisabledUsers)
         {
             IEnumerable<List<Assignment>> chunks = syncData.assignments.ChunkBy(4);
 
@@ -59,7 +70,7 @@ namespace ADSyncService
                     {
                         var cancelToken = cancelTokenSource.Token;
 
-                        var task = Task.Run(() => UpdateGroup(adStub, persistenceService, ignoreUsersWithoutCpr, attributeMap, localCacheEnabled, assignment), cancelToken);
+                        var task = Task.Run(() => UpdateGroup(adStub, persistenceService, ignoreUsersWithoutCpr, attributeMap, localCacheEnabled, assignment, filterMap, doNotRegisterDisabledUsers), cancelToken);
 
                         if (!task.Wait(TimeSpan.FromSeconds(60*30))) // 30min timeout
                         {
@@ -79,7 +90,7 @@ namespace ADSyncService
             }
         }
 
-        private void UpdateGroup(ADStub adStub, PersistenceService persistenceService, bool ignoreUsersWithoutCpr, List<KeyValuePair<string, KeyValuePair<string, string>>> attributeMap, bool localCacheEnabled, Assignment assignment)
+        private void UpdateGroup(ADStub adStub, PersistenceService persistenceService, bool ignoreUsersWithoutCpr, List<KeyValuePair<string, KeyValuePair<string, string>>> attributeMap, bool localCacheEnabled, Assignment assignment, List<KeyValuePair<string, KeyValuePair<string, string>>> filterMap, bool doNotRegisterDisabledUsers)
         {
             try
             {
@@ -125,20 +136,40 @@ namespace ADSyncService
                 {
                     if (!adGroupMembers.Contains(userId))
                     {
-                        adStub.AddMember(assignment.groupName, userId);
-                        added++;
-
-                        // update user's ad attributes with values specified in configuration
-                        foreach (var attributeSetting in attributeMap.Where(am => am.Key == assignment.groupName.ToLower()))
+                        if (ShouldIncludeUser(userId, assignment.groupName, filterMap, adStub))
                         {
-                            adStub.UpdateAttribute(userId, attributeSetting.Value.Key, attributeSetting.Value.Value);
+                            // Check if user is active before adding if doNotRegisterDisabledUsers is true
+                            if (doNotRegisterDisabledUsers)
+                            {
+                                bool isUserActive = adStub.IsUserActive(userId);
+                                if (!isUserActive)
+                                {
+                                    log.Info($"Skipping disabled user: {userId}");
+                                    continue;
+                                }
+                            }
+
+                            adStub.AddMember(assignment.groupName, userId);
+                            added++;
+
+                            // update user's ad attributes with values specified in configuration
+                            foreach (var attributeSetting in attributeMap.Where(am => am.Key == assignment.groupName.ToLower()))
+                            {
+                                adStub.UpdateAttribute(userId, attributeSetting.Value.Key, attributeSetting.Value.Value);
+                            }
+                        }
+                        else
+                        {
+                            log.Debug($"User {userId} filtered out from group {assignment.groupName} due to filter rules");
                         }
                     }
                 }
 
                 foreach (var userId in adGroupMembers)
                 {
-                    if (!assignment.samaccountNames.Contains(userId))
+                    bool shouldBeInGroup = assignment.samaccountNames.Contains(userId) &&
+                          ShouldIncludeUser(userId, assignment.groupName, filterMap, adStub);
+                    if (!shouldBeInGroup)
                     {
                         if (!ignoreUsersWithoutCpr || adStub.HasCpr(userId))
                         {
@@ -195,6 +226,127 @@ namespace ADSyncService
                 }
             }
             return result;
+        }
+
+        private List<KeyValuePair<string, KeyValuePair<string, string>>> GetFilterMap()
+        {
+            // result is KeyValuePair( groupName, KeyValuePair( attributeName, filterValue ))
+            var settingsMap = remoteConfigurationService.GetConfiguration().membershipSyncFeatureFilterMap;
+            var result = new List<KeyValuePair<string, KeyValuePair<string, string>>>();
+            if (settingsMap != null)
+            {
+                foreach (var mapping in settingsMap)
+                {
+                    var values = mapping.Split(';');
+                    if (values.Count() != 3)
+                    {
+                        log.Warn("Invalid Filtermap value: " + mapping);
+                        continue;
+                    }
+                    result.Add(new KeyValuePair<string, KeyValuePair<string, string>>(values[0].ToLower(), new KeyValuePair<string, string>(values[1], values[2])));
+                }
+            }
+            return result;
+        }
+
+        private bool ShouldIncludeUser(string userId, string groupName, List<KeyValuePair<string, KeyValuePair<string, string>>> filterMap, ADStub adStub)
+        {
+            // Find matching filters for this group
+            var matchingFilters = filterMap.Where(filter =>
+                IsWildcardOrRegexMatch(groupName, filter.Key)).ToList();
+
+            if (!matchingFilters.Any())
+            {
+                return true; // No filters = include user
+            }
+
+            // Get user's DirectoryEntry once and reuse it for all attribute checks
+            using (PrincipalContext context = new PrincipalContext(ContextType.Domain))
+            {
+                using (UserPrincipal user = UserPrincipal.FindByIdentity(context, userId))
+                {
+                    using (DirectoryEntry directoryEntry = (DirectoryEntry)user.GetUnderlyingObject())
+                    {
+                        // Check if user matches ALL applicable filters
+                        foreach (var filter in matchingFilters)
+                        {
+                            string attributeName = filter.Value.Key;
+                            string filterPattern = filter.Value.Value;
+
+                            string userAttributeValue = null;
+                            if (directoryEntry.Properties.Contains(attributeName))
+                            {
+                                userAttributeValue = directoryEntry.Properties[attributeName].Value?.ToString();
+                            }
+
+                            if (!IsWildcardOrRegexMatch(userAttributeValue, filterPattern))
+                            {
+                                log.Debug($"User {userId} does not match filter for group {groupName}. Attribute {attributeName} = '{userAttributeValue}', expected pattern: '{filterPattern}'");
+                                return false; // User doesn't match this filter
+                            }
+                        }
+                    }
+                }
+            }
+
+            return true; // User matches all filters
+        }
+
+        private bool IsWildcardOrRegexMatch(string value, string pattern)
+        {
+            if (string.IsNullOrEmpty(value))
+            {
+                return false;
+            }
+
+            // Check exact match first (fastest)
+            if (string.Equals(value, pattern, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
+            // Check if it's a regex pattern
+            if (IsRegexPattern(pattern))
+            {
+                try
+                {
+                    return Regex.IsMatch(value, pattern, RegexOptions.IgnoreCase);
+                }
+                catch (ArgumentException ex)
+                {
+                    log.Warn($"Invalid regex pattern '{pattern}': {ex.Message}");
+                    return false;
+                }
+            }
+
+            // Fall back to simple wildcard matching if it contains * but isn't regex
+            if (pattern.Contains("*"))
+            {
+                if (pattern.StartsWith("*") && pattern.EndsWith("*"))
+                {
+                    string middle = pattern.Substring(1, pattern.Length - 2);
+                    return value.ToLower().Contains(middle.ToLower());
+                }
+                else if (pattern.StartsWith("*"))
+                {
+                    string suffix = pattern.Substring(1);
+                    return value.ToLower().EndsWith(suffix.ToLower());
+                }
+                else if (pattern.EndsWith("*"))
+                {
+                    string prefix = pattern.Substring(0, pattern.Length - 1);
+                    return value.ToLower().StartsWith(prefix.ToLower());
+                }
+            }
+
+            return false;
+        }
+
+        private bool IsRegexPattern(string pattern)
+        {
+            // If it contains regex special chars, treat as regex
+            char[] regexChars = { '^', '$', '[', ']', '(', ')', '{', '}', '+', '?', '|', '\\', '.' };
+            return regexChars.Any(c => pattern.Contains(c));
         }
 
     }

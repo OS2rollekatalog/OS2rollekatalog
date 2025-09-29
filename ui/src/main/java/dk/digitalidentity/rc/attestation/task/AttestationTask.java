@@ -111,7 +111,7 @@ public class AttestationTask {
             log.error("Will not update attestations, when history is missing");
             return;
         }
-        
+
         log.info("Attestation tracker running");
 
         try {

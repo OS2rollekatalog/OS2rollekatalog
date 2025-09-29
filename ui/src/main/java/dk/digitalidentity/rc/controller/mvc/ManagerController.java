@@ -114,7 +114,7 @@ public class ManagerController {
 					ms.getSubstitute().getName(),
 					ms.getManager().getName(),
 					ms.getOrgUnit().getName(),
-					simpleDateFormat.format(ms.getAssignedTts()),
+					ms.getAssignedTts() != null ? simpleDateFormat.format(ms.getAssignedTts()) : null,
 					managerInactive ? "Leder er ikke længere aktiv" :
 							substituteInactive ? "Stedfortræder er ikke længere aktiv"
 									: null

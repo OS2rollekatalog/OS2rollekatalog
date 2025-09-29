@@ -15,6 +15,8 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.Setter;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.util.UUID;
 
@@ -28,6 +30,7 @@ public class KitosITSystemUser implements AuditLoggable {
 	private long id;
 
 	@Column(nullable = false)
+	@JdbcTypeCode(SqlTypes.BINARY)
 	private UUID kitosUuid;
 
 	@Column(nullable = false)

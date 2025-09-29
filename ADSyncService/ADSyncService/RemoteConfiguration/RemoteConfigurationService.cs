@@ -162,8 +162,10 @@ namespace ADSyncService
 
             configuration.membershipSyncFeatureCprAttribute = Properties.Settings.Default.MembershipSyncFeature_CprAttribute;
             configuration.membershipSyncFeatureAttributeMap = ConvertToList(Properties.Settings.Default.MembershipSyncFeature_AttributeMap);
+            configuration.membershipSyncFeatureFilterMap = ConvertToList(Properties.Settings.Default.MembershipSyncFeature_FilterMap);
             configuration.membershipSyncFeatureEnabled = Properties.Settings.Default.MembershipSyncFeature_Enabled;
             configuration.membershipSyncFeatureIgnoreUsersWithoutCpr = Properties.Settings.Default.MembershipSyncFeature_IgnoreUsersWithoutCpr;
+            configuration.membershipSyncFeatureDoNotRegisterDisabledUsers = Properties.Settings.Default.MembershipSyncFeature_DoNotRegisterDisabledUsers;
 
             configuration.fullMembershipSyncFeatureEnabled = Properties.Settings.Default.FullMembershipSyncFeature_Enabled;
 
@@ -176,6 +178,7 @@ namespace ADSyncService
             configuration.itSystemGroupFeatureEnabled = Properties.Settings.Default.ItSystemGroupFeature_Enabled;
             configuration.itSystemGroupFeatureSystemMap = ConvertToList(Properties.Settings.Default.ItSystemGroupFeature_SystemMap);
             configuration.itSystemGroupFeatureRoleMap = ConvertToList(Properties.Settings.Default.ItSystemGroupFeature_RoleMap);
+            configuration.itSystemGroupFeatureDoNotRegisterDisabledUsers = Properties.Settings.Default.ItSystemGroupFeature_DoNotRegisterDisabledUsers;
 
             configuration.readonlyItSystemFeatureEnabled = Properties.Settings.Default.ReadonlyItSystemFeature_Enabled;
             configuration.readonlyItSystemFeatureSystemMap = ConvertToList(Properties.Settings.Default.ReadonlyItSystemFeature_SystemMap);

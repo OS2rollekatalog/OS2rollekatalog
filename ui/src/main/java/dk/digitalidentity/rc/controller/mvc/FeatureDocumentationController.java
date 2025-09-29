@@ -2,7 +2,9 @@ package dk.digitalidentity.rc.controller.mvc;
 
 import java.lang.reflect.Field;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
@@ -22,19 +24,19 @@ public class FeatureDocumentationController {
 
 	@Autowired
 	private RoleCatalogueConfiguration configuration;
-	
+
 	@GetMapping(value = "/ui/featuredocumentation")
 	public String getFeatureDocumentation(Model model) {
-		
+
 		List<FeatureDTO> features = new ArrayList<>();
-		getFields(configuration.getClass().getDeclaredFields(), features, configuration);
-		
+		getFields(configuration.getClass().getDeclaredFields(), features, configuration, new HashSet<>());
+
 		model.addAttribute("features", features);
-	    
+
 		return "feature_documentation/list";
 	}
 
-	private void getFields(Field[] fields, List<FeatureDTO> features, Object object) {
+	private void getFields(Field[] fields, List<FeatureDTO> features, Object object, Set<Object> visited) {
 	    try {
 	        for (Field field : fields) {
 	            field.setAccessible(true);
@@ -47,10 +49,12 @@ public class FeatureDocumentationController {
 	            	feature.setName(annotation.name());
 	            	feature.setEnabled(field.getBoolean(object));
 	            	features.add(feature);
-			    }
-	            else {
-			    	if (field.getType().getPackageName().startsWith("dk.")) {
-			    		getFields(field.getType().getDeclaredFields(), features, field.get(object));
+			    } else {
+					// Undgå null, primitive typer og allerede sete objekter
+					Object fieldValue = field.get(object);
+					if (fieldValue != null && field.getType().getPackageName().startsWith("dk.") && !visited.contains(fieldValue)) {
+						visited.add(fieldValue); // markér som besøgt
+			    		getFields(field.getType().getDeclaredFields(), features, field.get(object), visited);
 			    	}
 			    }
 	        }

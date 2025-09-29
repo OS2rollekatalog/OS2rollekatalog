@@ -25,4 +25,5 @@ public class OrganisationAttestationDTO {
     private List<OrgUnitRoleGroupAssignmentDTO> orgUnitRoleGroupAssignments; // all the roleGroups assigned directly to this orgUnit
     private boolean orgUnitRolesVerified;
     private List<UserAttestationDTO> userAttestations;
+    private LocalDate verifiedAt;
 }

@@ -23,7 +23,7 @@
 			fragShowDataTableFun('.listTable', orderColumn);
 		});
 	
-		function fragShowDataTableFun(jqSelector, orderColumn, pagingLength = 100, stateId = null) {
+		function fragShowDataTableFun(jqSelector, orderColumn, pagingLength = 100, stateId = null, columns = null) {
 		    return $(jqSelector).DataTable({
 		        'destroy': true,
 		        'paging':   true,
@@ -31,6 +31,7 @@
 		        'order': [
 		        	[ orderColumn, 'asc' ]
 		        ],
+		        'columns': columns,
 		        "autoWidth": false,
 		        'info':     true,
                 'stateSave': true,
@@ -60,7 +61,8 @@
 		        }
 		    });
 		}
-		
+
+
 		function showDataTableWithHiddenColumns(jqSelector, orderColumn, hideColumns, pagingLength = 100, stateId = null) {
 		    return $(jqSelector).DataTable({
 		        'paging':   true,
@@ -74,12 +76,19 @@
                 'stateSaveCallback': function(settings, data) {
 					let defaultKey = "DataTables_" + settings.sTableId + "_" + window.location.pathname;
 					let key = stateId == null ? defaultKey : stateId;
+					data.showInactive = window.showInactiveState !== undefined ? window.showInactiveState : true; // used in user-> userRole assignment
 					localStorage.setItem(key, JSON.stringify(data));
 				},
 				'stateLoadCallback': function(settings) {
 					let defaultKey = "DataTables_" + settings.sTableId + "_" + window.location.pathname;
 					let key = stateId == null ? defaultKey : stateId;
-					return JSON.parse(localStorage.getItem(key));
+					const saved = localStorage.getItem(key);
+					if (saved) {
+						const data = JSON.parse(saved);
+						window.showInactiveState = data.showInactive !== undefined ? data.showInactive : true;
+						return data;
+					}
+					return null;
 				},
 				"pageLength": pagingLength,
 				'columnDefs': [
@@ -133,6 +142,15 @@
 				}
 			});
 		}
+
+		//plug-in for sorting checkboxes
+		//from: https://datatables.net/plug-ins/sorting/custom-data-source/dom-checkbox
+		$.fn.dataTable.ext.order['dom-checkbox'] = function( settings, col ) {
+		    return this.api().column( col, {order:'index'} ).nodes().map( function ( td, i ) {
+		        return $('input', td).prop('checked') ? '1' : '0';
+		    });
+		};
+
 	/*]]>*/
 	</script>
 </body>

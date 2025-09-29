@@ -77,4 +77,6 @@ public interface AttestationDao extends CrudRepository<Attestation, Long> {
     Attestation findByUuid(final String uuid);
 
     List<Attestation> findByAttestationRunIsNull();
+
+    List<Attestation> findByCreatedAtGreaterThanEqualAndResponsibleOuUuid(LocalDate createdAtIsGreaterThan, String responsibleOuUuid);
 }

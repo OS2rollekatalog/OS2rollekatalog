@@ -513,11 +513,13 @@ public class OrgUnitService {
 		}
 		else {
 			assignment.setContainsTitles(ContainsTitles.NO);
-			Collection<User> usersById = CollectionUtils.emptyIfNull(userDao.findByUuidInAndDeletedFalse(exceptedUsers));
-			assignment.setContainsExceptedUsers(!usersById.isEmpty());
-			assignment.setExceptedUsers(new ArrayList<>(usersById));
+			
 		}
-		
+
+		Collection<User> usersById = CollectionUtils.emptyIfNull(userDao.findByUuidInAndDeletedFalse(exceptedUsers));
+		assignment.setContainsExceptedUsers(!usersById.isEmpty());
+		assignment.setExceptedUsers(new ArrayList<>(usersById));
+
 		ou.getUserRoleAssignments().add(assignment);
 
 		String userFullname = SecurityUtil.getUserFullname();
@@ -551,11 +553,13 @@ public class OrgUnitService {
 		}
 		
 		// Save changes to excepted users if there has been any change
-		Collection<User> usersById = (exceptedUsers != null && !exceptedUsers.isEmpty()) ? (CollectionUtils.emptyIfNull(userDao.findByUuidInAndDeletedFalse(exceptedUsers))) : Collections.emptyList();
+		Collection<User> usersById = (exceptedUsers != null && !exceptedUsers.isEmpty()) ? CollectionUtils.emptyIfNull(userDao.findByUuidInAndDeletedFalse(exceptedUsers)) : Collections.emptyList();
 		if (usersById.isEmpty()) {
-			assignment.setContainsExceptedUsers(false);
-			assignment.setExceptedUsers(new ArrayList<>());
-			modified = true;
+			if (assignment.isContainsExceptedUsers() || (assignment.getExceptedUsers() != null && !assignment.getExceptedUsers().isEmpty())) {
+				assignment.setContainsExceptedUsers(false);
+				assignment.setExceptedUsers(new ArrayList<>());
+				modified = true;
+			}
 		} else {
 			Set<String> toBeSaved = usersById.stream().map(User::getUuid).collect(Collectors.toSet());
 			Set<String> alreadySaved = CollectionUtils.emptyIfNull(assignment.getExceptedUsers()).stream().map(User::getUuid).collect(Collectors.toSet());
@@ -564,30 +568,37 @@ public class OrgUnitService {
 			if (intersection.size() != toBeSaved.size() || intersection.size() != alreadySaved.size()) {
 				assignment.setContainsExceptedUsers(true);
 				assignment.setExceptedUsers(new ArrayList<>(usersById));
-				assignment.setInherit(false);
+				// Keep inherit unchanged here; see inherit section below
+				modified = true;
+			} else if (!assignment.isContainsExceptedUsers()) {
+				assignment.setContainsExceptedUsers(true);
 				modified = true;
 			}
 		}
 
-		// only set titles if no excepted users
-		if (!assignment.isContainsExceptedUsers() && titleUuids != null && !titleUuids.isEmpty()) {
-			// Remove
-			for (Iterator<Title> iterator = assignment.getTitles().iterator(); iterator.hasNext();) {
-				Title title = iterator.next();
-				if (!titleUuids.contains(title.getUuid())) {
-					iterator.remove();
-					modified = true;
-				}
-			}
-			// Add
-			List<Title> selectedTitles = titleDao.findByUuidInAndActiveTrue(titleUuids);
-			for (Title title : selectedTitles) {
-				if (!assignment.getTitles().contains(title)) {
-					assignment.getTitles().add(title);
+		// set titles
+		if (titleUuids != null) {
+			// Remove titles no longer selected
+			for (Iterator<Title> it = assignment.getTitles().iterator(); it.hasNext();) {
+				Title t = it.next();
+				if (!titleUuids.contains(t.getUuid())) {
+					it.remove();
 					modified = true;
 				}
 			}
 
+			// Add newly selected active titles
+			if (!titleUuids.isEmpty()) {
+				List<Title> selectedTitles = titleDao.findByUuidInAndActiveTrue(titleUuids);
+				for (Title t : selectedTitles) {
+					if (!assignment.getTitles().contains(t)) {
+						assignment.getTitles().add(t);
+						modified = true;
+					}
+				}
+			}
+
+			// Set containsTitles based on resulting list and negativeTitles parameter
 			if (assignment.getTitles().isEmpty()) {
 				if (!assignment.getContainsTitles().equals(ContainsTitles.NO)) {
 					assignment.setContainsTitles(ContainsTitles.NO);
@@ -605,9 +616,11 @@ public class OrgUnitService {
 				}
 			}
 		} else {
-			assignment.setContainsTitles(ContainsTitles.NO);
-			assignment.setTitles(new ArrayList<>());
-			modified = true;
+			if (!assignment.getTitles().isEmpty() || !assignment.getContainsTitles().equals(ContainsTitles.NO)) {
+				assignment.setTitles(new ArrayList<>());
+				assignment.setContainsTitles(ContainsTitles.NO);
+				modified = true;
+			}
 		}
 
 		// inherit is only possible if no excepted users
@@ -636,9 +649,11 @@ public class OrgUnitService {
 			OrgUnitUserRoleAssignment mapping = iterator.next();
 
 			if (mapping.getUserRole().getId() == userRole.getId()) {
-				AuditLogContextHolder.getContext().setStopDateUserId(mapping.getStopDateUser());
-				iterator.remove();
-				return true;
+				if (!mapping.getUserRole().isReadOnly()) {
+					AuditLogContextHolder.getContext().setStopDateUserId(mapping.getStopDateUser());
+					iterator.remove();
+					return true;
+				}
 			}
 		}
 
@@ -667,9 +682,11 @@ public class OrgUnitService {
 					&& !SecurityUtil.getRoles().contains(Constants.ROLE_SYSTEM)) {
 				throw new SecurityException("Kun administratorer kan fjerne Rollekatalog roller");
 			}
-			
-			// trick to ensure auditlogging
-			self.removeUserRoleAssignment(ou, assignment.get());
+
+			if (!assignment.get().getUserRole().isReadOnly()) {
+				// trick to ensure auditlogging
+				self.removeUserRoleAssignment(ou, assignment.get());
+			}
 
 			return true;
 		}
@@ -979,9 +996,9 @@ public class OrgUnitService {
 	public List<OrgUnit> getByRoleGroup(RoleGroup roleGroup) {
 		return orgUnitDao.findByActiveTrueAndRoleGroupAssignmentsRoleGroup(roleGroup);
 	}
-	
-	public List<OrgUnit> getByRoleGroup(RoleGroup roleGroup, boolean inactive) {
-		return orgUnitDao.findByActiveTrueAndRoleGroupAssignmentsRoleGroupAndRoleGroupAssignmentsInactive(roleGroup, inactive)
+
+	public List<OrgUnit> getByRoleGroupIn(List<RoleGroup> roleGroups, boolean inactive) {
+		return orgUnitDao.findByActiveTrueAndRoleGroupAssignmentsRoleGroupInAndRoleGroupAssignmentsInactive(roleGroups, inactive)
 				.stream().filter(this::isActiveAndIncluded).collect(Collectors.toList());
 	}
 
@@ -1053,7 +1070,7 @@ public class OrgUnitService {
 		return result;
 	}
 	
-	// TODO: does not handle titles yet
+	// TODO: dead code, not used anywhere
 	public List<OrgUnitWithRole> getOrgUnitsWithUserRole(UserRole userRole, boolean findIndirectlyAssignedRoles) {
 		List<OrgUnitWithRole> result = new ArrayList<>();
 		List<OrgUnit> ousNoInherit = orgUnitDao.findByActiveTrueAndUserRoleAssignmentsUserRoleAndUserRoleAssignmentsInheritAndUserRoleAssignmentsInactive(userRole, false, false)
@@ -1114,6 +1131,7 @@ public class OrgUnitService {
 		return result;
 	}
 
+	// TODO: dead code, not used anywhere
 	public List<OrgUnitAssignedToUserRoleDTO> getOrgUnitAssignmentsWithUserRoleDirectlyAssigned(UserRole userRole) {
 		List<OrgUnitAssignedToUserRoleDTO> result = new ArrayList<>();
 
@@ -1141,41 +1159,47 @@ public class OrgUnitService {
 		}
 
 		// For all roleGroups that have selected UserRole
-		for (RoleGroup roleGroup : roleGroupDao.findByUserRoleAssignmentsUserRole(userRole)) {
-			// Get all orgUnits that have this roleGroup assigned directly
-			List<OrgUnit> orgUnitsWithRoleGroup = orgUnitDao.findByActiveTrueAndRoleGroupAssignmentsRoleGroupAndRoleGroupAssignmentsInactive(roleGroup, false)
-					.stream().filter(this::isActiveAndIncluded).distinct().collect(Collectors.toList());
-			for (OrgUnit orgUnit : orgUnitsWithRoleGroup) {
-				List<OrgUnitRoleGroupAssignment> userRoleAssignments = orgUnit.getRoleGroupAssignments().stream().filter(a -> a.getRoleGroup().equals(roleGroup)).collect(Collectors.toList());
-				for (OrgUnitRoleGroupAssignment userUserRoleAssignment : userRoleAssignments) {
-					OrgUnitAssignedToUserRoleDTO mapping = new OrgUnitAssignedToUserRoleDTO();
-					mapping.setOrgUnit(orgUnit);
-					mapping.setAssignedThrough(AssignedThrough.ROLEGROUP);
-					mapping.setAssignmentId(userUserRoleAssignment.getId());
-					mapping.setRoleId(userUserRoleAssignment.getRoleGroup().getId());
-					mapping.setCanEdit(false);
-					mapping.setStartDate(userUserRoleAssignment.getStartDate());
-					mapping.setStopDate(userUserRoleAssignment.getStopDate());
-					if (userUserRoleAssignment.getContainsTitles() != ContainsTitles.NO) {
-						mapping.setAssignmentType(userUserRoleAssignment.getTitles().size());// assigned through titles
-					} else if (userUserRoleAssignment.isContainsExceptedUsers()) {
-						mapping.setAssignmentType(0);// Assigned to all with exceptions
-					} else {
-						mapping.setAssignmentType(userUserRoleAssignment.isInherit() ? -2 : -1);// Assigned to all or with inheritance
-					}
-					
-					result.add(mapping);
+		List<RoleGroup> roleGroups = roleGroupDao.findByUserRoleAssignmentsUserRole(userRole);
+		Set<Long> roleGroupIds = roleGroups.stream().map(r -> r.getId()).collect(Collectors.toSet());
+
+		// Get all orgUnits that have this roleGroup assigned directly
+		List<OrgUnit> orgUnitsWithRoleGroup = orgUnitDao.findByActiveTrueAndRoleGroupAssignmentsRoleGroupInAndRoleGroupAssignmentsInactive(roleGroups, false)
+				.stream().filter(this::isActiveAndIncluded).distinct().collect(Collectors.toList());
+
+		for (OrgUnit orgUnit : orgUnitsWithRoleGroup) {
+			List<OrgUnitRoleGroupAssignment> userRoleAssignments = orgUnit.getRoleGroupAssignments().stream().filter(a -> roleGroupIds.contains(a.getRoleGroup().getId())).collect(Collectors.toList());
+			
+			for (OrgUnitRoleGroupAssignment userUserRoleAssignment : userRoleAssignments) {
+				OrgUnitAssignedToUserRoleDTO mapping = new OrgUnitAssignedToUserRoleDTO();
+				mapping.setOrgUnit(orgUnit);
+				mapping.setAssignedThrough(AssignedThrough.ROLEGROUP);
+				mapping.setAssignmentId(userUserRoleAssignment.getId());
+				mapping.setRoleId(userUserRoleAssignment.getRoleGroup().getId());
+				mapping.setCanEdit(false);
+				mapping.setStartDate(userUserRoleAssignment.getStartDate());
+				mapping.setStopDate(userUserRoleAssignment.getStopDate());
+				if (userUserRoleAssignment.getContainsTitles() != ContainsTitles.NO) {
+					mapping.setAssignmentType(userUserRoleAssignment.getTitles().size());// assigned through titles
 				}
+				else if (userUserRoleAssignment.isContainsExceptedUsers()) {
+					mapping.setAssignmentType(0);// Assigned to all with exceptions
+				}
+				else {
+					mapping.setAssignmentType(userUserRoleAssignment.isInherit() ? -2 : -1);// Assigned to all or with inheritance
+				}
+				
+				result.add(mapping);
 			}
 		}
 
 		return result;
 	}
 
+	// TODO: dead code, not used anywhere
 	public List<OrgUnitAssignedToUserRoleDTO> getOrgUnitAssignmentsWithRoleGroupDirectlyAssigned(RoleGroup roleGroup) {
 		List<OrgUnitAssignedToUserRoleDTO> result = new ArrayList<>();
 
-		List<OrgUnit> orgUnitsWithRole = orgUnitDao.findByActiveTrueAndRoleGroupAssignmentsRoleGroupAndRoleGroupAssignmentsInactive(roleGroup, false).stream().filter(this::isActiveAndIncluded).distinct().collect(Collectors.toList());
+		List<OrgUnit> orgUnitsWithRole = orgUnitDao.findByActiveTrueAndRoleGroupAssignmentsRoleGroupInAndRoleGroupAssignmentsInactive(Collections.singletonList(roleGroup), false).stream().filter(this::isActiveAndIncluded).distinct().collect(Collectors.toList());
 		for (OrgUnit orgUnit : orgUnitsWithRole) {
 			List<OrgUnitRoleGroupAssignment> roleGroupAssignments = orgUnit.getRoleGroupAssignments().stream().filter(a -> a.getRoleGroup().equals(roleGroup)).collect(Collectors.toList());
 			for (OrgUnitRoleGroupAssignment userUserRoleAssignment : roleGroupAssignments) {
@@ -1201,7 +1225,7 @@ public class OrgUnitService {
 		return result;
 	}
 
-
+	// TODO: dead code, not used anywhere
 	public List<OrgUnitWithRole> getOrgUnitsWithRoleGroup(RoleGroup roleGroup, boolean findIndirectlyAssignedRoles) {
 		List<OrgUnitWithRole> result = new ArrayList<>();
 

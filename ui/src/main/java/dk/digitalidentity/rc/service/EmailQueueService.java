@@ -30,6 +30,9 @@ public class EmailQueueService {
 	
 	@Autowired
 	private EmailService emailService;
+	
+	@Autowired
+	private EmailQueueService self;
 
 	@Autowired
 	private SettingsService settingsService;
@@ -54,9 +57,8 @@ public class EmailQueueService {
 		emailQueueDao.save(mail);
 	}
 
-	@Transactional
 	public void sendPending() {
-		List<EmailQueue> emails = findPending();
+		List<EmailQueue> emails = self.findPending();
 		
 		int limit = settingsService.getEmailQueueLimit();
 		if (limit != 0 && (emails.size() > limit)) {
@@ -109,7 +111,8 @@ public class EmailQueueService {
 		}
 	}
 	
-	private List<EmailQueue> findPending() {
+	@Transactional
+	public List<EmailQueue> findPending() {
 		Date tts = new Date();
 
 		Calendar cal = Calendar.getInstance();
@@ -120,7 +123,13 @@ public class EmailQueueService {
 			return new ArrayList<EmailQueue>();
 		}
 
-		return emailQueueDao.findByDeliveryTtsBefore(tts);
+		List<EmailQueue> queued = emailQueueDao.findByDeliveryTtsBefore(tts);
+		queued.forEach(q -> {
+			q.getAttachments().size();
+			q.getEmailTemplate().getEntityId();
+		});
+		
+		return queued;
 	}
 	
 	private List<InlineImageDTO> transformImages(EmailQueue email) {

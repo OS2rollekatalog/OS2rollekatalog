@@ -7,7 +7,7 @@ import dk.digitalidentity.rc.attestation.model.dto.enums.RoleType;
 import dk.digitalidentity.rc.attestation.service.OrganisationAttestationService;
 import dk.digitalidentity.rc.dao.model.OrgUnit;
 import dk.digitalidentity.rc.dao.model.User;
-import dk.digitalidentity.rc.security.RequireSubstituteOrManagerRole;
+import dk.digitalidentity.rc.security.RequireSubstituteOrManagerOrAttestationAdminRole;
 import dk.digitalidentity.rc.security.SecurityUtil;
 import dk.digitalidentity.rc.service.OrgUnitService;
 import dk.digitalidentity.rc.service.SettingsService;
@@ -26,7 +26,7 @@ import java.util.stream.Collectors;
 
 import static dk.digitalidentity.rc.attestation.model.dto.enums.RoleType.USERROLE;
 
-@RequireSubstituteOrManagerRole
+@RequireSubstituteOrManagerOrAttestationAdminRole
 @Controller
 public class OrgUnitAttestationController {
 
@@ -49,12 +49,14 @@ public class OrgUnitAttestationController {
 
 		Set<String> managedOrgUnitUuids = orgUnitService.getByManagerMatchingUser(user).stream().map(OrgUnit::getUuid).collect(Collectors.toSet());
 		managedOrgUnitUuids.addAll(user.getSubstituteFor().stream().map(o -> o.getOrgUnit().getUuid()).collect(Collectors.toSet()));
-		if (!managedOrgUnitUuids.contains(uuid)) {
+		if (!managedOrgUnitUuids.contains(uuid) && !SecurityUtil.isAttestationAdminOrAdmin()) {
 			return "attestationmodule/error";
 		}
 
 		OrganisationAttestationDTO attestation = attestationService.getAttestation(uuid, user.getUuid(), true);
-
+		// We are an admin, but not allowed to confirm/deny the attestations. Open in view only
+		boolean openInView = !managedOrgUnitUuids.contains(uuid) && SecurityUtil.isAttestationAdminOrAdmin();
+		model.addAttribute("openInView", openInView);
 		model.addAttribute("managerdelegate", false);
 		model.addAttribute("attestation", attestation);
 		model.addAttribute("totalCount", attestation.getUserAttestations().size());
@@ -81,6 +83,7 @@ public class OrgUnitAttestationController {
 		model.addAttribute("adAttestationEnabled", settingsService.isADAttestationEnabled());
 		model.addAttribute("orgUnitTotalCount", calculateOrgUnitCount(attestation));
 		model.addAttribute("changeRequestsEnabled", settingsService.isAttestationRequestChangesEnabled());
+		model.addAttribute("openInView", false);
 
 		boolean descriptionRequired = settingsService.isAttestationDescriptionRequired();
 		model.addAttribute("hideDescription", !descriptionRequired && settingsService.isAttestationHideDescription());
@@ -101,6 +104,7 @@ public class OrgUnitAttestationController {
 		model.addAttribute("roleAssignments", roles);
 		model.addAttribute("number", number);
 		model.addAttribute("userUuid", userUuid);
+		model.addAttribute("openInView", false);
 
 		boolean descriptionRequired = settingsService.isAttestationDescriptionRequired();
 		model.addAttribute("hideDescription", !descriptionRequired && settingsService.isAttestationHideDescription());
@@ -129,6 +133,7 @@ public class OrgUnitAttestationController {
 						.map(ur -> new AttestationRoleAssignmentDTO(ur.getRoleId(), ur.getRoleName(), USERROLE, ass.getItSystemName(), String.join(", ", ur.getTitles()))))
 				.toList();
 
+		model.addAttribute("openInView", false);
 		model.addAttribute("roleAssignments", roles);
 		model.addAttribute("orgUnitUuid", ouUUID);
 

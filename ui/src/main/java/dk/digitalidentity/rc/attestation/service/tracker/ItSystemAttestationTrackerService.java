@@ -68,6 +68,9 @@ public class ItSystemAttestationTrackerService {
                 final HistoryUser historyUser = historyUserDao.findFirstByDatoAndUserUuid(when, assignment.getResponsibleUserUuid());
                 attestation.setResponsibleUserUuid(assignment.getResponsibleUserUuid());
                 attestation.setResponsibleUserId(historyUser.getUserUserId());
+				// When changing responsible, we need to move the date, as the assignments are frozen at created-date,
+				// and the new responsible won't be responsible for any assignments until today.
+				attestation.setCreatedAt(when);
             }
         }
     }

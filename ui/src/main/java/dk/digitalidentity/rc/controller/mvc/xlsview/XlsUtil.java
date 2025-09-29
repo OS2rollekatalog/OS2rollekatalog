@@ -6,18 +6,25 @@ import dk.digitalidentity.rc.dao.model.ItSystem;
 import dk.digitalidentity.rc.dao.model.OrgUnit;
 import dk.digitalidentity.rc.dao.model.SystemRoleAssignment;
 import dk.digitalidentity.rc.dao.model.SystemRoleAssignmentConstraintValue;
+import dk.digitalidentity.rc.dao.model.enums.ConstraintValueType;
 import dk.digitalidentity.rc.service.ItSystemService;
 import dk.digitalidentity.rc.service.OrgUnitService;
+import dk.digitalidentity.rc.util.OrganisationConstraintUtil;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.MessageSource;
 import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.stereotype.Component;
+import org.springframework.util.StringUtils;
 
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -33,6 +40,9 @@ public class XlsUtil {
 
 	@Autowired
 	private ItSystemService itSystemService;
+
+	@Autowired
+	private OrganisationConstraintUtil organisationConstraintUtil;
 	
 	@PostConstruct
 	public void init() {
@@ -68,6 +78,9 @@ public class XlsUtil {
 								break;
 							case INHERITED:
 								value = instance.messageSource.getMessage("html.constraint.kle.inherited", null, locale);
+								break;
+							case SELECTED_INHERITED:
+								value = String.join(",", organisationConstraintUtil.getOrganisationConstraintUuids(constraintValue.getConstraintValue()));
 								break;
 							case LEVEL_1:
 							case LEVEL_2:
@@ -117,9 +130,10 @@ public class XlsUtil {
 							case POSTPONED:
 								value = "udskudt";
 								break;
+							case SELECTED_INHERITED:
 							case VALUE:								
 								values = new ArrayList<>();
-								constraintValues = constraintValue.getConstraintValue().split(",");
+								constraintValues = constraintValue.getConstraintValueType().equals(ConstraintValueType.VALUE) ? constraintValue.getConstraintValue().split(",") : organisationConstraintUtil.getOrganisationConstraintUuids(constraintValue.getConstraintValue()).toArray(String[]::new);
 								for (String uuid : constraintValues) {
 									var orgUnit = instance.orgUnitService.getByUuid(uuid);
 									if (orgUnit == null) {
@@ -157,7 +171,7 @@ public class XlsUtil {
 						break;
 					case Constants.INTERNAL_ORGUNIT_CONSTRAINT_ENTITY_ID:
 						switch (constraintValue.getConstraintValueType()) {
-							case EXTENDED_INHERITED:
+                            case EXTENDED_INHERITED:
 								value = instance.messageSource.getMessage("html.constraint.organisation.extended", null, locale);
 								break;
 							case INHERITED:
@@ -175,9 +189,10 @@ public class XlsUtil {
 							case READ_AND_WRITE:
 								log.warn("An READ/WRITE was assigned as a constraint on OrgUnit");
 								break;
+							case SELECTED_INHERITED:
 							case VALUE:
 								values = new ArrayList<>();
-								constraintValues = constraintValue.getConstraintValue().split(",");
+								constraintValues = constraintValue.getConstraintValueType().equals(ConstraintValueType.VALUE) ? constraintValue.getConstraintValue().split(",") : organisationConstraintUtil.getOrganisationConstraintUuids(constraintValue.getConstraintValue()).toArray(String[]::new);
 								for (String uuid : constraintValues) {
 									OrgUnit ou = null;
 									try {

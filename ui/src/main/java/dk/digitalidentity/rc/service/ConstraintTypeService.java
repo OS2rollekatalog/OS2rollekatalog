@@ -3,6 +3,7 @@ package dk.digitalidentity.rc.service;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.function.Consumer;
 import java.util.stream.StreamSupport;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -10,6 +11,7 @@ import org.springframework.stereotype.Service;
 
 import dk.digitalidentity.rc.dao.ConstraintTypeDao;
 import dk.digitalidentity.rc.dao.model.ConstraintType;
+import jakarta.transaction.Transactional;
 
 @Service
 public class ConstraintTypeService {
@@ -46,7 +48,23 @@ public class ConstraintTypeService {
 		return StreamSupport.stream(constraintTypeDao.findAll().spliterator(), false).toList();
 	}
 
+	@Transactional
+	public List<ConstraintType> getAll(Consumer<ConstraintType> consumer) {
+		List<ConstraintType> result = getAll();
+		
+		if (consumer != null) {
+			result.forEach(consumer);
+		}
+		
+		return result;
+	}
+
 	public ConstraintType save(ConstraintType entity) {
 		return constraintTypeDao.save(entity);
+	}
+
+	@Transactional
+	public void saveAll(List<ConstraintType> constraintTypes) {
+		constraintTypeDao.saveAll(constraintTypes);
 	}
 }

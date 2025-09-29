@@ -12,6 +12,7 @@ public interface RoleChangeHook {
 
 	// UserServiceHooks
 	public void interceptActivateUser(User user);
+	public void interceptFlagUserDeleted(User user);
 	public void interceptAddRoleGroupAssignmentOnUser(User user, RoleGroup roleGroup);
 	public void interceptRemoveRoleGroupAssignmentOnUser(User user, RoleGroup roleGroup);
 	public void interceptAddUserRoleAssignmentOnUser(User user, UserRole userRole);
@@ -38,7 +39,7 @@ public interface RoleChangeHook {
 	public void interceptAddUserRoleAssignmentOnRoleGroup(RoleGroup roleGroup, UserRole userRole);
 	public void interceptRemoveUserRoleAssignmentOnRoleGroup(RoleGroup roleGroup, UserRole userRole);
 
-	//// UserRoleService Hooks
+	// UserRoleService Hooks
 	public void interceptAddSystemRoleAssignmentOnUserRole(UserRole userRole, SystemRoleAssignment systemRoleAssignment);
 	public void interceptRemoveSystemRoleAssignmentOnUserRole(UserRole userRole, SystemRoleAssignment systemRoleAssignment);
 }

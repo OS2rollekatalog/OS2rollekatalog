@@ -238,7 +238,7 @@
 													<th:block th:if="${role.delegatedFromCvr == null}">
 														<td class="col-md-1">
 															<a th:href="@{/ui/userroles/view/{id}(id=${role.id})}"><em class="fa fa-search"></em></a>
-															<th:block sec:authorize="hasRole('ROLE_ADMINISTRATOR')">
+															<th:block th:unless="${role.readOnly or itsystem.readonly}" sec:authorize="hasRole('ROLE_ADMINISTRATOR')">
 																<a th:href="@{/ui/userroles/edit/{id}(id=${role.id})}"><em class="fa fa-pencil"></em></a>
 															</th:block>
 														</td>
@@ -309,7 +309,7 @@
 													<th:block th:if="${role.delegatedFromCvr == null}">
 														<td class="col-md-1">
 															<a th:href="@{/ui/userroles/view/{id}(id=${role.id})}"><em class="fa fa-search"></em></a>
-															<th:block sec:authorize="hasRole('ROLE_ADMINISTRATOR')">
+															<th:block th:unless="${role.readOnly or itsystem.readonly}" sec:authorize="hasRole('ROLE_ADMINISTRATOR')">
 																<a th:href="@{/ui/userroles/edit/{id}(id=${role.id})}"><em class="fa fa-pencil"></em></a>
 															</th:block>
 														</td>
@@ -375,7 +375,7 @@
 													<th:block th:if="${role.delegatedFromCvr == null}">
 														<td class="col-md-1">
 															<a th:href="@{/ui/userroles/view/{id}(id=${role.id})}"><em class="fa fa-search"></em></a>
-															<th:block sec:authorize="hasRole('ROLE_ADMINISTRATOR')">
+															<th:block th:unless="${role.readOnly or itsystem.readonly}" sec:authorize="hasRole('ROLE_ADMINISTRATOR')">
 																<a th:href="@{/ui/userroles/edit/{id}(id=${role.id})}"><em class="fa fa-pencil"></em></a>
 															</th:block>
 														</td>

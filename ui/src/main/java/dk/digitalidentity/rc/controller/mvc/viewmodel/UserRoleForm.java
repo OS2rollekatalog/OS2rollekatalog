@@ -24,6 +24,7 @@ public class UserRoleForm {
 	private boolean sensitiveRole;
 	private boolean extraSensitiveRole;
     private ItSystem itSystem;
+	private String contactEmail;
     private List<SystemRoleAssignment> systemRoleAssignments;
     private List<RoleGroup> roleGroups;
     private boolean pendingSync;
@@ -36,11 +37,12 @@ public class UserRoleForm {
     private String emailTemplateTitle = "Der er tildelt en rolle der kræver leder-involvering";
 	private String emailTemplateMessage = "Kære {modtager}\n<br/>\n<br/>\nRollen {rolle}, der kræver leder-involvering, er tildelt til {bruger}.";
 	private boolean roleAssignmentAttestationByAttestationResponsible;
+	private boolean readOnly;
 
 	@Size(max = 4000)
 	private String description;
 
-	@Size(min = 2, max = 64, message = "{validation.role.name}")
+	@Size(min = 2, max = 128, message = "{validation.role.name}")
 	private String name;
 
     public UserRoleForm() {
@@ -53,6 +55,7 @@ public class UserRoleForm {
     	this.identifier = userRole.getIdentifier();
     	this.userOnly = userRole.isUserOnly();
     	this.uuid = userRole.getUuid();
+		this.contactEmail = userRole.getContactEmail();
     	this.canRequest = userRole.isCanRequest();
     	this.description = userRole.getDescription();
     	this.itSystem = userRole.getItSystem();
@@ -68,6 +71,7 @@ public class UserRoleForm {
     	this.sendToSubstitutes = userRole.isSendToSubstitutes();
     	this.sendToAuthorizationManagers = userRole.isSendToAuthorizationManagers();
 		this.roleAssignmentAttestationByAttestationResponsible = userRole.isRoleAssignmentAttestationByAttestationResponsible();
+		this.readOnly = userRole.isReadOnly();
 
     	if (userRole.getUserRoleEmailTemplate() != null) {
     		this.emailTemplateTitle = userRole.getUserRoleEmailTemplate().getTitle();
@@ -80,6 +84,7 @@ public class UserRoleForm {
     	userRole.setId(this.id);
     	userRole.setName(this.name);
     	userRole.setIdentifier(this.identifier);
+		userRole.setContactEmail(this.contactEmail);
     	userRole.setUserOnly(this.userOnly);
     	userRole.setUuid(this.uuid);
     	userRole.setCanRequest(this.canRequest);
@@ -95,6 +100,7 @@ public class UserRoleForm {
     	userRole.setSendToSubstitutes(this.sendToSubstitutes);
     	userRole.setSendToAuthorizationManagers(this.sendToAuthorizationManagers);
     	userRole.setRoleAssignmentAttestationByAttestationResponsible(this.roleAssignmentAttestationByAttestationResponsible);
+    	userRole.setReadOnly(this.readOnly);
     	if (this.isRequireManagerAction()) {
     		UserRoleEmailTemplate template = new UserRoleEmailTemplate();
     		template.setTitle(this.emailTemplateTitle);

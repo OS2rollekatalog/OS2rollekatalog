@@ -1,6 +1,28 @@
 package dk.digitalidentity.rc.attestation.service.temporal;
 
+import static org.springframework.transaction.TransactionDefinition.ISOLATION_READ_UNCOMMITTED;
+
+import java.time.LocalDate;
+import java.time.ZoneId;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Objects;
+import java.util.Set;
+import java.util.function.Function;
+import java.util.stream.Collectors;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionDefinition;
+import org.springframework.transaction.support.TransactionTemplate;
+
 import com.google.common.collect.Lists;
+
 import dk.digitalidentity.rc.attestation.exception.AttestationDataUpdaterException;
 import dk.digitalidentity.rc.attestation.model.entity.temporal.AssignedThroughType;
 import dk.digitalidentity.rc.attestation.model.entity.temporal.AttestationUserRoleAssignment;
@@ -9,9 +31,6 @@ import dk.digitalidentity.rc.dao.UserDao;
 import dk.digitalidentity.rc.dao.history.model.HistoryItSystem;
 import dk.digitalidentity.rc.dao.history.model.HistoryOU;
 import dk.digitalidentity.rc.dao.history.model.HistoryOURoleAssignment;
-import dk.digitalidentity.rc.dao.history.model.HistoryOURoleAssignmentWithExceptions;
-import dk.digitalidentity.rc.dao.history.model.HistoryOURoleAssignmentWithNegativeTitles;
-import dk.digitalidentity.rc.dao.history.model.HistoryOURoleAssignmentWithTitles;
 import dk.digitalidentity.rc.dao.history.model.HistoryOUUser;
 import dk.digitalidentity.rc.dao.history.model.HistoryRoleAssignment;
 import dk.digitalidentity.rc.dao.model.OrgUnit;
@@ -20,22 +39,6 @@ import dk.digitalidentity.rc.service.model.AssignedThrough;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.FlushModeType;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Component;
-import org.springframework.transaction.PlatformTransactionManager;
-import org.springframework.transaction.TransactionDefinition;
-import org.springframework.transaction.support.TransactionTemplate;
-
-import java.time.LocalDate;
-import java.time.ZoneId;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Objects;
-import java.util.function.Function;
-import java.util.stream.Collectors;
-
-import static org.springframework.transaction.TransactionDefinition.ISOLATION_READ_UNCOMMITTED;
 
 /**
  * JDBC Notice!
@@ -149,28 +152,18 @@ public class UserAssignmentsUpdaterJdbc {
 
     public long flattenOURoles(TransactionTemplate transactionTemplate, final LocalDate when) {
         final List<HistoryOU> allOus = temporalDao.listHistoryOUs(when);
-        long recordCount = 0;
-        final List<HistoryOURoleAssignment> allOuAssignments = transactionTemplate
+
+        // fetch all assignments
+        final List<HistoryOURoleAssignment> allAssignments = transactionTemplate
                 .execute(t -> temporalDao.listHistoryOURoleAssignmentsByDate(when));
-        recordCount += flattenAndPersistPartitioned(transactionTemplate, allOuAssignments,
-                a -> toUserRoleAssignment(getCurrentOu(allOus, a.getOuUuid()), a, when), when);
 
-        final List<HistoryOURoleAssignmentWithExceptions> allOuAssignmentsWithExceptions = transactionTemplate
-                .execute(t -> temporalDao.listHistoryOURoleAssignmentWithExceptionsByDate(when));
-        recordCount += flattenAndPersistPartitioned(transactionTemplate, allOuAssignmentsWithExceptions,
-                a -> toUserRoleAssignment(getCurrentOu(allOus, a.getOuUuid()), a, when), when);
-
-        final List<HistoryOURoleAssignmentWithTitles> allOuAssignmentsWithTitles = transactionTemplate
-                .execute(t -> temporalDao.listHistoryOURoleAssignmentWithTitlesByDate(when));
-        recordCount += flattenAndPersistPartitioned(transactionTemplate, allOuAssignmentsWithTitles,
-                a -> toUserRoleAssignment(getCurrentOu(allOus, a.getOuUuid()), a, when), when);
-
-        final List<HistoryOURoleAssignmentWithNegativeTitles> allOuAssignmentsWithNegativeTitles = transactionTemplate
-                .execute(t -> temporalDao.listHistoryOURoleAssignmentWithNegativeTitlesByDate(when));
-        recordCount += flattenAndPersistPartitioned(transactionTemplate, allOuAssignmentsWithNegativeTitles,
-                a -> toUserRoleAssignment(getCurrentOu(allOus, a.getOuUuid()), a, when), when);
-
-        return recordCount;
+        // flatten and persist them
+        return flattenAndPersistPartitioned(
+                transactionTemplate,
+                allAssignments,
+                a -> toUserRoleAssignment(getCurrentOu(allOus, a.getOuUuid()), a, when),
+                when
+        );
     }
 
     /**
@@ -296,32 +289,81 @@ public class UserAssignmentsUpdaterJdbc {
         return assignment;
     }
 
-
-    private List<AttestationUserRoleAssignment> toUserRoleAssignment(final HistoryOU currentOu,
-                                                                     final HistoryOURoleAssignment assignment, final LocalDate when) {
+    private List<AttestationUserRoleAssignment> toUserRoleAssignment(final HistoryOU currentOu, final HistoryOURoleAssignment assignment, final LocalDate when) {
+        // Build context
         final UpdaterContextService.UpdaterContext context = updaterContextService.contextBuilder(when, assignment.getRoleItSystemId())
                 .withOrgUnit(assignment.getOuUuid())
                 .withRole(assignment.getRoleId())
                 .withRoleGroup(assignment.getRoleRoleGroupId())
                 .getContext();
+
         if (context.isItSystemExempt()) {
             return Collections.emptyList();
+        }
+
+        final Set<String> exceptedUsers = new HashSet<>();
+        final Set<String> positiveTitles  = new HashSet<>(); // positive titles
+        final Set<String> negativeTitles  = new HashSet<>(); //  negative titles
+
+        if (assignment.getExclusions() != null) {
+            for (var ex : assignment.getExclusions()) {
+                switch (ex.getExclusionType()) {
+                    case excepted_users -> exceptedUsers.addAll(splitCsvToSet(ex.getUserUuids()));
+                    case titles         -> positiveTitles.addAll(splitCsvToSet(ex.getTitleUuids()));
+                    case negative_titles-> negativeTitles.addAll(splitCsvToSet(ex.getTitleUuids()));
+                }
+            }
         }
 
         final String systemResponsibleUserUuid = context.responsibleUserUuid();
         final boolean itSystemResponsible = assignment.getRoleRoleGroupId() == null
                 && context.isRoleAssignmentAttestationByAttestationResponsible()
                 && systemResponsibleUserUuid != null;
+
         final List<HistoryOUUser> users = temporalDao.listHistoryOUUsers(currentOu.getId());
+
         return users.stream()
-                .filter(u -> !u.getDoNotInherit())
+                .filter(u -> !Boolean.TRUE.equals(u.getDoNotInherit()))
+                .filter(u -> {
+                    // 1. Exclude users
+                    if (exceptedUsers.contains(u.getUserUuid())) return false;
+
+                    final String userTitle = u.getTitleUuid();
+
+                    // 2. If we have positive title set -> must be IN that set
+                    if (!positiveTitles.isEmpty() && (userTitle == null || !positiveTitles.contains(userTitle))) {
+                        return false;
+                    }
+                    // 3. Always exclude negative titles
+                    if (!negativeTitles.isEmpty() && userTitle != null && negativeTitles.contains(userTitle)) {
+                        return false;
+                    }
+                    return true;
+                })
                 .map(u -> {
-                    final User currentUser = userDao.findById(u.getUserUuid())
-                            .orElseThrow();
+                    final User currentUser = userDao.findById(u.getUserUuid()).orElseThrow();
                     final boolean isManager = context.isManager(currentUser);
                     final String responsibleOuUuid = getResponsibleOuUuid(context.ouUuid(), u.getUserUuid(), isManager, itSystemResponsible);
-                    boolean inherited = assignment.getAssignedThroughType() == AssignedThrough.ORGUNIT;
-                    final AttestationUserRoleAssignment userRoleAssignment = AttestationUserRoleAssignment.builder()
+
+                    // Those fields are different for some reason //TODO ask kbp
+                    boolean inherited = false;
+                    String responsibleUserUuid;
+                    String assignedThroughName;
+                    String assignedThroughUuid;
+
+                    if (exceptedUsers.isEmpty() && positiveTitles.isEmpty() && negativeTitles.isEmpty()) { // no excluded users, no positive titles, no negative titles
+                        inherited = assignment.getAssignedThroughType() == AssignedThrough.ORGUNIT;
+                        responsibleUserUuid = itSystemResponsible && !inherited ? systemResponsibleUserUuid : null;
+                        assignedThroughName = assignment.getAssignedThroughName() != null ? assignment.getAssignedThroughName() : context.ouName();
+                        assignedThroughUuid = assignment.getAssignedThroughUuid() != null ? assignment.getAssignedThroughUuid() : context.ouUuid();
+                    } else {
+                        inherited = false;
+                        responsibleUserUuid = itSystemResponsible ? systemResponsibleUserUuid : null;
+                        assignedThroughName = currentOu.getOuName();
+                        assignedThroughUuid = currentOu.getOuUuid();
+                    }
+                    
+                    final AttestationUserRoleAssignment ura = AttestationUserRoleAssignment.builder()
                             .itSystemId(assignment.getRoleItSystemId())
                             .itSystemName(context.itSystemName())
                             .userId(currentUser.getUserId())
@@ -334,13 +376,9 @@ public class UserAssignmentsUpdaterJdbc {
                             .roleGroupName(assignment.getRoleRoleGroup())
                             .roleGroupDescription(context.roleGroupDescription())
                             .assignedThroughType(AssignedThroughType.ORGUNIT)
-                            .assignedThroughName(assignment.getAssignedThroughName() != null
-                                    ? assignment.getAssignedThroughName()
-                                    : context.ouName())
-                            .assignedThroughUuid(assignment.getAssignedThroughUuid() != null
-                                    ? assignment.getAssignedThroughUuid()
-                                    : context.ouUuid())
-                            .responsibleUserUuid(itSystemResponsible && !inherited ? systemResponsibleUserUuid : null)
+                            .assignedThroughName(assignedThroughName)
+                            .assignedThroughUuid(assignedThroughUuid)
+                            .responsibleUserUuid(responsibleUserUuid)
                             .responsibleOuName(getOuName(when, responsibleOuUuid))
                             .responsibleOuUuid(responsibleOuUuid)
                             .manager(!itSystemResponsible && isManager)
@@ -349,205 +387,23 @@ public class UserAssignmentsUpdaterJdbc {
                             .extraSensitiveRole(context.isRoleExtraSensitive())
                             .roleOuUuid(context.ouUuid())
                             .roleOuName(context.ouName())
-                            .assignedFrom(assignment.getAssignedWhen().toInstant()
-                                    .atZone(ZoneId.systemDefault())
-                                    .toLocalDate())
+                            .assignedFrom(assignment.getAssignedWhen() != null ? assignment.getAssignedWhen().toLocalDate() : null)
                             .build();
-                    // Hash are calculated afterward, as the hash calculation needs all the fields to be filled in first.
-                    userRoleAssignment.setRecordHash(TemporalHasher.hashEntity(userRoleAssignment));
-                    return userRoleAssignment;
-                })
-                .collect(Collectors.toList());
-    }
 
-    private List<AttestationUserRoleAssignment> toUserRoleAssignment(final HistoryOU currentOu,
-                                                                     final HistoryOURoleAssignmentWithExceptions assignment, final LocalDate when) {
-        final UpdaterContextService.UpdaterContext context = updaterContextService.contextBuilder(when, assignment.getRoleItSystemId())
-                .withOrgUnit(assignment.getOuUuid())
-                .withRole(assignment.getRoleId())
-                .withRoleGroup(assignment.getRoleRoleGroupId())
-                .getContext();
-        if (context.isItSystemExempt()) {
-            return Collections.emptyList();
-        }
-
-        final String systemResponsibleUserUuid = context.responsibleUserUuid();
-        boolean itSystemResponsible = assignment.getRoleRoleGroupId() == null
-                && context.isRoleAssignmentAttestationByAttestationResponsible()
-                && systemResponsibleUserUuid != null;
-
-        final List<HistoryOUUser> users = temporalDao.listHistoryOUUsers(currentOu.getId());
-        return users.stream()
-                .filter(
-                        // Do not create roles for excepted users
-                        u -> assignment.getUserUuids() == null ||
-                                !assignment.getUserUuids().contains(u.getUserUuid())
-                )
-                .filter(u -> !u.getDoNotInherit())
-                .map(u -> {
-                    final User currentUser = userDao.findById(u.getUserUuid())
-                            .orElseThrow();
-                    final boolean isManager = context.isManager(currentUser);
-                    final String responsibleOuUuid = getResponsibleOuUuid(context.ouUuid(), u.getUserUuid(), isManager, itSystemResponsible);
-                    final AttestationUserRoleAssignment userRoleAssignment = AttestationUserRoleAssignment.builder()
-                            .itSystemId(assignment.getRoleItSystemId())
-                            .itSystemName(context.itSystemName())
-                            .userId(currentUser.getUserId())
-                            .userName(currentUser.getName())
-                            .userUuid(currentUser.getUuid())
-                            .userRoleId(assignment.getRoleId())
-                            .userRoleName(context.roleName())
-                            .userRoleDescription(context.roleDescription())
-                            .roleGroupId(assignment.getRoleRoleGroupId())
-                            .roleGroupName(assignment.getRoleRoleGroup())
-                            .roleGroupDescription(context.roleGroupDescription())
-                            .responsibleUserUuid(itSystemResponsible ? systemResponsibleUserUuid : null)
-                            .responsibleOuName(getOuName(when, responsibleOuUuid))
-                            .responsibleOuUuid(responsibleOuUuid)
-                            .manager(!itSystemResponsible && isManager)
-                            .assignedThroughName(currentOu.getOuName())
-                            .assignedThroughUuid(currentOu.getOuUuid())
-                            .assignedThroughType(AssignedThroughType.ORGUNIT)
-                            .inherited(false)
-                            .sensitiveRole(context.isRoleSensitive())
-                            .extraSensitiveRole(context.isRoleExtraSensitive())
-                            .roleOuUuid(context.ouUuid())
-                            .roleOuName(context.ouName())
-                            .assignedFrom(assignment.getAssignedWhen().toInstant()
-                                    .atZone(ZoneId.systemDefault())
-                                    .toLocalDate())
-                            .build();
-                    // Hash are calculated afterward, as the hash calculation needs all the fields to be filled in first.
-                    userRoleAssignment.setRecordHash(TemporalHasher.hashEntity(userRoleAssignment));
-                    return userRoleAssignment;
-                })
-                .collect(Collectors.toList());
-    }
-
-
-    private List<AttestationUserRoleAssignment> toUserRoleAssignment(final HistoryOU currentOu,
-                                                                     final HistoryOURoleAssignmentWithTitles assignment, final LocalDate when) {
-        final UpdaterContextService.UpdaterContext context = updaterContextService.contextBuilder(when, assignment.getRoleItSystemId())
-                .withOrgUnit(assignment.getOuUuid())
-                .withRole(assignment.getRoleId())
-                .withRoleGroup(assignment.getRoleRoleGroupId())
-                .getContext();
-        if (context.isItSystemExempt()) {
-            return Collections.emptyList();
-        }
-
-        final String systemResponsibleUserUuid = context.responsibleUserUuid();
-        boolean itSystemResponsible = assignment.getRoleRoleGroupId() == null
-                && context.isRoleAssignmentAttestationByAttestationResponsible()
-                && systemResponsibleUserUuid != null;
-
-        final List<HistoryOUUser> users = temporalDao.listHistoryOUUsers(currentOu.getId());
-        return users.stream()
-                .filter(
-                        u -> assignment.getTitleUuids().contains(u.getTitleUuid())
-                )
-                .filter(u -> !u.getDoNotInherit())
-                .map(u -> {
-                    final User currentUser = userDao.findById(u.getUserUuid())
-                            .orElseThrow();
-                    final boolean isManager = context.isManager(currentUser);
-                    final String responsibleOuUuid = getResponsibleOuUuid(context.ouUuid(), u.getUserUuid(), isManager, itSystemResponsible);
-                    final AttestationUserRoleAssignment userRoleAssignment = AttestationUserRoleAssignment.builder()
-                            .itSystemId(assignment.getRoleItSystemId())
-                            .itSystemName(context.itSystemName())
-                            .userId(currentUser.getUserId())
-                            .userName(currentUser.getName())
-                            .userUuid(currentUser.getUuid())
-                            .userRoleId(assignment.getRoleId())
-                            .userRoleName(context.roleName())
-                            .userRoleDescription(context.roleDescription())
-                            .roleGroupId(assignment.getRoleRoleGroupId())
-                            .roleGroupName(assignment.getRoleRoleGroup())
-                            .roleGroupDescription(context.roleGroupDescription())
-                            .responsibleUserUuid(itSystemResponsible ? systemResponsibleUserUuid : null)
-                            .responsibleOuName(getOuName(when, responsibleOuUuid))
-                            .responsibleOuUuid(responsibleOuUuid)
-                            .manager(!itSystemResponsible && isManager)
-                            .assignedThroughName(currentOu.getOuName())
-                            .assignedThroughUuid(currentOu.getOuUuid())
-                            .assignedThroughType(AssignedThroughType.ORGUNIT)
-                            .inherited(false)
-                            .sensitiveRole(context.isRoleSensitive())
-                            .extraSensitiveRole(context.isRoleExtraSensitive())
-                            .roleOuUuid(context.ouUuid())
-                            .roleOuName(context.ouName())
-                            .assignedFrom(assignment.getAssignedWhen().toInstant()
-                                    .atZone(ZoneId.systemDefault())
-                                    .toLocalDate())
-                            .build();
-                    // Hash are calculated afterward, as the hash calculation needs all the fields to be filled in first.
-                    userRoleAssignment.setRecordHash(TemporalHasher.hashEntity(userRoleAssignment));
-                    return userRoleAssignment;
-                })
-                .collect(Collectors.toList());
-    }
-
-    private List<AttestationUserRoleAssignment> toUserRoleAssignment(final HistoryOU currentOu,
-                                                                     final HistoryOURoleAssignmentWithNegativeTitles assignment, final LocalDate when) {
-        final UpdaterContextService.UpdaterContext context = updaterContextService.contextBuilder(when, assignment.getRoleItSystemId())
-                .withOrgUnit(assignment.getOuUuid())
-                .withRole(assignment.getRoleId())
-                .withRoleGroup(assignment.getRoleRoleGroupId())
-                .getContext();
-        if (context.isItSystemExempt()) {
-            return Collections.emptyList();
-        }
-
-        final String systemResponsibleUserUuid = context.responsibleUserUuid();
-        boolean itSystemResponsible = assignment.getRoleRoleGroupId() == null
-                && context.isRoleAssignmentAttestationByAttestationResponsible()
-                && systemResponsibleUserUuid != null;
-
-        final List<HistoryOUUser> users = temporalDao.listHistoryOUUsers(currentOu.getId());
-        return users.stream()
-                .filter(
-                        u -> assignment.getTitleUuids().isEmpty() || !assignment.getTitleUuids().contains(u.getTitleUuid())
-                )
-                .map(u -> {
-                    final User currentUser = userDao.findById(u.getUserUuid())
-                            .orElseThrow();
-                    final boolean isManager = context.isManager(currentUser);
-                    final String responsibleOuUuid = getResponsibleOuUuid(context.ouUuid(), u.getUserUuid(), isManager, itSystemResponsible);
-                    final AttestationUserRoleAssignment userRoleAssignment = AttestationUserRoleAssignment.builder()
-                            .itSystemId(assignment.getRoleItSystemId())
-                            .itSystemName(context.itSystemName())
-                            .userId(currentUser.getUserId())
-                            .userName(currentUser.getName())
-                            .userUuid(currentUser.getUuid())
-                            .userRoleId(assignment.getRoleId())
-                            .userRoleName(context.roleName())
-                            .userRoleDescription(context.roleDescription())
-                            .roleGroupId(assignment.getRoleRoleGroupId())
-                            .roleGroupName(assignment.getRoleRoleGroup())
-                            .roleGroupDescription(context.roleGroupDescription())
-                            .responsibleUserUuid(itSystemResponsible ? systemResponsibleUserUuid : null)
-                            .responsibleOuName(getOuName(when, responsibleOuUuid))
-                            .responsibleOuUuid(responsibleOuUuid)
-                            .manager(!itSystemResponsible && isManager)
-                            .assignedThroughName(currentOu.getOuName())
-                            .assignedThroughUuid(currentOu.getOuUuid())
-                            .assignedThroughType(AssignedThroughType.ORGUNIT)
-                            .inherited(false)
-                            .sensitiveRole(context.isRoleSensitive())
-                            .extraSensitiveRole(context.isRoleExtraSensitive())
-                            .roleOuUuid(context.ouUuid())
-                            .roleOuName(context.ouName())
-                            .assignedFrom(assignment.getAssignedWhen().toInstant()
-                                    .atZone(ZoneId.systemDefault())
-                                    .toLocalDate())
-                            .build();
-                    // Hash are calculated afterward, as the hash calculation needs all the fields to be filled in first.
-                    userRoleAssignment.setRecordHash(TemporalHasher.hashEntity(userRoleAssignment));
-                    return userRoleAssignment;
+                    ura.setRecordHash(TemporalHasher.hashEntity(ura));
+                    return ura;
                 })
                 .toList();
     }
 
+	/** Utility: split comma-separated TEXT field into a trimmed Set<String>. */
+	private static Set<String> splitCsvToSet(String csv) {
+	    if (csv == null || csv.isBlank()) return Collections.emptySet();
+	    return Arrays.stream(csv.split(","))
+	            .map(String::trim)
+	            .filter(s -> !s.isEmpty())
+	            .collect(Collectors.toCollection(LinkedHashSet::new));
+	}
 
     private static int progressCount = 0;
     private void logProgress() {

@@ -42,7 +42,6 @@ public interface UserDao extends CrudRepository<User, String>, JpaSpecificationE
 	List<User> findByDomainAndExtUuidIn(Domain domain, Set<String> extUuids);
 	
 	List<User> findByDomainAndDeletedFalse(Domain domain);
-	List<User> findByCprAndDeletedFalse(String cpr);
 	List<User> findByDeletedFalse();
 	List<User> findByDeletedTrue();
 	long countByDeletedFalseAndUserRoleAssignmentsUserRole(UserRole userRole);
@@ -63,7 +62,7 @@ public interface UserDao extends CrudRepository<User, String>, JpaSpecificationE
 	List<User> findByDeletedFalseAndUserRoleAssignmentsUserRole(UserRole userRole);
 
 	List<User> findByDeletedFalseAndUserRoleAssignmentsUserRoleAndUserRoleAssignmentsInactive(UserRole userRole, boolean inactive);
-	List<User> findByDeletedFalseAndRoleGroupAssignmentsRoleGroupAndRoleGroupAssignmentsInactive(RoleGroup roleGroup, boolean inactive);
+	List<User> findByDeletedFalseAndRoleGroupAssignmentsRoleGroupInAndRoleGroupAssignmentsInactive(List<RoleGroup> roleGroups, boolean inactive);
 	
 	User getTopByDeletedFalseOrderByLastUpdatedDesc();
 

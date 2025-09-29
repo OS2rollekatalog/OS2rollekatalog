@@ -6,14 +6,20 @@ import java.time.OffsetDateTime;
 import java.time.ZonedDateTime;
 import java.util.Arrays;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import dk.digitalidentity.rc.dao.model.enums.OrgUnitLevel;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.EnableCaching;
 import org.springframework.context.MessageSource;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -30,6 +36,7 @@ import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 @Service
+@EnableCaching
 public class SettingsService {
 
 	@Autowired
@@ -83,6 +90,7 @@ public class SettingsService {
 		createOrUpdateSetting(Settings.SETTING_ATTESTATIONCHANGE_EMAIL, email);
 	}
 
+	@Cacheable(value = "SettingsCache-getScheduledAttestationFilter")
 	public Set<String> getScheduledAttestationFilter() {
 		Setting setting = settingsDao.findByKey(Settings.SETTING_SCHEDULED_ATTESTATION_EXCEPTED_ORG_UNITS.getKey());
 		Setting oldSetting = settingsDao.findByKey(Settings.SETTING_SCHEDULED_ATTESTATION_FILTER_OLD.getKey());
@@ -113,6 +121,7 @@ public class SettingsService {
 		return new HashSet<>(Arrays.asList(uuids));
 	}
 
+	@Cacheable(value = "SettingsCache-getScheduledAttestationOptedInOrgUnits")
 	public Set<String> getScheduledAttestationOptedInOrgUnits() {
 		Setting setting = settingsDao.findByKey(Settings.SETTING_SCHEDULED_ATTESTATION_OPTED_IN_ORG_UNITS.getKey());
 
@@ -316,6 +325,7 @@ public class SettingsService {
 		createOrUpdateSetting(Settings.SETTING_IT_SYSTEM_CHANGE_EMAIL, email);
 	}
 
+	@Cacheable(value = "SettingsCache-getExcludedOUs")
 	public Set<String> getExcludedOUs() {
 		Setting setting = settingsDao.findByKey(Settings.SETTING_EXCLUDED_OUS.getKey());
 
@@ -326,6 +336,16 @@ public class SettingsService {
 		String[] uuids = setting.getValue().split(",");
 
 		return new HashSet<>(Arrays.asList(uuids));
+	}
+
+	@CacheEvict(value = {
+		"SettingsCache-isAttestationOrgUnitSelectionOptIn",
+		"SettingsCache-getScheduledAttestationOptedInOrgUnits",
+		"SettingsCache-getExcludedOUs",
+		"SettingsCache-getScheduledAttestationFilter"
+	}, allEntries = true)
+	public void evictCache() {
+		;
 	}
 
 	public void setExcludedOUs(Set<String> filter) {
@@ -486,6 +506,7 @@ public class SettingsService {
 		settingsDao.save(setting);
 	}
 
+	@Cacheable(value = "SettingsCache-isAttestationOrgUnitSelectionOptIn")
 	public boolean isAttestationOrgUnitSelectionOptIn() {
 		return getBooleanWithDefault(Settings.SETTING_ATTESTATION_ORGUNIT_OPTIN.getKey(), false);
 	}
@@ -545,6 +566,66 @@ public class SettingsService {
 		if (changed) {
 			AuditLogContextHolder.getContext().addArgument("Ny værdi", (enabled ? "true" : "false"));
 			auditLogger.logSetting(settingsDao.findByKey(Settings.SETTING_SCHEDULED_ATTESTATION_HIDE_DESCRIPTION.getKey()), null, null, getPrettyName(Settings.SETTING_SCHEDULED_ATTESTATION_HIDE_DESCRIPTION));
+			AuditLogContextHolder.clearContext();
+		}
+	}
+
+	public Map<Integer, OrgUnitLevel> getNiveauMapping() {
+		Map<Integer, OrgUnitLevel> mappings = new HashMap<>();
+
+		List<Setting> niveauSettings = settingsDao.findByKeyStartingWith(Settings.SETTING_OU_TO_NIVEAU.getKey() + "[");
+
+		for (Setting setting : niveauSettings) {
+			try {
+				// Extract depth from key
+				String key = setting.getKey();
+				String depthStr = key.substring(
+						key.indexOf("[") + 1,
+						key.indexOf("]")
+				);
+
+				Integer depth = Integer.parseInt(depthStr);
+				OrgUnitLevel niveau = OrgUnitLevel.valueOf(setting.getValue());
+
+				mappings.put(depth, niveau);
+			} catch (Exception e) {
+				// Does not happen realistically, we keep it
+				log.error("Invalid niveau mapping setting: {} = {}", setting.getKey(), setting.getValue(), e);
+			}
+		}
+
+		return mappings;
+	}
+
+	public void setNiveauMapping(Map<Integer, OrgUnitLevel> depthToNiveauMappings) {
+		// Delete all previous mappings
+		clearExistingNiveauMappings();
+
+		// Save new mappings
+		depthToNiveauMappings.forEach((depth, niveau) -> {
+			if (niveau != null) {
+				Setting setting = new Setting();
+				setting.setKey(Settings.SETTING_OU_TO_NIVEAU.getKey() + "[" + depth + "]");
+				setting.setValue(niveau.name());
+				settingsDao.save(setting);
+			}
+		});
+	}
+
+	public void clearExistingNiveauMappings() {
+		List<Setting> existingMappings = settingsDao.findByKeyStartingWith(Settings.SETTING_OU_TO_NIVEAU.getKey() + "[");
+		settingsDao.deleteAll(existingMappings);
+	}
+
+	public boolean isAutomaticNiveauMappingEnabled() {
+		return isKeyEnabled(Settings.SETTING_ALLOW_AUTOMATIC_OU_NIVEAU_MAPPING.getKey());
+	}
+
+	public void setAutomaticNiveauMapping(boolean enabled) {
+		boolean changed = setKeyEnabled(enabled, Settings.SETTING_ALLOW_AUTOMATIC_OU_NIVEAU_MAPPING.getKey());
+		if (changed) {
+			AuditLogContextHolder.getContext().addArgument("Ny værdi", (enabled ? "true" : "false"));
+			auditLogger.logSetting(settingsDao.findByKey(Settings.SETTING_CASE_NUMBER_ENABLED.getKey()), null, null, getPrettyName(Settings.SETTING_ALLOW_AUTOMATIC_OU_NIVEAU_MAPPING));
 			AuditLogContextHolder.clearContext();
 		}
 	}

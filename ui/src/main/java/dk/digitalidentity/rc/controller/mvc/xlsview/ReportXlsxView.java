@@ -1,28 +1,20 @@
 package dk.digitalidentity.rc.controller.mvc.xlsview;
 
-import dk.digitalidentity.rc.controller.mvc.viewmodel.ReportForm;
-import dk.digitalidentity.rc.dao.history.model.HistoryItSystem;
-import dk.digitalidentity.rc.dao.history.model.HistoryKleAssignment;
-import dk.digitalidentity.rc.dao.history.model.HistoryOU;
-import dk.digitalidentity.rc.dao.history.model.HistoryOUKleAssignment;
-import dk.digitalidentity.rc.dao.history.model.HistoryOURoleAssignment;
-import dk.digitalidentity.rc.dao.history.model.HistoryOURoleAssignmentWithExceptions;
-import dk.digitalidentity.rc.dao.history.model.HistoryOURoleAssignmentWithNegativeTitles;
-import dk.digitalidentity.rc.dao.history.model.HistoryOURoleAssignmentWithTitles;
-import dk.digitalidentity.rc.dao.history.model.HistoryOUUser;
-import dk.digitalidentity.rc.dao.history.model.HistoryRoleAssignment;
-import dk.digitalidentity.rc.dao.history.model.HistorySystemRole;
-import dk.digitalidentity.rc.dao.history.model.HistorySystemRoleAssignment;
-import dk.digitalidentity.rc.dao.history.model.HistorySystemRoleAssignmentConstraint;
-import dk.digitalidentity.rc.dao.history.model.HistoryTitle;
-import dk.digitalidentity.rc.dao.history.model.HistoryUser;
-import dk.digitalidentity.rc.dao.history.model.HistoryUserRole;
-import dk.digitalidentity.rc.service.ItSystemService;
-import dk.digitalidentity.rc.service.OrgUnitService;
-import dk.digitalidentity.rc.service.ReportService;
-import dk.digitalidentity.rc.service.model.UserRoleAssignmentReportEntry;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.Set;
+import java.util.function.Function;
+import java.util.stream.Collectors;
+
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.CellStyle;
 import org.apache.poi.ss.usermodel.Font;
@@ -33,23 +25,30 @@ import org.springframework.context.support.ResourceBundleMessageSource;
 import org.springframework.util.StringUtils;
 import org.springframework.web.servlet.view.document.AbstractXlsxStreamingView;
 
-import java.text.SimpleDateFormat;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
-import java.util.Map.Entry;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.Set;
-import java.util.function.Function;
-import java.util.stream.Collectors;
+import dk.digitalidentity.rc.controller.mvc.viewmodel.ReportForm;
+import dk.digitalidentity.rc.dao.history.model.HistoryItSystem;
+import dk.digitalidentity.rc.dao.history.model.HistoryKleAssignment;
+import dk.digitalidentity.rc.dao.history.model.HistoryOU;
+import dk.digitalidentity.rc.dao.history.model.HistoryOUKleAssignment;
+import dk.digitalidentity.rc.dao.history.model.HistoryOURoleAssignment;
+import dk.digitalidentity.rc.dao.history.model.HistoryOURoleAssignmentExclusion;
+import dk.digitalidentity.rc.dao.history.model.HistoryOURoleAssignmentExclusion.ExclusionType;
+import dk.digitalidentity.rc.dao.history.model.HistoryOUUser;
+import dk.digitalidentity.rc.dao.history.model.HistoryRoleAssignment;
+import dk.digitalidentity.rc.dao.history.model.HistorySystemRole;
+import dk.digitalidentity.rc.dao.history.model.HistorySystemRoleAssignment;
+import dk.digitalidentity.rc.dao.history.model.HistorySystemRoleAssignmentConstraint;
+import dk.digitalidentity.rc.dao.history.model.HistoryTitle;
+import dk.digitalidentity.rc.dao.history.model.HistoryUser;
+import dk.digitalidentity.rc.dao.history.model.HistoryUserRole;
+import dk.digitalidentity.rc.dao.model.enums.ConstraintValueType;
+import dk.digitalidentity.rc.service.ItSystemService;
+import dk.digitalidentity.rc.service.OrgUnitService;
+import dk.digitalidentity.rc.service.ReportService;
+import dk.digitalidentity.rc.service.model.UserRoleAssignmentReportEntry;
+import dk.digitalidentity.rc.util.OrganisationConstraintUtil;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 
 public class ReportXlsxView extends AbstractXlsxStreamingView {
     private LocalDate filterDate;
@@ -63,12 +62,9 @@ public class ReportXlsxView extends AbstractXlsxStreamingView {
     private Map<String, HistoryOU> orgUnits;
     private Map<String, HistoryOU> allOrgUnits;
     private Map<String, List<HistoryOURoleAssignment>> ouRoleAssignments;
-    private Map<String, List<HistoryOURoleAssignmentWithExceptions>> ouRoleAssignmentsWithExceptions;
     private Map<String, List<HistoryOUKleAssignment>> ouKLEAssignments;
-    private Map<String, List<HistoryOURoleAssignmentWithTitles>> titleRoleAssignments;
-    private Map<String, List<HistoryOURoleAssignmentWithNegativeTitles>> negativeRoleAssignments;
     private Map<Long, String> itSystemNameMapping;
-    private SimpleDateFormat dateFormatter;
+    private DateTimeFormatter localDateFormatter;
     private ResourceBundleMessageSource messageSource;
     private Locale locale;
     private CellStyle headerStyle;
@@ -76,6 +72,7 @@ public class ReportXlsxView extends AbstractXlsxStreamingView {
     private ReportService reportService;
     private OrgUnitService orgUnitService;
     private ItSystemService itSystemService;
+    private OrganisationConstraintUtil organisationConstraintUtil;
     private List<HistoryOUUser> ouUsers;
 
     @SuppressWarnings("unchecked")
@@ -87,6 +84,7 @@ public class ReportXlsxView extends AbstractXlsxStreamingView {
         reportService = (ReportService) model.get("reportService");
         orgUnitService = (OrgUnitService) model.get("orgUnitService");
         itSystemService = (ItSystemService) model.get("itSystemService");
+        organisationConstraintUtil = (OrganisationConstraintUtil) model.get("organisationConstraintUtil");
         filterDate = (LocalDate) model.get("filterDate");
         users = (Map<String, HistoryUser>) model.get("users");
         titles = (List<HistoryTitle>) model.get("titles");
@@ -98,10 +96,7 @@ public class ReportXlsxView extends AbstractXlsxStreamingView {
         ouKLEAssignments = (Map<String, List<HistoryOUKleAssignment>>) model.get("ouKLEAssignments");
         userKLEAssignments = (Map<String, List<HistoryKleAssignment>>) model.get("userKLEAssignments");
         ouRoleAssignments = (Map<String, List<HistoryOURoleAssignment>>) model.get("ouRoleAssignments");
-        ouRoleAssignmentsWithExceptions = (Map<String, List<HistoryOURoleAssignmentWithExceptions>>) model.get("ouRoleAssignmentsWithExceptions");
         userRoleAssignments = (Map<String, List<HistoryRoleAssignment>>) model.get("userRoleAssignments");
-		titleRoleAssignments = (Map<String, List<HistoryOURoleAssignmentWithTitles>>) model.get("titleRoleAssignments");
-        negativeRoleAssignments = (Map<String, List<HistoryOURoleAssignmentWithNegativeTitles>>) model.get("negativeRoleAssignments");
 		ouUsers = (List<HistoryOUUser>) model.get("ouUsers");
 
 		if (titles != null) {
@@ -110,7 +105,7 @@ public class ReportXlsxView extends AbstractXlsxStreamingView {
 		else {
 			titleMap = new HashMap<>();
 		}
-		
+
 		// Process data
         itSystemNameMapping = new HashMap<>();
         for (HistoryItSystem itSystem : itSystems) {
@@ -118,7 +113,7 @@ public class ReportXlsxView extends AbstractXlsxStreamingView {
                 itSystemNameMapping.put(userRole.getUserRoleId(), userRole.getUserRoleName());
             }
         }
-        dateFormatter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+        localDateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
         // Setup shared resources
         Font headerFont = workbook.createFont();
@@ -134,7 +129,7 @@ public class ReportXlsxView extends AbstractXlsxStreamingView {
 
         // Create Sheets
         createMasterDataSheet(workbook, reportForm);
-        
+
         if (reportForm.isShowUsers()) {
 			createUsersSheet(workbook);
         }
@@ -143,11 +138,11 @@ public class ReportXlsxView extends AbstractXlsxStreamingView {
 			createRoleSheet(workbook);
 		}
 
-		if (reportForm.isShowOUs()) {	    	
+		if (reportForm.isShowOUs()) {
 			if (reportForm.isShowUserRoles()) {
 				createOURoleSheet(workbook);
 			}
-	    	
+
 			if (reportForm.isShowKLE()) {
 				createOUKLESheet(workbook);
 			}
@@ -203,12 +198,12 @@ public class ReportXlsxView extends AbstractXlsxStreamingView {
         headers.add("xls.report.users.positions");
 
         createHeaderRow(sheet, headers);
-        
+
         int row = 1;
         for (HistoryUser entry : users.values()) {
             Row dataRow = sheet.createRow(row++);
             int column = 0;
-            
+
             createCell(dataRow, column++, entry.getUserUuid(), null);
             createCell(dataRow, column++, entry.getUserName(), null);
             createCell(dataRow, column++, entry.getUserUserId(), null);
@@ -253,7 +248,7 @@ public class ReportXlsxView extends AbstractXlsxStreamingView {
         String dateFilterHeader = messageSource.getMessage("xls.report.masterdata.filter.date", null, locale);
         createCell(filterDateRow, 0, dateFilterHeader, headerStyle);
         createCell(filterDateRow, 1, filterDate.format(DateTimeFormatter.ofPattern("yyyy-MM-dd")), null);
-        
+
     }
 
     private void createRoleSheet(Workbook workbook) {
@@ -339,9 +334,10 @@ public class ReportXlsxView extends AbstractXlsxStreamingView {
                     				}
                                 }
                     			break;
+                            case SELECTED_INHERITED:
                     		case VALUE:
                     			String constraintValue = constraint.getConstraintValue();
-                    			
+
 								List<String> values;
 								String[] constraintValues;
 								// TODO: not super robust, but as the history table only stores names, and not ID's, this is
@@ -349,8 +345,11 @@ public class ReportXlsxView extends AbstractXlsxStreamingView {
 								switch (constraint.getConstraintName()) {
 									case "It-system":
 										values = new ArrayList<>();
-										constraintValues = constraintValue.split(",");
+                                        constraintValues = constraint.getConstraintValueType().equals(ConstraintValueType.VALUE) ? constraintValue.split(",") : organisationConstraintUtil.getOrganisationConstraintUuids(constraintValue).toArray(String[]::new);
 										for (String id : constraintValues) {
+                                            if (id.isEmpty()) {
+                                                continue;
+                                            }
 											var cvItSystem = itSystemService.getById(Long.parseLong(id));
 											if (cvItSystem == null) {
 												values.add(id);
@@ -364,7 +363,7 @@ public class ReportXlsxView extends AbstractXlsxStreamingView {
 									case "Organisation":
 									case "Enhed":
 										values = new ArrayList<>();
-										constraintValues = constraintValue.split(",");
+                                        constraintValues = constraint.getConstraintValueType().equals(ConstraintValueType.VALUE) ? constraintValue.split(",") : organisationConstraintUtil.getOrganisationConstraintUuids(constraintValue).toArray(String[]::new);
 										for (String uuid : constraintValues) {
 											var cvOrgUnit = orgUnitService.getByUuid(uuid);
 											if (cvOrgUnit == null) {
@@ -400,6 +399,7 @@ public class ReportXlsxView extends AbstractXlsxStreamingView {
         }
     }
 
+    //TODO this still needs fixing
     private void createOURoleSheet(Workbook workbook) {
         Sheet sheet = workbook.createSheet(messageSource.getMessage("xls.report.ou.roles.sheet.title", null, locale));
 
@@ -419,17 +419,23 @@ public class ReportXlsxView extends AbstractXlsxStreamingView {
 
         int row = 1;
         for (Map.Entry<String, List<HistoryOURoleAssignment>> entry : ouRoleAssignments.entrySet()) {
-            String ouName = orgUnits.get(entry.getKey()).getOuName();
-            List<HistoryOURoleAssignment> ouRoleAssignments = entry.getValue();
-            for (HistoryOURoleAssignment ouRoleAssignment : ouRoleAssignments) {
+            HistoryOU ou = orgUnits.get(entry.getKey());
+            if (ou == null) {
+                // this OU has been filtered out, so skip
+                continue;
+            }
+
+            String ouName = ou.getOuName();
+            List<HistoryOURoleAssignment> assignments = entry.getValue();
+
+            for (HistoryOURoleAssignment ouRoleAssignment : assignments) {
 
                 // Get ItSystem by id
-                Optional<HistoryItSystem> first = itSystems.stream().filter(itSystem -> itSystem.getItSystemId() == ouRoleAssignment.getRoleItSystemId()).findFirst();
-                String itSystem = "";
-                if (first.isPresent()) {
-                    HistoryItSystem historyItSystem = first.get();
-                    itSystem = historyItSystem.getItSystemName();
-                }
+                Optional<HistoryItSystem> first = itSystems.stream()
+                    .filter(itSystem -> itSystem.getItSystemId() == ouRoleAssignment.getRoleItSystemId())
+                    .findFirst();
+
+                String itSystem = first.map(HistoryItSystem::getItSystemName).orElse("");
 
                 // Creating assigned by
                 String assignedBy = ouRoleAssignment.getAssignedByName() + " (" + ouRoleAssignment.getAssignedByUserId() + ")";
@@ -437,6 +443,7 @@ public class ReportXlsxView extends AbstractXlsxStreamingView {
                 // Creating assigned Through string
                 String assignedThroughStr = "";
                 switch (ouRoleAssignment.getAssignedThroughType()) {
+                    case null:
                     case DIRECT:
                     case ROLEGROUP:
                         assignedThroughStr = messageSource.getMessage("xls.role.assigned.trough.type.direct", null, locale);
@@ -451,11 +458,42 @@ public class ReportXlsxView extends AbstractXlsxStreamingView {
                         assignedThroughStr = messageSource.getMessage("xls.role.assigned.trough.type.title", null, locale);
                         break;
                 }
-
                 if (StringUtils.hasLength(ouRoleAssignment.getAssignedThroughName())) {
                     assignedThroughStr += ": " + ouRoleAssignment.getAssignedThroughName();
                 }
 
+                // Collect exclusions
+                StringBuilder exceptedUsersStr = new StringBuilder();
+                StringBuilder titlesStr = new StringBuilder();
+
+                if (ouRoleAssignment.getExclusions() != null) {
+                    for (HistoryOURoleAssignmentExclusion exclusion : ouRoleAssignment.getExclusions()) {
+                        if (exclusion.getExclusionType() == ExclusionType.excepted_users && exclusion.getUserUuids() != null) {
+                            for (String userUuid : exclusion.getUserUuids().split(",")) {
+                                if (exceptedUsersStr.length() > 0) {
+                                    exceptedUsersStr.append("\n");
+                                }
+                                exceptedUsersStr.append(
+                                    users.containsKey(userUuid)
+                                        ? users.get(userUuid).getUserName() + " (" + users.get(userUuid).getUserUserId() + ")"
+                                        : userUuid
+                                );
+                            }
+                        } else if (exclusion.getExclusionType() == ExclusionType.titles && exclusion.getTitleUuids() != null) {
+                            for (String titleUuid : exclusion.getTitleUuids().split(",")) {
+                                if (titlesStr.length() > 0) {
+                                    titlesStr.append("\n");
+                                }
+                                titlesStr.append(
+                                    titleMap.containsKey(titleUuid)
+                                        ? titleMap.get(titleUuid).getTitleName()
+                                        : titleUuid
+                                );
+                            }
+                        }
+                    }
+                }
+
                 Row dataRow = sheet.createRow(row++);
                 int column = 0;
                 createCell(dataRow, column++, ouName, null);
@@ -463,132 +501,15 @@ public class ReportXlsxView extends AbstractXlsxStreamingView {
                 createCell(dataRow, column++, itSystemNameMapping.get(ouRoleAssignment.getRoleId()), null);
                 createCell(dataRow, column++, itSystem, null);
                 createCell(dataRow, column++, assignedBy, null);
-                createCell(dataRow, column++, dateFormatter.format(bestStartDate(ouRoleAssignment.getAssignedWhen(), ouRoleAssignment.getStartDate())), null);
+                createCell(dataRow, column++, bestStartDate(ouRoleAssignment.getAssignedWhen(), ouRoleAssignment.getStartDate(), localDateFormatter), null);
                 createCell(dataRow, column++, formatLocalDateTime(atEndOfDay(ouRoleAssignment.getStopDate())), null);
                 createCell(dataRow, column++, assignedThroughStr, null);
-            }
-        }
-
-        // Add assignments with exceptions
-        for (Map.Entry<String, List<HistoryOURoleAssignmentWithExceptions>> entry : ouRoleAssignmentsWithExceptions.entrySet()) {
-        	HistoryOU ou = orgUnits.get(entry.getKey());
-        	if (ou == null) {
-        		// this OU has been filtered out, so skip
-        		continue;
-        	}
-        	
-            String ouName = ou.getOuName();
-            List<HistoryOURoleAssignmentWithExceptions> ouRoleAssignments = entry.getValue();
-
-            for (HistoryOURoleAssignmentWithExceptions ouRoleAssignment : ouRoleAssignments) {
-
-                // Get ItSystem by id
-                Optional<HistoryItSystem> first = itSystems.stream().filter(itSystem -> itSystem.getItSystemId() == ouRoleAssignment.getRoleItSystemId()).findFirst();
-                String itSystem = "";
-                if (first.isPresent()) {
-                    HistoryItSystem historyItSystem = first.get();
-                    itSystem = historyItSystem.getItSystemName();
-                }
-
-                // Creating assigned by
-                String assignedBy = ouRoleAssignment.getAssignedByName() + " (" + ouRoleAssignment.getAssignedByUserId() + ")";
-
-                // Creating Excepted users string
-                StringBuilder exceptionStr = new StringBuilder();
-                for (String userUuid : ouRoleAssignment.getUserUuids()) {
-                	if (exceptionStr.length() > 0) {
-                		exceptionStr.append("\n");
-                	}
-                    exceptionStr.append(users.containsKey(userUuid) ? users.get(userUuid).getUserName() + " (" + users.get(userUuid).getUserUserId() + ")" : userUuid + "");
-                }
-
-                Row dataRow = sheet.createRow(row++);
-                int column = 0;
-                createCell(dataRow, column++, ouName, null);
-                createCell(dataRow, column++, entry.getKey(), null);
-                createCell(dataRow, column++, itSystemNameMapping.get(ouRoleAssignment.getRoleId()), null);
-                createCell(dataRow, column++, itSystem, null);
-                createCell(dataRow, column++, assignedBy, null);
-                createCell(dataRow, column++, dateFormatter.format(bestStartDate(ouRoleAssignment.getAssignedWhen(), ouRoleAssignment.getStartDate())), null);
-                createCell(dataRow, column++, formatLocalDateTime(atEndOfDay(ouRoleAssignment.getStopDate())), null);
-                createCell(dataRow, column++, messageSource.getMessage("xls.role.assigned.trough.type.direct", null, locale), null);
-                createCell(dataRow, column++, exceptionStr.toString(), wrapStyle);
-            }
-        }
-        
-        // Add assignments with titles
-        for (Entry<String, List<HistoryOURoleAssignmentWithTitles>> entry : titleRoleAssignments.entrySet()) {
-        	HistoryOU ou = orgUnits.get(entry.getKey());
-        	if (ou == null) {
-        		// this OU has been filtered out, so skip
-        		continue;
-        	}
-
-        	String ouName = orgUnits.get(entry.getKey()).getOuName();
-            List<HistoryOURoleAssignmentWithTitles> ouRoleAssignments = entry.getValue();
-
-            for (HistoryOURoleAssignmentWithTitles ouRoleAssignment : ouRoleAssignments) {
-
-                // Get ItSystem by id
-                Optional<HistoryItSystem> first = itSystems.stream().filter(itSystem -> itSystem.getItSystemId() == ouRoleAssignment.getRoleItSystemId()).findFirst();
-                String itSystem = "";
-                if (first.isPresent()) {
-                    HistoryItSystem historyItSystem = first.get();
-                    itSystem = historyItSystem.getItSystemName();
-                }
-
-                // Creating assigned by
-                String assignedBy = ouRoleAssignment.getAssignedByName() + " (" + ouRoleAssignment.getAssignedByUserId() + ")";
-
-                // Creating title string
-                StringBuilder titleString = new StringBuilder();
-                for (String titleUuid : ouRoleAssignment.getTitleUuids()) {
-                	if (titleString.length() > 0) {
-                		titleString.append("\n");
-                	}
-
-                    titleString.append(titleMap.containsKey(titleUuid) ? titleMap.get(titleUuid).getTitleName() : titleUuid + "");
-                }
-
-				// Creating assigned Through string
-				String assignedThroughStr = "";
-				switch (ouRoleAssignment.getAssignedThroughType()) {
-					case DIRECT:
-						assignedThroughStr = messageSource.getMessage("xls.role.assigned.trough.type.direct", null, locale);
-						break;
-					case ROLEGROUP:
-						assignedThroughStr = messageSource.getMessage("xls.role.assigned.trough.type.direct_group", null, locale);
-						break;
-					case POSITION:
-						assignedThroughStr = messageSource.getMessage("xls.role.assigned.trough.type.position", null, locale);
-						break;
-					case ORGUNIT:
-						assignedThroughStr = messageSource.getMessage("xls.role.assigned.trough.type.orgunit", null, locale);
-						break;
-					case TITLE:
-						assignedThroughStr = messageSource.getMessage("xls.role.assigned.trough.type.title", null, locale);
-						break;
-				}
-
-				if (StringUtils.hasLength(ouRoleAssignment.getAssignedThroughName())) {
-					assignedThroughStr += ": " + ouRoleAssignment.getAssignedThroughName();
-				}
-
-                Row dataRow = sheet.createRow(row++);
-                int column = 0;
-                createCell(dataRow, column++, ouName, null);
-                createCell(dataRow, column++, entry.getKey(), null);
-                createCell(dataRow, column++, itSystemNameMapping.get(ouRoleAssignment.getRoleId()), null);
-                createCell(dataRow, column++, itSystem, null);
-                createCell(dataRow, column++, assignedBy, null);
-                createCell(dataRow, column++, dateFormatter.format(bestStartDate(ouRoleAssignment.getAssignedWhen(), ouRoleAssignment.getStartDate())), null);
-                createCell(dataRow, column++, formatLocalDateTime(atEndOfDay(ouRoleAssignment.getStopDate())), null);
-                createCell(dataRow, column++, assignedThroughStr, null);
-                createCell(dataRow, column++, "", null);
-                createCell(dataRow, column++, titleString.toString(), wrapStyle);
+                createCell(dataRow, column++, exceptedUsersStr.toString(), wrapStyle);
+                createCell(dataRow, column++, titlesStr.toString(), wrapStyle);
             }
         }
     }
+
 
     private void createOUKLESheet(Workbook workbook) {
         Sheet sheet = workbook.createSheet(messageSource.getMessage("xls.report.ou.kle.sheet.title", null, locale));
@@ -649,13 +570,13 @@ public class ReportXlsxView extends AbstractXlsxStreamingView {
 
         createHeaderRow(sheet, headers);
 
-        List<UserRoleAssignmentReportEntry> userRoleAssignmentReportEntry = reportService.getUserRoleAssignmentReportEntries(users, allOrgUnits, itSystems, userRoleAssignments, ouRoleAssignments, negativeRoleAssignments, ouRoleAssignmentsWithExceptions, titleRoleAssignments, itSystemNameMapping, locale, showInactiveUsers, true);
-        
+        List<UserRoleAssignmentReportEntry> userRoleAssignmentReportEntry = reportService.getUserRoleAssignmentReportEntries(users, allOrgUnits, itSystems, userRoleAssignments, ouRoleAssignments, itSystemNameMapping, locale, showInactiveUsers, true);
+
         int row = 1;
         for (UserRoleAssignmentReportEntry entry : userRoleAssignmentReportEntry) {
             Row dataRow = sheet.createRow(row++);
             int column = 0;
-            
+
             createCell(dataRow, column++, entry.getUserName(), null);
             createCell(dataRow, column++, entry.getUserId(), null);
             createCell(dataRow, column++, entry.getEmployeeId(), null);
@@ -667,7 +588,7 @@ public class ReportXlsxView extends AbstractXlsxStreamingView {
             createCell(dataRow, column++, "" + entry.getSystemRoleWeight(), null);
             createCell(dataRow, column++, "" + entry.getItSystemResultWeight(), null);
             createCell(dataRow, column++, entry.getAssignedBy(), null);
-            createCell(dataRow, column++, dateFormatter.format(bestStartDate(entry.getAssignedWhen(), entry.getStartDate())), null);
+            createCell(dataRow, column++, bestStartDate(entry.getAssignedWhen(), entry.getStartDate(), localDateFormatter) , null);
             createCell(dataRow, column++, formatLocalDateTime(atEndOfDay(entry.getStopDate())), null);
             createCell(dataRow, column++, entry.getAssignedThrough(), null);
             createCell(dataRow, column++, entry.getPostponedConstraints(), null);
@@ -694,7 +615,17 @@ public class ReportXlsxView extends AbstractXlsxStreamingView {
 
         createHeaderRow(sheet, headers);
 
-        List<UserRoleAssignmentReportEntry> userRoleAssignmentReportEntry = reportService.getNegativeUserRoleAssignmentReportEntries(users, allOrgUnits, itSystems, negativeRoleAssignments, locale, showInactiveUsers, true);
+        // select assignments with only negative_titles exclusions
+        Map<String, List<HistoryOURoleAssignment>> negativeRoleAssignments =
+		    ouRoleAssignments.entrySet().stream()
+		        .collect(Collectors.toMap(
+		            Map.Entry::getKey,
+		            e -> e.getValue().stream()
+		                  .filter(assignment -> assignment.getExclusions().stream()
+		                      .allMatch(ex -> ex.getExclusionType() == ExclusionType.negative_titles))
+		                  .toList()
+		        ));
+		List<UserRoleAssignmentReportEntry> userRoleAssignmentReportEntry = reportService.getNegativeUserRoleAssignmentReportEntries(users, allOrgUnits, itSystems, negativeRoleAssignments, locale, showInactiveUsers, true);
 
         int row = 1;
         for (UserRoleAssignmentReportEntry entry : userRoleAssignmentReportEntry) {
@@ -710,7 +641,7 @@ public class ReportXlsxView extends AbstractXlsxStreamingView {
             createCell(dataRow, column++, itSystemNameMapping.get(entry.getRoleId()), null);
             createCell(dataRow, column++, entry.getItSystem(), null);
             createCell(dataRow, column++, entry.getAssignedBy(), null);
-            createCell(dataRow, column++, dateFormatter.format(bestStartDate(entry.getAssignedWhen(), entry.getStartDate())), null);
+            createCell(dataRow, column++, bestStartDate(entry.getAssignedWhen(), entry.getStartDate(), localDateFormatter) , null);
             createCell(dataRow, column++, formatLocalDateTime(atEndOfDay(entry.getStopDate())), null);
             createCell(dataRow, column++, entry.getAssignedThrough(), null);
             createCell(dataRow, column++, entry.getPostponedConstraints(), null);
@@ -736,13 +667,13 @@ public class ReportXlsxView extends AbstractXlsxStreamingView {
         	if (ou.getUsers() == null || ou.getUsers().size() == 0) {
         		continue;
         	}
-        	
+
         	// skip OUs without KLE assignments
         	List<HistoryOUKleAssignment> ouKleAssignments = ouKLEAssignments.get(ou.getOuUuid());
         	if (ouKleAssignments == null || ouKleAssignments.size() == 0) {
         		continue;
         	}
-        	
+
         	for (HistoryOUUser ouUser : ou.getUsers()) {
         		// minor optimization - no reason to map extra KLE for users that are not included in the report
         		if (users.get(ouUser.getUserUuid()) == null) {
@@ -761,7 +692,7 @@ public class ReportXlsxView extends AbstractXlsxStreamingView {
         		}
         	}
         }
-        
+
         int row = 1;
         for (HistoryUser user : users.values()) {
         	List<HistoryKleAssignment> entries = userKLEAssignments.get(user.getUserUuid());
@@ -777,9 +708,9 @@ public class ReportXlsxView extends AbstractXlsxStreamingView {
 
             List<HistoryKleAssignment> interestAssignments = entries.stream().filter(e -> Objects.equals(e.getAssignmentType(), "INTEREST")).collect(Collectors.toList());
             List<HistoryKleAssignment> performingAssignments = entries.stream().filter(e -> Objects.equals(e.getAssignmentType(), "PERFORMING")).collect(Collectors.toList());
-            
+
             // duplicated code *sigh*
-            
+
             Set<String> codeSum = new HashSet<>();
             for (HistoryKleAssignment kleAssignment : interestAssignments) {
                 Row dataRow = sheet.createRow(row++);
@@ -797,13 +728,13 @@ public class ReportXlsxView extends AbstractXlsxStreamingView {
                 else {
                 	createCell(dataRow, column++, "Personlige", null);
                 }
-                
+
                 String[] kleCodes = kleAssignment.getKleValues().split(",");
                 for (String kleCode : kleCodes) {
                 	codeSum.add(kleCode);
                 }
             }
-            
+
             // output sum of above rows
             if (codeSum.size() > 0) {
                 Row dataRow = sheet.createRow(row++);
@@ -834,13 +765,13 @@ public class ReportXlsxView extends AbstractXlsxStreamingView {
                 else {
                 	createCell(dataRow, column++, "Personlige", null);
                 }
-                
+
                 String[] kleCodes = kleAssignment.getKleValues().split(",");
                 for (String kleCode : kleCodes) {
                 	codeSum.add(kleCode);
                 }
             }
-            
+
             // output sum of above rows
             if (codeSum.size() > 0) {
                 Row dataRow = sheet.createRow(row++);
@@ -879,22 +810,21 @@ public class ReportXlsxView extends AbstractXlsxStreamingView {
         }
     }
 
-    private static Date bestStartDate(final Date assigned, final LocalDate startDate) {
+    private static String bestStartDate(final LocalDateTime assigned, final LocalDate startDate, DateTimeFormatter localDateFormatter) {
         if (startDate != null) {
-            return java.sql.Timestamp.valueOf(atStartOfDay(startDate));
+            return startDate.atStartOfDay().format(localDateFormatter);
+        } else if (assigned != null) {
+        	return assigned.format(localDateFormatter);
         }
-        return assigned;
+
+        return "";
     }
 
     private String formatLocalDateTime(final LocalDateTime when) {
         if (when == null) {
             return null;
         }
-        return dateFormatter.format(java.sql.Timestamp.valueOf(when));
-    }
-
-    private static LocalDateTime atStartOfDay(final LocalDate when) {
-        return when == null ? null : when.atStartOfDay();
+        return localDateFormatter.format(when);
     }
 
     private static LocalDateTime atEndOfDay(final LocalDate when) {

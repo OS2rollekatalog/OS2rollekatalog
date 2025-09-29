@@ -86,26 +86,27 @@
                                                         </table>
                                                     </div>
 
-                                                    <div class="row m-t-sm">
+                                                    <div class="row m-t-sm" th:if="${!openInView}">
                                                         <div class="form-group" style="margin-left: 15px;" th:id="'checkboxRow' + ${user.userUuid}">
                                                             <input th:attr="data-id=${user.userUuid}" type="checkbox" class="i-checks readCheckbox">
                                                             <label th:text="#{attestationmodule.html.attestation.controls.approve.read}" style="margin-left: 15px;"></label>
                                                         </div>
                                                     </div>
 
-                                                    <div class="row col-lg-12 m-t-sm">
-                                                        <button th:unless="${user.readOnly}" class="approveBtn btn btn-primary col-lg-2" th:id="'approveBtn' + ${user.userUuid}" th:attr="data-number=${userStat.index}, data-uuid=${user.userUuid}" disabled="disabled">
-                                                            <em class="fa-fw fa fa-check"></em>
-                                                            <span th:text="#{attestationmodule.html.attestation.controls.approve}"></span>
-                                                        </button>
-                                                        &nbsp;
-                                                        <button  th:if="${changeRequestsEnabled}" th:unless="${user.readOnly}" class="rejectBtn btn btn-danger col-lg-2" th:id="'rejectBtn' + ${user.userUuid}" th:attr="data-number=${userStat.index},data-uuid=${user.userUuid}">
-                                                            <em class="fa-fw fa fa-ban"></em>
-                                                            <span th:text="#{attestationmodule.html.attestation.controls.reject}"></span>
-                                                        </button>
-                                                        <p style="display: none;" th:id="'alreadyDone' + ${user.userUuid}" th:text="#{attestationmodule.html.itsystems.attestate.role.done}"></p>
-                                                        <p th:if="${user.readOnly}" th:text="#{attestationmodule.html.orgunits.attestate.users.self}"></p>
-
+                                                    <div class="row col-lg-12 m-t-sm" >
+														<th:block th:if="${!openInView}">
+															<button th:unless="${user.readOnly}" class="approveBtn btn btn-primary col-lg-2" th:id="'approveBtn' + ${user.userUuid}" th:attr="data-number=${userStat.index}, data-uuid=${user.userUuid}" disabled="disabled">
+																<em class="fa-fw fa fa-check"></em>
+																<span th:text="#{attestationmodule.html.attestation.controls.approve}"></span>
+															</button>
+															&nbsp;
+															<button  th:if="${changeRequestsEnabled}" th:unless="${user.readOnly}" class="rejectBtn btn btn-danger col-lg-2" th:id="'rejectBtn' + ${user.userUuid}" th:attr="data-number=${userStat.index},data-uuid=${user.userUuid}">
+																<em class="fa-fw fa fa-ban"></em>
+																<span th:text="#{attestationmodule.html.attestation.controls.reject}"></span>
+															</button>
+															<p style="display: none;" th:id="'alreadyDone' + ${user.userUuid}" th:text="#{attestationmodule.html.itsystems.attestate.role.done}"></p>
+															<p th:if="${user.readOnly}" th:text="#{attestationmodule.html.orgunits.attestate.users.self}"></p>
+														</th:block>
                                                         <div class="row ml-auto" style="margin-right: 15px;">
                                                             <button class="btn btn-primary btn-back" style="width: 60px" th:attr="data-number=${userStat.index}" th:unless="${userStat.index == 0}">
                                                                 <i class="fa fa-chevron-left"></i>
@@ -171,14 +172,14 @@
                                                         </table>
                                                     </div>
 
-                                                    <div class="row m-t-sm">
+                                                    <div class="row m-t-sm" th:if="${!openInView}">
                                                         <div class="form-group" style="margin-left: 15px;" th:id="'orgUnitheckboxRow' + ${ou.orgUnitUuid}">
                                                             <input th:attr="data-id=${ou.orgUnitUuid}" type="checkbox" class="i-checks orgUnitReadCheckbox">
                                                             <label th:text="#{attestationmodule.html.attestation.controls.approve.read}" style="margin-left: 15px;"></label>
                                                         </div>
                                                     </div>
 
-                                                    <div class="row col-lg-12 m-t-sm">
+                                                    <div class="row col-lg-12 m-t-sm" th:if="${!openInView}">
                                                         <button class="approveOrgUnitBtn btn btn-primary col-lg-2" th:id="'approveOrgUnitBtn' + ${ou.orgUnitUuid}" th:attr="data-number=${ouStat.index}, data-uuid=${ou.orgUnitUuid}" disabled="disabled">
                                                             <em class="fa-fw fa fa-check"></em>
                                                             <span th:text="#{attestationmodule.html.attestation.controls.approve}"></span>

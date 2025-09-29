@@ -67,7 +67,14 @@ public class EmailService {
 
 			MimeMessage msg = new MimeMessage(session);
 			msg.setFrom(new InternetAddress(configuration.getIntegrations().getEmail().getFrom(), "OS2rollekatalog"));
-			msg.setRecipients(Message.RecipientType.TO, InternetAddress.parse(email));
+			// Internet parts support comma separation in their parse function, so use that instead of semicolon
+			if (email.contains(";")) {
+				String normalizedEmails = email.replaceAll("\\s*;\\s*", ",");
+				msg.setRecipients(Message.RecipientType.TO, InternetAddress.parse(normalizedEmails));
+			}
+			else {
+				msg.setRecipients(Message.RecipientType.TO, InternetAddress.parse(email));
+			}
 
 			if (StringUtils.hasLength(cc)) {
 				msg.setRecipients(Message.RecipientType.CC, InternetAddress.parse(cc));

@@ -1,12 +1,9 @@
 package dk.digitalidentity.rc.attestation.service.temporal;
 
-
 import dk.digitalidentity.rc.attestation.model.entity.temporal.AssignedThroughType;
 import dk.digitalidentity.rc.attestation.model.entity.temporal.AttestationOuRoleAssignment;
 import dk.digitalidentity.rc.dao.history.model.HistoryOURoleAssignment;
-import dk.digitalidentity.rc.dao.history.model.HistoryOURoleAssignmentWithExceptions;
-import dk.digitalidentity.rc.dao.history.model.HistoryOURoleAssignmentWithNegativeTitles;
-import dk.digitalidentity.rc.dao.history.model.HistoryOURoleAssignmentWithTitles;
+import dk.digitalidentity.rc.dao.history.model.HistoryOURoleAssignmentExclusion.ExclusionType;
 import dk.digitalidentity.rc.service.model.AssignedThrough;
 import jakarta.transaction.Transactional;
 import lombok.extern.slf4j.Slf4j;
@@ -15,7 +12,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDate;
-import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
@@ -41,24 +38,6 @@ public class OuAssignmentsUpdaterJdbc {
         progressCount = 0;
         List<HistoryOURoleAssignment> ouAssignments = temporalDao.listHistoryOURoleAssignmentsByDate(when);
         ouAssignments.stream().map(a -> toOuRoleAssignment(a, when))
-                .filter(Objects::nonNull)
-                .peek(a -> logProgress())
-                .forEach(a -> persist(when, a));
-
-        final List<HistoryOURoleAssignmentWithExceptions> ouWithExceptionsAssignments = temporalDao.listHistoryOURoleAssignmentWithExceptionsByDate(when);
-        ouWithExceptionsAssignments.stream().map(a -> toOuRoleAssignment(a, when))
-                .filter(Objects::nonNull)
-                .peek(a -> logProgress())
-                .forEach(a -> persist(when, a));
-
-        final List<HistoryOURoleAssignmentWithTitles> ouWithTitlesAssignments = temporalDao.listHistoryOURoleAssignmentWithTitlesByDate(when);
-        ouWithTitlesAssignments.stream().map(a -> toOuRoleAssignment(a, when))
-                .filter(Objects::nonNull)
-                .peek(a -> logProgress())
-                .forEach(a -> persist(when, a));
-
-        final List<HistoryOURoleAssignmentWithNegativeTitles> ouWithNegativeTitlesAssignments = temporalDao.listHistoryOURoleAssignmentWithNegativeTitlesByDate(when);
-        ouWithNegativeTitlesAssignments.stream().map(a -> toOuRoleAssignment(a, when))
                 .filter(Objects::nonNull)
                 .peek(a -> logProgress())
                 .forEach(a -> persist(when, a));
@@ -101,14 +80,35 @@ public class OuAssignmentsUpdaterJdbc {
                 .withRole(historyOURoleAssignment.getRoleId())
                 .withRoleGroup(historyOURoleAssignment.getRoleRoleGroupId())
                 .getContext();
+
         if (context.isItSystemExempt()) {
             return null;
         }
+
         boolean inherited = historyOURoleAssignment.getAssignedThroughType() == AssignedThrough.ORGUNIT
                 && !StringUtils.equals(historyOURoleAssignment.getAssignedThroughUuid(), historyOURoleAssignment.getOuUuid());
+
         final String responsibleUuid = getResponsibleUserUuid(historyOURoleAssignment.getRoleRoleGroupId(), context);
+
         final String responsibleOuUuid = !inherited && responsibleUuid == null ? historyOURoleAssignment.getAssignedThroughUuid() : null;
         final String responsibleOuName = !inherited && responsibleUuid == null ? historyOURoleAssignment.getAssignedThroughName() : null;
+
+        // Extract exclusions
+        final List<String> titleUuids = historyOURoleAssignment.getExclusions().stream()
+                .filter(e -> e.getExclusionType() == ExclusionType.titles)
+                .flatMap(e -> splitCsv(e.getTitleUuids()).stream())
+                .toList();
+
+        final List<String> exceptedTitleUuids = historyOURoleAssignment.getExclusions().stream()
+                .filter(e -> e.getExclusionType() == ExclusionType.negative_titles)
+                .flatMap(e -> splitCsv(e.getTitleUuids()).stream())
+                .toList();
+
+        final List<String> exceptedUserUuids = historyOURoleAssignment.getExclusions().stream()
+                .filter(e -> e.getExclusionType() == ExclusionType.excepted_users)
+                .flatMap(e -> splitCsv(e.getUserUuids()).stream())
+                .toList();
+
         return AttestationOuRoleAssignment.builder()
                 .roleId(historyOURoleAssignment.getRoleId())
                 .roleName(context.roleName())
@@ -121,141 +121,31 @@ public class OuAssignmentsUpdaterJdbc {
                 .responsibleUserUuid(responsibleUuid)
                 .responsibleOuUuid(responsibleOuUuid)
                 .responsibleOuName(responsibleOuName)
-                .exceptedUserUuids(Collections.emptyList())
-                .titleUuids(Collections.emptyList())
-                .assignedThroughUuid(historyOURoleAssignment.getAssignedThroughUuid())
-                .assignedThroughName(historyOURoleAssignment.getAssignedThroughName())
-                .assignedThroughType(AssignedThroughType.valueOf(historyOURoleAssignment.getAssignedThroughType().name()))
+                .titleUuids(titleUuids)
+                .exceptedTitleUuids(exceptedTitleUuids)
+                .exceptedUserUuids(exceptedUserUuids)
+						.assignedThroughType(historyOURoleAssignment.getAssignedThroughType() == null
+										? (!exceptedTitleUuids.isEmpty() ? AssignedThroughType.DIRECT : AssignedThroughType.ORGUNIT) // DIRECT for exceptedUser assignments
+										: AssignedThroughType.valueOf(historyOURoleAssignment.getAssignedThroughType().name()))
+                .assignedThroughName(historyOURoleAssignment.getAssignedThroughName() == null ? context.ouName() : historyOURoleAssignment.getAssignedThroughName())
+                .assignedThroughUuid(historyOURoleAssignment.getAssignedThroughUuid() == null ? context.ouUuid() : historyOURoleAssignment.getAssignedThroughUuid())
                 .itSystemId(historyOURoleAssignment.getRoleItSystemId())
                 .itSystemName(context.itSystemName())
                 .inherited(inherited)
-                .inherit(historyOURoleAssignment.getInherit())
+                .inherit(Boolean.TRUE.equals(historyOURoleAssignment.getInherit()))
                 .sensitiveRole(context.isRoleSensitive())
                 .extraSensitiveRole(context.isRoleExtraSensitive())
-                .exceptedTitleUuids(Collections.emptyList())
                 .build();
     }
 
-    private AttestationOuRoleAssignment toOuRoleAssignment(final HistoryOURoleAssignmentWithTitles historyOURoleAssignmentWithTitles, final LocalDate when) {
-        final UpdaterContextService.UpdaterContext context = updaterContextService.contextBuilder(when, historyOURoleAssignmentWithTitles.getRoleItSystemId())
-                .withOrgUnit(historyOURoleAssignmentWithTitles.getOuUuid())
-                .withRole(historyOURoleAssignmentWithTitles.getRoleId())
-                .withRoleGroup(historyOURoleAssignmentWithTitles.getRoleRoleGroupId())
-                .getContext();
-        if (context.isItSystemExempt()) {
-            return null;
-        }
-        boolean inherited = historyOURoleAssignmentWithTitles.getAssignedThroughType() == AssignedThrough.ORGUNIT
-                && !StringUtils.equals(historyOURoleAssignmentWithTitles.getAssignedThroughUuid(), historyOURoleAssignmentWithTitles.getOuUuid());
-        final String responsibleUuid = getResponsibleUserUuid(historyOURoleAssignmentWithTitles.getRoleRoleGroupId(), context);
-        final String responsibleOuUuid = responsibleUuid == null ? historyOURoleAssignmentWithTitles.getOuUuid() : null;
-        final String responsibleOuName = responsibleUuid == null ? context.ouName() : null;
-
-        return AttestationOuRoleAssignment.builder()
-                .roleId(historyOURoleAssignmentWithTitles.getRoleId())
-                .roleName(context.roleName())
-                .roleDescription(context.roleDescription())
-                .roleGroupId(historyOURoleAssignmentWithTitles.getRoleRoleGroupId())
-                .roleGroupName(historyOURoleAssignmentWithTitles.getRoleRoleGroup())
-                .roleGroupDescription(context.roleGroupDescription())
-                .ouUuid(historyOURoleAssignmentWithTitles.getOuUuid())
-                .ouName(context.ouName())
-                .responsibleUserUuid(responsibleUuid)
-                .responsibleOuUuid(responsibleOuUuid)
-                .responsibleOuName(responsibleOuName)
-                .titleUuids(new ArrayList<>(historyOURoleAssignmentWithTitles.getTitleUuids()))
-                .assignedThroughType(AssignedThroughType.ORGUNIT)
-                .assignedThroughName(historyOURoleAssignmentWithTitles.getAssignedThroughName() == null ? context.ouName() : historyOURoleAssignmentWithTitles.getAssignedThroughName())
-                .assignedThroughUuid(historyOURoleAssignmentWithTitles.getAssignedThroughUuid() == null ? historyOURoleAssignmentWithTitles.getOuUuid() : historyOURoleAssignmentWithTitles.getAssignedThroughUuid())
-                .exceptedUserUuids(Collections.emptyList())
-                .itSystemId(historyOURoleAssignmentWithTitles.getRoleItSystemId())
-                .itSystemName(context.itSystemName())
-                .inherited(inherited)
-                .inherit(historyOURoleAssignmentWithTitles.getInherit())
-                .sensitiveRole(context.isRoleSensitive())
-                .extraSensitiveRole(context.isRoleExtraSensitive())
-                .exceptedTitleUuids(Collections.emptyList())
-                .build();
-    }
-
-    private AttestationOuRoleAssignment toOuRoleAssignment(final HistoryOURoleAssignmentWithNegativeTitles historyOURoleAssignmentWithNegativeTitles, final LocalDate when) {
-        final UpdaterContextService.UpdaterContext context = updaterContextService.contextBuilder(when, historyOURoleAssignmentWithNegativeTitles.getRoleItSystemId())
-                .withOrgUnit(historyOURoleAssignmentWithNegativeTitles.getOuUuid())
-                .withRole(historyOURoleAssignmentWithNegativeTitles.getRoleId())
-                .withRoleGroup(historyOURoleAssignmentWithNegativeTitles.getRoleRoleGroupId())
-                .getContext();
-        if (context.isItSystemExempt()) {
-            return null;
-        }
-        final String responsibleUuid = getResponsibleUserUuid(historyOURoleAssignmentWithNegativeTitles.getRoleRoleGroupId(), context);
-        final String responsibleOuUuid = responsibleUuid == null ? historyOURoleAssignmentWithNegativeTitles.getOuUuid() : null;
-        final String responsibleOuName = responsibleUuid == null ? context.ouName() : null;
-
-        boolean inherited = historyOURoleAssignmentWithNegativeTitles.getAssignedThroughType() == AssignedThrough.ORGUNIT
-                && !StringUtils.equals(historyOURoleAssignmentWithNegativeTitles.getAssignedThroughUuid(), historyOURoleAssignmentWithNegativeTitles.getOuUuid());
-
-        return AttestationOuRoleAssignment.builder()
-                .roleId(historyOURoleAssignmentWithNegativeTitles.getRoleId())
-                .roleName(context.roleName())
-                .roleDescription(context.roleDescription())
-                .roleGroupId(historyOURoleAssignmentWithNegativeTitles.getRoleRoleGroupId())
-                .roleGroupName(historyOURoleAssignmentWithNegativeTitles.getRoleRoleGroup())
-                .roleGroupDescription(context.roleGroupDescription())
-                .ouUuid(historyOURoleAssignmentWithNegativeTitles.getOuUuid())
-                .ouName(context.ouName())
-                .responsibleUserUuid(responsibleUuid)
-                .responsibleOuUuid(responsibleOuUuid)
-                .responsibleOuName(responsibleOuName)
-                .titleUuids(Collections.emptyList())
-                .assignedThroughType(AssignedThroughType.ORGUNIT)
-                .assignedThroughName(context.ouName())
-                .assignedThroughUuid(historyOURoleAssignmentWithNegativeTitles.getOuUuid())
-                .exceptedUserUuids(Collections.emptyList())
-                .itSystemId(historyOURoleAssignmentWithNegativeTitles.getRoleItSystemId())
-                .itSystemName(context.itSystemName())
-                .inherited(inherited)
-                .inherit(historyOURoleAssignmentWithNegativeTitles.getInherit())
-                .sensitiveRole(context.isRoleSensitive())
-                .extraSensitiveRole(context.isRoleExtraSensitive())
-                .exceptedTitleUuids(new ArrayList<>(historyOURoleAssignmentWithNegativeTitles.getTitleUuids()))
-                .build();
-    }
-
-    private AttestationOuRoleAssignment toOuRoleAssignment(final HistoryOURoleAssignmentWithExceptions historyOURoleAssignmentWithExceptions, final LocalDate when) {
-        final UpdaterContextService.UpdaterContext context = updaterContextService.contextBuilder(when, historyOURoleAssignmentWithExceptions.getRoleItSystemId())
-                .withOrgUnit(historyOURoleAssignmentWithExceptions.getOuUuid())
-                .withRole(historyOURoleAssignmentWithExceptions.getRoleId())
-                .withRoleGroup(historyOURoleAssignmentWithExceptions.getRoleRoleGroupId())
-                .getContext();
-        if (context.isItSystemExempt()) {
-            return null;
-        }
-        final String responsibleUuid = getResponsibleUserUuid(historyOURoleAssignmentWithExceptions.getRoleRoleGroupId(), context);
-        final String responsibleOuUuid = responsibleUuid == null ? historyOURoleAssignmentWithExceptions.getOuUuid() : null;
-        final String responsibleOuName = responsibleUuid == null ? context.ouName() : null;
-
-        return AttestationOuRoleAssignment.builder()
-                .roleId(historyOURoleAssignmentWithExceptions.getRoleId())
-                .roleName(context.roleName())
-                .roleDescription(context.roleDescription())
-                .roleGroupId(historyOURoleAssignmentWithExceptions.getRoleRoleGroupId())
-                .roleGroupName(historyOURoleAssignmentWithExceptions.getRoleRoleGroup())
-                .roleGroupDescription(context.roleGroupDescription())
-                .ouUuid(historyOURoleAssignmentWithExceptions.getOuUuid())
-                .ouName(context.ouName())
-                .responsibleUserUuid(responsibleUuid)
-                .responsibleOuUuid(responsibleOuUuid)
-                .responsibleOuName(responsibleOuName)
-                .exceptedUserUuids(historyOURoleAssignmentWithExceptions.getUserUuids())
-                .titleUuids(Collections.emptyList())
-                .assignedThroughType(AssignedThroughType.DIRECT)
-                .itSystemId(historyOURoleAssignmentWithExceptions.getRoleItSystemId())
-                .itSystemName(context.itSystemName())
-                .inherited(false)
-                .inherit(false)
-                .sensitiveRole(context.isRoleSensitive())
-                .extraSensitiveRole(context.isRoleExtraSensitive())
-                .build();
+    // Helper to split comma-separated UUIDs safely
+    private List<String> splitCsv(String csv) {
+        return csv == null || csv.isBlank()
+                ? Collections.emptyList()
+                : Arrays.stream(csv.split(","))
+                        .map(String::trim)
+                        .filter(s -> !s.isEmpty())
+                        .toList();
     }
 
     private static String getResponsibleUserUuid(final Long roleRoleGroupId, final UpdaterContextService.UpdaterContext context) {

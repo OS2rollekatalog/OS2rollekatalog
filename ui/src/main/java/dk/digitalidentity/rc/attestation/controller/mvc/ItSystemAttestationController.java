@@ -4,7 +4,7 @@ import dk.digitalidentity.rc.attestation.model.dto.ItSystemAttestationDTO;
 import dk.digitalidentity.rc.attestation.service.ItSystemUserRolesAttestationService;
 import dk.digitalidentity.rc.dao.model.ItSystem;
 import dk.digitalidentity.rc.dao.model.User;
-import dk.digitalidentity.rc.security.RequireItSystemResponsibleRole;
+import dk.digitalidentity.rc.security.RequireItSystemResponsibleOrAttestationAdminRole;
 import dk.digitalidentity.rc.security.SecurityUtil;
 import dk.digitalidentity.rc.service.ItSystemService;
 import dk.digitalidentity.rc.service.SettingsService;
@@ -16,8 +16,8 @@ import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 
-@RequireItSystemResponsibleRole
 @Controller
+@RequireItSystemResponsibleOrAttestationAdminRole
 public class ItSystemAttestationController {
 
 	@Autowired
@@ -45,11 +45,12 @@ public class ItSystemAttestationController {
 			return "attestationmodule/error";
 		}
 
-		if (itSystem.getAttestationResponsible() == null || !itSystem.getAttestationResponsible().getUuid().equals(user.getUuid())) {
+		if (!SecurityUtil.isAttestationAdminOrAdmin() && (itSystem.getAttestationResponsible() == null || !itSystem.getAttestationResponsible().getUuid().equals(user.getUuid()))) {
 			return "attestationmodule/error";
 		}
-
+		boolean openInView = SecurityUtil.isAttestationAdminOrAdmin() && (itSystem.getAttestationResponsible() == null || !itSystem.getAttestationResponsible().getUuid().equals(user.getUuid()));
 		ItSystemAttestationDTO attestation = attestationService.getAttestation(id, true);
+		model.addAttribute("openInView", openInView);
 		model.addAttribute("itsystem", attestation);
 		model.addAttribute("totalCount", attestation.getUserRoles().size());
 		model.addAttribute("changeRequestsEnabled", settingsService.isAttestationRequestChangesEnabled());

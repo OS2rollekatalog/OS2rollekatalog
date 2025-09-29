@@ -20,7 +20,6 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Set;
 
-
 @Aspect
 public class RoleChangeInterceptor {
 
@@ -40,6 +39,13 @@ public class RoleChangeInterceptor {
 	public void interceptActivateUser(User user) {
 		for (RoleChangeHook hook : hooks) {
 			hook.interceptActivateUser(user);
+		}
+	}
+
+	@Before("execution(* dk.digitalidentity.rc.service.UserService.flagUserDeleted(dk.digitalidentity.rc.dao.model.User)) && args(user)")
+	public void interceptFlagUserDeleted(User user) {
+		for (RoleChangeHook hook : hooks) {
+			hook.interceptFlagUserDeleted(user);
 		}
 	}
 

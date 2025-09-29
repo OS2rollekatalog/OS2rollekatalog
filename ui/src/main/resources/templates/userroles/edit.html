@@ -36,6 +36,19 @@
                                     </div>
                                 </div>
                             </fieldset>
+
+                            <fieldset >
+                                <div class="form-group">
+                                    <label class="col-sm-3 control-label" th:text="#{html.entity.itsystem.email}"></label>
+                                    <div class="col-sm-8">
+                                        <input th:field="*{contactEmail}" class="form-control" th:placeholder="#{html.entity.userrole.email.placeholder}"/>
+                                        <ul th:if="${#fields.hasErrors('contactEmail')}">
+                                            <li th:each="err : ${#fields.errors('contactEmail')}" th:text="${err}"></li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </fieldset>
+
                             <fieldset th:if="${#strings.equals(role.itSystem.systemType, 'MANUAL')}">
                                 <div class="form-group">
                                     <label class="col-sm-3 control-label" th:text="#{html.page.userroles.new.require_manager_action.label}"></label>
@@ -316,6 +329,7 @@
                                 <option th:selected="${selected} and ${constraintData != null} and ('LEVEL_5' eq ${#strings.toString(constraintData.constraintValueType)})" th:value="LEVEL_5" th:text="#{html.constraint.organisation.level.5}"></option>
                                 <option th:selected="${selected} and ${constraintData != null} and ('LEVEL_6' eq ${#strings.toString(constraintData.constraintValueType)})" th:value="LEVEL_6" th:text="#{html.constraint.organisation.level.6}"></option>
                                 <option th:selected="${selected} and ${constraintData != null} and ('VALUE' eq ${#strings.toString(constraintData.constraintValueType)})" th:value="VALUE" th:text="#{html.constraint.organisation.value}"></option>
+                                <option th:selected="${selected} and ${constraintData != null} and ('SELECTED_INHERITED' eq ${#strings.toString(constraintData.constraintValueType)})" th:value="SELECTED_INHERITED" th:text="#{html.constraint.organisation.selected.inherited}"></option>
                             </select>
                             <div class="col-sm-12" th:attr="id=${editSystemRole.systemRole.id} + ${supportedConstraintType.constraintType.uuid} + 'freetext'" style="padding-top: 6px; display: none;">
                                 <div class="col-sm-9">
@@ -340,6 +354,7 @@
                                 <option th:selected="${selected} and ${constraintData != null} and ('INHERITED' eq ${#strings.toString(constraintData.constraintValueType)})" th:value="INHERITED" th:text="#{html.constraint.organisation.inherited}"></option>
                                 <option th:selected="${selected} and ${constraintData != null} and ('EXTENDED_INHERITED' eq ${#strings.toString(constraintData.constraintValueType)})" th:value="EXTENDED_INHERITED" th:text="#{html.constraint.organisation.extended}"></option>
                                 <option th:selected="${selected} and ${constraintData != null} and ('VALUE' eq ${#strings.toString(constraintData.constraintValueType)})" th:value="VALUE" th:text="#{html.constraint.organisation.value}"></option>
+                                <option th:selected="${selected} and ${constraintData != null} and ('SELECTED_INHERITED' eq ${#strings.toString(constraintData.constraintValueType)})" th:value="SELECTED_INHERITED" th:text="#{html.constraint.organisation.selected.inherited}"></option>
                             </select>
                             
                             <div class="col-sm-12" th:attr="id=${editSystemRole.systemRole.id} + ${supportedConstraintType.constraintType.uuid} + 'freetext'" style="padding-top: 6px; display: none;">
@@ -581,6 +596,7 @@
             commonService.parentService = orgUnitService;
 
             $("#name").change(handleChangeOnInput);
+            $("#contactEmail").change(handleChangeOnInput);
             $("#description").change(handleChangeOnInput);
             $("#emailTemplateTitle").change(handleChangeOnInput);
             $('#emailTemplateMessage').on('summernote.blur', handleChangeOnInput);
@@ -1274,13 +1290,16 @@
                 saveConstraintChoice(systemRoleId, constraintUuid, constraintValue, '', false);
                 hideFreetext(systemRoleId, constraintUuid);
             } else if (constraintValue == 'VALUE' && (constraintUuid == internalOuConstraintUuid || constraintUuid == ouConstraintUuid)) {
-                orgUnitConstraintService.showOUAndFetchValue(systemRoleId, constraintUuid);
+                orgUnitConstraintService.showOUAndFetchValue(constraintValue, systemRoleId, constraintUuid);
             }
             else if (constraintValue == 'VALUE' && constraintUuid != kleConstraintUuid && constraintUuid != internalOuConstraintUuid && constraintUuid != ouConstraintUuid) {
                 showFreetextAndFetchValue(systemRoleId, constraintUuid, null);
             }
             else if (constraintValue == 'VALUE' && constraintUuid == kleConstraintUuid) {
                 showKleAndFetchValue(systemRoleId, constraintUuid);
+            }
+            else if (constraintValue == 'SELECTED_INHERITED' && (constraintUuid == internalOuConstraintUuid || constraintUuid == ouConstraintUuid)) {
+                orgUnitConstraintService.showOUAndFetchValue(constraintValue, systemRoleId, constraintUuid);
             }
         }
         
@@ -1398,17 +1417,19 @@
 
         function showOrHideFreetextAndFetchValue(systemRoleId, constraintUuid) {
             var constraintValueType = $("#" + systemRoleId + constraintUuid).val();
-
             if (constraintValueType == "VALUE") {
                 if (constraintUuid == kleConstraintUuid) {
                     return showKleAndFetchValue(systemRoleId, constraintUuid);
                 }
                 else if (constraintUuid == ouConstraintUuid || constraintUuid == internalOuConstraintUuid) {
-                    return orgUnitConstraintService.showOUAndFetchValue(systemRoleId, constraintUuid);
+                    return orgUnitConstraintService.showOUAndFetchValue(constraintValueType, systemRoleId, constraintUuid);
                 }
                 else {
                     return showFreetextAndFetchValue(systemRoleId, constraintUuid, null);
                 }
+            }
+            if (constraintValueType == "SELECTED_INHERITED" && (internalOuConstraintUuid == constraintUuid || constraintValueType == ouConstraintUuid)) {
+                return orgUnitConstraintService.showOUAndFetchValue("SELECTED_INHERITED", systemRoleId, constraintUuid);
             }
             else {
                 hideFreetext(systemRoleId, constraintUuid);
@@ -1543,6 +1564,7 @@
         function handleChangeOnInput() {
             var objId = $("#id").val();
             var objName = $("#name").val();
+            var objEmail = $("#contactEmail").val();
             var objDescription = $("#description").val();
             var objectItSystem = $("#itSystem").val();
             var emailTemplateTitle = $("#emailTemplateTitle").val();
@@ -1551,6 +1573,7 @@
             var userRole = {
                 id: objId,
                 name: objName,
+                contactEmail: objEmail,
                 description: objDescription,
                 itSystem: objectItSystem,
                 emailTemplateTitle: emailTemplateTitle,
@@ -1721,13 +1744,65 @@
                 //init OU jstree
                 orgUnitConstraintService.initOUJSTree("ou-tree", "ou-tree-search", treeOUs);
             }
-            
-            this.showOUAndFetchValue = function(systemRoleId, constraintUuid) {
+
+            this.selectedInheritedLogicTree = function($tree, systemRoleId, constraintUuid, oUInput) {
+                $tree.jstree("destroy").empty();
+                orgUnitConstraintService.initOUJSTree("ou-tree", "ou-tree-search", treeOUs, "none");
+
+                $tree.on("loaded.jstree", function () {
+                    let treeInstance = $.jstree.reference($tree);
+                    let rawInherited = $("#" + systemRoleId + constraintUuid + "values").val().split(",")
+                    let flatList = oUInput.val().split(",").filter(v => v.trim() !== "");
+                    let inherited = orgUnitConstraintService.convertFlatToInherited(flatList, treeInstance);
+                    oUInput.val(inherited.length > 0 ? inherited.join(",") : rawInherited);
+                });
+
+                // Allow inheriting orgUnits
+                $('#ou-tree').on("changed.jstree", function (e, data) {
+                    const tree = $('#ou-tree').jstree(true);
+                    if (data.action === "select_node") {
+                        let children = data.node.children;
+                        for (let child in children) {
+                            tree.check_node(children, undefined);
+                        }
+                    } else if (data.action === "deselect_node") {
+                        let children = data.node.children;
+                        for (let child in children) {
+                            tree.uncheck_node(children, undefined);
+                        }
+                    }
+                });
+            }
+
+            this.defaultTreeLogic = function($tree, systemRoleId, constraintUuid, oUInput) {
+                // Re-init in case we destroyed is above
+                $tree.jstree("destroy").empty();
+                orgUnitConstraintService.initOUJSTree("ou-tree", "ou-tree-search", treeOUs);
+
+                // Get raw constraint value (may contain + / -)
+                let rawValue = $("#" + systemRoleId + constraintUuid + "values").val();
+
+                // We need to wait until the tree is fully loaded to resolve node IDs
+                $tree.on('loaded.jstree', function () {
+                    let treeInstance = $.jstree.reference($tree);
+                    if (treeInstance) {
+                        let resolvedValues = orgUnitConstraintService.expandInheritedToExplicit(rawValue, treeInstance);
+                        oUInput.val(resolvedValues.join(","));
+                    }
+                });
+            }
+
+            this.showOUAndFetchValue = function(constraintValue, systemRoleId, constraintUuid) {
+                let $tree = $('#ou-tree');
+                let oUInput = $("#" + systemRoleId + constraintUuid + "input");
+                if (constraintValue === "SELECTED_INHERITED") {
+                    orgUnitConstraintService.selectedInheritedLogicTree($tree, systemRoleId, constraintUuid, oUInput);
+                }
+                else {
+                    orgUnitConstraintService.defaultTreeLogic($tree, systemRoleId, constraintUuid, oUInput);
+                }
+                // This shows the entire section where ous can be chosen
                 $("#" + systemRoleId + constraintUuid + "freetext").show();
-
-                var oUInput = $("#" + systemRoleId + constraintUuid + "input");
-
-                oUInput.val($("#" + systemRoleId + constraintUuid + "values").val().replace(/\.\*/g, ""));
 
                 oUInput.unbind("change");
                 oUInput.on("change", function() {
@@ -1742,52 +1817,312 @@
                 });
             }
             
-            //OU Constraint modal
-            //Show modal
+            // OU Constraint modal
+            // Show modal
             this.chooseOUs = function(systemRoleId, constraintUuid) {
-                //Get input field kle values 
-                var ous = $("#" + systemRoleId + constraintUuid + "input").val().split(",");
+                let constraintValueType = $("#" + systemRoleId + constraintUuid).val();
+                let tree = $("#ou-tree");
+                tree.jstree("deselect_all");
+                let ous = $("#" + systemRoleId + constraintUuid + "input").val().split(",");
+
                 //Remember what opened the modal
                 $("#modal-ou-systemRoleId").val(systemRoleId);
                 $("#modal-ou-constraintUuid").val(constraintUuid);
-                            
-                //Parse and save kle values
-                var selected = [];
-                var parseErrors = [];
 
-                for (var i = 0; i < ous.length; i++) {
-                    if (!ous[i] == "") {
-                        if (ous[i].match(/^[0-9a-fA-F]{8}\b-[0-9a-fA-F]{4}\b-[0-9a-fA-F]{4}\b-[0-9a-fA-F]{4}\b-[0-9a-fA-F]{12}$/)) {
-                            selected.push(ous[i]);
-                        } else {
-                            parseErrors.push(ous[i]);
+                if (constraintValueType !== "SELECTED_INHERITED") {
+                    // Handle non-inheritance mode (regular UUID selection)
+                    var selected = [];
+                    var parseErrors = [];
+
+                    for (let ou of ous) {
+                        if (ou !== "") {
+                            const isValidUuid = /^[0-9a-fA-F]{8}\b-[0-9a-fA-F]{4}\b-[0-9a-fA-F]{4}\b-[0-9a-fA-F]{4}\b-[0-9a-fA-F]{12}$/.test(ou);
+                            if (isValidUuid) {
+                                selected.push(ou);
+                            } else {
+                                parseErrors.push(ou);
+                            }
                         }
                     }
-                }
 
-                //Show erros to the user
-                var errorList = $("#modal-ou-errors");
-                errorList.empty();
-                if (parseErrors.length != 0) {
-                    for (var i = 0; i < parseErrors.length; i++) {
-                        errorList.append("<li>" + parseErrors[i] + "</li>");
+                    //Show errors to the user
+                    const errorList = $("#modal-ou-errors");
+                    errorList.empty();
+                    if (parseErrors.length != 0) {
+                        for (const i = 0; i < parseErrors.length; i++) {
+                            errorList.append("<li>" + parseErrors[i] + "</li>");
+                        }
+                        $("#modal-ou-error").show();
+                    } else {
+                        $("#modal-ou-error").hide();
                     }
 
-                    $("#modal-ou-error").show();
+                    tree.jstree("select_node", selected);
+
                 } else {
-                    $("#modal-ou-error").hide();
+                    // Handle SELECTED_INHERITED mode
+                    setTimeout(() => {
+                        let treeInstance = tree.jstree(true);
+
+                        // Parse inheritance format
+                        let parents = [];
+                        let excludedOus = [];
+                        for (let ou of ous) {
+                            if (ou.startsWith("+")) {
+                                parents.push(ou.substring(1));
+                            } else if (ou.startsWith("-")) {
+                                excludedOus.push(ou.substring(1));
+                            }
+                        }
+
+
+                        // Build complete selection list
+                        let nodesToSelect = [];
+                        for (let parentId of parents) {
+                            let parentNode = treeInstance.get_node(parentId);
+                            if (parentNode) {
+                                nodesToSelect.push(parentId);
+
+                                if (parentNode.children_d && parentNode.children_d.length > 0) {
+                                    for (let childId of parentNode.children_d) {
+                                        if (!excludedOus.includes(childId)) {
+                                            nodesToSelect.push(childId);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        let selectedSet = new Set(nodesToSelect);
+
+                        // Modify the tree data to have the correct initial selected state
+                        let treeData = treeOUs;
+
+                        function markNodesInData(nodes) {
+                            if (Array.isArray(nodes)) {
+                                for (let node of nodes) {
+                                    if (selectedSet.has(node.id)) {
+                                        if (!node.state) node.state = {};
+                                        node.state.selected = true;
+                                        node.state.checked = true;
+                                    } else {
+                                        if (!node.state) node.state = {};
+                                        node.state.selected = false;
+                                        node.state.checked = false;
+                                    }
+
+                                    if (node.children && node.children.length > 0) {
+                                        markNodesInData(node.children);
+                                    }
+                                }
+                            }
+                        }
+
+                        // Mark the correct nodes as selected in the data
+                        markNodesInData(treeData);
+
+                        // Destroy and recreate the tree
+                        tree.jstree("destroy").empty();
+
+                        // Recreate with the modified data (initially with cascading disabled)
+                        orgUnitConstraintService.initOUJSTree("ou-tree", "ou-tree-search", treeData, "none");
+
+                        // Wait for the new tree to load, then enable cascading
+                        tree.on('ready.jstree', function() {
+                            setTimeout(() => {
+                                let selected = tree.jstree("get_selected");
+                                let checked = tree.jstree("get_checked");
+
+                                // Enable cascade now that we have pre-selected the right values
+                                let treeInstance = tree.jstree(true);
+                                treeInstance.settings.checkbox.cascade = "undetermined";
+                                treeInstance.settings.checkbox.three_state = true;
+
+                                // Also restore the tree change event handler for inheritance behavior
+                                tree.off("changed.jstree");
+                                tree.on("changed.jstree", function (e, data) {
+                                    const treeInst = tree.jstree(true);
+                                    if (data.action === "select_node") {
+                                        let children = data.node.children;
+                                        for (let child of children) {
+                                            treeInst.select_node(child);
+                                        }
+                                    } else if (data.action === "deselect_node") {
+                                        let children = data.node.children;
+                                        for (let child of children) {
+                                            treeInst.deselect_node(child);
+                                        }
+                                    }
+                                });
+
+                            }, 200);
+                        });
+                    }, 100);
                 }
 
-                var tree = $("#ou-tree");
-                tree.jstree("deselect_all");
-                tree.jstree("select_node", selected);
-                
                 $(".postponed-constraint-save-btn").hide();
                 $(".constraint-save-btn").show();
-                
+
                 $('#modal-ou').modal('show');
+                orgUnitConstraintService.hideButtonsPerContext(constraintValueType);
             }
-            
+
+            this.hideButtonsPerContext = function (constraintValueType) {
+                if (constraintValueType !== "SELECTED_INHERITED") {
+                    $('#ou-modal-save-inherited').hide();
+                }
+                else {
+                    $('#ou-modal-save-default').hide();
+                }
+            }
+
+            this.oUModalSaveConstraintsWithInheritance = function () {
+                let systemRoleId = $("#modal-ou-systemRoleId").val();
+                let constraintUuid = $("#modal-ou-constraintUuid").val();
+                let oUInput = $("#" + systemRoleId + constraintUuid + "input");
+                let tree = $("#ou-tree").jstree(true);
+
+                let selectedIds = tree.get_selected();
+                let selectedNodes = selectedIds.map(id => tree.get_node(id));
+
+                let selectedSet = new Set(selectedIds);
+                let resultSet = new Set();
+                let processedNodes = new Set();
+
+                // Find all top-level parent nodes (nodes with children that don't have selected ancestors)
+                let topLevelParents = [];
+                for (let node of selectedNodes) {
+                    if (node.children.length > 0 && !orgUnitConstraintService.hasCheckedAncestor(node, selectedSet, tree)) {
+                        topLevelParents.push(node);
+                    }
+                }
+
+                // Process each top-level parent independently
+                for (let parent of topLevelParents) {
+                    let allDescendants = parent.children_d || [];
+                    let selectedDescendants = allDescendants.filter(id => selectedSet.has(id));
+                    let unselectedDescendants = allDescendants.filter(id => !selectedSet.has(id));
+
+                    if (unselectedDescendants.length === 0) {
+                        // All descendants are selected - simple inheritance
+                        resultSet.add("+" + parent.id);
+                    } else {
+                        // Some descendants unselected - inheritance with exclusions
+                        resultSet.add("+" + parent.id);
+
+                        // Add exclusions for unselected descendants
+                        unselectedDescendants.forEach(id => {
+                            resultSet.add("-" + id);
+                        });
+                    }
+
+                    // Mark this parent and all its descendants as processed
+                    processedNodes.add(parent.id);
+                    allDescendants.forEach(id => processedNodes.add(id));
+                }
+
+                // Handle any remaining selected nodes that aren't part of inheritance groups (leaf nodes)
+                for (let node of selectedNodes) {
+                    if (!processedNodes.has(node.id) && node.children.length === 0) {
+                        resultSet.add(node.id);
+                    }
+                }
+
+                let finalResult = Array.from(resultSet).join(",");
+
+                oUInput.val(finalResult);
+                $('#modal-ou').modal('hide');
+                oUInput.trigger('change');
+            }
+
+            // Utility: Check if all children are checked
+            this.allChildrenChecked = function (node, selectedSet, treeInstance) {
+                for (const childId of node.children) {
+                    if (!selectedSet.has(childId)) {
+                        return false;
+                    }
+                    let childNode = treeInstance.get_node(childId);
+                    if (!orgUnitConstraintService.allChildrenChecked(childNode, selectedSet, treeInstance)) {
+                        return false;
+                    }
+                }
+                return true;
+            }
+
+            // Utility: Check if parent is checked (recursively)
+            this.hasCheckedAncestor = function (node, selectedSet, treeInstance) {
+                let parent = treeInstance.get_node(node.parent);
+                while (parent && parent.id !== "#") {
+                    if (selectedSet.has(parent.id)) {
+                        return true;
+                    }
+                    parent = treeInstance.get_node(parent.parent);
+                }
+                return false;
+            }
+
+            this.getUncheckedDescendants = function(node, selectedSet, treeInstance) {
+                let unchecked = [];
+                for (const childId of node.children) {
+                    if (!selectedSet.has(childId)) {
+                        unchecked.push(childId);
+                    }
+                    const childNode = treeInstance.get_node(childId);
+                    unchecked = unchecked.concat(orgUnitConstraintService.getUncheckedDescendants(childNode, selectedSet, treeInstance));
+                }
+                return unchecked;
+            }
+
+            this.expandInheritedToExplicit = function (rawValues, treeInstance) {
+                let result = new Set();
+                let values = rawValues.split(",");
+                for (let val of values) {
+                    if (val.startsWith("+")) {
+                        let node = treeInstance.get_node(val.slice(1));
+                        if (node) {
+                            let descendants = node.children_d;
+                            descendants.forEach(id => result.add(id));
+                        }
+                    } else if (!val.startsWith("-") && val.trim() !== "") {
+                        result.add(val);
+                    }
+                }
+                return [...result];
+            }
+
+            this.convertFlatToInherited = function (flatList, treeInstance) {
+                let selectedSet = new Set(flatList);
+                let result = new Set();
+
+                let rootNodes = treeInstance.get_json('#', { flat: false });
+                if (rootNodes.length === 1) {
+                    let root = treeInstance.get_node(rootNodes[0].id);
+                    if (root.children_d.every(id => selectedSet.has(id))) {
+                        return ["+" + root.id];
+                    }
+                }
+
+                for (let id of selectedSet) {
+                    let node = treeInstance.get_node(id);
+                    if (!node || orgUnitConstraintService.hasCheckedAncestor(node, selectedSet, treeInstance)) continue;
+
+                    if (node.children.length > 0) {
+                        if (orgUnitConstraintService.allChildrenChecked(node, selectedSet, treeInstance)) {
+                            result.add("+" + node.id);
+                        } else {
+                            result.add("+" + node.id);
+                            let unchecked = orgUnitConstraintService.getUncheckedDescendants(node, selectedSet, treeInstance);
+                            unchecked.forEach(id => result.add("-" + id));
+                        }
+                    }
+                    else {
+                        result.add(node.id);
+                    }
+                }
+                return Array.from(result);
+            }
+
+
             //Save and close modal
             this.oUModalSaveConstraints = function() {
                 var systemRoleId  = $("#modal-ou-systemRoleId").val();
@@ -1802,7 +2137,7 @@
             }
 
             //Initialize KLE tree in modal
-            this.initOUJSTree = function(id, search, list) {
+            this.initOUJSTree = function(id, search, list, mode="undetermined") {
                 $('#' + id).jstree({
                         "core": {
                             "data": list,
@@ -1813,7 +2148,7 @@
                         "checkbox" : {
                             "keep_selected_style" : false,
                             "three_state": false,
-                            "cascade": "undetermined"
+                            "cascade": mode
                         },
                         "search" : {
                             "show_only_matches": true,

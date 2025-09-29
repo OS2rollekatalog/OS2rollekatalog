@@ -27,6 +27,7 @@ import java.util.List;
 @Entity(name = "users")
 @Getter
 @Setter
+@BatchSize(size = 64)
 public class User implements AuditLoggable {
 
 	@Id

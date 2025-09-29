@@ -61,6 +61,12 @@ public class AuditLogXlsxView extends AbstractXlsxStreamingView {
             createCell(dataRow, 4, log.getSecondaryEntityName(), null);
             createCell(dataRow, 5, log.getDescription(), null);
         }
+        sheet.setColumnWidth(0, 22 * 256);
+        sheet.setColumnWidth(1, 25 * 256);
+        sheet.setColumnWidth(2, 30 * 256);
+        sheet.setColumnWidth(3, 35 * 256);
+        sheet.setColumnWidth(4, 35 * 256);
+        sheet.setColumnWidth(5, 40 * 256);
 	}
 
     private static void createCell(Row header, int column, String value, CellStyle style) {

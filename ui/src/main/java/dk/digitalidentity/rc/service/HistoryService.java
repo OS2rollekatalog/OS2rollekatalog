@@ -1,5 +1,19 @@
 package dk.digitalidentity.rc.service;
 
+import java.time.LocalDate;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import dk.digitalidentity.rc.dao.history.HistoryDateDao;
 import dk.digitalidentity.rc.dao.history.HistoryItSystemDao;
 import dk.digitalidentity.rc.dao.history.HistoryKleAssignmentDao;
@@ -7,9 +21,6 @@ import dk.digitalidentity.rc.dao.history.HistoryManagerDao;
 import dk.digitalidentity.rc.dao.history.HistoryOUDao;
 import dk.digitalidentity.rc.dao.history.HistoryOUKleAssignmentDao;
 import dk.digitalidentity.rc.dao.history.HistoryOURoleAssignmentDao;
-import dk.digitalidentity.rc.dao.history.HistoryOURoleAssignmentWithExceptionsDao;
-import dk.digitalidentity.rc.dao.history.HistoryOURoleAssignmentWithNegativeTitlesDao;
-import dk.digitalidentity.rc.dao.history.HistoryOURoleAssignmentWithTitlesDao;
 import dk.digitalidentity.rc.dao.history.HistoryRoleAssignmentDao;
 import dk.digitalidentity.rc.dao.history.HistoryTitleDao;
 import dk.digitalidentity.rc.dao.history.HistoryUserDao;
@@ -20,25 +31,9 @@ import dk.digitalidentity.rc.dao.history.model.HistoryManager;
 import dk.digitalidentity.rc.dao.history.model.HistoryOU;
 import dk.digitalidentity.rc.dao.history.model.HistoryOUKleAssignment;
 import dk.digitalidentity.rc.dao.history.model.HistoryOURoleAssignment;
-import dk.digitalidentity.rc.dao.history.model.HistoryOURoleAssignmentWithExceptions;
-import dk.digitalidentity.rc.dao.history.model.HistoryOURoleAssignmentWithNegativeTitles;
-import dk.digitalidentity.rc.dao.history.model.HistoryOURoleAssignmentWithTitles;
 import dk.digitalidentity.rc.dao.history.model.HistoryRoleAssignment;
 import dk.digitalidentity.rc.dao.history.model.HistoryTitle;
 import dk.digitalidentity.rc.dao.history.model.HistoryUser;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
-import java.time.LocalDate;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Map;
-import java.util.function.Function;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 @Service
 public class HistoryService {
@@ -71,15 +66,6 @@ public class HistoryService {
 	private HistoryOURoleAssignmentDao historyOURoleAssignmentDao;
 
 	@Autowired
-	private HistoryOURoleAssignmentWithExceptionsDao historyOURoleAssignmentWithExceptionsDao;
-
-	@Autowired
-	private HistoryOURoleAssignmentWithTitlesDao historyOURoleAssignmentWithTitlesDao;
-
-	@Autowired
-	private HistoryOURoleAssignmentWithNegativeTitlesDao historyOURoleAssignmentWithNegativeTitlesDao;
-
-	@Autowired
 	private HistoryDateDao historyDateDao;
 
 	@Autowired
@@ -87,8 +73,7 @@ public class HistoryService {
 
 	@Value("${spring.datasource.url:}")
 	private String dataSourceUrl;
-
-
+	
 	/**
 	 * Check if the history job has succeeded.
 	 * There is no real good way of doing that atm. so just check if there is any users at current date.
@@ -179,44 +164,6 @@ public class HistoryService {
 				.collect(Collectors.groupingBy(HistoryOURoleAssignment::getOuUuid));
 	}
 
-	public Map<String, List<HistoryOURoleAssignmentWithExceptions>> getOURoleAssignmentsWithExceptions(LocalDate localDate) {
-		return historyOURoleAssignmentWithExceptionsDao.findByDate(localDate)
-				.stream()
-				.collect(Collectors.groupingBy(HistoryOURoleAssignmentWithExceptions::getOuUuid));
-	}
-
-	public Map<String, List<HistoryOURoleAssignmentWithExceptions>> getOURoleAssignmentsWithExceptions(LocalDate localDate, List<Long> itSystemIds) {
-		return historyOURoleAssignmentWithExceptionsDao.findByDateAndItSystems(localDate, itSystemIds)
-				.stream()
-				.collect(Collectors.groupingBy(HistoryOURoleAssignmentWithExceptions::getOuUuid));
-	}
-
-	public Map<String, List<HistoryOURoleAssignmentWithTitles>> getOURoleAssignmentsWithTitles(LocalDate localDate) {
-		return historyOURoleAssignmentWithTitlesDao.findByDate(localDate)
-				.stream()
-				.collect(Collectors.groupingBy(HistoryOURoleAssignmentWithTitles::getOuUuid));
-	}
-
-	public Map<String, List<HistoryOURoleAssignmentWithTitles>> getOURoleAssignmentsWithTitles(LocalDate localDate, List<Long> itSystemIds) {
-		return historyOURoleAssignmentWithTitlesDao.findByDateAndItSystems(localDate, itSystemIds)
-				.stream()
-				.collect(Collectors.groupingBy(HistoryOURoleAssignmentWithTitles::getOuUuid));
-	}
-
-	//TODO: Work in progress
-	@Transactional
-	public Map<String, List<HistoryOURoleAssignmentWithNegativeTitles>> getOURoleAssignmentsWithNegativeTitles(LocalDate localDate) {
-		return historyOURoleAssignmentWithNegativeTitlesDao.findByDate(localDate)
-				.stream()
-				.collect(Collectors.groupingBy(HistoryOURoleAssignmentWithNegativeTitles::getOuUuid));
-	}
-
-	//TODO: Work in progress
-	public Map<String, List<HistoryOURoleAssignmentWithNegativeTitles>> getOURoleAssignmentsWithNegativeTitles(LocalDate localDate, List<Long> itSystemIds) {
-		return historyOURoleAssignmentWithNegativeTitlesDao.findByDateAndItSystems(localDate, itSystemIds)
-				.stream()
-				.collect(Collectors.groupingBy(HistoryOURoleAssignmentWithNegativeTitles::getOuUuid));
-	}
 
 	@Transactional
 	public void generateOrganisationHistory() {
@@ -274,39 +221,6 @@ public class HistoryService {
 	}
 
 	@Transactional
-	public void generateTitleRoleAssignmentHistory() {
-
-		if (dataSourceUrl.startsWith("jdbc:sqlserver")) {
-			jdbcTemplate.update("EXEC SP_InsertHistoryOURoleAssignmentsWithTitles;");
-		}
-		else {
-			jdbcTemplate.update("CALL SP_InsertHistoryOURoleAssignmentsWithTitles();");
-		}
-	}
-
-	@Transactional
-	public void generateNegativeTitleRoleAssignmentHistory() {
-
-		if (dataSourceUrl.startsWith("jdbc:sqlserver")) {
-			jdbcTemplate.update("EXEC SP_InsertHistoryOURoleAssignmentsWithNegativeTitles;");
-		}
-		else {
-			jdbcTemplate.update("CALL SP_InsertHistoryOURoleAssignmentsWithNegativeTitles();");
-		}
-	}
-
-	@Transactional
-	public void generateExceptedUsersHistory() {
-
-		if (dataSourceUrl.startsWith("jdbc:sqlserver")) {
-			jdbcTemplate.update("EXEC SP_InsertHistoryOURoleAssignmentsWithExceptions;");
-		}
-		else {
-			jdbcTemplate.update("CALL SP_InsertHistoryOURoleAssignmentsWithExceptions();");
-		}
-	}
-
-	@Transactional
 	public void generateManagerDelegateHistory() {
 
 		if (dataSourceUrl.startsWith("jdbc:sqlserver")) {
@@ -339,10 +253,7 @@ public class HistoryService {
 		jdbcTemplate.update("DELETE FROM history_it_systems WHERE dato = ?", date);
 		jdbcTemplate.update("DELETE FROM history_managers WHERE dato = ?", date);
 		jdbcTemplate.update("DELETE FROM history_ou_role_assignments WHERE dato = ?", date);
-		jdbcTemplate.update("DELETE FROM history_role_assignment_titles WHERE dato = ?", date);
 		jdbcTemplate.update("DELETE FROM history_titles WHERE dato = ?", date);
-		jdbcTemplate.update("DELETE FROM history_role_assignment_negative_titles WHERE dato = ?", date);
-		jdbcTemplate.update("DELETE FROM history_role_assignment_excepted_users WHERE dato = ?", date);
 		jdbcTemplate.update("DELETE FROM history_user_roles_system_roles");
 	}
 
@@ -358,10 +269,7 @@ public class HistoryService {
 			jdbcTemplate.update("DELETE FROM history_it_systems WHERE (dato < GETDATE() - " + retentionPeriod + ") OR (dato < DATEADD(month, -2, GETDATE()) AND DAY(dato) NOT IN (7, 14, 21, 28))");
 			jdbcTemplate.update("DELETE FROM history_managers WHERE (dato < GETDATE() - " + retentionPeriod + ") OR (dato < DATEADD(month, -2, GETDATE()) AND DAY(dato) NOT IN (7, 14, 21, 28))");
 			jdbcTemplate.update("DELETE FROM history_ou_role_assignments WHERE (dato < GETDATE() - " + retentionPeriod + ") OR (dato < DATEADD(month, -2, GETDATE()) AND DAY(dato) NOT IN (7, 14, 21, 28))");
-			jdbcTemplate.update("DELETE FROM history_role_assignment_titles WHERE (dato < GETDATE() - " + retentionPeriod + ") OR (dato < DATEADD(month, -2, GETDATE()) AND DAY(dato) NOT IN (7, 14, 21, 28))");
 			jdbcTemplate.update("DELETE FROM history_titles WHERE (dato < GETDATE() - " + retentionPeriod + ") OR (dato < DATEADD(month, -2, GETDATE()) AND DAY(dato) NOT IN (7, 14, 21, 28))");
-			jdbcTemplate.update("DELETE FROM history_role_assignment_negative_titles WHERE (dato < GETDATE() - " + retentionPeriod + ") OR (dato < DATEADD(month, -2, GETDATE()) AND DAY(dato) NOT IN (7, 14, 21, 28))");
-			jdbcTemplate.update("DELETE FROM history_role_assignment_excepted_users WHERE (dato < GETDATE() - " + retentionPeriod + ") OR (dato < DATEADD(month, -2, GETDATE()) AND DAY(dato) NOT IN (7, 14, 21, 28))");
 			jdbcTemplate.update("DELETE FROM history_ou_kle_assignments WHERE (dato < GETDATE() - " + retentionPeriod + ") OR (dato < DATEADD(month, -2, GETDATE()) AND DAY(dato) NOT IN (7, 14, 21, 28))");
 			jdbcTemplate.update("DELETE FROM history_attestation_manager_delegate WHERE (date < GETDATE() - " + retentionPeriod + ") OR (date < DATEADD(month, -2, GETDATE()) AND DAY(date) NOT IN (7, 14, 21, 28))");
 		}
@@ -373,10 +281,7 @@ public class HistoryService {
 			jdbcTemplate.update("DELETE FROM history_it_systems WHERE dato < (NOW() - INTERVAL " + retentionPeriod + " DAY) OR (dato < (NOW() - INTERVAL 2 MONTH) AND DAY(dato) NOT IN (7, 14, 21, 28));");
 			jdbcTemplate.update("DELETE FROM history_managers WHERE dato < (NOW() - INTERVAL " + retentionPeriod + " DAY) OR (dato < (NOW() - INTERVAL 2 MONTH) AND DAY(dato) NOT IN (7, 14, 21, 28));");
 			jdbcTemplate.update("DELETE FROM history_ou_role_assignments WHERE dato < (NOW() - INTERVAL " + retentionPeriod + " DAY) OR (dato < (NOW() - INTERVAL 2 MONTH) AND DAY(dato) NOT IN (7, 14, 21, 28));");
-			jdbcTemplate.update("DELETE FROM history_role_assignment_titles WHERE dato < (NOW() - INTERVAL " + retentionPeriod + " DAY) OR (dato < (NOW() - INTERVAL 2 MONTH) AND DAY(dato) NOT IN (7, 14, 21, 28));");
 			jdbcTemplate.update("DELETE FROM history_titles WHERE dato < (NOW() - INTERVAL " + retentionPeriod + " DAY) OR (dato < (NOW() - INTERVAL 2 MONTH) AND DAY(dato) NOT IN (7, 14, 21, 28));");
-			jdbcTemplate.update("DELETE FROM history_role_assignment_negative_titles WHERE dato < (NOW() - INTERVAL " + retentionPeriod + " DAY) OR (dato < (NOW() - INTERVAL 2 MONTH) AND DAY(dato) NOT IN (7, 14, 21, 28));");
-			jdbcTemplate.update("DELETE FROM history_role_assignment_excepted_users WHERE dato < (NOW() - INTERVAL " + retentionPeriod + " DAY) OR (dato < (NOW() - INTERVAL 2 MONTH) AND DAY(dato) NOT IN (7, 14, 21, 28));");
 			jdbcTemplate.update("DELETE FROM history_ou_kle_assignments WHERE dato < (NOW() - INTERVAL " + retentionPeriod + " DAY) OR (dato < (NOW() - INTERVAL 2 MONTH) AND DAY(dato) NOT IN (7, 14, 21, 28)) LIMIT 50000;");
 			jdbcTemplate.update("DELETE FROM history_attestation_manager_delegate WHERE date < (NOW() - INTERVAL " + retentionPeriod + " DAY) OR (date < (NOW() - INTERVAL 2 MONTH) AND DAY(date) NOT IN (7, 14, 21, 28)) LIMIT 50000;");
 		}

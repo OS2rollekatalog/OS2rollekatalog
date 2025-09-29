@@ -50,13 +50,13 @@ public class DefaultController implements ErrorController {
 
 	@Value(value = "${git.build.time}")
 	private String gitBuildTime;
-	
+
 	@Autowired
 	private RoleCatalogueConfiguration configuration;
 
 	@Autowired
 	private FrontPageLinkService frontPageLinkService;
-	
+
 	@GetMapping("/")
 	public String index(Model model) {
 		if (SecurityUtil.hasRole(Constants.ROLE_READ_ACCESS)) {
@@ -64,10 +64,10 @@ public class DefaultController implements ErrorController {
 		}
 
 		model.addAttribute("links", frontPageLinkService.getAllActive());
-		
+
 		return "index";
 	}
-	
+
 	@GetMapping("/ui/rolemenu")
 	public String roleIndex() {
 		if (SecurityUtil.hasRole(Constants.ROLE_READ_ACCESS)) {
@@ -76,21 +76,23 @@ public class DefaultController implements ErrorController {
 
 		return "redirect:/ui/my";
 	}
-	
+
 	@GetMapping("/ui/reportmenu")
 	public String reportIndex() {
 		if (SecurityUtil.hasRole(Constants.ROLE_TEMPLATE_ACCESS) || SecurityUtil.hasRole(Constants.ROLE_REPORT_ACCESS)) {
 			return "redirect:/ui/report/templates";
 		}
-		
 		if (SecurityUtil.hasRole(Constants.ROLE_SUBSTITUTE) || SecurityUtil.hasRole(Constants.ROLE_MANAGER)) {
 			return "redirect:/ui/manager/substitute";
 		}
-		
+
 		if (SecurityUtil.hasRole(Constants.ROLE_KLE_ADMINISTRATOR)) {
 			return "redirect:/ui/kle/ou";
 		}
-		
+		if (SecurityUtil.hasRole(Constants.ROLE_AUDITLOG)) {
+			return "redirect:/ui/logs/audit";
+		}
+
 		return "redirect:/";
 	}
 
@@ -103,7 +105,7 @@ public class DefaultController implements ErrorController {
 	public String index(Model model, HttpServletRequest request) {
 		List<String> headers = new ArrayList<>();
 		Enumeration<String> headerNames = request.getHeaderNames();
-		
+
 		while (headerNames.hasMoreElements()) {
 			String header = headerNames.nextElement();
 

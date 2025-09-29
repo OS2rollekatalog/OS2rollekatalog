@@ -190,7 +190,7 @@
 								</div>
 							</fieldset>
 
-							<fieldset sec:authorize="hasRole('ROLE_REQUESTER')" th:if="${canRequest && @settingsService.isRequestApproveEnabled() == true}">
+							<fieldset th:if="${!role.readOnly && canRequest && @settingsService.isRequestApproveEnabled() == true}" sec:authorize="hasRole('ROLE_REQUESTER')">
 								<div class="form-group">
 									<label class="col-sm-2 control-label" th:text="#{html.entity.view.action.label}"></label>
 									<div class="col-sm-8">
@@ -199,7 +199,7 @@
 								</div>
 							</fieldset>
 
-							<fieldset sec:authorize="hasRole('ROLE_ADMINISTRATOR')" th:unless="${role.itSystem.readonly or role.linkedSystemRole != null}">
+							<fieldset th:unless="${role.readOnly or role.itSystem.readonly or role.linkedSystemRole != null}" sec:authorize="hasRole('ROLE_ADMINISTRATOR')">
 								<div class="form-group">
 									<label class="col-sm-2 control-label"
 										   th:text="#{html.entity.view.action.label}"></label>

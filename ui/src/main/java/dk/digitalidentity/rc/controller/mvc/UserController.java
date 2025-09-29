@@ -14,6 +14,7 @@ import dk.digitalidentity.rc.dao.model.ItSystem;
 import dk.digitalidentity.rc.dao.model.Kle;
 import dk.digitalidentity.rc.dao.model.OrgUnit;
 import dk.digitalidentity.rc.dao.model.PostponedConstraint;
+import dk.digitalidentity.rc.dao.model.SystemRole;
 import dk.digitalidentity.rc.dao.model.SystemRoleAssignment;
 import dk.digitalidentity.rc.dao.model.SystemRoleAssignmentConstraintValue;
 import dk.digitalidentity.rc.dao.model.User;
@@ -59,6 +60,7 @@ import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -209,15 +211,66 @@ public class UserController {
 				boolean internalRole = assignment.getItSystem().getIdentifier().equals(Constants.ROLE_CATALOGUE_IDENTIFIER);
 				// We allow editing of internal roles when user is an Administrator (which also allows editing other roles)
 				// or if user can edit and role is "directly" assigned
-				boolean userRoleEditable = !readOnly && editable && assignerRoleConstraint.isAssignmentAllowed(user, userRole);
+				boolean userRoleEditable = !userRole.isReadOnly() && !readOnly && editable && assignerRoleConstraint.isAssignmentAllowed(user, userRole);
 				if ((internalRole && SecurityUtil.getRoles().contains(Constants.ROLE_ADMINISTRATOR) && directlyAssignedRole) || (userRoleEditable && directlyAssignedRole)) {
 					assignment.setCanEdit(true);
 				}
 				
 				// check if role is ineffective
 				if (assignment.getItSystem().getSystemType().equals(ItSystemType.NEMLOGIN) && !StringUtils.hasLength(user.getNemloginUuid())) {
+					assignment.setIneffectiveReason("NEMLOGIN");
 					assignment.setIneffective(true);
 				}
+				
+				UserUserRoleAssignment userUserRoleAssignment = user.getUserRoleAssignments().stream().filter(ura->ura.getId() == assignment.getAssignmentId()).findAny().orElse(null);
+				List<SystemRoleAssignment> systemRoleAssignments = new ArrayList<>();
+				if (userUserRoleAssignment != null) {
+					UserRole role = userUserRoleAssignment.getUserRole();
+					for (SystemRoleAssignment systemRoleAssignment : role.getSystemRoleAssignments()) {
+						systemRoleAssignments.add(systemRoleAssignment);
+					}
+				}
+
+				// check system role weights ( only if has 1 systemRole assigned)
+				if (systemRoleAssignments.size() == 1) {
+					var currentRole = systemRoleAssignments.get(0).getSystemRole();
+					if (currentRole != null) {
+						int currentWeight = currentRole.getWeight();
+
+						var maxOther = assignments.stream()
+										.filter(a -> !Objects.equals(a.getAssignmentId(), assignment.getAssignmentId())) // filter out current assignment
+										.filter(a -> Objects.equals(a.getItSystem().getUuid(), assignment.getItSystem().getUuid())) // only assignments from same ItSystem
+										.map(a -> user.getUserRoleAssignments().stream().filter(ura -> Objects.equals(ura.getId(), a.getAssignmentId())).findAny().orElse(null)) // map dto back to UserRoleAssignment
+										.filter(Objects::nonNull)
+										.filter(a -> a.getUserRole().getSystemRoleAssignments().size() == 1) // only assignments with 1 systemRole
+										.map(a -> a.getUserRole().getSystemRoleAssignments().get(0).getSystemRole())
+										.filter(Objects::nonNull)
+										.map(SystemRole::getWeight)
+										.filter(Objects::nonNull)
+										.mapToInt(Integer::intValue)
+										.max();
+
+						if (maxOther.isPresent() && currentWeight < maxOther.getAsInt()) {
+							log.debug("Marking assignment {} as ineffective due to weight {} < {}", assignment.getAssignmentId(), currentWeight, maxOther.getAsInt());
+							assignment.setIneffectiveReason("WEIGHT");
+							assignment.setIneffective(true);
+						}
+					}
+				}
+				
+				// calculate highest systemRole weight
+				int maxWeight = Optional.ofNullable(systemRoleAssignments)
+								.orElseGet(List::of).stream()
+								.filter(Objects::nonNull)
+								.map(SystemRoleAssignment::getSystemRole)
+								.filter(Objects::nonNull)
+								.map(SystemRole::getWeight)
+								.filter(Objects::nonNull)
+								.mapToInt(Integer::intValue)
+								.max()
+								.orElse(0);
+
+				assignment.setHighestSystemRoleWeight(maxWeight);
 				
 				boolean kspCicsAccount = user.getAltAccounts().stream().anyMatch(a -> a.getAccountType().equals(AltAccountType.KSPCICS));
 				if (!kspCicsAccount && assignment.getItSystem().getSystemType().equals(ItSystemType.KSPCICS)) {
@@ -228,7 +281,6 @@ public class UserController {
 				
 				// TODO: this block of code is duplicated in multiple places - could it be extracted to a utility method somewhere?
 				// it is also found in AttestationController
-				UserUserRoleAssignment userUserRoleAssignment = user.getUserRoleAssignments().stream().filter(ura->ura.getId() == assignment.getAssignmentId()).findAny().orElse(null);
 				if (userUserRoleAssignment != null) {
 					List<SystemRoleAssignmentDTO> systemRoleAssignmentsDTOs = new ArrayList<>();
 					UserRole role = userUserRoleAssignment.getUserRole();
@@ -349,9 +401,6 @@ public class UserController {
 			return "redirect:../list";
 		}
 
-		List<AvailableUserRoleDTO> roles = helper.getAvailableUserRoles(user);
-
-		model.addAttribute("roles", roles);
 		return "users/fragments/manage_add_userrole :: addUserRole";
 	}
 
