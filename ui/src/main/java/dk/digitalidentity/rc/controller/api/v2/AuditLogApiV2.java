@@ -51,9 +51,9 @@ public class AuditLogApiV2 {
     record AuditLogRecord(@Schema(description = "Id of audit log") long id, @Schema(description = "Time of creation") Date timestamp,
                           @Schema(description = "Ip Address of the audit") String ipAddress, @Schema(description = "Username for user who was audited") String username,
                           @Schema(description = "Enumerated type ie. user role, IT System, etc") EntityType entityType,
-                          @Schema(description = "Id of the entity as a long") String entityId, @Schema(description = "Name of the entity") String entityName,
-                          @Schema(description = "Type of the event") EventType eventType, @Schema(description = "Enumerated type ie. user role, IT System, etc for the secondary entity") EntityType secondaryEntityType,
-                          @Schema(description = "Id of the secondary entity as long") String secondaryEntityId, @Schema(description = "Name of the secondary entity") String secondaryEntityName, @Schema(description = "Description of the auditlog")String description) {
+                          @Schema(description = "Id of the section as a long") String entityId, @Schema(description = "Name of the section") String entityName,
+                          @Schema(description = "Type of the event") EventType eventType, @Schema(description = "Enumerated type ie. user role, IT System, etc for the secondary section") EntityType secondaryEntityType,
+                          @Schema(description = "Id of the secondary section as long") String secondaryEntityId, @Schema(description = "Name of the secondary section") String secondaryEntityName, @Schema(description = "Description of the auditlog")String description) {
     }
 
     @ApiResponses(value = { @ApiResponse(responseCode = "200", description = "Returns List of audit logs"),

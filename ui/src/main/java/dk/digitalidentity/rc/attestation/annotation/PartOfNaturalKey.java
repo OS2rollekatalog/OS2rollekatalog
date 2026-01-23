@@ -5,7 +5,7 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
-// Changes to fields marked with the annotation will cause a new entity to be generated.
+// Changes to fields marked with the annotation will cause a new section to be generated.
 @Target(ElementType.FIELD)
 @Retention(RetentionPolicy.RUNTIME)
 public @interface PartOfNaturalKey {

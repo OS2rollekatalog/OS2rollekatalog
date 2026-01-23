@@ -28,7 +28,7 @@
 									<td th:text="${role.itSystem.name}"></td>
 									<td th:text="${role.description}"></td>
 									<td>
-										<th:block sec:authorize="hasRole('ROLE_ASSIGNER')">
+										<th:block sec:authorize="hasAnyRole('ROLE_USER_ASSIGNER', 'ROLE_OU_ASSIGNER')">
 											<a th:href="@{/ui/userroles/edit/{id}(id=${role.id})}"><em class="fa fa-pencil"></em></a>
 										</th:block>
 									</td>

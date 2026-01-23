@@ -41,7 +41,11 @@ public class HistoryOURoleAssignmentExclusion {
 	@Column(name = "title_uuids")
 	private String titleUuids; // comma-separated UUIDs
 
+	@Lob
+	@Column(name = "function_uuids")
+	private String functionUuids; // comma-separated UUIDs
+
 	public enum ExclusionType {
-		excepted_users, titles, negative_titles
+		excepted_users, titles, negative_titles, functions
 	}
 }

@@ -1,7 +1,15 @@
 package dk.digitalidentity.rc.service.kitos;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+import java.util.Set;
+import java.util.UUID;
+import java.util.stream.Collectors;
+
+import org.springframework.stereotype.Service;
+
 import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
-import dk.digitalidentity.rc.config.model.Kitos;
 import dk.digitalidentity.rc.dao.model.KitosITSystem;
 import dk.digitalidentity.rc.dao.model.KitosITSystemUser;
 import dk.digitalidentity.rc.dao.model.enums.KitosRole;
@@ -13,14 +21,6 @@ import dk.kitos.api.model.TrackingEventResponseDTO;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Service;
-
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
-import java.util.Set;
-import java.util.UUID;
-import java.util.stream.Collectors;
 
 @Slf4j
 @Service

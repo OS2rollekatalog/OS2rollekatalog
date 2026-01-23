@@ -3,8 +3,12 @@ package dk.digitalidentity.rc.controller.mvc;
 import dk.digitalidentity.rc.config.Constants;
 import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
 import dk.digitalidentity.rc.security.SecurityUtil;
+import dk.digitalidentity.rc.security.permission.Permission;
+import dk.digitalidentity.rc.security.permission.Section;
+import dk.digitalidentity.rc.security.permission.UserPermissionContext;
 import dk.digitalidentity.rc.service.FrontPageLinkService;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpSession;
 import org.opensaml.saml.common.SAMLException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -18,6 +22,8 @@ import org.springframework.core.io.Resource;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.CredentialsExpiredException;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.web.WebAttributes;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -56,21 +62,23 @@ public class DefaultController implements ErrorController {
 
 	@Autowired
 	private FrontPageLinkService frontPageLinkService;
+	@Autowired
+	private UserPermissionContext userPermissionContext;
 
 	@GetMapping("/")
-	public String index(Model model) {
+	public String index(Model model, HttpSession session) {
 		if (SecurityUtil.hasRole(Constants.ROLE_READ_ACCESS)) {
 			return "redirect:/ui/users/list";
 		}
 
-		model.addAttribute("links", frontPageLinkService.getAllActive());
-
+		model.addAttribute("links", frontPageLinkService.getAllActiveFrontPageLinks());
+		session.setAttribute("cameFromIndex", true);
 		return "index";
 	}
 
 	@GetMapping("/ui/rolemenu")
 	public String roleIndex() {
-		if (SecurityUtil.hasRole(Constants.ROLE_READ_ACCESS)) {
+		if (userPermissionContext.hasPermission(Section.USER_ROLE, Permission.READ)) {
 			return "redirect:/ui/userroles/list";
 		}
 
@@ -79,18 +87,21 @@ public class DefaultController implements ErrorController {
 
 	@GetMapping("/ui/reportmenu")
 	public String reportIndex() {
-		if (SecurityUtil.hasRole(Constants.ROLE_TEMPLATE_ACCESS) || SecurityUtil.hasRole(Constants.ROLE_REPORT_ACCESS)) {
+		if (userPermissionContext.hasPermission(Section.REPORT, Permission.READ)) {
 			return "redirect:/ui/report/templates";
 		}
-		if (SecurityUtil.hasRole(Constants.ROLE_SUBSTITUTE) || SecurityUtil.hasRole(Constants.ROLE_MANAGER)) {
+		if (userPermissionContext.hasPermission(Section.MANAGER, Permission.READ)) {
 			return "redirect:/ui/manager/substitute";
 		}
 
 		if (SecurityUtil.hasRole(Constants.ROLE_KLE_ADMINISTRATOR)) {
 			return "redirect:/ui/kle/ou";
 		}
-		if (SecurityUtil.hasRole(Constants.ROLE_AUDITLOG)) {
+		if (userPermissionContext.hasPermission(Section.LOG, Permission.READ)) {
 			return "redirect:/ui/logs/audit";
+		}
+		if (userPermissionContext.hasPermission(Section.ADVISE, Permission.READ)) {
+			return "redirect:/ui/notifications/list";
 		}
 
 		return "redirect:/";
@@ -160,10 +171,31 @@ public class DefaultController implements ErrorController {
 			if (authException == null && request.getSession() != null) {
 				authException = request.getSession().getAttribute(WebAttributes.AUTHENTICATION_EXCEPTION);
 			}
-
-			if (authException != null && authException instanceof Throwable) {
+			if (authException instanceof Throwable) {
 				StringBuilder builder = new StringBuilder();
 				Throwable t = (Throwable) authException;
+
+				// Check if it's a UsernameNotFoundException
+				if (t instanceof UsernameNotFoundException ||
+					(t.getCause() != null && t.getCause() instanceof UsernameNotFoundException)) {
+
+					// Log user out
+					SecurityContextHolder.clearContext();
+					HttpSession session = request.getSession(false);
+					if (session != null) {
+						session.invalidate();
+					}
+
+					String username = extractUsername(t);
+
+					model.addAttribute("errorTitle", "Bruger ikke fundet");
+					model.addAttribute("errorMessage",
+						"Brugeren '" + username + "' er autentificeret, men ikke registreret i systemet. " +
+							"Kontakt din administrator for at få adgang.");
+					model.addAttribute("username", username);
+
+					return "error/user-not-found";
+				}
 
 				logThrowable(builder, t, false);
 				model.addAttribute("exception", builder.toString());
@@ -255,5 +287,16 @@ public class DefaultController implements ErrorController {
 		}
 
 		return lastVersion;
+	}
+
+	private String extractUsername(Throwable t) {
+		String message = t.getMessage();
+		if (message != null && message.contains("Brugeren ")) {
+			String[] parts = message.split(" ");
+			if (parts.length > 1) {
+				return parts[1];
+			}
+		}
+		return "ukendt";
 	}
 }

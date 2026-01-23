@@ -20,6 +20,7 @@
                     </form>
 
                     <p th:text="#{attestationmodule.html.orgunits.attestate.remarks.table.explainer}"></p>
+					<p style="display:none; color: red;" id="userRoleSelectError" th:text="#{attestationmodule.html.itsystems.attestate.reject.roleselect.error}"></p>
                     <table id="userRemarkModalTable" class="table table-striped table-bordered table-hover" >
                         <thead>
                             <tr>
@@ -123,6 +124,16 @@
 
                 return notApproved;
             }
+
+            this.validateSelection = function() {
+				const notApproved = this.getNotApprovedRoles();
+				if (notApproved.length === 0) {
+					$("#userRoleSelectError").show();
+					return false;
+				}
+				$("#userRoleSelectError").hide();
+				return true;
+			}
 		}
 
 		/*]]>*/

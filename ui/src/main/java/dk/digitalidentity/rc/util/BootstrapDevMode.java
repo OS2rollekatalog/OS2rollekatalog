@@ -90,10 +90,10 @@ public class BootstrapDevMode {
 
 	@Autowired
 	private TitleDao titleDao;
-	
+
 	@Autowired
 	private RoleGroupDao roleGroupDao;
-	
+
 	@Autowired
 	private RoleCatalogueConfiguration configuration;
 
@@ -109,7 +109,7 @@ public class BootstrapDevMode {
 			init(false);
 		}
 	}
-	
+
 	public void init(boolean force) throws Exception {
 		// do not bootstrap if this is production
 		if (!devEnvironment) {
@@ -123,7 +123,7 @@ public class BootstrapDevMode {
 		// do not bootstrap if there is already data in the system
 		if (orgUnitService.getRoot() == null) {
 			createTitles();
-			
+
 			List<ItSystem> itSystems = createItSystems();
 
 			List<UserRole> userRoles = createUserRoles(itSystems);
@@ -131,7 +131,7 @@ public class BootstrapDevMode {
 			createRoleGroups(userRoles);
 
 			importOrganisation();
-			
+
 			findUserOneAndMakeHimAdmin();
 
 			setItSystemResponsible();
@@ -147,7 +147,7 @@ public class BootstrapDevMode {
 
         log.info("Init finished: " + stopWatch.getTime(TimeUnit.SECONDS) + " seconds" );
 	}
-	
+
 	private void createTitles() {
         for(int i = 0; i < 100; i++) {
             var title = new Title();
@@ -166,8 +166,9 @@ public class BootstrapDevMode {
 		User skr = userDao.findByUserIdAndDomainAndDeletedFalse("skr", domainService.getPrimaryDomain()).orElseThrow();
 		User jls = userDao.findByUserIdAndDomainAndDeletedFalse("jls", domainService.getPrimaryDomain()).orElseThrow();
 		User psu = userDao.findByUserIdAndDomainAndDeletedFalse("psu", domainService.getPrimaryDomain()).orElseThrow();
+		User jgu = userDao.findByUserIdAndDomainAndDeletedFalse("jgu", domainService.getPrimaryDomain()).orElseThrow();
 		UserRole administrator = userRoleDao.getByIdentifier("administrator");
-		
+
 		UserUserRoleAssignment assignment = new UserUserRoleAssignment();
 		assignment.setUser(rolunittest01);
 		assignment.setAssignedByName("Systembruger");
@@ -177,7 +178,7 @@ public class BootstrapDevMode {
 
 		rolunittest01.getUserRoleAssignments().add(assignment);
 		userDao.save(rolunittest01);
-		
+
 		assignment = new UserUserRoleAssignment();
 		assignment.setUser(bsg);
 		assignment.setAssignedByName("Systembruger");
@@ -197,7 +198,7 @@ public class BootstrapDevMode {
 
 		kbp.getUserRoleAssignments().add(assignment);
 		userDao.save(kbp);
-		
+
 		assignment = new UserUserRoleAssignment();
 		assignment.setUser(and);
 		assignment.setAssignedByName("Systembruger");
@@ -234,9 +235,18 @@ public class BootstrapDevMode {
 		assignment.setAssignedByUserId("system");
 		assignment.setAssignedTimestamp(new Date());
 		assignment.setUserRole(administrator);
-		
+
 		psu.getUserRoleAssignments().add(assignment);
-		userDao.save(psu);
+
+		assignment = new UserUserRoleAssignment();
+		assignment.setUser(jgu);
+		assignment.setAssignedByName("Systembruger");
+		assignment.setAssignedByUserId("system");
+		assignment.setAssignedTimestamp(new Date());
+		assignment.setUserRole(administrator);
+
+		jgu.getUserRoleAssignments().add(assignment);
+		userDao.save(jgu);
 	}
 
 	private void setItSystemResponsible() {
@@ -376,7 +386,7 @@ public class BootstrapDevMode {
 		p.setName("Tester");
 		p.setOrgUnitUuid(kommune.getUuid());
 		kbp.getPositions().add(p);
-		
+
 		UserDTO and = createUser(users, "Andreas Duffy", "and");
 		p = new PositionDTO();
 		p.setName("p");
@@ -410,6 +420,13 @@ public class BootstrapDevMode {
 		p.setTitleUuid(titleDao.findAll().getFirst().getUuid());
 		psu.getPositions().add(p);
 
+		UserDTO jgu = createUser(users, "Jeremy Leon Gulow", "jgu");
+		p = new PositionDTO();
+		p.setName("Udvikler");
+		p.setOrgUnitUuid(kommune.getUuid());
+		p.setTitleUuid(titleDao.findAll().getFirst().getUuid());
+		jgu.getPositions().add(p);
+
 		OrganisationDTO payload = new OrganisationDTO();
 		payload.setOrgUnits(orgUnits);
 		payload.setUsers(users);
@@ -422,7 +439,7 @@ public class BootstrapDevMode {
 		roleGroup.setDescription("description....");
 		roleGroup.setName("My rolegroup");
 		roleGroup.setUserRoleAssignments(new ArrayList<>());
-		
+
 		RoleGroupUserRoleAssignment assignment = new RoleGroupUserRoleAssignment();
 		assignment.setUserRole(userRoles.get(0));
 		assignment.setRoleGroup(roleGroup);
@@ -469,7 +486,7 @@ public class BootstrapDevMode {
 
 		for (ItSystem itSystem : itSystems) {
 			List<SystemRole> systemRoles = systemRoleService.getByItSystem(itSystem);
-			
+
 			UserRole userRole = new UserRole();
 			userRole.setDescription("description");
 			userRole.setIdentifier(itSystem.getIdentifier() + "_" + i);
@@ -485,7 +502,7 @@ public class BootstrapDevMode {
 			sra.setAssignedTimestamp(new Date());
 			sra.setSystemRole(systemRole);
 			sra.setUserRole(userRole);
-			
+
 			if (systemRole.getSupportedConstraintTypes() != null) {
 				for (ConstraintTypeSupport supportedConstraint : systemRole.getSupportedConstraintTypes()) {
 					sra.setConstraintValues(new ArrayList<>());
@@ -499,9 +516,9 @@ public class BootstrapDevMode {
 					sra.getConstraintValues().add(constraint);
 				}
 			}
-			
+
 			userRole.getSystemRoleAssignments().add(sra);
-			
+
 			userRoleDao.save(userRole);
 
 			userRoles.add(userRole);
@@ -511,7 +528,7 @@ public class BootstrapDevMode {
 		return userRoles;
 	}
 
-	private List<ItSystem> createItSystems() {		
+	private List<ItSystem> createItSystems() {
 		ConstraintType constraintType = new ConstraintType();
 		constraintType.setEntityId(Constants.KLE_CONSTRAINT_ENTITY_ID);
 		constraintType.setUuid("9366d0e0-52bd-464c-8e2f-c8b63b021e52");
@@ -519,7 +536,7 @@ public class BootstrapDevMode {
 		constraintType.setUiType(ConstraintUIType.REGEX);
 		constraintType.setRegex(".*");
 		constraintType = constraintTypeService.save(constraintType);
-		
+
 		ConstraintType constraintType2 = new ConstraintType();
 		constraintType2.setEntityId(Constants.OU_CONSTRAINT_ENTITY_ID);
 		constraintType2.setUuid("9366d0e0-52bd-464c-8e2f-c8b63b021e51");
@@ -527,7 +544,7 @@ public class BootstrapDevMode {
 		constraintType2.setUiType(ConstraintUIType.REGEX);
 		constraintType2.setRegex(".*");
 		constraintType2 = constraintTypeService.save(constraintType2);
-		
+
 		ConstraintType constraintType3 = new ConstraintType();
 		constraintType3.setEntityId("https://sts.kombit.dk/constraints/itsystem/1");
 		constraintType3.setUuid("9366d0e0-52bd-464c-8e2f-c8b63b021e57");
@@ -540,16 +557,16 @@ public class BootstrapDevMode {
 		kombit.setIdentifier("KOMBIT");
 		kombit.setName("KOMBIT System");
 		kombit.setSystemType(ItSystemType.KOMBIT);
-		itSystemService.save(kombit);
+		kombit = itSystemService.save(kombit);
 
 		ConstraintTypeSupport constraintSupport = new ConstraintTypeSupport();
 		constraintSupport.setConstraintType(constraintType);
 		constraintSupport.setMandatory(false);
-		
+
 		ConstraintTypeSupport constraintSupport2 = new ConstraintTypeSupport();
 		constraintSupport2.setConstraintType(constraintType2);
 		constraintSupport2.setMandatory(false);
-		
+
 		ConstraintTypeSupport constraintSupport3 = new ConstraintTypeSupport();
 		constraintSupport3.setConstraintType(constraintType3);
 		constraintSupport3.setMandatory(false);

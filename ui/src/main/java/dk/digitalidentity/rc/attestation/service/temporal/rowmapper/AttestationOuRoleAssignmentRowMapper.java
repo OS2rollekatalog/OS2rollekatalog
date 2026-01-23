@@ -41,6 +41,9 @@ public class AttestationOuRoleAssignmentRowMapper implements RowMapper<Attestati
         assignment.setSensitiveRole(rs.getBoolean("sensitive_role"));
         assignment.setExtraSensitiveRole(rs.getBoolean("extra_sensitive_role"));
         assignment.setExceptedTitleUuids(RowMapperUtils.explodeToList(rs.getString("excepted_title_uuids")));
+		assignment.setManager(rs.getBoolean("manager"));
+		assignment.setSubstitutes(rs.getBoolean("substitutes"));
+		assignment.setFunctionUuids(RowMapperUtils.explodeToList(rs.getString("function_uuids")));
         return assignment;
     }
 

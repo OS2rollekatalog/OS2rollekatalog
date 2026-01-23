@@ -1,12 +1,14 @@
 package dk.digitalidentity.rc.service;
 
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Consumer;
 
-import org.springframework.beans.factory.annotation.Autowired;
+import dk.digitalidentity.rc.config.Constants;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -16,14 +18,12 @@ import dk.digitalidentity.rc.dao.model.SystemRole;
 import dk.digitalidentity.rc.dao.model.UserRole;
 import dk.digitalidentity.rc.dao.model.enums.ItSystemType;
 
+@RequiredArgsConstructor
 @Service
 public class SystemRoleService {
-
-	@Autowired
-	private SystemRoleDao systemRoleDao;
-	
-	@Autowired
-	private UserRoleService userRoleService;
+	private final SystemRoleDao systemRoleDao;
+	private final UserRoleService userRoleService;
+	private final ItSystemService itSystemService;
 
 	public SystemRole getById(long id) {
 		return systemRoleDao.findById(id);
@@ -40,11 +40,11 @@ public class SystemRoleService {
 	@Transactional
 	public List<SystemRole> getByItSystem(ItSystem itSystem, Consumer<SystemRole> consumer) {
 		List<SystemRole> systemRoles = systemRoleDao.findByItSystem(itSystem);
-		
+
 		if (consumer != null) {
 			systemRoles.forEach(consumer);
 		}
-		
+
 		return systemRoles;
 	}
 
@@ -58,8 +58,8 @@ public class SystemRoleService {
 
 	public SystemRole getFirstByIdentifierAndItSystemId(String identifier, long itSystemId) {
 		List<SystemRole> result = systemRoleDao.findByIdentifierAndItSystemId(identifier, itSystemId);
-		if (result != null && result.size() > 0) {
-			return result.get(0);
+		if (result != null && !result.isEmpty()) {
+			return result.getFirst();
 		}
 
 		return null;
@@ -83,44 +83,41 @@ public class SystemRoleService {
 	public Iterable<SystemRole> save(List<SystemRole> systemRoles) {
 		return systemRoleDao.saveAll(systemRoles);
 	}
-	
+
 	public List<UserRole> userRolesWithSystemRole(SystemRole systemRole) {
-		
+
 		// find all potential candidates
 		List<UserRole> candidates = userRoleService.getByItSystem(systemRole.getItSystem());
 
 		// filter
-		candidates.removeIf(ur -> !ur.getSystemRoleAssignments().stream().anyMatch(sysRoleAssignment -> systemRole.getId() == sysRoleAssignment.getSystemRole().getId()));
-		
+		candidates.removeIf(ur -> ur.getSystemRoleAssignments().stream()
+				.noneMatch(sysRoleAssignment -> systemRole.getId() == sysRoleAssignment.getSystemRole().getId()));
+
 		return candidates;
 
 	}
-	
-	public boolean isInUse(SystemRole systemRole) {
-		if (userRoleService.countBySystemRoleAssignmentsSystemRole(systemRole) > 0) {
-			return true;
-		}
 
-		return false;
+	public boolean isInUse(SystemRole systemRole) {
+		return userRoleService.countBySystemRoleAssignmentsSystemRole(systemRole) > 0;
 	}
-	
+
 	public boolean belongsToItSystemWithDifferentWeight(SystemRole systemRole) {
 		if (systemRole == null) {
 			return false;
 		}
-		
+
 		Set<Integer> weights = new HashSet<>();
 		for (SystemRole sr : getByItSystem(systemRole.getItSystem())) {
 			weights.add(sr.getWeight());
 		}
-		
+
 		return weights.size() > 1;
 	}
 
 	@Transactional
 	public List<SystemRole> getByItSystemSystemType(ItSystemType systemType, Consumer<SystemRole> consumer) {
 		List<SystemRole> result = systemRoleDao.findByItSystemSystemType(systemType);
-		
+
 		if (consumer != null) {
 			result.forEach(consumer);
 		}
@@ -136,5 +133,17 @@ public class SystemRoleService {
 	@Transactional
 	public void deleteAll(List<SystemRole> systemRoles) {
 		systemRoleDao.deleteAll(systemRoles);
+	}
+
+	@Transactional
+	public SystemRole createForRoleCatalogue(String name,  String identifier, String description) {
+		ItSystem itSystem = itSystemService.getFirstByIdentifier(Constants.ROLE_CATALOGUE_IDENTIFIER);
+		SystemRole systemRole = new SystemRole();
+		systemRole.setItSystem(itSystem);
+		systemRole.setName(name);
+		systemRole.setDescription(description);
+		systemRole.setIdentifier(identifier);
+		systemRole.setSupportedConstraintTypes(new ArrayList<>());
+		return systemRoleDao.save(systemRole);
 	}
 }

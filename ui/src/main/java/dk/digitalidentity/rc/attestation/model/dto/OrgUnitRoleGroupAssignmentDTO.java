@@ -22,4 +22,7 @@ public class OrgUnitRoleGroupAssignmentDTO {
     private List<OrgUnitUserRoleAssignmentDTO> userRoles;
     private boolean inherit;
     private List<String> exceptedTitles;
+	private boolean manager;
+	private boolean substitutes;
+	private List<String> functions;
 }

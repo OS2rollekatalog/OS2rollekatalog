@@ -6,11 +6,12 @@
     <header th:replace="~{fragments/navbar :: navbar-header(subpage = 'reports')}"></header>
     <aside th:replace="~{fragments/navbar :: navbar-aside (page = 'managerdelegate.list', subpage = 'reports')}"></aside>
 
-    <section>
+    <section th:with="permission=${T(dk.digitalidentity.rc.security.permission.Permission)},
+section=${T(dk.digitalidentity.rc.security.permission.Section)}">
         <div class="content-wrapper">
             <h3>
                 <span th:text="#{html.navbar.managerdelegate.list}"></span>
-                <span sec:authorize="hasAnyRole('ROLE_ADMINISTRATOR', 'ROLE_MANAGER')" class="btn btn-primary btn-lg"
+                <span th:if="${@permissionCheck.isAllowed(section.MANAGER, permission.CREATE)}" class="btn btn-primary btn-lg"
                       style="float: right;" id="createModalBtn"
                       th:text="#{html.page.managerdelegate.button.create}"></span>
             </h3>
@@ -39,10 +40,10 @@
                                 <td th:if="${delegate.indefinitely}"
                                     th:text="#{html.page.managerdelegate.to.indefinitely}"></td>
                                 <td>
-                                    <span class="editbtn" th:attr="data-id=${delegate.id}"
+                                    <span th:if="${delegate.allowedActions.isEditable}" class="editbtn" th:attr="data-id=${delegate.id}"
                                           th:title="#{html.page.managerdelegate.edit.hint}" style="cursor: pointer"><em
                                             class="fa fa-pencil"></em></span>
-                                    <span class="deletebtn" th:attr="data-id=${delegate.id}"
+                                    <span th:if="${delegate.allowedActions.isDeletable}" class="deletebtn" th:attr="data-id=${delegate.id}"
                                           th:title="#{html.page.managerdelegate.delete.hint}"
                                           style="cursor: pointer"><em class="fa fa-trash"></em></span>
                                 </td>

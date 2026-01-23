@@ -1,5 +1,7 @@
 package dk.digitalidentity.rc.dao.model;
 
+import java.util.Date;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
@@ -12,9 +14,6 @@ import jakarta.persistence.Temporal;
 import jakarta.persistence.TemporalType;
 import lombok.Getter;
 import lombok.Setter;
-import org.hibernate.annotations.BatchSize;
-
-import java.util.Date;
 
 @Entity(name = "users_manager_substitute")
 @Getter

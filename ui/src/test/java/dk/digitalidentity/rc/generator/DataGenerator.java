@@ -6,7 +6,6 @@ import java.util.Date;
 import java.util.List;
 import java.util.UUID;
 
-import dk.digitalidentity.rc.dao.model.enums.ContainsTitles;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -18,19 +17,18 @@ import dk.digitalidentity.rc.dao.UserDao;
 import dk.digitalidentity.rc.dao.UserRoleDao;
 import dk.digitalidentity.rc.dao.model.ItSystem;
 import dk.digitalidentity.rc.dao.model.OrgUnit;
-import dk.digitalidentity.rc.dao.model.Position;
-import dk.digitalidentity.rc.dao.model.PositionRoleGroupAssignment;
-import dk.digitalidentity.rc.dao.model.PositionUserRoleAssignment;
-import dk.digitalidentity.rc.dao.model.RoleGroup;
-import dk.digitalidentity.rc.dao.model.UserRoleGroupAssignment;
 import dk.digitalidentity.rc.dao.model.OrgUnitRoleGroupAssignment;
-import dk.digitalidentity.rc.dao.model.RoleGroupUserRoleAssignment;
 import dk.digitalidentity.rc.dao.model.OrgUnitUserRoleAssignment;
+import dk.digitalidentity.rc.dao.model.Position;
+import dk.digitalidentity.rc.dao.model.RoleGroup;
+import dk.digitalidentity.rc.dao.model.RoleGroupUserRoleAssignment;
 import dk.digitalidentity.rc.dao.model.SystemRole;
 import dk.digitalidentity.rc.dao.model.SystemRoleAssignment;
 import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserRole;
+import dk.digitalidentity.rc.dao.model.UserRoleGroupAssignment;
 import dk.digitalidentity.rc.dao.model.UserUserRoleAssignment;
+import dk.digitalidentity.rc.dao.model.enums.ContainsTitles;
 import dk.digitalidentity.rc.service.SystemRoleService;
 
 @Component
@@ -241,30 +239,10 @@ public class DataGenerator {
 					rgs.add(roleGroups.get(pick));				
 				}
 
-				for (RoleGroup roleGroup : rgs) {
-					PositionRoleGroupAssignment assignment = new PositionRoleGroupAssignment();
-					assignment.setPosition(position);
-					assignment.setRoleGroup(roleGroup);
-					assignment.setAssignedByName("Systembruger");
-					assignment.setAssignedByUserId("system");
-					assignment.setAssignedTimestamp(new Date());
-					position.getRoleGroupAssignments().add(assignment);
-				}
-				
 				rs = new ArrayList<>();
 				for (int n = 0; n < 4; n++) {
 					int pick = random.nextInt(userRoles.size());
 					rs.add(userRoles.get(pick));				
-				}
-				
-				for (UserRole userRole : rs) {
-					PositionUserRoleAssignment assignment = new PositionUserRoleAssignment();
-					assignment.setPosition(position);
-					assignment.setUserRole(userRole);
-					assignment.setAssignedByName("Systembruger");
-					assignment.setAssignedByUserId("system");
-					assignment.setAssignedTimestamp(new Date());
-					position.getUserRoleAssignments().add(assignment);
 				}
 				
 				positions.add(position);

@@ -1,0 +1,2 @@
+ALTER TABLE history_ous_users
+ADD COLUMN has_position BOOLEAN NOT NULL DEFAULT TRUE;

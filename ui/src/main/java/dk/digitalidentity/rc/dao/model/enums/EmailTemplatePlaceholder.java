@@ -21,11 +21,15 @@ public enum EmailTemplatePlaceholder {
 	OLD_POSITIONS_PLACEHOLDER("{tidligere_stillinger}", "html.enum.placeholders.description.old_positions"),
 	ORGUNITS_PLACEHOLDER("{enheder}", "html.enum.placeholders.description.orgunits"),
 	MANAGERDELEGATE_PLACEHOLDER("{delegeret_fra}", "html.enum.placeholders.description.managerdelegate"),
-	;
+	REQUEST_REASON("{begrundelse}", "html.enum.placeholders.description.request_reason"),
+	ATTESTATION_CHANGES_OU("{ændringer_enhed}", "html.enum.placeholders.description.attestation_changes_ou"),
+	ATTESTATION_CHANGES_USERS("{ændringer_brugere}", "html.enum.placeholders.description.attestation_changes_users"),
+	START_DATE("{startdato}", "html.enum.placeholders.description.start_date"),
+	STOP_DATE("{stopdato}", "html.enum.placeholders.description.stop_date");
 
 	private final String placeholder;
 	private final String description;
-	
+
 	EmailTemplatePlaceholder(String placeholder, String description) {
 		this.placeholder = placeholder;
 		this.description = description;

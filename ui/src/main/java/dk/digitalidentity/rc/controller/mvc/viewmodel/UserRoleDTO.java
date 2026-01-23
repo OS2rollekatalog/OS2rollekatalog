@@ -4,7 +4,8 @@ public record UserRoleDTO (
 		long id,
 		String name,
 		String description,
-		AvailableITSystemDTO itSystem,
+		String itSystemName,
+		String itSystemType,
 		boolean alreadyAssigned
 ) {
 }

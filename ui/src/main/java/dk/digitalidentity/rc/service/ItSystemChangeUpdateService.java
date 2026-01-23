@@ -48,12 +48,8 @@ public class ItSystemChangeUpdateService {
 	public void notifyAboutItSystems() {
 		Locale locale = LocaleUtils.toLocale(localeString.replace('-', '_'));
 
-		// Fetch email specified in settings, if none exists, delete everything
+		// Fetch email specified in settings
 		String emailAddress = settingsService.getItSystemChangeEmail();
-		if (!StringUtils.hasLength(emailAddress)) {
-			itSystemChangeService.deleteAll();
-			return;
-		}
 
 		// see if there are any changes
 		List<ItSystemChange> itSystemChangeList = itSystemChangeService.findAll();
@@ -184,12 +180,14 @@ public class ItSystemChangeUpdateService {
 			
 			String title = messageSource.getMessage("html.email.it.system.change.title", new Object[] { itSystem.getName() }, locale);//TODO change to old name if system was modified
 			String message = messageSource.getMessage("html.email.it.system.change.message.body", new Object[] { body.toString() }, locale);
-			
-			try {
-				emailService.sendMessage(emailAddress, title, message, null);
-			}
-			catch (Exception ex) {
-				log.error("Exception occured while sending global email about ItSystem's SystemRole changes. Exception:" + ex.getMessage());
+
+			if (StringUtils.hasLength(emailAddress)) {
+				try {
+					emailService.sendMessage(emailAddress, title, message, null);
+				}
+				catch (Exception ex) {
+					log.error("Exception occured while sending global email about ItSystem's SystemRole changes. Exception:" + ex.getMessage());
+				}
 			}
 			
 			if (StringUtils.hasLength(itSystem.getNotificationEmail())) {

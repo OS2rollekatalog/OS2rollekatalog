@@ -6,9 +6,8 @@ import org.apache.poi.ss.usermodel.Font;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
-import org.springframework.web.servlet.view.document.AbstractXlsxStreamingView;
 
-abstract public class AttestationXlsView extends AbstractXlsxStreamingView {
+abstract public class AttestationXlsView extends AbstractXlsxStreamingViewWrapper {
     protected CellStyle headerStyle;
     protected CellStyle titleStyle;
 

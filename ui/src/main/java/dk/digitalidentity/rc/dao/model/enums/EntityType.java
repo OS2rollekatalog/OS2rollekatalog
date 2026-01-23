@@ -7,7 +7,6 @@ import dk.digitalidentity.rc.dao.model.ItSystem;
 import dk.digitalidentity.rc.dao.model.KLEMapping;
 import dk.digitalidentity.rc.dao.model.OrgUnit;
 import dk.digitalidentity.rc.dao.model.Position;
-import dk.digitalidentity.rc.dao.model.RequestApprove;
 import dk.digitalidentity.rc.dao.model.RoleGroup;
 import dk.digitalidentity.rc.dao.model.Setting;
 import dk.digitalidentity.rc.dao.model.SystemRole;
@@ -35,11 +34,11 @@ public enum EntityType {
 	FRONT_PAGE_LINK("enum.entitytype.frontpagelink"),
 	EMAIL_TEMPLATE("enum.entitytype.emailtemplate"),
 	CLIENT("enum.entitytype.client");
-	
+
 	private EntityType(String message) {
 		this.message = message;
 	}
-	
+
 	private String message;
 
 	public static EntityType getEntityType(AuditLoggable object) {
@@ -66,9 +65,6 @@ public enum EntityType {
 		}
 		else if (object instanceof SystemRole) {
 			return SYSTEMROLE;
-		}
-		else if (object instanceof RequestApprove) {
-			return REQUEST_APPROVE;
 		}
 		else if (object instanceof KLEMapping) {
 			KLEMapping mapping = (KLEMapping) object;

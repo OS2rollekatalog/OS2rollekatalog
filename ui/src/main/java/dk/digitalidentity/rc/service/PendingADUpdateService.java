@@ -3,6 +3,8 @@ package dk.digitalidentity.rc.service;
 import dk.digitalidentity.rc.dao.DirtyADGroupDao;
 import dk.digitalidentity.rc.dao.PendingADGroupOperationDao;
 import dk.digitalidentity.rc.dao.SystemRoleDao;
+import dk.digitalidentity.rc.dao.model.ADConfiguration;
+import dk.digitalidentity.rc.dao.model.Client;
 import dk.digitalidentity.rc.dao.model.DirtyADGroup;
 import dk.digitalidentity.rc.dao.model.Domain;
 import dk.digitalidentity.rc.dao.model.ItSystem;
@@ -14,7 +16,9 @@ import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserRole;
 import dk.digitalidentity.rc.dao.model.enums.ADGroupType;
 import dk.digitalidentity.rc.dao.model.enums.ItSystemType;
+import dk.digitalidentity.rc.service.util.FilterMatcher;
 import jakarta.transaction.Transactional;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -25,6 +29,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 public class PendingADUpdateService {
 
@@ -45,6 +50,12 @@ public class PendingADUpdateService {
 
 	@Autowired
 	private PendingADGroupOperationDao pendingADGroupOperationDao;
+
+	@Autowired
+	private ADConfigurationService adConfigurationService;
+
+	@Autowired
+	private ClientService clientService;
 	
 	public PendingADGroupOperation save(PendingADGroupOperation operation) {
 		return pendingADGroupOperationDao.save(operation);
@@ -123,32 +134,6 @@ public class PendingADUpdateService {
 	// we will perform the update, so eventual consistency is the way home here
 	public void addUserToQueue(User user, Position position) {
 
-		// check rolegroups assigned to position
-		if (position.getRoleGroupAssignments() != null) {
-	      	List<RoleGroup> prg = position.getRoleGroupAssignments().stream().map(ura -> ura.getRoleGroup()).collect(Collectors.toList());
-
-			for (RoleGroup roleGroup : prg) {
-				List<UserRole> userRoles = roleGroup.getUserRoleAssignments().stream().map(ura -> ura.getUserRole()).collect(Collectors.toList());
-
-				for (UserRole userRole : userRoles) {
-					if (userRole.getItSystem().getSystemType().equals(ItSystemType.AD) && !userRole.getItSystem().isPaused()) {
-						addUserRoleToQueue(userRole);
-					}
-				}
-			}
-		}
-		
-		// check userroles assigned to position
-		if (position.getUserRoleAssignments() != null) {
-			List<UserRole> userRoles = position.getUserRoleAssignments().stream().map(ura -> ura.getUserRole()).collect(Collectors.toList());
-
-			for (UserRole userRole : userRoles) {
-				if (userRole.getItSystem().getSystemType().equals(ItSystemType.AD) && !userRole.getItSystem().isPaused()) {
-					addUserRoleToQueue(userRole);
-				}
-			}
-		}
-		
 		// check rolegroups assigned to OU that the position points to
 		List<RoleGroup> rgs = orgUnitService.getRoleGroups(position.getOrgUnit(), true);
 
@@ -218,5 +203,80 @@ public class PendingADUpdateService {
 		}
 		
 		return 0;
+	}
+
+	// we always add to queue, duplicates are dealt with elsewhere
+	@Transactional
+	public void addADGroupsFromMemberShipSyncFilter() {
+		log.info("Starting addADGroupsFromMemberShipSyncFilter");
+		int totalProcessed = 0;
+		int totalMatched = 0;
+		int totalSkipped = 0;
+
+		for (Client adSyncService : clientService.findADSyncServices()) {
+			ADConfiguration config = adConfigurationService.getByClient(adSyncService);
+			if (config == null) {
+				log.debug("No AD configuration found for client: {}", adSyncService.getName());
+				continue;
+			}
+
+			List<String> filterMap = config.getJson().getMembershipSyncFeatureFilterMap();
+			if (!config.getJson().isMembershipSyncFeatureEnabled() || filterMap == null || filterMap.isEmpty()) {
+				log.debug("No membership sync filters configured for client: {}", adSyncService.getName());
+				continue;
+			}
+
+			log.info("Processing client '{}' with {} filter(s)", adSyncService.getName(), filterMap.size());
+
+			for (ItSystem itSystem : itSystemService.getBySystemType(ItSystemType.AD)) {
+				if (itSystem.isPaused()) {
+					log.debug("Skipping paused IT system: {}", itSystem.getName());
+					continue;
+				}
+
+				if (itSystem.isReadonly()) {
+					log.debug("Skipping readonly IT system: {}", itSystem.getName());
+					continue;
+				}
+
+				List<SystemRole> systemRoles = systemRoleDao.findByItSystem(itSystem);
+				log.debug("Found {} SystemRoles for IT system '{}'", systemRoles.size(), itSystem.getName());
+
+				for (SystemRole systemRole : systemRoles) {
+					totalProcessed++;
+
+					try {
+						// Check if SystemRole matches any filter
+						if (FilterMatcher.systemRoleMatchesGroupFilter(systemRole, filterMap)) {
+							log.debug("SystemRole '{}' matches filter - adding to dirty AD groups", systemRole.getName());
+
+							DirtyADGroup dirty = new DirtyADGroup();
+							dirty.setIdentifier(systemRole.getIdentifier());
+							dirty.setItSystemId(itSystem.getId());
+							dirty.setTimestamp(new Date());
+							dirty.setDomain(itSystem.getDomain());
+
+							dirtyADGroupDao.save(dirty);
+							totalMatched++;
+
+							log.debug("Added SystemRole '{}' to dirty AD groups", systemRole.getName());
+						} else {
+							totalSkipped++;
+							log.debug("SystemRole '{}' does not match any filter - skipping",
+									systemRole.getName());
+						}
+					} catch (Exception e) {
+						log.error("Error processing SystemRole '{}' (ID: {}): {}",
+								systemRole.getName(),
+								systemRole.getId(),
+								e.getMessage(),
+								e);
+					}
+				}
+			}
+		}
+
+		log.info("Completed addADGroupsFromMemberShipSyncFilter - Processed: {}, Matched: {}, Skipped: {}",
+				totalProcessed, totalMatched, totalSkipped);
 	}
 }

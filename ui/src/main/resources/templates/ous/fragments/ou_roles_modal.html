@@ -14,6 +14,7 @@
 					<ul>
 						<li th:if="${titles != null and titles.size() > 0}" th:text="#{html.page.ous.edit.choose.text.titles}"></li>
 						<li th:text="#{html.page.ous.edit.choose.text.exceptedusers}"></li>
+						<li th:text="#{html.page.ous.edit.choose.text.manager}"></li>
 						<li th:text="#{html.page.ous.edit.choose.text.all}"></li>
 						<li th:text="#{html.page.ous.edit.choose.text.remove}"></li>
 					</ul>
@@ -38,6 +39,12 @@
 						<li th:if="${allTitles != null and allTitles.size() > 0}">
 							<a data-toggle="tab" data-tab-type="ou_roles_title_positive_inherited_menu" href="#ou_roles_title_positive_inherited_menu" style="white-space: pre" th:text="#{html.page.ous.edit.tab.titlesInherited}"></a>
 						</li>
+                        <li>
+                            <a data-toggle="tab" data-tab-type="ou_roles_manager_menu" href="#ou_roles_manager_menu" style="white-space: pre" th:text="#{html.page.ous.edit.tab.manager}"></a>
+                        </li>
+                        <li th:if="${functions != null and functions.size() > 0}">
+                            <a data-toggle="tab" data-tab-type="ou_roles_functions_menu" href="#ou_roles_functions_menu" style="white-space: pre" th:text="#{html.page.ous.edit.tab.functions}"></a>
+                        </li>
 					</ul>
 
 					<div class="tab-content">
@@ -104,7 +111,7 @@
 							</table>
 						</div>
 
-						<div id="ou_roles_title_disinherited_menu" class="tab-pane"  th:if="${titles != null and titles.size() > 0}"s>
+						<div id="ou_roles_title_disinherited_menu" class="tab-pane"  th:if="${titles != null and titles.size() > 0}">
 							<table id="ou_roles_listTable4" class="table table-striped">
 								<thead>
 								<tr>
@@ -164,12 +171,62 @@
 							</table>
 						</div>
 
+                        <div id="ou_roles_manager_menu" class="tab-pane">
+                            <p th:text="#{html.page.ous.edit.tab.manager.explainer}"></p>
+                            <table id="ou_roles_manager_table" class=" listTable table table-striped">
+                                <thead>
+                                    <tr>
+                                        <th class="col-lg-6" th:text="#{html.entity.user.name}"></th>
+                                        <th class="col-lg-3" th:text="#{html.entity.user.userId}"></th>
+                                        <th class="col-lg-3" th:text="#{html.entity.user.role}"></th>
+                                    </tr>
+                                </thead>
+
+                                <tbody>
+                                    <tr th:if="${manager != null}">
+                                        <td th:text="${manager.name}"></td>
+                                        <td th:text="${manager.userId}"></td>
+                                        <td th:text="#{html.page.ous.edit.tab.manager.role.manager}"></td>
+                                    </tr>
+                                    <tr th:each="substitute : ${substitutes}">
+                                        <td th:text="${substitute.name}"></td>
+                                        <td th:text="${substitute.userId}"></td>
+                                        <td th:text="#{html.page.ous.edit.tab.manager.role.substitute}"></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div th:if="${functions != null and functions.size() > 0}" id="ou_roles_functions_menu" class="tab-pane">
+                            <table id="ou_roles_functions_table" class=" listTable table table-striped">
+                                <thead>
+                                <tr>
+                                    <th class="col-md-2" th:text="#{html.entity.function.checked}"></th>
+                                    <th class="col-lg-6" th:text="#{html.entity.function.name}"></th>
+                                </tr>
+                                </thead>
+
+                                <tbody>
+                                <tr th:each="function : ${functions}">
+                                    <td>
+                                        <div class="checkbox c-checkbox">
+                                            <label>
+                                                <input class="function-checkbox" type="checkbox" th:attr="data-id=${function.uuid}, checked=${function.checked}" />
+                                                <span class="fa fa-check"></span>
+                                            </label>
+                                        </div>
+                                    </td>
+                                    <td th:text="${function.name}"></td>
+                                </tr>
+                                </tbody>
+                            </table>
+                        </div>
 
 					</div>
-					
+
 	               	<div style="height: 70px;">
 						<h4 class="md-12" th:text="#{html.word.validity}"></h4>
-	
+
 						<b class="col-sm-1" style="padding-top: 7px;" th:text="#{html.word.from}"></b>
 						<div class="col-md-5">
 							<div class="form-group">
@@ -181,7 +238,7 @@
 								</div>
 							</div>
 						</div>
-	
+
 						<b class="col-sm-1" style="padding-top: 7px;" th:text="#{html.word.to}"></b>
 						<div class="col-md-5">
 							<div class="form-group">
@@ -191,6 +248,20 @@
 										<span class="fa fa-calendar"></span>
 									</span>
 								</div>
+							</div>
+						</div>
+					</div>
+					<div style="height: 70px;" th:if="${@settingsService.isCaseNumberEnabled()}">
+						<h4 class="md-12" th:text="#{html.page.users.manage.assignment.caseNumber}"></h4>
+
+						<b class="col-sm-2 pt-2" th:text="#{html.page.users.manage.assignment.caseNumber}"></b>
+						<div class="col-md-10">
+							<div class="form-group">
+								<input type="text"
+									   class="form-control"
+									   id="caseNumber"
+									   placeholder="indtast sagsnummer"
+									   maxlength="150"/>
 							</div>
 						</div>
 					</div>
@@ -215,6 +286,32 @@
 	                		<li><a href="#" onclick="commonService.handleEveryoneRoleAssignment(true)" th:text="#{html.page.ous.edit.button.assign.all.inheritance}"></a></li>
 			  			</ul>
 			  		</div>
+                    <div class="btn-group" id="managerInheritButton">
+                        <button id="assignManagerButton" type="button" style="margin-left: 5px;" class="btn btn-primary dropdown-toggle" data-toggle="dropdown">
+                        	<span>
+								<span th:text="#{html.page.ous.edit.button.assign.manager.intro}"></span>&nbsp;
+								<em class="fa fa-fw fa-caret-down"></em>
+							</span>
+                        </button>
+                        <ul class="dropdown-menu">
+                            <li><a href="#" onclick="commonService.handleManagerRoleAssignment(false,false)" th:text="#{html.page.ous.edit.button.assign.manager.manager}"></a></li>
+                            <li><a href="#" onclick="commonService.handleManagerRoleAssignment(false,true)" th:text="#{html.page.ous.edit.button.assign.manager.manager.inheritance}"></a></li>
+                            <li><a href="#" onclick="commonService.handleManagerRoleAssignment(true,false)" th:text="#{html.page.ous.edit.button.assign.manager.managerAndSubstitutes}"></a></li>
+                            <li><a href="#" onclick="commonService.handleManagerRoleAssignment(true,true)" th:text="#{html.page.ous.edit.button.assign.manager.managerAndSubstitutes.inheritance}"></a></li>
+                        </ul>
+                    </div>
+                    <div class="btn-group" id="functionInheritButton">
+                        <button id="assignFunctionButton" type="button" style="margin-left: 5px;" class="btn btn-primary dropdown-toggle" data-toggle="dropdown">
+                        	<span>
+								<span th:text="#{html.page.ous.edit.button.assign.function.intro}"></span>&nbsp;
+								<em class="fa fa-fw fa-caret-down"></em>
+							</span>
+                        </button>
+                        <ul class="dropdown-menu">
+                            <li><a href="#" onclick="commonService.handleFunctionRoleAssignment(false)" th:text="#{html.page.ous.edit.button.assign.all}"></a></li>
+                            <li><a href="#" onclick="commonService.handleFunctionRoleAssignment(true)" th:text="#{html.page.ous.edit.button.assign.all.inheritance}"></a></li>
+                        </ul>
+                    </div>
 			  		<button type="button" class="btn btn-warning" style="margin-left: 5px;" onclick="commonService.closeModal();" th:text="#{html.control.button.cancel}"></button>
 				</div>
 			</div>
@@ -225,7 +322,7 @@
 <th:block th:fragment="ouRolesModalScript" xmlns="http://www.w3.org/1999/xhtml" xmlns:th="http://www.thymeleaf.org">
 	<script th:inline="javascript" type="text/javascript">
 		/*<![CDATA[*/
-		
+
 		/*[+
 		var titlesEnabled = [[${titlesEnabled}]];
 		var allTitles = [[${allTitles}]];
@@ -242,11 +339,13 @@
 		var selectedPositiveInheritedTitles = [];
 		var selectedExceptedUsers = [];
 		var selectedTitles = [];
+		var selectedFunctions = [];
 		var titlesTable;
 		var negativeTitlesTable;
 		var negativeInheritedTable;
 		var positiveInheritedTable;
 		var exceptedUsersTable;
+		var functionTable;
 
 
 		$(document).ready(function() {
@@ -264,7 +363,7 @@
     			ouRolesModalService.header = [[#{html.page.ous.edit.title.choose}]];
     			ouRolesEditModalService.header = [[#{html.page.ous.edit.title.choose.edit}]];
     		+]*/
-            
+
             notifikationService = new NotificationService();
         });
 
@@ -278,6 +377,7 @@
 				positiveInheritedTable = fragShowDataTableFun('#ou_roles_listTable5', 1, 25, null, [ { "orderDataType": "dom-checkbox" , "className": 'details-control', "searchable": false, "orderable": true}, {} ]);
 				titlesTable = fragShowDataTableFun('#ou_roles_listTable1', 1, 25, null, [ { "orderDataType": "dom-checkbox" , "className": 'details-control', "searchable": false, "orderable": true}, {} ]);
 				negativeTitlesTable = fragShowDataTableFun('#ou_roles_listTable4', 1, 25, null, [ { "orderDataType": "dom-checkbox" , "className": 'details-control', "searchable": false, "orderable": true}, {} ]);
+				functionTable = fragShowDataTableFun('#ou_roles_functions_table', 1, 25, null, [ { "orderDataType": "dom-checkbox" , "className": 'details-control', "searchable": false, "orderable": true}, {} ]);
 
 				// Add change tab event handler
 				$('a[data-toggle="tab"]').on("shown.bs.tab", function (e) {
@@ -291,6 +391,7 @@
 				commonService.addSimpleCheckboxListener('.positive-titles-inherited-checkbox', commonService.handlePositiveTitleInheritedCheckbox);
 				commonService.addSimpleCheckboxListener('.inherited-checkbox', commonService.handleInheritedCheckbox);
 				commonService.addSimpleCheckboxListener('.disinherited-checkbox', commonService.handleDisinheritedCheckbox);
+				commonService.addSimpleCheckboxListener('.function-checkbox', commonService.handleFunctionCheckbox);
 			}
 
 			this.addSimpleCheckboxListener = function(selector, method) {
@@ -306,6 +407,7 @@
 				$("#assignNegativeWithoutInheritanceButton").prop('disabled', true);
 				$("#assignNegativeWithInheritanceButton").prop('disabled', true);
 				$("#assignPositiveWithInheritanceButton").prop('disabled', true);
+				$("#assignFunctionButton").prop('disabled', true);
 
 				if (selectorToEnable) {
 					$(selectorToEnable).prop('disabled', false);
@@ -317,7 +419,7 @@
 				var tabType = $('#modal-ou .nav-tabs li.active a[data-toggle="tab"]').data('tab-type');
 				var hasTitleSelections = selectedTitles.length > 0;
 				var hasExceptedUserSelections = selectedExceptedUsers.length > 0;
-				
+
 				// Hide all buttons first
 				$("#titleAssignTitlesButton").hide();
 				$("#assignWithExceptionsButton").hide();
@@ -325,6 +427,8 @@
 				$("#assignNegativeWithInheritanceButton").hide();
 				$("#assignNegativeWithoutInheritanceButton").hide();
 				$("#assignPositiveWithInheritanceButton").hide();
+				$("#managerInheritButton").hide();
+				$("#functionInheritButton").hide();
 
 				if (tabType == 'ou_roles_title_menu') {
 					if (hasTitleSelections && hasExceptedUserSelections) {
@@ -358,6 +462,10 @@
 				}
 				else if (tabType == 'ou_roles_title_positive_inherited_menu') {
 					$("#assignPositiveWithInheritanceButton").show();
+				} else if (tabType == 'ou_roles_manager_menu') {
+				    $("#managerInheritButton").show();
+				} else if (tabType == 'ou_roles_functions_menu') {
+				    $("#functionInheritButton").show();
 				}
 			}
 
@@ -373,11 +481,11 @@
 
 				// Update button display and enable/disable state
 				commonService.handleButtonDisplay();
-				
+
 				// Determine which button to enable based on selections
 				var hasTitleSelections = selectedTitles.length > 0;
 				var hasExceptedUserSelections = selectedExceptedUsers.length > 0;
-				
+
 				var toEnable;
 				if (hasTitleSelections && hasExceptedUserSelections) {
 					toEnable = "#assignWithTitlesAndExceptionsButton";
@@ -386,7 +494,7 @@
 				} else {
 					toEnable = "#assignAllButton";
 				}
-				
+
 				commonService.handleDisableButtons(toEnable);
 			}
 
@@ -410,6 +518,10 @@
 				commonService.handleCheckboxGeneric($(this).data('id'), this.checked, selectedPositiveInheritedTitles, "#assignPositiveWithInheritanceButton");
 			}
 
+			this.handleFunctionCheckbox = function() {
+				commonService.handleCheckboxGeneric($(this).data('id'), this.checked, selectedFunctions, "#assignFunctionButton");
+			}
+
 			this.closeModal = function() {
 				$('#modal-ou').modal('hide');
 				commonService.resetUI();
@@ -423,36 +535,36 @@
 			// wrapper around assignRole that gets the list of selected excepted users
 			this.handleExceptedRoleAssignment = function() {
 				if (commonService.editMode) {
-					ouRolesEditModalService.assignRole(ouRolesEditModalService.roleType, false, ouRolesEditModalService.assignmentId, [], selectedExceptedUsers);
+					ouRolesEditModalService.assignRole(ouRolesEditModalService.roleType, false, ouRolesEditModalService.assignmentId, [], selectedExceptedUsers, []);
 				} else {
-					ouRolesModalService.assignRole(ouRolesModalService.roleType, false, ouRolesModalService.roleId, [], selectedExceptedUsers);
+					ouRolesModalService.assignRole(ouRolesModalService.roleType, false, ouRolesModalService.roleId, [], selectedExceptedUsers, []);
 				}
 			}
 
 			// wrapper around assignRole that reads the list of checked title UUIDs called by button click
 			this.handleTitleRoleAssignment = function() {
 				if (commonService.editMode) {
-					ouRolesEditModalService.assignRole(ouRolesEditModalService.roleType, false, ouRolesEditModalService.assignmentId, selectedTitles, []);
+					ouRolesEditModalService.assignRole(ouRolesEditModalService.roleType, false, ouRolesEditModalService.assignmentId, selectedTitles, [], []);
 				} else {
-					ouRolesModalService.assignRole(ouRolesModalService.roleType, false, ouRolesModalService.roleId, selectedTitles, []);
+					ouRolesModalService.assignRole(ouRolesModalService.roleType, false, ouRolesModalService.roleId, selectedTitles, [], []);
 				}
 			}
 
 			// wrapper around assignRole that gets the list of selected excepted users
 			this.handleTitleAndExceptedRoleAssignment = function() {
 				if (commonService.editMode) {
-					ouRolesEditModalService.assignRole(ouRolesEditModalService.roleType, false, ouRolesEditModalService.assignmentId, selectedTitles, selectedExceptedUsers);
+					ouRolesEditModalService.assignRole(ouRolesEditModalService.roleType, false, ouRolesEditModalService.assignmentId, selectedTitles, selectedExceptedUsers, []);
 				} else {
-					ouRolesModalService.assignRole(ouRolesModalService.roleType, false, ouRolesModalService.roleId, selectedTitles, selectedExceptedUsers);
+					ouRolesModalService.assignRole(ouRolesModalService.roleType, false, ouRolesModalService.roleId, selectedTitles, selectedExceptedUsers, []);
 				}
 			}
 
 			// wrapper around assignRole that assigns to everyone called by button click
 			this.handleEveryoneRoleAssignment = function(inherit) {
 				if (commonService.editMode) {
-					ouRolesEditModalService.assignRole(ouRolesEditModalService.roleType, inherit, ouRolesEditModalService.assignmentId, [], []);
+					ouRolesEditModalService.assignRole(ouRolesEditModalService.roleType, inherit, ouRolesEditModalService.assignmentId, [], [], []);
 				} else {
-					ouRolesModalService.assignRole(ouRolesModalService.roleType, inherit, ouRolesModalService.roleId, [], []);
+					ouRolesModalService.assignRole(ouRolesModalService.roleType, inherit, ouRolesModalService.roleId, [], [], []);
 				}
 			}
 
@@ -466,17 +578,33 @@
 				}
 
 				if (commonService.editMode) {
-					ouRolesEditModalService.assignRole(ouRolesEditModalService.roleType, inherit, ouRolesEditModalService.assignmentId, titleUuids, [], true);
+					ouRolesEditModalService.assignRole(ouRolesEditModalService.roleType, inherit, ouRolesEditModalService.assignmentId, titleUuids, [], [], true);
 				} else {
-					ouRolesModalService.assignRole(ouRolesModalService.roleType, inherit, ouRolesModalService.roleId, titleUuids, [], true);
+					ouRolesModalService.assignRole(ouRolesModalService.roleType, inherit, ouRolesModalService.roleId, titleUuids, [], [], true);
 				}
 			}
 
 			this.handlePositiveInheritedTitleAssignment = function() {
 				if (commonService.editMode) {
-					ouRolesEditModalService.assignRole(ouRolesEditModalService.roleType, true, ouRolesEditModalService.assignmentId, selectedPositiveInheritedTitles, [], false);
+					ouRolesEditModalService.assignRole(ouRolesEditModalService.roleType, true, ouRolesEditModalService.assignmentId, selectedPositiveInheritedTitles, [], [], false);
 				} else {
-					ouRolesModalService.assignRole(ouRolesModalService.roleType, true, ouRolesModalService.roleId, selectedPositiveInheritedTitles, [], false);
+					ouRolesModalService.assignRole(ouRolesModalService.roleType, true, ouRolesModalService.roleId, selectedPositiveInheritedTitles, [], [], false);
+				}
+			}
+
+			this.handleManagerRoleAssignment = function(includeSubstitutes, inherit) {
+			    if (commonService.editMode) {
+					ouRolesEditModalService.assignRole(ouRolesEditModalService.roleType, inherit, ouRolesEditModalService.assignmentId, [], [], [], false, true, includeSubstitutes);
+				} else {
+					ouRolesModalService.assignRole(ouRolesModalService.roleType, inherit, ouRolesModalService.roleId, [], [], [], false, true, includeSubstitutes);
+				}
+			}
+
+			this.handleFunctionRoleAssignment = function(inherit) {
+				if (commonService.editMode) {
+					ouRolesEditModalService.assignRole(ouRolesEditModalService.roleType, inherit, ouRolesEditModalService.assignmentId, [], [], selectedFunctions, false);
+				} else {
+					ouRolesModalService.assignRole(ouRolesModalService.roleType, inherit, ouRolesModalService.roleId, [], [], selectedFunctions, false);
 				}
 			}
 
@@ -486,6 +614,7 @@
 				selectedPositiveInheritedTitles = [];
 				selectedExceptedUsers = [];
 				selectedTitles = [];
+				selectedFunctions = [];
 			}
 
 			this.clearSelections = function() {
@@ -497,6 +626,7 @@
 				}
 
 				commonService.clearDatatableSelection('.exceptedusers-checkbox', exceptedUsersTable);
+				commonService.clearDatatableSelection('.function-checkbox', functionTable);
 			}
 
 			this.clearSelection = function(selector) {
@@ -516,7 +646,7 @@
 				$(selector).prop('checked', false);
 			};
 		}
-		
+
 		function OURolesModalService() {
 			this.showAssignModal = function(titlesEnabled, startDate, stopDate) {
 				$('#stopDatePickerOU').data("DateTimePicker").clear();
@@ -553,7 +683,7 @@
 					commonService.clearDatatableSelection('.exceptedusers-checkbox', exceptedUsersTable);
 					$('a[data-toggle="tab"][href="#ou_roles_excepted_users_menu"]').tab('show');
 				}
-				
+
 				// Show correct buttons
 				commonService.handleButtonDisplay();
 
@@ -574,22 +704,29 @@
 					keyboard: false
 				});
 			}
-			
-			this.assignRole = function(objType, inherit, id, titleUuids, exceptedUserUuids, negativeAssisgnment = false) {
-				var endpoint = commonService.restUrl + 'add' + objType + '/' + ouRolesModalService.ouUuid + '/' + id;
 
-				var startDate = $('#startDatePickerOU').data('date');
-				var stopDate = $('#stopDatePickerOU').data('date');
-				var dates = "?startDate=" + startDate + "&stopDate=" + stopDate;
+			this.assignRole = function(objType, inherit, id, titleUuids, exceptedUserUuids, functionUuids, negativeAssignment = false, manager = false, substitutes = false) {
+				let caseNumber = $('#caseNumber').val();
+				let endpoint = commonService.restUrl + 'add' + objType + '/' + ouRolesModalService.ouUuid + '/' + id;
+				let startDate = $('#startDatePickerOU').data('date');
+				let stopDate = $('#stopDatePickerOU').data('date');
+				let dates = "?startDate=" + startDate + "&stopDate=" + stopDate;
 				endpoint = endpoint + dates;
-				
+				endpoint = endpoint + "&caseNumber=" + caseNumber;
+
 				if (inherit) {
 					endpoint = endpoint + "&inherit=true";
 				}
-				if (negativeAssisgnment) {
+				if (negativeAssignment) {
 					endpoint = endpoint + "&negativeAssignment=true";
 				}
-				
+				if (manager) {
+				    endpoint = endpoint + "&manager=true";
+				    if (substitutes) {
+				        endpoint = endpoint + "&substitutes=true";
+				    }
+				}
+
 				$.ajax({
 					url: endpoint,
 					method: "POST",
@@ -599,7 +736,8 @@
 	                contentType: 'application/json',
 	                data: JSON.stringify({
 	    			      'titleUuids': titleUuids,
-	    			      'exceptedUserUuids' : exceptedUserUuids
+	    			      'exceptedUserUuids' : exceptedUserUuids,
+	    			      'functionUuids': functionUuids
 					}),
 					error : function(response) {
 						errorHandler(commonService.fieldNotUpdatedMsg)(response);
@@ -608,7 +746,7 @@
 					success : function(response) {
 						if (response.success) {
 							if (response.users > 0) {
-								var optionalSuccessMessage = usersAlreadyAssignedDirectlyMsg.format(response.users);
+								let optionalSuccessMessage = usersAlreadyAssignedDirectlyMsg.format(response.users);
 								notifikationService.showWarnNotification(optionalSuccessMessage);
 							}
 							else {
@@ -619,7 +757,7 @@
 							// TODO: should we inform the user that we did not make any change?
 							notifikationService.showInfoNotification(commonService.fieldUpdatedMsg);
 						}
-						
+
 						commonService.closeModal();
 						if (objType == "role") {
 							commonService.parentService.loadAddUserRoleFragment();
@@ -680,6 +818,18 @@
 				});
 			}
 
+			this.fetchCheckedFunctions = function() {
+				return $.ajax({
+					url: commonService.restUrl + ouRolesEditModalService.ouUuid + "/" + ouRolesEditModalService.roleType + "/" + ouRolesEditModalService.assignmentId + "/functions",
+					method: "GET",
+					error : errorHandler(commonService.fieldNotUpdatedMsg),
+					success : function(response) {
+						selectedFunctions = response;
+						ouRolesEditModalService.updateDatatableWithCheckboxChecks('.function-checkbox', functionTable, selectedFunctions);
+					}
+				});
+			}
+
 			this.updateDatatableWithCheckboxChecks = function(checkboxClass, table, selectedIds) {
 				table.off('draw.dt.checkboxUpdate');
 
@@ -729,7 +879,7 @@
 				commonService.clearLists();
 				commonService.clearSelections();
 				commonService.handleDisableButtons();
-				
+
 				// default enable the assignAllButton
 				commonService.handleDisableButtons('#assignAllButton');
 
@@ -754,13 +904,12 @@
 					$('#ou_roles_listTable2').on('draw.dt', function(e) {
 						commonService.addSimpleCheckboxListener('.exceptedusers-checkbox', commonService.handleExceptedUsersCheckbox);
 					});
-					
+
 					// Handle tab selection
 					if (assignmentType == 0) {
 						// excepted users case
 						$('#modal-ou a[data-toggle="tab"][href="#ou_roles_excepted_users_menu"]').tab('show');
 						commonService.handleDisableButtons('#assignWithExceptionsButton');
-						console.log(1);
 					} else if (titlesEnabled) {
 						if (assignmentType >= 1) {
 							// assigned to 1+ titles
@@ -768,7 +917,6 @@
 								$('#modal-ou a[data-toggle="tab"][href="#ou_roles_title_menu"]').tab('show');
 								commonService.handleButtonDisplay();
 								commonService.handleDisableButtons('#titleAssignTitlesButton');
-								console.log(2);
 							});
 						} else if (assignmentType == -3) {
 							// contains excepted titles with inherit
@@ -776,7 +924,6 @@
 								$('#modal-ou a[data-toggle="tab"][href="#ou_roles_title_inherited_menu"]').tab('show');
 								commonService.handleButtonDisplay();
 								commonService.handleDisableButtons('#assignNegativeWithInheritanceButton');
-								console.log(3);
 							});
 						} else if (assignmentType == -4) {
 							// contains excepted titles
@@ -784,7 +931,6 @@
 								$('#modal-ou a[data-toggle="tab"][href="#ou_roles_title_disinherited_menu"]').tab('show');
 								commonService.handleButtonDisplay();
 								commonService.handleDisableButtons('#assignNegativeWithoutInheritanceButton');
-								console.log(4);
 							});
 						} else if (assignmentType == -5) {
 							// contains selected titles with inherit
@@ -792,7 +938,6 @@
 								$('#modal-ou a[data-toggle="tab"][href="#ou_roles_title_positive_inherited_menu"]').tab('show');
 								commonService.handleButtonDisplay();
 								commonService.handleDisableButtons('#assignPositiveWithInheritanceButton');
-								console.log(5);
 							});
 						} else if (assignmentType == -6) {
 							// contains selected titles and excepted users
@@ -801,15 +946,24 @@
 								$('#modal-ou a[data-toggle="tab"][href="#ou_roles_title_menu"]').tab('show');
 								commonService.handleButtonDisplay();
 								commonService.handleDisableButtons('#assignWithTitlesAndExceptionsButton');
-								console.log(6);
 							});
+						} else if (assignmentType == -7 || assignmentType == -8 || assignmentType == -9 || assignmentType == -10) {
+						    // assigned to manager/manager and substitutes with or without inheritance
+						    $('#modal-ou a[data-toggle="tab"][href="#ou_roles_manager_menu"]').tab('show');
+						} else if (assignmentType == -11 || assignmentType == -12) {
+						    // assigned to functions with or without inheritance
+                            ouRolesEditModalService.fetchCheckedFunctions().done(function () {
+                                $('#modal-ou a[data-toggle="tab"][href="#ou_roles_functions_menu"]').tab('show');
+                                commonService.handleButtonDisplay();
+                                commonService.handleDisableButtons('#assignFunctionButton');
+                            });
 						}
 					}
 				});
-				
+
 				// Show correct buttons
 				commonService.handleButtonDisplay();
-				
+
 				// remove old event listeners from all tables but the excepted users table
 				$('#modal-ou .table:not(#ou_roles_listTable2)').off();
 
@@ -828,7 +982,7 @@
 				});
 			}
 
-			this.assignRole = function(objType, inherit, id, titleUuids, exceptedUserUuids, negativeAssisgnment = false) {
+			this.assignRole = function(objType, inherit, id, titleUuids, exceptedUserUuids, functionUuids, negativeAssisgnment = false, manager = false, substitutes = false) {
 				var endpoint = commonService.restUrl + 'edit' + objType + '/' + ouRolesEditModalService.ouUuid + '/' + id;
 				var startDate = $('#startDatePickerOU').data('date');
 				var stopDate = $('#stopDatePickerOU').data('date');
@@ -841,6 +995,12 @@
 				if (negativeAssisgnment) {
 					endpoint = endpoint + "&negativeAssignment=true";
 				}
+				if (manager) {
+				    endpoint = endpoint + "&manager=true";
+				    if (substitutes) {
+				        endpoint = endpoint + "&substitutes=true";
+				    }
+				}
 
 				$.ajax({
 					url: endpoint,
@@ -851,7 +1011,8 @@
 	                contentType: 'application/json',
 	                data: JSON.stringify({
 	    			      'titleUuids': titleUuids,
-	    			      'exceptedUserUuids' : exceptedUserUuids
+	    			      'exceptedUserUuids' : exceptedUserUuids,
+	    			      'functionUuids': functionUuids
 					}),
 					error : function(response) {
 						errorHandler(commonService.fieldNotUpdatedMsg)(response);
@@ -867,7 +1028,7 @@
 
 			}
 		}
-		
+
 		function NotificationService() {
 			this.showInfoNotification = function(message) {
 				$.notify({
@@ -876,7 +1037,7 @@
 					timeout: 2000
 				});
 			}
-			
+
 			this.showWarnNotification = function(message) {
 				$.notify({
 					message: message,

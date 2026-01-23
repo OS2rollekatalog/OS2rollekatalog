@@ -19,6 +19,7 @@
                     </form>
 
                     <p th:text="#{attestationmodule.html.orgunits.attestate.remarks.table.explainer.ou}"></p>
+					<p style="display:none; color: red;" id="orgUnitRoleSelectError" th:text="#{attestationmodule.html.itsystems.attestate.reject.roleselect.error}"></p>
                     <table id="orgUnitRemarkModalTable" class="table table-striped table-bordered table-hover" >
                         <thead>
                             <tr>
@@ -124,6 +125,16 @@
 
                 return notApproved;
             }
+
+            this.validateSelection = function() {
+				const notApproved = this.getNotApprovedRoles();
+				if (notApproved.length === 0) {
+					$("#orgUnitRoleSelectError").show();
+					return false;
+				}
+				$("#orgUnitRoleSelectError").hide();
+				return true;
+			}
 		}
 
 		/*]]>*/

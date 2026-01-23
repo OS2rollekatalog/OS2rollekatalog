@@ -1,5 +1,40 @@
 package dk.digitalidentity.rc.attestation.service;
 
+import static dk.digitalidentity.rc.attestation.model.AttestationRoleMapper.userRoleGroups;
+import static dk.digitalidentity.rc.attestation.service.util.AttestationUtil.isSensitiveUser;
+import static dk.digitalidentity.rc.util.StreamExtensions.distinctByKey;
+
+import java.time.LocalDate;
+import java.time.ZonedDateTime;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.Set;
+import java.util.function.Predicate;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+
+import dk.digitalidentity.rc.dao.model.EmailTemplate;
+import dk.digitalidentity.rc.dao.model.RoleGroup;
+import dk.digitalidentity.rc.dao.model.UserRole;
+import dk.digitalidentity.rc.dao.model.enums.EmailTemplatePlaceholder;
+import dk.digitalidentity.rc.dao.model.enums.EmailTemplateType;
+import dk.digitalidentity.rc.service.EmailQueueService;
+import dk.digitalidentity.rc.service.EmailTemplateService;
+import dk.digitalidentity.rc.service.RoleGroupService;
+import dk.digitalidentity.rc.service.UserRoleService;
+import dk.digitalidentity.rc.service.model.OrgUnitWithNewAndOldParentDTO;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.CollectionUtils;
+import org.springframework.util.StringUtils;
+import org.springframework.web.server.ResponseStatusException;
+
 import dk.digitalidentity.rc.attestation.dao.AttestationDao;
 import dk.digitalidentity.rc.attestation.dao.AttestationOuAssignmentsDao;
 import dk.digitalidentity.rc.attestation.dao.AttestationUserRoleAssignmentDao;
@@ -20,14 +55,15 @@ import dk.digitalidentity.rc.attestation.model.dto.enums.AssignedThroughAttestat
 import dk.digitalidentity.rc.attestation.model.dto.enums.RoleType;
 import dk.digitalidentity.rc.attestation.model.entity.Attestation;
 import dk.digitalidentity.rc.attestation.model.entity.AttestationRun;
-import dk.digitalidentity.rc.attestation.model.entity.AttestationUser;
 import dk.digitalidentity.rc.attestation.model.entity.BaseUserAttestationEntry;
 import dk.digitalidentity.rc.attestation.model.entity.OrganisationRoleAttestationEntry;
 import dk.digitalidentity.rc.attestation.model.entity.OrganisationUserAttestationEntry;
 import dk.digitalidentity.rc.attestation.model.entity.temporal.AssignedThroughType;
 import dk.digitalidentity.rc.attestation.model.entity.temporal.AttestationOuRoleAssignment;
 import dk.digitalidentity.rc.attestation.model.entity.temporal.AttestationUserRoleAssignment;
+import dk.digitalidentity.rc.dao.FunctionDao;
 import dk.digitalidentity.rc.dao.TitleDao;
+import dk.digitalidentity.rc.dao.model.Function;
 import dk.digitalidentity.rc.dao.model.OrgUnit;
 import dk.digitalidentity.rc.dao.model.Title;
 import dk.digitalidentity.rc.dao.model.User;
@@ -40,29 +76,6 @@ import jakarta.persistence.EntityManager;
 import jakarta.persistence.FlushModeType;
 import jakarta.persistence.PersistenceContext;
 import lombok.extern.slf4j.Slf4j;
-import org.jetbrains.annotations.NotNull;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpStatus;
-import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.server.ResponseStatusException;
-
-import java.time.LocalDate;
-import java.time.ZonedDateTime;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.Set;
-import java.util.function.Predicate;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
-
-import static dk.digitalidentity.rc.attestation.model.AttestationRoleMapper.userRoleGroups;
-import static dk.digitalidentity.rc.attestation.service.util.AttestationUtil.isSensitiveUser;
-import static dk.digitalidentity.rc.util.StreamExtensions.distinctByKey;
 
 @Slf4j
 @Component
@@ -102,6 +115,9 @@ public class OrganisationAttestationService {
 	private TitleDao titleDao;
 
 	@Autowired
+	private FunctionDao functionDao;
+
+	@Autowired
 	private SettingsService settingsService;
 
 	@PersistenceContext
@@ -111,6 +127,18 @@ public class OrganisationAttestationService {
 	private OrganisationAttestationService self;
 	@Autowired
 	private ManagerDelegateAttestationService managerDelegateAttestationService;
+
+	@Autowired
+	private EmailTemplateService emailTemplateService;
+
+	@Autowired
+	private EmailQueueService emailQueueService;
+
+	@Autowired
+	private UserRoleService userRoleService;
+
+	@Autowired
+	private RoleGroupService roleGroupService;
 
 	public List<OrgUnit> getAllOrgUnitsWithAttestations(LocalDate when) {
 		final LocalDate since = when.minusMonths(12);
@@ -127,7 +155,7 @@ public class OrganisationAttestationService {
 		final LocalDate since = LocalDate.now().minusMonths(1);
 		attestationDao.findByAttestationTypeInAndDeadlineIsGreaterThanEqual(List.of(Attestation.AttestationType.ORGANISATION_ATTESTATION, Attestation.AttestationType.MANAGER_DELEGATED_ATTESTATION), since).stream()
 				.filter(a -> a.getVerifiedAt() == null)
-				.filter(a -> isOrganisationAttestationDone(a, a.getCreatedAt()))
+				.filter(a -> isOrganisationAttestationDone(a, a.getCreatedAt(), false, null))
 				.filter(a -> !settingsService.isADAttestationEnabled())
 				.forEach(a -> {
 					a.setVerifiedAt(ZonedDateTime.now());
@@ -246,7 +274,7 @@ public class OrganisationAttestationService {
 				Attestation.AttestationType.ORGANISATION_ATTESTATION, orgUnitUuid).orElse(null);
 		ensureUserEntryDoesntExist(userUuid, attestation);
         createUserEntry(attestation, userUuid, performedByUserId, null, false, new HashSet<String>(), new HashSet<String>());
-		if (isOrganisationAttestationDone(attestation, attestation.getCreatedAt())) {
+		if (isOrganisationAttestationDone(attestation, attestation.getCreatedAt(), true, user)) {
 			attestation.setVerifiedAt(ZonedDateTime.now());
 		}
 	}
@@ -265,7 +293,7 @@ public class OrganisationAttestationService {
         final Set<String> notApprovedUserRoles = getNotApprovedUserRoles(notApprovedRoleAssignments);
         final Set<String> notApprovedRoleGroups = getNotApprovedRoleGoups(notApprovedRoleAssignments);
         createUserEntry(attestation, userUuid, performedByUserId, remarks, false, notApprovedRoleGroups, notApprovedUserRoles);
-		if (isOrganisationAttestationDone(attestation, attestation.getCreatedAt())) {
+		if (isOrganisationAttestationDone(attestation, attestation.getCreatedAt(), true, performingUser)) {
 			attestation.setVerifiedAt(ZonedDateTime.now());
 		}
 		final User user = userService.getByUuid(userUuid);
@@ -311,7 +339,7 @@ public class OrganisationAttestationService {
 				attestationType, orgUnitUuid).orElse(null);
 		ensureUserEntryDoesntExist(userUuid, attestation);
         createUserEntry(attestation, userUuid, performedByUserId, null, true, new HashSet<String>(), new HashSet<String>());
-		if (isOrganisationAttestationDone(attestation, attestation.getCreatedAt())) {
+		if (isOrganisationAttestationDone(attestation, attestation.getCreatedAt(), true, performingUser)) {
 			attestation.setVerifiedAt(ZonedDateTime.now());
 		}
 		final User user = userService.getByUuid(userUuid);
@@ -322,6 +350,7 @@ public class OrganisationAttestationService {
 
 	@Transactional
 	public void acceptOrgUnitRoles(final String orgUnitUuid, final String performedByUserId, Attestation.AttestationType attestationType) {
+		final User performingUser = userService.getByUserId(performedByUserId);
 		final Attestation attestation = attestationDao.findFirstByAttestationTypeAndResponsibleOuUuidOrderByDeadlineDesc(
 				attestationType, orgUnitUuid).orElse(null);
 		ensureOrgRoleEntryDoesntExist(attestation);
@@ -333,7 +362,7 @@ public class OrganisationAttestationService {
 						.performedByUserUuid(userService.getByUserId(performedByUserId).getUuid())
 						.remarks(null)
 						.build()));
-		if (isOrganisationAttestationDone(attestation, attestation.getCreatedAt())) {
+		if (isOrganisationAttestationDone(attestation, attestation.getCreatedAt(), true, performingUser)) {
 			attestation.setVerifiedAt(ZonedDateTime.now());
 		}
 	}
@@ -355,7 +384,8 @@ public class OrganisationAttestationService {
 		final Set<String> notApprovedUserRoles = getNotApprovedUserRoles(notApprovedRoleAssignments);
 		final Set<String> notApprovedRoleGroups = getNotApprovedRoleGoups(notApprovedRoleAssignments);
 
-		final String performedByUserUuid = userService.getByUserId(performedByUserId).getUuid();
+		final User performingUser = userService.getByUserId(performedByUserId);
+		final String performedByUserUuid = performingUser.getUuid();
 		attestation.setOrganisationRolesAttestationEntry(
 				organisationRoleAttestationEntryDao.save(OrganisationRoleAttestationEntry.builder()
 						.attestation(attestation)
@@ -366,7 +396,7 @@ public class OrganisationAttestationService {
 						.rejectedRoleGroupIds(notApprovedRoleGroups)
 						.remarks(remarks)
 						.build()));
-		if (isOrganisationAttestationDone(attestation, attestation.getCreatedAt())) {
+		if (isOrganisationAttestationDone(attestation, attestation.getCreatedAt(), true, performingUser)) {
 			attestation.setVerifiedAt(ZonedDateTime.now());
 		}
 		userService.getOptionalByUuid(performedByUserUuid).ifPresent(user -> {
@@ -388,7 +418,7 @@ public class OrganisationAttestationService {
 		}
 	}
 
-	private boolean isOrganisationAttestationDone(final Attestation attestation, final LocalDate when) {
+	private boolean isOrganisationAttestationDone(final Attestation attestation, final LocalDate when, boolean sendSummaryMailIfDone, User sendMailTo) {
 		boolean activeDirectoryAttestationsDone = true;
 		if (settingsService.isADAttestationEnabled()) {
 			Set<String> approvedUsers = attestation.getOrganisationUserAttestationEntries().stream().map(BaseUserAttestationEntry::getUserUuid).collect(Collectors.toSet());
@@ -410,9 +440,172 @@ public class OrganisationAttestationService {
 				.filter(a -> (!run.isSensitive() && !run.isExtraSensitive()) || isSensitiveUser(attestation, a.getUserUuid()))
 				.filter(a -> a.getAssignedThroughType() == AssignedThroughType.DIRECT)
 				.toList();
-		return userAssignments.stream()
-				.filter(distinctByKey(AttestationUserRoleAssignment::getUserUuid))
-				.allMatch(a -> processedUserUuid.contains(a.getUserUuid())) && activeDirectoryAttestationsDone;
+		boolean allDone = userAssignments.stream()
+			.filter(distinctByKey(AttestationUserRoleAssignment::getUserUuid))
+			.allMatch(a -> processedUserUuid.contains(a.getUserUuid())) && activeDirectoryAttestationsDone;
+
+		if (allDone && sendSummaryMailIfDone && sendMailTo != null) {
+			sendSummaryMail(attestation, sendMailTo);
+		}
+
+		return allDone;
+	}
+
+	private void sendSummaryMail(Attestation attestation, User sendMailTo) {
+		EmailTemplate template = emailTemplateService.findByTemplateType(EmailTemplateType.ATTESTATION_SUMMARY);
+		if (template.isEnabled()) {
+
+			String ouChanges = getOUChangeRequestsForMail(attestation);
+			String userChanges = getUserChangeRequestsForMail(attestation);
+
+			String title = template.getTitle();
+			title = title.replace(EmailTemplatePlaceholder.RECEIVER_PLACEHOLDER.getPlaceholder(), sendMailTo.getName());
+			title = title.replace(EmailTemplatePlaceholder.ORGUNIT_PLACEHOLDER.getPlaceholder(), attestation.getResponsibleOuName());
+			title = title.replace(EmailTemplatePlaceholder.ATTESTATION_CHANGES_OU.getPlaceholder(), ouChanges);
+			title = title.replace(EmailTemplatePlaceholder.ATTESTATION_CHANGES_USERS.getPlaceholder(), userChanges);
+
+			String emailMessage = template.getMessage();
+			emailMessage = emailMessage.replace(EmailTemplatePlaceholder.RECEIVER_PLACEHOLDER.getPlaceholder(), sendMailTo.getName());
+			emailMessage = emailMessage.replace(EmailTemplatePlaceholder.ORGUNIT_PLACEHOLDER.getPlaceholder(), attestation.getResponsibleOuName());
+			emailMessage = emailMessage.replace(EmailTemplatePlaceholder.ATTESTATION_CHANGES_OU.getPlaceholder(), ouChanges);
+			emailMessage = emailMessage.replace(EmailTemplatePlaceholder.ATTESTATION_CHANGES_USERS.getPlaceholder(), userChanges);
+
+			log.info("Sending attestation summary email to " + sendMailTo.getEmail());
+			emailQueueService.queueEmail(sendMailTo.getEmail(), title, emailMessage, template, null, null);
+		}
+		else {
+			log.info("Email template with type " + template.getTemplateType() + " is disabled. Email was not sent.");
+		}
+	}
+
+	private String getUserChangeRequestsForMail(Attestation attestation) {
+		StringBuilder html = new StringBuilder();
+		boolean hasChanges = false;
+
+		for (OrganisationUserAttestationEntry entry : attestation.getOrganisationUserAttestationEntries()) {
+			if (!hasUserChanges(entry)) {
+				continue;
+			}
+
+			// user was probably removed already
+			User user = userService.getByUuid(entry.getUserUuid());
+			if (user == null) {
+				continue;
+			}
+
+			hasChanges = true;
+
+			html.append("<div style='margin-top: 30px;'>")
+				.append("<strong>")
+				.append(user.getName())
+				.append("</strong>");
+
+			if (entry.isAdRemoval()) {
+				html.append("<div style='margin: 10px 0; color: #d9534f;'>")
+					.append("<strong>AD-konto ønskes fjernet</strong>")
+					.append("</div>");
+			}
+
+			appendRemarks(html, entry.getRemarks());
+
+			appendUserRolesList(html, entry.getRejectedUserRoleIds());
+			appendRoleGroupsList(html, entry.getRejectedRoleGroupIds());
+
+			html.append("</div>");
+		}
+
+		return hasChanges ? html.toString() : "Ingen ændringsønsker";
+	}
+
+	private String getOUChangeRequestsForMail(Attestation attestation) {
+		OrganisationRoleAttestationEntry entry = attestation.getOrganisationRolesAttestationEntry();
+
+		// TODO: burde ikke ske
+		if (entry == null) {
+			return "Ingen kommentar";
+		}
+
+		if (CollectionUtils.isEmpty(entry.getRejectedUserRoleIds()) &&
+				CollectionUtils.isEmpty(entry.getRejectedRoleGroupIds()) &&
+				!StringUtils.hasLength(entry.getRemarks())) {
+			return "Ingen ændringsønsker";
+		}
+
+		StringBuilder html = new StringBuilder();
+
+		appendRemarks(html, entry.getRemarks());
+		appendUserRolesList(html, entry.getRejectedUserRoleIds());
+		appendRoleGroupsList(html, entry.getRejectedRoleGroupIds());
+
+		return html.toString();
+	}
+
+	private void appendRemarks(StringBuilder html, String remarks) {
+		if (StringUtils.hasLength(remarks)) {
+			html.append("<div style='margin-bottom: 15px;'>")
+				.append("<strong>Bemærkninger:</strong><br/>")
+				.append(remarks.replace("\n", "<br/>"))
+				.append("</div>");
+		}
+	}
+
+	private void appendUserRolesList(StringBuilder html, Set<String> userRoleIds) {
+		if (userRoleIds == null || userRoleIds.isEmpty()) {
+			return;
+		}
+
+		html.append("<div style='margin-bottom: 10px;'>")
+			.append("<strong>Afviste jobfunktionsroller:</strong>")
+			.append("<ul>");
+
+		for (String userRoleIdStr : userRoleIds) {
+			try {
+				Long userRoleId = Long.parseLong(userRoleIdStr);
+				UserRole userRole = userRoleService.getById(userRoleId);
+				if (userRole != null) {
+					html.append("<li>")
+						.append(userRole.getItSystem().getName())
+						.append(" - ")
+						.append(userRole.getName())
+						.append("</li>");
+				}
+			} catch (NumberFormatException e) {
+				log.warn("Invalid user role ID format: {}", userRoleIdStr);
+			}
+		}
+
+		html.append("</ul></div>");
+	}
+
+	private void appendRoleGroupsList(StringBuilder html, Set<String> roleGroupIds) {
+		if (roleGroupIds == null || roleGroupIds.isEmpty()) {
+			return;
+		}
+
+		html.append("<div style='margin-bottom: 10px;'>")
+			.append("<strong>Afviste rollebuketter:</strong>")
+			.append("<ul>");
+
+		for (String roleGroupIdStr : roleGroupIds) {
+			try {
+				Long roleGroupId = Long.parseLong(roleGroupIdStr);
+				RoleGroup roleGroup = roleGroupService.getById(roleGroupId);
+				if (roleGroup != null) {
+					html.append("<li>").append(roleGroup.getName()).append("</li>");
+				}
+			} catch (NumberFormatException e) {
+				log.warn("Invalid role group ID format: {}", roleGroupIdStr);
+			}
+		}
+
+		html.append("</ul></div>");
+	}
+
+	private boolean hasUserChanges(OrganisationUserAttestationEntry entry) {
+		return entry.isAdRemoval()
+				|| StringUtils.hasLength(entry.getRemarks())
+				|| !CollectionUtils.isEmpty(entry.getRejectedUserRoleIds())
+				|| !CollectionUtils.isEmpty(entry.getRejectedRoleGroupIds());
 	}
 
 	private void createUserEntry(final Attestation attestation, final String userUuid, final String performedByUserId, final String remarks,
@@ -489,7 +682,7 @@ public class OrganisationAttestationService {
 						.build())
 				.collect(Collectors.toList());
 	}
-	public record UserAttestationContext(String userUuid, String userName, String userId, String roleUuid, String roleOuName, boolean isManager) {}
+	public record UserAttestationContext(String userUuid, String userName, String userId, String roleUuid, String responsibleOuUuid, String roleOuName, boolean isManager) {}
 	List<UserAttestationDTO> buildUserAttestations(final List<AttestationUserRoleAssignment> assignments, final Attestation attestation,
 												   boolean undecidedUsersOnly, final LocalDate when) {
 
@@ -506,6 +699,7 @@ public class OrganisationAttestationService {
 								user == null ? null : user.getUserId(),
 								null,
 								null,
+                                null,
 								false
 						);
 					})
@@ -515,14 +709,14 @@ public class OrganisationAttestationService {
 		else {
 			userAttestationContexts = assignments.stream()
 					.filter(distinctByKey(AttestationUserRoleAssignment::getUserUuid))
-					.map(attestationUserRoleAssignment -> new UserAttestationContext(attestationUserRoleAssignment.getUserUuid(), attestationUserRoleAssignment.getUserName(), attestationUserRoleAssignment.getRoleOuUuid(), attestationUserRoleAssignment.getRoleOuUuid(), attestationUserRoleAssignment.getRoleOuName(), attestationUserRoleAssignment.isManager()))
+					.map(attestationUserRoleAssignment -> new UserAttestationContext(attestationUserRoleAssignment.getUserUuid(), attestationUserRoleAssignment.getUserName(), attestationUserRoleAssignment.getUserId(), attestationUserRoleAssignment.getRoleOuUuid(), attestationUserRoleAssignment.getResponsibleOuUuid(), attestationUserRoleAssignment.getRoleOuName(), attestationUserRoleAssignment.isManager()))
 					.toList();
 		}
 		final var userRoleGroupAssignments = assignments.stream()
-				.filter(p -> p.getRoleGroupId() != null)
+				.filter(p -> p.getRoleGroupId() != null && p.getRoleGroupId() != 0)
 				.toList();
 		final var userRoleAssignments = assignments.stream()
-				.filter(p -> p.getRoleGroupId() == null)
+				.filter(p -> p.getRoleGroupId() == null || p.getRoleGroupId() == 0)
 				.toList();
 		final AttestationRun run = attestation.getAttestationRun();
 		List<UserAttestationDTO> userAttestationDTOs = userAttestationContexts.stream()
@@ -535,7 +729,7 @@ public class OrganisationAttestationService {
 							.listValidAssignmentsForUserHandledByItSystemResponsible(when, u.userUuid);
 					// Find assignments that another department is responsible for
 					final List<AttestationUserRoleAssignment> otherDepartmentAssignments =
-							userRoleAssignmentDao.listValidAssignmentsForUserWhereResponsibleOUIsNot(when, u.userUuid, u.roleUuid);
+							userRoleAssignmentDao.listValidAssignmentsForUserWhereResponsibleOUIsNot(when, u.responsibleOuUuid, u.roleUuid);
 					// Now group all "other" roles
 					final List<AttestationUserRoleAssignment> otherRoles = Stream.concat(
 									Stream.concat(userRoleAssignments.stream(), otherDepartmentAssignments.stream().filter(a -> a.getRoleGroupId() == null)),
@@ -634,7 +828,7 @@ public class OrganisationAttestationService {
 	List<OrgUnitUserRoleAssignmentItSystemDTO> orgUnitUserRolesPrItSystem(final Attestation attestation,
 																		  final List<AttestationOuRoleAssignment> assignments) {
 		final var orgRoleAssignments = assignments.stream()
-				.filter(p -> p.getRoleGroupId() == null)
+				.filter(p -> p.getRoleGroupId() == null || p.getRoleGroupId() == 0)
 				.filter(p -> p.getAssignedThroughType() == AssignedThroughType.DIRECT || p.getAssignedThroughType() == AssignedThroughType.ORGUNIT)
 				.toList();
 		return orgRoleAssignments.stream()
@@ -652,7 +846,7 @@ public class OrganisationAttestationService {
 	List<OrgUnitRoleGroupAssignmentDTO> orgUnitRoleGroups(final List<AttestationOuRoleAssignment> assignments) {
 		final var orgRoleGroupAssignments = assignments.stream()
 				.filter(p -> p.getAssignedThroughType() == AssignedThroughType.DIRECT || p.getAssignedThroughType() == AssignedThroughType.ORGUNIT)
-				.filter(p -> p.getRoleGroupId() != null)
+				.filter(p -> p.getRoleGroupId() != null && p.getRoleGroupId() != 0)
 				.toList();
 
 		return orgRoleGroupAssignments.stream()
@@ -660,6 +854,9 @@ public class OrganisationAttestationService {
 				.map(a -> {
 							final List<String> titles = a.getTitleUuids().stream()
 									.map(t -> titleDao.findById(t).map(Title::getName).orElse(t))
+									.toList();
+							final List<String> functions = a.getFunctionUuids().stream()
+									.map(f -> functionDao.findById(f).map(Function::getName).orElse(f))
 									.toList();
 							return OrgUnitRoleGroupAssignmentDTO.builder()
 									.groupDescription(a.getRoleGroupDescription())
@@ -675,6 +872,9 @@ public class OrganisationAttestationService {
 									.groupId(a.getRoleGroupId())
 									.userRoles(toOuUserAssignmentDTOs(orgRoleGroupAssignments, a.getRoleGroupId()))
 									.inherit(!a.isInherited() && a.getAssignedThroughType() == AssignedThroughType.ORGUNIT)
+									.manager(a.isManager())
+									.substitutes(a.isSubstitutes())
+									.functions(functions)
 									.build();
 						}
 				)
@@ -718,6 +918,9 @@ public class OrganisationAttestationService {
 		final List<String> titles = assignment.getTitleUuids().stream()
 				.map(t -> titleDao.findById(t).map(Title::getName).orElse(t))
 				.toList();
+		final List<String> functions = assignment.getFunctionUuids().stream()
+				.map(f -> functionDao.findById(f).map(Function::getName).orElse(f))
+				.toList();
 		return OrgUnitUserRoleAssignmentDTO.builder()
 				.inherit(assignment.isInherit())
 				.roleId(assignment.getRoleId())
@@ -731,6 +934,9 @@ public class OrganisationAttestationService {
 				.exceptedTitles(assignment.getExceptedTitleUuids().stream().map(et -> titleDao.findById(et).map(Title::getName).orElse(et)).toList())
 				.roleDescription(assignment.getRoleDescription())
 				.roleName(assignment.getRoleName())
+				.manager(assignment.isManager())
+				.substitutes(assignment.isSubstitutes())
+				.functions(functions)
 				.build();
 	}
 

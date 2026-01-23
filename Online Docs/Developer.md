@@ -26,7 +26,7 @@ Her er de disse 2 sektioner man kan tilpasse og kommentere ind/ud. Der er en sek
     spring.datasource.username=root
     spring.datasource.password=Test1234
 
-    # MSSQL
+    # MSSQL (NO LONGER SUPPORTED -> Deprecated)
     spring.datasource.driver-class-name=com.microsoft.sqlserver.jdbc.SQLServerDriver
     spring.datasource.url=jdbc:sqlserver://localhost:1433;DatabaseName=rc
     spring.datasource.username=sa

@@ -4,6 +4,7 @@ import java.text.SimpleDateFormat;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.time.ZonedDateTime;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.HashMap;
@@ -16,6 +17,9 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import dk.digitalidentity.rc.dao.model.enums.OrgUnitLevel;
+import dk.digitalidentity.rc.rolerequest.model.enums.ApprovableBy;
+import dk.digitalidentity.rc.rolerequest.model.enums.ReasonOption;
+import dk.digitalidentity.rc.rolerequest.model.enums.RequestableBy;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
@@ -47,19 +51,33 @@ public class SettingsService {
 
 	@Autowired
 	private AuditLogger auditLogger;
-	
+
 	@Autowired
 	private MessageSource messageSource;
 
 	public boolean isRequestApproveEnabled() {
 		return isKeyEnabled(Settings.SETTING_REQUEST_APPROVE_ENABLED.getKey());
 	}
-	
+
 	public void setRequestApproveEnabled(boolean enabled) {
 		boolean changed = setKeyEnabled(enabled, Settings.SETTING_REQUEST_APPROVE_ENABLED.getKey());
 		if (changed) {
 			AuditLogContextHolder.getContext().addArgument("Ny værdi", (enabled ? "true" : "false"));
-			auditLogger.logSetting(settingsDao.findByKey(Settings.SETTING_REQUEST_APPROVE_ENABLED.getKey()), null, null, getPrettyName(Settings.SETTING_REQUEST_APPROVE_ENABLED));
+			auditLogger.logSetting(settingsDao.findByKey(Settings.SETTING_REQUEST_APPROVE_ENABLED.getKey()),
+				null, null, getPrettyName(Settings.SETTING_REQUEST_APPROVE_ENABLED));
+			AuditLogContextHolder.clearContext();
+		}
+	}
+
+	public boolean isShowSingleTableInRequestApproveEnabled() {
+		return isKeyEnabled(Settings.SETTING_SHOW_SINGLE_TABLE_FOR_REQUEST_APPROVE.getKey());
+	}
+
+	public void setShowSingleTableInRequestApproveEnabled(boolean enabled) {
+		boolean changed = setKeyEnabled(enabled, Settings.SETTING_SHOW_SINGLE_TABLE_FOR_REQUEST_APPROVE.getKey());
+		if (changed) {
+			AuditLogContextHolder.getContext().addArgument("Ny værdi", (enabled ? "true" : "false"));
+			auditLogger.logSetting(settingsDao.findByKey(Settings.SETTING_REQUEST_APPROVE_ENABLED.getKey()), null, null, getPrettyName(Settings.SETTING_SHOW_SINGLE_TABLE_FOR_REQUEST_APPROVE));
 			AuditLogContextHolder.clearContext();
 		}
 	}
@@ -72,11 +90,11 @@ public class SettingsService {
 
 		return setting.getValue();
 	}
-	
+
 	public void setRequestApproveServicedeskEmail(String email) {
 		createOrUpdateSetting(Settings.SETTING_REQUEST_APPROVE_SERVICEDESK_EMAIL, email);
 	}
-	
+
 	public String getAttestationChangeEmail() {
 		Setting setting = settingsDao.findByKey(Settings.SETTING_ATTESTATIONCHANGE_EMAIL.getKey());
 		if (setting == null) {
@@ -85,12 +103,30 @@ public class SettingsService {
 
 		return setting.getValue();
 	}
-	
+
 	public void setAttestationChangeEmail(String email) {
 		createOrUpdateSetting(Settings.SETTING_ATTESTATIONCHANGE_EMAIL, email);
 	}
 
-	@Cacheable(value = "SettingsCache-getScheduledAttestationFilter")
+	public Integer getRemoveDirectAssignmentsForDisabled() {
+		Setting setting = settingsDao.findByKey(Settings.SETTING_REMOVE_DIRECT_ASSIGNMENTS_FOR_DISABLED.getKey());
+		if (setting == null || !StringUtils.hasLength(setting.getValue())) {
+			return 180;
+		}
+
+		try {
+			return Integer.parseInt(setting.getValue());
+		} catch (NumberFormatException e) {
+			log.warn("Invalid value for RemoveDirectAssignmentsForDisabled setting: {}", setting.getValue());
+			return 180;
+		}
+	}
+
+	public void setRemoveDirectAssignmentsForDisabled(Integer days) {
+		String value = (days != null) ? days.toString() : "";
+		createOrUpdateSetting(Settings.SETTING_REMOVE_DIRECT_ASSIGNMENTS_FOR_DISABLED, value);
+	}
+
 	public Set<String> getScheduledAttestationFilter() {
 		Setting setting = settingsDao.findByKey(Settings.SETTING_SCHEDULED_ATTESTATION_EXCEPTED_ORG_UNITS.getKey());
 		Setting oldSetting = settingsDao.findByKey(Settings.SETTING_SCHEDULED_ATTESTATION_FILTER_OLD.getKey());
@@ -115,13 +151,12 @@ public class SettingsService {
 		if (setting == null || !StringUtils.hasLength(setting.getValue())) {
 			return new HashSet<>();
 		}
-		
+
 		String[] uuids = setting.getValue().split(",");
-		
+
 		return new HashSet<>(Arrays.asList(uuids));
 	}
 
-	@Cacheable(value = "SettingsCache-getScheduledAttestationOptedInOrgUnits")
 	public Set<String> getScheduledAttestationOptedInOrgUnits() {
 		Setting setting = settingsDao.findByKey(Settings.SETTING_SCHEDULED_ATTESTATION_OPTED_IN_ORG_UNITS.getKey());
 
@@ -181,9 +216,9 @@ public class SettingsService {
 		if (changed) {
 			//Enrich orgUnit uuid so it looks better in auditlog page
 			if (Objects.equals(settingEnum, Settings.SETTING_SCHEDULED_ATTESTATION_EXCEPTED_ORG_UNITS) && value != null) {
-					value = Arrays.asList(value.split(",")).stream()
-							.map(uuid -> orgUnitService.getByUuid(uuid)).filter(Objects::nonNull)
-							.map(ou -> ou.getName()).collect(Collectors.joining(","));
+				value = Arrays.asList(value.split(",")).stream()
+						.map(uuid -> orgUnitService.getByUuid(uuid)).filter(Objects::nonNull)
+						.map(ou -> ou.getName()).collect(Collectors.joining(","));
 			}
 			if (auditLog) {
 				AuditLogContextHolder.getContext().addArgument("Ny værdi", value);
@@ -212,12 +247,13 @@ public class SettingsService {
 
 		return defaultValue;
 	}
-	
+
 	/**
 	 * Sets the value for given key
-	 * @return returns true if setting was changed.
+	 *
 	 * @param enabled
 	 * @param key
+	 * @return returns true if setting was changed.
 	 */
 	private boolean setKeyEnabled(boolean enabled, String key) {
 		Setting setting = settingsDao.findByKey(key);
@@ -226,7 +262,7 @@ public class SettingsService {
 			setting = new Setting();
 			setting.setKey(key);
 		}
-		
+
 		changed = !Objects.equals(setting.getValue(), (enabled ? "true" : "false"));
 		setting.setValue(enabled ? "true" : "false");
 		settingsDao.save(setting);
@@ -234,14 +270,14 @@ public class SettingsService {
 	}
 
 	private String getPrettyName(Settings settingEnum) {
-        String prettyName;
-        try {
-            prettyName = messageSource.getMessage(settingEnum.getMessage(), null, new Locale("da-DK"));
-        } catch (Exception e) {
-            log.warn("Entry missing in messages.properties for " + settingEnum, e);
-            prettyName = null;
-        }
-        return prettyName;
+		String prettyName;
+		try {
+			prettyName = messageSource.getMessage(settingEnum.getMessage(), null, new Locale("da-DK"));
+		} catch (Exception e) {
+			log.warn("Entry missing in messages.properties for " + settingEnum, e);
+			prettyName = null;
+		}
+		return prettyName;
 	}
 
 	public boolean isScheduledAttestationEnabled() {
@@ -272,11 +308,11 @@ public class SettingsService {
 
 		return CheckupIntervalEnum.valueOf(setting.getValue());
 	}
-	
+
 	public void setScheduledAttestationInterval(CheckupIntervalEnum interval) {
 		createOrUpdateSetting(Settings.SETTING_SCHEDULED_ATTESTATION_INTERVAL, interval.toString());
 	}
-	
+
 	public Date getScheduledAttestationLastRun() {
 		SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd");
 
@@ -285,14 +321,13 @@ public class SettingsService {
 			if (setting == null) {
 				return format.parse("1979-05-21");
 			}
-	
+
 			return format.parse(setting.getValue());
-		}
-		catch (Exception ex) {
+		} catch (Exception ex) {
 			throw new RuntimeException("Failed to parse", ex);
 		}
 	}
-	
+
 	public void setScheduledAttestationLastRun(Date date) {
 		SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd");
 		String dateString = format.format(date);
@@ -307,7 +342,7 @@ public class SettingsService {
 
 		return setting.getValue();
 	}
-	
+
 	public void setVikarRegEx(String regex) {
 		createOrUpdateSetting(Settings.SETTING_VIKAR_REGEX, regex);
 	}
@@ -340,9 +375,11 @@ public class SettingsService {
 
 	@CacheEvict(value = {
 		"SettingsCache-isAttestationOrgUnitSelectionOptIn",
-		"SettingsCache-getScheduledAttestationOptedInOrgUnits",
 		"SettingsCache-getExcludedOUs",
-		"SettingsCache-getScheduledAttestationFilter"
+		"SettingsCache-getOnlyRecommendRoles",
+		"SettingsCache-getRolerequestReason",
+		"SettingsCache-automaticNiveauMappingEnabled",
+		"SettingsCache-isNotificationTypeEnabled"
 	}, allEntries = true)
 	public void evictCache() {
 		;
@@ -390,10 +427,11 @@ public class SettingsService {
 		}
 	}
 
+	@Cacheable(value = "SettingsCache-isNotificationTypeEnabled")
 	public boolean isNotificationTypeEnabled(NotificationType notificationType) {
 		return getBooleanWithDefault(notificationType.toString(), true);
 	}
-	
+
 	private boolean getBooleanWithDefault(String key, boolean defaultValue) {
 		Setting setting = settingsDao.findByKey(key);
 		if (setting != null) {
@@ -402,7 +440,7 @@ public class SettingsService {
 
 		return defaultValue;
 	}
-	
+
 	public void setNotificationTypeEnabled(NotificationType notificationType, boolean enabled) {
 		Setting setting = settingsDao.findByKey(notificationType.toString());
 		boolean changed = false;
@@ -414,7 +452,7 @@ public class SettingsService {
 		changed = !Objects.equals(setting.getValue(), (enabled ? "true" : "false"));
 		setting.setValue(Boolean.toString(enabled));
 		settingsDao.save(setting);
-		
+
 		if (changed) {
 			AuditLogContextHolder.getContext().addArgument("Ny værdi", (enabled ? "true" : "false"));
 			String prettyname = messageSource.getMessage(notificationType.getMessage(), null, new Locale("da-DK"));
@@ -422,11 +460,11 @@ public class SettingsService {
 			AuditLogContextHolder.clearContext();
 		}
 	}
-	
+
 	public boolean isRunCics() {
 		return isKeyEnabled(Settings.SETTING_RUN_CICS.getKey());
 	}
-	
+
 	public void setRunCics(boolean enabled) {
 		setKeyEnabled(enabled, Settings.SETTING_RUN_CICS.getKey());
 	}
@@ -490,7 +528,7 @@ public class SettingsService {
 
 	public int getCurrentInstalledRank() {
 		Setting setting = settingsDao.findByKey(Settings.SETTING_CURRENT_INSTALLED_RANK.getKey());
-		if(setting == null) {
+		if (setting == null) {
 			return 0;
 		}
 		return Integer.parseInt(setting.getValue());
@@ -498,13 +536,146 @@ public class SettingsService {
 
 	public void setCurrentInstalledRank(int rank) {
 		Setting setting = settingsDao.findByKey(Settings.SETTING_CURRENT_INSTALLED_RANK.getKey());
-		if(setting == null) {
+		if (setting == null) {
 			setting = new Setting();
 			setting.setKey(Settings.SETTING_CURRENT_INSTALLED_RANK.getKey());
 		}
 		setting.setValue(Integer.toString(rank));
 		settingsDao.save(setting);
 	}
+
+	public List<RequestableBy> getRolerequestRequester() {
+		Setting setting = settingsDao.findByKey(Settings.SETTING_ROLEREQUEST_REQUESTER.getKey());
+		if (setting == null) {
+			return List.of(RequestableBy.NONE);
+		}
+		String[] split = setting.getValue().split(",");
+		List<RequestableBy> result = new ArrayList<>();
+		for (String s : split) {
+			result.add(RequestableBy.valueOf(s));
+		}
+		return result;
+	}
+
+	public void setRolerequestRequester(List<RequestableBy> requesterSetting) {
+		Setting setting = settingsDao.findByKey(Settings.SETTING_ROLEREQUEST_REQUESTER.getKey());
+		if (setting == null) {
+			setting = new Setting();
+			setting.setKey(Settings.SETTING_ROLEREQUEST_REQUESTER.getKey());
+		}
+		setting.setValue(requesterSetting.stream().map(Enum::name).collect(Collectors.joining(",")));
+		settingsDao.save(setting);
+
+	}
+
+	public List<ApprovableBy> getRolerequestApprover() {
+		Setting setting = settingsDao.findByKey(Settings.SETTING_ROLEREQUEST_APPROVER.getKey());
+		if (setting == null) {
+			return List.of(ApprovableBy.AUTHRESPONSIBLE, ApprovableBy.MANAGERORSUBSTITUTE, ApprovableBy.ADMINISTRATOR);
+		}
+		List<ApprovableBy> result = new ArrayList<>();
+		String[] split = setting.getValue().split(",");
+		for (String s : split) {
+			result.add(ApprovableBy.valueOf(s));
+		}
+		return result;
+	}
+
+	public void setRolerequestApprover(List<ApprovableBy> approverSetting) {
+		Setting setting = settingsDao.findByKey(Settings.SETTING_ROLEREQUEST_APPROVER.getKey());
+		if (setting == null) {
+			setting = new Setting();
+			setting.setKey(Settings.SETTING_ROLEREQUEST_APPROVER.getKey());
+		}
+		setting.setValue(approverSetting.stream().map(Enum::name).collect(Collectors.joining(",")));
+		settingsDao.save(setting);
+	}
+
+
+	@Cacheable(value = "SettingsCache-getRolerequestReason")
+	public ReasonOption getRolerequestReason() {
+		Setting setting = settingsDao.findByKey(Settings.SETTING_ROLEREQUEST_REASON.getKey());
+		if (setting == null) {
+			return ReasonOption.OBLIGATORY;
+		}
+
+		return ReasonOption.valueOf(setting.getValue());
+	}
+
+	public void setRolerequestReason(ReasonOption approverSetting) {
+		Setting setting = settingsDao.findByKey(Settings.SETTING_ROLEREQUEST_REASON.getKey());
+		if (setting == null) {
+			setting = new Setting();
+			setting.setKey(Settings.SETTING_ROLEREQUEST_REASON.getKey());
+		}
+		setting.setValue(approverSetting.name());
+		settingsDao.save(setting);
+	}
+
+	public void setRoleRequestApproverEmails(Map<ApprovableBy, String> approverEmails) {
+		Setting setting = settingsDao.findByKey(Settings.SETTING_ROLEREQUEST_APPROVER_EMAIL.getKey());
+		if (setting == null) {
+			setting = new Setting();
+			setting.setKey(Settings.SETTING_ROLEREQUEST_APPROVER_EMAIL.getKey());
+		}
+
+		// Convert map to delimited string format: "ADMINISTRATOR:email1|AUTHRESPONSIBLE:email2"
+		StringBuilder sb = new StringBuilder();
+		if (approverEmails != null) {
+			for (Map.Entry<ApprovableBy, String> entry : approverEmails.entrySet()) {
+				if (entry.getValue() != null && !entry.getValue().trim().isEmpty()) {
+					if (sb.length() > 0) {
+						sb.append("|");
+					}
+					sb.append(entry.getKey().name()).append(":").append(entry.getValue().trim());
+				}
+			}
+		}
+
+		setting.setValue(sb.toString());
+		settingsDao.save(setting);
+	}
+
+	public Map<ApprovableBy, String> getRoleRequestApproverEmails() {
+		Setting setting = settingsDao.findByKey(Settings.SETTING_ROLEREQUEST_APPROVER_EMAIL.getKey());
+		Map<ApprovableBy, String> result = new HashMap<>();
+		if (setting != null && setting.getValue() != null && !setting.getValue().trim().isEmpty()) {
+			String value = setting.getValue().trim();
+
+			// Split ved semikolon for at få individuelle godkender-par
+			// Forventet format: "AUTHRESPONSIBLE:email1@example.com;MANAGERORSUBSTITUTE:email2@example.com"
+			String[] pairs = value.split(";");
+
+			for (String pair : pairs) {
+				// Split hvert par ved kolon for at adskille type og email
+				String[] parts = pair.split(":", 2);
+				if (parts.length == 2) {
+					try {
+						ApprovableBy approver = ApprovableBy.valueOf(parts[0].trim());
+						String email = parts[1].trim();
+						// Tilføj kun hvis email ikke er tom
+						if (!email.isEmpty()) {
+							result.put(approver, email);
+						}
+					} catch (IllegalArgumentException e) {
+						log.warn("Invalid ApprovableBy enum value found in settings: {}", parts[0]);
+					}
+				}
+			}
+		}
+
+		return result;
+	}
+
+	@Cacheable(value = "SettingsCache-getOnlyRecommendRoles")
+	public boolean getOnlyRecommendRoles() {
+		return isKeyEnabled(Settings.SETTING_ROLEREQUEST_ONLY_RECOMMENDED_ROLES.getKey());
+	}
+
+	public void setOnlyRecommendRoles(boolean enabled) {
+		setKeyEnabled(enabled, Settings.SETTING_ROLEREQUEST_ONLY_RECOMMENDED_ROLES.getKey());
+	}
+
 
 	@Cacheable(value = "SettingsCache-isAttestationOrgUnitSelectionOptIn")
 	public boolean isAttestationOrgUnitSelectionOptIn() {
@@ -518,7 +689,7 @@ public class SettingsService {
 
 	public void setZonedDateTime(final String kitosKey, final ZonedDateTime zonedDateTime) {
 		Setting setting = settingsDao.findByKey(kitosKey);
-		if(setting == null) {
+		if (setting == null) {
 			setting = new Setting();
 			setting.setKey(kitosKey);
 		}
@@ -617,6 +788,7 @@ public class SettingsService {
 		settingsDao.deleteAll(existingMappings);
 	}
 
+	@Cacheable(value = "SettingsCache-automaticNiveauMappingEnabled")
 	public boolean isAutomaticNiveauMappingEnabled() {
 		return isKeyEnabled(Settings.SETTING_ALLOW_AUTOMATIC_OU_NIVEAU_MAPPING.getKey());
 	}
@@ -629,4 +801,30 @@ public class SettingsService {
 			AuditLogContextHolder.clearContext();
 		}
 	}
+
+	public Integer getDataSeedVersion() {
+		String dataSeedVersionKey = "DATA_SEED_VERSION";
+		try {
+			final Setting dataSeedVersion = getByKey(dataSeedVersionKey);
+			String dataSeedVersionString = dataSeedVersion.getValue();
+			return Integer.parseInt(dataSeedVersionString);
+		} catch (Exception e) {
+			// If the version could not be retrieved for any reason, assume it doesn't exist
+			return 0;
+		}
+	}
+
+	public Integer setDataSeedVersion(Integer version) {
+		String dataSeedVersionKey = "DATA_SEED_VERSION";
+		Setting dataSeedVersion = getByKey(dataSeedVersionKey);
+		if (dataSeedVersion == null) {
+			dataSeedVersion = new Setting();
+			dataSeedVersion.setKey(dataSeedVersionKey);
+		}
+		dataSeedVersion.setValue(version.toString());
+		settingsDao.save(dataSeedVersion);
+		return version;
+	}
+
+
 }

@@ -6,6 +6,7 @@ import dk.digitalidentity.rc.controller.mvc.viewmodel.OUAssignStatus;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.TitleListForm;
 import dk.digitalidentity.rc.controller.rest.model.StringArrayWrapper;
 import dk.digitalidentity.rc.dao.model.AuthorizationManager;
+import dk.digitalidentity.rc.dao.model.Function;
 import dk.digitalidentity.rc.dao.model.KLEMapping;
 import dk.digitalidentity.rc.dao.model.OrgUnit;
 import dk.digitalidentity.rc.dao.model.OrgUnitRoleGroupAssignment;
@@ -21,18 +22,20 @@ import dk.digitalidentity.rc.dao.model.enums.KleType;
 import dk.digitalidentity.rc.dao.model.enums.OrgUnitLevel;
 import dk.digitalidentity.rc.log.AuditLogger;
 import dk.digitalidentity.rc.security.AccessConstraintService;
-import dk.digitalidentity.rc.security.RequireAdministratorRole;
 import dk.digitalidentity.rc.security.RequireAssignerRole;
 import dk.digitalidentity.rc.security.RequireKleAdministratorRole;
-import dk.digitalidentity.rc.security.RequireReadAccessRole;
+import dk.digitalidentity.rc.security.permission.Permission;
+import dk.digitalidentity.rc.security.permission.Section;
+import dk.digitalidentity.rc.security.permission.RequireControllerPermission;
+import dk.digitalidentity.rc.security.permission.RequirePermission;
 import dk.digitalidentity.rc.service.KleService;
 import dk.digitalidentity.rc.service.OrgUnitService;
 import dk.digitalidentity.rc.service.RoleGroupService;
 import dk.digitalidentity.rc.service.UserRoleService;
 import dk.digitalidentity.rc.service.UserService;
 import dk.digitalidentity.rc.service.model.RoleAssignmentType;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -58,39 +61,25 @@ import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 @Slf4j
-@RequireReadAccessRole
+@RequiredArgsConstructor
+@RequireControllerPermission(section = Section.ORGUNIT, permission = Permission.READ)
 @RestController
 public class OrgUnitRestController {
-	@Autowired
-	private AccessConstraintService accessConstraintService;
-
-	@Autowired
-	private OrgUnitService orgUnitService;
-	
-	@Autowired
-	private UserRoleService userRoleService;
-
-	@Autowired
-	private RoleCatalogueConfiguration configuration;
-
-	@Autowired
-	private RoleGroupService roleGroupService;
-	
-	@Autowired
-	private KleService kleService;
-
-	@Autowired
-	private UserService userService;
-	
-	@Autowired
-	private AuditLogger auditLogger;
+	private final AccessConstraintService accessConstraintService;
+	private final OrgUnitService orgUnitService;
+	private final UserRoleService userRoleService;
+	private final RoleCatalogueConfiguration configuration;
+	private final RoleGroupService roleGroupService;
+	private final KleService kleService;
+	private final UserService userService;
+	private final AuditLogger auditLogger;
 
 	@GetMapping(value = "/rest/ous/getKle/{parentCode}", produces = MediaType.APPLICATION_JSON_VALUE)
 	@ResponseBody
 	public List<KleViewModel> getKle(@PathVariable("parentCode") String parentCode) {
 		return kleService.getKleListFromParent(parentCode);
 	}
-	
+
 	@RequireKleAdministratorRole
 	@PostMapping(value = "/rest/ous/{uuid}/inherit")
 	@ResponseBody
@@ -158,7 +147,7 @@ public class OrgUnitRestController {
 		return new ResponseEntity<>(HttpStatus.OK);
 	}
 
-	@RequireAdministratorRole
+	@RequirePermission(section = Section.ORGUNIT, permission = Permission.UPDATE)
 	@PostMapping(value = "/rest/ous/{uuid}/setLevel/{level}")
 	public ResponseEntity<String> setLevel(@PathVariable("uuid") String uuid, @PathVariable("level") OrgUnitLevel level) {
 		OrgUnit ou = orgUnitService.getByUuid(uuid);
@@ -167,14 +156,14 @@ public class OrgUnitRestController {
 		}
 
 		List<OrgUnitLevel> allowedLevels = orgUnitService.getAllowedLevels(ou);
-		
+
 		if (!allowedLevels.contains(level)) {
 			return new ResponseEntity<>("Tildeling ikke lovlig", HttpStatus.BAD_REQUEST);
 		}
 
 		ou.setLevel(level);
 		orgUnitService.save(ou);
-		
+
 		return new ResponseEntity<>(HttpStatus.OK);
 	}
 
@@ -186,6 +175,9 @@ public class OrgUnitRestController {
 			@RequestParam(name = "startDate", required = false) String startDateStr,
 			@RequestParam(name = "stopDate", required = false) String stopDateStr,
 			@RequestParam(name = "negativeAssignment", required = false, defaultValue = "false") boolean negativeAssignment,
+			@RequestParam(name = "manager", required = false, defaultValue = "false") boolean manager,
+			@RequestParam(name = "substitutes", required = false, defaultValue = "false") boolean substitutes,
+			@RequestParam(name = "caseNumber", required = false) String caseNumber,
 			@RequestBody StringArrayWrapper payload) {
 		OrgUnit ou = orgUnitService.getByUuid(uuid);
 		UserRole role = userRoleService.getById(roleId);
@@ -218,7 +210,7 @@ public class OrgUnitRestController {
 			}
 		}
 
-		orgUnitService.addUserRole(ou, role, inherit, startDate, stopDate, (payload != null ? payload.getExceptedUserUuids() : null),(payload != null ? payload.getTitleUuids() : null), (payload != null && negativeAssignment));
+		orgUnitService.addUserRole(ou, role, inherit, startDate, stopDate, (payload != null ? payload.getExceptedUserUuids() : null),(payload != null ? payload.getTitleUuids() : null), (payload != null && negativeAssignment), manager, substitutes, (payload != null ? payload.getFunctionUuids() : null), caseNumber);
 		orgUnitService.save(ou);
 
 		return new ResponseEntity<>(HttpStatus.OK);
@@ -232,6 +224,8 @@ public class OrgUnitRestController {
 			@RequestParam(name = "startDate", required = false) String startDateStr,
 			@RequestParam(name = "stopDate", required = false) String stopDateStr,
 			@RequestParam(name = "negativeAssignment", required = false, defaultValue = "false") boolean negativeAssignment,
+			@RequestParam(name = "manager", required = false, defaultValue = "false") boolean manager,
+			@RequestParam(name = "substitutes", required = false, defaultValue = "false") boolean substitutes,
 			@RequestBody StringArrayWrapper payload) {
 		OrgUnit ou = orgUnitService.getByUuid(uuid);
 		if (ou == null) {
@@ -255,7 +249,7 @@ public class OrgUnitRestController {
 		if (StringUtils.hasLength(startDateStr)) {
 			try {
 				startDate = LocalDate.parse(startDateStr);
-				
+
 				if (startDate.equals(LocalDate.now())) {
 					startDate = null;
 				}
@@ -274,7 +268,7 @@ public class OrgUnitRestController {
 			}
 		}
 
-		if (orgUnitService.updateUserRoleAssignment(ou, assignment, inherit, startDate, stopDate, (payload != null ? payload.getExceptedUserUuids() : null), (payload != null ? payload.getTitleUuids(): null), (payload != null && negativeAssignment))) {
+		if (orgUnitService.updateUserRoleAssignment(ou, assignment, inherit, startDate, stopDate, (payload != null ? payload.getExceptedUserUuids() : null), (payload != null ? payload.getTitleUuids(): null), (payload != null && negativeAssignment), manager, substitutes, (payload != null ? payload.getFunctionUuids() : null))) {
 			orgUnitService.save(ou);
 		}
 
@@ -332,7 +326,7 @@ public class OrgUnitRestController {
 		}
 
 		return new ResponseEntity<>(HttpStatus.OK);
-	}	
+	}
 
 	@RequireAssignerRole
 	@PostMapping("/rest/ous/addrolegroup/{uuid}/{rolegroupid}")
@@ -342,6 +336,8 @@ public class OrgUnitRestController {
 			@RequestParam(name = "startDate", required = false) String startDateStr,
 			@RequestParam(name = "stopDate", required = false) String stopDateStr,
 			@RequestParam(name = "negativeAssignment", required = false, defaultValue = "false") boolean negativeAssignment,
+			@RequestParam(name = "manager", required = false, defaultValue = "false") boolean manager,
+			@RequestParam(name = "substitutes", required = false, defaultValue = "false") boolean substitutes,
 			@RequestBody StringArrayWrapper payload) {
 		OrgUnit ou = orgUnitService.getByUuid(uuid);
 		RoleGroup roleGroup = roleGroupService.getById(roleGroupId);
@@ -353,7 +349,7 @@ public class OrgUnitRestController {
 		if (!accessConstraintService.isAssignmentAllowed(ou, roleGroup)) {
 			throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Ikke tilladt");
 		}
-		
+
 		LocalDate startDate = null, stopDate = null;
 		if (StringUtils.hasLength(startDateStr)) {
 			try {
@@ -372,7 +368,7 @@ public class OrgUnitRestController {
 			}
 		}
 
-		orgUnitService.addRoleGroup(ou, roleGroup, inherit, startDate, stopDate, (payload != null ? payload.getExceptedUserUuids() : null),(payload != null ? payload.getTitleUuids() : null), (payload != null && negativeAssignment));
+		orgUnitService.addRoleGroup(ou, roleGroup, inherit, startDate, stopDate, (payload != null ? payload.getExceptedUserUuids() : null),(payload != null ? payload.getTitleUuids() : null), (payload != null && negativeAssignment), manager, substitutes, (payload != null ? payload.getFunctionUuids() : null));
 		orgUnitService.save(ou);
 
 		return new ResponseEntity<>(HttpStatus.OK);
@@ -386,6 +382,8 @@ public class OrgUnitRestController {
 			@RequestParam(name = "startDate", required = false) String startDateStr,
 			@RequestParam(name = "stopDate", required = false) String stopDateStr,
 			@RequestParam(name = "negativeAssignment", required = false, defaultValue = "false") boolean negativeAssignment,
+			@RequestParam(name = "manager", required = false, defaultValue = "false") boolean manager,
+			@RequestParam(name = "substitutes", required = false, defaultValue = "false") boolean substitutes,
 			@RequestBody StringArrayWrapper payload) {
 		OrgUnit ou = orgUnitService.getByUuid(uuid);
 
@@ -420,13 +418,13 @@ public class OrgUnitRestController {
 			}
 		}
 
-		if (orgUnitService.updateRoleGroupAssignment(ou, assignment, inherit, startDate, stopDate, (payload != null ? payload.getExceptedUserUuids() : null), (payload != null ? payload.getTitleUuids(): null), (payload != null && negativeAssignment))) {
+		if (orgUnitService.updateRoleGroupAssignment(ou, assignment, inherit, startDate, stopDate, (payload != null ? payload.getExceptedUserUuids() : null), (payload != null ? payload.getTitleUuids(): null), (payload != null && negativeAssignment), manager, substitutes, (payload != null ? payload.getFunctionUuids() : null))) {
 			orgUnitService.save(ou);
 		}
 
 		return new ResponseEntity<>(HttpStatus.OK);
 	}
-	
+
 	@RequireAssignerRole
 	@PostMapping(value = "/rest/ous/removerolegroup/{uuid}/{rolegroupid}")
 	public ResponseEntity<String> removeRoleGroup(@PathVariable("uuid") String uuid, @PathVariable("rolegroupid") long roleGroupId) {
@@ -446,7 +444,7 @@ public class OrgUnitRestController {
 				orgUnitService.save(ou);
 			}
 		}
-		
+
 		return new ResponseEntity<>(HttpStatus.OK);
 	}
 
@@ -457,12 +455,12 @@ public class OrgUnitRestController {
 		if (ou == null) {
 			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
 		}
-		
+
 		List<OrgUnitUserRoleAssignment> titlesAssignedToOuWithUserRole = ou.getUserRoleAssignments().stream()
 				.filter(ura -> ura.getContainsTitles() == ContainsTitles.POSITIVE)
 				.filter(ura -> ura.getId() == roleAssignmentId)
 				.toList();
-		
+
 		List<String> titleUuids = titlesAssignedToOuWithUserRole.stream()
 				.flatMap(ura -> ura.getTitles().stream())
 				.map(Title::getUuid)
@@ -514,7 +512,7 @@ public class OrgUnitRestController {
 
 		return new ResponseEntity<>(titleUuids, HttpStatus.OK);
 	}
-	
+
     @GetMapping(value = "/rest/ous/titles/{uuid}")
     public ResponseEntity<List<TitleListForm>> getTitlesFromOU(@PathVariable("uuid") String uuid) {
     	OrgUnit ou = orgUnitService.getByUuid(uuid);
@@ -528,7 +526,7 @@ public class OrgUnitRestController {
 					.stream()
 					.map(title -> new TitleListForm(title, false))
 					.collect(Collectors.toList());
-			
+
 			List<String> titleFormsUuids = titleForms.stream().map(t -> t.getId()).collect(Collectors.toList());
 			titleForms.addAll(ou.getTitles().stream().filter(t -> !titleFormsUuids.contains(t.getUuid())).map(t -> new TitleListForm(t, true)).collect(Collectors.toList()));
 
@@ -557,7 +555,7 @@ public class OrgUnitRestController {
 			return new ResponseEntity<>(null, HttpStatus.OK);
 		}
     }
-	
+
 	@RequireAssignerRole
 	@GetMapping("/rest/ous/{uuid}/rolegroup/{assignmentId}/titles")
 	public ResponseEntity<List<String>> getRoleGroupOus(@PathVariable("uuid") String uuid, @PathVariable("assignmentId") long assignmentId) {
@@ -570,7 +568,7 @@ public class OrgUnitRestController {
 				.filter(rga -> rga.getContainsTitles() == ContainsTitles.POSITIVE)
 				.filter(rga -> rga.getId() == assignmentId)
 				.toList();
-		
+
 		List<String> titleUuids = titlesAssignedToOuWithRoleGroup.stream()
 				.flatMap(ura -> ura.getTitles().stream())
 				.map(Title::getUuid)
@@ -622,8 +620,8 @@ public class OrgUnitRestController {
 
 		return new ResponseEntity<>(titleUuids, HttpStatus.OK);
 	}
-	
-	@RequireAdministratorRole
+
+	@RequirePermission(section = Section.ORGUNIT, permission = Permission.UPDATE)
 	@PostMapping("/rest/ous/{uuid}/authorizationmanager/save")
 	@ResponseBody
 	public ResponseEntity<HttpStatus> saveAuthManager(@RequestBody String personUuid, @PathVariable String uuid) {
@@ -646,21 +644,21 @@ public class OrgUnitRestController {
 				break;
 			}
 		}
-		
+
 		if (!found) {
 			AuthorizationManager manager = new AuthorizationManager();
 			manager.setOrgUnit(orgUnit);
 			manager.setUser(user);
 			orgUnit.getAuthorizationManagers().add(manager);
 			orgUnitService.save(orgUnit);
-			
+
 			auditLogger.log(orgUnit, EventType.AUTH_MANAGER_ADDED, user);
 		}
-		
+
 		return new ResponseEntity<>(HttpStatus.OK);
 	}
-	
-	@RequireAdministratorRole
+
+	@RequirePermission(section = Section.ORGUNIT, permission = Permission.UPDATE)
 	@PostMapping("/rest/ous/{uuid}/authorizationmanager/remove")
 	@ResponseBody
 	public ResponseEntity<HttpStatus> removeAuthManager(@RequestBody String personUuid, @PathVariable String uuid) {
@@ -668,7 +666,7 @@ public class OrgUnitRestController {
 		if (orgUnit == null) {
 			return ResponseEntity.badRequest().build();
 		}
-		
+
 		User user = userService.getByUuid(personUuid);
 		if (user == null) {
 			return ResponseEntity.badRequest().build();
@@ -676,18 +674,60 @@ public class OrgUnitRestController {
 
 		for (Iterator<AuthorizationManager> iterator = orgUnit.getAuthorizationManagers().iterator(); iterator.hasNext();) {
 			AuthorizationManager authManager = iterator.next();
-			
+
 			if (Objects.equals(authManager.getUser().getUuid(), personUuid)) {
 				iterator.remove();
-				
+
 				auditLogger.log(orgUnit, EventType.AUTH_MANAGER_REMOVED, user);
 				break;
 			}
 		}
 
 		orgUnitService.save(orgUnit);
-		
+
 		return new ResponseEntity<>(HttpStatus.OK);
+	}
+
+	@RequireAssignerRole
+	@GetMapping("/rest/ous/{uuid}/role/{assignmentId}/functions")
+	public ResponseEntity<List<String>> getFunctionsRoleOus(@PathVariable("uuid") String uuid, @PathVariable("assignmentId") long roleAssignmentId, @RequestParam(required = false) boolean positive) {
+		OrgUnit ou = orgUnitService.getByUuid(uuid);
+		if (ou == null) {
+			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+		}
+
+		List<OrgUnitUserRoleAssignment> functionsAssignedToOuWithUserRole = ou.getUserRoleAssignments().stream()
+				.filter(ura -> ura.isContainsFunctions() && ura.getFunctions() != null && !ura.getFunctions().isEmpty())
+				.filter(ura -> ura.getId() == roleAssignmentId)
+				.toList();
+
+		List<String> functionUuids = functionsAssignedToOuWithUserRole.stream()
+				.flatMap(ura -> ura.getFunctions().stream())
+				.map(Function::getUuid)
+				.toList();
+
+		return new ResponseEntity<>(functionUuids, HttpStatus.OK);
+	}
+
+	@RequireAssignerRole
+	@GetMapping("/rest/ous/{uuid}/rolegroup/{assignmentId}/functions")
+	public ResponseEntity<List<String>> getFunctionsRoleGroupOus(@PathVariable("uuid") String uuid, @PathVariable("assignmentId") long assignmentId, @RequestParam(required = false) boolean positive) {
+		OrgUnit ou = orgUnitService.getByUuid(uuid);
+		if (ou == null) {
+			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+		}
+
+		List<OrgUnitRoleGroupAssignment> functionsAssignedToOuWithRoleGroup = ou.getRoleGroupAssignments().stream()
+				.filter(rga -> rga.isContainsFunctions() && rga.getFunctions() != null && !rga.getFunctions().isEmpty())
+				.filter(rga -> rga.getId() == assignmentId)
+				.toList();
+
+		List<String> functionUuids = functionsAssignedToOuWithRoleGroup.stream()
+				.flatMap(ura -> ura.getFunctions().stream())
+				.map(Function::getUuid)
+				.toList();
+
+		return new ResponseEntity<>(functionUuids, HttpStatus.OK);
 	}
 
 }

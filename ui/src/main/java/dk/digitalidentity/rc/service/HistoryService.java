@@ -8,8 +8,9 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import dk.digitalidentity.rc.dao.history.HistoryFunctionDao;
+import dk.digitalidentity.rc.dao.history.model.HistoryFunction;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -60,6 +61,9 @@ public class HistoryService {
 	private HistoryTitleDao historyTitleDao;
 
 	@Autowired
+	private HistoryFunctionDao historyFunctionDao;
+
+	@Autowired
 	private HistoryManagerDao historyManagerDao;
 
 	@Autowired
@@ -71,9 +75,6 @@ public class HistoryService {
 	@Autowired
 	private JdbcTemplate jdbcTemplate;
 
-	@Value("${spring.datasource.url:}")
-	private String dataSourceUrl;
-	
 	/**
 	 * Check if the history job has succeeded.
 	 * There is no real good way of doing that atm. so just check if there is any users at current date.
@@ -101,6 +102,10 @@ public class HistoryService {
 
 	public List<HistoryTitle> getTitles(LocalDate localDate) {
 		return historyTitleDao.findByDate(localDate);
+	}
+
+	public List<HistoryFunction> getFunctions(LocalDate localDate) {
+		return historyFunctionDao.findByDate(localDate);
 	}
 
 	public Map<String, HistoryOU> getOUs(LocalDate localDate) {
@@ -167,68 +172,32 @@ public class HistoryService {
 
 	@Transactional
 	public void generateOrganisationHistory() {
-
-		if (dataSourceUrl.startsWith("jdbc:sqlserver")) {
-			jdbcTemplate.update("EXEC SP_InsertHistoryOrganisation;");
-		}
-		else {
-			jdbcTemplate.update("CALL SP_InsertHistoryOrganisation();");
-		}
+		jdbcTemplate.update("CALL SP_InsertHistoryOrganisation();");
 	}
 
 	@Transactional
 	public void generateItSytemHistory() {
-
-		if (dataSourceUrl.startsWith("jdbc:sqlserver")) {
-			jdbcTemplate.update("EXEC SP_InsertHistoryItSystems;");
-		}
-		else {
-			jdbcTemplate.update("CALL SP_InsertHistoryItSystems();");
-		}
+		jdbcTemplate.update("CALL SP_InsertHistoryItSystems();");
 	}
 
 	@Transactional
 	public void generateRoleAssignmentHistory() {
-
-		if (dataSourceUrl.startsWith("jdbc:sqlserver")) {
-			jdbcTemplate.update("EXEC SP_InsertHistoryRoleAssignments;");
-		}
-		else {
-			jdbcTemplate.update("CALL SP_InsertHistoryRoleAssignments();");
-		}
+		jdbcTemplate.update("CALL SP_InsertHistoryRoleAssignments();");
 	}
 
 	@Transactional
 	public void generateKleAssignmentHistory() {
-
-		if (dataSourceUrl.startsWith("jdbc:sqlserver")) {
-			jdbcTemplate.update("EXEC SP_InsertHistoryKleAssignments;");
-		}
-		else {
-			jdbcTemplate.update("CALL SP_InsertHistoryKleAssignments();");
-		}
+		jdbcTemplate.update("CALL SP_InsertHistoryKleAssignments();");
 	}
 
 	@Transactional
 	public void generateOURoleAssignmentHistory() {
-
-		if (dataSourceUrl.startsWith("jdbc:sqlserver")) {
-			jdbcTemplate.update("EXEC SP_InsertHistoryOURoleAssignments;");
-		}
-		else {
-			jdbcTemplate.update("CALL SP_InsertHistoryOURoleAssignments();");
-		}
+		jdbcTemplate.update("CALL SP_InsertHistoryOURoleAssignments();");
 	}
 
 	@Transactional
 	public void generateManagerDelegateHistory() {
-
-		if (dataSourceUrl.startsWith("jdbc:sqlserver")) {
-			jdbcTemplate.update("EXEC SP_InsertHistoryAttestationManagerDelegate;");
-		}
-		else {
-			jdbcTemplate.update("CALL SP_InsertHistoryAttestationManagerDelegate();");
-		}
+		jdbcTemplate.update("CALL SP_InsertHistoryAttestationManagerDelegate();");
 	}
 
 	public LocalDate lastGeneratedDate() {
@@ -254,6 +223,7 @@ public class HistoryService {
 		jdbcTemplate.update("DELETE FROM history_managers WHERE dato = ?", date);
 		jdbcTemplate.update("DELETE FROM history_ou_role_assignments WHERE dato = ?", date);
 		jdbcTemplate.update("DELETE FROM history_titles WHERE dato = ?", date);
+		jdbcTemplate.update("DELETE FROM history_functions WHERE dato = ?", date);
 		jdbcTemplate.update("DELETE FROM history_user_roles_system_roles");
 	}
 
@@ -261,29 +231,16 @@ public class HistoryService {
 	public void deleteOldHistory(long retentionPeriod) {
 
 		// delete where (older than retention period) or (older than 2 months except days 7, 14, 21, 28)
-		if (dataSourceUrl.startsWith("jdbc:sqlserver")) {
-			jdbcTemplate.update("DELETE FROM history_users WHERE (dato < GETDATE() - " + retentionPeriod + ") OR (dato < DATEADD(month, -2, GETDATE()) AND DAY(dato) NOT IN (7, 14, 21, 28))");
-			jdbcTemplate.update("DELETE FROM history_ous WHERE (dato < GETDATE() - " + retentionPeriod + ") OR (dato < DATEADD(month, -2, GETDATE()) AND DAY(dato) NOT IN (7, 14, 21, 28))");
-			jdbcTemplate.update("DELETE FROM history_role_assignments WHERE (dato < GETDATE() - " + retentionPeriod + ") OR (dato < DATEADD(month, -2, GETDATE()) AND DAY(dato) NOT IN (7, 14, 21, 28))");
-			jdbcTemplate.update("DELETE FROM history_kle_assignments WHERE (dato < GETDATE() - " + retentionPeriod + ") OR (dato < DATEADD(month, -2, GETDATE()) AND DAY(dato) NOT IN (7, 14, 21, 28))");
-			jdbcTemplate.update("DELETE FROM history_it_systems WHERE (dato < GETDATE() - " + retentionPeriod + ") OR (dato < DATEADD(month, -2, GETDATE()) AND DAY(dato) NOT IN (7, 14, 21, 28))");
-			jdbcTemplate.update("DELETE FROM history_managers WHERE (dato < GETDATE() - " + retentionPeriod + ") OR (dato < DATEADD(month, -2, GETDATE()) AND DAY(dato) NOT IN (7, 14, 21, 28))");
-			jdbcTemplate.update("DELETE FROM history_ou_role_assignments WHERE (dato < GETDATE() - " + retentionPeriod + ") OR (dato < DATEADD(month, -2, GETDATE()) AND DAY(dato) NOT IN (7, 14, 21, 28))");
-			jdbcTemplate.update("DELETE FROM history_titles WHERE (dato < GETDATE() - " + retentionPeriod + ") OR (dato < DATEADD(month, -2, GETDATE()) AND DAY(dato) NOT IN (7, 14, 21, 28))");
-			jdbcTemplate.update("DELETE FROM history_ou_kle_assignments WHERE (dato < GETDATE() - " + retentionPeriod + ") OR (dato < DATEADD(month, -2, GETDATE()) AND DAY(dato) NOT IN (7, 14, 21, 28))");
-			jdbcTemplate.update("DELETE FROM history_attestation_manager_delegate WHERE (date < GETDATE() - " + retentionPeriod + ") OR (date < DATEADD(month, -2, GETDATE()) AND DAY(date) NOT IN (7, 14, 21, 28))");
-		}
-		else {
-			jdbcTemplate.update("DELETE FROM history_users WHERE dato < (NOW() - INTERVAL " + retentionPeriod + " DAY) OR (dato < (NOW() - INTERVAL 2 MONTH) AND DAY(dato) NOT IN (7, 14, 21, 28));");
-			jdbcTemplate.update("DELETE FROM history_ous WHERE dato < (NOW() - INTERVAL " + retentionPeriod + " DAY) OR (dato < (NOW() - INTERVAL 2 MONTH) AND DAY(dato) NOT IN (7, 14, 21, 28));");
-			jdbcTemplate.update("DELETE FROM history_role_assignments WHERE dato < (NOW() - INTERVAL " + retentionPeriod + " DAY) OR (dato < (NOW() - INTERVAL 2 MONTH) AND DAY(dato) NOT IN (7, 14, 21, 28)) LIMIT 250000;");
-			jdbcTemplate.update("DELETE FROM history_kle_assignments WHERE dato < (NOW() - INTERVAL " + retentionPeriod + " DAY) OR (dato < (NOW() - INTERVAL 2 MONTH) AND DAY(dato) NOT IN (7, 14, 21, 28));");
-			jdbcTemplate.update("DELETE FROM history_it_systems WHERE dato < (NOW() - INTERVAL " + retentionPeriod + " DAY) OR (dato < (NOW() - INTERVAL 2 MONTH) AND DAY(dato) NOT IN (7, 14, 21, 28));");
-			jdbcTemplate.update("DELETE FROM history_managers WHERE dato < (NOW() - INTERVAL " + retentionPeriod + " DAY) OR (dato < (NOW() - INTERVAL 2 MONTH) AND DAY(dato) NOT IN (7, 14, 21, 28));");
-			jdbcTemplate.update("DELETE FROM history_ou_role_assignments WHERE dato < (NOW() - INTERVAL " + retentionPeriod + " DAY) OR (dato < (NOW() - INTERVAL 2 MONTH) AND DAY(dato) NOT IN (7, 14, 21, 28));");
-			jdbcTemplate.update("DELETE FROM history_titles WHERE dato < (NOW() - INTERVAL " + retentionPeriod + " DAY) OR (dato < (NOW() - INTERVAL 2 MONTH) AND DAY(dato) NOT IN (7, 14, 21, 28));");
-			jdbcTemplate.update("DELETE FROM history_ou_kle_assignments WHERE dato < (NOW() - INTERVAL " + retentionPeriod + " DAY) OR (dato < (NOW() - INTERVAL 2 MONTH) AND DAY(dato) NOT IN (7, 14, 21, 28)) LIMIT 50000;");
-			jdbcTemplate.update("DELETE FROM history_attestation_manager_delegate WHERE date < (NOW() - INTERVAL " + retentionPeriod + " DAY) OR (date < (NOW() - INTERVAL 2 MONTH) AND DAY(date) NOT IN (7, 14, 21, 28)) LIMIT 50000;");
-		}
+		jdbcTemplate.update("DELETE FROM history_users WHERE dato < (NOW() - INTERVAL " + retentionPeriod + " DAY) OR (dato < (NOW() - INTERVAL 2 MONTH) AND DAY(dato) NOT IN (7, 14, 21, 28));");
+		jdbcTemplate.update("DELETE FROM history_ous WHERE dato < (NOW() - INTERVAL " + retentionPeriod + " DAY) OR (dato < (NOW() - INTERVAL 2 MONTH) AND DAY(dato) NOT IN (7, 14, 21, 28));");
+		jdbcTemplate.update("DELETE FROM history_role_assignments WHERE dato < (NOW() - INTERVAL " + retentionPeriod + " DAY) OR (dato < (NOW() - INTERVAL 2 MONTH) AND DAY(dato) NOT IN (7, 14, 21, 28)) LIMIT 250000;");
+		jdbcTemplate.update("DELETE FROM history_kle_assignments WHERE dato < (NOW() - INTERVAL " + retentionPeriod + " DAY) OR (dato < (NOW() - INTERVAL 2 MONTH) AND DAY(dato) NOT IN (7, 14, 21, 28));");
+		jdbcTemplate.update("DELETE FROM history_it_systems WHERE dato < (NOW() - INTERVAL " + retentionPeriod + " DAY) OR (dato < (NOW() - INTERVAL 2 MONTH) AND DAY(dato) NOT IN (7, 14, 21, 28));");
+		jdbcTemplate.update("DELETE FROM history_managers WHERE dato < (NOW() - INTERVAL " + retentionPeriod + " DAY) OR (dato < (NOW() - INTERVAL 2 MONTH) AND DAY(dato) NOT IN (7, 14, 21, 28));");
+		jdbcTemplate.update("DELETE FROM history_ou_role_assignments WHERE dato < (NOW() - INTERVAL " + retentionPeriod + " DAY) OR (dato < (NOW() - INTERVAL 2 MONTH) AND DAY(dato) NOT IN (7, 14, 21, 28));");
+		jdbcTemplate.update("DELETE FROM history_titles WHERE dato < (NOW() - INTERVAL " + retentionPeriod + " DAY) OR (dato < (NOW() - INTERVAL 2 MONTH) AND DAY(dato) NOT IN (7, 14, 21, 28));");
+		jdbcTemplate.update("DELETE FROM history_functions WHERE dato < (NOW() - INTERVAL " + retentionPeriod + " DAY) OR (dato < (NOW() - INTERVAL 2 MONTH) AND DAY(dato) NOT IN (7, 14, 21, 28));");
+		jdbcTemplate.update("DELETE FROM history_ou_kle_assignments WHERE dato < (NOW() - INTERVAL " + retentionPeriod + " DAY) OR (dato < (NOW() - INTERVAL 2 MONTH) AND DAY(dato) NOT IN (7, 14, 21, 28)) LIMIT 50000;");
+		jdbcTemplate.update("DELETE FROM history_attestation_manager_delegate WHERE date < (NOW() - INTERVAL " + retentionPeriod + " DAY) OR (date < (NOW() - INTERVAL 2 MONTH) AND DAY(date) NOT IN (7, 14, 21, 28)) LIMIT 50000;");
 	}
 }

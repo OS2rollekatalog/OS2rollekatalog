@@ -25,7 +25,6 @@ import dk.digitalidentity.rc.service.ItSystemService;
 import dk.digitalidentity.rc.service.SystemRoleService;
 import dk.digitalidentity.rc.service.UserRoleService;
 import dk.digitalidentity.rc.service.UserService;
-import dk.digitalidentity.rc.service.model.RoleAssignmentType;
 import dk.digitalidentity.rc.service.model.UserWithRole;
 import dk.digitalidentity.rc.util.IdentifierGenerator;
 import io.swagger.v3.oas.annotations.Operation;
@@ -80,7 +79,7 @@ public class UserRoleApiV2 {
 			@ApiResponse(responseCode = "200", description = "Returns a list of all userroles."),
 			@ApiResponse(responseCode = "500", description = "Internal Server Error", content =
 					{ @Content(mediaType = "application/json", schema = @Schema(implementation = ExceptionResponseAM.class)) })
-			
+
 	})
 	@Operation(summary = "Get all userroles.", description = "Returns all the userroles that exist.")
 	@GetMapping("/api/v2/userrole")
@@ -107,7 +106,7 @@ public class UserRoleApiV2 {
 				.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
 		return new ResponseEntity<>(RoleMapper.userRoleToApi(userRole),HttpStatus.OK);
 	}
-	
+
 	@ApiResponses(value = {
 			@ApiResponse(responseCode = "200", description = "All users with the specified userrole "),
 			@ApiResponse(responseCode = "404", description = "Userrole not found", content =
@@ -246,11 +245,18 @@ public class UserRoleApiV2 {
 		target.setName(userRoleAM.getName());
 		target.setIdentifier(userRoleAM.getIdentifier());
 		target.setDescription(userRoleAM.getDescription());
-		target.setDelegatedFromCvr(userRoleAM.getDelegatedFromCvr());
+		if (!StringUtils.isEmpty(userRoleAM.getDelegatedFromCvr())) {
+			target.setDelegatedFromCvr(userRoleAM.getDelegatedFromCvr());
+		}
 		target.setUserOnly(userRoleAM.isUserOnly());
-		target.setCanRequest(userRoleAM.isCanRequest());
 		target.setSensitiveRole(userRoleAM.isSensitiveRole());
 		target.setItSystem(itSystem);
+		if (userRoleAM.getRequesterPermission() != null) {
+			target.setRequesterPermission(userRoleAM.getRequesterPermission());
+		}
+		if (userRoleAM.getApproverPermission() != null) {
+			target.setApproverPermission(userRoleAM.getApproverPermission());
+		}
 
 		toRemove.stream()
 				.map(systemId -> target.getSystemRoleAssignments().stream()

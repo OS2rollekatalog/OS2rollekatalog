@@ -6,7 +6,8 @@
     <header th:replace="~{fragments/navbar :: navbar-header(subpage = 'reports')}"></header>
     <aside th:replace="~{fragments/navbar :: navbar-aside (page = 'report.manager', subpage = 'reports')}"></aside>
 
-    <section>
+    <section th:with="permission=${T(dk.digitalidentity.rc.security.permission.Permission)},
+section=${T(dk.digitalidentity.rc.security.permission.Section)}">
         <div class="content-wrapper">
             <h3>
                 <span th:text="#{html.page.report.template.title}"></span>
@@ -55,10 +56,10 @@
 	                                <i th:if="${reportTemplate.showSystemRoles}" class="fa fa-check"></i>
 	                            </td>
 	                            <td>
-	                                <a sec:authorize="hasRole('ROLE_REPORT_ACCESS')" th:title="#{html.page.report.edit.title}" th:href="@{/ui/report/configure/template/{id}(id=${reportTemplate.id})}"><em class="fa fa-pencil"></em></a>
-	                                <a sec:authorize="hasRole('ROLE_TEMPLATE_ACCESS')" th:title="#{html.page.report.download.title}" th:href="@{/ui/report/download/template/{id}(id=${reportTemplate.id})}"><em class="fa fa-download"></em></a>
-	                                <a sec:authorize="hasRole('ROLE_REPORT_ACCESS')" th:title="#{html.page.report.delete.title}" href="#" onclick="openConfirmDeleteDialog(this);" th:attr="data-id=${reportTemplate.id}"><em class="fa fa-remove"></em></a>
-	                                <a sec:authorize="hasRole('ROLE_REPORT_ACCESS')" th:title="#{html.page.report.assign.title}" th:href="@{/ui/report/assign/{id}(id=${reportTemplate.id})}"><em class="fa fa-user-plus"></em></a>
+	                                <a th:if="${@permissionCheck.isAllowed(section.REPORT, permission.UPDATE)}" th:title="#{html.page.report.edit.title}" th:href="@{/ui/report/configure/template/{id}(id=${reportTemplate.id})}"><em class="fa fa-pencil"></em></a>
+	                                <a th:if="${@permissionCheck.isReportTemplateAllowed(permission.READ)}" th:title="#{html.page.report.download.title}" th:href="@{/ui/report/download/template/{id}(id=${reportTemplate.id})}"><em class="fa fa-download"></em></a>
+	                                <a th:if="${@permissionCheck.isAllowed(section.REPORT, permission.DELETE)}" th:title="#{html.page.report.delete.title}" href="#" onclick="openConfirmDeleteDialog(this);" th:attr="data-id=${reportTemplate.id}"><em class="fa fa-remove"></em></a>
+	                                <a th:if="${@permissionCheck.isAllowed(section.REPORT, permission.CREATE)}" th:title="#{html.page.report.assign.title}" th:href="@{/ui/report/assign/{id}(id=${reportTemplate.id})}"><em class="fa fa-user-plus"></em></a>
 	                            </td>
 	                        </tr>
                         </tbody>

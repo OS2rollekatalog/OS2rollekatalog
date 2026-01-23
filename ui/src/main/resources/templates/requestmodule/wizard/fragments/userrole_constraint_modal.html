@@ -1,0 +1,27 @@
+<th:block th:fragment="UserroleConstraintModal" xmlns="http://www.w3.org/1999/xhtml"
+          xmlns:th="http://www.thymeleaf.org">
+    <div class="modal fade bd-example-modal-lg" id="userrole-constraint-modal" role="dialog">
+        <div class="modal-dialog modal-lg">
+            <!-- Modal content-->
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h4 th:text="#{requestmodule.html.request.wizard.constraint.title}"></h4>
+                    <button type="button" class="close" data-dismiss="modal">&times;</button>
+                </div>
+
+                <div class="modal-body">
+                    <div th:replace="~{users/fragments/assign_user_role_postponed_data_constraints :: postponedConstraints}"></div>
+
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-primary" onclick="constraintService.onModalConfirm()"
+                            th:text="#{html.control.button.save}"></button>
+                    <button type="button" class="btn btn-danger" onclick="constraintService.onModalCancel()"
+                            data-dismiss="modal" th:text="#{html.control.button.cancel}"></button>
+                </div>
+            </div>
+        </div>
+    </div>
+</th:block>
+

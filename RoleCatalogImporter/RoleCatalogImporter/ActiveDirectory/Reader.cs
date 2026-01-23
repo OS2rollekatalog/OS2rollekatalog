@@ -12,9 +12,9 @@ namespace RoleCatalogImporter
     {
         private static readonly log4net.ILog log = log4net.LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
         private string[] ousToIgnore = new string[0];
-        private string SAMAccountPrefix = null;
-        private string UserFilter = null;
-        private string ExtraOU = null;
+        private string SAMAccountPrefix;
+        private string UserFilter;
+        private List<string> ExtraOUs = null;
         private string ADUrl;
 
         public Reader()
@@ -22,7 +22,7 @@ namespace RoleCatalogImporter
             ousToIgnore = Properties.Settings.Default.OUsToIgnore.Split(';');
             SAMAccountPrefix = Properties.Settings.Default.SAMAccountPrefix;
             UserFilter = Properties.Settings.Default.UserFilter;
-            ExtraOU = Properties.Settings.Default.AdditionalADOU;
+            ExtraOUs = SettingsHelper.AdditionalADOUs;
             ADUrl = Properties.Settings.Default.ADUrl;
         }
 
@@ -32,6 +32,7 @@ namespace RoleCatalogImporter
 
             using (DirectoryEntry startingPoint = new DirectoryEntry(ADUrl))
             {
+                log.Info("Reading OUs from " + ADUrl);
                 using (DirectorySearcher searcher = new DirectorySearcher(startingPoint))
                 {
                     searcher.PageSize = 500;
@@ -131,8 +132,8 @@ namespace RoleCatalogImporter
                 }
             }
 
-            // special case where we want to read ONE extra OU into OS2rollekatalog, which is outside the main structure
-            if (!string.IsNullOrEmpty(ExtraOU))
+            // special case where we want to extra OUs into OS2rollekatalog, which is outside the main structure
+            if (ExtraOUs != null && ExtraOUs.Count > 0)
             {
                 ADOrgUnit root = null;
                 foreach (ADOrgUnit ou in orgUnits)
@@ -147,57 +148,69 @@ namespace RoleCatalogImporter
                 // only if we have a root
                 if (root != null)
                 {
-                    using (DirectoryEntry startingPoint = new DirectoryEntry(ExtraOU))
+                    var extraOUs = ExtraOUs
+                        .SelectMany(ou => AddExtraOrgUnits(root, ou))
+                        .ToList();
+                    orgUnits.AddRange(extraOUs);
+                }
+            }
+
+            return orgUnits;
+        }
+
+        private static List<ADOrgUnit> AddExtraOrgUnits(ADOrgUnit root, string extraOU)
+        {
+            log.Info("Reading extra OUs from " + extraOU);
+            var orgUnits = new List<ADOrgUnit>();
+            using (DirectoryEntry startingPoint = new DirectoryEntry(extraOU))
+            {
+                using (DirectorySearcher searcher = new DirectorySearcher(startingPoint))
+                {
+                    searcher.PageSize = 500;
+                    searcher.Filter = "(objectCategory=organizationalUnit)";
+                    searcher.PropertiesToLoad.Add("objectGUID");
+                    searcher.PropertiesToLoad.Add("name");
+                    searcher.PropertiesToLoad.Add("ou");
+                    searcher.PropertiesToLoad.Add(Properties.Settings.Default.OrgUnitNameField);
+                    searcher.PropertiesToLoad.Add("distinguishedname");
+
+                    using (var resultSet = searcher.FindAll())
                     {
-                        using (DirectorySearcher searcher = new DirectorySearcher(startingPoint))
+                        foreach (SearchResult res in resultSet)
                         {
-                            searcher.PageSize = 500;
-                            searcher.Filter = "(objectCategory=organizationalUnit)";
-                            searcher.PropertiesToLoad.Add("objectGUID");
-                            searcher.PropertiesToLoad.Add("name");
-                            searcher.PropertiesToLoad.Add("ou");
-                            searcher.PropertiesToLoad.Add(Properties.Settings.Default.OrgUnitNameField);
-                            searcher.PropertiesToLoad.Add("distinguishedname");
-
-                            using (var resultSet = searcher.FindAll())
+                            Guid uuid = new Guid((byte[])res.Properties["objectGUID"][0]);
+                            string dn = (string)res.Properties["distinguishedname"][0];
+                            string name;
+                            if (res.Properties.Contains(Properties.Settings.Default.OrgUnitNameField))
                             {
-                                foreach (SearchResult res in resultSet)
-                                {
-                                    Guid uuid = new Guid((byte[])res.Properties["objectGUID"][0]);
-                                    string dn = (string)res.Properties["distinguishedname"][0];
-                                    string name;
-                                    if (res.Properties.Contains(Properties.Settings.Default.OrgUnitNameField))
-                                    {
-                                        name = (string)res.Properties[Properties.Settings.Default.OrgUnitNameField][0];
-                                    }
-                                    else if (res.Properties.Contains("name"))
-                                    {
-                                        name = (string)res.Properties["name"][0];
-                                    }
-                                    else
-                                    {
-                                        name = (string)res.Properties["ou"][0];
-                                    }
-
-                                    var parent = res.GetDirectoryEntry()?.Parent;
-
-                                    ADOrgUnit ou = new ADOrgUnit();
-                                    ou.Uuid = uuid.ToString().ToLower();
-                                    ou.Name = name;
-                                    ou.Dn = dn;
-
-                                    if (ExtraOU.EndsWith(ou.Dn, StringComparison.InvariantCultureIgnoreCase))
-                                    {
-                                        ou.ParentUUID = root.Uuid;
-                                    }
-                                    else
-                                    {
-                                        ou.ParentUUID = parent.Guid.ToString().ToLower();
-                                    }
-
-                                    orgUnits.Add(ou);
-                                }
+                                name = (string)res.Properties[Properties.Settings.Default.OrgUnitNameField][0];
                             }
+                            else if (res.Properties.Contains("name"))
+                            {
+                                name = (string)res.Properties["name"][0];
+                            }
+                            else
+                            {
+                                name = (string)res.Properties["ou"][0];
+                            }
+
+                            var parent = res.GetDirectoryEntry()?.Parent;
+
+                            ADOrgUnit ou = new ADOrgUnit();
+                            ou.Uuid = uuid.ToString().ToLower();
+                            ou.Name = name;
+                            ou.Dn = dn;
+
+                            if (extraOU.EndsWith(ou.Dn, StringComparison.InvariantCultureIgnoreCase))
+                            {
+                                ou.ParentUUID = root.Uuid;
+                            }
+                            else
+                            {
+                                ou.ParentUUID = parent.Guid.ToString().ToLower();
+                            }
+
+                            orgUnits.Add(ou);
                         }
                     }
                 }
@@ -210,7 +223,24 @@ namespace RoleCatalogImporter
         {
             List<ADUser> users = new List<ADUser>();
 
-            using (DirectoryEntry startingPoint = new DirectoryEntry(Properties.Settings.Default.ADUrl))
+            users.AddRange(ReadUsersFromStartingPoint(Properties.Settings.Default.ADUrl));
+            if (ExtraOUs != null && ExtraOUs.Count > 0)
+            {
+                // Also read users from our extra OUs
+                users.AddRange(
+                    ExtraOUs
+                                .SelectMany(ReadUsersFromStartingPoint)
+                                .ToList()
+                );
+            }
+            return users;
+        }
+
+        private List<ADUser> ReadUsersFromStartingPoint(string adUrl)
+        {
+            log.Info("Reading users from " + adUrl);
+            var users = new List<ADUser>();
+            using (DirectoryEntry startingPoint = new DirectoryEntry(adUrl))
             {
                 using (DirectorySearcher searcher = new DirectorySearcher(startingPoint))
                 {

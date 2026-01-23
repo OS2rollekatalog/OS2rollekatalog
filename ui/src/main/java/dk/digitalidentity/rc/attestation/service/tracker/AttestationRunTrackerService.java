@@ -37,7 +37,7 @@ public class AttestationRunTrackerService {
         // Check if we already have an attestation run active
         final boolean normalRun = shouldCreateAttestationRun(when, deadlineNormal);
         final boolean sensitiveRun = !normalRun && shouldCreateAttestationRun(when, deadlineSensitive);
-        final boolean extraSensitiveRun = !normalRun && yearly && shouldCreateAttestationRun(when, deadlineExtraSensitive);
+        final boolean extraSensitiveRun = !normalRun && !sensitiveRun && yearly && shouldCreateAttestationRun(when, deadlineExtraSensitive);
         if (normalRun || sensitiveRun || extraSensitiveRun) {
             final LocalDate expectedDeadline = extraSensitiveRun ? deadlineExtraSensitive : (sensitiveRun ? deadlineSensitive : deadlineNormal);
             final List<AttestationRun> unfinishedRuns = getActiveAttestationRunsDesc();

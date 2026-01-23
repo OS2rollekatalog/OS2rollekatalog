@@ -1,19 +1,104 @@
 CREATE OR REPLACE VIEW view_datatables_userroles AS (
-	SELECT 
-	    ur.id AS id,
-	    ur.name AS name,
-	    ur.description AS description,
-	    its.id AS it_system_id,
-	    its.name AS it_system_name,
-	    its.system_type AS it_system_type,
- 	    ur.can_request AS can_request,
-	    IF(pku.id IS NULL, FALSE, TRUE) AS pending_sync,
-	    IF(pku.failed IS NULL, FALSE, pku.failed) AS sync_failed,
-	    ur.delegated_from_cvr AS delegated_from_cvr,
-	    ur.read_only AS read_only
-	FROM user_roles ur
-		JOIN it_systems its ON its.id = ur.it_system_id
-	    LEFT JOIN pending_kombit_updates pku ON pku.user_role_id = ur.id
-	WHERE
-	    its.deleted = FALSE
+    SELECT
+        ur.id AS id,
+        ur.name AS name,
+        ur.description AS description,
+        its.id AS it_system_id,
+        its.name AS it_system_name,
+        its.system_type AS it_system_type,
+        its.identifier AS it_system_identifier,
+        ur.requester_permission AS requester_permission,
+        ur.approver_permission AS approver_permission,
+
+        TRIM(BOTH ',' FROM
+             CONCAT(
+                     CASE
+                         WHEN ur.requester_permission NOT LIKE '%INHERIT%'
+                             THEN CONCAT(ur.requester_permission, ',')
+                         WHEN ur.requester_permission IS NOT NULL
+                             THEN CONCAT(
+                                 TRIM(BOTH ',' FROM
+                                      REGEXP_REPLACE(ur.requester_permission, '(^|,)INHERIT(,|$)', ',')
+                                 ),
+                                 ','
+                                  )
+                         ELSE ''
+                         END,
+                     CASE
+                         WHEN ur.requester_permission LIKE '%INHERIT%'
+                             AND its.requester_permission IS NOT NULL
+                             AND its.requester_permission NOT LIKE '%INHERIT%'
+                             THEN CONCAT(its.requester_permission, ',')
+                         ELSE ''
+                         END,
+                     CASE
+                         WHEN ur.requester_permission LIKE '%INHERIT%'
+                             AND (its.requester_permission IS NULL OR its.requester_permission LIKE '%INHERIT%')
+                             THEN COALESCE(
+                                 (SELECT setting_value FROM setting WHERE setting_key = 'allowedrequesters'),
+                                 ''
+                                  )
+                         ELSE ''
+                         END
+             )
+        ) AS effective_requester_permission,
+        -- Effektiv approver_permission
+        TRIM(BOTH ',' FROM
+             CONCAT(
+                 -- UserRole permissions (fjern INHERIT)
+                     CASE
+                         WHEN ur.approver_permission NOT LIKE '%INHERIT%'
+                             THEN CONCAT(ur.approver_permission, ',')
+                         WHEN ur.approver_permission IS NOT NULL
+                             THEN CONCAT(
+                                 TRIM(BOTH ',' FROM
+                                      REGEXP_REPLACE(ur.approver_permission, '(^|,)INHERIT(,|$)', ',')
+                                 ),
+                                 ','
+                                  )
+                         ELSE ''
+                         END,
+                 -- ITSystem permissions hvis UserRole har INHERIT
+                     CASE
+                         WHEN ur.approver_permission LIKE '%INHERIT%'
+                             AND its.approver_permission IS NOT NULL
+                             AND its.approver_permission NOT LIKE '%INHERIT%'
+                             THEN CONCAT(its.approver_permission, ',')
+                         WHEN ur.approver_permission LIKE '%INHERIT%'
+                             AND its.approver_permission IS NOT NULL
+                             AND its.approver_permission LIKE '%INHERIT%'
+                             THEN CONCAT(
+                                 TRIM(BOTH ',' FROM
+                                      REGEXP_REPLACE(its.approver_permission, '(^|,)INHERIT(,|$)', ',')
+                                 ),
+                                 ','
+                                  )
+                         ELSE ''
+                         END,
+                 -- Global permissions hvis både UserRole OG ITSystem har INHERIT
+                     CASE
+                         WHEN ur.approver_permission LIKE '%INHERIT%'
+                             AND (its.approver_permission IS NULL OR its.approver_permission LIKE '%INHERIT%')
+                             THEN COALESCE(
+                                 (SELECT setting_value FROM setting WHERE setting_key = 'allowedrapprovers'),
+                                 ''
+                                  )
+                         ELSE ''
+                         END
+             )
+        ) AS effective_approver_permission,
+        IF(pku.id IS NULL, FALSE, TRUE) AS pending_sync,
+        IF(pku.failed IS NULL, FALSE, pku.failed) AS sync_failed,
+        ur.delegated_from_cvr AS delegated_from_cvr,
+        ur.read_only AS read_only,
+        GROUP_CONCAT(DISTINCT our.ou_uuid) as org_unit_filter_uuids,
+        GROUP_CONCAT(DISTINCT itsou.ou_uuid) as it_system_org_unit_filter_uuids
+    FROM user_roles ur
+             JOIN it_systems its ON its.id = ur.it_system_id
+             LEFT JOIN pending_kombit_updates pku ON pku.user_role_id = ur.id
+             LEFT JOIN ous_user_roles our ON ur.id = our.user_roles_id
+             LEFT JOIN ous_itsystems itsou ON its.id = itsou.itsystem_id
+    WHERE
+        its.deleted = FALSE
+    GROUP BY ur.id
 );

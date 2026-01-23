@@ -1,1 +1,0 @@
-ALTER TABLE attestation_ou_role_assignments ADD excepted_title_uuids NVARCHAR(MAX) DEFAULT '';

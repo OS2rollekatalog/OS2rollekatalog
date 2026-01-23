@@ -7,6 +7,7 @@ import dk.digitalidentity.rc.controller.api.model.OrganisationDTO;
 import dk.digitalidentity.rc.controller.api.model.OrganisationImportResponse;
 import dk.digitalidentity.rc.controller.api.model.PositionDTO;
 import dk.digitalidentity.rc.controller.api.model.UserDTO;
+import dk.digitalidentity.rc.controller.api.model.UserOUFunctionDTO;
 import dk.digitalidentity.rc.dao.model.Domain;
 import dk.digitalidentity.rc.dao.model.EmailTemplate;
 import dk.digitalidentity.rc.dao.model.ItSystem;
@@ -18,6 +19,7 @@ import dk.digitalidentity.rc.dao.model.RoleGroup;
 import dk.digitalidentity.rc.dao.model.Title;
 import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserKLEMapping;
+import dk.digitalidentity.rc.dao.model.UserOUFunction;
 import dk.digitalidentity.rc.dao.model.UserRole;
 import dk.digitalidentity.rc.dao.model.enums.EmailTemplatePlaceholder;
 import dk.digitalidentity.rc.dao.model.enums.EmailTemplateType;
@@ -41,6 +43,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
@@ -73,13 +76,13 @@ public class OrganisationImporter {
 
 	@Autowired
 	private SettingsService settingsService;
-	
+
 	@Autowired
 	private TitleService titleService;
-	
+
 	@Autowired
 	private RoleCatalogueConfiguration configuration;
-	
+
 	@Autowired
 	private NotificationService notificationService;
 
@@ -89,8 +92,11 @@ public class OrganisationImporter {
 	@Autowired
 	private EmailQueueService emailQueueService;
 
+	@Autowired
+	private FunctionService functionService;
+
 	private record OrganisationImportContext(List<String> systemOwnerAndResponsibleUuids) {}
-	
+
 	@Transactional
 	public OrganisationImportResponse fullSync(OrganisationDTO organisation, Domain domain) {
 		boolean isPrimaryDomain = DomainService.isPrimaryDomain(domain);
@@ -105,7 +111,6 @@ public class OrganisationImporter {
 				log.warn("Rejecting payload: " + validation.message);
 				throw new ResponseStatusException(HttpStatus.BAD_REQUEST, validation.message);
 			}
-
 			final OrganisationImportContext context = buildOrganizationImportContext();
 
 			// convert payload to internal data structure with all relationships established
@@ -133,7 +138,6 @@ public class OrganisationImporter {
 
 			// if everything went okay so far, fire of all collected events
 			processEvents();
-			
 			return response;
 		}
 		finally {
@@ -143,17 +147,17 @@ public class OrganisationImporter {
 
 	private OrganisationImportContext buildOrganizationImportContext() {
 		final List<String> ownersAndResponsible = itSystemService.getAll().stream()
-				.flatMap(its -> Stream.of(its.getAttestationResponsible(), its.getSystemOwner()))
-				.filter(Objects::nonNull)
-				.map(User::getUuid)
-				.toList();
+			.flatMap(its -> Stream.of(its.getAttestationResponsible(), its.getSystemOwner()))
+			.filter(Objects::nonNull)
+			.map(User::getUuid)
+			.toList();
 		return new OrganisationImportContext(ownersAndResponsible);
 	}
 
 	@Transactional
 	public OrganisationImportResponse deltaSync(List<UserDTO> users, Domain domain) {
 		events.set(new OrganisationChangeEvents());
-		
+
 		try {
 			OrganisationImportResponse response = new OrganisationImportResponse();
 
@@ -165,14 +169,19 @@ public class OrganisationImporter {
 			}
 
 			final OrganisationImportContext context = buildOrganizationImportContext();
-			
+
 			// convert payload to internal data structure with all relationships established
 			List<User> newUsers = new ArrayList<>();
 			List<OrgUnit> existingOrgUnits = orgUnitService.getAllIncludingInactive();
+			List<dk.digitalidentity.rc.dao.model.Function> functions = functionService.getAllActive();
+
+			// get all titles for mapping purposes
+			List<Title> titles = titleService.getAll();
+			Map<String, Title> titleMap = titles.stream().collect(Collectors.toMap(Title::getUuid, Function.identity()));
 
 			// map user DTO to User objects
 			for (UserDTO userDTO : users) {
-				User user = mapUserDTOToUser(userDTO, existingOrgUnits);
+				User user = mapUserDTOToUser(userDTO, existingOrgUnits, functions, titleMap);
 
 				newUsers.add(user);
 			}
@@ -185,7 +194,7 @@ public class OrganisationImporter {
 
 			// if everything went okay so far, fire of all collected events
 			processEvents();
-			
+
 			return response;
 		}
 		finally {
@@ -194,11 +203,16 @@ public class OrganisationImporter {
 	}
 
 	private void mapOrganisation(OrganisationDTO organisation, List<User> newUsers, List<OrgUnit> newOrgUnits) {
+
 		// get all itSystems for mapping purposes
 		List<ItSystem> itSystems = itSystemService.getAll();
-		
+
 		// get all titles for mapping purposes
 		List<Title> titles = titleService.getAll();
+		Map<String, Title> titleMap = titles.stream().collect(Collectors.toMap(Title::getUuid, Function.identity()));
+
+		// get all functions for mapping purposes
+		List<dk.digitalidentity.rc.dao.model.Function> functions = functionService.getAllActive();
 
 		// validation ensures that this will work, so we can safely call get() on the rootDTO
 		Optional<OrgUnitDTO> rootDTO = organisation.getOrgUnits().stream().filter(ou -> ou.getParentOrgUnitUuid() == null).findFirst();
@@ -208,7 +222,7 @@ public class OrganisationImporter {
 		copyTreeToList(root, newOrgUnits);
 
 		for (UserDTO userDTO : organisation.getUsers()) {
-			User user = mapUserDTOToUser(userDTO, newOrgUnits);
+			User user = mapUserDTOToUser(userDTO, newOrgUnits, functions, titleMap);
 
 			newUsers.add(user);
 		}
@@ -216,7 +230,7 @@ public class OrganisationImporter {
 
 	private void copyTreeToList(OrgUnit root, List<OrgUnit> newOrgUnits) {
 		newOrgUnits.add(root);
-		
+
 		for (OrgUnit child : root.getChildren()) {
 			copyTreeToList(child, newOrgUnits);
 		}
@@ -279,16 +293,16 @@ public class OrganisationImporter {
 		if (orgUnit == null) {
 			return null;
 		}
-		
+
 		if (orgUnit.getManager() != null) {
 			return orgUnit.getManager();
 		}
-		
+
 		return getParentManager(orgUnit.getParent());
 	}
 
 	// O(n^2) - not pretty, but actually not that slow either
-	private void buildOrgUnitTree(OrgUnit parent, List<OrgUnitDTO> orgUnits, List<ItSystem> itSystems, List<Title> titles) {		
+	private void buildOrgUnitTree(OrgUnit parent, List<OrgUnitDTO> orgUnits, List<ItSystem> itSystems, List<Title> titles) {
 		for (OrgUnitDTO orgUnit : orgUnits) {
 			if (orgUnit.getParentOrgUnitUuid() != null && orgUnit.getParentOrgUnitUuid().equals(parent.getUuid())) {
 				OrgUnit ou = mapOrgUnitDTOToOrgUnit(orgUnit, parent, itSystems, titles);
@@ -300,7 +314,7 @@ public class OrganisationImporter {
 		}
 	}
 
-	private User mapUserDTOToUser(UserDTO userDTO, List<OrgUnit> newOrgUnits) {
+	private User mapUserDTOToUser(UserDTO userDTO, List<OrgUnit> orgUnits, List<dk.digitalidentity.rc.dao.model.Function> functions, Map<String, Title> titleMap) {
 		User user = new User();
 		user.setDeleted(false);
 		user.setEmail(userDTO.getEmail());
@@ -312,36 +326,74 @@ public class OrganisationImporter {
 		user.setPositions(new ArrayList<>());
 		user.setUserRoleAssignments(new ArrayList<>());
 		user.setRoleGroupAssignments(new ArrayList<>());
+		user.setFunctionAssignments(new ArrayList<>());
 		user.setUserId(userDTO.getUserId());
 		user.setUuid(UUID.randomUUID().toString());
 		user.setCpr(userDTO.getCpr());
 		user.setKles(new ArrayList<>());
 		user.setAltAccounts(new ArrayList<>());
 		user.setDisabled(userDTO.isDisabled());
-		
+
 		if (userDTO.getPositions() != null) {
 			for (PositionDTO positionDTO : userDTO.getPositions()) {
 				Position position = new Position();
 				position.setCreated(new Date());
 				position.setName(positionDTO.getName());
-				position.setUserRoleAssignments(new ArrayList<>());
-				position.setRoleGroupAssignments(new ArrayList<>());
 				position.setUser(user);
+
 				// support old clients that do not send doNotInherit on positions by using the value from userDTO
 				position.setDoNotInherit(positionDTO.getDoNotInherit() != null ? positionDTO.getDoNotInherit() : userDTO.isDoNotInherit());
-				
-				for (OrgUnit orgUnit : newOrgUnits) {
+
+				for (OrgUnit orgUnit : orgUnits) {
 					// we ignore positionDTOs that points to non-existing OrgUnits
-					if (orgUnit.getUuid().equals(positionDTO.getOrgUnitUuid())) {				
+					if (orgUnit.getUuid().equals(positionDTO.getOrgUnitUuid())) {
 						position.setOrgUnit(orgUnit);
-	
+
 						user.getPositions().add(position);
 						break;
 					}
 				}
-				
+
 				if (configuration.getTitles().isEnabled() && StringUtils.hasLength(positionDTO.getTitleUuid())) {
-					position.setTitle(titleService.getByUuid(positionDTO.getTitleUuid()));
+					position.setTitle(titleMap.get(positionDTO.getTitleUuid()));
+				}
+			}
+		}
+
+		// Handle UserOUFunction assignments
+		if (userDTO.getFunctions() != null && !userDTO.getFunctions().isEmpty()) {
+			for (UserOUFunctionDTO functionDTO : userDTO.getFunctions()) {
+				// Find the OrgUnit
+				OrgUnit orgUnit = orgUnits.stream()
+					.filter(ou -> ou.getUuid().equals(functionDTO.getOuUuid()))
+					.findFirst()
+					.orElse(null);
+
+				if (orgUnit == null) {
+					log.debug("OrgUnit '{}' does not exist. Skipping function assignment for user {}",
+						functionDTO.getOuUuid(), userDTO.getUserId());
+					continue;
+				}
+
+				// Find the Function
+				dk.digitalidentity.rc.dao.model.Function function = functions.stream()
+					.filter(f -> f.getUuid().equals(functionDTO.getFunctionUuid()))
+					.findFirst()
+					.orElse(null);
+
+				// Only use existing active functions - do NOT create them
+				if (function != null && function.isActive()) {
+					UserOUFunction assignment = new UserOUFunction();
+					assignment.setUser(user);
+					assignment.setOrgUnit(orgUnit);
+					assignment.setFunction(function);
+					user.getFunctionAssignments().add(assignment);
+				} else if (function == null) {
+					log.debug("Function '{}' does not exist. Skipping assignment for user {}",
+						functionDTO.getFunctionUuid(), userDTO.getUserId());
+				} else {
+					log.debug("Function '{}' is not active. Skipping assignment for user {}",
+						functionDTO.getFunctionUuid(), userDTO.getUserId());
 				}
 			}
 		}
@@ -353,23 +405,23 @@ public class OrganisationImporter {
 					mapping.setUser(user);
 					mapping.setCode(kle);
 					mapping.setAssignmentType(KleType.INTEREST);
-					
+
 					user.getKles().add(mapping);
 				}
 			}
-			
+
 			if (userDTO.getKlePerforming() != null) {
 				for (String kle : userDTO.getKlePerforming()) {
 					UserKLEMapping mapping = new UserKLEMapping();
 					mapping.setUser(user);
 					mapping.setCode(kle);
 					mapping.setAssignmentType(KleType.PERFORMING);
-					
-					user.getKles().add(mapping);						
+
+					user.getKles().add(mapping);
 				}
 			}
 		}
-		
+
 		return user;
 	}
 
@@ -393,26 +445,26 @@ public class OrganisationImporter {
 
 		if (!configuration.getIntegrations().getKle().isUiEnabled()) {
 			ou.setInheritKle(orgUnit.isInheritKle());
-			
+
 			if (orgUnit.getKleInterest() != null) {
 				for (String kle : orgUnit.getKleInterest()) {
 					KLEMapping mapping = new KLEMapping();
 					mapping.setOrgUnit(ou);
 					mapping.setCode(kle);
 					mapping.setAssignmentType(KleType.INTEREST);
-					
+
 					ou.getKles().add(mapping);
 				}
 			}
-			
+
 			if (orgUnit.getKlePerforming() != null) {
 				for (String kle : orgUnit.getKlePerforming()) {
 					KLEMapping mapping = new KLEMapping();
 					mapping.setOrgUnit(ou);
 					mapping.setCode(kle);
 					mapping.setAssignmentType(KleType.PERFORMING);
-					
-					ou.getKles().add(mapping);						
+
+					ou.getKles().add(mapping);
 				}
 			}
 		}
@@ -425,13 +477,13 @@ public class OrganisationImporter {
 						if (ou.getTitles().stream().noneMatch(t -> Objects.equals(t.getUuid(), titleUuid))) {
 							ou.getTitles().add(title);
 						}
-						
+
 						break;
 					}
 				}
 			}
 		}
-		
+
 		return ou;
 	}
 
@@ -439,9 +491,9 @@ public class OrganisationImporter {
 		List<OrgUnit> toBeCreated = new ArrayList<>();
 		List<OrgUnit> toBeUpdated = new ArrayList<>();
 		List<OrgUnit> toBeDeleted = new ArrayList<>();
-		
+
 		identifyOrgUnitChanges(newOrgUnits, existingOrgUnits, toBeCreated, toBeUpdated, toBeDeleted);
-		
+
 		response.setOusCreated(toBeCreated.size());
 		response.setOusDeleted(toBeDeleted.size());
 		response.setOusUpdated(toBeUpdated.size());
@@ -451,7 +503,7 @@ public class OrganisationImporter {
 
 			for (OrgUnit orgUnitToCreate : toBeCreated) {
 				if (orgUnitToCreate.getParent() != null) {
-					
+
 					// if the orgUnit we are going to create, has a parent that exists, move the pointer
 					// to the existing object, so Hibernate does not throw a hissy fit.
 					for (OrgUnit existingOrgUnit : existingOrgUnits) {
@@ -468,26 +520,26 @@ public class OrganisationImporter {
 			// bulk-save, and then copy them all to the list of existing orgUnits
 			Iterable<OrgUnit> resultToBeCreated = orgUnitService.save(toBeCreated);
 			for (OrgUnit orgUnit : resultToBeCreated) {
-				existingOrgUnits.add(orgUnit);				
+				existingOrgUnits.add(orgUnit);
 				events.get().getNewOrgUnits().add(orgUnit);
-				
+
 				for (Title title : orgUnit.getTitles()) {
 					addNewEmptyTitlesToEvent(orgUnit, title);
 				}
 			}
 		}
-		
+
 		if (toBeUpdated.size() > 0) {
 			log.info("Updating " + toBeUpdated.size() + " OrgUnits");
 
 			for (OrgUnit orgUnitToUpdate : toBeUpdated) {
-				
+
 				for (OrgUnit existingOrgUnit : existingOrgUnits) {
 					if (existingOrgUnit.getUuid().equals(orgUnitToUpdate.getUuid())) {
 						existingOrgUnit.setActive(true);
 						existingOrgUnit.setLastUpdated(new Date());
 						existingOrgUnit.setName(orgUnitToUpdate.getName());
-						
+
 						if (configuration.getOrganisation().isGetLevelsFromApi()) {
 							existingOrgUnit.setLevel(orgUnitToUpdate.getLevel());
 						}
@@ -521,7 +573,7 @@ public class OrganisationImporter {
 							}
 							applyAutomaticNiveauMapping(existingOrgUnit);
 						}
-						
+
 						if (hasTitleChanges(existingOrgUnit, orgUnitToUpdate)) {
 							checkOrgUnitForNewEmptyTitles(existingOrgUnit, orgUnitToUpdate);
 							existingOrgUnit.setTitles(orgUnitToUpdate.getTitles());
@@ -533,25 +585,25 @@ public class OrganisationImporter {
 				}
 			}
 		}
-		
+
 		if (toBeDeleted.size() > 0) {
 			log.info("Deleting " + toBeDeleted.size() + " OrgUnits");
-			
-			for (OrgUnit orgUnitToDelete : toBeDeleted) {				
+
+			for (OrgUnit orgUnitToDelete : toBeDeleted) {
 				orgUnitToDelete.setActive(false);
 				orgUnitService.save(orgUnitToDelete);
 			}
 		}
 	}
 
-	
+
 	private void processUsers(OrganisationImportContext context, List<User> newUsers, List<User> existingUsers, List<OrgUnit> existingOrgUnits, OrganisationImportResponse response, boolean deltaSync, Domain domain) {
 		List<User> toBeCreated = new ArrayList<>();
 		List<User> toBeUpdated = new ArrayList<>();
 		List<User> toBeDeleted = new ArrayList<>();
-		
+
 		identifyUserChanges(newUsers, existingUsers, toBeCreated, toBeUpdated, toBeDeleted, domain, deltaSync);
-		
+
 		response.setUsersCreated(toBeCreated.size());
 		response.setUsersDeleted(toBeDeleted.size());
 		response.setUsersUpdated(toBeUpdated.size());
@@ -565,26 +617,40 @@ public class OrganisationImporter {
 
 			for (User userToCreate : toBeCreated) {
 				log.info("Creating: " + userToCreate.getUserId());
+
 				// if the user we are going to create, has a position, move the pointer
 				// to an existing OrgUnit, otherwise Hibernate is going to throw a hissy fit
 				if (userToCreate.getPositions() != null) {
 					List<Position> positions = userToCreate.getPositions();
 					userToCreate.setPositions(new ArrayList<>());
-					
+
 					for (Position position : positions) {
 						for (OrgUnit existingOrgUnit : existingOrgUnits) {
 							if (position.getOrgUnit().getUuid().equals(existingOrgUnit.getUuid())) {
 
 								checkOrgUnitForNewTitles(position, existingOrgUnit);
-								
+
 								position.setOrgUnit(existingOrgUnit);
 								addPosition(userToCreate, position);
 
 								break;
 							}
-						}						
+						}
 					}
 				}
+
+				// Update function assignments to point to existing OrgUnits
+				if (userToCreate.getFunctionAssignments() != null && !userToCreate.getFunctionAssignments().isEmpty()) {
+					for (UserOUFunction functionAssignment : userToCreate.getFunctionAssignments()) {
+						for (OrgUnit existingOrgUnit : existingOrgUnits) {
+							if (functionAssignment.getOrgUnit().getUuid().equals(existingOrgUnit.getUuid())) {
+								functionAssignment.setOrgUnit(existingOrgUnit);
+								break;
+							}
+						}
+					}
+				}
+
 				usersWithAttachedPositions.add(userService.save(userToCreate));
 			}
 
@@ -592,7 +658,7 @@ public class OrganisationImporter {
 
 			existingUsers.addAll(usersWithAttachedPositions);
 		}
-		
+
 		if (toBeUpdated.size() > 0) {
 			log.info("Updating " + toBeUpdated.size() + " Users");
 
@@ -614,13 +680,16 @@ public class OrganisationImporter {
 						existingUser.setPhone(userToUpdate.getPhone());
 						existingUser.setUserId(userToUpdate.getUserId());
 						existingUser.setCpr(userToUpdate.getCpr());
-						
+
 						// check whether the user was deleted or disabled
 						if (!(existingUser.isDisabled() || existingUser.isDeleted()) && (userToUpdate.isDisabled() || userToUpdate.isDeleted())) {
 							handleUserDeletedEvent(simpleItSystems, existingUser);
 						}
 
 						existingUser.setDisabled(userToUpdate.isDisabled());
+						if (userToUpdate.isDisabled()) {
+							existingUser.setDisabledAt(LocalDate.now());
+						}
 
 						if (!configuration.getIntegrations().getKle().isUiEnabled()) {
 							existingUser.getKles().clear();
@@ -689,6 +758,37 @@ public class OrganisationImporter {
 								events.get().getSystemOwnerOrAttestationResponsibleMovedPostions().add(movedPositionEvent);
 							}
 						}
+
+						// Handle function assignment changes
+						if (differentFunctionAssignments(userToUpdate, existingUser)) {
+							// Fix references to existing OrgUnits for userToUpdate's function assignments
+							for (UserOUFunction assignment : userToUpdate.getFunctionAssignments()) {
+								for (OrgUnit existingOrgUnit : existingOrgUnits) {
+									if (assignment.getOrgUnit().getUuid().equals(existingOrgUnit.getUuid())) {
+										assignment.setOrgUnit(existingOrgUnit);
+										break;
+									}
+								}
+								assignment.setUser(existingUser);
+							}
+
+							// Remove old assignments
+							List<UserOUFunction> assignmentsToRemove = new ArrayList<>();
+							for (UserOUFunction existingAssignment : existingUser.getFunctionAssignments()) {
+								if (!containsFunctionAssignment(existingAssignment, userToUpdate.getFunctionAssignments())) {
+									assignmentsToRemove.add(existingAssignment);
+								}
+							}
+							existingUser.getFunctionAssignments().removeAll(assignmentsToRemove);
+
+							// Add new assignments
+							for (UserOUFunction newAssignment : userToUpdate.getFunctionAssignments()) {
+								if (!containsFunctionAssignment(newAssignment, existingUser.getFunctionAssignments())) {
+									existingUser.getFunctionAssignments().add(newAssignment);
+								}
+							}
+						}
+
 						userService.save(existingUser);
 
 						break;
@@ -696,13 +796,13 @@ public class OrganisationImporter {
 				}
 			}
 		}
-		
+
 		if (toBeDeleted.size() > 0) {
 			log.info("Soft-deleting " + toBeDeleted.size() + " Users : " + toBeDeleted.stream().map(User::getUserId).collect(Collectors.joining(",")));
 
 			for (User userToDelete : toBeDeleted) {
 				handleUserDeletedEvent(simpleItSystems, userToDelete);
-				
+
 				userService.flagUserDeleted(userToDelete);
 				userService.save(userToDelete);
 			}
@@ -711,8 +811,8 @@ public class OrganisationImporter {
 
 	private boolean hasNewPositionInDifferentOu(Set<MovedPostion> newPositions, Set<MovedPostion> oldPositions) {
 		Set<String> oldOuUuids = oldPositions.stream()
-				.map(p -> p.getOrgUnit().getUuid())
-				.collect(Collectors.toSet());
+			.map(p -> p.getOrgUnit().getUuid())
+			.collect(Collectors.toSet());
 
 		for (MovedPostion newPosition : newPositions) {
 			if (!oldOuUuids.contains(newPosition.getOrgUnit().getUuid())) {
@@ -731,7 +831,7 @@ public class OrganisationImporter {
 		List<UserRole> userRoles = userService.getAllUserRoles(userToDelete, simpleItSystems);
 		if (!userRoles.isEmpty()) {
 			List<ItSystem> itSystemsUserHasRoleIn = userRoles.stream().map(ur -> ur.getItSystem()).filter(distinctByKey(i -> i.getId())).toList();
-			
+
 			for (ItSystem itSystem : itSystemsUserHasRoleIn) {
 				UserDeletedEvent userDeletedEvent = new UserDeletedEvent();
 				userDeletedEvent.setUser(userToDelete);
@@ -759,9 +859,9 @@ public class OrganisationImporter {
 
 			// find existing
 			List<String> existingTitleUuids = orgUnitService.getTitles(orgUnit)
-					.stream()
-					.map(t -> t.getUuid())
-					.collect(Collectors.toList());
+				.stream()
+				.map(t -> t.getUuid())
+				.collect(Collectors.toList());
 			existingTitleUuids.addAll(orgUnit.getTitles().stream().map(t -> t.getUuid()).collect(Collectors.toList()));
 
 			// if not present, we got a new title
@@ -775,26 +875,26 @@ public class OrganisationImporter {
 						break;
 					}
 				}
-				
+
 				if (!found) {
 					OrgUnitWithTitlesDTO dto = new OrgUnitWithTitlesDTO();
 					dto.setOrgUnit(orgUnit);
 					dto.getNewTitles().add(position.getTitle());
-					
+
 					events.get().getOrgUnitsWithNewTitles().add(dto);
 				}
 			}
 		}
 	}
-	
+
 	private void checkOrgUnitForNewEmptyTitles(OrgUnit existingOrgUnit, OrgUnit newOrgUnit) {
 		if (configuration.getTitles().isEnabled()) {
 
 			// find existing
 			List<String> existingTitleUuids = orgUnitService.getTitles(existingOrgUnit)
-					.stream()
-					.map(t -> t.getUuid())
-					.collect(Collectors.toList());
+				.stream()
+				.map(t -> t.getUuid())
+				.collect(Collectors.toList());
 			existingTitleUuids.addAll(existingOrgUnit.getTitles().stream().map(t -> t.getUuid()).collect(Collectors.toList()));
 
 			for (Title newOrgUnitTitle : newOrgUnit.getTitles()) {
@@ -809,19 +909,19 @@ public class OrganisationImporter {
 							break;
 						}
 					}
-					
+
 					if (!found) {
 						OrgUnitWithTitlesDTO dto = new OrgUnitWithTitlesDTO();
 						dto.setOrgUnit(existingOrgUnit);
 						dto.getNewTitles().add(newOrgUnitTitle);
-						
+
 						events.get().getOrgUnitsWithNewTitles().add(dto);
 					}
 				}
 			}
 		}
 	}
-	
+
 	private void addNewEmptyTitlesToEvent(OrgUnit orgUnit, Title title) {
 		boolean found = false;
 		for (OrgUnitWithTitlesDTO dto : events.get().getOrgUnitsWithNewTitles()) {
@@ -831,17 +931,17 @@ public class OrganisationImporter {
 				break;
 			}
 		}
-		
+
 		if (!found) {
 			OrgUnitWithTitlesDTO dto = new OrgUnitWithTitlesDTO();
 			dto.setOrgUnit(orgUnit);
 			dto.getNewTitles().add(title);
-			
+
 			events.get().getOrgUnitsWithNewTitles().add(dto);
 		}
 	}
-	
-	
+
+
 	private void identifyUserChanges(List<User> newUsers, List<User> existingUsers, List<User> toBeCreated, List<User> toBeUpdated, List<User> toBeDeleted, Domain domain, boolean deltaSync) {
 		// find those that needs to be created or updated
 		for (User newUser : newUsers) {
@@ -850,7 +950,7 @@ public class OrganisationImporter {
 			for (User existingUser : existingUsers) {
 				if (hasSameKey(existingUser, newUser)) {
 					found = true;
-					
+
 					// if the existing user is deleted AND the extUuid has changed, we delete from our DB, and perform
 					// a full create of the new user (to reflect that the source-system did a physical delete/create)
 					if (existingUser.isDeleted() && !Objects.equals(existingUser.getExtUuid(), newUser.getExtUuid())) {
@@ -863,7 +963,7 @@ public class OrganisationImporter {
 							toBeUpdated.add(newUser);
 						}
 						else if (!Objects.equals(existingUser.getExtUuid(), newUser.getExtUuid())) {
-							toBeUpdated.add(newUser);							
+							toBeUpdated.add(newUser);
 						}
 						else if (!existingUser.getName().equals(newUser.getName())) {
 							toBeUpdated.add(newUser);
@@ -889,6 +989,9 @@ public class OrganisationImporter {
 						else if (includePositions(domain) && differentPositions(newUser, existingUser)) {
 							toBeUpdated.add(newUser);
 						}
+						else if (differentFunctionAssignments(newUser, existingUser)) {
+							toBeUpdated.add(newUser);
+						}
 						else if (existingUser.isDisabled() != newUser.isDisabled()) {
 							toBeUpdated.add(newUser);
 						}
@@ -897,7 +1000,7 @@ public class OrganisationImporter {
 					break;
 				}
 			}
-			
+
 			if (!found) {
 				User userToCreate = new User();
 				userToCreate.setDeleted(false);
@@ -930,7 +1033,7 @@ public class OrganisationImporter {
 				toBeCreated.add(userToCreate);
 			}
 		}
-		
+
 		if (!deltaSync) {
 			// find those that should be set to deleted
 			for (User existingUser : existingUsers) {
@@ -963,7 +1066,7 @@ public class OrganisationImporter {
 		if (managerDto.getUserId().equalsIgnoreCase(manager.getUserId()) && managerDto.getUuid().equals(manager.getExtUuid())) {
 			return true;
 		}
-		
+
 		return false;
 	}
 
@@ -976,11 +1079,11 @@ public class OrganisationImporter {
 	}
 
 	private void identifyOrgUnitChanges(List<OrgUnit> newOrgUnits, List<OrgUnit> existingOrgUnits, List<OrgUnit> toBeCreated, List<OrgUnit> toBeUpdated, List<OrgUnit> toBeDeleted) {
-		
+
 		// find those that needs to be created or updated
 		for (OrgUnit newOrgUnit : newOrgUnits) {
 			boolean found = false;
-			
+
 			for (OrgUnit existingOrgUnit : existingOrgUnits) {
 				if (existingOrgUnit.getUuid().equals(newOrgUnit.getUuid())) {
 					found = true;
@@ -999,18 +1102,18 @@ public class OrganisationImporter {
 					}
 					else if (configuration.getOrganisation().isGetLevelsFromApi() && differentOrgUnitLevels(existingOrgUnit, newOrgUnit)) {
 						toBeUpdated.add(newOrgUnit);
-					} 
+					}
 					else if (hasTitleChanges(existingOrgUnit, newOrgUnit)) {
 						toBeUpdated.add(newOrgUnit);
 					}
 					else if (shouldApplyAutomaticNiveauMapping(newOrgUnit)) {
 						toBeUpdated.add(newOrgUnit);
 					}
-					
+
 					break;
 				}
 			}
-			
+
 			if (!found) {
 				// because of cascade-saving of children (we really need to get rid of that),
 				// we need to make sure that any EXISTING ous that are children of the NEW
@@ -1029,14 +1132,14 @@ public class OrganisationImporter {
 							}
 						}
 					}
-					
+
 					newOrgUnit.getChildren().addAll(newChildren);
 				}
 
 				toBeCreated.add(newOrgUnit);
 			}
 		}
-		
+
 		// find those that should be set to inactive
 		for (OrgUnit existingOrgUnit : existingOrgUnits) {
 			boolean found = false;
@@ -1052,13 +1155,13 @@ public class OrganisationImporter {
 					break;
 				}
 			}
-			
+
 			if (!found) {
 				toBeDeleted.add(existingOrgUnit);
 			}
 		}
 	}
-	
+
 	//// equals() methods for detecting changes ////
 
 	private boolean hasTitleChanges(OrgUnit existingOrgUnit, OrgUnit newOrgUnit) {
@@ -1071,12 +1174,12 @@ public class OrganisationImporter {
 					break;
 				}
 			}
-			
+
 			if (!titleFound) {
 				return true;
 			}
 		}
-		
+
 		for (Title newOrgUnitTitle : newOrgUnit.getTitles()) {
 			boolean titleFound = false;
 
@@ -1086,12 +1189,12 @@ public class OrganisationImporter {
 					break;
 				}
 			}
-			
+
 			if (!titleFound) {
 				return true;
 			}
 		}
-		
+
 		return false;
 	}
 
@@ -1099,32 +1202,32 @@ public class OrganisationImporter {
 		if (newOrgUnit.isInheritKle() != existingOrgUnit.isInheritKle()) {
 			return true;
 		}
-		
+
 		for (KLEMapping existingOrgUnitKle : existingOrgUnit.getKles()) {
 			boolean kleFound = false;
-			
+
 			for (KLEMapping newOrgUnitKle : newOrgUnit.getKles()) {
 				if (kleEquals(existingOrgUnitKle, newOrgUnitKle)) {
 					kleFound = true;
 					break;
 				}
 			}
-			
+
 			if (!kleFound) {
 				return true;
 			}
 		}
-		
+
 		for (KLEMapping newOrgUnitKle : newOrgUnit.getKles()) {
 			boolean kleFound = false;
-			
+
 			for (KLEMapping existingOrgUnitKle : existingOrgUnit.getKles()) {
 				if (kleEquals(existingOrgUnitKle, newOrgUnitKle)) {
 					kleFound = true;
 					break;
 				}
 			}
-			
+
 			if (!kleFound) {
 				return true;
 			}
@@ -1136,29 +1239,29 @@ public class OrganisationImporter {
 	private boolean hasKleChanges(User newUser, User existingUser) {
 		for (UserKLEMapping existingOrgUnitKle : existingUser.getKles()) {
 			boolean kleFound = false;
-			
+
 			for (UserKLEMapping newOrgUnitKle : newUser.getKles()) {
 				if (kleEquals(existingOrgUnitKle, newOrgUnitKle)) {
 					kleFound = true;
 					break;
 				}
 			}
-			
+
 			if (!kleFound) {
 				return true;
 			}
 		}
-		
+
 		for (UserKLEMapping newOrgUnitKle : newUser.getKles()) {
 			boolean kleFound = false;
-			
+
 			for (UserKLEMapping existingOrgUnitKle : existingUser.getKles()) {
 				if (kleEquals(existingOrgUnitKle, newOrgUnitKle)) {
 					kleFound = true;
 					break;
 				}
 			}
-			
+
 			if (!kleFound) {
 				return true;
 			}
@@ -1166,7 +1269,7 @@ public class OrganisationImporter {
 
 		return false;
 	}
-	
+
 	private boolean differentOrgUnitLevels(OrgUnit existingOrgUnit, OrgUnit orgUnitToUpdate) {
 		return (Objects.equals(existingOrgUnit.getLevel(), orgUnitToUpdate.getLevel()) == false);
 	}
@@ -1194,14 +1297,14 @@ public class OrganisationImporter {
 				return true;
 			}
 		}
-		
+
 		return false;
 	}
 
 	private boolean shouldApplyAutomaticNiveauMapping(OrgUnit orgUnit) {
 		return settingsService.isAutomaticNiveauMappingEnabled()
-				&& !configuration.getOrganisation().isGetLevelsFromApi()
-				&& (orgUnit.getLevel() == null || orgUnit.getLevel() == OrgUnitLevel.NONE);
+			&& !configuration.getOrganisation().isGetLevelsFromApi()
+			&& (orgUnit.getLevel() == null || orgUnit.getLevel() == OrgUnitLevel.NONE);
 	}
 
 	private boolean differentEmail(User newUser, User existingUser) {
@@ -1211,7 +1314,7 @@ public class OrganisationImporter {
 
 			return true;
 		}
-		
+
 		return false;
 	}
 
@@ -1232,9 +1335,9 @@ public class OrganisationImporter {
 	 */
 	private static boolean hasPositionChanged(final Position position, final List<Position> positions) {
 		return positions.stream()
-				.noneMatch(p -> p.getName().equals(position.getName()) &&
-						p.getOrgUnit().getUuid().equals(position.getOrgUnit().getUuid()) &&
-						hasSameKey(p.getUser(), position.getUser()));
+			.noneMatch(p -> p.getName().equals(position.getName()) &&
+				p.getOrgUnit().getUuid().equals(position.getOrgUnit().getUuid()) &&
+				hasSameKey(p.getUser(), position.getUser()));
 	}
 
 	// TODO: this method is not 100% foolproof, but it works for most cases, and will suffice
@@ -1244,7 +1347,7 @@ public class OrganisationImporter {
 			if (p.getName().equals(position.getName()) &&
 				p.getOrgUnit().getUuid().equals(position.getOrgUnit().getUuid()) &&
 				p.isDoNotInherit() == position.isDoNotInherit() &&
-				hasSameKey(p.getUser(), position.getUser()) &&				
+				hasSameKey(p.getUser(), position.getUser()) &&
 				(p.getTitle() == null && position.getTitle() == null || (p.getTitle() != null && position.getTitle() != null && Objects.equals(p.getTitle().getUuid(), position.getTitle().getUuid())))) {
 
 				return true;
@@ -1261,7 +1364,7 @@ public class OrganisationImporter {
 
 		return false;
 	}
-	
+
 	private static boolean kleEquals(UserKLEMapping newKle, UserKLEMapping oldKle) {
 		if (newKle.getCode().equals(oldKle.getCode()) && newKle.getAssignmentType().equals(oldKle.getAssignmentType())) {
 			return true;
@@ -1270,16 +1373,44 @@ public class OrganisationImporter {
 		return false;
 	}
 
+	private boolean differentFunctionAssignments(User newUser, User existingUser) {
+		// Check if there are new assignments
+		for (UserOUFunction newAssignment : newUser.getFunctionAssignments()) {
+			if (!containsFunctionAssignment(newAssignment, existingUser.getFunctionAssignments())) {
+				return true;
+			}
+		}
+
+		// Check if there are removed assignments
+		for (UserOUFunction existingAssignment : existingUser.getFunctionAssignments()) {
+			if (!containsFunctionAssignment(existingAssignment, newUser.getFunctionAssignments())) {
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	private static boolean containsFunctionAssignment(UserOUFunction assignment, List<UserOUFunction> assignments) {
+		for (UserOUFunction a : assignments) {
+			if (a.getOrgUnit().getUuid().equals(assignment.getOrgUnit().getUuid()) &&
+				a.getFunction().getUuid().equals(assignment.getFunction().getUuid())) {
+				return true;
+			}
+		}
+		return false;
+	}
+
 	//// event code ////
-	
+
 	private void setOUParent(OrgUnit ou, OrgUnit parent) {
 		OrgUnitWithNewAndOldParentDTO dto = new OrgUnitWithNewAndOldParentDTO();
 		dto.setOrgUnit(ou);
 		dto.setOldParent(ou.getParent());
 		dto.setNewParent(parent);
-		
+
 		events.get().getOrgUnitsWithNewParent().add(dto);
-		
+
 		ou.setParent(parent);
 	}
 
@@ -1304,7 +1435,7 @@ public class OrganisationImporter {
 		handleParentChange(parentChangedOrgUnits);
 
 		handleNewTitles(orgUnitsWithNewTitles);
-		
+
 		handleUserPositionChange(usersWhoMovedPositions);
 
 		handleSystemOwnerOrAttestationResponsible(ownersWhoMovedPositions);
@@ -1315,7 +1446,7 @@ public class OrganisationImporter {
 	private void handleUserDeleteEvents(Set<UserDeletedEvent> deletedUsers) {
 		if (deletedUsers.size() > 0) {
 			EmailTemplate template = emailTemplateService.findByTemplateType(EmailTemplateType.USER_WITH_MANUAL_ITSYSTEM_DELETED);
-			
+
 			if (template.isEnabled()) {
 				for (UserDeletedEvent deletedEvent : deletedUsers) {
 					String emailAddressesString = deletedEvent.getEmail();
@@ -1326,11 +1457,11 @@ public class OrganisationImporter {
 					String[] emailAddresses = emailAddressesString.split(";");
 
 					User user = deletedEvent.getUser();
-					
+
 					String title = template.getTitle();
 					title = title.replace(EmailTemplatePlaceholder.ITSYSTEM_PLACEHOLDER.getPlaceholder(), deletedEvent.getItSystemName());
 					title = title.replace(EmailTemplatePlaceholder.USER_PLACEHOLDER.getPlaceholder(), user.getName() + " (" + user.getUserId() + ")");
-					
+
 					String message = template.getMessage();
 					message = message.replace(EmailTemplatePlaceholder.ITSYSTEM_PLACEHOLDER.getPlaceholder(), deletedEvent.getItSystemName());
 					message = message.replace(EmailTemplatePlaceholder.USER_PLACEHOLDER.getPlaceholder(), user.getName() + " (" + user.getUserId() + ")");
@@ -1364,7 +1495,7 @@ public class OrganisationImporter {
 				for (MovedPostion oldPosition : event.getOldPositions()) {
 					message += oldPosition.getPositionName() + " i " + oldPosition.getOrgUnit().getName() + "\n";
 				}
-				
+
 				Notification moveNotification = new Notification();
 				moveNotification.setActive(true);
 				moveNotification.setCreated(new Date());
@@ -1377,7 +1508,7 @@ public class OrganisationImporter {
 				notificationService.save(moveNotification);
 			}
 		}
-		
+
 		EmailTemplate template = emailTemplateService.findByTemplateType(EmailTemplateType.USER_WITH_DIRECT_ROLES_CHANGED_ORGUNIT);
 		if (template.isEnabled()) {
 			for (UserMovedPositions event : usersWhoMovedPositions) {
@@ -1391,12 +1522,12 @@ public class OrganisationImporter {
 				}
 
 				List<User> managers = event.getNewPositions().stream().map(u -> u.getOrgUnit().getManager()).filter(Objects::nonNull).distinct().toList();
-				
+
 				String newPositionsList = "";
 				for (MovedPostion newPosition : event.getNewPositions()) {
 					newPositionsList += newPosition.getPositionName() + " i " + newPosition.getOrgUnit().getName() + "\n";
 				}
-				
+
 				String oldPositionsList = "";
 				for (MovedPostion oldPosition : event.getOldPositions()) {
 					oldPositionsList += oldPosition.getPositionName() + " i " + oldPosition.getOrgUnit().getName() + "\n";
@@ -1406,7 +1537,7 @@ public class OrganisationImporter {
 					String title = template.getTitle();
 					title = title.replace(EmailTemplatePlaceholder.RECEIVER_PLACEHOLDER.getPlaceholder(), manager.getName());
 					title = title.replace(EmailTemplatePlaceholder.USER_PLACEHOLDER.getPlaceholder(), event.getUser().getName());
-					
+
 					String emailMessage = template.getMessage();
 					emailMessage = emailMessage.replace(EmailTemplatePlaceholder.RECEIVER_PLACEHOLDER.getPlaceholder(), manager.getName());
 					emailMessage = emailMessage.replace(EmailTemplatePlaceholder.USER_PLACEHOLDER.getPlaceholder(), event.getUser().getName());
@@ -1421,31 +1552,31 @@ public class OrganisationImporter {
 			log.info("Email template with type " + template.getTemplateType() + " is disabled. Email was not sent.");
 		}
 	}
-	
+
 	private void handleSystemOwnerOrAttestationResponsible(Set<UserMovedPositions> usersWhoMovedPositions) {
 		if (settingsService.isNotificationTypeEnabled(NotificationType.SYSTEM_OWNER_OR_RESPONSIBLE_MOVED_POSITIONS)) {
 			for (UserMovedPositions event : usersWhoMovedPositions) {
 				String oneOrMoreNew = event.getNewPositions().size() == 1 ? "Ny stilling:" : "Nye stillinger:";
 				String oneOrMoreOld = event.getOldPositions().size() == 1 ? "Fratrådt stilling:" : "Fratrådte stillinger:";
-				
+
 				List<ItSystem> itSystems = itSystemService.findByAttestationResponsibleOrSystemOwner(event.getUser());
 				List<ItSystem> responsibleFor = new ArrayList<>();
 				List<ItSystem> ownerOf = new ArrayList<>();
 				responsibleFor.addAll(itSystems.stream().filter(i -> i.getAttestationResponsible() != null).toList());
 				ownerOf.addAll(itSystems.stream().filter(i -> i.getSystemOwner() != null).toList());
-				
+
 				String whoText = "Systemansvarlig eller Systemejer ";
 				if (!responsibleFor.isEmpty() && !ownerOf.isEmpty()) {
 					whoText = "Systemansvarlig for "
-									+ responsibleFor.stream().map(i -> i.getName()).collect(Collectors.collectingAndThen(Collectors.toList(), joiningLastDelimiter(", ", " og ")))
-									+ " og Systemejer for " + ownerOf.stream().map(i -> i.getName()).collect(Collectors.collectingAndThen(Collectors.toList(), joiningLastDelimiter(", ", " og "))) + ".";
+						+ responsibleFor.stream().map(i -> i.getName()).collect(Collectors.collectingAndThen(Collectors.toList(), joiningLastDelimiter(", ", " og ")))
+						+ " og Systemejer for " + ownerOf.stream().map(i -> i.getName()).collect(Collectors.collectingAndThen(Collectors.toList(), joiningLastDelimiter(", ", " og "))) + ".";
 				} else if (!responsibleFor.isEmpty()) {
 					whoText = "Systemansvarlig for "
-									+ responsibleFor.stream().map(i -> i.getName()).collect(Collectors.collectingAndThen(Collectors.toList(), joiningLastDelimiter(", ", " og "))) + ".";
+						+ responsibleFor.stream().map(i -> i.getName()).collect(Collectors.collectingAndThen(Collectors.toList(), joiningLastDelimiter(", ", " og "))) + ".";
 				} else if (!ownerOf.isEmpty()) {
 					whoText = "Systemejer for " + ownerOf.stream().map(i -> i.getName()).collect(Collectors.collectingAndThen(Collectors.toList(), joiningLastDelimiter(", ", " og "))) + ".";
 				}
-				
+
 				String message = whoText + "\n" + event.getUser().getName() + " (" + event.getUser().getUserId() + ") har skiftet afdeling.\n" + oneOrMoreNew + "\n";
 				for (MovedPostion newPosition : event.getNewPositions()) {
 					message += newPosition.getPositionName() + " i " + newPosition.getOrgUnit().getName() + "\n";
@@ -1454,7 +1585,7 @@ public class OrganisationImporter {
 				for (MovedPostion oldPosition : event.getOldPositions()) {
 					message += oldPosition.getPositionName() + " i " + oldPosition.getOrgUnit().getName() + "\n";
 				}
-				
+
 				Notification moveNotification = new Notification();
 				moveNotification.setActive(true);
 				moveNotification.setCreated(new Date());
@@ -1483,16 +1614,16 @@ public class OrganisationImporter {
 			for (OrgUnitWithTitlesDTO dto : orgUnitsWithNewTitles) {
 				long userRolesWithTitlesCount = dto.getOrgUnit().getUserRoleAssignments().stream().filter(u -> !u.getTitles().isEmpty()).count();
 				long roleGroupsWithTitlesCount = dto.getOrgUnit().getRoleGroupAssignments().stream().filter(r -> !r.getTitles().isEmpty()).count();
-				
+
 				if (userRolesWithTitlesCount == 0 && roleGroupsWithTitlesCount == 0) {
 					continue;
 				}
-				
+
 				String message = "Enheden '" + dto.getOrgUnit().getName() + "' har en eller flere roller tildelt på stillinger og har fået en eller flere nye stillinger:\n";
 				for (Title title : dto.getNewTitles()) {
 					message += title.getName() + "\n";
 				}
-				
+
 				Notification moveNotification = new Notification();
 				moveNotification.setActive(true);
 				moveNotification.setCreated(new Date());
@@ -1513,50 +1644,50 @@ public class OrganisationImporter {
 				UserRoleAndRoleGroupListWrapper newWrapper = new UserRoleAndRoleGroupListWrapper();
 				newWrapper.setRoleGroups(new ArrayList<RoleGroup>());
 				newWrapper.setUserRoles(new ArrayList<UserRole>());
-	
+
 				if (dto.getNewParent() != null) {
 					newWrapper = inheritedRoles(dto.getNewParent(), newWrapper);
 				}
-				
+
 				UserRoleAndRoleGroupListWrapper oldWrapper = new UserRoleAndRoleGroupListWrapper();
 				oldWrapper.setRoleGroups(new ArrayList<RoleGroup>());
 				oldWrapper.setUserRoles(new ArrayList<UserRole>());
-	
+
 				if (dto.getOldParent() != null) {
 					oldWrapper = inheritedRoles(dto.getOldParent(), oldWrapper);
 				}
-				
+
 				if (!newWrapper.getRoleGroups().isEmpty() || !newWrapper.getUserRoles().isEmpty() || !oldWrapper.getRoleGroups().isEmpty() || !oldWrapper.getUserRoles().isEmpty()) {
 					List<Long> roleGroupsBefore = oldWrapper.getRoleGroups().stream().map(r -> r.getId()).collect(Collectors.toList());
 					List<Long> userRolesBefore = oldWrapper.getUserRoles().stream().map(u -> u.getId()).collect(Collectors.toList());
 					List<Long> roleGroupsAfter = newWrapper.getRoleGroups().stream().map(r -> r.getId()).collect(Collectors.toList());
 					List<Long> userRolesAfter = newWrapper.getUserRoles().stream().map(u -> u.getId()).collect(Collectors.toList());
-					
+
 					List<RoleGroup> filteredNewRoleGroups = newWrapper.getRoleGroups().stream().filter(r -> !roleGroupsBefore.contains(r.getId())).collect(Collectors.toList());
 					List<UserRole> filteredNewUserRoles = newWrapper.getUserRoles().stream().filter(u -> !userRolesBefore.contains(u.getId())).collect(Collectors.toList());
 					List<RoleGroup> filteredOldRoleGroups = oldWrapper.getRoleGroups().stream().filter(r -> !roleGroupsAfter.contains(r.getId())).collect(Collectors.toList());
 					List<UserRole> filteredOldNewUserRoles = oldWrapper.getUserRoles().stream().filter(u -> !userRolesAfter.contains(u.getId())).collect(Collectors.toList());
-					
+
 					String message = "Enheden '" + dto.getOrgUnit().getName() + "' har skiftet overliggende enhed og som konsekvens deraf har dens rettigheder ændret sig.\n";
-					
+
 					if (!filteredNewRoleGroups.isEmpty() || !filteredNewUserRoles.isEmpty()) {
 						message += "Den har nedarvet følgende rettigheder: \n";
-						
+
 						for (RoleGroup roleGroup : filteredNewRoleGroups) {
 							message += "Rollebuketten " +  roleGroup.getName() + "\n";
 						}
-						
+
 						for (UserRole userRole : filteredNewUserRoles) {
 							message += "Jobfunktionsrollen " +  userRole.getName() + " fra it-systemet " + userRole.getItSystem().getName() + "\n";
 						}
 					}
-					
+
 					if (!filteredOldRoleGroups.isEmpty() || !filteredOldNewUserRoles.isEmpty()) {
 						message += "\nDen har mistet følgende nedarvede rettigheder: \n";
 						for (RoleGroup roleGroup : filteredOldRoleGroups) {
 							message += "Rollebuketten " +  roleGroup.getName() + "\n";
 						}
-						
+
 						for (UserRole userRole : filteredOldNewUserRoles) {
 							message += "Jobfunktionsrollen " +  userRole.getName() + " fra it-systemet " + userRole.getItSystem().getName() + "\n";
 						}
@@ -1570,12 +1701,12 @@ public class OrganisationImporter {
 					moveNotification.setAffectedEntityName(dto.getOrgUnit().getName());
 					moveNotification.setAffectedEntityType(NotificationEntityType.OUS);
 					moveNotification.setAffectedEntityUuid(dto.getOrgUnit().getUuid());
-	
+
 					notificationService.save(moveNotification);
 				}
 			}
 		}
-			
+
 		//Send email
 		EmailTemplate template = emailTemplateService.findByTemplateType(EmailTemplateType.ORGUNIT_NEW_PARENT);
 		if (template.isEnabled()) {
@@ -1585,7 +1716,7 @@ public class OrganisationImporter {
 				String title = template.getTitle();
 				title = title.replace(EmailTemplatePlaceholder.RECEIVER_PLACEHOLDER.getPlaceholder(), manager.getName());
 				title = title.replace(EmailTemplatePlaceholder.ORGUNIT_PLACEHOLDER.getPlaceholder(), dto.getNewParent().getName());
-				
+
 				String emailMessage = template.getMessage();
 				emailMessage = emailMessage.replace(EmailTemplatePlaceholder.RECEIVER_PLACEHOLDER.getPlaceholder(), manager.getName());
 				emailMessage = emailMessage.replace(EmailTemplatePlaceholder.ORGUNIT_PLACEHOLDER.getPlaceholder(), dto.getNewParent().getName());
@@ -1608,7 +1739,7 @@ public class OrganisationImporter {
 				notification.setAffectedEntityName(orgUnit.getName());
 				notification.setAffectedEntityType(NotificationEntityType.OUS);
 				notification.setAffectedEntityUuid(orgUnit.getUuid());
-	
+
 				notificationService.save(notification);
 			}
 
@@ -1620,18 +1751,18 @@ public class OrganisationImporter {
 				if (orgUnit.getParent() != null) {
 					wrapper = inheritedRoles(orgUnit.getParent(), wrapper);
 				}
-				
+
 				if (!wrapper.getRoleGroups().isEmpty() || !wrapper.getUserRoles().isEmpty()) {
 					String message = "Enheden '" + orgUnit.getName() + "' har skiftet overliggende enhed og har som konsekvens deraf nedarvet følgende rettigheder: \n";
 
 					for (RoleGroup roleGroup : wrapper.getRoleGroups()) {
 						message += "Rollebuketten " +  roleGroup.getName() + "\n";
 					}
-					
+
 					for (UserRole userRole : wrapper.getUserRoles()) {
 						message += "Jobfunktionsrollen " +  userRole.getName() + " fra it-systemet" + userRole.getItSystem().getName() + "\n";
 					}
-					
+
 					Notification moveNotification = new Notification();
 					moveNotification.setActive(true);
 					moveNotification.setCreated(new Date());
@@ -1640,19 +1771,19 @@ public class OrganisationImporter {
 					moveNotification.setAffectedEntityName(orgUnit.getName());
 					moveNotification.setAffectedEntityType(NotificationEntityType.OUS);
 					moveNotification.setAffectedEntityUuid(orgUnit.getUuid());
-	
+
 					notificationService.save(moveNotification);
 
 					//Send email
 					EmailTemplate template = emailTemplateService.findByTemplateType(EmailTemplateType.ORGUNIT_NEW_PARENT);
-					
+
 					User manager = orgUnit.getManager();
-					
+
 					if (template.isEnabled()) {
 						String title = template.getTitle();
 						title = title.replace(EmailTemplatePlaceholder.RECEIVER_PLACEHOLDER.getPlaceholder(), manager.getName());
 						title = title.replace(EmailTemplatePlaceholder.ORGUNIT_PLACEHOLDER.getPlaceholder(), orgUnit.getName());
-						
+
 						String emailMessage = template.getMessage();
 						emailMessage = emailMessage.replace(EmailTemplatePlaceholder.RECEIVER_PLACEHOLDER.getPlaceholder(), manager.getName());
 						emailMessage = emailMessage.replace(EmailTemplatePlaceholder.ORGUNIT_PLACEHOLDER.getPlaceholder(), orgUnit.getName());
@@ -1665,14 +1796,14 @@ public class OrganisationImporter {
 			}
 		}
 	}
-	
+
 	private UserRoleAndRoleGroupListWrapper inheritedRoles(OrgUnit parent, UserRoleAndRoleGroupListWrapper wrapper) {
 		List<UserRole> userRoles = parent.getUserRoleAssignments().stream().filter(u -> u.isInherit()).map(u -> u.getUserRole()).collect(Collectors.toList());
 		wrapper.getUserRoles().addAll(userRoles);
 
 		List<RoleGroup> roleGroups = parent.getRoleGroupAssignments().stream().filter(r -> r.isInherit()).map(r -> r.getRoleGroup()).collect(Collectors.toList());
 		wrapper.getRoleGroups().addAll(roleGroups);
-		
+
 		if (parent.getParent() != null) {
 			return inheritedRoles(parent.getParent(), wrapper);
 		}
@@ -1680,9 +1811,9 @@ public class OrganisationImporter {
 			return wrapper;
 		}
 	}
-	
+
 	//// validation logic ////
-	
+
 	private ValidationResult validateOrganisation(OrganisationDTO organisation) {
 		ValidationResult userValidationResult = validateUsers(organisation.getUsers(), organisation.getOrgUnits());
 		if (userValidationResult != null) {
@@ -1733,18 +1864,18 @@ public class OrganisationImporter {
 								break;
 							case LEVEL_5:
 								if (!parent.getLevel().equals(OrgUnitLevel.LEVEL_1) &&
-										!parent.getLevel().equals(OrgUnitLevel.LEVEL_2) &&
-										!parent.getLevel().equals(OrgUnitLevel.LEVEL_3) &&
-										!parent.getLevel().equals(OrgUnitLevel.LEVEL_4)) {
+									!parent.getLevel().equals(OrgUnitLevel.LEVEL_2) &&
+									!parent.getLevel().equals(OrgUnitLevel.LEVEL_3) &&
+									!parent.getLevel().equals(OrgUnitLevel.LEVEL_4)) {
 									return new ValidationResult(false, "Orgunit has higher or same level as parent: " + orgUnit.getUuid());
 								}
 								break;
 							case LEVEL_6:
 								if (!parent.getLevel().equals(OrgUnitLevel.LEVEL_1) &&
-										!parent.getLevel().equals(OrgUnitLevel.LEVEL_2) &&
-										!parent.getLevel().equals(OrgUnitLevel.LEVEL_3) &&
-										!parent.getLevel().equals(OrgUnitLevel.LEVEL_4) &&
-										!parent.getLevel().equals(OrgUnitLevel.LEVEL_5)) {
+									!parent.getLevel().equals(OrgUnitLevel.LEVEL_2) &&
+									!parent.getLevel().equals(OrgUnitLevel.LEVEL_3) &&
+									!parent.getLevel().equals(OrgUnitLevel.LEVEL_4) &&
+									!parent.getLevel().equals(OrgUnitLevel.LEVEL_5)) {
 									return new ValidationResult(false, "Orgunit has higher or same level as parent: " + orgUnit.getUuid());
 								}
 								break;
@@ -1758,7 +1889,7 @@ public class OrganisationImporter {
 				}
 			}
 		}
-		
+
 		long rootCount = 0;
 		for (OrgUnitDTO orgUnit : organisation.getOrgUnits()) {
 			if (orgUnit.getParentOrgUnitUuid() == null) {
@@ -1768,7 +1899,7 @@ public class OrganisationImporter {
 			if (orgUnit.getUuid() == null) {
 				return new ValidationResult(false, "OrgUnit with null UUID not allowed");
 			}
-			
+
 			if (orgUnit.getName() == null || orgUnit.getName().length() == 0) {
 				return new ValidationResult(false, "OrgUnit with null/empty name not allowed: " + orgUnit.getUuid());
 			}
@@ -1780,7 +1911,7 @@ public class OrganisationImporter {
 				return new ValidationResult(false, "OrgUnits must have a valid UUID: " + orgUnit.getUuid());
 			}
 		}
-		
+
 		if (rootCount != 1) {
 			return new ValidationResult(false, "There must be exactly 1 root OrgUnit, but " + rootCount + " was supplied");
 		}
@@ -1807,7 +1938,7 @@ public class OrganisationImporter {
 					if (!StringUtils.hasLength(position.getName())) {
 						return new ValidationResult(false, "Users with null/empty titles are not allowed: " + user.getUserId());
 					}
-					
+
 					if (!StringUtils.hasLength(position.getOrgUnitUuid())) {
 						return new ValidationResult(false, "Users with a position with null/empty orgUnit is not allowed: " + user.getUserId());
 					}
@@ -1821,14 +1952,14 @@ public class OrganisationImporter {
 								break;
 							}
 						}
-						
+
 						if (!found) {
 							return new ValidationResult(false, "Users with a position in non-existent OrgUnits are not allowed: " + user.getUserId() + " / " + position.getOrgUnitUuid());
 						}
 					}
 				}
 			}
-			
+
 			try {
 				UUID.fromString(user.getExtUuid());
 			}
@@ -1844,7 +1975,7 @@ public class OrganisationImporter {
 	class ValidationResult {
 		boolean valid;
 		String message;
-		
+
 		ValidationResult(boolean valid, String message) {
 			this.valid = valid;
 			this.message = message;
@@ -1856,10 +1987,10 @@ public class OrganisationImporter {
 			log.debug("Automatic niveau mapping is disabled");
 			return;
 		}
-        // We do not override previously set niveau values
-        if (orgUnit.getLevel() != null) {
-            return;
-        }
+		// We do not override previously set niveau values
+		if (orgUnit.getLevel() != null) {
+			return;
+		}
 
 		// Calculate the depth of this orgUnit
 		int depth = calculateOrgUnitDepth(orgUnit);
@@ -1879,7 +2010,7 @@ public class OrganisationImporter {
 			// Stop and log error if we exceed 15 levels
 			if (depth > 15) {
 				log.error("OrgUnit depth calculation exceeded maximum of 15 levels at OrgUnit: {} ({}).",
-						current.getName(), current.getUuid());
+					current.getName(), current.getUuid());
 				return 15;
 			}
 			current = current.getParent();

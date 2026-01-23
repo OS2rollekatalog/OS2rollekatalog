@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="da" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/header :: header (customTitle='Der er opstået en fejl!')}"></head>
+<body class="layout-fixed">
+<div class="wrapper">
+    <header th:replace="~{fragments/navbar :: navbar-header}"></header>
+    <aside th:replace="~{fragments/navbar :: navbar-aside (page = 'index')}"></aside>
+
+    <section>
+        <div class="content-wrapper">
+            <h3>
+                <span th:text="${friendlyTitle}"></span>
+            </h3>
+
+            <div class="panel panel-default">
+                <div class="panel-heading"></div>
+                <div class="panel-body">
+                    <h3 th:text="${friendlyMessage}" class="mb-3"></h3>
+
+                    <div id="technicalDetailContainer" class="well well-lg">
+                        <p id="instructionText">Klik her for tekniske detaljer</p>
+
+                        <div id="technicalDetailBox" class="hidden">
+                            <h4>
+                                <span th:text="${status} + ' ' + ${error}"></span>
+                            </h4>
+                            <div>
+                                <p><strong>Timestamp:</strong> <span th:text="${timestamp}"></span></p>
+                                <p><strong>Message:</strong> <span th:text="${message}"></span></p>
+                                <p><strong>Path:</strong> <span th:text="${path}"></span></p>
+                                <p><strong>Details:</strong> <span th:text="${details}"></span></p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+</div>
+
+<nav th:replace="~{fragments/footer :: footer}"></nav>
+
+<script type="module" src="/js/error/default.js"></script>
+</body>
+</html>

@@ -4,12 +4,14 @@ import dk.digitalidentity.rc.config.SessionConstants;
 import dk.digitalidentity.rc.dao.model.Notification;
 import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.enums.NotificationType;
-import dk.digitalidentity.rc.security.RequireAssignerRole;
 import dk.digitalidentity.rc.security.SecurityUtil;
+import dk.digitalidentity.rc.security.permission.Permission;
+import dk.digitalidentity.rc.security.permission.Section;
+import dk.digitalidentity.rc.security.permission.RequireControllerPermission;
 import dk.digitalidentity.rc.service.NotificationService;
 import dk.digitalidentity.rc.service.UserService;
 import jakarta.servlet.http.HttpServletRequest;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.context.MessageSource;
 import org.springframework.context.support.ResourceBundleMessageSource;
 import org.springframework.stereotype.Controller;
@@ -22,21 +24,14 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
+@RequiredArgsConstructor
 @Controller
-@RequireAssignerRole
+@RequireControllerPermission(section = Section.ADVISE, permission = Permission.READ)
 public class NotificationController {
-	
-	@Autowired
-	private NotificationService notificationService;
-
-	@Autowired
-	private UserService userService;
-	
-	@Autowired
-	private MessageSource messageSource;
-
-	@Autowired
-	private ResourceBundleMessageSource resourceBundle;
+	private final NotificationService notificationService;
+	private final UserService userService;
+	private final MessageSource messageSource;
+	private final ResourceBundleMessageSource resourceBundle;
 	
 	@GetMapping(path = "/ui/notifications/list")
 	public String listNotifications(Model model, HttpServletRequest request, Locale locale) {

@@ -33,9 +33,6 @@ public interface AttestationDao extends CrudRepository<Attestation, Long> {
     Attestation findFirstByAttestationTypeAndResponsibleOuUuidAndVerifiedAtIsNotNullOrderByDeadlineDesc(final Attestation.AttestationType type, final String ouUuid);
 
     Optional<Attestation> findByAttestationTypeAndItSystemIdAndDeadlineGreaterThanEqual(final Attestation.AttestationType type, final Long itSystemId, final LocalDate onOrAfter);
-
-    List<Attestation> findByAttestationTypeAndResponsibleUserUuidAndVerifiedAtIsNull(final Attestation.AttestationType type, final String responsibleUserUuid);
-
     Optional<Attestation> findFirstByAttestationTypeAndItSystemIdOrderByDeadlineDesc(final Attestation.AttestationType type, final Long itSystemId);
 
     @Query(value = "select att from Attestation att " +
@@ -73,6 +70,15 @@ public interface AttestationDao extends CrudRepository<Attestation, Long> {
     List<Attestation> findOrganisationRoleAttestationsForOU(@Param("ouUuid") final String ouUuid,
                                                             @Param("from") final ZonedDateTime from,
                                                             @Param("to") final ZonedDateTime to);
+
+	@Query(nativeQuery = true, value = "SELECT a.* FROM attestation_attestation AS a " +
+		"WHERE a.attestation_type = 'IT_SYSTEM_ROLES_ATTESTATION' " +
+		"AND a.it_system_id = :itSystemId " +
+		"AND a.created_at >= :from " +
+		"AND a.created_at <= :to")
+	List<Attestation> findItSystemRoleAttestations(@Param("itSystemId") final Long itSystemId,
+		@Param("from") final LocalDate from,
+		@Param("to") final LocalDate to);
 
     Attestation findByUuid(final String uuid);
 

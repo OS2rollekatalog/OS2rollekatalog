@@ -1,1 +1,0 @@
-ALTER TABLE user_roles ADD COLUMN contact_email NVARCHAR(255) DEFAULT NULL;

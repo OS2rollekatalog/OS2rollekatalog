@@ -1,11 +1,14 @@
 package dk.digitalidentity.rc.controller.rest.model;
 
+import java.util.List;
+import java.util.Set;
+
 import dk.digitalidentity.rc.controller.mvc.datatables.dao.model.UserRoleView;
 import dk.digitalidentity.rc.dao.model.enums.ItSystemType;
+import dk.digitalidentity.rc.rolerequest.model.enums.ApprovableBy;
+import dk.digitalidentity.rc.rolerequest.model.enums.RequestableBy;
 import lombok.Getter;
 import lombok.Setter;
-
-import java.util.List;
 
 @Getter
 @Setter
@@ -21,7 +24,10 @@ public class UserRoleViewDTO {
 	private boolean syncFailed;
 	private String delegatedFromCvr;
 	private List<String> adGroupNames;
+	private ItemPermissionDTO allowedActions = new ItemPermissionDTO();
 	private boolean readOnly;
+	private Set<RequestableBy> effectiveRequesterPermission;
+	private Set<ApprovableBy> effectiveApproverPermission;
 
 	// Constructor til at mappe fra UserRoleView
 	public UserRoleViewDTO(UserRoleView view) {
@@ -31,10 +37,11 @@ public class UserRoleViewDTO {
 		this.itSystemId = view.getItSystemId();
 		this.itSystemName = view.getItSystemName();
 		this.itSystemType = view.getItSystemType();
-		this.canRequest = view.isCanRequest();
 		this.pendingSync = view.isPendingSync();
 		this.syncFailed = view.isSyncFailed();
 		this.delegatedFromCvr = view.getDelegatedFromCvr();
 		this.readOnly = view.isReadOnly();
+		this.effectiveApproverPermission = view.getEffectiveApproverPermission();
+		this.effectiveRequesterPermission = view.getEffectiveRequesterPermission();
 	}
 }

@@ -16,4 +16,7 @@ public class UserResponseWithRolesDTO extends UserResponseDTO {
 	private List<String> dataRoles;
 	private List<String> functionRoles;
 	private Map<String, String> roleMap;
+	
+	// information about user status, in case the caller needs this to make decisions
+	private boolean disabled;
 }

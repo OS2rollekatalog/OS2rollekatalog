@@ -1,1 +1,0 @@
-ALTER TABLE it_systems ADD api_managed_role_assignments BIT NOT NULL DEFAULT 0;

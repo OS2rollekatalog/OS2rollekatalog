@@ -1,4 +1,4 @@
--- Stored procedure for populating history_ou_role_assignments table
+-- Stored procedure for populating history_role_assignment_titles table
 -- should only be called once per day like this
 --
 -- CALL SP_InsertHistoryOURoleAssignmentsWithTitles();

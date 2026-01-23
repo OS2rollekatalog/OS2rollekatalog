@@ -5,10 +5,6 @@ import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
-import dk.digitalidentity.rc.controller.api.model.ADGroupTypeAM;
-import dk.digitalidentity.rc.controller.api.model.SystemRoleAM;
-import dk.digitalidentity.rc.controller.api.model.UserAM2;
-import dk.digitalidentity.rc.dao.model.enums.ADGroupType;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -25,6 +21,9 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
 import dk.digitalidentity.rc.controller.api.mapper.RoleMapper;
+import dk.digitalidentity.rc.controller.api.model.ADGroupTypeAM;
+import dk.digitalidentity.rc.controller.api.model.SystemRoleAM;
+import dk.digitalidentity.rc.controller.api.model.UserAM2;
 import dk.digitalidentity.rc.controller.api.model.UserRoleAM;
 import dk.digitalidentity.rc.controller.api.model.UserUserRoleAssignmentAM;
 import dk.digitalidentity.rc.dao.model.Domain;
@@ -32,6 +31,7 @@ import dk.digitalidentity.rc.dao.model.ItSystem;
 import dk.digitalidentity.rc.dao.model.SystemRole;
 import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserRole;
+import dk.digitalidentity.rc.dao.model.enums.ADGroupType;
 import dk.digitalidentity.rc.dao.model.enums.ItSystemType;
 import dk.digitalidentity.rc.security.RequireApiItSystemRole;
 import dk.digitalidentity.rc.service.DomainService;
@@ -40,7 +40,6 @@ import dk.digitalidentity.rc.service.PendingADUpdateService;
 import dk.digitalidentity.rc.service.SystemRoleService;
 import dk.digitalidentity.rc.service.UserRoleService;
 import dk.digitalidentity.rc.service.UserService;
-import dk.digitalidentity.rc.service.model.UserRoleAssignmentWithInfo;
 import dk.digitalidentity.rc.service.model.UserWithRole;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -63,10 +62,10 @@ public class ItSystemApiV2 {
 
 	@Autowired
 	private UserRoleService userRoleService;
-	
+
 	@Autowired
 	private SystemRoleService systemRoleService;
-	
+
 	@Autowired
 	private UserService userService;
 
@@ -156,7 +155,14 @@ public class ItSystemApiV2 {
 		newItSystem.setName(itSystemBody.name);
 		newItSystem.setIdentifier(itSystemBody.identifier);
 		newItSystem.setEmail(itSystemBody.email);
-		
+		newItSystem.setCanEditThroughApi(itSystemBody.canEditThroughApi);
+		newItSystem.setHidden(itSystemBody.hidden);
+		newItSystem.setReadonly(itSystemBody.readonly);
+		newItSystem.setAccessBlocked(itSystemBody.accesBlocked);
+		newItSystem.setApiManagedRoleAssignments(itSystemBody.apiManagedRoleAssignments);
+		newItSystem.setDeleted(itSystemBody.deleted);
+		newItSystem.setPaused(itSystemBody.paused);
+
 		// can be null
 		userService.getOptionalByUuid(itSystemBody.responsibleUserUuid).ifPresent(newItSystem::setAttestationResponsible);
 
@@ -175,9 +181,9 @@ public class ItSystemApiV2 {
 			default:
 				throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Unknown systemtype: " + itSystemBody.systemtype);
 		}
-		
+
 		ItSystem savedItSystem = itSystemService.save(newItSystem);
-		
+
 		ItSystemRecord result = new ItSystemRecord(savedItSystem.getId(), savedItSystem.getName(), savedItSystem.getIdentifier(), savedItSystem.getSystemType(),
 				savedItSystem.isPaused(), savedItSystem.isHidden(), savedItSystem.isReadonly(), savedItSystem.isCanEditThroughApi(),
 				savedItSystem.isDeleted(), savedItSystem.isAccessBlocked(), savedItSystem.isApiManagedRoleAssignments(),
@@ -331,7 +337,7 @@ public class ItSystemApiV2 {
 
 		// using it-systems user roles to get all users with ANY role.
 		List<User> users = getAllUsersInItSystemWithARole(itSystem);
-		
+
 		// map to record
 		for (User user : users) {
 			result.add(UserAM2.builder()
@@ -344,7 +350,7 @@ public class ItSystemApiV2 {
 
 		return result;
 	}
-	
+
 	@ApiResponses(value = {
 			@ApiResponse(responseCode = "200", description = "All assignments made on the specified it-system"),
 			@ApiResponse(responseCode = "404", description = "it-system not found.") })
@@ -393,7 +399,7 @@ public class ItSystemApiV2 {
 				}
 			}
 		}
-		
+
 		return users;
 	}
 }

@@ -6,11 +6,12 @@
   <header th:replace="~{fragments/navbar :: navbar-header(subpage = 'reports')}"></header>
   <aside th:replace="~{fragments/navbar :: navbar-aside (page = 'substitute.list', subpage = 'reports')}"></aside>
 
-  <section>
+  <section th:with="permission=${T(dk.digitalidentity.rc.security.permission.Permission)},
+section=${T(dk.digitalidentity.rc.security.permission.Section)}">
     <div class="content-wrapper">
       <h3>
         <span th:text="#{html.navbar.management.substitute}"></span>
-        <button id="createManagerSubstituteButton" class="btn btn-primary btn-lg" style="float: right;" th:text="#{html.page.button.create}"></button>
+        <button id="createManagerSubstituteButton" class="btn btn-primary btn-lg" th:if="${@permissionCheck.isAllowed(section.MANAGER, permission.UPDATE)}" style="float: right;" th:text="#{html.page.button.create}"></button>
       </h3>
       <div class="panel panel-default">
         <div class="panel-heading"></div>

@@ -1,6 +1,7 @@
 package dk.digitalidentity.rc.controller.api.model;
 
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -18,7 +19,8 @@ import java.util.Date;
 @NoArgsConstructor
 @Schema(name = "Title")
 public class TitleAM {
-    @Schema(description = "The titles UUID")
+    @Schema(description = "The titles UUID", requiredMode = Schema.RequiredMode.REQUIRED)
+	@NotNull
     private String uuid;
     @Schema(description = "Title name")
     private String name;

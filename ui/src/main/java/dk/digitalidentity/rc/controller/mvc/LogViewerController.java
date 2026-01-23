@@ -4,7 +4,10 @@ import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
 
-import org.springframework.beans.factory.annotation.Autowired;
+import dk.digitalidentity.rc.security.permission.Permission;
+import dk.digitalidentity.rc.security.permission.Section;
+import dk.digitalidentity.rc.security.permission.RequireControllerPermission;
+import lombok.RequiredArgsConstructor;
 import org.springframework.context.MessageSource;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -12,19 +15,15 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.servlet.ModelAndView;
 
 import dk.digitalidentity.rc.controller.mvc.xlsview.AuditLogXlsxView;
-import dk.digitalidentity.rc.security.RequireAdminOrAuditlog;
 import dk.digitalidentity.rc.service.AuditLogService;
 import jakarta.servlet.http.HttpServletResponse;
 
-@RequireAdminOrAuditlog
+@RequiredArgsConstructor
+@RequireControllerPermission(section = Section.LOG, permission = Permission.READ)
 @Controller
 public class LogViewerController {
-	
-	@Autowired
-	private AuditLogService auditLogService;
-
-	@Autowired
-	private MessageSource messageSource;
+	private final AuditLogService auditLogService;
+	private final MessageSource messageSource;
 
 	@GetMapping(value = "/ui/logs/audit")
 	public String audit(Model model) {

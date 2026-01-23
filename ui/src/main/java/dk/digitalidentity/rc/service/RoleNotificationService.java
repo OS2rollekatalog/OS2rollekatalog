@@ -8,7 +8,6 @@ import java.util.Date;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import dk.digitalidentity.rc.dao.model.enums.ContainsTitles;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,12 +22,11 @@ import dk.digitalidentity.rc.dao.model.OrgUnit;
 import dk.digitalidentity.rc.dao.model.OrgUnitRoleGroupAssignment;
 import dk.digitalidentity.rc.dao.model.OrgUnitUserRoleAssignment;
 import dk.digitalidentity.rc.dao.model.Position;
-import dk.digitalidentity.rc.dao.model.PositionRoleGroupAssignment;
-import dk.digitalidentity.rc.dao.model.PositionUserRoleAssignment;
 import dk.digitalidentity.rc.dao.model.Title;
 import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserRoleGroupAssignment;
 import dk.digitalidentity.rc.dao.model.UserUserRoleAssignment;
+import dk.digitalidentity.rc.dao.model.enums.ContainsTitles;
 import dk.digitalidentity.rc.dao.model.enums.EmailTemplatePlaceholder;
 import dk.digitalidentity.rc.dao.model.enums.EmailTemplateType;
 import lombok.extern.slf4j.Slf4j;
@@ -128,25 +126,7 @@ public class RoleNotificationService {
 				if (user == null || user.isDeleted()) {
 					continue;
 				}
-				
-				for (PositionRoleGroupAssignment prga : position.getRoleGroupAssignments()) {
-					if (prga.getStopDate() != null) {
-						if (prga.getStopDate().isBefore(modifiedDate)) {
-							String prgaString = "Rollebuketten " + prga.getRoleGroup().getName() + " tildelt brugeren " + user.getName() + " udløber " + prga.getStopDate();
-							expiringStrings.add(prgaString);
-						}
-					}
-				}
-				
-				for (PositionUserRoleAssignment pura : position.getUserRoleAssignments()) {
-					if (pura.getStopDate() != null) {
-						if (pura.getStopDate().isBefore(modifiedDate)) {
-							String puraString = "Jobfunktionsrollen " + pura.getUserRole().getName() + " (" + pura.getUserRole().getItSystem().getName() + ") tildelt brugeren " + user.getName() + " udløber " + pura.getStopDate();
-							expiringStrings.add(puraString);
-						}
-					}
-				}
-				
+
 				// finding assignments with stopDate within 14 days for users associated with the position
 				for (UserUserRoleAssignment uura : user.getUserRoleAssignments()) {
 					if (uura.getStopDate() != null) {

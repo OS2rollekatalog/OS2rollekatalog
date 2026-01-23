@@ -1,5 +1,32 @@
 package dk.digitalidentity.rc.controller.rest;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.Date;
+import java.util.List;
+import java.util.Locale;
+import java.util.regex.Pattern;
+
+import dk.digitalidentity.rc.security.permission.Permission;
+import dk.digitalidentity.rc.security.permission.RequireControllerPermission;
+import dk.digitalidentity.rc.security.permission.RequirePermission;
+import dk.digitalidentity.rc.security.permission.Section;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.support.ResourceBundleMessageSource;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.ui.Model;
+import org.springframework.util.StringUtils;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.server.ResponseStatusException;
+
 import dk.digitalidentity.rc.config.Constants;
 import dk.digitalidentity.rc.controller.rest.model.OUFilterDTO;
 import dk.digitalidentity.rc.dao.model.ItSystem;
@@ -12,38 +39,20 @@ import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserRole;
 import dk.digitalidentity.rc.dao.model.enums.ADGroupType;
 import dk.digitalidentity.rc.dao.model.enums.ItSystemType;
+import dk.digitalidentity.rc.rolerequest.model.enums.ApprovableBy;
+import dk.digitalidentity.rc.rolerequest.model.enums.RequestableBy;
 import dk.digitalidentity.rc.security.RequireAdministratorRole;
 import dk.digitalidentity.rc.service.ItSystemService;
 import dk.digitalidentity.rc.service.KitosITSystemService;
 import dk.digitalidentity.rc.service.OrgUnitService;
 import dk.digitalidentity.rc.service.PendingADUpdateService;
-import dk.digitalidentity.rc.service.PositionService;
 import dk.digitalidentity.rc.service.SystemRoleService;
 import dk.digitalidentity.rc.service.UserRoleService;
 import dk.digitalidentity.rc.service.UserService;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.support.ResourceBundleMessageSource;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-import org.springframework.ui.Model;
-import org.springframework.util.StringUtils;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.ResponseBody;
-import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.server.ResponseStatusException;
-
-import java.util.Arrays;
-import java.util.Date;
-import java.util.List;
-import java.util.Locale;
-import java.util.regex.Pattern;
 
 @Slf4j
-@RequireAdministratorRole
+@RequireControllerPermission(section = Section.IT_SYSTEM, permission = Permission.READ)
 @RestController
 public class ItSystemRestController {
 
@@ -52,10 +61,10 @@ public class ItSystemRestController {
 
 	@Autowired
 	private SystemRoleService systemRoleService;
-	
+
 	@Autowired
 	private UserRoleService userRoleService;
-		
+
 	@Autowired
 	private PendingADUpdateService pendingADUpdateService;
 
@@ -66,9 +75,6 @@ public class ItSystemRestController {
 	private OrgUnitService orgUnitService;
 
 	@Autowired
-	private PositionService positionService;
-
-	@Autowired
 	private ResourceBundleMessageSource resourceBundle;
 
 	@Autowired
@@ -76,16 +82,17 @@ public class ItSystemRestController {
 
 	@PostMapping(value = { "/rest/systemrole/delete/{id}" })
 	@ResponseBody
+	@RequirePermission(section = Section.IT_SYSTEM, permission = Permission.UPDATE)
 	public HttpEntity<String> deleteSystemRole(Model model, @PathVariable("id") long id) {
 		SystemRole systemRole = systemRoleService.getById(id);
 
 		if (systemRole == null || (!systemRole.getItSystem().getSystemType().equals(ItSystemType.AD) &&
-								   !systemRole.getItSystem().getSystemType().equals(ItSystemType.SAML) &&
-								   !systemRole.getItSystem().getSystemType().equals(ItSystemType.MANUAL))) {
+				!systemRole.getItSystem().getSystemType().equals(ItSystemType.SAML) &&
+				!systemRole.getItSystem().getSystemType().equals(ItSystemType.MANUAL))) {
 
 			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
 		}
-		
+
 		List<UserRole> userRoles = userRoleService.getByItSystem(systemRole.getItSystem());
 		if (userRoles != null) {
 			for (UserRole userRole : userRoles) {
@@ -111,56 +118,56 @@ public class ItSystemRestController {
 
 			pendingADUpdateService.save(operation);
 		}
-		
+
 		return new ResponseEntity<>(HttpStatus.OK);
 	}
-	
-    @PostMapping(value = "/rest/itsystem/delete/{id}")
-    public ResponseEntity<String> deleteItSystemAsync(@PathVariable("id") long id) {
-        ItSystem itSystem = itSystemService.getById(id);
-        if (itSystem == null) {
-            return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
-        }
 
-        log.info("Deleting it-system " + itSystem.getName() + " with id " + itSystem.getId());
-
-        if (itSystem.getSystemType().equals(ItSystemType.KOMBIT) ||
-        	itSystem.getSystemType().equals(ItSystemType.KSPCICS) ||
-        	itSystem.getIdentifier().equals(Constants.ROLE_CATALOGUE_IDENTIFIER)) {
-        	return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
-        }
-        
-        // delete itsystem
-        itSystem.setDeleted(true);
-        itSystem.setDeletedTimestamp(new Date());
-        itSystemService.save(itSystem);
-
-        return new ResponseEntity<>(HttpStatus.OK);
-    }
-
-    @PostMapping(value = "/rest/itsystem/name")
-    public ResponseEntity<String> editItSystemName(long id, String name) {
-    	if (name == null || name.length() < 2) {
-            return new ResponseEntity<>(resourceBundle.getMessage("validation.error.itsystem.name.short", null, Locale.ENGLISH), HttpStatus.BAD_REQUEST);
-        }
-    
-    	ItSystem itSystem = itSystemService.getById(id);
-    	if (itSystem == null) {
+	@PostMapping(value = "/rest/itsystem/delete/{id}")
+	@RequirePermission(section = Section.IT_SYSTEM, permission = Permission.DELETE)
+	public ResponseEntity<String> deleteItSystemAsync(@PathVariable("id") long id) {
+		ItSystem itSystem = itSystemService.getById(id);
+		if (itSystem == null) {
 			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
 		}
-    	
-    	ItSystem existingSystem = itSystemService.getFirstByName(name);
-    	if (existingSystem != null && existingSystem.getId() != itSystem.getId()) {
-			return new ResponseEntity<>(resourceBundle.getMessage("validation.error.itsystem.name.exist", null, Locale.ENGLISH), HttpStatus.BAD_REQUEST);
-    	}
-    	
-    	itSystem.setName(name);
-    	itSystemService.save(itSystem);
 
-        return new ResponseEntity<>(HttpStatus.OK);
-    }
+		log.info("Deleting it-system " + itSystem.getName() + " with id " + itSystem.getId());
+
+		if (itSystem.getSystemType().equals(ItSystemType.KOMBIT) ||
+				itSystem.getSystemType().equals(ItSystemType.KSPCICS) ||
+				itSystem.getIdentifier().equals(Constants.ROLE_CATALOGUE_IDENTIFIER)) {
+			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+		}
+
+		itSystemService.softDelete(itSystem);
+
+		return new ResponseEntity<>(HttpStatus.OK);
+	}
+
+	@PostMapping(value = "/rest/itsystem/name")
+	@RequirePermission(section = Section.IT_SYSTEM, permission = Permission.UPDATE)
+	public ResponseEntity<String> editItSystemName(long id, String name) {
+		if (name == null || name.length() < 2) {
+			return new ResponseEntity<>(resourceBundle.getMessage("validation.error.itsystem.name.short", null, Locale.ENGLISH), HttpStatus.BAD_REQUEST);
+		}
+
+		ItSystem itSystem = itSystemService.getById(id);
+		if (itSystem == null) {
+			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+		}
+
+		ItSystem existingSystem = itSystemService.getFirstByName(name);
+		if (existingSystem != null && existingSystem.getId() != itSystem.getId()) {
+			return new ResponseEntity<>(resourceBundle.getMessage("validation.error.itsystem.name.exist", null, Locale.ENGLISH), HttpStatus.BAD_REQUEST);
+		}
+
+		itSystem.setName(name);
+		itSystemService.save(itSystem);
+
+		return new ResponseEntity<>(HttpStatus.OK);
+	}
 
 	@PostMapping(value = "/rest/itsystem/email")
+	@RequirePermission(section = Section.IT_SYSTEM, permission = Permission.UPDATE)
 	public ResponseEntity<String> editItSystemEmail(long id, String email) {
 		ItSystem itSystem = itSystemService.getById(id);
 		if (itSystem == null) {
@@ -176,7 +183,7 @@ public class ItSystemRestController {
 				return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
 			}
 		}
-		
+
 		if ((itSystem.getSystemType() == ItSystemType.AD || itSystem.getSystemType() == ItSystemType.SAML) && (StringUtils.hasLength(email) && !isEmailCorrect(email))) {
 			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
 		}
@@ -206,8 +213,9 @@ public class ItSystemRestController {
 
 		return success;
 	}
-	
+
 	@PostMapping(value = "/rest/itsystem/notificationemail")
+	@RequirePermission(section = Section.IT_SYSTEM, permission = Permission.UPDATE)
 	public ResponseEntity<String> editItSystemNotificationEmail(long id, String email) {
 		ItSystem itSystem = itSystemService.getById(id);
 		if (itSystem == null) {
@@ -221,6 +229,7 @@ public class ItSystemRestController {
 	}
 
 	@PostMapping(value = "/rest/itsystem/kitositsystem")
+	@RequirePermission(section = Section.IT_SYSTEM, permission = Permission.UPDATE)
 	public ResponseEntity<String> editItSystemKitosITSystem(long id, Long kitosITSystemId) {
 		ItSystem itSystem = itSystemService.getById(id);
 		if (itSystem == null) {
@@ -242,66 +251,68 @@ public class ItSystemRestController {
 
 		return new ResponseEntity<>(HttpStatus.OK);
 	}
-    
+
     @PostMapping(value = "/rest/itsystem/notes")
+	@RequirePermission(section = Section.IT_SYSTEM, permission = Permission.UPDATE)
     public ResponseEntity<String> editItSystemNotes(long id, String notes) {
     	ItSystem itSystem = itSystemService.getById(id);
     	if (itSystem == null) {
 			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
 		}
-    	
-    	itSystem.setNotes(notes);
-    	itSystemService.save(itSystem);
 
-        return new ResponseEntity<>(HttpStatus.OK);
-    }
-    
-    @PostMapping(value = "/rest/itsystem/paused")
-    public ResponseEntity<String> editItSystemPaused(long id, boolean paused) {
-    	ItSystem itSystem = itSystemService.getById(id);
-    	if (itSystem == null) {
-			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
-		}
-    	
-    	itSystem.setPaused(paused);
-    	itSystemService.save(itSystem);
+		itSystem.setNotes(notes);
+		itSystemService.save(itSystem);
 
-    	if (!paused) {
-    		// if the pause flag is removed, add the full it-system
-    		// to the queue for synchronization
-    		pendingADUpdateService.addItSystemToQueue(itSystem);
-    	}
-    	else {
-    		pendingADUpdateService.removeItSystemFromQueue(itSystem);
-    	}
-    	
-        return new ResponseEntity<>(HttpStatus.OK);
-    }
+		return new ResponseEntity<>(HttpStatus.OK);
+	}
 
-    @PostMapping(value = "/rest/itsystem/readonly")
-    public ResponseEntity<String> editItSystemReadonly(long id, boolean readonly) {
-    	ItSystem itSystem = itSystemService.getById(id);
-    	if (itSystem == null || itSystem.getSystemType() != ItSystemType.AD) {
+	@PostMapping(value = "/rest/itsystem/paused")
+	@RequirePermission(section = Section.IT_SYSTEM, permission = Permission.UPDATE)
+	public ResponseEntity<String> editItSystemPaused(long id, boolean paused) {
+		ItSystem itSystem = itSystemService.getById(id);
+		if (itSystem == null) {
 			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
 		}
 
-    	itSystem.setReadonly(readonly);
-    	itSystemService.save(itSystem);
+		itSystem.setPaused(paused);
+		itSystemService.save(itSystem);
 
-    	if (!readonly) {
-    		pendingADUpdateService.addItSystemToQueue(itSystem);
-    	}
-    	else {
-    		pendingADUpdateService.removeItSystemFromQueue(itSystem);
-    	}
+		if (!paused) {
+			// if the pause flag is removed, add the full it-system
+			// to the queue for synchronization
+			pendingADUpdateService.addItSystemToQueue(itSystem);
+		} else {
+			pendingADUpdateService.removeItSystemFromQueue(itSystem);
+		}
 
-    	return new ResponseEntity<>(HttpStatus.OK);
-    }
+		return new ResponseEntity<>(HttpStatus.OK);
+	}
 
-    @PostMapping(value = "/rest/itsystem/canEditThroughApi")
-    public ResponseEntity<String> editItSystemCanEditThroughApi(long id, boolean canEditThroughApi) {
-    	ItSystem itSystem = itSystemService.getById(id);
-    	if (itSystem == null) {
+	@PostMapping(value = "/rest/itsystem/readonly")
+	@RequirePermission(section = Section.IT_SYSTEM, permission = Permission.UPDATE)
+	public ResponseEntity<String> editItSystemReadonly(long id, boolean readonly) {
+		ItSystem itSystem = itSystemService.getById(id);
+		if (itSystem == null || itSystem.getSystemType() != ItSystemType.AD) {
+			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+		}
+
+		itSystem.setReadonly(readonly);
+		itSystemService.save(itSystem);
+
+		if (!readonly) {
+			pendingADUpdateService.addItSystemToQueue(itSystem);
+		} else {
+			pendingADUpdateService.removeItSystemFromQueue(itSystem);
+		}
+
+		return new ResponseEntity<>(HttpStatus.OK);
+	}
+
+	@PostMapping(value = "/rest/itsystem/canEditThroughApi")
+	@RequirePermission(section = Section.IT_SYSTEM, permission = Permission.UPDATE)
+	public ResponseEntity<String> editItSystemCanEditThroughApi(long id, boolean canEditThroughApi) {
+		ItSystem itSystem = itSystemService.getById(id);
+		if (itSystem == null) {
 			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
 		}
 
@@ -309,13 +320,14 @@ public class ItSystemRestController {
 			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
 		}
 
-    	itSystem.setCanEditThroughApi(canEditThroughApi);
-    	itSystemService.save(itSystem);
+		itSystem.setCanEditThroughApi(canEditThroughApi);
+		itSystemService.save(itSystem);
 
-        return new ResponseEntity<>(HttpStatus.OK);
-    }
+		return new ResponseEntity<>(HttpStatus.OK);
+	}
 
 	@PostMapping(value = "/rest/itsystem/hidden")
+	@RequirePermission(section = Section.IT_SYSTEM, permission = Permission.UPDATE)
 	public ResponseEntity<String> editItSystemHidden(long id, boolean hidden) {
 		ItSystem itSystem = itSystemService.getById(id);
 		if (itSystem == null) {
@@ -329,6 +341,7 @@ public class ItSystemRestController {
 	}
 
 	@PostMapping(value = "/rest/itsystem/attestationExempt")
+	@RequirePermission(section = Section.IT_SYSTEM, permission = Permission.UPDATE)
 	public ResponseEntity<String> editItSystemAttestationExempt(long id, boolean attestationExempt) {
 		ItSystem itSystem = itSystemService.getById(id);
 		if (itSystem == null) {
@@ -342,6 +355,7 @@ public class ItSystemRestController {
 	}
 
 	@PostMapping(value = "/rest/itsystem/accessBlocked")
+	@RequirePermission(section = Section.IT_SYSTEM, permission = Permission.UPDATE)
 	public ResponseEntity<String> editItSystemAccessBlocked(long id, boolean accessBlocked) {
 		ItSystem itSystem = itSystemService.getById(id);
 		if (itSystem == null) {
@@ -355,6 +369,7 @@ public class ItSystemRestController {
 	}
 
 	@PostMapping("/rest/itsystem/apiManagedRoleAssignments")
+	@RequirePermission(section = Section.IT_SYSTEM, permission = Permission.UPDATE)
 	public ResponseEntity<String> editItSystemManagedRoleAssignments(long id, boolean apiManagedRoleAssignments) {
 		ItSystem itSystem = itSystemService.getById(id);
 		if (itSystem == null) {
@@ -368,6 +383,7 @@ public class ItSystemRestController {
 	}
 
 	@PostMapping(value = "/rest/itsystem/subscribedTo")
+	@RequirePermission(section = Section.IT_SYSTEM, permission = Permission.UPDATE)
 	public ResponseEntity<String> editItSystemSubscribedTo(long id, String masterId) {
 		ItSystem itSystem = itSystemService.getById(id);
 		if (itSystem == null) {
@@ -386,6 +402,7 @@ public class ItSystemRestController {
 	}
 
 	@PostMapping("/rest/itsystem/ouFilterEnabled")
+	@RequirePermission(section = Section.IT_SYSTEM, permission = Permission.UPDATE)
 	public ResponseEntity<String> editOUFilterEnabled(long id, boolean ouFilterEnabled) {
 		ItSystem itSystem = itSystemService.getById(id);
 		if (itSystem == null) {
@@ -403,6 +420,7 @@ public class ItSystemRestController {
 
 	@ResponseBody
 	@PostMapping(value = "/rest/itsystem/oufilter")
+	@RequirePermission(section = Section.IT_SYSTEM, permission = Permission.UPDATE)
 	public ResponseEntity<String> editItSystemOUFilter(@RequestBody OUFilterDTO dto) {
 		ItSystem itSystem = itSystemService.getById(dto.getId());
 		if (itSystem == null) {
@@ -416,10 +434,9 @@ public class ItSystemRestController {
 
 		return new ResponseEntity<>(HttpStatus.OK);
 	}
-	
-	// TODO: really should use the count() method instead
-	@SuppressWarnings("deprecation")
+
 	@PostMapping(value = "/rest/itsystem/userrole/unused/{id}")
+	@RequirePermission(section = Section.IT_SYSTEM, permission = Permission.UPDATE)
 	public ResponseEntity<String> deleteUnusedUserRoles(@PathVariable("id") long id) {
 		ItSystem itSystem = itSystemService.getById(id);
 		if (itSystem == null) {
@@ -446,11 +463,6 @@ public class ItSystemRestController {
 			if (orgUnitService.countAllWithRole(userRole) > 0) {
 				continue;
 			}
-			
-			// check if assigned to position
-			if (positionService.getAllWithRole(userRole).size() > 0) {
-				continue;
-			}
 
 			userRoleService.delete(userRole);
 		}
@@ -459,6 +471,7 @@ public class ItSystemRestController {
 	}
 
 	@PostMapping(value = "/rest/itsystem/attestationResponsible")
+	@RequirePermission(section = Section.IT_SYSTEM, permission = Permission.UPDATE)
 	public ResponseEntity<String> editItSystemAttestationResponsible(long id, String uuid) {
 		ItSystem itSystem = itSystemService.getById(id);
 		if (itSystem == null) {
@@ -474,6 +487,7 @@ public class ItSystemRestController {
 	}
 
 	@PostMapping(value = "/rest/itsystem/systemOwner")
+	@RequirePermission(section = Section.IT_SYSTEM, permission = Permission.UPDATE)
 	public ResponseEntity<String> editItSystemSystemResponsible(long id, String uuid) {
 		ItSystem itSystem = itSystemService.getById(id);
 		if (itSystem == null) {
@@ -489,6 +503,7 @@ public class ItSystemRestController {
 	}
 
 	@PostMapping(value = "/rest/itsystem/userroles/{userRoleId}/roleAssignmentAttestationByAttestationResponsible")
+	@RequirePermission(section = Section.IT_SYSTEM, permission = Permission.UPDATE)
 	public ResponseEntity<String> editItSystemRoleAssignmentAttestationByAttestationResponsible(@PathVariable long userRoleId, long id, boolean roleAssignmentAttestationByAttestationResponsible) {
 		ItSystem itSystem = itSystemService.getById(id);
 		if (itSystem == null) {
@@ -505,5 +520,67 @@ public class ItSystemRestController {
 
 		return new ResponseEntity<>(HttpStatus.OK);
 	}
+
+	@PostMapping(value = "/rest/itsystem/requester")
+	@RequirePermission(section = Section.IT_SYSTEM, permission = Permission.UPDATE)
+	public ResponseEntity<String> requesterChange(@RequestParam("id") long id,
+												  @RequestParam(value = "requesterPermissions", required = false) String[] requesterPermissionsArray) {
+		ItSystem itSystem = itSystemService.getById(id);
+		if (itSystem == null) {
+			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+		}
+
+		List<String> requesterPermissions = requesterPermissionsArray != null ?
+			Arrays.asList(requesterPermissionsArray) : Collections.emptyList();
+
+		if (requesterPermissions.isEmpty()) {
+			itSystem.setRequesterPermission(List.of(RequestableBy.INHERIT));
+		} else {
+			List<RequestableBy> requestableBy = new ArrayList<>();
+			for (String requesterPermission : requesterPermissions) {
+				try {
+					requestableBy.add(RequestableBy.valueOf(requesterPermission));
+				} catch (IllegalArgumentException e) {
+					log.warn("Invalid permission: " + requesterPermission, e);
+					return new ResponseEntity<>("Invalid permission: " + requesterPermission, HttpStatus.BAD_REQUEST);
+				}
+			}
+			itSystem.setRequesterPermission(requestableBy);
+		}
+
+		itSystemService.save(itSystem);
+		return new ResponseEntity<>(HttpStatus.OK);
+	}
+
+	@PostMapping(value = "/rest/itsystem/approver")
+	@RequirePermission(section = Section.IT_SYSTEM, permission = Permission.UPDATE)
+	public ResponseEntity<String> approverChange(@RequestParam("id") long id,
+												 @RequestParam(value = "approverPermissions", required = false) String[] approverPermissionsArray) {
+		ItSystem itSystem = itSystemService.getById(id);
+		if (itSystem == null) {
+			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+		}
+
+		List<String> approverPermissions = approverPermissionsArray != null ?
+			Arrays.asList(approverPermissionsArray) : Collections.emptyList();
+
+		if (approverPermissions.isEmpty()) {
+			itSystem.setApproverPermission(null);
+		} else {
+			List<ApprovableBy> approvableBy = new ArrayList<>();
+			for (String approverPermission : approverPermissions) {
+				try {
+					approvableBy.add(ApprovableBy.valueOf(approverPermission));
+				} catch (IllegalArgumentException e) {
+					return new ResponseEntity<>("Invalid permission: " + approverPermission, HttpStatus.BAD_REQUEST);
+				}
+			}
+			itSystem.setApproverPermission(approvableBy);
+		}
+
+		itSystemService.save(itSystem);
+		return new ResponseEntity<>(HttpStatus.OK);
+	}
+
 
 }

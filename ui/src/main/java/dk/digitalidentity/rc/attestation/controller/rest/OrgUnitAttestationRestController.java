@@ -1,22 +1,22 @@
 package dk.digitalidentity.rc.attestation.controller.rest;
 
-import dk.digitalidentity.rc.attestation.model.dto.RoleAssignmentDTO;
-import dk.digitalidentity.rc.attestation.model.entity.Attestation;
-import dk.digitalidentity.rc.attestation.service.OrganisationAttestationService;
-import dk.digitalidentity.rc.security.SecurityUtil;
-import dk.digitalidentity.rc.service.SettingsService;
-import io.micrometer.core.annotation.Timed;
+import java.util.List;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.List;
+import dk.digitalidentity.rc.attestation.model.dto.RoleAssignmentDTO;
+import dk.digitalidentity.rc.attestation.model.entity.Attestation;
+import dk.digitalidentity.rc.attestation.service.OrganisationAttestationService;
+import dk.digitalidentity.rc.security.SecurityUtil;
+import dk.digitalidentity.rc.service.SettingsService;
+import io.micrometer.core.annotation.Timed;
 
 @RestController
 public class OrgUnitAttestationRestController {
@@ -43,6 +43,9 @@ public class OrgUnitAttestationRestController {
         if (settingsService.isAttestationDescriptionRequired() && (dto.remarks() == null || dto.remarks().trim().equals(""))) {
             return new ResponseEntity<>("Der skal angives ændringsønsker", HttpStatus.BAD_REQUEST);
         }
+		if (dto.notApproved.isEmpty()) {
+			return new ResponseEntity<>("Der skal vælges roller", HttpStatus.BAD_REQUEST);
+		}
 		organisationAttestationService.rejectUser(orgUnitUuid, userUuid, SecurityUtil.getUserId(), dto.remarks(), dto.notApproved(), attestationType);
 		return new ResponseEntity<>(HttpStatus.OK);
 	}
@@ -72,6 +75,9 @@ public class OrgUnitAttestationRestController {
         if (settingsService.isAttestationDescriptionRequired() && (dto.remarks() == null || dto.remarks().trim().equals(""))) {
             return new ResponseEntity<>("Der skal angives ændringsønsker", HttpStatus.BAD_REQUEST);
         }
+		if (dto.notApproved.isEmpty()) {
+			return new ResponseEntity<>("Der skal vælges roller", HttpStatus.BAD_REQUEST);
+		}
 		Attestation.AttestationType attestationType = managerdelegate ? Attestation.AttestationType.MANAGER_DELEGATED_ATTESTATION : Attestation.AttestationType.ORGANISATION_ATTESTATION;
 		organisationAttestationService.rejectOrgUnitRoles(orgUnitUuid, SecurityUtil.getUserId(), dto.remarks, dto.notApproved, attestationType);
 		return new ResponseEntity<>(HttpStatus.OK);

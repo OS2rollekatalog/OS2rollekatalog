@@ -1,0 +1,1 @@
+ALTER TABLE req_role_request ADD COLUMN email_sent_to_servicedesk BOOLEAN NOT NULL DEFAULT FALSE;

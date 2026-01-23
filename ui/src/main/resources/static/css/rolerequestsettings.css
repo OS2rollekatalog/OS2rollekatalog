@@ -1,0 +1,12 @@
+.role-request-email {
+	display: none;
+	margin-left: 32px;
+	margin-bottom: 10px;
+}
+
+.emailField {
+	margin-left: -75px;
+}
+.error {
+	color: red;
+}

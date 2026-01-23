@@ -28,7 +28,7 @@ public class TemporalHasherTest {
 
     @Test
     public void canHashEntityEquals() {
-        // Check that two entity with similar content results in same hash
+        // Check that two section with similar content results in same hash
         final var t1 = TemporalHasherTestObject.builder()
                 .id(1)
                 .valueLong(1L)

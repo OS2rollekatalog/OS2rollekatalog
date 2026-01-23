@@ -6,11 +6,16 @@ import dk.digitalidentity.rc.controller.rest.model.UserListDTO;
 import dk.digitalidentity.rc.dao.model.ReportTemplate;
 import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.security.AccessConstraintService;
-import dk.digitalidentity.rc.security.RequireReportAccessRole;
+import dk.digitalidentity.rc.security.permission.Permission;
+import dk.digitalidentity.rc.security.permission.PermissionConstraint;
+import dk.digitalidentity.rc.security.permission.Section;
+import dk.digitalidentity.rc.security.permission.RequireControllerPermission;
+import dk.digitalidentity.rc.security.permission.RequirePermission;
+import dk.digitalidentity.rc.security.permission.UserPermissionContext;
 import dk.digitalidentity.rc.service.HistoryService;
 import dk.digitalidentity.rc.service.ReportTemplateService;
 import dk.digitalidentity.rc.service.UserService;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.context.MessageSource;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -29,27 +34,21 @@ import java.util.Locale;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
-@RequireReportAccessRole
+@RequiredArgsConstructor
+@RequireControllerPermission(section = Section.REPORT, permission = Permission.READ)
 @RestController
 public class ReportRestController {
+	private final HistoryService historyService;
+	private final ReportTemplateService reportTemplateService;
+	private final MessageSource messageSource;
+	private final UserService userService;
+	private final AccessConstraintService accessConstraintService;
+	private final UserPermissionContext userPermissionContext;
 
-	@Autowired
-	private HistoryService historyService;
-
-	@Autowired
-	private ReportTemplateService reportTemplateService;
-
-	@Autowired
-	private MessageSource messageSource;
-
-	@Autowired
-	private UserService userService;
-
-	@Autowired
-	private AccessConstraintService accessConstraintService;
-
+	@RequirePermission(section = Section.REPORT, permission = Permission.CREATE)
 	@PostMapping(value = "/rest/report/save-template")
 	public ResponseEntity<HttpStatus> saveTemplate(@RequestBody ReportForm reportForm) {
+
 		ReportTemplate reportTemplate = new ReportTemplate();
 		reportTemplate.setName(reportForm.getName());
 		reportTemplate.setShowUsers(reportForm.isShowUsers());
@@ -98,6 +97,7 @@ public class ReportRestController {
 		return new ResponseEntity<>(HttpStatus.OK);
 	}
 
+	@RequirePermission(section = Section.REPORT, permission = Permission.DELETE)
 	@PostMapping(value = "/rest/report/delete-template/{id}")
 	public ResponseEntity<HttpStatus> deleteTemplate(@PathVariable("id") Long id) {
 		ReportTemplate reportTemplate = reportTemplateService.getById(id);
@@ -117,7 +117,11 @@ public class ReportRestController {
 			return new ArrayList<>();
 		}
 
-		return parseOuTree(date);
+		PermissionConstraint orgUnitconstraints = userPermissionContext.getConstraints(Section.ORGUNIT, Permission.READ);
+
+		return parseOuTree(date).stream()
+				.filter(oulf -> orgUnitconstraints.allowsOrgunit(oulf.getId()))
+				.toList();
 	}
 	
 	private List<OUListForm> parseOuTree(LocalDate localDate) {
@@ -133,8 +137,11 @@ public class ReportRestController {
 	public ResponseEntity<?> getAllUsers(Locale locale, @PathVariable("id") Long id) {
 		String in = messageSource.getMessage("html.word.in", null, locale);
 
-		List<User> users = userService.getAllThin();
-		users = accessConstraintService.filterUsersUserCanAccess(users, false);
+		PermissionConstraint orgUnitconstraints = userPermissionContext.getConstraints(Section.ORGUNIT, Permission.READ);
+
+		List<User> users = userService.getAllThin().stream()
+				.filter(u -> u.getPositions().stream().map(p -> p.getOrgUnit().getUuid()).anyMatch(orgUnitconstraints::allowsOrgunit))
+				.toList();
 
 		List<UserListDTO> userDTOs = users
 				.stream()
@@ -153,6 +160,7 @@ public class ReportRestController {
 		return new ResponseEntity<List<UserListDTO>>(userDTOs, HttpStatus.OK);
 	}
 
+	@RequirePermission(section = Section.REPORT, permission = Permission.UPDATE)
 	@PostMapping(value = "/rest/report/assign/toggleUser")
 	public ResponseEntity<?> assignUser(String uuid, Long templateId) {
 		ReportTemplate reportTemplate = reportTemplateService.getById(templateId);

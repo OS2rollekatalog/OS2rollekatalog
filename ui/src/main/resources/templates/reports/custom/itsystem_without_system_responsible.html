@@ -32,7 +32,7 @@
 										<em th:if="${system.inactiveSystemResponsible}" class="fa fa-fw fa-exclamation-triangle" th:title="#{html.entity.itsystem.inactiveAttestationResponsible.title}"></em>
 									</td>
 									<td>
-										<th:block sec:authorize="hasRole('ROLE_ADMINISTRATOR')">
+										<th:block th:if="${@permissionCheck.isAllowed(permittedEntity.REPORT, permission.UPDATE)}">
 											<a th:href="@{/ui/itsystem/edit/{id}(id=${system.id})}"><em class="fa fa-pencil"></em></a>
 										</th:block>
 									</td>

@@ -1,1 +1,0 @@
-ALTER TABLE it_systems ADD readonly BIT NOT NULL DEFAULT 0;

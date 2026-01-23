@@ -4,7 +4,7 @@
 			<button type="button" style="width: auto !important;" class="btn btn-primary btn-lg dropdown-toggle" data-toggle="dropdown">
 				<em class="fa fa-fw fa-cog"></em>
 			</button>
-			
+
 			<ul class="dropdown-menu" role="menu" id="dataTableDropdown">
 				<li><a href="#" data-cid="0" onclick="return dataTablesToggleColumn(this);"><em class="fa fa-fw"></em><span th:text="#{html.page.users.manage.assignment.name}"></span></a></li>
 				<li><a href="#" data-cid="1" onclick="return dataTablesToggleColumn(this);"><em class="fa fa-fw"></em><span th:text="#{html.page.users.manage.assignment.postponed}"></span></a></li>
@@ -16,7 +16,7 @@
 				<li th:if="${caseNumberEnabled}"><a href="#" data-cid="6" onclick="return dataTablesToggleColumn(this);"><em class="fa fa-fw"></em><span th:text="#{html.page.users.manage.assignment.caseNumber}"></span></a></li>
 			</ul>
 		</div>
-		<th:block th:if="${editable}" sec:authorize="hasRole('ROLE_ASSIGNER')">
+		<th:block th:if="${canAssign}">
 			<a href="#" id="addUserRoleAssignment" class="btn btn-lg btn-primary" style="width:auto;" th:text="#{html.page.users.manage.roles.add.userrole}" onclick="rolesService.loadAddUserRoleFragment()"></a>
 			<a href="#" id="addRoleGroupAssignment" class="btn btn-lg btn-primary" th:text="#{html.page.users.manage.roles.add.rolegroup}" onclick="rolesService.loadAddRoleGroupFragment()"></a>
 		</th:block>
@@ -24,8 +24,8 @@
         <div class="btn-group" data-toggle="buttons">
             <label class="btn btn-lg btn-primary" id="inactiveRolesToggle">
                 <input type="checkbox" id="inactiveRolesCheckbox" class="sr-only" autocomplete="off">
-                <em class="fa fa-fw fa-check"></em> 
-                <span id="toggleText" 
+                <em class="fa fa-fw fa-check"></em>
+                <span id="toggleText"
                       th:data-show-text="#{html.page.user.user_roles.show_inactive_roles}"
                       th:data-hide-text="#{html.page.user.user_roles.hide_inactive_roles}">
                     [[#{html.page.user.user_roles.hide_inactive_roles}]]
@@ -56,10 +56,10 @@
 								<span th:text="${assignment.name}"></span>
 								<div th:text="#{__${assignment.type.message}__}" th:style="|font-size: smaller; color: ${(assignment.type.name() == 'NEGATIVE' || assignment.type.name() == 'NEGATIVE_ROLEGROUP') ? 'red' : 'black'};|" th:data-name="${assignment.type}"></div>
 								<div th:if="${assignment.ineffective}" style="font-size: smaller; color: red;"
-									th:text="${assignment.ineffectiveReason == 'NEMLOGIN' 
+									th:text="${assignment.ineffectiveReason == 'NEMLOGIN'
 												 ? #messages.msg('html.page.users.manage.assignment.ineffective')
-												 : (assignment.ineffectiveReason == 'WEIGHT' 
-                                                 ? #messages.msg('html.page.users.manage.assignment.ineffective') + ' ' + #messages.msg('html.page.users.manage.assignment.ineffective.systemRoleWeight') 
+												 : (assignment.ineffectiveReason == 'WEIGHT'
+                                                 ? #messages.msg('html.page.users.manage.assignment.ineffective') + ' ' + #messages.msg('html.page.users.manage.assignment.ineffective.systemRoleWeight')
 													  : '')}">
 								</div>
 							</td>
@@ -100,20 +100,13 @@
 								<a
 									href="#"
 									th:if="${assignment.canEdit}"
-									sec:authorize="hasRole('ROLE_ASSIGNER')"
+									sec:authorize="hasRole('ROLE_USER_ASSIGNER')"
 									onclick="rolesService.editRoleAssignment(this)">
 									<em class="fa fa-pencil"></em></a>
 								<a
-										href="#"
-										th:if="${@settingsService.isRequestApproveEnabled() == true && assignment.canRequest}"
-										sec:authorize="hasRole('ROLE_REQUESTER') and not hasRole('ROLE_ASSIGNER')"
-										onclick="rolesService.requestRoleRemoval(this)">
-									<em class="fa fa-minus"></em>
-								</a>
-								<a
 									href="#"
 									th:if="${assignment.canEdit}"
-									sec:authorize="hasRole('ROLE_ASSIGNER')"
+									sec:authorize="hasRole('ROLE_USER_ASSIGNER')"
 									onclick="rolesService.deleteRoleAssignment(this)">
 									<em class="fa fa-times"></em>
 								</a>

@@ -15,6 +15,7 @@ import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import dk.digitalidentity.rc.dao.history.model.HistoryFunction;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.CellStyle;
 import org.apache.poi.ss.usermodel.Font;
@@ -23,8 +24,8 @@ import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.springframework.context.support.ResourceBundleMessageSource;
 import org.springframework.util.StringUtils;
-import org.springframework.web.servlet.view.document.AbstractXlsxStreamingView;
 
+import dk.digitalidentity.rc.attestation.controller.mvc.xlsview.AbstractXlsxStreamingViewWrapper;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.ReportForm;
 import dk.digitalidentity.rc.dao.history.model.HistoryItSystem;
 import dk.digitalidentity.rc.dao.history.model.HistoryKleAssignment;
@@ -50,13 +51,15 @@ import dk.digitalidentity.rc.util.OrganisationConstraintUtil;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
-public class ReportXlsxView extends AbstractXlsxStreamingView {
+public class ReportXlsxView extends AbstractXlsxStreamingViewWrapper {
     private LocalDate filterDate;
     private List<HistoryItSystem> itSystems;
     private List<HistorySystemRole> systemRoles;
     private Map<String, HistoryUser> users;
     private List<HistoryTitle> titles;
+    private List<HistoryFunction> functions;
     private Map<String, HistoryTitle> titleMap;
+	private Map<String, HistoryFunction> functionMap;
     private Map<String, List<HistoryRoleAssignment>> userRoleAssignments;
     private Map<String, List<HistoryKleAssignment>> userKLEAssignments;
     private Map<String, HistoryOU> orgUnits;
@@ -88,6 +91,7 @@ public class ReportXlsxView extends AbstractXlsxStreamingView {
         filterDate = (LocalDate) model.get("filterDate");
         users = (Map<String, HistoryUser>) model.get("users");
         titles = (List<HistoryTitle>) model.get("titles");
+        functions = (List<HistoryFunction>) model.get("functions");
         orgUnits = (Map<String, HistoryOU>) model.get("orgUnits");
         allOrgUnits = (Map<String, HistoryOU>) model.get("allOrgUnits");
         itSystems = (List<HistoryItSystem>) model.get("itSystems");
@@ -104,6 +108,13 @@ public class ReportXlsxView extends AbstractXlsxStreamingView {
 		}
 		else {
 			titleMap = new HashMap<>();
+		}
+
+		if (functions != null) {
+			functionMap = functions.stream().collect(Collectors.toMap(HistoryFunction::getFunctionUuid, Function.identity()));
+		}
+		else {
+			functionMap = new HashMap<>();
 		}
 
 		// Process data
@@ -215,6 +226,10 @@ public class ReportXlsxView extends AbstractXlsxStreamingView {
     		List<HistoryOUUser> entryOUUsers = ouUsers.stream().filter(h -> h.getUserUuid().equals(entry.getUserUuid())).toList();
     		List<String> titleStrings = new ArrayList<>();
     		for (HistoryOUUser ouUser : entryOUUsers) {
+				if (!Boolean.TRUE.equals(ouUser.getHasPosition())) {
+					continue;
+				}
+
     			if (ouUser.getTitleUuid() == null) {
     				titleStrings.add("• " + ouUser.getHistoryOU().getOuName());
     			}
@@ -412,8 +427,10 @@ public class ReportXlsxView extends AbstractXlsxStreamingView {
         headers.add("xls.role.start_date");
         headers.add("xls.role.stop_date");
         headers.add("xls.role.assigned.through");
+		headers.add("xls.report.ou.roles.manager.type");
         headers.add("xls.report.ou.roles.exceptedusers");
         headers.add("xls.report.ou.roles.titles");
+        headers.add("xls.report.ou.roles.functions");
 
         createHeaderRow(sheet, headers);
 
@@ -465,6 +482,7 @@ public class ReportXlsxView extends AbstractXlsxStreamingView {
                 // Collect exclusions
                 StringBuilder exceptedUsersStr = new StringBuilder();
                 StringBuilder titlesStr = new StringBuilder();
+                StringBuilder functionsStr = new StringBuilder();
 
                 if (ouRoleAssignment.getExclusions() != null) {
                     for (HistoryOURoleAssignmentExclusion exclusion : ouRoleAssignment.getExclusions()) {
@@ -490,9 +508,29 @@ public class ReportXlsxView extends AbstractXlsxStreamingView {
                                         : titleUuid
                                 );
                             }
-                        }
+                        } else if (exclusion.getExclusionType() == ExclusionType.functions && exclusion.getFunctionUuids() != null) {
+							for (String functionUuid : exclusion.getFunctionUuids().split(",")) {
+								if (functionsStr.length() > 0) {
+									functionsStr.append("\n");
+								}
+								functionsStr.append(
+										functionMap.containsKey(functionUuid)
+												? functionMap.get(functionUuid).getFunctionName()
+												: functionUuid
+								);
+							}
+						}
                     }
                 }
+
+				String managerAndSubstitutesText = null;
+				if (Boolean.TRUE.equals(ouRoleAssignment.getManager())) {
+					if (Boolean.TRUE.equals(ouRoleAssignment.getSubstitutes())) {
+						managerAndSubstitutesText = "xls.report.ou.roles.manager.type.managerAndSubstitutes";
+					} else {
+						managerAndSubstitutesText = "xls.report.ou.roles.manager.type.manager";
+					}
+				}
 
                 Row dataRow = sheet.createRow(row++);
                 int column = 0;
@@ -504,8 +542,10 @@ public class ReportXlsxView extends AbstractXlsxStreamingView {
                 createCell(dataRow, column++, bestStartDate(ouRoleAssignment.getAssignedWhen(), ouRoleAssignment.getStartDate(), localDateFormatter), null);
                 createCell(dataRow, column++, formatLocalDateTime(atEndOfDay(ouRoleAssignment.getStopDate())), null);
                 createCell(dataRow, column++, assignedThroughStr, null);
+                createCell(dataRow, column++, managerAndSubstitutesText == null ? "" : messageSource.getMessage(managerAndSubstitutesText, null, locale), null);
                 createCell(dataRow, column++, exceptedUsersStr.toString(), wrapStyle);
                 createCell(dataRow, column++, titlesStr.toString(), wrapStyle);
+                createCell(dataRow, column++, functionsStr.toString(), wrapStyle);
             }
         }
     }
@@ -679,6 +719,10 @@ public class ReportXlsxView extends AbstractXlsxStreamingView {
         		if (users.get(ouUser.getUserUuid()) == null) {
         			continue;
         		}
+
+				if (!Boolean.TRUE.equals(ouUser.getHasPosition())) {
+					continue;
+				}
 
         		List<HistoryKleAssignment> existingUserAssignments = userKLEAssignments.get(ouUser.getUserUuid());
         		if (existingUserAssignments == null) {

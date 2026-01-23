@@ -1,8 +1,14 @@
 package dk.digitalidentity.rc.service;
 
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 
+import dk.digitalidentity.rc.security.permission.Permission;
+import dk.digitalidentity.rc.security.permission.Section;
+import dk.digitalidentity.rc.security.permission.UserPermissionContext;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.jpa.datatables.mapping.Column;
 import org.springframework.data.jpa.datatables.mapping.DataTablesInput;
@@ -18,40 +24,32 @@ public class RoleGroupViewService {
 
 	@Autowired
 	private UserRoleForRoleGroupViewDao userRoleForRoleGroupDao;
-	
+	@Autowired
+	private UserPermissionContext userPermissionContext;
+
 	public DataTablesOutput<UserRoleForRoleGroupView> findAllForRoleGroup(DataTablesInput input, long rolegroupId) {
-		// Get raw data
-		List<Object[]> rawResults = userRoleForRoleGroupDao.findRawUserRolesForRoleGroup(rolegroupId);
+		final Set<Long> constrainedITSystems = userPermissionContext.getConstraint(Section.USER_ROLE, Permission.READ).getConstrainedItSystemIds();
+
+		List<UserRoleForRoleGroupView> userRolesForRoleGroup = constrainedITSystems != null
+			? userRoleForRoleGroupDao.findUserRolesForRoleGroup(rolegroupId, new ArrayList<>(constrainedITSystems))
+			: userRoleForRoleGroupDao.findUserRolesForRoleGroup(rolegroupId);
 		long totalCount = userRoleForRoleGroupDao.countUserRolesForRoleGroup();
-		
-		// Convert to entities
-		List<UserRoleForRoleGroupView> entities = rawResults.stream()
-			.map(row -> new UserRoleForRoleGroupView(
-				((Number) row[0]).longValue(),
-				(String) row[1],
-				(String) row[2], 
-				(String) row[3],
-				rolegroupId,
-				((Number) row[5]).intValue() == 1,
-				((Number) row[6]).intValue() == 1
-			))
-			.collect(Collectors.toList());
-		
+
 		// Apply DataTables processing
-		List<UserRoleForRoleGroupView> filteredData = applyFiltering(entities, input);
+		List<UserRoleForRoleGroupView> filteredData = applyFiltering(userRolesForRoleGroup, input);
 		List<UserRoleForRoleGroupView> sortedData = applySorting(filteredData, input);
 		List<UserRoleForRoleGroupView> pagedData = applyPaging(sortedData, input);
-		
+
 		// Build DataTablesOutput
 		DataTablesOutput<UserRoleForRoleGroupView> output = new DataTablesOutput<>();
 		output.setData(pagedData);
 		output.setRecordsTotal(totalCount);
 		output.setRecordsFiltered(filteredData.size());
 		output.setDraw(input.getDraw());
-		
+
 		return output;
 	}
-	
+
 	private List<UserRoleForRoleGroupView> applyFiltering(List<UserRoleForRoleGroupView> data, DataTablesInput input) {
 		// Global search
 		String globalSearch = input.getSearch() != null ? input.getSearch().getValue() : null;
@@ -61,7 +59,7 @@ public class RoleGroupViewService {
 				.filter(item -> matchesGlobalSearch(item, searchTerm))
 				.collect(Collectors.toList());
 		}
-		
+
 		// Column-specific searches
 		if (input.getColumns() != null) {
 			for (int i = 0; i < input.getColumns().size(); i++) {
@@ -75,16 +73,16 @@ public class RoleGroupViewService {
 				}
 			}
 		}
-		
+
 		return data;
 	}
-	
+
 	private boolean matchesGlobalSearch(UserRoleForRoleGroupView item, String searchTerm) {
 		return (item.getName() != null && item.getName().toLowerCase().contains(searchTerm)) ||
 			   (item.getDescription() != null && item.getDescription().toLowerCase().contains(searchTerm)) ||
 			   (item.getItSystemName() != null && item.getItSystemName().toLowerCase().contains(searchTerm));
 	}
-	
+
 	private boolean matchesColumnSearch(UserRoleForRoleGroupView item, int columnIndex, String searchTerm) {
 		switch (columnIndex) {
 			case 0: // selected
@@ -94,16 +92,16 @@ public class RoleGroupViewService {
 				return item.getName() != null && item.getName().toLowerCase().contains(searchTerm);
 			case 2: // itSystemName
 			    return item.getItSystemName() != null && item.getItSystemName().toLowerCase().contains(searchTerm);
-			case 3: // description  
+			case 3: // description
 				return item.getDescription() != null && item.getDescription().toLowerCase().contains(searchTerm);
 			case 4: // readOnly
-				String readOnlyStr = item.getReadOnly() != null && item.getReadOnly() ? "true" : "false";
+				String readOnlyStr = item.isReadOnly() ? "true" : "false";
 				return readOnlyStr.contains(searchTerm);
 			default:
 				return true;
 		}
 	}
-	
+
 	private List<UserRoleForRoleGroupView> applySorting(List<UserRoleForRoleGroupView> data, DataTablesInput input) {
 		if (input.getOrder() == null || input.getOrder().isEmpty()) {
 			// Default sorting by name
@@ -111,13 +109,13 @@ public class RoleGroupViewService {
 				.sorted((a, b) -> compareStrings(a.getName(), b.getName()))
 				.collect(Collectors.toList());
 		}
-		
+
 		return data.stream()
 			.sorted((a, b) -> {
 				for (Order order : input.getOrder()) {
 					int columnIndex = order.getColumn();
 					String direction = order.getDir();
-					
+
 					int comparison = compareByColumn(a, b, columnIndex);
 					if (comparison != 0) {
 						return "desc".equalsIgnoreCase(direction) ? -comparison : comparison;
@@ -127,7 +125,7 @@ public class RoleGroupViewService {
 			})
 			.collect(Collectors.toList());
 	}
-	
+
 	private int compareByColumn(UserRoleForRoleGroupView a, UserRoleForRoleGroupView b, int columnIndex) {
 		switch (columnIndex) {
 			case 0: // selected
@@ -139,35 +137,35 @@ public class RoleGroupViewService {
 			case 3: // description
 				return compareStrings(a.getDescription(), b.getDescription());
 			case 4: // readOnly
-				return compareBooleans(a.getReadOnly(), b.getReadOnly());
+				return compareBooleans(a.isReadOnly(), b.isReadOnly());
 			default:
 				return 0;
 		}
 	}
-	
+
 	private int compareStrings(String a, String b) {
 		if (a == null && b == null) return 0;
 		if (a == null) return -1;
 		if (b == null) return 1;
 		return a.compareToIgnoreCase(b);
 	}
-	
+
 	private int compareBooleans(Boolean a, Boolean b) {
 		if (a == null && b == null) return 0;
 		if (a == null) return -1;
 		if (b == null) return 1;
 		return Boolean.compare(a, b);
 	}
-	
+
 	private List<UserRoleForRoleGroupView> applyPaging(List<UserRoleForRoleGroupView> data, DataTablesInput input) {
 		int start = input.getStart();
 		int length = input.getLength();
-		
+
 		if (length == -1) {
 			// Show all records
 			return data.stream().skip(start).collect(Collectors.toList());
 		}
-		
+
 		return data.stream()
 			.skip(start)
 			.limit(length)

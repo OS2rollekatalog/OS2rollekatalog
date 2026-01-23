@@ -1,14 +1,16 @@
 package dk.digitalidentity.rc.controller.rest;
 
-import dk.digitalidentity.rc.controller.rest.model.ManagerSubstituteAssignmentDTO;
 import dk.digitalidentity.rc.dao.model.ADConfiguration;
 import dk.digitalidentity.rc.dao.model.Client;
 import dk.digitalidentity.rc.dao.model.json.ADConfigurationJSON;
-import dk.digitalidentity.rc.security.RequireAdministratorRole;
 import dk.digitalidentity.rc.security.SecurityUtil;
+import dk.digitalidentity.rc.security.permission.Permission;
+import dk.digitalidentity.rc.security.permission.Section;
+import dk.digitalidentity.rc.security.permission.RequireControllerPermission;
+import dk.digitalidentity.rc.security.permission.RequirePermission;
 import dk.digitalidentity.rc.service.ADConfigurationService;
 import dk.digitalidentity.rc.service.ClientService;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -17,16 +19,14 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.RestController;
 
-@RequireAdministratorRole
+@RequiredArgsConstructor
+@RequireControllerPermission(section = Section.CONFIG, permission = Permission.READ)
 @RestController
 public class ClientRestController {
+	private final ClientService clientService;
+	private final ADConfigurationService adConfigurationService;
 
-	@Autowired
-	private ClientService clientService;
-
-	@Autowired
-	private ADConfigurationService adConfigurationService;
-
+	@RequirePermission(section = Section.CONFIG, permission = Permission.UPDATE)
 	@PostMapping("/rest/client/adsyncservice/{clientId}")
 	@ResponseBody
 	public ResponseEntity<?> updateADConfiguration(@PathVariable long clientId,  @RequestBody ADConfigurationJSON adConfigurationJSON) {

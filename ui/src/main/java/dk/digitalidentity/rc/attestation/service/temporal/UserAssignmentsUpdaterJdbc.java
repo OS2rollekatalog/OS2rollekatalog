@@ -39,11 +39,12 @@ import dk.digitalidentity.rc.service.model.AssignedThrough;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.FlushModeType;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.util.StringUtils;
 
 /**
  * JDBC Notice!
  * These classes are made to save memory, hibernate will consume around 1gb whereas these use much less.
- * Warning though: the hibernate entity classes are used when fetching from the DB, they are obviously not attached to
+ * Warning though: the hibernate section classes are used when fetching from the DB, they are obviously not attached to
  * the hibernate session also all relations are not populated, so be aware!
  */
 @Component
@@ -119,7 +120,7 @@ public class UserAssignmentsUpdaterJdbc {
     }
 
     /**
-     * @return id of the updated entity
+     * @return id of the updated section
      */
     private Long update(final AttestationUserRoleAssignment existingAssignment, final AttestationUserRoleAssignment updatedAssignment) {
         // If content is the same there is no reason to update (as it fills up the binlog of mariadb etc...)
@@ -304,6 +305,7 @@ public class UserAssignmentsUpdaterJdbc {
         final Set<String> exceptedUsers = new HashSet<>();
         final Set<String> positiveTitles  = new HashSet<>(); // positive titles
         final Set<String> negativeTitles  = new HashSet<>(); //  negative titles
+        final Set<String> functions  = new HashSet<>();
 
         if (assignment.getExclusions() != null) {
             for (var ex : assignment.getExclusions()) {
@@ -311,6 +313,7 @@ public class UserAssignmentsUpdaterJdbc {
                     case excepted_users -> exceptedUsers.addAll(splitCsvToSet(ex.getUserUuids()));
                     case titles         -> positiveTitles.addAll(splitCsvToSet(ex.getTitleUuids()));
                     case negative_titles-> negativeTitles.addAll(splitCsvToSet(ex.getTitleUuids()));
+					case functions-> functions.addAll(splitCsvToSet(ex.getFunctionUuids()));
                 }
             }
         }
@@ -322,22 +325,75 @@ public class UserAssignmentsUpdaterJdbc {
 
         final List<HistoryOUUser> users = temporalDao.listHistoryOUUsers(currentOu.getId());
 
-        return users.stream()
+		final List<HistoryOUUser> allUsers = new ArrayList<>(users);
+
+		// add synthetic users if manager/substitutes have no position in OU (if manager/substitute assignment)
+		if (Boolean.TRUE.equals(assignment.getManager())) {
+			addManagersWithoutPosition(currentOu, users, allUsers);
+
+			if (Boolean.TRUE.equals(assignment.getSubstitutes())) {
+				addSubstitutesWithoutPosition(currentOu, users, allUsers);
+			}
+		}
+
+        return allUsers.stream()
                 .filter(u -> !Boolean.TRUE.equals(u.getDoNotInherit()))
                 .filter(u -> {
-                    // 1. Exclude users
+					// For non-function, non-manager assignments, user must have a position
+					boolean requiresPosition = functions.isEmpty() && !Boolean.TRUE.equals(assignment.getManager());
+					if (requiresPosition && !Boolean.TRUE.equals(u.getHasPosition())) {
+						return false;
+					}
+
+                    // 1. manager and substitutes assignment
+					if (Boolean.TRUE.equals(assignment.getManager())) {
+						boolean isManager = Objects.equals(currentOu.getOuManagerUuid(), u.getUserUuid());
+						if (Boolean.TRUE.equals(assignment.getSubstitutes())) {
+							boolean isSubstitute = false;
+							if (StringUtils.hasLength(currentOu.getOuSubstituteUuids())) {
+								Set<String> substituteUuids = Set.of(currentOu.getOuSubstituteUuids().split(","));
+								isSubstitute = substituteUuids.contains(u.getUserUuid());
+							}
+
+							if (!isManager && !isSubstitute) {
+								return false;
+							}
+						} else {
+							if (!isManager) {
+								return false;
+							}
+						}
+					}
+
+					// 2. Exclude users
                     if (exceptedUsers.contains(u.getUserUuid())) return false;
 
                     final String userTitle = u.getTitleUuid();
 
-                    // 2. If we have positive title set -> must be IN that set
+                    // 3. If we have positive title set -> must be IN that set
                     if (!positiveTitles.isEmpty() && (userTitle == null || !positiveTitles.contains(userTitle))) {
                         return false;
                     }
-                    // 3. Always exclude negative titles
+                    // 4. Always exclude negative titles
                     if (!negativeTitles.isEmpty() && userTitle != null && negativeTitles.contains(userTitle)) {
                         return false;
                     }
+
+					// 5. If we have functions set -> must have at least one matching function
+					if (!functions.isEmpty()) {
+						String userFunctions = u.getFunctionUuids();
+						if (userFunctions == null || userFunctions.isBlank()) {
+							return false; // User has no functions but assignment requires functions
+						}
+						Set<String> userFunctionSet = splitCsvToSet(userFunctions);
+						// Check if user has at least one of the required functions
+						boolean hasMatchingFunction = userFunctionSet.stream()
+								.anyMatch(functions::contains);
+						if (!hasMatchingFunction) {
+							return false;
+						}
+					}
+
                     return true;
                 })
                 .map(u -> {
@@ -351,7 +407,7 @@ public class UserAssignmentsUpdaterJdbc {
                     String assignedThroughName;
                     String assignedThroughUuid;
 
-                    if (exceptedUsers.isEmpty() && positiveTitles.isEmpty() && negativeTitles.isEmpty()) { // no excluded users, no positive titles, no negative titles
+                    if (exceptedUsers.isEmpty() && positiveTitles.isEmpty() && negativeTitles.isEmpty() && functions.isEmpty()) { // no excluded users, no positive titles, no negative titles, no functions
                         inherited = assignment.getAssignedThroughType() == AssignedThrough.ORGUNIT;
                         responsibleUserUuid = itSystemResponsible && !inherited ? systemResponsibleUserUuid : null;
                         assignedThroughName = assignment.getAssignedThroughName() != null ? assignment.getAssignedThroughName() : context.ouName();
@@ -362,7 +418,7 @@ public class UserAssignmentsUpdaterJdbc {
                         assignedThroughName = currentOu.getOuName();
                         assignedThroughUuid = currentOu.getOuUuid();
                     }
-                    
+
                     final AttestationUserRoleAssignment ura = AttestationUserRoleAssignment.builder()
                             .itSystemId(assignment.getRoleItSystemId())
                             .itSystemName(context.itSystemName())
@@ -395,6 +451,50 @@ public class UserAssignmentsUpdaterJdbc {
                 })
                 .toList();
     }
+
+	private void addManagersWithoutPosition(HistoryOU ou, List<HistoryOUUser> usersWithPosition, List<HistoryOUUser> allUsers) {
+		String managerUuid = ou.getOuManagerUuid();
+		if (managerUuid == null) {
+			return;
+		}
+
+		// Check if manager already has position
+		boolean hasPosition = usersWithPosition.stream()
+				.anyMatch(u -> u.getUserUuid().equals(managerUuid));
+
+		if (!hasPosition) {
+			// Create a synthetic HistoryOUUser for the manager
+			HistoryOUUser managerUser = new HistoryOUUser();
+			managerUser.setUserUuid(managerUuid);
+			managerUser.setDoNotInherit(false);
+			managerUser.setTitleUuid(null); // No title since no position
+			managerUser.setHasPosition(false);
+			allUsers.add(managerUser);
+		}
+	}
+
+	private void addSubstitutesWithoutPosition(HistoryOU ou, List<HistoryOUUser> usersWithPosition, List<HistoryOUUser> allUsers) {
+		if (!StringUtils.hasLength(ou.getOuSubstituteUuids())) {
+			return;
+		}
+
+		Set<String> substituteUuids = Set.of(ou.getOuSubstituteUuids().split(","));
+		for (String substituteUuid : substituteUuids) {
+			// Check if substitute already has position
+			boolean hasPosition = usersWithPosition.stream()
+					.anyMatch(u -> u.getUserUuid().equals(substituteUuid));
+
+			if (!hasPosition) {
+				// Create a synthetic HistoryOUUser for the substitute
+				HistoryOUUser substituteUser = new HistoryOUUser();
+				substituteUser.setUserUuid(substituteUuid);
+				substituteUser.setDoNotInherit(false);
+				substituteUser.setTitleUuid(null); // No title since no position
+				substituteUser.setHasPosition(false);
+				allUsers.add(substituteUser);
+			}
+		}
+	}
 
 	/** Utility: split comma-separated TEXT field into a trimmed Set<String>. */
 	private static Set<String> splitCsvToSet(String csv) {

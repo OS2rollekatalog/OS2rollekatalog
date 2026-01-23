@@ -707,6 +707,7 @@
             var simpleModalValueLabelFilter = [[#{html.client.adsync.modal.simple.value.filter}]];
             var url = [[@{/rest/client/adsyncservice/}]];
             var userRoleRestUrl = [[@{/rest/userroles/search}]];
+            var userRoleBaseUrl = [[@{/rest/userroles/}]]
         +]*/
 
         var token = $("meta[name='_csrf']").attr("content");
@@ -923,7 +924,7 @@
 
                     // Create promise for role data
                     var rolePromise = $.ajax({
-                        url: '/rest/userroles/' + roleId,
+                        url: userRoleBaseUrl + roleId,
                         method: 'GET',
                         headers: {
                             'X-CSRF-TOKEN': token

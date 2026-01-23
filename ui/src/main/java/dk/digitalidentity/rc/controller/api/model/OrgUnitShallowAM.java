@@ -12,8 +12,23 @@ import lombok.Setter;
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor
-@Schema(name = "OrgUnitShallow")
+@Schema(
+	name = "OrgUnitShallow",
+	description = "Forenklet repræsentation af en organisationsenhed"
+)
 public class OrgUnitShallowAM {
-    private String uuid;
-    private String name;
+
+	@Schema(
+		description = "Unik identifikator for organisationsenheden",
+		example = "123e4567-e89b-12d3-a456-426614174000",
+		requiredMode = Schema.RequiredMode.REQUIRED
+	)
+	private String uuid;
+
+	@Schema(
+		description = "Navn på organisationsenheden",
+		example = "IT-afdelingen",
+		accessMode = Schema.AccessMode.READ_ONLY
+	)
+	private String name;
 }

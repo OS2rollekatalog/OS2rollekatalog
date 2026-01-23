@@ -124,7 +124,8 @@ namespace ADSyncService
             {
                 foreach (var groupDN in configuration.readonlyItSystemFeatureSystemMap)
                 {
-                    if (!adStub.EntityExistsInAD(groupDN.Split(';')[1]))
+                    string dnWithoutWildcard = groupDN.Split(';')[1].Replace("*", "");
+                    if (!adStub.EntityExistsInAD(dnWithoutWildcard))
                     {
                         errorMsg += "Konfigureret readonlyItSystemFeatureSystemMap gruppe: " + groupDN + " eksisterer ikke i AD\n";
                         valid = false;
@@ -155,7 +156,7 @@ namespace ADSyncService
         private void SetLocalConfiguration()
         {
             RemoteConfiguration configuration = new RemoteConfiguration();
-            configuration.createDeleteFeatureCreateEnabled = Properties.Settings.Default.CreateDeleteFeature_Enabled;
+            configuration.createDeleteFeatureEnabled = Properties.Settings.Default.CreateDeleteFeature_Enabled;
             configuration.createDeleteFeatureOU = Properties.Settings.Default.CreateDeleteFeature_OU;
             configuration.createDeleteFeatureCreateEnabled = Properties.Settings.Default.CreateDeleteFeature_CreateEnabled;
             configuration.createDeleteFeatureDeleteEnabled = Properties.Settings.Default.CreateDeleteFeature_DeleteEnabled;

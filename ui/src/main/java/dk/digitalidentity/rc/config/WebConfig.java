@@ -1,11 +1,8 @@
 package dk.digitalidentity.rc.config;
 
-import dk.digitalidentity.rc.interceptor.ControllerInterceptor;
+import dk.digitalidentity.rc.rolerequest.Interceptor.NavigationInterceptor;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.data.domain.AuditorAware;
-import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
 import org.springframework.http.CacheControl;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.PathMatchConfigurer;
@@ -18,7 +15,7 @@ import java.util.concurrent.TimeUnit;
 public class WebConfig implements WebMvcConfigurer {
 
 	@Autowired
-	private ControllerInterceptor controllerInterceptor;
+	private NavigationInterceptor navigationInterceptor;
 
 	@Override
 	public void addResourceHandlers(ResourceHandlerRegistry registry) {
@@ -29,7 +26,7 @@ public class WebConfig implements WebMvcConfigurer {
 
 	@Override
 	public void addInterceptors(InterceptorRegistry registry) {
-		registry.addInterceptor(controllerInterceptor).addPathPatterns("/ui/**");
+		registry.addInterceptor(navigationInterceptor).addPathPatterns("/ui/**");
 	}
 
 	@Override

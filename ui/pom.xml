@@ -34,13 +34,12 @@
 				<artifactId>spring-boot-maven-plugin</artifactId>
 				<configuration>
 					<image>
-						<name>rollekatalog</name>
+						<name>rollekatalog:latest</name>
 						<tags>latest</tags>
 						<pullPolicy>IF_NOT_PRESENT</pullPolicy>
 						<builder>paketobuildpacks/builder-jammy-base</builder>
 						<env>
 							<BP_JVM_VERSION>21</BP_JVM_VERSION>
-<!--							<BP_JVM_CDS_ENABLED>true</BP_JVM_CDS_ENABLED>-->
 							<BPE_TZ>Europe/Copenhagen</BPE_TZ>
 							<BPE_LANG>C.UTF-8</BPE_LANG>
 						</env>
@@ -200,12 +199,6 @@
 		</dependency>
 
 		<dependency>
-			<groupId>com.microsoft.sqlserver</groupId>
-			<artifactId>mssql-jdbc</artifactId>
-			<version>12.6.2.jre11</version>
-		</dependency>
-
-		<dependency>
 			<groupId>org.flywaydb</groupId>
 			<artifactId>flyway-core</artifactId>
 			<version>11.1.0</version>
@@ -214,12 +207,6 @@
 		<dependency>
 			<groupId>org.flywaydb</groupId>
 			<artifactId>flyway-mysql</artifactId>
-			<version>11.1.0</version>
-		</dependency>
-
-		<dependency>
-			<groupId>org.flywaydb</groupId>
-			<artifactId>flyway-sqlserver</artifactId>
 			<version>11.1.0</version>
 		</dependency>
 
@@ -277,7 +264,7 @@
 			<artifactId>rc-webjar</artifactId>
 			<version>1.0.0</version>
 		</dependency>
-		
+
 		<dependency>
 			<groupId>org.xhtmlrenderer</groupId>
 			<artifactId>flying-saucer-core</artifactId>
@@ -289,7 +276,7 @@
 			<artifactId>flying-saucer-pdf-itext5</artifactId>
 			<version>9.7.1</version>
 		</dependency>
-		
+
 		<!-- cleanup bad HTML for email/pdf templates -->
 		<dependency>
 			<groupId>net.sourceforge.htmlcleaner</groupId>
@@ -300,10 +287,10 @@
 		<dependency>
 			<groupId>dk.digitalidentity</groupId>
 			<artifactId>saml-module</artifactId>
-			<version>4.0.8</version>
+			<version>4.1.1</version>
 		</dependency>
 
-		<!-- TODO: not sure if these three the right dependencies to add, but they 
+		<!-- TODO: not sure if these three the right dependencies to add, but they
 			work with the new Java 11 module setup -->
 <!--		<dependency>-->
 <!--			<groupId>javax.xml.bind</groupId>-->
@@ -380,7 +367,7 @@
 			<artifactId>inspinia-webjar-lib</artifactId>
 			<version>1.0.3</version>
 		</dependency>
-		
+
 		<!-- https://www.baeldung.com/java-with-jsoup -->
 		<dependency>
 			<groupId>org.jsoup</groupId>
@@ -408,9 +395,9 @@
 		<dependency>
 			<groupId>dk.digitalidentity</groupId>
 			<artifactId>kitos-client</artifactId>
-			<version>release-1.0.15</version>
+			<version>release-1.0.16</version>
 		</dependency>
-		
+
 		<!-- This is apparently needed to be added to send base64 inline images.
 		Think it has something to do with java version. Was not necessary in Java8, but is in java11 -->
 <!--		<dependency>-->

@@ -19,7 +19,6 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.Setter;
-
 import java.util.List;
 
 @Entity
@@ -75,4 +74,5 @@ public class SystemRole implements AuditLoggable {
 	public String getEntityName() {
 		return name;
 	}
+
 }

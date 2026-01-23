@@ -1,29 +1,41 @@
 package dk.digitalidentity.rc.dao.model;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import dk.digitalidentity.rc.config.ApprovableByListConverter;
+import dk.digitalidentity.rc.config.RequestableByListConverter;
 import dk.digitalidentity.rc.log.AuditLoggable;
+import dk.digitalidentity.rc.rolerequest.model.enums.ApprovableBy;
+import dk.digitalidentity.rc.rolerequest.model.enums.RequestableBy;
+import dk.digitalidentity.rc.dao.model.enums.SystemRoleLinkType;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
+import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
+import jakarta.persistence.JoinTable;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.OneToOne;
 import jakarta.persistence.Table;
 import lombok.Data;
 import lombok.ToString;
+import org.hibernate.annotations.LazyCollection;
+import org.hibernate.annotations.LazyCollectionOption;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import org.hibernate.annotations.BatchSize;
 
 @Entity
 @Table(name = "user_roles")
-@ToString(exclude = { "itSystem" })
+@ToString(exclude = { "itSystem", "requesterPermission", "approverPermission" })
 @Data // TODO: we are depending on Equals() from this, so if/when we refactor to Getter/Setter, then make sure to implement a sane @Equals
 public class UserRole implements AuditLoggable {
 
@@ -49,9 +61,6 @@ public class UserRole implements AuditLoggable {
 	@Column(nullable = false)
 	private boolean userOnly;
 
-	@Column(nullable = false)
-	private boolean canRequest;
-
 	@Column
 	private boolean sensitiveRole;
 
@@ -69,6 +78,10 @@ public class UserRole implements AuditLoggable {
 	@OneToOne(fetch = FetchType.LAZY)
 	@JoinColumn(name = "linked_system_role")
 	private SystemRole linkedSystemRole;
+
+	@Enumerated(EnumType.STRING)
+	@Column(nullable = false)
+	private SystemRoleLinkType systemRoleLinkType = SystemRoleLinkType.NONE;
 
 	@Column(nullable = true)
 	private String linkedSystemRolePrefix;
@@ -89,6 +102,14 @@ public class UserRole implements AuditLoggable {
 	private boolean roleAssignmentAttestationByAttestationResponsible;
 
 	@Column
+	@Convert(converter = RequestableByListConverter.class)
+	private List<RequestableBy> requesterPermission = new ArrayList<>();
+
+	@Column
+	@Convert(converter = ApprovableByListConverter.class)
+	private List<ApprovableBy> approverPermission = new ArrayList<>();
+
+	@Column
 	private String contactEmail;
 
 	@Column(nullable = false)
@@ -97,6 +118,14 @@ public class UserRole implements AuditLoggable {
 	@OneToOne(fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
 	@JoinColumn(name = "user_role_email_template_id")
 	private UserRoleEmailTemplate userRoleEmailTemplate;
+
+	@Column
+	private boolean ouFilterEnabled;
+
+	@OneToMany
+	@JoinTable(name = "ous_user_roles", joinColumns = { @JoinColumn(name = "user_roles_id") }, inverseJoinColumns = { @JoinColumn(name = "ou_uuid") })
+	@LazyCollection(LazyCollectionOption.TRUE)
+	private List<OrgUnit> orgUnitFilterOrgUnits;
 
 	@JsonIgnore
 	@Override

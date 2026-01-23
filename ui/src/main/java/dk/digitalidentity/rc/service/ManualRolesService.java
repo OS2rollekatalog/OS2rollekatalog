@@ -243,7 +243,7 @@ public class ManualRolesService {
 							String[] emails = userRole.getContactEmail().split(";");
 							StringBuilder roleAndUsers = formatMessageForRoleEmail(userRole, addedUsers, removedUsers);
 							for (String email : emails) {
-								if (itEmailAddresses == null || email == null || existsInItSystem(itEmailAddresses, email)) {
+								if ((itEmailAddresses == null && email == null) || existsInItSystem(itEmailAddresses, email)) {
 									continue;
 								}
 								sendNotification(userRole.getName(), roleAndUsers, email);
@@ -424,6 +424,9 @@ public class ManualRolesService {
 	}
 
 	private boolean existsInItSystem(String[] itSystemEmails, String email) {
+		if (itSystemEmails == null) {
+			return false;
+		}
 		boolean result = false;
 		for (String itSystemEmail : itSystemEmails) {
 			if (itSystemEmail.equals(email)) {

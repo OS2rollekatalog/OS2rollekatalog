@@ -83,4 +83,10 @@ public class HistoryOURoleAssignment implements GenericRoleAssignment {
 
 	@OneToMany(mappedBy = "assignment", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
 	private List<HistoryOURoleAssignmentExclusion> exclusions;
+
+	@Column(name = "manager")
+	private Boolean manager;
+
+	@Column(name = "substitutes")
+	private Boolean substitutes;
 }

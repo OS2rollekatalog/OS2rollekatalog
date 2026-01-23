@@ -1,6 +1,7 @@
 package dk.digitalidentity.rc.attestation.controller.rest;
 
 import dk.digitalidentity.rc.attestation.controller.mvc.xlsview.RoleAssignmentXlsView;
+import dk.digitalidentity.rc.attestation.controller.mvc.xlsview.RoleBuildXlsView;
 import dk.digitalidentity.rc.attestation.model.entity.AttestationRun;
 import dk.digitalidentity.rc.attestation.service.AttestationAdminService;
 import dk.digitalidentity.rc.attestation.service.AttestationLockService;
@@ -9,6 +10,8 @@ import dk.digitalidentity.rc.dao.model.ItSystem;
 import dk.digitalidentity.rc.dao.model.OrgUnit;
 import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.security.SecurityUtil;
+import dk.digitalidentity.rc.security.permission.Section;
+import dk.digitalidentity.rc.security.permission.UserPermissionContext;
 import dk.digitalidentity.rc.service.ItSystemService;
 import dk.digitalidentity.rc.service.OrgUnitService;
 import dk.digitalidentity.rc.service.UserService;
@@ -55,6 +58,9 @@ public class AttestationReportRestController {
     @Autowired
     private AttestationAdminService attestationAdminService;
 
+	@Autowired
+	private UserPermissionContext userPermissionContext;
+
     @GetMapping("/rest/attestation/v2/reports/")
     public ResponseEntity<?> busy() {
         if (lockService.isLocked(REPORT_LOCK_NAME)) {
@@ -80,6 +86,23 @@ public class AttestationReportRestController {
 
         return new ModelAndView(new RoleAssignmentXlsView(lockService), model);
     }
+
+	@GetMapping("/rest/attestation/v2/reports/download/roles/all")
+	@Timed("attestation.controller.mvc.attestation_report_controller.download_all_roles.timer")
+	public ModelAndView downloadAllRoles(HttpServletResponse response, Locale locale,
+		@RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate since) {
+		if (!SecurityUtil.isAttestationAdminOrAdmin()) {
+			return new ModelAndView("attestationmodule/error", new HashMap<>());
+		}
+		final LocalDate when = LocalDate.now();
+		final Map<String, Object> model = attestationReportService
+			.getAllRolesReportModel(locale, since != null ? since : when.minusYears(1), when);
+
+		response.setContentType("application/ms-excel");
+		response.setHeader("Content-Disposition", "attachment; filename=\"rolleopbygning_alle.xlsx\"");
+
+		return new ModelAndView(new RoleBuildXlsView(lockService), model);
+	}
 
     @GetMapping("/rest/attestation/v2/reports/download/orgunits/{ouUuid}")
     @Timed("attestation.controller.mvc.attestation_report_controller.download_org_unit.timer")
@@ -148,8 +171,6 @@ public class AttestationReportRestController {
         LocalDate until = nextRun == null ? LocalDate.now() : nextRun.getCreatedAt();
         final Map<String, Object> model = attestationReportService
                 .getAuditReportModel(locale, attestationRun.getCreatedAt(), until, attestationRun);
-
-        // TODO amalie tilpas med fane til users
 
         response.setContentType("application/ms-excel");
         response.setHeader("Content-Disposition", "attachment; filename=\"revisionsrapport.xlsx\"");

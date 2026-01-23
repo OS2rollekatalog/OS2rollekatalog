@@ -1,5 +1,6 @@
 package dk.digitalidentity.rc.dao;
 
+import java.util.Collection;
 import java.util.List;
 
 import dk.digitalidentity.rc.dao.model.User;
@@ -23,4 +24,11 @@ public interface ItSystemDao extends CrudRepository<ItSystem, Long> {
 	List<ItSystem> findByAttestationResponsible(User user);
 	List<ItSystem> findByAttestationResponsibleOrSystemOwner(User user, User user2);
 	List<ItSystem> findByKitosITSystemNotNull();
+
+	List<ItSystem> findByIdInAndDeletedFalse(Collection<Long> ids);
+	List<ItSystem> findAllByDeletedFalse();
+
+	long countByAttestationResponsible(User attestationResponsible);
+
+	List<ItSystem> findByDeletedFalseAndAttestationExemptFalse();
 }

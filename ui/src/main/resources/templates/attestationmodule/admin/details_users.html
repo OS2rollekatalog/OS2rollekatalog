@@ -2,17 +2,27 @@
     <div class="panel-heading">
         Status
     </div>
-    <div class="panel-body">
-        <b><span th:text="|Udtrukket ${#temporals.format(attestationDetails.overview.createdAt, 'dd/MM-yyyy')}|"></span></b><br>
-        <b th:if="${attestationDetails.overview.verifiedAt != null}"><span th:text="|Afsluttet ${#temporals.format(attestationDetails.overview.verifiedAt, 'dd/MM-yyyy')}|"></span></b><br>
-        <span th:text="|Mangler attestering af ${attestationDetails.overview.getNumberToAttestate()} medarbejdere og ${attestationDetails.overview.getOrgUnitNumberToAttestate()} enheder|"></span>
-        <a sec:authorize="hasRole('ROLE_ADMINISTRATOR') or hasRole('ROLE_ATTESTATION_ADMINISTRATOR')" th:unless="${isItSystemAttestation}" class="btn btn-primary btn-lg" style="float: right;" th:text="#{html.help.attestation.see.details}" th:href="@{/ui/attestation/v2/orgunits/{id}(id=${uuid})}">
-            <em class="fa fa-fw fa-search"></em>
-        </a>
-        <a sec:authorize="hasRole('ROLE_ADMINISTRATOR') or hasRole('ROLE_ATTESTATION_ADMINISTRATOR')" th:if="${isItSystemAttestation}" class="btn btn-primary btn-lg" style="float: right;" th:text="#{html.help.attestation.see.details}" th:href="@{/ui/attestation/v2/itsystems/{id}/roleassignments(id=${uuid})}">
-            <em class="fa fa-fw fa-search"></em>
-        </a>
-    </div>
+	<div class="panel-body">
+		<b><span th:text="|Udtrukket ${#temporals.format(attestationDetails.overview.createdAt, 'dd/MM-yyyy')}|"></span></b><br>
+		<b th:if="${attestationDetails.overview.verifiedAt != null}"><span th:text="|Afsluttet ${#temporals.format(attestationDetails.overview.verifiedAt, 'dd/MM-yyyy')}|"></span></b><br>
+		<span th:text="|Mangler attestering af ${attestationDetails.overview.getNumberToAttestate()} medarbejdere og ${attestationDetails.overview.getOrgUnitNumberToAttestate()} enheder|"></span>
+		<a sec:authorize="hasRole('ROLE_ADMINISTRATOR') or hasRole('ROLE_ATTESTATION_ADMINISTRATOR')"
+		   th:unless="${isItSystemAttestation} or ${color.name() == 'GREEN'}"
+		   class="btn btn-primary btn-lg"
+		   style="float: right;"
+		   th:text="#{html.help.attestation.see.details}"
+		   th:href="@{/ui/attestation/v2/orgunits/{id}(id=${uuid})}">
+			<em class="fa fa-fw fa-search"></em>
+		</a>
+		<a sec:authorize="hasRole('ROLE_ADMINISTRATOR') or hasRole('ROLE_ATTESTATION_ADMINISTRATOR')"
+		   th:if="${isItSystemAttestation} and ${color.name() != 'GREEN'}"
+		   class="btn btn-primary btn-lg"
+		   style="float: right;"
+		   th:text="#{html.help.attestation.see.details}"
+		   th:href="@{/ui/attestation/v2/itsystems/{id}/roleassignments(id=${uuid})}">
+			<em class="fa fa-fw fa-search"></em>
+		</a>
+	</div>
 </div>
 <div class="panel panel-info">
     <div class="panel-heading">Sendte notifikationer</div>

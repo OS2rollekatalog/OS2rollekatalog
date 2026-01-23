@@ -79,6 +79,10 @@
                                         <td th:text="#{attestationmodule.html.reports.all.name}"></td>
                                         <td style="text-align: center; width: 80px"><a onclick="return downloadReport(this)" th:href="@{${'/rest/attestation/v2/reports/download/all'}}"><em style="color: #212529" class="fa fa-download"></em></a></td>
                                     </tr>
+									<tr>
+										<td th:text="#{attestationmodule.html.reports.roles.all.name}"></td>
+										<td style="text-align: center; width: 80px"><a onclick="return downloadReport(this)" th:href="@{${'/rest/attestation/v2/reports/download/roles/all'}}"><em style="color: #212529" class="fa fa-download"></em></a></td>
+									</tr>
                                     </tbody>
                                 </table>
                             </div>
@@ -212,10 +216,25 @@
                 "responsive" : true,
                 "autoWidth" : false
 			});
+
+			$.fn.dataTable.ext.type.order['date-dk-pre'] = function(d) {
+				if (!d || d === '') return 0;
+				// Parse dansk datoformat dd/MM-YYYY
+				const parts = d.match(/(\d{2})\/(\d{2})-(\d{4})/);
+				if (!parts) return 0;
+
+				const day = parseInt(parts[1], 10);
+				const month = parseInt(parts[2], 10);
+				const year = parseInt(parts[3], 10);
+				// Returner timestamp for korrekt sortering
+				return new Date(year, month - 1, day).getTime();
+			};
 			$('#auditTable').DataTable({
                 "columnDefs": [
-                    { "orderable": false, "targets": 4 }
+                    { "orderable": false, "targets": 4 },
+					{ "type": "date-dk", "targets": [0] }
                 ],
+				"order": [ [ 0, "desc" ] ],
 				"pageLength" : 25,
                 "responsive" : true,
                 "autoWidth" : false,

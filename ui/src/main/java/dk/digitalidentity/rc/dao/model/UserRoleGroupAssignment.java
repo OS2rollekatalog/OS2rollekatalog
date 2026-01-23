@@ -1,5 +1,8 @@
 package dk.digitalidentity.rc.dao.model;
 
+import java.time.LocalDate;
+import java.util.Date;
+
 import dk.digitalidentity.rc.dao.serializer.LocalDateAttributeConverter;
 import jakarta.persistence.Column;
 import jakarta.persistence.Convert;
@@ -12,10 +15,6 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import lombok.Getter;
 import lombok.Setter;
-import org.hibernate.annotations.BatchSize;
-
-import java.time.LocalDate;
-import java.util.Date;
 
 @Entity(name = "user_rolegroups")
 @Getter

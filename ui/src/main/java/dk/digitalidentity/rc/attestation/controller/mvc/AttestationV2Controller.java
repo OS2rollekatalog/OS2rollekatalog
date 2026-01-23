@@ -1,7 +1,19 @@
 package dk.digitalidentity.rc.attestation.controller.mvc;
 
+import static dk.digitalidentity.rc.attestation.service.AttestationOverviewService.buildItSystemsOverviews;
+import static dk.digitalidentity.rc.attestation.service.AttestationOverviewService.buildItSystemsUsersOverviews;
+
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Optional;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Controller;
+import org.springframework.ui.Model;
+import org.springframework.web.bind.annotation.GetMapping;
+
 import dk.digitalidentity.rc.attestation.model.dto.AttestationOverviewDTO;
-import dk.digitalidentity.rc.attestation.model.dto.OrganisationAttestationDTO;
 import dk.digitalidentity.rc.attestation.model.entity.AttestationRun;
 import dk.digitalidentity.rc.attestation.service.AttestationOverviewService;
 import dk.digitalidentity.rc.attestation.service.AttestationRunService;
@@ -14,18 +26,6 @@ import dk.digitalidentity.rc.security.RequireAnyAttestationEligibleRole;
 import dk.digitalidentity.rc.security.SecurityUtil;
 import dk.digitalidentity.rc.service.UserService;
 import io.micrometer.core.annotation.Timed;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Controller;
-import org.springframework.ui.Model;
-import org.springframework.web.bind.annotation.GetMapping;
-
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Optional;
-
-import static dk.digitalidentity.rc.attestation.service.AttestationOverviewService.buildItSystemsOverviews;
-import static dk.digitalidentity.rc.attestation.service.AttestationOverviewService.buildItSystemsUsersOverviews;
 
 @RequireAnyAttestationEligibleRole
 @Controller

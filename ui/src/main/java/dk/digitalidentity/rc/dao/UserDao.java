@@ -9,6 +9,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.CrudRepository;
 import org.springframework.data.repository.query.Param;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -28,11 +29,11 @@ public interface UserDao extends CrudRepository<User, String>, JpaSpecificationE
 	// same
 	@Deprecated
 	List<User> findByUserRoleAssignmentsUserRole(UserRole userRole);
-	
+
 	// same
 	@Deprecated
 	List<User> findByRoleGroupAssignmentsRoleGroup(RoleGroup role);
-	
+
 	// same
 	@Deprecated
 	List<User> findByExtUuidIn(Set<String> extUuids);
@@ -40,7 +41,7 @@ public interface UserDao extends CrudRepository<User, String>, JpaSpecificationE
 	// same
 	@Deprecated
 	List<User> findByDomainAndExtUuidIn(Domain domain, Set<String> extUuids);
-	
+
 	List<User> findByDomainAndDeletedFalse(Domain domain);
 	List<User> findByDeletedFalse();
 	List<User> findByDeletedTrue();
@@ -52,7 +53,7 @@ public interface UserDao extends CrudRepository<User, String>, JpaSpecificationE
 	List<User> findByUuidInAndDeletedFalse(Set<String> uuids);
 	List<User> findByExtUuidAndDeletedFalse(String uuid);
 	Optional<User> findByUserIdAndDomainAndDeletedFalse(String userId, Domain domain);
-	
+
 	// use the versions below that filters on active/inactive flag
 	@Deprecated
 	List<User> findByDeletedFalseAndRoleGroupAssignmentsRoleGroup(RoleGroup role);
@@ -63,7 +64,7 @@ public interface UserDao extends CrudRepository<User, String>, JpaSpecificationE
 
 	List<User> findByDeletedFalseAndUserRoleAssignmentsUserRoleAndUserRoleAssignmentsInactive(UserRole userRole, boolean inactive);
 	List<User> findByDeletedFalseAndRoleGroupAssignmentsRoleGroupInAndRoleGroupAssignmentsInactive(List<RoleGroup> roleGroups, boolean inactive);
-	
+
 	User getTopByDeletedFalseOrderByLastUpdatedDesc();
 
 	@Query(nativeQuery = true, value = "SELECT * FROM users u WHERE u.uuid IN (SELECT DISTINCT(manager) FROM ous)")
@@ -89,4 +90,8 @@ public interface UserDao extends CrudRepository<User, String>, JpaSpecificationE
 	List<User> findByNameContainsOrUserIdContainsAndDeletedFalse(String name, String userId);
 
 	List<User> findTop10ByDeletedFalse();
+
+	@Query("SELECT DISTINCT u FROM users u " +
+		"WHERE u.disabled = true AND u.disabledAt IS NOT NULL AND u.disabledAt <= :cutoffDate")
+	List<User> findDisabledUsersOlderThan(@Param("cutoffDate") LocalDate cutoffDate);
 }

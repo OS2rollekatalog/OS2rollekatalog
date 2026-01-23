@@ -1,5 +1,11 @@
 package dk.digitalidentity.rc.dao.model;
 
+import java.time.LocalDateTime;
+
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
+
 import dk.digitalidentity.rc.dao.model.json.ADConfigurationJSON;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -14,12 +20,6 @@ import jakarta.persistence.UniqueConstraint;
 import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
 import lombok.Setter;
-import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.JdbcTypeCode;
-import org.hibernate.type.SqlTypes;
-import org.springframework.data.annotation.CreatedBy;
-
-import java.time.LocalDateTime;
 
 @Table(name = "ad_configuration",
 		uniqueConstraints = { @UniqueConstraint(name = "UQ_VERSION_CLIENT", columnNames = { "version", "client_id" }) })

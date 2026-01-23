@@ -1,1 +1,0 @@
-INSERT INTO it_systems (name, identifier, system_type) VALUES ('KOMBIT Ekstern Test', 'KOMBITTEST', 'KOMBIT');

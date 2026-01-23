@@ -1,1 +1,0 @@
-ALTER TABLE pending_ad_updates DROP COLUMN status;

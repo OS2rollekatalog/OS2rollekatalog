@@ -7,7 +7,8 @@
 		<header th:replace="~{fragments/navbar :: navbar-header(subpage = 'roles')}"></header>
 		<aside th:replace="~{fragments/navbar :: navbar-aside (page = 'itsystem.list', subpage = 'roles')}"></aside>
 
-		<section>
+		<section th:with="permission=${T(dk.digitalidentity.rc.security.permission.Permission)},
+section=${T(dk.digitalidentity.rc.security.permission.Section)}">
 			<div class="content-wrapper">
 				<h3>
 					<a th:href="@{/ui/itsystem/edit/} + ${itSystem.id}" class="btn btn-default">
@@ -37,8 +38,8 @@
 												<td th:text="${role.description}"></td>
 										    	<th:block th:if="${role.delegatedFromCvr == null}"> 
 											    	<td>
-											    		<a th:href="@{/ui/userroles/view/{id}(id=${role.id})}"><em class="fa fa-search"></em></a>
-											    		<th:block sec:authorize="hasRole('ROLE_ADMINISTRATOR')">
+											    		<a th:if="${@permissionCheck.isAllowed(section.USER_ROLE, permission.READ)}" th:href="@{/ui/userroles/view/{id}(id=${role.id})}"><em class="fa fa-search"></em></a>
+											    		<th:block th:if="${@permissionCheck.isAllowed(section.USER_ROLE, permission.UPDATE)}">
 												    		<a th:href="@{/ui/userroles/edit/{id}(id=${role.id})}"><em class="fa fa-pencil"></em></a>
 														</th:block>
 											    	</td>

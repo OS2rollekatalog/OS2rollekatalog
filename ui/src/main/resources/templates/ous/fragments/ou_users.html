@@ -1,4 +1,6 @@
-<th:block th:fragment="orgUnitUsers" xmlns="http://www.w3.org/1999/xhtml" xmlns:th="http://www.thymeleaf.org">
+<th:block th:fragment="orgUnitUsers" xmlns="http://www.w3.org/1999/xhtml" xmlns:th="http://www.thymeleaf.org"
+		  th:with="permission=${T(dk.digitalidentity.rc.security.permission.Permission)},
+section=${T(dk.digitalidentity.rc.security.permission.Section)}">
 	<fieldset>
 		<div class="form-group">
 			<div class="table-responsive">
@@ -18,7 +20,7 @@
 							<td th:text="${user.userId}"></td>
 							<td th:text="${user.title}"></td>
 							<td>
-								<a th:href="@{/ui/users/manage/{id}(id=${user.id})}"><em class="fa fa-pencil"></em></a>
+								<a th:if="${@permissionCheck.isAllowed(section.USER, permission.UPDATE)}" th:href="@{/ui/users/manage/{id}(id=${user.id})}"><em class="fa fa-pencil"></em></a>
 							</td>
 						</tr>
 					</tbody>

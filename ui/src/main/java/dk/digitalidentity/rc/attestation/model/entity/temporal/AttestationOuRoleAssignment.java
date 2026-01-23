@@ -64,6 +64,11 @@ public class AttestationOuRoleAssignment extends TemporalAssignmentBase {
     @PartOfNaturalKey
     @Builder.Default
     private List<String> exceptedUserUuids = Collections.emptyList();
+	@Column
+	@Convert(converter = StringListConverter.class)
+	@PartOfNaturalKey
+	@Builder.Default
+	private List<String> functionUuids = Collections.emptyList();
     @Column
     @PartOfNaturalKey
     private Long itSystemId;
@@ -87,6 +92,10 @@ public class AttestationOuRoleAssignment extends TemporalAssignmentBase {
     private boolean sensitiveRole;
     @Column
     private boolean extraSensitiveRole;
+	@Column
+	private boolean manager;
+	@Column
+	private boolean substitutes;
     @Column
     @Convert(converter = StringListConverter.class)
     @PartOfNaturalKey

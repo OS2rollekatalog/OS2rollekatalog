@@ -32,6 +32,7 @@ import lombok.Setter;
 
 @Getter
 @Setter
+@BatchSize(size = 64)
 @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 @Entity(name = "ous")
 public class OrgUnit implements AuditLoggable {
@@ -47,7 +48,7 @@ public class OrgUnit implements AuditLoggable {
 	@ManyToOne(fetch = FetchType.LAZY)
 	@JoinColumn(name = "parent_uuid")
 	private OrgUnit parent;
-	
+
 	@UpdateTimestamp
 	@Temporal(TemporalType.TIMESTAMP)
 	@Column
@@ -56,7 +57,7 @@ public class OrgUnit implements AuditLoggable {
 	@JsonIgnore
 	@Column
 	private boolean active;
-	
+
 	@Column
 	private boolean inheritKle;
 
@@ -70,7 +71,7 @@ public class OrgUnit implements AuditLoggable {
 	@JsonBackReference
 	@OneToMany(fetch = FetchType.LAZY, mappedBy = "parent", cascade = CascadeType.ALL)
 	private List<OrgUnit> children;
-	
+
 	@BatchSize(size = 50)
 	@OneToMany(fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true, mappedBy = "orgUnit")
 	private List<KLEMapping> kles;
@@ -78,10 +79,14 @@ public class OrgUnit implements AuditLoggable {
 	@BatchSize(size = 50)
 	@OneToMany(mappedBy = "orgUnit", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
 	private List<OrgUnitUserRoleAssignment> userRoleAssignments;
-	
+
 	@BatchSize(size = 50)
 	@OneToMany(mappedBy = "orgUnit", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
 	private List<OrgUnitRoleGroupAssignment> roleGroupAssignments;
+
+	@BatchSize(size = 50)
+	@OneToMany(mappedBy = "orgUnit", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
+	private List<UserOUFunction> functionAssignments;
 
     @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "manager", nullable = true)
@@ -97,23 +102,24 @@ public class OrgUnit implements AuditLoggable {
 
     @Column
 	@Temporal(TemporalType.TIMESTAMP)
-    private Date nextAttestation;    
-    
-	// lazy does not work, due to some inane proxy stuff, so a ManyToOne is required
+    private Date nextAttestation;
+
+	// lazy does not work on OneToOne, due to some inane proxy stuff, so a ManyToOne is required
 	@ManyToOne(fetch = FetchType.LAZY)
 	@JoinColumn(name = "attestation_pdf")
 	private OrgUnitAttestationPdf attestationPdf;
-		
+
 	@OneToMany(mappedBy = "orgUnit", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
 	private List<AuthorizationManager> authorizationManagers;
 
+    @BatchSize(size = 64)
 	@ManyToMany
 	@JoinTable(
-	  name = "ou_title_mapping", 
-	  joinColumns = @JoinColumn(name = "orgunit_uuid"), 
+	  name = "ou_title_mapping",
+	  joinColumns = @JoinColumn(name = "orgunit_uuid"),
 	  inverseJoinColumns = @JoinColumn(name = "title_uuid"))
 	private List<Title> titles;
-	
+
 	@JsonIgnore
 	@Override
 	public String getEntityId() {
@@ -123,5 +129,5 @@ public class OrgUnit implements AuditLoggable {
 	@Override
 	public String getEntityName() {
 		return name;
-	}	
+	}
 }

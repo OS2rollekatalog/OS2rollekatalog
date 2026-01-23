@@ -148,12 +148,7 @@ public class RoleAssignmentXlsView extends AttestationXlsView {
 				Row dataRow = sheet.createRow(row++);
 				int column = 0;
 
-				String attestationStatusMessage = entry.getAttestationStatus().getMessage();
-				if (entry.getAttestationStatus().equals(AttestationStatus.NOT_VERIFIED) && entry.getValidTo() != null && entry.getAttestationCreatedAt() != null) {
-					if (entry.getValidTo().isBefore(entry.getAttestationCreatedAt())) {
-						attestationStatusMessage = "attestationmodule.enums.attestationStatus.notVerified.outsideAttestation";
-					}
-				}
+				final String attestationStatusMessage = getAttestationStatusMessage(entry);
 
 				createCell(dataRow, column++, entry.getUserName(), null);
 				createCell(dataRow, column++, entry.getUserUserId(), null);
@@ -201,6 +196,22 @@ public class RoleAssignmentXlsView extends AttestationXlsView {
 		sheet.setColumnWidth(18, 50 * 256);
 		sheet.setColumnWidth(19, 50 * 256);
 
+	}
+
+	private static String getAttestationStatusMessage(RoleAssignmentReportRowDTO entry) {
+		String attestationStatusMessage = entry.getAttestationStatus().getMessage();
+		final LocalDate attestationCreatedAt = entry.getAttestationCreatedAt();
+		if (entry.getAttestationStatus().equals(AttestationStatus.NOT_VERIFIED)) {
+			if ((attestationCreatedAt == null) // No attestation found must be outside attestation
+				// validFrom is after attestation was created so must be outside attestation
+				|| (entry.getValidFrom() != null && entry.getValidFrom().isAfter(attestationCreatedAt))
+				// validTo is before attestation was created so must be outside attestation
+				|| (entry.getValidTo() != null && entry.getValidTo().isBefore(attestationCreatedAt)))
+			{
+				attestationStatusMessage = "attestationmodule.enums.attestationStatus.notVerified.outsideAttestation";
+			}
+		}
+		return attestationStatusMessage;
 	}
 
 	private void createHeaderRow(Sheet sheet, List<String> headers) {

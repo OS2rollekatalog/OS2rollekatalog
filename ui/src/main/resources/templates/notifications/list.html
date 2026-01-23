@@ -77,7 +77,7 @@
 
 			var activateTitle = [[#{html.entity.notification.activate.title}]];
 			var activateText = [[#{html.entity.notification.activate.text}]];
-			
+
 			var discardTitle = [[#{html.entity.notification.discard.title}]];
 			var discardText = [[#{html.entity.notification.discard.text}]];
 
@@ -91,18 +91,18 @@
 			var reassignText = [[#{html.entity.notification.reassign.text}]];
 			var reassignYesBtn = [[#{html.entity.notification.reassign.yes}]];
 			var reassignNoBtn = [[#{html.entity.notification.reassign.no}]];
-			
+
 			var changeStatusButtonConfirm = [[#{html.control.button.yes}]];
 			var changeStatusButtonCancel = [[#{html.control.button.no}]];
-			
+
 			var typesMap = [[${typesMap}]];
 			var url = [[@{/ui/}]];
 			var ajaxUrl = [[@{/rest/notifications/list}]];
 			var changeStatusUrl = [[@{/rest/notifications/changeStatus}]];
 			var flipAssignUrl = [[@{/rest/notifications/flipAssign/}]];
-			
+
 			var changeStatusErrorMsg = [[#{html.setting.update.msg.failed}]];
-			
+
 			var userUuid = [[${userUuid}]];
 		+]*/
 
@@ -132,7 +132,7 @@
 				}
 			});
 		});
-		
+
 		function NotificationService() {
 			this.flipAssign = function(id, status, currentUuid) {
 				var title = assignTitle;
@@ -187,7 +187,7 @@
 					}
 				});
 			}
-			
+
 			this.loadDataTables = function(showInactive, selectedValue) {
 				currentTable = $('.listTable').DataTable({
 					'destroy': true,
@@ -226,27 +226,39 @@
 							orderable: true,
 							searchable: true,
 							render: function (data, type, row, meta) {
-								if (row.affectedEntityName == null || row.affectedEntityType == null || row.affectedEntityUuid == null) {
-									return '';
-								} else {
-									return row.affectedEntityName + ' <a href=' + url + row.affectedEntityType.toLowerCase() + '/manage/' + row.affectedEntityUuid + '><em class="fa fa-fw fa-external-link"></em></a>';
+								if (type === 'display') {
+									if (row.affectedEntityName == null || row.affectedEntityType == null || row.affectedEntityUuid == null) {
+										return '';
+									} else {
+										let html = row.affectedEntityName
+										html += row.canReadAffectedEntity ? ' <a href=' + url + row.affectedEntityType.toLowerCase() + '/manage/' + row.affectedEntityUuid + '><em class="fa fa-fw fa-external-link"></em></a>' :''
+										return html;
+									}
 								}
 							}
 						},
 						{
 							data : 'adminName',
 							render: function (data, type, row, meta) {
-								return '<a onclick="notificationService.flipAssign(' + row.id + ',' + !row.active + ',\'' + ((row.adminUuid) ? row.adminUuid : '') + '\');"><em class="fa fa-fw fa-user"></em></a>' +
-										((row.adminName) ? row.adminName + '<br/><em style="font-size: smaller;">' + row.lastUpdated + '</em>' : '');
+								if (type === 'display' && row.allowedActions.editable) {
+									return '<a onclick="notificationService.flipAssign(' + row.id + ',' + !row.active + ',\'' + ((row.adminUuid) ? row.adminUuid : '') + '\');"><em class="fa fa-fw fa-user"></em></a>' +
+											((row.adminName) ? row.adminName + '<br/><em style="font-size: smaller;">' + row.lastUpdated + '</em>' : '');
+								}
 							}
 						},
 						{
-							data : 'id',
+							data : 'allowedActions',
 							orderable: false,
 							searchable: false,
 							render: function (data, type, row, meta) {
-								return '<a href=' + url + 'report/notifications/view/' + row.id + '><em class="fa fa-fw fa-search"></em></a>' +
-									   '<a href="#" onClick="notificationService.changeStatus'+ '(' + row.id + ',' + !row.active + ')' +'"><em class="fa fa-fw fa-' + (row.active ? 'times' : 'repeat') + '"></em></a>';
+								if (type === 'display') {
+									let html = ''
+									html += data.readable ? '<a href=' + url + 'report/notifications/view/' + row.id + '><em class="fa fa-fw fa-search"></em></a>' : '';
+									html += data.editable ? '<a href="#" onClick="notificationService.changeStatus'+ '(' + row.id + ',' + !row.active + ')' +'"><em class="fa fa-fw fa-' + (row.active ? 'times' : 'repeat') + '"></em></a>' : '';
+									return html;
+
+								}
+								return data;
 							}
 						}
 					],

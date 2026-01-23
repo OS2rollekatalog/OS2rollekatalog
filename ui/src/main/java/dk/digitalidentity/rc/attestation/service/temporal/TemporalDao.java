@@ -101,10 +101,13 @@ public class TemporalDao {
                 hra.assigned_when,
                 hra.start_date,
                 hra.stop_date,
+                hra.manager,
+                hra.substitutes,
                 e.id AS exclusion_id,
                 e.exclusion_type,
                 e.user_uuids,
-                e.title_uuids
+                e.title_uuids,
+                e.function_uuids
             FROM history_ou_role_assignments hra
             LEFT JOIN history_ou_role_assignment_exclusions e
                    ON hra.id = e.assignment_id
@@ -297,6 +300,7 @@ public class TemporalDao {
         parameters.put("responsible_ou_uuid", assignment.getResponsibleOuUuid());
         parameters.put("responsible_ou_name", assignment.getResponsibleOuName());
         parameters.put("title_uuids", RowMapperUtils.joinFromList(assignment.getTitleUuids()));
+        parameters.put("function_uuids", RowMapperUtils.joinFromList(assignment.getFunctionUuids()));
         parameters.put("excepted_user_uuids", RowMapperUtils.joinFromList(assignment.getExceptedUserUuids()));
         parameters.put("it_system_id", assignment.getItSystemId());
         parameters.put("it_system_name", assignment.getItSystemName());
@@ -308,17 +312,19 @@ public class TemporalDao {
         parameters.put("sensitive_role", assignment.isSensitiveRole());
         parameters.put("extra_sensitive_role", assignment.isExtraSensitiveRole());
         parameters.put("excepted_title_uuids", RowMapperUtils.joinFromList(assignment.getExceptedTitleUuids()));
+		parameters.put("manager", assignment.isManager());
+		parameters.put("substitutes", assignment.isSubstitutes());
         namedParameterJdbcTemplate.update("INSERT INTO attestation_ou_role_assignments (record_hash, updated_at, valid_from, valid_to," +
                 "                                                    assigned_through_name, assigned_through_type, assigned_through_uuid," +
                 "                                                    inherited, it_system_id, it_system_name, role_description, role_id," +
                 "                                                    role_name, role_group_name, role_group_id, role_group_description," +
                 "                                                    sensitive_role, extra_sensitive_role, ou_name, ou_uuid, excepted_user_uuids, title_uuids," +
-                "                                                    responsible_user_uuid, responsible_ou_name, responsible_ou_uuid," +
-                "                                                    inherit, excepted_title_uuids) " +
+                "                                                    function_uuids, responsible_user_uuid, responsible_ou_name, responsible_ou_uuid," +
+                "                                                    inherit, excepted_title_uuids, manager, substitutes) " +
                 " VALUES (:record_hash, :updated_at, :valid_from, :valid_to, :assigned_through_name, :assigned_through_type, :assigned_through_uuid," +
                 "         :inherited, :it_system_id, :it_system_name, :role_description, :role_id, :role_name, :role_group_name, " +
                 "         :role_group_id, :role_group_description, :sensitive_role, :extra_sensitive_role, :ou_name, :ou_uuid, :excepted_user_uuids, " +
-                "         :title_uuids, :responsible_user_uuid, :responsible_ou_name, :responsible_ou_uuid, :inherit, :excepted_title_uuids)",
+                "         :title_uuids, :function_uuids, :responsible_user_uuid, :responsible_ou_name, :responsible_ou_uuid, :inherit, :excepted_title_uuids, :manager, :substitutes)",
                 parameters);
 
     }
@@ -342,6 +348,7 @@ public class TemporalDao {
         in.addValue("responsible_ou_uuid", assignment.getResponsibleOuUuid());
         in.addValue("responsible_ou_name", assignment.getResponsibleOuName());
         in.addValue("title_uuids", RowMapperUtils.joinFromList(assignment.getTitleUuids()));
+        in.addValue("function_uuids", RowMapperUtils.joinFromList(assignment.getFunctionUuids()));
         in.addValue("excepted_user_uuids", RowMapperUtils.joinFromList(assignment.getExceptedUserUuids()));
         in.addValue("it_system_id", assignment.getItSystemId());
         in.addValue("it_system_name", assignment.getItSystemName());
@@ -353,6 +360,8 @@ public class TemporalDao {
         in.addValue("sensitive_role", assignment.isSensitiveRole());
         in.addValue("extra_sensitive_role", assignment.isExtraSensitiveRole());
         in.addValue("excepted_title_uuids", RowMapperUtils.joinFromList(assignment.getExceptedTitleUuids()));
+		in.addValue("manager", assignment.isManager());
+		in.addValue("substitutes", assignment.isSubstitutes());
 
         return namedParameterJdbcTemplate.update("UPDATE attestation_ou_role_assignments SET " +
                 "record_hash=:record_hash, updated_at=:updated_at, valid_from=:valid_from, valid_to=:valid_to, assigned_through_name=:assigned_through_name, " +
@@ -360,8 +369,8 @@ public class TemporalDao {
                 "it_system_id=:it_system_id, it_system_name=it_system_name, role_description=:role_description, role_id=:role_id, " +
                 "role_name=:role_name, role_group_name=:role_group_name, role_group_id=:role_group_id, role_group_description=:role_group_description, " +
                 "sensitive_role=:sensitive_role, extra_sensitive_role=:extra_sensitive_role, ou_name=:ou_name, ou_uuid=:ou_uuid, excepted_user_uuids=:excepted_user_uuids, " +
-                "title_uuids=:title_uuids, responsible_user_uuid=:responsible_user_uuid, responsible_ou_name=:responsible_ou_name, " +
-                "responsible_ou_uuid=:responsible_ou_uuid, inherit=:inherit, excepted_title_uuids=:excepted_title_uuids " +
+                "title_uuids=:title_uuids, function_uuids=:function_uuids, responsible_user_uuid=:responsible_user_uuid, responsible_ou_name=:responsible_ou_name, " +
+                "responsible_ou_uuid=:responsible_ou_uuid, inherit=:inherit, excepted_title_uuids=:excepted_title_uuids, manager=:manager, substitutes=:substitutes " +
                 " WHERE id=:id", in);
     }
 

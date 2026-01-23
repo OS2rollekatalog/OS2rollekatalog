@@ -12,7 +12,7 @@ namespace RoleCatalogImporter.Properties {
     
     
     [global::System.Runtime.CompilerServices.CompilerGeneratedAttribute()]
-    [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.VisualStudio.Editors.SettingsDesigner.SettingsSingleFileGenerator", "17.11.0.0")]
+    [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.VisualStudio.Editors.SettingsDesigner.SettingsSingleFileGenerator", "17.14.0.0")]
     internal sealed partial class Settings : global::System.Configuration.ApplicationSettingsBase {
         
         private static Settings defaultInstance = ((Settings)(global::System.Configuration.ApplicationSettingsBase.Synchronized(new Settings())));
@@ -29,15 +29,6 @@ namespace RoleCatalogImporter.Properties {
         public string DefaultTitle {
             get {
                 return ((string)(this["DefaultTitle"]));
-            }
-        }
-        
-        [global::System.Configuration.ApplicationScopedSettingAttribute()]
-        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("https://kommune.rollekatalog.dk/api/organisation/v3")]
-        public string ApiUrl {
-            get {
-                return ((string)(this["ApiUrl"]));
             }
         }
         
@@ -232,10 +223,9 @@ namespace RoleCatalogImporter.Properties {
         
         [global::System.Configuration.ApplicationScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("LDAP://OU=ekstraStuff,DC=digitalidentity,DC=dk")]
-        public string AdditionalADOU {
+        public global::System.Collections.Specialized.StringCollection AdditionalADOU {
             get {
-                return ((string)(this["AdditionalADOU"]));
+                return ((global::System.Collections.Specialized.StringCollection)(this["AdditionalADOU"]));
             }
         }
         
@@ -290,6 +280,15 @@ namespace RoleCatalogImporter.Properties {
         public bool SendErrorEmailFeature_Enabled {
             get {
                 return ((bool)(this["SendErrorEmailFeature_Enabled"]));
+            }
+        }
+        
+        [global::System.Configuration.ApplicationScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("https://10.0.2.2:8090/api/organisation/v3")]
+        public string ApiUrl {
+            get {
+                return ((string)(this["ApiUrl"]));
             }
         }
     }

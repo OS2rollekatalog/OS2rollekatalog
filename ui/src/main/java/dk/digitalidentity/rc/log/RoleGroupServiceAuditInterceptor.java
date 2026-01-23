@@ -39,7 +39,7 @@ public class RoleGroupServiceAuditInterceptor {
 				break;
 		}
 	}
-	
+
 	@Before(value = "execution(* dk.digitalidentity.rc.service.RoleGroupService.*(..)) && @annotation(AuditLogIntercepted)")
 	public void interceptBefore(JoinPoint jp) {
 		switch(jp.getSignature().getName()) {
@@ -82,27 +82,25 @@ public class RoleGroupServiceAuditInterceptor {
 	}
 
 	private Object auditSave(ProceedingJoinPoint jp) throws Throwable {
-        if (jp.getArgs().length > 0) {
-            Object target = jp.getArgs()[0];
+		if (jp.getArgs().length > 0) {
+			Object target = jp.getArgs()[0];
 
-            if (target != null && target instanceof RoleGroup) {
-            	RoleGroup roleGroup = (RoleGroup) target;
-				boolean created = false;
+			if (target != null && target instanceof RoleGroup roleGroup) {
+				boolean isCreate = roleGroup.getId() == 0;
 
-		    	if (roleGroup.getId() == 0) {
-		    		created = true;
-		        }
-		    	
-		        RoleGroup after = (RoleGroup) jp.proceed();
-		        if (created) {
-		        	auditLogger.log(after, EventType.CREATE);
-		        }
-		        
-		        return after;
-            }
-        }
-        
-        return jp.proceed();
+				RoleGroup after = (RoleGroup) jp.proceed();
+
+				if (isCreate) {
+					auditLogger.log(after, EventType.CREATE);
+				} else {
+					auditLogger.log(after, EventType.UPDATE);
+				}
+
+				return after;
+			}
+		}
+
+		return jp.proceed();
 	}
 
 	private void auditAddUserRole(JoinPoint jp, Object retVal) {

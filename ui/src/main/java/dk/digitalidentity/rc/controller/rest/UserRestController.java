@@ -1,51 +1,14 @@
 package dk.digitalidentity.rc.controller.rest;
 
-import dk.digitalidentity.rc.controller.mvc.UserControllerHelper;
-import dk.digitalidentity.rc.controller.mvc.datatables.dao.UserViewDao;
-import dk.digitalidentity.rc.controller.mvc.datatables.dao.model.UserView;
-import dk.digitalidentity.rc.controller.mvc.viewmodel.KleViewModel;
-import dk.digitalidentity.rc.controller.mvc.viewmodel.SelectOUDTO;
-import dk.digitalidentity.rc.controller.mvc.viewmodel.UserAssignStatus;
-import dk.digitalidentity.rc.controller.mvc.viewmodel.UserRoleDTO;
-import dk.digitalidentity.rc.controller.rest.model.PostponedConstraintDTO;
-import dk.digitalidentity.rc.dao.model.ConstraintType;
-import dk.digitalidentity.rc.dao.model.OrgUnit;
-import dk.digitalidentity.rc.dao.model.Position;
-import dk.digitalidentity.rc.dao.model.PositionRoleGroupAssignment;
-import dk.digitalidentity.rc.dao.model.PositionUserRoleAssignment;
-import dk.digitalidentity.rc.dao.model.PostponedConstraint;
-import dk.digitalidentity.rc.dao.model.RoleGroup;
-import dk.digitalidentity.rc.dao.model.SystemRole;
-import dk.digitalidentity.rc.dao.model.User;
-import dk.digitalidentity.rc.dao.model.UserKLEMapping;
-import dk.digitalidentity.rc.dao.model.UserRole;
-import dk.digitalidentity.rc.dao.model.UserRoleGroupAssignment;
-import dk.digitalidentity.rc.dao.model.UserUserRoleAssignment;
-import dk.digitalidentity.rc.dao.model.enums.ItSystemType;
-import dk.digitalidentity.rc.dao.model.enums.KleType;
-import dk.digitalidentity.rc.security.AccessConstraintService;
-import dk.digitalidentity.rc.security.RequireAdministratorRole;
-import dk.digitalidentity.rc.security.RequireAssignerRole;
-import dk.digitalidentity.rc.security.RequireReadAccessOrManagerRole;
-import dk.digitalidentity.rc.security.RequireRequesterOrAssignerRole;
-import dk.digitalidentity.rc.service.ConstraintTypeService;
-import dk.digitalidentity.rc.service.KleService;
-import dk.digitalidentity.rc.service.OrgUnitService;
-import dk.digitalidentity.rc.service.PositionService;
-import dk.digitalidentity.rc.service.PostponedConstraintService;
-import dk.digitalidentity.rc.service.RoleGroupService;
-import dk.digitalidentity.rc.service.SettingsService;
-import dk.digitalidentity.rc.service.SystemRoleService;
-import dk.digitalidentity.rc.service.UserRoleService;
-import dk.digitalidentity.rc.service.UserService;
-import dk.digitalidentity.rc.service.model.AssignedThrough;
-import dk.digitalidentity.rc.service.model.RoleAssignmentType;
-import dk.digitalidentity.rc.service.model.RoleGroupAssignedToUser;
-import dk.digitalidentity.rc.service.model.UserRoleAssignedToUser;
-import jakarta.persistence.criteria.Predicate;
-import jakarta.validation.Valid;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
+import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
+
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.jpa.datatables.mapping.DataTablesInput;
 import org.springframework.data.jpa.datatables.mapping.DataTablesOutput;
@@ -65,60 +28,73 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.time.LocalDate;
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Locale;
-import java.util.Set;
-import java.util.stream.Collectors;
+import dk.digitalidentity.rc.controller.mvc.datatables.dao.UserViewDao;
+import dk.digitalidentity.rc.controller.mvc.datatables.dao.model.UserView;
+import dk.digitalidentity.rc.controller.mvc.viewmodel.KleViewModel;
+import dk.digitalidentity.rc.controller.mvc.viewmodel.SelectOUDTO;
+import dk.digitalidentity.rc.controller.mvc.viewmodel.UserAssignStatus;
+import dk.digitalidentity.rc.controller.mvc.viewmodel.UserRoleDTO;
+import dk.digitalidentity.rc.controller.rest.model.ItemPermissionDTO;
+import dk.digitalidentity.rc.controller.rest.model.PostponedConstraintDTO;
+import dk.digitalidentity.rc.dao.model.ConstraintType;
+import dk.digitalidentity.rc.dao.model.OrgUnit;
+import dk.digitalidentity.rc.dao.model.PostponedConstraint;
+import dk.digitalidentity.rc.dao.model.RoleGroup;
+import dk.digitalidentity.rc.dao.model.SystemRole;
+import dk.digitalidentity.rc.dao.model.User;
+import dk.digitalidentity.rc.dao.model.UserKLEMapping;
+import dk.digitalidentity.rc.dao.model.UserRole;
+import dk.digitalidentity.rc.dao.model.UserRoleGroupAssignment;
+import dk.digitalidentity.rc.dao.model.UserUserRoleAssignment;
+import dk.digitalidentity.rc.dao.model.enums.ItSystemType;
+import dk.digitalidentity.rc.dao.model.enums.KleType;
+import dk.digitalidentity.rc.security.RequireAssignerRole;
+import dk.digitalidentity.rc.security.RequireRequesterOrAssignerRole;
+import dk.digitalidentity.rc.security.permission.Permission;
+import dk.digitalidentity.rc.security.permission.PermissionConstraint;
+import dk.digitalidentity.rc.security.permission.RequireControllerPermission;
+import dk.digitalidentity.rc.security.permission.RequirePermission;
+import dk.digitalidentity.rc.security.permission.Section;
+import dk.digitalidentity.rc.security.permission.UserPermissionContext;
+import dk.digitalidentity.rc.service.ConstraintTypeService;
+import dk.digitalidentity.rc.service.KleService;
+import dk.digitalidentity.rc.service.OrgUnitService;
+import dk.digitalidentity.rc.service.PostponedConstraintService;
+import dk.digitalidentity.rc.service.RoleGroupService;
+import dk.digitalidentity.rc.service.SettingsService;
+import dk.digitalidentity.rc.service.SystemRoleService;
+import dk.digitalidentity.rc.service.UserRoleService;
+import dk.digitalidentity.rc.service.UserService;
+import dk.digitalidentity.rc.service.model.AssignedThrough;
+import dk.digitalidentity.rc.service.model.RoleAssignmentType;
+import dk.digitalidentity.rc.service.model.RoleGroupAssignedToUser;
+import dk.digitalidentity.rc.service.model.UserRoleAssignedToUser;
+import jakarta.persistence.criteria.Predicate;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
-@RequireReadAccessOrManagerRole
+@RequiredArgsConstructor
+@RequireControllerPermission(section = Section.USER, permission = Permission.READ)
 @RestController
 public class UserRestController {
+	private final UserService userService;
+	private final RoleGroupService roleGroupService;
+	private final UserRoleService userRoleService;
+	private final KleService kleService;
+	private final SystemRoleService systemRoleService;
+	private final ConstraintTypeService constraintTypeService;
+	private final UserViewDao userViewDao;
+	private final SettingsService settingsService;
+	private final OrgUnitService orgUnitService;
+	private final PostponedConstraintService postponedConstraintService;
+
+	private static final Section permissionEntity = Section.USER;
+	private final UserPermissionContext userPermissionContext;
 
 	@Value("#{servletContext.contextPath}")
 	private String servletContextPath;
-
-	@Autowired
-	private PositionService positionService;
-
-	@Autowired
-	private UserService userService;
-
-	@Autowired
-	private RoleGroupService roleGroupService;
-
-	@Autowired
-	private UserRoleService userRoleService;
-
-	@Autowired
-	private AccessConstraintService accessConstraintService;
-
-	@Autowired
-	private KleService kleService;
-
-	@Autowired
-	private SystemRoleService systemRoleService;
-
-	@Autowired
-	private ConstraintTypeService constraintTypeService;
-
-	@Autowired
-	private UserViewDao userViewDao;
-
-	@Autowired
-	private SettingsService settingsService;
-
-	@Autowired
-	private OrgUnitService orgUnitService;
-
-	@Autowired
-	private PostponedConstraintService postponedConstraintService;
-
-	@Autowired
-	private UserControllerHelper helper;
 
 	@RequireAssignerRole
 	@PostMapping("/rest/users/cleanupDuplicateRoleAssignments")
@@ -136,7 +112,7 @@ public class UserRestController {
 		return new ResponseEntity<String>(HttpStatus.OK);
 	}
 
-	@RequireAdministratorRole
+	@RequirePermission(section = Section.USER, permission = Permission.UPDATE)
 	@PostMapping("/rest/users/loadcics")
 	public ResponseEntity<HttpStatus> loadCics() {
 		settingsService.setRunCics(true);
@@ -144,84 +120,30 @@ public class UserRestController {
 		return new ResponseEntity<>(HttpStatus.OK);
 	}
 
+	public record UserViewListDTO(String uuid, String name, String userId, String domain, String title, String orgunitUuid,
+								  boolean disabled, ItemPermissionDTO allowedActions) { }
 	@PostMapping("/rest/users/list")
-	public DataTablesOutput<UserView> list(@Valid @RequestBody DataTablesInput input, BindingResult bindingResult, Locale locale) {
+	public DataTablesOutput<UserViewListDTO> list(@Valid @RequestBody DataTablesInput input, BindingResult bindingResult, Locale locale) {
 
 		if (bindingResult.hasErrors()) {
-			DataTablesOutput<UserView> error = new DataTablesOutput<>();
+			DataTablesOutput<UserViewListDTO> error = new DataTablesOutput<>();
 			error.setError(bindingResult.toString());
 
 			return error;
 		}
 
-		List<String> constrainedOrgUnitUuids = accessConstraintService.getConstrainedOrgUnits(false);
-
-		if (constrainedOrgUnitUuids == null) {
-			return userViewDao.findAll(input);
-		} else if (constrainedOrgUnitUuids.isEmpty()) {
-			return new DataTablesOutput<>();
-		} else {
-			return userViewDao.findAll(input, getUserByOrgUnitUuidIn(constrainedOrgUnitUuids));
-		}
-	}
-
-	private Specification<UserView> getUserByOrgUnitUuidIn(List<String> orgUnitUuids) {
-
-		// SELECT * FROM "view" WHERE orgunitUuid LIKE ('') OR orunitUuid LIKE ('') OR orgunitUuid LIKE ('') ...
-		Specification<UserView> specification = null;
-		specification = (Specification<UserView>) (root, query, criteriaBuilder) -> {
-			List<Predicate> predicates = new ArrayList<>(orgUnitUuids.size());
-
-			for (String uuid : orgUnitUuids) {
-				predicates.add(criteriaBuilder.like(root.get("orgunitUuid"), "%" + uuid + "%"));
-			}
-
-			return criteriaBuilder.or(predicates.toArray(Predicate[]::new));
-		};
-
-		return specification;
-	}
-
-	@RequireAssignerRole
-	@PostMapping(value = "/rest/users/position/{id}/addrole/{roleid}")
-	@ResponseBody
-	public ResponseEntity<String> addRoleToPosition(@PathVariable("id") long positionId,
-													@PathVariable("roleid") long roleId,
-													@RequestParam(name = "startDate", required = false) String startDateStr,
-													@RequestParam(name = "stopDate", required = false) String stopDateStr) {
-
-		Position position = positionService.getById(positionId);
-		UserRole role = userRoleService.getById(roleId);
-
-		if (position == null || role == null || role.isReadOnly()) {
-			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+		// global search limited to name, title, userId
+		String globalSearchTerm = null;
+		if (input.getSearch() != null && StringUtils.hasText(input.getSearch().getValue())) {
+			globalSearchTerm = input.getSearch().getValue();
 		}
 
-		LocalDate startDate = null, stopDate = null;
-		if (StringUtils.hasLength(startDateStr)) {
-			try {
-				startDate = LocalDate.parse(startDateStr);
-			} catch (Exception ex) {
-				log.warn("Invalid startdate string: " + startDateStr);
-			}
-		}
-		if (StringUtils.hasLength(stopDateStr)) {
-			try {
-				stopDate = LocalDate.parse(stopDateStr);
-			} catch (Exception ex) {
-				log.warn("Invalid stopdate string: " + stopDateStr);
-			}
-		}
+		PermissionConstraint constraint = userPermissionContext.getConstraint(permissionEntity, Permission.READ);
 
-		try {
-			positionService.addUserRole(position, role, startDate, stopDate);
-		} catch (SecurityException ex) {
-			return new ResponseEntity<>(ex.getMessage(), HttpStatus.FORBIDDEN);
-		}
+		Specification<UserView> matchAllConditions = Specification.allOf(getUserByOrgUnitUuidIn(constraint.getConstrainedOUUuids()), getGlobalSearchTermPredicate(globalSearchTerm));
+		DataTablesOutput<UserView> foundUsersOutput = userViewDao.findAll(input, matchAllConditions);
 
-		positionService.save(position);
-
-		return new ResponseEntity<>(HttpStatus.OK);
+		return mapToOutputDTO(foundUsersOutput);
 	}
 
 	@RequireAssignerRole
@@ -239,11 +161,8 @@ public class UserRestController {
 
 		try {
 			userService.removeUserRole(user, role);
-
-			for (Position p : user.getPositions()) {
-				positionService.removeUserRole(p, role);
-			}
-		} catch (SecurityException ex) {
+		}
+		catch (SecurityException ex) {
 			return new ResponseEntity<>(ex.getMessage(), HttpStatus.FORBIDDEN);
 		}
 
@@ -324,41 +243,6 @@ public class UserRestController {
 	}
 
 	@RequireAssignerRole
-	@PostMapping(value = "/rest/users/position/{id}/addgroup/{groupid}")
-	public ResponseEntity<String> addGroupToPosition(@PathVariable("id") long positionId,
-													 @PathVariable("groupid") long groupId,
-													 @RequestParam(name = "startDate", required = false) String startDateStr,
-													 @RequestParam(name = "stopDate", required = false) String stopDateStr) {
-		Position position = positionService.getById(positionId);
-		RoleGroup group = roleGroupService.getById(groupId);
-
-		if (position == null || group == null) {
-			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
-		}
-
-		LocalDate startDate = null, stopDate = null;
-		if (StringUtils.hasLength(startDateStr)) {
-			try {
-				startDate = LocalDate.parse(startDateStr);
-			} catch (Exception ex) {
-				log.warn("Invalid startdate string: " + startDateStr);
-			}
-		}
-		if (StringUtils.hasLength(stopDateStr)) {
-			try {
-				stopDate = LocalDate.parse(stopDateStr);
-			} catch (Exception ex) {
-				log.warn("Invalid stopdate string: " + stopDateStr);
-			}
-		}
-
-		positionService.addRoleGroup(position, group, startDate, stopDate);
-		positionService.save(position);
-
-		return new ResponseEntity<>(HttpStatus.OK);
-	}
-
-	@RequireAssignerRole
 	@PostMapping(value = "/rest/users/{uuid}/removegroup/{groupid}")
 	public ResponseEntity<String> removeGroupFromUser(@PathVariable("uuid") String userUuid, @PathVariable("groupid") long groupId) {
 		RoleGroup group = roleGroupService.getById(groupId);
@@ -368,9 +252,6 @@ public class UserRestController {
 		}
 
 		userService.removeRoleGroup(user, group);
-		for (Position p : user.getPositions()) {
-			positionService.removeRoleGroup(p, group);
-		}
 		userService.save(user);
 
 		return new ResponseEntity<>(HttpStatus.OK);
@@ -395,16 +276,6 @@ public class UserRestController {
 				}
 			} else if (type == RoleAssignmentType.ROLEGROUP) {
 				if (userService.removeRoleGroupAssignment(user, assignmentId)) {
-					userService.save(user);
-				}
-			}
-		} else if (assignedThrough == AssignedThrough.POSITION) {
-			if (type == RoleAssignmentType.USERROLE) {
-				if (positionService.removeUserRoleAssignment(user, assignmentId)) {
-					userService.save(user);
-				}
-			} else if (type == RoleAssignmentType.ROLEGROUP) {
-				if (positionService.removeRoleGroupAssignment(user, assignmentId)) {
 					userService.save(user);
 				}
 			}
@@ -501,34 +372,6 @@ public class UserRestController {
 				}
 
 				userService.editRoleGroupAssignment(user, roleGroupAssignment, startDate, stopDate, orgUnit);
-				userService.save(user);
-			}
-		} else if (assignedThrough == AssignedThrough.POSITION) {
-			if (type == RoleAssignmentType.USERROLE) {
-				PositionUserRoleAssignment existingAssignemnt = user.getPositions().stream().map(Position::getUserRoleAssignments).flatMap(x -> x.stream()).filter(ura -> ura.getId() == assignmentId).findAny().orElse(null);
-
-				if (existingAssignemnt == null || existingAssignemnt.getUserRole().isReadOnly()) {
-					return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
-				}
-
-				if (existingAssignemnt.getUserRole().getItSystem().getSystemType() == ItSystemType.AD && existingAssignemnt.getUserRole().getItSystem().isReadonly()) {
-					return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
-				}
-
-				try {
-					positionService.editUserRoleAssignment(user, existingAssignemnt, startDate, stopDate);
-				} catch (SecurityException ex) {
-					return new ResponseEntity<>(ex.getMessage(), HttpStatus.FORBIDDEN);
-				}
-				userService.save(user);
-			} else if (type == RoleAssignmentType.ROLEGROUP) {
-				PositionRoleGroupAssignment existingAssignemnt = user.getPositions().stream().map(Position::getRoleGroupAssignments).flatMap(x -> x.stream()).filter(rga -> rga.getId() == assignmentId).findAny().orElse(null);
-
-				if (existingAssignemnt == null) {
-					return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
-				}
-
-				positionService.editRoleGroupAssignment(user, existingAssignemnt, startDate, stopDate);
 				userService.save(user);
 			}
 		}
@@ -816,4 +659,68 @@ public class UserRestController {
 	}
 
 
+	private DataTablesOutput<UserViewListDTO> mapToOutputDTO(DataTablesOutput<UserView> datatableOutput) {
+		PermissionConstraint readConstraint = userPermissionContext.getConstraints(permissionEntity, Permission.READ);
+		PermissionConstraint updateConstraint = userPermissionContext.getConstraints(permissionEntity, Permission.UPDATE);
+		PermissionConstraint createConstraint = userPermissionContext.getConstraints(permissionEntity, Permission.CREATE);
+		PermissionConstraint deleteConstraint = userPermissionContext.getConstraints(permissionEntity, Permission.DELETE);
+
+		DataTablesOutput<UserViewListDTO> dtoOutput = new DataTablesOutput<>();
+		dtoOutput.setDraw(datatableOutput.getDraw());
+		dtoOutput.setRecordsTotal(datatableOutput.getRecordsTotal());
+		dtoOutput.setError(datatableOutput.getError());
+		dtoOutput.setSearchPanes(datatableOutput.getSearchPanes());
+		dtoOutput.setRecordsFiltered(datatableOutput.getRecordsFiltered());
+		dtoOutput.setData(datatableOutput.getData().stream().map(view -> {
+							ItemPermissionDTO specificAllowedActions = new ItemPermissionDTO(
+									createConstraint != null && createConstraint.allowsOrgunit(view.getOrgunitUuid()),
+									readConstraint != null && readConstraint.allowsOrgunit(view.getOrgunitUuid()),
+									updateConstraint != null && updateConstraint.allowsOrgunit(view.getOrgunitUuid()),
+									deleteConstraint != null && deleteConstraint.allowsOrgunit(view.getOrgunitUuid())
+							);
+
+							return new UserViewListDTO(
+									view.getUuid(),
+									view.getName(),
+									view.getUserId(),
+									view.getDomain(),
+									view.getTitle(),
+									view.getOrgunitUuid(),
+									view.isDisabled(),
+									specificAllowedActions
+							);
+						})
+						.toList()
+		);
+		return dtoOutput;
+	}
+
+	private Specification<UserView> getUserByOrgUnitUuidIn(Set<String> orgUnitUuids) {
+		if (orgUnitUuids == null ) {
+			// null means all is allowed
+			return null;
+		}
+		if (orgUnitUuids.isEmpty()) {
+			// empty set means none is allowed
+			return (root, query, criteriaBuilder) -> criteriaBuilder.disjunction();
+		}
+		return (root, query, criteriaBuilder) -> root.get("orgunitUuid").in(orgUnitUuids);
+	}
+
+	private Specification<UserView> getGlobalSearchTermPredicate(String globalSearchTerm) {
+		return (Specification<UserView>) (root, query, criteriaBuilder) -> {
+			Predicate globalPredicate = null;
+			if (StringUtils.hasText(globalSearchTerm)) {
+				List<Predicate> globalPredicates = new ArrayList<>(3);
+
+				globalPredicates.add(criteriaBuilder.like(root.get("name"), "%" + globalSearchTerm + "%"));
+				globalPredicates.add(criteriaBuilder.like(root.get("userId"), "%" + globalSearchTerm + "%"));
+				globalPredicates.add(criteriaBuilder.like(root.get("title"), "%" + globalSearchTerm + "%"));
+
+				globalPredicate = criteriaBuilder.or(globalPredicates.toArray(Predicate[]::new));
+			}
+			return globalPredicate;
+		};
+
+	}
 }

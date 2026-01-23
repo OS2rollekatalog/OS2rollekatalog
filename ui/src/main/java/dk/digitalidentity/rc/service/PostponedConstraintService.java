@@ -1,8 +1,17 @@
 package dk.digitalidentity.rc.service;
 
+import java.util.List;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import dk.digitalidentity.rc.config.Constants;
+import dk.digitalidentity.rc.dao.PostponedConstraintDao;
+import dk.digitalidentity.rc.dao.model.PostponedConstraint;
+import dk.digitalidentity.rc.dao.model.SystemRoleAssignment;
+import dk.digitalidentity.rc.dao.model.User;
+import dk.digitalidentity.rc.dao.model.UserRole;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
@@ -10,9 +19,15 @@ import dk.digitalidentity.rc.dao.model.ConstraintType;
 import dk.digitalidentity.rc.dao.model.enums.ConstraintUIType;
 import lombok.extern.slf4j.Slf4j;
 
+@RequiredArgsConstructor
 @Slf4j
 @Service
 public class PostponedConstraintService {
+    private final PostponedConstraintDao postPonedConstraintDao;
+
+    public PostponedConstraint save(PostponedConstraint postponedConstraint) {
+        return postPonedConstraintDao.save(postponedConstraint);
+    }
 
     public boolean isValidConstraint(ConstraintType constraintType, String value, long systemRoleId) {
         // Check that it has a value
@@ -36,4 +51,17 @@ public class PostponedConstraintService {
         }
         return true;
     }
+
+    public List<PostponedConstraint> getPostPonedConstraintValues(User user, SystemRoleAssignment systemRoleAssignment) {
+        return postPonedConstraintDao.findByUserUserRoleAssignment_User_UuidAndSystemRole_IdAndUserUserRoleAssignment_UserRole_Id(user.getUuid(), systemRoleAssignment.getSystemRole().getId(), systemRoleAssignment.getUserRole().getId());
+    }
+
+    public Set<PostponedConstraint> findAllForUserAndRoleCatalogue(User user) {
+        return postPonedConstraintDao.findByUserUserRoleAssignment_UserAndConstraintType_EntityIdIn(user, Set.of(Constants.INTERNAL_ITSYSTEM_CONSTRAINT_ENTITY_ID, Constants.INTERNAL_ORGUNIT_CONSTRAINT_ENTITY_ID));
+    }
+
+    public Set<PostponedConstraint> findAllForSystemRoleAndUserRole(String systemRoleIdentifier, UserRole userRole) {
+        return postPonedConstraintDao.findBySystemRole_IdentifierAndUserUserRoleAssignment_UserRole(systemRoleIdentifier, userRole);
+    }
+
 }

@@ -3,14 +3,19 @@ package dk.digitalidentity.rc.controller.mvc.xlsview;
 import java.util.ArrayList;
 import java.util.Map;
 
-import org.apache.poi.ss.usermodel.*;
+import org.apache.poi.ss.usermodel.Cell;
+import org.apache.poi.ss.usermodel.CellStyle;
+import org.apache.poi.ss.usermodel.Font;
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.xssf.streaming.SXSSFSheet;
-import org.springframework.web.servlet.view.document.AbstractXlsxStreamingView;
 
+import dk.digitalidentity.rc.attestation.controller.mvc.xlsview.AbstractXlsxStreamingViewWrapper;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
-public class XlsView extends AbstractXlsxStreamingView {
+public class XlsView extends AbstractXlsxStreamingViewWrapper {
 
 	@Override
 	@SuppressWarnings("unchecked")

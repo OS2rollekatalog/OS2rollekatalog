@@ -7,13 +7,16 @@ import dk.digitalidentity.rc.dao.model.Client;
 import dk.digitalidentity.rc.dao.model.enums.AccessRole;
 import dk.digitalidentity.rc.dao.model.enums.ClientIntegrationType;
 import dk.digitalidentity.rc.dao.model.enums.VersionStatusEnum;
-import dk.digitalidentity.rc.security.RequireAdministratorRole;
+import dk.digitalidentity.rc.security.permission.Permission;
+import dk.digitalidentity.rc.security.permission.Section;
+import dk.digitalidentity.rc.security.permission.RequireControllerPermission;
+import dk.digitalidentity.rc.security.permission.RequirePermission;
 import dk.digitalidentity.rc.service.ADConfigurationService;
 import dk.digitalidentity.rc.service.ClientService;
 import dk.digitalidentity.rc.service.DomainService;
 import dk.digitalidentity.rc.service.Select2Service;
 import jakarta.validation.Valid;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
@@ -27,24 +30,15 @@ import org.springframework.web.bind.annotation.PostMapping;
 import java.util.List;
 import java.util.UUID;
 
-@RequireAdministratorRole
+@RequiredArgsConstructor
+@RequireControllerPermission(section = Section.CONFIG, permission = Permission.READ)
 @Controller
 public class ClientController {
-
-	@Autowired
-	private ClientService clientService;
-
-	@Autowired
-	private ClientDTOValidator clientDTOValidator;
-
-	@Autowired
-	private DomainService domainService;
-
-	@Autowired
-	private ADConfigurationService adConfigurationService;
-
-	@Autowired
-	private Select2Service select2Service;
+	private final ClientService clientService;
+	private final ClientDTOValidator clientDTOValidator;
+	private final DomainService domainService;
+	private final ADConfigurationService adConfigurationService;
+	private final Select2Service select2Service;
 
 	@InitBinder("clientDTO")
 	public void initClientBinder(WebDataBinder binder) {
@@ -60,6 +54,7 @@ public class ClientController {
 		return "client/list";
 	}
 
+	@RequirePermission(section = Section.CONFIG, permission = Permission.CREATE)
 	@GetMapping("/ui/client/new")
 	public String newClient(Model model) {
 		ClientDTO clientDTO = new ClientDTO();
@@ -72,6 +67,7 @@ public class ClientController {
 		return "client/new";
 	}
 
+	@RequirePermission(section = Section.CONFIG, permission = Permission.CREATE)
 	@PostMapping("/ui/client/new")
 	public String newClientPost(Model model, @Valid @ModelAttribute("client") ClientDTO clientDTO, BindingResult bindingResult) {
 		if (bindingResult.hasErrors()) {
@@ -121,6 +117,7 @@ public class ClientController {
 		return "client/view";
 	}
 
+	@RequirePermission(section = Section.CONFIG, permission = Permission.UPDATE)
 	@GetMapping("/ui/client/edit/{clientId}")
 	public String editClient(@PathVariable long clientId, Model model) {
 		Client client = clientService.getClientById(clientId);
@@ -144,6 +141,7 @@ public class ClientController {
 		return "client/edit";
 	}
 
+	@RequirePermission(section = Section.CONFIG, permission = Permission.UPDATE)
 	@PostMapping("/ui/client/edit/{clientId}")
 	public String editClientPost(Model model, @Valid @ModelAttribute("client") ClientDTO clientDTO, BindingResult bindingResult) {
 		if (bindingResult.hasErrors()) {
@@ -174,6 +172,7 @@ public class ClientController {
 		return "redirect:/ui/client/list";
 	}
 
+	@RequirePermission(section = Section.CONFIG, permission = Permission.DELETE)
 	@GetMapping("/ui/client/delete/{clientId}")
 	public String deleteClient(@PathVariable long clientId) {
 		Client client = clientService.getClientById(clientId);

@@ -54,6 +54,10 @@ public class DirtyNemLoginUserService {
 						if (p.getConstraintType() != null) {
 							p.getConstraintType().getEntityId();
 						}
+						
+						if (p.getSystemRole() != null) {
+							p.getSystemRole().getIdentifier();
+						}
 					});
 				}
 			});

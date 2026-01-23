@@ -23,4 +23,6 @@ public class UserRoleDTO {
     private String assignedThroughName; // not always relevant - can be null
     private String responsible; // only relevant for doNotVerify roles - can be null.
     private String postponedConstraints;
+	private boolean manager;
+	private boolean substitutes;
 }

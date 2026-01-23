@@ -22,4 +22,7 @@ public class OrgUnitUserRoleAssignmentDTO {
     private boolean inherit;
     private List<String> exceptedTitles;
     private String postponedConstraints; // never set
+	private boolean manager;
+	private boolean substitutes;
+	private List<String> functions;
 }

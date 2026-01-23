@@ -27,6 +27,7 @@
                             <tr>
                                 <th class="col-md-1" th:text="#{html.frontPageLinks.list.active}"></th>
                                 <th class="col-md-1" th:text="#{html.frontPageLinks.list.icon}"></th>
+                                <th class="col-md-1" th:text="#{html.frontPageLinks.list.type}"></th>
                                 <th class="col-md-3" th:text="#{html.frontPageLinks.list.link}"></th>
                                 <th class="col-md-3" th:text="#{html.frontPageLinks.list.title}"></th>
                                 <th class="col-md-3" th:text="#{html.frontPageLinks.list.description}"></th>
@@ -47,6 +48,7 @@
                                 <td>
                                     <i class="fa" th:classappend="${link.icon}"></i>
                                 </td>
+								<td th:text="${link.linkType.message}"></td>
                                 <td>
                                     <a th:text="${link.link}" th:href="@{${link.link}}"></a>
                                 </td>
@@ -54,7 +56,7 @@
                                 <td th:text="${link.description}"></td>
                                 <td style="text-align: center;">
                                     <em th:if="${link.editable}" class="fa fa-pencil editBtn" th:attr="data-id=${link.id}" style="cursor: pointer;"></em> &nbsp;
-                                    <em th:if="${link.editable}" class="fa fa-times removeBtn" th:attr="data-id=${link.id},data-title=${link.title}" style="cursor: pointer;"></em>
+                                    <em th:if="${link.deletable}" class="fa fa-times removeBtn" th:attr="data-id=${link.id},data-title=${link.title}" style="cursor: pointer;"></em>
                                 </td>
                             </tr>
                             </tbody>
@@ -89,6 +91,16 @@
                             <input class="form-control" id="linkLink" />
                         </div>
                     </div>
+					<div class="form-group row">
+						<label class="col-lg-2 control-label" th:text="#{html.frontPageLinks.list.type}"></label>
+						<div class="col-lg-9">
+							<select class="form-control selectpicker" id="linkType">
+								<option th:each="type : ${T(dk.digitalidentity.rc.dao.model.enums.LinkType).values()}"
+										th:value="${type}"
+										th:text="${type.message}"></option>
+							</select>
+						</div>
+					</div>
                     <div class="form-group row">
                         <label class="col-lg-2 control-label" th:text="#{html.frontPageLinks.list.icon}"></label>
                         <div class="col-lg-9">
@@ -216,8 +228,9 @@
                     $("#linkLink").val(link.link);
                     $("#linkIcon").selectpicker('val', link.icon)
                     $("#linkDescription").text(link.description);
-                    $("#modalHeader").val(modalEditHeader);
-                    $("#linkModal").modal("show");
+					$("#modalHeader").val(modalEditHeader);
+					$("#linkType").selectpicker('val', link.linkType)
+					$("#linkModal").modal("show");
 			    } else {
 			        linkService.openCreateModal();
 			    }
@@ -292,6 +305,7 @@
 		        var link = $("#linkLink").val();
 		        var icon = $("#linkIcon").val();
 		        var description = $("#linkDescription").val();
+				let type = $('#linkType').val();
 
 		        $.ajax({
 					method : "POST",
@@ -305,7 +319,8 @@
 					    title: title,
 					    link: link,
 					    icon: icon,
-					    description: description
+					    description: description,
+						linkType: type
 					})
 				}).done(function (data) {
 					location.reload(true);

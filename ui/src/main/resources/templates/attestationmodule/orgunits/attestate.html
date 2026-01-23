@@ -348,6 +348,11 @@
 		    }
 
 		    this.handleReject = function() {
+		    	// Validate that at least one role is selected
+				if (!userRemarkModalService.validateSelection()) {
+					return;
+				}
+
                 var notApproved = userRemarkModalService.getNotApprovedRoles();
 		        var userUuid = $("#userUuidInput").val();
 		        var numberString = $("#userNumberInput").val();
@@ -508,6 +513,11 @@
 		    }
 
             this.handleReject = function() {
+				// Validate that at least one role is selected
+				if (!orgUnitRemarkModalService.validateSelection()) {
+					return;
+				}
+
                 let remark = null;
 		        if (!hideDescription) {
 		            remark = $("#orgUnitRemarkField").val()

@@ -1,1 +1,0 @@
-ALTER TABLE it_systems ADD email NVARCHAR(255);

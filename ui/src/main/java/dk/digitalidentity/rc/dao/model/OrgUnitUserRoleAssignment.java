@@ -18,7 +18,6 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
 import lombok.Data;
 import lombok.ToString;
-import org.hibernate.annotations.BatchSize;
 
 import java.time.LocalDate;
 import java.util.Date;
@@ -37,36 +36,45 @@ public class OrgUnitUserRoleAssignment {
 	@ManyToOne(fetch = FetchType.LAZY)
 	@JoinColumn(name = "ou_uuid")
 	private OrgUnit orgUnit;
-	
+
 	@ManyToOne(fetch = FetchType.LAZY)
 	@JoinColumn(name = "role_id")
 	private UserRole userRole;
-	
+
 	@Column
 	private boolean inherit;
-	
+
 	@Column
 	private String assignedByUserId;
-	
+
 	@Column
 	private String assignedByName;
-	
+
 	@Column
 	private Date assignedTimestamp;
 
     @Convert(converter = LocalDateAttributeConverter.class)
 	@Column
 	private LocalDate startDate;
-	
+
     @Convert(converter = LocalDateAttributeConverter.class)
 	@Column
 	private LocalDate stopDate;
 
 	@Column
 	private String stopDateUser;
-	
+
+	@Column
+	private String caseNumber;
+
 	@Column
 	private boolean inactive;
+
+	@Column
+	private boolean manager;
+
+	@Column
+	private boolean substitutes;
 
 	@OneToMany
 	@JoinTable(name = "ou_roles_excepted_users", joinColumns = @JoinColumn(name = "ou_roles_id"), inverseJoinColumns = @JoinColumn(name = "user_uuid"))
@@ -76,9 +84,16 @@ public class OrgUnitUserRoleAssignment {
 	@JoinTable(name = "ou_roles_titles", joinColumns = @JoinColumn(name = "ou_roles_id"), inverseJoinColumns = @JoinColumn(name = "title_uuid"))
 	private List<Title> titles;
 
+	@OneToMany
+	@JoinTable(name = "ou_roles_functions", joinColumns = @JoinColumn(name = "ou_roles_id"), inverseJoinColumns = @JoinColumn(name = "function_uuid"))
+	private List<Function> functions;
+
+	@Column
+	private boolean containsFunctions;
+
 	@Column
 	private boolean containsExceptedUsers;
-	
+
 	@Column
 	@Enumerated(EnumType.ORDINAL)
 	//Default value allows for documentations test to run unchanged since ContainsTitle changed to enum

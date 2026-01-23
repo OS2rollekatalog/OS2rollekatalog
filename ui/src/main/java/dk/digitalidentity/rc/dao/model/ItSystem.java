@@ -1,9 +1,22 @@
 package dk.digitalidentity.rc.dao.model;
 
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.List;
+
+import org.hibernate.annotations.LazyCollection;
+import org.hibernate.annotations.LazyCollectionOption;
+
 import com.fasterxml.jackson.annotation.JsonIgnore;
+
+import dk.digitalidentity.rc.config.ApprovableByListConverter;
+import dk.digitalidentity.rc.config.RequestableByListConverter;
 import dk.digitalidentity.rc.dao.model.enums.ItSystemType;
 import dk.digitalidentity.rc.log.AuditLoggable;
+import dk.digitalidentity.rc.rolerequest.model.enums.ApprovableBy;
+import dk.digitalidentity.rc.rolerequest.model.enums.RequestableBy;
 import jakarta.persistence.Column;
+import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
@@ -19,11 +32,6 @@ import jakarta.persistence.Table;
 import jakarta.persistence.Temporal;
 import jakarta.persistence.TemporalType;
 import lombok.Data;
-import org.hibernate.annotations.LazyCollection;
-import org.hibernate.annotations.LazyCollectionOption;
-
-import java.util.Date;
-import java.util.List;
 
 @Entity
 @Table(name = "it_systems")
@@ -58,7 +66,7 @@ public class ItSystem implements AuditLoggable {
 
 	@Column
 	private String notes;
-	
+
 	@Column
 	private boolean paused;
 
@@ -73,7 +81,7 @@ public class ItSystem implements AuditLoggable {
 
 	@Column
 	private boolean canEditThroughApi;
-	
+
 	@Column
 	private String notificationEmail;
 
@@ -87,7 +95,7 @@ public class ItSystem implements AuditLoggable {
 	@Column
 	private boolean accessBlocked;
 
-	// TODO: this is the new field for the v2 API's, we should merge this with "canEditThroughApi" above, once 
+	// TODO: this is the new field for the v2 API's, we should merge this with "canEditThroughApi" above, once
 	//       we figure out the full API configuration.
 	@Column
 	private boolean apiManagedRoleAssignments;
@@ -118,6 +126,14 @@ public class ItSystem implements AuditLoggable {
 
 	@Column
 	private boolean attestationExempt;
+
+	@Column
+	@Convert(converter = RequestableByListConverter.class)
+	private List<RequestableBy> requesterPermission = new ArrayList<>();
+
+	@Column
+	@Convert(converter = ApprovableByListConverter.class)
+	private List<ApprovableBy> approverPermission = new ArrayList<>();
 
 	@JsonIgnore
 	@Override

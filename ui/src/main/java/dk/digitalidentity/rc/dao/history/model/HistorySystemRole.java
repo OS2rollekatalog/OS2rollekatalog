@@ -8,7 +8,6 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import lombok.Getter;
-import org.hibernate.annotations.BatchSize;
 
 @Entity
 @Table(name = "history_system_roles")

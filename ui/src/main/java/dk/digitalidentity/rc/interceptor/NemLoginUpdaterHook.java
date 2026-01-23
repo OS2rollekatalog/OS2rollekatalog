@@ -90,34 +90,6 @@ public class NemLoginUpdaterHook implements RoleChangeHook {
 	}
 
 	@Override
-	public void interceptAddRoleGroupAssignmentOnPosition(Position position, RoleGroup roleGroup) {
-		if (enabled && StringUtils.hasLength(position.getUser().getNemloginUuid())) {
-			nemLoginService.addUserToQueue(position.getUser());
-		}
-	}
-
-	@Override
-	public void interceptRemoveRoleGroupAssignmentOnPosition(Position position, RoleGroup roleGroup) {
-		if (enabled && StringUtils.hasLength(position.getUser().getNemloginUuid())) {
-			nemLoginService.addUserToQueue(position.getUser());
-		}
-	}
-
-	@Override
-	public void interceptAddUserRoleAssignmentOnPosition(Position position, UserRole userRole) {
-		if (enabled && StringUtils.hasLength(position.getUser().getNemloginUuid())) {
-      		nemLoginService.addUserToQueue(position.getUser());
-		}
-	}
-
-	@Override
-	public void interceptRemoveUserRoleAssignmentOnPosition(Position position, UserRole userRole) {
-		if (enabled && StringUtils.hasLength(position.getUser().getNemloginUuid())) {
-			nemLoginService.addUserToQueue(position.getUser());
-		}
-	}
-
-	@Override
 	public void interceptAddRoleGroupAssignmentOnOrgUnit(OrgUnit ou, RoleGroup roleGroup, boolean inherit) {
 		if (enabled && roleGroup.getUserRoleAssignments().stream().anyMatch(u -> u.getUserRole().getItSystem().getSystemType().equals(ItSystemType.NEMLOGIN))) {
 			nemLoginService.addOrgUnitToQueue(ou, inherit);

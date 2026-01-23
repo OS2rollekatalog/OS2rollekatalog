@@ -59,12 +59,8 @@ public class ConstraintTypeService {
 		return result;
 	}
 
+	@Transactional
 	public ConstraintType save(ConstraintType entity) {
 		return constraintTypeDao.save(entity);
-	}
-
-	@Transactional
-	public void saveAll(List<ConstraintType> constraintTypes) {
-		constraintTypeDao.saveAll(constraintTypes);
 	}
 }

@@ -12,7 +12,7 @@ import lombok.Setter;
 
 @Getter
 @Setter
-public class RoleAssignedToOrgUnitDTO {	
+public class RoleAssignedToOrgUnitDTO {
 	private long assignmentId;
 	private long roleId;
 	private String name;
@@ -24,8 +24,15 @@ public class RoleAssignedToOrgUnitDTO {
 	private LocalDate startDate;
 	private LocalDate stopDate;
 	private boolean canEdit;
-	
+	private String caseNumber;
+
 	// This is different than the other similar code
+	// -12 contains selected functions with inherit
+	// -11 contains selected functions
+	// -10 manager and substitutes inherited
+	// -9 manager inherited
+	// -8 manager and substitutes
+	// -7 manager
 	// -6 contains selected titles and excepted users
 	// -5 contains selected titles with inherit
 	// -4 contains excepted titles
@@ -50,7 +57,8 @@ public class RoleAssignedToOrgUnitDTO {
 		dto.setStartDate(roleGroupAssignment.getStartDate());
 		dto.setStopDate(roleGroupAssignment.getStopDate());
 		dto.setCanEdit(false);
-		
+		dto.setCaseNumber(roleGroupAssignment.getCaseNumber());
+
 		return dto;
 	}
 
@@ -65,9 +73,20 @@ public class RoleAssignedToOrgUnitDTO {
 		dto.setCanEdit(false);
 		dto.setStartDate(assignment.getStartDate());
 		dto.setStopDate(assignment.getStopDate());
+		dto.setCaseNumber(assignment.getCaseNumber());
 		dto.setAssignedThrough(AssignedThrough.DIRECT);
 
-		if (assignment.getContainsTitles() != ContainsTitles.NO && assignment.isContainsExceptedUsers()) {
+		if (assignment.isManager()) {
+			if (assignment.isSubstitutes()) {
+				dto.setAssignmentType(assignment.isInherit() ? -10 : -8); // Assigned to manager and substitutes with or without inheritance
+			} else {
+				dto.setAssignmentType(assignment.isInherit() ? -9 : -7); // Assigned to manager with or without inheritance
+			}
+		}
+		else if (assignment.isContainsFunctions()) {
+			dto.setAssignmentType(assignment.isInherit() ? -12 : -11);
+		}
+		else if (assignment.getContainsTitles() != ContainsTitles.NO && assignment.isContainsExceptedUsers()) {
 			dto.setAssignmentType(-6); // assigned to titles AND has exceptedusers
 		}
 		else if (assignment.isInherit() && assignment.getContainsTitles() == ContainsTitles.POSITIVE) {
@@ -88,7 +107,7 @@ public class RoleAssignedToOrgUnitDTO {
 		else {
 			dto.setAssignmentType(assignment.isInherit() ? -2 : -1);// Assigned to all or with inheritance
 		}
-		
+
 		return dto;
 	}
 
@@ -105,8 +124,19 @@ public class RoleAssignedToOrgUnitDTO {
 		dto.setCanEdit(false);
 		dto.setStartDate(assignment.getStartDate());
 		dto.setStopDate(assignment.getStopDate());
+		dto.setCaseNumber(assignment.getCaseNumber());
 
-		if (assignment.getContainsTitles() != ContainsTitles.NO && assignment.isContainsExceptedUsers()) {
+		if (assignment.isManager()) {
+			if (assignment.isSubstitutes()) {
+				dto.setAssignmentType(assignment.isInherit() ? -10 : -8); // Assigned to manager and substitutes with or without inheritance
+			} else {
+				dto.setAssignmentType(assignment.isInherit() ? -9 : -7); // Assigned to manager with or without inheritance
+			}
+		}
+		else if (assignment.isContainsFunctions()) {
+			dto.setAssignmentType(assignment.isInherit() ? -12 : -11);
+		}
+		else if (assignment.getContainsTitles() != ContainsTitles.NO && assignment.isContainsExceptedUsers()) {
 			dto.setAssignmentType(-6); // assigned to titles AND has exceptedusers
 		}
 		else if (assignment.isInherit() && assignment.getContainsTitles() == ContainsTitles.POSITIVE) {
@@ -142,7 +172,17 @@ public class RoleAssignedToOrgUnitDTO {
 		dto.setStopDate(assignment.getStopDate());
 		dto.setAssignedThrough(AssignedThrough.DIRECT);
 
-		if (assignment.getContainsTitles() != ContainsTitles.NO && assignment.isContainsExceptedUsers()) {
+		if (assignment.isManager()) {
+			if (assignment.isSubstitutes()) {
+				dto.setAssignmentType(assignment.isInherit() ? -10 : -8); // Assigned to manager and substitutes with or without inheritance
+			} else {
+				dto.setAssignmentType(assignment.isInherit() ? -9 : -7); // Assigned to manager with or without inheritance
+			}
+		}
+		else if (assignment.isContainsFunctions()) {
+			dto.setAssignmentType(assignment.isInherit() ? -12 : -11);
+		}
+		else if (assignment.getContainsTitles() != ContainsTitles.NO && assignment.isContainsExceptedUsers()) {
 			dto.setAssignmentType(-6); // assigned to titles AND has exceptedusers
 		}
 		else if (assignment.isInherit() && assignment.getContainsTitles() == ContainsTitles.POSITIVE) {
@@ -163,7 +203,7 @@ public class RoleAssignedToOrgUnitDTO {
 		else {
 			dto.setAssignmentType(assignment.isInherit() ? -2 : -1);// Assigned to all or with inheritance
 		}
-		
+
 		return dto;
 	}
 
@@ -180,7 +220,17 @@ public class RoleAssignedToOrgUnitDTO {
 		dto.setStartDate(assignment.getStartDate());
 		dto.setStopDate(assignment.getStopDate());
 
-		if (assignment.getContainsTitles() != ContainsTitles.NO && assignment.isContainsExceptedUsers()) {
+		if (assignment.isManager()) {
+			if (assignment.isSubstitutes()) {
+				dto.setAssignmentType(assignment.isInherit() ? -10 : -8); // Assigned to manager and substitutes with or without inheritance
+			} else {
+				dto.setAssignmentType(assignment.isInherit() ? -9 : -7); // Assigned to manager with or without inheritance
+			}
+		}
+		else if (assignment.isContainsFunctions()) {
+			dto.setAssignmentType(assignment.isInherit() ? -12 : -11);
+		}
+		else if (assignment.getContainsTitles() != ContainsTitles.NO && assignment.isContainsExceptedUsers()) {
 			dto.setAssignmentType(-6); // assigned to titles AND has exceptedusers
 		}
 		else if (assignment.isInherit() && assignment.getContainsTitles() == ContainsTitles.POSITIVE) {
@@ -201,7 +251,7 @@ public class RoleAssignedToOrgUnitDTO {
 		else {
 			dto.setAssignmentType(assignment.isInherit() ? -2 : -1);// Assigned to all or with inheritance
 		}
-		
+
 		return dto;
 	}
 

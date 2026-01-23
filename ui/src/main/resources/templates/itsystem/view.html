@@ -15,7 +15,7 @@
 					</a>
 					<span th:text="#{html.page.itsystem.view.title}"></span>
 				</h3>
-				
+
 				<div class="panel panel-default">
 					<div class="panel-heading"></div>
 					<div class="panel-body">
@@ -71,11 +71,12 @@
 								<div class="form-group">
 									<label class="col-sm-2 control-label" th:text="#{html.entity.itsystem.kitosITSystem}"></label>
 									<div class="col-sm-8">
-										<input th:field="*{kitosITSystem.name}" readonly="readonly" class="form-control" />
+										<input th:value="${itsystem.kitosITSystem != null ? itsystem.kitosITSystem.name : ''}"
+											   readonly="readonly" class="form-control" />
 									</div>
 								</div>
 							</fieldset>
-							
+
 							<fieldset>
 								<div class="form-group">
 									<label class="col-sm-2 control-label" th:text="#{html.entity.itsystem.notificationEmail}"></label>
@@ -177,6 +178,41 @@
 									</div>
 								</div>
 							</fieldset>
+
+						<!-- Request/Approve settings -->
+							<fieldset th:if="${@settingsService.isRequestApproveEnabled()}">
+								<div class="form-group">
+									<label class="col-sm-2 control-label"
+										   th:text="#{html.entity.itsystem.requestersetting}"></label>
+									<div class="col-sm-8">
+										<th:block th:if="${itsystem.requesterPermission != null and !itsystem.requesterPermission.isEmpty()}">
+											<input th:value="${#strings.listJoin(itsystem.requesterPermission.![displayName], ', ')}"
+												   readonly="readonly" class="form-control" />
+										</th:block>
+										<th:block th:unless="${itsystem.requesterPermission != null and !itsystem.requesterPermission.isEmpty()}">
+											<input th:value="#{html.entity.itsystem.requestersetting.inherit}"
+												   readonly="readonly" class="form-control" />
+										</th:block>
+									</div>
+								</div>
+							</fieldset>
+
+							<fieldset th:if="${@settingsService.isRequestApproveEnabled()}">
+								<div class="form-group">
+									<label class="col-sm-2 control-label"
+										   th:text="#{html.entity.itsystem.approversetting}"></label>
+									<div class="col-sm-8">
+										<th:block th:if="${itsystem.approverPermission != null and !itsystem.approverPermission.isEmpty()}">
+											<input th:value="${#strings.listJoin(itsystem.approverPermission.![displayName], ', ')}"
+												   readonly="readonly" class="form-control" />
+										</th:block>
+										<th:block th:unless="${itsystem.approverPermission != null and !itsystem.approverPermission.isEmpty()}">
+											<input th:value="#{html.entity.itsystem.approversetting.inherit}"
+												   readonly="readonly" class="form-control" />
+										</th:block>
+									</div>
+								</div>
+							</fieldset>
 						</form>
 
 						<form class="form-horizontal" th:if="${#strings.toString(itsystem.systemType)} == 'AD'">
@@ -203,7 +239,7 @@
 													<th class="col-md-1" th:text="#{html.control.operations}"></th>
 												</tr>
 											</thead>
-	
+
 											<tbody>
 												<tr th:each="systemRole : ${systemRoles}">
 													<td th:text="${systemRole.name}"></td>
@@ -238,7 +274,7 @@
 													<th:block th:if="${role.delegatedFromCvr == null}">
 														<td class="col-md-1">
 															<a th:href="@{/ui/userroles/view/{id}(id=${role.id})}"><em class="fa fa-search"></em></a>
-															<th:block th:unless="${role.readOnly or itsystem.readonly}" sec:authorize="hasRole('ROLE_ADMINISTRATOR')">
+															<th:block th:if="${role.allowedActions.editable && !role.readOnly && !itsystem.readonly}">
 																<a th:href="@{/ui/userroles/edit/{id}(id=${role.id})}"><em class="fa fa-pencil"></em></a>
 															</th:block>
 														</td>
@@ -253,7 +289,7 @@
 								</div>
 							</div>
 						</form>
-						
+
 						<form class="form-horizontal" th:if="${#strings.toString(itsystem.systemType)} == 'SAML' or ${#strings.toString(itsystem.systemType)} == 'MANUAL'">
 							<ul class="nav nav-tabs">
 								<li th:class="active">
@@ -309,7 +345,7 @@
 													<th:block th:if="${role.delegatedFromCvr == null}">
 														<td class="col-md-1">
 															<a th:href="@{/ui/userroles/view/{id}(id=${role.id})}"><em class="fa fa-search"></em></a>
-															<th:block th:unless="${role.readOnly or itsystem.readonly}" sec:authorize="hasRole('ROLE_ADMINISTRATOR')">
+															<th:block  th:if="${role.allowedActions.editable && !role.readOnly && !itsystem.readonly}">
 																<a th:href="@{/ui/userroles/edit/{id}(id=${role.id})}"><em class="fa fa-pencil"></em></a>
 															</th:block>
 														</td>
@@ -324,7 +360,7 @@
 								</div>
 							</div>
 						</form>
-						
+
 						<form class="form-horizontal" th:if="${#strings.toString(itsystem.systemType)} == 'KOMBIT' or ${#strings.toString(itsystem.systemType)} == 'KSPCICS' or ${#strings.toString(itsystem.systemType)} == 'NEMLOGIN'">
 							<ul class="nav nav-tabs">
 								<li th:class="active">
@@ -368,14 +404,14 @@
 													<th class="col-md-1" th:text="#{html.control.operations}"></th>
 												</tr>
 											</thead>
-											<tbody> 
+											<tbody>
 												<tr th:each="role : ${userRoles}">
 													<td class="col-md-5" th:text="${role.name}"></td>
 													<td class="col-md-6" th:text="${role.description}"></td>
 													<th:block th:if="${role.delegatedFromCvr == null}">
 														<td class="col-md-1">
 															<a th:href="@{/ui/userroles/view/{id}(id=${role.id})}"><em class="fa fa-search"></em></a>
-															<th:block th:unless="${role.readOnly or itsystem.readonly}" sec:authorize="hasRole('ROLE_ADMINISTRATOR')">
+															<th:block  th:if="${role.allowedActions.editable && !role.readOnly && !itsystem.readonly}">
 																<a th:href="@{/ui/userroles/edit/{id}(id=${role.id})}"><em class="fa fa-pencil"></em></a>
 															</th:block>
 														</td>

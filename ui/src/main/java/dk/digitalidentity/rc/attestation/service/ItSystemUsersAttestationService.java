@@ -22,7 +22,9 @@ import dk.digitalidentity.rc.attestation.model.entity.ItSystemUserAttestationEnt
 import dk.digitalidentity.rc.attestation.model.entity.temporal.AssignedThroughType;
 import dk.digitalidentity.rc.attestation.model.entity.temporal.AttestationOuRoleAssignment;
 import dk.digitalidentity.rc.attestation.model.entity.temporal.AttestationUserRoleAssignment;
+import dk.digitalidentity.rc.dao.FunctionDao;
 import dk.digitalidentity.rc.dao.TitleDao;
+import dk.digitalidentity.rc.dao.model.Function;
 import dk.digitalidentity.rc.dao.model.ItSystem;
 import dk.digitalidentity.rc.dao.model.Title;
 import dk.digitalidentity.rc.dao.model.User;
@@ -85,6 +87,9 @@ public class ItSystemUsersAttestationService {
 
     @Autowired
     private TitleDao titleDao;
+
+	@Autowired
+	private FunctionDao functionDao;
 
     @Transactional
     public void finishOutstandingAttestations() {
@@ -370,6 +375,9 @@ public class ItSystemUsersAttestationService {
                                     )
                                     .titles(lookupTitles(a.getTitleUuids()))
                                     .inherit(a.isInherit())
+									.manager(a.isManager())
+									.substitutes(a.isSubstitutes())
+									.functions(lookupFunctions(a.getFunctionUuids()))
                                     .build())
                             .collect(Collectors.toList());
                     return ItSystemRoleAssignmentOrgUnitDTO.builder()
@@ -390,6 +398,15 @@ public class ItSystemUsersAttestationService {
                 .map(Title::getName)
                 .collect(Collectors.toList());
     }
+
+	private List<String> lookupFunctions(final List<String> functionUuids) {
+		if (functionUuids == null || functionUuids.isEmpty()) {
+			return Collections.emptyList();
+		}
+		return functionDao.findByUuidInAndActiveTrue(new HashSet<>(functionUuids)).stream()
+				.map(Function::getName)
+				.collect(Collectors.toList());
+	}
 
     /**
      * Check if the user have already been verified/declined

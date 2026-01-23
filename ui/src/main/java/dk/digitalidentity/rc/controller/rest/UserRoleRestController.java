@@ -1,46 +1,16 @@
 package dk.digitalidentity.rc.controller.rest;
 
-import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
-import dk.digitalidentity.rc.controller.mvc.datatables.dao.UserRoleViewDao;
-import dk.digitalidentity.rc.controller.mvc.datatables.dao.model.UserRoleView;
-import dk.digitalidentity.rc.controller.mvc.viewmodel.UserRoleDeleteStatus;
-import dk.digitalidentity.rc.controller.mvc.viewmodel.UserRoleForm;
-import dk.digitalidentity.rc.controller.rest.model.UserRoleViewDTO;
-import dk.digitalidentity.rc.controller.validator.UserRoleValidator;
-import dk.digitalidentity.rc.dao.model.ConstraintType;
-import dk.digitalidentity.rc.dao.model.ItSystem;
-import dk.digitalidentity.rc.dao.model.OrgUnit;
-import dk.digitalidentity.rc.dao.model.Position;
-import dk.digitalidentity.rc.dao.model.RoleGroup;
-import dk.digitalidentity.rc.dao.model.SystemRole;
-import dk.digitalidentity.rc.dao.model.SystemRoleAssignment;
-import dk.digitalidentity.rc.dao.model.SystemRoleAssignmentConstraintValue;
-import dk.digitalidentity.rc.dao.model.User;
-import dk.digitalidentity.rc.dao.model.UserRole;
-import dk.digitalidentity.rc.dao.model.UserRoleEmailTemplate;
-import dk.digitalidentity.rc.dao.model.enums.ConstraintValueType;
-import dk.digitalidentity.rc.dao.model.enums.ItSystemType;
-import dk.digitalidentity.rc.log.AuditLogArgument;
-import dk.digitalidentity.rc.log.AuditLogContextHolder;
-import dk.digitalidentity.rc.security.RequireAdministratorRole;
-import dk.digitalidentity.rc.security.RequireRequesterOrReadAccessRole;
-import dk.digitalidentity.rc.security.SecurityUtil;
-import dk.digitalidentity.rc.service.ADGroupMappingService;
-import dk.digitalidentity.rc.service.ConstraintTypeService;
-import dk.digitalidentity.rc.service.OrgUnitService;
-import dk.digitalidentity.rc.service.PositionService;
-import dk.digitalidentity.rc.service.RoleGroupService;
-import dk.digitalidentity.rc.service.Select2Service;
-import dk.digitalidentity.rc.service.SystemRoleService;
-import dk.digitalidentity.rc.service.UserRoleService;
-import dk.digitalidentity.rc.service.UserService;
-import dk.digitalidentity.rc.service.model.UserRoleSelect2DTO;
-import dk.digitalidentity.rc.util.IdentifierGenerator;
-import jakarta.persistence.criteria.Predicate;
-import jakarta.validation.Valid;
-import lombok.extern.slf4j.Slf4j;
+import java.security.Principal;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Objects;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
 import org.apache.commons.lang3.ObjectUtils;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.jpa.datatables.mapping.DataTablesInput;
@@ -62,177 +32,129 @@ import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
+import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
+import dk.digitalidentity.rc.controller.mvc.datatables.dao.UserRoleViewDao;
+import dk.digitalidentity.rc.controller.mvc.datatables.dao.model.UserRoleView;
+import dk.digitalidentity.rc.controller.mvc.viewmodel.UserRoleDeleteStatus;
+import dk.digitalidentity.rc.controller.mvc.viewmodel.UserRoleForm;
+import dk.digitalidentity.rc.controller.rest.model.ItemPermissionDTO;
+import dk.digitalidentity.rc.controller.rest.model.OUFilterDTO;
+import dk.digitalidentity.rc.controller.rest.model.UserRoleViewDTO;
+import dk.digitalidentity.rc.controller.validator.UserRoleValidator;
+import dk.digitalidentity.rc.dao.model.ConstraintType;
+import dk.digitalidentity.rc.dao.model.ItSystem;
+import dk.digitalidentity.rc.dao.model.OrgUnit;
+import dk.digitalidentity.rc.dao.model.RoleGroup;
+import dk.digitalidentity.rc.dao.model.RoleGroupUserRoleAssignment;
+import dk.digitalidentity.rc.dao.model.SystemRole;
+import dk.digitalidentity.rc.dao.model.SystemRoleAssignment;
+import dk.digitalidentity.rc.dao.model.SystemRoleAssignmentConstraintValue;
+import dk.digitalidentity.rc.dao.model.User;
+import dk.digitalidentity.rc.dao.model.UserRole;
+import dk.digitalidentity.rc.dao.model.UserRoleEmailTemplate;
+import dk.digitalidentity.rc.dao.model.enums.ConstraintValueType;
+import dk.digitalidentity.rc.dao.model.enums.ItSystemType;
+import dk.digitalidentity.rc.dao.model.enums.SystemRoleLinkType;
+import dk.digitalidentity.rc.log.AuditLogArgument;
+import dk.digitalidentity.rc.log.AuditLogContextHolder;
+import dk.digitalidentity.rc.rolerequest.model.enums.ApprovableBy;
+import dk.digitalidentity.rc.rolerequest.model.enums.RequestableBy;
+import dk.digitalidentity.rc.security.SecurityUtil;
+import dk.digitalidentity.rc.security.permission.Permission;
+import dk.digitalidentity.rc.security.permission.RequireControllerPermission;
+import dk.digitalidentity.rc.security.permission.RequirePermission;
+import dk.digitalidentity.rc.security.permission.UserPermissionContext;
+import dk.digitalidentity.rc.security.permission.Section;
+import dk.digitalidentity.rc.service.ADGroupMappingService;
+import dk.digitalidentity.rc.service.ConstraintTypeService;
+import dk.digitalidentity.rc.service.OrgUnitService;
+import dk.digitalidentity.rc.service.PositionService;
+import dk.digitalidentity.rc.service.RoleGroupService;
+import dk.digitalidentity.rc.service.Select2Service;
+import dk.digitalidentity.rc.service.SystemRoleService;
+import dk.digitalidentity.rc.service.UserRoleService;
+import dk.digitalidentity.rc.service.UserService;
+import dk.digitalidentity.rc.service.model.UserRoleSelect2DTO;
+import dk.digitalidentity.rc.util.IdentifierGenerator;
+import jakarta.persistence.criteria.Predicate;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+
 import java.security.Principal;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 
-@RequireAdministratorRole
+@RequireControllerPermission(section = Section.USER_ROLE, permission = Permission.READ)
+@RequiredArgsConstructor
 @Slf4j
 @RestController
 public class UserRoleRestController {
+    private final UserService userService;
+    private final OrgUnitService orgUnitService;
+    private final UserRoleService userRoleService;
+    private final PositionService positionService;
+    private final RoleGroupService roleGroupService;
+    private final UserRoleValidator userRoleValidator;
+    private final SystemRoleService systemRoleService;
+    private final ConstraintTypeService constraintTypeService;
+    private final RoleCatalogueConfiguration configuration;
+    private final UserRoleViewDao userRoleViewDao;
+	private final Select2Service select2Service;
+	private final ADGroupMappingService adGroupMappingService;
+	private final UserPermissionContext userPermissionContext;
 
-    @Autowired
-    private UserService userService;
-
-    @Autowired
-    private OrgUnitService orgUnitService;
-
-    @Autowired
-    private UserRoleService userRoleService;
-
-    @Autowired
-    private PositionService positionService;
-
-    @Autowired
-    private RoleGroupService roleGroupService;
-
-    @Autowired
-    private UserRoleValidator userRoleValidator;
-
-    @Autowired
-    private SystemRoleService systemRoleService;
-    
-    @Autowired
-    private ConstraintTypeService constraintTypeService;
-
-    @Autowired
-    private RoleCatalogueConfiguration configuration;
-
-    @Autowired
-    private UserRoleViewDao userRoleViewDao;
-
-    @Autowired
-	private SecurityUtil securityUtil;
-
-	@Autowired
-	private Select2Service select2Service;
-
-	@Autowired
-	private ADGroupMappingService adGroupMappingService;
-
-    @InitBinder(value = { "role" })
+	@InitBinder(value = { "role" })
     public void initBinder(WebDataBinder binder) {
         binder.addValidators(userRoleValidator);
     }
 
-	@RequireRequesterOrReadAccessRole
+	private static final Section permissionEntity = Section.USER_ROLE;
+
 	@PostMapping("/rest/userroles/list")
 	public DataTablesOutput<UserRoleViewDTO> list(@Valid @RequestBody DataTablesInput input, Principal principal) throws Exception {
-
 		DataTablesOutput<UserRoleView> viewOutput;
 
-		// requesters needs to have the list filtered
-		if (SecurityUtil.isRequesterAndOnlyRequester()) {
-			User user = getUserOrThrow(principal.getName());
+		Set<Long> constrainedITSystems = userPermissionContext.getConstraint(permissionEntity, Permission.READ).getConstrainedItSystemIds();
 
-			// TODO: not very performance-friendly, look into making this smarter
-			List<UserRole> roles = userRoleService.getAll();
-			roles = userRoleService.whichRolesCanBeRequestedByUser(roles, user);
-			List<Long> selectedUserRoles = roles.stream().map(UserRole::getId).toList();
-			viewOutput = userRoleViewDao.findAll(input, getUserRoleByIdIn(selectedUserRoles));
-		}
-		// people with restricted read-only access will be limited
-		else if (securityUtil.hasRestrictedReadAccess()) {
-			List<Long> itSystems = securityUtil.getRestrictedReadAccessItSystems();
-			viewOutput = userRoleViewDao.findAll(input, getUserRolesByItSystem(itSystems));
-		} else {
-			viewOutput = userRoleViewDao.findAll(input);
-		}
+		viewOutput = userRoleViewDao.findAll(input, Specification.where(UserRoleService.hasItSystemIdIn(constrainedITSystems)));
 
 		Map<Long, List<String>> roleToADGroups = adGroupMappingService.getRoleToADGroupsMap();
 
-		List<UserRoleViewDTO> dtoList = viewOutput.getData().stream()
-				.map(view -> {
-					UserRoleViewDTO dto = new UserRoleViewDTO(view);
-					dto.setAdGroupNames(roleToADGroups.getOrDefault(view.getId(), new ArrayList<>()));
-					return dto;
-				})
-				.toList();
-
-		DataTablesOutput<UserRoleViewDTO> dtoOutput = new DataTablesOutput<>();
-		dtoOutput.setDraw(viewOutput.getDraw());
-		dtoOutput.setRecordsTotal(viewOutput.getRecordsTotal());
-		dtoOutput.setRecordsFiltered(viewOutput.getRecordsFiltered());
-		dtoOutput.setData(dtoList);
-		dtoOutput.setError(viewOutput.getError());
-
-		return dtoOutput;
-	}
-	private User getUserOrThrow(String userId) throws Exception {
-		User user = userService.getByUserId(userId);
-		if (user == null) {
-			throw new Exception("Ukendt bruger: " + userId);
-		}
-
-		return user;
+		return mapToUserRoleViewDTO(viewOutput, roleToADGroups);
 	}
 
-	// SELECT * FROM "view" WHERE it_system_id = x or y or z...
-	private Specification<UserRoleView> getUserRolesByItSystem(List<Long> itSystemIds) {
-		Specification<UserRoleView> specification = null;
-		specification = (Specification<UserRoleView>) (root, query, criteriaBuilder) -> {
-			List<Predicate> predicates = new ArrayList<>(itSystemIds.size());
-
-			for (Long id : itSystemIds) {
-				predicates.add(criteriaBuilder.equal(root.get("itSystemId"), id));
-			}
-
-			return criteriaBuilder.or(predicates.toArray(Predicate[]::new));
-		};
-		
-		return specification;
-	}
-	
-	// SELECT * FROM "view" WHERE id LIKE ('') OR id LIKE ('') OR id LIKE ('') ...
-	private Specification<UserRoleView> getUserRoleByIdIn(List<Long> userRoleIds) {		
-		Specification<UserRoleView> specification = null;
-		specification = (Specification<UserRoleView>) (root, query, criteriaBuilder) -> {
-			List<Predicate> predicates = new ArrayList<>(userRoleIds.size());
-
-			for (Long id : userRoleIds) {
-				predicates.add(criteriaBuilder.equal(root.get("id"), id));
-			}
-
-			return criteriaBuilder.or(predicates.toArray(Predicate[]::new));
-		};
-		
-		return specification;
-	}
-    
     @PostMapping(value = "/rest/userroles/flag/{roleId}/{flag}")
     @ResponseBody
+	@RequirePermission(section = Section.USER_ROLE, permission = Permission.UPDATE)
     public ResponseEntity<String> setSystemRoleFlag(@PathVariable("roleId") long roleId, @PathVariable("flag") String flag, @RequestParam(name = "active") boolean active) {
         UserRole role = userRoleService.getById(roleId);
         if (role == null) {
             return new ResponseEntity<>("Ukendt Jobfunktionsrolle", HttpStatus.BAD_REQUEST);
         }
-        
+
         switch (flag) {
         	case "useronly":
         		role.setUserOnly(active);
         		userRoleService.save(role);
-        		
+
         		if (active) {
         			// also need inactive assignments for this
         			@SuppressWarnings("deprecation")
 					List<OrgUnit> orgUnitsWithRole = orgUnitService.getByUserRole(role);
-        			
+
         			// if assigned to an OrgUnit already, return a warning (HTTP 400 is not really
         			// suitable for this, but there does not seem to be HTTP codes to return warnings)
-        			if (orgUnitsWithRole.size() > 0) {
+        			if (!orgUnitsWithRole.isEmpty()) {
         	            return new ResponseEntity<>("Opdateret - bemærk eksisterende enheder har denne rolle tildelt allerede!", HttpStatus.BAD_REQUEST);
         			}
         		}
-        		break;
-        	case "canrequest":
-        		role.setCanRequest(active);
-        		userRoleService.save(role);
         		break;
         	case "sensitive":
         		role.setSensitiveRole(active);
@@ -252,7 +174,49 @@ public class UserRoleRestController {
 
         return new ResponseEntity<>(HttpStatus.OK);
     }
-    
+
+	record RequesterChangeRequest(List<RequestableBy> requesterPermission) {}
+	@PostMapping(value = "/rest/userroles/{roleId}/requester")
+	@ResponseBody
+	@RequirePermission(section = Section.USER_ROLE, permission = Permission.UPDATE)
+	public ResponseEntity<String> setRequesterPermission(@PathVariable("roleId") long roleId, @RequestBody RequesterChangeRequest requesterChangeRequest) {
+		UserRole role = userRoleService.getById(roleId);
+		if (role == null) {
+			return new ResponseEntity<>("Ukendt Jobfunktionsrolle", HttpStatus.BAD_REQUEST);
+		}
+
+		if (requesterChangeRequest.requesterPermission == null || requesterChangeRequest.requesterPermission.isEmpty()) {
+			role.setRequesterPermission(List.of(RequestableBy.INHERIT));
+		} else {
+			role.setRequesterPermission(requesterChangeRequest.requesterPermission);
+		}
+
+		userRoleService.save(role);
+		return new ResponseEntity<>(HttpStatus.OK);
+	}
+
+	record ApproverChangeRequest(List<ApprovableBy> approverPermission) {}
+	@PostMapping(value = "/rest/userroles/{roleId}/approver")
+	@ResponseBody
+	@RequirePermission(section = Section.USER_ROLE, permission = Permission.UPDATE)
+	public ResponseEntity<String> setApproverPermission(@PathVariable("roleId") long roleId, @RequestBody ApproverChangeRequest approverChangeRequest) {
+		UserRole role = userRoleService.getById(roleId);
+		if (role == null) {
+			return new ResponseEntity<>("Ukendt Jobfunktionsrolle", HttpStatus.BAD_REQUEST);
+		}
+
+		if (approverChangeRequest.approverPermission == null ) {
+			role.setApproverPermission(List.of(ApprovableBy.INHERIT));
+		} else {
+			role.setApproverPermission(approverChangeRequest.approverPermission);
+		}
+
+		userRoleService.save(role);
+
+		return new ResponseEntity<>(HttpStatus.OK);
+	}
+
+	@RequirePermission(section = Section.USER_ROLE, permission = Permission.UPDATE)
     @PostMapping(value = "/rest/userroles/manageraction/{roleId}/{field}")
     @ResponseBody
     public ResponseEntity<String> setManagerAction(@PathVariable("roleId") long roleId, @PathVariable("field") String field, @RequestParam(name = "checked") boolean checked) {
@@ -260,7 +224,7 @@ public class UserRoleRestController {
         if (role == null) {
             return new ResponseEntity<>("Ukendt Jobfunktionsrolle", HttpStatus.BAD_REQUEST);
         }
-        
+
         switch (field) {
         	case "requireManagerAction":
         		role.setRequireManagerAction(checked);
@@ -283,7 +247,8 @@ public class UserRoleRestController {
 
         return new ResponseEntity<>(HttpStatus.OK);
     }
-    
+
+	@RequirePermission(section = Section.USER_ROLE, permission = Permission.UPDATE)
     @PostMapping(value = "/rest/userroles/edit/{roleId}/addSystemRole/{systemRoleId}")
     @ResponseBody
     public ResponseEntity<String> addSystemRole(@PathVariable("roleId") long roleId, @PathVariable("systemRoleId") long systemRoleId) {
@@ -309,10 +274,10 @@ public class UserRoleRestController {
                 roleAssignment.setAssignedByName(SecurityUtil.getUserFullname());
                 roleAssignment.setAssignedByUserId(SecurityUtil.getUserId());
                 roleAssignment.setAssignedTimestamp(new Date());
-                
+
                 userRoleService.addSystemRoleAssignment(role, roleAssignment);
                 userRoleService.save(role);
-                
+
                 return new ResponseEntity<>(HttpStatus.OK);
             }
         }
@@ -320,6 +285,7 @@ public class UserRoleRestController {
         return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
     }
 
+	@RequirePermission(section = Section.USER_ROLE, permission = Permission.UPDATE)
     @PostMapping(value = "/rest/userroles/edit/{roleId}/removeSystemRole/{systemRoleId}")
     @ResponseBody
     public ResponseEntity<String> removeSystemRole(@PathVariable("roleId") long roleId, @PathVariable("systemRoleId") long systemRoleId) {
@@ -344,6 +310,7 @@ public class UserRoleRestController {
         return new ResponseEntity<>(HttpStatus.OK);
     }
 
+	@RequirePermission(section = Section.USER_ROLE, permission = Permission.UPDATE)
     @PostMapping(value = "/rest/userroles/edit/{roleId}/addConstraint/{systemRoleId}")
     @ResponseBody
     public ResponseEntity<String> addConstraint(@PathVariable("roleId") final long roleId,
@@ -399,7 +366,8 @@ public class UserRoleRestController {
 
         return new ResponseEntity<>(HttpStatus.OK);
     }
-    
+
+	@RequirePermission(section = Section.USER_ROLE, permission = Permission.UPDATE)
     @PostMapping(value = "/rest/userroles/edit/{roleId}/removeConstraint/{systemRoleId}")
     @ResponseBody
     public ResponseEntity<String> removeConstraint(@PathVariable("roleId") long roleId, @PathVariable("systemRoleId") long systemRoleId, String constraintUuid) {
@@ -418,6 +386,7 @@ public class UserRoleRestController {
         return new ResponseEntity<>(HttpStatus.OK);
     }
 
+	@RequirePermission(section = Section.USER_ROLE, permission = Permission.UPDATE)
     @PostMapping(value = "/rest/userroles/edit")
     public ResponseEntity<String> editRoleAsync(@Valid @ModelAttribute("role") UserRoleForm userRoleForm, BindingResult bindingResult, Locale locale) {
         if (bindingResult.hasErrors()) {
@@ -436,10 +405,22 @@ public class UserRoleRestController {
             return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
         }
 
-		if (role.getLinkedSystemRole() == null) {
-			role.setName(userRoleForm.getName());
-			role.setDescription(userRoleForm.getDescription());
-            role.setContactEmail(userRoleForm.getContactEmail());
+		switch (role.getSystemRoleLinkType()) {
+			case NONE:
+				role.setName(userRoleForm.getName());
+				role.setDescription(userRoleForm.getDescription());
+				role.setContactEmail(userRoleForm.getContactEmail());
+				break;
+			case NAME_ONLY: {
+				role.setDescription(userRoleForm.getDescription());
+				role.setContactEmail(userRoleForm.getContactEmail());
+				break;
+			}
+			case NAME_AND_DESCRIPTION:
+				// do not update
+				break;
+			default:
+				log.error("Unexpected SystemRoleLinkType: " + role.getSystemRoleLinkType());
 		}
 
         if (role.isRequireManagerAction()) {
@@ -459,8 +440,8 @@ public class UserRoleRestController {
         return new ResponseEntity<>(HttpStatus.OK);
     }
 
-    // we have to use the deprecated method to get inactive assignments and users/orgunits
-    @SuppressWarnings("deprecation")
+
+	@RequirePermission(section = Section.USER_ROLE, permission = Permission.DELETE)
     @PostMapping(value = "/rest/userroles/delete/{id}")
     public ResponseEntity<String> deleteRoleAsync(@PathVariable("id") long id) {
         UserRole role = userRoleService.getById(id);
@@ -474,7 +455,7 @@ public class UserRoleRestController {
 
         // there are not that many rolegroups, we can do a full scan
         for (RoleGroup roleGroup : roleGroupService.getAll()) {
-        	if (roleGroup.getUserRoleAssignments().stream().map(ura -> ura.getUserRole()).collect(Collectors.toList()).contains(role)) {
+        	if (roleGroup.getUserRoleAssignments().stream().map(RoleGroupUserRoleAssignment::getUserRole).toList().contains(role)) {
 	        	roleGroupService.removeUserRole(roleGroup, role);
 	        	roleGroupService.save(roleGroup);
         	}
@@ -492,18 +473,12 @@ public class UserRoleRestController {
         	orgUnitService.save(orgUnit);
         }
 
-        for (Position position : positionService.getAllWithRole(role)) {
-        	positionService.removeUserRole(position, role);
-        	positionService.save(position);
-        }
-
         userRoleService.delete(role);
 
         return new ResponseEntity<>(HttpStatus.OK);
     }
 
-    // use deprecated to find inactive assignments
-    @SuppressWarnings("deprecation")
+	@RequirePermission(section = Section.USER_ROLE, permission = Permission.DELETE)
 	@GetMapping(value = "/rest/userroles/trydelete/{id}")
     public ResponseEntity<UserRoleDeleteStatus> tryDelete(@PathVariable("id") long id) {
         UserRoleDeleteStatus status = new UserRoleDeleteStatus();
@@ -515,7 +490,7 @@ public class UserRoleRestController {
         }
 
         status.setSuccess(true);
-        
+
         long count = orgUnitService.countAllWithRole(userRole);
         if (count > 0) {
         	status.setOus(count);
@@ -530,23 +505,16 @@ public class UserRoleRestController {
 
         // there are not that many role groups, we can do a full scan
         for (RoleGroup roleGroup : roleGroupService.getAll()) {
-          	if (roleGroup.getUserRoleAssignments().stream().map(ura -> ura.getUserRole()).collect(Collectors.toList()).contains(userRole)) {
+          	if (roleGroup.getUserRoleAssignments().stream().map(RoleGroupUserRoleAssignment::getUserRole).toList().contains(userRole)) {
                 status.setRoleGroups(status.getRoleGroups() + 1);
             	status.setSuccess(false);
             }
         }
 
-        // have to check the corresponding user - could probably improve this at some point with a JOIN
-        for (Position position : positionService.getAllWithRole(userRole)) {
-        	if (!position.getUser().isDeleted()) {
-	            status.setUsers(status.getUsers() + 1);
-	        	status.setSuccess(false);
-        	}
-        }
-
         return new ResponseEntity<>(status, HttpStatus.OK);
     }
 
+	@RequirePermission(section = Section.USER_ROLE, permission = Permission.UPDATE)
     @PostMapping(value = "/rest/userroles/removeSystemRoleLink/{roleId}")
     @ResponseBody
     public ResponseEntity<String> removeSystemRoleLink(@PathVariable("roleId") long roleId) {
@@ -557,11 +525,45 @@ public class UserRoleRestController {
 
         role.setLinkedSystemRole(null);
         role.setLinkedSystemRolePrefix(null);
+		role.setSystemRoleLinkType(SystemRoleLinkType.NONE);
 
         userRoleService.save(role);
 
         return new ResponseEntity<>(HttpStatus.OK);
     }
+
+	@PostMapping("/rest/userroles/ouFilterEnabled")
+	public ResponseEntity<String> editOUFilterEnabled(long id, boolean ouFilterEnabled) {
+		UserRole role = userRoleService.getById(id);
+		if (role == null) {
+			return new ResponseEntity<>("Ukendt Jobfunktionsrolle", HttpStatus.BAD_REQUEST);
+		}
+
+		role.setOuFilterEnabled(ouFilterEnabled);
+		if (!ouFilterEnabled) {
+			role.getOrgUnitFilterOrgUnits().clear();
+		}
+		userRoleService.save(role);
+
+		return new ResponseEntity<>(HttpStatus.OK);
+	}
+
+	@ResponseBody
+	@PostMapping(value = "/rest/userroles/oufilter")
+	@RequirePermission(section = Section.USER_ROLE, permission = Permission.UPDATE)
+	public ResponseEntity<String> editOUFilter(@RequestBody OUFilterDTO dto) {
+		UserRole role = userRoleService.getById(dto.getId());
+		if (role == null) {
+			return new ResponseEntity<>("Ukendt Jobfunktionsrolle", HttpStatus.BAD_REQUEST);
+		}
+
+		List<OrgUnit> ous = orgUnitService.getByUuidIn(dto.getSelectedOUs());
+		role.getOrgUnitFilterOrgUnits().clear();
+		role.getOrgUnitFilterOrgUnits().addAll(ous);
+		role = userRoleService.save(role);
+
+		return new ResponseEntity<>(HttpStatus.OK);
+	}
 
 	public record Select2Response(List<UserRoleSelect2DTO> results, boolean pagination) {}
 	@GetMapping("/rest/userroles/search")
@@ -589,7 +591,7 @@ public class UserRoleRestController {
 		return new Select2Response(results, hasMore);
 	}
 
-	private record UserRoleDetailDTO(long id, String name, long itSystemId, String itSystemName) {}
+	public record UserRoleDetailDTO(long id, String name, long itSystemId, String itSystemName) {}
 	@GetMapping("/rest/userroles/{id}")
 	public ResponseEntity<UserRoleDetailDTO> getUserRoleDetails(@PathVariable Long id) {
 		UserRole userRole = userRoleService.getById(id);
@@ -600,5 +602,63 @@ public class UserRoleRestController {
 		UserRoleDetailDTO dto = new UserRoleDetailDTO(userRole.getId(), userRole.getName(), userRole.getItSystem().getId(), userRole.getItSystem().getName());
 
 		return ResponseEntity.ok(dto);
+	}
+
+	private DataTablesOutput<UserRoleViewDTO> mapToUserRoleViewDTO(
+			DataTablesOutput<UserRoleView> viewOutput,
+			Map<Long, List<String>> roleToADGroups
+	) {
+		List<UserRoleViewDTO> dtoList = viewOutput.getData().stream()
+				// Map to DTO
+				.map(view -> {
+					ItemPermissionDTO specificAllowedActions = userRoleService.getSpecificAllowedActionsForUserRoleDTO(view);
+
+					UserRoleViewDTO dto = new UserRoleViewDTO(view);
+					dto.setAdGroupNames(roleToADGroups.getOrDefault(view.getId(), new ArrayList<>()));
+
+					dto.setAllowedActions(specificAllowedActions);
+					return dto;
+				})
+				.toList();
+
+		DataTablesOutput<UserRoleViewDTO> dtoOutput = new DataTablesOutput<>();
+		dtoOutput.setDraw(viewOutput.getDraw());
+		dtoOutput.setRecordsTotal(viewOutput.getRecordsTotal());
+		dtoOutput.setRecordsFiltered(viewOutput.getRecordsFiltered());
+		dtoOutput.setData(dtoList);
+		dtoOutput.setError(viewOutput.getError());
+		return dtoOutput;
+	}
+
+	// SELECT * FROM "view" WHERE it_system_id = x or y or z...
+	private Specification<UserRoleView> getUserRolesByItSystem(List<Long> itSystemIds) {
+		Specification<UserRoleView> specification = null;
+		specification = (Specification<UserRoleView>) (root, query, criteriaBuilder) -> {
+			List<Predicate> predicates = new ArrayList<>(itSystemIds.size());
+
+			for (Long id : itSystemIds) {
+				predicates.add(criteriaBuilder.equal(root.get("itSystemId"), id));
+			}
+
+			return criteriaBuilder.or(predicates.toArray(Predicate[]::new));
+		};
+
+		return specification;
+	}
+
+	// SELECT * FROM "view" WHERE id LIKE ('') OR id LIKE ('') OR id LIKE ('') ...
+	private Specification<UserRoleView> whereUserRoleIdIn(List<Long> userRoleIds) {
+		Specification<UserRoleView> specification = null;
+		specification = (root, query, criteriaBuilder) -> {
+			List<Predicate> predicates = new ArrayList<>(userRoleIds.size());
+
+			for (Long id : userRoleIds) {
+				predicates.add(criteriaBuilder.equal(root.get("id"), id));
+			}
+
+			return criteriaBuilder.or(predicates.toArray(Predicate[]::new));
+		};
+
+		return specification;
 	}
 }

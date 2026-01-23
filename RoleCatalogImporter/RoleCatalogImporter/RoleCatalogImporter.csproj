@@ -236,6 +236,7 @@
       <DependentUpon>Settings.settings</DependentUpon>
     </Compile>
     <Compile Include="Settings.cs" />
+    <Compile Include="SettingsHelper.cs" />
     <Compile Include="Tasks\SyncJob.cs" />
   </ItemGroup>
   <ItemGroup>

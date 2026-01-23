@@ -1,24 +1,11 @@
 package dk.digitalidentity.rc.service.kitos;
 
-import dk.digitalidentity.rc.service.SettingsService;
-import dk.digitalidentity.rc.service.kitos.exception.KitosSynchronizationException;
-import dk.kitos.api.ApiV2DeltaFeedApi;
-import dk.kitos.api.ApiV2ItContractApi;
-import dk.kitos.api.ApiV2ItSystemApi;
-import dk.kitos.api.ApiV2ItSystemUsageApi;
-import dk.kitos.api.ApiV2ItSystemUsageRoleTypeApi;
-import dk.kitos.api.ApiV2OrganizationApi;
-import dk.kitos.api.model.ItContractResponseDTO;
-import dk.kitos.api.model.ItSystemResponseDTO;
-import dk.kitos.api.model.ItSystemUsageResponseDTO;
-import dk.kitos.api.model.OrganizationResponseDTO;
-import dk.kitos.api.model.OrganizationUserResponseDTO;
-import dk.kitos.api.model.TrackingEventResponseDTO;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang3.tuple.Pair;
-import org.springframework.stereotype.Service;
-import org.springframework.web.client.HttpClientErrorException;
+import static dk.digitalidentity.rc.service.kitos.KitosConstants.IT_SYSTEM_DELETION_OFFSET_USAGE_SETTING_KEY;
+import static dk.digitalidentity.rc.service.kitos.KitosConstants.IT_SYSTEM_ENTITY_TYPE;
+import static dk.digitalidentity.rc.service.kitos.KitosConstants.IT_SYSTEM_OFFSET_SETTING_KEY;
+import static dk.digitalidentity.rc.service.kitos.KitosConstants.IT_SYSTEM_USAGE_OFFSET_SETTING_KEY;
+import static dk.digitalidentity.rc.service.kitos.KitosConstants.KITOS_DELTA_START_FROM;
+import static dk.digitalidentity.rc.service.kitos.KitosConstants.KITOS_DELTA_START_FROM_OFFSET;
 
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
@@ -28,12 +15,25 @@ import java.util.List;
 import java.util.UUID;
 import java.util.function.Function;
 
-import static dk.digitalidentity.rc.service.kitos.KitosConstants.IT_SYSTEM_DELETION_OFFSET_USAGE_SETTING_KEY;
-import static dk.digitalidentity.rc.service.kitos.KitosConstants.IT_SYSTEM_ENTITY_TYPE;
-import static dk.digitalidentity.rc.service.kitos.KitosConstants.IT_SYSTEM_OFFSET_SETTING_KEY;
-import static dk.digitalidentity.rc.service.kitos.KitosConstants.IT_SYSTEM_USAGE_OFFSET_SETTING_KEY;
-import static dk.digitalidentity.rc.service.kitos.KitosConstants.KITOS_DELTA_START_FROM;
-import static dk.digitalidentity.rc.service.kitos.KitosConstants.KITOS_DELTA_START_FROM_OFFSET;
+import org.apache.commons.lang3.tuple.Pair;
+import org.springframework.stereotype.Service;
+import org.springframework.web.client.HttpClientErrorException;
+
+import dk.digitalidentity.rc.service.SettingsService;
+import dk.digitalidentity.rc.service.kitos.exception.KitosSynchronizationException;
+import dk.kitos.api.ApiV2DeltaFeedApi;
+import dk.kitos.api.ApiV2ItContractApi;
+import dk.kitos.api.ApiV2ItSystemApi;
+import dk.kitos.api.ApiV2ItSystemUsageApi;
+import dk.kitos.api.ApiV2ItSystemUsageRoleTypeApi;
+import dk.kitos.api.ApiV2OrganizationApi;
+import dk.kitos.api.model.ItSystemResponseDTO;
+import dk.kitos.api.model.ItSystemUsageResponseDTO;
+import dk.kitos.api.model.OrganizationResponseDTO;
+import dk.kitos.api.model.OrganizationUserResponseDTO;
+import dk.kitos.api.model.TrackingEventResponseDTO;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 @Service
