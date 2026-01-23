@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html>
+<html lang="da" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/thymeleaf-extras-springsecurity4">
 <head th:replace="~{fragments/header :: header (title=#{html.page.users.list.title})}"></head>
 <body class="layout-fixed">
 	<div class="wrapper">
@@ -129,12 +129,19 @@
 								return result.substring(0, result.length - 5);
 							}
 						},
-						{ 	
-							data: "uuid",
+						{
+							data: "allowedActions",
 							orderable: false,
 							searchable: false,
 							render: function (data, type, row, meta) {
-								return '<a href="' + baseUrl + 'ui/users/manage/' + data + '"><em class="fa fa-fw fa-pencil"></em></a>';
+								if (type === 'display') {
+									const id = row.uuid;
+									let html = ''
+									html += data.readable ? '<a href="' + baseUrl + 'ui/users/view/' + id + '"><em class="fa fa-fw fa-search"></em></a>' : '';
+									html += data.editable ? '<a href="' + baseUrl + 'ui/users/manage/' + id + '"><em class="fa fa-fw fa-pencil"></em></a>' : '';
+									return html;
+								}
+								return data;
 							}
 						}
 					],

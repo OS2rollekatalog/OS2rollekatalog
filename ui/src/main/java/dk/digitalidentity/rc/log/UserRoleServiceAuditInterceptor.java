@@ -41,7 +41,7 @@ public class UserRoleServiceAuditInterceptor {
 				break;
 		}
 	}
-	
+
 	@Before(value = "execution(* dk.digitalidentity.rc.service.UserRoleService.*(..)) && @annotation(AuditLogIntercepted)")
 	public void interceptBefore(JoinPoint jp) {
 		switch(jp.getSignature().getName()) {
@@ -103,16 +103,18 @@ public class UserRoleServiceAuditInterceptor {
 		    	if (userRole.getId() == 0) {
 		    		created = true;
 		        }
-		    	
+
 		    	UserRole after = (UserRole) jp.proceed();
 		        if (created) {
 		        	auditLogger.log(after, EventType.CREATE);
-		        }
-		        
+		        } else {
+					auditLogger.log(after, EventType.UPDATE);
+				}
+
 		        return after;
             }
         }
-        
+
         return jp.proceed();
 	}
 

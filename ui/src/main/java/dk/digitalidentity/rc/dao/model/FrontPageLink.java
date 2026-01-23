@@ -1,8 +1,11 @@
 package dk.digitalidentity.rc.dao.model;
 
+import dk.digitalidentity.rc.dao.model.enums.LinkType;
 import dk.digitalidentity.rc.log.AuditLoggable;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -43,6 +46,14 @@ public class FrontPageLink implements AuditLoggable{
 	@Column
 	@NotNull
 	private boolean editable;
+
+	@Column
+	@NotNull
+	private boolean deletable;
+
+	@Column
+	@Enumerated(EnumType.STRING)
+	private LinkType linkType;
 
 	@Override
 	public String getEntityName() {

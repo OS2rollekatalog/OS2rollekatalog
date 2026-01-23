@@ -1,13 +1,22 @@
 package dk.digitalidentity.rc.controller.api.mapper;
 
 import dk.digitalidentity.rc.controller.api.model.RoleGroupAM;
+import dk.digitalidentity.rc.controller.api.model.RoleGroupShallowAM;
 import dk.digitalidentity.rc.controller.api.model.UserRoleGroupAssignmentAM;
 import dk.digitalidentity.rc.dao.model.RoleGroup;
+import dk.digitalidentity.rc.rolerequest.model.enums.RequestableBy;
 
 import java.util.Collections;
 import java.util.stream.Collectors;
 
 public abstract class RoleGroupMapper {
+
+	public static RoleGroupShallowAM toShallowApi(final RoleGroup roleGroup) {
+		return RoleGroupShallowAM.builder()
+			.id(roleGroup.getId())
+			.name(roleGroup.getName())
+			.build();
+	}
 
     public static RoleGroupAM toApi(final RoleGroup roleGroup) {
         return RoleGroupAM.builder()
@@ -15,7 +24,8 @@ public abstract class RoleGroupMapper {
                 .name(roleGroup.getName())
                 .description(roleGroup.getDescription())
                 .userOnly(roleGroup.isUserOnly())
-                .canRequest(roleGroup.isCanRequest())
+                .canRequest(!roleGroup.getRequesterPermission().contains(RequestableBy.NONE))
+
                 .userRoles(roleGroup.getUserRoleAssignments() != null
                         ? roleGroup.getUserRoleAssignments().stream()
                         .map(a -> UserRoleGroupAssignmentAM.builder()
@@ -28,5 +38,4 @@ public abstract class RoleGroupMapper {
                         : Collections.emptyList())
                 .build();
     }
-
 }

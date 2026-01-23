@@ -1,5 +1,6 @@
 package dk.digitalidentity.rc.task;
 
+import dk.digitalidentity.rc.service.FrontPageLinkService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -15,17 +16,19 @@ public class CacheEvictTask {
 
 	@Autowired
 	private SettingsService settingsService;
+	@Autowired
+	private FrontPageLinkService  frontPageLinkService;
 
 	@Scheduled(fixedDelay = 5 * 60 * 1000)
 	public void runEvery5Minutes() {
-		;
+		frontPageLinkService.evictCache();
 	}
 
 	@Scheduled(fixedDelay = 15 * 60 * 1000)
 	public void runEvery15Minutes() {
 		settingsService.evictCache();
 	}
-	
+
 	@Scheduled(fixedDelay = 30 * 60 * 1000)
 	public void runEvery30Minutes() {
 		;

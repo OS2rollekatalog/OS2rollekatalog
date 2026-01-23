@@ -1,8 +1,11 @@
 package dk.digitalidentity.rc.controller.mvc.xlsview;
 
-import dk.digitalidentity.rc.controller.mvc.datatables.dao.model.AuditLogView;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.CellStyle;
 import org.apache.poi.ss.usermodel.Font;
@@ -10,15 +13,13 @@ import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.springframework.context.support.ResourceBundleMessageSource;
-import org.springframework.web.servlet.view.document.AbstractXlsxStreamingView;
 
-import java.text.SimpleDateFormat;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
+import dk.digitalidentity.rc.attestation.controller.mvc.xlsview.AbstractXlsxStreamingViewWrapper;
+import dk.digitalidentity.rc.controller.mvc.datatables.dao.model.AuditLogView;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 
-public class AuditLogXlsxView extends AbstractXlsxStreamingView {
+public class AuditLogXlsxView extends AbstractXlsxStreamingViewWrapper {
 
     @SuppressWarnings("unchecked")
     @Override

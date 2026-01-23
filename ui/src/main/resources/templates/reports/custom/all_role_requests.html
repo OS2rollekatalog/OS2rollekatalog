@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.w3.org/1999/html">
+<head th:replace="~{fragments/header :: header (title=#{html.report.rolerequest.all})}"></head>
+<body>
+<div class="wrapper">
+	<header th:replace="~{fragments/navbar :: navbar-header(subpage = 'reports')}"></header>
+	<aside th:replace="~{fragments/navbar :: navbar-aside (page = 'report.custom', subpage = 'reports')}"></aside>
+
+	<section>
+			<div class="content-wrapper">
+				<h3 th:text="#{html.report.rolerequest.all}"></h3>
+				<div class="panel panel-default">
+					<div class="panel-heading"></div>
+					<div class="panel-body">
+						<table class="listTable table table-responsive table-striped">
+							<thead>
+								<tr>
+									<th class="col-md-1" th:text="#{xls.report.all_requests.date}"></th>
+									<th class="col-md-2" th:text="#{xls.report.all_requests.requestedFor}"></th>
+									<th class="col-md-2" th:text="#{xls.report.all_requests.requestedBy}"></th>
+									<th class="col-md-1" th:text="#{xls.report.all_requests.action}"></th>
+									<th class="col-md-2" th:text="#{xls.report.all_requests.role}"></th>
+									<th class="col-md-1" th:text="#{xls.report.all_requests.reason}"></th>
+									<th class="col-md-1" th:text="#{xls.report.all_requests.status}"></th>
+									<th class="col-md-2" th:text="#{xls.report.all_requests.rejectReason}"></th>
+								</tr>
+							</thead>
+
+							<tbody>
+								<tr th:each="request : ${requests}">
+									<td th:text="${request.requestedDate}"></td>
+									<td th:text="${request.requestedFor}"></td>
+									<td th:text="${request.requestedBy}"></td>
+									<td th:text="${request.action}"></td>
+									<td th:text="${request.role}"></td>
+									<td th:text="${request.requestReason}"></td>
+									<td th:text="${request.status}"></td>
+									<td th:text="${request.rejectReason}"></td>
+								</tr>
+							</tbody>
+						</table>
+					</div>
+				</div>
+			</div>
+	</section>
+</div>
+
+<nav th:replace="~{fragments/footer :: footer}"></nav>
+<script th:replace="~{fragments/datatables :: datatables}"></script>
+</body>
+</html>

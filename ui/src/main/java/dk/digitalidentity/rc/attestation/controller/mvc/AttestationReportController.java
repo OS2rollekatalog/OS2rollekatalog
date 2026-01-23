@@ -1,22 +1,6 @@
 package dk.digitalidentity.rc.attestation.controller.mvc;
 
-import dk.digitalidentity.rc.attestation.model.AttestationRunMapper;
-import dk.digitalidentity.rc.attestation.model.dto.AttestationRunDTO;
-import dk.digitalidentity.rc.attestation.model.entity.AttestationRun;
-import dk.digitalidentity.rc.attestation.service.AttestationAdminService;
-import dk.digitalidentity.rc.attestation.service.AttestationRunService;
-import dk.digitalidentity.rc.attestation.service.ManualTransactionService;
-import dk.digitalidentity.rc.attestation.service.OrganisationAttestationService;
-import dk.digitalidentity.rc.dao.model.OrgUnit;
-import dk.digitalidentity.rc.dao.model.User;
-import dk.digitalidentity.rc.security.SecurityUtil;
-import dk.digitalidentity.rc.service.ItSystemService;
-import dk.digitalidentity.rc.service.UserService;
-import io.micrometer.core.annotation.Timed;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Controller;
-import org.springframework.ui.Model;
-import org.springframework.web.bind.annotation.GetMapping;
+import static dk.digitalidentity.rc.attestation.controller.mvc.AttestationViewHelpers.buildBreadcrumbs;
 
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
@@ -24,7 +8,20 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import static dk.digitalidentity.rc.attestation.controller.mvc.AttestationViewHelpers.buildBreadcrumbs;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Controller;
+import org.springframework.ui.Model;
+import org.springframework.web.bind.annotation.GetMapping;
+
+import dk.digitalidentity.rc.attestation.model.entity.AttestationRun;
+import dk.digitalidentity.rc.attestation.service.AttestationAdminService;
+import dk.digitalidentity.rc.attestation.service.OrganisationAttestationService;
+import dk.digitalidentity.rc.dao.model.OrgUnit;
+import dk.digitalidentity.rc.dao.model.User;
+import dk.digitalidentity.rc.security.SecurityUtil;
+import dk.digitalidentity.rc.service.ItSystemService;
+import dk.digitalidentity.rc.service.UserService;
+import io.micrometer.core.annotation.Timed;
 
 @Controller
 public class AttestationReportController {

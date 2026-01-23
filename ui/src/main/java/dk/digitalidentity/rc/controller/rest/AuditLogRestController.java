@@ -4,7 +4,10 @@ import java.util.List;
 import java.util.Locale;
 import java.util.stream.Collectors;
 
-import org.springframework.beans.factory.annotation.Autowired;
+import dk.digitalidentity.rc.security.permission.Permission;
+import dk.digitalidentity.rc.security.permission.Section;
+import dk.digitalidentity.rc.security.permission.RequireControllerPermission;
+import lombok.RequiredArgsConstructor;
 import org.springframework.context.MessageSource;
 import org.springframework.data.jpa.datatables.mapping.DataTablesInput;
 import org.springframework.data.jpa.datatables.mapping.DataTablesOutput;
@@ -16,18 +19,14 @@ import org.springframework.web.bind.annotation.RestController;
 import dk.digitalidentity.rc.controller.mvc.datatables.dao.AuditLogViewDao;
 import dk.digitalidentity.rc.controller.mvc.datatables.dao.model.AuditLogView;
 import dk.digitalidentity.rc.controller.mvc.datatables.dao.model.dto.AuditLogDTO;
-import dk.digitalidentity.rc.security.RequireAssignerRole;
 import jakarta.validation.Valid;
 
-@RequireAssignerRole
+@RequiredArgsConstructor
+@RequireControllerPermission(section = Section.LOG, permission = Permission.READ)
 @RestController
 public class AuditLogRestController {
-
-	@Autowired
-	private AuditLogViewDao auditLogViewDao;
-
-	@Autowired
-	private MessageSource messageSource;
+	private final AuditLogViewDao auditLogViewDao;
+	private final MessageSource messageSource;
 
 	@PostMapping("/rest/logs/audit")
 	public DataTablesOutput<AuditLogDTO> list(@Valid @RequestBody DataTablesInput input, BindingResult bindingResult, Locale locale) {

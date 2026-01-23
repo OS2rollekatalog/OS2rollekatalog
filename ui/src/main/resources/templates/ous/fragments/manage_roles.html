@@ -4,7 +4,7 @@
 			<button type="button" style="width: auto !important;" class="btn btn-primary btn-lg dropdown-toggle" data-toggle="dropdown">
 				<em class="fa fa-fw fa-cog"></em>
 			</button>
-			
+
 			<ul class="dropdown-menu" role="menu" id="dataTableDropdown">
 				<li><a href="#" data-cid="0" onclick="return dataTablesToggleColumn(this);"><em class="fa fa-fw"></em><span th:text="#{html.page.ous.manage.assignment.name}"></span></a></li>
 				<li><a href="#" data-cid="1" onclick="return dataTablesToggleColumn(this);"><em class="fa fa-fw"></em><span th:text="#{html.enum.assignmenttype}"></span></a></li>
@@ -13,7 +13,7 @@
 				<li><a href="#" data-cid="4" onclick="return dataTablesToggleColumn(this);"><em class="fa fa-fw"></em><span th:text="#{html.page.ous.manage.assignment.itsystem}"></span></a></li>
 			</ul>
 		</div>
-		<th:block th:if="${editable}" sec:authorize="hasRole('ROLE_ASSIGNER')">
+		<th:block th:if="${canAssign}">
 			<a href="#" id="addUserRoleAssignment" class="btn btn-lg btn-primary" style="width:auto;" th:text="#{html.page.users.manage.roles.add.userrole}" onclick="rolesService.loadAddUserRoleFragment()"></a>
 			<a href="#" id="addRoleGroupAssignment" class="btn btn-lg btn-primary" th:text="#{html.page.users.manage.roles.add.rolegroup}" onclick="rolesService.loadAddRoleGroupFragment()"></a>
 		</th:block>
@@ -28,10 +28,11 @@
 							<th class="col-md-2" th:text="#{html.page.ous.manage.assignment.assignmentType}"></th>
 							<th class="col-md-3" th:text="#{html.word.validity}"></th>
 							<th class="col-md-2" th:text="#{html.page.ous.manage.assignment.itsystem}"></th>
+							<th th:if="${@settingsService.isCaseNumberEnabled()}" class="col-md-2" th:text="#{html.page.users.manage.assignment.caseNumber}"></th>
 							<th class="col-md-1" th:text="#{html.control.operations}"></th>
 						</tr>
 					</thead>
-	
+
 					<tbody>
 						<tr th:each="assignment : ${assignments}">
 							<td>
@@ -45,6 +46,12 @@
 							</td>
 
 							<th:block th:switch="${assignment.assignmentType}">
+                                <td th:case="-12" th:text="#{html.entity.ou.assigned.all.function.inherit}"></td>
+                                <td th:case="-11" th:text="#{html.entity.ou.assigned.all.function}"></td>
+								<td th:case="-10" th:text="#{html.entity.ou.assigned.all.managerAndSubstitutes.inherit}"></td>
+								<td th:case="-9" th:text="#{html.entity.ou.assigned.all.manager.inherit}"></td>
+                                <td th:case="-8" th:text="#{html.entity.ou.assigned.all.managerAndSubstitutes}"></td>
+								<td th:case="-7" th:text="#{html.entity.ou.assigned.all.manager}"></td>
 								<td th:case="-6" th:text="#{html.entity.ou.assigned.all.title.and.with.exceptions}"></td>
 								<td th:case="-5" th:text="#{html.entity.ou.assigned.all.title.inherit}"></td>
 								<td th:case="-4" th:text="#{html.entity.ou.assigned.all.title.exceptions}"></td>
@@ -55,7 +62,7 @@
 								<td th:case="1" th:text="#{html.entity.ou.assigned.one}"></td>
 								<td th:case="*" th:text="#{html.entity.ou.assigned.many(${assignment.assignmentType})}"></td>
 							</th:block>
-							
+
 							<td>
 								<ul th:if="${assignment.startDate != null or assignment.stopDate != null}" style="padding-left: 0px; list-style-type: none; margin-bottom: 0px;">
 									<li th:if="${assignment.startDate != null}" th:text="#{html.word.assigned} + ' ' + ${assignment.startDate}"></li>
@@ -65,18 +72,16 @@
 							</td>
 
 							<td th:text="${assignment.itSystem?.name}"></td>
-
+							<td th:if="${@settingsService.isCaseNumberEnabled()}" th:text="${assignment.caseNumber ?: ''}"></td>
 							<td th:attr="data-assignmentid=${assignment.assignmentId}, data-assignmenttype=${assignment.assignmentType}, data-roleid=${assignment.roleId}, data-objtype=${assignment.type}, data-startdate=${assignment.startDate}, data-stopdate=${assignment.stopDate}, data-name=${assignment.name}">
 								<a
 									href="#"
-									th:if="${assignment.canEdit}"
-									sec:authorize="hasRole('ROLE_ASSIGNER')"
+									th:if="${canAssign}"
 									onclick="rolesService.editRoleAssignment(this)">
 									<em class="fa fa-pencil"></em></a>
 								<a
 									href="#"
-									th:if="${assignment.canEdit}"
-									sec:authorize="hasRole('ROLE_ASSIGNER')"
+									th:if="${canAssign}"
 									onclick="rolesService.deleteRoleAssignment(this)">
 									<em class="fa fa-times"></em>
 								</a>

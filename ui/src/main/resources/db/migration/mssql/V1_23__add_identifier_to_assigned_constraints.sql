@@ -1,1 +1,0 @@
-ALTER TABLE system_role_assignment_constraint_values ADD constraint_identifier NVARCHAR(128);

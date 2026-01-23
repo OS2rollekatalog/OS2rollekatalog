@@ -1,1 +1,0 @@
-ALTER TABLE it_systems ADD ou_filter_enabled BIT NOT NULL DEFAULT 0;

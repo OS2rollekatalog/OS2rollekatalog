@@ -1,24 +1,29 @@
 package dk.digitalidentity.rc.attestation.service.report;
 
+import dk.digitalidentity.rc.attestation.dao.AttestationDao;
 import dk.digitalidentity.rc.attestation.dao.AttestationUserRoleAssignmentDao;
 import dk.digitalidentity.rc.attestation.model.dto.ADAttestationUserDTO;
+import dk.digitalidentity.rc.attestation.model.dto.ITSystemRoleBuildAttestationDTO;
 import dk.digitalidentity.rc.attestation.model.dto.RoleAssignmentReportRowDTO;
 import dk.digitalidentity.rc.attestation.model.dto.enums.AttestationStatus;
 import dk.digitalidentity.rc.attestation.model.dto.enums.RoleStatus;
+import dk.digitalidentity.rc.attestation.model.dto.temporal.AttestationUserRoleAssignmentDto;
 import dk.digitalidentity.rc.attestation.model.entity.Attestation;
 import dk.digitalidentity.rc.attestation.model.entity.AttestationRun;
-import dk.digitalidentity.rc.attestation.model.entity.AttestationUser;
 import dk.digitalidentity.rc.attestation.model.entity.ItSystemOrganisationAttestationEntry;
+import dk.digitalidentity.rc.attestation.model.entity.ItSystemRoleAttestationEntry;
 import dk.digitalidentity.rc.attestation.model.entity.ItSystemUserAttestationEntry;
 import dk.digitalidentity.rc.attestation.model.entity.OrganisationRoleAttestationEntry;
 import dk.digitalidentity.rc.attestation.model.entity.OrganisationUserAttestationEntry;
 import dk.digitalidentity.rc.attestation.model.entity.temporal.AssignedThroughType;
-import dk.digitalidentity.rc.attestation.model.dto.temporal.AttestationUserRoleAssignmentDto;
 import dk.digitalidentity.rc.attestation.service.AttestationCachedUserService;
 import dk.digitalidentity.rc.dao.model.ItSystem;
 import dk.digitalidentity.rc.dao.model.OrgUnit;
 import dk.digitalidentity.rc.dao.model.User;
+import dk.digitalidentity.rc.dao.model.UserRole;
+import dk.digitalidentity.rc.service.ItSystemService;
 import dk.digitalidentity.rc.service.SettingsService;
+import dk.digitalidentity.rc.service.UserRoleService;
 import dk.digitalidentity.rc.service.UserService;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.FlushModeType;
@@ -31,9 +36,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
@@ -52,7 +57,7 @@ public class AttestationReportService {
 
 	@Autowired
 	private AttestationUserRoleAssignmentDao attestationUserRoleAssignmentDao;
-	
+
 	@Autowired
 	private AttestationCachedUserService cachedUserService;
 
@@ -67,9 +72,19 @@ public class AttestationReportService {
 
 	@Autowired
 	private UserService userService;
-	
+
+	@Autowired
+	private ItSystemService itSystemService;
+
+	@Autowired
+	private AttestationDao attestationDao;
+
+	@Autowired
+	private UserRoleService userRoleService;
+
 	@PersistenceContext
 	private EntityManager entityManager;
+
 
 	private static class VerificationAndAttestationInformationDTO {
 		private AttestationStatus status = AttestationStatus.NOT_VERIFIED;
@@ -108,6 +123,20 @@ public class AttestationReportService {
 		model.put("to", to);
 		model.put("messageSource", messageSource);
 		model.put("locale", locale);
+		return model;
+	}
+
+	@Transactional
+	public Map<String, Object> getAllRolesReportModel(Locale locale, LocalDate since, LocalDate to) {
+		// Default hibernate have FlushModeType.AUTO, this causes a flood of constant flushes which takes up a lot of time
+		// we don't need to flush all the time so just do it on commit.
+		entityManager.setFlushMode(FlushModeType.COMMIT);
+		Map<String, Object> model = new HashMap<>();
+		model.put("from", since);
+		model.put("to", to);
+		model.put("messageSource", messageSource);
+		model.put("locale", locale);
+		model.put("itSystemRoleAttestationDTO", getITSystemRoleBuildAttestation(since, to));
 		return model;
 	}
 
@@ -209,6 +238,7 @@ public class AttestationReportService {
 						: RoleStatus.INACTIVE)
 				.orgUnit(assignment.getRoleOuName())
 				.attestationCreatedAt(verificationInformation.attestationCreatedAt)
+				.validFrom(assignment.getValidFrom())
 				.validTo(assignment.getValidTo())
 				.originallyAssignedFrom(assignment.getAssignedFrom())
 				.build();
@@ -447,6 +477,69 @@ public class AttestationReportService {
 
 	private static OrganisationRoleAttestationEntry lookupOrganisationEntry(final Attestation attestation) {
 		return attestation.getOrganisationRolesAttestationEntry();
+	}
+
+	private List<ITSystemRoleBuildAttestationDTO> getITSystemRoleBuildAttestation(LocalDate from, LocalDate to) {
+		List<ITSystemRoleBuildAttestationDTO> result = new ArrayList<>();
+		List<ItSystem> itSystems = itSystemService.findAllForAttestation();
+		for (ItSystem itSystem : itSystems) {
+			List<Attestation> roleAttestationsForSystem = attestationDao.findItSystemRoleAttestations(itSystem.getId(), from, to);
+			Attestation relevantAttestation = findRelevantAttestation(roleAttestationsForSystem);
+			List<UserRole> userRoles = userRoleService.getByItSystem(itSystem);
+			for (UserRole userRole : userRoles) {
+				ITSystemRoleBuildAttestationDTO dto = new ITSystemRoleBuildAttestationDTO();
+				dto.setItSystemName(itSystem.getName());
+				dto.setRole(userRole.getName());
+				dto.setSystemRole(userRole.getSystemRoleAssignments().stream().map(s -> s.getSystemRole().getName()).collect(Collectors.toList()));
+
+				if (relevantAttestation != null) {
+					dto.setResponsibleUser(relevantAttestation.getResponsibleUserId());
+
+					ItSystemRoleAttestationEntry entryForRole = relevantAttestation.getItSystemUserRoleAttestationEntries()
+						.stream().filter(i -> Objects.equals(i.getUserRoleId(), userRole.getId()))
+						.findAny().orElse(null);
+
+					dto.setAttestationStatus(getAttestationStatus(entryForRole));
+
+					if (entryForRole != null) {
+						dto.setAttestationDate(LocalDate.from(entryForRole.getCreatedAt()));
+						dto.setPerformedBy(entryForRole.getPerformedByUserId());
+					}
+				}
+
+				result.add(dto);
+			}
+		}
+		return result;
+	}
+
+	private AttestationStatus getAttestationStatus(ItSystemRoleAttestationEntry entryForRole) {
+		if (entryForRole == null) {
+			return AttestationStatus.NOT_VERIFIED;
+		}
+
+		return entryForRole.getRemarks() != null
+			? AttestationStatus.REMARKS
+			: AttestationStatus.APPROVED;
+	}
+
+	private Attestation findRelevantAttestation(List<Attestation> attestations) {
+		if (attestations == null || attestations.isEmpty()) {
+			return null;
+		}
+
+		// If only one attestation, return it
+		if (attestations.size() == 1) {
+			return attestations.get(0);
+		}
+
+		// Multiple attestations: find newest verified, or fallback to newest unverified
+		return attestations.stream()
+			.filter(a -> a.getVerifiedAt() != null)
+			.max(Comparator.comparing(Attestation::getVerifiedAt))
+			.orElseGet(() -> attestations.stream()
+				.max(Comparator.comparing(Attestation::getCreatedAt))
+				.orElse(null));
 	}
 
 }

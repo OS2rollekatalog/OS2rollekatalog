@@ -2,7 +2,7 @@
 <html>
 <head th:replace="~{fragments/header :: header (title=#{html.page.ous.mange.title})}"></head>
 <body class="layout-fixed">
-	<div class="wrapper">
+	<div class="wrapper" th:with="permission=${T(dk.digitalidentity.rc.security.permission.Permission)},section=${T(dk.digitalidentity.rc.security.permission.Section)}">
 		<header th:replace="~{fragments/navbar :: navbar-header(subpage = 'roles')}"></header>
 		<aside th:replace="~{fragments/navbar :: navbar-aside (page = 'ous', subpage = 'roles')}"></aside>
 
@@ -20,7 +20,7 @@
 				<div class="panel panel-default">
 					<div class="panel-heading"></div>
 					<div class="panel-body">
-					
+
 						<div class="panel-group" id="accordion" role="tablist" aria-multiselectable="true">
 							<div class="panel panel-default">
 								<div class="panel-heading" role="tab" id="stamdataHeading">
@@ -44,7 +44,7 @@
 													</div>
 												</div>
 											</fieldset>
-											
+
 											<fieldset th:unless="${editable}">
 												<div class="form-group">
 													<label class="col-sm-2 control-label" th:text="#{html.entity.ou.level}"></label>
@@ -53,7 +53,7 @@
 													</div>
 												</div>
 											</fieldset>
-											<fieldset th:if="${editable}" sec:authorize="hasRole('ROLE_ADMINISTRATOR')">
+											<fieldset th:if="${editable && @permissionCheck.isAllowed(section.ORGUNIT, permission.UPDATE)}">
 												<div th:if="${@roleCatalogueConfiguration.getOrganisation().isGetLevelsFromApi() == false}" class="form-group">
 													<label class="col-sm-2 control-label" th:text="#{html.entity.ou.level}"></label>
 													<div class="col-sm-8">
@@ -64,7 +64,7 @@
 														</select>
 													</div>
 												</div>
-												
+
 												<div th:if="${@roleCatalogueConfiguration.getOrganisation().isGetLevelsFromApi() == true}" class="form-group">
 													<label class="col-sm-2 control-label" th:text="#{html.entity.ou.level}"></label>
 													<div class="col-sm-8">
@@ -72,7 +72,7 @@
 													</div>
 												</div>
 											</fieldset>
-											
+
 											<fieldset>
 												<div class="form-group">
 													<label class="col-sm-2 control-label" th:text="#{html.entity.ou.manager}"></label>
@@ -96,12 +96,12 @@
 																<input class="inherit-checkbox" type="checkbox" data-flag="inherit" th:attr="checked=${ou.inheritKle}" disabled="disabled" />
 																<span class="fa fa-check"></span>
 															</label>
-															
+
 															<label th:text="#{html.orgunit.flag.inherit}"></label>
 														</div>
 													</div>
 												</div>
-												
+
 												<div class="form-group" th:if="${#lists.size(parentsKleIsInheritedFrom)} > 0">
 													<div class="col-sm-offset-2 col-sm-8" style="margin-top: 20px;">
 														<span style="font-weight: bold;" th:text="#{html.orgunit.kle.inherited.from}"></span>
@@ -120,12 +120,12 @@
 																<input class="inherit-checkbox" type="checkbox" data-flag="inherit" th:attr="checked=${ou.inheritKle}"/>
 																<span class="fa fa-check"></span>
 															</label>
-															
+
 															<label th:text="#{html.orgunit.flag.inherit}"></label>
 														</div>
 													</div>
 												</div>
-												
+
 												<div class="form-group" th:if="${#lists.size(parentsKleIsInheritedFrom)} > 0">
 													<div class="col-sm-offset-2 col-sm-8" style="margin-top: 20px;">
 														<span style="font-weight: bold;" th:text="#{html.orgunit.kle.inherited.from}"></span>
@@ -189,7 +189,7 @@
 			margin-left: 10px;
 			width: auto;
 		}
-		
+
 		.autocomplete-suggestions { border: 1px solid #999; background: #FFF; overflow: auto; width: 500px !important; }
 		.autocomplete-suggestion { padding: 2px 5px; white-space: nowrap; overflow: hidden; }
 		.autocomplete-selected { background: #F0F0F0; }
@@ -201,7 +201,7 @@
 	<div th:replace="~{ous/fragments/ou_roles_modal :: ouRolesModal(titles = ${titles})}"></div>
 
 	<nav th:replace="~{fragments/footer :: footer}"></nav>
-	
+
 	<script th:replace="~{fragments/datatables :: datatables}"></script>
 	<script th:replace="~{fragments/assignDatePicker :: content}"></script>
 	<script th:replace="~{ous/fragments/ou_roles_modal :: ouRolesModalScript(titlesEnabled=${titlesEnabled})}"></script>
@@ -218,11 +218,11 @@
 
 		var success = [[#{html.default.message.success}]];
 		var failed = [[#{html.default.message.error}]];
-		
+
 		// TODO: den her fik vi vist smidt ud med badevandet
 		var usersStillAssignedDirectlyMsg = [[#{html.orgunit.role.stillassigned}]];
 		var usersAlreadyAssignedDirectlyMsg = [[#{html.orgunit.role.alreadyassigned}]];
-		
+
 		//Delete role assignment swal
 		var deleteRoleAssignmentTitleTxt = [[#{html.page.manage.roles.delete.title}]];
 		var deleteRoleAssignmentBodyTxt = [[#{html.page.manage.roles.delete.body}]];
@@ -230,10 +230,10 @@
 
 		var deleteAssignmentConfirmTxt = [[#{html.control.button.yes}]];
 		var deleteAssignmentCancelTxt = [[#{html.control.button.cancel}]];
-		
+
 		var titles = [[${titles}]];
 		var titlesEnabled = [[${titlesEnabled}]];
-		
+
 		var restUrl = [[@{/rest/ous/}]];
 		var substituteUrl = [[@{/rest/manager/substitute}]];
 		var msgAssignSuccess = [[#{html.page.manager.substitute.assign.success}]];
@@ -256,16 +256,16 @@
 			});
 			autoCompleteService = new AutoCompleteService();
 			autoCompleteService.init();
-			
+
 			// ensure checkbox listeners are enabled for currently visible checkboxes
 			addCheckboxListeners();
-			
+
 			// flip active tab on page-load
 			var selectedTab = localStorage.getItem(ou);
 			if (selectedTab != null) {
 				$('a[data-toggle="tab"][href="' + selectedTab + '"]').tab('show');
 			}
-			
+
 			// setup tab memory
 			$('#dataTabs a').click(function (e) {
 				e.preventDefault();
@@ -283,7 +283,7 @@
 
 			ouRolesEditModalService.ouUuid = ou;
 			ouRolesEditModalService.parentService = rolesService;
-			
+
 			//Initialize tabs
 			rolesService.loadRolesFragment();
 
@@ -303,7 +303,7 @@
 		// handler for setting OU level
 		function setLevel(el) {
 			var updateUrl = url + ou + "/setLevel/" + $(el).val();
-			
+
 			$.ajax({
 				url: updateUrl,
 				method: "POST",
@@ -311,7 +311,7 @@
 					'X-CSRF-TOKEN': token
 				},
 				error: defaultErrorHandler,
-				success: function(response) {	
+				success: function(response) {
 					$.notify({
 						message: fieldUpdatedMsg
 					}, {
@@ -332,7 +332,7 @@
 			else {
 				updateUrl = updateUrl + "?active=false";
 			}
-			
+
 			$.ajax({
 				url: updateUrl,
 				method: "POST",
@@ -340,7 +340,7 @@
 					'X-CSRF-TOKEN': token
 				},
 				error: defaultErrorHandler,
-				success: function(response) {	
+				success: function(response) {
 					$.notify({
 						message: fieldUpdatedMsg
 					}, {
@@ -388,7 +388,7 @@
 				var titleTxt = deleteRoleAssignmentTitleTxt + '"' + roleName + '"';
 				var bodyTxt = deleteRoleAssignmentBodyTxt;
 				var errorMessage = deleteRoleAssignmentErrorMessage;
-				
+
 				swal({
 						html: true,
 						title : titleTxt,
@@ -441,7 +441,7 @@
 					ouRolesEditModalService.roleId = roleid;
 					ouRolesEditModalService.assignmentId = assignmentId;
 					ouRolesEditModalService.inherit = assignmentType == -2;
-					
+
 					ouRolesEditModalService.showAssignModal(titlesEnabled, startDate, stopDate, assignmentType, assignmentId);
 				}
 			}
@@ -458,7 +458,7 @@
 				ouRolesModalService.showAssignModal(titlesEnabled, null, null);
 			}
 		}
-		
+
 		function AutoCompleteService() {
 			this.init = function() {
 				var searchField = $("#search_person");
@@ -478,7 +478,7 @@
 
 			this.removeAuthManager = function(elem) {
 				var personUuid = $(elem).data('uuid');
-				
+
 				$.ajax({
 					method : "POST",
 					url: restUrl + ou + "/authorizationmanager/remove",
@@ -491,7 +491,7 @@
 					reloadRequestApproveFragment();
 				}).fail(errorHandler(msgAssignFailure));
 			}
-			
+
 			this.addAuthManager = function(personUuid) {
 				$.ajax({
 					method : "POST",
@@ -516,9 +516,9 @@
 		/*[+
 			var allKles = [[${allKles}]];
 		+]*/
-	
+
 		var kleService = new KleService();
-		
+
 		$(document).ready(function () {
 			kleService.loadViewFragment('PERFORMING');
 			kleService.loadViewFragment('INTEREST');
@@ -576,10 +576,10 @@
 									else if (kleValue.length > 2) {
 										kleValue = kleValue.substr(0, 2) + "." + kleValue.substr(2);
 									}
-									
+
 									return (node.text.startsWith(kleValue));
 								}
-	
+
 								return (node.text.toUpperCase().includes(str.toUpperCase()));
 							}
 						},
@@ -587,27 +587,27 @@
 							"checkbox", "search"
 						]
 				});
-	
+
 				// Select all already selected klecodes in the tree.
 				$('#' + id).on("ready.jstree", function(e, data) {
 					$('#' + id).jstree('select_node', selected);
 				});
-	
+
 				// Searching in the JSTree
 				var to = false;
 				$('#' + search).keyup(function () {
 					if (to) {
 						clearTimeout(to);
 					}
-	
+
 					to = setTimeout(function () {
 						var v = $('#' + search).val();
-	
+
 						$('#' + id).jstree(true).search(v);
 					}, 400);
 				});
 			};
-			
+
 			this.saveChanges = function (element) {
 				var id = 'Kle' + element.dataset.type;
 				var codes = $('#' + id).jstree('get_top_selected');
@@ -634,7 +634,7 @@
 					data: JSON.stringify(codes)
 				});
 			}
-			
+
 			this.abortChanges = function (element) {
 				kleService.loadViewFragment(element.dataset.type);
 			}
@@ -648,7 +648,7 @@
 					timeout: 2000
 				});
 			}
-			
+
 			this.showWarnNotification = function(message) {
 				$.notify({
 					message: message,
@@ -665,7 +665,7 @@
 				});
 			}
 		}
-	
+
 		/*]]>*/
 	</script>
 

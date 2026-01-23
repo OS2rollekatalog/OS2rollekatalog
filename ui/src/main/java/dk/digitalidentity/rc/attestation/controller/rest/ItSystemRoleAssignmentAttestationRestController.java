@@ -33,6 +33,9 @@ public class ItSystemRoleAssignmentAttestationRestController {
 		if (dto.remarks() == null || dto.remarks().trim().equals("")) {
 			return new ResponseEntity<>("Der skal angives ændringsønsker", HttpStatus.BAD_REQUEST);
 		}
+		if (dto.notApproved.isEmpty()) {
+			return new ResponseEntity<>("Der skal vælges roller", HttpStatus.BAD_REQUEST);
+		}
 		itSystemUsersAttestationService.rejectUser(itSystemId, userUuid, dto.remarks(), dto.notApproved(), SecurityUtil.getUserId());
 		return new ResponseEntity<>(HttpStatus.OK);
 	}

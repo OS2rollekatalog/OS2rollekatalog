@@ -769,8 +769,6 @@ public class OrganisationImporterOld {
 		Position position = new Position();
 		position.setName(title);
 		position.setOrgUnit(orgUnitEntity);
-		position.setRoleGroupAssignments(new ArrayList<>());
-		position.setUserRoleAssignments(new ArrayList<>());
 		position.setUser(userEntity);
 
 		// do not use the userService addPosition method here, it has a nasty side-effect

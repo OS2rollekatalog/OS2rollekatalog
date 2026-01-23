@@ -26,6 +26,16 @@
                                     <li th:each="title : ${userRole.titles}" th:text="${title}"></li>
                                 </ul>
                             </div>
+                            <div th:if="${orgUnitAssignments && !#lists.isEmpty(userRole.functions)}">
+                                <b th:text="#{attestationmodule.html.orgunits.attestate.user.tabs.roles.roleGroups.functions}"></b>
+                                <ul>
+                                    <li th:each="function : ${userRole.functions}" th:text="${function}"></li>
+                                </ul>
+                            </div>
+                            <div th:if="${orgUnitAssignments && userRole.manager}">
+                                <b th:if="${userRole.substitutes}" th:text="#{attestationmodule.html.orgunits.attestate.user.tabs.roles.roleGroups.manager}"></b>
+                                <b th:unless="${userRole.substitutes}" th:text="#{attestationmodule.html.orgunits.attestate.user.tabs.roles.roleGroups.managerAndSubstitutes}"></b>
+                            </div>
                             <div th:if="${orgUnitAssignments && !#lists.isEmpty(userRole.exceptedUsers)}">
                                 <b th:text="#{attestationmodule.html.orgunits.attestate.user.tabs.roles.roleGroups.exceptedUsers}"></b>
                                 <ul>

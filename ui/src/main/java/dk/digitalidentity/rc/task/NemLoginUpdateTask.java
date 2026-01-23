@@ -15,20 +15,20 @@ import lombok.extern.slf4j.Slf4j;
 @Component
 @EnableScheduling
 public class NemLoginUpdateTask {
-	
+
 	@Autowired
 	private NemLoginService nemLoginService;
-	
+
 	@Autowired
 	private RoleCatalogueConfiguration configuration;
-	
+
 	// run ~4-5 times during "daytime" (every 5 hours from 6 AM to 11 PM)
 	@Scheduled(cron = "#{new java.util.Random().nextInt(60)} #{new java.util.Random().nextInt(5)}/5 6-23 * * ?")
 	public void syncDirtyUserRolesAssignments() {
 		if (!configuration.getIntegrations().getNemLogin().isEnabled() || !configuration.getScheduled().isEnabled()) {
 			return;
 		}
-		
+
 		long start = System.currentTimeMillis();
 
 		nemLoginService.updateUserRoleAssignments();
@@ -39,7 +39,7 @@ public class NemLoginUpdateTask {
 	}
 
 	// run ~4-5 times during "daytime" (every 5 hours from 6 AM to 11 PM)
-	@Scheduled(cron = "#{new java.util.Random().nextInt(60)} #{new java.util.Random().nextInt(5)}/5 6-23 * * ?")
+	@Scheduled(cron = "#{new java.util.Random().nextInt(60)} #{new java.util.Random().nextInt(5)} 23 * * ?")
 	public void syncAdminRoles() {
 		if (!configuration.getIntegrations().getNemLogin().isEnabled() || !configuration.getScheduled().isEnabled()) {
 			return;
@@ -54,8 +54,8 @@ public class NemLoginUpdateTask {
 		}
 	}
 
-	// run once every "night" - they don't like being called before 6:00 - too many errors
-	@Scheduled(cron = "${cron.nemlogin.fullSync:#{new java.util.Random().nextInt(60)} #{new java.util.Random().nextInt(60)} 6 * * ?}")
+	// run once every "night" - they don't like being called before 10:00 - too many errors
+	@Scheduled(cron = "${cron.nemlogin.fullSync:#{new java.util.Random().nextInt(60)} #{new java.util.Random().nextInt(60)} 10 * * ?}")
 	public void fullSyncRoleAssignments() {
 		if (!configuration.getIntegrations().getNemLogin().isEnabled() || !configuration.getScheduled().isEnabled()) {
 			return;
@@ -64,12 +64,12 @@ public class NemLoginUpdateTask {
 		long start = System.currentTimeMillis();
 
 		nemLoginService.fullRoleSync();
-		
+
 		if (System.currentTimeMillis() - start > (10 * 60 * 1000)) {
 			log.warn("Running fullSyncRoleAssignments took " + (System.currentTimeMillis() - start) + "ms");
 		}
 	}
-	
+
 	// period sync of systemRoles and AdminRoles from MitID Erhverv to OS2rollekatalog
 	@Scheduled(cron = "#{new java.util.Random().nextInt(60)} #{new java.util.Random().nextInt(60)} 3,10,14 * * ?")
 	public void syncNemLoginRoles() throws Exception {
@@ -82,7 +82,7 @@ public class NemLoginUpdateTask {
 
 		nemLoginService.syncNemLoginRoles(true);
 		nemLoginService.syncNemLoginAdminRoles();
-		
+
 		if (System.currentTimeMillis() - start > (3 * 60 * 1000)) {
 			log.warn("Running syncNemLoginRoles took " + (System.currentTimeMillis() - start) + "ms");
 		}

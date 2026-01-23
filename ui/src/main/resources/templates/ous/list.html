@@ -55,13 +55,18 @@
 			margin-right: -30px;
 			padding-right: 126.1px;
 		}
+
+		a#ouEditLink.disabled > span {
+			background-color: grey;
+			cursor: not-allowed;
+		}
 	</style>
 
 	<script th:inline="javascript">
 		/*<![CDATA[*/
 		/*[+
 		    var url = [[@{/ui/ous/}]];
-		    
+
 			var allOUs = [[${allOUs}]];
 		+]*/
 
@@ -72,7 +77,7 @@
 				return this.substr(position, searchString.length) === searchString;
 			};
 		}
-		
+
 		//hierarchy
 		$("document").ready(function() {
 			$("#sidebar").affix({
@@ -80,7 +85,7 @@
 					top: 0
 				}
 			});
-			
+
 			$("#hierarchy").jstree({
 				"core": {
 					"data": allOUs,
@@ -108,9 +113,26 @@
 			// selecting in the JSTree
 			$("#hierarchy").on("select_node.jstree", function(e, data) {
 				$("#ouName").text(data.node.text);
-				$("#ouEditLink").attr("href", url + "manage/" + data.node.id);
+				const editButton = document.getElementById("ouEditLink");
+
+				if (editButton) {
+					const canRead = data.node.original.canRead !== false;
+					const editable = data.node.original.editable === true;
+
+					if (!canRead) {
+						editButton.style.display = "none";
+					} else if (editable) {
+						editButton.style.display = "";
+						editButton.href = url + "manage/" + data.node.id;
+						editButton.children[0].textContent = "Rediger";
+					} else {
+						editButton.style.display = "";
+						editButton.href = url + "view/" + data.node.id;
+						editButton.children[0].textContent = "Vis";
+					}
+				}
 			});
-			
+
 			// searching in the JSTree
 			var to = false;
 			$('#searchField').keyup(function() {

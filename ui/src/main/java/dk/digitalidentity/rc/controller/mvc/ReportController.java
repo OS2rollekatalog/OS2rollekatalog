@@ -1,5 +1,6 @@
 package dk.digitalidentity.rc.controller.mvc;
 
+import java.text.SimpleDateFormat;
 import java.time.DateTimeException;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
@@ -13,7 +14,7 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import org.springframework.beans.factory.annotation.Autowired;
+import dk.digitalidentity.rc.rolerequest.model.entity.RoleRequest;
 import org.springframework.context.MessageSource;
 import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.stereotype.Controller;
@@ -32,71 +33,63 @@ import dk.digitalidentity.rc.controller.mvc.viewmodel.UserWithDuplicateRoleAssig
 import dk.digitalidentity.rc.controller.mvc.xlsview.ReportXlsxView;
 import dk.digitalidentity.rc.controller.mvc.xlsview.XlsView;
 import dk.digitalidentity.rc.dao.history.model.HistoryItSystem;
+import dk.digitalidentity.rc.dao.model.AuthorizationManager;
 import dk.digitalidentity.rc.dao.model.ItSystem;
 import dk.digitalidentity.rc.dao.model.OrgUnit;
-import dk.digitalidentity.rc.dao.model.Position;
 import dk.digitalidentity.rc.dao.model.ReportTemplate;
 import dk.digitalidentity.rc.dao.model.RoleGroup;
+import dk.digitalidentity.rc.dao.model.SystemRole;
 import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserRole;
 import dk.digitalidentity.rc.dao.model.enums.ReportType;
-import dk.digitalidentity.rc.security.RequireReportAccessRole;
+import dk.digitalidentity.rc.rolerequest.service.RequestService;
+import dk.digitalidentity.rc.security.AccessConstraintService;
 import dk.digitalidentity.rc.security.RequireTemplateAccessOrReportAccessRole;
 import dk.digitalidentity.rc.security.SecurityUtil;
+import dk.digitalidentity.rc.security.permission.Permission;
+import dk.digitalidentity.rc.security.permission.RequireControllerPermission;
+import dk.digitalidentity.rc.security.permission.Section;
+import dk.digitalidentity.rc.security.permission.UserPermissionContext;
 import dk.digitalidentity.rc.service.HistoryService;
 import dk.digitalidentity.rc.service.ItSystemService;
 import dk.digitalidentity.rc.service.OrgUnitService;
-import dk.digitalidentity.rc.service.PositionService;
 import dk.digitalidentity.rc.service.ReportService;
 import dk.digitalidentity.rc.service.ReportTemplateService;
 import dk.digitalidentity.rc.service.RoleGroupService;
+import dk.digitalidentity.rc.service.SystemRoleService;
 import dk.digitalidentity.rc.service.UserRoleService;
 import dk.digitalidentity.rc.service.UserService;
 import dk.digitalidentity.rc.service.model.RoleGroupAssignmentWithInfo;
 import dk.digitalidentity.rc.service.model.UserRoleAssignmentWithInfo;
+import dk.digitalidentity.rc.service.model.UserWithRole;
 import jakarta.servlet.http.HttpServletResponse;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
+@RequiredArgsConstructor
 @Slf4j
-@RequireReportAccessRole
+@RequireControllerPermission(section = Section.REPORT, permission = Permission.READ)
 @Controller
 public class ReportController {
-
-	@Autowired
-	private ReportService reportService;
-
-	@Autowired
-	private HistoryService historyService;
-
-	@Autowired
-	private ReportTemplateService reportTemplateService;
-
-	@Autowired
-	private UserRoleService userRoleService;
-
-	@Autowired
-	private UserService userService;
-
-	@Autowired
-	private RoleGroupService roleGroupService;
-
-	@Autowired
-	private OrgUnitService orgUnitService;
-	
-	@Autowired
-	private PositionService positionService;
-
-	@Autowired
-	private ItSystemService itSystemService;
-
-	@Autowired
-	private MessageSource messageSource;
+	private final ReportService reportService;
+	private final HistoryService historyService;
+	private final ReportTemplateService reportTemplateService;
+	private final UserRoleService userRoleService;
+	private final UserService userService;
+	private final RoleGroupService roleGroupService;
+	private final OrgUnitService orgUnitService;
+	private final ItSystemService itSystemService;
+	private final MessageSource messageSource;
+	private final UserPermissionContext userPermissionContext;
+	private final SystemRoleService systemRoleService;
+	private final AccessConstraintService accessConstraintService;
+	private final RequestService rolerequestService;
 
 	@RequireTemplateAccessOrReportAccessRole
 	@GetMapping("/ui/report/templates")
 	public String templatesReport(Model model) {
 		List<ReportTemplate> templates = new ArrayList<>();
-		
+
 		if (SecurityUtil.hasRole(Constants.ROLE_REPORT_ACCESS)) {
 			templates = reportTemplateService.getAll();
 		}
@@ -105,7 +98,9 @@ public class ReportController {
 			if (currentUser != null) {
 				templates = reportTemplateService.getByUser(currentUser);
 			}
-		}
+		} else {
+			 templates = reportTemplateService.getAll();
+		 }
 
 		model.addAttribute("reportTemplates", templates);
 
@@ -121,6 +116,11 @@ public class ReportController {
 
 	@GetMapping("/ui/report/configure")
 	public String configureReport(Model model) {
+		if (!userPermissionContext.isReportTemplateAllowed(Permission.UPDATE)) {
+			// We need to check permissions directly, as the TemplateAccess role does not have Update permission, but still can access
+			return "redirect:/ui/my";
+		}
+
 		LocalDate now = LocalDate.now();
 
 		// default column choices
@@ -161,14 +161,15 @@ public class ReportController {
 			reportForm.setUnitFilter((reportTemplate.getUnitFilter() != null) ? reportTemplate.getUnitFilter().split(",") : null);
 			reportForm.setShowSystemRoles(reportTemplate.isShowSystemRoles());
 
+
 			if (reportTemplate.getItsystemFilter() != null) {
 				String[] stringIds = reportTemplate.getItsystemFilter().split(",");
 				long ids[] = new long[stringIds.length];
-				
+
 				for (int i = 0; i < ids.length; i++) {
 					ids[i] = Long.parseLong(stringIds[i]);
 				}
-				
+
 				reportForm.setItsystemFilter(ids);
 			}
 			else {
@@ -203,13 +204,13 @@ public class ReportController {
 		catch (DateTimeException e) {
 			return "reports/fragments/filterOptionsFragment :: filterOptions";
 		}
-		
+
 		if (LocalDate.now().isBefore(date)) {
 			date = LocalDate.now();
 		}
 
 		ReportForm reportForm = new ReportForm();
-		
+
 		ReportTemplate reportTemplate = reportTemplateService.getById(templateId);
 		if (reportTemplate != null) {
 			reportForm.setShowUsers(reportTemplate.isShowUsers());
@@ -220,20 +221,20 @@ public class ReportController {
 			reportForm.setShowItSystems(reportTemplate.isShowItSystems());
 			reportForm.setShowInactiveUsers(reportTemplate.isShowInactiveUsers());
 			reportForm.setManagerFilter(reportTemplate.getManagerFilter());
-			reportForm.setUnitFilter((reportTemplate.getUnitFilter() != null) ? reportTemplate.getUnitFilter().split(",") : null);		
-	
+			reportForm.setUnitFilter((reportTemplate.getUnitFilter() != null) ? reportTemplate.getUnitFilter().split(",") : null);
+
 			if (reportTemplate.getItsystemFilter() != null) {
 				String[] stringIds = reportTemplate.getItsystemFilter().split(",");
 				long ids[] = new long[stringIds.length];
-				
+
 				for (int i = 0; i < ids.length; i++) {
 					ids[i] = Long.parseLong(stringIds[i]);
 				}
-				
+
 				reportForm.setItsystemFilter(ids);
 			}
 		}
-		
+
 		model.addAttribute("reportForm", reportForm);
 		model.addAttribute("allItSystems", parseItSystems(date));
 		model.addAttribute("allOrgUnits", parseOuTree(date));
@@ -254,7 +255,7 @@ public class ReportController {
 
 	@RequireTemplateAccessOrReportAccessRole
 	@GetMapping(value = "/ui/report/download/template/{id}")
-	public ModelAndView downloadReportFromTemplate(@PathVariable("id") Long id, HttpServletResponse response, Locale loc) {		
+	public ModelAndView downloadReportFromTemplate(@PathVariable("id") Long id, HttpServletResponse response, Locale loc) {
 		List<ReportTemplate> templates = null;
 		User user = userService.getByUserId(SecurityUtil.getUserId());
 		if (user != null) {
@@ -268,7 +269,7 @@ public class ReportController {
 				template = oTemplate.get();
 			}
 		}
-		
+
 		if (template == null) {
 			log.warn("No matching template");
 			return new ModelAndView("redirect:/ui/report/templates");
@@ -295,7 +296,7 @@ public class ReportController {
 
 		return new ModelAndView(new ReportXlsxView(), model);
 	}
-	
+
 	// fragment
 	@GetMapping(value = "/ui/report/time")
 	public String timeReport() {
@@ -304,6 +305,7 @@ public class ReportController {
 
 	@GetMapping("/ui/report/custom")
 	public String customReports(Model model) {
+
 		ReportType[] reports = ReportType.values();
 
 		model.addAttribute("reports", reports);
@@ -312,7 +314,7 @@ public class ReportController {
 	}
 
 	@GetMapping("/ui/report/custom/{reportType}")
-	public String getCustomReport(Model model, @PathVariable("reportType") ReportType report) {
+	public String getCustomReport(Model model, @PathVariable("reportType") ReportType report, Locale locale) {
 		model.addAttribute("reportType", report);
 
 		switch (report) {
@@ -346,14 +348,25 @@ public class ReportController {
 			case ITSYSTEM_SYSTEM_OWNERS:
 				model.addAttribute("users", generateItSystemSystemOwnerReport());
 				return "reports/custom/itsystem_system_owner";
+			case ROLEREQUEST_AUTOMATIC_ROLES:
+				model.addAttribute("roles", generateAutomaticRolesReport());
+				return "reports/custom/automatic_roles";
+			case ROLEREQUEST_REQUESTAUTHORIZED:
+				model.addAttribute("users", generateRequestAuthorizedReport());
+				return "reports/custom/request_authorized";
+			case ROLEREQUEST_AUTHORIZATION_MANAGERS:
+				model.addAttribute("users", generateAuthorizationManagersReport());
+				return "reports/custom/authorization_managers";
 			case ITSYSTEM_KITOS:
 				model.addAttribute("itSystems", generateItSystemWithKitosInfo());
 				return "reports/custom/itsystem_kitos";
+			case ROLEREQUEST_ALL:
+				model.addAttribute("requests", generateHistoricRequests(locale));
+				return "reports/custom/all_role_requests";
 		}
 
 		return "redirect:/ui/report/custom";
 	}
-
 
 	@GetMapping("/ui/report/custom/{reportType}/download")
 	public ModelAndView downloadCustomReport(HttpServletResponse response, @PathVariable("reportType") ReportType report) {
@@ -551,8 +564,93 @@ public class ReportController {
 					rows.add(row);
 				}
 			}
+			break;
+		case ROLEREQUEST_AUTHORIZATION_MANAGERS: {
+			headers.add(messageSource.getMessage("html.entity.user.name", null, locale));
+			headers.add(messageSource.getMessage("xls.report.orgunit.sheet.title", null, locale));
+
+			List<AuthorizationManagerRecord> result = generateAuthorizationManagersReport();
+			for (AuthorizationManagerRecord user : result) {
+				ArrayList<Object> row = new ArrayList<>();
+				row.add(user.name + " (" + user.username + ")");
+				row.add(String.join(", ", user.orgUnits));
+
+				rows.add(row);
+			}
 		}
-		
+		break;
+		case ROLEREQUEST_REQUESTAUTHORIZED: {
+			headers.add(messageSource.getMessage("html.entity.user.name", null, locale));
+			headers.add(messageSource.getMessage("xls.report.roles.user.role.name", null, locale));
+			headers.add(messageSource.getMessage("attestationmodule.xls.report.orgunits.assignedThrough", null, locale));
+			headers.add(messageSource.getMessage("xls.report.constraints", null, locale));
+
+			List<RequestAuthorizedRecord> result = generateRequestAuthorizedReport();
+			for (RequestAuthorizedRecord user : result) {
+				ArrayList<Object> row = new ArrayList<>();
+				String assignedThrough = messageSource.getMessage(user.assignedThrough, null, locale);
+				String assignedThroughString = user.assignedThroughName == null ? assignedThrough : assignedThrough + " (" + user.assignedThroughName + ")";
+				StringBuilder constraints = new StringBuilder();
+				for (Map.Entry<String, List<String>> entry : user.constraints.entrySet()) {
+					constraints.append(entry.getKey()).append(":\n");
+					constraints.append(String.join("\n", entry.getValue()));
+					constraints.append("\n");
+				}
+				row.add(user.name + " (" + user.username + ")");
+				row.add(user.userRoleName);
+				row.add(assignedThroughString);
+				row.add(constraints.toString());
+
+				rows.add(row);
+			}
+		}
+		break;
+		case ROLEREQUEST_AUTOMATIC_ROLES: {
+			headers.add(messageSource.getMessage("html.page.users.manage.assignment.type", null, locale));
+			headers.add(messageSource.getMessage("html.entity.userrole.name", null, locale));
+			headers.add(messageSource.getMessage("html.page.users.manage.assignment.itsystem", null, locale));
+			headers.add(messageSource.getMessage("html.entity.userrole.description", null, locale));
+
+			List<AutomaticRoleRecord> result = generateAutomaticRolesReport();
+			for (AutomaticRoleRecord role : result) {
+				ArrayList<Object> row = new ArrayList<>();
+				String type = role.type.equals("USERROLE") ? messageSource.getMessage("html.role.assignment.type.userrole", null, locale) : messageSource.getMessage("html.role.assignment.type.rolegroup", null, locale);
+				row.add(type);
+				row.add(role.name);
+				row.add(role.itSystemName);
+				row.add(role.description);
+
+					rows.add(row);
+				}
+			}
+		break;
+			case ROLEREQUEST_ALL: {
+				headers.add(messageSource.getMessage("xls.report.all_requests.date", null, locale));
+				headers.add(messageSource.getMessage("xls.report.all_requests.requestedFor", null, locale));
+				headers.add(messageSource.getMessage("xls.report.all_requests.requestedBy", null, locale));
+				headers.add(messageSource.getMessage("xls.report.all_requests.action", null, locale));
+				headers.add(messageSource.getMessage("xls.report.all_requests.role", null, locale));
+				headers.add(messageSource.getMessage("xls.report.all_requests.reason", null, locale));
+				headers.add(messageSource.getMessage("xls.report.all_requests.status", null, locale));
+				headers.add(messageSource.getMessage("xls.report.all_requests.rejectReason", null, locale));
+
+				List<HistoricRoleRequest> result = generateHistoricRequests(locale);
+				for (HistoricRoleRequest request : result) {
+					ArrayList<Object> row = new ArrayList<>();
+					row.add(request.requestedDate);
+					row.add(request.requestedFor);
+					row.add(request.requestedBy);
+					row.add(request.action);
+					row.add(request.role);
+					row.add(request.requestReason);
+					row.add(request.status);
+					row.add(request.rejectReason);
+
+					rows.add(row);
+				}
+			}
+		}
+
 		Map<String, Object> model = new HashMap<>();
 		model.put("headers", headers);
 		model.put("rows", rows);
@@ -562,6 +660,64 @@ public class ReportController {
 		response.setHeader("Content-Disposition", "attachment; filename=\"report.xls\"");
 
 		return new ModelAndView(new XlsView(), model);
+	}
+
+	record AuthorizationManagerRecord(String uuid, String name, String username, List<String> orgUnits) {}
+	private List<AuthorizationManagerRecord> generateAuthorizationManagersReport() {
+		List<AuthorizationManagerRecord> result = new ArrayList<>();
+		List<OrgUnit> orgUnits = orgUnitService.getAll();
+		Map<String, List<AuthorizationManager>> userAuthManagerMap = new HashMap<>();
+		for (OrgUnit orgUnit : orgUnits) {
+			for (AuthorizationManager authorizationManager : orgUnit.getAuthorizationManagers()) {
+				if (userAuthManagerMap.containsKey(authorizationManager.getUser().getUuid())) {
+					userAuthManagerMap.get(authorizationManager.getUser().getUuid()).add(authorizationManager);
+				} else {
+					List<AuthorizationManager> managers = new ArrayList<>();
+					managers.add(authorizationManager);
+					userAuthManagerMap.put(authorizationManager.getUser().getUuid(), managers);
+				}
+			}
+		}
+
+		for (List<AuthorizationManager> managers : userAuthManagerMap.values()) {
+			User user = managers.getFirst().getUser();
+			List<String> ous = managers.stream().map(m -> m.getOrgUnit().getName()).collect(Collectors.toList());
+			result.add(new AuthorizationManagerRecord(user.getUuid(), user.getName(), user.getUserId(), ous));
+
+		}
+		return result;
+	}
+
+	record RequestAuthorizedRecord(String uuid, String name, String username, String userRoleName, String assignedThrough, String assignedThroughName, Map<String, List<String>> constraints) {}
+	private List<RequestAuthorizedRecord> generateRequestAuthorizedReport() {
+		List<RequestAuthorizedRecord> result = new ArrayList<>();
+		for (ItSystem itSystem : itSystemService.findByIdentifier(Constants.ROLE_CATALOGUE_IDENTIFIER)) {
+			SystemRole systemRole = systemRoleService.getFirstByIdentifierAndItSystemId(Constants.ROLE_REQUESTAUTHORIZED, itSystem.getId());
+			List<UserRole> userRoles = systemRoleService.userRolesWithSystemRole(systemRole);
+			for (UserRole userRole : userRoles) {
+				List<UserWithRole> usersWithRole = userService.getUsersWithUserRole(userRole, true);
+				for (UserWithRole userWithRole : usersWithRole) {
+					Map<String, List<String>> constraints = accessConstraintService.findOUAndITSystemConstraintsForSystemRoleInUserRole(userRole, systemRole, userWithRole);
+					User user = userWithRole.getUser();
+					result.add(new RequestAuthorizedRecord(user.getUuid(), user.getName(), user.getUserId(), userRole.getName(), userWithRole.getAssignedThrough().getMessage(), userWithRole.getAssignment().getAssignedThroughName(), constraints));
+				}
+			}
+		}
+
+		return result;
+	}
+
+	record AutomaticRoleRecord(long id, String type, String itSystemName, String name, String description) {}
+	private List<AutomaticRoleRecord> generateAutomaticRolesReport() {
+		List<AutomaticRoleRecord> result = new ArrayList<>();
+		for (UserRole userRole : rolerequestService.getAllAutomaticUserRoles()) {
+			result.add(new AutomaticRoleRecord(userRole.getId(), "USERROLE", userRole.getItSystem().getName(), userRole.getName(), userRole.getDescription()));
+		}
+
+		for (RoleGroup roleGroup : rolerequestService.getAllAutomaticRoleGroups()) {
+			result.add(new AutomaticRoleRecord(roleGroup.getId(), "ROLEGROUP", "", roleGroup.getName(), roleGroup.getDescription()));
+		}
+		return result;
 	}
 
 	record ItSystemSystemOwnerRecord(String itSystemName, String name, String email) {}
@@ -634,17 +790,17 @@ public class ReportController {
 
 	private List<UserWithDuplicateRoleAssignmentDTO> generateUsersWithDuplicateRoleAssignmentsReport() {
 		List<UserWithDuplicateRoleAssignmentDTO> result = new ArrayList<>();
-		
+
 		// heavy lookup performed here
 		Map<User, List<UserRoleAssignmentWithInfo>> usersWithRoleAssignments = userService.getUsersWithRoleAssignments();
 
 		for (User user : usersWithRoleAssignments.keySet()) {
-			
+
 			List<UserRoleAssignmentWithInfo> assignments = usersWithRoleAssignments.get(user);
 			if (assignments == null || assignments.size() == 0) {
 				continue;
 			}
-			
+
 			List<UserRoleAssignmentWithInfo> directAssignments = assignments.stream().filter(a -> a.getAssignedThroughInfo() == null).collect(Collectors.toList());
 			if (directAssignments == null || directAssignments.size() == 0) {
 				continue;
@@ -671,13 +827,13 @@ public class ReportController {
 				}
 			}
 		}
-		
+
 		return result;
 	}
 
 	private List<UserWithDuplicateRoleAssignmentDTO> generateUsersWithDuplicateRoleGroupAssignmentsReport() {
 		List<UserWithDuplicateRoleAssignmentDTO> result = new ArrayList<>();
-		
+
 		// heavy lookup performed here
 		Map<User, List<RoleGroupAssignmentWithInfo>> usersWithRoleGroupAssignments = userService.getUsersWithRoleGroupAssignments();
 
@@ -686,19 +842,19 @@ public class ReportController {
 			if (assignments == null || assignments.isEmpty()) {
 				continue;
 			}
-			
+
 			List<RoleGroupAssignmentWithInfo> directAssignments = assignments.stream().filter(a -> a.getAssignedThroughInfo() == null).collect(Collectors.toList());
 			if (directAssignments == null || directAssignments.isEmpty()) {
 				continue;
 			}
-			
+
 			for (RoleGroupAssignmentWithInfo directAssignment : directAssignments) {
 				for (RoleGroupAssignmentWithInfo assignment : assignments) {
 					// ignore direct assignments
 					if (assignment.getAssignedThroughInfo() == null) {
 						continue;
 					}
-					
+
 					// is this RoleGroup also assigned indirectly?
 					if (assignment.getRoleGroup().getId() == directAssignment.getRoleGroup().getId()) {
 						UserWithDuplicateRoleAssignmentDTO entry = new UserWithDuplicateRoleAssignmentDTO();
@@ -713,7 +869,7 @@ public class ReportController {
 				}
 			}
 		}
-		
+
 		return result;
 	}
 
@@ -724,14 +880,12 @@ public class ReportController {
 		// bulk load once
 		List<OrgUnit> orgUnits = orgUnitService.getAll();
 		List<User> users = userService.getAll();
-		List<Position> positions = positionService.getAll();
-		
+
 		// find all assigned roleGroups
 		List<RoleGroup> assignedRoleGroups = roleGroups.stream()
 				.filter(ur ->
 					orgUnits.stream().anyMatch(ou -> ou.getRoleGroupAssignments().stream().anyMatch(ura -> ura.getRoleGroup().getId() == ur.getId())) ||
-					users.stream().anyMatch(u -> u.getRoleGroupAssignments().stream().anyMatch(ura -> ura.getRoleGroup().getId() == ur.getId())) ||
-					positions.stream().anyMatch(p -> p.getRoleGroupAssignments().stream().anyMatch(ura -> ura.getRoleGroup().getId() == ur.getId()))
+					users.stream().anyMatch(u -> u.getRoleGroupAssignments().stream().anyMatch(ura -> ura.getRoleGroup().getId() == ur.getId()))
 				)
 				.collect(Collectors.toList());
 
@@ -740,7 +894,6 @@ public class ReportController {
 				.filter(ur ->
 					orgUnits.stream().anyMatch(ou -> ou.getUserRoleAssignments().stream().anyMatch(ura -> ura.getUserRole().getId() == ur.getId())) ||
 					users.stream().anyMatch(u -> u.getUserRoleAssignments().stream().anyMatch(ura -> ura.getUserRole().getId() == ur.getId())) ||
-					positions.stream().anyMatch(p -> p.getUserRoleAssignments().stream().anyMatch(ura -> ura.getUserRole().getId() == ur.getId())) ||
 					assignedRoleGroups.stream().anyMatch(rg -> rg.getUserRoleAssignments().stream().anyMatch(ura -> ura.getUserRole().getId() == ur.getId()))
 				)
 				.collect(Collectors.toList());
@@ -772,6 +925,28 @@ public class ReportController {
 		return result;
 	}
 
+	record HistoricRoleRequest(String requestedDate, String requestedFor, String requestedBy, String action, String role, String requestReason, String status, String rejectReason ) {}
+	private List<HistoricRoleRequest> generateHistoricRequests(Locale locale) {
+		List<HistoricRoleRequest> result = new ArrayList<>();
+		SimpleDateFormat simpleDateFormat = new SimpleDateFormat("dd/MM-yyyy");
+		for (RoleRequest roleRequest : rolerequestService.getAll()) {
+			String roleNameString = roleRequest.getRoleGroup() == null ? roleRequest.getUserRole().getName() : roleRequest.getRoleGroup().getName();
+			String roleTypeString = roleRequest.getRoleGroup() == null ? messageSource.getMessage("html.role.assignment.type.userrole", null, locale) : messageSource.getMessage("html.role.assignment.type.rolegroup", null, locale);
+			result.add(new HistoricRoleRequest(
+				simpleDateFormat.format(roleRequest.getRequestTimestamp()),
+				roleRequest.getReceiver().getName() + " (" + roleRequest.getReceiver().getUserId() + ")",
+				roleRequest.getRequester().getName() + " (" + roleRequest.getRequester().getUserId() + ")",
+				messageSource.getMessage(roleRequest.getRequestAction().getTitle(), null, locale),
+				roleTypeString + ": " + roleNameString,
+				roleRequest.getReason(),
+				messageSource.getMessage(roleRequest.getStatus().getMessage(), null, locale),
+				roleRequest.getRejectReason()
+			));
+		}
+
+		return result;
+	}
+
 	private List<ItSystemChoice> parseItSystems(LocalDate localDate) {
 		final List<HistoryItSystem> itSystems = historyService.getItSystems(localDate);
 		return itSystems.stream()
@@ -789,4 +964,5 @@ public class ReportController {
 				.map(OUListForm::new)
 				.collect(Collectors.toList());
 	}
+
 }

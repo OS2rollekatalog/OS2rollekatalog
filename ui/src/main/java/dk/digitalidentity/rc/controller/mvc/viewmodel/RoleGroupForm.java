@@ -1,6 +1,8 @@
 package dk.digitalidentity.rc.controller.mvc.viewmodel;
 
 import dk.digitalidentity.rc.dao.model.RoleGroupUserRoleAssignment;
+import dk.digitalidentity.rc.rolerequest.model.enums.ApprovableBy;
+import dk.digitalidentity.rc.rolerequest.model.enums.RequestableBy;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.Getter;
@@ -18,8 +20,10 @@ public class RoleGroupForm {
 	private String name;
 
 	private boolean userOnly;
-		
-	private boolean canRequest;
+
+	private List<RequestableBy> requesterPermission = List.of(RequestableBy.INHERIT);
+
+	private List<ApprovableBy> approverPermission = List.of(ApprovableBy.ADMINISTRATOR);
 
 	@Size(max = 4000)
 	private String description;

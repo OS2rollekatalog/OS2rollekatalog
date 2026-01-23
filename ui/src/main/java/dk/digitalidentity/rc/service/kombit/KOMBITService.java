@@ -13,7 +13,6 @@ import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-import dk.digitalidentity.rc.util.OrganisationConstraintUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.HttpEntity;
@@ -118,7 +117,6 @@ public class KOMBITService {
 			.stream()
 			.collect(Collectors.toMap(ItSystem::getUuid, Function.identity()));
 
-		List<ConstraintType> modifiedContraintTypes = new ArrayList<>();
 		Map<String, ConstraintType> constraintTypeMap = constraintTypeService
 			.getAll(ct -> {
 				ct.getValueSet().size();
@@ -156,7 +154,7 @@ public class KOMBITService {
 					log.info("Changes detected on: " + itSystem.getName() + " with " + systemRolesDTO.length + " systemroles");
 
 					// make sure constraints are available in the database
-					updateConstraintTypes(systemRolesDTO, constraintTypeMap, modifiedContraintTypes);
+					updateConstraintTypes(systemRolesDTO, constraintTypeMap);
 	
 					// then create (or update) the system roles on the it-system
 					createOrUpdateSystemRoles(itSystem, systemRolesDTO, systemRoleMap, modifiedSystemRoles);
@@ -179,12 +177,7 @@ public class KOMBITService {
 				log.info("Deleting " + deletedItSystems.size() + " itSystems");
 				itSystemService.deleteAll(deletedItSystems);
 			}
-			
-			if (modifiedContraintTypes.size() > 0) {
-				log.info("Saving " + modifiedContraintTypes.size() + " constraintTypes");
-				constraintTypeService.saveAll(modifiedContraintTypes);
-			}
-			
+
 			if (modifiedSystemRoles.size() > 0) {
 				log.info("Saving " + modifiedSystemRoles.size() + " systemRoles");
 				systemRoleService.saveAll(modifiedSystemRoles);
@@ -934,7 +927,7 @@ public class KOMBITService {
 		}
 		else if (itSystem != null && (itSystem.getLastUpdated() == null || itSystem.getLastUpdated().before(itSystemDTO.getChangedDate()))) {
 			// any relevant changes?
-			if (!Objects.equals(itSystem.getName(), itSystem.getName()) || itSystem.isDeleted()) {
+			if (!Objects.equals(itSystem.getName(), itSystemDTO.getNavn()) || itSystem.isDeleted()) {
 				itSystem.setName(itSystemDTO.getNavn());
 				itSystem.setDeleted(false);				
 			}
@@ -1019,7 +1012,7 @@ public class KOMBITService {
 		return toDelete;
 	}
 
-	private void updateConstraintTypes(KOMBITSystemRoleDTO[] systemRoles, Map<String, ConstraintType> constraintTypeMap, List<ConstraintType> modifiedContraintTypes) {
+	private void updateConstraintTypes(KOMBITSystemRoleDTO[] systemRoles, Map<String, ConstraintType> constraintTypeMap) {
 		for (KOMBITSystemRoleDTO systemRoleDTO : systemRoles) {
 			
 			if (systemRoleDTO.getDataafgraensningstyper() != null) {
@@ -1130,7 +1123,8 @@ public class KOMBITService {
 					}
 
 					if (changes) {
-						modifiedContraintTypes.add(constraintType);
+						log.info("Saving constrainType : " + constraintType.getEntityId());
+						constraintTypeService.save(constraintType);
 					}
 				}
 			}

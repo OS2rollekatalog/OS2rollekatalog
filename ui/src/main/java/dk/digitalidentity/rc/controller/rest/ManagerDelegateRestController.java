@@ -2,13 +2,16 @@ package dk.digitalidentity.rc.controller.rest;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
 import dk.digitalidentity.rc.dao.model.User;
-import dk.digitalidentity.rc.security.RequireAdministratorOrManagerRole;
 import dk.digitalidentity.rc.security.SecurityUtil;
+import dk.digitalidentity.rc.security.permission.Permission;
+import dk.digitalidentity.rc.security.permission.Section;
+import dk.digitalidentity.rc.security.permission.RequireControllerPermission;
+import dk.digitalidentity.rc.security.permission.RequirePermission;
 import dk.digitalidentity.rc.service.ManagerDelegateService;
 import dk.digitalidentity.rc.service.OrgUnitService;
 import dk.digitalidentity.rc.service.UserService;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.lang.Nullable;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -24,18 +27,15 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 
+@RequireControllerPermission(section = Section.MANAGER, permission = Permission.READ)
 @Slf4j
+@RequiredArgsConstructor
 @RestController
-@RequireAdministratorOrManagerRole
 @RequestMapping("rest/managerdelegate")
 public class ManagerDelegateRestController {
-
-	@Autowired
-	private UserService userService;
-	@Autowired
-	private OrgUnitService orgUnitService;
-	@Autowired
-	private ManagerDelegateService managerDelegateService;
+	private final UserService userService;
+	private final OrgUnitService orgUnitService;
+	private final ManagerDelegateService managerDelegateService;
 
 	public record Select2ItemDTO(String id, String text){}
 	public record Select2DTO(List<Select2ItemDTO> results) {}
@@ -82,6 +82,7 @@ public class ManagerDelegateRestController {
 	}
 
 	public record CreateManagerDelegateDTO (String managerUuid, String delegateUuid, @JsonFormat(pattern = "dd-MM-yyyy") LocalDate fromDate, @Nullable @JsonFormat(pattern = "dd-MM-yyyy") LocalDate toDate, boolean indefinitely) {}
+	@RequirePermission(section = Section.MANAGER, permission = Permission.READ)
 	@PostMapping("create")
 	public ResponseEntity<?> createManagerDelegate(@RequestBody CreateManagerDelegateDTO createDTO) {
 
@@ -90,6 +91,7 @@ public class ManagerDelegateRestController {
 		return ResponseEntity.ok().build();
 	}
 
+	@RequirePermission(section = Section.MANAGER, permission = Permission.DELETE)
 	@DeleteMapping("delete/{id}")
 	public ResponseEntity<?> deleteManagerDelegate(@PathVariable long id) {
 
@@ -99,6 +101,7 @@ public class ManagerDelegateRestController {
 	}
 
 	public record UpdateManagerDelegateDTO(Long id, String managerUuid, String delegateUuid, @JsonFormat(pattern = "dd-MM-yyyy") LocalDate fromDate, @JsonFormat(pattern = "dd-MM-yyyy") LocalDate toDate, boolean indefinitely) {}
+	@RequirePermission(section = Section.MANAGER, permission = Permission.UPDATE)
 	@PostMapping("update")
 	public ResponseEntity<?> updateManagerDelegate(@RequestBody UpdateManagerDelegateDTO updateDTO) {
 

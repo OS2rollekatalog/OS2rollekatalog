@@ -18,6 +18,7 @@ public class HistoryOURowMapper implements RowMapper<HistoryOU> {
         historyOU.setOuName(rs.getString("ou_name"));
         historyOU.setOuParentUuid(rs.getString("ou_parent_uuid"));
         historyOU.setOuManagerUuid(rs.getString("ou_manager_uuid"));
+        historyOU.setOuSubstituteUuids(rs.getString("ou_substitute_uuids"));
         return historyOU;
     }
 

@@ -1,1 +1,0 @@
-ALTER TABLE users ADD do_not_inherit BIT NOT NULL DEFAULT 0;

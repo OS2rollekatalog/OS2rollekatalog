@@ -20,7 +20,7 @@ import java.util.Objects;
 /**
  * JDBC Notice!
  * These classes are made to save memory, hibernate will consume around 1gb whereas these use much less.
- * Warning though: the hibernate entity classes are used when fetching from the DB, they are obviously not attached to
+ * Warning though: the hibernate section classes are used when fetching from the DB, they are obviously not attached to
  * the hibernate session also all relations are not populated, so be aware!
  */
 @Slf4j
@@ -109,6 +109,11 @@ public class OuAssignmentsUpdaterJdbc {
                 .flatMap(e -> splitCsv(e.getUserUuids()).stream())
                 .toList();
 
+		final List<String> functionUuids = historyOURoleAssignment.getExclusions().stream()
+				.filter(e -> e.getExclusionType() == ExclusionType.functions)
+				.flatMap(e -> splitCsv(e.getFunctionUuids()).stream())
+				.toList();
+
         return AttestationOuRoleAssignment.builder()
                 .roleId(historyOURoleAssignment.getRoleId())
                 .roleName(context.roleName())
@@ -135,6 +140,9 @@ public class OuAssignmentsUpdaterJdbc {
                 .inherit(Boolean.TRUE.equals(historyOURoleAssignment.getInherit()))
                 .sensitiveRole(context.isRoleSensitive())
                 .extraSensitiveRole(context.isRoleExtraSensitive())
+				.manager(Boolean.TRUE.equals(historyOURoleAssignment.getManager()))
+				.substitutes(Boolean.TRUE.equals(historyOURoleAssignment.getSubstitutes()))
+				.functionUuids(functionUuids)
                 .build();
     }
 
@@ -150,7 +158,7 @@ public class OuAssignmentsUpdaterJdbc {
 
     private static String getResponsibleUserUuid(final Long roleRoleGroupId, final UpdaterContextService.UpdaterContext context) {
         String responsibleUuid = null;
-        final boolean itSystemResponsible = roleRoleGroupId == null
+        final boolean itSystemResponsible = (roleRoleGroupId == null || roleRoleGroupId == 0L)
                 && context.isRoleAssignmentAttestationByAttestationResponsible();
         if (itSystemResponsible && context.attestationResponsible() != null) {
             responsibleUuid = context.attestationResponsible().getUuid();

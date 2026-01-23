@@ -13,7 +13,9 @@ public class HistoryOUUserRowMapper implements RowMapper<HistoryOUUser> {
         historyOUUser.setId(rs.getLong("id"));
         historyOUUser.setUserUuid(rs.getString("user_uuid"));
         historyOUUser.setTitleUuid(rs.getString("title_uuid"));
+        historyOUUser.setFunctionUuids(rs.getString("function_uuids"));
         historyOUUser.setDoNotInherit(rs.getBoolean("do_not_inherit"));
+        historyOUUser.setHasPosition(rs.getBoolean("has_position"));
         return historyOUUser;
     }
 }

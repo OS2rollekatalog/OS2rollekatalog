@@ -6,10 +6,14 @@ import dk.digitalidentity.rc.dao.model.SystemRole;
 import dk.digitalidentity.rc.dao.model.SystemRoleAssignment;
 import dk.digitalidentity.rc.dao.model.UserRole;
 import dk.digitalidentity.rc.dao.model.UserRoleEmailTemplate;
+import dk.digitalidentity.rc.dao.model.enums.SystemRoleLinkType;
+import dk.digitalidentity.rc.rolerequest.model.enums.ApprovableBy;
+import dk.digitalidentity.rc.rolerequest.model.enums.RequestableBy;
 import jakarta.validation.constraints.Size;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @Getter
@@ -20,7 +24,6 @@ public class UserRoleForm {
     private String uuid;
     private String delegatedFromCvr;
 	private boolean userOnly;
-	private boolean canRequest;
 	private boolean sensitiveRole;
 	private boolean extraSensitiveRole;
     private ItSystem itSystem;
@@ -30,6 +33,7 @@ public class UserRoleForm {
     private boolean pendingSync;
     private boolean syncFailed;
     private SystemRole linkedSystemRole;
+	private SystemRoleLinkType systemRoleLinkType;
     private boolean allowPostponing;
     private boolean requireManagerAction;
     private boolean sendToSubstitutes;
@@ -38,6 +42,9 @@ public class UserRoleForm {
 	private String emailTemplateMessage = "Kære {modtager}\n<br/>\n<br/>\nRollen {rolle}, der kræver leder-involvering, er tildelt til {bruger}.";
 	private boolean roleAssignmentAttestationByAttestationResponsible;
 	private boolean readOnly;
+	private boolean ouFilterEnabled;
+	private List<RequestableBy> requesterPermission = new ArrayList<>();
+	private List<ApprovableBy> approverPermission = new ArrayList<>();
 
 	@Size(max = 4000)
 	private String description;
@@ -46,17 +53,18 @@ public class UserRoleForm {
 	private String name;
 
     public UserRoleForm() {
-    	
+
     }
-    
+
     public UserRoleForm(UserRole userRole, boolean pendingSync, boolean syncFailed) {
     	this.id = userRole.getId();
     	this.name = userRole.getName();
     	this.identifier = userRole.getIdentifier();
     	this.userOnly = userRole.isUserOnly();
     	this.uuid = userRole.getUuid();
+    	this.requesterPermission = userRole.getRequesterPermission();
+    	this.approverPermission	 = userRole.getApproverPermission();
 		this.contactEmail = userRole.getContactEmail();
-    	this.canRequest = userRole.isCanRequest();
     	this.description = userRole.getDescription();
     	this.itSystem = userRole.getItSystem();
     	this.sensitiveRole = userRole.isSensitiveRole();
@@ -66,19 +74,21 @@ public class UserRoleForm {
     	this.pendingSync = pendingSync;
     	this.syncFailed = syncFailed;
     	this.linkedSystemRole = userRole.getLinkedSystemRole();
+		this.systemRoleLinkType = userRole.getSystemRoleLinkType();
     	this.allowPostponing = userRole.isAllowPostponing();
     	this.requireManagerAction = userRole.isRequireManagerAction();
     	this.sendToSubstitutes = userRole.isSendToSubstitutes();
     	this.sendToAuthorizationManagers = userRole.isSendToAuthorizationManagers();
 		this.roleAssignmentAttestationByAttestationResponsible = userRole.isRoleAssignmentAttestationByAttestationResponsible();
 		this.readOnly = userRole.isReadOnly();
+		this.ouFilterEnabled = userRole.isOuFilterEnabled();
 
     	if (userRole.getUserRoleEmailTemplate() != null) {
     		this.emailTemplateTitle = userRole.getUserRoleEmailTemplate().getTitle();
     		this.emailTemplateMessage = userRole.getUserRoleEmailTemplate().getMessage();
     	}
     }
-    
+
     public UserRole toUserRole() {
     	UserRole userRole = new UserRole();
     	userRole.setId(this.id);
@@ -87,7 +97,8 @@ public class UserRoleForm {
 		userRole.setContactEmail(this.contactEmail);
     	userRole.setUserOnly(this.userOnly);
     	userRole.setUuid(this.uuid);
-    	userRole.setCanRequest(this.canRequest);
+    	userRole.setRequesterPermission(this.requesterPermission);
+    	userRole.setApproverPermission(this.approverPermission);
     	userRole.setDescription(this.description);
     	userRole.setItSystem(this.itSystem);
     	userRole.setSensitiveRole(this.sensitiveRole);
@@ -95,12 +106,14 @@ public class UserRoleForm {
     	userRole.setSystemRoleAssignments(this.systemRoleAssignments);
     	userRole.setDelegatedFromCvr(this.delegatedFromCvr);
     	userRole.setLinkedSystemRole(this.linkedSystemRole);
+		userRole.setSystemRoleLinkType(this.systemRoleLinkType == null ? SystemRoleLinkType.NONE : this.systemRoleLinkType);
     	userRole.setAllowPostponing(this.allowPostponing);
     	userRole.setRequireManagerAction(this.requireManagerAction);
     	userRole.setSendToSubstitutes(this.sendToSubstitutes);
     	userRole.setSendToAuthorizationManagers(this.sendToAuthorizationManagers);
     	userRole.setRoleAssignmentAttestationByAttestationResponsible(this.roleAssignmentAttestationByAttestationResponsible);
     	userRole.setReadOnly(this.readOnly);
+		userRole.setOuFilterEnabled(this.ouFilterEnabled);
     	if (this.isRequireManagerAction()) {
     		UserRoleEmailTemplate template = new UserRoleEmailTemplate();
     		template.setTitle(this.emailTemplateTitle);
@@ -108,7 +121,7 @@ public class UserRoleForm {
     		template.setUserRole(userRole);
     		userRole.setUserRoleEmailTemplate(template);
     	}
-    	
+
     	return userRole;
     }
 }

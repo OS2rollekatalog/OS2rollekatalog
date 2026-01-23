@@ -189,7 +189,12 @@ public class UserRoleGroupApiV2 {
         target.setName(userRoleGroupRecord.getName());
         target.setDescription(userRoleGroupRecord.getDescription());
         target.setUserOnly(userRoleGroupRecord.getUserOnly());
-        target.setCanRequest(userRoleGroupRecord.getCanRequest());
+		if (userRoleGroupRecord.getRequesterPermission() != null) {
+			target.setRequesterPermission(userRoleGroupRecord.getRequesterPermission());
+		}
+		if (userRoleGroupRecord.getApproverPermission() != null) {
+			target.setApproverPermission(userRoleGroupRecord.getApproverPermission());
+		}
         return target;
     }
 

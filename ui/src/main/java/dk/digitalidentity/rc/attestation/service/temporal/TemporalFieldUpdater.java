@@ -9,7 +9,7 @@ import java.lang.reflect.Field;
 public abstract class TemporalFieldUpdater {
 
     /**
-     * Set target entity's property values to that of the source entity.
+     * Set target section's property values to that of the source section.
      * Properties marked with @PartOfNaturalKey or @Id will not be set on target.
      * Properties with non alpha names will not be set either.
      */

@@ -16,7 +16,7 @@ public class RowMapperUtils {
     }
 
     public static List<String> explodeToList(final String joined) {
-        if ("".equals(joined)) {
+        if (joined == null || joined.isEmpty()) {
             return Collections.emptyList();
         }
         return new ArrayList<>(Arrays.asList(joined.split(",")));

@@ -1,6 +1,5 @@
 package dk.digitalidentity.rc.controller.rest;
 
-import dk.digitalidentity.rc.config.Constants;
 import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
 import dk.digitalidentity.rc.controller.api.model.ManagerSubstituteDTO;
 import dk.digitalidentity.rc.controller.mvc.datatables.dao.AttestationViewDao;
@@ -17,18 +16,22 @@ import dk.digitalidentity.rc.dao.model.enums.EmailTemplatePlaceholder;
 import dk.digitalidentity.rc.dao.model.enums.EmailTemplateType;
 import dk.digitalidentity.rc.dao.model.enums.EventType;
 import dk.digitalidentity.rc.log.AuditLogger;
-import dk.digitalidentity.rc.security.RequireAdministratorOrManagerRole;
-import dk.digitalidentity.rc.security.RequireAdministratorRole;
-import dk.digitalidentity.rc.security.RequireAssignerOrManagerRole;
 import dk.digitalidentity.rc.security.SecurityUtil;
+import dk.digitalidentity.rc.security.permission.NotPermittedException;
+import dk.digitalidentity.rc.security.permission.Permission;
+import dk.digitalidentity.rc.security.permission.PermissionConstraint;
+import dk.digitalidentity.rc.security.permission.Section;
+import dk.digitalidentity.rc.security.permission.RequireControllerPermission;
+import dk.digitalidentity.rc.security.permission.RequirePermission;
+import dk.digitalidentity.rc.security.permission.UserPermissionContext;
 import dk.digitalidentity.rc.service.EmailQueueService;
 import dk.digitalidentity.rc.service.EmailTemplateService;
 import dk.digitalidentity.rc.service.ManagerSubstituteService;
 import dk.digitalidentity.rc.service.OrgUnitService;
 import dk.digitalidentity.rc.service.UserService;
 import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.jpa.datatables.mapping.DataTablesInput;
 import org.springframework.data.jpa.datatables.mapping.DataTablesOutput;
 import org.springframework.http.HttpStatus;
@@ -45,40 +48,27 @@ import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
 import java.util.Objects;
 
+@RequiredArgsConstructor
 @Slf4j
 @RestController
-@RequireAssignerOrManagerRole
+@RequireControllerPermission(section = Section.MANAGER, permission = Permission.READ)
 public class ManagerRestController {
+	private final UserService userService;
+	private final AttestationViewDao attestationViewDao;
+	private final ManagerSubstituteService managerSubstituteService;
+	private final EmailTemplateService emailTemplateService;
+	private final EmailQueueService emailQueueService;
+	private final OrgUnitService orgUnitService;
+	private final AuditLogger auditLogger;
+	private final RoleCatalogueConfiguration roleCatalogueConfiguration;
+	private final UserPermissionContext userPermissionContext;
 
-	@Autowired
-	private UserService userService;
-	
-	@Autowired
-	private AttestationViewDao attestationViewDao;
-
-	@Autowired
-	private ManagerSubstituteService managerSubstituteService;
-	
-	@Autowired
-	private EmailTemplateService emailTemplateService;
-	
-	@Autowired
-	private EmailQueueService emailQueueService;
-	
-	@Autowired
-	private OrgUnitService orgUnitService;
-	
-	@Autowired
-	private AuditLogger auditLogger;
-
-	@Autowired
-	private RoleCatalogueConfiguration roleCatalogueConfiguration;
-
-	@RequireAdministratorRole
+	@RequirePermission(section = Section.ATTESTATION, permission = Permission.READ)
 	@PostMapping("/rest/manager/attestation/list")
 	public DataTablesOutput<AttestationView> list(@Valid @RequestBody DataTablesInput input, BindingResult bindingResult) {
 		if (bindingResult.hasErrors()) {
@@ -118,7 +108,7 @@ public class ManagerRestController {
 
 	record ManagerSubRecord(UserDTO manager, ManagerSubstituteDTO substitute, String[] orgUnitUUIDs){}
 	
-	@RequireAdministratorOrManagerRole
+	@RequirePermission(section = Section.MANAGER, permission = Permission.CREATE)
 	@PostMapping("/rest/manager/substitute/add")
 	@ResponseBody
 	public ResponseEntity<?> addSubstitute(@RequestBody ManagerSubRecord body) {
@@ -157,23 +147,23 @@ public class ManagerRestController {
 		if (loggedInUser == null) {
 			return ResponseEntity.badRequest().build();
 		}
-		
-		// only admins can change on other users
-		if (!SecurityUtil.hasRole(Constants.ROLE_ADMINISTRATOR) && !Objects.equals(loggedInUser.getUuid(), manager.getUuid())) {
-			return ResponseEntity.badRequest().build();
-		}
-		
+
 		if(body.orgUnitUUIDs.length < 1) {
 			return ResponseEntity.badRequest().build();
 		}
-		
+
+		// Users that are constrained can only change for constrained ous
+		PermissionConstraint createConstraint = userPermissionContext.getConstraint(Section.MANAGER, Permission.CREATE);
+		if (createConstraint.getConstrainedOUUuids() != null && !createConstraint.getConstrainedOUUuids().containsAll(Arrays.asList(body.orgUnitUUIDs))) {
+			throw new NotPermittedException("Constraints do not allow creation of substitute", Section.MANAGER, Permission.CREATE);
+		}
+
 		for(var oU : body.orgUnitUUIDs) {
 			OrgUnit orgUnit = orgUnitService.getByUuid(oU);
 			if (orgUnit == null) {
 				return ResponseEntity.badRequest().body("Der skal vælges en organisations enhed");
 			}
-			
-			
+
 			// check if substitute already assigned to selected orgUnit
 			if (manager.getManagerSubstitutes().stream().anyMatch(m -> m.getSubstitute().equals(substitute) && m.getOrgUnit().equals(orgUnit))) {
 				return ResponseEntity.badRequest().body(substitute.getName() + " er allerede tildelt som stedfortræder i " + orgUnit.getName());
@@ -223,7 +213,7 @@ public class ManagerRestController {
 		return new ResponseEntity<>(HttpStatus.OK);
 	}
 
-	@RequireAdministratorOrManagerRole
+	@RequirePermission(section = Section.MANAGER, permission = Permission.DELETE)
 	@PostMapping("/rest/manager/substitute/remove")
 	@ResponseBody
 	public ResponseEntity<?> removeSubstitute(@RequestBody ManagerSubstituteAssignmentDTO body) {
@@ -240,7 +230,7 @@ public class ManagerRestController {
 		return new ResponseEntity<>(HttpStatus.OK);
 	}
 
-	@RequireAdministratorOrManagerRole
+	@RequirePermission(section = Section.MANAGER, permission = Permission.DELETE)
 	@DeleteMapping("/rest/management/substitute/{id}/delete")
 	@ResponseBody
 	public ResponseEntity<?> deleteSubstitute(@PathVariable Long id) {
@@ -258,7 +248,7 @@ public class ManagerRestController {
 	}
 
 	public record EditSubstituteDTO (String substituteUuid, String managerUuid, String orgUnitUuid) {}
-	@RequireAdministratorOrManagerRole
+	@RequirePermission(section = Section.MANAGER, permission = Permission.UPDATE)
 	@PutMapping("/rest/management/substitute/{id}/edit")
 	@ResponseBody
 	public ResponseEntity<?> editSubstitute(@PathVariable Long id, @RequestBody EditSubstituteDTO editSubstituteDTO) {

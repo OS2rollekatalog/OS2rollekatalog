@@ -1,6 +1,11 @@
 package dk.digitalidentity.rc.dao.model;
 
+import java.time.LocalDate;
+import java.util.Date;
+import java.util.List;
+
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+
 import dk.digitalidentity.rc.dao.model.enums.ContainsTitles;
 import dk.digitalidentity.rc.dao.serializer.LocalDateAttributeConverter;
 import jakarta.persistence.Column;
@@ -19,11 +24,6 @@ import jakarta.persistence.OneToMany;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.ToString;
-import org.hibernate.annotations.BatchSize;
-
-import java.time.LocalDate;
-import java.util.Date;
-import java.util.List;
 
 @Entity(name = "ou_rolegroups")
 @ToString(exclude = { "orgUnit" })
@@ -70,6 +70,12 @@ public class OrgUnitRoleGroupAssignment {
 	@Column
 	private boolean inactive;
 
+	@Column
+	private boolean manager;
+
+	@Column
+	private boolean substitutes;
+
 	@OneToMany
 	@JoinTable(name = "ou_rolegroups_excepted_users", joinColumns = @JoinColumn(name = "ou_rolegroups_id"), inverseJoinColumns = @JoinColumn(name = "user_uuid"))
 	private List<User> exceptedUsers;
@@ -77,6 +83,13 @@ public class OrgUnitRoleGroupAssignment {
 	@OneToMany
 	@JoinTable(name = "ou_rolegroups_titles", joinColumns = @JoinColumn(name = "ou_rolegroups_id"), inverseJoinColumns = @JoinColumn(name = "title_uuid"))
 	private List<Title> titles;
+
+	@OneToMany
+	@JoinTable(name = "ou_rolegroups_functions", joinColumns = @JoinColumn(name = "ou_rolegroups_id"), inverseJoinColumns = @JoinColumn(name = "function_uuid"))
+	private List<Function> functions;
+
+	@Column
+	private boolean containsFunctions;
 
 	@Column
 	public boolean containsExceptedUsers;

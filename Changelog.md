@@ -1,3 +1,22 @@
+2026.01.23 - Release 2026r1
+- [ROL-377](https://os2web.atlassian.net/browse/ROL-377) "Rolleopretter" - en ny afgrænset rolle til OS2rollekatalog  
+- [ROL-385](https://os2web.atlassian.net/browse/ROL-385) Os2Rollekatalog - opdele "rolletildeler" rollen i to  
+- [ROL-386](https://os2web.atlassian.net/browse/ROL-386) Udvidelse af rettigheder i Rollekataloget  
+- [ROL-467](https://os2web.atlassian.net/browse/ROL-467) Anmod/Godkend: Ændre modtager af mails  
+- [ROL-368](https://os2web.atlassian.net/browse/ROL-368) Tildeling af jobfunktionsroller på basis af tillidsfunktioner  
+- [ROL-374](https://os2web.atlassian.net/browse/ROL-374) Tildele rettigheder til person registreret som leder på en enhed i OS2Rollekatalog  
+- [ROL-478](https://os2web.atlassian.net/browse/ROL-478) Anmod/Godkend: Mulighed for at vælge dato ved anmodning af rettighed  
+- [ROL-479](https://os2web.atlassian.net/browse/ROL-479) Anmod/Godkend: Tilføjelse af status kolonne for ledere  
+- [ROL-429](https://os2web.atlassian.net/browse/ROL-429) Flere oplysninger i skabeloner til anmodning  
+- [ROL-484](https://os2web.atlassian.net/browse/ROL-484) Attesteringsmodul decentral styret  
+- [ROL-485](https://os2web.atlassian.net/browse/ROL-485) Ekstra bemærkningsfelt som ikke er låst  
+- [ROL-493](https://os2web.atlassian.net/browse/ROL-493) Attesteringsmodul: Anmod om ændringer UDEN at angive hvilke JFR det drejer sig om OG attesteringsstatus bliver bekræftet.  
+- [ROL-494](https://os2web.atlassian.net/browse/ROL-494) Attesteringsmodul: Der mangler en rapport til gennemført attestering af rolleopbygning  
+- [ROL-482](https://os2web.atlassian.net/browse/ROL-482) Udfylde Sagsnummer ved direkte Jobfuntionsrolle tildeling  
+- [ROL-496](https://os2web.atlassian.net/browse/ROL-496) Tidsbegrænsning på direkte tildelinger   
+- [ROL-497](https://os2web.atlassian.net/browse/ROL-497) Anmod/Godkend - Udvidelse af historik  
+- [ROL-498](https://os2web.atlassian.net/browse/ROL-498) Anmod/godkend - mulighed for at vise rollebuketter og jobfunktionsroller i en samlet liste
+
 2025.09.29 - Release 2025r3
 - [ROL-397](https://os2web.atlassian.net/browse/ROL-397) Udvide NemLog-in rollestyring med organisations-rettigheder
 - [ROL-444](https://os2web.atlassian.net/browse/ROL-444) Attessteringsadministrator bør kunne se/læse alle attesteringerne
@@ -17,7 +36,8 @@
 - [ROL-473](https://os2web.atlassian.net/browse/ROL-473) ADSyncService - håndtering af spærrede AD konti
 - [ROL-475](https://os2web.atlassian.net/browse/ROL-475) Mulighed for at slå automatisk enhedsniveau til.
 
-2025.06.25 - Release 2025r2
+2025.06.18 - Anmod/Godkend - Release 2025r2
+- [ROL-459](https://os2web.atlassian.net/browse/ROL-459) Ny anmod/godkend modul!
 - [ROL-362](https://os2web.atlassian.net/browse/ROL-362) AD-integration: Benytte "Noter" i stedet for "Beskrivelse"
 - [ROL-391](https://os2web.atlassian.net/browse/ROL-391) Opdatering af driftsdokumentation
 - [ROL-398](https://os2web.atlassian.net/browse/ROL-398) Attestering: Opsætning af personlig godkender som supplement til 'Stedfortræder'

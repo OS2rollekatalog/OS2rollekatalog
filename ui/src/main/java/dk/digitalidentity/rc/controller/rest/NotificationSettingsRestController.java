@@ -2,7 +2,11 @@ package dk.digitalidentity.rc.controller.rest;
 
 import java.util.Map;
 
-import org.springframework.beans.factory.annotation.Autowired;
+import dk.digitalidentity.rc.security.permission.Permission;
+import dk.digitalidentity.rc.security.permission.Section;
+import dk.digitalidentity.rc.security.permission.RequireControllerPermission;
+import dk.digitalidentity.rc.security.permission.RequirePermission;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -13,20 +17,17 @@ import org.springframework.web.bind.annotation.RestController;
 
 import dk.digitalidentity.rc.controller.rest.model.NotificationSettingsDTO;
 import dk.digitalidentity.rc.dao.model.enums.NotificationType;
-import dk.digitalidentity.rc.security.RequireAdministratorRole;
 import dk.digitalidentity.rc.service.NotificationService;
 import dk.digitalidentity.rc.service.SettingsService;
 
-@RequireAdministratorRole
+@RequiredArgsConstructor
+@RequireControllerPermission(section = Section.CONFIG, permission = Permission.READ)
 @RestController
 public class NotificationSettingsRestController {
+    private final SettingsService settingService;
+    private final NotificationService notificationService;
 
-    @Autowired
-    private SettingsService settingService;
-
-    @Autowired
-    private NotificationService notificationService;
-
+    @RequirePermission(section = Section.CONFIG, permission = Permission.UPDATE)
     @PostMapping(value = "/rest/admin/notifications/settings")
     @ResponseBody
     public HttpEntity<String> saveSettings(@RequestBody NotificationSettingsDTO settingsDTO) {

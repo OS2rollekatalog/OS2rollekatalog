@@ -45,7 +45,7 @@
 								</div>
 							</div>
 						</fieldset>
-						
+
 						<div id="scheduledAttestationSubsettings" style="display: none;">
 							<fieldset>
 								<div class="form-group">
@@ -296,7 +296,7 @@
 		 function hideOUModal(){
 			 $('#modal-ou').modal('hide');
 		 }
-		
+
 		function saveOUs(){
 
 			if(optIn) {
@@ -359,10 +359,10 @@
 			optInCheckElement.addEventListener('click', (event)=> {
 				onOptInCheckboxChange(optInCheckElement)
 			})
-			
+
 			$("#scheduled-attestation-checkbox").change(function() {
 				$("#scheduledAttestationEnabled").val(this.checked);
-				
+
 				if (this.checked) {
 					$("#scheduledAttestationSubsettings").show();
 				}
@@ -370,7 +370,7 @@
 					$("#scheduledAttestationSubsettings").hide();
 				}
 			});
-			
+
 			if ($("#scheduledAttestationEnabled").val() == "true") {
 				$("#scheduledAttestationSubsettings").show();
 			}
@@ -426,7 +426,7 @@
                     });
                 }
             }
-			
+
 			// JSTree stuff
 
 	 		$('#modal-ou').on('shown.bs.modal', function() {
@@ -455,7 +455,7 @@
 					"checkbox", "search"
 				]
 			});
-			
+
 			// searching in the JSTree
 			var to = false;
 			$('#ou-tree-search').keyup(function() {
@@ -469,7 +469,7 @@
 					$('#ou-tree').jstree(true).search(v);
 				}, 400);
 			});
-			
+
 			// selecting in the JSTree
 			$('#ou-tree').on("ready.jstree", function(e, data) {
 				if (optIn) {
@@ -489,7 +489,7 @@
 				$("#firstAttestationDate").val($('#attestationStartDate').data('date'));
 			});
 		});
-		
+
 		/*]]>*/
 	</script>
 </body>

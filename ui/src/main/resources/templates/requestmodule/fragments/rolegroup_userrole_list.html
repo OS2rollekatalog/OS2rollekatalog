@@ -1,0 +1,21 @@
+<th:block th:fragment="itSystemUserRoleTable" xmlns="http://www.w3.org/1999/xhtml" xmlns:th="http://www.thymeleaf.org">
+	<table class="roleGroupUserRoleTable table table-striped table-bordered table-hover" >
+		<thead>
+		<tr>
+			<td th:class="${showSingleTableInRequestApproveEnabled} ? 'col-3' : ''" th:if="${showSingleTableInRequestApproveEnabled}"></td>
+			<th th:text="#{requestmodule.html.dashboard.tabs.roles.itsystem}" th:class="${showSingleTableInRequestApproveEnabled} ? 'col-3' : 'col-lg-3'"></th>
+			<th th:text="#{requestmodule.html.dashboard.tabs.roles.role}" th:class="${showSingleTableInRequestApproveEnabled} ? 'col-3' : 'col-lg-4'"></th>
+			<th th:text="#{requestmodule.html.dashboard.tabs.roles.description}" th:class="${showSingleTableInRequestApproveEnabled} ? 'col-4' : 'col-lg-5'"></th>
+		</tr>
+		</thead>
+
+		<tbody>
+		<tr th:each="userRole : ${userRoles}">
+			<td th:class="${showSingleTableInRequestApproveEnabled} ? 'col-2' : ''" th:if="${showSingleTableInRequestApproveEnabled}"></td>
+			<td th:text="${userRole.itSystemName}" th:class="${showSingleTableInRequestApproveEnabled} ? 'col-3' : 'col-lg-3'"></td>
+			<td th:text="${userRole.name}" th:class="${showSingleTableInRequestApproveEnabled} ? 'col-3' : 'col-lg-4'"></td>
+			<td th:text="${userRole.description}" th:class="${showSingleTableInRequestApproveEnabled} ? 'col-4' : 'col-lg-5'"></td>
+		</tr>
+		</tbody>
+	</table>
+</th:block>

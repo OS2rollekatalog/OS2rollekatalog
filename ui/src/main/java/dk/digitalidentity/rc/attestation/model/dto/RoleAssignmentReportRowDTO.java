@@ -40,5 +40,6 @@ public class RoleAssignmentReportRowDTO {
 	private String verifiedByUserId;
 	private String remark;
 	private LocalDate attestationCreatedAt;
+	private LocalDate validFrom;
 	private LocalDate validTo;
 }

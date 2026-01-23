@@ -1,5 +1,15 @@
 package dk.digitalidentity.rc.attestation.model;
 
+import static dk.digitalidentity.rc.util.StreamExtensions.distinctByKey;
+import static java.util.stream.Collectors.toList;
+
+import java.util.Comparator;
+import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.function.Predicate;
+import java.util.stream.Collectors;
+
 import dk.digitalidentity.rc.attestation.model.dto.ItSystemAttestationDTO;
 import dk.digitalidentity.rc.attestation.model.dto.RoleGroupDTO;
 import dk.digitalidentity.rc.attestation.model.dto.SystemRoleConstraintDTO;
@@ -11,17 +21,6 @@ import dk.digitalidentity.rc.attestation.model.entity.Attestation;
 import dk.digitalidentity.rc.attestation.model.entity.ItSystemRoleAttestationEntry;
 import dk.digitalidentity.rc.attestation.model.entity.temporal.AttestationSystemRoleAssignment;
 import dk.digitalidentity.rc.attestation.model.entity.temporal.AttestationUserRoleAssignment;
-import org.springframework.stereotype.Component;
-
-import java.util.Comparator;
-import java.util.List;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.function.Predicate;
-import java.util.stream.Collectors;
-
-import static dk.digitalidentity.rc.util.StreamExtensions.distinctByKey;
-import static java.util.stream.Collectors.toList;
 
 public class AttestationRoleMapper {
 

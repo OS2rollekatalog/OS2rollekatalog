@@ -1,0 +1,18 @@
+ALTER TABLE ou_roles
+   ADD COLUMN manager BOOLEAN NOT NULL DEFAULT FALSE,
+   ADD COLUMN substitutes BOOLEAN NOT NULL DEFAULT FALSE;
+
+ALTER TABLE ou_rolegroups
+  ADD COLUMN manager BOOLEAN NOT NULL DEFAULT FALSE,
+  ADD COLUMN substitutes BOOLEAN NOT NULL DEFAULT FALSE;
+
+ALTER TABLE history_ou_role_assignments
+  ADD COLUMN manager BOOLEAN NULL,
+  ADD COLUMN substitutes BOOLEAN NULL;
+
+ALTER TABLE attestation_ou_role_assignments
+  ADD COLUMN manager BOOLEAN NOT NULL DEFAULT FALSE,
+  ADD COLUMN substitutes BOOLEAN NOT NULL DEFAULT FALSE;
+
+ALTER TABLE history_ous
+  ADD COLUMN ou_substitute_uuids TEXT;

@@ -98,34 +98,6 @@ public class LdapUpdaterHook implements RoleChangeHook {
 	}
 
 	@Override
-	public void interceptAddRoleGroupAssignmentOnPosition(Position position, RoleGroup roleGroup) {
-      	if (!position.getRoleGroupAssignments().stream().map(ura -> ura.getRoleGroup()).anyMatch(g -> g.getId() == roleGroup.getId())) {
-			pendingADUpdateService.addRoleGroupToQueue(roleGroup);
-		}
-	}
-
-	@Override
-	public void interceptRemoveRoleGroupAssignmentOnPosition(Position position, RoleGroup roleGroup) {
-      	if (position.getRoleGroupAssignments().stream().map(ura -> ura.getRoleGroup()).anyMatch(g -> g.getId() == roleGroup.getId())) {
-			pendingADUpdateService.addRoleGroupToQueue(roleGroup);
-		}
-	}
-
-	@Override
-	public void interceptAddUserRoleAssignmentOnPosition(Position position, UserRole userRole) {
-      	if (!position.getUserRoleAssignments().stream().map(ura -> ura.getUserRole()).anyMatch(u -> u.getId() == userRole.getId())) {
-			pendingADUpdateService.addUserRoleToQueue(userRole);
-		}
-	}
-
-	@Override
-	public void interceptRemoveUserRoleAssignmentOnPosition(Position position, UserRole userRole) {
-		if (position.getUserRoleAssignments().stream().map(ura -> ura.getUserRole()).anyMatch(u -> u.getId() == userRole.getId())) {
-			pendingADUpdateService.addUserRoleToQueue(userRole);
-		}
-	}
-
-	@Override
 	public void interceptAddRoleGroupAssignmentOnOrgUnit(OrgUnit ou, RoleGroup roleGroup, boolean inherit) {
 		if (!orgUnitService.getRoleGroups(ou, true).contains(roleGroup)) {
 			pendingADUpdateService.addRoleGroupToQueue(roleGroup);

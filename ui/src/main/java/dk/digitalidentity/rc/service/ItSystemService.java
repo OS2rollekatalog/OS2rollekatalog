@@ -1,23 +1,8 @@
 package dk.digitalidentity.rc.service;
 
-import dk.digitalidentity.rc.config.Constants;
-import dk.digitalidentity.rc.dao.ItSystemDao;
-import dk.digitalidentity.rc.dao.model.ItSystem;
-import dk.digitalidentity.rc.dao.model.KitosITSystemUser;
-import dk.digitalidentity.rc.dao.model.OrgUnit;
-import dk.digitalidentity.rc.dao.model.RoleGroup;
-import dk.digitalidentity.rc.dao.model.SystemRole;
-import dk.digitalidentity.rc.dao.model.User;
-import dk.digitalidentity.rc.dao.model.UserRole;
-import dk.digitalidentity.rc.dao.model.enums.ItSystemType;
-import dk.digitalidentity.rc.dao.model.enums.KitosRole;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
 import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Date;
 import java.util.HashSet;
@@ -26,6 +11,25 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
+
+import dk.digitalidentity.rc.log.AuditLogIntercepted;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import dk.digitalidentity.rc.config.Constants;
+import dk.digitalidentity.rc.dao.ItSystemDao;
+import dk.digitalidentity.rc.dao.model.ItSystem;
+import dk.digitalidentity.rc.dao.model.KitosITSystemUser;
+import dk.digitalidentity.rc.dao.model.OrgUnit;
+import dk.digitalidentity.rc.dao.model.RoleGroup;
+import dk.digitalidentity.rc.dao.model.RoleGroupUserRoleAssignment;
+import dk.digitalidentity.rc.dao.model.SystemRole;
+import dk.digitalidentity.rc.dao.model.User;
+import dk.digitalidentity.rc.dao.model.UserRole;
+import dk.digitalidentity.rc.dao.model.enums.ItSystemType;
+import dk.digitalidentity.rc.dao.model.enums.KitosRole;
+import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 @Service
@@ -47,10 +51,17 @@ public class ItSystemService {
 	private OrgUnitService orgUnitService;
 
 	@Autowired
-	private PositionService positionService;
-
-	@Autowired
 	private RoleGroupService roleGroupService;
+
+	@Transactional(readOnly = true)
+	public List<ItSystem> getAllByIdInAndDeletedFalse(Collection<Long> ids) {
+		return itSystemDao.findByIdInAndDeletedFalse(ids);
+	}
+
+	@Transactional(readOnly = true)
+	public List<ItSystem> getAllByDeletedFalse() {
+		return itSystemDao.findAllByDeletedFalse();
+	}
 
 	public List<ItSystem> getAll() {
 		List<ItSystem> result = itSystemDao.findAll();
@@ -79,7 +90,15 @@ public class ItSystemService {
 		return null;
 	}
 
+	@AuditLogIntercepted
 	public ItSystem save(ItSystem itSystem) {
+		return itSystemDao.save(itSystem);
+	}
+
+	@AuditLogIntercepted
+	public ItSystem softDelete(ItSystem itSystem) {
+		itSystem.setDeleted(true);
+		itSystem.setDeletedTimestamp(new Date());
 		return itSystemDao.save(itSystem);
 	}
 
@@ -94,7 +113,7 @@ public class ItSystemService {
 	public ItSystem getByUuid(String uuid) {
 		return filterDeleted(itSystemDao.findByUuid(uuid));
 	}
-	
+
 	public ItSystem getByUuidIncludingDeleted(String uuid) {
 		return itSystemDao.findByUuid(uuid);
 	}
@@ -106,18 +125,18 @@ public class ItSystemService {
 	@Transactional
 	public List<ItSystem> getBySystemType(ItSystemType systemType, Consumer<ItSystem> consumer) {
 		List<ItSystem> result = itSystemDao.findBySystemType(systemType);
-		
+
 		if (consumer != null) {
 			result.forEach(consumer);
 		}
-		
+
 		return result;
 	}
 
 	public List<ItSystem> getBySystemTypeIn(List<ItSystemType> systemTypes) {
 		return filterDeleted(itSystemDao.findBySystemTypeIn(systemTypes));
 	}
-	
+
 	public List<ItSystem> getBySystemTypeIncludingDeleted(ItSystemType systemType) {
 		return itSystemDao.findBySystemType(systemType);
 	}
@@ -132,6 +151,10 @@ public class ItSystemService {
 
 	public List<ItSystem> findByIdentifier(String identifier) {
 		return filterDeleted(itSystemDao.findByIdentifier(identifier));
+	}
+
+	public List<ItSystem> findAllForAttestation() {
+		return itSystemDao.findByDeletedFalseAndAttestationExemptFalse();
 	}
 
 	/**
@@ -154,7 +177,7 @@ public class ItSystemService {
 			final ItSystem itSystemById = getById(Long.parseLong(itSystemIdentifier));
 			return Collections.singletonList(itSystemById);
 		} catch (Exception ex) {
-			; // ignore
+			 // ignore
 		}
 		return Collections.emptyList();
 	}
@@ -171,31 +194,27 @@ public class ItSystemService {
 	@SuppressWarnings("deprecation")
 	public int getUnusedUserRolesCount(ItSystem itSystem) {
 		int sum = 0;
-		
+
 		List<UserRole> userRoles = userRoleService.getByItSystem(itSystem);
 		for (UserRole userRole : userRoles) {
 			if (userService.countAllWithRole(userRole) > 0) {
 				continue;
 			}
-			
+
 			if (orgUnitService.countAllWithRole(userRole) > 0) {
-				continue;
-			}
-			
-			if (positionService.getAllWithRole(userRole).size() > 0) {
 				continue;
 			}
 
 			sum++;
 		}
-		
+
 		return sum;
 	}
-	
+
 	public List<ItSystem> getVisible() {
 		List<ItSystem> result = itSystemDao.findByHiddenFalse();
 		result = filterDeleted(result);
-		
+
 		return result.stream().sorted((o1, o2) -> o1.getName().toLowerCase().compareTo(o2.getName().toLowerCase())).collect(Collectors.toList());
 	}
 
@@ -222,6 +241,7 @@ public class ItSystemService {
 		}
 	}
 
+	// TODO - refactoring target
 	@Transactional(rollbackFor = Exception.class)
 	public void permanentlyDelete() {
 		Calendar cal = Calendar.getInstance();
@@ -243,10 +263,11 @@ public class ItSystemService {
 				List<RoleGroup> roleGroups = roleGroupService.getAll();
 				for (RoleGroup roleGroup : roleGroups) {
 					List<UserRole> userRoles = roleGroup.getUserRoleAssignments().stream()
-							.filter(ura -> (ura.getUserRole().getItSystem().getId() == itSystem.getId()))
-							.map(ura -> ura.getUserRole()).collect(Collectors.toList());
+							.map(RoleGroupUserRoleAssignment::getUserRole)
+							.filter(userRole -> (userRole.getItSystem().getId() == itSystem.getId()))
+							.toList();
 
-					if (userRoles != null && userRoles.size() > 0) {
+					if (userRoles != null && !userRoles.isEmpty()) {
 						for (UserRole userRole : userRoles) {
 							roleGroupService.removeUserRole(roleGroup, userRole);
 						}
@@ -318,11 +339,15 @@ public class ItSystemService {
 		return null;
 	}
 
+	public long systemResponsibleCount(User user){
+		return itSystemDao.countByAttestationResponsible(user);
+	}
+
 	//UTILITY METHODS
-	
+
 	private List<ItSystem> filterDeleted(List<ItSystem> itSystems) {
 		return itSystems == null ? null
-				: itSystems.stream().filter(its -> its.isDeleted() == false).collect(Collectors.toList());
+				: itSystems.stream().filter(its -> !its.isDeleted()).toList();
 	}
 
 	private ItSystem filterDeleted(ItSystem itSystem) {

@@ -46,13 +46,13 @@ public class UserApi {
 
 	@Autowired
 	private UserService userService;
-	
+
 	@Autowired
 	private AuditLogger auditLogger;
-	
+
 	@Autowired
 	private ItSystemService itSystemService;
-	
+
 	@Autowired
 	private SystemRoleService systemRoleService;
 
@@ -65,6 +65,7 @@ public class UserApi {
 
 		Domain foundDomain = domainService.getDomainOrPrimary(domain);
 		if (foundDomain == null) {
+
 			return new ResponseEntity<>(HttpStatus.NOT_FOUND);
 		}
 
@@ -86,7 +87,7 @@ public class UserApi {
 		try {
 			Map<String, String> roleMap = new HashMap<>();
 			String oioBpp = userService.generateOIOBPP(user, itSystems, roleMap);
-			
+
 			response.setOioBPP(oioBpp);
 			response.setRoleMap(roleMap);
 			response.setNameID(userService.getUserNameId(userId, foundDomain));
@@ -101,7 +102,7 @@ public class UserApi {
 
 		return new ResponseEntity<>(response, HttpStatus.OK);
 	}
-	
+
 	@RequestMapping(value = "/api/user/{userid}/rolesAsList", method = RequestMethod.GET)
 	public ResponseEntity<UserResponseWithRolesDTO> getUserRolesAsList(@PathVariable("userid") String userId, @RequestParam(name = "system") String itSystemIdentifier, @RequestParam(name = "domain", required = false) String domain) throws Exception {
 		UserResponseWithRolesDTO response = new UserResponseWithRolesDTO();
@@ -116,6 +117,8 @@ public class UserApi {
 			log.warn("could not find user: " + userId);
 			return new ResponseEntity<>(HttpStatus.NOT_FOUND);
 		}
+		
+		response.setDisabled(user.isDisabled());
 
 		List<ItSystem> itSystems = null;
 		if (StringUtils.hasLength(itSystemIdentifier)) {
@@ -146,13 +149,13 @@ public class UserApi {
 			Set<String> dataRoleSet = new HashSet<>();
 			Set<String> functionRoleSet = new HashSet<>();
 			Map<String, String> roleMap = new HashMap<>();
-			
+
 			Map<String, SystemRole> allAssignedSystemRoles = new HashMap<>();
 			for (UserRole role : roles) {
 				// might be counterintuitive, but while the output focuses on systemroles, we
 				// are sending a map of userRoles, for logging purposes, so it matches the OIO-BPP output (again, logging consistency)
 				roleMap.put(role.getIdentifier(), role.getName() + " (" + role.getItSystem().getName() + ")");
-				
+
 				for (SystemRoleAssignment systemRoleAssignment : role.getSystemRoleAssignments()) {
 					allAssignedSystemRoles.put(systemRoleAssignment.getSystemRole().getIdentifier(), systemRoleAssignment.getSystemRole());
 				}
@@ -162,7 +165,7 @@ public class UserApi {
 				boolean differentWeightedItSystem = systemRoleService.belongsToItSystemWithDifferentWeight(systemRole);
 				if (differentWeightedItSystem) {
 					boolean skip = false;
-					
+
 					for (SystemRole sr : allAssignedSystemRoles.values()) {
 						if (sr.getItSystem().getId() != systemRole.getItSystem().getId()) {
 							continue;
@@ -172,7 +175,7 @@ public class UserApi {
 							break;
 						}
 					}
-					
+
 					if (!skip) {
 						systemRoleSet.add(systemRole.getIdentifier());
 					}
@@ -232,7 +235,7 @@ public class UserApi {
 
 		return new ResponseEntity<>(response, HttpStatus.OK);
 	}
-	
+
 	@RequestMapping(value = "/api/user/{userid}/hasUserRole/{roleId}", method = RequestMethod.GET)
 	public ResponseEntity<String> userHasUserRole(@PathVariable("userid") String userId, @PathVariable("roleId") long roleId, @RequestParam(name = "system", required = false) String itSystemIdentifier, @RequestParam(name = "domain", required = false) String domain) throws Exception {
 		Domain foundDomain = domainService.getDomainOrPrimary(domain);
@@ -259,13 +262,13 @@ public class UserApi {
 		if (itSystems == null) {
 			itSystems = itSystemService.getAll();
 		}
-		
+
 		if (itSystems != null) {
 			itSystems = itSystems.stream().filter(its -> its.isAccessBlocked() == false).collect(Collectors.toList());
 		}
 
 		List<UserRole> roles = userService.getAllUserRoles(user, itSystems);
-		
+
 		if (roles != null) {
 			for (UserRole role : roles) {
 				if (role.getId() == roleId) {
@@ -276,7 +279,7 @@ public class UserApi {
 
 		return new ResponseEntity<>("Did not find role", HttpStatus.NOT_FOUND);
 	}
-	
+
 	@RequestMapping(value = "/api/user/{userid}/hasSystemRole", method = RequestMethod.GET)
 	public ResponseEntity<String> userHasSystemRole(@PathVariable("userid") String userId, @RequestParam(name = "roleIdentifier") String roleIdentifier, @RequestParam(name = "system", required = false) String itSystemIdentifier, @RequestParam(name = "domain", required = false) String domain) throws Exception {
 		Domain foundDomain = domainService.getDomainOrPrimary(domain);
@@ -309,7 +312,7 @@ public class UserApi {
 		}
 
 		List<UserRole> roles = userService.getAllUserRoles(user, itSystems);
-		
+
 		if (roles != null) {
 			for (UserRole role : roles) {
 				for (SystemRoleAssignment assignment : role.getSystemRoleAssignments()) {
@@ -322,7 +325,7 @@ public class UserApi {
 
 		return new ResponseEntity<>("Did not find role", HttpStatus.NOT_FOUND);
 	}
-	
+
 	private User getUser(String userId, Domain domain) {
 		User user = userService.getByUserId(userId, domain);
 		if (user == null) {
@@ -331,10 +334,10 @@ public class UserApi {
 				return users.get(0);
 			}
 		}
-		
+
 		return user;
 	}
-	
+
 	private List<ItSystem> getItSystems(String itSystemIdentifier) {
 		List<ItSystem> itSystems = itSystemService.findByIdentifier(itSystemIdentifier);
 
@@ -351,7 +354,7 @@ public class UserApi {
 
 				return new ArrayList<>();
 			}
-			
+
 			itSystems = Collections.singletonList(itSystem);
 		}
 

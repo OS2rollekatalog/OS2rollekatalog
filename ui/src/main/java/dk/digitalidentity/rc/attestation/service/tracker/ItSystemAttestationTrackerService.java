@@ -58,7 +58,7 @@ public class ItSystemAttestationTrackerService {
                 // Deadline is soon we need to create a new attestation
                 attestation = createItSystemRolesAttestationFor(run, assignment, when);
             }
-            // Else deadline is far in the future do not create an attestation entity yet
+            // Else deadline is far in the future do not create an attestation section yet
         } else {
             log.info("Attestation found for user role {}", attestation.getUuid());
             // If we have another open attestation for this it-system the responsible manager might have changed, in that

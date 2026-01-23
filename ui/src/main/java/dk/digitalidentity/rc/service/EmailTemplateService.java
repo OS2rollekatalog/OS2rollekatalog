@@ -19,9 +19,9 @@ import dk.digitalidentity.rc.log.AuditLogIntercepted;
 
 @Service
 public class EmailTemplateService {
-	
+
 	private final static Pattern PATTERN = Pattern.compile("(\\{[\\w]+\\})");
-	
+
 	@Autowired
 	private EmailTemplateDao emailTemplateDao;
 	@Autowired
@@ -29,11 +29,11 @@ public class EmailTemplateService {
 
 	public List<EmailTemplate> findAll() {
 		List<EmailTemplate> result = new ArrayList<>();
-		
+
 		for (EmailTemplateType type : EmailTemplateType.values()) {
 			result.add(findByTemplateType(type));
 		}
-		
+
 		return result;
 	}
 
@@ -41,7 +41,7 @@ public class EmailTemplateService {
 		final EmailTemplate template = emailTemplateDao.findById(templateId)
 				.orElseThrow(() -> new RuntimeException("Template not found " + templateId));
 		final String title = messageSource.getMessage(template.getTemplateType().getMessage(), null, Locale.ENGLISH);
-		
+
 		if (template.getTemplateType().isAllowDaysBeforeDeadline()) {
 			Matcher m = PATTERN.matcher(title);
 			if (m.find()) {
@@ -61,7 +61,7 @@ public class EmailTemplateService {
 			String title = "Overskrift";
 			String message = "Besked";
 			boolean enabled = true;
-			
+
 			switch (type) {
 				case ATTESTATION_REQUEST_FOR_CHANGE:
 					title = "Ændrings anmodning";
@@ -185,6 +185,14 @@ public class EmailTemplateService {
 					message = "Kære {modtager}\n<br/>\n<br/>\nDet er tid til, at der skal attesteres rolletildelinger for it-systemet: {itsystem}. Der er sendt en eller flere rykkere til leder og eventuel stedfortræder, men en attestering er endnu ikke udført.";
 					enabled = false;
 					break;
+				case ATTESTATION_SUMMARY:
+					title = "Opsumering af attestering";
+					message = "Kære {modtager}\n<br/>\n<br/>\n"
+						+ "Der er udført attestering for {enhed}.\n<br/>"
+						+ "Der er anmodet om disse ændringer til rolletildelingerne på enheden: {ændringer_enhed}.\n<br/>"
+						+ "Der er anmodet om disse ændringer til brugernes rolletildelinger: {ændringer_brugere}";
+					enabled = false;
+					break;
 
 				case SUBSTITUTE:
 					title = "Du er blevet udpeget som stedfortræder";
@@ -196,7 +204,7 @@ public class EmailTemplateService {
 					break;
 				case APPROVED_ROLE_REQUEST_USER:
 					title = "Du har fået tildelt en rolle";
-					message = "Kære {modtager}\n<br/>\n<br/>\nEn autorisationsansvarlig eller leder har anmodet om rollen {rolle} til dig. Den er nu tildelt.";
+					message = "Kære {modtager}\n<br/>\n<br/>\nEn autorisationsansvarlig eller leder har anmodet om rollen {rolle} til dig. Den er tildelt fra {startdato} til {stopdato}.";
 					break;
 				case APPROVED_ROLE_REQUEST_REMOVAL_USER:
 					title = "Du har fået fjernet en rolle";
@@ -213,10 +221,20 @@ public class EmailTemplateService {
 				case WAITING_REQUESTS_ROLE_ASSIGNERS:
 					title = "Der er afventende rolleanmodninger";
 					message = "Kære {modtager}\n<br/>\n<br/>\nDer er {antal} rolleanmodning(er), der skal tages stilling til.";
+					enabled = false;
+					break;
+				case WAITING_REQUESTS_SERVICEDESK:
+					title = "Der er afventende rolleanmodninger";
+					message = "Kære {modtager}\n<br/>\n<br/>\nDer er {antal} rolleanmodning(er), der skal tages stilling til.";
+					enabled = false;
+					break;
+				case WAITING_REQUESTS_ROLE_ASSIGNERS_DAILY:
+					title = "Der er afventende rolleanmodninger";
+					message = "Kære {modtager}\n<br/>\n<br/>\nDer er {antal} rolleanmodning(er), der skal tages stilling til.";
 					break;
 				case APPROVED_MANUAL_ROLE_REQUEST_USER:
 					title = "Du har fået tildelt en rolle";
-					message = "Kære {modtager}\n<br/>\n<br/>\nEn autorisationsansvarlig eller leder har anmodet om rollen {rolle} til dig. Den er nu tildelt.";
+					message = "Kære {modtager}\n<br/>\n<br/>\nEn autorisationsansvarlig eller leder har anmodet om rollen {rolle} til dig. Den er tildelt fra {startdato} til {stopdato}.";
 					break;
 				case APPROVED_MANUAL_ROLE_REQUEST_MANAGER:
 					title = "En anmodning om en rolle er godkendt";
@@ -237,15 +255,15 @@ public class EmailTemplateService {
 					enabled = false;
 					break;
 			}
-			
+
 			template.setTitle(title);
 			template.setMessage(message);
 			template.setTemplateType(type);
 			template.setEnabled(enabled);
-			
+
 			template = emailTemplateDao.save(template);
 		}
-		
+
 		return template;
 	}
 
@@ -253,7 +271,7 @@ public class EmailTemplateService {
 	public EmailTemplate save(EmailTemplate template) {
 		return emailTemplateDao.save(template);
 	}
-	
+
 	public EmailTemplate findById(long id) {
 		return emailTemplateDao.findById(id).orElse(null);
 	}

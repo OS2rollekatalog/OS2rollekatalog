@@ -6,7 +6,7 @@ import java.lang.annotation.RetentionPolicy;
 import org.springframework.security.access.prepost.PreAuthorize;
 
 @Retention(RetentionPolicy.RUNTIME)
-@PreAuthorize("hasRole('ROLE_ASSIGNER') or hasRole('ROLE_KLE_ADMINISTRATOR')")
+@PreAuthorize("hasRole('ROLE_USER_ASSIGNER')or hasRole('ROLE_OU_ASSIGNER') or hasRole('ROLE_KLE_ADMINISTRATOR')")
 public @interface RequireAssignerOrKleAdminRole {
 
 }

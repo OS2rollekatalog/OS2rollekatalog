@@ -358,6 +358,11 @@
 		    }
 
 		    this.handleReject = function() {
+		    	// Validate that at least one role is selected
+				if (!userRemarkModalService.validateSelection()) {
+					return;
+				}
+
 		        var notApproved = userRemarkModalService.getNotApprovedRoles();
 		        var userUuid = $("#userUuidInput").val();
 		        var remark = $("#userRemarkField").val();

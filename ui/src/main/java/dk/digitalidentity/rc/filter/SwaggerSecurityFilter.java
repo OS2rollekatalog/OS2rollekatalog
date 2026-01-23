@@ -1,5 +1,8 @@
 package dk.digitalidentity.rc.filter;
-import dk.digitalidentity.rc.security.SecurityUtil;
+import java.io.IOException;
+
+import org.springframework.security.core.context.SecurityContextHolder;
+
 import dk.digitalidentity.samlmodule.model.TokenUser;
 import jakarta.servlet.Filter;
 import jakarta.servlet.FilterChain;
@@ -8,9 +11,6 @@ import jakarta.servlet.ServletRequest;
 import jakarta.servlet.ServletResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import org.springframework.security.core.context.SecurityContextHolder;
-
-import java.io.IOException;
 
 public class SwaggerSecurityFilter implements Filter {
 

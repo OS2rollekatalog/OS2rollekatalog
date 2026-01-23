@@ -21,12 +21,14 @@ BEGIN
     dato, ou_uuid,
     role_id, role_name, role_it_system_id, role_it_system_name,
     assigned_through_type, assigned_through_uuid, assigned_through_name,
-    assigned_by_user_id, assigned_by_name, assigned_when, `inherit`, start_date, stop_date)
+    assigned_by_user_id, assigned_by_name, assigned_when, `inherit`, start_date, stop_date, manager, substitutes)
   SELECT
     CURRENT_TIMESTAMP, ou.uuid,
     ur.id, ur.name, it.id, it.name,
     'ORGUNIT', orig_ou_uuid, orig_ou_name,
-    our.assigned_by_user_id, our.assigned_by_name, our.assigned_timestamp, orig_ou_uuid = ou_roles_ou_uuid, our.start_date, our.stop_date
+    our.assigned_by_user_id, our.assigned_by_name, our.assigned_timestamp,
+    orig_ou_uuid = ou_roles_ou_uuid, our.start_date, our.stop_date,
+    our.manager, our.substitutes
   FROM ou_roles our
     JOIN ous ou ON ou.uuid = ou_roles_ou_uuid
     JOIN user_roles ur ON ur.id = our.role_id
@@ -59,6 +61,15 @@ BEGIN
     JOIN ou_roles_titles ourt ON ourt.ou_roles_id = our.id
   WHERE our.id = ou_roles_id AND our.contains_titles = 2
   HAVING GROUP_CONCAT(ourt.title_uuid) IS NOT NULL;
+
+  -- Insert exclusions for functions
+  INSERT INTO history_ou_role_assignment_exclusions (assignment_id, exclusion_type, function_uuids)
+  SELECT
+    LAST_INSERT_ID(), 'functions', GROUP_CONCAT(ourf.function_uuid)
+  FROM ou_roles our
+    JOIN ou_roles_functions ourf ON ourf.ou_roles_id = our.id
+  WHERE our.id = ou_roles_id AND our.contains_functions = 1
+  HAVING GROUP_CONCAT(ourf.function_uuid) IS NOT NULL;
 
   OPEN cursorChildren;
 
@@ -121,12 +132,13 @@ DELIMITER $$
       dato, ou_uuid,
       role_id, role_name, role_it_system_id, role_it_system_name, role_role_group, role_role_group_id,
       assigned_through_type, assigned_through_uuid, assigned_through_name,
-      assigned_by_user_id, assigned_by_name, assigned_when, `inherit`, start_date, stop_date)
+      assigned_by_user_id, assigned_by_name, assigned_when, `inherit`, start_date, stop_date, manager, substitutes)
     SELECT
       CURRENT_TIMESTAMP, ou.uuid,
       ur.id, ur.name, it.id, it.name, rg.name, rg.id,
       'ORGUNIT', orig_ou_uuid, orig_ou_name,
-      ourg.assigned_by_user_id, ourg.assigned_by_name, ourg.assigned_timestamp, 0, ourg.start_date, ourg.stop_date
+      ourg.assigned_by_user_id, ourg.assigned_by_name, ourg.assigned_timestamp, 0, ourg.start_date,
+      ourg.stop_date, ourg.manager, ourg.substitutes
     FROM ou_rolegroups ourg
       JOIN ous ou ON ou.uuid = ou_roles_ou_uuid
       JOIN rolegroup rg ON rg.id = ourg.rolegroup_id
@@ -161,6 +173,15 @@ DELIMITER $$
       JOIN ou_rolegroups_titles ourgt ON ourgt.ou_rolegroups_id = ourg.id
     WHERE ourg.id = ou_roles_id AND ourg.contains_titles = 2
     HAVING GROUP_CONCAT(ourgt.title_uuid) IS NOT NULL;
+
+    -- Insert exclusions for functions
+    INSERT INTO history_ou_role_assignment_exclusions (assignment_id, exclusion_type, function_uuids)
+    SELECT
+      LAST_INSERT_ID(), 'functions', GROUP_CONCAT(ourgf.function_uuid)
+    FROM ou_rolegroups ourg
+      JOIN ou_rolegroups_functions ourgf ON ourgf.ou_rolegroups_id = ourg.id
+    WHERE ourg.id = ou_roles_id AND ourg.contains_functions = 1
+    HAVING GROUP_CONCAT(ourgf.function_uuid) IS NOT NULL;
 
     OPEN cursorChildren;
 
@@ -218,11 +239,13 @@ BEGIN
     dato, ou_uuid,
     role_id, role_name, role_it_system_id, role_it_system_name, role_role_group, role_role_group_id,
     assigned_through_type, assigned_through_uuid, assigned_through_name,
-    assigned_by_user_id, assigned_by_name, assigned_when, inherit, start_date, stop_date)
+    assigned_by_user_id, assigned_by_name, assigned_when, inherit, start_date, stop_date,
+    manager, substitutes)
   SELECT CURRENT_TIMESTAMP, o.uuid,
     ur.id, ur.name, it.id, it.name, NULL, NULL,
     'DIRECT', NULL, NULL,
-    our.assigned_by_user_id, our.assigned_by_name, our.assigned_timestamp, 0, our.start_date, our.stop_date
+    our.assigned_by_user_id, our.assigned_by_name, our.assigned_timestamp, 0, our.start_date,
+    our.stop_date, our.manager, our.substitutes
   FROM ou_roles our
   JOIN ous o ON o.uuid = our.ou_uuid
   JOIN user_roles ur ON ur.id = our.role_id
@@ -263,16 +286,29 @@ BEGIN
   GROUP BY h.id
   HAVING GROUP_CONCAT(ourt.title_uuid) IS NOT NULL;
 
+  INSERT INTO history_ou_role_assignment_exclusions (assignment_id, exclusion_type, function_uuids)
+  SELECT
+    h.id, 'functions', GROUP_CONCAT(ourf.function_uuid)
+  FROM history_ou_role_assignments h
+  JOIN ou_roles our ON our.ou_uuid = h.ou_uuid AND our.role_id = h.role_id
+    AND our.assigned_by_user_id = h.assigned_by_user_id AND our.assigned_timestamp = h.assigned_when
+  JOIN ou_roles_functions ourf ON ourf.ou_roles_id = our.id
+  WHERE h.dato = CURRENT_DATE() AND our.contains_functions = 1 AND h.role_role_group_id IS NULL
+  GROUP BY h.id
+  HAVING GROUP_CONCAT(ourf.function_uuid) IS NOT NULL;
+
   -- Direct role assignments through role groups
   INSERT INTO history_ou_role_assignments (
     dato, ou_uuid,
     role_id, role_name, role_it_system_id, role_it_system_name, role_role_group, role_role_group_id,
     assigned_through_type, assigned_through_uuid, assigned_through_name,
-    assigned_by_user_id, assigned_by_name, assigned_when, inherit, start_date, stop_date)
+    assigned_by_user_id, assigned_by_name, assigned_when, inherit, start_date, stop_date,
+    manager, substitutes)
   SELECT CURRENT_TIMESTAMP, o.uuid,
     ur.id, ur.name, it.id, it.name, rg.name, rg.id,
     'DIRECT', NULL, NULL,
-    ourg.assigned_by_user_id, ourg.assigned_by_name, ourg.assigned_timestamp, 0, ourg.start_date, ourg.stop_date
+    ourg.assigned_by_user_id, ourg.assigned_by_name, ourg.assigned_timestamp, 0, ourg.start_date,
+    ourg.stop_date, ourg.manager, ourg.substitutes
   FROM ou_rolegroups ourg
   JOIN ous o ON o.uuid = ourg.ou_uuid
   JOIN rolegroup rg ON ourg.rolegroup_id = rg.id
@@ -314,6 +350,17 @@ BEGIN
   WHERE h.dato = CURRENT_DATE() AND ourg.contains_titles = 2 AND h.role_role_group_id IS NOT NULL
   GROUP BY h.id
   HAVING GROUP_CONCAT(ourgt.title_uuid) IS NOT NULL;
+
+  INSERT INTO history_ou_role_assignment_exclusions (assignment_id, exclusion_type, function_uuids)
+  SELECT
+    h.id, 'functions', GROUP_CONCAT(ourgf.function_uuid)
+  FROM history_ou_role_assignments h
+  JOIN ou_rolegroups ourg ON ourg.ou_uuid = h.ou_uuid AND ourg.rolegroup_id = h.role_role_group_id
+    AND ourg.assigned_by_user_id = h.assigned_by_user_id AND ourg.assigned_timestamp = h.assigned_when
+  JOIN ou_rolegroups_functions ourgf ON ourgf.ou_rolegroups_id = ourg.id
+  WHERE h.dato = CURRENT_DATE() AND ourg.contains_functions = 1 AND h.role_role_group_id IS NOT NULL
+  GROUP BY h.id
+  HAVING GROUP_CONCAT(ourgf.function_uuid) IS NOT NULL;
 
   -- Inherited role assignments from orgunits
   CALL SP_InsertHistoryOURoleAssignmentsOUInherit();

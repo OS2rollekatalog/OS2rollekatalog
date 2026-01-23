@@ -9,7 +9,6 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.Setter;
-import org.hibernate.annotations.BatchSize;
 
 @Entity
 @Table(name = "history_ous_users")
@@ -26,11 +25,17 @@ public class HistoryOUUser {
 
 	@Column
 	private String userUuid;
-	
+
 	@Column
 	private String titleUuid;
 
 	@Column
 	private Boolean doNotInherit;
+
+	@Column(name = "function_uuids")
+	private String functionUuids; // comma-separated UUIDs
+
+	@Column
+	private Boolean hasPosition = true;
 
 }

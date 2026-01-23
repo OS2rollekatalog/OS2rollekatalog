@@ -1,1 +1,0 @@
-ALTER TABLE pending_kombit_updates ADD timestamp DATETIME2 NULL DEFAULT GETDATE();

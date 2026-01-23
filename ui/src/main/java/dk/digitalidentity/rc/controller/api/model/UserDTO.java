@@ -27,6 +27,7 @@ public class UserDTO {
 	private boolean doNotInherit;
 	private boolean disabled;
 	private List<PositionDTO> positions;
+	private List<UserOUFunctionDTO> functions;
 	private List<String> klePerforming;
 	private List<String> kleInterest;
 
@@ -47,6 +48,13 @@ public class UserDTO {
 			this.positions = userPositions.stream().map(PositionDTO::new).collect(Collectors.toList());
 		}
 
+		// Map UserOUFunctions if they exist
+		if (user.getFunctionAssignments() != null) {
+			this.functions = user.getFunctionAssignments().stream()
+				.map(UserOUFunctionDTO::new)
+				.collect(Collectors.toList());
+		}
+
 		List<UserKLEMapping> kles = user.getKles();
 		if (kles != null) {
 			this.kleInterest = new ArrayList<>();
@@ -63,7 +71,7 @@ public class UserDTO {
 		}
 	}
 
-	public UserDTO(String extUuid, String userId, String name, String email, String phone, String cpr, String nemloginUuid, boolean doNotInherit, boolean disabled, List<PositionDTO> positions, List<String> klePerforming, List<String> kleInterest) {
+	public UserDTO(String extUuid, String userId, String name, String email, String phone, String cpr, String nemloginUuid, boolean doNotInherit, boolean disabled, List<PositionDTO> positions, List<UserOUFunctionDTO> functions, List<String> klePerforming, List<String> kleInterest) {
 		this.extUuid = extUuid;
 		this.userId = userId;
 		this.name = name;
@@ -74,6 +82,7 @@ public class UserDTO {
 		this.doNotInherit = doNotInherit;
 		this.disabled = disabled;
 		this.positions = positions;
+		this.functions = functions;
 		this.klePerforming = klePerforming;
 		this.kleInterest = kleInterest;
 	}

@@ -9,6 +9,7 @@ import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -363,7 +364,7 @@ public class NemLoginService {
 				// Sync admin roles only
 				NemLoginUserProfile userProfile = getUserProfile(user);
 				if (userProfile != null && userProfile.getIdentityProfile() != null && userProfile.getIdentityProfile().getRoles() != null) {
-					syncAdminRoles(user, userProfile.getIdentityProfile().getRoles(), itSystem, assignedAt, adminRoleIdentifiers);
+					syncAdminRoles(user, userProfile.getIdentityProfile().getRoles(), assignedAt, adminRoleIdentifiers);
 				}
 			}
 		}
@@ -372,16 +373,34 @@ public class NemLoginService {
 		}
 	}
 
-	private void syncAdminRoles(User user, Set<String> adminRoleIdentifiers, ItSystem itSystem, Date assignedAt, Set<String> knownAdminRoleIdentifiers) {
+	private void syncAdminRoles(User user, Set<String> adminRoleIdentifiers, Date assignedAt, Set<String> knownAdminRoleIdentifiers) {
 		boolean userChanged = false;
 
+		// Remove admin roles that are no longer in MitID Erhverv
+		Iterator<UserUserRoleAssignment> iterator = user.getUserRoleAssignments().iterator();
+		while (iterator.hasNext()) {
+			UserUserRoleAssignment assignment = iterator.next();
+			UserRole userRole = assignment.getUserRole();
+
+			// Check if this is an admin role assignment that should be removed
+			if (userRole.getIdentifier() != null &&
+				knownAdminRoleIdentifiers.contains(userRole.getIdentifier()) &&
+				!adminRoleIdentifiers.contains(userRole.getIdentifier())) {
+
+				iterator.remove();
+				userChanged = true;
+				log.info("Removing admin role assignment " + userRole.getName() + " from user " + user.getUserId());
+			}
+		}
+
+		// Add missing admin roles
 		for (String adminRoleIdentifier : adminRoleIdentifiers) {
 			// Only process admin roles we know about
 			if (!knownAdminRoleIdentifiers.contains(adminRoleIdentifier)) {
 				continue;
 			}
 
-			// Find existing admin UserRole by name
+			// Find existing admin UserRole by identifier
 			UserRole existingAdminUserRole = userRoleService.getByIdentifier(adminRoleIdentifier);
 
 			if (existingAdminUserRole == null) {
@@ -392,7 +411,7 @@ public class NemLoginService {
 			// Check if user already has this admin role assignment
 			final long adminUserRoleId = existingAdminUserRole.getId();
 			boolean alreadyAssigned = user.getUserRoleAssignments().stream()
-					.anyMatch(ura -> ura.getUserRole().getId() == adminUserRoleId);
+				.anyMatch(ura -> ura.getUserRole().getId() == adminUserRoleId);
 
 			if (!alreadyAssigned) {
 				UserUserRoleAssignment userUserRoleAssignment = new UserUserRoleAssignment();
@@ -405,6 +424,7 @@ public class NemLoginService {
 
 				user.getUserRoleAssignments().add(userUserRoleAssignment);
 				userChanged = true;
+				log.info("Added admin role " + existingAdminUserRole.getName() + " to user " + user.getUserId());
 			}
 		}
 
@@ -446,7 +466,6 @@ public class NemLoginService {
 					newAdminUserRole.setReadOnly(true);
 					newAdminUserRole.setAllowPostponing(false);
 					newAdminUserRole.setUserOnly(true);
-					newAdminUserRole.setCanRequest(false);
 					newAdminUserRole.setSystemRoleAssignments(new ArrayList<>());
 
 					userRoleService.save(newAdminUserRole);
@@ -1049,7 +1068,13 @@ public class NemLoginService {
 					}
 				}
 				else {
-					log.error(operation + " : got HTTP " + response.getStatusCode() + " with body : " + response.getBody());
+					// this error message is useless, and since we can do nothing about it, log it as a warn
+					if (response.getStatusCode().value() == 500 && response.getBody() != null && response.getBody().contains("See log for exception details")) {
+						log.warn(operation + " : got HTTP " + response.getStatusCode() + " with body : " + response.getBody());
+					}
+					else {
+						log.error(operation + " : got HTTP " + response.getStatusCode() + " with body : " + response.getBody());
+					}
 				}
 			}
 			catch (Exception ex) {

@@ -1,5 +1,11 @@
 package dk.digitalidentity.rc.interceptor;
 
+import java.util.List;
+import java.util.stream.Collectors;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
+
 import dk.digitalidentity.rc.dao.model.ItSystem;
 import dk.digitalidentity.rc.dao.model.OrgUnit;
 import dk.digitalidentity.rc.dao.model.Position;
@@ -11,11 +17,6 @@ import dk.digitalidentity.rc.dao.model.UserUserRoleAssignment;
 import dk.digitalidentity.rc.dao.model.enums.ItSystemType;
 import dk.digitalidentity.rc.service.UserService;
 import dk.digitalidentity.rc.service.cics.KspCicsService;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Component;
-
-import java.util.List;
-import java.util.stream.Collectors;
 
 @Component
 public class KspCicsUpdaterHook implements RoleChangeHook {
@@ -94,34 +95,6 @@ public class KspCicsUpdaterHook implements RoleChangeHook {
 	public void interceptRemovePositionOnUser(User user, Position position) {
 		if (userService.hasCicsUser(user)) {
 			kspCicsService.addUserToQueue(user);
-		}
-	}
-
-	@Override
-	public void interceptAddRoleGroupAssignmentOnPosition(Position position, RoleGroup roleGroup) {
-		if (userService.hasCicsUser(position.getUser())) {
-      		addRoleGroupToQueue(roleGroup);
-		}
-	}
-
-	@Override
-	public void interceptRemoveRoleGroupAssignmentOnPosition(Position position, RoleGroup roleGroup) {
-		if (userService.hasCicsUser(position.getUser())) {
-      		addRoleGroupToQueue(roleGroup);
-		}
-	}
-
-	@Override
-	public void interceptAddUserRoleAssignmentOnPosition(Position position, UserRole userRole) {
-		if (userService.hasCicsUser(position.getUser())) {
-      		kspCicsService.addUserRoleToQueue(userRole);
-		}
-	}
-
-	@Override
-	public void interceptRemoveUserRoleAssignmentOnPosition(Position position, UserRole userRole) {
-		if (userService.hasCicsUser(position.getUser())) {
-			kspCicsService.addUserRoleToQueue(userRole);
 		}
 	}
 

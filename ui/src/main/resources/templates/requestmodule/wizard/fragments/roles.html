@@ -1,0 +1,64 @@
+<th:block th:fragment="rolesForWizard" xmlns="http://www.w3.org/1999/xhtml" xmlns:th="http://www.thymeleaf.org">
+    <div class="tabs-container" id="tabs">
+        <ul class="nav nav-tabs" role="tablist">
+			<th:block th:unless="${showCombinedTable}">
+				<li>
+					<a class="nav-link active" data-toggle="tab" href="#recommendedUserRolesTab" th:text="#{requestmodule.html.request.wizard.roles.recommendedUserRolesTab}"></a>
+				</li>
+				<li th:unless="${onlyRecommendRoles}">
+					<a id="allUserRolesNavLink" class="nav-link" data-toggle="tab" href="#userRolesTab" th:text="#{requestmodule.html.request.wizard.roles.userRoles}"></a>
+				</li>
+				<li>
+					<a class="nav-link" data-toggle="tab" href="#recommendedRoleGroupsTab" th:text="#{requestmodule.html.request.wizard.roles.recommendedRoleGroupsTab}"></a>
+				</li>
+				<li th:unless="${onlyRecommendRoles}">
+					<a id="allRoleGroupsNavLink" class="nav-link" data-toggle="tab" href="#roleGroupsTab" th:text="#{requestmodule.html.request.wizard.roles.roleGroups}"></a>
+				</li>
+			</th:block>
+			<th:block th:if="${showCombinedTable}">
+				<li>
+					<a class="nav-link active" data-toggle="tab" href="#recommendedCombinedTab" th:text="#{requestmodule.html.request.wizard.roles.recommendedAllTab}"></a>
+				</li>
+				<li th:unless="${onlyRecommendRoles}">
+					<a class="nav-link" data-toggle="tab" href="#allCombinedTab" th:text="#{requestmodule.html.request.wizard.roles.all}"></a>
+				</li>
+			</th:block>
+		</ul>
+        <div class="tab-content">
+			<th:block th:unless="${showCombinedTable}">
+				<div role="tabpanel" id="recommendedUserRolesTab" class="tab-pane active">
+					<div class="panel-body">
+						<div th:replace="~{requestmodule/wizard/fragments/recommended_roles_tables :: recommendedUserRolesFragment}"></div>
+					</div>
+				</div>
+				<div th:unless="${onlyRecommendRoles}" role="tabpanel" id="userRolesTab" class="tab-pane">
+					<div id="AllUserRoleTableContainer" class="panel-body">
+						<div th:replace="~{requestmodule/wizard/fragments/all_roles_tables :: allUserRolesFragment}"></div>
+					</div>
+				</div>
+				<div role="tabpanel" id="recommendedRoleGroupsTab" class="tab-pane">
+					<div class="panel-body">
+						<div th:replace="~{requestmodule/wizard/fragments/recommended_roles_tables :: recommendedRoleGroupsFragment}"></div>
+					</div>
+				</div>
+				<div th:unless="${onlyRecommendRoles}" role="tabpanel" id="roleGroupsTab" class="tab-pane">
+					<div id="AllRoleGroupTableContainer" class="panel-body">
+						<div th:replace="~{requestmodule/wizard/fragments/all_roles_tables :: allRoleGroupsFragment}"></div>
+					</div>
+            	</div>
+			</th:block>
+			<th:block th:if="${showCombinedTable}">
+				<div role="tabpanel" id="recommendedCombinedTab" class="tab-pane active">
+					<div class="panel-body">
+						<div th:replace="~{requestmodule/wizard/fragments/recommended_roles_tables :: recommendedCombinedFragment}"></div>
+					</div>
+				</div>
+				<div th:if="${!onlyRecommendRoles}" role="tabpanel" id="allCombinedTab" class="tab-pane">
+					<div class="panel-body">
+						<div th:replace="~{requestmodule/wizard/fragments/all_roles_tables :: allCombinedFragment}"></div>
+					</div>
+				</div>
+			</th:block>
+        </div>
+    </div>
+</th:block>

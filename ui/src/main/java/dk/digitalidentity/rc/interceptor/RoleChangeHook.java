@@ -21,12 +21,6 @@ public interface RoleChangeHook {
 	public void interceptAddPositionOnUser(User user, Position position);
 	public void interceptRemovePositionOnUser(User user, Position position);
 
-	// PositionService Hooks
-	public void interceptAddRoleGroupAssignmentOnPosition(Position position, RoleGroup roleGroup);
-	public void interceptRemoveRoleGroupAssignmentOnPosition(Position position, RoleGroup roleGroup);
-	public void interceptAddUserRoleAssignmentOnPosition(Position position, UserRole userRole);
-	public void interceptRemoveUserRoleAssignmentOnPosition(Position position, UserRole userRole);
-
 	// OrgUnitService Hooks
 	public void interceptAddRoleGroupAssignmentOnOrgUnit(OrgUnit ou, RoleGroup roleGroup, boolean inherit);
 	public void interceptRemoveRoleGroupAssignmentOnOrgUnit(OrgUnit ou, RoleGroup roleGroup);

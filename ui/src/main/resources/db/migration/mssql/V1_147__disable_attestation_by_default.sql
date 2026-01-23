@@ -1,1 +1,0 @@
-UPDATE setting SET setting_value='false' where setting_key='ScheduledAttestationEnabled';

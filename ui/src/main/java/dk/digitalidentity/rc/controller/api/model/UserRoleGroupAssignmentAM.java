@@ -15,7 +15,7 @@ import java.util.Date;
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor
-@Schema(name = "UserRoleAssignment")
+@Schema(name = "UserRoleGroupAssignment")
 public class UserRoleGroupAssignmentAM {
     @Schema(description = "")
     @NotNull

@@ -57,17 +57,17 @@ public class Select2Service {
 		if (!StringUtils.hasLength(constraintValue)) {
 			return false;
 		}
-		
+
 		String[] constraintValues = constraintValue.split(",");
 		for (String cv : constraintValues) {
 			if (cv.equals(id)) {
 				return true;
 			}
 		}
-		
+
 		return false;
 	}
-	
+
 	@Cacheable(value = "orgunitList")
 	public List<OrgUnitSelect2DTO> getOrgUnitList() {
 		List<OrgUnit> orgUnitList = orgUnitDao.findByActiveTrue()
@@ -90,7 +90,7 @@ public class Select2Service {
 
 	@Cacheable(value = "itSystemList")
 	public List<ItSystemSelect2DTO> getItSystemList() {
-		List<ItSystem> itSystems = itSystemService.getAll();
+		List<ItSystem> itSystems = itSystemService.getVisible();
 		List<ItSystemSelect2DTO> itSystemSelect2DTOList = new ArrayList<>();
 
 		if (itSystems != null) {
@@ -159,7 +159,7 @@ public class Select2Service {
 		@CacheEvict(value = "kitosItSystemList", allEntries = true)
 	})
 	public void clearCache() {
-		
+
 	}
 
 	// 4 hour cache

@@ -1,1 +1,0 @@
-ALTER TABLE history_system_roles ADD weight BIGINT;

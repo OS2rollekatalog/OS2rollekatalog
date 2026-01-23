@@ -8,7 +8,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Component;
 
 import dk.digitalidentity.rc.dao.model.OrgUnit;
@@ -26,13 +28,23 @@ public class OrganisationConstraintUtil {
 			return new ArrayList<>();
 		}
 
-		if (!constraintValue.contains("+") && !constraintValue.contains("-")) {
+		if (!containsInclusionsOrExclusions(constraintValue)) {
 			return Arrays.stream(constraintValue.split(",")).map(String::trim).filter(uuid -> !uuid.isEmpty())
 					.collect(Collectors.toList());
 		}
 
 		// Handle inheritance format with + and - prefixes
 		return getConstraintAllowedUuids(constraintValue);
+	}
+
+	private boolean containsInclusionsOrExclusions(final String constraintValue) {
+		String[] parts = StringUtils.split(constraintValue, ",");
+		if (parts == null || parts.length == 0) {
+			return false;
+		}
+		return Stream.of(parts)
+			.map(String::trim)
+			.anyMatch(s -> s.startsWith("+") || s.startsWith("-"));
 	}
 
 	private List<String> getConstraintAllowedUuids(String constraintValue) {

@@ -1,5 +1,15 @@
 package dk.digitalidentity.rc.controller.mvc.xlsview;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
+import java.util.stream.Collectors;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.MessageSource;
+import org.springframework.context.i18n.LocaleContextHolder;
+import org.springframework.stereotype.Component;
+
 import dk.digitalidentity.rc.config.Constants;
 import dk.digitalidentity.rc.dao.model.ConstraintTypeValueSet;
 import dk.digitalidentity.rc.dao.model.ItSystem;
@@ -12,20 +22,6 @@ import dk.digitalidentity.rc.service.OrgUnitService;
 import dk.digitalidentity.rc.util.OrganisationConstraintUtil;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.MessageSource;
-import org.springframework.context.i18n.LocaleContextHolder;
-import org.springframework.stereotype.Component;
-import org.springframework.util.StringUtils;
-
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
-import java.util.Set;
-import java.util.stream.Collectors;
 
 @Slf4j
 @Component

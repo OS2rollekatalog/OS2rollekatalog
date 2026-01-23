@@ -2,8 +2,14 @@ package dk.digitalidentity.rc.controller.rest;
 
 import dk.digitalidentity.rc.dao.model.FrontPageLink;
 import dk.digitalidentity.rc.dao.model.enums.EventType;
+import dk.digitalidentity.rc.dao.model.enums.LinkType;
 import dk.digitalidentity.rc.log.AuditLogContextHolder;
 import dk.digitalidentity.rc.log.AuditLogger;
+import dk.digitalidentity.rc.security.RequireAdministratorRole;
+import dk.digitalidentity.rc.security.permission.Permission;
+import dk.digitalidentity.rc.security.permission.RequireControllerPermission;
+import dk.digitalidentity.rc.security.permission.RequirePermission;
+import dk.digitalidentity.rc.security.permission.Section;
 import dk.digitalidentity.rc.service.FrontPageLinkService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpEntity;
@@ -16,6 +22,8 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.RestController;
 
+
+@RequireControllerPermission(section = Section.CONFIG, permission = Permission.UPDATE)
 @RestController
 public class FrontPageConfigurationRestController {
 
@@ -25,15 +33,18 @@ public class FrontPageConfigurationRestController {
 	@Autowired
 	private AuditLogger auditLogger;
 
-	record SaveDTO(long id, String title, String icon, String link, String description) {}
+	record SaveDTO(long id, String title, String icon, String link, String description, String linkType) {}
 	@PostMapping(value = { "/rest/frontpage/links/save" })
 	@ResponseBody
 	public HttpEntity<String> saveLink(@RequestBody SaveDTO saveDTO) {
 		FrontPageLink frontPageLink = frontPageLinkService.getById(saveDTO.id());
+		LinkType linkType = LinkType.valueOf(saveDTO.linkType);
+
 		if (frontPageLink == null) {
 			frontPageLink = new FrontPageLink();
 			frontPageLink.setActive(true);
 			frontPageLink.setEditable(true);
+			frontPageLink.setDeletable(true);
 		}
 
 		if (frontPageLink.isEditable()) {
@@ -41,6 +52,7 @@ public class FrontPageConfigurationRestController {
 			frontPageLink.setIcon(saveDTO.icon());
 			frontPageLink.setTitle(saveDTO.title());
 			frontPageLink.setDescription(saveDTO.description());
+			frontPageLink.setLinkType(linkType);
 		} else {
 			return new ResponseEntity<>("Du kan ikke redigere dette link.", HttpStatus.BAD_REQUEST);
 		}
@@ -69,6 +81,7 @@ public class FrontPageConfigurationRestController {
 		return new ResponseEntity<>(HttpStatus.OK);
 	}
 
+	@RequirePermission(section = Section.CONFIG, permission = Permission.UPDATE)
 	@PostMapping(value = { "/rest/frontpage/links/{id}" })
 	@ResponseBody
 	public HttpEntity<String> setActive(@PathVariable long id, @RequestParam boolean active) {

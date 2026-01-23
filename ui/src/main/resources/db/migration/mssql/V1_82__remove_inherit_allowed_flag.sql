@@ -1,3 +1,0 @@
--- would be nice, but SQL Server generated some autoconstraints, so we cannot DROP without knowing the names of these
---ALTER TABLE user_roles DROP COLUMN ou_inherit_allowed;
---ALTER TABLE rolegroup DROP COLUMN ou_inherit_allowed;

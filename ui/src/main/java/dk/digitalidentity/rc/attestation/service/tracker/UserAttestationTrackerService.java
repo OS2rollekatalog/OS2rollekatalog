@@ -264,7 +264,7 @@ public class UserAttestationTrackerService {
 		}
 		if (attestation == null) {
 			if (run.getDeadline().minusDays(configuration.getAttestation().getDaysForAttestation()).isAfter(when)) {
-				// Deadline is in the future do not create an attestation entity yet
+				// Deadline is in the future do not create an attestation section yet
 				return;
 			} else {
 				// Deadline is soon we need to create a new attestation
@@ -297,7 +297,7 @@ public class UserAttestationTrackerService {
 		Attestation attestation = findSystemUsersAttestationFor(assignment, when).orElse(null);
 		if (attestation == null) {
 			if (run.getDeadline().minusDays(configuration.getAttestation().getDaysForAttestation()).isAfter(when)) {
-				// Deadline is in the future do not create an attestation entity yet
+				// Deadline is in the future do not create an attestation section yet
 				return;
 			} else {
 				// Deadline is soon we need to create a new attestation
@@ -320,7 +320,7 @@ public class UserAttestationTrackerService {
 		Attestation attestation = findOrganisationAttestationFor(assignment, when).orElse(null);
 		if (attestation == null) {
 			if (run.getDeadline().minusDays(configuration.getAttestation().getDaysForAttestation()).isAfter(when)) {
-				// Deadline is in the future do not create an attestation entity yet
+				// Deadline is in the future do not create an attestation section yet
 				return;
 			} else {
 				// Deadline is soon we need to create a new attestation
@@ -343,7 +343,7 @@ public class UserAttestationTrackerService {
 		Attestation attestation = findOrganisationAttestationFor(assignment, when).orElse(null);
 		if (attestation == null) {
 			if (run.getDeadline().minusDays(configuration.getAttestation().getDaysForAttestation()).isAfter(when)) {
-				// Deadline is in the future do not create an attestation entity yet
+				// Deadline is in the future do not create an attestation section yet
 				return;
 			} else {
 				// Deadline is soon we need to create a new attestation
@@ -367,7 +367,7 @@ public class UserAttestationTrackerService {
 		Attestation attestation = findManagerDelegateAttestationFor(assignment.getResponsibleOuUuid(), when).orElse(null);
 		if (attestation == null) {
 			if (run.getDeadline().minusDays(configuration.getAttestation().getDaysForAttestation()).isAfter(when)) {
-				// Deadline is in the future do not create an attestation entity yet
+				// Deadline is in the future do not create an attestation section yet
 				return;
 			} else {
 				// Deadline is soon we need to create a new attestation
@@ -392,7 +392,7 @@ public class UserAttestationTrackerService {
 		Attestation attestation = findManagerDelegateAttestationFor(assignment.getResponsibleOuUuid(), when).orElse(null);
 		if (attestation == null) {
 			if (run.getDeadline().minusDays(configuration.getAttestation().getDaysForAttestation()).isAfter(when)) {
-				// Deadline is in the future do not create an attestation entity yet
+				// Deadline is in the future do not create an attestation section yet
 				return;
 			} else {
 				// Deadline is soon we need to create a new attestation
@@ -419,7 +419,7 @@ public class UserAttestationTrackerService {
 		Attestation attestation = findOrganisationAttestationFor(responsibleOuUuid, when).orElse(null);
 		if (attestation == null) {
 			if (run.getDeadline().minusDays(configuration.getAttestation().getDaysForAttestation()).isAfter(when)) {
-				// Deadline is in the future do not create an attestation entity yet
+				// Deadline is in the future do not create an attestation section yet
 				return;
 			} else {
 				// Deadline is soon we need to create a new attestation

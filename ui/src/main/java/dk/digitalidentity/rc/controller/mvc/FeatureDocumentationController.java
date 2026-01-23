@@ -6,6 +6,9 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+import dk.digitalidentity.rc.security.permission.Permission;
+import dk.digitalidentity.rc.security.permission.RequireControllerPermission;
+import dk.digitalidentity.rc.security.permission.Section;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -14,12 +17,11 @@ import org.springframework.web.bind.annotation.GetMapping;
 import dk.digitalidentity.rc.config.FeatureDocumentation;
 import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.FeatureDTO;
-import dk.digitalidentity.rc.security.RequireAdministratorRole;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
-@RequireAdministratorRole
 @Controller
+@RequireControllerPermission(section = Section.CONFIG, permission = Permission.READ)
 public class FeatureDocumentationController {
 
 	@Autowired

@@ -14,3 +14,6 @@
                            (ROL-362) AD-integration: Benytte "Noter" i stedet for "Beskrivelse"
 # 2025-06-10 -   2.4.6  -  Fix NPE in ItSystemGroupService
 # 2025-06-11 -   2.4.7  -  Allow wildcards when validating OU DNs
+# 2025-09-30 -   2.4.9  -  ADSyncService - håndtering af spærrede AD konti
+# 2025-09-30 -   2.4.9  -  Sikring af forudsætninger ved tildeling af MS Licens AD-grupper
+# 2025-12-10 -   2.4.10 -  Allow wildcards in OUs for read-only it-systems.

@@ -44,7 +44,10 @@ public class AttestationRunMapper {
     public AttestationRunDTO toRunDTO(final AttestationRun run) {
         final List<Attestation> ouAttestations = run.getAttestations().stream()
                 .filter(a -> a.getAttestationType() == Attestation.AttestationType.ORGANISATION_ATTESTATION)
-                .sorted(Comparator.comparing(Attestation::getResponsibleOuName))
+				.sorted(Comparator.comparing(
+					Attestation::getResponsibleOuName,
+					Comparator.nullsLast(String::compareToIgnoreCase)
+				))
                 .toList();
         final List<Attestation> systemAttestations = run.getAttestations().stream()
                 .filter(a -> a.getAttestationType() == Attestation.AttestationType.IT_SYSTEM_ATTESTATION ||

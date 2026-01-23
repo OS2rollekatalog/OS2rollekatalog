@@ -10,7 +10,7 @@
 			<div class="content-wrapper">
 				<h3>
 					<span th:text="#{html.report.users_with_duplicate_userrole_assignments}"></span>
-					<button sec:authorize="hasRole('ROLE_ASSIGNER')" class="btn btn-primary btn-lg" style="float: right;" th:text="#{html.page.report.duplicate.remove}" onclick="deleteDuplicates();"></button>
+					<button sec:authorize="hasAnyRole('ROLE_USER_ASSIGNER', 'ROLE_OU_ASSIGNER')" class="btn btn-primary btn-lg" style="float: right;" th:text="#{html.page.report.duplicate.remove}" onclick="deleteDuplicates();"></button>
 				</h3>
 
 				<div class="panel panel-default">
@@ -36,7 +36,7 @@
 									<td th:text="${user.userRole.itSystem.name}"></td>
 									<td th:text="${user.message}"></td>
 									<td>
-										<th:block sec:authorize="hasRole('ROLE_ASSIGNER')">
+										<th:block sec:authorize="hasAnyRole('ROLE_USER_ASSIGNER', 'ROLE_OU_ASSIGNER')">
 											<a th:href="@{/ui/users/manage/{uuid}(uuid=${user.uuid})}"><em class="fa fa-pencil"></em></a>
 										</th:block>
 									</td>

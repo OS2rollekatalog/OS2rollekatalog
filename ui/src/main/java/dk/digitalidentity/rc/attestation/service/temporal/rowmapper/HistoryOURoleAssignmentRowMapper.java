@@ -39,6 +39,8 @@ public class HistoryOURoleAssignmentRowMapper implements ResultSetExtractor<List
 				assignment.setAssignedThroughName(rs.getString("assigned_through_name"));
 				assignment.setRoleRoleGroupId(rs.getLong("role_role_group_id"));
 				assignment.setInherit(rs.getBoolean("inherit"));
+				assignment.setManager(rs.getBoolean("manager"));
+				assignment.setSubstitutes(rs.getBoolean("substitutes"));
 				assignment.setAssignedByUserId(rs.getString("assigned_by_user_id"));
 				assignment.setAssignedByName(rs.getString("assigned_by_name"));
 				assignment.setAssignedWhen(rs.getTimestamp("assigned_when").toLocalDateTime());
@@ -59,6 +61,7 @@ public class HistoryOURoleAssignmentRowMapper implements ResultSetExtractor<List
 								: null);
 				exclusion.setUserUuids(rs.getString("user_uuids"));
 				exclusion.setTitleUuids(rs.getString("title_uuids"));
+				exclusion.setFunctionUuids(rs.getString("function_uuids"));
 				assignment.getExclusions().add(exclusion);
 			}
 		}

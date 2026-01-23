@@ -5,12 +5,16 @@ import java.io.IOException;
 import java.nio.charset.Charset;
 import java.time.LocalDate;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+import dk.digitalidentity.rc.security.permission.Permission;
+import dk.digitalidentity.rc.security.permission.RequireControllerPermission;
+import dk.digitalidentity.rc.security.permission.Section;
+import dk.digitalidentity.rc.security.permission.RequirePermission;
+import lombok.RequiredArgsConstructor;
 import org.htmlcleaner.BrowserCompactXmlSerializer;
 import org.htmlcleaner.CleanerProperties;
 import org.htmlcleaner.HtmlCleaner;
@@ -18,7 +22,6 @@ import org.htmlcleaner.TagNode;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -33,36 +36,29 @@ import dk.digitalidentity.rc.controller.mvc.viewmodel.EmailTemplateDTO;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.InlineImageDTO;
 import dk.digitalidentity.rc.dao.model.EmailTemplate;
 import dk.digitalidentity.rc.dao.model.User;
-import dk.digitalidentity.rc.security.RequireAdministratorRole;
 import dk.digitalidentity.rc.security.SecurityUtil;
 import dk.digitalidentity.rc.service.EmailService;
 import dk.digitalidentity.rc.service.EmailTemplateService;
 import dk.digitalidentity.rc.service.UserService;
 import lombok.extern.slf4j.Slf4j;
 
+@RequiredArgsConstructor
 @Slf4j
-@RequireAdministratorRole
+@RequireControllerPermission(section = Section.CONFIG, permission = Permission.READ)
 @RestController
 public class EmailTemplateRestController {
+	private final EmailTemplateService emailTemplateService;
+	private final EmailService emailService;
+	private final UserService userService;
+	private final AttestationRunService attestationRunService;
 
-	@Autowired
-	private EmailTemplateService emailTemplateService;
-	
-	@Autowired
-	private EmailService emailService;
-	
-	@Autowired
-	private UserService userService;
-
-	@Autowired
-	private AttestationRunService attestationRunService;
-
+	@RequirePermission(section = Section.CONFIG, permission = Permission.UPDATE)
 	@PostMapping(value = "/rest/mailtemplates")
 	@ResponseBody
 	public ResponseEntity<String> updateTemplate(@RequestBody EmailTemplateDTO emailTemplateDTO, @RequestParam("tryEmail") boolean tryEmail) {
 		toXHTML(emailTemplateDTO);
 		toValid3ByteUTF8String(emailTemplateDTO);
-		
+
 		boolean noEmailSentWarning = false;
 		if (tryEmail) {
 			User user = userService.getByUserId(SecurityUtil.getUserId());
@@ -72,11 +68,11 @@ public class EmailTemplateRestController {
 				if (email != null) {
 					List<InlineImageDTO> inlineImages = transformImages(emailTemplateDTO);
 					emailService.sendMessage(email, emailTemplateDTO.getTitle(), emailTemplateDTO.getMessage(), inlineImages, null);
-					
+
 					return new ResponseEntity<>("Test email sendt til " + email, HttpStatus.OK);
 				}
 			}
-			
+
 			return new ResponseEntity<>("Du har ingen email adresse registreret!", HttpStatus.CONFLICT);
 		}
 		else {
@@ -99,14 +95,14 @@ public class EmailTemplateRestController {
 			}
 			emailTemplateService.save(template);
 		}
-		
+
 		return new ResponseEntity<>(noEmailSentWarning ? "Bemærk mailen kan ikke nå at blive sendt i indeværende rul." : null, HttpStatus.OK);
 	}
 
 
 	private boolean findAffectedAttestations(EmailTemplate template, int validDays) {
 		final Optional<AttestationRun> currentRun = attestationRunService.getCurrentRun();
-		
+
 		if (currentRun.isEmpty()) {
 			return false;
 		}
@@ -131,11 +127,11 @@ public class EmailTemplateRestController {
 
 			InlineImageDTO inlineImageDto = new InlineImageDTO();
 			inlineImageDto.setBase64(src.contains("base64"));
-			
+
 			if (!inlineImageDto.isBase64()) {
 				continue;
 			}
-			
+
 			String cID = UUID.randomUUID().toString();
 			inlineImageDto.setCid(cID);
 			inlineImageDto.setSrc(src);
@@ -144,10 +140,10 @@ public class EmailTemplateRestController {
 		}
 
 		emailTemplateDTO.setMessage(doc.html());
-		
+
 		return inlineImages;
 	}
-	
+
 	/**
 	 * summernote does not generate valid XHTML. At least the <br/> and <img/> tags are not closed,
 	 * so we need to close them, otherwise our PDF processing will fail.
@@ -159,10 +155,10 @@ public class EmailTemplateRestController {
 				CleanerProperties properties = new CleanerProperties();
 				properties.setOmitXmlDeclaration(true);
 				TagNode tagNode = new HtmlCleaner(properties).clean(message);
-			
+
 				ByteArrayOutputStream bos = new ByteArrayOutputStream();
 				new BrowserCompactXmlSerializer(properties).writeToStream(tagNode, bos);
-	
+
 				emailTemplateDTO.setMessage(new String(bos.toByteArray(), Charset.forName("UTF-8")));
 			}
 			catch (IOException ex) {

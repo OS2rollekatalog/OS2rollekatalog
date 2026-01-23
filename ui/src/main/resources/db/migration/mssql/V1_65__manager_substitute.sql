@@ -1,1 +1,0 @@
-ALTER TABLE users ADD manager_substitute NVARCHAR(36) NULL REFERENCES users(uuid);

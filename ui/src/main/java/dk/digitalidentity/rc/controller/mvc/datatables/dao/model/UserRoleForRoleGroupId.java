@@ -18,5 +18,5 @@ import lombok.Setter;
 public class UserRoleForRoleGroupId implements Serializable {
     private static final long serialVersionUID = -5244477552739641900L;
     private Long id; // userrole id
-    private Long rolegroupId; // rolegroup id
+    private Long roleGroupId; // rolegroup id
 }

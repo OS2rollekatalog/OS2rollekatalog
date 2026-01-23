@@ -1,2 +1,0 @@
-ALTER TABLE it_systems ADD deleted BIT NOT NULL DEFAULT 0;
-ALTER TABLE it_systems ADD deleted_timestamp DATETIME2 NULL DEFAULT NULL;

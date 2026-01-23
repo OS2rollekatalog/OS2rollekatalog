@@ -25,7 +25,7 @@ import static org.springframework.transaction.TransactionDefinition.ISOLATION_RE
 /**
  * JDBC Notice!
  * These classes are made to save memory, hibernate will consume around 1gb whereas these use much less.
- * Warning though: the hibernate entity classes are used when fetching from the DB, they are obviously not attached to
+ * Warning though: the hibernate section classes are used when fetching from the DB, they are obviously not attached to
  * the hibernate session also all relations are not populated, so be aware!
  */
 @Slf4j

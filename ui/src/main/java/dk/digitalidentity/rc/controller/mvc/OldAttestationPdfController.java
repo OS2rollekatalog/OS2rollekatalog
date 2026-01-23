@@ -14,6 +14,7 @@ import java.util.stream.Collectors;
 @Controller
 public class OldAttestationPdfController {
 
+	//TODO - refactoring target - this controller and related unused classes should be removed completely
 	@Autowired
 	private OrgUnitService orgUnitService;
 

@@ -22,8 +22,18 @@
                             <li th:each="title : ${roleGroup.titles}" th:text="${title}"></li>
                         </ul>
                     </div>
-                    <div th:if="${orgUnitAssignments && #lists.isEmpty(roleGroup.titles)}">
+                    <div th:if="${orgUnitAssignments && !#lists.isEmpty(roleGroup.functions)}">
+                        <b th:text="#{attestationmodule.html.orgunits.attestate.user.tabs.roles.roleGroups.functions}"></b>
+                        <ul>
+                            <li th:each="function : ${roleGroup.functions}" th:text="${function}"></li>
+                        </ul>
+                    </div>
+                    <div th:if="${orgUnitAssignments && #lists.isEmpty(roleGroup.titles) && #lists.isEmpty(roleGroup.functions) && !roleGroup.manager}">
                         <p><b>Tildeles alle medarbejdere</b></p>
+                    </div>
+                    <div th:if="${orgUnitAssignments && roleGroup.manager}">
+                        <b th:if="${userRole.substitutes}" th:text="#{attestationmodule.html.orgunits.attestate.user.tabs.roles.roleGroups.manager}"></b>
+                        <b th:unless="${userRole.substitutes}" th:text="#{attestationmodule.html.orgunits.attestate.user.tabs.roles.roleGroups.managerAndSubstitutes}"></b>
                     </div>
                     <div th:if="${orgUnitAssignments && !#lists.isEmpty(roleGroup.exceptedUsers)}">
                         <b th:text="#{attestationmodule.html.orgunits.attestate.user.tabs.roles.roleGroups.exceptedUsers}"></b>
@@ -35,6 +45,12 @@
                         <b th:text="#{attestationmodule.html.orgunits.attestate.user.tabs.roles.roleGroups.negativeTitles}"></b>
                         <ul>
                             <li th:each="exceptedTitle : ${roleGroup.exceptedTitles}" th:text="${exceptedTitle}"></li>
+                        </ul>
+                    </div>
+                    <div th:if="${orgUnitAssignments && !#lists.isEmpty(roleGroup.functions)}">
+                        <b th:text="#{attestationmodule.html.orgunits.attestate.user.tabs.roles.roleGroups.functions}"></b>
+                        <ul>
+                            <li th:each="function : ${roleGroup.functions}" th:text="${function}"></li>
                         </ul>
                     </div>
                     <b th:text="#{attestationmodule.html.orgunits.attestate.user.tabs.roles.roleGroups.userRoles}"></b>

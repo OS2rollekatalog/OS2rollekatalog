@@ -6,7 +6,7 @@ import dk.digitalidentity.rc.controller.api.model.PostponedConstraintAM;
 import dk.digitalidentity.rc.controller.api.model.SystemRoleAM;
 import dk.digitalidentity.rc.controller.api.model.SystemRoleAssignmentAM;
 import dk.digitalidentity.rc.controller.api.model.UserRoleAM;
-import dk.digitalidentity.rc.controller.api.model.UserShallowAM;
+import dk.digitalidentity.rc.controller.api.model.UserRoleShallowAM;
 import dk.digitalidentity.rc.controller.api.model.UserUserRoleAssignmentAM;
 import dk.digitalidentity.rc.dao.model.ConstraintType;
 import dk.digitalidentity.rc.dao.model.ConstraintTypeSupport;
@@ -15,6 +15,7 @@ import dk.digitalidentity.rc.dao.model.SystemRole;
 import dk.digitalidentity.rc.dao.model.SystemRoleAssignment;
 import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserRole;
+import dk.digitalidentity.rc.rolerequest.model.enums.RequestableBy;
 import dk.digitalidentity.rc.service.model.AssignedThrough;
 import dk.digitalidentity.rc.service.model.UserRoleAssignedToUser;
 import dk.digitalidentity.rc.service.model.UserRoleAssignmentWithInfo;
@@ -23,7 +24,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import static dk.digitalidentity.rc.controller.api.mapper.OrgUnitMapper.toShallowApi;
 import static dk.digitalidentity.rc.controller.api.mapper.TitleMapper.titleToApi;
 
 public abstract class RoleMapper {
@@ -33,7 +33,7 @@ public abstract class RoleMapper {
         return UserUserRoleAssignmentAM.builder()
                 .user(UserMapper.toShallowApi(user))
                 .userRole(userRoleToApi(assignment.getUserRole()))
-                .responsibleOrgUnit(toShallowApi(userRoleAssignedToUser.getOrgUnit()))
+                .responsibleOrgUnit(OrgUnitMapper.toShallowApi(userRoleAssignedToUser.getOrgUnit()))
                 .assignedThroughTitle(titleToApi(userRoleAssignedToUser.getTitle()))
                 .assignedThrough(assignedThroughToApi(userRoleAssignedToUser.getAssignedThrough()))
                 .postponedConstraints(postponedConstraintsToApi(assignment.getPostponedConstraints()))
@@ -67,6 +67,14 @@ public abstract class RoleMapper {
                 .build();
     }
 
+	public static UserRoleShallowAM toShallowApi(final UserRole userRole) {
+		return UserRoleShallowAM.builder()
+			.id(userRole.getId())
+			.identifier(userRole.getIdentifier())
+			.name(userRole.getName())
+			.build();
+	}
+
     public static UserRoleAM userRoleToApi(final UserRole userRole) {
         return UserRoleAM.builder()
                 .id(userRole.getId())
@@ -75,7 +83,7 @@ public abstract class RoleMapper {
                 .delegatedFromCvr(userRole.getDelegatedFromCvr())
                 .description(userRole.getDescription())
                 .userOnly(userRole.isUserOnly())
-                .canRequest(userRole.isCanRequest())
+                .canRequest(!userRole.getRequesterPermission().contains(RequestableBy.NONE))
                 .sensitiveRole(userRole.isSensitiveRole())
                 .itSystemId(userRole.getItSystem().getId())
                 .systemRoleAssignments(userRole.getSystemRoleAssignments() != null

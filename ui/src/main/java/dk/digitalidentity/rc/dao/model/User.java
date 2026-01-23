@@ -20,6 +20,7 @@ import org.hibernate.envers.Audited;
 import org.hibernate.envers.NotAudited;
 import org.springframework.util.StringUtils;
 
+import java.time.LocalDate;
 import java.util.Date;
 import java.util.List;
 
@@ -33,25 +34,25 @@ public class User implements AuditLoggable {
 	@Id
 	@Column(name = "uuid")
 	private String uuid;
-	
+
 	@Column(name = "ext_uuid")
 	private String extUuid;
 
 	@Column(name = "user_id")
 	private String userId;
-	
+
 	@Column(name = "cpr")
 	private String cpr;
 
 	@Column(name = "name")
 	private String name;
-	
+
 	@Column(name = "email")
 	private String email;
-	
+
 	@Column(name = "phone")
 	private String phone;
-	
+
 	@UpdateTimestamp
 	@Temporal(TemporalType.TIMESTAMP)
 	@Column
@@ -65,6 +66,9 @@ public class User implements AuditLoggable {
 	private boolean disabled;
 
 	@Column
+	private LocalDate disabledAt;
+
+	@Column
 	private String nemloginUuid;
 
 	@NotAudited
@@ -72,7 +76,8 @@ public class User implements AuditLoggable {
 	private List<AltAccount> altAccounts;
 
 	@NotAudited
-	@OneToMany(mappedBy = "user", fetch = FetchType.EAGER, cascade = CascadeType.ALL, orphanRemoval = true)
+	@BatchSize(size = 128)
+	@OneToMany(mappedBy = "user", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
 	private List<Position> positions;
 
 	@NotAudited
@@ -104,6 +109,17 @@ public class User implements AuditLoggable {
 	@OneToMany(mappedBy = "substitute", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
 	private List<ManagerSubstitute> substituteFor;
 
+	@NotAudited
+	@BatchSize(size = 50)
+	@OneToMany(mappedBy = "user", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
+	private List<UserOUFunction> functionAssignments;
+
+	@JsonIgnore
+	@NotAudited
+	@BatchSize(size = 50)
+	@OneToMany(mappedBy = "manager", fetch = FetchType.LAZY)
+	private List<OrgUnit> managedOrgUnits;
+
 	@JsonIgnore
 	@Override
 	public String getEntityId() {
@@ -120,15 +136,15 @@ public class User implements AuditLoggable {
 		if (!StringUtils.hasLength(name)) {
 			return "Ukendt";
 		}
-		
+
 		int idx = name.lastIndexOf(" ");
 		if (idx <= 0) {
 			return name;
 		}
-		
+
 		return name.substring(0, idx);
 	}
-	
+
 	@JsonIgnore
 	public String getLastname() {
 		if (!StringUtils.hasLength(name)) {

@@ -1,25 +1,28 @@
 package dk.digitalidentity.rc.controller.mvc;
 
-import dk.digitalidentity.rc.config.Constants;
 import dk.digitalidentity.rc.controller.mvc.xlsview.ManagersXlsxView;
+import dk.digitalidentity.rc.controller.rest.model.ItemPermissionDTO;
 import dk.digitalidentity.rc.controller.rest.model.ManagerSubstituteAssignmentDTO;
 import dk.digitalidentity.rc.controller.rest.model.OrgUnitDTO;
 import dk.digitalidentity.rc.dao.model.ManagerSubstitute;
 import dk.digitalidentity.rc.dao.model.OrgUnit;
 import dk.digitalidentity.rc.dao.model.User;
-import dk.digitalidentity.rc.security.RequireAdministratorOrManagerRole;
-import dk.digitalidentity.rc.security.RequireReadAccessOrManagerRole;
-import dk.digitalidentity.rc.security.RequireReadAccessRole;
 import dk.digitalidentity.rc.security.SecurityUtil;
+import dk.digitalidentity.rc.security.permission.NotPermittedException;
+import dk.digitalidentity.rc.security.permission.Permission;
+import dk.digitalidentity.rc.security.permission.PermissionConstraint;
+import dk.digitalidentity.rc.security.permission.Section;
+import dk.digitalidentity.rc.security.permission.RequireControllerPermission;
+import dk.digitalidentity.rc.security.permission.RequirePermission;
+import dk.digitalidentity.rc.security.permission.UserPermissionContext;
 import dk.digitalidentity.rc.service.ManagerSubstituteService;
 import dk.digitalidentity.rc.service.OrgUnitService;
 import dk.digitalidentity.rc.service.UserService;
 import jakarta.servlet.http.HttpServletResponse;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.context.MessageSource;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
-import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -34,34 +37,23 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.stream.Collectors;
 
+@RequiredArgsConstructor
+@RequireControllerPermission(section = Section.MANAGER, permission = Permission.READ)
 @Controller
 public class ManagerController {
+	private final UserService userService;
+	private final MessageSource messageSource;
+	private final OrgUnitService orgUnitService;
+	private final ManagerSubstituteService managerSubstituteService;
+	private final UserPermissionContext userPermissionContext;
 
-	@Autowired
-	private UserService userService;
-	
-	@Autowired
-	private MessageSource messageSource;
 
-	@Autowired
-	private OrgUnitService orgUnitService;
-
-	@Autowired
-	private ManagerSubstituteService managerSubstituteService;
-
-	@RequireReadAccessOrManagerRole
 	@GetMapping("/ui/manager/substitute")
 	public String getSubstitute(Model model, @RequestParam(required = false, name = "uuid") String uuid) {
-		// manager-only users can only access themselves
-		if (!SecurityUtil.hasRole(Constants.ROLE_READ_ACCESS)) {
-			if (StringUtils.hasLength(uuid)) {
-				return "redirect:/";
-			}
-		}
-
 		// make sure we have a manager to look at
-		User manager = (uuid != null) ? userService.getByUuid(uuid) : getManager();
+		User manager = (uuid != null) ? userService.getOptionalByUuid(uuid).orElse(null) : getManager();
 		if (manager == null) {
 			return "redirect:/";
 		}
@@ -74,52 +66,66 @@ public class ManagerController {
 			}
 		}
 		orgUnitDTOs.sort(Comparator.comparing(OrgUnitDTO::getName));
-		
+
 		List<ManagerSubstituteAssignmentDTO> substitutesDTO = manager.getManagerSubstitutes().stream().filter(s -> !s.getSubstitute().isDeleted()).map(ManagerSubstituteAssignmentDTO::new).toList();
-		
+
 		model.addAttribute("managerUuid", manager.getUuid());
 		model.addAttribute("managerName", manager.getName());
 		model.addAttribute("substitutes", substitutesDTO);
 		model.addAttribute("orgUnits", orgUnitDTOs);
 		model.addAttribute("page", (uuid != null) ? "manager.list" : "manager.substitute");
-		
-		boolean canEdit = SecurityUtil.hasRole(Constants.ROLE_ADMINISTRATOR) || (getManager() != null &&  Objects.equals(getManager().getUuid(), manager.getUuid()));
+
+		boolean canEdit = userPermissionContext.hasPermission(Section.MANAGER, Permission.UPDATE) && (getManager() != null &&  Objects.equals(getManager().getUuid(), manager.getUuid()));
 		model.addAttribute("canEdit", canEdit);
-		
+
 		return "manager/substitute";
 	}
-	
-	@RequireReadAccessRole
+
+	public record ManagerListDTO(String name, String userId, String uuid, ItemPermissionDTO allowedActions) {}
 	@GetMapping("/ui/manager/list")
 	public String getManagers(Model model) {
-		model.addAttribute("managers", userService.findManagers());
+		PermissionConstraint readconstraint = userPermissionContext.getConstraint(Section.MANAGER, Permission.READ);
+
+		model.addAttribute("managers", userService.findManagers().stream()
+				.filter(user ->
+						readconstraint == null ||
+								user.getPositions().stream()
+										.map(p -> p.getOrgUnit().getUuid())
+										.anyMatch(readconstraint::allowsOrgunit))
+				.map(user -> new ManagerListDTO(
+						user.getName(),
+						user.getUserId(),
+						user.getUuid(),
+						userPermissionContext.getSpecificAllowedActionsForOus(Section.MANAGER, user.getPositions().stream().map(p->p.getOrgUnit().getUuid()).collect(Collectors.toSet()))
+				) )
+		);
 
 		return "manager/list";
 	}
 
 	public record ManagerSubstituteDTO(long id, String substituteName, String managerName, String ouName, String assignedDate, String warning) {}
-	@RequireReadAccessRole
 	@GetMapping("/ui/management/substitute/list")
 	public String getSubstitutesList(Model model) {
-//		model.addAttribute("substitutes", userService.findManagers());
-
+		PermissionConstraint readConstraint = userPermissionContext.getConstraint(Section.MANAGER, Permission.READ);
 		String pattern = "dd/MM-yyyy";
 		SimpleDateFormat simpleDateFormat = new SimpleDateFormat(pattern);
-		List<ManagerSubstituteDTO> managerSubstitutes = managerSubstituteService.getAll().stream().map(ms -> {
-			boolean managerInactive = ms.getManager().isDeleted() || ms.getManager().isDisabled();
-			boolean substituteInactive = ms.getSubstitute().isDeleted() || ms.getSubstitute().isDisabled();;
+		List<ManagerSubstituteDTO> managerSubstitutes = managerSubstituteService.getAll().stream()
+				.filter(ms -> readConstraint.allowsOrgunit(ms.getOrgUnit().getUuid()))
+				.map(ms -> {
+					boolean managerInactive = ms.getManager().isDeleted() || ms.getManager().isDisabled();
+					boolean substituteInactive = ms.getSubstitute().isDeleted() || ms.getSubstitute().isDisabled();
 
-			return new ManagerSubstituteDTO(
-					ms.getId(),
-					ms.getSubstitute().getName(),
-					ms.getManager().getName(),
-					ms.getOrgUnit().getName(),
-					ms.getAssignedTts() != null ? simpleDateFormat.format(ms.getAssignedTts()) : null,
-					managerInactive ? "Leder er ikke længere aktiv" :
-							substituteInactive ? "Stedfortræder er ikke længere aktiv"
-									: null
-			);
-		}).toList();
+					return new ManagerSubstituteDTO(
+							ms.getId(),
+							ms.getSubstitute().getName(),
+							ms.getManager().getName(),
+							ms.getOrgUnit().getName(),
+							ms.getAssignedTts() != null ? simpleDateFormat.format(ms.getAssignedTts()) : null,
+							managerInactive ? "Leder er ikke længere aktiv" :
+									substituteInactive ? "Stedfortræder er ikke længere aktiv"
+											: null
+					);
+				}).toList();
 
 
 		model.addAttribute("manSubstitutes", managerSubstitutes);
@@ -127,10 +133,18 @@ public class ManagerController {
 	}
 
 	public record SimpleManagerDTO(String uuid, String name, boolean selected) {}
-	@RequireAdministratorOrManagerRole
+	@RequirePermission(section = Section.MANAGER, permission = Permission.CREATE)
 	@GetMapping("/ui/management/substitute/create")
 	public String getCreateFragment(Model model) {
-		List<SimpleManagerDTO> managers = orgUnitService.getManagers().stream().map(user -> new SimpleManagerDTO(user.getUuid(), user.getName(), false)).toList();
+		PermissionConstraint readConstraint = userPermissionContext.getConstraint(Section.MANAGER, Permission.READ);
+		List<SimpleManagerDTO> managers = orgUnitService.getManagers().stream()
+				.filter(user ->
+						readConstraint == null ||
+								user.getPositions().stream()
+										.map(p -> p.getOrgUnit().getUuid())
+										.anyMatch(readConstraint::allowsOrgunit))
+				.map(user -> new SimpleManagerDTO(user.getUuid(), user.getName(), false))
+				.sorted(Comparator.comparing(SimpleManagerDTO::name)).toList();
 		model.addAttribute("managers", managers);
 
 		//Orglist is empty, but later dynamically fetched
@@ -141,7 +155,6 @@ public class ManagerController {
 
 
 	public record OUDTO (String uuid, String name, boolean selected) {}
-	@RequireAdministratorOrManagerRole
 	@GetMapping("ui/management/substitute/manager/{uuid}/orgunit/options")
 	public String getOUOptionsForManager(Model model, @PathVariable String uuid) {
 		final User manager = userService.getOptionalByUuid(uuid)
@@ -154,12 +167,27 @@ public class ManagerController {
 
 
 	public record SimpleSubstitute(String uuid, String name) {}
-	@RequireAdministratorOrManagerRole
+	@RequirePermission(section = Section.MANAGER, permission = Permission.UPDATE)
 	@GetMapping("/ui/management/substitute/{id}/edit")
 	public String getEditFragment(Model model, @PathVariable Long id) {
-		ManagerSubstitute manSub = managerSubstituteService.findById(id);
+		PermissionConstraint readConstraint = userPermissionContext.getConstraint(Section.MANAGER, Permission.READ);
+		PermissionConstraint editConstraint = userPermissionContext.getConstraint(Section.MANAGER, Permission.UPDATE);
 
-		List<SimpleManagerDTO> managers = orgUnitService.getManagers().stream().map(user -> new SimpleManagerDTO(user.getUuid(), user.getName(), user.getUuid().equals(manSub.getManager().getUuid()))).toList();
+		ManagerSubstitute manSub = managerSubstituteService.findById(id);
+		if (!editConstraint.allowsOrgunit(manSub.getOrgUnit().getUuid())) {
+			throw new NotPermittedException(
+					"Constraints does not include managersubstitute " + id,
+					Section.MANAGER,
+					Permission.UPDATE);
+		}
+
+		List<SimpleManagerDTO> managers = orgUnitService.getManagers().stream()
+				.filter(user ->
+						readConstraint == null ||
+								user.getPositions().stream()
+										.map(p -> p.getOrgUnit().getUuid())
+										.anyMatch(readConstraint::allowsOrgunit))
+				.map(user -> new SimpleManagerDTO(user.getUuid(), user.getName(), user.getUuid().equals(manSub.getManager().getUuid()))).toList();
 		model.addAttribute("managers", managers);
 
 		model.addAttribute("substitute", new SimpleSubstitute(manSub.getSubstitute().getUuid(), manSub.getSubstitute().getName()));
@@ -172,7 +200,6 @@ public class ManagerController {
 		return "substitute/fragments/edit :: editModal";
 	}
 
-	@RequireReadAccessRole
 	@RequestMapping(value = "/ui/managers/download")
 	public ModelAndView download(HttpServletResponse response, Locale loc) {
 		Map<String, Object> model = new HashMap<>();
@@ -185,8 +212,9 @@ public class ManagerController {
 
 		return new ModelAndView(new ManagersXlsxView(), model);
 	}
-	
+
 	private User getManager() {
+		// TODO - refactoring target - this doesn't actually do what the signature say it does...
 		return userService.getByUserId(SecurityUtil.getUserId());
 	}
 

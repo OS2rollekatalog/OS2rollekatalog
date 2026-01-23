@@ -14,9 +14,9 @@ public enum ConstraintValueType {
 	LEVEL_6,
 
 	INHERITED,               // the user inherits constraint values from the OU(s) he holds positions in
-	SELECTED_INHERITED,       // the user inherits constraint values from the OU(s) chosen as well as the ones he holds positions in
 	EXTENDED_INHERITED,      // as above, but according to the extension rules (depends on the type of constraint)
 	READ_AND_WRITE,			 // the sum of the two above
+	SELECTED_INHERITED,       // the user inherits constraint values from the OU(s) chosen as well as the ones he holds positions in
 	VALUE,                   // an actual hardcoded value is used
 	POSTPONED;				 // the constraint is postponed to the role assignment time
 	

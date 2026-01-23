@@ -30,7 +30,7 @@
 										<td th:text="${manager.name}"></td>
 										<td th:text="${manager.userId}"></td>
 										<td>
-											<a th:href="@{/ui/manager/substitute} + '?uuid=' + ${manager.uuid}" th:title="#{html.page.manager.list.substitutes}"><em class="fa fa-fw fa-list"></em></a>
+											<a th:if="${manager.allowedActions.editable}" th:href="@{'/ui/manager/substitute?uuid=' + ${manager.uuid}}" th:title="#{html.page.manager.list.substitutes}"><em class="fa fa-fw fa-list"></em></a>
 										</td>
 									</tr>
 								</tbody>

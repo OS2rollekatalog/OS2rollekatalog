@@ -36,6 +36,9 @@ public class HistoryOU {
 	
 	@Column
 	private String ouManagerUuid;
+
+	@Column
+	private String ouSubstituteUuids;
 	
 	@BatchSize(size = 100)
 	@OneToMany(mappedBy = "historyOU", fetch = FetchType.LAZY)

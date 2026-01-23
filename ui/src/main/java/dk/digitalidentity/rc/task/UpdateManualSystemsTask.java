@@ -31,7 +31,7 @@ public class UpdateManualSystemsTask {
 		log.info("Notifying servicedesk about manual it-system changes started");
 
 		manualRolesService.notifyServicedesk();
-		
+
 		log.info("Notifying servicedesk about manual it-system changes completed");
 	}
 }

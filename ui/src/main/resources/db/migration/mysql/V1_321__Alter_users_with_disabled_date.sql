@@ -1,0 +1,5 @@
+ALTER TABLE users
+    ADD COLUMN disabled_at DATE DEFAULT NULL;
+
+ALTER TABLE users_aud
+    ADD COLUMN disabled_at DATE DEFAULT NULL;

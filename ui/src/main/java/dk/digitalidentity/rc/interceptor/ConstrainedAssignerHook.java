@@ -1,8 +1,5 @@
 package dk.digitalidentity.rc.interceptor;
 
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Component;
-
 import dk.digitalidentity.rc.dao.model.OrgUnit;
 import dk.digitalidentity.rc.dao.model.Position;
 import dk.digitalidentity.rc.dao.model.RoleGroup;
@@ -13,10 +10,11 @@ import dk.digitalidentity.rc.dao.model.UserUserRoleAssignment;
 import dk.digitalidentity.rc.security.AccessConstraintService;
 import dk.digitalidentity.rc.security.SecurityUtil;
 
-@Component
+// TODO MAKE THIS COMPATIBLE WITH ROLE REQUEST MODULE
+//@Component
 public class ConstrainedAssignerHook implements RoleChangeHook {
 
-	@Autowired
+//	@Autowired
 	private AccessConstraintService assignerRoleConstraint;
 
 	@Override
@@ -30,9 +28,9 @@ public class ConstrainedAssignerHook implements RoleChangeHook {
 	public void interceptRemoveRoleGroupAssignmentOnUser(User user, RoleGroup roleGroup) {
 		if (!assignerRoleConstraint.isAssignmentAllowed(user, roleGroup)) {
 			throw new SecurityException("User " + SecurityUtil.getUserId() + " is prohibited from modifying user: " + user.getEntityId());
-		}		
+		}
 	}
-	
+
 	@Override
 	public void interceptActivateUser(User user) {
 		; // not relevant
@@ -56,42 +54,6 @@ public class ConstrainedAssignerHook implements RoleChangeHook {
 
 	@Override
 	public void interceptRemoveUserRoleAssignmentOnUser(User user, UserRole userRole) {
-		if (!assignerRoleConstraint.isAssignmentAllowed(user, userRole)) {
-			throw new SecurityException("User " + SecurityUtil.getUserId() + " is prohibited from modifying user: " + user.getEntityId());
-		}
-	}
-
-	@Override
-	public void interceptAddRoleGroupAssignmentOnPosition(Position position, RoleGroup roleGroup) {
-		User user = position.getUser();
-
-		if (!assignerRoleConstraint.isAssignmentAllowed(user, roleGroup)) {
-			throw new SecurityException("User " + SecurityUtil.getUserId() + " is prohibited from modifying user: " + user.getEntityId());
-		}
-	}
-
-	@Override
-	public void interceptRemoveRoleGroupAssignmentOnPosition(Position position, RoleGroup roleGroup) {
-		User user = position.getUser();
-
-		if (!assignerRoleConstraint.isAssignmentAllowed(user, roleGroup)) {
-			throw new SecurityException("User " + SecurityUtil.getUserId() + " is prohibited from modifying user: " + user.getEntityId());
-		}
-	}
-
-	@Override
-	public void interceptAddUserRoleAssignmentOnPosition(Position position, UserRole userRole) {
-		User user = position.getUser();
-
-		if (!assignerRoleConstraint.isAssignmentAllowed(user, userRole)) {
-			throw new SecurityException("User " + SecurityUtil.getUserId() + " is prohibited from modifying user: " + user.getEntityId());
-		}
-	}
-
-	@Override
-	public void interceptRemoveUserRoleAssignmentOnPosition(Position position, UserRole userRole) {
-		User user = position.getUser();
-
 		if (!assignerRoleConstraint.isAssignmentAllowed(user, userRole)) {
 			throw new SecurityException("User " + SecurityUtil.getUserId() + " is prohibited from modifying user: " + user.getEntityId());
 		}

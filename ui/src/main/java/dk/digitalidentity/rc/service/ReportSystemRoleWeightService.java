@@ -1,11 +1,5 @@
 package dk.digitalidentity.rc.service;
 
-import dk.digitalidentity.rc.dao.history.model.HistoryItSystem;
-import dk.digitalidentity.rc.dao.history.model.HistorySystemRole;
-import dk.digitalidentity.rc.dao.history.model.HistorySystemRoleAssignment;
-import dk.digitalidentity.rc.dao.history.model.HistoryUserRole;
-import dk.digitalidentity.rc.service.model.UserRoleAssignmentReportEntry;
-
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -13,7 +7,11 @@ import java.util.Objects;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import static dk.digitalidentity.rc.util.NullSafe.nullSafe;
+import dk.digitalidentity.rc.dao.history.model.HistoryItSystem;
+import dk.digitalidentity.rc.dao.history.model.HistorySystemRole;
+import dk.digitalidentity.rc.dao.history.model.HistorySystemRoleAssignment;
+import dk.digitalidentity.rc.dao.history.model.HistoryUserRole;
+import dk.digitalidentity.rc.service.model.UserRoleAssignmentReportEntry;
 
 public class ReportSystemRoleWeightService {
 

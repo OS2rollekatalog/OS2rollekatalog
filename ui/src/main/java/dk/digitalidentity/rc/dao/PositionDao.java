@@ -1,27 +1,17 @@
 package dk.digitalidentity.rc.dao;
 
-import dk.digitalidentity.rc.dao.model.OrgUnit;
-import dk.digitalidentity.rc.dao.model.Position;
-import dk.digitalidentity.rc.dao.model.RoleGroup;
-import dk.digitalidentity.rc.dao.model.Title;
-import dk.digitalidentity.rc.dao.model.UserRole;
+import java.util.List;
+
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.CrudRepository;
 
-import java.util.List;
+import dk.digitalidentity.rc.dao.model.OrgUnit;
+import dk.digitalidentity.rc.dao.model.Position;
+import dk.digitalidentity.rc.dao.model.Title;
 
 public interface PositionDao extends CrudRepository<Position, Long> {
 
 	List<Position> findAll();
-	
-	@Deprecated
-	List<Position> findByRoleGroupAssignmentsRoleGroup(RoleGroup role);
-	
-	@Deprecated
-	List<Position> findByUserRoleAssignmentsUserRole(UserRole role);
-
-	List<Position> findByRoleGroupAssignmentsRoleGroupAndRoleGroupAssignmentsInactive(RoleGroup role, boolean inactive);
-	List<Position> findByUserRoleAssignmentsUserRoleAndUserRoleAssignmentsInactive(UserRole userRole, boolean inactive);
 
 	Position getById(long id);
 

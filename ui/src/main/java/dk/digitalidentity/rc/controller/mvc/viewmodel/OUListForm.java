@@ -13,13 +13,14 @@ public class OUListForm {
 	private String text;
 	private boolean editable;
 	private OUListFormState state = new OUListFormState();
+	private boolean canRead = true;
 
 	public OUListForm(OrgUnit ou, boolean editable) {
 		this.text = ou.getName();
 		this.id = ou.getUuid();
 		this.parent = (ou.getParent() != null) ? ou.getParent().getUuid() : "#";
 		this.editable = editable;
-		
+
 		if (ou.getLevel() != null) {
 			switch (ou.getLevel()) {
 				case LEVEL_1:
@@ -51,5 +52,10 @@ public class OUListForm {
 		this.id = ou.getOuUuid();
 		this.parent = (ou.getOuParentUuid() != null) ? ou.getOuParentUuid() : "#";
 		this.editable = false;
+	}
+
+	public OUListForm(OrgUnit ou, boolean editable, boolean canRead) {
+		this(ou, editable);
+		this.canRead = canRead;
 	}
 }

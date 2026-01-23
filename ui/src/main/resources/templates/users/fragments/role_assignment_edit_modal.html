@@ -1,19 +1,19 @@
 <th:block th:fragment="roleAssignmentEditModal" xmlns="http://www.w3.org/1999/xhtml" xmlns:th="http://www.thymeleaf.org">
 	<div class="modal fade" id="modal-edit" role="dialog">
 		<div class="modal-dialog">
-	
+
 			<!-- Modal content-->
 			<div class="modal-content">
 				<div class="modal-header">
 					<h4 th:text="#{html.page.users.list.modal.edit}"></h4>
 				</div>
-	
+
 				<div class="modal-body" style="overflow-y: initial !important;">
 					<div id="editPostponedConstraintsPlaceholder"></div>
-					
+
 					<div style="height: 70px;">
 						<h4 class="md-12" th:text="#{html.word.validity}"></h4>
-						
+
 						<b class="col-sm-1" style="padding-top: 7px;" th:text="#{html.word.from}"></b>
 						<div class="col-md-5">
 							<div class="form-group">
@@ -25,7 +25,7 @@
 								</div>
 							</div>
 						</div>
-	
+
 						<b class="col-sm-1" style="padding-top: 7px;" th:text="#{html.word.to}"></b>
 						<div class="col-md-5">
 							<div class="form-group">
@@ -59,7 +59,7 @@
 						</div>
 					</div>
 				</div>
-	
+
 				<div class="modal-footer">
 					<button id="updateBtn" class="btn btn-primary" th:text="#{html.control.button.save}"></button>
 					<button id="closeEditModal" class="btn btn-danger" th:text="#{html.control.button.cancel}"></button>
@@ -68,7 +68,7 @@
 		</div>
 	</div>
 </th:block>
-	
+
 <th:block th:fragment="roleAssignmentEditModalScript" xmlns="http://www.w3.org/1999/xhtml" xmlns:th="http://www.thymeleaf.org">
 	<script th:inline="javascript" type="text/javascript">
 		/*<![CDATA[*/
@@ -92,7 +92,7 @@
 			+]*/
 			userRoleEditModalService.init();
 		});
-		
+
 		function UserRoleEditModalService() {
 			this.modal = function () {
 				return $("#modal-edit");
@@ -122,7 +122,7 @@
 				    backdrop: 'static',
 				    keyboard: false
 				});
-				
+
 				$('#startDatePickerEdit').data("DateTimePicker").clear();
 				if (startDate) {
 					$('#startDatePickerEdit').data("DateTimePicker").date(startDate);
@@ -173,7 +173,7 @@
 				if (caseNumberEnabled) {
 					caseNumberUrlPart = '&casenumber=' + $("#editRoleCaseNumber").val();
 				}
-				
+
 				var updateRestEndpoint = userRoleEditModalService.usersUrl + userUuid + '/editassignment/' + type + '/'+ assignedThrough + '/' + assignmentId + dates + "&ouuuid=" + selectedOU + caseNumberUrlPart;
 				var constraints = [];
 				if (!missingPostponedConstraintService) {
@@ -193,7 +193,7 @@
 	    			   },
 	    			   error: errorHandler(userRoleEditModalService.fieldNotUpdatedMsg)
 	    		});
-				
+
 				setTimeout(function(){ userRoleEditModalService.parentService.loadRolesFragment(); }, 200);
 				editModal.modal('hide');
 			}
@@ -201,20 +201,20 @@
 			this.closeModal = function() {
 				userRoleEditModalService.modal().modal('hide');
 			}
-			
+
 			this.loadPostponedConstraintsFragment = function (assignmentId, type, user) {
 				if (type == "USERROLE") {
 					$("#postponedConstraintsPlaceholder").empty();
 					$("#editPostponedConstraintsPlaceholder").empty();
-					
+
 					$("#editPostponedConstraintsPlaceholder").load(baseUrl + "ui/users/manage/" + user + "/postponedconstraints/edit/" + assignmentId, function () {
 						postponedConstraintsService.init();
 					});
 				}
 			}
-			
+
 		}
-		
+
 		// TODO: move these into a utility js file (exists in edit.html for users/orgunits)
 		function ModalAjaxService() {
 
@@ -234,7 +234,7 @@
 	    			}
 	    		};
 	    	}
-	        
+
 	        this.showInfoNotification = function(message) {
 				$.notify({
 					message: message,
@@ -251,7 +251,7 @@
 				});
 			}
 		}
-		
+
 		/*]]>*/
 
 	</script>

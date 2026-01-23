@@ -52,43 +52,5 @@ BEGIN
   JOIN it_systems it ON it.id = ur.it_system_id
   WHERE u.deleted = 0;
 
-  -- user roles from position assignments
-  INSERT INTO history_role_assignments (
-    dato, user_uuid,
-    role_id, role_name, role_it_system_id, role_it_system_name, role_role_group, role_role_group_id,
-    assigned_through_type, assigned_through_uuid, assigned_through_name,
-    assigned_by_user_id, assigned_by_name, assigned_when, ou_uuid, start_date, stop_date)
-  SELECT CURRENT_TIMESTAMP, u.uuid,
-    ur.id, ur.name, it.id, it.name, NULL, NULL,
-    'POSITION', ou.uuid, CONCAT(p.name, ' i ', ou.name),
-    pr.assigned_by_user_id, pr.assigned_by_name, pr.assigned_timestamp, p.ou_uuid, pr.start_date, pr.stop_date
-  FROM position_roles pr
-  JOIN positions p ON p.id = pr.position_id
-  JOIN users u ON u.uuid = p.user_uuid
-  JOIN ous ou ON ou.uuid = p.ou_uuid
-  JOIN user_roles ur ON ur.id = pr.role_id
-  JOIN it_systems it ON it.id = ur.it_system_id
-  WHERE u.deleted = 0;
-
-  -- user roles through rolegroup from position assignments
-  INSERT INTO history_role_assignments (
-    dato, user_uuid,
-    role_id, role_name, role_it_system_id, role_it_system_name, role_role_group, role_role_group_id,
-    assigned_through_type, assigned_through_uuid, assigned_through_name,
-    assigned_by_user_id, assigned_by_name, assigned_when, ou_uuid, start_date, stop_date)
-  SELECT CURRENT_TIMESTAMP, u.uuid,
-    ur.id, ur.name, it.id, it.name, rg.name, rg.id,
-    'POSITION', ou.uuid, CONCAT(p.name, ' i ', ou.name),
-    prg.assigned_by_user_id, prg.assigned_by_name, prg.assigned_timestamp, p.ou_uuid, prg.start_date, prg.stop_date
-  FROM position_rolegroups prg
-  JOIN rolegroup rg ON prg.rolegroup_id = rg.id
-  JOIN positions p ON p.id = prg.position_id
-  JOIN users u ON u.uuid = p.user_uuid
-  JOIN ous ou ON ou.uuid = p.ou_uuid
-  JOIN rolegroup_roles rgr ON rgr.rolegroup_id = prg.rolegroup_id
-  JOIN user_roles ur ON ur.id = rgr.role_id
-  JOIN it_systems it ON it.id = ur.it_system_id
-  WHERE u.deleted = 0;
-
 END $$
 DELIMITER ;
