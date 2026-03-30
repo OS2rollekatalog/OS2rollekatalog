@@ -11,8 +11,13 @@ namespace ADSyncService
 
         public void PerformUpdate(RoleCatalogueStub roleCatalogueStub, ADStub adStub)
         {
-            List<string> systemMap = remoteConfigurationService.GetConfiguration().itSystemGroupFeatureSystemMap;
             bool doNotRegisterDisabledUsers = remoteConfigurationService.GetConfiguration().itSystemGroupFeatureDoNotRegisterDisabledUsers;
+
+            // Collect users per AD group from both systems and roles
+            var groupUserMap = new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase);
+
+            // Process system mappings
+            List<string> systemMap = remoteConfigurationService.GetConfiguration().itSystemGroupFeatureSystemMap;
             if (systemMap != null)
             {
                 foreach (string mapRaw in systemMap)
@@ -34,10 +39,11 @@ namespace ADSyncService
                         continue;
                     }
 
-                    HandleGroupMembers(adStub, groupDn, users, doNotRegisterDisabledUsers);
+                    AddUsersToGroup(groupUserMap, groupDn, users);
                 }
             }
 
+            // Process role mappings
             List<string> roleMap = remoteConfigurationService.GetConfiguration().itSystemGroupFeatureRoleMap;
             if (roleMap != null)
             {
@@ -60,8 +66,28 @@ namespace ADSyncService
                         continue;
                     }
 
-                    HandleGroupMembers(adStub, groupDn, users, doNotRegisterDisabledUsers);
+                    AddUsersToGroup(groupUserMap, groupDn, users);
                 }
+            }
+
+            // Handle each AD group once with the combined user list
+            foreach (var entry in groupUserMap)
+            {
+                HandleGroupMembers(adStub, entry.Key, new List<string>(entry.Value), doNotRegisterDisabledUsers);
+            }
+        }
+
+        private static void AddUsersToGroup(Dictionary<string, HashSet<string>> groupUserMap, string groupDn, List<string> users)
+        {
+            if (!groupUserMap.TryGetValue(groupDn, out HashSet<string> userSet))
+            {
+                userSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                groupUserMap[groupDn] = userSet;
+            }
+
+            foreach (string user in users)
+            {
+                userSet.Add(user);
             }
         }
 

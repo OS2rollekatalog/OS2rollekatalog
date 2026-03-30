@@ -59,7 +59,7 @@
 														<td style="display: none" th:text="${roleGroup.id}"></td>
 														<td class="dt-control"></td>
 														<td th:text="${roleGroup.name}"></td>
-														<td th:text="${roleGroup.description}"></td>
+														<td class="preformat" th:text="${roleGroup.description}"></td>
 														<td>
 															<span th:text="#{${roleGroup.status}}"></span>
 															<span
@@ -80,7 +80,7 @@
 														<td style="display: none" th:text="${roleGroup.roleId}"></td>
 														<td class="dt-control"></td>
 														<td th:text="${roleGroup.name}"></td>
-														<td th:text="${roleGroup.description}"></td>
+														<td class="preformat" th:text="${roleGroup.description}"></td>
 														<td>
 															<span th:text="#{${roleGroup.status}}"></span>
 														</td>
@@ -115,7 +115,7 @@
 												<tr th:each="userRole : ${userRoles}">
 													<td th:text="${userRole.itSystemName}"></td>
 													<td th:text="${userRole.name}"></td>
-													<td th:text="${userRole.description}"></td>
+													<td class="preformat" th:text="${userRole.description}"></td>
 													<td>
 														<span th:text="#{${userRole.status}}"></span>
 														<span
@@ -134,7 +134,7 @@
 												<tr th:each="userRole : ${pendingUserRoles}">
 													<td th:text="${userRole.itSystemName}"></td>
 													<td th:text="${userRole.name}"></td>
-													<td th:text="${userRole.description}"></td>
+													<td class="preformat" th:text="${userRole.description}"></td>
 													<td>
 														<span th:text="#{${userRole.status}}"></span>
 													</td>

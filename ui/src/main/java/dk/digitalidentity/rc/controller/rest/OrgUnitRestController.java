@@ -1,5 +1,6 @@
 package dk.digitalidentity.rc.controller.rest;
 
+import dk.digitalidentity.rc.config.Constants;
 import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.KleViewModel;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.OUAssignStatus;
@@ -22,12 +23,14 @@ import dk.digitalidentity.rc.dao.model.enums.KleType;
 import dk.digitalidentity.rc.dao.model.enums.OrgUnitLevel;
 import dk.digitalidentity.rc.log.AuditLogger;
 import dk.digitalidentity.rc.security.AccessConstraintService;
-import dk.digitalidentity.rc.security.RequireAssignerRole;
 import dk.digitalidentity.rc.security.RequireKleAdministratorRole;
+import dk.digitalidentity.rc.security.SecurityUtil;
 import dk.digitalidentity.rc.security.permission.Permission;
-import dk.digitalidentity.rc.security.permission.Section;
+import dk.digitalidentity.rc.security.permission.PermissionConstraint;
 import dk.digitalidentity.rc.security.permission.RequireControllerPermission;
 import dk.digitalidentity.rc.security.permission.RequirePermission;
+import dk.digitalidentity.rc.security.permission.Section;
+import dk.digitalidentity.rc.security.permission.UserPermissionContext;
 import dk.digitalidentity.rc.service.KleService;
 import dk.digitalidentity.rc.service.OrgUnitService;
 import dk.digitalidentity.rc.service.RoleGroupService;
@@ -52,6 +55,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDate;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
@@ -60,6 +64,7 @@ import java.util.Set;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
+@SuppressWarnings("AutoBoxing")
 @Slf4j
 @RequiredArgsConstructor
 @RequireControllerPermission(section = Section.ORGUNIT, permission = Permission.READ)
@@ -73,6 +78,7 @@ public class OrgUnitRestController {
 	private final KleService kleService;
 	private final UserService userService;
 	private final AuditLogger auditLogger;
+	private final UserPermissionContext userPermissionContext;
 
 	@GetMapping(value = "/rest/ous/getKle/{parentCode}", produces = MediaType.APPLICATION_JSON_VALUE)
 	@ResponseBody
@@ -167,7 +173,7 @@ public class OrgUnitRestController {
 		return new ResponseEntity<>(HttpStatus.OK);
 	}
 
-	@RequireAssignerRole
+	@RequirePermission(section = Section.ORGUNIT, permission = Permission.ASSIGN)
 	@PostMapping(value = "/rest/ous/addrole/{uuid}/{roleid}")
 	public ResponseEntity<?> addRole(@PathVariable("uuid") String uuid,
 			@PathVariable("roleid") long roleId,
@@ -181,15 +187,23 @@ public class OrgUnitRestController {
 			@RequestBody StringArrayWrapper payload) {
 		OrgUnit ou = orgUnitService.getByUuid(uuid);
 		UserRole role = userRoleService.getById(roleId);
-		if (!accessConstraintService.isAssignmentAllowed(ou, role)) {
-			throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Ikke tilladt");
-		}
 		if (ou == null || role == null || role.isReadOnly()) {
 			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
 		}
 
 		if (role.getItSystem().getSystemType() == ItSystemType.AD && role.getItSystem().isReadonly()) {
 			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+		}
+
+		PermissionConstraint assignConstraint = userPermissionContext.getConstraint(Section.ORGUNIT, Permission.ASSIGN);
+		boolean isInternalRole = Constants.ROLE_CATALOGUE_IDENTIFIER.equals(role.getItSystem().getIdentifier());
+		boolean isAdmin = SecurityUtil.hasDirectAdminRole();
+		boolean assigningAllowed = isAdmin // Admins are always allowed
+			|| (!isInternalRole // only admins can assign internal roles
+			&& assignConstraint.allowsOrgunit(ou.getUuid())  // ou must be within constraints
+			&& assignConstraint.allowsITSystem(role.getItSystem().getId())); // roles it system must be within constraints
+		if (!assigningAllowed) {
+			throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Ikke tilladt");
 		}
 
 		LocalDate startDate = null, stopDate = null;
@@ -216,7 +230,7 @@ public class OrgUnitRestController {
 		return new ResponseEntity<>(HttpStatus.OK);
 	}
 
-	@RequireAssignerRole
+	@RequirePermission(section = Section.ORGUNIT, permission = Permission.ASSIGN)
 	@PostMapping(value = "/rest/ous/editrole/{uuid}/{assignmentId}")
 	public ResponseEntity<OUAssignStatus> editUserRoleAssignment(@PathVariable("uuid") String uuid,
 			@PathVariable("assignmentId") long assignmentId,
@@ -275,7 +289,7 @@ public class OrgUnitRestController {
 		return new ResponseEntity<>(HttpStatus.OK);
 	}
 
-	@RequireAssignerRole
+	@RequirePermission(section = Section.ORGUNIT, permission = Permission.ASSIGN)
 	@PostMapping(value = "/rest/ous/{uuid}/removeassignment/{type}/{assignmentId}")
 	public ResponseEntity<String> removeUserRoleOrRoleGroupAssignmentFromOrgUnit(@PathVariable("uuid") String uuid, @PathVariable("assignmentId") long assignmentId, @PathVariable("type") RoleAssignmentType type) {
 		OrgUnit ou = orgUnitService.getByUuid(uuid);
@@ -304,7 +318,7 @@ public class OrgUnitRestController {
 		return new ResponseEntity<>(HttpStatus.OK);
 	}
 
-	@RequireAssignerRole
+	@RequirePermission(section = Section.ORGUNIT, permission = Permission.ASSIGN)
 	@PostMapping(value = "/rest/ous/removerole/{uuid}/{roleid}")
 	public ResponseEntity<String> removeRoleAsync(@PathVariable("uuid") String uuid, @PathVariable("roleid") long roleId) {
 		// TODO Add access check!!
@@ -328,7 +342,7 @@ public class OrgUnitRestController {
 		return new ResponseEntity<>(HttpStatus.OK);
 	}
 
-	@RequireAssignerRole
+	@RequirePermission(section = Section.ORGUNIT, permission = Permission.ASSIGN)
 	@PostMapping("/rest/ous/addrolegroup/{uuid}/{rolegroupid}")
 	public ResponseEntity<OUAssignStatus> addRolegroup(@PathVariable("uuid") String uuid,
 			@PathVariable("rolegroupid") long roleGroupId,
@@ -338,6 +352,7 @@ public class OrgUnitRestController {
 			@RequestParam(name = "negativeAssignment", required = false, defaultValue = "false") boolean negativeAssignment,
 			@RequestParam(name = "manager", required = false, defaultValue = "false") boolean manager,
 			@RequestParam(name = "substitutes", required = false, defaultValue = "false") boolean substitutes,
+			@RequestParam(name = "caseNumber", required = false) String caseNumber,
 			@RequestBody StringArrayWrapper payload) {
 		OrgUnit ou = orgUnitService.getByUuid(uuid);
 		RoleGroup roleGroup = roleGroupService.getById(roleGroupId);
@@ -368,13 +383,13 @@ public class OrgUnitRestController {
 			}
 		}
 
-		orgUnitService.addRoleGroup(ou, roleGroup, inherit, startDate, stopDate, (payload != null ? payload.getExceptedUserUuids() : null),(payload != null ? payload.getTitleUuids() : null), (payload != null && negativeAssignment), manager, substitutes, (payload != null ? payload.getFunctionUuids() : null));
+		orgUnitService.addRoleGroup(ou, roleGroup, inherit, startDate, stopDate, (payload != null ? payload.getExceptedUserUuids() : null),(payload != null ? payload.getTitleUuids() : null), (payload != null && negativeAssignment), manager, substitutes, (payload != null ? payload.getFunctionUuids() : null), caseNumber);
 		orgUnitService.save(ou);
 
 		return new ResponseEntity<>(HttpStatus.OK);
 	}
 
-	@RequireAssignerRole
+	@RequirePermission(section = Section.ORGUNIT, permission = Permission.ASSIGN)
 	@PostMapping(value = "/rest/ous/editrolegroup/{uuid}/{assignmentId}")
 	public ResponseEntity<OUAssignStatus> editRoleGroupAssignment(@PathVariable("uuid") String uuid,
 			@PathVariable("assignmentId") long assignmentId,
@@ -425,7 +440,7 @@ public class OrgUnitRestController {
 		return new ResponseEntity<>(HttpStatus.OK);
 	}
 
-	@RequireAssignerRole
+	@RequirePermission(section = Section.ORGUNIT, permission = Permission.ASSIGN)
 	@PostMapping(value = "/rest/ous/removerolegroup/{uuid}/{rolegroupid}")
 	public ResponseEntity<String> removeRoleGroup(@PathVariable("uuid") String uuid, @PathVariable("rolegroupid") long roleGroupId) {
 		OrgUnit ou = orgUnitService.getByUuid(uuid);
@@ -448,7 +463,7 @@ public class OrgUnitRestController {
 		return new ResponseEntity<>(HttpStatus.OK);
 	}
 
-	@RequireAssignerRole
+	@RequirePermission(section = Section.ORGUNIT, permission = Permission.ASSIGN)
 	@GetMapping("/rest/ous/{uuid}/role/{assignmentId}/titles")
 	public ResponseEntity<List<String>> getRoleOus(@PathVariable("uuid") String uuid, @PathVariable("assignmentId") long roleAssignmentId) {
 		OrgUnit ou = orgUnitService.getByUuid(uuid);
@@ -469,7 +484,7 @@ public class OrgUnitRestController {
 		return new ResponseEntity<>(titleUuids, HttpStatus.OK);
 	}
 
-	@RequireAssignerRole
+	@RequirePermission(section = Section.ORGUNIT, permission = Permission.ASSIGN)
 	@GetMapping("/rest/ous/{uuid}/role/{assignmentId}/negativetitles")
 	public ResponseEntity<List<String>> getNegativeRoleOus(@PathVariable("uuid") String uuid, @PathVariable("assignmentId") long roleAssignmentId) {
 		OrgUnit ou = orgUnitService.getByUuid(uuid);
@@ -491,7 +506,7 @@ public class OrgUnitRestController {
 		return new ResponseEntity<>(titleUuids, HttpStatus.OK);
 	}
 
-	@RequireAssignerRole
+	@RequirePermission(section = Section.ORGUNIT, permission = Permission.ASSIGN)
 	@GetMapping("/rest/ous/{uuid}/role/{assignmentId}/inheritedtitles")
 	public ResponseEntity<List<String>> getInheritedRoleOus(@PathVariable("uuid") String uuid, @PathVariable("assignmentId") long roleAssignmentId, @RequestParam(required = false) boolean positive) {
 		OrgUnit ou = orgUnitService.getByUuid(uuid);
@@ -552,11 +567,11 @@ public class OrgUnitRestController {
 			return new ResponseEntity<>(titleForms, HttpStatus.OK);
 		}
 		else {
-			return new ResponseEntity<>(null, HttpStatus.OK);
+			return new ResponseEntity<>(Collections.emptyList(), HttpStatus.OK);
 		}
     }
 
-	@RequireAssignerRole
+	@RequirePermission(section = Section.ORGUNIT, permission = Permission.ASSIGN)
 	@GetMapping("/rest/ous/{uuid}/rolegroup/{assignmentId}/titles")
 	public ResponseEntity<List<String>> getRoleGroupOus(@PathVariable("uuid") String uuid, @PathVariable("assignmentId") long assignmentId) {
 		OrgUnit ou = orgUnitService.getByUuid(uuid);
@@ -577,7 +592,7 @@ public class OrgUnitRestController {
 		return new ResponseEntity<>(titleUuids, HttpStatus.OK);
 	}
 
-	@RequireAssignerRole
+	@RequirePermission(section = Section.ORGUNIT, permission = Permission.ASSIGN)
 	@GetMapping("/rest/ous/{uuid}/rolegroup/{assignmentId}/negativetitles")
 	public ResponseEntity<List<String>> getNegativeRoleGroupOus(@PathVariable("uuid") String uuid, @PathVariable("assignmentId") long assignmentId) {
 		OrgUnit ou = orgUnitService.getByUuid(uuid);
@@ -599,7 +614,7 @@ public class OrgUnitRestController {
 		return new ResponseEntity<>(titleUuids, HttpStatus.OK);
 	}
 
-	@RequireAssignerRole
+	@RequirePermission(section = Section.ORGUNIT, permission = Permission.ASSIGN)
 	@GetMapping("/rest/ous/{uuid}/rolegroup/{assignmentId}/inheritedtitles")
 	public ResponseEntity<List<String>> getInheritedRoleGroupOus(@PathVariable("uuid") String uuid, @PathVariable("assignmentId") long assignmentId, @RequestParam(required = false) boolean positive) {
 		OrgUnit ou = orgUnitService.getByUuid(uuid);
@@ -688,7 +703,7 @@ public class OrgUnitRestController {
 		return new ResponseEntity<>(HttpStatus.OK);
 	}
 
-	@RequireAssignerRole
+	@RequirePermission(section = Section.ORGUNIT, permission = Permission.ASSIGN)
 	@GetMapping("/rest/ous/{uuid}/role/{assignmentId}/functions")
 	public ResponseEntity<List<String>> getFunctionsRoleOus(@PathVariable("uuid") String uuid, @PathVariable("assignmentId") long roleAssignmentId, @RequestParam(required = false) boolean positive) {
 		OrgUnit ou = orgUnitService.getByUuid(uuid);
@@ -709,7 +724,7 @@ public class OrgUnitRestController {
 		return new ResponseEntity<>(functionUuids, HttpStatus.OK);
 	}
 
-	@RequireAssignerRole
+	@RequirePermission(section = Section.ORGUNIT, permission = Permission.ASSIGN)
 	@GetMapping("/rest/ous/{uuid}/rolegroup/{assignmentId}/functions")
 	public ResponseEntity<List<String>> getFunctionsRoleGroupOus(@PathVariable("uuid") String uuid, @PathVariable("assignmentId") long assignmentId, @RequestParam(required = false) boolean positive) {
 		OrgUnit ou = orgUnitService.getByUuid(uuid);

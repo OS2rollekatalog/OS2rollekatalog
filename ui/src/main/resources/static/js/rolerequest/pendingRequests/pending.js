@@ -1,4 +1,3 @@
-
 document.addEventListener('DOMContentLoaded', ()=> {
     const pendingRequestService = new PendingRequestService()
 })
@@ -12,13 +11,49 @@ class PendingRequestService {
         this.#table = this.initTable()
         this.initRowSelection()
 		this.initApproveButtons();
+		this.initAssignButtons();
     }
 
 	initApproveButtons() {
-		$('.approveBtn').on('click', function() {
+		$('.approveBtn').on('click', async function () {
 			const requestId = $(this).data('requestid');
 			const isChooseAnotherEndDate = $(this).data('chooseanotherenddate');
-			onApprovePressed(requestId, isChooseAnotherEndDate);
+			const assignedTo = $(this).data('assignedname');
+
+			const pendingRequestData = document.getElementById("pending-request-data");
+			const currentUserName = pendingRequestData?.dataset.currentUserName;
+			const assignWarningTitle = pendingRequestData?.dataset.assignWarningTitle;
+			const assignWarningText = pendingRequestData?.dataset.assignWarningText;
+			const assignWarningConfirm = pendingRequestData?.dataset.assignWarningConfirm;
+			const assignWarningCancel = pendingRequestData?.dataset.assignWarningCancel;
+
+			// Check if someone else has claimed this request
+			if (assignedTo && assignedTo !== currentUserName) {
+				swal({
+					title: assignWarningTitle,
+					text: assignWarningText,
+					type: "warning",
+					showCancelButton: true,
+					confirmButtonColor: "#ed5565",
+					confirmButtonText: assignWarningConfirm,
+					cancelButtonText: assignWarningCancel,
+					closeOnConfirm: true,
+					closeOnCancel: true
+				}, function (confirmed) {
+					if (confirmed) {
+						onApprovePressed(requestId, isChooseAnotherEndDate);
+					}
+				});
+			} else {
+				await onApprovePressed(requestId, isChooseAnotherEndDate);
+			}
+		})
+	}
+
+	initAssignButtons() {
+		$('.assignBtn').on('click', function() {
+			const requestId = $(this).data('requestid');
+			onAssignPressed(requestId, $(this));
 		})
 	}
 
@@ -28,7 +63,7 @@ class PendingRequestService {
             responsive: true,
             autoWidth : false,
             stateSave: true,
-            order : [[6, "asc"]],
+            order : [[7, "desc"]],
             columnDefs : [
             	{ "orderable" : false, "targets" : [8] },
                 {width: "4rem", targets: [0]},
@@ -200,4 +235,67 @@ async function onDenyPressed(requestId) {
           location.reload();
        }
     });
+}
+
+async function onAssignPressed(requestId, buttonElement) {
+	const currentAssignee = buttonElement.data('assignedname');
+
+	const pendingRequestData = document.getElementById("pending-request-data");
+	const currentUserName = pendingRequestData?.dataset.currentUserName;
+	const assignWarningTitle = pendingRequestData?.dataset.assignWarningTitle;
+	const assignWarningTextTwo = pendingRequestData?.dataset.assignWarningTextTwo;
+	const assignWarningConfirm = pendingRequestData?.dataset.assignWarningConfirm;
+	const assignWarningCancel = pendingRequestData?.dataset.assignWarningCancel;
+
+	// Check if someone else has already claimed this request
+	if (currentAssignee && currentAssignee !== currentUserName) {
+		swal({
+			title: assignWarningTitle,
+			text: assignWarningTextTwo,
+			type: "warning",
+			showCancelButton: true,
+			confirmButtonColor: "#ed5565",
+			confirmButtonText: assignWarningConfirm,
+			cancelButtonText: assignWarningCancel,
+			closeOnConfirm: true,
+			closeOnCancel: true
+		}, async function(confirmed) {
+			if (confirmed) {
+				await performAssignment(requestId, buttonElement);
+			}
+		});
+	} else {
+		if (currentAssignee && currentAssignee === currentUserName) {
+			return;
+		}
+		await performAssignment(requestId, buttonElement);
+	}
+}
+
+async function performAssignment(requestId, buttonElement) {
+	const response = await fetch(`${restUrl}/tag/request/${requestId}`, {
+		method: "POST",
+		headers: {
+			'X-CSRF-TOKEN': token
+		},
+	});
+
+	if (!response.ok) {
+		if (response.status === 403) {
+			toastr.error("Du har ikke adgang til at tildele anmodningen til dig");
+		} else if (response.status === 404) {
+			toastr.error("Anmodningen blev ikke fundet");
+		} else if (response.status === 500) {
+			toastr.error("Din bruger kunne ikke findes");
+		}
+		return;
+	}
+
+	// Update the UI without reloading
+	const currentUserName = document.getElementById("pending-request-data")?.dataset.currentUserName;
+	const row = buttonElement.closest('tr');
+	row.find('.treatedByResponsibleField').text(currentUserName);
+	row.find('.approveBtn').data('assignedto', currentUserName);
+	toastr.success("Anmodningen er nu tildelt dig");
+	window.location.reload();
 }

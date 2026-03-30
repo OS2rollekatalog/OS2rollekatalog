@@ -80,7 +80,7 @@ public class ManagerRestController {
 
 		return attestationViewDao.findAll(input);
 	}
-	
+
 	@GetMapping("/rest/manager/substitute/search/person")
 	@ResponseBody
 	public ResponseEntity<?> searchPerson(@RequestParam("query") String term) {
@@ -97,7 +97,7 @@ public class ManagerRestController {
 			ValueData vd = new ValueData();
 			vd.setValue(builder.toString());
 			vd.setData(user.getUuid());
-			
+
 			suggestions.add(vd);
 		}
 
@@ -107,7 +107,7 @@ public class ManagerRestController {
 	}
 
 	record ManagerSubRecord(UserDTO manager, ManagerSubstituteDTO substitute, String[] orgUnitUUIDs){}
-	
+
 	@RequirePermission(section = Section.MANAGER, permission = Permission.CREATE)
 	@PostMapping("/rest/manager/substitute/add")
 	@ResponseBody
@@ -116,9 +116,9 @@ public class ManagerRestController {
 			return ResponseEntity.badRequest().build();
 		}
 		List<ManagerSubstitute> subs = new ArrayList<>();
-		
+
 		User manager = null;
-		
+
 
 		if (body.manager == null) {
 			manager = userService.getByUserId(SecurityUtil.getUserId());
@@ -126,22 +126,22 @@ public class ManagerRestController {
 		else {
 			manager = userService.getByUuid(body.manager.getUuid());
 		}
-		
+
 		// we need a manager to add the substitute on, otherwise...
 		if (manager == null) {
 			return ResponseEntity.badRequest().build();
 		}
-		
+
 		User substitute = userService.getByUuid(body.substitute.getUuid());
 		if (substitute == null) {
 			return ResponseEntity.badRequest().build();
 		}
-		
+
 		// substitute cannot be the same as manager
 		if (Objects.equals(substitute.getUuid(), manager.getUuid())) {
 			return ResponseEntity.badRequest().build();
 		}
-		
+
 		// someone needs to be logged in for this to work
 		User loggedInUser = userService.getByUserId(SecurityUtil.getUserId());
 		if (loggedInUser == null) {
@@ -174,27 +174,27 @@ public class ManagerRestController {
 			managerSubstituteMapping.setOrgUnit(orgUnit);
 			managerSubstituteMapping.setAssignedBy(loggedInUser.getName() + " (" + loggedInUser.getUserId() + ")");
 			managerSubstituteMapping.setAssignedTts(new Date());
-			
+
 			subs.add(managerSubstituteMapping);
-			
+
 		}
-		
+
 		for(ManagerSubstitute sub : subs) {
 			manager.getManagerSubstitutes().add(sub);
-			
+
 			userService.save(manager);
 			auditLogger.log(manager, EventType.ADMIN_ASSIGNED_MANAGER_SUBSTITUTE, substitute);
-			
+
 			String substituteEmail = substitute.getEmail();
 			if (substituteEmail != null) {
 				EmailTemplate template = emailTemplateService.findByTemplateType(EmailTemplateType.SUBSTITUTE);
-				
+
 				if (template.isEnabled()) {
 					String title = template.getTitle();
 					title = title.replace(EmailTemplatePlaceholder.RECEIVER_PLACEHOLDER.getPlaceholder(), substitute.getName());
 					title = title.replace(EmailTemplatePlaceholder.MANAGER_PLACEHOLDER.getPlaceholder(), manager.getName());
 					title = title.replace(EmailTemplatePlaceholder.ORGUNIT_PLACEHOLDER.getPlaceholder(), sub.getOrgUnit().getName());
-					
+
 					String message = template.getMessage();
 					message = message.replace(EmailTemplatePlaceholder.RECEIVER_PLACEHOLDER.getPlaceholder(), substitute.getName());
 					message = message.replace(EmailTemplatePlaceholder.MANAGER_PLACEHOLDER.getPlaceholder(), manager.getName());
@@ -206,10 +206,10 @@ public class ManagerRestController {
 				}
 			}
 		}
-		
-		
-		
-		
+
+
+
+
 		return new ResponseEntity<>(HttpStatus.OK);
 	}
 
@@ -225,6 +225,17 @@ public class ManagerRestController {
 			return ResponseEntity.badRequest().build();
 		}
 
+		ManagerSubstitute managerSubstitute = managerSubstituteService.findById(body.getId());
+		if (managerSubstitute == null) {
+			return ResponseEntity.badRequest().build();
+		}
+
+		// Users that are constrained can only edit for constrained ous
+		PermissionConstraint deleteConstraint = userPermissionContext.getConstraint(Section.MANAGER, Permission.DELETE);
+		if (deleteConstraint.getConstrainedOUUuids() != null && !deleteConstraint.getConstrainedOUUuids().contains(managerSubstitute.getOrgUnit().getUuid())) {
+			throw new NotPermittedException("Constraints do not allow deleting this substitute", Section.MANAGER, Permission.DELETE);
+		}
+
 		managerSubstituteService.deleteById(body.getId());
 
 		return new ResponseEntity<>(HttpStatus.OK);
@@ -238,8 +249,15 @@ public class ManagerRestController {
 			return ResponseEntity.badRequest().build();
 		}
 
-		if (id == null) {
+		ManagerSubstitute managerSubstitute = managerSubstituteService.findById(id);
+		if (id == null || managerSubstitute == null) {
 			return ResponseEntity.badRequest().build();
+		}
+
+		// Users that are constrained can only edit for constrained ous
+		PermissionConstraint deleteConstraint = userPermissionContext.getConstraint(Section.MANAGER, Permission.DELETE);
+		if (deleteConstraint.getConstrainedOUUuids() != null && !deleteConstraint.getConstrainedOUUuids().contains(managerSubstitute.getOrgUnit().getUuid())) {
+			throw new NotPermittedException("Constraints do not allow deleting this substitute", Section.MANAGER, Permission.DELETE);
 		}
 
 		managerSubstituteService.deleteById(id);
@@ -256,16 +274,24 @@ public class ManagerRestController {
 			return ResponseEntity.badRequest().build();
 		}
 
+		// Users that are constrained can only edit for constrained ous
+		PermissionConstraint updateConstraint = userPermissionContext.getConstraint(Section.MANAGER, Permission.UPDATE);
+		if (updateConstraint.getConstrainedOUUuids() != null && !updateConstraint.getConstrainedOUUuids().contains(editSubstituteDTO.orgUnitUuid)) {
+			throw new NotPermittedException("Constraints do not allow editing this substitute", Section.MANAGER, Permission.UPDATE);
+		}
+
 		ManagerSubstitute managerSubstitute = managerSubstituteService.findById(id);
 		if (!Objects.equals(editSubstituteDTO.substituteUuid, managerSubstitute.getSubstitute().getUuid())) {
-			managerSubstitute.setSubstitute(userService.getByUserId(editSubstituteDTO.substituteUuid));
+			managerSubstitute.setSubstitute(userService.getByUuid(editSubstituteDTO.substituteUuid));
 		}
 		if (!Objects.equals(editSubstituteDTO.managerUuid, managerSubstitute.getManager().getUuid())) {
-			managerSubstitute.setManager(userService.getByUserId(editSubstituteDTO.managerUuid));
+			managerSubstitute.setManager(userService.getByUuid(editSubstituteDTO.managerUuid));
 		}
 		if (!Objects.equals(editSubstituteDTO.orgUnitUuid, managerSubstitute.getOrgUnit().getUuid())) {
 			managerSubstitute.setOrgUnit(orgUnitService.getByUuid(editSubstituteDTO.orgUnitUuid));
 		}
+
+		managerSubstituteService.save(managerSubstitute);
 
 		return new ResponseEntity<>(HttpStatus.OK);
 	}

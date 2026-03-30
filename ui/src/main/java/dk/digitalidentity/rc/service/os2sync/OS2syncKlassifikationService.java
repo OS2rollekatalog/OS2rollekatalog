@@ -1,36 +1,38 @@
 package dk.digitalidentity.rc.service.os2sync;
 
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.Map;
-
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.http.HttpEntity;
-import org.springframework.stereotype.Service;
-import org.springframework.web.client.RestTemplate;
-
 import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
 import dk.digitalidentity.rc.dao.model.Kle;
 import dk.digitalidentity.rc.service.os2sync.model.KleDto;
 import dk.digitalidentity.rc.service.os2sync.model.KleDtoWrapper;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.http.ResponseEntity;
+import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestClient;
+
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.Map;
 
 @Slf4j
 @Service
 public class OS2syncKlassifikationService {
 
-	@Qualifier("defaultRestTemplate")
+	@Qualifier("defaultRestClient")
 	@Autowired
-	private RestTemplate restTemplate;
-	
+	private RestClient restClient;
+
 	@Autowired
 	private RoleCatalogueConfiguration configuration;
 
 	public Collection<Kle> load(String cvr) {
 		Map<String, Kle> kleMap = new HashMap<>();
 
-		HttpEntity<KleDtoWrapper> responseRootEntity = restTemplate.getForEntity(configuration.getIntegrations().getKle().getOs2SyncUrl() + "/odata/Klasser?$filter=KlasseTilhoerer eq '00000c7e-face-4001-8000-000000000000' and Cvr eq '" + cvr + "'&$select=UUID,BrugervendtNoegle,Titel,Tilstand", KleDtoWrapper.class);
+		ResponseEntity<KleDtoWrapper> responseRootEntity = restClient.get()
+			.uri(configuration.getIntegrations().getKle().getOs2SyncUrl() + "/odata/Klasser?$filter=KlasseTilhoerer eq '00000c7e-face-4001-8000-000000000000' and Cvr eq '" + cvr + "'&$select=UUID,BrugervendtNoegle,Titel,Tilstand")
+			.retrieve()
+			.toEntity(KleDtoWrapper.class);
 
 		for (KleDto kleDto : responseRootEntity.getBody().getContent()) {
 			Kle kle = new Kle();
@@ -46,7 +48,7 @@ public class OS2syncKlassifikationService {
 			}
 			else if (kleDto.getCode().length() == 8) {
 				kle.setParent(kleDto.getCode().substring(0, 5));
-			} 
+			}
 			else {
 				log.warn("Invalid KLE: " + kleDto.getCode());
 				continue;

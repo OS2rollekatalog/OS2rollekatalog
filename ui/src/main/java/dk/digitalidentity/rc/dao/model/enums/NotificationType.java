@@ -32,6 +32,11 @@ public enum NotificationType {
 			"html.help.settings.notification.newOrgUnit.title",
 			"html.help.settings.notification.newOrgUnit.body"
 	),
+	ORG_UNIT_NAME_CHANGED(
+			"html.enum.notificationtype.org_unit_name_changed",
+			"html.help.settings.notification.ouChangedName.title",
+			"html.help.settings.notification.ouChangedName.body"
+	),
 	ORG_UNIT_NEW_PARENT(
 			"html.enum.notificationtype.org_unit_new_parent",
 			"html.help.settings.notification.ouChangedParent.title",

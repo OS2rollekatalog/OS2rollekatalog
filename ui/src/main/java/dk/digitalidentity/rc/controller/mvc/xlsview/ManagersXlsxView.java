@@ -9,9 +9,8 @@ import org.apache.poi.ss.usermodel.CellStyle;
 import org.apache.poi.ss.usermodel.Font;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
-import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.xssf.streaming.SXSSFSheet;
 import org.springframework.context.support.ResourceBundleMessageSource;
-import org.springframework.web.servlet.view.document.AbstractXlsxView;
 
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -19,11 +18,11 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
-public class ManagersXlsxView extends AbstractXlsxView {
+public class ManagersXlsxView extends AbstractXlsxStreamingViewWrapper {
 
     @SuppressWarnings("unchecked")
     @Override
-    protected void buildExcelDocument(Map<String, Object> model, Workbook workbook, HttpServletRequest request, HttpServletResponse response) throws Exception {
+    protected void buildExcelDocument(Map<String, ?> model, DisposableSXSSFWorkbook workbook, HttpServletRequest request, HttpServletResponse response) throws Exception {
     	Locale locale = (Locale) model.get("locale");
         Iterable<User> managers = (Iterable<User>) model.get("managers");
         ResourceBundleMessageSource messageSource = (ResourceBundleMessageSource) model.get("messagesBundle");
@@ -37,7 +36,10 @@ public class ManagersXlsxView extends AbstractXlsxView {
         headerStyle.setFont(headerFont);
 
         Sheet sheet = workbook.createSheet(messageSource.getMessage("xls.managers.sheet.title", null, locale));
-		
+		if (sheet instanceof SXSSFSheet) {
+			((SXSSFSheet) sheet).trackAllColumnsForAutoSizing();
+		}
+
         ArrayList<String> headers = new ArrayList<>();
         headers.add("html.page.manager.uuid");
         headers.add("html.page.manager.name");
@@ -59,7 +61,7 @@ public class ManagersXlsxView extends AbstractXlsxView {
 	        			continue;
 	        		}
 		            Row dataRow = sheet.createRow(row++);
-		
+
 		            String assignedBy = "";
 		            if (substitute.getAssignedBy() == null) {
 		            	assignedBy = manager.getName() + "(" + manager.getUserId() + ")";
@@ -67,7 +69,7 @@ public class ManagersXlsxView extends AbstractXlsxView {
 		            else if (substitute.getAssignedBy() != null) {
 		            	assignedBy = substitute.getAssignedBy();
 		            }
-	
+
 		            createCell(dataRow, 0, manager.getUuid(), null);
 		            createCell(dataRow, 1, manager.getName(), null);
 		            createCell(dataRow, 2, manager.getUserId(), null);
@@ -93,7 +95,7 @@ public class ManagersXlsxView extends AbstractXlsxView {
 	            createCell(dataRow, 8, "", null);
         	}
         }
-        
+
         format(sheet);
 	}
 
@@ -131,4 +133,9 @@ public class ManagersXlsxView extends AbstractXlsxView {
             createCell(headerRow, column++, localeSpecificHeader, headerStyle);
         }
     }
+
+	@Override
+	protected String getFilename() {
+		return "ledere.xlsx";
+	}
 }

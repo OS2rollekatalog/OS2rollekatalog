@@ -10,8 +10,6 @@ import dk.digitalidentity.rc.log.AuditLoggable;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
-import jakarta.persistence.Temporal;
-import jakarta.persistence.TemporalType;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -29,7 +27,6 @@ public class Title implements AuditLoggable {
 
 	@JsonIgnore
 	@UpdateTimestamp
-	@Temporal(TemporalType.TIMESTAMP)
 	@Column
 	private Date lastUpdated;
 

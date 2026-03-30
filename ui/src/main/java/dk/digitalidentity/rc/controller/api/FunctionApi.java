@@ -1,10 +1,14 @@
 package dk.digitalidentity.rc.controller.api;
 
-import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
+import dk.digitalidentity.rc.controller.api.dto.FunctionDTO;
 import dk.digitalidentity.rc.dao.model.Function;
 import dk.digitalidentity.rc.security.RequireApiOrganisationRole;
 import dk.digitalidentity.rc.service.FunctionService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -19,30 +23,34 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 @RequireApiOrganisationRole
 @Slf4j
 @RestController
 @SecurityRequirement(name = "ApiKey")
+@Tag(name = "Functions API")
 public class FunctionApi {
 
 	@Autowired
 	private FunctionService functionService;
 
-	@Autowired
-	private RoleCatalogueConfiguration configuration;
 
+	@Operation(summary = "Read all active functions")
+	@ApiResponses(value = {@ApiResponse(responseCode = "200", description = "List of active functions")})
 	@RequestMapping(value = "/api/function", method = RequestMethod.GET)
-	public ResponseEntity<Set<String>> read() {
-		return new ResponseEntity<>(
-				functionService.getAllActive().stream()
-						.map(Function::getName)
-						.collect(Collectors.toSet()),
-				HttpStatus.OK
-		);
+	public List<FunctionDTO> list() {
+		return functionService.getAllActive().stream()
+			.map(f -> FunctionDTO.builder()
+				.name(f.getName())
+				.uuid(f.getUuid())
+				.build())
+			.toList();
 	}
 
+
+	@Operation(summary = "Set all active functions", description = "This method sets the active functions based on the provided names. " +
+		"It activates existing functions and creates new ones if they don't exist.")
+	@ApiResponses(value = {@ApiResponse(responseCode = "200")})
 	@PostMapping(value = "/api/function")
 	public ResponseEntity<?> save(@RequestBody @Valid Set<String> body) {
 		List<Function> existingFunctions = functionService.getAllIncludingInactive();

@@ -406,11 +406,9 @@
                         <div class="tab-content">
                             <div id="systemRole_menu" class="tab-pane fade in active">
                                 <div style="margin-bottom:20px;">
-                                    <button id="convertSystemRolesToUserRolesBtn" class="btn btn-lg btn-primary"
-                                         style="width:auto;" onclick="convertSystemRolesToUserRoles();"
-                                         th:disabled="${@permissionCheck.isAllowed(section.USER_ROLE, permission.CREATE)}">
-										<span th:text="#{html.page.itsystem.pane.systemroles.convert}"></span>
-									</button>
+                                    <div th:disabled="${!@permissionCheck.isAllowed(section.USER_ROLE, permission.CREATE)}" class="btn btn-lg btn-primary" style="width:auto;" onclick="convertSystemRolesToUserRoles();">
+                                       <span th:text="#{html.page.itsystem.pane.systemroles.convert}"></span>
+                                    </div>
                                 </div>
 
                                 <div class="table-responsive">
@@ -418,10 +416,11 @@
                                         <thead>
                                         <tr>
                                             <th class="col-md-2" th:text="#{html.entity.adgroup.name}"></th>
-                                            <th class="col-md-3" th:text="#{html.entity.adgroup.identifier}"></th>
+                                            <th class="col-md-2" th:text="#{html.entity.adgroup.identifier}"></th>
                                             <th class="col-md-4" th:text="#{html.entity.adgroup.description}"></th>
                                             <th class="col-md-1" th:text="#{html.entity.adgroup.inuse}"></th>
                                             <th class="col-md-1" th:text="#{html.entity.adgroup.weight}"></th>
+											<th class="col-md-1" th:text="#{html.entity.systemrole.maxAssignments}"></th>
                                             <th class="col-md-1" th:text="#{html.control.operations}"></th>
                                         </tr>
                                         </thead>
@@ -437,6 +436,7 @@
                                                     th:classappend="${systemRole.inUse} ? 'fa-check' : ''"></em>
                                             </td>
                                             <td th:text="${systemRole.weight}"></td>
+                                            <td th:text="${systemRole.maximumAssignments}"></td>
                                             <td>
                                                 <a th:if="${@permissionCheck.isAllowed(section.USER_ROLE, permission.READ)}"
 												   th:href="@{/ui/systemrole/{id}/userroles(id=${systemRole.id})}"><em class="fa fa-list"></em></a>
@@ -452,30 +452,53 @@
                             </div>
 
                             <div id="userRole_menu" class="tab-pane fade">
-                                <div style="margin-bottom:20px;">
-                                    <button id="removeUnusedRolesBtn" class="btn btn-lg btn-primary" style="width:auto;"
-                                         onclick="removeUnusedUserRoles();" th:disabled="${@permissionCheck.isAllowed(section.USER_ROLE, permission.DELETE)}"><span
-                                            th:text="#{html.page.itsystem.pane.userroles.delete}"></span></button>
-                                </div>
+								<div style="margin-bottom:20px;"
+									 th:with="attestationIntervalYearly=${@settingsService.getScheduledAttestationInterval() == T(dk.digitalidentity.rc.dao.model.enums.CheckupIntervalEnum).YEARLY}">
+									<div id="removeUnusedRolesBtn" class="btn btn-lg btn-primary" style="width:auto;" onclick="removeUnusedUserRoles();" th:disabled="${!@permissionCheck.isAllowed(section.USER_ROLE, permission.DELETE)}">
+										<span th:text="#{html.page.itsystem.pane.userroles.delete}"></span>
+									</div>
+
+									<div class="btn-group">
+										<button type="button" style="width: auto !important;" class="btn btn-primary btn-lg dropdown-toggle" data-toggle="dropdown">
+											<em class="fa fa-fw fa-cog"></em>
+										</button>
+										<ul class="dropdown-menu" role="menu">
+											<li><a href="#" data-col-name="useronly"><em class="fa fa-fw"></em><span th:text="#{html.role.flag.useronly}"></span></a></li>
+											<li th:if="${attestationEnabled} and ${attestationIntervalYearly}"><a href="#" data-col-name="extrasensitive"><em class="fa fa-fw"></em><span th:text="#{html.role.flag.extra.sensitive}"></span></a></li>
+											<li th:if="${attestationEnabled}"><a href="#" data-col-name="sensitive"><em class="fa fa-fw"></em><span th:text="#{html.role.flag.sensitive}"></span></a></li>
+											<li th:if="${attestationEnabled}"><a href="#" data-col-name="attresp"><em class="fa fa-fw"></em><span th:text="#{html.entity.itsystem.roleAssignmentAttestationByAttestationResponsible}"></span></a></li>
+											<li><a href="#" data-col-name="name"><em class="fa fa-fw"></em><span th:text="#{html.entity.userrole.name}"></span></a></li>
+											<li><a href="#" data-col-name="description"><em class="fa fa-fw"></em><span th:text="#{html.entity.userrole.description}"></span></a></li>
+											<li th:if="${@settingsService.isRequestApproveEnabled()}"><a href="#" data-col-name="requester"><em class="fa fa-fw"></em><span th:text="#{html.entity.itsystem.requestersetting}"></span></a></li>
+											<li th:if="${@settingsService.isRequestApproveEnabled()}"><a href="#" data-col-name="approver"><em class="fa fa-fw"></em><span th:text="#{html.entity.itsystem.approversetting}"></span></a></li>
+											<li><a href="#" data-col-name="operations"><em class="fa fa-fw"></em><span th:text="#{html.control.operations}"></span></a></li>
+										</ul>
+									</div>
+								</div>
                                 <div class="table-responsive">
                                     <table class="table table-striped listTable userRoleTable">
                                         <thead>
-                                        <tr th:with="attestationIntervalYearly=${@settingsService.getScheduledAttestationInterval() == T(dk.digitalidentity.rc.dao.model.enums.CheckupIntervalEnum).YEARLY}">
-                                            <th class="col-md-1" data-orderable="false"
-                                                th:text="#{html.role.flag.useronly}"></th>
-                                            <th th:if="${attestationEnabled} and ${attestationIntervalYearly}"
-                                                class="col-md-1" data-orderable="false"
-                                                th:text="#{html.role.flag.extra.sensitive}"></th>
-                                            <th th:if="${attestationEnabled}" class="col-md-1" data-orderable="false"
-                                                th:text="#{html.role.flag.sensitive}"></th>
-                                            <th th:if="${attestationEnabled}" class="col-md-1" data-orderable="false"
-                                                th:text="#{html.entity.itsystem.roleAssignmentAttestationByAttestationResponsible}"></th>
-                                            <th class="col-md-3"
-                                                th:text="#{html.entity.userrole.name}"></th>
-                                            <th th:class="'col-md-' + ${7 - (attestationEnabled != null and attestationEnabled ? 2 : 0) - ((attestationEnabled != null and attestationEnabled and attestationIntervalYearly) ? 1 : 0)}"
-                                                th:text="#{html.entity.userrole.description}"></th>
-                                            <th class="col-md-1" th:text="#{html.control.operations}"></th>
-                                        </tr>
+										<tr th:with="attestationIntervalYearly=${@settingsService.getScheduledAttestationInterval() == T(dk.digitalidentity.rc.dao.model.enums.CheckupIntervalEnum).YEARLY}">
+											<th data-col-name="useronly" class="col-md-1" data-orderable="false"
+												th:text="#{html.role.flag.useronly}"></th>
+											<th data-col-name="extrasensitive" th:if="${attestationEnabled} and ${attestationIntervalYearly}"
+												class="col-md-1" data-orderable="false"
+												th:text="#{html.role.flag.extra.sensitive}"></th>
+											<th data-col-name="sensitive" th:if="${attestationEnabled}" class="col-md-1" data-orderable="false"
+												th:text="#{html.role.flag.sensitive}"></th>
+											<th data-col-name="attresp" th:if="${attestationEnabled}" class="col-md-1" data-orderable="false"
+												th:text="#{html.entity.itsystem.roleAssignmentAttestationByAttestationResponsible}"></th>
+											<th data-col-name="name" class="col-md-3"
+												th:text="#{html.entity.userrole.name}"></th>
+											<th data-col-name="description"
+												th:class="'col-md-' + ${7 - (attestationEnabled != null and attestationEnabled ? 2 : 0) - ((attestationEnabled != null and attestationEnabled and attestationIntervalYearly) ? 1 : 0)}"
+												th:text="#{html.entity.userrole.description}"></th>
+											<th data-col-name="requester" th:if="${@settingsService.isRequestApproveEnabled()}"
+												th:text="#{html.entity.itsystem.requestersetting}"></th>
+											<th data-col-name="approver" th:if="${@settingsService.isRequestApproveEnabled()}"
+												th:text="#{html.entity.itsystem.approversetting}"></th>
+											<th data-col-name="operations" class="col-md-1" th:text="#{html.control.operations}"></th>
+										</tr>
                                         </thead>
                                         <tbody>
                                         <tr th:each="role : ${userRoles}">
@@ -528,7 +551,27 @@
                                             </td>
                                             <td class="col-md-3"
                                                 th:text="${role.name}"></td>
-                                            <td class="col-md-5" th:text="${role.description}"></td>
+                                            <td class="col-md-5 preformat" th:text="${role.description}"></td>
+											<td th:if="${@settingsService.isRequestApproveEnabled()}">
+												<select class="form-control requester-role-select" multiple
+														th:data-roleid="${role.id}"
+														th:disabled="${role.readOnly}">
+													<option th:each="opt : ${T(dk.digitalidentity.rc.rolerequest.model.enums.RequestableBy).values()}"
+															th:value="${opt}"
+															th:text="#{__${opt.getMessage()}__}"
+															th:selected="${#lists.contains(role.requesterPermission, opt)}"></option>
+												</select>
+											</td>
+											<td th:if="${@settingsService.isRequestApproveEnabled()}">
+												<select class="form-control approver-role-select" multiple
+														th:data-roleid="${role.id}"
+														th:disabled="${role.readOnly}">
+													<option th:each="opt : ${T(dk.digitalidentity.rc.rolerequest.model.enums.ApprovableBy).values()}"
+															th:value="${opt}"
+															th:text="#{__${opt.getMessage()}__}"
+															th:selected="${#lists.contains(role.approverPermission, opt)}"></option>
+												</select>
+											</td>
                                             <td class="col-md-1">
                                                 <th:block th:if="${role.delegatedFromCvr == null}">
 															<a th:if="${@permissionCheck.isAllowed(section.USER_ROLE, permission.READ)}" th:href="@{/ui/userroles/view/{id}(id=${role.id})}"><em class="fa fa-search"></em></a>
@@ -563,19 +606,21 @@
                             <div id="systemRole_menu" class="tab-pane fade in active">
                                 <div style="margin-bottom:20px;">
                                     <div class="btn btn-lg btn-primary" style="width:auto;"
-                                         onclick="convertSystemRolesToUserRoles();"><span
-                                            th:text="#{html.page.itsystem.pane.systemroles.convert}"></span></div>
+                                         onclick="convertSystemRolesToUserRoles();" th:disabled="${!@permissionCheck.isAllowed(section.USER_ROLE, permission.CREATE)}">
+										<span th:text="#{html.page.itsystem.pane.systemroles.convert}"></span>
+									</div>
                                 </div>
 
                                 <table class="table table-striped listTable">
                                     <thead>
                                     <tr>
                                         <th class="col-md-2" th:text="#{html.entity.samlrole.name}"></th>
-                                        <th class="col-md-3" th:text="#{html.entity.samlrole.identifier}"></th>
+                                        <th class="col-md-2" th:text="#{html.entity.samlrole.identifier}"></th>
                                         <th class="col-md-4" th:text="#{html.entity.samlrole.description}"></th>
                                         <th class="col-md-1" th:text="#{html.entity.samlrole.inuse}"></th>
                                         <th th:if="${#strings.toString(itsystem.systemType)} == 'SAML'" class="col-md-1"
                                             th:text="#{html.entity.samlrole.weight}"></th>
+                                        <th class="col-md-1" th:text="#{html.entity.systemrole.maxAssignments}"></th>
                                         <th class="col-md-1" th:text="#{html.control.operations}"></th>
                                     </tr>
                                     </thead>
@@ -589,6 +634,7 @@
                                                 th:classappend="${systemRole.inUse} ? fa-check : ''"></em></td>
                                         <td th:if="${#strings.toString(itsystem.systemType)} == 'SAML'"
                                             th:text="${systemRole.weight}"></td>
+										<td th:text="${systemRole.maximumAssignments}"></td>
                                         <td>
                                             <a href="#" onclick="openConfirmDeleteDialog(this);"
                                                th:attr="data-id=${systemRole.id}"><em
@@ -604,30 +650,53 @@
                                 </table>
                             </div>
                             <div id="userRole_menu" class="tab-pane fade">
-                                <div style="margin-bottom:20px;">
-                                    <div class="btn btn-lg btn-primary" style="width:auto;"
-                                         onclick="removeUnusedUserRoles();"><span
-                                            th:text="#{html.page.itsystem.pane.userroles.delete}"></span></div>
-                                </div>
+								<div style="margin-bottom:20px;"
+									 th:with="attestationIntervalYearly=${@settingsService.getScheduledAttestationInterval() == T(dk.digitalidentity.rc.dao.model.enums.CheckupIntervalEnum).YEARLY}">
+									<div class="btn btn-lg btn-primary" style="width:auto;"
+										 onclick="removeUnusedUserRoles();"><span
+										th:text="#{html.page.itsystem.pane.userroles.delete}"></span></div>
+
+									<div class="btn-group">
+										<button type="button" style="width: auto !important;" class="btn btn-primary btn-lg dropdown-toggle" data-toggle="dropdown">
+											<em class="fa fa-fw fa-cog"></em>
+										</button>
+										<ul class="dropdown-menu" role="menu">
+											<li><a href="#" data-col-name="useronly"><em class="fa fa-fw "></em><span th:text="#{html.role.flag.useronly}"></span></a></li>
+											<li th:if="${attestationEnabled} and ${attestationIntervalYearly}"><a href="#" data-col-name="extrasensitive"><em class="fa fa-fw "></em><span th:text="#{html.role.flag.extra.sensitive}"></span></a></li>
+											<li th:if="${attestationEnabled}"><a href="#" data-col-name="sensitive"><em class="fa fa-fw "></em><span th:text="#{html.role.flag.sensitive}"></span></a></li>
+											<li th:if="${attestationEnabled}"><a href="#" data-col-name="attresp"><em class="fa fa-fw "></em><span th:text="#{html.entity.itsystem.roleAssignmentAttestationByAttestationResponsible}"></span></a></li>
+											<li><a href="#" data-col-name="name"><em class="fa fa-fw "></em><span th:text="#{html.entity.userrole.name}"></span></a></li>
+											<li><a href="#" data-col-name="description"><em class="fa fa-fw "></em><span th:text="#{html.entity.userrole.description}"></span></a></li>
+											<li th:if="${@settingsService.isRequestApproveEnabled()}"><a href="#" data-col-name="requester"><em class="fa fa-fw "></em><span th:text="#{html.entity.itsystem.requestersetting}"></span></a></li>
+											<li th:if="${@settingsService.isRequestApproveEnabled()}"><a href="#" data-col-name="approver"><em class="fa fa-fw "></em><span th:text="#{html.entity.itsystem.approversetting}"></span></a></li>
+											<li><a href="#" data-col-name="operations"><em class="fa fa-fw "></em><span th:text="#{html.control.operations}"></span></a></li>
+										</ul>
+									</div>
+								</div>
                                 <div class="table-responsive">
                                     <table class="table table-striped listTable userRoleTable">
                                         <thead>
-                                        <tr th:with="attestationIntervalYearly=${@settingsService.getScheduledAttestationInterval() == T(dk.digitalidentity.rc.dao.model.enums.CheckupIntervalEnum).YEARLY}">
-                                            <th class="col-md-1" data-orderable="false"
-                                                th:text="#{html.role.flag.useronly}"></th>
-                                            <th th:if="${attestationEnabled} and ${attestationIntervalYearly}"
-                                                class="col-md-1" data-orderable="false"
-                                                th:text="#{html.role.flag.extra.sensitive}"></th>
-                                            <th th:if="${attestationEnabled}" class="col-md-1" data-orderable="false"
-                                                th:text="#{html.role.flag.sensitive}"></th>
-                                            <th th:if="${attestationEnabled}" class="col-md-1" data-orderable="false"
-                                                th:text="#{html.entity.itsystem.roleAssignmentAttestationByAttestationResponsible}"></th>
-                                            <th class="col-md-3"
-                                                th:text="#{html.entity.userrole.name}"></th>
-                                            <th th:class="'col-md-' + ${7 - (attestationEnabled ? 2 : 0) - ((attestationEnabled && attestationIntervalYearly) ? 1 : 0)}"
-                                                th:text="#{html.entity.userrole.description}"></th>
-                                            <th class="col-md-1" th:text="#{html.control.operations}"></th>
-                                        </tr>
+										<tr th:with="attestationIntervalYearly=${@settingsService.getScheduledAttestationInterval() == T(dk.digitalidentity.rc.dao.model.enums.CheckupIntervalEnum).YEARLY}">
+											<th data-col-name="useronly" class="col-md-1" data-orderable="false"
+												th:text="#{html.role.flag.useronly}"></th>
+											<th data-col-name="extrasensitive" th:if="${attestationEnabled} and ${attestationIntervalYearly}"
+												class="col-md-1" data-orderable="false"
+												th:text="#{html.role.flag.extra.sensitive}"></th>
+											<th data-col-name="sensitive" th:if="${attestationEnabled}" class="col-md-1" data-orderable="false"
+												th:text="#{html.role.flag.sensitive}"></th>
+											<th data-col-name="attresp" th:if="${attestationEnabled}" class="col-md-1" data-orderable="false"
+												th:text="#{html.entity.itsystem.roleAssignmentAttestationByAttestationResponsible}"></th>
+											<th data-col-name="name" class="col-md-3"
+												th:text="#{html.entity.userrole.name}"></th>
+											<th data-col-name="description"
+												th:class="'col-md-' + ${7 - (attestationEnabled ? 2 : 0) - ((attestationEnabled && attestationIntervalYearly) ? 1 : 0)}"
+												th:text="#{html.entity.userrole.description}"></th>
+											<th data-col-name="requester" th:if="${@settingsService.isRequestApproveEnabled()}"
+												th:text="#{html.entity.itsystem.requestersetting}"></th>
+											<th data-col-name="approver" th:if="${@settingsService.isRequestApproveEnabled()}"
+												th:text="#{html.entity.itsystem.approversetting}"></th>
+											<th data-col-name="operations" class="col-md-1" th:text="#{html.control.operations}"></th>
+										</tr>
                                         </thead>
                                         <tbody>
                                         <tr th:each="role : ${userRoles}">
@@ -680,7 +749,27 @@
                                             </td>
                                             <td class="col-md-3"
                                                 th:text="${role.name}"></td>
-                                            <td class="col-md-5" th:text="${role.description}"></td>
+                                            <td class="col-md-5 preformat" th:text="${role.description}"></td>
+											<td th:if="${@settingsService.isRequestApproveEnabled()}">
+												<select class="form-control requester-role-select" multiple
+														th:data-roleid="${role.id}"
+														th:disabled="${role.readOnly}">
+													<option th:each="opt : ${T(dk.digitalidentity.rc.rolerequest.model.enums.RequestableBy).values()}"
+															th:value="${opt}"
+															th:text="#{__${opt.getMessage()}__}"
+															th:selected="${#lists.contains(role.requesterPermission, opt)}"></option>
+												</select>
+											</td>
+											<td th:if="${@settingsService.isRequestApproveEnabled()}">
+												<select class="form-control approver-role-select" multiple
+														th:data-roleid="${role.id}"
+														th:disabled="${role.readOnly}">
+													<option th:each="opt : ${T(dk.digitalidentity.rc.rolerequest.model.enums.ApprovableBy).values()}"
+															th:value="${opt}"
+															th:text="#{__${opt.getMessage()}__}"
+															th:selected="${#lists.contains(role.approverPermission, opt)}"></option>
+												</select>
+											</td>
                                             <th:block th:if="${role.delegatedFromCvr == null}">
                                                 <td class="col-md-1">
 															<a th:if="${@permissionCheck.isAllowed(section.USER_ROLE, permission.READ)}" th:href="@{/ui/userroles/view/{id}(id=${role.id})}"><em class="fa fa-search"></em></a>
@@ -719,8 +808,10 @@
                                 <div style="margin-bottom:20px;"
                                      th:if="${#strings.toString(itsystem.systemType)} != 'KSPCICS'">
                                     <div class="btn btn-lg btn-primary" style="width:auto;"
-                                         onclick="convertSystemRolesToUserRoles();"><span
-                                            th:text="#{html.page.itsystem.pane.systemroles.convert}"></span></div>
+                                         onclick="convertSystemRolesToUserRoles();"
+										 th:disabled="${!@permissionCheck.isAllowed(section.USER_ROLE, permission.CREATE)}">
+										<span th:text="#{html.page.itsystem.pane.systemroles.convert}"></span>
+									</div>
                                 </div>
 
                                 <table class="table table-striped listTable">
@@ -747,31 +838,55 @@
                             </div>
 
                             <div id="userRole_menu" class="tab-pane fade">
-                                <div style="margin-bottom:20px;"
-                                     th:if="${#strings.toString(itsystem.systemType)} != 'KSPCICS'">
-                                    <div class="btn btn-lg btn-primary" style="width:auto;"
-                                         onclick="removeUnusedUserRoles();"><span
-                                            th:text="#{html.page.itsystem.pane.userroles.delete}"></span></div>
-                                </div>
+								<div style="margin-bottom:20px;"
+									 th:with="attestationIntervalYearly=${@settingsService.getScheduledAttestationInterval() == T(dk.digitalidentity.rc.dao.model.enums.CheckupIntervalEnum).YEARLY}">
+									<th:block th:if="${#strings.toString(itsystem.systemType)} != 'KSPCICS'">
+										<div class="btn btn-lg btn-primary" style="width:auto;"
+											 onclick="removeUnusedUserRoles();"><span
+											th:text="#{html.page.itsystem.pane.userroles.delete}"></span></div>
+									</th:block>
+
+									<div class="btn-group">
+										<button type="button" style="width: auto !important;" class="btn btn-primary btn-lg dropdown-toggle" data-toggle="dropdown">
+											<em class="fa fa-fw fa-cog"></em>
+										</button>
+										<ul class="dropdown-menu" role="menu">
+											<li><a href="#" data-col-name="useronly"><em class="fa fa-fw "></em><span th:text="#{html.role.flag.useronly}"></span></a></li>
+											<li th:if="${attestationEnabled} and ${attestationIntervalYearly}"><a href="#" data-col-name="extrasensitive"><em class="fa fa-fw "></em><span th:text="#{html.role.flag.extra.sensitive}"></span></a></li>
+											<li th:if="${attestationEnabled}"><a href="#" data-col-name="sensitive"><em class="fa fa-fw "></em><span th:text="#{html.role.flag.sensitive}"></span></a></li>
+											<li th:if="${attestationEnabled}"><a href="#" data-col-name="attresp"><em class="fa fa-fw "></em><span th:text="#{html.entity.itsystem.roleAssignmentAttestationByAttestationResponsible}"></span></a></li>
+											<li><a href="#" data-col-name="name"><em class="fa fa-fw "></em><span th:text="#{html.entity.userrole.name}"></span></a></li>
+											<li><a href="#" data-col-name="description"><em class="fa fa-fw "></em><span th:text="#{html.entity.userrole.description}"></span></a></li>
+											<li th:if="${@settingsService.isRequestApproveEnabled()}"><a href="#" data-col-name="requester"><em class="fa fa-fw "></em><span th:text="#{html.entity.itsystem.requestersetting}"></span></a></li>
+											<li th:if="${@settingsService.isRequestApproveEnabled()}"><a href="#" data-col-name="approver"><em class="fa fa-fw "></em><span th:text="#{html.entity.itsystem.approversetting}"></span></a></li>
+											<li><a href="#" data-col-name="operations"><em class="fa fa-fw "></em><span th:text="#{html.control.operations}"></span></a></li>
+										</ul>
+									</div>
+								</div>
                                 <div class="table-responsive">
                                     <table class="table table-striped listTable userRoleTable">
                                         <thead>
-                                        <tr th:with="attestationIntervalYearly=${@settingsService.getScheduledAttestationInterval() == T(dk.digitalidentity.rc.dao.model.enums.CheckupIntervalEnum).YEARLY}">
-                                            <th class="col-md-1" data-orderable="false"
-                                                th:text="#{html.role.flag.useronly}"></th>
-                                            <th th:if="${attestationEnabled} and ${attestationIntervalYearly}"
-                                                class="col-md-1" data-orderable="false"
-                                                th:text="#{html.role.flag.extra.sensitive}"></th>
-                                            <th th:if="${attestationEnabled}" class="col-md-1" data-orderable="false"
-                                                th:text="#{html.role.flag.sensitive}"></th>
-                                            <th th:if="${attestationEnabled}" class="col-md-1" data-orderable="false"
-                                                th:text="#{html.entity.itsystem.roleAssignmentAttestationByAttestationResponsible}"></th>
-                                            <th class="col-md-3"
-                                                th:text="#{html.entity.userrole.name}"></th>
-                                            <th th:class="'col-md-' + ${7 - (attestationEnabled ? 2 : 0) - ((attestationEnabled && attestationIntervalYearly) ? 1 : 0)}"
-                                                th:text="#{html.entity.userrole.description}"></th>
-                                            <th class="col-md-1" th:text="#{html.control.operations}"></th>
-                                        </tr>
+										<tr th:with="attestationIntervalYearly=${@settingsService.getScheduledAttestationInterval() == T(dk.digitalidentity.rc.dao.model.enums.CheckupIntervalEnum).YEARLY}">
+											<th data-col-name="useronly" class="col-md-1" data-orderable="false"
+												th:text="#{html.role.flag.useronly}"></th>
+											<th data-col-name="extrasensitive" th:if="${attestationEnabled} and ${attestationIntervalYearly}"
+												class="col-md-1" data-orderable="false"
+												th:text="#{html.role.flag.extra.sensitive}"></th>
+											<th data-col-name="sensitive" th:if="${attestationEnabled}" class="col-md-1" data-orderable="false"
+												th:text="#{html.role.flag.sensitive}"></th>
+											<th data-col-name="attresp" th:if="${attestationEnabled}" class="col-md-1" data-orderable="false"
+												th:text="#{html.entity.itsystem.roleAssignmentAttestationByAttestationResponsible}"></th>
+											<th data-col-name="name" class="col-md-3"
+												th:text="#{html.entity.userrole.name}"></th>
+											<th data-col-name="description"
+												th:class="'col-md-' + ${7 - (attestationEnabled ? 2 : 0) - ((attestationEnabled && attestationIntervalYearly) ? 1 : 0)}"
+												th:text="#{html.entity.userrole.description}"></th>
+											<th data-col-name="requester" th:if="${@settingsService.isRequestApproveEnabled()}"
+												th:text="#{html.entity.itsystem.requestersetting}"></th>
+											<th data-col-name="approver" th:if="${@settingsService.isRequestApproveEnabled()}"
+												th:text="#{html.entity.itsystem.approversetting}"></th>
+											<th data-col-name="operations" class="col-md-1" th:text="#{html.control.operations}"></th>
+										</tr>
                                         </thead>
                                         <tbody>
                                         <tr th:each="role : ${userRoles}">
@@ -824,7 +939,27 @@
                                             </td>
                                             <td class="col-md-3"
                                                 th:text="${role.name}"></td>
-                                            <td class="col-md-6" th:text="${role.description}"></td>
+                                            <td class="col-md-6 preformat" th:text="${role.description}"></td>
+											<td th:if="${@settingsService.isRequestApproveEnabled()}">
+												<select class="form-control requester-role-select" multiple
+														th:data-roleid="${role.id}"
+														th:disabled="${role.readOnly}">
+													<option th:each="opt : ${T(dk.digitalidentity.rc.rolerequest.model.enums.RequestableBy).values()}"
+															th:value="${opt}"
+															th:text="#{__${opt.getMessage()}__}"
+															th:selected="${#lists.contains(role.requesterPermission, opt)}"></option>
+												</select>
+											</td>
+											<td th:if="${@settingsService.isRequestApproveEnabled()}">
+												<select class="form-control approver-role-select" multiple
+														th:data-roleid="${role.id}"
+														th:disabled="${role.readOnly}">
+													<option th:each="opt : ${T(dk.digitalidentity.rc.rolerequest.model.enums.ApprovableBy).values()}"
+															th:value="${opt}"
+															th:text="#{__${opt.getMessage()}__}"
+															th:selected="${#lists.contains(role.approverPermission, opt)}"></option>
+												</select>
+											</td>
                                             <th:block th:if="${role.delegatedFromCvr == null}">
                                                 <td class="col-md-1">
 															<a th:if="${@permissionCheck.isAllowed(section.USER_ROLE, permission.READ)}"
@@ -861,7 +996,7 @@
                 <h4 th:text="#{html.page.itsystem.edit.modal.ad}"></h4>
             </div>
 
-				<form class="form-horizontal" id="systemRoleForm" th:object="${systemRoleForm}" th:action="@{'/ui/itsystem/edit/' + itsystem.id + '/addSystemRole'}" method="post">
+				<form class="form-horizontal" id="systemRoleForm" th:object="${systemRoleForm}" th:action="@{/ui/itsystem/edit/} + ${itsystem.id} + '/addSystemRole'" method="post">
                 <div class="modal-body">
                     <input th:field="*{id}" id="adSystemRoleId" type="hidden"/>
                     <input th:field="*{itSystemId}" type="hidden"/>
@@ -946,6 +1081,23 @@
                             </div>
                         </div>
                     </fieldset>
+
+					<fieldset>
+						<div class="form-group">
+							<div class="col-sm-3">
+								<label class="control-label col-sm-6" th:text="#{html.entity.systemrole.maxAssignments}"></label>
+								<em class="fa fa-question" data-toggle="popover" data-trigger="hover"
+									data-placement="top" data-container="body" style="padding-top:7px;"
+									th:attr="data-content=#{html.entity.systemrole.maxAssignments.help}"></em>
+							</div>
+							<div class="col-sm-9">
+								<input th:field="*{maximumAssignments}" id="adSystemRoleMaximumAssignments" class="form-control" type="number"/>
+								<ul th:if="${#fields.hasErrors('maximumAssignments')}" class="error">
+									<li class="error" th:each="err : ${#fields.errors('maximumAssignments')}" th:text="${err}"></li>
+								</ul>
+							</div>
+						</div>
+					</fieldset>
                 </div>
 
                 <div class="modal-footer">
@@ -1024,6 +1176,21 @@
                             </div>
                         </div>
                     </fieldset>
+
+					<fieldset>
+						<div class="form-group">
+							<div class="col-sm-2">
+								<label class="control-label" th:text="#{html.entity.systemrole.maxAssignments}"></label>
+								<em class="fa fa-question" data-toggle="popover" data-trigger="hover" data-placement="top" data-container="body" th:attr="data-content=#{html.entity.systemrole.maxAssignments.help}"></em>
+							</div>
+							<div class="col-sm-10">
+								<input th:field="*{maximumAssignments}" id="samlSystemRoleMaximumAssignments" class="form-control" type="number"/>
+								<ul th:if="${#fields.hasErrors('maximumAssignments')}" class="error">
+									<li class="error" th:each="err : ${#fields.errors('maximumAssignments')}" th:text="${err}"></li>
+								</ul>
+							</div>
+						</div>
+					</fieldset>
                 </div>
 
                 <div class="modal-footer">
@@ -1138,6 +1305,7 @@
 <script th:inline="javascript">
     /*<![CDATA[*/
   var token = $("meta[name='_csrf']").attr("content");
+  let currentTable;
   var ouFilterService, itSystemService;
   /*[+
   var itSystemType = [[${#strings.toString(itsystem.systemType)}]];
@@ -1157,6 +1325,7 @@
   var itsystemId = [[${itsystem.id}]];
   var requesterChangeURL = [[@{/rest/itsystem/requester/}]];
   var approverChangeURL = [[@{/rest/itsystem/approver/}]];
+  var itsystemType = [[${itsystem.systemType}]];
   +]*/
 
   $("document").ready(function() {
@@ -1228,6 +1397,9 @@
 
          $(".roleAssignmentAttestationByAttestationResponsible-checkbox").off('change');
          $(".roleAssignmentAttestationByAttestationResponsible-checkbox").change(handleUserroleChange);
+
+		 // re-initialize on DataTables page change
+         initRoleRequestApproveSelects();
      });
 	  $("#requesterSettingsSelect, #approverSettingsSelect").select2({
 		  placeholder: "",
@@ -1255,6 +1427,36 @@
          }
      }
 
+     initRoleRequestApproveSelects();
+
+     // Initialize column toggle for userRole table
+	 let userRoleTableEl = $('.userRoleTable');
+	 if (userRoleTableEl.length > 0) {
+		let dropdown = userRoleTableEl.closest('.tab-pane').find('.dropdown-menu');
+		let table = userRoleTableEl.DataTable();
+
+		// Map data-col-name to data-cid for compatibility with dataTablesToggleColumn
+		dropdown.find('[data-col-name]').each(function() {
+			let colName = $(this).data('col-name');
+			let column = table.column(function(idx, data, node) {
+				return $(node).data('col-name') === colName;
+			});
+			if (column.length) {
+				$(this).data('cid', column.index());
+			}
+		});
+
+		currentTable = table;
+		dataTablesRefreshIcons(dropdown);
+	 }
+
+	 $(document).on('click', '.dropdown-menu [data-col-name]', function(e) {
+		e.stopPropagation();
+		e.preventDefault();
+		currentTable = $(this).closest('.tab-pane').find('.userRoleTable').DataTable();
+		dataTablesToggleColumn(this);
+		initRoleRequestApproveSelects();
+	 });
 
 	  function handleChangeOnITSystemRequesterPermission() {
 		  const requesterSelect = document.getElementById('requesterSettingsSelect')
@@ -1766,6 +1968,7 @@
         $("#adSystemRoleIdentifier").prop("readonly", false);
         $("#adSystemRoleDescription").val("");
         $("#adSystemRoleWeight").val("1");
+        $("#adSystemRoleMaximumAssignments").val("");
 
 		$("#adGroupType").val("NONE");
 		$("#universalFieldSet").hide();
@@ -1782,6 +1985,7 @@
         $("#adSystemRoleIdentifier").prop("readonly", true);
         $("#adSystemRoleDescription").val(tds.get(2).innerHTML);
         $("#adSystemRoleWeight").val(tds.get(4).innerHTML);
+        $("#adSystemRoleMaximumAssignments").val(tds.get(5).innerHTML);
         $("#createanduniversalfieldset").hide();
 
         $("#modal-ad-systemrole").modal("show");
@@ -1800,37 +2004,13 @@
      $("#samlSystemRoleIdentifier").prop("readonly", false);
      $("#samlSystemRoleDescription").val("");
      $("#samlSystemRoleWeight").val("1");
+     $("#samlSystemRoleMaximumAssignments").val("");
 
      $("#samlSystemRoleName").focus();
-			$("#adSystemRoleId").val(id);
-			$("#adSystemRoleName").val(tds.get(0).innerHTML);
-			$("#adSystemRoleIdentifier").val(tds.get(1).innerHTML);
-			$("#adSystemRoleIdentifier").prop("readonly", true);
-			$("#adSystemRoleDescription").val(tds.get(2).innerHTML);
-			$("#adSystemRoleWeight").val(tds.get(4).innerHTML);
 
-			$("#modal-ad-systemrole").modal("show");
-
-			$("#adGroupType").val("NONE");
-			$("#universalFieldSet").hide();
-		}
-
-		function editSamlRole(roleRow) {
-			var id = $(roleRow).data("id");
-			var tds = $(roleRow).parent().parent().find("td");
-
-		$("#adSystemRoleId").val(id);
-		$("#adSystemRoleName").val(tds.get(0).innerHTML);
-		$("#adSystemRoleIdentifier").val(tds.get(1).innerHTML);
-		$("#adSystemRoleIdentifier").prop("readonly", true);
-		$("#adSystemRoleDescription").val(tds.get(2).innerHTML);
-		$("#adSystemRoleWeight").val(tds.get(4).innerHTML);
-
-		$("#modal-ad-systemrole").modal("show");
-
-		$("#adGroupType").val("NONE");
-		$("#universalFieldSet").hide();
-    }
+	 $("#adGroupType").val("NONE");
+	 $("#universalFieldSet").hide();
+ }
 
  function editSamlRole(roleRow) {
      var id = $(roleRow).data("id");
@@ -1841,7 +2021,13 @@
      $("#samlSystemRoleIdentifier").val(tds.get(1).innerHTML);
      $("#samlSystemRoleIdentifier").prop("readonly", true);
      $("#samlSystemRoleDescription").val(tds.get(2).innerHTML);
-     $("#samlSystemRoleWeight").val(tds.get(4).innerHTML);
+
+     if (itsystemType == "SAML") {
+     	$("#samlSystemRoleWeight").val(tds.get(4).innerHTML);
+     	$("#samlSystemRoleMaximumAssignments").val(tds.get(5).innerHTML);
+     } else {
+     	$("#samlSystemRoleMaximumAssignments").val(tds.get(4).innerHTML);
+     }
 
      $("#modal-saml-systemrole").modal("show");
  }
@@ -1973,6 +2159,62 @@
              });
          }
      });
+ }
+
+ function initRoleRequestApproveSelects() {
+    // Destroy existing select2 instances to avoid duplicates
+    $('.requester-role-select.select2-hidden-accessible').select2('destroy');
+    $('.approver-role-select.select2-hidden-accessible').select2('destroy');
+
+    $('.requester-role-select').select2({
+        placeholder: '',
+        allowClear: true,
+        width: '100%'
+    });
+
+    $('.approver-role-select').select2({
+        placeholder: '',
+        allowClear: true,
+        width: '100%'
+    });
+
+    // Unbind first to avoid duplicate handlers
+    $('.requester-role-select').off('change.requestApprove');
+    $('.approver-role-select').off('change.requestApprove');
+
+    $('.requester-role-select').on('change.requestApprove', function() {
+        let roleId = this.dataset.roleid;
+        let selected = $(this).val() || [];
+
+        $.ajax({
+            url: userRoleUrl + roleId + '/requester',
+            method: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({ requesterPermission: selected }),
+            headers: { 'X-CSRF-TOKEN': token },
+            success: function() {
+                $.notify({ message: fieldUpdatedMsg }, { status: 'success', autoHideDelay: 2000 });
+            },
+            error: errorHandler(fieldNotUpdatedMsg)
+        });
+    });
+
+    $('.approver-role-select').on('change.requestApprove', function() {
+        let roleId = this.dataset.roleid;
+        let selected = $(this).val() || [];
+
+        $.ajax({
+            url: userRoleUrl + roleId + '/approver',
+            method: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({ approverPermission: selected }),
+            headers: { 'X-CSRF-TOKEN': token },
+            success: function() {
+                $.notify({ message: fieldUpdatedMsg }, { status: 'success', autoHideDelay: 2000 });
+            },
+            error: errorHandler(fieldNotUpdatedMsg)
+        });
+    });
  }
 
  function OUFilterService() {

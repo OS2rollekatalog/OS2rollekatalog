@@ -9,6 +9,7 @@ import dk.digitalidentity.rc.dao.model.SystemRoleAssignment;
 import dk.digitalidentity.rc.dao.model.SystemRoleAssignmentConstraintValue;
 import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserRole;
+import dk.digitalidentity.rc.dao.model.assignment.CurrentAssignment;
 import dk.digitalidentity.rc.rolerequest.model.dto.CombinedRoleDTO;
 import dk.digitalidentity.rc.rolerequest.model.entity.OrgUnitRoleGroupCache;
 import dk.digitalidentity.rc.rolerequest.model.entity.OrgUnitUserRoleCache;
@@ -16,12 +17,10 @@ import dk.digitalidentity.rc.rolerequest.service.ApproverOptionService;
 import dk.digitalidentity.rc.rolerequest.service.OrgUnitRoleCacheService;
 import dk.digitalidentity.rc.rolerequest.service.RequestService;
 import dk.digitalidentity.rc.security.SecurityUtil;
-import dk.digitalidentity.rc.service.RoleGroupService;
 import dk.digitalidentity.rc.service.SettingsService;
 import dk.digitalidentity.rc.service.UserRoleService;
 import dk.digitalidentity.rc.service.UserService;
-import dk.digitalidentity.rc.service.model.RoleGroupAssignedToUser;
-import dk.digitalidentity.rc.service.model.UserRoleAssignedToUser;
+import dk.digitalidentity.rc.service.assignment.AssignmentService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.jpa.datatables.mapping.DataTablesInput;
@@ -56,7 +55,7 @@ public class WizardRestController {
 	private final OrgUnitRoleCacheService orgUnitRoleCacheService;
 	private final SettingsService settingsService;
 	private final UserRoleService userRoleService;
-	private final RoleGroupService roleGroupService;
+	private final AssignmentService assignmentService;
 
 	public record RoleGroupDTO(long id, String name, String description, String approver, boolean alreadyAssigned) {
 	}
@@ -71,13 +70,15 @@ public class WizardRestController {
 													@RequestParam long position, @RequestParam boolean hideAlreadyAssigned) {
 		final User requestForUser = userService.getOptionalByUuid(receiverId)
 			.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User with uuid " + receiverId + " not found"));
-		final Position matchPostion = requestForUser.getPositions().stream().filter(p -> p.getId() == position).findAny()
+		final Position matchPosition = requestForUser.getPositions().stream().filter(p -> Objects.equals(p.getId(), position)).findAny()
 			.orElseThrow(() -> new ResponseStatusException(HttpStatus.CONFLICT, "Position with id " + position + " not assigned to user"));
-		final OrgUnit orgUnit = matchPostion.getOrgUnit();
+		final OrgUnit orgUnit = matchPosition.getOrgUnit();
 		List<OrgUnitRoleGroupCache> recommendedRoleGroups = orgUnitRoleCacheService.getRoleGroups(orgUnit);
 
-		List<RoleGroupAssignedToUser> assignedRoleGroups = userService.getAllRoleGroupsAssignedToUser(requestForUser);
-		Set<Long> assignedRoleGroupIds = assignedRoleGroups.stream().map(RoleGroupAssignedToUser::getRoleId).collect(Collectors.toSet());
+		Set<CurrentAssignment> currentAssignments = assignmentService.getAllRoleGroupAssignmentsByUserIncludingInactive(requestForUser);
+		Set<Long> assignedRoleGroupIds = currentAssignments.stream()
+			.map(a -> a.getRoleGroup().getId())
+			.collect(Collectors.toSet());
 
 		List<RoleGroupDTO> recommendedRoleGroupDTOs = new ArrayList<>();
 		for (OrgUnitRoleGroupCache recommendedRoleGroup : recommendedRoleGroups) {
@@ -95,16 +96,21 @@ public class WizardRestController {
 	@Transactional(readOnly = true)
 	@GetMapping("recommendeduserroles/{receiverId}")
 	public List<UserRoleDTO> recommendedUserRoles(@PathVariable final String receiverId,
-														   @RequestParam long position,
-														   @RequestParam boolean hideAlreadyAssigned) {
+		@RequestParam long position,
+		@RequestParam boolean hideAlreadyAssigned) {
 		final User requestForUser = userService.getOptionalByUuid(receiverId)
 			.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User with uuid " + receiverId + " not found"));
-		final Position matchPostion = requestForUser.getPositions().stream().filter(p -> p.getId() == position).findAny()
+		final Position matchPosition = requestForUser.getPositions().stream().filter(p -> Objects.equals(p.getId(), position)).findAny()
 			.orElseThrow(() -> new ResponseStatusException(HttpStatus.CONFLICT, "Position with id " + position + " not assigned to user"));
-		final OrgUnit orgUnit = matchPostion.getOrgUnit();
+		final OrgUnit orgUnit = matchPosition.getOrgUnit();
 		final List<OrgUnitUserRoleCache> recommendedUserRoles = orgUnitRoleCacheService.getUserRoles(orgUnit);
-		final List<UserRoleAssignedToUser> assignedUserRoles = userService.getAllUserRolesAssignedToUser(requestForUser, null);
-		final Set<Long> assignedUserRoleIds = assignedUserRoles.stream().map(UserRoleAssignedToUser::getRoleId).collect(Collectors.toSet());
+
+		// Get all assigned userRoles
+		Set<CurrentAssignment> assignments = assignmentService.getByUserIncludingInactive(requestForUser);
+		final Set<Long> assignedUserRoleIds = assignments.stream()
+			.map(a -> a.getUserRole().getId())
+			.collect(Collectors.toSet());
+
 		final List<UserRoleDTO> recommendedUserRolesDTOs = new ArrayList<>();
 		for (OrgUnitUserRoleCache recommendedUserRole : recommendedUserRoles) {
 			final UserRole currentUserRole = recommendedUserRole.getUserRole();
@@ -133,13 +139,16 @@ public class WizardRestController {
 			.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User with id " + SecurityUtil.getUserId() + " not found"));
 
 		final User receiver = userService.getOptionalByUuid(receiverId).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User with uuid " + receiverId + " not found"));
-		final Position matchPostion = receiver.getPositions().stream().filter(p -> p.getId() == position).findAny()
+		final Position matchPosition = receiver.getPositions().stream().filter(p -> Objects.equals(p.getId(), position)).findAny()
 			.orElseThrow(() -> new ResponseStatusException(HttpStatus.CONFLICT, "Position with id " + position + " not assigned to user"));
 
-		List<Long> assignedUserRoleIds = userService.getAllUserRolesAssignedToUser(receiver, null).stream()
-			.map(UserRoleAssignedToUser::getRoleId).toList();
+		// Get all assigned userRoles
+		Set<CurrentAssignment> assignments = assignmentService.getByUserIncludingInactive(receiver);
+		List<Long> assignedUserRoleIds = assignments.stream()
+			.map(a -> a.getUserRole().getId())
+			.toList();
 
-		DataTablesOutput<UserRoleView> userroleOutput = rolerequestService.getRequestableUserRolesAsDatatable(input, requestingUser, receiver, matchPostion.getOrgUnit());
+		DataTablesOutput<UserRoleView> userroleOutput = rolerequestService.getRequestableUserRolesAsDatatable(input, requestingUser, receiver, matchPosition.getOrgUnit());
 		List<UserRoleDTO> allUserRolesDTOs = userroleOutput.getData().stream()
 			.map(userRole -> new UserRoleDTO(
 				userRole.getId(),
@@ -153,7 +162,7 @@ public class WizardRestController {
 			.toList();
 
 		if (hideAlreadyAssigned) {
-			allUserRolesDTOs = allUserRolesDTOs.stream().filter( ur -> !ur.alreadyAssigned).toList();
+			allUserRolesDTOs = allUserRolesDTOs.stream().filter(ur -> !ur.alreadyAssigned).toList();
 		}
 
 		return RequestService.toDatatablesOutput(userroleOutput, allUserRolesDTOs);
@@ -174,7 +183,7 @@ public class WizardRestController {
 			.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User with uuid " + receiverId + " not found"));
 
 		final Position matchPosition = receiver.getPositions().stream()
-			.filter(p -> p.getId() == position)
+			.filter(p -> Objects.equals(p.getId(), position))
 			.findAny()
 			.orElseThrow(() -> new ResponseStatusException(HttpStatus.CONFLICT, "Position with id " + position + " not assigned to user"));
 
@@ -182,13 +191,15 @@ public class WizardRestController {
 			input, requestingUser, receiver, matchPosition.getOrgUnit(), hideAlreadyAssigned
 		);
 
-		// Get assigned roles (for DTO mapping only, not filtering)
-		List<Long> assignedUserRoleIds = userService.getAllUserRolesAssignedToUser(receiver, null).stream()
-			.map(UserRoleAssignedToUser::getRoleId)
+		// Get all assigned userRoles
+		Set<CurrentAssignment> assignments = assignmentService.getByUserIncludingInactive(receiver);
+		List<Long> assignedUserRoleIds = assignments.stream()
+			.map(a -> a.getUserRole().getId())
 			.toList();
 
-		List<Long> assignedRoleGroupIds = userService.getAllRoleGroupsAssignedToUser(receiver).stream()
-			.map(roleGroupAssignedToUser -> roleGroupAssignedToUser.getRoleGroup().getId())
+		List<Long> assignedRoleGroupIds = assignments.stream()
+			.filter(a -> a.getRoleGroup() != null)
+			.map(a -> a.getRoleGroup().getId())
 			.toList();
 
 		List<CombinedRoleDTO> dtos = output.getData().stream()
@@ -230,19 +241,23 @@ public class WizardRestController {
 			.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User with uuid " + receiverId + " not found"));
 
 		final Position matchPosition = requestForUser.getPositions().stream()
-			.filter(p -> p.getId() == position)
+			.filter(p -> Objects.equals(p.getId(), position))
 			.findAny()
 			.orElseThrow(() -> new ResponseStatusException(HttpStatus.CONFLICT, "Position with id " + position + " not assigned to user"));
 
 		final OrgUnit orgUnit = matchPosition.getOrgUnit();
 
-		final Set<Long> assignedUserRoleIds = userService.getAllUserRolesAssignedToUser(requestForUser, null).stream()
-			.map(UserRoleAssignedToUser::getRoleId)
-			.collect(Collectors.toSet());
+		// Get all assigned userRoles
+		final Set<CurrentAssignment> assignments = assignmentService.getByUserIncludingInactive(requestForUser);
+		List<Long> assignedUserRoleIds = assignments.stream()
+			.map(a -> a.getUserRole().getId())
+			.toList();
 
-		final Set<Long> assignedRoleGroupIds = userService.getAllRoleGroupsAssignedToUser(requestForUser).stream()
-			.map(roleGroupAssignedToUser -> roleGroupAssignedToUser.getRoleGroup().getId())
-			.collect(Collectors.toSet());
+		final List<Long> assignedRoleGroupIds = assignments.stream()
+			.filter(a -> a.getRoleGroup() != null)
+			.map(a -> a.getRoleGroup().getId())
+			.toList();
+
 
 		final List<CombinedRoleDTO> combinedRoles = new ArrayList<>();
 
@@ -326,15 +341,17 @@ public class WizardRestController {
 			throw new UsernameNotFoundException("Could not find logged in user");
 		}
 		User receiver = userService.getOptionalByUuid(receiverId).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User with uuid " + receiverId + " not found"));
-		final Position matchPostion = receiver.getPositions().stream().filter(p -> p.getId() == position).findAny()
+		final Position matchPosition = receiver.getPositions().stream().filter(p -> Objects.equals(p.getId(), position)).findAny()
 			.orElseThrow(() -> new ResponseStatusException(HttpStatus.CONFLICT, "Position with id " + position + " not assigned to user"));
 
 
-		List<Long> assignedRoleGroupIds = userService.getAllRoleGroupsAssignedToUser(receiver).stream()
-			.map(RoleGroupAssignedToUser::getRoleId).toList();
-		List<RoleGroup> rolegroupOutput = rolerequestService.getRequestableRoleGroupsAsDatatable(loggedInUser, receiver, matchPostion.getOrgUnit());
+		Set<CurrentAssignment> currentAssignments = assignmentService.getAllRoleGroupAssignmentsByUserIncludingInactive(receiver);
+		List<Long> assignedRoleGroupIds = currentAssignments.stream()
+			.map(a -> a.getRoleGroup().getId())
+			.toList();
+		List<RoleGroup> rolegroupOutput = rolerequestService.getRequestableRoleGroupsAsDatatable(loggedInUser, receiver, matchPosition.getOrgUnit());
 		List<RoleGroupDTO> allRoleGroupDTOs = rolegroupOutput.stream()
-			.filter(role -> rolerequestService.canRequest(loggedInUser, role, receiver, matchPostion.getOrgUnit()))
+			.filter(role -> rolerequestService.canRequest(loggedInUser, role, receiver, matchPosition.getOrgUnit()))
 			.map(roleGroup -> new RoleGroupDTO(
 				roleGroup.getId(),
 				roleGroup.getName(),

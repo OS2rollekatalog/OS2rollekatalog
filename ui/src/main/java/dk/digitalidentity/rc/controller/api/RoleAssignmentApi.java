@@ -11,7 +11,9 @@ import dk.digitalidentity.rc.service.OrgUnitService;
 import dk.digitalidentity.rc.service.RoleGroupService;
 import dk.digitalidentity.rc.service.UserRoleService;
 import dk.digitalidentity.rc.service.UserService;
+import dk.digitalidentity.rc.service.assignment.AssignmentService;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -30,15 +32,18 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+@RequiredArgsConstructor
 @RequireApiRoleManagementRole
 @RestController
 @SecurityRequirement(name = "ApiKey")
 public class RoleAssignmentApi {
-    private static class ErrorMessage {
-        private static String USER_NOT_FOUND = "User not found.";
-        private static String OU_NOT_FOUND = "OrgUnit not found.";
-        private static String USER_ROLE_NOT_FOUND = "User Role not found.";
-        private static String ROLE_GROUP_NOT_FOUND = "Role Group not found.";
+	private final AssignmentService assignmentService;
+
+	private static class ErrorMessage {
+        private static final String USER_NOT_FOUND = "User not found.";
+        private static final String OU_NOT_FOUND = "OrgUnit not found.";
+        private static final String USER_ROLE_NOT_FOUND = "User Role not found.";
+        private static final String ROLE_GROUP_NOT_FOUND = "Role Group not found.";
     }
 
     @Autowired
@@ -55,7 +60,7 @@ public class RoleAssignmentApi {
 
 	@Autowired
 	private DomainService domainService;
-	
+
     // updates all direct assignments on users for this role
     @PostMapping("/api/overwriteAssignments/userrole/{userRoleId}")
     public ResponseEntity<String> overwriteUserRoleAssignments(@PathVariable("userRoleId") long userRoleId, @RequestBody Set<String> userIds, @RequestParam(name = "domain", required = false) String domain) {
@@ -69,8 +74,8 @@ public class RoleAssignmentApi {
 			return new ResponseEntity<>("Failed to find domain with name " + domain, HttpStatus.NOT_FOUND);
 		}
 
-        Set<String> usersWhoShouldHaveUserRole = userIds.stream().map(u -> u.toLowerCase()).collect(Collectors.toSet());
-        Set<String> usersWithUserRole = userService.getActiveUsersWithUserRole(userRole).stream().map(uwr -> uwr.getUserUserId().toLowerCase()).collect(Collectors.toSet());
+        Set<String> usersWhoShouldHaveUserRole = userIds.stream().map(String::toLowerCase).collect(Collectors.toSet());
+        Set<String> usersWithUserRole = assignmentService.getUsersWithUserRole(userRole).stream().map(User::getUuid).collect(Collectors.toSet());
 
         // find all that should be added
         Set<String> toAdd = new HashSet<>(usersWhoShouldHaveUserRole);
@@ -82,7 +87,7 @@ public class RoleAssignmentApi {
     			userService.save(user);
         	}
         }
-        
+
         // find all that should be removed
         Set<String> toRemove = new HashSet<>(usersWithUserRole);
         toRemove.removeAll(usersWhoShouldHaveUserRole);
@@ -93,36 +98,36 @@ public class RoleAssignmentApi {
     			userService.save(user);
         	}
         }
-        
+
         return new ResponseEntity<>(HttpStatus.OK);
     }
 
     @RequestMapping(value = "/api/user/{userUuid}/assign/userrole/{userRoleId}", method = RequestMethod.PUT)
     public ResponseEntity<String> assignUserRoleToUser(@PathVariable("userRoleId") long userRoleId, @PathVariable("userUuid") String userUuid, @RequestParam(name = "startDate", required = false) LocalDate startDate, @RequestParam(name = "stopDate", required = false) LocalDate stopDate, @RequestParam(name = "onlyIfNotAssigned", required = false, defaultValue = "true") boolean onlyIfNotAssigned, @RequestParam(name = "domain", required = false) String domain) {
         List<User> users = userService.getByExtUuid(userUuid);
-        if (users == null || users.size() == 0) {
+        if (users == null || users.isEmpty()) {
         	users = new ArrayList<>();
 
 			Domain foundDomain = domainService.getDomainOrPrimary(domain);
 			if (foundDomain == null) {
 				return new ResponseEntity<>("Failed to find domain with name " + domain, HttpStatus.NOT_FOUND);
 			}
-			
+
         	User user = userService.getByUserId(userUuid, foundDomain);
         	if (user != null) {
         		users.add(user);
         	}
         }
-        
+
         UserRole userRole = userRoleService.getById(userRoleId);
 
-		if (users.size() == 0) {
+		if (users.isEmpty()) {
 			return new ResponseEntity<>(ErrorMessage.USER_NOT_FOUND, HttpStatus.NOT_FOUND);
 		}
 		else if (userRole == null) {
 			return new ResponseEntity<>(ErrorMessage.USER_ROLE_NOT_FOUND, HttpStatus.NOT_FOUND);
 		}
-		
+
 		for (User user : users) {
 			if (onlyIfNotAssigned) {
 				// if already assigned, skip it
@@ -141,14 +146,14 @@ public class RoleAssignmentApi {
     @RequestMapping(value = "/api/user/{userUuid}/assign/rolegroup/{roleGroupId}", method = RequestMethod.PUT)
     public ResponseEntity<String> assignRoleGroupToUser(@PathVariable("roleGroupId") long roleGroupId, @PathVariable("userUuid") String userUuid, @RequestParam(name = "startDate", required = false) LocalDate startDate, @RequestParam(name = "stopDate", required = false) LocalDate stopDate, @RequestParam(name = "domain", required = false) String domain) {
         List<User> users = userService.getByExtUuid(userUuid);
-        if (users == null || users.size() == 0) {
+        if (users == null || users.isEmpty()) {
         	users = new ArrayList<>();
 
 			Domain foundDomain = domainService.getDomainOrPrimary(domain);
 			if (foundDomain == null) {
 				return new ResponseEntity<>("Failed to find domain with name " + domain, HttpStatus.NOT_FOUND);
 			}
-			
+
         	User user = userService.getByUserId(userUuid, foundDomain);
         	if (user != null) {
         		users.add(user);
@@ -157,7 +162,7 @@ public class RoleAssignmentApi {
 
         RoleGroup roleGroup = roleGroupService.getById(roleGroupId);
 
-		if (users.size() == 0) {
+		if (users.isEmpty()) {
 			return new ResponseEntity<>(ErrorMessage.USER_NOT_FOUND, HttpStatus.NOT_FOUND);
 		}
 		else if (roleGroup == null) {
@@ -165,7 +170,7 @@ public class RoleAssignmentApi {
 		}
 
 		for (User user : users) {
-			userService.addRoleGroup(user, roleGroup, startDate, stopDate, null);
+			userService.addRoleGroup(user, roleGroup, startDate, stopDate, null, null);
 			userService.save(user);
 
 		}
@@ -210,14 +215,14 @@ public class RoleAssignmentApi {
     @RequestMapping(value = "/api/user/{userUuid}/deassign/userrole/{userRoleId}", method = RequestMethod.DELETE)
     public ResponseEntity<String> deassignUserRoleToUser(@PathVariable("userRoleId") long userRoleId, @PathVariable("userUuid") String userUuid, @RequestParam(name = "domain", required = false) String domain) {
         List<User> users = userService.getByExtUuid(userUuid);
-        if (users == null || users.size() == 0) {
+        if (users == null || users.isEmpty()) {
         	users = new ArrayList<>();
 
 			Domain foundDomain = domainService.getDomainOrPrimary(domain);
 			if (foundDomain == null) {
 				return new ResponseEntity<>("Failed to find domain with name " + domain, HttpStatus.NOT_FOUND);
 			}
-			
+
         	User user = userService.getByUserId(userUuid, foundDomain);
         	if (user != null) {
         		users.add(user);
@@ -226,7 +231,7 @@ public class RoleAssignmentApi {
 
         UserRole userRole = userRoleService.getById(userRoleId);
 
-		if (users.size() == 0) {
+		if (users.isEmpty()) {
 			return new ResponseEntity<>(ErrorMessage.USER_NOT_FOUND, HttpStatus.NOT_FOUND);
 		}
 		else if (userRole == null) {
@@ -245,14 +250,14 @@ public class RoleAssignmentApi {
     @RequestMapping(value = "/api/user/{userUuid}/deassign/rolegroup/{roleGroupId}", method = RequestMethod.DELETE)
     public ResponseEntity<String> deassignRoleGroupToUser(@PathVariable("roleGroupId") long roleGroupId, @PathVariable("userUuid") String userUuid, @RequestParam(name = "domain", required = false) String domain) {
         List<User> users = userService.getByExtUuid(userUuid);
-        if (users == null || users.size() == 0) {
+        if (users == null || users.isEmpty()) {
         	users = new ArrayList<>();
 
 			Domain foundDomain = domainService.getDomainOrPrimary(domain);
 			if (foundDomain == null) {
 				return new ResponseEntity<>("Failed to find domain with name " + domain, HttpStatus.NOT_FOUND);
 			}
-			
+
         	User user = userService.getByUserId(userUuid, foundDomain);
         	if (user != null) {
         		users.add(user);
@@ -261,7 +266,7 @@ public class RoleAssignmentApi {
 
         RoleGroup roleGroup = roleGroupService.getById(roleGroupId);
 
-		if (users.size() == 0) {
+		if (users.isEmpty()) {
 			return new ResponseEntity<>(ErrorMessage.USER_NOT_FOUND, HttpStatus.NOT_FOUND);
 		}
 		else if (roleGroup == null) {

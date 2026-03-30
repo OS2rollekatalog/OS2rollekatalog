@@ -10,8 +10,6 @@ import dk.digitalidentity.rc.dao.model.ItSystem;
 import dk.digitalidentity.rc.dao.model.OrgUnit;
 import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.security.SecurityUtil;
-import dk.digitalidentity.rc.security.permission.Section;
-import dk.digitalidentity.rc.security.permission.UserPermissionContext;
 import dk.digitalidentity.rc.service.ItSystemService;
 import dk.digitalidentity.rc.service.OrgUnitService;
 import dk.digitalidentity.rc.service.UserService;
@@ -58,10 +56,7 @@ public class AttestationReportRestController {
     @Autowired
     private AttestationAdminService attestationAdminService;
 
-	@Autowired
-	private UserPermissionContext userPermissionContext;
-
-    @GetMapping("/rest/attestation/v2/reports/")
+    @GetMapping("/rest/attestation/v2/reports")
     public ResponseEntity<?> busy() {
         if (lockService.isLocked(REPORT_LOCK_NAME)) {
             return new ResponseEntity<>(HttpStatus.SERVICE_UNAVAILABLE);
@@ -81,10 +76,7 @@ public class AttestationReportRestController {
         final Map<String, Object> model = attestationReportService
                 .getAllReportModel(locale, since != null ? since : when.minusYears(1), when);
 
-        response.setContentType("application/ms-excel");
-        response.setHeader("Content-Disposition", "attachment; filename=\"historiske_rolletildelinger_alle.xlsx\"");
-
-        return new ModelAndView(new RoleAssignmentXlsView(lockService), model);
+        return new ModelAndView(new RoleAssignmentXlsView(lockService, "historiske_rolletildelinger_alle.xlsx"), model);
     }
 
 	@GetMapping("/rest/attestation/v2/reports/download/roles/all")
@@ -97,9 +89,6 @@ public class AttestationReportRestController {
 		final LocalDate when = LocalDate.now();
 		final Map<String, Object> model = attestationReportService
 			.getAllRolesReportModel(locale, since != null ? since : when.minusYears(1), when);
-
-		response.setContentType("application/ms-excel");
-		response.setHeader("Content-Disposition", "attachment; filename=\"rolleopbygning_alle.xlsx\"");
 
 		return new ModelAndView(new RoleBuildXlsView(lockService), model);
 	}
@@ -127,10 +116,7 @@ public class AttestationReportRestController {
         final LocalDate when = LocalDate.now();
         model = attestationReportService.getOrgUnitReportModel(orgUnit, locale, since != null ? since : when.minusYears(1), when);
 
-        response.setContentType("application/ms-excel");
-        response.setHeader("Content-Disposition", "attachment; filename=\"historiske_rolletildelinger_" + orgUnit.getName() + ".xlsx\"");
-
-        return new ModelAndView(new RoleAssignmentXlsView(lockService), model);
+        return new ModelAndView(new RoleAssignmentXlsView(lockService, "historiske_rolletildelinger_" + orgUnit.getName() + ".xlsx"), model);
     }
 
     @GetMapping("/rest/attestation/v2/reports/download/itsystems/{id}")
@@ -151,10 +137,7 @@ public class AttestationReportRestController {
         LocalDate when = LocalDate.now();
         model = attestationReportService.getItSystemReportModel(itSystem, locale, since != null ? since : when.minusYears(1), when);
 
-        response.setContentType("application/ms-excel");
-        response.setHeader("Content-Disposition", "attachment; filename=\"historiske_rolletildelinger_" + itSystem.getName() + ".xlsx\"");
-
-        return new ModelAndView(new RoleAssignmentXlsView(lockService), model);
+        return new ModelAndView(new RoleAssignmentXlsView(lockService,"historiske_rolletildelinger_" + itSystem.getName() + ".xlsx"), model);
     }
 
     @GetMapping("/rest/attestation/v2/reports/download/audit/{attestationRunId}")
@@ -172,10 +155,7 @@ public class AttestationReportRestController {
         final Map<String, Object> model = attestationReportService
                 .getAuditReportModel(locale, attestationRun.getCreatedAt(), until, attestationRun);
 
-        response.setContentType("application/ms-excel");
-        response.setHeader("Content-Disposition", "attachment; filename=\"revisionsrapport.xlsx\"");
-
-        return new ModelAndView(new RoleAssignmentXlsView(lockService), model);
+        return new ModelAndView(new RoleAssignmentXlsView(lockService, "revisionsrapport.xlsx"), model);
     }
 
 

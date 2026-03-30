@@ -28,31 +28,34 @@ public class UserRoleGroupAssignment {
 	@ManyToOne(fetch = FetchType.LAZY)
 	@JoinColumn(name = "user_uuid")
 	private User user;
-	
+
 	@ManyToOne(fetch = FetchType.LAZY)
 	@JoinColumn(name = "rolegroup_id")
 	private RoleGroup roleGroup;
-	
+
 	@Column
 	private String assignedByUserId;
-	
+
 	@Column
 	private String assignedByName;
-	
+
 	@Column
 	private Date assignedTimestamp;
 
     @Convert(converter = LocalDateAttributeConverter.class)
 	@Column
 	private LocalDate startDate;
-	
+
     @Convert(converter = LocalDateAttributeConverter.class)
 	@Column
 	private LocalDate stopDate;
 
 	@Column
 	private String stopDateUser;
-	
+
+	@Column
+	private String caseNumber;
+
 	@Column
 	private boolean inactive;
 

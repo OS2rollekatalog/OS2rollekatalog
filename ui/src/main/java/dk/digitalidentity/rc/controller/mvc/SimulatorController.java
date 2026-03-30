@@ -9,6 +9,7 @@ import dk.digitalidentity.rc.exceptions.UserNotFoundException;
 import dk.digitalidentity.rc.security.RequireAdministratorRole;
 import dk.digitalidentity.rc.service.ItSystemService;
 import dk.digitalidentity.rc.service.UserService;
+import dk.digitalidentity.rc.service.assignment.AssignmentService;
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -49,6 +50,9 @@ public class SimulatorController {
 	@Autowired
 	private UserService userService;
 
+	@Autowired
+	private AssignmentService assignmentService;
+
 	@InitBinder
 	void initBinder(WebDataBinder binder) {
 		binder.addValidators(simulationValidator);
@@ -77,7 +81,7 @@ public class SimulatorController {
 			return returnLoginSimulationPage(model, simulation);
 		}
 
-		List<UserRole> roles = userService.getAllUserRoles(user, Collections.singletonList(simulation.getItSystem()));
+		List<UserRole> roles = new ArrayList<>(assignmentService.getUserRolesByUserAndSystems(user, Collections.singletonList(simulation.getItSystem())));;
 
 		switch (simulation.getLoginType()) {
 			case OIO_BPP:

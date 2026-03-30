@@ -1,6 +1,5 @@
 package dk.digitalidentity.rc.rolerequest.task;
 
-import dk.digitalidentity.rc.rolerequest.dao.RoleRequestDao;
 import dk.digitalidentity.rc.rolerequest.service.RequestService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.EnableScheduling;
@@ -15,8 +14,6 @@ import lombok.extern.slf4j.Slf4j;
 @EnableScheduling
 @Slf4j
 public class CleanupRequestResponseTask {
-	@Autowired
-	private RoleRequestDao roleRequestDao;
 
 	@Autowired
 	private RequestService rolerequestService;

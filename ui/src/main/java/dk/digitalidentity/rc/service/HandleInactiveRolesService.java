@@ -100,7 +100,7 @@ public class HandleInactiveRolesService {
 							titles = assignment.getTitles().stream().map(Title::getUuid).collect(Collectors.toSet());
 						}
 
-						roleChangeInterceptor.interceptAddRoleGroupAssignmentOnOrgUnit(orgUnit, assignment.getRoleGroup(), assignment.isInactive(), assignment.getStartDate(), assignment.getStopDate(), exceptedUsers, titles);
+						roleChangeInterceptor.interceptAddRoleGroupAssignmentOnOrgUnit(orgUnit, assignment.getRoleGroup(), assignment.isInactive(), assignment.getStartDate(), assignment.getStopDate(), exceptedUsers, titles, assignment.getCaseNumber());
 					}
 					break;
 				case EXPIRED:

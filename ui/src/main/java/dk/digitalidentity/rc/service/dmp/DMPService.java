@@ -10,6 +10,8 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import dk.digitalidentity.rc.dao.model.assignment.CurrentAssignment;
+import dk.digitalidentity.rc.service.assignment.AssignmentService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -35,7 +37,6 @@ import dk.digitalidentity.rc.service.dmp.model.DMPRole;
 import dk.digitalidentity.rc.service.dmp.model.DMPSetRoleAssignment;
 import dk.digitalidentity.rc.service.dmp.model.DMPSetRoleAssignmentsRequest;
 import dk.digitalidentity.rc.service.dmp.model.DMPUser;
-import dk.digitalidentity.rc.service.model.UserWithRole;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
@@ -63,6 +64,9 @@ public class DMPService {
 
 	@Autowired
 	private PositionService positionService;
+
+	@Autowired
+	private AssignmentService assignmentService;
 
 	// perform a delta sync on all userRoles
 	@Transactional
@@ -259,10 +263,10 @@ public class DMPService {
 	}
 
 	public void queueUserRole(UserRole userRole) {
-		List<UserWithRole> usersWithRole = userService.getUsersWithUserRole(userRole, true);
+		Set<CurrentAssignment> assignments = assignmentService.getActiveByUserRole(userRole);
 
-		for (UserWithRole userWithUserRole : usersWithRole) {
-			queueUser(userWithUserRole.getUser());
+		for (CurrentAssignment assignment : assignments) {
+			queueUser(assignment.getUser());
 		}
 	}
 
@@ -314,11 +318,11 @@ public class DMPService {
 			}
 
 			// find all assignments of this userRole
-			List<UserWithRole> usersWithUserRole = userService.getUsersWithUserRole(userRole, true);
+			Set<CurrentAssignment> assignments = assignmentService.getActiveByUserRole(userRole);
 
 			// aggregate all assigned systemRoles in the assignment map
-			for (UserWithRole userWithUserRole : usersWithUserRole) {
-				String userId = userWithUserRole.getUser().getUserId().toLowerCase();
+			for (CurrentAssignment assignment : assignments) {
+				String userId = assignment.getUser().getUserId().toLowerCase();
 
 				if (!assignedDmpRoles.containsKey(userId)) {
 					assignedDmpRoles.put(userId, new HashSet<>(systemRoles));
@@ -367,14 +371,14 @@ public class DMPService {
 		List<UserRole> userRoles = userRoleService.getByItSystem(itSystem);
 
 		for (UserRole userRole : userRoles) {
-			List<UserWithRole> usersWithRole = userService.getUsersWithUserRole(userRole, true);
+			Set<CurrentAssignment> assignments = assignmentService.getActiveByUserRole(userRole);
 
-			for (UserWithRole userWithRole : usersWithRole) {
-				if (userWithRole.getUser().isDeleted() || userWithRole.getUser().isDisabled()) {
+			for (CurrentAssignment assignment : assignments) {
+				if (assignment.getUser().isDeleted() || assignment.getUser().isDisabled()) {
 					continue;
 				}
 
-				users.add(userWithRole.getUser().getUserId().toLowerCase());
+				users.add(assignment.getUser().getUserId().toLowerCase());
 			}
 		}
 

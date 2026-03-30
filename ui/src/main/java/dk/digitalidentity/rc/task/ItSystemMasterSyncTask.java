@@ -24,7 +24,7 @@ public class ItSystemMasterSyncTask {
 			!configuration.getIntegrations().getMaster().isEnabled()) {
 			return;
 		}
-		
+
 		masterService.fetchItSystems();
 	}
 

@@ -2,7 +2,9 @@ package dk.digitalidentity.rc.security.permission;
 
 import java.io.Serial;
 import java.io.Serializable;
+import java.util.Collection;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 import lombok.AllArgsConstructor;
@@ -28,12 +30,45 @@ public class PermissionConstraint implements Serializable {
 		this.constrainedOUUuids = other.constrainedOUUuids == null ? null : new HashSet<>(other.constrainedOUUuids);
 	}
 
+	/**
+	 * Returns true if the passed IT system id is allowed by the constraint
+	 */
 	public boolean allowsITSystem(Long systemId) {
 		return constrainedItSystemIds == null || constrainedItSystemIds.contains(systemId);
 	}
 
+	public boolean allowsAllITSystems(Collection<Long> systemIds) {
+		if (constrainedItSystemIds == null) {
+			return true;
+		}
+		if (constrainedItSystemIds.isEmpty()) {
+			return false;
+		}
+		return  constrainedItSystemIds.containsAll(systemIds);
+	}
+
+	/**
+	 * Returns true if the passed ou uuid is allowed by the constraint
+	 */
 	public boolean allowsOrgunit(String ouUuid) {
-		return ouUuid != null && (constrainedOUUuids == null || constrainedOUUuids.contains(ouUuid));
+		if (constrainedOUUuids == null) {
+			return true;
+		}
+		return ouUuid != null && constrainedOUUuids.contains(ouUuid);
+	}
+
+
+	/**
+	 * Returns true if any of the passed ou uuids is allowed by the constraint
+	 */
+	public boolean allowsAnyOrgunit(List<String> ouUuid) {
+		if (constrainedOUUuids == null) {
+			return true;
+		}
+		if (ouUuid == null) {
+			return false;
+		}
+		return ouUuid.stream().anyMatch(constrainedOUUuids::contains);
 	}
 
 	public boolean isUnconstrained() {

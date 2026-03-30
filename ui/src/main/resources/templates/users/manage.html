@@ -111,6 +111,9 @@
 
 						<div class="tab-content">
 							<div id="roles_menu" class="tab-pane fade in active">
+								<div th:if="${stale}" id="stale-loading" style="padding: 20px; text-align: center;">
+									<i class="fa fa-spinner fa-spin fa-3x" style="color: #337ab7;"></i>
+								</div>
 							</div>
 
 							<div id="excepted_users_menu" class="tab-pane fade" th:if="${not #lists.isEmpty(exceptedAssignments)}">
@@ -203,6 +206,7 @@
 
 		var baseUrl = [[@{/}]];
 		let datatableService ;
+		let stale = [[${stale}]];
 
 		+]*/
 		var token = $("meta[name='_csrf']").attr("content");
@@ -238,7 +242,12 @@
 			});
 
 			//Initialize tabs
-			rolesService.loadRolesFragment();
+			if (stale) {
+				const userStaleService = new UserStaleService(user);
+				userStaleService.watch(() => rolesService.loadRolesFragment());
+			} else {
+				rolesService.loadRolesFragment();
+			}
 			//Init userrole edit modal
 			userRoleEditModalService.parentService = rolesService;
 			userRoleModalService.parentService = rolesService;
@@ -316,6 +325,12 @@
 				table.state.save();
 			}
 
+			this.loadRolesFragmentWhenReady = function () {
+				$("#roles_menu").html('<div id="stale-loading" style="padding: 20px; text-align: center;"><i class="fa fa-spinner fa-spin fa-3x" style="color: #337ab7;"></i></div>');
+				const userStaleService = new UserStaleService(user);
+				userStaleService.watch(() => rolesService.loadRolesFragment());
+			}
+
 			this.loadAddUserRoleFragment = function () {
 				$("#roles_menu").load(UIUrl + user + "/addUserRole", function () {
 					// fragShowDataTableFun('#listTable_u_ur', 0, 100, "user_manage_add_user_role_table");
@@ -339,10 +354,14 @@
 						{
 							targets: [1],
 							data: 'itSystemName',
+							render: (data, type, row, meta) => {
+								return data;
+							}
 						},
 						{
 							targets: [2],
 							data: 'description',
+							className: "preformat"
 						},
 						{
 							targets: [3],
@@ -351,7 +370,10 @@
 							searchable:false,
 							sortable:false,
 							render: (data, type, row, meta) => {
-								return data ? `<a href="#" onclick="rolesService.addUserRole(this)" data-roleid="${data}" data-systemType=${row.itSystemType}"><em class="fa fa-plus"></em></a>` : null;
+								if (!data || !row.assignable || row.assignable === 'false') {
+									return null;
+								}
+								return `<a href="#" onclick="rolesService.addUserRole(this)" data-roleid="${data}" data-systemType="${row.itSystemType}" data-name="${row.name}"><em class="fa fa-plus"></em></a>`;
 							},
 						}
 
@@ -421,28 +443,30 @@
 								},
 								error: errorHandler(errorMessage),
 								success: function(response) {
-									rolesService.loadRolesFragment();
+								rolesService.loadRolesFragmentWhenReady();
 								}
 							});
 						}
 				});
 			}
 			this.editRoleAssignment = function (elem) {
-				var parent = elem.parentElement;
-				var assignmentId = parent.dataset.assignmentid;
-				var type = parent.dataset.type;
-				var startDate = parent.dataset.startdate;
-				var stopDate = parent.dataset.stopdate;
-				var assignedThrough = parent.dataset.assignedthrough;
-				var orgUnit = parent.dataset.ouuuid;
-				var caseNumber = parent.dataset.casenumber;
+				let parent = elem.parentElement;
+				let assignmentId = parent.dataset.assignmentid;
+				let type = parent.dataset.type;
+				let startDate = parent.dataset.startdate;
+				let stopDate = parent.dataset.stopdate;
+				let assignedThrough = parent.dataset.assignedthrough;
+				let orgUnit = parent.dataset.ouuuid;
+				let caseNumber = parent.dataset.casenumber;
+				let roleName = parent.dataset.name
 
-				userRoleEditModalService.showModal(user, startDate, stopDate, type, assignmentId, assignedThrough, orgUnit, possibleOrgUnits, caseNumber);
+				userRoleEditModalService.showModal(user, startDate, stopDate, type, assignmentId, assignedThrough, orgUnit, possibleOrgUnits, caseNumber, roleName);
 				userRoleEditModalService.loadPostponedConstraintsFragment(assignmentId, type, user);
 			}
 
 			this.addUserRole = function (elem) {
-				var roleid = elem.dataset.roleid;
+				let roleid = elem.dataset.roleid;
+				let roleName = elem.dataset.name;
 
 				modal.modal({
 				    backdrop: 'static',
@@ -454,6 +478,7 @@
 				$('#startDatePicker').data("DateTimePicker").clear();
 				$('#startDatePicker').data("DateTimePicker").date(new Date());
 				$('#notifyId').attr('checked', false);
+				$("#assignUserRoleName").text(roleName);
 
 				modal.attr("roleid", roleid);
 				modal.attr("userUuid", user);
@@ -462,6 +487,7 @@
 			}
 			this.addRoleGroup = function (elem) {
 				var groupId = elem.dataset.rolegroupid;
+				let groupName = elem.dataset.name;
 
 				modalGroups.modal({
 				    backdrop: 'static',
@@ -475,6 +501,7 @@
 				$('#groupStopDatePicker').data("DateTimePicker").clear();
 				$('#groupStartDatePicker').data("DateTimePicker").clear();
 				$('#groupStartDatePicker').data("DateTimePicker").date(new Date());
+				$('#assignRoleGroupName').text(groupName);
 
 				modalGroups.attr("rolegroupid", groupId);
 				modalGroups.attr("userUuid", user);

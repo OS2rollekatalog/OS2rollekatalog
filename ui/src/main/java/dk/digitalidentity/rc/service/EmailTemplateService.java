@@ -7,7 +7,6 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import org.apache.commons.lang3.RegExUtils;
-import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.MessageSource;
 import org.springframework.stereotype.Service;
@@ -46,7 +45,7 @@ public class EmailTemplateService {
 			Matcher m = PATTERN.matcher(title);
 			if (m.find()) {
 				Integer daysBeforeEvent = template.getDaysBeforeEvent();
-				String result = StringUtils.replace(title, m.group(1), "" + Math.abs(daysBeforeEvent));
+				String result = title.replace(m.group(1), "" + Math.abs(daysBeforeEvent));
 				result = RegExUtils.replaceAll(result, "før deadline|efter deadline", daysBeforeEvent >= 0 ? "før deadline" : "efter deadline");
 				return result;
 			}
@@ -253,6 +252,10 @@ public class EmailTemplateService {
 					title = "En bruger med direkte tildelte rettigheder har skiftet afdeling.";
 					message = "Kære {modtager} Brugeren {bruger} har skiftet afdeling.\n<br/>\n<br/>Ny stillinger:\n<br/>{ny_stillinger}\n<br/>Fratrådt stilling:\n<br/>{tidligere_stillinger}\n<br/>\n<br/>Som leder er du ansvarlig for at dine medarbejdere kun har de rettigheder, som de arbejdsmæssigt er berettiget til. Direkte tildelinger er givet i den tidligere stilling. Du bedes derfor tjekke de direkte tildelte rettigheder og tage stilling til om de skal bibeholdes eller fratages brugeren.";
 					enabled = false;
+					break;
+				case SYSTEM_ROLE_EXCEEDED_MAX_ASSIGNMENTS:
+					title = "For mange tildelinger af systemrolle";
+					message = "Systemrollen {rolle} fra IT-systemet {itsystem} har overskredet grænsen for maksimalt antal tildelinger.\n<br/>\n<br/>Nuværende antal: {antal}\n<br/>Maksimalt tilladt: {maksimum}";
 					break;
 			}
 

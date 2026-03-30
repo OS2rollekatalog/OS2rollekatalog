@@ -14,7 +14,7 @@
 			<td th:class="${showSingleTableInRequestApproveEnabled} ? 'col-2' : ''" th:if="${showSingleTableInRequestApproveEnabled}"></td>
 			<td th:text="${userRole.itSystemName}" th:class="${showSingleTableInRequestApproveEnabled} ? 'col-3' : 'col-lg-3'"></td>
 			<td th:text="${userRole.name}" th:class="${showSingleTableInRequestApproveEnabled} ? 'col-3' : 'col-lg-4'"></td>
-			<td th:text="${userRole.description}" th:class="${showSingleTableInRequestApproveEnabled} ? 'col-4' : 'col-lg-5'"></td>
+			<td th:text="${userRole.description}" th:class="'preformat ' + (${showSingleTableInRequestApproveEnabled} ? 'col-4' : 'col-lg-5')"></td>
 		</tr>
 		</tbody>
 	</table>

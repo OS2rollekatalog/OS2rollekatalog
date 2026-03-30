@@ -12,11 +12,11 @@ import lombok.experimental.SuperBuilder;
 @NoArgsConstructor
 @Schema(
 	name = "UserRoleAssignment",
-	description = "Tildeling af en brugerrolle til en organisationsenhed"
+	description = "Tildeling af en jobfunktionsrolle til en organisationsenhed"
 )
 public class OrgUnitUserRoleAssignmentAM extends BaseOrgUnitAssignmentAM {
 	@Schema(
-		description = "Brugerrolle der tildeles",
+		description = "Jobfunktionsrolle der tildeles",
 		requiredMode = Schema.RequiredMode.REQUIRED
 	)
 	private UserRoleShallowAM userRole;

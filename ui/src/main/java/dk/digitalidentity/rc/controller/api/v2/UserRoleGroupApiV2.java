@@ -1,27 +1,16 @@
 package dk.digitalidentity.rc.controller.api.v2;
 
-import dk.digitalidentity.rc.controller.api.mapper.RoleGroupMapper;
-import dk.digitalidentity.rc.controller.api.mapper.UserMapper;
-import dk.digitalidentity.rc.controller.api.model.ExceptionResponseAM;
-import dk.digitalidentity.rc.controller.api.model.RoleGroupAM;
-import dk.digitalidentity.rc.controller.api.model.UserAM2;
-import dk.digitalidentity.rc.controller.api.model.UserRoleGroupAssignmentAM;
-import dk.digitalidentity.rc.dao.model.RoleGroup;
-import dk.digitalidentity.rc.security.RequireApiReadAccessRole;
-import dk.digitalidentity.rc.security.RequireApiRoleManagementRole;
-import dk.digitalidentity.rc.service.RoleGroupService;
-import dk.digitalidentity.rc.service.UserRoleService;
-import dk.digitalidentity.rc.service.UserService;
-import dk.digitalidentity.rc.service.model.UserWithRole;
-import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.media.Content;
-import io.swagger.v3.oas.annotations.media.Schema;
-import io.swagger.v3.oas.annotations.responses.ApiResponse;
-import io.swagger.v3.oas.annotations.responses.ApiResponses;
-import io.swagger.v3.oas.annotations.security.SecurityRequirement;
-import io.swagger.v3.oas.annotations.tags.Tag;
-import jakarta.validation.Valid;
-import lombok.RequiredArgsConstructor;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.transaction.annotation.Transactional;
@@ -34,13 +23,29 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Optional;
-import java.util.Set;
-import java.util.stream.Collectors;
+import dk.digitalidentity.rc.controller.api.mapper.RoleGroupMapper;
+import dk.digitalidentity.rc.controller.api.mapper.UserMapper;
+import dk.digitalidentity.rc.controller.api.model.ExceptionResponseAM;
+import dk.digitalidentity.rc.controller.api.model.RoleGroupAM;
+import dk.digitalidentity.rc.controller.api.model.UserAM2;
+import dk.digitalidentity.rc.controller.api.model.UserRoleGroupAssignmentAM;
+import dk.digitalidentity.rc.dao.model.RoleGroup;
+import dk.digitalidentity.rc.dao.model.User;
+import dk.digitalidentity.rc.dao.model.assignment.CurrentAssignment;
+import dk.digitalidentity.rc.security.RequireApiReadAccessRole;
+import dk.digitalidentity.rc.security.RequireApiRoleManagementRole;
+import dk.digitalidentity.rc.service.RoleGroupService;
+import dk.digitalidentity.rc.service.UserRoleService;
+import dk.digitalidentity.rc.service.assignment.AssignmentService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
 
 @RestController
 @RequireApiReadAccessRole
@@ -50,7 +55,7 @@ import java.util.stream.Collectors;
 public class UserRoleGroupApiV2 {
     private final RoleGroupService roleGroupService;
     private final UserRoleService userRoleService;
-    private final UserService userService;
+    private final AssignmentService assignmentService;
 
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Returns all existing rolegroups. Can be empty list."),
@@ -136,7 +141,7 @@ public class UserRoleGroupApiV2 {
     @Transactional
     public ResponseEntity<RoleGroupAM> createRoleGroup(@Valid @RequestBody final RoleGroupAM userRoleGroupRecord) {
         roleGroupService.getByName(userRoleGroupRecord.getName()).
-                ifPresent(rg -> { throw new ResponseStatusException(HttpStatus.CONFLICT, "A rolegroup with name already exists"); });
+                ifPresent(_ -> { throw new ResponseStatusException(HttpStatus.CONFLICT, "A rolegroup with name already exists"); });
         final RoleGroup roleGroup = setRoleGroupProperties(userRoleGroupRecord, new RoleGroup());
         final RoleGroup result = roleGroupService.save(roleGroup);
         return new ResponseEntity<>(RoleGroupMapper.toApi(result), HttpStatus.CREATED);
@@ -152,16 +157,25 @@ public class UserRoleGroupApiV2 {
 
     })
     @Operation(summary = "Get all users with a given rolegroup")
-    @GetMapping("/api/v2/rolegroup/{id}/users")
-    public ResponseEntity<List<UserAM2>> getByUsersByRoleGroupId(@PathVariable long id) {
-        final RoleGroup roleGroup = roleGroupService.getOptionalById(id)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
-        final List<UserAM2> result = userService.getUsersWithRoleGroup(roleGroup, true).stream()
-                .map(UserWithRole::getUser)
-                .map(UserMapper::toApi)
-                .collect(Collectors.toList());
-        return new ResponseEntity<>(result, HttpStatus.OK);
-    }
+	@GetMapping("/api/v2/rolegroup/{id}/users")
+	public ResponseEntity<List<UserAM2>> getByUsersByRoleGroupId(@PathVariable long id) {
+		final RoleGroup roleGroup = roleGroupService.getOptionalById(id)
+			.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
+
+		Set<CurrentAssignment> assignments = assignmentService.getActiveByRoleGroup(roleGroup);
+
+		// Deduplicate by user UUID
+		Map<String, User> uniqueUsers = new HashMap<>();
+		for (CurrentAssignment assignment : assignments) {
+			uniqueUsers.putIfAbsent(assignment.getUser().getUuid(), assignment.getUser());
+		}
+
+		final List<UserAM2> result = uniqueUsers.values().stream()
+			.map(UserMapper::toApi)
+			.collect(Collectors.toList());
+
+		return new ResponseEntity<>(result, HttpStatus.OK);
+	}
 
     private RoleGroup setRoleGroupProperties(final RoleGroupAM userRoleGroupRecord, final RoleGroup target) {
         final Set<Long> currentUserRoleIds = target.getUserRoleAssignments() != null
@@ -178,13 +192,17 @@ public class UserRoleGroupApiV2 {
             target.setUserRoleAssignments(new ArrayList<>());
         }
         toRemove.stream()
-                .map(userRoleService::getOptionalById)
-                .filter(Optional::isPresent)
-                .forEach(ur -> roleGroupService.removeUserRole(target, ur.get()));
+			.filter(Objects::nonNull)
+	        .map(userRoleService::getOptionalById)
+	        .filter(Objects::nonNull)
+	        .filter(Optional::isPresent)
+	        .forEach(ur -> roleGroupService.removeUserRole(target, ur.get()));
         toAdd.stream()
-                .map(userRoleService::getOptionalById)
-                .filter(Optional::isPresent)
-                .forEach(ur -> roleGroupService.addUserRole(target, ur.get()));
+			.filter(Objects::nonNull)
+	        .map(userRoleService::getOptionalById)
+	        .filter(Objects::nonNull)
+	        .filter(Optional::isPresent)
+	        .forEach(ur -> roleGroupService.addUserRole(target, ur.get()));
 
         target.setName(userRoleGroupRecord.getName());
         target.setDescription(userRoleGroupRecord.getDescription());

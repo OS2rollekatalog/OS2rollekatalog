@@ -19,6 +19,7 @@ import dk.digitalidentity.rc.security.permission.Permission;
 import dk.digitalidentity.rc.security.permission.PermissionConstraint;
 import dk.digitalidentity.rc.security.permission.Section;
 import dk.digitalidentity.rc.service.PostponedConstraintService;
+import dk.digitalidentity.rc.service.assignment.AssignmentService;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
 import dk.digitalidentity.rc.dao.model.SystemRole;
@@ -51,6 +52,7 @@ public class AccessConstraintService {
 	private final ItSystemService itSystemService;
 	private final OrganisationConstraintUtil organisationConstraintUtil;
 	private final PostponedConstraintService postponedConstraintService;
+	private final AssignmentService assignmentService;
 
 	// TODO - refactoring target - we should have a central way to check constraints of ANY type, that we can use everywhere we need to check constraints
 
@@ -75,7 +77,7 @@ public class AccessConstraintService {
 		List<ItSystem> itSystems = itSystemService.findByIdentifier(Constants.ROLE_CATALOGUE_IDENTIFIER);
 
 		// get all roles, and start analyzing the data
-		List<UserRole> allRoleCatalogueRoles = userService.getAllUserRoles(user, itSystems);
+		List<UserRole> allRoleCatalogueRoles = new ArrayList<>(assignmentService.getUserRolesByUserAndSystems(user, itSystems));
 		Set<String> resultSet = new HashSet<>();
 
 		for (UserRole role : allRoleCatalogueRoles) {
@@ -264,7 +266,7 @@ public class AccessConstraintService {
 
 		List<ItSystem> itSystems = itSystemService.findByIdentifier(Constants.ROLE_CATALOGUE_IDENTIFIER);
 
-		List<UserRole> allRoles = userService.getAllUserRoles(user, itSystems);
+		List<UserRole> allRoles = new ArrayList<>(assignmentService.getUserRolesByUserAndSystems(user, itSystems));
 		Set<Long> resultSet = new HashSet<>();
 
 		for (UserRole role : allRoles) {
@@ -549,11 +551,17 @@ public class AccessConstraintService {
 		}
 	}
 
+	/**
+	 * Constructs a Permission map for a user, based on their permission-granting system roles in Rolecatalogue.
+	 * @param user target user
+	 * @param rolecatalogue rolecatalogue IT system
+	 * @return a Map of sections, containing maps of Permissions and their constraints
+	 */
 	public Map<Section, Map<Permission, PermissionConstraint>> constructUserPermissions(User user, ItSystem rolecatalogue) {
 		EnumMap<Section, Map<Permission, PermissionConstraint>> permissionByEntityMap = new EnumMap<>(Section.class);
 
 		// Find all userroles in RC for the current user, no matter how they are assigned
-		List<UserRole> userRoles = userService.getAllUserRoles(user, List.of(rolecatalogue));
+		List<UserRole> userRoles = new ArrayList<>(assignmentService.getUserRolesByUserAndSystems(user, List.of(rolecatalogue)));
 		Set<SystemRoleAssignment> systemRoleAssignments = userRoles.stream().flatMap(ur -> ur.getSystemRoleAssignments().stream()).collect(Collectors.toSet());
 
 		Map<String, List<PostponedConstraint>> allPostponedConstraints = postponedConstraintService.findAllForUserAndRoleCatalogue(user).stream()
@@ -578,7 +586,7 @@ public class AccessConstraintService {
 
 			// For every default permission for this system role, construct the constraints and save them in the map
 			for (Map.Entry<Section, Set<Permission>> entry : defaultPermissionsForRole.entrySet()) {
-				Map<Permission, PermissionConstraint> existingPermissionConstraints = permissionByEntityMap.computeIfAbsent(entry.getKey(), k -> new EnumMap<>(Permission.class));
+				Map<Permission, PermissionConstraint> existingPermissionConstraints = permissionByEntityMap.computeIfAbsent(entry.getKey(), _ -> new EnumMap<>(Permission.class));
 
 				// add the new constraint to the existing constraints in the permission map
 				addPermissionConstraintsToMap(existingPermissionConstraints, entry.getValue(), combinedConstraints);
@@ -593,15 +601,25 @@ public class AccessConstraintService {
 		if (postponedConstraints == null) {
 			return new PermissionConstraint(null, null);
 		}
+
 		Set<PostponedConstraint> postponedITSystemConstraint = postponedConstraints.stream().filter(p -> p.getConstraintType().getEntityId().equals(Constants.INTERNAL_ITSYSTEM_CONSTRAINT_ENTITY_ID)).collect(Collectors.toSet());
 		Set<Long> postponedITSystemConstraintIds = postponedITSystemConstraint.isEmpty() ? null : postponedITSystemConstraint.stream()
-			.map(p -> Long.parseLong(p.getValue().trim()))
+			.map(PostponedConstraint::getValue)
+			.flatMap(v -> Arrays.stream(v.split(",")))
+			.map(String::trim)
+			.filter(StringUtils::isNotBlank)
+			.map(this::parseLongOrNull)
+			.filter(Objects::nonNull) // note that this silently ignores malformed values
 			.collect(Collectors.toSet());
 
 		List<PostponedConstraint> postPonedOuConstraints = postponedConstraints.stream().filter(p -> p.getConstraintType().getEntityId().equals(Constants.INTERNAL_ORGUNIT_CONSTRAINT_ENTITY_ID)).toList();
 		Set<String> postponedOuConstraintUuids = postPonedOuConstraints.isEmpty() ? null : postPonedOuConstraints.stream()
-			.map(p -> p.getValue().trim())
+			.map(PostponedConstraint::getValue)
+			.flatMap(v -> Arrays.stream(v.split(",")))
+			.map(String::trim)
+			.filter(StringUtils::isNotBlank)
 			.collect(Collectors.toSet());
+
 		return new PermissionConstraint(postponedITSystemConstraintIds, postponedOuConstraintUuids);
 	}
 

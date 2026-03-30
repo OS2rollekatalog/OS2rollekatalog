@@ -17,9 +17,7 @@ import dk.digitalidentity.rc.dao.ManagerDelegateDao;
 import dk.digitalidentity.rc.dao.model.ManagerDelegate;
 import dk.digitalidentity.rc.dao.model.OrgUnit;
 import dk.digitalidentity.rc.dao.model.User;
-import dk.digitalidentity.rc.service.ManagerDelegateService;
 import dk.digitalidentity.rc.service.OrgUnitService;
-import dk.digitalidentity.rc.service.UserService;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.FlushModeType;
 import jakarta.persistence.PersistenceContext;
@@ -58,12 +56,6 @@ public class ManagerDelegateAttestationService {
 	private AttestationDao attestationDao;
 	@Autowired
 	private OrgUnitService orgUnitService;
-
-	@Autowired
-	private UserService userService;
-
-	@Autowired
-	private ManagerDelegateService managerDelegateService;
 
 	@Transactional
 	public OrganisationAttestationDTO getAttestationDTO(final Attestation attestation, final String currentUserUuid, final boolean undecidedUsersOnly) {
@@ -164,10 +156,6 @@ public class ManagerDelegateAttestationService {
 	}
 
 	public List<AttestationOverviewDTO> buildOrgUnitsOverviews(final List<ManagerDelegateOrganisationAttestationDTO> orgsForAttestation, User currentUser, boolean readOnly) {
-		List<User> managers  = managerDelegateService.getByDelegateUuid(currentUser.getUuid()).stream()
-				.map(ManagerDelegate::getManager)
-				.toList();
-
 		return orgsForAttestation.stream()
 				.map(o -> buildOrgUnitOverview(o, readOnly))
 				.toList();

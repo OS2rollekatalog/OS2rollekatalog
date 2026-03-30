@@ -3,6 +3,10 @@
 .project
 .settings
 target/
-.idea/
+.idea/*
+/ui/.idea/*
+!.idea/inspectionProfiles/
 *.iml
 **/.factorypath
+/ui/.claude/
+.claude

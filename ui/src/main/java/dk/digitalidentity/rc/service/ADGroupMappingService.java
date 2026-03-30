@@ -64,7 +64,7 @@ public class ADGroupMappingService {
 								// Extract CN value from DN
 								String groupName = extractCNFromDN(dn);
 								if (groupName != null) {
-									idToGroups.computeIfAbsent(id, k -> new ArrayList<>()).add(groupName);
+									idToGroups.computeIfAbsent(id, _ -> new ArrayList<>()).add(groupName);
 								}
 							} catch (NumberFormatException e) {
 								// Skip invalid IDs

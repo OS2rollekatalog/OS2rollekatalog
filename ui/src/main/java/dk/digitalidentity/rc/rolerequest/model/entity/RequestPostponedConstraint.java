@@ -26,6 +26,9 @@ public class RequestPostponedConstraint {
 	@NotNull
 	private String value;
 
+	@Column(name = "constraint_label")
+	private String label;
+
 	@ManyToOne(fetch = FetchType.LAZY)
 	@JoinColumn(name = "role_request_id")
 	private RoleRequest roleRequest;

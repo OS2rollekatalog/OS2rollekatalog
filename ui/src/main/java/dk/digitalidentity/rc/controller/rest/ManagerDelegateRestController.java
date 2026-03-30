@@ -10,10 +10,10 @@ import dk.digitalidentity.rc.security.permission.RequirePermission;
 import dk.digitalidentity.rc.service.ManagerDelegateService;
 import dk.digitalidentity.rc.service.OrgUnitService;
 import dk.digitalidentity.rc.service.UserService;
+import jakarta.annotation.Nullable;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
-import org.springframework.lang.Nullable;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -43,7 +43,7 @@ public class ManagerDelegateRestController {
 	@GetMapping("managers")
 	public ResponseEntity<?> searchManager(@RequestParam(required = false) String search) {
 
-		boolean isAdmin = SecurityUtil.isAdmin();
+		boolean isAdmin = SecurityUtil.hasDirectAdminRole();
 		User loggedInUser = userService.getByUserId(SecurityUtil.getUserId());
 		List<User> users = new ArrayList<>();
 

@@ -2,6 +2,7 @@ package dk.digitalidentity.rc.dao;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.Set;
 
 import dk.digitalidentity.rc.dao.model.User;
 import org.springframework.data.repository.CrudRepository;
@@ -17,7 +18,6 @@ public interface ItSystemDao extends CrudRepository<ItSystem, Long> {
 	List<ItSystem> findBySystemTypeIn(List<ItSystemType> systemTypes);
 	List<ItSystem> findBySubscribedToNotNull();
 	ItSystem findByUuid(String uuid);
-	ItSystem findById(long id);
 	List<ItSystem> findByHiddenFalse();
 	long countByDeletedFalseAndHiddenFalse();
 	List<ItSystem> findByDeletedTrue();
@@ -29,6 +29,8 @@ public interface ItSystemDao extends CrudRepository<ItSystem, Long> {
 	List<ItSystem> findAllByDeletedFalse();
 
 	long countByAttestationResponsible(User attestationResponsible);
+
+	Set<ItSystem> findAllByDeletedFalseAndIdIn(Collection<Long> ids);
 
 	List<ItSystem> findByDeletedFalseAndAttestationExemptFalse();
 }

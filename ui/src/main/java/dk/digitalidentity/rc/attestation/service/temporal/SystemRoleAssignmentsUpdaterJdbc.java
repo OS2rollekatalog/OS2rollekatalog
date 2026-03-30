@@ -4,10 +4,7 @@ import com.google.common.collect.Lists;
 import dk.digitalidentity.rc.attestation.exception.AttestationDataUpdaterException;
 import dk.digitalidentity.rc.attestation.model.entity.temporal.AttestationSystemRoleAssignment;
 import dk.digitalidentity.rc.attestation.model.entity.temporal.AttestationSystemRoleAssignmentConstraint;
-import dk.digitalidentity.rc.dao.history.model.HistoryItSystem;
-import dk.digitalidentity.rc.dao.history.model.HistorySystemRoleAssignment;
-import dk.digitalidentity.rc.dao.history.model.HistorySystemRoleAssignmentConstraint;
-import dk.digitalidentity.rc.dao.history.model.HistoryUserRole;
+import dk.digitalidentity.rc.dao.model.assignment.HistoricItSystemAssignment;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -46,24 +43,26 @@ public class SystemRoleAssignmentsUpdaterJdbc {
 
         progressCount = 0;
         long recordCount = 0;
-        final List<HistoryItSystem> itSystems = temporalDao.listHistoryItSystems(when).stream().filter(i -> !i.isAttestationExempt()).toList();
-        for (final HistoryItSystem itSystem : itSystems) {
-            final Long cnt = transactionTemplate.execute(t -> temporalDao.listHistoryUserRoles(itSystem.getId()).stream()
-                    .flatMap(role -> temporalDao.listHistorySystemRoleAssignment(role.getId()).stream()
-                            .map(assignment -> toAttestationAssignment(role, itSystem, assignment)))
-                    .map(a -> {
-                        logProgress();
-                        persist(when, a);
-                        return true;
-                    }).count());
+        final List<Long> itSystemIds = temporalDao.getDistinctItSystemIdsFromHistoricItSystemAssignment(when);
+		for (final Long itSystemId : itSystemIds) {
+			final Long cnt = transactionTemplate.execute(_ -> {
+				final List<AttestationSystemRoleAssignment> assignments = temporalDao.listHistoricItSystemAssignmentsByItSystemAndDate(when, itSystemId).stream()
+						.map(SystemRoleAssignmentsUpdaterJdbc::toAttestationAssignment)
+						.toList();
+				assignments.forEach(a -> {
+					logProgress();
+					persist(when, a);
+				});
+				return (long) assignments.size();
+            });
             recordCount += cnt != null ? cnt : 0;
         }
         if (recordCount == 0) {
             throw new AttestationDataUpdaterException("No system assignments for date %s in the history tables.", when);
         }
-        final List<Long> idsToDisable = transactionTemplate.execute(t -> temporalDao.findAllValidSystemRoleAssignmentIdsByUpdatedAtLessThan(when));
+        final List<Long> idsToDisable = transactionTemplate.execute(_ -> temporalDao.findAllValidSystemRoleAssignmentIdsByUpdatedAtLessThan(when));
         for (List<Long> currentIdsToDisable : Lists.partition(idsToDisable, 500)) {
-            transactionTemplate.execute(t -> temporalDao.invalidateSystemRoleAssignmentsWithIdsIn(currentIdsToDisable, when));
+            transactionTemplate.execute(_ -> temporalDao.invalidateSystemRoleAssignmentsWithIdsIn(currentIdsToDisable, when));
         }
         log.info("Invalidated " + idsToDisable.size() + " AttestationSystemRoleAssignment records");
     }
@@ -86,34 +85,27 @@ public class SystemRoleAssignmentsUpdaterJdbc {
         }
     }
 
-    private AttestationSystemRoleAssignment toAttestationAssignment(final HistoryUserRole role,
-                                                                           final HistoryItSystem itSystem,
-                                                                           final HistorySystemRoleAssignment assignment) {
-        final AttestationSystemRoleAssignment attestationAssignment = AttestationSystemRoleAssignment.builder()
-                .itSystemId(itSystem.getItSystemId())
-                .itSystemName(itSystem.getItSystemName())
-                .systemRoleName(assignment.getSystemRoleName())
-                .systemRoleId(assignment.getSystemRoleId())
-                .systemRoleDescription(assignment.getSystemRoleDescription())
-                .userRoleId(role.getUserRoleId())
-                .userRoleName(role.getUserRoleName())
-                .userRoleDescription(role.getUserRoleDescription())
-                .responsibleUserUuid(itSystem.getAttestationResponsible())
-                .build();
-        attestationAssignment.setConstraints(temporalDao.listConstraintsForHistorySystemRoleAssignment(assignment.getId()).stream()
-                .map(a -> toConstraint(a, attestationAssignment))
-                .collect(Collectors.toSet()));
-        return attestationAssignment;
-    }
-
-    private static AttestationSystemRoleAssignmentConstraint toConstraint(final HistorySystemRoleAssignmentConstraint constraint,
-                                                                          final AttestationSystemRoleAssignment attestationAssignment) {
-        return AttestationSystemRoleAssignmentConstraint.builder()
-                .valueType(constraint.getConstraintValueType())
-                .value(constraint.getConstraintValue())
-                .name(constraint.getConstraintName())
-                .assignment(attestationAssignment)
-                .build();
+    private static AttestationSystemRoleAssignment toAttestationAssignment(final HistoricItSystemAssignment h) {
+        final AttestationSystemRoleAssignment a = AttestationSystemRoleAssignment.builder()
+            .itSystemId(h.getItSystemId())
+            .itSystemName(h.getItSystemName())
+            .userRoleId(h.getUserRoleId())
+            .userRoleName(h.getUserRoleName())
+            .userRoleDescription(h.getUserRoleDescription())
+            .systemRoleId(h.getSystemRoleId())
+            .systemRoleName(h.getSystemRoleName())
+            .systemRoleDescription(h.getSystemRoleDescription())
+            .responsibleUserUuid(h.getResponsibleUserUuid())
+            .build();
+        a.setConstraints(h.getConstraints().stream()
+            .map(c -> AttestationSystemRoleAssignmentConstraint.builder()
+                .name(c.getConstraintName())
+                .valueType(c.getConstraintValueType())
+                .value(c.getConstraintValue())
+                .assignment(a)
+                .build())
+            .collect(Collectors.toSet()));
+        return a;
     }
 
     private void logProgress() {

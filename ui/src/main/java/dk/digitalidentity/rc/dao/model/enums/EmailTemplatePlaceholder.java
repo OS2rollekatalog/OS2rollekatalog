@@ -11,6 +11,7 @@ public enum EmailTemplatePlaceholder {
 	USER_PLACEHOLDER("{bruger}", "html.enum.placeholders.description.user"),
 	SYSTEM_RESPONSIBLE_PLACEHOLDER("{systemansvarlig}", "html.enum.placeholders.description.system_responsible"),
 	COUNT_PLACEHOLDER("{antal}", "html.enum.placeholders.description.count"),
+	MAX_COUNT_PLACEHOLDER("{maksimum}", "html.enum.placeholders.description.max"),
 	ITSYSTEM_PLACEHOLDER("{itsystem}", "html.enum.placeholders.description.role_itsystem"),
 	REQUESTER_PLACEHOLDER("{anmoder}", "html.enum.placeholders.description.requester"),
 	CHANGE_REQUESTED_PLACEHOLDER("{ændring}", "html.enum.placeholders.description.change"),

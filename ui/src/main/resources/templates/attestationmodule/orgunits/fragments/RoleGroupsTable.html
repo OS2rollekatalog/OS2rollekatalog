@@ -32,8 +32,8 @@
                         <p><b>Tildeles alle medarbejdere</b></p>
                     </div>
                     <div th:if="${orgUnitAssignments && roleGroup.manager}">
-                        <b th:if="${userRole.substitutes}" th:text="#{attestationmodule.html.orgunits.attestate.user.tabs.roles.roleGroups.manager}"></b>
-                        <b th:unless="${userRole.substitutes}" th:text="#{attestationmodule.html.orgunits.attestate.user.tabs.roles.roleGroups.managerAndSubstitutes}"></b>
+                        <b th:if="${userRole?.substitutes}" th:text="#{attestationmodule.html.orgunits.attestate.user.tabs.roles.roleGroups.manager}"></b>
+                        <b th:unless="${userRole?.substitutes}" th:text="#{attestationmodule.html.orgunits.attestate.user.tabs.roles.roleGroups.managerAndSubstitutes}"></b>
                     </div>
                     <div th:if="${orgUnitAssignments && !#lists.isEmpty(roleGroup.exceptedUsers)}">
                         <b th:text="#{attestationmodule.html.orgunits.attestate.user.tabs.roles.roleGroups.exceptedUsers}"></b>

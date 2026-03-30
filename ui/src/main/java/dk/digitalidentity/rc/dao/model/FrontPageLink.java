@@ -9,10 +9,14 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.PrePersist;
+import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
 import lombok.Setter;
+
+import java.time.LocalDateTime;
 
 @Getter
 @Setter
@@ -54,6 +58,19 @@ public class FrontPageLink implements AuditLoggable{
 	@Column
 	@Enumerated(EnumType.STRING)
 	private LinkType linkType;
+
+	@Column
+	@NotNull
+	private int sortOrder;
+
+	@Column(name = "last_changed", nullable = false)
+	private LocalDateTime lastChanged;
+
+	@PrePersist
+	@PreUpdate
+	private void updateLastChanged() {
+		this.lastChanged = LocalDateTime.now();
+	}
 
 	@Override
 	public String getEntityName() {

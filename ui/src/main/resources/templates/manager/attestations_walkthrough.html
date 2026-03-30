@@ -88,8 +88,8 @@
 													<td th:unless="${dto.roleAssignedToUser.userRole.itSystem}!=null">&nbsp;</td>
 												</th:block>
 
-												<td th:if="${dto.roleType}=='Rollebuket'" th:text="${dto.roleAssignedToUser.roleGroup.description}"></td>
-												<td th:unless="${dto.roleType}=='Rollebuket'" th:text="${dto.roleAssignedToUser.userRole.description}"></td>
+												<td class="preformat" th:if="${dto.roleType}=='Rollebuket'" th:text="${dto.roleAssignedToUser.roleGroup.description}"></td>
+												<td class="preformat" th:unless="${dto.roleType}=='Rollebuket'" th:text="${dto.roleAssignedToUser.userRole.description}"></td>
 												
 												<td th:text="${dto.roleType}"></td>
 												
@@ -154,8 +154,8 @@
 													<td th:unless="${dto.roleAssignedToUser.userRole.itSystem}!=null">&nbsp;</td>
 												</th:block>
 
-												<td th:if="${dto.roleType}=='Rollebuket'" th:text="${dto.roleAssignedToUser.roleGroup.description}"></td>
-												<td th:unless="${dto.roleType}=='Rollebuket'" th:text="${dto.roleAssignedToUser.userRole.description}"></td>
+												<td class="preformat" th:if="${dto.roleType}=='Rollebuket'" th:text="${dto.roleAssignedToUser.roleGroup.description}"></td>
+												<td class="preformat" th:unless="${dto.roleType}=='Rollebuket'" th:text="${dto.roleAssignedToUser.userRole.description}"></td>
 												
 												<td th:text="${dto.roleType}"></td>
 											</tr>

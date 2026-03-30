@@ -1,5 +1,34 @@
 package dk.digitalidentity.rc.service;
 
+import java.time.LocalDate;
+import java.time.ZoneId;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
+
+import org.apache.commons.collections4.CollectionUtils;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
+import org.springframework.cache.annotation.EnableCaching;
+import org.springframework.scheduling.annotation.EnableScheduling;
+import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
+
 import dk.digitalidentity.rc.config.Constants;
 import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
 import dk.digitalidentity.rc.dao.OrgUnitDao;
@@ -29,44 +58,12 @@ import dk.digitalidentity.rc.dao.projections.OrgUnitManagerName;
 import dk.digitalidentity.rc.exceptions.OrgUnitNotFoundException;
 import dk.digitalidentity.rc.log.AuditLogContextHolder;
 import dk.digitalidentity.rc.log.AuditLogIntercepted;
-import dk.digitalidentity.rc.log.AuditLogger;
 import dk.digitalidentity.rc.security.SecurityUtil;
-import dk.digitalidentity.rc.service.model.AssignedThrough;
-import dk.digitalidentity.rc.service.model.OrgUnitAssignedToUserRoleDTO;
-import dk.digitalidentity.rc.service.model.OrgUnitWithRole;
 import dk.digitalidentity.rc.service.model.OrgUnitWithRole2;
 import dk.digitalidentity.rc.service.model.RoleAssignedToOrgUnitDTO;
 import dk.digitalidentity.rc.service.model.RoleWithDateDTO;
 import dk.digitalidentity.rc.util.StreamExtensions;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.collections4.CollectionUtils;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.cache.annotation.CacheEvict;
-import org.springframework.cache.annotation.Cacheable;
-import org.springframework.cache.annotation.Caching;
-import org.springframework.cache.annotation.EnableCaching;
-import org.springframework.scheduling.annotation.EnableScheduling;
-import org.springframework.scheduling.annotation.Scheduled;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-import org.springframework.util.StringUtils;
-
-import java.time.LocalDate;
-import java.time.ZoneId;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.Set;
-import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -352,7 +349,7 @@ public class OrgUnitService {
 	}
 
 	@AuditLogIntercepted
-	public OrgUnitRoleGroupAssignment addRoleGroup(OrgUnit ou, RoleGroup roleGroup, boolean inherit, LocalDate startDate, LocalDate stopDate, Set<String> exceptedUsers, Set<String> titles, boolean negativeTitles, boolean manager, boolean substitutes, Set<String> functionUuids) {
+	public OrgUnitRoleGroupAssignment addRoleGroup(OrgUnit ou, RoleGroup roleGroup, boolean inherit, LocalDate startDate, LocalDate stopDate, Set<String> exceptedUsers, Set<String> titles, boolean negativeTitles, boolean manager, boolean substitutes, Set<String> functionUuids, String caseNumber) {
 		String userFullname = SecurityUtil.getUserFullname();
 		String userId = SecurityUtil.getUserId();
 		OrgUnitRoleGroupAssignment assignment = new OrgUnitRoleGroupAssignment();
@@ -363,6 +360,7 @@ public class OrgUnitService {
 		assignment.setStopDate(stopDate);
 		assignment.setInactive(startDate != null ? startDate.isAfter(LocalDate.now()) : false);
 		assignment.setStopDateUser(userFullname + "(" + userId + ")");
+		assignment.setCaseNumber(caseNumber);
 
 		if (manager) {
 			assignment.setManager(true);
@@ -398,11 +396,13 @@ public class OrgUnitService {
 		assignment.setAssignedByName(userFullname);
 		assignment.setAssignedByUserId(userId);
 		assignment.setAssignedTimestamp(new Date());
+
+		AuditLogContextHolder.getContext().addArgument("Sagsnummer", assignment.getCaseNumber());
 		return orgUnitRoleGroupAssignmentDao.save(assignment);
 	}
 
 	public void addRoleGroup(OrgUnit ou, RoleGroup roleGroup, boolean inherit, LocalDate startDate, LocalDate stopDate, Set<String> exceptedUsers, Set<String> titles) {
-		addRoleGroup(ou, roleGroup, inherit, startDate, stopDate, exceptedUsers, titles, false, false, false, null);
+		addRoleGroup(ou, roleGroup, inherit, startDate, stopDate, exceptedUsers, titles, false, false, false, null, null);
 	}
 
 	@AuditLogIntercepted
@@ -1011,9 +1011,6 @@ public class OrgUnitService {
 		if (inheritOnly) {
 			// inherited
 			List<RoleAssignedToOrgUnitDTO> userRoleAssignments = orgUnit.getUserRoleAssignments().stream().filter(OrgUnitUserRoleAssignment::isInherit).map(RoleAssignedToOrgUnitDTO::fromUserRoleAssignmentIndirect).toList();
-
-			for (RoleAssignedToOrgUnitDTO userRoleAssignment : userRoleAssignments) {
-			}
 			resultSet.addAll(userRoleAssignments);
 		}
 		else {
@@ -1278,204 +1275,6 @@ public class OrgUnitService {
 		return result;
 	}
 
-	// TODO: dead code, not used anywhere
-	public List<OrgUnitWithRole> getOrgUnitsWithUserRole(UserRole userRole, boolean findIndirectlyAssignedRoles) {
-		List<OrgUnitWithRole> result = new ArrayList<>();
-		List<OrgUnit> ousNoInherit = orgUnitDao.findByActiveTrueAndUserRoleAssignmentsUserRoleAndUserRoleAssignmentsInheritAndUserRoleAssignmentsInactive(userRole, false, false)
-				.stream().filter(this::isActiveAndIncluded).collect(Collectors.toList());
-		for (OrgUnit orgUnit : ousNoInherit) {
-			OrgUnitWithRole mapping = new OrgUnitWithRole();
-			mapping.setOrgUnit(orgUnit);
-			mapping.setAssignedThrough(AssignedThrough.DIRECT);
-
-			result.add(mapping);
-		}
-
-		List<OrgUnit> ousInherit = orgUnitDao.findByActiveTrueAndUserRoleAssignmentsUserRoleAndUserRoleAssignmentsInheritAndUserRoleAssignmentsInactive(userRole, true, false)
-				.stream().filter(this::isActiveAndIncluded).collect(Collectors.toList());
-		for (OrgUnit orgUnit : ousInherit) {
-			OrgUnitWithRole mapping = new OrgUnitWithRole();
-			mapping.setOrgUnit(orgUnit);
-			mapping.setAssignedThrough(AssignedThrough.DIRECT);
-
-			result.add(mapping);
-
-			if (findIndirectlyAssignedRoles) {
-				for (OrgUnit child : orgUnit.getChildren()) {
-					getOrgUnitsRecursive(child, result);
-				}
-			}
-		}
-
-		// For all roleGroups that have selected UserRole
-		for (RoleGroup roleGroup : roleGroupDao.findByUserRoleAssignmentsUserRole(userRole)) {
-			// Get all orgUnits that have this roleGroup assigned directly
-			for (OrgUnit orgUnit : orgUnitDao.findByActiveTrueAndRoleGroupAssignmentsRoleGroupAndRoleGroupAssignmentsInheritAndRoleGroupAssignmentsInactive(roleGroup, false, false).stream().filter(this::isActiveAndIncluded).collect(Collectors.toList())) {
-				OrgUnitWithRole mapping = new OrgUnitWithRole();
-				mapping.setOrgUnit(orgUnit);
-				mapping.setAssignedThrough(AssignedThrough.ROLEGROUP);
-
-				result.add(mapping);
-			}
-
-			if (findIndirectlyAssignedRoles) {
-				// Get all orgUnits that inherit that RoleGroup
-				for (OrgUnit orgUnit : orgUnitDao.findByActiveTrueAndRoleGroupAssignmentsRoleGroupAndRoleGroupAssignmentsInheritAndRoleGroupAssignmentsInactive(roleGroup, true, false).stream().filter(this::isActiveAndIncluded).collect(Collectors.toList())) {
-					OrgUnitWithRole mapping = new OrgUnitWithRole();
-					mapping.setOrgUnit(orgUnit);
-					mapping.setAssignedThrough(AssignedThrough.ROLEGROUP);
-
-					result.add(mapping);
-
-					if (findIndirectlyAssignedRoles) {
-						for (OrgUnit child : orgUnit.getChildren()) {
-							getOrgUnitsRecursive(child, result);
-						}
-					}
-				}
-			}
-		}
-
-		return result;
-	}
-
-	// TODO: dead code, not used anywhere
-	public List<OrgUnitAssignedToUserRoleDTO> getOrgUnitAssignmentsWithUserRoleDirectlyAssigned(UserRole userRole) {
-		List<OrgUnitAssignedToUserRoleDTO> result = new ArrayList<>();
-
-		List<OrgUnit> orgUnitsWithRole = orgUnitDao.findByActiveTrueAndUserRoleAssignmentsUserRoleAndUserRoleAssignmentsInactive(userRole, false).stream().filter(o -> isActiveAndIncluded(o)).distinct().collect(Collectors.toList());
-		for (OrgUnit orgUnit : orgUnitsWithRole) {
-			List<OrgUnitUserRoleAssignment> userRoleAssignments = orgUnit.getUserRoleAssignments().stream().filter(a -> a.getUserRole().equals(userRole)).collect(Collectors.toList());
-			for (OrgUnitUserRoleAssignment userUserRoleAssignment : userRoleAssignments) {
-				OrgUnitAssignedToUserRoleDTO mapping = new OrgUnitAssignedToUserRoleDTO();
-				mapping.setOrgUnit(orgUnit);
-				mapping.setAssignedThrough(AssignedThrough.DIRECT);
-				mapping.setAssignmentId(userUserRoleAssignment.getId());
-				mapping.setCanEdit(false);
-				mapping.setStartDate(userUserRoleAssignment.getStartDate());
-				mapping.setStopDate(userUserRoleAssignment.getStopDate());
-				if (userUserRoleAssignment.getContainsTitles() != ContainsTitles.NO) {
-					mapping.setAssignmentType(userUserRoleAssignment.getTitles().size());// assigned through titles
-				} else if (userUserRoleAssignment.isContainsExceptedUsers()) {
-					mapping.setAssignmentType(0);// Assigned to all with exceptions
-				} else {
-					mapping.setAssignmentType(userUserRoleAssignment.isInherit() ? -2 : -1);// Assigned to all or with inheritance
-				}
-
-				result.add(mapping);
-			}
-		}
-
-		// For all roleGroups that have selected UserRole
-		List<RoleGroup> roleGroups = roleGroupDao.findByUserRoleAssignmentsUserRole(userRole);
-		Set<Long> roleGroupIds = roleGroups.stream().map(r -> r.getId()).collect(Collectors.toSet());
-
-		// Get all orgUnits that have this roleGroup assigned directly
-		List<OrgUnit> orgUnitsWithRoleGroup = orgUnitDao.findByActiveTrueAndRoleGroupAssignmentsRoleGroupInAndRoleGroupAssignmentsInactive(roleGroups, false)
-				.stream().filter(this::isActiveAndIncluded).distinct().collect(Collectors.toList());
-
-		for (OrgUnit orgUnit : orgUnitsWithRoleGroup) {
-			List<OrgUnitRoleGroupAssignment> userRoleAssignments = orgUnit.getRoleGroupAssignments().stream().filter(a -> roleGroupIds.contains(a.getRoleGroup().getId())).collect(Collectors.toList());
-
-			for (OrgUnitRoleGroupAssignment userUserRoleAssignment : userRoleAssignments) {
-				OrgUnitAssignedToUserRoleDTO mapping = new OrgUnitAssignedToUserRoleDTO();
-				mapping.setOrgUnit(orgUnit);
-				mapping.setAssignedThrough(AssignedThrough.ROLEGROUP);
-				mapping.setAssignmentId(userUserRoleAssignment.getId());
-				mapping.setRoleId(userUserRoleAssignment.getRoleGroup().getId());
-				mapping.setCanEdit(false);
-				mapping.setStartDate(userUserRoleAssignment.getStartDate());
-				mapping.setStopDate(userUserRoleAssignment.getStopDate());
-				if (userUserRoleAssignment.getContainsTitles() != ContainsTitles.NO) {
-					mapping.setAssignmentType(userUserRoleAssignment.getTitles().size());// assigned through titles
-				}
-				else if (userUserRoleAssignment.isContainsExceptedUsers()) {
-					mapping.setAssignmentType(0);// Assigned to all with exceptions
-				}
-				else {
-					mapping.setAssignmentType(userUserRoleAssignment.isInherit() ? -2 : -1);// Assigned to all or with inheritance
-				}
-
-				result.add(mapping);
-			}
-		}
-
-		return result;
-	}
-
-	// TODO: dead code, not used anywhere
-	public List<OrgUnitAssignedToUserRoleDTO> getOrgUnitAssignmentsWithRoleGroupDirectlyAssigned(RoleGroup roleGroup) {
-		List<OrgUnitAssignedToUserRoleDTO> result = new ArrayList<>();
-
-		List<OrgUnit> orgUnitsWithRole = orgUnitDao.findByActiveTrueAndRoleGroupAssignmentsRoleGroupInAndRoleGroupAssignmentsInactive(Collections.singletonList(roleGroup), false).stream().filter(this::isActiveAndIncluded).distinct().collect(Collectors.toList());
-		for (OrgUnit orgUnit : orgUnitsWithRole) {
-			List<OrgUnitRoleGroupAssignment> roleGroupAssignments = orgUnit.getRoleGroupAssignments().stream().filter(a -> a.getRoleGroup().equals(roleGroup)).collect(Collectors.toList());
-			for (OrgUnitRoleGroupAssignment userUserRoleAssignment : roleGroupAssignments) {
-				OrgUnitAssignedToUserRoleDTO mapping = new OrgUnitAssignedToUserRoleDTO();
-				mapping.setOrgUnit(orgUnit);
-				mapping.setAssignedThrough(AssignedThrough.DIRECT);
-				mapping.setAssignmentId(userUserRoleAssignment.getId());
-				mapping.setCanEdit(false);
-				mapping.setStartDate(userUserRoleAssignment.getStartDate());
-				mapping.setStopDate(userUserRoleAssignment.getStopDate());
-				if (userUserRoleAssignment.getContainsTitles() != ContainsTitles.NO) {
-					mapping.setAssignmentType(userUserRoleAssignment.getTitles().size());// assigned through titles
-				} else if (userUserRoleAssignment.isContainsExceptedUsers()) {
-					mapping.setAssignmentType(0);// Assigned to all with exceptions
-				} else {
-					mapping.setAssignmentType(userUserRoleAssignment.isInherit() ? -2 : -1);// Assigned to all or with inheritance
-				}
-
-				result.add(mapping);
-			}
-		}
-
-		return result;
-	}
-
-	// TODO: dead code, not used anywhere
-	public List<OrgUnitWithRole> getOrgUnitsWithRoleGroup(RoleGroup roleGroup, boolean findIndirectlyAssignedRoles) {
-		List<OrgUnitWithRole> result = new ArrayList<>();
-
-		for (OrgUnit orgUnit : orgUnitDao.findByActiveTrueAndRoleGroupAssignmentsRoleGroupAndRoleGroupAssignmentsInheritAndRoleGroupAssignmentsInactive(roleGroup, false, false).stream().filter(this::isActiveAndIncluded).collect(Collectors.toList())) {
-			OrgUnitWithRole mapping = new OrgUnitWithRole();
-			mapping.setOrgUnit(orgUnit);
-			mapping.setAssignedThrough(AssignedThrough.DIRECT);
-
-			result.add(mapping);
-		}
-
-		if (findIndirectlyAssignedRoles) {
-			for (OrgUnit orgUnit : orgUnitDao.findByActiveTrueAndRoleGroupAssignmentsRoleGroupAndRoleGroupAssignmentsInheritAndRoleGroupAssignmentsInactive(roleGroup, true, false).stream().filter(this::isActiveAndIncluded).collect(Collectors.toList())) {
-				OrgUnitWithRole mapping = new OrgUnitWithRole();
-				mapping.setOrgUnit(orgUnit);
-				mapping.setAssignedThrough(AssignedThrough.DIRECT);
-
-				result.add(mapping);
-
-				if (findIndirectlyAssignedRoles) {
-					for (OrgUnit child : orgUnit.getChildren()) {
-						getOrgUnitsRecursive(child, result);
-					}
-				}
-			}
-		}
-
-		return result;
-	}
-
-	private void getOrgUnitsRecursive(OrgUnit orgUnit, List<OrgUnitWithRole> result) {
-		for (OrgUnit child : orgUnit.getChildren()) {
-			getOrgUnitsRecursive(child, result);
-		}
-
-		OrgUnitWithRole mapping = new OrgUnitWithRole();
-		mapping.setOrgUnit(orgUnit);
-		mapping.setAssignedThrough(AssignedThrough.ORGUNIT);
-
-		result.add(mapping);
-	}
-
 	public List<OrgUnitLevel> getAllowedLevels(OrgUnit ou) {
 		OrgUnitLevel parentLevel = OrgUnitLevel.NONE;
 		OrgUnit o = ou;
@@ -1706,6 +1505,32 @@ public class OrgUnitService {
 
 	public Optional<OrgUnitManagerName> getManagerName(String ouUuid) {
 		return orgUnitDao.findByActiveTrueAndUuid(ouUuid);
+	}
+
+	public Set<String> findUserUuidsForOu(OrgUnit orgUnit, boolean includingDescendants) {
+		if (includingDescendants) {
+			return orgUnitDao.findUserUuidsByOrgUnitAndDescendants(orgUnit.getUuid());
+
+		} else {
+			return orgUnitDao.findUserUuidsByOrgUnit(orgUnit.getUuid());
+		}
+	}
+	public Optional<OrgUnit> findParentOrgUnitWithDifferentManager(final OrgUnit orgUnit, final String managerOuUuid) {
+		Set<String> visited = new HashSet<>();
+		for (OrgUnit current = orgUnit; current != null; current = current.getParent()) {
+			if (!visited.add(current.getUuid())) {
+				break;
+			}
+			String currentManagerUuid = current.getManager() != null ? current.getManager().getUuid() : null;
+			if (!Objects.equals(currentManagerUuid, managerOuUuid)) {
+				return Optional.of(current);
+			}
+		}
+		return Optional.empty();
+	}
+
+	public List<OrgUnit> findWithAllAncestors(String uuid) {
+		return orgUnitDao.findWithAllAncestors(uuid);
 	}
 
 }

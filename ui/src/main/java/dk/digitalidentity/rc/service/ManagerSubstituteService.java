@@ -17,10 +17,10 @@ import dk.digitalidentity.rc.security.SecurityUtil;
 
 @Service
 public class ManagerSubstituteService {
-	
+
 	@Autowired
 	private UserService userService;
-	
+
 	@Autowired
 	private ManagerSubstituteDao managerSubstituteDao;
 
@@ -33,7 +33,7 @@ public class ManagerSubstituteService {
 		if (user != null) {
 			return isSubstituteforOrgUnit(user, orgUnit);
 		}
-		
+
 		return false;
 	}
 
@@ -46,18 +46,18 @@ public class ManagerSubstituteService {
 		if (user != null) {
 			return isManagerForOrgUnit(user, orgUnit);
 		}
-		
+
 		return false;
 	}
-	
+
 	public boolean isManagerForOrgUnit(User user, OrgUnit orgUnit) {
 		if (orgUnit.getManager() == null) {
 			return false;
 		}
-		
+
 		return (Objects.equals(user.getUuid(), orgUnit.getManager().getUuid()));
 	}
-	
+
 	public List<User> getSubstitutesForOrgUnit(OrgUnit ou) {
 		if (ou.getManager() == null ) {
 			return new ArrayList<>();
@@ -72,14 +72,14 @@ public class ManagerSubstituteService {
 	public boolean hasSubstitute(OrgUnit orgUnit) {
 		return (orgUnit.getManager() != null && orgUnit.getManager().getManagerSubstitutes().size() > 0);
 	}
-	
+
 	private User getCurrentlyLoggedInUser() {
 		String userId = SecurityUtil.getUserId();
-		
+
 		if (userId != null) {
 			return userService.getByUserId(userId);
 		}
-		
+
 		return null;
 	}
 
@@ -89,5 +89,9 @@ public class ManagerSubstituteService {
 
 	public List<ManagerSubstitute> getAll() {
 		return managerSubstituteDao.findAll();
+	}
+
+	public void save(ManagerSubstitute managerSubstitute) {
+		managerSubstituteDao.save(managerSubstitute);
 	}
 }

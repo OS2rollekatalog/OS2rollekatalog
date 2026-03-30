@@ -45,6 +45,18 @@ public class UserRoleAM {
     @Valid
     @Schema(description = "")
     private List<SystemRoleAssignmentAM> systemRoleAssignments;
+	@Schema(description = "")
+	private String contactEmail;
+	@Schema(description = "")
+	private Boolean ouFilterEnabled;
+	@Schema(description = "")
+	private List<OrgUnitShallowAM> orgUnitFilterOrgUnits;
+	@Schema(description = "")
+	private Boolean roleAssignmentAttestationByAttestationResponsible;
+	@Schema(description = "")
+	private Boolean extraSensitiveRole;
+	@Schema(description = "")
+	private Boolean allowPostponing;
 
     @Column
     private List<RequestableBy> requesterPermission;

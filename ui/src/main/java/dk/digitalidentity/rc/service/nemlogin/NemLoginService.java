@@ -1,40 +1,6 @@
 package dk.digitalidentity.rc.service.nemlogin;
 
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.ZoneId;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Set;
-import java.util.stream.Collectors;
-
-import dk.digitalidentity.rc.service.nemlogin.model.NemLoginUserProfile;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.cache.annotation.CacheEvict;
-import org.springframework.cache.annotation.Cacheable;
-import org.springframework.cache.annotation.EnableCaching;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpMethod;
-import org.springframework.http.ResponseEntity;
-import org.springframework.scheduling.annotation.EnableScheduling;
-import org.springframework.scheduling.annotation.Scheduled;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-import org.springframework.util.StringUtils;
-import org.springframework.web.client.RestTemplate;
-
 import com.fasterxml.jackson.databind.ObjectMapper;
-
 import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
 import dk.digitalidentity.rc.dao.model.ConstraintType;
 import dk.digitalidentity.rc.dao.model.ConstraintTypeSupport;
@@ -51,9 +17,13 @@ import dk.digitalidentity.rc.dao.model.SystemRoleAssignmentConstraintValue;
 import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserRole;
 import dk.digitalidentity.rc.dao.model.UserUserRoleAssignment;
+import dk.digitalidentity.rc.dao.model.assignment.CurrentAssignment;
+import dk.digitalidentity.rc.dao.model.assignment.CurrentAssignmentPostponedConstraint;
 import dk.digitalidentity.rc.dao.model.enums.ConstraintValueType;
 import dk.digitalidentity.rc.dao.model.enums.ItSystemType;
 import dk.digitalidentity.rc.dao.model.enums.RoleType;
+import dk.digitalidentity.rc.rolerequest.model.enums.ApprovableBy;
+import dk.digitalidentity.rc.rolerequest.model.enums.RequestableBy;
 import dk.digitalidentity.rc.security.SecurityUtil;
 import dk.digitalidentity.rc.service.ConstraintTypeService;
 import dk.digitalidentity.rc.service.ItSystemService;
@@ -61,14 +31,43 @@ import dk.digitalidentity.rc.service.SettingsService;
 import dk.digitalidentity.rc.service.SystemRoleService;
 import dk.digitalidentity.rc.service.UserRoleService;
 import dk.digitalidentity.rc.service.UserService;
-import dk.digitalidentity.rc.service.model.UserRoleAssignmentWithInfo;
-import dk.digitalidentity.rc.service.model.UserWithRole;
+import dk.digitalidentity.rc.service.assignment.AssignmentService;
 import dk.digitalidentity.rc.service.nemlogin.model.AssignedRole;
 import dk.digitalidentity.rc.service.nemlogin.model.NemLoginAllRolesResponse;
 import dk.digitalidentity.rc.service.nemlogin.model.NemLoginRole;
+import dk.digitalidentity.rc.service.nemlogin.model.NemLoginUserProfile;
 import dk.digitalidentity.rc.service.nemlogin.model.Scope;
 import dk.digitalidentity.rc.service.nemlogin.model.TokenResponse;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.EnableCaching;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.ResponseEntity;
+import org.springframework.scheduling.annotation.EnableScheduling;
+import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
+import org.springframework.web.client.RestClient;
+
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @EnableCaching
 @EnableScheduling
@@ -77,9 +76,9 @@ import lombok.extern.slf4j.Slf4j;
 public class NemLoginService {
 	private final ObjectMapper objectMapper = new ObjectMapper();
 
-	@Qualifier("nemLoginRestTemplate")
+	@Qualifier("nemLoginRestClient")
 	@Autowired
-	private RestTemplate restTemplate;
+	private RestClient restClient;
 
 	@Autowired
 	private NemLoginService self;
@@ -108,6 +107,9 @@ public class NemLoginService {
 	@Autowired
 	private DirtyNemLoginUserService dirtyNemLoginUserService;
 
+	@Autowired
+	private AssignmentService assignmentService;
+
 	public void addRoleGroupToQueue(RoleGroup roleGroup) {
 		if (roleGroup != null && roleGroup.getUserRoleAssignments() != null) {
 			List<UserRole> userRoles = roleGroup.getUserRoleAssignments().stream().map(ura -> ura.getUserRole()).collect(Collectors.toList());
@@ -125,8 +127,9 @@ public class NemLoginService {
 			return;
 		}
 
-		for (UserWithRole userWithRole : userService.getUsersWithUserRole(userRole, true)) {
-			addUserToQueue(userWithRole.getUser());
+		Set<CurrentAssignment> assignments = assignmentService.getActiveByUserRole(userRole);
+		for (CurrentAssignment assignment : assignments) {
+			addUserToQueue(assignment.getUser());
 		}
 	}
 
@@ -243,6 +246,8 @@ public class NemLoginService {
 						existingUserRole = new UserRole();
 						existingUserRole.setItSystem(itSystem);
 						existingUserRole.setDescription(assignedRole.getDescription());
+						existingUserRole.setApproverPermission(Collections.singletonList(ApprovableBy.INHERIT));
+						existingUserRole.setRequesterPermission(Collections.singletonList(RequestableBy.INHERIT));
 
 						existingUserRole.setSystemRoleAssignments(new ArrayList<>());
 						SystemRoleAssignment systemRoleAssignment = new SystemRoleAssignment();
@@ -337,8 +342,6 @@ public class NemLoginService {
 			log.error("Could not find a unique NEMLOGIN it-system (either 0 or > 1 was found!)");
 			return;
 		}
-
-		ItSystem itSystem = itSystems.get(0);
 
 		if (userService.getAllWithNemLoginUuid().size() == 0) {
 			log.info("Will not perform MitID Erhverv admin role migration, because no users exists in DB with MitID Erhverv UUID");
@@ -633,7 +636,7 @@ public class NemLoginService {
 		}
 		ItSystem itSystem = itSystems.get(0);
 
-		Map<DirtyNemLoginUser, List<UserRoleAssignmentWithInfo>> dirtyUsers = dirtyNemLoginUserService.findAll(Collections.singletonList(itSystem));
+		Map<DirtyNemLoginUser, Set<CurrentAssignment>> dirtyUsers = dirtyNemLoginUserService.findAll(Collections.singletonList(itSystem));
 		if (dirtyUsers.isEmpty()) {
 			return;
 		}
@@ -685,7 +688,7 @@ public class NemLoginService {
 
 		Set<String> systemRoleIdentifiers = systemRoleService.findByItSystem(itSystem).stream().map(sr -> sr.getIdentifier()).collect(Collectors.toSet());
 
-		Map<User, List<UserRoleAssignmentWithInfo>> userMap = userService.getAllWithNemLoginAssignments(Collections.singletonList(itSystem));
+		Map<User, Set<CurrentAssignment>> userMap = userService.getAllWithNemLoginAssignments(Collections.singletonList(itSystem));
 
 		log.info("Synchronizing roles for " + userMap.size() + " users");
 		int count = 0;
@@ -705,14 +708,14 @@ public class NemLoginService {
 		log.info("Full NemLog-In role sync completed");
 	}
 
-	private void syncNemLoginRolesForUser(User user, List<UserRoleAssignmentWithInfo> assignedUserRoles, ItSystem itSystem, Set<String> nemloginRoleIdentifiers) throws Exception {
+	private void syncNemLoginRolesForUser(User user, Set<CurrentAssignment> assignedUserRoles, ItSystem itSystem, Set<String> nemloginRoleIdentifiers) throws Exception {
 		Set<String> systemRoleIdentifiersNoConstraints = new HashSet<>();
 		Map<String, Set<String>> systemRoleIdentifiersPnrConstraints = new HashMap<>();
 		Map<String, Set<String>> systemRoleIdentifiersSenrConstraints = new HashMap<>();
 
-		for (UserRoleAssignmentWithInfo userRoleAssignmentWithInfo : assignedUserRoles) {
-			for (SystemRoleAssignment systemRoleAssignment : userRoleAssignmentWithInfo.getUserRole().getSystemRoleAssignments()) {
-				if (userRoleAssignmentWithInfo.getPostponedConstraints() == null || userRoleAssignmentWithInfo.getPostponedConstraints().size() == 0) {
+		for (CurrentAssignment assignment : assignedUserRoles) {
+			for (SystemRoleAssignment systemRoleAssignment : assignment.getUserRole().getSystemRoleAssignments()) {
+				if (assignment.getPostponedConstraints() == null || assignment.getPostponedConstraints().isEmpty()) {
 					boolean anyConstraint = false;
 
 					if (systemRoleAssignment.getConstraintValues() != null) {
@@ -743,23 +746,29 @@ public class NemLoginService {
 				else {
 					boolean anyPostponedConstraint = false;
 
-					for (PostponedConstraint postponedConstraint : userRoleAssignmentWithInfo.getPostponedConstraints()) {
-						if (postponedConstraint.getSystemRole().getIdentifier().equals(systemRoleAssignment.getSystemRole().getIdentifier())) {
-							if (postponedConstraint.getConstraintType().getEntityId().equals("https://nemlogin.dk/constraints/pnr/1")) {
+					for (CurrentAssignmentPostponedConstraint postponedConstraint : assignment.getPostponedConstraints()) {
+						if (postponedConstraint.getSystemRoleId() == systemRoleAssignment.getSystemRole().getId()) {
+							if (postponedConstraint.getConstraintTypeEntityId().equals("https://nemlogin.dk/constraints/pnr/1")) {
 								anyPostponedConstraint = true;
 								if (!systemRoleIdentifiersPnrConstraints.containsKey(systemRoleAssignment.getSystemRole().getIdentifier())) {
 									systemRoleIdentifiersPnrConstraints.put(systemRoleAssignment.getSystemRole().getIdentifier(), new HashSet<>());
 								}
 
-								systemRoleIdentifiersPnrConstraints.get(systemRoleAssignment.getSystemRole().getIdentifier()).add(postponedConstraint.getValue());
+								// value is a List<String>, join all values
+								for (String value : postponedConstraint.getValue()) {
+									systemRoleIdentifiersPnrConstraints.get(systemRoleAssignment.getSystemRole().getIdentifier()).add(value);
+								}
 							}
-							else if (postponedConstraint.getConstraintType().getEntityId().equals("https://nemlogin.dk/constraints/senr/1")) {
+							else if (postponedConstraint.getConstraintTypeEntityId().equals("https://nemlogin.dk/constraints/senr/1")) {
 								anyPostponedConstraint = true;
 								if (!systemRoleIdentifiersSenrConstraints.containsKey(systemRoleAssignment.getSystemRole().getIdentifier())) {
 									systemRoleIdentifiersSenrConstraints.put(systemRoleAssignment.getSystemRole().getIdentifier(), new HashSet<>());
 								}
 
-								systemRoleIdentifiersSenrConstraints.get(systemRoleAssignment.getSystemRole().getIdentifier()).add(postponedConstraint.getValue());
+								// value is a List<String>, join all values
+								for (String value : postponedConstraint.getValue()) {
+									systemRoleIdentifiersSenrConstraints.get(systemRoleAssignment.getSystemRole().getIdentifier()).add(value);
+								}
 							}
 						}
 					}
@@ -860,13 +869,7 @@ public class NemLoginService {
 	public String fetchTokenCached() {
 		String url = config.getIntegrations().getNemLogin().getBaseUrl() + "/api/administration/idmlogin/tls/authenticate";
 
-		HttpHeaders headers = new HttpHeaders();
-		headers.add("Content-Type", "application/json");
-		headers.add("Accept", "application/json");
-
-		HttpEntity<String> request = new HttpEntity<>("{}", headers);
-
-		TokenResponse response = invokeRestTemplate("fetchTokenCached", url, HttpMethod.POST, request, TokenResponse.class);
+		TokenResponse response = invokeRestClient("fetchTokenCached", url, HttpMethod.POST, "{}", TokenResponse.class);
 		if (response != null) {
 			return response.getAccessToken();
 		}
@@ -887,10 +890,8 @@ public class NemLoginService {
 
 	private List<NemLoginRole> getAllRoles() {
 		String url = config.getIntegrations().getNemLogin().getBaseUrl() + "/api/administration/rights/categorizedRoles";
-		HttpHeaders headers = getHeader();
-		HttpEntity<String> request = new HttpEntity<>(headers);
 
-		NemLoginAllRolesResponse response = invokeRestTemplate("getAllRoles", url, HttpMethod.GET, request, NemLoginAllRolesResponse.class);
+		NemLoginAllRolesResponse response = invokeRestClient("getAllRoles", url, HttpMethod.GET, null, NemLoginAllRolesResponse.class);
 		if (response != null) {
 			return response.getRoles();
 		}
@@ -900,34 +901,19 @@ public class NemLoginService {
 
 	private List<AssignedRole> getRolesForUser(User user) {
 		String url = config.getIntegrations().getNemLogin().getBaseUrl() + "/api/administration/rights/identity/" + user.getNemloginUuid() + "/roles";
-		HttpHeaders headers = getHeader();
-		HttpEntity<String> request = new HttpEntity<>(headers);
 
-		AssignedRole[] response = invokeRestTemplate("getRolesForUser: " + user.getUserId(), url, HttpMethod.GET, request, AssignedRole[].class);
+		AssignedRole[] response = invokeRestClient("getRolesForUser: " + user.getUserId(), url, HttpMethod.GET, null, AssignedRole[].class);
 		if (response != null) {
 			return Arrays.asList(response);
 		}
-
-		/* generic approach prevents us from doing this bit of logic... let's see what we can do, perhaps an optional ErrorHandler?
-			// if the user does not exist, the MitID Erhverv API will return HTTP 500 (and not 404), so we should do an extra check to see if the user
-			// exists, and then log something more relevant in that case
-			if (!userExists(user)) {
-				log.warn("User does not exist in MitID Erhverv with UUID: " + user.getNemloginUuid() + " / " + user.getUserId());
-			}
-		*/
 
 		return null;
 	}
 
 	private NemLoginUserProfile getUserProfile(User user) {
 		String url = config.getIntegrations().getNemLogin().getBaseUrl() + "/api/administration/identity/employee/" + user.getNemloginUuid();
-		HttpHeaders headers = getHeader();
 
-		HttpEntity<String> request = new HttpEntity<>(headers);
-
-		NemLoginUserProfile response = invokeRestTemplate("getUserProfile: " + user.getUserId(), url, HttpMethod.GET, request, NemLoginUserProfile.class);
-
-		return response;
+		return invokeRestClient("getUserProfile: " + user.getUserId(), url, HttpMethod.GET, null, NemLoginUserProfile.class);
 	}
 
 	record RoleBody(Scope scope, List<String> roleUuids) {}
@@ -938,12 +924,9 @@ public class NemLoginService {
 		}
 
 		String url = config.getIntegrations().getNemLogin().getBaseUrl() + "/api/administration/rights/identity/" + user.getNemloginUuid() + "/roles";
-		HttpHeaders headers = getHeader();
-
 		RoleBody roleBody = new RoleBody(assignedRole.getScope(), Collections.singletonList(assignedRole.getUuid()));
-		HttpEntity<RoleBody> request = new HttpEntity<>(roleBody, headers);
 
-		String result = invokeRestTemplate("deleteRoleFromUser: " + user.getUserId(), url, HttpMethod.DELETE, request, String.class);
+		String result = invokeRestClient("deleteRoleFromUser: " + user.getUserId(), url, HttpMethod.DELETE, roleBody, String.class);
 		if (result != null) {
 			log.info("Removed NemLog-In role with uuid " + assignedRole.getUuid() + " from user with nemloginUuid " + user.getNemloginUuid());
 		}
@@ -956,11 +939,9 @@ public class NemLoginService {
 		}
 
 		String url = config.getIntegrations().getNemLogin().getBaseUrl() + "/api/administration/rights/identity/" + user.getNemloginUuid() + "/roles";
-		HttpHeaders headers = getHeader();
 		RoleBody roleBody = new RoleBody(scope, Collections.singletonList(roleUuid));
-		HttpEntity<RoleBody> request = new HttpEntity<>(roleBody, headers);
 
-		String response = invokeRestTemplate("addRoleToUser: " + user.getUserId(), url, HttpMethod.POST, request, String.class);
+		String response = invokeRestClient("addRoleToUser: " + user.getUserId(), url, HttpMethod.POST, roleBody, String.class);
 		if (response != null) {
 			log.info("Added NemLog-In role with uuid " + roleUuid + " to user with nemloginUuid " + user.getNemloginUuid());
 		}
@@ -969,9 +950,8 @@ public class NemLoginService {
 	private record SeNumberDTORecord(String seNumber) {}
 	public List<SENumber> getAllSENR() {
 		String SENRResourceUrl = config.getIntegrations().getNemLogin().getBaseUrl() + "/api/administration/organization/senumber";
-		HttpEntity<String> request = new HttpEntity<>(getHeader());
 
-		SeNumberDTORecord[] response = invokeRestTemplate("getAllSENR", SENRResourceUrl, HttpMethod.GET, request, SeNumberDTORecord[].class);
+		SeNumberDTORecord[] response = invokeRestClient("getAllSENR", SENRResourceUrl, HttpMethod.GET, null, SeNumberDTORecord[].class);
 		if (response != null) {
 			List<SENumber> retList = new ArrayList<>();
 
@@ -992,9 +972,8 @@ public class NemLoginService {
 	private record PNumberDTORecord(long pNumber, String cvrNumber, String name, String streetName, String streetBuildingIdentifier) {}
 	public List<PNumber> getAllPNR() {
 		String PNRResourceUrl = config.getIntegrations().getNemLogin().getBaseUrl() + "/api/administration/organization/productionunits";
-		HttpEntity<String> request = new HttpEntity<>(getHeader());
 
-		PNumberDTORecord[] response = invokeRestTemplate("getAllPNR", PNRResourceUrl, HttpMethod.GET, request, PNumberDTORecord[].class);
+		PNumberDTORecord[] response = invokeRestClient("getAllPNR", PNRResourceUrl, HttpMethod.GET, null, PNumberDTORecord[].class);
 		if (response != null) {
 			List<PNumber> retList = new ArrayList<>();
 
@@ -1021,9 +1000,8 @@ public class NemLoginService {
 
 		String cvrResourceUrl = config.getIntegrations().getCvr().getBaseUrl() + "/CVR/HentCVRData/1/rest/hentProduktionsenhedMedPNummer?ppNummer=" + pnr;
 		String apiKey = config.getIntegrations().getCvr().getApiKey();
-		HttpEntity<String> request = new HttpEntity<>(getCvrHeader(apiKey));
 
-		PUnitLookupDTORecord response = invokeRestTemplate("PUnitLookupDTORecord", cvrResourceUrl, HttpMethod.GET, request, PUnitLookupDTORecord.class);
+		PUnitLookupDTORecord response = invokeRestClientWithCvrHeader("PUnitLookupDTORecord", cvrResourceUrl, HttpMethod.GET, null, PUnitLookupDTORecord.class, apiKey);
 		if (response != null) {
 			return response.name;
 		}
@@ -1031,34 +1009,29 @@ public class NemLoginService {
 		return null;
 	}
 
-	private HttpHeaders getCvrHeader(String apiKey) {
-		HttpHeaders headers = new HttpHeaders();
-		headers.add("Content-Type", "application/json");
-		headers.add(apiKey, apiKey);
-
-		return headers;
-	}
-
-	private HttpHeaders getHeader() {
-		HttpHeaders headers = new HttpHeaders();
-		headers.add("Content-Type", "application/json");
-		headers.remove("Accept");
-		headers.add("Accept", "application/json");
-		headers.add("Authorization", "Bearer " + fetchToken());
-
-		return headers;
-	}
-
-	// safe way to invoke restTemplate.exchange() with all the error handling needed :)
-	private <T> T invokeRestTemplate(String operation, String url, HttpMethod method, HttpEntity<?> request, Class<T> clazz) {
+	// Safe way to invoke restClient with all the error handling needed
+	private <T> T invokeRestClient(String operation, String url, HttpMethod method, Object requestBody, Class<T> clazz) {
 		try {
-			ResponseEntity<String> response = restTemplate.exchange(url,  method, request, String.class);
+			var spec = restClient.method(method)
+				.uri(url)
+				.headers(headers -> {
+					headers.add("Content-Type", "application/json");
+					headers.add("Accept", "application/json");
+					if (method != HttpMethod.POST || !operation.equals("fetchTokenCached")) {
+						// All requests except the token fetch need the Bearer token
+						headers.add("Authorization", "Bearer " + fetchToken());
+					}
+				});
+			Object body = requestBody != null ? requestBody : (method == HttpMethod.POST ? "{}" : null);
+			ResponseEntity<String> response = (body != null ? spec.body(body) : spec)
+				.retrieve()
+				.toEntity(String.class);
 
 			try {
 				if (response.getStatusCode().is2xxSuccessful()) {
 					if (response.getBody() == null) {
 						if (clazz.equals(String.class)) {
-							return clazz.cast(new String(""));
+							return clazz.cast("");
 						}
 
 						log.error(operation + " : body was null on response");
@@ -1068,7 +1041,7 @@ public class NemLoginService {
 					}
 				}
 				else {
-					// this error message is useless, and since we can do nothing about it, log it as a warn
+					// This error message is useless, and since we can do nothing about it, log it as a warn
 					if (response.getStatusCode().value() == 500 && response.getBody() != null && response.getBody().contains("See log for exception details")) {
 						log.warn(operation + " : got HTTP " + response.getStatusCode() + " with body : " + response.getBody());
 					}
@@ -1082,7 +1055,49 @@ public class NemLoginService {
 			}
 		}
 		catch (Exception ex) {
-			log.error(operation + " : exception when invoking restTemplate", ex);
+			log.error(operation + " : exception when invoking restClient", ex);
+		}
+
+		return null;
+	}
+
+	// Special version for CVR calls with custom header
+	private <T> T invokeRestClientWithCvrHeader(String operation, String url, HttpMethod method, Object requestBody, Class<T> clazz, String apiKey) {
+		try {
+			var spec = restClient.method(method)
+				.uri(url)
+				.headers(headers -> {
+					headers.add("Content-Type", "application/json");
+					headers.add("ApiKey", apiKey);
+				});
+			Object body = requestBody != null ? requestBody : (method == HttpMethod.POST ? "{}" : null);
+			ResponseEntity<String> response = (body != null ? spec.body(body) : spec)
+				.retrieve()
+				.toEntity(String.class);
+
+			try {
+				if (response.getStatusCode().is2xxSuccessful()) {
+					if (response.getBody() == null) {
+						if (clazz.equals(String.class)) {
+							return clazz.cast("");
+						}
+
+						log.error(operation + " : body was null on response");
+					}
+					else {
+						return clazz.cast(objectMapper.readValue(response.getBody(), clazz));
+					}
+				}
+				else {
+					log.error(operation + " : got HTTP " + response.getStatusCode() + " with body : " + response.getBody());
+				}
+			}
+			catch (Exception ex) {
+				log.error(operation + " : exception when parsing responseBody: " + response.getBody(), ex);
+			}
+		}
+		catch (Exception ex) {
+			log.error(operation + " : exception when invoking restClient", ex);
 		}
 
 		return null;

@@ -22,10 +22,8 @@ import org.springframework.web.client.HttpClientErrorException;
 import dk.digitalidentity.rc.service.SettingsService;
 import dk.digitalidentity.rc.service.kitos.exception.KitosSynchronizationException;
 import dk.kitos.api.ApiV2DeltaFeedApi;
-import dk.kitos.api.ApiV2ItContractApi;
 import dk.kitos.api.ApiV2ItSystemApi;
 import dk.kitos.api.ApiV2ItSystemUsageApi;
-import dk.kitos.api.ApiV2ItSystemUsageRoleTypeApi;
 import dk.kitos.api.ApiV2OrganizationApi;
 import dk.kitos.api.model.ItSystemResponseDTO;
 import dk.kitos.api.model.ItSystemUsageResponseDTO;
@@ -42,8 +40,6 @@ public class KitosClientService {
     private final ApiV2ItSystemApi itSystemApi;
     private final ApiV2ItSystemUsageApi itSystemUsageApi;
     private final ApiV2OrganizationApi organizationApi;
-    private final ApiV2ItSystemUsageRoleTypeApi systemUsageRoleTypeApi;
-    private final ApiV2ItContractApi contractApi;
     private final ApiV2DeltaFeedApi deltaFeedApi;
     private final SettingsService settingsService;
 

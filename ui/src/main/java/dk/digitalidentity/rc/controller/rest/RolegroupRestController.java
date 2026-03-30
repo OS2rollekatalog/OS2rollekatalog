@@ -1,14 +1,20 @@
 package dk.digitalidentity.rc.controller.rest;
 
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import dk.digitalidentity.rc.controller.mvc.datatables.dao.model.UserRoleForRoleGroupView;
+import dk.digitalidentity.rc.controller.rest.model.OUFilterDTO;
 import dk.digitalidentity.rc.security.permission.RequirePermission;
 import dk.digitalidentity.rc.service.RoleGroupViewService;
+import dk.digitalidentity.rc.service.assignment.AssignmentService;
 import org.springframework.data.jpa.datatables.mapping.DataTablesInput;
 import org.springframework.data.jpa.datatables.mapping.DataTablesOutput;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.validation.BindingResult;
 import org.springframework.validation.ObjectError;
 import org.springframework.web.bind.WebDataBinder;
@@ -24,7 +30,6 @@ import org.springframework.web.bind.annotation.RestController;
 
 import dk.digitalidentity.rc.controller.mvc.viewmodel.RoleGroupDeleteStatus;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.RoleGroupForm;
-import dk.digitalidentity.rc.controller.rest.model.UserRoleViewDTO;
 import dk.digitalidentity.rc.controller.validator.RolegroupValidator;
 import dk.digitalidentity.rc.dao.model.OrgUnit;
 import dk.digitalidentity.rc.dao.model.RoleGroup;
@@ -53,6 +58,7 @@ public class RolegroupRestController {
 	private final RoleGroupService roleGroupService;
 	private final RolegroupValidator rolegroupValidator;
 	private final RoleGroupViewService roleGroupViewService;
+	private final AssignmentService assignmentService;
 
 	@InitBinder
 	public void initBinder(WebDataBinder binder) {
@@ -84,7 +90,7 @@ public class RolegroupRestController {
 			status.setSuccess(false);
 		}
 
-		count = userService.countAllWithRoleGroup(roleGroup);
+		count = assignmentService.countAllUsersWithDirectRoleGroup(roleGroup);
 		if (count > 0) {
 			status.setUsers(count);
 			status.setSuccess(false);
@@ -180,7 +186,13 @@ public class RolegroupRestController {
 			orgUnitService.save(ou);
 		}
 
-		List<User> users = userService.getByRoleGroupsIncludingInactive(roleGroup);
+		// Deduplicate users by UUID
+		Map<String, User> uniqueUsers = new HashMap<>();
+		for (User user : assignmentService.getUsersWithRoleGroupDirectlyAssignedIncludingInactive(roleGroup)) {
+			uniqueUsers.putIfAbsent(user.getUuid(), user);
+		}
+
+		List<User> users = new ArrayList<>(uniqueUsers.values());
 		for (User user : users) {
 			userService.removeRoleGroup(user, roleGroup);
 			userService.save(user);
@@ -230,6 +242,45 @@ public class RolegroupRestController {
 
 		roleGroupService.addUserRole(rolegroup, role);
 		roleGroupService.save(rolegroup);
+
+		return new ResponseEntity<>(HttpStatus.OK);
+	}
+
+	@Transactional
+	@PostMapping("/rest/rolegroups/ouFilterEnabled")
+	@RequirePermission(section = Section.ROLE_GROUP, permission = Permission.UPDATE)
+	public ResponseEntity<String> editOUFilterEnabled(long id, boolean ouFilterEnabled) {
+		if (id <= 0) {
+			return new ResponseEntity<>("Ugyldig ID for rollebuket", HttpStatus.BAD_REQUEST);
+		}
+
+		RoleGroup role = roleGroupService.getById(id);
+		if (role == null) {
+			return new ResponseEntity<>("Ukendt rollebuket", HttpStatus.BAD_REQUEST);
+		}
+
+		role.setOuFilterEnabled(ouFilterEnabled);
+		if (!ouFilterEnabled) {
+			role.getOrgUnitFilterOrgUnits().clear();
+		}
+		roleGroupService.save(role);
+
+		return new ResponseEntity<>(HttpStatus.OK);
+	}
+
+	@Transactional
+	@PostMapping("/rest/rolegroups/oufilter")
+	@RequirePermission(section = Section.ROLE_GROUP, permission = Permission.UPDATE)
+	public ResponseEntity<String> editOUFilter(@RequestBody OUFilterDTO dto) {
+		RoleGroup role = roleGroupService.getById(dto.getId());
+		if (role == null) {
+			return new ResponseEntity<>("Ukendt Rollebuket", HttpStatus.BAD_REQUEST);
+		}
+
+		List<OrgUnit> ous = orgUnitService.getByUuidIn(dto.getSelectedOUs());
+		role.getOrgUnitFilterOrgUnits().clear();
+		role.getOrgUnitFilterOrgUnits().addAll(ous);
+		roleGroupService.save(role);
 
 		return new ResponseEntity<>(HttpStatus.OK);
 	}

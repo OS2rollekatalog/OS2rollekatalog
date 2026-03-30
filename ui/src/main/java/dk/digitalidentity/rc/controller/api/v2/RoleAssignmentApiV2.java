@@ -28,7 +28,7 @@ import dk.digitalidentity.rc.service.OrgUnitAssignmentService;
 import dk.digitalidentity.rc.service.OrgUnitService;
 import dk.digitalidentity.rc.service.RoleGroupService;
 import jakarta.validation.Valid;
-import org.apache.commons.lang3.StringUtils;
+import dk.digitalidentity.rc.service.assignment.AssignmentService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.transaction.annotation.Transactional;
@@ -77,7 +77,7 @@ public class RoleAssignmentApiV2 {
         private static final String USER_ROLE_NOT_FOUND = "User Role not found.";
     }
 
-	private final OrgUnitAssignmentService assignmentService;
+	private final OrgUnitAssignmentService ouAssignmentService;
 	private final OrgUnitService orgUnitService;
     private final UserRoleService userRoleService;
 	private final RoleGroupService roleGroupService;
@@ -86,6 +86,7 @@ public class RoleAssignmentApiV2 {
 	private final ConstraintTypeService constraintTypeService;
 	private final DomainService domainService;
 	private final PostponedConstraintService postponedConstraintService;
+	private final AssignmentService assignmentService;
 
 	@Schema(name = "UserUserRoleAssignmentRequest")
     record UserUserRoleAssignmentRecord (
@@ -159,8 +160,8 @@ public class RoleAssignmentApiV2 {
 
 		for (User user : users) {
 			if (body.onlyIfNotAssigned) {
-				// if already assigned, skip it
-				if (user.getUserRoleAssignments().stream().anyMatch(ura -> ura.getUserRole().getId() == userRoleId)) {
+				// if already assigned, skip it (note that any direct assignments with a start-date into the future will also block here)
+				if (assignmentService.hasRoleDirectly(user.getUuid(), userRoleId)) {
 					continue;
 				}
 			}
@@ -196,7 +197,7 @@ public class RoleAssignmentApiV2 {
 		final RoleGroup roleGroup = roleGroupService.getOptionalById(assignment.getRoleGroup().getId())
 			.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "RoleGroup not found"));
 		final OuAssignmentContext ctx = buildContext(assignment);
-		final var actualAssignment = orgUnitService.addRoleGroup(orgUnit, roleGroup, assignment.isInherit(), assignment.getStartDate(), assignment.getStopDate(), ctx.exceptedUsers, ctx.titles, ctx.negativeTitles, ctx.manager, ctx.substitutes, ctx.functions);
+		final var actualAssignment = orgUnitService.addRoleGroup(orgUnit, roleGroup, assignment.isInherit(), assignment.getStartDate(), assignment.getStopDate(), ctx.exceptedUsers, ctx.titles, ctx.negativeTitles, ctx.manager, ctx.substitutes, ctx.functions, null);
 		return new ResponseEntity<>(AssignmentMapper.toAM(actualAssignment), HttpStatus.CREATED);
 	}
 
@@ -204,7 +205,7 @@ public class RoleAssignmentApiV2 {
 	@Operation(summary = "Get an OrgUnit UserRole assignment")
 	@GetMapping(value = "organisation/assignment/userrole/{assignmentId}")
 	public ResponseEntity<OrgUnitUserRoleAssignmentAM> getOrgUnitUserRoleAssignment(@PathVariable final Long assignmentId) {
-		final OrgUnitUserRoleAssignment assignment = assignmentService.getOrgUnitUserRoleAssignment(assignmentId)
+		final OrgUnitUserRoleAssignment assignment = ouAssignmentService.getOrgUnitUserRoleAssignment(assignmentId)
 			.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
 		return new ResponseEntity<>(AssignmentMapper.toAM(assignment), HttpStatus.OK);
 	}
@@ -214,7 +215,7 @@ public class RoleAssignmentApiV2 {
 	@Operation(summary = "Get an OrgUnit RoleGroup assignment")
 	@GetMapping(value = "organisation/assignment/rolegroup/{assignmentId}")
 	public ResponseEntity<OrgUnitRoleGroupAssignmentAM> getOrgUnitRoleGroupAssignment(@PathVariable final Long assignmentId) {
-		OrgUnitRoleGroupAssignment assignment = assignmentService.getOrgUnitRoleGroupAssignment(assignmentId)
+		OrgUnitRoleGroupAssignment assignment = ouAssignmentService.getOrgUnitRoleGroupAssignment(assignmentId)
 			.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
 		return new ResponseEntity<>(AssignmentMapper.toAM(assignment), HttpStatus.OK);
 	}
@@ -225,9 +226,9 @@ public class RoleAssignmentApiV2 {
 	public ResponseEntity<OrgUnitUserRoleAssignmentAM> updateUserRoleAssignment(@PathVariable final Long assignmentId,
 																				@RequestBody @Valid final OrgUnitUserRoleAssignmentAM assignment) {
 		validateScopes(assignment);
-		final OrgUnitUserRoleAssignment dbAssignment = assignmentService.getOrgUnitUserRoleAssignment(assignmentId)
+		final OrgUnitUserRoleAssignment dbAssignment = ouAssignmentService.getOrgUnitUserRoleAssignment(assignmentId)
 			.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
-		if (!StringUtils.equalsIgnoreCase(dbAssignment.getOrgUnit().getUuid(), assignment.getOrgUnit().getUuid())) {
+		if (!dbAssignment.getOrgUnit().getUuid().equalsIgnoreCase(assignment.getOrgUnit().getUuid())) {
 			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Changing OrgUnit UUID not supported.");
 		}
 		final OuAssignmentContext ctx = buildContext(assignment);
@@ -242,9 +243,9 @@ public class RoleAssignmentApiV2 {
 	public ResponseEntity<OrgUnitRoleGroupAssignmentAM> updateRoleGroupAssignment(@PathVariable final Long assignmentId,
 																				  @RequestBody @Valid final OrgUnitRoleGroupAssignmentAM assignment) {
 		validateScopes(assignment);
-		final OrgUnitRoleGroupAssignment dbAssignment = assignmentService.getOrgUnitRoleGroupAssignment(assignmentId)
+		final OrgUnitRoleGroupAssignment dbAssignment = ouAssignmentService.getOrgUnitRoleGroupAssignment(assignmentId)
 			.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
-		if (!StringUtils.equalsIgnoreCase(dbAssignment.getOrgUnit().getUuid(), assignment.getOrgUnit().getUuid())) {
+		if (!dbAssignment.getOrgUnit().getUuid().equalsIgnoreCase(assignment.getOrgUnit().getUuid())) {
 			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Changing OrgUnit UUID not supported.");
 		}
 		final OuAssignmentContext ctx = buildContext(assignment);

@@ -1,0 +1,1 @@
+ALTER TABLE req_role_request ADD COLUMN assigned_to VARCHAR(255) DEFAULT NULL;

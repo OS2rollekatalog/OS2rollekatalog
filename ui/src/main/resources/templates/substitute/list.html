@@ -38,14 +38,14 @@ section=${T(dk.digitalidentity.rc.security.permission.Section)}">
                 <td th:text="${manSubstitute.managerName}"></td>
                 <td th:text="${manSubstitute.ouName}"></td>
                 <td th:text="${manSubstitute.assignedDate}"></td>
-                <td>
-                  <a href="#" >
-                    <em class="onEditButton fa fa-fw fa-pencil" th:data-id="${manSubstitute.id}"></em>
-                  </a>
-                  <a href="#" >
-                    <em class="onDeleteButton fa fa-fw fa-trash" th:data-id="${manSubstitute.id}"></em>
-                  </a>
-                </td>
+			  	<td>
+				  <a href="#" th:if="${manSubstitute.canEdit}">
+					  <em class="onEditButton fa fa-fw fa-pencil" th:data-id="${manSubstitute.id}"></em>
+				  </a>
+				  <a href="#" th:if="${manSubstitute.canEdit}">
+					  <em class="onDeleteButton fa fa-fw fa-trash" th:data-id="${manSubstitute.id}"></em>
+				  </a>
+			  	</td>
               </tr>
               </tbody>
             </table>

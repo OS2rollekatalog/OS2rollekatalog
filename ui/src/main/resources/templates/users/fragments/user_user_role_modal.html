@@ -6,6 +6,7 @@
 	        <div class="modal-content">
 	            <div class="modal-header">
 	                <h4 th:text="#{html.page.users.list.modal}"></h4>
+					<p id="assignUserRoleName"></p>
 	            </div>
 
 	            <div class="modal-body" style="overflow-y: initial !important;">
@@ -63,19 +64,6 @@
 							<input class="form-control" id="addRoleCaseNumber"/>
 						</div>
 					</div>
-
-					<!-- notify -->
-					<h4 id="notifyTitle"  th:text="#{html.page.assign.direct.checkbox.shouldNotifyEmailManualITSystem}"></h4>
-					<div class="container">
-						<div class="row">
-							<div >
-								<div class="form-check form-check-reverse" style="display:flex; align-items: center">
-									<label id="notifyText" class="form-check-label" for="notifyId" th:text="#{html.page.assign.direct.checkbox.shouldNotifyEmailManualITSystem.leadingText}"></label>
-									<input type="checkbox" id="notifyId" class="form-check-input" style="margin-left: 15px; margin-top: 10px;"></input>
-								</div>
-							</div>
-						</div>
-					</div>
 	            </div>
 
 	            <div class="modal-footer">
@@ -112,8 +100,6 @@
 		function UserRoleModalService() {
 			this.init = function(){
 				var modal = $("#modal-positions");
-				$('#notifyDiv').replaceWith('<div> <span >Test</span><input type="checkbox" id="notifyId"></input></div>');
-
 	            $('.assign_role').click(userRoleModalService.assignRoleClicked);
 
 	      		$('.assign_role_directly').on( "click", function() {
@@ -135,12 +121,10 @@
 
 			this.setManual = function(boolean) {
 				if(boolean) {
-					$("#notifyId").show();
 					$("#notifyText").show();
 					$("#notifyTitle").show();
 				}
 				else {
-					$("#notifyId").hide();
 					$("#notifyText").hide();
 					$("#notifyTitle").hide();
 				}
@@ -156,10 +140,6 @@
 				var dates = "?startDate=" + startDate + "&stopDate=" + stopDate;
 
 				var constraints = postponedConstraintsService.getConstraintList();
-				var notify = true;
-				if($("#notifyId").is(':checked')) {
-					notify = false;
-				}
 
 				var caseNumberUrlPart = "";
 				if (caseNumberEnabled) {
@@ -167,7 +147,7 @@
 				}
 
 				$.ajax({
-	    			   url: userRoleModalService.usersUrl + userUuid + '/addrole/' + roleid + dates + '&ouuuid=' + $("#addRoleOUSelect").val()+ '&notify=' + notify + caseNumberUrlPart,
+	    			   url: userRoleModalService.usersUrl + userUuid + '/addrole/' + roleid + dates + '&ouuuid=' + $("#addRoleOUSelect").val() + caseNumberUrlPart,
 	    			   contentType: 'application/json',
 	    			   headers: {
 	    			      'X-CSRF-TOKEN': token
@@ -176,7 +156,7 @@
 	    			   data : JSON.stringify(constraints),
 	    			   success: function(response) {
 	    				   modalAjaxService.showInfoNotification(userRoleModalService.fieldUpdatedMsg);
-						   userRoleModalService.parentService.loadAddUserRoleFragment();
+						   userRoleModalService.parentService.loadRolesFragmentWhenReady();
 	    			   },
 	    			   error: errorHandler(userRoleModalService.fieldNotUpdatedMsg)
 	    		});
@@ -204,7 +184,7 @@
 	    			   type: 'post',
 	    			   success: function(response) {
 	    				   modalAjaxService.showInfoNotification(userRoleModalService.fieldUpdatedMsg);
-						   userRoleModalService.parentService.loadAddUserRoleFragment();
+						   userRoleModalService.parentService.loadRolesFragmentWhenReady();
 	    			   },
 	    			   error: errorHandler(userRoleModalService.fieldNotUpdatedMsg)
 	    		});

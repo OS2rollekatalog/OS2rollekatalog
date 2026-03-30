@@ -1,5 +1,6 @@
 package dk.digitalidentity.rc.service;
 
+import dk.digitalidentity.rc.controller.mvc.viewmodel.RoleGroupForm;
 import dk.digitalidentity.rc.dao.RoleGroupDao;
 import dk.digitalidentity.rc.dao.model.RoleGroup;
 import dk.digitalidentity.rc.dao.model.RoleGroupUserRoleAssignment;
@@ -10,6 +11,7 @@ import dk.digitalidentity.rc.rolerequest.model.enums.RequestableBy;
 import dk.digitalidentity.rc.security.SecurityUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.*;
 
@@ -85,5 +87,37 @@ public class RoleGroupService {
 	}
 	public List<RoleGroup> getRoleGroupsWithApproverPermissions ( List<ApprovableBy> permissions) {
 		return roleGroupDao.findByApproverPermissionIn(permissions);
+	}
+
+	@Transactional
+	public RoleGroup copyRoleGroup(RoleGroupForm rolegroupForm, RoleGroup roleGroupToCopy) {
+		RoleGroup roleGroup = new RoleGroup();
+
+		roleGroup.setName(rolegroupForm.getName());
+		roleGroup.setDescription(rolegroupForm.getDescription());
+
+		roleGroup.setUserOnly(roleGroupToCopy.isUserOnly());
+		roleGroup.setApproverPermission(roleGroupToCopy.getApproverPermission());
+		roleGroup.setRequesterPermission(roleGroupToCopy.getRequesterPermission());
+		roleGroup.setOuFilterEnabled(roleGroupToCopy.isOuFilterEnabled());
+
+		// copy ou filter
+		if (roleGroupToCopy.isOuFilterEnabled()) {
+			roleGroup.setOrgUnitFilterOrgUnits(new ArrayList<>(roleGroupToCopy.getOrgUnitFilterOrgUnits()));
+		}
+
+		roleGroup.setUserRoleAssignments(new ArrayList<>());
+		for (RoleGroupUserRoleAssignment assignmentToCopy : roleGroupToCopy.getUserRoleAssignments()) {
+			RoleGroupUserRoleAssignment assignment = new RoleGroupUserRoleAssignment();
+			assignment.setRoleGroup(roleGroup);
+			assignment.setUserRole(assignmentToCopy.getUserRole());
+			assignment.setAssignedByName(SecurityUtil.getUserFullname());
+			assignment.setAssignedByUserId(SecurityUtil.getUserId());
+			assignment.setAssignedTimestamp(new Date());
+			roleGroup.getUserRoleAssignments().add(assignment);
+		}
+
+		roleGroup = roleGroupDao.save(roleGroup);
+		return roleGroup;
 	}
 }

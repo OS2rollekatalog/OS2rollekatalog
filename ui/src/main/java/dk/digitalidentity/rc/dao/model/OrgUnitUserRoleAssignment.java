@@ -23,11 +23,13 @@ import java.time.LocalDate;
 import java.util.Date;
 import java.util.List;
 
+import org.hibernate.annotations.BatchSize;
+
 @Entity(name = "ou_roles")
 @ToString(exclude = { "orgUnit" })
 @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 @Data
-public class OrgUnitUserRoleAssignment {
+public class OrgUnitUserRoleAssignment implements OrgUnitAssignment {
 
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -81,6 +83,7 @@ public class OrgUnitUserRoleAssignment {
 	private List<User> exceptedUsers;
 
 	@OneToMany
+	@BatchSize(size = 50)
 	@JoinTable(name = "ou_roles_titles", joinColumns = @JoinColumn(name = "ou_roles_id"), inverseJoinColumns = @JoinColumn(name = "title_uuid"))
 	private List<Title> titles;
 
@@ -97,5 +100,10 @@ public class OrgUnitUserRoleAssignment {
 	@Column
 	@Enumerated(EnumType.ORDINAL)
 	//Default value allows for documentations test to run unchanged since ContainsTitle changed to enum
-	public ContainsTitles containsTitles = ContainsTitles.NO;
+	private ContainsTitles containsTitles = ContainsTitles.NO;
+
+	@Override
+	public ContainsTitles getContainsTitles() {
+		return containsTitles;
+	}
 }

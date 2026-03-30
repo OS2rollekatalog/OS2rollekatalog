@@ -40,6 +40,13 @@ public class RoleGroup implements AuditLoggable {
 	@OneToMany(mappedBy = "roleGroup", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
 	private List<RoleGroupUserRoleAssignment> userRoleAssignments;
 
+	@Column
+	private boolean ouFilterEnabled;
+
+	@OneToMany(fetch = FetchType.LAZY)
+	@JoinTable(name = "ous_rolegroup", joinColumns = { @JoinColumn(name = "rolegroup_id") }, inverseJoinColumns = { @JoinColumn(name = "ou_uuid") })
+	private List<OrgUnit> orgUnitFilterOrgUnits;
+
 	@JsonIgnore
 	@Override
 	public String getEntityId() {

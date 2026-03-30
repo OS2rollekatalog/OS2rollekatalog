@@ -116,7 +116,7 @@ public class UserServiceAuditInterceptor {
 
 		auditLogger.log((User) args[0], EventType.REMOVE_USER_ROLE, (UserRole) args[1], AuditLogContextHolder.getContext().getStopDateUserId());
 	}
-	
+
 	private void auditEditUserRoleAssignment(JoinPoint jp) {
 		Object[] args = jp.getArgs();
 		if (!(args.length >= 2 && args[0] instanceof User && args[1] instanceof UserUserRoleAssignment)) {
@@ -128,7 +128,7 @@ public class UserServiceAuditInterceptor {
 
 		auditLogger.log((User) args[0], EventType.EDIT_ASSIGNMENT_CONSTRAINT, userRole);
 	}
-	
+
 	private void auditRemoveUserRoleAssignment(JoinPoint jp) {
 		Object[] args = jp.getArgs();
 		if (!(args.length == 2 && args[0] instanceof User && args[1] instanceof UserUserRoleAssignment)) {
@@ -143,14 +143,14 @@ public class UserServiceAuditInterceptor {
 
 	private void auditAddRoleGroup(JoinPoint jp) {
 		Object[] args = jp.getArgs();
-		if (!((args.length == 4 || args.length == 5) && args[0] instanceof User && args[1] instanceof RoleGroup)) {
+		if (!((args.length == 4 || args.length == 5 || args.length == 6) && args[0] instanceof User && args[1] instanceof RoleGroup)) {
 			log.error("Method signature on addRoleGroup does not match expectation");
 			return;
 		}
-		
+
 		auditLogger.log((User) args[0], EventType.ASSIGN_ROLE_GROUP, (RoleGroup) args[1]);
 	}
-	
+
 	private void auditRemoveRoleGroupAssignment(JoinPoint jp) {
 		Object[] args = jp.getArgs();
 		if (!(args.length == 2 && args[0] instanceof User && args[1] instanceof UserRoleGroupAssignment)) {
@@ -172,14 +172,14 @@ public class UserServiceAuditInterceptor {
 
 		auditLogger.log((User) args[0], EventType.REMOVE_ROLE_GROUP, (RoleGroup) args[1], AuditLogContextHolder.getContext().getStopDateUserId());
 	}
-	
+
 	private void auditEditRoleGroupAssignment(JoinPoint jp) {
 		Object[] args = jp.getArgs();
 		if (!(args.length >= 2 && args[0] instanceof User && args[1] instanceof UserRoleGroupAssignment)) {
 			log.error("Method signature on editRoleGroupAssignment does not match expectation");
 			return;
 		}
-		
+
 		RoleGroup roleGroup = ((UserRoleGroupAssignment) args[1]).getRoleGroup();
 
 		auditLogger.log((User) args[0], EventType.EDIT_ROLE_GROUP_ASSIGNMENT, roleGroup);

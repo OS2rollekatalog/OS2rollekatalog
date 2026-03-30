@@ -2,28 +2,42 @@ package dk.digitalidentity.rc.service;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.Date;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Collectors;
 
+import dk.digitalidentity.rc.config.Constants;
 import dk.digitalidentity.rc.controller.mvc.datatables.dao.UserRoleViewDao;
 import dk.digitalidentity.rc.controller.mvc.datatables.dao.UserRoleViewDatatableDao;
 import dk.digitalidentity.rc.controller.mvc.datatables.dao.model.UserRoleView;
+import dk.digitalidentity.rc.controller.mvc.viewmodel.AvailableITSystemDTO;
 import dk.digitalidentity.rc.controller.rest.model.ItemPermissionDTO;
 import dk.digitalidentity.rc.controller.rest.model.UserRoleViewDTO;
+import dk.digitalidentity.rc.dao.model.assignment.CurrentAssignment;
+import dk.digitalidentity.rc.dao.model.assignment.CurrentAssignmentPostponedConstraint;
+import dk.digitalidentity.rc.dao.model.enums.AltAccountType;
 import dk.digitalidentity.rc.dao.model.enums.ItSystemType;
+import dk.digitalidentity.rc.security.AccessConstraintService;
+import dk.digitalidentity.rc.security.SecurityUtil;
 import dk.digitalidentity.rc.security.permission.Permission;
 import dk.digitalidentity.rc.security.permission.PermissionConstraint;
 import dk.digitalidentity.rc.security.permission.Section;
 import dk.digitalidentity.rc.security.permission.UserPermissionContext;
+import dk.digitalidentity.rc.service.assignment.AssignmentService;
+import dk.digitalidentity.rc.service.model.AssignedThrough;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.jpa.datatables.mapping.DataTablesInput;
 import org.springframework.data.jpa.datatables.mapping.DataTablesOutput;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 
 import dk.digitalidentity.rc.controller.mvc.viewmodel.UserRoleDTO;
 import dk.digitalidentity.rc.dao.UserRoleDao;
@@ -51,9 +65,15 @@ public class UserRoleService {
 	private final UserRoleDao userRoleDao;
 	private final UserRoleViewDatatableDao userRoleViewDatatableDao;
 	private final ItSystemService itSystemService;
-	private final UserService userService;
 	private final UserRoleViewDao userRoleViewDao;
 	private final UserPermissionContext userPermissionContext;
+	private final AssignmentService assignmentService;
+	private final AccessConstraintService accessConstraintService;
+	private final PostponedConstraintService postponedConstraintService;
+
+	public Set<UserRole> findAllByIdIn(Collection<Long> ids) {
+		return userRoleDao.findAllByIdIn(ids);
+	}
 
 	/**
 	 * Determines if a role assignment is ineffective due to being overridden by a role with higher weight.
@@ -334,10 +354,11 @@ public class UserRoleService {
 	}
 
 	public DataTablesOutput<UserRoleDTO> getAvailableAsDatatable(DataTablesInput input, User user) {
-		PermissionConstraint permissionConstraint = userPermissionContext.getConstraints(Section.USER_ROLE, Permission.READ);
+		PermissionConstraint readConstraint = userPermissionContext.getConstraint(Section.USER_ROLE, Permission.READ);
+		PermissionConstraint assigningConstraint = userPermissionContext.getConstraint(Section.USER, Permission.ASSIGN);
 
-		final Set<Long> readableItSystems = permissionConstraint.getConstrainedItSystemIds();
-		DataTablesOutput<UserRoleView> userroleOutput = userRoleViewDatatableDao.findAll(input, (Specification<UserRoleView>) (root, query, criteriaBuilder) -> {
+		final Set<Long> readableItSystems = readConstraint.getConstrainedItSystemIds();
+		DataTablesOutput<UserRoleView> userroleOutput = userRoleViewDatatableDao.findAll(input, (Specification<UserRoleView>) (root, _, criteriaBuilder) -> {
 			final List<Predicate> andPredicates = new ArrayList<>();
 			andPredicates.add(criteriaBuilder.isFalse(root.get("readOnly")));
 			if (readableItSystems == null) {
@@ -350,7 +371,7 @@ public class UserRoleService {
 			return criteriaBuilder.and(andPredicates.toArray(new Predicate[0]));
 		});
 		List<UserRoleView> userRoles = userroleOutput.getData();
-		List<RoleAssignedToUserDTO> assignments = userService.getAllUserRoleAndRoleGroupAssignments(user);
+		Set<CurrentAssignment> assignments = assignmentService.getByUserIncludingInactive(user); // TODO - Should probably not call upwards to AssignmentService. May cause circular dependencies.
 
 		DataTablesOutput<UserRoleDTO> output = new DataTablesOutput<>();
 		output.setDraw(userroleOutput.getDraw());
@@ -361,9 +382,10 @@ public class UserRoleService {
 				ur.getId(),
 				ur.getName(),
 				ur.getDescription(),
+				new AvailableITSystemDTO(ur.getItSystemName(), ur.getItSystemType().getMessage()),
 				ur.getItSystemName(),
-				ur.getItSystemType().getMessage(),
-				assignments.stream().filter(a -> a.getType() == RoleAssignmentType.USERROLE).anyMatch(a -> a.getRoleId() == ur.getId()))
+				assignments.stream().filter(a -> a.getUserRole() != null).anyMatch(a -> a.getUserRole().getId() == ur.getId()),
+				assigningConstraint.allowsITSystem(ur.getItSystemId()))
 		).toList());
 		return output;
 	}
@@ -374,6 +396,8 @@ public class UserRoleService {
 		userRole.setDescription(description);
 		userRole.setIdentifier(identifier);
 		userRole.setItSystem(itSystem);
+		userRole.setApproverPermission(Collections.singletonList(ApprovableBy.INHERIT));
+		userRole.setRequesterPermission(Collections.singletonList(RequestableBy.INHERIT));
 		userRoleDao.save(userRole);
 
 		List<SystemRoleAssignment> systemRoleAssignments = new ArrayList<>();
@@ -406,12 +430,12 @@ public class UserRoleService {
 	 * @return specification
 	 */
 	public static Specification<UserRoleView> hasItSystemIdIn(Set<Long> itSystemIds) {
-		return (root, query, cb) -> {
+		return (root, _, cb) -> {
 			if (itSystemIds == null) {
 				return cb.conjunction(); // all is allowed
 			}
 			if ( itSystemIds.isEmpty()) {
-				return null; // none is allowed
+				return cb.disjunction(); // none is allowed
 			}
 			return root.get("itSystemId").in(itSystemIds);
 		};
@@ -419,7 +443,7 @@ public class UserRoleService {
 
 	public DataTablesOutput<UserRoleViewDTO> getAllAsConstraintFilteredAsDatatable(DataTablesInput input) {
 		Set<Long> constrainedITSystems = userPermissionContext.getConstraint(Section.USER_ROLE, Permission.READ).getConstrainedItSystemIds();
-		DataTablesOutput<UserRoleView> viewOutput = userRoleViewDao.findAll(input, Specification.where(hasItSystemIdIn(constrainedITSystems)));
+		DataTablesOutput<UserRoleView> viewOutput = userRoleViewDao.findAll(input, hasItSystemIdIn(constrainedITSystems));
 
 		List<UserRoleViewDTO> dtoList = viewOutput.getData().stream()
 				// Map to DTO
@@ -469,4 +493,117 @@ public class UserRoleService {
 		return userRoleDao.findBySystemRoleAssignments_SystemRole(systemRole);
 	}
 
+	/**
+	 * Enriches a list of role assignment DTOs with editability flags, ineffectiveness checks,
+	 * and resolved postponed constraint display values. Dispatches to type-specific enrichment
+	 * for user roles vs. role groups.
+	 */
+	public void enrichAssignments(List<RoleAssignedToUserDTO> assignmentDTOs, User user, PermissionConstraint assignConstraint, Set<CurrentAssignment> currentAssignments, boolean hasEditPermission) {
+		// Maps all userroles, for easier access below
+		Map<Long, UserRole> userRoleMap = currentAssignments.stream()
+			.collect(Collectors.toMap(
+				ca -> ca.getUserRole().getId(),
+				CurrentAssignment::getUserRole,
+				(existing, current) -> existing
+			));
+
+		// Maps the it systems for each rolegroup, for easier access below
+		Map<Long, Set<ItSystem>> itSystemPerRolegroup = currentAssignments.stream()
+			.filter(ca -> ca.getRoleGroup() != null)
+			.collect(Collectors.groupingBy(
+				ca -> ca.getRoleGroup().getId(),
+				Collectors.mapping(
+					ca -> ca.getUserRole().getItSystem(),
+					Collectors.toSet()
+				)
+			));
+
+		// Create a map of assignmentId to CurrentAssignment for efficient lookup of postponed constraints
+		Map<Long, CurrentAssignment> currentAssignmentMap = currentAssignments.stream()
+			.collect(Collectors.toMap(CurrentAssignment::getId, ca -> ca));
+
+		for (RoleAssignedToUserDTO assignmentDTO : assignmentDTOs) {
+			if (RoleAssignmentType.USERROLE.equals(assignmentDTO.getType()) || RoleAssignmentType.NEGATIVE.equals(assignmentDTO.getType())) {
+				enrichUserRoleAssignment(assignmentDTO, user, assignmentDTOs, userRoleMap, currentAssignmentMap, assignConstraint.allowsITSystem(assignmentDTO.getItSystem().getId()));
+			} else if (RoleAssignmentType.ROLEGROUP.equals(assignmentDTO.getType()) || RoleAssignmentType.NEGATIVE_ROLEGROUP.equals(assignmentDTO.getType())) {
+				assignmentDTO.setCanEdit(isRoleGroupAssignable(assignmentDTO, itSystemPerRolegroup, assignConstraint));
+			}
+		}
+	}
+
+	/**
+	 * Enriches a single user role or negative role assignment. Sets editability based on permissions
+	 * and role constraints, checks for ineffectiveness (NEMLOGIN, weight, KSPCICS), and resolves
+	 * postponed constraint display values.
+	 */
+	private void enrichUserRoleAssignment(RoleAssignedToUserDTO assignment, User user, List<RoleAssignedToUserDTO> assignments, Map<Long, UserRole> userRoleMap, Map<Long, CurrentAssignment> currentAssignmentMap, boolean hasAssigningPermission) {
+		UserRole userRole = userRoleMap.get(assignment.getRoleId());
+		if (userRole == null) {
+			log.warn("UserRole not found for assignment {}. Skipping enrichment.", assignment);
+			return;
+		}
+
+		CurrentAssignment currentAssignment = currentAssignmentMap.get(assignment.getCurrentAssignmentId());
+		Set<CurrentAssignmentPostponedConstraint> postponedConstraints = currentAssignment == null ? null : currentAssignment.getPostponedConstraints();
+
+		// Determine editability
+		// We allow editing of internal roles when the user is an Administrator (which also allows editing other roles)
+		// or if user can edit and a role is "directly" assigned
+		boolean isDirectlyAssigned = assignment.getAssignedThrough() == AssignedThrough.DIRECT;
+		boolean userRoleEditable = isUserRoleEditable(userRole, isDirectlyAssigned, hasAssigningPermission);
+
+		assignment.setCanEdit(userRoleEditable);
+
+		// Check if role is ineffective
+		if (assignment.getItSystem() != null && assignment.getItSystem().getSystemType().equals(ItSystemType.NEMLOGIN) && !StringUtils.hasLength(user.getNemloginUuid())) {
+			assignment.setIneffectiveReason("NEMLOGIN");
+			assignment.setIneffective(true);
+		}
+
+		if (isIneffectiveDueToWeight(assignment, assignments)) {
+			assignment.setIneffectiveReason("WEIGHT");
+			assignment.setIneffective(true);
+		}
+		assignment.setHighestSystemRoleWeight(highestSystemRolesWeight(userRole));
+
+		boolean kspCicsAccount = user.getAltAccounts().stream().anyMatch(a -> a.getAccountType().equals(AltAccountType.KSPCICS));
+		if (!kspCicsAccount && assignment.getItSystem() != null && assignment.getItSystem().getSystemType().equals(ItSystemType.KSPCICS)) {
+			assignment.setIneffective(true);
+		}
+		assignment.setDescription(userRole.getDescription());
+
+		// Resolve postponed constraint display values
+		if (postponedConstraints != null) {
+			assignment.setSystemRoleAssignments(postponedConstraintService.resolvePostponedConstraintDisplayValues(userRole, postponedConstraints));
+		}
+	}
+
+	/**
+	 * Determines whether the current user is permitted to assign or remove the given role group assignment.
+	 */
+	private boolean isRoleGroupAssignable(RoleAssignedToUserDTO assignmentDTO, Map<Long, Set<ItSystem>> itSystemPerRolegroup, PermissionConstraint assignConstraint) {
+		boolean directlyAssignedRole = AssignedThrough.DIRECT.equals(assignmentDTO.getAssignedThrough()) || AssignedThrough.POSITION.equals(assignmentDTO.getAssignedThrough());
+		Set<ItSystem> itSystems = itSystemPerRolegroup.getOrDefault(assignmentDTO.getRoleId(), new HashSet<>());
+		boolean isAssigningAllowed = assignConstraint.allowsAllITSystems(itSystems.stream()
+			.map(ItSystem::getId).collect(Collectors.toSet()));
+
+		boolean containsInternalSystem = itSystems.stream().anyMatch(it -> Constants.ROLE_CATALOGUE_IDENTIFIER.equals(it.getIdentifier()));
+
+		// Only directly assigned rolegroups can be assigned by assigners working within their constraints
+		// note that those with the direct admin role still need to be within the given constraints
+		if (isAssigningAllowed && directlyAssignedRole) {
+			return !containsInternalSystem || SecurityUtil.hasDirectAdminRole();
+		}
+		return false;
+	}
+
+	private boolean isUserRoleEditable (UserRole userRole, boolean isAssignedDirectly, boolean hasPermission) {
+		boolean isReadable = !userRole.isReadOnly();
+		boolean isNotInternalRole =  !Constants.ROLE_CATALOGUE_IDENTIFIER.equals(userRole.getItSystem().getIdentifier());
+		boolean hasDirectAdminRole = SecurityUtil.hasDirectAdminRole();
+
+		return isReadable // non-readable roles cannot be edited at all
+			&& isAssignedDirectly // only directly assigned roles can be edited
+			&& (hasDirectAdminRole || (isNotInternalRole && hasPermission)); // only direct admins can edit internal roles.
+	}
 }

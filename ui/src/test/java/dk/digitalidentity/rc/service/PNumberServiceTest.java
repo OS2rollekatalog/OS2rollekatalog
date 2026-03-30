@@ -6,8 +6,8 @@ import dk.digitalidentity.rc.service.nemlogin.NemLoginService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.test.context.ContextConfiguration;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -26,9 +26,9 @@ import static org.mockito.Mockito.verifyNoMoreInteractions;
 @ContextConfiguration(classes = {PNumberService.class})
 public class PNumberServiceTest {
 
-    @MockBean
+	@MockitoBean
     private PNumberDao pNumberDao;
-    @MockBean
+	@MockitoBean
     private NemLoginService nemLoginService;
     @Autowired
     private PNumberService pNumberService;

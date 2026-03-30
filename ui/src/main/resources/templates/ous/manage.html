@@ -419,15 +419,16 @@
 			}
 
 			this.editRoleAssignment = function (elem) {
-				var parent = elem.parentElement;
-				var roleid = parent.dataset.roleid;
-				var type = parent.dataset.objtype;
-				var startDate = parent.dataset.startdate;
-				var stopDate = parent.dataset.stopdate;
+				let parent = elem.parentElement;
+				let roleid = parent.dataset.roleid;
+				let type = parent.dataset.objtype;
+				let startDate = parent.dataset.startdate;
+				let stopDate = parent.dataset.stopdate;
+				let roleName = parent.dataset.name;
 
 				// depending on assignment type we modify the edit dialog
-				var assignmentType = parent.dataset.assignmenttype;
-				var assignmentId = parent.dataset.assignmentid;
+				let assignmentType = parent.dataset.assignmenttype;
+				let assignmentId = parent.dataset.assignmentid;
 
 				if (type == 'USERROLE') {
 					ouRolesEditModalService.roleType = 'role';
@@ -435,27 +436,29 @@
 					ouRolesEditModalService.assignmentId = assignmentId;
 					ouRolesEditModalService.inherit = assignmentType == -2;
 
-					ouRolesEditModalService.showAssignModal(titlesEnabled, startDate, stopDate, assignmentType, assignmentId);
+					ouRolesEditModalService.showAssignModal(titlesEnabled, startDate, stopDate, assignmentType, assignmentId, roleName);
 				} else if (type == 'ROLEGROUP') {
 					ouRolesEditModalService.roleType = 'rolegroup';
 					ouRolesEditModalService.roleId = roleid;
 					ouRolesEditModalService.assignmentId = assignmentId;
 					ouRolesEditModalService.inherit = assignmentType == -2;
 
-					ouRolesEditModalService.showAssignModal(titlesEnabled, startDate, stopDate, assignmentType, assignmentId);
+					ouRolesEditModalService.showAssignModal(titlesEnabled, startDate, stopDate, assignmentType, assignmentId, roleName);
 				}
 			}
 
 			this.addRoleAssignment = function (elem) {
 				ouRolesModalService.roleType = String(elem.dataset.objtype);
 				ouRolesModalService.roleId = elem.dataset.roleid;
+				let roleName = elem.dataset.name;
+
 				if (titlesEnabled && titles != null) {
 					for (var i = 0; i < titles.length; i++) {
 						titles[i].state.checked = false;
 					}
 				}
 
-				ouRolesModalService.showAssignModal(titlesEnabled, null, null);
+				ouRolesModalService.showAssignModal(titlesEnabled, null, null, roleName);
 			}
 		}
 

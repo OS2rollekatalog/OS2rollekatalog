@@ -110,7 +110,7 @@ section=${T(dk.digitalidentity.rc.security.permission.Section)}">
 									    <tr th:each="assignment : ${rolegroup.userRoleAssignments}">
 									    	<td th:text="${assignment.userRole.name}"></td>
 									    	<td th:text="${assignment.userRole.itSystem.name}"></td>
-									    	<td th:text="${assignment.userRole.description}"></td>
+									    	<td class="preformat" th:text="${assignment.userRole.description}"></td>
 						    			</tr>
 					    			</tbody>
 								</table>

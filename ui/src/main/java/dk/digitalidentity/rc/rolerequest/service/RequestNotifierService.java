@@ -1,11 +1,12 @@
 package dk.digitalidentity.rc.rolerequest.service;
 
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -21,6 +22,7 @@ import dk.digitalidentity.rc.dao.model.OrgUnit;
 import dk.digitalidentity.rc.dao.model.SystemRole;
 import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserRole;
+import dk.digitalidentity.rc.dao.model.assignment.CurrentAssignment;
 import dk.digitalidentity.rc.dao.model.enums.EmailTemplatePlaceholder;
 import dk.digitalidentity.rc.dao.model.enums.EmailTemplateType;
 import dk.digitalidentity.rc.dao.model.enums.RequestAction;
@@ -35,13 +37,9 @@ import dk.digitalidentity.rc.service.OrgUnitService;
 import dk.digitalidentity.rc.service.SettingsService;
 import dk.digitalidentity.rc.service.SystemRoleService;
 import dk.digitalidentity.rc.service.UserRoleService;
-import dk.digitalidentity.rc.service.UserService;
-import dk.digitalidentity.rc.service.model.UserWithRole;
+import dk.digitalidentity.rc.service.assignment.AssignmentService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-
-import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
 
 @Slf4j
 @Service
@@ -51,12 +49,12 @@ public class RequestNotifierService {
 	private final EmailQueueService emailQueueService;
 	private final SettingsService settingsService;
 	private final RoleRequestDao roleRequestDao;
-	private final UserService userService;
 	private final UserRoleService userRoleService;
 	private final SystemRoleService systemRoleService;
 	private final OrgUnitService orgUnitService;
 	private final ItSystemService itSystemService;
 	private final RequestAuthorizedRoleService requestAuthorizedRoleService;
+	private final AssignmentService assignmentService;
 
 	@Transactional
 	public void sendMailToRoleAssignerOnce() {
@@ -66,10 +64,10 @@ public class RequestNotifierService {
 			return;
 		}
 
-		Map<Set<String>, List<RoleRequest>> emailsAndRequests = getEmailMap(allRequests);
+		Map<Map<String, String>, List<RoleRequest>> emailsAndRequests = getEmailMap(allRequests);
 
-		for (Map.Entry<Set<String>, List<RoleRequest>> entry : emailsAndRequests.entrySet()) {
-			Set<String> approvers = entry.getKey();
+		for (Map.Entry<Map<String, String>, List<RoleRequest>> entry : emailsAndRequests.entrySet()) {
+			Map<String, String> approvers = entry.getKey();
 			List<RoleRequest> requests = entry.getValue();
 
 			if (!approvers.isEmpty()) {
@@ -121,11 +119,11 @@ public class RequestNotifierService {
 			return;
 		}
 
-		Map<Set<String>, List<RoleRequest>> requestsByApprovers = getEmailMap(allRequests);
+		Map<Map<String, String>, List<RoleRequest>> requestsByApprovers = getEmailMap(allRequests);
 
 		// Send one email per unique set of approvers
-		for (Map.Entry<Set<String>, List<RoleRequest>> entry : requestsByApprovers.entrySet()) {
-			Set<String> approvers = entry.getKey();
+		for (Map.Entry<Map<String, String>, List<RoleRequest>> entry : requestsByApprovers.entrySet()) {
+			Map<String, String> approvers = entry.getKey();
 			List<RoleRequest> requests = entry.getValue();
 
 			if (!approvers.isEmpty()) {
@@ -135,13 +133,13 @@ public class RequestNotifierService {
 		}
 	}
 
-	private Map<Set<String>, List<RoleRequest>> getEmailMap(List<RoleRequest> allRequests) {
+	private Map<Map<String, String>, List<RoleRequest>> getEmailMap(List<RoleRequest> allRequests) {
 		// Group requests by their approval path and send separate emails
-		Map<Set<String>, List<RoleRequest>> requestsByApprovers = new HashMap<>();
+		Map<Map<String, String>, List<RoleRequest>> requestsByApprovers = new HashMap<>();
 
 		for (RoleRequest request : allRequests) {
-			Set<String> approvers = getEmailsToSendTo(request);
-			requestsByApprovers.computeIfAbsent(approvers, k -> new ArrayList<>()).add(request);
+			Map<String, String> approvers = getEmailsToSendTo(request);
+			requestsByApprovers.computeIfAbsent(approvers, _ -> new ArrayList<>()).add(request);
 		}
 		return requestsByApprovers;
 	}
@@ -169,7 +167,7 @@ public class RequestNotifierService {
 			message = message.replace(EmailTemplatePlaceholder.START_DATE.getPlaceholder(),
 				startDate != null ? startDate.format(dateFormatter) : LocalDate.now().format(dateFormatter));
 			message = message.replace(EmailTemplatePlaceholder.STOP_DATE.getPlaceholder(),
-				startDate != null ? endDate.format(dateFormatter) : "ubegrænset");
+				endDate != null ? endDate.format(dateFormatter) : "ubegrænset");
 			message = message.replace(EmailTemplatePlaceholder.REQUEST_REASON.getPlaceholder(), reason);
 			emailQueueService.queueEmail(receiver.getEmail(), title, message, template, null, null);
 		} else {
@@ -214,14 +212,16 @@ public class RequestNotifierService {
 				title = title.replace(EmailTemplatePlaceholder.USER_PLACEHOLDER.getPlaceholder(), request.getReceiver().getName());
 				title = title.replace(EmailTemplatePlaceholder.REQUESTER_PLACEHOLDER.getPlaceholder(), request.getRequester().getName());
 				title = title.replace(EmailTemplatePlaceholder.REQUEST_OPERATION_PLACEHOLDER.getPlaceholder(), action);
-				title = title.replace(EmailTemplatePlaceholder.REQUEST_REASON.getPlaceholder(), reason);
+				title = title.replace(EmailTemplatePlaceholder.REQUEST_REASON.getPlaceholder(), (reason != null) ? reason : "");
+
 				String message = template.getMessage();
 				message = message.replace(EmailTemplatePlaceholder.RECEIVER_PLACEHOLDER.getPlaceholder(), manager.getName());
 				message = message.replace(EmailTemplatePlaceholder.ROLE_NAME.getPlaceholder(), roleName);
 				message = message.replace(EmailTemplatePlaceholder.USER_PLACEHOLDER.getPlaceholder(), request.getReceiver().getName());
 				message = message.replace(EmailTemplatePlaceholder.REQUESTER_PLACEHOLDER.getPlaceholder(), request.getRequester().getName());
 				message = message.replace(EmailTemplatePlaceholder.REQUEST_OPERATION_PLACEHOLDER.getPlaceholder(), action);
-				message = message.replace(EmailTemplatePlaceholder.REQUEST_REASON.getPlaceholder(), reason);
+				title = title.replace(EmailTemplatePlaceholder.REQUEST_REASON.getPlaceholder(), (reason != null) ? reason : "");
+
 				emailQueueService.queueEmail(manager.getEmail(), title, message, template, null, null);
 			}
 		}
@@ -240,12 +240,16 @@ public class RequestNotifierService {
 					title = title.replace(EmailTemplatePlaceholder.USER_PLACEHOLDER.getPlaceholder(), request.getReceiver().getName());
 					title = title.replace(EmailTemplatePlaceholder.REQUESTER_PLACEHOLDER.getPlaceholder(), request.getRequester().getName());
 					title = title.replace(EmailTemplatePlaceholder.REQUEST_OPERATION_PLACEHOLDER.getPlaceholder(), action);
+					title = title.replace(EmailTemplatePlaceholder.REQUEST_REASON.getPlaceholder(), (reason != null) ? reason : "");
+
 					String message = template.getMessage();
 					message = message.replace(EmailTemplatePlaceholder.RECEIVER_PLACEHOLDER.getPlaceholder(), authorizationManager.getName());
 					message = message.replace(EmailTemplatePlaceholder.ROLE_NAME.getPlaceholder(), roleName);
 					message = message.replace(EmailTemplatePlaceholder.USER_PLACEHOLDER.getPlaceholder(), request.getReceiver().getName());
 					message = message.replace(EmailTemplatePlaceholder.REQUESTER_PLACEHOLDER.getPlaceholder(), request.getRequester().getName());
 					message = message.replace(EmailTemplatePlaceholder.REQUEST_OPERATION_PLACEHOLDER.getPlaceholder(), action);
+					title = title.replace(EmailTemplatePlaceholder.REQUEST_REASON.getPlaceholder(), (reason != null) ? reason : "");
+
 					emailQueueService.queueEmail(authorizationManager.getEmail(), title, message, template, null, null);
 				}
 			}
@@ -254,15 +258,15 @@ public class RequestNotifierService {
 		return true;
 	}
 
-	private Set<String> getEmailsToSendTo(RoleRequest request) {
+	private Map<String, String> getEmailsToSendTo(RoleRequest request) {
 		Map<ApprovableBy, String> roleRequestApproverEmails = settingsService.getRoleRequestApproverEmails();
-		Set<String> mailsToSendTo = new HashSet<>();
+		Map<String, String> mailsToSendTo = new HashMap<>();
 
 		for (ApprovableBy approvableBy : request.getApproverOption()) {
 			// First check if there's a global email for THIS specific approver option
 			String emailBySetting = roleRequestApproverEmails.get(approvableBy);
 			if (StringUtils.hasLength(emailBySetting)) {
-				mailsToSendTo.add(emailBySetting);
+				mailsToSendTo.put(emailBySetting, null);
 				continue;
 			}
 
@@ -278,7 +282,7 @@ public class RequestNotifierService {
 						for (AuthorizationManager manager : orgUnit.getAuthorizationManagers()) {
 							User authorizationManager = manager.getUser();
 							if (authorizationManager != null && authorizationManager.getEmail() != null) {
-								mailsToSendTo.add(authorizationManager.getEmail());
+								mailsToSendTo.put(authorizationManager.getEmail(), authorizationManager.getName());
 							}
 						}
 					}
@@ -286,50 +290,54 @@ public class RequestNotifierService {
 				case MANAGERORSUBSTITUTE -> {
 					OrgUnit orgUnit = request.getOrgUnit();
 					if (orgUnit != null) {
-						mailsToSendTo.addAll(orgUnitService.getManagerAndSubstituteEmail(orgUnit, false).keySet());
+						mailsToSendTo.putAll(orgUnitService.getManagerAndSubstituteEmail(orgUnit, false));
 					}
 				}
 				case AUTHORIZED -> {
-					Set<String> authorizedEmails = getAuthorizedEmails(request);
-					mailsToSendTo.addAll(authorizedEmails);
+					Map<String, String> authorizedEmails = getAuthorizedEmails(request);
+					mailsToSendTo.putAll(authorizedEmails);
 				}
-				case ADMINISTRATOR -> mailsToSendTo.addAll(getAdminEmails());
 				case SYSTEMRESPONSIBLE -> {
 					if (request.getUserRole() != null && request.getUserRole().getItSystem() != null) {
 						ItSystem itSystem = request.getUserRole().getItSystem();
-						String itSystemEmail = itSystem.getSystemOwner() != null ? itSystem.getSystemOwner().getEmail() : null;
-						if (itSystemEmail != null) {
-							mailsToSendTo.add(itSystemEmail);
+						User systemOwner = itSystem.getSystemOwner();
+						if (systemOwner != null && systemOwner.getEmail() != null) {
+							mailsToSendTo.put(systemOwner.getEmail(), systemOwner.getName());
 						}
 					}
 				}
 			}
 		}
+
 		if (mailsToSendTo.size() > 10) {
 			log.warn("Size of list of emails to send request approve email to has exceeded the 10 limit: {}", mailsToSendTo.size());
-			return mailsToSendTo.stream().limit(10).collect(Collectors.toSet());
+			return mailsToSendTo.entrySet().stream()
+				.limit(10)
+				.collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
 		}
+
 		// Step 4: Fallback to global servicedesk email since no one else seems to be able to approve of this request
 		if (mailsToSendTo.isEmpty()) {
 			String serviceDeskEmail = settingsService.getRequestApproveServicedeskEmail();
 			if (StringUtils.hasLength(serviceDeskEmail)) {
-				mailsToSendTo.add(serviceDeskEmail);
+				mailsToSendTo.put(serviceDeskEmail, null);
 			}
 		}
+
 		return mailsToSendTo;
 	}
 
-	private Set<String> getAuthorizedEmails(RoleRequest requestApprove) {
+	private Map<String, String> getAuthorizedEmails(RoleRequest requestApprove) {
 		ItSystem roleCatalogue = itSystemService.getFirstByIdentifier(Constants.ROLE_CATALOGUE_IDENTIFIER);
 		SystemRole requestAuthorizedRole = systemRoleService.getFirstByIdentifierAndItSystemId(Constants.ROLE_REQUESTAUTHORIZED, roleCatalogue.getId());
 		Set<UserRole> allAuthorizedUserRoles = new HashSet<>(userRoleService.findAllBySystemRole(requestAuthorizedRole));
+
 		return allAuthorizedUserRoles.stream()
-			.flatMap(ur -> userService.getUsersWithUserRole(ur, true).stream())
-			.map(UserWithRole::getUser)
+			.flatMap(ur -> assignmentService.getActiveByUserRole(ur).stream())
+			.map(CurrentAssignment::getUser)
 			.filter(user -> isPermittedAccessToOuAndItSystem(requestApprove, user))
-			.map(User::getEmail)
-			.filter(Objects::nonNull)
-			.collect(Collectors.toSet());
+			.filter(user -> user.getEmail() != null)
+			.collect(Collectors.toMap(User::getEmail, User::getName, (name1, name2) -> name1));
 	}
 
 	private boolean isPermittedAccessToOuAndItSystem(RoleRequest requestApprove, User user) {
@@ -342,36 +350,33 @@ public class RequestNotifierService {
 		return itSystemAccessAllowed && ouAccessAllowed;
 	}
 
-	private Set<String> getAdminEmails() {
-		ItSystem roleCatalogue = itSystemService.getFirstByIdentifier(Constants.ROLE_CATALOGUE_IDENTIFIER);
-		SystemRole adminRole = systemRoleService.getFirstByIdentifierAndItSystemId(Constants.ROLE_ADMINISTRATOR_ID, roleCatalogue.getId());
-		Set<UserRole> allUserRolesWithAdministrator = new HashSet<>(userRoleService.findAllBySystemRole(adminRole));
-		return allUserRolesWithAdministrator.stream()
-			.flatMap(ur -> userService.getUsersWithUserRole(ur, true).stream())
-			.map(UserWithRole::getUser)
-			.map(User::getEmail)
-			.filter(Objects::nonNull)
-			.collect(Collectors.toSet());
-	}
 
-	private void inputMessage(List<RoleRequest> requestApproves, int count, Set<String> mailsToSendTo, EmailTemplate template) {
-		if (template.isEnabled()) {
-			String title = template.getTitle();
-			title = title.replace(EmailTemplatePlaceholder.RECEIVER_PLACEHOLDER.getPlaceholder(), "rolletildeler");
-			title = title.replace(EmailTemplatePlaceholder.COUNT_PLACEHOLDER.getPlaceholder(), Integer.toString(count));
-			String message = template.getMessage();
-			message = message.replace(EmailTemplatePlaceholder.RECEIVER_PLACEHOLDER.getPlaceholder(), "rolletildeler");
-			message = message.replace(EmailTemplatePlaceholder.COUNT_PLACEHOLDER.getPlaceholder(), Integer.toString(count));
-			for (String recipient : mailsToSendTo) {
-				emailQueueService.queueEmail(recipient, title, message, template, null, null);
-			}
-			for (RoleRequest requestApprove : requestApproves) {
-				requestApprove.setEmailSent(true);
-				roleRequestDao.save(requestApprove);
-			}
-		} else {
+	private void inputMessage(List<RoleRequest> requestApproves, int count, Map<String, String> mailsToSendTo, EmailTemplate template) {
+		if (!template.isEnabled()) {
 			log.info("Email template with type " + template.getTemplateType() + " is disabled. Email was not sent.");
+			return;
 		}
+
+		for (Map.Entry<String, String> recipient : mailsToSendTo.entrySet()) {
+			String email = recipient.getKey();
+			String name = recipient.getValue();
+			String receiverName = StringUtils.hasLength(name) ? name : "rolletildeler";
+
+			String title = template.getTitle()
+				.replace(EmailTemplatePlaceholder.RECEIVER_PLACEHOLDER.getPlaceholder(), receiverName)
+				.replace(EmailTemplatePlaceholder.COUNT_PLACEHOLDER.getPlaceholder(), Integer.toString(count));
+
+			String message = template.getMessage()
+				.replace(EmailTemplatePlaceholder.RECEIVER_PLACEHOLDER.getPlaceholder(), receiverName)
+				.replace(EmailTemplatePlaceholder.COUNT_PLACEHOLDER.getPlaceholder(), Integer.toString(count));
+
+			emailQueueService.queueEmail(email, title, message, template, null, null);
+		}
+
+		for (RoleRequest requestApprove : requestApproves) {
+			requestApprove.setEmailSent(true);
+		}
+		roleRequestDao.saveAll(requestApproves);
 	}
 
 	private List<RoleRequest> getRoleRequests(boolean isEmailSent) {

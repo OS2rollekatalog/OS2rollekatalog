@@ -1,6 +1,5 @@
 package dk.digitalidentity.rc.controller.mvc;
 
-import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.EmailTemplateDTO;
 import dk.digitalidentity.rc.dao.model.EmailTemplate;
 import dk.digitalidentity.rc.security.permission.Permission;
@@ -24,7 +23,6 @@ import java.util.stream.Collectors;
 public class EmailTemplateController {
 	private final EmailTemplateService emailTemplateService;
 	private final SettingsService settingsService;
-	private final RoleCatalogueConfiguration roleCatalogueConfiguration;
 
 	@RequirePermission(section = Section.CONFIG, permission = Permission.UPDATE)
 	@GetMapping("/ui/admin/mailtemplates")

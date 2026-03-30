@@ -66,7 +66,7 @@ public class RequestLogInterceptor {
 		};
 
 		//execute the intercepted method
-		Object returnValue = joinPoint.proceed();
+		joinPoint.proceed();
 
 		//Only logs if the intercepted method did not throw an exception
 		requestLogger.logRequest(requestLoggable.logEvent(), request, details);

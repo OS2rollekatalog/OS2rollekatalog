@@ -1,10 +1,7 @@
 package dk.digitalidentity.rc.service;
 
 import java.time.LocalDate;
-import java.time.ZoneId;
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -12,13 +9,14 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Objects;
-import java.util.Optional;
-import java.util.Set;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import dk.digitalidentity.rc.dao.history.model.HistoryFunction;
+import dk.digitalidentity.rc.dao.model.assignment.HistoricAssignment;
+import dk.digitalidentity.rc.dao.model.assignment.HistoricAssignmentConstraint;
+import dk.digitalidentity.rc.dao.model.assignment.HistoricExceptedAssignment;
+import dk.digitalidentity.rc.service.assignment.HistoricAssignmentService;
+import dk.digitalidentity.rc.service.assignment.HistoricExceptedAssignmentService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.MessageSource;
 import org.springframework.stereotype.Service;
@@ -32,10 +30,7 @@ import dk.digitalidentity.rc.dao.history.model.HistoryKleAssignment;
 import dk.digitalidentity.rc.dao.history.model.HistoryOU;
 import dk.digitalidentity.rc.dao.history.model.HistoryOUKleAssignment;
 import dk.digitalidentity.rc.dao.history.model.HistoryOURoleAssignment;
-import dk.digitalidentity.rc.dao.history.model.HistoryOURoleAssignmentExclusion;
-import dk.digitalidentity.rc.dao.history.model.HistoryOURoleAssignmentExclusion.ExclusionType;
 import dk.digitalidentity.rc.dao.history.model.HistoryOUUser;
-import dk.digitalidentity.rc.dao.history.model.HistoryRoleAssignment;
 import dk.digitalidentity.rc.dao.history.model.HistorySystemRole;
 import dk.digitalidentity.rc.dao.history.model.HistoryTitle;
 import dk.digitalidentity.rc.dao.history.model.HistoryUser;
@@ -66,656 +61,301 @@ public class ReportService {
 	@Autowired
     private OrganisationConstraintUtil organisationConstraintUtil;
 
-	// used to be part of ReportXlsView code, but moved here because our ManualRolesService also
-	// needs these computations
+	@Autowired
+	private HistoricAssignmentService historicAssignmentService;
+
+	@Autowired
+	private HistoricExceptedAssignmentService historicExceptedAssignmentService;
+
 	public List<UserRoleAssignmentReportEntry> getUserRoleAssignmentReportEntries(
-			Map<String, HistoryUser> users,
-			Map<String, HistoryOU> orgUnits,
-			List<HistoryItSystem> itSystems,
-			Map<String, List<HistoryRoleAssignment>> userRoleAssignments,
-			Map<String, List<HistoryOURoleAssignment>> allOuRoleAssignments,
-			Map<Long, String> itSystemNameMapping,
-			Locale locale,
-			boolean showInactiveUsers,
-			boolean onlyResponsibleOU) {
+		Map<String, HistoryUser> users,
+		Map<String, HistoryOU> orgUnits,
+		List<HistoryItSystem> itSystems,
+		List<HistoricAssignment> filteredHistoricAssignments,
+		Locale locale,
+		boolean showInactiveUsers,
+		boolean onlyResponsibleOU) {
+
 		List<UserRoleAssignmentReportEntry> result = new ArrayList<>();
-		Map<String, List<HistoryOURoleAssignment>> ouRoleAssignments = new HashMap<>();
-		Map<String, List<HistoryOURoleAssignment>> ouRoleAssignmentsWithExceptions = new HashMap<>();
-		Map<String, List<HistoryOURoleAssignment>> negativeTitleOuRoleAssignments = new HashMap<>();
-		Map<String, List<HistoryOURoleAssignment>> titleRoleAssignments = new HashMap<>();
-		Map<String, List<HistoryOURoleAssignment>> functionRoleAssignments = new HashMap<>();
 
-		// Split ouRoleAssignments
-		for (Entry<String, List<HistoryOURoleAssignment>> entry : allOuRoleAssignments.entrySet()) {
-			for (HistoryOURoleAssignment userRoleAssignmentReportEntry : entry.getValue()) {
-				List<HistoryOURoleAssignmentExclusion> exclusions = userRoleAssignmentReportEntry.getExclusions();
-				if (exclusions.isEmpty()) {
-				    ouRoleAssignments.computeIfAbsent(entry.getKey(), k -> new ArrayList<>()).add(userRoleAssignmentReportEntry);
-				} else if (exclusions.stream().allMatch(ex -> ex.getExclusionType() == ExclusionType.excepted_users)) {
-				    ouRoleAssignmentsWithExceptions.computeIfAbsent(entry.getKey(), k -> new ArrayList<>()).add(userRoleAssignmentReportEntry);
-				} else if (
-				    exclusions.stream().allMatch(ex -> {
-				        var t = ex.getExclusionType();
-				        return t == ExclusionType.titles || t == ExclusionType.excepted_users;
-				    })
-				    && exclusions.stream().anyMatch(ex -> ex.getExclusionType() == ExclusionType.titles)
-				) {
-				    titleRoleAssignments.computeIfAbsent(entry.getKey(), k -> new ArrayList<>()).add(userRoleAssignmentReportEntry);
-				} else if (exclusions.stream().allMatch(ex -> ex.getExclusionType() == ExclusionType.negative_titles)) {
-				    negativeTitleOuRoleAssignments.computeIfAbsent(entry.getKey(), k -> new ArrayList<>()).add(userRoleAssignmentReportEntry);
-				}  else if (exclusions.stream().allMatch(ex -> ex.getExclusionType() == ExclusionType.functions)) {
-					functionRoleAssignments.computeIfAbsent(entry.getKey(), k -> new ArrayList<>()).add(userRoleAssignmentReportEntry);
-				}
-				// else: mixed negative_titles/functions with others -> currently unbucketed
+		for (HistoricAssignment ha : filteredHistoricAssignments) {
+			// Get user details
+			HistoryUser user = users.get(ha.getUserUuid());
+			if (user == null) {
+				log.warn("User not found for assignment: {}", ha.getUserUuid());
+				continue;
 			}
-		}
 
-		// Add all assignment based on negative title ou assignmnets
-		result.addAll(getNegativeUserRoleAssignmentReportEntries(users, orgUnits, itSystems, negativeTitleOuRoleAssignments, locale, showInactiveUsers, false));
-
-		for (Map.Entry<String, List<HistoryRoleAssignment>> entry : userRoleAssignments.entrySet()) {
-			HistoryUser user = users.get(entry.getKey());
-
-			// Skip inactive users if showInactive users = false
+			// Skip inactive users if showInactiveUsers = false
 			if (!showInactiveUsers && !user.isUserActive()) {
 				continue;
 			}
 
-			List<HistoryRoleAssignment> roleAssignments = entry.getValue();
+			if (onlyResponsibleOU) {
+				// Only show with responsible OU
+				createReportEntry(ha, user, orgUnits, locale, result);
+			} else {
+				// Show assignment for each position the user has
+				List<HistoryOU> positions = getPositions(orgUnits, user);
 
-			for (HistoryRoleAssignment roleAssignment : roleAssignments) {
-				if (onlyResponsibleOU && roleAssignment.getOrgUnitUuid() != null) {
-					HistoryOU ou = orgUnits.get(roleAssignment.getOrgUnitUuid());
-					addRow(itSystems, locale, result, user, roleAssignment, ou);
-				}
-				else {
-					List<HistoryOU> positions = getPositions(orgUnits, user);
-
+				if (positions.isEmpty()) {
+					// User has no positions, still show with responsible OU
+					createReportEntry(ha, user, orgUnits, locale, result);
+				} else {
+					// Create an entry for each position
 					for (HistoryOU position : positions) {
-						addRow(itSystems, locale, result, user, roleAssignment, position);
+						createReportEntry(ha, user, position, locale, result);
 					}
 				}
 			}
 		}
 
-		for (HistoryOU ou : orgUnits.values()) {
-			if (ou.getUsers() == null) {
-				continue;
-			}
-
-
-			List<HistoryOURoleAssignment> ouAssignments = ouRoleAssignments.get(ou.getOuUuid());
-			for (HistoryOUUser historyOuUser : ou.getUsers()) {
-				HistoryUser user = users.get(historyOuUser.getUserUuid());
-				if (user == null) {
-					continue;
-				}
-
-				// Skip inactive users if showInactive users = false
-				if (!showInactiveUsers && !user.isUserActive()) {
-					continue;
-				}
-
-				// The users position has doNotInherit set, so the user does not get any roles from this OU.
-				if (historyOuUser.getDoNotInherit()) {
-					continue;
-				}
-
-				boolean hasPosition = Boolean.TRUE.equals(historyOuUser.getHasPosition());
-
-				List<HistoryOURoleAssignment> userTitleAssignments = null;
-
-				// Filter on positive titles and excluded users if both selected
-				String titleUuid = historyOuUser.getTitleUuid();
-				if (titleUuid != null) {
-					List<HistoryOURoleAssignment> assignments = titleRoleAssignments.get(ou.getOuUuid());
-					if (assignments != null && !assignments.isEmpty()) {
-						final String userUuid = historyOuUser.getUserUuid();
-
-						userTitleAssignments = assignments.stream().filter(t -> {
-							List<HistoryOURoleAssignmentExclusion> exs = Optional.ofNullable(t.getExclusions()).orElseGet(Collections::emptyList);
-
-							// Titles must include the user's title UUID (exact, CSV-safe)
-							boolean titleMatches = exs.stream()
-								.filter(ex -> ex.getExclusionType() == ExclusionType.titles)
-								.map(HistoryOURoleAssignmentExclusion::getTitleUuids)
-								.filter(Objects::nonNull)
-								.flatMap(s -> Arrays.stream(s.split(",")))
-								.map(String::trim)
-								.anyMatch(titleUuid::equals);
-
-							if (!titleMatches) return false;
-
-							// User must NOT be in excepted users (exact, CSV-safe)
-							boolean userIsExcepted = exs.stream()
-								.filter(ex -> ex.getExclusionType() == ExclusionType.excepted_users)
-								.map(HistoryOURoleAssignmentExclusion::getUserUuids)
-								.filter(Objects::nonNull)
-								.flatMap(s -> Arrays.stream(s.split(",")))
-								.map(String::trim)
-								.anyMatch(userUuid::equals);
-
-							return !userIsExcepted;
-						}).collect(Collectors.toList());
-					}
-				}
-
-				List<HistoryOURoleAssignment> userFunctionAssignments = null;
-
-				// Filter on functions
-				String userFunctions = historyOuUser.getFunctionUuids();
-				if (userFunctions != null && !userFunctions.isBlank()) {
-					List<HistoryOURoleAssignment> assignments = functionRoleAssignments.get(ou.getOuUuid());
-					if (assignments != null && !assignments.isEmpty()) {
-						// Split user's functions into a Set
-						Set<String> userFunctionSet = Arrays.stream(userFunctions.split(","))
-								.map(String::trim)
-								.collect(Collectors.toSet());
-
-						userFunctionAssignments = assignments.stream().filter(t -> {
-							List<HistoryOURoleAssignmentExclusion> exs = Optional.ofNullable(t.getExclusions())
-									.orElseGet(Collections::emptyList);
-
-							// Check if user has at least one required function (exact, CSV-safe)
-							boolean functionMatches = exs.stream()
-									.filter(ex -> ex.getExclusionType() == ExclusionType.functions)
-									.map(HistoryOURoleAssignmentExclusion::getFunctionUuids)
-									.filter(Objects::nonNull)
-									.flatMap(s -> Arrays.stream(s.split(",")))
-									.map(String::trim)
-									.anyMatch(userFunctionSet::contains);
-
-							return functionMatches;
-						}).collect(Collectors.toList());
-					}
-				}
-
-				// ok, time to generate records
-
-
-				long domainId = user.getDomainId();
-				String userName = user.getUserName();
-				String userId = user.getUserUserId();
-				String employeeId = user.getUserExtUuid();
-				boolean userActive = user.isUserActive();
-
-				// OU-wide assignments only apply to users with positions
-				if (ouAssignments != null && hasPosition) {
-					for (HistoryOURoleAssignment roleAssignment : ouAssignments) {
-
-						// Get ItSystem by id
-						Optional<HistoryItSystem> first = itSystems.stream().filter(itSystem -> Objects.equals(itSystem.getItSystemId(), roleAssignment.getRoleItSystemId())).findFirst();
-						String itSystem = "";
-						if (first.isPresent()) {
-							HistoryItSystem historyItSystem = first.get();
-							itSystem = historyItSystem.getItSystemName();
-						}
-
-						if (Boolean.TRUE.equals(roleAssignment.getManager())) {
-							boolean isManager = Objects.equals(ou.getOuManagerUuid(), user.getUserUuid());
-							if (Boolean.TRUE.equals(roleAssignment.getSubstitutes())) {
-								boolean isSubstitute = false;
-								if (StringUtils.hasLength(ou.getOuSubstituteUuids())) {
-									Set<String> substituteUuids = Set.of(ou.getOuSubstituteUuids().split(","));
-									isSubstitute = substituteUuids.contains(user.getUserUuid());
-								}
-
-								if (!isManager && !isSubstitute) {
-									continue;
-								}
-							} else {
-								if (!isManager) {
-									continue;
-								}
-							}
-						}
-
-						String assignedBy = roleAssignment.getAssignedByName() + " (" + roleAssignment.getAssignedByUserId() + ")";
-						String assignedThroughStr = messageSource.getMessage("xls.role.assigned.trough.type.orgunit", null, locale) + ": " + ((roleAssignment.getAssignedThroughName() != null) ? roleAssignment.getAssignedThroughName() : ou.getOuName());
-
-						UserRoleAssignmentReportEntry row = new UserRoleAssignmentReportEntry();
-						row.setDomainId(domainId);
-						row.setUserName(userName);
-						row.setUserId(userId);
-						row.setEmployeeId(employeeId);
-						row.setOrgUnitName(ou.getOuName());
-						row.setOrgUnitUUID(ou.getOuUuid());
-						row.setUserActive(userActive);
-						row.setRoleId(roleAssignment.getRoleId());
-						row.setItSystem(itSystem);
-						row.setAssignedBy(assignedBy);
-						row.setAssignedWhen(roleAssignment.getAssignedWhen());
-						row.setAssignedThrough(assignedThroughStr);
-						row.setStartDate(roleAssignment.getStartDate());
-						row.setStopDate(roleAssignment.getStopDate());
-						result.add(row);
-					}
-				}
-
-				// Title assignments only apply to users with positions
-				if (userTitleAssignments != null && hasPosition) {
-					for (HistoryOURoleAssignment roleAssignment : userTitleAssignments) {
-
-						// Get ItSystem by id
-						Optional<HistoryItSystem> first = itSystems.stream().filter(itSystem -> Objects.equals(itSystem.getItSystemId(), roleAssignment.getRoleItSystemId())).findFirst();
-						String itSystem = "";
-						if (first.isPresent()) {
-							HistoryItSystem historyItSystem = first.get();
-							itSystem = historyItSystem.getItSystemName();
-						}
-
-						String assignedBy = roleAssignment.getAssignedByName() + " (" + roleAssignment.getAssignedByUserId() + ")";
-
-						String assignedThroughStr = messageSource.getMessage("xls.role.assigned.trough.type.title", null, locale) + ": " + ((roleAssignment.getAssignedThroughName() != null) ? roleAssignment.getAssignedThroughName() : ou.getOuName());
-
-						UserRoleAssignmentReportEntry row = new UserRoleAssignmentReportEntry();
-						row.setDomainId(domainId);
-						row.setUserName(userName);
-						row.setUserId(userId);
-						row.setEmployeeId(employeeId);
-						row.setOrgUnitName(ou.getOuName());
-						row.setOrgUnitUUID(ou.getOuUuid());
-						row.setUserActive(userActive);
-						row.setRoleId(roleAssignment.getRoleId());
-						row.setItSystem(itSystem);
-						row.setAssignedBy(assignedBy);
-						row.setAssignedWhen(roleAssignment.getAssignedWhen());
-						row.setAssignedThrough(assignedThroughStr);
-						row.setStartDate(roleAssignment.getStartDate());
-						row.setStopDate(roleAssignment.getStopDate());
-						result.add(row);
-					}
-				}
-
-				if (userFunctionAssignments != null) {
-					for (HistoryOURoleAssignment roleAssignment : userFunctionAssignments) {
-
-						// Get ItSystem by id
-						Optional<HistoryItSystem> first = itSystems.stream()
-								.filter(itSystem -> Objects.equals(itSystem.getItSystemId(), roleAssignment.getRoleItSystemId()))
-								.findFirst();
-						String itSystem = "";
-						if (first.isPresent()) {
-							HistoryItSystem historyItSystem = first.get();
-							itSystem = historyItSystem.getItSystemName();
-						}
-
-						String assignedBy = roleAssignment.getAssignedByName() + " (" + roleAssignment.getAssignedByUserId() + ")";
-						String assignedThroughStr = messageSource.getMessage("xls.role.assigned.trough.type.function", null, locale) +
-								": " + ((roleAssignment.getAssignedThroughName() != null) ?
-								roleAssignment.getAssignedThroughName() : ou.getOuName());
-
-						UserRoleAssignmentReportEntry row = new UserRoleAssignmentReportEntry();
-						row.setDomainId(domainId);
-						row.setUserName(userName);
-						row.setUserId(userId);
-						row.setEmployeeId(employeeId);
-						row.setOrgUnitName(ou.getOuName());
-						row.setOrgUnitUUID(ou.getOuUuid());
-						row.setUserActive(userActive);
-						row.setRoleId(roleAssignment.getRoleId());
-						row.setItSystem(itSystem);
-						row.setAssignedBy(assignedBy);
-						row.setAssignedWhen(roleAssignment.getAssignedWhen());
-						row.setAssignedThrough(assignedThroughStr);
-						row.setStartDate(roleAssignment.getStartDate());
-						row.setStopDate(roleAssignment.getStopDate());
-						result.add(row);
-					}
-				}
-			}
-
-			// Process managers and substitutes without position in this OU
-			if (ouAssignments != null) {
-				for (HistoryOURoleAssignment roleAssignment : ouAssignments) {
-					if (Boolean.TRUE.equals(roleAssignment.getManager())) {
-						// Process this OU
-						processManagerAndSubstitutesWithoutPosition(ou, roleAssignment, users,
-								itSystems, locale, showInactiveUsers, result);
-
-					}
-				}
-			}
-		}
-
-		// Add assignments from OUs, with exceptions
-		for (Entry<String, List<HistoryOURoleAssignment>> entry : ouRoleAssignmentsWithExceptions.entrySet()) {
-			List<HistoryOURoleAssignment> ouRoleAssignmentWithExceptions = entry.getValue();
-			HistoryOU orgUnit = orgUnits.get(entry.getKey());
-
-
-			for (HistoryOURoleAssignment ouRoleAssignment : ouRoleAssignmentWithExceptions) {
-
-				// Get ItSystem by id
-				Optional<HistoryItSystem> first = itSystems.stream().filter(itSystem -> Objects.equals(itSystem.getItSystemId(), ouRoleAssignment.getRoleItSystemId())).findFirst();
-				String itSystem = "";
-				if (first.isPresent()) {
-					HistoryItSystem historyItSystem = first.get();
-					itSystem = historyItSystem.getItSystemName();
-				}
-
-				String assignedBy = ouRoleAssignment.getAssignedByName() + " (" + ouRoleAssignment.getAssignedByUserId() + ")";
-				String assignedThroughStr = messageSource.getMessage("xls.role.assigned.trough.type.orgunit", null, locale) + ": " + orgUnit.getOuName();
-
-				for (HistoryOUUser user : orgUnit.getUsers()) {
-					// The users position has doNotInherit set, so the user does not get any roles from this OU.
-					if (user.getDoNotInherit()) {
-						continue;
-					}
-
-					// OU-wide assignments with exceptions only apply to users with positions
-					if (!Boolean.TRUE.equals(user.getHasPosition())) {
-						continue;
-					}
-
-					if (ouRoleAssignment.getExclusions().stream().anyMatch(ex -> ex.getUserUuids().contains(user.getUserUuid()))) {
-						continue;
-					}
-
-					if (!users.containsKey(user.getUserUuid())) {
-						log.warn("Excepted user with uuid=" + user.getUserUuid() + " does not exist");
-						continue;
-					}
-
-					HistoryUser actualUser = users.get(user.getUserUuid());
-
-					UserRoleAssignmentReportEntry row = new UserRoleAssignmentReportEntry();
-					row.setDomainId(actualUser.getDomainId());
-					row.setUserName(actualUser.getUserName());
-					row.setUserId(actualUser.getUserUserId());
-					row.setEmployeeId(actualUser.getUserExtUuid());
-					row.setOrgUnitName(orgUnit.getOuName());
-					row.setOrgUnitUUID(orgUnit.getOuUuid());
-					row.setUserActive(actualUser.isUserActive());
-					row.setRoleId(ouRoleAssignment.getRoleId());
-					row.setItSystem(itSystem);
-					row.setAssignedBy(assignedBy);
-					row.setAssignedWhen(ouRoleAssignment.getAssignedWhen());
-					row.setAssignedThrough(assignedThroughStr);
-					row.setStartDate(ouRoleAssignment.getStartDate());
-					row.setStopDate(ouRoleAssignment.getStopDate());
-					result.add(row);
-				}
-			}
-		}
 		ReportSystemRoleWeightService.addSystemRoleWeights(itSystems, result);
 		return result;
 	}
 
-	private void processManagerAndSubstitutesWithoutPosition(
-			HistoryOU ou,
-			HistoryOURoleAssignment roleAssignment,
-			Map<String, HistoryUser> users,
-			List<HistoryItSystem> itSystems,
-			Locale locale,
-			boolean showInactiveUsers,
-			List<UserRoleAssignmentReportEntry> result) {
+	private void createReportEntry(
+		HistoricAssignment ha,
+		HistoryUser user,
+		Map<String, HistoryOU> orgUnits,
+		Locale locale,
+		List<UserRoleAssignmentReportEntry> result) {
 
-		// Find manager
-		String managerUuid = ou.getOuManagerUuid();
-		if (managerUuid == null) {
-			return;
-		}
+		// Use responsible OU from the assignment
+		String orgUnitName = ha.getResponsibleOUName();
+		String orgUnitUUID = ha.getResponsibleOUUuid();
 
-		HistoryUser manager = users.get(managerUuid);
-		if (manager == null || (!showInactiveUsers && !manager.isUserActive())) {
-			return;
-		}
-
-		// Check if manager already has position in this OU
-		boolean hasPosition = ou.getUsers().stream()
-			.anyMatch(u -> u.getUserUuid().equals(managerUuid)
-				&& Boolean.TRUE.equals(u.getHasPosition()));
-
-		if (hasPosition) {
-			return; // Already processed in main loop
-		}
-
-		// Add assignment for manager without position
-		addOuAssignmentRow(ou, roleAssignment, manager, itSystems, locale, result);
-
-		// Process substitutes if enabled
-		if (Boolean.TRUE.equals(roleAssignment.getSubstitutes()) &&
-				StringUtils.hasLength(ou.getOuSubstituteUuids())) {
-
-			Set<String> substituteUuids = Set.of(ou.getOuSubstituteUuids().split(","));
-			for (String substituteUuid : substituteUuids) {
-				HistoryUser substitute = users.get(substituteUuid);
-				if (substitute == null || (!showInactiveUsers && !substitute.isUserActive())) {
-					continue;
-				}
-
-				// Check if substitute already processed
-				boolean subHasPosition = ou.getUsers().stream()
-					.anyMatch(u -> u.getUserUuid().equals(substituteUuid)
-						&& Boolean.TRUE.equals(u.getHasPosition()));
-
-				if (!subHasPosition && !substituteUuid.equals(managerUuid)) {
-					addOuAssignmentRow(ou, roleAssignment, substitute, itSystems, locale, result);
-				}
+		if (ha.getResponsibleOUUuid() != null) {
+			HistoryOU ou = orgUnits.get(ha.getResponsibleOUUuid());
+			if (ou != null) {
+				orgUnitName = ou.getOuName();
+				orgUnitUUID = ou.getOuUuid();
 			}
 		}
+
+		createReportEntryInternal(ha, user, orgUnitName, orgUnitUUID, locale, result);
 	}
 
-	private void addOuAssignmentRow(
-			HistoryOU ou,
-			HistoryOURoleAssignment roleAssignment,
-			HistoryUser user,
-			List<HistoryItSystem> itSystems,
-			Locale locale,
-			List<UserRoleAssignmentReportEntry> result) {
+	private void createReportEntry(
+		HistoricAssignment ha,
+		HistoryUser user,
+		HistoryOU position,
+		Locale locale,
+		List<UserRoleAssignmentReportEntry> result) {
 
-		Optional<HistoryItSystem> first = itSystems.stream()
-				.filter(itSystem -> Objects.equals(itSystem.getItSystemId(), roleAssignment.getRoleItSystemId()))
-				.findFirst();
+		// Use the position OU instead of responsible OU
+		createReportEntryInternal(ha, user, position.getOuName(), position.getOuUuid(), locale, result);
+	}
 
-		String itSystem = first.map(HistoryItSystem::getItSystemName).orElse("");
-		String assignedBy = roleAssignment.getAssignedByName() + " (" + roleAssignment.getAssignedByUserId() + ")";
-		String assignedThroughStr = messageSource.getMessage("xls.role.assigned.trough.type.orgunit", null, locale) +
-				": " + ((roleAssignment.getAssignedThroughName() != null) ?
-				roleAssignment.getAssignedThroughName() : ou.getOuName());
+	private void createReportEntryInternal(
+		HistoricAssignment historicAssignment,
+		HistoryUser user,
+		String orgUnitName,
+		String orgUnitUUID,
+		Locale locale,
+		List<UserRoleAssignmentReportEntry> result) {
 
+		// Build assignedThrough string
+		String assignedThroughStr = buildAssignedThroughString(historicAssignment, locale);
+
+		// Build postponedConstraints string
+		String postponedConstraints = buildPostponedConstraintsString(historicAssignment);
+
+		// Create entry
 		UserRoleAssignmentReportEntry row = new UserRoleAssignmentReportEntry();
 		row.setDomainId(user.getDomainId());
 		row.setUserName(user.getUserName());
 		row.setUserId(user.getUserUserId());
 		row.setEmployeeId(user.getUserExtUuid());
-		row.setOrgUnitName(ou.getOuName());
-		row.setOrgUnitUUID(ou.getOuUuid());
+		row.setOrgUnitName(orgUnitName != null ? orgUnitName : "<ukendt enhed>");
+		row.setOrgUnitUUID(orgUnitUUID != null ? orgUnitUUID : "");
 		row.setUserActive(user.isUserActive());
-		row.setRoleId(roleAssignment.getRoleId());
-		row.setItSystem(itSystem);
-		row.setAssignedBy(assignedBy);
-		row.setAssignedWhen(roleAssignment.getAssignedWhen());
+		row.setRoleId(historicAssignment.getUserRoleId());
+		row.setItSystem(historicAssignment.getItSystemName());
+		row.setAssignedBy(historicAssignment.getAssignedBy());
+		row.setAssignedWhen(historicAssignment.getValidFrom());
 		row.setAssignedThrough(assignedThroughStr);
-		row.setStartDate(roleAssignment.getStartDate());
-		row.setStopDate(roleAssignment.getStopDate());
+		row.setPostponedConstraints(postponedConstraints);
+		row.setStartDate(historicAssignment.getStartDate());
+		row.setStopDate(historicAssignment.getStopDate());
+
 		result.add(row);
 	}
 
-	public List<UserRoleAssignmentReportEntry> getNegativeUserRoleAssignmentReportEntries(
-			Map<String, HistoryUser> users,
-			Map<String, HistoryOU> orgUnits,
-			List<HistoryItSystem> itSystems,
-			Map<String, List<HistoryOURoleAssignment>> negativeTitleRoleAssignments,
-			Locale locale,
-			boolean showInactiveUsers,
-			boolean notAssignedRows) {
-
-		List<UserRoleAssignmentReportEntry> result = new ArrayList<>();
-
-		List<HistoryOURoleAssignment> negativeAssignments = negativeTitleRoleAssignments.values().stream().flatMap(List::stream).toList();
-
-		for (HistoryOU ou : orgUnits.values()) {
-			if (ou.getUsers() == null || ou.getUsers().isEmpty()) {
-				continue;
-			}
-
-			List<HistoryOURoleAssignment> negativeAssignmentsForOU = negativeAssignments.stream().filter(nt -> nt.getOuUuid().equals(ou.getOuUuid())).toList();
-			if (negativeAssignmentsForOU.isEmpty()) {
-				continue;
-			}
-
-			for (HistoryOUUser historyOuUser : ou.getUsers()) {
-				HistoryUser user = users.get(historyOuUser.getUserUuid());
-				if (user == null) {
-					continue;
-				}
-
-				// Skip inactive users if showInactive users = false
-				if (!showInactiveUsers && !user.isUserActive()) {
-					continue;
-				}
-
-				// The users position has doNotInherit set, so the user does not get any roles from this OU.
-				if (historyOuUser.getDoNotInherit()) {
-					continue;
-				}
-
-				// Negative title assignments are OU-wide, so only apply to users with positions
-				if (!Boolean.TRUE.equals(historyOuUser.getHasPosition())) {
-					continue;
-				}
-
-				List<HistoryOURoleAssignment> userNegativeTitleAssignments = null;
-				String titleUuid = historyOuUser.getTitleUuid();
-				if (titleUuid != null) {
-					userNegativeTitleAssignments = negativeAssignmentsForOU.stream()
-							.filter(t -> {
-								boolean contained = t.getExclusions().stream().anyMatch(ex -> ex.getTitleUuids().contains(historyOuUser.getTitleUuid()));
-								if (notAssignedRows) {
-									return contained;
-								} else
-									return !contained;
-							})
-							.toList();
-				}
-
-				// ok, time to generate records
-				long domainId = user.getDomainId();
-				String userName = user.getUserName();
-				String userId = user.getUserUserId();
-				String employeeId = user.getUserExtUuid();
-				boolean userActive = user.isUserActive();
-
-				if (userNegativeTitleAssignments != null) {
-					for (HistoryOURoleAssignment roleAssignment : userNegativeTitleAssignments) {
-
-						// Get ItSystem by id
-						Optional<HistoryItSystem> first = itSystems.stream().filter(itSystem -> Objects.equals(itSystem.getItSystemId(), roleAssignment.getRoleItSystemId())).findFirst();
-						String itSystem = "";
-						if (first.isPresent()) {
-							HistoryItSystem historyItSystem = first.get();
-							itSystem = historyItSystem.getItSystemName();
-						}
-
-						String assignedBy = roleAssignment.getAssignedByName() + " (" + roleAssignment.getAssignedByUserId() + ")";
-						String assignedThroughStr = notAssignedRows ?
-								messageSource.getMessage("xls.role.assigned.trough.type.negativetitle", null, locale) + ": " + (ou.getOuName()) :
-								messageSource.getMessage("xls.role.assigned.trough.type.title", null, locale) + ": " + (ou.getOuName());
-
-						UserRoleAssignmentReportEntry row = new UserRoleAssignmentReportEntry();
-						row.setDomainId(domainId);
-						row.setUserName(userName);
-						row.setUserId(userId);
-						row.setEmployeeId(employeeId);
-						row.setOrgUnitName(ou.getOuName());
-						row.setOrgUnitUUID(ou.getOuUuid());
-						row.setUserActive(userActive);
-						row.setRoleId(roleAssignment.getRoleId());
-						row.setItSystem(itSystem);
-						row.setAssignedBy(assignedBy);
-						row.setAssignedWhen(roleAssignment.getAssignedWhen());
-						row.setAssignedThrough(assignedThroughStr);
-						row.setStartDate(roleAssignment.getStartDate());
-						row.setStopDate(roleAssignment.getStopDate());
-						result.add(row);
-					}
-				}
-
-			}
-		}
-		return result;
-	}
-
-	private void addRow(List<HistoryItSystem> itSystems, Locale locale, List<UserRoleAssignmentReportEntry> result,
-						HistoryUser user, HistoryRoleAssignment roleAssignment, HistoryOU ou) {
-		// Get ItSystem by id
-		Optional<HistoryItSystem> first = itSystems.stream().filter(itSystem -> Objects.equals(itSystem.getItSystemId(), roleAssignment.getRoleItSystemId())).findFirst();
-		String itSystem = "";
-		if (first.isPresent()) {
-			HistoryItSystem historyItSystem = first.get();
-			itSystem = historyItSystem.getItSystemName();
-		}
-
-		String assignedBy = roleAssignment.getAssignedByName() + " (" + roleAssignment.getAssignedByUserId() + ")";
-
-		// Creating assigned Through string
-		String assignedThroughMessageCode = switch (roleAssignment.getAssignedThroughType()) {
+	private String buildAssignedThroughString(HistoricAssignment historicAssignment, Locale locale) {
+		String assignedThroughMessageCode = switch (historicAssignment.getAssignedThroughType()) {
 			case DIRECT -> "xls.role.assigned.trough.type.direct";
 			case ROLEGROUP -> "xls.role.assigned.trough.type.direct_group";
-			case POSITION -> "xls.role.assigned.trough.type.position";
+			case POSITION -> /*deprecated in future*/ "xls.role.assigned.trough.type.position";
 			case ORGUNIT -> "xls.role.assigned.trough.type.orgunit";
 			case TITLE -> "xls.role.assigned.trough.type.title";
 		};
+
 		String assignedThroughStr = messageSource.getMessage(assignedThroughMessageCode, null, locale);
 
-		if (StringUtils.hasLength(roleAssignment.getAssignedThroughName())) {
-			assignedThroughStr += ": " + roleAssignment.getAssignedThroughName();
+		// Add the name of what it was assigned through
+		String throughName = null;
+		switch (historicAssignment.getAssignedThroughType()) {
+			case ORGUNIT:
+				throughName = historicAssignment.getAssignedThroughOUName();
+				break;
+			case TITLE:
+				throughName = historicAssignment.getAssignedThroughTitleName();
+				if (historicAssignment.getAssignedThroughOUName() != null) {
+					throughName = historicAssignment.getAssignedThroughTitleName() + " (" + historicAssignment.getAssignedThroughOUName() + ")";
+				}
+				break;
+			case ROLEGROUP:
+				throughName = historicAssignment.getAssignedThroughRoleGroupName();
+				break;
+			case DIRECT: 
+				// no assigned through name
+				break;
+			case POSITION:
+				// not possible anymore
+				break;
 		}
 
-		String postponedConstraints = null;
+		if (StringUtils.hasLength(throughName)) {
+			assignedThroughStr += ": " + throughName;
+		}
 
-		if (roleAssignment.getPostponedConstraints() != null) {
-			StringBuilder sb = new StringBuilder();
-			String regex = "Organisation: ([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})";
-			Pattern pattern = Pattern.compile(regex);
-			for (String line : roleAssignment.getPostponedConstraints().split("\\n")) {
-				Matcher matcher = pattern.matcher(line);
-				if (matcher.matches()) {
-					String orgUuid = matcher.group(1);
-					OrgUnit orgUnit = orgUnitDao.findById(orgUuid).orElse(null);
+		return assignedThroughStr;
+	}
+
+	private String buildPostponedConstraintsString(HistoricAssignment ha) {
+		if (ha.getConstraints() == null || ha.getConstraints().isEmpty()) {
+			return "";
+		}
+
+		StringBuilder sb = new StringBuilder();
+		for (HistoricAssignmentConstraint constraint : ha.getConstraints()) {
+			String constraintName = constraint.getConstraintTypeName();
+			List<String> constraintValues = constraint.getValue();
+
+			if (constraintValues == null || constraintValues.isEmpty()) {
+				// Constraint without value - just show name
+				sb.append(constraintName).append("\n");
+				continue;
+			}
+
+			for (String constraintValue : constraintValues) {
+				// Check if it's an organisation constraint (UUID format)
+				if (constraintValue != null &&
+					constraintValue.matches("[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}")) {
+
+					OrgUnit orgUnit = orgUnitDao.findById(constraintValue).orElse(null);
 					if (orgUnit != null) {
-						sb.append("Organisation: " + orgUnit.getName() + "\n");
+						sb.append(constraintName).append(": ").append(orgUnit.getName()).append("\n");
+					} else {
+						// If OU not found, use UUID as fallback
+						sb.append(constraintName).append(": ").append(constraintValue).append("\n");
 					}
 				} else {
-					sb.append(line + "\n");
+					// For non-organisation constraints, use value as-is
+					sb.append(constraintName).append(": ").append(constraintValue).append("\n");
 				}
 			}
-			postponedConstraints = sb.toString();
 		}
 
-		UserRoleAssignmentReportEntry row = new UserRoleAssignmentReportEntry();
-		row.setDomainId(user.getDomainId());
-		row.setUserName(user.getUserName());
-		row.setUserId(user.getUserUserId());
-		row.setEmployeeId(user.getUserExtUuid());
-		row.setOrgUnitName((ou != null) ? ou.getOuName() : "<ukendt enhed>");
-		row.setOrgUnitUUID((ou != null) ? ou.getOuUuid() : "");
-		row.setUserActive(user.isUserActive());
-		row.setRoleId(roleAssignment.getRoleId());
-		row.setItSystem(itSystem);
-		row.setAssignedBy(assignedBy);
-		row.setAssignedWhen(roleAssignment.getAssignedWhen().toInstant()
-                        .atZone(ZoneId.systemDefault())
-                        .toLocalDateTime());
-		row.setAssignedThrough(assignedThroughStr);
-		row.setPostponedConstraints(postponedConstraints);
-		row.setStartDate(roleAssignment.getStartDate());
-		row.setStopDate(roleAssignment.getStopDate());
-		result.add(row);
+		return sb.toString().trim();
+	}
+
+	public List<UserRoleAssignmentReportEntry> getNegativeUserRoleAssignmentReportEntries(
+		Map<String, HistoryUser> users,
+		Map<String, HistoryOU> orgUnits,
+		List<HistoricExceptedAssignment> historicExceptedAssignments,
+		Locale locale,
+		boolean showInactiveUsers) {
+
+		List<UserRoleAssignmentReportEntry> result = new ArrayList<>();
+
+		for (HistoricExceptedAssignment hea : historicExceptedAssignments) {
+			// Get user details
+			HistoryUser user = users.get(hea.getExceptionUserUuid());
+			if (user == null) {
+				log.warn("User not found for excepted assignment: {}", hea.getExceptionUserUuid());
+				continue;
+			}
+
+			// Skip inactive users if showInactiveUsers = false
+			if (!showInactiveUsers && !user.isUserActive()) {
+				continue;
+			}
+
+			// Build assigned through string
+			String assignedThroughStr = buildExceptedAssignmentThroughString(hea, locale);
+
+			// Get OU details
+			String orgUnitName = hea.getResponsibleOUName();
+			String orgUnitUUID = hea.getResponsibleOUUuid();
+
+			if (hea.getResponsibleOUUuid() != null) {
+				HistoryOU ou = orgUnits.get(hea.getResponsibleOUUuid());
+				if (ou != null) {
+					orgUnitName = ou.getOuName();
+					orgUnitUUID = ou.getOuUuid();
+				}
+			}
+
+			// Create entry
+			UserRoleAssignmentReportEntry row = new UserRoleAssignmentReportEntry();
+			row.setDomainId(user.getDomainId());
+			row.setUserName(user.getUserName());
+			row.setUserId(user.getUserUserId());
+			row.setEmployeeId(user.getUserExtUuid());
+			row.setOrgUnitName(orgUnitName != null ? orgUnitName : "<ukendt enhed>");
+			row.setOrgUnitUUID(orgUnitUUID != null ? orgUnitUUID : "");
+			row.setUserActive(user.isUserActive());
+			row.setRoleId(hea.getExceptionUserRoleId());
+			row.setItSystem(hea.getExceptionItSystemName());
+			row.setAssignedBy(hea.getAssignedBy());
+			row.setAssignedWhen(hea.getValidFrom());
+			row.setAssignedThrough(assignedThroughStr);
+			row.setPostponedConstraints(""); // excepted assignments have no constraints
+			row.setStartDate(hea.getStartDate());
+			row.setStopDate(hea.getStopDate());
+
+			result.add(row);
+		}
+
+		return result;
+	}
+
+	private String buildExceptedAssignmentThroughString(HistoricExceptedAssignment historicExceptedAssignment, Locale locale) {
+		if (StringUtils.hasLength(historicExceptedAssignment.getExceptionTitleName())) {
+			// Negative title exception
+			String assignedThroughStr = messageSource.getMessage("xls.role.assigned.trough.type.negativetitle", null, locale);
+
+			StringBuilder throughName = new StringBuilder();
+			throughName.append(historicExceptedAssignment.getExceptionTitleName());
+
+			if (StringUtils.hasLength(historicExceptedAssignment.getExceptionOuName())) {
+				throughName.append(" (");
+				throughName.append(historicExceptedAssignment.getExceptionOuName());
+				throughName.append(")");
+			}
+
+			return assignedThroughStr + ": " + throughName;
+		} else {
+			// Excepted user exception
+			String assignedThroughStr = messageSource.getMessage("xls.role.assigned.trough.type.negativeUser", null, locale);
+
+			String throughName = historicExceptedAssignment.getExceptionOuName();
+			if (!StringUtils.hasLength(throughName)) {
+				throughName = "<ukendt enhed>";
+			}
+
+			return assignedThroughStr + ": " + throughName;
+		}
 	}
 
 	private List<HistoryOU> getPositions(Map<String, HistoryOU> orgUnits, HistoryUser user) {
-		return orgUnits.values().stream()
-			.filter(ou -> ou.getUsers().stream()
-				.anyMatch(ouUser -> Objects.equals(ouUser.getUserUuid(), user.getUserUuid())
-					&& Boolean.TRUE.equals(ouUser.getHasPosition()))) // Only actual positions
-			.collect(Collectors.toList());
+		return orgUnits.values().stream().filter( ou -> ou.getUsers().stream().anyMatch(ouUser -> Objects.equals(ouUser.getUserUuid(), user.getUserUuid()))).collect(Collectors.toList());
 	}
 
 	public Map<String, Object> getReportModel(ReportForm reportForm, Locale loc) {
-	    LocalDate localDate = parseAndHandleFutureDate(reportForm.getDate());
+		LocalDate localDate = parseAndHandleFutureDate(reportForm.getDate());
 		LocalDate displayDate = LocalDate.parse(reportForm.getDate());
 		List<String> ouFilter = reportForm.getOrgUnits();
 		List<Long> itSystemFilter = reportForm.getItSystems();
@@ -731,27 +371,30 @@ public class ReportService {
 		Map<String, List<HistoryKleAssignment>> userKleAssignments = historyService.getKleAssignments(localDate);
 		Map<String, List<HistoryOUKleAssignment>> ouKleAssignments = historyService.getOUKleAssignments(localDate);
 		Map<String, List<HistoryOURoleAssignment>> ouRoleAssignments;
-		Map<String, List<HistoryRoleAssignment>> userRoleAssignments;
+		List<HistoricAssignment> historicAssignments;
+		List<HistoricExceptedAssignment> historicExceptedAssignments;
 
 		List<HistoryOUUser> historyOUUsers = orgUnits
-				.entrySet()
-				.stream()
-				.flatMap(entry -> entry.getValue().getUsers().stream())
-				.collect(Collectors.toList());
+			.entrySet()
+			.stream()
+			.flatMap(entry -> entry.getValue().getUsers().stream())
+			.collect(Collectors.toList());
 
 		// Filter on ItSystems if specified
 		if (itSystemFilter != null && itSystemFilter.size() > 0) {
 			itSystems = itSystems
-					.stream()
-					.filter(itSystem -> itSystemFilter.contains(itSystem.getItSystemId()))
-					.collect(Collectors.toList());
+				.stream()
+				.filter(itSystem -> itSystemFilter.contains(itSystem.getItSystemId()))
+				.collect(Collectors.toList());
 
 			ouRoleAssignments = historyService.getOURoleAssignments(localDate, itSystemFilter);
-			userRoleAssignments = historyService.getRoleAssignments(localDate, itSystemFilter);
+			historicAssignments = historicAssignmentService.getActiveAtDateAndItSystems(localDate, itSystemFilter);
+			historicExceptedAssignments = historicExceptedAssignmentService.getActiveAtDateAndItSystems(localDate, itSystemFilter);
 		}
 		else {
 			ouRoleAssignments = historyService.getOURoleAssignments(localDate);
-			userRoleAssignments = historyService.getRoleAssignments(localDate);
+			historicAssignments = historicAssignmentService.getActiveAtDate(localDate);
+			historicExceptedAssignments = historicExceptedAssignmentService.getActiveAtDate(localDate);
 		}
 
 		// add systemRoles based on itSystems after filter
@@ -759,21 +402,18 @@ public class ReportService {
 			systemRoles.addAll(itSystem.getHistorySystemRoles());
 		}
 
-		//Now that we store also the inactive roles we need filter them out
-	    filterRoleAssignments(displayDate, ouRoleAssignments);
-	    filterRoleAssignments(displayDate, userRoleAssignments);
-
-		// TODO: det er uheldigt at vi filtrerer OU'ere væk... vi skal bruge dem alle sammen, så måske sende både ALLE OU'ere og de filtrerede med rundt (hvis det er relevant),
-		//       da vi nu skal nedarve fra dem... og det er lige så fjollet hvis vi fjerner rettigheder, da vi også skal bruge dem... hmmm
+		historicAssignments = filterHistoricAssignments(displayDate, historicAssignments);
+		historicExceptedAssignments = filterHistoricExceptedAssignments(displayDate, historicExceptedAssignments);
+		filterRoleAssignments(displayDate, ouRoleAssignments);
 
 		// Filter on manager if specified
 		if (StringUtils.hasLength(manager)) {
 			ouFilter = orgUnits
-					.entrySet()
-					.stream()
-					.filter(entry -> java.util.Objects.equals(manager, entry.getValue().getOuManagerUuid()))
-					.map(entry -> entry.getKey())
-					.collect(Collectors.toList());
+				.entrySet()
+				.stream()
+				.filter(entry -> Objects.equals(manager, entry.getValue().getOuManagerUuid()))
+				.map(entry -> entry.getKey())
+				.collect(Collectors.toList());
 
 			if (ouFilter.size() == 0) {
 				log.warn("Unknown manager: " + manager);
@@ -785,10 +425,11 @@ public class ReportService {
 				userKleAssignments = new HashMap<>();
 				ouKleAssignments = new HashMap<>();
 				ouRoleAssignments = new HashMap<>();
-				userRoleAssignments = new HashMap<>();
+				historicAssignments = new ArrayList<>();
+				historicExceptedAssignments = new ArrayList<>();
 			}
 		}
-
+		
 		// Filter OrgUnits if specified
 		if (ouFilter != null && ouFilter.size() > 0) {
 			List<String> finalOuFilter = ouFilter;
@@ -796,30 +437,34 @@ public class ReportService {
 			// filter the retrieved role assignments and kle assignments
 			orgUnits.entrySet().removeIf(e -> !finalOuFilter.contains(e.getKey()));
 			ouRoleAssignments.entrySet().removeIf(e -> !finalOuFilter.contains(e.getKey()));
-			// doubt we need any filtering actually - but filtering here breaks the report, so lets not do that
-//			ouKleAssignments.entrySet().removeIf(e -> !finalOuFilter.contains(e.getKey()));
 
 			// Find all users in those filtered orgUnits
 			List<HistoryOUUser> ouUsers = orgUnits
-					.entrySet()
-					.stream()
-					.flatMap(entry -> entry.getValue().getUsers().stream())
-					.collect(Collectors.toList());
+				.entrySet()
+				.stream()
+				.flatMap(entry -> entry.getValue().getUsers().stream())
+				.collect(Collectors.toList());
 
 			List<String> userUUIDs = ouUsers
-					.stream()
-					.map(u -> u.getUserUuid())
-					.collect(Collectors.toList());
+				.stream()
+				.map(u -> u.getUserUuid())
+				.collect(Collectors.toList());
 
 			// Filter list of retrieved users
 			users.keySet().removeIf(k -> !userUUIDs.contains(k));
-			userRoleAssignments.entrySet().removeIf(e -> !userUUIDs.contains(e.getKey()));
 			userKleAssignments.entrySet().removeIf(e -> !userUUIDs.contains(e.getKey()));
 
-			// filter out role assignments where responsible ou is not in ouFilter
-			for (Map.Entry<String, List<HistoryRoleAssignment>> entry : userRoleAssignments.entrySet()) {
-				entry.getValue().removeIf(v -> !finalOuFilter.contains(v.getOrgUnitUuid()));
-			}
+			// Filter historic assignments by user and responsible OU
+			historicAssignments = historicAssignments.stream()
+				.filter(ha -> userUUIDs.contains(ha.getUserUuid()))
+				.filter(ha -> ha.getResponsibleOUUuid() == null || finalOuFilter.contains(ha.getResponsibleOUUuid()))
+				.collect(Collectors.toList());
+
+			// Filter historic excepted assignments by user and responsible OU
+			historicExceptedAssignments = historicExceptedAssignments.stream()
+				.filter(ha -> userUUIDs.contains(ha.getExceptionUserUuid()))
+				.filter(ha -> ha.getResponsibleOUUuid() == null || finalOuFilter.contains(ha.getResponsibleOUUuid()))
+				.collect(Collectors.toList());
 		}
 
 		Map<String, Object> model = new HashMap<>();
@@ -836,7 +481,8 @@ public class ReportService {
 		model.put("functions", functions);
 
 		model.put("users", users);
-		model.put("userRoleAssignments", userRoleAssignments);
+		model.put("historicAssignments", historicAssignments);
+		model.put("historicExceptedAssignments", historicExceptedAssignments);
 		model.put("userKLEAssignments", userKleAssignments);
 		model.put("reportForm", reportForm);
 		model.put("reportService", this);
@@ -877,6 +523,54 @@ public class ReportService {
             }
         }
     }
+
+	private List<HistoricAssignment> filterHistoricAssignments(LocalDate displayDate, List<HistoricAssignment> historicAssignments) {
+		List<HistoricAssignment> filteredAssignments = new ArrayList<>();
+
+		for (HistoricAssignment ha : historicAssignments) {
+			if (shouldIncludeByDate(displayDate, ha.getStartDate(), ha.getStopDate(), "HistoricAssignment", ha.getUserRoleId())) {
+				filteredAssignments.add(ha);
+			}
+		}
+
+		return filteredAssignments;
+	}
+
+	private List<HistoricExceptedAssignment> filterHistoricExceptedAssignments(LocalDate displayDate, List<HistoricExceptedAssignment> historicExceptedAssignments) {
+		List<HistoricExceptedAssignment> filteredAssignments = new ArrayList<>();
+
+		for (HistoricExceptedAssignment hea : historicExceptedAssignments) {
+			if (shouldIncludeByDate(displayDate, hea.getStartDate(), hea.getStopDate(), "HistoricExceptedAssignment", hea.getExceptionUserRoleId())) {
+				filteredAssignments.add(hea);
+			}
+		}
+
+		return filteredAssignments;
+	}
+
+	private boolean shouldIncludeByDate(LocalDate displayDate, LocalDate startDate, LocalDate stopDate, String type, long roleId) {
+		log.debug("{}: {} start: {} stop: {}", type, roleId, startDate, stopDate);
+
+		// If the startDate is null means the assignment is active
+		if (startDate != null) {
+			log.debug("StartDate {} is after SelectedDate: {} => {}", startDate, displayDate, startDate.isAfter(displayDate));
+			if (startDate.isAfter(displayDate)) {
+				log.debug("Removing: {} not active at that time.", roleId);
+				return false;
+			}
+		}
+
+		// If the stopDate is null means it never expires
+		if (stopDate != null) {
+			log.debug("SelectedDate {} is after StopDate {} => {}", displayDate, stopDate, displayDate.isAfter(stopDate));
+			if (displayDate.isAfter(stopDate)) {
+				log.debug("Removing: {} expired at that time.", roleId);
+				return false;
+			}
+		}
+
+		return true;
+	}
 
     private LocalDate parseAndHandleFutureDate(String reportFormDate) {
         if (reportFormDate != null && StringUtils.hasLength(reportFormDate)) {

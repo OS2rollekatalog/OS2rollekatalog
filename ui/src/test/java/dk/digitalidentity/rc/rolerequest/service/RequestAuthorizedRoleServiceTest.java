@@ -13,17 +13,24 @@ import java.util.UUID;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.context.annotation.Import;
+import org.springframework.restdocs.RestDocumentationExtension;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.context.ContextConfiguration;
+import org.springframework.test.context.TestPropertySource;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.context.junit.jupiter.SpringExtension;
+import org.springframework.transaction.annotation.Transactional;
 
+import dk.digitalidentity.rc.TestContainersConfiguration;
 import dk.digitalidentity.rc.config.Constants;
+import dk.digitalidentity.rc.config.TestInterceptorConfiguration;
 import dk.digitalidentity.rc.dao.model.ConstraintType;
 import dk.digitalidentity.rc.dao.model.ItSystem;
 import dk.digitalidentity.rc.dao.model.SystemRole;
@@ -34,20 +41,23 @@ import dk.digitalidentity.rc.dao.model.UserRole;
 import dk.digitalidentity.rc.dao.model.UserUserRoleAssignment;
 import dk.digitalidentity.rc.dao.model.enums.ConstraintValueType;
 import dk.digitalidentity.rc.service.ItSystemService;
-import dk.digitalidentity.rc.service.UserService;
+import dk.digitalidentity.rc.service.assignment.AssignmentService;
 import dk.digitalidentity.samlmodule.model.SamlGrantedAuthority;
 import dk.digitalidentity.samlmodule.model.TokenUser;
 
-@SpringBootTest
+@ExtendWith({SpringExtension.class, RestDocumentationExtension.class})
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+@TestPropertySource(locations = "classpath:test.properties")
 @ActiveProfiles({ "test" })
-@ContextConfiguration(classes = {RequestAuthorizedRoleService.class})
+@Transactional(rollbackFor = Exception.class)
+@Import({TestContainersConfiguration.class, TestInterceptorConfiguration.class})
 public class RequestAuthorizedRoleServiceTest {
 	@Autowired
 	private RequestAuthorizedRoleService requestAuthorizedRoleService;
-	@MockBean
+	@MockitoBean
 	private ItSystemService itSystemServiceMock;
-	@MockBean
-	private UserService userServiceMock;
+	@MockitoBean
+	private AssignmentService assignmentService;
 
 	@BeforeEach
 	public void setup() {
@@ -71,7 +81,7 @@ public class RequestAuthorizedRoleServiceTest {
 		mockSecurityContext(true);
 		final var user = userWithNoDirectAssignments();
 		final var ouUuid = UUID.randomUUID().toString();
-		doReturn(Collections.singletonList(constrainedUserRole(Set.of(ouUuid)))).when(userServiceMock).getAllUserRoles(eq(user), anyList());
+		doReturn(Set.of(constrainedUserRole(Set.of(ouUuid)))).when(assignmentService).getUserRolesByUserAndSystems(eq(user), anyList());
 
 		// When
 		final var limitedToOrgUnits = requestAuthorizedRoleService.accessibleOrgUnits(user);
@@ -87,7 +97,7 @@ public class RequestAuthorizedRoleServiceTest {
 		final var ouUuid = UUID.randomUUID().toString();
 		final var userRole = constrainedUserRole(Set.of(ouUuid));
 		final var user = userWithDirectAssignments(Collections.singletonList(directAssignment(userRole)));
-		doReturn(Collections.singletonList(userRole)).when(userServiceMock).getAllUserRoles(eq(user), anyList());
+		doReturn(Set.of(userRole)).when(assignmentService).getUserRolesByUserAndSystems(eq(user), anyList());
 
 		// When
 		final var limitedToOrgUnits = requestAuthorizedRoleService.accessibleOrgUnits(user);

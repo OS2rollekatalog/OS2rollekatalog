@@ -24,7 +24,6 @@ public class UserRoleAssignmentReportEntry {
 	private LocalDateTime assignedWhen;
 	private String assignedThrough;
 	private String postponedConstraints = "";
-	private boolean notifyByEmailIfManualSystem = true;
 	private LocalDate startDate;
 	private LocalDate stopDate;
 }

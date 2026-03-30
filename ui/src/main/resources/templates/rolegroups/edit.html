@@ -56,6 +56,31 @@
 							</div>
 						</fieldset>
 
+						<fieldset>
+							<div class="form-group">
+								<label class="col-sm-2 control-label" th:text="#{html.page.itsystem.edit.modal.oufilter.label}"></label>
+								<div class="col-sm-8">
+									<div class="checkbox c-checkbox">
+										<label>
+											<input id="ouFilterEnabled-checkbox" type="checkbox" th:attr="checked=${rolegroup.ouFilterEnabled}" />
+											<span class="fa fa-check"></span>
+										</label>
+									</div>
+								</div>
+							</div>
+						</fieldset>
+
+						<fieldset id="ouFilterButtonField" hidden>
+							<div class="form-group">
+								<label class="col-sm-2 control-label"></label>
+								<div class="col-sm-8">
+									<a id="ouFilterBtn" class="btn btn-lg btn-primary col-sm-2" th:text="#{html.page.itsystem.edit.modal.oufilter.title}"></a>
+									<label th:if="${#lists.isEmpty(selectedFilterOUs)}" class="col-sm-8 pt-1" th:text="#{html.page.itsystem.edit.modal.oufilter.empty}"></label>
+									<label th:if="${not #lists.isEmpty(selectedFilterOUs)}" class="col-sm-8 pt-1" th:text="#{html.page.itsystem.edit.modal.oufilter.not_empty(${#lists.size(selectedFilterOUs)})}"></label>
+								</div>
+							</div>
+						</fieldset>
+
 						<fieldset th:if="${@settingsService.isRequestApproveEnabled()}">
 							<div class="form-group">
 
@@ -130,7 +155,7 @@
 									</td>
 		                            <td th:text="${addRole.role.name}"></td>
 		                            <td th:text="${addRole.role.itSystem.name}"></td>
-		                            <td th:text="${addRole.role.description}"></td>
+		                            <td class="preformat" th:text="${addRole.role.description}"></td>
 		                        </tr>
 		                        </tbody>
 		                    </table>
@@ -169,6 +194,7 @@
 	<script th:replace="~{ous/fragments/ou_roles_modal :: ouRolesModalScript(titlesEnabled=${titlesEnabled})}"></script>
 	<script th:replace="~{users/fragments/role_assignment_edit_modal :: roleAssignmentEditModalScript(missingPostponedConstraintService = true)}"></script>
 	<script th:replace="~{users/fragments/user_role_group_modal :: userRoleGroupModalScript}"></script>
+<div th:replace="~{itsystem/fragments/ouFilterModal :: ou_filter_modal}"></div>
 	<script th:src="@{/js/DatatableService.js}"></script>
 	<script th:src="@{/js/service/RequestApproveService.js}"></script>
 
@@ -176,35 +202,42 @@
 		/*<![CDATA[*/
 
         /*[+
-        var url = [[@{/rest/rolegroups/}]];
-        var roleId = [[${rolegroup.id}]];
-        var fieldUpdatedMsg = [[#{html.entity.rolegroup.updatedmsg}]];
-        var fieldNotUpdatedMsg = [[#{html.entity.rolegroup.failedupdatemsg}]];
+        const url = [[@{/rest/rolegroups/}]];
+        let roleName = [[${rolegroup.name}]];
+        const fieldUpdatedMsg = [[#{html.entity.rolegroup.updatedmsg}]];
+        const fieldNotUpdatedMsg = [[#{html.entity.rolegroup.failedupdatemsg}]];
 
-        var UIUrl = [[@{/ui/rolegroups/}]];
-        var userRestUrl = [[@{/rest/users/}]];
-        var ouRestUrl = [[@{/rest/ous/}]];
+        const UIUrl = [[@{/ui/rolegroups/}]];
+       	const userRestUrl = [[@{/rest/users/}]];
+        const ouRestUrl = [[@{/rest/ous/}]];
+        const ouFilterRestUrl = [[@{/rest/rolegroups/}]]
 
         //Delete role assignment swal
-        var deleteRoleAssignmentTitleTxt = [[#{html.page.manage.roles.delete.title}]];
-        var deleteRoleAssignmentBodyTxt = [[#{html.page.manage.roles.delete.body}]];
-        var deleteRoleAssignmentErrorMessage = [[#{html.page.manage.roles.delete.error}]];
+        const deleteRoleAssignmentTitleTxt = [[#{html.page.manage.roles.delete.title}]];
+        const deleteRoleAssignmentBodyTxt = [[#{html.page.manage.roles.delete.body}]];
+        const deleteRoleAssignmentErrorMessage = [[#{html.page.manage.roles.delete.error}]];
 
-        var deleteAssignmentConfirmTxt = [[#{html.control.button.yes}]];
-        var deleteAssignmentCancelTxt = [[#{html.control.button.cancel}]];
+        const deleteAssignmentConfirmTxt = [[#{html.control.button.yes}]];
+        const deleteAssignmentCancelTxt = [[#{html.control.button.cancel}]];
 
-        var titlesEnabled = [[${titlesEnabled}]];
-        var roleId = [[${rolegroup.id}]];
-				let userroleTableService;
+        let treeOUs = [[${treeOUs}]];
+        let possibleFilterOus = [[${possibleFilterOus}]];
+		let selectedFilterOUs = [[${selectedFilterOUs}]];
+		const fieldNotUpdatedMsgOUFilter = [[#{html.entity.itsystem.notUpdatedMsgOUFilter}]];
+
+        let roleId = [[${rolegroup.id}]];
         +]*/
 
         var token = $("meta[name='_csrf']").attr("content");
 
-        var userService = new UserService();
-        var orgUnitService = new OrgUnitService();
-        var notificationService = new NotificationService();
-		var requestApproveService = new RequestApproveService();
+        let userService = new UserService();
+        let rolesService = userService; // add alias as rolesService is needed in user_role_group_modal
+        let orgUnitService = new OrgUnitService();
+        let notificationService = new NotificationService();
+		let requestApproveService = new RequestApproveService();
+		let ouFilterService = new OUFilterService();
         let userRoleTable;
+		let userroleTableService;
 
         $("document").ready( function() {
 				userroleTableService = new UserroleTableService()
@@ -233,6 +266,7 @@
 			});
 
 			addCheckboxListeners();
+			ouFilterService.init();
 
             });
 
@@ -339,9 +373,64 @@
                 });
             }
 
+			// user_role_group_modal needs this method
+            this.loadAddRoleGroupFragment = function () {
+				this.loadAddUserRoleFragment();
+			}
+
             this.loadAddUserRoleFragment = function () {
                 $("#users_menu").load(UIUrl + roleId + "/availableUsersFragment", function () {
-                    fragShowDataTableFun('#listTableUsersAdd', 0);
+                    const columnDefOptions = [
+						{
+							targets: [0],
+							data: 'name',
+							render: (data, type, row, meta) => {
+								if (type === 'display') {
+									let html = '<div>'
+									html += '<div>'
+									html += `<span>${data}</span>`
+									html += row.disabled ? `<span class="badge badge-warning">Deaktiveret</span>` : ''
+									html += '</div>'
+									html += row.isAlreadyAssigned ? `<div style="font-size: smaller; color: red;">Tildelt</div>` : ''
+									html += '</div>'
+									return html
+								} else { return data; }
+							}
+						},
+						{
+							targets: [1],
+							data: 'userId',
+						},
+						{
+							targets: [2],
+							data: 'positions',
+							render: (data, type, row, meta) => {
+								let html = '<ul style="list-style: none;">'
+								for (const position of data) {
+									html += `<li>${position.name} i ${position.orgUnit.name}</li>`
+								}
+								html += '</ul>'
+								return html
+							},
+						},
+						{
+							targets: [3],
+							data: 'uuid',
+							orderable: false,
+							searchable:false,
+							sortable:false,
+							render: (data, type, row, meta) => {
+								return data ? `<a href="#"onclick="userService.addRoleGroup('${data}')"><em class="fa fa-plus"></em></a>` : null;
+							},
+						}
+
+					]
+
+                    const table = new DatatableService().initDefaultServersideTable('#listTableUsersAdd', `${userRestUrl}available/rolegroup/${roleId}`, columnDefOptions)
+
+                    //focus the search field
+                    const searchInput = table.table().container().querySelector('.dataTables_filter input')
+                    searchInput.focus()
                 });
             }
 
@@ -396,20 +485,20 @@
                 var user = parent.dataset.user;
                 var type = 'ROLEGROUP';
                 var orgUnit = parent.dataset.ouuuid;
+                let caseNumber = parent.dataset.casenumber;
 
                 // fetch possible orgUnits and call service
                 $.ajax({
                     method: "GET",
                     url: userRestUrl + user + "/orgunits",
                     success: function (response) {
-							userRoleEditModalService.showModal(user, startDate, stopDate, type, assignmentId, 'DIRECT', orgUnit, response, null);
+						userRoleEditModalService.showModal(user, startDate, stopDate, type, assignmentId, 'DIRECT', orgUnit, response, caseNumber, roleName);
                     }
                 });
             }
 
-            this.addRoleGroup = function (elem) {
-                var user = elem.dataset.user;
-                $("#userRoleGroupModal").load(UIUrl + "fragments/" + user, function(){
+            this.addRoleGroup = function (uuid) {
+                $("#userRoleGroupModal").load(UIUrl + "fragments/" + uuid, function(){
                     var modalGroups = $("#modal-groups");
                     datePickerService.init();
                     roleGroupModalService.init();
@@ -423,9 +512,10 @@
                     $('#groupStopDatePicker').data("DateTimePicker").clear();
                     $('#groupStartDatePicker').data("DateTimePicker").clear();
                     $('#groupStartDatePicker').data("DateTimePicker").date(new Date());
+                    $("#assignRoleGroupName").text(roleName);
 
                     modalGroups.attr("rolegroupid", roleId);
-                    modalGroups.attr("userUuid", user);
+                    modalGroups.attr("userUuid", uuid);
                 });
             }
         }
@@ -497,12 +587,12 @@
             }
 
             this.editRoleAssignment = function (elem) {
-                var parent = elem.parentElement;
-                var startDate = parent.dataset.startdate;
-                var stopDate = parent.dataset.stopdate;
-                var assignmentType = parent.dataset.assignmenttype;
-                var assignmentId = parent.dataset.assignmentid;
-                var ou = parent.dataset.orgunit;
+                let parent = elem.parentElement;
+                let startDate = parent.dataset.startdate;
+                let stopDate = parent.dataset.stopdate;
+                let assignmentType = parent.dataset.assignmenttype;
+                let assignmentId = parent.dataset.assignmentid;
+                let ou = parent.dataset.orgunit;
 
                 $("#ouRoleGroupEditModal").load(UIUrl + "fragments/ou/" + ou + "?edit=true", function() {
                     datePickerService.init();
@@ -514,7 +604,7 @@
                     ouRolesEditModalService.roleId = roleId; //get current roleGroup id
                     ouRolesEditModalService.inherit = (assignmentType == -2);
 
-					ouRolesEditModalService.showAssignModal(titlesEnabled, startDate, stopDate, assignmentType, assignmentId);
+					ouRolesEditModalService.showAssignModal(titlesEnabled, startDate, stopDate, assignmentType, assignmentId, roleName);
                 });
             }
 
@@ -528,7 +618,7 @@
                     commonService.init();
                     commonService.parentService = orgUnitService;
 
-					ouRolesModalService.showAssignModal(titlesEnabled, null, null);
+					ouRolesModalService.showAssignModal(titlesEnabled, null, null, roleName);
                 });
             }
         }
@@ -661,6 +751,7 @@
 						{
 							targets: [3],
 							data: 'description',
+							className: "preformat"
 						}
 					]
 
@@ -669,6 +760,136 @@
 					return userRoleTable
 				}
 			}
+
+		function OUFilterService() {
+			this.init = function() {
+				$("#ouFilterEnabled-checkbox").change(ouFilterService.handleOUFilterCheckbox)
+				$("#ouFilterBtn").click(ouFilterService.handleOUFilterBtnClick);
+				$("#oufilterSave").click(ouFilterService.saveOUs);
+
+				$('#modal-ou-filter').on('shown.bs.modal', function() {
+					$('#ou-filter-tree-search').focus();
+				})
+
+				ouFilterService.toggleOUFilter();
+
+				// JSTree stuff
+
+				$("#ou-filter-tree").jstree({
+					"core": {
+						"data": treeOUs,
+						"themes": {
+							"icons": false
+						}
+					},
+					"search" : {
+						"show_only_matches": true,
+						"search_callback": function(str, node) {
+							return (node.text.toUpperCase().startsWith(str.toUpperCase()));
+						}
+					},
+					"checkbox" : {
+						"keep_selected_style" : false,
+						"three_state": false,
+						"cascade": "undefined"
+					},
+					"plugins" : [
+						"checkbox", "search"
+					]
+				});
+
+				// deactivate nodes except for possibleFilterOus and their descendants
+				$('#ou-filter-tree').on("ready.jstree", function(e, data) {
+					let treeInstance = $('#ou-filter-tree').jstree(true);
+
+					treeInstance.get_json('#', { flat: true }).forEach(function(node) {
+						if (possibleFilterOus != null && !possibleFilterOus.includes(node.id)) {
+							treeInstance.disable_node(node.id);
+						}
+					});
+
+					// Select nodes if needed
+					treeInstance.select_node(selectedFilterOUs);
+				});
+
+				// searching in the JSTree
+				let to = false;
+				$('#ou-filter-tree-search').keyup(function() {
+					if (to) {
+						clearTimeout(to);
+					}
+
+					to = setTimeout(function() {
+						let v = $('#ou-filter-tree-search').val();
+
+						$('#ou-filter-tree').jstree(true).search(v);
+					}, 400);
+				});
+			}
+
+			this.handleOUFilterBtnClick = function() {
+				$("#modal-ou-filter").modal("show");
+			}
+
+			this.handleOUFilterCheckbox = function(initial) {
+				let checked = $("#ouFilterEnabled-checkbox").prop("checked");
+
+				$.ajax({
+					url: '/rest/rolegroups/ouFilterEnabled',
+					method: 'POST',
+					data: {
+						'ouFilterEnabled': checked,
+						'id': roleId
+					},
+					headers: {
+						'X-CSRF-TOKEN': token
+					},
+					error: errorHandler(fieldNotUpdatedMsgOUFilter),
+					success: function(response) {
+						$.notify({
+							message: fieldUpdatedMsg
+						},{
+							status: 'success',
+							autoHideDelay: 2000
+						});
+					}
+				});
+
+				ouFilterService.toggleOUFilter();
+			}
+
+			this.toggleOUFilter = function() {
+				let checked = $("#ouFilterEnabled-checkbox").prop("checked");
+
+				// hide/ show
+				if (checked) {
+					$('#ouFilterButtonField').show();
+				} else {
+					$('#ouFilterButtonField').hide();
+				}
+			}
+
+			this.saveOUs = function() {
+				let selected = $('#ou-filter-tree').jstree(true).get_selected();
+				$.ajax({
+					url: ouFilterRestUrl + "oufilter",
+					method: "POST",
+					headers: {
+						'X-CSRF-TOKEN': token,
+						'Content-Type': 'application/json'
+					},
+					data: JSON.stringify({
+						'id': roleId,
+						'selectedOUs': selected
+					}),
+					error: defaultErrorHandler,
+					success: function(response) {
+						$("#modal-ou-filter").modal("hide");
+						location.reload();
+					}
+				});
+			}
+		}
         /*]]>*/
 	</script>
 </body>

@@ -3,6 +3,7 @@ package dk.digitalidentity.rc.attestation.controller.mvc.xlsview;
 import dk.digitalidentity.rc.attestation.model.dto.ITSystemRoleBuildAttestationDTO;
 import dk.digitalidentity.rc.attestation.model.entity.AttestationLock;
 import dk.digitalidentity.rc.attestation.service.AttestationLockService;
+import dk.digitalidentity.rc.controller.mvc.xlsview.DisposableSXSSFWorkbook;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.apache.poi.ss.usermodel.Row;
@@ -15,7 +16,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 import static dk.digitalidentity.rc.attestation.AttestationConstants.REPORT_LOCK_NAME;
 
@@ -46,7 +46,7 @@ public class RoleBuildXlsView extends AttestationXlsView {
 
 	@SuppressWarnings("unchecked")
 	@Override
-	protected void buildExcelDocument(Map<String, Object> model, Workbook workbook, HttpServletRequest request, HttpServletResponse response) throws Exception {
+	protected void buildExcelDocument(Map<String, ?> model, DisposableSXSSFWorkbook workbook, HttpServletRequest request, HttpServletResponse response) throws Exception {
 		// Get data
 		messageSource = (ResourceBundleMessageSource) model.get("messageSource");
 		locale = (Locale) model.get("locale");
@@ -114,5 +114,10 @@ public class RoleBuildXlsView extends AttestationXlsView {
 		createCell(titleRow, 0, fromDate.toString(), null);
 		createCell(titleRow, 1, messageSource.getMessage("attestationmodule.xls.report.rolebuild.to", null, locale), null);
 		createCell(titleRow, 2, toDate.toString(), null);
+	}
+
+	@Override
+	protected String getFilename() {
+		return "rolleopbygning_alle.xlsx";
 	}
 }

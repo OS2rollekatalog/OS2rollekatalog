@@ -110,8 +110,6 @@ public class AttestationAdminController {
         final Map<String, Object> model = new HashMap<>();
         model.put("run", runMapper.toRunDTO(run));
 
-        response.setContentType("application/ms-excel");
-        response.setHeader("Content-Disposition", "attachment; filename=\"attestations-oversigt.xlsx\"");
         return new ModelAndView(new RunOverviewXlsView(), model);
     }
 

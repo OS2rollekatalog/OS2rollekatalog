@@ -5,7 +5,9 @@ import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.enums.RequestAction;
 import dk.digitalidentity.rc.dao.model.enums.RequestApproveStatus;
 import dk.digitalidentity.rc.rolerequest.model.entity.RoleRequest;
+import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.CrudRepository;
+import org.springframework.data.repository.query.Param;
 
 import java.util.Collection;
 import java.util.Date;
@@ -15,6 +17,19 @@ import java.util.Set;
 public interface RoleRequestDao extends CrudRepository<RoleRequest, Long> {
 
 	Set<RoleRequest> findByStatus(RequestApproveStatus status);
+
+	@Query("""
+		SELECT DISTINCT r FROM RoleRequest r
+		LEFT JOIN FETCH r.receiver
+		LEFT JOIN FETCH r.requester
+		LEFT JOIN FETCH r.orgUnit
+		LEFT JOIN FETCH r.userRole ur
+		LEFT JOIN FETCH r.roleGroup rg
+		LEFT JOIN FETCH r.requestPostponedConstraints pc
+		LEFT JOIN FETCH pc.constraintType
+		WHERE r.status = :status
+	""")
+	Set<RoleRequest> findByStatusEager(@Param("status") RequestApproveStatus status);
 
     Set<RoleRequest> findByOrgUnitInAndRequesterNotAndReceiverNotAndStatus(Collection<OrgUnit> orgUnits, User requester, User reciever, RequestApproveStatus status);
 

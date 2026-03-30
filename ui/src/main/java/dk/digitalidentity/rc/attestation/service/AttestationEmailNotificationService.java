@@ -12,7 +12,6 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Propagation;
@@ -449,7 +448,7 @@ public class AttestationEmailNotificationService {
         // For backwards compatibility we need to replace for {enhed} also
         final List<EmailTemplatePlaceholder> emailTemplatePlaceholders = Stream.concat(template.getTemplateType().getEmailTemplatePlaceholders().stream(), Stream.of(EmailTemplatePlaceholder.ORGUNIT_PLACEHOLDER)).toList();
         for (final EmailTemplatePlaceholder placeholder : emailTemplatePlaceholders) {
-            title = StringUtils.replace(title, placeholder.getPlaceholder(), placeholderValue(attestation, receiver, user, systemResponsible, placeholder, null));
+            title = title.replace(placeholder.getPlaceholder(), placeholderValue(attestation, receiver, user, systemResponsible, placeholder, null));
         }
         return title;
     }
@@ -459,7 +458,7 @@ public class AttestationEmailNotificationService {
         // For backwards compatibility we need to replace for {enhed} also
         final List<EmailTemplatePlaceholder> emailTemplatePlaceholders = Stream.concat(template.getTemplateType().getEmailTemplatePlaceholders().stream(), Stream.of(EmailTemplatePlaceholder.ORGUNIT_PLACEHOLDER)).toList();
         for (final EmailTemplatePlaceholder placeholder : emailTemplatePlaceholders) {
-            message = StringUtils.replace(message, placeholder.getPlaceholder(), placeholderValue(attestation, receiver, user, systemResponsible, placeholder, attestations));
+            message = message.replace(placeholder.getPlaceholder(), placeholderValue(attestation, receiver, user, systemResponsible, placeholder, attestations));
         }
         return message;
     }
@@ -468,7 +467,7 @@ public class AttestationEmailNotificationService {
     private String resolveRequestChangeMailTitle(final String requester, final String user, final String change, final String ou, final EmailTemplate template) {
         String title = template.getTitle();
         for (final EmailTemplatePlaceholder placeholder : template.getTemplateType().getEmailTemplatePlaceholders()) {
-            title = StringUtils.replace(title, placeholder.getPlaceholder(), placeholderValue(requester, change, user, null, null, null, ou, placeholder));
+        	title = title.replace(placeholder.getPlaceholder(), placeholderValue(requester, change, user, null, null, null, ou, placeholder));
         }
         return title;
     }
@@ -476,7 +475,7 @@ public class AttestationEmailNotificationService {
     private String resolveRequestChangeMailMessage(final String requester, final String user, final String change, final EmailTemplate template, List<RoleAssignmentDTO> notApproved, final String ou) {
         String message = template.getMessage();
         for (final EmailTemplatePlaceholder placeholder : template.getTemplateType().getEmailTemplatePlaceholders()) {
-            message = StringUtils.replace(message, placeholder.getPlaceholder(), placeholderValue(requester, change, user, null, null, notApproved, ou, placeholder));
+            message = message.replace(placeholder.getPlaceholder(), placeholderValue(requester, change, user, null, null, notApproved, ou, placeholder));
         }
         return message;
     }
@@ -485,7 +484,7 @@ public class AttestationEmailNotificationService {
     private String resolveRequestForRoleChangeMailTitle(final String requester, final String role, final String itSystem, final String remark, final EmailTemplate template) {
         String title = template.getTitle();
         for (final EmailTemplatePlaceholder placeholder : template.getTemplateType().getEmailTemplatePlaceholders()) {
-            title = StringUtils.replace(title, placeholder.getPlaceholder(), placeholderValue(requester, remark, null, role, itSystem, null, null, placeholder));
+            title = title.replace(placeholder.getPlaceholder(), placeholderValue(requester, remark, null, role, itSystem, null, null, placeholder));
         }
         return title;
     }
@@ -493,7 +492,7 @@ public class AttestationEmailNotificationService {
     private String resolveRequestForRoleChangeMailMessage(final String requester, final String role, final String itSystem, final String remark, final EmailTemplate template) {
         String message = template.getMessage();
         for (final EmailTemplatePlaceholder placeholder : template.getTemplateType().getEmailTemplatePlaceholders()) {
-            message = StringUtils.replace(message, placeholder.getPlaceholder(), placeholderValue(requester, remark, null, role, itSystem, null, null, placeholder));
+            message = message.replace(placeholder.getPlaceholder(), placeholderValue(requester, remark, null, role, itSystem, null, null, placeholder));
         }
         return message;
     }

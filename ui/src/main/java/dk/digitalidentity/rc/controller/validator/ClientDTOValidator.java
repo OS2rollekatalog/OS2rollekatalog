@@ -39,11 +39,11 @@ public class ClientDTOValidator implements Validator {
 			if (client != null) {
 				errors.rejectValue("name", "mvc.errors.client.exists");
 			}
-			
-			client = clientService.getClientByApiKeyBypassCache(clientDTO.getApiKey());
-			if (client != null) {
-				errors.rejectValue("apiKey", "mvc.errors.client.apiKey.invalid");
-			}
+		}
+
+		Client clientWithApiKey = clientService.getClientByApiKeyBypassCache(clientDTO.getApiKey());
+		if (clientWithApiKey != null && clientWithApiKey.getId() != clientDTO.getId()) {
+			errors.rejectValue("apiKey", "mvc.errors.client.apiKey.invalid");
 		}
 
 		ValidationUtils.rejectIfEmptyOrWhitespace(errors, "name", "mvc.errors.client.name.required");

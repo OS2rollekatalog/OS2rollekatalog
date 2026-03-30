@@ -1,12 +1,45 @@
 package dk.digitalidentity.rc.rolerequest.controller.rest;
 
+import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.NoSuchElementException;
+import java.util.Set;
+import java.util.UUID;
+import java.util.stream.Collectors;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.MessageSource;
+import org.springframework.data.jpa.datatables.mapping.DataTablesInput;
+import org.springframework.data.jpa.datatables.mapping.DataTablesOutput;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.server.ResponseStatusException;
+
 import dk.digitalidentity.rc.config.Constants;
+import dk.digitalidentity.rc.dao.PNumberDao;
+import dk.digitalidentity.rc.dao.SENumberDao;
+import dk.digitalidentity.rc.dao.model.ConstraintType;
 import dk.digitalidentity.rc.dao.model.OrgUnit;
 import dk.digitalidentity.rc.dao.model.RoleGroup;
+import dk.digitalidentity.rc.dao.model.SystemRole;
 import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserRole;
 import dk.digitalidentity.rc.dao.model.UserRoleGroupAssignment;
 import dk.digitalidentity.rc.dao.model.UserUserRoleAssignment;
+import dk.digitalidentity.rc.dao.model.assignment.CurrentAssignment;
+import dk.digitalidentity.rc.dao.model.enums.ConstraintUIType;
 import dk.digitalidentity.rc.dao.model.enums.RequestAction;
 import dk.digitalidentity.rc.dao.model.enums.RequestApproveStatus;
 import dk.digitalidentity.rc.rolerequest.log.RequestAuditLogger;
@@ -26,34 +59,9 @@ import dk.digitalidentity.rc.service.SettingsService;
 import dk.digitalidentity.rc.service.SystemRoleService;
 import dk.digitalidentity.rc.service.UserRoleService;
 import dk.digitalidentity.rc.service.UserService;
+import dk.digitalidentity.rc.service.assignment.AssignmentService;
 import dk.digitalidentity.rc.service.model.AssignedThrough;
-import dk.digitalidentity.rc.service.model.RoleGroupAssignedToUser;
-import dk.digitalidentity.rc.service.model.UserRoleAssignedToUser;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.MessageSource;
-import org.springframework.data.jpa.datatables.mapping.DataTablesInput;
-import org.springframework.data.jpa.datatables.mapping.DataTablesOutput;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.userdetails.UsernameNotFoundException;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.server.ResponseStatusException;
-
-import java.time.LocalDate;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.List;
-import java.util.Locale;
-import java.util.NoSuchElementException;
-import java.util.Set;
-import java.util.UUID;
-import java.util.stream.Collectors;
 
 @Slf4j
 @RestController
@@ -93,6 +101,15 @@ public class RolerequestRestController {
 	@Autowired
 	private MessageSource messageSource;
 
+	@Autowired
+	private AssignmentService assignmentService;
+
+	@Autowired
+	private PNumberDao pNumberDao;
+
+	@Autowired
+	private SENumberDao seNumberDao;
+
 	@RequestLoggable(logEvent = RequestLogEvent.APPROVE)
 	@PostMapping("/{requestId}/approve")
 	public ResponseEntity<?> approveRequest(@PathVariable long requestId, @RequestBody(required = false) LocalDate newEndDate) {
@@ -109,6 +126,13 @@ public class RolerequestRestController {
 
 		requestService.approveRequest(request);
 
+		return new ResponseEntity<>(HttpStatus.OK);
+	}
+
+	@PostMapping("/tag/request/{requestId}")
+	public ResponseEntity<?> assignRequest(@PathVariable long requestId) {
+		String userId = SecurityUtil.getUserId();
+		requestService.assignRequestToUser(requestId, userId);
 		return new ResponseEntity<>(HttpStatus.OK);
 	}
 
@@ -167,6 +191,19 @@ public class RolerequestRestController {
 
 		List<RoleRequest> requestGroup = new ArrayList<>();
 
+		// Batch fetch all constraint-related data upfront (max 4 queries total)
+		List<RoleConstraint> allRoleConstraints = requestDTO.constraints.stream()
+			.flatMap(c -> c.roleConstraints().stream())
+			.toList();
+
+		Map<String, ConstraintType> constraintTypeMap = constraintTypeService.getByUuidsAsMap(
+			allRoleConstraints.stream().map(RoleConstraint::typeUuid).distinct().toList()
+		);
+		Map<Long, SystemRole> systemRoleMap = systemRoleService.getByIdsAsMap(
+			allRoleConstraints.stream().map(RoleConstraint::systemRoleId).distinct().toList()
+		);
+		Map<String, String> constraintLabels = buildConstraintLabelMap(allRoleConstraints, constraintTypeMap);
+
 		//Create requests for UserRoles
 		for (Long userRoleId : requestDTO.userRoles) {
 			final UserRole userRole = userRoleService.getOptionalById(userRoleId)
@@ -188,14 +225,16 @@ public class RolerequestRestController {
 					.filter(constr ->
 						constr.userRoleId == request.getUserRole().getId())
 					.flatMap(requestConstraint ->
-						requestConstraint.roleConstraints().stream().map(roleConstraint ->
-							RequestPostponedConstraint.builder()
-								.constraintType(constraintTypeService.getByUuid(roleConstraint.typeUuid))
-								.systemRole(systemRoleService.getById(roleConstraint.systemRoleId))
-								.value(roleConstraint.value)
+						requestConstraint.roleConstraints().stream().map(roleConstraint -> {
+							ConstraintType constraintType = constraintTypeMap.get(roleConstraint.typeUuid());
+							return RequestPostponedConstraint.builder()
+								.constraintType(constraintType)
+								.systemRole(systemRoleMap.get(roleConstraint.systemRoleId()))
+								.value(roleConstraint.value())
+								.label(resolveConstraintLabel(roleConstraint, constraintType, constraintLabels))
 								.roleRequest(request)
-								.build()
-						)
+								.build();
+						})
 					).toList()
 			);
 
@@ -274,7 +313,6 @@ public class RolerequestRestController {
 		RoleRequest request = requestService.getRoleRequestById(id)
 			.orElseThrow();
 		List<RequestableBy> globalRequesterSetting = settingsService.getRolerequestRequester();
-		boolean isAuthorized = SecurityUtil.hasRole(Constants.ROLE_REQUESTAUTHORIZED); // bemyndiget
 		if (request.getUserRole() != null && !requestService.canRequest(request.getUserRole(), loggedInUser, request.getOrgUnit(), globalRequesterSetting)) {
 			throw new SecurityException("User not allowed to cancel this request");
 		} else if (request.getRoleGroup() != null && !requestService.canRequest(loggedInUser, request.getRoleGroup(), loggedInUser, request.getOrgUnit())) {
@@ -324,6 +362,7 @@ public class RolerequestRestController {
 	record EmployeeDTO(String uuid, String userId, String name, Set<String> positions, boolean hasRoles, boolean canRequestRemoval) {
 	}
 	@PostMapping("employees")
+	@Transactional(readOnly = true)
 	public DataTablesOutput<EmployeeDTO> getEmployeesDatatable(@RequestBody DataTablesInput input)  {
 		User loggedInUser = userService.getByUserId(SecurityUtil.getUserId());
 		if (loggedInUser == null) {
@@ -348,17 +387,21 @@ public class RolerequestRestController {
 	}
 
 	private boolean calculateCanRequestRemoval(User requester, User user) {
-		for (RoleGroupAssignedToUser roleGroupAssignment : userService.getAllRoleGroupsAssignedToUser(user)) {
-			if (roleGroupAssignment.getAssignedThrough().equals(AssignedThrough.DIRECT)
-				&& requestService.canRequest(requester, roleGroupAssignment.getRoleGroup(), user, roleGroupAssignment.getOrgUnit())) {
-				return true;
-			}
-		}
-
-		for (UserRoleAssignedToUser userRoleAssignment : userService.getAllUserRolesAssignedToUserExemptingRoleGroups(user, null)) {
-			if (userRoleAssignment.getAssignedThrough().equals(AssignedThrough.DIRECT)
-				&& requestService.canRequest(userRoleAssignment.getUserRole(), user, userRoleAssignment.getOrgUnit(), settingsService.getRolerequestRequester())) {
-				return true;
+		final Set<CurrentAssignment> currentAssignments = assignmentService.getByUserIncludingInactive(user);
+		for (var assignment : currentAssignments) {
+			final AssignedThrough assignedThrough = assignmentService.getAssignedThrough(assignment);
+			if (assignment.getRoleGroup() != null) {
+				final var roleGroup = assignment.getRoleGroup();
+				if (assignedThrough == AssignedThrough.DIRECT
+					&& requestService.canRequest(requester, roleGroup, user, assignment.getOrgUnit())) {
+					return true;
+				}
+			} else {
+				final var userRole =  assignment.getUserRole();
+				if (assignedThrough == AssignedThrough.DIRECT
+					&& requestService.canRequest(userRole, user, assignment.getOrgUnit(), settingsService.getRolerequestRequester())) {
+					return true;
+				}
 			}
 		}
 
@@ -429,6 +472,70 @@ public class RolerequestRestController {
 		}
 
 		return request;
+	}
+
+	private Map<String, String> buildConstraintLabelMap(List<RoleConstraint> constraints, Map<String, ConstraintType> constraintTypeMap) {
+		// Collect P-number and SE-number values by checking the constraint type's entity ID
+		List<String> pNumberCodes = constraints.stream()
+			.filter(c -> {
+				ConstraintType type = constraintTypeMap.get(c.typeUuid());
+				return type != null && Constants.PNUMBER_CONSTRAINT_ENTITY_ID.equals(type.getEntityId());
+			})
+			.map(RoleConstraint::value)
+			.distinct()
+			.toList();
+
+		List<String> seNumberCodes = constraints.stream()
+			.filter(c -> {
+				ConstraintType type = constraintTypeMap.get(c.typeUuid());
+				return type != null && Constants.SENUMBER_CONSTRAINT_ENTITY_ID.equals(type.getEntityId());
+			})
+			.map(RoleConstraint::value)
+			.distinct()
+			.toList();
+
+		// Batch fetch labels to avoid excessive number of queries
+		Map<String, String> labels = new java.util.HashMap<>();
+
+		if (!pNumberCodes.isEmpty()) {
+			pNumberDao.findByCodeIn(pNumberCodes)
+				.forEach(p -> labels.put(Constants.PNUMBER_CONSTRAINT_ENTITY_ID + ":" + p.getCode(), p.getName()));
+		}
+
+		if (!seNumberCodes.isEmpty()) {
+			seNumberDao.findByCodeIn(seNumberCodes)
+				.forEach(s -> labels.put(Constants.SENUMBER_CONSTRAINT_ENTITY_ID + ":" + s.getCode(), s.getName()));
+		}
+
+		// Add labels for COMBO-type constraints from their value sets
+		constraints.forEach(c -> {
+			ConstraintType type = constraintTypeMap.get(c.typeUuid());
+			if (type == null) {
+				return;
+			}
+			if (Constants.PNUMBER_CONSTRAINT_ENTITY_ID.equals(type.getEntityId()) ||
+				Constants.SENUMBER_CONSTRAINT_ENTITY_ID.equals(type.getEntityId())) {
+				return;
+			}
+			if (type.getUiType() == ConstraintUIType.COMBO_SINGLE || type.getUiType() == ConstraintUIType.COMBO_MULTI) {
+				type.getValueSet().stream()
+					.filter(vs -> vs.getConstraintKey().equals(c.value()))
+					.findFirst()
+					.ifPresent(vs -> labels.put(type.getEntityId() + ":" + c.value(), vs.getConstraintValue()));
+			}
+		});
+
+		return labels;
+	}
+
+	/**
+	 * Retrieves the fetched label for this constraint from the map
+	 */
+	private String resolveConstraintLabel(RoleConstraint constraint, ConstraintType constraintType, Map<String, String> labelMap) {
+		if (constraintType == null) {
+			return null;
+		}
+		return labelMap.get(constraintType.getEntityId() + ":" + constraint.value());
 	}
 
 }

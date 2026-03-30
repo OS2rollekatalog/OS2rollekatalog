@@ -10,14 +10,13 @@ import java.util.Objects;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.http.HttpEntity;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
-import org.springframework.web.client.RestTemplate;
+import org.springframework.web.client.RestClient;
 
 import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
 import dk.digitalidentity.rc.dao.KleDao;
@@ -38,15 +37,15 @@ public class ReadKleTask {
 	private static Map<String, String> kleCacheMap = new HashMap<>();
 
 	@Autowired
-	@Qualifier("defaultRestTemplate")
-	private RestTemplate restTemplate;
+	@Qualifier("defaultRestClient")
+	private RestClient restClient;
 
 	@Autowired
 	private KleDao kleDao;
-	
+
 	@Autowired
 	private RoleCatalogueConfiguration configuration;
-	
+
 	@Autowired
 	private KleService kleService;
 
@@ -67,11 +66,11 @@ public class ReadKleTask {
 	private void loadCache() {
 		Map<String, String> newKleCacheMap = new HashMap<>();
 
-		List<Kle> kleList = kleDao.findAll();		
+		List<Kle> kleList = kleDao.findAll();
 		for (Kle kle : kleList) {
 			newKleCacheMap.put(kle.getCode(), kle.getName());
 		}
-		
+
 		kleCacheMap = newKleCacheMap;
 	}
 
@@ -81,7 +80,7 @@ public class ReadKleTask {
 		if (configuration.getScheduled().isEnabled()) {
 			return; // do not reload cache on the instance that is running the scheduled task
 		}
-		
+
 		log.info("Refreshing KLE cache");
 
 		loadCache();
@@ -93,7 +92,7 @@ public class ReadKleTask {
 		if (!configuration.getScheduled().isEnabled()) {
 			return;
 		}
-		
+
 		if (configuration.getIntegrations().getKle().isUseOS2sync() && StringUtils.hasLength(configuration.getIntegrations().getKle().getOs2SyncUrl())) {
 			readFromKOMBIT();
 		}
@@ -126,7 +125,7 @@ public class ReadKleTask {
 					if (kle.isActive() != updatedKle.isActive()) {
 						changes = true;
 					}
-					
+
 					iterator.remove();
 					break;
 				}
@@ -157,7 +156,7 @@ public class ReadKleTask {
 
 		kleCacheMap = newCacheMap;
 	}
-	
+
 	private void readFromKleOnline() {
 		log.info("Fetching KLE from kle-online and refreshing cache");
 
@@ -199,7 +198,7 @@ public class ReadKleTask {
 			else if (!found) {
 				kleDao.save(updatedKle);
 			}
-			
+
 			newCacheMap.put(updatedKle.getCode(), updatedKle.getName());
 		}
 
@@ -210,16 +209,18 @@ public class ReadKleTask {
 
 			kleDao.save(kle);
 		}
-		
+
 		kleCacheMap = newCacheMap;
 	}
-	
+
 	public List<Kle> getUpdatedKleList() {
 		List<Kle> updatedKleList = new ArrayList<>();
 
-		HttpEntity<KLEEmneplanKomponent> responseRootEntity = restTemplate.getForEntity("https://www.klxml.dk/download/XML-ver2-0/KLE-Emneplan_Version2-0.xml", KLEEmneplanKomponent.class);
-
-		KLEEmneplanKomponent kleKLEEmneplan = responseRootEntity.getBody();
+		KLEEmneplanKomponent kleKLEEmneplan = restClient
+			.get()
+			.uri("https://www.klxml.dk/download/XML-ver2-0/KLE-Emneplan_Version2-0.xml")
+			.retrieve()
+			.body(KLEEmneplanKomponent.class);
 
 		for (HovedgruppeKomponent hg : kleKLEEmneplan.getHovedgruppe()) {
 			Kle kle = new Kle();
@@ -227,18 +228,18 @@ public class ReadKleTask {
 			kle.setName(hg.getHovedgruppeTitel());
 			kle.setActive(true);
 			kle.setParent("0");
-			
+
 			updatedKleList.add(kle);
-			
+
 			for (GruppeKomponent group : hg.getGruppe()) {
 				Kle groupKle = new Kle();
 				groupKle.setCode(group.getGruppeNr());
 				groupKle.setName(group.getGruppeTitel());
-				groupKle.setActive(true);			
+				groupKle.setActive(true);
 				groupKle.setParent(group.getGruppeNr().substring(0, 2));
 
 				updatedKleList.add(groupKle);
-				
+
 				for (EmneKomponent subject : group.getEmne()) {
 					Kle emneKle = new Kle();
 					emneKle.setCode(subject.getEmneNr());
@@ -253,7 +254,7 @@ public class ReadKleTask {
 
 		return updatedKleList;
 	}
-	
+
 	public static String getName(String code) {
 		return kleCacheMap.get(code);
 	}

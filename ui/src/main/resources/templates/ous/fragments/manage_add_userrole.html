@@ -22,12 +22,13 @@
 								<div th:if="${role.alreadyAssigned}" th:text="#{html.page.user.assign.already.assigned}" style="font-size: smaller; color: red;"></div>
 							</td>
 							<td th:text="${role.itSystem?.name}"></td>
-							<td th:text="${role.description}"></td>
+							<td class="preformat" th:text="${role.description}"></td>
 							<td>
 								<a
+									th:if="${role.assignable}"
 									href="#"
 									onclick="rolesService.addRoleAssignment(this); return false;"
-									th:attr="data-roleid=${role.id}, data-objtype='role'">
+									th:attr="data-roleid=${role.id}, data-objtype='role', data-name=${role.name}">
 									<em class="fa fa-plus"></em>
 								</a>
 							</td>

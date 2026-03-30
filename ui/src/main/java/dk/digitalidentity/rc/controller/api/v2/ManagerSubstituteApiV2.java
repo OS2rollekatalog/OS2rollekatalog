@@ -194,6 +194,11 @@ public class ManagerSubstituteApiV2 {
     public ResponseEntity<List<ManagerSubstituteRecord>> getSubstitutesForManagerById(String id){
         List<ManagerSubstituteRecord> managerSubstituteRecords = new ArrayList<>();
         User manager = userService.getByUserId(id);
+
+        if (manager == null) {
+            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+        }
+
         List<ManagerSubstitute> subManagers  = manager.getManagerSubstitutes();
 
         if (subManagers == null) {

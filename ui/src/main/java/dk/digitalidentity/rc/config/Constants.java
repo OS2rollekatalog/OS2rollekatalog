@@ -68,4 +68,8 @@ public class Constants {
 	// internal constraints in role catalogue
 	public static final String INTERNAL_ITSYSTEM_CONSTRAINT_ENTITY_ID = "http://digital-identity.dk/constraints/itsystem/1";
 	public static final String INTERNAL_ORGUNIT_CONSTRAINT_ENTITY_ID = "http://digital-identity.dk/constraints/orgunit/1";
+
+	// NemLogin constraint entity IDs
+	public static final String PNUMBER_CONSTRAINT_ENTITY_ID = "https://nemlogin.dk/constraints/pnr/1";
+	public static final String SENUMBER_CONSTRAINT_ENTITY_ID = "https://nemlogin.dk/constraints/senr/1";
 }

@@ -1,5 +1,6 @@
 package dk.digitalidentity.rc.dao;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -12,4 +13,5 @@ public interface ConstraintTypeDao extends CrudRepository<ConstraintType, Long> 
 
 	List<ConstraintType> findByEntityId(String entityId);
 
+	List<ConstraintType> findByUuidIn(Collection<String> uuids);
 }

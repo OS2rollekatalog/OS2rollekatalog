@@ -1,5 +1,12 @@
 package dk.digitalidentity.rc.controller.api.mapper;
 
+import static dk.digitalidentity.rc.controller.api.mapper.TitleMapper.titleToApi;
+
+import java.util.Collections;
+import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
+
 import dk.digitalidentity.rc.controller.api.model.ConstraintTypeAM;
 import dk.digitalidentity.rc.controller.api.model.ConstraintTypeSupportAM;
 import dk.digitalidentity.rc.controller.api.model.PostponedConstraintAM;
@@ -10,35 +17,48 @@ import dk.digitalidentity.rc.controller.api.model.UserRoleShallowAM;
 import dk.digitalidentity.rc.controller.api.model.UserUserRoleAssignmentAM;
 import dk.digitalidentity.rc.dao.model.ConstraintType;
 import dk.digitalidentity.rc.dao.model.ConstraintTypeSupport;
-import dk.digitalidentity.rc.dao.model.PostponedConstraint;
 import dk.digitalidentity.rc.dao.model.SystemRole;
 import dk.digitalidentity.rc.dao.model.SystemRoleAssignment;
 import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserRole;
+import dk.digitalidentity.rc.dao.model.assignment.CurrentAssignment;
+import dk.digitalidentity.rc.dao.model.assignment.CurrentAssignmentPostponedConstraint;
 import dk.digitalidentity.rc.rolerequest.model.enums.RequestableBy;
 import dk.digitalidentity.rc.service.model.AssignedThrough;
-import dk.digitalidentity.rc.service.model.UserRoleAssignedToUser;
-import dk.digitalidentity.rc.service.model.UserRoleAssignmentWithInfo;
-
-import java.util.Collections;
-import java.util.List;
-import java.util.stream.Collectors;
-
-import static dk.digitalidentity.rc.controller.api.mapper.TitleMapper.titleToApi;
 
 public abstract class RoleMapper {
 
-    public static UserUserRoleAssignmentAM userRoleAssignmentToApi(final UserRoleAssignmentWithInfo assignment, final User user) {
-        final UserRoleAssignedToUser userRoleAssignedToUser = assignment.toUserRoleAssignedToUser();
-        return UserUserRoleAssignmentAM.builder()
-                .user(UserMapper.toShallowApi(user))
-                .userRole(userRoleToApi(assignment.getUserRole()))
-                .responsibleOrgUnit(OrgUnitMapper.toShallowApi(userRoleAssignedToUser.getOrgUnit()))
-                .assignedThroughTitle(titleToApi(userRoleAssignedToUser.getTitle()))
-                .assignedThrough(assignedThroughToApi(userRoleAssignedToUser.getAssignedThrough()))
-                .postponedConstraints(postponedConstraintsToApi(assignment.getPostponedConstraints()))
-                .build();
-    }
+	public static UserUserRoleAssignmentAM currentAssignmentToApi(final CurrentAssignment assignment, final User user, final AssignedThrough assignedThrough) {
+		return UserUserRoleAssignmentAM.builder()
+			.user(UserMapper.toShallowApi(user))
+			.userRole(userRoleToApi(assignment.getUserRole()))
+			.responsibleOrgUnit(OrgUnitMapper.toShallowApi(assignment.getResponsibleOrgUnit()))
+			.assignedThroughTitle(titleToApi(assignment.getTitle()))
+			.assignedThrough(assignedThroughToApi(assignedThrough))
+			.postponedConstraints(currentAssignmentPostponedConstraintsToApi(assignment.getPostponedConstraints()))
+			.build();
+	}
+
+	private static List<PostponedConstraintAM> currentAssignmentPostponedConstraintsToApi(
+		final Set<CurrentAssignmentPostponedConstraint> postponedConstraints) {
+		if (postponedConstraints == null || postponedConstraints.isEmpty()) {
+			return Collections.emptyList();
+		}
+		return postponedConstraints.stream()
+			.map(RoleMapper::currentAssignmentPostponedConstraintToApi)
+			.toList();
+	}
+
+	private static PostponedConstraintAM currentAssignmentPostponedConstraintToApi(
+		final CurrentAssignmentPostponedConstraint pc) {
+		return PostponedConstraintAM.builder()
+			.constraintTypeId(pc.getConstraintTypeId())
+			.constraintTypeEntityId(pc.getConstraintTypeEntityId())
+			.systemRoleId(pc.getSystemRoleId())
+			.value(String.join(",", pc.getValue()))
+			.build();
+	}
+
 
     private static UserUserRoleAssignmentAM.AssignedThrough assignedThroughToApi(AssignedThrough assignedThrough) {
         return switch (assignedThrough) {
@@ -49,22 +69,6 @@ public abstract class RoleMapper {
             case ORGUNIT -> UserUserRoleAssignmentAM.AssignedThrough.ORG_UNIT;
             case TITLE -> UserUserRoleAssignmentAM.AssignedThrough.TITLE;
         };
-    }
-
-    private static List<PostponedConstraintAM> postponedConstraintsToApi(final List<PostponedConstraint> postponedConstraints) {
-        if (postponedConstraints == null) {
-            return Collections.emptyList();
-        }
-        return postponedConstraints.stream().map(RoleMapper::postponedConstraintToApi).toList();
-    }
-
-    private static PostponedConstraintAM postponedConstraintToApi(final PostponedConstraint pc) {
-        return PostponedConstraintAM.builder()
-                .constraintTypeId(pc.getConstraintType().getId())
-                .constraintTypeEntityId(pc.getConstraintType().getEntityId())
-                .systemRoleId(pc.getSystemRole().getId())
-                .value(pc.getValue())
-                .build();
     }
 
 	public static UserRoleShallowAM toShallowApi(final UserRole userRole) {
@@ -89,6 +93,16 @@ public abstract class RoleMapper {
                 .systemRoleAssignments(userRole.getSystemRoleAssignments() != null
                         ? userRole.getSystemRoleAssignments().stream().map(RoleMapper::systemRoleAssignmentToApi).collect(Collectors.toList())
                         : Collections.emptyList())
+				.contactEmail(userRole.getContactEmail())
+				.ouFilterEnabled(userRole.isOuFilterEnabled())
+				.orgUnitFilterOrgUnits(userRole.getOrgUnitFilterOrgUnits() != null
+						? userRole.getOrgUnitFilterOrgUnits().stream().map(OrgUnitMapper::toShallowApi).toList()
+						: Collections.emptyList())
+				.roleAssignmentAttestationByAttestationResponsible(userRole.isRoleAssignmentAttestationByAttestationResponsible())
+				.extraSensitiveRole(userRole.isExtraSensitiveRole())
+				.allowPostponing(userRole.isAllowPostponing())
+                .requesterPermission(userRole.getRequesterPermission())
+                .approverPermission(userRole.getApproverPermission())
                 .build();
     }
 

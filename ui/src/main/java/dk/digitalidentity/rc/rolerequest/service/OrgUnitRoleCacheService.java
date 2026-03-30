@@ -79,7 +79,7 @@ public class OrgUnitRoleCacheService {
 							.collect(Collectors.toMap(
 									u -> u.getUserRole().getId(),
 									u -> new OrgUnitUserRoleCache(0, orgUnit, u.getUserRole()),
-									(existing, replacement) -> existing
+									(existing, _) -> existing
 							))
 							.values()
 			);
@@ -89,7 +89,7 @@ public class OrgUnitRoleCacheService {
 							.collect(Collectors.toMap(
 									u -> u.getRoleGroup().getId(),
 									u -> new OrgUnitRoleGroupCache(0, orgUnit, u.getRoleGroup()),
-									(existing, replacement) -> existing
+									(existing, _) -> existing
 							))
 							.values()
 			);

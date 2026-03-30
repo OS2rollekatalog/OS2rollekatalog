@@ -53,6 +53,7 @@ public interface UserDao extends CrudRepository<User, String>, JpaSpecificationE
 	List<User> findByUuidInAndDeletedFalse(Set<String> uuids);
 	List<User> findByExtUuidAndDeletedFalse(String uuid);
 	Optional<User> findByUserIdAndDomainAndDeletedFalse(String userId, Domain domain);
+	List<User> findByUserIdInAndDomainAndDeletedFalse(List<String> userIds, Domain domain);
 
 	// use the versions below that filters on active/inactive flag
 	@Deprecated

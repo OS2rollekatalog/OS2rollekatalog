@@ -11,8 +11,6 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
-import jakarta.persistence.Temporal;
-import jakarta.persistence.TemporalType;
 import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
 import lombok.Setter;
@@ -46,7 +44,6 @@ public class EmailQueue {
 	private String cc;
 	
 	@Column
-	@Temporal(TemporalType.TIMESTAMP)
 	private Date deliveryTts;
 	
 	@ManyToOne(fetch = FetchType.EAGER)

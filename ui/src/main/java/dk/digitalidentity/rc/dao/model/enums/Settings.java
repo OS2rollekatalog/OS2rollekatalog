@@ -38,8 +38,8 @@ public enum Settings {
     SETTING_EXCLUDED_OUS("ExcludedOUs", "html.setting.pickou"),
     SETTING_ATTESTATION_ORGUNIT_OPTIN("attestationOrgUnitOptIn",null),
     SETTING_SCHEDULED_ATTESTATION_OPTED_IN_ORG_UNITS("ScheduledAttestationOptedInOrgUnits", "html.setting.attestation.scheduled.filter.optin"),
-	SETTING_REMOVE_DIRECT_ASSIGNMENTS_FOR_DISABLED("RemoveDirectAssignmentsForDisabled", "html.setting.direct.affiliations.duration");
-
+	SETTING_REMOVE_DIRECT_ASSIGNMENTS_FOR_DISABLED("RemoveDirectAssignmentsForDisabled", "html.setting.direct.affiliations.duration"),
+	SETTING_FIRST_MANUAL_IT_SYSTEM_RUN("firstManualItSystemRun",null);
 
     private String key;
     private String message;

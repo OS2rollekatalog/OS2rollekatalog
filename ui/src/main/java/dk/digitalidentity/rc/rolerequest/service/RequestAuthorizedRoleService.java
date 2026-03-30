@@ -1,29 +1,11 @@
 package dk.digitalidentity.rc.rolerequest.service;
 
-import dk.digitalidentity.rc.config.Constants;
-import dk.digitalidentity.rc.dao.model.ItSystem;
-import dk.digitalidentity.rc.dao.model.OrgUnit;
-import dk.digitalidentity.rc.dao.model.PostponedConstraint;
-import dk.digitalidentity.rc.dao.model.SystemRoleAssignment;
-import dk.digitalidentity.rc.dao.model.SystemRoleAssignmentConstraintValue;
-import dk.digitalidentity.rc.dao.model.User;
-import dk.digitalidentity.rc.dao.model.UserRole;
-import dk.digitalidentity.rc.dao.model.UserUserRoleAssignment;
-import dk.digitalidentity.rc.dao.model.enums.ConstraintValueType;
-import dk.digitalidentity.rc.rolerequest.model.enums.RequestableBy;
-import dk.digitalidentity.rc.security.SecurityUtil;
-import dk.digitalidentity.rc.service.ItSystemService;
-import dk.digitalidentity.rc.service.SettingsService;
-import dk.digitalidentity.rc.service.UserRoleService;
-import dk.digitalidentity.rc.service.UserService;
-import dk.digitalidentity.rc.util.OrganisationConstraintUtil;
-import dk.digitalidentity.rc.util.UuidUtil;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang3.StringUtils;
-import org.springframework.cache.annotation.Cacheable;
-import org.springframework.stereotype.Service;
+import static dk.digitalidentity.rc.config.Constants.INTERNAL_ITSYSTEM_CONSTRAINT_ENTITY_ID;
+import static dk.digitalidentity.rc.config.Constants.INTERNAL_ORGUNIT_CONSTRAINT_ENTITY_ID;
+import static dk.digitalidentity.rc.config.Constants.ROLE_REQUESTAUTHORIZED;
+import static dk.digitalidentity.rc.rolerequest.RequestConstants.CACHE_PREFIX;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
@@ -34,10 +16,30 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import static dk.digitalidentity.rc.config.Constants.INTERNAL_ITSYSTEM_CONSTRAINT_ENTITY_ID;
-import static dk.digitalidentity.rc.config.Constants.INTERNAL_ORGUNIT_CONSTRAINT_ENTITY_ID;
-import static dk.digitalidentity.rc.config.Constants.ROLE_REQUESTAUTHORIZED;
-import static dk.digitalidentity.rc.rolerequest.RequestConstants.CACHE_PREFIX;
+import org.apache.commons.lang3.StringUtils;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.stereotype.Service;
+
+import dk.digitalidentity.rc.config.Constants;
+import dk.digitalidentity.rc.dao.model.ItSystem;
+import dk.digitalidentity.rc.dao.model.OrgUnit;
+import dk.digitalidentity.rc.dao.model.PostponedConstraint;
+import dk.digitalidentity.rc.dao.model.SystemRole;
+import dk.digitalidentity.rc.dao.model.SystemRoleAssignment;
+import dk.digitalidentity.rc.dao.model.SystemRoleAssignmentConstraintValue;
+import dk.digitalidentity.rc.dao.model.User;
+import dk.digitalidentity.rc.dao.model.UserRole;
+import dk.digitalidentity.rc.dao.model.UserUserRoleAssignment;
+import dk.digitalidentity.rc.dao.model.enums.ConstraintValueType;
+import dk.digitalidentity.rc.rolerequest.model.enums.RequestableBy;
+import dk.digitalidentity.rc.service.ItSystemService;
+import dk.digitalidentity.rc.service.SettingsService;
+import dk.digitalidentity.rc.service.UserRoleService;
+import dk.digitalidentity.rc.service.assignment.AssignmentService;
+import dk.digitalidentity.rc.util.OrganisationConstraintUtil;
+import dk.digitalidentity.rc.util.UuidUtil;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * Service that is responsible for operations in relation to the request authorized role
@@ -49,8 +51,8 @@ public class RequestAuthorizedRoleService {
 	private final UserRoleService userRoleService;
 	private final SettingsService settingsService;
 	private final ItSystemService itSystemService;
-	private final UserService userService;
 	private final OrganisationConstraintUtil organisationConstraintUtil;
+	private final AssignmentService assignmentService;
 
 	public enum LimitedToType { NONE, ALL, CONSTRAINED }
 	public record LimitedToOrgUnits(LimitedToType type, Set<String> orgUnits) {}
@@ -88,20 +90,23 @@ public class RequestAuthorizedRoleService {
 	 * If the user has the authorized role, the method will check which it-systems are accessible based on constraints.
 	 */
 	public LimitedToItSystems accessibleItsSystems(final User user) {
-		if (!SecurityUtil.getRoles().contains(ROLE_REQUESTAUTHORIZED)) {
+		final List<ItSystem> itSystems = itSystemService.findByIdentifier(Constants.ROLE_CATALOGUE_IDENTIFIER);
+		final List<UserRole> allRoleCatalogueRoles = new ArrayList<>(assignmentService.getUserRolesByUserAndSystems(user, itSystems));
+		if (findAssignedSystemRole(allRoleCatalogueRoles, ROLE_REQUESTAUTHORIZED).isEmpty()) {
 			return new LimitedToItSystems(LimitedToType.NONE, Collections.emptySet());
 		}
 		// First the values from postponed constraints
 		final LimitedToItSystems postponedConstraints = getPostponedItSystemConstraints(user.getUserRoleAssignments());
-		if (postponedConstraints.type == LimitedToType.ALL) {
+		if (postponedConstraints.type == LimitedToType.ALL ||
+			(postponedConstraints.type == LimitedToType.CONSTRAINED && !postponedConstraints.itSystems.isEmpty())) {
 			return postponedConstraints;
 		}
+
 		// Now get all non "normal" constraints
-		final List<ItSystem> itSystems = itSystemService.findByIdentifier(Constants.ROLE_CATALOGUE_IDENTIFIER);
-		final List<UserRole> allRoleCatalogueRoles = userService.getAllUserRoles(user, itSystems);
 		final List<LimitedToItSystems> constraints = allRoleCatalogueRoles.stream()
 			.map(ur -> getItSystemConstraintsForUserRole(user, ur))
 			.toList();
+
 		// If any of the result are access to all return that
 		final Optional<LimitedToItSystems> allConstraint = constraints.stream()
 			.filter(c -> c.type == LimitedToType.ALL)
@@ -122,17 +127,18 @@ public class RequestAuthorizedRoleService {
 	 * If the user has the authorized role, the method will check which OUs are accessible based on constraints.
 	 */
 	public LimitedToOrgUnits accessibleOrgUnits(final User user) {
-		if (!SecurityUtil.getRoles().contains(ROLE_REQUESTAUTHORIZED)) {
+		final List<ItSystem> itSystems = itSystemService.findByIdentifier(Constants.ROLE_CATALOGUE_IDENTIFIER);
+		final List<UserRole> allRoleCatalogueRoles = new ArrayList<>(assignmentService.getUserRolesByUserAndSystems(user, itSystems));
+		if (findAssignedSystemRole(allRoleCatalogueRoles, ROLE_REQUESTAUTHORIZED).isEmpty()) {
 			return new LimitedToOrgUnits(LimitedToType.NONE, Collections.emptySet());
 		}
 		// First the values from postponed constraints
 		final LimitedToOrgUnits postponedConstraints = getPostponedOuConstraints(user.getUserRoleAssignments());
-		if (postponedConstraints.type == LimitedToType.ALL) {
+		if (postponedConstraints.type == LimitedToType.ALL ||
+			(postponedConstraints.type == LimitedToType.CONSTRAINED && !postponedConstraints.orgUnits.isEmpty())) {
 			return postponedConstraints;
 		}
 		// Now get all non "normal" constraints
-		final List<ItSystem> itSystems = itSystemService.findByIdentifier(Constants.ROLE_CATALOGUE_IDENTIFIER);
-		final List<UserRole> allRoleCatalogueRoles = userService.getAllUserRoles(user, itSystems);
 		final List<LimitedToOrgUnits> constraints = allRoleCatalogueRoles.stream()
 			.map(ur -> getOuConstraintsForUserRole(user, ur))
 			.toList();
@@ -263,6 +269,14 @@ public class RequestAuthorizedRoleService {
 					"OU constraint cannot contain value of type " + constraintValue.getConstraintValueType()
 				);
 		};
+	}
+
+	private Optional<SystemRole> findAssignedSystemRole(final List<UserRole> userRoles, final String systemRoleIdentifier) {
+		return userRoles.stream()
+			.flatMap(ur -> ur.getSystemRoleAssignments().stream())
+			.map(SystemRoleAssignment::getSystemRole)
+			.filter(sr -> sr.getIdentifier().equals(systemRoleIdentifier))
+			.findFirst();
 	}
 
 	private static String getOrgUnitUuidsFromPositions(User user) {

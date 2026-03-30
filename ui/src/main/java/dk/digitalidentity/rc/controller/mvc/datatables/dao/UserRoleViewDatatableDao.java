@@ -1,21 +1,20 @@
 package dk.digitalidentity.rc.controller.mvc.datatables.dao;
 
-import dk.digitalidentity.rc.controller.mvc.datatables.dao.model.UserRoleView;
-import dk.digitalidentity.rc.rolerequest.model.enums.RequestableBy;
-import jakarta.persistence.criteria.Expression;
-import jakarta.persistence.criteria.Predicate;
-import jakarta.persistence.criteria.Root;
-import org.springframework.data.jpa.datatables.repository.DataTablesRepository;
-import org.springframework.data.jpa.domain.Specification;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import org.springframework.data.jpa.datatables.repository.DataTablesRepository;
+import org.springframework.data.jpa.domain.Specification;
+
+import dk.digitalidentity.rc.controller.mvc.datatables.dao.model.UserRoleView;
+import dk.digitalidentity.rc.rolerequest.model.enums.RequestableBy;
+import jakarta.persistence.criteria.Predicate;
+
 public interface UserRoleViewDatatableDao extends DataTablesRepository<UserRoleView, Long> {
 	 static Specification<UserRoleView> requesterPermissionIn(List<RequestableBy> permissions) {
-		return (root, query, cb) -> {
+		return (root, _, cb) -> {
 			List<Predicate> predicates = new ArrayList<>();
 			for (RequestableBy permission : permissions) {
 				// Check if the comma-separated string contains this permission as the permission is now a comma list
@@ -30,10 +29,7 @@ public interface UserRoleViewDatatableDao extends DataTablesRepository<UserRoleV
 	}
 
 	static Specification<UserRoleView> isNotReadOnly() {
-		return (root, query, builder) -> {
-			Root<UserRoleView> userrole = builder.treat(root, UserRoleView.class);
-			return builder.not(userrole.get("readOnly"));
-		};
+		return (root, _, cb) -> cb.not(root.get("readOnly"));
 	}
 
 	/**
@@ -77,7 +73,7 @@ public interface UserRoleViewDatatableDao extends DataTablesRepository<UserRoleV
 	 * Filter roles to only those that either have no orgUnit filter, or have the specified orgUnit in their filter list
 	 */
 	public static Specification<UserRoleView> orgUnitFilterMatchesOrEmpty(List<String> ancestorOuUuids) {
-		return (root, query, criteriaBuilder) -> {
+		return (root, _, criteriaBuilder) -> {
 			// Check role filter: no filter OR filter matches
 			Predicate noRoleFilter = criteriaBuilder.or(
 				criteriaBuilder.isNull(root.get("orgUnitFilterUuids")),

@@ -70,7 +70,6 @@ public class AttestationRunTrackerService {
         attestationDao.findByAttestationRunIsNull().forEach(this::findOrCreateRunFor);
     }
 
-    @SuppressWarnings("deprecation")
     private void findOrCreateRunFor(final Attestation att) {
         if (att.getAttestationRun() == null) {
             attestationRunDao.findByDeadlineIs(att.getDeadline())

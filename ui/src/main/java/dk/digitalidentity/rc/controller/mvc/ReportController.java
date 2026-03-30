@@ -11,10 +11,10 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import dk.digitalidentity.rc.rolerequest.model.entity.RoleRequest;
 import org.springframework.context.MessageSource;
 import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.stereotype.Controller;
@@ -41,7 +41,9 @@ import dk.digitalidentity.rc.dao.model.RoleGroup;
 import dk.digitalidentity.rc.dao.model.SystemRole;
 import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserRole;
+import dk.digitalidentity.rc.dao.model.assignment.CurrentAssignment;
 import dk.digitalidentity.rc.dao.model.enums.ReportType;
+import dk.digitalidentity.rc.rolerequest.model.entity.RoleRequest;
 import dk.digitalidentity.rc.rolerequest.service.RequestService;
 import dk.digitalidentity.rc.security.AccessConstraintService;
 import dk.digitalidentity.rc.security.RequireTemplateAccessOrReportAccessRole;
@@ -55,12 +57,12 @@ import dk.digitalidentity.rc.service.ItSystemService;
 import dk.digitalidentity.rc.service.OrgUnitService;
 import dk.digitalidentity.rc.service.ReportService;
 import dk.digitalidentity.rc.service.ReportTemplateService;
-import dk.digitalidentity.rc.service.RoleGroupService;
 import dk.digitalidentity.rc.service.SystemRoleService;
 import dk.digitalidentity.rc.service.UserRoleService;
 import dk.digitalidentity.rc.service.UserService;
-import dk.digitalidentity.rc.service.model.RoleGroupAssignmentWithInfo;
-import dk.digitalidentity.rc.service.model.UserRoleAssignmentWithInfo;
+import dk.digitalidentity.rc.service.assignment.AssignmentService;
+import dk.digitalidentity.rc.service.model.AssignedThrough;
+import dk.digitalidentity.rc.service.model.RoleAssignmentType;
 import dk.digitalidentity.rc.service.model.UserWithRole;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
@@ -76,7 +78,6 @@ public class ReportController {
 	private final ReportTemplateService reportTemplateService;
 	private final UserRoleService userRoleService;
 	private final UserService userService;
-	private final RoleGroupService roleGroupService;
 	private final OrgUnitService orgUnitService;
 	private final ItSystemService itSystemService;
 	private final MessageSource messageSource;
@@ -84,6 +85,7 @@ public class ReportController {
 	private final SystemRoleService systemRoleService;
 	private final AccessConstraintService accessConstraintService;
 	private final RequestService rolerequestService;
+	private final AssignmentService assignmentService;
 
 	@RequireTemplateAccessOrReportAccessRole
 	@GetMapping("/ui/report/templates")
@@ -247,9 +249,6 @@ public class ReportController {
 	public ModelAndView downloadReport(ReportForm reportForm, HttpServletResponse response, Locale loc) {
 		Map<String, Object> model = reportService.getReportModel(reportForm, loc);
 
-		response.setContentType("application/ms-excel");
-		response.setHeader("Content-Disposition", "attachment; filename=\"Rapport.xlsx\"");
-
 		return new ModelAndView(new ReportXlsxView(), model);
 	}
 
@@ -290,9 +289,6 @@ public class ReportController {
 		reportForm.setName(template.getName());
 
 		Map<String, Object> model = reportService.getReportModel(reportForm, loc);
-
-		response.setContentType("application/ms-excel");
-		response.setHeader("Content-Disposition", "attachment; filename=\"Rapport.xls\"");
 
 		return new ModelAndView(new ReportXlsxView(), model);
 	}
@@ -656,9 +652,6 @@ public class ReportController {
 		model.put("rows", rows);
 		model.put("sheetName", "report");
 
-		response.setContentType("application/ms-excel");
-		response.setHeader("Content-Disposition", "attachment; filename=\"report.xls\"");
-
 		return new ModelAndView(new XlsView(), model);
 	}
 
@@ -695,11 +688,22 @@ public class ReportController {
 			SystemRole systemRole = systemRoleService.getFirstByIdentifierAndItSystemId(Constants.ROLE_REQUESTAUTHORIZED, itSystem.getId());
 			List<UserRole> userRoles = systemRoleService.userRolesWithSystemRole(systemRole);
 			for (UserRole userRole : userRoles) {
-				List<UserWithRole> usersWithRole = userService.getUsersWithUserRole(userRole, true);
-				for (UserWithRole userWithRole : usersWithRole) {
+				Set<CurrentAssignment> assignments = assignmentService.getActiveByUserRole(userRole);
+				for (CurrentAssignment assignment : assignments) {
+					AssignedThrough assignedThrough = assignmentService.getAssignedThrough(assignment);
+					UserWithRole userWithRole = UserWithRole.fromCurrentAssignment(assignment, assignedThrough, RoleAssignmentType.USERROLE);
+
 					Map<String, List<String>> constraints = accessConstraintService.findOUAndITSystemConstraintsForSystemRoleInUserRole(userRole, systemRole, userWithRole);
-					User user = userWithRole.getUser();
-					result.add(new RequestAuthorizedRecord(user.getUuid(), user.getName(), user.getUserId(), userRole.getName(), userWithRole.getAssignedThrough().getMessage(), userWithRole.getAssignment().getAssignedThroughName(), constraints));
+					User user = assignment.getUser();
+					result.add(new RequestAuthorizedRecord(
+						user.getUuid(),
+						user.getName(),
+						user.getUserId(),
+						userRole.getName(),
+						assignedThrough.getMessage(),
+						assignmentService.getAssignedThroughName(assignment, assignedThrough),
+						constraints
+					));
 				}
 			}
 		}
@@ -789,41 +793,47 @@ public class ReportController {
 	}
 
 	private List<UserWithDuplicateRoleAssignmentDTO> generateUsersWithDuplicateRoleAssignmentsReport() {
+		final Locale locale = LocaleContextHolder.getLocale();
+
 		List<UserWithDuplicateRoleAssignmentDTO> result = new ArrayList<>();
+		List<User> allUsers = userService.getAll();
 
-		// heavy lookup performed here
-		Map<User, List<UserRoleAssignmentWithInfo>> usersWithRoleAssignments = userService.getUsersWithRoleAssignments();
+		for (User user : allUsers) {
+			Set<CurrentAssignment> allAssignments = assignmentService.getAllUserRolesByUserIncludingInactive(user);
 
-		for (User user : usersWithRoleAssignments.keySet()) {
+			// Find direct assignments
+			List<CurrentAssignment> directAssignments = allAssignments.stream()
+				.filter(a -> assignmentService.getAssignedThrough(a) == AssignedThrough.DIRECT)
+				.collect(Collectors.toList());
 
-			List<UserRoleAssignmentWithInfo> assignments = usersWithRoleAssignments.get(user);
-			if (assignments == null || assignments.size() == 0) {
+			if (directAssignments.isEmpty()) {
 				continue;
 			}
 
-			List<UserRoleAssignmentWithInfo> directAssignments = assignments.stream().filter(a -> a.getAssignedThroughInfo() == null).collect(Collectors.toList());
-			if (directAssignments == null || directAssignments.size() == 0) {
-				continue;
-			}
+			// For each direct assignment, check if the same userRole exists indirectly
+			for (CurrentAssignment directAssignment : directAssignments) {
+				long userRoleId = directAssignment.getUserRole().getId();
 
-			for (UserRoleAssignmentWithInfo directAssignment : directAssignments) {
-				for (UserRoleAssignmentWithInfo assignment : assignments) {
-					// ignore direct assignments
-					if (assignment.getAssignedThroughInfo() == null) {
-						continue;
-					}
+				// Find all indirect assignments with the same userRoleId
+				List<CurrentAssignment> indirectDuplicates = allAssignments.stream()
+					.filter(a -> assignmentService.getAssignedThrough(a) != AssignedThrough.DIRECT)
+					.filter(a -> a.getUserRole().getId() == userRoleId)
+					.collect(Collectors.toList());
 
-					// is this UserRole also assigned indirectly?
-					if (assignment.getUserRole().getId() == directAssignment.getUserRole().getId()) {
-						UserWithDuplicateRoleAssignmentDTO entry = new UserWithDuplicateRoleAssignmentDTO();
-						entry.setMessage(assignment.getAssignedThroughInfo().getMessage());
-						entry.setName(user.getName());
-						entry.setUserId(user.getUserId());
-						entry.setUuid(user.getUuid());
-						entry.setUserRole(assignment.getUserRole());
+				// For each indirect duplicate, add to report
+				for (CurrentAssignment indirectAssignment : indirectDuplicates) {
+					AssignedThrough assignedThrough = assignmentService.getAssignedThrough(indirectAssignment);
+					String message = messageSource.getMessage(assignedThrough.getMessage(), null, locale) + ": " + assignmentService.getAssignedThroughName(indirectAssignment, assignedThrough);
 
-						result.add(entry);
-					}
+
+					UserWithDuplicateRoleAssignmentDTO dto = new UserWithDuplicateRoleAssignmentDTO();
+					dto.setName(user.getName());
+					dto.setUserId(user.getUserId());
+					dto.setUuid(user.getUuid());
+					dto.setUserRole(indirectAssignment.getUserRole());
+					dto.setMessage(message);
+
+					result.add(dto);
 				}
 			}
 		}
@@ -832,40 +842,50 @@ public class ReportController {
 	}
 
 	private List<UserWithDuplicateRoleAssignmentDTO> generateUsersWithDuplicateRoleGroupAssignmentsReport() {
+		final Locale locale = LocaleContextHolder.getLocale();
+
 		List<UserWithDuplicateRoleAssignmentDTO> result = new ArrayList<>();
+		List<User> allUsers = userService.getAll();
 
-		// heavy lookup performed here
-		Map<User, List<RoleGroupAssignmentWithInfo>> usersWithRoleGroupAssignments = userService.getUsersWithRoleGroupAssignments();
+		for (User user : allUsers) {
+			Set<CurrentAssignment> uniqueRoleGroupAssignments = assignmentService.getUniqueRoleGroupAssignmentsByUser(user);
 
-		for (User user : usersWithRoleGroupAssignments.keySet()) {
-			List<RoleGroupAssignmentWithInfo> assignments = usersWithRoleGroupAssignments.get(user);
-			if (assignments == null || assignments.isEmpty()) {
+			if (uniqueRoleGroupAssignments.isEmpty()) {
 				continue;
 			}
 
-			List<RoleGroupAssignmentWithInfo> directAssignments = assignments.stream().filter(a -> a.getAssignedThroughInfo() == null).collect(Collectors.toList());
-			if (directAssignments == null || directAssignments.isEmpty()) {
+			// Find direct assignments
+			List<CurrentAssignment> directAssignments = uniqueRoleGroupAssignments.stream()
+				.filter(a -> assignmentService.getAssignedThroughForRoleGroup(a) == AssignedThrough.DIRECT)
+				.collect(Collectors.toList());
+
+			if (directAssignments.isEmpty()) {
 				continue;
 			}
 
-			for (RoleGroupAssignmentWithInfo directAssignment : directAssignments) {
-				for (RoleGroupAssignmentWithInfo assignment : assignments) {
-					// ignore direct assignments
-					if (assignment.getAssignedThroughInfo() == null) {
-						continue;
-					}
+			// For each direct assignment, check if the same roleGroup exists indirectly
+			for (CurrentAssignment directAssignment : directAssignments) {
+				long roleGroupId = directAssignment.getRoleGroup().getId();
 
-					// is this RoleGroup also assigned indirectly?
-					if (assignment.getRoleGroup().getId() == directAssignment.getRoleGroup().getId()) {
-						UserWithDuplicateRoleAssignmentDTO entry = new UserWithDuplicateRoleAssignmentDTO();
-						entry.setMessage(assignment.getAssignedThroughInfo().getMessage());
-						entry.setName(user.getName());
-						entry.setUserId(user.getUserId());
-						entry.setUuid(user.getUuid());
-						entry.setRoleGroup(assignment.getRoleGroup());
+				// Find all indirect assignments with the same roleGroupId
+				List<CurrentAssignment> indirectDuplicates = uniqueRoleGroupAssignments.stream()
+					.filter(a -> assignmentService.getAssignedThroughForRoleGroup(a) != AssignedThrough.DIRECT)
+					.filter(a -> a.getRoleGroup().getId() == roleGroupId)
+					.collect(Collectors.toList());
 
-						result.add(entry);
-					}
+				// For each indirect duplicate, add to report
+				for (CurrentAssignment indirectAssignment : indirectDuplicates) {
+					AssignedThrough assignedThrough = assignmentService.getAssignedThroughForRoleGroup(indirectAssignment);
+					String message = messageSource.getMessage(assignedThrough.getMessage(), null, locale) + ": " + assignmentService.getAssignedThroughName(indirectAssignment, assignedThrough);
+
+					UserWithDuplicateRoleAssignmentDTO dto = new UserWithDuplicateRoleAssignmentDTO();
+					dto.setName(user.getName());
+					dto.setUserId(user.getUserId());
+					dto.setUuid(user.getUuid());
+					dto.setRoleGroup(indirectAssignment.getRoleGroup());
+					dto.setMessage(message);
+
+					result.add(dto);
 				}
 			}
 		}
@@ -874,31 +894,15 @@ public class ReportController {
 	}
 
 	private List<UserRole> generateUserRolesWithoutAssignmentsReport() {
-		List<RoleGroup> roleGroups = roleGroupService.getAll();
-		List<UserRole> userRoles = userRoleService.getAll();
+		List<UserRole> allUserRoles = userRoleService.getAll();
 
-		// bulk load once
-		List<OrgUnit> orgUnits = orgUnitService.getAll();
-		List<User> users = userService.getAll();
+		// Get all distinct userRole IDs that have any assignments
+		Set<Long> assignedUserRoleIds = assignmentService.findDistinctUserRoleIds();
 
-		// find all assigned roleGroups
-		List<RoleGroup> assignedRoleGroups = roleGroups.stream()
-				.filter(ur ->
-					orgUnits.stream().anyMatch(ou -> ou.getRoleGroupAssignments().stream().anyMatch(ura -> ura.getRoleGroup().getId() == ur.getId())) ||
-					users.stream().anyMatch(u -> u.getRoleGroupAssignments().stream().anyMatch(ura -> ura.getRoleGroup().getId() == ur.getId()))
-				)
-				.collect(Collectors.toList());
-
-		// negative lookups to speed up the process
-		List<UserRole> userRolesNotInReport = userRoles.stream()
-				.filter(ur ->
-					orgUnits.stream().anyMatch(ou -> ou.getUserRoleAssignments().stream().anyMatch(ura -> ura.getUserRole().getId() == ur.getId())) ||
-					users.stream().anyMatch(u -> u.getUserRoleAssignments().stream().anyMatch(ura -> ura.getUserRole().getId() == ur.getId())) ||
-					assignedRoleGroups.stream().anyMatch(rg -> rg.getUserRoleAssignments().stream().anyMatch(ura -> ura.getUserRole().getId() == ur.getId()))
-				)
-				.collect(Collectors.toList());
-
-		return userRoles.stream().filter(u -> userRolesNotInReport.stream().noneMatch(ur -> ur.getId() == u.getId())).collect(Collectors.toList());
+		// Return userRoles that are NOT in the assigned set
+		return allUserRoles.stream()
+			.filter(ur -> !assignedUserRoleIds.contains(ur.getId()))
+			.collect(Collectors.toList());
 	}
 
 	private List<UserRole> generateUserRolesWithoutSystemRolesReport() {

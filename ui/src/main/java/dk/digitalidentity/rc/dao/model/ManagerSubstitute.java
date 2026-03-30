@@ -10,8 +10,6 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
-import jakarta.persistence.Temporal;
-import jakarta.persistence.TemporalType;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -39,7 +37,6 @@ public class ManagerSubstitute {
 	@Column(name = "assigned_by")
 	private String assignedBy;
 
-	@Temporal(TemporalType.TIMESTAMP)
 	@Column(name = "assigned_tts")
 	private Date assignedTts;
 

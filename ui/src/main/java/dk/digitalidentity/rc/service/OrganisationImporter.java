@@ -28,6 +28,7 @@ import dk.digitalidentity.rc.dao.model.enums.KleType;
 import dk.digitalidentity.rc.dao.model.enums.NotificationEntityType;
 import dk.digitalidentity.rc.dao.model.enums.NotificationType;
 import dk.digitalidentity.rc.dao.model.enums.OrgUnitLevel;
+import dk.digitalidentity.rc.service.assignment.AssignmentService;
 import dk.digitalidentity.rc.service.model.MovedPostion;
 import dk.digitalidentity.rc.service.model.OrgUnitWithNewAndOldParentDTO;
 import dk.digitalidentity.rc.service.model.OrgUnitWithTitlesDTO;
@@ -95,6 +96,9 @@ public class OrganisationImporter {
 	@Autowired
 	private FunctionService functionService;
 
+	@Autowired
+	private AssignmentService assignmentService;
+
 	private record OrganisationImportContext(List<String> systemOwnerAndResponsibleUuids) {}
 
 	@Transactional
@@ -147,10 +151,10 @@ public class OrganisationImporter {
 
 	private OrganisationImportContext buildOrganizationImportContext() {
 		final List<String> ownersAndResponsible = itSystemService.getAll().stream()
-			.flatMap(its -> Stream.of(its.getAttestationResponsible(), its.getSystemOwner()))
-			.filter(Objects::nonNull)
-			.map(User::getUuid)
-			.toList();
+				.flatMap(its -> Stream.of(its.getAttestationResponsible(), its.getSystemOwner()))
+				.filter(Objects::nonNull)
+				.map(User::getUuid)
+				.toList();
 		return new OrganisationImportContext(ownersAndResponsible);
 	}
 
@@ -811,8 +815,8 @@ public class OrganisationImporter {
 
 	private boolean hasNewPositionInDifferentOu(Set<MovedPostion> newPositions, Set<MovedPostion> oldPositions) {
 		Set<String> oldOuUuids = oldPositions.stream()
-			.map(p -> p.getOrgUnit().getUuid())
-			.collect(Collectors.toSet());
+				.map(p -> p.getOrgUnit().getUuid())
+				.collect(Collectors.toSet());
 
 		for (MovedPostion newPosition : newPositions) {
 			if (!oldOuUuids.contains(newPosition.getOrgUnit().getUuid())) {
@@ -828,7 +832,7 @@ public class OrganisationImporter {
 		}
 
 		// if user has roles in simple itSystems
-		List<UserRole> userRoles = userService.getAllUserRoles(userToDelete, simpleItSystems);
+		List<UserRole> userRoles = new ArrayList<>(assignmentService.getUserRolesByUserAndSystems(userToDelete, simpleItSystems));
 		if (!userRoles.isEmpty()) {
 			List<ItSystem> itSystemsUserHasRoleIn = userRoles.stream().map(ur -> ur.getItSystem()).filter(distinctByKey(i -> i.getId())).toList();
 
@@ -859,9 +863,9 @@ public class OrganisationImporter {
 
 			// find existing
 			List<String> existingTitleUuids = orgUnitService.getTitles(orgUnit)
-				.stream()
-				.map(t -> t.getUuid())
-				.collect(Collectors.toList());
+					.stream()
+					.map(t -> t.getUuid())
+					.collect(Collectors.toList());
 			existingTitleUuids.addAll(orgUnit.getTitles().stream().map(t -> t.getUuid()).collect(Collectors.toList()));
 
 			// if not present, we got a new title
@@ -892,9 +896,9 @@ public class OrganisationImporter {
 
 			// find existing
 			List<String> existingTitleUuids = orgUnitService.getTitles(existingOrgUnit)
-				.stream()
-				.map(t -> t.getUuid())
-				.collect(Collectors.toList());
+					.stream()
+					.map(t -> t.getUuid())
+					.collect(Collectors.toList());
 			existingTitleUuids.addAll(existingOrgUnit.getTitles().stream().map(t -> t.getUuid()).collect(Collectors.toList()));
 
 			for (Title newOrgUnitTitle : newOrgUnit.getTitles()) {
@@ -1095,6 +1099,18 @@ public class OrganisationImporter {
 						toBeUpdated.add(newOrgUnit);
 					}
 					else if (!existingOrgUnit.getName().equals(newOrgUnit.getName())) {
+						if (settingsService.isNotificationTypeEnabled(NotificationType.ORG_UNIT_NAME_CHANGED)) {
+							Notification notification = new Notification();
+							notification.setActive(true);
+							notification.setCreated(new Date());
+							notification.setMessage("Enheden " + existingOrgUnit.getName() + " har skiftet navn til: " + newOrgUnit.getName());
+							notification.setNotificationType(NotificationType.ORG_UNIT_NAME_CHANGED);
+							notification.setAffectedEntityName(existingOrgUnit.getName());
+							notification.setAffectedEntityType(NotificationEntityType.OUS);
+							notification.setAffectedEntityUuid(existingOrgUnit.getUuid());
+
+							notificationService.save(notification);
+						}
 						toBeUpdated.add(newOrgUnit);
 					}
 					else if (!configuration.getIntegrations().getKle().isUiEnabled() && hasKleChanges(newOrgUnit, existingOrgUnit)) {
@@ -1303,8 +1319,8 @@ public class OrganisationImporter {
 
 	private boolean shouldApplyAutomaticNiveauMapping(OrgUnit orgUnit) {
 		return settingsService.isAutomaticNiveauMappingEnabled()
-			&& !configuration.getOrganisation().isGetLevelsFromApi()
-			&& (orgUnit.getLevel() == null || orgUnit.getLevel() == OrgUnitLevel.NONE);
+				&& !configuration.getOrganisation().isGetLevelsFromApi()
+				&& (orgUnit.getLevel() == null || orgUnit.getLevel() == OrgUnitLevel.NONE);
 	}
 
 	private boolean differentEmail(User newUser, User existingUser) {
@@ -1335,9 +1351,9 @@ public class OrganisationImporter {
 	 */
 	private static boolean hasPositionChanged(final Position position, final List<Position> positions) {
 		return positions.stream()
-			.noneMatch(p -> p.getName().equals(position.getName()) &&
-				p.getOrgUnit().getUuid().equals(position.getOrgUnit().getUuid()) &&
-				hasSameKey(p.getUser(), position.getUser()));
+				.noneMatch(p -> p.getName().equals(position.getName()) &&
+						p.getOrgUnit().getUuid().equals(position.getOrgUnit().getUuid()) &&
+						hasSameKey(p.getUser(), position.getUser()));
 	}
 
 	// TODO: this method is not 100% foolproof, but it works for most cases, and will suffice
@@ -1568,11 +1584,11 @@ public class OrganisationImporter {
 				String whoText = "Systemansvarlig eller Systemejer ";
 				if (!responsibleFor.isEmpty() && !ownerOf.isEmpty()) {
 					whoText = "Systemansvarlig for "
-						+ responsibleFor.stream().map(i -> i.getName()).collect(Collectors.collectingAndThen(Collectors.toList(), joiningLastDelimiter(", ", " og ")))
-						+ " og Systemejer for " + ownerOf.stream().map(i -> i.getName()).collect(Collectors.collectingAndThen(Collectors.toList(), joiningLastDelimiter(", ", " og "))) + ".";
+									+ responsibleFor.stream().map(i -> i.getName()).collect(Collectors.collectingAndThen(Collectors.toList(), joiningLastDelimiter(", ", " og ")))
+									+ " og Systemejer for " + ownerOf.stream().map(i -> i.getName()).collect(Collectors.collectingAndThen(Collectors.toList(), joiningLastDelimiter(", ", " og "))) + ".";
 				} else if (!responsibleFor.isEmpty()) {
 					whoText = "Systemansvarlig for "
-						+ responsibleFor.stream().map(i -> i.getName()).collect(Collectors.collectingAndThen(Collectors.toList(), joiningLastDelimiter(", ", " og "))) + ".";
+									+ responsibleFor.stream().map(i -> i.getName()).collect(Collectors.collectingAndThen(Collectors.toList(), joiningLastDelimiter(", ", " og "))) + ".";
 				} else if (!ownerOf.isEmpty()) {
 					whoText = "Systemejer for " + ownerOf.stream().map(i -> i.getName()).collect(Collectors.collectingAndThen(Collectors.toList(), joiningLastDelimiter(", ", " og "))) + ".";
 				}
@@ -1864,18 +1880,18 @@ public class OrganisationImporter {
 								break;
 							case LEVEL_5:
 								if (!parent.getLevel().equals(OrgUnitLevel.LEVEL_1) &&
-									!parent.getLevel().equals(OrgUnitLevel.LEVEL_2) &&
-									!parent.getLevel().equals(OrgUnitLevel.LEVEL_3) &&
-									!parent.getLevel().equals(OrgUnitLevel.LEVEL_4)) {
+										!parent.getLevel().equals(OrgUnitLevel.LEVEL_2) &&
+										!parent.getLevel().equals(OrgUnitLevel.LEVEL_3) &&
+										!parent.getLevel().equals(OrgUnitLevel.LEVEL_4)) {
 									return new ValidationResult(false, "Orgunit has higher or same level as parent: " + orgUnit.getUuid());
 								}
 								break;
 							case LEVEL_6:
 								if (!parent.getLevel().equals(OrgUnitLevel.LEVEL_1) &&
-									!parent.getLevel().equals(OrgUnitLevel.LEVEL_2) &&
-									!parent.getLevel().equals(OrgUnitLevel.LEVEL_3) &&
-									!parent.getLevel().equals(OrgUnitLevel.LEVEL_4) &&
-									!parent.getLevel().equals(OrgUnitLevel.LEVEL_5)) {
+										!parent.getLevel().equals(OrgUnitLevel.LEVEL_2) &&
+										!parent.getLevel().equals(OrgUnitLevel.LEVEL_3) &&
+										!parent.getLevel().equals(OrgUnitLevel.LEVEL_4) &&
+										!parent.getLevel().equals(OrgUnitLevel.LEVEL_5)) {
 									return new ValidationResult(false, "Orgunit has higher or same level as parent: " + orgUnit.getUuid());
 								}
 								break;
@@ -1987,10 +2003,10 @@ public class OrganisationImporter {
 			log.debug("Automatic niveau mapping is disabled");
 			return;
 		}
-		// We do not override previously set niveau values
-		if (orgUnit.getLevel() != null) {
-			return;
-		}
+        // We do not override previously set niveau values
+        if (orgUnit.getLevel() != null) {
+            return;
+        }
 
 		// Calculate the depth of this orgUnit
 		int depth = calculateOrgUnitDepth(orgUnit);
@@ -2010,7 +2026,7 @@ public class OrganisationImporter {
 			// Stop and log error if we exceed 15 levels
 			if (depth > 15) {
 				log.error("OrgUnit depth calculation exceeded maximum of 15 levels at OrgUnit: {} ({}).",
-					current.getName(), current.getUuid());
+						current.getName(), current.getUuid());
 				return 15;
 			}
 			current = current.getParent();

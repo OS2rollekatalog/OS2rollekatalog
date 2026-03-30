@@ -1,9 +1,13 @@
 package dk.digitalidentity.rc.service;
 
+import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Consumer;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -29,6 +33,11 @@ public class ConstraintTypeService {
 
 	public Optional<ConstraintType> getByUuidOptional(final String uuid) {
 		return constraintTypeDao.findByUuid(uuid);
+	}
+
+	public Map<String, ConstraintType> getByUuidsAsMap(Collection<String> uuids) {
+		return constraintTypeDao.findByUuidIn(uuids).stream()
+			.collect(Collectors.toMap(ConstraintType::getUuid, Function.identity()));
 	}
     
     public ConstraintType getByEntityId(String entityId) {

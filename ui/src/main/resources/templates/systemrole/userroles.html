@@ -35,7 +35,7 @@ section=${T(dk.digitalidentity.rc.security.permission.Section)}">
 										<tbody>
 											<tr th:each="role : ${userRoles}">
 												<td th:text="${role.name}"></td>
-												<td th:text="${role.description}"></td>
+												<td class="preformat" th:text="${role.description}"></td>
 										    	<th:block th:if="${role.delegatedFromCvr == null}"> 
 											    	<td>
 											    		<a th:if="${@permissionCheck.isAllowed(section.USER_ROLE, permission.READ)}" th:href="@{/ui/userroles/view/{id}(id=${role.id})}"><em class="fa fa-search"></em></a>

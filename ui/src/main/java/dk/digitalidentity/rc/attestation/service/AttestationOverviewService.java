@@ -7,7 +7,6 @@ import dk.digitalidentity.rc.attestation.model.dto.OrgUnitRoleGroupAssignmentDTO
 import dk.digitalidentity.rc.attestation.model.dto.OrgUnitUserRoleAssignmentItSystemDTO;
 import dk.digitalidentity.rc.attestation.model.dto.OrganisationAttestationDTO;
 import dk.digitalidentity.rc.dao.model.OrgUnit;
-import dk.digitalidentity.rc.service.ManagerDelegateService;
 import dk.digitalidentity.rc.service.OrgUnitService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -21,9 +20,6 @@ import java.util.stream.Collectors;
 public class AttestationOverviewService {
     @Autowired
     private OrgUnitService orgUnitService;
-
-    @Autowired
-    private ManagerDelegateService managerDelegateService;
 
     public List<AttestationOverviewDTO> buildOrgUnitsOverviews(final List<OrganisationAttestationDTO> orgsForAttestation, boolean readOnly) {
         return orgsForAttestation.stream()
@@ -47,7 +43,6 @@ public class AttestationOverviewService {
     }
 
     public static List<AttestationOverviewDTO> buildItSystemsUsersOverviews(final List<ItSystemRoleAttestationDTO> itSystemUsersAttestation, boolean readOnly) {
-        LocalDate now = LocalDate.now();
         return itSystemUsersAttestation.stream()
                 .map(its -> buildItSystemUsersOverview(its, readOnly))
                 .collect(Collectors.toList());

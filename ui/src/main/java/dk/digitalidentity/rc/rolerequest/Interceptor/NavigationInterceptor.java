@@ -36,7 +36,7 @@ public class NavigationInterceptor implements HandlerInterceptor {
 	public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
 		User loggedInUser = userService.getByUserId(SecurityUtil.getUserId());
 
-		request.setAttribute("isAdmin", SecurityUtil.isAdmin());
+		request.setAttribute("isAdmin", SecurityUtil.hasDirectAdminRole());
 		request.setAttribute("isManagerOrSubstituteAnywhere", rolerequestService.isManagerAnywhere(loggedInUser));
 		request.setAttribute("isSystemOwnerAnywhere", rolerequestService.isSystemResponsibleAnywhere(loggedInUser));
 		request.setAttribute("isRequestAuthorizedAnywhere", rolerequestService.isRequestAuthorizedAnywhere());

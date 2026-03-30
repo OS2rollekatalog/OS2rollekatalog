@@ -5,13 +5,19 @@ import dk.digitalidentity.rc.dao.model.SystemRole;
 import dk.digitalidentity.rc.dao.model.UserRole;
 import dk.digitalidentity.rc.rolerequest.model.enums.ApprovableBy;
 import dk.digitalidentity.rc.rolerequest.model.enums.RequestableBy;
+import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.CrudRepository;
+import org.springframework.data.repository.query.Param;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 
 public interface UserRoleDao extends CrudRepository<UserRole, Long> {
+	@Query("SELECT ur FROM UserRole ur JOIN FETCH ur.itSystem WHERE ur.id = :id")
+	Optional<UserRole> findByIdWithItSystem(@Param("id") Long id);
+
 	UserRole getByNameAndItSystem(String name, ItSystem itSystem);
 	List<UserRole> findAll();
 	UserRole getByIdentifier(String identifier);
@@ -35,5 +41,7 @@ public interface UserRoleDao extends CrudRepository<UserRole, Long> {
 	List<UserRole> findByApproverPermissionIn(List<ApprovableBy> permissions);
 
 	Set<UserRole> findBySystemRoleAssignments_SystemRole(SystemRole systemRole);
+
+	Set<UserRole> findAllByIdIn(Collection<Long> ids);
 
 }

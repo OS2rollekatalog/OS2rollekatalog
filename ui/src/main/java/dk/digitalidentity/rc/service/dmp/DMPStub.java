@@ -10,16 +10,14 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.EnableCaching;
-import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpMethod;
-import org.springframework.http.ResponseEntity;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.util.StringUtils;
 import org.springframework.web.client.HttpStatusCodeException;
-import org.springframework.web.client.RestTemplate;
+import org.springframework.web.client.RestClient;
 
 import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
 import dk.digitalidentity.rc.dao.model.User;
@@ -39,9 +37,9 @@ import lombok.extern.slf4j.Slf4j;
 @EnableCaching
 public class DMPStub {
 
-	@Qualifier("defaultRestTemplate")
+	@Qualifier("defaultRestClient")
 	@Autowired
-	private RestTemplate restTemplate;
+	private RestClient restClient;
 
 	@Autowired
 	private RoleCatalogueConfiguration config;
@@ -54,20 +52,21 @@ public class DMPStub {
 		String url = config.getIntegrations().getDmp().getTokenUrl();
 		String accessToken = null;
 
-		HttpHeaders headers = new HttpHeaders();
-		headers.add("Content-Type", "application/x-www-form-urlencoded");
-
 		MultiValueMap<String, String> body = new LinkedMultiValueMap<>();
 		body.add("grant_type", "client_credentials");
 		body.add("client_id", config.getIntegrations().getDmp().getClientId());
 		body.add("client_secret", config.getIntegrations().getDmp().getClientSecret());
 
-		HttpEntity<MultiValueMap<String, String>> request = new HttpEntity<>(body, headers);
-
 		try {
-			ResponseEntity<TokenResponse> response = restTemplate.exchange(url, HttpMethod.POST, request, TokenResponse.class);
+			TokenResponse response = restClient
+				.post()
+				.uri(url)
+				.contentType(MediaType.APPLICATION_FORM_URLENCODED)
+				.body(body)
+				.retrieve()
+				.body(TokenResponse.class);
 
-			accessToken = response.getBody().getAccess_token();
+			accessToken = response.getAccess_token();
 		}
 		catch (Exception ex) {
 			log.error("Failed to fetch token from DMP", ex);
@@ -89,11 +88,14 @@ public class DMPStub {
 		headers.add("Content-Type", "application/json");
 		headers.add("Authorization", "Bearer " + self.fetchToken());
 
-		HttpEntity<String> request = new HttpEntity<>(headers);
+		DMPApplication[] response = restClient
+			.get()
+			.uri(url)
+			.headers(h -> h.addAll(headers))
+			.retrieve()
+			.body(DMPApplication[].class);
 
-		ResponseEntity<DMPApplication[]> response = restTemplate.exchange(url, HttpMethod.GET, request, DMPApplication[].class);
-
-		applications = Arrays.asList(response.getBody());
+		applications = Arrays.asList(response);
 
 		log.info("Found " + applications.size() + " applications in DMP");
 
@@ -108,11 +110,14 @@ public class DMPStub {
 		headers.add("Content-Type", "application/json");
 		headers.add("Authorization", "Bearer " + self.fetchToken());
 
-		HttpEntity<String> request = new HttpEntity<>(headers);
+		DMPRole[] response = restClient
+			.get()
+			.uri(url)
+			.headers(h -> h.addAll(headers))
+			.retrieve()
+			.body(DMPRole[].class);
 
-		ResponseEntity<DMPRole[]> response = restTemplate.exchange(url, HttpMethod.GET, request, DMPRole[].class);
-
-		roles = Arrays.asList(response.getBody());
+		roles = Arrays.asList(response);
 
 		log.info("Found " + roles.size() + " roles in DMP for application " + application.getName());
 
@@ -127,12 +132,15 @@ public class DMPStub {
 		headers.add("Content-Type", "application/json");
 		headers.add("Authorization", "Bearer " + self.fetchToken());
 
-		HttpEntity<String> request = new HttpEntity<>(headers);
-
 		try {
-			ResponseEntity<DMPUser[]> response = restTemplate.exchange(url, HttpMethod.GET, request, DMPUser[].class);
+			DMPUser[] response = restClient
+				.get()
+				.uri(url)
+				.headers(h -> h.addAll(headers))
+				.retrieve()
+				.body(DMPUser[].class);
 
-			users = Arrays.asList(response.getBody());
+			users = Arrays.asList(response);
 
 			log.info("Found " + users.size() + " users in DMP");
 		}
@@ -152,12 +160,15 @@ public class DMPStub {
 		headers.add("Content-Type", "application/json");
 		headers.add("Authorization", "Bearer " + self.fetchToken());
 
-		HttpEntity<String> request = new HttpEntity<>(headers);
-
 		try {
-			ResponseEntity<DMPRoleAssignment[]> response = restTemplate.exchange(url, HttpMethod.GET, request, DMPRoleAssignment[].class);
+			DMPRoleAssignment[] response = restClient
+				.get()
+				.uri(url)
+				.headers(h -> h.addAll(headers))
+				.retrieve()
+				.body(DMPRoleAssignment[].class);
 
-			List<DMPRoleAssignment> assignments = Arrays.asList(response.getBody());
+			List<DMPRoleAssignment> assignments = Arrays.asList(response);
 
 			roles = assignments.stream().map(a -> a.getRole()).collect(Collectors.toList());
 
@@ -178,37 +189,47 @@ public class DMPStub {
 		headers.add("Content-Type", "application/json");
 		headers.add("Authorization", "Bearer " + self.fetchToken());
 
-		HttpEntity<DMPSetRoleAssignmentsRequest> request = new HttpEntity<>(roles, headers);
-
 		try {
-			restTemplate.exchange(url, HttpMethod.PUT, request, String.class);
+			restClient
+				.put()
+				.uri(url)
+				.headers(h -> h.addAll(headers))
+				.body(roles)
+				.retrieve()
+				.body(String.class);
 
 			log.info("Assigned roles for " + user.getUserId() + " (total " + roles.getUserRoleAssignments().size() + ") - details : " + roles.getUserRoleAssignments().stream().map(r -> r.getRoleId()).collect(Collectors.toSet()));
 		}
 		catch (Exception ex) {
 			if (ex instanceof HttpStatusCodeException ex2) {
 				String body = ex2.getResponseBodyAsString();
-				int status = ex2.getRawStatusCode();
+				int status = ex2.getStatusCode().value();
 
 				if (status == 400 && body != null && body.contains("not found")) {
 					DMPCreateUserRequest createUserRequest = DMPCreateUserRequest
-							.builder()
-							.users(new ArrayList<>())
-							.build();
+						.builder()
+						.users(new ArrayList<>())
+						.build();
 
 					createUserRequest.getUsers().add(DMPCreateUser
-							.builder()
-							.externalUserId(user.getUserId())
-							.firstName(getFirstName(user))
-							.lastName(getLastName(user))
-							.email(getEmail(user))
-							.build());
+						.builder()
+						.externalUserId(user.getUserId())
+						.firstName(getFirstName(user))
+						.lastName(getLastName(user))
+						.email(getEmail(user))
+						.build());
 
 					if (createUser(createUserRequest)) {
 						// try assigning again now that the user exists
 
 						try {
-							restTemplate.exchange(url, HttpMethod.PUT, request, String.class);
+							restClient
+								.put()
+								.uri(url)
+								.headers(h -> h.addAll(headers))
+								.body(roles)
+								.retrieve()
+								.body(String.class);
 
 							log.info("Assigned roles for newly created user " + user.getUserId() + " (total " + roles.getUserRoleAssignments().size() + ")");
 
@@ -241,19 +262,23 @@ public class DMPStub {
 		headers.add("Content-Type", "application/json");
 		headers.add("Authorization", "Bearer " + self.fetchToken());
 
-		HttpEntity<DMPCreateUserRequest> request = new HttpEntity<>(createRequest, headers);
-
 		try {
-			restTemplate.exchange(url, HttpMethod.POST, request, String.class);
+			restClient
+				.post()
+				.uri(url)
+				.headers(h -> h.addAll(headers))
+				.body(createRequest)
+				.retrieve()
+				.body(String.class);
 
-            log.info("Created user {}", createRequest.getUsers().getFirst().getExternalUserId());
+			log.info("Created user {}", createRequest.getUsers().getFirst().getExternalUserId());
 		}
 		catch (Exception ex) {
 			if (ex.getMessage() != null && ex.getMessage().contains("Email already exists")) {
 				log.warn("Failed to create user {} using dmpApi", createRequest.getUsers().getFirst().getExternalUserId(), ex);
 			}
 			else {
-	            log.error("Failed to create user {} using dmpApi", createRequest.getUsers().getFirst().getExternalUserId(), ex);				
+				log.error("Failed to create user {} using dmpApi", createRequest.getUsers().getFirst().getExternalUserId(), ex);
 			}
 
 			return false;
@@ -269,10 +294,13 @@ public class DMPStub {
 		headers.add("Content-Type", "application/json");
 		headers.add("Authorization", "Bearer " + self.fetchToken());
 
-		HttpEntity<String> request = new HttpEntity<>(headers);
-
 		try {
-			restTemplate.exchange(url, HttpMethod.DELETE, request, String.class);
+			restClient
+				.delete()
+				.uri(url)
+				.headers(h -> h.addAll(headers))
+				.retrieve()
+				.body(String.class);
 
 			log.info("Deleted user " + userId);
 		}
@@ -292,10 +320,14 @@ public class DMPStub {
 		headers.add("Content-Type", "application/json");
 		headers.add("Authorization", "Bearer " + self.fetchToken());
 
-		HttpEntity<DMPOverwriteRoleAssignmentsRequest> request = new HttpEntity<>(body, headers);
-
 		try {
-			restTemplate.exchange(url, HttpMethod.PUT, request, String.class);
+			restClient
+				.put()
+				.uri(url)
+				.headers(h -> h.addAll(headers))
+				.body(body)
+				.retrieve()
+				.body(String.class);
 
 			log.info("Performed full overwrite of all role assignments");
 		}

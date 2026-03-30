@@ -15,18 +15,24 @@ import java.util.List;
 @AllArgsConstructor
 @NoArgsConstructor
 @Schema(name = "UserUserRoleAssignment")
-public class UserUserRoleAssignmentAM {
+public class UserUserRoleAssignmentAM {	
     public enum AssignedThrough { DIRECT, TITLE, POSITION, ORG_UNIT, ROLE_GROUP }
+    
     @Schema(description = "The user that has the assignment")
     private UserShallowAM user;
+    
     @Schema(description = "List of postponed constraint values")
     private List<PostponedConstraintAM> postponedConstraints;
+    
     @Schema(description = "The user role that is assigned")
     private UserRoleAM userRole;
+    
     @Schema(description = "The organisation that is responsible for this assignment")
     private OrgUnitShallowAM responsibleOrgUnit;
+    
     @Schema(description = "Assigned through title, only set if assigned though a title")
     private TitleAM assignedThroughTitle;
+    
     @Schema(description = "Which type of assignment is this")
     private AssignedThrough assignedThrough;
 }

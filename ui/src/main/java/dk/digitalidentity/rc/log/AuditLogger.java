@@ -25,7 +25,7 @@ public class AuditLogger {
 	public void log(AuditLoggable entity, EventType eventType) {
 		log(entity, eventType, null, null);
 	}
-	
+
 	public void log(AuditLoggable entity, EventType eventType, AuditLoggable secondaryEntity) {
 		log(entity, eventType, secondaryEntity, null);
 	}
@@ -43,7 +43,7 @@ public class AuditLogger {
 		}
 
 		AuditLog entry = new AuditLog();
-		entry.setUsername(user);
+		entry.setUsername(user != null ? user : "Ukendt");
 		entry.setIpAddress(getClientIp());
 		entry.setTimestamp(new Date());
 
@@ -59,7 +59,7 @@ public class AuditLogger {
 		}
 
 		entry.setDescription(buildDescription());
-		
+
 		auditLogEntryDao.save(entry);
 	}
 
@@ -83,7 +83,7 @@ public class AuditLogger {
 		entry.setEntityId(entity.getEntityId());
 		entry.setEntityType(EntityType.getEntityType(entity));
 		entry.setEventType(EventType.SETTINGS_CHANGED);
-		
+
 		if (prettyName != null) {
 			entry.setEntityName(prettyName);
 		} else {
@@ -97,7 +97,7 @@ public class AuditLogger {
 		}
 
 		entry.setDescription(buildDescription());
-		
+
 		auditLogEntryDao.save(entry);
 	}
 

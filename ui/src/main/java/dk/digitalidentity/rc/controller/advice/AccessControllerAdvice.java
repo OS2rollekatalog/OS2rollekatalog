@@ -110,11 +110,13 @@ public class AccessControllerAdvice {
         }
     }
 
-    private boolean isJSONRequest(HttpServletRequest request) {
-        String acceptHeader = request.getHeader("Accept");
-       return acceptHeader != null &&
-                acceptHeader.contains("application/json");
-    }
+	private boolean isJSONRequest(HttpServletRequest request) {
+		String acceptHeader = request.getHeader("Accept");
+		boolean acceptsJson = acceptHeader != null && acceptHeader.contains("application/json");
+		boolean isApiPath = request.getRequestURI().startsWith("/api/");
+		return acceptsJson || isApiPath;
+	}
+
 
     private ResponseEntity<Map<String, Object>> handleJsonResponse(ErrorDTO err) {
 

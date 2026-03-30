@@ -1,5 +1,21 @@
 package dk.digitalidentity.rc.controller.api;
 
+import java.time.LocalDateTime;
+import java.util.Arrays;
+import java.util.stream.Collectors;
+
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.web.bind.annotation.ControllerAdvice;
+import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.web.bind.annotation.ResponseStatus;
+import org.springframework.web.server.ResponseStatusException;
+
+import com.fasterxml.jackson.databind.JsonMappingException;
+import com.fasterxml.jackson.databind.exc.InvalidFormatException;
+
 import dk.digitalidentity.rc.controller.api.exception.BadRequestException;
 import dk.digitalidentity.rc.controller.api.model.ExceptionResponseAM;
 import dk.digitalidentity.rc.controller.api.v2.AuditLogApiV2;
@@ -12,15 +28,6 @@ import dk.digitalidentity.rc.controller.api.v2.UserRoleApiV2;
 import dk.digitalidentity.rc.controller.api.v2.UserRoleGroupApiV2;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.ControllerAdvice;
-import org.springframework.web.bind.annotation.ExceptionHandler;
-import org.springframework.web.bind.annotation.ResponseBody;
-import org.springframework.web.bind.annotation.ResponseStatus;
-import org.springframework.web.server.ResponseStatusException;
-
-import java.time.LocalDateTime;
 
 @Slf4j
 @ControllerAdvice(assignableTypes = {AuditLogApiV2.class, ConstraintApiV2.class, ItSystemApiV2.class, ManagerSubstituteApiV2.class, UserRoleApiV2.class, UserRoleGroupApiV2.class,
@@ -38,6 +45,38 @@ public class ApiControllerAdvice {
                 .error(HttpStatus.BAD_REQUEST.getReasonPhrase())
                 .path(request.getRequestURI())
                 .message(ex.getMessage())
+                .build();
+    }
+
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    @ResponseBody
+    public ExceptionResponseAM handleHttpMessageNotReadableException(final HttpMessageNotReadableException ex, final HttpServletRequest request) {
+        String message = ex.getMessage();
+
+        Throwable cause = ex.getCause();
+        if (cause instanceof InvalidFormatException ife && ife.getTargetType().isEnum()) {
+            String fieldName = ife.getPath().stream()
+                    .map(JsonMappingException.Reference::getFieldName)
+                    .collect(Collectors.joining("."));
+            
+            Object[] enumConstants = ife.getTargetType().getEnumConstants();
+            
+            String allowedValues = Arrays.stream(enumConstants)
+                    .map(Object::toString)
+                    .collect(Collectors.joining(", "));
+
+            message = String.format(
+                    "Invalid value '%s' for field '%s'. Allowed values are: [%s]",
+                    ife.getValue(), fieldName, allowedValues);
+        }
+
+        return ExceptionResponseAM.builder()
+                .timestamp(LocalDateTime.now())
+                .status(HttpStatus.BAD_REQUEST.value())
+                .error(HttpStatus.BAD_REQUEST.getReasonPhrase())
+                .path(request.getRequestURI())
+                .message(message)
                 .build();
     }
 

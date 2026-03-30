@@ -235,6 +235,7 @@
 										return html;
 									}
 								}
+								return data || '';
 							}
 						},
 						{
@@ -244,6 +245,7 @@
 									return '<a onclick="notificationService.flipAssign(' + row.id + ',' + !row.active + ',\'' + ((row.adminUuid) ? row.adminUuid : '') + '\');"><em class="fa fa-fw fa-user"></em></a>' +
 											((row.adminName) ? row.adminName + '<br/><em style="font-size: smaller;">' + row.lastUpdated + '</em>' : '');
 								}
+								return data || '';
 							}
 						},
 						{

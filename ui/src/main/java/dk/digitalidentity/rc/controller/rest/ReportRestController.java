@@ -5,7 +5,6 @@ import dk.digitalidentity.rc.controller.mvc.viewmodel.ReportForm;
 import dk.digitalidentity.rc.controller.rest.model.UserListDTO;
 import dk.digitalidentity.rc.dao.model.ReportTemplate;
 import dk.digitalidentity.rc.dao.model.User;
-import dk.digitalidentity.rc.security.AccessConstraintService;
 import dk.digitalidentity.rc.security.permission.Permission;
 import dk.digitalidentity.rc.security.permission.PermissionConstraint;
 import dk.digitalidentity.rc.security.permission.Section;
@@ -42,7 +41,6 @@ public class ReportRestController {
 	private final ReportTemplateService reportTemplateService;
 	private final MessageSource messageSource;
 	private final UserService userService;
-	private final AccessConstraintService accessConstraintService;
 	private final UserPermissionContext userPermissionContext;
 
 	@RequirePermission(section = Section.REPORT, permission = Permission.CREATE)
@@ -59,7 +57,7 @@ public class ReportRestController {
 		reportTemplate.setShowItSystems(reportForm.isShowItSystems());
 		reportTemplate.setShowInactiveUsers(reportForm.isShowInactiveUsers());
 		reportTemplate.setShowSystemRoles(reportForm.isShowSystemRoles());
-		
+
 		if (reportForm.getItsystemFilter() != null && reportForm.getItsystemFilter().length > 0) {
 			StringBuilder builder = new StringBuilder();
 
@@ -80,12 +78,12 @@ public class ReportRestController {
 
 		if (reportForm.getUnitFilter() != null && reportForm.getUnitFilter().length > 0) {
 			StringBuilder builder = new StringBuilder();
-			
+
 			for (String id : reportForm.getUnitFilter()) {
 				if (builder.length() > 0) {
 					builder.append(",");
 				}
-				
+
 				builder.append(id);
 			}
 
@@ -106,7 +104,7 @@ public class ReportRestController {
 		}
 		return new ResponseEntity<>(HttpStatus.OK);
 	}
-	
+
 	@PostMapping(value = "/rest/report/getous/{date}")
 	public List<OUListForm> getAllOus(@PathVariable("date") String dateStr) {
 		LocalDate date = null;
@@ -117,13 +115,13 @@ public class ReportRestController {
 			return new ArrayList<>();
 		}
 
-		PermissionConstraint orgUnitconstraints = userPermissionContext.getConstraints(Section.ORGUNIT, Permission.READ);
+		PermissionConstraint orgUnitconstraints = userPermissionContext.getConstraint(Section.ORGUNIT, Permission.READ);
 
 		return parseOuTree(date).stream()
 				.filter(oulf -> orgUnitconstraints.allowsOrgunit(oulf.getId()))
 				.toList();
 	}
-	
+
 	private List<OUListForm> parseOuTree(LocalDate localDate) {
 		return historyService
 				.getOUs(localDate)
@@ -137,7 +135,7 @@ public class ReportRestController {
 	public ResponseEntity<?> getAllUsers(Locale locale, @PathVariable("id") Long id) {
 		String in = messageSource.getMessage("html.word.in", null, locale);
 
-		PermissionConstraint orgUnitconstraints = userPermissionContext.getConstraints(Section.ORGUNIT, Permission.READ);
+		PermissionConstraint orgUnitconstraints = userPermissionContext.getConstraint(Section.ORGUNIT, Permission.READ);
 
 		List<User> users = userService.getAllThin().stream()
 				.filter(u -> u.getPositions().stream().map(p -> p.getOrgUnit().getUuid()).anyMatch(orgUnitconstraints::allowsOrgunit))
@@ -147,7 +145,7 @@ public class ReportRestController {
 				.stream()
 				.map(u -> new UserListDTO(u, in))
 				.collect(Collectors.toList());
-		
+
 		ReportTemplate reportTemplate = reportTemplateService.getById(id);
 		if (reportTemplate == null) {
 			return ResponseEntity.badRequest().body("Ukendt skabelon");

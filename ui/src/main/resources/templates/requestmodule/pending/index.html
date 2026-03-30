@@ -34,6 +34,7 @@
                                     <th th:text="#{requestmodule.html.pending.table.header.requestdate}"></th>
                                     <th th:text="#{requestmodule.html.pending.table.header.time}"></th>
                                     <th th:text="#{requestmodule.html.pending.table.header.reason}"></th>
+                                    <th th:text="#{requestmodule.html.pending.table.header.responsible}"></th>
                                     <th th:text="#{html.navbar.actions}"></th>
                                 </tr>
                                 </thead>
@@ -46,18 +47,26 @@
                                     <td th:text="${request.requester}"></td>
                                     <td th:text="${request.roleName}"></td>
                                     <td th:text="${request.itSystem}"></td>
-                                    <td th:text="${request.description}"></td>
+                                    <td class="preformat" th:text="${request.description}"></td>
                                     <td th:text="${request.constraints}"></td>
                                     <td th:text="${request.requestDate}"></td>
                                     <td th:text="${request.timeFrame}"></td>
                                     <td th:text="${request.reason}"></td>
+                                    <td class="treatedByResponsibleField" th:text="${request.assignedTo}"></td>
                                     <td>
+										<button class="btn btn-info assignBtn" style="width: 100%; margin-bottom: 5px;"
+												th:data-assignedname="${request.assignedTo}"
+												th:data-requestid="${request.id}"
+												th:text="#{requestmodule.html.pending.table.details.assign}"></button>
 										<button class="btn btn-primary approveBtn" style="width: 100%"
+												th:data-assignedname="${request.assignedTo}"
 												th:data-requestid="${request.id}" th:data-chooseanotherenddate="${false}"
+												th:data-assignedto="${request.assignedTo}"
 												th:text="#{requestmodule.html.pending.table.details.approve} + ' ' + ${#strings.toLowerCase(#messages.msg(request.action))}"></button>
 
 										<button class="btn btn-primary approveBtn" style="width: 100%; margin-top: 5px;"
 												th:data-requestid="${request.id}" th:data-chooseanotherenddate="${true}"
+												th:data-assignedto="${request.assignedTo}"
 												th:text="#{requestmodule.html.pending.table.details.approve.time}"></button>
 										<button class="btn btn-danger" style="width: 100%; margin-top: 5px;" th:attr="onclick='onDenyPressed('+${request.id}+');'" th:text="#{requestmodule.html.pending.table.details.deny}"></button>
 									</td>
@@ -95,6 +104,16 @@
 	</div>
 </div>
 
+<div id="pending-request-data"
+	 th:data-current-user-name="${currentUserName}"
+	 th:data-assign-warning-title="#{requestmodule.html.pending.table.details.assign.warning.title}"
+	 th:data-assign-warning-text="#{requestmodule.html.pending.table.details.assign.warning.text}"
+	 th:data-assign-warning-text-two="#{requestmodule.html.pending.table.details.assign.warning.text.two}"
+	 th:data-assign-warning-confirm="#{requestmodule.html.pending.table.details.assign.warning.confirm}"
+	 th:data-assign-warning-cancel="#{requestmodule.html.pending.table.details.assign.warning.cancel}"
+	 style="display: none;">
+</div>
+
 <script th:inline="javascript">
     /*<![CDATA[*/
     /*[+
@@ -106,9 +125,6 @@
         let swalHeaderText = [[#{requestmodule.html.pending.table.details.approve.time}]];
         let swalNewDateText = [[#{requestmodule.html.pending.table.details.approve.time.new}]];
     +]*/
-
-
-
     /*]]>*/
 </script>
 <script th:src="@{/js/rolerequest/pendingRequests/pending.js}"></script>

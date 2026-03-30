@@ -1,8 +1,10 @@
 package dk.digitalidentity.rc.controller.api.v2;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
-import java.util.Objects;
+import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -31,6 +33,7 @@ import dk.digitalidentity.rc.dao.model.ItSystem;
 import dk.digitalidentity.rc.dao.model.SystemRole;
 import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserRole;
+import dk.digitalidentity.rc.dao.model.assignment.CurrentAssignment;
 import dk.digitalidentity.rc.dao.model.enums.ADGroupType;
 import dk.digitalidentity.rc.dao.model.enums.ItSystemType;
 import dk.digitalidentity.rc.security.RequireApiItSystemRole;
@@ -40,7 +43,7 @@ import dk.digitalidentity.rc.service.PendingADUpdateService;
 import dk.digitalidentity.rc.service.SystemRoleService;
 import dk.digitalidentity.rc.service.UserRoleService;
 import dk.digitalidentity.rc.service.UserService;
-import dk.digitalidentity.rc.service.model.UserWithRole;
+import dk.digitalidentity.rc.service.assignment.AssignmentService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -74,6 +77,9 @@ public class ItSystemApiV2 {
 
 	@Autowired
 	private DomainService domainService;
+
+	@Autowired
+	private AssignmentService assignmentService;
 
 	@Schema(name = "ItSystem")
 	record ItSystemRecord(@Schema(description = "Unique ID for the it-system") long id,
@@ -357,19 +363,23 @@ public class ItSystemApiV2 {
 	@Operation(summary = "Get all assignments on roles from it-system", description = "Returns all assignments on roles for an it-system by it-system id")
 	@GetMapping(value = "/api/v2/itsystem/{id}/assignments")
 	public List<List<UserUserRoleAssignmentAM>> getAssignmentsForItSystem(@Parameter(description = "Unique ID for the it-system", example = "1") @PathVariable("id") String id) {
-		final List<User> users = userService.getAll();
-
         final List<ItSystem> itSystems = itSystemService.findByAnyIdentifier(id).stream()
 				.filter(its -> !its.isAccessBlocked())
-				.toList();
+				.collect(Collectors.toList());
 
-		return users.stream()
-				.map(u -> userService.getAllUserRolesAssignmentsWithInfo(u, itSystems).stream()
-						.map(a -> RoleMapper.userRoleAssignmentToApi(a, u))
-						.toList()
-				)
-				.filter(l -> !l.isEmpty())
-				.toList();
+		Set<CurrentAssignment> currentAssignments = assignmentService.getActiveAssignmentsByItSystems(itSystems);
+		
+		Map<User, List<CurrentAssignment>> userToAssignmentMap = currentAssignments.stream().collect(Collectors.groupingBy(CurrentAssignment::getUser));
+		List<List<UserUserRoleAssignmentAM>> result = new ArrayList<>();
+		for (User user : userToAssignmentMap.keySet()) {
+			List<UserUserRoleAssignmentAM> userAssignments = userToAssignmentMap.get(user).stream().map(assignment -> {
+				return RoleMapper.currentAssignmentToApi(assignment, assignment.getUser(), assignmentService.getAssignedThrough(assignment));
+			}).collect(Collectors.toList());
+
+			result.add(userAssignments);
+		}
+
+		return result;
 	}
 
 	@ApiResponses(value = { @ApiResponse(responseCode = "202", description = "It-system has been marked dirty"),
@@ -383,23 +393,19 @@ public class ItSystemApiV2 {
 	}
 
 	private List<User> getAllUsersInItSystemWithARole(ItSystem itSystem) {
-		List<User> users = new ArrayList<>();
+		Set<User> userSet = new HashSet<>();
 		List<UserRole> userRoles = userRoleService.getByItSystem(itSystem);
 
 		for (UserRole userRole : userRoles) {
-			List<UserWithRole> usersWithRole = userService.getUsersWithUserRole(userRole, true);
+			Set<CurrentAssignment> assignments = assignmentService.getActiveByUserRole(userRole);
 
-			for (UserWithRole userWithRole : usersWithRole) {
-				if (userWithRole.getUser().isDeleted() || userWithRole.getUser().isDisabled()) {
-					continue;
-				}
-
-				if (users.stream().noneMatch(u -> Objects.equals(u.getUuid(), userWithRole.getUser().getUuid()))) {
-					users.add(userWithRole.getUser());
+			for (CurrentAssignment assignment : assignments) {
+				if (!assignment.getUser().isDeleted() && !assignment.getUser().isDisabled()) {
+					userSet.add(assignment.getUser());
 				}
 			}
 		}
 
-		return users;
+		return new ArrayList<>(userSet);
 	}
 }

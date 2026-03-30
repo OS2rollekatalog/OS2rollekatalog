@@ -76,12 +76,12 @@
 							<td th:attr="data-assignmentid=${assignment.assignmentId}, data-assignmenttype=${assignment.assignmentType}, data-roleid=${assignment.roleId}, data-objtype=${assignment.type}, data-startdate=${assignment.startDate}, data-stopdate=${assignment.stopDate}, data-name=${assignment.name}">
 								<a
 									href="#"
-									th:if="${canAssign}"
+									th:if="${canAssign && assignment.canEdit}"
 									onclick="rolesService.editRoleAssignment(this)">
 									<em class="fa fa-pencil"></em></a>
 								<a
 									href="#"
-									th:if="${canAssign}"
+									th:if="${canAssign && assignment.canEdit}"
 									onclick="rolesService.deleteRoleAssignment(this)">
 									<em class="fa fa-times"></em>
 								</a>

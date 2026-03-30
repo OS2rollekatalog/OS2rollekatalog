@@ -14,7 +14,7 @@ import java.util.Collection;
 public interface UserDatatableDao extends DataTablesRepository<User, String> {
 
 	static Specification<User> notDeletedOrDisabled() {
-		return (root, query, builder) ->
+		return (root, _, builder) ->
 			builder.and(builder.isFalse(root.get("deleted")), builder.isFalse(root.get("disabled")));
 	}
 

@@ -1,5 +1,6 @@
 package dk.digitalidentity.rc.dao;
 
+import java.util.Collection;
 import java.util.List;
 
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -10,4 +11,5 @@ public interface SENumberDao extends JpaRepository<SENumber, Long> {
 
 	List<SENumber> findAll();
 
+	List<SENumber> findByCodeIn(Collection<String> codes);
 }

@@ -13,10 +13,11 @@ public class SystemRoleForm {
     private String description;
     private long itSystemId;
     private boolean universal;
-    
+	private Integer maximumAssignments;
+
     // only used for system-roles matching AD groups
     private ADGroupType adGroupType;
-    
+
     // only used for saml and AD
     private int weight = 1;
 }

@@ -16,17 +16,19 @@ public class RoleGroupForm {
 	private long id;
 
 	@NotNull
-	@Size(min = 2, max = 64, message="{validation.rolegroup.name}")
+	@Size(min = 2, max = 128, message="{validation.rolegroup.name}")
 	private String name;
 
 	private boolean userOnly;
 
 	private List<RequestableBy> requesterPermission = List.of(RequestableBy.INHERIT);
 
-	private List<ApprovableBy> approverPermission = List.of(ApprovableBy.ADMINISTRATOR);
+	private List<ApprovableBy> approverPermission = List.of();
 
 	@Size(max = 4000)
 	private String description;
+
+	private boolean ouFilterEnabled;
 
 	private List<RoleGroupUserRoleAssignment> userRoleAssignments;
 }

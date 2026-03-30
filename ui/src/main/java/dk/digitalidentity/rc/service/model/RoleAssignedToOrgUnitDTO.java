@@ -171,6 +171,7 @@ public class RoleAssignedToOrgUnitDTO {
 		dto.setStartDate(assignment.getStartDate());
 		dto.setStopDate(assignment.getStopDate());
 		dto.setAssignedThrough(AssignedThrough.DIRECT);
+		dto.setCaseNumber(assignment.getCaseNumber());
 
 		if (assignment.isManager()) {
 			if (assignment.isSubstitutes()) {

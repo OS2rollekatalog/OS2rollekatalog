@@ -40,6 +40,7 @@ public class AttestationUserRoleAssignmentDto implements Serializable {
 	private String assignedThroughUuid;
 	private boolean inherited;
 	private boolean sensitiveRole;
+	private boolean extraSensitiveRole;
 	private LocalDate assignedFrom;
 	private String postponedConstraints;
 }

@@ -125,20 +125,23 @@ public class SecurityUtil {
 		return systemResponsible;
 	}
 
-	@Deprecated(forRemoval = true)
-	// Usage should be replaced with an section-specific method ( hasPermission with READ permission)
-	public static boolean isAdmin() {
-		boolean admin = false;
-
+	/**
+	 * Evaluates if the currently logged in user has the direct Administrator role, regardless of Permissions
+	 * @return true if user is logged in and has the role ROLE_ADMINISTRATOR as authority. False otherwise
+	 */
+	public static boolean hasDirectAdminRole() {
 		if (isLoggedIn()) {
-			for (GrantedAuthority grantedAuthority : (SecurityContextHolder.getContext().getAuthentication()).getAuthorities()) {
-				if (grantedAuthority.getAuthority().equals(Constants.ROLE_ADMINISTRATOR)) {
-					admin = true;
+			Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+			if (authentication == null) {
+				return false;
+			}
+			for (GrantedAuthority grantedAuthority : authentication.getAuthorities()) {
+				if (Constants.ROLE_ADMINISTRATOR.equals(grantedAuthority.getAuthority())) {
+					return true;
 				}
 			}
 		}
-
-		return admin;
+		return false;
 	}
 
 	@Deprecated(forRemoval = true)
@@ -175,8 +178,11 @@ public class SecurityUtil {
 		if (SecurityContextHolder.getContext() != null && SecurityContextHolder.getContext().getAuthentication() != null) {
 			Object o = SecurityContextHolder.getContext().getAuthentication().getDetails();
 			if (o instanceof TokenUser tokenUser) {
-
-				return tokenUser.getAttributes().get(RolePostProcessor.ATTRIBUTE_USER_UUID).toString();
+				Object uuid = tokenUser.getAttributes().get(RolePostProcessor.ATTRIBUTE_USER_UUID);
+				if (uuid == null) {
+					return SYSTEM_USERID;
+				}
+				return uuid.toString();
 			}
 
 			return extractPrincipal();
@@ -321,12 +327,17 @@ public class SecurityUtil {
 						addAllPermissionsToMap(permissionMap, section, Arrays.stream(Permission.values()).toList());
 					}
 				}
-				case Constants.ROLE_USER_ASSIGNER_ID, Constants.ROLE_OU_ASSIGNER_ID -> {
-					// role assignation is not handled by the permission system
+				case Constants.ROLE_USER_ASSIGNER_ID -> {
+					addPermissionsToMap(permissionMap, Section.USER, Permission.ASSIGN);
+					addRightsReadPermissions(permissionMap);
+				}
+				case Constants.ROLE_OU_ASSIGNER_ID -> {
+					addPermissionsToMap(permissionMap, Section.ORGUNIT, Permission.ASSIGN);
 					addRightsReadPermissions(permissionMap);
 				}
 				case Constants.ROLE_GLOBAL_ASSIGNER_ID -> {
-					// role assignation is not handled by the permission system
+					addPermissionsToMap(permissionMap, Section.USER, Permission.ASSIGN);
+					addPermissionsToMap(permissionMap, Section.ORGUNIT, Permission.ASSIGN);
 					addRightsReadPermissions(permissionMap);
 					addFullAuditlogAccess(permissionMap);
 					addFullAdviseAccess(permissionMap);
@@ -371,7 +382,7 @@ public class SecurityUtil {
 						addPermissionsToMap(permissionMap, Section.MANAGER, Permission.READ);
 				case Constants.ROLE_MANAGER_UPDATE_ID -> addFullManagerAccess(permissionMap);
 				case Constants.ROLE_CONFIG_READ_ID ->
-						addAllPermissionsToMap(permissionMap, Section.CONFIG, Arrays.stream(Permission.values()).toList());
+						addAllPermissionsToMap(permissionMap, Section.CONFIG, Set.of(Permission.UPDATE, Permission.CREATE, Permission.READ, Permission.DELETE));
 				default -> {
 					// nothing happens for other roles.
 					// They might conditionally add permissions in rolePostProcessor
@@ -382,7 +393,7 @@ public class SecurityUtil {
 	}
 
 	private static void addFullAdviseAccess(Map<Section, Set<Permission>> permissionMap) {
-		addAllPermissionsToMap(permissionMap, Section.ADVISE, Arrays.stream(Permission.values()).toList());
+		addAllPermissionsToMap(permissionMap, Section.ADVISE, Set.of(Permission.UPDATE, Permission.CREATE, Permission.READ, Permission.DELETE));
 	}
 
 	private static void addPermissionsToMap(Map<Section, Set<Permission>> permissionMap, Section entity, Permission permission) {
@@ -409,19 +420,19 @@ public class SecurityUtil {
 	}
 
 	private static void addFullManagerAccess(Map<Section, Set<Permission>> permissionMap) {
-		addAllPermissionsToMap(permissionMap, Section.MANAGER, Arrays.stream(Permission.values()).toList());
+		addAllPermissionsToMap(permissionMap, Section.MANAGER,  Set.of(Permission.UPDATE, Permission.CREATE, Permission.READ, Permission.DELETE));
 	}
 
 	private static void addFullAuditlogAccess(Map<Section, Set<Permission>> permissionMap) {
-		addAllPermissionsToMap(permissionMap, Section.LOG, Arrays.stream(Permission.values()).toList());
+		addAllPermissionsToMap(permissionMap, Section.LOG, Set.of(Permission.UPDATE, Permission.CREATE, Permission.READ, Permission.DELETE));
 	}
 
 	private static void addFullReportAccess(Map<Section, Set<Permission>> permissionMap) {
-		addAllPermissionsToMap(permissionMap, Section.REPORT, Arrays.stream(Permission.values()).toList());
+		addAllPermissionsToMap(permissionMap, Section.REPORT, Set.of(Permission.UPDATE, Permission.CREATE, Permission.READ, Permission.DELETE));
 	}
 
 	private static void addFullAttestationAccess(Map<Section, Set<Permission>> permissionMap) {
-		addAllPermissionsToMap(permissionMap, Section.ATTESTATION, Arrays.stream(Permission.values()).toList());
+		addAllPermissionsToMap(permissionMap, Section.ATTESTATION, Set.of(Permission.UPDATE, Permission.CREATE, Permission.READ, Permission.DELETE));
 	}
 
 	private static void addUserReadAccess(Map<Section, Set<Permission>> permissionMap) {
@@ -430,17 +441,5 @@ public class SecurityUtil {
 
 	private static void addOUReadAccess(Map<Section, Set<Permission>> permissionMap) {
 		addPermissionsToMap(permissionMap, Section.ORGUNIT, Permission.READ);
-	}
-
-	public static boolean isUserAssigner() {
-		return hasRole(Constants.ROLE_USER_ASSIGNER);
-	}
-
-	public static boolean isOrgUnitAssigner() {
-		return hasRole(Constants.ROLE_OU_ASSIGNER);
-	}
-
-	public static boolean isAnyAssigner() {
-		return isUserAssigner() || isOrgUnitAssigner();
 	}
 }

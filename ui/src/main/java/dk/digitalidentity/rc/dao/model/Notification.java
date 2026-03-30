@@ -10,8 +10,6 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
-import jakarta.persistence.Temporal;
-import jakarta.persistence.TemporalType;
 import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.annotations.UpdateTimestamp;
@@ -46,13 +44,11 @@ public class Notification {
 	private NotificationType notificationType;
 
 	@JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd HH:mm")
-	@Temporal(TemporalType.TIMESTAMP)
 	@Column
 	private Date created;
 
 	@JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd HH:mm")
 	@UpdateTimestamp
-	@Temporal(TemporalType.TIMESTAMP)
 	@Column
 	private Date lastUpdated;
 	

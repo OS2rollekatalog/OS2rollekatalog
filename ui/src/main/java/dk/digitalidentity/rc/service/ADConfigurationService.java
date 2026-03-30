@@ -3,7 +3,6 @@ package dk.digitalidentity.rc.service;
 import dk.digitalidentity.rc.dao.ADConfigurationDao;
 import dk.digitalidentity.rc.dao.model.ADConfiguration;
 import dk.digitalidentity.rc.dao.model.Client;
-import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -29,9 +28,11 @@ public class ADConfigurationService {
 	}
 
 	public String hasError(Client client) {
-		final ADConfiguration adConfiguration = getByClient(client);
-		return Optional.ofNullable(adConfiguration)
-				.map(config -> StringUtils.replace(config.getErrorMessage(), "\\n", "<br>")).orElse(null);
+	    final ADConfiguration adConfiguration = getByClient(client);
+	    return Optional.ofNullable(adConfiguration)
+	            .map(ADConfiguration::getErrorMessage)
+	            .map(msg -> msg.replace("\\n", "<br>"))
+	            .orElse(null);
 	}
 
 }

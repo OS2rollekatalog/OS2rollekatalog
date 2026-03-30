@@ -1,5 +1,6 @@
 package dk.digitalidentity.rc.attestation.controller.mvc.xlsview;
 
+import dk.digitalidentity.rc.controller.mvc.xlsview.AbstractXlsxStreamingViewWrapper;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.CellStyle;
 import org.apache.poi.ss.usermodel.Font;
