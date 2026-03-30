@@ -49,11 +49,16 @@ public class AttestationUserRoleAssignment extends TemporalAssignmentBase {
     private Long itSystemId;
     @Column
     private String itSystemName;
-    // In case the itSystem have roleAssignmentAttestationByAttestationResponsible set
-    // We use responsibleUserUuid in all cases responsibleOu is used.
+	/**
+		Contains the user uuid of the attestation responsible user if the it system setting "roleAssignmentAttestationByAttestationResponsible" is set.
+		Is mutually exclusive with responsibleOuUuid (and the name equivilant), and contains null in those cases
+	 */
     @Column
     @PartOfNaturalKey
     private String responsibleUserUuid;
+	/**
+	 * Paired with responsibleOuUuid. See the documentation of that field for details.
+	 */
     @Column
     private String responsibleOuName;
     @Column
@@ -61,12 +66,15 @@ public class AttestationUserRoleAssignment extends TemporalAssignmentBase {
     private String roleOuUuid;
     @Column
     private String roleOuName;
+
+	/**
+	 * Contains the ou uuid that is calculated to be the attestation responsible.
+	 * Is mutually exclusive with responsibleUserUuid and will be null if that field is set.
+	 * The value of this field takes into account that a manager cannot attest their own assignment, so the ou will be a parent ou with a different manager.
+	 */
     @Column
     @PartOfNaturalKey
     private String responsibleOuUuid;
-    @Column
-    @PartOfNaturalKey
-    private boolean manager; // This will be set for managers, responsibleOu will contain the parent ou
     @Column
     @Enumerated(EnumType.STRING)
     @PartOfNaturalKey
@@ -94,7 +102,6 @@ public class AttestationUserRoleAssignment extends TemporalAssignmentBase {
      */
     public boolean contentEquals(AttestationUserRoleAssignment that) {
         return userRoleId == that.userRoleId
-                && manager == that.manager
                 && inherited == that.inherited
                 && sensitiveRole == that.sensitiveRole
                 && extraSensitiveRole == that.extraSensitiveRole

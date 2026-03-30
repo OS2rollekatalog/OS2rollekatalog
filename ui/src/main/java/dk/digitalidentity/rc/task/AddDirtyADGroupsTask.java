@@ -26,4 +26,14 @@ public class AddDirtyADGroupsTask {
 
 		pendingADUpdateService.addADGroupsFromMemberShipSyncFilter();
 	}
+
+//	@Scheduled(fixedRate = 60 * 1000 * 5)
+	@Scheduled(cron = "${rc.cron.add_dirty_ad_groups_with_start_date}")
+	public void addDirtyADGroupsWithStartToday() {
+		if (!configuration.getScheduled().isEnabled()) {
+			return;
+		}
+
+		pendingADUpdateService.addADGroupsWithStartDateToday();
+	}
 }

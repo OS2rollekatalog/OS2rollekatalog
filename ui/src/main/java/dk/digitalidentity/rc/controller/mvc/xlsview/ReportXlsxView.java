@@ -16,6 +16,8 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import dk.digitalidentity.rc.dao.history.model.HistoryFunction;
+import dk.digitalidentity.rc.dao.model.assignment.HistoricAssignment;
+import dk.digitalidentity.rc.dao.model.assignment.HistoricExceptedAssignment;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.CellStyle;
 import org.apache.poi.ss.usermodel.Font;
@@ -25,7 +27,6 @@ import org.apache.poi.ss.usermodel.Workbook;
 import org.springframework.context.support.ResourceBundleMessageSource;
 import org.springframework.util.StringUtils;
 
-import dk.digitalidentity.rc.attestation.controller.mvc.xlsview.AbstractXlsxStreamingViewWrapper;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.ReportForm;
 import dk.digitalidentity.rc.dao.history.model.HistoryItSystem;
 import dk.digitalidentity.rc.dao.history.model.HistoryKleAssignment;
@@ -35,7 +36,6 @@ import dk.digitalidentity.rc.dao.history.model.HistoryOURoleAssignment;
 import dk.digitalidentity.rc.dao.history.model.HistoryOURoleAssignmentExclusion;
 import dk.digitalidentity.rc.dao.history.model.HistoryOURoleAssignmentExclusion.ExclusionType;
 import dk.digitalidentity.rc.dao.history.model.HistoryOUUser;
-import dk.digitalidentity.rc.dao.history.model.HistoryRoleAssignment;
 import dk.digitalidentity.rc.dao.history.model.HistorySystemRole;
 import dk.digitalidentity.rc.dao.history.model.HistorySystemRoleAssignment;
 import dk.digitalidentity.rc.dao.history.model.HistorySystemRoleAssignmentConstraint;
@@ -60,7 +60,8 @@ public class ReportXlsxView extends AbstractXlsxStreamingViewWrapper {
     private List<HistoryFunction> functions;
     private Map<String, HistoryTitle> titleMap;
 	private Map<String, HistoryFunction> functionMap;
-    private Map<String, List<HistoryRoleAssignment>> userRoleAssignments;
+    private List<HistoricAssignment> historicAssignments;
+    private List<HistoricExceptedAssignment> historicExceptedAssignments;
     private Map<String, List<HistoryKleAssignment>> userKLEAssignments;
     private Map<String, HistoryOU> orgUnits;
     private Map<String, HistoryOU> allOrgUnits;
@@ -80,7 +81,7 @@ public class ReportXlsxView extends AbstractXlsxStreamingViewWrapper {
 
     @SuppressWarnings("unchecked")
     @Override
-    protected void buildExcelDocument(Map<String, Object> model, Workbook workbook, HttpServletRequest request, HttpServletResponse response) throws Exception {
+    protected void buildExcelDocument(Map<String, ?> model, DisposableSXSSFWorkbook workbook, HttpServletRequest request, HttpServletResponse response) throws Exception {
 
         // Get data
         locale = (Locale) model.get("locale");
@@ -100,7 +101,8 @@ public class ReportXlsxView extends AbstractXlsxStreamingViewWrapper {
         ouKLEAssignments = (Map<String, List<HistoryOUKleAssignment>>) model.get("ouKLEAssignments");
         userKLEAssignments = (Map<String, List<HistoryKleAssignment>>) model.get("userKLEAssignments");
         ouRoleAssignments = (Map<String, List<HistoryOURoleAssignment>>) model.get("ouRoleAssignments");
-        userRoleAssignments = (Map<String, List<HistoryRoleAssignment>>) model.get("userRoleAssignments");
+		historicAssignments = (List<HistoricAssignment>) model.get("historicAssignments");
+		historicExceptedAssignments = (List<HistoricExceptedAssignment>) model.get("historicExceptedAssignments");
 		ouUsers = (List<HistoryOUUser>) model.get("ouUsers");
 
 		if (titles != null) {
@@ -610,7 +612,7 @@ public class ReportXlsxView extends AbstractXlsxStreamingViewWrapper {
 
         createHeaderRow(sheet, headers);
 
-        List<UserRoleAssignmentReportEntry> userRoleAssignmentReportEntry = reportService.getUserRoleAssignmentReportEntries(users, allOrgUnits, itSystems, userRoleAssignments, ouRoleAssignments, itSystemNameMapping, locale, showInactiveUsers, true);
+        List<UserRoleAssignmentReportEntry> userRoleAssignmentReportEntry = reportService.getUserRoleAssignmentReportEntries(users, allOrgUnits, itSystems, historicAssignments, locale, showInactiveUsers, true);
 
         int row = 1;
         for (UserRoleAssignmentReportEntry entry : userRoleAssignmentReportEntry) {
@@ -651,21 +653,11 @@ public class ReportXlsxView extends AbstractXlsxStreamingViewWrapper {
         headers.add("xls.role.start_date");
         headers.add("xls.role.stop_date");
         headers.add("xls.role.assigned.through");
-        headers.add("xls.role.postponedconstraints");
+        headers.add("xls.role.postponedconstraints"); // TODO can be removed - not possible on OU role assignments (negative assignment = ou assignment)
 
         createHeaderRow(sheet, headers);
 
-        // select assignments with only negative_titles exclusions
-        Map<String, List<HistoryOURoleAssignment>> negativeRoleAssignments =
-		    ouRoleAssignments.entrySet().stream()
-		        .collect(Collectors.toMap(
-		            Map.Entry::getKey,
-		            e -> e.getValue().stream()
-		                  .filter(assignment -> assignment.getExclusions().stream()
-		                      .allMatch(ex -> ex.getExclusionType() == ExclusionType.negative_titles))
-		                  .toList()
-		        ));
-		List<UserRoleAssignmentReportEntry> userRoleAssignmentReportEntry = reportService.getNegativeUserRoleAssignmentReportEntries(users, allOrgUnits, itSystems, negativeRoleAssignments, locale, showInactiveUsers, true);
+		List<UserRoleAssignmentReportEntry> userRoleAssignmentReportEntry = reportService.getNegativeUserRoleAssignmentReportEntries(users, allOrgUnits, historicExceptedAssignments, locale, showInactiveUsers);
 
         int row = 1;
         for (UserRoleAssignmentReportEntry entry : userRoleAssignmentReportEntry) {
@@ -877,4 +869,9 @@ public class ReportXlsxView extends AbstractXlsxStreamingViewWrapper {
         }
         return when.plusDays(1).atStartOfDay().minusSeconds(1);
     }
+
+	@Override
+	protected String getFilename() {
+		return "Rapport.xlsx";
+	}
 }

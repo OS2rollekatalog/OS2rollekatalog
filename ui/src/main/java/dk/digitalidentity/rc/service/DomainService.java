@@ -22,7 +22,7 @@ public class DomainService {
 		if (primary == null) {
 			log.error("No primary domain found");
 		}
-		
+
 		return primary;
 	}
 
@@ -48,5 +48,9 @@ public class DomainService {
 
 	public List<Domain> getAll() {
 		return domainDao.findAll();
+	}
+
+	public Domain save(Domain domain) {
+		return domainDao.save(domain);
 	}
 }

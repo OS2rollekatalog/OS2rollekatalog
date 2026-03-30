@@ -1,4 +1,6 @@
-<th:block th:fragment="addRoleGroup" xmlns="http://www.w3.org/1999/xhtml" xmlns:th="http://www.thymeleaf.org">
+<th:block th:fragment="addRoleGroup" xmlns="http://www.w3.org/1999/xhtml" xmlns:th="http://www.thymeleaf.org"
+		  th:with="permission=${T(dk.digitalidentity.rc.security.permission.Permission)},
+			section=${T(dk.digitalidentity.rc.security.permission.Section)}">
 	<fieldset>
 		<div class="form-group">
 			<button class="btn btn-lg btn-primary" style="margin-bottom: 20px;" th:text="#{html.control.button.back}" onclick="rolesService.loadRolesFragment()"></button>
@@ -20,12 +22,13 @@
 								<span th:text="${roleGroup.name}"></span>
 								<div th:if="${roleGroup.alreadyAssigned}" th:text="#{html.page.user.assign.already.assigned}" style="font-size: smaller; color: red;"></div>
 							</td>
-							<td th:text="${roleGroup.description}"></td>
+							<td class="preformat" th:text="${roleGroup.description}"></td>
 							<td>
 								<a
+									th:if="${roleGroup.assignable}"
 									href="#"
 									onclick="rolesService.addRoleGroup(this); return false;"
-									th:attr="data-rolegroupid=${roleGroup.id}">
+									th:attr="data-rolegroupid=${roleGroup.id}, data-name=${roleGroup.name}">
 									<em class="fa fa-plus"></em>
 								</a>
 							</td>

@@ -5,27 +5,32 @@ import dk.digitalidentity.rc.controller.api.exception.BadRequestException;
 import dk.digitalidentity.rc.controller.api.mapper.RoleMapper;
 import dk.digitalidentity.rc.controller.api.mapper.UserMapper;
 import dk.digitalidentity.rc.controller.api.model.ExceptionResponseAM;
+import dk.digitalidentity.rc.controller.api.model.OrgUnitShallowAM;
 import dk.digitalidentity.rc.controller.api.model.SystemRoleAssignmentAM;
 import dk.digitalidentity.rc.controller.api.model.UserAM2;
 import dk.digitalidentity.rc.controller.api.model.UserRoleAM;
 import dk.digitalidentity.rc.dao.model.ConstraintType;
 import dk.digitalidentity.rc.dao.model.Domain;
 import dk.digitalidentity.rc.dao.model.ItSystem;
+import dk.digitalidentity.rc.dao.model.OrgUnit;
 import dk.digitalidentity.rc.dao.model.SystemRole;
 import dk.digitalidentity.rc.dao.model.SystemRoleAssignment;
 import dk.digitalidentity.rc.dao.model.SystemRoleAssignmentConstraintValue;
 import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserRole;
+import dk.digitalidentity.rc.dao.model.assignment.CurrentAssignment;
 import dk.digitalidentity.rc.dao.model.enums.ConstraintValueType;
+import dk.digitalidentity.rc.rolerequest.model.enums.ApprovableBy;
+import dk.digitalidentity.rc.rolerequest.model.enums.RequestableBy;
 import dk.digitalidentity.rc.security.RequireApiReadAccessRole;
 import dk.digitalidentity.rc.security.RequireApiRoleManagementRole;
 import dk.digitalidentity.rc.service.ConstraintTypeService;
 import dk.digitalidentity.rc.service.DomainService;
 import dk.digitalidentity.rc.service.ItSystemService;
+import dk.digitalidentity.rc.service.OrgUnitService;
 import dk.digitalidentity.rc.service.SystemRoleService;
 import dk.digitalidentity.rc.service.UserRoleService;
-import dk.digitalidentity.rc.service.UserService;
-import dk.digitalidentity.rc.service.model.UserWithRole;
+import dk.digitalidentity.rc.service.assignment.AssignmentService;
 import dk.digitalidentity.rc.util.IdentifierGenerator;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -54,8 +59,10 @@ import org.springframework.web.server.ResponseStatusException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
@@ -68,12 +75,13 @@ import java.util.stream.Collectors;
 @Tag(name = "User-role API V2")
 public class UserRoleApiV2 {
 	private final UserRoleService userRoleService;
-	private final UserService userService;
 	private final ItSystemService itSystemService;
 	private final SystemRoleService systemRoleService;
 	private final ConstraintTypeService constraintTypeService;
 	private final RoleCatalogueConfiguration configuration;
 	private final DomainService domainService;
+	private final AssignmentService assignmentService;
+	private final OrgUnitService orgUnitService;
 
 	@ApiResponses(value = {
 			@ApiResponse(responseCode = "200", description = "Returns a list of all userroles."),
@@ -251,11 +259,44 @@ public class UserRoleApiV2 {
 		target.setUserOnly(userRoleAM.isUserOnly());
 		target.setSensitiveRole(userRoleAM.isSensitiveRole());
 		target.setItSystem(itSystem);
+
+		if (userRoleAM.getContactEmail() != null) {
+			target.setContactEmail(userRoleAM.getContactEmail());
+		}
+		if (userRoleAM.getOuFilterEnabled() != null) {
+			target.setOuFilterEnabled(Boolean.TRUE.equals(userRoleAM.getOuFilterEnabled()));
+
+			if (Boolean.TRUE.equals(target.isOuFilterEnabled())) {
+				target.getOrgUnitFilterOrgUnits().clear();
+				if (userRoleAM.getOrgUnitFilterOrgUnits() != null) {
+					List<OrgUnit> orgUnits = orgUnitService.getByUuidIn(
+						userRoleAM.getOrgUnitFilterOrgUnits().stream()
+							.map(OrgUnitShallowAM::getUuid)
+							.toList()
+					);
+					target.getOrgUnitFilterOrgUnits().addAll(orgUnits);
+				}
+			}
+		}
+		if (userRoleAM.getRoleAssignmentAttestationByAttestationResponsible() != null) {
+			target.setRoleAssignmentAttestationByAttestationResponsible(Boolean.TRUE.equals(userRoleAM.getRoleAssignmentAttestationByAttestationResponsible()));
+		}
+		if (userRoleAM.getExtraSensitiveRole() != null) {
+			target.setExtraSensitiveRole(Boolean.TRUE.equals(userRoleAM.getExtraSensitiveRole()));
+		}
+		if (userRoleAM.getAllowPostponing() != null) {
+			target.setAllowPostponing(Boolean.TRUE.equals(userRoleAM.getAllowPostponing()));
+		}
+
 		if (userRoleAM.getRequesterPermission() != null) {
 			target.setRequesterPermission(userRoleAM.getRequesterPermission());
+		} else if (target.getRequesterPermission() == null) {
+			target.setRequesterPermission(Collections.singletonList(RequestableBy.INHERIT));
 		}
 		if (userRoleAM.getApproverPermission() != null) {
 			target.setApproverPermission(userRoleAM.getApproverPermission());
+		} else if (target.getApproverPermission() == null) {
+			target.setApproverPermission(Collections.singletonList(ApprovableBy.INHERIT));
 		}
 
 		toRemove.stream()
@@ -327,19 +368,19 @@ public class UserRoleApiV2 {
 	}
 
 	private List<User> getAllUsersWithRoleById(long id) {
-		List<User> users = new ArrayList<>();
 		UserRole userRole = userRoleService.getOptionalById(id)
-				.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User role not found"));
-		List<UserWithRole> usersWithRole = userService.getUsersWithUserRole(userRole, true);
-		for (UserWithRole userWithRole : usersWithRole) {
-			if (userWithRole.getUser().isDeleted() || userWithRole.getUser().isDisabled()) {
-				continue;
-			}
-			if (users.stream().noneMatch(u -> Objects.equals(u.getUuid(), userWithRole.getUser().getUuid()))) {
-				users.add(userWithRole.getUser());
+			.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User role not found"));
+
+		// Deduplicate by user UUID
+		Map<String, User> uniqueUsers = new HashMap<>();
+		for (CurrentAssignment assignment : assignmentService.getActiveByUserRole(userRole)) {
+			User user = assignment.getUser();
+			if (!user.isDeleted() && !user.isDisabled()) {
+				uniqueUsers.putIfAbsent(user.getUuid(), user);
 			}
 		}
-		return users;
+
+		return new ArrayList<>(uniqueUsers.values());
 	}
 
 

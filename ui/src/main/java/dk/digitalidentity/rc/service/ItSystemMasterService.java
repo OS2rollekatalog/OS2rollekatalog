@@ -1,15 +1,5 @@
 package dk.digitalidentity.rc.service;
 
-import java.util.Date;
-import java.util.List;
-
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.http.ResponseEntity;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.client.RestTemplate;
-
 import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
 import dk.digitalidentity.rc.dao.ItSystemMasterDao;
 import dk.digitalidentity.rc.dao.model.ItSystem;
@@ -19,14 +9,23 @@ import dk.digitalidentity.rc.dao.model.enums.RoleType;
 import dk.digitalidentity.rc.service.master.dto.ItSystemMasterDTO;
 import dk.digitalidentity.rc.service.master.dto.SystemRoleMasterDTO;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.http.ResponseEntity;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.client.RestClient;
+
+import java.util.Date;
+import java.util.List;
 
 @Slf4j
 @Service
 public class ItSystemMasterService {
 
 	@Autowired
-	@Qualifier("defaultRestTemplate")
-	private RestTemplate restTemplate;
+	@Qualifier("defaultRestClient")
+	private RestClient restClient;
 
 	@Autowired
 	private ItSystemMasterDao itSystemMasterDao;
@@ -36,14 +35,14 @@ public class ItSystemMasterService {
 
 	@Autowired
 	private SystemRoleService systemRoleService;
-	
+
 	@Autowired
 	private RoleCatalogueConfiguration configuration;
 
 	public List<ItSystemMaster> findAll() {
 		return itSystemMasterDao.findAll();
 	}
-	
+
 	@Transactional(rollbackFor = Exception.class)
 	public void updateLocalItSystems() {
 		List<ItSystem> subscribed = itSystemService.getBySubscribedToNotNull();
@@ -53,9 +52,13 @@ public class ItSystemMasterService {
 			for (ItSystemMaster master : masterList) {
 				if (itSystem.getSubscribedTo().equals(master.getMasterId()) && (itSystem.getLastUpdated() == null || itSystem.getLastUpdated().before(master.getLastModified()))) {
 					String url = configuration.getIntegrations().getMaster().getUrl() + "/api/itsystem/" + itSystem.getSubscribedTo();
-					
+
 					try {
-						ResponseEntity<ItSystemMasterDTO> response = restTemplate.getForEntity(url, ItSystemMasterDTO.class);
+						ResponseEntity<ItSystemMasterDTO> response = restClient.get()
+							.uri(url)
+							.retrieve()
+							.toEntity(ItSystemMasterDTO.class);
+
 						if (response.getStatusCode().is2xxSuccessful()) {
 							List<SystemRole> systemRoles = systemRoleService.getByItSystem(itSystem);
 							List<SystemRoleMasterDTO> masterSystemRoles = response.getBody().getSystemRoles();
@@ -69,7 +72,7 @@ public class ItSystemMasterService {
 										found = true;
 									}
 								}
-								
+
 								if (!found) {
 									log.info("Removing systemrole '" + systemRole.getName() + "' from ItSystem '" + itSystem.getName() + "' because it no longer exists in master system");
 
@@ -86,7 +89,7 @@ public class ItSystemMasterService {
 										found = true;
 									}
 								}
-								
+
 								if (!found) {
 									log.info("Adding systemrole '" + masterSystemRole.getName() + "' to ItSystem '" + itSystem.getName() + "'");
 
@@ -96,8 +99,8 @@ public class ItSystemMasterService {
 									systemRole.setItSystem(itSystem);
 									systemRole.setDescription(masterSystemRole.getDescription());
 									systemRole.setRoleType(RoleType.BOTH);
-									
-									systemRoleService.save(systemRole);									
+
+									systemRoleService.save(systemRole);
 								}
 							}
 
@@ -118,14 +121,14 @@ public class ItSystemMasterService {
 											systemRoleService.save(systemRole);
 										}
 									}
-								}								
+								}
 							}
 
 							itSystem.setLastUpdated(new Date());
 							itSystemService.save(itSystem);
 						}
 						else {
-							log.error("Failed to fetch updated systemroles (" + url + ") for it-system: " + itSystem.getId() + ", due to HTTP: " + response.getStatusCodeValue());
+							log.error("Failed to fetch updated systemroles (" + url + ") for it-system: " + itSystem.getId() + ", due to HTTP: " + response.getStatusCode().value());
 						}
 					}
 					catch (Exception ex) {
@@ -140,12 +143,15 @@ public class ItSystemMasterService {
 	public void fetchItSystems() {
 		String url = configuration.getIntegrations().getMaster().getUrl() + "/api/itsystems";
 		try {
-			ResponseEntity<ItSystemMasterDTO[]> response = restTemplate.getForEntity(url, ItSystemMasterDTO[].class);
+			ResponseEntity<ItSystemMasterDTO[]> response = restClient.get()
+				.uri(url)
+				.retrieve()
+				.toEntity(ItSystemMasterDTO[].class);
 
 			if (response.getStatusCode().is2xxSuccessful()) {
 				for (ItSystemMasterDTO sys : response.getBody()) {
 					ItSystemMaster itSystem = itSystemMasterDao.findByMasterId(sys.getMasterId());
-	
+
 					if (itSystem == null) {
 						itSystem = new ItSystemMaster();
 						itSystem.setMasterId(sys.getMasterId());
@@ -156,12 +162,12 @@ public class ItSystemMasterService {
 						itSystem.setName(sys.getName());
 						itSystem.setLastModified(sys.getLastModified());
 					}
-	
+
 					itSystemMasterDao.save(itSystem);
 				}
 			}
 			else {
-				log.error("Failed to connect to master of it-systems (" + url + "), HTTP: " + response.getStatusCodeValue());
+				log.error("Failed to connect to master of it-systems (" + url + "), HTTP: " + response.getStatusCode().value());
 			}
 		}
 		catch (Exception ex) {

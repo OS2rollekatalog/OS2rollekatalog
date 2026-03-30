@@ -46,7 +46,7 @@
                                             <tbody>
                                                 <tr th:each="systemRole : ${userRole.systemRoles}">
                                                     <td th:text="${systemRole.systemRoleName}" class="col-lg-2"></td>
-                                                    <td th:text="${systemRole.systemRoleDescription}" class="col-lg-5"></td>
+                                                    <td th:text="${systemRole.systemRoleDescription}" class="col-lg-5 preformat"></td>
                                                     <td class="col-lg-5">
                                                         <ul>
                                                             <li th:each="constraint : ${systemRole.constraints}" th:text="${@attestationConstraintService.caption(constraint)}"></li>

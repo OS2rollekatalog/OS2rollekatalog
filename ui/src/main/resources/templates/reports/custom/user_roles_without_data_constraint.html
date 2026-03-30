@@ -26,7 +26,7 @@
 								<tr th:each="role : ${userRoles}">
 									<td th:text="${role.name}"></td>
 									<td th:text="${role.itSystem.name}"></td>
-									<td th:text="${role.description}"></td>
+									<td class="preformat" th:text="${role.description}"></td>
 									<td>
 										<th:block sec:authorize="hasAnyRole('ROLE_USER_ASSIGNER', 'ROLE_OU_ASSIGNER')">
 											<a th:href="@{/ui/userroles/edit/{id}(id=${role.id})}"><em class="fa fa-pencil"></em></a>

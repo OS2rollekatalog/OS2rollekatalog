@@ -116,6 +116,9 @@ public class RoleRequest implements AuditLoggable {
     @OneToMany(mappedBy = "roleRequest", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
     private List<RequestPostponedConstraint> requestPostponedConstraints;
 
+	@Column
+	private String assignedTo;
+
 	@JsonIgnore
 	@Override
 	public String getEntityId() {

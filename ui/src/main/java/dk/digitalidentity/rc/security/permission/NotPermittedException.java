@@ -9,6 +9,8 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 @Getter
 public class NotPermittedException extends RuntimeException {
+	private static final long serialVersionUID = 1L;
+	
 	private final String permission;
 	private final String entity;
 	private final boolean constraintMismatched;

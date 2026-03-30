@@ -40,7 +40,7 @@ public class ClientController {
 	private final ADConfigurationService adConfigurationService;
 	private final Select2Service select2Service;
 
-	@InitBinder("clientDTO")
+	@InitBinder("client")
 	public void initClientBinder(WebDataBinder binder) {
 		binder.addValidators(clientDTOValidator);
 	}

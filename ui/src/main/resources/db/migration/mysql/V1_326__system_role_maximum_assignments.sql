@@ -1,0 +1,1 @@
+ALTER TABLE system_roles ADD COLUMN maximum_assignments BIGINT NULL;

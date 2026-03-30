@@ -6,16 +6,14 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
+import dk.digitalidentity.rc.controller.mvc.xlsview.AbstractXlsxStreamingViewWrapper;
+import dk.digitalidentity.rc.controller.mvc.xlsview.DisposableSXSSFWorkbook;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.CellStyle;
 import org.apache.poi.ss.usermodel.Font;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
-import org.apache.poi.ss.usermodel.Workbook;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.support.ResourceBundleMessageSource;
-import org.springframework.stereotype.Component;
-import org.springframework.web.servlet.view.document.AbstractXlsxStreamingView;
 
 import dk.digitalidentity.rc.dao.model.UserRole;
 import dk.digitalidentity.rc.rolerequest.model.entity.RequestLog;
@@ -23,7 +21,7 @@ import dk.digitalidentity.rc.service.UserRoleService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
-public class RequestLogXlsxView extends AbstractXlsxStreamingView {
+public class RequestLogXlsxView extends AbstractXlsxStreamingViewWrapper {
 	private final UserRoleService userRoleService;
 
 	public RequestLogXlsxView(UserRoleService userRoleService) {
@@ -32,7 +30,7 @@ public class RequestLogXlsxView extends AbstractXlsxStreamingView {
 
 	@SuppressWarnings("unchecked")
     @Override
-    protected void buildExcelDocument(Map<String, Object> model, Workbook workbook, HttpServletRequest request, HttpServletResponse response) throws Exception {
+    protected void buildExcelDocument(Map<String, ?> model, DisposableSXSSFWorkbook workbook, HttpServletRequest request, HttpServletResponse response) throws Exception {
     	Locale locale = (Locale) model.get("locale");
         Iterable<RequestLog> logs = (Iterable<RequestLog>) model.get("logs");
         ResourceBundleMessageSource messageSource = (ResourceBundleMessageSource) model.get("messagesBundle");
@@ -99,4 +97,9 @@ public class RequestLogXlsxView extends AbstractXlsxStreamingView {
             createCell(headerRow, column++, localeSpecificHeader, headerStyle);
         }
     }
+
+	@Override
+	protected String getFilename() {
+		return "anmodningslog.xlsx";
+	}
 }

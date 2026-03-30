@@ -4,14 +4,11 @@ import dk.digitalidentity.rc.controller.mvc.viewmodel.OUListForm;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.SystemRoleAssignmentConstraintValueDTO;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.SystemRoleAssignmentDTO;
 import dk.digitalidentity.rc.dao.model.AuthorizationManager;
-import dk.digitalidentity.rc.dao.model.OrgUnit;
 import dk.digitalidentity.rc.dao.model.Position;
 import dk.digitalidentity.rc.dao.model.RoleGroup;
-import dk.digitalidentity.rc.dao.model.RoleGroupUserRoleAssignment;
-import dk.digitalidentity.rc.dao.model.SystemRoleAssignment;
-import dk.digitalidentity.rc.dao.model.SystemRoleAssignmentConstraintValue;
 import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserRole;
+import dk.digitalidentity.rc.dao.model.assignment.CurrentAssignment;
 import dk.digitalidentity.rc.dao.model.enums.ItSystemType;
 import dk.digitalidentity.rc.dao.model.enums.RequestAction;
 import dk.digitalidentity.rc.rolerequest.model.entity.RequestConstraint;
@@ -21,7 +18,6 @@ import dk.digitalidentity.rc.rolerequest.service.RequestAuthorizedRoleService;
 import dk.digitalidentity.rc.rolerequest.service.RequestConstraintService;
 import dk.digitalidentity.rc.rolerequest.service.RequestService;
 import dk.digitalidentity.rc.security.SecurityUtil;
-import dk.digitalidentity.rc.service.ItSystemService;
 import dk.digitalidentity.rc.service.ManagerSubstituteService;
 import dk.digitalidentity.rc.service.OrgUnitService;
 import dk.digitalidentity.rc.service.PNumberService;
@@ -30,14 +26,13 @@ import dk.digitalidentity.rc.service.Select2Service;
 import dk.digitalidentity.rc.service.SettingsService;
 import dk.digitalidentity.rc.service.UserRoleService;
 import dk.digitalidentity.rc.service.UserService;
+import dk.digitalidentity.rc.service.assignment.AssignmentService;
 import dk.digitalidentity.rc.service.model.AssignedThrough;
-import dk.digitalidentity.rc.service.model.RoleAssignedToUserDTO;
-import dk.digitalidentity.rc.service.model.RoleGroupAssignedToUser;
-import dk.digitalidentity.rc.service.model.UserRoleAssignedToUser;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Controller;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -50,9 +45,6 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import static dk.digitalidentity.rc.service.model.RoleAssignmentType.NEGATIVE_ROLEGROUP;
-import static dk.digitalidentity.rc.service.model.RoleAssignmentType.ROLEGROUP;
-
 @RequiredArgsConstructor
 @Slf4j
 @Controller
@@ -61,7 +53,6 @@ public class RequestController {
 	private final UserService userService;
 	private final SettingsService settingsService;
 	private final UserRoleService userRoleService;
-	private final ItSystemService itSystemService;
 	private final OrgUnitService orgUnitService;
 	private final Select2Service select2Service;
 	private final SENumberService seNumberService;
@@ -71,6 +62,7 @@ public class RequestController {
 	private final RequestAuthorizedRoleService requestAuthorizedRoleService;
 	private final ManagerSubstituteService managerSubstituteService;
 	private final RequestService requestService;
+	private final AssignmentService assignmentService;
 
 	record RoleGroupListEntry(long id, long assignmentId, String name, String description, String status,
 							  String assignedThroughName, boolean removable, boolean pendingRemoval) {
@@ -95,12 +87,30 @@ public class RequestController {
 			return "requestmodule/error";
 		}
 
+		Set<CurrentAssignment> currentAssignments = assignmentService.getByUserIncludingInactive(user);
+		Set<CurrentAssignment> uniqueRoleGroupAssignments = assignmentService.getUniqueRoleGroupAssignments(currentAssignments);
+
 		List<RoleGroupListEntry> roleGroups = new ArrayList<>();
-		for (RoleGroupAssignedToUser roleGroupAssignment : userService.getAllRoleGroupsAssignedToUser(user)) {
-			boolean removalPending = rolerequestService.hasPendingRemovalRequestForRolegroup(roleGroupAssignment.getRoleGroup().getId(), user.getUuid());
-			boolean requestRemovalPossible = roleGroupAssignment.getAssignedThrough().equals(AssignedThrough.DIRECT) && !removalPending
-				&& rolerequestService.canRequest(user, roleGroupAssignment.getRoleGroup(), user, roleGroupAssignment.getOrgUnit());
-			roleGroups.add(new RoleGroupListEntry(roleGroupAssignment.getRoleGroup().getId(), roleGroupAssignment.getAssignmentId(), roleGroupAssignment.getRoleGroup().getName(), roleGroupAssignment.getRoleGroup().getDescription(), roleGroupAssignment.getAssignedThrough().getMessage(), roleGroupAssignment.getTitleOrOrgUnitName(), requestRemovalPossible, removalPending));
+		for (CurrentAssignment currentAssignment : uniqueRoleGroupAssignments) {
+			boolean removalPending = rolerequestService.hasPendingRemovalRequestForRolegroup(
+				currentAssignment.getRoleGroup().getId(),
+				user.getUuid()
+			);
+			final AssignedThrough assignedThrough = assignmentService.getAssignedThroughForRoleGroup(currentAssignment);
+			boolean requestRemovalPossible = assignedThrough.equals(AssignedThrough.DIRECT)
+				&& !removalPending
+				&& rolerequestService.canRequest(user, currentAssignment.getRoleGroup(), user, currentAssignment.getResponsibleOrgUnit());
+
+			roleGroups.add(new RoleGroupListEntry(
+				currentAssignment.getRoleGroup().getId(),
+				currentAssignment.getAssignmentId(),
+				currentAssignment.getRoleGroup().getName(),
+				currentAssignment.getRoleGroup().getDescription(),
+				assignedThrough.getMessage(),
+				assignmentService.getAssignedThroughName(currentAssignment, assignedThrough),
+				requestRemovalPossible,
+				removalPending
+			));
 		}
 
 		List<RoleRequest> pendingrequests = rolerequestService.getPendingForReceiver(user);
@@ -122,25 +132,25 @@ public class RequestController {
 
 		List<UserRoleListEntry> userRoles = new ArrayList<>();
 		// getAllUserRoleAndRoleGroupAssignments
-		for (RoleAssignedToUserDTO userRoleAssignment : userService.getAllUserRoleAndRoleGroupAssignments(user)) {
-			if (userRoleAssignment.getType() == ROLEGROUP || userRoleAssignment.getType() == NEGATIVE_ROLEGROUP) {
+		for (CurrentAssignment currentAssignment : currentAssignments) {
+			if (currentAssignment.getRoleGroup() != null) {
 				continue;
 			}
-			final OrgUnit userRoleUnit = orgUnitService.getByUuid(userRoleAssignment.getOrgUnitUuid());
-			final UserRole userRole = userRoleService.getById(userRoleAssignment.getRoleId());
-			boolean removalPending = rolerequestService.hasPendingRemovalRequestForUserrole(userRoleAssignment.getRoleId(), user.getUuid());
+			final AssignedThrough assignedThrough = assignmentService.getAssignedThrough(currentAssignment);
+			final UserRole userRole = currentAssignment.getUserRole();
+			boolean removalPending = rolerequestService.hasPendingRemovalRequestForUserrole(userRole.getId(), user.getUuid());
 			List<RequestableBy> globalRequesterSetting = settingsService.getRolerequestRequester();
-			boolean requestRemovalPossible = userRoleAssignment.getAssignedThrough().equals(AssignedThrough.DIRECT)
+			boolean requestRemovalPossible = assignedThrough.equals(AssignedThrough.DIRECT)
 				&& !removalPending
-				&& rolerequestService.canRequest(userRole, user, userRoleUnit, globalRequesterSetting);
+				&& rolerequestService.canRequest(userRole, user, currentAssignment.getResponsibleOrgUnit(), globalRequesterSetting);
 
-			userRoles.add(new UserRoleListEntry(userRoleAssignment.getRoleId(),
-				userRoleAssignment.getAssignmentId(),
+			userRoles.add(new UserRoleListEntry(userRole.getId(),
+				currentAssignment.getAssignmentId(),
 				userRole.getItSystem().getName(),
 				userRole.getName(),
 				userRole.getDescription(),
-				userRoleAssignment.getAssignedThrough().getMessage(),
-				userRoleAssignment.getAssignedThroughName(),
+				assignedThrough.getMessage(),
+				assignmentService.getAssignedThroughName(currentAssignment, assignedThrough),
 				requestRemovalPossible,
 				removalPending));
 		}
@@ -190,6 +200,7 @@ public class RequestController {
 
 	record RoleForUser(long id, long assignmentId, String itSystemName, String name, String description, boolean removable) {}
 	@GetMapping(value = "remove/wizard")
+	@Transactional(readOnly = true)
 	public String requestRemoveWizard(Model model, @RequestParam(required = false) String uuid) {
 		if (!settingsService.isRequestApproveEnabled()) {
 			return "redirect:/error";
@@ -209,18 +220,21 @@ public class RequestController {
 		List<RoleForUser> roleGroups = new ArrayList<>();
 		List<RoleForUser> userRoles = new ArrayList<>();
 
-		for (RoleGroupAssignedToUser roleGroupAssignment : userService.getAllRoleGroupsAssignedToUser(requestForUser)) {
-			boolean requestRemovalPossible = roleGroupAssignment.getAssignedThrough().equals(AssignedThrough.DIRECT)
-				&& rolerequestService.canRequest(loggedInUser, roleGroupAssignment.getRoleGroup(), requestForUser, roleGroupAssignment.getOrgUnit());
-			roleGroups.add(new RoleForUser(roleGroupAssignment.getRoleGroup().getId(), roleGroupAssignment.getAssignmentId(), "", roleGroupAssignment.getRoleGroup().getName(), roleGroupAssignment.getRoleGroup().getDescription(), requestRemovalPossible));
+		final Set<CurrentAssignment> currentAssignments = assignmentService.getByUserIncludingInactive(requestForUser);
+		for (var assignment : currentAssignments) {
+			final AssignedThrough assignedThrough = assignmentService.getAssignedThrough(assignment);
+			if (assignment.getRoleGroup() != null) {
+				final RoleGroup roleGroup = assignment.getRoleGroup();
+				boolean requestRemovalPossible = assignedThrough.equals(AssignedThrough.DIRECT)
+					&& rolerequestService.canRequest(loggedInUser, roleGroup, requestForUser, assignment.getOrgUnit());
+				roleGroups.add(new RoleForUser(roleGroup.getId(), assignment.getAssignmentId(), "", roleGroup.getName(), roleGroup.getDescription(), requestRemovalPossible));
+			} else {
+				final UserRole userRole = assignment.getUserRole();
+				boolean requestRemovalPossible = assignedThrough.equals(AssignedThrough.DIRECT)
+					&& rolerequestService.canRequest(userRole, requestForUser, assignment.getOrgUnit(), settingsService.getRolerequestRequester());
+				userRoles.add(new RoleForUser(userRole.getId(), assignment.getAssignmentId(), userRole.getItSystem().getName(), userRole.getName(), userRole.getDescription(), requestRemovalPossible));
+			}
 		}
-
-		for (UserRoleAssignedToUser userRoleAssignment : userService.getAllUserRolesAssignedToUserExemptingRoleGroups(requestForUser, null)) {
-			boolean requestRemovalPossible = userRoleAssignment.getAssignedThrough().equals(AssignedThrough.DIRECT)
-				&& rolerequestService.canRequest(userRoleAssignment.getUserRole(), requestForUser, userRoleAssignment.getOrgUnit(), settingsService.getRolerequestRequester());
-			userRoles.add(new RoleForUser(userRoleAssignment.getUserRole().getId(), userRoleAssignment.getAssignmentId(), userRoleAssignment.getUserRole().getItSystem().getName(), userRoleAssignment.getUserRole().getName(), userRoleAssignment.getUserRole().getDescription(), requestRemovalPossible));
-		}
-
 		model.addAttribute("reasonSetting", settingsService.getRolerequestReason());
 		model.addAttribute("roleGroups", roleGroups);
 		model.addAttribute("userRoles", userRoles);
@@ -261,7 +275,7 @@ public class RequestController {
 			RequestAuthorizedRoleService.LimitedToOrgUnits limitedToOrgUnits = requestAuthorizedRoleService.accessibleOrgUnits(loggedInUser);
 			List<PositionDTO> positions = requestForUser.getPositions().stream()
 				.filter(p ->
-						SecurityUtil.isAdmin()
+						SecurityUtil.hasDirectAdminRole()
 						|| managerSubstituteService.isManagerForOrgUnit(p.getOrgUnit())
 						|| managerSubstituteService.isSubstituteforOrgUnit(p.getOrgUnit())
 						|| p.getOrgUnit().getAuthorizationManagers().stream().map(AuthorizationManager::getUser).toList().contains(loggedInUser) // User is authorizationmanager
@@ -308,8 +322,8 @@ public class RequestController {
 		}
 
 		// check that the user has the given position
-		Position matchPostion = requestForUser.getPositions().stream().filter(p -> p.getId() == position).findAny().orElse(null);
-		if (matchPostion == null) {
+		Position matchPosition = requestForUser.getPositions().stream().filter(p -> p.getId() == position).findAny().orElse(null);
+		if (matchPosition == null) {
 			return "requestmodule/error";
 		}
 
@@ -366,42 +380,4 @@ public class RequestController {
 
 		return "requestmodule/wizard/fragments/userrole_constraint_modal :: UserroleConstraintModal";
 	}
-
-
-
-	private boolean checkIfRoleGroupAllowed(RoleGroup currentRoleGroup, OrgUnit orgUnit) {
-		for (RoleGroupUserRoleAssignment assignment : currentRoleGroup.getUserRoleAssignments()) {
-			if (!checkIfAllowed(assignment.getUserRole(), orgUnit)) {
-				return false;
-			}
-		}
-
-		return true;
-	}
-
-	private boolean checkIfAllowed(UserRole userRole, OrgUnit orgUnit) {
-		if (userRole.isOuFilterEnabled()) {
-			List<String> uuids = userRoleService.getOUFilterUuidsWithChildren(userRole);
-			return uuids.contains(orgUnit.getUuid());
-		} else if (userRole.getItSystem().isOuFilterEnabled()) {
-			List<String> uuids = itSystemService.getOUFilterUuidsWithChildren(userRole.getItSystem());
-			return uuids.contains(orgUnit.getUuid());
-		}
-
-		return true;
-	}
-
-	private boolean hasPostponedConstraints(UserRole currentUserRole) {
-		boolean hasPostponedConstraints = false;
-		for (SystemRoleAssignment systemRoleAssignment : currentUserRole.getSystemRoleAssignments()) {
-			boolean anyMatch = systemRoleAssignment.getConstraintValues().stream().anyMatch(SystemRoleAssignmentConstraintValue::isPostponed);
-			if (anyMatch) {
-				hasPostponedConstraints = true;
-				break;
-			}
-		}
-		return hasPostponedConstraints;
-	}
-
 }
-

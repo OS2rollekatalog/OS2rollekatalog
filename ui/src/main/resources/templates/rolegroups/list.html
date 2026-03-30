@@ -29,7 +29,7 @@
 							<tbody>
 							<tr th:each="roleGroup : ${roleGroups}">
 								<td th:text="${roleGroup.name}"></td>
-								<td th:text="${roleGroup.description}"></td>
+								<td class="preformat" th:text="${roleGroup.description}"></td>
 								<td th:if="${@settingsService.isRequestApproveEnabled()}"
 									th:text="${#strings.listJoin(roleGroup.requesterPermission.![displayName], ', ')}"></td>
 								<td th:if="${@settingsService.isRequestApproveEnabled()}"
@@ -41,6 +41,8 @@
 											   th:href="@{/ui/rolegroups/edit/{id}(id=${roleGroup.id})}"><em class="fa fa-pencil"></em></a>
 											<a th:if="${roleGroup.allowedActions.isDeletable}" href="#"
 											   class="openConfirmDeleteDialog" th:attr="data-id=${roleGroup.id}"><em class="fa fa-remove"></em></a>
+											<a th:if="${roleGroup.allowedActions.isDuplicateable}" href="#"
+											   th:href="@{/ui/rolegroups/copy/{id}(id=${roleGroup.id})}" th:attr="data-id=${roleGroup.id}"><em class="fa fa-clone"></em></a>
 								</td>
 							</tr>
 							</tbody>

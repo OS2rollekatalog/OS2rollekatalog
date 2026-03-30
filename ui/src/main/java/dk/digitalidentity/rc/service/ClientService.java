@@ -58,7 +58,7 @@ public class ClientService {
 	public Client getClientByApiKeyBypassCache(String apiKey) {
 		return clientDao.findByApiKey(apiKey);
 	}
-	
+
 	public Client getClientByName(String name) {
 		return clientDao.findByName(name);
 	}

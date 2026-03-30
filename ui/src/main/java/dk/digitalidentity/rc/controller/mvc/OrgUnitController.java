@@ -1,23 +1,5 @@
 package dk.digitalidentity.rc.controller.mvc;
 
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.Set;
-import java.util.stream.Collectors;
-
-import dk.digitalidentity.rc.security.RequireReadAccessRole;
-import dk.digitalidentity.rc.security.permission.RequirePermission;
-import org.springframework.stereotype.Controller;
-import org.springframework.ui.Model;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestMapping;
-
 import dk.digitalidentity.rc.config.Constants;
 import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.AvailableRoleGroupDTO;
@@ -47,9 +29,11 @@ import dk.digitalidentity.rc.security.permission.NotPermittedException;
 import dk.digitalidentity.rc.security.permission.Permission;
 import dk.digitalidentity.rc.security.permission.PermissionConstraint;
 import dk.digitalidentity.rc.security.permission.RequireControllerPermission;
+import dk.digitalidentity.rc.security.permission.RequirePermission;
 import dk.digitalidentity.rc.security.permission.Section;
 import dk.digitalidentity.rc.security.permission.UserPermissionContext;
 import dk.digitalidentity.rc.service.FunctionService;
+import dk.digitalidentity.rc.service.ItSystemService;
 import dk.digitalidentity.rc.service.KleService;
 import dk.digitalidentity.rc.service.ManagerSubstituteService;
 import dk.digitalidentity.rc.service.OrgUnitService;
@@ -61,7 +45,22 @@ import dk.digitalidentity.rc.service.model.AssignedThrough;
 import dk.digitalidentity.rc.service.model.RoleAssignedToOrgUnitDTO;
 import dk.digitalidentity.rc.service.model.RoleAssignmentType;
 import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Controller;
+import org.springframework.ui.Model;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestMapping;
 
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
+
+@SuppressWarnings("AutoBoxing")
 @RequireControllerPermission(section = Section.ORGUNIT, permission = Permission.READ)
 @RequiredArgsConstructor
 @Controller
@@ -79,19 +78,15 @@ public class OrgUnitController {
 	private final FunctionService functionService;
 
 	private static final Section permissionEntity = Section.ORGUNIT;
+	private final ItSystemService itSystemService;
 
 	@RequestMapping(value = "/ui/ous/list")
 	public String list(Model model) {
 		PermissionConstraint editConstraints = userPermissionContext.getConstraint(permissionEntity, Permission.UPDATE);
-		PermissionConstraint readConstraints = userPermissionContext.getConstraints(Section.ORGUNIT, Permission.READ);
 
 		List<OUListForm> allOUs = orgUnitService.getAllCached()
 				.stream()
-				.map(ou -> {
-					boolean canEditOu = editConstraints.allowsOrgunit(ou.getUuid());
-					boolean canReadOu = readConstraints.allowsOrgunit(ou.getUuid());
-					return new OUListForm(ou, canEditOu, canReadOu);
-				})
+				.map(ou -> new OUListForm(ou, (editConstraints.allowsOrgunit(ou.getUuid()))))
 				.sorted(Comparator.comparing(OUListForm::getText))
 				.collect(Collectors.toList());
 
@@ -115,9 +110,9 @@ public class OrgUnitController {
 
 		boolean editable = userPermissionContext.hasPermission(permissionEntity, Permission.UPDATE)
 				&& editConstraints.allowsOrgunit(ou.getUuid());
-		if (!editable) {
-			throw new NotPermittedException("No permissions to manage orgunit " + uuid, Section.ORGUNIT, Permission.READ);
-		}
+
+		boolean isAssigner = userPermissionContext.getConstraint(permissionEntity, Permission.ASSIGN)
+			.allowsOrgunit(ou.getUuid());
 
 		List<OrgUnitLevel> allowedLevels = orgUnitService.getAllowedLevels(ou);
 
@@ -142,12 +137,12 @@ public class OrgUnitController {
 
 		model.addAttribute("allowedLevels", allowedLevels);
 		model.addAttribute("editable", editable);
-		model.addAttribute("canAssign", SecurityUtil.isOrgUnitAssigner());
+		model.addAttribute("canAssign", isAssigner);
 		model.addAttribute("ou", ou);
 		model.addAttribute("kleUiEnabled", configuration.getIntegrations().getKle().isUiEnabled());
 		model.addAttribute("parentsKleIsInheritedFrom", parentsKleIsInheritedFrom);
 		model.addAttribute("users", userDTOs);
-		model.addAttribute("canEditKle", SecurityUtil.isOrgUnitAssigner() || SecurityUtil.hasRole(Constants.ROLE_KLE_ADMINISTRATOR));
+		model.addAttribute("canEditKle", isAssigner || SecurityUtil.hasRole(Constants.ROLE_KLE_ADMINISTRATOR));
 		model.addAttribute("allowAccessToOu", accessConstraintService.isAssignmentAllowed(ou));
 
 		//Titles
@@ -217,12 +212,10 @@ public class OrgUnitController {
 		if (ou == null) {
 			return "redirect:../list";
 		}
-		PermissionConstraint readConstraints = userPermissionContext.getConstraints(Section.ORGUNIT, Permission.READ);
-		if (!readConstraints.allowsOrgunit(ou.getUuid())) {
-			throw new NotPermittedException("No permissions to read orgunit " + uuid, Section.ORGUNIT, Permission.READ);
-		}
 
 		boolean editable = false;
+		boolean isAssigner = userPermissionContext.getConstraint(permissionEntity, Permission.ASSIGN)
+			.allowsOrgunit(ou.getUuid());
 
 		List<OrgUnitLevel> allowedLevels = orgUnitService.getAllowedLevels(ou);
 
@@ -232,7 +225,7 @@ public class OrgUnitController {
 
 		model.addAttribute("allowedLevels", allowedLevels);
 		model.addAttribute("editable", editable);
-		model.addAttribute("canAssign", SecurityUtil.isOrgUnitAssigner());
+		model.addAttribute("canAssign", isAssigner);
 		model.addAttribute("ou", ou);
 		model.addAttribute("kleUiEnabled", false);
 		model.addAttribute("parentsKleIsInheritedFrom", List.of());
@@ -302,15 +295,16 @@ public class OrgUnitController {
 			return "redirect:../list";
 		}
 
-		PermissionConstraint readConstraints = userPermissionContext.getConstraints(Section.ORGUNIT, Permission.READ);
-		PermissionConstraint editConstraints = userPermissionContext.getConstraints(Section.ORGUNIT, Permission.UPDATE);
+		PermissionConstraint readConstraints = userPermissionContext.getConstraint(Section.ORGUNIT, Permission.READ);
+		PermissionConstraint editConstraints = userPermissionContext.getConstraint(Section.ORGUNIT, Permission.UPDATE);
 
 		if (!readConstraints.allowsOrgunit(ou.getUuid())) {
 			throw new NotPermittedException("No permissions to read orgunit "+uuid, Section.ORGUNIT, Permission.READ);
 		}
 
-		boolean ouEditable = userPermissionContext.hasPermission(permissionEntity, Permission.UPDATE)
-				&& editConstraints.allowsOrgunit(ou.getUuid());
+		boolean ouEditable = editConstraints.allowsOrgunit(ou.getUuid());
+		boolean isAssigner = userPermissionContext.getConstraint(permissionEntity, Permission.ASSIGN)
+			.allowsOrgunit(ou.getUuid());
 
 		List<RoleAssignedToOrgUnitDTO> assignments = new ArrayList<>();
 		if (userPermissionContext.hasPermission(Section.USER_ROLE, Permission.READ)) {
@@ -330,12 +324,12 @@ public class OrgUnitController {
 
 		model.addAttribute("assignments", assignments);
 		model.addAttribute("editable", ouEditable);
-		model.addAttribute("canAssign", SecurityUtil.isOrgUnitAssigner());
+		model.addAttribute("canAssign", isAssigner);
 
 		return "ous/fragments/manage_roles :: ouAssignedRoles";
 	}
 
-	@RequireAssignerRole
+	@RequirePermission(section = Section.ORGUNIT, permission = Permission.ASSIGN)
 	@RequestMapping(value = "/ui/ous/manage/{uuid}/addUserRole")
 	public String getAddUserRoleFragment(Model model, @PathVariable("uuid") String uuid) {
 		OrgUnit ou = orgUnitService.getByUuid(uuid);
@@ -349,7 +343,7 @@ public class OrgUnitController {
 		return "ous/fragments/manage_add_userrole :: addUserRole";
 	}
 
-	@RequireAssignerRole
+	@RequirePermission(section = Section.ORGUNIT, permission = Permission.ASSIGN)
 	@RequestMapping(value = "/ui/ous/manage/{uuid}/addRoleGroup")
 	public String getAddRoleGroupFragment(Model model, @PathVariable("uuid") String uuid) {
 		OrgUnit ou = orgUnitService.getByUuid(uuid);
@@ -427,7 +421,7 @@ public class OrgUnitController {
 		return "ous/fragments/ou_excepted_users :: table";
 	}
 
-	@RequireAssignerRole
+	@RequirePermission(section = Section.ORGUNIT, permission = Permission.ASSIGN)
 	@RequestMapping(value = "/ui/ous/manage/role/exceptedusers2/{uuid}/{assignmentId}")
 	public String getExceptedUsersRoleFragment2(Model model, @PathVariable("uuid") String uuid, @PathVariable("assignmentId") long assignmentId) {
 		OrgUnit ou = orgUnitService.getByUuid(uuid);
@@ -452,7 +446,7 @@ public class OrgUnitController {
 		return "ous/fragments/ou_excepted_users :: table";
 	}
 
-	@RequireAssignerRole
+	@RequirePermission(section = Section.ORGUNIT, permission = Permission.ASSIGN)
 	@RequestMapping(value = "/ui/ous/manage/rolegroup/exceptedusers/{uuid}/{rolegroupid}")
 	public String getExceptedUsersRoleGroupFragment(Model model, @PathVariable("uuid") String uuid, @PathVariable("rolegroupid") long roleGroupId) {
 		OrgUnit ou = orgUnitService.getByUuid(uuid);
@@ -489,7 +483,7 @@ public class OrgUnitController {
 		return "ous/fragments/ou_excepted_users :: table";
 	}
 
-	@RequireAssignerRole
+	@RequirePermission(section = Section.ORGUNIT, permission = Permission.ASSIGN)
 	@RequestMapping(value = "/ui/ous/manage/rolegroup/exceptedusers2/{uuid}/{assignmentId}")
 	public String getExceptedUsersRoleGroupFragment2(Model model, @PathVariable("uuid") String uuid, @PathVariable("assignmentId") long assignmentId) {
 		OrgUnit ou = orgUnitService.getByUuid(uuid);
@@ -522,7 +516,10 @@ public class OrgUnitController {
 			return "redirect:../list";
 		}
 
-		boolean readOnly = !(SecurityUtil.isOrgUnitAssigner() || SecurityUtil.hasRole(Constants.ROLE_KLE_ADMINISTRATOR));
+		boolean isAssigner = userPermissionContext.getConstraint(permissionEntity, Permission.ASSIGN)
+			.allowsOrgunit(ou.getUuid());
+
+		boolean readOnly = !(isAssigner || SecurityUtil.hasRole(Constants.ROLE_KLE_ADMINISTRATOR));
 		List<String> ousThatCanBeEdited = accessConstraintService.getConstrainedOrgUnits(true);
 
 		model.addAttribute("ou", ou);
@@ -561,24 +558,28 @@ public class OrgUnitController {
 
 	private List<AvailableUserRoleDTO> getAvailableUserRoles(OrgUnit orgUnit) {
 		List<AvailableUserRoleDTO> addRoles = new ArrayList<>();
-		List<UserRole> userRoles = accessConstraintService.filterUserRolesUserCanAssign(userRoleService.getAll());
+		PermissionConstraint readConstraint = userPermissionContext.getConstraint(Section.ORGUNIT, Permission.READ);
+		PermissionConstraint assignConstraint = userPermissionContext.getConstraint(Section.ORGUNIT, Permission.ASSIGN);
+
+		boolean isAdmin = SecurityUtil.getRoles().contains(Constants.ROLE_ADMINISTRATOR);
+
+		List<UserRole> userRoles = userRoleService.getAll().stream()
+			.filter(ur ->
+				!ur.isReadOnly()
+					&& !ur.isUserOnly()
+					&& !ur.isAllowPostponing() // filter out roles that allows postponing
+					&& readConstraint.allowsITSystem(ur.getItSystem().getId()) // it system must be in constraints for READ
+			)
+			.toList();
 
 		List<RoleAssignedToOrgUnitDTO> assignments = orgUnitService.getAllUserRolesAssignedToOrgUnit(orgUnit);
 
-		// filter out RC internal roles
-		if (!SecurityUtil.getRoles().contains(Constants.ROLE_ADMINISTRATOR)) {
-			userRoles = userRoles.stream().filter(role -> !role.getItSystem().getIdentifier().equals(Constants.ROLE_CATALOGUE_IDENTIFIER)).toList();
-		}
-
 		for (UserRole role : userRoles) {
-			if (role.isUserOnly() || role.isReadOnly()) {
-				continue;
-			}
-
-			// filter out roles that allows postponing
-			if (role.isAllowPostponing()) {
-				continue;
-			}
+			boolean isInternal = role.getItSystem().getIdentifier().equals(Constants.ROLE_CATALOGUE_IDENTIFIER);
+			boolean isAssignable = isAdmin // admins can always assign
+				|| (!isInternal // non-admins cannot assign internal roles
+				&& assignConstraint.allowsITSystem(role.getItSystem().getId()) // it system must be in constraints
+				&& assignConstraint.allowsOrgunit(orgUnit.getUuid())); // orgunit must be in constraints
 
 			AvailableUserRoleDTO availableUserRole = new AvailableUserRoleDTO();
 			availableUserRole.setId(role.getId());
@@ -586,6 +587,7 @@ public class OrgUnitController {
 			availableUserRole.setDescription(role.getDescription());
 			availableUserRole.setItSystem(role.getItSystem());
 			availableUserRole.setAlreadyAssigned(assignments.stream().filter(a -> a.getType() == RoleAssignmentType.USERROLE).anyMatch(a -> a.getRoleId() == role.getId()));
+			availableUserRole.setAssignable(isAssignable);
 
 			addRoles.add(availableUserRole);
 		}
@@ -594,18 +596,44 @@ public class OrgUnitController {
 	}
 
 	public List<AvailableRoleGroupDTO> getAvailableRoleGroups(OrgUnit orgUnit) {
-		List<AvailableRoleGroupDTO> addRoleGroups = new ArrayList<>();
+		PermissionConstraint readConstraint = userPermissionContext.getConstraint(Section.ROLE_GROUP, Permission.READ);
+
+		// Get ALL rolegroups
 		List<RoleGroup> roleGroups = roleGroupService.getAll();
-		roleGroups = accessConstraintService.filterRoleGroupsUserCanAssign(roleGroups);
 
 		List<RoleAssignedToOrgUnitDTO> assignments = orgUnitService.getAllRoleGroupsAssignedToOrgUnit(orgUnit);
 
+		PermissionConstraint assignConstraint = userPermissionContext.getConstraint(Section.ORGUNIT, Permission.ASSIGN);
+		long rolecatalogueId = itSystemService.getFirstByIdentifier(Constants.ROLE_CATALOGUE_IDENTIFIER).getId();
+		boolean isAdmin = SecurityUtil.hasDirectAdminRole();
+
+		// Map to DTO's, filtering out any not within READ constraints
+		List<AvailableRoleGroupDTO> addRoleGroups = new ArrayList<>();
 		for (RoleGroup roleGroup : roleGroups) {
+			Set<Long> containedRoleItsystemIds = roleGroup.getUserRoleAssignments().stream()
+				.map(ura -> ura.getUserRole().getItSystem().getId())
+				.collect(Collectors.toSet());
+
+			if (!readConstraint.allowsAllITSystems(containedRoleItsystemIds)
+				|| !readConstraint.allowsOrgunit(orgUnit.getUuid())) {
+				// if READ constraints disallow the orgunit or any of the it system for roles, the group is not shown
+				continue;
+			}
+
+
+			boolean containsInternalSystem =  containedRoleItsystemIds.contains(rolecatalogueId);
+			// Calculate if this user can assign the group
+			boolean isAssignable = isAdmin || // Admins can always assign...
+				(!containsInternalSystem // internal roles are not assignable by non-admins
+					&& assignConstraint.allowsOrgunit(orgUnit.getUuid())  // the orgunit must be within ASSIGN constraints
+					&& assignConstraint.allowsAllITSystems(containedRoleItsystemIds)); // ALL itsystems for roles contained in group must be within ASSIGN constraints
+
 			AvailableRoleGroupDTO rgr = new AvailableRoleGroupDTO();
 			rgr.setId(roleGroup.getId());
 			rgr.setName(roleGroup.getName());
 			rgr.setDescription(roleGroup.getDescription());
 			rgr.setAlreadyAssigned(assignments.stream().filter(a -> a.getType() == RoleAssignmentType.ROLEGROUP).anyMatch(a -> a.getRoleId() == roleGroup.getId()));
+			rgr.setAssignable(isAssignable);
 
 			addRoleGroups.add(rgr);
 		}
@@ -614,7 +642,6 @@ public class OrgUnitController {
 	}
 
 	private List<RoleAssignedToOrgUnitDTO> findAdditionalRolesforOU(List<RoleAssignedToOrgUnitDTO> assignments, OrgUnit ou, boolean ouEditable)  {
-		Set<Long> seenRoleGroups = new HashSet<>();
 		List<RoleAssignedToOrgUnitDTO> extraJfrs = new ArrayList<>();
 
 		Map<Permission, PermissionConstraint> constraintMap = userPermissionContext.getConstraintsPerPermission(permissionEntity);
@@ -633,20 +660,13 @@ public class OrgUnitController {
 				assignment.setCanEdit(editable);
 			} else if (assignment.getType() == RoleAssignmentType.ROLEGROUP) {
 				boolean editable = directlyAssignedRole
-						&& (assignment.getItSystem() == null || editConstraints.allowsITSystem( assignment.getItSystem().getId()));
-					assignment.setCanEdit(editable);
-
-				// no reason to expand the same RoleGroup multiple times
-				if (seenRoleGroups.contains(assignment.getRoleId())) {
-					continue;
-				}
-
-				seenRoleGroups.add(assignment.getRoleId());
+					&& (assignment.getItSystem() == null || editConstraints.allowsITSystem(assignment.getItSystem().getId()));
+				assignment.setCanEdit(editable);
 
 				// expand userRoles within the RoleGroup
 				RoleGroup roleGroup = roleGroupService.getById(assignment.getRoleId());
 				if (roleGroup != null && roleGroup.getUserRoleAssignments() != null
-						&& !roleGroup.getUserRoleAssignments().isEmpty()
+					&& !roleGroup.getUserRoleAssignments().isEmpty()
 				) {
 					for (RoleGroupUserRoleAssignment userRoleAssignment : roleGroup.getUserRoleAssignments()) {
 						extraJfrs.add(RoleAssignedToOrgUnitDTO.fromRoleGroupUserRoleAssignment(userRoleAssignment, assignment));

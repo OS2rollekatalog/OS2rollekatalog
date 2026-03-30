@@ -16,25 +16,25 @@ import lombok.ToString;
 @NoArgsConstructor
 @Schema(
 	name = "UserRoleShallow",
-	description = "Forenklet repræsentation af en brugerrolle"
+	description = "Forenklet repræsentation af en jobfunktionsrolle"
 )
 public class UserRoleShallowAM {
 	@Schema(
-		description = "Unik numerisk identifikator for brugerrollen",
+		description = "Unik numerisk identifikator for jobfunktionsrollen",
 		requiredMode = Schema.RequiredMode.REQUIRED,
 		example = "12345"
 	)
 	private Long id;
 
 	@Schema(
-		description = "Brugerrollens unikke tekstidentifikator",
+		description = "Jobfunktionsrollens unikke tekstidentifikator",
 		example = "admin-role",
 		accessMode = Schema.AccessMode.READ_ONLY
 	)
 	private String identifier;
 
 	@Schema(
-		description = "Brugerrollens visningsnavn",
+		description = "Jobfunktionsrollens visningsnavn",
 		example = "Administrator",
 		accessMode = Schema.AccessMode.READ_ONLY
 	)

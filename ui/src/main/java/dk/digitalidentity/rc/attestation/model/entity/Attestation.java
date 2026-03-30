@@ -66,9 +66,7 @@ public class Attestation {
     private AttestationType attestationType;
 
     // This field have been moved to AttestationRun but kept here for backwards compatability
-    // Can be safely removed af 2024r2 release
     @Column
-    @Deprecated
     private LocalDate deadline;
     @Column
     private ZonedDateTime verifiedAt;
@@ -86,8 +84,6 @@ public class Attestation {
     private String responsibleUserId;
 
     // This field have been moved to AttestationRun but kept here for backwards compatability
-    // Can be safely removed af 2024r2 release
-    @Deprecated
     @Column(name = "`sensitive`")
     private boolean sensitive;
 

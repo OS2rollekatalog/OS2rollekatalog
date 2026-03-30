@@ -2,10 +2,7 @@ package dk.digitalidentity.rc.controller.mvc.datatables.dao;
 
 import dk.digitalidentity.rc.controller.mvc.datatables.dao.model.CombinedRoleView;
 import dk.digitalidentity.rc.rolerequest.model.enums.RequestableBy;
-import jakarta.persistence.criteria.Join;
 import jakarta.persistence.criteria.Predicate;
-import jakarta.persistence.criteria.Root;
-import jakarta.persistence.criteria.Subquery;
 import org.springframework.data.jpa.datatables.repository.DataTablesRepository;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Repository;
@@ -19,11 +16,11 @@ import java.util.stream.Collectors;
 public interface CombinedRoleViewDatatableDao extends DataTablesRepository<CombinedRoleView, Long> {
 
 	static Specification<CombinedRoleView> isNotReadOnly() {
-		return (root, query, cb) -> cb.equal(root.get("readOnly"), false);
+		return (root, _, cb) -> cb.equal(root.get("readOnly"), false);
 	}
 
 	static Specification<CombinedRoleView> orgUnitFilterMatchesOrEmpty(List<String> ancestorOuUuids) {
-		return (root, query, cb) -> {
+		return (root, _, cb) -> {
 			// Check role filter: no filter OR filter matches
 			Predicate noRoleFilter = cb.isNull(root.get("orgUnitFilterUuids"));
 
@@ -62,7 +59,7 @@ public interface CombinedRoleViewDatatableDao extends DataTablesRepository<Combi
 	}
 
 	static Specification<CombinedRoleView> requesterPermissionIn(Collection<RequestableBy> permittedSettings) {
-		return (root, query, cb) -> {
+		return (root, _, cb) -> {
 			Predicate[] predicates = permittedSettings.stream()
 				.map(setting -> cb.like(
 					cb.concat(cb.concat(",", root.get("effectiveRequesterPermission")), ","),
@@ -74,7 +71,7 @@ public interface CombinedRoleViewDatatableDao extends DataTablesRepository<Combi
 	}
 
 	static Specification<CombinedRoleView> excludeUserRolesById(Set<Long> userRoleIds) {
-		return (root, query, cb) -> {
+		return (root, _, cb) -> {
 			if (userRoleIds == null || userRoleIds.isEmpty()) {
 				return cb.conjunction();
 			}
@@ -87,7 +84,7 @@ public interface CombinedRoleViewDatatableDao extends DataTablesRepository<Combi
 	}
 
 	static Specification<CombinedRoleView> excludeAlreadyAssigned(List<Long> assignedUserRoleIds, List<Long> assignedRoleGroupIds) {
-		return (root, query, cb) -> {
+		return (root, _, cb) -> {
 			Predicate notUserRole = cb.not(
 				cb.and(
 					cb.equal(root.get("type"), "userRole"),

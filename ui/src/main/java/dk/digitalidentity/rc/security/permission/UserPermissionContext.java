@@ -13,7 +13,6 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.context.WebApplicationContext;
 
 import java.util.Collection;
-import java.util.Collections;
 import java.util.EnumMap;
 import java.util.Map;
 import java.util.Set;
@@ -50,7 +49,7 @@ public class UserPermissionContext {
 	public PermissionConstraint getConstraint(Section section, Permission permission) {
 		Map<Permission, PermissionConstraint> permissionMap = getConstraintsPerPermission(section);
 		if (permissionMap.containsKey(permission)) {
-			// If there is a permission for this section, return either the contraons or full access
+			// If there is a permission for this section, return either the constraints or full access
 			PermissionConstraint constraint = permissionMap.get(permission);
 			return constraint == null ? new PermissionConstraint(null, null) : constraint;
 		}
@@ -63,30 +62,21 @@ public class UserPermissionContext {
 				&& permissions.get(section).containsKey(permission);
 	}
 
-	public boolean hasAnyPermissionOf(Section section, Collection<Permission> permission) {
-		if (permission == null || permission.isEmpty() || section == null) {
+	public boolean hasAnyPermissionOf(final Section section, final Collection<Permission> permissions) {
+		if (permissions == null || permissions.isEmpty() || section == null) {
+			log.warn("Permission or Section are empty. Section: {}, Permissions: {}", section, permissions);
 			return false;
 		}
-		Map<Permission, PermissionConstraint> permissionMap = permissions.get(section);
-		if (permissionMap != null && !permissionMap.isEmpty()) {
-			return permissionMap.keySet().stream().anyMatch(permission::contains);
-		}
-		return false;
+		return permissions.stream().anyMatch(p -> hasPermission(section, p));
 	}
 
-	public boolean hasPermissionForAnyOf (Collection<Section> sections, Permission permission) {
+	public boolean hasPermissionForAnyOf (final Collection<Section> sections, final Permission permission) {
 		if (permission == null || sections == null || sections.isEmpty()) {
+			log.warn("Permission or Section are empty. Sections: {}, Permissions: {}", sections, permission);
 			return false;
 		}
 
-		for (Section section : sections) {
-			Map<Permission, PermissionConstraint> permissionMap = permissions.get(section);
-			if (permissionMap != null && !permissionMap.isEmpty()) {
-				boolean hasPermission = permissionMap.containsKey(permission);
-				if (hasPermission) { return true; }
-			}
-		}
-		return false;
+		return sections.stream().anyMatch(section -> hasPermission(section, permission));
 	}
 
 	public static Set<Permission> getPermissions(Map<Section, Map<Permission, PermissionConstraint>> permissionMap, Section section) {
@@ -137,14 +127,6 @@ public class UserPermissionContext {
 				updateConstraint== null ||updateConstraint.stream().anyMatch(ouUuid::contains),
 				deleteConstraint== null ||deleteConstraint.stream().anyMatch(ouUuid::contains)
 		);
-	}
-
-
-
-	public PermissionConstraint getConstraints(Section section, Permission permission) {
-		return permissions
-				.getOrDefault(section, Collections.emptyMap())
-				.getOrDefault(permission, new PermissionConstraint(Set.of(), Set.of()));
 	}
 
 	public Map<Permission, PermissionConstraint> getConstraintsPerPermission (Section section) {

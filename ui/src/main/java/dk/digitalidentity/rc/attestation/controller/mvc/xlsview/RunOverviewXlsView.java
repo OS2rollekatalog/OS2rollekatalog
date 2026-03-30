@@ -2,6 +2,7 @@ package dk.digitalidentity.rc.attestation.controller.mvc.xlsview;
 
 import dk.digitalidentity.rc.attestation.model.dto.AttestationRunDTO;
 import dk.digitalidentity.rc.attestation.model.dto.AttestationStatusListDTO;
+import dk.digitalidentity.rc.controller.mvc.xlsview.DisposableSXSSFWorkbook;
 import dk.digitalidentity.rc.dao.model.User;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -16,8 +17,7 @@ import java.util.stream.Collectors;
 public class RunOverviewXlsView extends AttestationXlsView {
 
     @Override
-    @SuppressWarnings({"DuplicatedCode", "NullableProblems"})
-    protected void buildExcelDocument(Map<String, Object> model, Workbook workbook, HttpServletRequest request, HttpServletResponse response) throws Exception {
+    protected void buildExcelDocument(Map<String, ?> model, DisposableSXSSFWorkbook workbook, HttpServletRequest request, HttpServletResponse response) throws Exception {
         createSharedResources(workbook);
 
         final AttestationRunDTO run = (AttestationRunDTO) model.get("run");
@@ -90,4 +90,8 @@ public class RunOverviewXlsView extends AttestationXlsView {
         }
     }
 
+	@Override
+	protected String getFilename() {
+		return "attestations-oversigt.xlsx";
+	}
 }

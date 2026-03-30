@@ -16,13 +16,12 @@ import dk.digitalidentity.rc.controller.api.dto.read.UserRoleExtendedReadDTO;
 import dk.digitalidentity.rc.controller.api.dto.read.UserRoleReadDTO;
 import dk.digitalidentity.rc.dao.model.Domain;
 import dk.digitalidentity.rc.dao.model.ItSystem;
-import dk.digitalidentity.rc.dao.model.PostponedConstraint;
 import dk.digitalidentity.rc.dao.model.RoleGroup;
 import dk.digitalidentity.rc.dao.model.SystemRoleAssignment;
 import dk.digitalidentity.rc.dao.model.SystemRoleAssignmentConstraintValue;
 import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserRole;
-import dk.digitalidentity.rc.dao.model.UserUserRoleAssignment;
+import dk.digitalidentity.rc.dao.model.assignment.CurrentAssignment;
 import dk.digitalidentity.rc.dao.model.enums.ConstraintValueType;
 import dk.digitalidentity.rc.exceptions.OrgUnitNotFoundException;
 import dk.digitalidentity.rc.security.RequireApiReadAccessRole;
@@ -32,9 +31,10 @@ import dk.digitalidentity.rc.service.OrgUnitService;
 import dk.digitalidentity.rc.service.RoleGroupService;
 import dk.digitalidentity.rc.service.UserRoleService;
 import dk.digitalidentity.rc.service.UserService;
+import dk.digitalidentity.rc.service.assignment.AssignmentService;
+import dk.digitalidentity.rc.service.model.AssignedThrough;
 import dk.digitalidentity.rc.service.model.Constraint;
 import dk.digitalidentity.rc.service.model.PrivilegeGroup;
-import dk.digitalidentity.rc.service.model.UserWithRole;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import org.modelmapper.ModelMapper;
 import org.modelmapper.TypeToken;
@@ -56,6 +56,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @RequireApiReadAccessRole
@@ -83,6 +84,8 @@ public class ReadOnlyApi {
 
 	@Autowired
 	private DomainService domainService;
+	@Autowired
+	private AssignmentService assignmentService;
 
 	@GetMapping("/api/read/itsystem/roleAssignmentsWithContraints/{system}")
 	public ResponseEntity<List<RoleAssignmentsWithContraints>> getRoleAssignmentsWithContraints(@PathVariable("system") String itSystemIdentifier, @RequestParam(name = "domain", required = false) String domain) {
@@ -102,20 +105,11 @@ public class ReadOnlyApi {
 				return new ResponseEntity<>(result, HttpStatus.NOT_FOUND);
 			}
 		}
-		
-		// find all users with a role in this system, in a HashMap to ensure single entry per user
-		Map<String, User> users = new HashMap<>();
-		List<UserRole> allRolesInSystem = userRoleService.getByItSystem(itSystem);
-		
-		for (UserRole userRole : allRolesInSystem) {
-			List<UserWithRole> usersWithRole = userService.getUsersWithUserRole(userRole, true);
 
-			for (UserWithRole userWithRole : usersWithRole) {
-				users.put(userWithRole.getUser().getExtUuid(), userWithRole.getUser());
-			}
-		}
+		// find all users with a role in this system
+		Set<User> usersWithRoles = assignmentService.getUsersForSystem(itSystem);
 
-		for (User user : users.values()) {
+		for (User user : usersWithRoles) {
 			if (!Objects.equals(user.getDomain().getName(), foundDomain.getName())) {
 				continue;
 			}
@@ -124,32 +118,32 @@ public class ReadOnlyApi {
 			rawc.setExtUuid(user.getExtUuid());
 			rawc.setUserId(user.getUserId());
 			rawc.setAssignments(new ArrayList<>());
-		
+
 			List<PrivilegeGroup> privilegeGroups = userService.generateOIOBPPPrivileges(user, Collections.singletonList(itSystem), new HashMap<>());
-			
+
 			for (PrivilegeGroup privilegeGroup : privilegeGroups) {
 				RoleAssignmentWithContraints assignment = new RoleAssignmentWithContraints();
 				assignment.setRoleIdentifier(privilegeGroup.getPrivilege().getIdentifier());
 				assignment.setRoleName(privilegeGroup.getPrivilege().getName());
 				assignment.setRoleConstraintValues(new ArrayList<>());
-				
+
 				for (Constraint constraint : privilegeGroup.getConstraints()) {
 					ConstraintValue cv = new ConstraintValue();
 					cv.setConstraintType(constraint.getType());
 					cv.setConstraintValues(constraint.getValue().split(","));
-					
+
 					assignment.getRoleConstraintValues().add(cv);
 				}
 
 				rawc.getAssignments().add(assignment);
 			}
-			
+
 			result.add(rawc);
 		}
 
 		return new ResponseEntity<>(result, HttpStatus.OK);
 	}
-	
+
 	@RequestMapping(value = "/api/read/itsystem/{system}", method = RequestMethod.GET)
 	public ResponseEntity<List<UserReadWrapperDTO>> getUsersWithGivenUserRoles(@PathVariable("system") String itSystemIdentifier, @RequestParam(name = "indirectRoles", defaultValue = "false") boolean findIndirectlyAssignedRoles, @RequestParam(name = "withDescription", defaultValue = "false") boolean withDescription, @RequestParam(name = "withConstraintTypeValueSet", defaultValue = "false") boolean withConstraintTypeValueSet, @RequestParam(name = "domain", required = false) String domain, @RequestParam(name = "includePostponedConstraints", defaultValue = "false") boolean includePostponedConstraints) {
 		Domain foundDomain = domainService.getDomainOrPrimary(domain);
@@ -171,23 +165,34 @@ public class ReadOnlyApi {
 				catch (Exception ex) {
 					;
 				}
-				
+
 				if (itSystem == null) {
 					return new ResponseEntity<>(result, HttpStatus.NOT_FOUND);
 				}
 			}
 		}
 
-		List<UserRole> userRoles = userRoleService.getByItSystem(itSystem);
-		for (UserRole userRole : userRoles) {
-			UserReadWrapperDTO dto = getUsersWithUserRole(userRole, findIndirectlyAssignedRoles, withDescription, withConstraintTypeValueSet, foundDomain, includePostponedConstraints);
+		// find relevant assignments
+		Set<CurrentAssignment> assignments = findIndirectlyAssignedRoles ?
+			assignmentService.getBySystem(itSystem)
+			: assignmentService.getDirectlyAssignedInItSystem(itSystem);
+
+		// Map the assignments by user role id
+		Map<UserRole, Set<CurrentAssignment>> assignmentsByUserRoles = assignments.stream().collect(Collectors.groupingBy(
+			CurrentAssignment::getUserRole,
+			Collectors.toSet()
+		));
+
+		for (Map.Entry<UserRole, Set<CurrentAssignment>> entry : assignmentsByUserRoles.entrySet()) {
+			// map to dto
+			UserReadWrapperDTO dto = getUsersWithUserRole(entry.getKey(), entry.getValue(), withDescription, withConstraintTypeValueSet, foundDomain, includePostponedConstraints);
 
 			result.add(dto);
 		}
 
 		return new ResponseEntity<>(result, HttpStatus.OK);
 	}
-	
+
 	@RequestMapping(value = "/api/read/assigned/{id}", method = RequestMethod.GET)
 	public ResponseEntity<UserReadWrapperDTO> getUsersWithGivenUserRole(@PathVariable("id") long userRoleId, @RequestParam(name = "indirectRoles", defaultValue = "false") boolean findIndirectlyAssignedRoles, @RequestParam(name = "withDescription", defaultValue = "false") boolean withDescription, @RequestParam(name = "domain", required = false) String domain) {
 		UserRole userRole = userRoleService.getById(userRoleId);
@@ -200,103 +205,116 @@ public class ReadOnlyApi {
 			return new ResponseEntity<>(HttpStatus.NOT_FOUND);
 		}
 
-		UserReadWrapperDTO dto = getUsersWithUserRole(userRole, findIndirectlyAssignedRoles, withDescription, false, foundDomain, false);
+		Set<CurrentAssignment> assignments = findIndirectlyAssignedRoles ?
+			assignmentService.getByUserRole(userRole)
+			: assignmentService.getByDirectlyAssignedUserRole(userRole);
+
+		UserReadWrapperDTO dto = getUsersWithUserRole(userRole, assignments, withDescription, false, foundDomain, false);
 
 		return new ResponseEntity<>(dto, HttpStatus.OK);
 	}
 
-	private UserReadWrapperDTO getUsersWithUserRole(UserRole userRole, boolean indirect, boolean withDescription, boolean withConstraintTypeValueSet, Domain domain, boolean includePostponedConstraints) {
+	private UserReadWrapperDTO getUsersWithUserRole(UserRole userRole, Set<CurrentAssignment> userRoleAssignments, boolean withDescription, boolean withConstraintTypeValueSet, Domain domain, boolean includePostponedConstraints) {
+		UserReadWrapperDTO dto = createBasicDTO(userRole, withDescription);
+
+		for (SystemRoleAssignment assignment : userRole.getSystemRoleAssignments()) {
+			dto.getSystemRoles().add(toUserReadRoleSystemRole(assignment, withConstraintTypeValueSet));
+		}
+
+		for (CurrentAssignment userRoleAssignment : userRoleAssignments) {
+			User user = userRoleAssignment.getUser();
+
+			UserReadDTO userReadDto = null;
+
+			// Ensure user has the right domain
+			if (!Objects.equals(user.getDomain().getName(), domain.getName())) {
+				continue;
+			}
+
+			userReadDto = new UserReadDTO();
+			AssignedThrough assignedThroughs = assignmentService.getAssignedThrough(userRoleAssignment);
+			userReadDto.setAssignedThrough(List.of(assignedThroughs));
+			userReadDto.setName(user.getName());
+			userReadDto.setUserId(user.getUserId());
+			userReadDto.setUuid(user.getUuid());
+			userReadDto.setExtUuid(user.getExtUuid());
+
+			if (includePostponedConstraints) {
+				List<PostponedConstraintReadDTO> postponedConstraints = userRoleAssignment.getPostponedConstraints().stream()
+					.map(p -> new PostponedConstraintReadDTO(p, userRole.getId()))
+					.toList();
+				userReadDto.setPostponedConstraints(postponedConstraints);
+			}
+
+			dto.getAssignments().add(userReadDto);
+
+
+		}
+
+		return dto;
+	}
+
+	private UserReadWrapperDTO createBasicDTO(UserRole userRole, boolean withDescription) {
 		UserReadWrapperDTO dto = new UserReadWrapperDTO();
 		dto.setRoleId(userRole.getId());
 		dto.setRoleIdentifier(userRole.getIdentifier());
 		if (withDescription) {
 			dto.setRoleDescription(userRole.getDescription());
 		}
-		dto.setRoleName(userRole.getName());		
+		dto.setRoleName(userRole.getName());
 		dto.setSystemRoles(new ArrayList<>());
 		dto.setAssignments(new ArrayList<>());
+		return dto;
+	}
 
-		for (SystemRoleAssignment assignment : userRole.getSystemRoleAssignments()) {
-			UserReadRoleSystemRole dtoAssignment = new UserReadRoleSystemRole();
-			dtoAssignment.setRoleIdentifier(assignment.getSystemRole().getIdentifier());
-			dtoAssignment.setRoleName(assignment.getSystemRole().getName());
-			dtoAssignment.setRoleConstraintValues(new ArrayList<>());
-			
-			for (SystemRoleAssignmentConstraintValue constraintValue : assignment.getConstraintValues()) {
-				UserReadSystemRoleConstraintValue dtoConstraintValue = new UserReadSystemRoleConstraintValue();
-				dtoConstraintValue.setConstraintType(constraintValue.getConstraintType().getEntityId());
-				if (constraintValue.getConstraintValueType().equals(ConstraintValueType.VALUE)) {
-					dtoConstraintValue.setConstraintValue(constraintValue.getConstraintValue());
-				}
-				else {
-					dtoConstraintValue.setConstraintValue("*** DYNAMIC ***");
-				}
-				if( withConstraintTypeValueSet ) {
-					var constraintTypeValueSet = constraintValue.getConstraintType().getValueSet().stream()
-							.map(v -> new UserReadConstraintTypeValueSetDTO(v.getConstraintKey(),v.getConstraintValue()))
-							.collect(Collectors.toList());
-					dtoConstraintValue.setConstraintTypeValueSet(constraintTypeValueSet);
-				}
-				dtoAssignment.getRoleConstraintValues().add(dtoConstraintValue);
-			}
+	private UserReadRoleSystemRole toUserReadRoleSystemRole(SystemRoleAssignment assignment, boolean withConstraintTypeValueSet) {
+		UserReadRoleSystemRole dtoAssignment = new UserReadRoleSystemRole();
+		dtoAssignment.setRoleIdentifier(assignment.getSystemRole().getIdentifier());
+		dtoAssignment.setRoleName(assignment.getSystemRole().getName());
+		dtoAssignment.setRoleConstraintValues(new ArrayList<>());
 
-			dtoAssignment.setWeight(assignment.getSystemRole().getWeight());
-			dto.getSystemRoles().add(dtoAssignment);
-		}
-
-		List<UserWithRole> users = userService.getUsersWithUserRole(userRole, indirect);
-		for (UserWithRole user : users) {
-			if (!Objects.equals(user.getUser().getDomain().getName(), domain.getName())) {
-				continue;
-			}
-			
-			UserReadDTO userReadDto = null;
-			
-			// have we seen this user before?
-			for (UserReadDTO readDto : dto.getAssignments()) {
-				if (readDto.getUuid().equals(user.getUser().getUuid())) {
-					userReadDto = readDto;
-					break;
-				}
-			}
-
-			List<PostponedConstraint> postponedConstraints = new ArrayList<>();
-			if (includePostponedConstraints) {
-				List<UserUserRoleAssignment> assignments = user.getUser().getUserRoleAssignments().stream().filter(u -> u.getUserRole().getId() == userRole.getId()).collect(Collectors.toList());
-				for (UserUserRoleAssignment assignment : assignments) {
-					postponedConstraints.addAll(assignment.getPostponedConstraints());
-				}
-			}
-			
-			if (userReadDto != null) {
-				userReadDto.getAssignedThrough().add(user.getAssignedThrough());
+		for (SystemRoleAssignmentConstraintValue constraintValue : assignment.getConstraintValues()) {
+			UserReadSystemRoleConstraintValue dtoConstraintValue = new UserReadSystemRoleConstraintValue();
+			dtoConstraintValue.setConstraintType(constraintValue.getConstraintType().getEntityId());
+			if (constraintValue.getConstraintValueType().equals(ConstraintValueType.VALUE)) {
+				dtoConstraintValue.setConstraintValue(constraintValue.getConstraintValue());
 			}
 			else {
-				userReadDto = new UserReadDTO();
-				userReadDto.getAssignedThrough().add(user.getAssignedThrough());
-				userReadDto.setName(user.getUser().getName());
-				userReadDto.setUserId(user.getUser().getUserId());
-				userReadDto.setUuid(user.getUser().getUuid());
-				userReadDto.setExtUuid(user.getUser().getExtUuid());
-				userReadDto.setPostponedConstraints(postponedConstraints.stream().map(p -> new PostponedConstraintReadDTO(p)).collect(Collectors.toList()));
-
-				dto.getAssignments().add(userReadDto);
+				dtoConstraintValue.setConstraintValue("*** DYNAMIC ***");
 			}
+			if( withConstraintTypeValueSet ) {
+				var constraintTypeValueSet = constraintValue.getConstraintType().getValueSet().stream()
+					.map(v -> new UserReadConstraintTypeValueSetDTO(v.getConstraintKey(),v.getConstraintValue()))
+					.collect(Collectors.toList());
+				dtoConstraintValue.setConstraintTypeValueSet(constraintTypeValueSet);
+			}
+			dtoAssignment.getRoleConstraintValues().add(dtoConstraintValue);
 		}
-		
-		return dto;
+
+		dtoAssignment.setWeight(assignment.getSystemRole().getWeight());
+
+		return dtoAssignment;
 	}
 
 	@RequestMapping(value = "/api/read/user/{uuid}/roles", method = RequestMethod.GET)
 	public ResponseEntity<List<UserRoleReadDTO>> getUserRoles(@PathVariable("uuid") String uuid, @RequestParam(name = "domain", required = false) String domain) {
-		List<UserRole> roles = new ArrayList<>();
-
 		Domain foundDomain = domainService.getDomainOrPrimary(domain);
 		if (foundDomain == null) {
 			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
 		}
 
-		roles = userService.getUserRolesAssignedDirectly(uuid, foundDomain);
+		User user = userService.getUserForReadOnlyApi(uuid, foundDomain);
+
+		// Get directly assigned userRoles (not via roleGroup, OrgUnit, or Title)
+		Set<CurrentAssignment> assignments = assignmentService.getActiveDirectlyAssignedUserRolesForUser(user);
+
+		// Deduplicate by userRole ID
+		Map<Long, UserRole> uniqueUserRoles = new HashMap<>();
+		for (CurrentAssignment assignment : assignments) {
+			uniqueUserRoles.putIfAbsent(assignment.getUserRole().getId(), assignment.getUserRole());
+		}
+
+		List<UserRole> roles = new ArrayList<>(uniqueUserRoles.values());
 
 		Type targetListType = new TypeToken<List<UserRoleReadDTO>>() {}.getType();
 		List<UserRoleReadDTO> result = mapper.map(roles, targetListType);
@@ -310,7 +328,18 @@ public class ReadOnlyApi {
 		if (foundDomain == null) {
 			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
 		}
-		List<RoleGroup> roles = userService.getRoleGroupsAssignedDirectly(uuid, foundDomain);
+		User user = userService.getUserForReadOnlyApi(uuid, foundDomain);
+
+		// Get directly assigned roleGroups (not via OrgUnit or Title)
+		Set<CurrentAssignment> assignments = assignmentService.getActiveDirectlyAssignedRoleGroupsForUser(user);
+
+		// Deduplicate by roleGroup ID
+		Map<Long, RoleGroup> uniqueRoleGroups = new HashMap<>();
+		for (CurrentAssignment assignment : assignments) {
+			uniqueRoleGroups.putIfAbsent(assignment.getRoleGroup().getId(), assignment.getRoleGroup());
+		}
+
+		List<RoleGroup> roles = new ArrayList<>(uniqueRoleGroups.values());
 
 		Type targetListType = new TypeToken<List<RoleGroupReadDTO>>() {}.getType();
 		List<RoleGroupReadDTO> result = mapper.map(roles, targetListType);
@@ -321,7 +350,6 @@ public class ReadOnlyApi {
 	@RequestMapping(value = "/api/read/ous/{uuid}/roles", method = RequestMethod.GET)
 	public ResponseEntity<List<UserRoleReadDTO>> getOuRoles(@PathVariable("uuid") String uuid) {
 		List<UserRole> roles = null;
-
 		try {
 			// TODO: make inherit an argument
 			roles = orgUnitService.getUserRoles(uuid, false);
@@ -335,7 +363,7 @@ public class ReadOnlyApi {
 
 		return new ResponseEntity<>(result, HttpStatus.OK);
 	}
-	
+
 	@RequestMapping(value = "/api/read/ous/{uuid}/rolegroups", method = RequestMethod.GET)
 	public ResponseEntity<List<RoleGroupReadDTO>> getOuRolegroups(@PathVariable("uuid") String uuid) {
 		List<RoleGroup> roles = null;
@@ -388,11 +416,11 @@ public class ReadOnlyApi {
 	@RequestMapping(value = "/api/read/userroles", method = RequestMethod.GET)
 	public ResponseEntity<List<UserRoleReadDTO>> listUserRoles() {
 		List<UserRole> userRoles = userRoleService.getAll();
-		
+
 		List<UserRoleReadDTO> list = new ArrayList<UserRoleReadDTO>();
 		for (UserRole userRole : userRoles) {
 			UserRoleReadDTO dto = new UserRoleReadDTO(userRole);
-			
+
 			list.add(dto);
 		}
 

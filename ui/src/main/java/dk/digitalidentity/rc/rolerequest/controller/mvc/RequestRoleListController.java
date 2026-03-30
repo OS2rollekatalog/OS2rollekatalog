@@ -1,9 +1,15 @@
 package dk.digitalidentity.rc.rolerequest.controller.mvc;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Locale;
-
+import dk.digitalidentity.rc.dao.model.RoleGroup;
+import dk.digitalidentity.rc.dao.model.RoleGroupUserRoleAssignment;
+import dk.digitalidentity.rc.dao.model.User;
+import dk.digitalidentity.rc.dao.model.assignment.CurrentAssignment;
+import dk.digitalidentity.rc.rolerequest.controller.mvc.enums.RoleType;
+import dk.digitalidentity.rc.service.RoleGroupService;
+import dk.digitalidentity.rc.service.SettingsService;
+import dk.digitalidentity.rc.service.UserService;
+import dk.digitalidentity.rc.service.assignment.AssignmentService;
+import dk.digitalidentity.rc.service.model.AssignedThrough;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.MessageSource;
 import org.springframework.context.i18n.LocaleContextHolder;
@@ -14,15 +20,11 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.server.ResponseStatusException;
 
-import dk.digitalidentity.rc.dao.model.RoleGroup;
-import dk.digitalidentity.rc.dao.model.RoleGroupUserRoleAssignment;
-import dk.digitalidentity.rc.dao.model.User;
-import dk.digitalidentity.rc.rolerequest.controller.mvc.enums.RoleType;
-import dk.digitalidentity.rc.service.RoleGroupService;
-import dk.digitalidentity.rc.service.SettingsService;
-import dk.digitalidentity.rc.service.UserService;
-import dk.digitalidentity.rc.service.model.RoleGroupAssignedToUser;
-import dk.digitalidentity.rc.service.model.UserRoleAssignedToUser;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Controller
 public class RequestRoleListController {
@@ -37,6 +39,9 @@ public class RequestRoleListController {
 	private UserService userService;
 	@Autowired
 	private MessageSource messageSource;
+
+	@Autowired
+	private AssignmentService assignmentService;
 
 	record RoleGroupUserRole(String itSystemName, String name, String description) {}
 	@GetMapping(value = "/ui/request/rolegroups/{roleGroupId}/userroles")
@@ -69,13 +74,35 @@ public class RequestRoleListController {
 		List<RoleForUser> userRoles = new ArrayList<>();
 		List<RoleForUser> roleGroups = new ArrayList<>();
 
-		for (RoleGroupAssignedToUser roleGroupAssignment : userService.getAllRoleGroupsAssignedToUser(user)) {
-			roleGroups.add(new RoleForUser(roleGroupAssignment.getRoleGroup().getId(), roleGroupAssignment.getAssignmentId(), RoleType.ROLE_GROUP, "", roleGroupAssignment.getRoleGroup().getName(), roleGroupAssignment.getRoleGroup().getDescription(), messageSource.getMessage(roleGroupAssignment.getAssignedThrough().getMessage(), null, locale)));
+		Set<CurrentAssignment> currentAssignments = assignmentService.getByUserIncludingInactive(user);
+		Set<CurrentAssignment> uniqueRoleGroupAssignments = assignmentService.getUniqueRoleGroupAssignments(currentAssignments);
+
+		for (CurrentAssignment assignment : uniqueRoleGroupAssignments) {
+			AssignedThrough assignedThrough = assignmentService.getAssignedThroughForRoleGroup(assignment);
+			roleGroups.add(new RoleForUser(
+				assignment.getRoleGroup().getId(),
+				assignment.getAssignmentId(),
+				RoleType.ROLE_GROUP,
+				"",
+				assignment.getRoleGroup().getName(),
+				assignment.getRoleGroup().getDescription(),
+				messageSource.getMessage(assignedThrough.getMessage(), null, locale)
+			));
 		}
 
-		for (UserRoleAssignedToUser userRoleAssignment : userService.getAllUserRolesAssignedToUserExemptingRoleGroups(user, null)) {
-			userRoles.add(new RoleForUser(userRoleAssignment.getUserRole().getId(), userRoleAssignment.getAssignmentId(), RoleType.USER_ROLE, userRoleAssignment.getUserRole().getItSystem().getName(), userRoleAssignment.getUserRole().getName(), userRoleAssignment.getUserRole().getDescription(), messageSource.getMessage(userRoleAssignment.getAssignedThrough().getMessage(), null, locale)));
+		for (CurrentAssignment assignment : currentAssignments.stream().filter(a -> a.getRoleGroup() == null).collect(Collectors.toSet())) {
+			AssignedThrough assignedThrough = assignmentService.getAssignedThrough(assignment);
+			userRoles.add(new RoleForUser(
+				assignment.getUserRole().getId(),
+				assignment.getAssignmentId(),
+				RoleType.USER_ROLE,
+				assignment.getUserRole().getItSystem().getName(),
+				assignment.getUserRole().getName(),
+				assignment.getUserRole().getDescription(),
+				messageSource.getMessage(assignedThrough.getMessage(), null, locale)
+			));
 		}
+
 
 		//get setting for reason requirement
 		model.addAttribute("reasonRequirement", settingsService.getRolerequestReason().toString());

@@ -1,36 +1,14 @@
 package dk.digitalidentity.rc.controller.mvc;
 
-import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
-import dk.digitalidentity.rc.controller.mvc.viewmodel.RoleGroupForm;
-import dk.digitalidentity.rc.controller.mvc.viewmodel.TitleListForm;
-import dk.digitalidentity.rc.controller.mvc.viewmodel.UserRoleAddOrgUnitDTO;
-import dk.digitalidentity.rc.controller.rest.model.ItemPermissionDTO;
-import dk.digitalidentity.rc.controller.validator.RolegroupValidator;
-import dk.digitalidentity.rc.dao.model.Function;
-import dk.digitalidentity.rc.dao.model.OrgUnit;
-import dk.digitalidentity.rc.dao.model.RoleGroup;
-import dk.digitalidentity.rc.dao.model.Title;
-import dk.digitalidentity.rc.dao.model.User;
-import dk.digitalidentity.rc.rolerequest.model.enums.ApprovableBy;
-import dk.digitalidentity.rc.rolerequest.model.enums.RequestableBy;
-import dk.digitalidentity.rc.security.SecurityUtil;
-import dk.digitalidentity.rc.security.permission.Permission;
-import dk.digitalidentity.rc.security.permission.PermissionConstraint;
-import dk.digitalidentity.rc.security.permission.Section;
-import dk.digitalidentity.rc.security.permission.RequireControllerPermission;
-import dk.digitalidentity.rc.security.permission.RequirePermission;
-import dk.digitalidentity.rc.security.permission.UserPermissionContext;
-import dk.digitalidentity.rc.service.FunctionService;
-import dk.digitalidentity.rc.service.ManagerSubstituteService;
-import dk.digitalidentity.rc.service.OrgUnitService;
-import dk.digitalidentity.rc.service.RoleGroupService;
-import dk.digitalidentity.rc.service.SettingsService;
-import dk.digitalidentity.rc.service.TitleService;
-import dk.digitalidentity.rc.service.UserService;
-import dk.digitalidentity.rc.service.model.OrgUnitWithRole2;
-import dk.digitalidentity.rc.service.model.UserWithRole;
-import jakarta.validation.Valid;
-import lombok.RequiredArgsConstructor;
+import java.security.Principal;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
+import java.util.stream.Collectors;
+
 import org.modelmapper.ModelMapper;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -43,14 +21,43 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 
-import java.security.Principal;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Set;
-import java.util.stream.Collectors;
+import dk.digitalidentity.rc.config.Constants;
+import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
+import dk.digitalidentity.rc.controller.mvc.viewmodel.OUListForm;
+import dk.digitalidentity.rc.controller.mvc.viewmodel.RoleGroupForm;
+import dk.digitalidentity.rc.controller.mvc.viewmodel.TitleListForm;
+import dk.digitalidentity.rc.controller.mvc.viewmodel.UserRoleAddOrgUnitDTO;
+import dk.digitalidentity.rc.controller.rest.model.ItemPermissionDTO;
+import dk.digitalidentity.rc.controller.validator.RolegroupValidator;
+import dk.digitalidentity.rc.dao.model.Function;
+import dk.digitalidentity.rc.dao.model.OrgUnit;
+import dk.digitalidentity.rc.dao.model.RoleGroup;
+import dk.digitalidentity.rc.dao.model.Title;
+import dk.digitalidentity.rc.dao.model.User;
+import dk.digitalidentity.rc.dao.model.assignment.CurrentAssignment;
+import dk.digitalidentity.rc.rolerequest.model.enums.ApprovableBy;
+import dk.digitalidentity.rc.rolerequest.model.enums.RequestableBy;
+import dk.digitalidentity.rc.security.SecurityUtil;
+import dk.digitalidentity.rc.security.permission.Permission;
+import dk.digitalidentity.rc.security.permission.PermissionConstraint;
+import dk.digitalidentity.rc.security.permission.RequireControllerPermission;
+import dk.digitalidentity.rc.security.permission.RequirePermission;
+import dk.digitalidentity.rc.security.permission.Section;
+import dk.digitalidentity.rc.security.permission.UserPermissionContext;
+import dk.digitalidentity.rc.service.FunctionService;
+import dk.digitalidentity.rc.service.ManagerSubstituteService;
+import dk.digitalidentity.rc.service.OrgUnitService;
+import dk.digitalidentity.rc.service.RoleGroupService;
+import dk.digitalidentity.rc.service.SettingsService;
+import dk.digitalidentity.rc.service.TitleService;
+import dk.digitalidentity.rc.service.UserService;
+import dk.digitalidentity.rc.service.assignment.AssignmentService;
+import dk.digitalidentity.rc.service.model.AssignedThrough;
+import dk.digitalidentity.rc.service.model.OrgUnitWithRole2;
+import dk.digitalidentity.rc.service.model.RoleAssignmentType;
+import dk.digitalidentity.rc.service.model.UserWithRole;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
 
 @RequiredArgsConstructor
 @RequireControllerPermission(section = Section.ROLE_GROUP, permission = Permission.READ)
@@ -68,6 +75,7 @@ public class RoleGroupController {
 	private final ManagerSubstituteService managerSubstituteService;
 	private final FunctionService functionService;
     private final SettingsService settingsService;
+	private final AssignmentService assignmentService;
 
 	private static final Section permissionEntity = Section.ROLE_GROUP;
 
@@ -134,6 +142,20 @@ public class RoleGroupController {
 //		model.addAttribute("roles", getAddRoles(roleGroup));
 		model.addAttribute("titlesEnabled", titlesEnabled);
 
+		PermissionConstraint readOrgunitConstraint = userPermissionContext.getConstraint(Section.ORGUNIT, Permission.READ);
+		List<OUListForm> ouListForms = orgUnitService.getAllCached().stream()
+			.filter(ou -> readOrgunitConstraint.allowsOrgunit(ou.getUuid()))
+			.map(ou -> new OUListForm(ou, false))
+			.toList();
+
+		List<String> selectedOus = roleGroup.getOrgUnitFilterOrgUnits().stream()
+			.map(OrgUnit::getUuid)
+			.filter(readOrgunitConstraint::allowsOrgunit)
+			.toList();
+
+		model.addAttribute("treeOUs", ouListForms);
+		model.addAttribute("selectedFilterOUs", selectedOus);
+
 		return "rolegroups/edit";
 	}
 
@@ -160,19 +182,65 @@ public class RoleGroupController {
 		return "redirect:edit/" + roleGroup.getId();
 	}
 
+	@RequirePermission( section = Section.ROLE_GROUP, permission = Permission.CREATE)
+	@GetMapping(value = "/ui/rolegroups/copy/{id}")
+	public String getCopyRoleGroupView(Model model, @PathVariable("id") long id) {
+		RoleGroup roleGroup = roleGroupService.getById(id);
+		if (roleGroup == null) {
+			return "redirect:../list";
+		}
+
+		RoleGroupForm copyDto = new RoleGroupForm();
+		copyDto.setId(roleGroup.getId());
+		copyDto.setName("Kopi af " + roleGroup.getName());
+		copyDto.setDescription(roleGroup.getDescription());
+
+		model.addAttribute("rolegroup", copyDto);
+
+		return "rolegroups/copy";
+	}
+
+	@RequirePermission( section = Section.ROLE_GROUP, permission = Permission.CREATE)
+	@PostMapping(value = "/ui/rolegroups/copy/{id}")
+	public String copyRolegroup(Model model, @PathVariable("id") long id, @Valid @ModelAttribute("rolegroup") RoleGroupForm rolegroupForm, BindingResult bindingResult) {
+		RoleGroup roleGroupToCopy = roleGroupService.getById(id);
+		if (roleGroupToCopy == null) {
+			return "redirect:../list";
+		}
+
+		if (bindingResult.hasErrors()) {
+			model.addAllAttributes(bindingResult.getModel());
+			model.addAttribute("rolegroup", rolegroupForm);
+			return "rolegroups/copy";
+		}
+
+		RoleGroup roleGroup = roleGroupService.copyRoleGroup(rolegroupForm, roleGroupToCopy);
+
+		return "redirect:/ui/rolegroups/edit/" + roleGroup.getId();
+	}
+
 	@GetMapping(value = "/ui/rolegroups/{id}/assignedUsersFragment")
 	public String assignedUsersFragment(Model model, @PathVariable("id") long roleGroupId, @RequestParam(name = "showEdit", required = false, defaultValue = "false") boolean showEdit) {
 		RoleGroup group = roleGroupService.getById(roleGroupId);
 		if (group == null) {
 			return "redirect:../list";
 		}
+		boolean canEdit = SecurityUtil.getRoles().contains(Constants.ROLE_ADMINISTRATOR);
 		Map<Permission, PermissionConstraint> constraintMap = userPermissionContext.getConstraintsPerPermission(permissionEntity);
 		PermissionConstraint readConstraint = constraintMap.get(Permission.READ);
 
-		List<UserWithRole> usersWithRoleMapping = userService.getUsersWithRoleGroup(group, true).stream()
-				// Filter by allowed orgunits
-				.filter(uwr -> readConstraint.allowsOrgunit(uwr.getAssignment().getOrgUnitUuid()))
-				.toList();
+		Set<CurrentAssignment> assignments = assignmentService.getActiveByRoleGroup(group);
+		Set<CurrentAssignment> uniqueAssignments = assignmentService.getUniqueRoleGroupAssignments(assignments);
+
+		List<UserWithRole> usersWithRoleMapping = uniqueAssignments.stream()
+			.map(assignment -> {
+				AssignedThrough assignedThrough = assignmentService.getAssignedThroughForRoleGroup(assignment);
+				UserWithRole userWithRole = UserWithRole.fromCurrentAssignment(assignment, assignedThrough, RoleAssignmentType.ROLEGROUP);
+				userWithRole.getAssignment().setCanEdit(canEdit && assignedThrough.equals(AssignedThrough.DIRECT));
+				return userWithRole;
+			})
+			.filter(uwr -> readConstraint.allowsOrgunit(uwr.getAssignment().getOrgUnitUuid()))
+			.toList();
 		model.addAttribute("userRoleMapping", usersWithRoleMapping);
 
 		model.addAttribute("showEdit", showEdit);
@@ -180,7 +248,6 @@ public class RoleGroupController {
 		return "rolegroups/fragments/manage_users :: users";
 	}
 
-	@SuppressWarnings("deprecation")
 	@GetMapping(value = "/ui/rolegroups/{id}/assignedUsersFragmentView")
 	public String assignedUsersFragmentView(Model model, @PathVariable("id") long roleGroupId) {
 		RoleGroup group = roleGroupService.getById(roleGroupId);
@@ -188,13 +255,23 @@ public class RoleGroupController {
 			return "redirect:../list";
 		}
 
+		boolean canEdit = SecurityUtil.getRoles().contains(Constants.ROLE_ADMINISTRATOR);
 		Map<Permission, PermissionConstraint> constraintMap = userPermissionContext.getConstraintsPerPermission(permissionEntity);
 		PermissionConstraint readConstraint = constraintMap.get(Permission.READ);
 
-		List<UserWithRole> usersWithRoleMapping = userService.getUsersWithRoleGroup(group, true).stream()
-				// Filter by allowed orgunits
-				.filter(uwr -> readConstraint.allowsOrgunit(uwr.getAssignment().getOrgUnitUuid()))
-				.toList();
+		Set<CurrentAssignment> assignments = assignmentService.getActiveByRoleGroup(group);
+		Set<CurrentAssignment> uniqueAssignments = assignmentService.getUniqueRoleGroupAssignments(assignments);
+
+		List<UserWithRole> usersWithRoleMapping = uniqueAssignments.stream()
+			.map(assignment -> {
+				AssignedThrough assignedThrough = assignmentService.getAssignedThroughForRoleGroup(assignment);
+				UserWithRole userWithRole = UserWithRole.fromCurrentAssignment(assignment, assignedThrough, RoleAssignmentType.ROLEGROUP);
+				userWithRole.getAssignment().setCanEdit(canEdit && assignedThrough.equals(AssignedThrough.DIRECT));
+				return userWithRole;
+			})
+			.filter(uwr -> readConstraint.allowsOrgunit(uwr.getAssignment().getOrgUnitUuid()))
+			.toList();
+
 		model.addAttribute("userRoleMapping", usersWithRoleMapping);
 
 		return "rolegroups/fragments/view_users :: users";

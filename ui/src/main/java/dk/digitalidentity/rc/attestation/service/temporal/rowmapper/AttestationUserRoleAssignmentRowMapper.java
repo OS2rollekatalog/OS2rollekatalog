@@ -34,7 +34,6 @@ public class AttestationUserRoleAssignmentRowMapper implements RowMapper<Attesta
         assignment.setResponsibleOuUuid(rs.getString("responsible_ou_uuid"));
         assignment.setRoleOuName(rs.getString("role_ou_name"));
         assignment.setRoleOuUuid(rs.getString("role_ou_uuid"));
-        assignment.setManager(rs.getBoolean("manager"));
         assignment.setAssignedThroughType(AssignedThroughType.valueOf(rs.getString("assigned_through_type")));
         assignment.setAssignedThroughName(rs.getString("assigned_through_name"));
         assignment.setAssignedThroughUuid(rs.getString("assigned_through_uuid"));

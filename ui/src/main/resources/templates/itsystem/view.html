@@ -2,7 +2,6 @@
 <html xmlns="http://www.w3.org/1999/xhtml" xmlns:th="http://www.thymeleaf.org">
 <head th:replace="~{fragments/header :: header (title=#{html.page.itsystem.view.title})}"></head>
 <body>
-
 	<div class="wrapper">
 		<header th:replace="~{fragments/navbar :: navbar-header(subpage = 'roles')}"></header>
 		<aside th:replace="~{fragments/navbar :: navbar-aside (page = 'itsystem.list', subpage = 'roles')}"></aside>
@@ -264,13 +263,19 @@
 												<tr>
 													<th class="col-md-5" th:text="#{html.entity.userrole.name}"></th>
 													<th class="col-md-6" th:text="#{html.entity.userrole.description}"></th>
+													<th th:if="${@settingsService.isRequestApproveEnabled()}" th:text="#{html.entity.itsystem.requestersetting}"></th>
+													<th th:if="${@settingsService.isRequestApproveEnabled()}" th:text="#{html.entity.itsystem.approversetting}"></th>
 													<th class="col-md-1" th:text="#{html.control.operations}"></th>
 												</tr>
 											</thead>
 											<tbody>
 												<tr th:each="role : ${userRoles}">
 													<td class="col-md-5" th:text="${role.name}"></td>
-													<td class="col-md-6" th:text="${role.description}"></td>
+													<td class="col-md-6 preformat" th:text="${role.description}"></td>
+													<td th:if="${@settingsService.isRequestApproveEnabled()}"
+														th:text="${#strings.listJoin(role.requesterPermission.![displayName], ', ')}"></td>
+													<td th:if="${@settingsService.isRequestApproveEnabled()}"
+														th:text="${#strings.listJoin(role.approverPermission.![displayName], ', ')}"></td>
 													<th:block th:if="${role.delegatedFromCvr == null}">
 														<td class="col-md-1">
 															<a th:href="@{/ui/userroles/view/{id}(id=${role.id})}"><em class="fa fa-search"></em></a>
@@ -335,13 +340,19 @@
 												<tr>
 													<th class="col-md-5" th:text="#{html.entity.userrole.name}"></th>
 													<th class="col-md-6" th:text="#{html.entity.userrole.description}"></th>
+													<th th:if="${@settingsService.isRequestApproveEnabled()}" th:text="#{html.entity.itsystem.requestersetting}"></th>
+													<th th:if="${@settingsService.isRequestApproveEnabled()}" th:text="#{html.entity.itsystem.approversetting}"></th>
 													<th class="col-md-1" th:text="#{html.control.operations}"></th>
 												</tr>
 											</thead>
 											<tbody>
 												<tr th:each="role : ${userRoles}">
 													<td class="col-md-5" th:text="${role.name}"></td>
-													<td class="col-md-6" th:text="${role.description}"></td>
+													<td class="col-md-6 preformat" th:text="${role.description}"></td>
+													<td th:if="${@settingsService.isRequestApproveEnabled()}"
+														th:text="${#strings.listJoin(role.requesterPermission.![displayName], ', ')}"></td>
+													<td th:if="${@settingsService.isRequestApproveEnabled()}"
+														th:text="${#strings.listJoin(role.approverPermission.![displayName], ', ')}"></td>
 													<th:block th:if="${role.delegatedFromCvr == null}">
 														<td class="col-md-1">
 															<a th:href="@{/ui/userroles/view/{id}(id=${role.id})}"><em class="fa fa-search"></em></a>
@@ -401,13 +412,21 @@
 												<tr>
 													<th class="col-md-5" th:text="#{html.entity.userrole.name}"></th>
 													<th class="col-md-6" th:text="#{html.entity.userrole.description}"></th>
+													<td th:if="${@settingsService.isRequestApproveEnabled()}"
+														th:text="${#strings.listJoin(role.requesterPermission.![displayName], ', ')}"></td>
+													<td th:if="${@settingsService.isRequestApproveEnabled()}"
+														th:text="${#strings.listJoin(role.approverPermission.![displayName], ', ')}"></td>
 													<th class="col-md-1" th:text="#{html.control.operations}"></th>
 												</tr>
 											</thead>
 											<tbody>
 												<tr th:each="role : ${userRoles}">
 													<td class="col-md-5" th:text="${role.name}"></td>
-													<td class="col-md-6" th:text="${role.description}"></td>
+													<td class="col-md-6 preformat" th:text="${role.description}"></td>
+													<td th:if="${@settingsService.isRequestApproveEnabled()}"
+														th:text="${#strings.listJoin(role.requesterPermission.![displayName], ', ')}"></td>
+													<td th:if="${@settingsService.isRequestApproveEnabled()}"
+														th:text="${#strings.listJoin(role.approverPermission.![displayName], ', ')}"></td>
 													<th:block th:if="${role.delegatedFromCvr == null}">
 														<td class="col-md-1">
 															<a th:href="@{/ui/userroles/view/{id}(id=${role.id})}"><em class="fa fa-search"></em></a>

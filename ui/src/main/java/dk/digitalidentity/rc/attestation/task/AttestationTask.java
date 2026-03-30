@@ -44,9 +44,6 @@ public class AttestationTask {
     private SystemRoleAssignmentsUpdaterJdbc systemRoleAssignmentsUpdaterJdbc;
 
     @Autowired
-    private UserAssignmentsUpdaterJdbc userAssignmentsUpdaterJdbc;
-
-    @Autowired
     private OuAssignmentsUpdaterJdbc ouAssignmentsUpdaterJdbc;
 
     @Autowired
@@ -69,9 +66,10 @@ public class AttestationTask {
 
     @Autowired
     private Flyway flyway;
+	@Autowired
+	private UserAssignmentsUpdaterJdbc userAssignmentsUpdaterJdbc;
 
-
-    @Timed(longTask = true, value = "attestation.finish_outstanding_task.timer")
+	@Timed(longTask = true, value = "attestation.finish_outstanding_task.timer")
     @Scheduled(cron = "${rc.attestation.finish_outstanding_cron}")
 //    @Scheduled(fixedDelay = 10000000L)
     public void finishOutstandingAttestations() {
@@ -154,8 +152,8 @@ public class AttestationTask {
     }
 
     private void updateAssignments(LocalDate now) {
-        userAssignmentsUpdaterJdbc.updateUserRoleAssignments(now);
         ouAssignmentsUpdaterJdbc.updateOuAssignments(now);
+		userAssignmentsUpdaterJdbc.updateUserRoleAssignments(now);
         systemRoleAssignmentsUpdaterJdbc.updateItSystemAssignments(now);
     }
 

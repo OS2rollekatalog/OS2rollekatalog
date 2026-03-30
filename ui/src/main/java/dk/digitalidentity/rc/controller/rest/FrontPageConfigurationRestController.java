@@ -5,7 +5,6 @@ import dk.digitalidentity.rc.dao.model.enums.EventType;
 import dk.digitalidentity.rc.dao.model.enums.LinkType;
 import dk.digitalidentity.rc.log.AuditLogContextHolder;
 import dk.digitalidentity.rc.log.AuditLogger;
-import dk.digitalidentity.rc.security.RequireAdministratorRole;
 import dk.digitalidentity.rc.security.permission.Permission;
 import dk.digitalidentity.rc.security.permission.RequireControllerPermission;
 import dk.digitalidentity.rc.security.permission.RequirePermission;
@@ -22,6 +21,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.List;
 
 @RequireControllerPermission(section = Section.CONFIG, permission = Permission.UPDATE)
 @RestController
@@ -45,6 +45,15 @@ public class FrontPageConfigurationRestController {
 			frontPageLink.setActive(true);
 			frontPageLink.setEditable(true);
 			frontPageLink.setDeletable(true);
+
+			// Set sort order to be last in the list for this type
+			List<FrontPageLink> existingLinks = frontPageLinkService
+				.getAllByLinkTypeOrderedBySortOrder(linkType);
+			int maxSortOrder = existingLinks.stream()
+				.mapToInt(FrontPageLink::getSortOrder)
+				.max()
+				.orElse(0);
+			frontPageLink.setSortOrder(maxSortOrder + 1);
 		}
 
 		if (frontPageLink.isEditable()) {
@@ -97,6 +106,28 @@ public class FrontPageConfigurationRestController {
 		AuditLogContextHolder.clearContext();
 
 		return new ResponseEntity<>(HttpStatus.OK);
+	}
+
+	@PostMapping(value = { "/rest/frontpage/links/{id}/moveUp" })
+	@ResponseBody
+	public HttpEntity<String> moveUp(@PathVariable long id) {
+		try {
+			frontPageLinkService.moveUp(id);
+			return new ResponseEntity<>(HttpStatus.OK);
+		} catch (IllegalArgumentException e) {
+			return new ResponseEntity<>(e.getMessage(), HttpStatus.NOT_FOUND);
+		}
+	}
+
+	@PostMapping(value = { "/rest/frontpage/links/{id}/moveDown" })
+	@ResponseBody
+	public HttpEntity<String> moveDown(@PathVariable long id) {
+		try {
+			frontPageLinkService.moveDown(id);
+			return new ResponseEntity<>(HttpStatus.OK);
+		} catch (IllegalArgumentException e) {
+			return new ResponseEntity<>(e.getMessage(), HttpStatus.NOT_FOUND);
+		}
 	}
 
 }

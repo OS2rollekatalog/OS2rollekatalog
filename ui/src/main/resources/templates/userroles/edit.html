@@ -529,7 +529,7 @@
                                     th:disabled="${selected}==false or ${constraintData != null} and ${constraintData.postponed}">
                                 <option th:each="type : ${supportedConstraintType.constraintType.valueSet}"
                                         th:value="${type.constraintKey}" th:text="${type.constraintValue}"
-                                        th:selected="${selected} and ${constraintData != null} and ${constraintData.constraintValue != null} and (${#strings.contains(constraintData.constraintValue, type.constraintKey)})"></option>
+                                        th:selected="${selected} and ${constraintData != null} and ${constraintData.constraintValue != null} and (${#arrays.contains(#strings.arraySplit(constraintData.constraintValue, ','), type.constraintKey)})"></option>
 
                             </select>
                         </div>
@@ -643,6 +643,7 @@ The modal ou_roles_modal shows at the top-->
 		var urlUsers = [[@{/rest/users/}]];
 		var roleGroupsUrl = [[@{/rest/rolegroups/}]];
 		var roleId = [[${role.id}]];
+		var roleName = [[${role.name}]];
 		var UIUrl = [[@{/ui/userroles/}]]
 		var urlOUs = [[@{/rest/ous/}]];
 		var userRestUrl = [[@{/rest/users/}]];
@@ -1050,54 +1051,51 @@ The modal ou_roles_modal shows at the top-->
 
 			this.loadAddUserRoleFragment = function () {
 				$("#users_menu").load(UIUrl + roleId + "/availableUsersFragment", function () {
-					//TODO
-					//fragShowDataTableFun('#listTableUsersAdd', 0);
+					const columnDefOptions = [
+						{
+							targets: [0],
+							data: 'name',
+							render: (data, type, row, meta) => {
+								if (type === 'display') {
+									let html = '<div>'
+									html += '<div>'
+									html += `<span>${data}</span>`
+									html += row.disabled ? `<span class="badge badge-warning">Deaktiveret</span>` : ''
+									html += '</div>'
+									html += row.isAlreadyAssigned ? `<div style="font-size: smaller; color: red;">Tildelt</div>` : ''
+									html += '</div>'
+									return html
+								} else { return data; }
+							}
+						},
+						{
+							targets: [1],
+							data: 'userId',
+						},
+						{
+							targets: [2],
+							data: 'positions',
+							render: (data, type, row, meta) => {
+								let html = '<ul style="list-style: none;">'
+								for (const position of data) {
+									html += `<li>${position.name} i ${position.orgUnit.name}</li>`
+								}
+								html += '</ul>'
+								return html
+							},
+						},
+						{
+							targets: [3],
+							data: 'uuid',
+							orderable: false,
+							searchable:false,
+							sortable:false,
+							render: (data, type, row, meta) => {
+								return data ? `<a href="#"onclick="userService.addUserRoleByUuid('${data}')"><em class="fa fa-plus"></em></a>` : null;
+							},
+						}
 
-                const columnDefOptions = [
-                    {
-                        targets: [0],
-                        data: 'name',
-                        render: (data, type, row, meta) => {
-                            if (type === 'display') {
-                                let html = '<div>'
-                                html += '<div>'
-                                html += `<span>${data}</span>`
-                                html += row.disabled ? `<span class="badge badge-warning">Deaktiveret</span>` : ''
-                                html += '</div>'
-                                html += row.isAlreadyAssigned ? `<div style="font-size: smaller; color: red;">Tildelt</div>` : ''
-                                html += '</div>'
-                                return html
-                            } else { return data; }
-                        }
-                    },
-                    {
-                        targets: [1],
-                        data: 'userId',
-                    },
-                    {
-                        targets: [2],
-                        data: 'positions',
-                        render: (data, type, row, meta) => {
-                            let html = '<ul style="list-style: none;">'
-                            for (const position of data) {
-                                html += `<li>${position.name} i ${position.orgUnit.name}</li>`
-                            }
-                            html += '</ul>'
-                            return html
-                        },
-                    },
-                    {
-                        targets: [3],
-                        data: 'uuid',
-                        orderable: false,
-                        searchable:false,
-                        sortable:false,
-                        render: (data, type, row, meta) => {
-                            return data ? `<a href="#"onclick="userService.addUserRoleByUuid('${data}')"><em class="fa fa-plus"></em></a>` : null;
-                        },
-                    }
-
-                ]
+					]
 
                     const table = new DatatableService().initDefaultServersideTable('#listTableUsersAdd', `${userRestUrl}available/${roleId}`, columnDefOptions)
 
@@ -1151,21 +1149,22 @@ The modal ou_roles_modal shows at the top-->
         }
 
         this.editRoleAssignment = function (elem) {
-            var parent = elem.parentElement;
-            var assignmentId = parent.dataset.assignmentid;
-            var startDate = parent.dataset.startdate;
-            var stopDate = parent.dataset.stopdate;
-            var user = parent.dataset.user;
-                var caseNumber = parent.dataset.casenumber;
-            var type = 'USERROLE';
-            var orgUnit = parent.dataset.ouuuid;
+            let parent = elem.parentElement;
+            let assignmentId = parent.dataset.assignmentid;
+            let startDate = parent.dataset.startdate;
+            let stopDate = parent.dataset.stopdate;
+            let user = parent.dataset.user;
+			let caseNumber = parent.dataset.casenumber;
+            let type = 'USERROLE';
+            let orgUnit = parent.dataset.ouuuid;
+            let roleName = parent.dataset.name;
 
             // fetch possible orgUnits and call service
             $.ajax({
                 method: "GET",
                 url: userRestUrl + user + "/orgunits",
                 success: function (response) {
-                    userRoleEditModalService.showModal(user, startDate, stopDate, type, assignmentId, 'DIRECT', orgUnit, response, caseNumber);
+                    userRoleEditModalService.showModal(user, startDate, stopDate, type, assignmentId, 'DIRECT', orgUnit, response, caseNumber, roleName);
                     userRoleEditModalService.loadPostponedConstraintsFragment(assignmentId, type, user);
                 },
                 error: defaultErrorHandler
@@ -1189,6 +1188,7 @@ The modal ou_roles_modal shows at the top-->
                 $('#stopDatePicker').data("DateTimePicker").clear();
                 $('#startDatePicker').data("DateTimePicker").clear();
                 $('#startDatePicker').data("DateTimePicker").date(new Date());
+                $("#assignUserRoleName").text(roleName);
 
                 modal.attr("roleid", roleId);
                 modal.attr("userUuid", user);
@@ -1213,6 +1213,7 @@ The modal ou_roles_modal shows at the top-->
 				$('#stopDatePicker').data("DateTimePicker").clear();
 				$('#startDatePicker').data("DateTimePicker").clear();
 				$('#startDatePicker').data("DateTimePicker").date(new Date());
+				$("#assignUserRoleName").text(roleName);
 
 				modal.attr("roleid", roleId);
 				modal.attr("userUuid", user);
@@ -1308,7 +1309,7 @@ The modal ou_roles_modal shows at the top-->
                 ouRolesEditModalService.roleType = 'role'; // UserRole
                 ouRolesEditModalService.roleId = roleId;
 
-					ouRolesEditModalService.showAssignModal(titlesEnabled, startDate, stopDate, assignmentType, assignmentId);
+					ouRolesEditModalService.showAssignModal(titlesEnabled, startDate, stopDate, assignmentType, assignmentId, roleName);
             });
         }
 
@@ -1321,7 +1322,7 @@ The modal ou_roles_modal shows at the top-->
                 datePickerService.init();
                 commonService.init();
 
-					ouRolesModalService.showAssignModal(titlesEnabled, null, null);
+					ouRolesModalService.showAssignModal(titlesEnabled, null, null, roleName);
             });
 
         }

@@ -120,7 +120,7 @@
 												<tbody>
 													<tr th:each="placeholder : ${template.emailTemplatePlaceholders}">
 														<td th:text="${placeholder.placeholder}"/>
-														<td th:text="#{${placeholder.description}}"/>
+														<td class="preformat" th:text="#{${placeholder.description}}"/>
 													</tr>
 												</tbody>
 											</table>

@@ -13,9 +13,9 @@ import org.opensaml.saml.common.SAMLException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.web.error.ErrorAttributeOptions;
-import org.springframework.boot.web.servlet.error.DefaultErrorAttributes;
-import org.springframework.boot.web.servlet.error.ErrorAttributes;
-import org.springframework.boot.web.servlet.error.ErrorController;
+import org.springframework.boot.webmvc.error.DefaultErrorAttributes;
+import org.springframework.boot.webmvc.error.ErrorAttributes;
+import org.springframework.boot.webmvc.error.ErrorController;
 import org.springframework.context.annotation.PropertySource;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.Resource;
@@ -71,7 +71,7 @@ public class DefaultController implements ErrorController {
 			return "redirect:/ui/users/list";
 		}
 
-		model.addAttribute("links", frontPageLinkService.getAllActiveFrontPageLinks());
+		model.addAttribute("links", frontPageLinkService.getAllActiveFrontPageLinksSorted());
 		session.setAttribute("cameFromIndex", true);
 		return "index";
 	}

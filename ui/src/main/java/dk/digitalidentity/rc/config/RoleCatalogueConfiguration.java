@@ -22,8 +22,8 @@ import java.util.Objects;
 @Setter
 @ConfigurationProperties(prefix = "rc")
 public class RoleCatalogueConfiguration {
-	private String version = "2025 r3";
-	private String latestVersion = "2025 r3";
+	private String version = "2026 r2";
+	private String latestVersion = "2026 r2";
 
 	private AttestationConfig attestation = new AttestationConfig();
 	private Customer customer = new Customer();

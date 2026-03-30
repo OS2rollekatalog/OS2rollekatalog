@@ -2,6 +2,7 @@ package dk.digitalidentity.rc.service;
 
 import java.text.SimpleDateFormat;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
@@ -272,7 +273,7 @@ public class SettingsService {
 	private String getPrettyName(Settings settingEnum) {
 		String prettyName;
 		try {
-			prettyName = messageSource.getMessage(settingEnum.getMessage(), null, new Locale("da-DK"));
+			prettyName = messageSource.getMessage(settingEnum.getMessage(), null, Locale.of("da", "DK"));
 		} catch (Exception e) {
 			log.warn("Entry missing in messages.properties for " + settingEnum, e);
 			prettyName = null;
@@ -376,8 +377,6 @@ public class SettingsService {
 	@CacheEvict(value = {
 		"SettingsCache-isAttestationOrgUnitSelectionOptIn",
 		"SettingsCache-getExcludedOUs",
-		"SettingsCache-getOnlyRecommendRoles",
-		"SettingsCache-getRolerequestReason",
 		"SettingsCache-automaticNiveauMappingEnabled",
 		"SettingsCache-isNotificationTypeEnabled"
 	}, allEntries = true)
@@ -455,7 +454,7 @@ public class SettingsService {
 
 		if (changed) {
 			AuditLogContextHolder.getContext().addArgument("Ny værdi", (enabled ? "true" : "false"));
-			String prettyname = messageSource.getMessage(notificationType.getMessage(), null, new Locale("da-DK"));
+			String prettyname = messageSource.getMessage(notificationType.getMessage(), null, Locale.of("da", "DK"));
 			auditLogger.logSetting(setting, null, null, prettyname);
 			AuditLogContextHolder.clearContext();
 		}
@@ -546,7 +545,7 @@ public class SettingsService {
 
 	public List<RequestableBy> getRolerequestRequester() {
 		Setting setting = settingsDao.findByKey(Settings.SETTING_ROLEREQUEST_REQUESTER.getKey());
-		if (setting == null) {
+		if (setting == null || setting.getValue() == null || setting.getValue().isEmpty()) {
 			return List.of(RequestableBy.NONE);
 		}
 		String[] split = setting.getValue().split(",");
@@ -570,8 +569,8 @@ public class SettingsService {
 
 	public List<ApprovableBy> getRolerequestApprover() {
 		Setting setting = settingsDao.findByKey(Settings.SETTING_ROLEREQUEST_APPROVER.getKey());
-		if (setting == null) {
-			return List.of(ApprovableBy.AUTHRESPONSIBLE, ApprovableBy.MANAGERORSUBSTITUTE, ApprovableBy.ADMINISTRATOR);
+		if (setting == null || !StringUtils.hasLength(setting.getValue())) {
+			return List.of();
 		}
 		List<ApprovableBy> result = new ArrayList<>();
 		String[] split = setting.getValue().split(",");
@@ -592,7 +591,6 @@ public class SettingsService {
 	}
 
 
-	@Cacheable(value = "SettingsCache-getRolerequestReason")
 	public ReasonOption getRolerequestReason() {
 		Setting setting = settingsDao.findByKey(Settings.SETTING_ROLEREQUEST_REASON.getKey());
 		if (setting == null) {
@@ -667,7 +665,6 @@ public class SettingsService {
 		return result;
 	}
 
-	@Cacheable(value = "SettingsCache-getOnlyRecommendRoles")
 	public boolean getOnlyRecommendRoles() {
 		return isKeyEnabled(Settings.SETTING_ROLEREQUEST_ONLY_RECOMMENDED_ROLES.getKey());
 	}
@@ -824,6 +821,47 @@ public class SettingsService {
 		dataSeedVersion.setValue(version.toString());
 		settingsDao.save(dataSeedVersion);
 		return version;
+	}
+
+	public boolean isDevDataSeeded() {
+		String key = "DEV_DATA_SEEDED";
+		try {
+			Setting setting = getByKey(key);
+			return setting != null && Boolean.parseBoolean(setting.getValue());
+		} catch (Exception e) {
+			return false;
+		}
+	}
+
+	public void setDevDataSeeded(boolean seeded) {
+		String key = "DEV_DATA_SEEDED";
+		Setting setting = getByKey(key);
+		if (setting == null) {
+			setting = new Setting();
+			setting.setKey(key);
+		}
+		setting.setValue(Boolean.toString(seeded));
+		settingsDao.save(setting);
+	}
+
+	public LocalDateTime getFirstManualITSystemRun() {
+		Setting setting = settingsDao.findByKey(Settings.SETTING_FIRST_MANUAL_IT_SYSTEM_RUN.getKey());
+		if (setting == null) {
+			return null;
+		}
+
+		return LocalDateTime.parse(setting.getValue());
+	}
+
+	public void setFirstManualITSystemRun(LocalDateTime firstRun) {
+		Setting setting = settingsDao.findByKey(Settings.SETTING_FIRST_MANUAL_IT_SYSTEM_RUN.getKey());
+		if (setting == null) {
+			setting = new Setting();
+			setting.setKey(Settings.SETTING_FIRST_MANUAL_IT_SYSTEM_RUN.getKey());
+		}
+
+		setting.setValue(firstRun.toString());
+		settingsDao.save(setting);
 	}
 
 

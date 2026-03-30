@@ -10,6 +10,7 @@ import java.util.Map;
 
 import dk.digitalidentity.rc.attestation.model.dto.ADAttestationUserDTO;
 import dk.digitalidentity.rc.attestation.model.dto.enums.AttestationStatus;
+import dk.digitalidentity.rc.controller.mvc.xlsview.DisposableSXSSFWorkbook;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
@@ -33,9 +34,11 @@ public class RoleAssignmentXlsView extends AttestationXlsView {
 	private LocalDate toDate;
 	private boolean includeUsers;
 	private List<ADAttestationUserDTO> adUsersAttestation;
+	private String filename;
 
-	public RoleAssignmentXlsView(final AttestationLockService lockService) {
+	public RoleAssignmentXlsView(final AttestationLockService lockService, String filename) {
 		this.lockService = lockService;
+		this.filename = filename;
 	}
 
 	/**
@@ -53,7 +56,7 @@ public class RoleAssignmentXlsView extends AttestationXlsView {
 
 	@SuppressWarnings("unchecked")
 	@Override
-	protected void buildExcelDocument(Map<String, Object> model, Workbook workbook, HttpServletRequest request, HttpServletResponse response) throws Exception {
+	protected void buildExcelDocument(Map<String, ?> model, DisposableSXSSFWorkbook workbook, HttpServletRequest request, HttpServletResponse response) throws Exception {
 		// Get data
 		paginator = (AttestationReportPaginator) model.get("rowPaginator");
 		messageSource = (ResourceBundleMessageSource) model.get("messageSource");
@@ -238,4 +241,8 @@ public class RoleAssignmentXlsView extends AttestationXlsView {
 		createCell(titleRow, 7, toDate.toString(), null);
 	}
 
+	@Override
+	protected String getFilename() {
+		return filename;
+	}
 }

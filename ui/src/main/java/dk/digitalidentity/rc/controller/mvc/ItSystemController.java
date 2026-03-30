@@ -1,6 +1,7 @@
 package dk.digitalidentity.rc.controller.mvc;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
@@ -245,7 +246,20 @@ public class ItSystemController {
 		return "redirect:edit/" + itSystem.getId();
 	}
 
-	public record UserRoleListDTO(Long id, String name, String description, String delegatedFromCvr, boolean readOnly,  ItemPermissionDTO allowedActions) {}
+	public record UserRoleListDTO(
+		Long id,
+		String name,
+		String description,
+		String delegatedFromCvr,
+		boolean readOnly,
+		boolean userOnly,
+		boolean sensitiveRole,
+		boolean extraSensitiveRole,
+		boolean roleAssignmentAttestationByAttestationResponsible,
+		List<RequestableBy> requesterPermission,
+		List<ApprovableBy> approverPermission,
+		ItemPermissionDTO allowedActions
+	) {}
 	@GetMapping("/ui/itsystem/view/{id}")
 	public String viewItSystem(Model model, @PathVariable("id") long id) {
 		ItSystem itSystem = itSystemService.getById(id);
@@ -268,6 +282,12 @@ public class ItSystemController {
 						userRole.getDescription(),
 						userRole.getDelegatedFromCvr(),
 						userRole.isReadOnly(),
+						userRole.isUserOnly(),
+						userRole.isSensitiveRole(),
+						userRole.isExtraSensitiveRole(),
+						userRole.isRoleAssignmentAttestationByAttestationResponsible(),
+						userRole.getRequesterPermission(),
+						userRole.getApproverPermission(),
 						userPermissionContext.getSpecificAllowedActionsForITsystem(Section.USER_ROLE, itSystem.getId())
 				))
 				.toList()
@@ -325,13 +345,30 @@ public class ItSystemController {
 				.filter(ur -> readSystemConstraint.allowsITSystem(ur.getItSystem().getId()))
 				.toList();
 
+		model.addAttribute("userRoles", userRoles.stream()
+			.map(userRole -> new UserRoleListDTO(
+				userRole.getId(),
+				userRole.getName(),
+				userRole.getDescription(),
+				userRole.getDelegatedFromCvr(),
+				userRole.isReadOnly(),
+				userRole.isUserOnly(),
+				userRole.isSensitiveRole(),
+				userRole.isExtraSensitiveRole(),
+				userRole.isRoleAssignmentAttestationByAttestationResponsible(),
+				userRole.getRequesterPermission(),
+				userRole.getApproverPermission(),
+				userPermissionContext.getSpecificAllowedActionsForITsystem(Section.USER_ROLE, itSystem.getId())
+			))
+			.toList()
+		);
+
 		model.addAttribute("unusedCount", itSystemService.getUnusedUserRolesCount(itSystem));
 		model.addAttribute("itsystem", itSystem);
 		model.addAttribute("systemRoles", systemRoles);
 		model.addAttribute("unusedSystemRolesCount", systemRoles.stream().filter(sr -> !sr.isInUse()).count());
 		model.addAttribute("systemRoleForm", systemRoleForm);
 		model.addAttribute("itsystemMasterList", itSystemMasterService.findAll());
-		model.addAttribute("userRoles", userRoles);
 		model.addAttribute("convertSystemRolesForm", convertSystemRolesForm);
 		model.addAttribute("allOUs", ouListForms);
 		model.addAttribute("selectedOUs", selectedOus);
@@ -366,6 +403,24 @@ public class ItSystemController {
 			ConvertSystemRolesForm convertSystemRolesForm = new ConvertSystemRolesForm();
 			convertSystemRolesForm.setConvertOption(SystemRoleLinkType.NAME_AND_DESCRIPTION);
 
+			model.addAttribute("userRoles", userRoleService.getByItSystem(itSystem).stream()
+				.map(userRole -> new UserRoleListDTO(
+					userRole.getId(),
+					userRole.getName(),
+					userRole.getDescription(),
+					userRole.getDelegatedFromCvr(),
+					userRole.isReadOnly(),
+					userRole.isUserOnly(),
+					userRole.isSensitiveRole(),
+					userRole.isExtraSensitiveRole(),
+					userRole.isRoleAssignmentAttestationByAttestationResponsible(),
+					userRole.getRequesterPermission(),
+					userRole.getApproverPermission(),
+					userPermissionContext.getSpecificAllowedActionsForITsystem(Section.USER_ROLE, itSystem.getId())
+				))
+				.toList()
+			);
+
 			model.addAttribute(bindingResult.getAllErrors());
 			model.addAttribute("unusedCount", itSystemService.getUnusedUserRolesCount(itSystem));
 			model.addAttribute("itsystem", itSystem);
@@ -373,7 +428,6 @@ public class ItSystemController {
 			model.addAttribute("unusedSystemRolesCount", systemRoles.stream().filter(sr -> !sr.isInUse()).count());
 			model.addAttribute("systemRoleForm", systemRoleForm);
 			model.addAttribute("itsystemMasterList", itSystemMasterService.findAll());
-			model.addAttribute("userRoles", userRoleService.getByItSystem(itSystem));
 			model.addAttribute("convertSystemRolesForm", convertSystemRolesForm);
 			model.addAttribute("attestationEnabled", settingsService.isScheduledAttestationEnabled());
 
@@ -384,9 +438,10 @@ public class ItSystemController {
 		if (systemRoleForm.getId() > 0) {
 			systemRole = systemRoleService.getById(systemRoleForm.getId());
 
-			// only name and description can be edited on existing system roles
+			// only name, description and maximumAssignments can be edited on existing system roles
 			systemRole.setName(systemRoleForm.getName());
 			systemRole.setDescription(systemRoleForm.getDescription());
+			systemRole.setMaximumAssignments(systemRoleForm.getMaximumAssignments());
 		}
 		else {
 			systemRole.setName(systemRoleForm.getName());
@@ -395,6 +450,7 @@ public class ItSystemController {
 			systemRole.setItSystem(itSystem);
 			systemRole.setRoleType(RoleType.BOTH);
 			systemRole.setWeight(1);
+			systemRole.setMaximumAssignments(systemRoleForm.getMaximumAssignments());
 		}
 
 		if (itSystem.getSystemType().equals(ItSystemType.AD) || itSystem.getSystemType().equals(ItSystemType.SAML)) {
@@ -430,10 +486,13 @@ public class ItSystemController {
 		for (SystemRole systemRole : systemRoles) {
 			UserRole userRole = new UserRole();
 			userRole.setName(convertSystemRolesForm.getPrefix() + systemRole.getName());
+			userRole.setApproverPermission(Collections.singletonList(ApprovableBy.INHERIT));
+			userRole.setRequesterPermission(Collections.singletonList(RequestableBy.INHERIT));
 
 			// TODO: must be a better way to safely ensure this length max (maybe setter on UserRole)
-			if (userRole.getName().length() > 64) {
-				userRole.setName(userRole.getName().substring(0, 64));
+			// TODO TODO: KBP - Yes there is multiple.... but for now I have to hotfix this, added to stuff that needs refactor
+			if (userRole.getName().length() > 128) {
+				userRole.setName(userRole.getName().substring(0, 128));
 			}
 
 			userRole.setDescription(systemRole.getDescription());

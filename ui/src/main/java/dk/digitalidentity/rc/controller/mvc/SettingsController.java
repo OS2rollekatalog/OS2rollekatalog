@@ -1,8 +1,6 @@
 package dk.digitalidentity.rc.controller.mvc;
 
-import java.util.Collection;
 import java.util.Date;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -244,66 +242,4 @@ public class SettingsController {
 				.collect(Collectors.toList()));
         model.addAttribute("attestationSettingsForm", settingsForm);
     }
-
-
-	private Set<String> buildInverseSelectionOfOUUuids(Collection<String> selectedUuids, Collection<OrgUnit> ous, String highestUnselectedUuid, int level) {
-		if (level > 15) {
-			log.warn("Recursive loop detected reached level ${}, current ou ids: ${}", level, String.join(", ", ous.stream().map(OrgUnit::getUuid).toList()));
-			return new HashSet<>();
-		}
-		Collection<OrgUnit> activeOus = ous.stream().filter(OrgUnit::isActive).toList();
-
-		Set<String> result = new HashSet<>();
-		if (activeOus.isEmpty()) {
-			if (highestUnselectedUuid != null) {
-				result.add(highestUnselectedUuid);
-			}
-			return result;
-		}
-
-		if (selectedUuids.containsAll(activeOus.stream().map(OrgUnit::getUuid).toList())) {
-			//all in list is selected, return only the highestUnselectedUuid
-			if (highestUnselectedUuid != null) {
-				result.add(highestUnselectedUuid);
-			}
-			return result;
-		} else if(activeOus.stream().noneMatch(orgUnit -> selectedUuids.contains(orgUnit.getUuid()))){
-			//none is checked, keep searching with unchanged highestUnselectedUuid
-			for ( var ou : activeOus) {
-				result.addAll(buildInverseSelectionOfOUUuids(selectedUuids, ou.getChildren(), highestUnselectedUuid, level+1));
-			}
-			return result;
-		} else {
-			//some but not all in list is checked, keep searching in those, with highestUnselectedUuid = their uuid
-			for ( var ou : activeOus) {
-				if (!selectedUuids.contains(ou.getUuid())) {
-					result.addAll(buildInverseSelectionOfOUUuids(selectedUuids, ou.getChildren(), ou.getUuid(), level+1));
-
-				}
-			}
-			return result;
-		}
-	}
-
-	private Set<String> selectRecursively(Collection<OrgUnit> baseCollection, Collection<String> exceptedUUIDs, int level) {
-		if (level > 15) {
-			log.warn("Recursive loop detected reached level ${}, current ou ids: ${}", level, String.join(", ", baseCollection.stream().map(OrgUnit::getUuid).toList()));
-			return new HashSet<>();
-		}
-		Set<String> selectedUUIDs = new HashSet<>();
-		for(var ou : baseCollection){
-			Set<String> ouSelected = new HashSet<>();
-			if(!exceptedUUIDs.contains(ou.getUuid())){
-				//Select children
-				ouSelected.addAll(selectRecursively(ou.getChildren(), exceptedUUIDs, level+1));
-
-				//if no children was selected, select self
-				if (ouSelected.isEmpty()) {
-					ouSelected.add(ou.getUuid());
-				}
-				selectedUUIDs.addAll(ouSelected);
-			}
-		}
-		return selectedUUIDs;
-	}
 }

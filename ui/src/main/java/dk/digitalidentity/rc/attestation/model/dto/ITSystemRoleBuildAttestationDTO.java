@@ -18,6 +18,7 @@ public class ITSystemRoleBuildAttestationDTO {
 	private String role;
 	private List<String> systemRole;
 	private String responsibleUser;
+	@Builder.Default
 	private AttestationStatus attestationStatus = AttestationStatus.NOT_VERIFIED;
 	private LocalDate attestationDate;
 	private String performedBy;

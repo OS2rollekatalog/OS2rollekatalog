@@ -13,6 +13,7 @@ import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 import dk.digitalidentity.rc.log.AuditLogIntercepted;
+import dk.digitalidentity.rc.service.assignment.AssignmentService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -53,9 +54,16 @@ public class ItSystemService {
 	@Autowired
 	private RoleGroupService roleGroupService;
 
+	@Autowired
+	private AssignmentService assignmentService;
+
 	@Transactional(readOnly = true)
 	public List<ItSystem> getAllByIdInAndDeletedFalse(Collection<Long> ids) {
 		return itSystemDao.findByIdInAndDeletedFalse(ids);
+	}
+
+	public Set<ItSystem> findAllByIdIn(Collection<Long> ids) {
+		return itSystemDao.findAllByDeletedFalseAndIdIn(ids);
 	}
 
 	@Transactional(readOnly = true)
@@ -103,11 +111,12 @@ public class ItSystemService {
 	}
 
 	public ItSystem getById(long id) {
-		return filterDeleted(itSystemDao.findById(id));
+
+		return filterDeleted(itSystemDao.findById(id).orElse(null));
 	}
 
 	public Optional<ItSystem> getOptionalById(long id) {
-		return Optional.ofNullable(itSystemDao.findById(id));
+		return itSystemDao.findById(id);
 	}
 
 	public ItSystem getByUuid(String uuid) {
@@ -191,13 +200,12 @@ public class ItSystemService {
 	}
 
 	// TODO: use count
-	@SuppressWarnings("deprecation")
 	public int getUnusedUserRolesCount(ItSystem itSystem) {
 		int sum = 0;
 
 		List<UserRole> userRoles = userRoleService.getByItSystem(itSystem);
 		for (UserRole userRole : userRoles) {
-			if (userService.countAllWithRole(userRole) > 0) {
+			if (assignmentService.countAllUsersWithDirectUserRole(userRole) > 0) {
 				continue;
 			}
 

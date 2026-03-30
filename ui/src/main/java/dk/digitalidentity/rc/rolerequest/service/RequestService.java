@@ -14,16 +14,17 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import dk.digitalidentity.rc.controller.mvc.datatables.dao.CombinedRoleViewDatatableDao;
 import dk.digitalidentity.rc.controller.mvc.datatables.dao.model.CombinedRoleView;
-import dk.digitalidentity.rc.security.permission.Section;
+import dk.digitalidentity.rc.dao.model.assignment.CurrentAssignment;
+import dk.digitalidentity.rc.service.assignment.AssignmentService;
 import dk.digitalidentity.rc.service.model.AssignedThrough;
 import dk.digitalidentity.rc.service.model.RoleAssignedToUserDTO;
 import dk.digitalidentity.rc.service.model.RoleAssignmentType;
-import dk.digitalidentity.rc.service.model.UserRoleAssignedToUser;
 import jakarta.persistence.criteria.Predicate;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.jpa.datatables.mapping.DataTablesInput;
@@ -71,6 +72,7 @@ import dk.digitalidentity.rc.service.UserService;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.web.server.ResponseStatusException;
 
 @Slf4j
 @Service
@@ -90,6 +92,7 @@ public class RequestService {
 	private final RequestAuthorizedRoleService requestAuthorizedRoleService;
 	private final UserDatatableDao userDatatableDao;
 	private final CombinedRoleViewDatatableDao combinedRoleViewDao;
+	private final AssignmentService assignmentService;
 
 	public boolean hasPendingRemovalRequestForUserrole(Long userRoleId, String recieverUuid) {
 		return !roleRequestDao.findByRequestActionAndReceiver_UuidAndUserRole_Id(RequestAction.REMOVE, recieverUuid, userRoleId).isEmpty();
@@ -153,57 +156,33 @@ public class RequestService {
 			return false;
 		}
 
-		// Check orgUnit filter - if role  or itSystem has orgUnit filter and receiving user's orgUnit is not in it, deny immediately
-		// UNLESS user is admin - admin can always request regardless of orgUnit filter
-		if (!SecurityUtil.isAdmin()) {
-			if (role.getItSystem().getOrgUnitFilterOrgUnits() != null && !role.getItSystem().getOrgUnitFilterOrgUnits().isEmpty()) {
-				List<String> ouUuidsWithChildren = itSystemService.getOUFilterUuidsWithChildren(role.getItSystem());
-				if (receiversOrgUnit == null || ouUuidsWithChildren.stream()
-					.noneMatch(uuid -> uuid.equals(receiversOrgUnit.getUuid()))) {
-					return false;
-				}
-			}
+		// Get the relevant permission (userrole > itsystem > global)
+		List<RequestableBy> relevantPermission = getClosestPermission(role, globalRequesterSetting);
 
-			if (role.getOrgUnitFilterOrgUnits() != null && !role.getOrgUnitFilterOrgUnits().isEmpty()) {
-				List<String> ouUuidsWithChildren = userRoleService.getOUFilterUuidsWithChildren(role);
-				if (receiversOrgUnit == null || ouUuidsWithChildren.stream()
-					.noneMatch(uuid -> uuid.equals(receiversOrgUnit.getUuid()))) {
-					return false;
-				}
-			}
-		}
-
-
-		List<RequestableBy> relevantPermission = role.getRequesterPermission();
-
-		ItSystem itSystem = role.getItSystem();
-		// Check ITSystem permission if role is set to inherit
-		if (relevantPermission != null && relevantPermission.contains(RequestableBy.INHERIT)) {
-			relevantPermission = itSystem.getRequesterPermission();
-		}
-
-		// Check global permissions if ITSystem and role is set to inherit
-		if (relevantPermission == null || relevantPermission.contains(RequestableBy.INHERIT)) {
-			relevantPermission = globalRequesterSetting;
-		}
-
-		// If permission is still null or inherit at this point, something is wrong
-		if (relevantPermission == null || relevantPermission.contains(RequestableBy.INHERIT)) {
-			throw new IllegalArgumentException("Global settings for requester should never be null.");
-		}
-
+		// If set to none, reject immediately
 		if (relevantPermission.contains(RequestableBy.NONE)) {
 			return false;
 		}
 
-		// Check ADMIN permission
-		if (SecurityUtil.isAdmin() && relevantPermission.contains(RequestableBy.ADMIN)) {
+		// Admins can always request
+		if (SecurityUtil.hasDirectAdminRole()) {
 			return true;
+		}
+
+		// If this role is not requestable, deny
+		if (relevantPermission.contains(RequestableBy.NONE)) {
+			return false;
+		}
+
+		// Check orgUnit filter - if role  or itSystem has orgUnit filter and receiving user's orgUnit is not in it, deny immediately
+		if (!orgUnitFilterAllows(role, receiversOrgUnit)) {
+			return false;
 		}
 
 		// Check AUTHORIZED permission with constraints
 		boolean isRequestAuthorized = SecurityUtil.hasRole(Constants.ROLE_REQUESTAUTHORIZED);
-		if (isRequestAuthorized && !SecurityUtil.isAdmin() && relevantPermission.contains(RequestableBy.AUTHORIZED)) {
+		if (isRequestAuthorized && !SecurityUtil.hasDirectAdminRole() && relevantPermission.contains(RequestableBy.AUTHORIZED)) {
+			ItSystem itSystem = role.getItSystem();
 			final User loggedInUser = userService.getByUserId(SecurityUtil.getUserId());
 			final RequestAuthorizedRoleService.LimitedToOrgUnits accessibleOrgUnits = requestAuthorizedRoleService.accessibleOrgUnits(loggedInUser);
 			final RequestAuthorizedRoleService.LimitedToItSystems accessibleItSystems = requestAuthorizedRoleService.accessibleItsSystems(loggedInUser);
@@ -225,6 +204,108 @@ public class RequestService {
 	}
 
 	/**
+	 * Finds the closes relevant permission to the role, inheriting from higher in the hierachy if a permission is INHERIT
+	 * Throws an IllegalArgumentException if INHERIT is set for every permission in the hierachy
+	 */
+	private List<RequestableBy> getClosestPermission (UserRole role,  List<RequestableBy> globalRequesterSetting) {
+		List<RequestableBy> relevantPermission = role.getRequesterPermission();
+
+		// Check ITSystem permission if role is set to inherit
+		if (relevantPermission != null && relevantPermission.contains(RequestableBy.INHERIT)) {
+			relevantPermission = role.getItSystem().getRequesterPermission();
+		}
+
+		// Check global permissions if ITSystem and role is set to inherit
+		if (relevantPermission == null || relevantPermission.contains(RequestableBy.INHERIT)) {
+			relevantPermission = globalRequesterSetting;
+		}
+
+		// If permission is still null or inherit at this point, something is wrong
+		if (relevantPermission == null || relevantPermission.contains(RequestableBy.INHERIT)) {
+			throw new IllegalArgumentException("Global settings for requester should never be null.");
+		}
+		return relevantPermission;
+	}
+
+	/**
+	 * Finds the closes relevant permission to the role, inheriting from higher in the hierachy if a permission is INHERIT
+	 * Throws an IllegalArgumentException if INHERIT is set for every permission in the hierachy
+	 */
+	private List<RequestableBy> getClosestPermission (RoleGroup role,  List<RequestableBy> globalRequesterSetting) {
+		List<RequestableBy> relevantPermission = role.getRequesterPermission();
+
+		// Check global permissions if role is set to inherit
+		if (relevantPermission == null || relevantPermission.contains(RequestableBy.INHERIT)) {
+			relevantPermission = globalRequesterSetting;
+		}
+
+		// If permission is still null or inherit at this point, something is wrong
+		if (relevantPermission == null || relevantPermission.contains(RequestableBy.INHERIT)) {
+			throw new IllegalArgumentException("Global settings for requester should never be null.");
+		}
+		return relevantPermission;
+	}
+
+	/**
+	 * Checks if filters on the role and the roles it system allows the users orgunit
+	 * Returns false if EITHER filter does not allow the ou.
+	 */
+	private boolean orgUnitFilterAllows(UserRole role, OrgUnit receiversOrgUnit) {
+		List<OrgUnit> itSystemFilter = role.getItSystem().getOrgUnitFilterOrgUnits();
+		List<OrgUnit> roleFilter = role.getOrgUnitFilterOrgUnits();
+
+		// Check if It systems filter allows the users ou
+		Function<ItSystem, List<String>> systemOrgUnitUuidRetriever = itSystemService::getOUFilterUuidsWithChildren;
+		boolean itSystemAllows = !role.getItSystem().isOuFilterEnabled()
+			|| filterAllows(itSystemFilter, role.getItSystem(), receiversOrgUnit, systemOrgUnitUuidRetriever);
+
+		// Check if the roles filter allows the users ou
+		Function<UserRole, List<String>> roleOrgUnitUuidRetriever = userRoleService::getOUFilterUuidsWithChildren;
+		boolean roleAllows = !role.isOuFilterEnabled()
+			||  filterAllows(roleFilter, role, receiversOrgUnit, roleOrgUnitUuidRetriever);
+
+		// if either filter blocks the OU, the user is not allowed
+		return itSystemAllows && roleAllows;
+	}
+
+	/**
+	 * Checks if filters on the role and the roles it system allows the users orgunit
+	 * Returns false if EITHER filter does not allow the ou.
+	 */
+	private boolean orgUnitFilterAllows(RoleGroup role, OrgUnit receiversOrgUnit) {
+		if (!role.isOuFilterEnabled()) {
+			return true;
+		}
+		List<OrgUnit> roleFilter = role.getOrgUnitFilterOrgUnits();
+
+		// Check if the roles filter allows the users ou
+		Function<RoleGroup, List<String>> roleOrgUnitUuidRetriever = roleGroup ->
+			roleGroup.getOrgUnitFilterOrgUnits().stream().map(OrgUnit::getUuid).toList();
+		return filterAllows(roleFilter, role, receiversOrgUnit, roleOrgUnitUuidRetriever);
+	}
+
+
+	/**
+	 * Checks if a OU filter on an entity allows an orgunit
+	 */
+	private <T> boolean filterAllows(List<OrgUnit> filter, T filteredEntity, OrgUnit receiversOrgUnit, Function<T, List<String>> filteredOrgUnitsUuidRetriever) {
+		// No filter means all is allowed
+		if (filter != null) {
+			// an empty filter means no ous are allowed
+			if (filter.isEmpty()) {
+				return false;
+			}
+
+			List<String> ouUuidsWithChildren = filteredOrgUnitsUuidRetriever.apply(filteredEntity);
+			if (receiversOrgUnit == null || ouUuidsWithChildren.stream()
+				.noneMatch(uuid -> uuid.equals(receiversOrgUnit.getUuid()))) {
+				return false;
+			}
+		}
+		return true;
+	}
+
+	/**
 	 * Determines if a rolegroup can be requested for a user
 	 *
 	 * @param requestingUser    the user requesting the role
@@ -235,26 +316,27 @@ public class RequestService {
 	 */
 	public boolean canRequest(final User requestingUser, RoleGroup role, User receivingUser, final OrgUnit receiversOrgUnit) {
 
-		List<RequestableBy> relevantPermission = role.getRequesterPermission();
+		List<RequestableBy> globalPermission = settingsService.getRolerequestRequester();
+		List<RequestableBy> relevantPermission = getClosestPermission(role, globalPermission);
 
-		// Check global permissions if role is set to inherit
-		if (relevantPermission == null || relevantPermission.contains(RequestableBy.INHERIT)) {
-			relevantPermission = settingsService.getRolerequestRequester();
+		// If set to none, reject immediately
+		if (relevantPermission.contains(RequestableBy.NONE)) {
+			return false;
 		}
 
-		// If permission is still null or inherit at this point, something is wrong
-		if (relevantPermission == null || relevantPermission.contains(RequestableBy.INHERIT)) {
-			throw new IllegalArgumentException("Global settings for requester should never be null.");
-		}
-
-		// Check ADMIN permission
-		if (SecurityUtil.isAdmin() && relevantPermission.contains(RequestableBy.ADMIN)) {
+		// admin can always request
+		if (SecurityUtil.hasDirectAdminRole()) {
 			return true;
+		}
+
+		// Check orgUnit filter - if role  or itSystem has orgUnit filter and receiving user's orgUnit is not in it, deny immediately
+		if (!orgUnitFilterAllows(role, receiversOrgUnit)) {
+			return false;
 		}
 
 		// Check AUTHORIZED permission with constraints
 		boolean isRequestAuthorized = SecurityUtil.hasRole(Constants.ROLE_REQUESTAUTHORIZED);
-		if (isRequestAuthorized && !SecurityUtil.isAdmin() && relevantPermission.contains(RequestableBy.AUTHORIZED)) {
+		if (isRequestAuthorized && !SecurityUtil.hasDirectAdminRole() && relevantPermission.contains(RequestableBy.AUTHORIZED)) {
 			final RequestAuthorizedRoleService.LimitedToOrgUnits accessibleOrgUnits = requestAuthorizedRoleService.accessibleOrgUnits(requestingUser);
 			final RequestAuthorizedRoleService.LimitedToItSystems accessibleItSystems = requestAuthorizedRoleService.accessibleItsSystems(requestingUser);
 
@@ -290,7 +372,7 @@ public class RequestService {
 
 	public boolean canApprove(RoleRequest request) {
 		User loggedInUser = userService.getByUserId(SecurityUtil.getUserId());
-		if (SecurityUtil.isAdmin()) {
+		if (SecurityUtil.hasDirectAdminRole()) {
 			return true;
 		}
 		if (request.getReceiver() != null && loggedInUser.getUuid().equalsIgnoreCase(request.getReceiver().getUuid())) {
@@ -298,7 +380,7 @@ public class RequestService {
 		}
 		//Check if user can approve this request
 		if (request.getUserRole() == null) {
-			return canApprove(request.getRoleGroup(), loggedInUser);
+			return canApprove(request.getRoleGroup(), loggedInUser, request.getOrgUnit());
 		} else {
 			return canApprove(loggedInUser, request.getUserRole(), loggedInUser, request.getOrgUnit());
 		}
@@ -306,7 +388,7 @@ public class RequestService {
 
 	private boolean canApprove(final User requestingUser, UserRole role, User approvingUser, final OrgUnit receiversOrgUnit) {
 
-		if (SecurityUtil.isAdmin()) {
+		if (SecurityUtil.hasDirectAdminRole()) {
 			return true;
 		}
 
@@ -346,11 +428,11 @@ public class RequestService {
 			}
 		}
 
-		return determineApprovable(relevantPermission, approvingUser);
+		return determineApprovable(relevantPermission, approvingUser, receiversOrgUnit);
 	}
 
-	private boolean canApprove(RoleGroup role, User approvingUser) {
-		if (SecurityUtil.isAdmin()) {
+	private boolean canApprove(RoleGroup role, User approvingUser, OrgUnit orgUnit) {
+		if (SecurityUtil.hasDirectAdminRole()) {
 			return true;
 		}
 
@@ -377,7 +459,7 @@ public class RequestService {
 			return true;
 		}
 
-		return determineApprovable(relevantPermission, approvingUser);
+		return determineApprovable(relevantPermission, approvingUser, orgUnit);
 	}
 
 	/**
@@ -405,15 +487,29 @@ public class RequestService {
 		return isAuthResponsible && permissions.contains(RequestableBy.AUTHRESPONSIBLE);
 	}
 
-	private boolean determineApprovable(List<ApprovableBy> permissions, User approvingUser) {
+	private boolean determineApprovable(List<ApprovableBy> permissions, User approvingUser, OrgUnit relevantOrgUnit) {
 
-		boolean isManagerOrSubstitute = !userService.getSubstitutesManager(approvingUser).isEmpty() || userService.isManager(approvingUser); // leder eller stedfortræder
-		//Shortcircuit, if possible
-		if (isManagerOrSubstitute && permissions.contains(ApprovableBy.MANAGERORSUBSTITUTE)) {
-			return true;
+		// Check if user is manager or substitute for the RELEVANT OrgUnit
+		if (permissions.contains(ApprovableBy.MANAGERORSUBSTITUTE)) {
+			User manager = orgUnitService.getManager(relevantOrgUnit);
+
+			if (manager == null) {
+				return false; // No manager assigned, so user cannot be manager or substitute
+			}
+
+			// Check if approving user is the manager
+			boolean isManager = Objects.equals(approvingUser.getUserId(), manager.getUserId());
+
+			// Check if approving user is a substitute for the manager
+			boolean isSubstitute = manager.getManagerSubstitutes().stream()
+				.anyMatch(managerSubstitute ->
+					Objects.equals(managerSubstitute.getSubstitute().getUserId(), approvingUser.getUserId())
+				);
+
+			return isManager || isSubstitute;
 		}
 
-		boolean isAuthResponsible = !orgUnitService.getByAuthorizationManagerMatchingUser(approvingUser).isEmpty(); // autorisationsansvarlig
+		boolean isAuthResponsible = !orgUnitService.getByAuthorizationManagerMatchingUser(approvingUser).isEmpty();
 		return isAuthResponsible && permissions.contains(ApprovableBy.AUTHRESPONSIBLE);
 	}
 
@@ -424,7 +520,7 @@ public class RequestService {
 	 */
 	public Stream<UserRole> getRequestableUserRoles(User recievingUser) {
 		User requestingUser = userService.getOptionalByUserId(SecurityUtil.getUserId()).orElseThrow(() -> new NotFoundException("Unable to find user for user id: " + SecurityUtil.getUserId()));
-		boolean isAdmin = SecurityUtil.isAdmin();
+		boolean isAdmin = SecurityUtil.hasDirectAdminRole();
 		boolean isRequestingForSelf = requestingUser.equals(recievingUser); //anmodende bruger er brugeren som er logget ind
 		boolean isManagerOrSubstitute = !userService.getSubstitutesManager(requestingUser).isEmpty() || userService.isManager(requestingUser); // leder eller stedfortræder
 		boolean isAuthResponsible = !orgUnitService.getByAuthorizationManagerMatchingUser(requestingUser).isEmpty(); // autorisationsansvarlig
@@ -442,8 +538,8 @@ public class RequestService {
 
 		//construct allowed settings for inherited ITsystem permissions, adding INHERIT if global settings would allow user request access
 		List<RequestableBy> allowedItSettings = new ArrayList<>(permittedSettings);
-		if (permittedSettings.contains(globalPermission)) {
-			allowedItSettings.add(RequestableBy.INHERIT);
+		if (!Collections.disjoint(permittedSettings, globalPermission)) {
+		    allowedItSettings.add(RequestableBy.INHERIT);
 		}
 
 		Stream<UserRole> userRoles = Stream.concat(
@@ -528,11 +624,11 @@ public class RequestService {
 		final User user = userService.getOptionalByUserId(SecurityUtil.getUserId())
 			.orElseThrow(() -> new NotFoundException("Unable to find user for user id: " + SecurityUtil.getUserId()));
 
-		final Set<RoleRequest> allRequests = roleRequestDao.findByStatus(RequestApproveStatus.REQUESTED)
+		final Set<RoleRequest> allRequests = roleRequestDao.findByStatusEager(RequestApproveStatus.REQUESTED)
 			.stream()
 			.filter(request -> request.getRoleGroup() != null || (request.getUserRole() != null && !request.getUserRole().isReadOnly()))
 			.collect(Collectors.toSet());
-		if (SecurityUtil.isAdmin()) {
+		if (SecurityUtil.hasDirectAdminRole()) {
 			// Admin can se all requests
 			return allRequests;
 		} else {
@@ -559,12 +655,12 @@ public class RequestService {
 				if (approvableBy.contains(ApprovableBy.AUTHRESPONSIBLE)) {
 					canApprove |= authManagerForOus.contains(request.getOrgUnit().getUuid());
 				}
-				if (approvableBy.contains(ApprovableBy.AUTHORIZED)) {
-					boolean ouAccessible = (authorizedForOu.type() == RequestAuthorizedRoleService.LimitedToType.ALL)
-						|| authorizedForOu.orgUnits().contains(request.getOrgUnit().getUuid());
-					boolean itSystemAccessible = (authorizedForItSystems.type() == RequestAuthorizedRoleService.LimitedToType.ALL)
-						|| (request.getUserRole() != null && authorizedForItSystems.itSystems().contains(request.getUserRole().getItSystem().getId()));
-					canApprove |= (ouAccessible && itSystemAccessible);
+				if (approvableBy.contains(ApprovableBy.AUTHORIZED) && request.getUserRole() != null) {
+					canApprove |= isAccessible(request.getUserRole(), request.getOrgUnit(), authorizedForItSystems, authorizedForOu);
+				} else if (approvableBy.contains(ApprovableBy.AUTHORIZED) && request.getRoleGroup() != null) {
+					canApprove |= request.getRoleGroup().getUserRoleAssignments().stream()
+						.allMatch(roleAssignment -> isAccessible(roleAssignment.getUserRole(),
+							request.getOrgUnit(), authorizedForItSystems, authorizedForOu));
 				}
 				if (approvableBy.contains(ApprovableBy.SYSTEMRESPONSIBLE) && request.getUserRole() != null) {
 					final ItSystem itSystem = request.getUserRole().getItSystem();
@@ -576,6 +672,17 @@ public class RequestService {
 			.collect(Collectors.toSet());
 		}
 
+	}
+
+	private static boolean isAccessible(final UserRole userRole,
+										final OrgUnit orgUnit,
+										final RequestAuthorizedRoleService.LimitedToItSystems authorizedForItSystems,
+										final RequestAuthorizedRoleService.LimitedToOrgUnits authorizedForOu) {
+		boolean itSystemAccessible = (authorizedForItSystems.type() == RequestAuthorizedRoleService.LimitedToType.ALL)
+			|| (userRole != null && authorizedForItSystems.itSystems().contains(userRole.getItSystem().getId()));
+		boolean ouAccessible = (authorizedForOu.type() == RequestAuthorizedRoleService.LimitedToType.ALL)
+			|| authorizedForOu.orgUnits().contains(orgUnit.getUuid());
+		return (ouAccessible && itSystemAccessible);
 	}
 
 	/**
@@ -702,7 +809,7 @@ public class RequestService {
 			if (Objects.equals(request.getRequestAction(), RequestAction.REMOVE)) {
 				userService.removeRoleGroup(receiver, roleGroup);
 			} else {
-				userService.addRoleGroup(receiver, roleGroup, null, null, request.getOrgUnit());
+				userService.addRoleGroup(receiver, roleGroup, null, null, request.getOrgUnit(), null);
 			}
 			roleName = roleGroup.getName();
 
@@ -718,8 +825,8 @@ public class RequestService {
 			return new ResponseEntity<>("No role attached to request", HttpStatus.BAD_REQUEST);
 		}
 
-		boolean receiverNotified = requestNotifierService.notifyReceiverOnRequestApproval(receiver, request.getRequestAction(), roleName, manualItSystem, request.getStartDate(), request.getEndDate(), request.getReason());
-		boolean managerNotified = requestNotifierService.notifyManagerOnRequestapproval(request, manualItSystem, roleName, request.getReason());
+		requestNotifierService.notifyReceiverOnRequestApproval(receiver, request.getRequestAction(), roleName, manualItSystem, request.getStartDate(), request.getEndDate(), request.getReason());
+		requestNotifierService.notifyManagerOnRequestapproval(request, manualItSystem, roleName, request.getReason());
 
 		request.setStatus(RequestApproveStatus.ASSIGNED);
 
@@ -787,7 +894,7 @@ public class RequestService {
 	}
 
 	public boolean canRequestFor(User requester, User receiver) {
-		if (SecurityUtil.isAdmin()) {
+		if (SecurityUtil.hasDirectAdminRole()) {
 			log.info("Admin can request for anybody");
 			return true;
 		}
@@ -876,7 +983,7 @@ public class RequestService {
 	 * to generate a list of all request types they are permitted to perform.
 	 */
 	private List<RequestableBy> getPermittedSettings(User requestingUser, User receivingUser) {
-		boolean isAdmin = SecurityUtil.isAdmin();
+		boolean isAdmin = SecurityUtil.hasDirectAdminRole();
 		boolean isRequestingForSelf = requestingUser.equals(receivingUser); //anmodende bruger er brugeren som er logget ind
 		boolean isManagerOrSubstitute = userService.isManagerOrSubstituteManagerFor(requestingUser, receivingUser);
 
@@ -937,7 +1044,7 @@ public class RequestService {
 
 		// No permissions = no results
 		if (permittedSettings.isEmpty()) {
-			return userRoleDatatableDao.findAll(input, (Specification<UserRoleView>) (root, query, cb) -> cb.disjunction());
+			return userRoleDatatableDao.findAll(input, (Specification<UserRoleView>) (_, _, cb) -> cb.disjunction());
 		}
 
 		boolean hasAuthorized = permittedSettings.remove(RequestableBy.AUTHORIZED);
@@ -981,15 +1088,19 @@ public class RequestService {
 			return emptyOutput;
 		}
 
-		boolean hasAuthorized = permittedSettings.contains(RequestableBy.AUTHORIZED);
+		boolean hasAuthorized = permittedSettings.remove(RequestableBy.AUTHORIZED);
 
-		List<Long> assignedUserRoleIds = userService.getAllUserRolesAssignedToUser(receivingUser, null).stream()
-			.map(UserRoleAssignedToUser::getRoleId)
+		// Get all assigned userRoles
+		Set<CurrentAssignment> assignments = assignmentService.getByUserIncludingInactive(receivingUser);
+		List<Long> assignedUserRoleIds = assignments.stream()
+			.map(a -> a.getUserRole().getId())
 			.toList();
 
-		List<Long> assignedRoleGroupIds = userService.getAllRoleGroupsAssignedToUser(receivingUser).stream()
-			.map(roleGroupAssignedToUser -> roleGroupAssignedToUser.getRoleGroup().getId())
+		List<Long> assignedRoleGroupIds = assignments.stream()
+			.filter(a -> a.getRoleGroup() != null)
+			.map(a -> a.getRoleGroup().getId())
 			.toList();
+
 
 		// Build list of all ancestor orgUnit UUIDs (including the orgUnit itself)
 		List<String> ancestorOuUuids = new ArrayList<>();
@@ -1008,8 +1119,10 @@ public class RequestService {
 			.and(CombinedRoleViewDatatableDao.isNotReadOnly())
 			.and(CombinedRoleViewDatatableDao.orgUnitFilterMatchesOrEmpty(ancestorOuUuids))
 			.and(CombinedRoleViewDatatableDao.excludeUserRolesById(userRoleIdsInRoleGroups))
-			.andIf(hasAuthorized, buildAuthorizedConstraintsForCombined(requestingUser, orgUnit))
-			.andIf(!permittedSettings.isEmpty(), CombinedRoleViewDatatableDao.requesterPermissionIn(permittedSettings))
+			.andOrGroup(group -> {
+				group.orIf(hasAuthorized, buildAuthorizedConstraintsForCombined(requestingUser, orgUnit));
+				group.orIf(!permittedSettings.isEmpty(), CombinedRoleViewDatatableDao.requesterPermissionIn(permittedSettings));
+			})
 			.andIf(hideAlreadyAssigned, CombinedRoleViewDatatableDao.excludeAlreadyAssigned(assignedUserRoleIds, assignedRoleGroupIds))
 			.build();
 
@@ -1017,8 +1130,16 @@ public class RequestService {
 	}
 
 	private Specification<CombinedRoleView> buildAuthorizedConstraintsForCombined(User requestingUser, OrgUnit orgUnit) {
-		return (root, query, cb) -> {
-			List<RoleAssignedToUserDTO> userAssignments = userService.getAllUserRoleAndRoleGroupAssignments(requestingUser);
+		return (root, _, cb) -> {
+			List<RoleAssignedToUserDTO> userAssignments = assignmentService.getByUserIncludingInactive(requestingUser).stream()
+				.map(a -> {
+					if (a.getRoleGroup() != null) {
+						return RoleAssignedToUserDTO.fromCurrentAssignmentRoleGroup(a, assignmentService.getAssignedThrough(a));
+					} else {
+						return RoleAssignedToUserDTO.fromCurrentAssignmentUserRole(a, assignmentService.getAssignedThrough(a));
+					}
+				})
+				.toList();
 
 			List<Long> authorizedUserRoleIds = userAssignments.stream()
 				.filter(a -> a.getType() == RoleAssignmentType.USERROLE)
@@ -1059,7 +1180,7 @@ public class RequestService {
 			requestingUser.equals(receivingUser),
 			!userService.getSubstitutesManager(requestingUser).isEmpty() || userService.isManager(requestingUser),
 			!orgUnitService.getByAuthorizationManagerMatchingUser(requestingUser).isEmpty(),
-			SecurityUtil.isAdmin(),
+			SecurityUtil.hasDirectAdminRole(),
 			isRequestAuthorized)) {
 			permittedSettings = new ArrayList<>(permittedSettings);
 			permittedSettings.add(RequestableBy.INHERIT);
@@ -1067,7 +1188,7 @@ public class RequestService {
 
 		Set<Long> accessibleItSystemIds = null;
 		// Check AUTHORIZED constraints and remove AUTHORIZED from permissions if constraints not met
-		if (isRequestAuthorized && !SecurityUtil.isAdmin() && permittedSettings.contains(RequestableBy.AUTHORIZED)) {
+		if (isRequestAuthorized && !SecurityUtil.hasDirectAdminRole() && permittedSettings.contains(RequestableBy.AUTHORIZED)) {
 			final RequestAuthorizedRoleService.LimitedToOrgUnits accessibleOrgUnits = requestAuthorizedRoleService.accessibleOrgUnits(requestingUser);
 			final RequestAuthorizedRoleService.LimitedToItSystems accessibleItSystems = requestAuthorizedRoleService.accessibleItsSystems(requestingUser);
 
@@ -1088,6 +1209,15 @@ public class RequestService {
 
 		// Build base specification - fetch all role groups matching user's (possibly filtered) permissions
 		Specification<RoleGroup> specification = RolegroupDatatableDao.requesterPermissionIn(permittedSettings);
+
+		// Add OU filter to specification - only show role groups where the receiver's OU matches the filter
+		List<String> ancestorOuUuids = new ArrayList<>();
+		OrgUnit current = orgUnit;
+		while (current != null) {
+			ancestorOuUuids.add(current.getUuid());
+			current = current.getParent();
+		}
+		specification = specification.and(RolegroupDatatableDao.ouFilterMatches(ancestorOuUuids));
 
 		List<RoleGroup> roleGroups = rolegroupDatatableDao.findAll(specification);
 
@@ -1112,7 +1242,7 @@ public class RequestService {
 
 		// Now add all the users the user have the authorization role for.
 		boolean limitedToOUs = true; // Admins are never limited
-		if (requestAuthorizedRoleService.requestAuthorizedRoleCanRequest() && !SecurityUtil.isAdmin()) {
+		if (requestAuthorizedRoleService.requestAuthorizedRoleCanRequest() && !SecurityUtil.hasDirectAdminRole()) {
 			final RequestAuthorizedRoleService.LimitedToOrgUnits limitedToOrgUnits =
 				requestAuthorizedRoleService.accessibleOrgUnits(requestingUser);
 			log.info("LimitedToOrgUnits: {} {}", limitedToOrgUnits.type().name(), String.join(",", limitedToOrgUnits.orgUnits()));
@@ -1125,17 +1255,15 @@ public class RequestService {
 					.toList());
 			}
 		}
-		if (SecurityUtil.isAdmin()) {
+		if (SecurityUtil.hasDirectAdminRole()) {
 			limitedToOUs = false;
 		}
 
 		DataTablesOutput<User> outputDatatable;
 		if (limitedToOUs) {
-			outputDatatable = userDatatableDao.findAll(input, Specification
-				.where(UserDatatableDao.requesterPositionOrgUnitIn(orgUnits)));
+			outputDatatable = userDatatableDao.findAll(input, UserDatatableDao.requesterPositionOrgUnitIn(orgUnits));
 		} else {
-			outputDatatable = userDatatableDao.findAll(input, Specification
-				.where(UserDatatableDao.notDeletedOrDisabled()));
+			outputDatatable = userDatatableDao.findAll(input, UserDatatableDao.notDeletedOrDisabled());
 		}
 
 		Stream<User> users = outputDatatable.getData().stream();
@@ -1214,7 +1342,7 @@ public class RequestService {
 		final var roleGroupSpec = SpecificationBuilder.create(CombinedRoleView.class)
 			.and(CombinedRoleViewDatatableDao.isNotReadOnly())
 			.and(CombinedRoleViewDatatableDao.orgUnitFilterMatchesOrEmpty(ancestorOuUuids))
-			.and((root, query, cb) -> cb.equal(root.get("type"), "roleGroup")) // Only roleGroups
+			.and((root, _, cb) -> cb.equal(root.get("type"), "roleGroup")) // Only roleGroups
 			.andIf(hasAuthorized, buildAuthorizedConstraintsForCombined(requestingUser, orgUnit))
 			.andIf(!permittedSettings.isEmpty(), CombinedRoleViewDatatableDao.requesterPermissionIn(permittedSettings))
 			.andIf(hideAlreadyAssigned, CombinedRoleViewDatatableDao.excludeAlreadyAssigned(assignedUserRoleIds, assignedRoleGroupIds))
@@ -1235,5 +1363,24 @@ public class RequestService {
 			.flatMap(roleGroup -> roleGroup.getUserRoleAssignments().stream())
 			.map(assignment -> assignment.getUserRole().getId())
 			.collect(Collectors.toSet());
+	}
+
+	@Transactional
+	public void assignRequestToUser(Long requestId, String userId) {
+		RoleRequest request = getRoleRequestById(requestId)
+			.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Could not find role request with id: " + requestId));
+
+		if (!canApprove(request)) {
+			throw new ResponseStatusException(HttpStatus.FORBIDDEN, "User not allowed to assign this request");
+		}
+
+		User loggedInUser = userService.getByUserId(userId);
+		if (loggedInUser == null) {
+			log.error("Logged in user {} not found in database", SecurityUtil.getUserId());
+			throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "User information unavailable");
+		}
+
+		request.setAssignedTo(loggedInUser.getName());
+		saveNewRequest(request);
 	}
 }

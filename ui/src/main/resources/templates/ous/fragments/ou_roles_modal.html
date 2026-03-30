@@ -7,6 +7,7 @@
 				<div class="modal-header">
 					<button type="button" class="close" onclick="commonService.closeModal();">&times;</button>
 					<h4 id="ouRolesModalHeader" th:text="#{html.page.ous.edit.title.choose}"></h4>
+					<p id="ouRolesModalRoleName"></p>
 				</div>
 
 				<div class="modal-body" style="overflow-y: initial !important;">
@@ -267,6 +268,13 @@
 					</div>
 				</div>
 
+				<div id="assignmentLoadingOverlay" style="display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.8); z-index: 1050; align-items: center; justify-content: center;">
+					<div style="text-align: center;">
+						<i class="fa fa-spinner fa-spin fa-3x" style="color: #337ab7;"></i>
+						<p style="margin-top: 10px; font-size: 16px; color: #333;" th:text="#{html.page.ous.edit.button.assign.spinner}"></p>
+					</div>
+				</div>
+
 				<div class="modal-footer">
 					<button type="button" disabled="disabled" id="titleAssignTitlesButton" class="btn btn-primary" onclick="commonService.handleTitleRoleAssignment()" th:text="#{html.page.ous.edit.button.assign}"></button>
 					<button type="button" disabled="disabled" id="assignWithExceptionsButton" class="btn btn-primary" onclick="commonService.handleExceptedRoleAssignment()" th:text="#{html.page.ous.edit.button.assign.exceptedusers}"></button>
@@ -332,7 +340,6 @@
 		var ouRolesModalService;
 		var ouRolesEditModalService;
 		var commonService;
-		var notifikationService;
 		var checkedTitlesFetched;
 		var selectedNegativeTitles = [];
 		var selectedNegativeInheritedTitles = [];
@@ -364,7 +371,7 @@
     			ouRolesEditModalService.header = [[#{html.page.ous.edit.title.choose.edit}]];
     		+]*/
 
-            notifikationService = new NotificationService();
+            notificationService = new NotificationService();
         });
 
         function CommonService() {
@@ -645,10 +652,29 @@
 
 				$(selector).prop('checked', false);
 			};
+
+			this.showLoadingState = function() {
+				// Disable all buttons
+				$('#modal-ou .modal-footer button').prop('disabled', true);
+
+				// Show loading overlay
+				$('#assignmentLoadingOverlay').css('display', 'flex');
+			}
+
+			this.hideLoadingState = function() {
+				// Enable all buttons
+				$('#modal-ou .modal-footer button').prop('disabled', false);
+
+				// Hide loading overlay
+				$('#assignmentLoadingOverlay').hide();
+
+				// Re-apply correct button state based on current selections
+				commonService.handleButtonDisplay();
+			}
 		}
 
 		function OURolesModalService() {
-			this.showAssignModal = function(titlesEnabled, startDate, stopDate) {
+			this.showAssignModal = function(titlesEnabled, startDate, stopDate, roleName) {
 				$('#stopDatePickerOU').data("DateTimePicker").clear();
 				$('#startDatePickerOU').data("DateTimePicker").clear();
 				$('#startDatePickerOU').data("DateTimePicker").date(new Date());
@@ -698,6 +724,7 @@
 
 				$("#titleInheritButton").show();
 				$("#ouRolesModalHeader").text(ouRolesModalService.header);
+				$("#ouRolesModalRoleName").text(roleName);
 
 				$("#modal-ou").modal({
 					backdrop: 'static',
@@ -727,6 +754,9 @@
 				    }
 				}
 
+				// Show loading state before AJAX call
+				commonService.showLoadingState();
+
 				$.ajax({
 					url: endpoint,
 					method: "POST",
@@ -740,22 +770,24 @@
 	    			      'functionUuids': functionUuids
 					}),
 					error : function(response) {
+						commonService.hideLoadingState();
 						errorHandler(commonService.fieldNotUpdatedMsg)(response);
 						commonService.closeModal();
 					},
 					success : function(response) {
+						commonService.hideLoadingState();
 						if (response.success) {
 							if (response.users > 0) {
 								let optionalSuccessMessage = usersAlreadyAssignedDirectlyMsg.format(response.users);
-								notifikationService.showWarnNotification(optionalSuccessMessage);
+								notificationService.showWarnNotification(optionalSuccessMessage);
 							}
 							else {
-								notifikationService.showInfoNotification(commonService.fieldUpdatedMsg);
+								notificationService.showInfoNotification(commonService.fieldUpdatedMsg);
 							}
 						}
 						else {
 							// TODO: should we inform the user that we did not make any change?
-							notifikationService.showInfoNotification(commonService.fieldUpdatedMsg);
+							notificationService.showInfoNotification(commonService.fieldUpdatedMsg);
 						}
 
 						commonService.closeModal();
@@ -869,7 +901,7 @@
 				}
 			}
 
-			this.showAssignModal = function(titlesEnabled, startDate, stopDate, assignmentType, assignmentId) {
+			this.showAssignModal = function(titlesEnabled, startDate, stopDate, assignmentType, assignmentId, roleName) {
 				ouRolesEditModalService.handleDates(startDate, stopDate);
 
 				// Reset UI
@@ -975,6 +1007,7 @@
 
 				$("#modal-ou").attr('assignmentId', assignmentId);
 				$("#ouRolesModalHeader").text(ouRolesEditModalService.header);
+				$("#ouRolesModalRoleName").text(roleName);
 
 				$("#modal-ou").modal({
 					backdrop: 'static',
@@ -1002,6 +1035,9 @@
 				    }
 				}
 
+				// Show loading state before AJAX call
+    			commonService.showLoadingState();
+
 				$.ajax({
 					url: endpoint,
 					method: "POST",
@@ -1015,11 +1051,13 @@
 	    			      'functionUuids': functionUuids
 					}),
 					error : function(response) {
+						commonService.hideLoadingState();
 						errorHandler(commonService.fieldNotUpdatedMsg)(response);
 						setTimeout(function(){ commonService.parentService.loadRolesFragment(); }, 200);
 						commonService.closeModal();
 					},
 					success : function(response) {
+						commonService.hideLoadingState();
 						notificationService.showInfoNotification(commonService.fieldUpdatedMsg);
 						setTimeout(function(){ commonService.parentService.loadRolesFragment(); }, 200);
 						commonService.closeModal();

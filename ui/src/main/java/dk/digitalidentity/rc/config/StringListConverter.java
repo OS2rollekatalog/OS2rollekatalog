@@ -14,6 +14,9 @@ public class StringListConverter implements AttributeConverter<List<String>, Str
 
 	@Override
 	public String convertToDatabaseColumn(List<String> list) {
+		if (list == null) {
+			return "";
+		}
 		return String.join(",", list);
 	}
 

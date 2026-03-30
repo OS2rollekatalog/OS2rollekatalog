@@ -14,8 +14,10 @@ import dk.digitalidentity.rc.dao.model.RoleGroup;
 import dk.digitalidentity.rc.dao.model.SystemRole;
 import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserRole;
+import dk.digitalidentity.rc.dao.model.assignment.CurrentAssignment;
 import dk.digitalidentity.rc.dao.model.enums.ADGroupType;
 import dk.digitalidentity.rc.dao.model.enums.ItSystemType;
+import dk.digitalidentity.rc.service.assignment.AssignmentService;
 import dk.digitalidentity.rc.service.util.FilterMatcher;
 import jakarta.transaction.Transactional;
 import lombok.extern.slf4j.Slf4j;
@@ -35,16 +37,16 @@ public class PendingADUpdateService {
 
 	@Autowired
 	private OrgUnitService orgUnitService;
-	
+
 	@Autowired
 	private ItSystemService itSystemService;
 
 	@Autowired
 	private SystemRoleService systemRoleService;
-	
+
 	@Autowired
 	private DirtyADGroupDao dirtyADGroupDao;
-	
+
 	@Autowired
 	private SystemRoleDao systemRoleDao;
 
@@ -56,7 +58,10 @@ public class PendingADUpdateService {
 
 	@Autowired
 	private ClientService clientService;
-	
+
+	@Autowired
+	private AssignmentService assignmentService;
+
 	public PendingADGroupOperation save(PendingADGroupOperation operation) {
 		return pendingADGroupOperationDao.save(operation);
 	}
@@ -94,16 +99,16 @@ public class PendingADUpdateService {
 			dirtyADGroupDao.save(dirty);
 		}
 	}
-	
+
 	@Transactional
 	public void removeItSystemFromQueue(ItSystem itSystem) {
 		dirtyADGroupDao.deleteByItSystemId(itSystem.getId());
 	}
-	
+
 	public void addUserRoleToQueue(UserRole userRole) {
 		ItSystem itSystem = userRole.getItSystem();
-		
-		if (!itSystem.getSystemType().equals(ItSystemType.AD) || itSystem.isPaused() || itSystem.isReadonly()) {
+
+		if (isITSystemIneligible(itSystem)) {
 			return;
 		}
 
@@ -148,7 +153,7 @@ public class PendingADUpdateService {
 				}
 			}
 		}
-		
+
 		// check userroles assigned to the OU that the position points to
 		List<UserRole> urs = orgUnitService.getUserRoles(position.getOrgUnit(), true);
 
@@ -163,7 +168,7 @@ public class PendingADUpdateService {
 	public void deleteByIdLessThan(long head, long maxHead, Domain domain) {
 		List<DirtyADGroup> toDelete = dirtyADGroupDao.findByIdLessThanAndDomain(head, domain);
 		Set<String> toDeleteIdentifiers = toDelete.stream().map(d -> d.getIdentifier()).collect(Collectors.toSet());
-		
+
 		if (maxHead > 0) {
 			dirtyADGroupDao.deleteByIdentifierInAndIdLessThan(toDeleteIdentifiers, maxHead + 1);
 		}
@@ -171,7 +176,7 @@ public class PendingADUpdateService {
 			dirtyADGroupDao.deleteByIdentifierIn(toDeleteIdentifiers);
 		}
 	}
-	
+
 	@Transactional
 	public void deleteOperationsByIdLessThan(long head, Domain foundDomain) {
 		pendingADGroupOperationDao.deleteByDomainAndIdLessThan(foundDomain, head);
@@ -201,8 +206,18 @@ public class PendingADUpdateService {
 		if (group != null) {
 			return group.getId();
 		}
-		
+
 		return 0;
+	}
+
+	@Transactional
+	public void addAllGroups(final long domainId) {
+		log.info("Adding all groups for domain {} to queue", domainId);
+		// Filters IT systems by AD group and domain
+		itSystemService.getAll().stream()
+			.filter(its -> !isITSystemIneligible(its))
+			.filter(its -> its.getDomain() != null && domainId == its.getDomain().getId())
+			.forEach(this::addItSystemToQueue);
 	}
 
 	// we always add to queue, duplicates are dealt with elsewhere
@@ -229,13 +244,7 @@ public class PendingADUpdateService {
 			log.info("Processing client '{}' with {} filter(s)", adSyncService.getName(), filterMap.size());
 
 			for (ItSystem itSystem : itSystemService.getBySystemType(ItSystemType.AD)) {
-				if (itSystem.isPaused()) {
-					log.debug("Skipping paused IT system: {}", itSystem.getName());
-					continue;
-				}
-
-				if (itSystem.isReadonly()) {
-					log.debug("Skipping readonly IT system: {}", itSystem.getName());
+				if (isITSystemIneligible(itSystem)) {
 					continue;
 				}
 
@@ -278,5 +287,42 @@ public class PendingADUpdateService {
 
 		log.info("Completed addADGroupsFromMemberShipSyncFilter - Processed: {}, Matched: {}, Skipped: {}",
 				totalProcessed, totalMatched, totalSkipped);
+	}
+
+	public void addADGroupsWithStartDateToday() {
+		log.info("Starting addADGroupsFromMemberShipSyncFilter");
+		int totalProcessed = 0;
+
+		for (ItSystem itSystem : itSystemService.getBySystemType(ItSystemType.AD)) {
+			if (itSystem.isPaused()) {
+				log.debug("Skipping paused IT system: {}", itSystem.getName());
+				continue;
+			}
+
+			if (itSystem.isReadonly()) {
+				log.debug("Skipping readonly IT system: {}", itSystem.getName());
+				continue;
+			}
+
+			Set<CurrentAssignment> assignmentsWithStartToday = assignmentService.findByStartDateTodayAndItSystem(itSystem);
+			log.debug("Found {} assignment with startDate today for IT system '{}'", assignmentsWithStartToday.size(), itSystem.getName());
+
+			for (CurrentAssignment currentAssignment : assignmentsWithStartToday) {
+				UserRole userRole = currentAssignment.getUserRole();
+				totalProcessed++;
+				addUserRoleToQueue(userRole);
+				log.debug("Added systemRoles from userRole '{}' to dirty AD groups", userRole.getName());
+			}
+		}
+
+		log.info("Completed addADGroupsFromMemberShipSyncFilter - Processed: {}",
+			totalProcessed);
+	}
+
+	/**
+	 * Skips paused or readonly IT systems
+	 */
+	private static boolean isITSystemIneligible(final ItSystem itSystem) {
+		return (!itSystem.getSystemType().equals(ItSystemType.AD) || itSystem.isPaused() || itSystem.isReadonly());
 	}
 }

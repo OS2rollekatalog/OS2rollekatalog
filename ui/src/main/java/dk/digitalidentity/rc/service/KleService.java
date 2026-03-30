@@ -5,9 +5,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.RestTemplate;
 
 import dk.digitalidentity.rc.controller.mvc.viewmodel.KleViewModel;
 import dk.digitalidentity.rc.dao.KleDao;
@@ -24,21 +22,17 @@ public class KleService {
 
 	@Autowired
 	private KleDao kleDao;
-	
-	@Qualifier("defaultRestTemplate")
-	@Autowired
-	private RestTemplate restTemplate;
 
 	public List<KleViewModel> getKleMainGroupList(){
 		return getKleListFromParent("0"); //parentCode 0 = KLE main groups "parent"
 	}
-	
+
 	public Kle getByCode(String code) {
 		return kleDao.getByCode(code);
 	}
 
 	public List<Kle> findAll() { return kleDao.findAll(); }
-	
+
 	public Kle save(Kle kle) {
 		return kleDao.save(kle);
 	}
@@ -59,13 +53,13 @@ public class KleService {
 			kvm.setParent(kle.getParent());
 			kleMainGroupList.add(kvm);
 		}
-		
+
 		return kleMainGroupList.stream().sorted((k1, k2) -> k1.getCode().compareTo(k2.getCode())).collect(Collectors.toList());
 	}
 
 	public List<KleAssignment> getKleAssignments(OrgUnit orgUnit, KleType kleType, boolean recursive) {
 		List<KleAssignment> result = getKleAssignments(orgUnit, kleType, recursive, true);
-		
+
 		// sort and return
 		return result.stream().sorted((k1, k2) -> k1.getCode().compareTo(k2.getCode())).collect(Collectors.toList());
 	}
@@ -78,7 +72,7 @@ public class KleService {
 					.filter(k -> k.getAssignmentType().equals(kleType))
 					.map(kle -> KleAssignment.builder().code(kle.getCode()).inheritedFrom(orgUnit.getName()).build())
 					.collect(Collectors.toList());
-			
+
 			// update description
 			for (KleAssignment assignment : tmp) {
 				assignment.setDescription(ReadKleTask.getName(assignment.getCode()));
@@ -95,7 +89,7 @@ public class KleService {
 			for (KleAssignment assignment : tmp) {
 				assignment.setDescription(ReadKleTask.getName(assignment.getCode()));
 			}
-			
+
 			result.addAll(tmp);
 		}
 
@@ -118,12 +112,12 @@ public class KleService {
 
 		// sort
 		result = result.stream().sorted((k1, k2) -> k1.getCode().compareTo(k2.getCode())).collect(Collectors.toList());
-		
+
 		// update description
 		for (KleAssignment assignment : result) {
 			assignment.setDescription(ReadKleTask.getName(assignment.getCode()));
 		}
-		
+
 		return result;
 	}
 }

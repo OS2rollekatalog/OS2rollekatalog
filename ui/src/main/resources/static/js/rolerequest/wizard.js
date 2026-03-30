@@ -546,8 +546,8 @@ function CombinedService() {
 				render: (data, type, row, meta) => {
 					if (type === 'display') {
 						const badge = data === 'roleGroup' ?
-							'<span class="badge" style="background-color: #0066cc; color: white;">Rollegruppe</span>' :
-							'<span class="badge" style="background-color: #9933cc; color: white;">Brugerrolle</span>';
+							'<span class="badge" style="background-color: #0066cc; color: white;">Rollebuket</span>' :
+							'<span class="badge" style="background-color: #9933cc; color: white;">Jobfunktionsrolle</span>';
 						return badge;
 					} else { return data; }
 				}
@@ -624,7 +624,8 @@ function CombinedService() {
 			{
 				targets: [6],
 				data: 'description',
-				orderable: false
+				orderable: false,
+				className: "preformat"
 			},
 			{
 				targets: [7],
@@ -655,8 +656,8 @@ function CombinedService() {
 				render: (data, type, row, meta) => {
 					if (type === 'display') {
 						const badge = data === 'roleGroup' ?
-							'<span class="badge" style="background-color: #0066cc; color: white;">Rollegruppe</span>' :
-							'<span class="badge" style="background-color: #9933cc; color: white;">Brugerrolle</span>';
+							'<span class="badge" style="background-color: #0066cc; color: white;">Rollebuket</span>' :
+							'<span class="badge" style="background-color: #9933cc; color: white;">Jobfunktionsrolle</span>';
 						return badge;
 					} else { return data; }
 				}
@@ -734,7 +735,8 @@ function CombinedService() {
 			{
 				targets: [6],
 				data: 'description',
-				orderable: false
+				orderable: false,
+				className: "preformat"
 			},
 			{
 				targets: [7],
@@ -845,7 +847,8 @@ function RoleGroupService() {
             {
                 targets : [4],
                 data : 'description',
-                orderable: false
+                orderable: false,
+                className: "preformat"
             },
         ]
 		return datatableService.initDefaultClientSideTable(`#${tableId}`, this.buildTableUrl(),  [ [ 3, "asc" ] ], rolegroupColumnDefs);
@@ -896,7 +899,8 @@ function RoleGroupService() {
 			{
 				targets : [4],
 				data : 'description',
-				orderable: false
+				orderable: false,
+				className: "preformat"
 			},
 		];
 		return datatableService.initDefaultClientSideTable(`#${tableId}`, this.buildRecommendedTableUrl(),  [ [ 3, "asc" ] ], columns);
@@ -1054,7 +1058,8 @@ function UserRoleService() {
 			{
 				targets : [3],
 				data : 'description',
-				orderable: false
+				orderable: false,
+				className: "preformat"
 			},
 		];
         return datatableService.initDefaultServersideTable(`#${tableId}`, this.buildTableUrl(), userroleColumnDefs, [ [ 1, "asc" ] ])
@@ -1091,7 +1096,8 @@ function UserRoleService() {
 				{
 					targets : [3],
 					data : 'description',
-					orderable: false
+					orderable: false,
+					className: "preformat"
 				},
 			];
 		return datatableService.initDefaultClientSideTable(`#${tableId}`, this.buildRecommendedTableUrl(),  [ [ 1, "asc" ] ], columns);

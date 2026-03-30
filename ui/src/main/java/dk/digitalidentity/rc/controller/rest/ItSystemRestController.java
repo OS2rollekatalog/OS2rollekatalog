@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.regex.Pattern;
 
+import dk.digitalidentity.rc.service.assignment.AssignmentService;
 import dk.digitalidentity.rc.security.permission.Permission;
 import dk.digitalidentity.rc.security.permission.RequireControllerPermission;
 import dk.digitalidentity.rc.security.permission.RequirePermission;
@@ -41,7 +42,6 @@ import dk.digitalidentity.rc.dao.model.enums.ADGroupType;
 import dk.digitalidentity.rc.dao.model.enums.ItSystemType;
 import dk.digitalidentity.rc.rolerequest.model.enums.ApprovableBy;
 import dk.digitalidentity.rc.rolerequest.model.enums.RequestableBy;
-import dk.digitalidentity.rc.security.RequireAdministratorRole;
 import dk.digitalidentity.rc.service.ItSystemService;
 import dk.digitalidentity.rc.service.KitosITSystemService;
 import dk.digitalidentity.rc.service.OrgUnitService;
@@ -79,6 +79,9 @@ public class ItSystemRestController {
 
 	@Autowired
 	private KitosITSystemService kitosITSystemService;
+
+	@Autowired
+	private AssignmentService assignmentService;
 
 	@PostMapping(value = { "/rest/systemrole/delete/{id}" })
 	@ResponseBody
@@ -455,7 +458,7 @@ public class ItSystemRestController {
 		List<UserRole> userRoles = userRoleService.getByItSystem(itSystem);
 		for (UserRole userRole : userRoles) {
 			// check if assigned to user
-			if (userService.countAllWithRole(userRole) > 0) {
+			if (assignmentService.countAllUsersWithDirectUserRole(userRole) > 0) {
 				continue;
 			}
 

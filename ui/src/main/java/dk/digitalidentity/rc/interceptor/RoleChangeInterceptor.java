@@ -4,6 +4,7 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Set;
 
+import org.aspectj.lang.annotation.AfterReturning;
 import org.aspectj.lang.annotation.Aspect;
 import org.aspectj.lang.annotation.Before;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -34,6 +35,13 @@ public class RoleChangeInterceptor {
 		}
 	}
 
+	@Before("execution(* dk.digitalidentity.rc.service.UserService.editRoleGroupAssignment(dk.digitalidentity.rc.dao.model.User, dk.digitalidentity.rc.dao.model.UserRoleGroupAssignment, ..)) && args(user, assignment, ..)")
+	public void interceptEditRoleGroupAssignment(final User user, UserRoleGroupAssignment assignment) {
+		for (RoleChangeHook hook : hooks) {
+			hook.interceptEditRoleGroupAssignmentOnUser(user, assignment);
+		}
+	}
+
 	@Before("execution(* dk.digitalidentity.rc.service.UserService.activateUser(dk.digitalidentity.rc.dao.model.User)) && args(user)")
 	public void interceptActivateUser(User user) {
 		for (RoleChangeHook hook : hooks) {
@@ -50,12 +58,12 @@ public class RoleChangeInterceptor {
 
 	@Before("execution(* dk.digitalidentity.rc.service.UserService.addRoleGroup(dk.digitalidentity.rc.dao.model.User, dk.digitalidentity.rc.dao.model.RoleGroup, java.time.LocalDate, java.time.LocalDate, ..)) && args(user, roleGroup, startDate, stopDate, ..)")
 	public void interceptAddRoleGroupAssignmentOnUser(User user, RoleGroup roleGroup, LocalDate startDate, LocalDate stopDate) {
-		// skip assignments that are active in the future (we will get a direct event-call later)
-		if (startDate != null && startDate.isAfter(LocalDate.now())) {
-			return;
-		}
-
 		for (RoleChangeHook hook : hooks) {
+			hook.interceptAddImmediateRoleGroupAssignmentOnUser(user, roleGroup);
+			if (startDate != null && startDate.isAfter(LocalDate.now())) {
+				// skip assignments that are active in the future (we will get a direct event-call later)
+				continue;
+			}
 			hook.interceptAddRoleGroupAssignmentOnUser(user, roleGroup);
 		}
 	}
@@ -76,13 +84,12 @@ public class RoleChangeInterceptor {
 
 	@Before("execution(* dk.digitalidentity.rc.service.UserService.addUserRole(dk.digitalidentity.rc.dao.model.User, dk.digitalidentity.rc.dao.model.UserRole, java.time.LocalDate, java.time.LocalDate, ..)) && args(user, userRole, startDate, stopDate, ..)")
 	public void interceptAddUserRoleAssignmentOnUser(User user, UserRole userRole, LocalDate startDate, LocalDate stopDate) {
-
-		// skip assignments that are active in the future (we will get a direct event-call later)
-		if (startDate != null && startDate.isAfter(LocalDate.now())) {
-			return;
-		}
-
 		for (RoleChangeHook hook : hooks) {
+			hook.interceptAddImmediateUserRoleAssignmentOnUser(user, userRole);
+			if (startDate != null && startDate.isAfter(LocalDate.now())) {
+				// skip assignments that are active in the future (we will get a direct event-call later)
+				continue;
+			}
 			hook.interceptAddUserRoleAssignmentOnUser(user, userRole);
 		}
 	}
@@ -117,15 +124,32 @@ public class RoleChangeInterceptor {
 
 	// OrgUnitService
 
-	@Before("execution(* dk.digitalidentity.rc.service.OrgUnitService.addRoleGroup(dk.digitalidentity.rc.dao.model.OrgUnit, dk.digitalidentity.rc.dao.model.RoleGroup, boolean, java.time.LocalDate, java.time.LocalDate, java.util.Set, java.util.Set, ..)) && args(ou, roleGroup, inherit, startDate, stopDate, exceptedUsers, titles, ..)")
-	public void interceptAddRoleGroupAssignmentOnOrgUnit(OrgUnit ou, RoleGroup roleGroup, boolean inherit, LocalDate startDate, LocalDate stopDate, Set<String> exceptedUsers, Set<String> titles) {
-
-		// skip assignments that are active in the future (we will get a direct event-call later)
-		if (startDate != null && startDate.isAfter(LocalDate.now())) {
-			return;
-		}
-
+	@AfterReturning(
+		pointcut = "execution(* dk.digitalidentity.rc.service.OrgUnitService.addUserRole(..))",
+		returning = "result")
+	public void interceptAddedUserRoleAssignmentOnOrgUnit(OrgUnitUserRoleAssignment result) {
 		for (RoleChangeHook hook : hooks) {
+			hook.interceptAddedUserRoleAssignmentOnOrgUnit(result.getOrgUnit(), result);
+		}
+	}
+
+	@AfterReturning(
+		pointcut = "execution(* dk.digitalidentity.rc.service.OrgUnitService.addRoleGroup(..))",
+		returning = "result")
+	public void interceptAddedRoleGroupAssignmentOnOrgUnit(OrgUnitRoleGroupAssignment result) {
+		for (RoleChangeHook hook : hooks) {
+			hook.interceptAddedRoleGroupAssignmentOnOrgUnit(result.getOrgUnit(), result);
+		}
+	}
+
+	@Before("execution(* dk.digitalidentity.rc.service.OrgUnitService.addRoleGroup(dk.digitalidentity.rc.dao.model.OrgUnit, dk.digitalidentity.rc.dao.model.RoleGroup, boolean, java.time.LocalDate, java.time.LocalDate, java.util.Set, java.util.Set, boolean, boolean, boolean, java.util.Set, String)) && args(ou, roleGroup, inherit, startDate, stopDate, exceptedUsers, titles, *, *, *, *, caseNumber)")
+	public void interceptAddRoleGroupAssignmentOnOrgUnit(OrgUnit ou, RoleGroup roleGroup, boolean inherit, LocalDate startDate, LocalDate stopDate, Set<String> exceptedUsers, Set<String> titles, String caseNumber) {
+		for (RoleChangeHook hook : hooks) {
+			hook.interceptAddImmediateRoleGroupAssignmentOnOrgUnit(ou, roleGroup, inherit);
+			if (startDate != null && startDate.isAfter(LocalDate.now())) {
+				// skip assignments that are active in the future (we will get a direct event-call later)
+				continue;
+			}
 			hook.interceptAddRoleGroupAssignmentOnOrgUnit(ou, roleGroup, inherit);
 		}
 	}
@@ -147,12 +171,12 @@ public class RoleChangeInterceptor {
 	@Before("execution(* dk.digitalidentity.rc.service.OrgUnitService.addUserRole(dk.digitalidentity.rc.dao.model.OrgUnit, dk.digitalidentity.rc.dao.model.UserRole, boolean, java.time.LocalDate, java.time.LocalDate, java.util.Set, java.util.Set, boolean, boolean, boolean, java.util.Set, String)) && args(ou, userRole, inherit, startDate, stopDate, exceptedUsers, titles, *, *, *, *, caseNumber)")
 	public void interceptAddUserRoleAssignmentOnOrgUnit(OrgUnit ou, UserRole userRole, boolean inherit, LocalDate startDate, LocalDate stopDate, Set<String> exceptedUsers, Set<String> titles, String caseNumber) {
 
-		// skip assignments that are active in the future (we will get a direct event-call later)
-		if (startDate != null && startDate.isAfter(LocalDate.now())) {
-			return;
-		}
-
 		for (RoleChangeHook hook : hooks) {
+			hook.interceptAddImmediateUserRoleAssignmentOnOrgUnit(ou, userRole, inherit);
+			if (startDate != null && startDate.isAfter(LocalDate.now())) {
+				// skip assignments that are active in the future (we will get a direct event-call later)
+				continue;
+			}
 			hook.interceptAddUserRoleAssignmentOnOrgUnit(ou, userRole, inherit);
 		}
 	}
@@ -173,7 +197,7 @@ public class RoleChangeInterceptor {
 
 	// public boolean updateUserRoleAssignment(OrgUnit ou, OrgUnitUserRoleAssignment assignment, boolean inherit, LocalDate startDate, LocalDate stopDate, Set<String> exceptedUsers, Set<String> titleUuids) {
 	@Before("execution(* dk.digitalidentity.rc.service.OrgUnitService.updateUserRoleAssignment(dk.digitalidentity.rc.dao.model.OrgUnit, dk.digitalidentity.rc.dao.model.OrgUnitUserRoleAssignment, ..)) && args(ou, assignment, ..)")
-	public void interceptEditUserRoleAssignmentOnOrgUnit(OrgUnit ou,  OrgUnitUserRoleAssignment assignment) {
+	public void interceptEditUserRoleAssignmentOnOrgUnit(OrgUnit ou, OrgUnitUserRoleAssignment assignment) {
 		for (RoleChangeHook hook : hooks) {
 			hook.interceptEditUserRoleAssignmentOnOrgUnit(ou, assignment.getUserRole());
 		}
@@ -187,7 +211,7 @@ public class RoleChangeInterceptor {
 		}
 	}
 
-	//// RoleGroupService Hooks
+	/// / RoleGroupService Hooks
 
 	@Before("execution(* dk.digitalidentity.rc.service.RoleGroupService.addUserRole(dk.digitalidentity.rc.dao.model.RoleGroup, dk.digitalidentity.rc.dao.model.UserRole)) && args(roleGroup, userRole)")
 	public void interceptAddUserRoleAssignmentOnRoleGroup(RoleGroup roleGroup, UserRole userRole) {
@@ -203,7 +227,7 @@ public class RoleChangeInterceptor {
 		}
 	}
 
-	//// UserRoleService Hooks
+	/// / UserRoleService Hooks
 
 	@Before("execution(* dk.digitalidentity.rc.service.UserRoleService.addSystemRoleAssignment(dk.digitalidentity.rc.dao.model.UserRole, dk.digitalidentity.rc.dao.model.SystemRoleAssignment)) && args(userRole, systemRoleAssignment)")
 	public void interceptAddSystemRoleAssignmentOnUserRole(UserRole userRole, SystemRoleAssignment systemRoleAssignment) {

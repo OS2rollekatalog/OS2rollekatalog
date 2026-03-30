@@ -3,16 +3,11 @@ package dk.digitalidentity.rc.service.model;
 import java.time.LocalDate;
 import java.util.Collections;
 import java.util.List;
-import java.util.stream.Collectors;
 
 import dk.digitalidentity.rc.controller.mvc.viewmodel.SystemRoleAssignmentDTO;
 import dk.digitalidentity.rc.dao.model.ItSystem;
-import dk.digitalidentity.rc.dao.model.OrgUnitRoleGroupAssignment;
-import dk.digitalidentity.rc.dao.model.OrgUnitUserRoleAssignment;
-import dk.digitalidentity.rc.dao.model.RoleGroupUserRoleAssignment;
-import dk.digitalidentity.rc.dao.model.Title;
-import dk.digitalidentity.rc.dao.model.UserRoleGroupAssignment;
-import dk.digitalidentity.rc.dao.model.UserUserRoleAssignment;
+import dk.digitalidentity.rc.dao.model.assignment.CurrentAssignment;
+import dk.digitalidentity.rc.dao.model.assignment.CurrentExceptedAssignment;
 import dk.digitalidentity.rc.dao.model.enums.ContainsTitles;
 import lombok.Getter;
 import lombok.Setter;
@@ -20,6 +15,7 @@ import lombok.Setter;
 @Getter
 @Setter
 public class RoleAssignedToUserDTO {
+	private long currentAssignmentId;
 	private long assignmentId;
 	private long roleId;
 	private String name;
@@ -30,13 +26,17 @@ public class RoleAssignedToUserDTO {
 	private String description;
 	private LocalDate startDate;
 	private LocalDate stopDate;
+	private ContainsTitles containsTitles = ContainsTitles.NO;
+	private List<String> titleUuids = Collections.emptyList();
+
+	// set by caller after creation
 	private boolean canEdit;
+
+	// only set in UserController.handleUserRoleOrNegativeRole after creation
 	private List<SystemRoleAssignmentDTO> systemRoleAssignments;
 	private Integer highestSystemRoleWeight;
 	private String ineffectiveReason;
 	private boolean ineffective = false;
-	private ContainsTitles containsTitles = ContainsTitles.NO;
-	private List<String> titleUuids = Collections.emptyList();
 
 	// only for directly assigned roles
 	private String orgUnitUuid;
@@ -44,144 +44,154 @@ public class RoleAssignedToUserDTO {
 	// only for directly assigned user roles
 	private String caseNumber;
 
-	public static RoleAssignedToUserDTO fromRoleGroupUserRoleAssignment(RoleGroupUserRoleAssignment assignment, LocalDate startDate, LocalDate stopDate) {
+	public static RoleAssignedToUserDTO fromCurrentAssignmentUserRole(CurrentAssignment assignment, AssignedThrough assignedThrough) {
 		RoleAssignedToUserDTO dto = new RoleAssignedToUserDTO();
-		dto.setAssignmentId(assignment.getId());
-		dto.setRoleId(assignment.getUserRole().getId());
-		dto.setName(assignment.getUserRole().getName());
-		dto.setType(RoleAssignmentType.USERROLE);
-		dto.setAssignedThrough(AssignedThrough.ROLEGROUP);
-		dto.setAssignedThroughName(assignment.getRoleGroup().getName());
-		dto.setItSystem(assignment.getUserRole().getItSystem());
-		dto.setDescription(assignment.getUserRole().getDescription());
-		dto.setStartDate(startDate);
-		dto.setStopDate(stopDate);
-		dto.setCanEdit(false);
-		return dto;
-	}
 
-	public static RoleAssignedToUserDTO fromUserRoleAssignment(UserUserRoleAssignment assignment) {
-		RoleAssignedToUserDTO dto = new RoleAssignedToUserDTO();
-		dto.setAssignmentId(assignment.getId());
+		// Basic assignment info
+		dto.setCurrentAssignmentId(assignment.getId());
+		dto.setAssignmentId(assignment.getAssignmentId());
 		dto.setRoleId(assignment.getUserRole().getId());
 		dto.setName(assignment.getUserRole().getName());
 		dto.setType(RoleAssignmentType.USERROLE);
-		dto.setAssignedThrough(AssignedThrough.DIRECT);
-		dto.setItSystem(assignment.getUserRole().getItSystem());
+		dto.setItSystem(assignment.getItSystem());
 		dto.setDescription(assignment.getUserRole().getDescription());
 		dto.setStartDate(assignment.getStartDate());
 		dto.setStopDate(assignment.getStopDate());
-		dto.setCanEdit(false);
-		dto.setOrgUnitUuid(assignment.getOrgUnit() != null ? assignment.getOrgUnit().getUuid() : null);
+		dto.setAssignedThrough(assignedThrough);
 		dto.setCaseNumber(assignment.getCaseNumber());
+
+		switch (assignedThrough) {
+			case ROLEGROUP:
+				if (assignment.getRoleGroup() != null) {
+					dto.setAssignedThroughName(assignment.getRoleGroup().getName());
+				}
+				break;
+			case ORGUNIT:
+				if (assignment.getOrgUnit() != null) {
+					dto.setAssignedThroughName(assignment.getOrgUnit().getName());
+				}
+				break;
+			case TITLE:
+				if (assignment.getOrgUnit() != null) {
+					dto.setAssignedThroughName(assignment.getOrgUnit().getName());
+					dto.setContainsTitles(ContainsTitles.POSITIVE);
+				}
+				break;
+			case DIRECT:
+				dto.setOrgUnitUuid(assignment.getResponsibleOrgUnit() == null ? null : assignment.getResponsibleOrgUnit().getUuid());
+				break;
+			case POSITION:
+				// not possible anymore
+				break;
+		}
+
+		if (assignment.getTitle() != null) {
+			dto.setTitleUuids(Collections.singletonList(assignment.getTitle().getUuid()));
+		}
+
+		dto.setCanEdit(false);
+
 		return dto;
 	}
 
-	public static RoleAssignedToUserDTO fromRoleGroupAssignment(UserRoleGroupAssignment assignment) {
+	public static RoleAssignedToUserDTO fromCurrentAssignmentRoleGroup(CurrentAssignment assignment, AssignedThrough assignedThrough) {
 		RoleAssignedToUserDTO dto = new RoleAssignedToUserDTO();
-		dto.setAssignmentId(assignment.getId());
+
+		// Basic assignment info
+		dto.setCurrentAssignmentId(assignment.getId());
+		dto.setAssignmentId(assignment.getAssignmentId());
 		dto.setRoleId(assignment.getRoleGroup().getId());
 		dto.setName(assignment.getRoleGroup().getName());
 		dto.setType(RoleAssignmentType.ROLEGROUP);
-		dto.setAssignedThrough(AssignedThrough.DIRECT);
 		dto.setDescription(assignment.getRoleGroup().getDescription());
 		dto.setStartDate(assignment.getStartDate());
 		dto.setStopDate(assignment.getStopDate());
-		dto.setCanEdit(false);
-		dto.setOrgUnitUuid(assignment.getOrgUnit() != null ? assignment.getOrgUnit().getUuid() : null);
-		return dto;
-	}
+		dto.setAssignedThrough(assignedThrough);
 
-	public static RoleAssignedToUserDTO fromOrgUnitUserRoleAssignment(OrgUnitUserRoleAssignment assignment) {
-		RoleAssignedToUserDTO dto = new RoleAssignedToUserDTO();
-		dto.setAssignmentId(assignment.getId());
-		dto.setRoleId(assignment.getUserRole().getId());
-		dto.setName(assignment.getUserRole().getName());
-		dto.setType(RoleAssignmentType.USERROLE);
+		switch (assignedThrough) {
+			case ORGUNIT:
+				if (assignment.getOrgUnit() != null) {
+					dto.setAssignedThroughName(assignment.getOrgUnit().getName());
+				}
+				break;
+			case TITLE:
+				if (assignment.getOrgUnit() != null) {
+					dto.setAssignedThroughName(assignment.getOrgUnit().getName());
+					dto.setContainsTitles(ContainsTitles.POSITIVE);
+				}
+				break;
+			case DIRECT, ROLEGROUP:
+				dto.setOrgUnitUuid(assignment.getResponsibleOrgUnit() == null ? null : assignment.getResponsibleOrgUnit().getUuid());
+				break;
+			case POSITION:
+				// not possible anymore
+				break;
+		}
 		dto.setCaseNumber(assignment.getCaseNumber());
 
-		if (assignment.getContainsTitles() == ContainsTitles.NO) {
-			dto.setAssignedThrough(AssignedThrough.ORGUNIT);
-		} else {
-			dto.setAssignedThrough(AssignedThrough.TITLE);
+		if (assignment.getTitle() != null) {
+			dto.setTitleUuids(Collections.singletonList(assignment.getTitle().getUuid()));
 		}
-		dto.setContainsTitles(assignment.getContainsTitles());
-		if (assignment.getTitles() != null) {
-			dto.setTitleUuids(assignment.getTitles().stream().map(Title::getUuid).collect(Collectors.toList()));
-		}
-		dto.setAssignedThroughName(assignment.getOrgUnit().getName());
-		dto.setItSystem(assignment.getUserRole().getItSystem());
-		dto.setDescription(assignment.getUserRole().getDescription());
-		dto.setStartDate(assignment.getStartDate());
-		dto.setStopDate(assignment.getStopDate());
+
 		dto.setCanEdit(false);
 
 		return dto;
 	}
 
-	public static RoleAssignedToUserDTO fromOrgUnitRoleGroupAssignment(OrgUnitRoleGroupAssignment assignment) {
+	public static RoleAssignedToUserDTO fromCurrentExceptedAssignmentUserRole(CurrentExceptedAssignment assignment, ItSystem itSystem) {
 		RoleAssignedToUserDTO dto = new RoleAssignedToUserDTO();
-		dto.setAssignmentId(assignment.getId());
-		dto.setRoleId(assignment.getRoleGroup().getId());
-		dto.setName(assignment.getRoleGroup().getName());
-		dto.setType(RoleAssignmentType.ROLEGROUP);
 
-		if (assignment.getContainsTitles() == ContainsTitles.NO) {
-			dto.setAssignedThrough(AssignedThrough.ORGUNIT);
-		}
-		else {
-			dto.setAssignedThrough(AssignedThrough.TITLE);
-		}
-		dto.setContainsTitles(assignment.getContainsTitles());
-		if (assignment.getTitles() != null) {
-			dto.setTitleUuids(assignment.getTitles().stream().map(Title::getUuid).collect(Collectors.toList()));
-		}
-		dto.setAssignedThroughName(assignment.getOrgUnit().getName());
-		dto.setDescription(assignment.getRoleGroup().getDescription());
-		dto.setStartDate(assignment.getStartDate());
-		dto.setStopDate(assignment.getStopDate());
-		dto.setCanEdit(false);
-
-		return dto;
-	}
-
-
-	public static RoleAssignedToUserDTO fromNegativeOrgUnitUserRoleAssignment(OrgUnitUserRoleAssignment assignment) {
-		RoleAssignedToUserDTO dto = new RoleAssignedToUserDTO();
-		dto.setAssignmentId(assignment.getId());
-		dto.setRoleId(assignment.getUserRole().getId());
-		dto.setName(assignment.getUserRole().getName());
-		dto.setAssignedThrough(AssignedThrough.TITLE);
+		dto.setAssignmentId(assignment.getExceptionAssignmentId());
+		dto.setRoleId(assignment.getExceptionUserRoleId());
+		dto.setName(assignment.getExceptionUserRoleName());
 		dto.setType(RoleAssignmentType.NEGATIVE);
-		dto.setAssignedThroughName(assignment.getOrgUnit().getName());
-		dto.setItSystem(assignment.getUserRole().getItSystem());
-		dto.setDescription(assignment.getUserRole().getDescription());
+		dto.setItSystem(itSystem);
+		dto.setDescription(assignment.getExceptionUserRoleDescription());
 		dto.setStartDate(assignment.getStartDate());
 		dto.setStopDate(assignment.getStopDate());
-		dto.setCanEdit(false);
-		dto.setContainsTitles(assignment.getContainsTitles());
-		if (assignment.getTitles() != null) {
-			dto.setTitleUuids(assignment.getTitles().stream().map(Title::getUuid).collect(Collectors.toList()));
+
+		// Determine AssignedThrough based on whether it's title-based or user-based exception
+		if (assignment.getExceptionTitleUuid() != null) {
+			dto.setAssignedThrough(AssignedThrough.TITLE);
+			dto.setAssignedThroughName(assignment.getExceptionOuName());
+			dto.setContainsTitles(ContainsTitles.NEGATIVE);
+			dto.setTitleUuids(Collections.singletonList(assignment.getExceptionTitleUuid()));
+		} else {
+			// User-based exception
+			dto.setAssignedThrough(AssignedThrough.ORGUNIT);
+			dto.setAssignedThroughName(assignment.getExceptionOuName());
 		}
+
+		dto.setCanEdit(false);
+
 		return dto;
 	}
 
-	public static RoleAssignedToUserDTO fromNegativeOrgUnitRoleGroupAssignment(OrgUnitRoleGroupAssignment assignment) {
+	public static RoleAssignedToUserDTO fromCurrentExceptedAssignmentRoleGroup(CurrentExceptedAssignment assignment) {
 		RoleAssignedToUserDTO dto = new RoleAssignedToUserDTO();
-		dto.setAssignmentId(assignment.getId());
-		dto.setRoleId(assignment.getRoleGroup().getId());
-		dto.setName(assignment.getRoleGroup().getName());
-		dto.setAssignedThrough(AssignedThrough.TITLE);
+
+		dto.setAssignmentId(assignment.getExceptionAssignmentId());
+		dto.setRoleId(assignment.getExceptionRoleGroupId());
+		dto.setName(assignment.getExceptionRoleGroupName());
 		dto.setType(RoleAssignmentType.NEGATIVE_ROLEGROUP);
-		dto.setAssignedThroughName(assignment.getOrgUnit().getName());
-		dto.setDescription(assignment.getRoleGroup().getDescription());
+		dto.setDescription(assignment.getExceptionRoleGroupDescription());
 		dto.setStartDate(assignment.getStartDate());
 		dto.setStopDate(assignment.getStopDate());
-		dto.setCanEdit(false);
-		dto.setContainsTitles(assignment.getContainsTitles());
-		if (assignment.getTitles() != null) {
-			dto.setTitleUuids(assignment.getTitles().stream().map(Title::getUuid).collect(Collectors.toList()));
+
+		// Determine AssignedThrough based on whether it's title-based or user-based exception
+		if (assignment.getExceptionTitleUuid() != null) {
+			dto.setAssignedThrough(AssignedThrough.TITLE);
+			dto.setAssignedThroughName(assignment.getExceptionOuName());
+			dto.setContainsTitles(ContainsTitles.NEGATIVE);
+			dto.setTitleUuids(Collections.singletonList(assignment.getExceptionTitleUuid()));
+		} else {
+			// User-based exception
+			dto.setAssignedThrough(AssignedThrough.ORGUNIT);
+			dto.setAssignedThroughName(assignment.getExceptionOuName());
 		}
+
+		dto.setCanEdit(false);
+
 		return dto;
 	}
 }

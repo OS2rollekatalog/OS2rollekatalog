@@ -1,36 +1,11 @@
 package dk.digitalidentity.rc.controller.mvc;
 
-import java.security.Principal;
-import java.time.LocalDate;
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.UUID;
-import java.util.stream.Collectors;
-
-import org.springframework.stereotype.Controller;
-import org.springframework.ui.Model;
-import org.springframework.util.StringUtils;
-import org.springframework.validation.BindingResult;
-import org.springframework.web.bind.WebDataBinder;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.InitBinder;
-import org.springframework.web.bind.annotation.ModelAttribute;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-
 import dk.digitalidentity.rc.config.Constants;
 import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.EditRolegroupRow;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.KleDTO;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.OUListForm;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.TitleListForm;
-import dk.digitalidentity.rc.controller.mvc.viewmodel.UserRoleAddOrgUnitDTO;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.UserRoleCheckedDTO;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.UserRoleForm;
 import dk.digitalidentity.rc.controller.validator.UserRoleValidator;
@@ -49,8 +24,12 @@ import dk.digitalidentity.rc.dao.model.SystemRoleAssignmentConstraintValue;
 import dk.digitalidentity.rc.dao.model.Title;
 import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserRole;
+import dk.digitalidentity.rc.dao.model.UserRoleEmailTemplate;
+import dk.digitalidentity.rc.dao.model.assignment.CurrentAssignment;
 import dk.digitalidentity.rc.dao.model.enums.ConstraintUIType;
 import dk.digitalidentity.rc.dao.model.enums.ItSystemType;
+import dk.digitalidentity.rc.dao.model.enums.SystemRoleLinkType;
+import dk.digitalidentity.rc.security.SecurityUtil;
 import dk.digitalidentity.rc.security.permission.Permission;
 import dk.digitalidentity.rc.security.permission.PermissionConstraint;
 import dk.digitalidentity.rc.security.permission.RequireControllerPermission;
@@ -72,11 +51,37 @@ import dk.digitalidentity.rc.service.SystemRoleService;
 import dk.digitalidentity.rc.service.TitleService;
 import dk.digitalidentity.rc.service.UserRoleService;
 import dk.digitalidentity.rc.service.UserService;
-import dk.digitalidentity.rc.service.model.OrgUnitWithRole2;
+import dk.digitalidentity.rc.service.assignment.AssignmentService;
+import dk.digitalidentity.rc.service.model.AssignedThrough;
+import dk.digitalidentity.rc.service.model.RoleAssignedToOrgUnitDTO;
+import dk.digitalidentity.rc.service.model.RoleAssignmentType;
 import dk.digitalidentity.rc.service.model.UserWithRole;
-import dk.digitalidentity.rc.service.model.UserWithRoleAndDates;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Controller;
+import org.springframework.ui.Model;
+import org.springframework.util.StringUtils;
+import org.springframework.validation.BindingResult;
+import org.springframework.validation.Validator;
+import org.springframework.web.bind.WebDataBinder;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.InitBinder;
+import org.springframework.web.bind.annotation.ModelAttribute;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+
+import java.security.Principal;
+import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
+import java.util.stream.Collectors;
 
 @RequireControllerPermission(section = Section.USER_ROLE, permission = Permission.READ)
 @RequiredArgsConstructor
@@ -100,6 +105,8 @@ public class UserRoleController {
 	private final UserPermissionContext userPermissionContext;
 	private final ManagerSubstituteService managerSubstituteService;
 	private final FunctionService functionService;
+	private final AssignmentService assignmentService;
+	private final Validator validator;
 
 	@InitBinder(value = { "role" })
 	public void initBinder(WebDataBinder binder) {
@@ -160,34 +167,34 @@ public class UserRoleController {
 			return "redirect:../list";
 		}
 
-		List<UserWithRole> usersWithRoleMapping = userService.getUsersWithUserRole(role, true).stream()
-				// Filter by allowed orgunits
-				.filter(uwr -> userPermissionContext.getConstraint(Section.USER, Permission.READ).allowsOrgunit(uwr.getAssignment().getOrgUnitUuid()))
-				.toList();
+		boolean canEdit = SecurityUtil.getRoles().contains(Constants.ROLE_ADMINISTRATOR);
+		boolean isInternalRCRole =Constants.ROLE_CATALOGUE_IDENTIFIER.equals(role.getItSystem().getIdentifier());
+		boolean canAssign = (SecurityUtil.getRoles().contains(Constants.ROLE_ADMINISTRATOR) // must either be admin...
+			||	(!isInternalRCRole && userPermissionContext.hasPermission(Section.USER, Permission.ASSIGN))); // ... or have assigning permission AND role cannot be from rolecatalogue
 
-		// force-load positions (Thymeleaf does not respect @BatchSize for some reason, and this is much faster - and Thymeleaf needs the orgunit.name)
-		usersWithRoleMapping.forEach(u -> u.getUser().getPositions().forEach(p -> p.getOrgUnit().getName()));
+		Set<CurrentAssignment> assignments = assignmentService.getActiveByUserRole(role);
+
+		List<UserWithRole> usersWithRoleMapping = assignments.stream()
+			.map(assignment -> {
+				AssignedThrough assignedThrough = assignmentService.getAssignedThrough(assignment);
+				UserWithRole userWithRole = UserWithRole.fromCurrentAssignment(assignment, assignedThrough, RoleAssignmentType.USERROLE);
+
+				// Only direct assignments can be edited (and only by admins)
+				boolean isDirectAssignment = assignedThrough.equals(AssignedThrough.DIRECT);
+				userWithRole.getAssignment().setCanEdit(canEdit && isDirectAssignment);
+
+				return userWithRole;
+			})
+			// Filter by allowed orgunits
+			.filter(uwr -> userPermissionContext.getConstraint(Section.USER, Permission.READ).allowsOrgunit(uwr.getAssignment().getOrgUnitUuid()))
+			.toList();
+
 
 		model.addAttribute("userRoleMapping", usersWithRoleMapping);
 		model.addAttribute("showEdit", showEdit);
+		model.addAttribute("assignmentAddingAllowed", canAssign);
 
 		return "userroles/fragments/manage_users :: users";
-	}
-
-	@GetMapping(value = "/ui/userroles/{id}/assignedUsersFragmentView")
-	public String assignedUsersFragmentView(Model model, @PathVariable("id") long userRoleId) {
-		UserRole role = userRoleService.getById(userRoleId);
-		if (role == null) {
-			return "redirect:../list";
-		}
-
-		List<UserWithRole> usersWithRole = userService.getUsersWithUserRole(role, true).stream()
-				// Filter by allowed orgunits
-				.filter(uwr -> userPermissionContext.getConstraint(Section.USER, Permission.READ).allowsOrgunit(uwr.getAssignment().getOrgUnitUuid()))
-				.toList();
-		model.addAttribute("userRoleMapping", usersWithRole);
-
-		return "userroles/fragments/view_users :: users";
 	}
 
 	@GetMapping(value = "/ui/userroles/{id}/availableUsersFragment")
@@ -200,6 +207,7 @@ public class UserRoleController {
 		return "userroles/fragments/manage_add_users :: addUsers";
 	}
 
+	record OrgunitWithRoleAssignedDTO(String ouUuid, String ouName, RoleAssignedToOrgUnitDTO assignment, boolean changeable){}
 	@GetMapping(value = "/ui/userroles/{id}/assignedOrgUnitsFragment")
 	public String assignedOrgUnitsFragment(Model model, @PathVariable("id") long userRoleId, @RequestParam(name = "showEdit", required = false, defaultValue = "false") boolean showEdit) {
 		UserRole role = userRoleService.getById(userRoleId);
@@ -207,19 +215,27 @@ public class UserRoleController {
 			return "redirect:../list";
 		}
 
-		Map<Permission, PermissionConstraint> constraintMap = userPermissionContext.getConstraintsPerPermission(permissionEntity);
-		PermissionConstraint readConstraint = constraintMap.get(Permission.READ);
+		PermissionConstraint assignConstraint = userPermissionContext.getConstraint(Section.ORGUNIT, Permission.ASSIGN);
+		PermissionConstraint readConstraint = userPermissionContext.getConstraint(Section.ORGUNIT, Permission.READ);
 
-		List<OrgUnitWithRole2> orgUnitsWithRole = orgUnitService.getActiveOrgUnitsWithUserRole(role).stream()
-				.filter(ouwr -> readConstraint.allowsOrgunit(ouwr.getOuUuid()))
-				.toList();
+		List<OrgunitWithRoleAssignedDTO> orgUnitsWithRole = orgUnitService.getActiveOrgUnitsWithUserRole(role).stream()
+			.filter(ouwr -> readConstraint.allowsOrgunit(ouwr.getOuUuid()))
+			.map(o -> new OrgunitWithRoleAssignedDTO(o.ouUuid, o.ouName, o.assignment, assignConstraint.allowsOrgunit(o.ouUuid)))
+			.toList();
+
+		boolean isInternalRCRole =Constants.ROLE_CATALOGUE_IDENTIFIER.equals(role.getItSystem().getIdentifier());
+		boolean canAssign = !role.isUserOnly() &&
+			(SecurityUtil.getRoles().contains(Constants.ROLE_ADMINISTRATOR) // must either be admin...
+				|| (!isInternalRCRole && userPermissionContext.hasPermission(Section.ORGUNIT, Permission.ASSIGN))); // ... or have assigning permission AND role cannot be from rolecatalogue
+
 		model.addAttribute("orgUnitMapping", orgUnitsWithRole);
 		model.addAttribute("showEdit", showEdit);
-		model.addAttribute("showCreateBtn", !role.isUserOnly());
+		model.addAttribute("assignmentAddingAllowed", showEdit && canAssign);
 
 		return "userroles/fragments/manage_ous :: ous";
 	}
 
+	record AssignableOrgUnitDTO (String name, String uuid, boolean assignable) {}
 	@GetMapping(value = "/ui/userroles/{id}/availableOrgUnitsFragment")
 	public String availableOrgUnitsFragment(Model model, @PathVariable("id") long userRoleId) {
 		UserRole role = userRoleService.getById(userRoleId);
@@ -227,13 +243,13 @@ public class UserRoleController {
 			return "redirect:../list";
 		}
 
-		Map<Permission, PermissionConstraint> constraintMap = userPermissionContext.getConstraintsPerPermission(permissionEntity);
-		PermissionConstraint readConstraint = constraintMap.get(Permission.READ);
+		PermissionConstraint assignConstraint = userPermissionContext.getConstraint(Section.ORGUNIT, Permission.ASSIGN);
+		PermissionConstraint readConstraint = userPermissionContext.getConstraint(Section.ORGUNIT, Permission.READ);
 
 		List<OrgUnit> ousFromDb = orgUnitService.getAllCached();
 		var availableOrgUnits = ousFromDb.stream()
 				.filter(ou ->readConstraint.allowsOrgunit(ou.getUuid())) // filter by constraints
-				.map(UserRoleAddOrgUnitDTO::new)
+				.map(ou -> new AssignableOrgUnitDTO(ou.getName(), ou.getUuid(), assignConstraint.allowsOrgunit(ou.getUuid())))
 				.toList();
 
 		model.addAttribute("ous", availableOrgUnits);
@@ -255,7 +271,6 @@ public class UserRoleController {
 	@PostMapping(value = "/ui/userroles/new")
 	public String newPost(Model model, @Valid @ModelAttribute("role") UserRoleForm roleForm, BindingResult bindingResult) {
 		PermissionConstraint permissionConstraint = userPermissionContext.getConstraint(permissionEntity, Permission.CREATE);
-		PermissionConstraint updateConstraint = userPermissionContext.getConstraint(permissionEntity, Permission.UPDATE);
 
 		if (bindingResult.hasErrors()) {
 			model.addAttribute("role", roleForm);
@@ -284,6 +299,56 @@ public class UserRoleController {
 		return "redirect:edit/" + role.getId();
 	}
 
+	@RequirePermission(section = Section.USER_ROLE, permission = Permission.CREATE)
+	@GetMapping(value = "/ui/userroles/copy/{id}")
+	public String copyGet(Model model, @PathVariable("id") long id) {
+		UserRole role = userRoleService.getById(id);
+		if (role == null) {
+			return "redirect:../list";
+		}
+
+		PermissionConstraint permissionConstraint = userPermissionContext.getConstraint(permissionEntity, Permission.CREATE);
+		if (!permissionConstraint.allowsITSystem(role.getItSystem().getId())) {
+			return "redirect:../list";
+		}
+
+		UserRoleForm copyDto = new UserRoleForm(role, false, false);
+		copyDto.setName("Kopi af " + role.getName());
+
+		model.addAttribute("role", copyDto);
+		return "userroles/copy";
+	}
+
+	@RequirePermission(section = Section.USER_ROLE, permission = Permission.CREATE)
+	@PostMapping(value = "/ui/userroles/copy/{id}")
+	public String copyPost(Model model, @PathVariable("id") long id, @ModelAttribute("role") UserRoleForm roleForm, BindingResult bindingResult) {
+		UserRole roleToCopy = userRoleService.getById(id);
+		if (roleToCopy == null) {
+			return "redirect:../list";
+		}
+
+		PermissionConstraint permissionConstraint = userPermissionContext.getConstraint(permissionEntity, Permission.CREATE);
+
+		roleForm.setItSystem(roleToCopy.getItSystem());
+		if (!permissionConstraint.allowsITSystem(roleForm.getItSystem().getId())) {
+			return "redirect:../list";
+		}
+
+		validator.validate(roleForm, bindingResult);
+
+		if (bindingResult.hasErrors()) {
+			model.addAllAttributes(bindingResult.getModel());
+			model.addAttribute("role", roleForm);
+			return "userroles/copy";
+		}
+
+		UserRole role = copyUserRole(roleForm, roleToCopy);
+
+		role = userRoleService.save(role);
+
+		return "redirect:/ui/userroles/edit/" + role.getId();
+	}
+
 	@RequirePermission(section = Section.USER_ROLE, permission = Permission.UPDATE)
 	@GetMapping(value = "/ui/userroles/edit/{id}/userFragment")
 	public String editGetUserFragment(Model model, @PathVariable("id") long id) {
@@ -293,9 +358,27 @@ public class UserRoleController {
 		}
 
 		List<User> usersFromDb = userService.getAll();
-		List<UserWithRoleAndDates> usersWithRole = userService.getUsersWithUserRoleDirectlyAssigned(role);
 
-		List<String> uuidsWithRole = usersWithRole.stream().map(u -> u.getUser().getUuid()).collect(Collectors.toList());
+		// Get assignments (both direct and from roleGroups)
+		Set<CurrentAssignment> assignments = assignmentService.getByUserRoleDirectlyAssignedOrFromRoleGroupIncludingInactive(role);
+
+		// Group by user to handle multiple assignments per user (e.g., if a user has the role both directly and via roleGroup)
+		Map<String, CurrentAssignment> assignmentsByUser = new HashMap<>();
+		for (CurrentAssignment assignment : assignments) {
+			// Keep first assignment for each user (prefer direct over roleGroup)
+			if (!assignmentsByUser.containsKey(assignment.getUser().getUuid())) {
+				assignmentsByUser.put(assignment.getUser().getUuid(), assignment);
+			} else {
+				// If user already exists, prefer direct assignment
+				CurrentAssignment existing = assignmentsByUser.get(assignment.getUser().getUuid());
+				AssignedThrough existingThrough = assignmentService.getAssignedThrough(existing);
+				AssignedThrough newThrough = assignmentService.getAssignedThrough(assignment);
+				if (existingThrough.equals(AssignedThrough.ROLEGROUP) && newThrough.equals(AssignedThrough.DIRECT)) {
+					assignmentsByUser.put(assignment.getUser().getUuid(), assignment);
+				}
+			}
+		}
+
 		List<UserRoleCheckedDTO> users = new ArrayList<>();
 
 		for (User user : usersFromDb) {
@@ -303,12 +386,11 @@ public class UserRoleController {
 			LocalDate stopDate = null;
 			boolean checked = false;
 
-			if (uuidsWithRole.contains(user.getUuid())) {
+			CurrentAssignment assignment = assignmentsByUser.get(user.getUuid());
+			if (assignment != null) {
 				checked = true;
-				//We know it exists because of the if, and there should only be one
-				UserWithRoleAndDates userWithRole = usersWithRole.stream().filter(u -> u.getUser().getUuid().equals(user.getUuid())).findAny().orElse(null);
-				startDate = userWithRole.getStartDate();
-				stopDate = userWithRole.getStopDate();
+				startDate = assignment.getStartDate();
+				stopDate = assignment.getStopDate();
 			}
 
 			UserRoleCheckedDTO dto = new UserRoleCheckedDTO();
@@ -560,12 +642,82 @@ public class UserRoleController {
 		return "ous/fragments/ou_roles_modal :: ouRolesModal";
 	}
 
-	private User getUserOrThrow(String userId) throws Exception {
-		User user = userService.getByUserId(userId);
-		if (user == null) {
-			throw new Exception("Ukendt bruger: " + userId);
+	private UserRole copyUserRole(UserRoleForm roleForm, UserRole roleToCopy) {
+		UserRole role = roleForm.toUserRole();
+
+		// copy fields not in the UI from the original role
+		role.setUserOnly(roleToCopy.isUserOnly());
+		role.setSensitiveRole(roleToCopy.isSensitiveRole());
+		role.setExtraSensitiveRole(roleToCopy.isExtraSensitiveRole());
+		role.setRequesterPermission(roleToCopy.getRequesterPermission());
+		role.setApproverPermission(roleToCopy.getApproverPermission());
+		role.setRequireManagerAction(roleToCopy.isRequireManagerAction());
+		role.setSendToSubstitutes(roleToCopy.isSendToSubstitutes());
+		role.setSendToAuthorizationManagers(roleToCopy.isSendToAuthorizationManagers());
+		role.setRoleAssignmentAttestationByAttestationResponsible(roleToCopy.isRoleAssignmentAttestationByAttestationResponsible());
+		role.setReadOnly(roleToCopy.isReadOnly());
+		role.setOuFilterEnabled(roleToCopy.isOuFilterEnabled());
+		role.setDelegatedFromCvr(roleToCopy.getDelegatedFromCvr());
+		role.setContactEmail(roleToCopy.getContactEmail());
+		role.setAllowPostponing(roleToCopy.isAllowPostponing());
+
+		// copy email template if present
+		if (roleToCopy.getUserRoleEmailTemplate() != null) {
+			UserRoleEmailTemplate template = new UserRoleEmailTemplate();
+			template.setTitle(roleToCopy.getUserRoleEmailTemplate().getTitle());
+			template.setMessage(roleToCopy.getUserRoleEmailTemplate().getMessage());
+			template.setUserRole(role);
+			role.setUserRoleEmailTemplate(template);
 		}
 
-		return user;
+		// remove id
+		role.setId(0);
+
+		// generate new UUID for the copied role
+		role.setUuid(UUID.randomUUID().toString());
+
+		// set identifier
+		role.setIdentifier("id-" + UUID.randomUUID().toString());
+
+		// remove linked system role
+		role.setLinkedSystemRole(null);
+		role.setSystemRoleLinkType(SystemRoleLinkType.NONE);
+		role.setLinkedSystemRolePrefix(null);
+
+		// copy ou filter
+		if (role.isOuFilterEnabled()) {
+			role.setOrgUnitFilterOrgUnits(new ArrayList<>(roleToCopy.getOrgUnitFilterOrgUnits()));
+		}
+
+		// copy systemRoles and constraints from roleToCopy
+		copySystemRolesAndConstraints(roleToCopy, role);
+		return role;
 	}
+
+	private void copySystemRolesAndConstraints(UserRole roleToCopy, UserRole role) {
+		role.setSystemRoleAssignments(new ArrayList<>());
+		for (SystemRoleAssignment systemRoleAssignmentToCopy : roleToCopy.getSystemRoleAssignments()) {
+			SystemRoleAssignment roleAssignment = new SystemRoleAssignment();
+			roleAssignment.setUserRole(role);
+			roleAssignment.setSystemRole(systemRoleAssignmentToCopy.getSystemRole());
+			roleAssignment.setAssignedByName(SecurityUtil.getUserFullname());
+			roleAssignment.setAssignedByUserId(SecurityUtil.getUserId());
+			roleAssignment.setAssignedTimestamp(new Date());
+
+			roleAssignment.setConstraintValues(new ArrayList<>());
+			for (SystemRoleAssignmentConstraintValue constraintValueToCopy : systemRoleAssignmentToCopy.getConstraintValues()) {
+				SystemRoleAssignmentConstraintValue constraint = new SystemRoleAssignmentConstraintValue();
+				constraint.setSystemRoleAssignment(roleAssignment);
+				constraint.setConstraintType(constraintValueToCopy.getConstraintType());
+				constraint.setConstraintIdentifier(constraintValueToCopy.getConstraintIdentifier());
+				constraint.setConstraintValueType(constraintValueToCopy.getConstraintValueType());
+				constraint.setPostponed(constraintValueToCopy.isPostponed());
+				constraint.setConstraintValue(constraintValueToCopy.getConstraintValue());
+				roleAssignment.getConstraintValues().add(constraint);
+			}
+
+			role.getSystemRoleAssignments().add(roleAssignment);
+		}
+	}
+
 }

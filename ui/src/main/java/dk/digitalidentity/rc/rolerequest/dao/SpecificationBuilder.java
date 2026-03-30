@@ -13,7 +13,7 @@ public class SpecificationBuilder<T> {
 	}
 
 	public static <T> SpecificationBuilder<T> create(Class<T> entityClass) {
-		return new SpecificationBuilder<>(Specification.where(null));
+	    return new SpecificationBuilder<>(Specification.allOf());
 	}
 
 	public SpecificationBuilder<T> and(Specification<T> spec) {

@@ -8,10 +8,8 @@ import org.apache.poi.ss.usermodel.CellStyle;
 import org.apache.poi.ss.usermodel.Font;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
-import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.xssf.streaming.SXSSFSheet;
 
-import dk.digitalidentity.rc.attestation.controller.mvc.xlsview.AbstractXlsxStreamingViewWrapper;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
@@ -19,7 +17,7 @@ public class XlsView extends AbstractXlsxStreamingViewWrapper {
 
 	@Override
 	@SuppressWarnings("unchecked")
-	protected void buildExcelDocument(Map<String, Object> model, Workbook workbook, HttpServletRequest request, HttpServletResponse response) throws Exception {
+	protected void buildExcelDocument(Map<String, ?> model, DisposableSXSSFWorkbook workbook, HttpServletRequest request, HttpServletResponse response) throws Exception {
 		ArrayList<String> headers = (ArrayList<String>) model.get("headers");
 		ArrayList<ArrayList<Object>> rows = (ArrayList<ArrayList<Object>>) model.get("rows");
 		String sheetName = (String) model.get("sheetName");
@@ -48,7 +46,7 @@ public class XlsView extends AbstractXlsxStreamingViewWrapper {
 		int rowCount = 1;
 		for (ArrayList<Object> row : rows) {
 			Row courseRow = sheet.createRow(rowCount++);
-			
+
 			for (int i = 0; i < row.size(); i++) {
 				createCell(courseRow, i, row.get(i), rowStyle);
 			}
@@ -73,7 +71,12 @@ public class XlsView extends AbstractXlsxStreamingViewWrapper {
 		else {
 			cell.setCellValue("");
 		}
-		
+
 		cell.setCellStyle(style);
+	}
+
+	@Override
+	protected String getFilename() {
+		return "report.xls";
 	}
 }

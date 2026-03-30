@@ -3,6 +3,7 @@ package dk.digitalidentity.rc.controller.rest;
 import java.security.Principal;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -10,12 +11,11 @@ import java.util.Objects;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import org.apache.commons.lang3.ObjectUtils;
+import dk.digitalidentity.rc.service.assignment.AssignmentService;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.jpa.datatables.mapping.DataTablesInput;
 import org.springframework.data.jpa.datatables.mapping.DataTablesOutput;
-import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.BindingResult;
@@ -68,7 +68,6 @@ import dk.digitalidentity.rc.security.permission.Section;
 import dk.digitalidentity.rc.service.ADGroupMappingService;
 import dk.digitalidentity.rc.service.ConstraintTypeService;
 import dk.digitalidentity.rc.service.OrgUnitService;
-import dk.digitalidentity.rc.service.PositionService;
 import dk.digitalidentity.rc.service.RoleGroupService;
 import dk.digitalidentity.rc.service.Select2Service;
 import dk.digitalidentity.rc.service.SystemRoleService;
@@ -76,20 +75,11 @@ import dk.digitalidentity.rc.service.UserRoleService;
 import dk.digitalidentity.rc.service.UserService;
 import dk.digitalidentity.rc.service.model.UserRoleSelect2DTO;
 import dk.digitalidentity.rc.util.IdentifierGenerator;
-import jakarta.persistence.criteria.Predicate;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-import java.security.Principal;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
 import java.util.Set;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 @RequireControllerPermission(section = Section.USER_ROLE, permission = Permission.READ)
 @RequiredArgsConstructor
@@ -99,7 +89,6 @@ public class UserRoleRestController {
     private final UserService userService;
     private final OrgUnitService orgUnitService;
     private final UserRoleService userRoleService;
-    private final PositionService positionService;
     private final RoleGroupService roleGroupService;
     private final UserRoleValidator userRoleValidator;
     private final SystemRoleService systemRoleService;
@@ -109,6 +98,7 @@ public class UserRoleRestController {
 	private final Select2Service select2Service;
 	private final ADGroupMappingService adGroupMappingService;
 	private final UserPermissionContext userPermissionContext;
+	private final AssignmentService assignmentService;
 
 	@InitBinder(value = { "role" })
     public void initBinder(WebDataBinder binder) {
@@ -123,7 +113,7 @@ public class UserRoleRestController {
 
 		Set<Long> constrainedITSystems = userPermissionContext.getConstraint(permissionEntity, Permission.READ).getConstrainedItSystemIds();
 
-		viewOutput = userRoleViewDao.findAll(input, Specification.where(UserRoleService.hasItSystemIdIn(constrainedITSystems)));
+		viewOutput = userRoleViewDao.findAll(input, UserRoleService.hasItSystemIdIn(constrainedITSystems));
 
 		Map<Long, List<String>> roleToADGroups = adGroupMappingService.getRoleToADGroupsMap();
 
@@ -327,7 +317,7 @@ public class UserRoleRestController {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST));
         final ConstraintType constraintType = constraintTypeService.getByUuidOptional(constraintUuid)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST));
-        constraintValueType = ObjectUtils.defaultIfNull(constraintValueType, ConstraintValueType.VALUE);
+        constraintValueType = Objects.requireNonNullElse(constraintValueType, ConstraintValueType.VALUE);
         AuditLogContextHolder.getContext().addArgument("Type", constraintType.getName());
         // perform regex validation (if needed)
         if (constraintValueType.equals(ConstraintValueType.VALUE) && constraintType.getRegex() != null && !constraintType.getRegex().isEmpty()) {
@@ -453,30 +443,36 @@ public class UserRoleRestController {
 			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
 		}
 
-        // there are not that many rolegroups, we can do a full scan
-        for (RoleGroup roleGroup : roleGroupService.getAll()) {
-        	if (roleGroup.getUserRoleAssignments().stream().map(RoleGroupUserRoleAssignment::getUserRole).toList().contains(role)) {
-	        	roleGroupService.removeUserRole(roleGroup, role);
-	        	roleGroupService.save(roleGroup);
-        	}
-        }
+		// there are not that many rolegroups, we can do a full scan
+		for (RoleGroup roleGroup : roleGroupService.getAll()) {
+			if (roleGroup.getUserRoleAssignments().stream().map(RoleGroupUserRoleAssignment::getUserRole).toList().contains(role)) {
+				roleGroupService.removeUserRole(roleGroup, role);
+				roleGroupService.save(roleGroup);
+			}
+		}
 
-        List<User> users = userService.getByRolesIncludingInactive(role);
-        for (User user : users) {
-        	userService.removeUserRole(user, role);
-        	userService.save(user);
-        }
+		// Deduplicate users by UUID
+		Map<String, User> uniqueUsers = new HashMap<>();
+		for (User user : assignmentService.getUsersWithUserRoleDirectlyAssigned(role)) {
+			uniqueUsers.putIfAbsent(user.getUuid(), user);
+		}
 
-        List<OrgUnit> ous = orgUnitService.getAllWithRoleIncludingInactive(role);
-        for (OrgUnit orgUnit : ous) {
-        	orgUnitService.removeUserRole(orgUnit, role);
-        	orgUnitService.save(orgUnit);
-        }
+		List<User> users = new ArrayList<>(uniqueUsers.values());
+		for (User user : users) {
+			userService.removeUserRole(user, role);
+			userService.save(user);
+		}
 
-        userRoleService.delete(role);
+		List<OrgUnit> ous = orgUnitService.getAllWithRoleIncludingInactive(role);
+		for (OrgUnit orgUnit : ous) {
+			orgUnitService.removeUserRole(orgUnit, role);
+			orgUnitService.save(orgUnit);
+		}
 
-        return new ResponseEntity<>(HttpStatus.OK);
-    }
+		userRoleService.delete(role);
+
+		return new ResponseEntity<>(HttpStatus.OK);
+	}
 
 	@RequirePermission(section = Section.USER_ROLE, permission = Permission.DELETE)
 	@GetMapping(value = "/rest/userroles/trydelete/{id}")
@@ -497,7 +493,7 @@ public class UserRoleRestController {
         	status.setSuccess(false);
         }
 
-        count = userService.countAllWithRole(userRole);
+        count = assignmentService.countAllUsersWithDirectUserRole(userRole);
         if (count > 0) {
             status.setUsers(count);
         	status.setSuccess(false);
@@ -628,37 +624,5 @@ public class UserRoleRestController {
 		dtoOutput.setData(dtoList);
 		dtoOutput.setError(viewOutput.getError());
 		return dtoOutput;
-	}
-
-	// SELECT * FROM "view" WHERE it_system_id = x or y or z...
-	private Specification<UserRoleView> getUserRolesByItSystem(List<Long> itSystemIds) {
-		Specification<UserRoleView> specification = null;
-		specification = (Specification<UserRoleView>) (root, query, criteriaBuilder) -> {
-			List<Predicate> predicates = new ArrayList<>(itSystemIds.size());
-
-			for (Long id : itSystemIds) {
-				predicates.add(criteriaBuilder.equal(root.get("itSystemId"), id));
-			}
-
-			return criteriaBuilder.or(predicates.toArray(Predicate[]::new));
-		};
-
-		return specification;
-	}
-
-	// SELECT * FROM "view" WHERE id LIKE ('') OR id LIKE ('') OR id LIKE ('') ...
-	private Specification<UserRoleView> whereUserRoleIdIn(List<Long> userRoleIds) {
-		Specification<UserRoleView> specification = null;
-		specification = (root, query, criteriaBuilder) -> {
-			List<Predicate> predicates = new ArrayList<>(userRoleIds.size());
-
-			for (Long id : userRoleIds) {
-				predicates.add(criteriaBuilder.equal(root.get("id"), id));
-			}
-
-			return criteriaBuilder.or(predicates.toArray(Predicate[]::new));
-		};
-
-		return specification;
 	}
 }

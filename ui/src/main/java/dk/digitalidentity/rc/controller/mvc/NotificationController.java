@@ -39,7 +39,7 @@ public class NotificationController {
 
 		Map<String, String> map = new HashMap<>();
 		for (Notification notification : notifications) {
-			map.put(notification.getNotificationType().toString(), messageSource.getMessage(notification.getNotificationType().getMessage(), null, new Locale("da-DK")));
+			map.put(notification.getNotificationType().toString(), messageSource.getMessage(notification.getNotificationType().getMessage(), null, Locale.of("da", "DK")));
 		}
 
 		User user = userService.getByUserId(SecurityUtil.getUserId());

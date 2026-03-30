@@ -1,6 +1,5 @@
 package dk.digitalidentity.rc.rolerequest.task;
 
-import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.Cache;
 import org.springframework.cache.CacheManager;
@@ -22,7 +21,7 @@ public class RequestCacheTTLTask {
     @Scheduled(cron = "${rc.request.request_cache_ttl_cron:0 0 * * * *}")
     public void clearCache() {
         cacheManager.getCacheNames().stream()
-                .filter(name -> StringUtils.startsWith(name, CACHE_PREFIX))
+                .filter(name -> name.startsWith(CACHE_PREFIX))
                 .map(name -> cacheManager.getCache(name))
                 .filter(Objects::nonNull)
                 .forEach(Cache::clear);

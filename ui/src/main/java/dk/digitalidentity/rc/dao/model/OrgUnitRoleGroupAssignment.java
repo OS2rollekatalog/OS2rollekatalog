@@ -30,7 +30,7 @@ import lombok.ToString;
 @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 @Getter
 @Setter
-public class OrgUnitRoleGroupAssignment {
+public class OrgUnitRoleGroupAssignment implements OrgUnitAssignment {
 
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -39,34 +39,34 @@ public class OrgUnitRoleGroupAssignment {
 	@ManyToOne(fetch = FetchType.LAZY)
 	@JoinColumn(name = "ou_uuid")
 	private OrgUnit orgUnit;
-	
+
 	@ManyToOne(fetch = FetchType.LAZY)
 	@JoinColumn(name = "rolegroup_id")
 	private RoleGroup roleGroup;
 
 	@Column
 	private boolean inherit;
-	
+
 	@Column
 	private String assignedByUserId;
-	
+
 	@Column
 	private String assignedByName;
-	
+
 	@Column
 	private Date assignedTimestamp;
 
     @Convert(converter = LocalDateAttributeConverter.class)
 	@Column
 	private LocalDate startDate;
-	
+
     @Convert(converter = LocalDateAttributeConverter.class)
 	@Column
 	private LocalDate stopDate;
 
 	@Column
 	private String stopDateUser;
-	
+
 	@Column
 	private boolean inactive;
 
@@ -79,7 +79,7 @@ public class OrgUnitRoleGroupAssignment {
 	@OneToMany
 	@JoinTable(name = "ou_rolegroups_excepted_users", joinColumns = @JoinColumn(name = "ou_rolegroups_id"), inverseJoinColumns = @JoinColumn(name = "user_uuid"))
 	private List<User> exceptedUsers;
-	
+
 	@OneToMany
 	@JoinTable(name = "ou_rolegroups_titles", joinColumns = @JoinColumn(name = "ou_rolegroups_id"), inverseJoinColumns = @JoinColumn(name = "title_uuid"))
 	private List<Title> titles;
@@ -93,7 +93,10 @@ public class OrgUnitRoleGroupAssignment {
 
 	@Column
 	public boolean containsExceptedUsers;
-	
+
+	@Column
+	private String caseNumber;
+
 	@Column
 	@Enumerated(EnumType.ORDINAL)
 	//Default value allows for documentations test to run unchanged since ContainsTitle changed to enum

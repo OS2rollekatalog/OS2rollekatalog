@@ -10,8 +10,6 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
-import jakarta.persistence.Temporal;
-import jakarta.persistence.TemporalType;
 import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.annotations.BatchSize;
@@ -54,7 +52,6 @@ public class User implements AuditLoggable {
 	private String phone;
 
 	@UpdateTimestamp
-	@Temporal(TemporalType.TIMESTAMP)
 	@Column
 	private Date lastUpdated;
 

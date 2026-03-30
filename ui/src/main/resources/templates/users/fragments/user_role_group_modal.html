@@ -6,6 +6,7 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h4 th:text="#{html.page.users.list.modal.rolegroup}"></h4>
+				<p id="assignRoleGroupName"></p>
             </div>
 
             <div class="modal-body">
@@ -50,6 +51,16 @@
                         </select>
                     </div>
                 </div>
+
+				<!-- caseNumber -->
+				<div style="height: 70px;" th:if="${caseNumberEnabled}">
+					<h4 class="md-12">
+						<span th:text="#{html.page.assign.direct.caseNumber}"></span>
+					</h4>
+					<div class="form-group col-md-12">
+						<input class="form-control" id="addRoleGroupCaseNumber"/>
+					</div>
+				</div>
             </div>
 
             <div class="modal-footer">
@@ -109,8 +120,13 @@
 				var stopDate = $('#groupStopDatePicker').data('date');
 				var dates = "?startDate=" + startDate + "&stopDate=" + stopDate;
 
+				var caseNumberUrlPart = "";
+				if (caseNumberEnabled) {
+					caseNumberUrlPart = '&casenumber=' + $("#addRoleGroupCaseNumber").val();
+				}
+
 				$.ajax({
-	    			   url: roleGroupModalService.usersUrl + userUuid + '/addgroup/' + roleid + dates + '&ouuuid=' + $("#addRoleOUSelect").val(),
+	    			   url: roleGroupModalService.usersUrl + userUuid + '/addgroup/' + roleid + dates + '&ouuuid=' + $("#addRoleOUSelect").val() + caseNumberUrlPart,
 	    			   contentType: 'application/json',
 	    			   headers: {
 	    			      'X-CSRF-TOKEN': token

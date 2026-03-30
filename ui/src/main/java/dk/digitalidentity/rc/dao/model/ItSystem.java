@@ -4,9 +4,6 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 
-import org.hibernate.annotations.LazyCollection;
-import org.hibernate.annotations.LazyCollectionOption;
-
 import com.fasterxml.jackson.annotation.JsonIgnore;
 
 import dk.digitalidentity.rc.config.ApprovableByListConverter;
@@ -29,8 +26,6 @@ import jakarta.persistence.JoinTable;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
-import jakarta.persistence.Temporal;
-import jakarta.persistence.TemporalType;
 import lombok.Data;
 
 @Entity
@@ -85,7 +80,6 @@ public class ItSystem implements AuditLoggable {
 	@Column
 	private String notificationEmail;
 
-	@Temporal(TemporalType.TIMESTAMP)
 	@Column
 	private Date deletedTimestamp;
 
@@ -103,9 +97,8 @@ public class ItSystem implements AuditLoggable {
 	@Column
 	private boolean ouFilterEnabled;
 
-	@OneToMany
+	@OneToMany(fetch = FetchType.LAZY)
 	@JoinTable(name = "ous_itsystems", joinColumns = { @JoinColumn(name = "itsystem_id") }, inverseJoinColumns = { @JoinColumn(name = "ou_uuid") })
-	@LazyCollection(LazyCollectionOption.TRUE)
 	private List<OrgUnit> orgUnitFilterOrgUnits;
 
 	@ManyToOne(fetch = FetchType.LAZY)

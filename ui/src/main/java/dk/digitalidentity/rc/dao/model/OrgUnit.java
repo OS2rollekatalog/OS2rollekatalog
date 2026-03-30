@@ -25,8 +25,6 @@ import jakarta.persistence.ManyToMany;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.OneToOne;
-import jakarta.persistence.Temporal;
-import jakarta.persistence.TemporalType;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -50,7 +48,6 @@ public class OrgUnit implements AuditLoggable {
 	private OrgUnit parent;
 
 	@UpdateTimestamp
-	@Temporal(TemporalType.TIMESTAMP)
 	@Column
 	private Date lastUpdated;
 
@@ -97,11 +94,9 @@ public class OrgUnit implements AuditLoggable {
     private String lastAttestedBy;
 
     @Column
-	@Temporal(TemporalType.TIMESTAMP)
     private Date lastAttested;
 
     @Column
-	@Temporal(TemporalType.TIMESTAMP)
     private Date nextAttestation;
 
 	// lazy does not work on OneToOne, due to some inane proxy stuff, so a ManyToOne is required

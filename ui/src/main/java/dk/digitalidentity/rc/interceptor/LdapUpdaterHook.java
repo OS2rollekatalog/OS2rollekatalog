@@ -1,7 +1,10 @@
 package dk.digitalidentity.rc.interceptor;
 
-import java.util.List;
+import java.util.HashSet;
+import java.util.Set;
 
+import dk.digitalidentity.rc.dao.model.assignment.CurrentAssignment;
+import dk.digitalidentity.rc.service.assignment.AssignmentService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
@@ -16,20 +19,18 @@ import dk.digitalidentity.rc.dao.model.UserRole;
 import dk.digitalidentity.rc.dao.model.UserUserRoleAssignment;
 import dk.digitalidentity.rc.service.OrgUnitService;
 import dk.digitalidentity.rc.service.PendingADUpdateService;
-import dk.digitalidentity.rc.service.UserService;
-import dk.digitalidentity.rc.service.model.UserRoleAssignmentWithInfo;
 
 @Component
 public class LdapUpdaterHook implements RoleChangeHook {
 
 	@Autowired
 	private PendingADUpdateService pendingADUpdateService;
-	
+
 	@Autowired
 	private OrgUnitService orgUnitService;
-	
+
 	@Autowired
-	private UserService userService;
+	private AssignmentService assignmentService;
 
 	@Override
 	public void interceptAddRoleGroupAssignmentOnUser(User user, RoleGroup roleGroup) {
@@ -47,17 +48,29 @@ public class LdapUpdaterHook implements RoleChangeHook {
 
 	@Override
 	public void interceptActivateUser(User user) {
-		List<UserRoleAssignmentWithInfo> assignments = userService.getAllUserRolesAssignedToUserWithInfo(user, null, true);
-		for (UserRoleAssignmentWithInfo assignment : assignments) {
-			pendingADUpdateService.addUserRoleToQueue(assignment.getUserRole());
+		Set<CurrentAssignment> assignments = assignmentService.getByUser(user);
+
+		// Deduplicate by userRole to avoid adding same role multiple times
+		Set<Long> processedUserRoleIds = new HashSet<>();
+
+		for (CurrentAssignment assignment : assignments) {
+			if (processedUserRoleIds.add(assignment.getUserRole().getId())) {
+				pendingADUpdateService.addUserRoleToQueue(assignment.getUserRole());
+			}
 		}
 	}
-	
+
 	@Override
 	public void interceptFlagUserDeleted(User user) {
-		List<UserRoleAssignmentWithInfo> assignments = userService.getAllUserRolesAssignedToUserWithInfo(user, null, true);
-		for (UserRoleAssignmentWithInfo assignment : assignments) {
-			pendingADUpdateService.addUserRoleToQueue(assignment.getUserRole());
+		Set<CurrentAssignment> assignments = assignmentService.getByUser(user);
+
+		// Deduplicate by userRole to avoid adding same role multiple times
+		Set<Long> processedUserRoleIds = new HashSet<>();
+
+		for (CurrentAssignment assignment : assignments) {
+			if (processedUserRoleIds.add(assignment.getUserRole().getId())) {
+				pendingADUpdateService.addUserRoleToQueue(assignment.getUserRole());
+			}
 		}
 	}
 
@@ -120,12 +133,12 @@ public class LdapUpdaterHook implements RoleChangeHook {
 			pendingADUpdateService.addRoleGroupToQueue(roleGroup);
 		}
 	}
-	
+
 	@Override
 	public void interceptAddUserRoleAssignmentOnOrgUnit(OrgUnit ou, UserRole userRole, boolean inherit) {
 		pendingADUpdateService.addUserRoleToQueue(userRole);
 	}
-	
+
 	@Override
 	public void interceptEditUserRoleAssignmentOnOrgUnit(OrgUnit ou, UserRole userRole) {
 		pendingADUpdateService.addUserRoleToQueue(userRole);

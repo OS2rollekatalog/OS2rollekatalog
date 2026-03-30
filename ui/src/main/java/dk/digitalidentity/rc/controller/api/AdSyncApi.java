@@ -8,14 +8,14 @@ import dk.digitalidentity.rc.dao.model.Domain;
 import dk.digitalidentity.rc.dao.model.ItSystem;
 import dk.digitalidentity.rc.dao.model.SystemRole;
 import dk.digitalidentity.rc.dao.model.UserRole;
+import dk.digitalidentity.rc.dao.model.assignment.CurrentAssignment;
 import dk.digitalidentity.rc.dao.model.enums.ItSystemType;
 import dk.digitalidentity.rc.security.RequireApiReadAccessRole;
 import dk.digitalidentity.rc.service.DomainService;
 import dk.digitalidentity.rc.service.ItSystemService;
 import dk.digitalidentity.rc.service.PendingADUpdateService;
 import dk.digitalidentity.rc.service.SystemRoleService;
-import dk.digitalidentity.rc.service.UserService;
-import dk.digitalidentity.rc.service.model.UserWithRole;
+import dk.digitalidentity.rc.service.assignment.AssignmentService;
 import dk.digitalidentity.rc.util.StreamExtensions;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import lombok.extern.slf4j.Slf4j;
@@ -50,9 +50,6 @@ public class AdSyncApi {
 	private PendingADUpdateService pendingADUpdateService;
 
 	@Autowired
-	private UserService userService;
-	
-	@Autowired
 	private SystemRoleService systemRoleService;
 
 	@Autowired
@@ -60,6 +57,9 @@ public class AdSyncApi {
 
 	@Autowired
 	private ItSystemService itSystemService;
+
+	@Autowired
+	private AssignmentService assignmentService;
 
 	@GetMapping("/api/ad/v2/operations")
 	public ResponseEntity<ADOperationsResult> getPendingOperations(@RequestParam(name = "domain", required = false) String domain) {
@@ -69,7 +69,7 @@ public class AdSyncApi {
 		}
 
 		ADOperationsResult result = new ADOperationsResult();
-		
+
 		result.setOperations(pendingADUpdateService.find100Operations(foundDomain));
 
 		// compute max
@@ -81,12 +81,12 @@ public class AdSyncApi {
 		catch (NoSuchElementException ex) {
 			; // can be safely ignored
 		}
-		
+
 		result.setHead(maxId);
 
 		return new ResponseEntity<>(result, HttpStatus.OK);
 	}
-	
+
 	@DeleteMapping("/api/ad/v2/operations/{head}")
 	public ResponseEntity<String> flagOperationsPerformed(@PathVariable("head") long head, @RequestParam(name = "domain", required = false) String domain) {
 		Domain foundDomain = domainService.getDomainOrPrimary(domain);
@@ -95,7 +95,7 @@ public class AdSyncApi {
 		}
 
 		pendingADUpdateService.deleteOperationsByIdLessThan(head + 1, foundDomain);
-		
+
 		return new ResponseEntity<>(HttpStatus.OK);
 	}
 
@@ -129,12 +129,12 @@ public class AdSyncApi {
 					dirtyADGroup.setIdentifier(systemRole.getIdentifier());
 					dirtyADGroup.setItSystemId(itSystem.getId());
 					dirtyADGroup.setTimestamp(new Date());
-					
+
 					updates.add(dirtyADGroup);
 				}
 			}
 		}
-		
+
 		// compute max
 		long maxId = 0;
 		try {
@@ -144,12 +144,14 @@ public class AdSyncApi {
 		catch (NoSuchElementException ex) {
 			; // can be safely ignored
 		}
-		
+
 		// filter duplicates (by identifier)
 		updates = updates.stream().filter(StreamExtensions.distinctByKey(s -> s.getIdentifier())).collect(Collectors.toList());
 		Map<String, SystemRole> dirtySystemRoles = new HashMap<>();
-		
-		// we want to add all systemRoles from itSystems that has weighted systemRoles if just one of them is dirty
+
+		// Build the full set of system roles to process. For weighted IT systems, all roles in the system
+		// must be included even if only one is dirty — otherwise the user-removal step below cannot correctly
+		// determine which users belong to a lower-weight group and should be removed from it.
 		for (DirtyADGroup update : updates) {
 			String groupName = update.getIdentifier();
 			SystemRole systemRole = systemRoleService.getFirstByIdentifierAndItSystemId(groupName, update.getItSystemId());
@@ -157,28 +159,28 @@ public class AdSyncApi {
 				log.warn("Could not find SystemRole '" + groupName + "' in itSystem " + update.getItSystemId());
 				continue;
 			}
-			
+
 			dirtySystemRoles.put(groupName, systemRole);
-			
-			boolean differentWeightedItSystem = systemRoleService.belongsToItSystemWithDifferentWeight(systemRole);
-			if (differentWeightedItSystem) {
-				for (SystemRole sr : systemRoleService.getByItSystem(systemRole.getItSystem())) {
+
+			// If the IT system has roles with different weights (filterByWeight removes at least one),
+			// pull in all sibling roles so the weight comparison below has the complete picture.
+			List<SystemRole> siblings = systemRoleService.getByItSystem(systemRole.getItSystem());
+			if (systemRoleService.filterByWeight(siblings).size() < siblings.size()) {
+				for (SystemRole sr : siblings) {
 					dirtySystemRoles.put(sr.getIdentifier(), sr);
 				}
 			}
 		}
-		
+
 		for (SystemRole dirtySystemRole : dirtySystemRoles.values()) {
 			// get all users that has a given system-role
 			Set<String> sAMAccountNames = new HashSet<>();
 			List<UserRole> userRoles = systemRoleService.userRolesWithSystemRole(dirtySystemRole);
 			for (UserRole userRole : userRoles) {
-				List<UserWithRole> users = userService.getUsersWithUserRole(userRole, true);
-				if (users != null && users.size() > 0) {
-					for (UserWithRole user : users) {
-						if (user.getUser().getDomain().getId() == foundDomain.getId()) {
-							sAMAccountNames.add(user.getUser().getUserId());
-						}
+				Set<CurrentAssignment> assignments = assignmentService.getActiveByUserRole(userRole);
+				for (CurrentAssignment assignment : assignments) {
+					if (assignment.getUser().getDomain().getId() == foundDomain.getId()) {
+						sAMAccountNames.add(assignment.getUser().getUserId());
 					}
 				}
 			}
@@ -213,7 +215,7 @@ public class AdSyncApi {
 
 		result.setHead(maxId);
 		result.setMaxHead(pendingADUpdateService.findMaxHead());
-		
+
 		return new ResponseEntity<>(result, HttpStatus.OK);
 	}
 
@@ -224,7 +226,7 @@ public class AdSyncApi {
 			return new ResponseEntity<>(HttpStatus.NOT_FOUND);
 		}
 		pendingADUpdateService.deleteByIdLessThan(head + 1, maxHead, foundDomain);
-		
+
 		return new ResponseEntity<>(HttpStatus.OK);
-	}	
+	}
 }

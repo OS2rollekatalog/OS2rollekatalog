@@ -19,7 +19,7 @@ import lombok.experimental.SuperBuilder;
 public class OrgUnitAssignmentAM extends BaseOrgUnitAssignmentAM {
 
 	@Schema(
-		description = "Brugerrolle der tildeles (brug ENTEN denne eller roleGroup)",
+		description = "Jobfunktionsrolle der tildeles (brug ENTEN denne eller rollebuket)",
 		nullable = true
 	)
 	private UserRoleShallowAM userRole;

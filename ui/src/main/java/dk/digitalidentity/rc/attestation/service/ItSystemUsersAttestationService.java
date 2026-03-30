@@ -167,7 +167,6 @@ public class ItSystemUsersAttestationService {
 
     @Transactional
     public void verifyUser(final long itSystemId, final String userUuid, final String performedByUserId) {
-        final LocalDate when = LocalDate.now();
         final Attestation attestation = findAttestation(itSystemId, performedByUserId);
         validateAttestationOfItSystemUserIsNotPerformed(attestation, userUuid);
 
@@ -242,7 +241,6 @@ public class ItSystemUsersAttestationService {
 
     @Transactional
     public void verifyOu(final long itSystemId, final String ouUuid, final String performedByUserId) {
-        final LocalDate when = LocalDate.now();
         final Attestation attestation = findAttestation(itSystemId, performedByUserId);
         validateAttestationOfItSystemOuIsNotPerformed(attestation, ouUuid);
 
@@ -264,7 +262,6 @@ public class ItSystemUsersAttestationService {
 
     @Transactional
     public void rejectOu(final long itSystemId, final String ouUuid, final String remarks, final String performedByUserId) {
-        final LocalDate when = LocalDate.now();
         final Attestation attestation = findAttestation(itSystemId, performedByUserId);
         validateAttestationOfItSystemUserIsNotPerformed(attestation, ouUuid);
 

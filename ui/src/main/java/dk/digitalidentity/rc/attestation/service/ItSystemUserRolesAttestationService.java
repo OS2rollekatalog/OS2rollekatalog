@@ -102,7 +102,6 @@ public class ItSystemUserRolesAttestationService {
 
     @Transactional
     public void verifyUserRole(final long itSystemId, final long userRoleId, final String performedByUserId) {
-        final LocalDate when = LocalDate.now();
         final Attestation attestation = findAttestation(itSystemId, performedByUserId);
         validateAttestationOfItSystemUserRoleIsNotPerformed(attestation, userRoleId);
 
@@ -123,7 +122,6 @@ public class ItSystemUserRolesAttestationService {
 
     @Transactional
     public void rejectUserRole(final long itSystemId, final long userRoleId, final String performedByUserId, final String remarks) {
-        final LocalDate when = LocalDate.now();
         final Attestation attestation = findAttestation(itSystemId, performedByUserId);
         validateAttestationOfItSystemUserRoleIsNotPerformed(attestation, userRoleId);
 

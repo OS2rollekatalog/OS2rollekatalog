@@ -2,7 +2,6 @@
 <html>
 <head th:replace="~{fragments/header :: header (title=#{html.page.itsystem.edit.title})}"></head>
 <body>
-
 	<div class="wrapper">
 		<header th:replace="~{fragments/navbar :: navbar-header}"></header>
 		<aside th:replace="~{fragments/navbar :: navbar-aside (page = 'itsystem.list')}"></aside>
@@ -15,7 +14,7 @@
 					</a>
 					<span th:text="#{html.page.itsystem.edit.title}" />
 				</h3>
-				
+
 				<div class="panel panel-default">
 					<div class="panel-heading" />
 					<div class="panel-body">
@@ -142,10 +141,10 @@
 			</div>
 		</div>
 	</div>
-	
+
 	<nav th:replace="~{fragments/footer :: footer}"></nav>
 	<script th:replace="~{fragments/datatables :: datatables}"></script>
-	
+
 	<style>
 		.table .checkbox {
 			margin-left: 10px;
@@ -197,7 +196,7 @@
 					}
 				});
 			}
-			
+
 			$("#modal-systemrole").on('shown.bs.modal', function(e) {
 				if ($("#systemRoleId").val() == 0) {
 					$("#systemRoleName").val("");
@@ -205,7 +204,7 @@
 					$("#systemRoleIdentifier").prop("readonly", false);
 					$("#systemRoleDescription").val("");
 				}
-				
+
 				$("#systemRoleName").focus();
 		    })
 
@@ -216,7 +215,7 @@
 			$("#systemRoleId").val("0");
 			$("#modal-systemrole").modal("show");
 		}
-		
+
 		function editRole(roleRow) {
 			var id = $(roleRow).data("id");
 			var tds = $(roleRow).parent().parent().find("td");
@@ -225,7 +224,7 @@
 			$("#systemRoleName").val(tds.get(0).innerHTML);
 			$("#systemRoleIdentifier").val(tds.get(1).innerHTML);
 			$("#systemRoleIdentifier").prop("readonly", true);
-			$("#systemRoleDescription").val(tds.get(2).innerHTML);
+			$("#systemRoleDescription").val(tds.get(2).textContent);
 
 			$("#modal-systemrole").modal("show");
 		}

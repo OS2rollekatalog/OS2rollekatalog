@@ -102,7 +102,7 @@ String.prototype.format = function () {
 		});
 };
 
-	$("document").ready(function() {
+$("document").ready(function() {
 
 	// Setup - add a text input to each footer cell
 	$('#listTable tfoot th[class="input-filter"]').each( function () {
@@ -183,7 +183,8 @@ String.prototype.format = function () {
 			{
 				data: "description",
 				orderable: true,
-				searchable: true
+				searchable: true,
+				className: "preformat"
 			},
 			{
 				data: "effectiveRequesterPermission",
@@ -240,6 +241,7 @@ String.prototype.format = function () {
 						html += data.readable ? '<a href="' + baseUrl +'ui/userroles/view/' + row.id + '"><em class="fa fa-search"></em></a>' : '';
 						html += data.editable ? '<a href="' + baseUrl +'ui/userroles/edit/' + row.id + '"><em class="fa fa-pencil"></em></a>' : '';
 						html += data.deletable ? '<a href="#" class="openConfirmDeleteDialog" data-id="'+row.id+'"><em class="fa fa-trash"></em></a>' : '';
+						html += data.duplicateable ? '<a href="' + baseUrl +'ui/userroles/copy/' + row.id + '" data-id="'+row.id+'"><em class="fa fa-clone"></em></a>' : '';
 						return html;
 					}
 					return data;

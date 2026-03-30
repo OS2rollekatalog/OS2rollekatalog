@@ -4,6 +4,8 @@ import java.time.LocalDate;
 import java.util.Date;
 import java.util.List;
 
+import org.hibernate.annotations.BatchSize;
+
 import dk.digitalidentity.rc.dao.serializer.LocalDateAttributeConverter;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
@@ -35,20 +37,20 @@ public class UserUserRoleAssignment {
 	@ManyToOne(fetch = FetchType.LAZY)
 	@JoinColumn(name = "role_id")
 	private UserRole userRole;
-	
+
 	@Column
 	private String assignedByUserId;
-	
+
 	@Column
 	private String assignedByName;
-	
+
 	@Column
 	private Date assignedTimestamp;
 
     @Convert(converter = LocalDateAttributeConverter.class)
 	@Column
 	private LocalDate startDate;
-	
+
     @Convert(converter = LocalDateAttributeConverter.class)
 	@Column
 	private LocalDate stopDate;
@@ -58,17 +60,15 @@ public class UserUserRoleAssignment {
 
 	@Column
 	private String caseNumber;
-	
+
 	@Column
 	private boolean inactive;
-	
+
+	@BatchSize(size = 50)
 	@OneToMany(mappedBy = "userUserRoleAssignment", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
 	private List<PostponedConstraint> postponedConstraints;
 
 	@ManyToOne(fetch = FetchType.LAZY)
 	@JoinColumn(name = "ou_uuid")
 	private OrgUnit orgUnit;
-	
-	@Column(name = "notify_by_email_if_manual_system")
-	private boolean notifyByEmailIfManualSystem = true;
 }

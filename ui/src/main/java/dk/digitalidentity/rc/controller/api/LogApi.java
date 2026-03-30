@@ -4,7 +4,6 @@ import dk.digitalidentity.rc.dao.model.Client;
 import dk.digitalidentity.rc.dao.model.Setting;
 import dk.digitalidentity.rc.security.RequireApiReadAccessRole;
 import dk.digitalidentity.rc.security.SecurityUtil;
-import dk.digitalidentity.rc.service.ClientService;
 import dk.digitalidentity.rc.service.SettingsService;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import jakarta.servlet.http.HttpServletRequest;
@@ -20,9 +19,6 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @SecurityRequirement(name = "ApiKey")
 public class LogApi {
-
-	@Autowired
-	private ClientService clientService;
 
 	@Autowired
 	private SettingsService settingsService;

@@ -25,8 +25,6 @@ import jakarta.persistence.OneToOne;
 import jakarta.persistence.Table;
 import lombok.Data;
 import lombok.ToString;
-import org.hibernate.annotations.LazyCollection;
-import org.hibernate.annotations.LazyCollectionOption;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -36,6 +34,7 @@ import org.hibernate.annotations.BatchSize;
 @Entity
 @Table(name = "user_roles")
 @ToString(exclude = { "itSystem", "requesterPermission", "approverPermission" })
+@BatchSize(size = 50)
 @Data // TODO: we are depending on Equals() from this, so if/when we refactor to Getter/Setter, then make sure to implement a sane @Equals
 public class UserRole implements AuditLoggable {
 
@@ -67,6 +66,7 @@ public class UserRole implements AuditLoggable {
 	@Column
 	private boolean extraSensitiveRole;
 
+	// TODO: hvorfor? vi skaber en frygtelig masse duplikat data i hukommelsen
 	@ManyToOne(fetch = FetchType.EAGER)
 	@JoinColumn(name = "it_system_id")
 	private ItSystem itSystem;
@@ -122,9 +122,8 @@ public class UserRole implements AuditLoggable {
 	@Column
 	private boolean ouFilterEnabled;
 
-	@OneToMany
+	@OneToMany(fetch = FetchType.LAZY)
 	@JoinTable(name = "ous_user_roles", joinColumns = { @JoinColumn(name = "user_roles_id") }, inverseJoinColumns = { @JoinColumn(name = "ou_uuid") })
-	@LazyCollection(LazyCollectionOption.TRUE)
 	private List<OrgUnit> orgUnitFilterOrgUnits;
 
 	@JsonIgnore

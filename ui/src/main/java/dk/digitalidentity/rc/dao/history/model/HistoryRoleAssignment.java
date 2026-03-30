@@ -21,13 +21,13 @@ public class HistoryRoleAssignment implements GenericRoleAssignment {
 
 	@Id
 	private long id;
-	
+
 	@Column
 	private LocalDate dato;
-	
+
 	@Column
 	private String userUuid;
-	
+
 	@Column
 	private long roleId;
 
@@ -43,7 +43,7 @@ public class HistoryRoleAssignment implements GenericRoleAssignment {
 	@Enumerated(EnumType.STRING)
 	@Column
 	private AssignedThrough assignedThroughType;
-	
+
 	@Column
 	private String assignedThroughUuid;
 
@@ -52,21 +52,18 @@ public class HistoryRoleAssignment implements GenericRoleAssignment {
 
 	@Column
 	private String assignedByUserId;
-	
+
 	@Column
 	private String assignedByName;
-	
+
 	@Column
 	private Date assignedWhen;
-	
+
 	@Column
 	private String postponedConstraints;
 
 	@Column(name = "ou_uuid")
 	private String orgUnitUuid;
-	
-	@Column(name = "notify_by_email_if_manual_system")
-	private boolean notifyByEmailIfManualSystem = true;
 
 	@Column
 	private LocalDate startDate;

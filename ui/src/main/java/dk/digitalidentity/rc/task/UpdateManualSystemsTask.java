@@ -20,7 +20,7 @@ public class UpdateManualSystemsTask {
 	@Autowired
 	private RoleCatalogueConfiguration configuration;
 
-	@Scheduled(cron = " 0 #{new java.util.Random().nextInt(59)} 8 ? * *")
+	@Scheduled(cron = "${rc.cron.manual_it_system_task}")
 //	@Scheduled(fixedDelay = 20 * 1000)
 	public void processUsersFromWaitingTable() {
 		if (!configuration.getScheduled().isEnabled()) {

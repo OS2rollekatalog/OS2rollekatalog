@@ -56,9 +56,6 @@ public class ReportApiV2 {
 
 		Map<String, Object> model = reportService.getReportModel(reportForm, loc);
 
-		response.setContentType("application/ms-excel");
-		response.setHeader("Content-Disposition", "attachment; filename=\"Rapport.xlsx\"");
-
 		new ReportXlsxView().render(model, request, response);
 	}
 }

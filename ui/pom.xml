@@ -17,34 +17,28 @@
 	<build>
 		<plugins>
 			<plugin>
-				<groupId>org.springframework.boot</groupId>
-				<artifactId>spring-boot-maven-plugin</artifactId>
-				<configuration>
-					<layout>ZIP</layout>
-					<directories>
-						<directory>${basedir}/config</directory>
-					</directories>
-					<addResources>
-						true
-					</addResources>
-				</configuration>
-			</plugin>
-			<plugin>
-				<groupId>org.springframework.boot</groupId>
-				<artifactId>spring-boot-maven-plugin</artifactId>
-				<configuration>
-					<image>
-						<name>rollekatalog:latest</name>
-						<tags>latest</tags>
-						<pullPolicy>IF_NOT_PRESENT</pullPolicy>
-						<builder>paketobuildpacks/builder-jammy-base</builder>
-						<env>
-							<BP_JVM_VERSION>21</BP_JVM_VERSION>
-							<BPE_TZ>Europe/Copenhagen</BPE_TZ>
-							<BPE_LANG>C.UTF-8</BPE_LANG>
-						</env>
-					</image>
-				</configuration>
+			    <groupId>org.springframework.boot</groupId>
+			    <artifactId>spring-boot-maven-plugin</artifactId>
+			    <configuration>
+			        <layout>ZIP</layout>
+			        <addResources>
+			            true
+			        </addResources>
+			        <additionalClasspathElements>
+			            <additionalClasspathElement>${basedir}/config</additionalClasspathElement>
+			        </additionalClasspathElements>
+			        <image>
+			            <name>rollekatalog:latest</name>
+			            <tags>latest</tags>
+			            <pullPolicy>IF_NOT_PRESENT</pullPolicy>
+			            <builder>paketobuildpacks/builder-jammy-base</builder>
+			            <env>
+			                <BP_JVM_VERSION>25</BP_JVM_VERSION>
+			                <BPE_TZ>Europe/Copenhagen</BPE_TZ>
+			                <BPE_LANG>C.UTF-8</BPE_LANG>
+			            </env>
+			        </image>
+			    </configuration>
 			</plugin>
 
 			<plugin>
@@ -56,6 +50,7 @@
 						<include>**/*Documentation.java</include>
 					</includes>
 					<runOrder>alphabetical</runOrder>
+					<argLine>-javaagent:${settings.localRepository}/org/mockito/mockito-core/${mockito.version}/mockito-core-${mockito.version}.jar</argLine>
 				</configuration>
 			</plugin>
 
@@ -96,7 +91,6 @@
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-resources-plugin</artifactId>
-				<version>3.3.1</version>
 				<executions>
 					<execution>
 						<id>copy-resources</id>
@@ -119,6 +113,37 @@
 					</execution>
 				</executions>
 			</plugin>
+
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-compiler-plugin</artifactId>
+				<configuration>
+					<source>25</source>
+					<target>25</target>
+					<annotationProcessorPaths>
+						<path>
+							<groupId>org.projectlombok</groupId>
+							<artifactId>lombok</artifactId>
+						</path>
+					</annotationProcessorPaths>
+				</configuration>
+			</plugin>
+
+			<plugin>
+				<groupId>com.diffplug.spotless</groupId>
+				<artifactId>spotless-maven-plugin</artifactId>
+				<version>3.1.0</version>
+				<configuration>
+					<ratchetFrom>origin/master</ratchetFrom>
+					<java>
+						<toggleOffOn />
+						<endWithNewline />
+						<removeUnusedImports />
+						<forbidWildcardImports />
+					</java>
+				</configuration>
+			</plugin>
+
 		</plugins>
 
 		<finalName>rc-ui</finalName>
@@ -164,12 +189,13 @@
 		<dependency>
 			<groupId>org.springframework.retry</groupId>
 			<artifactId>spring-retry</artifactId>
+			<version>2.0.11</version>
 		</dependency>
 
 		<dependency>
 			<groupId>com.github.darrachequesne</groupId>
 			<artifactId>spring-data-jpa-datatables</artifactId>
-			<version>6.0.4</version>
+			<version>8.0.0</version>
 		</dependency>
 
 		<dependency>
@@ -178,14 +204,29 @@
 		</dependency>
 
 		<dependency>
+			<groupId>org.springframework.security</groupId>
+			<artifactId>spring-security-test</artifactId>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-flyway</artifactId>
+		</dependency>
+
+		<dependency>
 			<groupId>org.thymeleaf.extras</groupId>
 			<artifactId>thymeleaf-extras-springsecurity6</artifactId>
-			<version>3.1.2.RELEASE</version>
 		</dependency>
 
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-data-jpa</artifactId>
+		</dependency>
+
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-flyway</artifactId>
 		</dependency>
 
 		<dependency>
@@ -201,13 +242,13 @@
 		<dependency>
 			<groupId>org.flywaydb</groupId>
 			<artifactId>flyway-core</artifactId>
-			<version>11.1.0</version>
+<!--	TODO ABO		<version>11.1.0</version>-->
 		</dependency>
 
 		<dependency>
 			<groupId>org.flywaydb</groupId>
 			<artifactId>flyway-mysql</artifactId>
-			<version>11.1.0</version>
+<!--	TODO ABO		<version>11.1.0</version>-->
 		</dependency>
 
 		<dependency>
@@ -219,7 +260,7 @@
 		<dependency>
 			<groupId>org.springdoc</groupId>
 			<artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
-			<version>2.5.0</version>
+			<version>3.0.1</version>
 		</dependency>
 
 		<dependency>
@@ -237,8 +278,7 @@
 		<dependency>
 			<groupId>org.projectlombok</groupId>
 			<artifactId>lombok</artifactId>
-			<version>1.18.30</version>
-
+			<scope>provided</scope>
 		</dependency>
 
 		<dependency>
@@ -287,29 +327,9 @@
 		<dependency>
 			<groupId>dk.digitalidentity</groupId>
 			<artifactId>saml-module</artifactId>
-			<version>4.1.1</version>
+			<version>4.5.6</version>
 		</dependency>
 
-		<!-- TODO: not sure if these three the right dependencies to add, but they
-			work with the new Java 11 module setup -->
-<!--		<dependency>-->
-<!--			<groupId>javax.xml.bind</groupId>-->
-<!--			<artifactId>jaxb-api</artifactId>-->
-<!--			<version>2.3.1</version>-->
-<!--		</dependency>-->
-<!---->
-<!--		<dependency>-->
-<!--			<groupId>com.sun.xml.bind</groupId>-->
-<!--			<artifactId>jaxb-impl</artifactId>-->
-<!--			<version>2.3.1</version>-->
-<!--		</dependency>-->
-<!---->
-<!--		<dependency>-->
-<!--			<groupId>com.sun.xml.bind</groupId>-->
-<!--			<artifactId>jaxb-core</artifactId>-->
-<!--			<version>2.3.0</version>-->
-<!--		</dependency>-->
-<!---->
 		<dependency>
 			<groupId>org.seleniumhq.selenium</groupId>
 			<artifactId>selenium-java</artifactId>
@@ -319,7 +339,6 @@
 		<dependency>
 			<groupId>com.google.code.gson</groupId>
 			<artifactId>gson</artifactId>
-			<version>2.10.1</version>
 		</dependency>
 
 
@@ -335,24 +354,38 @@
 		</dependency>
 		<dependency>
 			<groupId>org.testcontainers</groupId>
-			<artifactId>mariadb</artifactId>
-			<version>1.20.4</version>
+			<artifactId>testcontainers-mariadb</artifactId>
+			<version>2.0.0</version>
 			<scope>test</scope>
 		</dependency>
 		<dependency>
 			<groupId>org.testcontainers</groupId>
-			<artifactId>junit-jupiter</artifactId>
+			<artifactId>testcontainers-junit-jupiter</artifactId>
+			<version>2.0.0</version>
 			<scope>test</scope>
 		</dependency>
 		<dependency>
 			<groupId>org.testcontainers</groupId>
-			<artifactId>selenium</artifactId>
+			<artifactId>testcontainers-selenium</artifactId>
+			<version>2.0.0</version>
 			<scope>test</scope>
 		</dependency>
 
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-test</artifactId>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-webmvc-test</artifactId>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.springframework.security</groupId>
+			<artifactId>spring-security-test</artifactId>
 			<scope>test</scope>
 		</dependency>
 
@@ -395,11 +428,17 @@
 		<dependency>
 			<groupId>dk.digitalidentity</groupId>
 			<artifactId>kitos-client</artifactId>
-			<version>release-1.0.16</version>
+			<version>release-1.2.0</version>
 		</dependency>
 
-		<!-- This is apparently needed to be added to send base64 inline images.
-		Think it has something to do with java version. Was not necessary in Java8, but is in java11 -->
+		<dependency>
+			<groupId>dk.digitalidentity</groupId>
+			<artifactId>simple-queue</artifactId>
+			<version>1.1.15</version>
+		</dependency>
+
+<!--		&lt;!&ndash; This is apparently needed to be added to send base64 inline images.-->
+<!--		Think it has something to do with java version. Was not necessary in Java8, but is in java11 &ndash;&gt;-->
 <!--		<dependency>-->
 <!--		    <groupId>javax.activation</groupId>-->
 <!--		    <artifactId>activation</artifactId>-->

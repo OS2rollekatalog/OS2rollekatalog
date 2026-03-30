@@ -4,6 +4,7 @@ import dk.digitalidentity.rc.config.Constants;
 import dk.digitalidentity.rc.config.SessionConstants;
 import dk.digitalidentity.rc.dao.model.ItSystem;
 import dk.digitalidentity.rc.dao.model.ManagerDelegate;
+import dk.digitalidentity.rc.dao.model.OrgUnit;
 import dk.digitalidentity.rc.dao.model.SystemRoleAssignment;
 import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserRole;
@@ -12,6 +13,7 @@ import dk.digitalidentity.rc.log.AuditLogger;
 import dk.digitalidentity.rc.security.permission.Permission;
 import dk.digitalidentity.rc.security.permission.PermissionConstraint;
 import dk.digitalidentity.rc.security.permission.Section;
+import dk.digitalidentity.rc.service.assignment.AssignmentService;
 import dk.digitalidentity.rc.service.permission.PermissionService;
 import dk.digitalidentity.rc.service.ItSystemService;
 import dk.digitalidentity.rc.service.ManagerDelegateService;
@@ -26,11 +28,13 @@ import dk.digitalidentity.samlmodule.model.TokenUser;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Component;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -56,12 +60,19 @@ public class RolePostProcessor implements SamlLoginPostProcessor {
 	private final ManagerDelegateService managerDelegateService;
 	private final AccessConstraintService accessConstraintService;
 	private final PermissionService permissionService;
+	private final AssignmentService assignmentService;
+
+	@Value("${dev.login.impersonate.enabled:false}")
+	private boolean impersonateEnabled;
+
+	@Value("${dev.login.impersonate.user:#{null}}")
+	private String impersonateUser;
 
 	@Override
 	public void process(TokenUser tokenUser) {
 		String principal = tokenUser.getUsername();
 
-		User user = userService.getByUserId(principal);
+		User user = resolveUser(tokenUser);
 		if (user == null) {
 			throw new UsernameNotFoundException("Brugeren " + principal + " er ikke kendt af rollekataloget!");
 		}
@@ -91,6 +102,17 @@ public class RolePostProcessor implements SamlLoginPostProcessor {
 		handleNonHierachialRoles(roles, authorities, user);
 
 		tokenUser.setAuthorities(authorities);
+	}
+
+	private User resolveUser(TokenUser tokenUser) {
+		if (impersonateEnabled && impersonateUser != null) {
+			User impersonated = userService.getByUserId(impersonateUser);
+			if (impersonated != null) {
+				tokenUser.setUsername(impersonated.getUserId());
+				return impersonated;
+			}
+		}
+		return userService.getByUserId(tokenUser.getUsername());
 	}
 
 	private void setNotifications() {
@@ -123,7 +145,7 @@ public class RolePostProcessor implements SamlLoginPostProcessor {
 		// Find the role-catalogue it system in db
 
 		// For each system role of user roles on the role catalogue system, add their identifier to the list of roles
-		List<UserRole> userRoles = userService.getAllUserRoles(user, itSystems);
+		List<UserRole> userRoles = new ArrayList<>(assignmentService.getUserRolesByUserAndSystems(user, itSystems));
 		if (userRoles != null) {
 			for (UserRole role : userRoles) {
 				for (SystemRoleAssignment roleAssignment : role.getSystemRoleAssignments()) {
@@ -139,15 +161,23 @@ public class RolePostProcessor implements SamlLoginPostProcessor {
 		boolean isDelegate = false;
 		boolean isManager = false;
 
+		Set<String> managerOuUuids = new HashSet<>();
+
 		// if any manager has flagged this user as a substitute, add the substitute role and keep track of the list of managers
 		List<User> managers = userService.getSubstitutesManager(user);
 		if (!managers.isEmpty()) {
 			isSubstitute = true;
 			authorities.add(new SamlGrantedAuthority(Constants.ROLE_SUBSTITUTE));
 			tokenUser.getAttributes().put(ATTRIBUTE_SUBSTITUTE_FOR, managers.stream()
-					.map(User::getUuid)
-					.toList()
-					.toArray(new String[0]));
+				.map(User::getUuid)
+				.toList()
+				.toArray(new String[0]));
+
+			// Add substitute OUs
+			user.getSubstituteFor().stream()
+				.filter(ms -> !ms.getManager().isDeleted() && !ms.getManager().isDisabled())
+				.map(ms -> ms.getOrgUnit().getUuid())
+				.forEach(managerOuUuids::add);
 		}
 
 		// If the current user is delegated for a manager add the role
@@ -155,6 +185,13 @@ public class RolePostProcessor implements SamlLoginPostProcessor {
 		if (!byDelegate.isEmpty()) {
 			isDelegate = true;
 			authorities.add(new SamlGrantedAuthority(Constants.ROLE_MANAGER_SUBSTITUDE));
+
+			// Add delegate OUs
+			byDelegate.stream()
+				.filter(md -> !md.getManager().isDeleted() && !md.getManager().isDisabled())
+				.flatMap(md -> orgUnitService.getByManagerMatchingUser(md.getManager()).stream())
+				.map(OrgUnit::getUuid)
+				.forEach(managerOuUuids::add);
 		}
 
 		// check if the request/approve feature is enabled
@@ -170,11 +207,16 @@ public class RolePostProcessor implements SamlLoginPostProcessor {
 		if (userService.isManager(user)) {
 			isManager = true;
 			authorities.add(new SamlGrantedAuthority(Constants.ROLE_MANAGER));
+
+			// Add directly managed OUs
+			orgUnitService.getByManagerMatchingUser(user).stream()
+				.map(OrgUnit::getUuid)
+				.forEach(managerOuUuids::add);
 		}
 
 		if (isManager || isSubstitute || isDelegate) {
 			// manager-like users get full access to the manager section, constrained by their Orgunits
-			permissionService.addLimitedManagerAccess(user.getUuid());
+			permissionService.addLimitedManagerAccess(user.getUuid(), managerOuUuids);
 		}
 
 		return managers;

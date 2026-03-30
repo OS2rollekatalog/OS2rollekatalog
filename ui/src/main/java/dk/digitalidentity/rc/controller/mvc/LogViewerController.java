@@ -29,16 +29,13 @@ public class LogViewerController {
 	public String audit(Model model) {
 		return "logs/list-audit";
 	}
-	
+
 	@GetMapping(value = "/ui/logs/audit/download")
 	public ModelAndView download(HttpServletResponse response, Locale loc) {
 		Map<String, Object> model = new HashMap<>();
 		model.put("logs", auditLogService.downloadAuditLog());
 		model.put("locale", loc);
 		model.put("messagesBundle", messageSource);
-
-		response.setContentType("application/ms-excel");
-		response.setHeader("Content-Disposition", "attachment; filename=\"auditlog.xlsx\"");
 
 		return new ModelAndView(new AuditLogXlsxView(), model);
 	}

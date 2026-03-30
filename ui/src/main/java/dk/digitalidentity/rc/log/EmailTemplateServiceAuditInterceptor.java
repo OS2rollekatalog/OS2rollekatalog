@@ -40,13 +40,6 @@ public class EmailTemplateServiceAuditInterceptor {
             Object target = jp.getArgs()[0];
 
             if (target != null && target instanceof EmailTemplate) {
-                EmailTemplate emailTemplate = (EmailTemplate) target;
-                boolean created = false;
-
-                if (emailTemplate.getId() == 0) {
-                    created = true;
-                }
-                
                 EmailTemplate after = (EmailTemplate) jp.proceed();
                 AuditLogContextHolder.getContext().addArgument("Navn", emailTemplateService.getTemplateName(after.getId()));
                 auditLogger.log(after, EventType.EMAIL_TEMPLATE_CHANGED);

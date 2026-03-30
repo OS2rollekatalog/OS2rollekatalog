@@ -1,18 +1,5 @@
 package dk.digitalidentity.rc.service.permission;
 
-import dk.digitalidentity.rc.dao.model.OrgUnit;
-import dk.digitalidentity.rc.security.permission.Permission;
-import dk.digitalidentity.rc.security.permission.PermissionConstraint;
-import dk.digitalidentity.rc.security.permission.Section;
-import dk.digitalidentity.rc.security.permission.UserPermission;
-import dk.digitalidentity.rc.dao.permission.UserPermissionDao;
-import dk.digitalidentity.rc.service.OrgUnitService;
-import lombok.RequiredArgsConstructor;
-import org.springframework.cache.annotation.CacheEvict;
-import org.springframework.cache.annotation.Cacheable;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.EnumMap;
@@ -21,6 +8,17 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
+
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import dk.digitalidentity.rc.dao.permission.UserPermissionDao;
+import dk.digitalidentity.rc.security.permission.Permission;
+import dk.digitalidentity.rc.security.permission.PermissionConstraint;
+import dk.digitalidentity.rc.security.permission.Section;
+import dk.digitalidentity.rc.security.permission.UserPermission;
+import dk.digitalidentity.rc.service.OrgUnitService;
+import lombok.RequiredArgsConstructor;
 
 @RequiredArgsConstructor
 @Service
@@ -40,7 +38,7 @@ public class PermissionService {
 		Map<Section, Map<Permission, PermissionConstraint>> result = new EnumMap<>(Section.class);
 
 		for (UserPermission permission : permissions) {
-			result.computeIfAbsent(permission.getSection(), k -> new EnumMap<>(Permission.class))
+			result.computeIfAbsent(permission.getSection(), _ -> new EnumMap<>(Permission.class))
 					.put(permission.getPermission(), convertToConstraint(permission));
 		}
 
@@ -119,20 +117,21 @@ public class PermissionService {
 		return String.join(",", uuids);
 	}
 
-	public void addLimitedManagerAccess(String userUuid) {
-		Set<String> constrainedOUUuids = orgUnitService.getByManager().stream()
-				.map(OrgUnit::getUuid)
-				.collect(Collectors.toSet());
+	public void addLimitedManagerAccess(String userUuid, Set<String> constrainedOUUuids) {
+		// If no OUs found, don't grant any permissions
+		if (constrainedOUUuids == null || constrainedOUUuids.isEmpty()) {
+			return;
+		}
 
 		Set<Permission> permissions = Set.of(
-				Permission.READ,
-				Permission.CREATE,
-				Permission.UPDATE,
-				Permission.DELETE
+			Permission.READ,
+			Permission.CREATE,
+			Permission.UPDATE,
+			Permission.DELETE
 		);
 
 		for (Permission permission : permissions) {
-			updateConstraintFor( Section.MANAGER ,permission, userUuid, new PermissionConstraint(null, constrainedOUUuids));
+			updateConstraintFor(Section.MANAGER, permission, userUuid, new PermissionConstraint(null, constrainedOUUuids));
 		}
 	}
 

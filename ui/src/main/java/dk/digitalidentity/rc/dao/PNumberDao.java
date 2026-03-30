@@ -1,5 +1,6 @@
 package dk.digitalidentity.rc.dao;
 
+import java.util.Collection;
 import java.util.List;
 
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -11,4 +12,6 @@ public interface PNumberDao extends JpaRepository<PNumber, Long> {
 	List<PNumber> findAll();
 
 	List<PNumber> findByName(String name);
+
+	List<PNumber> findByCodeIn(Collection<String> codes);
 }

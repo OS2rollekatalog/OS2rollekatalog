@@ -79,9 +79,6 @@ public class RequestLogController {
 		model.put("locale", loc);
 		model.put("messagesBundle", messageSource);
 
-		response.setContentType("application/ms-excel");
-		response.setHeader("Content-Disposition", "attachment; filename=\"anmodningslog.xlsx\"");
-
 		return new ModelAndView(new RequestLogXlsxView(userRoleService), model);
 	}
 }

@@ -30,7 +30,6 @@ public class TitleService {
 		return titleDao.getByActiveTrue();
 	}
 	
-	@SuppressWarnings("deprecation")
 	public List<Title> getAllIncludingInactive() {
 		return titleDao.findAll();
 	}

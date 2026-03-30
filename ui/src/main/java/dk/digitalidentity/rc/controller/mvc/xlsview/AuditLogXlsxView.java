@@ -11,10 +11,8 @@ import org.apache.poi.ss.usermodel.CellStyle;
 import org.apache.poi.ss.usermodel.Font;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
-import org.apache.poi.ss.usermodel.Workbook;
 import org.springframework.context.support.ResourceBundleMessageSource;
 
-import dk.digitalidentity.rc.attestation.controller.mvc.xlsview.AbstractXlsxStreamingViewWrapper;
 import dk.digitalidentity.rc.controller.mvc.datatables.dao.model.AuditLogView;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -23,7 +21,7 @@ public class AuditLogXlsxView extends AbstractXlsxStreamingViewWrapper {
 
     @SuppressWarnings("unchecked")
     @Override
-    protected void buildExcelDocument(Map<String, Object> model, Workbook workbook, HttpServletRequest request, HttpServletResponse response) throws Exception {
+    protected void buildExcelDocument(Map<String, ?> model, DisposableSXSSFWorkbook workbook, HttpServletRequest request, HttpServletResponse response) throws Exception {
     	Locale locale = (Locale) model.get("locale");
         Iterable<AuditLogView> logs = (Iterable<AuditLogView>) model.get("logs");
         ResourceBundleMessageSource messageSource = (ResourceBundleMessageSource) model.get("messagesBundle");
@@ -37,7 +35,7 @@ public class AuditLogXlsxView extends AbstractXlsxStreamingViewWrapper {
         headerStyle.setFont(headerFont);
 
         Sheet sheet = workbook.createSheet(messageSource.getMessage("xls.report.titles.sheet.title", null, locale));
-		
+
         ArrayList<String> headers = new ArrayList<>();
         headers.add("html.page.log.timestamp");
         headers.add("html.page.log.auditor");
@@ -92,4 +90,9 @@ public class AuditLogXlsxView extends AbstractXlsxStreamingViewWrapper {
             createCell(headerRow, column++, localeSpecificHeader, headerStyle);
         }
     }
+
+	@Override
+	protected String getFilename() {
+		return "auditlog.xlsx";
+	}
 }

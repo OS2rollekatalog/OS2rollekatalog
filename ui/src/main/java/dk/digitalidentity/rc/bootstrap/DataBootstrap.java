@@ -16,11 +16,13 @@ import dk.digitalidentity.rc.service.PostponedConstraintService;
 import dk.digitalidentity.rc.service.SettingsService;
 import dk.digitalidentity.rc.service.SystemRoleService;
 import dk.digitalidentity.rc.service.UserRoleService;
+import dk.digitalidentity.rc.service.UserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jetbrains.annotations.NotNull;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.ApplicationListener;
+import org.springframework.context.annotation.Profile;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.PlatformTransactionManager;
@@ -33,26 +35,31 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import static dk.digitalidentity.rc.dao.model.enums.NotificationType.ORG_UNIT_NAME_CHANGED;
+
 @Slf4j
 @Order(100)
 @Component
+@Profile("!test")
 @RequiredArgsConstructor
 public class DataBootstrap implements ApplicationListener<ApplicationReadyEvent> {
 	private final PlatformTransactionManager transactionManager;
 	private final SettingsService settingsService;
-
 	private final SystemRoleService systemRoleService;
 	private final UserRoleService userRoleService;
 	private final ConstraintTypeService constraintTypeService;
 	private final ItSystemService itSystemService;
 	private final SystemRoleAssignmentConstraintValueDao systemRoleAssignmentConstraintValueDao;
 	private final PostponedConstraintService postponedConstraintService;
+	private final UserService userService;
 
 	@Override
 	public void onApplicationEvent(final @NotNull ApplicationReadyEvent event) {
 		Integer currentVersion = getCurrentVersion();
 		currentVersion = applyVersion(1, this::seedV1, currentVersion);
 		currentVersion = applyVersion(2, this::seedV2, currentVersion);
+		currentVersion = applyVersion(3, this::seedV3, currentVersion);
+		currentVersion = applyVersion(4, this::seedV4, currentVersion);
 		setCurrentVersion(currentVersion);
 	}
 
@@ -76,7 +83,7 @@ public class DataBootstrap implements ApplicationListener<ApplicationReadyEvent>
 		final TransactionTemplate transactionTemplate = new TransactionTemplate(transactionManager);
 		if (currentVersion < version) {
 			try {
-				transactionTemplate.executeWithoutResult(status -> applier.run());
+				transactionTemplate.executeWithoutResult(_ -> applier.run());
 				return version;
 			} catch (Exception e) {
 				log.error("Failed to apply version {}", version, e);
@@ -148,14 +155,14 @@ public class DataBootstrap implements ApplicationListener<ApplicationReadyEvent>
 		roleTemplates.addAll(administrationRoleTemplates);
 
 		Map<String, SystemRole> systemRolesByIdentifier = new HashMap<>();
+		ItSystem roleCatalogue = itSystemService.getFirstByIdentifier(Constants.ROLE_CATALOGUE_IDENTIFIER);
 		for (SystemRoleTemplate srt : roleTemplates) {
-			SystemRole systemRole = systemRoleService.createForRoleCatalogue(srt.title, srt.constantId, srt.description);
+			SystemRole systemRole = systemRoleService.createForRoleCatalogue(srt.title, srt.constantId, srt.description, roleCatalogue);
 			systemRole.getSupportedConstraintTypes().addAll(srt.supportedConstraintTypes);
 			systemRolesByIdentifier.put(srt.constantId, systemRole);
 		}
 
 		// create new user roles
-		ItSystem roleCatalogue = itSystemService.getFirstByIdentifier(Constants.ROLE_CATALOGUE_IDENTIFIER);
 		String assignedBy = "Systembruger";
 		String assignedById = "system";
 
@@ -272,7 +279,7 @@ public class DataBootstrap implements ApplicationListener<ApplicationReadyEvent>
 				"Denne rolle giver adgant til at tildele og fjerne jobfunktionsroller og rollebuketter til enheder",
 				List.of(systemConstraintTypeSupport, ouConstraintTypeSupport));
 
-		SystemRole ouAssigner = systemRoleService.createForRoleCatalogue(ouAssignerTemplate.title, ouAssignerTemplate.constantId, ouAssignerTemplate.description);
+		SystemRole ouAssigner = systemRoleService.createForRoleCatalogue(ouAssignerTemplate.title, ouAssignerTemplate.constantId, ouAssignerTemplate.description, roleCatalogue);
 		ouAssigner.getSupportedConstraintTypes().addAll(ouAssignerTemplate.supportedConstraintTypes);
 
 		userAssigner.setName("Rolletildeler - Brugere");
@@ -323,6 +330,14 @@ public class DataBootstrap implements ApplicationListener<ApplicationReadyEvent>
 
 			userRoleService.save(userRole);
 		}
+	}
+
+	private void seedV3() {
+		userService.queueAllForRecalculation();
+	}
+
+	private void seedV4() {
+		settingsService.setNotificationTypeEnabled(ORG_UNIT_NAME_CHANGED, false);
 	}
 
 }

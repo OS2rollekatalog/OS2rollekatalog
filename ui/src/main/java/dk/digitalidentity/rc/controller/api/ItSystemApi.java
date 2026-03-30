@@ -10,15 +10,18 @@ import dk.digitalidentity.rc.dao.model.SystemRole;
 import dk.digitalidentity.rc.dao.model.SystemRoleAssignment;
 import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserRole;
+import dk.digitalidentity.rc.dao.model.assignment.CurrentAssignment;
 import dk.digitalidentity.rc.dao.model.enums.ItSystemType;
 import dk.digitalidentity.rc.dao.model.enums.RoleType;
+import dk.digitalidentity.rc.rolerequest.model.enums.ApprovableBy;
+import dk.digitalidentity.rc.rolerequest.model.enums.RequestableBy;
 import dk.digitalidentity.rc.security.RequireApiItSystemRole;
 import dk.digitalidentity.rc.service.DomainService;
 import dk.digitalidentity.rc.service.ItSystemService;
 import dk.digitalidentity.rc.service.SystemRoleService;
 import dk.digitalidentity.rc.service.UserRoleService;
 import dk.digitalidentity.rc.service.UserService;
-import dk.digitalidentity.rc.service.model.UserWithRole;
+import dk.digitalidentity.rc.service.assignment.AssignmentService;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
@@ -34,6 +37,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -52,10 +56,10 @@ public class ItSystemApi {
 
 	@Autowired
 	private ItSystemService itSystemService;
-	
+
 	@Autowired
 	private UserRoleService userRoleService;
-	
+
 	@Autowired
 	private UserService userService;
 
@@ -64,7 +68,10 @@ public class ItSystemApi {
 
 	@Autowired
 	private DomainService domainService;
-	
+
+	@Autowired
+	private AssignmentService assignmentService;
+
 	@GetMapping(value = "/api/itsystem/all")
 	public ResponseEntity<List<ItSystemDTO>> getAllItSystems() {
 		List<ItSystemDTO> itSystems = itSystemService.getAll().stream()
@@ -119,7 +126,7 @@ public class ItSystemApi {
 	@PostMapping(value = "/api/itsystem/manage/{id}")
 	public ResponseEntity<?> manageItSystem(@PathVariable("id") Long id, @RequestParam(name = "updateUserAssignments", required = false, defaultValue = "false") boolean updateUserAssignments, @RequestParam(name = "domain", required = false) String domain, @RequestBody @Valid ItSystemWithSystemRolesDTO body) {
 		log.info("manage API on " + id + " called");
-		
+
 		ItSystem itSystem = itSystemService.getById(id);
 		if (itSystem == null) {
 			return new ResponseEntity<>(HttpStatus.NOT_FOUND);
@@ -166,7 +173,7 @@ public class ItSystemApi {
 				systemRoleService.save(newSystemRole);
 			}
 		}
-		
+
 		// delete removed systemroles
 		for (SystemRole systemRole : existingSystemRoles) {
 			if(body.getSystemRoles().stream().noneMatch(sr -> Objects.equals(sr.getIdentifier(), systemRole.getIdentifier()))){
@@ -187,7 +194,7 @@ public class ItSystemApi {
 					if (dto.getUsers() != null && dto.getUsers().size() > 0) {
 						containsUsers = true;
 						break;
-					}				
+					}
 				}
 			}
 
@@ -197,7 +204,7 @@ public class ItSystemApi {
 					users.put(user.getUserId().toLowerCase(), user);
 				}
 			}
-			
+
 			// ensure 1:1 user roles with same name as system-role and delete any user-role without system-roles
 			// we keep track of corresponding 1:1 roles by assigning the same identifier on both entities
 			List<SystemRole> systemRoles = systemRoleService.getByItSystem(itSystem);
@@ -231,7 +238,7 @@ public class ItSystemApi {
 					Optional<SystemRoleDTO> systemRoleDTO = body.getSystemRoles().stream()
 							.filter(srDTO -> Objects.equals(srDTO.getIdentifier(), systemRole.get().getIdentifier()))
 							.findFirst();
-					
+
 					if (!systemRoleDTO.isPresent()) {
 						continue;
 					}
@@ -239,7 +246,7 @@ public class ItSystemApi {
 					updateUserAssignments(systemRoleDTO.get(), userRole, users);
 				}
 			}
-			
+
 			// create 1:1 user role
 			var toBeCreated = systemRoles.stream().filter(sr -> userRoles.stream().noneMatch(ur -> Objects.equals(ur.getIdentifier(), sr.getIdentifier()))).collect(Collectors.toList());
 			for (SystemRole systemRole : toBeCreated) {
@@ -248,6 +255,8 @@ public class ItSystemApi {
 				userRole.setIdentifier(systemRole.getIdentifier());
 				userRole.setName(systemRole.getName());
 				userRole.setDescription(systemRole.getDescription());
+				userRole.setApproverPermission(Collections.singletonList(ApprovableBy.INHERIT));
+				userRole.setRequesterPermission(Collections.singletonList(RequestableBy.INHERIT));
 
 				SystemRoleAssignment systemRoleAssignment = new SystemRoleAssignment();
 				systemRoleAssignment.setAssignedByName("Systembruger");
@@ -256,7 +265,7 @@ public class ItSystemApi {
 				systemRoleAssignment.setSystemRole(systemRole);
 				systemRoleAssignment.setUserRole(userRole);
 				systemRoleAssignment.setConstraintValues(new ArrayList<>());
-				
+
 				userRole.setSystemRoleAssignments(Arrays.asList(systemRoleAssignment));
 
 				userRole = userRoleService.save(userRole);
@@ -266,7 +275,7 @@ public class ItSystemApi {
 					Optional<SystemRoleDTO> systemRoleDTO = body.getSystemRoles().stream()
 							.filter(srDTO -> Objects.equals(srDTO.getIdentifier(), systemRole.getIdentifier()))
 							.findFirst();
-					
+
 					if (!systemRoleDTO.isPresent()) {
 						continue;
 					}
@@ -310,13 +319,12 @@ public class ItSystemApi {
 			}
 		}
 
-		// remove
-		List<UserWithRole> usersWithRole = userService.getUsersWithUserRole(userRole, false);
-		for (UserWithRole userWithRole : usersWithRole) {
-			String userId = userWithRole.getUser().getUserId();
+		// remove - only direct and roleGroup assignments (not OrgUnit/Title assignments)
+		for (CurrentAssignment assignment : assignmentService.getActiveByUserRoleDirectlyAssignedOrFromRoleGroup(userRole)) {
+			String userId = assignment.getUser().getUserId();
 
 			if (!assignedUsers.stream().anyMatch(u -> u.equalsIgnoreCase(userId))) {
-				userService.removeUserRole(userWithRole.getUser(), userRole);
+				userService.removeUserRole(assignment.getUser(), userRole);
 			}
 		}
 	}
@@ -344,7 +352,7 @@ public class ItSystemApi {
 			if (itSystem == null) {
 				// we also allow looking up using UUID for KOMBIT based it-systems
 				itSystem = itSystemService.getByUuid(id);
-	
+
 				if (itSystem == null) {
 					return new ResponseEntity<>(result, HttpStatus.NOT_FOUND);
 				}
@@ -361,19 +369,21 @@ public class ItSystemApi {
 		return new ResponseEntity<>(result, HttpStatus.OK);
 
 	}
-	
+
 	private Set<String> getUsersWithUserRole(UserRole userRole, Domain domain) {
 		Set<String> users = new HashSet<>();
 
-		List<UserWithRole> usersWithRole = userService.getUsersWithUserRole(userRole, true);
-		for (UserWithRole userWithRole : usersWithRole) {
-			if (userWithRole.getUser().isDeleted() || userWithRole.getUser().isDisabled() || !Objects.equals(domain.getName(), userWithRole.getUser().getDomain().getName())) {
+		Set<CurrentAssignment> assignments = assignmentService.getActiveByUserRole(userRole);
+
+		for (CurrentAssignment assignment : assignments) {
+			if (assignment.getUser().isDeleted() || assignment.getUser().isDisabled() ||
+				!Objects.equals(domain.getName(), assignment.getUser().getDomain().getName())) {
 				continue;
 			}
 
-			users.add(userWithRole.getUser().getUserId());
+			users.add(assignment.getUser().getUserId());
 		}
-		
+
 		return users;
 	}
 }

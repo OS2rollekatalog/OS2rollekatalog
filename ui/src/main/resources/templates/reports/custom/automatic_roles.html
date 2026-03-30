@@ -29,7 +29,7 @@
 									<td th:if="${role.type} == 'ROLEGROUP'" th:text="#{html.role.assignment.type.rolegroup}"></td>
 									<td th:text="${role.name}"></td>
 									<td th:text="${role.itSystemName}"></td>
-									<td th:text="${role.description}"></td>
+									<td class="preformat" th:text="${role.description}"></td>
 									<td>
 										<th:block sec:authorize="hasRole('ROLE_ASSIGNER')">
 											<a th:if="${role.type} == 'USERROLE'" th:href="@{/ui/userroles/edit/{id}(id=${role.id})}"><em class="fa fa-pencil"></em></a>

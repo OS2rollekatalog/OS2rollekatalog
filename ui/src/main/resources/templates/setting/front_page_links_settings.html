@@ -3,335 +3,374 @@
 <head th:replace="~{fragments/header :: header (title=#{html.frontPageLinks.title})}"></head>
 <body>
 <div class="wrapper">
-    <header th:replace="~{fragments/navbar :: navbar-header(subpage = 'administration')}"></header>
-    <aside th:replace="~{fragments/navbar :: navbar-aside (page = 'frontPageLinks', subpage = 'administration')}"></aside>
+	<header th:replace="~{fragments/navbar :: navbar-header(subpage = 'administration')}"></header>
+	<aside th:replace="~{fragments/navbar :: navbar-aside (page = 'frontPageLinks', subpage = 'administration')}"></aside>
 
-    <section>
-        <div class="content-wrapper">
-            <h3>
-                <span th:text="#{html.frontPageLinks.title}"></span>
-                <button id="createBtn" type="button" class="btn btn-primary btn-lg" style="float: right">
-                    <em class="fa fa-fw fa-plus"></em>
-                    <span th:text="#{html.frontPageLinks.add}"></span>
-                </button>
-                <button id="viewBtn" type="button" class="btn btn-primary btn-lg" style="float: right; margin-right: 5px;">
-                    <em class="fa fa-fw fa-eye"></em>
-                    <span th:text="#{html.frontPageLinks.list.modal.header.view}"></span>
-                </button>
-            </h3>
-            <div class="panel panel-default" style="padding-left: 20px; padding-right: 20px;">
-                <div class="panel-body">
-                    <div class="table-responsive">
-                        <table id="listTable" class="table table-striped table-hover listTable">
-                            <thead>
-                            <tr>
-                                <th class="col-md-1" th:text="#{html.frontPageLinks.list.active}"></th>
-                                <th class="col-md-1" th:text="#{html.frontPageLinks.list.icon}"></th>
-                                <th class="col-md-1" th:text="#{html.frontPageLinks.list.type}"></th>
-                                <th class="col-md-3" th:text="#{html.frontPageLinks.list.link}"></th>
-                                <th class="col-md-3" th:text="#{html.frontPageLinks.list.title}"></th>
-                                <th class="col-md-3" th:text="#{html.frontPageLinks.list.description}"></th>
-                                <th class="col-md-1" th:text="#{html.control.operations}"></th>
-                            </tr>
-                            </thead>
+	<section>
+		<div class="content-wrapper">
+			<h3>
+				<span th:text="#{html.frontPageLinks.title}"></span>
+				<button id="createBtn" type="button" class="btn btn-primary btn-lg" style="float: right">
+					<em class="fa fa-fw fa-plus"></em>
+					<span th:text="#{html.frontPageLinks.add}"></span>
+				</button>
+				<button id="viewBtn" type="button" class="btn btn-primary btn-lg" style="float: right; margin-right: 5px;">
+					<em class="fa fa-fw fa-eye"></em>
+					<span th:text="#{html.frontPageLinks.list.modal.header.view}"></span>
+				</button>
+			</h3>
 
-                            <tbody>
-                            <tr th:each="link : ${links}">
-                                <td>
-                                    <div class="checkbox c-checkbox" style="margin-left: 5px;">
-                                        <label>
-                                            <input th:id="'active' + ${link.id}" class="linkActiveCheckbox" type="checkbox" th:attr="data-id=${link.id}" th:checked="${link.active}"/>
-                                            <span class="fa fa-check"></span>
-                                        </label>
-                                    </div>
-                                </td>
-                                <td>
-                                    <i class="fa" th:classappend="${link.icon}"></i>
-                                </td>
-								<td th:text="${link.linkType.message}"></td>
-                                <td>
-                                    <a th:text="${link.link}" th:href="@{${link.link}}"></a>
-                                </td>
-                                <td th:text="${link.title}"></td>
-                                <td th:text="${link.description}"></td>
-                                <td style="text-align: center;">
-                                    <em th:if="${link.editable}" class="fa fa-pencil editBtn" th:attr="data-id=${link.id}" style="cursor: pointer;"></em> &nbsp;
-                                    <em th:if="${link.deletable}" class="fa fa-times removeBtn" th:attr="data-id=${link.id},data-title=${link.title}" style="cursor: pointer;"></em>
-                                </td>
-                            </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </section>
+			<!-- Separate table for each LinkType -->
+			<div th:each="linkType : ${linkTypes}">
+				<h4 th:text="${linkType.message}" style="margin-top: 30px;"></h4>
+				<div class="panel panel-default" style="padding-left: 20px; padding-right: 20px;">
+					<div class="panel-body">
+						<div class="table-responsive">
+							<table class="table table-striped table-hover listTable">
+								<thead>
+								<tr>
+									<th class="col-md-1" th:text="#{html.frontPageLinks.list.active}"></th>
+									<th class="col-md-1" th:text="#{html.frontPageLinks.list.icon}"></th>
+									<th class="col-md-3" th:text="#{html.frontPageLinks.list.link}"></th>
+									<th class="col-md-3" th:text="#{html.frontPageLinks.list.title}"></th>
+									<th class="col-md-3" th:text="#{html.frontPageLinks.list.description}"></th>
+									<th class="col-md-1" th:text="#{html.control.operations}"></th>
+								</tr>
+								</thead>
+
+								<tbody>
+								<tr th:each="link, iterStat : ${linksByType.get(linkType)}">
+									<td>
+										<div class="checkbox c-checkbox" style="margin-left: 5px;">
+											<label>
+												<input th:id="'active' + ${link.id}" class="linkActiveCheckbox" type="checkbox" th:attr="data-id=${link.id}" th:checked="${link.active}"/>
+												<span class="fa fa-check"></span>
+											</label>
+										</div>
+									</td>
+									<td>
+										<i class="fa" th:classappend="${link.icon}"></i>
+									</td>
+									<td>
+										<a th:text="${link.link}" th:href="@{${link.link}}"></a>
+									</td>
+									<td th:text="${link.title}"></td>
+									<td class="preformat" th:text="${link.description}"></td>
+									<td style="text-align: center;">
+										<em th:if="${!iterStat.first}" class="fa fa-arrow-up moveUpBtn" th:attr="data-id=${link.id}" style="cursor: pointer;"></em>
+										<em th:if="${!iterStat.last}" class="fa fa-arrow-down moveDownBtn" th:attr="data-id=${link.id}" style="cursor: pointer;"></em>
+										<em th:if="${link.editable}" class="fa fa-pencil editBtn" th:attr="data-id=${link.id},data-type=${link.linkType}" style="cursor: pointer;"></em>
+										<em th:if="${link.deletable}" class="fa fa-times removeBtn" th:attr="data-id=${link.id},data-title=${link.title}" style="cursor: pointer;"></em>
+									</td>
+								</tr>
+								</tbody>
+							</table>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+	</section>
 </div>
 
 <div class="modal fade bd-example-modal-lg" id="linkModal" role="dialog">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header">
-                <button type="button" class="close" data-dismiss="modal">&times;</button>
-                <h4 id="modalHeader"></h4>
-            </div>
+	<div class="modal-dialog modal-lg">
+		<div class="modal-content">
+			<div class="modal-header">
+				<button type="button" class="close" data-dismiss="modal">&times;</button>
+				<h4 id="modalHeader"></h4>
+			</div>
 
-            <div class="modal-body">
-                <form class="form-horizontal">
-                    <input id="selectedLinkId" hidden>
-                    <div class="form-group row">
-                        <label class="col-lg-2 control-label" th:text="#{html.frontPageLinks.list.title}"></label>
-                        <div class="col-lg-9">
-                            <input class="form-control" id="linkTitle"/>
-                        </div>
-                    </div>
-                    <div class="form-group row">
-                        <label class="col-lg-2 control-label" th:text="#{html.frontPageLinks.list.link}"></label>
-                        <div class="col-lg-9">
-                            <input class="form-control" id="linkLink" />
-                        </div>
-                    </div>
+			<div class="modal-body">
+				<form class="form-horizontal">
+					<input id="selectedLinkId" hidden>
+					<div class="form-group row">
+						<label class="col-lg-2 control-label" th:text="#{html.frontPageLinks.list.title}"></label>
+						<div class="col-lg-9">
+							<input class="form-control" id="linkTitle"/>
+						</div>
+					</div>
+					<div class="form-group row">
+						<label class="col-lg-2 control-label" th:text="#{html.frontPageLinks.list.link}"></label>
+						<div class="col-lg-9">
+							<input class="form-control" id="linkLink" />
+						</div>
+					</div>
 					<div class="form-group row">
 						<label class="col-lg-2 control-label" th:text="#{html.frontPageLinks.list.type}"></label>
 						<div class="col-lg-9">
 							<select class="form-control selectpicker" id="linkType">
-								<option th:each="type : ${T(dk.digitalidentity.rc.dao.model.enums.LinkType).values()}"
+								<option th:each="type : ${linkTypes}"
 										th:value="${type}"
 										th:text="${type.message}"></option>
 							</select>
 						</div>
 					</div>
-                    <div class="form-group row">
-                        <label class="col-lg-2 control-label" th:text="#{html.frontPageLinks.list.icon}"></label>
-                        <div class="col-lg-9">
-                            <select class="form-control selectpicker" id="linkIcon">
-                                <option th:each="icon : ${icons}" th:attr="data-icon=${icon}" th:text="${icon}" th:value="${icon}"></option>
-                            </select>
-                        </div>
-                    </div>
-                    <div class="form-group row">
-                        <label class="col-lg-2 control-label" th:text="#{html.frontPageLinks.list.description}"></label>
-                        <div class="col-lg-9">
-                            <textarea class="form-control" id="linkDescription" rows="3"></textarea>
-                        </div>
-                    </div>
-                </form>
-            </div>
+					<div class="form-group row">
+						<label class="col-lg-2 control-label" th:text="#{html.frontPageLinks.list.icon}"></label>
+						<div class="col-lg-9">
+							<select class="form-control selectpicker" id="linkIcon">
+								<option th:each="icon : ${icons}" th:attr="data-icon=${icon}" th:text="${icon}" th:value="${icon}"></option>
+							</select>
+						</div>
+					</div>
+					<div class="form-group row">
+						<label class="col-lg-2 control-label" th:text="#{html.frontPageLinks.list.description}"></label>
+						<div class="col-lg-9">
+							<textarea class="form-control" id="linkDescription" rows="3"></textarea>
+						</div>
+					</div>
+				</form>
+			</div>
 
-            <div class="modal-footer">
-                <button id="saveLinkBtn" type="button" class="btn btn-primary" th:text="#{html.control.button.save}"></button>
-                <button type="button" class="btn btn-danger" data-dismiss="modal" th:text="#{html.control.button.cancel}"></button>
-            </div>
-        </div>
-    </div>
+			<div class="modal-footer">
+				<button id="saveLinkBtn" type="button" class="btn btn-primary" th:text="#{html.control.button.save}"></button>
+				<button type="button" class="btn btn-danger" data-dismiss="modal" th:text="#{html.control.button.cancel}"></button>
+			</div>
+		</div>
+	</div>
 </div>
 
 <div class="modal fade bd-example-modal-lg" id="linkViewModal" role="dialog">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header">
-                <button type="button" class="close" data-dismiss="modal">&times;</button>
-                <h4 th:text="#{html.frontPageLinks.list.modal.header.view}"></h4>
-            </div>
+	<div class="modal-dialog modal-lg">
+		<div class="modal-content">
+			<div class="modal-header">
+				<button type="button" class="close" data-dismiss="modal">&times;</button>
+				<h4 th:text="#{html.frontPageLinks.list.modal.header.view}"></h4>
+			</div>
 
-            <div class="modal-body">
-                <a th:each="link : ${links}" th:href="@{${link.link}}" th:id="'viewLink' + ${link.id}">
-                    <div class="col-lg-10 col-lg-offset-1">
-                        <div class="panel widget bg-primary">
-                            <div class="row row-table">
-                                <div class="col-xs-4 text-center bg-primary-dark pv-lg">
-                                    <em class="fa fa-3x" th:classappend="${link.icon}"></em>
-                                </div>
-                                <div class="col-xs-8 pv-lg">
-                                    <div class="h2 mt0" th:text="${link.title}"></div>
-                                    <div th:text="${link.description}"></div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </a>
-            </div>
+			<div class="modal-body">
+				<div th:each="linkType : ${linkTypes}">
+					<div th:each="link : ${linksByType.get(linkType)}">
+						<a th:unless="${linkType == T(dk.digitalidentity.rc.dao.model.enums.LinkType).GENERAL_PAGE_LINK}" th:href="@{${link.link}}" th:id="'viewLink' + ${link.id}">
+							<div class="col-lg-10 col-lg-offset-1">
+								<div class="panel widget bg-primary">
+									<div class="row row-table">
+										<div class="col-xs-4 text-center bg-primary-dark pv-lg">
+											<em class="fa fa-3x" th:classappend="${link.icon}"></em>
+										</div>
+										<div class="col-xs-8 pv-lg">
+											<div class="h2 mt0" th:text="${link.title}"></div>
+											<div th:text="${link.description}"></div>
+										</div>
+									</div>
+								</div>
+							</div>
+						</a>
+					</div>
+				</div>
+			</div>
 
-            <div class="modal-footer" style="border-top: none;">
-            </div>
-        </div>
-    </div>
+			<div class="modal-footer" style="border-top: none;">
+			</div>
+		</div>
+	</div>
 </div>
 
 <div th:replace="~{fragments/footer :: footer}"></div>
 
 <script th:inline="javascript">
-		/*<![CDATA[*/
+	/*<![CDATA[*/
 
-        /*[+
-			var modalCreateHeader = [[#{html.frontPageLinks.list.modal.header.create}]];
-			var modalEditHeader = [[#{html.frontPageLinks.list.modal.header.edit}]];
-			var deleteTitle = [[#{html.frontPageLinks.list.delete.header}]];
-			var deleteText = [[#{html.frontPageLinks.list.delete.text}]];
-			var deleteCancelBtn = [[#{html.control.button.cancel}]];
-			var deleteConfirmBtn = [[#{html.control.button.delete}]];
-			var modalEditHeader = [[#{html.frontPageLinks.list.modal.header.edit}]];
-			var msgError = [[#{html.frontPageLinks.list.modal.error}]];
-			var msgSuccess = [[#{html.default.message.success}]];
-			var links = [[${links}]];
-			var restUrl = [[@{/rest/frontpage/links/}]];
-         +]*/
+	/*[+
+		var modalCreateHeader = [[#{html.frontPageLinks.list.modal.header.create}]];
+		var modalEditHeader = [[#{html.frontPageLinks.list.modal.header.edit}]];
+		var deleteTitle = [[#{html.frontPageLinks.list.delete.header}]];
+		var deleteText = [[#{html.frontPageLinks.list.delete.text}]];
+		var deleteCancelBtn = [[#{html.control.button.cancel}]];
+		var deleteConfirmBtn = [[#{html.control.button.delete}]];
+		var msgError = [[#{html.frontPageLinks.list.modal.error}]];
+		var msgSuccess = [[#{html.default.message.success}]];
+		var linksByType = [[${linksByType}]];
+		var restUrl = [[@{/rest/frontpage/links/}]];
+	 +]*/
 
-        var token = $("meta[name='_csrf']").attr("content");
-        var linkService;
-		$("document").ready(function() {
-            linkService = new LinkService();
-            linkService.init();
-		});
+	var token = $("meta[name='_csrf']").attr("content");
+	var linkService;
 
-		function LinkService() {
-		    this.init = function() {
-		        $("#createBtn").on("click", linkService.openCreateModal);
-		        $(".editBtn").on("click", linkService.openEditModal);
-		        $(".linkActiveCheckbox").on("change", linkService.setActive);
-		        $(".removeBtn").on("click", linkService.delete);
-		        $("#viewBtn").on("click", linkService.openViewModal);
-		        $("#saveLinkBtn").on("click", linkService.save);
+	$("document").ready(function() {
+		linkService = new LinkService();
+		linkService.init();
+	});
 
-		        links.forEach(function(item) {
-			        if (!item.active) {
-			            $("#viewLink" + item.id).hide();
-			        }
-			    });
-		    }
+	function LinkService() {
+		this.init = function() {
+			$("#createBtn").on("click", linkService.openCreateModal);
+			$(".editBtn").on("click", linkService.openEditModal);
+			$(".linkActiveCheckbox").on("change", linkService.setActive);
+			$(".removeBtn").on("click", linkService.delete);
+			$("#viewBtn").on("click", linkService.openViewModal);
+			$("#saveLinkBtn").on("click", linkService.save);
+			$(".moveUpBtn").on("click", linkService.moveUp);
+			$(".moveDownBtn").on("click", linkService.moveDown);
 
-		    this.openViewModal = function() {
-				$("#linkViewModal").modal("show");
-			}
+			// Hide inactive links in view modal
+			Object.values(linksByType).flat().forEach(function(link) {
+				if (!link.active) {
+					$("#viewLink" + link.id).hide();
+				}
+			});
+		}
 
-		    this.openCreateModal = function() {
-		        $("#selectedLinkId").val("");
-		        $("#linkTitle").val("");
-		        $("#linkLink").val("");
-		        $("#linkDescription").text("");
-		        $("#modalHeader").val(modalCreateHeader);
-				$("#linkModal").modal("show");
-			}
+		this.openViewModal = function() {
+			$("#linkViewModal").modal("show");
+		}
 
-			this.openEditModal = function() {
-			    var id = $(this).data("id");
-			    var link = null;
-			    links.forEach(function(item) {
-			        if (item.id == id) {
-			            link = item;
-			        }
-			    });
+		this.openCreateModal = function() {
+			$("#selectedLinkId").val("");
+			$("#linkTitle").val("");
+			$("#linkLink").val("");
+			$("#linkDescription").text("");
+			$("#modalHeader").text(modalCreateHeader);
+			$("#linkModal").modal("show");
+		}
 
-			    if (link != null) {
-                    $("#selectedLinkId").val(id);
-                    $("#linkTitle").val(link.title);
-                    $("#linkLink").val(link.link);
-                    $("#linkIcon").selectpicker('val', link.icon)
-                    $("#linkDescription").text(link.description);
-					$("#modalHeader").val(modalEditHeader);
-					$("#linkType").selectpicker('val', link.linkType)
-					$("#linkModal").modal("show");
-			    } else {
-			        linkService.openCreateModal();
-			    }
-			}
+		this.openEditModal = function() {
+			var id = $(this).data("id");
+			var linkType = $(this).data("type");
+			var link = null;
 
-			this.delete = function() {
-				var id = $(this).data("id");
-				var title = $(this).data("title");
-
-				swal({
-					html: true,
-					title : deleteTitle,
-					text : deleteText + "<br/><br/><b><q>" + title + "</q></b>",
-					type : "warning",
-					showCancelButton : true,
-					confirmButtonColor : "#DD6B55",
-					confirmButtonText : deleteConfirmBtn,
-					cancelButtonText : deleteCancelBtn,
-					closeOnConfirm : true,
-					closeOnCancel : true
-				},
-					function (isConfirm) {
-						if (isConfirm) {
-							$.ajax({
-								method : "POST",
-								url: restUrl + id + "/delete",
-								contentType: "application/json; charset=utf-8",
-								headers: {
-									'X-CSRF-TOKEN': token
-								}
-							}).done(function (data) {
-								location.reload(true);
-							}).fail(errorHandler(msgError));
-						}
+			var linksForType = linksByType[linkType];
+			if (linksForType) {
+				linksForType.forEach(function(item) {
+					if (item.id == id) {
+						link = item;
 					}
-				);
-			}
-
-			this.setActive = function() {
-			    var checked = $(this).prop("checked");
-			    var id = $(this).data("id");
-			    $.ajax({
-					method : "POST",
-					url: restUrl + id + "?active=" + checked,
-					contentType: "application/json; charset=utf-8",
-					headers: {
-						'X-CSRF-TOKEN': token
-					}
-				}).done(function (data) {
-				    links.forEach(function(item) {
-				        if (item.id == id) {
-				            if (checked) {
-                                $("#viewLink" + item.id).show();
-				            } else {
-                                $("#viewLink" + item.id).hide();
-				            }
-				        }
-                    });
-
-					$.notify({
-						message: msgSuccess
-					}, {
-						status: 'success',
-						autoHideDelay: 4000
-					});
-				}).fail(errorHandler(msgError));
-			}
-
-			this.save = function() {
-			    var id = $("#selectedLinkId").val();
-		        var title = $("#linkTitle").val();
-		        var link = $("#linkLink").val();
-		        var icon = $("#linkIcon").val();
-		        var description = $("#linkDescription").val();
-				let type = $('#linkType').val();
-
-		        $.ajax({
-					method : "POST",
-					url: restUrl + "save",
-					contentType: "application/json; charset=utf-8",
-					headers: {
-						'X-CSRF-TOKEN': token
-					},
-					data: JSON.stringify({
-					    id: id,
-					    title: title,
-					    link: link,
-					    icon: icon,
-					    description: description,
-						linkType: type
-					})
-				}).done(function (data) {
-					location.reload(true);
-				}).fail(function (jqXHR, textStatus, errorThrown) {
-					$("#linkModal").modal("hide");
-                    errorHandler(msgError)(jqXHR);
 				});
+			}
+
+			if (link != null) {
+				$("#selectedLinkId").val(id);
+				$("#linkTitle").val(link.title);
+				$("#linkLink").val(link.link);
+				$("#linkIcon").selectpicker('val', link.icon);
+				$("#linkDescription").text(link.description);
+				$("#modalHeader").text(modalEditHeader);
+				$("#linkType").selectpicker('val', link.linkType);
+				$("#linkModal").modal("show");
+			} else {
+				linkService.openCreateModal();
 			}
 		}
 
-		/*]]>*/
-	</script>
+		this.moveUp = function() {
+			var id = $(this).data("id");
+			$.ajax({
+				method: "POST",
+				url: restUrl + id + "/moveUp",
+				contentType: "application/json; charset=utf-8",
+				headers: {
+					'X-CSRF-TOKEN': token
+				}
+			}).done(function(data) {
+				location.reload(true);
+			}).fail(errorHandler(msgError));
+		}
+
+		this.moveDown = function() {
+			var id = $(this).data("id");
+			$.ajax({
+				method: "POST",
+				url: restUrl + id + "/moveDown",
+				contentType: "application/json; charset=utf-8",
+				headers: {
+					'X-CSRF-TOKEN': token
+				}
+			}).done(function(data) {
+				location.reload(true);
+			}).fail(errorHandler(msgError));
+		}
+
+		this.delete = function() {
+			var id = $(this).data("id");
+			var title = $(this).data("title");
+
+			swal({
+				html: true,
+				title: deleteTitle,
+				text: deleteText + "<br/><br/><b><q>" + title + "</q></b>",
+				type: "warning",
+				showCancelButton: true,
+				confirmButtonColor: "#DD6B55",
+				confirmButtonText: deleteConfirmBtn,
+				cancelButtonText: deleteCancelBtn,
+				closeOnConfirm: true,
+				closeOnCancel: true
+			}, function(isConfirm) {
+				if (isConfirm) {
+					$.ajax({
+						method: "POST",
+						url: restUrl + id + "/delete",
+						contentType: "application/json; charset=utf-8",
+						headers: {
+							'X-CSRF-TOKEN': token
+						}
+					}).done(function(data) {
+						location.reload(true);
+					}).fail(errorHandler(msgError));
+				}
+			});
+		}
+
+		this.setActive = function() {
+			var checked = $(this).prop("checked");
+			var id = $(this).data("id");
+			$.ajax({
+				method: "POST",
+				url: restUrl + id + "?active=" + checked,
+				contentType: "application/json; charset=utf-8",
+				headers: {
+					'X-CSRF-TOKEN': token
+				}
+			}).done(function(data) {
+				if (checked) {
+					$("#viewLink" + id).show();
+				} else {
+					$("#viewLink" + id).hide();
+				}
+
+				$.notify({
+					message: msgSuccess
+				}, {
+					status: 'success',
+					autoHideDelay: 4000
+				});
+			}).fail(errorHandler(msgError));
+		}
+
+		this.save = function() {
+			var id = $("#selectedLinkId").val();
+			var title = $("#linkTitle").val();
+			var link = $("#linkLink").val();
+			var icon = $("#linkIcon").val();
+			var description = $("#linkDescription").val();
+			var type = $('#linkType').val();
+
+			$.ajax({
+				method: "POST",
+				url: restUrl + "save",
+				contentType: "application/json; charset=utf-8",
+				headers: {
+					'X-CSRF-TOKEN': token
+				},
+				data: JSON.stringify({
+					id: id,
+					title: title,
+					link: link,
+					icon: icon,
+					description: description,
+					linkType: type
+				})
+			}).done(function(data) {
+				location.reload(true);
+			}).fail(function(jqXHR, textStatus, errorThrown) {
+				$("#linkModal").modal("hide");
+				errorHandler(msgError)(jqXHR);
+			});
+		}
+	}
+
+	/*]]>*/
+</script>
 </body>
 </html>

@@ -57,7 +57,7 @@ class SubstituteListService {
             swal({
                 html: true,
                 title : `Er du sikker?`,
-                text : `Du er ved at slette ${tdElements[0].textContent} som stedfortræder for ${tdElements[1].textContent} i afdelingen ${tdElements[2].textContent}?`,
+                text : `Du er ved at slette ${tdElements[1].textContent} som stedfortræder for ${tdElements[2].textContent} i afdelingen ${tdElements[3].textContent}?`,
                 type : "warning",
                 showCancelButton : true,
                 confirmButtonColor : "#DD6B55",

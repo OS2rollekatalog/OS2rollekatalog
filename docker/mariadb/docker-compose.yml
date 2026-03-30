@@ -1,7 +1,9 @@
-version: '3.3'
+name: role-catalogue
+
 services:
   db:
     image: mariadb:10.11
+    container_name: db
     environment:
       MARIADB_DATABASE: 'rc'
       MARIADB_ROOT_PASSWORD: 'Test1234'
@@ -10,4 +12,8 @@ services:
       - "3306:3306"
     expose:
       - '3306'
+    volumes:
+      - db:/var/lib/mysql
 
+volumes:
+  db:

@@ -92,7 +92,7 @@
                             <td>
                                 <span th:text="${assignment.highestSystemRoleWeight}"></span>
                             </td>
-							<td th:text="${assignment.description}"></td>
+							<td class="preformat" th:text="${assignment.description}"></td>
 							<td th:if="${caseNumberEnabled}" th:text="${assignment.caseNumber}"></td>
 							<td th:attr="data-assignmentid=${assignment.assignmentId}, data-roleid=${assignment.roleId}, data-type=${assignment.type},
 							data-startDate=${assignment.startDate}, data-stopDate=${assignment.stopDate}, data-assignedthrough=${assignment.assignedThrough},
@@ -100,13 +100,11 @@
 								<a
 									href="#"
 									th:if="${assignment.canEdit}"
-									sec:authorize="hasRole('ROLE_USER_ASSIGNER')"
 									onclick="rolesService.editRoleAssignment(this)">
 									<em class="fa fa-pencil"></em></a>
 								<a
 									href="#"
 									th:if="${assignment.canEdit}"
-									sec:authorize="hasRole('ROLE_USER_ASSIGNER')"
 									onclick="rolesService.deleteRoleAssignment(this)">
 									<em class="fa fa-times"></em>
 								</a>

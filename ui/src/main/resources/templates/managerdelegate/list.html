@@ -9,12 +9,14 @@
     <section th:with="permission=${T(dk.digitalidentity.rc.security.permission.Permission)},
 section=${T(dk.digitalidentity.rc.security.permission.Section)}">
         <div class="content-wrapper">
-            <h3>
-                <span th:text="#{html.navbar.managerdelegate.list}"></span>
-                <span th:if="${@permissionCheck.isAllowed(section.MANAGER, permission.CREATE)}" class="btn btn-primary btn-lg"
-                      style="float: right;" id="createModalBtn"
-                      th:text="#{html.page.managerdelegate.button.create}"></span>
-            </h3>
+			<h3>
+				<span th:text="#{html.navbar.managerdelegate.list}"></span>
+				<span th:if="${@permissionCheck.isAllowed(section.MANAGER, permission.CREATE)}"
+					  class="btn btn-primary btn-lg"
+					  style="float: right;"
+					  id="createModalBtn"
+					  th:text="#{html.page.managerdelegate.button.create}"></span>
+			</h3>
             <div class="panel panel-default">
                 <div class="panel-heading"></div>
                 <div class="panel-body">

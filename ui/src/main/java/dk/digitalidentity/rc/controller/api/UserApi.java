@@ -16,8 +16,11 @@ import dk.digitalidentity.rc.security.RequireApiReadAccessRole;
 import dk.digitalidentity.rc.service.DomainService;
 import dk.digitalidentity.rc.service.ItSystemService;
 import dk.digitalidentity.rc.service.SystemRoleService;
+import dk.digitalidentity.rc.service.UserRoleService;
 import dk.digitalidentity.rc.service.UserService;
+import dk.digitalidentity.rc.service.assignment.AssignmentService;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -38,11 +41,14 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+@RequiredArgsConstructor
 @RequireApiReadAccessRole
 @Slf4j
 @RestController
 @SecurityRequirement(name = "ApiKey")
 public class UserApi {
+	private final AssignmentService assignmentService;
+	private final SystemRoleService systemRoleService;
 
 	@Autowired
 	private UserService userService;
@@ -54,10 +60,10 @@ public class UserApi {
 	private ItSystemService itSystemService;
 
 	@Autowired
-	private SystemRoleService systemRoleService;
-
-	@Autowired
 	private DomainService domainService;
+	
+	@Autowired
+	private UserRoleService userRoleService;
 
 	@RequestMapping(value = "/api/user/{userid}/roles", method = RequestMethod.GET)
 	public ResponseEntity<UserResponseWithOIOBPPDTO> getUserRoles(@PathVariable("userid") String userId, @RequestParam(name = "system", required = false) String itSystemIdentifier, @RequestParam(name = "domain", required = false) String domain) throws Exception {
@@ -117,7 +123,7 @@ public class UserApi {
 			log.warn("could not find user: " + userId);
 			return new ResponseEntity<>(HttpStatus.NOT_FOUND);
 		}
-		
+
 		response.setDisabled(user.isDisabled());
 
 		List<ItSystem> itSystems = null;
@@ -137,52 +143,24 @@ public class UserApi {
 		}
 
 		try {
-			List<UserRole> roles = userService.getAllUserRoles(user, itSystems);
+			List<UserRole> roles = new ArrayList<>(assignmentService.getUserRolesByUserAndSystems(user, itSystems));
 
 			List<String> userRoleList = new ArrayList<>();
+			// might be counterintuitive, but while the output focuses on systemroles, we
+			// are sending a map of userRoles, for logging purposes, so it matches the OIO-BPP output (again, logging consistency)
+			Map<String, String> roleMap = new HashMap<>();
 			for (UserRole role : roles) {
 				userRoleList.add(role.getIdentifier());
+				roleMap.put(role.getIdentifier(), role.getName() + " (" + role.getItSystem().getName() + ")");
 			}
 
-			// use a set to remove duplicates
+			List<SystemRole> effectiveSystemRoles = systemRoleService.getEffectiveSystemRoles(user, itSystems);
+
 			Set<String> systemRoleSet = new HashSet<>();
 			Set<String> dataRoleSet = new HashSet<>();
 			Set<String> functionRoleSet = new HashSet<>();
-			Map<String, String> roleMap = new HashMap<>();
-
-			Map<String, SystemRole> allAssignedSystemRoles = new HashMap<>();
-			for (UserRole role : roles) {
-				// might be counterintuitive, but while the output focuses on systemroles, we
-				// are sending a map of userRoles, for logging purposes, so it matches the OIO-BPP output (again, logging consistency)
-				roleMap.put(role.getIdentifier(), role.getName() + " (" + role.getItSystem().getName() + ")");
-
-				for (SystemRoleAssignment systemRoleAssignment : role.getSystemRoleAssignments()) {
-					allAssignedSystemRoles.put(systemRoleAssignment.getSystemRole().getIdentifier(), systemRoleAssignment.getSystemRole());
-				}
-			}
-
-			for (SystemRole systemRole : allAssignedSystemRoles.values()) {
-				boolean differentWeightedItSystem = systemRoleService.belongsToItSystemWithDifferentWeight(systemRole);
-				if (differentWeightedItSystem) {
-					boolean skip = false;
-
-					for (SystemRole sr : allAssignedSystemRoles.values()) {
-						if (sr.getItSystem().getId() != systemRole.getItSystem().getId()) {
-							continue;
-						}
-						if (sr.getWeight() > systemRole.getWeight()) {
-							skip = true;
-							break;
-						}
-					}
-
-					if (!skip) {
-						systemRoleSet.add(systemRole.getIdentifier());
-					}
-				} else {
-					systemRoleSet.add(systemRole.getIdentifier());
-				}
-
+			for (SystemRole systemRole : effectiveSystemRoles) {
+				systemRoleSet.add(systemRole.getIdentifier());
 				switch (systemRole.getRoleType()) {
 					case DATA_ROLE:
 						dataRoleSet.add(systemRole.getIdentifier());
@@ -194,14 +172,11 @@ public class UserApi {
 						break;
 				}
 			}
-			List<String> systemRoleList = new ArrayList<>(systemRoleSet);
-			List<String> dataRoleList = new ArrayList<>(dataRoleSet);
-			List<String> functionRoleList = new ArrayList<>(functionRoleSet);
 
 			response.setUserRoles(userRoleList);
-			response.setSystemRoles(systemRoleList);
-			response.setDataRoles(dataRoleList);
-			response.setFunctionRoles(functionRoleList);
+			response.setSystemRoles(new ArrayList<>(systemRoleSet));
+			response.setDataRoles(new ArrayList<>(dataRoleSet));
+			response.setFunctionRoles(new ArrayList<>(functionRoleSet));
 			response.setRoleMap(roleMap);
 
 			response.setNameID(userService.getUserNameId(userId, foundDomain));
@@ -237,7 +212,7 @@ public class UserApi {
 	}
 
 	@RequestMapping(value = "/api/user/{userid}/hasUserRole/{roleId}", method = RequestMethod.GET)
-	public ResponseEntity<String> userHasUserRole(@PathVariable("userid") String userId, @PathVariable("roleId") long roleId, @RequestParam(name = "system", required = false) String itSystemIdentifier, @RequestParam(name = "domain", required = false) String domain) throws Exception {
+	public ResponseEntity<String> userHasUserRole(@PathVariable("userid") String userId, @PathVariable("roleId") long roleId, @RequestParam(name = "domain", required = false) String domain) throws Exception {
 		Domain foundDomain = domainService.getDomainOrPrimary(domain);
 		if (foundDomain == null) {
 			return new ResponseEntity<>(HttpStatus.NOT_FOUND);
@@ -249,32 +224,21 @@ public class UserApi {
 			return new ResponseEntity<>(HttpStatus.NOT_FOUND);
 		}
 
-		List<ItSystem> itSystems = null;
-		if (StringUtils.hasLength(itSystemIdentifier)) {
-			itSystems = getItSystems(itSystemIdentifier);
-			if (itSystems.size() == 0) {
-				log.warn("could not find itSystem: " + itSystemIdentifier);
-				return new ResponseEntity<>(HttpStatus.NOT_FOUND);
-			}
+		UserRole userRole = userRoleService.getById(roleId);
+		if (userRole == null) {
+			log.warn("could not find userRole: " + roleId);
+			return new ResponseEntity<>(HttpStatus.NOT_FOUND);			
 		}
 
-		// very well, then find all of them
-		if (itSystems == null) {
-			itSystems = itSystemService.getAll();
+		if (userRole.getItSystem().isAccessBlocked()) {
+			log.warn("access to it-system for userRole " + userRole.getId() + " is blocked");
+			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
 		}
 
-		if (itSystems != null) {
-			itSystems = itSystems.stream().filter(its -> its.isAccessBlocked() == false).collect(Collectors.toList());
-		}
-
-		List<UserRole> roles = userService.getAllUserRoles(user, itSystems);
-
-		if (roles != null) {
-			for (UserRole role : roles) {
-				if (role.getId() == roleId) {
-					return new ResponseEntity<>("Found role", HttpStatus.OK);
-				}
-			}
+		// check for existence of role in these systems
+		boolean hasUserRole = assignmentService.hasUserRole(user, userRole);
+		if (hasUserRole) {
+			return new ResponseEntity<>("Found role", HttpStatus.OK);
 		}
 
 		return new ResponseEntity<>("Did not find role", HttpStatus.NOT_FOUND);
@@ -307,18 +271,18 @@ public class UserApi {
 			itSystems = itSystemService.getAll();
 		}
 
-		if (itSystems != null) {
-			itSystems = itSystems.stream().filter(its -> its.isAccessBlocked() == false).collect(Collectors.toList());
+		if (itSystems == null) {
+			return new ResponseEntity<>("Did not find role", HttpStatus.NOT_FOUND);
 		}
+		itSystems = itSystems.stream().filter(its -> !its.isAccessBlocked()).toList();
 
-		List<UserRole> roles = userService.getAllUserRoles(user, itSystems);
+		List<UserRole> roles = assignmentService.getUserRolesByUserAndSystems(user, itSystems).stream()
+			.toList();
 
-		if (roles != null) {
-			for (UserRole role : roles) {
-				for (SystemRoleAssignment assignment : role.getSystemRoleAssignments()) {
-					if (assignment.getSystemRole().getIdentifier().equals(roleIdentifier)) {
-						return new ResponseEntity<>("Found role", HttpStatus.OK);
-					}
+		for (UserRole role : roles) {
+			for (SystemRoleAssignment assignment : role.getSystemRoleAssignments()) {
+				if (assignment.getSystemRole().getIdentifier().equals(roleIdentifier)) {
+					return new ResponseEntity<>("Found role", HttpStatus.OK);
 				}
 			}
 		}

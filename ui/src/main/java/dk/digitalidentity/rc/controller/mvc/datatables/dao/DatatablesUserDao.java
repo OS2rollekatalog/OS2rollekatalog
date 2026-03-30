@@ -8,7 +8,7 @@ import org.springframework.data.jpa.domain.Specification;
 public interface DatatablesUserDao extends DataTablesRepository<User, String> {
 
 	public static Specification<User> isDeletedFalse() {
-		return (root, query, builder) -> {
+		return (root, _, builder) -> {
 			Root<User> user = builder.treat(root, User.class);
 			return builder.isFalse(user.get("deleted"));
 		};

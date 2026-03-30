@@ -15,17 +15,23 @@ import com.microsoft.kiota.serialization.Parsable;
 import com.microsoft.kiota.serialization.ParsableFactory;
 import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
 import dk.digitalidentity.rc.config.model.AzureUsernameField;
+import dk.digitalidentity.rc.config.model.EntraIDTenant;
+import dk.digitalidentity.rc.dao.model.Domain;
 import dk.digitalidentity.rc.dao.model.ItSystem;
 import dk.digitalidentity.rc.dao.model.SystemRole;
 import dk.digitalidentity.rc.dao.model.SystemRoleAssignment;
 import dk.digitalidentity.rc.dao.model.UserRole;
+import dk.digitalidentity.rc.dao.model.assignment.CurrentAssignment;
 import dk.digitalidentity.rc.dao.model.enums.ItSystemType;
+import dk.digitalidentity.rc.rolerequest.model.enums.ApprovableBy;
+import dk.digitalidentity.rc.rolerequest.model.enums.RequestableBy;
 import dk.digitalidentity.rc.security.SecurityUtil;
+import dk.digitalidentity.rc.service.DomainService;
 import dk.digitalidentity.rc.service.ItSystemService;
 import dk.digitalidentity.rc.service.SystemRoleService;
 import dk.digitalidentity.rc.service.UserRoleService;
 import dk.digitalidentity.rc.service.UserService;
-import dk.digitalidentity.rc.service.model.UserWithRole;
+import dk.digitalidentity.rc.service.assignment.AssignmentService;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -35,6 +41,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -43,6 +50,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.regex.Matcher;
@@ -68,33 +76,83 @@ public class EntraIDService {
 	@Autowired
 	private UserService userService;
 
-	private ClientSecretCredential clientSecretCredential;
-	private GraphServiceClient graphClient;
+	@Autowired
+	private AssignmentService assignmentService;
 
-	public void backSync() throws ReflectiveOperationException {
+	@Autowired
+	private DomainService domainService;
+
+	private final Map<String, GraphServiceClient> clientCache = new ConcurrentHashMap<>();
+
+	public void backSync() {
 		log.info("Starting EntraID backSync");
 		SecurityUtil.loginSystemAccount();
-		initializeClient();
-		
+
+		try {
+			List<EntraIDTenant> tenants = configuration.getIntegrations().getEntraID().getEffectiveTenants();
+			for (EntraIDTenant tenant : tenants) {
+				try {
+					backSyncForTenant(tenant);
+				} catch (Exception e) {
+					log.error("Failed to backSync for tenant with domain: {}", tenant.getDomainName() != null ? tenant.getDomainName() : "(no domain filter)", e);
+				}
+			}
+		} finally {
+			SecurityUtil.logoutSystemAccount();
+		}
+
+		log.info("Finished EntraID backSync");
+	}
+
+	private void backSyncForTenant(EntraIDTenant tenant) throws ReflectiveOperationException {
+		log.info("BackSync for tenant - domain filter: {}", tenant.getDomainName() != null ? tenant.getDomainName() : "(none)");
+
+		Domain tenantDomain = null;
+		if (tenant.getDomainName() != null) {
+			tenantDomain = domainService.getByName(tenant.getDomainName());
+			if (tenantDomain == null) {
+				log.error("Domain '{}' configured for EntraID tenant not found in database. Skipping tenant.", tenant.getDomainName());
+				return;
+			}
+		}
+
+		GraphServiceClient client = getClientForTenant(tenant);
+
 		List<dk.digitalidentity.rc.dao.model.User> dbUsers = userService.getAll(u -> {
 			u.getUserRoleAssignments().forEach(ura -> {
 				ura.getUserRole().getId();
 			});
-			
+
 			// KSPCICS/interceptor looks at this field when modifying assignments
 			if (u.getAltAccounts() != null) {
 				u.getAltAccounts().forEach(a -> a.getAccountUserId());
 			}
 		});
-		
-		List<Group> allGroups = getRCGroups();
-		Map<Long, List<Group>> itSystemIdGroupMap = generateItSystemGroupMap(allGroups);
+
+		// Filter users by domain if tenant has domain filter
+		final Domain domainFilter = tenantDomain;
+		if (domainFilter != null) {
+			dbUsers = dbUsers.stream()
+				.filter(u -> u.getDomain() != null && Objects.equals(u.getDomain().getId(), domainFilter.getId()))
+				.toList();
+		}
+
+		List<Group> allGroups = getRCGroups(client, tenant);
+		Map<Long, List<Group>> itSystemIdGroupMap = generateItSystemGroupMap(allGroups, tenant);
 		for (Map.Entry<Long, List<Group>> entry : itSystemIdGroupMap.entrySet()) {
 			List<Group> groups = entry.getValue();
 			ItSystem itSystem = itSystemService.getById(entry.getKey());
 			if (itSystem == null) {
-				log.warn("Failed to find it-system with id: " + entry.getKey() + ". At least one group in EntraID is configured as a system role for the it-system with that id. Skipping");
+				log.warn("Failed to find it-system with id: {}. At least one group in EntraID is configured as a system role for the it-system with that id. Skipping", entry.getKey());
 				continue;
+			}
+
+			// Check domain filter for IT-system
+			if (tenantDomain != null) {
+				if (itSystem.getDomain() == null || itSystem.getDomain().getId() != tenantDomain.getId()) {
+					log.debug("IT-system {} does not match tenant domain filter {}. Skipping", itSystem.getName(), tenant.getDomainName());
+					continue;
+				}
 			}
 
 			if (itSystem.getSystemType() != ItSystemType.AD && itSystem.getSystemType() != ItSystemType.SAML && itSystem.getSystemType() != ItSystemType.MANUAL) {
@@ -109,23 +167,50 @@ public class EntraIDService {
 			List<UserRole> userRoles = userRoleService.getByItSystem(itSystem);
 
 			handleSystemRoles(systemRoles, groups, itSystem);
-			handleUserRoles(itSystem, userRoles, groups, dbUsers);
+			handleUserRoles(itSystem, userRoles, groups, dbUsers, client, tenant);
 		}
-
-		SecurityUtil.logoutSystemAccount();
-		log.info("Finished EntraID backSync");
 	}
 
 	@SneakyThrows
 	public void membershipSync() {
 		log.info("Starting EntraID membershipSync");
 		SecurityUtil.loginSystemAccount();
-		initializeClient();
 
-		AzureUsernameField usernameField = configuration.getIntegrations().getEntraID().getUsernameField();
-		List<User> allAzureUsers = getAllAzureUsers();
-		List<Group> allGroups = getRCGroups();
-		Map<Long, List<Group>> itSystemIdGroupMap = generateItSystemGroupMap(allGroups);
+		try {
+			List<EntraIDTenant> tenants = configuration.getIntegrations().getEntraID().getEffectiveTenants();
+			for (EntraIDTenant tenant : tenants) {
+				try {
+					membershipSyncForTenant(tenant);
+				} catch (Exception e) {
+					log.error("Failed to membershipSync for tenant with domain: {}", tenant.getDomainName() != null ? tenant.getDomainName() : "(no domain filter)", e);
+				}
+			}
+		} finally {
+			SecurityUtil.logoutSystemAccount();
+		}
+
+		log.info("Finished EntraID membershipSync");
+	}
+
+	private void membershipSyncForTenant(EntraIDTenant tenant) throws ReflectiveOperationException {
+		log.info("MembershipSync for tenant - domain filter: {}", tenant.getDomainName() != null ? tenant.getDomainName() : "(none)");
+
+		Domain tenantDomain = null;
+		if (tenant.getDomainName() != null) {
+			tenantDomain = domainService.getByName(tenant.getDomainName());
+			if (tenantDomain == null) {
+				log.error("Domain '{}' configured for EntraID tenant not found in database. Skipping tenant.", tenant.getDomainName());
+				return;
+			}
+		}
+
+		GraphServiceClient client = getClientForTenant(tenant);
+		AzureUsernameField usernameField = tenant.getUsernameField();
+
+		List<User> allAzureUsers = getAllAzureUsers(client, tenant);
+		List<Group> allGroups = getRCGroups(client, tenant);
+		Map<Long, List<Group>> itSystemIdGroupMap = generateItSystemGroupMap(allGroups, tenant);
+
 		for (Map.Entry<Long, List<Group>> entry : itSystemIdGroupMap.entrySet()) {
 			List<Group> groups = entry.getValue();
 			ItSystem itSystem = itSystemService.getById(entry.getKey());
@@ -134,8 +219,17 @@ public class EntraIDService {
 				continue;
 			}
 
+			// Check domain filter for IT-system
+			if (tenantDomain != null) {
+				if (itSystem.getDomain() == null || !Objects.equals(itSystem.getDomain().getId(), tenantDomain.getId())) {
+					log.debug("IT-system {} does not match tenant domain filter {}. Skipping", itSystem.getName(), tenant.getDomainName());
+					continue;
+				}
+			}
+
 			List<SystemRole> systemRoles = systemRoleService.getByItSystem(itSystem);
 			List<UserRole> userRoles = userRoleService.getByItSystem(itSystem);
+
 			for (Group group : groups) {
 				SystemRole systemRole = systemRoles.stream().filter(s -> s.getIdentifier().equals(group.getId())).findAny().orElse(null);
 				if (systemRole == null) {
@@ -149,12 +243,13 @@ public class EntraIDService {
 					continue;
 				}
 
-				Set<String> usersWithRoleInRC = getUsersWithUserRole(userRole);
-				Set<String> memberUsernames = getMembers(group);
+				Set<String> usersWithRoleInRC = getUsersWithUserRole(userRole, tenant);
+				Set<String> memberUsernames = getMembers(group, client, tenant);
 				int added = 0;
 				int removed = 0;
 
 				log.debug("Members in RC {} members in EntraID group {}", Strings.join(usersWithRoleInRC, ','), Strings.join(memberUsernames, ','));
+
 				// add missing members
 				for (String username : usersWithRoleInRC) {
 					if (!memberUsernames.contains(username)) {
@@ -164,7 +259,7 @@ public class EntraIDService {
 							continue;
 						}
 
-						addMemberToGroup(group.getId(), userWithUsername.getId());
+						addMemberToGroup(client, group.getId(), userWithUsername.getId());
 						added++;
 					}
 				}
@@ -179,7 +274,7 @@ public class EntraIDService {
 							continue;
 						}
 
-						removeMemberFromGroup(group.getId(), userWithUsername.getId());
+						removeMemberFromGroup(client, group.getId(), userWithUsername.getId());
 						removed++;
 					}
 				}
@@ -187,31 +282,28 @@ public class EntraIDService {
 				log.info("Added " + added + " new group memberships, and removed " + removed + " group memberships from group: " + group.getDisplayName());
 			}
 		}
-
-		SecurityUtil.logoutSystemAccount();
-		log.info("Finished EntraID membershipSync");
 	}
 
-	public void addMemberToGroup(String groupId, String userId) {
+	public void addMemberToGroup(GraphServiceClient client, String groupId, String userId) {
 		try {
 			log.debug("Adding member to group {} to user {}", groupId, userId);
 			ReferenceCreate referenceCreate = new ReferenceCreate();
 			referenceCreate.setOdataId("https://graph.microsoft.com/v1.0/directoryObjects/" + userId);
-			graphClient.groups().byGroupId(groupId).members().ref().post(referenceCreate);
+			client.groups().byGroupId(groupId).members().ref().post(referenceCreate);
 		} catch (Exception e) {
             if (e.getMessage().contains("Insufficient privileges")) {
-                log.error("Failed to remove member from group {}: {}", groupId, userId, e);
+                log.error("Failed to add member to group {}: {}", groupId, userId, e);
             }
             else {
-                log.warn("Failed to remove member from group {}: {}", groupId, userId, e);
+                log.warn("Failed to add member to group {}: {}", groupId, userId, e);
             }
 		}
 	}
 
-	public void removeMemberFromGroup(String groupId, String userId) {
+	public void removeMemberFromGroup(GraphServiceClient client, String groupId, String userId) {
 		try {
 			log.debug("Removing member from group {} to user {}", groupId, userId);
-			graphClient.groups().byGroupId(groupId).members().byDirectoryObjectId(userId).ref().delete();
+			client.groups().byGroupId(groupId).members().byDirectoryObjectId(userId).ref().delete();
 		} catch (Exception e) {
             if (e.getMessage().contains("Insufficient privileges")) {
                 log.error("Failed to remove member from group {}: {}", groupId, userId, e);
@@ -222,23 +314,30 @@ public class EntraIDService {
 		}
 	}
 
-	private Set<String> getUsersWithUserRole(UserRole userRole) {
+	private Set<String> getUsersWithUserRole(UserRole userRole, EntraIDTenant tenant) {
 		Set<String> users = new HashSet<>();
 
-		List<UserWithRole> usersWithRole = userService.getUsersWithUserRole(userRole, true);
-		for (UserWithRole userWithRole : usersWithRole) {
-			if (userWithRole.getUser().isDeleted() || userWithRole.getUser().isDisabled()) {
+		Set<CurrentAssignment> assignments = assignmentService.getActiveByUserRole(userRole);
+		for (CurrentAssignment assignment : assignments) {
+			if (assignment.getUser().isDeleted() || assignment.getUser().isDisabled()) {
 				continue;
 			}
 
-			users.add(StringUtils.lowerCase(userWithRole.getUser().getUserId()));
+			// Apply domain filter if tenant has one
+			if (tenant.getDomainName() != null) {
+				Domain userDomain = assignment.getUser().getDomain();
+				if (userDomain == null || !tenant.getDomainName().equals(userDomain.getName())) {
+					continue;
+				}
+			}
+
+			users.add(StringUtils.lowerCase(assignment.getUser().getUserId()));
 		}
 
 		return users;
 	}
 
 	private void handleSystemRoles(List<SystemRole> systemRoles, List<Group> groups, ItSystem itSystem) {
-
 		// check for updates and deletes
 		for (SystemRole systemRole : systemRoles) {
 			Group match = groups.stream().filter(g -> g.getId().equals(systemRole.getIdentifier())).findAny().orElse(null);
@@ -283,7 +382,7 @@ public class EntraIDService {
 		}
 	}
 
-	private void handleUserRoles(ItSystem itSystem, List<UserRole> userRoles, List<Group> groups, List<dk.digitalidentity.rc.dao.model.User> dbUsers) throws ReflectiveOperationException {
+	private void handleUserRoles(ItSystem itSystem, List<UserRole> userRoles, List<Group> groups, List<dk.digitalidentity.rc.dao.model.User> dbUsers, GraphServiceClient client, EntraIDTenant tenant) throws ReflectiveOperationException {
 		// update user role to match name of system role
 		List<SystemRole> finalSystemRoles = systemRoleService.findByItSystem(itSystem);
 		List<UserRole> toBeUpdated = userRoles.stream()
@@ -309,9 +408,9 @@ public class EntraIDService {
 				userRole = userRoleService.save(userRole);
 			}
 
-			if (configuration.getIntegrations().getEntraID().isReImportUsersEnabled()) {
+			if (tenant.isReImportUsersEnabled()) {
 				Group group = groups.stream().filter(g -> g.getId().equals(sRole.getIdentifier())).findAny().orElse(null);
-				Set<String> memberUsernames = getMembers(group);
+				Set<String> memberUsernames = getMembers(group, client, tenant);
 
 				updateUserAssignments(userRole, memberUsernames, dbUsers);
 			}
@@ -325,6 +424,8 @@ public class EntraIDService {
 			userRole.setIdentifier(systemRole.getIdentifier());
 			userRole.setName(systemRole.getName());
 			userRole.setDescription(systemRole.getDescription());
+			userRole.setApproverPermission(Collections.singletonList(ApprovableBy.INHERIT));
+			userRole.setRequesterPermission(Collections.singletonList(RequestableBy.INHERIT));
 
 			SystemRoleAssignment systemRoleAssignment = new SystemRoleAssignment();
 			systemRoleAssignment.setAssignedByName("Systembruger");
@@ -340,7 +441,7 @@ public class EntraIDService {
 
 			// always relevant for create scenarios
 			Group group = groups.stream().filter(g -> g.getId().equals(systemRole.getIdentifier())).findAny().orElse(null);
-			Set<String> memberUsernames = getMembers(group);
+			Set<String> memberUsernames = getMembers(group, client, tenant);
 			if (!memberUsernames.isEmpty()) {
 				updateUserAssignments(userRole, memberUsernames, dbUsers);
 			}
@@ -377,38 +478,37 @@ public class EntraIDService {
 			}
 		}
 
-		// remove
-		List<UserWithRole> usersWithRole = userService.getUsersWithUserRole(userRole, false);
-		for (UserWithRole userWithRole : usersWithRole) {
-			String userId = userWithRole.getUser().getUserId();
+		// remove - only direct and roleGroup assignments (not OrgUnit/Title assignments)
+		for (CurrentAssignment assignment : assignmentService.getActiveByUserRoleDirectlyAssignedOrFromRoleGroup(userRole)) {
+			String userId = assignment.getUser().getUserId();
 
 			if (assignedUsers.stream().noneMatch(u -> u.equalsIgnoreCase(userId))) {
-				userService.removeUserRole(userWithRole.getUser(), userRole);
+				userService.removeUserRole(assignment.getUser(), userRole);
 			}
 		}
 	}
 
-	private Set<String> getMembers(Group group) throws ReflectiveOperationException {
-		AzureUsernameField field = configuration.getIntegrations().getEntraID().getUsernameField();
+	private Set<String> getMembers(Group group, GraphServiceClient client, EntraIDTenant tenant) throws ReflectiveOperationException {
+		AzureUsernameField field = tenant.getUsernameField();
 		String graphField = UsernameUtil.getGraphFieldName(field);
 
-		final List<User> members = iterateResource(UserCollectionResponse::createFromDiscriminatorValue,
-				() -> graphClient.groups().byGroupId(Objects.requireNonNull(group.getId())).members().graphUser().get(requestConfiguration -> {
-                    assert requestConfiguration.queryParameters != null;
-                    requestConfiguration.queryParameters.select = new String[]{"id", graphField};
-				}),
-				requestInformation -> {
-					log.debug("Preparing to get next members group page");
-					return requestInformation;
-				});
+		final List<User> members = iterateResource(client, UserCollectionResponse::createFromDiscriminatorValue,
+			() -> client.groups().byGroupId(Objects.requireNonNull(group.getId())).members().graphUser().get(requestConfiguration -> {
+				assert requestConfiguration.queryParameters != null;
+				requestConfiguration.queryParameters.select = new String[]{"id", graphField};
+			}),
+			requestInformation -> {
+				log.debug("Preparing to get next members group page");
+				return requestInformation;
+			});
 
 		return members.stream().map(user -> UsernameUtil.getUsernameFromUser(user, field)).map(StringUtils::lowerCase).collect(Collectors.toSet());
 	}
 
-	private Map<Long, List<Group>> generateItSystemGroupMap(List<Group> groups) {
+	private Map<Long, List<Group>> generateItSystemGroupMap(List<Group> groups, EntraIDTenant tenant) {
 		HashMap<Long, List<Group>> result = new HashMap<>();
 		for (Group group : groups) {
-			Long itSystemId = findItSystemIdForGroup(group);
+			Long itSystemId = findItSystemIdForGroup(group, tenant);
 			if (itSystemId == null) {
 				continue;
 			}
@@ -422,63 +522,60 @@ public class EntraIDService {
 		return result;
 	}
 
-	public void initializeClient() {
-		if (clientSecretCredential == null) {
-			clientSecretCredential = new ClientSecretCredentialBuilder()
-					.clientId(configuration.getIntegrations().getEntraID().getClientId())
-					.clientSecret(configuration.getIntegrations().getEntraID().getClientSecret())
-					.tenantId(configuration.getIntegrations().getEntraID().getTenantId())
-					.build();
-		}
+	private GraphServiceClient getClientForTenant(EntraIDTenant tenant) {
+		return clientCache.computeIfAbsent(tenant.getClientId(), key -> {
+			ClientSecretCredential credential = new ClientSecretCredentialBuilder()
+				.clientId(tenant.getClientId())
+				.clientSecret(tenant.getClientSecret())
+				.tenantId(tenant.getTenantId())
+				.build();
 
-		if (graphClient == null) {
-			final String[] scopes = new String[] {"https://graph.microsoft.com/.default"};
-			graphClient = new GraphServiceClient(clientSecretCredential, scopes);
-		}
+			return new GraphServiceClient(credential, new String[]{"https://graph.microsoft.com/.default"});
+		});
 	}
 
 	@SneakyThrows
-    public List<Group> getRCGroups()  {
-		final List<Group> allGroups = iterateResource(GroupCollectionResponse::createFromDiscriminatorValue,
-				() -> graphClient.groups().get(),
-				requestInformation -> {
-					log.debug("Preparing to get next group page");
-					return requestInformation;
-				}
+	public List<Group> getRCGroups(GraphServiceClient client, EntraIDTenant tenant) {
+		final List<Group> allGroups = iterateResource(client, GroupCollectionResponse::createFromDiscriminatorValue,
+			() -> client.groups().get(),
+			requestInformation -> {
+				log.debug("Preparing to get next group page");
+				return requestInformation;
+			}
 		);
 
-        log.info("Found {} total groups in Azure", allGroups.size());
-		List<Group> filteredGroups = allGroups.stream().filter(g -> g.getDescription() != null && g.getDescription().contains(configuration.getIntegrations().getEntraID().getRoleCatalogKey())).toList();
-        log.info("{} of those groups are RC groups", filteredGroups.size());
+		log.info("Found {} total groups in Azure", allGroups.size());
+		List<Group> filteredGroups = allGroups.stream().filter(g -> g.getDescription() != null && g.getDescription().contains(tenant.getRoleCatalogKey())).toList();
+		log.info("{} of those groups are RC groups", filteredGroups.size());
 		return filteredGroups;
 	}
 
-	public List<User> getAllAzureUsers() throws ReflectiveOperationException {
-		AzureUsernameField field = configuration.getIntegrations().getEntraID().getUsernameField();
+	public List<User> getAllAzureUsers(GraphServiceClient client, EntraIDTenant tenant) throws ReflectiveOperationException {
+		AzureUsernameField field = tenant.getUsernameField();
 		String graphField = UsernameUtil.getGraphFieldName(field);
 
-		return iterateResource(UserCollectionResponse::createFromDiscriminatorValue,
-				() -> graphClient.users().get( requestConfiguration -> {
-                    assert requestConfiguration.queryParameters != null;
-                    requestConfiguration.queryParameters.select = new String[] {"id", graphField};
-				}),
-				requestInfo -> {
-					log.debug("Preparing to get next user page");
-					// re-add the query parameters to subsequent requests
-					requestInfo.addQueryParameter("%24select", new String[] {"id", graphField});
-					return requestInfo;
-				});
+		return iterateResource(client, UserCollectionResponse::createFromDiscriminatorValue,
+			() -> client.users().get(requestConfiguration -> {
+				assert requestConfiguration.queryParameters != null;
+				requestConfiguration.queryParameters.select = new String[]{"id", graphField};
+			}),
+			requestInfo -> {
+				log.debug("Preparing to get next user page");
+				// re-add the query parameters to subsequent requests
+				requestInfo.addQueryParameter("%24select", new String[]{"id", graphField});
+				return requestInfo;
+			});
 	}
 
-	public Long findItSystemIdForGroup(Group group) {
-		String regex = "\\b" + configuration.getIntegrations().getEntraID().getRoleCatalogKey() + "_\\w+";
+	public Long findItSystemIdForGroup(Group group, EntraIDTenant tenant) {
+		String regex = "\\b" + tenant.getRoleCatalogKey() + "_\\w+";
 		Pattern pattern = Pattern.compile(regex);
 		Matcher matcher = pattern.matcher(group.getDescription());
 
 		try {
 			if (matcher.find()) {
 				String match = matcher.group();
-				String idAsString = match.replace(configuration.getIntegrations().getEntraID().getRoleCatalogKey() + "_", "");
+				String idAsString = match.replace(tenant.getRoleCatalogKey() + "_", "");
 				return Long.parseLong(idAsString);
 			}
 		} catch (NumberFormatException e) {
@@ -493,13 +590,14 @@ public class EntraIDService {
 	 * Paginate through a resource, and return a list containing all the results
 	 */
 	private <T extends Parsable, R extends Parsable & AdditionalDataHolder> List<T> iterateResource(
-			final ParsableFactory<R> collectionPageFactory,
-			final Supplier<R> firstRequest,
-			final Function<RequestInformation, RequestInformation> requestConfigurator
-			) throws ReflectiveOperationException {
+		final GraphServiceClient client,
+		final ParsableFactory<R> collectionPageFactory,
+		final Supplier<R> firstRequest,
+		final Function<RequestInformation, RequestInformation> requestConfigurator
+	) throws ReflectiveOperationException {
 		final List<T> resources = new ArrayList<>();
 		final PageIterator<T, R> pageIterator = new PageIterator.Builder<T, R>()
-				.client(graphClient)
+				.client(client)
 				// response from the first request
 				.collectionPage(Objects.requireNonNull(firstRequest.get()))
 				// factory to create a new collection response

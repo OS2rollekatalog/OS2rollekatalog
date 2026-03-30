@@ -13,6 +13,7 @@ import dk.digitalidentity.rc.service.OrgUnitService;
 import dk.digitalidentity.rc.service.SettingsService;
 import dk.digitalidentity.rc.service.UserService;
 import io.micrometer.core.annotation.Timed;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -41,7 +42,7 @@ public class OrgUnitAttestationController {
 
 	@GetMapping(value = "/ui/attestation/v2/orgunits/{uuid}")
 	@Timed("attestation.controller.mvc.org_unit_attestation_controller.index.timer")
-	public String index(Model model, @PathVariable String uuid) {
+	public String index(Model model, @PathVariable String uuid, HttpServletRequest request) {
 		User user = userService.getByUserId(SecurityUtil.getUserId());
 		if (user == null) {
 			return "attestationmodule/error";
@@ -51,6 +52,14 @@ public class OrgUnitAttestationController {
 		managedOrgUnitUuids.addAll(user.getSubstituteFor().stream().map(o -> o.getOrgUnit().getUuid()).collect(Collectors.toSet()));
 		if (!managedOrgUnitUuids.contains(uuid) && !SecurityUtil.isAttestationAdminOrAdmin()) {
 			return "attestationmodule/error";
+		}
+
+		// Set returnUrl based on where we came from
+		String referer = request.getHeader("Referer");
+		if (referer != null && !referer.contains("/orgunits/")) {
+			model.addAttribute("returnUrl", referer);
+		} else {
+			model.addAttribute("returnUrl", "/ui/attestation/v2");
 		}
 
 		OrganisationAttestationDTO attestation = attestationService.getAttestation(uuid, user.getUuid(), true);

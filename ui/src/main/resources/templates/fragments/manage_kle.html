@@ -14,7 +14,7 @@
 					<tbody>
 						<tr th:each="kle : ${kles}">
 							<td th:text="${kle.code}"></td>
-							<td th:text="${kle.description}"></td>
+							<td class="preformat" th:text="${kle.description}"></td>
 							<td th:text="${kle.inheritedFrom}"></td>
 						</tr>
 					</tbody>

@@ -1,1 +1,5 @@
 .factorypath
+/.claude/
+.idea/*
+!.idea/inspectionProfiles/
+/config/application-dev.properties

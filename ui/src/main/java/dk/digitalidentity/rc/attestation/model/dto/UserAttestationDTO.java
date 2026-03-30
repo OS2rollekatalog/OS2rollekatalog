@@ -21,7 +21,6 @@ public class UserAttestationDTO {
     private String verifiedByUserId;
     private String remarks;
     private boolean adRemoval;
-    private boolean manager;
     private boolean readOnly;
     private List<RoleGroupDTO> roleGroups;
     private List<UserRoleItSystemDTO> userRolesPrItSystem;

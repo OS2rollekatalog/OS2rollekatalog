@@ -2,17 +2,15 @@ package dk.digitalidentity.rc.attestation.service.temporal;
 
 import dk.digitalidentity.rc.attestation.model.entity.temporal.AssignedThroughType;
 import dk.digitalidentity.rc.attestation.model.entity.temporal.AttestationOuRoleAssignment;
-import dk.digitalidentity.rc.dao.history.model.HistoryOURoleAssignment;
-import dk.digitalidentity.rc.dao.history.model.HistoryOURoleAssignmentExclusion.ExclusionType;
+import dk.digitalidentity.rc.dao.model.assignment.HistoricOuAssignment;
+import dk.digitalidentity.rc.dao.model.assignment.HistoricOuAssignmentExclusion;
 import dk.digitalidentity.rc.service.model.AssignedThrough;
 import jakarta.transaction.Transactional;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDate;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
@@ -30,17 +28,17 @@ public class OuAssignmentsUpdaterJdbc {
 
     @Autowired
     private TemporalDao temporalDao;
-    @Autowired
-    private UpdaterContextService updaterContextService;
 
     @Transactional
     public void updateOuAssignments(final LocalDate when) {
         progressCount = 0;
-        List<HistoryOURoleAssignment> ouAssignments = temporalDao.listHistoryOURoleAssignmentsByDate(when);
-        ouAssignments.stream().map(a -> toOuRoleAssignment(a, when))
+        List<HistoricOuAssignment> ouAssignments = temporalDao.listHistoricOuAssignmentsByDate(when);
+        ouAssignments.stream().map(OuAssignmentsUpdaterJdbc::toOuRoleAssignment)
                 .filter(Objects::nonNull)
-                .peek(a -> logProgress())
-                .forEach(a -> persist(when, a));
+                .forEach(a -> {
+					logProgress();
+					persist(when, a);
+				});
 
         int invalidated = temporalDao.invalidateAttestationOuRoleAssignmentsByUpdatedAtLessThan(when);
         log.info("Invalidated " + invalidated + " AttestationOuRoleAssignment records");
@@ -74,103 +72,74 @@ public class OuAssignmentsUpdaterJdbc {
         }
     }
 
-    private AttestationOuRoleAssignment toOuRoleAssignment(final HistoryOURoleAssignment historyOURoleAssignment, final LocalDate when) {
-        final UpdaterContextService.UpdaterContext context = updaterContextService.contextBuilder(when, historyOURoleAssignment.getRoleItSystemId())
-                .withOrgUnit(historyOURoleAssignment.getOuUuid())
-                .withRole(historyOURoleAssignment.getRoleId())
-                .withRoleGroup(historyOURoleAssignment.getRoleRoleGroupId())
-                .getContext();
-
-        if (context.isItSystemExempt()) {
+    private static AttestationOuRoleAssignment toOuRoleAssignment(final HistoricOuAssignment h) {
+        if (h.isItSystemAttestationExempt()) {
             return null;
         }
 
-        boolean inherited = historyOURoleAssignment.getAssignedThroughType() == AssignedThrough.ORGUNIT
-                && !StringUtils.equals(historyOURoleAssignment.getAssignedThroughUuid(), historyOURoleAssignment.getOuUuid());
+        boolean inherited = h.getAssignedThroughType() == AssignedThrough.ORGUNIT
+                && !Objects.equals(h.getAssignedThroughUuid(), h.getOuUuid());
 
-        final String responsibleUuid = getResponsibleUserUuid(historyOURoleAssignment.getRoleRoleGroupId(), context);
+        String responsibleOuUuid = !inherited && h.getResponsibleUserUuid() == null
+                ? h.getAssignedThroughUuid() : null;
+        String responsibleOuName = !inherited && h.getResponsibleUserUuid() == null
+                ? h.getAssignedThroughName() : null;
 
-        final String responsibleOuUuid = !inherited && responsibleUuid == null ? historyOURoleAssignment.getAssignedThroughUuid() : null;
-        final String responsibleOuName = !inherited && responsibleUuid == null ? historyOURoleAssignment.getAssignedThroughName() : null;
-
-        // Extract exclusions
-        final List<String> titleUuids = historyOURoleAssignment.getExclusions().stream()
-                .filter(e -> e.getExclusionType() == ExclusionType.titles)
-                .flatMap(e -> splitCsv(e.getTitleUuids()).stream())
-                .toList();
-
-        final List<String> exceptedTitleUuids = historyOURoleAssignment.getExclusions().stream()
-                .filter(e -> e.getExclusionType() == ExclusionType.negative_titles)
-                .flatMap(e -> splitCsv(e.getTitleUuids()).stream())
-                .toList();
-
-        final List<String> exceptedUserUuids = historyOURoleAssignment.getExclusions().stream()
-                .filter(e -> e.getExclusionType() == ExclusionType.excepted_users)
-                .flatMap(e -> splitCsv(e.getUserUuids()).stream())
-                .toList();
-
-		final List<String> functionUuids = historyOURoleAssignment.getExclusions().stream()
-				.filter(e -> e.getExclusionType() == ExclusionType.functions)
-				.flatMap(e -> splitCsv(e.getFunctionUuids()).stream())
-				.toList();
+        List<String> titleUuids     = exclusionsOfType(h, HistoricOuAssignmentExclusion.ExclusionType.POSITIVE_TITLES);
+        List<String> exceptedTitles = exclusionsOfType(h, HistoricOuAssignmentExclusion.ExclusionType.NEGATIVE_TITLES);
+        List<String> exceptedUsers  = exclusionsOfType(h, HistoricOuAssignmentExclusion.ExclusionType.EXCEPTED_USERS);
+        List<String> functionUuids  = exclusionsOfType(h, HistoricOuAssignmentExclusion.ExclusionType.FUNCTIONS);
 
         return AttestationOuRoleAssignment.builder()
-                .roleId(historyOURoleAssignment.getRoleId())
-                .roleName(context.roleName())
-                .roleDescription(context.roleDescription())
-                .roleGroupId(historyOURoleAssignment.getRoleRoleGroupId())
-                .roleGroupName(historyOURoleAssignment.getRoleRoleGroup())
-                .roleGroupDescription(context.roleGroupDescription())
-                .ouUuid(historyOURoleAssignment.getOuUuid())
-                .ouName(context.ouName())
-                .responsibleUserUuid(responsibleUuid)
+                .roleId(h.getRoleId())
+                .roleName(h.getRoleName())
+                .roleDescription(h.getRoleDescription())
+                .roleGroupId(h.getRoleRoleGroupId())
+                .roleGroupName(h.getRoleRoleGroupName())
+                .roleGroupDescription(h.getRoleGroupDescription())
+                .ouUuid(h.getOuUuid())
+                .ouName(h.getOuName())
+                .responsibleUserUuid(h.getResponsibleUserUuid())
                 .responsibleOuUuid(responsibleOuUuid)
                 .responsibleOuName(responsibleOuName)
                 .titleUuids(titleUuids)
-                .exceptedTitleUuids(exceptedTitleUuids)
-                .exceptedUserUuids(exceptedUserUuids)
-						.assignedThroughType(historyOURoleAssignment.getAssignedThroughType() == null
-										? (!exceptedTitleUuids.isEmpty() ? AssignedThroughType.DIRECT : AssignedThroughType.ORGUNIT) // DIRECT for exceptedUser assignments
-										: AssignedThroughType.valueOf(historyOURoleAssignment.getAssignedThroughType().name()))
-                .assignedThroughName(historyOURoleAssignment.getAssignedThroughName() == null ? context.ouName() : historyOURoleAssignment.getAssignedThroughName())
-                .assignedThroughUuid(historyOURoleAssignment.getAssignedThroughUuid() == null ? context.ouUuid() : historyOURoleAssignment.getAssignedThroughUuid())
-                .itSystemId(historyOURoleAssignment.getRoleItSystemId())
-                .itSystemName(context.itSystemName())
+                .exceptedTitleUuids(exceptedTitles)
+                .exceptedUserUuids(exceptedUsers)
+                .functionUuids(functionUuids)
+                .itSystemId(h.getItSystemId())
+                .itSystemName(h.getItSystemName())
+                .assignedThroughType(toAssignedThroughType(h.getAssignedThroughType()))
+                .assignedThroughName(h.getAssignedThroughName() != null ? h.getAssignedThroughName() : h.getOuName())
+                .assignedThroughUuid(h.getAssignedThroughUuid() != null ? h.getAssignedThroughUuid() : h.getOuUuid())
                 .inherited(inherited)
-                .inherit(Boolean.TRUE.equals(historyOURoleAssignment.getInherit()))
-                .sensitiveRole(context.isRoleSensitive())
-                .extraSensitiveRole(context.isRoleExtraSensitive())
-				.manager(Boolean.TRUE.equals(historyOURoleAssignment.getManager()))
-				.substitutes(Boolean.TRUE.equals(historyOURoleAssignment.getSubstitutes()))
-				.functionUuids(functionUuids)
+                .inherit(h.isInheritToChildren())
+                .sensitiveRole(h.isSensitiveRole())
+                .extraSensitiveRole(h.isExtraSensitiveRole())
+                .manager(h.isAppliesOnlyToManager())
+                .substitutes(h.isAppliesAlsoToSubstitutes())
                 .build();
     }
 
-    // Helper to split comma-separated UUIDs safely
-    private List<String> splitCsv(String csv) {
-        return csv == null || csv.isBlank()
-                ? Collections.emptyList()
-                : Arrays.stream(csv.split(","))
-                        .map(String::trim)
-                        .filter(s -> !s.isEmpty())
-                        .toList();
-    }
-
-    private static String getResponsibleUserUuid(final Long roleRoleGroupId, final UpdaterContextService.UpdaterContext context) {
-        String responsibleUuid = null;
-        final boolean itSystemResponsible = (roleRoleGroupId == null || roleRoleGroupId == 0L)
-                && context.isRoleAssignmentAttestationByAttestationResponsible();
-        if (itSystemResponsible && context.attestationResponsible() != null) {
-            responsibleUuid = context.attestationResponsible().getUuid();
+    private static AssignedThroughType toAssignedThroughType(AssignedThrough type) {
+        if (type == null) {
+            // Defensive fallback: HistoricOuAssignmentService always sets this, but guard anyway
+            return AssignedThroughType.DIRECT;
         }
-        return responsibleUuid;
+        return AssignedThroughType.valueOf(type.name());
     }
 
+    private static List<String> exclusionsOfType(HistoricOuAssignment h,
+                                                  HistoricOuAssignmentExclusion.ExclusionType type) {
+        return h.getExclusions().stream()
+                .filter(e -> e.getExclusionType() == type)
+                .findFirst()
+                .map(HistoricOuAssignmentExclusion::getUuids)
+                .orElse(Collections.emptyList());
+    }
 
     private void logProgress() {
         if (++progressCount % 100 == 0) {
             log.info("Processing ou assignment, count=" + progressCount);
         }
     }
-
 }

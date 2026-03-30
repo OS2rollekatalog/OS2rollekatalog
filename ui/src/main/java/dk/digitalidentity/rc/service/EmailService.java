@@ -84,6 +84,7 @@ public class EmailService {
 
 			MimeBodyPart messageBodyPart = new MimeBodyPart();
 			messageBodyPart.setContent(message, "text/html; charset=UTF-8");
+			messageBodyPart.setHeader("Content-Transfer-Encoding", "quoted-printable");
 
 	        Multipart multipart = new MimeMultipart();
 	        multipart.addBodyPart(messageBodyPart);
@@ -92,14 +93,17 @@ public class EmailService {
 	        if (inlineImages != null && inlineImages.size() > 0) {	             
 	            for (InlineImageDTO inlineImageDTO : inlineImages) {	                
 	                if (inlineImageDTO.isBase64()) {
-	                	MimeBodyPart imagePart = new PreencodedMimeBodyPart("base64");
-	                	String src = inlineImageDTO.getSrc();
-	                	String dataType = org.apache.commons.lang3.StringUtils.substringBetween(src, "data:", ";base64,"); // extract data type ( fx dataType = "image/png")
-	                	String base64EncodedFileContent = src.replaceFirst("data:.*;base64,", ""); // remove prefix from fileContent String ( fx base64EncodedFileContent = "iVBORw0KGg......etc"
-	                	imagePart.setContent(base64EncodedFileContent, dataType);
-	                	imagePart.setFileName(inlineImageDTO.getCid());
-	                	imagePart.setHeader("Content-ID", "<" + inlineImageDTO.getCid() + ">");
-	                	imagePart.setDisposition(MimeBodyPart.INLINE);
+						String src = inlineImageDTO.getSrc();
+						String dataType = org.apache.commons.lang3.StringUtils.substringBetween(src, "data:", ";base64,");
+						String base64EncodedFileContent = src.replaceFirst("data:.*;base64,", "");
+						// Fold into 76-char lines to comply with MIME/SMTP line length limits
+						String foldedBase64 = base64EncodedFileContent.replaceAll("(.{76})", "$1\r\n");
+
+						MimeBodyPart imagePart = new PreencodedMimeBodyPart("base64");
+						imagePart.setContent(foldedBase64, dataType);
+						imagePart.setFileName(inlineImageDTO.getCid());
+						imagePart.setHeader("Content-ID", "<" + inlineImageDTO.getCid() + ">");
+						imagePart.setDisposition(MimeBodyPart.INLINE);
 	                	imagePart.setDisposition(Part.ATTACHMENT);
 
 	                	multipart.addBodyPart(imagePart);
