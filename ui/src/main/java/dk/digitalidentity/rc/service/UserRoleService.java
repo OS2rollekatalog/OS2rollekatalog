@@ -31,6 +31,7 @@ import dk.digitalidentity.rc.security.permission.PermissionConstraint;
 import dk.digitalidentity.rc.security.permission.Section;
 import dk.digitalidentity.rc.security.permission.UserPermissionContext;
 import dk.digitalidentity.rc.service.assignment.AssignmentService;
+import dk.digitalidentity.rc.service.assignment.HistoricItSystemAssignmentService;
 import dk.digitalidentity.rc.service.model.AssignedThrough;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.jpa.datatables.mapping.DataTablesInput;
@@ -70,6 +71,7 @@ public class UserRoleService {
 	private final AssignmentService assignmentService;
 	private final AccessConstraintService accessConstraintService;
 	private final PostponedConstraintService postponedConstraintService;
+	private final HistoricItSystemAssignmentService historicItSystemAssignmentService;
 
 	public Set<UserRole> findAllByIdIn(Collection<Long> ids) {
 		return userRoleDao.findAllByIdIn(ids);
@@ -133,29 +135,54 @@ public class UserRoleService {
 
 	@AuditLogIntercepted
 	public void addSystemRoleConstraint(final SystemRoleAssignment assignment, final SystemRoleAssignmentConstraintValue constraintValue) {
+		final String preEditHash = historicItSystemAssignmentService.computeRecordHash(assignment.getUserRole(), assignment);
 		if (assignment.getConstraintValues() == null) {
 			assignment.setConstraintValues(new ArrayList<>());
 		}
 		assignment.getConstraintValues().add(constraintValue);
+		historicItSystemAssignmentService.recordSystemRoleAssignmentEdited(assignment.getUserRole(), assignment, preEditHash);
 	}
 
 	@AuditLogIntercepted
 	public void updateSystemRoleConstraint(final SystemRoleAssignment assignment, final SystemRoleAssignmentConstraintValue constraintValue) {
 		final SystemRoleAssignmentConstraintValue foundConstraint = findConstraintValue(constraintValue.getConstraintType(), assignment)
 				.orElseThrow(IllegalArgumentException::new);
+		final String preEditHash = historicItSystemAssignmentService.computeRecordHash(assignment.getUserRole(), assignment);
 		foundConstraint.setConstraintValue(constraintValue.getConstraintValue());
 		foundConstraint.setSystemRoleAssignment(constraintValue.getSystemRoleAssignment());
 		foundConstraint.setConstraintType(constraintValue.getConstraintType());
 		foundConstraint.setConstraintValueType(constraintValue.getConstraintValueType());
 		foundConstraint.setPostponed(constraintValue.isPostponed());
 		foundConstraint.setConstraintIdentifier(constraintValue.getConstraintIdentifier());
-		assignment.getConstraintValues().add(foundConstraint);
+		historicItSystemAssignmentService.recordSystemRoleAssignmentEdited(assignment.getUserRole(), assignment, preEditHash);
 	}
 
 	@AuditLogIntercepted
 	public void removeSystemRoleConstraint(final SystemRoleAssignment assignment, final ConstraintType type) {
-		findConstraintValue(type, assignment)
-				.ifPresent(c -> assignment.getConstraintValues().remove(c));
+		final Optional<SystemRoleAssignmentConstraintValue> existing = findConstraintValue(type, assignment);
+		if (existing.isEmpty()) {
+			return;
+		}
+		final String preEditHash = historicItSystemAssignmentService.computeRecordHash(assignment.getUserRole(), assignment);
+		assignment.getConstraintValues().remove(existing.get());
+		historicItSystemAssignmentService.recordSystemRoleAssignmentEdited(assignment.getUserRole(), assignment, preEditHash);
+	}
+
+	/**
+	 * Erstatter alle constraint values på {@code assignment} med {@code newConstraintValues}.
+	 * Bruges af bulk-update-flow (fx UserRoleApiV2) som ellers ville mutere listen direkte
+	 * uden om de tre constraint-metoder og dermed efterlade historic_it_system_assignment
+	 * ude af sync.
+	 */
+	@AuditLogIntercepted
+	public void replaceSystemRoleConstraints(final SystemRoleAssignment assignment, final List<SystemRoleAssignmentConstraintValue> newConstraintValues) {
+		final String preEditHash = historicItSystemAssignmentService.computeRecordHash(assignment.getUserRole(), assignment);
+		if (assignment.getConstraintValues() == null) {
+			assignment.setConstraintValues(new ArrayList<>());
+		}
+		assignment.getConstraintValues().clear();
+		assignment.getConstraintValues().addAll(newConstraintValues);
+		historicItSystemAssignmentService.recordSystemRoleAssignmentEdited(assignment.getUserRole(), assignment, preEditHash);
 	}
 
 	@AuditLogIntercepted
@@ -491,6 +518,10 @@ public class UserRoleService {
 
 	public Set<UserRole> findAllBySystemRole(SystemRole systemRole) {
 		return userRoleDao.findBySystemRoleAssignments_SystemRole(systemRole);
+	}
+
+	public Set<UserRole> findAllBySystemRoles(Collection<SystemRole> systemRoles) {
+		return userRoleDao.findBySystemRoleAssignments_SystemRoleIn(systemRoles);
 	}
 
 	/**

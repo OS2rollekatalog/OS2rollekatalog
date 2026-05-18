@@ -12,6 +12,7 @@ import dk.digitalidentity.rc.dao.model.RoleGroup;
 import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserRole;
 import dk.digitalidentity.rc.dao.projections.OrgUnitManagerName;
+import dk.digitalidentity.rc.dao.projections.OrgUnitManagerUuid;
 import org.springframework.data.repository.query.Param;
 
 public interface OrgUnitDao extends CrudRepository<OrgUnit, String> {
@@ -57,6 +58,8 @@ public interface OrgUnitDao extends CrudRepository<OrgUnit, String> {
 	Optional<OrgUnit> getByUuid(String uuid);
 
 	Optional<OrgUnitManagerName> findByActiveTrueAndUuid(String uuid);
+
+	List<OrgUnitManagerUuid> findByActiveTrueAndManagerNotNullAndUuidIn(List<String> uuids);
 
 
 	List<OrgUnit> findByActiveTrueAndParentNull();

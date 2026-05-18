@@ -12,4 +12,6 @@ public interface HistoricItSystemAssignmentDao extends JpaRepository<HistoricItS
 	@Modifying
 	@Query("UPDATE HistoricItSystemAssignment h SET h.validTo = :validTo WHERE h.recordHash = :recordHash AND h.validTo IS NULL")
 	void closeOpenByRecordHash(@Param("recordHash") String recordHash, @Param("validTo") LocalDateTime validTo);
+
+	boolean existsByRecordHashAndValidToIsNull(String recordHash);
 }

@@ -23,22 +23,6 @@ public class NemLoginUpdateTask {
 	private RoleCatalogueConfiguration configuration;
 
 	// run ~4-5 times during "daytime" (every 5 hours from 6 AM to 11 PM)
-	@Scheduled(cron = "#{new java.util.Random().nextInt(60)} #{new java.util.Random().nextInt(5)}/5 6-23 * * ?")
-	public void syncDirtyUserRolesAssignments() {
-		if (!configuration.getIntegrations().getNemLogin().isEnabled() || !configuration.getScheduled().isEnabled()) {
-			return;
-		}
-
-		long start = System.currentTimeMillis();
-
-		nemLoginService.updateUserRoleAssignments();
-
-		if (System.currentTimeMillis() - start > (60 * 1000)) {
-			log.warn("Running syncDirtyUserRolesAssignments took " + (System.currentTimeMillis() - start) + "ms");
-		}
-	}
-
-	// run ~4-5 times during "daytime" (every 5 hours from 6 AM to 11 PM)
 	@Scheduled(cron = "#{new java.util.Random().nextInt(60)} #{new java.util.Random().nextInt(5)} 23 * * ?")
 	public void syncAdminRoles() {
 		if (!configuration.getIntegrations().getNemLogin().isEnabled() || !configuration.getScheduled().isEnabled()) {

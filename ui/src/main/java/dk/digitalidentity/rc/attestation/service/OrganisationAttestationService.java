@@ -865,7 +865,7 @@ public class OrganisationAttestationService {
 									.exceptedTitles(a.getExceptedTitleUuids().stream().map(et -> titleDao.findById(et).map(Title::getName).orElse(et)).toList())
 									.groupId(a.getRoleGroupId())
 									.userRoles(toOuUserAssignmentDTOs(orgRoleGroupAssignments, a.getRoleGroupId(), a.getTitleUuids()))
-									.inherit(!a.isInherited() && a.getAssignedThroughType() == AssignedThroughType.ORGUNIT)
+									.inherit(a.isInherit())
 									.manager(a.isManager())
 									.substitutes(a.isSubstitutes())
 									.functions(functions)

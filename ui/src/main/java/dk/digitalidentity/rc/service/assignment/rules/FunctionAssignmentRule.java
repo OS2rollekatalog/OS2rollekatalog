@@ -1,5 +1,6 @@
 package dk.digitalidentity.rc.service.assignment.rules;
 
+import dk.digitalidentity.rc.dao.model.Function;
 import dk.digitalidentity.rc.dao.model.OrgUnit;
 import dk.digitalidentity.rc.dao.model.OrgUnitAssignment;
 import dk.digitalidentity.rc.dao.model.Position;
@@ -9,7 +10,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.Collections;
 import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -50,48 +50,72 @@ public class FunctionAssignmentRule extends AssignmentRule {
 		if (!assignment.isContainsFunctions()) {
 			return AssignmentAppliesResult.NOT_APPLICABLE;
 		}
-
-		// Check if assignment allows inheritance or is on current OU
-		if (!assignment.isInherit() && !functionAssignment.getOrgUnit().getUuid().equals(orgUnit.getUuid())) {
+		if (!isOrgUnitInAssignmentScope(functionAssignment.getOrgUnit(), orgUnit, assignment.isInherit())) {
 			return AssignmentAppliesResult.NOT_APPLICABLE;
 		}
-
-		// Check if the function matches
 		if (assignment.getFunctions() != null && assignment.getFunctions().stream()
-			.anyMatch(function -> function.getUuid().equals(functionAssignment.getFunction().getUuid()))) {
+			.anyMatch(function -> function.getUuid().equalsIgnoreCase(functionAssignment.getFunction().getUuid()))) {
 			return AssignmentAppliesResult.POSITIVE;
 		}
-
 		return AssignmentAppliesResult.NOT_APPLICABLE;
 	}
 
 	/**
-	 * Evaluates whether the assignment's required functions match the user's assigned functions
-	 * for the specific organizational unit.
+	 * Evaluates whether the assignment's required functions match any of the user's
+	 * function-tildelinger. {@link UserOUFunction} is scoped directly to (User, OrgUnit),
+	 * so this iterates the user's function assignments and accepts a match when the
+	 * tildeling's OU is in scope of the role assignment: the assignment's own OU for
+	 * non-inherit, or the assignment's OU or any descendant for inherit.
 	 */
-	private AssignmentAppliesResult evaluateFunctionMatch(OrgUnitAssignment assignment, User user, OrgUnit orgUnit) {
+	private AssignmentAppliesResult evaluateFunctionMatch(OrgUnitAssignment assignment, User user, OrgUnit assignmentOu) {
 		if (!assignment.isContainsFunctions()) {
 			return AssignmentAppliesResult.NOT_APPLICABLE;
 		}
-		final Set<String> functionUuidsFromUser = getFunctionUuidsForUserInOrgUnit(user, orgUnit);
-		if (assignment.getFunctions() != null && assignment.getFunctions().stream()
-			.anyMatch(function -> functionUuidsFromUser.contains(function.getUuid()))) {
-			return AssignmentAppliesResult.POSITIVE;
+		if (user.getFunctionAssignments() == null || assignment.getFunctions() == null) {
+			return AssignmentAppliesResult.NOT_APPLICABLE;
+		}
+		final Set<String> requiredFunctionUuids = assignment.getFunctions().stream()
+			.map(Function::getUuid)
+			.filter(Objects::nonNull)
+			.collect(Collectors.toSet());
+
+		for (UserOUFunction fa : user.getFunctionAssignments()) {
+			if (fa.getOrgUnit() == null || fa.getFunction() == null) {
+				continue;
+			}
+			if (!requiredFunctionUuids.contains(fa.getFunction().getUuid())) {
+				continue;
+			}
+			if (isOrgUnitInAssignmentScope(fa.getOrgUnit(), assignmentOu, assignment.isInherit())) {
+				return AssignmentAppliesResult.POSITIVE;
+			}
 		}
 		return AssignmentAppliesResult.NOT_APPLICABLE;
 	}
 
 	/**
-	 * Extracts all function UUIDs assigned to a user for a specific organizational unit.
+	 * Returns true when {@code functionOu} is the same as the assignment's OU, or — when
+	 * inheritance is enabled — a descendant of it. Walking up from the function's OU
+	 * keeps the scope strictly bounded by the assignment's subtree.
 	 */
-	private Set<String> getFunctionUuidsForUserInOrgUnit(User user, OrgUnit orgUnit) {
-		if (user.getFunctionAssignments() == null) {
-			return Collections.emptySet();
+	private static boolean isOrgUnitInAssignmentScope(OrgUnit functionOu, OrgUnit assignmentOu, boolean inherit) {
+		if (assignmentOu == null || functionOu == null) {
+			return false;
 		}
-		return user.getFunctionAssignments().stream()
-			.filter(fa -> fa.getOrgUnit() != null && fa.getOrgUnit().getUuid().equals(orgUnit.getUuid()))
-			.map(fa -> fa.getFunction().getUuid())
-			.filter(Objects::nonNull)
-			.collect(Collectors.toSet());
+		if (functionOu.getUuid().equalsIgnoreCase(assignmentOu.getUuid())) {
+			return true;
+		}
+		if (!inherit) {
+			return false;
+		}
+		OrgUnit current = functionOu.getParent();
+		while (current != null) {
+			if (current.getUuid().equalsIgnoreCase(assignmentOu.getUuid())) {
+				return true;
+			}
+			current = current.getParent();
+		}
+		return false;
 	}
+
 }

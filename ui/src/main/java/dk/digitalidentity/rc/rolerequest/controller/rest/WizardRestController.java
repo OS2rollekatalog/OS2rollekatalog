@@ -216,7 +216,7 @@ public class WizardRestController {
 					role.getItSystemName(),
 					role.getName(),
 					role.getDescription(),
-					role.getApproverPermission(),
+					approverOptionService.getApproverOptionsAsString(role.getEffectiveApproverPermission()),
 					alreadyAssigned,
 					hasConstraints,
 					""

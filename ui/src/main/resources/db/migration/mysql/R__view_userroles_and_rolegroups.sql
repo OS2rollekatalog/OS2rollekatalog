@@ -35,10 +35,7 @@ CREATE OR REPLACE VIEW view_datatables_combined_roles AS (
                      CASE
                          WHEN ur.requester_permission LIKE '%INHERIT%'
                              AND (its.requester_permission IS NULL OR its.requester_permission LIKE '%INHERIT%')
-                             THEN COALESCE(
-                                 (SELECT setting_value FROM setting WHERE setting_key = 'allowedrequesters'),
-                                 ''
-                                  )
+                             THEN COALESCE(s_req.setting_value, '')
                          ELSE ''
                          END
              )
@@ -76,10 +73,7 @@ CREATE OR REPLACE VIEW view_datatables_combined_roles AS (
                      CASE
                          WHEN ur.approver_permission LIKE '%INHERIT%'
                              AND (its.approver_permission IS NULL OR its.approver_permission LIKE '%INHERIT%')
-                             THEN COALESCE(
-                                 (SELECT setting_value FROM setting WHERE setting_key = 'allowedrapprovers'),
-                                 ''
-                                  )
+                             THEN COALESCE(s_app.setting_value, '')
                          ELSE ''
                          END
              )
@@ -99,12 +93,18 @@ CREATE OR REPLACE VIEW view_datatables_combined_roles AS (
              LEFT JOIN ous_itsystems itsou ON its.id = itsou.itsystem_id
              LEFT JOIN rolegroup_roles rgr ON rgr.role_id = ur.id
              LEFT JOIN rolegroup rg ON rg.id = rgr.rolegroup_id
+             LEFT JOIN setting s_req ON s_req.setting_key = 'allowedrequesters'
+             LEFT JOIN setting s_app ON s_app.setting_key = 'allowedrapprovers'
     WHERE its.deleted = FALSE
     GROUP BY ur.id
 
     UNION ALL
 
     -- Role Groups
+    -- Note: org_unit_filter_uuids is intentionally NULL for role groups.
+    -- ou_rolegroups records which OUs a role group is *assigned* to, not which OUs it is *restricted* to.
+    -- Role groups have no OU-based access restriction (unlike user roles which have ouFilterEnabled),
+    -- so they should always be visible regardless of the requesting user's org unit.
     SELECT
         rg.id AS id,
         'roleGroup' AS type,
@@ -117,50 +117,61 @@ CREATE OR REPLACE VIEW view_datatables_combined_roles AS (
         rg.requester_permission AS requester_permission,
         rg.approver_permission AS approver_permission,
         TRIM(BOTH ',' FROM
-             CASE
-                 WHEN rg.requester_permission NOT LIKE '%INHERIT%'
-                     THEN rg.requester_permission
-                 WHEN rg.requester_permission IS NOT NULL
-                     THEN COALESCE(
-                         (SELECT setting_value FROM setting WHERE setting_key = 'allowedrequesters'),
-                         TRIM(BOTH ',' FROM
-                              REGEXP_REPLACE(rg.requester_permission, '(^|,)INHERIT(,|$)', ',')
-                         )
-                          )
-                 ELSE COALESCE(
-                         (SELECT setting_value FROM setting WHERE setting_key = 'allowedrequesters'),
-                         ''
-                      )
-                 END
+             CONCAT(
+                     CASE
+                         WHEN rg.requester_permission NOT LIKE '%INHERIT%'
+                             THEN CONCAT(rg.requester_permission, ',')
+                         WHEN rg.requester_permission IS NOT NULL
+                             THEN CONCAT(
+                                 TRIM(BOTH ',' FROM
+                                      REGEXP_REPLACE(rg.requester_permission, '(^|,)INHERIT(,|$)', ',')
+                                 ),
+                                 ','
+                                  )
+                         ELSE ''
+                         END,
+                     CASE
+                         WHEN rg.requester_permission LIKE '%INHERIT%'
+                             OR rg.requester_permission IS NULL
+                             THEN COALESCE(s_req.setting_value, '')
+                         ELSE ''
+                         END
+             )
         ) AS effective_requester_permission,
         TRIM(BOTH ',' FROM
-             CASE
-                 WHEN rg.approver_permission NOT LIKE '%INHERIT%'
-                     THEN rg.approver_permission
-                 WHEN rg.approver_permission IS NOT NULL
-                     THEN COALESCE(
-                         (SELECT setting_value FROM setting WHERE setting_key = 'allowedrapprovers'),
-                         TRIM(BOTH ',' FROM
-                              REGEXP_REPLACE(rg.approver_permission, '(^|,)INHERIT(,|$)', ',')
-                         )
-                          )
-                 ELSE COALESCE(
-                         (SELECT setting_value FROM setting WHERE setting_key = 'allowedrapprovers'),
-                         ''
-                      )
-                 END
+             CONCAT(
+                     CASE
+                         WHEN rg.approver_permission NOT LIKE '%INHERIT%'
+                             THEN CONCAT(rg.approver_permission, ',')
+                         WHEN rg.approver_permission IS NOT NULL
+                             THEN CONCAT(
+                                 TRIM(BOTH ',' FROM
+                                      REGEXP_REPLACE(rg.approver_permission, '(^|,)INHERIT(,|$)', ',')
+                                 ),
+                                 ','
+                                  )
+                         ELSE ''
+                         END,
+                     CASE
+                         WHEN rg.approver_permission LIKE '%INHERIT%'
+                             OR rg.approver_permission IS NULL
+                             THEN COALESCE(s_app.setting_value, '')
+                         ELSE ''
+                         END
+             )
         ) AS effective_approver_permission,
         FALSE AS pending_sync,
         FALSE AS sync_failed,
         NULL AS delegated_from_cvr,
         FALSE AS read_only,
         rg.user_only AS user_only,
-        GROUP_CONCAT(DISTINCT orgu.ou_uuid) as org_unit_filter_uuids,
+        NULL as org_unit_filter_uuids,
         NULL as it_system_org_unit_filter_uuids,
         GROUP_CONCAT(DISTINCT ur.name SEPARATOR ', ') AS role_within_role_group
     FROM rolegroup rg
-             LEFT JOIN ou_rolegroups orgu ON rg.id = orgu.rolegroup_id
              LEFT JOIN rolegroup_roles rgr ON rgr.rolegroup_id = rg.id
              LEFT JOIN user_roles ur ON ur.id = rgr.role_id
+             LEFT JOIN setting s_req ON s_req.setting_key = 'allowedrequesters'
+             LEFT JOIN setting s_app ON s_app.setting_key = 'allowedrapprovers'
     GROUP BY rg.id
 );

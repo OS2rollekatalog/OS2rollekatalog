@@ -597,7 +597,7 @@ class RequestServiceTest {
 
 				when(userService.getOptionalByUserId("non-manager-user-id")).thenReturn(Optional.of(nonManagerUser));
 				when(userService.isManagerOrSubstituteManagerFor(nonManagerUser, receivingUser)).thenReturn(false);
-				when(orgUnitService.getByAuthorizationManagerMatchingUser(nonManagerUser)).thenReturn(List.of());
+				when(orgUnitService.isAuthorizationManagerFor(nonManagerUser, receivingUser)).thenReturn(false);
 
 				// Act
 				boolean result = requestService.canRequest(role, receivingUser, receiversOrgUnit, List.of(RequestableBy.NONE));
@@ -633,7 +633,7 @@ class RequestServiceTest {
 
 				when(userService.getOptionalByUserId("auth-resp-user-id")).thenReturn(Optional.of(authRespUser));
 				when(userService.isManagerOrSubstituteManagerFor(authRespUser, receivingUser)).thenReturn(false);
-				when(orgUnitService.getByAuthorizationManagerMatchingUser(authRespUser)).thenReturn(List.of(receiversOrgUnit));
+				when(orgUnitService.isAuthorizationManagerFor(authRespUser, receivingUser)).thenReturn(true);
 
 				// Act
 				boolean result = requestService.canRequest(role, receivingUser, receiversOrgUnit, List.of(RequestableBy.NONE));
@@ -653,7 +653,7 @@ class RequestServiceTest {
 
 				when(userService.getOptionalByUserId("regular-user-id")).thenReturn(Optional.of(regularUser));
 				when(userService.isManagerOrSubstituteManagerFor(regularUser, receivingUser)).thenReturn(false);
-				when(orgUnitService.getByAuthorizationManagerMatchingUser(regularUser)).thenReturn(List.of());
+				when(orgUnitService.isAuthorizationManagerFor(regularUser, receivingUser)).thenReturn(false);
 
 				// Act
 				boolean result = requestService.canRequest(role, receivingUser, receiversOrgUnit, List.of(RequestableBy.NONE));
@@ -1109,7 +1109,7 @@ class RequestServiceTest {
 
 				when(userService.getOptionalByUserId("non-manager-user-id")).thenReturn(Optional.of(requestingUser));
 				when(userService.isManagerOrSubstituteManagerFor(requestingUser, receivingUser)).thenReturn(false);
-				when(orgUnitService.getByAuthorizationManagerMatchingUser(requestingUser)).thenReturn(List.of());
+				when(orgUnitService.isAuthorizationManagerFor(requestingUser, receivingUser)).thenReturn(false);
 
 				// Act
 				boolean result = requestService.canRequest(requestingUser, roleGroup, receivingUser, receiversOrgUnit);
@@ -1144,7 +1144,7 @@ class RequestServiceTest {
 
 				when(userService.getOptionalByUserId("auth-resp-user-id")).thenReturn(Optional.of(requestingUser));
 				when(userService.isManagerOrSubstituteManagerFor(requestingUser, receivingUser)).thenReturn(false);
-				when(orgUnitService.getByAuthorizationManagerMatchingUser(requestingUser)).thenReturn(List.of(receiversOrgUnit));
+				when(orgUnitService.isAuthorizationManagerFor(requestingUser, receivingUser)).thenReturn(true);
 
 				// Act
 				boolean result = requestService.canRequest(requestingUser, roleGroup, receivingUser, receiversOrgUnit);
@@ -1162,7 +1162,7 @@ class RequestServiceTest {
 
 				when(userService.getOptionalByUserId("regular-user-id")).thenReturn(Optional.of(requestingUser));
 				when(userService.isManagerOrSubstituteManagerFor(requestingUser, receivingUser)).thenReturn(false);
-				when(orgUnitService.getByAuthorizationManagerMatchingUser(requestingUser)).thenReturn(List.of());
+				when(orgUnitService.isAuthorizationManagerFor(requestingUser, receivingUser)).thenReturn(false);
 
 				// Act
 				boolean result = requestService.canRequest(requestingUser, roleGroup, receivingUser, receiversOrgUnit);

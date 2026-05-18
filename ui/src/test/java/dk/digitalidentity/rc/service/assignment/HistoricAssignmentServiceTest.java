@@ -84,18 +84,13 @@ class HistoricAssignmentServiceTest {
 			CurrentAssignment ca = createCurrentAssignment(1L, "hash-1", createUser("user-1"));
 			LocalDateTime validTo = LocalDateTime.of(2025, 6, 1, 12, 0);
 
-			HistoricAssignment historic = new HistoricAssignment();
-			historic.setRecordHash("hash-1");
-
-			given(historicAssignmentDao.findAllByRecordHashIn(Set.of("hash-1")))
-				.willReturn(Set.of(historic));
-
 			// ---- When ---- //
 			service.updateValidToFor(Set.of(ca), validTo);
 
 			// ---- Then ---- //
-			assertThat(historic.getValidTo()).isEqualTo(validTo);
-			verify(historicAssignmentDao).saveAll(Set.of(historic));
+			ArgumentCaptor<LocalDateTime> validToCaptor = ArgumentCaptor.forClass(LocalDateTime.class);
+			verify(historicAssignmentDao).updateValidToByRecordHashIn(any(), validToCaptor.capture());
+			assertThat(validToCaptor.getValue()).isEqualTo(validTo);
 		}
 
 		@Test
@@ -105,15 +100,12 @@ class HistoricAssignmentServiceTest {
 			CurrentAssignment ca1 = createCurrentAssignment(1L, "hash-1", createUser("user-1"));
 			CurrentAssignment ca2 = createCurrentAssignment(2L, "hash-2", createUser("user-2"));
 
-			given(historicAssignmentDao.findAllByRecordHashIn(any()))
-				.willReturn(Set.of());
-
 			// ---- When ---- //
 			service.updateValidToFor(Set.of(ca1, ca2), LocalDateTime.now());
 
 			// ---- Then ---- //
 			ArgumentCaptor<Set<String>> hashCaptor = ArgumentCaptor.forClass(Set.class);
-			verify(historicAssignmentDao).findAllByRecordHashIn(hashCaptor.capture());
+			verify(historicAssignmentDao).updateValidToByRecordHashIn(hashCaptor.capture(), any());
 
 			assertThat(hashCaptor.getValue()).containsExactlyInAnyOrder("hash-1", "hash-2");
 		}

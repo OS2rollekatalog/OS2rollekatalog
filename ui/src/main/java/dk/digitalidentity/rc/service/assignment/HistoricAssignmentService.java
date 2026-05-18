@@ -13,8 +13,10 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @Service
 @RequiredArgsConstructor
@@ -34,11 +36,7 @@ public class HistoricAssignmentService {
 	@Transactional
 	public void updateValidToFor(Set<CurrentAssignment> currentAssignments, LocalDateTime validTo) {
 		Set<String> recordHashes = currentAssignments.stream().map(CurrentAssignment::getRecordHash).collect(Collectors.toSet());
-		Set<HistoricAssignment> historicAssignments = historicAssignmentDao.findAllByRecordHashIn(recordHashes);
-		for (HistoricAssignment historicAssignment : historicAssignments) {
-			historicAssignment.setValidTo(validTo);
-		}
-		historicAssignmentDao.saveAll(historicAssignments);
+		historicAssignmentDao.updateValidToByRecordHashIn(recordHashes, validTo);
 	}
 
 	public Set<HistoricAssignment> getByUser(User user) {
@@ -68,5 +66,61 @@ public class HistoricAssignmentService {
 		LocalDateTime startOfDay = date.atStartOfDay();
 		LocalDateTime endOfDay = date.atTime(23, 59, 59, 999999999);
 		return historicAssignmentDao.findActiveAtDateAndItSystemIdIn(startOfDay, endOfDay, itSystemIds);
+	}
+
+	/**
+	 * Lightweight projection returning [userUuid, itSystemName, userRoleId] — used for weight pre-computation.
+	 * Returns plain Object arrays, not entity objects.
+	 */
+	public List<Object[]> getWeightTriples(LocalDate date) {
+		LocalDateTime startOfDay = date.atStartOfDay();
+		LocalDateTime endOfDay = date.atTime(23, 59, 59, 999999999);
+		return historicAssignmentDao.findWeightTriples(startOfDay, endOfDay);
+	}
+
+	public List<Object[]> getWeightTriplesForItSystems(LocalDate date, Collection<Long> itSystemIds) {
+		LocalDateTime startOfDay = date.atStartOfDay();
+		LocalDateTime endOfDay = date.atTime(23, 59, 59, 999999999);
+		return historicAssignmentDao.findWeightTriplesForItSystems(startOfDay, endOfDay, itSystemIds);
+	}
+
+	/**
+	 * Pre-loads all constraints for assignments active at the given date as a map.
+	 * Returns Map&lt;assignmentId, List&lt;[constraintTypeName, value]&gt;&gt;.
+	 * Use this before streaming to avoid per-entity lazy loading (N+1).
+	 */
+	public Map<Long, List<Object[]>> getConstraintsForDate(LocalDate date) {
+		LocalDateTime startOfDay = date.atStartOfDay();
+		LocalDateTime endOfDay = date.atTime(23, 59, 59, 999999999);
+		return historicAssignmentDao.findConstraintProjectionsForDate(startOfDay, endOfDay)
+			.stream()
+			.collect(Collectors.groupingBy(row -> (Long) row[0]));
+	}
+
+	public Map<Long, List<Object[]>> getConstraintsForDateAndItSystems(LocalDate date, Collection<Long> itSystemIds) {
+		LocalDateTime startOfDay = date.atStartOfDay();
+		LocalDateTime endOfDay = date.atTime(23, 59, 59, 999999999);
+		return historicAssignmentDao.findConstraintProjectionsForDateAndItSystems(startOfDay, endOfDay, itSystemIds)
+			.stream()
+			.collect(Collectors.groupingBy(row -> (Long) row[0]));
+	}
+
+	/**
+	 * Streams assignments using a server-side cursor.
+	 * Caller must be @Transactional — close the returned stream with try-with-resources.
+	 */
+	public Stream<HistoricAssignment> streamActiveAtDate(LocalDate date) {
+		LocalDateTime startOfDay = date.atStartOfDay();
+		LocalDateTime endOfDay = date.atTime(23, 59, 59, 999999999);
+		return historicAssignmentDao.streamActiveAtDate(startOfDay, endOfDay);
+	}
+
+	public Stream<HistoricAssignment> streamActiveAtDateAndItSystems(LocalDate date, Collection<Long> itSystemIds) {
+		if (itSystemIds == null || itSystemIds.isEmpty()) {
+			return streamActiveAtDate(date);
+		}
+		LocalDateTime startOfDay = date.atStartOfDay();
+		LocalDateTime endOfDay = date.atTime(23, 59, 59, 999999999);
+		return historicAssignmentDao.streamActiveAtDateAndItSystemIdIn(startOfDay, endOfDay, itSystemIds);
 	}
 }

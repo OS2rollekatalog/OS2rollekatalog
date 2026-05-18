@@ -29,6 +29,7 @@ import dk.digitalidentity.rc.service.DomainService;
 import dk.digitalidentity.rc.service.ItSystemService;
 import dk.digitalidentity.rc.service.OrgUnitService;
 import dk.digitalidentity.rc.service.SystemRoleService;
+import dk.digitalidentity.rc.service.UserRoleCleanupService;
 import dk.digitalidentity.rc.service.UserRoleService;
 import dk.digitalidentity.rc.service.assignment.AssignmentService;
 import dk.digitalidentity.rc.util.IdentifierGenerator;
@@ -82,6 +83,7 @@ public class UserRoleApiV2 {
 	private final DomainService domainService;
 	private final AssignmentService assignmentService;
 	private final OrgUnitService orgUnitService;
+	private final UserRoleCleanupService userRoleCleanupService;
 
 	@ApiResponses(value = {
 			@ApiResponse(responseCode = "200", description = "Returns a list of all userroles."),
@@ -153,13 +155,11 @@ public class UserRoleApiV2 {
 	@Operation(summary = "Deletes userrole with the associated id")
 	@DeleteMapping(value = "/api/v2/userrole/{id}")
 	@RequireApiRoleManagementRole
-	@Transactional
 	public ResponseEntity<?> deleteRole(@Parameter(description = "Unique ID for the userrole.", example = "1") @PathVariable long id) {
 		UserRole userRole = userRoleService.getOptionalById(id)
 				.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
-		userRoleService.delete(userRole);
+		userRoleCleanupService.deleteWithCleanup(userRole);
 		return new ResponseEntity<>(HttpStatus.NO_CONTENT);
-
 	}
 
 	@ApiResponses(value = {
@@ -343,8 +343,7 @@ public class UserRoleApiV2 {
 							return value;
 						})
 						.toList();
-				assignment.getConstraintValues().clear();
-				assignment.getConstraintValues().addAll(constraintValues);
+				userRoleService.replaceSystemRoleConstraints(assignment, constraintValues);
 			});
 	}
 

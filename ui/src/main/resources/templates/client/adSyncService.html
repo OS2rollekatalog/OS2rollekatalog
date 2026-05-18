@@ -912,25 +912,25 @@
                 }
             }
 
-            // Load role mappings with proper names via REST - throw error if data missing
+            // Load role mappings with proper names via REST. Rows where the role
+            // can't be fetched (e.g. slettet rolle) still render as a placeholder
+            // so the user can delete the stale entry from the config.
             this.loadRoleMappingsWithNames = function() {
                 var tableBody = $("#mappingsTableBody");
                 var rolePromises = [];
 
-                itSystemGroupFeatureRoleMap.forEach(function(mapping, index) {
+                itSystemGroupFeatureRoleMap.forEach(function(mapping) {
                     var parts = mapping.split(";");
                     var roleId = parts[0];
                     var adGroupDN = parts[1];
 
-                    // Create promise for role data
-                    var rolePromise = $.ajax({
+                    var rolePromise = Promise.resolve($.ajax({
                         url: userRoleBaseUrl + roleId,
                         method: 'GET',
                         headers: {
                             'X-CSRF-TOKEN': token
                         }
-                    }).then(function(roleData) {
-                        // Validate that we have the required data
+                    })).then(function(roleData) {
                         if (!roleData || !roleData.name || !roleData.itSystemName) {
                             throw new Error('Incomplete role data received for role ID: ' + roleId);
                         }
@@ -941,52 +941,68 @@
                             adGroupDN: adGroupDN,
                             roleName: roleData.name,
                             itSystemName: roleData.itSystemName,
-                            itSystemId: roleData.itSystemId
+                            itSystemId: roleData.itSystemId,
+                            loaded: true
+                        };
+                    }).catch(function(error) {
+                        console.error('Failed to load role id=' + roleId + ':', error);
+                        return {
+                            mapping: mapping,
+                            roleId: roleId,
+                            adGroupDN: adGroupDN,
+                            loaded: false
                         };
                     });
 
                     rolePromises.push(rolePromise);
                 });
 
-                // Wait for all role data to load
                 Promise.all(rolePromises).then(function(roleDataArray) {
-                    // Add all role rows to table
+                    var hasFailures = false;
+
                     roleDataArray.forEach(function(roleData) {
                         var adGroupName = extractCNFromDN(roleData.adGroupDN);
+                        var row;
 
-                        var row = settingService.createMappingRow({
-                            itSystemName: roleData.itSystemName  +  " (id: " + roleData.itSystemId + ")",
-                            roleName: roleData.roleName  +  " (id: " + roleData.roleId + ")",
-                            adGroupName: adGroupName,
-                            adGroupDN: roleData.adGroupDN,
-                            type: 'role',
-                            mapping: roleData.mapping
-                        });
+                        if (roleData.loaded) {
+                            row = settingService.createMappingRow({
+                                itSystemName: roleData.itSystemName + " (id: " + roleData.itSystemId + ")",
+                                roleName: roleData.roleName + " (id: " + roleData.roleId + ")",
+                                adGroupName: adGroupName,
+                                adGroupDN: roleData.adGroupDN,
+                                type: 'role',
+                                mapping: roleData.mapping
+                            });
+
+                            if (!window.roleMappingToItSystem) {
+                                window.roleMappingToItSystem = {};
+                            }
+                            if (roleData.itSystemId) {
+                                window.roleMappingToItSystem[roleData.mapping] = roleData.itSystemId;
+                            }
+                        } else {
+                            hasFailures = true;
+                            row = settingService.createMappingRow({
+                                itSystemName: 'ukendt',
+                                roleName: '<em>&lt;slettet rolle (id: ' + roleData.roleId + ')&gt;</em>',
+                                adGroupName: adGroupName,
+                                adGroupDN: roleData.adGroupDN,
+                                type: 'role',
+                                mapping: roleData.mapping
+                            });
+                        }
 
                         tableBody.append(row);
-
-                        // Store IT-system mapping for future reference
-                        if (!window.roleMappingToItSystem) {
-                            window.roleMappingToItSystem = {};
-                        }
-                        if (roleData.itSystemId) {
-                            window.roleMappingToItSystem[roleData.mapping] = roleData.itSystemId;
-                        }
                     });
 
-                    // Attach delete listeners after all rows are added
-                    settingService.addListeners();
-                }).catch(function(error) {
-                    console.error('Failed to load role mappings:', error);
+                    if (hasFailures) {
+                        $.notify({
+                            message: 'Én eller flere jobfunktionsroller i mapningen kunne ikke findes. Slet de berørte rækker og gem.',
+                            status: 'error',
+                            timeout: 5000
+                        });
+                    }
 
-                    // Show error message to user
-                    $.notify({
-                        message: 'Fejl ved indlæsning af rolle data: ' + error.message,
-                        status: 'error',
-                        timeout: 5000
-                    });
-
-                    // Still attach listeners for existing rows
                     settingService.addListeners();
                 });
             }

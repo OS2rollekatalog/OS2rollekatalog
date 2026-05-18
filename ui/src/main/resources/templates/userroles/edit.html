@@ -1041,13 +1041,19 @@ The modal ou_roles_modal shows at the top-->
         var deleteRoleAssignmentSuccessMessage = [[#{html.page.manage.roles.delete.success}]];
         var yesBtnTxt = [[#{html.control.button.yes}]];
         var cancelBtnTxt = [[#{html.control.button.cancel}]];
+        var txtQueueSpinner = [[#{html.common.queue.spinner.working}]];
         +]*/
 
         this.loadRolesFragment = function () {
-            $("#users_menu").load(UIUrl + roleId + "/assignedUsersFragment?showEdit=true", function () {
-                fragShowDataTableFun('#listTableUsers', 0);
+            new QueueDrainService('#users_menu', { message: txtQueueSpinner }).watch(function () {
+                $("#users_menu").load(UIUrl + roleId + "/assignedUsersFragment?showEdit=true", function () {
+                    fragShowDataTableFun('#listTableUsers', 0);
+                });
             });
         }
+
+        // Alias used by the shared user_user_role_modal after a role is added.
+        this.loadRolesFragmentWhenReady = this.loadRolesFragment;
 
 			this.loadAddUserRoleFragment = function () {
 				$("#users_menu").load(UIUrl + roleId + "/availableUsersFragment", function () {

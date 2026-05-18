@@ -736,13 +736,10 @@ public class RoleAssignmentApiV2Test extends AbstractApiTest {
 	/**
 	 * Tests deletion of a user role assignment from an organizational unit.
 	 * <p>
-	 * Note: The delete endpoint uses the UserRole ID (not the assignment ID) to look up
-	 * and delete the UserRole entity.
-	 * </p>
-	 * <p>
 	 * Verifies that:
 	 * - Endpoint returns HTTP 204 No Content
-	 * - The user role is deleted from the database
+	 * - The assignment is removed from the org unit
+	 * - The user role itself still exists
 	 * - REST documentation is generated
 	 * </p>
 	 *
@@ -751,12 +748,26 @@ public class RoleAssignmentApiV2Test extends AbstractApiTest {
 	@Test
 	@DisplayName("Should delete user role assignment from organizational unit")
 	void testDeleteUserRoleAssignment() throws Exception {
+		OrgUnit orgUnit = orgUnitService.getAll().stream()
+			.findFirst()
+			.orElseThrow(() -> new RuntimeException("No org unit found"));
 		UserRole userRole = userRoleService.getAll().stream()
 			.findFirst()
 			.orElseThrow(() -> new RuntimeException("No user role found"));
+
+		orgUnitService.addUserRole(orgUnit, userRole, false, null, null, new HashSet<>(), new HashSet<>());
+		entityManager.flush();
+		entityManager.clear();
+
+		OrgUnit refreshedOu = orgUnitService.getByUuid(orgUnit.getUuid());
+		OrgUnitUserRoleAssignment assignment = refreshedOu.getUserRoleAssignments().stream()
+			.filter(a -> a.getUserRole().getId() == userRole.getId())
+			.findFirst()
+			.orElseThrow(() -> new RuntimeException("Assignment not found after creation"));
+		long assignmentId = assignment.getId();
 		long userRoleId = userRole.getId();
 
-		this.mockMvc.perform(delete("/api/v2/organisation/assignment/userrole/{assignmentId}", userRoleId)
+		this.mockMvc.perform(delete("/api/v2/organisation/assignment/userrole/{assignmentId}", assignmentId)
 				.header("ApiKey", API_KEY))
 			.andExpect(status().isNoContent())
 			.andDo(document("roleassignment-v2-delete-ou-userrole",
@@ -764,14 +775,15 @@ public class RoleAssignmentApiV2Test extends AbstractApiTest {
 					headerWithName("ApiKey").description("Secret key required to call API")
 				),
 				pathParameters(
-					parameterWithName("assignmentId").description("ID of the user role to delete")
+					parameterWithName("assignmentId").description("ID of the assignment to delete")
 				)
 			));
 
 		entityManager.flush();
 		entityManager.clear();
 
-		assertThat(userRoleService.getById(userRoleId)).isNull();
+		assertThat(ouAssignmentService.getOrgUnitUserRoleAssignment(assignmentId)).isEmpty();
+		assertThat(userRoleService.getById(userRoleId)).isNotNull();
 	}
 
 	/**
@@ -790,13 +802,10 @@ public class RoleAssignmentApiV2Test extends AbstractApiTest {
 	/**
 	 * Tests deletion of a role group assignment from an organizational unit.
 	 * <p>
-	 * Note: The delete endpoint uses the RoleGroup ID (not the assignment ID) to look up
-	 * and delete the RoleGroup entity.
-	 * </p>
-	 * <p>
 	 * Verifies that:
 	 * - Endpoint returns HTTP 204 No Content
-	 * - The role group is deleted from the database
+	 * - The assignment is removed from the org unit
+	 * - The role group itself still exists
 	 * - REST documentation is generated
 	 * </p>
 	 *
@@ -805,12 +814,26 @@ public class RoleAssignmentApiV2Test extends AbstractApiTest {
 	@Test
 	@DisplayName("Should delete role group assignment from organizational unit")
 	void testDeleteRoleGroupAssignment() throws Exception {
+		OrgUnit orgUnit = orgUnitService.getAll().stream()
+			.findFirst()
+			.orElseThrow(() -> new RuntimeException("No org unit found"));
 		RoleGroup roleGroup = roleGroupService.getAll().stream()
 			.findFirst()
 			.orElseThrow(() -> new RuntimeException("No role group found"));
+
+		orgUnitService.addRoleGroup(orgUnit, roleGroup, false, null, null, new HashSet<>(), new HashSet<>());
+		entityManager.flush();
+		entityManager.clear();
+
+		OrgUnit refreshedOu = orgUnitService.getByUuid(orgUnit.getUuid());
+		OrgUnitRoleGroupAssignment assignment = refreshedOu.getRoleGroupAssignments().stream()
+			.filter(a -> a.getRoleGroup().getId() == roleGroup.getId())
+			.findFirst()
+			.orElseThrow(() -> new RuntimeException("Assignment not found after creation"));
+		long assignmentId = assignment.getId();
 		long roleGroupId = roleGroup.getId();
 
-		this.mockMvc.perform(delete("/api/v2/organisation/assignment/rolegroup/{assignmentId}", roleGroupId)
+		this.mockMvc.perform(delete("/api/v2/organisation/assignment/rolegroup/{assignmentId}", assignmentId)
 				.header("ApiKey", API_KEY))
 			.andExpect(status().isNoContent())
 			.andDo(document("roleassignment-v2-delete-ou-rolegroup",
@@ -818,14 +841,15 @@ public class RoleAssignmentApiV2Test extends AbstractApiTest {
 					headerWithName("ApiKey").description("Secret key required to call API")
 				),
 				pathParameters(
-					parameterWithName("assignmentId").description("ID of the role group to delete")
+					parameterWithName("assignmentId").description("ID of the assignment to delete")
 				)
 			));
 
 		entityManager.flush();
 		entityManager.clear();
 
-		assertThat(roleGroupService.getById(roleGroupId)).isNull();
+		assertThat(ouAssignmentService.getOrgUnitRoleGroupAssignment(assignmentId)).isEmpty();
+		assertThat(roleGroupService.getById(roleGroupId)).isNotNull();
 	}
 
 	/**

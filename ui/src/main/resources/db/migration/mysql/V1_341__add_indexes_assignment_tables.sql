@@ -1,0 +1,3 @@
+CREATE INDEX idx_historic_assignment_record_hash ON historic_assignment (record_hash);
+CREATE INDEX idx_historic_excepted_assignment_record_hash ON historic_excepted_assignment (record_hash);
+CREATE INDEX idx_current_excepted_assignment_user_uuid ON current_excepted_assignment (exception_user_uuid);

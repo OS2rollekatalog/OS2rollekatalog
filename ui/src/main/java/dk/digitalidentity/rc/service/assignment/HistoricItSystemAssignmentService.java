@@ -6,6 +6,7 @@ import dk.digitalidentity.rc.dao.model.SystemRoleAssignment;
 import dk.digitalidentity.rc.dao.model.UserRole;
 import dk.digitalidentity.rc.dao.model.assignment.HistoricItSystemAssignment;
 import dk.digitalidentity.rc.dao.model.assignment.HistoricItSystemAssignmentConstraint;
+import dk.digitalidentity.rc.dao.serializer.SystemRoleAssignmentDao;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -19,6 +20,7 @@ import java.util.List;
 public class HistoricItSystemAssignmentService {
 
 	private final HistoricItSystemAssignmentDao dao;
+	private final SystemRoleAssignmentDao systemRoleAssignmentDao;
 
 	@Transactional
 	public void recordSystemRoleAssignmentAdded(UserRole userRole, SystemRoleAssignment assignment) {
@@ -29,6 +31,59 @@ public class HistoricItSystemAssignmentService {
 	public void recordSystemRoleAssignmentRemoved(UserRole userRole, SystemRoleAssignment assignment) {
 		HistoricItSystemAssignment toClose = toHistoric(userRole, assignment);
 		dao.closeOpenByRecordHash(toClose.getRecordHash(), LocalDateTime.now());
+	}
+
+	/**
+	 * Lukker den åbne historic-række med {@code preEditHash} og åbner en ny række der afspejler
+	 * den nuværende state af assignment. Bruges af constraint-edit-stierne hvor SRA muteres
+	 * in-place og hash dermed skifter — preEditHash skal beregnes FØR mutationen via
+	 * {@link #computeRecordHash(UserRole, SystemRoleAssignment)}.
+	 */
+	@Transactional
+	public void recordSystemRoleAssignmentEdited(UserRole userRole, SystemRoleAssignment assignment, String preEditHash) {
+		HistoricItSystemAssignment newRecord = toHistoric(userRole, assignment);
+		if (newRecord.getRecordHash().equals(preEditHash)) {
+			return;
+		}
+		dao.closeOpenByRecordHash(preEditHash, LocalDateTime.now());
+		dao.save(newRecord);
+	}
+
+	/**
+	 * Idempotent variant der kun indsætter en ny åben række hvis der ikke allerede findes
+	 * én med samme hash. Bruges af engangs-seed-tasken.
+	 */
+	@Transactional
+	public void recordSystemRoleAssignmentSeedIfMissing(UserRole userRole, SystemRoleAssignment assignment) {
+		HistoricItSystemAssignment record = toHistoric(userRole, assignment);
+		if (dao.existsByRecordHashAndValidToIsNull(record.getRecordHash())) {
+			return;
+		}
+		dao.save(record);
+	}
+
+	/**
+	 * Loader SRA + UserRole + ItSystem og delegerer til {@link #recordSystemRoleAssignmentSeedIfMissing}.
+	 * Egen {@code @Transactional} sørger for at lazy-properties på UserRole (fx itSystem) kan
+	 * tilgås — kaldere som seed-tasken har ingen tx-grænse omkring deres chunk-loop og ville
+	 * ellers ramme LazyInitializationException når UserRole-proxy'en hydreres.
+	 *
+	 * @return true hvis en ny historic-række blev indsat eller allerede findes; false hvis SRA
+	 *         er væk, mangler UserRole eller UserRole mangler ItSystem (rolle-katalog-roller har
+	 *         ikke et IT-system).
+	 */
+	@Transactional
+	public boolean seedHistoricRowFromSystemRoleAssignmentId(long sraId) {
+		SystemRoleAssignment sra = systemRoleAssignmentDao.findById(sraId).orElse(null);
+		if (sra == null || sra.getUserRole() == null || sra.getUserRole().getItSystem() == null) {
+			return false;
+		}
+		recordSystemRoleAssignmentSeedIfMissing(sra.getUserRole(), sra);
+		return true;
+	}
+
+	public String computeRecordHash(UserRole userRole, SystemRoleAssignment assignment) {
+		return toHistoric(userRole, assignment).getRecordHash();
 	}
 
 	private HistoricItSystemAssignment toHistoric(UserRole userRole, SystemRoleAssignment assignment) {

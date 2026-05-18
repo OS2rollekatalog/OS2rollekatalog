@@ -1,0 +1,1 @@
+CREATE INDEX idx_historic_assignment_valid_to ON historic_assignment (valid_to);

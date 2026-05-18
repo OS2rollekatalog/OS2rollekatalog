@@ -13,7 +13,7 @@
 					<button sec:authorize="hasAnyRole('ROLE_USER_ASSIGNER', 'ROLE_OU_ASSIGNER')" class="btn btn-primary btn-lg" style="float: right;" th:text="#{html.page.report.duplicate.remove}" onclick="deleteDuplicates();"></button>
 				</h3>
 
-				<div class="panel panel-default">
+				<div class="panel panel-default" id="cleanup-panel">
 					<div class="panel-heading"></div>
 					<div class="panel-body">
 						<table class="listTable table table-responsive table-striped">
@@ -60,6 +60,7 @@
 			var txtOrderConfirmed = [[#{html.page.report.duplicate.remove.confirmMessage}]];
 			var txtCleanupFailed = [[#{html.page.report.duplicate.remove.failedMessage}]];
 			var txtCleanupSucceeded = [[#{html.page.report.duplicate.remove.successMessage}]];
+			var txtQueueSpinner = [[#{html.common.queue.spinner.working}]];
 			var btnNo = [[#{html.control.button.no}]];
 			var btnYes = [[#{html.control.button.yes}]];
 		+]*/
@@ -82,19 +83,25 @@
 				function (isConfirm) {
 					if (isConfirm) {
 			            $.notify({ message: txtOrderConfirmed },{ status: 'success', autoHideDelay: 4000 });
-			            
+
+						var spinner = new QueueDrainService('#cleanup-panel', { message: txtQueueSpinner });
+						spinner.show();
+
 						$.ajax({
-							url: url, 
+							url: url,
 							method: "POST",
 							headers: {
 								'X-CSRF-TOKEN': token
 							},
-							error : errorHandler(txtCleanupFailed),
+							error: function() {
+								spinner.stop();
+								errorHandler(txtCleanupFailed).apply(this, arguments);
+							},
 							success : function(response) {
 								$.notify({ message: txtCleanupSucceeded },{ status: 'success', autoHideDelay: 4000 });
-								setTimeout(function() {
+								spinner.watch(function () {
 									location.reload(true);
-								}, 2000);
+								});
 							}
 						});
 	                }

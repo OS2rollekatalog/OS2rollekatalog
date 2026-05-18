@@ -43,7 +43,6 @@ import dk.digitalidentity.rc.service.model.RoleAssignmentType;
 import jakarta.persistence.criteria.Expression;
 import jakarta.persistence.criteria.Predicate;
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -157,17 +156,6 @@ public class UserRestController {
 		DataTablesOutput<UserView> foundUsersOutput = userViewDao.findAll(input, matchAllConditions);
 
 		return mapToOutputDTO(foundUsersOutput);
-	}
-
-	@RequirePermission(section = Section.USER, permission = Permission.ASSIGN)
-	@GetMapping(value = "/rest/users/{uuid}/stale")
-	public ResponseEntity<String> checkUserStale(@NotNull @PathVariable("uuid") String userUuid) {
-		if (userService.isUserStale(userUuid)) {
-			return ResponseEntity.status(HttpStatus.CONFLICT)
-				.header("Retry-After", "1")
-				.build();
-		}
-		return ResponseEntity.noContent().build();
 	}
 
 	@RequirePermission(section = Section.USER, permission = Permission.ASSIGN)

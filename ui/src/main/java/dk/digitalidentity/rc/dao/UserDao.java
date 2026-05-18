@@ -10,6 +10,7 @@ import org.springframework.data.repository.CrudRepository;
 import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDate;
+import java.util.Date;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -92,7 +93,22 @@ public interface UserDao extends CrudRepository<User, String>, JpaSpecificationE
 
 	List<User> findTop10ByDeletedFalse();
 
+	// For disabled-brugere bruges disabledAt (den dag de blev deaktiveret).
+	// For deleted-brugere bruges lastUpdated (den dag importen sidst rørte dem — dvs. dagen de blev soft-deleted, da
+	// importen filtrerer allerede-deleted brugere fra på linje 1047 i OrganisationImporter og dermed ikke rører dem igen).
 	@Query("SELECT DISTINCT u FROM users u " +
-		"WHERE u.disabled = true AND u.disabledAt IS NOT NULL AND u.disabledAt <= :cutoffDate")
-	List<User> findDisabledUsersOlderThan(@Param("cutoffDate") LocalDate cutoffDate);
+		"WHERE (u.disabled = true AND u.disabledAt IS NOT NULL AND u.disabledAt <= :cutoffDate) " +
+		"   OR (u.deleted = true AND u.lastUpdated < :cutoffDateExclusiveUpper)")
+	List<User> findDisabledUsersOlderThan(@Param("cutoffDate") LocalDate cutoffDate,
+										  @Param("cutoffDateExclusiveUpper") Date cutoffDateExclusiveUpper);
+
+// this forces EAGER loading of both relationsships, but since they are List<> that will not work, as List<> are by default sorted,
+// so this needs to be Set<>'s or we need to add an ORDER BY to the WHERE statement. But it seems unneeded to change the LAZY loading
+// into EAGER loading, as the relationships are already batched, so for now I'll comment this out   /BSG
+//	@EntityGraph(attributePaths = {"userRoleAssignments", "roleGroupAssignments"})
+	@Query("SELECT DISTINCT u FROM users u " +
+		"WHERE (u.disabled = true AND u.disabledAt IS NOT NULL AND u.disabledAt <= :cutoffDate) " +
+		"   OR (u.deleted = true AND u.lastUpdated < :cutoffDateExclusiveUpper)")
+	List<User> findDisabledUsersOlderThanWithAssignments(@Param("cutoffDate") LocalDate cutoffDate,
+														 @Param("cutoffDateExclusiveUpper") Date cutoffDateExclusiveUpper);
 }

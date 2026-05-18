@@ -137,4 +137,19 @@ public class UserPermissionContext {
 		return hasPermission(Section.REPORT, permission)
 				|| SecurityUtil.hasRole(Constants.ROLE_TEMPLATE_ACCESS);
 	}
+
+	/**
+	 * Whether the current user is allowed to create/edit/delete substitute relationships.
+	 * Substitutes acting on behalf of a leader must NOT propagate substitute-creation —
+	 * that authority belongs to the actual leader, administrators, and users with the
+	 * "Ledere - Administrer" system role (which grants unconstrained MANAGER UPDATE).
+	 */
+	public boolean canManageSubstitutes() {
+		if (SecurityUtil.hasRole(Constants.ROLE_ADMINISTRATOR) || SecurityUtil.hasRole(Constants.ROLE_MANAGER)) {
+			return true;
+		}
+		// Substitute access is always OU-constrained; unconstrained UPDATE means access from another source
+		PermissionConstraint update = getConstraint(Section.MANAGER, Permission.UPDATE);
+		return update.getConstrainedOUUuids() == null;
+	}
 }

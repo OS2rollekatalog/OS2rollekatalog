@@ -1,5 +1,6 @@
 package dk.digitalidentity.rc.test.ui;
 
+import dk.digitalidentity.rc.SamlIdpContainerConfiguration;
 import dk.digitalidentity.rc.TestContainersConfiguration;
 import dk.digitalidentity.rc.config.TestInterceptorConfiguration;
 import dk.digitalidentity.rc.generator.TestDataBootstrap;
@@ -29,32 +30,29 @@ import org.springframework.test.context.junit.jupiter.SpringExtension;
 import org.testcontainers.Testcontainers;
 import org.testcontainers.containers.BrowserWebDriverContainer;
 import org.testcontainers.containers.DefaultRecordingFileFactory;
-import org.testcontainers.containers.Network;
 import org.testcontainers.containers.VncRecordingContainer;
 import org.testcontainers.junit.jupiter.Container;
 
 import java.io.File;
 import java.time.Duration;
 
-
 @ExtendWith(SpringExtension.class)
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.DEFINED_PORT)
-@TestPropertySource(locations="classpath:test.properties")
-@ActiveProfiles({ "test" })
+@TestPropertySource(locations = "classpath:test.properties")
+@ActiveProfiles({"test"})
 @org.testcontainers.junit.jupiter.Testcontainers
-@Import({TestContainersConfiguration.class, TestInterceptorConfiguration.class})
+@Import({TestContainersConfiguration.class, SamlIdpContainerConfiguration.class, TestInterceptorConfiguration.class})
 @ContextConfiguration(initializers = SeleniumTest.Initializer.class)
 public class SeleniumTest {
-    public static Network NETWORK = Network.newNetwork();
+    public static final String url = "https://host.testcontainers.internal:8090";
 
-    public static String url = "https://host.testcontainers.internal:8090";
     protected RemoteWebDriver driver;
 
     @Autowired
     private BootstrapDevMode bootstrapper;
 
-	@Autowired
-	private TestDataBootstrap testDataBootstrap;
+    @Autowired
+    private TestDataBootstrap testDataBootstrap;
 
     @Value("${tests.username}")
     private String username;
@@ -62,14 +60,11 @@ public class SeleniumTest {
     @Value("${tests.password}")
     private String password;
 
-	static class Initializer implements ApplicationContextInitializer<ConfigurableApplicationContext> {
-
+    static class Initializer implements ApplicationContextInitializer<ConfigurableApplicationContext> {
         @Override
         public void initialize(ConfigurableApplicationContext applicationContext) {
             applicationContext.addApplicationListener(
-                    (ApplicationListener<WebServerInitializedEvent>) _ -> {
-                        Testcontainers.exposeHostPorts(8090);
-                    }
+                    (ApplicationListener<WebServerInitializedEvent>) _ -> Testcontainers.exposeHostPorts(8090)
             );
         }
     }
@@ -77,20 +72,19 @@ public class SeleniumTest {
     @Container
     public BrowserWebDriverContainer<?> seleniumContainer =
             new BrowserWebDriverContainer<>()
-                    .withNetwork(NETWORK)
+                    .withNetwork(TestContainersConfiguration.NETWORK)
                     .withRecordingMode(BrowserWebDriverContainer.VncRecordingMode.RECORD_FAILING,
                             new File("./target"),
-                            VncRecordingContainer.VncRecordingFormat.MP4
-                    )
+                            VncRecordingContainer.VncRecordingFormat.MP4)
                     .withRecordingFileFactory(new DefaultRecordingFileFactory());
 
     @BeforeEach
     public void before() throws Exception {
         bootstrapper.init(false);
-		testDataBootstrap.runManually();
+        testDataBootstrap.runManually();
         initDriver();
         login();
-	}
+    }
 
     @AfterEach
     public void after() {
@@ -98,7 +92,6 @@ public class SeleniumTest {
     }
 
     private void logout() {
-        // logout
         driver.get(url + "/ui/userroles/list");
         try {
             WebElement logoutForm = driver.findElement(By.id("logout_form"));
@@ -106,37 +99,28 @@ public class SeleniumTest {
         } catch (NoSuchElementException ignored) {}
     }
 
-	private void login() {
-		WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(15));
-		driver.get(url + "/ui/userroles/list");
+    private void login() {
+        WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(15));
+        driver.get(url + "/ui/userroles/list");
 
-		if (driver.getTitle().equals("Home Realm Discovery")) {
-			driver.executeScript("HRD.selection('AD AUTHORITY')");
-		}
+        WebElement usernameInput = wait.until(ExpectedConditions.elementToBeClickable(By.id("username")));
+        usernameInput.clear();
+        usernameInput.sendKeys(username);
 
-		if (driver.getTitle().equals("OS2faktor")) {
-			WebElement usernameInputBox = wait.until(ExpectedConditions.elementToBeClickable(By.name("username")));
-			WebElement passwordInputBox = wait.until(ExpectedConditions.elementToBeClickable(By.name("password")));
-			WebElement submitButton = wait.until(ExpectedConditions.elementToBeClickable(By.className("btn-primary")));
+        driver.findElement(By.id("password")).sendKeys(password);
+        driver.findElement(By.id("kc-login")).click();
 
-			usernameInputBox.clear();
-			usernameInputBox.sendKeys(username);
-
-			passwordInputBox.clear();
-			passwordInputBox.sendKeys(password);
-			submitButton.click();
-		}
-	}
-
+        new WebDriverWait(driver, Duration.ofSeconds(15))
+                .until(d -> d.getCurrentUrl().startsWith(url));
+    }
 
     private void initDriver() {
         ChromeOptions options = new ChromeOptions();
         options.addArguments("window-size=1024,768");
-		options.addArguments("--disable-dev-shm-usage");
-		options.addArguments("--no-sandbox");
+        options.addArguments("--disable-dev-shm-usage");
+        options.addArguments("--no-sandbox");
         options.setAcceptInsecureCerts(true);
         driver = new RemoteWebDriver(seleniumContainer.getSeleniumAddress(), options);
         driver.manage().timeouts().implicitlyWait(Duration.ofSeconds(5));
     }
-
 }

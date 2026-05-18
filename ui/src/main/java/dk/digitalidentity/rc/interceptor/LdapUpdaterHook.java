@@ -54,6 +54,9 @@ public class LdapUpdaterHook implements RoleChangeHook {
 		Set<Long> processedUserRoleIds = new HashSet<>();
 
 		for (CurrentAssignment assignment : assignments) {
+			if (assignment.getUserRole() == null) {
+				continue;
+			}
 			if (processedUserRoleIds.add(assignment.getUserRole().getId())) {
 				pendingADUpdateService.addUserRoleToQueue(assignment.getUserRole());
 			}
@@ -68,6 +71,9 @@ public class LdapUpdaterHook implements RoleChangeHook {
 		Set<Long> processedUserRoleIds = new HashSet<>();
 
 		for (CurrentAssignment assignment : assignments) {
+			if (assignment.getUserRole() == null) {
+				continue;
+			}
 			if (processedUserRoleIds.add(assignment.getUserRole().getId())) {
 				pendingADUpdateService.addUserRoleToQueue(assignment.getUserRole());
 			}

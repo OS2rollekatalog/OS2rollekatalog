@@ -4,12 +4,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
 import dk.digitalidentity.rc.dao.model.ConstraintType;
 import dk.digitalidentity.rc.dao.model.ConstraintTypeSupport;
-import dk.digitalidentity.rc.dao.model.DirtyNemLoginUser;
 import dk.digitalidentity.rc.dao.model.ItSystem;
-import dk.digitalidentity.rc.dao.model.OrgUnit;
 import dk.digitalidentity.rc.dao.model.PNumber;
 import dk.digitalidentity.rc.dao.model.PostponedConstraint;
-import dk.digitalidentity.rc.dao.model.RoleGroup;
 import dk.digitalidentity.rc.dao.model.SENumber;
 import dk.digitalidentity.rc.dao.model.SystemRole;
 import dk.digitalidentity.rc.dao.model.SystemRoleAssignment;
@@ -54,7 +51,6 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestClient;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -105,69 +101,32 @@ public class NemLoginService {
 	private ConstraintTypeService constraintTypeService;
 
 	@Autowired
-	private DirtyNemLoginUserService dirtyNemLoginUserService;
-
-	@Autowired
 	private AssignmentService assignmentService;
 
-	public void addRoleGroupToQueue(RoleGroup roleGroup) {
-		if (roleGroup != null && roleGroup.getUserRoleAssignments() != null) {
-			List<UserRole> userRoles = roleGroup.getUserRoleAssignments().stream().map(ura -> ura.getUserRole()).collect(Collectors.toList());
-
-			for (UserRole userRole : userRoles) {
-				addUserRoleToQueue(userRole);
-			}
-		}
-	}
-
-	public void addUserRoleToQueue(UserRole userRole) {
-		ItSystem itSystem = userRole.getItSystem();
-
-		if (!itSystem.getSystemType().equals(ItSystemType.NEMLOGIN)) {
-			return;
-		}
-
-		Set<CurrentAssignment> assignments = assignmentService.getActiveByUserRole(userRole);
-		for (CurrentAssignment assignment : assignments) {
-			addUserToQueue(assignment.getUser());
-		}
-	}
-
-	public void addOrgUnitToQueue(OrgUnit orgUnit, boolean inherit) {
-		for (User user : userService.findByOrgUnit(orgUnit)) {
-			addUserToQueue(user);
-		}
-
-		// check if the assignment to the OrgUnit is flagged with inherit
-		if (inherit) {
-			addOrgUnitToQueueRecursive(orgUnit.getChildren());
-		}
-	}
-
-	private void addOrgUnitToQueueRecursive(List<OrgUnit> children) {
-		if (children == null) {
-			return;
-		}
-
-		for (OrgUnit child : children) {
-			for (User user : userService.findByOrgUnit(child)) {
-				addUserToQueue(user);
-			}
-
-			addOrgUnitToQueueRecursive(child.getChildren());
-		}
-	}
-
-	public void addUserToQueue(User user) {
+	public void syncUserRoleAssignments(User user) {
 		if (!StringUtils.hasLength(user.getNemloginUuid()) || user.isDeleted()) {
 			return;
 		}
 
-		DirtyNemLoginUser dirty = new DirtyNemLoginUser();
-		dirty.setUser(user);
-		dirty.setTimestamp(LocalDateTime.now());
+		List<ItSystem> itSystems = itSystemService.getBySystemType(ItSystemType.NEMLOGIN);
+		if (itSystems == null || itSystems.size() != 1) {
+			log.error("Could not find a unique NemLog-in it-system (either 0 or > 1 was found!)");
+			return;
+		}
+		ItSystem itSystem = itSystems.get(0);
 
-		dirtyNemLoginUserService.save(dirty);
+		Set<String> systemRoleIdentifiers = systemRoleService.findByItSystem(itSystem).stream()
+			.map(SystemRole::getIdentifier)
+			.collect(Collectors.toSet());
+
+		Set<CurrentAssignment> assignments = assignmentService.getByUserAndItSystemsWithRoleDetails(user, Collections.singletonList(itSystem));
+
+		try {
+			log.info("Checking for NemLog-in role modifications on user with uuid: {}", user.getUuid());
+			syncNemLoginRolesForUser(user, assignments, itSystem, systemRoleIdentifiers);
+		} catch (Exception ex) {
+			log.error("Failed to process NemLog-in role modifications on user with uuid: {}", user.getUuid(), ex);
+		}
 	}
 
 	@Transactional
@@ -624,56 +583,6 @@ public class NemLoginService {
 		}
 
 		log.info("Done synchronizing NemLog-in roles");
-	}
-
-	// This is called from NemLoginUpdateTask and does a periodic sync of data from OS2rollekatalog to NemLog-in
-	// - synchronize any dirty user's roles (flagged as such by NemLoginUpdaterHook)
-	public void updateUserRoleAssignments() {
-		List<ItSystem> itSystems = itSystemService.getBySystemType(ItSystemType.NEMLOGIN);
-		if (itSystems == null || itSystems.size() != 1) {
-			log.error("Could not find a unique NemLog-in it-system (either 0 or > 1 was found!)");
-			return;
-		}
-		ItSystem itSystem = itSystems.get(0);
-
-		Map<DirtyNemLoginUser, Set<CurrentAssignment>> dirtyUsers = dirtyNemLoginUserService.findAll(Collections.singletonList(itSystem));
-		if (dirtyUsers.isEmpty()) {
-			return;
-		}
-
-		List<DirtyNemLoginUser> processed = new ArrayList<>();
-		Set<String> seen = new HashSet<>();
-
-		Set<String> systemRoleIdentifiers = systemRoleService.findByItSystem(itSystem).stream().map(sr -> sr.getIdentifier()).collect(Collectors.toSet());
-
-		for (DirtyNemLoginUser dirtyUser : dirtyUsers.keySet()) {
-			if (!seen.contains(dirtyUser.getUser().getUuid())) {
-				log.info("Checking for NemLog-in role modifications on user with uuid: " + dirtyUser.getUser().getUuid());
-
-				try {
-					// ensure we only process each of these once
-					seen.add(dirtyUser.getUser().getUuid());
-
-					if (dirtyUser.getUser().getNemloginUuid() != null && !dirtyUser.getUser().isDeleted()) {
-						syncNemLoginRolesForUser(dirtyUser.getUser(), dirtyUsers.get(dirtyUser), itSystem, systemRoleIdentifiers);
-					}
-
-					processed.add(dirtyUser);
-					processed.addAll(dirtyUsers.keySet().stream().filter(d -> d.getUser().getUuid().equals(dirtyUser.getUser().getUuid())).collect(Collectors.toList()));
-				}
-				catch (Exception ex) {
-					log.error("Failed to process NemLog-in role modifications on user with uuid: " + dirtyUser.getUser().getUuid(), ex);
-
-					// if it failed, we do not flag it as processed
-					continue;
-				}
-			}
-		}
-
-		// cleanup queue
-		dirtyNemLoginUserService.deleteAll(processed);
-
-		log.info("DirtyNemLoginUser synchronization completed");
 	}
 
 	public void fullRoleSync() {

@@ -370,6 +370,12 @@
 			<version>2.0.0</version>
 			<scope>test</scope>
 		</dependency>
+		<dependency>
+			<groupId>com.github.dasniko</groupId>
+			<artifactId>testcontainers-keycloak</artifactId>
+			<version>3.4.0</version>
+			<scope>test</scope>
+		</dependency>
 
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
@@ -434,7 +440,7 @@
 		<dependency>
 			<groupId>dk.digitalidentity</groupId>
 			<artifactId>simple-queue</artifactId>
-			<version>1.1.15</version>
+			<version>1.1.22</version>
 		</dependency>
 
 <!--		&lt;!&ndash; This is apparently needed to be added to send base64 inline images.-->

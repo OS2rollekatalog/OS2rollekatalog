@@ -257,20 +257,20 @@ public class RoleAssignmentApiV2 {
 	@Transactional
 	@Operation(summary = "Delete an UserRole assignment from OrgUnit.")
 	@DeleteMapping(value = "organisation/assignment/userrole/{assignmentId}")
-	public ResponseEntity<Void>deleteUserRoleAssignment(@PathVariable final Long assignmentId) {
-		final UserRole userRole = userRoleService.getOptionalById(assignmentId)
+	public ResponseEntity<Void> deleteUserRoleAssignment(@PathVariable final Long assignmentId) {
+		final OrgUnitUserRoleAssignment assignment = ouAssignmentService.getOrgUnitUserRoleAssignment(assignmentId)
 				.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
-		userRoleService.delete(userRole);
+		orgUnitService.removeUserRoleAssignment(assignment.getOrgUnit(), assignment);
 		return new ResponseEntity<>(HttpStatus.NO_CONTENT);
 	}
 
 	@Transactional
 	@Operation(summary = "Delete an RoleGroup assignment from OrgUnit.")
 	@DeleteMapping(value = "organisation/assignment/rolegroup/{assignmentId}")
-	public ResponseEntity<Void>deleteRoleGroupAssignment(@PathVariable final Long assignmentId) {
-		final RoleGroup roleGroup = roleGroupService.getOptionalById(assignmentId)
+	public ResponseEntity<Void> deleteRoleGroupAssignment(@PathVariable final Long assignmentId) {
+		final OrgUnitRoleGroupAssignment assignment = ouAssignmentService.getOrgUnitRoleGroupAssignment(assignmentId)
 				.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
-		roleGroupService.delete(roleGroup);
+		orgUnitService.removeRoleGroupAssignment(assignment.getOrgUnit(), assignment);
 		return new ResponseEntity<>(HttpStatus.NO_CONTENT);
 	}
 

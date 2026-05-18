@@ -11,7 +11,7 @@ section=${T(dk.digitalidentity.rc.security.permission.Section)}">
     <div class="content-wrapper">
       <h3>
         <span th:text="#{html.navbar.management.substitute}"></span>
-        <button id="createManagerSubstituteButton" class="btn btn-primary btn-lg" th:if="${@permissionCheck.isAllowed(section.MANAGER, permission.UPDATE)}" style="float: right;" th:text="#{html.page.button.create}"></button>
+        <button id="createManagerSubstituteButton" class="btn btn-primary btn-lg" th:if="${canManageSubstitutes && @permissionCheck.isAllowed(section.MANAGER, permission.UPDATE)}" style="float: right;" th:text="#{html.page.button.create}"></button>
       </h3>
       <div class="panel panel-default">
         <div class="panel-heading"></div>

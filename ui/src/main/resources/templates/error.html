@@ -3,9 +3,8 @@
 <head th:replace="~{fragments/header :: header (customTitle='Der er opstået en fejl!')}"></head>
 <body class="layout-fixed">
 	<div class="wrapper">
-		<header th:replace="~{fragments/navbar :: navbar-header}"></header>
-		<aside th:replace="~{fragments/navbar :: navbar-aside (page = 'index')}"></aside>
- 
+		<header th:replace="~{fragments/navbar :: navbar-header-unauthenticated}"></header>
+
 		<section>
 			<div class="content-wrapper">
 				<h3>

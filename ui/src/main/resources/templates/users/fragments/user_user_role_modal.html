@@ -156,7 +156,7 @@
 	    			   data : JSON.stringify(constraints),
 	    			   success: function(response) {
 	    				   modalAjaxService.showInfoNotification(userRoleModalService.fieldUpdatedMsg);
-						   userRoleModalService.parentService.loadRolesFragmentWhenReady();
+						   userRoleModalService.parentService.loadAddUserRoleFragmentWhenReady();
 	    			   },
 	    			   error: errorHandler(userRoleModalService.fieldNotUpdatedMsg)
 	    		});
@@ -184,7 +184,7 @@
 	    			   type: 'post',
 	    			   success: function(response) {
 	    				   modalAjaxService.showInfoNotification(userRoleModalService.fieldUpdatedMsg);
-						   userRoleModalService.parentService.loadRolesFragmentWhenReady();
+						   userRoleModalService.parentService.loadAddUserRoleFragmentWhenReady();
 	    			   },
 	    			   error: errorHandler(userRoleModalService.fieldNotUpdatedMsg)
 	    		});

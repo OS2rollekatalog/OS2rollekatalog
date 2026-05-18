@@ -1,19 +1,27 @@
 package dk.digitalidentity.rc.dao.assignment;
 
 import dk.digitalidentity.rc.dao.model.assignment.HistoricAssignment;
+import jakarta.persistence.QueryHint;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.jpa.repository.QueryHints;
 import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
 import java.util.Set;
+import java.util.stream.Stream;
 
 public interface HistoricAssignmentDao extends JpaRepository<HistoricAssignment, Long> {
 	Set<HistoricAssignment> findByUserUuid(String userUuid);
 
 	Set<HistoricAssignment> findAllByRecordHashIn(Collection<String> recordHashes);
+
+	@org.springframework.data.jpa.repository.Modifying
+	@org.springframework.data.jpa.repository.Query("UPDATE HistoricAssignment ha SET ha.validTo = :validTo WHERE ha.recordHash IN :recordHashes AND ha.validTo IS NULL")
+	void updateValidToByRecordHashIn(@org.springframework.data.repository.query.Param("recordHashes") Collection<String> recordHashes,
+	                                 @org.springframework.data.repository.query.Param("validTo") java.time.LocalDateTime validTo);
 
 	@Query("SELECT ha FROM HistoricAssignment ha " +
 		"WHERE ha.validFrom <= :endOfDay " +
@@ -27,6 +35,70 @@ public interface HistoricAssignmentDao extends JpaRepository<HistoricAssignment,
 		"AND (ha.validTo IS NULL OR ha.validTo >= :startOfDay) " +
 		"AND ha.itSystemId IN :itSystemIds")
 	List<HistoricAssignment> findActiveAtDateAndItSystemIdIn(
+		@Param("startOfDay") LocalDateTime startOfDay,
+		@Param("endOfDay") LocalDateTime endOfDay,
+		@Param("itSystemIds") Collection<Long> itSystemIds);
+
+	/**
+	 * Bulk projection of all constraints for assignments active at the given date.
+	 * Returns [assignmentId, constraintTypeName, value] — no lazy loading during streaming.
+	 */
+	@Query("SELECT hac.historicAssignment.id, hac.constraintTypeName, hac.value " +
+		"FROM HistoricAssignmentConstraint hac " +
+		"WHERE hac.historicAssignment.validFrom <= :endOfDay " +
+		"AND (hac.historicAssignment.validTo IS NULL OR hac.historicAssignment.validTo >= :startOfDay)")
+	List<Object[]> findConstraintProjectionsForDate(
+		@Param("startOfDay") LocalDateTime startOfDay,
+		@Param("endOfDay") LocalDateTime endOfDay);
+
+	@Query("SELECT hac.historicAssignment.id, hac.constraintTypeName, hac.value " +
+		"FROM HistoricAssignmentConstraint hac " +
+		"WHERE hac.historicAssignment.validFrom <= :endOfDay " +
+		"AND (hac.historicAssignment.validTo IS NULL OR hac.historicAssignment.validTo >= :startOfDay) " +
+		"AND hac.historicAssignment.itSystemId IN :itSystemIds")
+	List<Object[]> findConstraintProjectionsForDateAndItSystems(
+		@Param("startOfDay") LocalDateTime startOfDay,
+		@Param("endOfDay") LocalDateTime endOfDay,
+		@Param("itSystemIds") Collection<Long> itSystemIds);
+
+	/** Lightweight projection returning [userUuid, itSystemName, userRoleId, startDate, stopDate] — used for weight pre-computation. */
+	@Query("SELECT ha.userUuid, ha.itSystemName, ha.userRoleId, ha.startDate, ha.stopDate FROM HistoricAssignment ha " +
+		"WHERE ha.validFrom <= :endOfDay " +
+		"AND (ha.validTo IS NULL OR ha.validTo >= :startOfDay)")
+	List<Object[]> findWeightTriples(
+		@Param("startOfDay") LocalDateTime startOfDay,
+		@Param("endOfDay") LocalDateTime endOfDay);
+
+	@Query("SELECT ha.userUuid, ha.itSystemName, ha.userRoleId, ha.startDate, ha.stopDate FROM HistoricAssignment ha " +
+		"WHERE ha.validFrom <= :endOfDay " +
+		"AND (ha.validTo IS NULL OR ha.validTo >= :startOfDay) " +
+		"AND ha.itSystemId IN :itSystemIds")
+	List<Object[]> findWeightTriplesForItSystems(
+		@Param("startOfDay") LocalDateTime startOfDay,
+		@Param("endOfDay") LocalDateTime endOfDay,
+		@Param("itSystemIds") Collection<Long> itSystemIds);
+
+	/** Streams assignments using a server-side cursor — caller must be @Transactional and close the stream. */
+	@QueryHints({
+		@QueryHint(name = org.hibernate.jpa.HibernateHints.HINT_FETCH_SIZE, value = "500"),
+		@QueryHint(name = org.hibernate.jpa.HibernateHints.HINT_READ_ONLY, value = "true")
+	})
+	@Query("SELECT ha FROM HistoricAssignment ha " +
+		"WHERE ha.validFrom <= :endOfDay " +
+		"AND (ha.validTo IS NULL OR ha.validTo >= :startOfDay)")
+	Stream<HistoricAssignment> streamActiveAtDate(
+		@Param("startOfDay") LocalDateTime startOfDay,
+		@Param("endOfDay") LocalDateTime endOfDay);
+
+	@QueryHints({
+		@QueryHint(name = org.hibernate.jpa.HibernateHints.HINT_FETCH_SIZE, value = "500"),
+		@QueryHint(name = org.hibernate.jpa.HibernateHints.HINT_READ_ONLY, value = "true")
+	})
+	@Query("SELECT ha FROM HistoricAssignment ha " +
+		"WHERE ha.validFrom <= :endOfDay " +
+		"AND (ha.validTo IS NULL OR ha.validTo >= :startOfDay) " +
+		"AND ha.itSystemId IN :itSystemIds")
+	Stream<HistoricAssignment> streamActiveAtDateAndItSystemIdIn(
 		@Param("startOfDay") LocalDateTime startOfDay,
 		@Param("endOfDay") LocalDateTime endOfDay,
 		@Param("itSystemIds") Collection<Long> itSystemIds);

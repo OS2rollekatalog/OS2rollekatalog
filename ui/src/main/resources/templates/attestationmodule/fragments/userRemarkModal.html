@@ -20,7 +20,6 @@
                     </form>
 
                     <p th:text="#{attestationmodule.html.orgunits.attestate.remarks.table.explainer}"></p>
-					<p style="display:none; color: red;" id="userRoleSelectError" th:text="#{attestationmodule.html.itsystems.attestate.reject.roleselect.error}"></p>
                     <table id="userRemarkModalTable" class="table table-striped table-bordered table-hover" >
                         <thead>
                             <tr>
@@ -44,6 +43,7 @@
                     </table>
                 </div>
                 <div class="modal-footer" th:if="${!openInView}">
+                    <p style="display:none; color: red; margin-right: auto; margin-bottom: 0;" id="userRoleSelectError" th:text="#{attestationmodule.html.itsystems.attestate.reject.roleselect.error}"></p>
                     <button type="button" class="btn btn-secondary" data-dismiss="modal" th:text="#{attestationmodule.html.attestation.controls.cancel}"></button>
                     <button type="button" class="btn btn-primary" id="modalSaveBtn" th:text="#{attestationmodule.html.attestation.controls.save}"></button>
                 </div>

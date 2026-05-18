@@ -110,11 +110,7 @@
 						</ul>
 
 						<div class="tab-content">
-							<div id="roles_menu" class="tab-pane fade in active">
-								<div th:if="${stale}" id="stale-loading" style="padding: 20px; text-align: center;">
-									<i class="fa fa-spinner fa-spin fa-3x" style="color: #337ab7;"></i>
-								</div>
-							</div>
+							<div id="roles_menu" class="tab-pane fade in active"></div>
 
 							<div id="excepted_users_menu" class="tab-pane fade" th:if="${not #lists.isEmpty(exceptedAssignments)}">
 								<h4 th:text="#{html.page.users.view.exceptedUsers.title}"></h4>
@@ -207,6 +203,7 @@
 		var baseUrl = [[@{/}]];
 		let datatableService ;
 		let stale = [[${stale}]];
+		var txtQueueSpinner = [[#{html.common.queue.spinner.working}]];
 
 		+]*/
 		var token = $("meta[name='_csrf']").attr("content");
@@ -243,8 +240,9 @@
 
 			//Initialize tabs
 			if (stale) {
-				const userStaleService = new UserStaleService(user);
-				userStaleService.watch(() => rolesService.loadRolesFragment());
+				const spinner = new QueueDrainService('#roles_menu', { messageId: user, message: txtQueueSpinner });
+				spinner.show();
+				spinner.watch(() => rolesService.loadRolesFragment());
 			} else {
 				rolesService.loadRolesFragment();
 			}
@@ -326,9 +324,17 @@
 			}
 
 			this.loadRolesFragmentWhenReady = function () {
-				$("#roles_menu").html('<div id="stale-loading" style="padding: 20px; text-align: center;"><i class="fa fa-spinner fa-spin fa-3x" style="color: #337ab7;"></i></div>');
-				const userStaleService = new UserStaleService(user);
-				userStaleService.watch(() => rolesService.loadRolesFragment());
+				// Don't empty #roles_menu — the overlay sits on top of the existing fragment so the
+				// page height and scroll position are preserved while the queue drains.
+				const spinner = new QueueDrainService('#roles_menu', { messageId: user, message: txtQueueSpinner });
+				spinner.show();
+				spinner.watch(() => rolesService.loadRolesFragment());
+			}
+
+			this.loadAddUserRoleFragmentWhenReady = function () {
+				const spinner = new QueueDrainService('#roles_menu', { messageId: user, message: txtQueueSpinner });
+				spinner.show();
+				spinner.watch(() => rolesService.loadAddUserRoleFragment());
 			}
 
 			this.loadAddUserRoleFragment = function () {

@@ -150,7 +150,6 @@ class AttestationReportServiceTest {
 					"ou-uuid",                     // roleOuUuid
 					"Test OU",                     // roleOuName
 					null,                          // responsibleOuUuid
-					false,                         // manager
 					AssignedThroughType.DIRECT,    // assignedThroughType
 					"Direct Assignment",           // assignedThroughName
 					null,                          // assignedThroughUuid
@@ -276,7 +275,6 @@ class AttestationReportServiceTest {
 				"ou-uuid",                     // roleOuUuid
 				"Test OU",                     // roleOuName
 				null,                          // responsibleOuUuid
-				false,                         // manager
 				AssignedThroughType.DIRECT,    // assignedThroughType
 				"Direct Assignment",           // assignedThroughName
 				null,                          // assignedThroughUuid

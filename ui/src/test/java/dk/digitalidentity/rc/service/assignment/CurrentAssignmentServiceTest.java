@@ -17,14 +17,17 @@ import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
 import static dk.digitalidentity.rc.mockfactory.assignment.MockFactory.createCurrentAssignment;
+import static dk.digitalidentity.rc.mockfactory.assignment.MockFactory.createUser;
 import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 
 @ExtendWith(MockitoExtension.class)
 class CurrentAssignmentServiceTest {
@@ -49,7 +52,7 @@ class CurrentAssignmentServiceTest {
 	// ---- ------------- ---- //
 
 	@Nested
-	class saveAllTests {
+	class saveAllForUsersTests {
 
 		@Test
 		@DisplayName("should delete existing assignments not matching any of the new ones")
@@ -60,11 +63,11 @@ class CurrentAssignmentServiceTest {
 			CurrentAssignment newAssignmentNonExisting = createCurrentAssignment(null, "new-hash", testUser);
 			CurrentAssignment newAssignmentExisting = createCurrentAssignment(null, "existing-hash", testUser);
 
-			given(currentAssignmentDao.findByUser(testUser))
+			given(currentAssignmentDao.findByUserIn(Set.of(testUser)))
 				.willReturn(new HashSet<>(Arrays.asList(existingNonMatching, existingMatching)));
 
 			// ---- When ---- //
-			currentAssignmentService.saveAll(testUser, Set.of(newAssignmentNonExisting, newAssignmentExisting));
+			currentAssignmentService.saveAllForUsers(Map.of(testUser, Set.of(newAssignmentNonExisting, newAssignmentExisting)));
 
 			// ---- Then ---- //
 			ArgumentCaptor<List<Long>> deleteCaptor = ArgumentCaptor.forClass(List.class);
@@ -86,11 +89,11 @@ class CurrentAssignmentServiceTest {
 			CurrentAssignment newAssignmentNonExisting = createCurrentAssignment(null, "new-hash", testUser);
 			CurrentAssignment newAssignmentExisting = createCurrentAssignment(null, "existing-hash", testUser);
 
-			given(currentAssignmentDao.findByUser(testUser))
+			given(currentAssignmentDao.findByUserIn(Set.of(testUser)))
 				.willReturn(new HashSet<>(Arrays.asList(existingNonMatching, existingMatching)));
 
 			// ---- When ---- //
-			currentAssignmentService.saveAll(testUser, Set.of(newAssignmentNonExisting, newAssignmentExisting));
+			currentAssignmentService.saveAllForUsers(Map.of(testUser, Set.of(newAssignmentNonExisting, newAssignmentExisting)));
 
 			// ---- Then ---- //
 			ArgumentCaptor<Set<CurrentAssignment>> saveCaptor = ArgumentCaptor.forClass(Set.class);
@@ -118,11 +121,11 @@ class CurrentAssignmentServiceTest {
 			CurrentAssignment newAssignmentNonExisting = createCurrentAssignment(null, "new-hash", testUser);
 			CurrentAssignment newAssignmentExisting = createCurrentAssignment(null, "existing-hash", testUser);
 
-			given(currentAssignmentDao.findByUser(testUser))
+			given(currentAssignmentDao.findByUserIn(Set.of(testUser)))
 				.willReturn(Set.of(existingNonMatching, existingMatching));
 
 			// ---- When ---- //
-			currentAssignmentService.saveAll(testUser, Set.of(newAssignmentNonExisting, newAssignmentExisting));
+			currentAssignmentService.saveAllForUsers(Map.of(testUser, Set.of(newAssignmentNonExisting, newAssignmentExisting)));
 
 			// ---- Then ---- //
 			ArgumentCaptor<Set<CurrentAssignment>> deletedCaptor = ArgumentCaptor.forClass(Set.class);
@@ -142,7 +145,7 @@ class CurrentAssignmentServiceTest {
 		}
 
 		@Test
-		@DisplayName("should update existing that matches a new one")
+		@DisplayName("should create historic assignments for new current assignments")
 		void shouldCreateHistoricAssignmentsForNew() {
 			// ---- Given ---- //
 			CurrentAssignment existingNonMatching = createCurrentAssignment(1L, "outdated-hash", testUser);
@@ -150,20 +153,20 @@ class CurrentAssignmentServiceTest {
 			CurrentAssignment newAssignmentNonExisting = createCurrentAssignment(null, "new-hash", testUser);
 			CurrentAssignment newAssignmentExisting = createCurrentAssignment(null, "existing-hash", testUser);
 
-			given(currentAssignmentDao.findByUser(testUser))
+			given(currentAssignmentDao.findByUserIn(Set.of(testUser)))
 				.willReturn(Set.of(existingNonMatching, existingMatching));
 
 			// ---- When ---- //
-			currentAssignmentService.saveAll(testUser, Set.of(newAssignmentNonExisting, newAssignmentExisting));
+			currentAssignmentService.saveAllForUsers(Map.of(testUser, Set.of(newAssignmentNonExisting, newAssignmentExisting)));
 
 			// ---- Then ---- //
-			ArgumentCaptor<Set<CurrentAssignment>> deletedCaptor = ArgumentCaptor.forClass(Set.class);
+			ArgumentCaptor<Set<CurrentAssignment>> createdCaptor = ArgumentCaptor.forClass(Set.class);
 
 			// verify method is called
-			verify(historicAssignmentService).createFromCurrentAssignments(deletedCaptor.capture());
+			verify(historicAssignmentService).createFromCurrentAssignments(createdCaptor.capture());
 
 			// verify that the new assignment is saved
-			Set<String> createdHistoricHashes = deletedCaptor.getValue().stream()
+			Set<String> createdHistoricHashes = createdCaptor.getValue().stream()
 				.map(CurrentAssignment::getRecordHash)
 				.collect(Collectors.toSet());
 
@@ -171,6 +174,49 @@ class CurrentAssignmentServiceTest {
 			assertThat(createdHistoricHashes)
 				.contains("new-hash")
 				.doesNotContain("outdated-hash", "existing-hash");
+		}
+
+		@Test
+		@DisplayName("should not touch the DB when input map is empty")
+		void shouldShortCircuitOnEmptyInput() {
+			// ---- When ---- //
+			currentAssignmentService.saveAllForUsers(Map.of());
+
+			// ---- Then ---- //
+			verifyNoInteractions(currentAssignmentDao, historicAssignmentService);
+		}
+
+		@Test
+		@DisplayName("should isolate deletes and inserts per user when processing multiple users")
+		void shouldIsolateChangesPerUser() {
+			// ---- Given ---- //
+			User userA = createUser("user-a");
+			User userB = createUser("user-b");
+
+			CurrentAssignment existingA = createCurrentAssignment(1L, "hash-a-old", userA);
+			CurrentAssignment existingB = createCurrentAssignment(2L, "hash-b-old", userB);
+			CurrentAssignment newA = createCurrentAssignment(null, "hash-a-new", userA);
+			CurrentAssignment newB = createCurrentAssignment(null, "hash-b-old", userB); // unchanged
+
+			given(currentAssignmentDao.findByUserIn(Set.of(userA, userB)))
+				.willReturn(Set.of(existingA, existingB));
+
+			// ---- When ---- //
+			currentAssignmentService.saveAllForUsers(Map.of(userA, Set.of(newA), userB, Set.of(newB)));
+
+			// ---- Then ---- //
+			ArgumentCaptor<List<Long>> deleteCaptor = ArgumentCaptor.forClass(List.class);
+			verify(currentAssignmentDao).deleteAllById(deleteCaptor.capture());
+
+			// only userA's old assignment should be deleted, not userB's unchanged one
+			assertThat(deleteCaptor.getValue()).containsExactly(1L);
+
+			ArgumentCaptor<Set<CurrentAssignment>> saveCaptor = ArgumentCaptor.forClass(Set.class);
+			verify(currentAssignmentDao).saveAll(saveCaptor.capture());
+
+			// only userA's new assignment should be created
+			assertThat(saveCaptor.getValue().stream().map(CurrentAssignment::getRecordHash).collect(Collectors.toSet()))
+				.containsExactly("hash-a-new");
 		}
 	}
 }

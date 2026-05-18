@@ -328,7 +328,7 @@ public class UserController {
 
 		Set<CurrentAssignment> assignments = assignmentService.getDirectlyAssignedUserRolesForUserIncludingInactive(user);
 		CurrentAssignment currentAssignment = assignments.stream()
-			.filter(ca -> ca.getId() == assignmentId)
+			.filter(ca -> ca.getAssignmentId() == assignmentId)
 			.findFirst()
 			.orElse(null);
 

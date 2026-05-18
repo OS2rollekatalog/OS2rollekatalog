@@ -169,6 +169,63 @@ class FunctionAssignmentRuleTest {
 			// Assert
 			assertThat(result).isEqualTo(AssignmentAppliesResult.NOT_APPLICABLE);
 		}
+
+		@Test
+		@DisplayName("Should return POSITIVE when inherit=true and user's function is on position's child OU")
+		void shouldReturnPositiveWhenInheritTrueAndFunctionOnChildOU() {
+			// Arrange — Linette-scenariet: rolle tildelt på parent med inherit, brugerens position
+			// og funktion ligger sammen på en sub-OU.
+			OrgUnit parentOrgUnit = createOrgUnit("parent-org-unit-uuid", null);
+			OrgUnit childOrgUnit = createOrgUnit("child-org-unit-uuid", parentOrgUnit);
+			Position positionInChildUnit = createPosition(childOrgUnit, testTitle, testUser, false);
+			UserOUFunction userFunction = createUserOUFunction(testUser, childOrgUnit, testFunction);
+			testUser.setFunctionAssignments(List.of(userFunction));
+			OrgUnitUserRoleAssignment assignment = createFunctionAssignment(parentOrgUnit, List.of(testFunction), true, true);
+
+			// Act
+			AssignmentAppliesResult result = rule.applies(assignment, testUser, positionInChildUnit, parentOrgUnit);
+
+			// Assert
+			assertThat(result).isEqualTo(AssignmentAppliesResult.POSITIVE);
+		}
+
+		@Test
+		@DisplayName("Should return POSITIVE when inherit=true and user's function is on intermediate OU between position and assignment")
+		void shouldReturnPositiveWhenInheritTrueAndFunctionOnIntermediateOU() {
+			// Arrange
+			OrgUnit grandparentOrgUnit = createOrgUnit("grandparent-uuid", null);
+			OrgUnit parentOrgUnit = createOrgUnit("parent-uuid", grandparentOrgUnit);
+			OrgUnit childOrgUnit = createOrgUnit("child-uuid", parentOrgUnit);
+			Position positionInChildUnit = createPosition(childOrgUnit, testTitle, testUser, false);
+			UserOUFunction userFunction = createUserOUFunction(testUser, parentOrgUnit, testFunction);
+			testUser.setFunctionAssignments(List.of(userFunction));
+			OrgUnitUserRoleAssignment assignment = createFunctionAssignment(grandparentOrgUnit, List.of(testFunction), true, true);
+
+			// Act
+			AssignmentAppliesResult result = rule.applies(assignment, testUser, positionInChildUnit, grandparentOrgUnit);
+
+			// Assert
+			assertThat(result).isEqualTo(AssignmentAppliesResult.POSITIVE);
+		}
+
+		@Test
+		@DisplayName("Should return NOT_APPLICABLE when inherit=true and function is on OU above assignment's OU")
+		void shouldReturnNotApplicableWhenFunctionOnOuAboveAssignment() {
+			// Arrange — funktion på en OU som er forfader til assignment-OU'en, dvs. uden for inheritance-scope.
+			OrgUnit grandparentOrgUnit = createOrgUnit("grandparent-uuid", null);
+			OrgUnit parentOrgUnit = createOrgUnit("parent-uuid", grandparentOrgUnit);
+			OrgUnit childOrgUnit = createOrgUnit("child-uuid", parentOrgUnit);
+			Position positionInChildUnit = createPosition(childOrgUnit, testTitle, testUser, false);
+			UserOUFunction userFunction = createUserOUFunction(testUser, grandparentOrgUnit, testFunction);
+			testUser.setFunctionAssignments(List.of(userFunction));
+			OrgUnitUserRoleAssignment assignment = createFunctionAssignment(parentOrgUnit, List.of(testFunction), true, true);
+
+			// Act
+			AssignmentAppliesResult result = rule.applies(assignment, testUser, positionInChildUnit, parentOrgUnit);
+
+			// Assert
+			assertThat(result).isEqualTo(AssignmentAppliesResult.NOT_APPLICABLE);
+		}
 	}
 
 	@Nested
@@ -235,9 +292,25 @@ class FunctionAssignmentRuleTest {
 		}
 
 		@Test
-		@DisplayName("Should return POSITIVE when inherit=true and function matches even from different OrgUnit")
-		void shouldReturnPositiveWhenInheritTrueAndFunctionMatches() {
-			// Arrange
+		@DisplayName("Should return POSITIVE when inherit=true and function's OrgUnit is descendant of assignment's OrgUnit")
+		void shouldReturnPositiveWhenInheritTrueAndFunctionInDescendantOU() {
+			// Arrange — funktionens OU ligger i assignment-OU'ens subtree
+			OrgUnit assignmentOrgUnit = createOrgUnit("assignment-org-unit-uuid", null);
+			OrgUnit functionOrgUnit = createOrgUnit("function-org-unit-uuid", assignmentOrgUnit);
+			UserOUFunction functionAssignment = createUserOUFunction(testUser, functionOrgUnit, testFunction);
+			OrgUnitUserRoleAssignment assignment = createFunctionAssignment(assignmentOrgUnit, List.of(testFunction), true, true);
+
+			// Act
+			AssignmentAppliesResult result = rule.applies(assignment, testUser, functionAssignment, assignmentOrgUnit);
+
+			// Assert
+			assertThat(result).isEqualTo(AssignmentAppliesResult.POSITIVE);
+		}
+
+		@Test
+		@DisplayName("Should return NOT_APPLICABLE when inherit=true but function's OrgUnit is not in assignment's subtree")
+		void shouldReturnNotApplicableWhenInheritTrueButFunctionOutsideSubtree() {
+			// Arrange — funktionens OU ligger udenfor assignment-OU'ens subtree (ingen parent-relation)
 			OrgUnit functionOrgUnit = createOrgUnit("function-org-unit-uuid", null);
 			OrgUnit assignmentOrgUnit = createOrgUnit("assignment-org-unit-uuid", null);
 			UserOUFunction functionAssignment = createUserOUFunction(testUser, functionOrgUnit, testFunction);
@@ -247,7 +320,7 @@ class FunctionAssignmentRuleTest {
 			AssignmentAppliesResult result = rule.applies(assignment, testUser, functionAssignment, assignmentOrgUnit);
 
 			// Assert
-			assertThat(result).isEqualTo(AssignmentAppliesResult.POSITIVE);
+			assertThat(result).isEqualTo(AssignmentAppliesResult.NOT_APPLICABLE);
 		}
 	}
 }

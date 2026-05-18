@@ -99,7 +99,6 @@ public final class HistoricAssignmentAttestationMapper {
             ha.getAssignedThroughOUUuid(),
             ha.getAssignedThroughOUName(),
             ha.getResponsibleOUUuid(),
-            false,
             throughType,
             resolveAssignedThroughName(ha, throughType),
             resolveAssignedThroughUuid(ha, throughType),

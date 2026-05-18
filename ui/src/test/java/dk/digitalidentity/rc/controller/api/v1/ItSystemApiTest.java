@@ -22,6 +22,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
@@ -636,7 +637,7 @@ public class ItSystemApiTest extends AbstractApiTest {
 		assignment2.setAssignmentId(2L);
 		assignment2.setCreatedAt(LocalDateTime.now());
 		assignment2.setRecordHash(assignment2.generateRecordHash());
-		assignmentService.saveAll(userInDomain2, Set.of(assignment2, assignment1));
+		assignmentService.saveAllForUsers(Map.of(userInDomain2, Set.of(assignment2, assignment1)));
 
 		entityManager.flush();
 		entityManager.clear();

@@ -686,7 +686,7 @@ public class ReportController {
 		List<RequestAuthorizedRecord> result = new ArrayList<>();
 		for (ItSystem itSystem : itSystemService.findByIdentifier(Constants.ROLE_CATALOGUE_IDENTIFIER)) {
 			SystemRole systemRole = systemRoleService.getFirstByIdentifierAndItSystemId(Constants.ROLE_REQUESTAUTHORIZED, itSystem.getId());
-			List<UserRole> userRoles = systemRoleService.userRolesWithSystemRole(systemRole);
+			Set<UserRole> userRoles = systemRoleService.userRolesWithSystemRole(systemRole);
 			for (UserRole userRole : userRoles) {
 				Set<CurrentAssignment> assignments = assignmentService.getActiveByUserRole(userRole);
 				for (CurrentAssignment assignment : assignments) {

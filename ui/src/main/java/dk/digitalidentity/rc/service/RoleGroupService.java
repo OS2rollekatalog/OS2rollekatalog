@@ -69,6 +69,10 @@ public class RoleGroupService {
 		return roleGroupDao.findAll();
 	}
 
+	public List<RoleGroup> getByUserRole(UserRole userRole) {
+		return roleGroupDao.findByUserRoleAssignmentsUserRole(userRole);
+	}
+
 
 	public RoleGroup getById(long roleGroupId) {
 		return roleGroupDao.findById(roleGroupId).orElse(null);

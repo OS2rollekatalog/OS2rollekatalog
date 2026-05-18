@@ -47,6 +47,7 @@ import dk.digitalidentity.rc.service.KitosITSystemService;
 import dk.digitalidentity.rc.service.OrgUnitService;
 import dk.digitalidentity.rc.service.PendingADUpdateService;
 import dk.digitalidentity.rc.service.SystemRoleService;
+import dk.digitalidentity.rc.service.UserRoleCleanupService;
 import dk.digitalidentity.rc.service.UserRoleService;
 import dk.digitalidentity.rc.service.UserService;
 import lombok.extern.slf4j.Slf4j;
@@ -82,6 +83,9 @@ public class ItSystemRestController {
 
 	@Autowired
 	private AssignmentService assignmentService;
+
+	@Autowired
+	private UserRoleCleanupService userRoleCleanupService;
 
 	@PostMapping(value = { "/rest/systemrole/delete/{id}" })
 	@ResponseBody
@@ -467,7 +471,7 @@ public class ItSystemRestController {
 				continue;
 			}
 
-			userRoleService.delete(userRole);
+			userRoleCleanupService.deleteWithCleanup(userRole);
 		}
 
 		return new ResponseEntity<>(HttpStatus.OK);

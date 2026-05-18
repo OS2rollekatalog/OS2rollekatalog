@@ -20,7 +20,6 @@ import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
 import java.util.Set;
-import java.util.stream.Collectors;
 
 @Component
 @Profile("!test")
@@ -284,11 +283,27 @@ public class UpdatedAssignmentCalculatorHook implements RoleChangeHook {
 		addMultipleUsersToAssignmentCalculatorQueue(userUuids);
 	}
 
+	@Override
+	public void interceptDeleteUserRole(UserRole userRole) {
+		addAddUsersWithUserRole(userRole);
+	}
+
+	@Override
+	public void interceptDeleteRoleGroup(RoleGroup roleGroup) {
+		addUsersWithRoleGroup(roleGroup);
+	}
+
 	private void addAddUsersWithUserRole(UserRole userRole) {
-		final Set<String> userUuids = assignmentService.getByUserRole(userRole).stream()
-			.filter(a -> a.getUser() != null)
-			.map(a -> a.getUser().getUuid())
-			.collect(Collectors.toSet());
+		// En transient UserRole (endnu ikke persisteret) kan per definition ikke have
+		// CurrentAssignment-rækker, og Hibernate 6 afviser at bruge den som query-parameter.
+		if (userRole.getId() == 0) {
+			return;
+		}
+
+		// User-UUID-projektion frem for getByUserRole(): hookket kører @Before delete, og hvis vi
+		// trak CurrentAssignment-entiteter ind i persistence-konteksten ville de holde en reference
+		// til den nu slettede UserRole — næste iteration's auto-flush kaster så TransientPropertyValueException.
+		final Set<String> userUuids = assignmentService.getUserUuidsByUserRole(userRole);
 
 		addMultipleUsersToAssignmentCalculatorQueue(userUuids);
 	}

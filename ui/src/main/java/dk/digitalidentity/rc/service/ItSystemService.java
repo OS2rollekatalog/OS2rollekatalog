@@ -23,8 +23,6 @@ import dk.digitalidentity.rc.dao.ItSystemDao;
 import dk.digitalidentity.rc.dao.model.ItSystem;
 import dk.digitalidentity.rc.dao.model.KitosITSystemUser;
 import dk.digitalidentity.rc.dao.model.OrgUnit;
-import dk.digitalidentity.rc.dao.model.RoleGroup;
-import dk.digitalidentity.rc.dao.model.RoleGroupUserRoleAssignment;
 import dk.digitalidentity.rc.dao.model.SystemRole;
 import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserRole;
@@ -56,6 +54,10 @@ public class ItSystemService {
 
 	@Autowired
 	private AssignmentService assignmentService;
+
+	@Autowired
+	private UserRoleCleanupService userRoleCleanupService;
+
 
 	@Transactional(readOnly = true)
 	public List<ItSystem> getAllByIdInAndDeletedFalse(Collection<Long> ids) {
@@ -184,7 +186,9 @@ public class ItSystemService {
 		}
 		try {
 			final ItSystem itSystemById = getById(Long.parseLong(itSystemIdentifier));
-			return Collections.singletonList(itSystemById);
+			if (itSystemById != null) {
+				return Collections.singletonList(itSystemById);
+			}
 		} catch (Exception ex) {
 			 // ignore
 		}
@@ -267,27 +271,13 @@ public class ItSystemService {
 					continue;
 				}
 
-				// remove affected user roles from role groups
-				List<RoleGroup> roleGroups = roleGroupService.getAll();
-				for (RoleGroup roleGroup : roleGroups) {
-					List<UserRole> userRoles = roleGroup.getUserRoleAssignments().stream()
-							.map(RoleGroupUserRoleAssignment::getUserRole)
-							.filter(userRole -> (userRole.getItSystem().getId() == itSystem.getId()))
-							.toList();
-
-					if (userRoles != null && !userRoles.isEmpty()) {
-						for (UserRole userRole : userRoles) {
-							roleGroupService.removeUserRole(roleGroup, userRole);
-						}
-
-						roleGroupService.save(roleGroup);
-					}
-				}
-
-				// delete affected user roles
+				// delete affected user roles — cleanup-service fjerner rollebuket-,
+				// direkte bruger- og OU-tildelinger før sletningen. RoleChangeInterceptor
+				// queuer berørte brugere til genberegning, så orphan CAs efterladt af
+				// ON DELETE SET NULL ryddes op af recalculation-jobbet.
 				List<UserRole> userRoles = userRoleService.getByItSystem(itSystem);
 				for (UserRole userRole : userRoles) {
-					userRoleService.delete(userRole);
+					userRoleCleanupService.deleteWithCleanup(userRole);
 				}
 
 				// delete affected system roles

@@ -66,7 +66,7 @@ public class EmailService {
 			Session session = Session.getInstance(props);
 
 			MimeMessage msg = new MimeMessage(session);
-			msg.setFrom(new InternetAddress(configuration.getIntegrations().getEmail().getFrom(), "OS2rollekatalog"));
+			msg.setFrom(new InternetAddress(configuration.getIntegrations().getEmail().getFrom(), configuration.getIntegrations().getEmail().getFromName()));
 			// Internet parts support comma separation in their parse function, so use that instead of semicolon
 			if (email.contains(";")) {
 				String normalizedEmails = email.replaceAll("\\s*;\\s*", ",");

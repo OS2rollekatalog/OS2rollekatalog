@@ -89,6 +89,10 @@ public class AttestationEmailNotificationService {
 
     public void sendRequestForAdRemoval(final String requester, final String user, final String responsibleOu) {
         final EmailTemplate template = emailTemplateService.findByTemplateType(EmailTemplateType.ATTESTATION_REQUEST_FOR_REMOVAL);
+        if (!template.isEnabled()) {
+            log.info("{} is disabled, request for deletion notification not sent (leder={}, user={})", template.getTitle(), requester, user);
+            return;
+        }
         final String message = resolveRequestChangeMailMessage(requester, user, null, template, null, responsibleOu);
         final String title = resolveRequestChangeMailTitle(requester, user, null, responsibleOu, template);
         final String email = settingsService.getAttestationChangeEmail();
@@ -98,17 +102,24 @@ public class AttestationEmailNotificationService {
 
 
     public void sendRequestForChangeMail(final String requester, final String user, final String change, List<RoleAssignmentDTO> notApproved) {
-		log.info("Sending request for change notification (leder={}, change={})", requester, change);
         final EmailTemplate template = emailTemplateService.findByTemplateType(EmailTemplateType.ATTESTATION_REQUEST_FOR_CHANGE);
+        if (!template.isEnabled()) {
+            log.info("{} is disabled, request for change notification not sent (leder={}, change={})", template.getTitle(), requester, change);
+            return;
+        }
+        log.info("Sending request for change notification (leder={}, change={})", requester, change);
         final String message = resolveRequestChangeMailMessage(requester, user, change, template, notApproved, null);
         final String title = resolveRequestChangeMailTitle(requester, user, null, null, template);
         final String email = settingsService.getAttestationChangeEmail();
-        log.info("Sending request for change notification (leder=" + requester + ", change=" + change + ")");
         emailQueueService.queueEmail(email, title, message, template, null, null);
     }
 
     public void sendRequestForRoleChange(final String requester, final String userRole, final String itSystem, final String remark) {
         final EmailTemplate template = emailTemplateService.findByTemplateType(EmailTemplateType.ATTESTATION_REQUEST_FOR_ROLE_CHANGE);
+        if (!template.isEnabled()) {
+            log.info("{} is disabled, request for role change notification not sent (leder={}, it-system={}, userRole={})", template.getTitle(), requester, itSystem, userRole);
+            return;
+        }
         final String message = resolveRequestForRoleChangeMailMessage(requester, userRole, itSystem, remark, template);
         final String title = resolveRequestForRoleChangeMailTitle(requester, userRole, itSystem, remark, template);
         final String email = settingsService.getAttestationChangeEmail();
@@ -323,7 +334,7 @@ public class AttestationEmailNotificationService {
         }
     }
 
-    private List<User> findTargetUsers(final Attestation attestation, final boolean escalation) {
+    List<User> findTargetUsers(final Attestation attestation, final boolean escalation) {
         boolean systemEscalation = escalation && attestation.getResponsibleUserUuid() != null;
         User responsibleUser = null;
         if (attestation.getResponsibleUserUuid() != null) {
@@ -388,10 +399,8 @@ public class AttestationEmailNotificationService {
                 return Stream.concat(Stream.of(responsibleUser), substitutes.stream())
                         .collect(Collectors.toList());
             } else if (attestation.getAttestationType() == Attestation.AttestationType.MANAGER_DELEGATED_ATTESTATION) {
-                //Find delegates for the responsible user
-                User manager = responsibleUser;
-                return managerDelegateService.getByDelegate(responsibleUser).stream()
-                        .filter(md -> md.getManager().equals(manager))
+                // Find delegates assigned to the responsible manager
+                return managerDelegateService.getByManager(responsibleUser).stream()
                         .map(ManagerDelegate::getDelegate)
                         .toList();
 

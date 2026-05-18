@@ -38,10 +38,12 @@ public interface UserRoleDao extends CrudRepository<UserRole, Long> {
 	List<UserRole> findByRequesterPermissionAndItSystem_RequesterPermissionIn(RequestableBy requesterPermission, Collection<RequestableBy> requesterPermissions);
 	List<UserRole> findByRequesterPermissionAndItSystem_RequesterPermissionInOrItSystem_RequesterPermissionNull(RequestableBy requesterPermission, Collection<RequestableBy> requesterPermissions);
 
-	List<UserRole> findByApproverPermissionIn(List<ApprovableBy> permissions);
+	List<UserRole> findByApproverPermissionIn(Collection<ApprovableBy> permissions);
 
 	Set<UserRole> findBySystemRoleAssignments_SystemRole(SystemRole systemRole);
 
+	Set<UserRole> findBySystemRoleAssignments_SystemRoleIn(Collection<SystemRole> systemRoles);
+	
 	Set<UserRole> findAllByIdIn(Collection<Long> ids);
 
 }

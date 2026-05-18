@@ -1,0 +1,47 @@
+{
+  "realm": "test",
+  "enabled": true,
+  "sslRequired": "none",
+  "clients": [
+    {
+      "clientId": "https://host.testcontainers.internal:8090",
+      "name": "Role Catalogue Test SP",
+      "protocol": "saml",
+      "enabled": true,
+      "publicClient": true,
+      "frontchannelLogout": false,
+      "redirectUris": [
+        "https://host.testcontainers.internal:8090/*"
+      ],
+      "attributes": {
+        "saml.authn.statement": "true",
+        "saml.server.signature": "true",
+        "saml.assertion.signature": "false",
+        "saml.client.signature": "false",
+        "saml_name_id_format": "username",
+        "saml_assertion_consumer_url_post": "https://host.testcontainers.internal:8090/saml/login",
+        "saml_assertion_consumer_url_redirect": "https://host.testcontainers.internal:8090/saml/login",
+        "saml_single_logout_service_url_post": "https://host.testcontainers.internal:8090/saml/logout",
+        "saml_single_logout_service_url_redirect": "https://host.testcontainers.internal:8090/saml/logout"
+      }
+    }
+  ],
+  "users": [
+    {
+      "username": "rolunittest01",
+      "enabled": true,
+      "firstName": "Justin",
+      "lastName": "McCase",
+      "email": "rolunittest01@test.local",
+      "emailVerified": true,
+      "requiredActions": [],
+      "credentials": [
+        {
+          "type": "password",
+          "value": "Test1234",
+          "temporary": false
+        }
+      ]
+    }
+  ]
+}

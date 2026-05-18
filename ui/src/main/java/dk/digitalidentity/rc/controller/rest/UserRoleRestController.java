@@ -3,7 +3,6 @@ package dk.digitalidentity.rc.controller.rest;
 import java.security.Principal;
 import java.util.ArrayList;
 import java.util.Date;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -49,7 +48,6 @@ import dk.digitalidentity.rc.dao.model.RoleGroupUserRoleAssignment;
 import dk.digitalidentity.rc.dao.model.SystemRole;
 import dk.digitalidentity.rc.dao.model.SystemRoleAssignment;
 import dk.digitalidentity.rc.dao.model.SystemRoleAssignmentConstraintValue;
-import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserRole;
 import dk.digitalidentity.rc.dao.model.UserRoleEmailTemplate;
 import dk.digitalidentity.rc.dao.model.enums.ConstraintValueType;
@@ -71,6 +69,7 @@ import dk.digitalidentity.rc.service.OrgUnitService;
 import dk.digitalidentity.rc.service.RoleGroupService;
 import dk.digitalidentity.rc.service.Select2Service;
 import dk.digitalidentity.rc.service.SystemRoleService;
+import dk.digitalidentity.rc.service.UserRoleCleanupService;
 import dk.digitalidentity.rc.service.UserRoleService;
 import dk.digitalidentity.rc.service.UserService;
 import dk.digitalidentity.rc.service.model.UserRoleSelect2DTO;
@@ -99,6 +98,7 @@ public class UserRoleRestController {
 	private final ADGroupMappingService adGroupMappingService;
 	private final UserPermissionContext userPermissionContext;
 	private final AssignmentService assignmentService;
+	private final UserRoleCleanupService userRoleCleanupService;
 
 	@InitBinder(value = { "role" })
     public void initBinder(WebDataBinder binder) {
@@ -443,33 +443,7 @@ public class UserRoleRestController {
 			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
 		}
 
-		// there are not that many rolegroups, we can do a full scan
-		for (RoleGroup roleGroup : roleGroupService.getAll()) {
-			if (roleGroup.getUserRoleAssignments().stream().map(RoleGroupUserRoleAssignment::getUserRole).toList().contains(role)) {
-				roleGroupService.removeUserRole(roleGroup, role);
-				roleGroupService.save(roleGroup);
-			}
-		}
-
-		// Deduplicate users by UUID
-		Map<String, User> uniqueUsers = new HashMap<>();
-		for (User user : assignmentService.getUsersWithUserRoleDirectlyAssigned(role)) {
-			uniqueUsers.putIfAbsent(user.getUuid(), user);
-		}
-
-		List<User> users = new ArrayList<>(uniqueUsers.values());
-		for (User user : users) {
-			userService.removeUserRole(user, role);
-			userService.save(user);
-		}
-
-		List<OrgUnit> ous = orgUnitService.getAllWithRoleIncludingInactive(role);
-		for (OrgUnit orgUnit : ous) {
-			orgUnitService.removeUserRole(orgUnit, role);
-			orgUnitService.save(orgUnit);
-		}
-
-		userRoleService.delete(role);
+		userRoleCleanupService.deleteWithCleanup(role);
 
 		return new ResponseEntity<>(HttpStatus.OK);
 	}

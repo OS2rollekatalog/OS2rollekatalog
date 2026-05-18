@@ -205,11 +205,10 @@ public class ItSystemApiV2 {
 	public ResponseEntity<List<UserRoleAM>> getSystemUserRoles(
 			@Parameter(description = "Unique ID for the it-system", example = "1") @PathVariable("id") Long id) {
 		ItSystem itSystem = itSystemService.getById(id);
-		List<UserRole> userRoles = userRoleService.getByItSystem(itSystem);
-
 		if (itSystem == null) {
 			return new ResponseEntity<>(HttpStatus.NOT_FOUND);
 		}
+		List<UserRole> userRoles = userRoleService.getByItSystem(itSystem);
 		List<UserRoleAM> result = userRoles.stream()
 				.map(RoleMapper::userRoleToApi)
 				.collect(Collectors.toList());
@@ -225,10 +224,10 @@ public class ItSystemApiV2 {
 	public List<SystemRoleAM> getSystemRoles(
 			@Parameter(description = "Unique ID for the it-system") @PathVariable("id") long id) {
 		final ItSystem itSystem = itSystemService.getById(id);
-		final List<SystemRole> systemRoles = systemRoleService.findByItSystem(itSystem);
-		if (systemRoles == null || itSystem == null) {
+		if (itSystem == null) {
 			throw new ResponseStatusException(HttpStatus.NOT_FOUND);
 		}
+		final List<SystemRole> systemRoles = systemRoleService.findByItSystem(itSystem);
 		return RoleMapper.systemRolesToApi(systemRoles);
 	}
 

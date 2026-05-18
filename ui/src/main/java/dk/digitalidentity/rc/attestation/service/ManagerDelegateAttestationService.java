@@ -14,9 +14,11 @@ import dk.digitalidentity.rc.attestation.model.entity.AttestationRun;
 import dk.digitalidentity.rc.attestation.model.entity.temporal.AttestationOuRoleAssignment;
 import dk.digitalidentity.rc.attestation.model.entity.temporal.AttestationUserRoleAssignment;
 import dk.digitalidentity.rc.dao.ManagerDelegateDao;
+import dk.digitalidentity.rc.dao.OrgUnitDao;
 import dk.digitalidentity.rc.dao.model.ManagerDelegate;
 import dk.digitalidentity.rc.dao.model.OrgUnit;
 import dk.digitalidentity.rc.dao.model.User;
+import dk.digitalidentity.rc.dao.projections.OrgUnitManagerUuid;
 import dk.digitalidentity.rc.service.OrgUnitService;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.FlushModeType;
@@ -29,6 +31,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -54,6 +57,9 @@ public class ManagerDelegateAttestationService {
 
 	@Autowired
 	private AttestationDao attestationDao;
+	@Autowired
+	private OrgUnitDao orgUnitDao;
+
 	@Autowired
 	private OrgUnitService orgUnitService;
 
@@ -99,7 +105,7 @@ public class ManagerDelegateAttestationService {
 	}
 
 	public List<User> getManagedUsersForDelegate(User delegate) {
-		return managerDelegateDao.getByDelegateAndFromDateAfterAndToDateBeforeOrIndefinitelyTrue(delegate, LocalDate.now(), LocalDate.now()).stream()
+		return managerDelegateDao.findActiveByDelegate(delegate, LocalDate.now()).stream()
 				.map(ManagerDelegate::getManager)
 				.toList();
 	}
@@ -108,9 +114,23 @@ public class ManagerDelegateAttestationService {
 	public List<ManagerDelegateOrganisationAttestationDTO> listOrganisationsForAttestation(final AttestationRun run, final List<User> delegatedManagers) {
 		entityManager.setFlushMode(FlushModeType.COMMIT);
 
-		return run.getAttestations().stream()
+		final Set<String> delegatedManagerUuids = delegatedManagers.stream()
+				.map(User::getUuid)
+				.collect(Collectors.toSet());
+
+		final List<Attestation> delegatedAttestations = run.getAttestations().stream()
 				.filter(a -> a.getAttestationType() == Attestation.AttestationType.MANAGER_DELEGATED_ATTESTATION)
-				.map( a -> toShallowOrganisationDto(a.getCreatedAt(), a, delegatedManagers))
+				.toList();
+
+		// Batch-fetch only (ouUuid, managerUuid) pairs — avoids loading full OrgUnit entities into memory, and avoids n+1 lookup
+		final Map<String, String> managerUuidByOuUuid = orgUnitDao
+				.findByActiveTrueAndManagerNotNullAndUuidIn(delegatedAttestations.stream().map(Attestation::getResponsibleOuUuid).toList())
+				.stream()
+				.collect(Collectors.toMap(OrgUnitManagerUuid::getUuid, p -> p.getManager().getUuid()));
+
+		return delegatedAttestations.stream()
+				.filter(a -> delegatedManagerUuids.contains(managerUuidByOuUuid.get(a.getResponsibleOuUuid())))
+				.map(a -> toShallowOrganisationDto(a.getCreatedAt(), a, delegatedManagers))
 				.toList();
 	}
 

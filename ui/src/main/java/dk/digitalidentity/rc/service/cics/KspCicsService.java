@@ -26,6 +26,7 @@ import dk.digitalidentity.rc.service.ItSystemService;
 import dk.digitalidentity.rc.service.KspCicsUnmatchedUserService;
 import dk.digitalidentity.rc.service.NotificationService;
 import dk.digitalidentity.rc.service.OrgUnitService;
+import dk.digitalidentity.rc.service.UserRoleCleanupService;
 import dk.digitalidentity.rc.service.UserRoleService;
 import dk.digitalidentity.rc.service.UserService;
 import dk.digitalidentity.rc.service.assignment.AssignmentService;
@@ -197,6 +198,9 @@ public class KspCicsService {
 	@Autowired
 	private AssignmentService assignmentService;
 
+	@Autowired
+	private UserRoleCleanupService userRoleCleanupService;
+
 	@PostConstruct
 	public void init() {
 		List<ItSystem> itSystems = itSystemService.getBySystemType(ItSystemType.KSPCICS);
@@ -330,7 +334,7 @@ public class KspCicsService {
 
 					if (!found) {
 						log.info("Deleting " + userRole.getId() + " / " + userRole.getName() + " / " + userRole.getIdentifier());
-						userRoleService.delete(userRole);
+						userRoleCleanupService.deleteWithCleanup(userRole);
 					}
 				}
 			}
@@ -447,7 +451,8 @@ public class KspCicsService {
 		}
 		ItSystem itSystem = itSystems.get(0);
 
-		List<UserRole> userRoles = userRoleService.getByItSystem(itSystem);
+		Map<String, UserRole> userRolesByIdentifier = userRoleService.getByItSystem(itSystem).stream()
+				.collect(Collectors.toMap(UserRole::getIdentifier, ur -> ur));
 		List<DirtyKspCicsUserProfile> processed = new ArrayList<>();
 		Set<String> seen = new HashSet<>();
 
@@ -492,12 +497,12 @@ public class KspCicsService {
 					// ensure we only process each of these _once_
 					seen.add(dirtyProfile.getIdentifier());
 
-					Optional<UserRole> userRole = userRoles.stream().filter(u -> u.getIdentifier().equals(dirtyProfile.getIdentifier())).findFirst();
-					if (userRole.isPresent()) {
+					UserRole userRole = userRolesByIdentifier.get(dirtyProfile.getIdentifier());
+					if (userRole != null) {
 						KspUserProfile kspUserProfile = getKspUserProfile(dirtyProfile.getIdentifier(), userProfiles);
 						if (kspUserProfile != null) {
 							// list of users with UserProfile assigned according to RoleCatalogue
-							Set<CurrentAssignment> assignments = assignmentService.getActiveByUserRole(userRole.get());
+							Set<CurrentAssignment> assignments = assignmentService.getActiveByUserRole(userRole);
 							Set<String> altAccounts = assignments.stream()
 								.filter(a -> a.getUser().getAltAccounts().stream().anyMatch(acc -> acc.getAccountType().equals(AltAccountType.KSPCICS)))
 								.map(a -> a.getUser().getAltAccounts().stream().filter(acc -> acc.getAccountType().equals(AltAccountType.KSPCICS)).findFirst())
@@ -551,11 +556,14 @@ public class KspCicsService {
 		// perform actual updates in KSP/CICS
 		log.info("Found " + kspCicsUsersToUpdate.size() + " KSP/CICS users that needs to be updated");
 
-		for (String dirtyKspCicsUser : kspCicsUsersToUpdate) {
-			Optional<AltAccount> altAccount = allAltAccounts.stream().filter(a -> a.getAccountUserId().equals(dirtyKspCicsUser)).findFirst();
+		Map<String, AltAccount> altAccountsByUserId = allAltAccounts.stream()
+				.collect(Collectors.toMap(AltAccount::getAccountUserId, a -> a, (a, b) -> a));
 
-			if (altAccount.isPresent()) {
-				User user = altAccount.get().getUser();
+		for (String dirtyKspCicsUser : kspCicsUsersToUpdate) {
+			AltAccount altAccount = altAccountsByUserId.get(dirtyKspCicsUser);
+
+			if (altAccount != null) {
+				User user = altAccount.getUser();
 
 				Set<String> assignedUserProfiles = new ArrayList<>(assignmentService.getUserRolesByUserAndSystems(user, Collections.singletonList(itSystem))).stream()
 						.map(u -> u.getIdentifier())

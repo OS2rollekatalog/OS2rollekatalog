@@ -3,18 +3,7 @@
 <head th:replace="~{fragments/header :: header (customTitle='Bruger ikke fundet')}"></head>
 <body class="layout-fixed">
 <div class="wrapper">
-	<header th:fragment="navbar-header-unauthenticated" class="topnavbar-wrapper">
-		<nav role="navigation" class="navbar topnavbar">
-			<div class="navbar-header">
-				<a th:href="@{/}" class="navbar-brand">
-					<div class="brand-logo" style="height:100%">
-						<img th:src="@{/img/logo.png}" alt="Logo" class="img-responsive" style="height:100%" />
-					</div>
-				</a>
-			</div>
-		</nav>
-	</header>
-	<aside th:replace="~{fragments/navbar :: navbar-aside (page = 'index')}"></aside>
+	<header th:replace="~{fragments/navbar :: navbar-header-unauthenticated}"></header>
 
 	<section>
 		<div class="content-wrapper">

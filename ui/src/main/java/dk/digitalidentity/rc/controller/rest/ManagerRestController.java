@@ -112,6 +112,9 @@ public class ManagerRestController {
 	@PostMapping("/rest/manager/substitute/add")
 	@ResponseBody
 	public ResponseEntity<?> addSubstitute(@RequestBody ManagerSubRecord body) {
+		if (!userPermissionContext.canManageSubstitutes()) {
+			throw new NotPermittedException("Stedfortrædere kan ikke tilføje stedfortrædere", Section.MANAGER, Permission.CREATE);
+		}
 		if (roleCatalogueConfiguration.getSubstituteManagerAPI().isEnabled()) {
 			return ResponseEntity.badRequest().build();
 		}
@@ -217,6 +220,9 @@ public class ManagerRestController {
 	@PostMapping("/rest/manager/substitute/remove")
 	@ResponseBody
 	public ResponseEntity<?> removeSubstitute(@RequestBody ManagerSubstituteAssignmentDTO body) {
+		if (!userPermissionContext.canManageSubstitutes()) {
+			throw new NotPermittedException("Stedfortrædere kan ikke fjerne stedfortrædere", Section.MANAGER, Permission.DELETE);
+		}
 		if (roleCatalogueConfiguration.getSubstituteManagerAPI().isEnabled()) {
 			return ResponseEntity.badRequest().build();
 		}
@@ -245,6 +251,9 @@ public class ManagerRestController {
 	@DeleteMapping("/rest/management/substitute/{id}/delete")
 	@ResponseBody
 	public ResponseEntity<?> deleteSubstitute(@PathVariable Long id) {
+		if (!userPermissionContext.canManageSubstitutes()) {
+			throw new NotPermittedException("Stedfortrædere kan ikke slette stedfortrædere", Section.MANAGER, Permission.DELETE);
+		}
 		if (roleCatalogueConfiguration.getSubstituteManagerAPI().isEnabled()) {
 			return ResponseEntity.badRequest().build();
 		}
@@ -270,6 +279,9 @@ public class ManagerRestController {
 	@PutMapping("/rest/management/substitute/{id}/edit")
 	@ResponseBody
 	public ResponseEntity<?> editSubstitute(@PathVariable Long id, @RequestBody EditSubstituteDTO editSubstituteDTO) {
+		if (!userPermissionContext.canManageSubstitutes()) {
+			throw new NotPermittedException("Stedfortrædere kan ikke redigere stedfortrædere", Section.MANAGER, Permission.UPDATE);
+		}
 		if (roleCatalogueConfiguration.getSubstituteManagerAPI().isEnabled()) {
 			return ResponseEntity.badRequest().build();
 		}

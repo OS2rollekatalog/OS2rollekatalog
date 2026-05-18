@@ -40,8 +40,6 @@ public abstract class CurrentAssignmentMapper {
 		currentAssignment.setCaseNumber(userRoleAssignment.getCaseNumber());
 		currentAssignment.setAssignedBy(userRoleAssignment.getAssignedByName() + " (" + userRoleAssignment.getAssignedByUserId() + ")");
 
-		currentAssignment.setRecordHash(currentAssignment.generateRecordHash());
-
 		currentAssignment.setPostponedConstraints(
 			Optional.ofNullable(userRoleAssignment.getPostponedConstraints())
 				.orElse(List.of())
@@ -50,6 +48,9 @@ public abstract class CurrentAssignmentMapper {
 				.filter(Objects::nonNull)
 				.collect(Collectors.toSet())
 		);
+
+		currentAssignment.setConstraintSignature(buildConstraintSignature(userRoleAssignment.getUserRole()));
+		currentAssignment.setRecordHash(currentAssignment.generateRecordHash());
 
 		return currentAssignment;
 	}
@@ -72,6 +73,7 @@ public abstract class CurrentAssignmentMapper {
 			currentAssignment.setCaseNumber(assignment.getCaseNumber());
 
 			currentAssignment.setPostponedConstraints(Set.of());
+			currentAssignment.setConstraintSignature(buildConstraintSignature(userRoleAssignment.getUserRole()));
 			currentAssignment.setRecordHash(currentAssignment.generateRecordHash());
 			currentAssignments.add(currentAssignment);
 		}
@@ -100,7 +102,7 @@ public abstract class CurrentAssignmentMapper {
 			currentAssignment.setTitle(title);
 		}
 		currentAssignment.setPostponedConstraints(Set.of());
-
+		currentAssignment.setConstraintSignature(buildConstraintSignature(userRole));
 		currentAssignment.setRecordHash(currentAssignment.generateRecordHash());
 		return currentAssignment;
 	}
@@ -129,11 +131,26 @@ public abstract class CurrentAssignmentMapper {
 			currentAssignment.setAssignedBy(assignment.getAssignedByName() + " (" + assignment.getAssignedByUserId() + ")");
 
 			currentAssignment.setPostponedConstraints(Set.of());
-
+			currentAssignment.setConstraintSignature(buildConstraintSignature(userRole));
 			currentAssignment.setRecordHash(currentAssignment.generateRecordHash());
 			currentAssignments.add(currentAssignment);
 		}
 		return currentAssignments;
+	}
+
+	private static String buildConstraintSignature(UserRole userRole) {
+		if (userRole == null || userRole.getSystemRoleAssignments() == null) {
+			return "";
+		}
+		return userRole.getSystemRoleAssignments().stream()
+			.filter(sra -> sra.getConstraintValues() != null && !sra.getConstraintValues().isEmpty())
+			.flatMap(sra -> sra.getConstraintValues().stream()
+				.filter(cv -> !cv.isPostponed() && cv.getConstraintValue() != null)
+				.map(cv -> sra.getSystemRole().getIdentifier()
+					+ "|" + cv.getConstraintType().getEntityId()
+					+ "|" + cv.getConstraintValue()))
+			.sorted()
+			.collect(Collectors.joining(","));
 	}
 
 	private static CurrentAssignmentPostponedConstraint toCurrentAssignmentPostponedConstraint(PostponedConstraint postponedConstraint, CurrentAssignment currentAssignment) {
