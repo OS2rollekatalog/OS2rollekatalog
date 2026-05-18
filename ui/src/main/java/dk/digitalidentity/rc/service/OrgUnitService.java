@@ -191,6 +191,25 @@ public class OrgUnitService {
 		return orgUnitDao.findByAuthorizationManagersUser(user);
 	}
 
+	/**
+	 * True if {@code requester} is autorisationsansvarlig on at least one OrgUnit that
+	 * {@code receiver} has a position in. Autorisationsansvarlig is strictly per OU — no
+	 * inheritance to children and no substitute dimension — so the check walks the receiver's
+	 * positions directly.
+	 */
+	public boolean isAuthorizationManagerFor(User requester, User receiver) {
+		if (requester == null || receiver == null || receiver.getPositions() == null) {
+			return false;
+		}
+		return receiver.getPositions().stream()
+			.map(Position::getOrgUnit)
+			.filter(Objects::nonNull)
+			.anyMatch(ou -> ou.getAuthorizationManagers().stream()
+				.anyMatch(am -> am.getUser() != null
+					&& am.getUser().getUuid() != null
+					&& am.getUser().getUuid().equals(requester.getUuid())));
+	}
+
 	public List<OrgUnit> getActiveByAuthorizationManagerOrManagerMatchingUser(User user) {
 		List<OrgUnit> orgUnits = orgUnitDao.findByAuthorizationManagersUser(user);
 		List<OrgUnit> orgUnits2 = orgUnitDao.findByManager(user);

@@ -22,10 +22,6 @@ import dk.digitalidentity.rc.controller.mvc.datatables.dao.CombinedRoleViewDatat
 import dk.digitalidentity.rc.controller.mvc.datatables.dao.model.CombinedRoleView;
 import dk.digitalidentity.rc.dao.model.assignment.CurrentAssignment;
 import dk.digitalidentity.rc.service.assignment.AssignmentService;
-import dk.digitalidentity.rc.service.model.AssignedThrough;
-import dk.digitalidentity.rc.service.model.RoleAssignedToUserDTO;
-import dk.digitalidentity.rc.service.model.RoleAssignmentType;
-import jakarta.persistence.criteria.Predicate;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.jpa.datatables.mapping.DataTablesInput;
 import org.springframework.data.jpa.datatables.mapping.DataTablesOutput;
@@ -483,7 +479,7 @@ public class RequestService {
 			return true;
 		}
 
-		boolean isAuthResponsible = !orgUnitService.getByAuthorizationManagerMatchingUser(requestingUser).isEmpty();
+		boolean isAuthResponsible = orgUnitService.isAuthorizationManagerFor(requestingUser, receivingUser);
 		return isAuthResponsible && permissions.contains(RequestableBy.AUTHRESPONSIBLE);
 	}
 
@@ -506,7 +502,9 @@ public class RequestService {
 					Objects.equals(managerSubstitute.getSubstitute().getUserId(), approvingUser.getUserId())
 				);
 
-			return isManager || isSubstitute;
+			if (isManager || isSubstitute) {
+				return true;
+			}
 		}
 
 		boolean isAuthResponsible = !orgUnitService.getByAuthorizationManagerMatchingUser(approvingUser).isEmpty();
@@ -523,7 +521,7 @@ public class RequestService {
 		boolean isAdmin = SecurityUtil.hasDirectAdminRole();
 		boolean isRequestingForSelf = requestingUser.equals(recievingUser); //anmodende bruger er brugeren som er logget ind
 		boolean isManagerOrSubstitute = !userService.getSubstitutesManager(requestingUser).isEmpty() || userService.isManager(requestingUser); // leder eller stedfortræder
-		boolean isAuthResponsible = !orgUnitService.getByAuthorizationManagerMatchingUser(requestingUser).isEmpty(); // autorisationsansvarlig
+		boolean isAuthResponsible = orgUnitService.isAuthorizationManagerFor(requestingUser, recievingUser); // autorisationsansvarlig
 		boolean isAuthorized = SecurityUtil.hasRole(Constants.ROLE_REQUESTAUTHORIZED); // bemyndiget
 		List<RequestableBy> globalPermission = settingsService.getRolerequestRequester();
 
@@ -729,47 +727,6 @@ public class RequestService {
 	}
 
 	/**
-	 * Checks if a role assignment authorizes access to the target org unit.
-	 * Returns true if the assignment is through ORGUNIT or TITLE and the assignment's
-	 * org unit is equal to or a parent of the target org unit.
-	 */
-	private boolean isRoleAssignmentAuthorizedForOrgUnit(RoleAssignedToUserDTO assignment, OrgUnit targetOrgUnit) {
-		// Check if assigned through ORGUNIT or TITLE
-		if (assignment.getAssignedThrough() != AssignedThrough.ORGUNIT
-			&& assignment.getAssignedThrough() != AssignedThrough.TITLE) {
-			return false;
-		}
-
-		// Check if assignment has an org unit
-		if (assignment.getOrgUnitUuid() == null) {
-			return false;
-		}
-
-		OrgUnit assignmentOrgUnit = orgUnitService.getByUuid(assignment.getOrgUnitUuid());
-		if (assignmentOrgUnit == null) {
-			return false;
-		}
-
-		// Walk up from target orgUnit to see if we reach the assignment orgUnit
-		return isOrgUnitInHierarchy(targetOrgUnit, assignmentOrgUnit);
-	}
-
-	/**
-	 * Checks if targetOrgUnit is equal to or a descendant of ancestorOrgUnit
-	 * by walking up the parent chain from targetOrgUnit.
-	 */
-	private boolean isOrgUnitInHierarchy(OrgUnit targetOrgUnit, OrgUnit ancestorOrgUnit) {
-		OrgUnit current = targetOrgUnit;
-		while (current != null) {
-			if (current.getUuid().equals(ancestorOrgUnit.getUuid())) {
-				return true;
-			}
-			current = current.getParent();
-		}
-		return false;
-	}
-
-	/**
 	 * Approves a request and notifies the relevant users
 	 *
 	 * @param request the request being approved
@@ -785,7 +742,7 @@ public class RequestService {
 			return new ResponseEntity<>("Der er ikke valgt en modtager af rollen", HttpStatus.BAD_REQUEST);
 		}
 
-		if (receiver.isDeleted()) {
+		if (receiver.isDeleted() && !Objects.equals(request.getRequestAction(), RequestAction.REMOVE)) {
 			return new ResponseEntity<>("Der er valgt en inaktiv modtager af rollen", HttpStatus.BAD_REQUEST);
 		}
 
@@ -987,7 +944,7 @@ public class RequestService {
 		boolean isRequestingForSelf = requestingUser.equals(receivingUser); //anmodende bruger er brugeren som er logget ind
 		boolean isManagerOrSubstitute = userService.isManagerOrSubstituteManagerFor(requestingUser, receivingUser);
 
-		boolean isAuthResponsible = !orgUnitService.getByAuthorizationManagerMatchingUser(requestingUser).isEmpty(); // autorisationsansvarlig
+		boolean isAuthResponsible = orgUnitService.isAuthorizationManagerFor(requestingUser, receivingUser); // autorisationsansvarlig
 		boolean isRequestAuthorized = SecurityUtil.hasRole(Constants.ROLE_REQUESTAUTHORIZED); // bemyndiget
 		List<RequestableBy> permittedSettings = new ArrayList<>();
 		for (RequestableBy permission : RequestableBy.values()) {
@@ -1129,45 +1086,27 @@ public class RequestService {
 		return combinedRoleViewDao.findAll(input, spec);
 	}
 
-	private Specification<CombinedRoleView> buildAuthorizedConstraintsForCombined(User requestingUser, OrgUnit orgUnit) {
-		return (root, _, cb) -> {
-			List<RoleAssignedToUserDTO> userAssignments = assignmentService.getByUserIncludingInactive(requestingUser).stream()
-				.map(a -> {
-					if (a.getRoleGroup() != null) {
-						return RoleAssignedToUserDTO.fromCurrentAssignmentRoleGroup(a, assignmentService.getAssignedThrough(a));
-					} else {
-						return RoleAssignedToUserDTO.fromCurrentAssignmentUserRole(a, assignmentService.getAssignedThrough(a));
-					}
-				})
-				.toList();
-
-			List<Long> authorizedUserRoleIds = userAssignments.stream()
-				.filter(a -> a.getType() == RoleAssignmentType.USERROLE)
-				.filter(a -> isRoleAssignmentAuthorizedForOrgUnit(a, orgUnit))
-				.map(RoleAssignedToUserDTO::getRoleId)
-				.distinct()
-				.toList();
-
-			List<Long> authorizedRoleGroupIds = userAssignments.stream()
-				.filter(a -> a.getType() == RoleAssignmentType.ROLEGROUP)
-				.filter(a -> isRoleAssignmentAuthorizedForOrgUnit(a, orgUnit))
-				.map(RoleAssignedToUserDTO::getRoleId)
-				.distinct()
-				.toList();
-
-			// Build predicate: (type = 'userRole' AND id IN userRoleIds) OR (type = 'roleGroup' AND id IN roleGroupIds)
-			Predicate userRolePredicate = cb.and(
-				cb.equal(root.get("type"), "userRole"),
-				root.get("id").in(authorizedUserRoleIds.isEmpty() ? java.util.Collections.singletonList(-1L) : authorizedUserRoleIds)
+	/**
+	 * Combined-view counterpart to {@link #buildAuthorizedConstraints(User, OrgUnit)}.
+	 * Uses the same {@link RequestAuthorizedRoleService} driven access decision so the two code paths
+	 * stay in sync regardless of whether {@code isShowSingleTableInRequestApproveEnabled} is on.
+	 */
+	private Specification<CombinedRoleView> buildAuthorizedConstraintsForCombined(User requestingUser, OrgUnit receiversOrgUnit) {
+		final RequestAuthorizedRoleService.LimitedToOrgUnits accessibleOrgUnits = requestAuthorizedRoleService.accessibleOrgUnits(requestingUser);
+		final RequestAuthorizedRoleService.LimitedToItSystems accessibleItSystems = requestAuthorizedRoleService.accessibleItsSystems(requestingUser);
+		SpecificationBuilder<CombinedRoleView> constraints = SpecificationBuilder.create(CombinedRoleView.class);
+		constraints.and(CombinedRoleViewDatatableDao.requesterPermissionIn(Collections.singletonList(RequestableBy.AUTHORIZED)));
+		if (accessibleOrgUnits.type() == RequestAuthorizedRoleService.LimitedToType.CONSTRAINED) {
+			constraints = constraints.and(
+				CombinedRoleViewDatatableDao.authorizedRolesLimitedToOrgUnits(receiversOrgUnit.getUuid(), accessibleOrgUnits.orgUnits())
 			);
-
-			Predicate roleGroupPredicate = cb.and(
-				cb.equal(root.get("type"), "roleGroup"),
-				root.get("id").in(authorizedRoleGroupIds.isEmpty() ? java.util.Collections.singletonList(-1L) : authorizedRoleGroupIds)
+		}
+		if (accessibleItSystems.type() == RequestAuthorizedRoleService.LimitedToType.CONSTRAINED) {
+			constraints = constraints.and(
+				CombinedRoleViewDatatableDao.authorizedRolesLimitedToItSystems(accessibleItSystems.itSystems())
 			);
-
-			return cb.or(userRolePredicate, roleGroupPredicate);
-		};
+		}
+		return constraints.build();
 	}
 
 	public List<RoleGroup> getRequestableRoleGroupsAsDatatable(final User requestingUser, final User receivingUser, final OrgUnit orgUnit) {
@@ -1179,7 +1118,7 @@ public class RequestService {
 		if (isPermissionMatchingRights(globalPermission,
 			requestingUser.equals(receivingUser),
 			!userService.getSubstitutesManager(requestingUser).isEmpty() || userService.isManager(requestingUser),
-			!orgUnitService.getByAuthorizationManagerMatchingUser(requestingUser).isEmpty(),
+			orgUnitService.isAuthorizationManagerFor(requestingUser, receivingUser),
 			SecurityUtil.hasDirectAdminRole(),
 			isRequestAuthorized)) {
 			permittedSettings = new ArrayList<>(permittedSettings);

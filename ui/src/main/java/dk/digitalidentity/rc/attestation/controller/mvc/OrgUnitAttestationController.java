@@ -21,10 +21,12 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestParam;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import static dk.digitalidentity.rc.attestation.model.dto.enums.RoleType.ROLEGROUP;
 import static dk.digitalidentity.rc.attestation.model.dto.enums.RoleType.USERROLE;
 
 @RequireSubstituteOrManagerOrAttestationAdminRole
@@ -137,10 +139,17 @@ public class OrgUnitAttestationController {
 		}
 
 		OrganisationAttestationDTO attestation = attestationService.getAttestation(ouUUID, user.getUuid(), true);
-		List<AttestationRoleAssignmentDTO> roles = attestation.getOrgUnitUserRoleAssignmentsPrItSystem().stream()
+		List<AttestationRoleAssignmentDTO> roles = new ArrayList<>(attestation.getOrgUnitUserRoleAssignmentsPrItSystem().stream()
 				.flatMap(ass -> ass.getUserRoles().stream()
+						.filter(ur -> !ur.isInherit())
 						.map(ur -> new AttestationRoleAssignmentDTO(ur.getRoleId(), ur.getRoleName(), USERROLE, ass.getItSystemName(), String.join(", ", ur.getTitles()))))
-				.toList();
+				.toList());
+		if (attestation.getOrgUnitRoleGroupAssignments() != null) {
+			attestation.getOrgUnitRoleGroupAssignments().stream()
+					.filter(rg -> !rg.isInherit())
+					.map(rg -> new AttestationRoleAssignmentDTO(rg.getGroupId(), rg.getGroupName(), ROLEGROUP, "", rg.getTitles() != null ? String.join(", ", rg.getTitles()) : ""))
+					.forEach(roles::add);
+		}
 
 		model.addAttribute("openInView", false);
 		model.addAttribute("roleAssignments", roles);

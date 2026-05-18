@@ -34,7 +34,6 @@ public class AttestationUserRoleAssignmentDto implements Serializable {
 	private String roleOuUuid;
 	private String roleOuName;
 	private String responsibleOuUuid;
-	private boolean manager;
 	private AssignedThroughType assignedThroughType;
 	private String assignedThroughName;
 	private String assignedThroughUuid;

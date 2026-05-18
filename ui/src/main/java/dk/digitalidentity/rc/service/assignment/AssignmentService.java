@@ -1,5 +1,19 @@
 package dk.digitalidentity.rc.service.assignment;
 
+import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.function.Consumer;
+import java.util.stream.Collectors;
+
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import dk.digitalidentity.rc.dao.model.ItSystem;
 import dk.digitalidentity.rc.dao.model.RoleGroup;
 import dk.digitalidentity.rc.dao.model.User;
@@ -11,17 +25,6 @@ import dk.digitalidentity.rc.service.assignment.model.AssignmentType;
 import dk.digitalidentity.rc.service.model.AssignedThrough;
 import dk.digitalidentity.rc.service.model.RoleAssignedToUserDTO;
 import lombok.RequiredArgsConstructor;
-import org.springframework.stereotype.Service;
-
-import java.time.LocalDate;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.stream.Collectors;
 
 @RequiredArgsConstructor
 @Service
@@ -87,6 +90,15 @@ public class AssignmentService {
 	}
 
 	/**
+	 * Som {@link #getByUserAndItSystems}, men eager-loader de relationer der kræves til
+	 * NemLog-in serialisering (systemRoleAssignments → constraintValues → constraintType,
+	 * postponedConstraints). Brug denne i stedet for manuelt at initialisere lazy collections.
+	 */
+	public Set<CurrentAssignment> getByUserAndItSystemsWithRoleDetails(User user, List<ItSystem> itSystems) {
+		return currentAssignmentService.findByUserInSystemWithRoleDetails(user, itSystems);
+	}
+
+	/**
 	 * Finds all users that have the specified role assigned, from any source
 	 * @param userRole the userrole
 	 * @return a set of Users
@@ -101,7 +113,11 @@ public class AssignmentService {
 	 * @return a set of Users
 	 */
 	public Set<User> getUsersWithUserRoleDirectlyAssigned(UserRole userRole) {
-		return currentAssignmentService.findByDirectlyAssignedUserRole(userRole).stream().map(CurrentAssignment::getUser).collect(Collectors.toSet());
+		// User-projektion frem for at hente CurrentAssignment-entiteter ind i persistence-konteksten.
+		// Why: når kalderen efterfølgende sletter UserRole'en i samme transaktion, ville en managed
+		// CurrentAssignment med .userRole-reference få Hibernate til at afbryde flush med
+		// TransientPropertyValueException (jf. UserRoleCleanupService.deleteWithCleanup).
+		return currentAssignmentService.findUsersByDirectlyAssignedUserRole(userRole);
 	}
 
 	/**
@@ -199,6 +215,16 @@ public class AssignmentService {
 	}
 
 	/**
+	 * User-UUID-projektion frem for at hente CurrentAssignment-entiteter ind i persistence-konteksten.
+	 * Why: når kalderen efterfølgende sletter UserRole'en i samme transaktion, ville en managed
+	 * CurrentAssignment med .userRole-reference få Hibernate til at afbryde flush med
+	 * TransientPropertyValueException (jf. UpdatedAssignmentCalculatorHook → ItSystemCleanupTask).
+	 */
+	public Set<String> getUserUuidsByUserRole(UserRole userRole) {
+		return currentAssignmentService.findUserUuidsByUserRole(userRole);
+	}
+
+	/**
 	 * Finds all the directly assigned assignments for the specified userRole
 	 * @param userRole allowed userRole
 	 * @return a set of CurrentAssignment filtered by the userRole
@@ -275,6 +301,15 @@ public class AssignmentService {
 	public Set<CurrentAssignment> getActiveByUserRoleDirectlyAssignedOrFromRoleGroup(UserRole userRole) {
 		return currentAssignmentService.findActiveByUserRoleDirectlyAssignedOrFromRoleGroup(userRole);
 	}
+	
+	/**
+	 * Finds all active assignments for the given userRoles
+	 * @param userRoles the collection of userRoles
+	 * @return a set of active CurrentAssignments
+	 */
+	public Set<CurrentAssignment> getActiveByUserRoles(Set<UserRole> userRoles) {
+		return currentAssignmentService.findActiveByUserRoles(userRoles);
+	}
 
 	/**
 	 * Returns active assignments for a userRole (where startDate is null or not in the future)
@@ -282,7 +317,24 @@ public class AssignmentService {
 	 * @return a set of active CurrentAssignments
 	 */
 	public Set<CurrentAssignment> getActiveByUserRole(UserRole userRole) {
-		return currentAssignmentService.findActiveByUserRole(userRole);
+		return getActiveByUserRole(userRole, null);
+	}
+	
+	/**
+	 * Returns active assignments for a userRole (where startDate is null or not in the future), applying the consumer inside a readonly transaction
+	 * @param userRole the userRole
+	 * @param consumer the consumer
+	 * @return a set of active CurrentAssignments
+	 */
+	@Transactional(readOnly = true)
+	public Set<CurrentAssignment> getActiveByUserRole(UserRole userRole, Consumer<CurrentAssignment> consumer) {
+		Set<CurrentAssignment> assignments = currentAssignmentService.findActiveByUserRole(userRole);
+		
+		if (consumer != null) {
+			assignments.forEach(consumer);
+		}
+		
+		return assignments;
 	}
 
 	/**
@@ -363,13 +415,15 @@ public class AssignmentService {
 		boolean isFromTitle = currentAssignment.getTitle() != null;
 		boolean isFromOrgUnit = currentAssignment.getOrgUnit() != null;
 
-		// the order of the checks bellow matters
-		if (isFromTitle) {
+		// userRoler nedarvet via en rollebuket vises som ROLEGROUP uanset om buketten
+		// er tildelt direkte, via enhed eller via enhed+stilling — så Tildeling-kolonnen
+		// peger på buketten i stedet for enheden (matcher 2026r1-adfærd)
+		if (isFromRoleGroup) {
+			assignedThrough = AssignedThrough.ROLEGROUP;
+		} else if (isFromTitle) {
 			assignedThrough = AssignedThrough.TITLE;
 		} else if (isFromOrgUnit) {
 			assignedThrough = AssignedThrough.ORGUNIT;
-		} else if (isFromRoleGroup) {
-			assignedThrough = AssignedThrough.ROLEGROUP;
 		}
 		return assignedThrough;
 	}
@@ -444,10 +498,10 @@ public class AssignmentService {
 		}
 	}
 
-	record RoleGroupKey(long assignmentId, AssignmentType assignmentType, long roleGroupId) {}
+	record RoleGroupKey(String userUuid, long assignmentId, AssignmentType assignmentType, long roleGroupId) {}
 	/**
 	 * Groups assignments by roleGroup assignment, returning one CurrentAssignment per unique
-	 * combination of assignmentId, assignmentType, and roleGroupId.
+	 * combination of user, assignmentId, assignmentType, and roleGroupId.
 	 * Only includes assignments that have a roleGroup.
 	 * @param assignments the assignments to deduplicate
 	 * @return a set with one assignment per unique roleGroup assignment
@@ -463,6 +517,7 @@ public class AssignmentService {
 
 			AssignmentType assignmentType = getAssignmentType(assignment);
 			RoleGroupKey key = new RoleGroupKey(
+				assignment.getUser().getUuid(),
 				assignment.getAssignmentId(),
 				assignmentType,
 				assignment.getRoleGroup().getId()
@@ -543,5 +598,4 @@ public class AssignmentService {
 
 		return assignmentDTOs;
 	}
-
 }

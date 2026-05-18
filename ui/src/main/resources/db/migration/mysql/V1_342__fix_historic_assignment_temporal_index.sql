@@ -1,0 +1,2 @@
+DROP INDEX idx_historic_assignment_temporal ON historic_assignment;
+CREATE INDEX idx_historic_assignment_valid_from ON historic_assignment (valid_from);

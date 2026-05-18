@@ -412,10 +412,10 @@
 												<tr>
 													<th class="col-md-5" th:text="#{html.entity.userrole.name}"></th>
 													<th class="col-md-6" th:text="#{html.entity.userrole.description}"></th>
-													<td th:if="${@settingsService.isRequestApproveEnabled()}"
-														th:text="${#strings.listJoin(role.requesterPermission.![displayName], ', ')}"></td>
-													<td th:if="${@settingsService.isRequestApproveEnabled()}"
-														th:text="${#strings.listJoin(role.approverPermission.![displayName], ', ')}"></td>
+													<th th:if="${@settingsService.isRequestApproveEnabled()}"
+														th:text="#{html.entity.userrole.requestpermission}"></th>
+													<th th:if="${@settingsService.isRequestApproveEnabled()}"
+														th:text="#{html.entity.userrole.approvepermission}"></th>
 													<th class="col-md-1" th:text="#{html.control.operations}"></th>
 												</tr>
 											</thead>

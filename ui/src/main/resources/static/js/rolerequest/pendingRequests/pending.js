@@ -194,7 +194,9 @@ async function onApprovePressed(requestId, isChooseAnotherEndDate=false) {
     })
 
     if (!response.ok) {
-        console.error('Error when attempting to approve request', response.statusText)
+        const errorText = await response.text();
+        toastr.error(errorText || response.statusText);
+        return;
     }
 
     location.reload()

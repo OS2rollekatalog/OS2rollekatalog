@@ -62,6 +62,10 @@ public class SystemRoleService {
 	public List<SystemRole> getByUserUuidAndItSystemIds(String userUuid, Collection<Long> itSystemIds) {
 		return systemRoleDao.findDistinctByUserUuidAndItSystemIdIn(userUuid, itSystemIds);
 	}
+	
+	public List<SystemRole> getByItSystemIds(Collection<Long> itSystemIds) {
+		return systemRoleDao.findByItSystemIdIn(itSystemIds);
+	}
 
 	@Transactional
 	public List<SystemRole> getByItSystem(ItSystem itSystem, Consumer<SystemRole> consumer) {
@@ -110,17 +114,12 @@ public class SystemRoleService {
 		return systemRoleDao.saveAll(systemRoles);
 	}
 
-	public List<UserRole> userRolesWithSystemRole(SystemRole systemRole) {
+	public Set<UserRole> userRolesWithSystemRole(SystemRole systemRole) {
+		return userRoleService.findAllBySystemRole(systemRole);
+	}
 
-		// find all potential candidates
-		List<UserRole> candidates = userRoleService.getByItSystem(systemRole.getItSystem());
-
-		// filter
-		candidates.removeIf(ur -> ur.getSystemRoleAssignments().stream()
-				.noneMatch(sysRoleAssignment -> systemRole.getId() == sysRoleAssignment.getSystemRole().getId()));
-
-		return candidates;
-
+	public Set<UserRole> userRolesWithSystemRoles(Collection<SystemRole> systemRoles) {
+		return userRoleService.findAllBySystemRoles(systemRoles);
 	}
 
 	public boolean isInUse(SystemRole systemRole) {

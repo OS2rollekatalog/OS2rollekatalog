@@ -7,6 +7,7 @@ import dk.digitalidentity.rc.dao.model.SystemRoleAssignment;
 import dk.digitalidentity.rc.dao.model.SystemRoleAssignmentConstraintValue;
 import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserRole;
+import dk.digitalidentity.rc.dao.serializer.SystemRoleAssignmentDao;
 import dk.digitalidentity.rc.dao.model.assignment.HistoricItSystemAssignment;
 import dk.digitalidentity.rc.dao.model.assignment.HistoricItSystemAssignmentConstraint;
 import dk.digitalidentity.rc.dao.model.enums.ConstraintValueType;
@@ -31,13 +32,19 @@ import static dk.digitalidentity.rc.mockfactory.assignment.MockFactory.createUse
 import static dk.digitalidentity.rc.mockfactory.assignment.MockFactory.createUserRole;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class HistoricItSystemAssignmentServiceTest {
 
 	@Mock
 	private HistoricItSystemAssignmentDao dao;
+
+	@Mock
+	private SystemRoleAssignmentDao systemRoleAssignmentDao;
 
 	@InjectMocks
 	private HistoricItSystemAssignmentService service;
@@ -331,6 +338,92 @@ class HistoricItSystemAssignmentServiceTest {
 	}
 
 	@Nested
+	@DisplayName("recordSystemRoleAssignmentSeedIfMissing")
+	class RecordSystemRoleAssignmentSeedIfMissing {
+
+		@Test
+		@DisplayName("inserts a new record when no open row with the same hash exists")
+		void insertsWhenMissing() {
+			// ---- Given ---- //
+			SystemRoleAssignment assignment = createSystemRoleAssignment(systemRole);
+			when(dao.existsByRecordHashAndValidToIsNull(any())).thenReturn(false);
+
+			// ---- When ---- //
+			service.recordSystemRoleAssignmentSeedIfMissing(userRole, assignment);
+
+			// ---- Then ---- //
+			verify(dao).save(any(HistoricItSystemAssignment.class));
+		}
+
+		@Test
+		@DisplayName("does nothing when an open row with the same hash already exists")
+		void skipsWhenPresent() {
+			// ---- Given ---- //
+			SystemRoleAssignment assignment = createSystemRoleAssignment(systemRole);
+			when(dao.existsByRecordHashAndValidToIsNull(any())).thenReturn(true);
+
+			// ---- When ---- //
+			service.recordSystemRoleAssignmentSeedIfMissing(userRole, assignment);
+
+			// ---- Then ---- //
+			verify(dao, never()).save(any(HistoricItSystemAssignment.class));
+		}
+
+		@Test
+		@DisplayName("seed produces the same hash as a fresh add for the same assignment")
+		void hashUsedMatchesAddHash() {
+			// ---- Given ---- //
+			SystemRoleAssignment assignment = createSystemRoleAssignment(systemRole);
+			when(dao.existsByRecordHashAndValidToIsNull(any())).thenReturn(false);
+
+			// ---- When ---- //
+			service.recordSystemRoleAssignmentAdded(userRole, assignment);
+			service.recordSystemRoleAssignmentSeedIfMissing(userRole, assignment);
+
+			// ---- Then ---- //
+			ArgumentCaptor<HistoricItSystemAssignment> captor = ArgumentCaptor.forClass(HistoricItSystemAssignment.class);
+			verify(dao, Mockito.times(2)).save(captor.capture());
+			assertThat(captor.getAllValues().get(0).getRecordHash())
+				.isEqualTo(captor.getAllValues().get(1).getRecordHash());
+		}
+	}
+
+	@Nested
+	@DisplayName("recordSystemRoleAssignmentEdited")
+	class RecordSystemRoleAssignmentEdited {
+
+		@Test
+		@DisplayName("closes the pre-edit hash and inserts a fresh record when hash changes")
+		void closesAndInsertsOnRealEdit() {
+			// ---- Given ---- //
+			SystemRoleAssignment assignment = createSystemRoleAssignment(systemRole);
+			String preEditHash = "some-other-hash-that-differs-from-current";
+
+			// ---- When ---- //
+			service.recordSystemRoleAssignmentEdited(userRole, assignment, preEditHash);
+
+			// ---- Then ---- //
+			verify(dao).closeOpenByRecordHash(eq(preEditHash), any());
+			verify(dao).save(any(HistoricItSystemAssignment.class));
+		}
+
+		@Test
+		@DisplayName("does nothing when the new hash equals the pre-edit hash")
+		void noopWhenHashUnchanged() {
+			// ---- Given ---- //
+			SystemRoleAssignment assignment = createSystemRoleAssignment(systemRole);
+			String preEditHash = service.computeRecordHash(userRole, assignment);
+
+			// ---- When ---- //
+			service.recordSystemRoleAssignmentEdited(userRole, assignment, preEditHash);
+
+			// ---- Then ---- //
+			verify(dao, never()).closeOpenByRecordHash(any(), any());
+			verify(dao, never()).save(any(HistoricItSystemAssignment.class));
+		}
+	}
+
+	@Nested
 	@DisplayName("recordSystemRoleAssignmentRemoved")
 	class RecordSystemRoleAssignmentRemoved {
 
@@ -367,6 +460,62 @@ class HistoricItSystemAssignmentServiceTest {
 			verify(dao).closeOpenByRecordHash(hashCaptor.capture(), any());
 
 			assertThat(hashCaptor.getValue()).isEqualTo(expectedHash);
+		}
+	}
+
+	@Nested
+	@DisplayName("seedHistoricRowFromSystemRoleAssignmentId")
+	class SeedHistoricRowFromSystemRoleAssignmentId {
+
+		@Test
+		@DisplayName("loads SRA inside the tx and persists when missing")
+		void loadsAndPersists() {
+			// ---- Given ---- //
+			SystemRoleAssignment assignment = createSystemRoleAssignment(systemRole);
+			assignment.setUserRole(userRole);
+			when(systemRoleAssignmentDao.findById(7L)).thenReturn(java.util.Optional.of(assignment));
+			when(dao.existsByRecordHashAndValidToIsNull(any())).thenReturn(false);
+
+			// ---- When ---- //
+			boolean result = service.seedHistoricRowFromSystemRoleAssignmentId(7L);
+
+			// ---- Then ---- //
+			assertThat(result).isTrue();
+			verify(dao).save(any(HistoricItSystemAssignment.class));
+		}
+
+		@Test
+		@DisplayName("returns false and skips persist when SRA does not exist")
+		void skipsWhenSraGone() {
+			// ---- Given ---- //
+			when(systemRoleAssignmentDao.findById(99L)).thenReturn(java.util.Optional.empty());
+
+			// ---- When ---- //
+			boolean result = service.seedHistoricRowFromSystemRoleAssignmentId(99L);
+
+			// ---- Then ---- //
+			assertThat(result).isFalse();
+			verify(dao, never()).save(any(HistoricItSystemAssignment.class));
+		}
+
+		@Test
+		@DisplayName("returns false when UserRole has no IT-system")
+		void skipsWhenNoItSystem() {
+			// ---- Given ---- //
+			UserRole roleWithoutItSystem = new UserRole();
+			roleWithoutItSystem.setId(50L);
+			roleWithoutItSystem.setName("Rolle uden it-system");
+			roleWithoutItSystem.setItSystem(null);
+			SystemRoleAssignment assignment = createSystemRoleAssignment(systemRole);
+			assignment.setUserRole(roleWithoutItSystem);
+			when(systemRoleAssignmentDao.findById(8L)).thenReturn(java.util.Optional.of(assignment));
+
+			// ---- When ---- //
+			boolean result = service.seedHistoricRowFromSystemRoleAssignmentId(8L);
+
+			// ---- Then ---- //
+			assertThat(result).isFalse();
+			verify(dao, never()).save(any(HistoricItSystemAssignment.class));
 		}
 	}
 }

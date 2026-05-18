@@ -162,50 +162,50 @@ public class DMPService {
 
 		// read existing roles
 		List<SystemRole> systemRoles = systemRoleService.getByItSystem(itSystem);
+		Map<String, SystemRole> systemRolesByIdentifier = systemRoles.stream()
+				.collect(Collectors.toMap(SystemRole::getIdentifier, sr -> sr));
+
+		// build the full set of identifiers from DMP for removal check
+		Set<String> allDmpIdentifiers = new HashSet<>();
 
 		// to add/update
 		List<SystemRole> toSave = new ArrayList<>();
 		for (String dmpApplicationId : dmpRoleMap.keySet()) {
 			for (DMPRole dmpRole : dmpRoleMap.get(dmpApplicationId)) {
 				String generatedIdentifier = dmpApplicationId + ":" + dmpRole.getId();
+				allDmpIdentifiers.add(generatedIdentifier);
 
-				boolean found = false;
-				for (SystemRole systemRole : systemRoles) {
-					if (Objects.equals(systemRole.getIdentifier(), generatedIdentifier)) {
-						boolean changes = false;
+				SystemRole systemRole = systemRolesByIdentifier.get(generatedIdentifier);
+				if (systemRole != null) {
+					boolean changes = false;
 
-						if (!Objects.equals(dmpRole.getDescription(), systemRole.getDescription())) {
-							systemRole.setDescription(dmpRole.getDescription());
-							changes = true;
-						}
+					if (!Objects.equals(dmpRole.getDescription(), systemRole.getDescription())) {
+						systemRole.setDescription(dmpRole.getDescription());
+						changes = true;
+					}
 
-						if (!Objects.equals(dmpRole.getName(), systemRole.getName())) {
-							systemRole.setName(dmpRole.getName());
-							changes = true;
-						}
+					if (!Objects.equals(dmpRole.getName(), systemRole.getName())) {
+						systemRole.setName(dmpRole.getName());
+						changes = true;
+					}
 
-						if (changes) {
-							toSave.add(systemRole);
-							log.info("Updating " + systemRole.getName() + " / " + systemRole.getId());
-						}
-
-						found = true;
-						break;
+					if (changes) {
+						toSave.add(systemRole);
+						log.info("Updating " + systemRole.getName() + " / " + systemRole.getId());
 					}
 				}
-
-				if (!found) {
+				else {
 					log.info("Creating " + dmpRole.getName());
 
-					SystemRole systemRole = new SystemRole();
-					systemRole.setDescription(dmpRole.getDescription());
-					systemRole.setIdentifier(generatedIdentifier);
-					systemRole.setItSystem(itSystem);
-					systemRole.setName(dmpRole.getName());
-					systemRole.setRoleType(RoleType.BOTH);
-					systemRole.setWeight(1);
+					SystemRole newSystemRole = new SystemRole();
+					newSystemRole.setDescription(dmpRole.getDescription());
+					newSystemRole.setIdentifier(generatedIdentifier);
+					newSystemRole.setItSystem(itSystem);
+					newSystemRole.setName(dmpRole.getName());
+					newSystemRole.setRoleType(RoleType.BOTH);
+					newSystemRole.setWeight(1);
 
-					toSave.add(systemRole);
+					toSave.add(newSystemRole);
 				}
 			}
 		}
@@ -216,25 +216,7 @@ public class DMPService {
 
 		// to remove
 		for (SystemRole systemRole : systemRoles) {
-			boolean found = false;
-
-			for (String dmpApplicationId : dmpRoleMap.keySet()) {
-				for (DMPRole dmpRole : dmpRoleMap.get(dmpApplicationId)) {
-					String generatedIdentifier = dmpApplicationId + ":" + dmpRole.getId();
-
-					if (Objects.equals(systemRole.getIdentifier(), generatedIdentifier)) {
-						found = true;
-						break;
-					}
-				}
-
-				// break the outer loop as well
-				if (found) {
-					break;
-				}
-			}
-
-			if (!found) {
+			if (!allDmpIdentifiers.contains(systemRole.getIdentifier())) {
 				log.info("Deleting " + systemRole.getName() + " / " + systemRole.getId());
 				systemRoleService.delete(systemRole);
 			}

@@ -1655,6 +1655,12 @@ public class OrganisationImporter {
 	}
 
 	private void handleParentChange(Set<OrgUnitWithNewAndOldParentDTO> parentChangedOrgUnits) {
+		for (OrgUnitWithNewAndOldParentDTO dto : parentChangedOrgUnits) {
+			// Recalculate all users in the moved OU (including descendants) since inherited roles may have changed
+			Set<String> affectedUserUuids = orgUnitService.findUserUuidsForOu(dto.getOrgUnit(), true);
+			userService.queueMultipleForRecalculation(affectedUserUuids);
+		}
+
 		if (settingsService.isNotificationTypeEnabled(NotificationType.ORG_UNIT_NEW_PARENT)) {
 			for (OrgUnitWithNewAndOldParentDTO dto : parentChangedOrgUnits) {
 				UserRoleAndRoleGroupListWrapper newWrapper = new UserRoleAndRoleGroupListWrapper();

@@ -15,14 +15,18 @@ import dk.digitalidentity.rc.service.model.UserRoleAssignmentReportEntry;
 
 public class ReportSystemRoleWeightService {
 
-    public static void addSystemRoleWeights(List<HistoryItSystem> itSystems, final List<UserRoleAssignmentReportEntry> result) {
-        // First find weight pr. user-role
-        final Map<Long, Long> userRoleIdWeight = itSystems.stream()
+    public static Map<Long, Long> computeUserRoleWeights(List<HistoryItSystem> itSystems) {
+        return itSystems.stream()
                 .flatMap(its -> its.getHistoryUserRoles().stream())
                 .collect(Collectors.toMap(HistoryUserRole::getUserRoleId, ur -> ur.getHistorySystemRoleAssignments().stream()
                                 .mapToLong(sra -> findWeightForSystemRoleAssignment(ur.getHistoryItSystem(), sra))
                                 .max().orElse(1))
                 );
+    }
+
+    public static void addSystemRoleWeights(List<HistoryItSystem> itSystems, final List<UserRoleAssignmentReportEntry> result) {
+        // First find weight pr. user-role
+        final Map<Long, Long> userRoleIdWeight = computeUserRoleWeights(itSystems);
         final Map<String, List<UserRoleAssignmentReportEntry>> userEntries = result.stream().collect(
                 Collectors.toMap(UserRoleAssignmentReportEntry::getUserId, Arrays::asList, (a, b) -> Stream.concat(a.stream(), b.stream()).toList())
         );

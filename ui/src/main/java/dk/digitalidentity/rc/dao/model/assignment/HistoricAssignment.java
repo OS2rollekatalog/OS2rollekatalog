@@ -17,6 +17,7 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.BatchSize;
 import org.hibernate.proxy.HibernateProxy;
 
 import java.time.LocalDate;
@@ -30,7 +31,8 @@ import java.util.Set;
 @Entity
 @Table(name = "historic_assignment",
 	indexes = {
-		@Index(name = "idx_historic_assignment_temporal", columnList = "valid_from, valid_to"),
+		@Index(name = "idx_historic_assignment_valid_from", columnList = "valid_from"),
+		@Index(name = "idx_historic_assignment_valid_to", columnList = "valid_to"),
 	})
 @Getter
 @Setter
@@ -131,6 +133,7 @@ public class HistoricAssignment {
 	private String responsibleOUName;
 
 	@Builder.Default
+	@BatchSize(size = 500)
 	@OneToMany(mappedBy = "historicAssignment", cascade = CascadeType.ALL, orphanRemoval = true)
 	private Set<HistoricAssignmentConstraint> constraints = new HashSet<>();
 

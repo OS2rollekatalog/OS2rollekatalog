@@ -12,6 +12,7 @@ public class Email {
 	private boolean enabled = false;
 	
 	private String from = "no-reply@rollekatalog.dk";
+	private String fromName = "OS2rollekatalog";
 	private String username;
 	private String password;
 	private String host;

@@ -114,40 +114,25 @@ public class RoleAssignmentXlsView extends AttestationXlsView {
 		sheet.setColumnWidth(5, 20 * 256);
 	}
 
+	private static final int MAX_ROWS_PER_SHEET = 1_048_575;
+
 	private void createPersonsSheet(Workbook workbook) {
-		Sheet sheet = workbook.createSheet(messageSource.getMessage("attestationmodule.xls.report.orgunits.title", null, locale));
+		String sheetTitle = messageSource.getMessage("attestationmodule.xls.report.orgunits.title", null, locale);
+		List<String> headers = getPersonsSheetHeaders();
 
-		createTitleRow(sheet, messageSource.getMessage("attestationmodule.xls.report.orgunits.title", null, locale));
-		createOUInfoRow(sheet);
-
-		ArrayList<String> headers = new ArrayList<>();
-		headers.add(messageSource.getMessage("attestationmodule.xls.report.orgunits.userName", null, locale));
-		headers.add(messageSource.getMessage("attestationmodule.xls.report.orgunits.userId", null, locale));
-		headers.add(messageSource.getMessage("attestationmodule.xls.report.orgunits.position", null, locale));
-		headers.add(messageSource.getMessage("attestationmodule.xls.report.orgunits.orgUnit", null, locale));
-		headers.add(messageSource.getMessage("attestationmodule.xls.report.orgunits.userRole", null, locale));
-		headers.add(messageSource.getMessage("attestationmodule.xls.report.orgunits.postponedConstraints", null, locale));
-		headers.add(messageSource.getMessage("attestationmodule.xls.report.orgunits.itSystem", null, locale));
-		headers.add(messageSource.getMessage("attestationmodule.xls.report.orgunits.roleGroup", null, locale));
-		headers.add(messageSource.getMessage("attestationmodule.xls.report.orgunits.roleStatus", null, locale));
-		headers.add(messageSource.getMessage("attestationmodule.xls.report.orgunits.validFrom", null, locale));
-		headers.add(messageSource.getMessage("attestationmodule.xls.report.orgunits.validTo", null, locale));
-		headers.add(messageSource.getMessage("attestationmodule.xls.report.orgunits.assignedFrom", null, locale));
-		headers.add(messageSource.getMessage("attestationmodule.xls.report.orgunits.inherited", null, locale));
-		headers.add(messageSource.getMessage("attestationmodule.xls.report.orgunits.assignedThroughType", null, locale));
-		headers.add(messageSource.getMessage("attestationmodule.xls.report.orgunits.assignedThrough", null, locale));
-		headers.add(messageSource.getMessage("attestationmodule.xls.report.orgunits.responsibleOu", null, locale));
-		headers.add(messageSource.getMessage("attestationmodule.xls.report.orgunits.responsibleUser", null, locale));
-		headers.add(messageSource.getMessage("attestationmodule.xls.report.orgunits.attestationStatus", null, locale));
-		headers.add(messageSource.getMessage("attestationmodule.xls.report.orgunits.verifiedAt", null, locale));
-		headers.add(messageSource.getMessage("attestationmodule.xls.report.orgunits.verifiedBy", null, locale));
-		headers.add(messageSource.getMessage("attestationmodule.xls.report.orgunits.remark", null, locale));
-
-		createHeaderRow(sheet, headers);
-
+		int sheetNumber = 1;
+		Sheet sheet = createPersonsSheetWithHeaders(workbook, sheetTitle, headers);
 		int row = 5;
+
 		while (paginator.hasNext()) {
 			for (RoleAssignmentReportRowDTO entry : paginator.next()) {
+				if (row >= MAX_ROWS_PER_SHEET) {
+					applyPersonsSheetColumnWidths(sheet);
+					sheetNumber++;
+					sheet = createPersonsSheetWithHeaders(workbook, sheetTitle + " (" + sheetNumber + ")", headers);
+					row = 5;
+				}
+
 				Row dataRow = sheet.createRow(row++);
 				int column = 0;
 
@@ -176,6 +161,44 @@ public class RoleAssignmentXlsView extends AttestationXlsView {
 				createCell(dataRow, column++, entry.getRemark(), null);
 			}
 		}
+		applyPersonsSheetColumnWidths(sheet);
+	}
+
+	private Sheet createPersonsSheetWithHeaders(Workbook workbook, String sheetTitle, List<String> headers) {
+		Sheet sheet = workbook.createSheet(sheetTitle);
+		createTitleRow(sheet, sheetTitle);
+		createOUInfoRow(sheet);
+		createHeaderRow(sheet, headers);
+		return sheet;
+	}
+
+	private List<String> getPersonsSheetHeaders() {
+		ArrayList<String> headers = new ArrayList<>();
+		headers.add(messageSource.getMessage("attestationmodule.xls.report.orgunits.userName", null, locale));
+		headers.add(messageSource.getMessage("attestationmodule.xls.report.orgunits.userId", null, locale));
+		headers.add(messageSource.getMessage("attestationmodule.xls.report.orgunits.position", null, locale));
+		headers.add(messageSource.getMessage("attestationmodule.xls.report.orgunits.orgUnit", null, locale));
+		headers.add(messageSource.getMessage("attestationmodule.xls.report.orgunits.userRole", null, locale));
+		headers.add(messageSource.getMessage("attestationmodule.xls.report.orgunits.postponedConstraints", null, locale));
+		headers.add(messageSource.getMessage("attestationmodule.xls.report.orgunits.itSystem", null, locale));
+		headers.add(messageSource.getMessage("attestationmodule.xls.report.orgunits.roleGroup", null, locale));
+		headers.add(messageSource.getMessage("attestationmodule.xls.report.orgunits.roleStatus", null, locale));
+		headers.add(messageSource.getMessage("attestationmodule.xls.report.orgunits.validFrom", null, locale));
+		headers.add(messageSource.getMessage("attestationmodule.xls.report.orgunits.validTo", null, locale));
+		headers.add(messageSource.getMessage("attestationmodule.xls.report.orgunits.assignedFrom", null, locale));
+		headers.add(messageSource.getMessage("attestationmodule.xls.report.orgunits.inherited", null, locale));
+		headers.add(messageSource.getMessage("attestationmodule.xls.report.orgunits.assignedThroughType", null, locale));
+		headers.add(messageSource.getMessage("attestationmodule.xls.report.orgunits.assignedThrough", null, locale));
+		headers.add(messageSource.getMessage("attestationmodule.xls.report.orgunits.responsibleOu", null, locale));
+		headers.add(messageSource.getMessage("attestationmodule.xls.report.orgunits.responsibleUser", null, locale));
+		headers.add(messageSource.getMessage("attestationmodule.xls.report.orgunits.attestationStatus", null, locale));
+		headers.add(messageSource.getMessage("attestationmodule.xls.report.orgunits.verifiedAt", null, locale));
+		headers.add(messageSource.getMessage("attestationmodule.xls.report.orgunits.verifiedBy", null, locale));
+		headers.add(messageSource.getMessage("attestationmodule.xls.report.orgunits.remark", null, locale));
+		return headers;
+	}
+
+	private void applyPersonsSheetColumnWidths(Sheet sheet) {
 		sheet.setColumnWidth(0, 45 * 256);
 		sheet.setColumnWidth(1, 25 * 256);
 		sheet.setColumnWidth(2, 30 * 256);
@@ -187,18 +210,15 @@ public class RoleAssignmentXlsView extends AttestationXlsView {
 		sheet.setColumnWidth(8, 18 * 256);
 		sheet.setColumnWidth(9, 18 * 256);
 		sheet.setColumnWidth(10, 18 * 256);
-
 		sheet.setColumnWidth(11, 15 * 256);
 		sheet.setColumnWidth(12, 18 * 256);
 		sheet.setColumnWidth(13, 18 * 256);
 		sheet.setColumnWidth(14, 35 * 256);
 		sheet.setColumnWidth(15, 35 * 256);
-
 		sheet.setColumnWidth(16, 25 * 256);
 		sheet.setColumnWidth(17, 25 * 256);
 		sheet.setColumnWidth(18, 50 * 256);
 		sheet.setColumnWidth(19, 50 * 256);
-
 	}
 
 	private static String getAttestationStatusMessage(RoleAssignmentReportRowDTO entry) {

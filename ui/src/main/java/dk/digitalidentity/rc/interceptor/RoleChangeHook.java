@@ -50,4 +50,6 @@ public interface RoleChangeHook {
 	// UserRoleService Hooks
 	public void interceptAddSystemRoleAssignmentOnUserRole(UserRole userRole, SystemRoleAssignment systemRoleAssignment);
 	public void interceptRemoveSystemRoleAssignmentOnUserRole(UserRole userRole, SystemRoleAssignment systemRoleAssignment);
+	public default void interceptDeleteUserRole(UserRole userRole) {}
+	public default void interceptDeleteRoleGroup(RoleGroup roleGroup) {}
 }

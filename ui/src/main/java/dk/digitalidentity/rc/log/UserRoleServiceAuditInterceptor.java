@@ -29,6 +29,7 @@ public class UserRoleServiceAuditInterceptor {
 			case "updateSystemRoleConstraint":
 			case "addSystemRoleConstraint":
 			case "removeSystemRoleConstraint":
+			case "replaceSystemRoleConstraints":
 				break;
 			case "addSystemRoleAssignment":
 				auditAddSystemRoleAssignment(jp, retVal);
@@ -51,6 +52,7 @@ public class UserRoleServiceAuditInterceptor {
 			case "updateSystemRoleConstraint":
 			case "addSystemRoleConstraint":
 			case "removeSystemRoleConstraint":
+			case "replaceSystemRoleConstraints":
 				break;
 			case "delete":
 				auditDelete(jp);
@@ -73,6 +75,7 @@ public class UserRoleServiceAuditInterceptor {
 			case "addSystemRoleConstraint":
 				return auditSystemRoleAssignmentUpdate(jp, EventType.ADD_ASSIGNMENT_CONSTRAINT);
 			case "updateSystemRoleConstraint":
+			case "replaceSystemRoleConstraints":
 				return auditSystemRoleAssignmentUpdate(jp, EventType.EDIT_ASSIGNMENT_CONSTRAINT);
 			case "removeSystemRoleConstraint":
 				return auditSystemRoleAssignmentUpdate(jp, EventType.REMOVE_SYSTEM_ROLE_CONSTRAINT);

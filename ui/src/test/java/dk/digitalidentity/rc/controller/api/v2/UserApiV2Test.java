@@ -21,6 +21,7 @@ import org.springframework.restdocs.payload.JsonFieldType;
 import org.springframework.test.web.servlet.MvcResult;
 
 import java.util.List;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.restdocs.headers.HeaderDocumentation.headerWithName;
@@ -89,7 +90,7 @@ public class UserApiV2Test extends AbstractApiTest {
 
 		user = userService.getByUserId(username);
 		var assignments = calculator.calculateAllAssignmentsForUser(user);
-		currentAssignmentService.saveAll(user, assignments.getLeft());
+		currentAssignmentService.saveAllForUsers(Map.of(user, assignments.getLeft()));
 		entityManager.flush();
 		entityManager.clear();
 	}

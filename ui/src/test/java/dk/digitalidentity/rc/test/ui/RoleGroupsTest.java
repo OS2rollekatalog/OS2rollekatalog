@@ -34,7 +34,8 @@ public class RoleGroupsTest extends SeleniumTest {
 			.until(d -> !d.getCurrentUrl().endsWith("/new"));
 		Assertions.assertEquals("OS2rollekatalog", driver.getTitle());
 
-		return driver.getCurrentUrl().substring(driver.getCurrentUrl().lastIndexOf("/") + 1);
+		String currentUrl = driver.getCurrentUrl();
+		return currentUrl.substring(currentUrl.lastIndexOf("/") + 1);
 	}
 
     public void viewRoleGroup(String roleGroupId) {

@@ -161,6 +161,8 @@ section=${T(dk.digitalidentity.rc.security.permission.Section)}">
 			var deleteAssignmentConfirmTxt = [[#{html.control.button.yes}]];
 			var deleteAssignmentCancelTxt = [[#{html.control.button.cancel}]];
 
+			var txtQueueSpinner = [[#{html.common.queue.spinner.working}]];
+
 			var titlesEnabled = [[${titlesEnabled}]];
 			var roleId = [[${rolegroup.id}]];
 
@@ -195,10 +197,15 @@ section=${T(dk.digitalidentity.rc.security.permission.Section)}">
 
 		function UserService() {
 			this.loadRolesFragment = function () {
-				$("#users_menu").load(UIUrl + roleId + "/assignedUsersFragmentView", function () {
-					fragShowDataTableFun('#listTableUsers', 0);
+				new QueueDrainService('#users_menu', { message: txtQueueSpinner }).watch(function () {
+					$("#users_menu").load(UIUrl + roleId + "/assignedUsersFragmentView", function () {
+						fragShowDataTableFun('#listTableUsers', 0);
+					});
 				});
 			}
+
+			// Alias used by the shared user_user_role_modal after a role is added.
+			this.loadRolesFragmentWhenReady = this.loadRolesFragment;
 		}
 
 		function OrgUnitService() {

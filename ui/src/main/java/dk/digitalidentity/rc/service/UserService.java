@@ -49,7 +49,6 @@ import dk.digitalidentity.simple_queue.QueueMessage;
 import dk.digitalidentity.simple_queue.json.JsonSimpleMessage;
 import dk.digitalidentity.simple_queue.service.QueueService;
 import lombok.extern.slf4j.Slf4j;
-import org.hibernate.Hibernate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.EnableCaching;
 import org.springframework.context.ApplicationEventPublisher;
@@ -65,6 +64,7 @@ import org.springframework.util.StringUtils;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.Calendar;
@@ -266,8 +266,11 @@ public class UserService {
 		userDao.findByDeletedFalse().forEach(this::queueForRecalculation);
 	}
 
+	// Lookup must include deleted users: the @Before activateUser hook fires before deleted is
+	// flipped to false, so a deleted-filtered query would skip users being reactivated and they
+	// would never get their assignments recalculated. The queue consumer handles either state.
 	public void queueForRecalculation(final String userUuid) {
-		userDao.findByUuidAndDeletedFalse(userUuid)
+		userDao.findByUuid(userUuid)
 			.ifPresent(this::queueForRecalculation);
 	}
 
@@ -275,8 +278,8 @@ public class UserService {
 		eventPublisher.publishEvent(QueueMessage.builder()
 			.queue(ASSIGNMENT_UPDATE_QUEUE_IDENTIFIER)
 			.messageId(user.getUuid()) // Use user uuid as messageId, this ensure we do not get any duplicates in the queue
-			.priority(1L)
-			.dequeueTime(LocalDateTime.now().plusSeconds(3)) // Allow a few seconds before processing the message, so we are sure the changes to the assignments are persisted.
+			.priority(10L)
+			.dequeueTime(LocalDateTime.now().plusSeconds(2)) // Allow a few seconds before processing the message, so we are sure the changes to the assignments are persisted.
 			.body(JsonSimpleMessage.toJson(createUserUpdateMessage(user.getUuid())))
 			.build());
 	}
@@ -694,6 +697,8 @@ public class UserService {
 		if (dirtyUsers.size() > 0) {
 			auditLogger.log(admin, EventType.PERFORMED_USERROLE_CLEANUP);
 			userDao.saveAll(dirtyUsers);
+			
+			queueMultipleForRecalculation(dirtyUsers.stream().map(u -> u.getUuid()).collect(Collectors.toSet()));
 		}
 	}
 
@@ -748,6 +753,8 @@ public class UserService {
 		if (dirtyUsers.size() > 0) {
 			auditLogger.log(admin, EventType.PERFORMED_ROLEGROUP_CLEANUP);
 			userDao.saveAll(dirtyUsers);
+			
+			queueMultipleForRecalculation(dirtyUsers.stream().map(u -> u.getUuid()).collect(Collectors.toSet()));
 		}
 	}
 
@@ -922,11 +929,14 @@ public class UserService {
 								}
 								break;
 							case SELECTED_INHERITED:
-								List<String> organisationConstraintUuids = organisationConstraintUtil.getOrganisationConstraintUuids(constraint.getConstraintValue());
 								if (constraint.getConstraintType().getEntityId().equals(Constants.KLE_CONSTRAINT_ENTITY_ID)) {
 									constraintValue.append(getKLEConstraint(user, ConstraintValueType.SELECTED_INHERITED));
 								}
-								else if (constraint.getConstraintType().getEntityId().equals(Constants.INTERNAL_ORGUNIT_CONSTRAINT_ENTITY_ID)) {
+								else if (constraint.getConstraintType().getEntityId().equals(Constants.INTERNAL_ORGUNIT_CONSTRAINT_ENTITY_ID) ||
+										 constraint.getConstraintType().getEntityId().equals(Constants.OU_CONSTRAINT_ENTITY_ID)) {
+
+									List<String> organisationConstraintUuids = organisationConstraintUtil.getOrganisationConstraintUuids(constraint.getConstraintValue());
+
 									String csvFormat = String.join(",", organisationConstraintUuids);
 									constraintValue.append(csvFormat);
 								}
@@ -952,9 +962,13 @@ public class UserService {
 							case POSTPONED:
 								if (assignment.getPostponedConstraints() != null) {
 									for (CurrentAssignmentPostponedConstraint postponedConstraint : assignment.getPostponedConstraints()) {
-										if (Objects.equals(postponedConstraint.getConstraintTypeUuid(), constraint.getConstraintType().getUuid())) {
-
-											constraintValue.append(postponedConstraint.getValue());
+										if (constraint.getConstraintType() != null
+												&& postponedConstraint.getConstraintTypeId() == constraint.getConstraintType().getId()
+												&& postponedConstraint.getSystemRoleId() == systemRole.getSystemRole().getId()) {
+											List<String> values = postponedConstraint.getValue();
+											if (values != null) {
+												constraintValue.append(String.join(",", values));
+											}
 										}
 									}
 								}
@@ -1392,27 +1406,7 @@ public class UserService {
 
 		List<User> users = getAllWithNemLoginUuid();
 		for (User user : users) {
-			Set<CurrentAssignment> assignments = assignmentService.getByUserAndItSystems(user, itSystems);
-
-			// Eager load relations for serialization
-			assignments.forEach(assignment -> {
-				if (assignment.getUserRole() != null && assignment.getUserRole().getSystemRoleAssignments() != null) {
-					assignment.getUserRole().getSystemRoleAssignments().forEach(sra -> {
-						if (sra.getConstraintValues() != null) {
-							sra.getConstraintValues().forEach(cv -> {
-								if (cv.getConstraintType() != null) {
-									cv.getConstraintType().getEntityId();
-								}
-							});
-						}
-					});
-				}
-
-				if (assignment.getPostponedConstraints() != null) {
-					assignment.getPostponedConstraints().size(); // Trigger lazy load
-				}
-			});
-
+			Set<CurrentAssignment> assignments = assignmentService.getByUserAndItSystemsWithRoleDetails(user, itSystems);
 			map.put(user, assignments);
 		}
 
@@ -1427,18 +1421,22 @@ public class UserService {
 			// Get the configured number of days from settings (defaults to 180)
 			Integer daysThreshold = settingsService.getRemoveDirectAssignmentsForDisabled();
 
-			if (daysThreshold == null || daysThreshold <= 0) {
+			// null/blank = funktionen slået fra; 0 = ryd op straks (samme dag som brugeren bliver disabled/deleted)
+			if (daysThreshold == null || daysThreshold < 0) {
 				log.debug("Disabled user cleanup is disabled (days threshold: {})", daysThreshold);
 				return;
 			}
 
-			// Calculate the cutoff date
+			// Calculate the cutoff date.
+			// cutoffDate bruges til disabledAt (LocalDate-felt). cutoffDateExclusiveUpper er starten af dagen efter
+			// cutoffDate og bruges som strict-less-than-grænse mod lastUpdated (Date-felt) for deleted-brugere,
+			// så alt der er opdateret til-og-med cutoffDate fanges, uanset tidspunkt på dagen.
 			LocalDate cutoffDate = LocalDate.now().minusDays(daysThreshold);
-			log.debug("Looking for disabled users with disabledAt date on or before: {}", cutoffDate);
+			Date cutoffDateExclusiveUpper = Date.from(cutoffDate.plusDays(1).atStartOfDay(ZoneId.systemDefault()).toInstant());
+			log.debug("Looking for disabled/deleted users older than: {}", cutoffDate);
 
-			// Find users who have been disabled for the specified number of days or more
-			// Fetch users first
-			List<User> usersToCleanup = userDao.findDisabledUsersOlderThan(cutoffDate);
+			// Find users who have been disabled or deleted for the specified number of days or more
+			List<User> usersToCleanup = userDao.findDisabledUsersOlderThanWithAssignments(cutoffDate, cutoffDateExclusiveUpper);
 
 			if (usersToCleanup.isEmpty()) {
 				log.debug("No disabled users found older than cutoff date");
@@ -1451,10 +1449,6 @@ public class UserService {
 
 			for (User user : usersToCleanup) {
 				log.debug("Processing disabled user: {} (disabled at: {})", user.getName(), user.getDisabledAt());
-
-				// Lazy load relations
-				Hibernate.initialize(user.getUserRoleAssignments());
-				Hibernate.initialize(user.getRoleGroupAssignments());
 
 				// Count assignments before clearing
 				int userRoleCount = user.getUserRoleAssignments() != null ? user.getUserRoleAssignments().size() : 0;

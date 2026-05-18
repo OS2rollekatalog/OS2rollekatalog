@@ -19,6 +19,7 @@ import dk.digitalidentity.rc.security.RequireApiItSystemRole;
 import dk.digitalidentity.rc.service.DomainService;
 import dk.digitalidentity.rc.service.ItSystemService;
 import dk.digitalidentity.rc.service.SystemRoleService;
+import dk.digitalidentity.rc.service.UserRoleCleanupService;
 import dk.digitalidentity.rc.service.UserRoleService;
 import dk.digitalidentity.rc.service.UserService;
 import dk.digitalidentity.rc.service.assignment.AssignmentService;
@@ -71,6 +72,9 @@ public class ItSystemApi {
 
 	@Autowired
 	private AssignmentService assignmentService;
+
+	@Autowired
+	private UserRoleCleanupService userRoleCleanupService;
 
 	@GetMapping(value = "/api/itsystem/all")
 	public ResponseEntity<List<ItSystemDTO>> getAllItSystems() {
@@ -288,8 +292,7 @@ public class ItSystemApi {
 			var toBeDeleted = userRoles.stream().filter(ur -> ur.getSystemRoleAssignments().size() == 0).collect(Collectors.toList());
 			for (var userRole : toBeDeleted) {
 				try {
-					// TODO: if the userRole is included in a RoleGroup, this will fail - need a "on delete cascade" rule to the reference *sigh*
-					userRoleService.delete(userRole);
+					userRoleCleanupService.deleteWithCleanup(userRole);
 				}
 				catch (Exception ex) {
 					log.error("Failed to delete userRole: " + userRole.getId(), ex);

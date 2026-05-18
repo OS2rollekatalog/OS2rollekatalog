@@ -76,7 +76,7 @@ public class ManagerController {
 		model.addAttribute("orgUnits", orgUnitDTOs);
 		model.addAttribute("page", (uuid != null) ? "manager.list" : "manager.substitute");
 
-		boolean canEdit = userPermissionContext.hasPermission(Section.MANAGER, Permission.UPDATE) && (getManager() != null &&  Objects.equals(getManager().getUuid(), manager.getUuid()));
+		boolean canEdit = userPermissionContext.hasPermission(Section.MANAGER, Permission.UPDATE) && (getManager() != null &&  Objects.equals(getManager().getUuid(), manager.getUuid())) && userPermissionContext.canManageSubstitutes();
 		model.addAttribute("canEdit", canEdit);
 
 		return "manager/substitute";
@@ -109,6 +109,7 @@ public class ManagerController {
 	public String getSubstitutesList(Model model) {
 		PermissionConstraint readConstraint = userPermissionContext.getConstraint(Section.MANAGER, Permission.READ);
 		PermissionConstraint updateConstraint = userPermissionContext.getConstraint(Section.MANAGER, Permission.UPDATE);
+		boolean canManageSubstitutes = userPermissionContext.canManageSubstitutes();
 		String pattern = "dd/MM-yyyy";
 		SimpleDateFormat simpleDateFormat = new SimpleDateFormat(pattern);
 
@@ -118,7 +119,7 @@ public class ManagerController {
 			.map(ms -> {
 				boolean managerInactive = ms.getManager().isDeleted() || ms.getManager().isDisabled();
 				boolean substituteInactive = ms.getSubstitute().isDeleted() || ms.getSubstitute().isDisabled();
-				boolean canEdit = updateConstraint != null && updateConstraint.allowsOrgunit(ms.getOrgUnit().getUuid());
+				boolean canEdit = canManageSubstitutes && updateConstraint != null && updateConstraint.allowsOrgunit(ms.getOrgUnit().getUuid());
 
 				return new ManagerSubstituteDTO(
 					ms.getId(),
@@ -135,6 +136,7 @@ public class ManagerController {
 
 
 		model.addAttribute("manSubstitutes", managerSubstitutes);
+		model.addAttribute("canManageSubstitutes", canManageSubstitutes);
 		return "substitute/list";
 	}
 
@@ -142,6 +144,9 @@ public class ManagerController {
 	@RequirePermission(section = Section.MANAGER, permission = Permission.CREATE)
 	@GetMapping("/ui/management/substitute/create")
 	public String getCreateFragment(Model model) {
+		if (!userPermissionContext.canManageSubstitutes()) {
+			throw new NotPermittedException("Stedfortrædere kan ikke tilføje stedfortrædere", Section.MANAGER, Permission.CREATE);
+		}
 		PermissionConstraint createConstraint = userPermissionContext.getConstraint(Section.MANAGER, Permission.CREATE);
 		List<SimpleManagerDTO> managers = orgUnitService.getManagers().stream()
 			.filter(manager ->
@@ -184,6 +189,9 @@ public class ManagerController {
 	@RequirePermission(section = Section.MANAGER, permission = Permission.UPDATE)
 	@GetMapping("/ui/management/substitute/{id}/edit")
 	public String getEditFragment(Model model, @PathVariable Long id) {
+		if (!userPermissionContext.canManageSubstitutes()) {
+			throw new NotPermittedException("Stedfortrædere kan ikke redigere stedfortrædere", Section.MANAGER, Permission.UPDATE);
+		}
 		PermissionConstraint updateConstraint = userPermissionContext.getConstraint(Section.MANAGER, Permission.UPDATE);
 
 		ManagerSubstitute manSub = managerSubstituteService.findById(id);

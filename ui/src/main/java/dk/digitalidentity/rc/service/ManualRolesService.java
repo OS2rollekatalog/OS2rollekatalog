@@ -30,6 +30,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -146,22 +147,37 @@ public class ManualRolesService {
 	}
 
 	private void sendChangeNotifications(ItSystem itSystem, Map<UserInformationDTO, List<UserRoleInformationDTO>> toAddMap, Map<UserInformationDTO, List<UserRoleInformationDTO>> toRemoveMap, Map<UserRole, List<User>> toAddUserRoleMap, Map<UserRole, List<User>> toRemoveUserRoleMap, String[] itEmailAddresses) {
-		// Format message and send it
-		if (!toAddMap.isEmpty() || !toRemoveMap.isEmpty() || !toAddUserRoleMap.isEmpty() || !toRemoveUserRoleMap.isEmpty()) {
-			Set<UserRole> allUserRoles = new HashSet<>();
-			allUserRoles.addAll(toAddUserRoleMap.keySet());
-			allUserRoles.addAll(toRemoveUserRoleMap.keySet());
+		if (toAddMap.isEmpty() && toRemoveMap.isEmpty() && toAddUserRoleMap.isEmpty() && toRemoveUserRoleMap.isEmpty()) {
+			return;
+		}
 
-			for (UserRole userRole : allUserRoles) {
-				if (StringUtils.hasText(userRole.getContactEmail())) {
-					handleUserRoleSpecificMail(toAddUserRoleMap, toRemoveUserRoleMap, itEmailAddresses, userRole);
-				}
+		// Manager-action-required mails are independent of itSystem/role contact emails — fire them up front
+		triggerManagerActionNotifications(toAddMap);
+
+		Set<UserRole> allUserRoles = new HashSet<>();
+		allUserRoles.addAll(toAddUserRoleMap.keySet());
+		allUserRoles.addAll(toRemoveUserRoleMap.keySet());
+
+		for (UserRole userRole : allUserRoles) {
+			if (StringUtils.hasText(userRole.getContactEmail())) {
+				handleUserRoleSpecificMail(toAddUserRoleMap, toRemoveUserRoleMap, itEmailAddresses, userRole);
 			}
+		}
 
-			if (itEmailAddresses != null && itEmailAddresses.length > 0) {
-				StringBuilder usrAndRls = formatMessageForItSystem(toAddMap, toRemoveMap);
-				for (String itEmailAddress : itEmailAddresses) {
-					sendNotification(itSystem.getName(), usrAndRls, itEmailAddress);
+		if (itEmailAddresses != null && itEmailAddresses.length > 0) {
+			StringBuilder usrAndRls = formatMessageForItSystem(toAddMap, toRemoveMap);
+			for (String itEmailAddress : itEmailAddresses) {
+				sendNotification(itSystem.getName(), usrAndRls, itEmailAddress);
+			}
+		}
+	}
+
+	private void triggerManagerActionNotifications(Map<UserInformationDTO, List<UserRoleInformationDTO>> toAddMap) {
+		for (Map.Entry<UserInformationDTO, List<UserRoleInformationDTO>> entry : toAddMap.entrySet()) {
+			User user = entry.getKey().user();
+			for (UserRoleInformationDTO addRoleDto : entry.getValue()) {
+				if (addRoleDto.userRole().isRequireManagerAction()) {
+					notifyManagerActionRequired(user, addRoleDto.userRole());
 				}
 			}
 		}
@@ -178,11 +194,12 @@ public class ManualRolesService {
 
 		String[] emails = userRole.getContactEmail().split(";");
 		StringBuilder roleAndUsers = formatMessageForRoleEmail(userRole, addedUsers, removedUsers);
+		String titleSubject = userRole.getItSystem().getName() + " (" + userRole.getIdentifier() + ")";
 		for (String email : emails) {
-			if (itEmailAddresses == null || email == null || existsInItSystem(itEmailAddresses, email)) {
+			if (email == null || existsInItSystem(itEmailAddresses, email)) {
 				continue;
 			}
-			sendNotification(userRole.getName(), roleAndUsers, email);
+			sendNotification(titleSubject, userRole.getName(), roleAndUsers, email);
 		}
 	}
 
@@ -196,15 +213,27 @@ public class ManualRolesService {
 				todayAssignmentsForUser = new ArrayList<>();
 			}
 
-			// filter duplicate assignments
-			lastSyncAssignmentsForUser = lastSyncAssignmentsForUser.stream().filter(StreamExtensions.distinctByKey(ManualAssignmentNotificationMap::getUserRoleId)).toList();
+			// group duplicates by userRoleId so they are cleaned up together — otherwise a stale duplicate would re-trigger a removal email on a future run
+			Map<Long, List<ManualAssignmentNotificationMap>> groupedByRole = lastSyncAssignmentsForUser.stream()
+				.collect(Collectors.groupingBy(ManualAssignmentNotificationMap::getUserRoleId));
 
-			// compare with current assignments
-			for (ManualAssignmentNotificationMap assignment : lastSyncAssignmentsForUser) {
-				boolean existsToday = todayAssignmentsForUser.stream().anyMatch(t -> Objects.equals(t.getUserRole().getId(), assignment.getUserRoleId()));
+			for (Map.Entry<Long, List<ManualAssignmentNotificationMap>> entry : groupedByRole.entrySet()) {
+				Long userRoleId = entry.getKey();
+				// pick the oldest row as representative so assignedBy/orgUnitName in the email is deterministic regardless of grouping order
+				List<ManualAssignmentNotificationMap> duplicates = entry.getValue().stream()
+					.sorted(Comparator.comparingLong(ManualAssignmentNotificationMap::getId))
+					.toList();
+				ManualAssignmentNotificationMap representative = duplicates.get(0);
+
+				boolean existsToday = todayAssignmentsForUser.stream().anyMatch(t -> Objects.equals(t.getUserRole().getId(), userRoleId));
 
 				if (!existsToday) {
-					removeRole(userMap, userRoleMap, toRemoveMap, toRemoveUserRoleMap, domainAndUserId, assignment, toDelete);
+					removeRole(userMap, userRoleMap, toRemoveMap, toRemoveUserRoleMap, domainAndUserId, representative);
+					toDelete.addAll(duplicates);
+				}
+				else if (duplicates.size() > 1) {
+					// role still assigned, but prune surplus rows so future removal does not fan out into multiple emails
+					toDelete.addAll(duplicates.subList(1, duplicates.size()));
 				}
 			}
 		}
@@ -213,7 +242,7 @@ public class ManualRolesService {
 		manualAssignmentNotificationMapDao.deleteAll(toDelete);
 	}
 
-	private static void removeRole(Map<String, User> userMap, Map<Long, UserRole> userRoleMap, Map<UserInformationDTO, List<UserRoleInformationDTO>> toRemoveMap, Map<UserRole, List<User>> toRemoveUserRoleMap, String domainAndUserId, ManualAssignmentNotificationMap assignment, List<ManualAssignmentNotificationMap> toDelete) {
+	private static void removeRole(Map<String, User> userMap, Map<Long, UserRole> userRoleMap, Map<UserInformationDTO, List<UserRoleInformationDTO>> toRemoveMap, Map<UserRole, List<User>> toRemoveUserRoleMap, String domainAndUserId, ManualAssignmentNotificationMap assignment) {
 		log.info("role " + assignment.getUserRoleId() + " has been removed from " + domainAndUserId);
 
 		UserRole userRole = userRoleMap.get(assignment.getUserRoleId());
@@ -233,8 +262,6 @@ public class ManualRolesService {
 		UserRoleInformationDTO userRoleInformationDTO = new UserRoleInformationDTO(userRole, assignment.getAssignedBy());
 		usersRoles.add(userRoleInformationDTO);
 		toRemoveUserRoleMap.computeIfAbsent(userRole, _ -> new ArrayList<>()).add(user);
-
-		toDelete.add(assignment);
 	}
 
 	private void detectAddedRoles(Map<String, User> userMap, Map<String, List<CurrentAssignment>> currentAssignmentsMap, Map<String, List<ManualAssignmentNotificationMap>> lastSyncAssignmentsMap, Map<Long, UserRole> userRoleMap, Map<UserInformationDTO, List<UserRoleInformationDTO>> toAddMap, Map<UserRole, List<User>> toAddUserRoleMap) {
@@ -341,10 +368,6 @@ public class ManualRolesService {
 					addRoleDto.userRole().getDescription(),
 					addRoleDto.responsible() },
 				Locale.ENGLISH));
-
-			if (addRoleDto.userRole().isRequireManagerAction()) {
-				notifyManagerActionRequired(userInfo.user(), addRoleDto.userRole());
-			}
 		}
 
 		// Append removed roles
@@ -363,8 +386,12 @@ public class ManualRolesService {
 	}
 
 	private void sendNotification(String system, StringBuilder message, String email) {
-		String title = messageSource.getMessage("html.email.manual.title", new Object[] { system }, Locale.ENGLISH);
-		String formatMessage = messageSource.getMessage("html.email.manual.message.format", new Object[] { system, message.toString() }, Locale.ENGLISH);
+		sendNotification(system, system, message, email);
+	}
+
+	private void sendNotification(String titleSubject, String bodySystem, StringBuilder message, String email) {
+		String title = messageSource.getMessage("html.email.manual.title", new Object[] { titleSubject }, Locale.ENGLISH);
+		String formatMessage = messageSource.getMessage("html.email.manual.message.format", new Object[] { bodySystem, message.toString() }, Locale.ENGLISH);
 
 		if (!formatMessage.isEmpty()) {
 
@@ -372,7 +399,7 @@ public class ManualRolesService {
 				emailService.sendMessage(email, title, formatMessage, null);
 			}
 			catch (Exception ex) {
-				log.error("Exception occured while synchronizing manual ItSystem: " + system + ". Could not send email to: " + email + ". Exception:" + ex.getMessage());
+				log.error("Exception occured while synchronizing manual ItSystem: " + bodySystem + ". Could not send email to: " + email + ". Exception:" + ex.getMessage());
 				// we just continue with the next one - someone has to fix this, and then perform a full sync
 			}
 		}

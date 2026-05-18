@@ -33,6 +33,7 @@ import org.springframework.test.context.TestConstructor;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -172,7 +173,7 @@ public class BasicTestDataFactory {
 	}
 
 	public void updateUserAssignmentCalculation(User user) {
-		assignmentChangeEventHandlerService.updateUser(user.getUuid());
+		assignmentChangeEventHandlerService.updateUsers(Set.of(user.getUuid()));
 	}
 
 	private ItSystem createItSystem(Domain domain) {
@@ -390,7 +391,7 @@ public class BasicTestDataFactory {
 		user.getUserRoleAssignments().add(assignment);
 	}
 
-	private void assignRoleGroupToUser(User user, RoleGroup roleGroup) {
+	public void assignRoleGroupToUser(User user, RoleGroup roleGroup) {
 		UserRoleGroupAssignment assignment = new UserRoleGroupAssignment();
 		assignment.setUser(user);
 		assignment.setRoleGroup(roleGroup);

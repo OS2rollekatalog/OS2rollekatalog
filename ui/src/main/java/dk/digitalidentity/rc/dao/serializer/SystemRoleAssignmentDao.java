@@ -2,10 +2,12 @@ package dk.digitalidentity.rc.dao.serializer;
 
 import dk.digitalidentity.rc.dao.model.SystemRole;
 import dk.digitalidentity.rc.dao.model.SystemRoleAssignment;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.CrudRepository;
 import org.springframework.data.repository.query.Param;
 
+import java.util.List;
 import java.util.Set;
 
 public interface SystemRoleAssignmentDao extends CrudRepository<SystemRoleAssignment, Long> {
@@ -22,4 +24,24 @@ public interface SystemRoleAssignmentDao extends CrudRepository<SystemRoleAssign
 	Set<SystemRoleAssignment> findAllForUserInRolecatalogue(@Param("userUuid") String userUuid);
 
 	Set<SystemRoleAssignment> findAllBySystemRole(SystemRole systemRole);
+
+	/**
+	 * Returns IDs of {@link SystemRoleAssignment}s that don't yet have an open
+	 * {@code historic_it_system_assignment} row for their (user_role, system_role) pair. Used by
+	 * the one-shot seed task that backfills the event-driven history table for existing assignments.
+	 */
+	@Query(value = """
+			SELECT sra.id
+			FROM system_role_assignments sra
+			JOIN user_roles ur ON ur.id = sra.user_role_id
+			WHERE ur.it_system_id IS NOT NULL
+			  AND NOT EXISTS (
+			      SELECT 1 FROM historic_it_system_assignment hisa
+			      WHERE hisa.user_role_id = sra.user_role_id
+			        AND hisa.system_role_id = sra.system_role_id
+			        AND hisa.valid_to IS NULL
+			  )
+			ORDER BY sra.id
+			""", nativeQuery = true)
+	List<Long> findIdsMissingOpenHistoricRow(Pageable limit);
 }

@@ -4,6 +4,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -12,12 +13,11 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import dk.digitalidentity.rc.dao.history.model.HistoryFunction;
-import dk.digitalidentity.rc.dao.model.assignment.HistoricAssignment;
-import dk.digitalidentity.rc.dao.model.assignment.HistoricExceptedAssignment;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.CellStyle;
 import org.apache.poi.ss.usermodel.Font;
@@ -46,13 +46,14 @@ import dk.digitalidentity.rc.dao.model.enums.ConstraintValueType;
 import dk.digitalidentity.rc.service.ItSystemService;
 import dk.digitalidentity.rc.service.OrgUnitService;
 import dk.digitalidentity.rc.service.ReportService;
-import dk.digitalidentity.rc.service.model.UserRoleAssignmentReportEntry;
 import dk.digitalidentity.rc.util.OrganisationConstraintUtil;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
 public class ReportXlsxView extends AbstractXlsxStreamingViewWrapper {
     private LocalDate filterDate;
+    private LocalDate queryDate;
+    private ReportForm reportForm;
     private List<HistoryItSystem> itSystems;
     private List<HistorySystemRole> systemRoles;
     private Map<String, HistoryUser> users;
@@ -60,8 +61,6 @@ public class ReportXlsxView extends AbstractXlsxStreamingViewWrapper {
     private List<HistoryFunction> functions;
     private Map<String, HistoryTitle> titleMap;
 	private Map<String, HistoryFunction> functionMap;
-    private List<HistoricAssignment> historicAssignments;
-    private List<HistoricExceptedAssignment> historicExceptedAssignments;
     private Map<String, List<HistoryKleAssignment>> userKLEAssignments;
     private Map<String, HistoryOU> orgUnits;
     private Map<String, HistoryOU> allOrgUnits;
@@ -90,6 +89,7 @@ public class ReportXlsxView extends AbstractXlsxStreamingViewWrapper {
         itSystemService = (ItSystemService) model.get("itSystemService");
         organisationConstraintUtil = (OrganisationConstraintUtil) model.get("organisationConstraintUtil");
         filterDate = (LocalDate) model.get("filterDate");
+        queryDate = (LocalDate) model.get("queryDate");
         users = (Map<String, HistoryUser>) model.get("users");
         titles = (List<HistoryTitle>) model.get("titles");
         functions = (List<HistoryFunction>) model.get("functions");
@@ -101,8 +101,6 @@ public class ReportXlsxView extends AbstractXlsxStreamingViewWrapper {
         ouKLEAssignments = (Map<String, List<HistoryOUKleAssignment>>) model.get("ouKLEAssignments");
         userKLEAssignments = (Map<String, List<HistoryKleAssignment>>) model.get("userKLEAssignments");
         ouRoleAssignments = (Map<String, List<HistoryOURoleAssignment>>) model.get("ouRoleAssignments");
-		historicAssignments = (List<HistoricAssignment>) model.get("historicAssignments");
-		historicExceptedAssignments = (List<HistoricExceptedAssignment>) model.get("historicExceptedAssignments");
 		ouUsers = (List<HistoryOUUser>) model.get("ouUsers");
 
 		if (titles != null) {
@@ -138,7 +136,7 @@ public class ReportXlsxView extends AbstractXlsxStreamingViewWrapper {
         wrapStyle = workbook.createCellStyle();
         wrapStyle.setWrapText(true);
 
-        ReportForm reportForm = (ReportForm) model.get("reportForm");
+        reportForm = (ReportForm) model.get("reportForm");
 
         // Create Sheets
         createMasterDataSheet(workbook, reportForm);
@@ -612,29 +610,34 @@ public class ReportXlsxView extends AbstractXlsxStreamingViewWrapper {
 
         createHeaderRow(sheet, headers);
 
-        List<UserRoleAssignmentReportEntry> userRoleAssignmentReportEntry = reportService.getUserRoleAssignmentReportEntries(users, allOrgUnits, itSystems, historicAssignments, locale, showInactiveUsers, true);
+        Set<String> allowedOuUuids = buildAllowedOuUuids();
+        Set<String> allowedUserUuids = allowedOuUuids != null ? users.keySet() : null;
+        List<Long> itSystemFilter = reportForm.getItSystems();
+        Collection<Long> itSystemIds = (itSystemFilter != null && !itSystemFilter.isEmpty()) ? itSystemFilter : null;
 
-        int row = 1;
-        for (UserRoleAssignmentReportEntry entry : userRoleAssignmentReportEntry) {
-            Row dataRow = sheet.createRow(row++);
-            int column = 0;
+        AtomicInteger row = new AtomicInteger(1);
+        reportService.streamUserRoleAssignmentReportEntries(
+            queryDate, filterDate, allowedUserUuids, allowedOuUuids, itSystemIds,
+            users, allOrgUnits, itSystems, locale, showInactiveUsers, true, entry -> {
+                Row dataRow = sheet.createRow(row.getAndIncrement());
+                int column = 0;
 
-            createCell(dataRow, column++, entry.getUserName(), null);
-            createCell(dataRow, column++, entry.getUserId(), null);
-            createCell(dataRow, column++, entry.getEmployeeId(), null);
-            createCell(dataRow, column++, entry.getOrgUnitName(), null);
-            createCell(dataRow, column++, entry.getOrgUnitUUID(), null);
-            createCell(dataRow, column++, entry.isUserActive() ? "aktiv" : "inaktiv", null);
-            createCell(dataRow, column++, itSystemNameMapping.get(entry.getRoleId()), null);
-            createCell(dataRow, column++, entry.getItSystem(), null);
-            createCell(dataRow, column++, "" + entry.getSystemRoleWeight(), null);
-            createCell(dataRow, column++, "" + entry.getItSystemResultWeight(), null);
-            createCell(dataRow, column++, entry.getAssignedBy(), null);
-            createCell(dataRow, column++, bestStartDate(entry.getAssignedWhen(), entry.getStartDate(), localDateFormatter) , null);
-            createCell(dataRow, column++, formatLocalDateTime(atEndOfDay(entry.getStopDate())), null);
-            createCell(dataRow, column++, entry.getAssignedThrough(), null);
-            createCell(dataRow, column++, entry.getPostponedConstraints(), null);
-        }
+                createCell(dataRow, column++, entry.getUserName(), null);
+                createCell(dataRow, column++, entry.getUserId(), null);
+                createCell(dataRow, column++, entry.getEmployeeId(), null);
+                createCell(dataRow, column++, entry.getOrgUnitName(), null);
+                createCell(dataRow, column++, entry.getOrgUnitUUID(), null);
+                createCell(dataRow, column++, entry.isUserActive() ? "aktiv" : "inaktiv", null);
+                createCell(dataRow, column++, itSystemNameMapping.get(entry.getRoleId()), null);
+                createCell(dataRow, column++, entry.getItSystem(), null);
+                createCell(dataRow, column++, "" + entry.getSystemRoleWeight(), null);
+                createCell(dataRow, column++, "" + entry.getItSystemResultWeight(), null);
+                createCell(dataRow, column++, entry.getAssignedBy(), null);
+                createCell(dataRow, column++, bestStartDate(entry.getAssignedWhen(), entry.getStartDate(), localDateFormatter), null);
+                createCell(dataRow, column++, formatLocalDateTime(atEndOfDay(entry.getStopDate())), null);
+                createCell(dataRow, column++, entry.getAssignedThrough(), null);
+                createCell(dataRow, column++, entry.getPostponedConstraints(), null);
+            });
     }
 
     private void createNegativeUserRoleSheet(Workbook workbook, boolean showInactiveUsers) {
@@ -657,27 +660,45 @@ public class ReportXlsxView extends AbstractXlsxStreamingViewWrapper {
 
         createHeaderRow(sheet, headers);
 
-		List<UserRoleAssignmentReportEntry> userRoleAssignmentReportEntry = reportService.getNegativeUserRoleAssignmentReportEntries(users, allOrgUnits, historicExceptedAssignments, locale, showInactiveUsers);
+        Set<String> allowedOuUuids = buildAllowedOuUuids();
+        Set<String> allowedUserUuids = allowedOuUuids != null ? users.keySet() : null;
+        List<Long> itSystemFilter = reportForm.getItSystems();
+        Collection<Long> itSystemIds = (itSystemFilter != null && !itSystemFilter.isEmpty()) ? itSystemFilter : null;
 
-        int row = 1;
-        for (UserRoleAssignmentReportEntry entry : userRoleAssignmentReportEntry) {
-            Row dataRow = sheet.createRow(row++);
-            int column = 0;
+        AtomicInteger row = new AtomicInteger(1);
+        reportService.streamNegativeUserRoleAssignmentReportEntries(
+            queryDate, filterDate, allowedUserUuids, allowedOuUuids, itSystemIds,
+            users, allOrgUnits, locale, showInactiveUsers, entry -> {
+                Row dataRow = sheet.createRow(row.getAndIncrement());
+                int column = 0;
 
-            createCell(dataRow, column++, entry.getUserName(), null);
-            createCell(dataRow, column++, entry.getUserId(), null);
-            createCell(dataRow, column++, entry.getEmployeeId(), null);
-            createCell(dataRow, column++, entry.getOrgUnitName(), null);
-            createCell(dataRow, column++, entry.getOrgUnitUUID(), null);
-            createCell(dataRow, column++, entry.isUserActive() ? "aktiv" : "inaktiv", null);
-            createCell(dataRow, column++, itSystemNameMapping.get(entry.getRoleId()), null);
-            createCell(dataRow, column++, entry.getItSystem(), null);
-            createCell(dataRow, column++, entry.getAssignedBy(), null);
-            createCell(dataRow, column++, bestStartDate(entry.getAssignedWhen(), entry.getStartDate(), localDateFormatter) , null);
-            createCell(dataRow, column++, formatLocalDateTime(atEndOfDay(entry.getStopDate())), null);
-            createCell(dataRow, column++, entry.getAssignedThrough(), null);
-            createCell(dataRow, column++, entry.getPostponedConstraints(), null);
+                createCell(dataRow, column++, entry.getUserName(), null);
+                createCell(dataRow, column++, entry.getUserId(), null);
+                createCell(dataRow, column++, entry.getEmployeeId(), null);
+                createCell(dataRow, column++, entry.getOrgUnitName(), null);
+                createCell(dataRow, column++, entry.getOrgUnitUUID(), null);
+                createCell(dataRow, column++, entry.isUserActive() ? "aktiv" : "inaktiv", null);
+                createCell(dataRow, column++, itSystemNameMapping.get(entry.getRoleId()), null);
+                createCell(dataRow, column++, entry.getItSystem(), null);
+                createCell(dataRow, column++, entry.getAssignedBy(), null);
+                createCell(dataRow, column++, bestStartDate(entry.getAssignedWhen(), entry.getStartDate(), localDateFormatter), null);
+                createCell(dataRow, column++, formatLocalDateTime(atEndOfDay(entry.getStopDate())), null);
+                createCell(dataRow, column++, entry.getAssignedThrough(), null);
+                createCell(dataRow, column++, entry.getPostponedConstraints(), null);
+            });
+    }
+
+    /**
+     * Returns the set of allowed OU UUIDs when an OU/manager filter is active, or null if no filter.
+     * The orgUnits map is already filtered by getReportModel, so its keySet is authoritative.
+     */
+    private Set<String> buildAllowedOuUuids() {
+        List<String> ouFilter = reportForm.getOrgUnits();
+        String manager = reportForm.getManager();
+        if ((ouFilter != null && !ouFilter.isEmpty()) || StringUtils.hasLength(manager)) {
+            return orgUnits.keySet();
         }
+        return null;
     }
 
     private void createUserKLESheet(Workbook workbook, boolean showInactiveUsers) {

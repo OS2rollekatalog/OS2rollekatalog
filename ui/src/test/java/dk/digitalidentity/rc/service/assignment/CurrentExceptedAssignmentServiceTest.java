@@ -16,6 +16,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -24,6 +25,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 
 @ExtendWith(MockitoExtension.class)
 class CurrentExceptedAssignmentServiceTest {
@@ -56,8 +58,8 @@ class CurrentExceptedAssignmentServiceTest {
 	}
 
 	@Nested
-	@DisplayName("saveAllForUser")
-	class SaveAllForUserTests {
+	@DisplayName("saveAllForUsers")
+	class SaveAllForUsersTests {
 
 		private CurrentExceptedAssignment existingNonMatching;
 		private CurrentExceptedAssignment existingMatching;
@@ -76,11 +78,11 @@ class CurrentExceptedAssignmentServiceTest {
 		@DisplayName("should delete existing excepted assignments not matching any of the new ones")
 		void shouldDeleteExistingNotMatchingProvided() {
 			// Arrange
-			given(currentExceptedAssignmentDao.findAllByExceptionUserUuid(testUser.getUuid()))
+			given(currentExceptedAssignmentDao.findAllByExceptionUserUuidIn(Set.of(testUser.getUuid())))
 				.willReturn(new HashSet<>(Set.of(existingNonMatching, existingMatching)));
 
 			// Act
-			currentExceptedAssignmentService.saveAllForUser(testUser, Set.of(newAssignmentNonExisting, newAssignmentExisting));
+			currentExceptedAssignmentService.saveAllForUsers(Map.of(testUser, Set.of(newAssignmentNonExisting, newAssignmentExisting)));
 
 			// Assert
 			ArgumentCaptor<Set<CurrentExceptedAssignment>> deleteCaptor = assignmentSetCaptor();
@@ -94,11 +96,11 @@ class CurrentExceptedAssignmentServiceTest {
 		@DisplayName("should insert new excepted assignments that do not already exist")
 		void shouldInsertNonExisting() {
 			// Arrange
-			given(currentExceptedAssignmentDao.findAllByExceptionUserUuid(testUser.getUuid()))
+			given(currentExceptedAssignmentDao.findAllByExceptionUserUuidIn(Set.of(testUser.getUuid())))
 				.willReturn(new HashSet<>(Set.of(existingNonMatching, existingMatching)));
 
 			// Act
-			currentExceptedAssignmentService.saveAllForUser(testUser, Set.of(newAssignmentNonExisting, newAssignmentExisting));
+			currentExceptedAssignmentService.saveAllForUsers(Map.of(testUser, Set.of(newAssignmentNonExisting, newAssignmentExisting)));
 
 			// Assert
 			ArgumentCaptor<Set<CurrentExceptedAssignment>> saveCaptor = assignmentSetCaptor();
@@ -112,11 +114,11 @@ class CurrentExceptedAssignmentServiceTest {
 		@DisplayName("should update historic excepted assignments validTo for deleted current assignments")
 		void shouldUpdateHistoricValidToForDeleted() {
 			// Arrange
-			given(currentExceptedAssignmentDao.findAllByExceptionUserUuid(testUser.getUuid()))
+			given(currentExceptedAssignmentDao.findAllByExceptionUserUuidIn(Set.of(testUser.getUuid())))
 				.willReturn(new HashSet<>(Set.of(existingNonMatching, existingMatching)));
 
 			// Act
-			currentExceptedAssignmentService.saveAllForUser(testUser, Set.of(newAssignmentExisting));
+			currentExceptedAssignmentService.saveAllForUsers(Map.of(testUser, Set.of(newAssignmentExisting)));
 
 			// Assert
 			ArgumentCaptor<Set<CurrentExceptedAssignment>> deletedCaptor = assignmentSetCaptor();
@@ -130,11 +132,11 @@ class CurrentExceptedAssignmentServiceTest {
 		@DisplayName("should create historic excepted assignments for newly created current assignments")
 		void shouldCreateHistoricForNewAssignments() {
 			// Arrange
-			given(currentExceptedAssignmentDao.findAllByExceptionUserUuid(testUser.getUuid()))
+			given(currentExceptedAssignmentDao.findAllByExceptionUserUuidIn(Set.of(testUser.getUuid())))
 				.willReturn(new HashSet<>(Set.of(existingMatching)));
 
 			// Act
-			currentExceptedAssignmentService.saveAllForUser(testUser, Set.of(newAssignmentNonExisting, newAssignmentExisting));
+			currentExceptedAssignmentService.saveAllForUsers(Map.of(testUser, Set.of(newAssignmentNonExisting, newAssignmentExisting)));
 
 			// Assert
 			ArgumentCaptor<Set<CurrentExceptedAssignment>> createdCaptor = assignmentSetCaptor();
@@ -145,17 +147,17 @@ class CurrentExceptedAssignmentServiceTest {
 		}
 
 		@Test
-		@DisplayName("should handle empty input set by deleting all existing assignments")
+		@DisplayName("should delete all existing when input set is empty")
 		void shouldDeleteAllWhenInputIsEmpty() {
 			// Arrange
 			CurrentExceptedAssignment existing1 = createCurrentExceptedAssignment(1L, "hash-1", testUser.getUuid());
 			CurrentExceptedAssignment existing2 = createCurrentExceptedAssignment(2L, "hash-2", testUser.getUuid());
 
-			given(currentExceptedAssignmentDao.findAllByExceptionUserUuid(testUser.getUuid()))
+			given(currentExceptedAssignmentDao.findAllByExceptionUserUuidIn(Set.of(testUser.getUuid())))
 				.willReturn(new HashSet<>(Set.of(existing1, existing2)));
 
 			// Act
-			currentExceptedAssignmentService.saveAllForUser(testUser, Set.of());
+			currentExceptedAssignmentService.saveAllForUsers(Map.of(testUser, Set.of()));
 
 			// Assert
 			ArgumentCaptor<Set<CurrentExceptedAssignment>> deleteCaptor = assignmentSetCaptor();
@@ -166,17 +168,17 @@ class CurrentExceptedAssignmentServiceTest {
 		}
 
 		@Test
-		@DisplayName("should handle empty existing assignments by inserting all provided assignments")
+		@DisplayName("should insert all when no existing assignments")
 		void shouldInsertAllWhenNoExisting() {
 			// Arrange
 			CurrentExceptedAssignment newAssignment1 = createCurrentExceptedAssignment(null, "new-hash-1", testUser.getUuid());
 			CurrentExceptedAssignment newAssignment2 = createCurrentExceptedAssignment(null, "new-hash-2", testUser.getUuid());
 
-			given(currentExceptedAssignmentDao.findAllByExceptionUserUuid(testUser.getUuid()))
+			given(currentExceptedAssignmentDao.findAllByExceptionUserUuidIn(Set.of(testUser.getUuid())))
 				.willReturn(new HashSet<>());
 
 			// Act
-			currentExceptedAssignmentService.saveAllForUser(testUser, Set.of(newAssignment1, newAssignment2));
+			currentExceptedAssignmentService.saveAllForUsers(Map.of(testUser, Set.of(newAssignment1, newAssignment2)));
 
 			// Assert
 			ArgumentCaptor<Set<CurrentExceptedAssignment>> saveCaptor = assignmentSetCaptor();
@@ -187,8 +189,8 @@ class CurrentExceptedAssignmentServiceTest {
 		}
 
 		@Test
-		@DisplayName("should return the saved assignments from the DAO")
-		void shouldReturnSavedAssignments() {
+		@DisplayName("should return true when new assignments were created")
+		void shouldReturnTrueWhenAssignmentsCreated() {
 			// Arrange
 			CurrentExceptedAssignment newAssignment = createCurrentExceptedAssignment(null, "new-hash", testUser.getUuid());
 			CurrentExceptedAssignment savedAssignment = createCurrentExceptedAssignment(1L, "new-hash", testUser.getUuid());
@@ -199,16 +201,54 @@ class CurrentExceptedAssignmentServiceTest {
 				.willReturn(List.of(savedAssignment));
 
 			// Act
-			List<CurrentExceptedAssignment> result = currentExceptedAssignmentService.saveAllForUser(testUser, Set.of(newAssignment));
+			boolean result = currentExceptedAssignmentService.saveAllForUser(testUser, Set.of(newAssignment));
 
 			// Assert
-			assertThat(result)
-				.hasSize(1)
-				.first()
-				.satisfies(assignment -> {
-					assertThat(assignment.getId()).isEqualTo(1L);
-					assertThat(assignment.getRecordHash()).isEqualTo("new-hash");
-				});
+			assertThat(result).isTrue();
+		}
+
+		@Test
+		@DisplayName("should not touch the DB when input map is empty")
+		void shouldShortCircuitOnEmptyInput() {
+			// Act
+			currentExceptedAssignmentService.saveAllForUsers(Map.of());
+
+			// Assert
+			verifyNoInteractions(currentExceptedAssignmentDao, historicExceptedAssignmentService);
+		}
+
+		@Test
+		@DisplayName("should isolate changes per user when processing multiple users")
+		void shouldIsolateChangesPerUser() {
+			// Arrange
+			User userA = new User();
+			userA.setUuid("user-a");
+			User userB = new User();
+			userB.setUuid("user-b");
+
+			CurrentExceptedAssignment existingA = createCurrentExceptedAssignment(1L, "hash-a-old", userA.getUuid());
+			CurrentExceptedAssignment existingB = createCurrentExceptedAssignment(2L, "hash-b-keep", userB.getUuid());
+			CurrentExceptedAssignment newA = createCurrentExceptedAssignment(null, "hash-a-new", userA.getUuid());
+			CurrentExceptedAssignment newB = createCurrentExceptedAssignment(null, "hash-b-keep", userB.getUuid()); // unchanged
+
+			given(currentExceptedAssignmentDao.findAllByExceptionUserUuidIn(Set.of(userA.getUuid(), userB.getUuid())))
+				.willReturn(new HashSet<>(Set.of(existingA, existingB)));
+
+			// Act
+			currentExceptedAssignmentService.saveAllForUsers(Map.of(userA, Set.of(newA), userB, Set.of(newB)));
+
+			// Assert
+			ArgumentCaptor<Set<CurrentExceptedAssignment>> deleteCaptor = assignmentSetCaptor();
+			verify(currentExceptedAssignmentDao).deleteAll(deleteCaptor.capture());
+
+			// only userA's old assignment should be deleted
+			assertThat(extractHashes(deleteCaptor.getValue())).containsExactly("hash-a-old");
+
+			ArgumentCaptor<Set<CurrentExceptedAssignment>> saveCaptor = assignmentSetCaptor();
+			verify(currentExceptedAssignmentDao).saveAll(saveCaptor.capture());
+
+			// only userA's new assignment should be created
+			assertThat(extractHashes(saveCaptor.getValue())).containsExactly("hash-a-new");
 		}
 	}
 }

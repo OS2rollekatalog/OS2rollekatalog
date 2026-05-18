@@ -1,6 +1,7 @@
 package dk.digitalidentity.rc.service.assignment;
 
 import dk.digitalidentity.rc.dao.OrgUnitRoleGroupAssignmentDao;
+import dk.digitalidentity.rc.dao.OrgUnitUserRoleAssignmentDao;
 import dk.digitalidentity.rc.dao.UserRoleDao;
 import dk.digitalidentity.rc.dao.assignment.HistoricOuAssignmentDao;
 import dk.digitalidentity.rc.dao.model.Function;
@@ -32,6 +33,7 @@ public class HistoricOuAssignmentService {
 
 	private final HistoricOuAssignmentDao historicOuAssignmentDao;
 	private final OrgUnitRoleGroupAssignmentDao orgUnitRoleGroupAssignmentDao;
+	private final OrgUnitUserRoleAssignmentDao orgUnitUserRoleAssignmentDao;
 	private final UserRoleDao userRoleDao;
 
 	@Transactional
@@ -93,6 +95,54 @@ public class HistoricOuAssignmentService {
 	@Transactional
 	public void recordUserRoleRemovedFromRoleGroup(RoleGroup roleGroup, UserRole userRole) {
 		historicOuAssignmentDao.closeAllOpenByRoleGroupIdAndRoleId(roleGroup.getId(), userRole.getId(), LocalDateTime.now());
+	}
+
+	/**
+	 * Loader {@link OrgUnitUserRoleAssignment} + relaterede lazy-relationer og indsætter en
+	 * åben {@code historic_ou_assignment}-række hvis ikke allerede en med samme hash findes.
+	 * Egen {@code @Transactional} sørger for at lazy-properties (UserRole.itSystem,
+	 * exceptedUsers, titles, functions) kan tilgås — kaldere som seed-tasken har ingen
+	 * tx-grænse omkring deres chunk-loop og ville ellers ramme LazyInitializationException.
+	 *
+	 * @return true hvis seedet blev forsøgt; false hvis assignment er væk eller mangler
+	 *         UserRole/ItSystem (defensiv guard — eksisterende event-flow antager begge findes).
+	 */
+	@Transactional
+	public boolean seedHistoricRowsFromOrgUnitUserRoleAssignmentId(long id) {
+		OrgUnitUserRoleAssignment assignment = orgUnitUserRoleAssignmentDao.findById(id).orElse(null);
+		if (assignment == null || assignment.getUserRole() == null || assignment.getUserRole().getItSystem() == null) {
+			return false;
+		}
+		HistoricOuAssignment record = fromUserRoleAssignment(assignment.getOrgUnit(), assignment);
+		if (historicOuAssignmentDao.existsByRecordHashAndValidToIsNull(record.getRecordHash())) {
+			return true;
+		}
+		historicOuAssignmentDao.save(record);
+		return true;
+	}
+
+	/**
+	 * Loader {@link OrgUnitRoleGroupAssignment} + ekspanderer til én historic-række pr.
+	 * user-role i role group'en og indsætter de manglende. Idempotent på record-hash niveau,
+	 * så delvist-seeded role groups (fx hvor en user-role er blevet tilføjet til gruppen
+	 * efter deploy via {@link #recordUserRoleAddedToRoleGroup}) får kun de manglende rækker.
+	 *
+	 * @return true hvis seedet blev forsøgt; false hvis assignment eller role group er væk.
+	 */
+	@Transactional
+	public boolean seedHistoricRowsFromOrgUnitRoleGroupAssignmentId(long id) {
+		OrgUnitRoleGroupAssignment assignment = orgUnitRoleGroupAssignmentDao.findById(id).orElse(null);
+		if (assignment == null || assignment.getRoleGroup() == null) {
+			return false;
+		}
+		List<HistoricOuAssignment> records = fromRoleGroupAssignment(assignment.getOrgUnit(), assignment);
+		for (HistoricOuAssignment record : records) {
+			if (historicOuAssignmentDao.existsByRecordHashAndValidToIsNull(record.getRecordHash())) {
+				continue;
+			}
+			historicOuAssignmentDao.save(record);
+		}
+		return true;
 	}
 
 	private HistoricOuAssignment fromUserRoleAssignment(OrgUnit ou, OrgUnitUserRoleAssignment assignment) {

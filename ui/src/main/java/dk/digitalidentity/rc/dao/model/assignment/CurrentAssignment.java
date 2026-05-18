@@ -10,6 +10,7 @@ import dk.digitalidentity.rc.util.HashUtil;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.Transient;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -25,6 +26,7 @@ import org.hibernate.proxy.HibernateProxy;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.Objects;
 import java.util.Set;
@@ -57,6 +59,9 @@ public class CurrentAssignment {
 
 	@Column(nullable = false)
 	private String recordHash;
+
+	@Transient
+	private String constraintSignature = "";
 
 	private LocalDateTime createdAt;
 	private LocalDateTime updatedAt;
@@ -111,7 +116,7 @@ public class CurrentAssignment {
 
 	@SuppressWarnings("Convert2MethodRef")
 	public String generateRecordHash() {
-		return HashUtil.builder()
+		HashUtil.HashBuilder builder = HashUtil.builder()
 			.add(user.getUuid())
 			.add(userRole.getId())
 			.add(itSystem.getId())
@@ -122,8 +127,24 @@ public class CurrentAssignment {
 			.addNullable(roleGroup, rg -> rg.getId())
 			.addNullable(orgUnit, ou -> ou.getUuid())
 			.addNullable(title, t -> t.getUuid())
-			.addNullable(responsibleOrgUnit, rou -> rou.getUuid())
-			.build();
+			.addNullable(responsibleOrgUnit, rou -> rou.getUuid());
+
+		if (postponedConstraints != null) {
+			postponedConstraints.stream()
+				.sorted(Comparator.comparingLong(CurrentAssignmentPostponedConstraint::getSystemRoleId)
+					.thenComparing(CurrentAssignmentPostponedConstraint::getConstraintTypeEntityId))
+				.forEach(pc -> {
+					builder.add(pc.getSystemRoleId());
+					builder.add(pc.getConstraintTypeEntityId());
+					if (pc.getValue() != null) {
+						pc.getValue().stream().sorted().forEach(builder::add);
+					}
+				});
+		}
+
+		builder.addNullable(constraintSignature, s -> s);
+
+		return builder.build();
 	}
 
 	@Override

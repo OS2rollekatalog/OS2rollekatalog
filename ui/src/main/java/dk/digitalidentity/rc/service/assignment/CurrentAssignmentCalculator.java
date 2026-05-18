@@ -35,6 +35,13 @@ public class CurrentAssignmentCalculator {
 
 	@Transactional(propagation = Propagation.MANDATORY)
 	public ImmutablePair<Set<CurrentAssignment>, Set<CurrentExceptedAssignment>> calculateAllAssignmentsForUser(User user) {
+		// Slettede brugere har ingen aktuelle tildelinger. Invariant: current_assignment indeholder ikke
+		// rækker for deleted=true. saveAllForUsers ser tom output → diff'er eksisterende rækker væk.
+		// Genaktivering går via interceptActivateUser → queueForRecalculation, så rækkerne kommer tilbage.
+		if (user.isDeleted()) {
+			return new ImmutablePair<>(Collections.emptySet(), Collections.emptySet());
+		}
+
 		LocalDate today = LocalDate.now();
 
 		final Set<CurrentAssignment> allUserAssignments = calculateDirectUserRoleAssignments(user, today);
@@ -47,7 +54,6 @@ public class CurrentAssignmentCalculator {
 
 		// Process positions
 		List<Position> positions = user.getPositions();
-		Set<String> processedOUUuids = new HashSet<>();
 
 		for (Position position : positions) {
 			boolean inheritsFromOu = !position.isDoNotInherit();
@@ -57,11 +63,11 @@ public class CurrentAssignmentCalculator {
 					o.getUserRoleAssignments().size();
 					o.getRoleGroupAssignments().size();
 				});
-				
+
 				Title title = position.getTitle();
-				
+
 				allUserAssignments.addAll(
-					calculateOrgUnitAssignments(position, position.getOrgUnit(), title, processedOUUuids, assignmentExceptions)
+					calculateOrgUnitAssignments(position, position.getOrgUnit(), title, new HashSet<>(), assignmentExceptions)
 				);
 			}
 		}
@@ -82,11 +88,9 @@ public class CurrentAssignmentCalculator {
 		}
 
 		if (!managerSubstituteOUs.isEmpty()) {
-			Set<String> processedManagerOUUuids = new HashSet<>();
-			
 			for (OrgUnit managerOfOU : managerSubstituteOUs) {
 				allUserAssignments.addAll(
-					calculateOrgUnitManagerSubstituteAssignments(user, managerOfOU, managerOfOU, processedManagerOUUuids, assignmentExceptions)
+					calculateOrgUnitManagerSubstituteAssignments(user, managerOfOU, managerOfOU, new HashSet<>(), assignmentExceptions)
 				);
 			}
 		}
@@ -121,13 +125,15 @@ public class CurrentAssignmentCalculator {
 			return Set.of();
 		}
 
+		if (!processedOUUuids.add(orgUnit.getUuid())) {
+			return Set.of();
+		}
+
 		// userroles
 		Set<CurrentAssignment> userRoleAssignments = calculateOrgUnitUserRoleAssignments(position, orgUnit, title, assignmentExceptions);
 
 		//rolegroups
 		Set<CurrentAssignment> roleGroupAssignments = calculateOrgunitRoleGroupAssignments(position, orgUnit, title, assignmentExceptions);
-
-		processedOUUuids.add(orgUnit.getUuid());
 
 		// get roles from parent OU
 		Set<CurrentAssignment> parentAssignments = calculateOrgUnitAssignments(position, orgUnit.getParent(), title, processedOUUuids, assignmentExceptions);
@@ -179,14 +185,16 @@ public class CurrentAssignmentCalculator {
 		if (currentOU == null) {
 			return Set.of();
 		}
-		
+
+		if (!processedOUUuids.add(currentOU.getUuid())) {
+			return Set.of();
+		}
+
 		// User roles for this OU based on manager/substitute relation
 		Set<CurrentAssignment> userRoleAssignments = calculateOrgUnitUserRoleAssignmentsForManagerSubstitute(user, managerOfOU, currentOU, assignmentExceptions);
 
 		// Role groups for this OU based on manager/substitute relation
 		Set<CurrentAssignment> roleGroupAssignments = calculateOrgUnitRoleGroupAssignmentsForManagerSubstitute(user, managerOfOU, currentOU, assignmentExceptions);
-
-		processedOUUuids.add(currentOU.getUuid());
 
 		// Get roles from parent OU (if inherit is enabled on assignments)
 		Set<CurrentAssignment> parentAssignments = calculateOrgUnitManagerSubstituteAssignments(user, managerOfOU, currentOU.getParent(), processedOUUuids, assignmentExceptions);

@@ -37,6 +37,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -115,12 +116,14 @@ public class AdSyncApi {
 		if (!fullSync) {
 			// compute sets of userIds and itSystemIds that are dirty, filtered for duplicates
 			updates = pendingADUpdateService.find100(foundDomain);
+
 		} else {
 			List<ItSystem> allADSystems = itSystemService.getBySystemType(ItSystemType.AD).stream()
 					.filter(s -> s.getDomain() != null && foundDomain.getId() == s.getDomain().getId())
 					.filter(s -> !s.isReadonly())
 					.filter(s -> !s.isPaused())
 					.toList();
+
 			for (ItSystem itSystem : allADSystems) {
 				List<SystemRole> systemRoles = systemRoleService.findByItSystem(itSystem);
 				for (SystemRole systemRole : systemRoles) {
@@ -152,19 +155,30 @@ public class AdSyncApi {
 		// Build the full set of system roles to process. For weighted IT systems, all roles in the system
 		// must be included even if only one is dirty — otherwise the user-removal step below cannot correctly
 		// determine which users belong to a lower-weight group and should be removed from it.
+		Set<Long> itSystemIds = updates.stream().map(d -> d.getItSystemId()).filter(id -> (id > 0)).collect(Collectors.toSet());
+
+		Map<Long, List<SystemRole>> systemRoleMap = systemRoleService
+				.getByItSystemIds(itSystemIds)
+				.stream()
+				.collect(Collectors.groupingBy(sr -> sr.getItSystem().getId()));
+
 		for (DirtyADGroup update : updates) {
-			String groupName = update.getIdentifier();
-			SystemRole systemRole = systemRoleService.getFirstByIdentifierAndItSystemId(groupName, update.getItSystemId());
-			if (systemRole == null) {
-				log.warn("Could not find SystemRole '" + groupName + "' in itSystem " + update.getItSystemId());
+			List<SystemRole> siblings = systemRoleMap.get(update.getItSystemId());
+			if (siblings == null) {
+				log.error("Could not find it-system with id " + update.getItSystemId());
 				continue;
 			}
 
-			dirtySystemRoles.put(groupName, systemRole);
+			SystemRole systemRole = siblings.stream().filter(sr -> Objects.equals(sr.getIdentifier(), update.getIdentifier())).findFirst().orElse(null);
+			if (systemRole == null) {
+				log.warn("Could not find SystemRole '" + update.getIdentifier() + "' in itSystem " + update.getItSystemId());
+				continue;
+			}
+
+			dirtySystemRoles.put(update.getIdentifier(), systemRole);
 
 			// If the IT system has roles with different weights (filterByWeight removes at least one),
 			// pull in all sibling roles so the weight comparison below has the complete picture.
-			List<SystemRole> siblings = systemRoleService.getByItSystem(systemRole.getItSystem());
 			if (systemRoleService.filterByWeight(siblings).size() < siblings.size()) {
 				for (SystemRole sr : siblings) {
 					dirtySystemRoles.put(sr.getIdentifier(), sr);
@@ -172,15 +186,49 @@ public class AdSyncApi {
 			}
 		}
 
+		// these are almost always 1-1 anyway, but since it is possible to have 1-many, and we might only have a single SystemRole
+		// that is dirty within a given UserRole, we do this filtering (though maybe it could be removed, and we just do a few extra
+		// updates in those seldom scenarios).
+		Map<SystemRole, Set<UserRole>> systemRoleToUserRoleMap = new HashMap<>();
+		Set<UserRole> userRoles = systemRoleService.userRolesWithSystemRoles(dirtySystemRoles.values());
+
+		for (UserRole userRole : userRoles) {
+			userRole.getSystemRoleAssignments().forEach(sra -> {
+				SystemRole systemRole = sra.getSystemRole();
+
+				// only track systemRoles that are dirty (potentially the UserRole could contain a systemRole that was not dirty
+				if (dirtySystemRoles.containsKey(systemRole.getIdentifier())) {
+					Set<UserRole> userRoleResult = systemRoleToUserRoleMap.get(systemRole);
+					if (userRoleResult == null) {
+						userRoleResult = new HashSet<>();
+						systemRoleToUserRoleMap.put(systemRole, userRoleResult);
+					}
+					
+					userRoleResult.add(userRole);
+				}
+			});
+		}
+
+		Map<UserRole, List<CurrentAssignment>> assignmentMap = assignmentService.getActiveByUserRoles(userRoles)
+				.stream()
+				.collect(Collectors.groupingBy(CurrentAssignment::getUserRole));
+		
 		for (SystemRole dirtySystemRole : dirtySystemRoles.values()) {
+			Set<UserRole> dirtyUserRoles = systemRoleToUserRoleMap.get(dirtySystemRole);
+			if (dirtyUserRoles == null) {
+				log.warn("Could not find any systemRoles matching systemRole " + dirtySystemRole.getId());
+				continue;
+			}
+
 			// get all users that has a given system-role
 			Set<String> sAMAccountNames = new HashSet<>();
-			List<UserRole> userRoles = systemRoleService.userRolesWithSystemRole(dirtySystemRole);
-			for (UserRole userRole : userRoles) {
-				Set<CurrentAssignment> assignments = assignmentService.getActiveByUserRole(userRole);
-				for (CurrentAssignment assignment : assignments) {
-					if (assignment.getUser().getDomain().getId() == foundDomain.getId()) {
-						sAMAccountNames.add(assignment.getUser().getUserId());
+			for (UserRole userRole : dirtyUserRoles) {
+				List<CurrentAssignment> assignments = assignmentMap.get(userRole);
+				if (assignments != null) {
+					for (CurrentAssignment assignment : assignments) {
+						if (assignment.getUser().getDomain().getId() == foundDomain.getId()) {
+							sAMAccountNames.add(assignment.getUser().getUserId());
+						}
 					}
 				}
 			}
@@ -196,17 +244,19 @@ public class AdSyncApi {
 
 		// support weighted it-systems by removing assignments that should not have been added due to an assignment with higher weight
 		// get distinct it systems
-		var itSystems = result.getAssignments().stream().map( a -> a.getItSystemId()).distinct().collect(Collectors.toList());
-		for( var itSystemId : itSystems ) {
+		List<Long> itSystems = result.getAssignments().stream().map( a -> a.getItSystemId()).distinct().collect(Collectors.toList());
+		for (long itSystemId : itSystems) {
 			// get assignments belonging to this it system
-			var itSystemAssignments = result.getAssignments().stream().filter(a -> a.getItSystemId() == itSystemId).collect(Collectors.toList());
+			List<ADGroupAssignments> itSystemAssignments = result.getAssignments().stream().filter(a -> a.getItSystemId() == itSystemId).collect(Collectors.toList());
+			
 			// get the distinct weights for this it system ordered by descending weight
-			var weights = itSystemAssignments.stream().map(a -> a.getWeight()).sorted(Comparator.reverseOrder()).collect(Collectors.toList());
+			List<Integer> weights = itSystemAssignments.stream().map(a -> a.getWeight()).sorted(Comparator.reverseOrder()).collect(Collectors.toList());
+
 			// we don't want to remove any assignments that has highest weight, so remove this item from weight list
 			// there is always minimum 1 weight. For unweighted it-systems there will be exactly 1 weight
 			weights.remove(0);
-			for( var weight : weights ) {
-				for( var assignment : itSystemAssignments.stream().filter(a -> a.getWeight() == weight).collect(Collectors.toList()) ) {
+			for (int weight : weights) {
+				for (ADGroupAssignments assignment : itSystemAssignments.stream().filter(a -> a.getWeight() == weight).collect(Collectors.toList()) ) {
 					// remove any accountnames that are in an assignment with a higher weight
 					assignment.getSAMAccountNames().removeIf(account -> itSystemAssignments.stream().anyMatch(a -> a.getWeight() > weight && a.getSAMAccountNames().contains(account)));
 				}

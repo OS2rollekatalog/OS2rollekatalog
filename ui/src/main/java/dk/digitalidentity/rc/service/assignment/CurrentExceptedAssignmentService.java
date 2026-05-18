@@ -1,8 +1,8 @@
 package dk.digitalidentity.rc.service.assignment;
 
 import java.time.LocalDateTime;
-import java.util.Collections;
-import java.util.List;
+import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -21,12 +21,59 @@ public class CurrentExceptedAssignmentService {
 	private final CurrentExceptedAssignmentDao currentExceptedAssignmentDao;
 	private final HistoricExceptedAssignmentService historicExceptedAssignmentService;
 
+	/**
+	 * Batch-variant af saveAllForUser — udfører alle DB-operationer for alle brugere på én gang.
+	 */
+	@Transactional
+	public void saveAllForUsers(Map<User, Set<CurrentExceptedAssignment>> exceptionsByUser) {
+		if (exceptionsByUser.isEmpty()) {
+			return;
+		}
+
+		Set<String> userUuids = exceptionsByUser.keySet().stream().map(User::getUuid).collect(Collectors.toSet());
+
+		// 1 SELECT for alle brugere
+		Map<String, Map<String, CurrentExceptedAssignment>> existingByUserUuidAndHash =
+			currentExceptedAssignmentDao.findAllByExceptionUserUuidIn(userUuids).stream()
+				.collect(Collectors.groupingBy(
+					CurrentExceptedAssignment::getExceptionUserUuid,
+					Collectors.toMap(CurrentExceptedAssignment::getRecordHash, e -> e, (e, ignored) -> e)
+				));
+
+		Set<CurrentExceptedAssignment> allToDelete = new HashSet<>();
+		Set<CurrentExceptedAssignment> allToCreate = new HashSet<>();
+
+		for (Map.Entry<User, Set<CurrentExceptedAssignment>> entry : exceptionsByUser.entrySet()) {
+			Map<String, CurrentExceptedAssignment> existingByHash = existingByUserUuidAndHash.getOrDefault(entry.getKey().getUuid(), Map.of());
+			Set<String> newHashes = entry.getValue().stream().map(CurrentExceptedAssignment::getRecordHash).collect(Collectors.toSet());
+
+			existingByHash.entrySet().stream()
+				.filter(e -> !newHashes.contains(e.getKey()))
+				.map(Map.Entry::getValue)
+				.forEach(allToDelete::add);
+
+			entry.getValue().stream()
+				.filter(e -> !existingByHash.containsKey(e.getRecordHash()))
+				.forEach(allToCreate::add);
+		}
+
+		if (!allToDelete.isEmpty()) {
+			historicExceptedAssignmentService.updateValidToFor(allToDelete, LocalDateTime.now());
+			currentExceptedAssignmentDao.deleteAll(allToDelete);
+		}
+
+		if (!allToCreate.isEmpty()) {
+			historicExceptedAssignmentService.createExceptedFromCurrentAssignments(allToCreate);
+			currentExceptedAssignmentDao.saveAll(allToCreate);
+		}
+	}
+
 	public Set<CurrentExceptedAssignment> getExceptedAssignmentsForUser(User user) {
 		return currentExceptedAssignmentDao.findAllByExceptionUserUuid(user.getUuid());
 	}
 
 	@Transactional
-	public List<CurrentExceptedAssignment> saveAllForUser(User user, Set<CurrentExceptedAssignment> assignmentExceptions) {
+	public boolean saveAllForUser(User user, Set<CurrentExceptedAssignment> assignmentExceptions) {
 		Set<String> recordHashes = assignmentExceptions.stream().map(CurrentExceptedAssignment::getRecordHash).collect(Collectors.toSet());
 
 		// find existing for user
@@ -38,10 +85,10 @@ public class CurrentExceptedAssignmentService {
 			.filter(e -> !recordHashes.contains(e.getRecordHash()))
 			.collect(Collectors.toSet());
 
-		if (toDelete.size() > 0) {
+		if (!toDelete.isEmpty()) {
 			// Deleted excepted assignments - update their corresponding historic assignments validTo
 			historicExceptedAssignmentService.updateValidToFor(toDelete, LocalDateTime.now());
-	
+
 			// delete from current table
 			currentExceptedAssignmentDao.deleteAll(toDelete);
 		}
@@ -52,13 +99,13 @@ public class CurrentExceptedAssignmentService {
 			.filter(e -> !existingRecordHashes.contains(e.getRecordHash()))
 			.collect(Collectors.toSet());
 
-		if (toCreate.size() > 0) {
+		if (!toCreate.isEmpty()) {
 			// newly created assignments also get a corresponding historic assignment, with the same recordhash
 			historicExceptedAssignmentService.createExceptedFromCurrentAssignments(toCreate);
-	
-			return currentExceptedAssignmentDao.saveAll(toCreate);
+
+			currentExceptedAssignmentDao.saveAll(toCreate);
 		}
-		
-		return Collections.emptyList();
+
+		return !toDelete.isEmpty() || !toCreate.isEmpty();
 	}
 }

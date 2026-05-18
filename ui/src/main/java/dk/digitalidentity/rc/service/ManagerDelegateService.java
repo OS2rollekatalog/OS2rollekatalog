@@ -23,10 +23,6 @@ public class ManagerDelegateService {
 		return new ArrayList<>((Collection<ManagerDelegate>) managerDelegateDao.findAll());
 	}
 
-	public List<ManagerDelegate> getAllActive() {
-		return managerDelegateDao.findByFromDateAfterAndToDateBeforeOrIndefinitelyTrueOrderByManager_NameAsc(LocalDate.now(), LocalDate.now());
-	}
-
 	public ManagerDelegate getById(Long id) {
 		return managerDelegateDao.findById(id).orElseThrow();
 	}
@@ -85,18 +81,14 @@ public class ManagerDelegateService {
 	}
 
 	public List<ManagerDelegate> getByDelegateUuid(String delegateUuid) {
-		return managerDelegateDao.findByDelegateUuidAndFromDateAfterAndToDateBeforeOrIndefinitelyTrue(delegateUuid, LocalDate.now(), LocalDate.now());
+		return managerDelegateDao.findActiveByDelegateUuid(delegateUuid, LocalDate.now());
 	}
 
 	public List<ManagerDelegate> getByManager(User manager) {
-		return managerDelegateDao.getByManagerAndFromDateAfterAndToDateBeforeOrIndefinitelyTrue(manager, LocalDate.now(), LocalDate.now());
+		return managerDelegateDao.findActiveByManager(manager, LocalDate.now());
 	}
 
 	public List<ManagerDelegate> getByDelegate(User delegate) {
-		return managerDelegateDao.getByDelegateAndFromDateAfterAndToDateBeforeOrIndefinitelyTrue(delegate, LocalDate.now(), LocalDate.now());
-	}
-
-	public List<ManagerDelegate> getByDelegateAndManager(User delegate, User manager) {
-		return managerDelegateDao.getByDelegateAndManagerAndFromDateAfterAndToDateBeforeOrIndefinitelyTrue(delegate, manager, LocalDate.now(), LocalDate.now());
+		return managerDelegateDao.findActiveByDelegate(delegate, LocalDate.now());
 	}
 }

@@ -29,6 +29,7 @@ import dk.digitalidentity.rc.security.SecurityUtil;
 import dk.digitalidentity.rc.service.DomainService;
 import dk.digitalidentity.rc.service.ItSystemService;
 import dk.digitalidentity.rc.service.SystemRoleService;
+import dk.digitalidentity.rc.service.UserRoleCleanupService;
 import dk.digitalidentity.rc.service.UserRoleService;
 import dk.digitalidentity.rc.service.UserService;
 import dk.digitalidentity.rc.service.assignment.AssignmentService;
@@ -81,6 +82,9 @@ public class EntraIDService {
 
 	@Autowired
 	private DomainService domainService;
+
+	@Autowired
+	private UserRoleCleanupService userRoleCleanupService;
 
 	private final Map<String, GraphServiceClient> clientCache = new ConcurrentHashMap<>();
 
@@ -317,7 +321,10 @@ public class EntraIDService {
 	private Set<String> getUsersWithUserRole(UserRole userRole, EntraIDTenant tenant) {
 		Set<String> users = new HashSet<>();
 
-		Set<CurrentAssignment> assignments = assignmentService.getActiveByUserRole(userRole);
+		Set<CurrentAssignment> assignments = assignmentService.getActiveByUserRole(userRole, a -> {
+			a.getUser().getDomain().getName();
+		});
+
 		for (CurrentAssignment assignment : assignments) {
 			if (assignment.getUser().isDeleted() || assignment.getUser().isDisabled()) {
 				continue;
@@ -451,8 +458,7 @@ public class EntraIDService {
 		var toBeDeleted = userRoles.stream().filter(ur -> ur.getSystemRoleAssignments().isEmpty()).collect(Collectors.toList());
 		for (var userRole : toBeDeleted) {
 			try {
-				// TODO: if the userRole is included in a RoleGroup, this will fail - need a "on delete cascade" rule to the reference *sigh* (copied from IT-system API)
-				userRoleService.delete(userRole);
+				userRoleCleanupService.deleteWithCleanup(userRole);
 			}
 			catch (Exception ex) {
 				log.error("Failed to delete userRole: " + userRole.getId(), ex);

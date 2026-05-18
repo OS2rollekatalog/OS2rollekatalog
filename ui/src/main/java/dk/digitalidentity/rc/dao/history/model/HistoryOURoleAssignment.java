@@ -44,7 +44,7 @@ public class HistoryOURoleAssignment implements GenericRoleAssignment {
 	@Column(name = "role_it_system_id", nullable = false)
 	private Long roleItSystemId;
 
-	@Column(name = "role_it_system_name", nullable = false, length = 64)
+	@Column(name = "role_it_system_name", nullable = false, length = 256)
 	private String roleItSystemName;
 
 	@Column(name = "role_role_group", length = 128)

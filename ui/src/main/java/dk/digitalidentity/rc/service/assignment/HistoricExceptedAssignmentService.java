@@ -15,6 +15,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @Service
 @RequiredArgsConstructor
@@ -34,11 +35,7 @@ public class HistoricExceptedAssignmentService {
 	@Transactional
 	public void updateValidToFor(Set<CurrentExceptedAssignment> currentExceptedAssignments, LocalDateTime validTo) {
 		Set<String> recordHashes = currentExceptedAssignments.stream().map(CurrentExceptedAssignment::getRecordHash).collect(Collectors.toSet());
-		Set<HistoricExceptedAssignment> historicAssignments = historicExceptedAssignmentDao.findAllByRecordHashIn(recordHashes);
-		for (HistoricExceptedAssignment historicAssignment : historicAssignments) {
-			historicAssignment.setValidTo(validTo);
-		}
-		historicExceptedAssignmentDao.saveAll(historicAssignments);
+		historicExceptedAssignmentDao.updateValidToByRecordHashIn(recordHashes, validTo);
 	}
 
 	public Set<HistoricExceptedAssignment> getByUser(User user) {
@@ -68,5 +65,24 @@ public class HistoricExceptedAssignmentService {
 		LocalDateTime startOfDay = date.atStartOfDay();
 		LocalDateTime endOfDay = date.atTime(23, 59, 59, 999999999);
 		return historicExceptedAssignmentDao.findActiveAtDateAndItSystemIdIn(startOfDay, endOfDay, itSystemIds);
+	}
+
+	/**
+	 * Streams excepted assignments using a server-side cursor.
+	 * Caller must be @Transactional — close the returned stream with try-with-resources.
+	 */
+	public Stream<HistoricExceptedAssignment> streamActiveAtDate(LocalDate date) {
+		LocalDateTime startOfDay = date.atStartOfDay();
+		LocalDateTime endOfDay = date.atTime(23, 59, 59, 999999999);
+		return historicExceptedAssignmentDao.streamActiveAtDate(startOfDay, endOfDay);
+	}
+
+	public Stream<HistoricExceptedAssignment> streamActiveAtDateAndItSystems(LocalDate date, Collection<Long> itSystemIds) {
+		if (itSystemIds == null || itSystemIds.isEmpty()) {
+			return streamActiveAtDate(date);
+		}
+		LocalDateTime startOfDay = date.atStartOfDay();
+		LocalDateTime endOfDay = date.atTime(23, 59, 59, 999999999);
+		return historicExceptedAssignmentDao.streamActiveAtDateAndItSystemIdIn(startOfDay, endOfDay, itSystemIds);
 	}
 }

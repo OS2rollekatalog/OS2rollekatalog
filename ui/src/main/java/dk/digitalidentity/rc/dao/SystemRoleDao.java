@@ -40,4 +40,11 @@ public interface SystemRoleDao extends CrudRepository<SystemRole, Long> {
 		  AND ca.assignment_it_system_id IN :itSystemIds
 		""", nativeQuery = true)
 	List<SystemRole> findDistinctByUserUuidAndItSystemIdIn(@Param("userUuid") String userUuid, @Param("itSystemIds") Collection<Long> itSystemIds);
+
+	@Query(value = """
+      SELECT sr.*
+	  FROM system_roles sr
+	  WHERE sr.it_system_id IN :itSystemIds
+	""", nativeQuery = true)
+	List<SystemRole> findByItSystemIdIn(@Param("itSystemIds") Collection<Long> itSystemIds);
 }

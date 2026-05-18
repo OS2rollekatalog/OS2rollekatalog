@@ -1,6 +1,18 @@
 <!DOCTYPE html>
 <html lang="da" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/thymeleaf-extras-springsecurity4">
 <body>
+	<header th:fragment="navbar-header-unauthenticated" class="topnavbar-wrapper">
+		<nav role="navigation" class="navbar topnavbar">
+			<div class="navbar-header">
+				<a th:href="@{/}" class="navbar-brand">
+					<div class="brand-logo" style="height:100%">
+						<img th:src="@{/img/logo.png}" alt="Logo" class="img-responsive" style="height:100%" />
+					</div>
+				</a>
+			</div>
+		</nav>
+	</header>
+
 	<header th:fragment="navbar-header" class="topnavbar-wrapper"
 			th:with="permission=${T(dk.digitalidentity.rc.security.permission.Permission)},
 section=${T(dk.digitalidentity.rc.security.permission.Section)}">

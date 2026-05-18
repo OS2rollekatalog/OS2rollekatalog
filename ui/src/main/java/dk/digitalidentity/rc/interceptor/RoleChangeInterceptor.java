@@ -242,4 +242,18 @@ public class RoleChangeInterceptor {
 			hook.interceptRemoveSystemRoleAssignmentOnUserRole(userRole, systemRoleAssignment);
 		}
 	}
+
+	@Before("execution(* dk.digitalidentity.rc.service.UserRoleService.delete(dk.digitalidentity.rc.dao.model.UserRole)) && args(userRole)")
+	public void interceptDeleteUserRole(UserRole userRole) {
+		for (RoleChangeHook hook : hooks) {
+			hook.interceptDeleteUserRole(userRole);
+		}
+	}
+
+	@Before("execution(* dk.digitalidentity.rc.service.RoleGroupService.delete(dk.digitalidentity.rc.dao.model.RoleGroup)) && args(roleGroup)")
+	public void interceptDeleteRoleGroup(RoleGroup roleGroup) {
+		for (RoleChangeHook hook : hooks) {
+			hook.interceptDeleteRoleGroup(roleGroup);
+		}
+	}
 }

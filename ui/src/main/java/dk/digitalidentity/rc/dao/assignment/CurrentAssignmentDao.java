@@ -5,6 +5,7 @@ import dk.digitalidentity.rc.dao.model.RoleGroup;
 import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserRole;
 import dk.digitalidentity.rc.dao.model.assignment.CurrentAssignment;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -39,6 +40,12 @@ public interface CurrentAssignmentDao extends JpaRepository<CurrentAssignment, L
 	""")
 	Set<CurrentAssignment> findByUser(User user);
 
+	@Query("""
+	  SELECT ca FROM CurrentAssignment ca
+	  WHERE ca.user IN :users
+	""")
+	Set<CurrentAssignment> findByUserIn(Collection<User> users);
+
 	/** Finder alle assignments for en bruger med userRole og itSystem eager-loadet for at undgå N+1 queries. */
 	@EntityGraph(attributePaths = {"userRole", "userRole.itSystem"})
 	@Query("SELECT ca FROM CurrentAssignment ca WHERE ca.user.uuid = :userUuid")
@@ -51,6 +58,21 @@ public interface CurrentAssignmentDao extends JpaRepository<CurrentAssignment, L
 	    AND (ca.stopDate IS NULL OR ca.stopDate >= :now)
 	""")
 	Set<CurrentAssignment> findByUserRole(UserRole userRole, LocalDate now);
+
+	/**
+	 * Som {@link #findByUserRole}, men returnerer kun user UUIDs.
+	 * Bruges når kalderen er i en transaktion der efterfølgende sletter UserRole'en — så undgår vi
+	 * at trække CurrentAssignment-entiteter med .userRole-reference ind i persistence-konteksten,
+	 * hvor pre-flush-checket på næste iteration ellers ville se den slettede UserRole som transient.
+	 */
+	@Query("""
+	  SELECT DISTINCT ca.user.uuid FROM CurrentAssignment ca
+	  WHERE ca.userRole = :userRole
+	    AND ca.user IS NOT NULL
+	    AND (ca.startDate IS NULL OR ca.startDate <= :now)
+	    AND (ca.stopDate IS NULL OR ca.stopDate >= :now)
+	""")
+	Set<String> findUserUuidsByUserRole(UserRole userRole, LocalDate now);
 
 	@Query("""
 	  SELECT ca FROM CurrentAssignment ca
@@ -86,6 +108,25 @@ public interface CurrentAssignmentDao extends JpaRepository<CurrentAssignment, L
 	    AND (ca.stopDate IS NULL OR ca.stopDate >= :now)
 	""")
 	Set<CurrentAssignment> findByUserAndItSystemIn(User user, Collection<ItSystem> itSystems, LocalDate now);
+
+	/**
+	 * Som {@link #findByUserAndItSystemIn}, men med eager fetch af de relationer der kræves
+	 * til NemLog-in serialisering: systemRoleAssignments → constraintValues → constraintType
+	 * og postponedConstraints. Undgår manuel "touch" af lazy collections efter load.
+	 */
+	@EntityGraph(attributePaths = {
+		"userRole.systemRoleAssignments.systemRole",
+		"userRole.systemRoleAssignments.constraintValues.constraintType",
+		"postponedConstraints"
+	})
+	@Query("""
+	  SELECT ca FROM CurrentAssignment ca
+	  WHERE ca.itSystem IN :itSystems
+	    AND ca.user = :user
+	    AND (ca.startDate IS NULL OR ca.startDate <= :now)
+	    AND (ca.stopDate IS NULL OR ca.stopDate >= :now)
+	""")
+	List<CurrentAssignment> findByUserAndItSystemInWithRoleDetails(User user, Collection<ItSystem> itSystems, LocalDate now);
 
 	/** Finder direkte tildelte assignments pr. it-system (dvs. ikke via rollegruppe, enhed eller titel). */
 	@Query("""
@@ -141,6 +182,23 @@ public interface CurrentAssignmentDao extends JpaRepository<CurrentAssignment, L
 	Set<CurrentAssignment> findActiveAssignedDirectUserRoleOnly(UserRole userRole, LocalDate now);
 
 	/**
+	 * Som {@link #findActiveAssignedDirectUserRoleOnly}, men returnerer kun User-projektionen.
+	 * Bruges når kalderen er i en transaktion der efterfølgende sletter UserRole'en — så undgår vi
+	 * at trække CurrentAssignment-entiteter med .userRole-reference ind i persistence-konteksten,
+	 * hvor pre-flush cascade-checket ellers ville se den slettede UserRole som transient.
+	 */
+	@Query("""
+	  SELECT DISTINCT ca.user FROM CurrentAssignment ca
+	  WHERE ca.userRole = :userRole
+	    AND ca.roleGroup IS NULL
+	    AND ca.orgUnit IS NULL
+	    AND ca.title IS NULL
+	    AND (ca.startDate IS NULL OR ca.startDate <= :now)
+	    AND (ca.stopDate IS NULL OR ca.stopDate >= :now)
+	""")
+	Set<User> findActiveUsersByDirectlyAssignedUserRoleOnly(UserRole userRole, LocalDate now);
+
+	/**
 	 * Finder assignments for en userrole, hvor tildelingen er trådt i kraft.
 	 * <p>
 	 * Bruger eksplicit @Query af samme årsag som
@@ -153,6 +211,20 @@ public interface CurrentAssignmentDao extends JpaRepository<CurrentAssignment, L
 	    AND (ca.stopDate IS NULL OR ca.stopDate >= :now)
 	""")
 	Set<CurrentAssignment> findActiveAssigned(UserRole userRole, LocalDate now);
+
+	/**
+	 * Finder assignments for en userrole, hvor tildelingen er trådt i kraft.
+	 * <p>
+	 * Bruger eksplicit @Query af samme årsag som
+	 * {@link #findByUserRoleAndOrgUnitNullAndTitleNullAndStartDateIsNullOrStartDateLessThanEqual}.
+	 */
+	@Query("""
+	  SELECT ca FROM CurrentAssignment ca
+	  WHERE ca.userRole IN :userRoles
+	    AND (ca.startDate IS NULL OR ca.startDate <= :now)
+	    AND (ca.stopDate IS NULL OR ca.stopDate >= :now)
+	""")
+	Set<CurrentAssignment> findActiveAssigned(Collection<UserRole> userRoles, LocalDate now);
 
 	/**
 	 * Finder assignments for en rollegruppe, hvor tildelingen er trådt i kraft.
@@ -221,10 +293,22 @@ public interface CurrentAssignmentDao extends JpaRepository<CurrentAssignment, L
 	""")
 	Set<CurrentAssignment> findActiveDirectAssignedThroughRoleGroups(User user, LocalDate now);
 
+	@org.springframework.data.jpa.repository.Modifying
+	@org.springframework.data.jpa.repository.Query("DELETE FROM CurrentAssignment ca WHERE ca.id IN :ids")
+	void deleteByIdIn(@org.springframework.data.repository.query.Param("ids") Collection<Long> ids);
+
 	boolean existsByUser_UuidAndUserRole_IdAndRoleGroupNullAndOrgUnitNullAndTitleNull(String userUuid, Long userRoleId);
 
 	@Query("SELECT DISTINCT ca.userRole.id FROM CurrentAssignment ca")
 	Set<Long> findDistinctUserRoleIds();
+
+	/**
+	 * Finder UUIDs på brugere der er deleted=true men stadig har current_assignment-rækker.
+	 * Bruges af cleanup-tasken til at processere bagudrettet stale data efter at calculatoren
+	 * har fået invariantet "deleted=true => ingen current_assignment-rækker".
+	 */
+	@Query("SELECT DISTINCT ca.user.uuid FROM CurrentAssignment ca WHERE ca.user.deleted = true")
+	List<String> findUuidsOfDeletedUsersWithCurrentAssignments(Pageable pageable);
 
 	/**
 	 * Finder assignments for et it-system, hvor tildelingen er trådt i kraft.

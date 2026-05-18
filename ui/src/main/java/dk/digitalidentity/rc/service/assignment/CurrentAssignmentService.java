@@ -4,6 +4,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -14,11 +15,15 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import dk.digitalidentity.rc.dao.assignment.CurrentAssignmentDao;
+import org.springframework.data.domain.PageRequest;
 import dk.digitalidentity.rc.dao.model.ItSystem;
 import dk.digitalidentity.rc.dao.model.RoleGroup;
+import dk.digitalidentity.rc.dao.model.SystemRoleAssignment;
+import dk.digitalidentity.rc.dao.model.SystemRoleAssignmentConstraintValue;
 import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserRole;
 import dk.digitalidentity.rc.dao.model.assignment.CurrentAssignment;
+import org.hibernate.Hibernate;
 import lombok.RequiredArgsConstructor;
 
 @Service
@@ -27,62 +32,51 @@ public class CurrentAssignmentService {
 	private final CurrentAssignmentDao currentAssignmentDao;
 	private final HistoricAssignmentService historicAssignmentService;
 
-	/**
-	 * Saves all assignments for a single user, by deleting any assignment in DB not matching the new assignments, and then Upserting
-	 * @param user the user with the assignments
-	 * @param assignments the new assignments for the user. Replaces any already in db.
-	 */
 	@Transactional
-	public void saveAll(User user, Set<CurrentAssignment> assignments) {
-		// Extract all record hashes
-		Set<String> newRecordHashes = assignments.stream()
-			.map(CurrentAssignment::getRecordHash)
-			.collect(Collectors.toSet());
-
-		// find all existing for this user
-		Set<CurrentAssignment> existingAssignments = currentAssignmentDao.findByUser(user);
-		Set<String> existingRecordHashes = existingAssignments.stream().map(CurrentAssignment::getRecordHash).collect(Collectors.toSet());
-
-		// maps for quicker lookup
-		Map<String, CurrentAssignment> existingByHash = existingAssignments.stream()
-			.collect(Collectors.toMap(CurrentAssignment::getRecordHash, Function.identity(), (existing, _) -> existing));
-
-		Map<String, CurrentAssignment> newByHash = assignments.stream()
-			.collect(Collectors.toMap(CurrentAssignment::getRecordHash, Function.identity(), (existing, _) -> existing));
-
-		// existing that does not match a recordhash in new set gets "deleted"
-		Set<String> toDeleteRecordHashes = new HashSet<>(existingRecordHashes);
-		toDeleteRecordHashes.removeAll(newRecordHashes);
-		Set<CurrentAssignment> toDelete = toDeleteRecordHashes.stream()
-			.map(existingByHash::get)
-			.collect(Collectors.toSet());
-
-		if (toDelete.size() > 0) {
-			// Deleted assignments corresponding historic assignments (by recordhash) get their validTo updated
-			historicAssignmentService.updateValidToFor(toDelete, LocalDateTime.now());
-
-			// delete from current table
-			currentAssignmentDao.deleteAllById(toDelete.stream().map(CurrentAssignment::getId).toList());
+	public Set<User> saveAllForUsers(Map<User, Set<CurrentAssignment>> assignmentsByUser) {
+		if (assignmentsByUser.isEmpty()) {
+			return Set.of();
 		}
 
-		// any assignment from new hash not already existing gets created
-		Set<String> toCreateRecordHashes = new HashSet<>(newRecordHashes);
-		toCreateRecordHashes.removeAll(existingRecordHashes);
-		Set<CurrentAssignment> toCreate = toCreateRecordHashes.stream()
-			.map(newByHash::get)
-			.collect(Collectors.toSet());
+		// 1 SELECT for alle brugere
+		Set<CurrentAssignment> allExisting = currentAssignmentDao.findByUserIn(assignmentsByUser.keySet());
+		Map<String, Map<String, CurrentAssignment>> existingByUserUuidAndHash = allExisting.stream()
+			.collect(Collectors.groupingBy(
+				ca -> ca.getUser().getUuid(),
+				Collectors.toMap(CurrentAssignment::getRecordHash, Function.identity(), (e, ignored) -> e)
+			));
 
-		Set<CurrentAssignment> toSave = new HashSet<>();
-		toSave.addAll(toCreate);
+		Set<CurrentAssignment> allToDelete = new HashSet<>();
+		Set<CurrentAssignment> allToCreate = new HashSet<>();
 
-		// newly created assignments also get a corresponding historic assignment, with the same recordhash
-		if (toCreate.size() > 0) {
-			historicAssignmentService.createFromCurrentAssignments(toCreate);
+		for (Map.Entry<User, Set<CurrentAssignment>> entry : assignmentsByUser.entrySet()) {
+			Map<String, CurrentAssignment> existingByHash = existingByUserUuidAndHash.getOrDefault(entry.getKey().getUuid(), Map.of());
+			Set<String> newHashes = entry.getValue().stream().map(CurrentAssignment::getRecordHash).collect(Collectors.toSet());
+
+			existingByHash.entrySet().stream()
+				.filter(e -> !newHashes.contains(e.getKey()))
+				.map(Map.Entry::getValue)
+				.forEach(allToDelete::add);
+
+			entry.getValue().stream()
+				.filter(a -> !existingByHash.containsKey(a.getRecordHash()))
+				.forEach(allToCreate::add);
 		}
 
-		if (toSave.size() > 0) {
-			currentAssignmentDao.saveAll(toSave);
+		if (!allToDelete.isEmpty()) {
+			historicAssignmentService.updateValidToFor(allToDelete, LocalDateTime.now());
+			currentAssignmentDao.deleteAllById(allToDelete.stream().map(CurrentAssignment::getId).toList());
 		}
+
+		if (!allToCreate.isEmpty()) {
+			historicAssignmentService.createFromCurrentAssignments(allToCreate);
+			currentAssignmentDao.saveAll(allToCreate);
+		}
+
+		Set<User> changedUsers = new HashSet<>();
+		allToDelete.stream().map(CurrentAssignment::getUser).forEach(changedUsers::add);
+		allToCreate.stream().map(CurrentAssignment::getUser).forEach(changedUsers::add);
+		return changedUsers;
 	}
 
 	public boolean hasRoleDirectly(String userUuid, Long userRoleId) {
@@ -97,7 +91,6 @@ public class CurrentAssignmentService {
 		return currentAssignmentDao.findByUser(user, LocalDate.now());
 	}
 
-	// TODO: not used
 	public Set<CurrentAssignment> findByUserIncludingInactive(User user) {
 		return currentAssignmentDao.findByUser(user);
 	}
@@ -118,12 +111,50 @@ public class CurrentAssignmentService {
 		return currentAssignmentDao.findByUserAndItSystemIn(user, itSystems, LocalDate.now());
 	}
 
+	/**
+	 * Som {@link #findByUserInSystem}, men med eager fetch af de relationer der kræves til
+	 * NemLog-in serialisering. Brug denne frem for {@link #findByUserInSystem} efterfulgt af
+	 * manuel initialisering af lazy collections.
+	 */
+	public Set<CurrentAssignment> findByUserInSystemWithRoleDetails(User user, Collection<ItSystem> itSystems) {
+		List<CurrentAssignment> loaded = currentAssignmentDao.findByUserAndItSystemInWithRoleDetails(user, itSystems, LocalDate.now());
+
+		// Tving initialisering af constraintType pr. constraintValue. EntityGraph'en
+		// lister stien, men Hibernate 6 kan ikke pålideligt materialisere en ToOne
+		// så dybt under flere collection-fetches — proxyen bliver liggende og kaster
+		// LazyInitializationException når fullRoleSync tilgår den efter session-luk.
+		for (CurrentAssignment ca : loaded) {
+			UserRole userRole = ca.getUserRole();
+			if (userRole == null || userRole.getSystemRoleAssignments() == null) {
+				continue;
+			}
+			for (SystemRoleAssignment sra : userRole.getSystemRoleAssignments()) {
+				if (sra.getConstraintValues() == null) {
+					continue;
+				}
+				for (SystemRoleAssignmentConstraintValue cv : sra.getConstraintValues()) {
+					Hibernate.initialize(cv.getConstraintType());
+				}
+			}
+		}
+
+		return new LinkedHashSet<>(loaded);
+	}
+
 	public Set<CurrentAssignment> findByUserRole(UserRole userRole) {
 		return  currentAssignmentDao.findByUserRole(userRole, LocalDate.now());
 	}
 
+	public Set<String> findUserUuidsByUserRole(UserRole userRole) {
+		return currentAssignmentDao.findUserUuidsByUserRole(userRole, LocalDate.now());
+	}
+
 	public Set<CurrentAssignment> findByDirectlyAssignedUserRole(UserRole userRole) {
 		return  currentAssignmentDao.findActiveAssignedDirectUserRoleOnly(userRole, LocalDate.now());
+	}
+
+	public Set<User> findUsersByDirectlyAssignedUserRole(UserRole userRole) {
+		return currentAssignmentDao.findActiveUsersByDirectlyAssignedUserRoleOnly(userRole, LocalDate.now());
 	}
 
 	public Set<CurrentAssignment> findActiveByUserRoleDirectlyAssignedOrFromRoleGroup(UserRole userRole) {
@@ -168,6 +199,10 @@ public class CurrentAssignmentService {
 		return currentAssignmentDao.countDistinctUserByRoleGroupAndOrgUnitNullAndTitleNull(roleGroup);
 	}
 
+	public Set<CurrentAssignment> findActiveByUserRoles(Set<UserRole> userRoles) {
+		return currentAssignmentDao.findActiveAssigned(userRoles, LocalDate.now());
+	}
+
 	public Set<CurrentAssignment> findActiveByUserRole(UserRole userRole) {
 		return currentAssignmentDao.findActiveAssigned(userRole, LocalDate.now());
 	}
@@ -198,6 +233,10 @@ public class CurrentAssignmentService {
 
 	public Set<CurrentAssignment> findActiveDirectlyAssignedRoleGroups(User user) {
 		return currentAssignmentDao.findActiveDirectAssignedThroughRoleGroups(user, LocalDate.now());
+	}
+
+	public List<String> findUuidsOfDeletedUsersWithCurrentAssignments(int limit) {
+		return currentAssignmentDao.findUuidsOfDeletedUsersWithCurrentAssignments(PageRequest.of(0, limit));
 	}
 
 	public Set<Long> findDistinctUserRoleIds() {

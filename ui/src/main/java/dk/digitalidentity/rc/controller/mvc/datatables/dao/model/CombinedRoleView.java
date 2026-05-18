@@ -1,8 +1,12 @@
 package dk.digitalidentity.rc.controller.mvc.datatables.dao.model;
 
+import dk.digitalidentity.rc.config.ApprovableBySetConverter;
+import dk.digitalidentity.rc.rolerequest.model.enums.ApprovableBy;
 import jakarta.persistence.Column;
+import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
+import jakarta.persistence.IdClass;
 import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.Setter;
@@ -10,9 +14,13 @@ import org.springframework.data.jpa.datatables.mapping.DataTablesOutput;
 
 import com.fasterxml.jackson.annotation.JsonView;
 
+import java.util.HashSet;
+import java.util.Set;
+
 @Entity
 @Getter
 @Setter
+@IdClass(CombinedRoleViewId.class)
 @Table(name = "view_datatables_combined_roles")
 public class CombinedRoleView {
 
@@ -21,6 +29,7 @@ public class CombinedRoleView {
 	@JsonView(DataTablesOutput.View.class)
 	private long id;
 
+	@Id
 	@Column
 	@JsonView(DataTablesOutput.View.class)
 	private String type; // 'userRole' or 'roleGroup'
@@ -62,8 +71,9 @@ public class CombinedRoleView {
 	private String effectiveRequesterPermission;
 
 	@Column(name = "effective_approver_permission")
+	@Convert(converter = ApprovableBySetConverter.class)
 	@JsonView(DataTablesOutput.View.class)
-	private String effectiveApproverPermission;
+	private Set<ApprovableBy> effectiveApproverPermission = new HashSet<>();
 
 	@Column(name = "pending_sync")
 	@JsonView(DataTablesOutput.View.class)

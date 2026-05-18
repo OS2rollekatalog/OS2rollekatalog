@@ -142,16 +142,27 @@ class UserControllerTest extends BaseIntegrationTest {
 			List<RoleAssignedToUserDTO> assignments = (List<RoleAssignedToUserDTO>) mav.getModel().get(assignmentsModelName);
 
 
-			List<Long> directAssignments = assignments.stream()
+			List<Long> orgUnitAssignments = assignments.stream()
 					.filter(a -> AssignedThrough.ORGUNIT.equals(a.getAssignedThrough()))
 					.filter(a -> RoleAssignmentType.USERROLE.equals(a.getType()))
 					.map(RoleAssignedToUserDTO::getRoleId)
 					.toList();
 
 			// Should NOT contain roles from parent orgunit that is set to not inherit
-			assertThat(directAssignments).containsExactlyInAnyOrder(
+			assertThat(orgUnitAssignments).containsExactlyInAnyOrder(
 					testData.urViaChildOU().getId(),
-					testData.urViaParentOUInherited().getId(),
+					testData.urViaParentOUInherited().getId()
+			);
+
+			// userRoler nedarvet via en rollebuket vises som ROLEGROUP, ikke ORGUNIT,
+			// så Tildeling-kolonnen viser hvilken buket de stammer fra
+			List<Long> roleGroupAssignments = assignments.stream()
+					.filter(a -> AssignedThrough.ROLEGROUP.equals(a.getAssignedThrough()))
+					.filter(a -> RoleAssignmentType.USERROLE.equals(a.getType()))
+					.map(RoleAssignedToUserDTO::getRoleId)
+					.toList();
+
+			assertThat(roleGroupAssignments).contains(
 					testData.urViaRgViaChildOU().getId(),
 					testData.urViaRgViaParentOUInherited().getId()
 			);
@@ -386,5 +397,3 @@ class UserControllerTest extends BaseIntegrationTest {
 		}
 	}
 }
-
-

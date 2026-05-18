@@ -338,7 +338,7 @@ public class TestDataBootstrap {
 	private void seedV4() {
 		User rolunittest01 = userService.getAll().stream().filter(user -> user.getUserId().startsWith("rolunittest01")).findFirst().orElseThrow(() -> new RuntimeException("Test user not found"));
 		if (rolunittest01 != null) {
-			assignmentChangeEventHandlerService.updateUser(rolunittest01.getUuid());
+			assignmentChangeEventHandlerService.updateUsers(Set.of(rolunittest01.getUuid()));
 		}
 	}
 

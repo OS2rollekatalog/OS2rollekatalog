@@ -126,13 +126,9 @@ public class UserAttestationTrackerService {
 					List<OrgUnit> orgUnits = orgUnitService.getOrgUnitsForUser(manager.get());
 					orgUnits.stream()
 							.map(OrgUnit::getUuid)
-							.forEach(ouUuid -> {
-								if (!managersForEachDelegatedOrgUnit.containsKey(ouUuid)) {
-									managersForEachDelegatedOrgUnit.put(ouUuid, Set.of(manager.get().getUuid()));
-								} else {
-									managersForEachDelegatedOrgUnit.get(ouUuid).add(manager.get().getUuid());
-								}
-							});
+							.forEach(ouUuid -> managersForEachDelegatedOrgUnit
+									.computeIfAbsent(ouUuid, k -> new HashSet<>())
+									.add(manager.get().getUuid()));
 				}
 			}
 

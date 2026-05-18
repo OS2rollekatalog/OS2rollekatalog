@@ -8,6 +8,7 @@ import java.time.Duration;
 import javax.net.ssl.SSLContext;
 
 import org.apache.hc.client5.http.config.RequestConfig;
+import org.apache.hc.client5.http.cookie.StandardCookieSpec;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
 import org.apache.hc.client5.http.impl.classic.HttpClients;
 import org.apache.hc.client5.http.impl.io.PoolingHttpClientConnectionManagerBuilder;
@@ -49,6 +50,10 @@ public class RestClientConfiguration {
 		final CloseableHttpClient httpClient = HttpClients.custom()
 			.setDefaultRequestConfig(createDefaultRequestConfig())
 			.setConnectionManager(managerBuilder.build())
+			// callers use stateless auth (Bearer tokens etc.) — skip the cookie store so we
+			// don't emit WARN for upstream session cookies like Azure's ARRAffinity, whose
+			// domain attribute does not match the request origin when fronted by a custom domain
+			.disableCookieManagement()
 			.build();
 
 		final HttpComponentsClientHttpRequestFactory requestFactory = new HttpComponentsClientHttpRequestFactory();
@@ -276,6 +281,6 @@ public class RestClientConfiguration {
 
 	// Helper method to create default request config with cookie handling
 	private RequestConfig createDefaultRequestConfig() {
-		return RequestConfig.custom().build();  // Empty config, timeouts set on requestFactory
+		return RequestConfig.custom().setCookieSpec(StandardCookieSpec.RELAXED).build();  // Empty config, timeouts set on requestFactory
 	}
 }

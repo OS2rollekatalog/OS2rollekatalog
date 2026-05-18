@@ -1,20 +1,20 @@
 2026.03.30 - Release 2026r2
-- [ROL-412](https://os2web.atlassian.net/browse/412) Fjernelse af historik tabeller  
-- [ROL-334](https://os2web.atlassian.net/browse/334) Øjeblikkelig notifikation ved tildeling til simple integrationer  
-- [ROL-389](https://os2web.atlassian.net/browse/389) Begrænset antal rolletildelinger  
-- [ROL-501](https://os2web.atlassian.net/browse/501) Opdatering af Java og Spring Boot  
-- [ROL-517](https://os2web.atlassian.net/browse/517) Test-suite  
-- [ROL-504](https://os2web.atlassian.net/browse/504) ADSyncService: Understøttelse af at mappe flere jobfunktionsroller til AD-grupper  
-- [ROL-505](https://os2web.atlassian.net/browse/505) EntraID integration – understøtte multiple tenants  
-- [ROL-506](https://os2web.atlassian.net/browse/506) Genvejsadministration  
-- [ROL-508](https://os2web.atlassian.net/browse/508) Kopi af rollebuket  
-- [ROL-509](https://os2web.atlassian.net/browse/509) Ny advis i OS2rollekatalog  
-- [ROL-510](https://os2web.atlassian.net/browse/510) Mulighed for at udfylde sagsnummer ved tildeling af rollebuket (både til bruger og til enhed)  
-- [ROL-511](https://os2web.atlassian.net/browse/511) Flere karakterer i rolle-/buketnavne  
-- [ROL-513](https://os2web.atlassian.net/browse/513) Rolle/bukets navn synlig i dialogboks til rettighedstildeling til bruger/enhed  
-- [ROL-514](https://os2web.atlassian.net/browse/514) Mulighed for at sætte enhedsfilter på rollebuketter  
-- [ROL-515](https://os2web.atlassian.net/browse/515) Anmodningsopsætning synlig/redigerbar på jobfunktionsfanen på system  
-- [ROL-516](https://os2web.atlassian.net/browse/516) Mulighed for at tildele anmodning til administrator
+- [ROL-412](https://os2web.atlassian.net/browse/ROL-412) Fjernelse af historik tabeller  
+- [ROL-334](https://os2web.atlassian.net/browse/ROL-334) Øjeblikkelig notifikation ved tildeling til simple integrationer  
+- [ROL-389](https://os2web.atlassian.net/browse/ROL-389) Begrænset antal rolletildelinger  
+- [ROL-501](https://os2web.atlassian.net/browse/ROL-501) Opdatering af Java og Spring Boot  
+- [ROL-517](https://os2web.atlassian.net/browse/ROL-517) Test-suite  
+- [ROL-504](https://os2web.atlassian.net/browse/ROL-504) ADSyncService: Understøttelse af at mappe flere jobfunktionsroller til AD-grupper  
+- [ROL-505](https://os2web.atlassian.net/browse/ROL-505) EntraID integration – understøtte multiple tenants  
+- [ROL-506](https://os2web.atlassian.net/browse/ROL-506) Genvejsadministration  
+- [ROL-508](https://os2web.atlassian.net/browse/ROL-508) Kopi af rollebuket  
+- [ROL-509](https://os2web.atlassian.net/browse/ROL-509) Ny advis i OS2rollekatalog  
+- [ROL-510](https://os2web.atlassian.net/browse/ROL-510) Mulighed for at udfylde sagsnummer ved tildeling af rollebuket (både til bruger og til enhed)  
+- [ROL-511](https://os2web.atlassian.net/browse/ROL-511) Flere karakterer i rolle-/buketnavne  
+- [ROL-513](https://os2web.atlassian.net/browse/ROL-513) Rolle/bukets navn synlig i dialogboks til rettighedstildeling til bruger/enhed  
+- [ROL-514](https://os2web.atlassian.net/browse/ROL-514) Mulighed for at sætte enhedsfilter på rollebuketter  
+- [ROL-515](https://os2web.atlassian.net/browse/ROL-515) Anmodningsopsætning synlig/redigerbar på jobfunktionsfanen på system  
+- [ROL-516](https://os2web.atlassian.net/browse/ROL-516) Mulighed for at tildele anmodning til administrator
 
 2026.01.23 - Release 2026r1
 - [ROL-377](https://os2web.atlassian.net/browse/ROL-377) "Rolleopretter" - en ny afgrænset rolle til OS2rollekatalog  

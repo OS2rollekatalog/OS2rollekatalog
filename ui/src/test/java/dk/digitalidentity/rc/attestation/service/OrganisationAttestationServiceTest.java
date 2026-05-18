@@ -9,6 +9,8 @@ import dk.digitalidentity.rc.attestation.model.dto.OrgUnitRoleGroupAssignmentDTO
 import dk.digitalidentity.rc.attestation.model.dto.OrgUnitUserRoleAssignmentItSystemDTO;
 import dk.digitalidentity.rc.attestation.model.dto.RoleAssignmentDTO;
 import dk.digitalidentity.rc.attestation.model.entity.Attestation;
+import dk.digitalidentity.rc.attestation.model.entity.temporal.AssignedThroughType;
+import dk.digitalidentity.rc.attestation.model.entity.temporal.AttestationOuRoleAssignment;
 import dk.digitalidentity.rc.attestation.model.entity.OrganisationRoleAttestationEntry;
 import dk.digitalidentity.rc.attestation.model.entity.OrganisationUserAttestationEntry;
 import dk.digitalidentity.rc.dao.FunctionDao;
@@ -555,6 +557,72 @@ class OrganisationAttestationServiceTest {
 
 			// Assert
 			assertNull(result);
+		}
+	}
+
+	@Nested
+	@DisplayName("orgUnitRoleGroups() Tests")
+	class OrgUnitRoleGroupsTests {
+
+		@Test
+		@DisplayName("DTO.inherit mirrors the source inherit flag (not a derived value)")
+		void inheritReflectsSourceFlag() {
+			// Pre-existing bug fix: tidligere blev DTO.inherit beregnet som
+			// !isInherited() && assignedThroughType==ORGUNIT — som er sandt for ALLE direkte
+			// rolle-buket-tildelinger og dermed gav flueben i "Nedarves" uanset om inherit var
+			// sat i kilde-tabellen. Skal i stedet læse a.isInherit() direkte.
+
+			// ---- Given: rolle-buket tildelt på OU UDEN nedarvning ---- //
+			AttestationOuRoleAssignment notInherited = AttestationOuRoleAssignment.builder()
+				.roleGroupId(31L)
+				.roleGroupName("Group")
+				.roleId(100L)
+				.assignedThroughType(AssignedThroughType.ORGUNIT)
+				.assignedThroughUuid(OU_UUID)
+				.ouUuid(OU_UUID)
+				.titleUuids(List.of())
+				.exceptedUserUuids(List.of())
+				.exceptedTitleUuids(List.of())
+				.functionUuids(List.of())
+				.inherit(false)
+				.inherited(false)
+				.build();
+
+			// ---- When ---- //
+			List<OrgUnitRoleGroupAssignmentDTO> dtos =
+				organisationAttestationService.orgUnitRoleGroups(List.of(notInherited));
+
+			// ---- Then ---- //
+			assertEquals(1, dtos.size());
+			assertFalse(dtos.get(0).isInherit(), "DTO.inherit skal være false når source inherit=false");
+		}
+
+		@Test
+		@DisplayName("DTO.inherit is true when the source assignment has inherit=true")
+		void inheritReflectsSourceTrue() {
+			// ---- Given: rolle-buket tildelt på OU MED nedarvning ---- //
+			AttestationOuRoleAssignment inherited = AttestationOuRoleAssignment.builder()
+				.roleGroupId(32L)
+				.roleGroupName("Inheriting Group")
+				.roleId(101L)
+				.assignedThroughType(AssignedThroughType.ORGUNIT)
+				.assignedThroughUuid(OU_UUID)
+				.ouUuid(OU_UUID)
+				.titleUuids(List.of())
+				.exceptedUserUuids(List.of())
+				.exceptedTitleUuids(List.of())
+				.functionUuids(List.of())
+				.inherit(true)
+				.inherited(false)
+				.build();
+
+			// ---- When ---- //
+			List<OrgUnitRoleGroupAssignmentDTO> dtos =
+				organisationAttestationService.orgUnitRoleGroups(List.of(inherited));
+
+			// ---- Then ---- //
+			assertEquals(1, dtos.size());
+			assertTrue(dtos.get(0).isInherit(), "DTO.inherit skal være true når source inherit=true");
 		}
 	}
 }

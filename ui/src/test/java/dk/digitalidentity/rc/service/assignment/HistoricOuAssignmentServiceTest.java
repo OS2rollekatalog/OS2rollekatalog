@@ -1,6 +1,7 @@
 package dk.digitalidentity.rc.service.assignment;
 
 import dk.digitalidentity.rc.dao.OrgUnitRoleGroupAssignmentDao;
+import dk.digitalidentity.rc.dao.OrgUnitUserRoleAssignmentDao;
 import dk.digitalidentity.rc.dao.UserRoleDao;
 import dk.digitalidentity.rc.dao.assignment.HistoricOuAssignmentDao;
 import dk.digitalidentity.rc.dao.model.Function;
@@ -40,10 +41,13 @@ import static dk.digitalidentity.rc.mockfactory.assignment.MockFactory.createUse
 import static dk.digitalidentity.rc.mockfactory.assignment.MockFactory.createUserRole;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class HistoricOuAssignmentServiceTest {
@@ -52,6 +56,8 @@ class HistoricOuAssignmentServiceTest {
 	private HistoricOuAssignmentDao historicOuAssignmentDao;
 	@Mock
 	private OrgUnitRoleGroupAssignmentDao orgUnitRoleGroupAssignmentDao;
+	@Mock
+	private OrgUnitUserRoleAssignmentDao orgUnitUserRoleAssignmentDao;
 	@Mock
 	private UserRoleDao userRoleDao;
 
@@ -712,6 +718,147 @@ class HistoricOuAssignmentServiceTest {
 			verify(historicOuAssignmentDao).closeAllOpenByRoleGroupIdAndRoleId(
 				eq(30L), eq(20L), any()
 			);
+		}
+	}
+
+	@Nested
+	@DisplayName("seedHistoricRowsFromOrgUnitUserRoleAssignmentId")
+	class SeedHistoricRowsFromOrgUnitUserRoleAssignmentId {
+
+		@Test
+		@DisplayName("returns false and skips save when assignment id is unknown")
+		void returnsFalseWhenAssignmentMissing() {
+			// ---- Given ---- //
+			given(orgUnitUserRoleAssignmentDao.findById(99L)).willReturn(Optional.empty());
+
+			// ---- When ---- //
+			boolean result = service.seedHistoricRowsFromOrgUnitUserRoleAssignmentId(99L);
+
+			// ---- Then ---- //
+			assertThat(result).isFalse();
+			verify(historicOuAssignmentDao, never()).save(any());
+		}
+
+		@Test
+		@DisplayName("returns false when UserRole has no ItSystem (catalogue-internal role)")
+		void returnsFalseWhenItSystemMissing() {
+			// ---- Given ---- //
+			UserRole orphanRole = createUserRole(21L, "Orphan", null);
+			OrgUnitUserRoleAssignment assignment = createOrgUnitUserRoleAssignment(orphanRole, ou, false, false, false);
+			assignment.setId(7L);
+			given(orgUnitUserRoleAssignmentDao.findById(7L)).willReturn(Optional.of(assignment));
+
+			// ---- When ---- //
+			boolean result = service.seedHistoricRowsFromOrgUnitUserRoleAssignmentId(7L);
+
+			// ---- Then ---- //
+			assertThat(result).isFalse();
+			verify(historicOuAssignmentDao, never()).save(any());
+		}
+
+		@Test
+		@DisplayName("saves a new historic row when no open row with matching hash exists")
+		void savesNewRowWhenHashMissing() {
+			// ---- Given ---- //
+			OrgUnitUserRoleAssignment assignment = createOrgUnitUserRoleAssignment(userRole, ou, false, false, false);
+			assignment.setId(7L);
+			given(orgUnitUserRoleAssignmentDao.findById(7L)).willReturn(Optional.of(assignment));
+			when(historicOuAssignmentDao.existsByRecordHashAndValidToIsNull(anyString())).thenReturn(false);
+
+			// ---- When ---- //
+			boolean result = service.seedHistoricRowsFromOrgUnitUserRoleAssignmentId(7L);
+
+			// ---- Then ---- //
+			assertThat(result).isTrue();
+			ArgumentCaptor<HistoricOuAssignment> captor = ArgumentCaptor.forClass(HistoricOuAssignment.class);
+			verify(historicOuAssignmentDao).save(captor.capture());
+			assertThat(captor.getValue().getOuUuid()).isEqualTo("ou-uuid");
+			assertThat(captor.getValue().getRoleId()).isEqualTo(20L);
+		}
+
+		@Test
+		@DisplayName("idempotent: skips save when an open row with matching hash already exists")
+		void skipsSaveWhenHashExists() {
+			// ---- Given ---- //
+			OrgUnitUserRoleAssignment assignment = createOrgUnitUserRoleAssignment(userRole, ou, false, false, false);
+			assignment.setId(7L);
+			given(orgUnitUserRoleAssignmentDao.findById(7L)).willReturn(Optional.of(assignment));
+			when(historicOuAssignmentDao.existsByRecordHashAndValidToIsNull(anyString())).thenReturn(true);
+
+			// ---- When ---- //
+			boolean result = service.seedHistoricRowsFromOrgUnitUserRoleAssignmentId(7L);
+
+			// ---- Then ---- //
+			assertThat(result).isTrue();
+			verify(historicOuAssignmentDao, never()).save(any());
+		}
+	}
+
+	@Nested
+	@DisplayName("seedHistoricRowsFromOrgUnitRoleGroupAssignmentId")
+	class SeedHistoricRowsFromOrgUnitRoleGroupAssignmentId {
+
+		@Test
+		@DisplayName("returns false and skips save when assignment id is unknown")
+		void returnsFalseWhenAssignmentMissing() {
+			// ---- Given ---- //
+			given(orgUnitRoleGroupAssignmentDao.findById(99L)).willReturn(Optional.empty());
+
+			// ---- When ---- //
+			boolean result = service.seedHistoricRowsFromOrgUnitRoleGroupAssignmentId(99L);
+
+			// ---- Then ---- //
+			assertThat(result).isFalse();
+			verify(historicOuAssignmentDao, never()).save(any());
+		}
+
+		@Test
+		@DisplayName("saves one historic row per user-role in the role group when none exist")
+		void savesOneRowPerUserRoleInRoleGroup() {
+			// ---- Given ---- //
+			UserRole secondRole = createUserRole(21L, "Second Role", itSystem);
+			RoleGroup roleGroup = createRoleGroup(30L, "Group", "desc", List.of(userRole, secondRole));
+			OrgUnitRoleGroupAssignment assignment = createOrgUnitRoleGroupAssignment(roleGroup, ou, false, false, false);
+			assignment.setId(11L);
+			given(orgUnitRoleGroupAssignmentDao.findById(11L)).willReturn(Optional.of(assignment));
+			when(historicOuAssignmentDao.existsByRecordHashAndValidToIsNull(anyString())).thenReturn(false);
+
+			// ---- When ---- //
+			boolean result = service.seedHistoricRowsFromOrgUnitRoleGroupAssignmentId(11L);
+
+			// ---- Then ---- //
+			assertThat(result).isTrue();
+			ArgumentCaptor<HistoricOuAssignment> captor = ArgumentCaptor.forClass(HistoricOuAssignment.class);
+			verify(historicOuAssignmentDao, Mockito.times(2)).save(captor.capture());
+			assertThat(captor.getAllValues())
+				.extracting(HistoricOuAssignment::getRoleId)
+				.containsExactlyInAnyOrder(20L, 21L);
+			assertThat(captor.getAllValues())
+				.allMatch(h -> h.getRoleRoleGroupId() != null && h.getRoleRoleGroupId() == 30L);
+		}
+
+		@Test
+		@DisplayName("partial seed: skips user-roles whose hash already has an open row, saves the rest")
+		void skipsOnlyExistingRowsInPartialSeed() {
+			// ---- Given ---- //
+			UserRole secondRole = createUserRole(21L, "Second Role", itSystem);
+			RoleGroup roleGroup = createRoleGroup(30L, "Group", "desc", List.of(userRole, secondRole));
+			OrgUnitRoleGroupAssignment assignment = createOrgUnitRoleGroupAssignment(roleGroup, ou, false, false, false);
+			assignment.setId(11L);
+			given(orgUnitRoleGroupAssignmentDao.findById(11L)).willReturn(Optional.of(assignment));
+			// First call (userRole id=20) returns true (already seeded), second (secondRole id=21) returns false.
+			when(historicOuAssignmentDao.existsByRecordHashAndValidToIsNull(anyString()))
+				.thenReturn(true)
+				.thenReturn(false);
+
+			// ---- When ---- //
+			boolean result = service.seedHistoricRowsFromOrgUnitRoleGroupAssignmentId(11L);
+
+			// ---- Then ---- //
+			assertThat(result).isTrue();
+			ArgumentCaptor<HistoricOuAssignment> captor = ArgumentCaptor.forClass(HistoricOuAssignment.class);
+			verify(historicOuAssignmentDao, Mockito.times(1)).save(captor.capture());
+			assertThat(captor.getValue().getRoleId()).isEqualTo(21L);
 		}
 	}
 }
