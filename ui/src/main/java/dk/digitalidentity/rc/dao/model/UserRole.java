@@ -112,6 +112,9 @@ public class UserRole implements AuditLoggable {
 	@Column
 	private String contactEmail;
 
+	@Column(name = "advis_email")
+	private String advisEmail;
+
 	@Column(nullable = false)
 	private boolean readOnly;
 

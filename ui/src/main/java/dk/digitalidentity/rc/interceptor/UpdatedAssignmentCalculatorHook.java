@@ -219,9 +219,17 @@ public class UpdatedAssignmentCalculatorHook implements RoleChangeHook {
 	public void interceptEditUserRoleAssignmentOnOrgUnit(OrgUnit ou, UserRole userRole) {
 		ou.getUserRoleAssignments().stream()
 			.filter(a -> a.getUserRole().getId() == userRole.getId())
-			.forEach(a -> historicOuAssignmentService.recordUserRoleUpdated(ou, a));
+			.forEach(a -> historicOuAssignmentService.recordUserRoleUpdatedClose(ou, a));
 		Set<String> userUuids = orgUnitService.findUserUuidsForOu(ou, true);
 		addMultipleUsersToAssignmentCalculatorQueue(userUuids);
+	}
+
+	/** Fired @AfterReturning OrgUnitService.updateUserRoleAssignment — assignment has post-update state. */
+	@Override
+	public void interceptEditUserRoleAssignmentOnOrgUnitAfter(OrgUnit ou, UserRole userRole) {
+		ou.getUserRoleAssignments().stream()
+			.filter(a -> a.getUserRole().getId() == userRole.getId())
+			.forEach(a -> historicOuAssignmentService.recordUserRoleUpdatedSaveNew(ou, a));
 	}
 
 	/**
@@ -233,9 +241,17 @@ public class UpdatedAssignmentCalculatorHook implements RoleChangeHook {
 	public void interceptEditRoleGroupAssignmentOnOrgUnit(OrgUnit ou, RoleGroup roleGroup) {
 		ou.getRoleGroupAssignments().stream()
 			.filter(a -> a.getRoleGroup().getId() == roleGroup.getId())
-			.forEach(a -> historicOuAssignmentService.recordRoleGroupUpdated(ou, a));
+			.forEach(a -> historicOuAssignmentService.recordRoleGroupUpdatedClose(ou, a));
 		Set<String> userUuids = orgUnitService.findUserUuidsForOu(ou, true);
 		addMultipleUsersToAssignmentCalculatorQueue(userUuids);
+	}
+
+	/** Fired @AfterReturning OrgUnitService.updateRoleGroupAssignment — assignment has post-update state. */
+	@Override
+	public void interceptEditRoleGroupAssignmentOnOrgUnitAfter(OrgUnit ou, RoleGroup roleGroup) {
+		ou.getRoleGroupAssignments().stream()
+			.filter(a -> a.getRoleGroup().getId() == roleGroup.getId())
+			.forEach(a -> historicOuAssignmentService.recordRoleGroupUpdatedSaveNew(ou, a));
 	}
 
 	/**

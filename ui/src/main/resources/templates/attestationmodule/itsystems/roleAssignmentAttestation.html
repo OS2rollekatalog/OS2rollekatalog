@@ -102,7 +102,8 @@
 															&nbsp;
 															<button  th:if="${changeRequestsEnabled}" th:unless="${user.readOnly}" class="rejectBtn btn btn-danger col-lg-2" th:id="'rejectBtn' + ${user.userUuid}" th:attr="data-number=${userStat.index},data-uuid=${user.userUuid}">
 																<em class="fa-fw fa fa-ban"></em>
-																<span th:text="#{attestationmodule.html.attestation.controls.reject}"></span>
+																<span th:if="${attestationDescriptionRequired}" th:text="#{attestationmodule.html.attestation.controls.reject}"></span>
+																<span th:unless="${attestationDescriptionRequired}" th:text="#{attestationmodule.html.attestation.controls.reject.remove}"></span>
 															</button>
 															<p style="display: none;" th:id="'alreadyDone' + ${user.userUuid}" th:text="#{attestationmodule.html.itsystems.attestate.role.done}"></p>
 															<p th:if="${user.readOnly}" th:text="#{attestationmodule.html.orgunits.attestate.users.self}"></p>
@@ -187,7 +188,8 @@
                                                         &nbsp;
                                                         <button th:if="${changeRequestsEnabled}" class="rejectOrgUnitBtn btn btn-danger col-lg-2" th:id="'rejectOrgUnitBtn' + ${ou.orgUnitUuid}" th:attr="data-number=${ouStat.index},data-uuid=${ou.orgUnitUuid}">
                                                             <em class="fa-fw fa fa-ban"></em>
-                                                            <span th:text="#{attestationmodule.html.attestation.controls.reject}"></span>
+															<span th:if="${attestationDescriptionRequired}" th:text="#{attestationmodule.html.attestation.controls.reject}"></span>
+															<span th:unless="${attestationDescriptionRequired}" th:text="#{attestationmodule.html.attestation.controls.reject.remove}"></span>
                                                         </button>
                                                         <p style="display: none;" th:id="'orgUnitlreadyDone' + ${ou.orgUnitUuid}" th:text="#{attestationmodule.html.itsystems.attestate.role.done}"></p>
 
@@ -221,7 +223,8 @@
         <div class="modal-dialog" role="document">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h3 class="modal-title"  th:text="#{attestationmodule.html.itsystems.attestate.reject.title}"></h3>
+					<h3 th:if="${attestationDescriptionRequired}" class="modal-title"  th:text="#{attestationmodule.html.itsystems.attestate.reject.title}"></h3>
+					<h3 th:unless="${attestationDescriptionRequired}" class="modal-title"  th:text="#{attestationmodule.html.itsystems.attestate.reject.remove.title}"></h3>
                     <button type="button" class="close" data-dismiss="modal" aria-label="Close">
                         <span aria-hidden="true">&times;</span>
                     </button>
@@ -414,10 +417,14 @@
                     $("#userRow" + number).first().hide();
                     $("#userRow" + plusOne).first().show();
                 } else {
-                    // change to orgUnitPane
-                    $(".mainTabs").removeClass('active');
-                    $("#ouTab").addClass('active');
-                    $("#orgUnitsTab").addClass('active');
+                    if (orgUnitTotalCount > 0) {
+                        // change to orgUnitPane
+                        $(".mainTabs").removeClass('active');
+                        $("#ouTab").addClass('active');
+                        $("#orgUnitsTab").addClass('active');
+                    } else {
+                        window.location.href = "/ui/attestation/v2";
+                    }
                 }
 
                 $("html, body").animate({ scrollTop: 0 }, "slow");
@@ -538,11 +545,13 @@
                     $("#badgeOrgUnits").hide();
                 }
 
-                // change to next page if any next page
+                // change to next page if any next page, otherwise redirect to overview
                 var plusOne = number + 1;
                 if (plusOne != orgUnitTotalCount) {
                     $("#orgUnitRow" + number).first().hide();
                     $("#orgUnitRow" + plusOne).first().show();
+                } else {
+                    window.location.href = "/ui/attestation/v2";
                 }
 
                 $("html, body").animate({ scrollTop: 0 }, "slow");

@@ -44,6 +44,13 @@ public class RoleAssignedToUserDTO {
 	// only for directly assigned user roles
 	private String caseNumber;
 
+	// for OU-inherited assignments: whether the assignment targets managers/substitutes
+	private boolean manager;
+	private boolean substitutes;
+
+	// for title-based assignments: the name of the title (function) the role was assigned through
+	private String titleName;
+
 	public static RoleAssignedToUserDTO fromCurrentAssignmentUserRole(CurrentAssignment assignment, AssignedThrough assignedThrough) {
 		RoleAssignedToUserDTO dto = new RoleAssignedToUserDTO();
 
@@ -87,8 +94,11 @@ public class RoleAssignedToUserDTO {
 
 		if (assignment.getTitle() != null) {
 			dto.setTitleUuids(Collections.singletonList(assignment.getTitle().getUuid()));
+			dto.setTitleName(assignment.getTitle().getName());
 		}
 
+		dto.setManager(assignment.isManager());
+		dto.setSubstitutes(assignment.isSubstitutes());
 		dto.setCanEdit(false);
 
 		return dto;
@@ -131,8 +141,11 @@ public class RoleAssignedToUserDTO {
 
 		if (assignment.getTitle() != null) {
 			dto.setTitleUuids(Collections.singletonList(assignment.getTitle().getUuid()));
+			dto.setTitleName(assignment.getTitle().getName());
 		}
 
+		dto.setManager(assignment.isManager());
+		dto.setSubstitutes(assignment.isSubstitutes());
 		dto.setCanEdit(false);
 
 		return dto;
@@ -195,4 +208,3 @@ public class RoleAssignedToUserDTO {
 		return dto;
 	}
 }
-

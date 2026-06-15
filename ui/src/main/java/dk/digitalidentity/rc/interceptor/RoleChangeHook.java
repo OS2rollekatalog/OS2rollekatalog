@@ -41,7 +41,9 @@ public interface RoleChangeHook {
 	public default void interceptAddImmediateUserRoleAssignmentOnOrgUnit(OrgUnit ou, UserRole userRole, boolean inherit) {};
 	public void interceptRemoveUserRoleAssignmentOnOrgUnit(OrgUnit ou, UserRole userRole);
 	public void interceptEditUserRoleAssignmentOnOrgUnit(OrgUnit ou, UserRole userRole);
+	public default void interceptEditUserRoleAssignmentOnOrgUnitAfter(OrgUnit ou, UserRole userRole) {}
 	public void interceptEditRoleGroupAssignmentOnOrgUnit(OrgUnit ou, RoleGroup roleGroup);
+	public default void interceptEditRoleGroupAssignmentOnOrgUnitAfter(OrgUnit ou, RoleGroup roleGroup) {}
 
 	// RoleGroupService Hooks
 	public void interceptAddUserRoleAssignmentOnRoleGroup(RoleGroup roleGroup, UserRole userRole);

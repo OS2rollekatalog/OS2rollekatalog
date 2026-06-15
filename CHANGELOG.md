@@ -1,3 +1,42 @@
+Unreleased
+
+2026.06.15 - Release 2026r3
+- [ROL-450](https://os2web.atlassian.net/browse/ROL-450) Rapport over rollebuketter / opmærkede rettigheder på enhed/stilling
+- [ROL-460](https://os2web.atlassian.net/browse/ROL-460) Ændringsforslag: Optimering af Auditlog søgninger
+- [ROL-480](https://os2web.atlassian.net/browse/ROL-480) Understøttelse af flere system-ansvarlige/ejere i It-systemer
+- [ROL-499](https://os2web.atlassian.net/browse/ROL-499) Attesteringsmodul/Mailskabeloner: Manglende mailskabeloner til systemansvarlige ved (ekstra) følsomme attesteringer
+- [ROL-500](https://os2web.atlassian.net/browse/ROL-500) Attestering: Gennemførte attesteringer skal vises på "Overblik over attesteringer"
+- [ROL-503](https://os2web.atlassian.net/browse/ROL-503) Mailskabeloner: Mulighed for at ændre mailskabelon udsendt i forbindelse med rolletildelinger
+- [ROL-520](https://os2web.atlassian.net/browse/ROL-520) Attestering: Ønske ved til-/fravalg af beskrivelsesfelt
+- [ROL-522](https://os2web.atlassian.net/browse/ROL-522) Modernisering af visning af Mailskabeloner
+- [ROL-523](https://os2web.atlassian.net/browse/ROL-523) Adviser: Tjek af advis: "Der er tilføjet en stilling til denne enhed, som ikke fandtes i forvejen"
+- [ROL-525](https://os2web.atlassian.net/browse/ROL-525) Opdatering af Anmod/Godkend-mailskabeloner
+- [ROL-526](https://os2web.atlassian.net/browse/ROL-526) Organisatorisk dataafgrænsning baseret på lederroller og tillidsfunktioner
+- [ROL-530](https://os2web.atlassian.net/browse/ROL-530) Langsom ADSyncService bør optimeres
+- [ROL-531](https://os2web.atlassian.net/browse/ROL-531) Anmod/godkend: Godkender er synlig på ”Anmod til medarbejder”, ”Mine anmodninger” og  ”Ventende anmodninger”
+- [ROL-532](https://os2web.atlassian.net/browse/ROL-532) Mulighed for at undtage udvalgte enheder ved tildeling af jobfunktionsrolle på enhed med nedarvning
+- [ROL-534](https://os2web.atlassian.net/browse/ROL-534) Beskrivelsesfelt fra rollekatalog til AD
+- [ROL-538](https://os2web.atlassian.net/browse/ROL-538) Optimering af auditloggen
+- [ROL-551](https://os2web.atlassian.net/browse/ROL-551) Global on/off-styring af navneopdatering på jobfunktionsroller i BackSync
+- [ROL-562](https://os2web.atlassian.net/browse/ROL-562) Anmod/Godkend: Se ansættelse på medarbejder der skal tildeles en rolle
+
+Øvrige fejlrettelser og mindre forbedringer:
+- Anmod/godkend: Ledere kan anmode om roller til ledere af underliggende enheder
+- Anmod/godkend: Nærmeste leders stillinger medtages i anmodningsguidens ansættelsesfilter
+- Anmod/godkend: Smårettelser i tekster og rettet fejl i anmodningsloggen
+- Attestering: Markant hurtigere indlæsning af "Rettighedsaktivitet"-fanen i enhedsattestering
+- Attestering: Rettet at handlingsknapper (rediger/slet) på rollekatalog-systemroller blev vist for brugere uden administratorrettigheder
+- Kitos-integration: Det opdages nu, når anvendelsen af et it-system fjernes i Kitos
+- Rapporter: Valget "Vis systemroller" medtages nu, når en rapport hentes fra en skabelon
+- Historik: Enhedstildelinger er udvidet med "tildelt af" samt start- og stopdato
+- Mails: Afsendernavn kan nu konfigureres
+- Tildelinger genberegnes nu ved oprydning af duplikerede brugere
+- Rettet visning af HTML-tekst i dialogboks ved sletning af ikke-anvendte jobfunktionsroller
+- Rettet validering af klientnavne
+- API: Brugerroller fra slettede it-systemer returneres ikke længere i API v2
+- API: extUuid er tilføjet på brugere (UserShallow)
+- API: users-feltet på systemroller medtages ikke længere i læse-svar
+
 2026.03.30 - Release 2026r2
 - [ROL-412](https://os2web.atlassian.net/browse/ROL-412) Fjernelse af historik tabeller  
 - [ROL-334](https://os2web.atlassian.net/browse/ROL-334) Øjeblikkelig notifikation ved tildeling til simple integrationer  

@@ -23,4 +23,5 @@ public class ItSystemRoleAttestationDTO {
 	private List<ItSystemRoleAssignmentUserDTO> users;
 	private List<ItSystemRoleAssignmentOrgUnitDTO> orgUnits;
 	private LocalDate verifiedAt;
+	private String performedBy;
 }

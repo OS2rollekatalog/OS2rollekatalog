@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Set;
 
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
@@ -18,6 +19,7 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 @RequiredArgsConstructor
 @Component
+@Lazy(false) // enforce non-lazy construction
 public class UserAssignmentsChangedEventHandler implements SimpleMessageHandler {
 	public static final String USER_ASSIGNMENTS_CHANGED_QUEUE_IDENTIFIER = "user_assignments_changed_queue";
 

@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/header :: header}"></head>
+<body class="layout-fixed">
+<div class="wrapper">
+	<header th:replace="~{fragments/navbar :: navbar-header(subpage = 'administration')}"></header>
+	<aside th:replace="~{fragments/navbar :: navbar-aside (subpage = 'administration')}"></aside>
+
+	<section>
+		<div class="content-wrapper">
+			<h3 th:text="#{html.page.email_template.list.headline}"></h3>
+
+			<div class="panel panel-default">
+				<div class="panel-heading">
+					<h4 class="panel-title" th:text="#{html.page.email_template.list.section.general}"></h4>
+				</div>
+				<div class="panel-body">
+					<div th:replace="~{emailtemplate/fragments/template_table :: template_table('generalTable', ${generalTemplates})}"></div>
+				</div>
+			</div>
+
+			<th:block th:if="${attestationEnabled}">
+				<div class="panel panel-default">
+					<div class="panel-heading">
+						<h4 class="panel-title" th:text="#{html.page.email_template.list.section.attestation}"></h4>
+					</div>
+					<div class="panel-body">
+						<div th:replace="~{emailtemplate/fragments/template_table :: template_table('attestationTable', ${attestationTemplates})}"></div>
+					</div>
+				</div>
+			</th:block>
+
+			<th:block th:if="${requestEnabled}">
+				<div class="panel panel-default">
+					<div class="panel-heading">
+						<h4 class="panel-title" th:text="#{html.page.email_template.list.section.request}"></h4>
+					</div>
+					<div class="panel-body">
+						<div th:replace="~{emailtemplate/fragments/template_table :: template_table('requestTable', ${requestTemplates})}"></div>
+					</div>
+				</div>
+			</th:block>
+
+		</div>
+	</section>
+</div>
+
+<!-- Preview Modal -->
+<div class="modal fade" id="previewModal" tabindex="-1" role="dialog">
+	<div class="modal-dialog modal-lg" role="document">
+		<div class="modal-content">
+			<div class="modal-header">
+				<button type="button" class="close" data-dismiss="modal" aria-label="Luk"><span aria-hidden="true">&times;</span></button>
+				<h4 class="modal-title" id="previewModalLabel" th:text="#{html.page.email_template.preview.title}"></h4>
+			</div>
+			<div class="modal-body">
+				<div class="form-group">
+					<label th:text="#{html.page.email_template.preview.template}"></label>
+					<p id="previewTemplateName" class="form-control-static" style="font-weight: bold;"></p>
+				</div>
+				<div class="form-group">
+					<label th:text="#{html.page.email_template.preview.subject}"></label>
+					<p id="previewTitle" class="form-control-static"></p>
+				</div>
+				<div class="form-group">
+					<label th:text="#{html.page.email_template.preview.content}"></label>
+					<div id="previewContent" style="border: 1px solid #ddd; padding: 15px; background: #fff; min-height: 100px;"></div>
+				</div>
+				<div class="form-group" id="previewNotesGroup" style="display:none;">
+					<label th:text="#{html.page.email_template.preview.notes}"></label>
+					<p id="previewNotes" class="form-control-static text-muted"></p>
+				</div>
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-warning" id="btnSendTestEmail">
+					<i class="fa fa-envelope"></i> <span th:text="#{html.page.email_template.preview.sendtest}"></span>
+				</button>
+				<button type="button" class="btn btn-default" data-dismiss="modal" th:text="#{html.button.close}">Luk</button>
+			</div>
+		</div>
+	</div>
+</div>
+
+<div th:replace="~{fragments/footer :: footer}"></div>
+
+<div id="emailTemplateConfig"
+	 th:data-rest-url="@{/rest/mailtemplates}"
+	 th:data-msg-toggle-success="#{html.page.email_template.list.toggle.success}"
+	 th:data-msg-toggle-fail="#{html.page.email_template.list.toggle.fail}"
+	 th:data-msg-test-success="#{html.page.email_template.test.success}"
+	 th:data-msg-test-fail="#{html.page.email_template.test.fail}">
+</div>
+
+<script th:src="@{/js/emailtemplate/list.js}"></script>
+</body>
+</html>

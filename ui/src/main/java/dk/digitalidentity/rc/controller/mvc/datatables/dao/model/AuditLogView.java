@@ -34,11 +34,21 @@ public class AuditLogView {
 	private EntityType entityType;
 
 	@Column
+	private String entityId;
+
+	@Column
 	private String entityName;
 
 	@Enumerated(EnumType.STRING)
 	@Column
 	private EventType eventType;
+
+	@Enumerated(EnumType.STRING)
+	@Column
+	private EntityType secondaryEntityType;
+
+	@Column
+	private String secondaryEntityId;
 
 	@Column
 	private String secondaryEntityName;

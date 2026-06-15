@@ -50,12 +50,12 @@ public class AttestationUserRoleAssignment extends TemporalAssignmentBase {
     @Column
     private String itSystemName;
 	/**
-		Contains the user uuid of the attestation responsible user if the it system setting "roleAssignmentAttestationByAttestationResponsible" is set.
+		Contains the id of the attestation-responsible collection if the it system setting "roleAssignmentAttestationByAttestationResponsible" is set.
 		Is mutually exclusive with responsibleOuUuid (and the name equivilant), and contains null in those cases
 	 */
-    @Column
+    @Column(name = "attestation_responsible_collection_id")
     @PartOfNaturalKey
-    private String responsibleUserUuid;
+    private Long responsibleCollectionId;
 	/**
 	 * Paired with responsibleOuUuid. See the documentation of that field for details.
 	 */
@@ -69,7 +69,7 @@ public class AttestationUserRoleAssignment extends TemporalAssignmentBase {
 
 	/**
 	 * Contains the ou uuid that is calculated to be the attestation responsible.
-	 * Is mutually exclusive with responsibleUserUuid and will be null if that field is set.
+	 * Is mutually exclusive with responsibleCollectionId and will be null if that field is set.
 	 * The value of this field takes into account that a manager cannot attest their own assignment, so the ou will be a parent ou with a different manager.
 	 */
     @Column
@@ -115,11 +115,11 @@ public class AttestationUserRoleAssignment extends TemporalAssignmentBase {
                 && Objects.equals(roleGroupDescription, that.roleGroupDescription)
                 && Objects.equals(itSystemId, that.itSystemId)
                 && Objects.equals(itSystemName, that.itSystemName)
-                && Objects.equals(responsibleUserUuid, that.responsibleUserUuid)
                 && Objects.equals(responsibleOuName, that.responsibleOuName)
                 && Objects.equals(roleOuUuid, that.roleOuUuid)
                 && Objects.equals(roleOuName, that.roleOuName)
                 && Objects.equals(responsibleOuUuid, that.responsibleOuUuid)
+                && Objects.equals(responsibleCollectionId, that.responsibleCollectionId)
                 && assignedThroughType == that.assignedThroughType
                 && Objects.equals(assignedThroughName, that.assignedThroughName)
                 && Objects.equals(assignedThroughUuid, that.assignedThroughUuid)

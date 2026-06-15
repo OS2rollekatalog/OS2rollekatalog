@@ -29,7 +29,7 @@ public class AttestationUserRoleAssignmentDto implements Serializable {
 	private String roleGroupDescription;
 	private Long itSystemId;
 	private String itSystemName;
-	private String responsibleUserUuid;
+	private Long responsibleCollectionId;
 	private String responsibleOuName;
 	private String roleOuUuid;
 	private String roleOuName;

@@ -5,6 +5,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -64,7 +65,7 @@ class QueueRestControllerTest extends BaseIntegrationTest {
 				.queue(ASSIGNMENT_UPDATE_QUEUE_IDENTIFIER)
 				.messageId("test-message-1")
 				.priority(1L)
-				.dequeueTime(LocalDateTime.now().plusHours(1))
+				.dequeueTime(Instant.now().plusSeconds(60 * 60))
 				.body("{}")
 				.build());
 		flushAndClear();
@@ -107,7 +108,7 @@ class QueueRestControllerTest extends BaseIntegrationTest {
 				.queue(ASSIGNMENT_UPDATE_QUEUE_IDENTIFIER)
 				.messageId("late-message")
 				.priority(1L)
-				.dequeueTime(LocalDateTime.now().plusHours(1))
+				.dequeueTime(Instant.now().plusSeconds(60 * 60))
 				.body("{}")
 				.build());
 		flushAndClear();
@@ -134,7 +135,7 @@ class QueueRestControllerTest extends BaseIntegrationTest {
 				.queue(ASSIGNMENT_UPDATE_QUEUE_IDENTIFIER)
 				.messageId("user-42")
 				.priority(1L)
-				.dequeueTime(LocalDateTime.now().plusHours(1))
+				.dequeueTime(Instant.now().plusSeconds(60 * 60))
 				.body("{}")
 				.build());
 		flushAndClear();
@@ -155,7 +156,7 @@ class QueueRestControllerTest extends BaseIntegrationTest {
 				.queue(ASSIGNMENT_UPDATE_QUEUE_IDENTIFIER)
 				.messageId("user-1")
 				.priority(1L)
-				.dequeueTime(LocalDateTime.now().plusHours(1))
+				.dequeueTime(Instant.now().plusSeconds(60 * 60))
 				.body("{}")
 				.build());
 		flushAndClear();

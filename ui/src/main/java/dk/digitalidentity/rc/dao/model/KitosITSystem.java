@@ -38,6 +38,13 @@ public class KitosITSystem  implements AuditLoggable {
 	@NotNull
 	private String name;
 
+	@Column
+	private boolean active;
+
+	@Column
+	@JdbcTypeCode(SqlTypes.BINARY)
+	private UUID kitosUsageUuid;
+
 	@OneToMany(mappedBy = "kitosITSystem", fetch = FetchType.LAZY, orphanRemoval = true, cascade = CascadeType.ALL)
 	private List<KitosITSystemUser> kitosUsers = new ArrayList<>();
 

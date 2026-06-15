@@ -211,6 +211,20 @@ public class RoleChangeInterceptor {
 		}
 	}
 
+	@AfterReturning("execution(* dk.digitalidentity.rc.service.OrgUnitService.updateUserRoleAssignment(dk.digitalidentity.rc.dao.model.OrgUnit, dk.digitalidentity.rc.dao.model.OrgUnitUserRoleAssignment, ..)) && args(ou, assignment, ..)")
+	public void interceptEditUserRoleAssignmentOnOrgUnitAfter(OrgUnit ou, OrgUnitUserRoleAssignment assignment) {
+		for (RoleChangeHook hook : hooks) {
+			hook.interceptEditUserRoleAssignmentOnOrgUnitAfter(ou, assignment.getUserRole());
+		}
+	}
+
+	@AfterReturning("execution(* dk.digitalidentity.rc.service.OrgUnitService.updateRoleGroupAssignment(dk.digitalidentity.rc.dao.model.OrgUnit, dk.digitalidentity.rc.dao.model.OrgUnitRoleGroupAssignment, ..)) && args(ou, assignment, ..)")
+	public void interceptEditRoleGroupAssignmentOnOrgUnitAfter(OrgUnit ou, OrgUnitRoleGroupAssignment assignment) {
+		for (RoleChangeHook hook : hooks) {
+			hook.interceptEditRoleGroupAssignmentOnOrgUnitAfter(ou, assignment.getRoleGroup());
+		}
+	}
+
 	/// / RoleGroupService Hooks
 
 	@Before("execution(* dk.digitalidentity.rc.service.RoleGroupService.addUserRole(dk.digitalidentity.rc.dao.model.RoleGroup, dk.digitalidentity.rc.dao.model.UserRole)) && args(roleGroup, userRole)")

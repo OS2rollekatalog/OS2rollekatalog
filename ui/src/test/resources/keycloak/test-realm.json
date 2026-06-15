@@ -16,7 +16,7 @@
       "attributes": {
         "saml.authn.statement": "true",
         "saml.server.signature": "true",
-        "saml.assertion.signature": "false",
+        "saml.assertion.signature": "true",
         "saml.client.signature": "false",
         "saml_name_id_format": "username",
         "saml_assertion_consumer_url_post": "https://host.testcontainers.internal:8090/saml/login",

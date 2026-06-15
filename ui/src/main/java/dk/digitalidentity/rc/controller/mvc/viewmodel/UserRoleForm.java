@@ -28,6 +28,7 @@ public class UserRoleForm {
 	private boolean extraSensitiveRole;
     private ItSystem itSystem;
 	private String contactEmail;
+	private String advisEmail;
     private List<SystemRoleAssignment> systemRoleAssignments;
     private List<RoleGroup> roleGroups;
     private boolean pendingSync;
@@ -65,6 +66,7 @@ public class UserRoleForm {
     	this.requesterPermission = userRole.getRequesterPermission();
     	this.approverPermission	 = userRole.getApproverPermission();
 		this.contactEmail = userRole.getContactEmail();
+		this.advisEmail = userRole.getAdvisEmail();
     	this.description = userRole.getDescription();
     	this.itSystem = userRole.getItSystem();
     	this.sensitiveRole = userRole.isSensitiveRole();
@@ -95,6 +97,7 @@ public class UserRoleForm {
     	userRole.setName(this.name);
     	userRole.setIdentifier(this.identifier);
 		userRole.setContactEmail(this.contactEmail);
+		userRole.setAdvisEmail(this.advisEmail);
     	userRole.setUserOnly(this.userOnly);
     	userRole.setUuid(this.uuid);
     	userRole.setRequesterPermission(this.requesterPermission);

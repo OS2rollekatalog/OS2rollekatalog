@@ -21,6 +21,7 @@ import com.mysema.commons.lang.Pair;
 
 import dk.digitalidentity.rc.attestation.dao.AttestationDao;
 import dk.digitalidentity.rc.attestation.dao.AttestationMailDao;
+import dk.digitalidentity.rc.attestation.dao.AttestationResponsibleCollectionDao;
 import dk.digitalidentity.rc.attestation.exception.AttestationEmailNotificationException;
 import dk.digitalidentity.rc.attestation.model.dto.RoleAssignmentDTO;
 import dk.digitalidentity.rc.attestation.model.dto.enums.RoleType;
@@ -29,10 +30,10 @@ import dk.digitalidentity.rc.attestation.model.entity.AttestationMail;
 import dk.digitalidentity.rc.attestation.model.entity.AttestationMailReceiver;
 import dk.digitalidentity.rc.attestation.model.entity.AttestationRun;
 import dk.digitalidentity.rc.dao.ItSystemDao;
+import dk.digitalidentity.rc.service.ItSystemService;
 import dk.digitalidentity.rc.dao.OrgUnitDao;
 import dk.digitalidentity.rc.dao.UserDao;
 import dk.digitalidentity.rc.dao.model.EmailTemplate;
-import dk.digitalidentity.rc.dao.model.ItSystem;
 import dk.digitalidentity.rc.dao.model.ManagerDelegate;
 import dk.digitalidentity.rc.dao.model.ManagerSubstitute;
 import dk.digitalidentity.rc.dao.model.OrgUnit;
@@ -54,6 +55,9 @@ public class AttestationEmailNotificationService {
 
     @Autowired
     private AttestationDao attestationDao;
+
+    @Autowired
+    private AttestationResponsibleCollectionDao attestationResponsibleCollectionDao;
 
     @Autowired
     private AttestationEmailNotificationService self;
@@ -81,6 +85,8 @@ public class AttestationEmailNotificationService {
 
     @Autowired
     private ItSystemDao itSystemDao;
+	@Autowired
+	private ItSystemService itSystemService;
 	@Autowired
 	private OrgUnitService orgUnitService;
 	@Autowired
@@ -162,7 +168,7 @@ public class AttestationEmailNotificationService {
         if (run.isEmpty()) {
             return;
         }
-        final EmailTemplate template = run.get().isSensitive() ? findSensitiveEmailTemplate(mailType) : findEmailTemplate(attestationType, mailType);
+        final EmailTemplate template = run.get().isSensitive() ? findSensitiveEmailTemplate(attestationType, mailType) : findEmailTemplate(attestationType, mailType);
         int daysBefore =  template.getDaysBeforeEvent();
 		final List<Attestation> attestations = attestationDao.findAttestationsWhichNeedsMail(attestationType, mailType, now.plusDays(daysBefore));
 		attestations.forEach(a -> self.sendEmail(a.getId(), attestationType, mailType));
@@ -174,7 +180,7 @@ public class AttestationEmailNotificationService {
 			return;
 		}
 
-		final EmailTemplate template = run.get().isSensitive() ? findSensitiveEmailTemplate(mailType) : findEmailTemplate(attestationType, mailType);
+		final EmailTemplate template = run.get().isSensitive() ? findSensitiveEmailTemplate(attestationType, mailType) : findEmailTemplate(attestationType, mailType);
 
 		int daysBefore =  template.getDaysBeforeEvent();
 		LocalDate deadlineDate = now.plusDays(daysBefore);
@@ -212,9 +218,9 @@ public class AttestationEmailNotificationService {
         final Attestation attestation = attestationDao.findById(attestationId)
                 .orElseThrow(() -> new AttestationEmailNotificationException("Failed to send notification, attestation with id %d not found", attestationId));
         final EmailTemplate template = attestation.isSensitive()
-                ? findSensitiveEmailTemplate(mailType)
+                ? findSensitiveEmailTemplate(attestationType, mailType)
                 : findEmailTemplate(attestationType, mailType);
-        final User systemResponsible = attestation.getResponsibleUserUuid() != null ? userDao.findByUuidAndDeletedFalse(attestation.getResponsibleUserUuid()).orElse(null) : null;
+        final User systemResponsible = resolveCollectionUsers(attestation).stream().findFirst().orElse(null);
         if (template.isEnabled()) {
             boolean escalation = mailType == AttestationMail.MailType.ESCALATION_REMINDER;
             final List<User> targetUsers = findTargetUsers(attestation, escalation);
@@ -232,16 +238,19 @@ public class AttestationEmailNotificationService {
                 return;
             }
 
+            final List<User> systemOwners = findSystemOwner(attestation);
             final List<AttestationMailReceiver> mailReceivers = targetUsers.stream()
                     .flatMap(receiver -> {
                         final String message = resolveMessage(attestation, receiver, user, systemResponsible, template, null);
                         final String title = resolveTitle(attestation, receiver, user, systemResponsible, template);
                         final String email = receiver.getEmail();
-                        final Optional<User> cc = findSystemOwner(attestation);
+                        final List<User> ccOwners = systemOwners.stream()
+                                .filter(o -> !Objects.equals(o.getEmail(), email))
+                                .toList();
+                        final String ccEmails = ccOwners.stream().map(User::getEmail).collect(Collectors.joining(","));
                         log.info("Sending attestation notification ({}, {}, {} to {})", attestation.getItSystemName(),
                                 template.getTemplateType().name(), mailType.name(), email);
-                        final String ccEmail = cc.map(User::getEmail).orElse(null);
-                        emailQueueService.queueEmail(email, title, message, template, null, email.equals(ccEmail) ? null : ccEmail);
+                        emailQueueService.queueEmail(email, title, message, template, null, ccEmails.isEmpty() ? null : ccEmails);
                         final List<AttestationMailReceiver> receivers = new ArrayList<>();
                         receivers.add(AttestationMailReceiver.builder()
                                 .receiverType(AttestationMailReceiver.ReceiverType.TO)
@@ -249,18 +258,14 @@ public class AttestationEmailNotificationService {
                                 .email(receiver.getEmail())
                                 .title(title)
                                 .message(message)
-                                .email(email)
                                 .build());
-                        if (ccEmail != null && !ccEmail.equals(email)) {
-                            receivers.add(AttestationMailReceiver.builder()
-                                    .receiverType(AttestationMailReceiver.ReceiverType.CC)
-                                    .userUuid(cc.map(User::getUuid).orElse(null))
-                                    .email(ccEmail)
-                                    .title(title)
-                                    .message(message)
-                                    .email(email)
-                                    .build());
-                        }
+                        ccOwners.forEach(ccOwner -> receivers.add(AttestationMailReceiver.builder()
+                                .receiverType(AttestationMailReceiver.ReceiverType.CC)
+                                .userUuid(ccOwner.getUuid())
+                                .email(ccOwner.getEmail())
+                                .title(title)
+                                .message(message)
+                                .build()));
                         return receivers.stream();
                     })
                     .toList();
@@ -335,24 +340,23 @@ public class AttestationEmailNotificationService {
     }
 
     List<User> findTargetUsers(final Attestation attestation, final boolean escalation) {
-        boolean systemEscalation = escalation && attestation.getResponsibleUserUuid() != null;
-        User responsibleUser = null;
-        if (attestation.getResponsibleUserUuid() != null) {
-            responsibleUser = userDao.findByUuidAndDeletedFalse(attestation.getResponsibleUserUuid()).orElse(null);
-        }
+        List<User> collectionUsers = resolveCollectionUsers(attestation);
+        boolean systemEscalation = escalation && !collectionUsers.isEmpty();
+        User responsibleUser = collectionUsers.isEmpty() ? null : collectionUsers.get(0);
         if (responsibleUser == null && attestation.getResponsibleOuUuid() != null) {
             responsibleUser = orgUnitDao.findById(attestation.getResponsibleOuUuid())
                     .map(OrgUnit::getManager)
                     .orElse(null);
         }
 
-        if (systemEscalation && responsibleUser != null) {
-            return getManagerOrSubstitute(responsibleUser.getPositions().stream()
+        if (systemEscalation) {
+            return getManagerOrSubstitute(collectionUsers.stream()
+                    .flatMap(u -> u.getPositions().stream())
                     .map(Position::getOrgUnit)
                     .map(OrgUnit::getManager)
                     .filter(Objects::nonNull)
-                    .findFirst().map(Collections::singletonList)
-                    .orElse(Collections.emptyList()));
+                    .distinct()
+                    .collect(Collectors.toList()));
         } else if (escalation && responsibleUser != null) {
             if (attestation.getAttestationType() == Attestation.AttestationType.ORGANISATION_ATTESTATION) {
                 final User fResponsibleUser = responsibleUser;
@@ -405,7 +409,7 @@ public class AttestationEmailNotificationService {
                         .toList();
 
             } else {
-                return Collections.singletonList(responsibleUser);
+                return collectionUsers;
             }
         }
         return null;
@@ -561,19 +565,34 @@ public class AttestationEmailNotificationService {
         if (attestation.getResponsibleOuUuid() != null) {
             return orgUnitDao.findById(attestation.getResponsibleOuUuid()).map(OrgUnit::getName).orElse(null);
         }
-        if (attestation.getResponsibleUserUuid() != null) {
-            return userDao.findByUuidAndDeletedFalse(attestation.getResponsibleUserUuid()).orElseThrow()
-                    .getPositions().stream().map(Position::getOrgUnit)
+        if (attestation.getResponsibleCollectionId() != null) {
+            return resolveCollectionUsers(attestation).stream()
+                    .flatMap(u -> u.getPositions().stream())
+                    .map(Position::getOrgUnit)
                     .filter(Objects::nonNull)
                     .map(OrgUnit::getName)
-                    .collect(Collectors.joining(","));
+                    .distinct()
+                    .collect(Collectors.joining(", "));
         }
         return "Ukendt";
     }
 
-    private Optional<User> findSystemOwner(final Attestation attestation) {
-        Optional<ItSystem> itSystem = itSystemDao.findById(attestation.getItSystemId());
-        return itSystem.map(ItSystem::getSystemOwner);
+    private List<User> resolveCollectionUsers(final Attestation attestation) {
+        if (attestation.getResponsibleCollectionId() == null) {
+            return Collections.emptyList();
+        }
+        return attestationResponsibleCollectionDao.findById(attestation.getResponsibleCollectionId())
+                .map(c -> userDao.findByUuidInAndDeletedFalse(new java.util.HashSet<>(c.getUsersUuid())))
+                .orElse(Collections.emptyList());
+    }
+
+    private List<User> findSystemOwner(final Attestation attestation) {
+        if (attestation.getItSystemId() == null) {
+            return Collections.emptyList();
+        }
+        return itSystemDao.findById(attestation.getItSystemId())
+                .map(itSystem -> itSystemService.getSystemOwners(itSystem))
+                .orElse(Collections.emptyList());
     }
 
     private String findDelegatedForName(final Attestation attestation) {
@@ -633,7 +652,16 @@ public class AttestationEmailNotificationService {
         };
     }
 
-    private EmailTemplate findSensitiveEmailTemplate(final AttestationMail.MailType mailType) {
+    private EmailTemplate findSensitiveEmailTemplate(final Attestation.AttestationType attestationType, final AttestationMail.MailType mailType) {
+        if (attestationType == Attestation.AttestationType.IT_SYSTEM_ATTESTATION) {
+            return switch (mailType) {
+                case INFORMATION -> emailTemplateService.findByTemplateType(EmailTemplateType.ATTESTATION_SENSITIVE_IT_SYSTEM_ASSIGNMENT_NOTIFICATION);
+                case REMINDER_1 -> emailTemplateService.findByTemplateType(EmailTemplateType.ATTESTATION_SENSITIVE_IT_SYSTEM_ASSIGNMENT_REMINDER1);
+                case REMINDER_2 -> emailTemplateService.findByTemplateType(EmailTemplateType.ATTESTATION_SENSITIVE_IT_SYSTEM_ASSIGNMENT_REMINDER2);
+                case REMINDER_3 -> emailTemplateService.findByTemplateType(EmailTemplateType.ATTESTATION_SENSITIVE_IT_SYSTEM_ASSIGNMENT_REMINDER3);
+                case ESCALATION_REMINDER -> emailTemplateService.findByTemplateType(EmailTemplateType.ATTESTATION_SENSITIVE_IT_SYSTEM_ASSIGNMENT_REMINDER_THIRDPARTY);
+            };
+        }
         return switch (mailType) {
             case INFORMATION -> emailTemplateService.findByTemplateType(EmailTemplateType.ATTESTATION_SENSITIVE_NOTIFICATION);
             case REMINDER_1 -> emailTemplateService.findByTemplateType(EmailTemplateType.ATTESTATION_SENSITIVE_REMINDER1);

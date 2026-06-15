@@ -46,11 +46,23 @@
 
 							<fieldset >
 								<div class="form-group">
-									<label class="col-sm-2 control-label" th:text="#{html.entity.itsystem.email}"></label>
+									<label class="col-sm-2 control-label" th:text="#{html.entity.userrole.contactEmail}"></label>
 									<div class="col-sm-8">
 										<input th:field="*{contactEmail}" class="form-control" th:placeholder="#{html.entity.userrole.email.placeholder}"/>
 										<ul th:if="${#fields.hasErrors('contactEmail')}">
 											<li th:each="err : ${#fields.errors('contactEmail')}" th:text="${err}"></li>
+										</ul>
+									</div>
+								</div>
+							</fieldset>
+
+							<fieldset >
+								<div class="form-group">
+									<label class="col-sm-2 control-label" th:text="#{html.entity.userrole.advisEmail}"></label>
+									<div class="col-sm-8">
+										<input th:field="*{advisEmail}" class="form-control" th:placeholder="#{html.entity.userrole.email.placeholder}"/>
+										<ul th:if="${#fields.hasErrors('advisEmail')}">
+											<li th:each="err : ${#fields.errors('advisEmail')}" th:text="${err}"></li>
 										</ul>
 									</div>
 								</div>

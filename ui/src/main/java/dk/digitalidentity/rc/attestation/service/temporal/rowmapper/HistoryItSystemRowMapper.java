@@ -17,8 +17,6 @@ public class HistoryItSystemRowMapper implements RowMapper<HistoryItSystem> {
         historyItSystem.setItSystemId(rs.getLong("it_system_id"));
         historyItSystem.setItSystemName(rs.getString("it_system_name"));
         historyItSystem.setItSystemHidden(rs.getBoolean("it_system_hidden"));
-        historyItSystem.setAttestationResponsible(rs.getString("attestation_responsible_uuid"));
-        historyItSystem.setSystemOwner(rs.getString("system_owner_uuid"));
         historyItSystem.setAttestationExempt(rs.getBoolean("attestation_exempt"));
 
         return historyItSystem;

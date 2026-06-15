@@ -18,6 +18,7 @@ import dk.digitalidentity.rc.dao.model.SystemRoleAssignment;
 import dk.digitalidentity.rc.dao.model.SystemRoleAssignmentConstraintValue;
 import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserKLEMapping;
+import dk.digitalidentity.rc.dao.model.UserOUFunction;
 import dk.digitalidentity.rc.dao.model.UserRole;
 import dk.digitalidentity.rc.dao.model.UserRoleGroupAssignment;
 import dk.digitalidentity.rc.dao.model.UserUserRoleAssignment;
@@ -62,6 +63,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.ui.Model;
 import org.springframework.util.StringUtils;
 
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
@@ -279,7 +281,7 @@ public class UserService {
 			.queue(ASSIGNMENT_UPDATE_QUEUE_IDENTIFIER)
 			.messageId(user.getUuid()) // Use user uuid as messageId, this ensure we do not get any duplicates in the queue
 			.priority(10L)
-			.dequeueTime(LocalDateTime.now().plusSeconds(2)) // Allow a few seconds before processing the message, so we are sure the changes to the assignments are persisted.
+			.dequeueTime(Instant.now().plusSeconds(2)) // Allow a few seconds before processing the message, so we are sure the changes to the assignments are persisted.
 			.body(JsonSimpleMessage.toJson(createUserUpdateMessage(user.getUuid())))
 			.build());
 	}
@@ -292,7 +294,7 @@ public class UserService {
 				.queue(ASSIGNMENT_UPDATE_QUEUE_IDENTIFIER)
 				.messageId(uuid) // Use user uuid as messageId, this ensure we do not get any duplicates in the queue
 				.priority(1L)
-				.dequeueTime(LocalDateTime.now().plusSeconds(3)) // Allow a few seconds before processing the message, so we are sure the changes to the assignments are persisted.
+				.dequeueTime(Instant.now().plusSeconds(3)) // Allow a few seconds before processing the message, so we are sure the changes to the assignments are persisted.
 				.body(JsonSimpleMessage.toJson(createUserUpdateMessage(uuid)))
 				.build())
 			.toList();
@@ -657,13 +659,17 @@ public class UserService {
 		List<User> dirtyUsers = new ArrayList<>();
 
 		for (User user : allUsers) {
-			Set<CurrentAssignment> allAssignments = assignmentService.getByUserIncludingInactive(user);
-			if (allAssignments.isEmpty()) {
+			// Kun aktive tildelinger må tælle med — udløbne/fremtidige indirekte rækker
+			// findes stadig i current_assignment, men giver ikke adgang og må aldrig
+			// trigge sletning af en aktiv direkte tildeling.
+			List<CurrentAssignment> activeAssignments = assignmentService.getByUserIncludingInactive(user).stream()
+				.filter(CurrentAssignment::isActive)
+				.collect(Collectors.toList());
+			if (activeAssignments.isEmpty()) {
 				continue;
 			}
 
-			// Find direct assignments
-			List<CurrentAssignment> directAssignments = allAssignments.stream()
+			List<CurrentAssignment> directAssignments = activeAssignments.stream()
 				.filter(a -> assignmentService.getAssignedThrough(a) == AssignedThrough.DIRECT)
 				.collect(Collectors.toList());
 
@@ -673,19 +679,18 @@ public class UserService {
 
 			boolean dirty = false;
 
-			// For each direct assignment, check if it's also assigned indirectly
 			for (CurrentAssignment directAssignment : directAssignments) {
 				long userRoleId = directAssignment.getUserRole().getId();
 
-				// Check if this userRole also exists as an indirect assignment
-				boolean hasIndirectAssignment = allAssignments.stream()
+				boolean hasIndirectAssignment = activeAssignments.stream()
 					.anyMatch(a -> assignmentService.getAssignedThrough(a) != AssignedThrough.DIRECT
+						&& a.getUserRole() != null
 						&& a.getUserRole().getId() == userRoleId);
 
 				if (hasIndirectAssignment) {
-					// Remove the direct assignment since it's redundant
-					UserRole role = directAssignment.getUserRole();
-					dirty = dirty | removeUserRole(user, role);
+					// Fjern kun den ene matchende user_roles_mapping-række — ikke alle
+					// direkte tildelinger af rollen som removeUserRole(user, role) gjorde.
+					dirty = dirty | removeDirectUserRoleAssignmentById(user, directAssignment.getAssignmentId());
 				}
 			}
 
@@ -697,7 +702,7 @@ public class UserService {
 		if (dirtyUsers.size() > 0) {
 			auditLogger.log(admin, EventType.PERFORMED_USERROLE_CLEANUP);
 			userDao.saveAll(dirtyUsers);
-			
+
 			queueMultipleForRecalculation(dirtyUsers.stream().map(u -> u.getUuid()).collect(Collectors.toSet()));
 		}
 	}
@@ -712,14 +717,17 @@ public class UserService {
 		List<User> dirtyUsers = new ArrayList<>();
 
 		for (User user : allUsers) {
-			Set<CurrentAssignment> uniqueRoleGroupAssignments = assignmentService.getUniqueRoleGroupAssignmentsByUser(user);
+			// Samme logik som userrole-cleanup: udløbne/fremtidige indirekte rækker
+			// må ikke trigge sletning af aktive direkte tildelinger.
+			List<CurrentAssignment> activeRoleGroupAssignments = assignmentService.getUniqueRoleGroupAssignmentsByUser(user).stream()
+				.filter(CurrentAssignment::isActive)
+				.collect(Collectors.toList());
 
-			if (uniqueRoleGroupAssignments.isEmpty()) {
+			if (activeRoleGroupAssignments.isEmpty()) {
 				continue;
 			}
 
-			// Find direct assignments
-			List<CurrentAssignment> directAssignments = uniqueRoleGroupAssignments.stream()
+			List<CurrentAssignment> directAssignments = activeRoleGroupAssignments.stream()
 				.filter(a -> assignmentService.getAssignedThroughForRoleGroup(a) == AssignedThrough.DIRECT)
 				.collect(Collectors.toList());
 
@@ -729,19 +737,17 @@ public class UserService {
 
 			boolean dirty = false;
 
-			// For each direct assignment, check if it's also assigned indirectly
 			for (CurrentAssignment directAssignment : directAssignments) {
 				Long roleGroupId = directAssignment.getRoleGroup().getId();
 
-				// Check if this roleGroup also exists as an indirect assignment
-				boolean hasIndirectAssignment = uniqueRoleGroupAssignments.stream()
+				boolean hasIndirectAssignment = activeRoleGroupAssignments.stream()
 					.anyMatch(a -> assignmentService.getAssignedThroughForRoleGroup(a) != AssignedThrough.DIRECT
 						&& a.getRoleGroup().getId() == roleGroupId);
 
 				if (hasIndirectAssignment) {
-					// Remove the direct assignment since it's redundant
-					RoleGroup roleGroup = directAssignment.getRoleGroup();
-					dirty = dirty | removeRoleGroup(user, roleGroup);
+					// Målrettet sletning af den ene assignment-række frem for removeRoleGroup
+					// som ville fjerne alle direkte tildelinger af rollebuketten.
+					dirty = dirty | removeDirectRoleGroupAssignmentById(user, directAssignment.getAssignmentId());
 				}
 			}
 
@@ -753,9 +759,33 @@ public class UserService {
 		if (dirtyUsers.size() > 0) {
 			auditLogger.log(admin, EventType.PERFORMED_ROLEGROUP_CLEANUP);
 			userDao.saveAll(dirtyUsers);
-			
+
 			queueMultipleForRecalculation(dirtyUsers.stream().map(u -> u.getUuid()).collect(Collectors.toSet()));
 		}
+	}
+
+	private boolean removeDirectUserRoleAssignmentById(User user, long assignmentId) {
+		for (Iterator<UserUserRoleAssignment> iterator = user.getUserRoleAssignments().iterator(); iterator.hasNext(); ) {
+			UserUserRoleAssignment assignment = iterator.next();
+			if (assignment.getId() == assignmentId) {
+				AuditLogContextHolder.getContext().setStopDateUserId(assignment.getStopDateUser());
+				iterator.remove();
+				return true;
+			}
+		}
+		return false;
+	}
+
+	private boolean removeDirectRoleGroupAssignmentById(User user, long assignmentId) {
+		for (Iterator<UserRoleGroupAssignment> iterator = user.getRoleGroupAssignments().iterator(); iterator.hasNext(); ) {
+			UserRoleGroupAssignment assignment = iterator.next();
+			if (assignment.getId() == assignmentId) {
+				AuditLogContextHolder.getContext().setStopDateUserId(assignment.getStopDateUser());
+				iterator.remove();
+				return true;
+			}
+		}
+		return false;
 	}
 
 	public void addPostponedListsToModel(Model model) {
@@ -858,7 +888,9 @@ public class UserService {
 			if (!userRole.isAllowPostponing()) {
 				String identifier = userRole.getIdentifier();
 				if (addedIdentifiers.contains(identifier)) {
-					log.info("Removed duplicate " + userRole.getName() + " / " + userRole.getItSystem().getName() + " from " + user.getUserId());
+					if (log.isDebugEnabled()) {
+						log.debug("Removed duplicate " + userRole.getName() + " / " + userRole.getItSystem().getName() + " from " + user.getUserId());
+					}
 					continue;
 				}
 
@@ -912,6 +944,30 @@ public class UserService {
 						StringBuilder constraintValue = new StringBuilder();
 
 						switch (constraint.getConstraintValueType()) {
+							case INHERITED_FROM_MANAGER_ROLE:
+								if (constraint.getConstraintType().getEntityId().equals(Constants.OU_CONSTRAINT_ENTITY_ID) ||
+									constraint.getConstraintType().getEntityId().equals(Constants.INTERNAL_ORGUNIT_CONSTRAINT_ENTITY_ID)) {
+									constraintValue.append(getOrganisationConstraintFromManagerRole(user, false));
+								}
+								break;
+							case EXTENDED_INHERITED_FROM_MANAGER_ROLE:
+								if (constraint.getConstraintType().getEntityId().equals(Constants.OU_CONSTRAINT_ENTITY_ID) ||
+									constraint.getConstraintType().getEntityId().equals(Constants.INTERNAL_ORGUNIT_CONSTRAINT_ENTITY_ID)) {
+									constraintValue.append(getOrganisationConstraintFromManagerRole(user, true));
+								}
+								break;
+							case INHERITED_FROM_FUNCTIONS:
+								if (constraint.getConstraintType().getEntityId().equals(Constants.OU_CONSTRAINT_ENTITY_ID) ||
+									constraint.getConstraintType().getEntityId().equals(Constants.INTERNAL_ORGUNIT_CONSTRAINT_ENTITY_ID)) {
+									constraintValue.append(getOrganisationConstraintFromFunctions(user, false));
+								}
+								break;
+							case EXTENDED_INHERITED_FROM_FUNCTIONS:
+								if (constraint.getConstraintType().getEntityId().equals(Constants.OU_CONSTRAINT_ENTITY_ID) ||
+									constraint.getConstraintType().getEntityId().equals(Constants.INTERNAL_ORGUNIT_CONSTRAINT_ENTITY_ID)) {
+									constraintValue.append(getOrganisationConstraintFromFunctions(user, true));
+								}
+								break;
 							case INHERITED:
 								if (constraint.getConstraintType().getEntityId().equals(Constants.KLE_CONSTRAINT_ENTITY_ID)) {
 									constraintValue.append(getKLEConstraint(user, ConstraintValueType.INHERITED));
@@ -1268,6 +1324,44 @@ public class UserService {
 		return false;
 	}
 
+	private String getOrganisationConstraintFromManagerRole(User user, boolean extended) {
+		Set<String> result = new HashSet<>();
+
+		for (OrgUnit ou : user.getManagedOrgUnits()) {
+			if (extended) {
+				appendThisAndChildren(ou, result);
+			}
+			else {
+				result.add(ou.getUuid());
+			}
+		}
+
+		for (ManagerSubstitute managerSubstitute : user.getSubstituteFor()) {
+			OrgUnit ou = managerSubstitute.getOrgUnit();
+
+			if (extended) {
+				appendThisAndChildren(ou, result);
+			}
+			else {
+				result.add(ou.getUuid());
+			}
+		}
+		return String.join(",", result);
+	}
+
+	private String getOrganisationConstraintFromFunctions(User user, boolean extended) {
+		Set<String> result = new HashSet<>();
+		for (UserOUFunction functionAssignment : user.getFunctionAssignments()) {
+			if (extended) {
+				appendThisAndChildren(functionAssignment.getOrgUnit(), result);
+			}
+			else {
+				result.add(functionAssignment.getOrgUnit().getUuid());
+			}
+		}
+		return String.join(",", result);
+	}
+
 	public List<User> findByOrgUnit(OrgUnit ou) {
 		List<Position> positions = positionService.findByOrgUnit(ou);
 		Set<User> users = new HashSet<>();
@@ -1320,7 +1414,30 @@ public class UserService {
 			return false;
 		}
 		return subject.getPositions().stream()
-			.anyMatch(p -> managerSubstituteService.isManagerForOrgUnit(p.getOrgUnit()) || managerSubstituteService.isSubstituteforOrgUnit(currentUser, p.getOrgUnit()));
+			.anyMatch(p -> managerSubstituteService.isManagerForOrgUnit(p.getOrgUnit()) || managerSubstituteService.isSubstituteforOrgUnit(currentUser, p.getOrgUnit()))
+			|| isEffectiveManagerOrSubstituteFor(currentUser, subject);
+	}
+
+	// True if currentUser is the subject's nearest leader in the OU hierarchy (or substitute for
+	// that leader in the OU where the leader was found). Walks up from each of the subject's
+	// positions, skipping OUs where the subject is the manager themselves — so a team leader's
+	// nearest leader is the manager of the OU above, and OUs without a manager fall back to the
+	// nearest ancestor with one.
+	public boolean isEffectiveManagerOrSubstituteFor(User currentUser, User subject) {
+		if (subject.getPositions() == null) {
+			return false;
+		}
+		return subject.getPositions().stream()
+			.map(Position::getOrgUnit)
+			.filter(Objects::nonNull)
+			.anyMatch(ou -> isEffectiveManagerOrSubstituteFor(currentUser, subject, ou));
+	}
+
+	// Same check for a single OU — used to filter the subject's individual positions.
+	public boolean isEffectiveManagerOrSubstituteFor(User currentUser, User subject, OrgUnit orgUnit) {
+		OrgUnitService.EffectiveApprover leader = orgUnitService.getEffectiveApprover(orgUnit, subject);
+		return leader != null && (Objects.equals(leader.manager().getUuid(), currentUser.getUuid())
+			|| managerSubstituteService.isSubstituteforOrgUnit(currentUser, leader.orgUnit()));
 	}
 
 	public User getLatestUpdatedUser() {

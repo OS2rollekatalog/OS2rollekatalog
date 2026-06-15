@@ -1,6 +1,7 @@
 package dk.digitalidentity.rc.service.assignment;
 
 import dk.digitalidentity.rc.dao.model.OrgUnit;
+import dk.digitalidentity.rc.dao.model.OrgUnitAssignment;
 import dk.digitalidentity.rc.dao.model.Position;
 import dk.digitalidentity.rc.dao.model.Title;
 import dk.digitalidentity.rc.dao.model.User;
@@ -158,9 +159,9 @@ public class CurrentAssignmentCalculator {
 			.map(a -> toAssignmentException(position.getUser(), title, a, position.getOrgUnit()))
 			.forEach(assignmentExceptions::add);
 		// If the user is the manager of the responsible OU, redirect to parent with a different manager
-		final OrgUnit responsibleOu = resolveResponsibleOuForManager(position.getUser(), position.getOrgUnit());
+		final OrgUnit positionResponsibleOu = resolveResponsibleOuForManager(position.getUser(), position.getOrgUnit());
 		return assignedOrgUnitRoles.stream()
-			.map(a -> toCurrentAssignment(a, position.getUser(), title, responsibleOu))
+			.map(a -> toCurrentAssignment(a, position.getUser(), title, responsibleOuFor(a, position.getUser(), orgUnit, positionResponsibleOu)))
 			.collect(Collectors.toSet());
 	}
 
@@ -174,10 +175,24 @@ public class CurrentAssignmentCalculator {
 			.flatMap(a -> toAssignmentException(position.getUser(), title, a, position.getOrgUnit()).stream())
 			.forEach(assignmentExceptions::add);
 		// If the user is the manager of the responsible OU, redirect to parent with a different manager
-		final OrgUnit responsibleOu = resolveResponsibleOuForManager(position.getUser(), position.getOrgUnit());
+		final OrgUnit positionResponsibleOu = resolveResponsibleOuForManager(position.getUser(), position.getOrgUnit());
 		return assignedOrgUnitGroups.stream()
-			.flatMap(a -> toCurrentAssignment(a, position.getUser(), responsibleOu).stream())
+			.flatMap(a -> toCurrentAssignment(a, position.getUser(), responsibleOuFor(a, position.getUser(), orgUnit, positionResponsibleOu)).stream())
 			.collect(Collectors.toSet());
+	}
+
+	/**
+	 * Funktions-baserede tildelinger gives på (User, OrgUnit) — uafhængigt af stillinger.
+	 * Når flere stillinger walker forbi samme arvede assignment, må de ikke producere
+	 * forskellige responsibleOu'er (det fører til duplikerede current_assignment-rækker
+	 * for samme rolle på samme bruger). Lås responsibleOu til selve assignment-OU'en
+	 * for funktions-baserede tildelinger, så de kollapser deterministisk på recordHash.
+	 */
+	private OrgUnit responsibleOuFor(final OrgUnitAssignment assignment, final User user, final OrgUnit assignmentOrgUnit, final OrgUnit positionResponsibleOu) {
+		if (assignment.isContainsFunctions()) {
+			return resolveResponsibleOuForManager(user, assignmentOrgUnit);
+		}
+		return positionResponsibleOu;
 	}
 
 	// Manager/substitute based assignments

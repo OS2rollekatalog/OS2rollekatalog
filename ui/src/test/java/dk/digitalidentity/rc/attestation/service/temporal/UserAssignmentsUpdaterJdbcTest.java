@@ -228,18 +228,18 @@ class UserAssignmentsUpdaterJdbcTest {
 		}
 
 		@Test
-		@DisplayName("responsibleUserUuid is taken from the historic record")
-		void responsibleUserUuidIsMapped() {
+		@DisplayName("responsibleCollectionId is taken from the historic record")
+		void responsibleCollectionIdIsMapped() {
 			// ---- Given ---- //
 			HistoricAssignment assignment = base()
-					.responsibleUserUuid("responsible-user-uuid")
+					.responsibleCollectionId(99L)
 					.build();
 
 			// ---- When ---- //
 			AttestationUserRoleAssignment result = runAndCapture(assignment);
 
 			// ---- Then ---- //
-			assertThat(result.getResponsibleUserUuid()).isEqualTo("responsible-user-uuid");
+			assertThat(result.getResponsibleCollectionId()).isEqualTo(99L);
 		}
 
 		@Test

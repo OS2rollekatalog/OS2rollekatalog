@@ -102,6 +102,18 @@ public class XlsUtil {
 							case INHERITED:
 								value = instance.messageSource.getMessage("html.constraint.organisation.inherited", null, locale);
 								break;
+							case INHERITED_FROM_MANAGER_ROLE:
+								value = instance.messageSource.getMessage("html.constraint.organisation.inherited_from_manager_role", null, locale);
+								break;
+							case EXTENDED_INHERITED_FROM_MANAGER_ROLE:
+								value = instance.messageSource.getMessage("html.constraint.organisation.extended_inherited_from_manager_role", null, locale);
+								break;
+							case INHERITED_FROM_FUNCTIONS:
+								value = instance.messageSource.getMessage("html.constraint.organisation.inherited_from_functions", null, locale);
+								break;
+							case EXTENDED_INHERITED_FROM_FUNCTIONS:
+								value = instance.messageSource.getMessage("html.constraint.organisation.extended_inherited_from_functions", null, locale);
+								break;
 							case LEVEL_1:
 								value = instance.messageSource.getMessage("html.constraint.organisation.level.1", null, locale);
 								break;
@@ -172,6 +184,18 @@ public class XlsUtil {
 								break;
 							case INHERITED:
 								value = instance.messageSource.getMessage("html.constraint.organisation.inherited", null, locale);
+								break;
+							case INHERITED_FROM_MANAGER_ROLE:
+								value = instance.messageSource.getMessage("html.constraint.organisation.inherited_from_manager_role", null, locale);
+								break;
+							case EXTENDED_INHERITED_FROM_MANAGER_ROLE:
+								value = instance.messageSource.getMessage("html.constraint.organisation.extended_inherited_from_manager_role", null, locale);
+								break;
+							case INHERITED_FROM_FUNCTIONS:
+								value = instance.messageSource.getMessage("html.constraint.organisation.inherited_from_functions", null, locale);
+								break;
+							case EXTENDED_INHERITED_FROM_FUNCTIONS:
+								value = instance.messageSource.getMessage("html.constraint.organisation.extended_inherited_from_functions", null, locale);
 								break;
 							case LEVEL_1 :
 							case LEVEL_2 :

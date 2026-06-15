@@ -77,6 +77,7 @@ public class SettingsController {
 		settingsForm.setRequestableByList(settingsService.getRolerequestRequester());
 		settingsForm.setServicedeskEmail(settingsService.getRequestApproveServicedeskEmail());
 		settingsForm.setShowSingleTableInRequestApproveEnabled(settingsService.isShowSingleTableInRequestApproveEnabled());
+		settingsForm.setAllowSelfApproval(settingsService.isAllowSelfApprovalEnabled());
 
         Set<RequestConstraintDTO> constraints = constraintService.getAllConstraints().stream()
             .map(constraint -> RequestConstraintDTO.builder()
@@ -145,6 +146,7 @@ public class SettingsController {
         settingsService.setAttestationChangeEmail(attestationSettingsForm.getAttestationChangeEmail());
         settingsService.setScheduledAttestationEnabled(attestationSettingsForm.isScheduledAttestationEnabled());
         settingsService.setScheduledAttestationInterval(attestationSettingsForm.getScheduledAttestationInterval());
+		settingsService.setMaxAttestationsToRenderOnOverview(attestationSettingsForm.getMaxAttestationsToRenderOnOverview());
 
 		if (attestationSettingsForm.isOrgUnitOptIn()) {
 			settingsService.setScheduledAttestationOptedInOrgUnits(attestationSettingsForm.getScheduledAttestationOptedInOrgUnits());
@@ -185,6 +187,7 @@ public class SettingsController {
         settingsService.setRolerequestRequester(settingsForm.getRequestableByList());
         settingsService.setRolerequestApprover(settingsForm.getApprovableByList());
         settingsService.setShowSingleTableInRequestApproveEnabled(settingsForm.isShowSingleTableInRequestApproveEnabled());
+        settingsService.setAllowSelfApprovalEnabled(settingsForm.isAllowSelfApproval());
         settingsService.setRolerequestReason(settingsForm.getReasonSetting());
         settingsService.setOnlyRecommendRoles(settingsForm.isOnlyRecommendRoles());
 		settingsService.setRoleRequestApproverEmails(settingsForm.getAlternativeEmails());
@@ -218,6 +221,7 @@ public class SettingsController {
         AttestationSettingsForm settingsForm = new AttestationSettingsForm();
 
         settingsForm.setAttestationChangeEmail(settingsService.getAttestationChangeEmail());
+		settingsForm.setMaxAttestationsToRenderOnOverview(String.valueOf(settingsService.getMaxAttestationsToRenderOnOverview()));
         settingsForm.setScheduledAttestationEnabled(settingsService.isScheduledAttestationEnabled());
         settingsForm.setScheduledAttestationInterval(settingsService.getScheduledAttestationInterval());
         settingsForm.setScheduledAttestationFilter(settingsService.getScheduledAttestationFilter());

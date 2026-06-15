@@ -2,64 +2,43 @@
 <html xmlns:th="http://www.thymeleaf.org">
 <head th:replace="~{fragments/header :: header}"></head>
 <body class="layout-fixed">
-	<div class="wrapper">
-		<header th:replace="~{fragments/navbar :: navbar-header(subpage = 'administration')}"></header>
-		<aside th:replace="~{fragments/navbar :: navbar-aside (subpage = 'administration')}"></aside>
- 
-		<section>
-			<div class="content-wrapper">
-				<h3 th:text="#{html.page.email_template.edit.headline}"></h3>
+<div class="wrapper">
+	<header th:replace="~{fragments/navbar :: navbar-header(subpage = 'administration')}"></header>
+	<aside th:replace="~{fragments/navbar :: navbar-aside (subpage = 'administration')}"></aside>
 
-				<div class="panel panel-default">
-					<div class="panel-heading"></div>
+	<section>
+		<div class="content-wrapper">
+			<div style="margin-bottom: 15px;">
+				<a th:href="@{/ui/admin/mailtemplates}" class="btn btn-default">
+					<i class="fa fa-arrow-left"></i> <span th:text="#{html.page.email_template.edit.back}">Tilbage til oversigt</span>
+				</a>
+			</div>
 
-					<div th:if="${disabled}" class="panel-body">
-						<p th:if="${page} == 'attestationMail'" th:text="#{html.page.email_template.edit.attestation.disabled}"></p>
-						<p th:if="${page} == 'requestMail'" th:text="#{html.page.email_template.edit.request.disabled}"></p>
-					</div>
+			<h3 th:text="${template.templateTypeName}"></h3>
 
-					<div th:unless="${disabled}" class="panel-body">
-						<div class="row" style="margin-bottom: 30px;">
-							<div class="col-lg-10 col-lg-offset-1">
-								<h3 style="margin-top: 0px;" th:text="#{html.page.email_template.header}"></h3>
-								<p th:text="#{html.page.email_template.intro}"></p>
-							</div>
-						</div>
-						
-						<div class="row">
-							<div class="col-lg-12">
-								<form class="form-horizontal">
-									<div class="form-group">
-										<label class="col-sm-2 control-label" th:text="#{html.entity.email_template.template}"></label>
+			<div class="panel panel-default">
+				<div class="panel-heading"></div>
+				<div class="panel-body">
+					<div class="row">
+						<div class="col-lg-12">
+							<form class="form-horizontal" id="templateForm">
+								<input type="hidden" name="id" th:value="${template.id}"/>
+								<input type="hidden" name="enabled" th:value="${template.enabled}" />
 
-										<div class="col-sm-8">
-											<div th:replace="~{emailtemplate/fragments/templates_dropdown :: templates_dropdown}"></div>
+								<div class="form-group">
+									<label class="col-sm-2 control-label" th:text="#{html.entity.email_template.enabled}"></label>
+									<div class="col-sm-8">
+										<div class="checkbox c-checkbox">
+											<label>
+												<input id="checkboxEnabled" th:checked="${template.enabled}" type="checkbox" />
+												<span class="fa fa-check"></span>
+											</label>
 										</div>
 									</div>
-								</form>
-							</div>
-						</div>
+								</div>
 
-						<div class="row">
-							<div class="col-lg-12">
-								<form th:each="template : ${templates}" class="form-horizontal templateForm" th:id="'template' + ${template.id}" style="display: none;">
-									<input type="hidden" name="id" th:value="${template.id}"/>
-									<input type="hidden" name="enabled" th:value="${template.enabled}" />
-									
+								<th:block th:if="${template.allowDaysBeforeEventFeature}">
 									<div class="form-group">
-										<label class="col-sm-2 control-label" th:text="#{html.entity.email_template.enabled}"></label>
-										<div class="col-sm-8">
-											<div class="checkbox c-checkbox">
-												<label>
-													<input class="checkboxEnabled" th:checked="${template.enabled}" type="checkbox" />
-													<span class="fa fa-check"></span>
-												</label>
-											</div>
-										</div>
-									</div>
-
-									<th:block th:if="${template.allowDaysBeforeEventFeature}">
-									<div class="form-group" id="allowDaysBeforeEventFormGroup">
 										<label class="col-sm-2 control-label">
 											<span th:text="#{html.entity.email_template.days_before_event}"></span><br/>
 											<small th:text="#{html.entity.email_template.days_before_event.hint}"></small>
@@ -75,88 +54,151 @@
 											</div>
 										</div>
 									</div>
-									</th:block>
+								</th:block>
 
+								<div class="form-group">
+									<label class="col-sm-2 control-label" th:text="#{html.entity.email_template.name}"></label>
+									<div class="col-sm-8">
+										<input name="title" th:value="${template.title}" class="form-control" />
+									</div>
+								</div>
+
+								<div class="form-group">
+									<label class="col-sm-2 control-label" th:text="#{html.entity.email_template.message}"></label>
+									<div class="col-sm-8">
+										<textarea name="message" th:text="${template.message}" class="mb-0 preformat" rows="10" style="width:100%;"></textarea>
+									</div>
+								</div>
+
+								<th:block th:if="${template.hasRepeatingPart}">
 									<div class="form-group">
-										<label class="col-sm-2 control-label" th:text="#{html.entity.email_template.name}"></label>
+										<label class="col-sm-2 control-label">
+											<span th:text="#{html.entity.email_template.repeating_part}"></span><br/>
+											<small th:text="#{html.entity.email_template.repeating_part.hint}"></small>
+										</label>
 										<div class="col-sm-8">
-											<input name="title" th:value="${template.title}" class="form-control" />
+											<textarea name="repeatingPart" th:text="${template.repeatingPart}" class="mb-0 form-control preformat" rows="3" style="width:100%;"></textarea>
 										</div>
 									</div>
+								</th:block>
 
-
+								<th:block th:if="${template.hasNestedRepeatingPart}">
 									<div class="form-group">
-										<label class="col-sm-2 control-label" th:text="#{html.entity.email_template.message}"></label>
+										<label class="col-sm-2 control-label">
+											<span th:text="#{html.entity.email_template.nested_repeating_part}"></span><br/>
+											<small th:text="#{html.entity.email_template.nested_repeating_part.hint}"></small>
+										</label>
 										<div class="col-sm-8">
-											<textarea name="message" th:text="${template.message}" class="mb-0 preformat" rows="10" style="width:100%;"></textarea>
+											<textarea name="nestedRepeatingPart" th:text="${template.nestedRepeatingPart}" class="mb-0 form-control preformat" rows="3" style="width:100%;"></textarea>
 										</div>
 									</div>
+								</th:block>
 
-									<div class="form-group">
-										<label class="col-sm-2 control-label" th:text="#{html.entity.email_template.notes}"></label>
-										<div class="col-sm-8">
-											<textarea name="notes" th:text="${template.notes}" class="mb-0 form-control" rows="3" style="width:100%;"></textarea>
-										</div>
+								<div class="form-group">
+									<label class="col-sm-2 control-label" th:text="#{html.entity.email_template.notes}"></label>
+									<div class="col-sm-8">
+										<textarea name="notes" th:text="${template.notes}" class="mb-0 form-control" rows="3" style="width:100%;"></textarea>
 									</div>
-									
-									<div class="form-group">
-										<div class="col-sm-offset-2 col-sm-10">
-											<button type="button" style="margin-right: 5px;" class="btn btn-lg btn-primary col-xs-2 buttonSubmit" th:text="#{html.control.button.save}"></button>
-											<button type="button" style="margin-right: 5px;" class="btn btn-lg btn-warning col-xs-2 buttonTest" th:text="#{html.page.email_template.test}"></button>
-										</div>
-									</div>
+								</div>
 
-									<div class="form-group">
-										<div class="col-sm-offset-2 col-sm-8">
-											<h4 th:text="#{html.entity.email_template.placeholders}"></h4>
-											<p th:text="#{html.entity.email_template.placeholders.intro}"></p>
-											<table class="table">
-												<thead>
-												<tr>
-													<th th:text="#{html.entity.email_template.placeholders.placeholder}" style="width: 250px;"/>
-													<th th:text="#{html.entity.email_template.placeholders.description}"/>
-												</tr>
-												</thead>
-												<tbody>
-													<tr th:each="placeholder : ${template.emailTemplatePlaceholders}">
-														<td th:text="${placeholder.placeholder}"/>
-														<td class="preformat" th:text="#{${placeholder.description}}"/>
-													</tr>
-												</tbody>
-											</table>
-										</div>
+								<div class="form-group">
+									<div class="col-sm-offset-2 col-sm-10">
+										<button type="button" style="margin-right: 5px;" class="btn btn-lg btn-primary col-xs-2" id="buttonSubmit" th:text="#{html.control.button.save}"></button>
+										<button type="button" style="margin-right: 5px;" class="btn btn-lg btn-warning col-xs-2" id="buttonTest" th:text="#{html.page.email_template.test}"></button>
 									</div>
-								</form>
-							</div>
+								</div>
+
+								<div class="form-group">
+									<div class="col-sm-offset-2 col-sm-8">
+										<h4 th:text="#{html.entity.email_template.placeholders}"></h4>
+										<p th:text="#{html.entity.email_template.placeholders.intro}"></p>
+										<table class="table">
+											<thead>
+											<tr>
+												<th th:text="#{html.entity.email_template.placeholders.placeholder}" style="width: 250px;"/>
+												<th th:text="#{html.entity.email_template.placeholders.description}"/>
+											</tr>
+											</thead>
+											<tbody>
+											<tr th:each="placeholder : ${template.emailTemplatePlaceholders}">
+												<td th:text="${placeholder.placeholder}"/>
+												<td class="preformat" th:text="#{${placeholder.description}}"/>
+											</tr>
+											</tbody>
+										</table>
+									</div>
+								</div>
+
+								<div class="form-group" th:if="${template.hasRepeatingPart}">
+									<div class="col-sm-offset-2 col-sm-8">
+										<h4 th:text="#{html.entity.email_template.placeholders.repeating_part}"></h4>
+										<table class="table">
+											<thead>
+											<tr>
+												<th th:text="#{html.entity.email_template.placeholders.placeholder}" style="width: 250px;"/>
+												<th th:text="#{html.entity.email_template.placeholders.description}"/>
+											</tr>
+											</thead>
+											<tbody>
+											<tr th:each="placeholder : ${template.repeatingPartPlaceholders}">
+												<td th:text="${placeholder.placeholder}"/>
+												<td class="preformat" th:text="#{${placeholder.description}}"/>
+											</tr>
+											</tbody>
+										</table>
+									</div>
+								</div>
+
+								<div class="form-group" th:if="${template.hasNestedRepeatingPart}">
+									<div class="col-sm-offset-2 col-sm-8">
+										<h4 th:text="#{html.entity.email_template.placeholders.nested_repeating_part}"></h4>
+										<table class="table">
+											<thead>
+											<tr>
+												<th th:text="#{html.entity.email_template.placeholders.placeholder}" style="width: 250px;"/>
+												<th th:text="#{html.entity.email_template.placeholders.description}"/>
+											</tr>
+											</thead>
+											<tbody>
+											<tr th:each="placeholder : ${template.nestedRepeatingPartPlaceholders}">
+												<td th:text="${placeholder.placeholder}"/>
+												<td class="preformat" th:text="#{${placeholder.description}}"/>
+											</tr>
+											</tbody>
+										</table>
+									</div>
+								</div>
+							</form>
 						</div>
 					</div>
 				</div>
 			</div>
-		</section>
-	</div>
-	
-	<div th:replace="~{fragments/footer :: footer}"></div>
+		</div>
+	</section>
+</div>
 
-	<script th:inline="javascript">
+<div th:replace="~{fragments/footer :: footer}"></div>
+
+<script th:inline="javascript">
 	/*<![CDATA[*/
 
 	/*[+
 		var restUrl = [[@{/rest/mailtemplates}]];
-		var templatesDropdownUrl = [[${templatesDropdownUrl}]];
+		var listUrl = [[@{/ui/admin/mailtemplates}]];
 		var msgSuccess = [[#{html.page.email_template.success}]];
 		var msgFail = [[#{html.page.email_template.failure}]];
-		var msgFailDelete = [[#{html.page.email_template.failure.removeattachment}]];
-		var msgFailAttachment = [[#{html.page.email_template.failure.addattachment}]];
-		
+
 		var swalImageOk = [[#{html.button.ok}]];
 		var swalImageTitle = [[#{html.page.email_template.swal.image.title}]];
 		var swalImageText = [[#{html.page.email_template.swal.image.text}]];
 	+]*/
-	
+
 		var token = $("meta[name='_csrf']").attr("content");
 
 		$(document).ready(function () {
-			
+			// the message is edited with the full WYSIWYG editor (pictures, links). the repeating parts
+			// are content-only fragments - their list structure (<ul>/<li>) is applied by the renderer -
+			// so they get a reduced toolbar (codeview still lets a technical admin edit the raw html).
 			$('textarea[name="message"]').summernote({
 				"height": 320,
 				"toolbar": [
@@ -165,7 +207,7 @@
 					[ "insert", [ "picture", "link" ]],
 					[ "view", [ "codeview" ] ]
 				],
-				maximumImageFileSize: 100*1024, // 100 KB
+				maximumImageFileSize: 100*1024,
 				callbacks: {
 					onImageUploadError: function(msg) {
 						swal({
@@ -178,64 +220,42 @@
 				},
 				dialogsInBody: true
 			});
-			
-			$('#templateDropdown').change(function() {
-				// hide all
-				$('.templateForm').hide();
-				
-				// show chosen
-				$('#template' + $("#templateDropdown").val()).show();
+
+			$('textarea[name="repeatingPart"], textarea[name="nestedRepeatingPart"]').summernote({
+				"height": 150,
+				"toolbar": [
+					[ "font", [ "bold", "italic", "underline" ]],
+					[ "view", [ "codeview" ] ]
+				],
+				dialogsInBody: true
 			});
-						
-			$('.buttonSubmit').click(function() {
-				var oForm = $('#template' + $("#templateDropdown").val());
-				var data = getFormData(oForm);
-				
+
+			$('#checkboxEnabled').on('change', function() {
+				$("input[name=enabled]").val(this.checked);
+			});
+
+			$('#buttonSubmit').on('click', function() {
+				var data = getFormData($('#templateForm'));
 				save(data, false);
 			});
-			
-			$('.buttonTest').click(function() {
-				var oForm = $('#template' + $("#templateDropdown").val());
-				var data = getFormData(oForm);
 
+			$('#buttonTest').on('click', function() {
+				var data = getFormData($('#templateForm'));
 				save(data, true);
 			});
-			
-			$('.checkboxEnabled').change(function() {
-				var oForm = $('#template' + $("#templateDropdown").val());
-				var checkboxValue = oForm.find('.checkboxEnabled')[0].checked;
-				
-				oForm.find("input[name=enabled]")[0].value = checkboxValue;
-			});
-
-			// display currently chosen template
-			$('#template' + $("#templateDropdown").val()).show();
-			
-			
 		});
-	
-
-		// polyfill for IE11 and endsWith() support
-		if (!String.prototype.endsWith) {
-		    String.prototype.endsWith = function(search, this_len) {
-		        if (this_len === undefined || this_len > this.length) {
-		            this_len = this.length;
-		        }
-		        return this.substring(this_len - search.length, this_len) === search;
-		    };
-		}
 
 		function getFormData(oForm) {
-		    var unindexed_array = oForm.serializeArray();
-		    var indexed_array = {};
+			var unindexed_array = oForm.serializeArray();
+			var indexed_array = {};
 
-		    $.map(unindexed_array, function(n, i){
-		        indexed_array[n['name']] = n['value'];
-		    });
+			$.map(unindexed_array, function(n, i){
+				indexed_array[n['name']] = n['value'];
+			});
 
-		    return indexed_array;
+			return indexed_array;
 		}
-		
+
 		function save(payload, tryEmail) {
 			$.ajax({
 				method : "POST",
@@ -247,46 +267,14 @@
 				data: JSON.stringify(payload)
 			}).done(function(data) {
 				if (data != '') {
-					$.notify({
-						message: data
-					}, {
-						status: 'success',
-						autoHideDelay: 2000
-					});
+					$.notify({ message: data }, { status: 'success', autoHideDelay: 2000 });
+				} else {
+					$.notify({ message: msgSuccess }, { status: 'success', autoHideDelay: 2000 });
 				}
-				else {				
-					$.notify({
-						message: msgSuccess
-					}, {
-						status: 'success',
-						autoHideDelay: 2000
-					});
-				}
-				refreshTemplatesDropdown();
 			}).fail(errorHandler(msgFail));
 		}
 
-		function refreshTemplatesDropdown() {
-	        $.ajax( {
-	            url: templatesDropdownUrl,
-	            success: function (data) {
-					var currentValue = $("#templateDropdown").val();
-	                $('#templateDropdown').parent().html(data);
-	                
-	    			$('#templateDropdown').change(function() {
-	    				// hide all
-	    				$('.templateForm').hide();
-	    				
-	    				// show chosen
-	    				$('#template' + $("#templateDropdown").val()).show();
-	    			});
-	    			
-	    			$("#templateDropdown").val(currentValue);
-	            }
-	        });
-		}
-		
 	/*]]>*/
-	</script>
+</script>
 </body>
 </html>

@@ -108,6 +108,7 @@ public class WizardRestController {
 		// Get all assigned userRoles
 		Set<CurrentAssignment> assignments = assignmentService.getByUserIncludingInactive(requestForUser);
 		final Set<Long> assignedUserRoleIds = assignments.stream()
+			.filter(a -> a.getUserRole() != null)
 			.map(a -> a.getUserRole().getId())
 			.collect(Collectors.toSet());
 
@@ -145,6 +146,7 @@ public class WizardRestController {
 		// Get all assigned userRoles
 		Set<CurrentAssignment> assignments = assignmentService.getByUserIncludingInactive(receiver);
 		List<Long> assignedUserRoleIds = assignments.stream()
+			.filter(a -> a.getUserRole() != null)
 			.map(a -> a.getUserRole().getId())
 			.toList();
 
@@ -194,6 +196,7 @@ public class WizardRestController {
 		// Get all assigned userRoles
 		Set<CurrentAssignment> assignments = assignmentService.getByUserIncludingInactive(receiver);
 		List<Long> assignedUserRoleIds = assignments.stream()
+			.filter(a -> a.getUserRole() != null)
 			.map(a -> a.getUserRole().getId())
 			.toList();
 
@@ -250,6 +253,7 @@ public class WizardRestController {
 		// Get all assigned userRoles
 		final Set<CurrentAssignment> assignments = assignmentService.getByUserIncludingInactive(requestForUser);
 		List<Long> assignedUserRoleIds = assignments.stream()
+			.filter(a -> a.getUserRole() != null)
 			.map(a -> a.getUserRole().getId())
 			.toList();
 

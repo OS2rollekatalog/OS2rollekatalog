@@ -83,23 +83,23 @@ public class HistoricAssignmentAttestationService {
 	}
 
 	/**
-	 * Returns all assignments valid on {@code validAt} whose responsible user is
-	 * {@code responsibleUserUuid}.
+	 * Returns all assignments valid on {@code validAt} whose responsible collection is
+	 * {@code responsibleCollectionId}.
 	 */
-	public List<AttestationUserRoleAssignment> listValidAssignmentsByResponsibleUserUuid(final LocalDate validAt, final String responsibleUserUuid) {
+	public List<AttestationUserRoleAssignment> listValidAssignmentsByResponsibleCollectionId(final LocalDate validAt, final Long responsibleCollectionId) {
 		return historicAssignmentDao
-			.listValidAssignmentsByResponsibleUserUuid(toValidAt(validAt), responsibleUserUuid)
+			.listValidAssignmentsByResponsibleCollectionId(toValidAt(validAt), responsibleCollectionId)
 			.stream()
 			.map(HistoricAssignmentAttestationMapper::toAttestationAssignment)
 			.toList();
 	}
 
 	/**
-	 * Returns all assignments valid on {@code validAt} for a given responsible user and IT-system.
+	 * Returns all assignments valid on {@code validAt} for a given responsible collection and IT-system.
 	 */
-	public List<AttestationUserRoleAssignment> listValidAssignmentsByResponsibleUserUuidAndItSystemId(final LocalDate validAt, final String responsibleUserUuid, final Long itSystemId) {
+	public List<AttestationUserRoleAssignment> listValidAssignmentsByResponsibleCollectionIdAndItSystemId(final LocalDate validAt, final Long responsibleCollectionId, final Long itSystemId) {
 		return historicAssignmentDao
-			.listValidAssignmentsByResponsibleUserUuidAndItSystemId(toValidAt(validAt), responsibleUserUuid, itSystemId)
+			.listValidAssignmentsByResponsibleCollectionIdAndItSystemId(toValidAt(validAt), responsibleCollectionId, itSystemId)
 			.stream()
 			.map(HistoricAssignmentAttestationMapper::toAttestationAssignment)
 			.toList();
@@ -148,13 +148,13 @@ public class HistoricAssignmentAttestationService {
 	}
 
 	/**
-	 * Returns one representative assignment per (responsibleUserUuid, userUuid, inherit,
+	 * Returns one representative assignment per (responsibleCollectionId, userUuid, inherit,
 	 * sensitiveRole, itSystemId) group, for IT-system-responsible assignments valid on
 	 * {@code validAt}. Used by the tracker to determine which IT-system attestations to create.
 	 */
-	public List<AttestationUserRoleAssignment> findValidGroupByResponsibleUserUuidAndUserUuidAndSensitiveRoleAndItSystem(final LocalDate validAt) {
+	public List<AttestationUserRoleAssignment> findValidGroupByResponsibleCollectionIdAndUserUuidAndSensitiveRoleAndItSystem(final LocalDate validAt) {
 		return historicAssignmentDao
-			.findValidGroupByResponsibleUserUuidAndUserUuidAndSensitiveRoleAndItSystem(toValidAt(validAt))
+			.findValidGroupByResponsibleCollectionIdAndUserUuidAndSensitiveRoleAndItSystem(toValidAt(validAt))
 			.stream()
 			.map(HistoricAssignmentAttestationMapper::toAttestationAssignment)
 			.toList();
@@ -174,13 +174,12 @@ public class HistoricAssignmentAttestationService {
 	}
 
 	/**
-	 * Returns one representative assignment per (responsibleUserUuid, sensitiveRole) group,
+	 * Returns one representative assignment per (responsibleCollectionId, sensitiveRole) group,
 	 * for IT-system-responsible assignments valid on {@code validAt}.
-	 * Mirrors {@code AttestationOuAssignmentsDao.findValidGroupByResponsibleUserUuidAndSensitiveRole}.
 	 */
-	public List<AttestationUserRoleAssignment> findValidGroupByResponsibleUserUuidAndSensitiveRole(final LocalDate validAt) {
+	public List<AttestationUserRoleAssignment> findValidGroupByResponsibleCollectionIdAndSensitiveRole(final LocalDate validAt) {
 		return historicAssignmentDao
-			.findValidGroupByResponsibleUserUuidAndSensitiveRole(toValidAt(validAt))
+			.findValidGroupByResponsibleCollectionIdAndSensitiveRole(toValidAt(validAt))
 			.stream()
 			.map(HistoricAssignmentAttestationMapper::toAttestationAssignment)
 			.toList();

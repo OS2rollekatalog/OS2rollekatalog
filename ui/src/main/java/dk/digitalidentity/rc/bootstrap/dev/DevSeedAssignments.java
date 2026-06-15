@@ -2,6 +2,7 @@ package dk.digitalidentity.rc.bootstrap.dev;
 
 import dk.digitalidentity.rc.dao.UserDao;
 import dk.digitalidentity.rc.dao.UserRoleDao;
+import dk.digitalidentity.rc.dao.model.ItSystemAttestationResponsible;
 import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserRole;
 import dk.digitalidentity.rc.dao.model.UserUserRoleAssignment;
@@ -85,7 +86,7 @@ public class DevSeedAssignments {
 
 		User responsible = usersById.get(DevDataDefinitions.IT_SYSTEM_RESPONSIBLE_USER_ID);
 		if (responsible != null) {
-			itSystemService.getAll().forEach(system -> system.setAttestationResponsible(responsible));
+			itSystemService.getAll().forEach(system -> system.getAttestationResponsibles().add(ItSystemAttestationResponsible.builder().itSystem(system).user(responsible).build()));
 		} else {
 			log.warn("IT system responsible user '{}' not found — skipping",
 				DevDataDefinitions.IT_SYSTEM_RESPONSIBLE_USER_ID);

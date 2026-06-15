@@ -9,5 +9,6 @@ namespace ADSyncService
         public bool active { get; set; }
         public string adGroupType { get; set; }
         public bool universal { get; set; }
+        public string description { get; set; }
     }
 }

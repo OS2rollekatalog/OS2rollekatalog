@@ -3,6 +3,9 @@ package dk.digitalidentity.rc.controller.api;
 import dk.digitalidentity.rc.controller.api.dto.ConstraintValue;
 import dk.digitalidentity.rc.controller.api.dto.RoleAssignmentWithContraints;
 import dk.digitalidentity.rc.controller.api.dto.RoleAssignmentsWithContraints;
+import dk.digitalidentity.rc.controller.api.dto.SystemRoleAssignmentConstraintValueDTO;
+import dk.digitalidentity.rc.controller.api.dto.SystemRoleAssignmentDTO;
+import dk.digitalidentity.rc.controller.api.dto.SystemRoleDTO;
 import dk.digitalidentity.rc.controller.api.dto.UserRoleDTO;
 import dk.digitalidentity.rc.controller.api.dto.read.PostponedConstraintReadDTO;
 import dk.digitalidentity.rc.controller.api.dto.read.RoleGroupReadDTO;
@@ -434,9 +437,27 @@ public class ReadOnlyApi {
 			return new ResponseEntity<>(HttpStatus.NOT_FOUND);
 		}
 
-		UserRoleDTO roleDTO = mapper.map(role, UserRoleDTO.class);
+		UserRoleDTO roleDTO = new UserRoleDTO(role);
+		roleDTO.setSystemRoleAssignments(role.getSystemRoleAssignments().stream()
+				.map(this::toSystemRoleAssignmentDTO)
+				.collect(Collectors.toList()));
 
 		return new ResponseEntity<>(roleDTO, HttpStatus.OK);
+	}
+
+	private SystemRoleAssignmentDTO toSystemRoleAssignmentDTO(SystemRoleAssignment sra) {
+		SystemRoleAssignmentDTO dto = new SystemRoleAssignmentDTO();
+		dto.setSystemRole(new SystemRoleDTO(sra.getSystemRole()));
+		List<SystemRoleAssignmentConstraintValue> cvs = sra.getConstraintValues();
+		if (cvs != null) {
+			dto.setConstraintValues(cvs.stream().map(cv -> {
+				SystemRoleAssignmentConstraintValueDTO cvDto = new SystemRoleAssignmentConstraintValueDTO();
+				cvDto.setConstraintType(cv.getConstraintType());
+				cvDto.setConstraintValue(cv.getConstraintValue());
+				return cvDto;
+			}).collect(Collectors.toList()));
+		}
+		return dto;
 	}
 
 	@GetMapping("/api/read/userroles/itsystems")

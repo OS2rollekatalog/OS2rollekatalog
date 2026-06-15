@@ -77,6 +77,7 @@ public class PendingADUpdateService {
 			operation.setAdGroupType(adGroupType);
 			operation.setUniversal(universal);
 			operation.setDomain(systemRole.getItSystem().getDomain());
+			operation.setDescription(systemRole.getDescription());
 
 			save(operation);
 		}

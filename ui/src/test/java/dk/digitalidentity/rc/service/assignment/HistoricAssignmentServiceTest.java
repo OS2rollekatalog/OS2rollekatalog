@@ -1,5 +1,6 @@
 package dk.digitalidentity.rc.service.assignment;
 
+import dk.digitalidentity.rc.attestation.dao.AttestationResponsibleCollectionDao;
 import dk.digitalidentity.rc.dao.assignment.HistoricAssignmentDao;
 import dk.digitalidentity.rc.dao.model.assignment.CurrentAssignment;
 import dk.digitalidentity.rc.dao.model.assignment.HistoricAssignment;
@@ -33,6 +34,9 @@ class HistoricAssignmentServiceTest {
 	@Mock
 	private HistoricAssignmentDao historicAssignmentDao;
 
+	@Mock
+	private AttestationResponsibleCollectionDao attestationResponsibleCollectionDao;
+
 	@InjectMocks
 	private HistoricAssignmentService service;
 
@@ -53,7 +57,7 @@ class HistoricAssignmentServiceTest {
 			service.createFromCurrentAssignments(Set.of(ca1, ca2));
 
 			// ---- Then ---- //
-			ArgumentCaptor<Set<HistoricAssignment>> captor = ArgumentCaptor.forClass(Set.class);
+			ArgumentCaptor<List<HistoricAssignment>> captor = ArgumentCaptor.forClass(List.class);
 			verify(historicAssignmentDao).saveAll(captor.capture());
 
 			assertThat(captor.getValue()).hasSize(2);
@@ -66,7 +70,7 @@ class HistoricAssignmentServiceTest {
 			service.createFromCurrentAssignments(Set.of());
 
 			// ---- Then ---- //
-			ArgumentCaptor<Set<HistoricAssignment>> captor = ArgumentCaptor.forClass(Set.class);
+			ArgumentCaptor<List<HistoricAssignment>> captor = ArgumentCaptor.forClass(List.class);
 			verify(historicAssignmentDao).saveAll(captor.capture());
 
 			assertThat(captor.getValue()).isEmpty();

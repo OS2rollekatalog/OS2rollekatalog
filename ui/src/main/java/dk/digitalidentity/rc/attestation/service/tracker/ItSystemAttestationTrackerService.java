@@ -1,13 +1,12 @@
 package dk.digitalidentity.rc.attestation.service.tracker;
 
 import dk.digitalidentity.rc.attestation.dao.AttestationDao;
+import dk.digitalidentity.rc.attestation.dao.AttestationResponsibleCollectionDao;
 import dk.digitalidentity.rc.attestation.dao.AttestationSystemRoleAssignmentDao;
 import dk.digitalidentity.rc.attestation.model.entity.Attestation;
 import dk.digitalidentity.rc.attestation.model.entity.AttestationRun;
 import dk.digitalidentity.rc.attestation.model.entity.temporal.AttestationSystemRoleAssignment;
 import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
-import dk.digitalidentity.rc.dao.history.HistoryUserDao;
-import dk.digitalidentity.rc.dao.history.model.HistoryUser;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -15,6 +14,8 @@ import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Stream;
@@ -30,9 +31,9 @@ public class ItSystemAttestationTrackerService {
     @Autowired
     private AttestationDao attestationDao;
     @Autowired
-    private HistoryUserDao historyUserDao;
-    @Autowired
     private AttestationRunTrackerService runTrackerService;
+    @Autowired
+    private AttestationResponsibleCollectionDao responsibleCollectionDao;
 
 
     @Transactional(timeout = 600, propagation = Propagation.REQUIRES_NEW)
@@ -40,12 +41,22 @@ public class ItSystemAttestationTrackerService {
         runTrackerService.getAttestationRunWithDeadlineNotAfter(when)
                 .filter(a -> !a.isSensitive())
                 .ifPresent(run -> {
+                    // Attestationer for tomme collections er usynlige for alle (synlighed afgøres af
+                    // collection-medlemskab) og kan aldrig afsluttes — spring dem over.
+                    final Map<Long, Boolean> collectionHasResponsibles = new HashMap<>();
                     try (Stream<AttestationSystemRoleAssignment> attestationSystemRoleAssignmentStream = systemRoleAssignmentDao.streamAllValidAssignments(when)) {
                         attestationSystemRoleAssignmentStream
-                                .filter(a -> a.getResponsibleUserUuid() != null)
+                                .filter(a -> a.getResponsibleCollectionId() != null)
+                                .filter(a -> collectionHasResponsibles.computeIfAbsent(a.getResponsibleCollectionId(), this::hasResponsibles))
                                 .forEach(a -> ensureWeHaveAttestationFor(run, a, when));
                     }
                 });
+    }
+
+    private boolean hasResponsibles(final Long collectionId) {
+        return responsibleCollectionDao.findById(collectionId)
+                .map(c -> !c.getUsersUuid().isEmpty())
+                .orElse(false);
     }
 
     private void ensureWeHaveAttestationFor(final AttestationRun run, final AttestationSystemRoleAssignment assignment, final LocalDate when) {
@@ -55,23 +66,12 @@ public class ItSystemAttestationTrackerService {
         Attestation attestation = findItSystemRolesAttestationFor(assignment, when).orElse(null);
         if (attestation == null) {
             if (!run.getDeadline().minusDays(configuration.getAttestation().getDaysForAttestation()).isAfter(when)) {
-                // Deadline is soon we need to create a new attestation
-                attestation = createItSystemRolesAttestationFor(run, assignment, when);
+                // Deadline is soon we need to create a new attestation for this (system × responsible) pair
+                createItSystemRolesAttestationFor(run, assignment, when);
             }
             // Else deadline is far in the future do not create an attestation section yet
         } else {
             log.info("Attestation found for user role {}", attestation.getUuid());
-            // If we have another open attestation for this it-system the responsible manager might have changed, in that
-            // case we need to delete the old attestation (unless its already been verified).
-            if (!attestation.getResponsibleUserUuid().equals(assignment.getResponsibleUserUuid())) {
-                log.info("It-system responsible changed updating attestation");
-                final HistoryUser historyUser = historyUserDao.findFirstByDatoAndUserUuid(when, assignment.getResponsibleUserUuid());
-                attestation.setResponsibleUserUuid(assignment.getResponsibleUserUuid());
-                attestation.setResponsibleUserId(historyUser.getUserUserId());
-				// When changing responsible, we need to move the date, as the assignments are frozen at created-date,
-				// and the new responsible won't be responsible for any assignments until today.
-				attestation.setCreatedAt(when);
-            }
         }
     }
 
@@ -81,14 +81,9 @@ public class ItSystemAttestationTrackerService {
     private Attestation createItSystemRolesAttestationFor(final AttestationRun run,
                                                           final AttestationSystemRoleAssignment assignment,
                                                           final LocalDate when) {
-        final HistoryUser historyUser = historyUserDao.findFirstByDatoAndUserUuid(when, assignment.getResponsibleUserUuid());
-        if (historyUser == null) {
-            return null;
-        }
         return attestationDao.save(Attestation.builder()
                         .attestationType(Attestation.AttestationType.IT_SYSTEM_ROLES_ATTESTATION)
-                        .responsibleUserId(historyUser.getUserUserId())
-                        .responsibleUserUuid(assignment.getResponsibleUserUuid())
+                        .responsibleCollectionId(assignment.getResponsibleCollectionId())
                         .itSystemName(assignment.getItSystemName())
                         .itSystemId(assignment.getItSystemId())
                         .uuid(UUID.randomUUID().toString())
@@ -100,7 +95,7 @@ public class ItSystemAttestationTrackerService {
     }
 
     private Optional<Attestation> findItSystemRolesAttestationFor(final AttestationSystemRoleAssignment assignment, final LocalDate when) {
-        return attestationDao.findByAttestationTypeAndItSystemIdAndDeadlineGreaterThanEqual(
-                Attestation.AttestationType.IT_SYSTEM_ROLES_ATTESTATION, assignment.getItSystemId(), when);
+        return attestationDao.findByAttestationTypeAndItSystemIdAndResponsibleCollectionIdAndDeadlineGreaterThanEqual(
+                Attestation.AttestationType.IT_SYSTEM_ROLES_ATTESTATION, assignment.getItSystemId(), assignment.getResponsibleCollectionId(), when);
     }
 }

@@ -21,7 +21,7 @@ import java.util.List;
 
 /**
  * Point-in-time snapshot of a system role assignment on a user role.
- * All denormalized fields (names, descriptions, responsibleUserUuid) reflect values at
+ * All denormalized fields (names, descriptions, responsibleCollectionId) reflect values at
  * the time the assignment was recorded and are not updated if those values change later.
  */
 @Builder
@@ -58,7 +58,8 @@ public class HistoricItSystemAssignment {
 	@Column(nullable = false)
 	private boolean itSystemAttestationExempt = false;
 
-	private String responsibleUserUuid;
+	@Column(name = "responsible_collection_id")
+	private Long responsibleCollectionId;
 
 	@Column(nullable = false)
 	private Long userRoleId;

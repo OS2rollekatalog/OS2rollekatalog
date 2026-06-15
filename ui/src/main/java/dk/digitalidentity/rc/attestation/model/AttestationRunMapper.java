@@ -1,5 +1,6 @@
 package dk.digitalidentity.rc.attestation.model;
 
+import dk.digitalidentity.rc.attestation.dao.AttestationResponsibleCollectionDao;
 import dk.digitalidentity.rc.attestation.model.dto.AttestationRunDTO;
 import dk.digitalidentity.rc.attestation.model.dto.AttestationStatusListDTO;
 import dk.digitalidentity.rc.attestation.model.dto.enums.AdminAttestationStatus;
@@ -16,9 +17,10 @@ import org.springframework.stereotype.Component;
 
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
-import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -34,6 +36,9 @@ public class AttestationRunMapper {
     private UserService userService;
     @Autowired
     private AttestationAdminService attestationAdminService;
+
+	@Autowired
+	private AttestationResponsibleCollectionDao attestationResponsibleCollectionDao;
 
     public List<AttestationRunDTO> toRunDTOList(final List<AttestationRun> runs) {
         return runs.stream()
@@ -76,9 +81,13 @@ public class AttestationRunMapper {
         return allAttestations
                 .map(a -> {
                     final AdminAttestationStatus status = attestationAdminService.findAttestationStatus(a);
-                    Optional<User> optionalByUuid = userService.getOptionalByUuidIncludingDeleted(a.getResponsibleUserUuid());
+					Set<String> uuids = a.getResponsibleCollectionId() != null
+						? new HashSet<>(attestationResponsibleCollectionDao.findById(a.getResponsibleCollectionId())
+							.map(c -> c.getUsersUuid()).orElse(Collections.emptyList()))
+						: Collections.emptySet();
+					List<User> users = uuids.isEmpty() ? Collections.emptyList() : userService.getAllByUuidIn(uuids);
                     return new AttestationStatusListDTO(a.getId(), a.getItSystemName(), null,
-                            Collections.emptyList(), optionalByUuid.orElse(null), a.getAttestationType() == Attestation.AttestationType.IT_SYSTEM_ROLES_ATTESTATION
+                            Collections.emptyList(), users, a.getAttestationType() == Attestation.AttestationType.IT_SYSTEM_ROLES_ATTESTATION
                             ? "Rolleopbygning" : "Rolletildelinger", status);
                 })
                 .collect(Collectors.toList());

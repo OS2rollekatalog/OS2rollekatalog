@@ -629,6 +629,12 @@ function CombinedService() {
 			},
 			{
 				targets: [7],
+				data: 'approver',
+				orderable: false,
+				searchable: false,
+			},
+			{
+				targets: [8],
 				data: 'roleWithinRoleGroup',
 				visible: false,
 				searchable: true,
@@ -740,6 +746,11 @@ function CombinedService() {
 			},
 			{
 				targets: [7],
+				data: 'approver',
+				orderable: false,
+			},
+			{
+				targets: [8],
 				data: 'roleWithinRoleGroup',
 				visible: false,
 				searchable: true,
@@ -850,6 +861,11 @@ function RoleGroupService() {
                 orderable: false,
                 className: "preformat"
             },
+            {
+                targets : [5],
+                data : 'approver',
+                orderable: false,
+            },
         ]
 		return datatableService.initDefaultClientSideTable(`#${tableId}`, this.buildTableUrl(),  [ [ 3, "asc" ] ], rolegroupColumnDefs);
     }
@@ -901,6 +917,11 @@ function RoleGroupService() {
 				data : 'description',
 				orderable: false,
 				className: "preformat"
+			},
+			{
+				targets : [5],
+				data : 'approver',
+				orderable: false,
 			},
 		];
 		return datatableService.initDefaultClientSideTable(`#${tableId}`, this.buildRecommendedTableUrl(),  [ [ 3, "asc" ] ], columns);
@@ -1061,6 +1082,12 @@ function UserRoleService() {
 				orderable: false,
 				className: "preformat"
 			},
+			{
+				targets : [4],
+				data : 'approver',
+				orderable: false,
+				searchable: false,
+			},
 		];
         return datatableService.initDefaultServersideTable(`#${tableId}`, this.buildTableUrl(), userroleColumnDefs, [ [ 1, "asc" ] ])
     }
@@ -1098,6 +1125,11 @@ function UserRoleService() {
 					data : 'description',
 					orderable: false,
 					className: "preformat"
+				},
+				{
+					targets : [4],
+					data : 'approver',
+					orderable: false,
 				},
 			];
 		return datatableService.initDefaultClientSideTable(`#${tableId}`, this.buildRecommendedTableUrl(),  [ [ 1, "asc" ] ], columns);

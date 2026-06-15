@@ -1,5 +1,6 @@
 package dk.digitalidentity.rc.controller.api.dto;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import dk.digitalidentity.rc.dao.model.SystemRole;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
@@ -21,6 +22,7 @@ public class SystemRoleDTO {
 	@Pattern(regexp = "^[A-Za-z0-9_-]+$")
 	private String identifier;
 
+	@JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
 	private List<String> users;
 
 	public SystemRoleDTO(SystemRole sr) {

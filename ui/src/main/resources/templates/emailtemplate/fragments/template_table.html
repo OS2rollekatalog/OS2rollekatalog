@@ -1,0 +1,34 @@
+<th:block th:fragment="template_table(tableId, templates)" xmlns="http://www.w3.org/1999/xhtml" xmlns:th="http://www.thymeleaf.org">
+	<table th:id="${tableId}" class="table table-striped table-hover display templateTable" style="width:100%">
+		<thead>
+		<tr>
+			<th th:text="#{html.page.email_template.list.column.category}" class="col-lg-2"></th>
+			<th th:text="#{html.page.email_template.list.column.template}" class="col-lg-5"></th>
+			<th th:text="#{html.page.email_template.list.column.title}" class="col-lg-4"></th>
+			<th th:text="#{html.page.email_template.list.column.active}" class="col-lg-1"></th>
+			<th th:text="#{html.control.operations}" data-orderable="false" class="col-lg-1"></th>
+		</tr>
+		</thead>
+		<tbody>
+		<tr th:each="t : ${templates}">
+			<td th:text="${t.category}"></td>
+			<td th:text="${t.templateTypeName}"></td>
+			<td th:text="${t.title}"></td>
+			<td class="text-center" th:data-order="${t.enabled}">
+				<i th:if="${t.enabled}" class="fa fa-check text-success"></i>
+			</td>
+			<td>
+				<a th:href="@{'/ui/admin/mailtemplates/' + ${t.id} + '/edit'}" th:title="#{html.page.email_template.list.action.edit}">
+					<em class="fa fa-fw fa-pencil"></em>
+				</a>
+				<a href="#" class="btnPreview" th:data-id="${t.id}" th:title="#{html.page.email_template.list.action.preview}">
+					<em class="fa fa-fw fa-eye"></em>
+				</a>
+				<a href="#" class="btnToggle" th:data-id="${t.id}" th:title="#{html.page.email_template.list.action.toggle}">
+					<em class="fa fa-fw" th:classappend="${t.enabled} ? 'fa-toggle-on' : 'fa-toggle-off'"></em>
+				</a>
+			</td>
+		</tr>
+		</tbody>
+	</table>
+</th:block>

@@ -242,6 +242,30 @@ class CurrentAssignmentCalculatorTest {
 				.extracting(CurrentAssignment::getUserRole)
 				.containsExactly(userRole);
 		}
+
+		@Test
+		@DisplayName("should produce a single roleGroup-only row for an empty direct role group")
+		void shouldProduceRoleGroupOnlyRowForEmptyRoleGroup() {
+			// Given a role group with no userroles assigned directly to the user
+			RoleGroup emptyRoleGroup = createRoleGroup(1L, List.of());
+			UserRoleGroupAssignment assignment = createDirectRoleGroupAssignment(emptyRoleGroup, null, null);
+
+			testUser.setUserRoleAssignments(Collections.emptyList());
+			testUser.setRoleGroupAssignments(List.of(assignment));
+			testUser.setPositions(Collections.emptyList());
+
+			// When
+			ImmutablePair<Set<CurrentAssignment>, Set<CurrentExceptedAssignment>> result =
+				calculator.calculateAllAssignmentsForUser(testUser);
+
+			// Then the assignment is still represented by one roleGroup-only row
+			assertThat(result.getLeft()).hasSize(1);
+			CurrentAssignment row = result.getLeft().iterator().next();
+			assertThat(row.getRoleGroup()).isEqualTo(emptyRoleGroup);
+			assertThat(row.getUserRole()).isNull();
+			assertThat(row.getItSystem()).isNull();
+			assertThat(row.getRecordHash()).isNotBlank();
+		}
 	}
 
 	@Nested
@@ -276,6 +300,38 @@ class CurrentAssignmentCalculatorTest {
 			assertThat(result.getLeft())
 				.extracting(CurrentAssignment::getUserRole)
 				.containsExactly(userRole);
+		}
+
+		@Test
+		@DisplayName("should produce a single roleGroup-only row for an empty role group inherited from OrgUnit")
+		void shouldProduceRoleGroupOnlyRowForEmptyOrgUnitRoleGroup() {
+			// Given an empty role group assigned to the position's OrgUnit
+			RoleGroup emptyRoleGroup = createRoleGroup(1L, List.of());
+			OrgUnit orgUnit = createOrgUnit("org-unit-uuid", null);
+			OrgUnitRoleGroupAssignment ouAssignment = createOrgUnitRoleGroupAssignment(emptyRoleGroup, orgUnit);
+			orgUnit.setUserRoleAssignments(Collections.emptyList());
+			orgUnit.setRoleGroupAssignments(List.of(ouAssignment));
+
+			Title title = createTitle("title-uuid");
+			Position position = createPosition(orgUnit, title, testUser, false);
+
+			testUser.setUserRoleAssignments(Collections.emptyList());
+			testUser.setRoleGroupAssignments(Collections.emptyList());
+			testUser.setPositions(List.of(position));
+
+			given(ruleEvaluator.applies(ouAssignment, testUser, position, orgUnit))
+				.willReturn(AssignmentAppliesResult.POSITIVE);
+
+			// When
+			ImmutablePair<Set<CurrentAssignment>, Set<CurrentExceptedAssignment>> result =
+				calculator.calculateAllAssignmentsForUser(testUser);
+
+			// Then
+			assertThat(result.getLeft()).hasSize(1);
+			CurrentAssignment row = result.getLeft().iterator().next();
+			assertThat(row.getRoleGroup()).isEqualTo(emptyRoleGroup);
+			assertThat(row.getUserRole()).isNull();
+			assertThat(row.getOrgUnit()).isEqualTo(orgUnit);
 		}
 
 		@Test
@@ -546,6 +602,100 @@ class CurrentAssignmentCalculatorTest {
 				.hasSize(2)
 				.extracting(CurrentAssignment::getUserRole)
 				.containsExactlyInAnyOrder(role1, role2);
+		}
+
+		@Test
+		@DisplayName("function-based role inherited via multiple positions emits one row (not one per position)")
+		void shouldDedupFunctionBasedRoleAcrossPositions() {
+			// Given — fælles ancestor med funktions-baseret rolle, to stillinger der hver
+			// walker op til den. Før fixet producerede hver stilling sin egen række med
+			// position-specifik responsibleOu → duplikerede current_assignment-rækker.
+			UserRole functionRole = createUserRole("function-role-uuid", testItSystem);
+			OrgUnit commonAncestor = createOrgUnit("common-ancestor-uuid", null);
+			OrgUnitUserRoleAssignment functionAssignment = createOrgUnitUserRoleAssignment(functionRole, commonAncestor);
+			functionAssignment.setContainsFunctions(true);
+			functionAssignment.setInherit(true);
+			commonAncestor.setUserRoleAssignments(List.of(functionAssignment));
+			commonAncestor.setRoleGroupAssignments(Collections.emptyList());
+
+			OrgUnit child1 = createOrgUnit("child-1-uuid", commonAncestor);
+			child1.setUserRoleAssignments(Collections.emptyList());
+			child1.setRoleGroupAssignments(Collections.emptyList());
+			OrgUnit child2 = createOrgUnit("child-2-uuid", commonAncestor);
+			child2.setUserRoleAssignments(Collections.emptyList());
+			child2.setRoleGroupAssignments(Collections.emptyList());
+
+			Title title = createTitle("title-uuid");
+			Position position1 = createPosition(child1, title, testUser, false);
+			Position position2 = createPosition(child2, title, testUser, false);
+
+			testUser.setUserRoleAssignments(Collections.emptyList());
+			testUser.setRoleGroupAssignments(Collections.emptyList());
+			testUser.setPositions(List.of(position1, position2));
+
+			given(ruleEvaluator.applies(functionAssignment, testUser, position1, commonAncestor))
+				.willReturn(AssignmentAppliesResult.POSITIVE);
+			given(ruleEvaluator.applies(functionAssignment, testUser, position2, commonAncestor))
+				.willReturn(AssignmentAppliesResult.POSITIVE);
+
+			// When
+			ImmutablePair<Set<CurrentAssignment>, Set<CurrentExceptedAssignment>> result =
+				calculator.calculateAllAssignmentsForUser(testUser);
+
+			// Then — én række pr. (rolle, assignment-OU), uafhængigt af antal stillinger.
+			// responsibleOrgUnit låst til assignment-OU'en (commonAncestor) for funktions-rækker,
+			// så recordHash kollapser de to walks.
+			assertThat(result.getLeft())
+				.hasSize(1)
+				.allSatisfy(ca -> {
+					assertThat(ca.getUserRole()).isEqualTo(functionRole);
+					assertThat(ca.getOrgUnit()).isEqualTo(commonAncestor);
+					assertThat(ca.getResponsibleOrgUnit()).isEqualTo(commonAncestor);
+				});
+		}
+
+		@Test
+		@DisplayName("non-function role inherited via multiple positions keeps per-position rows (legitimate multiplicity)")
+		void shouldKeepPositionMultiplicityForNonFunctionRoles() {
+			// Given — almindelig OU-arvet rolle (uden containsFunctions). Hver stilling repræsenterer
+			// sin egen claim path og attesteres af sin egen ansvarlige OU, så N rækker er korrekt.
+			UserRole ouRole = createUserRole("ou-role-uuid", testItSystem);
+			OrgUnit commonAncestor = createOrgUnit("common-ancestor-uuid", null);
+			OrgUnitUserRoleAssignment ouAssignment = createOrgUnitUserRoleAssignment(ouRole, commonAncestor);
+			ouAssignment.setContainsFunctions(false);
+			ouAssignment.setInherit(true);
+			commonAncestor.setUserRoleAssignments(List.of(ouAssignment));
+			commonAncestor.setRoleGroupAssignments(Collections.emptyList());
+
+			OrgUnit child1 = createOrgUnit("child-1-uuid", commonAncestor);
+			child1.setUserRoleAssignments(Collections.emptyList());
+			child1.setRoleGroupAssignments(Collections.emptyList());
+			OrgUnit child2 = createOrgUnit("child-2-uuid", commonAncestor);
+			child2.setUserRoleAssignments(Collections.emptyList());
+			child2.setRoleGroupAssignments(Collections.emptyList());
+
+			Title title = createTitle("title-uuid");
+			Position position1 = createPosition(child1, title, testUser, false);
+			Position position2 = createPosition(child2, title, testUser, false);
+
+			testUser.setUserRoleAssignments(Collections.emptyList());
+			testUser.setRoleGroupAssignments(Collections.emptyList());
+			testUser.setPositions(List.of(position1, position2));
+
+			given(ruleEvaluator.applies(ouAssignment, testUser, position1, commonAncestor))
+				.willReturn(AssignmentAppliesResult.POSITIVE);
+			given(ruleEvaluator.applies(ouAssignment, testUser, position2, commonAncestor))
+				.willReturn(AssignmentAppliesResult.POSITIVE);
+
+			// When
+			ImmutablePair<Set<CurrentAssignment>, Set<CurrentExceptedAssignment>> result =
+				calculator.calculateAllAssignmentsForUser(testUser);
+
+			// Then — to rækker med forskellig responsibleOrgUnit (én pr. stilling).
+			assertThat(result.getLeft())
+				.hasSize(2)
+				.extracting(CurrentAssignment::getResponsibleOrgUnit)
+				.containsExactlyInAnyOrder(child1, child2);
 		}
 	}
 

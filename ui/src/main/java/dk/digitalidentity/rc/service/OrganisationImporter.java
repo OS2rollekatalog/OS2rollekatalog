@@ -28,6 +28,7 @@ import dk.digitalidentity.rc.dao.model.enums.KleType;
 import dk.digitalidentity.rc.dao.model.enums.NotificationEntityType;
 import dk.digitalidentity.rc.dao.model.enums.NotificationType;
 import dk.digitalidentity.rc.dao.model.enums.OrgUnitLevel;
+import dk.digitalidentity.rc.event.NewTitlesInOrgUnitsEvent;
 import dk.digitalidentity.rc.service.assignment.AssignmentService;
 import dk.digitalidentity.rc.service.model.MovedPostion;
 import dk.digitalidentity.rc.service.model.OrgUnitWithNewAndOldParentDTO;
@@ -38,6 +39,7 @@ import dk.digitalidentity.rc.service.model.UserMovedPositions;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -60,6 +62,7 @@ import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+
 
 @Slf4j
 @Service
@@ -98,6 +101,9 @@ public class OrganisationImporter {
 
 	@Autowired
 	private AssignmentService assignmentService;
+
+	@Autowired
+	private ApplicationEventPublisher eventPublisher;
 
 	private record OrganisationImportContext(List<String> systemOwnerAndResponsibleUuids) {}
 
@@ -151,10 +157,11 @@ public class OrganisationImporter {
 
 	private OrganisationImportContext buildOrganizationImportContext() {
 		final List<String> ownersAndResponsible = itSystemService.getAll().stream()
-				.flatMap(its -> Stream.of(its.getAttestationResponsible(), its.getSystemOwner()))
-				.filter(Objects::nonNull)
-				.map(User::getUuid)
-				.toList();
+			.flatMap(its -> Stream.concat(
+				itSystemService.getAttestationResponsibleUuids(its).stream(),
+				itSystemService.getSystemOwnerUuids(its).stream()))
+			.distinct()
+			.toList();
 		return new OrganisationImportContext(ownersAndResponsible);
 	}
 
@@ -764,6 +771,7 @@ public class OrganisationImporter {
 						}
 
 						// Handle function assignment changes
+						boolean functionAssignmentsChanged = false;
 						if (differentFunctionAssignments(userToUpdate, existingUser)) {
 							// Fix references to existing OrgUnits for userToUpdate's function assignments
 							for (UserOUFunction assignment : userToUpdate.getFunctionAssignments()) {
@@ -791,9 +799,18 @@ public class OrganisationImporter {
 									existingUser.getFunctionAssignments().add(newAssignment);
 								}
 							}
+							functionAssignmentsChanged = true;
 						}
 
 						userService.save(existingUser);
+
+						// Funktionstildelinger muteres direkte på collection-niveau og rammer derfor ikke
+						// RoleChangeInterceptor (den dækker addPosition/removePosition, men ikke funktioner).
+						// Uden manuel kø-besked ville rolletildelinger der hænger på funktionen (fx AMR)
+						// ikke blive genberegnet før noget andet trigger fyrer.
+						if (functionAssignmentsChanged) {
+							userService.queueForRecalculation(existingUser);
+						}
 
 						break;
 					}
@@ -1019,6 +1036,7 @@ public class OrganisationImporter {
 				userToCreate.setRoleGroupAssignments(new ArrayList<>());
 				userToCreate.setUserRoleAssignments(new ArrayList<>());
 				userToCreate.setPositions(new ArrayList<>());
+				userToCreate.setFunctionAssignments(new ArrayList<>());
 				userToCreate.setDisabled(newUser.isDisabled());
 				userToCreate.setCpr(newUser.getCpr());
 				userToCreate.setDomain(domain);
@@ -1032,6 +1050,20 @@ public class OrganisationImporter {
 					for (Position p : newUser.getPositions()) {
 						addPosition(userToCreate, p);
 					}
+				}
+
+				// Funktionstildelinger blev tidligere helt droppet for nye brugere, fordi userToCreate
+				// blev bygget uden at kopiere collectionen fra newUser. OU-referencer mappes til
+				// persisterede OU'er i processUsers (sammen med positionerne), så her flytter vi blot
+				// elementerne over og sætter back-referencen til userToCreate.
+				if (newUser.getFunctionAssignments() != null && !newUser.getFunctionAssignments().isEmpty()) {
+					for (UserOUFunction assignment : newUser.getFunctionAssignments()) {
+						assignment.setUser(userToCreate);
+						userToCreate.getFunctionAssignments().add(assignment);
+					}
+					// Positions-stien queuer recalc via addPosition-interceptoren; for brugere uden
+					// positioner (kun funktioner) ville rollen ellers aldrig blive beregnet.
+					userService.queueForRecalculation(userToCreate);
 				}
 
 				toBeCreated.add(userToCreate);
@@ -1578,8 +1610,8 @@ public class OrganisationImporter {
 				List<ItSystem> itSystems = itSystemService.findByAttestationResponsibleOrSystemOwner(event.getUser());
 				List<ItSystem> responsibleFor = new ArrayList<>();
 				List<ItSystem> ownerOf = new ArrayList<>();
-				responsibleFor.addAll(itSystems.stream().filter(i -> i.getAttestationResponsible() != null).toList());
-				ownerOf.addAll(itSystems.stream().filter(i -> i.getSystemOwner() != null).toList());
+				responsibleFor.addAll(itSystems.stream().filter(i -> !i.getAttestationResponsibles().isEmpty()).toList());
+				ownerOf.addAll(itSystems.stream().filter(i -> !i.getSystemOwners().isEmpty()).toList());
 
 				String whoText = "Systemansvarlig eller Systemejer ";
 				if (!responsibleFor.isEmpty() && !ownerOf.isEmpty()) {
@@ -1626,32 +1658,7 @@ public class OrganisationImporter {
 	}
 
 	private void handleNewTitles(Set<OrgUnitWithTitlesDTO> orgUnitsWithNewTitles) {
-		if (configuration.getTitles().isEnabled() && settingsService.isNotificationTypeEnabled(NotificationType.NEW_TITLE_IN_ORG_UNIT)) {
-			for (OrgUnitWithTitlesDTO dto : orgUnitsWithNewTitles) {
-				long userRolesWithTitlesCount = dto.getOrgUnit().getUserRoleAssignments().stream().filter(u -> !u.getTitles().isEmpty()).count();
-				long roleGroupsWithTitlesCount = dto.getOrgUnit().getRoleGroupAssignments().stream().filter(r -> !r.getTitles().isEmpty()).count();
-
-				if (userRolesWithTitlesCount == 0 && roleGroupsWithTitlesCount == 0) {
-					continue;
-				}
-
-				String message = "Enheden '" + dto.getOrgUnit().getName() + "' har en eller flere roller tildelt på stillinger og har fået en eller flere nye stillinger:\n";
-				for (Title title : dto.getNewTitles()) {
-					message += title.getName() + "\n";
-				}
-
-				Notification moveNotification = new Notification();
-				moveNotification.setActive(true);
-				moveNotification.setCreated(new Date());
-				moveNotification.setMessage(message);
-				moveNotification.setNotificationType(NotificationType.NEW_TITLE_IN_ORG_UNIT);
-				moveNotification.setAffectedEntityName(dto.getOrgUnit().getName());
-				moveNotification.setAffectedEntityType(NotificationEntityType.OUS);
-				moveNotification.setAffectedEntityUuid(dto.getOrgUnit().getUuid());
-
-				notificationService.save(moveNotification);
-			}
-		}
+		eventPublisher.publishEvent(new NewTitlesInOrgUnitsEvent(this, orgUnitsWithNewTitles));
 	}
 
 	private void handleParentChange(Set<OrgUnitWithNewAndOldParentDTO> parentChangedOrgUnits) {

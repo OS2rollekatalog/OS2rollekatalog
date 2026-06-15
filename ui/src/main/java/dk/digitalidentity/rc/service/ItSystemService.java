@@ -12,8 +12,18 @@ import java.util.Set;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
+import dk.digitalidentity.rc.attestation.dao.AttestationDao;
+import dk.digitalidentity.rc.attestation.dao.AttestationResponsibleCollectionDao;
+import dk.digitalidentity.rc.attestation.model.entity.AttestationResponsibleCollection;
+import dk.digitalidentity.rc.attestation.model.entity.Attestation;
+import dk.digitalidentity.rc.dao.assignment.HistoricAssignmentDao;
+import dk.digitalidentity.rc.service.assignment.HistoricItSystemAssignmentService;
+import dk.digitalidentity.rc.dao.assignment.HistoricOuAssignmentDao;
+import dk.digitalidentity.rc.dao.history.HistoryUserDao;
 import dk.digitalidentity.rc.log.AuditLogIntercepted;
 import dk.digitalidentity.rc.service.assignment.AssignmentService;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -21,6 +31,8 @@ import org.springframework.transaction.annotation.Transactional;
 import dk.digitalidentity.rc.config.Constants;
 import dk.digitalidentity.rc.dao.ItSystemDao;
 import dk.digitalidentity.rc.dao.model.ItSystem;
+import dk.digitalidentity.rc.dao.model.ItSystemAttestationResponsible;
+import dk.digitalidentity.rc.dao.model.ItSystemSystemOwner;
 import dk.digitalidentity.rc.dao.model.KitosITSystemUser;
 import dk.digitalidentity.rc.dao.model.OrgUnit;
 import dk.digitalidentity.rc.dao.model.SystemRole;
@@ -54,6 +66,27 @@ public class ItSystemService {
 
 	@Autowired
 	private AssignmentService assignmentService;
+
+	@Autowired
+	private AttestationDao attestationDao;
+
+	@Autowired
+	private AttestationResponsibleCollectionDao attestationResponsibleCollectionDao;
+
+	@Autowired
+	private HistoricAssignmentDao historicAssignmentDao;
+
+	@Autowired
+	private HistoricOuAssignmentDao historicOuAssignmentDao;
+
+	@Autowired
+	private HistoricItSystemAssignmentService historicItSystemAssignmentService;
+
+	@Autowired
+	private HistoryUserDao historyUserDao;
+
+	@PersistenceContext
+	private EntityManager entityManager;
 
 	@Autowired
 	private UserRoleCleanupService userRoleCleanupService;
@@ -103,6 +136,73 @@ public class ItSystemService {
 	@AuditLogIntercepted
 	public ItSystem save(ItSystem itSystem) {
 		return itSystemDao.save(itSystem);
+	}
+
+	/**
+	 * Replaces the attestation responsibles on the IT system. Open (unverified) attestations belonging
+	 * to a removed responsible are reassigned to one of the remaining responsibles (lexicographically
+	 * smallest UUID, for stable ordering). If no responsibles remain, the open attestations are deleted.
+	 * Verified attestations are never touched.
+	 */
+	@Transactional
+	public void updateAttestationResponsibles(long id, List<User> users) {
+		ItSystem itSystem = itSystemDao.findById(id).orElseThrow();
+		List<String> newUuids = users.stream().map(User::getUuid).toList();
+
+		itSystem.getAttestationResponsibles().clear();
+		entityManager.flush();
+		users.forEach(itSystem::addAttestationResponsible);
+
+		// Update the AttestationResponsibleCollection for this IT system to match the new responsible list.
+		// Open (unverified) attestations pointing to this collection keep their reference — the collection
+		// now reflects the current set of responsibles, so reassignment happens implicitly.
+		// If no responsibles remain, delete open attestations since there is nobody to attest them.
+		AttestationResponsibleCollection collection = attestationResponsibleCollectionDao.findFirstByItSystemId(id)
+			.orElseGet(() -> attestationResponsibleCollectionDao.save(
+				AttestationResponsibleCollection.builder().itSystemId(id).build()));
+		collection.getUsersUuid().clear();
+		if (newUuids.isEmpty()) {
+			List<Attestation> open = attestationDao.findByItSystemIdAndResponsibleCollectionIdAndVerifiedAtIsNull(id, collection.getId());
+			for (Attestation a : open) {
+				a.getOrganisationUserAttestationEntries().clear();
+				a.getItSystemUserAttestationEntries().clear();
+				a.getItSystemUserRoleAttestationEntries().clear();
+				a.getItSystemOrganisationAttestationEntries().clear();
+				a.getUsersForAttestation().clear();
+				a.getMails().clear();
+			}
+			attestationDao.deleteAll(open);
+			log.info("Deleted {} open attestations (no remaining responsibles) on IT system {}", open.size(), id);
+		} else {
+			collection.getUsersUuid().addAll(newUuids);
+			attestationResponsibleCollectionDao.save(collection);
+			// Backfill any historic_assignment rows for this IT system that were written before
+			// the collection existed (responsible_collection_id was null at write time).
+			historicAssignmentDao.backfillResponsibleCollectionId(id, collection.getId());
+			historicOuAssignmentDao.backfillResponsibleCollectionId(id, collection.getId());
+			// historic_it_system_assignment har collection-id i sin recordHash, så backfill skal ske
+			// i Java hvor hashen kan genberegnes — en ren SQL-backfill efterlader stale hashes som
+			// fjern-events ikke kan lukke på.
+			historicItSystemAssignmentService.repairResponsibleCollectionForItSystem(id);
+			log.info("Updated responsible collection for IT system {} to {} responsibles", id, newUuids.size());
+		}
+	}
+
+	@Transactional
+	public void backfillHistoricResponsibleCollection(long itSystemId) {
+		attestationResponsibleCollectionDao.findFirstByItSystemId(itSystemId).ifPresent(collection -> {
+			historicAssignmentDao.backfillResponsibleCollectionId(itSystemId, collection.getId());
+			historicOuAssignmentDao.backfillResponsibleCollectionId(itSystemId, collection.getId());
+			historicItSystemAssignmentService.repairResponsibleCollectionForItSystem(itSystemId);
+		});
+	}
+
+	@Transactional
+	public void updateSystemOwners(long id, List<User> users) {
+		ItSystem itSystem = itSystemDao.findById(id).orElseThrow();
+		itSystem.getSystemOwners().clear();
+		entityManager.flush();
+		users.forEach(itSystem::addSystemOwner);
 	}
 
 	@AuditLogIntercepted
@@ -196,11 +296,11 @@ public class ItSystemService {
 	}
 
 	public List<ItSystem> findByAttestationResponsible(User user) {
-		return itSystemDao.findByAttestationResponsible(user);
+		return itSystemDao.findByAttestationResponsibles_User(user);
 	}
 
 	public List<ItSystem> findByAttestationResponsibleOrSystemOwner(User user) {
-		return itSystemDao.findByAttestationResponsibleOrSystemOwner(user, user);
+		return itSystemDao.findByAttestationResponsibles_UserOrSystemOwners_User(user, user);
 	}
 
 	// TODO: use count
@@ -306,16 +406,23 @@ public class ItSystemService {
 	}
 
 	public void handleSingleITSystemKitosOwnerAndResponsible(ItSystem system, List<User> allUsers) {
-		if (system.getKitosITSystem().getKitosUsers() == null) {
-			system.setAttestationResponsible(null);
-			system.setSystemOwner(null);
-		} else {
+		system.getAttestationResponsibles().clear();
+		system.getSystemOwners().clear();
+
+		if (system.getKitosITSystem().getKitosUsers() != null) {
 			User owner = findUserForKitosRole(KitosRole.SYSTEM_OWNER, system, allUsers);
 			User responsible = findUserForKitosRole(KitosRole.SYSTEM_RESPONSIBLE, system, allUsers);
-			system.setSystemOwner(owner);
-			system.setAttestationResponsible(responsible);
+
+			if (owner != null) {
+				system.addSystemOwner(owner);
+			}
+			if (responsible != null) {
+				system.addAttestationResponsible(responsible);
+			}
 		}
 		itSystemDao.save(system);
+		List<User> newResponsibles = getAttestationResponsibles(system);
+		updateAttestationResponsibles(system.getId(), newResponsibles);
 	}
 
 	private User findUserForKitosRole(KitosRole kitosRole, ItSystem system, List<User> allUsers) {
@@ -338,7 +445,7 @@ public class ItSystemService {
 	}
 
 	public long systemResponsibleCount(User user){
-		return itSystemDao.countByAttestationResponsible(user);
+		return itSystemDao.countByAttestationResponsibles_User(user);
 	}
 
 	//UTILITY METHODS
@@ -363,5 +470,68 @@ public class ItSystemService {
 	@Transactional
 	public void deleteAll(List<ItSystem> itSystems) {
 		itSystemDao.deleteAll(itSystems);
+	}
+
+	@Transactional(readOnly = true)
+	public List<User> getAttestationResponsibles(ItSystem itSystem) {
+		return itSystem.getAttestationResponsibles().stream()
+			.map(ItSystemAttestationResponsible::getUser)
+			.toList();
+	}
+
+	@Transactional(readOnly = true)
+	public List<String> getAttestationResponsibleUserIds(ItSystem itSystem) {
+		return itSystem.getAttestationResponsibles().stream()
+			.map(r -> r.getUser().getUserId())
+			.toList();
+	}
+
+	@Transactional(readOnly = true)
+	public List<String> getAttestationResponsibleUuids(ItSystem itSystem) {
+		return itSystem.getAttestationResponsibles().stream()
+			.map(r -> r.getUser().getUuid())
+			.toList();
+	}
+
+	@Transactional(readOnly = true)
+	public String getAttestationResponsibleNames(ItSystem itSystem) {
+		return itSystem.getAttestationResponsibles().stream()
+			.map(r -> r.getUser().getName())
+			.collect(Collectors.joining(","));
+	}
+
+	@Transactional(readOnly = true)
+	public String getAttestationResponsibleUserIdsJoined(ItSystem itSystem) {
+		return itSystem.getAttestationResponsibles().stream()
+			.map(r -> r.getUser().getUserId())
+			.collect(Collectors.joining(","));
+	}
+
+	@Transactional(readOnly = true)
+	public List<User> getSystemOwners(ItSystem itSystem) {
+		return itSystem.getSystemOwners().stream()
+			.map(ItSystemSystemOwner::getUser)
+			.toList();
+	}
+
+	@Transactional(readOnly = true)
+	public List<String> getSystemOwnerUuids(ItSystem itSystem) {
+		return itSystem.getSystemOwners().stream()
+			.map(o -> o.getUser().getUuid())
+			.toList();
+	}
+
+	@Transactional(readOnly = true)
+	public String getSystemOwnerNames(ItSystem itSystem) {
+		return itSystem.getSystemOwners().stream()
+			.map(o -> o.getUser().getName())
+			.collect(Collectors.joining(","));
+	}
+
+	@Transactional(readOnly = true)
+	public String getSystemOwnerUserIdsJoined(ItSystem itSystem) {
+		return itSystem.getSystemOwners().stream()
+			.map(o -> o.getUser().getUserId())
+			.collect(Collectors.joining(","));
 	}
 }

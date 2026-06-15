@@ -102,7 +102,7 @@ public class RoleAssignmentXlsView extends AttestationXlsView {
 				createCell(dataRow, column++, entry.getName(), null);
 				createCell(dataRow, column++, entry.getUsername(), null);
 				createCell(dataRow, column++, entry.getResponsibleOU(), null);
-				createCell(dataRow, column++, entry.getResponsibleUser(), null);
+				createCell(dataRow, column++, String.join(", ", entry.getResponsibleUserNames()), null);
 				createCell(dataRow, column++, entry.getVerifiedAt() == null ? "" : entry.getVerifiedAt().toString(), null);
 		}
 
@@ -154,7 +154,7 @@ public class RoleAssignmentXlsView extends AttestationXlsView {
 				createCell(dataRow, column++, entry.getAssignedThroughType(), null);
 				createCell(dataRow, column++, entry.getAssignedThrough(), null);
 				createCell(dataRow, column++, entry.getResponsibleOu(), null);
-				createCell(dataRow, column++, entry.getResponsibleUser(), null);
+				createCell(dataRow, column++, String.join(", ", entry.getResponsibleUserNames()), null);
 				createCell(dataRow, column++, messageSource.getMessage(attestationStatusMessage, null, locale), null);
 				createCell(dataRow, column++, entry.getVerifiedAt() == null ? "" : entry.getVerifiedAt().toString(), null);
 				createCell(dataRow, column++, entry.getVerifiedByName() == null ? "" : entry.getVerifiedByName() + " (" + entry.getVerifiedByUserId() + ")", null);

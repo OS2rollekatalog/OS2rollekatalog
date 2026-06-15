@@ -1,5 +1,6 @@
 package dk.digitalidentity.rc.test.ui;
 
+import dasniko.testcontainers.keycloak.KeycloakContainer;
 import dk.digitalidentity.rc.SamlIdpContainerConfiguration;
 import dk.digitalidentity.rc.TestContainersConfiguration;
 import dk.digitalidentity.rc.config.TestInterceptorConfiguration;
@@ -18,6 +19,7 @@ import org.openqa.selenium.support.ui.WebDriverWait;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.util.TestPropertyValues;
 import org.springframework.boot.web.server.context.WebServerInitializedEvent;
 import org.springframework.context.ApplicationContextInitializer;
 import org.springframework.context.ApplicationListener;
@@ -66,6 +68,15 @@ public class SeleniumTest {
             applicationContext.addApplicationListener(
                     (ApplicationListener<WebServerInitializedEvent>) _ -> Testcontainers.exposeHostPorts(8090)
             );
+            // Set the IdP metadata location BEFORE context refresh so saml-module 5.x's
+            // @ConfigurationProperties binding picks up the dynamic Keycloak port.
+            // (DynamicPropertyRegistrar is too late — its bean is instantiated after binding.)
+            // getHost() honours TESTCONTAINERS_HOST_OVERRIDE / remote docker, so this works
+            // both for local docker and for CI runners that talk to a remote docker daemon.
+            KeycloakContainer kc = SamlIdpContainerConfiguration.getInstance();
+            TestPropertyValues.of(
+                    "di.saml.idp.metadataLocation=url:http://" + kc.getHost() + ":" + kc.getMappedPort(8080) + "/realms/test/protocol/saml/descriptor"
+            ).applyTo(applicationContext.getEnvironment());
         }
     }
 

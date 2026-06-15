@@ -18,6 +18,10 @@ public class KitosITSystemService {
 	public Optional<KitosITSystem> findByKitosUuid(UUID uuid) {
 		return kitosITSystemDao.findByKitosUuid(uuid);
 	}
+
+	public Optional<KitosITSystem> findByKitosUsageUuid(UUID uuid) {
+		return kitosITSystemDao.findByKitosUsageUuid(uuid);
+	}
 	public Optional<KitosITSystem> findById(long id) {
 		return kitosITSystemDao.findById(id);
 	}

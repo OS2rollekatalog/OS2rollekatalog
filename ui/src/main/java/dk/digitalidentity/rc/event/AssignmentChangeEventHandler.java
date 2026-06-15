@@ -1,5 +1,6 @@
 package dk.digitalidentity.rc.event;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.List;
@@ -93,7 +94,7 @@ public class AssignmentChangeEventHandler implements SimpleMessageHandler {
 						.queue(USER_ASSIGNMENTS_CHANGED_QUEUE_IDENTIFIER)
 						.messageId(u.getUuid())
 						.priority(QUEUE_PRIORITY)
-						.dequeueTime(LocalDateTime.now())
+						.dequeueTime(Instant.now())
 						.body(JsonSimpleMessage.toJson(UpdateUserAssignmentsMessage.builder()
 							.userUuid(u.getUuid())
 							.timestamp(LocalDateTime.now())

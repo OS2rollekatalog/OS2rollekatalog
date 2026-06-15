@@ -178,7 +178,7 @@ namespace ADSyncService
             return null;
         }
 
-        public void SetItSystemData(string itSystemId, ItSystemData itSystemData)
+        public void SetItSystemData(string itSystemId, ItSystemData itSystemData, bool maintainDescriptionAndName)
         {
             RestClient client = new RestClient(baseUrl);
 
@@ -192,6 +192,12 @@ namespace ADSyncService
             {
                 query += (query.Length > 0) ? "&updateUserAssignments=true" : "?updateUserAssignments=true";
             }
+
+            if (!maintainDescriptionAndName)
+            {
+                query += (query.Length > 0) ? "&maintainDescriptionAndName=false" : "?maintainDescriptionAndName=false";
+            }
+
             var request = new RestRequest("/api/itsystem/manage/" + itSystemId + query, Method.POST);
             request.RequestFormat = DataFormat.Json;
             request.AddHeader("Content-Type", "application/json");

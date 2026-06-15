@@ -72,11 +72,10 @@
 							</fieldset>
 
 							<fieldset>
-								<input th:field="*{selectedResponsibleUuid}" hidden>
 								<div class="form-group">
 									<label class="col-sm-2 control-label" th:text="#{html.entity.itsystem.attestationResponsible}"></label>
 									<div class="col-sm-8">
-										<input class="form-control" id="search_person" onclick="return false;" />
+										<select id="selectedResponsibleUuid" name="selectedResponsibleUuid" class="form-control" multiple="multiple" style="width:100%"></select>
 									</div>
 									<ul th:if="${#fields.hasErrors('selectedResponsibleUuid')}">
 										<li th:each="err : ${#fields.errors('selectedResponsibleUuid')}" th:text="${err}"></li>
@@ -100,22 +99,38 @@
     </div>
 
     <nav th:replace="~{fragments/footer :: footer}"></nav>
-	<script th:replace="~{itsystem/fragments/autocomplete_service :: autocompleteServiceScript(searchFieldIds=${ {'search_person'} }, uuidFieldIds=${ {'selectedResponsibleUuid'} })}"></script>
-
-	<style>
-		.autocomplete-suggestions { border: 1px solid #999; background: #FFF; overflow: auto; width: 500px !important; }
-		.autocomplete-suggestion { padding: 2px 5px; white-space: nowrap; overflow: hidden; }
-		.autocomplete-selected { background: #F0F0F0; }
-		.autocomplete-suggestions strong { font-weight: normal; color: #3399FF; }
-		.autocomplete-group { padding: 2px 5px; }
-		.autocomplete-group strong { display: block; border-bottom: 1px solid #000; }
-	</style>
 
 	<script th:inline="javascript">
 		/*<![CDATA[*/
 
 		$(document).ready(function() {
 			$('[rel=popover]').popover();
+
+			/*[+
+			var personSearchUrl = [[@{/rest/manager/substitute/search/person}]];
+			+]*/
+
+			$('#selectedResponsibleUuid').select2({
+				placeholder: "",
+				allowClear: true,
+				multiple: true,
+				ajax: {
+					url: personSearchUrl,
+					dataType: 'json',
+					delay: 250,
+					data: function(params) {
+						return { query: params.term || '' };
+					},
+					processResults: function(data) {
+						return {
+							results: (data.suggestions || []).map(function(s) {
+								return { id: s.data, text: s.value };
+							})
+						};
+					},
+					cache: true
+				}
+			});
 		});
 
 		/*]]>*/

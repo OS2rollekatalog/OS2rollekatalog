@@ -5,6 +5,7 @@ import dk.digitalidentity.rc.attestation.model.entity.AttestationRun;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
 import java.util.Optional;
 
 @Service
@@ -19,5 +20,9 @@ public class AttestationRunService {
     public Optional<AttestationRun> getRun(final Long runId) {
         return attestationRunDao.findById(runId);
     }
+
+	public List<AttestationRun> getLatestRuns(int limit) {
+		return attestationRunDao.findLatestRuns(limit);
+	}
 
 }

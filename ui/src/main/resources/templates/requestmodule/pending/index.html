@@ -35,6 +35,7 @@
                                     <th th:text="#{requestmodule.html.pending.table.header.time}"></th>
                                     <th th:text="#{requestmodule.html.pending.table.header.reason}"></th>
                                     <th th:text="#{requestmodule.html.pending.table.header.responsible}"></th>
+                                    <th th:text="#{requestmodule.html.pending.table.header.approver}"></th>
                                     <th th:text="#{html.navbar.actions}"></th>
                                 </tr>
                                 </thead>
@@ -53,6 +54,7 @@
                                     <td th:text="${request.timeFrame}"></td>
                                     <td th:text="${request.reason}"></td>
                                     <td class="treatedByResponsibleField" th:text="${request.assignedTo}"></td>
+                                    <td th:text="${request.approver}"></td>
                                     <td>
 										<button class="btn btn-info assignBtn" style="width: 100%; margin-bottom: 5px;"
 												th:data-assignedname="${request.assignedTo}"

@@ -59,6 +59,8 @@ public class EmailTemplateService {
 			template = new EmailTemplate();
 			String title = "Overskrift";
 			String message = "Besked";
+			String repeatingPart = null;
+			String nestedRepeatingPart = null;
 			boolean enabled = true;
 
 			switch (type) {
@@ -137,6 +139,27 @@ public class EmailTemplateService {
 					title = "Manglende attestering af følsomme roller";
 					message = "Kære {modtager}\n<br/>\n<br/>\nDet er tid til, at der skal attesteres følsomme roller for enheden: {enhed}. Der er sendt en eller flere rykkere til leder og eventuel stedfortræder, men en attestering er endnu ikke udført.";
 					break;
+				case ATTESTATION_SENSITIVE_IT_SYSTEM_ASSIGNMENT_NOTIFICATION:
+					title = "Det er tid til attestering af følsomme rolletildelinger";
+					message = "Kære {modtager}\n<br/>\n<br/>\nDet er tid til, at der skal attesteres følsomme rolletildelinger for it-systemet: {itsystem}.";
+					break;
+				case ATTESTATION_SENSITIVE_IT_SYSTEM_ASSIGNMENT_REMINDER1:
+					title = "Påmindelse/rykker for attestering af følsomme rolletildelinger";
+					message = "Kære {modtager}\n<br/>\n<br/>\nDer er ti dage til at der skal være attesteret følsomme rolletildelinger for it-systemet: {itsystem}.";
+					break;
+				case ATTESTATION_SENSITIVE_IT_SYSTEM_ASSIGNMENT_REMINDER2:
+					title = "Påmindelse/rykker for attestering af følsomme rolletildelinger";
+					message = "Kære {modtager}\n<br/>\n<br/>\nDer er tre dage til at der skal være attesteret følsomme rolletildelinger for it-systemet: {itsystem}.";
+					break;
+				case ATTESTATION_SENSITIVE_IT_SYSTEM_ASSIGNMENT_REMINDER3:
+					title = "Påmindelse/rykker for attestering af følsomme rolletildelinger";
+					message = "Kære {modtager}\n<br/>\n<br/>\nDer er tre dage siden der skulle have været attesteret følsomme rolletildelinger for it-systemet: {itsystem}.";
+					enabled = false;
+					break;
+				case ATTESTATION_SENSITIVE_IT_SYSTEM_ASSIGNMENT_REMINDER_THIRDPARTY:
+					title = "Manglende attestering af følsomme rolletildelinger";
+					message = "Kære {modtager}\n<br/>\n<br/>\nDet er tid til, at der skal attesteres følsomme rolletildelinger for it-systemet: {itsystem}. Der er sendt en eller flere rykkere til systemansvarlig, men en attestering er endnu ikke udført.";
+					break;
 				case ATTESTATION_IT_SYSTEM_NOTIFICATION:
 					title = "Det er tid til attestering af rolleopbygning";
 					message = "Kære {modtager}\n<br/>\n<br/>\nDet er tid til, at der skal attesteres rolleopbygning for it-systemet: {itsystem}.";
@@ -203,19 +226,19 @@ public class EmailTemplateService {
 					break;
 				case APPROVED_ROLE_REQUEST_USER:
 					title = "Du har fået tildelt en rolle";
-					message = "Kære {modtager}\n<br/>\n<br/>\nEn autorisationsansvarlig eller leder har anmodet om rollen {rolle} til dig. Den er tildelt fra {startdato} til {stopdato}.";
+					message = "Kære {modtager}\n<br/>\n<br/>\n{anmoderType} har anmodet om rollen {rolle} til dig. Den er tildelt fra {startdato} til {stopdato}.";
 					break;
 				case APPROVED_ROLE_REQUEST_REMOVAL_USER:
 					title = "Du har fået fjernet en rolle";
-					message = "Kære {modtager}\n<br/>\n<br/>\nEn autorisationsansvarlig eller leder har anmodet om at få rollen {rolle} fjernet. Den er nu fjernet.";
+					message = "Kære {modtager}\n<br/>\n<br/>\n{anmoderType} har anmodet om at få rollen {rolle} fjernet. Den er nu fjernet.";
 					break;
 				case APPROVED_ROLE_REQUEST_MANAGER:
 					title = "En anmodning om en rolle er godkendt";
-					message = "Kære {modtager}\n<br/>\n<br/>\nRollen {rolle} {anmoder} har anmodet om til {bruger}, er nu {operation}.";
+					message = "Kære {modtager}\n<br/>\n<br/>\nAnmodningen om at få {operation} rollen {rolle} for {bruger} er blevet godkendt af {anmoderType}.";
 					break;
 				case REJECTED_ROLE_REQUEST_MANAGER:
 					title = "En anmodning om en rolle er afvist";
-					message = "Kære {modtager}\n<br/>\n<br/>\nRollen {rolle} {anmoder} har bedt om at få {operation} for {bruger}, er blevet afvist.";
+					message = "Kære {modtager}\n<br/>\n<br/>\nAnmodningen om at få {operation} rollen {rolle} for {bruger} er blevet afvist af {anmoderType}.";
 					break;
 				case WAITING_REQUESTS_ROLE_ASSIGNERS:
 					title = "Der er afventende rolleanmodninger";
@@ -233,11 +256,11 @@ public class EmailTemplateService {
 					break;
 				case APPROVED_MANUAL_ROLE_REQUEST_USER:
 					title = "Du har fået tildelt en rolle";
-					message = "Kære {modtager}\n<br/>\n<br/>\nEn autorisationsansvarlig eller leder har anmodet om rollen {rolle} til dig. Den er tildelt fra {startdato} til {stopdato}.";
+					message = "Kære {modtager}\n<br/>\n<br/>\n{anmoderType} har anmodet om rollen {rolle} til dig. Den er tildelt fra {startdato} til {stopdato}.";
 					break;
 				case APPROVED_MANUAL_ROLE_REQUEST_MANAGER:
 					title = "En anmodning om en rolle er godkendt";
-					message = "Kære {modtager}\n<br/>\n<br/>\nRollen {rolle} {anmoder} har bedt om at få {operation} for {bruger}, er nu godkendt.";
+					message = "Kære {modtager}\n<br/>\n<br/>\nAnmodningen fra {anmoder} om rollen {rolle}, i systemet {itsystem}, til brugeren {bruger}, er nu godkendt af {anmoderType}.";
 					break;
 				case USER_WITH_MANUAL_ITSYSTEM_DELETED:
 					title = "En bruger med manuelle roller er blevet nedlagt";
@@ -257,12 +280,33 @@ public class EmailTemplateService {
 					title = "For mange tildelinger af systemrolle";
 					message = "Systemrollen {rolle} fra IT-systemet {itsystem} har overskredet grænsen for maksimalt antal tildelinger.\n<br/>\n<br/>Nuværende antal: {antal}\n<br/>Maksimalt tilladt: {maksimum}";
 					break;
+				// the default content of the four contact templates must produce output identical to the
+				// previously hardcoded mails (html.email.manual.*) - some municipalities parse these mails with robots.
+				// the <ul>/<li> list structure is owned by the renderer (see RepeatingPartDescriptor), so it is
+				// absent from the stored parts here - the rendered output is unchanged.
+				case MANUAL_SYSTEM_CONTACT_PERFORMER:
+				case MANUAL_SYSTEM_CONTACT_ADVIS:
+					title = "Rettighedsændringer i {itsystem}";
+					message = "<!DOCTYPE html><html><body><h4>Bestilling af rettighedsændringer</h4><p>Der er ændringer til nedenstående brugeres rettigheder i {itsystem}. Gå venligst til det relevante rettighedsstyringssystem for {itsystem}, og foretag den tilsvarende ændring derinde.</p>{brugere}</body></html>";
+					repeatingPart = "<b>{bruger}</b><br/>Brugernavn: {brugernavn}<br/>Enhed: {enhed}<br/>Uuid: {PersonUuid}{ændringer}";
+					nestedRepeatingPart = "{handling} rolle: {rolle} ({rollebeskrivelse}), {handlet} af {tildeler}";
+					enabled = (type == EmailTemplateType.MANUAL_SYSTEM_CONTACT_PERFORMER);
+					break;
+				case MANUAL_ROLE_CONTACT_PERFORMER:
+				case MANUAL_ROLE_CONTACT_ADVIS:
+					title = "Rettighedsændringer i {itsystem} ({rolle})";
+					message = "<!DOCTYPE html><html><body><h4>Bestilling af rettighedsændringer</h4><p>Der er ændringer til nedenstående brugeres rettigheder i {rolle}. Gå venligst til det relevante rettighedsstyringssystem for {rolle}, og foretag den tilsvarende ændring derinde.</p>Jobfunktionsrolle: {rolle}<br/>({rollebeskrivelse}){brugere}</body></html>";
+					repeatingPart = "{handling} bruger: {bruger} ({brugernavn}) Uuid: {PersonUuid}";
+					enabled = (type == EmailTemplateType.MANUAL_ROLE_CONTACT_PERFORMER);
+					break;
 			}
 
 			template.setTitle(title);
 			template.setMessage(message);
 			template.setTemplateType(type);
 			template.setEnabled(enabled);
+			template.setRepeatingPart(repeatingPart);
+			template.setNestedRepeatingPart(nestedRepeatingPart);
 
 			template = emailTemplateDao.save(template);
 		}

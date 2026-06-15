@@ -1,15 +1,9 @@
 package dk.digitalidentity.rc.test.integration.setup;
 
-import dk.digitalidentity.rc.TestContainersConfiguration;
-import dk.digitalidentity.rc.config.TestInterceptorConfiguration;
-import dk.digitalidentity.rc.dao.model.User;
-import dk.digitalidentity.rc.security.permission.Permission;
-import dk.digitalidentity.rc.security.permission.PermissionConstraint;
-import dk.digitalidentity.rc.security.permission.Section;
-import dk.digitalidentity.rc.service.permission.PermissionService;
-import dk.digitalidentity.samlmodule.model.SamlGrantedAuthority;
-import dk.digitalidentity.samlmodule.model.TokenUser;
-import jakarta.persistence.EntityManager;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
@@ -24,9 +18,16 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
+import dk.digitalidentity.rc.TestContainersConfiguration;
+import dk.digitalidentity.rc.config.TestInterceptorConfiguration;
+import dk.digitalidentity.rc.dao.model.User;
+import dk.digitalidentity.rc.security.permission.Permission;
+import dk.digitalidentity.rc.security.permission.PermissionConstraint;
+import dk.digitalidentity.rc.security.permission.Section;
+import dk.digitalidentity.rc.service.permission.PermissionService;
+import dk.digitalidentity.saml.service.model.SamlGrantedAuthority;
+import dk.digitalidentity.saml.service.model.TokenUser;
+import jakarta.persistence.EntityManager;
 
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -96,7 +97,7 @@ public abstract class BaseIntegrationTest {
 		principal.getAttributes().put(ATTRIBUTE_SUBSTITUTE_FOR, new ArrayList<>(substituteFor));
 
 		UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(
-			principal, principal.getPassword(), principal.getAuthorities()
+			principal, "", principal.getAuthorities()
 		);
 		auth.setDetails(principal);
 		context.setAuthentication(auth);

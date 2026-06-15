@@ -12,6 +12,7 @@ import dk.digitalidentity.rc.dao.model.enums.ItSystemType;
 import dk.digitalidentity.rc.log.AuditLoggable;
 import dk.digitalidentity.rc.rolerequest.model.enums.ApprovableBy;
 import dk.digitalidentity.rc.rolerequest.model.enums.RequestableBy;
+import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
@@ -27,6 +28,7 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 import lombok.Data;
+import lombok.ToString;
 
 @Entity
 @Table(name = "it_systems")
@@ -54,6 +56,10 @@ public class ItSystem implements AuditLoggable {
 	// can be more than one email separated with ;
 	@Column(name = "email")
 	private String email;
+
+	// can be more than one email separated with ;
+	@Column(name = "advis_email")
+	private String advisEmail;
 
 	@Enumerated(EnumType.STRING)
 	@Column(name = "system_type")
@@ -105,13 +111,13 @@ public class ItSystem implements AuditLoggable {
 	@JoinColumn(name = "domain_id")
 	private Domain domain;
 
-	@ManyToOne(fetch = FetchType.LAZY)
-	@JoinColumn(name = "attestation_responsible_uuid")
-	private User attestationResponsible;
+	@ToString.Exclude
+	@OneToMany(mappedBy = "itSystem", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
+	private List<ItSystemAttestationResponsible> attestationResponsibles = new ArrayList<>();
 
-	@ManyToOne(fetch = FetchType.LAZY)
-	@JoinColumn(name = "system_owner_uuid")
-	private User systemOwner;
+	@ToString.Exclude
+	@OneToMany(mappedBy = "itSystem", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
+	private List<ItSystemSystemOwner> systemOwners = new ArrayList<>();
 
 	@ManyToOne(fetch = FetchType.LAZY)
 	@JoinColumn(name = "kitos_it_system_id")
@@ -137,5 +143,13 @@ public class ItSystem implements AuditLoggable {
 	@Override
 	public String getEntityName() {
 		return name;
+	}
+
+	public void addAttestationResponsible(User user) {
+		attestationResponsibles.add(ItSystemAttestationResponsible.builder().itSystem(this).user(user).build());
+	}
+
+	public void addSystemOwner(User user) {
+		systemOwners.add(ItSystemSystemOwner.builder().itSystem(this).user(user).build());
 	}
 }

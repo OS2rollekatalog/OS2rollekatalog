@@ -1,5 +1,6 @@
 package dk.digitalidentity.rc.service.assignment;
 
+import dk.digitalidentity.rc.attestation.dao.AttestationResponsibleCollectionDao;
 import dk.digitalidentity.rc.dao.OrgUnitRoleGroupAssignmentDao;
 import dk.digitalidentity.rc.dao.OrgUnitUserRoleAssignmentDao;
 import dk.digitalidentity.rc.dao.UserRoleDao;
@@ -35,27 +36,29 @@ public class HistoricOuAssignmentService {
 	private final OrgUnitRoleGroupAssignmentDao orgUnitRoleGroupAssignmentDao;
 	private final OrgUnitUserRoleAssignmentDao orgUnitUserRoleAssignmentDao;
 	private final UserRoleDao userRoleDao;
+	private final AttestationResponsibleCollectionDao attestationResponsibleCollectionDao;
 
 	@Transactional
 	public void recordUserRoleAdded(OrgUnit ou, OrgUnitUserRoleAssignment assignment) {
-		HistoricOuAssignment historicOuAssignment = fromUserRoleAssignment(ou, assignment);
-		historicOuAssignmentDao.save(historicOuAssignment);
+		historicOuAssignmentDao.save(fromUserRoleAssignment(ou, assignment));
 	}
 
 	@Transactional
-	public void recordUserRoleUpdated(OrgUnit ou, OrgUnitUserRoleAssignment assignment) {
-		LocalDateTime now = LocalDateTime.now();
-		// Compute hash from pre-update state to close the exact open record
+	public void recordUserRoleUpdatedClose(OrgUnit ou, OrgUnitUserRoleAssignment assignment) {
 		String oldHash = computeHash(fromUserRoleAssignment(ou, assignment));
-		historicOuAssignmentDao.closeOpenByRecordHash(oldHash, now);
+		historicOuAssignmentDao.closeOpenByRecordHash(oldHash, LocalDateTime.now());
+	}
+
+	@Transactional
+	public void recordUserRoleUpdatedSaveNew(OrgUnit ou, OrgUnitUserRoleAssignment assignment) {
 		HistoricOuAssignment historicOuAssignment = fromUserRoleAssignment(ou, assignment);
 		historicOuAssignmentDao.save(historicOuAssignment);
 	}
 
 	@Transactional
 	public void recordUserRoleRemoved(OrgUnit ou, OrgUnitUserRoleAssignment assignment) {
-		String hash = computeHash(fromUserRoleAssignment(ou, assignment));
-		historicOuAssignmentDao.closeOpenByRecordHash(hash, LocalDateTime.now());
+		HistoricOuAssignment record = fromUserRoleAssignment(ou, assignment);
+		historicOuAssignmentDao.closeOpenByRecordHash(record.getRecordHash(), LocalDateTime.now());
 	}
 
 	@Transactional
@@ -65,14 +68,16 @@ public class HistoricOuAssignmentService {
 	}
 
 	@Transactional
-	public void recordRoleGroupUpdated(OrgUnit ou, OrgUnitRoleGroupAssignment assignment) {
+	public void recordRoleGroupUpdatedClose(OrgUnit ou, OrgUnitRoleGroupAssignment assignment) {
 		LocalDateTime now = LocalDateTime.now();
-		// Build records from pre-update state (called @Before the update) to close the exact open records
-		List<HistoricOuAssignment> records = fromRoleGroupAssignment(ou, assignment);
-		records.stream()
+		fromRoleGroupAssignment(ou, assignment).stream()
 			.map(this::computeHash)
 			.forEach(hash -> historicOuAssignmentDao.closeOpenByRecordHash(hash, now));
-		historicOuAssignmentDao.saveAll(records);
+	}
+
+	@Transactional
+	public void recordRoleGroupUpdatedSaveNew(OrgUnit ou, OrgUnitRoleGroupAssignment assignment) {
+		historicOuAssignmentDao.saveAll(fromRoleGroupAssignment(ou, assignment));
 	}
 
 	@Transactional
@@ -97,16 +102,6 @@ public class HistoricOuAssignmentService {
 		historicOuAssignmentDao.closeAllOpenByRoleGroupIdAndRoleId(roleGroup.getId(), userRole.getId(), LocalDateTime.now());
 	}
 
-	/**
-	 * Loader {@link OrgUnitUserRoleAssignment} + relaterede lazy-relationer og indsætter en
-	 * åben {@code historic_ou_assignment}-række hvis ikke allerede en med samme hash findes.
-	 * Egen {@code @Transactional} sørger for at lazy-properties (UserRole.itSystem,
-	 * exceptedUsers, titles, functions) kan tilgås — kaldere som seed-tasken har ingen
-	 * tx-grænse omkring deres chunk-loop og ville ellers ramme LazyInitializationException.
-	 *
-	 * @return true hvis seedet blev forsøgt; false hvis assignment er væk eller mangler
-	 *         UserRole/ItSystem (defensiv guard — eksisterende event-flow antager begge findes).
-	 */
 	@Transactional
 	public boolean seedHistoricRowsFromOrgUnitUserRoleAssignmentId(long id) {
 		OrgUnitUserRoleAssignment assignment = orgUnitUserRoleAssignmentDao.findById(id).orElse(null);
@@ -121,14 +116,6 @@ public class HistoricOuAssignmentService {
 		return true;
 	}
 
-	/**
-	 * Loader {@link OrgUnitRoleGroupAssignment} + ekspanderer til én historic-række pr.
-	 * user-role i role group'en og indsætter de manglende. Idempotent på record-hash niveau,
-	 * så delvist-seeded role groups (fx hvor en user-role er blevet tilføjet til gruppen
-	 * efter deploy via {@link #recordUserRoleAddedToRoleGroup}) får kun de manglende rækker.
-	 *
-	 * @return true hvis seedet blev forsøgt; false hvis assignment eller role group er væk.
-	 */
 	@Transactional
 	public boolean seedHistoricRowsFromOrgUnitRoleGroupAssignmentId(long id) {
 		OrgUnitRoleGroupAssignment assignment = orgUnitRoleGroupAssignmentDao.findById(id).orElse(null);
@@ -149,6 +136,15 @@ public class HistoricOuAssignmentService {
 		UserRole role = assignment.getUserRole();
 		ItSystem itSystem = role.getItSystem();
 
+		Long responsibleCollectionId = role.isRoleAssignmentAttestationByAttestationResponsible()
+			? attestationResponsibleCollectionDao.findFirstByItSystemId(itSystem.getId()).map(c -> c.getId()).orElse(null)
+			: null;
+
+		LocalDateTime assignedWhen = assignment.getAssignedTimestamp() != null
+			? assignment.getAssignedTimestamp().toInstant()
+				.atZone(java.time.ZoneId.systemDefault()).toLocalDateTime()
+			: LocalDateTime.now();
+
 		List<HistoricOuAssignmentExclusion> exclusions = buildExclusions(assignment);
 
 		HistoricOuAssignment historicOuAssignment = HistoricOuAssignment.builder()
@@ -166,15 +162,16 @@ public class HistoricOuAssignmentService {
 			.roleGroupDescription(null)
 			.sensitiveRole(role.isSensitiveRole())
 			.extraSensitiveRole(role.isExtraSensitiveRole())
-			.responsibleUserUuid(resolveResponsibleUserUuid(role, itSystem))
+			.responsibleCollectionId(responsibleCollectionId)
 			.itSystemAttestationExempt(itSystem.isAttestationExempt())
 			.assignedThroughType(AssignedThrough.ORGUNIT)
 			.assignedThroughUuid(ou.getUuid())
 			.assignedThroughName(ou.getName())
-			.assignedWhen(assignment.getAssignedTimestamp() != null
-				? assignment.getAssignedTimestamp().toInstant()
-					.atZone(java.time.ZoneId.systemDefault()).toLocalDateTime()
-				: LocalDateTime.now())
+			.assignedWhen(assignedWhen)
+			.assignedByUserId(assignment.getAssignedByUserId())
+			.assignedByName(assignment.getAssignedByName())
+			.startDate(assignment.getStartDate())
+			.stopDate(assignment.getStopDate())
 			.appliesOnlyToManager(assignment.isManager())
 			.appliesAlsoToSubstitutes(assignment.isSubstitutes())
 			.inheritToChildren(assignment.isInherit())
@@ -216,12 +213,16 @@ public class HistoricOuAssignmentService {
 					.roleGroupDescription(roleGroup.getDescription())
 					.sensitiveRole(role.isSensitiveRole())
 					.extraSensitiveRole(role.isExtraSensitiveRole())
-					.responsibleUserUuid(null)
+					.responsibleCollectionId(null)
 					.itSystemAttestationExempt(itSystem.isAttestationExempt())
 					.assignedThroughType(AssignedThrough.ORGUNIT)
 					.assignedThroughUuid(ou.getUuid())
 					.assignedThroughName(ou.getName())
 					.assignedWhen(assignedWhen)
+					.assignedByUserId(assignment.getAssignedByUserId())
+					.assignedByName(assignment.getAssignedByName())
+					.startDate(assignment.getStartDate())
+					.stopDate(assignment.getStopDate())
 					.appliesOnlyToManager(assignment.isManager())
 					.appliesAlsoToSubstitutes(assignment.isSubstitutes())
 					.inheritToChildren(assignment.isInherit())
@@ -260,12 +261,16 @@ public class HistoricOuAssignmentService {
 			.roleGroupDescription(roleGroup.getDescription())
 			.sensitiveRole(role.isSensitiveRole())
 			.extraSensitiveRole(role.isExtraSensitiveRole())
-			.responsibleUserUuid(null)
+			.responsibleCollectionId(null)
 			.itSystemAttestationExempt(itSystem.isAttestationExempt())
 			.assignedThroughType(AssignedThrough.ORGUNIT)
 			.assignedThroughUuid(ou.getUuid())
 			.assignedThroughName(ou.getName())
 			.assignedWhen(assignedWhen)
+			.assignedByUserId(assignment.getAssignedByUserId())
+			.assignedByName(assignment.getAssignedByName())
+			.startDate(assignment.getStartDate())
+			.stopDate(assignment.getStopDate())
 			.appliesOnlyToManager(assignment.isManager())
 			.appliesAlsoToSubstitutes(assignment.isSubstitutes())
 			.inheritToChildren(assignment.isInherit())
@@ -284,13 +289,6 @@ public class HistoricOuAssignmentService {
 				.uuids(e.getUuids())
 				.build())
 			.collect(Collectors.toCollection(ArrayList::new));
-	}
-
-	private static String resolveResponsibleUserUuid(UserRole role, ItSystem itSystem) {
-		return role.isRoleAssignmentAttestationByAttestationResponsible()
-				&& itSystem.getAttestationResponsible() != null
-			? itSystem.getAttestationResponsible().getUuid()
-			: null;
 	}
 
 	private static List<HistoricOuAssignmentExclusion> buildExclusions(OrgUnitUserRoleAssignment assignment) {
@@ -386,20 +384,6 @@ public class HistoricOuAssignmentService {
 	}
 
 	private String computeHash(HistoricOuAssignment r) {
-		return dk.digitalidentity.rc.util.HashUtil.builder()
-			.add(r.getOuUuid())
-			.add(r.getItSystemId())
-			.add(r.getRoleId())
-			.add(r.getRoleRoleGroupId())
-			.add(r.getAssignedThroughType() != null ? r.getAssignedThroughType().name() : null)
-			.add(r.getAssignedThroughUuid())
-			.add(r.isAppliesOnlyToManager())
-			.add(r.isAppliesAlsoToSubstitutes())
-			.add(r.isInheritToChildren())
-			.add(r.getExclusions().stream()
-				.map(e -> e.getExclusionType().name() + ":" + e.getUuids())
-				.sorted()
-				.collect(Collectors.joining("|")))
-			.build();
+		return HistoricOuAssignmentHashCalculator.compute(r);
 	}
 }

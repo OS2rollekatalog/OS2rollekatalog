@@ -7,6 +7,8 @@ services:
     environment:
       MARIADB_DATABASE: 'rc'
       MARIADB_ROOT_PASSWORD: 'Test1234'
+      TZ: 'Europe/Copenhagen'
+    command: --default-time-zone=Europe/Copenhagen
 
     ports:
       - "3306:3306"

@@ -62,7 +62,9 @@ public class RunOverviewXlsView extends AttestationXlsView {
 
             createCell(dataRow, column++, status.getName(), null);
             createCell(dataRow, column++, status.getPath(), null);
-            createCell(dataRow, column++, status.getResponsibleUser() != null ? status.getResponsibleUser().getName() : "", null);
+            createCell(dataRow, column++, status.getResponsibleUsers() != null
+				? status.getResponsibleUsers().stream().map(User::getName).collect(Collectors.joining(", "))
+				: "", null);
             createCell(dataRow, column++, status.getStatus().getCaption(), null);
         }
         sheet.setColumnWidth(0, 45 * 256);

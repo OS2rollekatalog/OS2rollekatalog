@@ -2,11 +2,13 @@ package dk.digitalidentity.rc.controller.rest;
 
 import java.security.Principal;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.OptionalLong;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -31,6 +33,7 @@ import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
+import dk.digitalidentity.rc.config.Constants;
 import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
 import dk.digitalidentity.rc.controller.mvc.datatables.dao.UserRoleViewDao;
 import dk.digitalidentity.rc.controller.mvc.datatables.dao.model.UserRoleView;
@@ -69,6 +72,7 @@ import dk.digitalidentity.rc.service.OrgUnitService;
 import dk.digitalidentity.rc.service.RoleGroupService;
 import dk.digitalidentity.rc.service.Select2Service;
 import dk.digitalidentity.rc.service.SystemRoleService;
+import dk.digitalidentity.rc.service.ItSystemService;
 import dk.digitalidentity.rc.service.UserRoleCleanupService;
 import dk.digitalidentity.rc.service.UserRoleService;
 import dk.digitalidentity.rc.service.UserService;
@@ -79,6 +83,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.Set;
+import java.util.stream.Collectors;
 
 @RequireControllerPermission(section = Section.USER_ROLE, permission = Permission.READ)
 @RequiredArgsConstructor
@@ -99,6 +104,7 @@ public class UserRoleRestController {
 	private final UserPermissionContext userPermissionContext;
 	private final AssignmentService assignmentService;
 	private final UserRoleCleanupService userRoleCleanupService;
+	private final ItSystemService itSystemService;
 
 	@InitBinder(value = { "role" })
     public void initBinder(WebDataBinder binder) {
@@ -157,6 +163,9 @@ public class UserRoleRestController {
             case "attestationByAttestationResponsible":
                 role.setRoleAssignmentAttestationByAttestationResponsible(active);
                 userRoleService.save(role);
+                if (active) {
+                    itSystemService.backfillHistoricResponsibleCollection(role.getItSystem().getId());
+                }
                 break;
         	default:
         		return new ResponseEntity<>("Ukendt flag: " + flag, HttpStatus.BAD_REQUEST);
@@ -306,7 +315,7 @@ public class UserRoleRestController {
     public ResponseEntity<String> addConstraint(@PathVariable("roleId") final long roleId,
                                                 @PathVariable("systemRoleId") final long systemRoleId,
                                                 final String constraintUuid,
-                                                @AuditLogArgument(name = "Værdi") final String constraintValue,
+                                                final String constraintValue,
                                                 ConstraintValueType constraintValueType,
                                                 @AuditLogArgument(name = "Udskudt") final boolean postpone) {
         final UserRole role = userRoleService.getOptionalById(roleId)
@@ -319,6 +328,7 @@ public class UserRoleRestController {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST));
         constraintValueType = Objects.requireNonNullElse(constraintValueType, ConstraintValueType.VALUE);
         AuditLogContextHolder.getContext().addArgument("Type", constraintType.getName());
+        AuditLogContextHolder.getContext().addArgument("Værdi", resolveConstraintValueLabel(constraintType, constraintValue));
         // perform regex validation (if needed)
         if (constraintValueType.equals(ConstraintValueType.VALUE) && constraintType.getRegex() != null && !constraintType.getRegex().isEmpty()) {
         	try {
@@ -395,23 +405,26 @@ public class UserRoleRestController {
             return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
         }
 
+
 		switch (role.getSystemRoleLinkType()) {
 			case NONE:
 				role.setName(userRoleForm.getName());
 				role.setDescription(userRoleForm.getDescription());
-				role.setContactEmail(userRoleForm.getContactEmail());
 				break;
 			case NAME_ONLY: {
 				role.setDescription(userRoleForm.getDescription());
-				role.setContactEmail(userRoleForm.getContactEmail());
 				break;
 			}
 			case NAME_AND_DESCRIPTION:
-				// do not update
+				// do not update name/description
 				break;
 			default:
 				log.error("Unexpected SystemRoleLinkType: " + role.getSystemRoleLinkType());
 		}
+
+		// contact emails are not link-managed fields, so they are editable regardless of link type
+		role.setContactEmail(userRoleForm.getContactEmail());
+		role.setAdvisEmail(userRoleForm.getAdvisEmail());
 
         if (role.isRequireManagerAction()) {
         	if (role.getUserRoleEmailTemplate() == null) {
@@ -572,6 +585,48 @@ public class UserRoleRestController {
 		UserRoleDetailDTO dto = new UserRoleDetailDTO(userRole.getId(), userRole.getName(), userRole.getItSystem().getId(), userRole.getItSystem().getName());
 
 		return ResponseEntity.ok(dto);
+	}
+
+	private static OptionalLong tryParseLong(String s) {
+		try { return OptionalLong.of(Long.parseLong(s)); }
+		catch (NumberFormatException e) { return OptionalLong.empty(); }
+	}
+
+	private String resolveConstraintValueLabel(ConstraintType constraintType, String value) {
+		if (value == null) {
+			return "";
+		}
+		List<String> parts = Arrays.stream(value.split(",")).map(String::trim).toList();
+		String entityId = constraintType.getEntityId();
+		if (Constants.OU_CONSTRAINT_ENTITY_ID.equals(entityId) || Constants.INTERNAL_ORGUNIT_CONSTRAINT_ENTITY_ID.equals(entityId)) {
+			return resolveOuConstraintLabel(parts);
+		}
+		if (Constants.KOMBIT_ITSYSTEM_CONSTRAINT_ENTITY_ID.equals(entityId) || Constants.INTERNAL_ITSYSTEM_CONSTRAINT_ENTITY_ID.equals(entityId)) {
+			return resolveItSystemConstraintLabel(parts);
+		}
+		return value;
+	}
+
+	private String resolveOuConstraintLabel(List<String> uuids) {
+		Map<String, String> nameByUuid = orgUnitService.getByUuidIn(uuids).stream()
+				.collect(Collectors.toMap(OrgUnit::getUuid, OrgUnit::getName));
+		return uuids.stream()
+				.map(uuid -> nameByUuid.getOrDefault(uuid, uuid))
+				.collect(Collectors.joining(", "));
+	}
+
+	private String resolveItSystemConstraintLabel(List<String> ids) {
+		Map<String, Long> parsedById = ids.stream()
+				.flatMap(id -> tryParseLong(id).stream().boxed().map(parsed -> Map.entry(id, parsed)))
+				.collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+		Map<Long, String> nameById = itSystemService.findAllByIdIn(new ArrayList<>(parsedById.values())).stream()
+				.collect(Collectors.toMap(ItSystem::getId, ItSystem::getName));
+		return ids.stream()
+				.map(id -> {
+					Long parsed = parsedById.get(id);
+					return parsed != null ? nameById.getOrDefault(parsed, id) : id;
+				})
+				.collect(Collectors.joining(", "));
 	}
 
 	private DataTablesOutput<UserRoleViewDTO> mapToUserRoleViewDTO(

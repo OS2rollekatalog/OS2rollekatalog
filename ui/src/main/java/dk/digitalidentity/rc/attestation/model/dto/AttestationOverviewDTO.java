@@ -32,4 +32,5 @@ public class AttestationOverviewDTO {
 
     private List<String> managerNames;
     private LocalDate verifiedAt;
+	private String performedBy;
 }

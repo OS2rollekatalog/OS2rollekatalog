@@ -17,6 +17,10 @@ public class ManualAssignmentNotificationMapService {
 		return manualAssignmentNotificationMapDao.findByUserRoleIdIn(userRoleIds);
 	}
 
+	public List<ManualAssignmentNotificationMap> getForUser(long domainId, String userUserId) {
+		return manualAssignmentNotificationMapDao.findByDomainIdAndUserUserId(domainId, userUserId);
+	}
+
 	public ManualAssignmentNotificationMap save(ManualAssignmentNotificationMap map) {
 		return manualAssignmentNotificationMapDao.save(map);
 	}

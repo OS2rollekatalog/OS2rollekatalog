@@ -23,6 +23,7 @@ import org.apache.hc.core5.util.Timeout;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.client.ClientHttpResponse;
 import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;
@@ -73,6 +74,7 @@ public class RestClientConfiguration {
 			.build();
 	}
 
+	@Lazy(true) // we need to ensure this is LAZY due to CRaC
 	@Bean(name = "kspCicsRestClient")
 	public RestClient kspCicsRestClient() throws Exception {
 		final TrustStrategy acceptingTrustStrategy = (X509Certificate[] _, String _) -> true;
@@ -128,6 +130,7 @@ public class RestClientConfiguration {
 			.build();
 	}
 
+	@Lazy(true) // we need to ensure this is lazy due to CRaC
 	@Bean(name = "kombitRestClient")
 	public RestClient kombitRestClient() throws Exception {
 		final TrustStrategy acceptingTrustStrategy = (X509Certificate[] _, String _) -> true;
@@ -175,6 +178,7 @@ public class RestClientConfiguration {
 			.build();
 	}
 
+	@Lazy(true) // we need to ensure this is lazy due to CRaC
 	@Bean(name = "kombitTestRestClient")
 	public RestClient kombitTestRestClient() throws Exception {
 		final TrustStrategy acceptingTrustStrategy = (X509Certificate[] _, String _) -> true;
@@ -222,6 +226,7 @@ public class RestClientConfiguration {
 			.build();
 	}
 
+	@Lazy(true) // we need to ensure this is lazy due to CRaC
 	@Bean(name = "nemLoginRestClient")
 	public RestClient nemLoginRestClient() throws Exception {
 		final TrustStrategy acceptingTrustStrategy = (X509Certificate[] _, String _) -> true;

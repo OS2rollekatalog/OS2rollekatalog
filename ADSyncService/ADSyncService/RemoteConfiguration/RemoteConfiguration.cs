@@ -22,6 +22,7 @@ namespace ADSyncService
         public bool backSyncFeatureEnabled { get; set; }
         public List<string> backSyncFeatureOUs { get; set; }
         public bool backSyncFeatureGroupsInGroupOnSync { get; set; }
+        public bool backSyncFeatureMaintainDescriptionAndName { get; set; } = true;
         public bool backSyncFeatureCreateUserRoles { get; set; }
         public string backSyncFeatureNameAttribute { get; set; }
 

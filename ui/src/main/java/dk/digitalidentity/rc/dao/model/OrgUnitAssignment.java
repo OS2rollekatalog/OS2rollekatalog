@@ -24,4 +24,12 @@ public interface OrgUnitAssignment {
 
 	List<Function> getFunctions();
 
+	boolean isContainsExceptedOus();
+
+	List<OrgUnit> getExceptedOus();
+
+	void setExceptedOus(List<OrgUnit> exceptedOus);
+
+	void setContainsExceptedOus(boolean containsExceptedOus);
+
 }

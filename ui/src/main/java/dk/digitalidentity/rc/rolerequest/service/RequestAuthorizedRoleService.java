@@ -22,8 +22,10 @@ import org.springframework.stereotype.Service;
 
 import dk.digitalidentity.rc.config.Constants;
 import dk.digitalidentity.rc.dao.model.ItSystem;
+import dk.digitalidentity.rc.dao.model.ManagerSubstitute;
 import dk.digitalidentity.rc.dao.model.OrgUnit;
 import dk.digitalidentity.rc.dao.model.PostponedConstraint;
+import dk.digitalidentity.rc.dao.model.UserOUFunction;
 import dk.digitalidentity.rc.dao.model.SystemRole;
 import dk.digitalidentity.rc.dao.model.SystemRoleAssignment;
 import dk.digitalidentity.rc.dao.model.SystemRoleAssignmentConstraintValue;
@@ -264,6 +266,14 @@ public class RequestAuthorizedRoleService {
 				getExtendedOrgUnitUuids(user);
 			case VALUE, SELECTED_INHERITED ->
 				String.join(",", organisationConstraintUtil.getOrganisationConstraintUuids(constraintValue.getConstraintValue()));
+			case INHERITED_FROM_MANAGER_ROLE ->
+				getOrgUnitUuidsFromManagerRole(user, false);
+			case EXTENDED_INHERITED_FROM_MANAGER_ROLE ->
+				getOrgUnitUuidsFromManagerRole(user, true);
+			case INHERITED_FROM_FUNCTIONS ->
+				getOrgUnitUuidsFromFunctions(user, false);
+			case EXTENDED_INHERITED_FROM_FUNCTIONS ->
+				getOrgUnitUuidsFromFunctions(user, true);
 			default ->
 				throw new IllegalStateException(
 					"OU constraint cannot contain value of type " + constraintValue.getConstraintValueType()
@@ -299,6 +309,37 @@ public class RequestAuthorizedRoleService {
 		accumulator.add(orgUnit.getUuid());
 		orgUnit.getChildren().forEach(ou -> getRecursive(ou, accumulator));
 		return accumulator;
+	}
+
+	private static String getOrgUnitUuidsFromManagerRole(User user, boolean extended) {
+		Set<String> result = new HashSet<>();
+		for (OrgUnit ou : user.getManagedOrgUnits()) {
+			if (extended) {
+				getRecursive(ou, result);
+			} else {
+				result.add(ou.getUuid());
+			}
+		}
+		for (ManagerSubstitute sub : user.getSubstituteFor()) {
+			if (extended) {
+				getRecursive(sub.getOrgUnit(), result);
+			} else {
+				result.add(sub.getOrgUnit().getUuid());
+			}
+		}
+		return String.join(",", result);
+	}
+
+	private static String getOrgUnitUuidsFromFunctions(User user, boolean extended) {
+		Set<String> result = new HashSet<>();
+		for (UserOUFunction f : user.getFunctionAssignments()) {
+			if (extended) {
+				getRecursive(f.getOrgUnit(), result);
+			} else {
+				result.add(f.getOrgUnit().getUuid());
+			}
+		}
+		return String.join(",", result);
 	}
 
 }

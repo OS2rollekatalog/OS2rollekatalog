@@ -113,15 +113,16 @@ public class HistoricAssignment {
 
 	@Column(name = "assigned_through_rg_id")
 	private Long assignedThroughRoleGroupId;
+
 	@Column(name = "assigned_through_rg_name")
 	private String assignedThroughRoleGroupName;
 
 	/**
 	 * The OU whose manager is responsible for attesting this assignment.
 	 * <p>
-	 * Mutually exclusive with {@link #responsibleUserUuid}: exactly one of the two is set.
+	 * Mutually exclusive with {@link #responsibleCollectionId}: exactly one of the two is set.
 	 * This field is null when the IT-system has a designated attestation responsible
-	 * ({@link #responsibleUserUuid} is set instead).
+	 * ({@link #responsibleCollectionId} is set instead).
 	 * <p>
 	 * For manager users, this is redirected to the nearest parent OU with a different manager,
 	 * so managers do not attest their own access.
@@ -132,26 +133,13 @@ public class HistoricAssignment {
 	@Column(name = "responsible_ou_name")
 	private String responsibleOUName;
 
+	@Column(name = "responsible_collection_id")
+	private Long responsibleCollectionId;
+
 	@Builder.Default
 	@BatchSize(size = 500)
 	@OneToMany(mappedBy = "historicAssignment", cascade = CascadeType.ALL, orphanRemoval = true)
 	private Set<HistoricAssignmentConstraint> constraints = new HashSet<>();
-
-	/**
-	 * The UUID of the IT-system's designated attestation responsible for this assignment.
-	 * <p>
-	 * Mutually exclusive with {@link #responsibleOUUuid}: exactly one of the two is set.
-	 * This field is only set when all three conditions hold:
-	 * <ol>
-	 *   <li>The assignment is not via a role group</li>
-	 *   <li>The role has {@code roleAssignmentAttestationByAttestationResponsible = true}</li>
-	 *   <li>The IT-system has a non-null {@code attestationResponsible}</li>
-	 * </ol>
-	 * When set, the attestation tracker routes this assignment to an IT-system attestation
-	 * rather than an organisation attestation.
-	 */
-	@Column(name = "responsible_user_uuid")
-	private String responsibleUserUuid;
 
 	@Override
 	public boolean equals(Object o) {

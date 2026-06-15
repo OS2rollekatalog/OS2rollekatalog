@@ -10,7 +10,9 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.enums.SystemRoleLinkType;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
@@ -64,6 +66,7 @@ import dk.digitalidentity.rc.service.UserService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.HashSet;
 import java.util.Set;
@@ -222,8 +225,14 @@ public class ItSystemController {
 		itSystem.setEmail(itSystemForm.getEmail());
 
 		// can be null
-		userService.getOptionalByUuid(itSystemForm.getSelectedResponsibleUuid())
-				.ifPresent(itSystem::setAttestationResponsible);
+		if (itSystemForm.getSelectedResponsibleUuid() != null) {
+			ItSystem finalItSystem = itSystem;
+			itSystemForm.getSelectedResponsibleUuid().forEach(s -> {
+				User user = userService.getOptionalByUuid(s).orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST));
+				finalItSystem.addAttestationResponsible(user);
+			});
+		}
+
 
 		switch (itSystemForm.getSystemType()) {
 			case AD:
@@ -242,6 +251,11 @@ public class ItSystemController {
 		}
 
 		itSystem = itSystemService.save(itSystem);
+
+		List<User> responsibles = itSystemService.getAttestationResponsibles(itSystem);
+		if (!responsibles.isEmpty()) {
+			itSystemService.updateAttestationResponsibles(itSystem.getId(), responsibles);
+		}
 
 		return "redirect:edit/" + itSystem.getId();
 	}
@@ -292,8 +306,10 @@ public class ItSystemController {
 				))
 				.toList()
 		);
-		model.addAttribute("attestationResponsibleName", itSystem.getAttestationResponsible() == null ? "" : itSystem.getAttestationResponsible().getName() + " (" + itSystem.getAttestationResponsible().getUserId() + ")");
-		model.addAttribute("systemOwnerName", itSystem.getSystemOwner() == null ? "" : itSystem.getSystemOwner().getName() + " (" + itSystem.getSystemOwner().getUserId() + ")");
+		model.addAttribute("attestationResponsibleName", (itSystem.getAttestationResponsibles() == null || itSystem.getAttestationResponsibles().isEmpty()) ?
+			"" : itSystemService.getAttestationResponsibleNames(itSystem) + " (" + itSystemService.getAttestationResponsibleUserIdsJoined(itSystem) + ")");
+		model.addAttribute("systemOwnerName", (itSystem.getSystemOwners() == null || itSystem.getSystemOwners().isEmpty()) ?
+			"" : itSystemService.getSystemOwnerNames(itSystem) + " (" + itSystemService.getSystemOwnerUserIdsJoined(itSystem) + ")");
 
 		Optional<ItSystemMaster> subscribedTo = itSystemMasterService.findAll().stream().filter(its -> Objects.equals(its.getMasterId(), itSystem.getSubscribedTo())).findAny();
 		model.addAttribute("subscribedTo", subscribedTo.isPresent() ? subscribedTo.get().getName() : "");
@@ -372,13 +388,17 @@ public class ItSystemController {
 		model.addAttribute("convertSystemRolesForm", convertSystemRolesForm);
 		model.addAttribute("allOUs", ouListForms);
 		model.addAttribute("selectedOUs", selectedOus);
-		model.addAttribute("attestationResponsibleName", itSystem.getAttestationResponsible() == null ? "" : itSystem.getAttestationResponsible().getName() + " (" + itSystem.getAttestationResponsible().getUserId() + ")");
-		model.addAttribute("attestationResponsibleUuid", itSystem.getAttestationResponsible() == null ? "" : itSystem.getAttestationResponsible().getUuid());
+		model.addAttribute("attestationResponsibleSelections", itSystem.getAttestationResponsibles() == null ? List.of() :
+			itSystemService.getAttestationResponsibles(itSystem).stream()
+				.map(u -> Map.of("id", u.getUuid(), "text", u.getName() + " (" + u.getUserId() + ")"))
+				.toList());
+		model.addAttribute("systemOwnerSelections", itSystem.getSystemOwners() == null ? List.of() :
+			itSystemService.getSystemOwners(itSystem).stream()
+				.map(u -> Map.of("id", u.getUuid(), "text", u.getName() + " (" + u.getUserId() + ")"))
+				.toList());
 		model.addAttribute("kitosITSystemId", itSystem.getKitosITSystem() == null || !configuration.getIntegrations().getKitos().isEnabled() ? null : itSystem.getKitosITSystem().getId());
 		model.addAttribute("select2KitosITSystems", select2Service.getKitosITSystemList());
 		model.addAttribute("attestationEnabled", settingsService.isScheduledAttestationEnabled());
-		model.addAttribute("systemOwnerName", itSystem.getSystemOwner() == null ? "" : itSystem.getSystemOwner().getName() + " (" + itSystem.getSystemOwner().getUserId() + ")");
-		model.addAttribute("systemOwnerUuid", itSystem.getSystemOwner() == null ? "" : itSystem.getSystemOwner().getUuid());
 
 		return "itsystem/edit";
 	}
@@ -429,6 +449,26 @@ public class ItSystemController {
 			model.addAttribute("systemRoleForm", systemRoleForm);
 			model.addAttribute("itsystemMasterList", itSystemMasterService.findAll());
 			model.addAttribute("convertSystemRolesForm", convertSystemRolesForm);
+			PermissionConstraint readOrgunitConstraint = userPermissionContext.getConstraintsPerPermission(permissionEntity)
+				.getOrDefault(Permission.READ, new PermissionConstraint(null, null));
+			model.addAttribute("allOUs", orgUnitService.getAll().stream()
+				.filter(ou -> readOrgunitConstraint.allowsOrgunit(ou.getUuid()))
+				.map(ou -> new OUListForm(ou, false))
+				.toList());
+			model.addAttribute("selectedOUs", itSystem.getOrgUnitFilterOrgUnits().stream()
+				.map(OrgUnit::getUuid)
+				.filter(readOrgunitConstraint::allowsOrgunit)
+				.toList());
+			model.addAttribute("attestationResponsibleSelections", itSystem.getAttestationResponsibles() == null ? List.of() :
+				itSystemService.getAttestationResponsibles(itSystem).stream()
+					.map(u -> Map.of("id", u.getUuid(), "text", u.getName() + " (" + u.getUserId() + ")"))
+					.toList());
+			model.addAttribute("systemOwnerSelections", itSystem.getSystemOwners() == null ? List.of() :
+				itSystemService.getSystemOwners(itSystem).stream()
+					.map(u -> Map.of("id", u.getUuid(), "text", u.getName() + " (" + u.getUserId() + ")"))
+					.toList());
+			model.addAttribute("kitosITSystemId", itSystem.getKitosITSystem() == null || !configuration.getIntegrations().getKitos().isEnabled() ? null : itSystem.getKitosITSystem().getId());
+			model.addAttribute("select2KitosITSystems", select2Service.getKitosITSystemList());
 			model.addAttribute("attestationEnabled", settingsService.isScheduledAttestationEnabled());
 
 			return "itsystem/edit";

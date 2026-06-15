@@ -41,6 +41,7 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.EnableCaching;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
 import org.springframework.scheduling.annotation.EnableScheduling;
@@ -72,6 +73,7 @@ import java.util.stream.Collectors;
 public class NemLoginService {
 	private final ObjectMapper objectMapper = new ObjectMapper();
 
+	@Lazy(true)
 	@Qualifier("nemLoginRestClient")
 	@Autowired
 	private RestClient restClient;
@@ -964,7 +966,12 @@ public class NemLoginService {
 			}
 		}
 		catch (Exception ex) {
-			log.error(operation + " : exception when invoking restClient", ex);
+			if (ex.getMessage() != null && ex.getMessage().contains("See log for exception details")) {
+				log.warn(operation + " : exception when invoking restClient", ex);
+			}
+			else {
+				log.error(operation + " : exception when invoking restClient", ex);
+			}
 		}
 
 		return null;

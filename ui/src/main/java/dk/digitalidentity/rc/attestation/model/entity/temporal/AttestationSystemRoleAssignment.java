@@ -38,9 +38,9 @@ public class AttestationSystemRoleAssignment extends TemporalAssignmentBase {
     private String systemRoleName;
     @Column
     private String systemRoleDescription;
-    @Column
+    @Column(name = "attestation_responsible_collection_id")
     @PartOfNaturalKey
-    private String responsibleUserUuid;
+    private Long responsibleCollectionId;
     @Column
     @PartOfNaturalKey
     private long itSystemId;

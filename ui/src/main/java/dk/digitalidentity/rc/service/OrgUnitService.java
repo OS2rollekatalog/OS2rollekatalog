@@ -2,7 +2,9 @@ package dk.digitalidentity.rc.service;
 
 import java.time.LocalDate;
 import java.time.ZoneId;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Deque;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Date;
@@ -42,6 +44,7 @@ import dk.digitalidentity.rc.dao.model.Function;
 import dk.digitalidentity.rc.dao.model.KLEMapping;
 import dk.digitalidentity.rc.dao.model.ManagerSubstitute;
 import dk.digitalidentity.rc.dao.model.OrgUnit;
+import dk.digitalidentity.rc.dao.model.OrgUnitAssignment;
 import dk.digitalidentity.rc.dao.model.OrgUnitRoleGroupAssignment;
 import dk.digitalidentity.rc.dao.model.OrgUnitUserRoleAssignment;
 import dk.digitalidentity.rc.dao.model.Position;
@@ -55,6 +58,7 @@ import dk.digitalidentity.rc.dao.model.enums.ContainsTitles;
 import dk.digitalidentity.rc.dao.model.enums.KleType;
 import dk.digitalidentity.rc.dao.model.enums.OrgUnitLevel;
 import dk.digitalidentity.rc.dao.projections.OrgUnitManagerName;
+import dk.digitalidentity.rc.dao.projections.OrgUnitUuidAndName;
 import dk.digitalidentity.rc.exceptions.OrgUnitNotFoundException;
 import dk.digitalidentity.rc.log.AuditLogContextHolder;
 import dk.digitalidentity.rc.log.AuditLogIntercepted;
@@ -424,6 +428,7 @@ public class OrgUnitService {
 		addRoleGroup(ou, roleGroup, inherit, startDate, stopDate, exceptedUsers, titles, false, false, false, null, null);
 	}
 
+	@Transactional
 	@AuditLogIntercepted
 	public boolean updateRoleGroupAssignment(OrgUnit ou, OrgUnitRoleGroupAssignment assignment, boolean inherit, LocalDate startDate, LocalDate stopDate, Set<String> exceptedUsers, Set<String> titleUuids, boolean negativeTitles, boolean manager, boolean substitutes, Set<String> functionUuids) {
 		boolean modified = false;
@@ -677,6 +682,7 @@ public class OrgUnitService {
 		addUserRole(ou, userRole, inherit, startDate, stopDate, exceptedUsers, titles, false, false, false, null, null);
 	}
 
+	@Transactional
 	@AuditLogIntercepted
 	public boolean updateUserRoleAssignment(OrgUnit ou, OrgUnitUserRoleAssignment assignment, boolean inherit, LocalDate startDate, LocalDate stopDate, Set<String> exceptedUsers, Set<String> titleUuids, boolean negativeTitles, boolean manager, boolean substitutes, Set<String> functionUuids) {
 		boolean modified = false;
@@ -1016,20 +1022,32 @@ public class OrgUnitService {
 	 */
 	public List<RoleAssignedToOrgUnitDTO> getAllUserRolesAssignedToOrgUnit(OrgUnit orgUnit) {
 		Set<RoleAssignedToOrgUnitDTO> resultSet = new HashSet<>();
+		Set<String> viewedOuAndAncestors = new HashSet<>(orgUnitDao.findAllAncestorUuids(orgUnit.getUuid()));
 
-		getUserRoleAssignmentsRecursive(resultSet, orgUnit, false);
+		getUserRoleAssignmentsRecursive(resultSet, orgUnit, viewedOuAndAncestors, false);
 
 		return new ArrayList<>(resultSet);
+	}
+
+	private boolean isExcludedByExceptedOus(boolean containsExceptedOus, List<OrgUnit> exceptedOus, Set<String> viewedOuAndAncestors) {
+		if (!containsExceptedOus || exceptedOus == null || exceptedOus.isEmpty()) {
+			return false;
+		}
+		return exceptedOus.stream().anyMatch(ou -> viewedOuAndAncestors.contains(ou.getUuid()));
 	}
 
 	// TODO - refactoring target - this might not do what we want, and it contains code that literally does nothing
 	/**
 	 * Copy of getUserRolesRecursive used in new manage UI
 	 */
-	private void getUserRoleAssignmentsRecursive(Set<RoleAssignedToOrgUnitDTO> resultSet, OrgUnit orgUnit, boolean inheritOnly) {
+	private void getUserRoleAssignmentsRecursive(Set<RoleAssignedToOrgUnitDTO> resultSet, OrgUnit orgUnit, Set<String> viewedOuAndAncestors, boolean inheritOnly) {
 		if (inheritOnly) {
-			// inherited
-			List<RoleAssignedToOrgUnitDTO> userRoleAssignments = orgUnit.getUserRoleAssignments().stream().filter(OrgUnitUserRoleAssignment::isInherit).map(RoleAssignedToOrgUnitDTO::fromUserRoleAssignmentIndirect).toList();
+			// inherited — skip assignments that explicitly exclude the OU being viewed or any of its ancestors
+			List<RoleAssignedToOrgUnitDTO> userRoleAssignments = orgUnit.getUserRoleAssignments().stream()
+					.filter(OrgUnitUserRoleAssignment::isInherit)
+					.filter(a -> !isExcludedByExceptedOus(a.isContainsExceptedOus(), a.getExceptedOus(), viewedOuAndAncestors))
+					.map(RoleAssignedToOrgUnitDTO::fromUserRoleAssignmentIndirect)
+					.toList();
 			resultSet.addAll(userRoleAssignments);
 		}
 		else {
@@ -1047,7 +1065,7 @@ public class OrgUnitService {
 		}
 
 		if (orgUnit.getParent() != null) {
-			getUserRoleAssignmentsRecursive(resultSet, orgUnit.getParent(), true);
+			getUserRoleAssignmentsRecursive(resultSet, orgUnit.getParent(), viewedOuAndAncestors, true);
 		}
 	}
 
@@ -1106,8 +1124,9 @@ public class OrgUnitService {
 	 */
 	public List<RoleAssignedToOrgUnitDTO> getAllRoleGroupsAssignedToOrgUnit(OrgUnit orgUnit) {
 		Set<RoleAssignedToOrgUnitDTO> resultSet = new HashSet<>();
+		Set<String> viewedOuAndAncestors = new HashSet<>(orgUnitDao.findAllAncestorUuids(orgUnit.getUuid()));
 
-		getUserRoleGroupAssignmentsRecursive(resultSet, orgUnit, false);
+		getUserRoleGroupAssignmentsRecursive(resultSet, orgUnit, viewedOuAndAncestors, false);
 
 		return new ArrayList<>(resultSet);
 	}
@@ -1115,10 +1134,14 @@ public class OrgUnitService {
 	/**
 	 * Copy of getUserRoleGroupsRecursive used in new manage UI
 	 */
-	private void getUserRoleGroupAssignmentsRecursive(Set<RoleAssignedToOrgUnitDTO> resultSet, OrgUnit orgUnit, boolean inheritOnly) {
+	private void getUserRoleGroupAssignmentsRecursive(Set<RoleAssignedToOrgUnitDTO> resultSet, OrgUnit orgUnit, Set<String> viewedOuAndAncestors, boolean inheritOnly) {
 		if (inheritOnly) {
-			//Inherited
-			List<RoleAssignedToOrgUnitDTO> roleGroupAssignments = orgUnit.getRoleGroupAssignments().stream().filter(OrgUnitRoleGroupAssignment::isInherit).map(RoleAssignedToOrgUnitDTO::fromRoleGroupAssignmentIndirect).collect(Collectors.toList());
+			//Inherited — skip assignments that explicitly exclude the OU being viewed or any of its ancestors
+			List<RoleAssignedToOrgUnitDTO> roleGroupAssignments = orgUnit.getRoleGroupAssignments().stream()
+					.filter(OrgUnitRoleGroupAssignment::isInherit)
+					.filter(a -> !isExcludedByExceptedOus(a.isContainsExceptedOus(), a.getExceptedOus(), viewedOuAndAncestors))
+					.map(RoleAssignedToOrgUnitDTO::fromRoleGroupAssignmentIndirect)
+					.collect(Collectors.toList());
 
 			resultSet.addAll(roleGroupAssignments);
 		}
@@ -1136,7 +1159,7 @@ public class OrgUnitService {
 		}
 
 		if (orgUnit.getParent() != null) {
-			getUserRoleGroupAssignmentsRecursive(resultSet, orgUnit.getParent(), true);
+			getUserRoleGroupAssignmentsRecursive(resultSet, orgUnit.getParent(), viewedOuAndAncestors, true);
 		}
 	}
 
@@ -1240,6 +1263,19 @@ public class OrgUnitService {
 		return userDao.getManagers();
 	}
 
+	public Set<String> getDescendantOuUuids(String ouUuid) {
+		return orgUnitDao.findDescendantOuUuids(ouUuid);
+	}
+
+	// Returns UUIDs of all OUs for which the user is the effective manager via hierarchy:
+	// directly-managed OUs plus active descendants that have no manager of their own.
+	public Set<String> getEffectiveManagerOuUuids(User user) {
+		Set<String> result = new HashSet<>();
+		result.addAll(getByManagerMatchingUser(user).stream().map(OrgUnit::getUuid).collect(Collectors.toSet()));
+		result.addAll(orgUnitDao.findDescendantOuUuidsWithEffectiveManager(user.getUuid()));
+		return result;
+	}
+
 	public User getManager(OrgUnit orgUnit) {
 		if (orgUnit.getManager() != null) {
 			return orgUnit.getManager();
@@ -1250,6 +1286,71 @@ public class OrgUnitService {
 		}
 
 		return null;
+	}
+
+	public record EffectiveApprover(User manager, OrgUnit orgUnit) {}
+
+	// Like getManager, but skips any OU whose manager is the receiver — used so that
+	// a manager's own role request gets approved by the parent OU's manager, not themselves.
+	// Returns the manager and the OU they were found in, so callers can filter substitutes by OU.
+	public EffectiveApprover getEffectiveApprover(OrgUnit orgUnit, User receiver) {
+		if (orgUnit.getManager() != null) {
+			if (receiver == null || !Objects.equals(orgUnit.getManager().getUuid(), receiver.getUuid())) {
+				return new EffectiveApprover(orgUnit.getManager(), orgUnit);
+			}
+		}
+
+		if (orgUnit.getParent() != null) {
+			return getEffectiveApprover(orgUnit.getParent(), receiver);
+		}
+
+		return null;
+	}
+
+	public record ManagerRequestScope(Set<OrgUnit> orgUnits, Set<String> subManagerUserUuids) {}
+
+	// The downward scope of users a manager is the nearest leader for: the OUs the user manages
+	// (directly or as substitute), descendant OUs without a manager of their own, and — where a
+	// descendant OU has its own manager — that manager themselves (a team leader's nearest leader
+	// is the manager above). The sub-manager's employees are excluded; they belong to the sub-manager.
+	public ManagerRequestScope getManagerRequestScope(User user) {
+		List<OrgUnit> roots = new ArrayList<>(orgUnitDao.findByManager(user));
+
+		Set<String> managedByUuids = new HashSet<>();
+		managedByUuids.add(user.getUuid());
+		for (User manager : userService.getSubstitutesManager(user)) {
+			roots.addAll(orgUnitDao.findByManager(manager));
+			managedByUuids.add(manager.getUuid());
+		}
+
+		Set<OrgUnit> orgUnits = new HashSet<>();
+		Set<String> subManagerUserUuids = new HashSet<>();
+		Set<String> visited = new HashSet<>();
+		Deque<OrgUnit> queue = new ArrayDeque<>(roots.stream().filter(this::isActiveAndIncluded).toList());
+
+		while (!queue.isEmpty()) {
+			OrgUnit orgUnit = queue.poll();
+			if (!visited.add(orgUnit.getUuid())) {
+				continue;
+			}
+			orgUnits.add(orgUnit);
+
+			if (orgUnit.getChildren() == null) {
+				continue;
+			}
+			for (OrgUnit child : orgUnit.getChildren()) {
+				if (!isActiveAndIncluded(child)) {
+					continue;
+				}
+				if (child.getManager() == null || managedByUuids.contains(child.getManager().getUuid())) {
+					queue.add(child);
+				} else {
+					subManagerUserUuids.add(child.getManager().getUuid());
+				}
+			}
+		}
+
+		return new ManagerRequestScope(orgUnits, subManagerUserUuids);
 	}
 
 	public List<OrgUnitWithRole2> getActiveOrgUnitsWithRoleGroup(RoleGroup roleGroup) {
@@ -1552,4 +1653,120 @@ public class OrgUnitService {
 		return orgUnitDao.findWithAllAncestors(uuid);
 	}
 
+	public List<OrgUnitUuidAndName> getAllDescendantsOfOu(OrgUnit orgUnit) {
+		return orgUnitDao.findDescendantUuidsAndNames(orgUnit.getUuid());
+	}
+
+
+	@AuditLogIntercepted
+	@Transactional
+	public void addUserRoleWithInheritAndExceptedOus(OrgUnit ou, UserRole userRole, LocalDate startDate, LocalDate stopDate, List<String> exceptedOuUuids, String caseNumber) {
+		OrgUnitUserRoleAssignment assignment = new OrgUnitUserRoleAssignment();
+		assignment.setUserRole(userRole);
+		assignment.setOrgUnit(ou);
+		assignment.setInherit(true);
+		assignment.setStartDate(startDate == null || LocalDate.now().equals(startDate) ? null : startDate);
+		assignment.setStopDate(stopDate);
+		assignment.setInactive(startDate != null ? startDate.isAfter(LocalDate.now()) : false);
+		assignment.setCaseNumber(caseNumber);
+
+		List<OrgUnit> exceptedOus = orgUnitDao.findByUuidIn(exceptedOuUuids != null ? exceptedOuUuids : List.of());
+		assignment.setExceptedOus(exceptedOus);
+		assignment.setContainsExceptedOus(!exceptedOus.isEmpty());
+
+		ou.getUserRoleAssignments().add(assignment);
+
+		String userId = SecurityUtil.getUserId();
+		assignment.setAssignedByUserId(userId);
+		assignment.setAssignedByName(SecurityUtil.getUserFullname());
+		assignment.setAssignedTimestamp(new Date());
+		assignment.setStopDateUser(userId);
+
+		AuditLogContextHolder.getContext().addArgument("Sagsnummer", assignment.getCaseNumber());
+
+		orgUnitUserRoleAssignmentDao.save(assignment);
+		save(ou);
+	}
+
+	@AuditLogIntercepted
+	public boolean updateUserRoleWithInheritAndExceptedOus(OrgUnitUserRoleAssignment assignment, LocalDate startDate, LocalDate stopDate, List<String> exceptedOuUuids) {
+		boolean modified = false;
+
+		if (!Objects.equals(assignment.getStartDate(), startDate) || !Objects.equals(assignment.getStopDate(), stopDate)) {
+			assignment.setStartDate(startDate);
+			assignment.setStopDate(stopDate);
+			assignment.setInactive(startDate != null && startDate.isAfter(LocalDate.now()));
+			assignment.setStopDateUser(SecurityUtil.getUserId());
+			modified = true;
+		}
+
+		if (updateExceptedOus(assignment, exceptedOuUuids)) {
+			modified = true;
+		}
+
+		if (modified) {
+			orgUnitUserRoleAssignmentDao.save(assignment);
+		}
+		return modified;
+	}
+
+	@AuditLogIntercepted
+	public boolean updateRoleGroupWithInheritAndExceptedOus(OrgUnitRoleGroupAssignment assignment, LocalDate startDate, LocalDate stopDate, List<String> exceptedOuUuids) {
+		boolean modified = false;
+
+		if (!Objects.equals(assignment.getStartDate(), startDate) || !Objects.equals(assignment.getStopDate(), stopDate)) {
+			assignment.setStartDate(startDate);
+			assignment.setStopDate(stopDate);
+			assignment.setInactive(startDate != null && startDate.isAfter(LocalDate.now()));
+			assignment.setStopDateUser(SecurityUtil.getUserId());
+			modified = true;
+		}
+
+		if (updateExceptedOus(assignment, exceptedOuUuids)) {
+			modified = true;
+		}
+
+		if (modified) {
+			orgUnitRoleGroupAssignmentDao.save(assignment);
+		}
+		return modified;
+	}
+
+	private boolean updateExceptedOus(OrgUnitAssignment assignment, List<String> exceptedOuUuids) {
+		List<OrgUnit> exceptedOus = orgUnitDao.findByUuidIn(exceptedOuUuids != null ? exceptedOuUuids : List.of());
+		if (!exceptedOus.equals(assignment.getExceptedOus())) {
+			assignment.setExceptedOus(exceptedOus);
+			assignment.setContainsExceptedOus(!exceptedOus.isEmpty());
+			return true;
+		}
+		return false;
+	}
+
+	@AuditLogIntercepted
+	public OrgUnitRoleGroupAssignment addRoleGroupWithInheritAndExceptedOus(OrgUnit ou, RoleGroup roleGroup, LocalDate startDate, LocalDate stopDate, List<String> exceptedOuUuids, String caseNumber) {
+		OrgUnitRoleGroupAssignment assignment = new OrgUnitRoleGroupAssignment();
+		assignment.setRoleGroup(roleGroup);
+		assignment.setOrgUnit(ou);
+		assignment.setInherit(true);
+		assignment.setStartDate(startDate == null || LocalDate.now().equals(startDate) ? null : startDate);
+		assignment.setStopDate(stopDate);
+		assignment.setInactive(startDate != null ? startDate.isAfter(LocalDate.now()) : false);
+		assignment.setCaseNumber(caseNumber);
+
+		List<OrgUnit> exceptedOus = orgUnitDao.findByUuidIn(exceptedOuUuids != null ? exceptedOuUuids : List.of());
+		assignment.setExceptedOus(exceptedOus);
+		assignment.setContainsExceptedOus(!exceptedOus.isEmpty());
+
+		ou.getRoleGroupAssignments().add(assignment);
+
+		String userId = SecurityUtil.getUserId();
+		assignment.setAssignedByUserId(userId);
+		assignment.setAssignedByName(SecurityUtil.getUserFullname());
+		assignment.setAssignedTimestamp(new Date());
+		assignment.setStopDateUser(userId);
+
+		AuditLogContextHolder.getContext().addArgument("Sagsnummer", assignment.getCaseNumber());
+
+		return orgUnitRoleGroupAssignmentDao.save(assignment);
+	}
 }

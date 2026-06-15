@@ -39,6 +39,10 @@ public class AttestationConstraintService {
             case LEVEL_4 -> messageSource.getMessage("html.constraint.organisation.level.4", null, locale);
             case LEVEL_5 -> messageSource.getMessage("html.constraint.organisation.level.5", null, locale);
             case LEVEL_6 -> messageSource.getMessage("html.constraint.organisation.level.6", null, locale);
+            case INHERITED_FROM_MANAGER_ROLE -> messageSource.getMessage("html.constraint.organisation.inherited_from_manager_role", null, locale);
+            case EXTENDED_INHERITED_FROM_MANAGER_ROLE -> messageSource.getMessage("html.constraint.organisation.extended_inherited_from_manager_role", null, locale);
+            case INHERITED_FROM_FUNCTIONS -> messageSource.getMessage("html.constraint.organisation.inherited_from_functions", null, locale);
+            case EXTENDED_INHERITED_FROM_FUNCTIONS -> messageSource.getMessage("html.constraint.organisation.extended_inherited_from_functions", null, locale);
         };
     }
 

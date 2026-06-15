@@ -45,7 +45,7 @@ public final class HistoricAssignmentAttestationMapper {
             .roleGroupDescription(ha.getRoleGroupDescription())
             .itSystemId(ha.getItSystemId())
             .itSystemName(ha.getItSystemName())
-            .responsibleUserUuid(ha.getResponsibleUserUuid())
+            .responsibleCollectionId(ha.getResponsibleCollectionId())
             .responsibleOuName(ha.getResponsibleOUName())
             .responsibleOuUuid(ha.getResponsibleOUUuid())
             // assignedThroughOUUuid is the OU the role was assigned from (= roleOuUuid in attestation)
@@ -94,7 +94,7 @@ public final class HistoricAssignmentAttestationMapper {
             ha.getRoleGroupDescription(),
             ha.getItSystemId(),
             ha.getItSystemName(),
-            ha.getResponsibleUserUuid(),
+            ha.getResponsibleCollectionId(),
             ha.getResponsibleOUName(),
             ha.getAssignedThroughOUUuid(),
             ha.getAssignedThroughOUName(),

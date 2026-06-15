@@ -105,7 +105,8 @@
 																&nbsp;
 																<button  th:if="${changeRequestsEnabled}" th:unless="${user.readOnly}" class="rejectBtn btn btn-danger col-lg-2" th:id="'rejectBtn' + ${user.userUuid}" th:attr="data-uuid=${user.userUuid}, data-number=${userStat.index}, data-managerdelegate=${managerdelegate}">
 																	<em class="fa-fw fa fa-ban"></em>
-																	<span th:text="#{attestationmodule.html.attestation.controls.reject}"></span>
+																	<span th:if="${attestationDescriptionRequired}" th:text="#{attestationmodule.html.attestation.controls.reject}"></span>
+																	<span th:unless="${attestationDescriptionRequired}" th:text="#{attestationmodule.html.attestation.controls.reject.remove}"></span>
 																</button>
 																&nbsp;
 																<button th:unless="${user.readOnly}" th:if="${adAttestationEnabled}" class="requestDeleteBtn btn btn-danger col-lg-2" th:id="'requestDeleteBtn' + ${user.userUuid}" th:attr="data-uuid=${user.userUuid}, data-number=${userStat.index}, data-managerdelegate=${managerdelegate}">
@@ -155,7 +156,8 @@
                                                     &nbsp;
                                                     <button th:if="${changeRequestsEnabled}" th:unless="${attestation.orgUnitRolesVerified}" class="rejectOrgUnitBtn btn btn-danger col-lg-2" th:id="'rejectOrgUnitBtn' + ${attestation.ouUuid}" th:attr="data-uuid=${attestation.ouUuid}, data-managerdelegate=${managerdelegate}">
                                                         <em class="fa-fw fa fa-ban"></em>
-                                                        <span th:text="#{attestationmodule.html.attestation.controls.reject}"></span>
+														<span th:if="${attestationDescriptionRequired}" th:text="#{attestationmodule.html.attestation.controls.reject}"></span>
+														<span th:unless="${attestationDescriptionRequired}" th:text="#{attestationmodule.html.attestation.controls.reject.remove}"></span>
                                                     </button>
                                                     <p style="display: none;" th:id="'alreadyDoneOrgUnit' + ${attestation.ouUuid}" th:text="#{attestationmodule.html.orgunits.attestate.roles.done}"></p>
                                                     <p th:if="${attestation.orgUnitRolesVerified}" th:text="#{attestationmodule.html.orgunits.attestate.roles.done}"></p>
@@ -169,6 +171,10 @@
                                         <div role="tabpanel" id="historyTab" class="tab-pane mainTabs">
                                             <div class="panel-body">
                                                 <p th:text="#{attestationmodule.html.orgunits.attestate.tabs.history.explainer}"></p>
+                                                <div th:if="${attestation.roleAssignmentsSinceLastAttestationTotalCount > attestation.roleAssignmentsSinceLastAttestation.size()}"
+                                                     class="alert alert-warning" role="alert"
+                                                     th:text="#{attestationmodule.html.orgunits.attestate.tabs.history.truncated(${attestation.roleAssignmentsSinceLastAttestation.size()}, ${attestation.roleAssignmentsSinceLastAttestationTotalCount})}">
+                                                </div>
                                                 <table class="historyTable table table-striped table-bordered table-hover" >
                                                     <thead>
                                                         <tr>

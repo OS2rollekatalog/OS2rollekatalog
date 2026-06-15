@@ -126,7 +126,7 @@ class HistoricAssignmentAttestationMapperTest {
 			// ---- Given ---- //
 			base.setResponsibleOUUuid("responsible-ou-uuid");
 			base.setResponsibleOUName("Responsible OU");
-			base.setResponsibleUserUuid(null);
+			base.setResponsibleCollectionId(null);
 
 			// ---- When ---- //
 			AttestationUserRoleAssignment result = HistoricAssignmentAttestationMapper.toAttestationAssignment(base);
@@ -134,7 +134,7 @@ class HistoricAssignmentAttestationMapperTest {
 			// ---- Then ---- //
 			assertThat(result.getResponsibleOuUuid()).isEqualTo("responsible-ou-uuid");
 			assertThat(result.getResponsibleOuName()).isEqualTo("Responsible OU");
-			assertThat(result.getResponsibleUserUuid()).isNull();
+			assertThat(result.getResponsibleCollectionId()).isNull();
 		}
 
 		@Test
@@ -421,7 +421,7 @@ class HistoricAssignmentAttestationMapperTest {
 			// ---- Given ---- //
 			base.setResponsibleOUUuid("responsible-ou-uuid");
 			base.setResponsibleOUName("Responsible OU");
-			base.setResponsibleUserUuid(null);
+			base.setResponsibleCollectionId(null);
 
 			// ---- When ---- //
 			AttestationUserRoleAssignmentDto result = HistoricAssignmentAttestationMapper.toDto(base);
@@ -429,7 +429,7 @@ class HistoricAssignmentAttestationMapperTest {
 			// ---- Then ---- //
 			assertThat(result.getResponsibleOuUuid()).isEqualTo("responsible-ou-uuid");
 			assertThat(result.getResponsibleOuName()).isEqualTo("Responsible OU");
-			assertThat(result.getResponsibleUserUuid()).isNull();
+			assertThat(result.getResponsibleCollectionId()).isNull();
 		}
 
 		@Test

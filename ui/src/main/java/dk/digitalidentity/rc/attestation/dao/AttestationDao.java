@@ -16,8 +16,6 @@ public interface AttestationDao extends CrudRepository<Attestation, Long> {
     Optional<Attestation> findByAttestationTypeAndItSystemIdAndDeadlineGreaterThanEqual(
             final Attestation.AttestationType attestationType, final long itSystemId, LocalDate deadlineOnOrAfter);
 
-    List<Attestation> findByAttestationTypeAndResponsibleUserUuidOrderByDeadlineDesc(final Attestation.AttestationType type, final String userUuid);
-
     List<Attestation> findByAttestationTypeAndDeadlineIsGreaterThanEqual(final Attestation.AttestationType type, final LocalDate deadline);
     List<Attestation> findByAttestationTypeInAndDeadlineIsGreaterThanEqual(final List<Attestation.AttestationType> type, final LocalDate deadline);
 
@@ -33,7 +31,14 @@ public interface AttestationDao extends CrudRepository<Attestation, Long> {
     Attestation findFirstByAttestationTypeAndResponsibleOuUuidAndVerifiedAtIsNotNullOrderByDeadlineDesc(final Attestation.AttestationType type, final String ouUuid);
 
     Optional<Attestation> findByAttestationTypeAndItSystemIdAndDeadlineGreaterThanEqual(final Attestation.AttestationType type, final Long itSystemId, final LocalDate onOrAfter);
+
+    Optional<Attestation> findByAttestationTypeAndItSystemIdAndResponsibleCollectionIdAndDeadlineGreaterThanEqual(
+            final Attestation.AttestationType type, final Long itSystemId, final Long responsibleCollectionId, final LocalDate onOrAfter);
+
     Optional<Attestation> findFirstByAttestationTypeAndItSystemIdOrderByDeadlineDesc(final Attestation.AttestationType type, final Long itSystemId);
+    Optional<Attestation> findFirstByAttestationTypeAndItSystemIdAndResponsibleCollectionIdOrderByDeadlineDesc(
+            final Attestation.AttestationType type, final Long itSystemId, final Long responsibleCollectionId);
+    List<Attestation> findByItSystemIdAndResponsibleCollectionIdAndVerifiedAtIsNull(final Long itSystemId, final Long responsibleCollectionId);
 
     @Query(value = "select att from Attestation att " +
             "where att.attestationType=:type and att.deadline = :deadlineAt and att.verifiedAt is null" +
@@ -85,4 +90,6 @@ public interface AttestationDao extends CrudRepository<Attestation, Long> {
     List<Attestation> findByAttestationRunIsNull();
 
     List<Attestation> findByCreatedAtGreaterThanEqualAndResponsibleOuUuid(LocalDate createdAtIsGreaterThan, String responsibleOuUuid);
+
+	List<Attestation> findByAttestationTypeAndItSystemIdAndResponsibleCollectionIdNot(Attestation.AttestationType attestationType, Long itSystemId, Long responsibleCollectionId);
 }

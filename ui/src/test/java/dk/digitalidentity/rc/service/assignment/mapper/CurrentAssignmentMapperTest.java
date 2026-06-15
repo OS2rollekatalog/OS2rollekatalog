@@ -189,8 +189,8 @@ class CurrentAssignmentMapperTest {
 		}
 
 		@Test
-		@DisplayName("Should return empty set when RoleGroup has no UserRoles")
-		void shouldReturnEmptySetWhenRoleGroupHasNoUserRoles() {
+		@DisplayName("Should return a single roleGroup-only row when RoleGroup has no UserRoles")
+		void shouldReturnRoleGroupOnlyRowWhenRoleGroupHasNoUserRoles() {
 			// Arrange
 			RoleGroup emptyRoleGroup = createRoleGroup(1L, Collections.emptyList());
 
@@ -201,8 +201,14 @@ class CurrentAssignmentMapperTest {
 			// Act
 			Set<CurrentAssignment> result = CurrentAssignmentMapper.toCurrentAssignment(assignment, testUser, testOrgUnit);
 
-			// Assert
-			assertThat(result).isEmpty();
+			// Assert - the empty role group must still be represented so the assignment stays visible
+			assertThat(result).hasSize(1);
+			CurrentAssignment row = result.iterator().next();
+			assertThat(row.isRoleGroupOnly()).isTrue();
+			assertThat(row.getRoleGroup()).isEqualTo(emptyRoleGroup);
+			assertThat(row.getUserRole()).isNull();
+			assertThat(row.getItSystem()).isNull();
+			assertThat(row.getRecordHash()).isNotBlank();
 		}
 	}
 

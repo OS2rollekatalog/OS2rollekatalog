@@ -6,6 +6,8 @@ import org.springframework.jdbc.core.RowMapper;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 
+import static dk.digitalidentity.rc.attestation.service.temporal.rowmapper.RowMapperUtils.zeroIsNull;
+
 public class AttestationSystemRoleAssignmentRowMapper implements RowMapper<AttestationSystemRoleAssignment> {
     @Override
     public AttestationSystemRoleAssignment mapRow(ResultSet rs, int rowNum) throws SQLException {
@@ -21,8 +23,8 @@ public class AttestationSystemRoleAssignmentRowMapper implements RowMapper<Attes
         assignment.setSystemRoleId(rs.getLong("system_role_id"));
         assignment.setSystemRoleName(rs.getString("system_role_name"));
         assignment.setSystemRoleDescription(rs.getString("system_role_description"));
-        assignment.setResponsibleUserUuid(rs.getString("responsible_user_uuid"));
-        assignment.setItSystemId(rs.getLong("it_system_id"));
+        assignment.setResponsibleCollectionId(zeroIsNull(rs.getLong("attestation_responsible_collection_id")));
+        assignment.setItSystemId(zeroIsNull(rs.getLong("it_system_id")));
         assignment.setItSystemName(rs.getString("it_system_name"));
         return assignment;
     }

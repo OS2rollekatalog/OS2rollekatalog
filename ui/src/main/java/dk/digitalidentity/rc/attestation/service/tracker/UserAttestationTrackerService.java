@@ -1,6 +1,7 @@
 package dk.digitalidentity.rc.attestation.service.tracker;
 
 import dk.digitalidentity.rc.attestation.dao.AttestationDao;
+import dk.digitalidentity.rc.attestation.dao.AttestationResponsibleCollectionDao;
 import dk.digitalidentity.rc.attestation.dao.AttestationUserDao;
 import dk.digitalidentity.rc.attestation.model.entity.Attestation;
 import dk.digitalidentity.rc.attestation.model.entity.AttestationRun;
@@ -12,9 +13,7 @@ import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
 import dk.digitalidentity.rc.dao.OrgUnitDao;
 import dk.digitalidentity.rc.dao.UserDao;
 import dk.digitalidentity.rc.dao.history.HistoryAttestationManagerDelegateDao;
-import dk.digitalidentity.rc.dao.history.HistoryUserDao;
 import dk.digitalidentity.rc.dao.history.model.HistoryAttestationManagerDelegate;
-import dk.digitalidentity.rc.dao.history.model.HistoryUser;
 import dk.digitalidentity.rc.dao.model.OrgUnit;
 import dk.digitalidentity.rc.dao.model.Position;
 import dk.digitalidentity.rc.dao.model.User;
@@ -60,7 +59,7 @@ public class UserAttestationTrackerService {
 	@Autowired
 	private AttestationUserDao attestationUserDao;
 	@Autowired
-	private HistoryUserDao historyUserDao;
+	private AttestationResponsibleCollectionDao attestationResponsibleCollectionDao;
 	@Autowired
 	private OrgUnitDao orgUnitDao;
 	@Autowired
@@ -82,14 +81,25 @@ public class UserAttestationTrackerService {
 		cnt = cntUA = cntOu = ouAdCnt = 0;
 		entityManager.setFlushMode(FlushModeType.COMMIT);
 		runTrackerService.getAttestationRunWithDeadlineNotAfter(when).ifPresent(run -> {
-			historicAssignmentService.findValidGroupByResponsibleUserUuidAndUserUuidAndSensitiveRoleAndItSystem(when)
+			// Attestationer for tomme collections er usynlige for alle (synlighed afgøres af
+			// collection-medlemskab) og kan aldrig afsluttes — spring dem over.
+			final Map<Long, Boolean> collectionHasResponsibles = new HashMap<>();
+			historicAssignmentService.findValidGroupByResponsibleCollectionIdAndUserUuidAndSensitiveRoleAndItSystem(when).stream()
+					.filter(a -> collectionHasResponsibles.computeIfAbsent(a.getResponsibleCollectionId(), this::hasResponsibles))
 					.forEach(a -> ensureWeHaveSystemUsersAttestationFor(run, a, when));
 
 			// Ensure we have attestations for all direct OU assignments handled by an IT-system responsible.
 			// HistoricAssignment replaces the former ouAssignmentsDao query here.
-			historicAssignmentService.findValidGroupByResponsibleUserUuidAndSensitiveRole(when)
+			historicAssignmentService.findValidGroupByResponsibleCollectionIdAndSensitiveRole(when).stream()
+					.filter(a -> collectionHasResponsibles.computeIfAbsent(a.getResponsibleCollectionId(), this::hasResponsibles))
 					.forEach(a -> ensureWeHaveSystemUsersAttestationFor(run, a, when));
 		});
+	}
+
+	private boolean hasResponsibles(final Long collectionId) {
+		return attestationResponsibleCollectionDao.findById(collectionId)
+				.map(c -> !c.getUsersUuid().isEmpty())
+				.orElse(false);
 	}
 
 	@Transactional(timeout = 600, propagation = Propagation.REQUIRES_NEW)
@@ -265,29 +275,13 @@ public class UserAttestationTrackerService {
 			return;
 		}
 		Attestation attestation = findSystemUsersAttestationFor(assignment, when).orElse(null);
-		// It the user has been deleted it will be null, and we cannot do anything sensible
-		final HistoryUser historyUser = historyUserDao.findFirstByDatoAndUserUuid(when, assignment.getResponsibleUserUuid());
-		if (historyUser == null) {
-			return;
-		}
 		if (attestation == null) {
 			if (run.getDeadline().minusDays(configuration.getAttestation().getDaysForAttestation()).isAfter(when)) {
 				// Deadline is in the future do not create an attestation section yet
 				return;
 			} else {
-				// Deadline is soon we need to create a new attestation
+				// Deadline is soon we need to create a new attestation for this (system × responsible) pair
 				attestation = createItSystemUsersAttestationFor(run, assignment, run.isSensitive(), when, run.getDeadline());
-			}
-		} else {
-			// If we have another open attestation for this it-system the responsible manager might have changed, in that
-			// case we need to delete the old attestation (unless its already been verified).
-			if (!attestation.getResponsibleUserUuid().equals(assignment.getResponsibleUserUuid())) {
-				log.info("It-system responsible changed updating attestation");
-				attestation.setResponsibleUserUuid(assignment.getResponsibleUserUuid());
-				attestation.setResponsibleUserId(historyUser.getUserUserId());
-				// When changing responsible, we need to move the date, as the assignments are frozen at created-date,
-				// and the new responsible won't be responsible for any assignments until today.
-				attestation.setCreatedAt(when);
 			}
 		}
 		addUser(attestation, assignment);
@@ -394,8 +388,8 @@ public class UserAttestationTrackerService {
 	}
 
 	private Optional<Attestation> findSystemUsersAttestationFor(final AttestationUserRoleAssignment assignment, final LocalDate when) {
-		return attestationDao.findByAttestationTypeAndItSystemIdAndDeadlineGreaterThanEqual(
-				Attestation.AttestationType.IT_SYSTEM_ATTESTATION, assignment.getItSystemId(), when);
+		return attestationDao.findByAttestationTypeAndItSystemIdAndResponsibleCollectionIdAndDeadlineGreaterThanEqual(
+				Attestation.AttestationType.IT_SYSTEM_ATTESTATION, assignment.getItSystemId(), assignment.getResponsibleCollectionId(), when);
 	}
 
 	private Optional<Attestation> findOrganisationAttestationFor(final AttestationUserRoleAssignment assignment, final LocalDate when) {
@@ -423,9 +417,7 @@ public class UserAttestationTrackerService {
 				.sensitive(sensitive)
 				.responsibleOuUuid(assignment.getResponsibleOuUuid())
 				.responsibleOuName(assignment.getResponsibleOuName())
-						.responsibleUserUuid(assignment.getResponsibleUserUuid())
-						.responsibleUserId(assignment.getUserId())
-
+				.responsibleCollectionId(assignment.getResponsibleCollectionId())
 				.deadline(deadline)
 				.createdAt(when)
 				.uuid(UUID.randomUUID().toString())
@@ -473,15 +465,13 @@ public class UserAttestationTrackerService {
 	private Attestation createItSystemUsersAttestationFor(final AttestationRun run,
 														  final AttestationUserRoleAssignment assignment, boolean sensitive,
 														  final LocalDate when, final LocalDate deadline) {
-		final HistoryUser historyUser = historyUserDao.findFirstByDatoAndUserUuid(when, assignment.getResponsibleUserUuid());
 		return attestationDao.save(Attestation.builder()
 				.attestationRun(run)
 				.attestationType(Attestation.AttestationType.IT_SYSTEM_ATTESTATION)
 				.sensitive(sensitive)
 				.itSystemId(assignment.getItSystemId())
 				.itSystemName(assignment.getItSystemName())
-				.responsibleUserId(historyUser.getUserUserId())
-				.responsibleUserUuid(assignment.getResponsibleUserUuid())
+				.responsibleCollectionId(assignment.getResponsibleCollectionId())
 				.deadline(deadline)
 				.createdAt(when)
 				.uuid(UUID.randomUUID().toString())

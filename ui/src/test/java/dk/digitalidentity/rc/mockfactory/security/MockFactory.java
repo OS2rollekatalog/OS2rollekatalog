@@ -1,5 +1,8 @@
 package dk.digitalidentity.rc.mockfactory.security;
 
+import java.util.HashMap;
+import java.util.List;
+
 import dk.digitalidentity.rc.config.Constants;
 import dk.digitalidentity.rc.dao.model.ConstraintType;
 import dk.digitalidentity.rc.dao.model.SystemRole;
@@ -8,11 +11,8 @@ import dk.digitalidentity.rc.dao.model.SystemRoleAssignmentConstraintValue;
 import dk.digitalidentity.rc.dao.model.UserRole;
 import dk.digitalidentity.rc.dao.model.enums.ConstraintUIType;
 import dk.digitalidentity.rc.dao.model.enums.ConstraintValueType;
-import dk.digitalidentity.samlmodule.model.SamlGrantedAuthority;
-import dk.digitalidentity.samlmodule.model.TokenUser;
-
-import java.util.HashMap;
-import java.util.List;
+import dk.digitalidentity.saml.service.model.SamlGrantedAuthority;
+import dk.digitalidentity.saml.service.model.TokenUser;
 
 public class MockFactory {
 	public static final String ATTRIBUTE_USERID = "ATTRIBUTE_USERID";

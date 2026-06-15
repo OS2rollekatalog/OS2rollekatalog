@@ -21,5 +21,8 @@ public class UserShallowAM {
 	@NotNull
     private String uuid;
     private String userId;
+    @Schema(description = "The user's external UUID (e.g. AD objectGUID) — globally unique and "
+            + "domain-independent. Accepted as the user identifier by the role-assignment write API.")
+    private String extUuid;
     private String name;
 }

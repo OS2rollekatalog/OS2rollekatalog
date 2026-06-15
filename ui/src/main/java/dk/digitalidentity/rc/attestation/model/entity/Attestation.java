@@ -39,7 +39,8 @@ import java.util.Set;
 @Entity
 @Table(name = "attestation_attestation")
 public class Attestation {
-    public enum AttestationType {
+
+	public enum AttestationType {
         ORGANISATION_ATTESTATION,
         IT_SYSTEM_ATTESTATION, // This is the user assignments attestation
         IT_SYSTEM_ROLES_ATTESTATION, // This is the user roles attestation
@@ -74,14 +75,12 @@ public class Attestation {
     private Long itSystemId;
     @Column
     private String itSystemName;
-    @Column
-    private String responsibleOuUuid;
-    @Column
-    private String responsibleOuName;
-    @Column
-    private String responsibleUserUuid;
-    @Column
-    private String responsibleUserId;
+	@Column
+	private String responsibleOuUuid;
+	@Column
+	private String responsibleOuName;
+	@Column
+	private Long responsibleCollectionId;
 
     // This field have been moved to AttestationRun but kept here for backwards compatability
     @Column(name = "`sensitive`")

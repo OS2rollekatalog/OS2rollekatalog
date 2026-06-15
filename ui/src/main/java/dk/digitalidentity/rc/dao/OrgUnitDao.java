@@ -13,6 +13,7 @@ import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserRole;
 import dk.digitalidentity.rc.dao.projections.OrgUnitManagerName;
 import dk.digitalidentity.rc.dao.projections.OrgUnitManagerUuid;
+import dk.digitalidentity.rc.dao.projections.OrgUnitUuidAndName;
 import org.springframework.data.repository.query.Param;
 
 public interface OrgUnitDao extends CrudRepository<OrgUnit, String> {
@@ -64,6 +65,40 @@ public interface OrgUnitDao extends CrudRepository<OrgUnit, String> {
 
 	List<OrgUnit> findByActiveTrueAndParentNull();
 
+	@Query(value = """
+		WITH RECURSIVE descendant_tree AS (
+		    SELECT uuid, parent_uuid, active
+		    FROM ous
+		    WHERE manager = :managerUuid AND active = true
+
+		    UNION ALL
+
+		    SELECT o.uuid, o.parent_uuid, o.active
+		    FROM ous o
+		    INNER JOIN descendant_tree dt ON o.parent_uuid = dt.uuid
+		    WHERE o.active = true
+		)
+		SELECT uuid FROM descendant_tree
+		""", nativeQuery = true)
+	Set<String> findDescendantOuUuidsWithEffectiveManager(@Param("managerUuid") String managerUuid);
+
+	@Query(value = """
+		WITH RECURSIVE descendant_tree AS (
+		    SELECT uuid, parent_uuid, active
+		    FROM ous
+		    WHERE uuid = :ouUuid AND active = true
+
+		    UNION ALL
+
+		    SELECT o.uuid, o.parent_uuid, o.active
+		    FROM ous o
+		    INNER JOIN descendant_tree dt ON o.parent_uuid = dt.uuid
+		    WHERE o.active = true
+		)
+		SELECT uuid FROM descendant_tree
+		""", nativeQuery = true)
+	Set<String> findDescendantOuUuids(@Param("ouUuid") String ouUuid);
+
     @Query(value = """
             WITH RECURSIVE ancestor_tree AS (
                 SELECT *
@@ -80,6 +115,40 @@ public interface OrgUnitDao extends CrudRepository<OrgUnit, String> {
             """,
             nativeQuery = true)
     List<OrgUnit> findWithAllAncestors(@Param("uuid") String uuid);
+
+    @Query(value = """
+            WITH RECURSIVE ancestor_tree AS (
+                SELECT uuid, parent_uuid
+                FROM ous
+                WHERE uuid = :uuid
+
+                UNION ALL
+
+                SELECT ou.uuid, ou.parent_uuid
+                FROM ous ou
+                INNER JOIN ancestor_tree at ON ou.uuid = at.parent_uuid
+            )
+            SELECT uuid FROM ancestor_tree
+            """,
+            nativeQuery = true)
+    List<String> findAllAncestorUuids(@Param("uuid") String uuid);
+
+	@Query(value = """
+			WITH RECURSIVE descendant_tree AS (
+			    SELECT uuid, name
+			    FROM ous
+			    WHERE uuid = :uuid
+
+			    UNION ALL
+
+			    SELECT ou.uuid, ou.name
+			    FROM ous ou
+			    INNER JOIN descendant_tree dt ON ou.parent_uuid = dt.uuid
+			)
+			SELECT uuid, name FROM descendant_tree WHERE uuid != :uuid
+			""",
+			nativeQuery = true)
+	List<OrgUnitUuidAndName> findDescendantUuidsAndNames(@Param("uuid") String uuid);
 
 	@Query(value = """
     WITH RECURSIVE ou_hierarchy AS (

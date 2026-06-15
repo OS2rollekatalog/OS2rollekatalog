@@ -1,13 +1,12 @@
 package dk.digitalidentity.rc.test;
 
-import dk.digitalidentity.rc.TestContainersConfiguration;
-import dk.digitalidentity.rc.config.Constants;
-import dk.digitalidentity.rc.config.TestInterceptorConfiguration;
-import dk.digitalidentity.rc.security.RolePostProcessor;
-import dk.digitalidentity.rc.util.BootstrapDevMode;
-import dk.digitalidentity.samlmodule.model.SamlGrantedAuthority;
-import dk.digitalidentity.samlmodule.model.TokenUser;
-import jakarta.persistence.EntityManager;
+import static org.springframework.restdocs.mockmvc.MockMvcRestDocumentation.documentationConfiguration;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -25,12 +24,14 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.context.WebApplicationContext;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-
-import static org.springframework.restdocs.mockmvc.MockMvcRestDocumentation.documentationConfiguration;
+import dk.digitalidentity.rc.TestContainersConfiguration;
+import dk.digitalidentity.rc.config.Constants;
+import dk.digitalidentity.rc.config.TestInterceptorConfiguration;
+import dk.digitalidentity.rc.security.RolePostProcessor;
+import dk.digitalidentity.rc.util.BootstrapDevMode;
+import dk.digitalidentity.saml.service.model.SamlGrantedAuthority;
+import dk.digitalidentity.saml.service.model.TokenUser;
+import jakarta.persistence.EntityManager;
 
 /**
  * Abstract base class for API integration tests.

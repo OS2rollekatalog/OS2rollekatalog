@@ -94,6 +94,7 @@ public abstract class RoleMapper {
                         ? userRole.getSystemRoleAssignments().stream().map(RoleMapper::systemRoleAssignmentToApi).collect(Collectors.toList())
                         : Collections.emptyList())
 				.contactEmail(userRole.getContactEmail())
+				.advisEmail(userRole.getAdvisEmail())
 				.ouFilterEnabled(userRole.isOuFilterEnabled())
 				.orgUnitFilterOrgUnits(userRole.getOrgUnitFilterOrgUnits() != null
 						? userRole.getOrgUnitFilterOrgUnits().stream().map(OrgUnitMapper::toShallowApi).toList()

@@ -129,7 +129,7 @@ public class AttestationReportRestController {
         if (itSystem == null || user == null) {
             return new ModelAndView("attestationmodule/error", model);
         }
-        if ((itSystem.getAttestationResponsible() == null || !itSystem.getAttestationResponsible().getUuid().equals(user.getUuid())) &&
+        if (!itSystemService.getAttestationResponsibleUuids(itSystem).contains(user.getUuid()) &&
                 !SecurityUtil.isAttestationAdminOrAdmin()) {
             return new ModelAndView("attestationmodule/error", model);
         }

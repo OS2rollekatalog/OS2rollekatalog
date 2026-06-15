@@ -48,6 +48,8 @@ public class UserRoleAM {
 	@Schema(description = "")
 	private String contactEmail;
 	@Schema(description = "")
+	private String advisEmail;
+	@Schema(description = "")
 	private Boolean ouFilterEnabled;
 	@Schema(description = "")
 	private List<OrgUnitShallowAM> orgUnitFilterOrgUnits;

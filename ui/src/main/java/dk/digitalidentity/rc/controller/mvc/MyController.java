@@ -35,7 +35,8 @@ public class MyController {
 		Set<CurrentAssignment> onePrRoleGroupAssignment = assignmentService.getUniqueRoleGroupAssignments(assignments);
 
 		List<RoleAssignedToUserDTO> allAssignmentsAsDTO = new ArrayList<>();
-		allAssignmentsAsDTO.addAll(assignments.stream().map(a -> RoleAssignedToUserDTO.fromCurrentAssignmentUserRole(a, assignmentService.getAssignedThrough(a))).toList());
+		// skip roleGroup-only rows (empty role groups have no userRole); they are surfaced by the roleGroup pass below
+		allAssignmentsAsDTO.addAll(assignments.stream().filter(a -> a.getUserRole() != null).map(a -> RoleAssignedToUserDTO.fromCurrentAssignmentUserRole(a, assignmentService.getAssignedThrough(a))).toList());
 		allAssignmentsAsDTO.addAll(onePrRoleGroupAssignment.stream().map(a -> RoleAssignedToUserDTO.fromCurrentAssignmentRoleGroup(a, assignmentService.getAssignedThroughForRoleGroup(a))).toList());
 
 		model.addAttribute("user", user);

@@ -29,6 +29,7 @@ public class ADConfigurationJSON {
 	private List<String> backSyncFeatureOUs;
 	private boolean backSyncFeatureGroupsInGroupOnSync;
 	private boolean backSyncFeatureCreateUserRoles;
+	private boolean backSyncFeatureMaintainDescriptionAndName = true;
 	private String backSyncFeatureNameAttribute;
 
 	// itSystem group feature settings

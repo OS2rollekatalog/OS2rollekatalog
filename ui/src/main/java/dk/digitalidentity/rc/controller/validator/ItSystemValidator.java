@@ -80,9 +80,12 @@ public class ItSystemValidator implements Validator {
 			}
 		}
 
-		if (StringUtils.hasLength(itSystemForm.getSelectedResponsibleUuid())) {
-			if (userService.getByUuid(itSystemForm.getSelectedResponsibleUuid()) == null) {
-				errors.rejectValue("selectedResponsibleUuid", "html.errors.itsystem.selectedResponsibleUuid.notfound");
+		if (itSystemForm.getSelectedResponsibleUuid() != null) {
+			for (String uuid : itSystemForm.getSelectedResponsibleUuid()) {
+				if (StringUtils.hasLength(uuid) && userService.getByUuid(uuid) == null) {
+					errors.rejectValue("selectedResponsibleUuid", "html.errors.itsystem.selectedResponsibleUuid.notfound");
+					break;
+				}
 			}
 		}
 	}

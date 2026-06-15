@@ -3,6 +3,7 @@
 .project
 .settings
 target/
+.m2/
 .idea/*
 /ui/.idea/*
 !.idea/inspectionProfiles/

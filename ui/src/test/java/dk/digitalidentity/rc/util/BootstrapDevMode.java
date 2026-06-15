@@ -269,7 +269,7 @@ public class BootstrapDevMode {
 		User bsg = userDao.findByUserIdAndDomainAndDeletedFalse("bsg", domainService.getPrimaryDomain()).orElseThrow();
 		itSystemService.getAll()
 				.forEach(system -> {
-					system.setAttestationResponsible(bsg);
+					system.addAttestationResponsible(bsg);
 				});
 	}
 

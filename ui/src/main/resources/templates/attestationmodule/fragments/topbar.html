@@ -63,8 +63,7 @@
 
 						<li class="dropdown-header" style="padding:0; margin:5px 0; border-top:2px solid #cfdbe2;"></li>
                         <li>
-                            <form th:action="@{/logout}" id="logout_form" method="post"></form>
-                            <a href="#" onclick="$('#logout_form').submit();">
+							<a th:href="@{/saml/logout}">
                                 <i class="fa fa-sign-out"></i> &nbsp;
                                 <span th:text="#{html.navbar.logout}"></span>
                             </a>

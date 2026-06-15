@@ -19,6 +19,7 @@ import dk.digitalidentity.rc.dao.model.RoleGroup;
 import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserRole;
 import dk.digitalidentity.rc.dao.model.assignment.CurrentAssignment;
+import dk.digitalidentity.rc.dao.model.assignment.CurrentAssignmentSmallProjection;
 import dk.digitalidentity.rc.dao.model.assignment.CurrentExceptedAssignment;
 import dk.digitalidentity.rc.service.ItSystemService;
 import dk.digitalidentity.rc.service.assignment.model.AssignmentType;
@@ -68,16 +69,6 @@ public class AssignmentService {
 	public Set<CurrentAssignment> getAllRoleGroupAssignmentsByUserIncludingInactive(User user) {
 		return currentAssignmentService.findByUserAndRoleGroupNotNullIncludingInactive(user);
 	}
-
-	/**
-	 * Returns the userRole assignments for a given user (not from roleGroup)
-	 * @param user the user
-	 * @return a set of CurrentAssignments
-	 */
-	public Set<CurrentAssignment> getAllUserRolesByUserIncludingInactive(User user) {
-		return currentAssignmentService.findByUserAndRoleGroupNullIncludingInactive(user);
-	}
-
 
 	/**
 	 * Finds all assignments for a specific user in any of the given it systems
@@ -309,6 +300,10 @@ public class AssignmentService {
 	 */
 	public Set<CurrentAssignment> getActiveByUserRoles(Set<UserRole> userRoles) {
 		return currentAssignmentService.findActiveByUserRoles(userRoles);
+	}
+	
+	public Set<CurrentAssignmentSmallProjection> getActiveByUserRolesAsProjection(Set<UserRole> userRoles) {
+		return currentAssignmentService.findActiveByUserRolesAsProjection(userRoles);
 	}
 
 	/**
@@ -567,7 +562,9 @@ public class AssignmentService {
 	public List<RoleAssignedToUserDTO> getAssignmentsForUser(User user, Set<CurrentAssignment> currentAssignments) {
 
 		// add all userRoles (no matter how they are assigned - also roleGroups)
+		// skip roleGroup-only rows (empty role groups have no userRole); they are surfaced by the roleGroup pass below
 		List<RoleAssignedToUserDTO> assignmentDTOs = new ArrayList<>(currentAssignments.stream()
+			.filter(a -> a.getUserRole() != null)
 			.map(a -> RoleAssignedToUserDTO.fromCurrentAssignmentUserRole(a, getAssignedThrough(a)))
 			.toList());
 

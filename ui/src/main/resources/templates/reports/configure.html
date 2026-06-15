@@ -133,13 +133,26 @@
 								</div>
 							</div>
 
-							<div class="form-group" style="margin-bottom: 40px">
+							<div class="form-group" style="margin-bottom: 20px">
 								<input class="column-choice" id="realShowSystemRoles" th:field="*{showSystemRoles}" type="hidden">
 								<label class="col-sm-3 control-label" th:text="#{html.page.report.column.show.systemroles}"></label>
 								<div class="col-sm-9">
 									<div class="checkbox c-checkbox">
 										<label>
 											<input id="ShowSystemRolesCheckbox" type="checkbox" th:attr="checked=${reportForm.showSystemRoles}" onchange="columnService.columnChoiceTrigger(this, 'ShowSystemRoles')"/>
+											<span class="fa fa-check"></span>
+										</label>
+									</div>
+								</div>
+							</div>
+
+							<div class="form-group" style="margin-bottom: 40px">
+								<input class="column-choice" id="realShowOrgUnitAllocations" th:field="*{showOrgUnitAllocations}" type="hidden">
+								<label class="col-sm-3 control-label" th:text="#{html.page.report.column.show.orgUnitAllocations}"></label>
+								<div class="col-sm-9">
+									<div class="checkbox c-checkbox">
+										<label>
+											<input id="ShowOrgUnitAllocationsCheckbox" type="checkbox" th:attr="checked=${reportForm.showOrgUnitAllocations}" onchange="columnService.columnChoiceTrigger(this, 'ShowOrgUnitAllocations')"/>
 											<span class="fa fa-check"></span>
 										</label>
 									</div>
@@ -184,7 +197,7 @@
 			</div>
 		</div>
 	</div>
-	
+
 	<div class="modal-spinner">
 		<i class="fa fa-spinner fa-pulse fa-3x fa-fw"></i>
 		<span class="sr-only">Henter rapport...</span>
@@ -257,7 +270,7 @@
 			var itsystemFilter = [[${reportForm.itsystemFilter}]];
 			var unitFilter = [[${reportForm.unitFilter}]];
 			var templateId = [[${templateId}]];
-			
+
 			var allItSystems = [[${allItSystems}]];
 			var allOrgUnits = [[${allOrgUnits}]];
 		+]*/
@@ -272,19 +285,19 @@
 		$(document).ready(function() {
 			datePickerService = new DatePickerService();
 			datePickerService.init();
-			
+
 			columnService = new ColumnService();
 			columnService.init();
-			
+
 			templateService = new TemplateService();
 			templateService.init();
-			
+
 			reportService = new ReportService();
 			reportService.init();
-			
+
 			filterService = new FilterService();
 		});
-		
+
 		function ReportService() {
 			this.init = function() {
 				$('#reportForm').submit(function(event) {
@@ -322,7 +335,7 @@
 				});
 			}
 		}
-		
+
 		function TemplateService() {
 			this.init = function() {
 				$('#saveTemplateModal').on('hidden.bs.modal', function () {
@@ -333,7 +346,7 @@
 					$('#templateName').focus();
 				});
 			}
-			
+
 			this.openSaveTemplateModal = function() {
 				$('#saveTemplateModal').modal('show');
 			}
@@ -385,12 +398,12 @@
 				});
 			}
 		}
-		
+
 		function ColumnService() {
 			this.init = function() {
 	        	$('.column-choice').trigger('change');
 			}
-			
+
 			this.columnChoiceTrigger = function(checkbox, name) {
 				$('#real' + name).val(checkbox.checked);
 			}
@@ -420,7 +433,7 @@
 
 				//Enable last two months
 				var enabledDates = getDates( date2MonthsAgo, new Date());
-				
+
 				//Enable 7th, 14th etc. from 4 months prior to 2 months ago
 				var olderDates = getDates(date6MonthsAgo,date2MonthsAgo);
 				for (i = 0; i < olderDates.length; i ++ ) {
@@ -430,7 +443,7 @@
 						&& olderDates[i].getDate() != 28) {
 							continue;
 						}
-					
+
 					enabledDates.push(olderDates[i]);
 				}
 			    //Enable future dates
@@ -438,7 +451,7 @@
 			    for (i = 0; i < futureDates.length; i ++ ) {
                     enabledDates.push(futureDates[i]);
                 }
-				
+
 				// Initialize DatePicker
 				$('#datePicker').datetimepicker({
 					inline: true,
@@ -448,16 +461,16 @@
 					enabledDates: enabledDates,
 					defaultDate: new Date()
 				});
-				
+
 				// On Change event for DatePicker
 	        	$('#datePicker').on('dp.change', function () {
 	        		var date = $('#datePicker').data('date');
-	        		
+
 	        		//sometimes date is undefined. thanks javascript
 	        		if (date) {
 						// Remember date
 						$('#realDateField').val(date);
-	
+
 						// ajax call to load
 						$("#filterOptions").load(url + "/configure/" + date + "?templateId=" + templateId, function() {
 							datePickerService.getOrgUnits(date);
@@ -468,7 +481,7 @@
 
 	        	$('#datePicker').trigger('dp.change');
 			}
-			
+
 			this.getOrgUnits = function(date) {
 				$.ajax({
 					contentType: 'application/json',
@@ -479,10 +492,10 @@
 					},
 					success: function(response) {
 						window.allOrgUnits = response;
-						
+
 						$('#hierarchy').jstree(true).settings.core.data = response;
 						$('#hierarchy').jstree(true).refresh();
-						
+
 						filterService.refreshRadioButtons();
 						filterService.refreshCheckbox();
 						filterService.units();
@@ -503,7 +516,7 @@
 			this.units = function() {
 				if(unitFilter!=null && $("#radioFilter2").prop("disabled") == false){
 					$("#radioFilter2").attr("checked", true).change();
-					
+
 					setTimeout(function(){
 						for (var i = 0; i < unitFilter.length; i++) {
 							$('#hierarchy').jstree("select_node", unitFilter[i]);
@@ -511,7 +524,7 @@
 					}, 100);
 				}
 			}
-			
+
 			this.manager = function() {
 				if(manager!="" && manager!=null && $("#radioFilter3").prop("disabled") == false){
 					$("#radioFilter3").attr("checked", true).change();
@@ -519,7 +532,7 @@
 					$("#managerSelect").selectpicker('refresh');
 				}
 			}
-			
+
 			this.itSystem = function() {
 				if (itsystemFilter != null && $("#itsystemCheckbox").prop("disabled") == false){
 					$("#itsystemCheckbox").attr("checked", true).change();
@@ -527,31 +540,31 @@
 					$("#itSystemSelectPicker").selectpicker('refresh');
 				}
 			}
-			
+
 			this.refreshRadioButtons = function() {
 			    if (allOrgUnits == null || allOrgUnits.length < 1) {
 			    	if( $('#radioFilter2').prop("checked")){
-			    		$('#radioFilter1').prop("checked", true).change();			    		
+			    		$('#radioFilter1').prop("checked", true).change();
 			    		$("#orgUnitToggle").hide();
 			    	}
 
-			        $('#radioFilter2').prop('disabled', true);			        
+			        $('#radioFilter2').prop('disabled', true);
 			    }
 			    else {
 			    	$('#radioFilter2').prop('disabled', false);
 			    }
 			}
-			
+
 			this.refreshCheckbox = function(){
 				 if (allItSystems == null || allItSystems.length < 1 || templateId == 0) {
 					$('#itsystemCheckbox').prop("checked", false);
 				}
 			}
-			
+
 			this.initOUTree = function() {
 				this.refreshRadioButtons();
 				this.refreshCheckbox();
-				
+
 				$("#hierarchy").jstree({
 					"core": {
 						"data": allOrgUnits,
@@ -635,7 +648,7 @@
 					filterService.onRadioChange($(this).data("id"));
 				});
 				filterService.initItSystemPicker();
-				filterService.initOUTree();			
+				filterService.initOUTree();
 			}
 		}
 

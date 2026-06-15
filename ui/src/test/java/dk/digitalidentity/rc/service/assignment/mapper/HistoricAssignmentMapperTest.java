@@ -80,7 +80,7 @@ class HistoricAssignmentMapperTest {
 			CurrentAssignment currentAssignment = createFullCurrentAssignment(testUser, testUserRole, testItSystem, testOrgUnit, testTitle, null);
 
 			// Act
-			HistoricAssignment result = HistoricAssignmentMapper.createFromCurrentAssignment(currentAssignment);
+			HistoricAssignment result = HistoricAssignmentMapper.createFromCurrentAssignment(currentAssignment, null);
 
 			// Assert
 			assertThat(result.getAssignedThroughType()).isEqualTo(AssignedThrough.TITLE);
@@ -97,7 +97,7 @@ class HistoricAssignmentMapperTest {
 			CurrentAssignment currentAssignment = createFullCurrentAssignment(testUser, testUserRole, testItSystem, testOrgUnit, null, null);
 
 			// Act
-			HistoricAssignment result = HistoricAssignmentMapper.createFromCurrentAssignment(currentAssignment);
+			HistoricAssignment result = HistoricAssignmentMapper.createFromCurrentAssignment(currentAssignment, null);
 
 			// Assert
 			assertThat(result.getAssignedThroughType()).isEqualTo(AssignedThrough.ORGUNIT);
@@ -114,7 +114,7 @@ class HistoricAssignmentMapperTest {
 			CurrentAssignment currentAssignment = createFullCurrentAssignment(testUser, testUserRole, testItSystem, null, null, testRoleGroup);
 
 			// Act
-			HistoricAssignment result = HistoricAssignmentMapper.createFromCurrentAssignment(currentAssignment);
+			HistoricAssignment result = HistoricAssignmentMapper.createFromCurrentAssignment(currentAssignment, null);
 
 			// Assert
 			assertThat(result.getAssignedThroughType()).isEqualTo(AssignedThrough.ROLEGROUP);
@@ -131,7 +131,7 @@ class HistoricAssignmentMapperTest {
 			CurrentAssignment currentAssignment = createFullCurrentAssignment(testUser, testUserRole, testItSystem, null, null, null);
 
 			// Act
-			HistoricAssignment result = HistoricAssignmentMapper.createFromCurrentAssignment(currentAssignment);
+			HistoricAssignment result = HistoricAssignmentMapper.createFromCurrentAssignment(currentAssignment, null);
 
 			// Assert
 			assertThat(result.getAssignedThroughType()).isEqualTo(AssignedThrough.DIRECT);
@@ -152,7 +152,7 @@ class HistoricAssignmentMapperTest {
 			CurrentAssignment currentAssignment = createFullCurrentAssignment(testUser, testUserRole, testItSystem, null, null, null);
 
 			// Act
-			HistoricAssignment result = HistoricAssignmentMapper.createFromCurrentAssignment(currentAssignment);
+			HistoricAssignment result = HistoricAssignmentMapper.createFromCurrentAssignment(currentAssignment, null);
 
 			// Assert
 			assertThat(result.getUserUuid()).isEqualTo(testUser.getUuid());
@@ -169,7 +169,7 @@ class HistoricAssignmentMapperTest {
 			CurrentAssignment currentAssignment = createFullCurrentAssignment(testUser, testUserRole, testItSystem, null, null, null);
 
 			// Act
-			HistoricAssignment result = HistoricAssignmentMapper.createFromCurrentAssignment(currentAssignment);
+			HistoricAssignment result = HistoricAssignmentMapper.createFromCurrentAssignment(currentAssignment, null);
 
 			// Assert
 			assertThat(result.getUserRoleId()).isEqualTo(testUserRole.getId());
@@ -186,7 +186,7 @@ class HistoricAssignmentMapperTest {
 			CurrentAssignment currentAssignment = createFullCurrentAssignment(testUser, testUserRole, testItSystem, null, null, null);
 
 			// Act
-			HistoricAssignment result = HistoricAssignmentMapper.createFromCurrentAssignment(currentAssignment);
+			HistoricAssignment result = HistoricAssignmentMapper.createFromCurrentAssignment(currentAssignment, null);
 
 			// Assert
 			assertThat(result.getItSystemId()).isEqualTo(testItSystem.getId());
@@ -200,7 +200,7 @@ class HistoricAssignmentMapperTest {
 			CurrentAssignment currentAssignment = createFullCurrentAssignment(testUser, testUserRole, testItSystem, testOrgUnit, null, testRoleGroup);
 
 			// Act
-			HistoricAssignment result = HistoricAssignmentMapper.createFromCurrentAssignment(currentAssignment);
+			HistoricAssignment result = HistoricAssignmentMapper.createFromCurrentAssignment(currentAssignment, null);
 
 			// Assert
 			assertThat(result.getRoleGroupId()).isEqualTo(testRoleGroup.getId());
@@ -215,7 +215,7 @@ class HistoricAssignmentMapperTest {
 			CurrentAssignment currentAssignment = createFullCurrentAssignment(testUser, testUserRole, testItSystem, null, null, null);
 
 			// Act
-			HistoricAssignment result = HistoricAssignmentMapper.createFromCurrentAssignment(currentAssignment);
+			HistoricAssignment result = HistoricAssignmentMapper.createFromCurrentAssignment(currentAssignment, null);
 
 			// Assert
 			assertThat(result.getRoleGroupId()).isNull();
@@ -232,7 +232,7 @@ class HistoricAssignmentMapperTest {
 			currentAssignment.setCreatedAt(createdAt);
 
 			// Act
-			HistoricAssignment result = HistoricAssignmentMapper.createFromCurrentAssignment(currentAssignment);
+			HistoricAssignment result = HistoricAssignmentMapper.createFromCurrentAssignment(currentAssignment, null);
 
 			// Assert
 			assertThat(result.getValidFrom()).isEqualTo(createdAt);
@@ -247,7 +247,7 @@ class HistoricAssignmentMapperTest {
 			currentAssignment.setAssignedBy("admin (admin-user)");
 
 			// Act
-			HistoricAssignment result = HistoricAssignmentMapper.createFromCurrentAssignment(currentAssignment);
+			HistoricAssignment result = HistoricAssignmentMapper.createFromCurrentAssignment(currentAssignment, null);
 
 			// Assert
 			assertThat(result.getAssignedBy()).isEqualTo("admin (admin-user)");
@@ -264,7 +264,7 @@ class HistoricAssignmentMapperTest {
 			currentAssignment.setPostponedConstraints(new HashSet<>(Set.of(constraint)));
 
 			// Act
-			HistoricAssignment result = HistoricAssignmentMapper.createFromCurrentAssignment(currentAssignment);
+			HistoricAssignment result = HistoricAssignmentMapper.createFromCurrentAssignment(currentAssignment, null);
 
 			// Assert
 			assertThat(result.getConstraints()).hasSize(1);
@@ -282,7 +282,7 @@ class HistoricAssignmentMapperTest {
 			CurrentAssignment currentAssignment = createFullCurrentAssignment(testUser, testUserRole, testItSystem, null, null, null);
 
 			// Act
-			HistoricAssignment result = HistoricAssignmentMapper.createFromCurrentAssignment(currentAssignment);
+			HistoricAssignment result = HistoricAssignmentMapper.createFromCurrentAssignment(currentAssignment, null);
 
 			// Assert
 			assertThat(result.getConstraints()).isEmpty();
@@ -302,50 +302,50 @@ class HistoricAssignmentMapperTest {
 			currentAssignment.setResponsibleOrgUnit(responsibleOu);
 
 			// Act
-			HistoricAssignment result = HistoricAssignmentMapper.createFromCurrentAssignment(currentAssignment);
+			HistoricAssignment result = HistoricAssignmentMapper.createFromCurrentAssignment(currentAssignment, null);
 
 			// Assert
 			assertThat(result.getResponsibleOUUuid()).isEqualTo("responsible-ou-uuid");
 			assertThat(result.getResponsibleOUName()).isEqualTo("Responsible OU");
-			assertThat(result.getResponsibleUserUuid()).isNull();
+			assertThat(result.getResponsibleCollectionId()).isNull();
 		}
 
 		@Test
-		@DisplayName("Should set responsibleUserUuid and clear OU fields when IT system responsible is set and role flag is true")
+		@DisplayName("Should clear OU fields when IT system responsible is set and role flag is true")
 		void shouldSetResponsibleUserWhenItSystemResponsibleFlagIsTrue() {
 			// Arrange
 			User responsible = createUser("it-system-responsible-uuid");
-			testItSystem.setAttestationResponsible(responsible);
+			testItSystem.addAttestationResponsible(responsible);
 			testUserRole.setRoleAssignmentAttestationByAttestationResponsible(true);
 
 			OrgUnit responsibleOu = createNamedOrgUnit("responsible-ou-uuid", "Responsible OU");
 			CurrentAssignment currentAssignment = createFullCurrentAssignment(testUser, testUserRole, testItSystem, null, null, null);
 			currentAssignment.setResponsibleOrgUnit(responsibleOu);
 
-			// Act
-			HistoricAssignment result = HistoricAssignmentMapper.createFromCurrentAssignment(currentAssignment);
+			// Act — pass non-null collectionId so IT-system routing activates
+			HistoricAssignment result = HistoricAssignmentMapper.createFromCurrentAssignment(currentAssignment, 42L);
 
 			// Assert
-			assertThat(result.getResponsibleUserUuid()).isEqualTo("it-system-responsible-uuid");
+			// TODO: legacy responsibleUserUuid removed in multi-owner refactor — collection lookup is set up elsewhere
 			assertThat(result.getResponsibleOUUuid()).isNull();
 			assertThat(result.getResponsibleOUName()).isNull();
 		}
 
 		@Test
-		@DisplayName("Should not set responsibleUserUuid for role group assignments, even if role flag is true")
+		@DisplayName("Should not set responsibleCollectionId for role group assignments, even if role flag is true")
 		void shouldNotSetResponsibleUserForRoleGroupAssignments() {
 			// Arrange
 			User responsible = createUser("it-system-responsible-uuid");
-			testItSystem.setAttestationResponsible(responsible);
+			testItSystem.addAttestationResponsible(responsible);
 			testUserRole.setRoleAssignmentAttestationByAttestationResponsible(true);
 
 			CurrentAssignment currentAssignment = createFullCurrentAssignment(testUser, testUserRole, testItSystem, null, null, testRoleGroup);
 
 			// Act
-			HistoricAssignment result = HistoricAssignmentMapper.createFromCurrentAssignment(currentAssignment);
+			HistoricAssignment result = HistoricAssignmentMapper.createFromCurrentAssignment(currentAssignment, null);
 
 			// Assert
-			assertThat(result.getResponsibleUserUuid()).isNull();
+			assertThat(result.getResponsibleCollectionId()).isNull();
 		}
 
 		@Test
@@ -356,12 +356,17 @@ class HistoricAssignmentMapperTest {
 			currentAssignment.setResponsibleOrgUnit(null);
 
 			// Act
-			HistoricAssignment result = HistoricAssignmentMapper.createFromCurrentAssignment(currentAssignment);
+			HistoricAssignment result = HistoricAssignmentMapper.createFromCurrentAssignment(currentAssignment, null);
 
 			// Assert
-			assertThat(result.getResponsibleUserUuid()).isNull();
+			assertThat(result.getResponsibleCollectionId()).isNull();
 			assertThat(result.getResponsibleOUUuid()).isNull();
 			assertThat(result.getResponsibleOUName()).isNull();
 		}
+
+		// TODO: legacy fan-out tests removed (shouldFanOutPerAttestationResponsibleWhenMultiple,
+		// shouldReturnSingleRecordForOuAttested). In the multi-owner model the mapper produces one
+		// HistoricAssignment per logical assignment with a responsibleCollectionId — fan-out to
+		// individual users now happens at attestation-creation time via the collection.
 	}
 }

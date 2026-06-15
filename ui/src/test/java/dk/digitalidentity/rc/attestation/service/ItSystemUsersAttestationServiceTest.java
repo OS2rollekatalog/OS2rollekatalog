@@ -2,11 +2,13 @@ package dk.digitalidentity.rc.attestation.service;
 
 import dk.digitalidentity.rc.attestation.dao.AttestationDao;
 import dk.digitalidentity.rc.attestation.dao.AttestationOuAssignmentsDao;
+import dk.digitalidentity.rc.attestation.dao.AttestationResponsibleCollectionDao;
 import dk.digitalidentity.rc.attestation.dao.AttestationUserRoleAssignmentDao;
 import dk.digitalidentity.rc.attestation.dao.ItSystemOrganisationAttestationEntryDao;
 import dk.digitalidentity.rc.attestation.dao.ItSystemUserAttestationEntryDao;
 import dk.digitalidentity.rc.attestation.model.dto.RoleAssignmentDTO;
 import dk.digitalidentity.rc.attestation.model.entity.Attestation;
+import dk.digitalidentity.rc.attestation.model.entity.AttestationResponsibleCollection;
 import dk.digitalidentity.rc.attestation.model.entity.ItSystemOrganisationAttestationEntry;
 import dk.digitalidentity.rc.attestation.model.entity.ItSystemUserAttestationEntry;
 import dk.digitalidentity.rc.dao.FunctionDao;
@@ -45,6 +47,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -75,6 +78,9 @@ class ItSystemUsersAttestationServiceTest {
 	private AttestationDao attestationDao;
 
 	@Mock
+	private AttestationResponsibleCollectionDao attestationResponsibleCollectionDao;
+
+	@Mock
 	private AttestationCachedUserService attestationUserService;
 
 	@Mock
@@ -101,7 +107,8 @@ class ItSystemUsersAttestationServiceTest {
 	@BeforeEach
 	void setUp() {
 		performingUser = createUser(PERFORMER_USER_UUID, PERFORMER_USER_ID, "Performer User");
-		itSystem = createItSystem(IT_SYSTEM_ID, "Test IT System", performingUser);
+		itSystem = createItSystem(IT_SYSTEM_ID, "Test IT System");
+		lenient().when(itSystemService.getAttestationResponsibleUserIds(itSystem)).thenReturn(List.of(PERFORMER_USER_ID));
 	}
 
 	@Nested
@@ -112,17 +119,19 @@ class ItSystemUsersAttestationServiceTest {
 		@DisplayName("Should verify user and save attestation entry")
 		void verifyUser_ShouldSaveAttestationEntry() {
 			// Arrange
-			Attestation attestation = createItSystemAttestation(1L, "attestation-uuid", IT_SYSTEM_ID, "Test System", PERFORMER_USER_UUID);
+			Attestation attestation = createItSystemAttestation(1L, "attestation-uuid", IT_SYSTEM_ID, "Test System", 1L);
 			when(itSystemService.getById(IT_SYSTEM_ID)).thenReturn(itSystem);
-			when(attestationDao.findFirstByAttestationTypeAndItSystemIdOrderByDeadlineDesc(
-					Attestation.AttestationType.IT_SYSTEM_ATTESTATION, IT_SYSTEM_ID))
+			AttestationResponsibleCollection collection = new AttestationResponsibleCollection(1L, IT_SYSTEM_ID, List.of(PERFORMER_USER_UUID));
+			when(attestationResponsibleCollectionDao.findFirstByItSystemId(IT_SYSTEM_ID)).thenReturn(Optional.of(collection));
+			when(attestationDao.findFirstByAttestationTypeAndItSystemIdAndResponsibleCollectionIdOrderByDeadlineDesc(
+					Attestation.AttestationType.IT_SYSTEM_ATTESTATION, IT_SYSTEM_ID, 1L))
 					.thenReturn(Optional.of(attestation));
 			when(userService.getByUserId(PERFORMER_USER_ID)).thenReturn(performingUser);
 			when(itSystemUserAttestationEntryDao.save(any(ItSystemUserAttestationEntry.class)))
 					.thenAnswer(invocation -> invocation.getArgument(0));
-			when(attestationUserRoleAssignmentDao.listValidAssignmentsByResponsibleUserUuid(any(), any()))
+			when(attestationUserRoleAssignmentDao.listValidAssignmentsByResponsibleCollectionIdIn(any(), any()))
 					.thenReturn(Collections.emptyList());
-			when(attestationOuAssignmentsDao.listValidNotInheritedAssignmentsWithResponsibleUser(any(), any()))
+			when(attestationOuAssignmentsDao.listValidNotInheritedAssignmentsWithResponsibleCollectionIdIn(any(), any()))
 					.thenReturn(Collections.emptyList());
 
 			// Act
@@ -153,9 +162,8 @@ class ItSystemUsersAttestationServiceTest {
 		@DisplayName("Should throw exception when user is not the attestation responsible")
 		void verifyUser_WhenNotAttestationResponsible_ShouldThrowException() {
 			// Arrange
-			User differentUser = createUser("different-uuid", "different-user-id", "Different User");
-			itSystem.setAttestationResponsible(differentUser);
 			when(itSystemService.getById(IT_SYSTEM_ID)).thenReturn(itSystem);
+			when(itSystemService.getAttestationResponsibleUserIds(itSystem)).thenReturn(List.of("different-user-id"));
 
 			// Act & Assert
 			assertThrows(ResponseStatusException.class,
@@ -171,22 +179,24 @@ class ItSystemUsersAttestationServiceTest {
 		@DisplayName("Should reject user and save attestation entry with remarks")
 		void rejectUser_ShouldSaveAttestationEntryWithRemarks() {
 			// Arrange
-			Attestation attestation = createItSystemAttestation(1L, "attestation-uuid", IT_SYSTEM_ID, "Test System", PERFORMER_USER_UUID);
+			Attestation attestation = createItSystemAttestation(1L, "attestation-uuid", IT_SYSTEM_ID, "Test System", 1L);
 			String remarks = "Test remarks";
 			List<RoleAssignmentDTO> notApproved = createMixedRoleAssignments();
 			User targetUser = createUser(USER_UUID, "target-user-id", "Target User");
 
 			when(itSystemService.getById(IT_SYSTEM_ID)).thenReturn(itSystem);
-			when(attestationDao.findFirstByAttestationTypeAndItSystemIdOrderByDeadlineDesc(
-					Attestation.AttestationType.IT_SYSTEM_ATTESTATION, IT_SYSTEM_ID))
+			AttestationResponsibleCollection collection = new AttestationResponsibleCollection(1L, IT_SYSTEM_ID, List.of(PERFORMER_USER_UUID));
+			when(attestationResponsibleCollectionDao.findFirstByItSystemId(IT_SYSTEM_ID)).thenReturn(Optional.of(collection));
+			when(attestationDao.findFirstByAttestationTypeAndItSystemIdAndResponsibleCollectionIdOrderByDeadlineDesc(
+					Attestation.AttestationType.IT_SYSTEM_ATTESTATION, IT_SYSTEM_ID, 1L))
 					.thenReturn(Optional.of(attestation));
 			when(userService.getByUserId(PERFORMER_USER_ID)).thenReturn(performingUser);
 			when(userService.getByUuid(USER_UUID)).thenReturn(targetUser);
 			when(itSystemUserAttestationEntryDao.save(any(ItSystemUserAttestationEntry.class)))
 					.thenAnswer(invocation -> invocation.getArgument(0));
-			when(attestationUserRoleAssignmentDao.listValidAssignmentsByResponsibleUserUuid(any(), any()))
+			when(attestationUserRoleAssignmentDao.listValidAssignmentsByResponsibleCollectionIdIn(any(), any()))
 					.thenReturn(Collections.emptyList());
-			when(attestationOuAssignmentsDao.listValidNotInheritedAssignmentsWithResponsibleUser(any(), any()))
+			when(attestationOuAssignmentsDao.listValidNotInheritedAssignmentsWithResponsibleCollectionIdIn(any(), any()))
 					.thenReturn(Collections.emptyList());
 
 			// Act
@@ -206,22 +216,24 @@ class ItSystemUsersAttestationServiceTest {
 		@DisplayName("Should send notification email when user is rejected")
 		void rejectUser_ShouldSendNotificationEmail() {
 			// Arrange
-			Attestation attestation = createItSystemAttestation(1L, "attestation-uuid", IT_SYSTEM_ID, "Test System", PERFORMER_USER_UUID);
+			Attestation attestation = createItSystemAttestation(1L, "attestation-uuid", IT_SYSTEM_ID, "Test System", 1L);
 			String remarks = "Test remarks";
 			List<RoleAssignmentDTO> notApproved = createMixedRoleAssignments();
 			User targetUser = createUser(USER_UUID, "target-user-id", "Target User");
 
 			when(itSystemService.getById(IT_SYSTEM_ID)).thenReturn(itSystem);
-			when(attestationDao.findFirstByAttestationTypeAndItSystemIdOrderByDeadlineDesc(
-					Attestation.AttestationType.IT_SYSTEM_ATTESTATION, IT_SYSTEM_ID))
+			AttestationResponsibleCollection collection = new AttestationResponsibleCollection(1L, IT_SYSTEM_ID, List.of(PERFORMER_USER_UUID));
+			when(attestationResponsibleCollectionDao.findFirstByItSystemId(IT_SYSTEM_ID)).thenReturn(Optional.of(collection));
+			when(attestationDao.findFirstByAttestationTypeAndItSystemIdAndResponsibleCollectionIdOrderByDeadlineDesc(
+					Attestation.AttestationType.IT_SYSTEM_ATTESTATION, IT_SYSTEM_ID, 1L))
 					.thenReturn(Optional.of(attestation));
 			when(userService.getByUserId(PERFORMER_USER_ID)).thenReturn(performingUser);
 			when(userService.getByUuid(USER_UUID)).thenReturn(targetUser);
 			when(itSystemUserAttestationEntryDao.save(any(ItSystemUserAttestationEntry.class)))
 					.thenAnswer(invocation -> invocation.getArgument(0));
-			when(attestationUserRoleAssignmentDao.listValidAssignmentsByResponsibleUserUuid(any(), any()))
+			when(attestationUserRoleAssignmentDao.listValidAssignmentsByResponsibleCollectionIdIn(any(), any()))
 					.thenReturn(Collections.emptyList());
-			when(attestationOuAssignmentsDao.listValidNotInheritedAssignmentsWithResponsibleUser(any(), any()))
+			when(attestationOuAssignmentsDao.listValidNotInheritedAssignmentsWithResponsibleCollectionIdIn(any(), any()))
 					.thenReturn(Collections.emptyList());
 
 			// Act
@@ -239,20 +251,22 @@ class ItSystemUsersAttestationServiceTest {
 		@DisplayName("Should not send notification when target user not found")
 		void rejectUser_WhenTargetUserNotFound_ShouldNotSendNotification() {
 			// Arrange
-			Attestation attestation = createItSystemAttestation(1L, "attestation-uuid", IT_SYSTEM_ID, "Test System", PERFORMER_USER_UUID);
+			Attestation attestation = createItSystemAttestation(1L, "attestation-uuid", IT_SYSTEM_ID, "Test System", 1L);
 			String remarks = "Test remarks";
 
 			when(itSystemService.getById(IT_SYSTEM_ID)).thenReturn(itSystem);
-			when(attestationDao.findFirstByAttestationTypeAndItSystemIdOrderByDeadlineDesc(
-					Attestation.AttestationType.IT_SYSTEM_ATTESTATION, IT_SYSTEM_ID))
+			AttestationResponsibleCollection collection = new AttestationResponsibleCollection(1L, IT_SYSTEM_ID, List.of(PERFORMER_USER_UUID));
+			when(attestationResponsibleCollectionDao.findFirstByItSystemId(IT_SYSTEM_ID)).thenReturn(Optional.of(collection));
+			when(attestationDao.findFirstByAttestationTypeAndItSystemIdAndResponsibleCollectionIdOrderByDeadlineDesc(
+					Attestation.AttestationType.IT_SYSTEM_ATTESTATION, IT_SYSTEM_ID, 1L))
 					.thenReturn(Optional.of(attestation));
 			when(userService.getByUserId(PERFORMER_USER_ID)).thenReturn(performingUser);
 			when(userService.getByUuid(USER_UUID)).thenReturn(null);
 			when(itSystemUserAttestationEntryDao.save(any(ItSystemUserAttestationEntry.class)))
 					.thenAnswer(invocation -> invocation.getArgument(0));
-			when(attestationUserRoleAssignmentDao.listValidAssignmentsByResponsibleUserUuid(any(), any()))
+			when(attestationUserRoleAssignmentDao.listValidAssignmentsByResponsibleCollectionIdIn(any(), any()))
 					.thenReturn(Collections.emptyList());
-			when(attestationOuAssignmentsDao.listValidNotInheritedAssignmentsWithResponsibleUser(any(), any()))
+			when(attestationOuAssignmentsDao.listValidNotInheritedAssignmentsWithResponsibleCollectionIdIn(any(), any()))
 					.thenReturn(Collections.emptyList());
 
 			// Act
@@ -271,17 +285,19 @@ class ItSystemUsersAttestationServiceTest {
 		@DisplayName("Should verify OU and save attestation entry")
 		void verifyOu_ShouldSaveAttestationEntry() {
 			// Arrange
-			Attestation attestation = createItSystemAttestation(1L, "attestation-uuid", IT_SYSTEM_ID, "Test System", PERFORMER_USER_UUID);
+			Attestation attestation = createItSystemAttestation(1L, "attestation-uuid", IT_SYSTEM_ID, "Test System", 1L);
 			when(itSystemService.getById(IT_SYSTEM_ID)).thenReturn(itSystem);
-			when(attestationDao.findFirstByAttestationTypeAndItSystemIdOrderByDeadlineDesc(
-					Attestation.AttestationType.IT_SYSTEM_ATTESTATION, IT_SYSTEM_ID))
+			AttestationResponsibleCollection collection = new AttestationResponsibleCollection(1L, IT_SYSTEM_ID, List.of(PERFORMER_USER_UUID));
+			when(attestationResponsibleCollectionDao.findFirstByItSystemId(IT_SYSTEM_ID)).thenReturn(Optional.of(collection));
+			when(attestationDao.findFirstByAttestationTypeAndItSystemIdAndResponsibleCollectionIdOrderByDeadlineDesc(
+					Attestation.AttestationType.IT_SYSTEM_ATTESTATION, IT_SYSTEM_ID, 1L))
 					.thenReturn(Optional.of(attestation));
 			when(userService.getByUserId(PERFORMER_USER_ID)).thenReturn(performingUser);
 			when(itSystemOrganisationAttestationEntryDao.save(any(ItSystemOrganisationAttestationEntry.class)))
 					.thenAnswer(invocation -> invocation.getArgument(0));
-			when(attestationUserRoleAssignmentDao.listValidAssignmentsByResponsibleUserUuid(any(), any()))
+			when(attestationUserRoleAssignmentDao.listValidAssignmentsByResponsibleCollectionIdIn(any(), any()))
 					.thenReturn(Collections.emptyList());
-			when(attestationOuAssignmentsDao.listValidNotInheritedAssignmentsWithResponsibleUser(any(), any()))
+			when(attestationOuAssignmentsDao.listValidNotInheritedAssignmentsWithResponsibleCollectionIdIn(any(), any()))
 					.thenReturn(Collections.emptyList());
 
 			// Act
@@ -317,20 +333,22 @@ class ItSystemUsersAttestationServiceTest {
 		@DisplayName("Should reject OU and save attestation entry with remarks")
 		void rejectOu_ShouldSaveAttestationEntryWithRemarks() {
 			// Arrange
-			Attestation attestation = createItSystemAttestation(1L, "attestation-uuid", IT_SYSTEM_ID, "Test System", PERFORMER_USER_UUID);
+			Attestation attestation = createItSystemAttestation(1L, "attestation-uuid", IT_SYSTEM_ID, "Test System", 1L);
 			String remarks = "Test remarks";
 
 			when(itSystemService.getById(IT_SYSTEM_ID)).thenReturn(itSystem);
-			when(attestationDao.findFirstByAttestationTypeAndItSystemIdOrderByDeadlineDesc(
-					Attestation.AttestationType.IT_SYSTEM_ATTESTATION, IT_SYSTEM_ID))
+			AttestationResponsibleCollection collection = new AttestationResponsibleCollection(1L, IT_SYSTEM_ID, List.of(PERFORMER_USER_UUID));
+			when(attestationResponsibleCollectionDao.findFirstByItSystemId(IT_SYSTEM_ID)).thenReturn(Optional.of(collection));
+			when(attestationDao.findFirstByAttestationTypeAndItSystemIdAndResponsibleCollectionIdOrderByDeadlineDesc(
+					Attestation.AttestationType.IT_SYSTEM_ATTESTATION, IT_SYSTEM_ID, 1L))
 					.thenReturn(Optional.of(attestation));
 			when(userService.getByUserId(PERFORMER_USER_ID)).thenReturn(performingUser);
 			when(userService.getByUuid(PERFORMER_USER_ID)).thenReturn(performingUser);
 			when(itSystemOrganisationAttestationEntryDao.save(any(ItSystemOrganisationAttestationEntry.class)))
 					.thenAnswer(invocation -> invocation.getArgument(0));
-			when(attestationUserRoleAssignmentDao.listValidAssignmentsByResponsibleUserUuid(any(), any()))
+			when(attestationUserRoleAssignmentDao.listValidAssignmentsByResponsibleCollectionIdIn(any(), any()))
 					.thenReturn(Collections.emptyList());
-			when(attestationOuAssignmentsDao.listValidNotInheritedAssignmentsWithResponsibleUser(any(), any()))
+			when(attestationOuAssignmentsDao.listValidNotInheritedAssignmentsWithResponsibleCollectionIdIn(any(), any()))
 					.thenReturn(Collections.emptyList());
 
 			// Act

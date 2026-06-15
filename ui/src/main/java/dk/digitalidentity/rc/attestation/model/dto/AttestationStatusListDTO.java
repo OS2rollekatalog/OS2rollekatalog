@@ -20,7 +20,7 @@ public class AttestationStatusListDTO {
     private String name;
     private User manager;
     private List<User> substitutes;
-    private User responsibleUser;
+    private List<User> responsibleUsers;
     private String path;
     private AdminAttestationStatus status;
 }

@@ -3,6 +3,7 @@ package dk.digitalidentity.rc.rolerequest.service;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -19,6 +20,7 @@ import dk.digitalidentity.rc.dao.model.AuthorizationManager;
 import dk.digitalidentity.rc.dao.model.EmailTemplate;
 import dk.digitalidentity.rc.dao.model.ItSystem;
 import dk.digitalidentity.rc.dao.model.OrgUnit;
+import dk.digitalidentity.rc.dao.model.RoleGroupUserRoleAssignment;
 import dk.digitalidentity.rc.dao.model.SystemRole;
 import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserRole;
@@ -55,6 +57,7 @@ public class RequestNotifierService {
 	private final ItSystemService itSystemService;
 	private final RequestAuthorizedRoleService requestAuthorizedRoleService;
 	private final AssignmentService assignmentService;
+	private final RequestApproverResolver requestApproverResolver;
 
 	@Transactional
 	public void sendMailToRoleAssignerOnce() {
@@ -144,7 +147,13 @@ public class RequestNotifierService {
 		return requestsByApprovers;
 	}
 
-	public boolean notifyReceiverOnRequestApproval(User receiver, RequestAction action, String roleName, boolean isITSystemManual, LocalDate startDate, LocalDate endDate, String reason) {
+	public boolean notifyReceiverOnRequestApproval(RoleRequest request, String roleName, boolean isITSystemManual, String itSystemName, String requestAuthority) {
+		User receiver = request.getReceiver();
+		String reason = request.getReason();
+		RequestAction action = request.getRequestAction();
+		LocalDate startDate = request.getStartDate();
+		LocalDate endDate = request.getEndDate();
+
 		if (receiver.getEmail() == null) {
 			return false;
 		}
@@ -155,114 +164,129 @@ public class RequestNotifierService {
 			template = emailTemplateService.findByTemplateType(EmailTemplateType.APPROVED_MANUAL_ROLE_REQUEST_USER);
 		}
 
-		if (template.isEnabled()) {
-			DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("dd/MM/yyyy");
-			String title = template.getTitle();
-			title = title.replace(EmailTemplatePlaceholder.RECEIVER_PLACEHOLDER.getPlaceholder(), receiver.getName());
-			title = title.replace(EmailTemplatePlaceholder.ROLE_NAME.getPlaceholder(), roleName);
-			title = title.replace(EmailTemplatePlaceholder.REQUEST_REASON.getPlaceholder(), reason);
-			String message = template.getMessage();
-			message = message.replace(EmailTemplatePlaceholder.RECEIVER_PLACEHOLDER.getPlaceholder(), receiver.getName());
-			message = message.replace(EmailTemplatePlaceholder.ROLE_NAME.getPlaceholder(), roleName);
-			message = message.replace(EmailTemplatePlaceholder.START_DATE.getPlaceholder(),
-				startDate != null ? startDate.format(dateFormatter) : LocalDate.now().format(dateFormatter));
-			message = message.replace(EmailTemplatePlaceholder.STOP_DATE.getPlaceholder(),
-				endDate != null ? endDate.format(dateFormatter) : "ubegrænset");
-			message = message.replace(EmailTemplatePlaceholder.REQUEST_REASON.getPlaceholder(), reason);
-			emailQueueService.queueEmail(receiver.getEmail(), title, message, template, null, null);
-		} else {
+		if (!template.isEnabled()) {
 			log.info("Email template with type " + template.getTemplateType() + " is disabled. Email was not sent.");
 			return false;
 		}
+		DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+		EnumMap<EmailTemplatePlaceholder, String> placeholderData = new EnumMap<>(EmailTemplatePlaceholder.class);
+		placeholderData.put(EmailTemplatePlaceholder.RECEIVER_PLACEHOLDER, receiver.getName());
+		placeholderData.put(EmailTemplatePlaceholder.ROLE_NAME, roleName);
+		placeholderData.put(EmailTemplatePlaceholder.REQUEST_REASON, reason);
+		placeholderData.put(EmailTemplatePlaceholder.ITSYSTEM_PLACEHOLDER, itSystemName);
+		placeholderData.put(EmailTemplatePlaceholder.START_DATE,
+			startDate != null ? startDate.format(dateFormatter) : LocalDate.now().format(dateFormatter));
+		placeholderData.put(EmailTemplatePlaceholder.STOP_DATE,
+			endDate != null ? endDate.format(dateFormatter) : "ubegrænset");
+		placeholderData.put(EmailTemplatePlaceholder.REQUESTER_TYPE_PLACEHOLDER, requestAuthority);
+
+		String title = applyReplacers(template.getTitle(), placeholderData);
+		String message = applyReplacers(template.getMessage(), placeholderData);
+
+		emailQueueService.queueEmail(receiver.getEmail(), title, message, template, null, null);
+
 		return true;
 
 	}
 
-	public boolean notifyManagerOnRequestapproval(RoleRequest request, boolean isITSystemManual, String roleName, String reason) {
+	public boolean notifyManagerOnRequestapproval(RoleRequest request, boolean isITSystemManual, String roleName, String reason, String requesterAuthority) {
 		// notifying manager and authorizationManager
 		OrgUnit orgUnit = request.getOrgUnit();
 		EmailTemplate template = emailTemplateService.findByTemplateType(EmailTemplateType.APPROVED_ROLE_REQUEST_MANAGER);
 		if (isITSystemManual) {
 			template = emailTemplateService.findByTemplateType(EmailTemplateType.APPROVED_MANUAL_ROLE_REQUEST_MANAGER);
 		}
-		return notify(request, orgUnit, template, roleName, reason);
+		return notify(request, orgUnit, template, roleName, reason, requesterAuthority);
 	}
 
-	public void notifyManagerOnRejectedRequest(final RoleRequest request, final OrgUnit orgUnit, final String roleName, String reason) {
+	public void notifyManagerOnRejectedRequest(final RoleRequest request, final OrgUnit orgUnit, final String roleName, String reason, String requesterAuthority) {
 		final EmailTemplate template = emailTemplateService.findByTemplateType(EmailTemplateType.REJECTED_ROLE_REQUEST_MANAGER);
-		notify(request, orgUnit, template, roleName, reason);
+		notify(request, orgUnit, template, roleName, reason, requesterAuthority);
 	}
 
-	private boolean notify(RoleRequest request, OrgUnit orgUnit, EmailTemplate template, String roleName, String reason) {
+	private boolean notify(RoleRequest request, OrgUnit orgUnit, EmailTemplate template, String roleName, String reason, String requesterAuthority) {
 		if (!template.isEnabled()) {
+			log.info("Email template with type " + template.getTemplateType() + " is disabled. Email was not sent.");
 			return false;
 		}
 		if (orgUnit == null) {
 			return false;
 		}
 		final String action = request.getRequestAction() == RequestAction.ADD ? "tildelt" : "fjernet";
+
+		// Construct data for generally relevant placeholders
+		EnumMap<EmailTemplatePlaceholder, String> placeholderData = new EnumMap<>(EmailTemplatePlaceholder.class);
+		placeholderData.put(EmailTemplatePlaceholder.ROLE_NAME,
+			roleName);
+		placeholderData.put(EmailTemplatePlaceholder.USER_PLACEHOLDER,
+			request.getReceiver().getName());
+		placeholderData.put(EmailTemplatePlaceholder.REQUESTER_PLACEHOLDER,
+			request.getRequester().getName());
+		placeholderData.put(EmailTemplatePlaceholder.REQUEST_OPERATION_PLACEHOLDER,
+			action);
+		placeholderData.put(EmailTemplatePlaceholder.REQUEST_REASON,
+			reason != null ? reason : "");
+		placeholderData.put(EmailTemplatePlaceholder.ITSYSTEM_PLACEHOLDER,
+			request.getUserRole() != null && request.getUserRole().getItSystem() != null ? request.getUserRole().getItSystem().getName() : "");
+		placeholderData.put(EmailTemplatePlaceholder.REQUESTER_TYPE_PLACEHOLDER,
+			requesterAuthority);
+
+		// Send to manager
 		User manager = orgUnit.getManager();
+		sendMailToManager(manager, placeholderData, template);
+
+		// Send to Auth managers
 		List<AuthorizationManager> authorizationManagers = orgUnit.getAuthorizationManagers();
-
-		if (manager != null) {
-			if (StringUtils.hasLength(manager.getEmail())) {
-				String title = template.getTitle();
-				title = title.replace(EmailTemplatePlaceholder.RECEIVER_PLACEHOLDER.getPlaceholder(), manager.getName());
-				title = title.replace(EmailTemplatePlaceholder.ROLE_NAME.getPlaceholder(), roleName);
-				title = title.replace(EmailTemplatePlaceholder.USER_PLACEHOLDER.getPlaceholder(), request.getReceiver().getName());
-				title = title.replace(EmailTemplatePlaceholder.REQUESTER_PLACEHOLDER.getPlaceholder(), request.getRequester().getName());
-				title = title.replace(EmailTemplatePlaceholder.REQUEST_OPERATION_PLACEHOLDER.getPlaceholder(), action);
-				title = title.replace(EmailTemplatePlaceholder.REQUEST_REASON.getPlaceholder(), (reason != null) ? reason : "");
-
-				String message = template.getMessage();
-				message = message.replace(EmailTemplatePlaceholder.RECEIVER_PLACEHOLDER.getPlaceholder(), manager.getName());
-				message = message.replace(EmailTemplatePlaceholder.ROLE_NAME.getPlaceholder(), roleName);
-				message = message.replace(EmailTemplatePlaceholder.USER_PLACEHOLDER.getPlaceholder(), request.getReceiver().getName());
-				message = message.replace(EmailTemplatePlaceholder.REQUESTER_PLACEHOLDER.getPlaceholder(), request.getRequester().getName());
-				message = message.replace(EmailTemplatePlaceholder.REQUEST_OPERATION_PLACEHOLDER.getPlaceholder(), action);
-				title = title.replace(EmailTemplatePlaceholder.REQUEST_REASON.getPlaceholder(), (reason != null) ? reason : "");
-
-				emailQueueService.queueEmail(manager.getEmail(), title, message, template, null, null);
-			}
-		}
-
 		if (authorizationManagers != null && !authorizationManagers.isEmpty()) {
 			for (AuthorizationManager am : authorizationManagers) {
-				User authorizationManager = am.getUser();
-				if (authorizationManager == null || authorizationManager.isDeleted()) {
-					continue;
-				}
-
-				if (StringUtils.hasLength(authorizationManager.getEmail())) {
-					String title = template.getTitle();
-					title = title.replace(EmailTemplatePlaceholder.RECEIVER_PLACEHOLDER.getPlaceholder(), authorizationManager.getName());
-					title = title.replace(EmailTemplatePlaceholder.ROLE_NAME.getPlaceholder(), roleName);
-					title = title.replace(EmailTemplatePlaceholder.USER_PLACEHOLDER.getPlaceholder(), request.getReceiver().getName());
-					title = title.replace(EmailTemplatePlaceholder.REQUESTER_PLACEHOLDER.getPlaceholder(), request.getRequester().getName());
-					title = title.replace(EmailTemplatePlaceholder.REQUEST_OPERATION_PLACEHOLDER.getPlaceholder(), action);
-					title = title.replace(EmailTemplatePlaceholder.REQUEST_REASON.getPlaceholder(), (reason != null) ? reason : "");
-
-					String message = template.getMessage();
-					message = message.replace(EmailTemplatePlaceholder.RECEIVER_PLACEHOLDER.getPlaceholder(), authorizationManager.getName());
-					message = message.replace(EmailTemplatePlaceholder.ROLE_NAME.getPlaceholder(), roleName);
-					message = message.replace(EmailTemplatePlaceholder.USER_PLACEHOLDER.getPlaceholder(), request.getReceiver().getName());
-					message = message.replace(EmailTemplatePlaceholder.REQUESTER_PLACEHOLDER.getPlaceholder(), request.getRequester().getName());
-					message = message.replace(EmailTemplatePlaceholder.REQUEST_OPERATION_PLACEHOLDER.getPlaceholder(), action);
-					title = title.replace(EmailTemplatePlaceholder.REQUEST_REASON.getPlaceholder(), (reason != null) ? reason : "");
-
-					emailQueueService.queueEmail(authorizationManager.getEmail(), title, message, template, null, null);
-				}
+				sendMailToAuthorizationManager(am.getUser(), placeholderData, template);
 			}
 		}
 
 		return true;
 	}
 
+	private void sendMailToManager(User manager, EnumMap<EmailTemplatePlaceholder, String> placeholderData, EmailTemplate template) {
+		if (manager != null && StringUtils.hasLength(manager.getEmail())) {
+			placeholderData.put(EmailTemplatePlaceholder.RECEIVER_PLACEHOLDER, manager.getName());
+
+			String title = applyReplacers(template.getTitle(), placeholderData);
+			String message = applyReplacers(template.getMessage(), placeholderData);
+			emailQueueService.queueEmail(manager.getEmail(), title, message, template, null, null);
+		}
+	}
+
+	private void sendMailToAuthorizationManager(User authorizationManager, EnumMap<EmailTemplatePlaceholder, String> placeholderData, EmailTemplate template){
+		if (authorizationManager == null || authorizationManager.isDeleted()) {
+			return;
+		}
+
+		if (StringUtils.hasLength(authorizationManager.getEmail())) {
+			placeholderData.put(EmailTemplatePlaceholder.RECEIVER_PLACEHOLDER, authorizationManager.getName());
+
+			String title = applyReplacers(template.getTitle(), placeholderData);
+			String message = applyReplacers(template.getMessage(), placeholderData);
+			emailQueueService.queueEmail(authorizationManager.getEmail(), title, message, template, null, null);
+		}
+	}
+
+	private static String replaceTemplateWith(String original, EmailTemplatePlaceholder template, String value) {
+		return original.replace(template.getPlaceholder(), value);
+	}
+
+	private static String applyReplacers(String original, Map<EmailTemplatePlaceholder, String> replacementData) {
+		String result = original;
+		for (Map.Entry<EmailTemplatePlaceholder, String> entry : replacementData.entrySet()) {
+			result = replaceTemplateWith(result, entry.getKey(), entry.getValue());
+		}
+		return result;
+	}
+
 	private Map<String, String> getEmailsToSendTo(RoleRequest request) {
 		Map<ApprovableBy, String> roleRequestApproverEmails = settingsService.getRoleRequestApproverEmails();
 		Map<String, String> mailsToSendTo = new HashMap<>();
 
-		for (ApprovableBy approvableBy : request.getApproverOption()) {
+		for (ApprovableBy approvableBy : requestApproverResolver.resolveEffectiveOptions(request)) {
 			// First check if there's a global email for THIS specific approver option
 			String emailBySetting = roleRequestApproverEmails.get(approvableBy);
 			if (StringUtils.hasLength(emailBySetting)) {
@@ -272,9 +296,12 @@ public class RequestNotifierService {
 
 			// No global email for this approver option, find specific users
 			switch (approvableBy) {
-				case AUTOMATIC, INHERIT -> {
-					// Here, they are either automatically getting approved or the Servicedesk gets an email
-					log.error("Automatic or inherited approval requests should not be present, request id:{}", request.getId());
+				case AUTOMATIC -> {
+					// Request will be auto-approved, no email needed
+				}
+				case INHERIT -> {
+					// Should not reach here after resolution
+					log.warn("INHERIT not fully resolved for request id:{}", request.getId());
 				}
 				case AUTHRESPONSIBLE -> {
 					OrgUnit orgUnit = request.getOrgUnit();
@@ -290,7 +317,14 @@ public class RequestNotifierService {
 				case MANAGERORSUBSTITUTE -> {
 					OrgUnit orgUnit = request.getOrgUnit();
 					if (orgUnit != null) {
-						mailsToSendTo.putAll(orgUnitService.getManagerAndSubstituteEmail(orgUnit, false));
+						Map<String, String> emails = orgUnitService.getManagerAndSubstituteEmail(orgUnit, false);
+						// Anmoderen kan ikke godkende sin egen anmodning — undgå at sende mailen
+						// til dem hvis de selv er manager på OU'en. Stedfortrædere er fortsat med.
+						User requester = request.getRequester();
+						if (requester != null && StringUtils.hasLength(requester.getEmail())) {
+							emails.remove(requester.getEmail());
+						}
+						mailsToSendTo.putAll(emails);
 					}
 				}
 				case AUTHORIZED -> {
@@ -299,10 +333,13 @@ public class RequestNotifierService {
 				}
 				case SYSTEMRESPONSIBLE -> {
 					if (request.getUserRole() != null && request.getUserRole().getItSystem() != null) {
-						ItSystem itSystem = request.getUserRole().getItSystem();
-						User systemOwner = itSystem.getSystemOwner();
-						if (systemOwner != null && systemOwner.getEmail() != null) {
-							mailsToSendTo.put(systemOwner.getEmail(), systemOwner.getName());
+						addSystemResponsibleEmail(request, request.getUserRole().getItSystem(), mailsToSendTo);
+					} else if (request.getRoleGroup() != null && request.getRoleGroup().getUserRoleAssignments() != null) {
+						for (RoleGroupUserRoleAssignment assignment : request.getRoleGroup().getUserRoleAssignments()) {
+							if (assignment.getUserRole() == null || assignment.getUserRole().getItSystem() == null) {
+								continue;
+							}
+							addSystemResponsibleEmail(request, assignment.getUserRole().getItSystem(), mailsToSendTo);
 						}
 					}
 				}
@@ -340,14 +377,26 @@ public class RequestNotifierService {
 			.collect(Collectors.toMap(User::getEmail, User::getName, (name1, name2) -> name1));
 	}
 
+	private void addSystemResponsibleEmail(RoleRequest request, ItSystem itSystem, Map<String, String> mailsToSendTo) {
+		List<User> responsibles = itSystemService.getAttestationResponsibles(itSystem);
+		if (responsibles.isEmpty()) {
+			log.warn("ItSystem {} has no attestation responsible, cannot send system responsible email for request id:{}", itSystem.getId(), request.getId());
+			return;
+		}
+		for (User responsible : responsibles) {
+			if (responsible.getEmail() == null) {
+				log.warn("Attestation responsible {} on itSystem {} has no email, cannot send system responsible email for request id:{}", responsible.getUuid(), itSystem.getId(), request.getId());
+				continue;
+			}
+			if (requestApproverResolver.canApprove(request, responsible)) {
+				mailsToSendTo.put(responsible.getEmail(), responsible.getName());
+			}
+		}
+	}
+
 	private boolean isPermittedAccessToOuAndItSystem(RoleRequest requestApprove, User user) {
-		final RequestAuthorizedRoleService.LimitedToItSystems accessibleItSystem = requestAuthorizedRoleService.accessibleItsSystems(user);
-		final RequestAuthorizedRoleService.LimitedToOrgUnits accessibleOUs = requestAuthorizedRoleService.accessibleOrgUnits(user);
-		final boolean itSystemAccessAllowed = accessibleItSystem.type() == RequestAuthorizedRoleService.LimitedToType.ALL
-			|| (requestApprove.getUserRole() != null && accessibleItSystem.itSystems().contains(requestApprove.getUserRole().getItSystem().getId()));
-		final boolean ouAccessAllowed = accessibleOUs.type() == RequestAuthorizedRoleService.LimitedToType.ALL
-			|| accessibleOUs.orgUnits().contains(requestApprove.getOrgUnit().getUuid());
-		return itSystemAccessAllowed && ouAccessAllowed;
+		return requestApproverResolver.isItSystemAccessAllowed(requestApprove, user)
+			&& requestApproverResolver.isOuAccessAllowed(requestApprove, user);
 	}
 
 

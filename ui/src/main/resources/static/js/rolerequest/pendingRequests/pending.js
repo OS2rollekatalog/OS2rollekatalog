@@ -65,7 +65,7 @@ class PendingRequestService {
             stateSave: true,
             order : [[7, "desc"]],
             columnDefs : [
-            	{ "orderable" : false, "targets" : [8] },
+            	{ "orderable" : false, "targets" : [8, 11] },
                 {width: "4rem", targets: [0]},
                 {
                 	targets: [7],

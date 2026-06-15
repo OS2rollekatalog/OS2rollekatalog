@@ -18,6 +18,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -82,7 +83,7 @@ public class HistoricOuAssignment {
 	@Column(nullable = false)
 	private boolean extraSensitiveRole = false;
 
-	private String responsibleUserUuid;
+	private Long responsibleCollectionId;
 
 	@Builder.Default
 	@Column(nullable = false)
@@ -97,6 +98,14 @@ public class HistoricOuAssignment {
 	private String assignedThroughName;
 
 	private LocalDateTime assignedWhen;
+
+	private String assignedByUserId;
+
+	private String assignedByName;
+
+	private LocalDate startDate;
+
+	private LocalDate stopDate;
 
 	// OU-level flags
 	@Builder.Default

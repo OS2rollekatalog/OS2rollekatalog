@@ -45,10 +45,10 @@ public class AttestationOuRoleAssignment extends TemporalAssignmentBase {
     @Column
     private String roleGroupDescription;
     // In case the itSystem have roleAssignmentAttestationByAttestationResponsible set
-    // We use responsibleUserUuid in all cases responsibleOu is used.
-    @Column
+    // We use responsibleCollectionId in all cases responsibleOu is used.
+    @Column(name = "attestation_responsible_collection_id")
     @PartOfNaturalKey
-    private String responsibleUserUuid;
+    private Long responsibleCollectionId;
     @Column
     @PartOfNaturalKey
     private String responsibleOuUuid;

@@ -25,5 +25,13 @@ public interface HistoricOuAssignmentDao extends JpaRepository<HistoricOuAssignm
 	@Query("UPDATE HistoricOuAssignment h SET h.validTo = :validTo WHERE h.recordHash = :recordHash AND h.validTo IS NULL")
 	void closeOpenByRecordHash(@Param("recordHash") String recordHash, @Param("validTo") LocalDateTime validTo);
 
+	@Modifying
+	@Query(nativeQuery = true, value =
+		"UPDATE historic_ou_assignment h " +
+		"JOIN user_roles ur ON ur.id = h.role_id " +
+		"SET h.responsible_collection_id = :collectionId " +
+		"WHERE h.it_system_id = :itSystemId AND h.valid_to IS NULL AND ur.role_assignment_attestation_by_attestation_responsible = true")
+	void backfillResponsibleCollectionId(@Param("itSystemId") Long itSystemId, @Param("collectionId") Long collectionId);
+
 	boolean existsByRecordHashAndValidToIsNull(String recordHash);
 }

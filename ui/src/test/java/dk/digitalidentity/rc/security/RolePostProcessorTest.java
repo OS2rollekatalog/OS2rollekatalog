@@ -1,5 +1,28 @@
 package dk.digitalidentity.rc.security;
 
+import static dk.digitalidentity.rc.mockfactory.assignment.MockFactory.createOrgUnit;
+import static dk.digitalidentity.rc.mockfactory.assignment.MockFactory.createUser;
+import static dk.digitalidentity.rc.mockfactory.security.MockFactory.createUserRoleWithSystemRole;
+import static dk.digitalidentity.rc.mockfactory.security.MockFactory.mockTokenUser;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+
 import dk.digitalidentity.rc.config.Constants;
 import dk.digitalidentity.rc.dao.model.ItSystem;
 import dk.digitalidentity.rc.dao.model.ManagerDelegate;
@@ -20,30 +43,8 @@ import dk.digitalidentity.rc.service.SettingsService;
 import dk.digitalidentity.rc.service.UserService;
 import dk.digitalidentity.rc.service.assignment.AssignmentService;
 import dk.digitalidentity.rc.service.permission.PermissionService;
-import dk.digitalidentity.samlmodule.model.SamlGrantedAuthority;
-import dk.digitalidentity.samlmodule.model.TokenUser;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Nested;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
-
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-
-import static dk.digitalidentity.rc.mockfactory.assignment.MockFactory.createOrgUnit;
-import static dk.digitalidentity.rc.mockfactory.assignment.MockFactory.createUser;
-import static dk.digitalidentity.rc.mockfactory.security.MockFactory.createUserRoleWithSystemRole;
-import static dk.digitalidentity.rc.mockfactory.security.MockFactory.mockTokenUser;
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import dk.digitalidentity.saml.service.model.SamlGrantedAuthority;
+import dk.digitalidentity.saml.service.model.TokenUser;
 
 @ExtendWith(MockitoExtension.class)
 class RolePostProcessorTest {

@@ -91,6 +91,17 @@
 							</fieldset>
 							<fieldset>
 								<div class="form-group">
+									<label class="col-sm-3 control-label" th:text="#{html.setting.attestation.scheduled.maxRunsToRender}"></label>
+									<div class="col-sm-8">
+										<input th:field="*{maxAttestationsToRenderOnOverview}" class="form-control" />
+										<ul th:if="${#fields.hasErrors('maxAttestationsToRenderOnOverview')}" class="error">
+											<li class="error" th:each="err : ${#fields.errors('maxAttestationsToRenderOnOverview')}" th:text="${err}"></li>
+										</ul>
+									</div>
+								</div>
+							</fieldset>
+							<fieldset>
+								<div class="form-group">
 									<label class="col-sm-3 control-label" th:text="#{html.setting.attestation.dont_send_email_to_leader}"></label>
 									<div class="col-sm-1">
 										<div class="checkbox c-checkbox">
