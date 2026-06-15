@@ -23,6 +23,8 @@ import dk.digitalidentity.rc.dao.model.SystemRoleAssignmentConstraintValue;
 import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserRole;
 import dk.digitalidentity.rc.dao.model.assignment.CurrentAssignment;
+import dk.digitalidentity.rc.dao.model.assignment.CurrentAssignmentSmallProjection;
+
 import org.hibernate.Hibernate;
 import lombok.RequiredArgsConstructor;
 
@@ -101,10 +103,6 @@ public class CurrentAssignmentService {
 
 	public Set<CurrentAssignment> findByUserAndRoleGroupNotNullIncludingInactive(User user) {
 		return currentAssignmentDao.findByUserUuidAndRoleGroupNotNull(user.getUuid());
-	}
-
-	public Set<CurrentAssignment> findByUserAndRoleGroupNullIncludingInactive(User user) {
-		return currentAssignmentDao.findByUserUuidAndRoleGroupNull(user.getUuid());
 	}
 
 	public Set<CurrentAssignment> findByUserInSystem(User user, Collection<ItSystem> itSystems) {
@@ -201,6 +199,10 @@ public class CurrentAssignmentService {
 
 	public Set<CurrentAssignment> findActiveByUserRoles(Set<UserRole> userRoles) {
 		return currentAssignmentDao.findActiveAssigned(userRoles, LocalDate.now());
+	}
+	
+	public Set<CurrentAssignmentSmallProjection> findActiveByUserRolesAsProjection(Set<UserRole> userRoles) {
+		return currentAssignmentDao.findActiveAssignedAsProjection(userRoles, LocalDate.now());
 	}
 
 	public Set<CurrentAssignment> findActiveByUserRole(UserRole userRole) {

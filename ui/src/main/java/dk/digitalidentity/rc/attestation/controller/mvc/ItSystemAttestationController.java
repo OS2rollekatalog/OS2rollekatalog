@@ -1,6 +1,7 @@
 package dk.digitalidentity.rc.attestation.controller.mvc;
 
 import dk.digitalidentity.rc.attestation.model.dto.ItSystemAttestationDTO;
+import java.util.List;
 import dk.digitalidentity.rc.attestation.service.ItSystemUserRolesAttestationService;
 import dk.digitalidentity.rc.dao.model.ItSystem;
 import dk.digitalidentity.rc.dao.model.User;
@@ -45,15 +46,17 @@ public class ItSystemAttestationController {
 			return "attestationmodule/error";
 		}
 
-		if (!SecurityUtil.isAttestationAdminOrAdmin() && (itSystem.getAttestationResponsible() == null || !itSystem.getAttestationResponsible().getUuid().equals(user.getUuid()))) {
+		List<String> responsibleUuids = itSystemService.getAttestationResponsibleUuids(itSystem);
+		if (!SecurityUtil.isAttestationAdminOrAdmin() && (responsibleUuids.isEmpty() || !responsibleUuids.contains(user.getUuid()))) {
 			return "attestationmodule/error";
 		}
-		boolean openInView = SecurityUtil.isAttestationAdminOrAdmin() && (itSystem.getAttestationResponsible() == null || !itSystem.getAttestationResponsible().getUuid().equals(user.getUuid()));
+		boolean openInView = SecurityUtil.isAttestationAdminOrAdmin() && (responsibleUuids.isEmpty() || !responsibleUuids.contains(user.getUuid()));
 		ItSystemAttestationDTO attestation = attestationService.getAttestation(id, true);
 		model.addAttribute("openInView", openInView);
 		model.addAttribute("itsystem", attestation);
 		model.addAttribute("totalCount", attestation.getUserRoles().size());
 		model.addAttribute("changeRequestsEnabled", settingsService.isAttestationRequestChangesEnabled());
+		model.addAttribute("attestationDescriptionRequired", settingsService.isAttestationDescriptionRequired());
 
 		return "attestationmodule/itsystems/attestate";
 	}

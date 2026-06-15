@@ -38,13 +38,13 @@ public class PendingADGroupOperation {
 	@JsonIgnore
 	@Column(nullable = true)
 	private Long systemRoleId;
-	
+
 	@Column
 	private String systemRoleIdentifier;
-	
+
 	@Column
 	private String itSystemIdentifier;
-	
+
 	// active = 1 is CREATE
 	// active = 0 is DELETE
 	@Column
@@ -53,11 +53,14 @@ public class PendingADGroupOperation {
 	@Column
 	@Enumerated(EnumType.STRING)
 	private ADGroupType adGroupType;
-	
+
 	@Column
 	private boolean universal;
 
 	@ManyToOne(fetch = FetchType.LAZY)
 	@JoinColumn(name = "domain_id")
 	private Domain domain;
+
+	@Column(name = "description")
+	private String description;
 }

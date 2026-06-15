@@ -2,6 +2,7 @@ package dk.digitalidentity.rc.attestation.service;
 
 import dk.digitalidentity.rc.attestation.dao.AttestationDao;
 import dk.digitalidentity.rc.attestation.dao.AttestationOuAssignmentsDao;
+import dk.digitalidentity.rc.attestation.dao.AttestationResponsibleCollectionDao;
 import dk.digitalidentity.rc.attestation.dao.AttestationUserRoleAssignmentDao;
 import dk.digitalidentity.rc.attestation.dao.ItSystemOrganisationAttestationEntryDao;
 import dk.digitalidentity.rc.attestation.dao.ItSystemUserAttestationEntryDao;
@@ -15,6 +16,7 @@ import dk.digitalidentity.rc.attestation.model.dto.RoleAssignmentDTO;
 import dk.digitalidentity.rc.attestation.model.dto.enums.AssignedThroughAttestation;
 import dk.digitalidentity.rc.attestation.model.dto.enums.RoleType;
 import dk.digitalidentity.rc.attestation.model.entity.Attestation;
+import dk.digitalidentity.rc.attestation.model.entity.AttestationResponsibleCollection;
 import dk.digitalidentity.rc.attestation.model.entity.AttestationRun;
 import dk.digitalidentity.rc.attestation.model.entity.BaseUserAttestationEntry;
 import dk.digitalidentity.rc.attestation.model.entity.ItSystemOrganisationAttestationEntry;
@@ -43,6 +45,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
@@ -69,6 +72,9 @@ public class ItSystemUsersAttestationService {
 
     @Autowired
     private ItSystemOrganisationAttestationEntryDao itSystemOrganisationAttestationEntryDao;
+
+	@Autowired
+	private AttestationResponsibleCollectionDao attestationResponsibleCollectionDao;
 
     @Autowired
     private AttestationDao attestationDao;
@@ -107,17 +113,37 @@ public class ItSystemUsersAttestationService {
 
     @Transactional
     public List<ItSystemRoleAttestationDTO> listItSystemUsersForAttestation(final AttestationRun run, final String userUuid) {
-        return run.getAttestations().stream()
-                .filter(a -> a.getAttestationType() == Attestation.AttestationType.IT_SYSTEM_ATTESTATION && userUuid.equals(a.getResponsibleUserUuid()))
+		// Batch-load all collections referenced by this run to avoid N+1 queries.
+		List<Long> allCollectionIds = run.getAttestations().stream()
+			.filter(a -> a.getAttestationType() == Attestation.AttestationType.IT_SYSTEM_ATTESTATION)
+			.map(Attestation::getResponsibleCollectionId)
+			.filter(Objects::nonNull)
+			.distinct()
+			.toList();
+		Map<Long, AttestationResponsibleCollection> collectionsById = attestationResponsibleCollectionDao.findAllById(allCollectionIds)
+			.stream()
+			.collect(java.util.stream.Collectors.toMap(AttestationResponsibleCollection::getId, c -> c));
+
+		List<Long> collectionIds = collectionsById.values().stream()
+			.filter(c -> c.getUsersUuid().contains(userUuid))
+			.map(AttestationResponsibleCollection::getId)
+			.toList();
+
+		return run.getAttestations().stream()
+			.filter(a -> a.getAttestationType() == Attestation.AttestationType.IT_SYSTEM_ATTESTATION)
+			.filter(a -> a.getResponsibleCollectionId() != null && collectionIds.contains(a.getResponsibleCollectionId()))
                 .map(attestation -> {
-                    final List<AttestationUserRoleAssignment> userRoleAssignments = attestationUserRoleAssignmentDao.listValidAssignmentsByResponsibleUserUuid(attestation.getCreatedAt(), userUuid);
-                    final List<AttestationOuRoleAssignment> ouRoleAssignments = attestationOuAssignmentsDao.listValidNotInheritedAssignmentsWithResponsibleUser(attestation.getCreatedAt(), userUuid);
-                    return ItSystemRoleAttestationDTO.builder()
+                    final List<AttestationUserRoleAssignment> userRoleAssignments = attestationUserRoleAssignmentDao.listValidAssignmentsByResponsibleCollectionIdIn(attestation.getCreatedAt(), collectionIds);
+                    final List<AttestationOuRoleAssignment> ouRoleAssignments = attestationOuAssignmentsDao.listValidNotInheritedAssignmentsWithResponsibleCollectionIdIn(attestation.getCreatedAt(), collectionIds);
+					final String performedBy = AttestationOverviewService.resolvePerformedBy(attestation.getItSystemUserAttestationEntries(), userService);
+					return ItSystemRoleAttestationDTO.builder()
                             .createdAt(attestation.getCreatedAt())
                             .itSystemId(attestation.getItSystemId())
                             .itSystemName(attestation.getItSystemName())
                             .attestationUuid(attestation.getUuid())
                             .deadline(run.getDeadline())
+                            .verifiedAt(attestation.getVerifiedAt() != null ? attestation.getVerifiedAt().toLocalDate() : null)
+                            .performedBy(performedBy)
                             .users(buildUserAttestations(attestation, userRoleAssignments, false))
                             .orgUnits(buildOrgUnitAttestations(attestation, ouRoleAssignments))
                             .build();
@@ -136,9 +162,10 @@ public class ItSystemUsersAttestationService {
 
     @Transactional
     public ItSystemRoleAttestationDTO getAttestation(final Attestation attestation, final boolean undecidedUsersOnly) {
-        final List<AttestationUserRoleAssignment> userRoleAssignments = attestationUserRoleAssignmentDao
-                .listValidAssignmentsByResponsibleUserUuidAndItSystemId(attestation.getCreatedAt(), attestation.getResponsibleUserUuid(), attestation.getItSystemId());
-        final List<AttestationOuRoleAssignment> ouRoleAssignments = attestationOuAssignmentsDao.listValidNotInheritedAssignmentsWithResponsibleUser(attestation.getCreatedAt(), attestation.getResponsibleUserUuid());
+		Long responsibleCollectionId = attestation.getResponsibleCollectionId();
+		final List<AttestationUserRoleAssignment> userRoleAssignments = attestationUserRoleAssignmentDao
+                .listValidAssignmentsByResponsibleCollectionIdAndItSystemId(attestation.getCreatedAt(), responsibleCollectionId, attestation.getItSystemId());
+        final List<AttestationOuRoleAssignment> ouRoleAssignments = attestationOuAssignmentsDao.listValidNotInheritedAssignmentsWithResponsibleCollectionIdIn(attestation.getCreatedAt(), List.of(attestation.getResponsibleCollectionId()));
         return ItSystemRoleAttestationDTO.builder()
                 .createdAt(attestation.getCreatedAt())
                 .deadline(attestation.getDeadline())
@@ -151,9 +178,12 @@ public class ItSystemUsersAttestationService {
     }
 
     @Transactional
-    public List<RoleAssignmentDTO> getUserRoleAssignments(final String responsibleUserUuid, final String userUuid) {
+    public List<RoleAssignmentDTO> getUserRoleAssignments(final String attestationUuid, final String userUuid) {
         final LocalDate when = LocalDate.now();
-        List<AttestationUserRoleAssignment> userRoleAssignments = attestationUserRoleAssignmentDao.listValidAssignmentsByResponsibleUserUuid(when, responsibleUserUuid);
+		final Long responsibleCollection = Optional.ofNullable(attestationDao.findByUuid(attestationUuid))
+			.map(Attestation::getResponsibleCollectionId)
+			.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Attestation not found"));
+		List<AttestationUserRoleAssignment> userRoleAssignments = attestationUserRoleAssignmentDao.listValidAssignmentsByResponsibleCollectionIdIn(when, List.of(responsibleCollection));
         return userRoleAssignments.stream()
                 .filter(r -> r.getUserUuid().equals(userUuid))
                 .map(r -> RoleAssignmentDTO.builder()
@@ -279,18 +309,32 @@ public class ItSystemUsersAttestationService {
         if (isItSystemUserAttestationDone(attestation)) {
             attestation.setVerifiedAt(ZonedDateTime.now());
         }
+		attestationDao.save(attestation);
         final User user = userService.getByUuid(performedByUserId);
         if (user != null) {
             notificationService.sendRequestForChangeMail(userNameAndID(performingUser), userNameAndID(user), remarks, Collections.emptyList());
         }
     }
 
+	@Transactional
+	public void rejectOuAndDeleteRelated(long itSystemId, String orgUnitUuid, String remarks, String userId) {
+		rejectOu(itSystemId, orgUnitUuid, remarks, userId);
+		deleteRelatedAttestations(itSystemId, userId);
+	}
+
+	@Transactional
+	public void verifyOuAndDeleteRelated(long itSystemId, String orgUnitUuid, String userId) {
+		verifyOu(itSystemId, orgUnitUuid, userId);
+		deleteRelatedAttestations(itSystemId, userId);
+	}
+
     private boolean isItSystemUserAttestationDone(final Attestation attestation) {
         final List<AttestationUserRoleAssignment> assignments =
-                attestationUserRoleAssignmentDao.listValidAssignmentsByResponsibleUserUuid(attestation.getCreatedAt(), attestation.getResponsibleUserUuid()).stream()
+                attestationUserRoleAssignmentDao.listValidAssignmentsByResponsibleCollectionIdIn(attestation.getCreatedAt(), Collections.singletonList(attestation.getResponsibleCollectionId())).stream()
                         .filter(a -> a.getAssignedThroughType() == AssignedThroughType.DIRECT)
                         .collect(Collectors.toList());
-        final List<AttestationOuRoleAssignment> ouRoleAssignments = attestationOuAssignmentsDao.listValidNotInheritedAssignmentsWithResponsibleUser(attestation.getCreatedAt(), attestation.getResponsibleUserUuid());
+        final List<AttestationOuRoleAssignment> ouRoleAssignments = attestationOuAssignmentsDao.listValidNotInheritedAssignmentsWithResponsibleCollectionIdIn(attestation.getCreatedAt(),
+			Collections.singletonList(attestation.getResponsibleCollectionId()));
 
         return hasAllUserAttestationsBeenPerformed(attestation, assignments, p -> Objects.equals(p.getItSystemId(), attestation.getItSystemId())) &&
                 hasAllOuAttestationsBeenPerformed(attestation, ouRoleAssignments, p -> Objects.equals(p.getItSystemId(), attestation.getItSystemId()));
@@ -298,12 +342,36 @@ public class ItSystemUsersAttestationService {
 
     private Attestation findAttestation(long itSystemId, String performedByUserId) {
         final ItSystem itSystem = itSystemService.getById(itSystemId);
-        if (itSystem == null || itSystem.getAttestationResponsible() == null || !itSystem.getAttestationResponsible().getUserId().equals(performedByUserId)) {
+        if (itSystem == null || !itSystemService.getAttestationResponsibleUserIds(itSystem).contains(performedByUserId)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Wrong permissions.");
         }
-        return attestationDao.findFirstByAttestationTypeAndItSystemIdOrderByDeadlineDesc(Attestation.AttestationType.IT_SYSTEM_ATTESTATION, itSystemId)
+        // Resolve the performing user's uuid so we fetch THEIR per-responsible attestation row,
+        // not "the first attestation for this system" (which could belong to a different responsible).
+        final User performingUser = userService.getByUserId(performedByUserId);
+        if (performingUser == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Wrong permissions.");
+        }
+		final Long collectionId = attestationResponsibleCollectionDao.findFirstByItSystemId((long) itSystemId)
+			.map(AttestationResponsibleCollection::getId)
+			.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Attestation not found"));
+        return attestationDao.findFirstByAttestationTypeAndItSystemIdAndResponsibleCollectionIdOrderByDeadlineDesc(
+                        Attestation.AttestationType.IT_SYSTEM_ATTESTATION, itSystemId, collectionId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Attestation not found"));
     }
+
+	private List<Attestation> findRelatedAttestations(long itSystemId, String performedByUserId) {
+		final ItSystem itSystem = itSystemService.getById(itSystemId);
+		if (itSystem == null) {
+			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Wrong permissions.");
+		}
+		final Long collectionId = attestationResponsibleCollectionDao.findFirstByItSystemId(itSystemId)
+			.map(AttestationResponsibleCollection::getId)
+			.orElse(null);
+		if (collectionId == null) {
+			return List.of();
+		}
+		return attestationDao.findByAttestationTypeAndItSystemIdAndResponsibleCollectionIdNot(Attestation.AttestationType.IT_SYSTEM_ATTESTATION, itSystemId, collectionId);
+	}
 
     private List<ItSystemRoleAssignmentUserDTO> buildUserAttestations(final Attestation attestation,
                                                                       final List<AttestationUserRoleAssignment> assignments,
@@ -425,4 +493,17 @@ public class ItSystemUsersAttestationService {
         return user.getName() + "(" + user.getUserId() + ")";
     }
 
+	@Transactional
+	public void deleteRelatedAttestations(long itSystemId, String performedByUserId) {
+		List<Attestation> attestations = findRelatedAttestations(itSystemId, performedByUserId);
+		for (Attestation attestation : attestations) {
+			attestation.getOrganisationUserAttestationEntries().clear();
+			attestation.getItSystemOrganisationAttestationEntries().clear();
+			attestation.getItSystemUserRoleAttestationEntries().clear();
+			attestation.getItSystemUserAttestationEntries().clear();
+			attestation.getUsersForAttestation().clear();
+			attestation.getMails().clear();
+		}
+		attestationDao.deleteAll(attestations);
+	}
 }

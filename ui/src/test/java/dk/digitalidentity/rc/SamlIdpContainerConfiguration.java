@@ -4,7 +4,6 @@ import dasniko.testcontainers.keycloak.KeycloakContainer;
 import org.springframework.boot.devtools.restart.RestartScope;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
-import org.springframework.test.context.DynamicPropertyRegistrar;
 import org.testcontainers.containers.wait.strategy.Wait;
 import org.testcontainers.utility.MountableFile;
 
@@ -22,6 +21,8 @@ public class SamlIdpContainerConfiguration {
 
     private static final File KEYCLOAK_CERT_FILE;
     private static final File KEYCLOAK_KEY_FILE;
+
+    private static volatile KeycloakContainer instance;
 
     static {
         try {
@@ -49,34 +50,41 @@ public class SamlIdpContainerConfiguration {
         }
     }
 
-    @Bean
-    @RestartScope
     @SuppressWarnings("resource")
-    public KeycloakContainer keycloakContainer() {
-        KeycloakContainer kc = new KeycloakContainer("quay.io/keycloak/keycloak:26.0")
-                .withRealmImportFile("keycloak/test-realm.json")
-                .withNetwork(TestContainersConfiguration.NETWORK)
-                .withNetworkAliases("keycloak")
-                .withCopyFileToContainer(MountableFile.forHostPath(KEYCLOAK_CERT_FILE.getAbsolutePath()), "/opt/keycloak/conf/server.crt.pem")
-                .withCopyFileToContainer(MountableFile.forHostPath(KEYCLOAK_KEY_FILE.getAbsolutePath()), "/opt/keycloak/conf/server.key.pem")
-                .withEnv("KC_HTTPS_CERTIFICATE_FILE", "/opt/keycloak/conf/server.crt.pem")
-                .withEnv("KC_HTTPS_CERTIFICATE_KEY_FILE", "/opt/keycloak/conf/server.key.pem")
-                .withEnv("KC_HOSTNAME", "https://keycloak:8443")
-                .withEnv("KC_HOSTNAME_STRICT", "false")
-                .withEnv("KC_HTTP_ENABLED", "true")
-                .waitingFor(Wait.forHttp("/realms/test/protocol/saml/descriptor")
-                        .forPort(8080)
-                        .forResponsePredicate(body -> body.contains("X509Certificate"))
-                        .withStartupTimeout(Duration.ofMinutes(3)));
-        kc.withReuse(true);
-        kc.start();
+    public static KeycloakContainer getInstance() {
+        KeycloakContainer kc = instance;
+        if (kc == null) {
+            synchronized (SamlIdpContainerConfiguration.class) {
+                kc = instance;
+                if (kc == null) {
+                    kc = new KeycloakContainer("quay.io/keycloak/keycloak:26.0")
+                            .withRealmImportFile("keycloak/test-realm.json")
+                            .withNetwork(TestContainersConfiguration.NETWORK)
+                            .withNetworkAliases("keycloak")
+                            .withCopyFileToContainer(MountableFile.forHostPath(KEYCLOAK_CERT_FILE.getAbsolutePath()), "/opt/keycloak/conf/server.crt.pem")
+                            .withCopyFileToContainer(MountableFile.forHostPath(KEYCLOAK_KEY_FILE.getAbsolutePath()), "/opt/keycloak/conf/server.key.pem")
+                            .withEnv("KC_HTTPS_CERTIFICATE_FILE", "/opt/keycloak/conf/server.crt.pem")
+                            .withEnv("KC_HTTPS_CERTIFICATE_KEY_FILE", "/opt/keycloak/conf/server.key.pem")
+                            .withEnv("KC_HOSTNAME", "https://keycloak:8443")
+                            .withEnv("KC_HOSTNAME_STRICT", "false")
+                            .withEnv("KC_HTTP_ENABLED", "true")
+                            .waitingFor(Wait.forHttp("/realms/test/protocol/saml/descriptor")
+                                    .forPort(8080)
+                                    .forResponsePredicate(body -> body.contains("X509Certificate"))
+                                    .withStartupTimeout(Duration.ofMinutes(3)));
+                    kc.withReuse(true);
+                    kc.start();
+                    instance = kc;
+                }
+            }
+        }
         return kc;
     }
 
     @Bean
-    DynamicPropertyRegistrar keycloakProperties(KeycloakContainer keycloakContainer) {
-        return registry -> registry.add("di.saml.idp.metadataLocation",
-                () -> "url:http://" + keycloakContainer.getHost() + ":" + keycloakContainer.getMappedPort(8080) + "/realms/test/protocol/saml/descriptor");
+    @RestartScope
+    public KeycloakContainer keycloakContainer() {
+        return getInstance();
     }
 
 }

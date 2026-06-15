@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.stream.Collectors;
 
+import dk.digitalidentity.rc.controller.rest.model.AuditLogDatatableSpecificationBuilder;
 import dk.digitalidentity.rc.security.permission.Permission;
 import dk.digitalidentity.rc.security.permission.Section;
 import dk.digitalidentity.rc.security.permission.RequireControllerPermission;
@@ -11,9 +12,11 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.context.MessageSource;
 import org.springframework.data.jpa.datatables.mapping.DataTablesInput;
 import org.springframework.data.jpa.datatables.mapping.DataTablesOutput;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import dk.digitalidentity.rc.controller.mvc.datatables.dao.AuditLogViewDao;
@@ -29,7 +32,11 @@ public class AuditLogRestController {
 	private final MessageSource messageSource;
 
 	@PostMapping("/rest/logs/audit")
-	public DataTablesOutput<AuditLogDTO> list(@Valid @RequestBody DataTablesInput input, BindingResult bindingResult, Locale locale) {
+	public DataTablesOutput<AuditLogDTO> list(@Valid @RequestBody DataTablesInput input, BindingResult bindingResult,
+			@RequestParam(required = false) List<String> eventTypes,
+			@RequestParam(required = false) String entityType,
+			@RequestParam(required = false) String entityId,
+			Locale locale) {
 		if (bindingResult.hasErrors()) {
 			DataTablesOutput<AuditLogDTO> error = new DataTablesOutput<>();
 			error.setError(bindingResult.toString());
@@ -37,7 +44,11 @@ public class AuditLogRestController {
 			return error;
 		}
 
-		DataTablesOutput<AuditLogView> output = auditLogViewDao.findAll(input);
+		Specification<AuditLogView> spec = AuditLogDatatableSpecificationBuilder.build(eventTypes, entityType, entityId);
+
+		DataTablesOutput<AuditLogView> output = spec != null
+				? auditLogViewDao.findAll(input, spec)
+				: auditLogViewDao.findAll(input);
 
 		return convertAuditLogDataTablesModelToDTO(output, locale);
 	}

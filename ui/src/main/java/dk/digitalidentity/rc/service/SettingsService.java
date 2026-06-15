@@ -83,6 +83,19 @@ public class SettingsService {
 		}
 	}
 
+	public boolean isAllowSelfApprovalEnabled() {
+		return isKeyEnabled(Settings.SETTING_ROLEREQUEST_ALLOW_SELF_APPROVAL.getKey());
+	}
+
+	public void setAllowSelfApprovalEnabled(boolean enabled) {
+		boolean changed = setKeyEnabled(enabled, Settings.SETTING_ROLEREQUEST_ALLOW_SELF_APPROVAL.getKey());
+		if (changed) {
+			AuditLogContextHolder.getContext().addArgument("Ny værdi", (enabled ? "true" : "false"));
+			auditLogger.logSetting(settingsDao.findByKey(Settings.SETTING_ROLEREQUEST_ALLOW_SELF_APPROVAL.getKey()), null, null, getPrettyName(Settings.SETTING_ROLEREQUEST_ALLOW_SELF_APPROVAL));
+			AuditLogContextHolder.clearContext();
+		}
+	}
+
 	public String getRequestApproveServicedeskEmail() {
 		Setting setting = settingsDao.findByKey(Settings.SETTING_REQUEST_APPROVE_SERVICEDESK_EMAIL.getKey());
 		if (setting == null) {
@@ -249,6 +262,19 @@ public class SettingsService {
 		return defaultValue;
 	}
 
+	private int getKeyOrDefault(String key, int defaultValue) {
+		Setting setting = settingsDao.findByKey(key);
+		if (setting == null) {
+			return defaultValue;
+		}
+		try {
+			return Integer.parseInt(setting.getValue());
+		} catch (NumberFormatException e) {
+			log.warn("Invalid value for maxAttestationsToRenderOnOverview setting: {}", setting.getValue());
+			return defaultValue;
+		}
+	}
+
 	/**
 	 * Sets the value for given key
 	 *
@@ -312,6 +338,14 @@ public class SettingsService {
 
 	public void setScheduledAttestationInterval(CheckupIntervalEnum interval) {
 		createOrUpdateSetting(Settings.SETTING_SCHEDULED_ATTESTATION_INTERVAL, interval.toString());
+	}
+
+	public void setMaxAttestationsToRenderOnOverview(String max) {
+		createOrUpdateSetting(Settings.SETTING_SCHEDULED_ATTESTATION_OVERVIEW_MAX_RUNS_TO_RENDER, max);
+	}
+
+	public int getMaxAttestationsToRenderOnOverview() {
+		return getKeyOrDefault(Settings.SETTING_SCHEDULED_ATTESTATION_OVERVIEW_MAX_RUNS_TO_RENDER.getKey(), 5);
 	}
 
 	public Date getScheduledAttestationLastRun() {
@@ -495,6 +529,14 @@ public class SettingsService {
 
 	public void setMitIDErhvervMigrationPerformed() {
 		setKeyEnabled(true, Settings.SETTING_MITID_ERHVERV_MIGRATION_PERFORMED.getKey());
+	}
+
+	public boolean isHistoricItSystemAssignmentCollectionRepairPerformed() {
+		return isKeyEnabled(Settings.SETTING_HISTORIC_IT_SYSTEM_ASSIGNMENT_COLLECTION_REPAIR_PERFORMED.getKey());
+	}
+
+	public void setHistoricItSystemAssignmentCollectionRepairPerformed() {
+		setKeyEnabled(true, Settings.SETTING_HISTORIC_IT_SYSTEM_ASSIGNMENT_COLLECTION_REPAIR_PERFORMED.getKey());
 	}
 
 	public boolean isBlockAllEmailTransmissions() {

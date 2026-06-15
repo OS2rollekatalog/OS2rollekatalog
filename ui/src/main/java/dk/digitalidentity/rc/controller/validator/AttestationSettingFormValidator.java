@@ -43,6 +43,14 @@ public class AttestationSettingFormValidator implements Validator {
 					}
 				}
 			}
+			try {
+				int max = Integer.parseInt(settingsForm.getMaxAttestationsToRenderOnOverview());
+				if (max <= 0) {
+					errors.rejectValue("maxAttestationsToRenderOnOverview", "html.errors.attestation.maxRunsToRender.nonZero");
+				}
+			} catch (NumberFormatException e) {
+				errors.rejectValue("maxAttestationsToRenderOnOverview", "html.errors.attestation.maxRunsToRender.numeric");
+			}
 		}
 	}
 }

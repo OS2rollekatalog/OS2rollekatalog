@@ -9,7 +9,9 @@ import jakarta.servlet.http.HttpServletResponse;
 
 public abstract class AbstractXlsxStreamingViewWrapper implements View {
 
-	private static final String CONTENT_TYPE = "application/ms-excel";
+	// xlsx files produced by POI must use the OOXML spreadsheet MIME type, not the legacy .xls "application/ms-excel".
+	// This restores the content-type Spring's AbstractXlsxStreamingView set before this wrapper stopped extending it.
+	private static final String CONTENT_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 
 	@Override
 	public String getContentType() {

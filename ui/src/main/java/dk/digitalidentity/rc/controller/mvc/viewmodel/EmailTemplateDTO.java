@@ -26,4 +26,15 @@ public class EmailTemplateDTO {
 	private boolean allowDaysBeforeEventFeature;
 	private Integer daysBeforeEvent;
 	private List<EmailTemplatePlaceholder> emailTemplatePlaceholders;
+	// Sub-category for grouping in the overview table (e.g. "Normalt rul", "Følsomt rul")
+	private String category;
+	// Localized display name of the template type (for the "Skabelon" column)
+	private String templateTypeName;
+	// repeating part support (template types with a RepeatingPartDescriptor)
+	private boolean hasRepeatingPart;
+	private boolean hasNestedRepeatingPart;
+	private String repeatingPart;
+	private String nestedRepeatingPart;
+	private List<EmailTemplatePlaceholder> repeatingPartPlaceholders;
+	private List<EmailTemplatePlaceholder> nestedRepeatingPartPlaceholders;
 }

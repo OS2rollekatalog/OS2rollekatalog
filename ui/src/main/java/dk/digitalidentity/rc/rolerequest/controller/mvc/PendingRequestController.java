@@ -25,6 +25,7 @@ import dk.digitalidentity.rc.dao.model.OrgUnit;
 import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.rolerequest.model.entity.RequestPostponedConstraint;
 import dk.digitalidentity.rc.rolerequest.model.entity.RoleRequest;
+import dk.digitalidentity.rc.rolerequest.service.ApproverOptionService;
 import dk.digitalidentity.rc.rolerequest.service.RequestService;
 import dk.digitalidentity.rc.security.SecurityUtil;
 import dk.digitalidentity.rc.service.ItSystemService;
@@ -49,8 +50,11 @@ public class PendingRequestController {
 	@Autowired
 	private ItSystemService itSystemService;
 
+	@Autowired
+	private ApproverOptionService approverOptionService;
+
     record PendingRequestListItem(long id, String receiver, String action, String requester, String roleName,
-								  String itSystem, String description, String constraints, String requestDate, String reason, String timeFrame, String assignedTo) {
+								  String itSystem, String description, String constraints, String requestDate, String reason, String timeFrame, String assignedTo, String approver) {
     }
 
 	@GetMapping
@@ -91,7 +95,7 @@ public class PendingRequestController {
 		DateFormat formatter = new SimpleDateFormat("dd-MM-yyyy");
         List<PendingRequestListItem> pendingApprovalRequests = rolerequestService.getPendingApprovableRequests().stream().map(request -> new PendingRequestListItem(
             request.getId(),
-            request.getReceiver().getName(),
+            request.getReceiver().getName() + " (" + request.getReceiver().getUserId() + ")",
             request.getRequestAction().title,
             request.getRequester().getName(),
             request.getUserRole() == null ? request.getRoleGroup().getName() : request.getUserRole().getName(),
@@ -101,7 +105,8 @@ public class PendingRequestController {
             formatter.format(request.getRequestTimestamp()),
             request.getReason(),
 			formatTimeFrame(request.getStartDate(), request.getEndDate()),
-			request.getAssignedTo()
+			request.getAssignedTo(),
+			approverOptionService.getApproverOptionsAsString(request.getApproverOption())
         )).toList();
         model.addAttribute("pendingRequests", pendingApprovalRequests);
 

@@ -1,5 +1,6 @@
 package dk.digitalidentity.rc.controller.rest.model;
 
+import java.util.Collections;
 import java.util.Set;
 
 import lombok.Getter;
@@ -11,4 +12,5 @@ public class StringArrayWrapper {
 	private Set<String> titleUuids;
 	private Set<String> exceptedUserUuids;
 	private Set<String> functionUuids;
+	private Set<String> excludedChildOus = Collections.emptySet();
 }

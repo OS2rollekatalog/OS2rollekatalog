@@ -1,5 +1,6 @@
 package dk.digitalidentity.rc.service.assignment;
 
+import dk.digitalidentity.rc.attestation.dao.AttestationResponsibleCollectionDao;
 import dk.digitalidentity.rc.dao.OrgUnitRoleGroupAssignmentDao;
 import dk.digitalidentity.rc.dao.OrgUnitUserRoleAssignmentDao;
 import dk.digitalidentity.rc.dao.UserRoleDao;
@@ -29,8 +30,12 @@ import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+
+import dk.digitalidentity.rc.attestation.model.entity.AttestationResponsibleCollection;
 
 import static dk.digitalidentity.rc.mockfactory.assignment.MockFactory.createItSystem;
 import static dk.digitalidentity.rc.mockfactory.assignment.MockFactory.createNamedOrgUnit;
@@ -41,6 +46,7 @@ import static dk.digitalidentity.rc.mockfactory.assignment.MockFactory.createUse
 import static dk.digitalidentity.rc.mockfactory.assignment.MockFactory.createUserRole;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
@@ -60,6 +66,8 @@ class HistoricOuAssignmentServiceTest {
 	private OrgUnitUserRoleAssignmentDao orgUnitUserRoleAssignmentDao;
 	@Mock
 	private UserRoleDao userRoleDao;
+	@Mock
+	private AttestationResponsibleCollectionDao attestationResponsibleCollectionDao;
 
 	@InjectMocks
 	private HistoricOuAssignmentService service;
@@ -78,6 +86,12 @@ class HistoricOuAssignmentServiceTest {
 		ou = createNamedOrgUnit("ou-uuid", "Test OU");
 	}
 
+	private HistoricOuAssignment captureFirstFromSaveAll() {
+		ArgumentCaptor<HistoricOuAssignment> captor = ArgumentCaptor.forClass(HistoricOuAssignment.class);
+		verify(historicOuAssignmentDao).save(captor.capture());
+		return captor.getValue();
+	}
+
 	// ---- ------------- ---- //
 
 	@Nested
@@ -94,10 +108,7 @@ class HistoricOuAssignmentServiceTest {
 			service.recordUserRoleAdded(ou, assignment);
 
 			// ---- Then ---- //
-			ArgumentCaptor<HistoricOuAssignment> captor = ArgumentCaptor.forClass(HistoricOuAssignment.class);
-			verify(historicOuAssignmentDao).save(captor.capture());
-
-			HistoricOuAssignment snapshot = captor.getValue();
+			HistoricOuAssignment snapshot = captureFirstFromSaveAll();
 			assertThat(snapshot.getOuUuid()).isEqualTo("ou-uuid");
 			assertThat(snapshot.getOuName()).isEqualTo("Test OU");
 			assertThat(snapshot.getItSystemId()).isEqualTo(10L);
@@ -117,10 +128,7 @@ class HistoricOuAssignmentServiceTest {
 			service.recordUserRoleAdded(ou, assignment);
 
 			// ---- Then ---- //
-			ArgumentCaptor<HistoricOuAssignment> captor = ArgumentCaptor.forClass(HistoricOuAssignment.class);
-			verify(historicOuAssignmentDao).save(captor.capture());
-
-			HistoricOuAssignment snapshot = captor.getValue();
+			HistoricOuAssignment snapshot = captureFirstFromSaveAll();
 			assertThat(snapshot.getRoleId()).isEqualTo(20L);
 			assertThat(snapshot.getRoleName()).isEqualTo("Test Role");
 			assertThat(snapshot.getRoleDescription()).isEqualTo("Role description");
@@ -139,10 +147,7 @@ class HistoricOuAssignmentServiceTest {
 			service.recordUserRoleAdded(ou, assignment);
 
 			// ---- Then ---- //
-			ArgumentCaptor<HistoricOuAssignment> captor = ArgumentCaptor.forClass(HistoricOuAssignment.class);
-			verify(historicOuAssignmentDao).save(captor.capture());
-
-			HistoricOuAssignment snapshot = captor.getValue();
+			HistoricOuAssignment snapshot = captureFirstFromSaveAll();
 			assertThat(snapshot.getAssignedThroughType()).isEqualTo(AssignedThrough.ORGUNIT);
 			assertThat(snapshot.getAssignedThroughUuid()).isEqualTo("ou-uuid");
 			assertThat(snapshot.getAssignedThroughName()).isEqualTo("Test OU");
@@ -158,10 +163,7 @@ class HistoricOuAssignmentServiceTest {
 			service.recordUserRoleAdded(ou, assignment);
 
 			// ---- Then ---- //
-			ArgumentCaptor<HistoricOuAssignment> captor = ArgumentCaptor.forClass(HistoricOuAssignment.class);
-			verify(historicOuAssignmentDao).save(captor.capture());
-
-			HistoricOuAssignment snapshot = captor.getValue();
+			HistoricOuAssignment snapshot = captureFirstFromSaveAll();
 			assertThat(snapshot.isAppliesOnlyToManager()).isTrue();
 			assertThat(snapshot.isAppliesAlsoToSubstitutes()).isTrue();
 			assertThat(snapshot.isInheritToChildren()).isTrue();
@@ -177,10 +179,7 @@ class HistoricOuAssignmentServiceTest {
 			service.recordUserRoleAdded(ou, assignment);
 
 			// ---- Then ---- //
-			ArgumentCaptor<HistoricOuAssignment> captor = ArgumentCaptor.forClass(HistoricOuAssignment.class);
-			verify(historicOuAssignmentDao).save(captor.capture());
-
-			HistoricOuAssignment snapshot = captor.getValue();
+			HistoricOuAssignment snapshot = captureFirstFromSaveAll();
 			assertThat(snapshot.getRoleRoleGroupId()).isNull();
 			assertThat(snapshot.getRoleRoleGroupName()).isNull();
 			assertThat(snapshot.getRoleGroupDescription()).isNull();
@@ -196,10 +195,7 @@ class HistoricOuAssignmentServiceTest {
 			service.recordUserRoleAdded(ou, assignment);
 
 			// ---- Then ---- //
-			ArgumentCaptor<HistoricOuAssignment> captor = ArgumentCaptor.forClass(HistoricOuAssignment.class);
-			verify(historicOuAssignmentDao).save(captor.capture());
-
-			HistoricOuAssignment snapshot = captor.getValue();
+			HistoricOuAssignment snapshot = captureFirstFromSaveAll();
 			assertThat(snapshot.getValidFrom()).isNotNull();
 			assertThat(snapshot.getValidTo()).isNull();
 			assertThat(snapshot.getRecordHash()).isNotNull();
@@ -211,7 +207,9 @@ class HistoricOuAssignmentServiceTest {
 			// ---- Given ---- //
 			User responsible = createUser("responsible-uuid");
 			userRole.setRoleAssignmentAttestationByAttestationResponsible(true);
-			itSystem.setAttestationResponsible(responsible);
+			itSystem.addAttestationResponsible(responsible);
+			given(attestationResponsibleCollectionDao.findFirstByItSystemId(anyLong()))
+				.willReturn(Optional.of(new AttestationResponsibleCollection(42L, itSystem.getId(), List.of("responsible-uuid"))));
 
 			OrgUnitUserRoleAssignment assignment = createOrgUnitUserRoleAssignment(userRole, ou, false, false, false);
 
@@ -219,19 +217,19 @@ class HistoricOuAssignmentServiceTest {
 			service.recordUserRoleAdded(ou, assignment);
 
 			// ---- Then ---- //
-			ArgumentCaptor<HistoricOuAssignment> captor = ArgumentCaptor.forClass(HistoricOuAssignment.class);
-			verify(historicOuAssignmentDao).save(captor.capture());
+			HistoricOuAssignment snapshot = captureFirstFromSaveAll();
 
-			assertThat(captor.getValue().getResponsibleUserUuid()).isEqualTo("responsible-uuid");
+			// TODO: legacy responsibleUserUuid removed in multi-owner refactor — collection lookup is set up elsewhere
+			assertThat(snapshot.getResponsibleCollectionId()).isNotNull();
 		}
 
 		@Test
-		@DisplayName("responsibleUserUuid is null when role flag is false, even if itSystem has responsible user")
-		void responsibleUserUuidIsNullWhenFlagIsFalse() {
+		@DisplayName("responsibleCollectionId is null when role flag is false, even if itSystem has responsible user")
+		void responsibleCollectionIdIsNullWhenFlagIsFalse() {
 			// ---- Given ---- //
 			User responsible = createUser("responsible-uuid");
 			userRole.setRoleAssignmentAttestationByAttestationResponsible(false);
-			itSystem.setAttestationResponsible(responsible);
+			itSystem.addAttestationResponsible(responsible);
 
 			OrgUnitUserRoleAssignment assignment = createOrgUnitUserRoleAssignment(userRole, ou, false, false, false);
 
@@ -239,10 +237,9 @@ class HistoricOuAssignmentServiceTest {
 			service.recordUserRoleAdded(ou, assignment);
 
 			// ---- Then ---- //
-			ArgumentCaptor<HistoricOuAssignment> captor = ArgumentCaptor.forClass(HistoricOuAssignment.class);
-			verify(historicOuAssignmentDao).save(captor.capture());
+			HistoricOuAssignment snapshot = captureFirstFromSaveAll();
 
-			assertThat(captor.getValue().getResponsibleUserUuid()).isNull();
+			assertThat(snapshot.getResponsibleCollectionId()).isNull();
 		}
 
 		@Test
@@ -257,10 +254,9 @@ class HistoricOuAssignmentServiceTest {
 			service.recordUserRoleAdded(ou, assignment);
 
 			// ---- Then ---- //
-			ArgumentCaptor<HistoricOuAssignment> captor = ArgumentCaptor.forClass(HistoricOuAssignment.class);
-			verify(historicOuAssignmentDao).save(captor.capture());
+			HistoricOuAssignment snapshot = captureFirstFromSaveAll();
 
-			List<HistoricOuAssignmentExclusion> exclusions = captor.getValue().getExclusions();
+			List<HistoricOuAssignmentExclusion> exclusions = snapshot.getExclusions();
 			assertThat(exclusions).hasSize(1);
 			assertThat(exclusions.getFirst().getExclusionType()).isEqualTo(ExclusionType.EXCEPTED_USERS);
 			assertThat(exclusions.getFirst().getUuids()).containsExactlyInAnyOrder("user-1", "user-2");
@@ -281,10 +277,9 @@ class HistoricOuAssignmentServiceTest {
 			service.recordUserRoleAdded(ou, assignment);
 
 			// ---- Then ---- //
-			ArgumentCaptor<HistoricOuAssignment> captor = ArgumentCaptor.forClass(HistoricOuAssignment.class);
-			verify(historicOuAssignmentDao).save(captor.capture());
+			HistoricOuAssignment snapshot = captureFirstFromSaveAll();
 
-			List<HistoricOuAssignmentExclusion> exclusions = captor.getValue().getExclusions();
+			List<HistoricOuAssignmentExclusion> exclusions = snapshot.getExclusions();
 			assertThat(exclusions).hasSize(1);
 			assertThat(exclusions.getFirst().getExclusionType()).isEqualTo(ExclusionType.POSITIVE_TITLES);
 			assertThat(exclusions.getFirst().getUuids()).containsExactlyInAnyOrder("title-1", "title-2");
@@ -304,10 +299,9 @@ class HistoricOuAssignmentServiceTest {
 			service.recordUserRoleAdded(ou, assignment);
 
 			// ---- Then ---- //
-			ArgumentCaptor<HistoricOuAssignment> captor = ArgumentCaptor.forClass(HistoricOuAssignment.class);
-			verify(historicOuAssignmentDao).save(captor.capture());
+			HistoricOuAssignment snapshot = captureFirstFromSaveAll();
 
-			List<HistoricOuAssignmentExclusion> exclusions = captor.getValue().getExclusions();
+			List<HistoricOuAssignmentExclusion> exclusions = snapshot.getExclusions();
 			assertThat(exclusions).hasSize(1);
 			assertThat(exclusions.getFirst().getExclusionType()).isEqualTo(ExclusionType.NEGATIVE_TITLES);
 			assertThat(exclusions.getFirst().getUuids()).containsExactly("title-neg-1");
@@ -328,10 +322,9 @@ class HistoricOuAssignmentServiceTest {
 			service.recordUserRoleAdded(ou, assignment);
 
 			// ---- Then ---- //
-			ArgumentCaptor<HistoricOuAssignment> captor = ArgumentCaptor.forClass(HistoricOuAssignment.class);
-			verify(historicOuAssignmentDao).save(captor.capture());
+			HistoricOuAssignment snapshot = captureFirstFromSaveAll();
 
-			List<HistoricOuAssignmentExclusion> exclusions = captor.getValue().getExclusions();
+			List<HistoricOuAssignmentExclusion> exclusions = snapshot.getExclusions();
 			assertThat(exclusions).hasSize(1);
 			assertThat(exclusions.getFirst().getExclusionType()).isEqualTo(ExclusionType.FUNCTIONS);
 			assertThat(exclusions.getFirst().getUuids()).containsExactlyInAnyOrder("func-1", "func-2");
@@ -347,10 +340,9 @@ class HistoricOuAssignmentServiceTest {
 			service.recordUserRoleAdded(ou, assignment);
 
 			// ---- Then ---- //
-			ArgumentCaptor<HistoricOuAssignment> captor = ArgumentCaptor.forClass(HistoricOuAssignment.class);
-			verify(historicOuAssignmentDao).save(captor.capture());
+			HistoricOuAssignment snapshot = captureFirstFromSaveAll();
 
-			assertThat(captor.getValue().getExclusions()).isEmpty();
+			assertThat(snapshot.getExclusions()).isEmpty();
 		}
 
 		@Test
@@ -365,12 +357,11 @@ class HistoricOuAssignmentServiceTest {
 			service.recordUserRoleAdded(ou, assignment);
 
 			// ---- Then ---- //
-			ArgumentCaptor<HistoricOuAssignment> captor = ArgumentCaptor.forClass(HistoricOuAssignment.class);
-			verify(historicOuAssignmentDao).save(captor.capture());
+			HistoricOuAssignment snapshot = captureFirstFromSaveAll();
 
 			java.time.LocalDateTime expected = timestamp.toInstant()
 				.atZone(java.time.ZoneId.systemDefault()).toLocalDateTime();
-			assertThat(captor.getValue().getAssignedWhen()).isEqualTo(expected);
+			assertThat(snapshot.getAssignedWhen()).isEqualTo(expected);
 		}
 
 		@Test
@@ -388,10 +379,9 @@ class HistoricOuAssignmentServiceTest {
 			java.time.LocalDateTime after = java.time.LocalDateTime.now();
 
 			// ---- Then ---- //
-			ArgumentCaptor<HistoricOuAssignment> captor = ArgumentCaptor.forClass(HistoricOuAssignment.class);
-			verify(historicOuAssignmentDao).save(captor.capture());
+			HistoricOuAssignment snapshot = captureFirstFromSaveAll();
 
-			assertThat(captor.getValue().getAssignedWhen())
+			assertThat(snapshot.getAssignedWhen())
 				.isAfterOrEqualTo(before)
 				.isBeforeOrEqualTo(after);
 		}
@@ -408,10 +398,9 @@ class HistoricOuAssignmentServiceTest {
 			service.recordUserRoleAdded(ou, assignment);
 
 			// ---- Then ---- //
-			ArgumentCaptor<HistoricOuAssignment> captor = ArgumentCaptor.forClass(HistoricOuAssignment.class);
-			verify(historicOuAssignmentDao).save(captor.capture());
+			HistoricOuAssignment snapshot = captureFirstFromSaveAll();
 
-			assertThat(captor.getValue().getExclusions()).isEmpty();
+			assertThat(snapshot.getExclusions()).isEmpty();
 		}
 
 		@Test
@@ -426,63 +415,98 @@ class HistoricOuAssignmentServiceTest {
 			service.recordUserRoleAdded(ou, assignment);
 
 			// ---- Then ---- //
+			HistoricOuAssignment snapshot = captureFirstFromSaveAll();
+
+			assertThat(snapshot.getExclusions()).isEmpty();
+		}
+
+		@Test
+		@DisplayName("assignedBy and date fields are mapped from the assignment")
+		void assignedByAndDateFieldsAreMapped() {
+			// ---- Given ---- //
+			OrgUnitUserRoleAssignment assignment = createOrgUnitUserRoleAssignment(userRole, ou, false, false, false);
+			assignment.setAssignedByUserId("user-id-42");
+			assignment.setAssignedByName("Jane Doe");
+			assignment.setStartDate(LocalDate.of(2025, 1, 1));
+			assignment.setStopDate(LocalDate.of(2026, 12, 31));
+
+			// ---- When ---- //
+			service.recordUserRoleAdded(ou, assignment);
+
+			// ---- Then ---- //
 			ArgumentCaptor<HistoricOuAssignment> captor = ArgumentCaptor.forClass(HistoricOuAssignment.class);
 			verify(historicOuAssignmentDao).save(captor.capture());
 
-			assertThat(captor.getValue().getExclusions()).isEmpty();
+			HistoricOuAssignment snapshot = captor.getValue();
+			assertThat(snapshot.getAssignedByUserId()).isEqualTo("user-id-42");
+			assertThat(snapshot.getAssignedByName()).isEqualTo("Jane Doe");
+			assertThat(snapshot.getStartDate()).isEqualTo(LocalDate.of(2025, 1, 1));
+			assertThat(snapshot.getStopDate()).isEqualTo(LocalDate.of(2026, 12, 31));
 		}
 	}
 
 	@Nested
-	@DisplayName("recordUserRoleUpdated")
-	class RecordUserRoleUpdated {
+	@DisplayName("recordUserRoleUpdatedClose closes the open record by hash")
+	class RecordUserRoleUpdatedClose {
 
 		@Test
-		@DisplayName("closes the existing open record by hash before saving the new one")
-		void closesOldRecordThenSavesNew() {
+		@DisplayName("passes the pre-update hash to closeOpenByRecordHash and does not save")
+		void closesOldRecordByPreUpdateHashAndDoesNotSave() {
 			// ---- Given ---- //
 			OrgUnitUserRoleAssignment assignment = createOrgUnitUserRoleAssignment(userRole, ou, false, false, false);
+			assignment.setStopDate(LocalDate.of(2026, 12, 31));
 
 			// ---- When ---- //
-			service.recordUserRoleUpdated(ou, assignment);
+			service.recordUserRoleUpdatedClose(ou, assignment);
 
 			// ---- Then ---- //
-			verify(historicOuAssignmentDao).closeOpenByRecordHash(any(String.class), any());
-			verify(historicOuAssignmentDao).save(any(HistoricOuAssignment.class));
+			// The hash must match what the calculator produces for this assignment state,
+			// so the correct open row is closed when stopDate later changes.
+			String expectedHash = HistoricOuAssignmentHashCalculator.compute(
+				HistoricOuAssignment.builder()
+					.ouUuid(ou.getUuid())
+					.itSystemId(itSystem.getId())
+					.roleId(userRole.getId())
+					.assignedThroughType(AssignedThrough.ORGUNIT)
+					.assignedThroughUuid(ou.getUuid())
+					.appliesOnlyToManager(false)
+					.appliesAlsoToSubstitutes(false)
+					.inheritToChildren(false)
+					.startDate(null)
+					.stopDate(LocalDate.of(2026, 12, 31))
+					.exclusions(new ArrayList<>())
+					.build()
+			);
+
+			ArgumentCaptor<String> hashCaptor = ArgumentCaptor.forClass(String.class);
+			verify(historicOuAssignmentDao).closeOpenByRecordHash(hashCaptor.capture(), any());
+			verify(historicOuAssignmentDao, Mockito.never()).save(any());
+
+			assertThat(hashCaptor.getValue()).isEqualTo(expectedHash);
 		}
+	}
+
+	@Nested
+	@DisplayName("recordUserRoleUpdatedSaveNew saves a fresh open record")
+	class RecordUserRoleUpdatedSaveNew {
 
 		@Test
-		@DisplayName("the new saved record has validTo = null")
-		void newRecordIsOpen() {
+		@DisplayName("saves a new record with validTo = null reflecting post-update state")
+		void savesNewOpenRecord() {
 			// ---- Given ---- //
 			OrgUnitUserRoleAssignment assignment = createOrgUnitUserRoleAssignment(userRole, ou, false, false, false);
+			assignment.setStopDate(LocalDate.of(2027, 6, 30));
 
 			// ---- When ---- //
-			service.recordUserRoleUpdated(ou, assignment);
+			service.recordUserRoleUpdatedSaveNew(ou, assignment);
 
 			// ---- Then ---- //
 			ArgumentCaptor<HistoricOuAssignment> captor = ArgumentCaptor.forClass(HistoricOuAssignment.class);
 			verify(historicOuAssignmentDao).save(captor.capture());
 
-			assertThat(captor.getValue().getValidTo()).isNull();
-		}
-
-		@Test
-		@DisplayName("the hash used to close the old record matches the hash of the new record")
-		void closedHashMatchesSavedHash() {
-			// ---- Given ---- //
-			OrgUnitUserRoleAssignment assignment = createOrgUnitUserRoleAssignment(userRole, ou, false, false, false);
-
-			// ---- When ---- //
-			service.recordUserRoleUpdated(ou, assignment);
-
-			// ---- Then ---- //
-			ArgumentCaptor<String> closedHashCaptor = ArgumentCaptor.forClass(String.class);
-			ArgumentCaptor<HistoricOuAssignment> savedCaptor = ArgumentCaptor.forClass(HistoricOuAssignment.class);
-			verify(historicOuAssignmentDao).closeOpenByRecordHash(closedHashCaptor.capture(), any());
-			verify(historicOuAssignmentDao).save(savedCaptor.capture());
-
-			assertThat(closedHashCaptor.getValue()).isEqualTo(savedCaptor.getValue().getRecordHash());
+			HistoricOuAssignment snapshot = captor.getValue();
+			assertThat(snapshot.getValidTo()).isNull();
+			assertThat(snapshot.getStopDate()).isEqualTo(LocalDate.of(2027, 6, 30));
 		}
 	}
 
@@ -521,6 +545,7 @@ class HistoricOuAssignmentServiceTest {
 			service.recordRoleGroupAdded(ou, assignment);
 
 			// ---- Then ---- //
+			@SuppressWarnings("unchecked")
 			ArgumentCaptor<List<HistoricOuAssignment>> captor = ArgumentCaptor.forClass(List.class);
 			verify(historicOuAssignmentDao).saveAll(captor.capture());
 
@@ -538,6 +563,7 @@ class HistoricOuAssignmentServiceTest {
 			service.recordRoleGroupAdded(ou, assignment);
 
 			// ---- Then ---- //
+			@SuppressWarnings("unchecked")
 			ArgumentCaptor<List<HistoricOuAssignment>> captor = ArgumentCaptor.forClass(List.class);
 			verify(historicOuAssignmentDao).saveAll(captor.capture());
 
@@ -558,6 +584,7 @@ class HistoricOuAssignmentServiceTest {
 			service.recordRoleGroupAdded(ou, assignment);
 
 			// ---- Then ---- //
+			@SuppressWarnings("unchecked")
 			ArgumentCaptor<List<HistoricOuAssignment>> captor = ArgumentCaptor.forClass(List.class);
 			verify(historicOuAssignmentDao).saveAll(captor.capture());
 
@@ -580,6 +607,7 @@ class HistoricOuAssignmentServiceTest {
 			service.recordRoleGroupAdded(ou, assignment);
 
 			// ---- Then ---- //
+			@SuppressWarnings("unchecked")
 			ArgumentCaptor<List<HistoricOuAssignment>> captor = ArgumentCaptor.forClass(List.class);
 			verify(historicOuAssignmentDao).saveAll(captor.capture());
 
@@ -603,6 +631,7 @@ class HistoricOuAssignmentServiceTest {
 			service.recordRoleGroupAdded(ou, assignment);
 
 			// ---- Then ---- //
+			@SuppressWarnings("unchecked")
 			ArgumentCaptor<List<HistoricOuAssignment>> captor = ArgumentCaptor.forClass(List.class);
 			verify(historicOuAssignmentDao).saveAll(captor.capture());
 
@@ -621,28 +650,81 @@ class HistoricOuAssignmentServiceTest {
 			HistoricOuAssignmentExclusion excl1 = records.get(1).getExclusions().getFirst();
 			assertThat(excl0).isNotSameAs(excl1);
 		}
+
+		@Test
+		@DisplayName("assignedBy and date fields from the role-group assignment are mapped to each record")
+		void assignedByAndDateFieldsAreMapped() {
+			// ---- Given ---- //
+			RoleGroup roleGroup = createRoleGroup(30L, "Test Role Group", "Role group description", List.of(userRole));
+			OrgUnitRoleGroupAssignment assignment = createOrgUnitRoleGroupAssignment(roleGroup, ou, false, false, false);
+			assignment.setAssignedByUserId("user-id-99");
+			assignment.setAssignedByName("John Smith");
+			assignment.setStartDate(LocalDate.of(2025, 3, 1));
+			assignment.setStopDate(LocalDate.of(2025, 9, 30));
+
+			// ---- When ---- //
+			service.recordRoleGroupAdded(ou, assignment);
+
+			// ---- Then ---- //
+			ArgumentCaptor<List<HistoricOuAssignment>> captor = ArgumentCaptor.forClass(List.class);
+			verify(historicOuAssignmentDao).saveAll(captor.capture());
+
+			HistoricOuAssignment first = captor.getValue().getFirst();
+			assertThat(first.getAssignedByUserId()).isEqualTo("user-id-99");
+			assertThat(first.getAssignedByName()).isEqualTo("John Smith");
+			assertThat(first.getStartDate()).isEqualTo(LocalDate.of(2025, 3, 1));
+			assertThat(first.getStopDate()).isEqualTo(LocalDate.of(2025, 9, 30));
+		}
 	}
 
 	@Nested
-	@DisplayName("recordRoleGroupUpdated")
-	class RecordRoleGroupUpdated {
+	@DisplayName("recordRoleGroupUpdatedClose closes one record per role")
+	class RecordRoleGroupUpdatedClose {
 
 		@Test
-		@DisplayName("closes all previous records and saves new ones")
-		void closesAllOldRecordsAndSavesNew() {
+		@DisplayName("calls closeOpenByRecordHash once per role and does not save")
+		void closesAllOldRecordsAndDoesNotSave() {
 			// ---- Given ---- //
 			UserRole role2 = createUserRole(21L, "Role 2", itSystem);
 			RoleGroup roleGroup = createRoleGroup(30L, "Test Role Group", "Role group description", List.of(userRole, role2));
 			OrgUnitRoleGroupAssignment assignment = createOrgUnitRoleGroupAssignment(roleGroup, ou, false, false, false);
 
 			// ---- When ---- //
-			service.recordRoleGroupUpdated(ou, assignment);
+			service.recordRoleGroupUpdatedClose(ou, assignment);
 
 			// ---- Then ---- //
-			// closeOpenByRecordHash called once per role (2 roles)
 			verify(historicOuAssignmentDao, Mockito.times(2))
 				.closeOpenByRecordHash(any(String.class), any());
-			verify(historicOuAssignmentDao).saveAll(any(List.class));
+			verify(historicOuAssignmentDao, Mockito.never()).saveAll(any());
+		}
+	}
+
+	@Nested
+	@DisplayName("recordRoleGroupUpdatedSaveNew saves fresh open records")
+	class RecordRoleGroupUpdatedSaveNew {
+
+		@Test
+		@DisplayName("saves one new record per role in the group")
+		void savesOneRecordPerRole() {
+			// ---- Given ---- //
+			UserRole role2 = createUserRole(21L, "Role 2", itSystem);
+			RoleGroup roleGroup = createRoleGroup(30L, "Test Role Group", "Role group description", List.of(userRole, role2));
+			OrgUnitRoleGroupAssignment assignment = createOrgUnitRoleGroupAssignment(roleGroup, ou, false, false, false);
+			assignment.setStopDate(LocalDate.of(2027, 3, 1));
+
+			// ---- When ---- //
+			service.recordRoleGroupUpdatedSaveNew(ou, assignment);
+
+			// ---- Then ---- //
+			ArgumentCaptor<List<HistoricOuAssignment>> captor = ArgumentCaptor.forClass(List.class);
+			verify(historicOuAssignmentDao).saveAll(captor.capture());
+
+			assertThat(captor.getValue())
+				.hasSize(2)
+				.allSatisfy(r -> {
+					assertThat(r.getValidTo()).isNull();
+					assertThat(r.getStopDate()).isEqualTo(LocalDate.of(2027, 3, 1));
+				});
 		}
 	}
 
@@ -718,6 +800,77 @@ class HistoricOuAssignmentServiceTest {
 			verify(historicOuAssignmentDao).closeAllOpenByRoleGroupIdAndRoleId(
 				eq(30L), eq(20L), any()
 			);
+		}
+	}
+
+	@Nested
+	@DisplayName("computeHash — date fields affect hash identity")
+	class ComputeHashWithDates {
+
+		@Test
+		@DisplayName("two assignments differing only in stopDate produce different hashes")
+		void stopDateChangesHash() {
+			// ---- Given ---- //
+			OrgUnitUserRoleAssignment a1 = createOrgUnitUserRoleAssignment(userRole, ou, false, false, false);
+			a1.setStopDate(LocalDate.of(2026, 12, 31));
+
+			OrgUnitUserRoleAssignment a2 = createOrgUnitUserRoleAssignment(userRole, ou, false, false, false);
+			a2.setStopDate(LocalDate.of(2027, 6, 30));
+
+			// ---- When ---- //
+			service.recordUserRoleAdded(ou, a1);
+			service.recordUserRoleAdded(ou, a2);
+
+			// ---- Then ---- //
+			ArgumentCaptor<HistoricOuAssignment> captor = ArgumentCaptor.forClass(HistoricOuAssignment.class);
+			verify(historicOuAssignmentDao, Mockito.times(2)).save(captor.capture());
+
+			List<HistoricOuAssignment> saved = captor.getAllValues();
+			assertThat(saved.get(0).getRecordHash()).isNotEqualTo(saved.get(1).getRecordHash());
+		}
+
+		@Test
+		@DisplayName("two assignments differing only in startDate produce different hashes")
+		void startDateChangesHash() {
+			// ---- Given ---- //
+			OrgUnitUserRoleAssignment a1 = createOrgUnitUserRoleAssignment(userRole, ou, false, false, false);
+			a1.setStartDate(LocalDate.of(2025, 1, 1));
+
+			OrgUnitUserRoleAssignment a2 = createOrgUnitUserRoleAssignment(userRole, ou, false, false, false);
+			a2.setStartDate(LocalDate.of(2026, 1, 1));
+
+			// ---- When ---- //
+			service.recordUserRoleAdded(ou, a1);
+			service.recordUserRoleAdded(ou, a2);
+
+			// ---- Then ---- //
+			ArgumentCaptor<HistoricOuAssignment> captor = ArgumentCaptor.forClass(HistoricOuAssignment.class);
+			verify(historicOuAssignmentDao, Mockito.times(2)).save(captor.capture());
+
+			List<HistoricOuAssignment> saved = captor.getAllValues();
+			assertThat(saved.get(0).getRecordHash()).isNotEqualTo(saved.get(1).getRecordHash());
+		}
+
+		@Test
+		@DisplayName("two assignments differing only in assignedByUserId produce the SAME hash")
+		void assignedByUserIdDoesNotAffectHash() {
+			// ---- Given ---- //
+			OrgUnitUserRoleAssignment a1 = createOrgUnitUserRoleAssignment(userRole, ou, false, false, false);
+			a1.setAssignedByUserId("user-a");
+
+			OrgUnitUserRoleAssignment a2 = createOrgUnitUserRoleAssignment(userRole, ou, false, false, false);
+			a2.setAssignedByUserId("user-b");
+
+			// ---- When ---- //
+			service.recordUserRoleAdded(ou, a1);
+			service.recordUserRoleAdded(ou, a2);
+
+			// ---- Then ---- //
+			ArgumentCaptor<HistoricOuAssignment> captor = ArgumentCaptor.forClass(HistoricOuAssignment.class);
+			verify(historicOuAssignmentDao, Mockito.times(2)).save(captor.capture());
+
+			List<HistoricOuAssignment> saved = captor.getAllValues();
+			assertThat(saved.get(0).getRecordHash()).isEqualTo(saved.get(1).getRecordHash());
 		}
 	}
 

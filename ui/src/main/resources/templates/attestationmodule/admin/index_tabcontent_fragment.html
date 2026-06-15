@@ -58,7 +58,7 @@
                 <td class="dt-control"></td>
                 <td th:text="${system.name}"></td>
                 <td th:text="${system.path}"></td>
-                <td th:text="${system.responsibleUser?.name}"></td>
+                <td th:text="${#strings.listJoin(system.responsibleUsers.![name], ', ')}"></td>
                 <td th:text="#{attestationmodule.html.admin.orgunits.status.not_started}" th:if="${system.status == T(dk.digitalidentity.rc.attestation.model.dto.enums.AdminAttestationStatus).NOT_STARTED}"></td>
                 <td th:text="#{attestationmodule.html.admin.orgunits.status.in_progress}" th:if="${system.status == T(dk.digitalidentity.rc.attestation.model.dto.enums.AdminAttestationStatus).ON_GOING}"></td>
                 <td th:text="#{attestationmodule.html.admin.orgunits.status.done}" th:if="${system.status == T(dk.digitalidentity.rc.attestation.model.dto.enums.AdminAttestationStatus).FINISHED}"></td>

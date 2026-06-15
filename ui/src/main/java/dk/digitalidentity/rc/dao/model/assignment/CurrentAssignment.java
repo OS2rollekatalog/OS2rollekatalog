@@ -7,6 +7,7 @@ import dk.digitalidentity.rc.dao.model.Title;
 import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserRole;
 import dk.digitalidentity.rc.util.HashUtil;
+import jakarta.annotation.Nullable;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -77,14 +78,26 @@ public class CurrentAssignment {
 	@Column
 	private String assignedBy;
 
+	@Column
+	private boolean manager;
+
+	@Column
+	private boolean substitutes;
+
 	@ManyToOne(fetch = FetchType.LAZY, cascade = {CascadeType.MERGE, CascadeType.REFRESH})
 	@JoinColumn(name = "assignment_user_uuid")
 	private User user;
 
+	// Null for "roleGroup-only" rows: a role group assigned to a user/OU that contains no userroles (JFRs).
+	// Such an empty role group produces a single row carrying only the roleGroup so the assignment stays visible.
+	// userRole and itSystem are null together (never one without the other) - see CurrentAssignmentMapper and
+	// isRoleGroupOnly(). Always null-check (or filter on isRoleGroupOnly()) before dereferencing these.
+	@Nullable
 	@ManyToOne(fetch = FetchType.LAZY, cascade = {CascadeType.MERGE, CascadeType.REFRESH})
 	@JoinColumn(name = "assignment_user_role_id")
 	private UserRole userRole;
 
+	@Nullable
 	@ManyToOne(fetch = FetchType.LAZY, cascade = {CascadeType.MERGE, CascadeType.REFRESH})
 	@JoinColumn(name = "assignment_it_system_id")
 	private ItSystem itSystem;
@@ -114,12 +127,22 @@ public class CurrentAssignment {
 			&& (stopDate == null || stopDate.isAfter(today)); // stopdate is null or hasn't expired yet
 	}
 
+	/**
+	 * True for a "roleGroup-only" row: an empty role group (no userroles) assigned to a user/OU.
+	 * Such rows have a roleGroup but no userRole/itSystem, so consumers that dereference userRole/itSystem
+	 * must skip them.
+	 */
+	@Transient
+	public boolean isRoleGroupOnly() {
+		return roleGroup != null && userRole == null;
+	}
+
 	@SuppressWarnings("Convert2MethodRef")
 	public String generateRecordHash() {
 		HashUtil.HashBuilder builder = HashUtil.builder()
 			.add(user.getUuid())
-			.add(userRole.getId())
-			.add(itSystem.getId())
+			.addNullable(userRole, ur -> ur.getId())
+			.addNullable(itSystem, it -> it.getId())
 			.add(startDate)
 			.add(stopDate)
 			.add(assignmentId)
@@ -127,7 +150,9 @@ public class CurrentAssignment {
 			.addNullable(roleGroup, rg -> rg.getId())
 			.addNullable(orgUnit, ou -> ou.getUuid())
 			.addNullable(title, t -> t.getUuid())
-			.addNullable(responsibleOrgUnit, rou -> rou.getUuid());
+			.addNullable(responsibleOrgUnit, rou -> rou.getUuid())
+			.add(manager)
+			.add(substitutes);
 
 		if (postponedConstraints != null) {
 			postponedConstraints.stream()

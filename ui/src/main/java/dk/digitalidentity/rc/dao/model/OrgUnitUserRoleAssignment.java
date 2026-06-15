@@ -91,8 +91,15 @@ public class OrgUnitUserRoleAssignment implements OrgUnitAssignment {
 	@JoinTable(name = "ou_roles_functions", joinColumns = @JoinColumn(name = "ou_roles_id"), inverseJoinColumns = @JoinColumn(name = "function_uuid"))
 	private List<Function> functions;
 
+	@OneToMany
+	@JoinTable(name = "ou_roles_excepted_ous", joinColumns = @JoinColumn(name = "ou_roles_id"), inverseJoinColumns = @JoinColumn(name = "ou_uuid"))
+	private List<OrgUnit> exceptedOus;
+
 	@Column
 	private boolean containsFunctions;
+
+	@Column
+	private boolean containsExceptedOus;
 
 	@Column
 	private boolean containsExceptedUsers;

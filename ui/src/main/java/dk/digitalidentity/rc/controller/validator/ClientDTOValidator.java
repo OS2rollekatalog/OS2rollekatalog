@@ -35,8 +35,7 @@ public class ClientDTOValidator implements Validator {
 		ClientDTO clientDTO = (ClientDTO) o;
 
 		if (clientDTO.getId() == 0) {
-			Client client = clientService.getClientByName(clientDTO.getName());
-			if (client != null) {
+			if(!clientService.isNameUnique(clientDTO.getName())) {
 				errors.rejectValue("name", "mvc.errors.client.exists");
 			}
 		}

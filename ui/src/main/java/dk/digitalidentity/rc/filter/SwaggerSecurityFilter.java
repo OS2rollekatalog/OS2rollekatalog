@@ -3,7 +3,7 @@ import java.io.IOException;
 
 import org.springframework.security.core.context.SecurityContextHolder;
 
-import dk.digitalidentity.samlmodule.model.TokenUser;
+import dk.digitalidentity.saml.service.model.TokenUser;
 import jakarta.servlet.Filter;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;

@@ -25,6 +25,10 @@ document.addEventListener('DOMContentLoaded', ()=> {
 		$("#showSingleTableInRequestApproveEnabled").val(this.checked);
 	});
 
+	$("#allow-self-approval-checkbox").change(function() {
+		$("#allowSelfApproval").val(this.checked);
+	});
+
 	$('.checkbox-email').on("change", function() {
 		let name = $(this).data("name")
 		$('#approverEmail_' + name).prop("disabled", !$(this).is(":checked")).change();

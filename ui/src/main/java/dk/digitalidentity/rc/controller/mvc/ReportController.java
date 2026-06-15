@@ -135,6 +135,7 @@ public class ReportController {
 		reportForm.setShowItSystems(true);
 		reportForm.setShowInactiveUsers(false);
 		reportForm.setShowSystemRoles(false);
+		reportForm.setShowOrgUnitAllocations(false);
 
 		model.addAttribute("reportForm", reportForm);
 		model.addAttribute("allItSystems", parseItSystems(now));
@@ -224,6 +225,7 @@ public class ReportController {
 			reportForm.setShowInactiveUsers(reportTemplate.isShowInactiveUsers());
 			reportForm.setManagerFilter(reportTemplate.getManagerFilter());
 			reportForm.setUnitFilter((reportTemplate.getUnitFilter() != null) ? reportTemplate.getUnitFilter().split(",") : null);
+			reportForm.setShowSystemRoles(reportTemplate.isShowSystemRoles());
 
 			if (reportTemplate.getItsystemFilter() != null) {
 				String[] stringIds = reportTemplate.getItsystemFilter().split(",");
@@ -256,9 +258,14 @@ public class ReportController {
 	@GetMapping(value = "/ui/report/download/template/{id}")
 	public ModelAndView downloadReportFromTemplate(@PathVariable("id") Long id, HttpServletResponse response, Locale loc) {
 		List<ReportTemplate> templates = null;
-		User user = userService.getByUserId(SecurityUtil.getUserId());
-		if (user != null) {
-			templates = reportTemplateService.getByUser(user);
+		if (SecurityUtil.hasRole(Constants.ROLE_REPORT_ACCESS)) {
+			templates = reportTemplateService.getAll();
+		}
+		else {
+			User user = userService.getByUserId(SecurityUtil.getUserId());
+			if (user != null) {
+				templates = reportTemplateService.getByUser(user);
+			}
 		}
 
 		ReportTemplate template = null;
@@ -286,6 +293,7 @@ public class ReportController {
 		reportForm.setShowUserRoles(template.isShowUserRoles());
 		reportForm.setShowNegativeRoles(template.isShowNegativeRoles());
 		reportForm.setShowUsers(template.isShowUsers());
+		reportForm.setShowSystemRoles(template.isShowSystemRoles());
 		reportForm.setName(template.getName());
 
 		Map<String, Object> model = reportService.getReportModel(reportForm, loc);
@@ -729,8 +737,8 @@ public class ReportController {
 		List<ItSystemSystemOwnerRecord> result = new ArrayList<>();
 		List<ItSystem> allSystems = itSystemService.getVisible();
 		for (ItSystem system : allSystems) {
-			if (system.getSystemOwner() != null) {
-				result.add(new ItSystemSystemOwnerRecord(system.getName(), system.getSystemOwner().getName(), system.getSystemOwner().getEmail()));
+			if (system.getSystemOwners() != null && !system.getSystemOwners().isEmpty()) {
+				result.add(new ItSystemSystemOwnerRecord(system.getName(), itSystemService.getSystemOwnerNames(system), itSystemService.getSystemOwners(system).stream().map(User::getEmail).collect(Collectors.joining(","))));
 			}
 		}
 		return result;
@@ -741,8 +749,11 @@ public class ReportController {
 		List<ItSystemAttestationResponsibleRecord> result = new ArrayList<>();
 		List<ItSystem> allSystems = itSystemService.getVisible();
 		for (ItSystem system : allSystems) {
-			if (system.getAttestationResponsible() != null) {
-				result.add(new ItSystemAttestationResponsibleRecord(system.getName(), system.getAttestationResponsible().getName(), system.getAttestationResponsible().getEmail()));
+			if (!system.getAttestationResponsibles().isEmpty()) {
+				List<User> responsibles = itSystemService.getAttestationResponsibles(system);
+				String names = responsibles.stream().map(User::getName).collect(Collectors.joining(", "));
+				String emails = responsibles.stream().map(User::getEmail).collect(Collectors.joining(", "));
+				result.add(new ItSystemAttestationResponsibleRecord(system.getName(), names, emails));
 			}
 		}
 		return result;
@@ -765,10 +776,10 @@ public class ReportController {
 		List<ItSystemWithoutSystemResponsibleReport> result = new ArrayList<>();
 		List<ItSystem> allSystems = itSystemService.getVisible();
 		for (ItSystem system : allSystems) {
-			if (system.getAttestationResponsible() == null) {
+			List<User> responsibles = itSystemService.getAttestationResponsibles(system);
+			if (responsibles.isEmpty()) {
 				result.add(new ItSystemWithoutSystemResponsibleReport(system.getId(), system.getName(), system.getIdentifier(), system.getSystemType().getMessage(), false));
-			}
-			else if (system.getAttestationResponsible() != null && (system.getAttestationResponsible().isDeleted() || system.getAttestationResponsible().isDisabled())) {
+			} else if (responsibles.stream().allMatch(u -> u.isDeleted() || u.isDisabled())) {
 				result.add(new ItSystemWithoutSystemResponsibleReport(system.getId(), system.getName(), system.getIdentifier(), system.getSystemType().getMessage(), true));
 			}
 		}
@@ -799,7 +810,15 @@ public class ReportController {
 		List<User> allUsers = userService.getAll();
 
 		for (User user : allUsers) {
-			Set<CurrentAssignment> allAssignments = assignmentService.getAllUserRolesByUserIncludingInactive(user);
+			// Alle assignments, også dem via rollebuket — en jobfunktionsrolle tildelt direkte
+			// OG gennem en rollebuket er netop et overlap denne rapport skal vise.
+			// Kun aktive rækker med en JFR tæller: udløbne/ikke-startede tildelinger er ikke
+			// reelle overlap (2026r1 filtrerede inactive fra), og gruppe-rækker for tomme
+			// rollebuketter har ingen userRole
+			List<CurrentAssignment> allAssignments = assignmentService.getByUserWithEagerRolesAndSystemsIncludingInactive(user).stream()
+				.filter(CurrentAssignment::isActive)
+				.filter(a -> a.getUserRole() != null)
+				.collect(Collectors.toList());
 
 			// Find direct assignments
 			List<CurrentAssignment> directAssignments = allAssignments.stream()
@@ -848,13 +867,19 @@ public class ReportController {
 		List<User> allUsers = userService.getAll();
 
 		for (User user : allUsers) {
-			Set<CurrentAssignment> uniqueRoleGroupAssignments = assignmentService.getUniqueRoleGroupAssignmentsByUser(user);
+			// exclude empty role groups (roleGroup-only rows) - they hold no roles and are not meaningful duplicates.
+			// isActive-filteret følger rollebuket-cleanupen (deleteDuplicateRoleGroupAssignmentsOnUsers), så udløbne/
+			// fremtidige rækker ikke vises som duplikater; rapporten ekskluderer derudover roleGroup-only-rækker, som
+			// cleanupen ikke gør — bevidst, da tomme rollebukets ikke er meningsfulde duplikater at vise.
+			Set<CurrentAssignment> uniqueRoleGroupAssignments = assignmentService.getUniqueRoleGroupAssignmentsByUser(user).stream()
+				.filter(a -> !a.isRoleGroupOnly())
+				.filter(CurrentAssignment::isActive)
+				.collect(Collectors.toCollection(java.util.LinkedHashSet::new));
 
 			if (uniqueRoleGroupAssignments.isEmpty()) {
 				continue;
 			}
 
-			// Find direct assignments
 			List<CurrentAssignment> directAssignments = uniqueRoleGroupAssignments.stream()
 				.filter(a -> assignmentService.getAssignedThroughForRoleGroup(a) == AssignedThrough.DIRECT)
 				.collect(Collectors.toList());
@@ -923,7 +948,7 @@ public class ReportController {
 				result.add(new ItSystemWithKitosInfo(system.getId(), system.getName(),"", ""));
 			}
 			else {
-				result.add(new ItSystemWithKitosInfo(system.getId(), system.getName(),system.getKitosITSystem().getName(), system.getSystemOwner() != null ? system.getSystemOwner().getName() : ""));
+				result.add(new ItSystemWithKitosInfo(system.getId(), system.getName(), system.getKitosITSystem().getName(), system.getSystemOwners() != null ? itSystemService.getSystemOwnerNames(system) : ""));
 			}
 		}
 		return result;

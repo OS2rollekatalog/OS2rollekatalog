@@ -8,7 +8,7 @@ import dk.digitalidentity.rc.dao.model.Domain;
 import dk.digitalidentity.rc.dao.model.ItSystem;
 import dk.digitalidentity.rc.dao.model.SystemRole;
 import dk.digitalidentity.rc.dao.model.UserRole;
-import dk.digitalidentity.rc.dao.model.assignment.CurrentAssignment;
+import dk.digitalidentity.rc.dao.model.assignment.CurrentAssignmentSmallProjection;
 import dk.digitalidentity.rc.dao.model.enums.ItSystemType;
 import dk.digitalidentity.rc.security.RequireApiReadAccessRole;
 import dk.digitalidentity.rc.service.DomainService;
@@ -116,8 +116,8 @@ public class AdSyncApi {
 		if (!fullSync) {
 			// compute sets of userIds and itSystemIds that are dirty, filtered for duplicates
 			updates = pendingADUpdateService.find100(foundDomain);
-
-		} else {
+		}
+		else {
 			List<ItSystem> allADSystems = itSystemService.getBySystemType(ItSystemType.AD).stream()
 					.filter(s -> s.getDomain() != null && foundDomain.getId() == s.getDomain().getId())
 					.filter(s -> !s.isReadonly())
@@ -209,10 +209,10 @@ public class AdSyncApi {
 			});
 		}
 
-		Map<UserRole, List<CurrentAssignment>> assignmentMap = assignmentService.getActiveByUserRoles(userRoles)
+		Map<Long, List<CurrentAssignmentSmallProjection>> assignmentMap = assignmentService.getActiveByUserRolesAsProjection(userRoles)
 				.stream()
-				.collect(Collectors.groupingBy(CurrentAssignment::getUserRole));
-		
+				.collect(Collectors.groupingBy(CurrentAssignmentSmallProjection::getUserRoleId));
+
 		for (SystemRole dirtySystemRole : dirtySystemRoles.values()) {
 			Set<UserRole> dirtyUserRoles = systemRoleToUserRoleMap.get(dirtySystemRole);
 			if (dirtyUserRoles == null) {
@@ -223,11 +223,11 @@ public class AdSyncApi {
 			// get all users that has a given system-role
 			Set<String> sAMAccountNames = new HashSet<>();
 			for (UserRole userRole : dirtyUserRoles) {
-				List<CurrentAssignment> assignments = assignmentMap.get(userRole);
+				List<CurrentAssignmentSmallProjection> assignments = assignmentMap.get(userRole.getId());
 				if (assignments != null) {
-					for (CurrentAssignment assignment : assignments) {
-						if (assignment.getUser().getDomain().getId() == foundDomain.getId()) {
-							sAMAccountNames.add(assignment.getUser().getUserId());
+					for (CurrentAssignmentSmallProjection assignment : assignments) {
+						if (assignment.getUserDomainId() == foundDomain.getId()) {
+							sAMAccountNames.add(assignment.getUserId());
 						}
 					}
 				}
@@ -262,7 +262,7 @@ public class AdSyncApi {
 				}
 			}
 		}
-
+		
 		result.setHead(maxId);
 		result.setMaxHead(pendingADUpdateService.findMaxHead());
 

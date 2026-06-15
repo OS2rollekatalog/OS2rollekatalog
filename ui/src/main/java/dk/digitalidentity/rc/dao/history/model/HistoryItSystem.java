@@ -12,7 +12,9 @@ import lombok.Setter;
 import org.hibernate.annotations.BatchSize;
 
 import java.time.LocalDate;
+import java.util.HashSet;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 @Entity
 @Table(name = "history_it_systems")
@@ -28,27 +30,41 @@ public class HistoryItSystem {
 
 	@Column
 	private Long itSystemId;
-	
+
 	@Column
 	private String itSystemName;
 
 	@Column
 	private boolean itSystemHidden;
 
-	@Column(name = "attestation_responsible_uuid")
-	private String attestationResponsible;
-
-	@Column(name = "system_owner_uuid")
-	private String systemOwner;
-
 	@Column(name = "attestation_exempt")
 	private boolean attestationExempt;
 
 	@BatchSize(size = 50)
 	@OneToMany(mappedBy = "historyItSystem", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
+	private Set<HistoryItSystemAttestationResponsible> attestationResponsibles = new HashSet<>();
+
+	@BatchSize(size = 50)
+	@OneToMany(mappedBy = "historyItSystem", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
+	private Set<HistoryItSystemSystemOwner> systemOwners = new HashSet<>();
+
+	@BatchSize(size = 50)
+	@OneToMany(mappedBy = "historyItSystem", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
 	private Set<HistorySystemRole> historySystemRoles;
-	
+
 	@BatchSize(size = 50)
 	@OneToMany(mappedBy = "historyItSystem", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
 	private Set<HistoryUserRole> historyUserRoles;
+
+	public Set<String> getAttestationResponsibleUuids() {
+		return attestationResponsibles.stream()
+			.map(HistoryItSystemAttestationResponsible::getUserUuid)
+			.collect(Collectors.toSet());
+	}
+
+	public Set<String> getSystemOwnerUuids() {
+		return systemOwners.stream()
+			.map(HistoryItSystemSystemOwner::getUserUuid)
+			.collect(Collectors.toSet());
+	}
 }

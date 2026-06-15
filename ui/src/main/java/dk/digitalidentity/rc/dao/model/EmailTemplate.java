@@ -47,6 +47,14 @@ public class EmailTemplate implements AuditLoggable {
 	@Column
 	private Integer daysBeforeEvent;
 
+	// template fragment expanded once per row for the templateType's repeating placeholder (e.g. {brugere})
+	@Column(name = "repeating_part")
+	private String repeatingPart;
+
+	// template fragment expanded once per sub-row inside the repeating part (e.g. {ændringer})
+	@Column(name = "nested_repeating_part")
+	private String nestedRepeatingPart;
+
 	@Override
     public String getEntityName() {
 	    return "";

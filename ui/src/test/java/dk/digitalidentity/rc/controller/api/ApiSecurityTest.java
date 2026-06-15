@@ -22,8 +22,8 @@ import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilde
 import dk.digitalidentity.rc.security.RolePostProcessor;
 import dk.digitalidentity.rc.service.DomainService;
 import dk.digitalidentity.rc.test.AbstractApiTest;
-import dk.digitalidentity.samlmodule.model.SamlGrantedAuthority;
-import dk.digitalidentity.samlmodule.model.TokenUser;
+import dk.digitalidentity.saml.service.model.SamlGrantedAuthority;
+import dk.digitalidentity.saml.service.model.TokenUser;
 import jakarta.servlet.ServletException;
 
 /**

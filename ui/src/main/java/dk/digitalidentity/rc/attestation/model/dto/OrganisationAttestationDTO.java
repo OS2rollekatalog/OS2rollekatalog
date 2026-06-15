@@ -21,9 +21,11 @@ public class OrganisationAttestationDTO {
     private String ouName;
     private LocalDate deadLine;
     private List<RoleAssignmentSinceLastAttestationDTO> roleAssignmentsSinceLastAttestation;
+    private long roleAssignmentsSinceLastAttestationTotalCount;
     private List<OrgUnitUserRoleAssignmentItSystemDTO> orgUnitUserRoleAssignmentsPrItSystem;  // all the userRoles assigned directly to this orgUnit
     private List<OrgUnitRoleGroupAssignmentDTO> orgUnitRoleGroupAssignments; // all the roleGroups assigned directly to this orgUnit
     private boolean orgUnitRolesVerified;
     private List<UserAttestationDTO> userAttestations;
     private LocalDate verifiedAt;
+	private String performedBy;
 }

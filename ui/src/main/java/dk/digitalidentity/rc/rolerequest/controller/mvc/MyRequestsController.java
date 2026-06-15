@@ -3,6 +3,7 @@ package dk.digitalidentity.rc.rolerequest.controller.mvc;
 import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.enums.RequestApproveStatus;
 import dk.digitalidentity.rc.rolerequest.model.entity.RoleRequest;
+import dk.digitalidentity.rc.rolerequest.service.ApproverOptionService;
 import dk.digitalidentity.rc.rolerequest.service.RequestService;
 import dk.digitalidentity.rc.security.SecurityUtil;
 import dk.digitalidentity.rc.service.UserService;
@@ -34,8 +35,11 @@ public class MyRequestsController {
 	@Autowired
 	private UserService userService;
 
+	@Autowired
+	private ApproverOptionService approverOptionService;
+
 	record PendingRequest(long id, String itSystemName, String roleName, String status, String action,
-						  boolean cancelable) {
+						  boolean cancelable, String approver) {
 	}
 
 	record PendingRequestGroup(String uuid, Date requestDate, String action, String recieverName, long userroleCount,
@@ -68,7 +72,8 @@ public class MyRequestsController {
 								request.getUserRole() == null ? request.getRoleGroup().getName() : request.getUserRole().getName(),
 								request.getStatus().getMessage(),
 								request.getRequestAction().title,
-								request.getStatus() == RequestApproveStatus.REQUESTED
+								request.getStatus() == RequestApproveStatus.REQUESTED,
+								approverOptionService.getApproverOptionsAsString(request.getApproverOption())
 							)
 						),
 						request.getStatus().getMessage(),
@@ -94,7 +99,8 @@ public class MyRequestsController {
 							request.getUserRole() == null ? request.getRoleGroup().getName() : request.getUserRole().getName(),
 							request.getStatus().getMessage(),
 							request.getRequestAction().title,
-							request.getStatus() == RequestApproveStatus.REQUESTED
+							request.getStatus() == RequestApproveStatus.REQUESTED,
+							approverOptionService.getApproverOptionsAsString(request.getApproverOption())
 						)
 					).toList(),
 					groupedStatus(requests),

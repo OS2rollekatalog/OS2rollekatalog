@@ -121,7 +121,7 @@ public class RolerequestRestController {
 		}
 		if (newEndDate != null) {
 			request.setEndDate(newEndDate);
-			requestService.saveNewRequest(request);
+			requestService.saveNoLog(request);
 		}
 
 		requestService.approveRequest(request);
@@ -260,7 +260,7 @@ public class RolerequestRestController {
 
 		//Save all new requests
 		for (RoleRequest request : requestGroup) {
-			requestService.saveNewRequest(request);
+			requestService.saveNewRequestWithLog(request);
 		}
 
 
@@ -458,7 +458,7 @@ public class RolerequestRestController {
 		request.setRoleGroup(roleGroup);
 		request.setRequestAction(RequestAction.REMOVE);
 
-		request = requestService.saveNewRequest(request);
+		request = requestService.saveNoLog(request);
 
 		// handle automatic approval if enabled
 		boolean automaticApproval = request.getUserRole() == null ?

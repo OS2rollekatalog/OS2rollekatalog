@@ -3,6 +3,8 @@ package dk.digitalidentity.rc.service.kitos;
 import static dk.digitalidentity.rc.service.kitos.KitosConstants.IT_SYSTEM_DELETION_OFFSET_USAGE_SETTING_KEY;
 import static dk.digitalidentity.rc.service.kitos.KitosConstants.IT_SYSTEM_ENTITY_TYPE;
 import static dk.digitalidentity.rc.service.kitos.KitosConstants.IT_SYSTEM_OFFSET_SETTING_KEY;
+import static dk.digitalidentity.rc.service.kitos.KitosConstants.IT_SYSTEM_USAGE_DELETION_OFFSET_SETTING_KEY;
+import static dk.digitalidentity.rc.service.kitos.KitosConstants.IT_SYSTEM_USAGE_ENTITY_TYPE;
 import static dk.digitalidentity.rc.service.kitos.KitosConstants.IT_SYSTEM_USAGE_OFFSET_SETTING_KEY;
 import static dk.digitalidentity.rc.service.kitos.KitosConstants.KITOS_DELTA_START_FROM;
 import static dk.digitalidentity.rc.service.kitos.KitosConstants.KITOS_DELTA_START_FROM_OFFSET;
@@ -90,6 +92,16 @@ public class KitosClientService {
             pageAndOffset -> itSystemApi.getManyItSystemV2GetItSystems(null, null, null, null, null,
                 false, reimport ? KITOS_DELTA_START_FROM_OFFSET : pageAndOffset.getValue().plusNanos(1000L), municipalUuid, null, null, pageAndOffset.getKey(), KitosConstants.PAGE_SIZE),
             ItSystemResponseDTO::getLastModified
+        );
+    }
+
+    /**
+     * Fetch all deleted it-system-usages
+     */
+    public List<TrackingEventResponseDTO> fetchDeletedItSystemUsages() {
+        return deltaFetch(IT_SYSTEM_USAGE_DELETION_OFFSET_SETTING_KEY,
+            pageAndOffset -> deltaFeedApi.getManyDeltaFeedV2GetDeletedObjects(IT_SYSTEM_USAGE_ENTITY_TYPE, pageAndOffset.getValue().plusNanos(1000L), pageAndOffset.getKey(), KitosConstants.PAGE_SIZE),
+            TrackingEventResponseDTO::getOccurredAtUtc
         );
     }
 

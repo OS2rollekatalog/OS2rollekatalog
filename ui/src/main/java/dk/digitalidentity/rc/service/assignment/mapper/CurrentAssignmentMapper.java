@@ -15,6 +15,7 @@ import dk.digitalidentity.rc.dao.model.assignment.CurrentAssignment;
 import dk.digitalidentity.rc.dao.model.assignment.CurrentAssignmentPostponedConstraint;
 import dk.digitalidentity.rc.dao.model.enums.ContainsTitles;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.HashSet;
@@ -78,6 +79,14 @@ public abstract class CurrentAssignmentMapper {
 			currentAssignments.add(currentAssignment);
 		}
 
+		if (currentAssignments.isEmpty()) {
+			// a role group with no userroles must still be represented so the assignment stays visible
+			currentAssignments.add(roleGroupOnlyAssignment(assignment.getRoleGroup(), user, assignment.getId(),
+				assignment.getStartDate(), assignment.getStopDate(),
+				assignment.getAssignedByName() + " (" + assignment.getAssignedByUserId() + ")",
+				assignment.getCaseNumber(), null, attestationResponsibleOrgUnit));
+		}
+
 		return currentAssignments;
 	}
 
@@ -101,6 +110,8 @@ public abstract class CurrentAssignmentMapper {
 		if (assignment.getContainsTitles() != null && assignment.getContainsTitles() != ContainsTitles.NO) {
 			currentAssignment.setTitle(title);
 		}
+		currentAssignment.setManager(assignment.isManager());
+		currentAssignment.setSubstitutes(assignment.isSubstitutes());
 		currentAssignment.setPostponedConstraints(Set.of());
 		currentAssignment.setConstraintSignature(buildConstraintSignature(userRole));
 		currentAssignment.setRecordHash(currentAssignment.generateRecordHash());
@@ -129,13 +140,48 @@ public abstract class CurrentAssignmentMapper {
 			currentAssignment.setAssignmentId(assignment.getId());
 			currentAssignment.setResponsibleOrgUnit(positionOrgUnit);
 			currentAssignment.setAssignedBy(assignment.getAssignedByName() + " (" + assignment.getAssignedByUserId() + ")");
+			currentAssignment.setManager(assignment.isManager());
+			currentAssignment.setSubstitutes(assignment.isSubstitutes());
 
 			currentAssignment.setPostponedConstraints(Set.of());
 			currentAssignment.setConstraintSignature(buildConstraintSignature(userRole));
 			currentAssignment.setRecordHash(currentAssignment.generateRecordHash());
 			currentAssignments.add(currentAssignment);
 		}
+
+		if (currentAssignments.isEmpty()) {
+			// a role group with no userroles must still be represented so the assignment stays visible
+			currentAssignments.add(roleGroupOnlyAssignment(roleGroup, user, assignment.getId(),
+				assignment.getStartDate(), assignment.getStopDate(),
+				assignment.getAssignedByName() + " (" + assignment.getAssignedByUserId() + ")",
+				null, orgunit, positionOrgUnit));
+		}
 		return currentAssignments;
+	}
+
+	/**
+	 * Builds the single "roleGroup-only" current assignment for a role group with no userroles, so the
+	 * assignment is still represented (userRole/itSystem stay null - see {@link CurrentAssignment#isRoleGroupOnly()}).
+	 */
+	private static CurrentAssignment roleGroupOnlyAssignment(RoleGroup roleGroup, User user, long assignmentId,
+			LocalDate startDate, LocalDate stopDate, String assignedBy, String caseNumber, OrgUnit orgUnit,
+			OrgUnit responsibleOrgUnit) {
+		CurrentAssignment currentAssignment = new CurrentAssignment();
+		currentAssignment.setCreatedAt(LocalDateTime.now());
+		currentAssignment.setUpdatedAt(LocalDateTime.now());
+		currentAssignment.setStartDate(startDate);
+		currentAssignment.setStopDate(stopDate);
+		currentAssignment.setUser(user);
+		currentAssignment.setRoleGroup(roleGroup);
+		currentAssignment.setAssignmentId(assignmentId);
+		currentAssignment.setOrgUnit(orgUnit);
+		currentAssignment.setResponsibleOrgUnit(responsibleOrgUnit);
+		currentAssignment.setAssignedBy(assignedBy);
+		currentAssignment.setCaseNumber(caseNumber);
+		currentAssignment.setPostponedConstraints(Set.of());
+		currentAssignment.setConstraintSignature(buildConstraintSignature(null));
+		currentAssignment.setRecordHash(currentAssignment.generateRecordHash());
+		return currentAssignment;
 	}
 
 	private static String buildConstraintSignature(UserRole userRole) {

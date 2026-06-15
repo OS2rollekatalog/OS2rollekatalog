@@ -43,6 +43,8 @@ import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -55,6 +57,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -745,4 +748,241 @@ public class OrgUnitRestController {
 		return new ResponseEntity<>(functionUuids, HttpStatus.OK);
 	}
 
+
+	record OuTreeNode(String id, String parent, String text) {}
+
+	@RequirePermission(section = Section.ORGUNIT, permission = Permission.ASSIGN)
+	@Transactional(readOnly = true)
+	@GetMapping("/rest/ous/{uuid}/childtree")
+	public ResponseEntity<List<OuTreeNode>> getChildTree(@PathVariable("uuid") String uuid) {
+		OrgUnit root = orgUnitService.getByUuid(uuid);
+		if (root == null) {
+			return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+		}
+		List<OuTreeNode> nodes = new ArrayList<>();
+		collectChildNodes(root, nodes);
+		return new ResponseEntity<>(nodes, HttpStatus.OK);
+	}
+
+	private void collectNodes(OrgUnit ou, String parentId, List<OuTreeNode> nodes) {
+		nodes.add(new OuTreeNode(ou.getUuid(), parentId, ou.getName()));
+		if (ou.getChildren() != null) {
+			for (OrgUnit child : ou.getChildren()) {
+				if (child.isActive()) {
+					collectNodes(child, ou.getUuid(), nodes);
+				}
+			}
+		}
+	}
+
+	private void collectChildNodes(OrgUnit root, List<OuTreeNode> nodes) {
+		if (root.getChildren() != null) {
+			for (OrgUnit child : root.getChildren()) {
+				if (child.isActive()) {
+					collectNodes(child, "#", nodes);
+				}
+			}
+		}
+	}
+
+	@RequirePermission(section = Section.ORGUNIT, permission = Permission.ASSIGN)
+	@Transactional(readOnly = true)
+	@GetMapping("/rest/ous/{uuid}/role/{assignmentId}/exceptedous")
+	public ResponseEntity<List<String>> getExceptedOusForUserRole(@PathVariable("uuid") String uuid, @PathVariable("assignmentId") long assignmentId) {
+		OrgUnit ou = orgUnitService.getByUuid(uuid);
+		if (ou == null) {
+			log.warn("Ou not found on uuid: {}", uuid);
+			return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+		}
+
+		List<String> ouUuids = ou.getUserRoleAssignments().stream()
+			.filter(ura -> ura.isContainsExceptedOus() && ura.getId() == assignmentId)
+			.flatMap(ura -> ura.getExceptedOus().stream())
+			.map(OrgUnit::getUuid)
+			.toList();
+
+		return new ResponseEntity<>(ouUuids, HttpStatus.OK);
+	}
+
+	@Transactional(readOnly = true)
+	@RequirePermission(section = Section.ORGUNIT, permission = Permission.ASSIGN)
+	@GetMapping("/rest/ous/{uuid}/rolegroup/{assignmentId}/exceptedous")
+	public ResponseEntity<List<String>> getExceptedOusForRoleGroup(@PathVariable("uuid") String uuid, @PathVariable("assignmentId") long assignmentId) {
+		OrgUnit ou = orgUnitService.getByUuid(uuid);
+		if (ou == null) {
+			log.warn("Ou not found on uuid: {}", uuid);
+			return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+		}
+
+		List<String> ouUuids = ou.getRoleGroupAssignments().stream()
+			.filter(rga -> rga.isContainsExceptedOus() && rga.getId() == assignmentId)
+			.flatMap(rga -> rga.getExceptedOus().stream())
+			.map(OrgUnit::getUuid)
+			.toList();
+
+		return new ResponseEntity<>(ouUuids, HttpStatus.OK);
+	}
+
+	@RequirePermission(section = Section.ORGUNIT, permission = Permission.ASSIGN)
+	@PostMapping("/rest/ous/addrole/{uuid}/{roleid}/inheritWithExceptedOus")
+	@Transactional
+	public ResponseEntity<?> addRoleWithInheritAndExceptedOus(@PathVariable("uuid") String uuid, @PathVariable("roleid") long roleId,
+			@RequestParam(name = "startDate", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+			@RequestParam(name = "stopDate", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate stopDate,
+			@RequestParam(name = "caseNumber", required = false) String caseNumber,
+			@RequestBody StringArrayWrapper payload) {
+
+		if (payload == null) {
+			log.warn("Payload is null");
+			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+		}
+		OrgUnit ou = orgUnitService.getByUuid(uuid);
+		if (ou == null) {
+			log.warn("Ou not found on uuid: {}", uuid);
+			return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+		}
+		UserRole userRole = userRoleService.getById(roleId);
+		if (userRole == null || userRole.isReadOnly()) {
+			log.warn("UserRole not found on id: {}", roleId);
+			return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+		}
+
+		if (userRole.getItSystem().getSystemType() == ItSystemType.AD && userRole.getItSystem().isReadonly()) {
+			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+		}
+
+		if (!accessConstraintService.isAssignmentAllowed(ou, userRole)) {
+			return new ResponseEntity<>(HttpStatus.FORBIDDEN);
+		}
+
+		if (stopDate != null && startDate != null && !startDate.isBefore(stopDate)) {
+			log.warn("Stopdate is before startdate: {} - {}", startDate, stopDate);
+			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+		}
+
+		orgUnitService.addUserRoleWithInheritAndExceptedOus(ou, userRole, startDate, stopDate,
+			new ArrayList<>(payload.getExcludedChildOus()), caseNumber);
+
+		return new ResponseEntity<>(HttpStatus.OK);
+	}
+
+	@RequirePermission(section = Section.ORGUNIT, permission = Permission.ASSIGN)
+	@PostMapping("/rest/ous/addrolegroup/{uuid}/{rolegroupid}/inheritWithExceptedOus")
+	@Transactional
+	public ResponseEntity<?> addRoleGroupWithInheritAndExceptedOus(@PathVariable("uuid") String uuid, @PathVariable("rolegroupid") long roleGroupId,
+			@RequestParam(name = "startDate", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+			@RequestParam(name = "stopDate", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate stopDate,
+			@RequestParam(name = "caseNumber", required = false) String caseNumber,
+			@RequestBody StringArrayWrapper payload) {
+		OrgUnit ou = orgUnitService.getByUuid(uuid);
+		if (ou == null) {
+			log.warn("Ou not found on uuid: {}", uuid);
+			return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+		}
+		RoleGroup roleGroup = roleGroupService.getById(roleGroupId);
+		if (roleGroup == null) {
+			log.warn("RoleGroup not found on id: {}", roleGroupId);
+			return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+		}
+
+		boolean containsAdOrReadOnlyRole = roleGroup.getUserRoleAssignments().stream()
+			.anyMatch(rga -> rga.getUserRole().getItSystem() != null
+				&& (rga.getUserRole().getItSystem().getSystemType() == ItSystemType.AD || rga.getUserRole().getItSystem().isReadonly()));
+
+		if (containsAdOrReadOnlyRole) {
+			log.warn("Rolegroup contains AD-Group, cannot assign");
+			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+		}
+
+		if (!accessConstraintService.isAssignmentAllowed(ou, roleGroup)) {
+			return new ResponseEntity<>(HttpStatus.FORBIDDEN);
+		}
+
+		if (stopDate != null && startDate != null && !startDate.isBefore(stopDate)) {
+			log.warn("Stopdate is before startdate: {} - {}", startDate, stopDate);
+			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+		}
+
+		orgUnitService.addRoleGroupWithInheritAndExceptedOus(ou, roleGroup, startDate, stopDate,
+				(payload != null ? new ArrayList<>(payload.getExcludedChildOus()) : null), caseNumber);
+		orgUnitService.save(ou);
+
+		return new ResponseEntity<>(HttpStatus.OK);
+	}
+
+	@RequirePermission(section = Section.ORGUNIT, permission = Permission.ASSIGN)
+	@PostMapping(value = "/rest/ous/editrole/{uuid}/{assignmentId}/inheritWithExceptedOus")
+	@Transactional
+	public ResponseEntity<?> editRoleWithInheritAndExceptedOus(@PathVariable("uuid") String uuid,
+			@PathVariable("assignmentId") long assignmentId,
+			@RequestParam(name = "startDate", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+			@RequestParam(name = "stopDate", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate stopDate,
+			@RequestBody StringArrayWrapper payload) {
+		OrgUnit ou = orgUnitService.getByUuid(uuid);
+		if (ou == null) {
+			return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+		}
+
+		OrgUnitUserRoleAssignment assignment = ou.getUserRoleAssignments().stream()
+				.filter(ura -> ura.getId() == assignmentId).findAny().orElse(null);
+		if (assignment == null) {
+			return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+		}
+
+		if (assignment.getUserRole().isReadOnly() || (assignment.getUserRole().getItSystem().getSystemType() == ItSystemType.AD && assignment.getUserRole().getItSystem().isReadonly())) {
+			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+		}
+
+		if (!accessConstraintService.isAssignmentAllowed(ou, assignment.getUserRole())) {
+			return new ResponseEntity<>(HttpStatus.FORBIDDEN);
+		}
+
+		if (stopDate != null && startDate != null && !startDate.isBefore(stopDate)) {
+			log.warn("Stopdate is before startdate: {} - {}", startDate, stopDate);
+			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+		}
+
+		if (orgUnitService.updateUserRoleWithInheritAndExceptedOus(assignment, startDate, stopDate,
+				(payload != null ? new ArrayList<>(payload.getExcludedChildOus()) : null))) {
+			orgUnitService.save(ou);
+		}
+
+		return new ResponseEntity<>(HttpStatus.OK);
+	}
+
+	@RequirePermission(section = Section.ORGUNIT, permission = Permission.ASSIGN)
+	@PostMapping(value = "/rest/ous/editrolegroup/{uuid}/{assignmentId}/inheritWithExceptedOus")
+	@Transactional
+	public ResponseEntity<?> editRoleGroupWithInheritAndExceptedOus(@PathVariable("uuid") String uuid,
+			@PathVariable("assignmentId") long assignmentId,
+			@RequestParam(name = "startDate", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+			@RequestParam(name = "stopDate", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate stopDate,
+			@RequestBody StringArrayWrapper payload) {
+		OrgUnit ou = orgUnitService.getByUuid(uuid);
+		if (ou == null) {
+			return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+		}
+
+		OrgUnitRoleGroupAssignment assignment = ou.getRoleGroupAssignments().stream()
+				.filter(rga -> rga.getId() == assignmentId).findAny().orElse(null);
+		if (assignment == null) {
+			return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+		}
+
+		if (!accessConstraintService.isAssignmentAllowed(ou, assignment.getRoleGroup())) {
+			return new ResponseEntity<>(HttpStatus.FORBIDDEN);
+		}
+
+		if (stopDate != null && startDate != null && !startDate.isBefore(stopDate)) {
+			log.warn("Stopdate is before startdate: {} - {}", startDate, stopDate);
+			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+		}
+
+		if (orgUnitService.updateRoleGroupWithInheritAndExceptedOus(assignment, startDate, stopDate,
+				(payload != null ? new ArrayList<>(payload.getExcludedChildOus()) : null))) {
+			orgUnitService.save(ou);
+		}
+
+		return new ResponseEntity<>(HttpStatus.OK);
+	}
 }

@@ -95,7 +95,7 @@ public class SystemRoleAssignmentsUpdaterJdbc {
             .systemRoleId(h.getSystemRoleId())
             .systemRoleName(h.getSystemRoleName())
             .systemRoleDescription(h.getSystemRoleDescription())
-            .responsibleUserUuid(h.getResponsibleUserUuid())
+            .responsibleCollectionId(h.getResponsibleCollectionId())
             .build();
         a.setConstraints(h.getConstraints().stream()
             .map(c -> AttestationSystemRoleAssignmentConstraint.builder()

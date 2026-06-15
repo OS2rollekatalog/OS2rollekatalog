@@ -7,7 +7,7 @@ variables:
 
 include:
   - project: 'internal/devops/ci-templates'
-    ref: '1.0.19'
+    ref: '1.1.0'
     file: '/workflows/review.yml'
 
 stages:

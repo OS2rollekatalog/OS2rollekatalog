@@ -137,6 +137,20 @@ public class AccessConstraintService {
 							}
 
 							break;
+						case INHERITED_FROM_MANAGER_ROLE:
+							user.getManagedOrgUnits().forEach(ou -> resultSet.add(ou.getUuid()));
+							user.getSubstituteFor().forEach(sub -> resultSet.add(sub.getOrgUnit().getUuid()));
+							break;
+						case EXTENDED_INHERITED_FROM_MANAGER_ROLE:
+							user.getManagedOrgUnits().forEach(ou -> getUuidsRecursive(ou, resultSet));
+							user.getSubstituteFor().forEach(sub -> getUuidsRecursive(sub.getOrgUnit(), resultSet));
+							break;
+						case INHERITED_FROM_FUNCTIONS:
+							user.getFunctionAssignments().forEach(f -> resultSet.add(f.getOrgUnit().getUuid()));
+							break;
+						case EXTENDED_INHERITED_FROM_FUNCTIONS:
+							user.getFunctionAssignments().forEach(f -> getUuidsRecursive(f.getOrgUnit(), resultSet));
+							break;
 						case SELECTED_INHERITED:
 						case VALUE:
 							String value = constraintValue.getConstraintValueType().equals(ConstraintValueType.VALUE) ? constraintValue.getConstraintValue() : String.join(",", organisationConstraintUtil.getOrganisationConstraintUuids(constraintValue.getConstraintValue()));
@@ -410,6 +424,20 @@ public class AccessConstraintService {
 						}
 
 						break;
+					case INHERITED_FROM_MANAGER_ROLE:
+						user.getManagedOrgUnits().forEach(ou -> ouUuids.add(ou.getUuid()));
+						user.getSubstituteFor().forEach(sub -> ouUuids.add(sub.getOrgUnit().getUuid()));
+						break;
+					case EXTENDED_INHERITED_FROM_MANAGER_ROLE:
+						user.getManagedOrgUnits().forEach(ou -> getUuidsRecursive(ou, ouUuids));
+						user.getSubstituteFor().forEach(sub -> getUuidsRecursive(sub.getOrgUnit(), ouUuids));
+						break;
+					case INHERITED_FROM_FUNCTIONS:
+						user.getFunctionAssignments().forEach(f -> ouUuids.add(f.getOrgUnit().getUuid()));
+						break;
+					case EXTENDED_INHERITED_FROM_FUNCTIONS:
+						user.getFunctionAssignments().forEach(f -> getUuidsRecursive(f.getOrgUnit(), ouUuids));
+						break;
 					case VALUE:
 						for (String uuid : constraintValue.getConstraintValue().split(",")) {
 							ouUuids.add(uuid);
@@ -503,6 +531,25 @@ public class AccessConstraintService {
 						Arrays.stream(userService.getOrganisationConstraint(user, cv.getConstraintValueType()).split(","));
 					case POSTPONED ->
 						getIdsForConstraintsWithType_POSTPONED(user, systemRoleAssignment, constraintEntityId).stream();
+					case INHERITED_FROM_MANAGER_ROLE -> {
+						Set<String> uuids = new HashSet<>();
+						user.getManagedOrgUnits().forEach(ou -> uuids.add(ou.getUuid()));
+						user.getSubstituteFor().forEach(sub -> uuids.add(sub.getOrgUnit().getUuid()));
+						yield uuids.stream();
+					}
+					case EXTENDED_INHERITED_FROM_MANAGER_ROLE -> {
+						Set<String> uuids = new HashSet<>();
+						user.getManagedOrgUnits().forEach(ou -> getUuidsRecursive(ou, uuids));
+						user.getSubstituteFor().forEach(sub -> getUuidsRecursive(sub.getOrgUnit(), uuids));
+						yield uuids.stream();
+					}
+					case INHERITED_FROM_FUNCTIONS ->
+						user.getFunctionAssignments().stream().map(f -> f.getOrgUnit().getUuid());
+					case EXTENDED_INHERITED_FROM_FUNCTIONS -> {
+						Set<String> uuids = new HashSet<>();
+						user.getFunctionAssignments().forEach(f -> getUuidsRecursive(f.getOrgUnit(), uuids));
+						yield uuids.stream();
+					}
 					case VALUE -> {
 						if (cv.getConstraintValue() == null || cv.getConstraintValue().isEmpty()) {
 							yield null;

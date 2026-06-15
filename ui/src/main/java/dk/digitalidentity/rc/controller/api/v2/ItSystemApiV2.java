@@ -30,6 +30,8 @@ import dk.digitalidentity.rc.controller.api.model.UserRoleAM;
 import dk.digitalidentity.rc.controller.api.model.UserUserRoleAssignmentAM;
 import dk.digitalidentity.rc.dao.model.Domain;
 import dk.digitalidentity.rc.dao.model.ItSystem;
+import dk.digitalidentity.rc.dao.model.ItSystemAttestationResponsible;
+import dk.digitalidentity.rc.dao.model.ItSystemSystemOwner;
 import dk.digitalidentity.rc.dao.model.SystemRole;
 import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserRole;
@@ -95,7 +97,8 @@ public class ItSystemApiV2 {
 			@Schema(description = "True for IT-Systems used for assigning roles via the V2 API") boolean apiManagedRoleAssignments,
 			@Schema(description = "Domain name when system type is AD") String domain,
 			@Schema(description = "E-mail address") String email,
-			@Schema(description = "UUID of the user responsible for attestation") String responsibleUserUuid
+			@Schema(description = "UUIDs of the users responsible for attestation") List<String> attestationResponsibleUuids,
+			@Schema(description = "UUIDs of the system owners") List<String> systemOwnerUuids
 			) {
 	}
 
@@ -117,7 +120,8 @@ public class ItSystemApiV2 {
 					itSystem.isDeleted(), itSystem.isAccessBlocked(), itSystem.isApiManagedRoleAssignments(),
 					(itSystem.getDomain() != null ? itSystem.getDomain().getName() : null),
 					itSystem.getEmail(),
-					(itSystem.getAttestationResponsible() != null ? itSystem.getAttestationResponsible().getUuid() : null)));
+					itSystemService.getAttestationResponsibleUuids(itSystem),
+					itSystemService.getSystemOwnerUuids(itSystem)));
 		}
 
 		return new ResponseEntity<>(result, HttpStatus.OK);
@@ -140,7 +144,8 @@ public class ItSystemApiV2 {
 				itSystem.isDeleted(), itSystem.isAccessBlocked(), itSystem.isApiManagedRoleAssignments(),
 				(itSystem.getDomain() != null ? itSystem.getDomain().getName() : null),
 				itSystem.getEmail(),
-				(itSystem.getAttestationResponsible() != null ? itSystem.getAttestationResponsible().getUuid() : null));
+				itSystemService.getAttestationResponsibleUuids(itSystem),
+				itSystemService.getSystemOwnerUuids(itSystem));
 
 		return new ResponseEntity<>(result, HttpStatus.OK);
 	}
@@ -169,8 +174,22 @@ public class ItSystemApiV2 {
 		newItSystem.setDeleted(itSystemBody.deleted);
 		newItSystem.setPaused(itSystemBody.paused);
 
-		// can be null
-		userService.getOptionalByUuid(itSystemBody.responsibleUserUuid).ifPresent(newItSystem::setAttestationResponsible);
+		if (itSystemBody.attestationResponsibleUuids != null) {
+			itSystemBody.attestationResponsibleUuids.stream()
+					.map(userService::getOptionalByUuid)
+					.filter(java.util.Optional::isPresent)
+					.map(java.util.Optional::get)
+					.map(u -> ItSystemAttestationResponsible.builder().itSystem(newItSystem).user(u).build())
+					.forEach(newItSystem.getAttestationResponsibles()::add);
+		}
+		if (itSystemBody.systemOwnerUuids != null) {
+			itSystemBody.systemOwnerUuids.stream()
+					.map(userService::getOptionalByUuid)
+					.filter(java.util.Optional::isPresent)
+					.map(java.util.Optional::get)
+					.map(u -> ItSystemSystemOwner.builder().itSystem(newItSystem).user(u).build())
+					.forEach(newItSystem.getSystemOwners()::add);
+		}
 
 		switch (itSystemBody.systemtype) {
 			case AD:
@@ -195,7 +214,8 @@ public class ItSystemApiV2 {
 				savedItSystem.isDeleted(), savedItSystem.isAccessBlocked(), savedItSystem.isApiManagedRoleAssignments(),
 				(savedItSystem.getDomain() != null ? savedItSystem.getDomain().getName() : null),
 				savedItSystem.getEmail(),
-				(savedItSystem.getAttestationResponsible() != null ? savedItSystem.getAttestationResponsible().getUuid() : null));
+				itSystemService.getAttestationResponsibleUuids(savedItSystem),
+				itSystemService.getSystemOwnerUuids(savedItSystem));
 
 		return new ResponseEntity<>(result, HttpStatus.OK);
 	}

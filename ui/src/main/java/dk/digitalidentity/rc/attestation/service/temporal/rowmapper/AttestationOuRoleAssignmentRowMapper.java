@@ -26,7 +26,7 @@ public class AttestationOuRoleAssignmentRowMapper implements RowMapper<Attestati
         assignment.setRoleGroupId(zeroIsNull(rs.getLong("role_group_id")));
         assignment.setRoleGroupName(rs.getString("role_group_name"));
         assignment.setRoleGroupDescription(rs.getString("role_group_description"));
-        assignment.setResponsibleUserUuid(rs.getString("responsible_user_uuid"));
+        assignment.setResponsibleCollectionId(zeroIsNull(rs.getLong("attestation_responsible_collection_id")));
         assignment.setResponsibleOuUuid(rs.getString("responsible_ou_uuid"));
         assignment.setResponsibleOuName(rs.getString("responsible_ou_name"));
         assignment.setTitleUuids(RowMapperUtils.explodeToList(rs.getString("title_uuids")));

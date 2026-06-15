@@ -91,11 +91,11 @@ public class UserRoleApiV2 {
 					{ @Content(mediaType = "application/json", schema = @Schema(implementation = ExceptionResponseAM.class)) })
 
 	})
-	@Operation(summary = "Get all userroles.", description = "Returns all the userroles that exist.")
+	@Operation(summary = "Get all userroles.", description = "Returns all the userroles that exist from non deleted IT systems.")
 	@GetMapping("/api/v2/userrole")
 	public ResponseEntity<List<UserRoleAM>> getAllUserRoles() {
 		List<UserRoleAM> result = new ArrayList<>();
-		List<UserRole> userRoles = userRoleService.getAll();
+		List<UserRole> userRoles = userRoleService.getAll().stream().filter(role -> !role.getItSystem().isDeleted()).toList();
 		for (UserRole userRole : userRoles) {
 			result.add(RoleMapper.userRoleToApi(userRole));
 		}
@@ -214,8 +214,7 @@ public class UserRoleApiV2 {
 
 		UserRole target = new UserRole();
 		target.setItSystem(itSystem);
-		final UserRole userRole = setUserRoleProperties(userRoleDTO, itSystem, target);
-		final UserRole result = userRoleService.save(userRole);
+		final UserRole result = setUserRoleProperties(userRoleDTO, itSystem, target);
 		return new ResponseEntity<>(RoleMapper.userRoleToApi(result), HttpStatus.CREATED);
 	}
 
@@ -262,6 +261,9 @@ public class UserRoleApiV2 {
 
 		if (userRoleAM.getContactEmail() != null) {
 			target.setContactEmail(userRoleAM.getContactEmail());
+		}
+		if (userRoleAM.getAdvisEmail() != null) {
+			target.setAdvisEmail(userRoleAM.getAdvisEmail());
 		}
 		if (userRoleAM.getOuFilterEnabled() != null) {
 			target.setOuFilterEnabled(Boolean.TRUE.equals(userRoleAM.getOuFilterEnabled()));

@@ -1,5 +1,50 @@
 package dk.digitalidentity.rc.service;
 
+import dk.digitalidentity.rc.config.Constants;
+import dk.digitalidentity.rc.controller.mvc.datatables.dao.UserRoleViewDao;
+import dk.digitalidentity.rc.controller.mvc.datatables.dao.UserRoleViewDatatableDao;
+import dk.digitalidentity.rc.controller.mvc.datatables.dao.model.UserRoleView;
+import dk.digitalidentity.rc.controller.mvc.viewmodel.AvailableITSystemDTO;
+import dk.digitalidentity.rc.controller.mvc.viewmodel.UserRoleDTO;
+import dk.digitalidentity.rc.controller.rest.model.ItemPermissionDTO;
+import dk.digitalidentity.rc.controller.rest.model.UserRoleViewDTO;
+import dk.digitalidentity.rc.dao.UserRoleDao;
+import dk.digitalidentity.rc.dao.UserUserRoleAssignmentDao;
+import dk.digitalidentity.rc.dao.model.ConstraintType;
+import dk.digitalidentity.rc.dao.model.ItSystem;
+import dk.digitalidentity.rc.dao.model.OrgUnit;
+import dk.digitalidentity.rc.dao.model.SystemRole;
+import dk.digitalidentity.rc.dao.model.SystemRoleAssignment;
+import dk.digitalidentity.rc.dao.model.SystemRoleAssignmentConstraintValue;
+import dk.digitalidentity.rc.dao.model.User;
+import dk.digitalidentity.rc.dao.model.UserRole;
+import dk.digitalidentity.rc.dao.model.assignment.CurrentAssignment;
+import dk.digitalidentity.rc.dao.model.assignment.CurrentAssignmentPostponedConstraint;
+import dk.digitalidentity.rc.dao.model.enums.AltAccountType;
+import dk.digitalidentity.rc.dao.model.enums.ItSystemType;
+import dk.digitalidentity.rc.log.AuditLogIntercepted;
+import dk.digitalidentity.rc.rolerequest.model.enums.ApprovableBy;
+import dk.digitalidentity.rc.rolerequest.model.enums.RequestableBy;
+import dk.digitalidentity.rc.security.SecurityUtil;
+import dk.digitalidentity.rc.security.permission.Permission;
+import dk.digitalidentity.rc.security.permission.PermissionConstraint;
+import dk.digitalidentity.rc.security.permission.Section;
+import dk.digitalidentity.rc.security.permission.UserPermissionContext;
+import dk.digitalidentity.rc.service.assignment.AssignmentService;
+import dk.digitalidentity.rc.service.assignment.HistoricItSystemAssignmentService;
+import dk.digitalidentity.rc.service.model.AssignedThrough;
+import dk.digitalidentity.rc.service.model.RoleAssignedToUserDTO;
+import dk.digitalidentity.rc.service.model.RoleAssignmentType;
+import jakarta.persistence.criteria.Predicate;
+import jakarta.transaction.Transactional;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.jpa.datatables.mapping.DataTablesInput;
+import org.springframework.data.jpa.datatables.mapping.DataTablesOutput;
+import org.springframework.data.jpa.domain.Specification;
+import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
+
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -13,52 +58,6 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import dk.digitalidentity.rc.config.Constants;
-import dk.digitalidentity.rc.controller.mvc.datatables.dao.UserRoleViewDao;
-import dk.digitalidentity.rc.controller.mvc.datatables.dao.UserRoleViewDatatableDao;
-import dk.digitalidentity.rc.controller.mvc.datatables.dao.model.UserRoleView;
-import dk.digitalidentity.rc.controller.mvc.viewmodel.AvailableITSystemDTO;
-import dk.digitalidentity.rc.controller.rest.model.ItemPermissionDTO;
-import dk.digitalidentity.rc.controller.rest.model.UserRoleViewDTO;
-import dk.digitalidentity.rc.dao.model.assignment.CurrentAssignment;
-import dk.digitalidentity.rc.dao.model.assignment.CurrentAssignmentPostponedConstraint;
-import dk.digitalidentity.rc.dao.model.enums.AltAccountType;
-import dk.digitalidentity.rc.dao.model.enums.ItSystemType;
-import dk.digitalidentity.rc.security.AccessConstraintService;
-import dk.digitalidentity.rc.security.SecurityUtil;
-import dk.digitalidentity.rc.security.permission.Permission;
-import dk.digitalidentity.rc.security.permission.PermissionConstraint;
-import dk.digitalidentity.rc.security.permission.Section;
-import dk.digitalidentity.rc.security.permission.UserPermissionContext;
-import dk.digitalidentity.rc.service.assignment.AssignmentService;
-import dk.digitalidentity.rc.service.assignment.HistoricItSystemAssignmentService;
-import dk.digitalidentity.rc.service.model.AssignedThrough;
-import lombok.RequiredArgsConstructor;
-import org.springframework.data.jpa.datatables.mapping.DataTablesInput;
-import org.springframework.data.jpa.datatables.mapping.DataTablesOutput;
-import org.springframework.data.jpa.domain.Specification;
-import org.springframework.stereotype.Service;
-import org.springframework.util.StringUtils;
-
-import dk.digitalidentity.rc.controller.mvc.viewmodel.UserRoleDTO;
-import dk.digitalidentity.rc.dao.UserRoleDao;
-import dk.digitalidentity.rc.dao.model.ConstraintType;
-import dk.digitalidentity.rc.dao.model.ItSystem;
-import dk.digitalidentity.rc.dao.model.OrgUnit;
-import dk.digitalidentity.rc.dao.model.SystemRole;
-import dk.digitalidentity.rc.dao.model.SystemRoleAssignment;
-import dk.digitalidentity.rc.dao.model.SystemRoleAssignmentConstraintValue;
-import dk.digitalidentity.rc.dao.model.User;
-import dk.digitalidentity.rc.dao.model.UserRole;
-import dk.digitalidentity.rc.log.AuditLogIntercepted;
-import dk.digitalidentity.rc.rolerequest.model.enums.ApprovableBy;
-import dk.digitalidentity.rc.rolerequest.model.enums.RequestableBy;
-import dk.digitalidentity.rc.service.model.RoleAssignedToUserDTO;
-import dk.digitalidentity.rc.service.model.RoleAssignmentType;
-import jakarta.persistence.criteria.Predicate;
-import jakarta.transaction.Transactional;
-import lombok.extern.slf4j.Slf4j;
-
 @Slf4j
 @RequiredArgsConstructor
 @Service
@@ -69,8 +68,8 @@ public class UserRoleService {
 	private final UserRoleViewDao userRoleViewDao;
 	private final UserPermissionContext userPermissionContext;
 	private final AssignmentService assignmentService;
-	private final AccessConstraintService accessConstraintService;
 	private final PostponedConstraintService postponedConstraintService;
+	private final UserUserRoleAssignmentDao userUserRoleAssignmentDao;
 	private final HistoricItSystemAssignmentService historicItSystemAssignmentService;
 
 	public Set<UserRole> findAllByIdIn(Collection<Long> ids) {
@@ -135,26 +134,26 @@ public class UserRoleService {
 
 	@AuditLogIntercepted
 	public void addSystemRoleConstraint(final SystemRoleAssignment assignment, final SystemRoleAssignmentConstraintValue constraintValue) {
-		final String preEditHash = historicItSystemAssignmentService.computeRecordHash(assignment.getUserRole(), assignment);
+		final List<String> preEditHashes = historicItSystemAssignmentService.computeRecordHashVariants(assignment.getUserRole(), assignment);
 		if (assignment.getConstraintValues() == null) {
 			assignment.setConstraintValues(new ArrayList<>());
 		}
 		assignment.getConstraintValues().add(constraintValue);
-		historicItSystemAssignmentService.recordSystemRoleAssignmentEdited(assignment.getUserRole(), assignment, preEditHash);
+		historicItSystemAssignmentService.recordSystemRoleAssignmentEdited(assignment.getUserRole(), assignment, preEditHashes);
 	}
 
 	@AuditLogIntercepted
 	public void updateSystemRoleConstraint(final SystemRoleAssignment assignment, final SystemRoleAssignmentConstraintValue constraintValue) {
 		final SystemRoleAssignmentConstraintValue foundConstraint = findConstraintValue(constraintValue.getConstraintType(), assignment)
 				.orElseThrow(IllegalArgumentException::new);
-		final String preEditHash = historicItSystemAssignmentService.computeRecordHash(assignment.getUserRole(), assignment);
+		final List<String> preEditHashes = historicItSystemAssignmentService.computeRecordHashVariants(assignment.getUserRole(), assignment);
 		foundConstraint.setConstraintValue(constraintValue.getConstraintValue());
 		foundConstraint.setSystemRoleAssignment(constraintValue.getSystemRoleAssignment());
 		foundConstraint.setConstraintType(constraintValue.getConstraintType());
 		foundConstraint.setConstraintValueType(constraintValue.getConstraintValueType());
 		foundConstraint.setPostponed(constraintValue.isPostponed());
 		foundConstraint.setConstraintIdentifier(constraintValue.getConstraintIdentifier());
-		historicItSystemAssignmentService.recordSystemRoleAssignmentEdited(assignment.getUserRole(), assignment, preEditHash);
+		historicItSystemAssignmentService.recordSystemRoleAssignmentEdited(assignment.getUserRole(), assignment, preEditHashes);
 	}
 
 	@AuditLogIntercepted
@@ -163,9 +162,9 @@ public class UserRoleService {
 		if (existing.isEmpty()) {
 			return;
 		}
-		final String preEditHash = historicItSystemAssignmentService.computeRecordHash(assignment.getUserRole(), assignment);
+		final List<String> preEditHashes = historicItSystemAssignmentService.computeRecordHashVariants(assignment.getUserRole(), assignment);
 		assignment.getConstraintValues().remove(existing.get());
-		historicItSystemAssignmentService.recordSystemRoleAssignmentEdited(assignment.getUserRole(), assignment, preEditHash);
+		historicItSystemAssignmentService.recordSystemRoleAssignmentEdited(assignment.getUserRole(), assignment, preEditHashes);
 	}
 
 	/**
@@ -176,13 +175,13 @@ public class UserRoleService {
 	 */
 	@AuditLogIntercepted
 	public void replaceSystemRoleConstraints(final SystemRoleAssignment assignment, final List<SystemRoleAssignmentConstraintValue> newConstraintValues) {
-		final String preEditHash = historicItSystemAssignmentService.computeRecordHash(assignment.getUserRole(), assignment);
+		final List<String> preEditHashes = historicItSystemAssignmentService.computeRecordHashVariants(assignment.getUserRole(), assignment);
 		if (assignment.getConstraintValues() == null) {
 			assignment.setConstraintValues(new ArrayList<>());
 		}
 		assignment.getConstraintValues().clear();
 		assignment.getConstraintValues().addAll(newConstraintValues);
-		historicItSystemAssignmentService.recordSystemRoleAssignmentEdited(assignment.getUserRole(), assignment, preEditHash);
+		historicItSystemAssignmentService.recordSystemRoleAssignmentEdited(assignment.getUserRole(), assignment, preEditHashes);
 	}
 
 	@AuditLogIntercepted
@@ -530,8 +529,9 @@ public class UserRoleService {
 	 * for user roles vs. role groups.
 	 */
 	public void enrichAssignments(List<RoleAssignedToUserDTO> assignmentDTOs, User user, PermissionConstraint assignConstraint, Set<CurrentAssignment> currentAssignments, boolean hasEditPermission) {
-		// Maps all userroles, for easier access below
+		// Maps all userroles, for easier access below (roleGroup-only rows from empty role groups have no userRole)
 		Map<Long, UserRole> userRoleMap = currentAssignments.stream()
+			.filter(ca -> ca.getUserRole() != null)
 			.collect(Collectors.toMap(
 				ca -> ca.getUserRole().getId(),
 				CurrentAssignment::getUserRole,
@@ -540,7 +540,7 @@ public class UserRoleService {
 
 		// Maps the it systems for each rolegroup, for easier access below
 		Map<Long, Set<ItSystem>> itSystemPerRolegroup = currentAssignments.stream()
-			.filter(ca -> ca.getRoleGroup() != null)
+			.filter(ca -> ca.getRoleGroup() != null && ca.getUserRole() != null)
 			.collect(Collectors.groupingBy(
 				ca -> ca.getRoleGroup().getId(),
 				Collectors.mapping(
@@ -560,6 +560,10 @@ public class UserRoleService {
 				assignmentDTO.setCanEdit(isRoleGroupAssignable(assignmentDTO, itSystemPerRolegroup, assignConstraint));
 			}
 		}
+	}
+
+	public boolean hasSystemRoleWithIdentifier(User user, String identifier) {
+		return userUserRoleAssignmentDao.existsByUserHavingSystemRoleIdentifier(user, identifier);
 	}
 
 	/**

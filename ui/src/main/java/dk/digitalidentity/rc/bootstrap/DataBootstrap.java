@@ -1,6 +1,7 @@
 package dk.digitalidentity.rc.bootstrap;
 
 import dk.digitalidentity.rc.config.Constants;
+import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
 import dk.digitalidentity.rc.dao.SystemRoleAssignmentConstraintValueDao;
 import dk.digitalidentity.rc.dao.model.ConstraintType;
 import dk.digitalidentity.rc.dao.model.ConstraintTypeSupport;
@@ -17,6 +18,7 @@ import dk.digitalidentity.rc.service.SettingsService;
 import dk.digitalidentity.rc.service.SystemRoleService;
 import dk.digitalidentity.rc.service.UserRoleService;
 import dk.digitalidentity.rc.service.UserService;
+import dk.digitalidentity.rc.service.kitos.KitosConstants;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jetbrains.annotations.NotNull;
@@ -52,6 +54,7 @@ public class DataBootstrap implements ApplicationListener<ApplicationReadyEvent>
 	private final SystemRoleAssignmentConstraintValueDao systemRoleAssignmentConstraintValueDao;
 	private final PostponedConstraintService postponedConstraintService;
 	private final UserService userService;
+	private final RoleCatalogueConfiguration configuration;
 
 	@Override
 	public void onApplicationEvent(final @NotNull ApplicationReadyEvent event) {
@@ -60,6 +63,8 @@ public class DataBootstrap implements ApplicationListener<ApplicationReadyEvent>
 		currentVersion = applyVersion(2, this::seedV2, currentVersion);
 		currentVersion = applyVersion(3, this::seedV3, currentVersion);
 		currentVersion = applyVersion(4, this::seedV4, currentVersion);
+		currentVersion = applyVersion(5, this::seedV5, currentVersion);
+		currentVersion = applyVersion(6, this::seedV6, currentVersion);
 		setCurrentVersion(currentVersion);
 	}
 
@@ -338,6 +343,17 @@ public class DataBootstrap implements ApplicationListener<ApplicationReadyEvent>
 
 	private void seedV4() {
 		settingsService.setNotificationTypeEnabled(ORG_UNIT_NAME_CHANGED, false);
+	}
+
+	private void seedV5() {
+		if (configuration.getIntegrations().getKitos().isEnabled()) {
+			settingsService.setZonedDateTime(KitosConstants.IT_SYSTEM_USAGE_OFFSET_SETTING_KEY, KitosConstants.KITOS_DELTA_START_FROM);
+		}
+	}
+
+	private void seedV6() {
+		// Recalculate all users to populate the new manager/substitutes columns on current_assignment
+		userService.queueAllForRecalculation();
 	}
 
 }

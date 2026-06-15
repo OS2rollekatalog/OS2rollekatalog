@@ -2,16 +2,20 @@ package dk.digitalidentity.rc.service;
 
 import dk.digitalidentity.rc.controller.mvc.viewmodel.InlineImageDTO;
 import dk.digitalidentity.rc.dao.ManualAssignmentNotificationMapDao;
+import dk.digitalidentity.rc.dao.ManualNotificationPendingUserDao;
 import dk.digitalidentity.rc.dao.model.AuthorizationManager;
 import dk.digitalidentity.rc.dao.model.ItSystem;
 import dk.digitalidentity.rc.dao.model.ManualAssignmentNotificationMap;
+import dk.digitalidentity.rc.dao.model.ManualNotificationPendingUser;
 import dk.digitalidentity.rc.dao.model.OrgUnit;
 import dk.digitalidentity.rc.dao.model.Position;
 import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserRole;
 import dk.digitalidentity.rc.dao.model.UserRoleEmailTemplate;
 import dk.digitalidentity.rc.dao.model.assignment.CurrentAssignment;
+import dk.digitalidentity.rc.dao.model.EmailTemplate;
 import dk.digitalidentity.rc.dao.model.enums.EmailTemplatePlaceholder;
+import dk.digitalidentity.rc.dao.model.enums.EmailTemplateType;
 import dk.digitalidentity.rc.dao.model.enums.ItSystemType;
 import dk.digitalidentity.rc.service.assignment.AssignmentService;
 import dk.digitalidentity.rc.util.StreamExtensions;
@@ -21,7 +25,6 @@ import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.MessageSource;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -31,12 +34,13 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.function.Function;
@@ -49,10 +53,13 @@ public class ManualRolesService {
 	private ManualAssignmentNotificationMapDao manualAssignmentNotificationMapDao;
 
 	@Autowired
-	private MessageSource messageSource;
+	private UserService userService;
 
 	@Autowired
-	private UserService userService;
+	private EmailTemplateService emailTemplateService;
+
+	@Autowired
+	private EmailTemplateRenderer emailTemplateRenderer;
 
 	@Autowired
 	private UserRoleService userRoleService;
@@ -75,6 +82,13 @@ public class ManualRolesService {
 	@Autowired
 	private ManualAssignmentNotificationMapService manualAssignmentNotificationMapService;
 
+	@Autowired
+	private ManualNotificationPendingUserDao manualNotificationPendingUserDao;
+
+	// it-system types covered by the assignment-change notification scan
+	private static final List<ItSystemType> NOTIFICATION_IT_SYSTEM_TYPES =
+			Arrays.asList(ItSystemType.MANUAL, ItSystemType.AD, ItSystemType.SAML, ItSystemType.KOMBIT, ItSystemType.KSPCICS);
+
 	public record UserInformationDTO(User user, String ouName) {}
 	public record UserRoleInformationDTO(UserRole userRole, String responsible) {}
 
@@ -84,7 +98,7 @@ public class ManualRolesService {
 
 		Map<String, User> userMap = userService.getAll().stream().collect(Collectors.toMap(u -> u.getDomain().getId() + "!" + u.getUserId(), Function.identity()));
 
-		List<ItSystem> itSystems = itSystemService.getBySystemTypeIn(Arrays.asList(ItSystemType.MANUAL, ItSystemType.AD, ItSystemType.SAML, ItSystemType.KOMBIT));
+		List<ItSystem> itSystems = itSystemService.getBySystemTypeIn(NOTIFICATION_IT_SYSTEM_TYPES);
 		for (ItSystem itSystem : itSystems) {
 			processItSystem(itSystem, userMap, firstRun);
 		}
@@ -94,38 +108,146 @@ public class ManualRolesService {
 		}
 	}
 
-	private void processItSystem(ItSystem itSystem, Map<String, User> userMap, LocalDateTime firstRun) {
-		log.info("Detecting role changes on " + itSystem.getName() + " / " + itSystem.getId());
-
-		boolean hasEmail = false;
-		if (StringUtils.hasText(itSystem.getEmail())) {
-			hasEmail = true;
+	/**
+	 * Records a user whose assignments changed, to be picked up by the next {@link #processPendingUsers()}
+	 * flush. The unique constraint on userUuid deduplicates users that change repeatedly between flushes.
+	 *
+	 * The find-then-insert is safe because the user_assignments_changed queue is drained by a single-threaded
+	 * poller and deduplicates messages by user-uuid, so markUserPending is never invoked concurrently for the
+	 * same user. The unique constraint remains as a backstop.
+	 */
+	@Transactional
+	public void markUserPending(User user) {
+		if (manualNotificationPendingUserDao.findByUserUuid(user.getUuid()).isPresent()) {
+			return;
 		}
 
-		Map<Long, UserRole> userRoleMap = userRoleService.getByItSystem(itSystem).stream().collect(Collectors.toMap(UserRole::getId, Function.identity()));
+		ManualNotificationPendingUser pending = new ManualNotificationPendingUser();
+		pending.setUserUuid(user.getUuid());
+		pending.setCreatedAt(LocalDateTime.now());
+		manualNotificationPendingUserDao.save(pending);
+	}
 
-		if (!hasEmail) {
-			for (UserRole userRole : userRoleMap.values()) {
-				if (StringUtils.hasText(userRole.getContactEmail())) {
-					hasEmail = true;
-					break;
-				}
+	/**
+	 * Event-driven companion to {@link #notifyServicedesk()}: processes only the users that have been
+	 * marked pending by {@code ManualRolesUserAssignmentsChangedListener} since the last flush, batched
+	 * together so several changed users on the same it-system still produce a single digest mail.
+	 *
+	 * The full sweep ({@link #notifyServicedesk()}) keeps running (less frequently) as a safety-net that
+	 * bootstraps the baseline, cleans up rows for deleted users and recovers from any lost events.
+	 */
+	@Transactional
+	public void processPendingUsers() {
+		List<ManualNotificationPendingUser> pending = manualNotificationPendingUserDao.findAll();
+		if (pending.isEmpty()) {
+			return;
+		}
+
+		LocalDateTime firstRun = settingsService.getFirstManualITSystemRun();
+
+		// deleted users are skipped here (getOptionalByUuid filters deleted=false) — the nightly sweep
+		// handles their cleanup; their pending row is deleted below regardless to avoid build-up
+		List<User> users = pending.stream()
+			.map(p -> userService.getOptionalByUuid(p.getUserUuid()))
+			.flatMap(Optional::stream)
+			.toList();
+
+		if (!users.isEmpty()) {
+			processUsers(users, firstRun);
+		}
+
+		// delete by the rows we read; rows inserted during the flush survive for the next run
+		manualNotificationPendingUserDao.deleteAll(pending);
+
+		if (firstRun == null) {
+			settingsService.setFirstManualITSystemRun(LocalDateTime.now());
+		}
+	}
+
+	private void processUsers(List<User> users, LocalDateTime firstRun) {
+		Map<String, User> userMap = users.stream()
+			.collect(Collectors.toMap(u -> u.getDomain().getId() + "!" + u.getUserId(), Function.identity(), (a, b) -> a));
+
+		List<ItSystem> manualItSystems = itSystemService.getBySystemTypeIn(NOTIFICATION_IT_SYSTEM_TYPES);
+
+		// gather each user's active assignments in the manual systems + their notification-map rows once
+		Set<CurrentAssignment> allCurrentAssignments = new HashSet<>();
+		List<ManualAssignmentNotificationMap> allLastSyncMaps = new ArrayList<>();
+		for (User user : users) {
+			allCurrentAssignments.addAll(assignmentService.getByUserAndItSystems(user, manualItSystems));
+			allLastSyncMaps.addAll(manualAssignmentNotificationMapService.getForUser(user.getDomain().getId(), user.getUserId()));
+		}
+
+		// determine which it-systems the batch touches: either a current assignment or an existing map row
+		Map<Long, ItSystem> relevantItSystems = new HashMap<>();
+		for (CurrentAssignment assignment : allCurrentAssignments) {
+			if (assignment.getItSystem() != null) {
+				relevantItSystems.put(assignment.getItSystem().getId(), assignment.getItSystem());
+			}
+		}
+		// map rows only carry userRoleId, so resolve their it-systems via the userRoles (catches removals)
+		Set<Long> mapRoleIds = allLastSyncMaps.stream().map(ManualAssignmentNotificationMap::getUserRoleId).collect(Collectors.toSet());
+		for (UserRole role : userRoleService.findAllByIdIn(mapRoleIds)) {
+			if (role.getItSystem() != null) {
+				relevantItSystems.put(role.getItSystem().getId(), role.getItSystem());
 			}
 		}
 
+		Map<Long, List<CurrentAssignment>> currentByItSystem = allCurrentAssignments.stream()
+			.filter(a -> a.getItSystem() != null)
+			.collect(Collectors.groupingBy(a -> a.getItSystem().getId()));
+
+		for (ItSystem itSystem : relevantItSystems.values()) {
+			Map<Long, UserRole> userRoleMap = userRoleService.getByItSystem(itSystem).stream().collect(Collectors.toMap(UserRole::getId, Function.identity()));
+
+			if (!hasContactEmail(itSystem, userRoleMap)) {
+				log.info("Skipping it-system without contact email(s) : " + itSystem.getName() + " / " + itSystem.getId());
+				continue;
+			}
+
+			Set<CurrentAssignment> currentAssignments = new HashSet<>(currentByItSystem.getOrDefault(itSystem.getId(), Collections.emptyList()));
+			List<ManualAssignmentNotificationMap> lastSyncMaps = allLastSyncMaps.stream()
+				.filter(m -> userRoleMap.containsKey(m.getUserRoleId()))
+				.toList();
+
+			processDetectedChanges(itSystem, userRoleMap, currentAssignments, lastSyncMaps, userMap, firstRun);
+		}
+	}
+
+	private void processItSystem(ItSystem itSystem, Map<String, User> userMap, LocalDateTime firstRun) {
+		log.info("Detecting role changes on " + itSystem.getName() + " / " + itSystem.getId());
+
+		Map<Long, UserRole> userRoleMap = userRoleService.getByItSystem(itSystem).stream().collect(Collectors.toMap(UserRole::getId, Function.identity()));
+
 		// neither the it-system or any of the userRoles has an Email, so skip
-		if (!hasEmail) {
+		if (!hasContactEmail(itSystem, userRoleMap)) {
 			log.info("Skipping it-system without contact email(s) : " + itSystem.getName() + " / " + itSystem.getId());
 			return;
 		}
 
+		Set<CurrentAssignment> currentAssignments = assignmentService.getActiveAssignmentsByItSystem(itSystem);
+		List<ManualAssignmentNotificationMap> manualAssignmentNotificationMaps = manualAssignmentNotificationMapService.getForRoles(userRoleMap.keySet());
+
+		processDetectedChanges(itSystem, userRoleMap, currentAssignments, manualAssignmentNotificationMaps, userMap, firstRun);
+	}
+
+	private boolean hasContactEmail(ItSystem itSystem, Map<Long, UserRole> userRoleMap) {
+		if (StringUtils.hasText(itSystem.getEmail()) || StringUtils.hasText(itSystem.getAdvisEmail())) {
+			return true;
+		}
+		for (UserRole userRole : userRoleMap.values()) {
+			if (StringUtils.hasText(userRole.getContactEmail()) || StringUtils.hasText(userRole.getAdvisEmail())) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	private void processDetectedChanges(ItSystem itSystem, Map<Long, UserRole> userRoleMap, Set<CurrentAssignment> currentAssignments, List<ManualAssignmentNotificationMap> manualAssignmentNotificationMaps, Map<String, User> userMap, LocalDateTime firstRun) {
 		Map<UserInformationDTO, List<UserRoleInformationDTO>> toAddMap = new HashMap<>();
 		Map<UserInformationDTO, List<UserRoleInformationDTO>> toRemoveMap = new HashMap<>();
 		Map<UserRole, List<User>> toAddUserRoleMap = new HashMap<>();
 		Map<UserRole, List<User>> toRemoveUserRoleMap = new HashMap<>();
-
-		Set<CurrentAssignment> currentAssignments = assignmentService.getActiveAssignmentsByItSystem(itSystem);
-		List<ManualAssignmentNotificationMap> manualAssignmentNotificationMaps = manualAssignmentNotificationMapService.getForRoles(userRoleMap.keySet());
 
 		Map<String, List<CurrentAssignment>> currentAssignmentsMap = currentAssignments.stream().collect(Collectors.groupingBy(c -> c.getUser().getDomain().getId() + "!" + c.getUser().getUserId()));
 		Map<String, List<ManualAssignmentNotificationMap>> lastSyncAssignmentsMap = manualAssignmentNotificationMaps.stream().collect(Collectors.groupingBy(m -> m.getDomainId() + "!" + m.getUserUserId()));
@@ -133,20 +255,22 @@ public class ManualRolesService {
 		detectAddedRoles(userMap, currentAssignmentsMap, lastSyncAssignmentsMap, userRoleMap, toAddMap, toAddUserRoleMap);
 		detectRemovedRoles(userMap, lastSyncAssignmentsMap, currentAssignmentsMap, userRoleMap, toRemoveMap, toRemoveUserRoleMap);
 
-		String[] itEmailAddresses = null;
-		if (StringUtils.hasLength(itSystem.getEmail())) {
-			itEmailAddresses = itSystem.getEmail().split(";");
-		}
+		String[] itEmailAddresses = splitAddresses(itSystem.getEmail());
+		String[] itAdvisAddresses = splitAddresses(itSystem.getAdvisEmail());
 
 		// Only send emails if first run was more than 3 hours ago
 		boolean shouldSendEmails = firstRun != null && LocalDateTime.now().isAfter(firstRun.plusHours(3));
 
 		if (shouldSendEmails && (!toAddMap.isEmpty() || !toRemoveMap.isEmpty())) {
-			sendChangeNotifications(itSystem, toAddMap, toRemoveMap, toAddUserRoleMap, toRemoveUserRoleMap, itEmailAddresses);
+			sendChangeNotifications(itSystem, toAddMap, toRemoveMap, toAddUserRoleMap, toRemoveUserRoleMap, itEmailAddresses, itAdvisAddresses);
 		}
 	}
 
-	private void sendChangeNotifications(ItSystem itSystem, Map<UserInformationDTO, List<UserRoleInformationDTO>> toAddMap, Map<UserInformationDTO, List<UserRoleInformationDTO>> toRemoveMap, Map<UserRole, List<User>> toAddUserRoleMap, Map<UserRole, List<User>> toRemoveUserRoleMap, String[] itEmailAddresses) {
+	private static String[] splitAddresses(String emails) {
+		return StringUtils.hasLength(emails) ? emails.split(";") : null;
+	}
+
+	private void sendChangeNotifications(ItSystem itSystem, Map<UserInformationDTO, List<UserRoleInformationDTO>> toAddMap, Map<UserInformationDTO, List<UserRoleInformationDTO>> toRemoveMap, Map<UserRole, List<User>> toAddUserRoleMap, Map<UserRole, List<User>> toRemoveUserRoleMap, String[] itEmailAddresses, String[] itAdvisAddresses) {
 		if (toAddMap.isEmpty() && toRemoveMap.isEmpty() && toAddUserRoleMap.isEmpty() && toRemoveUserRoleMap.isEmpty()) {
 			return;
 		}
@@ -154,20 +278,33 @@ public class ManualRolesService {
 		// Manager-action-required mails are independent of itSystem/role contact emails — fire them up front
 		triggerManagerActionNotifications(toAddMap);
 
+		EmailTemplate systemPerformerTemplate = emailTemplateService.findByTemplateType(EmailTemplateType.MANUAL_SYSTEM_CONTACT_PERFORMER);
+		EmailTemplate systemAdvisTemplate = emailTemplateService.findByTemplateType(EmailTemplateType.MANUAL_SYSTEM_CONTACT_ADVIS);
+		EmailTemplate rolePerformerTemplate = emailTemplateService.findByTemplateType(EmailTemplateType.MANUAL_ROLE_CONTACT_PERFORMER);
+		EmailTemplate roleAdvisTemplate = emailTemplateService.findByTemplateType(EmailTemplateType.MANUAL_ROLE_CONTACT_ADVIS);
+
+		// addresses that will actually receive the it-system mail of each kind — role-level addresses are
+		// deduped against these, so they must be null when the corresponding template is disabled (deduping
+		// against a mail that is never sent would leave the address without any notification)
+		String[] coveredPerformerAddresses = systemPerformerTemplate.isEnabled() ? itEmailAddresses : null;
+		String[] coveredAdvisAddresses = systemAdvisTemplate.isEnabled() ? itAdvisAddresses : null;
+
 		Set<UserRole> allUserRoles = new HashSet<>();
 		allUserRoles.addAll(toAddUserRoleMap.keySet());
 		allUserRoles.addAll(toRemoveUserRoleMap.keySet());
 
 		for (UserRole userRole : allUserRoles) {
-			if (StringUtils.hasText(userRole.getContactEmail())) {
-				handleUserRoleSpecificMail(toAddUserRoleMap, toRemoveUserRoleMap, itEmailAddresses, userRole);
-			}
+			handleUserRoleSpecificMail(toAddUserRoleMap, toRemoveUserRoleMap, coveredPerformerAddresses, coveredAdvisAddresses, userRole, rolePerformerTemplate, roleAdvisTemplate);
 		}
 
-		if (itEmailAddresses != null && itEmailAddresses.length > 0) {
-			StringBuilder usrAndRls = formatMessageForItSystem(toAddMap, toRemoveMap);
-			for (String itEmailAddress : itEmailAddresses) {
-				sendNotification(itSystem.getName(), usrAndRls, itEmailAddress);
+		if (hasAddresses(coveredPerformerAddresses) || hasAddresses(coveredAdvisAddresses)) {
+			List<EmailTemplateRenderer.Row> userRows = buildItSystemUserRows(toAddMap, toRemoveMap);
+			if (!userRows.isEmpty()) {
+				Map<EmailTemplatePlaceholder, String> values = new EnumMap<>(EmailTemplatePlaceholder.class);
+				values.put(EmailTemplatePlaceholder.ITSYSTEM_PLACEHOLDER, legacyNullSafe(itSystem.getName()));
+
+				sendContactMails(systemPerformerTemplate, coveredPerformerAddresses, values, userRows);
+				sendContactMails(systemAdvisTemplate, coveredAdvisAddresses, values, userRows);
 			}
 		}
 	}
@@ -183,7 +320,7 @@ public class ManualRolesService {
 		}
 	}
 
-	private void handleUserRoleSpecificMail(Map<UserRole, List<User>> toAddUserRoleMap, Map<UserRole, List<User>> toRemoveUserRoleMap, String[] itEmailAddresses, UserRole userRole) {
+	private void handleUserRoleSpecificMail(Map<UserRole, List<User>> toAddUserRoleMap, Map<UserRole, List<User>> toRemoveUserRoleMap, String[] coveredPerformerAddresses, String[] coveredAdvisAddresses, UserRole userRole, EmailTemplate performerTemplate, EmailTemplate advisTemplate) {
 		List<User> addedUsers = toAddUserRoleMap.getOrDefault(userRole, Collections.emptyList());
 		List<User> removedUsers = toRemoveUserRoleMap.getOrDefault(userRole, Collections.emptyList());
 
@@ -192,15 +329,130 @@ public class ManualRolesService {
 			return;
 		}
 
-		String[] emails = userRole.getContactEmail().split(";");
-		StringBuilder roleAndUsers = formatMessageForRoleEmail(userRole, addedUsers, removedUsers);
-		String titleSubject = userRole.getItSystem().getName() + " (" + userRole.getIdentifier() + ")";
-		for (String email : emails) {
-			if (email == null || existsInItSystem(itEmailAddresses, email)) {
-				continue;
-			}
-			sendNotification(titleSubject, userRole.getName(), roleAndUsers, email);
+		// addresses already covered by the it-system mail of the same kind are skipped to avoid duplicate mails
+		String[] performerAddresses = performerTemplate.isEnabled() ? filterAddresses(userRole.getContactEmail(), coveredPerformerAddresses) : null;
+		String[] advisAddresses = advisTemplate.isEnabled() ? filterAddresses(userRole.getAdvisEmail(), coveredAdvisAddresses) : null;
+		if (!hasAddresses(performerAddresses) && !hasAddresses(advisAddresses)) {
+			return;
 		}
+
+		List<EmailTemplateRenderer.Row> userRows = new ArrayList<>();
+		for (User user : addedUsers) {
+			userRows.add(buildRoleUserRow(user, true));
+		}
+		for (User user : removedUsers) {
+			userRows.add(buildRoleUserRow(user, false));
+		}
+
+		Map<EmailTemplatePlaceholder, String> values = new EnumMap<>(EmailTemplatePlaceholder.class);
+		values.put(EmailTemplatePlaceholder.ITSYSTEM_PLACEHOLDER, legacyNullSafe(userRole.getItSystem().getName()));
+		values.put(EmailTemplatePlaceholder.ROLE_NAME, legacyNullSafe(userRole.getName()));
+		values.put(EmailTemplatePlaceholder.ROLE_DESCRIPTION_PLACEHOLDER, legacyNullSafe(userRole.getDescription()));
+
+		sendContactMails(performerTemplate, performerAddresses, values, userRows);
+		sendContactMails(advisTemplate, advisAddresses, values, userRows);
+	}
+
+	private static boolean hasAddresses(String[] addresses) {
+		return addresses != null && addresses.length > 0;
+	}
+
+	private static String[] filterAddresses(String emails, String[] alreadyNotified) {
+		String[] addresses = splitAddresses(emails);
+		if (addresses == null) {
+			return null;
+		}
+
+		Set<String> covered = alreadyNotified != null ? new HashSet<>(Arrays.asList(alreadyNotified)) : Collections.emptySet();
+		return Arrays.stream(addresses)
+				.filter(email -> email != null && !covered.contains(email))
+				.toArray(String[]::new);
+	}
+
+	private void sendContactMails(EmailTemplate template, String[] addresses, Map<EmailTemplatePlaceholder, String> values, List<EmailTemplateRenderer.Row> rows) {
+		if (!template.isEnabled() || !hasAddresses(addresses)) {
+			return;
+		}
+
+		String title = emailTemplateRenderer.renderTitle(template, values);
+		String message = emailTemplateRenderer.renderMessage(template, values, rows);
+
+		for (String address : addresses) {
+			try {
+				emailService.sendMessage(address, title, message, null);
+			}
+			catch (Exception ex) {
+				log.error("Exception occured while synchronizing manual ItSystem. Could not send '" + title + "' to: " + address + ". Exception:" + ex.getMessage());
+				// we just continue with the next one - someone has to fix this, and then perform a full sync
+			}
+		}
+	}
+
+	// the legacy MessageFormat based mails rendered null arguments as the string "null" — preserved
+	// for output compatibility, since some municipalities parse these mails with robots
+	private static String legacyNullSafe(String value) {
+		return value != null ? value : "null";
+	}
+
+	private List<EmailTemplateRenderer.Row> buildItSystemUserRows(Map<UserInformationDTO, List<UserRoleInformationDTO>> toAddMap, Map<UserInformationDTO, List<UserRoleInformationDTO>> toRemoveMap) {
+		List<EmailTemplateRenderer.Row> rows = new ArrayList<>();
+
+		// Users with added roles (and possibly removed)
+		for (UserInformationDTO dto : toAddMap.keySet()) {
+			if (!toAddMap.get(dto).isEmpty() || Objects.nonNull(toRemoveMap.get(dto))) {
+				rows.add(buildItSystemUserRow(dto, toAddMap.get(dto), toRemoveMap.get(dto)));
+			}
+		}
+
+		// Users with only removed roles
+		for (UserInformationDTO dto : toRemoveMap.keySet()) {
+			if (toAddMap.get(dto) == null) {
+				rows.add(buildItSystemUserRow(dto, Collections.emptyList(), toRemoveMap.get(dto)));
+			}
+		}
+
+		return rows;
+	}
+
+	private EmailTemplateRenderer.Row buildItSystemUserRow(UserInformationDTO userInfo, List<UserRoleInformationDTO> addedRoles, List<UserRoleInformationDTO> removedRoles) {
+		List<EmailTemplateRenderer.Row> changeRows = new ArrayList<>();
+		for (UserRoleInformationDTO addRoleDto : addedRoles) {
+			changeRows.add(buildChangeRow(addRoleDto, true));
+		}
+		if (removedRoles != null) {
+			for (UserRoleInformationDTO removeRoleDto : removedRoles) {
+				changeRows.add(buildChangeRow(removeRoleDto, false));
+			}
+		}
+
+		Map<EmailTemplatePlaceholder, String> values = new EnumMap<>(EmailTemplatePlaceholder.class);
+		values.put(EmailTemplatePlaceholder.USER_PLACEHOLDER, legacyNullSafe(userInfo.user().getName()));
+		values.put(EmailTemplatePlaceholder.USER_ID_PLACEHOLDER, legacyNullSafe(userInfo.user().getUserId()));
+		values.put(EmailTemplatePlaceholder.ORGUNIT_PLACEHOLDER, legacyNullSafe(userInfo.ouName()));
+		values.put(EmailTemplatePlaceholder.PERSON_UUID_PLACEHOLDER, legacyNullSafe(userInfo.user().getExtUuid()));
+
+		return new EmailTemplateRenderer.Row(values, changeRows);
+	}
+
+	private EmailTemplateRenderer.Row buildChangeRow(UserRoleInformationDTO dto, boolean added) {
+		Map<EmailTemplatePlaceholder, String> values = new EnumMap<>(EmailTemplatePlaceholder.class);
+		values.put(EmailTemplatePlaceholder.ACTION_PLACEHOLDER, added ? "Tilføj" : "Fjern");
+		values.put(EmailTemplatePlaceholder.ACTION_PAST_PLACEHOLDER, added ? "tildelt" : "fjernet");
+		values.put(EmailTemplatePlaceholder.ROLE_NAME, legacyNullSafe(dto.userRole().getName()));
+		values.put(EmailTemplatePlaceholder.ROLE_DESCRIPTION_PLACEHOLDER, legacyNullSafe(dto.userRole().getDescription()));
+		values.put(EmailTemplatePlaceholder.ASSIGNED_BY_PLACEHOLDER, legacyNullSafe(dto.responsible()));
+
+		return new EmailTemplateRenderer.Row(values);
+	}
+
+	private EmailTemplateRenderer.Row buildRoleUserRow(User user, boolean added) {
+		Map<EmailTemplatePlaceholder, String> values = new EnumMap<>(EmailTemplatePlaceholder.class);
+		values.put(EmailTemplatePlaceholder.ACTION_PLACEHOLDER, added ? "Tilføj" : "Fjern");
+		values.put(EmailTemplatePlaceholder.USER_PLACEHOLDER, legacyNullSafe(user.getName()));
+		values.put(EmailTemplatePlaceholder.USER_ID_PLACEHOLDER, legacyNullSafe(user.getUserId()));
+		values.put(EmailTemplatePlaceholder.PERSON_UUID_PLACEHOLDER, legacyNullSafe(user.getExtUuid()));
+
+		return new EmailTemplateRenderer.Row(values);
 	}
 
 	private void detectRemovedRoles(Map<String, User> userMap, Map<String, List<ManualAssignmentNotificationMap>> lastSyncAssignmentsMap, Map<String, List<CurrentAssignment>> currentAssignmentsMap, Map<Long, UserRole> userRoleMap, Map<UserInformationDTO, List<UserRoleInformationDTO>> toRemoveMap, Map<UserRole, List<User>> toRemoveUserRoleMap) {
@@ -323,122 +575,6 @@ public class ManualRolesService {
 		return notificationMap;
 	}
 
-	private @NotNull StringBuilder formatMessageForItSystem(
-		Map<UserInformationDTO, List<UserRoleInformationDTO>> toAddMap,
-		Map<UserInformationDTO, List<UserRoleInformationDTO>> toRemoveMap) {
-
-		StringBuilder usersAndRoles = new StringBuilder();
-
-		// Users with added roles (and possibly removed)
-		for (UserInformationDTO dto : toAddMap.keySet()) {
-			if (!toAddMap.get(dto).isEmpty() || Objects.nonNull(toRemoveMap.get(dto))) {
-				appendUserWithRoleChanges(usersAndRoles, dto,
-					toAddMap.get(dto), toRemoveMap.get(dto));
-			}
-		}
-
-		// Users with only removed roles
-		for (UserInformationDTO dto : toRemoveMap.keySet()) {
-			if (toAddMap.get(dto) == null) {
-				appendUserWithRoleChanges(usersAndRoles, dto,
-					Collections.emptyList(), toRemoveMap.get(dto));
-			}
-		}
-
-		return usersAndRoles;
-	}
-
-	private void appendUserWithRoleChanges(StringBuilder usersAndRoles,
-										   UserInformationDTO userInfo,
-										   List<UserRoleInformationDTO> addedRoles,
-										   List<UserRoleInformationDTO> removedRoles) {
-
-		usersAndRoles.append(messageSource.getMessage(
-			"html.email.manual.message.user",
-			new Object[] { userInfo.user().getName(), userInfo.user().getUserId(),
-				userInfo.user().getExtUuid(), userInfo.ouName() },
-			Locale.ENGLISH));
-		usersAndRoles.append("<ul>");
-
-		// Append added roles
-		for (UserRoleInformationDTO addRoleDto : addedRoles) {
-			usersAndRoles.append(messageSource.getMessage(
-				"html.email.manual.message.addRole",
-				new Object[] { addRoleDto.userRole().getName(),
-					addRoleDto.userRole().getDescription(),
-					addRoleDto.responsible() },
-				Locale.ENGLISH));
-		}
-
-		// Append removed roles
-		if (removedRoles != null) {
-			for (UserRoleInformationDTO removeRoleDto : removedRoles) {
-				usersAndRoles.append(messageSource.getMessage(
-					"html.email.manual.message.removeRole",
-					new Object[] { removeRoleDto.userRole().getName(),
-						removeRoleDto.userRole().getDescription(),
-						removeRoleDto.responsible() },
-					Locale.ENGLISH));
-			}
-		}
-
-		usersAndRoles.append("</ul>");
-	}
-
-	private void sendNotification(String system, StringBuilder message, String email) {
-		sendNotification(system, system, message, email);
-	}
-
-	private void sendNotification(String titleSubject, String bodySystem, StringBuilder message, String email) {
-		String title = messageSource.getMessage("html.email.manual.title", new Object[] { titleSubject }, Locale.ENGLISH);
-		String formatMessage = messageSource.getMessage("html.email.manual.message.format", new Object[] { bodySystem, message.toString() }, Locale.ENGLISH);
-
-		if (!formatMessage.isEmpty()) {
-
-			try {
-				emailService.sendMessage(email, title, formatMessage, null);
-			}
-			catch (Exception ex) {
-				log.error("Exception occured while synchronizing manual ItSystem: " + bodySystem + ". Could not send email to: " + email + ". Exception:" + ex.getMessage());
-				// we just continue with the next one - someone has to fix this, and then perform a full sync
-			}
-		}
-	}
-
-	private @NotNull StringBuilder formatMessageForRoleEmail(UserRole specificUserRole, List<User> addedUsers, List<User> removedUsers) {
-		StringBuilder roleAndUsers = new StringBuilder();
-		if (specificUserRole != null) {
-			roleAndUsers.append(messageSource.getMessage("html.email.manual.message.userRole", new Object[] { specificUserRole.getName(), specificUserRole.getDescription() }, Locale.ENGLISH));
-			roleAndUsers.append("<ul>");
-
-			for (User user : addedUsers) {
-				roleAndUsers.append(messageSource.getMessage("html.email.manual.message.addUser", new Object[] { user.getName(), user.getUserId(), user.getExtUuid() }, Locale.ENGLISH));
-			}
-			// We try to build the entire list including removed ones in one go, in case the same User role has removed and added users
-			if (removedUsers != null && !removedUsers.isEmpty()) {
-				for (User user : removedUsers) {
-					roleAndUsers.append(messageSource.getMessage("html.email.manual.message.removeUser", new Object[] { user.getName(), user.getUserId(), user.getExtUuid() }, Locale.ENGLISH));
-				}
-			}
-			roleAndUsers.append("</ul>");
-		}
-
-		if (removedUsers != null && !removedUsers.isEmpty()) {
-			// List has already been properly created, so we return it
-			if (addedUsers != null && !addedUsers.isEmpty()) {
-				return roleAndUsers;
-			}
-			roleAndUsers.append(messageSource.getMessage("html.email.manual.message.userRole", new Object[] { specificUserRole.getName(), specificUserRole.getDescription() }, Locale.ENGLISH));
-			roleAndUsers.append("<ul>");
-
-			for (User user : removedUsers) {
-				roleAndUsers.append(messageSource.getMessage("html.email.manual.message.removeUser", new Object[] { user.getName(), user.getUserId(), user.getExtUuid() }, Locale.ENGLISH));
-			}
-			roleAndUsers.append("</ul>");
-		}
-		return roleAndUsers;
-	}
-
 	private void notifyManagerActionRequired(User user, UserRole userRole) {
 		UserRoleEmailTemplate template = userRole.getUserRoleEmailTemplate();
 
@@ -508,20 +644,6 @@ public class ManualRolesService {
 			}
 		}
 		return recipients;
-	}
-
-	private boolean existsInItSystem(String[] itSystemEmails, String email) {
-		if (itSystemEmails == null) {
-			return false;
-		}
-		boolean result = false;
-		for (String itSystemEmail : itSystemEmails) {
-			if (itSystemEmail.equals(email)) {
-				result = true;
-				break;
-			}
-		}
-		return result;
 	}
 
 	private List<InlineImageDTO> transformImages(UserRoleEmailTemplate email) {

@@ -74,6 +74,7 @@ public class OrgUnitAttestationController {
 		model.addAttribute("adAttestationEnabled", settingsService.isADAttestationEnabled());
 		model.addAttribute("orgUnitTotalCount", calculateOrgUnitCount(attestation));
 		model.addAttribute("changeRequestsEnabled", settingsService.isAttestationRequestChangesEnabled());
+		model.addAttribute("attestationDescriptionRequired", settingsService.isAttestationDescriptionRequired());
 
 		return "attestationmodule/orgunits/attestate";
 	}
@@ -98,6 +99,7 @@ public class OrgUnitAttestationController {
 
 		boolean descriptionRequired = settingsService.isAttestationDescriptionRequired();
 		model.addAttribute("hideDescription", !descriptionRequired && settingsService.isAttestationHideDescription());
+		model.addAttribute("attestationDescriptionRequired", descriptionRequired);
 
 		return "attestationmodule/orgunits/attestate";
 	}
@@ -119,6 +121,7 @@ public class OrgUnitAttestationController {
 
 		boolean descriptionRequired = settingsService.isAttestationDescriptionRequired();
 		model.addAttribute("hideDescription", !descriptionRequired && settingsService.isAttestationHideDescription());
+		model.addAttribute("attestationDescriptionRequired", settingsService.isAttestationDescriptionRequired());
 
 		return "attestationmodule/fragments/userRemarkModal :: userRemarkModal";
 	}
@@ -157,6 +160,7 @@ public class OrgUnitAttestationController {
 
 		boolean descriptionRequired = settingsService.isAttestationDescriptionRequired();
 		model.addAttribute("hideDescription", !descriptionRequired && settingsService.isAttestationHideDescription());
+		model.addAttribute("attestationDescriptionRequired", settingsService.isAttestationDescriptionRequired());
 
 		return "attestationmodule/fragments/orgUnitRemarkModal :: orgUnitRemarkModal";
 	}

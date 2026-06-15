@@ -11,6 +11,7 @@ import dk.digitalidentity.rc.dao.model.KitosITSystem;
 public interface KitosITSystemDao extends CrudRepository<KitosITSystem, Long> {
 
 	Optional<KitosITSystem> findByKitosUuid(UUID uuid);
+	Optional<KitosITSystem> findByKitosUsageUuid(UUID uuid);
 	void deleteByKitosUuid(UUID uuid);
 	List<KitosITSystem> findAll();
 }

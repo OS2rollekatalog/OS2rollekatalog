@@ -1,7 +1,33 @@
 package dk.digitalidentity.rc.service.cics;
 
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Date;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.annotation.Lazy;
+import org.springframework.context.event.EventListener;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
+import org.springframework.web.client.RestClient;
+
 import com.fasterxml.jackson.databind.MapperFeature;
 import com.fasterxml.jackson.dataformat.xml.XmlMapper;
+
 import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
 import dk.digitalidentity.rc.dao.AltAccountDao;
 import dk.digitalidentity.rc.dao.DirtyKspCicsUserProfileDao;
@@ -39,33 +65,15 @@ import dk.digitalidentity.rc.service.cics.model.kmd.Envelope;
 import dk.digitalidentity.rc.service.cics.model.kmd.ModifyWrapper;
 import dk.digitalidentity.rc.service.cics.model.kmd.SearchEntry;
 import dk.digitalidentity.rc.service.cics.model.kmd.SearchWrapper;
-import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-import org.springframework.util.StringUtils;
-import org.springframework.web.client.RestClient;
-
-import java.time.LocalDateTime;
-import java.time.ZoneId;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Date;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.Set;
-import java.util.stream.Collectors;
 
 @Slf4j
 @Service
 public class KspCicsService {
+	private static final XmlMapper xmlMapper = XmlMapper.builder()
+		    .configure(MapperFeature.ACCEPT_CASE_INSENSITIVE_PROPERTIES, true)
+		    .build();
+
 	private ItSystem cics = null;
 
 	private static final String SUCCESS_RESPONSE = "urn:oasis:names:tc:SPML:1:0#success";
@@ -164,6 +172,7 @@ public class KspCicsService {
 			"    </dsml:equalityMatch>" +
 			"  </dsml:filter>";
 
+	@Lazy(true)
 	@Qualifier("kspCicsRestClient")
 	@Autowired
 	private RestClient restClient;
@@ -201,7 +210,7 @@ public class KspCicsService {
 	@Autowired
 	private UserRoleCleanupService userRoleCleanupService;
 
-	@PostConstruct
+	@EventListener(ApplicationReadyEvent.class)
 	public void init() {
 		List<ItSystem> itSystems = itSystemService.getBySystemType(ItSystemType.KSPCICS);
 		if (itSystems != null && itSystems.size() == 1) {
@@ -672,10 +681,6 @@ public class KspCicsService {
 		ModifyWrapper wrapper = null;
 
 		try {
-			XmlMapper xmlMapper = XmlMapper.builder()
-				    .configure(MapperFeature.ACCEPT_CASE_INSENSITIVE_PROPERTIES, true)
-				    .build();
-
 			Envelope envelope = xmlMapper.readValue(responseBody, Envelope.class);
 
 			String modifyResponse = envelope.getBody().getSpmlModifyRequestResponse().getSpmlModifyRequestResult();
@@ -841,10 +846,6 @@ public class KspCicsService {
 		ModifyWrapper wrapper = null;
 
 		try {
-			XmlMapper xmlMapper = XmlMapper.builder()
-				    .configure(MapperFeature.ACCEPT_CASE_INSENSITIVE_PROPERTIES, true)
-				    .build();
-
 			Envelope envelope = xmlMapper.readValue(responseBody, Envelope.class);
 
 			String modifyResponse = envelope.getBody().getSpmlModifyRequestResponse().getSpmlModifyRequestResult();
@@ -968,10 +969,6 @@ public class KspCicsService {
 		SearchWrapper wrapper = null;
 
 		try {
-			XmlMapper xmlMapper = XmlMapper.builder()
-				    .configure(MapperFeature.ACCEPT_CASE_INSENSITIVE_PROPERTIES, true)
-				    .build();
-
 			Envelope envelope = xmlMapper.readValue(responseBody, Envelope.class);
 			String searchResponse = envelope.getBody().getSpmlSearchRequestResponse().getSpmlSearchRequestResult();
 
@@ -1063,10 +1060,6 @@ public class KspCicsService {
 		SearchWrapper wrapper = null;
 
 		try {
-			XmlMapper xmlMapper = XmlMapper.builder()
-				    .configure(MapperFeature.ACCEPT_CASE_INSENSITIVE_PROPERTIES, true)
-				    .build();
-
 			Envelope envelope = xmlMapper.readValue(responseBody, Envelope.class);
 			String searchResponse = envelope.getBody().getSpmlSearchRequestResponse().getSpmlSearchRequestResult();
 
@@ -1099,7 +1092,6 @@ public class KspCicsService {
 		return kspUser;
 	}
 
-	@SuppressWarnings("deprecation")
 	private KspUsersResponse findUsers() {
 		StringBuilder builder = new StringBuilder();
 		builder.append(SOAP_WRAPPER_BEGIN);
@@ -1147,9 +1139,6 @@ public class KspCicsService {
 		SearchWrapper wrapper = null;
 
 		try {
-			XmlMapper xmlMapper = new XmlMapper();
-			xmlMapper.configure(MapperFeature.ACCEPT_CASE_INSENSITIVE_PROPERTIES, true);
-
 			Envelope envelope = xmlMapper.readValue(responseBody, Envelope.class);
 			String searchResponse = envelope.getBody().getSpmlSearchRequestResponse().getSpmlSearchRequestResult();
 

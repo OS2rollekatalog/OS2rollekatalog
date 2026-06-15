@@ -38,6 +38,7 @@ import dk.digitalidentity.rc.util.IdentifierGenerator;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
@@ -63,10 +64,13 @@ import java.util.stream.Collectors;
 @Slf4j
 @Service
 public class KOMBITService {
+	
+	@Lazy(true)
 	@Autowired
 	@Qualifier("kombitRestClient")
 	private RestClient restClient;
 
+	@Lazy(true)
 	@Autowired
 	@Qualifier("kombitTestRestClient")
 	private RestClient testRestClient;
@@ -602,6 +606,10 @@ public class KOMBITService {
 				KOMBITDataafgraensningsVaerdier dataConstraintValue = new KOMBITDataafgraensningsVaerdier();
 
 				switch (constraintValue.getConstraintValueType()) {
+					case INHERITED_FROM_MANAGER_ROLE:
+					case EXTENDED_INHERITED_FROM_MANAGER_ROLE:
+					case INHERITED_FROM_FUNCTIONS:
+					case EXTENDED_INHERITED_FROM_FUNCTIONS:
 					case EXTENDED_INHERITED:
 					case INHERITED:
 					case READ_AND_WRITE:

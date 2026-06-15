@@ -63,7 +63,8 @@ public class OrgUnitAssignmentRule extends AssignmentRule {
 			|| assignment.getContainsTitles() != ContainsTitles.NO
 			|| assignment.isManager()
 			|| assignment.isSubstitutes()
-			|| assignment.isContainsFunctions();
+			|| assignment.isContainsFunctions()
+			|| assignment.isContainsExceptedOus();
 	}
 
 }

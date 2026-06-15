@@ -18,6 +18,9 @@
 							<em class="fa fa-fw fa-download"></em> &nbsp;
 							<span th:text="#{html.word.download}"></span>
 						</a>
+						<button id="clearEntityFilter" class="btn btn-warning btn-lg hidden">
+							<em class="fa fa-times"></em> &nbsp;Ryd objektfilter
+						</button>
 					</div>
 
 					<div class="panel-body">
@@ -33,6 +36,24 @@
 										<th class="col-md-2" th:text="#{html.page.log.details}"></th>
 									</tr>
 								</thead>
+								<tfoot style="display: table-header-group">
+									<tr>
+										<td class="input-filter"><input type="text" class="form-control input-sm" placeholder="Søg" /></td>
+										<td class="input-filter"><input type="text" class="form-control input-sm" placeholder="Søg" /></td>
+										<td class="input-filter">
+											<select id="eventTypeFilter" class="form-control input-sm" multiple="multiple">
+												<option th:each="logAction : ${T(dk.digitalidentity.rc.dao.model.enums.EventType).values()}"
+														th:if="${!#strings.isEmpty(logAction.message)}"
+														th:value="${logAction.name()}"
+														th:text="${#messages.msg(logAction.message)}">
+												</option>
+											</select>
+										</td>
+										<td class="input-filter"><input type="text" class="form-control input-sm" placeholder="Søg" /></td>
+										<td class="input-filter"><input type="text" class="form-control input-sm" placeholder="Søg" /></td>
+										<td class="input-filter"><input type="text" class="form-control input-sm" placeholder="Søg" /></td>
+									</tr>
+								</tfoot>
 
 								<tbody>
 								</tbody>
@@ -62,6 +83,7 @@
 		+]*/
 
 		let auditLogTable;
+		let entityFilter = null; // { entityType, entityId }
 
 		$(document).ready(function() {
 
@@ -98,16 +120,25 @@
 			auditLogTable = $('.listTable').DataTable({
 				destroy: true,
 				searchDelay: 1000,
-				'ajax': {
-					'contentType': 'application/json',
-					'url': ajaxUrl,
-					'type': 'POST',
-					headers: {
-						'X-CSRF-TOKEN': token
-					},
-					'data': function(d) {
-						return JSON.stringify(d);
+				'ajax': function(data, callback, settings) {
+					const selected = $('#eventTypeFilter').val();
+					const params = [];
+					if (selected && selected.length > 0) {
+						selected.forEach(v => params.push('eventTypes=' + encodeURIComponent(v)));
 					}
+					if (entityFilter) {
+						params.push('entityType=' + encodeURIComponent(entityFilter.entityType));
+						params.push('entityId=' + encodeURIComponent(entityFilter.entityId));
+					}
+					const url = params.length > 0 ? ajaxUrl + '?' + params.join('&') : ajaxUrl;
+					$.ajax({
+						url: url,
+						type: 'POST',
+						contentType: 'application/json',
+						headers: { 'X-CSRF-TOKEN': token },
+						data: JSON.stringify(data),
+						success: callback
+					});
 				},
 				'serverSide' : true,
 				columns : [{
@@ -122,7 +153,16 @@
 				}, {
 					data : 'entityName',
 					render: function (data, type, row, meta) {
-						return data + ' (' + row.entityType + ')';
+						const cell = $('<span>');
+						$('<button>', {
+							'class': 'btn btn-xs btn-default entity-filter-btn',
+							'title': 'Vis historik for dette objekt',
+							'data-entity-type': row.entityTypeRaw || '',
+							'data-entity-id': row.entityId || '',
+							'html': '<em class="fa fa-search"></em>'
+						}).appendTo(cell);
+						$('<span>').text(' ' + (data || '') + ' (' + (row.entityType || '') + ')').appendTo(cell);
+						return cell.prop('outerHTML');
 					}
 				}, {
 					data : 'secondaryEntityName'
@@ -136,6 +176,8 @@
 				'stateSave': true,
 				'info':      true,
 				'pageLength': 25,
+				// dom: lists the order of items we want to render
+				dom: 'lrtip',
 				'language': {
 					"search":       searchTxt,
 					"lengthMenu":   dropdownTxt,
@@ -148,6 +190,39 @@
 						"previous": prevTxt
 					}
 				}
+			});
+
+			$.each($('.input-filter', auditLogTable.table().footer()), function () {
+				const column = auditLogTable.column($(this).index());
+
+				$('input', this).on('keyup change', function () {
+					if (column.search() !== this.value) {
+						column.search(this.value).draw();
+					}
+				});
+			});
+
+			$('#eventTypeFilter').select2({
+				placeholder: 'Alle',
+				allowClear: true,
+				width: '100%'
+			}).on('change', function () {
+				auditLogTable.draw();
+			});
+
+			$(document).on('click', '.entity-filter-btn', function () {
+				entityFilter = {
+					entityType: $(this).data('entity-type'),
+					entityId: String($(this).data('entity-id'))
+				};
+				$('#clearEntityFilter').removeClass('hidden');
+				auditLogTable.draw();
+			});
+
+			$('#clearEntityFilter').on('click', function () {
+				entityFilter = null;
+				$(this).addClass('hidden');
+				auditLogTable.draw();
 			});
 		});
 	/*]]>*/

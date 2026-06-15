@@ -46,6 +46,7 @@
 							</td>
 
 							<th:block th:switch="${assignment.assignmentType}">
+								<td th:case="-13" th:text="#{html.entity.ou.assigned.inherit.with.excepted.ous}"></td>
                                 <td th:case="-12" th:text="#{html.entity.ou.assigned.all.function.inherit}"></td>
                                 <td th:case="-11" th:text="#{html.entity.ou.assigned.all.function}"></td>
 								<td th:case="-10" th:text="#{html.entity.ou.assigned.all.managerAndSubstitutes.inherit}"></td>

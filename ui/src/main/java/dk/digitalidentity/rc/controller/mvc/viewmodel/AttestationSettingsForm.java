@@ -22,6 +22,7 @@ public class AttestationSettingsForm {
 	private boolean descriptionRequired;
 	private boolean hideDescription;
 	private boolean orgUnitOptIn;
+	private String maxAttestationsToRenderOnOverview;
 	private Set<String> scheduledAttestationOptedInOrgUnits = new HashSet<>();
 
 	@DateTimeFormat(pattern = "yyyy-MM-dd")

@@ -2,9 +2,8 @@
 using ADSyncService.Persistance;
 using ADSyncService.Util;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.DirectoryServices;
-using System.DirectoryServices.AccountManagement;
 using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading;
@@ -60,6 +59,11 @@ namespace ADSyncService
 
         private void SyncGroups(ADStub adStub, PersistenceService persistenceService, SyncData syncData, bool localCacheEnabled, bool ignoreUsersWithoutCpr, List<KeyValuePair<string, KeyValuePair<string, string>>> attributeMap, List<KeyValuePair<string, KeyValuePair<string, string>>> filterMap, bool doNotRegisterDisabledUsers)
         {
+            var userCache = new ConcurrentDictionary<string, UserCache>(StringComparer.OrdinalIgnoreCase);
+
+            // Collect all attribute names needed for filter checks upfront so each user is loaded with everything in one AD call
+            var attributeNamesToLoad = filterMap.Select(f => f.Value.Key).Distinct().ToList();
+
             IEnumerable<List<Assignment>> chunks = syncData.assignments.ChunkBy(4);
 
             foreach (var chunk in chunks)
@@ -70,7 +74,7 @@ namespace ADSyncService
                     {
                         var cancelToken = cancelTokenSource.Token;
 
-                        var task = Task.Run(() => UpdateGroup(adStub, persistenceService, ignoreUsersWithoutCpr, attributeMap, localCacheEnabled, assignment, filterMap, doNotRegisterDisabledUsers), cancelToken);
+                        var task = Task.Run(() => UpdateGroup(adStub, persistenceService, ignoreUsersWithoutCpr, attributeMap, localCacheEnabled, assignment, filterMap, doNotRegisterDisabledUsers, userCache, attributeNamesToLoad), cancelToken);
 
                         if (!task.Wait(TimeSpan.FromSeconds(60*30))) // 30min timeout
                         {
@@ -90,7 +94,7 @@ namespace ADSyncService
             }
         }
 
-        private void UpdateGroup(ADStub adStub, PersistenceService persistenceService, bool ignoreUsersWithoutCpr, List<KeyValuePair<string, KeyValuePair<string, string>>> attributeMap, bool localCacheEnabled, Assignment assignment, List<KeyValuePair<string, KeyValuePair<string, string>>> filterMap, bool doNotRegisterDisabledUsers)
+        private void UpdateGroup(ADStub adStub, PersistenceService persistenceService, bool ignoreUsersWithoutCpr, List<KeyValuePair<string, KeyValuePair<string, string>>> attributeMap, bool localCacheEnabled, Assignment assignment, List<KeyValuePair<string, KeyValuePair<string, string>>> filterMap, bool doNotRegisterDisabledUsers, ConcurrentDictionary<string, UserCache> userCache, List<string> attributeNamesToLoad)
         {
             try
             {
@@ -136,12 +140,12 @@ namespace ADSyncService
                 {
                     if (!adGroupMembers.Contains(userId))
                     {
-                        if (ShouldIncludeUser(userId, assignment.groupName, filterMap, adStub))
+                        if (ShouldIncludeUser(userId, assignment.groupName, filterMap, adStub, userCache, attributeNamesToLoad))
                         {
                             // Check if user is active before adding if doNotRegisterDisabledUsers is true
                             if (doNotRegisterDisabledUsers)
                             {
-                                bool isUserActive = adStub.IsUserActive(userId);
+                                bool isUserActive = adStub.IsUserActive(userId, userCache, attributeNamesToLoad);
                                 if (!isUserActive)
                                 {
                                     log.Info($"Skipping disabled user: {userId}");
@@ -168,10 +172,10 @@ namespace ADSyncService
                 foreach (var userId in adGroupMembers)
                 {
                     bool shouldBeInGroup = assignment.samaccountNames.Contains(userId) &&
-                          ShouldIncludeUser(userId, assignment.groupName, filterMap, adStub);
+                          ShouldIncludeUser(userId, assignment.groupName, filterMap, adStub, userCache, attributeNamesToLoad);
                     if (!shouldBeInGroup)
                     {
-                        if (!ignoreUsersWithoutCpr || adStub.HasCpr(userId))
+                        if (!ignoreUsersWithoutCpr || adStub.HasCpr(userId, userCache, attributeNamesToLoad))
                         {
                             adStub.RemoveMember(assignment.groupName, userId);
                             removed++;
@@ -249,7 +253,7 @@ namespace ADSyncService
             return result;
         }
 
-        private bool ShouldIncludeUser(string userId, string groupName, List<KeyValuePair<string, KeyValuePair<string, string>>> filterMap, ADStub adStub)
+        private bool ShouldIncludeUser(string userId, string groupName, List<KeyValuePair<string, KeyValuePair<string, string>>> filterMap, ADStub adStub, ConcurrentDictionary<string, UserCache> userCache, List<string> attributeNamesToLoad)
         {
             // Find matching filters for this group
             var matchingFilters = filterMap.Where(filter =>
@@ -260,32 +264,18 @@ namespace ADSyncService
                 return true; // No filters = include user
             }
 
-            // Get user's DirectoryEntry once and reuse it for all attribute checks
-            using (PrincipalContext context = new PrincipalContext(ContextType.Domain))
+            // Check if user matches ALL applicable filters using the cache
+            foreach (var filter in matchingFilters)
             {
-                using (UserPrincipal user = UserPrincipal.FindByIdentity(context, userId))
+                string attributeName = filter.Value.Key;
+                string filterPattern = filter.Value.Value;
+
+                string userAttributeValue = adStub.GetUserAttribute(userId, attributeName, userCache, attributeNamesToLoad);
+
+                if (!IsWildcardOrRegexMatch(userAttributeValue, filterPattern))
                 {
-                    using (DirectoryEntry directoryEntry = (DirectoryEntry)user.GetUnderlyingObject())
-                    {
-                        // Check if user matches ALL applicable filters
-                        foreach (var filter in matchingFilters)
-                        {
-                            string attributeName = filter.Value.Key;
-                            string filterPattern = filter.Value.Value;
-
-                            string userAttributeValue = null;
-                            if (directoryEntry.Properties.Contains(attributeName))
-                            {
-                                userAttributeValue = directoryEntry.Properties[attributeName].Value?.ToString();
-                            }
-
-                            if (!IsWildcardOrRegexMatch(userAttributeValue, filterPattern))
-                            {
-                                log.Debug($"User {userId} does not match filter for group {groupName}. Attribute {attributeName} = '{userAttributeValue}', expected pattern: '{filterPattern}'");
-                                return false; // User doesn't match this filter
-                            }
-                        }
-                    }
+                    log.Debug($"User {userId} does not match filter for group {groupName}. Attribute {attributeName} = '{userAttributeValue}', expected pattern: '{filterPattern}'");
+                    return false; // User doesn't match this filter
                 }
             }
 

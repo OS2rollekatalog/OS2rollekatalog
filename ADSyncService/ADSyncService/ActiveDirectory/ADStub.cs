@@ -1,6 +1,7 @@
 ﻿using ADSyncService.Email;
 using Microsoft.Graph.Models;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.DirectoryServices;
 using System.DirectoryServices.AccountManagement;
@@ -8,11 +9,46 @@ using System.Linq;
 
 namespace ADSyncService
 {
+    class UserCache
+    {
+        public bool IsActive { get; set; }
+        public bool HasCpr { get; set; }
+        public Dictionary<string, string> Attributes { get; set; } = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+    }
     class ADStub
     {
         private static log4net.ILog log = log4net.LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
         private EmailService emailService = EmailService.Instance;
         private RemoteConfigurationService remoteConfigurationService = RemoteConfigurationService.Instance;
+
+        private UserCache GetOrLoadUser(string userId, string cprAttribute, ConcurrentDictionary<string, UserCache> userCache, IEnumerable<string> attributeNamesToLoad)
+        {
+            return userCache.GetOrAdd(userId, _ =>
+            {
+                using (PrincipalContext context = new PrincipalContext(ContextType.Domain))
+                using (UserPrincipal user = UserPrincipal.FindByIdentity(context, userId))
+                {
+                    if (user == null)
+                        return new UserCache { IsActive = false, HasCpr = false };
+
+                    using (DirectoryEntry de = (DirectoryEntry)user.GetUnderlyingObject())
+                    {
+                        var cache = new UserCache();
+                        cache.IsActive = user.Enabled.HasValue && user.Enabled.Value;
+
+                        var cpr = de.Properties[cprAttribute]?.Value as string;
+                        cache.HasCpr = !string.IsNullOrEmpty(cpr) && cpr.Length >= 10 && cpr.Length <= 11;
+
+                        foreach (var attr in attributeNamesToLoad)
+                        {
+                            if (de.Properties.Contains(attr))
+                                cache.Attributes[attr] = de.Properties[attr].Value?.ToString();
+                        }
+                        return cache;
+                    }
+                }
+            });
+        }
 
         // note, the groupInGroup parameter should only be true when doing an initial import - when making membershipSync updates
         // the group in group thing is way to complex to solve here (and introduces nasty side-effects if actually implemented)
@@ -237,7 +273,7 @@ namespace ADSyncService
             }
         }
 
-        public void CreateGroup(string systemRoleIdentifier, string itSystemIdentifier, string adGroupType, bool universel)
+        public void CreateGroup(string systemRoleIdentifier, string itSystemIdentifier, string adGroupType, bool universel, string description)
         {
             string groupOU = remoteConfigurationService.GetConfiguration().createDeleteFeatureOU;
             string contextPath = "OU=" + itSystemIdentifier + "," + groupOU;
@@ -299,6 +335,11 @@ namespace ADSyncService
                                 dGroup.Properties["groupType"].Add(unchecked((int)0x80000002));
                                 createdType = "Global Security";
                             }
+                        }
+
+                        if (!string.IsNullOrEmpty(description))
+                        {
+                            dGroup.Properties["description"].Add(description);
                         }
 
                         dGroup.CommitChanges();
@@ -408,6 +449,25 @@ namespace ADSyncService
                     return true;
                 }
             }
+        }
+
+        public bool HasCpr(string userId, ConcurrentDictionary<string, UserCache> userCache, IEnumerable<string> attributeNamesToLoad)
+        {
+            string cprAttribute = remoteConfigurationService.GetConfiguration().membershipSyncFeatureCprAttribute;
+            return GetOrLoadUser(userId, cprAttribute, userCache, attributeNamesToLoad).HasCpr;
+        }
+
+        public bool IsUserActive(string userId, ConcurrentDictionary<string, UserCache> userCache, IEnumerable<string> attributeNamesToLoad)
+        {
+            string cprAttribute = remoteConfigurationService.GetConfiguration().membershipSyncFeatureCprAttribute;
+            return GetOrLoadUser(userId, cprAttribute, userCache, attributeNamesToLoad).IsActive;
+        }
+
+        public string GetUserAttribute(string userId, string attributeName, ConcurrentDictionary<string, UserCache> userCache, IEnumerable<string> attributeNamesToLoad)
+        {
+            string cprAttribute = remoteConfigurationService.GetConfiguration().membershipSyncFeatureCprAttribute;
+            GetOrLoadUser(userId, cprAttribute, userCache, attributeNamesToLoad).Attributes.TryGetValue(attributeName, out var value);
+            return value;
         }
 
     }

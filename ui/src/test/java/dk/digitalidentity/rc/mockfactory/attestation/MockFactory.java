@@ -124,7 +124,7 @@ public class MockFactory {
 
 	public static ItSystem createItSystem(long id, String name, User attestationResponsible) {
 		ItSystem itSystem = createItSystem(id, name);
-		itSystem.setAttestationResponsible(attestationResponsible);
+		itSystem.addAttestationResponsible(attestationResponsible);
 		return itSystem;
 	}
 
@@ -151,9 +151,9 @@ public class MockFactory {
 		return attestation;
 	}
 
-	public static Attestation createItSystemAttestation(Long id, String uuid, long itSystemId, String itSystemName, String responsibleUserUuid) {
+	public static Attestation createItSystemAttestation(Long id, String uuid, long itSystemId, String itSystemName, Long responsibleCollectionId) {
 		Attestation attestation = createItSystemAttestation(id, uuid, itSystemId, itSystemName);
-		attestation.setResponsibleUserUuid(responsibleUserUuid);
+		attestation.setResponsibleCollectionId(responsibleCollectionId);
 		return attestation;
 	}
 
@@ -164,11 +164,11 @@ public class MockFactory {
 		return attestation;
 	}
 
-	public static Attestation createItSystemRolesAttestation(Long id, String uuid, long itSystemId, String itSystemName, String responsibleUserUuid) {
+	public static Attestation createItSystemRolesAttestation(Long id, String uuid, long itSystemId, String itSystemName, Long responsibleCollectionId) {
 		Attestation attestation = createAttestation(id, uuid, Attestation.AttestationType.IT_SYSTEM_ROLES_ATTESTATION);
 		attestation.setItSystemId(itSystemId);
 		attestation.setItSystemName(itSystemName);
-		attestation.setResponsibleUserUuid(responsibleUserUuid);
+		attestation.setResponsibleCollectionId(responsibleCollectionId);
 		return attestation;
 	}
 

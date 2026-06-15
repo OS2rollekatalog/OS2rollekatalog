@@ -36,8 +36,8 @@ import dk.digitalidentity.rc.security.RolePostProcessor;
 import dk.digitalidentity.rc.service.ClientService;
 import dk.digitalidentity.rc.service.SettingsService;
 import dk.digitalidentity.rc.test.AbstractApiTest;
-import dk.digitalidentity.samlmodule.model.SamlGrantedAuthority;
-import dk.digitalidentity.samlmodule.model.TokenUser;
+import dk.digitalidentity.saml.service.model.SamlGrantedAuthority;
+import dk.digitalidentity.saml.service.model.TokenUser;
 
 /**
  * Test suite for Log Upload API endpoints.

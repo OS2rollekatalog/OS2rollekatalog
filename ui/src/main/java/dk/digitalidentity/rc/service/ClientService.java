@@ -1,14 +1,7 @@
 package dk.digitalidentity.rc.service;
 
-import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
-import dk.digitalidentity.rc.dao.ClientDao;
-import dk.digitalidentity.rc.dao.model.Client;
-import dk.digitalidentity.rc.dao.model.Domain;
-import dk.digitalidentity.rc.dao.model.enums.AccessRole;
-import dk.digitalidentity.rc.dao.model.enums.ClientIntegrationType;
-import dk.digitalidentity.rc.dao.model.enums.VersionStatusEnum;
-import dk.digitalidentity.rc.log.AuditLogIntercepted;
-import jakarta.annotation.PostConstruct;
+import java.util.List;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
@@ -17,8 +10,12 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
-import java.util.Arrays;
-import java.util.List;
+import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
+import dk.digitalidentity.rc.dao.ClientDao;
+import dk.digitalidentity.rc.dao.model.Client;
+import dk.digitalidentity.rc.dao.model.Domain;
+import dk.digitalidentity.rc.dao.model.enums.ClientIntegrationType;
+import dk.digitalidentity.rc.log.AuditLogIntercepted;
 
 @Service
 @EnableScheduling
@@ -33,21 +30,6 @@ public class ClientService {
 
 	@Autowired
 	private RoleCatalogueConfiguration roleCatalogueConfiguration;
-
-	@PostConstruct
-	private void init() {
-		// TODO: remove this code once everyone is running a newer version
-		if (clientDao.findAll().isEmpty()) {
-			Arrays.stream(roleCatalogueConfiguration.getCustomer().getApikey()).distinct().forEach(apiKey -> {
-				Client newClient = new Client();
-				newClient.setName("Administrator");
-				newClient.setApiKey(apiKey);
-				newClient.setAccessRole(AccessRole.ADMINISTRATOR);
-				newClient.setVersionStatus(VersionStatusEnum.UNKNOWN);
-				clientDao.save(newClient);
-			});
-		}
-	}
 
 	// used by the ApiSecurityFilter class on every single API call, so caching will help a lot here
 	@Cacheable(value = "clientList")
@@ -91,6 +73,10 @@ public class ClientService {
 			return null;
 		}
 		return clientDao.findByDomain(domain);
+	}
+
+	public boolean isNameUnique(String name) {
+		return !clientDao.existsByName(name);
 	}
 
 	// run every 10 minutes

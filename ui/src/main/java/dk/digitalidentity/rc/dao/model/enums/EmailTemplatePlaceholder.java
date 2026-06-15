@@ -26,13 +26,29 @@ public enum EmailTemplatePlaceholder {
 	ATTESTATION_CHANGES_OU("{ændringer_enhed}", "html.enum.placeholders.description.attestation_changes_ou"),
 	ATTESTATION_CHANGES_USERS("{ændringer_brugere}", "html.enum.placeholders.description.attestation_changes_users"),
 	START_DATE("{startdato}", "html.enum.placeholders.description.start_date"),
-	STOP_DATE("{stopdato}", "html.enum.placeholders.description.stop_date");
+	STOP_DATE("{stopdato}", "html.enum.placeholders.description.stop_date"),
+	REQUESTER_TYPE_PLACEHOLDER("{anmoderType}", "html.enum.placeholders.description.requester_type"),
+	USER_ID_PLACEHOLDER("{brugernavn}", "html.enum.placeholders.description.user_id"),
+	PERSON_UUID_PLACEHOLDER("{PersonUuid}", "html.enum.placeholders.description.person_uuid"),
+	USERS_BLOCK_PLACEHOLDER("{brugere}", "html.enum.placeholders.description.users_block"),
+	CHANGES_PLACEHOLDER("{ændringer}", "html.enum.placeholders.description.changes"),
+	ACTION_PLACEHOLDER("{handling}", "html.enum.placeholders.description.action"),
+	ACTION_PAST_PLACEHOLDER("{handlet}", "html.enum.placeholders.description.action_past"),
+	ASSIGNED_BY_PLACEHOLDER("{tildeler}", "html.enum.placeholders.description.assigned_by"),
+	ROLE_DESCRIPTION_PLACEHOLDER("{rollebeskrivelse}", "html.enum.placeholders.description.role_description", true);
 
 	private final String placeholder;
 	private final String description;
+	// parameterized placeholders also accept {navn:N} where N truncates the value to the first line and at most N characters
+	private final boolean parameterized;
 
 	EmailTemplatePlaceholder(String placeholder, String description) {
+		this(placeholder, description, false);
+	}
+
+	EmailTemplatePlaceholder(String placeholder, String description, boolean parameterized) {
 		this.placeholder = placeholder;
 		this.description = description;
+		this.parameterized = parameterized;
 	}
 }

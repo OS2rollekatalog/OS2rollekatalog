@@ -163,6 +163,15 @@ public class MockFactory {
 		return assignment;
 	}
 
+	public static OrgUnitUserRoleAssignment createExcludedOusAssignment(boolean containsExceptedOus, List<OrgUnit> exceptedOus, OrgUnit assignedOrgUnit) {
+		OrgUnitUserRoleAssignment assignment = new OrgUnitUserRoleAssignment();
+		assignment.setContainsExceptedOus(containsExceptedOus);
+		assignment.setExceptedOus(exceptedOus);
+		assignment.setOrgUnit(assignedOrgUnit);
+		assignment.setInherit(true);
+		return assignment;
+	}
+
 	public static OrgUnitAssignment createOrgunitAssignment(OrgUnit orgUnit, UserRole userRole, List<Title> titles) {
 		OrgUnitUserRoleAssignment orgUnitAssignment = new OrgUnitUserRoleAssignment();
 		orgUnitAssignment.setOrgUnit(orgUnit);

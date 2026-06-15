@@ -1,5 +1,5 @@
 CREATE OR REPLACE VIEW view_datatables_auditlogs AS (
-	SELECT a.id, a.timestamp, a.username, a.entity_type, a.entity_name, a.event_type, a.secondary_entity_name, a.description
+	SELECT a.id, a.timestamp, a.username, a.entity_type, a.entity_id, a.entity_name, a.event_type, a.secondary_entity_type, a.secondary_entity_id, a.secondary_entity_name, a.description
 	FROM audit_log a
 	WHERE a.event_type in (
 	  'ASSIGN_KLE', 'REMOVE_KLE', 'DELETE', 'CREATE','UPDATE',

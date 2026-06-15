@@ -595,6 +595,7 @@ public class UserRoleController {
 
 	record ManagerOrSubstituteDTO(String name, String userId) {}
 	record FunctionDTO(String uuid, String name, boolean checked) {}
+	record OuDTO(String uuid, String name, boolean checked) {}
 	@GetMapping(value = "/ui/userroles/fragments/ou/{uuid}")
 	public String getOUFragment(Model model, @PathVariable("uuid") String uuid, @RequestParam(name = "edit", required = false, defaultValue = "false") boolean edit) {
 		OrgUnit orgUnit = orgUnitService.getByUuid(uuid);
@@ -635,6 +636,11 @@ public class UserRoleController {
 					.map(f -> new FunctionDTO(f.getUuid(), f.getName(), false))
 					.collect(Collectors.toList())
 			);
+
+			List<OuDTO> children = orgUnitService.getAllDescendantsOfOu(orgUnit).stream()
+				.map(ou -> new OuDTO(ou.getUuid(), ou.getName(), false))
+				.collect(Collectors.toList());
+			model.addAttribute("childOus", children);
 		}
 
 		model.addAttribute("titlesEnabled", titlesEnabled);
@@ -659,6 +665,7 @@ public class UserRoleController {
 		role.setOuFilterEnabled(roleToCopy.isOuFilterEnabled());
 		role.setDelegatedFromCvr(roleToCopy.getDelegatedFromCvr());
 		role.setContactEmail(roleToCopy.getContactEmail());
+		role.setAdvisEmail(roleToCopy.getAdvisEmail());
 		role.setAllowPostponing(roleToCopy.isAllowPostponing());
 
 		// copy email template if present
@@ -673,8 +680,9 @@ public class UserRoleController {
 		// remove id
 		role.setId(0);
 
-		// generate new UUID for the copied role
-		role.setUuid(UUID.randomUUID().toString());
+		// clear uuid - for KOMBIT roles it is assigned by FK Administrationsmodulet on create,
+		// and a non-null uuid makes the sync attempt an update against a non-existing role
+		role.setUuid(null);
 
 		// set identifier
 		role.setIdentifier("id-" + UUID.randomUUID().toString());

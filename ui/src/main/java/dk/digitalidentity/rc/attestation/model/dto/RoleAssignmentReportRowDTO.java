@@ -9,6 +9,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDate;
+import java.util.List;
 
 @Data
 @Builder
@@ -31,7 +32,7 @@ public class RoleAssignmentReportRowDTO {
 	private LocalDate originallyAssignedFrom;
 	private String assignedThrough;
 	private String assignedThroughType;
-	private String responsibleUser;
+	private List<String> responsibleUserNames;
 	private String responsibleOu;
 	private boolean inherited;
 	private AttestationStatus attestationStatus;

@@ -222,6 +222,7 @@ public class RolegroupRestController {
 			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
 		}
 
+
 		roleGroup.setName(roleGroupForm.getName());
 		roleGroup.setDescription(roleGroupForm.getDescription());
 

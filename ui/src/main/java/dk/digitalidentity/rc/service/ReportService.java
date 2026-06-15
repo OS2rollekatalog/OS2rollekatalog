@@ -240,7 +240,17 @@ public class ReportService {
 		}
 	}
 
-	/** Resolves the responsible OU from the assignment itself, then delegates. */
+	/**
+	 * Resolves the display OU for the report entry.
+	 * <p>
+	 * responsibleOUUuid is intentionally redirected to the nearest parent with a different manager
+	 * (so managers don't attest their own access) — correct for attestation routing, but wrong as
+	 * the display OU in the report. Instead we use the actual assignment OU:
+	 * <ul>
+	 *   <li>ORGUNIT/TITLE: assignedThroughOUUuid — the OU the role was assigned on</li>
+	 *   <li>DIRECT/ROLEGROUP: one row per position OU (mirrors 2026r1 behaviour)</li>
+	 * </ul>
+	 */
 	private void streamReportEntry(
 		HistoricAssignment ha,
 		HistoryUser user,
@@ -248,18 +258,21 @@ public class ReportService {
 		Locale locale,
 		Consumer<UserRoleAssignmentReportEntry> consumer) {
 
-		String orgUnitName = ha.getResponsibleOUName();
-		String orgUnitUUID = ha.getResponsibleOUUuid();
-
-		if (ha.getResponsibleOUUuid() != null) {
-			HistoryOU ou = ctx.orgUnits.get(ha.getResponsibleOUUuid());
-			if (ou != null) {
-				orgUnitName = ou.getOuName();
-				orgUnitUUID = ou.getOuUuid();
+		if (ha.getAssignedThroughOUUuid() != null) {
+			HistoryOU ou = ctx.orgUnits.get(ha.getAssignedThroughOUUuid());
+			String name = ou != null ? ou.getOuName() : ha.getAssignedThroughOUName();
+			String uuid = ou != null ? ou.getOuUuid() : ha.getAssignedThroughOUUuid();
+			streamReportEntryInternal(ha, user, name, uuid, ctx, locale, consumer);
+		} else {
+			List<HistoryOU> positions = ctx.userPositionsMap.get(ha.getUserUuid());
+			if (positions == null || positions.isEmpty()) {
+				streamReportEntryInternal(ha, user, null, null, ctx, locale, consumer);
+			} else {
+				for (HistoryOU position : positions) {
+					streamReportEntryInternal(ha, user, position.getOuName(), position.getOuUuid(), ctx, locale, consumer);
+				}
 			}
 		}
-
-		streamReportEntryInternal(ha, user, orgUnitName, orgUnitUUID, ctx, locale, consumer);
 	}
 
 	/** Uses an explicit position OU (for users with multiple positions), then delegates. */
@@ -339,7 +352,7 @@ public class ReportService {
 			case ROLEGROUP:
 				throughName = historicAssignment.getAssignedThroughRoleGroupName();
 				break;
-			case DIRECT: 
+			case DIRECT:
 				// no assigned through name
 				break;
 			case POSITION:

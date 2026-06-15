@@ -27,6 +27,7 @@ public class RoleAssignedToOrgUnitDTO {
 	private String caseNumber;
 
 	// This is different than the other similar code
+	// -13 contains selected ous to exclude from inheritance
 	// -12 contains selected functions with inherit
 	// -11 contains selected functions
 	// -10 manager and substitutes inherited
@@ -104,6 +105,9 @@ public class RoleAssignedToOrgUnitDTO {
 		else if (assignment.getContainsTitles() == ContainsTitles.NEGATIVE) {
 			dto.setAssignmentType(-4);// Assigned to all titles with exceptions inherited
 		}
+		else if (assignment.isContainsExceptedOus() && !assignment.getExceptedOus().isEmpty()) {
+			dto.setAssignmentType(-13);
+		}
 		else {
 			dto.setAssignmentType(assignment.isInherit() ? -2 : -1);// Assigned to all or with inheritance
 		}
@@ -154,6 +158,9 @@ public class RoleAssignedToOrgUnitDTO {
 		else if (assignment.getContainsTitles() == ContainsTitles.NEGATIVE) {
 			dto.setAssignmentType(-4);// Assigned to all titles with exceptions
 		}
+		else if (assignment.isContainsExceptedOus() && !assignment.getExceptedOus().isEmpty()) {
+			dto.setAssignmentType(-13);
+		}
 		else {
 			dto.setAssignmentType(assignment.isInherit() ? -2 : -1);// Assigned to all or with inheritance
 		}
@@ -200,6 +207,9 @@ public class RoleAssignedToOrgUnitDTO {
 		}
 		else if (assignment.getContainsTitles() == ContainsTitles.NEGATIVE) {
 			dto.setAssignmentType(-4);// Assigned to all titles with exceptions
+		}
+		else if (assignment.isContainsExceptedOus() && !assignment.getExceptedOus().isEmpty()) {
+			dto.setAssignmentType(-13);
 		}
 		else {
 			dto.setAssignmentType(assignment.isInherit() ? -2 : -1);// Assigned to all or with inheritance
@@ -248,6 +258,9 @@ public class RoleAssignedToOrgUnitDTO {
 		}
 		else if (assignment.getContainsTitles() == ContainsTitles.NEGATIVE) {
 			dto.setAssignmentType(-4);// Assigned to all titles with exceptions
+		}
+		else if (assignment.isContainsExceptedOus() && !assignment.getExceptedOus().isEmpty()) {
+			dto.setAssignmentType(-13);
 		}
 		else {
 			dto.setAssignmentType(assignment.isInherit() ? -2 : -1);// Assigned to all or with inheritance

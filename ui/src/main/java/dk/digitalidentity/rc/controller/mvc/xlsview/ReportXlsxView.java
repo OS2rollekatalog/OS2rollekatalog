@@ -176,6 +176,10 @@ public class ReportXlsxView extends AbstractXlsxStreamingViewWrapper {
 		if (reportForm.isShowSystemRoles()) {
 			createSystemRolesSheet(workbook);
 		}
+
+		if (reportForm.isShowOrgUnitAllocations()) {
+			createOrgUnitAllocationSheet(workbook);
+		}
     }
 
 	private void createSystemRolesSheet(Workbook workbook) {
@@ -310,6 +314,18 @@ public class ReportXlsxView extends AbstractXlsxStreamingViewWrapper {
                                     constraintCell.append(constraint.getConstraintName() + " = " + messageSource.getMessage("html.constraint.organisation.extended", null, locale) + "\n");
                                 }
                                 break;
+                    		case INHERITED_FROM_MANAGER_ROLE:
+                    			constraintCell.append(constraint.getConstraintName() + " = " + messageSource.getMessage("html.constraint.organisation.inherited_from_manager_role", null, locale) + "\n");
+                    			break;
+                    		case EXTENDED_INHERITED_FROM_MANAGER_ROLE:
+                    			constraintCell.append(constraint.getConstraintName() + " = " + messageSource.getMessage("html.constraint.organisation.extended_inherited_from_manager_role", null, locale) + "\n");
+                    			break;
+                    		case INHERITED_FROM_FUNCTIONS:
+                    			constraintCell.append(constraint.getConstraintName() + " = " + messageSource.getMessage("html.constraint.organisation.inherited_from_functions", null, locale) + "\n");
+                    			break;
+                    		case EXTENDED_INHERITED_FROM_FUNCTIONS:
+                    			constraintCell.append(constraint.getConstraintName() + " = " + messageSource.getMessage("html.constraint.organisation.extended_inherited_from_functions", null, locale) + "\n");
+                    			break;
                     		case INHERITED:
                                 if ("KLE".equals(constraint.getConstraintName())) {
                                     constraintCell.append(constraint.getConstraintName() + " = " + messageSource.getMessage("html.constraint.kle.inherited", null, locale) + "\n");
@@ -843,6 +859,73 @@ public class ReportXlsxView extends AbstractXlsxStreamingViewWrapper {
             }
         }
     }
+
+	// TODO: Replace history objects with historic version
+	private void createOrgUnitAllocationSheet(final Workbook workbook) {
+		final Sheet sheet = workbook.createSheet(messageSource.getMessage("xls.report.orgUnitAllocations.sheet.title", null, locale));
+		final ArrayList<String> headers = new ArrayList<>();
+        headers.add("xls.report.orgUnitAllocations.rolegroup");
+        headers.add("xls.report.orgUnitAllocations.rolegroup.description");
+        headers.add("xls.report.orgUnitAllocations.role.name");
+        headers.add("xls.report.orgUnitAllocations.role.description");
+        headers.add("xls.report.orgUnitAllocations.orgunit");
+        headers.add("xls.report.orgUnitAllocations.users.excluded");
+        headers.add("xls.report.orgUnitAllocations.orgunit.inheritance");
+        headers.add("xls.report.orgUnitAllocations.positions");
+        headers.add("xls.report.orgUnitAllocations.positions.exempt");
+
+		createHeaderRow(sheet, headers);
+
+		int y = 1;
+		for(final Map.Entry<String, List<HistoryOURoleAssignment>> entry : ouRoleAssignments.entrySet()) {
+			final HistoryOU ou = orgUnits.get(entry.getKey());
+			if(ou == null) {
+				continue;
+			}
+
+			for(final HistoryOURoleAssignment oura : entry.getValue()) {
+				final String excludedUsers = getExcludedUsers(oura.getExclusions());
+
+				final Row row = sheet.createRow(y++);
+				int x = 0;
+				createCell(row, x++, oura.getRoleRoleGroup(), null);
+				// TODO: Add role group description
+				createCell(row, x++, "", null);
+				createCell(row, x++, oura.getRoleName(), null);
+				// TODO: Add role description
+				createCell(row, x++, "", null);
+				createCell(row, x++, ou.getOuName(), null);
+				createCell(row, x++, excludedUsers, wrapStyle);
+				createCell(row, x++, Boolean.TRUE.equals(oura.getInherit()) ? "Ja" : "Nej", null);
+				// TODO: Add positions
+				createCell(row, x++, "", wrapStyle);
+				// TODO: Add excluded positions
+				createCell(row, x++, "", wrapStyle);
+			}
+		}
+	}
+
+	private String getExcludedUsers(final List<HistoryOURoleAssignmentExclusion> exclusions) {
+		if (exclusions == null) {
+			return "";
+		}
+		final StringBuilder excludedUsersStr = new StringBuilder();
+		for (final HistoryOURoleAssignmentExclusion exclusion : exclusions) {
+			if (exclusion.getExclusionType() == ExclusionType.excepted_users && exclusion.getUserUuids() != null) {
+				for (final String userUuid : exclusion.getUserUuids().split(",")) {
+					if (excludedUsersStr.length() > 0) {
+						excludedUsersStr.append("\n");
+					}
+					excludedUsersStr.append(
+						users.containsKey(userUuid)
+							? users.get(userUuid).getUserName() + " (" + users.get(userUuid).getUserUserId() + ")"
+							: userUuid
+					);
+				}
+			}
+		}
+		return excludedUsersStr.toString();
+	}
 
     private static void createCell(Row header, int column, String value, CellStyle style) {
         if (value != null && value.length() > 32767) {

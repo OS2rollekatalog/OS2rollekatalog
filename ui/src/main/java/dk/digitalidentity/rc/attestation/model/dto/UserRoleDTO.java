@@ -7,6 +7,8 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.util.List;
+
 @Data
 @Builder
 @AllArgsConstructor
@@ -21,7 +23,7 @@ public class UserRoleDTO {
     private Boolean inherited;
     private AssignedThroughAttestation assignedThrough; // can be null if this object is a part of the list on the UserRoleGroupDto
     private String assignedThroughName; // not always relevant - can be null
-    private String responsible; // only relevant for doNotVerify roles - can be null.
+    private List<String> responsible; // only relevant for doNotVerify roles - can be null.
     private String postponedConstraints;
 	private boolean manager;
 	private boolean substitutes;

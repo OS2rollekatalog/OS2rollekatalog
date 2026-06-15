@@ -9,6 +9,7 @@ public enum Settings {
     SETTING_REQUEST_APPROVE_SERVICEDESK_EMAIL("RequestApproveServicedeskEmail", "html.setting.requestapprove.servicedesk"),
     SETTING_SCHEDULED_ATTESTATION_ENABLED("ScheduledAttestationEnabled", "html.setting.attestation.scheduled.enabled"),
     SETTING_SCHEDULED_ATTESTATION_INTERVAL("ScheduledAttestationInterval", "html.setting.attestation.scheduled.interval"),
+	SETTING_SCHEDULED_ATTESTATION_OVERVIEW_MAX_RUNS_TO_RENDER("ScheduledAttestationOverViewMaxRunsToRender", "html.setting.attestation.scheduled.maxRunsToRender"),
     SETTING_SCHEDULED_ATTESTATION_FILTER_OLD("ScheduledAttestationFilter", null),
     SETTING_SCHEDULED_ATTESTATION_EXCEPTED_ORG_UNITS("ScheduledAttestationExceptedOrgUnits", "html.setting.attestation.scheduled.filter"),
     SETTING_SCHEDULED_ATTESTATION_LAST_RUN("ScheduledAttestationLastRun", null),
@@ -34,12 +35,14 @@ public enum Settings {
 	SETTING_ROLEREQUEST_APPROVER_EMAIL("rolerequestemail", null),
 	SETTING_ROLEREQUEST_REASON("requestreason", null),
 	SETTING_ROLEREQUEST_ONLY_RECOMMENDED_ROLES("onlyrecommendedroles", null),
+    SETTING_ROLEREQUEST_ALLOW_SELF_APPROVAL("rolerequestAllowSelfApproval", "html.setting.rolerequest.allowSelfApproval.label"),
     SETTING_CASE_NUMBER_ENABLED("caseNumberEnabled", "html.setting.caseNumber.enabled"),
     SETTING_EXCLUDED_OUS("ExcludedOUs", "html.setting.pickou"),
     SETTING_ATTESTATION_ORGUNIT_OPTIN("attestationOrgUnitOptIn",null),
     SETTING_SCHEDULED_ATTESTATION_OPTED_IN_ORG_UNITS("ScheduledAttestationOptedInOrgUnits", "html.setting.attestation.scheduled.filter.optin"),
 	SETTING_REMOVE_DIRECT_ASSIGNMENTS_FOR_DISABLED("RemoveDirectAssignmentsForDisabled", "html.setting.direct.affiliations.duration"),
-	SETTING_FIRST_MANUAL_IT_SYSTEM_RUN("firstManualItSystemRun",null);
+	SETTING_FIRST_MANUAL_IT_SYSTEM_RUN("firstManualItSystemRun",null),
+	SETTING_HISTORIC_IT_SYSTEM_ASSIGNMENT_COLLECTION_REPAIR_PERFORMED("HistoricItSystemAssignmentCollectionRepairPerformed", null);
 
     private String key;
     private String message;

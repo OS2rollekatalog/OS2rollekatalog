@@ -122,6 +122,7 @@ public class ItSystemRestController {
 			operation.setTimestamp(new Date());
 			operation.setAdGroupType(ADGroupType.NONE);
 			operation.setDomain(systemRole.getItSystem().getDomain());
+			operation.setDescription(systemRole.getDescription());
 
 			pendingADUpdateService.save(operation);
 		}
@@ -196,6 +197,25 @@ public class ItSystemRestController {
 		}
 
 		itSystem.setEmail(email);
+		itSystemService.save(itSystem);
+
+		return new ResponseEntity<>(HttpStatus.OK);
+	}
+
+	@PostMapping(value = "/rest/itsystem/advisemail")
+	@RequirePermission(section = Section.IT_SYSTEM, permission = Permission.UPDATE)
+	public ResponseEntity<String> editItSystemAdvisEmail(long id, String email) {
+		ItSystem itSystem = itSystemService.getById(id);
+		if (itSystem == null) {
+			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+		}
+
+		// the advis email is always optional, but must be well-formed when present
+		if (StringUtils.hasLength(email) && !isEmailCorrect(email)) {
+			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+		}
+
+		itSystem.setAdvisEmail(email);
 		itSystemService.save(itSystem);
 
 		return new ResponseEntity<>(HttpStatus.OK);
@@ -479,33 +499,25 @@ public class ItSystemRestController {
 
 	@PostMapping(value = "/rest/itsystem/attestationResponsible")
 	@RequirePermission(section = Section.IT_SYSTEM, permission = Permission.UPDATE)
-	public ResponseEntity<String> editItSystemAttestationResponsible(long id, String uuid) {
-		ItSystem itSystem = itSystemService.getById(id);
-		if (itSystem == null) {
+	public ResponseEntity<String> editItSystemAttestationResponsible(@RequestParam long id, @RequestParam(required = false) List<String> uuids) {
+		if (itSystemService.getById(id) == null) {
 			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
 		}
-
-		// can be null
-		User user = userService.getByUuid(uuid);
-		itSystem.setAttestationResponsible(user);
-		itSystemService.save(itSystem);
-
+		List<User> users = uuids == null ? Collections.emptyList() :
+			uuids.stream().map(userService::getByUuid).filter(u -> u != null).toList();
+		itSystemService.updateAttestationResponsibles(id, users);
 		return new ResponseEntity<>(HttpStatus.OK);
 	}
 
 	@PostMapping(value = "/rest/itsystem/systemOwner")
 	@RequirePermission(section = Section.IT_SYSTEM, permission = Permission.UPDATE)
-	public ResponseEntity<String> editItSystemSystemResponsible(long id, String uuid) {
-		ItSystem itSystem = itSystemService.getById(id);
-		if (itSystem == null) {
+	public ResponseEntity<String> editItSystemSystemResponsible(@RequestParam long id, @RequestParam(required = false) List<String> uuids) {
+		if (itSystemService.getById(id) == null) {
 			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
 		}
-
-		// can be null
-		User user = userService.getByUuid(uuid);
-		itSystem.setSystemOwner(user);
-		itSystemService.save(itSystem);
-
+		List<User> users = uuids == null ? Collections.emptyList() :
+			uuids.stream().map(userService::getByUuid).filter(u -> u != null).toList();
+		itSystemService.updateSystemOwners(id, users);
 		return new ResponseEntity<>(HttpStatus.OK);
 	}
 
@@ -524,6 +536,10 @@ public class ItSystemRestController {
 
 		userRole.setRoleAssignmentAttestationByAttestationResponsible(roleAssignmentAttestationByAttestationResponsible);
 		userRoleService.save(userRole);
+
+		if (roleAssignmentAttestationByAttestationResponsible) {
+			itSystemService.backfillHistoricResponsibleCollection(itSystem.getId());
+		}
 
 		return new ResponseEntity<>(HttpStatus.OK);
 	}

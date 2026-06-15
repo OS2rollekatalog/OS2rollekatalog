@@ -59,7 +59,7 @@ class SystemRoleAssignmentsUpdaterJdbcTest {
 				.systemRoleId(30L)
 				.systemRoleName("Test System Role")
 				.systemRoleDescription("System role description")
-				.responsibleUserUuid("responsible-user-uuid");
+				.responsibleCollectionId(7L);
 	}
 
 	private AttestationSystemRoleAssignment runAndCapture(HistoricItSystemAssignment assignment) {
@@ -138,33 +138,33 @@ class SystemRoleAssignmentsUpdaterJdbcTest {
 		}
 
 		@Test
-		@DisplayName("responsibleUserUuid is mapped correctly")
-		void responsibleUserUuidIsMapped() {
+		@DisplayName("responsibleCollectionId is mapped correctly")
+		void responsibleCollectionIdIsMapped() {
 			// ---- Given ---- //
 			HistoricItSystemAssignment assignment = base()
-					.responsibleUserUuid("specific-responsible-uuid")
+					.responsibleCollectionId(123L)
 					.build();
 
 			// ---- When ---- //
 			AttestationSystemRoleAssignment result = runAndCapture(assignment);
 
 			// ---- Then ---- //
-			assertThat(result.getResponsibleUserUuid()).isEqualTo("specific-responsible-uuid");
+			assertThat(result.getResponsibleCollectionId()).isEqualTo(123L);
 		}
 
 		@Test
-		@DisplayName("responsibleUserUuid is null when not set")
-		void responsibleUserUuidIsNullWhenAbsent() {
+		@DisplayName("responsibleCollectionId is null when not set")
+		void responsibleCollectionIdIsNullWhenAbsent() {
 			// ---- Given ---- //
 			HistoricItSystemAssignment assignment = base()
-					.responsibleUserUuid(null)
+					.responsibleCollectionId(null)
 					.build();
 
 			// ---- When ---- //
 			AttestationSystemRoleAssignment result = runAndCapture(assignment);
 
 			// ---- Then ---- //
-			assertThat(result.getResponsibleUserUuid()).isNull();
+			assertThat(result.getResponsibleCollectionId()).isNull();
 		}
 
 		@Test

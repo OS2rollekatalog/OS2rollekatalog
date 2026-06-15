@@ -114,7 +114,7 @@ namespace ADSyncService
                 itSystemData.@readonly = true;
                 itSystemData.convertRolesEnabled = true;
 
-                roleCatalogueStub.SetItSystemData(itSystemId, itSystemData);
+                roleCatalogueStub.SetItSystemData(itSystemId, itSystemData, true);
             }
         }
     }

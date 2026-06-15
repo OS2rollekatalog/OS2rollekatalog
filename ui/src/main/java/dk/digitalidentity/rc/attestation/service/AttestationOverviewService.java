@@ -6,14 +6,21 @@ import dk.digitalidentity.rc.attestation.model.dto.ItSystemRoleAttestationDTO;
 import dk.digitalidentity.rc.attestation.model.dto.OrgUnitRoleGroupAssignmentDTO;
 import dk.digitalidentity.rc.attestation.model.dto.OrgUnitUserRoleAssignmentItSystemDTO;
 import dk.digitalidentity.rc.attestation.model.dto.OrganisationAttestationDTO;
+import dk.digitalidentity.rc.attestation.model.dto.UserAttestationDTO;
+import dk.digitalidentity.rc.attestation.model.entity.BaseUserAttestationEntry;
 import dk.digitalidentity.rc.dao.model.OrgUnit;
+import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.service.OrgUnitService;
+import dk.digitalidentity.rc.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Comparator;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
@@ -21,9 +28,23 @@ public class AttestationOverviewService {
     @Autowired
     private OrgUnitService orgUnitService;
 
+    public static <E extends BaseUserAttestationEntry> String resolvePerformedBy(final Collection<E> entries, final UserService userService) {
+        return entries.stream()
+			.filter(e -> e.getPerformedByUserId() != null)
+			.max(Comparator.comparing(BaseUserAttestationEntry::getCreatedAt)).flatMap(e -> Optional.ofNullable(userService.getByUserId(e.getPerformedByUserId()))
+				.map(User::getName))
+                .orElse(null);
+    }
+
     public List<AttestationOverviewDTO> buildOrgUnitsOverviews(final List<OrganisationAttestationDTO> orgsForAttestation, boolean readOnly) {
         return orgsForAttestation.stream()
                 .map(o -> buildOrgUnitOverview(o, readOnly))
+                .collect(Collectors.toList());
+    }
+
+    public List<AttestationOverviewDTO> buildOrgUnitsOverviews(final List<OrganisationAttestationDTO> orgsForAttestation, boolean readOnly, String currentUserUuid) {
+        return orgsForAttestation.stream()
+                .map(o -> buildOrgUnitOverview(o, readOnly, currentUserUuid))
                 .collect(Collectors.toList());
     }
 
@@ -39,7 +60,7 @@ public class AttestationOverviewService {
                 .count();
         long orgsLeft = totalOrgUnit - verifiedOrgUnit;
         return new AttestationOverviewDTO(itsDto.getCreatedAt(), readOnly, itsDto.getItSystemName(), String.valueOf(itsDto.getItSystemId()), verified,
-                total - verified, total, itsDto.getDeadline(), itsDto.getDeadline().isBefore(now), null, verifiedOrgUnit, orgsLeft, totalOrgUnit, new ArrayList<>(), itsDto.getVerifiedAt());
+                total - verified, total, itsDto.getDeadline(), itsDto.getDeadline().isBefore(now), null, verifiedOrgUnit, orgsLeft, totalOrgUnit, new ArrayList<>(), itsDto.getVerifiedAt(), itsDto.getPerformedBy());
     }
 
     public static List<AttestationOverviewDTO> buildItSystemsUsersOverviews(final List<ItSystemRoleAttestationDTO> itSystemUsersAttestation, boolean readOnly) {
@@ -61,7 +82,19 @@ public class AttestationOverviewService {
         return new AttestationOverviewDTO(itSystemAttestation.getCreatedAt(), readOnly, itSystemAttestation.getItSystemName(), String.valueOf(itSystemAttestation.getItSystemId()),
                 verified,  itSystemAttestation.getUserRoles().size() - verified,
                 itSystemAttestation.getUserRoles().size(), itSystemAttestation.getDeadLine(),
-                itSystemAttestation.getDeadLine().isBefore(LocalDate.now()), null, 0, 0, 0, new ArrayList<>(), itSystemAttestation.getVerifiedAt());
+                itSystemAttestation.getDeadLine().isBefore(LocalDate.now()), null, 0, 0, 0, new ArrayList<>(), itSystemAttestation.getVerifiedAt(), itSystemAttestation.getPerformedBy());
+    }
+
+    public AttestationOverviewDTO buildOrgUnitOverview(final OrganisationAttestationDTO organisationAttestationDto, boolean readOnly, String currentUserUuid) {
+        if (!readOnly && currentUserUuid != null && organisationAttestationDto.getVerifiedAt() == null && organisationAttestationDto.getPerformedBy() == null) {
+            List<UserAttestationDTO> remaining = organisationAttestationDto.getUserAttestations().stream()
+                    .filter(u -> u.getVerifiedByUserId() == null && u.getRemarks() == null && !u.isAdRemoval())
+                    .toList();
+            if (!remaining.isEmpty() && remaining.stream().allMatch(u -> u.getUserUuid().equals(currentUserUuid))) {
+                readOnly = true;
+            }
+        }
+        return buildOrgUnitOverview(organisationAttestationDto, readOnly);
     }
 
     public AttestationOverviewDTO buildOrgUnitOverview(final OrganisationAttestationDTO organisationAttestationDto, boolean readOnly) {
@@ -84,6 +117,6 @@ public class AttestationOverviewService {
         LocalDate now = LocalDate.now();
         return new AttestationOverviewDTO(organisationAttestationDto.getCreatedAt(), readOnly, organisationAttestationDto.getOuName(), organisationAttestationDto.getOuUuid(),
                 verified, total-verified, total, organisationAttestationDto.getDeadLine(), organisationAttestationDto.getDeadLine().isBefore(now),
-                substitutes, orgsAttestated, orgsToAttestate, hasOrgAssignments ? 1 : 0, new ArrayList<>(), organisationAttestationDto.getVerifiedAt());
+                substitutes, orgsAttestated, orgsToAttestate, hasOrgAssignments ? 1 : 0, new ArrayList<>(), organisationAttestationDto.getVerifiedAt(), organisationAttestationDto.getPerformedBy());
     }
 }

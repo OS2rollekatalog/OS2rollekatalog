@@ -71,7 +71,6 @@ public class ClientController {
 	@PostMapping("/ui/client/new")
 	public String newClientPost(Model model, @Valid @ModelAttribute("client") ClientDTO clientDTO, BindingResult bindingResult) {
 		if (bindingResult.hasErrors()) {
-			model.addAttribute(bindingResult.getAllErrors());
 			model.addAttribute("client", clientDTO);
 			model.addAttribute("accessRoles", AccessRole.values());
 			model.addAttribute("domains", domainService.getAll());

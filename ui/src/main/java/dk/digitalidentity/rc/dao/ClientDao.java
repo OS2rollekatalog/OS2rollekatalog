@@ -15,4 +15,5 @@ public interface ClientDao extends CrudRepository<Client, Long> {
 	Client findById(long id);
 	List<Client> findByClientIntegrationType(ClientIntegrationType clientIntegrationType);
 	Client findByDomain(Domain domain);
+	boolean existsByName(String name);
 }

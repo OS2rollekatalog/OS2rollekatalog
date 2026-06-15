@@ -16,6 +16,7 @@ namespace ADSyncService
             List<string> ous = remoteConfigurationService.GetConfiguration().backSyncFeatureOUs;
             bool convertToUserRoles = remoteConfigurationService.GetConfiguration().backSyncFeatureCreateUserRoles;
             bool groupsInGroupOnSync = remoteConfigurationService.GetConfiguration().backSyncFeatureGroupsInGroupOnSync;
+            bool maintainDescriptionAndName = remoteConfigurationService.GetConfiguration().backSyncFeatureMaintainDescriptionAndName;
             foreach (string ouRaw in ous)
             {
                 try
@@ -58,21 +59,25 @@ namespace ADSyncService
                         {
                             if (group.Uuid.Equals(itSystemData.systemRoles[i].identifier))
                             {
-                                if (!group.Name.Equals(itSystemData.systemRoles[i].name))
-                                {
-                                    log.Info("Updating name on group to " + group.Name);
-                                    itSystemData.systemRoles[i].name = group.Name;
-                                    changes = true;
-                                }
-
-                                if (!group.Description.Equals(itSystemData.systemRoles[i].description))
-                                {
-                                    log.Info("Updating description on group " + group.Name);
-                                    itSystemData.systemRoles[i].description = group.Description;
-                                    changes = true;
-                                }
-
                                 found = true;
+
+                                if (maintainDescriptionAndName)
+                                {
+                                    if (!group.Name.Equals(itSystemData.systemRoles[i].name))
+                                    {
+                                        log.Info("Updating name on group to " + group.Name);
+                                        itSystemData.systemRoles[i].name = group.Name;
+                                        changes = true;
+                                    }
+
+                                    if (!group.Description.Equals(itSystemData.systemRoles[i].description))
+                                    {
+                                        log.Info("Updating description on group " + group.Name);
+                                        itSystemData.systemRoles[i].description = group.Description;
+                                        changes = true;
+                                    }
+                                }
+
                                 break;
                             }
                         }
@@ -142,7 +147,7 @@ namespace ADSyncService
 
                         itSystemData.convertRolesEnabled = convertToUserRoles;
 
-                        roleCatalogueStub.SetItSystemData(itSystemId, itSystemData);
+                        roleCatalogueStub.SetItSystemData(itSystemId, itSystemData, maintainDescriptionAndName);
                     }
                 }
                 catch (Exception ex)

@@ -13,13 +13,17 @@ public enum ConstraintValueType {
 	LEVEL_5,
 	LEVEL_6,
 
+	INHERITED_FROM_MANAGER_ROLE, // OUs where the user is manager or sub (direct)
+	EXTENDED_INHERITED_FROM_MANAGER_ROLE, // Same as above + child OUs
+	INHERITED_FROM_FUNCTIONS, // OUs where user hold any trust function (direct)
+	EXTENDED_INHERITED_FROM_FUNCTIONS, // Same as above + child OUs
 	INHERITED,               // the user inherits constraint values from the OU(s) he holds positions in
 	EXTENDED_INHERITED,      // as above, but according to the extension rules (depends on the type of constraint)
 	READ_AND_WRITE,			 // the sum of the two above
 	SELECTED_INHERITED,       // the user inherits constraint values from the OU(s) chosen as well as the ones he holds positions in
 	VALUE,                   // an actual hardcoded value is used
 	POSTPONED;				 // the constraint is postponed to the role assignment time
-	
+
 	public static String getUIText(SystemRoleAssignmentConstraintValue assignment) throws Exception {
 		switch (assignment.getConstraintValueType()) {
 			case VALUE:
@@ -49,7 +53,7 @@ public enum ConstraintValueType {
 			default:
 				throw new Exception("Unknown constraintValueType: " + assignment.getConstraintValueType());
 		}
-		
+
 		return "";
 	}
 }

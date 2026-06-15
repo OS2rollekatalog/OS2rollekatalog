@@ -5,6 +5,8 @@ import dk.digitalidentity.rc.dao.model.RoleGroup;
 import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserRole;
 import dk.digitalidentity.rc.dao.model.assignment.CurrentAssignment;
+import dk.digitalidentity.rc.dao.model.assignment.CurrentAssignmentSmallProjection;
+
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -147,7 +149,6 @@ public interface CurrentAssignmentDao extends JpaRepository<CurrentAssignment, L
 	// these also returns inactive assignments, which is okay, as they are used by the UI only
 	Set<CurrentAssignment> findByRoleGroupAndUser(RoleGroup roleGroup, User user);
 	Set<CurrentAssignment> findByUserUuidAndRoleGroupNotNull(String uuid);
-	Set<CurrentAssignment> findByUserUuidAndRoleGroupNull(String uuid);
 	Set<CurrentAssignment> findByRoleGroupAndOrgUnitNullAndTitleNull(RoleGroup roleGroup);
 
 	/**
@@ -226,6 +227,15 @@ public interface CurrentAssignmentDao extends JpaRepository<CurrentAssignment, L
 	""")
 	Set<CurrentAssignment> findActiveAssigned(Collection<UserRole> userRoles, LocalDate now);
 
+	@Query("""
+	    SELECT ca.id AS id, ca.user.userId AS userId, ca.userRole.id AS userRoleId, ca.user.domain.id AS userDomainId
+	    FROM CurrentAssignment ca
+		WHERE ca.userRole IN :userRoles
+	      AND (ca.startDate IS NULL OR ca.startDate <= :now)
+	      AND (ca.stopDate IS NULL OR ca.stopDate >= :now)
+	""")
+	Set<CurrentAssignmentSmallProjection> findActiveAssignedAsProjection(Collection<UserRole> userRoles, LocalDate now);
+	
 	/**
 	 * Finder assignments for en rollegruppe, hvor tildelingen er trådt i kraft.
 	 * <p>

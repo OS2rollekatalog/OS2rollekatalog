@@ -278,6 +278,7 @@ public class RequestController {
 						SecurityUtil.hasDirectAdminRole()
 						|| managerSubstituteService.isManagerForOrgUnit(p.getOrgUnit())
 						|| managerSubstituteService.isSubstituteforOrgUnit(p.getOrgUnit())
+						|| userService.isEffectiveManagerOrSubstituteFor(loggedInUser, requestForUser, p.getOrgUnit()) // nearest leader in the hierarchy, e.g. a chief requesting for a team leader
 						|| p.getOrgUnit().getAuthorizationManagers().stream().map(AuthorizationManager::getUser).toList().contains(loggedInUser) // User is authorizationmanager
 							|| limitedToOrgUnits.type().equals(RequestAuthorizedRoleService.LimitedToType.ALL)
 							|| limitedToOrgUnits.orgUnits().contains(p.getOrgUnit().getUuid()) // If current user is requestauthorized only for some units, we should filter by those

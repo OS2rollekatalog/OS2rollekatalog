@@ -84,7 +84,7 @@ public class RoleBuildXlsView extends AttestationXlsView {
 			createCell(dataRow, column++, entry.getItSystemName(), null);
 			createCell(dataRow, column++, entry.getRole(), null);
 			createCell(dataRow, column++, String.join("\n", entry.getSystemRole()), null);
-			createCell(dataRow, column++, entry.getResponsibleUser(), null);
+			createCell(dataRow, column++, String.join(", ", entry.getResponsibleUserNames()), null);
 			createCell(dataRow, column++, messageSource.getMessage(entry.getAttestationStatus().getMessage(), null, locale), null);
 			createCell(dataRow, column++, entry.getAttestationDate() == null ? "" : entry.getAttestationDate().toString(), null);
 			createCell(dataRow, column++, entry.getPerformedBy(), null);

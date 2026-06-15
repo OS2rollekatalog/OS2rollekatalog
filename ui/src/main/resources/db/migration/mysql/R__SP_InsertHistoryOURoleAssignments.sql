@@ -12,6 +12,8 @@ CREATE PROCEDURE SP_InsertHistoryOURoleAssignmentsOUInheritRecursive (IN ou_role
 BEGIN
   DECLARE finished INTEGER DEFAULT 0;
   DECLARE child_ou_uuid varchar(36);
+  DECLARE new_assignment_id BIGINT DEFAULT NULL;
+  DECLARE inserted_rows INT DEFAULT 0;
   DECLARE cursorChildren CURSOR FOR
     SELECT uuid FROM ous WHERE parent_uuid = ou_roles_ou_uuid AND active = 1;
   DECLARE CONTINUE HANDLER FOR NOT FOUND SET finished = 1;
@@ -35,41 +37,50 @@ BEGIN
     JOIN it_systems it ON it.id = ur.it_system_id
   WHERE our.id = ou_roles_id;
 
-  -- Insert exclusions for excepted users
-  INSERT INTO history_ou_role_assignment_exclusions (assignment_id, exclusion_type, user_uuids)
-  SELECT 
-    LAST_INSERT_ID(), 'excepted_users', GROUP_CONCAT(oureu.user_uuid)
-  FROM ou_roles our
-    JOIN ou_roles_excepted_users oureu ON oureu.ou_roles_id = our.id
-  WHERE our.id = ou_roles_id AND our.contains_excepted_users = 1
-  HAVING GROUP_CONCAT(oureu.user_uuid) IS NOT NULL;
+  -- Capture the id and row count of the assignment just inserted. Both functions still
+  -- refer to the INSERT above until this SET completes. Subsequent exclusion inserts have
+  -- their own AUTO_INCREMENT, so LAST_INSERT_ID() would otherwise be overwritten by the
+  -- first exclusion row's id and break the FK on later exclusion inserts. The row count
+  -- guard avoids attaching exclusions to a stale id if the main insert matched no rows.
+  SET new_assignment_id = LAST_INSERT_ID(), inserted_rows = ROW_COUNT();
 
-  -- Insert exclusions for positive titles
-  INSERT INTO history_ou_role_assignment_exclusions (assignment_id, exclusion_type, title_uuids)
-  SELECT 
-    LAST_INSERT_ID(), 'titles', GROUP_CONCAT(ourt.title_uuid)
-  FROM ou_roles our
-    JOIN ou_roles_titles ourt ON ourt.ou_roles_id = our.id
-  WHERE our.id = ou_roles_id AND our.contains_titles = 1
-  HAVING GROUP_CONCAT(ourt.title_uuid) IS NOT NULL;
+  IF inserted_rows > 0 THEN
+    -- Insert exclusions for excepted users
+    INSERT INTO history_ou_role_assignment_exclusions (assignment_id, exclusion_type, user_uuids)
+    SELECT
+      new_assignment_id, 'excepted_users', GROUP_CONCAT(oureu.user_uuid)
+    FROM ou_roles our
+      JOIN ou_roles_excepted_users oureu ON oureu.ou_roles_id = our.id
+    WHERE our.id = ou_roles_id AND our.contains_excepted_users = 1
+    HAVING GROUP_CONCAT(oureu.user_uuid) IS NOT NULL;
 
-  -- Insert exclusions for negative titles
-  INSERT INTO history_ou_role_assignment_exclusions (assignment_id, exclusion_type, title_uuids)
-  SELECT 
-    LAST_INSERT_ID(), 'negative_titles', GROUP_CONCAT(ourt.title_uuid)
-  FROM ou_roles our
-    JOIN ou_roles_titles ourt ON ourt.ou_roles_id = our.id
-  WHERE our.id = ou_roles_id AND our.contains_titles = 2
-  HAVING GROUP_CONCAT(ourt.title_uuid) IS NOT NULL;
+    -- Insert exclusions for positive titles
+    INSERT INTO history_ou_role_assignment_exclusions (assignment_id, exclusion_type, title_uuids)
+    SELECT
+      new_assignment_id, 'titles', GROUP_CONCAT(ourt.title_uuid)
+    FROM ou_roles our
+      JOIN ou_roles_titles ourt ON ourt.ou_roles_id = our.id
+    WHERE our.id = ou_roles_id AND our.contains_titles = 1
+    HAVING GROUP_CONCAT(ourt.title_uuid) IS NOT NULL;
 
-  -- Insert exclusions for functions
-  INSERT INTO history_ou_role_assignment_exclusions (assignment_id, exclusion_type, function_uuids)
-  SELECT
-    LAST_INSERT_ID(), 'functions', GROUP_CONCAT(ourf.function_uuid)
-  FROM ou_roles our
-    JOIN ou_roles_functions ourf ON ourf.ou_roles_id = our.id
-  WHERE our.id = ou_roles_id AND our.contains_functions = 1
-  HAVING GROUP_CONCAT(ourf.function_uuid) IS NOT NULL;
+    -- Insert exclusions for negative titles
+    INSERT INTO history_ou_role_assignment_exclusions (assignment_id, exclusion_type, title_uuids)
+    SELECT
+      new_assignment_id, 'negative_titles', GROUP_CONCAT(ourt.title_uuid)
+    FROM ou_roles our
+      JOIN ou_roles_titles ourt ON ourt.ou_roles_id = our.id
+    WHERE our.id = ou_roles_id AND our.contains_titles = 2
+    HAVING GROUP_CONCAT(ourt.title_uuid) IS NOT NULL;
+
+    -- Insert exclusions for functions
+    INSERT INTO history_ou_role_assignment_exclusions (assignment_id, exclusion_type, function_uuids)
+    SELECT
+      new_assignment_id, 'functions', GROUP_CONCAT(ourf.function_uuid)
+    FROM ou_roles our
+      JOIN ou_roles_functions ourf ON ourf.ou_roles_id = our.id
+    WHERE our.id = ou_roles_id AND our.contains_functions = 1
+    HAVING GROUP_CONCAT(ourf.function_uuid) IS NOT NULL;
+  END IF;
 
   OPEN cursorChildren;
 
@@ -123,6 +134,8 @@ DELIMITER $$
   BEGIN    
     DECLARE finished INTEGER DEFAULT 0;
     DECLARE child_ou_uuid VARCHAR(36);
+    DECLARE new_assignment_id BIGINT DEFAULT NULL;
+    DECLARE inserted_rows INT DEFAULT 0;
     DECLARE cursorChildren CURSOR FOR
       SELECT uuid FROM ous WHERE parent_uuid = ou_roles_ou_uuid AND active = 1;
     DECLARE CONTINUE HANDLER FOR NOT FOUND SET finished = 1;
@@ -147,41 +160,50 @@ DELIMITER $$
       JOIN it_systems it ON it.id = ur.it_system_id
     WHERE ourg.id = ou_roles_id;
 
-    -- Insert exclusions for excepted users
-    INSERT INTO history_ou_role_assignment_exclusions (assignment_id, exclusion_type, user_uuids)
-    SELECT 
-      LAST_INSERT_ID(), 'excepted_users', GROUP_CONCAT(ourgeu.user_uuid)
-    FROM ou_rolegroups ourg
-      JOIN ou_rolegroups_excepted_users ourgeu ON ourgeu.ou_rolegroups_id = ourg.id
-    WHERE ourg.id = ou_roles_id AND ourg.contains_excepted_users = 1
-    HAVING GROUP_CONCAT(ourgeu.user_uuid) IS NOT NULL;
+    -- Capture the id and row count of the (first) assignment just inserted. Both functions
+    -- still refer to the INSERT above until this SET completes. Subsequent exclusion inserts
+    -- have their own AUTO_INCREMENT, so LAST_INSERT_ID() would otherwise be overwritten by the
+    -- first exclusion row's id and break the FK on later exclusion inserts. The row count
+    -- guard avoids attaching exclusions to a stale id if the main insert matched no rows.
+    SET new_assignment_id = LAST_INSERT_ID(), inserted_rows = ROW_COUNT();
 
-    -- Insert exclusions for positive titles
-    INSERT INTO history_ou_role_assignment_exclusions (assignment_id, exclusion_type, title_uuids)
-    SELECT 
-      LAST_INSERT_ID(), 'titles', GROUP_CONCAT(ourgt.title_uuid)
-    FROM ou_rolegroups ourg
-      JOIN ou_rolegroups_titles ourgt ON ourgt.ou_rolegroups_id = ourg.id
-    WHERE ourg.id = ou_roles_id AND ourg.contains_titles = 1
-    HAVING GROUP_CONCAT(ourgt.title_uuid) IS NOT NULL;
+    IF inserted_rows > 0 THEN
+      -- Insert exclusions for excepted users
+      INSERT INTO history_ou_role_assignment_exclusions (assignment_id, exclusion_type, user_uuids)
+      SELECT
+        new_assignment_id, 'excepted_users', GROUP_CONCAT(ourgeu.user_uuid)
+      FROM ou_rolegroups ourg
+        JOIN ou_rolegroups_excepted_users ourgeu ON ourgeu.ou_rolegroups_id = ourg.id
+      WHERE ourg.id = ou_roles_id AND ourg.contains_excepted_users = 1
+      HAVING GROUP_CONCAT(ourgeu.user_uuid) IS NOT NULL;
 
-    -- Insert exclusions for negative titles
-    INSERT INTO history_ou_role_assignment_exclusions (assignment_id, exclusion_type, title_uuids)
-    SELECT 
-      LAST_INSERT_ID(), 'negative_titles', GROUP_CONCAT(ourgt.title_uuid)
-    FROM ou_rolegroups ourg
-      JOIN ou_rolegroups_titles ourgt ON ourgt.ou_rolegroups_id = ourg.id
-    WHERE ourg.id = ou_roles_id AND ourg.contains_titles = 2
-    HAVING GROUP_CONCAT(ourgt.title_uuid) IS NOT NULL;
+      -- Insert exclusions for positive titles
+      INSERT INTO history_ou_role_assignment_exclusions (assignment_id, exclusion_type, title_uuids)
+      SELECT
+        new_assignment_id, 'titles', GROUP_CONCAT(ourgt.title_uuid)
+      FROM ou_rolegroups ourg
+        JOIN ou_rolegroups_titles ourgt ON ourgt.ou_rolegroups_id = ourg.id
+      WHERE ourg.id = ou_roles_id AND ourg.contains_titles = 1
+      HAVING GROUP_CONCAT(ourgt.title_uuid) IS NOT NULL;
 
-    -- Insert exclusions for functions
-    INSERT INTO history_ou_role_assignment_exclusions (assignment_id, exclusion_type, function_uuids)
-    SELECT
-      LAST_INSERT_ID(), 'functions', GROUP_CONCAT(ourgf.function_uuid)
-    FROM ou_rolegroups ourg
-      JOIN ou_rolegroups_functions ourgf ON ourgf.ou_rolegroups_id = ourg.id
-    WHERE ourg.id = ou_roles_id AND ourg.contains_functions = 1
-    HAVING GROUP_CONCAT(ourgf.function_uuid) IS NOT NULL;
+      -- Insert exclusions for negative titles
+      INSERT INTO history_ou_role_assignment_exclusions (assignment_id, exclusion_type, title_uuids)
+      SELECT
+        new_assignment_id, 'negative_titles', GROUP_CONCAT(ourgt.title_uuid)
+      FROM ou_rolegroups ourg
+        JOIN ou_rolegroups_titles ourgt ON ourgt.ou_rolegroups_id = ourg.id
+      WHERE ourg.id = ou_roles_id AND ourg.contains_titles = 2
+      HAVING GROUP_CONCAT(ourgt.title_uuid) IS NOT NULL;
+
+      -- Insert exclusions for functions
+      INSERT INTO history_ou_role_assignment_exclusions (assignment_id, exclusion_type, function_uuids)
+      SELECT
+        new_assignment_id, 'functions', GROUP_CONCAT(ourgf.function_uuid)
+      FROM ou_rolegroups ourg
+        JOIN ou_rolegroups_functions ourgf ON ourgf.ou_rolegroups_id = ourg.id
+      WHERE ourg.id = ou_roles_id AND ourg.contains_functions = 1
+      HAVING GROUP_CONCAT(ourgf.function_uuid) IS NOT NULL;
+    END IF;
 
     OPEN cursorChildren;
 

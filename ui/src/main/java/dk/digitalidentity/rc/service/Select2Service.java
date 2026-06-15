@@ -133,6 +133,9 @@ public class Select2Service {
 		List<ItSystemSelect2DTO> kitosITSystemSelect2DTOList = new ArrayList<>();
 
 		for (KitosITSystem kitosITSystem : systems) {
+			if (!kitosITSystem.isActive()) {
+				continue;
+			}
 			ItSystemSelect2DTO kitosITSystemSelect2DTO = new ItSystemSelect2DTO();
 
 			kitosITSystemSelect2DTO.setId(kitosITSystem.getId());

@@ -73,11 +73,17 @@ public class MockFactory {
 	}
 
 	public static OrgUnit createOrgUnit(String uuid, OrgUnit parent) {
+		return createOrgUnit(uuid, parent, null);
+	}
+
+	public static OrgUnit createOrgUnit(String uuid, OrgUnit parent, User manager) {
 		OrgUnit orgUnit = new OrgUnit();
 		orgUnit.setUuid(uuid);
 		orgUnit.setParent(parent);
+		orgUnit.setManager(manager);
 		orgUnit.setUserRoleAssignments(new ArrayList<>());
 		orgUnit.setRoleGroupAssignments(new ArrayList<>());
+		orgUnit.setAuthorizationManagers(new ArrayList<>());
 		return orgUnit;
 	}
 

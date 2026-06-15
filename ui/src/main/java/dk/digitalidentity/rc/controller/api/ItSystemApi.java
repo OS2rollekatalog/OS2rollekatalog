@@ -128,7 +128,7 @@ public class ItSystemApi {
 	}
 
 	@PostMapping(value = "/api/itsystem/manage/{id}")
-	public ResponseEntity<?> manageItSystem(@PathVariable("id") Long id, @RequestParam(name = "updateUserAssignments", required = false, defaultValue = "false") boolean updateUserAssignments, @RequestParam(name = "domain", required = false) String domain, @RequestBody @Valid ItSystemWithSystemRolesDTO body) {
+	public ResponseEntity<?> manageItSystem(@PathVariable("id") Long id, @RequestParam(name = "updateUserAssignments", required = false, defaultValue = "false") boolean updateUserAssignments, @RequestParam(name = "domain", required = false) String domain, @RequestParam(name = "maintainDescriptionAndName", required = false, defaultValue = "true") boolean maintainDescriptionAndName, @RequestBody @Valid ItSystemWithSystemRolesDTO body) {
 		log.info("manage API on " + id + " called");
 
 		ItSystem itSystem = itSystemService.getById(id);
@@ -231,8 +231,9 @@ public class ItSystemApi {
 
 				SystemRole sRole = systemRole.get();
 
-				if (!Objects.equals(userRole.getName(), sRole.getName()) ||
-					!Objects.equals(userRole.getDescription(), sRole.getDescription())) {
+				if (maintainDescriptionAndName &&
+					(!Objects.equals(userRole.getName(), sRole.getName()) ||
+					!Objects.equals(userRole.getDescription(), sRole.getDescription()))) {
 					userRole.setName(sRole.getName());
 					userRole.setDescription(sRole.getDescription());
 					userRole = userRoleService.save(userRole);

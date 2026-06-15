@@ -2,6 +2,7 @@ package dk.digitalidentity.rc.controller.api.v2;
 
 import dk.digitalidentity.rc.dao.model.ItSystem;
 import dk.digitalidentity.rc.dao.model.SystemRole;
+import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserRole;
 import dk.digitalidentity.rc.dao.model.enums.AccessRole;
 import dk.digitalidentity.rc.dao.model.enums.ItSystemType;
@@ -9,6 +10,7 @@ import dk.digitalidentity.rc.dao.model.enums.RoleType;
 import dk.digitalidentity.rc.service.ItSystemService;
 import dk.digitalidentity.rc.service.SystemRoleService;
 import dk.digitalidentity.rc.service.UserRoleService;
+import dk.digitalidentity.rc.service.UserService;
 import dk.digitalidentity.rc.test.AbstractApiTest;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -58,6 +60,9 @@ public class ItSystemApiV2Test extends AbstractApiTest {
 	@Autowired
 	private UserRoleService userRoleService;
 
+	@Autowired
+	private UserService userService;
+
 	@Override
 	protected List<String> getRequiredApiRoles() {
 		return List.of(AccessRole.ITSYSTEM.toString());
@@ -106,7 +111,8 @@ public class ItSystemApiV2Test extends AbstractApiTest {
 					fieldWithPath("[].apiManagedRoleAssignments").type(JsonFieldType.BOOLEAN).description("Whether role assignments are API managed"),
 					fieldWithPath("[].domain").type(JsonFieldType.STRING).description("Domain name (for AD systems)").optional(),
 					fieldWithPath("[].email").type(JsonFieldType.STRING).description("Contact email").optional(),
-					fieldWithPath("[].responsibleUserUuid").type(JsonFieldType.STRING).description("UUID of the responsible user").optional()
+					fieldWithPath("[].attestationResponsibleUuids").type(JsonFieldType.ARRAY).description("UUIDs of the users responsible for attestation").optional(),
+					fieldWithPath("[].systemOwnerUuids").type(JsonFieldType.ARRAY).description("UUIDs of the system owners").optional()
 				)
 			))
 			.andReturn();
@@ -669,5 +675,95 @@ public class ItSystemApiV2Test extends AbstractApiTest {
 					parameterWithName("id").description("Unique ID of the IT system")
 				)
 			));
+	}
+
+	@Test
+	@DisplayName("Should create IT system with multiple attestation responsibles and system owners")
+	void testCreateItSystem_withMultipleOwnersAndResponsibles() throws Exception {
+		User user1 = userService.getAll().stream()
+			.findFirst()
+			.orElseThrow(() -> new RuntimeException("No users found"));
+		User user2 = userService.getAll().stream()
+			.skip(1)
+			.findFirst()
+			.orElseThrow(() -> new RuntimeException("Less than two users found"));
+
+		String requestBody = String.format("""
+			{
+				"id": 0,
+				"name": "Multi Owner System",
+				"identifier": "MULTI_OWNER_SYSTEM",
+				"systemtype": "SAML",
+				"paused": false,
+				"hidden": false,
+				"readonly": false,
+				"canEditThroughApi": true,
+				"deleted": false,
+				"accesBlocked": false,
+				"apiManagedRoleAssignments": false,
+				"attestationResponsibleUuids": ["%s", "%s"],
+				"systemOwnerUuids": ["%s"]
+			}
+			""", user1.getUuid(), user2.getUuid(), user1.getUuid());
+
+		this.mockMvc.perform(post("/api/v2/itsystem")
+				.header("ApiKey", API_KEY)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(requestBody))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.name").value("Multi Owner System"))
+			.andExpect(jsonPath("$.attestationResponsibleUuids").isArray())
+			.andExpect(jsonPath("$.attestationResponsibleUuids.length()").value(2))
+			.andExpect(jsonPath("$.systemOwnerUuids").isArray())
+			.andExpect(jsonPath("$.systemOwnerUuids.length()").value(1));
+
+		entityManager.flush();
+		entityManager.clear();
+
+		ItSystem created = itSystemService.getFirstByIdentifier("MULTI_OWNER_SYSTEM");
+		assertThat(created).isNotNull();
+		assertThat(itSystemService.getAttestationResponsibles(created)).hasSize(2)
+			.extracting(User::getUuid)
+			.containsExactlyInAnyOrder(user1.getUuid(), user2.getUuid());
+		assertThat(itSystemService.getSystemOwners(created)).hasSize(1)
+			.extracting(User::getUuid)
+			.containsExactly(user1.getUuid());
+	}
+
+	@Test
+	@DisplayName("Should create IT system without owners when fields are omitted")
+	void testCreateItSystem_withNoOwners() throws Exception {
+		String requestBody = """
+			{
+				"id": 0,
+				"name": "No Owner System",
+				"identifier": "NO_OWNER_SYSTEM",
+				"systemtype": "SAML",
+				"paused": false,
+				"hidden": false,
+				"readonly": false,
+				"canEditThroughApi": false,
+				"deleted": false,
+				"accesBlocked": false,
+				"apiManagedRoleAssignments": false
+			}
+			""";
+
+		this.mockMvc.perform(post("/api/v2/itsystem")
+				.header("ApiKey", API_KEY)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(requestBody))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.name").value("No Owner System"))
+			.andExpect(jsonPath("$.attestationResponsibleUuids").isEmpty())
+			.andExpect(jsonPath("$.systemOwnerUuids").isEmpty());
+
+		entityManager.flush();
+		entityManager.clear();
+
+		ItSystem created = itSystemService.getFirstByIdentifier("NO_OWNER_SYSTEM");
+		assertThat(created).isNotNull();
+		assertThat(itSystemService.getAttestationResponsibles(created)).isEmpty();
+		assertThat(itSystemService.getSystemOwners(created)).isEmpty();
 	}
 }

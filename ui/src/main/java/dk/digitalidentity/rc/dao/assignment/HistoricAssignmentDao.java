@@ -23,6 +23,22 @@ public interface HistoricAssignmentDao extends JpaRepository<HistoricAssignment,
 	void updateValidToByRecordHashIn(@org.springframework.data.repository.query.Param("recordHashes") Collection<String> recordHashes,
 	                                 @org.springframework.data.repository.query.Param("validTo") java.time.LocalDateTime validTo);
 
+	/**
+	 * Backfills responsible_collection_id for all open historic_assignment rows that belong to this IT system
+	 * and whose user role is marked role_assignment_attestation_by_attestation_responsible=true.
+	 * Also clears responsible_ou_uuid on those rows, since the assignment now routes to IT-system attestation.
+	 * This covers both: rows written before the collection existed (responsible_collection_id was null),
+	 * and rows written before responsibles were set (fell back to OU routing).
+	 */
+	@org.springframework.data.jpa.repository.Modifying
+	@org.springframework.data.jpa.repository.Query(nativeQuery = true, value =
+		"UPDATE historic_assignment ha " +
+		"JOIN user_roles ur ON ur.id = ha.user_role_id " +
+		"SET ha.responsible_collection_id = :collectionId, ha.responsible_ou_uuid = NULL, ha.responsible_ou_name = NULL " +
+		"WHERE ha.it_system_id = :itSystemId AND ha.valid_to IS NULL AND ur.role_assignment_attestation_by_attestation_responsible = true")
+	void backfillResponsibleCollectionId(@org.springframework.data.repository.query.Param("itSystemId") Long itSystemId,
+	                                     @org.springframework.data.repository.query.Param("collectionId") Long collectionId);
+
 	@Query("SELECT ha FROM HistoricAssignment ha " +
 		"WHERE ha.validFrom <= :endOfDay " +
 		"AND (ha.validTo IS NULL OR ha.validTo >= :startOfDay)")
@@ -129,7 +145,7 @@ public interface HistoricAssignmentDao extends JpaRepository<HistoricAssignment,
 	/** Assignments for {@code userUuid} at {@code validAt} that have an IT-system responsible (not OU). */
 	@Query("SELECT ha FROM HistoricAssignment ha " +
 		"WHERE ha.validFrom <= :validAt AND (ha.validTo > :validAt OR ha.validTo IS NULL) " +
-		"AND ha.responsibleUserUuid IS NOT NULL AND ha.userUuid = :userUuid")
+		"AND ha.responsibleCollectionId IS NOT NULL AND ha.userUuid = :userUuid")
 	List<HistoricAssignment> listValidAssignmentsForUserHandledByItSystemResponsible(
 		@Param("validAt") LocalDateTime validAt,
 		@Param("userUuid") String userUuid);
@@ -146,25 +162,25 @@ public interface HistoricAssignmentDao extends JpaRepository<HistoricAssignment,
 		@Param("toDate") LocalDateTime toDate,
 		@Param("responsibleOuUuid") String responsibleOuUuid);
 
-	/** All assignments valid at {@code validAt} whose responsible user is {@code responsibleUserUuid}. */
+	/** Assignments valid at {@code validAt} for a given responsible collection. */
 	@Query("SELECT ha FROM HistoricAssignment ha " +
 		"WHERE ha.validFrom <= :validAt AND (ha.validTo > :validAt OR ha.validTo IS NULL) " +
-		"AND ha.responsibleUserUuid = :responsibleUserUuid")
-	List<HistoricAssignment> listValidAssignmentsByResponsibleUserUuid(
+		"AND ha.responsibleCollectionId = :responsibleCollectionId")
+	List<HistoricAssignment> listValidAssignmentsByResponsibleCollectionId(
 		@Param("validAt") LocalDateTime validAt,
-		@Param("responsibleUserUuid") String responsibleUserUuid);
+		@Param("responsibleCollectionId") Long responsibleCollectionId);
 
-	/** Assignments valid at {@code validAt} for a given responsible user and IT-system. */
+	/** Assignments valid at {@code validAt} for a given responsible collection and IT-system. */
 	@Query("SELECT ha FROM HistoricAssignment ha " +
 		"WHERE ha.validFrom <= :validAt AND (ha.validTo > :validAt OR ha.validTo IS NULL) " +
-		"AND ha.responsibleUserUuid = :responsibleUserUuid AND ha.itSystemId = :itSystemId")
-	List<HistoricAssignment> listValidAssignmentsByResponsibleUserUuidAndItSystemId(
+		"AND ha.responsibleCollectionId = :responsibleCollectionId AND ha.itSystemId = :itSystemId")
+	List<HistoricAssignment> listValidAssignmentsByResponsibleCollectionIdAndItSystemId(
 		@Param("validAt") LocalDateTime validAt,
-		@Param("responsibleUserUuid") String responsibleUserUuid,
+		@Param("responsibleCollectionId") Long responsibleCollectionId,
 		@Param("itSystemId") Long itSystemId);
 
 	/**
-	 * Returns one representative row per logical assignment (responsibleUserUuid, userUuid, sensitiveRole, itSystemId)
+	 * Returns one representative row per logical assignment (responsibleCollectionId, userUuid, sensitiveRole, itSystemId)
 	 * that is valid at {@code validAt}, for assignments managed by an IT-system responsible.
 	 * <p>
 	 * Because {@code historic_assignment} is a temporal table, the same logical assignment can have multiple rows
@@ -176,40 +192,42 @@ public interface HistoricAssignmentDao extends JpaRepository<HistoricAssignment,
 		"SELECT ha2.* FROM historic_assignment ha2 " +
 		"INNER JOIN (SELECT max(ha.id) AS sid FROM historic_assignment ha " +
 		"  WHERE ha.valid_from <= :validAt AND (ha.valid_to > :validAt OR ha.valid_to IS NULL) " +
-		"  AND ha.responsible_user_uuid IS NOT NULL " +
-		"  GROUP BY ha.responsible_user_uuid, ha.user_uuid, ha.sensitive_role, ha.it_system_id) AS sub ON sub.sid = ha2.id")
-	List<HistoricAssignment> findValidGroupByResponsibleUserUuidAndUserUuidAndSensitiveRoleAndItSystem(
+		"  AND ha.responsible_collection_id IS NOT NULL " +
+		"  GROUP BY ha.responsible_collection_id, ha.user_uuid, ha.sensitive_role, ha.it_system_id) AS sub ON sub.sid = ha2.id")
+	List<HistoricAssignment> findValidGroupByResponsibleCollectionIdAndUserUuidAndSensitiveRoleAndItSystem(
 		@Param("validAt") LocalDateTime validAt);
 
 	/**
 	 * Returns one representative row per logical assignment (responsibleOUUuid, userUuid, sensitiveRole, assignedThroughType)
 	 * that is valid at {@code validAt}, for assignments managed by an OU responsible.
 	 * <p>
-	 * See {@link #findValidGroupByResponsibleUserUuidAndUserUuidAndSensitiveRoleAndItSystem} for why grouping is needed.
+	 * See {@link #findValidGroupByResponsibleCollectionIdAndUserUuidAndSensitiveRoleAndItSystem} for why grouping is needed.
 	 */
 	@Query(nativeQuery = true, value =
 		"SELECT ha2.* FROM historic_assignment ha2 " +
 		"INNER JOIN (SELECT max(ha.id) AS sid FROM historic_assignment ha " +
 		"  WHERE ha.valid_from <= :validAt AND (ha.valid_to > :validAt OR ha.valid_to IS NULL) " +
 		"  AND ha.responsible_ou_uuid IS NOT NULL " +
+		"  AND NOT EXISTS (SELECT 1 FROM it_systems its WHERE its.id = ha.it_system_id AND its.attestation_exempt = 1) " +
 		"  GROUP BY ha.responsible_ou_uuid, ha.user_uuid, ha.sensitive_role, ha.assigned_through_type) AS sub ON sub.sid = ha2.id")
 	List<HistoricAssignment> findValidGroupByResponsibleOuAndUserUuidAndSensitiveRole(
 		@Param("validAt") LocalDateTime validAt);
 
 	/**
-	 * Returns one representative row per (responsibleUserUuid, sensitiveRole) group valid at {@code validAt}.
-	 * Coarser grouping than {@link #findValidGroupByResponsibleUserUuidAndUserUuidAndSensitiveRoleAndItSystem}
-	 * — used where only the responsible and sensitivity matter, not the individual user or IT-system.
+	 * Returns one representative row per (responsibleCollectionId, sensitiveRole) group valid at {@code validAt}.
+	 * Coarser grouping than {@link #findValidGroupByResponsibleCollectionIdAndUserUuidAndSensitiveRoleAndItSystem}
+	 * — used where only the responsible collection and sensitivity matter, not the individual user or IT-system.
 	 * <p>
-	 * See {@link #findValidGroupByResponsibleUserUuidAndUserUuidAndSensitiveRoleAndItSystem} for why grouping is needed.
+	 * See {@link #findValidGroupByResponsibleCollectionIdAndUserUuidAndSensitiveRoleAndItSystem} for why grouping is needed.
 	 */
 	@Query(nativeQuery = true, value =
 		"SELECT ha2.* FROM historic_assignment ha2 " +
 		"INNER JOIN (SELECT max(ha.id) AS sid FROM historic_assignment ha " +
 		"  WHERE ha.valid_from <= :validAt AND (ha.valid_to > :validAt OR ha.valid_to IS NULL) " +
-		"  AND ha.responsible_user_uuid IS NOT NULL " +
-		"  GROUP BY ha.responsible_user_uuid, ha.sensitive_role) AS sub ON sub.sid = ha2.id")
-	List<HistoricAssignment> findValidGroupByResponsibleUserUuidAndSensitiveRole(
+		"  AND ha.responsible_collection_id IS NOT NULL " +
+		"  AND NOT EXISTS (SELECT 1 FROM it_systems its WHERE its.id = ha.it_system_id AND its.attestation_exempt = 1) " +
+		"  GROUP BY ha.responsible_collection_id, ha.sensitive_role) AS sub ON sub.sid = ha2.id")
+	List<HistoricAssignment> findValidGroupByResponsibleCollectionIdAndSensitiveRole(
 		@Param("validAt") LocalDateTime validAt);
 
 	/**
@@ -217,13 +235,14 @@ public interface HistoricAssignmentDao extends JpaRepository<HistoricAssignment,
 	 * Coarser grouping than {@link #findValidGroupByResponsibleOuAndUserUuidAndSensitiveRole}
 	 * — used where only the responsible OU and sensitivity matter.
 	 * <p>
-	 * See {@link #findValidGroupByResponsibleUserUuidAndUserUuidAndSensitiveRoleAndItSystem} for why grouping is needed.
+	 * See {@link #findValidGroupByResponsibleCollectionIdAndUserUuidAndSensitiveRoleAndItSystem} for why grouping is needed.
 	 */
 	@Query(nativeQuery = true, value =
 		"SELECT ha2.* FROM historic_assignment ha2 " +
 		"INNER JOIN (SELECT max(ha.id) AS sid FROM historic_assignment ha " +
 		"  WHERE ha.valid_from <= :validAt AND (ha.valid_to > :validAt OR ha.valid_to IS NULL) " +
 		"  AND ha.responsible_ou_uuid IS NOT NULL " +
+		"  AND NOT EXISTS (SELECT 1 FROM it_systems its WHERE its.id = ha.it_system_id AND its.attestation_exempt = 1) " +
 		"  GROUP BY ha.responsible_ou_uuid, ha.sensitive_role) AS sub ON sub.sid = ha2.id")
 	List<HistoricAssignment> findValidGroupByResponsibleOuUuidAndSensitiveRole(
 		@Param("validAt") LocalDateTime validAt);

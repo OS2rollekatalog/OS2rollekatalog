@@ -47,11 +47,23 @@
 
                             <fieldset >
                                 <div class="form-group">
-                                    <label class="col-sm-3 control-label" th:text="#{html.entity.itsystem.email}"></label>
+                                    <label class="col-sm-3 control-label" th:text="#{html.entity.userrole.contactEmail}"></label>
                                     <div class="col-sm-8">
                                         <input th:field="*{contactEmail}" class="form-control" th:placeholder="#{html.entity.userrole.email.placeholder}"/>
                                         <ul th:if="${#fields.hasErrors('contactEmail')}">
                                             <li th:each="err : ${#fields.errors('contactEmail')}" th:text="${err}"></li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </fieldset>
+
+                            <fieldset >
+                                <div class="form-group">
+                                    <label class="col-sm-3 control-label" th:text="#{html.entity.userrole.advisEmail}"></label>
+                                    <div class="col-sm-8">
+                                        <input th:field="*{advisEmail}" class="form-control" th:placeholder="#{html.entity.userrole.email.placeholder}"/>
+                                        <ul th:if="${#fields.hasErrors('advisEmail')}">
+                                            <li th:each="err : ${#fields.errors('advisEmail')}" th:text="${err}"></li>
                                         </ul>
                                     </div>
                                 </div>
@@ -404,6 +416,10 @@
 								<option selected="selected" disabled="disabled" th:text="#{html.select.default}"></option>
 								<option th:selected="${selected} and ${constraintData != null} and ('INHERITED' eq ${#strings.toString(constraintData.constraintValueType)})" th:value="INHERITED" th:text="#{html.constraint.organisation.inherited}"></option>
 								<option th:selected="${selected} and ${constraintData != null} and ('EXTENDED_INHERITED' eq ${#strings.toString(constraintData.constraintValueType)})" th:value="EXTENDED_INHERITED" th:text="#{html.constraint.organisation.extended}"></option>
+								<option th:selected="${selected} and ${constraintData != null} and ('INHERITED_FROM_MANAGER_ROLE' eq ${#strings.toString(constraintData.constraintValueType)})" th:value="INHERITED_FROM_MANAGER_ROLE" th:text="#{html.constraint.organisation.inherited_from_manager_role}"></option>
+								<option th:selected="${selected} and ${constraintData != null} and ('EXTENDED_INHERITED_FROM_MANAGER_ROLE' eq ${#strings.toString(constraintData.constraintValueType)})" th:value="EXTENDED_INHERITED_FROM_MANAGER_ROLE" th:text="#{html.constraint.organisation.extended_inherited_from_manager_role}"></option>
+								<option th:selected="${selected} and ${constraintData != null} and ('INHERITED_FROM_FUNCTIONS' eq ${#strings.toString(constraintData.constraintValueType)})" th:value="INHERITED_FROM_FUNCTIONS" th:text="#{html.constraint.organisation.inherited_from_functions}"></option>
+								<option th:selected="${selected} and ${constraintData != null} and ('EXTENDED_INHERITED_FROM_FUNCTIONS' eq ${#strings.toString(constraintData.constraintValueType)})" th:value="EXTENDED_INHERITED_FROM_FUNCTIONS" th:text="#{html.constraint.organisation.extended_inherited_from_functions}"></option>
 								<option th:selected="${selected} and ${constraintData != null} and ('LEVEL_1' eq ${#strings.toString(constraintData.constraintValueType)})" th:value="LEVEL_1" th:text="#{html.constraint.organisation.level.1}"></option>
 								<option th:selected="${selected} and ${constraintData != null} and ('LEVEL_2' eq ${#strings.toString(constraintData.constraintValueType)})" th:value="LEVEL_2" th:text="#{html.constraint.organisation.level.2}"></option>
 								<option th:selected="${selected} and ${constraintData != null} and ('LEVEL_3' eq ${#strings.toString(constraintData.constraintValueType)})" th:value="LEVEL_3" th:text="#{html.constraint.organisation.level.3}"></option>
@@ -437,6 +453,10 @@
 								<option selected="selected" disabled="disabled" th:text="#{html.select.default}"></option>
 								<option th:selected="${selected} and ${constraintData != null} and ('INHERITED' eq ${#strings.toString(constraintData.constraintValueType)})" th:value="INHERITED" th:text="#{html.constraint.organisation.inherited}"></option>
 								<option th:selected="${selected} and ${constraintData != null} and ('EXTENDED_INHERITED' eq ${#strings.toString(constraintData.constraintValueType)})" th:value="EXTENDED_INHERITED" th:text="#{html.constraint.organisation.extended}"></option>
+								<option th:selected="${selected} and ${constraintData != null} and ('INHERITED_FROM_MANAGER_ROLE' eq ${#strings.toString(constraintData.constraintValueType)})" th:value="INHERITED_FROM_MANAGER_ROLE" th:text="#{html.constraint.organisation.inherited_from_manager_role}"></option>
+								<option th:selected="${selected} and ${constraintData != null} and ('EXTENDED_INHERITED_FROM_MANAGER_ROLE' eq ${#strings.toString(constraintData.constraintValueType)})" th:value="EXTENDED_INHERITED_FROM_MANAGER_ROLE" th:text="#{html.constraint.organisation.extended_inherited_from_manager_role}"></option>
+								<option th:selected="${selected} and ${constraintData != null} and ('INHERITED_FROM_FUNCTIONS' eq ${#strings.toString(constraintData.constraintValueType)})" th:value="INHERITED_FROM_FUNCTIONS" th:text="#{html.constraint.organisation.inherited_from_functions}"></option>
+								<option th:selected="${selected} and ${constraintData != null} and ('EXTENDED_INHERITED_FROM_FUNCTIONS' eq ${#strings.toString(constraintData.constraintValueType)})" th:value="EXTENDED_INHERITED_FROM_FUNCTIONS" th:text="#{html.constraint.organisation.extended_inherited_from_functions}"></option>
 								<option th:selected="${selected} and ${constraintData != null} and ('VALUE' eq ${#strings.toString(constraintData.constraintValueType)})" th:value="VALUE" th:text="#{html.constraint.organisation.value}"></option>
                                 <option th:selected="${selected} and ${constraintData != null} and ('SELECTED_INHERITED' eq ${#strings.toString(constraintData.constraintValueType)})" th:value="SELECTED_INHERITED" th:text="#{html.constraint.organisation.selected.inherited}"></option>
 							</select>
@@ -707,6 +727,7 @@ The modal ou_roles_modal shows at the top-->
 
         $("#name").change(handleChangeOnInput);
             $("#contactEmail").change(handleChangeOnInput);
+            $("#advisEmail").change(handleChangeOnInput);
         $("#description").change(handleChangeOnInput);
         $("#emailTemplateTitle").change(handleChangeOnInput);
         $('#emailTemplateMessage').on('summernote.blur', handleChangeOnInput);
@@ -1544,7 +1565,7 @@ The modal ou_roles_modal shows at the top-->
     function updateComboConstraintValue(systemRoleId, constraintUuid, constraintType) {
         var constraintValue = $("#" + systemRoleId + constraintUuid).val();
 
-        if (constraintValue == 'INHERITED' || constraintValue == 'READ_AND_WRITE' || constraintValue == 'EXTENDED_INHERITED' || constraintValue == 'LEVEL_1' || constraintValue == 'LEVEL_2' || constraintValue == 'LEVEL_3' || constraintValue == 'LEVEL_4' || constraintValue == 'LEVEL_5' || constraintValue == 'LEVEL_6') {
+        if (constraintValue == 'INHERITED' || constraintValue == 'READ_AND_WRITE' || constraintValue == 'EXTENDED_INHERITED' || constraintValue == 'LEVEL_1' || constraintValue == 'LEVEL_2' || constraintValue == 'LEVEL_3' || constraintValue == 'LEVEL_4' || constraintValue == 'LEVEL_5' || constraintValue == 'LEVEL_6' || constraintValue == 'INHERITED_FROM_MANAGER_ROLE' || constraintValue == 'EXTENDED_INHERITED_FROM_MANAGER_ROLE' || constraintValue == 'INHERITED_FROM_FUNCTIONS' || constraintValue == 'EXTENDED_INHERITED_FROM_FUNCTIONS') {
             saveConstraintChoice(systemRoleId, constraintUuid, constraintValue, '', false);
             hideFreetext(systemRoleId, constraintUuid);
         } else if (constraintValue == 'VALUE' && (constraintUuid == internalOuConstraintUuid || constraintUuid == ouConstraintUuid)) {
@@ -1825,6 +1846,7 @@ The modal ou_roles_modal shows at the top-->
         var objId = $("#id").val();
         var objName = $("#name").val();
             var objEmail = $("#contactEmail").val();
+            var objAdvisEmail = $("#advisEmail").val();
         var objDescription = $("#description").val();
         var objectItSystem = $("#itSystem").val();
         var emailTemplateTitle = $("#emailTemplateTitle").val();
@@ -1834,6 +1856,7 @@ The modal ou_roles_modal shows at the top-->
             id: objId,
             name: objName,
                 contactEmail: objEmail,
+                advisEmail: objAdvisEmail,
             description: objDescription,
             itSystem: objectItSystem,
             emailTemplateTitle: emailTemplateTitle,

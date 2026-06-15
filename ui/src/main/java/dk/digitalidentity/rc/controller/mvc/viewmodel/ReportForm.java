@@ -25,4 +25,5 @@ public class ReportForm {
     private boolean showItSystems;
     private boolean showInactiveUsers;
     private boolean showSystemRoles;
+    private boolean showOrgUnitAllocations;
 }

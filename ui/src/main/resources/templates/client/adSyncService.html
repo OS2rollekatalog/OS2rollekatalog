@@ -231,6 +231,17 @@
                                         </div>
                                         <a th:replace="~{fragments/help :: help (title=#{html.help.settings.client.adSync.backSync.nameAttribute.title}, content=#{html.help.settings.client.adSync.backSync.nameAttribute.body})}"></a>
                                     </div>
+									<div class="form-group row">
+										<label class="col-lg-4 control-label" th:text="#{html.client.adSync.backSync.maintainDescriptionAndName}"></label>
+										<div class="col-lg-1">
+											<div class="checkbox c-checkbox">
+												<label>
+													<input type="checkbox" id="backSyncFeatureMaintainDescriptionAndName" th:checked="${settings.backSyncFeatureMaintainDescriptionAndName}">
+													<span class="fa fa-check"></span>
+												</label>
+											</div>
+										</div>
+									</div>
                                     <div class="form-group row">
                                         <label class="col-lg-4 control-label" th:text="#{html.client.adsync.backSyncFeatureCreateUserRoles}"></label>
                                         <div class="col-lg-1">
@@ -1278,6 +1289,7 @@
                     "fullMembershipSyncFeatureEnabled": $('#fullMembershipSyncFeatureEnabled').prop('checked'),
                     "backSyncFeatureEnabled": $('#backSyncFeatureEnabled').prop('checked'),
                     "backSyncFeatureGroupsInGroupOnSync": $('#backSyncFeatureGroupsInGroupOnSync').prop('checked'),
+                    "backSyncFeatureMaintainDescriptionAndName": $('#backSyncFeatureMaintainDescriptionAndName').prop('checked'),
                     "backSyncFeatureCreateUserRoles": $('#backSyncFeatureCreateUserRoles').prop('checked'),
                     "backSyncFeatureOUs": backSyncFeatureOUs,
                     "backSyncFeatureNameAttribute": $('#backSyncFeatureNameAttribute').val(),

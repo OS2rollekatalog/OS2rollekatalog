@@ -64,6 +64,19 @@ public class KitosSyncService {
     }
 
     @Transactional
+    public void syncDeletedItSystemUsages(final List<TrackingEventResponseDTO> deletionEvents) {
+        deletionEvents.stream().map(TrackingEventResponseDTO::getEntityUuid).forEach(this::syncItSystemUsageDeletion);
+    }
+
+    private void syncItSystemUsageDeletion(final UUID usageUuid) {
+        kitosITSystemService.findByKitosUsageUuid(usageUuid).ifPresent(system -> {
+            log.info("IT system usage deleted in Kitos, marking inactive: {}", usageUuid);
+            system.setActive(false);
+			kitosITSystemService.save(system);
+        });
+    }
+
+    @Transactional
     public void syncItSystemUsagesAndUsers(List<ItSystemUsageResponseDTO> changedItSystemUsages, List<OrganizationUserResponseDTO> users) {
         changedItSystemUsages.forEach(c -> syncSingleUsage(c, users));
     }
@@ -75,6 +88,8 @@ public class KitosSyncService {
 
     private void updateKitosITSystemWithUsers(KitosITSystem kitosITSystem, ItSystemUsageResponseDTO itSystemUsageResponseDTO, List<OrganizationUserResponseDTO> users) {
         final boolean valid = itSystemUsageResponseDTO.getGeneral().getValidity().getValid() == null || itSystemUsageResponseDTO.getGeneral().getValidity().getValid();
+        kitosITSystem.setKitosUsageUuid(itSystemUsageResponseDTO.getUuid());
+        kitosITSystem.setActive(valid);
         if (!valid) {
             return;
         }

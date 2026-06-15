@@ -173,12 +173,12 @@ body,
 /* ========================================================================
    Component: panel
  ========================================================================== */
- 
+
  .panel-primary > .panel-heading {
   background-color: #4d638c;
   font-weight: bolder;
 }
- 
+
 /* ========================================================================
    Component: main section custom layout
  ========================================================================== */
@@ -219,7 +219,7 @@ i[class^="icon-question"]:before {
 }
 
 .btn-lg.btn-primary {
-	background-color: #4765a0; 
+	background-color: #4765a0;
 }
 
 .btn-lg.btn-danger {
@@ -235,4 +235,22 @@ i[class^="icon-question"]:before {
 .c-checkbox input[type=checkbox]:checked + span.inherit {
   border-color: lightgreen !important;
   background-color: lightgreen !important;
+}
+
+@media (min-width: 992px) {
+  .modal-xl {
+    width: 45%;
+  }
+}
+
+/* Stretch all tabs to the same height when some have multi-line text */
+#dataTabs.nav-tabs {
+  align-items: stretch;
+}
+#dataTabs.nav-tabs > li {
+  display: flex;
+}
+#dataTabs.nav-tabs > li > a {
+  display: flex;
+  align-items: center;
 }

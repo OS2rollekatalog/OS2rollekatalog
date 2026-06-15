@@ -97,6 +97,7 @@ public class OrgUnitController {
 
 	record ManagerOrSubstituteDTO(String name, String userId) {}
 	record FunctionDTO(String uuid, String name, boolean checked) {}
+	record OuDTO(String uuid, String name, boolean checked) {}
 
 	@RequirePermission(section = Section.ORGUNIT, permission = Permission.READ)
 	@GetMapping("/ui/ous/manage/{uuid}")
@@ -202,6 +203,12 @@ public class OrgUnitController {
 				.map(f -> new FunctionDTO(f.getUuid(), f.getName(), false))
 				.collect(Collectors.toList())
 		);
+
+		List<OuDTO> children = orgUnitService.getAllDescendantsOfOu(ou).stream()
+			.map(orgUnit -> new OuDTO(orgUnit.getUuid(), orgUnit.getName(), false))
+			.collect(Collectors.toList());
+		model.addAttribute("childOus", children);
+
 		return "ous/manage";
 	}
 
@@ -646,6 +653,9 @@ public class OrgUnitController {
 
 		Map<Permission, PermissionConstraint> constraintMap = userPermissionContext.getConstraintsPerPermission(permissionEntity);
 		PermissionConstraint editConstraints = constraintMap.getOrDefault(Permission.UPDATE, new PermissionConstraint(null, null));
+		// Editing/deleting an org unit assignment is permitted by the ASSIGN endpoints (same as creating it),
+		// so the "Rolletildeler - Enheder" (ASSIGN) permission must also enable the edit/delete icons - not only UPDATE.
+		PermissionConstraint assignConstraints = constraintMap.getOrDefault(Permission.ASSIGN, new PermissionConstraint(null, null));
 
 		// Run through all assignments already found
 		for (RoleAssignedToOrgUnitDTO assignment : assignments) {
@@ -654,13 +664,22 @@ public class OrgUnitController {
 			boolean directlyAssignedRole = ((assignment.getAssignedThrough() == AssignedThrough.DIRECT) || (assignment.getAssignedThrough() == AssignedThrough.TITLE));
 
 			if (assignment.getType() == RoleAssignmentType.USERROLE) {
+				// Role Catalogue system roles may only be edited/deleted by administrators
+				boolean isRoleCatalogueRole = assignment.getItSystem() != null
+					&& Constants.ROLE_CATALOGUE_IDENTIFIER.equals(assignment.getItSystem().getIdentifier());
+				boolean isAdmin = SecurityUtil.getRoles().contains(Constants.ROLE_ADMINISTRATOR);
+
 				// additional roles can only be edited if they are directly assigned
 				boolean editable = directlyAssignedRole
-						&& editConstraints.allowsITSystem(assignment.getItSystem().getId());
+						&& (!isRoleCatalogueRole || isAdmin)
+						&& (editConstraints.allowsITSystem(assignment.getItSystem().getId())
+							|| assignConstraints.allowsITSystem(assignment.getItSystem().getId()));
 				assignment.setCanEdit(editable);
 			} else if (assignment.getType() == RoleAssignmentType.ROLEGROUP) {
 				boolean editable = directlyAssignedRole
-					&& (assignment.getItSystem() == null || editConstraints.allowsITSystem(assignment.getItSystem().getId()));
+					&& (assignment.getItSystem() == null
+						|| editConstraints.allowsITSystem(assignment.getItSystem().getId())
+						|| assignConstraints.allowsITSystem(assignment.getItSystem().getId()));
 				assignment.setCanEdit(editable);
 
 				// expand userRoles within the RoleGroup

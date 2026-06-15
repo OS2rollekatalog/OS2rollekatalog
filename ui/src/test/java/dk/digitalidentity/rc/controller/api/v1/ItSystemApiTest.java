@@ -13,7 +13,6 @@ import static org.springframework.restdocs.operation.preprocess.Preprocessors.pr
 import static org.springframework.restdocs.payload.PayloadDocumentation.fieldWithPath;
 import static org.springframework.restdocs.payload.PayloadDocumentation.requestFields;
 import static org.springframework.restdocs.payload.PayloadDocumentation.responseFields;
-import static org.springframework.restdocs.payload.PayloadDocumentation.subsectionWithPath;
 import static org.springframework.restdocs.request.RequestDocumentation.parameterWithName;
 import static org.springframework.restdocs.request.RequestDocumentation.pathParameters;
 import static org.springframework.restdocs.request.RequestDocumentation.queryParameters;
@@ -247,7 +246,6 @@ public class ItSystemApiTest extends AbstractApiTest {
 					fieldWithPath("systemRoles[].name").type(JsonFieldType.STRING).description("Name of the system role").optional(),
 					fieldWithPath("systemRoles[].identifier").type(JsonFieldType.STRING).description("Unique identifier of the system role").optional(),
 					fieldWithPath("systemRoles[].description").type(JsonFieldType.STRING).description("Description of the system role").optional(),
-					subsectionWithPath("systemRoles[].users").description("Users with this assignment").optional(),
 					fieldWithPath("userRoles").type(JsonFieldType.ARRAY).description("Array of user roles"),
 					fieldWithPath("userRoles[].id").type(JsonFieldType.NUMBER).description("ID of the user role").optional(),
 					fieldWithPath("userRoles[].name").type(JsonFieldType.STRING).description("Name of the user role").optional(),

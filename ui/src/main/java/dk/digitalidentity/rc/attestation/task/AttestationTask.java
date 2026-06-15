@@ -1,5 +1,14 @@
 package dk.digitalidentity.rc.attestation.task;
 
+import java.time.LocalDate;
+import java.time.ZoneId;
+import java.util.Date;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.scheduling.annotation.EnableScheduling;
+import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.stereotype.Component;
+
 import dk.digitalidentity.rc.attestation.exception.AttestationDataUpdaterException;
 import dk.digitalidentity.rc.attestation.service.ItSystemUserRolesAttestationService;
 import dk.digitalidentity.rc.attestation.service.ItSystemUsersAttestationService;
@@ -15,16 +24,6 @@ import dk.digitalidentity.rc.service.HistoryService;
 import dk.digitalidentity.rc.service.SettingsService;
 import io.micrometer.core.annotation.Timed;
 import lombok.extern.slf4j.Slf4j;
-import org.flywaydb.core.Flyway;
-import org.flywaydb.core.api.MigrationInfo;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.scheduling.annotation.EnableScheduling;
-import org.springframework.scheduling.annotation.Scheduled;
-import org.springframework.stereotype.Component;
-
-import java.time.LocalDate;
-import java.time.ZoneId;
-import java.util.Date;
 
 @Slf4j
 @Component
@@ -64,14 +63,14 @@ public class AttestationTask {
     @Autowired
     private HistoryService historyService;
 
-    @Autowired
-    private Flyway flyway;
+//    @Autowired
+//    private Flyway flyway;
+
 	@Autowired
 	private UserAssignmentsUpdaterJdbc userAssignmentsUpdaterJdbc;
 
 	@Timed(longTask = true, value = "attestation.finish_outstanding_task.timer")
     @Scheduled(cron = "${rc.attestation.finish_outstanding_cron}")
-//    @Scheduled(fixedDelay = 10000000L)
     public void finishOutstandingAttestations() {
         // This task will look through unfinished attestestations and finish them in case they are done
         if (!configuration.getScheduled().isEnabled()) {
@@ -94,8 +93,8 @@ public class AttestationTask {
 
     @Timed(longTask = true, value = "attestation.attestation_task.timer")
     @Scheduled(cron = "${rc.attestation.attestation_cron}")
-//    @Scheduled(fixedDelay = 10000000L)
-    public void updateAttestation() {
+	//@Scheduled(fixedDelay = 24 * 60 * 60 * 1000)
+	public void updateAttestation() {
         if (!configuration.getScheduled().isEnabled()) {
             return;
         }
@@ -121,13 +120,19 @@ public class AttestationTask {
                 throw new AttestationDataUpdaterException("Cannot update attestation more than once pr. day");
             }
 
-            //if flyway installRank is strictly greater than the last recorded installedRank in settings,
+            /*
+             * KBP i mail til BSG: Tror godt du kan slette den, den kan godt ske at blive relevant igen (den genberegner hashes)
+             * der var en overgang vi ændrede en i tabellerne, men det gør vi ikke mere, så tænker det ok at slette den.
+             *
+             
+            // if flyway installRank is strictly greater than the last recorded installedRank in settings,
             // it updates all the ou hash values but not any other values.
             MigrationInfo[] version = flyway.info().applied();
-            if(version.length > 0 && version[version.length-1].getInstalledRank() > settingsService.getCurrentInstalledRank()) {
+            if (version.length > 0 && version[version.length-1].getInstalledRank() > settingsService.getCurrentInstalledRank()) {
                 ouAssignmentsUpdaterJdbc.updateAllOuHashOnly(now);
                 settingsService.setCurrentInstalledRank(version[version.length-1].getInstalledRank());
             }
+            */
 
             updateAssignments(now);
             updateTrackers(now);

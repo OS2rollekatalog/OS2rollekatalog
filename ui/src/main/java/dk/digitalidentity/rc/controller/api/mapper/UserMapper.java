@@ -20,6 +20,7 @@ public abstract class UserMapper {
                 .name(user.getName())
                 .userId(user.getUserId())
                 .uuid(user.getUuid())
+                .extUuid(user.getExtUuid())
                 .build();
     }
 

@@ -2,7 +2,9 @@ package dk.digitalidentity.rc.controller.rest;
 
 import static dk.digitalidentity.rc.event.AssignmentChangeEventHandler.ASSIGNMENT_UPDATE_QUEUE_IDENTIFIER;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.time.format.DateTimeParseException;
 import java.util.Set;
 
@@ -13,9 +15,6 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import dk.digitalidentity.rc.security.permission.Permission;
-import dk.digitalidentity.rc.security.permission.RequirePermission;
-import dk.digitalidentity.rc.security.permission.Section;
 import dk.digitalidentity.simple_queue.service.QueueService;
 import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
@@ -49,18 +48,24 @@ public class QueueRestController {
 			}
 			return ResponseEntity.noContent().build();
 		}
-		final LocalDateTime since;
+		Instant since;
 		if (sinceParam == null || sinceParam.isEmpty()) {
 			// First poll: capture cut-off on the server so client clock drift
 			// cannot cause a premature "drained" signal. Add 1s buffer so items
 			// enqueued immediately before this call are included even when
 			// createdAt is truncated to second precision by the database.
-			since = LocalDateTime.now().plusSeconds(1);
+			since = Instant.now().plusSeconds(1);
 		} else {
 			try {
-				since = LocalDateTime.parse(sinceParam);
+				since = Instant.parse(sinceParam);
 			} catch (DateTimeParseException e) {
-				return ResponseEntity.badRequest().build();
+				try {
+					since = LocalDateTime.parse(sinceParam)
+						.atZone(ZoneId.of("Europe/Copenhagen"))
+						.toInstant();
+				} catch (DateTimeParseException e2) {
+					return ResponseEntity.badRequest().build();
+				}
 			}
 		}
 		if (queueService.hasActiveItemsOlderThan(queueName, since)) {

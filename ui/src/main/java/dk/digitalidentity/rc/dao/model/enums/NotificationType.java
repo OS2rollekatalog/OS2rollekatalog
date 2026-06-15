@@ -47,6 +47,11 @@ public enum NotificationType {
 			"html.help.settings.notification.newPositionInOu.title",
 			"html.help.settings.notification.newPositionInOu.body"
 	),
+	RETURNING_TITLE_IN_ORG_UNIT(
+			"html.enum.notificationtype.returning_title_in_org_unit",
+			"html.help.settings.notification.returningPositionInOu.title",
+			"html.help.settings.notification.returningPositionInOu.body"
+	),
 	USER_MOVED_POSITIONS(
 			"html.enum.notificationtype.user_moved_positions",
 			"html.help.settings.notification.userWithRightsChangedOu.title",

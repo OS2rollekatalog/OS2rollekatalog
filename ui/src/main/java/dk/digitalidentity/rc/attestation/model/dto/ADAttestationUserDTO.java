@@ -6,6 +6,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDate;
+import java.util.List;
 
 @Data
 @Builder
@@ -16,6 +17,6 @@ public class ADAttestationUserDTO {
 	private String name;
 	private String username;
 	private String responsibleOU;
-	private String responsibleUser;
+	private List<String> responsibleUserNames;
 	private LocalDate verifiedAt;
 }

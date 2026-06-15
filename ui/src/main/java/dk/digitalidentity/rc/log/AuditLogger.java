@@ -1,20 +1,20 @@
 package dk.digitalidentity.rc.log;
 
+import java.util.Date;
+import java.util.Map;
+import java.util.stream.Collectors;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.stereotype.Component;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
+
 import dk.digitalidentity.rc.dao.model.AuditLog;
 import dk.digitalidentity.rc.dao.model.Setting;
 import dk.digitalidentity.rc.dao.model.enums.EntityType;
 import dk.digitalidentity.rc.dao.model.enums.EventType;
 import jakarta.servlet.http.HttpServletRequest;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.saml2.provider.service.authentication.Saml2AuthenticatedPrincipal;
-import org.springframework.stereotype.Component;
-import org.springframework.web.context.request.RequestContextHolder;
-import org.springframework.web.context.request.ServletRequestAttributes;
-
-import java.util.Date;
-import java.util.Map;
-import java.util.stream.Collectors;
 
 @Component
 public class AuditLogger {
@@ -112,11 +112,7 @@ public class AuditLogger {
 	}
 
 	private static String extractPrincipal() {
-		Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-		if (principal instanceof Saml2AuthenticatedPrincipal) {
-			return ((Saml2AuthenticatedPrincipal) principal).getName();
-		}
-		return (String) principal;
+		return (String) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
 	}
 
 	private static String getClientIp() {

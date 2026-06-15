@@ -17,7 +17,12 @@ import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+
+import dk.digitalidentity.rc.attestation.dao.AttestationResponsibleCollectionDao;
 import dk.digitalidentity.rc.attestation.dao.AttestationUserRoleAssignmentDao;
+import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
 import dk.digitalidentity.rc.dao.model.EmailTemplate;
 import dk.digitalidentity.rc.dao.model.RoleGroup;
 import dk.digitalidentity.rc.dao.model.UserRole;
@@ -84,6 +89,9 @@ public class OrganisationAttestationService {
 	private AttestationUserRoleAssignmentDao userRoleAssignmentDao;
 
 	@Autowired
+	private RoleCatalogueConfiguration configuration;
+
+	@Autowired
 	private AttestationOuAssignmentsDao ouAssignmentsDao;
 
 	@Autowired
@@ -139,6 +147,9 @@ public class OrganisationAttestationService {
 	@Autowired
 	private RoleGroupService roleGroupService;
 
+	@Autowired
+	private AttestationResponsibleCollectionDao attestationResponsibleCollectionDao;
+
 	public List<OrgUnit> getAllOrgUnitsWithAttestations(LocalDate when) {
 		final LocalDate since = when.minusMonths(12);
 		return attestationDao.findByAttestationTypeInAndDeadlineIsGreaterThanEqual(List.of(Attestation.AttestationType.ORGANISATION_ATTESTATION, Attestation.AttestationType.MANAGER_DELEGATED_ATTESTATION), since).stream()
@@ -172,6 +183,16 @@ public class OrganisationAttestationService {
 				.collect(Collectors.toList());
 	}
 
+	@Transactional(readOnly = true)
+	public List<OrganisationAttestationDTO> listAllOrganisationsForAttestation(final AttestationRun run) {
+		entityManager.setFlushMode(FlushModeType.COMMIT);
+		return run.getAttestations().stream()
+				.filter(a -> a.getAttestationType() == Attestation.AttestationType.ORGANISATION_ATTESTATION)
+				.map(a -> toShallowOrganisationDto(a.getCreatedAt(), a))
+				.sorted(Comparator.comparing(OrganisationAttestationDTO::getDeadLine).reversed())
+				.collect(Collectors.toList());
+	}
+
 	@Transactional
 	public Stream<OrganisationAttestationDTO> listOrganisationsForAttestation(final AttestationRun run, final User currentUser, final String userUuid) {
 		final List<OrgUnit> orgUnitsForUser = userService.getOptionalByUuid(userUuid)
@@ -182,7 +203,6 @@ public class OrganisationAttestationService {
 				.map(ou -> run.getAttestations().stream().filter(a -> a.getAttestationType() == Attestation.AttestationType.ORGANISATION_ATTESTATION
 						&& ou.getUuid().equals(a.getResponsibleOuUuid())).findFirst().orElse(null))
 				.filter(Objects::nonNull)
-				.filter(o -> o.getVerifiedAt() == null)
 				.map(u -> toShallowOrganisationDto(u.getCreatedAt(), u));
 	}
 
@@ -223,8 +243,9 @@ public class OrganisationAttestationService {
 		final Attestation previousAttestation = attestationDao.findFirstByAttestationTypeAndResponsibleOuUuidAndVerifiedAtIsNotNullOrderByDeadlineDesc(
 				attestationType, orgUnitUuid);
 		final LocalDate previousAttestationDate = previousAttestation != null ? previousAttestation.getVerifiedAt().toLocalDate() : attestation.getCreatedAt();
-		final List<AttestationUserRoleAssignment> temporaryAssignmentsSinceLastAttestation = userRoleAssignmentDao.
-				listAssignmentsWhichHaveBeenValidBetweenByResponsibleOu(previousAttestationDate, attestation.getCreatedAt(), orgUnitUuid);
+		final Page<AttestationUserRoleAssignment> assignmentsPage = userRoleAssignmentDao
+				.listAssignmentsWhichHaveBeenValidBetweenByResponsibleOuLimited(previousAttestationDate, attestation.getCreatedAt(), orgUnitUuid,
+						PageRequest.of(0, configuration.getAttestation().getRoleAssignmentHistoryLimit()));
 		final List<OrgUnitRoleGroupAssignmentDTO> orgUnitRoleGroupAssignments = orgUnitRoleGroups(organisationAssignments);
 		final List<OrgUnitUserRoleAssignmentItSystemDTO> orgUnitUserRoleAssignmentsPrItSystem = orgUnitUserRolesPrItSystem(attestation, organisationAssignments);
 		return markCurrentUserReadonly(currentUserUuid,
@@ -236,7 +257,8 @@ public class OrganisationAttestationService {
 						.ouName(ouName)
 						.ouUuid(orgUnitUuid)
 						.orgUnitRolesVerified(isOrgVerified(attestation, orgUnitRoleGroupAssignments, orgUnitUserRoleAssignmentsPrItSystem))
-						.roleAssignmentsSinceLastAttestation(buildRoleAssignmentChanges(temporaryAssignmentsSinceLastAttestation))
+						.roleAssignmentsSinceLastAttestation(buildRoleAssignmentChanges(assignmentsPage.getContent()))
+						.roleAssignmentsSinceLastAttestationTotalCount(assignmentsPage.getTotalElements())
 						.orgUnitRoleGroupAssignments(orgUnitRoleGroupAssignments)
 						.orgUnitUserRoleAssignmentsPrItSystem(orgUnitUserRoleAssignmentsPrItSystem)
 						.userAttestations(buildUserAttestations(userAssignments, attestation, undecidedUsersOnly, attestation.getCreatedAt()))
@@ -642,6 +664,8 @@ public class OrganisationAttestationService {
 				.createdAt(attestationOrganisation.getCreatedAt())
 				.attestationUuid(attestationOrganisation.getUuid())
 				.ouUuid(attestationOrganisation.getResponsibleOuUuid())
+				.verifiedAt(attestationOrganisation.getVerifiedAt() != null ? attestationOrganisation.getVerifiedAt().toLocalDate() : null)
+				.performedBy(AttestationOverviewService.resolvePerformedBy(attestationOrganisation.getOrganisationUserAttestationEntries(), userService))
 				.ouName(attestationOrganisation.getResponsibleOuName())
 				.orgUnitRolesVerified(isOrgVerified(attestationOrganisation, orgUnitRoleGroupAssignments, orgUnitUserRoleAssignmentsPrItSystem))
 				.deadLine(attestationOrganisation.getDeadline())
@@ -734,7 +758,7 @@ public class OrganisationAttestationService {
 							otherDepartmentAssignments.stream().filter(a -> a.getRoleGroupId() != null)).toList();
 					// Inherited OU assignments and assignments where the it-system responsible is responsible should go into doNotVerify..
 					final List<UserRoleItSystemDTO> doNotVerifyUserRolesPrItSystem = userRolesPrItSystem(u.userUuid, otherRoles,
-							a -> ((a.getAssignedThroughType() == AssignedThroughType.ORGUNIT && a.isInherited()) || a.getResponsibleUserUuid() != null));
+							a -> ((a.getAssignedThroughType() == AssignedThroughType.ORGUNIT && a.isInherited()) || a.getResponsibleCollectionId() != null));
 					final List<RoleGroupDTO> doNotVerifyRoleGroups = userRoleGroups(u.userUuid, otherRoleGroups,
 							a -> a.getAssignedThroughType() == AssignedThroughType.ORGUNIT && a.isInherited());
 
@@ -888,8 +912,12 @@ public class OrganisationAttestationService {
 						.assignedThrough(a.getAssignedThroughType() != null
 								? AssignedThroughAttestation.valueOf(a.getAssignedThroughType().name())
 								: null)
-						.responsible(a.getResponsibleUserUuid() != null ?
-								attestationUserService.userNameFromUuidCached(a.getResponsibleUserUuid()) : null)
+						.responsible(a.getResponsibleCollectionId() != null
+								? attestationResponsibleCollectionDao.findById(a.getResponsibleCollectionId())
+								  .map(r -> r.getUsersUuid().stream().map(attestationUserService::userNameFromUuidCached).collect(Collectors.toList()))
+								  .orElse(Collections.emptyList())
+							    : Collections.emptyList()
+						)
 						.postponedConstraints(a.getPostponedConstraints())
 						.build())
 				.collect(Collectors.toList());

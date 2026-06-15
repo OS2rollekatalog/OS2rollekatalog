@@ -80,9 +80,9 @@ public class OuAssignmentsUpdaterJdbc {
         boolean inherited = h.getAssignedThroughType() == AssignedThrough.ORGUNIT
                 && !Objects.equals(h.getAssignedThroughUuid(), h.getOuUuid());
 
-        String responsibleOuUuid = !inherited && h.getResponsibleUserUuid() == null
+        String responsibleOuUuid = !inherited && h.getResponsibleCollectionId() == null
                 ? h.getAssignedThroughUuid() : null;
-        String responsibleOuName = !inherited && h.getResponsibleUserUuid() == null
+        String responsibleOuName = !inherited && h.getResponsibleCollectionId() == null
                 ? h.getAssignedThroughName() : null;
 
         List<String> titleUuids     = exclusionsOfType(h, HistoricOuAssignmentExclusion.ExclusionType.POSITIVE_TITLES);
@@ -99,7 +99,7 @@ public class OuAssignmentsUpdaterJdbc {
                 .roleGroupDescription(h.getRoleGroupDescription())
                 .ouUuid(h.getOuUuid())
                 .ouName(h.getOuName())
-                .responsibleUserUuid(h.getResponsibleUserUuid())
+                .responsibleCollectionId(h.getResponsibleCollectionId())
                 .responsibleOuUuid(responsibleOuUuid)
                 .responsibleOuName(responsibleOuName)
                 .titleUuids(titleUuids)

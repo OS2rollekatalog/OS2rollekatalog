@@ -52,6 +52,7 @@
 													<th>Rollenavn</th>
 													<th>Anmodningstype</th>
 													<th>Status</th>
+													<th th:text="#{requestmodule.html.pending.table.header.approver}"></th>
 													<th th:text="#{html.control.operations}" style="width: 160px;"></th>
 												</tr>
 												</thead>
@@ -62,6 +63,7 @@
 													<td  th:text="${request.roleName}"></td>
 													<td class="col-sm-2" th:text="#{${request.action}}"></td>
 													<td class="col-sm-2" th:text="#{${request.status}}"></td>
+													<td th:text="${request.approver}"></td>
 													<td style="width: 160px;">
 														<button th:if="${request.cancelable}" class="btn btn-danger"
 																th:text="#{requestmodule.html.cancelRequest}"

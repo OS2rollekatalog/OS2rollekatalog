@@ -1,5 +1,6 @@
 package dk.digitalidentity.rc.service.assignment;
 
+import dk.digitalidentity.rc.attestation.dao.AttestationResponsibleCollectionDao;
 import dk.digitalidentity.rc.dao.assignment.HistoricAssignmentDao;
 import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.assignment.CurrentAssignment;
@@ -23,12 +24,28 @@ import java.util.stream.Stream;
 public class HistoricAssignmentService {
 
 	private final HistoricAssignmentDao historicAssignmentDao;
+	private final AttestationResponsibleCollectionDao attestationResponsibleCollectionDao;
 
 	@Transactional
 	public void createFromCurrentAssignments(Set<CurrentAssignment> currentAssignments) {
-		Set<HistoricAssignment> historicAssignments = currentAssignments.stream()
-			.map(HistoricAssignmentMapper::createFromCurrentAssignment)
-			.collect(Collectors.toSet());
+		// empty role groups (no JFRs) produce roleGroup-only rows with no userRole/itSystem; they grant no
+		// access and are not snapshotted for attestation
+		// Pre-build a per-itSystemId → collectionId cache so we do one DB lookup per IT system, not one per assignment.
+		// Use a HashMap explicitly so null values are permitted (most IT systems have no collection).
+		Map<Long, Long> collectionIdByItSystem = new java.util.HashMap<>();
+		currentAssignments.stream()
+			.filter(ca -> ca.getUserRole() != null)
+			.map(ca -> ca.getItSystem().getId())
+			.distinct()
+			.forEach(id -> collectionIdByItSystem.put(
+				id,
+				attestationResponsibleCollectionDao.findFirstByItSystemId(id).map(c -> c.getId()).orElse(null)
+			));
+
+		List<HistoricAssignment> historicAssignments = currentAssignments.stream()
+			.filter(ca -> ca.getUserRole() != null)
+			.map(ca -> HistoricAssignmentMapper.createFromCurrentAssignment(ca, collectionIdByItSystem.get(ca.getItSystem().getId())))
+			.toList();
 
 		historicAssignmentDao.saveAll(historicAssignments);
 	}
@@ -122,5 +139,21 @@ public class HistoricAssignmentService {
 		LocalDateTime startOfDay = date.atStartOfDay();
 		LocalDateTime endOfDay = date.atTime(23, 59, 59, 999999999);
 		return historicAssignmentDao.streamActiveAtDateAndItSystemIdIn(startOfDay, endOfDay, itSystemIds);
+	}
+
+	public List<HistoricAssignment> findValidGroupByResponsibleCollectionIdAndUserUuidAndSensitiveRoleAndItSystem(LocalDate when) {
+		return historicAssignmentDao.findValidGroupByResponsibleCollectionIdAndUserUuidAndSensitiveRoleAndItSystem(when.plusDays(1).atStartOfDay());
+	}
+
+	public List<HistoricAssignment> findValidGroupByResponsibleCollectionIdAndSensitiveRole(LocalDate when) {
+		return historicAssignmentDao.findValidGroupByResponsibleCollectionIdAndSensitiveRole(when.plusDays(1).atStartOfDay());
+	}
+
+	public List<HistoricAssignment> findValidGroupByResponsibleOuAndUserUuidAndSensitiveRole(LocalDate when) {
+		return historicAssignmentDao.findValidGroupByResponsibleOuAndUserUuidAndSensitiveRole(when.plusDays(1).atStartOfDay());
+	}
+
+	public List<HistoricAssignment> findValidGroupByResponsibleOuUuidAndSensitiveRole(LocalDate when) {
+		return historicAssignmentDao.findValidGroupByResponsibleOuUuidAndSensitiveRole(when.plusDays(1).atStartOfDay());
 	}
 }

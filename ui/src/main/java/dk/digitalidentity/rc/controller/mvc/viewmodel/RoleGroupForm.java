@@ -23,7 +23,7 @@ public class RoleGroupForm {
 
 	private List<RequestableBy> requesterPermission = List.of(RequestableBy.INHERIT);
 
-	private List<ApprovableBy> approverPermission = List.of();
+	private List<ApprovableBy> approverPermission = List.of(ApprovableBy.INHERIT);
 
 	@Size(max = 4000)
 	private String description;

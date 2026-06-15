@@ -26,6 +26,10 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockedStatic;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
+import org.springframework.context.MessageSource;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.List;
 import java.util.Optional;
@@ -42,6 +46,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
+@MockitoSettings(strictness = Strictness.LENIENT)
 class RequestServiceTest {
 
 	@Mock
@@ -62,14 +67,22 @@ class RequestServiceTest {
 	@Mock
 	private SettingsService settingsService;
 
+	@Mock
+	private MessageSource messageSource;
+
 	@InjectMocks
 	private RequestService requestService;
 
+	private ApproverOptionService approverOptionService;
+	private RequestApproverResolver requestApproverResolver;
 	private MockedStatic<SecurityUtil> securityUtilMock;
 
 	@BeforeEach
 	void setUp() {
 		securityUtilMock = mockStatic(SecurityUtil.class);
+		approverOptionService = new ApproverOptionService(settingsService, messageSource);
+		requestApproverResolver = new RequestApproverResolver(approverOptionService, requestAuthorizedRoleService, orgUnitService, itSystemService, settingsService);
+		ReflectionTestUtils.setField(requestService, "requestApproverResolver", requestApproverResolver);
 	}
 
 	@AfterEach
@@ -1378,11 +1391,11 @@ class RequestServiceTest {
 			void returnsTrueWhenUserIsSystemResponsible() {
 				// Arrange
 				ItSystem itSystem = createItSystem("it-system-uuid", List.of(), List.of());
-				itSystem.setAttestationResponsible(loggedInUser);
 				UserRole userRole = createUserRole("role-uuid", itSystem, List.of(ApprovableBy.SYSTEMRESPONSIBLE), List.of());
 				RoleRequest request = createRoleRequest(receivingUser, receiversOrgUnit, userRole);
 
 				when(userService.getByUserId("logged-in-user-id")).thenReturn(loggedInUser);
+				when(itSystemService.getAttestationResponsibleUserIds(itSystem)).thenReturn(List.of(loggedInUser.getUserId()));
 
 				// Act
 				boolean result = requestService.canApprove(request);
@@ -1395,13 +1408,12 @@ class RequestServiceTest {
 			@DisplayName("Returns false when user is not system responsible for the IT system")
 			void returnsFalseWhenUserIsNotSystemResponsible() {
 				// Arrange
-				User differentUser = createUser("different-user-uuid");
 				ItSystem itSystem = createItSystem("it-system-uuid", List.of(), List.of());
-				itSystem.setAttestationResponsible(differentUser);
 				UserRole userRole = createUserRole("role-uuid", itSystem, List.of(ApprovableBy.SYSTEMRESPONSIBLE), List.of());
 				RoleRequest request = createRoleRequest(receivingUser, receiversOrgUnit, userRole);
 
 				when(userService.getByUserId("logged-in-user-id")).thenReturn(loggedInUser);
+				when(itSystemService.getAttestationResponsibleUserIds(itSystem)).thenReturn(List.of("different-user-id"));
 				when(orgUnitService.getByAuthorizationManagerMatchingUser(loggedInUser)).thenReturn(List.of());
 
 				// Act
@@ -1540,7 +1552,7 @@ class RequestServiceTest {
 
 				loggedInUser.setManagerSubstitutes(List.of());
 				when(userService.getByUserId("logged-in-user-id")).thenReturn(loggedInUser);
-				when(orgUnitService.getManager(receiversOrgUnit)).thenReturn(loggedInUser);
+				when(orgUnitService.getEffectiveApprover(receiversOrgUnit, receivingUser)).thenReturn(new OrgUnitService.EffectiveApprover(loggedInUser, receiversOrgUnit));
 
 				// Act
 				boolean result = requestService.canApprove(request);
@@ -1564,12 +1576,13 @@ class RequestServiceTest {
 				// Create ManagerSubstitute entry where loggedInUser IS the substitute
 				ManagerSubstitute substituteEntry = mock(ManagerSubstitute.class);
 				when(substituteEntry.getSubstitute()).thenReturn(loggedInUser);
+				when(substituteEntry.getOrgUnit()).thenReturn(receiversOrgUnit);
 
 				// The manager has loggedInUser as a substitute
 				when(managerOfReceiversOrgUnit.getManagerSubstitutes()).thenReturn(List.of(substituteEntry));
 
 				when(userService.getByUserId("logged-in-user-id")).thenReturn(loggedInUser);
-				when(orgUnitService.getManager(receiversOrgUnit)).thenReturn(managerOfReceiversOrgUnit);
+				when(orgUnitService.getEffectiveApprover(receiversOrgUnit, receivingUser)).thenReturn(new OrgUnitService.EffectiveApprover(managerOfReceiversOrgUnit, receiversOrgUnit));
 
 				// Act
 				boolean result = requestService.canApprove(request);
@@ -1590,7 +1603,7 @@ class RequestServiceTest {
 				when(differentManager.getUserId()).thenReturn("different-manager-id");
 
 				when(userService.getByUserId("logged-in-user-id")).thenReturn(loggedInUser);
-				when(orgUnitService.getManager(receiversOrgUnit)).thenReturn(differentManager);
+				when(orgUnitService.getEffectiveApprover(receiversOrgUnit, receivingUser)).thenReturn(new OrgUnitService.EffectiveApprover(differentManager, receiversOrgUnit));
 				when(differentManager.getManagerSubstitutes()).thenReturn(List.of());
 
 				// Act
@@ -1623,7 +1636,7 @@ class RequestServiceTest {
 				when(managerOfReceiversOrgUnit.getManagerSubstitutes()).thenReturn(List.of(substituteEntry));
 
 				when(userService.getByUserId("logged-in-user-id")).thenReturn(loggedInUser);
-				when(orgUnitService.getManager(receiversOrgUnit)).thenReturn(managerOfReceiversOrgUnit);
+				when(orgUnitService.getEffectiveApprover(receiversOrgUnit, receivingUser)).thenReturn(new OrgUnitService.EffectiveApprover(managerOfReceiversOrgUnit, receiversOrgUnit));
 
 				// Act
 				boolean result = requestService.canApprove(request);
@@ -1649,12 +1662,63 @@ class RequestServiceTest {
 				loggedInUser.setUserId("logged-in-user-id");
 
 				when(userService.getByUserId("logged-in-user-id")).thenReturn(loggedInUser);
-				when(orgUnitService.getManager(receiversOrgUnit)).thenReturn(someOtherManager);
+				when(orgUnitService.getEffectiveApprover(receiversOrgUnit, receivingUser)).thenReturn(new OrgUnitService.EffectiveApprover(someOtherManager, receiversOrgUnit));
 
 				// Act
 				boolean result = requestService.canApprove(request);
 
 				// Assert
+				assertThat(result).isFalse();
+			}
+
+			@Test
+			@DisplayName("Returns false when receiver is their own OU manager and getEffectiveApprover returns null (top-of-tree)")
+			void returnsFalseWhenReceiverIsTopOfTreeManager() {
+				// Arrange
+				ItSystem itSystem = createItSystem("it-system-uuid", List.of(), List.of());
+				UserRole userRole = createUserRole("role-uuid", itSystem, List.of(ApprovableBy.MANAGERORSUBSTITUTE), List.of());
+				RoleRequest request = createRoleRequest(receivingUser, receiversOrgUnit, userRole);
+
+				when(userService.getByUserId("logged-in-user-id")).thenReturn(loggedInUser);
+				// receiver is manager of the only OU — walk returns null
+				when(orgUnitService.getEffectiveApprover(receiversOrgUnit, receivingUser)).thenReturn(null);
+
+				// Act
+				boolean result = requestService.canApprove(request);
+
+				// Assert
+				assertThat(result).isFalse();
+			}
+
+			@Test
+			@DisplayName("Returns false when user is substitute on a different OU than where effective approver was found")
+			void returnsFalseWhenSubstituteOuDoesNotMatchResolvedOu() {
+				// Arrange
+				ItSystem itSystem = createItSystem("it-system-uuid", List.of(), List.of());
+				UserRole userRole = createUserRole("role-uuid", itSystem, List.of(ApprovableBy.MANAGERORSUBSTITUTE), List.of());
+				RoleRequest request = createRoleRequest(receivingUser, receiversOrgUnit, userRole);
+
+				User managerOfReceiversOrgUnit = mock(User.class);
+				when(managerOfReceiversOrgUnit.getUserId()).thenReturn("receivers-manager-id");
+
+				OrgUnit differentOu = createOrgUnit("different-ou-uuid", null);
+
+				ManagerSubstitute substituteEntry = mock(ManagerSubstitute.class);
+				when(substituteEntry.getSubstitute()).thenReturn(loggedInUser);
+				// substitute is registered on a different OU, not the resolved one
+				when(substituteEntry.getOrgUnit()).thenReturn(differentOu);
+
+				when(managerOfReceiversOrgUnit.getManagerSubstitutes()).thenReturn(List.of(substituteEntry));
+
+				when(userService.getByUserId("logged-in-user-id")).thenReturn(loggedInUser);
+				when(orgUnitService.getEffectiveApprover(receiversOrgUnit, receivingUser))
+					.thenReturn(new OrgUnitService.EffectiveApprover(managerOfReceiversOrgUnit, receiversOrgUnit));
+				when(orgUnitService.getByAuthorizationManagerMatchingUser(loggedInUser)).thenReturn(List.of());
+
+				// Act
+				boolean result = requestService.canApprove(request);
+
+				// Assert — substitute registered on wrong OU must not grant approval
 				assertThat(result).isFalse();
 			}
 		}
@@ -1671,15 +1735,15 @@ class RequestServiceTest {
 			}
 
 			@Test
-			@DisplayName("Returns true when user is AuthorizationResponsible")
-			void returnsTrueWhenUserIsAuthResponsible() {
+			@DisplayName("Returns true when user is AuthorizationResponsible for the receiver's OU")
+			void returnsTrueWhenUserIsAuthResponsibleForReceiversOu() {
 				// Arrange
 				ItSystem itSystem = createItSystem("it-system-uuid", List.of(), List.of());
 				UserRole userRole = createUserRole("role-uuid", itSystem, List.of(ApprovableBy.AUTHRESPONSIBLE), List.of());
 				RoleRequest request = createRoleRequest(receivingUser, receiversOrgUnit, userRole);
 
 				when(userService.getByUserId("logged-in-user-id")).thenReturn(loggedInUser);
-				when(orgUnitService.getByAuthorizationManagerMatchingUser(loggedInUser)).thenReturn(List.of(receiversOrgUnit));
+				when(orgUnitService.isAuthorizationManagerFor(loggedInUser, receivingUser)).thenReturn(true);
 
 				// Act
 				boolean result = requestService.canApprove(request);
@@ -1689,7 +1753,7 @@ class RequestServiceTest {
 			}
 
 			@Test
-			@DisplayName("Returns false when user is not AuthorizationResponsible")
+			@DisplayName("Returns false when user is not AuthorizationResponsible anywhere")
 			void returnsFalseWhenUserIsNotAuthResponsible() {
 				// Arrange
 				ItSystem itSystem = createItSystem("it-system-uuid", List.of(), List.of());
@@ -1697,7 +1761,29 @@ class RequestServiceTest {
 				RoleRequest request = createRoleRequest(receivingUser, receiversOrgUnit, userRole);
 
 				when(userService.getByUserId("logged-in-user-id")).thenReturn(loggedInUser);
-				when(orgUnitService.getByAuthorizationManagerMatchingUser(loggedInUser)).thenReturn(List.of());
+				when(orgUnitService.isAuthorizationManagerFor(loggedInUser, receivingUser)).thenReturn(false);
+
+				// Act
+				boolean result = requestService.canApprove(request);
+
+				// Assert
+				assertThat(result).isFalse();
+			}
+
+			@Test
+			@DisplayName("Returns false when user is AuthorizationResponsible only for a different OU than the receiver's")
+			void returnsFalseWhenUserIsAuthResponsibleForDifferentOuThanReceiver() {
+				// Approver is auth-manager somewhere (any-OU lookup returns hits), but not on any OU the receiver
+				// has a position in. The scoped lookup must drive the decision; if the implementation regresses
+				// to the unscoped getByAuthorizationManagerMatchingUser, this test catches it.
+				ItSystem itSystem = createItSystem("it-system-uuid", List.of(), List.of());
+				UserRole userRole = createUserRole("role-uuid", itSystem, List.of(ApprovableBy.AUTHRESPONSIBLE), List.of());
+				RoleRequest request = createRoleRequest(receivingUser, receiversOrgUnit, userRole);
+				OrgUnit otherOrgUnit = createOrgUnit("other-orgunit-uuid", null);
+
+				when(userService.getByUserId("logged-in-user-id")).thenReturn(loggedInUser);
+				when(orgUnitService.isAuthorizationManagerFor(loggedInUser, receivingUser)).thenReturn(false);
+				when(orgUnitService.getByAuthorizationManagerMatchingUser(loggedInUser)).thenReturn(List.of(otherOrgUnit));
 
 				// Act
 				boolean result = requestService.canApprove(request);

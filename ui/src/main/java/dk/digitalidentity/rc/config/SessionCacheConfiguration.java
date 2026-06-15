@@ -5,6 +5,7 @@ import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
@@ -18,7 +19,7 @@ import jakarta.servlet.Filter;
 import jakarta.servlet.http.HttpServletRequest;
 
 @Configuration
-@EnableJdbcHttpSession(maxInactiveIntervalInSeconds = 14400) // 4 hours
+@EnableJdbcHttpSession(maxInactiveIntervalInSeconds = 14400, cleanupCron = Scheduled.CRON_DISABLED) // 4 hours
 public class SessionCacheConfiguration {
 
 	@Bean

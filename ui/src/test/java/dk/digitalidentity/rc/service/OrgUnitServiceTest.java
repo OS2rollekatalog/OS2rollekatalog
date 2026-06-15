@@ -1,5 +1,7 @@
 package dk.digitalidentity.rc.service;
 
+import static dk.digitalidentity.rc.mockfactory.rolerequest.MockFactory.createOrgUnit;
+import static dk.digitalidentity.rc.mockfactory.rolerequest.MockFactory.createUser;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.ArrayList;
@@ -97,6 +99,75 @@ class OrgUnitServiceTest {
 		assertThat(service.isAuthorizationManagerFor(requester, receiver)).isFalse();
 	}
 
+	@Test
+	@DisplayName("getEffectiveApprover returns OU manager when receiver is null")
+	void effectiveApproverNoReceiver() {
+		User manager = createUser("mgr");
+		OrgUnit ou = createOrgUnit("ou-a", null, manager);
+
+		OrgUnitService.EffectiveApprover result = service.getEffectiveApprover(ou, null);
+
+		assertThat(result).isNotNull();
+		assertThat(result.manager()).isEqualTo(manager);
+		assertThat(result.orgUnit()).isEqualTo(ou);
+	}
+
+	@Test
+	@DisplayName("getEffectiveApprover returns OU manager when receiver is someone else")
+	void effectiveApproverDifferentReceiver() {
+		User manager = createUser("mgr");
+		User receiver = createUser("rec");
+		OrgUnit ou = createOrgUnit("ou-a", null, manager);
+
+		OrgUnitService.EffectiveApprover result = service.getEffectiveApprover(ou, receiver);
+
+		assertThat(result).isNotNull();
+		assertThat(result.manager()).isEqualTo(manager);
+	}
+
+	@Test
+	@DisplayName("getEffectiveApprover skips OU when receiver is the manager and walks to parent")
+	void effectiveApproverSelfSkip() {
+		User parentManager = createUser("parent-mgr");
+		OrgUnit parent = createOrgUnit("parent", null, parentManager);
+
+		User receiver = createUser("rec");
+		OrgUnit child = createOrgUnit("child", parent, receiver);
+
+		OrgUnitService.EffectiveApprover result = service.getEffectiveApprover(child, receiver);
+
+		assertThat(result).isNotNull();
+		assertThat(result.manager()).isEqualTo(parentManager);
+		assertThat(result.orgUnit()).isEqualTo(parent);
+	}
+
+	@Test
+	@DisplayName("getEffectiveApprover returns null when all levels are self-managed (top-of-tree)")
+	void effectiveApproverTopOfTree() {
+		User receiver = createUser("rec");
+		OrgUnit ou = createOrgUnit("ou-a", null, receiver);
+
+		OrgUnitService.EffectiveApprover result = service.getEffectiveApprover(ou, receiver);
+
+		assertThat(result).isNull();
+	}
+
+	@Test
+	@DisplayName("getEffectiveApprover skips OU without manager and keeps walking up")
+	void effectiveApproverSkipsOuWithoutManager() {
+		User grandparentManager = createUser("gp-mgr");
+		OrgUnit grandparent = createOrgUnit("grandparent", null, grandparentManager);
+		OrgUnit parent = createOrgUnit("parent", grandparent);
+
+		User receiver = createUser("rec");
+		OrgUnit child = createOrgUnit("child", parent, receiver);
+
+		OrgUnitService.EffectiveApprover result = service.getEffectiveApprover(child, receiver);
+
+		assertThat(result).isNotNull();
+		assertThat(result.manager()).isEqualTo(grandparentManager);
+	}
+
 	// ---- helpers ---- //
 
 	private static User user(String uuid) {
@@ -132,4 +203,5 @@ class OrgUnitServiceTest {
 		ou.setAuthorizationManagers(managers);
 		return ou;
 	}
+
 }

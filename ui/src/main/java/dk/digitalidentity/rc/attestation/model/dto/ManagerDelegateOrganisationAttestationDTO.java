@@ -31,4 +31,5 @@ public class ManagerDelegateOrganisationAttestationDTO {
     @Builder.Default
     private Set<String> associatedManagerNames = new HashSet<>();
     private LocalDate verifiedAt;
+    private String performedBy;
 }

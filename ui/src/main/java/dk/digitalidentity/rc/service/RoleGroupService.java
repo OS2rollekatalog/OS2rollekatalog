@@ -55,6 +55,7 @@ public class RoleGroupService {
 		return false;
 	}
 
+	@Transactional
 	@AuditLogIntercepted
 	public RoleGroup save(RoleGroup roleGroup) {
 		return roleGroupDao.save(roleGroup);

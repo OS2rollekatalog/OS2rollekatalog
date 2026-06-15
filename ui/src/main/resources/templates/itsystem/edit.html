@@ -54,6 +54,17 @@
 									</div>
 								</div>
 							</fieldset>
+
+							<fieldset>
+								<div class="form-group">
+									<label class="col-sm-2 col-xs-12 control-label" th:text="#{html.entity.itsystem.advisEmail}"></label>
+									<div class="col-sm-8 col-xs-11">
+										<input th:field="*{advisEmail}" class="form-control" />
+										<em class="icon-question" data-toggle="popover" data-trigger="click" data-placement="top" data-container="body" style="position: absolute; top: 10px; right: -20px;" th:attr="data-content=#{html.entity.itsystem.advisEmail.help}"></em>
+										<span id="advisEmailValidationFail" class="text-danger" style="display:none" th:text="#{html.errors.itsystem.email.notemail}"></span>
+									</div>
+								</div>
+							</fieldset>
                         <fieldset>
                             <div class="form-group">
                                 <label class="col-sm-2 control-label"
@@ -97,44 +108,37 @@
                         </fieldset>
 
                         <fieldset>
-                            <input id="selectedAttestationResponsibleUuid" th:value="${attestationResponsibleUuid}"
-                                   hidden>
                             <div class="form-group">
 									<label class="col-sm-2 control-label">
 										<span th:text="#{html.entity.itsystem.attestationResponsible}"></span>
-										<em th:if="${kitosITSystemId != null && (attestationResponsibleUuid == null || attestationResponsibleUuid == '')}" class="fa fa-warning text-warning" th:title="#{html.entity.itsystem.attestationResponsible.kitosError}"></em>
+										<em th:if="${kitosITSystemId != null && #lists.isEmpty(attestationResponsibleSelections)}" class="fa fa-warning text-warning" th:title="#{html.entity.itsystem.attestationResponsible.kitosError}"></em>
 									</label>
 									<div class="col-sm-8">
-
-										<div class="input-group" th:if="${kitosITSystemId == null}">
-											<input class="form-control" id="search_person" th:value="${attestationResponsibleName}" onclick="return false;"/>
-											<span class="input-group-addon removeAttestationResponsibleBtn" onclick="itSystemService.handleRemoveAttestationResponsible()">
-												<span style="color: red;" class="fa fa-times"></span>
-											</span>
-										</div>
-
-										<input th:unless="${kitosITSystemId == null}" disabled="disabled" class="form-control" id="search_person" th:value="${attestationResponsibleName}" onclick="return false;"/>
+										<select id="attestationResponsibleSelect" class="form-control" multiple="multiple"
+												th:disabled="${kitosITSystemId != null}" style="width:100%">
+											<option th:each="sel : ${attestationResponsibleSelections}"
+													th:value="${sel['id']}"
+													th:text="${sel['text']}"
+													selected="selected"></option>
+										</select>
                                 </div>
                             </div>
                         </fieldset>
 
                         <fieldset>
-                            <input id="selectedSystemOwnerUuid" th:value="${systemOwnerUuid}" hidden>
                             <div class="form-group">
 									<label class="col-sm-2 control-label">
 										<span th:text="#{html.entity.itsystem.systemOwner}"></span>
-										<em th:if="${kitosITSystemId != null && (systemOwnerUuid == null OR systemOwnerUuid == '')}" class="fa fa-warning text-warning" th:title="#{html.entity.itsystem.systemOwner.kitosError}"></em>
+										<em th:if="${kitosITSystemId != null && #lists.isEmpty(systemOwnerSelections)}" class="fa fa-warning text-warning" th:title="#{html.entity.itsystem.systemOwner.kitosError}"></em>
 									</label>
 									<div class="col-sm-8">
-
-										<div class="input-group" th:if="${kitosITSystemId == null}">
-											<input class="form-control" id="search_person_system" th:value="${systemOwnerName}" onclick="return false;"/>
-											<span class="input-group-addon removeSystemOwnerBtn" onclick="itSystemService.handleRemoveSystemOwner()">
-												<span style="color: red;" class="fa fa-times"></span>
-											</span>
-                                    </div>
-
-										<input th:unless="${kitosITSystemId == null}" disabled="disabled" class="form-control" id="search_person_system" th:value="${systemOwnerName}" onclick="return false;"/>
+										<select id="systemOwnerSelect" class="form-control" multiple="multiple"
+												th:disabled="${kitosITSystemId != null}" style="width:100%">
+											<option th:each="sel : ${systemOwnerSelections}"
+													th:value="${sel['id']}"
+													th:text="${sel['text']}"
+													selected="selected"></option>
+										</select>
                                 </div>
                             </div>
                         </fieldset>
@@ -1277,16 +1281,8 @@
 
 <nav th:replace="~{fragments/footer :: footer}"></nav>
 <script th:replace="~{fragments/datatables :: datatables}"></script>
-<!--/* Number of parameters has to match in searchFieldIds and uuidFieldIds */-->
-<script th:replace="~{itsystem/fragments/autocomplete_service :: autocompleteServiceScript(searchFieldIds=${ {'search_person','search_person_system'} }, uuidFieldIds=${ {'selectedAttestationResponsibleUuid', 'selectedSystemOwnerUuid'} })}"></script>
 
 <style>
-    .autocomplete-suggestions { border: 1px solid #999; background: #FFF; overflow: auto; width: 500px !important; }
-    .autocomplete-suggestion { padding: 2px 5px; white-space: nowrap; overflow: hidden; }
-    .autocomplete-selected { background: #F0F0F0; }
-    .autocomplete-suggestions strong { font-weight: normal; color: #3399FF; }
-    .autocomplete-group { padding: 2px 5px; }
-    .autocomplete-group strong { display: block; border-bottom: 1px solid #000; }
 
     .table .checkbox {
         margin-left: 10px;
@@ -1341,6 +1337,7 @@
      var url = [[@{/ui/itsystem/edit/}]] + itsystemId;
      var nameUrl = [[@{/rest/itsystem/name}]];
      var emailUrl = [[@{/rest/itsystem/email}]];
+     var advisEmailUrl = [[@{/rest/itsystem/advisemail}]];
      var notificationEmailUrl = [[@{/rest/itsystem/notificationemail}]];
 					var kitosITSystemUrl = [[@{/rest/itsystem/kitositsystem}]];
      var pausedUrl = [[@{/rest/itsystem/paused}]];
@@ -1358,6 +1355,7 @@
 
      $("#name").change(handleChangeOnInput);
      $("#email").change(handleChangeOnInputEmail);
+     $("#advisEmail").change(handleChangeOnInputAdvisEmail);
      $("#notificationEmail").change(handleChangeOnInputNotificationEmail);
      $("#notes").change(handleChangeOnInputNotes);
      $("#paused-checkbox").change(handleChangeOnPaused);
@@ -1375,8 +1373,8 @@
      $('.sensitive-checkbox').change(handleUserroleChange);
      $('.extra-sensitive-checkbox').change(handleUserroleChange);
      $(".roleAssignmentAttestationByAttestationResponsible-checkbox").change(handleUserroleChange);
-     $("#selectedAttestationResponsibleUuid").change(itSystemService.handleChangeOnInputAttestationResponsible);
-     $("#selectedSystemOwnerUuid").change(itSystemService.handleChangeOnInputSystemOwner);
+     initPersonSelect2("#attestationResponsibleSelect", attestationResponsibleUrl, itsystemId);
+     initPersonSelect2("#systemOwnerSelect", systemOwnerUrl, itsystemId);
 			$("#kitosItSystemSelector").change(handleChangeOnKitosITSystem);
 
 			$("#kitosItSystemSelector").select2({
@@ -1566,6 +1564,35 @@
              },
              success: function(response) {
                  $("#emailValidationFail").hide();
+                 $.notify({
+                     message: fieldUpdatedMsg
+                 },{
+                     status: 'success',
+                     autoHideDelay: 2000
+                 });
+             }
+         });
+     }
+
+     function handleChangeOnInputAdvisEmail() {
+         var objAdvisEmail = $("#advisEmail").val();
+
+         $.ajax({
+             url: advisEmailUrl,
+             method: 'POST',
+             data: {
+                 'email': objAdvisEmail,
+                 'id': itsystemId
+             },
+             headers: {
+                 'X-CSRF-TOKEN': token
+             },
+             error: function(response) {
+                 $("#advisEmailValidationFail").show();
+                 errorHandler(fieldNotUpdatedEmailMsg)(response);
+             },
+             success: function(response) {
+                 $("#advisEmailValidationFail").hide();
                  $.notify({
                      message: fieldUpdatedMsg
                  },{
@@ -1955,6 +1982,50 @@
 
 });
 
+    function initPersonSelect2(selector, saveUrl, itsystemId) {
+        /*[+
+        var personSearchUrl = [[@{/rest/manager/substitute/search/person}]];
+        +]*/
+        $(selector).select2({
+            placeholder: "",
+            allowClear: true,
+            multiple: true,
+            ajax: {
+                url: personSearchUrl,
+                dataType: 'json',
+                delay: 250,
+                data: function(params) {
+                    return { query: params.term || '' };
+                },
+                processResults: function(data) {
+                    return {
+                        results: (data.suggestions || []).map(function(s) {
+                            return { id: s.data, text: s.value };
+                        })
+                    };
+                },
+                cache: true
+            }
+        });
+        $(selector).on('change', function() {
+            var uuids = $(selector).val() || [];
+            $.ajax({
+                url: saveUrl,
+                method: 'POST',
+                data: {
+                    'id': itsystemId,
+                    'uuids': uuids
+                },
+                traditional: true,
+                headers: { 'X-CSRF-TOKEN': token },
+                error: errorHandler(fieldNotUpdatedMsg),
+                success: function() {
+                    $.notify({ message: fieldUpdatedMsg }, { status: 'success', autoHideDelay: 2000 });
+                }
+            });
+        });
+    }
+
     function newAdRole() {
         if (readonly) {
             return;
@@ -2081,9 +2152,9 @@
      /*[+
      var deleteURI = [[@{/rest/itsystem/userrole/unused/{itsystem}(itsystem=${itsystem.id})}]];
      var unusedCount = [[${unusedCount}]];
-				var titleTxt = [[#{html.section.itsystem.unused.userrole.delete.confirm.title}]];
-				var bodyTxt = [[#{html.section.itsystem.unused.userrole.delete.confirm.body(${unusedCount})}]];
-				var norolesBodyText = [[#{html.section.itsystem.unused.userrole.delete.confirm.norolesbody}]];
+	 var titleTxt = [[#{html.entity.itsystem.unused.userrole.delete.confirm.title}]];
+	 var bodyTxt = [[#{html.entity.itsystem.unused.userrole.delete.confirm.body(${unusedCount})}]];
+	 var norolesBodyText = [[#{html.entity.itsystem.unused.userrole.delete.confirm.norolesbody}]];
      var cancelTxt = [[#{html.control.button.cancel}]];
      var confirmTxt = [[#{html.control.button.delete}]];
 				var rolesNotDeletedMsg = [[#{html.section.itsystem.rolesnotdeletedmsg}]];
@@ -2344,48 +2415,6 @@
 
 
  function ITSystemService() {
-     this.handleChangeOnInputAttestationResponsible = function() {
-         var objAttestationResponsible = $("#selectedAttestationResponsibleUuid").val();
-         itSystemService.updateResponsible(objAttestationResponsible, true)
-     }
-
-     this.handleChangeOnInputSystemOwner = function() {
-         var objSystemOwner = $("#selectedSystemOwnerUuid").val();
-         itSystemService.updateResponsible(objSystemOwner, false)
-     }
-
-     this.handleRemoveAttestationResponsible = function() {
-         itSystemService.updateResponsible(null, true)
-         $("#search_person").val("")
-     }
-
-     this.handleRemoveSystemOwner = function() {
-         itSystemService.updateResponsible(null, false)
-         $("#search_person_system").val("")
-     }
-
-     this.updateResponsible = function(objResponsible, att) {
-         $.ajax({
-             url: (att ? attestationResponsibleUrl : systemOwnerUrl),
-             method: 'POST',
-             data: {
-                 'uuid': objResponsible,
-                 'id': itsystemId
-             },
-             headers: {
-                 'X-CSRF-TOKEN': token
-             },
-             error: errorHandler(fieldNotUpdatedMsg),
-             success: function(response) {
-                 $.notify({
-                     message: fieldUpdatedMsg
-                 },{
-                     status: 'success',
-                     autoHideDelay: 2000
-                 });
-             }
-         });
-     }
  }
 
  /*]]>*/

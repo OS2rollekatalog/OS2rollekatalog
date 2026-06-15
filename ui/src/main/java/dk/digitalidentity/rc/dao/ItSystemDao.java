@@ -21,14 +21,14 @@ public interface ItSystemDao extends CrudRepository<ItSystem, Long> {
 	List<ItSystem> findByHiddenFalse();
 	long countByDeletedFalseAndHiddenFalse();
 	List<ItSystem> findByDeletedTrue();
-	List<ItSystem> findByAttestationResponsible(User user);
-	List<ItSystem> findByAttestationResponsibleOrSystemOwner(User user, User user2);
+	List<ItSystem> findByAttestationResponsibles_User(User user);
+	List<ItSystem> findByAttestationResponsibles_UserOrSystemOwners_User(User attestationUser, User systemOwnerUser);
 	List<ItSystem> findByKitosITSystemNotNull();
 
 	List<ItSystem> findByIdInAndDeletedFalse(Collection<Long> ids);
 	List<ItSystem> findAllByDeletedFalse();
 
-	long countByAttestationResponsible(User attestationResponsible);
+	long countByAttestationResponsibles_User(User user);
 
 	Set<ItSystem> findAllByDeletedFalseAndIdIn(Collection<Long> ids);
 

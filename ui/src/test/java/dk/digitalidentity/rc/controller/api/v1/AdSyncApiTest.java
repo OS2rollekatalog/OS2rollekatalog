@@ -138,6 +138,7 @@ public class AdSyncApiTest extends AbstractApiTest {
 					fieldWithPath("operations[].itSystemIdentifier").type(JsonFieldType.STRING).description("IT system identifier").optional(),
 					fieldWithPath("operations[].systemRoleIdentifier").type(JsonFieldType.STRING).description("System role identifier").optional(),
 					fieldWithPath("operations[].universal").type(JsonFieldType.BOOLEAN).description("Whether the operation is universal").optional(),
+					fieldWithPath("operations[].description").type(JsonFieldType.STRING).description("The role description").optional(),
 					fieldWithPath("head").type(JsonFieldType.NUMBER).description("Maximum ID of the operations returned")
 				)
 			));
@@ -186,6 +187,7 @@ public class AdSyncApiTest extends AbstractApiTest {
 					fieldWithPath("operations[].itSystemIdentifier").type(JsonFieldType.STRING).description("IT system identifier").optional(),
 					fieldWithPath("operations[].systemRoleIdentifier").type(JsonFieldType.STRING).description("System role identifier").optional(),
 					fieldWithPath("operations[].universal").type(JsonFieldType.BOOLEAN).description("Whether the operation is universal").optional(),
+					fieldWithPath("operations[].description").type(JsonFieldType.STRING).description("The role description").optional(),
 					fieldWithPath("head").type(JsonFieldType.NUMBER).description("Maximum ID of the operations returned")
 				)
 			));

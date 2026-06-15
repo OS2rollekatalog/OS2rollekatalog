@@ -29,51 +29,54 @@ public class KitosSyncTask {
 
     @Scheduled(cron = "${rc.integrations.kitos.cron:0 0 3/6 ? * *}")
 //	@Scheduled(initialDelay = 1000, fixedRate = 100000000)
-    public void sync() {
-        if (taskDisabled()) {
-            return;
-        }
-        log.info("Starting Kitos synchronisation");
-        
-        try {
-		final UUID municipalUuid = kitosClientService.lookupMunicipalUuid(configuration.getIntegrations().getKitos().getCvr());
+	public void sync() {
+		if (taskDisabled()) {
+			return;
+		}
+		log.info("Starting Kitos synchronisation");
 
-		final List<ItSystemUsageResponseDTO> changedItSystemUsages = kitosClientService.fetchChangedItSystemUsage(municipalUuid);
-		final boolean reimport = !changedItSystemUsages.isEmpty();
-		final List<ItSystemResponseDTO> assocItSystems = changedItSystemUsages.stream()
-		    .map(usage -> usage.getSystemContext().getUuid())
-		    .map(kitosClientService::fetchItSystem)
-		    .filter(Objects::nonNull)
-		    .toList();
-		final List<ItSystemResponseDTO> changedItSystems = kitosClientService.fetchChangedItSystems(municipalUuid, reimport);
+		try {
+			final UUID municipalUuid = kitosClientService.lookupMunicipalUuid(configuration.getIntegrations().getKitos().getCvr());
 
-		if (!changedItSystems.isEmpty() || !assocItSystems.isEmpty() || !changedItSystemUsages.isEmpty()) {
-			kitosService.syncItSystems(Stream.concat(assocItSystems.stream(), changedItSystems.stream()).toList());
+			final List<ItSystemUsageResponseDTO> changedItSystemUsages = kitosClientService.fetchChangedItSystemUsage(municipalUuid);
+			final boolean reimport = !changedItSystemUsages.isEmpty();
+			final List<ItSystemResponseDTO> assocItSystems = changedItSystemUsages.stream()
+				.map(usage -> usage.getSystemContext().getUuid())
+				.map(kitosClientService::fetchItSystem)
+				.filter(Objects::nonNull)
+				.toList();
+			final List<ItSystemResponseDTO> changedItSystems = kitosClientService.fetchChangedItSystems(municipalUuid, reimport);
+
+			if (!changedItSystems.isEmpty() || !assocItSystems.isEmpty() || !changedItSystemUsages.isEmpty()) {
+				kitosService.syncItSystems(Stream.concat(assocItSystems.stream(), changedItSystems.stream()).toList());
+			}
+
+			if (!changedItSystemUsages.isEmpty()) {
+				final List<OrganizationUserResponseDTO> users = kitosClientService.listUsers(municipalUuid);
+				kitosService.syncItSystemUsagesAndUsers(changedItSystemUsages, users);
+				itSystemService.syncKitosOwnersAndResponsibles();
+			}
+		}
+		catch (Exception ex) {
+			log.error("Error during Kitos synchronisation", ex);
 		}
 
-		if (!changedItSystemUsages.isEmpty()) {
-		    final List<OrganizationUserResponseDTO> users = kitosClientService.listUsers(municipalUuid);
-		    kitosService.syncItSystemUsagesAndUsers(changedItSystemUsages, users);
-			itSystemService.syncKitosOwnersAndResponsibles();
-		}
+		log.info("Finished Kitos synchronisation");
 	}
-	catch (Exception ex) {
-		log.error("Error during Kitos synchronisation", ex);
-	}
-
-        log.info("Finished Kitos synchronisation");
-    }
 
     @Scheduled(cron = "${rc.integrations.kitos.deletion.cron:0 10 2 * * ?}")
-    public void syncDeletions() {
+//	@Scheduled(initialDelay = 1000, fixedRate = 100000000)
+	public void syncDeletions() {
         if (taskDisabled()) {
             return;
         }
         log.info("Starting Kitos deletion synchronisation");
-        
+
         try {
 			final List<TrackingEventResponseDTO> deletedItSystems = kitosClientService.fetchDeletedItSystems(true);
 			kitosService.syncDeletedItSystems(deletedItSystems);
+			final List<TrackingEventResponseDTO> deletedItSystemUsages = kitosClientService.fetchDeletedItSystemUsages();
+			kitosService.syncDeletedItSystemUsages(deletedItSystemUsages);
 		}
 		catch (Exception ex) {
 			log.error("Error during Kitos deletion synchronisation", ex);

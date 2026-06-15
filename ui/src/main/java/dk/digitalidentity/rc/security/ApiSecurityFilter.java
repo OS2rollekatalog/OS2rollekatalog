@@ -1,10 +1,16 @@
 package dk.digitalidentity.rc.security;
 
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Objects;
+
+import org.apache.commons.lang3.StringUtils;
+
 import dk.digitalidentity.rc.dao.model.Client;
 import dk.digitalidentity.rc.dao.model.enums.AccessRole;
 import dk.digitalidentity.rc.dao.model.enums.ClientIntegrationType;
 import dk.digitalidentity.rc.service.ClientService;
-import dk.digitalidentity.samlmodule.model.SamlGrantedAuthority;
+import dk.digitalidentity.saml.service.model.SamlGrantedAuthority;
 import jakarta.servlet.Filter;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.FilterConfig;
@@ -14,11 +20,6 @@ import jakarta.servlet.ServletResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang3.StringUtils;
-
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Objects;
 
 @Slf4j
 public class  ApiSecurityFilter implements Filter {

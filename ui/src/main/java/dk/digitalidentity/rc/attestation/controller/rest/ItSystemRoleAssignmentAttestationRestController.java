@@ -43,7 +43,9 @@ public class ItSystemRoleAssignmentAttestationRestController {
 	@PostMapping("/rest/attestation/v2/itsystems/{itSystemId}/orgunits/{orgUnitUuid}/approve")
 	@Timed("attestation.controller.rest.it_system_role_assignment_attestation_rest_controller.accept_org_unit_attestation.timer")
 	public ResponseEntity<?> acceptOrgUnitAttestation(@PathVariable long itSystemId, @PathVariable String orgUnitUuid) {
-		itSystemUsersAttestationService.verifyOu(itSystemId, orgUnitUuid, SecurityUtil.getUserId());
+		String userId = SecurityUtil.getUserId();
+		itSystemUsersAttestationService.verifyOu(itSystemId, orgUnitUuid, userId);
+		itSystemUsersAttestationService.deleteRelatedAttestations(itSystemId, userId);
 		return new ResponseEntity<>(HttpStatus.OK);
 	}
 
@@ -53,7 +55,9 @@ public class ItSystemRoleAssignmentAttestationRestController {
 		if (remarks == null || remarks.trim().equals("")) {
 			return new ResponseEntity<>("Der skal angives ændringsønsker", HttpStatus.BAD_REQUEST);
 		}
-		itSystemUsersAttestationService.rejectOu(itSystemId, orgUnitUuid, remarks, SecurityUtil.getUserId());
+		String userId = SecurityUtil.getUserId();
+		itSystemUsersAttestationService.rejectOu(itSystemId, orgUnitUuid, remarks, userId);
+		itSystemUsersAttestationService.deleteRelatedAttestations(itSystemId, userId);
 		return new ResponseEntity<>(HttpStatus.OK);
 	}
 }

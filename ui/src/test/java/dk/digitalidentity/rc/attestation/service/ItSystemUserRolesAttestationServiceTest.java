@@ -1,10 +1,12 @@
 package dk.digitalidentity.rc.attestation.service;
 
 import dk.digitalidentity.rc.attestation.dao.AttestationDao;
+import dk.digitalidentity.rc.attestation.dao.AttestationResponsibleCollectionDao;
 import dk.digitalidentity.rc.attestation.dao.AttestationSystemRoleAssignmentDao;
 import dk.digitalidentity.rc.attestation.dao.ItSystemRoleAttestationEntryDao;
 import dk.digitalidentity.rc.attestation.model.dto.ItSystemAttestationDTO;
 import dk.digitalidentity.rc.attestation.model.entity.Attestation;
+import dk.digitalidentity.rc.attestation.model.entity.AttestationResponsibleCollection;
 import dk.digitalidentity.rc.attestation.model.entity.AttestationRun;
 import dk.digitalidentity.rc.attestation.model.entity.ItSystemRoleAttestationEntry;
 import dk.digitalidentity.rc.attestation.model.entity.temporal.AttestationSystemRoleAssignment;
@@ -56,6 +58,9 @@ class ItSystemUserRolesAttestationServiceTest {
 	private AttestationDao attestationDao;
 
 	@Mock
+	private AttestationResponsibleCollectionDao attestationResponsibleCollectionDao;
+
+	@Mock
 	private ItSystemRoleAttestationEntryDao itSystemRoleAttestationEntryDao;
 
 	@Mock
@@ -97,7 +102,8 @@ class ItSystemUserRolesAttestationServiceTest {
 		void getItSystemAttestationsForUser_ShouldFilterOutVerifiedAttestations() {
 			// Arrange
 			String userUuid = "user-uuid";
-			Attestation verifiedAttestation = createItSystemRolesAttestation(1L, "att-uuid", 100L, "Test System", userUuid);
+			Long responsibleCollectionId = 1L;
+			Attestation verifiedAttestation = createItSystemRolesAttestation(1L, "att-uuid", 100L, "Test System", responsibleCollectionId);
 			verifiedAttestation.setVerifiedAt(ZonedDateTime.now());
 
 			AttestationRun run = createAttestationRun(1L, LocalDate.now().plusDays(14));
@@ -115,7 +121,8 @@ class ItSystemUserRolesAttestationServiceTest {
 		void getItSystemAttestationsForUser_ShouldFilterOutWrongAttestationType() {
 			// Arrange
 			String userUuid = "user-uuid";
-			Attestation wrongTypeAttestation = createItSystemRolesAttestation(1L, "att-uuid", 100L, "Test System", userUuid);
+			Long responsibleCollectionId = 1L;
+			Attestation wrongTypeAttestation = createItSystemRolesAttestation(1L, "att-uuid", 100L, "Test System", responsibleCollectionId);
 			wrongTypeAttestation.setAttestationType(Attestation.AttestationType.ORGANISATION_ATTESTATION);
 
 			AttestationRun run = createAttestationRun(1L, LocalDate.now().plusDays(14));
@@ -133,8 +140,8 @@ class ItSystemUserRolesAttestationServiceTest {
 		void getItSystemAttestationsForUser_ShouldFilterOutDifferentUser() {
 			// Arrange
 			String userUuid = "user-uuid";
-			String differentUserUuid = "different-user-uuid";
-			Attestation attestationForDifferentUser = createItSystemRolesAttestation(1L, "att-uuid", 100L, "Test System", differentUserUuid);
+			Long differentResponsibleCollectionId = 99L;
+			Attestation attestationForDifferentUser = createItSystemRolesAttestation(1L, "att-uuid", 100L, "Test System", differentResponsibleCollectionId);
 
 			AttestationRun run = createAttestationRun(1L, LocalDate.now().plusDays(14));
 			run.getAttestations().add(attestationForDifferentUser);
@@ -151,12 +158,15 @@ class ItSystemUserRolesAttestationServiceTest {
 		void getItSystemAttestationsForUser_ShouldReturnMatchingAttestations() {
 			// Arrange
 			String userUuid = "user-uuid";
-			Attestation attestation = createItSystemRolesAttestation(1L, "att-uuid", 100L, "Test System", userUuid);
+			Long responsibleCollectionId = 1L;
+			Attestation attestation = createItSystemRolesAttestation(1L, "att-uuid", 100L, "Test System", responsibleCollectionId);
 
 			AttestationRun run = createAttestationRun(1L, LocalDate.now().plusDays(14));
 			run.getAttestations().add(attestation);
 
-			when(attestationSystemRoleAssignmentDAO.listValidAttestationsByResponsibleUser(any(LocalDate.class), eq(userUuid)))
+			AttestationResponsibleCollection collection = new AttestationResponsibleCollection(responsibleCollectionId, 100L, List.of(userUuid));
+			when(attestationResponsibleCollectionDao.findById(responsibleCollectionId)).thenReturn(Optional.of(collection));
+			when(attestationSystemRoleAssignmentDAO.listValidAttestationsByResponsibleCollection(any(LocalDate.class), eq(responsibleCollectionId)))
 					.thenReturn(Collections.emptyList());
 
 			// Act
@@ -176,15 +186,15 @@ class ItSystemUserRolesAttestationServiceTest {
 		@DisplayName("Should return attestation DTO with system role assignments")
 		void getItSystemAttestation_ShouldReturnAttestationDto() {
 			// Arrange
-			String userUuid = "user-uuid";
-			Attestation attestation = createItSystemRolesAttestation(1L, "att-uuid", 100L, "Test IT System", userUuid);
+			Long responsibleCollectionId = 1L;
+			Attestation attestation = createItSystemRolesAttestation(1L, "att-uuid", 100L, "Test IT System", responsibleCollectionId);
 
 			AttestationSystemRoleAssignment assignment = new AttestationSystemRoleAssignment();
 			assignment.setUserRoleId(1L);
 			assignment.setUserRoleName("Test Role");
 			assignment.setItSystemId(100L);
 
-			when(attestationSystemRoleAssignmentDAO.listValidAttestationsByResponsibleUser(any(LocalDate.class), eq(userUuid)))
+			when(attestationSystemRoleAssignmentDAO.listValidAttestationsByResponsibleCollection(any(LocalDate.class), eq(responsibleCollectionId)))
 					.thenReturn(List.of(assignment));
 
 			// Act
@@ -224,12 +234,11 @@ class ItSystemUserRolesAttestationServiceTest {
 			long userRoleId = 1L;
 			String performedByUserId = "performer-id";
 
-			User differentUser = createUser("different-uuid", "different-id", "Different User");
 			ItSystem itSystem = new ItSystem();
 			itSystem.setId(itSystemId);
-			itSystem.setAttestationResponsible(differentUser);
 
 			when(itSystemService.getById(itSystemId)).thenReturn(itSystem);
+			when(itSystemService.getAttestationResponsibleUserIds(itSystem)).thenReturn(List.of("different-id"));
 
 			// Act & Assert
 			assertThrows(ResponseStatusException.class,
@@ -247,11 +256,14 @@ class ItSystemUserRolesAttestationServiceTest {
 			User responsibleUser = createUser("responsible-uuid", performedByUserId, "Responsible User");
 			ItSystem itSystem = new ItSystem();
 			itSystem.setId(itSystemId);
-			itSystem.setAttestationResponsible(responsibleUser);
 
 			when(itSystemService.getById(itSystemId)).thenReturn(itSystem);
-			when(attestationDao.findFirstByAttestationTypeAndItSystemIdOrderByDeadlineDesc(
-					Attestation.AttestationType.IT_SYSTEM_ROLES_ATTESTATION, itSystemId))
+			when(itSystemService.getAttestationResponsibleUserIds(itSystem)).thenReturn(List.of(performedByUserId));
+			when(userService.getByUserId(performedByUserId)).thenReturn(responsibleUser);
+			AttestationResponsibleCollection collection = new AttestationResponsibleCollection(1L, itSystemId, List.of("responsible-uuid"));
+			when(attestationResponsibleCollectionDao.findFirstByItSystemId(itSystemId)).thenReturn(Optional.of(collection));
+			when(attestationDao.findFirstByAttestationTypeAndItSystemIdAndResponsibleCollectionIdOrderByDeadlineDesc(
+					Attestation.AttestationType.IT_SYSTEM_ROLES_ATTESTATION, itSystemId, 1L))
 					.thenReturn(Optional.empty());
 
 			// Act & Assert
@@ -271,19 +283,21 @@ class ItSystemUserRolesAttestationServiceTest {
 			User responsibleUser = createUser(performedByUserUuid, performedByUserId, "Responsible User");
 			ItSystem itSystem = new ItSystem();
 			itSystem.setId(itSystemId);
-			itSystem.setAttestationResponsible(responsibleUser);
 
-			Attestation attestation = createItSystemRolesAttestation(1L, "att-uuid", itSystemId, "Test System", performedByUserUuid);
+			Attestation attestation = createItSystemRolesAttestation(1L, "att-uuid", itSystemId, "Test System", 1L);
 			attestation.setItSystemUserRoleAttestationEntries(new HashSet<>());
 
 			when(itSystemService.getById(itSystemId)).thenReturn(itSystem);
-			when(attestationDao.findFirstByAttestationTypeAndItSystemIdOrderByDeadlineDesc(
-					Attestation.AttestationType.IT_SYSTEM_ROLES_ATTESTATION, itSystemId))
+			when(itSystemService.getAttestationResponsibleUserIds(itSystem)).thenReturn(List.of(performedByUserId));
+			AttestationResponsibleCollection collection = new AttestationResponsibleCollection(1L, itSystemId, List.of(performedByUserUuid));
+			when(attestationResponsibleCollectionDao.findFirstByItSystemId(itSystemId)).thenReturn(Optional.of(collection));
+			when(attestationDao.findFirstByAttestationTypeAndItSystemIdAndResponsibleCollectionIdOrderByDeadlineDesc(
+					Attestation.AttestationType.IT_SYSTEM_ROLES_ATTESTATION, itSystemId, 1L))
 					.thenReturn(Optional.of(attestation));
 			when(userService.getByUserId(performedByUserId)).thenReturn(responsibleUser);
 			when(itSystemRoleAttestationEntryDao.save(any(ItSystemRoleAttestationEntry.class)))
 					.thenAnswer(invocation -> invocation.getArgument(0));
-			when(attestationSystemRoleAssignmentDAO.listValidAttestationsByResponsibleUser(any(LocalDate.class), eq(performedByUserUuid)))
+			when(attestationSystemRoleAssignmentDAO.listValidAttestationsByResponsibleCollection(any(LocalDate.class), eq(1L)))
 					.thenReturn(Collections.emptyList());
 
 			// Act
@@ -335,9 +349,8 @@ class ItSystemUserRolesAttestationServiceTest {
 			ItSystem itSystem = new ItSystem();
 			itSystem.setId(itSystemId);
 			itSystem.setName("Test IT System");
-			itSystem.setAttestationResponsible(responsibleUser);
 
-			Attestation attestation = createItSystemRolesAttestation(1L, "att-uuid", itSystemId, "Test System", performedByUserUuid);
+			Attestation attestation = createItSystemRolesAttestation(1L, "att-uuid", itSystemId, "Test System", 1L);
 			attestation.setItSystemUserRoleAttestationEntries(new HashSet<>());
 
 			UserRole userRole = new UserRole();
@@ -345,13 +358,16 @@ class ItSystemUserRolesAttestationServiceTest {
 			userRole.setName("Test Role");
 
 			when(itSystemService.getById(itSystemId)).thenReturn(itSystem);
-			when(attestationDao.findFirstByAttestationTypeAndItSystemIdOrderByDeadlineDesc(
-					Attestation.AttestationType.IT_SYSTEM_ROLES_ATTESTATION, itSystemId))
+			when(itSystemService.getAttestationResponsibleUserIds(itSystem)).thenReturn(List.of(performedByUserId));
+			AttestationResponsibleCollection collection = new AttestationResponsibleCollection(1L, itSystemId, List.of(performedByUserUuid));
+			when(attestationResponsibleCollectionDao.findFirstByItSystemId(itSystemId)).thenReturn(Optional.of(collection));
+			when(attestationDao.findFirstByAttestationTypeAndItSystemIdAndResponsibleCollectionIdOrderByDeadlineDesc(
+					Attestation.AttestationType.IT_SYSTEM_ROLES_ATTESTATION, itSystemId, 1L))
 					.thenReturn(Optional.of(attestation));
 			when(userService.getByUserId(performedByUserId)).thenReturn(responsibleUser);
 			when(itSystemRoleAttestationEntryDao.save(any(ItSystemRoleAttestationEntry.class)))
 					.thenAnswer(invocation -> invocation.getArgument(0));
-			when(attestationSystemRoleAssignmentDAO.listValidAttestationsByResponsibleUser(any(LocalDate.class), eq(performedByUserUuid)))
+			when(attestationSystemRoleAssignmentDAO.listValidAttestationsByResponsibleCollection(any(LocalDate.class), eq(1L)))
 					.thenReturn(Collections.emptyList());
 			when(userRoleService.getByItSystem(itSystem)).thenReturn(List.of(userRole));
 
@@ -382,9 +398,8 @@ class ItSystemUserRolesAttestationServiceTest {
 			ItSystem itSystem = new ItSystem();
 			itSystem.setId(itSystemId);
 			itSystem.setName("Test IT System");
-			itSystem.setAttestationResponsible(responsibleUser);
 
-			Attestation attestation = createItSystemRolesAttestation(1L, "att-uuid", itSystemId, "Test System", performedByUserUuid);
+			Attestation attestation = createItSystemRolesAttestation(1L, "att-uuid", itSystemId, "Test System", 1L);
 			attestation.setItSystemUserRoleAttestationEntries(new HashSet<>());
 
 			UserRole userRole = new UserRole();
@@ -392,13 +407,16 @@ class ItSystemUserRolesAttestationServiceTest {
 			userRole.setName("Test Role");
 
 			when(itSystemService.getById(itSystemId)).thenReturn(itSystem);
-			when(attestationDao.findFirstByAttestationTypeAndItSystemIdOrderByDeadlineDesc(
-					Attestation.AttestationType.IT_SYSTEM_ROLES_ATTESTATION, itSystemId))
+			when(itSystemService.getAttestationResponsibleUserIds(itSystem)).thenReturn(List.of(performedByUserId));
+			AttestationResponsibleCollection collection = new AttestationResponsibleCollection(1L, itSystemId, List.of(performedByUserUuid));
+			when(attestationResponsibleCollectionDao.findFirstByItSystemId(itSystemId)).thenReturn(Optional.of(collection));
+			when(attestationDao.findFirstByAttestationTypeAndItSystemIdAndResponsibleCollectionIdOrderByDeadlineDesc(
+					Attestation.AttestationType.IT_SYSTEM_ROLES_ATTESTATION, itSystemId, 1L))
 					.thenReturn(Optional.of(attestation));
 			when(userService.getByUserId(performedByUserId)).thenReturn(responsibleUser);
 			when(itSystemRoleAttestationEntryDao.save(any(ItSystemRoleAttestationEntry.class)))
 					.thenAnswer(invocation -> invocation.getArgument(0));
-			when(attestationSystemRoleAssignmentDAO.listValidAttestationsByResponsibleUser(any(LocalDate.class), eq(performedByUserUuid)))
+			when(attestationSystemRoleAssignmentDAO.listValidAttestationsByResponsibleCollection(any(LocalDate.class), eq(1L)))
 					.thenReturn(Collections.emptyList());
 			when(userRoleService.getByItSystem(itSystem)).thenReturn(List.of(userRole));
 
@@ -427,19 +445,21 @@ class ItSystemUserRolesAttestationServiceTest {
 			ItSystem itSystem = new ItSystem();
 			itSystem.setId(itSystemId);
 			itSystem.setName("Test IT System");
-			itSystem.setAttestationResponsible(responsibleUser);
 
-			Attestation attestation = createItSystemRolesAttestation(1L, "att-uuid", itSystemId, "Test System", performedByUserUuid);
+			Attestation attestation = createItSystemRolesAttestation(1L, "att-uuid", itSystemId, "Test System", 1L);
 			attestation.setItSystemUserRoleAttestationEntries(new HashSet<>());
 
 			when(itSystemService.getById(itSystemId)).thenReturn(itSystem);
-			when(attestationDao.findFirstByAttestationTypeAndItSystemIdOrderByDeadlineDesc(
-					Attestation.AttestationType.IT_SYSTEM_ROLES_ATTESTATION, itSystemId))
+			when(itSystemService.getAttestationResponsibleUserIds(itSystem)).thenReturn(List.of(performedByUserId));
+			AttestationResponsibleCollection collection = new AttestationResponsibleCollection(1L, itSystemId, List.of(performedByUserUuid));
+			when(attestationResponsibleCollectionDao.findFirstByItSystemId(itSystemId)).thenReturn(Optional.of(collection));
+			when(attestationDao.findFirstByAttestationTypeAndItSystemIdAndResponsibleCollectionIdOrderByDeadlineDesc(
+					Attestation.AttestationType.IT_SYSTEM_ROLES_ATTESTATION, itSystemId, 1L))
 					.thenReturn(Optional.of(attestation));
 			when(userService.getByUserId(performedByUserId)).thenReturn(responsibleUser);
 			when(itSystemRoleAttestationEntryDao.save(any(ItSystemRoleAttestationEntry.class)))
 					.thenAnswer(invocation -> invocation.getArgument(0));
-			when(attestationSystemRoleAssignmentDAO.listValidAttestationsByResponsibleUser(any(LocalDate.class), eq(performedByUserUuid)))
+			when(attestationSystemRoleAssignmentDAO.listValidAttestationsByResponsibleCollection(any(LocalDate.class), eq(1L)))
 					.thenReturn(Collections.emptyList());
 			when(userRoleService.getByItSystem(itSystem)).thenReturn(Collections.emptyList());
 
@@ -459,7 +479,7 @@ class ItSystemUserRolesAttestationServiceTest {
 		@DisplayName("Should not verify attestations that are already verified")
 		void finishOutstandingAttestations_WhenAlreadyVerified_ShouldNotChange() {
 			// Arrange
-			Attestation verifiedAttestation = createItSystemRolesAttestation(1L, "att-uuid", 100L, "Test System", "user-uuid");
+			Attestation verifiedAttestation = createItSystemRolesAttestation(1L, "att-uuid", 100L, "Test System", 1L);
 			verifiedAttestation.setVerifiedAt(ZonedDateTime.now());
 
 			when(attestationDao.findByAttestationTypeAndDeadlineIsGreaterThanEqual(
@@ -477,15 +497,15 @@ class ItSystemUserRolesAttestationServiceTest {
 		@DisplayName("Should verify attestations that are done but not yet verified")
 		void finishOutstandingAttestations_WhenDoneButNotVerified_ShouldVerify() {
 			// Arrange
-			String userUuid = "user-uuid";
-			Attestation unverifiedAttestation = createItSystemRolesAttestation(1L, "att-uuid", 100L, "Test System", userUuid);
+			Long responsibleCollectionId = 1L;
+			Attestation unverifiedAttestation = createItSystemRolesAttestation(1L, "att-uuid", 100L, "Test System", responsibleCollectionId);
 			unverifiedAttestation.setVerifiedAt(null);
 
 			when(attestationDao.findByAttestationTypeAndDeadlineIsGreaterThanEqual(
 					eq(Attestation.AttestationType.IT_SYSTEM_ROLES_ATTESTATION), any(LocalDate.class)))
 					.thenReturn(List.of(unverifiedAttestation));
 
-			when(attestationSystemRoleAssignmentDAO.listValidAttestationsByResponsibleUser(any(LocalDate.class), eq(userUuid)))
+			when(attestationSystemRoleAssignmentDAO.listValidAttestationsByResponsibleCollection(any(LocalDate.class), eq(responsibleCollectionId)))
 					.thenReturn(Collections.emptyList());
 
 			// Act

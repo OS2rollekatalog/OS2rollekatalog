@@ -5,6 +5,8 @@ import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.validator.constraints.Length;
 
+import java.util.List;
+
 @Getter
 @Setter
 public class ItSystemForm {
@@ -23,5 +25,5 @@ public class ItSystemForm {
 
 	private String domain;
 
-	private String selectedResponsibleUuid;
+	private List<String> selectedResponsibleUuid;
 }

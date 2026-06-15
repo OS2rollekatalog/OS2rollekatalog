@@ -113,8 +113,7 @@ section=${T(dk.digitalidentity.rc.security.permission.Section)}">
 								<!-- Logout link -->
 								<li class="dropdown-header" style="padding:0; margin:5px 0; border-top:2px solid #cfdbe2;"></li>
 								<li>
-									<form th:action="@{/logout}" id="logout_form" method="post"></form>
-									<a href="#" onclick="$('#logout_form').submit();">
+									<a th:href="@{/saml/logout}">
 										<i class="fa fa-sign-out"></i> &nbsp;
 										<span th:text="#{html.navbar.logout}"></span>
 									</a>
@@ -440,12 +439,6 @@ userRead=${@permissionCheck.isAllowed(section.USER,permission.READ)}"
 									<span th:text="#{html.navbar.settings.attestation}"></span>
 								</a>
 							</li>
-							<li th:class="${page == 'attestationMail'} ? 'active' : ''">
-								<a th:href="@{/ui/admin/mailtemplates/attestation}">
-									<em class="fa fa-envelope"></em>
-									<span th:text="#{html.navbar.emailTemplate.attestation}"></span>
-								</a>
-							</li>
 						</th:block>
 
 						<th:block th:if="${@settingsService.isRequestApproveEnabled()}" sec:authorize="hasRole('ROLE_ADMINISTRATOR')">
@@ -457,12 +450,6 @@ userRead=${@permissionCheck.isAllowed(section.USER,permission.READ)}"
 								<a th:href="@{/ui/settings/rolerequest}">
 									<em class="fa fa-cogs"></em>
 									<span th:text="#{html.navbar.settings.request}"></span>
-								</a>
-							</li>
-							<li th:class="${page == 'requestMail'} ? 'active' : ''">
-								<a th:href="@{/ui/admin/mailtemplates/request}">
-									<em class="fa fa-envelope"></em>
-									<span th:text="#{html.navbar.emailTemplate.request}"></span>
 								</a>
 							</li>
 						</th:block>
@@ -521,8 +508,7 @@ userRead=${@permissionCheck.isAllowed(section.USER,permission.READ)}"
 					</li>
 
 					<li sec:authorize="isAuthenticated()">
-						<form th:action="@{/logout}" id="logout_form" method="post"></form>
-						<a href="#" onclick="$('#logout_form').submit();">
+						<a th:href="@{/saml/logout}">
 							<em class="fa fa-sign-out"></em>
 							<span th:text="#{html.navbar.logout}"></span>
 						</a>

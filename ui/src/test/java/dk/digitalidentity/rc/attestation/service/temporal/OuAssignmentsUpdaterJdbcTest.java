@@ -313,7 +313,7 @@ class OuAssignmentsUpdaterJdbcTest {
 	class ResponsibleOuUuidDerivation {
 
 		@Test
-		@DisplayName("responsibleOuUuid equals the OU the role was assigned to (assignedThroughUuid) when not inherited and responsibleUserUuid is null")
+		@DisplayName("responsibleOuUuid equals the OU the role was assigned to (assignedThroughUuid) when not inherited and responsibleCollectionId is null")
 		void responsibleOuUuidIsTheAssignedOu() {
 			// ---- Given ---- //
 			// In practice assignedThroughUuid always equals ouUuid (set by HistoricOuAssignmentService)
@@ -323,7 +323,7 @@ class OuAssignmentsUpdaterJdbcTest {
 					.ouName("Test OU")
 					.assignedThroughUuid("ou-uuid")
 					.assignedThroughName("Test OU")
-					.responsibleUserUuid(null)
+					.responsibleCollectionId(null)
 					.build();
 
 			// ---- When ---- //
@@ -332,17 +332,17 @@ class OuAssignmentsUpdaterJdbcTest {
 			// ---- Then ---- //
 			assertThat(result.getResponsibleOuUuid()).isEqualTo("ou-uuid");
 			assertThat(result.getResponsibleOuName()).isEqualTo("Test OU");
-			assertThat(result.getResponsibleUserUuid()).isNull();
+			assertThat(result.getResponsibleCollectionId()).isNull();
 		}
 
 		@Test
-		@DisplayName("responsibleOuUuid is null when responsibleUserUuid is set (IT system responsible overrides OU)")
-		void responsibleOuUuidIsNullWhenResponsibleUserUuidIsSet() {
+		@DisplayName("responsibleOuUuid is null when responsibleCollectionId is set (IT system responsible overrides OU)")
+		void responsibleOuUuidIsNullWhenResponsibleCollectionIdIsSet() {
 			// ---- Given ---- //
 			HistoricOuAssignment assignment = base()
 					.assignedThroughType(AssignedThrough.DIRECT)
 					.assignedThroughUuid("some-ou-uuid")
-					.responsibleUserUuid("it-system-responsible-uuid")
+					.responsibleCollectionId(42L)
 					.build();
 
 			// ---- When ---- //
@@ -351,7 +351,7 @@ class OuAssignmentsUpdaterJdbcTest {
 			// ---- Then ---- //
 			assertThat(result.getResponsibleOuUuid()).isNull();
 			assertThat(result.getResponsibleOuName()).isNull();
-			assertThat(result.getResponsibleUserUuid()).isEqualTo("it-system-responsible-uuid");
+			assertThat(result.getResponsibleCollectionId()).isEqualTo(42L);
 		}
 
 		@Test
@@ -362,7 +362,7 @@ class OuAssignmentsUpdaterJdbcTest {
 					.assignedThroughType(AssignedThrough.ORGUNIT)
 					.ouUuid("child-ou-uuid")
 					.assignedThroughUuid("parent-ou-uuid")
-					.responsibleUserUuid(null)
+					.responsibleCollectionId(null)
 					.build();
 
 			// ---- When ---- //

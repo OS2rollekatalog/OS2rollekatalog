@@ -29,7 +29,6 @@ public class AttestationUserRoleAssignmentRowMapper implements RowMapper<Attesta
         assignment.setRoleGroupDescription(rs.getString("role_group_description"));
         assignment.setItSystemId(zeroIsNull(rs.getLong("it_system_id")));
         assignment.setItSystemName(rs.getString("it_system_name"));
-        assignment.setResponsibleUserUuid(rs.getString("responsible_user_uuid"));
         assignment.setResponsibleOuName(rs.getString("responsible_ou_name"));
         assignment.setResponsibleOuUuid(rs.getString("responsible_ou_uuid"));
         assignment.setRoleOuName(rs.getString("role_ou_name"));
@@ -42,6 +41,7 @@ public class AttestationUserRoleAssignmentRowMapper implements RowMapper<Attesta
         assignment.setExtraSensitiveRole(rs.getBoolean("extra_sensitive_role"));
 		assignment.setPostponedConstraints(rs.getString("postponed_constraints"));
 		assignment.setAssignedFrom(RowMapperUtils.nullSafeLocalDate(rs.getDate("assigned_from")));
+		assignment.setResponsibleCollectionId(zeroIsNull(rs.getLong("attestation_responsible_collection_id")));
         return assignment;
     }
 

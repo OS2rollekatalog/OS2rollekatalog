@@ -13,6 +13,7 @@
                   th:object="${settingsForm}">
 				<input type="hidden" th:field="*{onlyRecommendRoles}" />
 				<input type="hidden" th:field="*{showSingleTableInRequestApproveEnabled}" />
+				<input type="hidden" th:field="*{allowSelfApproval}" />
 				<div class="panel panel-default" style="padding-left: 20px; padding-right: 20px;">
 
                     <!-- REQUESTER SETTINGS -->
@@ -94,6 +95,20 @@
 											<input id="single-table-checkbox" type="checkbox" th:attr="checked=${settingsForm.showSingleTableInRequestApproveEnabled}" />
 											<span class="fa fa-check"></span>
 										</label>
+									</div>
+								</div>
+							</div>
+						</fieldset>
+						<fieldset>
+							<div class="form-group">
+								<label class="col-sm-3 control-label" th:text="#{html.setting.rolerequest.allowSelfApproval.label}"></label>
+								<div class="col-sm-8 row">
+									<div class="checkbox c-checkbox">
+										<label>
+											<input id="allow-self-approval-checkbox" type="checkbox" th:attr="checked=${settingsForm.allowSelfApproval}" />
+											<span class="fa fa-check"></span>
+										</label>
+										<a th:replace="~{fragments/help :: help (title=#{html.setting.rolerequest.allowSelfApproval.label}, content=#{html.setting.rolerequest.allowSelfApproval.explainer})}"></a>
 									</div>
 								</div>
 							</div>

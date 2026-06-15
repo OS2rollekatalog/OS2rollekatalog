@@ -16,9 +16,9 @@ public interface AttestationSystemRoleAssignmentDao extends JpaRepository<Attest
     @Query(value = "UPDATE AttestationSystemRoleAssignment s SET s.validTo=:updatedAt WHERE s.updatedAt < :updatedAt AND (s.validTo > :updatedAt or s.validTo is null)")
     int invalidateByUpdatedAtLessThan(@Param("updatedAt") final LocalDate updatedAt);
 
-    @Query(value = "SELECT s FROM AttestationSystemRoleAssignment s WHERE s.validFrom <= :validAt AND (s.validTo > :validAt or s.validTo is null) AND s.responsibleUserUuid=:responsibleUserUuid")
-    List<AttestationSystemRoleAssignment> listValidAttestationsByResponsibleUser(@Param("validAt") final LocalDate validAt,
-                                                                                 @Param("responsibleUserUuid") final String responsibleUserUuid);
+    @Query(value = "SELECT s FROM AttestationSystemRoleAssignment s WHERE s.validFrom <= :validAt AND (s.validTo > :validAt or s.validTo is null) AND s.responsibleCollectionId=:collectionId")
+    List<AttestationSystemRoleAssignment> listValidAttestationsByResponsibleCollection(@Param("validAt") final LocalDate validAt,
+                                                                                       @Param("collectionId") final Long collectionId);
 
     @Query(value = "SELECT s FROM AttestationSystemRoleAssignment s WHERE s.validFrom <= :validAt AND (s.validTo > :validAt or s.validTo is null) AND s.itSystemId=:itSystemId")
     Stream<AttestationSystemRoleAssignment> streamValidAttestationsByItSystemId(@Param("validAt") final LocalDate validAt, @Param("itSystemId") final Long itSystemId);

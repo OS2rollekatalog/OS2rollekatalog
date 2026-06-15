@@ -54,9 +54,10 @@ public enum EventType {
 	CLIENT_CHANGED("html.enum.eventtype.client_changed"),
 	CLIENT_REMOVED("html.enum.eventtype.client_removed"),
 
-	// deprecated - keeping them to make sure existing loglines still work
-	EDIT_USER_ROLE_ASSIGNMENT("html.enum.eventtype.edit_user_role_assignment"),
-	EDIT_SYMSTEMROLE("html.enum.eventtype.edit_systemrole");
+	// deprecated - keeping them to make sure existing loglines still work.
+	// The message content is not in properties file anymore so its essentially dead code
+	EDIT_USER_ROLE_ASSIGNMENT(""),
+	EDIT_SYMSTEMROLE("");
 
 	private String message;
 
