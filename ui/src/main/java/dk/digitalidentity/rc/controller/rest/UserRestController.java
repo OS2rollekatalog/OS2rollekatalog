@@ -22,6 +22,7 @@ import dk.digitalidentity.rc.dao.model.assignment.CurrentAssignment;
 import dk.digitalidentity.rc.dao.model.enums.ItSystemType;
 import dk.digitalidentity.rc.dao.model.enums.KleType;
 import dk.digitalidentity.rc.security.RequireRequesterOrAssignerRole;
+import dk.digitalidentity.rc.security.RequireKleAdministratorRole;
 import dk.digitalidentity.rc.security.permission.Permission;
 import dk.digitalidentity.rc.security.permission.PermissionConstraint;
 import dk.digitalidentity.rc.security.permission.RequireControllerPermission;
@@ -519,6 +520,7 @@ public class UserRestController {
 		return kleService.getKleListFromParent(parentCode);
 	}
 
+	@RequireKleAdministratorRole
 	@PostMapping(value = "/rest/users/updateAll/kle")
 	@ResponseBody
 	public HttpEntity<String> updateKle(@RequestHeader("uuid") String uuid, @RequestHeader("type") String type, @RequestBody List<String> codes) {
