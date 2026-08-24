@@ -8,7 +8,6 @@ import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserRole;
 import dk.digitalidentity.rc.dao.model.assignment.CurrentAssignment;
 import dk.digitalidentity.rc.dao.model.enums.AccessRole;
-import dk.digitalidentity.rc.interceptor.RoleChangeInterceptor;
 import dk.digitalidentity.rc.service.DomainService;
 import dk.digitalidentity.rc.service.ItSystemService;
 import dk.digitalidentity.rc.service.OrgUnitService;
@@ -87,9 +86,6 @@ public class ReadOnlyApiTest extends AbstractApiTest {
 
 	@MockitoBean
 	private AssignmentService assignmentService;
-
-	@MockitoBean(name = "roleChangeInterceptor")
-	private RoleChangeInterceptor roleChangeInterceptor;
 
 	@Override
 	protected List<String> getRequiredApiRoles() {
@@ -396,6 +392,9 @@ public class ReadOnlyApiTest extends AbstractApiTest {
 				.header("ApiKey", API_KEY))
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$").isArray())
+			.andExpect(jsonPath("$").isNotEmpty())
+			.andExpect(jsonPath("$[0].name").isNotEmpty())
+			.andExpect(jsonPath("$[0].itSystemName").isNotEmpty())
 			.andDo(document("readonly-user-roles",
 				preprocessResponse(prettyPrint()),
 				requestHeaders(
@@ -711,6 +710,8 @@ public class ReadOnlyApiTest extends AbstractApiTest {
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$").isArray())
 			.andExpect(jsonPath("$").isNotEmpty())
+			.andExpect(jsonPath("$[0].name").isNotEmpty())
+			.andExpect(jsonPath("$[0].itSystemName").isNotEmpty())
 			.andDo(document("readonly-userroles-by-itsystems",
 				preprocessResponse(prettyPrint()),
 				requestHeaders(

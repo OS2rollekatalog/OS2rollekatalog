@@ -62,6 +62,23 @@ public class LdapUpdaterHook implements RoleChangeHook {
 			}
 		}
 	}
+	
+	@Override
+	public void interceptCreateUser(User user) {
+		Set<CurrentAssignment> assignments = assignmentService.getByUser(user);
+
+		// Deduplicate by userRole to avoid adding same role multiple times
+		Set<Long> processedUserRoleIds = new HashSet<>();
+
+		for (CurrentAssignment assignment : assignments) {
+			if (assignment.getUserRole() == null) {
+				continue;
+			}
+			if (processedUserRoleIds.add(assignment.getUserRole().getId())) {
+				pendingADUpdateService.addUserRoleToQueue(assignment.getUserRole());
+			}
+		}
+	}
 
 	@Override
 	public void interceptFlagUserDeleted(User user) {

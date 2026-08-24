@@ -17,46 +17,60 @@ import dk.digitalidentity.rc.service.dmp.DMPService;
 
 @Component
 public class DMPUpdaterHook implements RoleChangeHook {
-	private boolean enabled;
-	
+	private final RoleCatalogueConfiguration config;
+
 	@Autowired
 	private DMPService dmpService;
-	
+
 	public DMPUpdaterHook(@Autowired RoleCatalogueConfiguration config) {
-		enabled = config.getIntegrations().getDmp().isEnabled();
+		this.config = config;
+	}
+
+	// NOTE: must be read on every call, and not cached in a field. With CRaC the bean is
+	//       constructed during checkpoint, where the runtime configuration is not available
+	//       yet - it is first bound in CracAwareness.afterRestore()
+	private boolean isEnabled() {
+		return config.getIntegrations().getDmp().isEnabled();
 	}
 
 	@Override
 	public void interceptActivateUser(User user) {
-		if (enabled) {
+		if (isEnabled()) {
+			dmpService.queueUser(user);
+		}
+	}
+	
+	@Override
+	public void interceptCreateUser(User user) {
+		if (isEnabled()) {
 			dmpService.queueUser(user);
 		}
 	}
 	
 	@Override
 	public void interceptFlagUserDeleted(User user) {
-		if (enabled) {
+		if (isEnabled()) {
 			dmpService.queueUser(user);
 		}
 	}
 
 	@Override
 	public void interceptAddRoleGroupAssignmentOnUser(User user, RoleGroup roleGroup) {
-		if (enabled && roleGroup.getUserRoleAssignments().stream().anyMatch(ura -> Objects.equals(ura.getUserRole().getItSystem().getIdentifier(), DMPService.DMP_IT_SYSTEM_IDENTIFIER))) {
+		if (isEnabled() && roleGroup.getUserRoleAssignments().stream().anyMatch(ura -> Objects.equals(ura.getUserRole().getItSystem().getIdentifier(), DMPService.DMP_IT_SYSTEM_IDENTIFIER))) {
 			dmpService.queueUser(user);
 		}
 	}
 
 	@Override
 	public void interceptRemoveRoleGroupAssignmentOnUser(User user, RoleGroup roleGroup) {
-		if (enabled && roleGroup.getUserRoleAssignments().stream().anyMatch(ura -> Objects.equals(ura.getUserRole().getItSystem().getIdentifier(), DMPService.DMP_IT_SYSTEM_IDENTIFIER))) {
+		if (isEnabled() && roleGroup.getUserRoleAssignments().stream().anyMatch(ura -> Objects.equals(ura.getUserRole().getItSystem().getIdentifier(), DMPService.DMP_IT_SYSTEM_IDENTIFIER))) {
 			dmpService.queueUser(user);
 		}
 	}
 
 	@Override
 	public void interceptAddUserRoleAssignmentOnUser(User user, UserRole userRole) {
-		if (enabled && Objects.equals(userRole.getItSystem().getIdentifier(), DMPService.DMP_IT_SYSTEM_IDENTIFIER)) {
+		if (isEnabled() && Objects.equals(userRole.getItSystem().getIdentifier(), DMPService.DMP_IT_SYSTEM_IDENTIFIER)) {
 			dmpService.queueUser(user);
 		}
 	}
@@ -67,28 +81,28 @@ public class DMPUpdaterHook implements RoleChangeHook {
 
 	@Override
 	public void interceptRemoveUserRoleAssignmentOnUser(User user, UserRole userRole) {
-		if (enabled && Objects.equals(userRole.getItSystem().getIdentifier(), DMPService.DMP_IT_SYSTEM_IDENTIFIER)) {
+		if (isEnabled() && Objects.equals(userRole.getItSystem().getIdentifier(), DMPService.DMP_IT_SYSTEM_IDENTIFIER)) {
 			dmpService.queueUser(user);
 		}
 	}
 
 	@Override
 	public void interceptAddPositionOnUser(User user, Position position) {
-		if (enabled) {
+		if (isEnabled()) {
 			dmpService.queueUser(user);
 		}
 	}
 
 	@Override
 	public void interceptRemovePositionOnUser(User user, Position position) {
-		if (enabled) {
+		if (isEnabled()) {
 			dmpService.queueUser(user);
 		}
 	}
 
 	@Override
 	public void interceptAddRoleGroupAssignmentOnOrgUnit(OrgUnit ou, RoleGroup roleGroup, boolean inherit) {
-		if (enabled && roleGroup.getUserRoleAssignments().stream().anyMatch(ura -> Objects.equals(ura.getUserRole().getItSystem().getIdentifier(), DMPService.DMP_IT_SYSTEM_IDENTIFIER))) {
+		if (isEnabled() && roleGroup.getUserRoleAssignments().stream().anyMatch(ura -> Objects.equals(ura.getUserRole().getItSystem().getIdentifier(), DMPService.DMP_IT_SYSTEM_IDENTIFIER))) {
 			dmpService.queueOrgUnit(ou, inherit);
 		}
 	}
@@ -97,14 +111,14 @@ public class DMPUpdaterHook implements RoleChangeHook {
 	//       men mere generelt er det et issue fx i AD integrationen, som ikke har et fuldt-sync system
 	@Override
 	public void interceptRemoveRoleGroupAssignmentOnOrgUnit(OrgUnit ou, RoleGroup roleGroup) {
-		if (enabled && roleGroup.getUserRoleAssignments().stream().anyMatch(ura -> Objects.equals(ura.getUserRole().getItSystem().getIdentifier(), DMPService.DMP_IT_SYSTEM_IDENTIFIER))) {
+		if (isEnabled() && roleGroup.getUserRoleAssignments().stream().anyMatch(ura -> Objects.equals(ura.getUserRole().getItSystem().getIdentifier(), DMPService.DMP_IT_SYSTEM_IDENTIFIER))) {
 			dmpService.queueOrgUnit(ou, false);
 		}
 	}
 
 	@Override
 	public void interceptAddUserRoleAssignmentOnOrgUnit(OrgUnit ou, UserRole userRole, boolean inherit) {
-		if (enabled && Objects.equals(userRole.getItSystem().getIdentifier(), DMPService.DMP_IT_SYSTEM_IDENTIFIER)) {
+		if (isEnabled() && Objects.equals(userRole.getItSystem().getIdentifier(), DMPService.DMP_IT_SYSTEM_IDENTIFIER)) {
 			dmpService.queueOrgUnit(ou, inherit);
 		}
 	}
@@ -113,7 +127,7 @@ public class DMPUpdaterHook implements RoleChangeHook {
 	//       men mere generelt er det et issue fx i AD integrationen, som ikke har et fuldt-sync system
 	@Override
 	public void interceptRemoveUserRoleAssignmentOnOrgUnit(OrgUnit ou, UserRole userRole) {
-		if (enabled && Objects.equals(userRole.getItSystem().getIdentifier(), DMPService.DMP_IT_SYSTEM_IDENTIFIER)) {
+		if (isEnabled() && Objects.equals(userRole.getItSystem().getIdentifier(), DMPService.DMP_IT_SYSTEM_IDENTIFIER)) {
 			dmpService.queueOrgUnit(ou, false);
 		}
 	}
@@ -122,7 +136,7 @@ public class DMPUpdaterHook implements RoleChangeHook {
 	//       men mere generelt er det et issue fx i AD integrationen, som ikke har et fuldt-sync system
 	@Override
 	public void interceptEditUserRoleAssignmentOnOrgUnit(OrgUnit ou, UserRole userRole) {
-		if (enabled && Objects.equals(userRole.getItSystem().getIdentifier(), DMPService.DMP_IT_SYSTEM_IDENTIFIER)) {
+		if (isEnabled() && Objects.equals(userRole.getItSystem().getIdentifier(), DMPService.DMP_IT_SYSTEM_IDENTIFIER)) {
 			dmpService.queueOrgUnit(ou, false);
 		}
 	}
@@ -131,35 +145,35 @@ public class DMPUpdaterHook implements RoleChangeHook {
 	//       men mere generelt er det et issue fx i AD integrationen, som ikke har et fuldt-sync system
 	@Override
 	public void interceptEditRoleGroupAssignmentOnOrgUnit(OrgUnit ou, RoleGroup roleGroup) {
-		if (enabled && roleGroup.getUserRoleAssignments().stream().anyMatch(ura -> Objects.equals(ura.getUserRole().getItSystem().getIdentifier(), DMPService.DMP_IT_SYSTEM_IDENTIFIER))) {
+		if (isEnabled() && roleGroup.getUserRoleAssignments().stream().anyMatch(ura -> Objects.equals(ura.getUserRole().getItSystem().getIdentifier(), DMPService.DMP_IT_SYSTEM_IDENTIFIER))) {
 			dmpService.queueOrgUnit(ou, false);
 		}
 	}
 
 	@Override
 	public void interceptAddUserRoleAssignmentOnRoleGroup(RoleGroup roleGroup, UserRole userRole) {
-		if (enabled && Objects.equals(userRole.getItSystem().getIdentifier(), DMPService.DMP_IT_SYSTEM_IDENTIFIER)) {
+		if (isEnabled() && Objects.equals(userRole.getItSystem().getIdentifier(), DMPService.DMP_IT_SYSTEM_IDENTIFIER)) {
 			dmpService.queueUserRole(userRole);
 		}
 	}
 
 	@Override
 	public void interceptRemoveUserRoleAssignmentOnRoleGroup(RoleGroup roleGroup, UserRole userRole) {
-		if (enabled && Objects.equals(userRole.getItSystem().getIdentifier(), DMPService.DMP_IT_SYSTEM_IDENTIFIER)) {
+		if (isEnabled() && Objects.equals(userRole.getItSystem().getIdentifier(), DMPService.DMP_IT_SYSTEM_IDENTIFIER)) {
 			dmpService.queueUserRole(userRole);
 		}
 	}
 
 	@Override
 	public void interceptAddSystemRoleAssignmentOnUserRole(UserRole userRole, SystemRoleAssignment systemRoleAssignment) {
-		if (enabled && Objects.equals(userRole.getItSystem().getIdentifier(), DMPService.DMP_IT_SYSTEM_IDENTIFIER)) {
+		if (isEnabled() && Objects.equals(userRole.getItSystem().getIdentifier(), DMPService.DMP_IT_SYSTEM_IDENTIFIER)) {
 			dmpService.queueUserRole(userRole);
 		}
 	}
 
 	@Override
 	public void interceptRemoveSystemRoleAssignmentOnUserRole(UserRole userRole, SystemRoleAssignment systemRoleAssignment) {
-		if (enabled && Objects.equals(userRole.getItSystem().getIdentifier(), DMPService.DMP_IT_SYSTEM_IDENTIFIER)) {
+		if (isEnabled() && Objects.equals(userRole.getItSystem().getIdentifier(), DMPService.DMP_IT_SYSTEM_IDENTIFIER)) {
 			dmpService.queueUserRole(userRole);
 		}
 	}

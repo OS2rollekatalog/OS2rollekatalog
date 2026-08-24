@@ -2,6 +2,7 @@ package dk.digitalidentity.rc.attestation.dao;
 
 import dk.digitalidentity.rc.attestation.model.entity.Attestation;
 import dk.digitalidentity.rc.attestation.model.entity.AttestationMail;
+import dk.digitalidentity.rc.attestation.model.entity.AttestationRun;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.CrudRepository;
 import org.springframework.data.repository.query.Param;
@@ -12,10 +13,6 @@ import java.util.List;
 import java.util.Optional;
 
 public interface AttestationDao extends CrudRepository<Attestation, Long> {
-    // TODO It would probably be better to look for "open" attestations and not by deadline on/after
-    Optional<Attestation> findByAttestationTypeAndItSystemIdAndDeadlineGreaterThanEqual(
-            final Attestation.AttestationType attestationType, final long itSystemId, LocalDate deadlineOnOrAfter);
-
     List<Attestation> findByAttestationTypeAndDeadlineIsGreaterThanEqual(final Attestation.AttestationType type, final LocalDate deadline);
     List<Attestation> findByAttestationTypeInAndDeadlineIsGreaterThanEqual(final List<Attestation.AttestationType> type, final LocalDate deadline);
 
@@ -24,16 +21,26 @@ public interface AttestationDao extends CrudRepository<Attestation, Long> {
     List<Attestation> findByAttestationTypeAndCreatedAtGreaterThanEqualAndVerifiedAtIsNotNull(final Attestation.AttestationType type, final LocalDate createdAtAfter);
 
 
-    @Query("select a from Attestation a where a.attestationType=:type and a.responsibleOuUuid=:ouUuid and a.deadline >= :when")
-    Optional<Attestation> findByAttestationTypeAndResponsibleOuUuidAndDeadlineGreaterThanEqual(@Param("type") final Attestation.AttestationType type, @Param("ouUuid") final String ouUuid, @Param("when") final LocalDate when);
     Optional<Attestation> findFirstByAttestationTypeAndResponsibleOuUuidOrderByDeadlineDesc(final Attestation.AttestationType type, final String ouUuid);
 
     Attestation findFirstByAttestationTypeAndResponsibleOuUuidAndVerifiedAtIsNotNullOrderByDeadlineDesc(final Attestation.AttestationType type, final String ouUuid);
 
-    Optional<Attestation> findByAttestationTypeAndItSystemIdAndDeadlineGreaterThanEqual(final Attestation.AttestationType type, final Long itSystemId, final LocalDate onOrAfter);
+    /**
+     * Run-scoped "har vi den her attestation allerede?"-opslag. Et deadline-baseret opslag
+     * ({@code deadline >= i dag}) finder ikke attestationer i et run hvis deadline er overskredet, og
+     * ville derfor få trackeren til at oprette dubletter hver nat i et åbent, forsinket run.
+     * {@code findFirst} frem for {@code findBy} så en evt. eksisterende dublet ikke giver
+     * IncorrectResultSizeDataAccessException.
+     */
+    Optional<Attestation> findFirstByAttestationTypeAndItSystemIdAndResponsibleCollectionIdAndAttestationRunOrderByIdAsc(
+            final Attestation.AttestationType type, final Long itSystemId, final Long responsibleCollectionId, final AttestationRun run);
 
-    Optional<Attestation> findByAttestationTypeAndItSystemIdAndResponsibleCollectionIdAndDeadlineGreaterThanEqual(
-            final Attestation.AttestationType type, final Long itSystemId, final Long responsibleCollectionId, final LocalDate onOrAfter);
+    /** Run-scoped opslag pr. ansvarlig enhed, jf. ovenstående. */
+    Optional<Attestation> findFirstByAttestationTypeAndResponsibleOuUuidAndAttestationRunOrderByIdAsc(
+            final Attestation.AttestationType type, final String responsibleOuUuid, final AttestationRun run);
+
+    /** Alle attestationer af en given type i ét run — uafhængigt af om deadlinen er overskredet. */
+    List<Attestation> findByAttestationTypeAndAttestationRun(final Attestation.AttestationType type, final AttestationRun run);
 
     Optional<Attestation> findFirstByAttestationTypeAndItSystemIdOrderByDeadlineDesc(final Attestation.AttestationType type, final Long itSystemId);
     Optional<Attestation> findFirstByAttestationTypeAndItSystemIdAndResponsibleCollectionIdOrderByDeadlineDesc(

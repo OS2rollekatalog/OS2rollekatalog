@@ -38,8 +38,9 @@ public class ExcludedUsersRule extends AssignmentRule {
 	/**
 	 * Checks if a user is excluded from an assignment.
 	 *
-	 * @return NEGATIVE if the user is excluded, POSITIVE if not excluded but assignment has exclusions,
-	 *         NOT_APPLICABLE if the assignment has no user exclusions
+	 * @return NEGATIVE if the user is excluded, POSITIVE if not excluded and the exclusion list is
+	 *         the only condition on the assignment, NOT_APPLICABLE if the assignment has no user
+	 *         exclusions or leaves the actual selection to another condition (titel/funktion/leder)
 	 */
 	private static AssignmentAppliesResult checkUserExclusion(OrgUnitAssignment assignment, Position position) {
 		if (position == null) {
@@ -53,7 +54,14 @@ public class ExcludedUsersRule extends AssignmentRule {
 		}
 		boolean excluded = assignment.getExceptedUsers().stream()
 			.anyMatch(u -> u.getUuid().equalsIgnoreCase(position.getUser().getUuid()));
-		return excluded ? AssignmentAppliesResult.NEGATIVE : AssignmentAppliesResult.POSITIVE;
+		if (excluded) {
+			return AssignmentAppliesResult.NEGATIVE;
+		}
+		// Kombineret med fx et titelfilter er undtagelseslisten kun et fravalg - den må ikke i sig
+		// selv tildele rollen til alle andre i enheden
+		return hasGrantingCondition(assignment)
+			? AssignmentAppliesResult.NOT_APPLICABLE
+			: AssignmentAppliesResult.POSITIVE;
 	}
 
 }

@@ -151,6 +151,9 @@ public interface CurrentAssignmentDao extends JpaRepository<CurrentAssignment, L
 	Set<CurrentAssignment> findByUserUuidAndRoleGroupNotNull(String uuid);
 	Set<CurrentAssignment> findByRoleGroupAndOrgUnitNullAndTitleNull(RoleGroup roleGroup);
 
+	// no date-filtering on purpose
+	Set<CurrentAssignment> findByRoleGroup(RoleGroup roleGroup);
+
 	/**
 	 * Finder direkte tildelte assignments (ikke via enhed/titel) for en userrole, hvor tildelingen er trådt i kraft.
 	 * <p>

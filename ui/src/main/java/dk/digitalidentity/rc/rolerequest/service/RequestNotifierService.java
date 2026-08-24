@@ -55,7 +55,6 @@ public class RequestNotifierService {
 	private final SystemRoleService systemRoleService;
 	private final OrgUnitService orgUnitService;
 	private final ItSystemService itSystemService;
-	private final RequestAuthorizedRoleService requestAuthorizedRoleService;
 	private final AssignmentService assignmentService;
 	private final RequestApproverResolver requestApproverResolver;
 
@@ -374,7 +373,7 @@ public class RequestNotifierService {
 			.map(CurrentAssignment::getUser)
 			.filter(user -> isPermittedAccessToOuAndItSystem(requestApprove, user))
 			.filter(user -> user.getEmail() != null)
-			.collect(Collectors.toMap(User::getEmail, User::getName, (name1, name2) -> name1));
+			.collect(Collectors.toMap(User::getEmail, User::getName, (name1, _) -> name1));
 	}
 
 	private void addSystemResponsibleEmail(RoleRequest request, ItSystem itSystem, Map<String, String> mailsToSendTo) {

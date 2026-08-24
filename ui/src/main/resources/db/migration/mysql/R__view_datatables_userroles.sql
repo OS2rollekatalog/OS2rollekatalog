@@ -91,8 +91,13 @@ CREATE OR REPLACE VIEW view_datatables_userroles AS (
         IF(pku.failed IS NULL, FALSE, pku.failed) AS sync_failed,
         ur.delegated_from_cvr AS delegated_from_cvr,
         ur.read_only AS read_only,
-        GROUP_CONCAT(DISTINCT our.ou_uuid) as org_unit_filter_uuids,
-        GROUP_CONCAT(DISTINCT itsou.ou_uuid) as it_system_org_unit_filter_uuids
+        -- Only expose the OU filter when it is actually enabled. The join tables can retain
+        -- stale OUs after the filter is disabled (e.g. via the API), and the requestability
+        -- checks in Java (RequestService.orgUnitFilterAllows) ignore the filter unless
+        -- ou_filter_enabled is TRUE. The "all roles" list must apply the exact same rule,
+        -- otherwise a role shows under "Recommended" (Java) but disappears from "All" (this view).
+        CASE WHEN ur.ou_filter_enabled = TRUE THEN GROUP_CONCAT(DISTINCT our.ou_uuid) END as org_unit_filter_uuids,
+        CASE WHEN its.ou_filter_enabled = TRUE THEN GROUP_CONCAT(DISTINCT itsou.ou_uuid) END as it_system_org_unit_filter_uuids
     FROM user_roles ur
              JOIN it_systems its ON its.id = ur.it_system_id
              LEFT JOIN pending_kombit_updates pku ON pku.user_role_id = ur.id

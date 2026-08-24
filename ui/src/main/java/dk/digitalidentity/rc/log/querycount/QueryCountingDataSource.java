@@ -38,7 +38,7 @@ public class QueryCountingDataSource extends DelegatingDataSource {
 	}
 
 	private Connection proxyConnection(Connection real) {
-		return (Connection) java.lang.reflect.Proxy.newProxyInstance(getClass().getClassLoader(), new Class[] { Connection.class }, (proxy, method, args) -> {
+		return (Connection) java.lang.reflect.Proxy.newProxyInstance(getClass().getClassLoader(), new Class[] { Connection.class }, (_, method, args) -> {
 			String name = method.getName();
 			if (name.startsWith("prepareStatement") || name.startsWith("prepareCall") || name.equals("createStatement")) {
 				COUNT.get().incrementAndGet();

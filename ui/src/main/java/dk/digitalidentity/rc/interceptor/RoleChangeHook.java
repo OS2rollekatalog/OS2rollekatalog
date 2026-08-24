@@ -14,6 +14,7 @@ import dk.digitalidentity.rc.dao.model.UserUserRoleAssignment;
 public interface RoleChangeHook {
 
 	// UserServiceHooks
+	public void interceptCreateUser(User user);
 	public void interceptActivateUser(User user);
 	public void interceptFlagUserDeleted(User user);
 	public void interceptAddRoleGroupAssignmentOnUser(User user, RoleGroup roleGroup);

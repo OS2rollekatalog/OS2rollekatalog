@@ -51,11 +51,13 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Date;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -251,20 +253,41 @@ public class UserRoleService {
 		return userRoleDao.findAll();
 	}
 
+	@org.springframework.transaction.annotation.Transactional(readOnly = true)
 	public List<UserRole> getUserRolesWithRequesterPermissions(List<RequestableBy> permissions) {
-		return userRoleDao.findByRequesterPermissionIn(permissions);
+		return unionByPermission(permissions, userRoleDao::findByRequesterPermissionContaining);
 	}
 
+	@org.springframework.transaction.annotation.Transactional(readOnly = true)
 	public List<UserRole> getUserRolesWithInheritedPermissionsMatching(List<RequestableBy> permissions) {
-		//Treat null values as INHERIT values
-		if (permissions.contains(RequestableBy.INHERIT)) {
-			return userRoleDao.findByRequesterPermissionAndItSystem_RequesterPermissionInOrItSystem_RequesterPermissionNull(RequestableBy.INHERIT, permissions);
+		if (permissions.isEmpty()) {
+			return List.of();
 		}
-		return userRoleDao.findByRequesterPermissionAndItSystem_RequesterPermissionIn(RequestableBy.INHERIT, permissions);
+		Map<Long, UserRole> byId = new LinkedHashMap<>();
+		for (RequestableBy p : permissions) {
+			for (UserRole ur : userRoleDao.findInheritingByItSystemRequesterPermissionContaining(p.name())) {
+				byId.putIfAbsent(ur.getId(), ur);
+			}
+		}
+		return List.copyOf(byId.values());
 	}
 
-	public List<UserRole> getUserRolesWithApproverPermissions( List<ApprovableBy> permissions) {
-		return userRoleDao.findByApproverPermissionIn(permissions);
+	@org.springframework.transaction.annotation.Transactional(readOnly = true)
+	public List<UserRole> getUserRolesWithApproverPermissions(List<ApprovableBy> permissions) {
+		return unionByPermission(permissions, userRoleDao::findByApproverPermissionContaining);
+	}
+
+	private static List<UserRole> unionByPermission(Collection<? extends Enum<?>> permissions, Function<String, List<UserRole>> query) {
+		if (permissions.isEmpty()) {
+			return List.of();
+		}
+		Map<Long, UserRole> byId = new LinkedHashMap<>();
+		for (Enum<?> p : permissions) {
+			for (UserRole ur : query.apply(p.name())) {
+				byId.putIfAbsent(ur.getId(), ur);
+			}
+		}
+		return List.copyOf(byId.values());
 	}
 
 	public UserRole getById(long roleId) {
@@ -535,7 +558,7 @@ public class UserRoleService {
 			.collect(Collectors.toMap(
 				ca -> ca.getUserRole().getId(),
 				CurrentAssignment::getUserRole,
-				(existing, current) -> existing
+				(existing, _) -> existing
 			));
 
 		// Maps the it systems for each rolegroup, for easier access below

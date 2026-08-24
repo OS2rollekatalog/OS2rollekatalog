@@ -12,24 +12,18 @@ import java.util.Set;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
-import dk.digitalidentity.rc.attestation.dao.AttestationDao;
-import dk.digitalidentity.rc.attestation.dao.AttestationResponsibleCollectionDao;
-import dk.digitalidentity.rc.attestation.model.entity.AttestationResponsibleCollection;
-import dk.digitalidentity.rc.attestation.model.entity.Attestation;
-import dk.digitalidentity.rc.dao.assignment.HistoricAssignmentDao;
-import dk.digitalidentity.rc.service.assignment.HistoricItSystemAssignmentService;
-import dk.digitalidentity.rc.dao.assignment.HistoricOuAssignmentDao;
-import dk.digitalidentity.rc.dao.history.HistoryUserDao;
-import dk.digitalidentity.rc.log.AuditLogIntercepted;
-import dk.digitalidentity.rc.service.assignment.AssignmentService;
-import jakarta.persistence.EntityManager;
-import jakarta.persistence.PersistenceContext;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import dk.digitalidentity.rc.attestation.dao.AttestationDao;
+import dk.digitalidentity.rc.attestation.dao.AttestationResponsibleCollectionDao;
+import dk.digitalidentity.rc.attestation.model.entity.Attestation;
+import dk.digitalidentity.rc.attestation.model.entity.AttestationResponsibleCollection;
 import dk.digitalidentity.rc.config.Constants;
 import dk.digitalidentity.rc.dao.ItSystemDao;
+import dk.digitalidentity.rc.dao.assignment.HistoricAssignmentDao;
+import dk.digitalidentity.rc.dao.assignment.HistoricOuAssignmentDao;
 import dk.digitalidentity.rc.dao.model.ItSystem;
 import dk.digitalidentity.rc.dao.model.ItSystemAttestationResponsible;
 import dk.digitalidentity.rc.dao.model.ItSystemSystemOwner;
@@ -40,6 +34,12 @@ import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserRole;
 import dk.digitalidentity.rc.dao.model.enums.ItSystemType;
 import dk.digitalidentity.rc.dao.model.enums.KitosRole;
+import dk.digitalidentity.rc.log.AuditLogIntercepted;
+import dk.digitalidentity.rc.service.assignment.AssignmentService;
+import dk.digitalidentity.rc.service.assignment.HistoricItSystemAssignmentService;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.LockModeType;
+import jakarta.persistence.PersistenceContext;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
@@ -62,9 +62,6 @@ public class ItSystemService {
 	private OrgUnitService orgUnitService;
 
 	@Autowired
-	private RoleGroupService roleGroupService;
-
-	@Autowired
 	private AssignmentService assignmentService;
 
 	@Autowired
@@ -82,15 +79,11 @@ public class ItSystemService {
 	@Autowired
 	private HistoricItSystemAssignmentService historicItSystemAssignmentService;
 
-	@Autowired
-	private HistoryUserDao historyUserDao;
-
 	@PersistenceContext
 	private EntityManager entityManager;
 
 	@Autowired
 	private UserRoleCleanupService userRoleCleanupService;
-
 
 	@Transactional(readOnly = true)
 	public List<ItSystem> getAllByIdInAndDeletedFalse(Collection<Long> ids) {
@@ -146,12 +139,27 @@ public class ItSystemService {
 	 */
 	@Transactional
 	public void updateAttestationResponsibles(long id, List<User> users) {
-		ItSystem itSystem = itSystemDao.findById(id).orElseThrow();
+		// Hent under en pessimistisk skrivelås (SELECT … FOR UPDATE) så samtidige ændringer af
+		// responsible-collectionen serialiseres — ellers kunne to transaktioner begge planlægge
+		// orphanRemoval-DELETE af de samme rækker (StaleStateException: expected 1 but was 0).
+		// På REST-stien er det en frisk load i en ny persistence context. Kitos-syncen, der kalder
+		// internt fra en langlivet transaktion, har allerede refreshet+låst systemet (se
+		// handleSingleITSystemKitosOwnerAndResponsible), så vi får den friske, låste instans her.
+		ItSystem itSystem = itSystemDao.findByIdForUpdate(id).orElseThrow();
 		List<String> newUuids = users.stream().map(User::getUuid).toList();
 
-		itSystem.getAttestationResponsibles().clear();
-		entityManager.flush();
-		users.forEach(itSystem::addAttestationResponsible);
+		// Set-diff frem for clear()+reinsert: rør kun de responsibles der faktisk ændrer sig, så
+		// uændrede it_system_attestation_responsible-rækker hverken slettes (racet) eller giver
+		// duplicate-key på uk_it_system_att_resp ved delete+reinsert af samme (itsystem, user).
+		Set<String> desiredUuids = new HashSet<>(newUuids);
+		Set<String> currentUuids = itSystem.getAttestationResponsibles().stream()
+			.map(r -> r.getUser().getUuid()).collect(Collectors.toSet());
+		if (!currentUuids.equals(desiredUuids)) {
+			itSystem.getAttestationResponsibles().removeIf(r -> !desiredUuids.contains(r.getUser().getUuid()));
+			users.stream()
+				.filter(u -> !currentUuids.contains(u.getUuid()))
+				.forEach(itSystem::addAttestationResponsible);
+		}
 
 		// Update the AttestationResponsibleCollection for this IT system to match the new responsible list.
 		// Open (unverified) attestations pointing to this collection keep their reference — the collection
@@ -188,6 +196,45 @@ public class ItSystemService {
 		}
 	}
 
+	/**
+	 * Rydder et IT-systems {@link AttestationResponsibleCollection}, hvis den er en "spøgelses-collection":
+	 * ikke-tom snapshot, men INGEN levende systemansvarlig.
+	 * <p>
+	 * V1_352 seedede collections ud fra HISTORISKE attesteringsdata (responsible_user_uuid på de
+	 * temporale snapshot-tabeller), ikke fra den levende ansvarsliste. Systemer der engang havde en
+	 * systemansvarlig men ikke længere har det, endte derfor med en ikke-tom collection og optræder
+	 * stadig i attesteringsmodulet, selvom ingen aktuelt kan attestere dem. Denne metode genbruger
+	 * {@link #updateAttestationResponsibles} med en tom liste — som netop tømmer collectionen og
+	 * sletter åbne attesteringer — så oprydningen følger nøjagtig samme veletablerede sti som når den
+	 * sidste ansvarlige fjernes manuelt.
+	 * <p>
+	 * Bevidst afgrænset til spøgelser (live tom): collections der blot divergerer fra en <i>ikke-tom</i>
+	 * levende liste (fx en ansvarlig fjernet midt i en kørsel) er et legitimt point-in-time-snapshot og
+	 * røres ikke — det er bruger-stiens live-krydstjek og admin-overblikkets filter der styrer synlighed
+	 * for dem, ikke en snapshot-mutation.
+	 *
+	 * @return true hvis en spøgelses-collection blev ryddet
+	 */
+	@Transactional
+	public boolean reconcileAttestationResponsibleCollection(long itSystemId) {
+		AttestationResponsibleCollection collection = attestationResponsibleCollectionDao.findFirstByItSystemId(itSystemId).orElse(null);
+		if (collection == null || collection.getUsersUuid().isEmpty()) {
+			return false;
+		}
+		ItSystem itSystem = itSystemDao.findById(itSystemId).orElse(null);
+		if (itSystem == null) {
+			// System findes ikke længere — FK-cascade (ON DELETE CASCADE) har ryddet collectionen.
+			return false;
+		}
+		List<User> liveResponsibles = getAttestationResponsibles(itSystem);
+		if (!liveResponsibles.isEmpty()) {
+			// Ikke en spøgelse — der er en aktuel systemansvarlig. Lad snapshottet være.
+			return false;
+		}
+		updateAttestationResponsibles(itSystemId, liveResponsibles);
+		return true;
+	}
+
 	@Transactional
 	public void backfillHistoricResponsibleCollection(long itSystemId) {
 		attestationResponsibleCollectionDao.findFirstByItSystemId(itSystemId).ifPresent(collection -> {
@@ -199,10 +246,22 @@ public class ItSystemService {
 
 	@Transactional
 	public void updateSystemOwners(long id, List<User> users) {
-		ItSystem itSystem = itSystemDao.findById(id).orElseThrow();
-		itSystem.getSystemOwners().clear();
-		entityManager.flush();
-		users.forEach(itSystem::addSystemOwner);
+		// Hent under pessimistisk skrivelås — se updateAttestationResponsibles for samspillet med syncen.
+		ItSystem itSystem = itSystemDao.findByIdForUpdate(id).orElseThrow();
+
+		// Set-diff frem for clear()+reinsert: rør kun de ejere der faktisk ændrer sig. Undgår
+		// både unødig delete+reinsert af uændrede rækker (og dermed orphanRemoval-racet på dem)
+		// og duplicate-key på uk_it_system_owner ved delete+reinsert af samme (itsystem, user).
+		Set<String> desiredUuids = users.stream().map(User::getUuid).collect(Collectors.toSet());
+		Set<String> currentUuids = itSystem.getSystemOwners().stream()
+			.map(o -> o.getUser().getUuid()).collect(Collectors.toSet());
+		if (currentUuids.equals(desiredUuids)) {
+			return;
+		}
+		itSystem.getSystemOwners().removeIf(o -> !desiredUuids.contains(o.getUser().getUuid()));
+		users.stream()
+			.filter(u -> !currentUuids.contains(u.getUuid()))
+			.forEach(itSystem::addSystemOwner);
 	}
 
 	@AuditLogIntercepted
@@ -405,24 +464,51 @@ public class ItSystemService {
 		}
 	}
 
+	// @Transactional sikrer en transaktion når metoden kaldes direkte fra REST-stien
+	// (ItSystemRestController). Kaldt fra syncKitosOwnersAndResponsibles er det et internt
+	// kald, der bypasser proxien, så den deltager blot i den allerede åbne transaktion.
+	@Transactional
 	public void handleSingleITSystemKitosOwnerAndResponsible(ItSystem system, List<User> allUsers) {
-		system.getAttestationResponsibles().clear();
-		system.getSystemOwners().clear();
-
+		User owner = null;
+		User responsible = null;
 		if (system.getKitosITSystem().getKitosUsers() != null) {
-			User owner = findUserForKitosRole(KitosRole.SYSTEM_OWNER, system, allUsers);
-			User responsible = findUserForKitosRole(KitosRole.SYSTEM_RESPONSIBLE, system, allUsers);
-
-			if (owner != null) {
-				system.addSystemOwner(owner);
-			}
-			if (responsible != null) {
-				system.addAttestationResponsible(responsible);
-			}
+			owner = findUserForKitosRole(KitosRole.SYSTEM_OWNER, system, allUsers);
+			responsible = findUserForKitosRole(KitosRole.SYSTEM_RESPONSIBLE, system, allUsers);
 		}
-		itSystemDao.save(system);
-		List<User> newResponsibles = getAttestationResponsibles(system);
-		updateAttestationResponsibles(system.getId(), newResponsibles);
+
+		// Kun rør collections når Kitos faktisk afviger fra den nuværende tilstand. I det normale
+		// tilfælde (stabilt ejerskab) er sættene uændrede, så vi undgår både delete+reinsert af de
+		// samme rækker (som ellers gav duplicate key på uk_it_system_att_resp/uk_it_system_owner) og
+		// den dyre attestation-/historik-oprydning i updateAttestationResponsibles.
+		// sameUsers-tjekkene er en billig pre-filtrering på den (muligvis stale) in-memory tilstand fra
+		// sync'ens langlivede transaktion. Afviger Kitos, refresher vi systemet ÉN gang under en
+		// pessimistisk lås: refresh(PESSIMISTIC_WRITE) udsteder SELECT … FOR UPDATE (et current read forbi
+		// tx-snapshot'et) og overskriver de stale collections med committet tilstand. Det er afgørende —
+		// ikke blot en lock() — for ellers kunne de efterfølgende set-diff-mutationer planlægge en
+		// orphanRemoval-DELETE af en række en samtidig transaktion allerede har slettet. Kun ÉN refresh
+		// (ikke én pr. mutator): en anden refresh på samme entitet ville kassere den førstes pending ændringer.
+		// Bagefter kører mutatorerne på den friske, låste instans (deres findByIdForUpdate returnerer den).
+		List<User> desiredOwners = owner != null ? List.of(owner) : List.of();
+		List<User> desiredResponsibles = responsible != null ? List.of(responsible) : List.of();
+		boolean ownersDiffer = !sameUsers(system.getSystemOwners().stream().map(ItSystemSystemOwner::getUser).toList(), desiredOwners);
+		boolean responsiblesDiffer = !sameUsers(getAttestationResponsibles(system), desiredResponsibles);
+		if (!ownersDiffer && !responsiblesDiffer) {
+			return;
+		}
+
+		entityManager.refresh(system, LockModeType.PESSIMISTIC_WRITE);
+		if (ownersDiffer) {
+			updateSystemOwners(system.getId(), desiredOwners);
+		}
+		if (responsiblesDiffer) {
+			updateAttestationResponsibles(system.getId(), desiredResponsibles);
+		}
+	}
+
+	private boolean sameUsers(List<User> current, List<User> desired) {
+		Set<String> currentUuids = current.stream().map(User::getUuid).collect(Collectors.toSet());
+		Set<String> desiredUuids = desired.stream().map(User::getUuid).collect(Collectors.toSet());
+		return currentUuids.equals(desiredUuids);
 	}
 
 	private User findUserForKitosRole(KitosRole kitosRole, ItSystem system, List<User> allUsers) {

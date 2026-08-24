@@ -49,6 +49,13 @@ public class KspCicsUpdaterHook implements RoleChangeHook {
 	}
 	
 	@Override
+	public void interceptCreateUser(User user) {
+		if (userService.hasCicsUser(user)) {
+			kspCicsService.addUserToQueue(user);
+		}
+	}
+	
+	@Override
 	public void interceptFlagUserDeleted(User user) {
 		if (userService.hasCicsUser(user)) {
 			kspCicsService.addUserToQueue(user);

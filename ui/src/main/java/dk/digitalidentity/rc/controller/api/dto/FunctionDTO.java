@@ -17,5 +17,6 @@ import lombok.Setter;
 public class FunctionDTO {
 	@NotNull
 	private String name;
+	@Schema(description = "A UUID supplied on create becomes the identity of the function. Generated when omitted.")
 	private String uuid;
 }

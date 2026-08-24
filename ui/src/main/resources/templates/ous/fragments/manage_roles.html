@@ -11,6 +11,8 @@
 				<li><a href="#" data-cid="2" onclick="return dataTablesToggleColumn(this);"><em class="fa fa-fw"></em><span th:text="#{html.page.ous.manage.assignment.assignmentType}"></span></a></li>
 				<li><a href="#" data-cid="3" onclick="return dataTablesToggleColumn(this);"><em class="fa fa-fw"></em><span th:text="#{html.word.validity}"></span></a></li>
 				<li><a href="#" data-cid="4" onclick="return dataTablesToggleColumn(this);"><em class="fa fa-fw"></em><span th:text="#{html.page.ous.manage.assignment.itsystem}"></span></a></li>
+				<li><a href="#" data-cid="5" onclick="return dataTablesToggleColumn(this);"><em class="fa fa-fw"></em><span th:text="#{html.page.users.manage.assignment.description}"></span></a></li>
+				<li th:if="${@settingsService.isCaseNumberEnabled()}"><a href="#" data-cid="6" onclick="return dataTablesToggleColumn(this);"><em class="fa fa-fw"></em><span th:text="#{html.page.users.manage.assignment.caseNumber}"></span></a></li>
 			</ul>
 		</div>
 		<th:block th:if="${canAssign}">
@@ -24,11 +26,12 @@
 					<thead>
 						<tr>
 							<th class="col-md-2" th:text="#{html.page.ous.manage.assignment.name}"></th>
-							<th class="col-md-2" th:text="#{html.enum.assignmenttype}"></th>
+							<th class="col-md-1" th:text="#{html.enum.assignmenttype}"></th>
 							<th class="col-md-2" th:text="#{html.page.ous.manage.assignment.assignmentType}"></th>
-							<th class="col-md-3" th:text="#{html.word.validity}"></th>
-							<th class="col-md-2" th:text="#{html.page.ous.manage.assignment.itsystem}"></th>
-							<th th:if="${@settingsService.isCaseNumberEnabled()}" class="col-md-2" th:text="#{html.page.users.manage.assignment.caseNumber}"></th>
+							<th class="col-md-2" th:text="#{html.word.validity}"></th>
+							<th class="col-md-1" th:text="#{html.page.ous.manage.assignment.itsystem}"></th>
+							<th class="col-md-2" th:text="#{html.page.users.manage.assignment.description}"></th>
+							<th th:if="${@settingsService.isCaseNumberEnabled()}" class="col-md-1" th:text="#{html.page.users.manage.assignment.caseNumber}"></th>
 							<th class="col-md-1" th:text="#{html.control.operations}"></th>
 						</tr>
 					</thead>
@@ -73,6 +76,7 @@
 							</td>
 
 							<td th:text="${assignment.itSystem?.name}"></td>
+							<td class="preformat" th:text="${assignment.description}"></td>
 							<td th:if="${@settingsService.isCaseNumberEnabled()}" th:text="${assignment.caseNumber ?: ''}"></td>
 							<td th:attr="data-assignmentid=${assignment.assignmentId}, data-assignmenttype=${assignment.assignmentType}, data-roleid=${assignment.roleId}, data-objtype=${assignment.type}, data-startdate=${assignment.startDate}, data-stopdate=${assignment.stopDate}, data-name=${assignment.name}">
 								<a

@@ -21,6 +21,7 @@ import dk.digitalidentity.rc.dao.model.UserUserRoleAssignment;
 import dk.digitalidentity.rc.dao.model.assignment.CurrentAssignment;
 import dk.digitalidentity.rc.dao.model.enums.ItSystemType;
 import dk.digitalidentity.rc.dao.model.enums.KleType;
+import dk.digitalidentity.rc.security.RequireKleAdministratorRole;
 import dk.digitalidentity.rc.security.RequireRequesterOrAssignerRole;
 import dk.digitalidentity.rc.security.permission.Permission;
 import dk.digitalidentity.rc.security.permission.PermissionConstraint;
@@ -519,6 +520,7 @@ public class UserRestController {
 		return kleService.getKleListFromParent(parentCode);
 	}
 
+	@RequireKleAdministratorRole
 	@PostMapping(value = "/rest/users/updateAll/kle")
 	@ResponseBody
 	public HttpEntity<String> updateKle(@RequestHeader("uuid") String uuid, @RequestHeader("type") String type, @RequestBody List<String> codes) {
@@ -766,7 +768,7 @@ public class UserRestController {
 			// empty set means none is allowed
 			return (_, _, criteriaBuilder) -> criteriaBuilder.disjunction();
 		}
-		return (root, query, criteriaBuilder) -> {
+		return (root, _, criteriaBuilder) -> {
 			// Pad feltet med ; på begge sider så vi kan søge på ;uuid;
 			Expression<String> paddedField = criteriaBuilder.concat(
 				criteriaBuilder.concat(

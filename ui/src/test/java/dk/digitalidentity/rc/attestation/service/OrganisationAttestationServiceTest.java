@@ -11,6 +11,7 @@ import dk.digitalidentity.rc.attestation.model.dto.RoleAssignmentDTO;
 import dk.digitalidentity.rc.attestation.model.entity.Attestation;
 import dk.digitalidentity.rc.attestation.model.entity.temporal.AssignedThroughType;
 import dk.digitalidentity.rc.attestation.model.entity.temporal.AttestationOuRoleAssignment;
+import dk.digitalidentity.rc.attestation.model.entity.temporal.AttestationUserRoleAssignment;
 import dk.digitalidentity.rc.attestation.model.entity.OrganisationRoleAttestationEntry;
 import dk.digitalidentity.rc.attestation.model.entity.OrganisationUserAttestationEntry;
 import dk.digitalidentity.rc.dao.FunctionDao;
@@ -38,10 +39,12 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.time.LocalDate;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
+import static dk.digitalidentity.rc.mockfactory.attestation.MockFactory.createAttestationRun;
 import static dk.digitalidentity.rc.mockfactory.attestation.MockFactory.createDisabledEmailTemplate;
 import static dk.digitalidentity.rc.mockfactory.attestation.MockFactory.createMixedRoleAssignments;
 import static dk.digitalidentity.rc.mockfactory.attestation.MockFactory.createOrgUnit;
@@ -54,6 +57,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -118,6 +122,9 @@ class OrganisationAttestationServiceTest {
 	@Mock
 	private RoleGroupService roleGroupService;
 
+	@Mock
+	private AttestationConstraintService attestationConstraintService;
+
 	@InjectMocks
 	private OrganisationAttestationService organisationAttestationService;
 
@@ -128,6 +135,7 @@ class OrganisationAttestationServiceTest {
 	void setUp() {
 		performingUser = createUser(PERFORMER_USER_UUID, PERFORMER_USER_ID, "Performing User", "performer@example.com");
 		summaryEmailTemplate = createDisabledEmailTemplate(EmailTemplateType.ATTESTATION_SUMMARY);
+		lenient().when(attestationConstraintService.translatePostponedConstraints(any())).thenAnswer(invocation -> invocation.getArgument(0));
 	}
 
 	@Nested
@@ -623,6 +631,185 @@ class OrganisationAttestationServiceTest {
 			// ---- Then ---- //
 			assertEquals(1, dtos.size());
 			assertTrue(dtos.get(0).isInherit(), "DTO.inherit skal være true når source inherit=true");
+		}
+	}
+
+	@Nested
+	@DisplayName("buildUserAttestations() Tests")
+	class BuildUserAttestationsTests {
+
+		private static final String PARENT_OU_UUID = "parent-ou-uuid";
+		private static final String PARENT_OU_NAME = "Parent OU";
+
+		/** Rolle nedarvet fra en enhed højere oppe: responsibleOu er brugerens egen enhed, roleOu er rollens. */
+		private AttestationUserRoleAssignment inheritedFromParentOu() {
+			return AttestationUserRoleAssignment.builder()
+				.userUuid(USER_UUID)
+				.userId("testuser")
+				.userName("Test User")
+				.userRoleId(42L)
+				.userRoleName("Test Role")
+				.itSystemId(7L)
+				.itSystemName("Test System")
+				.assignedThroughType(AssignedThroughType.ORGUNIT)
+				.assignedThroughName(PARENT_OU_NAME)
+				.responsibleOuUuid(OU_UUID)
+				.responsibleOuName("Test OU")
+				.roleOuUuid(PARENT_OU_UUID)
+				.roleOuName(PARENT_OU_NAME)
+				.inherited(false) // hårdkodet false når tildelinger flades ud - må ikke bruges som filter
+				.build();
+		}
+
+		private Attestation attestationForOu() {
+			Attestation attestation = createOrganisationAttestation(1L, "attestation-uuid", OU_UUID, "Test OU");
+			attestation.setAttestationRun(createAttestationRun(1L, LocalDate.now().plusDays(14)));
+			return attestation;
+		}
+
+		@Test
+		@DisplayName("Roles inherited from a parent org unit end up on the 'other roles' tab")
+		void inheritedOrgUnitRole_ShouldBeListedAsOtherRole() {
+			// Regression: prædikatet (ORGUNIT && isInherited()) kunne aldrig matche, så nedarvede
+			// enhedsroller faldt ud af BEGGE faner.
+			Attestation attestation = attestationForOu();
+			LocalDate when = attestation.getCreatedAt();
+			when(settingsService.isADAttestationEnabled()).thenReturn(true);
+			when(attestationUserService.getUserPositionsCached(USER_UUID, OU_UUID)).thenReturn("Test Position");
+			when(userRoleAssignmentDao.listValidAssignmentsForUserHandledByItSystemResponsible(when, USER_UUID))
+				.thenReturn(Collections.emptyList());
+			when(userRoleAssignmentDao.listValidAssignmentsForUserWhereResponsibleOUIsNot(when, USER_UUID, OU_UUID))
+				.thenReturn(Collections.emptyList());
+
+			// ---- When ---- //
+			var result = organisationAttestationService.buildUserAttestations(
+				List.of(inheritedFromParentOu()), attestation, false, when);
+
+			// ---- Then ---- //
+			assertEquals(1, result.size());
+			var userAttestation = result.get(0);
+			assertTrue(userAttestation.getUserRolesPrItSystem().isEmpty(),
+				"Nedarvet enhedsrolle må ikke stå som en rettighed lederen skal attestere");
+			assertEquals(1, userAttestation.getDoNotVerifyUserRolesPrItSystem().size(),
+				"Nedarvet enhedsrolle skal stå under Andre rettigheder");
+			assertEquals("Test Role",
+				userAttestation.getDoNotVerifyUserRolesPrItSystem().get(0).getUserRoles().get(0).getRoleName());
+		}
+
+		@Test
+		@DisplayName("Position is looked up in the org unit being attested, not the org unit the role came from")
+		void position_ShouldComeFromTheAttestedOrgUnit() {
+			// Regression: opslaget skete på roleOuUuid, hvor brugeren ingen stilling har, så feltet
+			// endte som bar "(enhedsnavn)".
+			Attestation attestation = attestationForOu();
+			LocalDate when = attestation.getCreatedAt();
+			when(settingsService.isADAttestationEnabled()).thenReturn(true);
+			when(attestationUserService.getUserPositionsCached(USER_UUID, OU_UUID)).thenReturn("Test Position");
+			when(userRoleAssignmentDao.listValidAssignmentsForUserHandledByItSystemResponsible(when, USER_UUID))
+				.thenReturn(Collections.emptyList());
+			when(userRoleAssignmentDao.listValidAssignmentsForUserWhereResponsibleOUIsNot(when, USER_UUID, OU_UUID))
+				.thenReturn(Collections.emptyList());
+
+			// ---- When ---- //
+			var result = organisationAttestationService.buildUserAttestations(
+				List.of(inheritedFromParentOu()), attestation, false, when);
+
+			// ---- Then ---- //
+			assertEquals("Test Position", result.get(0).getPosition());
+		}
+
+		@Test
+		@DisplayName("Falls back to all positions when the user holds no position in the attested org unit")
+		void position_WhenNoPositionInAttestedOrgUnit_ShouldFallBackToAllPositions() {
+			// Sker fx for en leder, hvis egne roller attesteres af forælder-enheden.
+			Attestation attestation = attestationForOu();
+			LocalDate when = attestation.getCreatedAt();
+			when(settingsService.isADAttestationEnabled()).thenReturn(true);
+			when(attestationUserService.getUserPositionsCached(USER_UUID, OU_UUID)).thenReturn("");
+			when(attestationUserService.getAllUserPositionsCached(USER_UUID))
+				.thenReturn("Test Position (Other OU)");
+			when(userRoleAssignmentDao.listValidAssignmentsForUserHandledByItSystemResponsible(when, USER_UUID))
+				.thenReturn(Collections.emptyList());
+			when(userRoleAssignmentDao.listValidAssignmentsForUserWhereResponsibleOUIsNot(when, USER_UUID, OU_UUID))
+				.thenReturn(Collections.emptyList());
+
+			// ---- When ---- //
+			var result = organisationAttestationService.buildUserAttestations(
+				List.of(inheritedFromParentOu()), attestation, false, when);
+
+			// ---- Then ---- //
+			assertEquals("Test Position (Other OU)", result.get(0).getPosition());
+		}
+
+		@Test
+		@DisplayName("Directly assigned roles remain on the 'roles to attest' tab")
+		void directRole_ShouldStillBeAttestedHere() {
+			Attestation attestation = attestationForOu();
+			LocalDate when = attestation.getCreatedAt();
+			AttestationUserRoleAssignment direct = AttestationUserRoleAssignment.builder()
+				.userUuid(USER_UUID)
+				.userId("testuser")
+				.userName("Test User")
+				.userRoleId(43L)
+				.userRoleName("Direct Role")
+				.itSystemId(7L)
+				.itSystemName("Test System")
+				.assignedThroughType(AssignedThroughType.DIRECT)
+				.responsibleOuUuid(OU_UUID)
+				.responsibleOuName("Test OU")
+				.inherited(false)
+				.build();
+			when(attestationUserService.getUserPositionsCached(USER_UUID, OU_UUID)).thenReturn("Test Position");
+			when(userRoleAssignmentDao.listValidAssignmentsForUserHandledByItSystemResponsible(when, USER_UUID))
+				.thenReturn(Collections.emptyList());
+			when(userRoleAssignmentDao.listValidAssignmentsForUserWhereResponsibleOUIsNot(when, USER_UUID, OU_UUID))
+				.thenReturn(Collections.emptyList());
+
+			// ---- When ---- //
+			var result = organisationAttestationService.buildUserAttestations(List.of(direct), attestation, false, when);
+
+			// ---- Then ---- //
+			assertEquals(1, result.size());
+			assertEquals(1, result.get(0).getUserRolesPrItSystem().size());
+			assertTrue(result.get(0).getDoNotVerifyUserRolesPrItSystem().isEmpty());
+		}
+
+		@Test
+		@DisplayName("A direct role another department is responsible for stays on the 'other roles' tab")
+		void directRoleFromOtherDepartment_ShouldBeListedAsOtherRole() {
+			Attestation attestation = attestationForOu();
+			LocalDate when = attestation.getCreatedAt();
+			AttestationUserRoleAssignment otherDepartment = AttestationUserRoleAssignment.builder()
+				.userUuid(USER_UUID)
+				.userId("testuser")
+				.userName("Test User")
+				.userRoleId(44L)
+				.userRoleName("Other Department Role")
+				.itSystemId(8L)
+				.itSystemName("Other System")
+				.assignedThroughType(AssignedThroughType.DIRECT)
+				.responsibleOuUuid("other-ou-uuid")
+				.responsibleOuName("Other OU")
+				.inherited(false)
+				.build();
+			when(settingsService.isADAttestationEnabled()).thenReturn(true);
+			when(attestationUserService.getUserPositionsCached(USER_UUID, OU_UUID)).thenReturn("Test Position");
+			when(userRoleAssignmentDao.listValidAssignmentsForUserHandledByItSystemResponsible(when, USER_UUID))
+				.thenReturn(Collections.emptyList());
+			when(userRoleAssignmentDao.listValidAssignmentsForUserWhereResponsibleOUIsNot(when, USER_UUID, OU_UUID))
+				.thenReturn(List.of(otherDepartment));
+
+			// ---- When ---- //
+			var result = organisationAttestationService.buildUserAttestations(
+				List.of(inheritedFromParentOu()), attestation, false, when);
+
+			// ---- Then ---- //
+			assertEquals(1, result.size());
+			var userAttestation = result.get(0);
+			assertTrue(userAttestation.getUserRolesPrItSystem().isEmpty(),
+				"En direkte rolle en anden afdeling er ansvarlig for må ikke stå til attestering her");
+			assertEquals(2, userAttestation.getDoNotVerifyUserRolesPrItSystem().size(),
+				"Både den nedarvede og den anden afdelings rolle skal stå under Andre rettigheder");
 		}
 	}
 }

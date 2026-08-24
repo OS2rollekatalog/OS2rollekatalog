@@ -59,8 +59,8 @@
                             <i class="fa fa-chevron-up"></i>
                             &nbsp;
                             <span th:text="${userRole.roleName}"></span>
-                            <small class="assignedThroughLabel" th:if="${verify && userRole.assignedThroughName != null}" th:text="'(' + #{__${userRole.assignedThrough.message}__} + ' - ' + ${userRole.assignedThroughName} + ')'"></small>
-                            <small class="assignedThroughLabel" th:if="${verify && userRole.assignedThroughName == null}" th:text="'(' + #{__${userRole.assignedThrough.message}__} + ')'"></small>
+                            <small class="assignedThroughLabel" th:if="${verify && userRole.assignedThrough != null && userRole.assignedThroughName != null}" th:text="'(' + #{__${userRole.assignedThrough.message}__} + ' - ' + ${userRole.assignedThroughName} + ')'"></small>
+                            <small class="assignedThroughLabel" th:if="${verify && userRole.assignedThrough != null && userRole.assignedThroughName == null}" th:text="'(' + #{__${userRole.assignedThrough.message}__} + ')'"></small>
                         </div>
                         <div class="expandable-content">
                             <div class="expandable-content-description" th:text="${userRole.roleDescription}"></div>

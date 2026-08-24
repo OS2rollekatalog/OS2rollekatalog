@@ -38,7 +38,7 @@ public class ItSystemAttestationTrackerService {
 
     @Transactional(timeout = 600, propagation = Propagation.REQUIRES_NEW)
     public void updateItSystemRolesAttestations(final LocalDate when) {
-        runTrackerService.getAttestationRunWithDeadlineNotAfter(when)
+        runTrackerService.getOpenAttestationRun()
                 .filter(a -> !a.isSensitive())
                 .ifPresent(run -> {
                     // Attestationer for tomme collections er usynlige for alle (synlighed afgøres af
@@ -63,7 +63,7 @@ public class ItSystemAttestationTrackerService {
         if (run.isExtraSensitive() || run.isSensitive()) {
             return;
         }
-        Attestation attestation = findItSystemRolesAttestationFor(assignment, when).orElse(null);
+        Attestation attestation = findItSystemRolesAttestationFor(run, assignment).orElse(null);
         if (attestation == null) {
             if (!run.getDeadline().minusDays(configuration.getAttestation().getDaysForAttestation()).isAfter(when)) {
                 // Deadline is soon we need to create a new attestation for this (system × responsible) pair
@@ -94,8 +94,13 @@ public class ItSystemAttestationTrackerService {
         );
     }
 
-    private Optional<Attestation> findItSystemRolesAttestationFor(final AttestationSystemRoleAssignment assignment, final LocalDate when) {
-        return attestationDao.findByAttestationTypeAndItSystemIdAndResponsibleCollectionIdAndDeadlineGreaterThanEqual(
-                Attestation.AttestationType.IT_SYSTEM_ROLES_ATTESTATION, assignment.getItSystemId(), assignment.getResponsibleCollectionId(), when);
+    /**
+     * Matcher på <em>run</em> og ikke på deadline: et forsinket run har deadline i fortiden, og et
+     * deadline-baseret opslag ville derfor ikke finde runets egne attestationer og oprette dubletter
+     * ved hver kørsel.
+     */
+    private Optional<Attestation> findItSystemRolesAttestationFor(final AttestationRun run, final AttestationSystemRoleAssignment assignment) {
+        return attestationDao.findFirstByAttestationTypeAndItSystemIdAndResponsibleCollectionIdAndAttestationRunOrderByIdAsc(
+                Attestation.AttestationType.IT_SYSTEM_ROLES_ATTESTATION, assignment.getItSystemId(), assignment.getResponsibleCollectionId(), run);
     }
 }

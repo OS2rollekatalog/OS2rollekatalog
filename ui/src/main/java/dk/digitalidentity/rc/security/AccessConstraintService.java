@@ -20,6 +20,7 @@ import dk.digitalidentity.rc.security.permission.PermissionConstraint;
 import dk.digitalidentity.rc.security.permission.Section;
 import dk.digitalidentity.rc.service.PostponedConstraintService;
 import dk.digitalidentity.rc.service.assignment.AssignmentService;
+import dk.digitalidentity.rc.util.ConstraintValueUtil;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
 import dk.digitalidentity.rc.dao.model.SystemRole;
@@ -145,12 +146,20 @@ public class AccessConstraintService {
 							user.getManagedOrgUnits().forEach(ou -> getUuidsRecursive(ou, resultSet));
 							user.getSubstituteFor().forEach(sub -> getUuidsRecursive(sub.getOrgUnit(), resultSet));
 							break;
-						case INHERITED_FROM_FUNCTIONS:
-							user.getFunctionAssignments().forEach(f -> resultSet.add(f.getOrgUnit().getUuid()));
+						case INHERITED_FROM_FUNCTIONS: {
+							Set<String> allowed = ConstraintValueUtil.parseFunctionUuids(constraintValue.getConstraintValue());
+							user.getFunctionAssignments().stream()
+								.filter(f -> allowed.contains(f.getFunction().getUuid()))
+								.forEach(f -> resultSet.add(f.getOrgUnit().getUuid()));
 							break;
-						case EXTENDED_INHERITED_FROM_FUNCTIONS:
-							user.getFunctionAssignments().forEach(f -> getUuidsRecursive(f.getOrgUnit(), resultSet));
+						}
+						case EXTENDED_INHERITED_FROM_FUNCTIONS: {
+							Set<String> allowed = ConstraintValueUtil.parseFunctionUuids(constraintValue.getConstraintValue());
+							user.getFunctionAssignments().stream()
+								.filter(f -> allowed.contains(f.getFunction().getUuid()))
+								.forEach(f -> getUuidsRecursive(f.getOrgUnit(), resultSet));
 							break;
+						}
 						case SELECTED_INHERITED:
 						case VALUE:
 							String value = constraintValue.getConstraintValueType().equals(ConstraintValueType.VALUE) ? constraintValue.getConstraintValue() : String.join(",", organisationConstraintUtil.getOrganisationConstraintUuids(constraintValue.getConstraintValue()));
@@ -288,6 +297,11 @@ public class AccessConstraintService {
 
 				// if the user is Administrator - return full list (i.e. null)
 				if (systemRoleAssignment.getSystemRole().getIdentifier().equals(Constants.ROLE_ADMINISTRATOR_ID)) {
+					return null;
+				}
+
+				// if the user is a Global RoleAssigner - return full list (i.e. null), the global assigner cannot be constrained
+				if (systemRoleAssignment.getSystemRole().getIdentifier().equals(Constants.ROLE_GLOBAL_ASSIGNER_ID)) {
 					return null;
 				}
 
@@ -432,16 +446,23 @@ public class AccessConstraintService {
 						user.getManagedOrgUnits().forEach(ou -> getUuidsRecursive(ou, ouUuids));
 						user.getSubstituteFor().forEach(sub -> getUuidsRecursive(sub.getOrgUnit(), ouUuids));
 						break;
-					case INHERITED_FROM_FUNCTIONS:
-						user.getFunctionAssignments().forEach(f -> ouUuids.add(f.getOrgUnit().getUuid()));
+					case INHERITED_FROM_FUNCTIONS: {
+						Set<String> allowed = ConstraintValueUtil.parseFunctionUuids(constraintValue.getConstraintValue());
+						user.getFunctionAssignments().stream()
+							.filter(f -> allowed.contains(f.getFunction().getUuid()))
+							.forEach(f -> ouUuids.add(f.getOrgUnit().getUuid()));
 						break;
-					case EXTENDED_INHERITED_FROM_FUNCTIONS:
-						user.getFunctionAssignments().forEach(f -> getUuidsRecursive(f.getOrgUnit(), ouUuids));
+					}
+					case EXTENDED_INHERITED_FROM_FUNCTIONS: {
+						Set<String> allowed = ConstraintValueUtil.parseFunctionUuids(constraintValue.getConstraintValue());
+						user.getFunctionAssignments().stream()
+							.filter(f -> allowed.contains(f.getFunction().getUuid()))
+							.forEach(f -> getUuidsRecursive(f.getOrgUnit(), ouUuids));
 						break;
+					}
 					case VALUE:
-						for (String uuid : constraintValue.getConstraintValue().split(",")) {
-							ouUuids.add(uuid);
-						}
+					case SELECTED_INHERITED:
+						ouUuids.addAll(organisationConstraintUtil.getOrganisationConstraintUuids(constraintValue.getConstraintValue()));
 
 						break;
 					default:
@@ -543,11 +564,18 @@ public class AccessConstraintService {
 						user.getSubstituteFor().forEach(sub -> getUuidsRecursive(sub.getOrgUnit(), uuids));
 						yield uuids.stream();
 					}
-					case INHERITED_FROM_FUNCTIONS ->
-						user.getFunctionAssignments().stream().map(f -> f.getOrgUnit().getUuid());
+					case INHERITED_FROM_FUNCTIONS -> {
+						Set<String> allowed = ConstraintValueUtil.parseFunctionUuids(cv.getConstraintValue());
+						yield user.getFunctionAssignments().stream()
+							.filter(f -> allowed.contains(f.getFunction().getUuid()))
+							.map(f -> f.getOrgUnit().getUuid());
+					}
 					case EXTENDED_INHERITED_FROM_FUNCTIONS -> {
+						Set<String> allowed = ConstraintValueUtil.parseFunctionUuids(cv.getConstraintValue());
 						Set<String> uuids = new HashSet<>();
-						user.getFunctionAssignments().forEach(f -> getUuidsRecursive(f.getOrgUnit(), uuids));
+						user.getFunctionAssignments().stream()
+							.filter(f -> allowed.contains(f.getFunction().getUuid()))
+							.forEach(f -> getUuidsRecursive(f.getOrgUnit(), uuids));
 						yield uuids.stream();
 					}
 					case VALUE -> {
@@ -722,4 +750,5 @@ public class AccessConstraintService {
 		// add a permissionconstraint with those lists to the relevant permission and section
 		return new PermissionConstraint(constrainedITSystemIds, constrainedOrgunitUUids);
 	}
+
 }

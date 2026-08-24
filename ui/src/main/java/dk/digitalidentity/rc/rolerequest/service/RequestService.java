@@ -151,6 +151,10 @@ public class RequestService {
 	 * @return true if user can request the role, false otherwise
 	 */
 	public boolean canRequest(final UserRole role, final User receivingUser, final OrgUnit receiversOrgUnit, List<RequestableBy> globalRequesterSetting) {
+		return canRequest(role, receivingUser, receiversOrgUnit, globalRequesterSetting, true);
+	}
+
+	private boolean canRequest(final UserRole role, final User receivingUser, final OrgUnit receiversOrgUnit, List<RequestableBy> globalRequesterSetting, boolean enforceOrgUnitFilter) {
 		if (role.isReadOnly()) {
 			return false;
 		}
@@ -163,14 +167,18 @@ public class RequestService {
 			return false;
 		}
 
+		// Check orgUnit filter - if role or itSystem has orgUnit filter and receiving user's orgUnit is not in it, deny immediately.
+		// The OU filter is a hard gate that applies to everyone, including admins - consistent with the "all roles" lists,
+		// which enforce the filter at the query level without an admin bypass.
+		// The filter gates who may be *granted* a role; removals do not apply it (enforceOrgUnitFilter == false),
+		// so an already-assigned role can always be requested removed regardless of the receiver's OU.
+		if (enforceOrgUnitFilter && !orgUnitFilterAllows(role, receiversOrgUnit)) {
+			return false;
+		}
+
 		// Admins can always request, otherwise
 		if (SecurityUtil.hasDirectAdminRole()) {
 			return true;
-		}
-
-		// Check orgUnit filter - if role  or itSystem has orgUnit filter and receiving user's orgUnit is not in it, deny immediately
-		if (!orgUnitFilterAllows(role, receiversOrgUnit)) {
-			return false;
 		}
 
 		// Check AUTHORIZED permission with constraints
@@ -399,6 +407,10 @@ public class RequestService {
 	 * @return true if request is allowed, false otherwise
 	 */
 	public boolean canRequest(final User requestingUser, RoleGroup role, User receivingUser, final OrgUnit receiversOrgUnit) {
+		return canRequest(requestingUser, role, receivingUser, receiversOrgUnit, true);
+	}
+
+	private boolean canRequest(final User requestingUser, RoleGroup role, User receivingUser, final OrgUnit receiversOrgUnit, boolean enforceOrgUnitFilter) {
 
 		List<RequestableBy> globalPermission = settingsService.getRolerequestRequester();
 		List<RequestableBy> relevantPermission = getClosestPermission(role, globalPermission);
@@ -408,14 +420,18 @@ public class RequestService {
 			return false;
 		}
 
+		// Check orgUnit filter - if the role has an orgUnit filter and the receiving user's orgUnit is not in it, deny immediately.
+		// The OU filter is a hard gate that applies to everyone, including admins - consistent with the "all roles" lists,
+		// which enforce the filter at the query level without an admin bypass.
+		// The filter gates who may be *granted* a role; removals do not apply it (enforceOrgUnitFilter == false),
+		// so an already-assigned role can always be requested removed regardless of the receiver's OU.
+		if (enforceOrgUnitFilter && !orgUnitFilterAllows(role, receiversOrgUnit)) {
+			return false;
+		}
+
 		// admin can always request
 		if (SecurityUtil.hasDirectAdminRole()) {
 			return true;
-		}
-
-		// Check orgUnit filter - if role  or itSystem has orgUnit filter and receiving user's orgUnit is not in it, deny immediately
-		if (!orgUnitFilterAllows(role, receiversOrgUnit)) {
-			return false;
 		}
 
 		// Check AUTHORIZED permission with constraints
@@ -452,6 +468,38 @@ public class RequestService {
 		}
 
 		return determineRequestable(relevantPermission, receivingUser);
+	}
+
+	/**
+	 * Removal eligibility for a directly-assigned {@link UserRole}.
+	 *
+	 * <p>The OU filter gates who may be <em>granted</em> a role; it is not applied to removals. A
+	 * directly-assigned role also carries no org-unit context on the assignment, so passing it through
+	 * {@link #canRequest(UserRole, User, OrgUnit, List)} would let the filter reject it outright. Removal
+	 * therefore bypasses the OU filter entirely (the role can always be requested removed regardless of
+	 * the receiver's OU), while every other gate - read-only, NONE, requester authority - still applies.
+	 *
+	 * <p>We still evaluate against each of the receiving user's org units so the AUTHORIZED path, which is
+	 * scoped per OU, keeps working for request-authorized users limited to specific units.
+	 */
+	public boolean canRequestRemoval(final UserRole role, final User receivingUser, final List<RequestableBy> globalRequesterSetting) {
+		final List<OrgUnit> receiverOrgUnits = orgUnitService.getOrgUnitsForUser(receivingUser);
+		if (receiverOrgUnits.isEmpty()) {
+			return canRequest(role, receivingUser, null, globalRequesterSetting, false);
+		}
+		return receiverOrgUnits.stream().anyMatch(orgUnit -> canRequest(role, receivingUser, orgUnit, globalRequesterSetting, false));
+	}
+
+	/**
+	 * Removal eligibility for a directly-assigned {@link RoleGroup}. See
+	 * {@link #canRequestRemoval(UserRole, User, List)} for why the OU filter is not applied to removals.
+	 */
+	public boolean canRequestRemoval(final User requestingUser, final RoleGroup role, final User receivingUser) {
+		final List<OrgUnit> receiverOrgUnits = orgUnitService.getOrgUnitsForUser(receivingUser);
+		if (receiverOrgUnits.isEmpty()) {
+			return canRequest(requestingUser, role, receivingUser, null, false);
+		}
+		return receiverOrgUnits.stream().anyMatch(orgUnit -> canRequest(requestingUser, role, receivingUser, orgUnit, false));
 	}
 
 	public boolean canApprove(RoleRequest request) {
@@ -593,30 +641,41 @@ public class RequestService {
 		return roleRequestDao.save(roleRequest);
 	}
 
+	@RequestLoggable(logEvent = RequestLogEvent.REMOVE)
+	public RoleRequest saveRemoveRequestWithLog(RoleRequest roleRequest) {
+		return roleRequestDao.save(roleRequest);
+	}
+
 	public RoleRequest saveNoLog(RoleRequest roleRequest) {
 		return roleRequestDao.save(roleRequest);
 	}
 
 	/**
-	 * Gets all pending request the currently logged in user has the rights to approve
+	 * Gets all pending request the currently logged in user has the rights to approve.
+	 * The order is the one established by the query (newest request first) - it must stay
+	 * deterministic, since the list is rendered directly into the pending requests table.
 	 *
-	 * @return a set of pending requests which can be approved by the current user
+	 * @return a list of pending requests which can be approved by the current user
 	 */
 	@Transactional(readOnly = true)
-	public Set<RoleRequest> getPendingApprovableRequests() {
+	public List<RoleRequest> getPendingApprovableRequests() {
 		final User user = userService.getOptionalByUserId(SecurityUtil.getUserId())
 			.orElseThrow(() -> new NotFoundException("Unable to find user for user id: " + SecurityUtil.getUserId()));
 
-		final Set<RoleRequest> allRequests = roleRequestDao.findByStatusEager(RequestApproveStatus.REQUESTED)
+		final List<RoleRequest> allRequests = roleRequestDao.findByStatusEager(RequestApproveStatus.REQUESTED)
 			.stream()
+			// the collection fetch join in the query repeats the root row, and distinct() collapses
+			// those again - RoleRequest has no equals/hashCode, so this compares by identity, which
+			// is exactly right for entities from one persistence context
+			.distinct()
 			.filter(request -> request.getRoleGroup() != null || (request.getUserRole() != null && !request.getUserRole().isReadOnly()))
-			.collect(Collectors.toSet());
+			.toList();
 
 		return SecurityUtil.hasDirectAdminRole() ? allRequests :
 			allRequests.stream()
 			.filter(req -> req.getReceiver() == null || !user.getUuid().equalsIgnoreCase(req.getReceiver().getUuid()))
 			.filter(req -> requestApproverResolver.canApprove(req, user))
-			.collect(Collectors.toSet());
+			.toList();
 	}
 
 	/**
@@ -663,6 +722,8 @@ public class RequestService {
 				userService.addUserRole(receiver, userRole, request.getStartDate(), request.getEndDate(), mapRequestPostponedConstraint(request.getRequestPostponedConstraints()), request.getOrgUnit(), true, null);
 				manualItSystem = userRole.getItSystem().getSystemType().equals(ItSystemType.MANUAL);
 			}
+			// add/removeUserRole only mutate the in-memory collection; persist explicitly so the queued recalculation sees the change
+			userService.save(receiver);
 
 			requestNotifierService.notifyReceiverOnRequestApproval(request, roleName, manualItSystem, itSystemName, resolveRequestAuthorityMessage(request));
 
@@ -675,6 +736,8 @@ public class RequestService {
 				userService.addRoleGroup(receiver, roleGroup, null, null, request.getOrgUnit(), null);
 			}
 			roleName = roleGroup.getName();
+			// add/removeRoleGroup only mutate the in-memory collection; persist explicitly so the queued recalculation sees the change
+			userService.save(receiver);
 
 			for (RoleGroupUserRoleAssignment userRoleAssignment : roleGroup.getUserRoleAssignments()) {
 				if (userRoleAssignment.getUserRole().getItSystem().getSystemType().equals(ItSystemType.MANUAL)) {

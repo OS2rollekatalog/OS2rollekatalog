@@ -16,6 +16,8 @@ import dk.digitalidentity.rc.dao.model.Function;
 import dk.digitalidentity.rc.dao.model.ItSystem;
 import dk.digitalidentity.rc.dao.model.Kle;
 import dk.digitalidentity.rc.dao.model.OrgUnit;
+import dk.digitalidentity.rc.dao.model.OrgUnitRoleGroupAssignment;
+import dk.digitalidentity.rc.dao.model.OrgUnitUserRoleAssignment;
 import dk.digitalidentity.rc.dao.model.RoleGroup;
 import dk.digitalidentity.rc.dao.model.RoleGroupUserRoleAssignment;
 import dk.digitalidentity.rc.dao.model.SystemRole;
@@ -414,8 +416,12 @@ public class UserRoleController {
 	@GetMapping(value = "/ui/userroles/edit/{id}")
 	public String editGet(Model model, @PathVariable("id") long id) {
 		UserRole role = userRoleService.getById(id);
+		if (role == null || role.isReadOnly()) {
+			return "redirect:../list";
+		}
+
 		boolean constraintsAllowAccess = userPermissionContext.getConstraint(permissionEntity, Permission.UPDATE).allowsITSystem(role.getItSystem().getId());
-		if (role == null || role.isReadOnly() || !constraintsAllowAccess) {
+		if (!constraintsAllowAccess) {
 			return "redirect:../list";
 		}
 
@@ -476,6 +482,7 @@ public class UserRoleController {
 
 		model.addAttribute("treeOUs", ouListForms);
 		model.addAttribute("selectedFilterOUs", selectedOus);
+		model.addAttribute("allFunctions", functionService.getAllActive().stream().map(f -> new FunctionDTO(f.getUuid(), f.getName(), false)).toList());
 
 		model.addAttribute("caseNumberEnabled", settingsService.isCaseNumberEnabled());
 
@@ -611,6 +618,28 @@ public class UserRoleController {
 
 			List<String> titleFormsUuids = titleForms.stream().map(TitleListForm::getId).toList();
 			titleForms.addAll(orgUnit.getTitles().stream().filter(t -> !titleFormsUuids.contains(t.getUuid())).map(t -> new TitleListForm(t, true)).collect(Collectors.toList()));
+
+			// add titles without positions if they are used for assignments (e.g. a title renamed in OPUS
+			// leaves the old title behind with no positions - it must still be shown so it can be deselected).
+			// Mirrors OrgUnitController.manage(); without it this fragment shows fewer titles than the
+			// "N stillinger" count on the org unit, which counts every title on the assignment.
+			List<String> newTitleFormsUuids = titleForms.stream().map(TitleListForm::getId).collect(Collectors.toList());
+			for (OrgUnitUserRoleAssignment userRoleAssignment : orgUnit.getUserRoleAssignments()) {
+				for (Title title : userRoleAssignment.getTitles()) {
+					if (!newTitleFormsUuids.contains(title.getUuid())) {
+						titleForms.add(new TitleListForm(title, false, true));
+						newTitleFormsUuids.add(title.getUuid());
+					}
+				}
+			}
+			for (OrgUnitRoleGroupAssignment roleGroupAssignment : orgUnit.getRoleGroupAssignments()) {
+				for (Title title : roleGroupAssignment.getTitles()) {
+					if (!newTitleFormsUuids.contains(title.getUuid())) {
+						titleForms.add(new TitleListForm(title, false, true));
+						newTitleFormsUuids.add(title.getUuid());
+					}
+				}
+			}
 
 			model.addAttribute("titles", titleForms);
 

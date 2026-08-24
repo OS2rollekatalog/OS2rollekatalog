@@ -39,6 +39,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.logging.log4j.util.Strings;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -85,6 +86,11 @@ public class EntraIDService {
 
 	@Autowired
 	private UserRoleCleanupService userRoleCleanupService;
+
+	// self-reference so the per-user assignment changes run through the transactional proxy
+	// (backSync runs in a @Scheduled task with no open-session-in-view)
+	@Autowired
+	private EntraIDService self;
 
 	private final Map<String, GraphServiceClient> clientCache = new ConcurrentHashMap<>();
 
@@ -232,7 +238,6 @@ public class EntraIDService {
 			}
 
 			List<SystemRole> systemRoles = systemRoleService.getByItSystem(itSystem);
-			List<UserRole> userRoles = userRoleService.getByItSystem(itSystem);
 
 			for (Group group : groups) {
 				SystemRole systemRole = systemRoles.stream().filter(s -> s.getIdentifier().equals(group.getId())).findAny().orElse(null);
@@ -241,13 +246,29 @@ public class EntraIDService {
 					continue;
 				}
 
-				UserRole userRole = userRoles.stream().filter(ur -> systemRole.getIdentifier().equals(ur.getIdentifier())).findAny().orElse(null);
-				if (userRole == null) {
+				// Group membership reflects every user who has this systemRole through any userRole (jobfunktionsrolle),
+				// regardless of the userRole's identifier or whether multiple systemRoles are bundled into one userRole.
+				Set<UserRole> userRolesWithSystemRole = userRoleService.findAllBySystemRole(systemRole);
+
+				// Preserve the race guard only while backSync is enabled: backSync will create the missing 1:1 userRole,
+				// so skip until it exists to avoid emptying the group in the window between systemRole and userRole creation.
+				// When backSync is disabled, a systemRole with no userRole means nobody is entitled, so the group is emptied.
+				if (userRolesWithSystemRole.isEmpty() && configuration.getIntegrations().getEntraID().isBackSyncEnabled()) {
 					log.debug("Skipping membersync for EntraID group " + group.getDisplayName() + ". Waiting for backSync to create userRole");
 					continue;
 				}
 
-				Set<String> usersWithRoleInRC = getUsersWithUserRole(userRole, tenant);
+				if (userRolesWithSystemRole.isEmpty()) {
+					// backSync is disabled (we did not skip above), so no userRole means nobody is entitled and the group will be emptied.
+					// Logged at warn so operators can distinguish an intentional empty group from a misconfiguration in production logs.
+					log.warn("No userRole covers systemRole '{}' (it-system '{}') and backSync is disabled. Emptying EntraID group {}",
+							systemRole.getIdentifier(), itSystem.getName(), group.getDisplayName());
+				}
+
+				Set<String> usersWithRoleInRC = new HashSet<>();
+				for (UserRole userRole : userRolesWithSystemRole) {
+					usersWithRoleInRC.addAll(getUsersWithUserRole(userRole, tenant));
+				}
 				Set<String> memberUsernames = getMembers(group, client, tenant);
 				int added = 0;
 				int removed = 0;
@@ -480,7 +501,11 @@ public class EntraIDService {
 			}
 
 			if (user.getUserRoleAssignments().stream().noneMatch(ura -> ura.getUserRole().getId() == userRole.getId())) {
-				userService.addUserRole(user, userRole, null, null, null);
+				// Apply on a freshly loaded, managed user in a transaction. backSync runs in a @Scheduled
+				// task (no open-session-in-view), so the users in 'users' are detached; mutating +
+				// re-merging them across role iterations would re-insert earlier assignments (their
+				// generated id stays 0), and the removal below would hit a LazyInitializationException.
+				self.assignUserRoleTransactional(user.getUuid(), userRole.getId());
 			}
 		}
 
@@ -489,9 +514,47 @@ public class EntraIDService {
 			String userId = assignment.getUser().getUserId();
 
 			if (assignedUsers.stream().noneMatch(u -> u.equalsIgnoreCase(userId))) {
-				userService.removeUserRole(assignment.getUser(), userRole);
+				self.removeUserRoleTransactional(assignment.getUser().getUuid(), userRole.getId());
 			}
 		}
+	}
+
+	/**
+	 * Assigns the userRole to the user in a transaction, operating on a freshly loaded managed entity so
+	 * the new assignment is flushed to the database (and picked up by the queued recalculation). Called
+	 * from the @Scheduled backSync, which has no surrounding transaction, so each call commits on its own.
+	 */
+	@Transactional
+	public void assignUserRoleTransactional(String userUuid, long userRoleId) {
+		dk.digitalidentity.rc.dao.model.User user = userService.getByUuid(userUuid);
+		UserRole userRole = userRoleService.getById(userRoleId);
+		if (user == null || userRole == null) {
+			return;
+		}
+
+		// authoritative check on the freshly loaded, managed user (the call site checks a detached
+		// snapshot); also guards against the role being assigned concurrently between the two
+		if (user.getUserRoleAssignments().stream().noneMatch(ura -> ura.getUserRole().getId() == userRole.getId())) {
+			userService.addUserRole(user, userRole, null, null, null);
+			userService.save(user);
+		}
+	}
+
+	/**
+	 * Removes the userRole from the user in a transaction, operating on a freshly loaded managed entity so
+	 * the removal is flushed to the database (and picked up by the queued recalculation). Called from the
+	 * @Scheduled backSync, which has no surrounding transaction, so each call commits on its own.
+	 */
+	@Transactional
+	public void removeUserRoleTransactional(String userUuid, long userRoleId) {
+		dk.digitalidentity.rc.dao.model.User user = userService.getByUuid(userUuid);
+		UserRole userRole = userRoleService.getById(userRoleId);
+		if (user == null || userRole == null) {
+			return;
+		}
+
+		userService.removeUserRole(user, userRole);
+		userService.save(user);
 	}
 
 	private Set<String> getMembers(Group group, GraphServiceClient client, EntraIDTenant tenant) throws ReflectiveOperationException {
@@ -529,7 +592,7 @@ public class EntraIDService {
 	}
 
 	private GraphServiceClient getClientForTenant(EntraIDTenant tenant) {
-		return clientCache.computeIfAbsent(tenant.getClientId(), key -> {
+		return clientCache.computeIfAbsent(tenant.getClientId(), _ -> {
 			ClientSecretCredential credential = new ClientSecretCredentialBuilder()
 				.clientId(tenant.getClientId())
 				.clientSecret(tenant.getClientSecret())

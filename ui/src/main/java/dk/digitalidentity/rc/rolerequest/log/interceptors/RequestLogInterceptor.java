@@ -60,7 +60,7 @@ public class RequestLogInterceptor {
 		}
 
 		String details = switch (requestLoggable.logEvent()) {
-			case REQUEST -> request.getReason();
+			case REQUEST, REMOVE -> request.getReason();
 			case DENY -> request.getRejectReason();
 			case null, default -> "";
 		};
@@ -80,7 +80,7 @@ public class RequestLogInterceptor {
 		returning = "request")
 	public void interceptReturnRequest(RequestLoggable requestLoggable, RoleRequest request) {
 		String details = switch (requestLoggable.logEvent()) {
-			case REQUEST -> request.getReason();
+			case REQUEST, REMOVE -> request.getReason();
 			case DENY -> request.getRejectReason();
 			case null, default -> "";
 		};

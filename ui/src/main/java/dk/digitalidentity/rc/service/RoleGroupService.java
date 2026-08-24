@@ -14,6 +14,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.*;
+import java.util.function.Function;
 
 @Service
 public class RoleGroupService {
@@ -87,11 +88,27 @@ public class RoleGroupService {
 		return roleGroupDao.findByName(name);
 	}
 
-	public List<RoleGroup> getRoleGroupsWithRequesterPermissions ( List<RequestableBy> permissions) {
-		return roleGroupDao.findByRequesterPermissionIn(permissions);
+	@Transactional(readOnly = true)
+	public List<RoleGroup> getRoleGroupsWithRequesterPermissions(List<RequestableBy> permissions) {
+		return unionByPermission(permissions, roleGroupDao::findByRequesterPermissionContaining);
 	}
-	public List<RoleGroup> getRoleGroupsWithApproverPermissions ( List<ApprovableBy> permissions) {
-		return roleGroupDao.findByApproverPermissionIn(permissions);
+
+	@Transactional(readOnly = true)
+	public List<RoleGroup> getRoleGroupsWithApproverPermissions(List<ApprovableBy> permissions) {
+		return unionByPermission(permissions, roleGroupDao::findByApproverPermissionContaining);
+	}
+
+	private static List<RoleGroup> unionByPermission(Collection<? extends Enum<?>> permissions, Function<String, List<RoleGroup>> query) {
+		if (permissions.isEmpty()) {
+			return List.of();
+		}
+		Map<Long, RoleGroup> byId = new LinkedHashMap<>();
+		for (Enum<?> p : permissions) {
+			for (RoleGroup rg : query.apply(p.name())) {
+				byId.putIfAbsent(rg.getId(), rg);
+			}
+		}
+		return List.copyOf(byId.values());
 	}
 
 	@Transactional

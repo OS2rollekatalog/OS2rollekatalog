@@ -7,6 +7,7 @@ target/
 .idea/*
 /ui/.idea/*
 !.idea/inspectionProfiles/
+.idea/inspectionProfiles/profiles_settings.xml
 *.iml
 **/.factorypath
 /ui/.claude/

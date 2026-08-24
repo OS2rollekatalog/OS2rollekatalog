@@ -278,6 +278,11 @@ public class UserRoleApiV2 {
 					);
 					target.getOrgUnitFilterOrgUnits().addAll(orgUnits);
 				}
+			} else {
+				// Disabling the filter must also drop any previously configured OUs. Leaving stale
+				// rows behind keeps the role filtered in the "all roles" datatable view even though
+				// the filter is off - consistent with the UI endpoint UserRoleRestController.editOUFilterEnabled.
+				target.getOrgUnitFilterOrgUnits().clear();
 			}
 		}
 		if (userRoleAM.getRoleAssignmentAttestationByAttestationResponsible() != null) {

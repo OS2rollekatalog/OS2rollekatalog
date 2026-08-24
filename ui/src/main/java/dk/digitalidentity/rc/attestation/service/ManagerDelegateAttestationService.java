@@ -1,6 +1,18 @@
 package dk.digitalidentity.rc.attestation.service;
 
-import dk.digitalidentity.rc.attestation.dao.AttestationDao;
+import static dk.digitalidentity.rc.attestation.service.OrganisationAttestationService.isOrgVerified;
+
+import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
+
 import dk.digitalidentity.rc.attestation.dao.AttestationOuAssignmentsDao;
 import dk.digitalidentity.rc.attestation.dao.AttestationUserRoleAssignmentDao;
 import dk.digitalidentity.rc.attestation.model.dto.AttestationOverviewDTO;
@@ -13,7 +25,6 @@ import dk.digitalidentity.rc.attestation.model.entity.Attestation;
 import dk.digitalidentity.rc.attestation.model.entity.AttestationRun;
 import dk.digitalidentity.rc.attestation.model.entity.temporal.AttestationOuRoleAssignment;
 import dk.digitalidentity.rc.attestation.model.entity.temporal.AttestationUserRoleAssignment;
-
 import dk.digitalidentity.rc.dao.ManagerDelegateDao;
 import dk.digitalidentity.rc.dao.OrgUnitDao;
 import dk.digitalidentity.rc.dao.model.ManagerDelegate;
@@ -26,23 +37,11 @@ import jakarta.persistence.EntityManager;
 import jakarta.persistence.FlushModeType;
 import jakarta.persistence.PersistenceContext;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
-
-import java.time.LocalDate;
-import java.util.ArrayList;
-
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.stream.Collectors;
-
-import static dk.digitalidentity.rc.attestation.service.OrganisationAttestationService.isOrgVerified;
 
 @Slf4j
 @Component
 public class ManagerDelegateAttestationService {
+	
 	@PersistenceContext
 	private EntityManager entityManager;
 
@@ -59,10 +58,8 @@ public class ManagerDelegateAttestationService {
 	private AttestationOuAssignmentsDao ouAssignmentsDao;
 
 	@Autowired
-	private AttestationDao attestationDao;
-
-	@Autowired
 	private UserService userService;
+
 	@Autowired
 	private OrgUnitDao orgUnitDao;
 

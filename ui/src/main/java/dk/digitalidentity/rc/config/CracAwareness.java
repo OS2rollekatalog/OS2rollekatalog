@@ -28,6 +28,7 @@ import com.zaxxer.hikari.HikariDataSource;
 
 import dk.digitalidentity.kitos_client.KitosClientProperties;
 import dk.digitalidentity.saml.config.SamlConfiguration;
+import dk.digitalidentity.simple_queue.config.SimpleQueueProperties;
 import jakarta.annotation.PostConstruct;
 
 // this class solves problems with CRaC
@@ -56,6 +57,9 @@ public class CracAwareness implements DataSource, Resource {
     @Autowired
     private KitosClientProperties kitosClientProperties;
 
+    @Autowired
+    private SimpleQueueProperties simpleQueueProperties;
+    
     @PostConstruct
     public void init() throws InitializationException {
         this.delegate = createDataSource();
@@ -222,6 +226,10 @@ public class CracAwareness implements DataSource, Resource {
             org.springframework.boot.context.properties.bind.Binder
 	            .get(environment)
 	            .bind("di.kitos-client", org.springframework.boot.context.properties.bind.Bindable.ofInstance(kitosClientProperties));
+            
+            org.springframework.boot.context.properties.bind.Binder
+	            .get(environment)
+	            .bind("di.simple-queue", org.springframework.boot.context.properties.bind.Bindable.ofInstance(simpleQueueProperties));
         }
         catch (Exception ex) {
             System.out.println("CRaC ERROR: configuration rebind failed: " + ex.getMessage());

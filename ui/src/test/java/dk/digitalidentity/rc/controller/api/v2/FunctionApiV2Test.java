@@ -201,6 +201,125 @@ public class FunctionApiV2Test extends AbstractApiTest {
 	}
 
 	@Test
+	@DisplayName("Should persist a client supplied UUID when creating a new function")
+	void testCreate_KeepsClientSuppliedUuid() throws Exception {
+		String uuid = UUID.randomUUID().toString();
+
+		String requestBody = String.format("""
+            {
+                "uuid": "%s",
+                "name": "Source System Function"
+            }
+            """, uuid);
+
+		this.mockMvc.perform(post("/api/v2/function")
+				.header("ApiKey", API_KEY)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(requestBody))
+			.andExpect(status().isCreated())
+			.andExpect(jsonPath("$.uuid").value(uuid));
+
+		entityManager.flush();
+		entityManager.clear();
+
+		Function saved = functionService.findByUuid(uuid).orElseThrow();
+		assertEquals("Source System Function", saved.getName());
+		assertTrue(saved.isActive());
+	}
+
+	@Test
+	@DisplayName("Should rename a function matched by UUID on create")
+	void testCreate_RenamesFunctionMatchedByUuid() throws Exception {
+		String uuid = UUID.randomUUID().toString();
+		Function existing = new Function();
+		existing.setUuid(uuid);
+		existing.setName("Old Name");
+		existing.setActive(true);
+		functionService.save(existing);
+
+		entityManager.flush();
+		entityManager.clear();
+
+		String requestBody = String.format("""
+            {
+                "uuid": "%s",
+                "name": "New Name"
+            }
+            """, uuid);
+
+		this.mockMvc.perform(post("/api/v2/function")
+				.header("ApiKey", API_KEY)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(requestBody))
+			.andExpect(status().isCreated())
+			.andExpect(jsonPath("$.uuid").value(uuid))
+			.andExpect(jsonPath("$.name").value("New Name"));
+
+		entityManager.flush();
+		entityManager.clear();
+
+		assertEquals("New Name", functionService.findByUuid(uuid).orElseThrow().getName());
+		assertEquals(1, functionService.getAllIncludingInactive().size());
+	}
+
+	@Test
+	@DisplayName("Should not create a duplicate when the name is already known under another UUID")
+	void testCreate_MatchesByNameWhenUuidIsUnknown() throws Exception {
+		String storedUuid = UUID.randomUUID().toString();
+		Function existing = new Function();
+		existing.setUuid(storedUuid);
+		existing.setName("Existing Function");
+		existing.setActive(false);
+		functionService.save(existing);
+
+		entityManager.flush();
+		entityManager.clear();
+
+		String requestBody = String.format("""
+            {
+                "uuid": "%s",
+                "name": "Existing Function"
+            }
+            """, UUID.randomUUID());
+
+		this.mockMvc.perform(post("/api/v2/function")
+				.header("ApiKey", API_KEY)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(requestBody))
+			.andExpect(status().isCreated())
+			.andExpect(jsonPath("$.uuid").value(storedUuid));
+
+		entityManager.flush();
+		entityManager.clear();
+
+		assertTrue(functionService.findByUuid(storedUuid).orElseThrow().isActive());
+		assertEquals(1, functionService.getAllIncludingInactive().size());
+	}
+
+	@Test
+	@DisplayName("Should treat a blank UUID as no UUID on create")
+	void testCreate_BlankUuidIsGenerated() throws Exception {
+		String requestBody = """
+            {
+                "uuid": "",
+                "name": "Blank Uuid Function"
+            }
+            """;
+
+		this.mockMvc.perform(post("/api/v2/function")
+				.header("ApiKey", API_KEY)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(requestBody))
+			.andExpect(status().isCreated())
+			.andExpect(jsonPath("$.uuid").isNotEmpty());
+
+		entityManager.flush();
+		entityManager.clear();
+
+		assertTrue(functionService.findByName("Blank Uuid Function").isPresent());
+	}
+
+	@Test
 	@DisplayName("Should return 400 when creating function without name")
 	void testCreate_MissingName() throws Exception {
 		this.mockMvc.perform(post("/api/v2/function")
@@ -407,6 +526,103 @@ public class FunctionApiV2Test extends AbstractApiTest {
 				.content(requestBody))
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$[0].uuid").value(uuid));
+	}
+
+	@Test
+	@DisplayName("Should persist client supplied UUIDs when syncing new functions")
+	void testSync_KeepsClientSuppliedUuid() throws Exception {
+		String uuid = UUID.randomUUID().toString();
+
+		String requestBody = String.format("""
+            [
+                { "uuid": "%s", "name": "Source System Function" }
+            ]
+            """, uuid);
+
+		this.mockMvc.perform(post("/api/v2/function/sync")
+				.header("ApiKey", API_KEY)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(requestBody))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$[0].uuid").value(uuid));
+
+		entityManager.flush();
+		entityManager.clear();
+
+		Function saved = functionService.findByUuid(uuid).orElseThrow();
+		assertEquals("Source System Function", saved.getName());
+		assertTrue(saved.isActive());
+	}
+
+	@Test
+	@DisplayName("Should rename a function matched by UUID instead of deactivating and recreating it")
+	void testSync_RenameKeepsUuid() throws Exception {
+		String uuid = UUID.randomUUID().toString();
+		Function existing = new Function();
+		existing.setUuid(uuid);
+		existing.setName("Old Name");
+		existing.setActive(true);
+		functionService.save(existing);
+
+		entityManager.flush();
+		entityManager.clear();
+
+		String requestBody = String.format("""
+            [
+                { "uuid": "%s", "name": "New Name" }
+            ]
+            """, uuid);
+
+		this.mockMvc.perform(post("/api/v2/function/sync")
+				.header("ApiKey", API_KEY)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(requestBody))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.length()").value(1))
+			.andExpect(jsonPath("$[0].uuid").value(uuid));
+
+		entityManager.flush();
+		entityManager.clear();
+
+		Function renamed = functionService.findByUuid(uuid).orElseThrow();
+		assertEquals("New Name", renamed.getName());
+		assertTrue(renamed.isActive());
+		assertEquals(1, functionService.getAllIncludingInactive().size());
+	}
+
+	@Test
+	@DisplayName("Should keep a function matched by name active when the caller supplies an unknown UUID")
+	void testSync_KeepsFunctionMatchedByNameActive() throws Exception {
+		String storedUuid = UUID.randomUUID().toString();
+		Function existing = new Function();
+		existing.setUuid(storedUuid);
+		existing.setName("Existing Function");
+		existing.setActive(true);
+		functionService.save(existing);
+
+		entityManager.flush();
+		entityManager.clear();
+
+		String requestBody = String.format("""
+            [
+                { "uuid": "%s", "name": "Existing Function" }
+            ]
+            """, UUID.randomUUID());
+
+		this.mockMvc.perform(post("/api/v2/function/sync")
+				.header("ApiKey", API_KEY)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(requestBody))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$[0].uuid").value(storedUuid));
+
+		entityManager.flush();
+		entityManager.clear();
+
+		// a primary key cannot be reassigned, so the function keeps its own UUID and must stay active
+		Function kept = functionService.findByUuid(storedUuid).orElseThrow();
+		assertTrue(kept.isActive());
+		assertEquals(1, functionService.getAllIncludingInactive().size());
 	}
 
 	@Test

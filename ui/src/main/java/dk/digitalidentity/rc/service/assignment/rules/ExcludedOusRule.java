@@ -57,6 +57,13 @@ public class ExcludedOusRule extends AssignmentRule {
 		List<String> ancestorUuids = orgUnitDao.findAllAncestorUuids(position.getOrgUnit().getUuid());
 		boolean excluded = ancestorUuids.stream().anyMatch(exceptedUuids::contains);
 
-		return excluded ? AssignmentAppliesResult.NEGATIVE : AssignmentAppliesResult.POSITIVE;
+		if (excluded) {
+			return AssignmentAppliesResult.NEGATIVE;
+		}
+		// Som for undtagne brugere: er der også et titel-/funktions-/lederfilter, er de undtagne
+		// enheder kun et fravalg og må ikke tildele rollen til alle øvrige enheder
+		return hasGrantingCondition(assignment)
+			? AssignmentAppliesResult.NOT_APPLICABLE
+			: AssignmentAppliesResult.POSITIVE;
 	}
 }

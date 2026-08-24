@@ -47,6 +47,7 @@ import dk.digitalidentity.rc.dao.model.ConstraintType;
 import dk.digitalidentity.rc.dao.model.Domain;
 import dk.digitalidentity.rc.dao.model.PostponedConstraint;
 import dk.digitalidentity.rc.dao.model.SystemRole;
+import dk.digitalidentity.rc.dao.model.Title;
 import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserRole;
 import dk.digitalidentity.rc.security.RequireApiRoleManagementRole;
@@ -54,6 +55,7 @@ import dk.digitalidentity.rc.service.ConstraintTypeService;
 import dk.digitalidentity.rc.service.DomainService;
 import dk.digitalidentity.rc.service.PostponedConstraintService;
 import dk.digitalidentity.rc.service.SystemRoleService;
+import dk.digitalidentity.rc.service.TitleService;
 import dk.digitalidentity.rc.service.UserRoleService;
 import dk.digitalidentity.rc.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -87,6 +89,7 @@ public class RoleAssignmentApiV2 {
 	private final DomainService domainService;
 	private final PostponedConstraintService postponedConstraintService;
 	private final AssignmentService assignmentService;
+	private final TitleService titleService;
 
 	@Schema(name = "UserUserRoleAssignmentRequest")
     record UserUserRoleAssignmentRecord (
@@ -303,6 +306,9 @@ public class RoleAssignmentApiV2 {
 					throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Only ExceptedUserScope and TitleScope can be combined.");
 				}
 			}
+			if (assignmentAM.isInherit() && scopes.stream().anyMatch(scope -> scope instanceof ExceptedUserScopeAM)) {
+				throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "inherit cannot be combined with ExceptedUserScope - excepted-user assignments cannot inherit to sub org units.");
+			}
 		}
 	}
 
@@ -336,6 +342,16 @@ public class RoleAssignmentApiV2 {
 					case FunctionScopeAM functionScopeAM -> functions.addAll(functionScopeAM.getFunctions());
 					default -> throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Unknown scope type.");
 				}
+			}
+		}
+		if (!titles.isEmpty()) {
+			final Set<String> foundTitles = titleService.getByUuidIn(titles).stream()
+				.map(Title::getUuid)
+				.collect(Collectors.toSet());
+			final Set<String> unknownTitles = new HashSet<>(titles);
+			unknownTitles.removeAll(foundTitles);
+			if (!unknownTitles.isEmpty()) {
+				throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Unknown or inactive title UUID(s): " + unknownTitles);
 			}
 		}
 		return new OuAssignmentContext(exceptedUsers, titles, functions, manager, substitutes, negativeTitles);

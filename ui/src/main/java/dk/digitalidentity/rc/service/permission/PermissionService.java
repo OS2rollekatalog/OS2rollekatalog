@@ -17,14 +17,12 @@ import dk.digitalidentity.rc.security.permission.Permission;
 import dk.digitalidentity.rc.security.permission.PermissionConstraint;
 import dk.digitalidentity.rc.security.permission.Section;
 import dk.digitalidentity.rc.security.permission.UserPermission;
-import dk.digitalidentity.rc.service.OrgUnitService;
 import lombok.RequiredArgsConstructor;
 
 @RequiredArgsConstructor
 @Service
 public class PermissionService {
 	private final UserPermissionDao userPermissionDao;
-	private final OrgUnitService orgUnitService;
 
 	/**
 	 * Loads all permissions for a user

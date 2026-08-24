@@ -43,6 +43,7 @@ import dk.digitalidentity.rc.service.model.KleAssignment;
 import dk.digitalidentity.rc.service.model.Privilege;
 import dk.digitalidentity.rc.service.model.PrivilegeGroup;
 import dk.digitalidentity.rc.util.IdentifierGenerator;
+import dk.digitalidentity.rc.util.ConstraintValueUtil;
 import dk.digitalidentity.rc.util.OrganisationConstraintUtil;
 import dk.digitalidentity.rc.util.StreamExtensions;
 import dk.digitalidentity.simple_queue.BulkQueueMessage;
@@ -277,6 +278,15 @@ public class UserService {
 	}
 
 	public void queueForRecalculation(final User user) {
+		// When a batch scope is active (see runWithBatchedRecalculation) we accumulate the uuid instead
+		// of enqueuing immediately, so a bulk operation that touches hundreds of users results in a single
+		// bulk enqueue rather than hundreds of individual INSERT IGNOREs into simple_queue_items.
+		final Set<String> deferred = deferredRecalculations.get();
+		if (deferred != null) {
+			deferred.add(user.getUuid());
+			return;
+		}
+
 		eventPublisher.publishEvent(QueueMessage.builder()
 			.queue(ASSIGNMENT_UPDATE_QUEUE_IDENTIFIER)
 			.messageId(user.getUuid()) // Use user uuid as messageId, this ensure we do not get any duplicates in the queue
@@ -288,6 +298,12 @@ public class UserService {
 
 
 	public void queueMultipleForRecalculation(final Set<String> userUuids) {
+		final Set<String> deferred = deferredRecalculations.get();
+		if (deferred != null) {
+			userUuids.stream().filter(Objects::nonNull).forEach(deferred::add);
+			return;
+		}
+
 		List<QueueMessage> messages = userUuids.parallelStream()
 			.filter(Objects::nonNull)
 			.map(uuid -> QueueMessage.builder()
@@ -301,6 +317,42 @@ public class UserService {
 		eventPublisher.publishEvent(BulkQueueMessage.builder()
 			.messages(messages)
 			.build());
+	}
+
+	// Coalesces recalculation enqueues produced while {@code work} runs into a single bulk enqueue.
+	// Bulk operations (e.g. deleting a UserRole with hundreds of direct users) otherwise trigger one
+	// recalculation message per affected user via the RoleChangeHook, flooding simple_queue_items with
+	// individual INSERT IGNOREs that deadlock against the queue scheduler's status updates under load.
+	// Scopes nest safely: only the outermost scope flushes, and only on successful completion (so a
+	// rolled-back unit of work does not enqueue recalculations for changes that never committed).
+	private static final ThreadLocal<Set<String>> deferredRecalculations = new ThreadLocal<>();
+
+	public void runWithBatchedRecalculation(final Runnable work) {
+		final boolean owner = deferredRecalculations.get() == null;
+		if (owner) {
+			deferredRecalculations.set(new HashSet<>());
+		}
+
+		Set<String> toFlush = null;
+		try {
+			work.run();
+			if (owner) {
+				toFlush = deferredRecalculations.get();
+			}
+		} finally {
+			if (owner) {
+				deferredRecalculations.remove();
+			}
+		}
+
+		// Only reached when work.run() completed normally; published outside the deferral scope so the
+		// call actually enqueues instead of re-deferring into the (now removed) accumulator.
+		// Bemærk: alt batchet arbejde flushes via bulk-stien, så også beskeder der oprindeligt kom fra
+		// queueForRecalculation (single) får her bulk-indstillingerne (priority 1L, dequeueTime +3s)
+		// frem for single-indstillingerne (10L, +2s). Det er bevidst — coalescet arbejde behandles ens.
+		if (toFlush != null && !toFlush.isEmpty()) {
+			queueMultipleForRecalculation(toFlush);
+		}
 	}
 
 	private static UpdateUserAssignmentsMessage createUserUpdateMessage(final String userUuid) {
@@ -670,7 +722,7 @@ public class UserService {
 			}
 
 			List<CurrentAssignment> directAssignments = activeAssignments.stream()
-				.filter(a -> assignmentService.getAssignedThrough(a) == AssignedThrough.DIRECT)
+				.filter(a -> assignmentService.getAssignedThrough(a) == AssignedThrough.DIRECT && a.getUserRole() != null)
 				.collect(Collectors.toList());
 
 			if (directAssignments.isEmpty()) {
@@ -728,7 +780,7 @@ public class UserService {
 			}
 
 			List<CurrentAssignment> directAssignments = activeRoleGroupAssignments.stream()
-				.filter(a -> assignmentService.getAssignedThroughForRoleGroup(a) == AssignedThrough.DIRECT)
+				.filter(a -> assignmentService.getAssignedThroughForRoleGroup(a) == AssignedThrough.DIRECT && a.getRoleGroup() != null)
 				.collect(Collectors.toList());
 
 			if (directAssignments.isEmpty()) {
@@ -741,8 +793,7 @@ public class UserService {
 				Long roleGroupId = directAssignment.getRoleGroup().getId();
 
 				boolean hasIndirectAssignment = activeRoleGroupAssignments.stream()
-					.anyMatch(a -> assignmentService.getAssignedThroughForRoleGroup(a) != AssignedThrough.DIRECT
-						&& a.getRoleGroup().getId() == roleGroupId);
+					.anyMatch(a -> assignmentService.getAssignedThroughForRoleGroup(a) != AssignedThrough.DIRECT && a.getRoleGroup() != null && a.getRoleGroup().getId() == roleGroupId);
 
 				if (hasIndirectAssignment) {
 					// Målrettet sletning af den ene assignment-række frem for removeRoleGroup
@@ -959,13 +1010,13 @@ public class UserService {
 							case INHERITED_FROM_FUNCTIONS:
 								if (constraint.getConstraintType().getEntityId().equals(Constants.OU_CONSTRAINT_ENTITY_ID) ||
 									constraint.getConstraintType().getEntityId().equals(Constants.INTERNAL_ORGUNIT_CONSTRAINT_ENTITY_ID)) {
-									constraintValue.append(getOrganisationConstraintFromFunctions(user, false));
+									constraintValue.append(getOrganisationConstraintFromFunctions(user, false, ConstraintValueUtil.parseFunctionUuids(constraint.getConstraintValue())));
 								}
 								break;
 							case EXTENDED_INHERITED_FROM_FUNCTIONS:
 								if (constraint.getConstraintType().getEntityId().equals(Constants.OU_CONSTRAINT_ENTITY_ID) ||
 									constraint.getConstraintType().getEntityId().equals(Constants.INTERNAL_ORGUNIT_CONSTRAINT_ENTITY_ID)) {
-									constraintValue.append(getOrganisationConstraintFromFunctions(user, true));
+									constraintValue.append(getOrganisationConstraintFromFunctions(user, true, ConstraintValueUtil.parseFunctionUuids(constraint.getConstraintValue())));
 								}
 								break;
 							case INHERITED:
@@ -1349,9 +1400,12 @@ public class UserService {
 		return String.join(",", result);
 	}
 
-	private String getOrganisationConstraintFromFunctions(User user, boolean extended) {
+	private String getOrganisationConstraintFromFunctions(User user, boolean extended, Set<String> allowedFunctionUuids) {
 		Set<String> result = new HashSet<>();
 		for (UserOUFunction functionAssignment : user.getFunctionAssignments()) {
+			if (!allowedFunctionUuids.contains(functionAssignment.getFunction().getUuid())) {
+				continue;
+			}
 			if (extended) {
 				appendThisAndChildren(functionAssignment.getOrgUnit(), result);
 			}
@@ -1532,7 +1586,7 @@ public class UserService {
 
 	@Transactional
 	public void cleanupDisabledUserAssignments() {
-		log.debug("Starting cleanup of assignments for disabled users");
+		log.info("Starting cleanup of assignments for disabled users");
 
 		try {
 			// Get the configured number of days from settings (defaults to 180)
@@ -1550,7 +1604,7 @@ public class UserService {
 			// så alt der er opdateret til-og-med cutoffDate fanges, uanset tidspunkt på dagen.
 			LocalDate cutoffDate = LocalDate.now().minusDays(daysThreshold);
 			Date cutoffDateExclusiveUpper = Date.from(cutoffDate.plusDays(1).atStartOfDay(ZoneId.systemDefault()).toInstant());
-			log.debug("Looking for disabled/deleted users older than: {}", cutoffDate);
+			log.info("Looking for disabled/deleted users older than: {}", cutoffDate);
 
 			// Find users who have been disabled or deleted for the specified number of days or more
 			List<User> usersToCleanup = userDao.findDisabledUsersOlderThanWithAssignments(cutoffDate, cutoffDateExclusiveUpper);
@@ -1575,13 +1629,13 @@ public class UserService {
 				if (userRoleCount > 0) {
 					user.getUserRoleAssignments().clear();
 					totalUserRoleAssignmentsDeleted += userRoleCount;
-					log.debug("Cleared {} user role assignments for user: {}", userRoleCount, user.getName());
+					log.info("Cleared {} user role assignments for user: {}", userRoleCount, user.getName());
 				}
 
 				if (roleGroupCount > 0) {
 					user.getRoleGroupAssignments().clear();
 					totalRoleGroupAssignmentsDeleted += roleGroupCount;
-					log.debug("Cleared {} role group assignments for user: {}", roleGroupCount, user.getName());
+					log.info("Cleared {} role group assignments for user: {}", roleGroupCount, user.getName());
 				}
 
 				// Save the user to persist the changes
@@ -1592,11 +1646,12 @@ public class UserService {
 				totalUsersProcessed++;
 			}
 
-			log.debug("Cleanup completed. Processed {} users, deleted {} user role assignments and {} role group assignments",
+			log.info("Cleanup completed. Processed {} users, deleted {} user role assignments and {} role group assignments",
 				totalUsersProcessed, totalUserRoleAssignmentsDeleted, totalRoleGroupAssignmentsDeleted);
 
-		} catch (Exception e) {
-			log.error("Error during disabled user assignment cleanup", e);
+		}
+		catch (Exception ex) {
+			log.error("Error during disabled user assignment cleanup", ex);
 		}
 	}
 }

@@ -367,6 +367,8 @@
 		var functionTable;
 		let selectedExcludedChildOus = [];
 		var ouTreeInitialized = false;
+		var ouTreeLoading = false;
+		var pendingExceptedUuids = [];
 
 
 		$(document).ready(function() {
@@ -428,18 +430,39 @@
 			}
 
 			this.initOuTree = function(preExceptedUuids) {
-				let service = commonService.editMode ? ouRolesEditModalService : ouRolesModalService;
-				let ouUuid = service.ouUuid;
+				if (preExceptedUuids && preExceptedUuids.length > 0) {
+					pendingExceptedUuids = pendingExceptedUuids.concat(preExceptedUuids);
+				}
+
 				let treeEl = $('#ou_to_exclude_tree');
 
-				if (ouTreeInitialized || !ouUuid) {
+				if (ouTreeInitialized) {
+					let inst = treeEl.jstree(true);
+					if (inst && pendingExceptedUuids.length > 0) {
+						pendingExceptedUuids.forEach(function(uuid) { inst.select_node(uuid); });
+						pendingExceptedUuids = [];
+						commonService.collectExcludedOus();
+					}
 					return;
 				}
 
-				ouTreeInitialized = true;
+				if (ouTreeLoading) {
+					return;
+				}
+
+				let service = commonService.editMode ? ouRolesEditModalService : ouRolesModalService;
+				let ouUuid = service.ouUuid;
+
+				if (!ouUuid) {
+					return;
+				}
+
+				ouTreeLoading = true;
 
 				$.getJSON('/rest/ous/' + ouUuid + '/childtree', function(nodes) {
 					if (!nodes || nodes.length === 0) {
+						ouTreeLoading = false;
+						ouTreeInitialized = true;
 						treeEl.html('<p class="text-muted">' + commonService.noChildrenMsg + '</p>');
 						$('#assignInheritedWithExceptionsButton').prop('disabled', false);
 						return;
@@ -452,11 +475,12 @@
 					});
 
 					treeEl.on('ready.jstree', function() {
+						ouTreeLoading = false;
+						ouTreeInitialized = true;
 						let inst = treeEl.jstree(true);
 						inst.open_all();
-						if (preExceptedUuids && preExceptedUuids.length > 0) {
-							preExceptedUuids.forEach(function(uuid) { inst.select_node(uuid); });
-						}
+						pendingExceptedUuids.forEach(function(uuid) { inst.select_node(uuid); });
+						pendingExceptedUuids = [];
 						commonService.collectExcludedOus();
 						$('#assignInheritedWithExceptionsButton').prop('disabled', false);
 					});
@@ -465,7 +489,7 @@
 						commonService.collectExcludedOus();
 					});
 				}).fail(function() {
-					ouTreeInitialized = false;
+					ouTreeLoading = false;
 				});
 			}
 
@@ -619,6 +643,8 @@
 			this.resetUI = function() {
 				commonService.clearSelections();
 				ouTreeInitialized = false;
+				ouTreeLoading = false;
+				pendingExceptedUuids = [];
 				if ($('#ou_to_exclude_tree').jstree(true)) {
 					$('#ou_to_exclude_tree').jstree('destroy');
 				}

@@ -1,5 +1,12 @@
 package dk.digitalidentity.rc.controller.mvc.datatables.dao.model;
 
+import java.util.HashSet;
+import java.util.Set;
+
+import org.springframework.data.jpa.datatables.mapping.DataTablesOutput;
+
+import com.fasterxml.jackson.annotation.JsonView;
+
 import dk.digitalidentity.rc.config.ApprovableBySetConverter;
 import dk.digitalidentity.rc.rolerequest.model.enums.ApprovableBy;
 import jakarta.persistence.Column;
@@ -10,14 +17,6 @@ import jakarta.persistence.IdClass;
 import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.Setter;
-import org.springframework.data.jpa.datatables.mapping.DataTablesOutput;
-
-import com.fasterxml.jackson.annotation.JsonView;
-import java.util.HashSet;
-import java.util.Set;
-
-import java.util.HashSet;
-import java.util.Set;
 
 @Entity
 @Getter

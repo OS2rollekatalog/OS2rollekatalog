@@ -28,7 +28,11 @@ public class OrgUnitServiceAuditInterceptor {
 		try {
 			switch(jp.getSignature().getName()) {
 				case "addRoleGroup":
+				case "addRoleGroupWithInheritAndExceptedOus":
 					auditAddRoleGroup(jp);
+					break;
+				case "updateRoleGroupWithInheritAndExceptedOus":
+					auditUpdateRoleGroupWithInheritAndExceptedOus(jp);
 					break;
 				case "removeRoleGroup":
 					auditRemoveRoleGroup(jp);
@@ -40,7 +44,11 @@ public class OrgUnitServiceAuditInterceptor {
 					auditUpdateRoleGroupAssignment(jp);
 					break;
 				case "addUserRole":
+				case "addUserRoleWithInheritAndExceptedOus":
 					auditAddUserRole(jp);
+					break;
+				case "updateUserRoleWithInheritAndExceptedOus":
+					auditUpdateUserRoleWithInheritAndExceptedOus(jp);
 					break;
 				case "removeUserRole":
 					auditRemoveUserRole(jp);
@@ -127,7 +135,31 @@ public class OrgUnitServiceAuditInterceptor {
 
 		auditLogger.log((OrgUnit) args[0], EventType.EDIT_ASSIGNMENT_CONSTRAINT, userRole);
 	}
-	
+
+	private void auditUpdateUserRoleWithInheritAndExceptedOus(JoinPoint jp) {
+		Object[] args = jp.getArgs();
+		if (!(args.length >= 1 && args[0] instanceof OrgUnitUserRoleAssignment)) {
+			log.error("Method signature on updateUserRoleWithInheritAndExceptedOus does not match expectation");
+			return;
+		}
+
+		OrgUnitUserRoleAssignment assignment = (OrgUnitUserRoleAssignment) args[0];
+
+		auditLogger.log(assignment.getOrgUnit(), EventType.EDIT_ASSIGNMENT_CONSTRAINT, assignment.getUserRole());
+	}
+
+	private void auditUpdateRoleGroupWithInheritAndExceptedOus(JoinPoint jp) {
+		Object[] args = jp.getArgs();
+		if (!(args.length >= 1 && args[0] instanceof OrgUnitRoleGroupAssignment)) {
+			log.error("Method signature on updateRoleGroupWithInheritAndExceptedOus does not match expectation");
+			return;
+		}
+
+		OrgUnitRoleGroupAssignment assignment = (OrgUnitRoleGroupAssignment) args[0];
+
+		auditLogger.log(assignment.getOrgUnit(), EventType.EDIT_ROLE_GROUP_ASSIGNMENT, assignment.getRoleGroup());
+	}
+
 	private void auditRemoveUserRoleAssignment(JoinPoint jp) {
 		Object[] args = jp.getArgs();
 		if (!(args.length == 2 && args[0] instanceof OrgUnit && args[1] instanceof OrgUnitUserRoleAssignment)) {

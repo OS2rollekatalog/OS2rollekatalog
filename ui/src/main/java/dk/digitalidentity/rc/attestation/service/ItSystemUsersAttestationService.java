@@ -97,6 +97,9 @@ public class ItSystemUsersAttestationService {
 	@Autowired
 	private FunctionDao functionDao;
 
+	@Autowired
+	private AttestationConstraintService attestationConstraintService;
+
     @Transactional
     public void finishOutstandingAttestations() {
         // Only consider attestations that are less than a month old
@@ -110,6 +113,17 @@ public class ItSystemUsersAttestationService {
                 });
     }
 
+
+    /**
+     * The it-systems the given user is CURRENTLY attestation responsible for, resolved in a single query.
+     */
+    private Set<Long> liveResponsibleItSystemIds(final String userUuid) {
+        return userService.getOptionalByUuid(userUuid)
+                .map(user -> itSystemService.findByAttestationResponsible(user).stream()
+                        .map(ItSystem::getId)
+                        .collect(Collectors.toSet()))
+                .orElseGet(Collections::emptySet);
+    }
 
     @Transactional
     public List<ItSystemRoleAttestationDTO> listItSystemUsersForAttestation(final AttestationRun run, final String userUuid) {
@@ -129,9 +143,16 @@ public class ItSystemUsersAttestationService {
 			.map(AttestationResponsibleCollection::getId)
 			.toList();
 
+		// The collection above is only a snapshot from when the run was created. Additionally require that the
+		// user is STILL responsible for the it-system, matching the access check in
+		// ItSystemRoleAssignmentAttestationController (findByAttestationResponsible) so a no-longer-responsible
+		// user no longer sees systems that throw "noget går galt" on click.
+		final Set<Long> liveResponsibleItSystemIds = liveResponsibleItSystemIds(userUuid);
+
 		return run.getAttestations().stream()
 			.filter(a -> a.getAttestationType() == Attestation.AttestationType.IT_SYSTEM_ATTESTATION)
 			.filter(a -> a.getResponsibleCollectionId() != null && collectionIds.contains(a.getResponsibleCollectionId()))
+			.filter(a -> liveResponsibleItSystemIds.contains(a.getItSystemId()))
                 .map(attestation -> {
                     final List<AttestationUserRoleAssignment> userRoleAssignments = attestationUserRoleAssignmentDao.listValidAssignmentsByResponsibleCollectionIdIn(attestation.getCreatedAt(), collectionIds);
                     final List<AttestationOuRoleAssignment> ouRoleAssignments = attestationOuAssignmentsDao.listValidNotInheritedAssignmentsWithResponsibleCollectionIdIn(attestation.getCreatedAt(), collectionIds);
@@ -162,6 +183,9 @@ public class ItSystemUsersAttestationService {
 
     @Transactional
     public ItSystemRoleAttestationDTO getAttestation(final Attestation attestation, final boolean undecidedUsersOnly) {
+		// A verified (completed) attestation is opened read-only via the "eye" on the overview. Filtering to
+		// undecided users only would then yield an empty page, so show all users once it is verified.
+		final boolean undecidedOnly = undecidedUsersOnly && attestation.getVerifiedAt() == null;
 		Long responsibleCollectionId = attestation.getResponsibleCollectionId();
 		final List<AttestationUserRoleAssignment> userRoleAssignments = attestationUserRoleAssignmentDao
                 .listValidAssignmentsByResponsibleCollectionIdAndItSystemId(attestation.getCreatedAt(), responsibleCollectionId, attestation.getItSystemId());
@@ -172,7 +196,7 @@ public class ItSystemUsersAttestationService {
                 .verifiedAt(attestation.getVerifiedAt() != null ? attestation.getVerifiedAt().toLocalDate() : null)
                 .itSystemId(attestation.getItSystemId())
                 .itSystemName(attestation.getItSystemName())
-                .users(buildUserAttestations(attestation, userRoleAssignments, undecidedUsersOnly))
+                .users(buildUserAttestations(attestation, userRoleAssignments, undecidedOnly))
                 .orgUnits(buildOrgUnitAttestations(attestation, ouRoleAssignments))
                 .build();
     }
@@ -405,7 +429,7 @@ public class ItSystemUsersAttestationService {
                                             .assignedThrough(a.getAssignedThroughType() != null
                                                     ? AssignedThroughAttestation.valueOf(a.getAssignedThroughType().name())
                                                     : null)
-											.postponedConstraints(a.getPostponedConstraints())
+											.postponedConstraints(attestationConstraintService.translatePostponedConstraints(a.getPostponedConstraints()))
                                             .build())
                                     .collect(Collectors.toList())
                             )

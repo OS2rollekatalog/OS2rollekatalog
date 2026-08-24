@@ -1,4 +1,8 @@
 
+async function handleFetchError(response) {
+    const responseText = await response.text().catch(() => "")
+    defaultErrorHandler({ status: response.status, responseText: responseText })
+}
 
 document.addEventListener('DOMContentLoaded', ()=> {
     const constraintHandler = new ConstraintHandler()
@@ -148,10 +152,10 @@ class ConstraintHandler {
             closeOnConfirm : true,
             closeOnCancel : true
         },
-        (isConfirmed) => {
+        async (isConfirmed) => {
             if (isConfirmed) {
 
-                const response = fetch(deleteURL + '?constraintIds='+ selectedValues.join(','), {
+                const response = await fetch(deleteURL + '?constraintIds='+ selectedValues.join(','), {
                     method: "DELETE",
                     headers: {
                         'X-CSRF-TOKEN': token
@@ -159,7 +163,8 @@ class ConstraintHandler {
                 })
 
                 if (!response.ok) {
-                    defaultErrorHandler(response)
+                    await handleFetchError(response)
+                    return
                 }
 
                window.location.reload()
@@ -167,13 +172,13 @@ class ConstraintHandler {
         });
     }
 
-    onConstraintCreation() {
+    async onConstraintCreation() {
         const inputField = document.getElementById('constraintCreationInput')
 
         const value = inputField?.value
 
         if (value) {
-            const response = fetch(createURL, {
+            const response = await fetch(createURL, {
                 method: "POST",
                 headers: {
                     'X-CSRF-TOKEN': token,
@@ -187,7 +192,8 @@ class ConstraintHandler {
             })
 
             if (!response.ok) {
-                defaultErrorHandler(response)
+                await handleFetchError(response)
+                return
             }
 
                window.location.reload()

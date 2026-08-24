@@ -29,6 +29,7 @@ import dk.digitalidentity.rc.config.Constants;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.ItSystemChoice;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.OUListForm;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.ReportForm;
+import dk.digitalidentity.rc.controller.mvc.viewmodel.DuplicateUserRoleRow;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.UserWithDuplicateRoleAssignmentDTO;
 import dk.digitalidentity.rc.controller.mvc.xlsview.ReportXlsxView;
 import dk.digitalidentity.rc.controller.mvc.xlsview.XlsView;
@@ -329,7 +330,18 @@ public class ReportController {
 				model.addAttribute("userRoles", generateUserRolesWithSensitiveFlagReport());
 				return "reports/custom/user_roles_with_sensitive_flag";
 			case USERS_WITH_DUPLICATE_USERROLE_ASSIGNMENTS:
-				model.addAttribute("users", generateUsersWithDuplicateRoleAssignmentsReport());
+				// Rækkerne inlines som JSON-array og renderes klientside on-demand (deferRender),
+				// så browseren kun bygger DOM for de synlige rækker — undgår frys på store datamængder.
+				model.addAttribute("rows", generateUsersWithDuplicateRoleAssignmentsReport().stream()
+					.map(d -> new DuplicateUserRoleRow(
+						d.getName(),
+						d.getUserId(),
+						d.getUuid(),
+						d.getUserRole() != null ? d.getUserRole().getName() : "",
+						(d.getUserRole() != null && d.getUserRole().getItSystem() != null) ? d.getUserRole().getItSystem().getName() : "",
+						d.getMessage() != null ? d.getMessage() : ""))
+					.toList());
+				model.addAttribute("canEdit", SecurityUtil.hasRole(Constants.ROLE_USER_ASSIGNER) || SecurityUtil.hasRole(Constants.ROLE_OU_ASSIGNER));
 				return "reports/custom/users_with_duplicate_userrole_assignments";
 			case USERS_WITH_DUPLICATE_ROLEGROUP_ASSIGNMENTS:
 				model.addAttribute("users", generateUsersWithDuplicateRoleGroupAssignmentsReport());

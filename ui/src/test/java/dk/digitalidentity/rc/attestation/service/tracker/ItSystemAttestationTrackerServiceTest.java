@@ -78,12 +78,12 @@ class ItSystemAttestationTrackerServiceTest {
 	@Test
 	@DisplayName("creates a roles attestation for an assignment whose collection has responsibles")
 	void createsAttestationWhenCollectionHasResponsibles() {
-		given(runTrackerService.getAttestationRunWithDeadlineNotAfter(when)).willReturn(Optional.of(run));
+		given(runTrackerService.getOpenAttestationRun()).willReturn(Optional.of(run));
 		given(systemRoleAssignmentDao.streamAllValidAssignments(when)).willReturn(Stream.of(assignmentWithCollection(42L)));
 		given(responsibleCollectionDao.findById(42L))
 			.willReturn(Optional.of(new AttestationResponsibleCollection(42L, 10L, List.of("responsible-uuid"))));
-		given(attestationDao.findByAttestationTypeAndItSystemIdAndResponsibleCollectionIdAndDeadlineGreaterThanEqual(
-			Attestation.AttestationType.IT_SYSTEM_ROLES_ATTESTATION, 10L, 42L, when)).willReturn(Optional.empty());
+		given(attestationDao.findFirstByAttestationTypeAndItSystemIdAndResponsibleCollectionIdAndAttestationRunOrderByIdAsc(
+			Attestation.AttestationType.IT_SYSTEM_ROLES_ATTESTATION, 10L, 42L, run)).willReturn(Optional.empty());
 
 		service.updateItSystemRolesAttestations(when);
 
@@ -97,7 +97,7 @@ class ItSystemAttestationTrackerServiceTest {
 	@Test
 	@DisplayName("skips assignments whose collection has no responsibles — the attestation would be invisible and unfinishable")
 	void skipsAssignmentWithEmptyCollection() {
-		given(runTrackerService.getAttestationRunWithDeadlineNotAfter(when)).willReturn(Optional.of(run));
+		given(runTrackerService.getOpenAttestationRun()).willReturn(Optional.of(run));
 		given(systemRoleAssignmentDao.streamAllValidAssignments(when)).willReturn(Stream.of(assignmentWithCollection(42L)));
 		given(responsibleCollectionDao.findById(42L))
 			.willReturn(Optional.of(new AttestationResponsibleCollection(42L, 10L, List.of())));
@@ -110,7 +110,7 @@ class ItSystemAttestationTrackerServiceTest {
 	@Test
 	@DisplayName("skips assignments whose collection no longer exists")
 	void skipsAssignmentWithMissingCollection() {
-		given(runTrackerService.getAttestationRunWithDeadlineNotAfter(when)).willReturn(Optional.of(run));
+		given(runTrackerService.getOpenAttestationRun()).willReturn(Optional.of(run));
 		given(systemRoleAssignmentDao.streamAllValidAssignments(when)).willReturn(Stream.of(assignmentWithCollection(42L)));
 		given(responsibleCollectionDao.findById(42L)).willReturn(Optional.empty());
 
@@ -122,8 +122,56 @@ class ItSystemAttestationTrackerServiceTest {
 	@Test
 	@DisplayName("skips assignments without a responsible collection id")
 	void skipsAssignmentWithoutCollectionId() {
-		given(runTrackerService.getAttestationRunWithDeadlineNotAfter(when)).willReturn(Optional.of(run));
+		given(runTrackerService.getOpenAttestationRun()).willReturn(Optional.of(run));
 		given(systemRoleAssignmentDao.streamAllValidAssignments(when)).willReturn(Stream.of(assignmentWithCollection(null)));
+
+		service.updateItSystemRolesAttestations(when);
+
+		verify(attestationDao, never()).save(any(Attestation.class));
+	}
+
+	@Test
+	@DisplayName("creates a missing roles attestation in an open run whose deadline has passed")
+	void createsAttestationInOverdueOpenRun() {
+		final AttestationRun overdueRun = AttestationRun.builder()
+			.id(2L)
+			.deadline(when.minusDays(19))
+			.sensitive(false)
+			.extraSensitive(false)
+			.build();
+		given(runTrackerService.getOpenAttestationRun()).willReturn(Optional.of(overdueRun));
+		given(systemRoleAssignmentDao.streamAllValidAssignments(when)).willReturn(Stream.of(assignmentWithCollection(42L)));
+		given(responsibleCollectionDao.findById(42L))
+			.willReturn(Optional.of(new AttestationResponsibleCollection(42L, 10L, List.of("responsible-uuid"))));
+		given(attestationDao.findFirstByAttestationTypeAndItSystemIdAndResponsibleCollectionIdAndAttestationRunOrderByIdAsc(
+			Attestation.AttestationType.IT_SYSTEM_ROLES_ATTESTATION, 10L, 42L, overdueRun)).willReturn(Optional.empty());
+
+		service.updateItSystemRolesAttestations(when);
+
+		ArgumentCaptor<Attestation> captor = ArgumentCaptor.forClass(Attestation.class);
+		verify(attestationDao).save(captor.capture());
+		assertThat(captor.getValue().getItSystemId()).isEqualTo(10L);
+		assertThat(captor.getValue().getAttestationRun()).isEqualTo(overdueRun);
+		// Snapshottet starter fra dagens billede, ikke fra runets deadline
+		assertThat(captor.getValue().getCreatedAt()).isEqualTo(when);
+	}
+
+	@Test
+	@DisplayName("does not duplicate an existing attestation in an open run whose deadline has passed")
+	void doesNotDuplicateAttestationInOverdueOpenRun() {
+		final AttestationRun overdueRun = AttestationRun.builder()
+			.id(2L)
+			.deadline(when.minusDays(19))
+			.sensitive(false)
+			.extraSensitive(false)
+			.build();
+		given(runTrackerService.getOpenAttestationRun()).willReturn(Optional.of(overdueRun));
+		given(systemRoleAssignmentDao.streamAllValidAssignments(when)).willReturn(Stream.of(assignmentWithCollection(42L)));
+		given(responsibleCollectionDao.findById(42L))
+			.willReturn(Optional.of(new AttestationResponsibleCollection(42L, 10L, List.of("responsible-uuid"))));
+		given(attestationDao.findFirstByAttestationTypeAndItSystemIdAndResponsibleCollectionIdAndAttestationRunOrderByIdAsc(
+			Attestation.AttestationType.IT_SYSTEM_ROLES_ATTESTATION, 10L, 42L, overdueRun))
+			.willReturn(Optional.of(Attestation.builder().uuid("existing").build()));
 
 		service.updateItSystemRolesAttestations(when);
 

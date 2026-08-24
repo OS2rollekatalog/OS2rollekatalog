@@ -10,6 +10,7 @@ import dk.digitalidentity.rc.dao.model.SystemRole;
 import dk.digitalidentity.rc.dao.model.SystemRoleAssignment;
 import dk.digitalidentity.rc.dao.model.SystemRoleAssignmentConstraintValue;
 import dk.digitalidentity.rc.dao.model.User;
+import dk.digitalidentity.rc.dao.model.Function;
 import dk.digitalidentity.rc.dao.model.UserOUFunction;
 import dk.digitalidentity.rc.dao.model.UserRole;
 import dk.digitalidentity.rc.dao.model.assignment.CurrentAssignment;
@@ -227,9 +228,9 @@ class UserServiceOrgConstraintFromRoleTest {
             // Arrange
             OrgUnit functionOu = orgUnit("ou-d", "Enhed D");
             functionOu.setChildren(new ArrayList<>());
-            user.getFunctionAssignments().add(userOuFunction(functionOu));
+            user.getFunctionAssignments().add(userOuFunction(functionOu, "fn-uuid-a"));
 
-            CurrentAssignment assignment = assignmentWithConstraint(ConstraintValueType.INHERITED_FROM_FUNCTIONS);
+            CurrentAssignment assignment = assignmentWithConstraintAndFunctions(ConstraintValueType.INHERITED_FROM_FUNCTIONS, "fn-uuid-a");
             when(assignmentService.getByUserAndItSystems(any(User.class), anyList())).thenReturn(Set.of(assignment));
 
             // Act
@@ -240,15 +241,75 @@ class UserServiceOrgConstraintFromRoleTest {
         }
 
         @Test
-        @DisplayName("skal deduplikere enheder når brugeren har flere funktioner i samme enhed")
+        @DisplayName("skal filtrere til kun den valgte tillidsfunktion")
+        void shouldFilterToSelectedFunction() {
+            // Arrange — user has two functions in different OUs
+            OrgUnit ouA = orgUnit("ou-a", "Enhed A");
+            ouA.setChildren(new ArrayList<>());
+            OrgUnit ouB = orgUnit("ou-b", "Enhed B");
+            ouB.setChildren(new ArrayList<>());
+            user.getFunctionAssignments().add(userOuFunction(ouA, "fn-tillidsrep"));
+            user.getFunctionAssignments().add(userOuFunction(ouB, "fn-arbejdsmiljoe"));
+
+            // Constraint only allows fn-tillidsrep
+            CurrentAssignment assignment = assignmentWithConstraintAndFunctions(ConstraintValueType.INHERITED_FROM_FUNCTIONS, "fn-tillidsrep");
+            when(assignmentService.getByUserAndItSystems(any(User.class), anyList())).thenReturn(Set.of(assignment));
+
+            // Act
+            List<PrivilegeGroup> result = userService.generateOIOBPPPrivileges(user, List.of(kombitItSystem), new HashMap<>());
+
+            // Assert — only ouA where user holds fn-tillidsrep
+            assertThat(constraintValuesFrom(result)).containsExactly("ou-a");
+        }
+
+        @Test
+        @DisplayName("skal returnere ingen enheder når ingen valgte tillidsfunktioner matcher")
+        void shouldReturnNoOusWhenNoFunctionMatches() {
+            // Arrange — user has function fn-other, constraint requires fn-required
+            OrgUnit ou = orgUnit("ou-d", "Enhed D");
+            ou.setChildren(new ArrayList<>());
+            user.getFunctionAssignments().add(userOuFunction(ou, "fn-other"));
+
+            CurrentAssignment assignment = assignmentWithConstraintAndFunctions(ConstraintValueType.INHERITED_FROM_FUNCTIONS, "fn-required");
+            when(assignmentService.getByUserAndItSystems(any(User.class), anyList())).thenReturn(Set.of(assignment));
+
+            // Act
+            List<PrivilegeGroup> result = userService.generateOIOBPPPrivileges(user, List.of(kombitItSystem), new HashMap<>());
+
+            // Assert
+            assertThat(result).hasSize(1);
+            assertThat(result.getFirst().getConstraints()).isEmpty();
+        }
+
+        @Test
+        @DisplayName("skal returnere ingen enheder når constraintValue er tom (ingen valgte funktioner)")
+        void shouldReturnNoOusWhenConstraintValueIsEmpty() {
+            // Arrange — user has a function assignment but no function filter is configured
+            OrgUnit ou = orgUnit("ou-d", "Enhed D");
+            ou.setChildren(new ArrayList<>());
+            user.getFunctionAssignments().add(userOuFunction(ou, "fn-uuid-a"));
+
+            CurrentAssignment assignment = assignmentWithConstraint(ConstraintValueType.INHERITED_FROM_FUNCTIONS);
+            when(assignmentService.getByUserAndItSystems(any(User.class), anyList())).thenReturn(Set.of(assignment));
+
+            // Act
+            List<PrivilegeGroup> result = userService.generateOIOBPPPrivileges(user, List.of(kombitItSystem), new HashMap<>());
+
+            // Assert — empty constraintValue = no OUs (require explicit selection)
+            assertThat(result).hasSize(1);
+            assertThat(result.getFirst().getConstraints()).isEmpty();
+        }
+
+        @Test
+        @DisplayName("skal deduplikere enheder når brugeren har flere matchende funktioner i samme enhed")
         void shouldDeduplicateWhenMultipleFunctionsInSameOrgUnit() {
             // Arrange
             OrgUnit ou = orgUnit("ou-d", "Enhed D");
             ou.setChildren(new ArrayList<>());
-            user.getFunctionAssignments().add(userOuFunction(ou));
-            user.getFunctionAssignments().add(userOuFunction(ou));
+            user.getFunctionAssignments().add(userOuFunction(ou, "fn-uuid-a"));
+            user.getFunctionAssignments().add(userOuFunction(ou, "fn-uuid-a"));
 
-            CurrentAssignment assignment = assignmentWithConstraint(ConstraintValueType.INHERITED_FROM_FUNCTIONS);
+            CurrentAssignment assignment = assignmentWithConstraintAndFunctions(ConstraintValueType.INHERITED_FROM_FUNCTIONS, "fn-uuid-a");
             when(assignmentService.getByUserAndItSystems(any(User.class), anyList())).thenReturn(Set.of(assignment));
 
             // Act
@@ -262,7 +323,7 @@ class UserServiceOrgConstraintFromRoleTest {
         @DisplayName("skal ikke producere en afgrænsningsværdi når brugeren ingen tillidsfunktioner har")
         void shouldProduceNoConstraintValueWhenUserHasNoFunctions() {
             // Arrange — user has no function assignments
-            CurrentAssignment assignment = assignmentWithConstraint(ConstraintValueType.INHERITED_FROM_FUNCTIONS);
+            CurrentAssignment assignment = assignmentWithConstraintAndFunctions(ConstraintValueType.INHERITED_FROM_FUNCTIONS, "fn-uuid-a");
             when(assignmentService.getByUserAndItSystems(any(User.class), anyList())).thenReturn(Set.of(assignment));
 
             // Act
@@ -287,11 +348,11 @@ class UserServiceOrgConstraintFromRoleTest {
 
             OrgUnit functionOu = orgUnit("ou-d", "Enhed D");
             functionOu.setChildren(List.of(child));
-            user.getFunctionAssignments().add(userOuFunction(functionOu));
+            user.getFunctionAssignments().add(userOuFunction(functionOu, "fn-uuid-a"));
 
             when(orgUnitService.isActiveAndIncluded(child)).thenReturn(true);
 
-            CurrentAssignment assignment = assignmentWithConstraint(ConstraintValueType.EXTENDED_INHERITED_FROM_FUNCTIONS);
+            CurrentAssignment assignment = assignmentWithConstraintAndFunctions(ConstraintValueType.EXTENDED_INHERITED_FROM_FUNCTIONS, "fn-uuid-a");
             when(assignmentService.getByUserAndItSystems(any(User.class), anyList())).thenReturn(Set.of(assignment));
 
             // Act
@@ -300,22 +361,47 @@ class UserServiceOrgConstraintFromRoleTest {
             // Assert
             assertThat(constraintValuesFrom(result)).containsExactlyInAnyOrder("ou-d", "ou-e");
         }
+
+        @Test
+        @DisplayName("skal kun inkludere enheder for den valgte tillidsfunktion")
+        void shouldOnlyIncludeOusForSelectedFunction() {
+            // Arrange
+            OrgUnit ouA = orgUnit("ou-a", "Enhed A");
+            ouA.setChildren(new ArrayList<>());
+            OrgUnit ouB = orgUnit("ou-b", "Enhed B");
+            ouB.setChildren(new ArrayList<>());
+
+            user.getFunctionAssignments().add(userOuFunction(ouA, "fn-tillidsrep"));
+            user.getFunctionAssignments().add(userOuFunction(ouB, "fn-arbejdsmiljoe"));
+
+            CurrentAssignment assignment = assignmentWithConstraintAndFunctions(ConstraintValueType.EXTENDED_INHERITED_FROM_FUNCTIONS, "fn-tillidsrep");
+            when(assignmentService.getByUserAndItSystems(any(User.class), anyList())).thenReturn(Set.of(assignment));
+
+            // Act
+            List<PrivilegeGroup> result = userService.generateOIOBPPPrivileges(user, List.of(kombitItSystem), new HashMap<>());
+
+            // Assert
+            assertThat(constraintValuesFrom(result)).containsExactly("ou-a");
+        }
     }
 
     // --- helpers ---
 
-    private CurrentAssignment assignmentWithConstraint(ConstraintValueType type) {
-        SystemRole systemRole = new SystemRole();
-        systemRole.setId(1L);
-        systemRole.setUuid("sr-uuid");
-        systemRole.setName("test-system-role");
-        systemRole.setIdentifier("test-system-role");
-
+    private SystemRoleAssignmentConstraintValue buildConstraintValue(ConstraintValueType type) {
         SystemRoleAssignmentConstraintValue constraint = new SystemRoleAssignmentConstraintValue();
         constraint.setId(1L);
         constraint.setConstraintType(ouConstraintType);
         constraint.setConstraintValueType(type);
         constraint.setConstraintIdentifier(Constants.OU_CONSTRAINT_ENTITY_ID);
+        return constraint;
+    }
+
+    private CurrentAssignment buildAssignment(SystemRoleAssignmentConstraintValue constraint) {
+        SystemRole systemRole = new SystemRole();
+        systemRole.setId(1L);
+        systemRole.setUuid("sr-uuid");
+        systemRole.setName("test-system-role");
+        systemRole.setIdentifier("test-system-role");
 
         SystemRoleAssignment sra = new SystemRoleAssignment();
         sra.setId(1L);
@@ -351,9 +437,30 @@ class UserServiceOrgConstraintFromRoleTest {
     }
 
     private UserOUFunction userOuFunction(OrgUnit ou) {
+        return userOuFunction(ou, null);
+    }
+
+    private UserOUFunction userOuFunction(OrgUnit ou, String functionUuid) {
         UserOUFunction f = new UserOUFunction();
         f.setOrgUnit(ou);
+        if (functionUuid != null) {
+            Function fn = new Function();
+            fn.setUuid(functionUuid);
+            fn.setName(functionUuid);
+            fn.setActive(true);
+            f.setFunction(fn);
+        }
         return f;
+    }
+
+    private CurrentAssignment assignmentWithConstraint(ConstraintValueType type) {
+        return buildAssignment(buildConstraintValue(type));
+    }
+
+    private CurrentAssignment assignmentWithConstraintAndFunctions(ConstraintValueType type, String... functionUuids) {
+        SystemRoleAssignmentConstraintValue constraint = buildConstraintValue(type);
+        constraint.setConstraintValue(String.join(",", functionUuids));
+        return buildAssignment(constraint);
     }
 
     private List<String> constraintValuesFrom(List<PrivilegeGroup> groups) {

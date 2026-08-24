@@ -4,10 +4,10 @@ import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
-import java.util.Deque;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Date;
+import java.util.Deque;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -36,7 +36,6 @@ import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
 import dk.digitalidentity.rc.dao.OrgUnitDao;
 import dk.digitalidentity.rc.dao.OrgUnitRoleGroupAssignmentDao;
 import dk.digitalidentity.rc.dao.OrgUnitUserRoleAssignmentDao;
-import dk.digitalidentity.rc.dao.RoleGroupDao;
 import dk.digitalidentity.rc.dao.TitleDao;
 import dk.digitalidentity.rc.dao.UserDao;
 import dk.digitalidentity.rc.dao.model.AuthorizationManager;
@@ -59,6 +58,7 @@ import dk.digitalidentity.rc.dao.model.enums.KleType;
 import dk.digitalidentity.rc.dao.model.enums.OrgUnitLevel;
 import dk.digitalidentity.rc.dao.projections.OrgUnitManagerName;
 import dk.digitalidentity.rc.dao.projections.OrgUnitUuidAndName;
+import dk.digitalidentity.rc.controller.api.exception.BadRequestException;
 import dk.digitalidentity.rc.exceptions.OrgUnitNotFoundException;
 import dk.digitalidentity.rc.log.AuditLogContextHolder;
 import dk.digitalidentity.rc.log.AuditLogIntercepted;
@@ -80,9 +80,6 @@ public class OrgUnitService {
 
 	@Autowired
 	private UserDao userDao;
-
-	@Autowired
-	private RoleGroupDao roleGroupDao;
 
 	@Autowired
 	private SecurityUtil securityUtil;
@@ -407,11 +404,14 @@ public class OrgUnitService {
 					assignment.setContainsTitles(ContainsTitles.POSITIVE);
 				}
 				assignment.setTitles(new ArrayList<>(titlesByUuid));
-			} else {
-				Collection<User> usersById = CollectionUtils.emptyIfNull(userDao.findByUuidInAndDeletedFalse(exceptedUsers));
-				assignment.setContainsExceptedUsers(!usersById.isEmpty());
-				assignment.setExceptedUsers(new ArrayList<>(usersById));
 			}
+
+			Collection<User> usersById = (exceptedUsers != null && !exceptedUsers.isEmpty()) ? CollectionUtils.emptyIfNull(userDao.findByUuidInAndDeletedFalse(exceptedUsers)) : Collections.emptyList();
+			if (inherit && !usersById.isEmpty()) {
+				throw new BadRequestException("inherit cannot be combined with ExceptedUserScope - excepted-user assignments cannot inherit to sub org units.");
+			}
+			assignment.setContainsExceptedUsers(!usersById.isEmpty());
+			assignment.setExceptedUsers(new ArrayList<>(usersById));
 		}
 
 		ou.getRoleGroupAssignments().add(assignment);
@@ -425,7 +425,7 @@ public class OrgUnitService {
 	}
 
 	public void addRoleGroup(OrgUnit ou, RoleGroup roleGroup, boolean inherit, LocalDate startDate, LocalDate stopDate, Set<String> exceptedUsers, Set<String> titles) {
-		addRoleGroup(ou, roleGroup, inherit, startDate, stopDate, exceptedUsers, titles, false, false, false, null, null);
+		self.addRoleGroup(ou, roleGroup, inherit, startDate, stopDate, exceptedUsers, titles, false, false, false, null, null);
 	}
 
 	@Transactional
@@ -546,8 +546,8 @@ public class OrgUnitService {
 				}
 			}
 
-			// Only set titles if no excepted users
-			if (!assignment.isContainsExceptedUsers() && titleUuids != null && !titleUuids.isEmpty()) {
+			// Set titles
+			if (titleUuids != null && !titleUuids.isEmpty()) {
 				// Remove titles that are no longer selected
 				for (Iterator<Title> iterator = assignment.getTitles().iterator(); iterator.hasNext();) {
 					Title title = iterator.next();
@@ -581,7 +581,7 @@ public class OrgUnitService {
 						modified = true;
 					}
 				}
-			} else if (!assignment.isContainsExceptedUsers()) {
+			} else {
 				if (!assignment.getContainsTitles().equals(ContainsTitles.NO) || !assignment.getTitles().isEmpty()) {
 					assignment.setContainsTitles(ContainsTitles.NO);
 					assignment.setTitles(new ArrayList<>());
@@ -591,7 +591,11 @@ public class OrgUnitService {
 		}
 
 		// inherit is only possible if no excepted users
-		if (!assignment.isContainsExceptedUsers() && assignment.isInherit() != inherit) {
+		if (inherit && assignment.isContainsExceptedUsers()) {
+			throw new BadRequestException("inherit cannot be combined with ExceptedUserScope - excepted-user assignments cannot inherit to sub org units.");
+		}
+
+		if (assignment.isInherit() != inherit) {
 			assignment.setInherit(inherit);
 			modified = true;
 		}
@@ -660,6 +664,9 @@ public class OrgUnitService {
 			}
 
 			Collection<User> usersById = CollectionUtils.emptyIfNull(userDao.findByUuidInAndDeletedFalse(exceptedUsers));
+			if (inherit && !usersById.isEmpty()) {
+				throw new BadRequestException("inherit cannot be combined with ExceptedUserScope - excepted-user assignments cannot inherit to sub org units.");
+			}
 			assignment.setContainsExceptedUsers(!usersById.isEmpty());
 			assignment.setExceptedUsers(new ArrayList<>(usersById));
 		}
@@ -679,7 +686,7 @@ public class OrgUnitService {
 
 	//Method overloading to avoid breaking code base
 	public void addUserRole(OrgUnit ou, UserRole userRole, boolean inherit, LocalDate startDate, LocalDate stopDate, Set<String> exceptedUsers, Set<String> titles) {
-		addUserRole(ou, userRole, inherit, startDate, stopDate, exceptedUsers, titles, false, false, false, null, null);
+		self.addUserRole(ou, userRole, inherit, startDate, stopDate, exceptedUsers, titles, false, false, false, null, null);
 	}
 
 	@Transactional
@@ -856,7 +863,11 @@ public class OrgUnitService {
 		}
 
 		// inherit is only possible if no excepted users
-		if (!assignment.isContainsExceptedUsers() && assignment.isInherit() != inherit) {
+		if (inherit && assignment.isContainsExceptedUsers()) {
+			throw new BadRequestException("inherit cannot be combined with ExceptedUserScope - excepted-user assignments cannot inherit to sub org units.");
+		}
+
+		if (assignment.isInherit() != inherit) {
 			assignment.setInherit(inherit);
 			modified = true;
 		}

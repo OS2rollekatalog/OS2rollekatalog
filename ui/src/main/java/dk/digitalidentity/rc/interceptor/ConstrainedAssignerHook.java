@@ -37,6 +37,11 @@ public class ConstrainedAssignerHook implements RoleChangeHook {
 	}
 	
 	@Override
+	public void interceptCreateUser(User user) {
+		; // not relevant
+	}
+	
+	@Override
 	public void interceptFlagUserDeleted(User user) {
 		; // not relevant
 	}

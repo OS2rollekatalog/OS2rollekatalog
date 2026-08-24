@@ -96,7 +96,7 @@ class StreamingReportContext {
         Map<String, List<HistoryOU>> userPositionsMap = new HashMap<>();
         for (HistoryOU ou : orgUnits.values()) {
             for (HistoryOUUser ouUser : ou.getUsers()) {
-                userPositionsMap.computeIfAbsent(ouUser.getUserUuid(), k -> new ArrayList<>()).add(ou);
+                userPositionsMap.computeIfAbsent(ouUser.getUserUuid(), _ -> new ArrayList<>()).add(ou);
             }
         }
 

@@ -4,7 +4,9 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Set;
 
+import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.AfterReturning;
+import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
 import org.aspectj.lang.annotation.Before;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -47,6 +49,30 @@ public class RoleChangeInterceptor {
 		for (RoleChangeHook hook : hooks) {
 			hook.interceptActivateUser(user);
 		}
+	}
+
+	@Around("execution(* dk.digitalidentity.rc.service.UserService.save(..))")
+	public Object interceptCreateUser(ProceedingJoinPoint joinPoint) throws Throwable {
+		boolean create = false;
+
+		if (joinPoint.getArgs().length > 0) {
+			Object target = joinPoint.getArgs()[0];
+
+			if (target != null && target instanceof User user) {
+				if (user.getLastUpdated() == null) {
+					create = true;
+				}
+			}
+		}
+		
+		Object o = joinPoint.proceed();
+		if (create && o instanceof User user) {
+			for (RoleChangeHook hook : hooks) {
+				hook.interceptCreateUser(user);
+			}
+		}
+		
+		return o;
 	}
 
 	@Before("execution(* dk.digitalidentity.rc.service.UserService.flagUserDeleted(dk.digitalidentity.rc.dao.model.User)) && args(user)")

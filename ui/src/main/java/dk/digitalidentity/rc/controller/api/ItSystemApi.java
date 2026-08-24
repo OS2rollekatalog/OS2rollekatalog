@@ -191,6 +191,12 @@ public class ItSystemApi {
 		itSystemService.save(itSystem);
 
 		if (body.isConvertRolesEnabled()) {
+			// Hele convert-blokken køres med batchet genberegning: addUserRole/removeUserRole/deleteWithCleanup
+			// akkumulerer berørte brugere og udsendes som ÉT bulk-enqueue til sidst i stedet for ét pr. bruger.
+			// De muterede brugere samles i dirtyUsers og persisteres med ÉT saveAll i stedet for en save pr.
+			// bruger (per-bruger-save var ren flush-overhead — audit + recalc-hook fyrer på add/removeUserRole).
+			userService.runWithBatchedRecalculation(() -> {
+			final Set<User> dirtyUsers = new HashSet<>();
 			boolean containsUsers = false;
 
 			if (body.getSystemRoles() != null) {
@@ -248,7 +254,7 @@ public class ItSystemApi {
 						continue;
 					}
 
-					updateUserAssignments(systemRoleDTO.get(), userRole, users);
+					updateUserAssignments(systemRoleDTO.get(), userRole, users, dirtyUsers);
 				}
 			}
 
@@ -285,9 +291,13 @@ public class ItSystemApi {
 						continue;
 					}
 
-					updateUserAssignments(systemRoleDTO.get(), userRole, users);
+					updateUserAssignments(systemRoleDTO.get(), userRole, users, dirtyUsers);
 				}
 			}
+
+			// Flush alle assignment-inserts ÉN gang før nogen rolle slettes, så inserts ligger før deletes
+			// (ingen intra-request FK-race) og per-bruger-flush undgås.
+			userService.save(new ArrayList<>(dirtyUsers));
 
 			// delete user roles that has no system role assignments
 			var toBeDeleted = userRoles.stream().filter(ur -> ur.getSystemRoleAssignments().size() == 0).collect(Collectors.toList());
@@ -299,12 +309,17 @@ public class ItSystemApi {
 					log.error("Failed to delete userRole: " + userRole.getId(), ex);
 				}
 			}
+			});
 		}
 
 		return new ResponseEntity<>(HttpStatus.OK);
 	}
 
-	private void updateUserAssignments(SystemRoleDTO systemRoleDTO, UserRole userRole, Map<String, User> users) {
+	// De muterede brugere lægges i dirtyUsers (in-memory mutation via add/removeUserRole, som også fyrer
+	// audit + recalc-hook) og persisteres af kalderen med ÉT saveAll. addUserRole muterer kun den in-memory
+	// collection, så det eksplicitte per-bruger-save var ren flush-overhead — og den efterfølgende batchede
+	// genberegning ser den committede tilstand (dequeue er forsinket nogle sekunder).
+	private void updateUserAssignments(SystemRoleDTO systemRoleDTO, UserRole userRole, Map<String, User> users, Set<User> dirtyUsers) {
 		List<String> assignedUsers = systemRoleDTO.getUsers();
 		if (assignedUsers == null || assignedUsers.size() == 0) {
 			assignedUsers = new ArrayList<String>();
@@ -314,12 +329,13 @@ public class ItSystemApi {
 		for (String userId : assignedUsers) {
 			User user = users.get(userId);
 			if (user == null) {
-				log.warn("ItSystemApi: Unable to find user with userID: " + userId + " while updating UserRoles.");
+				log.debug("ItSystemApi: Unable to find user with userID: " + userId + " while updating UserRoles.");
 				continue;
 			}
 
 			if (!user.getUserRoleAssignments().stream().anyMatch(ura -> ura.getUserRole().getId() == userRole.getId())) {
 				userService.addUserRole(user, userRole, null, null, null);
+				dirtyUsers.add(user);
 			}
 		}
 
@@ -329,6 +345,7 @@ public class ItSystemApi {
 
 			if (!assignedUsers.stream().anyMatch(u -> u.equalsIgnoreCase(userId))) {
 				userService.removeUserRole(assignment.getUser(), userRole);
+				dirtyUsers.add(assignment.getUser());
 			}
 		}
 	}

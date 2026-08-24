@@ -539,6 +539,14 @@ public class SettingsService {
 		setKeyEnabled(true, Settings.SETTING_HISTORIC_IT_SYSTEM_ASSIGNMENT_COLLECTION_REPAIR_PERFORMED.getKey());
 	}
 
+	public boolean isAttestationResponsibleCollectionReconcilePerformed() {
+		return isKeyEnabled(Settings.SETTING_ATTESTATION_RESPONSIBLE_COLLECTION_RECONCILE_PERFORMED.getKey());
+	}
+
+	public void setAttestationResponsibleCollectionReconcilePerformed() {
+		setKeyEnabled(true, Settings.SETTING_ATTESTATION_RESPONSIBLE_COLLECTION_RECONCILE_PERFORMED.getKey());
+	}
+
 	public boolean isBlockAllEmailTransmissions() {
 		return getBooleanWithDefault(Settings.SETTING_BLOCK_ALL_EMAIL_TRANSMISSIONS.getKey(), false);
 	}

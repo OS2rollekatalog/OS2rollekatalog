@@ -10,6 +10,8 @@ import dk.digitalidentity.rc.attestation.model.entity.AttestationRun;
 import dk.digitalidentity.rc.attestation.model.entity.AttestationUser;
 import dk.digitalidentity.rc.attestation.model.entity.temporal.AttestationUserRoleAssignment;
 import dk.digitalidentity.rc.attestation.service.HistoricAssignmentAttestationService;
+import dk.digitalidentity.rc.dao.history.HistoryAttestationManagerDelegateDao;
+import dk.digitalidentity.rc.service.SettingsService;
 import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
 import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.BeforeEach;
@@ -21,9 +23,12 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.LocalDate;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.lenient;
@@ -52,6 +57,12 @@ class UserAttestationTrackerServiceTest {
 	private AttestationResponsibleCollectionDao attestationResponsibleCollectionDao;
 
 	@Mock
+	private SettingsService settingsService;
+
+	@Mock
+	private HistoryAttestationManagerDelegateDao historyAttestationManagerDelegateDao;
+
+	@Mock
 	private EntityManager entityManager;
 
 	@InjectMocks
@@ -68,7 +79,7 @@ class UserAttestationTrackerServiceTest {
 			.sensitive(false)
 			.extraSensitive(false)
 			.build();
-		given(runTrackerService.getAttestationRunWithDeadlineNotAfter(when)).willReturn(Optional.of(run));
+		lenient().when(runTrackerService.getOpenAttestationRun()).thenReturn(Optional.of(run));
 		lenient().when(configuration.getAttestation()).thenReturn(new AttestationConfig());
 	}
 
@@ -90,8 +101,8 @@ class UserAttestationTrackerServiceTest {
 			.willReturn(List.of());
 		given(attestationResponsibleCollectionDao.findById(42L))
 			.willReturn(Optional.of(new AttestationResponsibleCollection(42L, 10L, List.of("responsible-uuid"))));
-		given(attestationDao.findByAttestationTypeAndItSystemIdAndResponsibleCollectionIdAndDeadlineGreaterThanEqual(
-			Attestation.AttestationType.IT_SYSTEM_ATTESTATION, 10L, 42L, when)).willReturn(Optional.empty());
+		given(attestationDao.findFirstByAttestationTypeAndItSystemIdAndResponsibleCollectionIdAndAttestationRunOrderByIdAsc(
+			Attestation.AttestationType.IT_SYSTEM_ATTESTATION, 10L, 42L, run)).willReturn(Optional.empty());
 		given(attestationDao.save(any(Attestation.class))).willAnswer(invocation -> invocation.getArgument(0));
 		given(attestationUserDao.save(any(AttestationUser.class))).willAnswer(invocation -> invocation.getArgument(0));
 
@@ -129,5 +140,86 @@ class UserAttestationTrackerServiceTest {
 		service.updateSystemUserAttestations(when);
 
 		verify(attestationDao, never()).save(any(Attestation.class));
+	}
+	@Test
+	@DisplayName("creates a missing IT system users attestation in an open run whose deadline has passed")
+	void createsAttestationInOverdueOpenRun() {
+		final AttestationRun overdueRun = AttestationRun.builder()
+			.id(2L)
+			.deadline(when.minusDays(19))
+			.sensitive(false)
+			.extraSensitive(false)
+			.build();
+		given(runTrackerService.getOpenAttestationRun()).willReturn(Optional.of(overdueRun));
+		given(historicAssignmentService.findValidGroupByResponsibleCollectionIdAndUserUuidAndSensitiveRoleAndItSystem(when))
+			.willReturn(List.of(assignmentWithCollection(42L)));
+		given(historicAssignmentService.findValidGroupByResponsibleCollectionIdAndSensitiveRole(when))
+			.willReturn(List.of());
+		given(attestationResponsibleCollectionDao.findById(42L))
+			.willReturn(Optional.of(new AttestationResponsibleCollection(42L, 10L, List.of("responsible-uuid"))));
+		given(attestationDao.findFirstByAttestationTypeAndItSystemIdAndResponsibleCollectionIdAndAttestationRunOrderByIdAsc(
+			Attestation.AttestationType.IT_SYSTEM_ATTESTATION, 10L, 42L, overdueRun)).willReturn(Optional.empty());
+		given(attestationDao.save(any(Attestation.class))).willAnswer(invocation -> invocation.getArgument(0));
+		given(attestationUserDao.save(any(AttestationUser.class))).willAnswer(invocation -> invocation.getArgument(0));
+
+		service.updateSystemUserAttestations(when);
+
+		verify(attestationDao).save(any(Attestation.class));
+	}
+
+	@Test
+	@DisplayName("does not duplicate an existing IT system users attestation in an open run whose deadline has passed")
+	void doesNotDuplicateAttestationInOverdueOpenRun() {
+		final AttestationRun overdueRun = AttestationRun.builder()
+			.id(2L)
+			.deadline(when.minusDays(19))
+			.sensitive(false)
+			.extraSensitive(false)
+			.build();
+		given(runTrackerService.getOpenAttestationRun()).willReturn(Optional.of(overdueRun));
+		given(historicAssignmentService.findValidGroupByResponsibleCollectionIdAndUserUuidAndSensitiveRoleAndItSystem(when))
+			.willReturn(List.of(assignmentWithCollection(42L)));
+		given(historicAssignmentService.findValidGroupByResponsibleCollectionIdAndSensitiveRole(when))
+			.willReturn(List.of());
+		given(attestationResponsibleCollectionDao.findById(42L))
+			.willReturn(Optional.of(new AttestationResponsibleCollection(42L, 10L, List.of("responsible-uuid"))));
+		given(attestationDao.findFirstByAttestationTypeAndItSystemIdAndResponsibleCollectionIdAndAttestationRunOrderByIdAsc(
+			Attestation.AttestationType.IT_SYSTEM_ATTESTATION, 10L, 42L, overdueRun))
+			.willReturn(Optional.of(Attestation.builder().uuid("existing").usersForAttestation(new HashSet<>()).build()));
+		given(attestationUserDao.save(any(AttestationUser.class))).willAnswer(invocation -> invocation.getArgument(0));
+
+		service.updateSystemUserAttestations(when);
+
+		verify(attestationDao, never()).save(any(Attestation.class));
+	}
+
+	@Test
+	@DisplayName("clears attestation users run-scoped so an overdue open run is rebuilt instead of duplicated")
+	void clearsAttestationUsersScopedToTheOpenRun() {
+		final AttestationRun overdueRun = AttestationRun.builder()
+			.id(2L)
+			.deadline(when.minusDays(19))
+			.sensitive(false)
+			.extraSensitive(false)
+			.build();
+		given(runTrackerService.getOpenAttestationRun()).willReturn(Optional.of(overdueRun));
+		final AttestationUser existingUser = AttestationUser.builder().userUuid("user-uuid").build();
+		final Attestation ouAttestation = Attestation.builder()
+			.uuid("ou-attestation")
+			.usersForAttestation(new HashSet<>(List.of(existingUser)))
+			.build();
+		given(attestationDao.findByAttestationTypeAndAttestationRun(
+			Attestation.AttestationType.ORGANISATION_ATTESTATION, overdueRun)).willReturn(List.of(ouAttestation));
+		given(settingsService.isAttestationOrgUnitSelectionOptIn()).willReturn(false);
+		given(settingsService.getScheduledAttestationFilter()).willReturn(Set.of());
+		given(historyAttestationManagerDelegateDao.findAllByDate(when)).willReturn(List.of());
+		given(historicAssignmentService.findValidGroupByResponsibleOuUuidAndSensitiveRole(when)).willReturn(List.of());
+		given(historicAssignmentService.findValidGroupByResponsibleOuAndUserUuidAndSensitiveRole(when)).willReturn(List.of());
+		given(settingsService.isADAttestationEnabled()).willReturn(false);
+
+		service.updateOrganisationUserAttestations(when);
+
+		verify(attestationUserDao).deleteAll(Set.of(existingUser));
+		assertThat(ouAttestation.getUsersForAttestation()).isEmpty();
 	}
 }

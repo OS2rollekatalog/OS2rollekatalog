@@ -6,7 +6,6 @@ import dk.digitalidentity.rc.dao.model.SystemRoleAssignment;
 import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserRole;
 import dk.digitalidentity.rc.dao.model.enums.AccessRole;
-import dk.digitalidentity.rc.interceptor.RoleChangeInterceptor;
 import dk.digitalidentity.rc.service.DomainService;
 import dk.digitalidentity.rc.service.ItSystemService;
 import dk.digitalidentity.rc.service.UserRoleService;
@@ -67,9 +66,6 @@ public class UserApiTest extends AbstractApiTest {
 
 	@MockitoBean
 	private AssignmentService assignmentService;
-
-	@MockitoBean(name = "roleChangeInterceptor")
-	private RoleChangeInterceptor roleChangeInterceptor;
 
 
 	@Override

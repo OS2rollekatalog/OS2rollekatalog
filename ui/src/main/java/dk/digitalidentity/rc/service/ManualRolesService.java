@@ -1,34 +1,5 @@
 package dk.digitalidentity.rc.service;
 
-import dk.digitalidentity.rc.controller.mvc.viewmodel.InlineImageDTO;
-import dk.digitalidentity.rc.dao.ManualAssignmentNotificationMapDao;
-import dk.digitalidentity.rc.dao.ManualNotificationPendingUserDao;
-import dk.digitalidentity.rc.dao.model.AuthorizationManager;
-import dk.digitalidentity.rc.dao.model.ItSystem;
-import dk.digitalidentity.rc.dao.model.ManualAssignmentNotificationMap;
-import dk.digitalidentity.rc.dao.model.ManualNotificationPendingUser;
-import dk.digitalidentity.rc.dao.model.OrgUnit;
-import dk.digitalidentity.rc.dao.model.Position;
-import dk.digitalidentity.rc.dao.model.User;
-import dk.digitalidentity.rc.dao.model.UserRole;
-import dk.digitalidentity.rc.dao.model.UserRoleEmailTemplate;
-import dk.digitalidentity.rc.dao.model.assignment.CurrentAssignment;
-import dk.digitalidentity.rc.dao.model.EmailTemplate;
-import dk.digitalidentity.rc.dao.model.enums.EmailTemplatePlaceholder;
-import dk.digitalidentity.rc.dao.model.enums.EmailTemplateType;
-import dk.digitalidentity.rc.dao.model.enums.ItSystemType;
-import dk.digitalidentity.rc.service.assignment.AssignmentService;
-import dk.digitalidentity.rc.util.StreamExtensions;
-import lombok.extern.slf4j.Slf4j;
-import org.jetbrains.annotations.NotNull;
-import org.jsoup.Jsoup;
-import org.jsoup.nodes.Document;
-import org.jsoup.nodes.Element;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-import org.springframework.util.StringUtils;
-
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -46,9 +17,43 @@ import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import org.jetbrains.annotations.NotNull;
+import org.jsoup.Jsoup;
+import org.jsoup.nodes.Document;
+import org.jsoup.nodes.Element;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
+
+import dk.digitalidentity.rc.controller.mvc.viewmodel.InlineImageDTO;
+import dk.digitalidentity.rc.dao.ManualAssignmentNotificationMapDao;
+import dk.digitalidentity.rc.dao.ManualNotificationPendingUserDao;
+import dk.digitalidentity.rc.dao.model.AuthorizationManager;
+import dk.digitalidentity.rc.dao.model.EmailTemplate;
+import dk.digitalidentity.rc.dao.model.ItSystem;
+import dk.digitalidentity.rc.dao.model.ManualAssignmentNotificationMap;
+import dk.digitalidentity.rc.dao.model.ManualNotificationPendingUser;
+import dk.digitalidentity.rc.dao.model.OrgUnit;
+import dk.digitalidentity.rc.dao.model.Position;
+import dk.digitalidentity.rc.dao.model.User;
+import dk.digitalidentity.rc.dao.model.UserRole;
+import dk.digitalidentity.rc.dao.model.UserRoleEmailTemplate;
+import dk.digitalidentity.rc.dao.model.assignment.CurrentAssignment;
+import dk.digitalidentity.rc.dao.model.enums.EmailTemplatePlaceholder;
+import dk.digitalidentity.rc.dao.model.enums.EmailTemplateType;
+import dk.digitalidentity.rc.dao.model.enums.ItSystemType;
+import dk.digitalidentity.rc.service.assignment.AssignmentService;
+import dk.digitalidentity.rc.util.StreamExtensions;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.FlushModeType;
+import jakarta.persistence.PersistenceContext;
+import lombok.extern.slf4j.Slf4j;
+
 @Slf4j
 @Service
 public class ManualRolesService {
+
 	@Autowired
 	private ManualAssignmentNotificationMapDao manualAssignmentNotificationMapDao;
 
@@ -85,6 +90,9 @@ public class ManualRolesService {
 	@Autowired
 	private ManualNotificationPendingUserDao manualNotificationPendingUserDao;
 
+	@PersistenceContext
+	private EntityManager entityManager;
+
 	// it-system types covered by the assignment-change notification scan
 	private static final List<ItSystemType> NOTIFICATION_IT_SYSTEM_TYPES =
 			Arrays.asList(ItSystemType.MANUAL, ItSystemType.AD, ItSystemType.SAML, ItSystemType.KOMBIT, ItSystemType.KSPCICS);
@@ -94,18 +102,30 @@ public class ManualRolesService {
 
 	@Transactional
 	public void notifyServicedesk() {
+		// undgå O(n²) autoflush: loopet over it-systemer/brugere akkumulerer managed entities, og en
+		// autoflush før hver query ville dirty-checke/cascade over hele den voksende context (jf.
+		// AssignmentChangeEventHandlerService.updateUsers). Alt skrives korrekt ved commit.
+		entityManager.setFlushMode(FlushModeType.COMMIT);
+
+		long startTime = System.currentTimeMillis();
+
 		LocalDateTime firstRun = settingsService.getFirstManualITSystemRun();
 
-		Map<String, User> userMap = userService.getAll().stream().collect(Collectors.toMap(u -> u.getDomain().getId() + "!" + u.getUserId(), Function.identity()));
+		// include soft-deleted users: the event-driven processPendingUsers() deliberately skips deleted
+		// users and delegates their removal notifications to this sweep, so removed roles on a deleted
+		// user would otherwise never be mailed (removeRole() can't resolve the user and drops the mail)
+		Map<String, User> userMap = userService.getAllIncludingInactive().stream().collect(Collectors.toMap(u -> u.getDomain().getId() + "!" + u.getUserId(), Function.identity(), (a, _) -> a));
 
 		List<ItSystem> itSystems = itSystemService.getBySystemTypeIn(NOTIFICATION_IT_SYSTEM_TYPES);
 		for (ItSystem itSystem : itSystems) {
-			processItSystem(itSystem, userMap, firstRun);
+			processItSystem(itSystem, userMap, firstRun, true);
 		}
 
 		if (firstRun == null) {
 			settingsService.setFirstManualITSystemRun(LocalDateTime.now());
 		}
+		
+		log.info("Completed notifyServiceDesk in " + (System.currentTimeMillis() - startTime) + "ms");
 	}
 
 	/**
@@ -138,6 +158,11 @@ public class ManualRolesService {
 	 */
 	@Transactional
 	public void processPendingUsers() {
+		// undgå O(n²) autoflush: processUsers looper over brugere med to queries pr. bruger, og en
+		// autoflush før hver query ville dirty-checke/cascade over hele den voksende persistence context
+		// (jf. AssignmentChangeEventHandlerService.updateUsers). Alt skrives korrekt ved commit.
+		entityManager.setFlushMode(FlushModeType.COMMIT);
+
 		List<ManualNotificationPendingUser> pending = manualNotificationPendingUserDao.findAll();
 		if (pending.isEmpty()) {
 			return;
@@ -166,7 +191,7 @@ public class ManualRolesService {
 
 	private void processUsers(List<User> users, LocalDateTime firstRun) {
 		Map<String, User> userMap = users.stream()
-			.collect(Collectors.toMap(u -> u.getDomain().getId() + "!" + u.getUserId(), Function.identity(), (a, b) -> a));
+			.collect(Collectors.toMap(u -> u.getDomain().getId() + "!" + u.getUserId(), Function.identity(), (a, _) -> a));
 
 		List<ItSystem> manualItSystems = itSystemService.getBySystemTypeIn(NOTIFICATION_IT_SYSTEM_TYPES);
 
@@ -201,7 +226,7 @@ public class ManualRolesService {
 			Map<Long, UserRole> userRoleMap = userRoleService.getByItSystem(itSystem).stream().collect(Collectors.toMap(UserRole::getId, Function.identity()));
 
 			if (!hasContactEmail(itSystem, userRoleMap)) {
-				log.info("Skipping it-system without contact email(s) : " + itSystem.getName() + " / " + itSystem.getId());
+				log.debug("Skipping it-system without contact email(s) : " + itSystem.getName() + " / " + itSystem.getId());
 				continue;
 			}
 
@@ -210,25 +235,25 @@ public class ManualRolesService {
 				.filter(m -> userRoleMap.containsKey(m.getUserRoleId()))
 				.toList();
 
-			processDetectedChanges(itSystem, userRoleMap, currentAssignments, lastSyncMaps, userMap, firstRun);
+			processDetectedChanges(itSystem, userRoleMap, currentAssignments, lastSyncMaps, userMap, firstRun, false);
 		}
 	}
 
-	private void processItSystem(ItSystem itSystem, Map<String, User> userMap, LocalDateTime firstRun) {
-		log.info("Detecting role changes on " + itSystem.getName() + " / " + itSystem.getId());
-
+	private void processItSystem(ItSystem itSystem, Map<String, User> userMap, LocalDateTime firstRun, boolean fullSweep) {
 		Map<Long, UserRole> userRoleMap = userRoleService.getByItSystem(itSystem).stream().collect(Collectors.toMap(UserRole::getId, Function.identity()));
 
 		// neither the it-system or any of the userRoles has an Email, so skip
 		if (!hasContactEmail(itSystem, userRoleMap)) {
-			log.info("Skipping it-system without contact email(s) : " + itSystem.getName() + " / " + itSystem.getId());
+			log.debug("Skipping it-system without contact email(s) : " + itSystem.getName() + " / " + itSystem.getId());
 			return;
 		}
+
+		log.info("Detecting role changes on " + itSystem.getName() + " / " + itSystem.getId());
 
 		Set<CurrentAssignment> currentAssignments = assignmentService.getActiveAssignmentsByItSystem(itSystem);
 		List<ManualAssignmentNotificationMap> manualAssignmentNotificationMaps = manualAssignmentNotificationMapService.getForRoles(userRoleMap.keySet());
 
-		processDetectedChanges(itSystem, userRoleMap, currentAssignments, manualAssignmentNotificationMaps, userMap, firstRun);
+		processDetectedChanges(itSystem, userRoleMap, currentAssignments, manualAssignmentNotificationMaps, userMap, firstRun, fullSweep);
 	}
 
 	private boolean hasContactEmail(ItSystem itSystem, Map<Long, UserRole> userRoleMap) {
@@ -243,7 +268,7 @@ public class ManualRolesService {
 		return false;
 	}
 
-	private void processDetectedChanges(ItSystem itSystem, Map<Long, UserRole> userRoleMap, Set<CurrentAssignment> currentAssignments, List<ManualAssignmentNotificationMap> manualAssignmentNotificationMaps, Map<String, User> userMap, LocalDateTime firstRun) {
+	private void processDetectedChanges(ItSystem itSystem, Map<Long, UserRole> userRoleMap, Set<CurrentAssignment> currentAssignments, List<ManualAssignmentNotificationMap> manualAssignmentNotificationMaps, Map<String, User> userMap, LocalDateTime firstRun, boolean fullSweep) {
 		Map<UserInformationDTO, List<UserRoleInformationDTO>> toAddMap = new HashMap<>();
 		Map<UserInformationDTO, List<UserRoleInformationDTO>> toRemoveMap = new HashMap<>();
 		Map<UserRole, List<User>> toAddUserRoleMap = new HashMap<>();
@@ -260,6 +285,20 @@ public class ManualRolesService {
 
 		// Only send emails if first run was more than 3 hours ago
 		boolean shouldSendEmails = firstRun != null && LocalDateTime.now().isAfter(firstRun.plusHours(3));
+
+		// an it-system's first eligible run (e.g. it just got a contact/advis email configured) has no
+		// baseline yet, so every existing assignment would look "added". Only the full sweep sees every
+		// user for the it-system in one go and can therefore build a complete baseline; the event-driven
+		// flush only ever sees the batch of users that just changed, so flipping the marker there would
+		// mark the it-system "initialized" with a partial baseline, and the next full sweep would then
+		// flood mails for every other pre-existing assignment it hadn't seen yet (ROL-503 / #102). The
+		// event-driven path therefore reads the marker but never flips it - only the full sweep does.
+		if (!itSystem.isContactNotificationsInitialized()) {
+			if (fullSweep) {
+				itSystem.setContactNotificationsInitialized(true);
+			}
+			shouldSendEmails = false;
+		}
 
 		if (shouldSendEmails && (!toAddMap.isEmpty() || !toRemoveMap.isEmpty())) {
 			sendChangeNotifications(itSystem, toAddMap, toRemoveMap, toAddUserRoleMap, toRemoveUserRoleMap, itEmailAddresses, itAdvisAddresses);

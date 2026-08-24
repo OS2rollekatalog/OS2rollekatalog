@@ -103,11 +103,11 @@ public class UserRole implements AuditLoggable {
 
 	@Column
 	@Convert(converter = RequestableByListConverter.class)
-	private List<RequestableBy> requesterPermission = new ArrayList<>();
+	private List<RequestableBy> requesterPermission = new ArrayList<>(List.of(RequestableBy.INHERIT));
 
 	@Column
 	@Convert(converter = ApprovableByListConverter.class)
-	private List<ApprovableBy> approverPermission = new ArrayList<>();
+	private List<ApprovableBy> approverPermission = new ArrayList<>(List.of(ApprovableBy.INHERIT));
 
 	@Column
 	private String contactEmail;

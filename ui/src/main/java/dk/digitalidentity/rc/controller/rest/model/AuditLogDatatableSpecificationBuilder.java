@@ -27,14 +27,14 @@ public class AuditLogDatatableSpecificationBuilder {
 					.toList();
 
 			if (!eventTypes.isEmpty()) {
-				spec = (root, query, cb) -> root.get("eventType").in(eventTypes);
+				spec = (root, _, _) -> root.get("eventType").in(eventTypes);
 			}
 		}
 
 		if (StringUtils.hasText(entityType) && StringUtils.hasText(entityId)) {
 			try {
 				EntityType et = EntityType.valueOf(entityType);
-				Specification<AuditLogView> entitySpec = (root, query, cb) -> cb.or(
+				Specification<AuditLogView> entitySpec = (root, _, cb) -> cb.or(
 						cb.and(cb.equal(root.get("entityType"), et), cb.equal(root.get("entityId"), entityId)),
 						cb.and(cb.equal(root.get("secondaryEntityType"), et), cb.equal(root.get("secondaryEntityId"), entityId))
 				);

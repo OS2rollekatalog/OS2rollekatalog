@@ -25,6 +25,9 @@ import static dk.digitalidentity.rc.mockfactory.rolerequest.MockFactory.createRo
 import static dk.digitalidentity.rc.mockfactory.rolerequest.MockFactory.createUser;
 import static dk.digitalidentity.rc.mockfactory.rolerequest.MockFactory.createUserRole;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -146,6 +149,56 @@ class RequestApproverResolverTest {
 			boolean canApprove = requestApproverResolver.canApprove(request, user);
 
 			// Assert
+			assertThat(canApprove).isTrue();
+		}
+	}
+
+	@Nested
+	@DisplayName("The request's snapshotted approver options gate approval, not the role's current config")
+	class ApproverOptionSnapshot {
+
+		@Test
+		@DisplayName("a request created as AUTHORIZED must NOT become approvable-by-anyone when the role is later switched to AUTOMATIC")
+		void snapshotAuthorizedIsNotOverriddenByLiveAutomatic() {
+			// Arrange: the request was snapshotted as AUTHORIZED when created, but the role's current
+			// (live) approver option has since been changed to AUTOMATIC.
+			User approver = createUser("approver");
+			ItSystem itSystem = createItSystem("system", List.of());
+			UserRole userRole = createUserRole("role", itSystem, List.of(ApprovableBy.AUTOMATIC));
+			RoleRequest request = createRoleRequest(createUser("receiver"), null, userRole);
+			request.setApproverOption(List.of(ApprovableBy.AUTHORIZED));
+
+			// The approver is not authorized for the role's it-system, so under AUTHORIZED they may not approve.
+			when(requestAuthorizedRoleService.accessibleItsSystems(approver))
+				.thenReturn(new RequestAuthorizedRoleService.LimitedToItSystems(
+					RequestAuthorizedRoleService.LimitedToType.NONE, java.util.Set.of()));
+
+			// Act
+			boolean canApprove = requestApproverResolver.canApprove(request, approver);
+
+			// Assert: gated by the AUTHORIZED snapshot (which the approver fails), NOT the live AUTOMATIC.
+			assertThat(canApprove).isFalse();
+			// The live role config must not even be consulted when a snapshot is present.
+			verify(approverOptionService, never()).getInheritedApproverOption(any(UserRole.class));
+		}
+
+		@Test
+		@DisplayName("a legacy request without a snapshot falls back to the role's live approver option")
+		void missingSnapshotFallsBackToLiveResolution() {
+			// Arrange: legacy request created before the snapshot was stored (approverOption == null).
+			User approver = createUser("approver");
+			ItSystem itSystem = createItSystem("system", List.of());
+			UserRole userRole = createUserRole("role", itSystem, List.of());
+			RoleRequest request = createRoleRequest(createUser("receiver"), null, userRole);
+			assertThat(request.getApproverOption()).isNull();
+
+			when(approverOptionService.getInheritedApproverOption(userRole))
+				.thenReturn(List.of(ApprovableBy.AUTOMATIC));
+
+			// Act
+			boolean canApprove = requestApproverResolver.canApprove(request, approver);
+
+			// Assert: falls back to the live option (AUTOMATIC) so legacy requests keep working.
 			assertThat(canApprove).isTrue();
 		}
 	}

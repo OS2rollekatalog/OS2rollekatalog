@@ -15,6 +15,7 @@ import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
 import java.util.Date;
+import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -33,15 +34,25 @@ public class DevSeedAssignments {
 	private final ItSystemService itSystemService;
 	private final UserService userService;
 
+	private void putRoleIfPresent(Map<String, UserRole> map, String key, String identifier) {
+		UserRole role = userRoleDao.getByIdentifier(identifier);
+		if (role == null) {
+			log.warn("Role with identifier '{}' not found — assignments for key '{}' will be skipped", identifier, key);
+			return;
+		}
+		map.put(key, role);
+	}
+
 	public void seed() {
 		log.info("Seeding user role assignments...");
 
 		// Role keys defined in PersonaDef → resolved UserRole
-		Map<String, UserRole> rolesByKey = Map.of(
-			"administrator", userRoleDao.getByIdentifier("administrator"),
-			"assigner",      userRoleDao.getByIdentifier("tildeler"),
-			"read-only",     userRoleDao.getByIdentifier("readonly")
-		);
+		// Use a null-tolerant map: getByIdentifier may return null if a role isn't present
+		// in the dev database, and Map.of() would throw NPE on null values.
+		Map<String, UserRole> rolesByKey = new HashMap<>();
+		putRoleIfPresent(rolesByKey, "administrator", "administrator");
+		putRoleIfPresent(rolesByKey, "assigner", "tildeler");
+		putRoleIfPresent(rolesByKey, "read-only", "readonly");
 
 		List<String> userIds = DevDataDefinitions.PERSONAS.stream()
 			.filter(p -> !p.roleKeys().isEmpty())
@@ -51,7 +62,7 @@ public class DevSeedAssignments {
 
 		Map<String, User> usersById = userDao.findByUserIdInAndDomainAndDeletedFalse(userIds, domainService.getPrimaryDomain())
 			.stream()
-			.collect(Collectors.toMap(User::getUserId, Function.identity()));
+			.collect(Collectors.toMap(User::getUserId, Function.identity(), (first, _) -> first));
 
 		LinkedHashSet<User> modifiedUsers = new LinkedHashSet<>();
 

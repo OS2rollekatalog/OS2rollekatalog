@@ -46,7 +46,10 @@
                 <div class="modal-footer" th:if="${!openInView}">
                     <p style="display:none; color: red; margin-right: auto; margin-bottom: 0;" id="userRoleSelectError" th:text="#{attestationmodule.html.itsystems.attestate.reject.roleselect.error}"></p>
                     <button type="button" class="btn btn-secondary" data-dismiss="modal" th:text="#{attestationmodule.html.attestation.controls.cancel}"></button>
-                    <button type="button" class="btn btn-primary" id="modalSaveBtn" th:text="#{attestationmodule.html.attestation.controls.save}"></button>
+                    <button type="button" class="btn btn-primary" id="modalSaveBtn">
+                        <span th:if="${attestationDescriptionRequired}" th:text="#{attestationmodule.html.attestation.controls.reject}"></span>
+                        <span th:unless="${attestationDescriptionRequired}" th:text="#{attestationmodule.html.attestation.controls.reject.remove}"></span>
+                    </button>
                 </div>
             </div>
         </div>

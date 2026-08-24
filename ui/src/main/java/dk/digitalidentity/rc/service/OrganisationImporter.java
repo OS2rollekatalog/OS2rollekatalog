@@ -36,6 +36,9 @@ import dk.digitalidentity.rc.service.model.OrgUnitWithTitlesDTO;
 import dk.digitalidentity.rc.service.model.OrganisationChangeEvents;
 import dk.digitalidentity.rc.service.model.UserDeletedEvent;
 import dk.digitalidentity.rc.service.model.UserMovedPositions;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.FlushModeType;
+import jakarta.persistence.PersistenceContext;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -105,12 +108,19 @@ public class OrganisationImporter {
 	@Autowired
 	private ApplicationEventPublisher eventPublisher;
 
+	@PersistenceContext
+	private EntityManager entityManager;
+
 	private record OrganisationImportContext(List<String> systemOwnerAndResponsibleUuids) {}
 
 	@Transactional
 	public OrganisationImportResponse fullSync(OrganisationDTO organisation, Domain domain) {
 		boolean isPrimaryDomain = DomainService.isPrimaryDomain(domain);
 		events.set(new OrganisationChangeEvents());
+
+		// Default hibernate have FlushModeType.AUTO, this causes a flood of constant flushes which tages up a lot of time
+		// we don't need to flush all the time so just do it on commit.
+		entityManager.setFlushMode(FlushModeType.COMMIT);
 
 		try {
 			OrganisationImportResponse response = new OrganisationImportResponse();
@@ -697,9 +707,11 @@ public class OrganisationImporter {
 							handleUserDeletedEvent(simpleItSystems, existingUser);
 						}
 
-						existingUser.setDisabled(userToUpdate.isDisabled());
-						if (userToUpdate.isDisabled()) {
-							existingUser.setDisabledAt(LocalDate.now());
+						if (existingUser.isDisabled() != userToUpdate.isDisabled()) {
+							existingUser.setDisabled(userToUpdate.isDisabled());
+							if (userToUpdate.isDisabled()) {
+								existingUser.setDisabledAt(LocalDate.now());
+							}
 						}
 
 						if (!configuration.getIntegrations().getKle().isUiEnabled()) {

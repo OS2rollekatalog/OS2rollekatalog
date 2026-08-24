@@ -95,6 +95,9 @@ public class ItSystem implements AuditLoggable {
 	@Column
 	private boolean accessBlocked;
 
+	@Column
+	private boolean contactNotificationsInitialized;
+
 	// TODO: this is the new field for the v2 API's, we should merge this with "canEditThroughApi" above, once
 	//       we figure out the full API configuration.
 	@Column
@@ -128,11 +131,11 @@ public class ItSystem implements AuditLoggable {
 
 	@Column
 	@Convert(converter = RequestableByListConverter.class)
-	private List<RequestableBy> requesterPermission = new ArrayList<>();
+	private List<RequestableBy> requesterPermission = new ArrayList<>(List.of(RequestableBy.INHERIT));
 
 	@Column
 	@Convert(converter = ApprovableByListConverter.class)
-	private List<ApprovableBy> approverPermission = new ArrayList<>();
+	private List<ApprovableBy> approverPermission = new ArrayList<>(List.of(ApprovableBy.INHERIT));
 
 	@JsonIgnore
 	@Override

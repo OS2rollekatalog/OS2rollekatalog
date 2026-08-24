@@ -9,10 +9,11 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.OptionalLong;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
-import dk.digitalidentity.rc.service.assignment.AssignmentService;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.jpa.datatables.mapping.DataTablesInput;
@@ -64,33 +65,29 @@ import dk.digitalidentity.rc.security.SecurityUtil;
 import dk.digitalidentity.rc.security.permission.Permission;
 import dk.digitalidentity.rc.security.permission.RequireControllerPermission;
 import dk.digitalidentity.rc.security.permission.RequirePermission;
-import dk.digitalidentity.rc.security.permission.UserPermissionContext;
 import dk.digitalidentity.rc.security.permission.Section;
+import dk.digitalidentity.rc.security.permission.UserPermissionContext;
 import dk.digitalidentity.rc.service.ADGroupMappingService;
 import dk.digitalidentity.rc.service.ConstraintTypeService;
+import dk.digitalidentity.rc.service.ItSystemService;
 import dk.digitalidentity.rc.service.OrgUnitService;
 import dk.digitalidentity.rc.service.RoleGroupService;
 import dk.digitalidentity.rc.service.Select2Service;
 import dk.digitalidentity.rc.service.SystemRoleService;
-import dk.digitalidentity.rc.service.ItSystemService;
 import dk.digitalidentity.rc.service.UserRoleCleanupService;
 import dk.digitalidentity.rc.service.UserRoleService;
-import dk.digitalidentity.rc.service.UserService;
+import dk.digitalidentity.rc.service.assignment.AssignmentService;
 import dk.digitalidentity.rc.service.model.UserRoleSelect2DTO;
 import dk.digitalidentity.rc.util.IdentifierGenerator;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-import java.util.Set;
-import java.util.stream.Collectors;
-
 @RequireControllerPermission(section = Section.USER_ROLE, permission = Permission.READ)
 @RequiredArgsConstructor
 @Slf4j
 @RestController
 public class UserRoleRestController {
-    private final UserService userService;
     private final OrgUnitService orgUnitService;
     private final UserRoleService userRoleService;
     private final RoleGroupService roleGroupService;
