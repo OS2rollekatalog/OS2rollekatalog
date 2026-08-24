@@ -47,7 +47,7 @@ public class EmailService {
 			return;
 		}
 
-		if (!StringUtils.hasLength(email)) {
+		if (email == null || email.trim().length() == 0) {
 			log.warn("No recipient email given for mail with subject: " + subject);
 			return;
 		}

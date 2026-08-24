@@ -41,7 +41,9 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -99,7 +101,7 @@ public class RequestController {
 			final AssignedThrough assignedThrough = assignmentService.getAssignedThroughForRoleGroup(currentAssignment);
 			boolean requestRemovalPossible = assignedThrough.equals(AssignedThrough.DIRECT)
 				&& !removalPending
-				&& rolerequestService.canRequest(user, currentAssignment.getRoleGroup(), user, currentAssignment.getResponsibleOrgUnit());
+				&& rolerequestService.canRequestRemoval(user, currentAssignment.getRoleGroup(), user);
 
 			roleGroups.add(new RoleGroupListEntry(
 				currentAssignment.getRoleGroup().getId(),
@@ -133,16 +135,23 @@ public class RequestController {
 		List<UserRoleListEntry> userRoles = new ArrayList<>();
 		// getAllUserRoleAndRoleGroupAssignments
 		for (CurrentAssignment currentAssignment : currentAssignments) {
+			// already processed earlier
 			if (currentAssignment.getRoleGroup() != null) {
 				continue;
 			}
+			
+			// empty assignments (no roles) CAN happen, so check for these
+			if (currentAssignment.getUserRole() == null) {
+				continue;
+			}
+
 			final AssignedThrough assignedThrough = assignmentService.getAssignedThrough(currentAssignment);
 			final UserRole userRole = currentAssignment.getUserRole();
 			boolean removalPending = rolerequestService.hasPendingRemovalRequestForUserrole(userRole.getId(), user.getUuid());
 			List<RequestableBy> globalRequesterSetting = settingsService.getRolerequestRequester();
 			boolean requestRemovalPossible = assignedThrough.equals(AssignedThrough.DIRECT)
 				&& !removalPending
-				&& rolerequestService.canRequest(userRole, user, currentAssignment.getResponsibleOrgUnit(), globalRequesterSetting);
+				&& rolerequestService.canRequestRemoval(userRole, user, globalRequesterSetting);
 
 			userRoles.add(new UserRoleListEntry(userRole.getId(),
 				currentAssignment.getAssignmentId(),
@@ -217,26 +226,38 @@ public class RequestController {
 			return "redirect:/error";
 		}
 
-		List<RoleForUser> roleGroups = new ArrayList<>();
+		Map<Long, RoleForUser> roleGroupsById = new LinkedHashMap<>();
 		List<RoleForUser> userRoles = new ArrayList<>();
 
 		final Set<CurrentAssignment> currentAssignments = assignmentService.getByUserIncludingInactive(requestForUser);
 		for (var assignment : currentAssignments) {
-			final AssignedThrough assignedThrough = assignmentService.getAssignedThrough(assignment);
 			if (assignment.getRoleGroup() != null) {
+				// Collect into a Map so we won't have duplicate entries
 				final RoleGroup roleGroup = assignment.getRoleGroup();
+
+				// role-group rows must use getAssignedThroughForRoleGroup: getAssignedThrough always reports
+				// ROLEGROUP for them, so a directly-assigned role group would otherwise never be removable here.
+				final AssignedThrough assignedThrough = assignmentService.getAssignedThroughForRoleGroup(assignment);
 				boolean requestRemovalPossible = assignedThrough.equals(AssignedThrough.DIRECT)
-					&& rolerequestService.canRequest(loggedInUser, roleGroup, requestForUser, assignment.getOrgUnit());
-				roleGroups.add(new RoleForUser(roleGroup.getId(), assignment.getAssignmentId(), "", roleGroup.getName(), roleGroup.getDescription(), requestRemovalPossible));
+					&& rolerequestService.canRequestRemoval(loggedInUser, roleGroup, requestForUser);
+
+				// if already stored, only overwrite when the new assignment is DIRECT and the stored one
+				// wasn't, so a DIRECT (removable) assignment is never shadowed by an indirect one (e.g.
+				// ORGUNIT/ITSYSTEM) that happened to be encountered first in the set
+				if (roleGroupsById.containsKey(roleGroup.getId()) && !requestRemovalPossible) {
+					continue;
+				}
+				roleGroupsById.put(roleGroup.getId(), new RoleForUser(roleGroup.getId(), assignment.getAssignmentId(), "", roleGroup.getName(), roleGroup.getDescription(), requestRemovalPossible));
 			} else {
+				final AssignedThrough assignedThrough = assignmentService.getAssignedThrough(assignment);
 				final UserRole userRole = assignment.getUserRole();
 				boolean requestRemovalPossible = assignedThrough.equals(AssignedThrough.DIRECT)
-					&& rolerequestService.canRequest(userRole, requestForUser, assignment.getOrgUnit(), settingsService.getRolerequestRequester());
+					&& rolerequestService.canRequestRemoval(userRole, requestForUser, settingsService.getRolerequestRequester());
 				userRoles.add(new RoleForUser(userRole.getId(), assignment.getAssignmentId(), userRole.getItSystem().getName(), userRole.getName(), userRole.getDescription(), requestRemovalPossible));
 			}
 		}
 		model.addAttribute("reasonSetting", settingsService.getRolerequestReason());
-		model.addAttribute("roleGroups", roleGroups);
+		model.addAttribute("roleGroups", new ArrayList<>(roleGroupsById.values()));
 		model.addAttribute("userRoles", userRoles);
 		model.addAttribute("titleAddition", " fra " + requestForUser.getEntityName());
 		model.addAttribute("userUuid", requestForUser.getUuid());

@@ -390,7 +390,7 @@ class AttestationConstraintServiceTest {
 				// Arrange
 				SystemRoleConstraintDTO constraintDTO = new SystemRoleConstraintDTO("It-system", ConstraintValueType.VALUE, "999");
 
-				lenient().when(itSystemDao.findById(999L)).thenAnswer(invocation -> Optional.empty());
+				lenient().when(itSystemDao.findById(999L)).thenAnswer(_ -> Optional.empty());
 
 				// Act
 				String result = attestationConstraintService.caption(constraintDTO);
@@ -408,7 +408,7 @@ class AttestationConstraintServiceTest {
 				ItSystem system = new ItSystem();
 				system.setName("Single System");
 
-				lenient().when(itSystemDao.findById(1L)).thenAnswer(invocation -> Optional.of(system));
+				lenient().when(itSystemDao.findById(1L)).thenAnswer(_ -> Optional.of(system));
 				when(messageSource.getMessage("html.entity.itsystem", null, locale))
 					.thenReturn("IT-system");
 

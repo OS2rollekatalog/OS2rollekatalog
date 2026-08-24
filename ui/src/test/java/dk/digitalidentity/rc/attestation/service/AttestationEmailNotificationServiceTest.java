@@ -6,6 +6,7 @@ import dk.digitalidentity.rc.attestation.dao.AttestationResponsibleCollectionDao
 import dk.digitalidentity.rc.attestation.model.entity.AttestationResponsibleCollection;
 import dk.digitalidentity.rc.attestation.model.entity.Attestation;
 import dk.digitalidentity.rc.attestation.model.entity.AttestationMail;
+import dk.digitalidentity.rc.attestation.model.entity.AttestationRun;
 import dk.digitalidentity.rc.dao.ItSystemDao;
 import dk.digitalidentity.rc.dao.OrgUnitDao;
 import dk.digitalidentity.rc.dao.UserDao;
@@ -13,6 +14,7 @@ import dk.digitalidentity.rc.dao.model.EmailTemplate;
 import dk.digitalidentity.rc.dao.model.ItSystem;
 import dk.digitalidentity.rc.dao.model.ManagerDelegate;
 import dk.digitalidentity.rc.dao.model.OrgUnit;
+import dk.digitalidentity.rc.dao.model.Position;
 import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.enums.EmailTemplateType;
 import dk.digitalidentity.rc.service.EmailQueueService;
@@ -31,20 +33,25 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
+import static dk.digitalidentity.rc.mockfactory.attestation.MockFactory.createAttestationRun;
 import static dk.digitalidentity.rc.mockfactory.attestation.MockFactory.createEmailTemplate;
 import static dk.digitalidentity.rc.mockfactory.attestation.MockFactory.createItSystem;
 import static dk.digitalidentity.rc.mockfactory.attestation.MockFactory.createItSystemRolesAttestation;
+import static dk.digitalidentity.rc.mockfactory.attestation.MockFactory.createOrganisationAttestation;
+import static dk.digitalidentity.rc.mockfactory.attestation.MockFactory.createOrgUnit;
 import static dk.digitalidentity.rc.mockfactory.attestation.MockFactory.createUser;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -326,6 +333,117 @@ class AttestationEmailNotificationServiceTest {
             ArgumentCaptor<String> ccCaptor = ArgumentCaptor.forClass(String.class);
             verify(emailQueueService).queueEmail(eq("shared@example.com"), any(), any(), any(), isNull(), ccCaptor.capture());
             assertThat(ccCaptor.getValue()).isNull();
+        }
+    }
+
+    @Nested
+    @DisplayName("sendEmailsOrganisation(type, mailType, now) — escalation mail grouping")
+    class SendEmailsOrganisationEscalationGrouping {
+
+        private static Position makePosition(User user, OrgUnit orgUnit) {
+            Position position = new Position();
+            position.setUser(user);
+            position.setOrgUnit(orgUnit);
+            return position;
+        }
+
+        private EmailTemplate stubEscalationTemplate() {
+            EmailTemplate template = createEmailTemplate(EmailTemplateType.ATTESTATION_REMINDER_THIRDPARTY,
+                    "Reminder", "{modtager}, leder {bruger} har ikke gennemført attestering for {enheder}", true);
+            when(emailTemplateService.findByTemplateType(EmailTemplateType.ATTESTATION_REMINDER_THIRDPARTY)).thenReturn(template);
+            return template;
+        }
+
+        @Test
+        @DisplayName("receiver with two OUs under different managers gets one mail per manager, each with the correct manager name and only that manager's OU")
+        void differentManagers_receivesOneMailPerManager() {
+            // ---- Given ---- //
+            User areaManager = createUser("area-manager-uuid", "areamanager", "Area Manager", "areamanager@example.com");
+            User managerA = createUser("manager-a-uuid", "managera", "Manager A", "managera@example.com");
+            User managerB = createUser("manager-b-uuid", "managerb", "Manager B", "managerb@example.com");
+
+            OrgUnit root = createOrgUnit("root-uuid", "Root");
+            OrgUnit area = createOrgUnit("area-uuid", "Area", areaManager, root);
+            OrgUnit unitA = createOrgUnit("unit-a-uuid", "Unit A", managerA, area);
+            OrgUnit unitB = createOrgUnit("unit-b-uuid", "Unit B", managerB, area);
+
+            managerA.setPositions(new ArrayList<>(List.of(makePosition(managerA, unitA))));
+            managerB.setPositions(new ArrayList<>(List.of(makePosition(managerB, unitB))));
+            managerA.setManagerSubstitutes(new ArrayList<>());
+            managerB.setManagerSubstitutes(new ArrayList<>());
+
+            Attestation attUnitA = createOrganisationAttestation(101L, "att-101", "unit-a-uuid", "Unit A");
+            Attestation attUnitB = createOrganisationAttestation(102L, "att-102", "unit-b-uuid", "Unit B");
+            LocalDate deadline = LocalDate.now().plusDays(7);
+            attUnitA.setDeadline(deadline);
+            attUnitB.setDeadline(deadline);
+
+            AttestationRun run = createAttestationRun(1L, deadline);
+            run.getAttestations().addAll(List.of(attUnitA, attUnitB));
+
+            EmailTemplate template = stubEscalationTemplate();
+
+            when(attestationRunService.getCurrentRun()).thenReturn(Optional.of(run));
+            when(orgUnitDao.findById("unit-a-uuid")).thenReturn(Optional.of(unitA));
+            when(orgUnitDao.findById("unit-b-uuid")).thenReturn(Optional.of(unitB));
+
+            // ---- When ---- //
+            service.sendEmailsOrganisation(Attestation.AttestationType.ORGANISATION_ATTESTATION,
+                    AttestationMail.MailType.ESCALATION_REMINDER, LocalDate.now());
+
+            // ---- Then ---- //
+            ArgumentCaptor<User> receiverCaptor = ArgumentCaptor.forClass(User.class);
+            ArgumentCaptor<List<Long>> idsCaptor = ArgumentCaptor.forClass(List.class);
+            verify(self, times(2)).sendEmailsOrganisation(receiverCaptor.capture(), idsCaptor.capture(), eq(AttestationMail.MailType.ESCALATION_REMINDER), eq(template));
+
+            List<User> receivers = receiverCaptor.getAllValues();
+            List<List<Long>> idGroups = idsCaptor.getAllValues();
+
+            assertThat(receivers).allSatisfy(r -> assertThat(r.getUuid()).isEqualTo("area-manager-uuid"));
+            assertThat(idGroups).containsExactlyInAnyOrder(List.of(101L), List.of(102L));
+        }
+
+        @Test
+        @DisplayName("receiver with two OUs under the same manager still gets a single mail listing both OUs")
+        void sameManager_receivesSingleMailWithBothOus() {
+            // ---- Given ---- //
+            User areaManager = createUser("area-manager-uuid", "areamanager", "Area Manager", "areamanager@example.com");
+            User managerA = createUser("manager-a-uuid", "managera", "Manager A", "managera@example.com");
+
+            OrgUnit root = createOrgUnit("root-uuid", "Root");
+            OrgUnit area = createOrgUnit("area-uuid", "Area", areaManager, root);
+            OrgUnit unitA = createOrgUnit("unit-a-uuid", "Unit A", managerA, area);
+            OrgUnit unitB = createOrgUnit("unit-b-uuid", "Unit B", managerA, area);
+
+            managerA.setPositions(new ArrayList<>(List.of(makePosition(managerA, unitA))));
+            managerA.setManagerSubstitutes(new ArrayList<>());
+
+            Attestation attUnitA = createOrganisationAttestation(101L, "att-101", "unit-a-uuid", "Unit A");
+            Attestation attUnitB = createOrganisationAttestation(102L, "att-102", "unit-b-uuid", "Unit B");
+            LocalDate deadline = LocalDate.now().plusDays(7);
+            attUnitA.setDeadline(deadline);
+            attUnitB.setDeadline(deadline);
+
+            AttestationRun run = createAttestationRun(1L, deadline);
+            run.getAttestations().addAll(List.of(attUnitA, attUnitB));
+
+            EmailTemplate template = stubEscalationTemplate();
+
+            when(attestationRunService.getCurrentRun()).thenReturn(Optional.of(run));
+            when(orgUnitDao.findById("unit-a-uuid")).thenReturn(Optional.of(unitA));
+            when(orgUnitDao.findById("unit-b-uuid")).thenReturn(Optional.of(unitB));
+
+            // ---- When ---- //
+            service.sendEmailsOrganisation(Attestation.AttestationType.ORGANISATION_ATTESTATION,
+                    AttestationMail.MailType.ESCALATION_REMINDER, LocalDate.now());
+
+            // ---- Then ---- //
+            ArgumentCaptor<User> receiverCaptor = ArgumentCaptor.forClass(User.class);
+            ArgumentCaptor<List<Long>> idsCaptor = ArgumentCaptor.forClass(List.class);
+            verify(self, times(1)).sendEmailsOrganisation(receiverCaptor.capture(), idsCaptor.capture(), eq(AttestationMail.MailType.ESCALATION_REMINDER), eq(template));
+
+            assertThat(receiverCaptor.getValue().getUuid()).isEqualTo("area-manager-uuid");
+            assertThat(idsCaptor.getValue()).containsExactlyInAnyOrder(101L, 102L);
         }
     }
 }

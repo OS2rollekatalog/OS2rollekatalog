@@ -8,7 +8,6 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -53,14 +52,21 @@ public class PendingRequestController {
 	@Autowired
 	private ApproverOptionService approverOptionService;
 
-    record PendingRequestListItem(long id, String receiver, String action, String requester, String roleName,
-								  String itSystem, String description, String constraints, String requestDate, String reason, String timeFrame, String assignedTo, String approver) {
+	/**
+	 * @param requestDate     the request timestamp formatted for display
+	 * @param requestDateSort the same timestamp as a sortable key, exposed as data-order on the
+	 *                        table cell so the client sorts on full precision instead of on the
+	 *                        day-granularity display string
+	 */
+    record PendingRequestListItem(long id, String receiver, String employment, String action, String requester, String roleName,
+								  String itSystem, String description, String constraints, String requestDate, String requestDateSort,
+								  String reason, String timeFrame, String assignedTo, String approver) {
     }
 
 	@GetMapping
 	@Transactional(readOnly = true)
 	public String pendingApprovalRequestList(Model model) {
-		Set<RoleRequest> pendingRequests = rolerequestService.getPendingApprovableRequests();
+		List<RoleRequest> pendingRequests = rolerequestService.getPendingApprovableRequests();
 
 		List<String> neededOuUuids = pendingRequests.stream()
 			.flatMap(r -> r.getRequestPostponedConstraints().stream())
@@ -93,9 +99,11 @@ public class PendingRequestController {
 			.collect(Collectors.toMap(ItSystem::getId, i -> i));
 
 		DateFormat formatter = new SimpleDateFormat("dd-MM-yyyy");
-        List<PendingRequestListItem> pendingApprovalRequests = rolerequestService.getPendingApprovableRequests().stream().map(request -> new PendingRequestListItem(
+		DateFormat sortFormatter = new SimpleDateFormat("yyyyMMddHHmmss");
+        List<PendingRequestListItem> pendingApprovalRequests = pendingRequests.stream().map(request -> new PendingRequestListItem(
             request.getId(),
             request.getReceiver().getName() + " (" + request.getReceiver().getUserId() + ")",
+            formatEmployment(request.getReceiver()),
             request.getRequestAction().title,
             request.getRequester().getName(),
             request.getUserRole() == null ? request.getRoleGroup().getName() : request.getUserRole().getName(),
@@ -103,6 +111,7 @@ public class PendingRequestController {
             request.getUserRole() == null ? request.getRoleGroup().getDescription() : request.getUserRole().getDescription(),
 			formatConstraints(request.getRequestPostponedConstraints(), ouMap, itSystemMap),
             formatter.format(request.getRequestTimestamp()),
+            sortFormatter.format(request.getRequestTimestamp()),
             request.getReason(),
 			formatTimeFrame(request.getStartDate(), request.getEndDate()),
 			request.getAssignedTo(),
@@ -124,6 +133,24 @@ public class PendingRequestController {
 		if (startDate != null)
 			return startDate.format(DATE_FORMATTER) + " - ubegrænset";
 		return "nu - " + endDate.format(DATE_FORMATTER);
+	}
+
+	/**
+	 * Formats the receiver's employment(s) as "<position> i <orgunit>", for use as a mouseover/tooltip
+	 * on the receiver's name (ROL-562). Lets the approver see where the employee is employed
+	 * (e.g. "SOSU-assistent i Ældreplejen") without adding an extra column. Multiple employments are
+	 * joined with " / " - a native title attribute collapses newlines to spaces in several browsers,
+	 * so a visible separator is used instead.
+	 */
+	private String formatEmployment(User receiver) {
+		if (receiver == null || receiver.getPositions() == null) {
+			return "";
+		}
+		return receiver.getPositions().stream()
+			.filter(p -> p.getOrgUnit() != null)
+			.map(p -> p.getName() + " i " + p.getOrgUnit().getName())
+			.distinct()
+			.collect(Collectors.joining(" / "));
 	}
 
 	/**

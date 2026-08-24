@@ -36,7 +36,8 @@
                     </td>
                     <td th:text="${orgUnit.deadline}" th:class="${orgUnit.passedDeadline} ? 'passedDeadline' : ''"></td>
                     <td style="text-align: center;">
-                        <span th:if="${orgUnit.performedBy != null}" class="label label-primary" th:text="|#{attestationmodule.html.dashboard.performedby.badge} ${orgUnit.performedBy}|"></span>
+                        <span th:if="${orgUnit.performedBy != null and orgUnit.verifiedAt != null}" class="label label-primary" th:text="|#{attestationmodule.html.dashboard.performedby.badge} ${orgUnit.performedBy}|"></span>
+                        <span th:if="${orgUnit.performedBy != null and orgUnit.verifiedAt == null}" class="label label-info" th:text="|#{attestationmodule.html.dashboard.startedby.badge} ${orgUnit.performedBy}|"></span>
                         <span th:if="${orgUnit.performedBy == null && orgUnit.verifiedAt == null && orgUnit.readOnly}" class="label label-warning" th:text="#{attestationmodule.html.dashboard.awaiting.other.party}"></span>
                         <a th:if="${orgUnit.verifiedAt != null}" sec:authorize="hasRole('ROLE_MANAGER') or hasRole('ROLE_SUBSTITUTE') or hasRole('ROLE_ADMINISTRATOR') or hasRole('ROLE_ATTESTATION_ADMINISTRATOR')"
                            th:href="@{${'/ui/attestation/v2/orgunits/' + orgUnit.id}}">
@@ -76,7 +77,8 @@
                     </td>
                     <td th:text="${system.deadline}" th:class="${system.passedDeadline} ? 'passedDeadline' : ''"></td>
                     <td style="text-align: center;">
-                        <span th:if="${system.performedBy != null}" class="label label-primary" th:text="|#{attestationmodule.html.dashboard.performedby.badge} ${system.performedBy}|"></span>
+                        <span th:if="${system.performedBy != null and system.verifiedAt != null}" class="label label-primary" th:text="|#{attestationmodule.html.dashboard.performedby.badge} ${system.performedBy}|"></span>
+                        <span th:if="${system.performedBy != null and system.verifiedAt == null}" class="label label-info" th:text="|#{attestationmodule.html.dashboard.startedby.badge} ${system.performedBy}|"></span>
                         <a th:if="${system.verifiedAt != null}" sec:authorize="hasRole('ROLE_IT_SYSTEM_RESPONSIBLE')"
                            th:href="@{${'/ui/attestation/v2/itsystems/' + system.id}}">
                             <em style="color: #212529" class="fa fa-eye"></em>
@@ -121,7 +123,8 @@
                     </td>
                     <td th:text="${system.deadline}" th:class="${system.passedDeadline} ? 'passedDeadline' : ''"></td>
                     <td style="text-align: center;">
-                        <span th:if="${system.performedBy != null}" class="label label-primary" th:text="|#{attestationmodule.html.dashboard.performedby.badge} ${system.performedBy}|"></span>
+                        <span th:if="${system.performedBy != null and system.verifiedAt != null}" class="label label-primary" th:text="|#{attestationmodule.html.dashboard.performedby.badge} ${system.performedBy}|"></span>
+                        <span th:if="${system.performedBy != null and system.verifiedAt == null}" class="label label-info" th:text="|#{attestationmodule.html.dashboard.startedby.badge} ${system.performedBy}|"></span>
                         <a th:if="${system.verifiedAt != null}" sec:authorize="hasRole('ROLE_IT_SYSTEM_RESPONSIBLE')"
                            th:href="@{${'/ui/attestation/v2/itsystems/' + system.id + '/roleassignments'}}">
                             <em style="color: #212529" class="fa fa-eye"></em>
@@ -173,7 +176,8 @@
                     </td>
                     <td th:text="${orgUnit.deadline}" th:class="${orgUnit.passedDeadline} ? 'passedDeadline' : ''"></td>
                     <td style="text-align: center;">
-                        <span th:if="${orgUnit.performedBy != null}" class="label label-primary" th:text="|#{attestationmodule.html.dashboard.performedby.badge} ${orgUnit.performedBy}|"></span>
+                        <span th:if="${orgUnit.performedBy != null and orgUnit.verifiedAt != null}" class="label label-primary" th:text="|#{attestationmodule.html.dashboard.performedby.badge} ${orgUnit.performedBy}|"></span>
+                        <span th:if="${orgUnit.performedBy != null and orgUnit.verifiedAt == null}" class="label label-info" th:text="|#{attestationmodule.html.dashboard.startedby.badge} ${orgUnit.performedBy}|"></span>
                         <span th:if="${orgUnit.performedBy == null && orgUnit.verifiedAt == null && orgUnit.readOnly}" class="label label-warning" th:text="#{attestationmodule.html.dashboard.awaiting.other.party}"></span>
                         <a th:if="${orgUnit.verifiedAt != null}" sec:authorize="hasRole('ROLE_MANAGER') or hasRole('ROLE_SUBSTITUTE') or hasRole('ROLE_ADMINISTRATOR') or hasRole('ROLE_ATTESTATION_ADMINISTRATOR')"
                            th:href="@{${'/ui/attestation/v2/orgunits/' + orgUnit.id + '/managerdelegate'}}">

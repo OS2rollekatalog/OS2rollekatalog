@@ -1,6 +1,7 @@
 package dk.digitalidentity.rc.service;
 
 import java.util.List;
+import java.util.Set;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -25,12 +26,16 @@ public class TitleService {
 	public Title getByUuid(String uuid) {
 		return titleDao.getByUuidAndActiveTrue(uuid);
 	}
-	
+
 	public List<Title> getAll() {
 		return titleDao.getByActiveTrue();
 	}
-	
+
 	public List<Title> getAllIncludingInactive() {
 		return titleDao.findAll();
+	}
+
+	public List<Title> getByUuidIn(Set<String> uuids) {
+		return titleDao.findByUuidInAndActiveTrue(uuids);
 	}
 }

@@ -5,6 +5,7 @@ import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -174,7 +175,7 @@ public class AttestationEmailNotificationService {
 		attestations.forEach(a -> self.sendEmail(a.getId(), attestationType, mailType));
 	}
 
-	private void sendEmailsOrganisation(final Attestation.AttestationType attestationType, final AttestationMail.MailType mailType, final LocalDate now) {
+	void sendEmailsOrganisation(final Attestation.AttestationType attestationType, final AttestationMail.MailType mailType, final LocalDate now) {
 		final Optional<AttestationRun> run = attestationRunService.getCurrentRun();
 		if (run.isEmpty()) {
 			return;
@@ -192,25 +193,40 @@ public class AttestationEmailNotificationService {
                 .filter(att -> att.getDeadline().isEqual(deadlineDate)).toList();
 
 		boolean escalation = mailType == AttestationMail.MailType.ESCALATION_REMINDER;
-		Map<Attestation, List<User>> attestationTargetUsers = null;
+		Map<Attestation, List<User>> attestationTargetUsers;
+		Map<Attestation, String> attestationResponsibleManagerUuid;
 		if (escalation) {
-			attestationTargetUsers = attestations.stream()
-                    .map(att -> Pair.of(att, findTargetUsers(att, true)))
-                    .filter(p -> p.getSecond() != null)
-                    .collect(Collectors.toMap(Pair::getFirst, Pair::getSecond));
+			attestationTargetUsers = new HashMap<>();
+			attestationResponsibleManagerUuid = new HashMap<>();
+			for (Attestation att : attestations) {
+				List<User> delegates = findTargetUsers(att, true);
+				if (delegates != null) {
+					attestationTargetUsers.put(att, delegates);
+				}
+				List<User> managers = findTargetUsers(att, false);
+				attestationResponsibleManagerUuid.put(att, (managers != null && !managers.isEmpty()) ? managers.getFirst().getUuid() : "");
+			}
 		} else {
-            attestationTargetUsers = attestations.stream()
+			attestationTargetUsers = attestations.stream()
                     .map(att -> Pair.of(att, findTargetUsers(att, false)))
                     .filter(p -> p.getSecond() != null)
                     .collect(Collectors.toMap(Pair::getFirst, Pair::getSecond));
+			attestationResponsibleManagerUuid = Collections.emptyMap();
 		}
 
-		Map<User, List<Attestation>> targetUsersAttestation = attestationTargetUsers.entrySet().stream()
-				.flatMap(x -> x.getValue().stream().map(v -> Pair.of(x.getKey(), v)))
-				.collect(Collectors.toMap(Pair::getSecond, xx -> Collections.singletonList(xx.getFirst()),
-                        (a, b) -> Stream.concat(a.stream(), b.stream()).collect(Collectors.toList())));
+		Map<Pair<User, String>, List<Attestation>> targetUsersAttestation = attestationTargetUsers.entrySet().stream()
+				.flatMap(entry -> {
+					Attestation attestation = entry.getKey();
+					String responsibleManagerUuid = attestationResponsibleManagerUuid.getOrDefault(attestation, "");
+					return entry.getValue().stream()
+							.map(targetUser -> Pair.of(Pair.of(targetUser, responsibleManagerUuid), attestation));
+				})
+				.collect(Collectors.toMap(
+						Pair::getFirst,
+						receiverAndAttestation -> Collections.singletonList(receiverAndAttestation.getSecond()),
+						(attestationsA, attestationsB) -> Stream.concat(attestationsA.stream(), attestationsB.stream()).collect(Collectors.toList())));
 
-		targetUsersAttestation.forEach((key, value) -> self.sendEmailsOrganisation(key, value.stream().map(Attestation::getId).toList(), mailType, template));
+		targetUsersAttestation.forEach((key, value) -> self.sendEmailsOrganisation(key.getFirst(), value.stream().map(Attestation::getId).toList(), mailType, template));
 	}
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)

@@ -65,8 +65,10 @@ public class OrgUnitAttestationController {
 		}
 
 		OrganisationAttestationDTO attestation = attestationService.getAttestation(uuid, user.getUuid(), true);
-		// We are an admin, but not allowed to confirm/deny the attestations. Open in view only
-		boolean openInView = !managedOrgUnitUuids.contains(uuid) && SecurityUtil.isAttestationAdminOrAdmin();
+		// Open read-only when an admin opens a unit they don't manage, or when the attestation is already
+		// verified (opened via the "eye" on the overview) — a completed attestation cannot be re-attested.
+		boolean openInView = attestation.getVerifiedAt() != null
+				|| (!managedOrgUnitUuids.contains(uuid) && SecurityUtil.isAttestationAdminOrAdmin());
 		model.addAttribute("openInView", openInView);
 		model.addAttribute("managerdelegate", false);
 		model.addAttribute("attestation", attestation);

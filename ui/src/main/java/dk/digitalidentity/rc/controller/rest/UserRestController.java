@@ -21,6 +21,7 @@ import dk.digitalidentity.rc.dao.model.UserUserRoleAssignment;
 import dk.digitalidentity.rc.dao.model.assignment.CurrentAssignment;
 import dk.digitalidentity.rc.dao.model.enums.ItSystemType;
 import dk.digitalidentity.rc.dao.model.enums.KleType;
+import dk.digitalidentity.rc.security.RequireKleAdministratorRole;
 import dk.digitalidentity.rc.security.RequireRequesterOrAssignerRole;
 import dk.digitalidentity.rc.security.RequireKleAdministratorRole;
 import dk.digitalidentity.rc.security.permission.Permission;
@@ -768,7 +769,7 @@ public class UserRestController {
 			// empty set means none is allowed
 			return (_, _, criteriaBuilder) -> criteriaBuilder.disjunction();
 		}
-		return (root, query, criteriaBuilder) -> {
+		return (root, _, criteriaBuilder) -> {
 			// Pad feltet med ; på begge sider så vi kan søge på ;uuid;
 			Expression<String> paddedField = criteriaBuilder.concat(
 				criteriaBuilder.concat(

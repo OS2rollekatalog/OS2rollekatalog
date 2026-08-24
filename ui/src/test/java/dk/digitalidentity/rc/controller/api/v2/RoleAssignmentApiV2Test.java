@@ -6,12 +6,14 @@ import dk.digitalidentity.rc.dao.model.OrgUnit;
 import dk.digitalidentity.rc.dao.model.OrgUnitRoleGroupAssignment;
 import dk.digitalidentity.rc.dao.model.OrgUnitUserRoleAssignment;
 import dk.digitalidentity.rc.dao.model.RoleGroup;
+import dk.digitalidentity.rc.dao.model.Title;
 import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserRole;
 import dk.digitalidentity.rc.dao.model.enums.AccessRole;
 import dk.digitalidentity.rc.service.OrgUnitAssignmentService;
 import dk.digitalidentity.rc.service.OrgUnitService;
 import dk.digitalidentity.rc.service.RoleGroupService;
+import dk.digitalidentity.rc.service.TitleService;
 import dk.digitalidentity.rc.service.UserRoleService;
 import dk.digitalidentity.rc.service.UserService;
 import dk.digitalidentity.rc.test.AbstractApiTest;
@@ -35,6 +37,7 @@ import static org.springframework.restdocs.operation.preprocess.Preprocessors.pr
 import static org.springframework.restdocs.operation.preprocess.Preprocessors.prettyPrint;
 import static org.springframework.restdocs.request.RequestDocumentation.parameterWithName;
 import static org.springframework.restdocs.request.RequestDocumentation.pathParameters;
+import static org.hamcrest.Matchers.containsString;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -69,6 +72,9 @@ public class RoleAssignmentApiV2Test extends AbstractApiTest {
 
 	@Autowired
 	private OrgUnitAssignmentService ouAssignmentService;
+
+	@Autowired
+	private TitleService titleService;
 
 	@Override
 	protected List<String> getRequiredApiRoles() {
@@ -1006,4 +1012,599 @@ public class RoleAssignmentApiV2Test extends AbstractApiTest {
 				.header("ApiKey", API_KEY))
 			.andExpect(status().isNotFound());
 	}
+	/**
+	 * Tests that creating a role group assignment with both a TitleScope and an
+	 * ExceptedUserScope persists BOTH scopes, not just one of them.
+	 * <p>
+	 * Regression test: OrgUnitService.addRoleGroup used to have an if/else between the
+	 * title-handling and excepted-user-handling branches, so only whichever branch matched
+	 * first ever got saved. addUserRole never had this bug.
+	 * </p>
+	 *
+	 * @throws Exception if HTTP request fails or test data is missing
+	 */
+	@Test
+	@DisplayName("Should create role group assignment with combined TitleScope and ExceptedUserScope")
+	void testCreateRoleGroupAssignmentToOrgUnit_CombinedTitleAndExceptedUserScope() throws Exception {
+		OrgUnit orgUnit = orgUnitService.getAll().stream()
+			.findFirst()
+			.orElseThrow(() -> new RuntimeException("No org unit found"));
+		RoleGroup roleGroup = roleGroupService.getAll().stream()
+			.findFirst()
+			.orElseThrow(() -> new RuntimeException("No role group found"));
+		Title title = titleService.getAll().stream()
+			.findFirst()
+			.orElseThrow(() -> new RuntimeException("No title found"));
+		User exceptedUser = userService.getByUserId(username);
+
+		String requestBody = String.format("""
+			{
+				"assignmentType": "ROLE_GROUP",
+				"orgUnit": {
+					"uuid": "%s"
+				},
+				"roleGroup": {
+					"id": %d
+				},
+				"inherit": false,
+				"startDate": null,
+				"stopDate": null,
+				"scopes": [
+					{
+						"type": "TITLE",
+						"titles": [
+							{ "uuid": "%s" }
+						]
+					},
+					{
+						"type": "EXCEPTED_USER",
+						"exceptedUsers": [
+							{ "uuid": "%s" }
+						]
+					}
+				]
+			}
+			""", orgUnit.getUuid(), roleGroup.getId(), title.getUuid(), exceptedUser.getUuid());
+
+		MvcResult createResult = this.mockMvc.perform(post("/api/v2/organisation/assignment/rolegroup")
+				.header("ApiKey", API_KEY)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(requestBody))
+			.andExpect(status().isCreated())
+			.andReturn();
+
+		entityManager.flush();
+		entityManager.clear();
+
+		ObjectMapper mapper = new ObjectMapper();
+		JsonNode createdBody = mapper.readTree(createResult.getResponse().getContentAsString());
+		JsonNode createdScopes = createdBody.get("scopes");
+		assertThat(createdScopes.isArray()).isTrue();
+		assertThat(createdScopes.size()).isEqualTo(2);
+
+		long assignmentId = createdBody.get("assignmentId").asLong();
+
+		MvcResult getResult = this.mockMvc.perform(get("/api/v2/organisation/assignment/rolegroup/{assignmentId}", assignmentId)
+				.header("ApiKey", API_KEY))
+			.andExpect(status().isOk())
+			.andReturn();
+
+		JsonNode fetchedScopes = mapper.readTree(getResult.getResponse().getContentAsString()).get("scopes");
+		assertThat(fetchedScopes.isArray()).isTrue();
+		boolean hasTitleScope = false;
+		boolean hasExceptedUserScope = false;
+		for (JsonNode scope : fetchedScopes) {
+			String type = scope.get("type").asText();
+			if ("TITLE".equals(type)) {
+				hasTitleScope = true;
+			} else if ("EXCEPTED_USER".equals(type)) {
+				hasExceptedUserScope = true;
+			}
+		}
+		assertThat(hasTitleScope).as("Expected TITLE scope to be present after creation").isTrue();
+		assertThat(hasExceptedUserScope).as("Expected EXCEPTED_USER scope to be present after creation").isTrue();
+	}
+
+	/**
+	 * Tests that updating a role group assignment to add both a TitleScope and an
+	 * ExceptedUserScope persists BOTH scopes, not just one of them.
+	 * <p>
+	 * Regression test: OrgUnitService.updateRoleGroupAssignment used to gate the entire
+	 * title-handling block behind !assignment.isContainsExceptedUsers(), so titles could
+	 * never be saved alongside excepted users. updateUserRoleAssignment never had this bug.
+	 * </p>
+	 *
+	 * @throws Exception if HTTP request fails or test data is missing
+	 */
+	@Test
+	@DisplayName("Should update role group assignment with combined TitleScope and ExceptedUserScope")
+	void testUpdateRoleGroupAssignment_CombinedTitleAndExceptedUserScope() throws Exception {
+		OrgUnit orgUnit = orgUnitService.getAll().stream()
+			.findFirst()
+			.orElseThrow(() -> new RuntimeException("No org unit found"));
+		RoleGroup roleGroup = roleGroupService.getAll().stream()
+			.findFirst()
+			.orElseThrow(() -> new RuntimeException("No role group found"));
+		Title title = titleService.getAll().stream()
+			.findFirst()
+			.orElseThrow(() -> new RuntimeException("No title found"));
+		User exceptedUser = userService.getByUserId(username);
+
+		orgUnitService.addRoleGroup(orgUnit, roleGroup, false, null, null, new HashSet<>(), new HashSet<>());
+		entityManager.flush();
+		entityManager.clear();
+
+		OrgUnit refreshedOu = orgUnitService.getByUuid(orgUnit.getUuid());
+		OrgUnitRoleGroupAssignment assignment = refreshedOu.getRoleGroupAssignments().stream()
+			.filter(a -> a.getRoleGroup().getId() == roleGroup.getId())
+			.findFirst()
+			.orElseThrow(() -> new RuntimeException("Assignment not found after creation"));
+		long assignmentId = assignment.getId();
+
+		String requestBody = String.format("""
+			{
+				"assignmentType": "ROLE_GROUP",
+				"orgUnit": {
+					"uuid": "%s"
+				},
+				"roleGroup": {
+					"id": %d
+				},
+				"inherit": false,
+				"startDate": null,
+				"stopDate": null,
+				"scopes": [
+					{
+						"type": "TITLE",
+						"titles": [
+							{ "uuid": "%s" }
+						]
+					},
+					{
+						"type": "EXCEPTED_USER",
+						"exceptedUsers": [
+							{ "uuid": "%s" }
+						]
+					}
+				]
+			}
+			""", orgUnit.getUuid(), roleGroup.getId(), title.getUuid(), exceptedUser.getUuid());
+
+		this.mockMvc.perform(put("/api/v2/organisation/assignment/rolegroup/{assignmentId}", assignmentId)
+				.header("ApiKey", API_KEY)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(requestBody))
+			.andExpect(status().isNoContent());
+
+		entityManager.flush();
+		entityManager.clear();
+
+		OrgUnitRoleGroupAssignment updatedAssignment = ouAssignmentService.getOrgUnitRoleGroupAssignment(assignmentId)
+			.orElseThrow(() -> new RuntimeException("Assignment not found after update"));
+		assertThat(updatedAssignment.getTitles())
+			.as("Titles should still be saved even though excepted users are also set")
+			.anyMatch(t -> t.getUuid().equals(title.getUuid()));
+		assertThat(updatedAssignment.getExceptedUsers())
+			.as("Excepted users should still be saved even though titles are also set")
+			.anyMatch(u -> u.getUuid().equals(exceptedUser.getUuid()));
+	}
+
+	/**
+	 * Tests that creating a role group assignment with inherit:true combined with an
+	 * ExceptedUserScope is rejected with 400 - excepted-user assignments cannot inherit,
+	 * so this combination must never be silently accepted.
+	 *
+	 * @throws Exception if HTTP request fails or test data is missing
+	 */
+	@Test
+	@DisplayName("Should return 400 when creating role group assignment with inherit:true and ExceptedUserScope")
+	void testCreateRoleGroupAssignmentToOrgUnit_InheritWithExceptedUserScope() throws Exception {
+		OrgUnit orgUnit = orgUnitService.getAll().stream()
+			.findFirst()
+			.orElseThrow(() -> new RuntimeException("No org unit found"));
+		RoleGroup roleGroup = roleGroupService.getAll().stream()
+			.findFirst()
+			.orElseThrow(() -> new RuntimeException("No role group found"));
+		User exceptedUser = userService.getByUserId(username);
+
+		String requestBody = String.format("""
+			{
+				"assignmentType": "ROLE_GROUP",
+				"orgUnit": {
+					"uuid": "%s"
+				},
+				"roleGroup": {
+					"id": %d
+				},
+				"inherit": true,
+				"startDate": null,
+				"stopDate": null,
+				"scopes": [
+					{
+						"type": "EXCEPTED_USER",
+						"exceptedUsers": [
+							{ "uuid": "%s" }
+						]
+					}
+				]
+			}
+			""", orgUnit.getUuid(), roleGroup.getId(), exceptedUser.getUuid());
+
+		this.mockMvc.perform(post("/api/v2/organisation/assignment/rolegroup")
+				.header("ApiKey", API_KEY)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(requestBody))
+			.andExpect(status().isBadRequest())
+			.andExpect(jsonPath("$.status").value(400))
+			.andExpect(jsonPath("$.error").value("inherit cannot be combined with ExceptedUserScope - excepted-user assignments cannot inherit to sub org units."))
+			.andExpect(jsonPath("$.message", containsString("inherit cannot be combined with ExceptedUserScope - excepted-user assignments cannot inherit to sub org units.")));
+	}
+
+	/**
+	 * Tests that updating a role group assignment to set inherit:true combined with an
+	 * ExceptedUserScope is rejected with 400 - same rule as for creation, but exercised
+	 * on the update path where the assignment already has excepted users set.
+	 *
+	 * @throws Exception if HTTP request fails or test data is missing
+	 */
+	@Test
+	@DisplayName("Should return 400 when updating role group assignment to inherit:true with ExceptedUserScope")
+	void testUpdateRoleGroupAssignment_InheritWithExceptedUserScope() throws Exception {
+		OrgUnit orgUnit = orgUnitService.getAll().stream()
+			.findFirst()
+			.orElseThrow(() -> new RuntimeException("No org unit found"));
+		RoleGroup roleGroup = roleGroupService.getAll().stream()
+			.findFirst()
+			.orElseThrow(() -> new RuntimeException("No role group found"));
+		User exceptedUser = userService.getByUserId(username);
+
+		orgUnitService.addRoleGroup(orgUnit, roleGroup, false, null, null, new HashSet<>(), new HashSet<>());
+		entityManager.flush();
+		entityManager.clear();
+
+		OrgUnit refreshedOu = orgUnitService.getByUuid(orgUnit.getUuid());
+		OrgUnitRoleGroupAssignment assignment = refreshedOu.getRoleGroupAssignments().stream()
+			.filter(a -> a.getRoleGroup().getId() == roleGroup.getId())
+			.findFirst()
+			.orElseThrow(() -> new RuntimeException("Assignment not found after creation"));
+		long assignmentId = assignment.getId();
+
+		String requestBody = String.format("""
+			{
+				"assignmentType": "ROLE_GROUP",
+				"orgUnit": {
+					"uuid": "%s"
+				},
+				"roleGroup": {
+					"id": %d
+				},
+				"inherit": true,
+				"startDate": null,
+				"stopDate": null,
+				"scopes": [
+					{
+						"type": "EXCEPTED_USER",
+						"exceptedUsers": [
+							{ "uuid": "%s" }
+						]
+					}
+				]
+			}
+			""", orgUnit.getUuid(), roleGroup.getId(), exceptedUser.getUuid());
+
+		this.mockMvc.perform(put("/api/v2/organisation/assignment/rolegroup/{assignmentId}", assignmentId)
+				.header("ApiKey", API_KEY)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(requestBody))
+			.andExpect(status().isBadRequest())
+			.andExpect(jsonPath("$.status").value(400))
+			.andExpect(jsonPath("$.error").value("inherit cannot be combined with ExceptedUserScope - excepted-user assignments cannot inherit to sub org units."))
+			.andExpect(jsonPath("$.message", containsString("inherit cannot be combined with ExceptedUserScope - excepted-user assignments cannot inherit to sub org units.")));
+	}
+
+	/**
+	 * Tests that creating a user role assignment with inherit:true combined with an
+	 * ExceptedUserScope is rejected with 400 - same rule as for role groups.
+	 *
+	 * @throws Exception if HTTP request fails or test data is missing
+	 */
+	@Test
+	@DisplayName("Should return 400 when creating user role assignment with inherit:true and ExceptedUserScope")
+	void testCreateUserRoleAssignmentToOrgUnit_InheritWithExceptedUserScope() throws Exception {
+		OrgUnit orgUnit = orgUnitService.getAll().stream()
+			.findFirst()
+			.orElseThrow(() -> new RuntimeException("No org unit found"));
+		UserRole userRole = userRoleService.getAll().stream()
+			.findFirst()
+			.orElseThrow(() -> new RuntimeException("No user role found"));
+		User exceptedUser = userService.getByUserId(username);
+
+		String requestBody = String.format("""
+			{
+				"assignmentType": "USER_ROLE",
+				"orgUnit": {
+					"uuid": "%s"
+				},
+				"userRole": {
+					"id": %d
+				},
+				"inherit": true,
+				"startDate": null,
+				"stopDate": null,
+				"scopes": [
+					{
+						"type": "EXCEPTED_USER",
+						"exceptedUsers": [
+							{ "uuid": "%s" }
+						]
+					}
+				]
+			}
+			""", orgUnit.getUuid(), userRole.getId(), exceptedUser.getUuid());
+
+		this.mockMvc.perform(post("/api/v2/organisation/assignment/userrole")
+				.header("ApiKey", API_KEY)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(requestBody))
+			.andExpect(status().isBadRequest())
+			.andExpect(jsonPath("$.status").value(400))
+			.andExpect(jsonPath("$.error").value("inherit cannot be combined with ExceptedUserScope - excepted-user assignments cannot inherit to sub org units."))
+			.andExpect(jsonPath("$.message", containsString("inherit cannot be combined with ExceptedUserScope - excepted-user assignments cannot inherit to sub org units.")));
+	}
+	/**
+	 * Tests that creating a user role assignment with an unknown title UUID in a TitleScope
+	 * is rejected with 400, rather than silently dropping the scope and assigning to everyone
+	 * in the org unit.
+	 *
+	 * @throws Exception if HTTP request fails or test data is missing
+	 */
+	@Test
+	@DisplayName("Should return 400 when creating user role assignment with unknown title UUID in TitleScope")
+	void testCreateUserRoleAssignmentToOrgUnit_UnknownTitleScope() throws Exception {
+		OrgUnit orgUnit = orgUnitService.getAll().stream()
+			.findFirst()
+			.orElseThrow(() -> new RuntimeException("No org unit found"));
+		UserRole userRole = userRoleService.getAll().stream()
+			.findFirst()
+			.orElseThrow(() -> new RuntimeException("No user role found"));
+
+		String requestBody = String.format("""
+			{
+				"assignmentType": "USER_ROLE",
+				"orgUnit": {
+					"uuid": "%s"
+				},
+				"userRole": {
+					"id": %d
+				},
+				"inherit": false,
+				"startDate": null,
+				"stopDate": null,
+				"scopes": [
+					{
+						"type": "TITLE",
+						"titles": [
+							{ "uuid": "nonexistent-title-uuid" }
+						]
+					}
+				]
+			}
+			""", orgUnit.getUuid(), userRole.getId());
+
+		this.mockMvc.perform(post("/api/v2/organisation/assignment/userrole")
+				.header("ApiKey", API_KEY)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(requestBody))
+			.andExpect(status().isBadRequest());
+
+		entityManager.flush();
+		entityManager.clear();
+
+		OrgUnit refreshedOu = orgUnitService.getByUuid(orgUnit.getUuid());
+		assertThat(refreshedOu.getUserRoleAssignments())
+			.noneMatch(a -> a.getUserRole().getId() == userRole.getId());
+	}
+
+	/**
+	 * Tests that creating a role group assignment with an unknown title UUID in an
+	 * ExcludedTitleScope is rejected with 400, rather than silently dropping the scope and
+	 * assigning to everyone in the org unit.
+	 *
+	 * @throws Exception if HTTP request fails or test data is missing
+	 */
+	@Test
+	@DisplayName("Should return 400 when creating role group assignment with unknown title UUID in ExcludedTitleScope")
+	void testCreateRoleGroupAssignmentToOrgUnit_UnknownExcludedTitleScope() throws Exception {
+		OrgUnit orgUnit = orgUnitService.getAll().stream()
+			.findFirst()
+			.orElseThrow(() -> new RuntimeException("No org unit found"));
+		RoleGroup roleGroup = roleGroupService.getAll().stream()
+			.findFirst()
+			.orElseThrow(() -> new RuntimeException("No role group found"));
+
+		String requestBody = String.format("""
+			{
+				"assignmentType": "ROLE_GROUP",
+				"orgUnit": {
+					"uuid": "%s"
+				},
+				"roleGroup": {
+					"id": %d
+				},
+				"inherit": false,
+				"startDate": null,
+				"stopDate": null,
+				"scopes": [
+					{
+						"type": "EXCLUDED_TITLE",
+						"excludedTitles": [
+							{ "uuid": "nonexistent-title-uuid" }
+						]
+					}
+				]
+			}
+			""", orgUnit.getUuid(), roleGroup.getId());
+
+		this.mockMvc.perform(post("/api/v2/organisation/assignment/rolegroup")
+				.header("ApiKey", API_KEY)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(requestBody))
+			.andExpect(status().isBadRequest());
+
+		entityManager.flush();
+		entityManager.clear();
+
+		OrgUnit refreshedOu = orgUnitService.getByUuid(orgUnit.getUuid());
+		assertThat(refreshedOu.getRoleGroupAssignments())
+			.noneMatch(a -> a.getRoleGroup().getId() == roleGroup.getId());
+	}
+
+	/**
+	 * Tests that updating a user role assignment with an unknown title UUID in a TitleScope
+	 * is rejected with 400, and that the existing assignment's scope is left untouched
+	 * (rather than being silently widened to apply to everyone in the org unit).
+	 *
+	 * @throws Exception if HTTP request fails or test data is missing
+	 */
+	@Test
+	@DisplayName("Should return 400 when updating user role assignment with unknown title UUID in TitleScope")
+	void testUpdateUserRoleAssignment_UnknownTitleScope() throws Exception {
+		OrgUnit orgUnit = orgUnitService.getAll().stream()
+			.findFirst()
+			.orElseThrow(() -> new RuntimeException("No org unit found"));
+		UserRole userRole = userRoleService.getAll().stream()
+			.findFirst()
+			.orElseThrow(() -> new RuntimeException("No user role found"));
+
+		orgUnitService.addUserRole(orgUnit, userRole, false, null, null, new HashSet<>(), new HashSet<>());
+		entityManager.flush();
+		entityManager.clear();
+
+		OrgUnit refreshedOu = orgUnitService.getByUuid(orgUnit.getUuid());
+		OrgUnitUserRoleAssignment assignment = refreshedOu.getUserRoleAssignments().stream()
+			.filter(a -> a.getUserRole().getId() == userRole.getId())
+			.findFirst()
+			.orElseThrow(() -> new RuntimeException("Assignment not found after creation"));
+		long assignmentId = assignment.getId();
+
+		String requestBody = String.format("""
+			{
+				"assignmentType": "USER_ROLE",
+				"orgUnit": {
+					"uuid": "%s"
+				},
+				"userRole": {
+					"id": %d
+				},
+				"inherit": true,
+				"startDate": null,
+				"stopDate": null,
+				"scopes": [
+					{
+						"type": "TITLE",
+						"titles": [
+							{ "uuid": "nonexistent-title-uuid" }
+						]
+					}
+				]
+			}
+			""", orgUnit.getUuid(), userRole.getId());
+
+		this.mockMvc.perform(put("/api/v2/organisation/assignment/userrole/{assignmentId}", assignmentId)
+				.header("ApiKey", API_KEY)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(requestBody))
+			.andExpect(status().isBadRequest());
+
+		entityManager.flush();
+		entityManager.clear();
+
+		OrgUnitUserRoleAssignment untouchedAssignment = ouAssignmentService.getOrgUnitUserRoleAssignment(assignmentId)
+			.orElseThrow(() -> new RuntimeException("Assignment not found after failed update"));
+		assertThat(untouchedAssignment.isInherit()).isFalse();
+	}
+
+	/**
+	 * Tests that creating a user role assignment with a known, active title UUID in a
+	 * TitleScope still succeeds - i.e. the new validation only rejects unresolvable UUIDs,
+	 * it does not break the legitimate case.
+	 *
+	 * @throws Exception if HTTP request fails or test data is missing
+	 */
+	@Test
+	@DisplayName("Should create user role assignment when TitleScope references a known, active title")
+	void testCreateUserRoleAssignmentToOrgUnit_KnownTitleScope() throws Exception {
+		OrgUnit orgUnit = orgUnitService.getAll().stream()
+			.findFirst()
+			.orElseThrow(() -> new RuntimeException("No org unit found"));
+		UserRole userRole = userRoleService.getAll().stream()
+			.findFirst()
+			.orElseThrow(() -> new RuntimeException("No user role found"));
+		Title title = titleService.getAll().stream()
+			.findFirst()
+			.orElseThrow(() -> new RuntimeException("No title found"));
+
+		String requestBody = String.format("""
+			{
+				"assignmentType": "USER_ROLE",
+				"orgUnit": {
+					"uuid": "%s"
+				},
+				"userRole": {
+					"id": %d
+				},
+				"inherit": false,
+				"startDate": null,
+				"stopDate": null,
+				"scopes": [
+					{
+						"type": "TITLE",
+						"titles": [
+							{ "uuid": "%s" }
+						]
+					}
+				]
+			}
+			""", orgUnit.getUuid(), userRole.getId(), title.getUuid());
+
+		this.mockMvc.perform(post("/api/v2/organisation/assignment/userrole")
+				.header("ApiKey", API_KEY)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(requestBody))
+			.andExpect(status().isCreated());
+
+		entityManager.flush();
+		entityManager.clear();
+
+		OrgUnit refreshedOu = orgUnitService.getByUuid(orgUnit.getUuid());
+		assertThat(refreshedOu.getUserRoleAssignments())
+			.anyMatch(a -> a.getUserRole().getId() == userRole.getId()
+				&& a.getContainsTitles() == dk.digitalidentity.rc.dao.model.enums.ContainsTitles.POSITIVE);
+	}
+
+	/**
+	 * Tests that ApiControllerAdvice.handleInvalidRequestException maps a
+	 * BadRequestException to a 400 response with the correct status, error and message
+	 * fields - this is the handler OrgUnitService's inherit/excepted-user guard relies on
+	 * when it is reached by a caller other than RoleAssignmentApiV2's own request-level
+	 * validation (which rejects the same combination earlier, via ResponseStatusException).
+	 */
+	@Test
+	@DisplayName("ApiControllerAdvice should map BadRequestException to a 400 with matching status/error/message")
+	void testApiControllerAdvice_HandlesBadRequestException() {
+		dk.digitalidentity.rc.controller.api.ApiControllerAdvice advice = new dk.digitalidentity.rc.controller.api.ApiControllerAdvice();
+		jakarta.servlet.http.HttpServletRequest request = org.mockito.Mockito.mock(jakarta.servlet.http.HttpServletRequest.class);
+		org.mockito.Mockito.when(request.getRequestURI()).thenReturn("/api/v2/organisation/assignment/rolegroup");
+
+		dk.digitalidentity.rc.controller.api.model.ExceptionResponseAM response = advice.handleInvalidRequestException(
+			new dk.digitalidentity.rc.controller.api.exception.BadRequestException(
+				"inherit cannot be combined with ExceptedUserScope - excepted-user assignments cannot inherit to sub org units."),
+			request);
+
+		assertThat(response.getStatus()).isEqualTo(400);
+		assertThat(response.getError()).isEqualTo("Bad Request");
+		assertThat(response.getMessage()).isEqualTo("inherit cannot be combined with ExceptedUserScope - excepted-user assignments cannot inherit to sub org units.");
+		assertThat(response.getPath()).isEqualTo("/api/v2/organisation/assignment/rolegroup");
+	}
+
 }

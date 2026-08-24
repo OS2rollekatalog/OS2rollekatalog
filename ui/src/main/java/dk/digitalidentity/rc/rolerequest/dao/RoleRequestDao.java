@@ -18,8 +18,14 @@ public interface RoleRequestDao extends CrudRepository<RoleRequest, Long> {
 
 	Set<RoleRequest> findByStatus(RequestApproveStatus status);
 
+	/**
+	 * No DISTINCT on purpose: it is emitted as SQL SELECT DISTINCT, which applies to the whole
+	 * joined row and therefore removes nothing, but it does force the database into a temporary
+	 * table and blocks it from satisfying the ORDER BY from an index. The duplicate root rows
+	 * from the collection fetch join are removed in RequestService instead.
+	 */
 	@Query("""
-		SELECT DISTINCT r FROM RoleRequest r
+		SELECT r FROM RoleRequest r
 		LEFT JOIN FETCH r.receiver
 		LEFT JOIN FETCH r.requester
 		LEFT JOIN FETCH r.orgUnit
@@ -28,8 +34,9 @@ public interface RoleRequestDao extends CrudRepository<RoleRequest, Long> {
 		LEFT JOIN FETCH r.requestPostponedConstraints pc
 		LEFT JOIN FETCH pc.constraintType
 		WHERE r.status = :status
+		ORDER BY r.requestTimestamp DESC, r.id DESC
 	""")
-	Set<RoleRequest> findByStatusEager(@Param("status") RequestApproveStatus status);
+	List<RoleRequest> findByStatusEager(@Param("status") RequestApproveStatus status);
 
     Set<RoleRequest> findByOrgUnitInAndRequesterNotAndReceiverNotAndStatus(Collection<OrgUnit> orgUnits, User requester, User reciever, RequestApproveStatus status);
 

@@ -14,8 +14,6 @@ public interface AttestationRunDao extends CrudRepository<AttestationRun, Long> 
 
     Optional<AttestationRun> findFirstByFinishedFalseOrderByDeadlineDesc();
 
-    Optional<AttestationRun> findFirstByFinishedFalseAndDeadlineGreaterThanEqual(final LocalDate deadline);
-
     Optional<AttestationRun> findByDeadlineIs(final LocalDate deadline);
 
     List<AttestationRun> findByFinishedFalse();

@@ -441,6 +441,20 @@
 									</a>
 							</div>
 						</div>
+						<div class="col-sm-12" th:attr="id=${editSystemRole.systemRole.id} + ${supportedConstraintType.constraintType.uuid} + 'funcpicker'"
+						     th:style="${constraintData != null and (constraintData.constraintValueType.name() == 'INHERITED_FROM_FUNCTIONS' or constraintData.constraintValueType.name() == 'EXTENDED_INHERITED_FROM_FUNCTIONS')} ? 'padding-top: 6px;' : 'padding-top: 6px; display: none;'">
+							<input type="hidden" th:value="${constraintData != null and (constraintData.constraintValueType.name() == 'INHERITED_FROM_FUNCTIONS' or constraintData.constraintValueType.name() == 'EXTENDED_INHERITED_FROM_FUNCTIONS')} ? ${constraintData.constraintValue} : ''"
+							       th:attr="id=${editSystemRole.systemRole.id} + ${supportedConstraintType.constraintType.uuid} + 'funcvalues'"/>
+							<div class="col-sm-9">
+								<input class="form-control m-b" readonly="readonly" style="width:100%;"
+								       th:attr="id=${editSystemRole.systemRole.id} + ${supportedConstraintType.constraintType.uuid} + 'funcinput'">
+							</div>
+							<div class="col-sm-3">
+								<a class="btn btn-primary" th:attr="onclick='functionConstraintService.chooseFunctions('+${editSystemRole.systemRole.id}+',\''+${supportedConstraintType.constraintType.uuid}+'\');'">
+									<span th:text="#{html.page.userrole.function.picker.button}">Vælg tillidsfunktioner</span>
+								</a>
+							</div>
+						</div>
 						</th:block>
 
 						<!-- TODO: duplicate block of the above - can we merge into one case? -->
@@ -470,6 +484,20 @@
 									<a class="btn btn-primary" th:attr="onclick='orgUnitConstraintService.chooseOUs('+${editSystemRole.systemRole.id}+',\''+${supportedConstraintType.constraintType.uuid}+'\');'">
 										<span>Vælg enheder</span>
 									</a>
+							</div>
+						</div>
+						<div class="col-sm-12" th:attr="id=${editSystemRole.systemRole.id} + ${supportedConstraintType.constraintType.uuid} + 'funcpicker'"
+						     th:style="${constraintData != null and (constraintData.constraintValueType.name() == 'INHERITED_FROM_FUNCTIONS' or constraintData.constraintValueType.name() == 'EXTENDED_INHERITED_FROM_FUNCTIONS')} ? 'padding-top: 6px;' : 'padding-top: 6px; display: none;'">
+							<input type="hidden" th:value="${constraintData != null and (constraintData.constraintValueType.name() == 'INHERITED_FROM_FUNCTIONS' or constraintData.constraintValueType.name() == 'EXTENDED_INHERITED_FROM_FUNCTIONS')} ? ${constraintData.constraintValue} : ''"
+							       th:attr="id=${editSystemRole.systemRole.id} + ${supportedConstraintType.constraintType.uuid} + 'funcvalues'"/>
+							<div class="col-sm-9">
+								<input class="form-control m-b" readonly="readonly" style="width:100%;"
+								       th:attr="id=${editSystemRole.systemRole.id} + ${supportedConstraintType.constraintType.uuid} + 'funcinput'">
+							</div>
+							<div class="col-sm-3">
+								<a class="btn btn-primary" th:attr="onclick='functionConstraintService.chooseFunctions('+${editSystemRole.systemRole.id}+',\''+${supportedConstraintType.constraintType.uuid}+'\');'">
+									<span th:text="#{html.page.userrole.function.picker.button}">Vælg tillidsfunktioner</span>
+								</a>
 							</div>
 						</div>
 						</th:block>
@@ -615,6 +643,35 @@
 <div th:replace="~{users/fragments/user_user_role_modal :: userUserRoleModal}"></div>
 <div th:replace="~{users/fragments/role_assignment_edit_modal :: roleAssignmentEditModal}"></div>
 <div th:replace="~{userroles/fragments/constraint_ou_modal :: OUModal}"></div>
+<div id="modal-function" class="modal fade" role="dialog">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal">&times;</button>
+                <h4 th:text="#{html.page.userrole.function.modal}">Vælg tillidsfunktioner</h4>
+            </div>
+            <div class="modal-body">
+                <input type="text" id="modal-function-search" class="form-control m-b" placeholder="Søg..." style="margin-bottom:8px;">
+                <table class="table table-striped table-hover" style="margin-bottom:0;">
+                    <thead>
+                        <tr>
+                            <th style="width:40px;">
+                                <input type="checkbox" id="modal-function-select-all" title="Vælg alle">
+                            </th>
+                            <th th:text="#{html.page.userrole.function.modal.name}">Tillidsfunktion</th>
+                        </tr>
+                    </thead>
+                    <tbody id="modal-function-checkbox-list"></tbody>
+                </table>
+            </div>
+            <div class="modal-footer">
+                <p id="modal-function-warning" class="text-danger" style="display:none; margin: 0 auto 0 0;" th:text="#{html.page.userrole.function.modal.warning}">Advarsel: Ingen tillidsfunktioner valgt – afgrænsningen kan give adgang til alle enheder</p>
+                <button type="button" class="btn btn-primary" onclick="functionConstraintService.saveFunctions()" th:text="#{html.control.button.save}"></button>
+                <button type="button" class="btn btn-danger" data-dismiss="modal" th:text="#{html.control.button.cancel}"></button>
+            </div>
+        </div>
+    </div>
+</div>
 <div th:replace="~{itsystem/fragments/ouFilterModal :: ou_filter_modal}"></div>
 <nav th:replace="~{fragments/footer :: footer}"></nav>
 
@@ -691,6 +748,7 @@ The modal ou_roles_modal shows at the top-->
 		var orgUnitList = [[${orgUnitList}]];
 		var itSystemList = [[${itSystemList}]];
 		var treeOUs = [[${treeOUs}]];
+		var allFunctions = [[${allFunctions}]];
 		var selectedItSystems = [[${editSystemRoles}]];
 		var possibleFilterOus = [[${possibleFilterOus}]];
 		var selectedFilterOUs = [[${selectedFilterOUs}]];
@@ -712,6 +770,7 @@ The modal ou_roles_modal shows at the top-->
     var orgUnitService = new OrgUnitService();
     var notificationService = new NotificationService();
     var orgUnitConstraintService = new OrgUnitConstraintService();
+    const functionConstraintService = new FunctionConstraintService();
     var managerActionService = new ManagerActionService();
     var ouFilterService = new OUFilterService();
 	var requestApproveService = new RequestApproveService();
@@ -1565,19 +1624,27 @@ The modal ou_roles_modal shows at the top-->
     function updateComboConstraintValue(systemRoleId, constraintUuid, constraintType) {
         var constraintValue = $("#" + systemRoleId + constraintUuid).val();
 
-        if (constraintValue == 'INHERITED' || constraintValue == 'READ_AND_WRITE' || constraintValue == 'EXTENDED_INHERITED' || constraintValue == 'LEVEL_1' || constraintValue == 'LEVEL_2' || constraintValue == 'LEVEL_3' || constraintValue == 'LEVEL_4' || constraintValue == 'LEVEL_5' || constraintValue == 'LEVEL_6' || constraintValue == 'INHERITED_FROM_MANAGER_ROLE' || constraintValue == 'EXTENDED_INHERITED_FROM_MANAGER_ROLE' || constraintValue == 'INHERITED_FROM_FUNCTIONS' || constraintValue == 'EXTENDED_INHERITED_FROM_FUNCTIONS') {
+        if (constraintValue == 'INHERITED_FROM_FUNCTIONS' || constraintValue == 'EXTENDED_INHERITED_FROM_FUNCTIONS') {
+            hideFreetext(systemRoleId, constraintUuid);
+            functionConstraintService.showFunctionPicker(systemRoleId, constraintUuid, constraintValue);
+        } else if (constraintValue == 'INHERITED' || constraintValue == 'READ_AND_WRITE' || constraintValue == 'EXTENDED_INHERITED' || constraintValue == 'LEVEL_1' || constraintValue == 'LEVEL_2' || constraintValue == 'LEVEL_3' || constraintValue == 'LEVEL_4' || constraintValue == 'LEVEL_5' || constraintValue == 'LEVEL_6' || constraintValue == 'INHERITED_FROM_MANAGER_ROLE' || constraintValue == 'EXTENDED_INHERITED_FROM_MANAGER_ROLE') {
             saveConstraintChoice(systemRoleId, constraintUuid, constraintValue, '', false);
             hideFreetext(systemRoleId, constraintUuid);
+            functionConstraintService.hideFunctionPicker(systemRoleId, constraintUuid);
         } else if (constraintValue == 'VALUE' && (constraintUuid == internalOuConstraintUuid || constraintUuid == ouConstraintUuid)) {
+                functionConstraintService.hideFunctionPicker(systemRoleId, constraintUuid);
                 orgUnitConstraintService.showOUAndFetchValue(constraintValue, systemRoleId, constraintUuid);
         }
         else if (constraintValue == 'VALUE' && constraintUuid != kleConstraintUuid && constraintUuid != internalOuConstraintUuid && constraintUuid != ouConstraintUuid) {
+                functionConstraintService.hideFunctionPicker(systemRoleId, constraintUuid);
                 showFreetextAndFetchValue(systemRoleId, constraintUuid, null);
         }
         else if (constraintValue == 'VALUE' && constraintUuid == kleConstraintUuid) {
+            functionConstraintService.hideFunctionPicker(systemRoleId, constraintUuid);
             showKleAndFetchValue(systemRoleId, constraintUuid);
         }
             else if (constraintValue == 'SELECTED_INHERITED' && (constraintUuid == internalOuConstraintUuid || constraintUuid == ouConstraintUuid)) {
+                functionConstraintService.hideFunctionPicker(systemRoleId, constraintUuid);
                 orgUnitConstraintService.showOUAndFetchValue(constraintValue, systemRoleId, constraintUuid);
             }
     }
@@ -1697,7 +1764,13 @@ The modal ou_roles_modal shows at the top-->
 
     function showOrHideFreetextAndFetchValue(systemRoleId, constraintUuid) {
         var constraintValueType = $("#" + systemRoleId + constraintUuid).val();
+        if (constraintValueType == "INHERITED_FROM_FUNCTIONS" || constraintValueType == "EXTENDED_INHERITED_FROM_FUNCTIONS") {
+            hideFreetext(systemRoleId, constraintUuid);
+            functionConstraintService.showFunctionPicker(systemRoleId, constraintUuid, constraintValueType);
+            return;
+        }
         if (constraintValueType == "VALUE") {
+            functionConstraintService.hideFunctionPicker(systemRoleId, constraintUuid);
             if (constraintUuid == kleConstraintUuid) {
                 return showKleAndFetchValue(systemRoleId, constraintUuid);
             }
@@ -1708,10 +1781,12 @@ The modal ou_roles_modal shows at the top-->
                     return showFreetextAndFetchValue(systemRoleId, constraintUuid, null);
                 }
             }
-            if (constraintValueType == "SELECTED_INHERITED" && (internalOuConstraintUuid == constraintUuid || constraintValueType == ouConstraintUuid)) {
+            if (constraintValueType == "SELECTED_INHERITED" && (internalOuConstraintUuid == constraintUuid || constraintUuid == ouConstraintUuid)) {
+                functionConstraintService.hideFunctionPicker(systemRoleId, constraintUuid);
                 return orgUnitConstraintService.showOUAndFetchValue("SELECTED_INHERITED", systemRoleId, constraintUuid);
             }
             else {
+                functionConstraintService.hideFunctionPicker(systemRoleId, constraintUuid);
                 hideFreetext(systemRoleId, constraintUuid);
             }
 
@@ -2015,6 +2090,110 @@ The modal ou_roles_modal shows at the top-->
                 timeout: 4000
             });
         }
+    }
+
+    function FunctionConstraintService() {
+        let currentSystemRoleId = null;
+        let currentConstraintUuid = null;
+        let currentConstraintValueType = null;
+
+        function updateSaveButtonState() {
+            const checkedCount = $("#modal-function-checkbox-list input[type=checkbox]:checked").length;
+            $("#modal-function-warning").toggle(checkedCount === 0);
+        }
+
+        this.showFunctionPicker = function(systemRoleId, constraintUuid, constraintValueType) {
+            currentSystemRoleId = systemRoleId;
+            currentConstraintUuid = constraintUuid;
+            currentConstraintValueType = constraintValueType;
+
+            const pickerDiv = $("#" + systemRoleId + constraintUuid + "funcpicker");
+            pickerDiv.show();
+
+            const saved = $("#" + systemRoleId + constraintUuid + "funcvalues").val();
+            const selectedUuids = saved ? saved.split(",").filter(function(s) { return s.trim() !== ""; }) : [];
+            const label = functionConstraintService.buildLabel(selectedUuids);
+            $("#" + systemRoleId + constraintUuid + "funcinput").val(label);
+        };
+
+        this.hideFunctionPicker = function(systemRoleId, constraintUuid) {
+            $("#" + systemRoleId + constraintUuid + "funcpicker").hide();
+        };
+
+        this.buildLabel = function(selectedUuids) {
+            if (!selectedUuids || selectedUuids.length === 0) {
+                return "";
+            }
+            const names = selectedUuids.map(function(uuid) {
+                const fn = allFunctions.find(function(f) { return f.uuid === uuid; });
+                return fn ? fn.name : uuid;
+            });
+            return names.join(", ");
+        };
+
+        this.chooseFunctions = function(systemRoleId, constraintUuid) {
+            currentSystemRoleId = systemRoleId;
+            currentConstraintUuid = constraintUuid;
+            currentConstraintValueType = $("#" + systemRoleId + constraintUuid).val();
+
+            const saved = $("#" + systemRoleId + constraintUuid + "funcvalues").val();
+            const selectedUuids = saved ? saved.split(",").filter(function(s) { return s.trim() !== ""; }) : [];
+
+            const tbody = $("#modal-function-checkbox-list");
+            tbody.empty();
+            allFunctions.forEach(function(fn) {
+                const checked = selectedUuids.indexOf(fn.uuid) >= 0 ? "checked" : "";
+                tbody.append(
+                    '<tr>' +
+                    '<td><input type="checkbox" value="' + fn.uuid + '" ' + checked + '></td>' +
+                    '<td>' + $('<span>').text(fn.name).html() + '</td>' +
+                    '</tr>'
+                );
+            });
+
+            // Select-all toggle
+            const selectAll = $("#modal-function-select-all");
+            selectAll.prop("checked", selectedUuids.length === allFunctions.length && allFunctions.length > 0);
+            selectAll.off("change").on("change", function() {
+                tbody.find("input[type=checkbox]").prop("checked", $(this).prop("checked"));
+                updateSaveButtonState();
+            });
+            tbody.off("change", "input").on("change", "input", function() {
+                const total = tbody.find("input[type=checkbox]").length;
+                const checked = tbody.find("input[type=checkbox]:checked").length;
+                selectAll.prop("checked", total > 0 && total === checked);
+                updateSaveButtonState();
+            });
+            updateSaveButtonState();
+
+            // Search filter
+            const searchField = $("#modal-function-search");
+            searchField.val("").off("input").on("input", function() {
+                const q = $(this).val().toLowerCase();
+                tbody.find("tr").each(function() {
+                    $(this).toggle($(this).find("td:last").text().toLowerCase().indexOf(q) >= 0);
+                });
+            });
+
+            $("#modal-function").modal("show");
+        };
+
+        this.saveFunctions = function() {
+            const selected = [];
+            $("#modal-function-checkbox-list input:checked").each(function() {
+                selected.push($(this).val());
+            });
+
+            const systemRoleId = currentSystemRoleId;
+            const constraintUuid = currentConstraintUuid;
+            const constraintValueType = currentConstraintValueType;
+
+            $("#" + systemRoleId + constraintUuid + "funcvalues").val(selected.join(","));
+            $("#" + systemRoleId + constraintUuid + "funcinput").val(functionConstraintService.buildLabel(selected));
+
+            saveConstraintChoice(systemRoleId, constraintUuid, constraintValueType, selected, false);
+            $("#modal-function").modal("hide");
+        };
     }
 
     function OrgUnitConstraintService() {

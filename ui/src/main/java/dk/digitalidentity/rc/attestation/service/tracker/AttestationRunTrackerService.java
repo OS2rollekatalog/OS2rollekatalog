@@ -78,8 +78,20 @@ public class AttestationRunTrackerService {
         }
     }
 
-    public Optional<AttestationRun> getAttestationRunWithDeadlineNotAfter(final LocalDate deadline) {
-        return attestationRunDao.findFirstByFinishedFalseAndDeadlineGreaterThanEqual(deadline);
+    /**
+     * Det run trackerne skal vedligeholde: det nyeste ikke-lukkede — uanset om deadlinen er overskredet.
+     * <p>
+     * Tidligere krævede opslaget {@code deadline >= i dag} og returnerede derfor tomt for et run der var
+     * åbent men forsinket. Et run lukkes først når det næste dannes (se {@link #updateRuns}), så "åbent
+     * men over deadline" er den normale tilstand i ugerne efter en deadline — og i den periode holdt
+     * trackerne op med at vedligeholde runet: nye systemansvarlige, nye enheder og nye medarbejdere
+     * dukkede aldrig op i den igangværende attestering.
+     * <p>
+     * Kaldere <b>skal</b> matche eksisterende attestationer på <em>run</em> og ikke på deadline, ellers
+     * oprettes der dubletter hver nat i et forsinket run.
+     */
+    public Optional<AttestationRun> getOpenAttestationRun() {
+        return attestationRunDao.findFirstByFinishedFalseOrderByDeadlineDesc();
     }
 
     public List<AttestationRun> getActiveAttestationRunsDesc() {

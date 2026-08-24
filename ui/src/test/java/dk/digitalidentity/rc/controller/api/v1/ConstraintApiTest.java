@@ -67,7 +67,7 @@ public class ConstraintApiTest extends AbstractApiTest {
 		String entityId = "test-constraint-" + System.currentTimeMillis();
 
 		// Create a spy to track service calls without breaking functionality
-		ConstraintTypeService servicespy = Mockito.spy(constraintTypeService);
+		ConstraintTypeService _ = Mockito.spy(constraintTypeService);
 
 		String requestBody = """
            {
@@ -133,7 +133,7 @@ public class ConstraintApiTest extends AbstractApiTest {
 	@DisplayName("Should successfully update existing constraint type")
 	void testLoadConstraintValues_UpdateExisting() throws Exception {
 		String entityId = "existing-constraint-" + System.currentTimeMillis();
-		ConstraintType existing = createTestConstraintType(entityId, "Original Name", ConstraintUIType.COMBO_SINGLE);
+		ConstraintType _ = createTestConstraintType(entityId, "Original Name", ConstraintUIType.COMBO_SINGLE);
 		entityManager.flush();
 		entityManager.clear();
 

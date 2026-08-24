@@ -4,8 +4,8 @@ import dk.digitalidentity.rc.rolerequest.model.enums.RequestableBy;
 import jakarta.persistence.AttributeConverter;
 import jakarta.persistence.Converter;
 
+import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -25,7 +25,7 @@ public class RequestableByListConverter implements AttributeConverter<List<Reque
 	@Override
 	public List<RequestableBy> convertToEntityAttribute(String dbData) {
 		if (dbData == null || dbData.isBlank()) {
-			return Collections.emptyList();
+			return new ArrayList<>(List.of(RequestableBy.INHERIT));
 		}
 		return Arrays.stream(dbData.split(","))
 			.map(String::trim)

@@ -169,12 +169,46 @@ class ItSystemUserRolesAttestationServiceTest {
 			when(attestationSystemRoleAssignmentDAO.listValidAttestationsByResponsibleCollection(any(LocalDate.class), eq(responsibleCollectionId)))
 					.thenReturn(Collections.emptyList());
 
+			// The list is additionally filtered on live attestation responsibility, so the user must
+			// currently be responsible for the it-system as well.
+			User user = createUser(userUuid, "user-id", "Test User");
+			ItSystem itSystem = new ItSystem();
+			itSystem.setId(100L);
+			when(userService.getOptionalByUuid(userUuid)).thenReturn(Optional.of(user));
+			when(itSystemService.findByAttestationResponsible(user)).thenReturn(List.of(itSystem));
+
 			// Act
 			List<ItSystemAttestationDTO> result = itSystemUserRolesAttestationService.getItSystemAttestationsForUser(run, userUuid);
 
 			// Assert
 			assertEquals(1, result.size());
 			assertEquals(100L, result.get(0).getItSystemId());
+		}
+
+		@Test
+		@DisplayName("Should filter out attestations where the user is no longer live attestation responsible")
+		void getItSystemAttestationsForUser_WhenNotLiveResponsible_ShouldFilterOut() {
+			// Arrange
+			String userUuid = "user-uuid";
+			Long responsibleCollectionId = 1L;
+			Attestation attestation = createItSystemRolesAttestation(1L, "att-uuid", 100L, "Test System", responsibleCollectionId);
+
+			AttestationRun run = createAttestationRun(1L, LocalDate.now().plusDays(14));
+			run.getAttestations().add(attestation);
+
+			// User is still in the snapshot collection...
+			AttestationResponsibleCollection collection = new AttestationResponsibleCollection(responsibleCollectionId, 100L, List.of(userUuid));
+			when(attestationResponsibleCollectionDao.findById(responsibleCollectionId)).thenReturn(Optional.of(collection));
+			// ...but is no longer responsible for any live it-system.
+			User user = createUser(userUuid, "user-id", "Test User");
+			when(userService.getOptionalByUuid(userUuid)).thenReturn(Optional.of(user));
+			when(itSystemService.findByAttestationResponsible(user)).thenReturn(Collections.emptyList());
+
+			// Act
+			List<ItSystemAttestationDTO> result = itSystemUserRolesAttestationService.getItSystemAttestationsForUser(run, userUuid);
+
+			// Assert
+			assertTrue(result.isEmpty());
 		}
 	}
 

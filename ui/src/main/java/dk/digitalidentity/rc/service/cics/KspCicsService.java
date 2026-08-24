@@ -566,7 +566,7 @@ public class KspCicsService {
 		log.info("Found " + kspCicsUsersToUpdate.size() + " KSP/CICS users that needs to be updated");
 
 		Map<String, AltAccount> altAccountsByUserId = allAltAccounts.stream()
-				.collect(Collectors.toMap(AltAccount::getAccountUserId, a -> a, (a, b) -> a));
+				.collect(Collectors.toMap(AltAccount::getAccountUserId, a -> a, (a, _) -> a));
 
 		for (String dirtyKspCicsUser : kspCicsUsersToUpdate) {
 			AltAccount altAccount = altAccountsByUserId.get(dirtyKspCicsUser);

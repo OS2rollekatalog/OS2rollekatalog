@@ -35,9 +35,9 @@ public class CurrentAssignmentService {
 	private final HistoricAssignmentService historicAssignmentService;
 
 	@Transactional
-	public Set<User> saveAllForUsers(Map<User, Set<CurrentAssignment>> assignmentsByUser) {
+	public CurrentAssignmentChangeResult saveAllForUsers(Map<User, Set<CurrentAssignment>> assignmentsByUser) {
 		if (assignmentsByUser.isEmpty()) {
-			return Set.of();
+			return new CurrentAssignmentChangeResult(Set.of(), Set.of());
 		}
 
 		// 1 SELECT for alle brugere
@@ -45,7 +45,7 @@ public class CurrentAssignmentService {
 		Map<String, Map<String, CurrentAssignment>> existingByUserUuidAndHash = allExisting.stream()
 			.collect(Collectors.groupingBy(
 				ca -> ca.getUser().getUuid(),
-				Collectors.toMap(CurrentAssignment::getRecordHash, Function.identity(), (e, ignored) -> e)
+				Collectors.toMap(CurrentAssignment::getRecordHash, Function.identity(), (e, _) -> e)
 			));
 
 		Set<CurrentAssignment> allToDelete = new HashSet<>();
@@ -76,9 +76,20 @@ public class CurrentAssignmentService {
 		}
 
 		Set<User> changedUsers = new HashSet<>();
-		allToDelete.stream().map(CurrentAssignment::getUser).forEach(changedUsers::add);
-		allToCreate.stream().map(CurrentAssignment::getUser).forEach(changedUsers::add);
-		return changedUsers;
+		Set<Long> affectedUserRoleIds = new HashSet<>();
+		for (CurrentAssignment ca : allToDelete) {
+			changedUsers.add(ca.getUser());
+			if (ca.getUserRole() != null) {
+				affectedUserRoleIds.add(ca.getUserRole().getId());
+			}
+		}
+		for (CurrentAssignment ca : allToCreate) {
+			changedUsers.add(ca.getUser());
+			if (ca.getUserRole() != null) {
+				affectedUserRoleIds.add(ca.getUserRole().getId());
+			}
+		}
+		return new CurrentAssignmentChangeResult(changedUsers, affectedUserRoleIds);
 	}
 
 	public boolean hasRoleDirectly(String userUuid, Long userRoleId) {
@@ -113,7 +124,13 @@ public class CurrentAssignmentService {
 	 * Som {@link #findByUserInSystem}, men med eager fetch af de relationer der kræves til
 	 * NemLog-in serialisering. Brug denne frem for {@link #findByUserInSystem} efterfulgt af
 	 * manuel initialisering af lazy collections.
+	 *
+	 * Skal være @Transactional: Hibernate.initialize nedenfor kræver en åben session. Når den
+	 * kaldes fra kø-consumeren (drypvis NemLog-in sync) er der ingen ambient transaktion
+	 * (handleItems kører propagation=NEVER, ingen OSIV på baggrundstråden), så uden denne
+	 * annotation kaster initialiseringen LazyInitializationException.
 	 */
+	@Transactional(readOnly = true)
 	public Set<CurrentAssignment> findByUserInSystemWithRoleDetails(User user, Collection<ItSystem> itSystems) {
 		List<CurrentAssignment> loaded = currentAssignmentDao.findByUserAndItSystemInWithRoleDetails(user, itSystems, LocalDate.now());
 
@@ -200,7 +217,7 @@ public class CurrentAssignmentService {
 	public Set<CurrentAssignment> findActiveByUserRoles(Set<UserRole> userRoles) {
 		return currentAssignmentDao.findActiveAssigned(userRoles, LocalDate.now());
 	}
-	
+
 	public Set<CurrentAssignmentSmallProjection> findActiveByUserRolesAsProjection(Set<UserRole> userRoles) {
 		return currentAssignmentDao.findActiveAssignedAsProjection(userRoles, LocalDate.now());
 	}
@@ -211,6 +228,15 @@ public class CurrentAssignmentService {
 
 	public Set<CurrentAssignment> findActiveByRoleGroup(RoleGroup roleGroup) {
 		return currentAssignmentDao.findActiveAssignedThroughRoleGroup(roleGroup, LocalDate.now());
+	}
+
+	@Transactional
+	public void deleteAllForRoleGroup(RoleGroup roleGroup) {
+		Set<CurrentAssignment> toDelete = currentAssignmentDao.findByRoleGroup(roleGroup);
+		if (!toDelete.isEmpty()) {
+			historicAssignmentService.updateValidToFor(toDelete, LocalDateTime.now());
+			currentAssignmentDao.deleteAllById(toDelete.stream().map(CurrentAssignment::getId).toList());
+		}
 	}
 
 	public Set<CurrentAssignment> findActiveAssignmentsForItSystem(ItSystem itSystem) {

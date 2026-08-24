@@ -81,7 +81,7 @@ public class TestDataBootstrap {
 		final TransactionTemplate transactionTemplate = new TransactionTemplate(transactionManager);
 		if (currentVersion < version) {
 			try {
-				transactionTemplate.executeWithoutResult(status -> applier.run());
+				transactionTemplate.executeWithoutResult(_ -> applier.run());
 				return version;
 			} catch (Exception e) {
 				log.error("Failed to apply version {}", version, e);

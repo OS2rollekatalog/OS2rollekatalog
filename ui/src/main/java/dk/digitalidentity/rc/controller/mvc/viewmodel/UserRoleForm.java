@@ -13,7 +13,6 @@ import jakarta.validation.constraints.Size;
 import lombok.Getter;
 import lombok.Setter;
 
-import java.util.ArrayList;
 import java.util.List;
 
 @Getter
@@ -44,8 +43,8 @@ public class UserRoleForm {
 	private boolean roleAssignmentAttestationByAttestationResponsible;
 	private boolean readOnly;
 	private boolean ouFilterEnabled;
-	private List<RequestableBy> requesterPermission = new ArrayList<>();
-	private List<ApprovableBy> approverPermission = new ArrayList<>();
+	private List<RequestableBy> requesterPermission = List.of(RequestableBy.INHERIT);
+	private List<ApprovableBy> approverPermission = List.of(ApprovableBy.INHERIT);
 
 	@Size(max = 4000)
 	private String description;

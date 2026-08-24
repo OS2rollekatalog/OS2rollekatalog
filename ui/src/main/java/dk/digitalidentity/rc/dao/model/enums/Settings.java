@@ -42,7 +42,8 @@ public enum Settings {
     SETTING_SCHEDULED_ATTESTATION_OPTED_IN_ORG_UNITS("ScheduledAttestationOptedInOrgUnits", "html.setting.attestation.scheduled.filter.optin"),
 	SETTING_REMOVE_DIRECT_ASSIGNMENTS_FOR_DISABLED("RemoveDirectAssignmentsForDisabled", "html.setting.direct.affiliations.duration"),
 	SETTING_FIRST_MANUAL_IT_SYSTEM_RUN("firstManualItSystemRun",null),
-	SETTING_HISTORIC_IT_SYSTEM_ASSIGNMENT_COLLECTION_REPAIR_PERFORMED("HistoricItSystemAssignmentCollectionRepairPerformed", null);
+	SETTING_HISTORIC_IT_SYSTEM_ASSIGNMENT_COLLECTION_REPAIR_PERFORMED("HistoricItSystemAssignmentCollectionRepairPerformed", null),
+	SETTING_ATTESTATION_RESPONSIBLE_COLLECTION_RECONCILE_PERFORMED("AttestationResponsibleCollectionReconcilePerformed", null);
 
     private String key;
     private String message;

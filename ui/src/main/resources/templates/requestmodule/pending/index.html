@@ -19,11 +19,11 @@
                         </div>
 
                         <div class="ibox-content">
-                            <table id="pendingRequestTable"
+                            <div class="table-responsive">
+                            <table id="pendingRequestTable" style="padding-right:0px !important;"
                                    class="table table-striped table-bordered table-hover">
                                 <thead>
                                 <tr >
-                                    <!-- <th></th> -->
                                     <th th:text="#{requestmodule.html.pending.table.header.reciever}"></th>
                                     <th th:text="#{requestmodule.html.pending.table.header.action}"></th>
                                     <th th:text="#{requestmodule.html.pending.table.header.requester}"></th>
@@ -41,16 +41,22 @@
                                 </thead>
 
                                 <tbody>
-                                <tr th:each="request : ${pendingRequests}" th:id="${request.id+'_pending_request'}" class="dt-control">
-                                    <!-- <td class="dt-control"></td> -->
-                                    <td th:text="${request.receiver}"></td>
+                                <tr th:each="request : ${pendingRequests}" th:id="${request.id+'_pending_request'}">
+                                    <td>
+                                        <span th:text="${request.receiver}"
+                                              th:title="${request.employment}"
+                                              th:style="${#strings.isEmpty(request.employment)} ? '' : 'cursor: help; text-decoration: underline dotted;'"></span>
+                                    </td>
                                     <td th:text="#{__${request.action}__}"></td>
                                     <td th:text="${request.requester}"></td>
                                     <td th:text="${request.roleName}"></td>
                                     <td th:text="${request.itSystem}"></td>
                                     <td class="preformat" th:text="${request.description}"></td>
                                     <td th:text="${request.constraints}"></td>
-                                    <td th:text="${request.requestDate}"></td>
+                                    <!-- data-order carries the full timestamp so the column does not sort on the dd-MM-yyyy
+                                         text. DataTables only detects it on the first row of the tbody, and only while the
+                                         column has no data/render override in pending.js - do not remove either. -->
+                                    <td th:text="${request.requestDate}" th:attr="data-order=${request.requestDateSort}"></td>
                                     <td th:text="${request.timeFrame}"></td>
                                     <td th:text="${request.reason}"></td>
                                     <td class="treatedByResponsibleField" th:text="${request.assignedTo}"></td>
@@ -75,6 +81,7 @@
                                 </tr>
                                 </tbody>
                             </table>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -120,7 +127,6 @@
     /*<![CDATA[*/
     /*[+
        var token = $("meta[name='_csrf']").attr("content");
-        let detailsUrl = [[@{/ui/request/pending/details}]];
         let restUrl = [[@{/rest/rolerequest}]];
         let cancelText = [[#{requestmodule.html.pending.table.details.approve.time.cancel}]];
         let saveText = [[#{requestmodule.html.pending.table.details.approve.time.save}]];

@@ -376,7 +376,7 @@ public class ReportXlsxView extends AbstractXlsxStreamingViewWrapper {
 								switch (constraint.getConstraintName()) {
 									case "It-system":
 										values = new ArrayList<>();
-                                        constraintValues = constraint.getConstraintValueType().equals(ConstraintValueType.VALUE) ? constraintValue.split(",") : organisationConstraintUtil.getOrganisationConstraintUuids(constraintValue).toArray(String[]::new);
+                                        constraintValues = constraint.getConstraintValueType().equals(ConstraintValueType.VALUE) ? (constraintValue == null ? new String[0] : constraintValue.split(",")) : organisationConstraintUtil.getOrganisationConstraintUuids(constraintValue).toArray(String[]::new);
 										for (String id : constraintValues) {
                                             if (id.isEmpty()) {
                                                 continue;
@@ -394,7 +394,7 @@ public class ReportXlsxView extends AbstractXlsxStreamingViewWrapper {
 									case "Organisation":
 									case "Enhed":
 										values = new ArrayList<>();
-                                        constraintValues = constraint.getConstraintValueType().equals(ConstraintValueType.VALUE) ? constraintValue.split(",") : organisationConstraintUtil.getOrganisationConstraintUuids(constraintValue).toArray(String[]::new);
+                                        constraintValues = constraint.getConstraintValueType().equals(ConstraintValueType.VALUE) ? (constraintValue == null ? new String[0] : constraintValue.split(",")) : organisationConstraintUtil.getOrganisationConstraintUuids(constraintValue).toArray(String[]::new);
 										for (String uuid : constraintValues) {
 											var cvOrgUnit = orgUnitService.getByUuid(uuid);
 											if (cvOrgUnit == null) {

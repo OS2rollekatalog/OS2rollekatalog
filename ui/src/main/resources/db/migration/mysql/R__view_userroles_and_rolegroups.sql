@@ -83,8 +83,12 @@ CREATE OR REPLACE VIEW view_datatables_combined_roles AS (
         ur.delegated_from_cvr AS delegated_from_cvr,
         ur.read_only AS read_only,
         ur.user_only AS user_only,
-        GROUP_CONCAT(DISTINCT our.ou_uuid) as org_unit_filter_uuids,
-        GROUP_CONCAT(DISTINCT itsou.ou_uuid) as it_system_org_unit_filter_uuids,
+        -- Only expose the OU filter when it is actually enabled; the join tables can retain
+        -- stale OUs after the filter is disabled, and the Java requestability checks
+        -- (RequestService.orgUnitFilterAllows) ignore the filter unless ou_filter_enabled is
+        -- TRUE. Keep this view consistent with that rule (see R__view_datatables_userroles.sql).
+        CASE WHEN ur.ou_filter_enabled = TRUE THEN GROUP_CONCAT(DISTINCT our.ou_uuid) END as org_unit_filter_uuids,
+        CASE WHEN its.ou_filter_enabled = TRUE THEN GROUP_CONCAT(DISTINCT itsou.ou_uuid) END as it_system_org_unit_filter_uuids,
         GROUP_CONCAT(DISTINCT rg.name SEPARATOR ', ') AS role_within_role_group
     FROM user_roles ur
              JOIN it_systems its ON its.id = ur.it_system_id

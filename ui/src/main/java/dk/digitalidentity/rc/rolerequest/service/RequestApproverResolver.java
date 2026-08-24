@@ -38,16 +38,39 @@ public class RequestApproverResolver {
 		if (Objects.equals(request.getRequester(), approver) && !settingsService.isAllowSelfApprovalEnabled()) {
 			return false;
 		}
+		final List<ApprovableBy> options = effectiveOptions(request);
 		if (request.getUserRole() != null) {
-			return canApproveForUserRole(request.getUserRole(), request.getOrgUnit(), approver, request.getReceiver());
+			return canApproveForUserRole(options, request.getUserRole(), request.getOrgUnit(), approver, request.getReceiver());
 		} else if (request.getRoleGroup() != null) {
-			return canApproveForRoleGroup(request.getRoleGroup(), request.getOrgUnit(), approver, request.getReceiver());
+			return canApproveForRoleGroup(options, request.getRoleGroup(), request.getOrgUnit(), approver, request.getReceiver());
 		}
 		log.error("Request {} has neither a userRole nor a roleGroup", request.getId());
 		return false;
 	}
 
 	public List<ApprovableBy> resolveEffectiveOptions(RoleRequest request) {
+		return effectiveOptions(request);
+	}
+
+	/**
+	 * The approver options that gate a request are the ones snapshotted onto the request when it was
+	 * created (RoleRequest.approverOption) — NOT the role's current configuration. Re-resolving live
+	 * from the role meant that changing a role's approver setting after a request was created (e.g.
+	 * AUTHORIZED -> AUTOMATIC) retroactively changed who could approve the already-pending request:
+	 * old AUTHORIZED requests suddenly resolved to AUTOMATIC and leaked into every user's approval
+	 * queue as "approvable by anyone". The snapshot also matches what the UI shows for the request.
+	 * <p>
+	 * An empty snapshot means "fall back to live resolution" — this covers legacy requests created
+	 * before the snapshot was stored, so they keep behaving as before instead of becoming
+	 * unapprovable. Note that ApprovableByListConverter maps both SQL NULL and '' to an empty list,
+	 * so we cannot distinguish a legacy row from one explicitly emptied (e.g. the ADMINISTRATOR-only
+	 * requests blanked by migration V1_334); both intentionally take the live fallback.
+	 */
+	private List<ApprovableBy> effectiveOptions(RoleRequest request) {
+		final List<ApprovableBy> snapshot = request.getApproverOption();
+		if (snapshot != null && !snapshot.isEmpty()) {
+			return snapshot;
+		}
 		if (request.getUserRole() != null) {
 			return approverOptionService.getInheritedApproverOption(request.getUserRole());
 		} else if (request.getRoleGroup() != null) {
@@ -80,9 +103,7 @@ public class RequestApproverResolver {
 		return false;
 	}
 
-	private boolean canApproveForUserRole(UserRole role, OrgUnit orgUnit, User approver, User receiver) {
-		List<ApprovableBy> options = approverOptionService.getInheritedApproverOption(role);
-
+	private boolean canApproveForUserRole(List<ApprovableBy> options, UserRole role, OrgUnit orgUnit, User approver, User receiver) {
 		if (options.contains(ApprovableBy.AUTOMATIC)) {
 			return true;
 		}
@@ -104,9 +125,7 @@ public class RequestApproverResolver {
 		return determineApprovable(options, approver, orgUnit, receiver);
 	}
 
-	private boolean canApproveForRoleGroup(RoleGroup roleGroup, OrgUnit orgUnit, User approver, User receiver) {
-		List<ApprovableBy> options = approverOptionService.getInheritedApproverOption(roleGroup);
-
+	private boolean canApproveForRoleGroup(List<ApprovableBy> options, RoleGroup roleGroup, OrgUnit orgUnit, User approver, User receiver) {
 		if (options.contains(ApprovableBy.AUTOMATIC)) {
 			return true;
 		}

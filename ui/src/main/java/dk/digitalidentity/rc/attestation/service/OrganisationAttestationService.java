@@ -150,6 +150,9 @@ public class OrganisationAttestationService {
 	@Autowired
 	private AttestationResponsibleCollectionDao attestationResponsibleCollectionDao;
 
+	@Autowired
+	private AttestationConstraintService attestationConstraintService;
+
 	public List<OrgUnit> getAllOrgUnitsWithAttestations(LocalDate when) {
 		final LocalDate since = when.minusMonths(12);
 		return attestationDao.findByAttestationTypeInAndDeadlineIsGreaterThanEqual(List.of(Attestation.AttestationType.ORGANISATION_ATTESTATION, Attestation.AttestationType.MANAGER_DELEGATED_ATTESTATION), since).stream()
@@ -231,6 +234,9 @@ public class OrganisationAttestationService {
 
 	@Transactional
 	public OrganisationAttestationDTO getAttestation(final Attestation attestation, final String currentUserUuid, final boolean undecidedUsersOnly, Attestation.AttestationType attestationType) {
+		// A verified (completed) attestation is opened read-only via the "eye" on the overview. Filtering to
+		// undecided users only would then yield an empty page, so show all users once it is verified.
+		final boolean undecidedOnly = undecidedUsersOnly && attestation.getVerifiedAt() == null;
 		final String orgUnitUuid = attestation.getResponsibleOuUuid();
 		final List<AttestationUserRoleAssignment> userAssignments = userRoleAssignmentDao.listValidAssignmentsByResponsibleOu(attestation.getCreatedAt(), orgUnitUuid);
 		final List<AttestationOuRoleAssignment> organisationAssignments = ouAssignmentsDao.listValidNotInheritedAssignmentsForOu(attestation.getCreatedAt(), orgUnitUuid);
@@ -261,7 +267,7 @@ public class OrganisationAttestationService {
 						.roleAssignmentsSinceLastAttestationTotalCount(assignmentsPage.getTotalElements())
 						.orgUnitRoleGroupAssignments(orgUnitRoleGroupAssignments)
 						.orgUnitUserRoleAssignmentsPrItSystem(orgUnitUserRoleAssignmentsPrItSystem)
-						.userAttestations(buildUserAttestations(userAssignments, attestation, undecidedUsersOnly, attestation.getCreatedAt()))
+						.userAttestations(buildUserAttestations(userAssignments, attestation, undecidedOnly, attestation.getCreatedAt()))
 						.build()
 		);
 	}
@@ -748,7 +754,7 @@ public class OrganisationAttestationService {
 							.listValidAssignmentsForUserHandledByItSystemResponsible(when, u.userUuid);
 					// Find assignments that another department is responsible for
 					final List<AttestationUserRoleAssignment> otherDepartmentAssignments =
-						userRoleAssignmentDao.listValidAssignmentsForUserWhereResponsibleOUIsNot(when, u.responsibleOuUuid, u.roleUuid);
+						userRoleAssignmentDao.listValidAssignmentsForUserWhereResponsibleOUIsNot(when, u.userUuid, attestation.getResponsibleOuUuid());
 					// Now group all "other" roles
 					final List<AttestationUserRoleAssignment> otherRoles = Stream.concat(
 									Stream.concat(userRoleAssignments.stream(), otherDepartmentAssignments.stream().filter(a -> a.getRoleGroupId() == null)),
@@ -756,29 +762,27 @@ public class OrganisationAttestationService {
 							.collect(Collectors.toList());
 					final List<AttestationUserRoleAssignment> otherRoleGroups = Stream.concat(userRoleGroupAssignments.stream(),
 							otherDepartmentAssignments.stream().filter(a -> a.getRoleGroupId() != null)).toList();
-					// Inherited OU assignments and assignments where the it-system responsible is responsible should go into doNotVerify..
+					// Everything this manager does not attest here goes into doNotVerify..
 					final List<UserRoleItSystemDTO> doNotVerifyUserRolesPrItSystem = userRolesPrItSystem(u.userUuid, otherRoles,
-							a -> ((a.getAssignedThroughType() == AssignedThroughType.ORGUNIT && a.isInherited()) || a.getResponsibleCollectionId() != null));
+							a -> !isManagerResponsibleFor(a, attestation.getResponsibleOuUuid()));
 					final List<RoleGroupDTO> doNotVerifyRoleGroups = userRoleGroups(u.userUuid, otherRoleGroups,
-							a -> a.getAssignedThroughType() == AssignedThroughType.ORGUNIT && a.isInherited());
+							a -> !isManagerResponsibleFor(a, attestation.getResponsibleOuUuid()),
+							attestationConstraintService::translatePostponedConstraints);
 
-					String userPositionsCached = attestationUserService.getUserPositionsCached(u.userUuid, u.roleUuid);
-					if (!Objects.equals(u.roleUuid, attestation.getResponsibleOuUuid())) {
-						// Add the OU in case it differs from current
-						userPositionsCached += "(" + u.roleOuName + ")";
-					}
+					final String userPositions = resolveUserPositions(u.userUuid, attestation.getResponsibleOuUuid());
 
 					return UserAttestationDTO.builder()
 							.userName(u.userName)
 							.userId(u.userId)
 							.userUuid(u.userUuid)
-							.position(userPositionsCached)
+							.position(userPositions)
 							.verifiedByUserId(entry != null ? entry.getPerformedByUserId() : null)
 							.remarks(entry != null ? entry.getRemarks() : null)
 							.doNotVerifyRoleGroups(doNotVerifyRoleGroups)
 							.doNotVerifyUserRolesPrItSystem(doNotVerifyUserRolesPrItSystem)
-							.userRolesPrItSystem(userRolesPrItSystem(u.userUuid, userRoleAssignments, a -> a.getAssignedThroughType() == AssignedThroughType.DIRECT))
-							.roleGroups(userRoleGroups(u.userUuid, userRoleGroupAssignments, a -> a.getAssignedThroughType() == AssignedThroughType.DIRECT))
+							.userRolesPrItSystem(userRolesPrItSystem(u.userUuid, userRoleAssignments, a -> isManagerResponsibleFor(a, attestation.getResponsibleOuUuid())))
+							.roleGroups(userRoleGroups(u.userUuid, userRoleGroupAssignments, a -> isManagerResponsibleFor(a, attestation.getResponsibleOuUuid()),
+									attestationConstraintService::translatePostponedConstraints))
 							.adRemoval(entry != null && entry.isAdRemoval())
 							.isPrimary(attestationUserService.hasPrimaryPositionIn(u.userUuid, u.roleUuid))
 							.build();
@@ -819,6 +823,30 @@ public class OrganisationAttestationService {
 					return false;
 				})
 				.toList();
+	}
+
+	/**
+	 * True when the manager is responsible for this user's assignment. Everything else is informational and belongs on
+	 * the "other roles" tab - including roles assigned on the attested org unit itself, which the manager approves once
+	 * at org unit level rather than per user.
+	 * Note that isInherited() cannot be used here - it is hardcoded to false in {@link dk.digitalidentity.rc.attestation.service.temporal.UserAssignmentsUpdaterJdbc}.
+	 */
+	private static boolean isManagerResponsibleFor(final AttestationUserRoleAssignment assignment, final String responsibleOuUuid) {
+		return assignment.getAssignedThroughType() == AssignedThroughType.DIRECT
+				&& assignment.getResponsibleCollectionId() == null
+				&& Objects.equals(assignment.getResponsibleOuUuid(), responsibleOuUuid);
+	}
+
+	/**
+	 * The user's position(s) in the org unit being attested, falling back to all positions for users attested
+	 * from elsewhere - typically a manager, whose own roles are attested by the parent org unit.
+	 */
+	private String resolveUserPositions(final String userUuid, final String responsibleOuUuid) {
+		final String positionsInOu = attestationUserService.getUserPositionsCached(userUuid, responsibleOuUuid);
+		if (positionsInOu != null && !positionsInOu.isBlank()) {
+			return positionsInOu;
+		}
+		return attestationUserService.getAllUserPositionsCached(userUuid);
 	}
 
 	private static Optional<OrganisationUserAttestationEntry> findUserAttestation(final Attestation attestation, String userUuid) {
@@ -918,7 +946,7 @@ public class OrganisationAttestationService {
 								  .orElse(Collections.emptyList())
 							    : Collections.emptyList()
 						)
-						.postponedConstraints(a.getPostponedConstraints())
+						.postponedConstraints(attestationConstraintService.translatePostponedConstraints(a.getPostponedConstraints()))
 						.build())
 				.collect(Collectors.toList());
 	}

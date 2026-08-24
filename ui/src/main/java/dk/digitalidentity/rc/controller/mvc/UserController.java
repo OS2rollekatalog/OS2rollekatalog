@@ -80,7 +80,6 @@ public class UserController {
 	private final SettingsService settingsService;
 	private final AssignmentService assignmentService;
 
-	private static final Section permissionEntity = Section.USER;
 	private final UserPermissionContext userPermissionContext;
 
 	@Value("#{servletContext.contextPath}")

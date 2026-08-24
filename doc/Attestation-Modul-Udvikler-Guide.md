@@ -280,7 +280,8 @@ attestere flere uger efter deadlinen blev sat: snapshot er stabilt.
 | Sensitive- / extraSensitive-status | ✅ Ja (på den synlige række) | Natural-key-felt; en ændring laver en ny række så snapshottet før ændringen forbliver. |
 | Inheritance, assignedThroughType, responsibleOu/User | ✅ Ja | Natural-key-felter. |
 | Bruger- og rolle-**navne**, beskrivelser | ⚠️ Live (de opdateres in-place) | Ikke natural-key — opdateres på samme række. |
-| `Attestation.deadline` / `verifiedAt` / `responsibleUserUuid` | Live (ændres direkte på `Attestation`) | Hvis it-system skifter ansvarlig flyttes også `createdAt` frem i `ItSystemAttestationTrackerService.ensureWeHaveAttestationFor` så det nye snapshot starter fra dagens billede. |
+| `Attestation.deadline` / `verifiedAt` | Live (ændres direkte på `Attestation`) | — |
+| Hvem der er systemansvarlig for en it-system-attestation | Live | `Attestation.responsibleCollectionId` peger på it-systemets ene `AttestationResponsibleCollection`; ændres ansvarslisten opdateres collectionens medlemmer, og attestationen skifter dermed ansvarlig uden at `createdAt` (og dermed snapshottet) rykkes. Ved siden af kræver bruger-stien at man *aktuelt* er ansvarlig, jf. `liveResponsibleItSystemIds`. |
 | Hvem aktuelt er stedfortræder for lederen | Live | `ManagerSubstituteService` slår op i live tabeller. |
 | Aktive `ManagerDelegate` ved oprettelsen | ✅ Ja (brugt i tracker) | `historyAttestationManagerDelegateDao.findAllByDate(when)`. |
 | Sensitive-flag på attestation/run | ✅ Ja | Skrives på `Attestation`/`AttestationRun` ved oprettelse. |

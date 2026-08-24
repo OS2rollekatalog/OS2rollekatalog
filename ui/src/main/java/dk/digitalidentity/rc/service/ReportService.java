@@ -19,6 +19,7 @@ import dk.digitalidentity.rc.dao.model.assignment.HistoricAssignment;
 import dk.digitalidentity.rc.dao.model.assignment.HistoricExceptedAssignment;
 import dk.digitalidentity.rc.service.assignment.HistoricAssignmentService;
 import dk.digitalidentity.rc.service.assignment.HistoricExceptedAssignmentService;
+import dk.digitalidentity.rc.util.PostponedConstraintsFormatter;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -120,7 +121,7 @@ public class ReportService {
 			if (user == null || (!showInactiveUsers && !user.isUserActive())) continue;
 			long weight = userRoleIdWeight.getOrDefault(userRoleId, 1L);
 			userItSystemMaxWeight
-				.computeIfAbsent(user.getUserUserId(), k -> new HashMap<>())
+				.computeIfAbsent(user.getUserUserId(), _ -> new HashMap<>())
 				.merge(itSystemName, weight, Math::max);
 		}
 
@@ -367,9 +368,6 @@ public class ReportService {
 		return assignedThroughStr;
 	}
 
-	private static final java.util.regex.Pattern UUID_PATTERN =
-		java.util.regex.Pattern.compile("[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}");
-
 	/**
 	 * Builds a human-readable string of postponed constraints for a report row.
 	 * Organisation constraint values (UUIDs) are resolved to display names via the context.
@@ -381,30 +379,10 @@ public class ReportService {
 			return "";
 		}
 
-		StringBuilder sb = new StringBuilder();
-		for (Object[] row : constraints) {
-			String constraintName = (String) row[1];
-			List<String> constraintValues = (List<String>) row[2];
-
-			if (constraintValues == null || constraintValues.isEmpty()) {
-				sb.append(constraintName).append("\n");
-				continue;
-			}
-
-			for (String constraintValue : constraintValues) {
-				if (constraintValue != null && UUID_PATTERN.matcher(constraintValue).matches()) {
-					// Organisation constraint: resolve UUID to display name
-					String ouName = ctx.orgUnitNamesByUuid.get(constraintValue);
-					sb.append(constraintName).append(": ")
-					  .append(ouName != null ? ouName : constraintValue)
-					  .append("\n");
-				} else {
-					sb.append(constraintName).append(": ").append(constraintValue).append("\n");
-				}
-			}
-		}
-
-		return sb.toString().trim();
+		return constraints.stream()
+				.map(row -> PostponedConstraintsFormatter.formatConstraintOnePerLine((String) row[1], (List<String>) row[2],
+						uuid -> ctx.orgUnitNamesByUuid.getOrDefault(uuid, uuid)))
+				.collect(Collectors.joining("\n"));
 	}
 
 	private String buildExceptedAssignmentThroughString(HistoricExceptedAssignment historicExceptedAssignment, Locale locale) {

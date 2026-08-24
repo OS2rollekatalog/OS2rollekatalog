@@ -1,6 +1,7 @@
 package dk.digitalidentity.rc.attestation.controller.mvc.xlsview;
 
 import dk.digitalidentity.rc.attestation.model.dto.ITSystemRoleBuildAttestationDTO;
+import dk.digitalidentity.rc.attestation.model.dto.enums.AttestationStatus;
 import dk.digitalidentity.rc.attestation.model.entity.AttestationLock;
 import dk.digitalidentity.rc.attestation.service.AttestationLockService;
 import dk.digitalidentity.rc.controller.mvc.xlsview.DisposableSXSSFWorkbook;
@@ -83,9 +84,10 @@ public class RoleBuildXlsView extends AttestationXlsView {
 
 			createCell(dataRow, column++, entry.getItSystemName(), null);
 			createCell(dataRow, column++, entry.getRole(), null);
-			createCell(dataRow, column++, String.join("\n", entry.getSystemRole()), null);
-			createCell(dataRow, column++, String.join(", ", entry.getResponsibleUserNames()), null);
-			createCell(dataRow, column++, messageSource.getMessage(entry.getAttestationStatus().getMessage(), null, locale), null);
+			createCell(dataRow, column++, join("\n", entry.getSystemRole()), null);
+			createCell(dataRow, column++, join(", ", entry.getResponsibleUserNames()), null);
+			final AttestationStatus status = entry.getAttestationStatus() != null ? entry.getAttestationStatus() : AttestationStatus.NOT_VERIFIED;
+			createCell(dataRow, column++, messageSource.getMessage(status.getMessage(), null, locale), null);
 			createCell(dataRow, column++, entry.getAttestationDate() == null ? "" : entry.getAttestationDate().toString(), null);
 			createCell(dataRow, column++, entry.getPerformedBy(), null);
 		}
@@ -97,6 +99,10 @@ public class RoleBuildXlsView extends AttestationXlsView {
 		sheet.setColumnWidth(4, 45 * 256);
 		sheet.setColumnWidth(5, 20 * 256);
 		sheet.setColumnWidth(6, 20 * 256);
+	}
+
+	private static String join(final String separator, final List<String> values) {
+		return values == null ? "" : String.join(separator, values);
 	}
 
 	private void createHeaderRow(Sheet sheet, List<String> headers) {

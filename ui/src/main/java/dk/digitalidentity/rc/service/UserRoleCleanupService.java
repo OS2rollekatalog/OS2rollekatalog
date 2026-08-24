@@ -35,6 +35,27 @@ public class UserRoleCleanupService {
 
 	@Transactional
 	public void deleteWithCleanup(UserRole userRole) {
+		// Hver removeUserRole nedenfor udløser via RoleChangeHook en recalculation-besked pr. bruger.
+		// For en UserRole med hundredvis af direkte brugere giver det lige så mange enkeltvise
+		// INSERT IGNORE'er i simple_queue_items, der under samtidig last deadlocker mod kø-schedulerens
+		// statusopdateringer. Vi samler dem til én bulk-enqueue, der først udsendes når oprydningen er
+		// committet-klar (ved normal afslutning af det wrappede arbejde).
+		userService.runWithBatchedRecalculation(() -> doDeleteWithCleanup(userRole));
+	}
+
+	private void doDeleteWithCleanup(UserRole detachedUserRole) {
+		// Genhent rollen managed i DENNE transaktion. Kalderen (ItSystemApi.manageItSystem) henter rollerne i
+		// en separat, allerede committet transaktion, så det indkomne objekt er detached. removeUserRole matcher
+		// assignments via UserRole.equals() (Lombok @Data => alle felter), og en detached instans matcher ikke
+		// pålideligt den managed UserRole som assignment'ene peger på i denne session. Resultatet var, at
+		// removeUserRole intet fjernede, hvorefter delete() schedulerede rollen til sletning og flush fejlede med
+		// TransientPropertyValueException, fordi UserUserRoleAssignment stadig refererede den slettede rolle.
+		UserRole userRole = userRoleService.getById(detachedUserRole.getId());
+		if (userRole == null) {
+			// Allerede slettet (fx samtidig manage-import) — intet at gøre.
+			return;
+		}
+
 		List<RoleGroup> roleGroups = roleGroupService.getByUserRole(userRole);
 		Set<User> directUsers = assignmentService.getUsersWithUserRoleDirectlyAssigned(userRole);
 		List<OrgUnit> orgUnits = orgUnitService.getAllWithRoleIncludingInactive(userRole);

@@ -134,7 +134,7 @@
 	    			   type: 'post',
 	    			   success: function(response) {
 	    				   modalRGAjaxService.showInfoNotification(roleGroupModalService.fieldUpdatedMsg);
-	    				   rolesService.loadAddRoleGroupFragment();
+	    				   rolesService.loadAddRoleGroupFragmentWhenReady();
 	    			   },
 	    			   error: errorHandler(roleGroupModalService.fieldNotUpdatedMsg)
 	    		});
@@ -161,7 +161,7 @@
 	    			   type: 'post',
 	    			   success: function(response) {
 	    				   modalRGAjaxService.showInfoNotification(roleGroupModalService.fieldUpdatedMsg);
-	    				   rolesService.loadAddRoleGroupFragment();
+	    				   rolesService.loadAddRoleGroupFragmentWhenReady();
 	    			   },
 	    			   error: errorHandler(roleGroupModalService.fieldNotUpdatedMsg)
 	    		});

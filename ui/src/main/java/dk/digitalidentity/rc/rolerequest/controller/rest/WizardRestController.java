@@ -86,7 +86,7 @@ public class WizardRestController {
 			if (!(hideAlreadyAssigned && assignedRoleGroupIds.contains(currentRoleGroup.getId()))
 				&& rolerequestService.canRequest(requestForUser, currentRoleGroup, requestForUser, orgUnit)) {
 				recommendedRoleGroupDTOs.add(new RoleGroupDTO(currentRoleGroup.getId(), currentRoleGroup.getName(), currentRoleGroup.getDescription(),
-					approverOptionService.getApproverOptionsAsString(currentRoleGroup.getApproverPermission()), assignedRoleGroupIds.contains(currentRoleGroup.getId())));
+					approverOptionService.getApproverOptionsAsString(approverOptionService.getInheritedApproverOption(currentRoleGroup)), assignedRoleGroupIds.contains(currentRoleGroup.getId())));
 			}
 		}
 
@@ -123,7 +123,7 @@ public class WizardRestController {
 						currentUserRole.getItSystem().getName(),
 						currentUserRole.getName(),
 						currentUserRole.getDescription(),
-						approverOptionService.getApproverOptionsAsString(currentUserRole.getApproverPermission()),
+						approverOptionService.getApproverOptionsAsString(approverOptionService.getInheritedApproverOption(currentUserRole)),
 						assignedUserRoleIds.contains(currentUserRole.getId()),
 						hasPostponedConstraints(currentUserRole.getId())
 					)
@@ -294,7 +294,7 @@ public class WizardRestController {
 						null,
 						currentRoleGroup.getName(),
 						currentRoleGroup.getDescription(),
-						approverOptionService.getApproverOptionsAsString(currentRoleGroup.getApproverPermission()),
+						approverOptionService.getApproverOptionsAsString(approverOptionService.getInheritedApproverOption(currentRoleGroup)),
 						isAlreadyAssigned,
 						false,
 						roleGroupUserRoles
@@ -323,7 +323,7 @@ public class WizardRestController {
 						currentUserRole.getItSystem().getName(),
 						currentUserRole.getName(),
 						currentUserRole.getDescription(),
-						approverOptionService.getApproverOptionsAsString(currentUserRole.getApproverPermission()),
+						approverOptionService.getApproverOptionsAsString(approverOptionService.getInheritedApproverOption(currentUserRole)),
 						isAlreadyAssigned,
 						hasPostponedConstraints(currentUserRole.getId()),
 						""
@@ -360,7 +360,7 @@ public class WizardRestController {
 				roleGroup.getId(),
 				roleGroup.getName(),
 				roleGroup.getDescription(),
-				approverOptionService.getApproverOptionsAsString(roleGroup.getApproverPermission()),
+				approverOptionService.getApproverOptionsAsString(approverOptionService.getInheritedApproverOption(roleGroup)),
 				assignedRoleGroupIds.contains(roleGroup.getId())
 			))
 			.toList();

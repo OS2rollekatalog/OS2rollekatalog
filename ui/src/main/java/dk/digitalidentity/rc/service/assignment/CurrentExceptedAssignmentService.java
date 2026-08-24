@@ -37,7 +37,7 @@ public class CurrentExceptedAssignmentService {
 			currentExceptedAssignmentDao.findAllByExceptionUserUuidIn(userUuids).stream()
 				.collect(Collectors.groupingBy(
 					CurrentExceptedAssignment::getExceptionUserUuid,
-					Collectors.toMap(CurrentExceptedAssignment::getRecordHash, e -> e, (e, ignored) -> e)
+					Collectors.toMap(CurrentExceptedAssignment::getRecordHash, e -> e, (e, _) -> e)
 				));
 
 		Set<CurrentExceptedAssignment> allToDelete = new HashSet<>();

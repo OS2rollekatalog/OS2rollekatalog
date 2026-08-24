@@ -20,6 +20,7 @@ import dk.digitalidentity.rc.attestation.model.entity.OrganisationRoleAttestatio
 import dk.digitalidentity.rc.attestation.model.entity.OrganisationUserAttestationEntry;
 import dk.digitalidentity.rc.attestation.model.entity.temporal.AssignedThroughType;
 import dk.digitalidentity.rc.attestation.service.AttestationCachedUserService;
+import dk.digitalidentity.rc.attestation.service.AttestationConstraintService;
 import dk.digitalidentity.rc.dao.model.ItSystem;
 import dk.digitalidentity.rc.dao.model.OrgUnit;
 import dk.digitalidentity.rc.dao.model.User;
@@ -88,9 +89,11 @@ public class AttestationReportService {
 	@Autowired
 	private AttestationResponsibleCollectionDao attestationResponsibleCollectionDao;
 
+	@Autowired
+	private AttestationConstraintService attestationConstraintService;
+
 	@PersistenceContext
 	private EntityManager entityManager;
-
 
 	private static class VerificationAndAttestationInformationDTO {
 		private AttestationStatus status = AttestationStatus.NOT_VERIFIED;
@@ -100,7 +103,6 @@ public class AttestationReportService {
 		private String remark;
 		private LocalDate attestationCreatedAt;
 	}
-
 
 	@Transactional
 	public Map<String, Object> getOrgUnitReportModel(OrgUnit orgUnit, Locale locale, LocalDate since, LocalDate to) {
@@ -234,11 +236,11 @@ public class AttestationReportService {
 				.verifiedByName(verificationInformation.verifiedByName)
 				.roleGroupName(assignment.getRoleGroupName())
 				.userRoleName(assignment.getUserRoleName())
-				.postponedConstraints(assignment.getPostponedConstraints())
+				.postponedConstraints(attestationConstraintService.translatePostponedConstraints(assignment.getPostponedConstraints()))
 				.remark(verificationInformation.remark)
 				.userName(assignment.getUserName())
 				.userUserId(assignment.getUserId())
-				.position(cachedUserService.getUserPositionsCached(assignment.getUserUuid(), assignment.getRoleOuUuid()))
+				.position(resolveUserPositions(assignment))
 				.status(assignment.getValidTo() == null || assignment.getValidTo().isAfter(now)
 						? RoleStatus.ACTIVE
 						: RoleStatus.INACTIVE)
@@ -248,6 +250,20 @@ public class AttestationReportService {
 				.validTo(assignment.getValidTo())
 				.originallyAssignedFrom(assignment.getAssignedFrom())
 				.build();
+	}
+
+	/**
+	 * The user's position(s) in the org unit responsible for the attestation, falling back to all positions.
+	 * The role's own org unit is already reported in the "orgUnit" column.
+	 */
+	private String resolveUserPositions(final AttestationUserRoleAssignmentDto assignment) {
+		if (assignment.getResponsibleOuUuid() != null) {
+			final String positionsInOu = cachedUserService.getUserPositionsCached(assignment.getUserUuid(), assignment.getResponsibleOuUuid());
+			if (positionsInOu != null && !positionsInOu.isBlank()) {
+				return positionsInOu;
+			}
+		}
+		return cachedUserService.getAllUserPositionsCached(assignment.getUserUuid());
 	}
 
 	private static String getAssignedThroughTypeName(final AssignedThroughType assignedThroughType) {
@@ -492,22 +508,22 @@ public class AttestationReportService {
 		for (ItSystem itSystem : itSystems) {
 			List<Attestation> roleAttestationsForSystem = attestationDao.findItSystemRoleAttestations(itSystem.getId(), from, to);
 			Attestation relevantAttestation = findRelevantAttestation(roleAttestationsForSystem);
+			// the responsible users are the same for every role in the system, so only look them up once
+			List<String> responsibleUserNames = relevantAttestation != null
+				? getResponsibleUserNames(relevantAttestation)
+				: Collections.emptyList();
 			List<UserRole> userRoles = userRoleService.getByItSystem(itSystem);
 			for (UserRole userRole : userRoles) {
 				ITSystemRoleBuildAttestationDTO dto = new ITSystemRoleBuildAttestationDTO();
 				dto.setItSystemName(itSystem.getName());
 				dto.setRole(userRole.getName());
 				dto.setSystemRole(userRole.getSystemRoleAssignments().stream().map(s -> s.getSystemRole().getName()).collect(Collectors.toList()));
+				// it-systems without an attestation in the period still belong in the report, so make sure every row
+				// is fully populated - the xls view does not tolerate nulls here.
+				dto.setResponsibleUserNames(responsibleUserNames);
+				dto.setAttestationStatus(AttestationStatus.NOT_VERIFIED);
 
 				if (relevantAttestation != null) {
-					Long responsibleCollectionId = relevantAttestation.getResponsibleCollectionId();
-					List<String> userUuids = responsibleCollectionId != null
-						? attestationResponsibleCollectionDao.findById(responsibleCollectionId)
-							.map(AttestationResponsibleCollection::getUsersUuid)
-							.orElseGet(Collections::emptyList)
-						: Collections.emptyList();
-					dto.setResponsibleUserNames(userUuids);
-
 					ItSystemRoleAttestationEntry entryForRole = relevantAttestation.getItSystemUserRoleAttestationEntries()
 						.stream().filter(i -> Objects.equals(i.getUserRoleId(), userRole.getId()))
 						.findAny().orElse(null);
@@ -524,6 +540,17 @@ public class AttestationReportService {
 			}
 		}
 		return result;
+	}
+
+	private @NonNull List<String> getResponsibleUserNames(final Attestation attestation) {
+		final Long responsibleCollectionId = attestation.getResponsibleCollectionId();
+		if (responsibleCollectionId == null) {
+			return Collections.emptyList();
+		}
+		return attestationResponsibleCollectionDao.findById(responsibleCollectionId)
+			.map(AttestationResponsibleCollection::getUsersUuid)
+			.map(uuids -> uuids.stream().map(cachedUserService::userNameFromUuidCached).toList())
+			.orElseGet(Collections::emptyList);
 	}
 
 	private AttestationStatus getAttestationStatus(ItSystemRoleAttestationEntry entryForRole) {

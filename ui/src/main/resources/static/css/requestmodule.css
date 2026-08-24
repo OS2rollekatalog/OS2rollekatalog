@@ -41,6 +41,21 @@ html.dark table.dataTable tr.dt-hasChild td.dt-control:before,
 }
 
 
+/* sticky action column so buttons are always reachable without horizontal scroll */
+#pendingRequestTable th:last-child,
+#pendingRequestTable td:last-child {
+    position: sticky;
+    right: 0;
+    background-color: #ffffff;
+    box-shadow: -2px 0 4px rgba(0, 0, 0, 0.1);
+}
+#pendingRequestTable tbody tr:nth-of-type(odd) td:last-child {
+    background-color: #f2f2f2;
+}
+#pendingRequestTable tbody tr:hover td:last-child {
+    background-color: #ececec;
+}
+
 /* hack for wizard auto height: https://github.com/rstaib/jquery-steps/issues/8#issuecomment-368114763 */
 .wizard .content {
     min-height: 100px;

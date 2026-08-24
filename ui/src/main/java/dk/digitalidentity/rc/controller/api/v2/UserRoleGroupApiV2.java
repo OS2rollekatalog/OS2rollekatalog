@@ -37,6 +37,7 @@ import dk.digitalidentity.rc.security.RequireApiRoleManagementRole;
 import dk.digitalidentity.rc.service.RoleGroupService;
 import dk.digitalidentity.rc.service.UserRoleService;
 import dk.digitalidentity.rc.service.assignment.AssignmentService;
+import dk.digitalidentity.rc.service.assignment.CurrentAssignmentService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -56,6 +57,7 @@ public class UserRoleGroupApiV2 {
     private final RoleGroupService roleGroupService;
     private final UserRoleService userRoleService;
     private final AssignmentService assignmentService;
+    private final CurrentAssignmentService currentAssignmentService;
 
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Returns all existing rolegroups. Can be empty list."),
@@ -100,6 +102,7 @@ public class UserRoleGroupApiV2 {
     public ResponseEntity<?> deleteRoleGroup(@PathVariable final long id) {
         final RoleGroup roleGroup = roleGroupService.getOptionalById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
+        currentAssignmentService.deleteAllForRoleGroup(roleGroup);
         roleGroupService.delete(roleGroup);
         return new ResponseEntity<>(HttpStatus.NO_CONTENT);
     }

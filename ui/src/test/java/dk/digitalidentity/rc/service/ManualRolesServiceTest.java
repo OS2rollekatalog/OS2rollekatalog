@@ -13,6 +13,8 @@ import dk.digitalidentity.rc.dao.model.UserRole;
 import dk.digitalidentity.rc.dao.model.assignment.CurrentAssignment;
 import dk.digitalidentity.rc.dao.model.enums.EmailTemplateType;
 import dk.digitalidentity.rc.service.assignment.AssignmentService;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.FlushModeType;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -30,6 +32,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -62,6 +65,7 @@ class ManualRolesServiceTest {
 	@Mock private AssignmentService assignmentService;
 	@Mock private ManualAssignmentNotificationMapService manualAssignmentNotificationMapService;
 	@Mock private ManualNotificationPendingUserDao manualNotificationPendingUserDao;
+	@Mock private EntityManager entityManager;
 
 	@Spy private EmailTemplateRenderer emailTemplateRenderer;
 
@@ -121,6 +125,8 @@ class ManualRolesServiceTest {
 		verify(manualAssignmentNotificationMapService, times(2)).save(any());
 		// the processed pending rows are cleared
 		verify(manualNotificationPendingUserDao).deleteAll(any());
+		// guards the O(n²)-autoflush fix: queries inside the per-user loop must not autoflush
+		verify(entityManager).setFlushMode(FlushModeType.COMMIT);
 	}
 
 	@Test
@@ -366,6 +372,119 @@ class ManualRolesServiceTest {
 	}
 
 	@Test
+	@DisplayName("ROL-503 regression: it-system der lige er blevet berettiget (tom baseline) floder IKKE mails for alle eksisterende tildelinger under den fulde sweep")
+	void newlyEligibleItSystemDoesNotFloodExistingAssignments() {
+		Domain domain = domain();
+		ItSystem itSystem = itSystem(IT_SYSTEM_EMAIL);
+		itSystem.setContactNotificationsInitialized(false);
+		UserRole role = role(itSystem);
+		User u1 = user("u1", "user1", domain);
+		User u2 = user("u2", "user2", domain);
+		User u3 = user("u3", "user3", domain);
+
+		stubManualItSystems(itSystem);
+		stubRolesForItSystem(itSystem, role);
+		// first run well in the past -> the global cooling-off gate alone would allow sending
+		given(settingsService.getFirstManualITSystemRun()).willReturn(LocalDateTime.now().minusDays(1));
+		stubDefaultTemplates();
+		given(userService.getAllIncludingInactive()).willReturn(List.of(u1, u2, u3));
+
+		// this it-system just became eligible (e.g. advis-email/template was just configured):
+		// three users already hold the role, but no baseline rows exist yet for any of them -
+		// exactly the state that caused the incident, where every existing assignment looked "added"
+		given(assignmentService.getActiveAssignmentsByItSystem(itSystem)).willReturn(
+			Set.of(currentAssignment(u1, role, itSystem), currentAssignment(u2, role, itSystem), currentAssignment(u3, role, itSystem)));
+		given(manualAssignmentNotificationMapService.getForRoles(any())).willReturn(List.of());
+		given(manualAssignmentNotificationMapService.save(any())).willAnswer(inv -> inv.getArgument(0));
+
+		manualRolesService.notifyServicedesk();
+
+		// with the bootstrap-marker guard: the first eligible full sweep only builds the baseline, it must
+		// not mail for the pre-existing assignments (pre-fix, this assertion fails - the bug sends 1 mail per user)
+		verifyNoInteractions(emailService);
+		// baseline is nonetheless populated for all three existing assignments
+		verify(manualAssignmentNotificationMapService, times(3)).save(any());
+		// the it-system is now marked initialized so future runs resume normal diff-and-send
+		assertThat(itSystem.isContactNotificationsInitialized()).isTrue();
+	}
+
+	@Test
+	@DisplayName("#102 regression: partiel baseline fra event-driven flush maa ikke saette markoren - naeste fulde sweep floder ellers mails for de brugere den ikke naaede")
+	void partialEventDrivenRunDoesNotFlipMarkerBeforeFullSweepSeesEveryone() {
+		Domain domain = domain();
+		ItSystem itSystem = itSystem(IT_SYSTEM_EMAIL);
+		itSystem.setContactNotificationsInitialized(false);
+		UserRole role = role(itSystem);
+		User u1 = user("u1", "user1", domain);
+		User u2 = user("u2", "user2", domain);
+		User u3 = user("u3", "user3", domain);
+
+		given(settingsService.getFirstManualITSystemRun()).willReturn(LocalDateTime.now().minusDays(1));
+		stubDefaultTemplates();
+		given(manualAssignmentNotificationMapService.save(any())).willAnswer(inv -> inv.getArgument(0));
+
+		// step 1: event-driven flush only sees user1 (the only one whose assignment just changed)
+		stubPending(u1);
+		stubResolvableUsers(u1);
+		stubManualItSystems(itSystem);
+		stubRolesForItSystem(itSystem, role);
+		given(assignmentService.getByUserAndItSystems(eq(u1), anyList())).willReturn(Set.of(currentAssignment(u1, role, itSystem)));
+		given(manualAssignmentNotificationMapService.getForUser(DOMAIN_ID, "user1")).willReturn(List.of());
+		given(userRoleService.findAllByIdIn(any())).willReturn(Set.of());
+
+		manualRolesService.processPendingUsers();
+
+		verifyNoInteractions(emailService);
+		// the event-driven run must NOT flip the marker: it only ever saw its own batch (user1), so
+		// marking the it-system "initialized" here would make the next full sweep treat user2/user3's
+		// still-missing baseline rows as legitimate changes and mail for them
+		assertThat(itSystem.isContactNotificationsInitialized()).isFalse();
+
+		// step 2: the nightly full sweep now runs and sees all three users, including the two the
+		// event-driven flush never touched
+		given(userService.getAllIncludingInactive()).willReturn(List.of(u1, u2, u3));
+		given(assignmentService.getActiveAssignmentsByItSystem(itSystem)).willReturn(
+			Set.of(currentAssignment(u1, role, itSystem), currentAssignment(u2, role, itSystem), currentAssignment(u3, role, itSystem)));
+		// user1's baseline row now exists (written during step 1); user2/user3 still have none
+		given(manualAssignmentNotificationMapService.getForRoles(any())).willReturn(List.of(mapRow(1L, ROLE_ID, "user1")));
+
+		manualRolesService.notifyServicedesk();
+
+		// pre-fix, this is where the flood happened: the marker was already true after step 1, so the
+		// full sweep would diff user2/user3 against an empty baseline and mail their "new" assignments
+		verifyNoInteractions(emailService);
+		assertThat(itSystem.isContactNotificationsInitialized()).isTrue();
+	}
+
+	@Test
+	@DisplayName("Efter bootstrap-kørslen sender fremtidige tildelinger normalt")
+	void afterBootstrapFutureAssignmentsAreMailedNormally() {
+		Domain domain = domain();
+		ItSystem itSystem = itSystem(IT_SYSTEM_EMAIL);
+		itSystem.setContactNotificationsInitialized(true);
+		UserRole role = role(itSystem);
+		User u1 = user("u1", "user1", domain);
+
+		stubPending(u1);
+		stubResolvableUsers(u1);
+		stubManualItSystems(itSystem);
+		stubRolesForItSystem(itSystem, role);
+		given(settingsService.getFirstManualITSystemRun()).willReturn(LocalDateTime.now().minusDays(1));
+		stubDefaultTemplates();
+
+		// system was already initialized (e.g. previously had zero assignments) and now gets its first real one
+		given(assignmentService.getByUserAndItSystems(eq(u1), anyList())).willReturn(Set.of(currentAssignment(u1, role, itSystem)));
+		given(manualAssignmentNotificationMapService.getForUser(DOMAIN_ID, "user1")).willReturn(List.of());
+		given(userRoleService.findAllByIdIn(any())).willReturn(Set.of());
+		given(manualAssignmentNotificationMapService.save(any())).willAnswer(inv -> inv.getArgument(0));
+
+		manualRolesService.processPendingUsers();
+
+		// an already-initialized system must not have its legitimate first assignment suppressed
+		verify(emailService, times(1)).sendMessage(eq(IT_SYSTEM_EMAIL), anyString(), anyString(), isNull());
+	}
+
+	@Test
 	@DisplayName("Inden for 3-timers cooling-off: ingen mail, men baseline-map vedligeholdes")
 	void withinCoolingOffNoMailButMapMaintained() {
 		Domain domain = domain();
@@ -444,6 +563,9 @@ class ManualRolesServiceTest {
 		itSystem.setId(IT_SYSTEM_ID);
 		itSystem.setName("Test IT System");
 		itSystem.setEmail(email);
+		// existing tests model an already-initialized system; the ROL-503 regression test above
+		// explicitly overrides this to false to reproduce a newly-eligible system
+		itSystem.setContactNotificationsInitialized(true);
 		return itSystem;
 	}
 

@@ -317,10 +317,9 @@ public class ReadOnlyApi {
 			uniqueUserRoles.putIfAbsent(assignment.getUserRole().getId(), assignment.getUserRole());
 		}
 
-		List<UserRole> roles = new ArrayList<>(uniqueUserRoles.values());
-
-		Type targetListType = new TypeToken<List<UserRoleReadDTO>>() {}.getType();
-		List<UserRoleReadDTO> result = mapper.map(roles, targetListType);
+		List<UserRoleReadDTO> result = uniqueUserRoles.values().stream()
+			.map(UserRoleReadDTO::new)
+			.collect(Collectors.toList());
 
 		return new ResponseEntity<>(result, HttpStatus.OK);
 	}
@@ -361,8 +360,9 @@ public class ReadOnlyApi {
 			return new ResponseEntity<>(HttpStatus.NOT_FOUND);
 		}
 
-		Type targetListType = new TypeToken<List<UserRoleReadDTO>>() {}.getType();
-		List<UserRoleReadDTO> result = mapper.map(roles, targetListType);
+		List<UserRoleReadDTO> result = roles.stream()
+			.map(UserRoleReadDTO::new)
+			.collect(Collectors.toList());
 
 		return new ResponseEntity<>(result, HttpStatus.OK);
 	}
@@ -462,23 +462,19 @@ public class ReadOnlyApi {
 
 	@GetMapping("/api/read/userroles/itsystems")
 	public ResponseEntity<List<UserRoleExtendedReadDTO>> getUserRolesByItSystems(@RequestBody(required = false) List<Long> itSystemIds) {
-		List<UserRole> userRoles = null;
+		List<UserRole> userRoles = new ArrayList<>();
 
 		if (itSystemIds == null) {
-			userRoles = userRoleService.getAll();
+			userRoles.addAll(userRoleService.getAll());
 		} else {
 			for (Long itSystemId : itSystemIds) {
-				if (userRoles == null) {
-					userRoles = userRoleService.getByItSystemId(itSystemId);
-				} else {
-					userRoles.addAll(userRoleService.getByItSystemId(itSystemId));
-				}
+				userRoles.addAll(userRoleService.getByItSystemId(itSystemId));
 			}
 		}
 
-
-		Type targetListType = new TypeToken<List<UserRoleExtendedReadDTO>>() {}.getType();
-		List<UserRoleExtendedReadDTO> roleDTO = mapper.map(userRoles, targetListType);
+		List<UserRoleExtendedReadDTO> roleDTO = userRoles.stream()
+			.map(UserRoleExtendedReadDTO::new)
+			.collect(Collectors.toList());
 
 		return new ResponseEntity<>(roleDTO, HttpStatus.OK);
 	}

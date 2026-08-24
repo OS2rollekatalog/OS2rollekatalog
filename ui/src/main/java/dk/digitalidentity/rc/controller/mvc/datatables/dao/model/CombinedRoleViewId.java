@@ -4,7 +4,7 @@ import java.io.Serializable;
 import java.util.Objects;
 
 public class CombinedRoleViewId implements Serializable {
-
+	private static final long serialVersionUID = 5841081431177790581L;
 	private long id;
 	private String type;
 

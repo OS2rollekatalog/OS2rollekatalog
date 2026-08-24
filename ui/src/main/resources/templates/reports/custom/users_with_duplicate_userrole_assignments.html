@@ -16,7 +16,9 @@
 				<div class="panel panel-default" id="cleanup-panel">
 					<div class="panel-heading"></div>
 					<div class="panel-body">
-						<table class="listTable table table-responsive table-striped">
+						<!-- Rækkerne renderes klientside fra et inline JSON-array (deferRender),
+						     så browseren ikke bygger DOM for alle rækker på én gang. -->
+						<table id="duplicateTable" class="table table-responsive table-striped">
 							<thead>
 								<tr>
 									<th class="col-md-2" th:text="#{html.entity.user.name}"></th>
@@ -27,21 +29,7 @@
 									<th class="col-md-1" th:text="#{html.control.operations}"></th>
 								</tr>
 							</thead>
-
-							<tbody>
-								<tr th:each="user : ${users}">
-									<td th:text="${user.name}"></td>
-									<td th:text="${user.userId}"></td>
-									<td th:text="${user.userRole.name}"></td>
-									<td th:text="${user.userRole.itSystem.name}"></td>
-									<td th:text="${user.message}"></td>
-									<td>
-										<th:block sec:authorize="hasAnyRole('ROLE_USER_ASSIGNER', 'ROLE_OU_ASSIGNER')">
-											<a th:href="@{/ui/users/manage/{uuid}(uuid=${user.uuid})}"><em class="fa fa-pencil"></em></a>
-										</th:block>
-									</td>
-								</tr>
-							</tbody>
+							<tbody></tbody>
 						</table>
 					</div>
 				</div>
@@ -50,13 +38,12 @@
 </div>
 
 <nav th:replace="~{fragments/footer :: footer}"></nav>
-<script th:replace="~{fragments/datatables :: datatables}"></script>
 
 <script th:inline="javascript">
 	/*<![CDATA[*/
 		/*[+
 			var url = [[@{/rest/users/cleanupDuplicateRoleAssignments}]];
-			
+
 			var txtTitle = [[#{html.page.report.duplicate.remove}]];
 			var txtBody = [[#{html.page.report.duplicate.remove.text}]];
 			var txtOrderConfirmed = [[#{html.page.report.duplicate.remove.confirmMessage}]];
@@ -65,10 +52,66 @@
 			var txtQueueSpinner = [[#{html.common.queue.spinner.working}]];
 			var btnNo = [[#{html.control.button.no}]];
 			var btnYes = [[#{html.control.button.yes}]];
+
+			var searchTxt = [[#{html.datatables.search}]];
+			var dropdownTxt = [[#{html.datatables.dropdown}]];
+			var infoDefaultTxt = [[#{html.datatables.info.default}]];
+			var infoEmptyTxt = [[#{html.datatables.info.empty}]];
+			var infoFilteredTxt = [[#{html.datatables.info.filtered}]];
+			var prevTxt = [[#{html.datatables.prev}]];
+			var nextTxt = [[#{html.datatables.next}]];
 		+]*/
 
 		var token = $("meta[name='_csrf']").attr("content");
-	
+
+		// Inline data-array — renderes on-demand af DataTables (deferRender)
+		var rows = /*[[${rows}]]*/ [];
+		var canEdit = /*[[${canEdit}]]*/ false;
+		var manageUrlBase = /*[[@{/ui/users/manage/}]]*/ '/ui/users/manage/';
+
+		$(document).ready(function() {
+			$('#duplicateTable').DataTable({
+				'paging':   true,
+				'ordering': true,
+				'order':    [ [0, 'asc'] ],
+				'info':     true,
+				'deferRender': true,
+				'pageLength': 100,
+				'autoWidth': false,
+				'data': rows,
+				'columns': [
+					{ 'data': 'name' },
+					{ 'data': 'userId' },
+					{ 'data': 'roleName' },
+					{ 'data': 'itSystemName' },
+					{ 'data': 'message' },
+					{
+						'data': 'uuid',
+						'orderable': false,
+						'searchable': false,
+						'render': function (data) {
+							if (!canEdit || !data) {
+								return '';
+							}
+							return '<a href="' + manageUrlBase + encodeURIComponent(data) + '"><em class="fa fa-pencil"></em></a>';
+						}
+					}
+				],
+				'language': {
+					'search':       searchTxt,
+					'lengthMenu':   dropdownTxt,
+					'info':         infoDefaultTxt,
+					'zeroRecords':  infoEmptyTxt,
+					'infoEmpty':    '',
+					'infoFiltered': infoFilteredTxt,
+					'paginate': {
+						'next': nextTxt,
+						'previous': prevTxt
+					}
+				}
+			});
+		});
+
 		function deleteDuplicates() {
             swal({
 					html: true,

@@ -116,7 +116,7 @@ public class V1_346__RecomputeOpenHistoricOuAssignmentHashes extends BaseJavaMig
 
 	private Map<Long, List<HistoricOuAssignmentExclusion>> loadExclusionsForBatch(
 			Connection conn, List<Long> ids) throws SQLException {
-		String placeholders = ids.stream().map(i -> "?").collect(Collectors.joining(","));
+		String placeholders = ids.stream().map(_ -> "?").collect(Collectors.joining(","));
 		Map<Long, List<HistoricOuAssignmentExclusion>> result = new HashMap<>();
 		try (PreparedStatement ps = conn.prepareStatement(
 				"SELECT historic_ou_assignment_id, exclusion_type, uuids " +
@@ -133,7 +133,7 @@ public class V1_346__RecomputeOpenHistoricOuAssignmentHashes extends BaseJavaMig
 					List<String> uuids = StringUtils.isEmpty(raw)
 						? Collections.emptyList()
 						: new ArrayList<>(Arrays.asList(raw.split(",")));
-					result.computeIfAbsent(assignmentId, k -> new ArrayList<>())
+					result.computeIfAbsent(assignmentId, _ -> new ArrayList<>())
 						.add(HistoricOuAssignmentExclusion.builder()
 							.exclusionType(type)
 							.uuids(uuids)

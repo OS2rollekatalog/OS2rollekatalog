@@ -45,11 +45,25 @@ public class AttestationCachedUserService {
         return userDao.findById(userUuid)
                 .map(u -> u.getPositions().stream()
                         .filter(p -> p.getOrgUnit() != null && p.getOrgUnit().getEntityId() != null && p.getOrgUnit().getEntityId().equals(ouUuid))
-                        .map(Position::getName)
+                        .map(AttestationCachedUserService::positionLabel)
+                        .filter(name -> !name.isBlank())
                         .distinct()
                         .collect(Collectors.joining(", "))
                 )
                 .orElse("ukendt");
+    }
+
+    /**
+     * Not every source fills in the position name, so fall back to the title before giving up.
+     */
+    private static String positionLabel(final Position position) {
+        if (position.getName() != null && !position.getName().isBlank()) {
+            return position.getName();
+        }
+        if (position.getTitle() != null && position.getTitle().getName() != null) {
+            return position.getTitle().getName();
+        }
+        return "";
     }
 
     @Cacheable(value = CACHE_PREFIX + "UserPrimaryPosition")
@@ -68,7 +82,10 @@ public class AttestationCachedUserService {
     public String getAllUserPositionsCached(final String userUuid) {
         return userDao.findById(userUuid)
                 .map(u -> u.getPositions().stream()
-                        .map(p -> p.getName() + "(" + p.getOrgUnit().getName() + ")")
+                        .filter(p -> p.getOrgUnit() != null)
+                        .map(p -> positionLabel(p).isBlank()
+                                ? p.getOrgUnit().getName()
+                                : positionLabel(p) + " (" + p.getOrgUnit().getName() + ")")
                         .distinct()
                         .collect(Collectors.joining(", "))
                 )

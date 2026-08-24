@@ -23,7 +23,6 @@ import dk.digitalidentity.rc.attestation.service.OrganisationAttestationService;
 import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.security.RequireAnyAttestationEligibleRole;
 import dk.digitalidentity.rc.security.SecurityUtil;
-import dk.digitalidentity.rc.service.SettingsService;
 import dk.digitalidentity.rc.service.UserService;
 import io.micrometer.core.annotation.Timed;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -56,9 +55,6 @@ public class AttestationV2Controller {
 	@Autowired
 	private ManagerDelegateAttestationService managerDelegateAttestationService;
 
-	@Autowired
-	private SettingsService settingsService;
-
 	@GetMapping(value = "/ui/attestation/v2")
 	@Timed("attestation.controller.mvc.attestation_v2_controller.index.timer")
 	public String index(Model model) {
@@ -66,7 +62,13 @@ public class AttestationV2Controller {
 		if (user == null) {
 			return "attestationmodule/error";
 		}
-		model.addAttribute("simpleAttestationRuns", attestationRunService.getLatestRuns(settingsService.getMaxAttestationsToRenderOnOverview()));
+		// Only the newest run is shown on the overview. The detail views always resolve the latest
+		// attestation per system/org-unit (findFirst...OrderByDeadlineDesc), so older runs could not be
+		// opened correctly anyway.
+		// TODO: settingsService.getMaxAttestationsToRenderOnOverview() (SETTING_SCHEDULED_ATTESTATION_OVERVIEW_MAX_RUNS_TO_RENDER)
+		// is intentionally bypassed here — it stays settable in the admin UI but has no effect on this overview
+		// until the detail views become run-aware (e.g. /itsystems/{id}?runId=...). Honor the setting again, or remove it.
+		model.addAttribute("simpleAttestationRuns", attestationRunService.getLatestRuns(1));
 		return "attestationmodule/index";
 	}
 
@@ -84,9 +86,12 @@ public class AttestationV2Controller {
 		final List<User> substituteFor = securityUtil.getManagersBySubstitute();
 		final List<AttestationOverviewDTO> systemAttestations = buildItSystemsOverviews(
 				itSystemUserRolesAttestationService.getItSystemAttestationsForUser(run, user.getUuid()), false);
-		final List<OrganisationAttestationDTO> orgAttestations = SecurityUtil.isAttestationAdminOrAdmin()
-				? orgUserAttestationService.listAllOrganisationsForAttestation(run)
-				: orgUserAttestationService.listOrganisationsForAttestation(run, user, substituteFor);
+		// Always show only the org-units the current user can actually attest (manager/substitute), also for
+		// admins. Previously admins saw ALL org-units here, but they open read-only for units the admin does
+		// not manage — which looked like missing buttons. Admins get the org-wide oversight on the dedicated
+		// admin overview (/ui/attestation/v2/admin) instead.
+		final List<OrganisationAttestationDTO> orgAttestations =
+				orgUserAttestationService.listOrganisationsForAttestation(run, user, substituteFor);
 		final List<AttestationOverviewDTO> orgsForAttestation = new ArrayList<>(
 				overviewService.buildOrgUnitsOverviews(orgAttestations, false, user.getUuid()));
 		final List<AttestationOverviewDTO> itSystemUsersAttestation = new ArrayList<>();

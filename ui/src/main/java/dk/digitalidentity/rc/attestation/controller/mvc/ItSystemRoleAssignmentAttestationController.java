@@ -1,5 +1,14 @@
 package dk.digitalidentity.rc.attestation.controller.mvc;
 
+import java.util.List;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Controller;
+import org.springframework.ui.Model;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestParam;
+
 import dk.digitalidentity.rc.attestation.model.dto.ItSystemRoleAttestationDTO;
 import dk.digitalidentity.rc.attestation.model.dto.RoleAssignmentDTO;
 import dk.digitalidentity.rc.attestation.service.ItSystemUsersAttestationService;
@@ -10,15 +19,9 @@ import dk.digitalidentity.rc.service.ItSystemService;
 import dk.digitalidentity.rc.service.SettingsService;
 import dk.digitalidentity.rc.service.UserService;
 import io.micrometer.core.annotation.Timed;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Controller;
-import org.springframework.ui.Model;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestParam;
+import lombok.extern.slf4j.Slf4j;
 
-import java.util.List;
-
+@Slf4j
 @Controller
 public class ItSystemRoleAssignmentAttestationController {
 
@@ -39,17 +42,20 @@ public class ItSystemRoleAssignmentAttestationController {
 	public String index(Model model, @PathVariable long id) {
 		User user = userService.getByUserId(SecurityUtil.getUserId());
 		if (user == null) {
+			log.warn("No user logged in");
 			return "attestationmodule/error";
 		}
 
 		ItSystem itSystem = itSystemService.getById(id);
 		if (itSystem == null) {
+			log.warn("it-system with id " + id + " does not exist");
 			return "attestationmodule/error";
 		}
 
 		List<ItSystem> managedItSystems = itSystemService.findByAttestationResponsible(user);
-		boolean isManagingThisItSystem = managedItSystems.stream().noneMatch(i -> i.getId() == id);
-		if (isManagingThisItSystem && !SecurityUtil.isAttestationAdminOrAdmin()) {
+		boolean isNotResponsibleForItSystem = managedItSystems.stream().noneMatch(i -> i.getId() == id);
+		if (isNotResponsibleForItSystem && !SecurityUtil.isAttestationAdminOrAdmin()) {
+			log.warn("No access to attestation for it-system " + id + " for user " + user.getUserId());
 			return "attestationmodule/error";
 		}
 
@@ -59,7 +65,9 @@ public class ItSystemRoleAssignmentAttestationController {
 		model.addAttribute("totalCount",attestation.getUsers().size());
 		model.addAttribute("orgUnitTotalCount", attestation.getOrgUnits().size());
 		model.addAttribute("changeRequestsEnabled", settingsService.isAttestationRequestChangesEnabled());
-		model.addAttribute("openInView", (isManagingThisItSystem && SecurityUtil.isAttestationAdminOrAdmin()));
+		// Read-only when an admin opens a system they are not responsible for, or when the attestation is
+		// already verified (opened via the "eye" on the overview) — a completed attestation cannot be re-attested.
+		model.addAttribute("openInView", attestation.getVerifiedAt() != null || (isNotResponsibleForItSystem && SecurityUtil.isAttestationAdminOrAdmin()));
 		model.addAttribute("attestationDescriptionRequired", settingsService.isAttestationDescriptionRequired());
 		return "attestationmodule/itsystems/roleAssignmentAttestation";
 	}

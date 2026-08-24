@@ -63,12 +63,8 @@ public class FunctionApiV2 {
 	@Transactional
 	public FunctionDTO create(@RequestBody @Valid @NotNull FunctionDTO function) {
 		// Functions are deleted by setting active to false, so check if this is actually an old function that is being reactivated.
-		final Function f = Optional.ofNullable(function.getUuid())
-			.flatMap(functionService::findByUuid)
-			.orElseGet(() -> {
-				function.setUuid(UUID.randomUUID().toString());
-				return FunctionMapper.functionToEntity(function);
-			});
+		final Function f = resolve(function);
+		f.setName(function.getName());
 		f.setActive(true);
 		final Function savedFunction = functionService.save(f);
 		return FunctionMapper.functionToApi(savedFunction);
@@ -106,10 +102,10 @@ public class FunctionApiV2 {
 		description = """
         Synchronizes the full list of functions. Functions not present in the payload will be deactivated.
 
-        Resolution order when no UUID is provided:
+        Resolution order for each entry:
         1. Look up by UUID if present
         2. Fall back to name lookup
-        3. Create new function with generated UUID if no match is found
+        3. Create a new function, keeping the supplied UUID, or generating one when none was supplied
         """
 	)
 	@ApiResponses(value = {
@@ -138,14 +134,7 @@ public class FunctionApiV2 {
 		// Opret eller genaktiver + opdater dem der er med
 		final List<Function> synced = functions.stream()
 			.map(dto -> {
-				final Function f = Optional.ofNullable(dto.getUuid())
-					.flatMap(functionService::findByUuid)
-					.or(() -> functionService.findByName(dto.getName()))
-					.orElseGet(() -> {
-						final Function newF = FunctionMapper.functionToEntity(dto);
-						newF.setUuid(UUID.randomUUID().toString());
-						return newF;
-					});
+				final Function f = resolve(dto);
 				f.setName(dto.getName());
 				f.setActive(true);
 				return f;
@@ -155,6 +144,24 @@ public class FunctionApiV2 {
 		return functionService.saveAll(synced).stream()
 			.map(FunctionMapper::functionToApi)
 			.collect(Collectors.toList());
+	}
+
+	/**
+	 * Resolves the function a payload entry refers to, keeping a UUID supplied by the caller so the source
+	 * system stays the owner of the identity and can stay stateless. Create and sync share this, so the two
+	 * cannot drift apart on how an entry is identified.
+	 */
+	private Function resolve(final FunctionDTO dto) {
+		return Optional.ofNullable(dto.getUuid())
+			.flatMap(functionService::findByUuid)
+			.or(() -> functionService.findByName(dto.getName()))
+			.orElseGet(() -> {
+				final Function f = FunctionMapper.functionToEntity(dto);
+				if (f.getUuid() == null || f.getUuid().isBlank()) {
+					f.setUuid(UUID.randomUUID().toString());
+				}
+				return f;
+			});
 	}
 
 }

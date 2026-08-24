@@ -31,11 +31,11 @@ public class RoleGroup implements AuditLoggable {
 
 	@Column
 	@Convert(converter = RequestableByListConverter.class)
-	private List<RequestableBy> requesterPermission = new ArrayList<>();
+	private List<RequestableBy> requesterPermission = new ArrayList<>(List.of(RequestableBy.INHERIT));
 
 	@Column
 	@Convert(converter = ApprovableByListConverter.class)
-	private List<ApprovableBy> approverPermission = new ArrayList<>();
+	private List<ApprovableBy> approverPermission = new ArrayList<>(List.of(ApprovableBy.INHERIT));
 
 	@OneToMany(mappedBy = "roleGroup", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
 	private List<RoleGroupUserRoleAssignment> userRoleAssignments;

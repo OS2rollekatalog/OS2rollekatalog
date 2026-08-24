@@ -141,7 +141,7 @@ public class XlsUtil {
 							case SELECTED_INHERITED:
 							case VALUE:								
 								values = new ArrayList<>();
-								constraintValues = constraintValue.getConstraintValueType().equals(ConstraintValueType.VALUE) ? constraintValue.getConstraintValue().split(",") : organisationConstraintUtil.getOrganisationConstraintUuids(constraintValue.getConstraintValue()).toArray(String[]::new);
+								constraintValues = constraintValue.getConstraintValueType().equals(ConstraintValueType.VALUE) ? (constraintValue.getConstraintValue() == null ? new String[0] : constraintValue.getConstraintValue().split(",")) : organisationConstraintUtil.getOrganisationConstraintUuids(constraintValue.getConstraintValue()).toArray(String[]::new);
 								for (String uuid : constraintValues) {
 									var orgUnit = instance.orgUnitService.getByUuid(uuid);
 									if (orgUnit == null) {
@@ -157,7 +157,7 @@ public class XlsUtil {
 						break;
 					case Constants.KOMBIT_ITSYSTEM_CONSTRAINT_ENTITY_ID, Constants.INTERNAL_ITSYSTEM_CONSTRAINT_ENTITY_ID:
 						values = new ArrayList<>();
-						constraintValues = constraintValue.getConstraintValue().split(",");
+						constraintValues = constraintValue.getConstraintValue() == null ? new String[0] : constraintValue.getConstraintValue().split(",");
 
 						for (String id : constraintValues) {
 							ItSystem itSystem = null;
@@ -212,7 +212,7 @@ public class XlsUtil {
 							case SELECTED_INHERITED:
 							case VALUE:
 								values = new ArrayList<>();
-								constraintValues = constraintValue.getConstraintValueType().equals(ConstraintValueType.VALUE) ? constraintValue.getConstraintValue().split(",") : organisationConstraintUtil.getOrganisationConstraintUuids(constraintValue.getConstraintValue()).toArray(String[]::new);
+								constraintValues = constraintValue.getConstraintValueType().equals(ConstraintValueType.VALUE) ? (constraintValue.getConstraintValue() == null ? new String[0] : constraintValue.getConstraintValue().split(",")) : organisationConstraintUtil.getOrganisationConstraintUuids(constraintValue.getConstraintValue()).toArray(String[]::new);
 								for (String uuid : constraintValues) {
 									OrgUnit ou = null;
 									try {

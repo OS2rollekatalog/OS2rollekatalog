@@ -10,6 +10,7 @@ import dk.digitalidentity.rc.controller.rest.model.OUFilterDTO;
 import dk.digitalidentity.rc.security.permission.RequirePermission;
 import dk.digitalidentity.rc.service.RoleGroupViewService;
 import dk.digitalidentity.rc.service.assignment.AssignmentService;
+import dk.digitalidentity.rc.service.assignment.CurrentAssignmentService;
 import org.springframework.data.jpa.datatables.mapping.DataTablesInput;
 import org.springframework.data.jpa.datatables.mapping.DataTablesOutput;
 import org.springframework.http.HttpStatus;
@@ -59,6 +60,7 @@ public class RolegroupRestController {
 	private final RolegroupValidator rolegroupValidator;
 	private final RoleGroupViewService roleGroupViewService;
 	private final AssignmentService assignmentService;
+	private final CurrentAssignmentService currentAssignmentService;
 
 	@InitBinder
 	public void initBinder(WebDataBinder binder) {
@@ -174,6 +176,7 @@ public class RolegroupRestController {
     // we have to use deprecated method to ensure that we update inactive users and assignments
     @PostMapping(value = "/rest/rolegroups/delete/{id}")
 	@RequirePermission(section = Section.ROLE_GROUP, permission = Permission.DELETE)
+    @Transactional
     public ResponseEntity<String> deleteRolegroup(@PathVariable("id") long id) {
         RoleGroup roleGroup = roleGroupService.getById(id);
         if (roleGroup == null) {
@@ -198,6 +201,7 @@ public class RolegroupRestController {
 			userService.save(user);
 		}
 
+		currentAssignmentService.deleteAllForRoleGroup(roleGroup);
 		roleGroupService.delete(roleGroup);
 
 		return new ResponseEntity<>(HttpStatus.OK);

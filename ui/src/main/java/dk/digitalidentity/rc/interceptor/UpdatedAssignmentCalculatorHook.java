@@ -1,5 +1,11 @@
 package dk.digitalidentity.rc.interceptor;
 
+import java.util.List;
+import java.util.Set;
+
+import org.springframework.context.annotation.Profile;
+import org.springframework.stereotype.Component;
+
 import dk.digitalidentity.rc.dao.model.OrgUnit;
 import dk.digitalidentity.rc.dao.model.OrgUnitRoleGroupAssignment;
 import dk.digitalidentity.rc.dao.model.OrgUnitUserRoleAssignment;
@@ -16,10 +22,6 @@ import dk.digitalidentity.rc.service.assignment.AssignmentService;
 import dk.digitalidentity.rc.service.assignment.HistoricItSystemAssignmentService;
 import dk.digitalidentity.rc.service.assignment.HistoricOuAssignmentService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.context.annotation.Profile;
-import org.springframework.stereotype.Component;
-
-import java.util.Set;
 
 @Component
 @Profile("!test")
@@ -31,12 +33,19 @@ public class UpdatedAssignmentCalculatorHook implements RoleChangeHook {
 	private final HistoricOuAssignmentService historicOuAssignmentService;
 	private final HistoricItSystemAssignmentService historicItSystemAssignmentService;
 
-
 	/**
 	 * @param user user relevant for the changes in assignment
 	 */
 	@Override
 	public void interceptActivateUser(User user) {
+		addUserUuidToAssignmentCalculatorQueue(user.getUuid());
+	}
+
+	/**
+	 * @param user user relevant for the changes in assignment
+	 */
+	@Override
+	public void interceptCreateUser(User user) {
 		addUserUuidToAssignmentCalculatorQueue(user.getUuid());
 	}
 
@@ -170,10 +179,19 @@ public class UpdatedAssignmentCalculatorHook implements RoleChangeHook {
 	 */
 	@Override
 	public void interceptRemoveRoleGroupAssignmentOnOrgUnit(OrgUnit ou, RoleGroup roleGroup) {
-		ou.getRoleGroupAssignments().stream()
+		List<OrgUnitRoleGroupAssignment> removedAssignments = ou.getRoleGroupAssignments().stream()
 			.filter(a -> a.getRoleGroup().getId() == roleGroup.getId())
-			.forEach(a -> historicOuAssignmentService.recordRoleGroupRemoved(ou, a));
-		Set<String> userUuids = orgUnitService.findUserUuidsForOu(ou, false);
+			.toList();
+		removedAssignments.forEach(a -> historicOuAssignmentService.recordRoleGroupRemoved(ou, a));
+		// Only recalculate descendant OU users when the removed assignment was inherited; a
+		// non-inherited role group only affects users directly in this OU, so recalculating the whole
+		// subtree would be wasted work. If it was inherited and we skip descendants, those users keep
+		// the role group until an unrelated change triggers a recalculation (the reported bug).
+		// This hook gets no inherit parameter (unlike the add path), so we read it off the assignment
+		// which is still present at @Before time. If the same role group is assigned multiple times,
+		// any inherited assignment means descendants must be included.
+		boolean inherit = removedAssignments.stream().anyMatch(OrgUnitRoleGroupAssignment::isInherit);
+		Set<String> userUuids = orgUnitService.findUserUuidsForOu(ou, inherit);
 		addMultipleUsersToAssignmentCalculatorQueue(userUuids);
 	}
 

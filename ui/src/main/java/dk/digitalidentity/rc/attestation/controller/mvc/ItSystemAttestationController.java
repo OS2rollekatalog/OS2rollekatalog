@@ -50,8 +50,11 @@ public class ItSystemAttestationController {
 		if (!SecurityUtil.isAttestationAdminOrAdmin() && (responsibleUuids.isEmpty() || !responsibleUuids.contains(user.getUuid()))) {
 			return "attestationmodule/error";
 		}
-		boolean openInView = SecurityUtil.isAttestationAdminOrAdmin() && (responsibleUuids.isEmpty() || !responsibleUuids.contains(user.getUuid()));
 		ItSystemAttestationDTO attestation = attestationService.getAttestation(id, true);
+		// Read-only when an admin opens a system they are not responsible for, or when the attestation is
+		// already verified (opened via the "eye" on the overview) — a completed attestation cannot be re-attested.
+		boolean openInView = attestation.getVerifiedAt() != null
+				|| (SecurityUtil.isAttestationAdminOrAdmin() && (responsibleUuids.isEmpty() || !responsibleUuids.contains(user.getUuid())));
 		model.addAttribute("openInView", openInView);
 		model.addAttribute("itsystem", attestation);
 		model.addAttribute("totalCount", attestation.getUserRoles().size());

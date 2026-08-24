@@ -2,6 +2,7 @@ package dk.digitalidentity.rc.service.assignment;
 
 import dk.digitalidentity.rc.dao.assignment.CurrentAssignmentDao;
 import dk.digitalidentity.rc.dao.model.User;
+import dk.digitalidentity.rc.dao.model.UserRole;
 import dk.digitalidentity.rc.dao.model.assignment.CurrentAssignment;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -217,6 +218,59 @@ class CurrentAssignmentServiceTest {
 			// only userA's new assignment should be created
 			assertThat(saveCaptor.getValue().stream().map(CurrentAssignment::getRecordHash).collect(Collectors.toSet()))
 				.containsExactly("hash-a-new");
+		}
+
+		@Test
+		@DisplayName("should return affected userRole ids from both deleted and created assignments")
+		void shouldReturnAffectedUserRoleIds() {
+			// ---- Given ---- //
+			CurrentAssignment existingToDelete = createCurrentAssignment(1L, "old-hash", testUser);
+			existingToDelete.setUserRole(userRoleWithId(10L));
+			CurrentAssignment newToCreate = createCurrentAssignment(null, "new-hash", testUser);
+			newToCreate.setUserRole(userRoleWithId(20L));
+
+			given(currentAssignmentDao.findByUserIn(Set.of(testUser)))
+				.willReturn(new HashSet<>(List.of(existingToDelete)));
+
+			// ---- When ---- //
+			CurrentAssignmentChangeResult result = currentAssignmentService.saveAllForUsers(Map.of(testUser, Set.of(newToCreate)));
+
+			// ---- Then ---- //
+			assertThat(result.affectedUserRoleIds()).containsExactlyInAnyOrder(10L, 20L);
+			assertThat(result.changedUsers()).containsExactly(testUser);
+		}
+
+		@Test
+		@DisplayName("should ignore assignments without a userRole (role-group-only rows)")
+		void shouldIgnoreNullUserRole() {
+			// ---- Given ---- //
+			CurrentAssignment existingToDelete = createCurrentAssignment(1L, "old-hash", testUser);
+			existingToDelete.setUserRole(null); // role-group-only row maps to no AD/KSP group
+
+			given(currentAssignmentDao.findByUserIn(Set.of(testUser)))
+				.willReturn(new HashSet<>(List.of(existingToDelete)));
+
+			// ---- When ---- //
+			CurrentAssignmentChangeResult result = currentAssignmentService.saveAllForUsers(Map.of(testUser, Set.of()));
+
+			// ---- Then ---- //
+			assertThat(result.affectedUserRoleIds()).isEmpty();
+			assertThat(result.changedUsers()).containsExactly(testUser);
+		}
+
+		@Test
+		@DisplayName("should return empty result for empty input")
+		void shouldReturnEmptyResultForEmptyInput() {
+			CurrentAssignmentChangeResult result = currentAssignmentService.saveAllForUsers(Map.of());
+
+			assertThat(result.changedUsers()).isEmpty();
+			assertThat(result.affectedUserRoleIds()).isEmpty();
+		}
+
+		private UserRole userRoleWithId(long id) {
+			UserRole userRole = new UserRole();
+			userRole.setId(id);
+			return userRole;
 		}
 	}
 }

@@ -467,6 +467,51 @@ class RequestServiceTest {
 				// Assert
 				assertThat(result).isFalse();
 			}
+
+			@Test
+			@DisplayName("Ignores role orgUnit filter when it is disabled, even if stale filter OUs remain")
+			void ignoresRoleOrgUnitFilterWhenDisabledDespiteStaleFilterOus() {
+				// Arrange - the OU filter is turned OFF but the join table still holds OUs (e.g. left
+				// over after disabling the filter). canRequest must ignore the filter entirely. This is
+				// the exact contract the "all roles" datatable view must mirror, otherwise the role
+				// shows under "Recommended" but disappears from "All" (see R__view_datatables_userroles.sql).
+				securityUtilMock.when(SecurityUtil::getUserId).thenReturn("requester-user-id");
+
+				ItSystem itSystem = createItSystem("it-system-uuid", List.of(), List.of(RequestableBy.EMPLOYEE));
+				UserRole role = createUserRole("role-uuid", itSystem, List.of(), List.of(RequestableBy.EMPLOYEE));
+				role.setOuFilterEnabled(false);
+				role.setOrgUnitFilterOrgUnits(List.of(allowedOrgUnit)); // stale rows left behind
+				when(userService.getOptionalByUserId("requester-user-id")).thenReturn(Optional.of(receivingUser));
+
+				OrgUnit differentOrgUnit = createOrgUnit("different-orgunit-uuid", null);
+
+				// Act - requesting for self, receiver sits in an OU that is NOT in the stale filter
+				boolean result = requestService.canRequest(role, receivingUser, differentOrgUnit, List.of(RequestableBy.EMPLOYEE));
+
+				// Assert
+				assertThat(result).isTrue();
+			}
+
+			@Test
+			@DisplayName("Ignores IT system orgUnit filter when it is disabled, even if stale filter OUs remain")
+			void ignoresItSystemOrgUnitFilterWhenDisabledDespiteStaleFilterOus() {
+				// Arrange - same as above but the stale filter sits on the IT system.
+				securityUtilMock.when(SecurityUtil::getUserId).thenReturn("requester-user-id");
+
+				ItSystem itSystem = createItSystem("it-system-uuid", List.of(), List.of(RequestableBy.EMPLOYEE));
+				itSystem.setOuFilterEnabled(false);
+				itSystem.setOrgUnitFilterOrgUnits(List.of(allowedOrgUnit)); // stale rows left behind
+				UserRole role = createUserRole("role-uuid", itSystem, List.of(), List.of(RequestableBy.EMPLOYEE));
+				when(userService.getOptionalByUserId("requester-user-id")).thenReturn(Optional.of(receivingUser));
+
+				OrgUnit differentOrgUnit = createOrgUnit("different-orgunit-uuid", null);
+
+				// Act
+				boolean result = requestService.canRequest(role, receivingUser, differentOrgUnit, List.of(RequestableBy.EMPLOYEE));
+
+				// Assert
+				assertThat(result).isTrue();
+			}
 		}
 
 		@Nested
@@ -674,6 +719,123 @@ class RequestServiceTest {
 				// Assert
 				assertThat(result).isFalse();
 			}
+		}
+	}
+
+	@Nested
+	@DisplayName("canRequestRemoval does not apply the OU filter to removals")
+	class CanRequestRemoval {
+
+		private User receivingUser;
+		private OrgUnit filteredOrgUnit;   // the role's filter unit, e.g. "By, teknik og miljø"
+		private OrgUnit receiverOrgUnit;   // the receiver's actual unit, a child covered by the filter
+
+		@BeforeEach
+		void setUp() {
+			securityUtilMock.when(SecurityUtil::hasDirectAdminRole).thenReturn(false);
+			securityUtilMock.when(() -> SecurityUtil.hasRole(any())).thenReturn(false);
+			securityUtilMock.when(SecurityUtil::getUserId).thenReturn("substitute-user-id");
+
+			receivingUser = createUser("receiver-uuid");
+			filteredOrgUnit = createOrgUnit("filtered-orgunit-uuid", null);
+			receiverOrgUnit = createOrgUnit("child-orgunit-uuid", filteredOrgUnit);
+		}
+
+		@Test
+		@DisplayName("UserRole: substitute may request removal of a directly-assigned filtered role when the receiver sits in a covered child unit")
+		void allowsUserRoleRemovalWhenReceiverInCoveredChildUnit() {
+			// Arrange
+			ItSystem itSystem = createItSystem("it-system-uuid", List.of(), List.of(RequestableBy.MANAGERORSUBSTITUTE));
+			UserRole role = createUserRole("role-uuid", itSystem, List.of(), List.of(RequestableBy.MANAGERORSUBSTITUTE));
+			role.setOuFilterEnabled(true);
+			role.setOrgUnitFilterOrgUnits(List.of(filteredOrgUnit));
+			// a filter on the parent unit covers its child unit
+			when(userRoleService.getOUFilterUuidsWithChildren(role)).thenReturn(List.of("filtered-orgunit-uuid", "child-orgunit-uuid"));
+
+			User substitute = createUser("substitute-uuid");
+			substitute.setUserId("substitute-user-id");
+			when(userService.getOptionalByUserId("substitute-user-id")).thenReturn(Optional.of(substitute));
+			when(userService.isManagerOrSubstituteManagerFor(substitute, receivingUser)).thenReturn(true);
+
+			when(orgUnitService.getOrgUnitsForUser(receivingUser)).thenReturn(List.of(receiverOrgUnit));
+
+			// A direct assignment carries no org unit, so the request-side check with a null OU denies it ...
+			assertThat(requestService.canRequest(role, receivingUser, null, List.of(RequestableBy.MANAGERORSUBSTITUTE))).isFalse();
+
+			// Act - ... but removal evaluates the filter against the receiver's actual unit and allows it.
+			boolean result = requestService.canRequestRemoval(role, receivingUser, List.of(RequestableBy.MANAGERORSUBSTITUTE));
+
+			// Assert
+			assertThat(result).isTrue();
+		}
+
+		@Test
+		@DisplayName("UserRole: removal is allowed even when none of the receiver's units are covered by the filter")
+		void allowsUserRoleRemovalEvenWhenReceiverOutsideFilter() {
+			// Arrange
+			ItSystem itSystem = createItSystem("it-system-uuid", List.of(), List.of(RequestableBy.MANAGERORSUBSTITUTE));
+			UserRole role = createUserRole("role-uuid", itSystem, List.of(), List.of(RequestableBy.MANAGERORSUBSTITUTE));
+			role.setOuFilterEnabled(true);
+			role.setOrgUnitFilterOrgUnits(List.of(filteredOrgUnit));
+
+			User substitute = createUser("substitute-uuid");
+			substitute.setUserId("substitute-user-id");
+			when(userService.getOptionalByUserId("substitute-user-id")).thenReturn(Optional.of(substitute));
+			when(userService.isManagerOrSubstituteManagerFor(substitute, receivingUser)).thenReturn(true);
+
+			OrgUnit unrelatedOrgUnit = createOrgUnit("unrelated-orgunit-uuid", null);
+			when(orgUnitService.getOrgUnitsForUser(receivingUser)).thenReturn(List.of(unrelatedOrgUnit));
+
+			// Act - the OU filter does not gate removals, so the substitute may still request removal.
+			boolean result = requestService.canRequestRemoval(role, receivingUser, List.of(RequestableBy.MANAGERORSUBSTITUTE));
+
+			// Assert
+			assertThat(result).isTrue();
+		}
+
+		@Test
+		@DisplayName("UserRole: removal of a non-filtered role is unaffected even when the receiver has no org units")
+		void allowsUserRoleRemovalWithoutFilterWhenReceiverHasNoOrgUnits() {
+			// Arrange
+			ItSystem itSystem = createItSystem("it-system-uuid", List.of(), List.of(RequestableBy.MANAGERORSUBSTITUTE));
+			UserRole role = createUserRole("role-uuid", itSystem, List.of(), List.of(RequestableBy.MANAGERORSUBSTITUTE));
+
+			User substitute = createUser("substitute-uuid");
+			substitute.setUserId("substitute-user-id");
+			when(userService.getOptionalByUserId("substitute-user-id")).thenReturn(Optional.of(substitute));
+			when(userService.isManagerOrSubstituteManagerFor(substitute, receivingUser)).thenReturn(true);
+
+			when(orgUnitService.getOrgUnitsForUser(receivingUser)).thenReturn(List.of());
+
+			// Act
+			boolean result = requestService.canRequestRemoval(role, receivingUser, List.of(RequestableBy.MANAGERORSUBSTITUTE));
+
+			// Assert
+			assertThat(result).isTrue();
+		}
+
+		@Test
+		@DisplayName("RoleGroup: substitute may request removal of a directly-assigned filtered role group when the receiver sits in a covered unit")
+		void allowsRoleGroupRemovalWhenReceiverInCoveredUnit() {
+			// Arrange
+			UserRole userRole = createUserRole("role-uuid", createItSystem("it-system-uuid", List.of()), List.of());
+			RoleGroup roleGroup = createRoleGroup(1L, List.of(userRole), List.of(), List.of(RequestableBy.MANAGERORSUBSTITUTE));
+			roleGroup.setOuFilterEnabled(true);
+			// the RoleGroup OU filter is matched directly (no child expansion), so list the covered unit explicitly
+			roleGroup.setOrgUnitFilterOrgUnits(List.of(filteredOrgUnit, receiverOrgUnit));
+
+			User substitute = createUser("substitute-uuid");
+			substitute.setUserId("substitute-user-id");
+			when(userService.getOptionalByUserId("substitute-user-id")).thenReturn(Optional.of(substitute));
+			when(userService.isManagerOrSubstituteManagerFor(substitute, receivingUser)).thenReturn(true);
+
+			when(orgUnitService.getOrgUnitsForUser(receivingUser)).thenReturn(List.of(receiverOrgUnit));
+
+			// Act
+			boolean result = requestService.canRequestRemoval(substitute, roleGroup, receivingUser);
+
+			// Assert
+			assertThat(result).isTrue();
 		}
 	}
 

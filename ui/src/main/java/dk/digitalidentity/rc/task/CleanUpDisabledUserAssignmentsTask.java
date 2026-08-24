@@ -12,8 +12,10 @@ import org.springframework.stereotype.Component;
 @EnableScheduling
 @Slf4j
 public class CleanUpDisabledUserAssignmentsTask {
+	
 	@Autowired
 	private RoleCatalogueConfiguration configuration;
+
 	@Autowired
 	private UserService userService;
 

@@ -24,9 +24,11 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDate;
 import java.time.ZonedDateTime;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -69,8 +71,23 @@ public class ItSystemUserRolesAttestationService {
                 });
     }
 
+    /**
+     * The it-systems the given user is CURRENTLY attestation responsible for, resolved in a single query.
+     */
+    private Set<Long> liveResponsibleItSystemIds(final String userUuid) {
+        return userService.getOptionalByUuid(userUuid)
+                .map(user -> itSystemService.findByAttestationResponsible(user).stream()
+                        .map(ItSystem::getId)
+                        .collect(Collectors.toSet()))
+                .orElseGet(Collections::emptySet);
+    }
+
     @Transactional
     public List<ItSystemAttestationDTO> getItSystemAttestationsForUser(final AttestationRun run, final String userUuid) {
+        // The responsible collection is only a snapshot from when the run was created. Responsibility can change
+        // afterwards (e.g. via Kitos-sync), so we additionally require that the user is STILL responsible for the
+        // it-system. Resolved once up front to avoid an N+1 query.
+        final Set<Long> liveResponsibleItSystemIds = liveResponsibleItSystemIds(userUuid);
         return run.getAttestations().stream()
                 .filter(a -> a.getAttestationType().equals(Attestation.AttestationType.IT_SYSTEM_ROLES_ATTESTATION) && a.getResponsibleCollectionId() != null)
 				.filter(a -> {
@@ -79,6 +96,10 @@ public class ItSystemUserRolesAttestationService {
 						.map(collection -> collection.getUsersUuid().contains(userUuid))
 						.orElse(false);
 				})
+				// Keeps the list consistent with the access checks done when opening
+				// (ItSystemAttestationController) and when verifying/rejecting (findAttestation), so a
+				// no-longer-responsible user no longer sees systems that throw "noget går galt" on click.
+				.filter(a -> liveResponsibleItSystemIds.contains(a.getItSystemId()))
                 .map(a -> {
                     final List<AttestationSystemRoleAssignment> systemRoleAssignments =
                             attestationSystemRoleAssignmentDAO.listValidAttestationsByResponsibleCollection(a.getCreatedAt(), a.getResponsibleCollectionId());
@@ -108,9 +129,13 @@ public class ItSystemUserRolesAttestationService {
         final Attestation attestation = attestationDao.findFirstByAttestationTypeAndItSystemIdOrderByDeadlineDesc(
                 Attestation.AttestationType.IT_SYSTEM_ROLES_ATTESTATION, itSystemId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Attestation not found"));
+        // When the attestation is already verified (completed) we are in read-only view mode (the "eye"
+        // on the overview). Showing only undecided roles would yield an empty page since everything has
+        // been attested, so in that case we show all roles instead.
+        final boolean undecidedOnly = undecidedUserRolesOnly && attestation.getVerifiedAt() == null;
         try (Stream<AttestationSystemRoleAssignment> validAttestationsByItSystemId = attestationSystemRoleAssignmentDAO.streamValidAttestationsByItSystemId(attestation.getCreatedAt(), itSystemId)) {
             final List<AttestationSystemRoleAssignment> systemRoleAssignments = validAttestationsByItSystemId
-                    .filter(a -> !undecidedUserRolesOnly || !hasRoleAssignmentAttestationBeenPerformed(attestation, a))
+                    .filter(a -> !undecidedOnly || !hasRoleAssignmentAttestationBeenPerformed(attestation, a))
                     .toList();
             return toItSystemAttestationDto(attestation, systemRoleAssignments);
         }

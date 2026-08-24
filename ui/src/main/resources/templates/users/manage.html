@@ -254,7 +254,7 @@
 		function RolesService() {
 			this.loadRolesFragment = function () {
 				$("#roles_menu").load(UIUrl + user + "/roles", function () {
-					hideColumn = [1,6];
+					hideColumn = [2,5,6];
 					currentTable = showDataTableWithHiddenColumns('#listTable', 0, hideColumn, 100, "user_manage_list_of_roles");
 					dataTablesRefreshIcons($('#dataTableDropdown'));
 
@@ -391,6 +391,12 @@
 					const searchInput = table.table().container().querySelector('.dataTables_filter input')
 					searchInput.focus()
 				});
+			}
+
+			this.loadAddRoleGroupFragmentWhenReady = function () {
+				const spinner = new QueueDrainService('#roles_menu', { messageId: user, message: txtQueueSpinner });
+				spinner.show();
+				spinner.watch(() => rolesService.loadAddRoleGroupFragment());
 			}
 
 			this.loadAddRoleGroupFragment = function () {

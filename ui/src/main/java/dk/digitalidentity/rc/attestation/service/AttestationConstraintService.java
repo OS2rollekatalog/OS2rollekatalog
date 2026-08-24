@@ -3,6 +3,7 @@ package dk.digitalidentity.rc.attestation.service;
 import dk.digitalidentity.rc.attestation.model.dto.SystemRoleConstraintDTO;
 import dk.digitalidentity.rc.dao.ItSystemDao;
 import dk.digitalidentity.rc.dao.OrgUnitDao;
+import dk.digitalidentity.rc.util.PostponedConstraintsFormatter;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.MessageSource;
@@ -22,6 +23,19 @@ public class AttestationConstraintService {
     private OrgUnitDao orgUnitDao;
     @Autowired
     private MessageSource messageSource;
+    @Autowired
+    private AttestationCachedOuService attestationCachedOuService;
+
+    /**
+     * Translates a stored postponed-constraints snapshot string (e.g. "Organisation: &lt;uuid&gt;,&lt;uuid&gt;\nKLE: 00.01")
+     * by replacing any UUID-shaped value with the corresponding org unit name, so old snapshot rows
+     * display correctly without needing a data migration. Values that are not UUIDs, or UUIDs that
+     * don't resolve to an org unit (e.g. trust functions, see #85), pass through unchanged.
+     */
+    public String translatePostponedConstraints(final String postponedConstraints) {
+        return PostponedConstraintsFormatter.translate(postponedConstraints,
+                uuid -> attestationCachedOuService.ouNameFromUuidCached(uuid).orElse(uuid));
+    }
 
     public String caption(final SystemRoleConstraintDTO systemRoleConstraintDTO) {
         final Locale locale = LocaleContextHolder.getLocale();

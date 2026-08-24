@@ -1,12 +1,23 @@
 package dk.digitalidentity.rc.attestation.service.report;
 
+import dk.digitalidentity.rc.attestation.dao.AttestationDao;
+import dk.digitalidentity.rc.attestation.dao.AttestationResponsibleCollectionDao;
 import dk.digitalidentity.rc.attestation.dao.AttestationUserRoleAssignmentDao;
+import dk.digitalidentity.rc.attestation.model.dto.ITSystemRoleBuildAttestationDTO;
 import dk.digitalidentity.rc.attestation.model.dto.RoleAssignmentReportRowDTO;
+import dk.digitalidentity.rc.attestation.model.dto.enums.AttestationStatus;
 import dk.digitalidentity.rc.attestation.model.dto.enums.RoleStatus;
 import dk.digitalidentity.rc.attestation.model.dto.temporal.AttestationUserRoleAssignmentDto;
 import dk.digitalidentity.rc.attestation.model.entity.Attestation;
+import dk.digitalidentity.rc.attestation.model.entity.AttestationResponsibleCollection;
 import dk.digitalidentity.rc.attestation.model.entity.temporal.AssignedThroughType;
 import dk.digitalidentity.rc.attestation.service.AttestationCachedUserService;
+import dk.digitalidentity.rc.attestation.service.AttestationConstraintService;
+import dk.digitalidentity.rc.dao.model.ItSystem;
+import dk.digitalidentity.rc.dao.model.UserRole;
+import dk.digitalidentity.rc.service.ItSystemService;
+import dk.digitalidentity.rc.service.UserRoleService;
+import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -21,10 +32,14 @@ import java.time.ZonedDateTime;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyLong;
@@ -45,6 +60,24 @@ class AttestationReportServiceTest {
 
 	@Mock
 	private AttestationReportContextService attestationReportContextService;
+
+	@Mock
+	private AttestationConstraintService attestationConstraintService;
+
+	@Mock
+	private ItSystemService itSystemService;
+
+	@Mock
+	private UserRoleService userRoleService;
+
+	@Mock
+	private AttestationDao attestationDao;
+
+	@Mock
+	private AttestationResponsibleCollectionDao attestationResponsibleCollectionDao;
+
+	@Mock
+	private EntityManager entityManager;
 
 	@InjectMocks
 	private AttestationReportService attestationReportService;
@@ -147,9 +180,9 @@ class AttestationReportServiceTest {
 					"Test IT System",              // itSystemName
 					null,                          // responsibleUserUuid
 					"Responsible OU",              // responsibleOuName
-					"ou-uuid",                     // roleOuUuid
+					"role-ou-uuid",                // roleOuUuid - rollens enhed, kan ligge højere i hierarkiet
 					"Test OU",                     // roleOuName
-					null,                          // responsibleOuUuid
+					"ou-uuid",                     // responsibleOuUuid - brugerens egen enhed
 					AssignedThroughType.DIRECT,    // assignedThroughType
 					"Direct Assignment",           // assignedThroughName
 					null,                          // assignedThroughUuid
@@ -161,6 +194,7 @@ class AttestationReportServiceTest {
 			);
 
 			when(attestationUserRoleAssignmentDao.findByIdIn(rowIds)).thenReturn(List.of(assignment));
+			// Opslag i den ansvarlige enhed, ikke i rollens - ellers er kolonnen tom for nedarvede roller.
 			when(cachedUserService.getUserPositionsCached("user-uuid", "ou-uuid")).thenReturn("Developer");
 
 			// Act
@@ -199,6 +233,101 @@ class AttestationReportServiceTest {
 			assertEquals(1, result.size());
 			// Verify context was created with date one year before 'when'
 			verify(attestationReportContextService).createContext(when.minusYears(1));
+		}
+	}
+
+	@Nested
+	@DisplayName("getAllRolesReportModel() Tests")
+	class GetAllRolesReportModelTests {
+
+		@Test
+		@DisplayName("Should return fully populated row when it-system has no attestation in the period")
+		void getAllRolesReportModel_WhenNoAttestation_ShouldStillPopulateRow() {
+			// Arrange
+			ItSystem itSystem = itSystem(100L, "KMD Opus");
+			UserRole userRole = userRole(1L, "Lønmedarbejder");
+			when(itSystemService.findAllForAttestation()).thenReturn(List.of(itSystem));
+			when(attestationDao.findItSystemRoleAttestations(eq(100L), any(), any())).thenReturn(Collections.emptyList());
+			when(userRoleService.getByItSystem(itSystem)).thenReturn(List.of(userRole));
+
+			// Act
+			List<ITSystemRoleBuildAttestationDTO> rows = allRolesRows();
+
+			// Assert - the xls view joins these lists and reads the status, so they must never be null
+			assertEquals(1, rows.size());
+			ITSystemRoleBuildAttestationDTO row = rows.get(0);
+			assertNotNull(row.getResponsibleUserNames());
+			assertTrue(row.getResponsibleUserNames().isEmpty());
+			assertEquals(AttestationStatus.NOT_VERIFIED, row.getAttestationStatus());
+		}
+
+		@Test
+		@DisplayName("Should resolve responsible users to names, not uuids")
+		void getAllRolesReportModel_WithResponsibleCollection_ShouldReturnUserNames() {
+			// Arrange
+			ItSystem itSystem = itSystem(100L, "KMD Opus");
+			UserRole userRole = userRole(1L, "Lønmedarbejder");
+			Attestation attestation = new Attestation();
+			attestation.setResponsibleCollectionId(7L);
+			AttestationResponsibleCollection collection = new AttestationResponsibleCollection();
+			collection.setUsersUuid(List.of("uuid-1"));
+
+			when(itSystemService.findAllForAttestation()).thenReturn(List.of(itSystem));
+			when(attestationDao.findItSystemRoleAttestations(eq(100L), any(), any())).thenReturn(List.of(attestation));
+			when(userRoleService.getByItSystem(itSystem)).thenReturn(List.of(userRole));
+			when(attestationResponsibleCollectionDao.findById(7L)).thenReturn(Optional.of(collection));
+			when(cachedUserService.userNameFromUuidCached("uuid-1")).thenReturn("Camilla Kronborg Sode");
+
+			// Act
+			List<ITSystemRoleBuildAttestationDTO> rows = allRolesRows();
+
+			// Assert
+			assertEquals(1, rows.size());
+			assertEquals(List.of("Camilla Kronborg Sode"), rows.get(0).getResponsibleUserNames());
+		}
+
+		@Test
+		@DisplayName("Should return no responsible users when the attestation has no responsible collection")
+		void getAllRolesReportModel_WithoutResponsibleCollection_ShouldReturnEmptyList() {
+			// Arrange
+			ItSystem itSystem = itSystem(100L, "KMD Opus");
+			UserRole userRole = userRole(1L, "Lønmedarbejder");
+			Attestation attestation = new Attestation();
+			attestation.setResponsibleCollectionId(null);
+
+			when(itSystemService.findAllForAttestation()).thenReturn(List.of(itSystem));
+			when(attestationDao.findItSystemRoleAttestations(eq(100L), any(), any())).thenReturn(List.of(attestation));
+			when(userRoleService.getByItSystem(itSystem)).thenReturn(List.of(userRole));
+
+			// Act
+			List<ITSystemRoleBuildAttestationDTO> rows = allRolesRows();
+
+			// Assert
+			assertEquals(1, rows.size());
+			assertNotNull(rows.get(0).getResponsibleUserNames());
+			assertTrue(rows.get(0).getResponsibleUserNames().isEmpty());
+		}
+
+		@SuppressWarnings("unchecked")
+		private List<ITSystemRoleBuildAttestationDTO> allRolesRows() {
+			LocalDate when = LocalDate.now();
+			Map<String, Object> model = attestationReportService.getAllRolesReportModel(Locale.of("da"), when.minusYears(1), when);
+			return (List<ITSystemRoleBuildAttestationDTO>) model.get("itSystemRoleAttestationDTO");
+		}
+
+		private ItSystem itSystem(long id, String name) {
+			ItSystem itSystem = new ItSystem();
+			itSystem.setId(id);
+			itSystem.setName(name);
+			return itSystem;
+		}
+
+		private UserRole userRole(long id, String name) {
+			UserRole userRole = new UserRole();
+			userRole.setId(id);
+			userRole.setName(name);
+			userRole.setSystemRoleAssignments(Collections.emptyList());
+			return userRole;
 		}
 	}
 
@@ -274,7 +403,7 @@ class AttestationReportServiceTest {
 				"Responsible OU",              // responsibleOuName
 				"ou-uuid",                     // roleOuUuid
 				"Test OU",                     // roleOuName
-				null,                          // responsibleOuUuid
+				"ou-uuid",                     // responsibleOuUuid
 				AssignedThroughType.DIRECT,    // assignedThroughType
 				"Direct Assignment",           // assignedThroughName
 				null,                          // assignedThroughUuid

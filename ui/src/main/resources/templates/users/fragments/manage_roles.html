@@ -7,13 +7,13 @@
 
 			<ul class="dropdown-menu" role="menu" id="dataTableDropdown">
 				<li><a href="#" data-cid="0" onclick="return dataTablesToggleColumn(this);"><em class="fa fa-fw"></em><span th:text="#{html.page.users.manage.assignment.name}"></span></a></li>
-				<li><a href="#" data-cid="1" onclick="return dataTablesToggleColumn(this);"><em class="fa fa-fw"></em><span th:text="#{html.page.users.manage.assignment.postponed}"></span></a></li>
-				<li><a href="#" data-cid="2" onclick="return dataTablesToggleColumn(this);"><em class="fa fa-fw"></em><span th:text="#{html.enum.assignmenttype}"></span></a></li>
+				<li><a href="#" data-cid="1" onclick="return dataTablesToggleColumn(this);"><em class="fa fa-fw"></em><span th:text="#{html.enum.assignmenttype}"></span></a></li>
+				<li><a href="#" data-cid="2" onclick="return dataTablesToggleColumn(this);"><em class="fa fa-fw"></em><span th:text="#{html.page.users.manage.assignment.postponed}"></span></a></li>
 				<li><a href="#" data-cid="3" onclick="return dataTablesToggleColumn(this);"><em class="fa fa-fw"></em><span th:text="#{html.word.validity}"></span></a></li>
 				<li><a href="#" data-cid="4" onclick="return dataTablesToggleColumn(this);"><em class="fa fa-fw"></em><span th:text="#{html.page.users.manage.assignment.itsystem}"></span></a></li>
                 <li><a href="#" data-cid="5" onclick="return dataTablesToggleColumn(this);"><em class="fa fa-fw"></em><span th:text="#{html.page.users.manage.assignment.itsystem.systemRole.weight}"></span></a></li>
 				<li><a href="#" data-cid="6" onclick="return dataTablesToggleColumn(this);"><em class="fa fa-fw"></em><span th:text="#{html.page.users.manage.assignment.description}"></span></a></li>
-				<li th:if="${caseNumberEnabled}"><a href="#" data-cid="6" onclick="return dataTablesToggleColumn(this);"><em class="fa fa-fw"></em><span th:text="#{html.page.users.manage.assignment.caseNumber}"></span></a></li>
+				<li th:if="${caseNumberEnabled}"><a href="#" data-cid="7" onclick="return dataTablesToggleColumn(this);"><em class="fa fa-fw"></em><span th:text="#{html.page.users.manage.assignment.caseNumber}"></span></a></li>
 			</ul>
 		</div>
 		<th:block th:if="${canAssign}">
@@ -39,10 +39,10 @@
 					<thead>
 						<tr>
 							<th class="col-md-2" th:text="#{html.page.users.manage.assignment.name}"></th>
-							<th class="col-md-1" th:text="#{html.page.users.manage.assignment.postponed}"></th>
 							<th class="col-md-1" th:text="#{html.enum.assignmenttype}"></th>
+							<th class="col-md-2" th:text="#{html.page.users.manage.assignment.postponed}"></th>
 							<th class="col-md-1" th:text="#{html.word.validity}"></th>
-							<th class="col-md-2" th:text="#{html.page.users.manage.assignment.itsystem}"></th>
+							<th class="col-md-1" th:text="#{html.page.users.manage.assignment.itsystem}"></th>
                             <th class="col-md-1" th:text="#{html.page.users.manage.assignment.itsystem.systemRole.weight}"></th>
 							<th class="col-md-2" th:text="#{html.page.users.manage.assignment.description}"></th>
 							<th th:if="${caseNumberEnabled}" class="col-md-1" th:text="#{html.page.users.manage.assignment.caseNumber}"></th>
@@ -65,20 +65,20 @@
 							</td>
 
 							<td>
+								<span th:text="#{__${assignment.assignedThrough.message}__}"></span>
+								<div th:if="${assignment.assignedThroughName != null}" th:text="${assignment.assignedThroughName}" style="font-size: smaller; color: black;"></div>
+								<div th:if="${assignment.manager and !assignment.substitutes}" th:text="#{attestationmodule.html.orgunits.attestate.user.tabs.roles.roleGroups.manager}" style="font-size: smaller; color: black;"></div>
+								<div th:if="${assignment.manager and assignment.substitutes}" th:text="#{attestationmodule.html.orgunits.attestate.user.tabs.roles.roleGroups.managerAndSubstitutes}" style="font-size: smaller; color: black;"></div>
+								<div th:if="${assignment.titleName != null}" th:text="${assignment.titleName}" style="font-size: smaller; color: black;"></div>
+							</td>
+
+							<td>
 								<div th:each="systemRoleAssignment : ${assignment.systemRoleAssignments}">
 									<span style="font-weight: bold;" th:text="${systemRoleAssignment.systemRole.name}"></span>
 									<ul style="padding-left: 20px;">
 									  <li th:each="constraint : ${systemRoleAssignment.postponedConstraints}" th:text="${constraint.constraintType.name + ': ' + constraint.constraintValue}" ></li>
 									</ul>
 								</div>
-							</td>
-
-							<td>
-								<span th:text="#{__${assignment.assignedThrough.message}__}"></span>
-								<div th:if="${assignment.assignedThroughName != null}" th:text="${assignment.assignedThroughName}" style="font-size: smaller; color: black;"></div>
-								<div th:if="${assignment.manager and !assignment.substitutes}" th:text="#{attestationmodule.html.orgunits.attestate.user.tabs.roles.roleGroups.manager}" style="font-size: smaller; color: black;"></div>
-								<div th:if="${assignment.manager and assignment.substitutes}" th:text="#{attestationmodule.html.orgunits.attestate.user.tabs.roles.roleGroups.managerAndSubstitutes}" style="font-size: smaller; color: black;"></div>
-								<div th:if="${assignment.titleName != null}" th:text="${assignment.titleName}" style="font-size: smaller; color: black;"></div>
 							</td>
 
 							<td>

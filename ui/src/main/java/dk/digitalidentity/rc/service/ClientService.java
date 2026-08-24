@@ -10,7 +10,6 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
-import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
 import dk.digitalidentity.rc.dao.ClientDao;
 import dk.digitalidentity.rc.dao.model.Client;
 import dk.digitalidentity.rc.dao.model.Domain;
@@ -27,9 +26,6 @@ public class ClientService {
 
 	@Autowired
 	private ClientService self;
-
-	@Autowired
-	private RoleCatalogueConfiguration roleCatalogueConfiguration;
 
 	// used by the ApiSecurityFilter class on every single API call, so caching will help a lot here
 	@Cacheable(value = "clientList")

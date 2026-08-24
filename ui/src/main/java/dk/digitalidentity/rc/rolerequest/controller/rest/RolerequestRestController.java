@@ -24,6 +24,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -45,11 +46,13 @@ import dk.digitalidentity.rc.dao.model.enums.RequestApproveStatus;
 import dk.digitalidentity.rc.rolerequest.log.RequestAuditLogger;
 import dk.digitalidentity.rc.rolerequest.log.RequestLogEvent;
 import dk.digitalidentity.rc.rolerequest.log.RequestLoggable;
+import dk.digitalidentity.rc.rolerequest.model.dto.RequestConstraintDTO;
 import dk.digitalidentity.rc.rolerequest.model.entity.RequestPostponedConstraint;
 import dk.digitalidentity.rc.rolerequest.model.entity.RoleRequest;
 import dk.digitalidentity.rc.rolerequest.model.enums.ApprovableBy;
 import dk.digitalidentity.rc.rolerequest.model.enums.RequestableBy;
 import dk.digitalidentity.rc.rolerequest.service.ApproverOptionService;
+import dk.digitalidentity.rc.rolerequest.service.RequestConstraintService;
 import dk.digitalidentity.rc.rolerequest.service.RequestService;
 import dk.digitalidentity.rc.security.SecurityUtil;
 import dk.digitalidentity.rc.service.ConstraintTypeService;
@@ -109,6 +112,29 @@ public class RolerequestRestController {
 
 	@Autowired
 	private SENumberDao seNumberDao;
+
+	@Autowired
+	private RequestConstraintService requestConstraintService;
+
+	@PostMapping("/constraint/create")
+	public ResponseEntity<?> createConstraint(@RequestBody RequestConstraintDTO constraintDTO) {
+		dk.digitalidentity.rc.rolerequest.model.entity.RequestConstraint constraint = requestConstraintService.save(
+			dk.digitalidentity.rc.rolerequest.model.entity.RequestConstraint.builder()
+				.value(constraintDTO.getValue())
+				.build());
+
+		return new ResponseEntity<>(RequestConstraintDTO.builder()
+			.id(constraint.getId())
+			.value(constraint.getValue())
+			.build(), HttpStatus.OK);
+	}
+
+	@DeleteMapping("/constraint/delete")
+	public ResponseEntity<?> deleteConstraints(@RequestParam List<Long> constraintIds) {
+		constraintIds.forEach(requestConstraintService::deleteConstraint);
+
+		return new ResponseEntity<>(HttpStatus.OK);
+	}
 
 	@RequestLoggable(logEvent = RequestLogEvent.APPROVE)
 	@PostMapping("/{requestId}/approve")
@@ -294,13 +320,11 @@ public class RolerequestRestController {
 		UUID groupUuid = UUID.randomUUID();
 
 		for (Long userRoleAssignmentId : requestDTO.userRoles) {
-			RoleRequest request = handleCreateRemovalRequest(requester, receiver, userRoleAssignmentId, null, requestDTO.reason, groupUuid);
-			requestLogger.logRequest(RequestLogEvent.REMOVE, request, request.getReason());
+			handleCreateRemovalRequest(requester, receiver, userRoleAssignmentId, null, requestDTO.reason, groupUuid);
 		}
 
 		for (Long roleGroupAssignmentId : requestDTO.roleGroups) {
-			RoleRequest request = handleCreateRemovalRequest(requester, receiver, null, roleGroupAssignmentId, requestDTO.reason, groupUuid);
-			requestLogger.logRequest(RequestLogEvent.REMOVE, request, request.getReason());
+			handleCreateRemovalRequest(requester, receiver, null, roleGroupAssignmentId, requestDTO.reason, groupUuid);
 		}
 
 		return new ResponseEntity<>(HttpStatus.OK);
@@ -328,7 +352,6 @@ public class RolerequestRestController {
 	private record RemovalRequestDTO(Long userRoleAssignmentId, Long roleGroupAssignmentId, String reason) {
 	}
 
-	@RequestLoggable(logEvent = RequestLogEvent.REMOVE)
 	@PostMapping("remove")
 	public ResponseEntity<?> removeRequestForSelf(@RequestBody RemovalRequestDTO removalRequestDTO) {
 		//find current user
@@ -389,17 +412,18 @@ public class RolerequestRestController {
 	private boolean calculateCanRequestRemoval(User requester, User user) {
 		final Set<CurrentAssignment> currentAssignments = assignmentService.getByUserIncludingInactive(user);
 		for (var assignment : currentAssignments) {
-			final AssignedThrough assignedThrough = assignmentService.getAssignedThrough(assignment);
+			// Only directly assigned roles/role groups can be requested removed
+			if (assignmentService.getAssignedThrough(assignment) != AssignedThrough.DIRECT) {
+				continue;
+			}
 			if (assignment.getRoleGroup() != null) {
-				final var roleGroup = assignment.getRoleGroup();
-				if (assignedThrough == AssignedThrough.DIRECT
-					&& requestService.canRequest(requester, roleGroup, user, assignment.getOrgUnit())) {
+				if (requestService.canRequestRemoval(requester, assignment.getRoleGroup(), user)) {
 					return true;
 				}
-			} else {
-				final var userRole =  assignment.getUserRole();
-				if (assignedThrough == AssignedThrough.DIRECT
-					&& requestService.canRequest(userRole, user, assignment.getOrgUnit(), settingsService.getRolerequestRequester())) {
+			} else if (assignment.getUserRole() != null) {
+				// userRole is @Nullable on CurrentAssignment (roleGroup-only / orphaned cache rows carry no userRole),
+				// so skip rows without one rather than dereferencing null in canRequestRemoval()
+				if (requestService.canRequestRemoval(assignment.getUserRole(), user, settingsService.getRolerequestRequester())) {
 					return true;
 				}
 			}
@@ -421,9 +445,10 @@ public class RolerequestRestController {
 			userRole = assignment.getUserRole();
 			approverOption = approverOptionService.getInheritedApproverOption(userRole);
 
-			// check if allowed to request
+			// check if allowed to request removal (OU filter does not gate removals).
+			// Authority is evaluated against the receiver (whose assignment is being removed), not the requester.
 			List<RequestableBy> globalRequesterSetting = settingsService.getRolerequestRequester();
-			if (!requestService.canRequest(userRole, requester, assignment.getOrgUnit(), globalRequesterSetting)) {
+			if (!requestService.canRequestRemoval(userRole, receiver, globalRequesterSetting)) {
 				throw new SecurityException("User not allowed to request this");
 			}
 
@@ -437,12 +462,13 @@ public class RolerequestRestController {
 		if (roleGroupAssignmentId != null) {
 			UserRoleGroupAssignment assignment = receiver.getRoleGroupAssignments().stream()
 				.filter(r -> r.getId() == roleGroupAssignmentId).findFirst()
-				.orElseThrow(() -> new NoSuchElementException("receiving user does not have the userRoleGroupAssignment with id " + userRoleAssignmentId));
+				.orElseThrow(() -> new NoSuchElementException("receiving user does not have the userRoleGroupAssignment with id " + roleGroupAssignmentId));
 			roleGroup = assignment.getRoleGroup();
 			approverOption = approverOptionService.getInheritedApproverOption(roleGroup);
 
-			// check if allowed to request
-			if (!requestService.canRequest(requester, roleGroup, requester, assignment.getOrgUnit())) {
+			// check if allowed to request removal (OU filter does not gate removals).
+			// Authority is evaluated against the receiver (whose assignment is being removed), not the requester.
+			if (!requestService.canRequestRemoval(requester, roleGroup, receiver)) {
 				throw new SecurityException("User not allowed to request this");
 			}
 
@@ -458,7 +484,7 @@ public class RolerequestRestController {
 		request.setRoleGroup(roleGroup);
 		request.setRequestAction(RequestAction.REMOVE);
 
-		request = requestService.saveNoLog(request);
+		request = requestService.saveRemoveRequestWithLog(request);
 
 		// handle automatic approval if enabled
 		boolean automaticApproval = request.getUserRole() == null ?
