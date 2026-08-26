@@ -13,6 +13,7 @@ import dk.digitalidentity.rc.dao.UserUserRoleAssignmentDao;
 import dk.digitalidentity.rc.dao.model.ConstraintType;
 import dk.digitalidentity.rc.dao.model.ItSystem;
 import dk.digitalidentity.rc.dao.model.OrgUnit;
+import dk.digitalidentity.rc.dao.model.RoleGroup;
 import dk.digitalidentity.rc.dao.model.SystemRole;
 import dk.digitalidentity.rc.dao.model.SystemRoleAssignment;
 import dk.digitalidentity.rc.dao.model.SystemRoleAssignmentConstraintValue;
@@ -20,6 +21,7 @@ import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserRole;
 import dk.digitalidentity.rc.dao.model.assignment.CurrentAssignment;
 import dk.digitalidentity.rc.dao.model.assignment.CurrentAssignmentPostponedConstraint;
+import dk.digitalidentity.rc.dao.model.assignment.UserRoleModifiedEvent;
 import dk.digitalidentity.rc.dao.model.enums.AltAccountType;
 import dk.digitalidentity.rc.dao.model.enums.ItSystemType;
 import dk.digitalidentity.rc.log.AuditLogIntercepted;
@@ -39,6 +41,7 @@ import jakarta.persistence.criteria.Predicate;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.jpa.datatables.mapping.DataTablesInput;
 import org.springframework.data.jpa.datatables.mapping.DataTablesOutput;
 import org.springframework.data.jpa.domain.Specification;
@@ -73,6 +76,7 @@ public class UserRoleService {
 	private final PostponedConstraintService postponedConstraintService;
 	private final UserUserRoleAssignmentDao userUserRoleAssignmentDao;
 	private final HistoricItSystemAssignmentService historicItSystemAssignmentService;
+	private final ApplicationEventPublisher eventPublisher;
 
 	public Set<UserRole> findAllByIdIn(Collection<Long> ids) {
 		return userRoleDao.findAllByIdIn(ids);
@@ -190,6 +194,7 @@ public class UserRoleService {
 	public boolean addSystemRoleAssignment(UserRole userRole, SystemRoleAssignment systemRoleAssignment) {
 		if (!userRole.getSystemRoleAssignments().contains(systemRoleAssignment)) {
 			userRole.getSystemRoleAssignments().add(systemRoleAssignment);
+			publishUserRoleModifiedEvent(userRole);
 
 			return true;
 		}
@@ -201,11 +206,29 @@ public class UserRoleService {
 	public boolean removeSystemRoleAssignment(UserRole userRole, SystemRoleAssignment systemRoleAssignment) {
 		if (userRole.getSystemRoleAssignments().contains(systemRoleAssignment)) {
 			userRole.getSystemRoleAssignments().remove(systemRoleAssignment);
+			publishUserRoleModifiedEvent(userRole);
 
 			return true;
 		}
 
 		return false;
+	}
+
+	// notifies PublishAssignmentService so every current holder of this UserRole gets a fresh
+	// HookEvent - a SystemRole added/removed here changes what the role grants for everyone who
+	// already has it, not just for future assignments
+	private void publishUserRoleModifiedEvent(UserRole userRole) {
+		switch (userRole.getItSystem().getSystemType()) {
+			case SAML:
+			case KOMBIT:
+				break;
+			case AD:
+			case KSPCICS:
+			case MANUAL:
+			case NEMLOGIN:
+				eventPublisher.publishEvent(new UserRoleModifiedEvent(userRole.getId()));
+				break;
+		}
 	}
 
 	public List<UserRole> getAllSensitiveRoles() {
@@ -223,6 +246,10 @@ public class UserRoleService {
 		userRoles.forEach(ur -> ur.getSystemRoleAssignments().size());
 
 		return userRoles;
+	}
+
+	public List<UserRole> getByItSystems(Collection<ItSystem> itSystems) {
+		return userRoleDao.findByItSystemIn(itSystems);
 	}
 
 	@Transactional
@@ -253,23 +280,10 @@ public class UserRoleService {
 		return userRoleDao.findAll();
 	}
 
-	@org.springframework.transaction.annotation.Transactional(readOnly = true)
-	public List<UserRole> getUserRolesWithRequesterPermissions(List<RequestableBy> permissions) {
-		return unionByPermission(permissions, userRoleDao::findByRequesterPermissionContaining);
-	}
-
-	@org.springframework.transaction.annotation.Transactional(readOnly = true)
-	public List<UserRole> getUserRolesWithInheritedPermissionsMatching(List<RequestableBy> permissions) {
-		if (permissions.isEmpty()) {
-			return List.of();
-		}
-		Map<Long, UserRole> byId = new LinkedHashMap<>();
-		for (RequestableBy p : permissions) {
-			for (UserRole ur : userRoleDao.findInheritingByItSystemRequesterPermissionContaining(p.name())) {
-				byId.putIfAbsent(ur.getId(), ur);
-			}
-		}
-		return List.copyOf(byId.values());
+	public List<UserRole> findRequestableRoles(
+			boolean hasEmployee, boolean hasManager, boolean hasAuthorized,
+			boolean hasAuthResp, boolean hasAdmin, boolean includeNullItSystem) {
+		return userRoleDao.findRequestableRoles(hasEmployee, hasManager, hasAuthorized, hasAuthResp, hasAdmin, includeNullItSystem);
 	}
 
 	@org.springframework.transaction.annotation.Transactional(readOnly = true)
@@ -409,14 +423,20 @@ public class UserRoleService {
 		final Set<Long> readableItSystems = readConstraint.getConstrainedItSystemIds();
 		DataTablesOutput<UserRoleView> userroleOutput = userRoleViewDatatableDao.findAll(input, (Specification<UserRoleView>) (root, _, criteriaBuilder) -> {
 			final List<Predicate> andPredicates = new ArrayList<>();
+
+			// mirror assignmentBlockedReason: roles that can never be assigned must not be offered here.
+			// note that these two predicates also apply when the user has no it system constraint at all
 			andPredicates.add(criteriaBuilder.isFalse(root.get("readOnly")));
-			if (readableItSystems == null) {
-				return criteriaBuilder.conjunction(); // allowed all
+			andPredicates.add(criteriaBuilder.not(criteriaBuilder.and(
+					criteriaBuilder.equal(root.get("itSystemType"), ItSystemType.AD),
+					criteriaBuilder.isTrue(root.get("itSystemReadonly")))));
+
+			if (readableItSystems != null) {
+				if (readableItSystems.isEmpty()) {
+					return criteriaBuilder.disjunction(); // allowed none
+				}
+				andPredicates.add(root.get("itSystemId").in(readableItSystems));
 			}
-			if (readableItSystems.isEmpty()) {
-				return criteriaBuilder.disjunction(); // allowed none
-			}
-			andPredicates.add(root.get("itSystemId").in(readableItSystems));
 			return criteriaBuilder.and(andPredicates.toArray(new Predicate[0]));
 		});
 		List<UserRoleView> userRoles = userroleOutput.getData();
@@ -637,11 +657,70 @@ public class UserRoleService {
 	}
 
 	/**
+	 * The reason why the given user role cannot take part in an assignment, regardless of who is asking.
+	 * Roles in a read-only AD IT system are included, because such a system is never provisioned -
+	 * PendingADUpdateService and the AD sync both skip it - so the assignment would never reach AD.
+	 *
+	 * This is the rule the assignment endpoints enforce, so every list that offers to create an assignment
+	 * must apply the same rule. Otherwise the UI offers an assignment that always fails with a HTTP 400.
+	 *
+	 * @return empty when the role can take part in an assignment, otherwise a message for the end user
+	 */
+	public Optional<String> assignmentBlockedReason(UserRole userRole) {
+		if (userRole.isReadOnly()) {
+			return Optional.of("Jobfunktionsrollen '" + userRole.getName() + "' er skrivebeskyttet. Tildelinger af den kan derfor ikke ændres i Rollekataloget");
+		}
+
+		ItSystem itSystem = userRole.getItSystem();
+		if (itSystem.getSystemType() == ItSystemType.AD && itSystem.isReadonly()) {
+			return Optional.of("It-systemet '" + itSystem.getName() + "' er et skrivebeskyttet AD-it-system, som Rollekataloget aldrig skriver til. Tildelinger af jobfunktionsrollen '" + userRole.getName() + "' kan derfor ikke ændres i Rollekataloget");
+		}
+
+		return Optional.empty();
+	}
+
+	/**
+	 * Whether a new assignment of the given user role can be created at all - see assignmentBlockedReason.
+	 * This says nothing about whether the current user is permitted to do it, which isUserRoleAssignable
+	 * answers, and it deliberately does not gate removal of an assignment that already exists.
+	 */
+	public boolean isAssignableRole(UserRole userRole) {
+		return assignmentBlockedReason(userRole).isEmpty();
+	}
+
+	/**
+	 * Determines whether the current user is permitted to assign, edit or remove an assignment of the
+	 * given user role. This is the single source of truth for the action gates, shared by the user
+	 * pages and the role pages - see GitLab #71.
+	 */
+	public boolean isUserRoleAssignable(UserRole userRole, boolean isAssignedDirectly, PermissionConstraint assignConstraint) {
+		return isUserRoleEditable(userRole, isAssignedDirectly, assignConstraint.allowsITSystem(userRole.getItSystem().getId()));
+	}
+
+	/**
+	 * Determines whether the current user is permitted to assign, edit or remove an assignment of the
+	 * given role group. A role group has no IT system of its own, so the constraint is evaluated
+	 * against the IT systems of the user roles it contains.
+	 */
+	public boolean isRoleGroupAssignable(RoleGroup roleGroup, boolean isAssignedDirectly, PermissionConstraint assignConstraint) {
+		Set<ItSystem> itSystems = roleGroup.getUserRoleAssignments().stream()
+			.map(assignment -> assignment.getUserRole().getItSystem())
+			.collect(Collectors.toSet());
+
+		return isRoleGroupAssignable(itSystems, isAssignedDirectly, assignConstraint);
+	}
+
+	/**
 	 * Determines whether the current user is permitted to assign or remove the given role group assignment.
 	 */
 	private boolean isRoleGroupAssignable(RoleAssignedToUserDTO assignmentDTO, Map<Long, Set<ItSystem>> itSystemPerRolegroup, PermissionConstraint assignConstraint) {
 		boolean directlyAssignedRole = AssignedThrough.DIRECT.equals(assignmentDTO.getAssignedThrough()) || AssignedThrough.POSITION.equals(assignmentDTO.getAssignedThrough());
 		Set<ItSystem> itSystems = itSystemPerRolegroup.getOrDefault(assignmentDTO.getRoleId(), new HashSet<>());
+
+		return isRoleGroupAssignable(itSystems, directlyAssignedRole, assignConstraint);
+	}
+
+	private boolean isRoleGroupAssignable(Set<ItSystem> itSystems, boolean isAssignedDirectly, PermissionConstraint assignConstraint) {
 		boolean isAssigningAllowed = assignConstraint.allowsAllITSystems(itSystems.stream()
 			.map(ItSystem::getId).collect(Collectors.toSet()));
 
@@ -649,12 +728,16 @@ public class UserRoleService {
 
 		// Only directly assigned rolegroups can be assigned by assigners working within their constraints
 		// note that those with the direct admin role still need to be within the given constraints
-		if (isAssigningAllowed && directlyAssignedRole) {
+		if (isAssigningAllowed && isAssignedDirectly) {
 			return !containsInternalSystem || SecurityUtil.hasDirectAdminRole();
 		}
 		return false;
 	}
 
+	// NOTE: deliberately not gated on isAssignableRole. This decides canEdit, which also gates the
+	//       delete icon and the bulk-remove checkbox in manage_roles.html, manage_users.html and
+	//       manage_ous.html - and the remove endpoints accept those roles. Blocking here would leave an
+	//       existing assignment visible with no way to remove it. isAssignableRole gates creating one.
 	private boolean isUserRoleEditable (UserRole userRole, boolean isAssignedDirectly, boolean hasPermission) {
 		boolean isReadable = !userRole.isReadOnly();
 		boolean isNotInternalRole =  !Constants.ROLE_CATALOGUE_IDENTIFIER.equals(userRole.getItSystem().getIdentifier());

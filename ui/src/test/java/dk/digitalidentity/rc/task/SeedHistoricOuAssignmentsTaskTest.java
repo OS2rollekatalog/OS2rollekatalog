@@ -5,6 +5,8 @@ import dk.digitalidentity.rc.config.model.Scheduled;
 import dk.digitalidentity.rc.dao.OrgUnitRoleGroupAssignmentDao;
 import dk.digitalidentity.rc.dao.OrgUnitUserRoleAssignmentDao;
 import dk.digitalidentity.rc.service.assignment.HistoricOuAssignmentService;
+import dk.digitalidentity.rc.task.assignment.SeedHistoricOuAssignmentsTask;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

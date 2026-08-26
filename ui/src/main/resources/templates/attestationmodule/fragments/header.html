@@ -16,11 +16,6 @@
     <link rel="stylesheet" th:href="@{/webjars/inspinia/2.9.3/css/plugins/sweetalert/sweetalert.css}" />
     <link rel="stylesheet" th:href="@{/webjars/inspinia/2.9.3/css/plugins/toastr/toastr.min.css}" />
     <link rel="stylesheet" th:href="@{/webjars/inspinia/2.9.3/css/plugins/datapicker/datepicker3.css}">
-    <style>
-		.toastr-buffer {
-			margin-top:60px;
-		}
-	</style>
 
     <th:block th:if="${checkbox == true}">
         <link rel="stylesheet" th:href="@{/webjars/inspinia/2.9.3/css/plugins/iCheck/custom.css}" />
@@ -33,11 +28,6 @@
 
     <th:block th:if="${datatables == true}">
         <link rel="stylesheet" th:href="@{/webjars/inspinia/2.9.3/css/plugins/dataTables/datatables.min.css}" />
-        <style>
-		ul.pagination {
-			float:right;
-		}
-	</style>
     </th:block>
 
     <th:block th:if="${texteditor == true}">

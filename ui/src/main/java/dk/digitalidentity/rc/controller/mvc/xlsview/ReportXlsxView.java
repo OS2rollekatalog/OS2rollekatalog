@@ -11,7 +11,6 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
@@ -27,14 +26,12 @@ import org.apache.poi.ss.usermodel.Workbook;
 import org.springframework.context.support.ResourceBundleMessageSource;
 import org.springframework.util.StringUtils;
 
+import dk.digitalidentity.rc.controller.mvc.viewmodel.OuRoleAssignmentReportRow;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.ReportForm;
 import dk.digitalidentity.rc.dao.history.model.HistoryItSystem;
 import dk.digitalidentity.rc.dao.history.model.HistoryKleAssignment;
 import dk.digitalidentity.rc.dao.history.model.HistoryOU;
 import dk.digitalidentity.rc.dao.history.model.HistoryOUKleAssignment;
-import dk.digitalidentity.rc.dao.history.model.HistoryOURoleAssignment;
-import dk.digitalidentity.rc.dao.history.model.HistoryOURoleAssignmentExclusion;
-import dk.digitalidentity.rc.dao.history.model.HistoryOURoleAssignmentExclusion.ExclusionType;
 import dk.digitalidentity.rc.dao.history.model.HistoryOUUser;
 import dk.digitalidentity.rc.dao.history.model.HistorySystemRole;
 import dk.digitalidentity.rc.dao.history.model.HistorySystemRoleAssignment;
@@ -64,7 +61,7 @@ public class ReportXlsxView extends AbstractXlsxStreamingViewWrapper {
     private Map<String, List<HistoryKleAssignment>> userKLEAssignments;
     private Map<String, HistoryOU> orgUnits;
     private Map<String, HistoryOU> allOrgUnits;
-    private Map<String, List<HistoryOURoleAssignment>> ouRoleAssignments;
+    private Map<String, List<OuRoleAssignmentReportRow>> ouRoleAssignments;
     private Map<String, List<HistoryOUKleAssignment>> ouKLEAssignments;
     private Map<Long, String> itSystemNameMapping;
     private DateTimeFormatter localDateFormatter;
@@ -100,7 +97,7 @@ public class ReportXlsxView extends AbstractXlsxStreamingViewWrapper {
         messageSource = (ResourceBundleMessageSource) model.get("messagesBundle");
         ouKLEAssignments = (Map<String, List<HistoryOUKleAssignment>>) model.get("ouKLEAssignments");
         userKLEAssignments = (Map<String, List<HistoryKleAssignment>>) model.get("userKLEAssignments");
-        ouRoleAssignments = (Map<String, List<HistoryOURoleAssignment>>) model.get("ouRoleAssignments");
+        ouRoleAssignments = (Map<String, List<OuRoleAssignmentReportRow>>) model.get("ouRoleAssignments");
 		ouUsers = (List<HistoryOUUser>) model.get("ouUsers");
 
 		if (titles != null) {
@@ -451,7 +448,7 @@ public class ReportXlsxView extends AbstractXlsxStreamingViewWrapper {
         createHeaderRow(sheet, headers);
 
         int row = 1;
-        for (Map.Entry<String, List<HistoryOURoleAssignment>> entry : ouRoleAssignments.entrySet()) {
+        for (Map.Entry<String, List<OuRoleAssignmentReportRow>> entry : ouRoleAssignments.entrySet()) {
             HistoryOU ou = orgUnits.get(entry.getKey());
             if (ou == null) {
                 // this OU has been filtered out, so skip
@@ -459,16 +456,11 @@ public class ReportXlsxView extends AbstractXlsxStreamingViewWrapper {
             }
 
             String ouName = ou.getOuName();
-            List<HistoryOURoleAssignment> assignments = entry.getValue();
+            List<OuRoleAssignmentReportRow> assignments = entry.getValue();
 
-            for (HistoryOURoleAssignment ouRoleAssignment : assignments) {
+            for (OuRoleAssignmentReportRow ouRoleAssignment : assignments) {
 
-                // Get ItSystem by id
-                Optional<HistoryItSystem> first = itSystems.stream()
-                    .filter(itSystem -> itSystem.getItSystemId() == ouRoleAssignment.getRoleItSystemId())
-                    .findFirst();
-
-                String itSystem = first.map(HistoryItSystem::getItSystemName).orElse("");
+                String itSystem = ouRoleAssignment.getItSystemName() != null ? ouRoleAssignment.getItSystemName() : "";
 
                 // Creating assigned by
                 String assignedBy = ouRoleAssignment.getAssignedByName() + " (" + ouRoleAssignment.getAssignedByUserId() + ")";
@@ -496,52 +488,17 @@ public class ReportXlsxView extends AbstractXlsxStreamingViewWrapper {
                 }
 
                 // Collect exclusions
-                StringBuilder exceptedUsersStr = new StringBuilder();
-                StringBuilder titlesStr = new StringBuilder();
-                StringBuilder functionsStr = new StringBuilder();
-
-                if (ouRoleAssignment.getExclusions() != null) {
-                    for (HistoryOURoleAssignmentExclusion exclusion : ouRoleAssignment.getExclusions()) {
-                        if (exclusion.getExclusionType() == ExclusionType.excepted_users && exclusion.getUserUuids() != null) {
-                            for (String userUuid : exclusion.getUserUuids().split(",")) {
-                                if (exceptedUsersStr.length() > 0) {
-                                    exceptedUsersStr.append("\n");
-                                }
-                                exceptedUsersStr.append(
-                                    users.containsKey(userUuid)
-                                        ? users.get(userUuid).getUserName() + " (" + users.get(userUuid).getUserUserId() + ")"
-                                        : userUuid
-                                );
-                            }
-                        } else if (exclusion.getExclusionType() == ExclusionType.titles && exclusion.getTitleUuids() != null) {
-                            for (String titleUuid : exclusion.getTitleUuids().split(",")) {
-                                if (titlesStr.length() > 0) {
-                                    titlesStr.append("\n");
-                                }
-                                titlesStr.append(
-                                    titleMap.containsKey(titleUuid)
-                                        ? titleMap.get(titleUuid).getTitleName()
-                                        : titleUuid
-                                );
-                            }
-                        } else if (exclusion.getExclusionType() == ExclusionType.functions && exclusion.getFunctionUuids() != null) {
-							for (String functionUuid : exclusion.getFunctionUuids().split(",")) {
-								if (functionsStr.length() > 0) {
-									functionsStr.append("\n");
-								}
-								functionsStr.append(
-										functionMap.containsKey(functionUuid)
-												? functionMap.get(functionUuid).getFunctionName()
-												: functionUuid
-								);
-							}
-						}
-                    }
-                }
+                String exceptedUsersStr = joinExcludedUsers(ouRoleAssignment.getExceptedUserUuids());
+                String titlesStr = ouRoleAssignment.getTitleUuids().stream()
+                    .map(titleUuid -> titleMap.containsKey(titleUuid) ? titleMap.get(titleUuid).getTitleName() : titleUuid)
+                    .collect(Collectors.joining("\n"));
+                String functionsStr = ouRoleAssignment.getFunctionUuids().stream()
+                    .map(functionUuid -> functionMap.containsKey(functionUuid) ? functionMap.get(functionUuid).getFunctionName() : functionUuid)
+                    .collect(Collectors.joining("\n"));
 
 				String managerAndSubstitutesText = null;
-				if (Boolean.TRUE.equals(ouRoleAssignment.getManager())) {
-					if (Boolean.TRUE.equals(ouRoleAssignment.getSubstitutes())) {
+				if (ouRoleAssignment.isManager()) {
+					if (ouRoleAssignment.isSubstitutes()) {
 						managerAndSubstitutesText = "xls.report.ou.roles.manager.type.managerAndSubstitutes";
 					} else {
 						managerAndSubstitutesText = "xls.report.ou.roles.manager.type.manager";
@@ -559,9 +516,9 @@ public class ReportXlsxView extends AbstractXlsxStreamingViewWrapper {
                 createCell(dataRow, column++, formatLocalDateTime(atEndOfDay(ouRoleAssignment.getStopDate())), null);
                 createCell(dataRow, column++, assignedThroughStr, null);
                 createCell(dataRow, column++, managerAndSubstitutesText == null ? "" : messageSource.getMessage(managerAndSubstitutesText, null, locale), null);
-                createCell(dataRow, column++, exceptedUsersStr.toString(), wrapStyle);
-                createCell(dataRow, column++, titlesStr.toString(), wrapStyle);
-                createCell(dataRow, column++, functionsStr.toString(), wrapStyle);
+                createCell(dataRow, column++, exceptedUsersStr, wrapStyle);
+                createCell(dataRow, column++, titlesStr, wrapStyle);
+                createCell(dataRow, column++, functionsStr, wrapStyle);
             }
         }
     }
@@ -626,14 +583,15 @@ public class ReportXlsxView extends AbstractXlsxStreamingViewWrapper {
 
         createHeaderRow(sheet, headers);
 
-        Set<String> allowedOuUuids = buildAllowedOuUuids();
-        Set<String> allowedUserUuids = allowedOuUuids != null ? users.keySet() : null;
+        Set<String> allowedDisplayOuUuids = buildAllowedDisplayOuUuids();
+        Set<String> allowedResponsibleOuUuids = buildAllowedResponsibleOuUuids();
+        Set<String> allowedUserUuids = (allowedDisplayOuUuids != null || allowedResponsibleOuUuids != null) ? users.keySet() : null;
         List<Long> itSystemFilter = reportForm.getItSystems();
         Collection<Long> itSystemIds = (itSystemFilter != null && !itSystemFilter.isEmpty()) ? itSystemFilter : null;
 
         AtomicInteger row = new AtomicInteger(1);
         reportService.streamUserRoleAssignmentReportEntries(
-            queryDate, filterDate, allowedUserUuids, allowedOuUuids, itSystemIds,
+            queryDate, filterDate, allowedUserUuids, allowedDisplayOuUuids, allowedResponsibleOuUuids, itSystemIds,
             users, allOrgUnits, itSystems, locale, showInactiveUsers, true, entry -> {
                 Row dataRow = sheet.createRow(row.getAndIncrement());
                 int column = 0;
@@ -676,14 +634,15 @@ public class ReportXlsxView extends AbstractXlsxStreamingViewWrapper {
 
         createHeaderRow(sheet, headers);
 
-        Set<String> allowedOuUuids = buildAllowedOuUuids();
-        Set<String> allowedUserUuids = allowedOuUuids != null ? users.keySet() : null;
+        Set<String> allowedDisplayOuUuids = buildAllowedDisplayOuUuids();
+        Set<String> allowedResponsibleOuUuids = buildAllowedResponsibleOuUuids();
+        Set<String> allowedUserUuids = (allowedDisplayOuUuids != null || allowedResponsibleOuUuids != null) ? users.keySet() : null;
         List<Long> itSystemFilter = reportForm.getItSystems();
         Collection<Long> itSystemIds = (itSystemFilter != null && !itSystemFilter.isEmpty()) ? itSystemFilter : null;
 
         AtomicInteger row = new AtomicInteger(1);
         reportService.streamNegativeUserRoleAssignmentReportEntries(
-            queryDate, filterDate, allowedUserUuids, allowedOuUuids, itSystemIds,
+            queryDate, filterDate, allowedUserUuids, allowedDisplayOuUuids, allowedResponsibleOuUuids, itSystemIds,
             users, allOrgUnits, locale, showInactiveUsers, entry -> {
                 Row dataRow = sheet.createRow(row.getAndIncrement());
                 int column = 0;
@@ -705,13 +664,24 @@ public class ReportXlsxView extends AbstractXlsxStreamingViewWrapper {
     }
 
     /**
-     * Returns the set of allowed OU UUIDs when an OU/manager filter is active, or null if no filter.
-     * The orgUnits map is already filtered by getReportModel, so its keySet is authoritative.
+     * Returns the set of allowed OU UUIDs when the org-unit filter is active,
+     * or null if not. Matched against each row's displayed OU.
      */
-    private Set<String> buildAllowedOuUuids() {
+    private Set<String> buildAllowedDisplayOuUuids() {
         List<String> ouFilter = reportForm.getOrgUnits();
+        if (ouFilter != null && !ouFilter.isEmpty()) {
+            return orgUnits.keySet();
+        }
+        return null;
+    }
+
+    /**
+     * Returns the set of allowed OU UUIDs when the manager filter (reportForm.getManager()) is active,
+     * or null if not. Matched against each assignment's responsibleOUUuid..
+     */
+    private Set<String> buildAllowedResponsibleOuUuids() {
         String manager = reportForm.getManager();
-        if ((ouFilter != null && !ouFilter.isEmpty()) || StringUtils.hasLength(manager)) {
+        if (StringUtils.hasLength(manager)) {
             return orgUnits.keySet();
         }
         return null;
@@ -877,14 +847,14 @@ public class ReportXlsxView extends AbstractXlsxStreamingViewWrapper {
 		createHeaderRow(sheet, headers);
 
 		int y = 1;
-		for(final Map.Entry<String, List<HistoryOURoleAssignment>> entry : ouRoleAssignments.entrySet()) {
+		for(final Map.Entry<String, List<OuRoleAssignmentReportRow>> entry : ouRoleAssignments.entrySet()) {
 			final HistoryOU ou = orgUnits.get(entry.getKey());
 			if(ou == null) {
 				continue;
 			}
 
-			for(final HistoryOURoleAssignment oura : entry.getValue()) {
-				final String excludedUsers = getExcludedUsers(oura.getExclusions());
+			for(final OuRoleAssignmentReportRow oura : entry.getValue()) {
+				final String excludedUsers = joinExcludedUsers(oura.getExceptedUserUuids());
 
 				final Row row = sheet.createRow(y++);
 				int x = 0;
@@ -896,7 +866,7 @@ public class ReportXlsxView extends AbstractXlsxStreamingViewWrapper {
 				createCell(row, x++, "", null);
 				createCell(row, x++, ou.getOuName(), null);
 				createCell(row, x++, excludedUsers, wrapStyle);
-				createCell(row, x++, Boolean.TRUE.equals(oura.getInherit()) ? "Ja" : "Nej", null);
+				createCell(row, x++, oura.isInherit() ? "Ja" : "Nej", null);
 				// TODO: Add positions
 				createCell(row, x++, "", wrapStyle);
 				// TODO: Add excluded positions
@@ -905,26 +875,15 @@ public class ReportXlsxView extends AbstractXlsxStreamingViewWrapper {
 		}
 	}
 
-	private String getExcludedUsers(final List<HistoryOURoleAssignmentExclusion> exclusions) {
-		if (exclusions == null) {
+	private String joinExcludedUsers(final List<String> userUuids) {
+		if (userUuids == null) {
 			return "";
 		}
-		final StringBuilder excludedUsersStr = new StringBuilder();
-		for (final HistoryOURoleAssignmentExclusion exclusion : exclusions) {
-			if (exclusion.getExclusionType() == ExclusionType.excepted_users && exclusion.getUserUuids() != null) {
-				for (final String userUuid : exclusion.getUserUuids().split(",")) {
-					if (excludedUsersStr.length() > 0) {
-						excludedUsersStr.append("\n");
-					}
-					excludedUsersStr.append(
-						users.containsKey(userUuid)
-							? users.get(userUuid).getUserName() + " (" + users.get(userUuid).getUserUserId() + ")"
-							: userUuid
-					);
-				}
-			}
-		}
-		return excludedUsersStr.toString();
+		return userUuids.stream()
+			.map(userUuid -> users.containsKey(userUuid)
+				? users.get(userUuid).getUserName() + " (" + users.get(userUuid).getUserUserId() + ")"
+				: userUuid)
+			.collect(Collectors.joining("\n"));
 	}
 
     private static void createCell(Row header, int column, String value, CellStyle style) {

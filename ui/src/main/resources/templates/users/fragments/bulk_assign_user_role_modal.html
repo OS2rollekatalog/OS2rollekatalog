@@ -1,0 +1,79 @@
+<th:block th:fragment="bulkAssignUserRoleModal" xmlns="http://www.w3.org/1999/xhtml" xmlns:th="http://www.thymeleaf.org">
+	<div class="modal fade" id="modal-bulk-assign-dates" role="dialog">
+	    <div class="modal-dialog">
+
+	        <!-- Modal content-->
+	        <div class="modal-content">
+	            <div class="modal-header">
+	                <h4 id="bulkAssignDatesModalTitle"></h4>
+					<p id="bulkAssignUserRoleName"></p>
+	            </div>
+
+	            <div class="modal-body" style="overflow-y: initial !important;">
+    	            <div th:text="#{html.page.user.assign.accept.text}"></div>
+
+	               	<div style="height: 70px;">
+						<h4 class="md-12" th:text="#{html.word.validity}"></h4>
+
+						<b class="col-sm-1" style="padding-top: 7px;" th:text="#{html.word.from}"></b>
+						<div class="col-md-5">
+							<div class="form-group">
+								<div class="input-group date" id="startDatePickerBulk">
+									<input type="text" class="form-control"/>
+									<span class="input-group-addon">
+										<span class="fa fa-calendar"></span>
+									</span>
+								</div>
+							</div>
+						</div>
+
+						<b class="col-sm-1" style="padding-top: 7px;" th:text="#{html.word.to}"></b>
+						<div class="col-md-5">
+							<div class="form-group">
+								<div class="input-group date" id="stopDatePickerBulk">
+									<input type="text" class="form-control" />
+									<span class="input-group-addon">
+										<span class="fa fa-calendar"></span>
+									</span>
+								</div>
+							</div>
+						</div>
+					</div>
+
+					<!-- caseNumber -->
+					<div style="height: 70px;" th:if="${caseNumberEnabled}">
+						<h4 class="md-12">
+							<span th:text="#{html.page.assign.direct.caseNumber}"></span>
+						</h4>
+						<div class="form-group col-md-12">
+							<input class="form-control" id="bulkAssignRoleCaseNumber"/>
+						</div>
+					</div>
+	            </div>
+
+	            <div class="modal-footer">
+					<button id="bulkAssignDatesNextBtn" class="btn btn-primary" th:text="#{html.control.button.next}"></button>
+	                <button type="button" class="btn btn-danger" id="closeBulkAssignDatesModal" th:text="#{html.control.button.cancel}"></button>
+	            </div>
+	        </div>
+	    </div>
+	</div>
+</th:block>
+
+<th:block th:fragment="bulkAssignUserRoleModalScript" xmlns="http://www.w3.org/1999/xhtml" xmlns:th="http://www.thymeleaf.org">
+	<script type="application/json" th:inline="javascript" id="bulk-assign-user-role-modal-config">
+		{
+			"usersUrl": [[@{/rest/users/}]],
+			"uiUrl": [[@{/ui/users/manage/}]],
+			"userRoleModalTitle": [[#{html.page.users.list.modal}]],
+			"roleGroupModalTitle": [[#{html.page.users.list.modal.rolegroup}]],
+			"fieldUpdatedMsg": [[#{html.entity.rolegroup.updatedmsg}]],
+			"fieldNotUpdatedMsg": [[#{html.entity.rolegroup.failedupdatemsg}]],
+			"caseNumberEnabled": [[${caseNumberEnabled}]],
+			"selectedCountLabel": [[#{html.page.user.assign.multiple.selectusers.selectedcount}]]
+		}
+	</script>
+	<script th:src="@{/js/service/ModalAjaxService.js}"></script>
+	<script th:src="@{/js/users/service/BulkAssignRoleModalService.js}"></script>
+	<script th:src="@{/js/users/fragments/bulkAssignUserRoleModalInit.js}"></script>
+</th:block>

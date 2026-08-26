@@ -11,6 +11,8 @@ import dk.digitalidentity.rc.dao.model.ManualNotificationPendingUser;
 import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserRole;
 import dk.digitalidentity.rc.dao.model.assignment.CurrentAssignment;
+import dk.digitalidentity.rc.dao.model.assignment.CurrentAssignmentPostponedConstraint;
+import dk.digitalidentity.rc.dao.model.enums.ConstraintUIType;
 import dk.digitalidentity.rc.dao.model.enums.EmailTemplateType;
 import dk.digitalidentity.rc.service.assignment.AssignmentService;
 import jakarta.persistence.EntityManager;
@@ -19,6 +21,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Spy;
@@ -29,8 +32,8 @@ import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -66,6 +69,7 @@ class ManualRolesServiceTest {
 	@Mock private ManualAssignmentNotificationMapService manualAssignmentNotificationMapService;
 	@Mock private ManualNotificationPendingUserDao manualNotificationPendingUserDao;
 	@Mock private EntityManager entityManager;
+	@Mock private PostponedConstraintService postponedConstraintService;
 
 	@Spy private EmailTemplateRenderer emailTemplateRenderer;
 
@@ -104,25 +108,23 @@ class ManualRolesServiceTest {
 		stubPending(u1, u2);
 		stubResolvableUsers(u1, u2);
 		stubManualItSystems(itSystem);
-		stubRolesForItSystem(itSystem, role);
+		stubRolesForItSystems(role);
 		// first run well in the past -> emails are allowed
 		given(settingsService.getFirstManualITSystemRun()).willReturn(LocalDateTime.now().minusDays(1));
 		stubDefaultTemplates();
 
 		// both users currently hold the role, neither was previously notified -> both are "added"
-		given(assignmentService.getByUserAndItSystems(eq(u1), anyList())).willReturn(Set.of(currentAssignment(u1, role, itSystem)));
-		given(assignmentService.getByUserAndItSystems(eq(u2), anyList())).willReturn(Set.of(currentAssignment(u2, role, itSystem)));
-		given(manualAssignmentNotificationMapService.getForUser(DOMAIN_ID, "user1")).willReturn(List.of());
-		given(manualAssignmentNotificationMapService.getForUser(DOMAIN_ID, "user2")).willReturn(List.of());
+		given(assignmentService.getActiveAssignmentsByUsersAndItSystems(anyList(), anyList()))
+			.willReturn(Set.of(currentAssignment(u1, role, itSystem), currentAssignment(u2, role, itSystem)));
+		given(manualAssignmentNotificationMapService.getForUsers(any(), any())).willReturn(List.of());
 		given(userRoleService.findAllByIdIn(any())).willReturn(Set.of());
-		given(manualAssignmentNotificationMapService.save(any())).willAnswer(inv -> inv.getArgument(0));
 
 		manualRolesService.processPendingUsers();
 
 		// batching: two changed users on the same it-system collapse into a single mail to the system contact
 		verify(emailService, times(1)).sendMessage(eq(IT_SYSTEM_EMAIL), anyString(), anyString(), isNull());
-		// a notification-map baseline row is recorded for each user
-		verify(manualAssignmentNotificationMapService, times(2)).save(any());
+		// a notification-map baseline row is recorded for each user via saveAll
+		verify(manualAssignmentNotificationMapDao).saveAll(any());
 		// the processed pending rows are cleared
 		verify(manualNotificationPendingUserDao).deleteAll(any());
 		// guards the O(n²)-autoflush fix: queries inside the per-user loop must not autoflush
@@ -140,14 +142,13 @@ class ManualRolesServiceTest {
 		stubPending(u1);
 		stubResolvableUsers(u1);
 		stubManualItSystems(itSystem);
-		stubRolesForItSystem(itSystem, role);
+		stubRolesForItSystems(role);
 		given(settingsService.getFirstManualITSystemRun()).willReturn(LocalDateTime.now().minusDays(1));
 		stubDefaultTemplates();
 
-		given(assignmentService.getByUserAndItSystems(eq(u1), anyList())).willReturn(Set.of(currentAssignment(u1, role, itSystem)));
-		given(manualAssignmentNotificationMapService.getForUser(DOMAIN_ID, "user1")).willReturn(List.of());
+		given(assignmentService.getActiveAssignmentsByUsersAndItSystems(anyList(), anyList())).willReturn(Set.of(currentAssignment(u1, role, itSystem)));
+		given(manualAssignmentNotificationMapService.getForUsers(any(), any())).willReturn(List.of());
 		given(userRoleService.findAllByIdIn(any())).willReturn(Set.of());
-		given(manualAssignmentNotificationMapService.save(any())).willAnswer(inv -> inv.getArgument(0));
 
 		manualRolesService.processPendingUsers();
 
@@ -178,13 +179,14 @@ class ManualRolesServiceTest {
 		stubPending(u1);
 		stubResolvableUsers(u1);
 		stubManualItSystems(itSystem);
-		stubRolesForItSystem(itSystem, role);
+		stubRolesForItSystems(role);
 		given(settingsService.getFirstManualITSystemRun()).willReturn(LocalDateTime.now().minusDays(1));
 		stubDefaultTemplates();
 
 		// user no longer holds any assignment on the system, but a prior map row exists -> removal
-		given(assignmentService.getByUserAndItSystems(eq(u1), anyList())).willReturn(Set.of());
-		given(manualAssignmentNotificationMapService.getForUser(DOMAIN_ID, "user1")).willReturn(List.of(mapRow));
+		given(assignmentService.getActiveAssignmentsByUsersAndItSystems(anyList(), anyList())).willReturn(Set.of());
+		given(manualAssignmentNotificationMapService.getForUsers(any(), any())).willReturn(List.of(mapRow));
+		// the it-system is discovered via the existing map row's role
 		given(userRoleService.findAllByIdIn(any())).willReturn(Set.of(role));
 
 		manualRolesService.processPendingUsers();
@@ -213,15 +215,14 @@ class ManualRolesServiceTest {
 		stubPending(u1);
 		stubResolvableUsers(u1);
 		stubManualItSystems(itSystem);
-		stubRolesForItSystem(itSystem, role);
+		stubRolesForItSystems(role);
 		given(settingsService.getFirstManualITSystemRun()).willReturn(LocalDateTime.now().minusDays(1));
 		stubDefaultTemplates();
 		enableTemplate(EmailTemplateType.MANUAL_SYSTEM_CONTACT_ADVIS);
 
-		given(assignmentService.getByUserAndItSystems(eq(u1), anyList())).willReturn(Set.of(currentAssignment(u1, role, itSystem)));
-		given(manualAssignmentNotificationMapService.getForUser(DOMAIN_ID, "user1")).willReturn(List.of());
+		given(assignmentService.getActiveAssignmentsByUsersAndItSystems(anyList(), anyList())).willReturn(Set.of(currentAssignment(u1, role, itSystem)));
+		given(manualAssignmentNotificationMapService.getForUsers(any(), any())).willReturn(List.of());
 		given(userRoleService.findAllByIdIn(any())).willReturn(Set.of());
-		given(manualAssignmentNotificationMapService.save(any())).willAnswer(inv -> inv.getArgument(0));
 
 		manualRolesService.processPendingUsers();
 
@@ -241,14 +242,13 @@ class ManualRolesServiceTest {
 		stubPending(u1);
 		stubResolvableUsers(u1);
 		stubManualItSystems(itSystem);
-		stubRolesForItSystem(itSystem, role);
+		stubRolesForItSystems(role);
 		given(settingsService.getFirstManualITSystemRun()).willReturn(LocalDateTime.now().minusDays(1));
 		stubDefaultTemplates();
 
-		given(assignmentService.getByUserAndItSystems(eq(u1), anyList())).willReturn(Set.of(currentAssignment(u1, role, itSystem)));
-		given(manualAssignmentNotificationMapService.getForUser(DOMAIN_ID, "user1")).willReturn(List.of());
+		given(assignmentService.getActiveAssignmentsByUsersAndItSystems(anyList(), anyList())).willReturn(Set.of(currentAssignment(u1, role, itSystem)));
+		given(manualAssignmentNotificationMapService.getForUsers(any(), any())).willReturn(List.of());
 		given(userRoleService.findAllByIdIn(any())).willReturn(Set.of());
-		given(manualAssignmentNotificationMapService.save(any())).willAnswer(inv -> inv.getArgument(0));
 
 		manualRolesService.processPendingUsers();
 
@@ -268,14 +268,13 @@ class ManualRolesServiceTest {
 		stubPending(u1);
 		stubResolvableUsers(u1);
 		stubManualItSystems(itSystem);
-		stubRolesForItSystem(itSystem, role);
+		stubRolesForItSystems(role);
 		given(settingsService.getFirstManualITSystemRun()).willReturn(LocalDateTime.now().minusDays(1));
 		stubDefaultTemplates();
 
-		given(assignmentService.getByUserAndItSystems(eq(u1), anyList())).willReturn(Set.of(currentAssignment(u1, role, itSystem)));
-		given(manualAssignmentNotificationMapService.getForUser(DOMAIN_ID, "user1")).willReturn(List.of());
+		given(assignmentService.getActiveAssignmentsByUsersAndItSystems(anyList(), anyList())).willReturn(Set.of(currentAssignment(u1, role, itSystem)));
+		given(manualAssignmentNotificationMapService.getForUsers(any(), any())).willReturn(List.of());
 		given(userRoleService.findAllByIdIn(any())).willReturn(Set.of());
-		given(manualAssignmentNotificationMapService.save(any())).willAnswer(inv -> inv.getArgument(0));
 
 		manualRolesService.processPendingUsers();
 
@@ -303,14 +302,13 @@ class ManualRolesServiceTest {
 		stubPending(u1);
 		stubResolvableUsers(u1);
 		stubManualItSystems(itSystem);
-		stubRolesForItSystem(itSystem, role);
+		stubRolesForItSystems(role);
 		given(settingsService.getFirstManualITSystemRun()).willReturn(LocalDateTime.now().minusDays(1));
 		stubDefaultTemplates();
 
-		given(assignmentService.getByUserAndItSystems(eq(u1), anyList())).willReturn(Set.of(currentAssignment(u1, role, itSystem)));
-		given(manualAssignmentNotificationMapService.getForUser(DOMAIN_ID, "user1")).willReturn(List.of());
+		given(assignmentService.getActiveAssignmentsByUsersAndItSystems(anyList(), anyList())).willReturn(Set.of(currentAssignment(u1, role, itSystem)));
+		given(manualAssignmentNotificationMapService.getForUsers(any(), any())).willReturn(List.of());
 		given(userRoleService.findAllByIdIn(any())).willReturn(Set.of());
-		given(manualAssignmentNotificationMapService.save(any())).willAnswer(inv -> inv.getArgument(0));
 
 		manualRolesService.processPendingUsers();
 
@@ -330,15 +328,14 @@ class ManualRolesServiceTest {
 		stubPending(u1);
 		stubResolvableUsers(u1);
 		stubManualItSystems(itSystem);
-		stubRolesForItSystem(itSystem, role);
+		stubRolesForItSystems(role);
 		given(settingsService.getFirstManualITSystemRun()).willReturn(LocalDateTime.now().minusDays(1));
 		stubDefaultTemplates();
 		enableTemplate(EmailTemplateType.MANUAL_ROLE_CONTACT_ADVIS);
 
-		given(assignmentService.getByUserAndItSystems(eq(u1), anyList())).willReturn(Set.of(currentAssignment(u1, role, itSystem)));
-		given(manualAssignmentNotificationMapService.getForUser(DOMAIN_ID, "user1")).willReturn(List.of());
+		given(assignmentService.getActiveAssignmentsByUsersAndItSystems(anyList(), anyList())).willReturn(Set.of(currentAssignment(u1, role, itSystem)));
+		given(manualAssignmentNotificationMapService.getForUsers(any(), any())).willReturn(List.of());
 		given(userRoleService.findAllByIdIn(any())).willReturn(Set.of());
-		given(manualAssignmentNotificationMapService.save(any())).willAnswer(inv -> inv.getArgument(0));
 
 		manualRolesService.processPendingUsers();
 
@@ -356,17 +353,17 @@ class ManualRolesServiceTest {
 		stubPending(u1);
 		stubResolvableUsers(u1);
 		stubManualItSystems(itSystem);
-		stubRolesForItSystem(itSystem, role);
+		stubRolesForItSystems(role);
 		given(settingsService.getFirstManualITSystemRun()).willReturn(LocalDateTime.now().minusDays(1));
 
-		given(assignmentService.getByUserAndItSystems(eq(u1), anyList())).willReturn(Set.of(currentAssignment(u1, role, itSystem)));
-		given(manualAssignmentNotificationMapService.getForUser(DOMAIN_ID, "user1")).willReturn(List.of());
+		given(assignmentService.getActiveAssignmentsByUsersAndItSystems(anyList(), anyList())).willReturn(Set.of(currentAssignment(u1, role, itSystem)));
+		given(manualAssignmentNotificationMapService.getForUsers(any(), any())).willReturn(List.of());
 		given(userRoleService.findAllByIdIn(any())).willReturn(Set.of());
 
 		manualRolesService.processPendingUsers();
 
 		verifyNoInteractions(emailService);
-		verify(manualAssignmentNotificationMapService, never()).save(any());
+		verify(manualAssignmentNotificationMapDao, never()).saveAll(any());
 		// pending is still cleared so the row does not pile up
 		verify(manualNotificationPendingUserDao).deleteAll(any());
 	}
@@ -395,7 +392,6 @@ class ManualRolesServiceTest {
 		given(assignmentService.getActiveAssignmentsByItSystem(itSystem)).willReturn(
 			Set.of(currentAssignment(u1, role, itSystem), currentAssignment(u2, role, itSystem), currentAssignment(u3, role, itSystem)));
 		given(manualAssignmentNotificationMapService.getForRoles(any())).willReturn(List.of());
-		given(manualAssignmentNotificationMapService.save(any())).willAnswer(inv -> inv.getArgument(0));
 
 		manualRolesService.notifyServicedesk();
 
@@ -403,7 +399,9 @@ class ManualRolesServiceTest {
 		// not mail for the pre-existing assignments (pre-fix, this assertion fails - the bug sends 1 mail per user)
 		verifyNoInteractions(emailService);
 		// baseline is nonetheless populated for all three existing assignments
-		verify(manualAssignmentNotificationMapService, times(3)).save(any());
+		ArgumentCaptor<List<ManualAssignmentNotificationMap>> savedBaseline = ArgumentCaptor.captor();
+		verify(manualAssignmentNotificationMapDao).saveAll(savedBaseline.capture());
+		assertThat(savedBaseline.getValue()).hasSize(3);
 		// the it-system is now marked initialized so future runs resume normal diff-and-send
 		assertThat(itSystem.isContactNotificationsInitialized()).isTrue();
 	}
@@ -421,21 +419,22 @@ class ManualRolesServiceTest {
 
 		given(settingsService.getFirstManualITSystemRun()).willReturn(LocalDateTime.now().minusDays(1));
 		stubDefaultTemplates();
-		given(manualAssignmentNotificationMapService.save(any())).willAnswer(inv -> inv.getArgument(0));
 
 		// step 1: event-driven flush only sees user1 (the only one whose assignment just changed)
 		stubPending(u1);
 		stubResolvableUsers(u1);
 		stubManualItSystems(itSystem);
 		stubRolesForItSystem(itSystem, role);
-		given(assignmentService.getByUserAndItSystems(eq(u1), anyList())).willReturn(Set.of(currentAssignment(u1, role, itSystem)));
-		given(manualAssignmentNotificationMapService.getForUser(DOMAIN_ID, "user1")).willReturn(List.of());
+		given(assignmentService.getActiveAssignmentsByUsersAndItSystems(anyList(), anyList())).willReturn(Set.of(currentAssignment(u1, role, itSystem)));
+		given(manualAssignmentNotificationMapService.getForUsers(any(), any())).willReturn(List.of());
 		given(userRoleService.findAllByIdIn(any())).willReturn(Set.of());
 
 		manualRolesService.processPendingUsers();
 
 		verifyNoInteractions(emailService);
-		// the event-driven run must NOT flip the marker: it only ever saw its own batch (user1), so
+		// user1's baseline row is written during the flush...
+		verify(manualAssignmentNotificationMapDao).saveAll(any());
+		// ...but the event-driven run must NOT flip the marker: it only ever saw its own batch (user1), so
 		// marking the it-system "initialized" here would make the next full sweep treat user2/user3's
 		// still-missing baseline rows as legitimate changes and mail for them
 		assertThat(itSystem.isContactNotificationsInitialized()).isFalse();
@@ -473,10 +472,9 @@ class ManualRolesServiceTest {
 		stubDefaultTemplates();
 
 		// system was already initialized (e.g. previously had zero assignments) and now gets its first real one
-		given(assignmentService.getByUserAndItSystems(eq(u1), anyList())).willReturn(Set.of(currentAssignment(u1, role, itSystem)));
-		given(manualAssignmentNotificationMapService.getForUser(DOMAIN_ID, "user1")).willReturn(List.of());
+		given(assignmentService.getActiveAssignmentsByUsersAndItSystems(anyList(), anyList())).willReturn(Set.of(currentAssignment(u1, role, itSystem)));
+		given(manualAssignmentNotificationMapService.getForUsers(any(), any())).willReturn(List.of());
 		given(userRoleService.findAllByIdIn(any())).willReturn(Set.of());
-		given(manualAssignmentNotificationMapService.save(any())).willAnswer(inv -> inv.getArgument(0));
 
 		manualRolesService.processPendingUsers();
 
@@ -495,21 +493,20 @@ class ManualRolesServiceTest {
 		stubPending(u1);
 		stubResolvableUsers(u1);
 		stubManualItSystems(itSystem);
-		stubRolesForItSystem(itSystem, role);
+		stubRolesForItSystems(role);
 		// first run just now -> still inside the 3 hour cooling-off window
 		given(settingsService.getFirstManualITSystemRun()).willReturn(LocalDateTime.now());
 		stubDefaultTemplates();
 
-		given(assignmentService.getByUserAndItSystems(eq(u1), anyList())).willReturn(Set.of(currentAssignment(u1, role, itSystem)));
-		given(manualAssignmentNotificationMapService.getForUser(DOMAIN_ID, "user1")).willReturn(List.of());
+		given(assignmentService.getActiveAssignmentsByUsersAndItSystems(anyList(), anyList())).willReturn(Set.of(currentAssignment(u1, role, itSystem)));
+		given(manualAssignmentNotificationMapService.getForUsers(any(), any())).willReturn(List.of());
 		given(userRoleService.findAllByIdIn(any())).willReturn(Set.of());
-		given(manualAssignmentNotificationMapService.save(any())).willAnswer(inv -> inv.getArgument(0));
 
 		manualRolesService.processPendingUsers();
 
 		verifyNoInteractions(emailService);
-		// baseline is still recorded so the user is not re-notified once the cooling-off passes
-		verify(manualAssignmentNotificationMapService, times(1)).save(any());
+		// baseline is still recorded via saveAll so the user is not re-notified once the cooling-off passes
+		verify(manualAssignmentNotificationMapDao).saveAll(any());
 		verify(manualNotificationPendingUserDao).deleteAll(any());
 	}
 
@@ -521,17 +518,22 @@ class ManualRolesServiceTest {
 	}
 
 	private void stubResolvableUsers(User... users) {
-		for (User u : users) {
-			given(userService.getOptionalByUuid(u.getUuid())).willReturn(Optional.of(u));
-		}
+		given(userService.getAllActiveByUuidIn(any())).willReturn(List.of(users));
 	}
 
 	private void stubManualItSystems(ItSystem... itSystems) {
 		given(itSystemService.getBySystemTypeIn(anyList())).willReturn(List.of(itSystems));
 	}
 
+	private void stubRolesForItSystems(UserRole... roles) {
+		given(userRoleService.getByItSystems(any())).willReturn(List.of(roles));
+	}
+
+	// the full sweep resolves roles per it-system while the event-driven flush resolves them in bulk,
+	// so tests exercising both flows need both lookups stubbed
 	private void stubRolesForItSystem(ItSystem itSystem, UserRole... roles) {
 		given(userRoleService.getByItSystem(itSystem)).willReturn(List.of(roles));
+		given(userRoleService.getByItSystems(any())).willReturn(List.of(roles));
 	}
 
 	/**
@@ -610,5 +612,102 @@ class ManualRolesServiceTest {
 		pending.setUserUuid(userUuid);
 		pending.setCreatedAt(LocalDateTime.now());
 		return pending;
+	}
+
+	private CurrentAssignmentPostponedConstraint constraint(long systemRoleId, String entityId, String... values) {
+		CurrentAssignmentPostponedConstraint c = new CurrentAssignmentPostponedConstraint();
+		c.setSystemRoleId(systemRoleId);
+		c.setConstraintTypeEntityId(entityId);
+		c.setConstraintTypeUuid("uuid-" + systemRoleId);
+		c.setConstraintTypeName("name-" + systemRoleId);
+		c.setConstraintTypeUIType(ConstraintUIType.COMBO_MULTI);
+		c.setConstraintTypeId(systemRoleId);
+		c.setValue(List.of(values));
+		return c;
+	}
+
+	@Test
+	@DisplayName("Ændret fingerprint → ny 'Tilføj rolle'-mail sendes")
+	void changedConstraintFingerprintTriggersAddMail() {
+		Domain domain = domain();
+		ItSystem itSystem = itSystem(IT_SYSTEM_EMAIL);
+		UserRole role = role(itSystem);
+		User u1 = user("u1", "user1", domain);
+
+		// existing map row has a fingerprint that differs from the current assignment's constraints
+		ManualAssignmentNotificationMap existingRow = mapRow(1L, ROLE_ID, "user1");
+		existingRow.setConstraintFingerprint("old-fingerprint-that-differs");
+
+		stubPending(u1);
+		stubResolvableUsers(u1);
+		stubManualItSystems(itSystem);
+		stubRolesForItSystems(role);
+		given(settingsService.getFirstManualITSystemRun()).willReturn(LocalDateTime.now().minusDays(1));
+		stubDefaultTemplates();
+
+		CurrentAssignment assignment = currentAssignment(u1, role, itSystem);
+		assignment.getPostponedConstraints().add(constraint(42L, "some-entity", "val1", "val2"));
+
+		given(assignmentService.getActiveAssignmentsByUsersAndItSystems(anyList(), anyList()))
+			.willReturn(Set.of(assignment));
+		given(manualAssignmentNotificationMapService.getForUsers(any(), any())).willReturn(List.of(existingRow));
+		given(userRoleService.findAllByIdIn(any())).willReturn(Set.of());
+
+		manualRolesService.processPendingUsers();
+
+		verify(emailService, times(1)).sendMessage(eq(IT_SYSTEM_EMAIL), anyString(), anyString(), isNull());
+		// deleteAll is called twice: once in detectAddedRoles (stale row) and once in detectRemovedRoles
+		verify(manualAssignmentNotificationMapDao, times(2)).deleteAll(any());
+		verify(manualAssignmentNotificationMapDao).saveAll(any());
+	}
+
+	@Test
+	@DisplayName("Uændret fingerprint → ingen mail sendes")
+	void unchangedConstraintFingerprintSuppressesMail() {
+		Domain domain = domain();
+		ItSystem itSystem = itSystem(IT_SYSTEM_EMAIL);
+		UserRole role = role(itSystem);
+		User u1 = user("u1", "user1", domain);
+
+		CurrentAssignment assignment = currentAssignment(u1, role, itSystem);
+		assignment.getPostponedConstraints().add(constraint(42L, "some-entity", "val1", "val2"));
+
+		// pre-compute what the service will produce for this constraint set
+		String fingerprint = fingerprintOf(assignment.getPostponedConstraints());
+		ManualAssignmentNotificationMap existingRow = mapRow(1L, ROLE_ID, "user1");
+		existingRow.setConstraintFingerprint(fingerprint);
+
+		stubPending(u1);
+		stubResolvableUsers(u1);
+		stubManualItSystems(itSystem);
+		stubRolesForItSystems(role);
+		given(settingsService.getFirstManualITSystemRun()).willReturn(LocalDateTime.now().minusDays(1));
+		stubDefaultTemplates();
+
+		given(assignmentService.getActiveAssignmentsByUsersAndItSystems(anyList(), anyList()))
+			.willReturn(Set.of(assignment));
+		given(manualAssignmentNotificationMapService.getForUsers(any(), any())).willReturn(List.of(existingRow));
+		given(userRoleService.findAllByIdIn(any())).willReturn(Set.of());
+
+		manualRolesService.processPendingUsers();
+
+		verifyNoInteractions(emailService);
+		verify(manualAssignmentNotificationMapDao, never()).saveAll(any());
+	}
+
+	/** Mirrors ManualRolesService.buildConstraintFingerprint so tests can construct matching stored values. */
+	private static String fingerprintOf(java.util.Collection<CurrentAssignmentPostponedConstraint> constraints) {
+		if (constraints == null || constraints.isEmpty()) return null;
+		String canonical = constraints.stream()
+			.sorted(java.util.Comparator.comparingLong(CurrentAssignmentPostponedConstraint::getSystemRoleId)
+				.thenComparing(CurrentAssignmentPostponedConstraint::getConstraintTypeEntityId))
+			.map(c -> c.getSystemRoleId() + ":" + c.getConstraintTypeEntityId() + "=" + String.join(",", c.getValue()))
+			.collect(Collectors.joining("|"));
+		try {
+			byte[] hash = java.security.MessageDigest.getInstance("SHA-256").digest(canonical.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+			return java.util.HexFormat.of().formatHex(hash);
+		} catch (java.security.NoSuchAlgorithmException e) {
+			throw new IllegalStateException(e);
+		}
 	}
 }

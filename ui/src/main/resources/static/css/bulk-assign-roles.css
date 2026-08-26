@@ -1,0 +1,25 @@
+/* Shared by the bulk-assign-role modals (users/fragments/bulk_assign_user_role_*_modal.html),
+   included on any page that renders them: userroles/view+edit, rolegroups/edit. */
+
+.bulk-assign-users-dialog {
+	height: 90%;
+	margin-top: 5vh;
+}
+
+.bulk-assign-users-content {
+	height: 100%;
+	display: flex;
+	flex-direction: column;
+}
+
+.bulk-assign-users-body {
+	flex: 1 1 auto;
+	min-height: 0;
+	overflow-y: auto;
+}
+
+/* The uk-notify toasts (z-index: 1040) otherwise render behind these modals
+   (z-index: 1050), since a bulk-assign modal is always open when a toast fires. */
+.uk-notify {
+	z-index: 1060;
+}

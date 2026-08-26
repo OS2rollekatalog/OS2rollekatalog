@@ -4,6 +4,7 @@ import dk.digitalidentity.rc.dao.SystemRoleDao;
 import dk.digitalidentity.rc.dao.model.EmailTemplate;
 import dk.digitalidentity.rc.dao.model.ItSystem;
 import dk.digitalidentity.rc.dao.model.SystemRole;
+import dk.digitalidentity.rc.dao.model.SystemRoleAssignment;
 import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserRole;
 import dk.digitalidentity.rc.dao.model.assignment.CurrentAssignment;
@@ -13,6 +14,8 @@ import dk.digitalidentity.rc.dao.model.enums.ItSystemType;
 import dk.digitalidentity.rc.service.assignment.AssignmentService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -37,6 +40,13 @@ public class SystemRoleService {
 	private final AssignmentService assignmentService;
 	private final EmailTemplateService emailTemplateService;
 	private final EmailQueueService emailQueueService;
+
+	// @Lazy: PendingADUpdateService field-injects SystemRoleService, so injecting it via this bean's
+	// @RequiredArgsConstructor would create a constructor-level dependency cycle. @Lazy breaks it cleanly
+	// without relying on the global spring.main.allow-circular-references flag.
+	@Lazy
+	@Autowired
+	private PendingADUpdateService pendingADUpdateService;
 
 	public SystemRole getById(long id) {
 		return systemRoleDao.findById(id);
@@ -100,6 +110,35 @@ public class SystemRoleService {
 		return systemRoleDao.save(systemRole);
 	}
 
+	/**
+	 * Ændrer vægtningen på en systemrolle og udløser — kun når vægtningen faktisk ændrer sig — en
+	 * gen-synkronisering af AD-medlemskaberne for hele it-systemet (issue #81).
+	 *
+	 * Vægtning materialiseres ingen steder; den anvendes live ved provisionering. Eneste forbruger der
+	 * er afhængig af en trigger er AD-sync ({@code AdSyncApi}), som er delta-baseret og styret af
+	 * {@code DirtyADGroup}-køen. Læse-API'et ({@code UserApi}) og UI'et beregner vægtning live ved hvert
+	 * kald og behøver derfor ingen trigger; KSPCICS/KOMBIT/NemLogin/DMP anvender slet ikke vægtning.
+	 *
+	 * Hele it-systemet flagges (ikke kun JFR'er med denne systemrolle), fordi vægtning er it-system-relativ:
+	 * en søskende-rolles vægt påvirker effektiviteten af alle roller i samme it-system. {@code addItSystemToQueue}
+	 * er i forvejen en no-op for ikke-AD-systemer (fx SAML, der dækkes live af læse-API'et).
+	 *
+	 * @return den gemte systemrolle (uændret hvis vægtningen ikke ændrede sig)
+	 */
+	@Transactional
+	public SystemRole changeWeight(SystemRole systemRole, int newWeight) {
+		if (systemRole.getWeight() == newWeight) {
+			return systemRole;
+		}
+
+		systemRole.setWeight(newWeight);
+		SystemRole saved = systemRoleDao.save(systemRole);
+
+		pendingADUpdateService.addItSystemToQueue(systemRole.getItSystem());
+
+		return saved;
+	}
+
 	@Transactional
 	public void delete(SystemRole systemRole) {
 		systemRoleDao.delete(systemRole);
@@ -122,7 +161,19 @@ public class SystemRoleService {
 		return userRoleService.findAllBySystemRoles(systemRoles);
 	}
 
-	public boolean isInUse(SystemRole systemRole) {
+	public boolean isInUse(SystemRole systemRole, List<UserRole> optionalPreloadedUserRoles) {
+		if (optionalPreloadedUserRoles != null) {
+			for (UserRole userRole : optionalPreloadedUserRoles) {
+				for (SystemRoleAssignment assignment : userRole.getSystemRoleAssignments()) {
+					if (assignment.getSystemRole().getId() == systemRole.getId()) {
+						return true;
+					}
+				}
+			}
+			
+			return false;
+		}
+
 		return userRoleService.countBySystemRoleAssignmentsSystemRole(systemRole) > 0;
 	}
 

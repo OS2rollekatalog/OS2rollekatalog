@@ -137,6 +137,9 @@ public class ItSystem implements AuditLoggable {
 	@Convert(converter = ApprovableByListConverter.class)
 	private List<ApprovableBy> approverPermission = new ArrayList<>(List.of(ApprovableBy.INHERIT));
 
+	@Column
+	private boolean manualEffectuationEnabled;
+
 	@JsonIgnore
 	@Override
 	public String getEntityId() {

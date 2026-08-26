@@ -5,11 +5,16 @@ import static dk.digitalidentity.rc.attestation.service.util.AttestationUtil.isS
 import static dk.digitalidentity.rc.util.StreamExtensions.distinctByKey;
 
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.time.ZonedDateTime;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
@@ -21,7 +26,9 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 
 import dk.digitalidentity.rc.attestation.dao.AttestationResponsibleCollectionDao;
+import dk.digitalidentity.rc.attestation.dao.AttestationUserDao;
 import dk.digitalidentity.rc.attestation.dao.AttestationUserRoleAssignmentDao;
+import dk.digitalidentity.rc.config.Constants;
 import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
 import dk.digitalidentity.rc.dao.model.EmailTemplate;
 import dk.digitalidentity.rc.dao.model.RoleGroup;
@@ -71,7 +78,8 @@ import dk.digitalidentity.rc.dao.model.Function;
 import dk.digitalidentity.rc.dao.model.OrgUnit;
 import dk.digitalidentity.rc.dao.model.Title;
 import dk.digitalidentity.rc.dao.model.User;
-import dk.digitalidentity.rc.security.SecurityUtil;
+import dk.digitalidentity.rc.dao.model.ManagerSubstitute;
+import dk.digitalidentity.rc.service.ManagerDelegateService;
 import dk.digitalidentity.rc.service.ManagerSubstituteService;
 import dk.digitalidentity.rc.service.OrgUnitService;
 import dk.digitalidentity.rc.service.SettingsService;
@@ -105,6 +113,9 @@ public class OrganisationAttestationService {
 
 	@Autowired
 	private ManagerSubstituteService managerSubstituteService;
+
+	@Autowired
+	private ManagerDelegateService managerDelegateService;
 
 	@Autowired
 	private UserService userService;
@@ -151,7 +162,50 @@ public class OrganisationAttestationService {
 	private AttestationResponsibleCollectionDao attestationResponsibleCollectionDao;
 
 	@Autowired
-	private AttestationConstraintService attestationConstraintService;
+	private AttestationUserDao attestationUserDao;
+
+	@Autowired
+	private AttestationRunService attestationRunService;
+
+	public record AttestationOverviewData(
+		AttestationRun run,
+		List<Attestation> attestations,
+		AttestationStatusInfo statusInfo,
+		Map<String, LocalDate> nextAttestationByOu
+	) {}
+
+	@Transactional(readOnly = true)
+	public AttestationOverviewData getOverviewForUser(User user) {
+		Optional<AttestationRun> runOpt = attestationRunService.getCurrentRun();
+		if (runOpt.isEmpty()) {
+			return null;
+		}
+		AttestationRun run = runOpt.get();
+
+		List<User> substituteForUsers = user.getSubstituteFor().stream()
+			.map(ManagerSubstitute::getManager)
+			.toList();
+
+		List<Attestation> ownAttestations = listOrganisationAttestationEntities(run, user, substituteForUsers);
+		List<User> delegatedManagers = managerDelegateAttestationService.getManagedUsersForDelegate(user);
+		List<Attestation> delegateAttestations = managerDelegateAttestationService.listDelegateAttestationEntities(run, delegatedManagers);
+
+		LinkedHashMap<String, Attestation> merged = new LinkedHashMap<>();
+		ownAttestations.forEach(a -> merged.put(a.getResponsibleOuUuid(), a));
+		delegateAttestations.forEach(a -> merged.putIfAbsent(a.getResponsibleOuUuid(), a));
+		List<Attestation> allAttestations = new ArrayList<>(merged.values());
+
+		List<String> allOuUuids = allAttestations.stream().map(Attestation::getResponsibleOuUuid).toList();
+		List<Long> allAttestationIds = allAttestations.stream().map(Attestation::getId).toList();
+
+		AttestationStatusInfo statusInfo = batchLoadStatusInfo(run.getCreatedAt(), allOuUuids, allAttestationIds, allAttestations);
+
+		Map<String, LocalDate> nextAttestationByOu = orgUnitService.getByUuidIn(allOuUuids).stream()
+			.filter(ou -> ou.getNextAttestation() != null)
+			.collect(Collectors.toMap(OrgUnit::getUuid, ou -> ou.getNextAttestation().toInstant().atZone(ZoneId.systemDefault()).toLocalDate(), (a, _) -> a));
+
+		return new AttestationOverviewData(run, allAttestations, statusInfo, nextAttestationByOu);
+	}
 
 	public List<OrgUnit> getAllOrgUnitsWithAttestations(LocalDate when) {
 		final LocalDate since = when.minusMonths(12);
@@ -174,6 +228,88 @@ public class OrganisationAttestationService {
 					a.setVerifiedAt(ZonedDateTime.now());
 					log.warn("Attestation finished but not verified, id: {}", a.getId());
 				});
+	}
+
+	public record AttestationStatusInfo(
+			Set<String> ouUuidsWithUserAssignments,
+			Set<String> ouUuidsWithOuAssignments,
+			Set<Long> attestationIdsWithUserEntries,
+			Set<Long> attestationIdsWithRoleEntries,
+			Map<String, Set<String>> directUserUuidsByOuUuid,
+			Map<Long, Set<String>> approvedUserUuidsByAttestationId,
+			Map<Long, Set<String>> adUserUuidsByAttestationId,
+			Map<Long, Set<String>> sensitiveUserUuidsByAttestationId) {}
+
+	@Transactional(readOnly = true)
+	public List<Attestation> listOrganisationAttestationEntities(final AttestationRun run, final User currentUser, final List<User> substituteForUsers) {
+		entityManager.setFlushMode(FlushModeType.COMMIT);
+		final Map<String, Attestation> attestationByOuUuid = run.getAttestations().stream()
+				.filter(a -> a.getAttestationType() == Attestation.AttestationType.ORGANISATION_ATTESTATION)
+				.collect(Collectors.toMap(Attestation::getResponsibleOuUuid, a -> a, (a, _) -> a));
+		return Stream.concat(Stream.of(currentUser), substituteForUsers.stream())
+				.flatMap(u -> filteredAttestationEntitiesForUser(attestationByOuUuid, currentUser, u.getUuid()))
+				.filter(distinctByKey(Attestation::getUuid))
+				.collect(Collectors.toList());
+	}
+
+	private Stream<Attestation> filteredAttestationEntitiesForUser(final Map<String, Attestation> attestationByOuUuid, final User currentUser, final String userUuid) {
+		final List<OrgUnit> orgUnitsForUser = userService.getOptionalByUuid(userUuid)
+				.map(u -> orgUnitService.getByManagerMatchingUser(u))
+				.orElse(Collections.emptyList());
+		return orgUnitsForUser.stream()
+				.filter(ou -> managerSubstituteService.isManagerForOrgUnit(currentUser, ou) || managerSubstituteService.isSubstituteforOrgUnit(currentUser, ou))
+				.map(ou -> attestationByOuUuid.get(ou.getUuid()))
+				.filter(Objects::nonNull);
+	}
+
+	@Transactional(readOnly = true)
+	public AttestationStatusInfo batchLoadStatusInfo(final LocalDate when, final List<String> ouUuids, final List<Long> attestationIds, final List<Attestation> attestations) {
+		final Set<String> withUserAssignments = ouUuids.isEmpty() ? Set.of()
+				: userRoleAssignmentDao.findOuUuidsWithValidUserAssignments(when, ouUuids);
+		final Set<String> withOuAssignments = ouUuids.isEmpty() ? Set.of()
+				: ouAssignmentsDao.findOuUuidsWithValidOuAssignments(when, ouUuids);
+		final Set<Long> withUserEntries = attestationIds.isEmpty() ? Set.of()
+				: organisationUserAttestationEntryDao.findAttestationIdsWithAnyEntry(attestationIds);
+		final Set<Long> withRoleEntries = attestationIds.isEmpty() ? Set.of()
+				: organisationRoleAttestationEntryDao.findAttestationIdsWithEntry(attestationIds);
+		final Map<String, Set<String>> directUserUuidsByOuUuid;
+		if (ouUuids.isEmpty()) {
+			directUserUuidsByOuUuid = Map.of();
+		} else {
+			directUserUuidsByOuUuid = new HashMap<>();
+			for (AttestationUserRoleAssignmentDao.OuUserProjection assignment : userRoleAssignmentDao.findDirectAssignmentsByOuUuids(when, ouUuids)) {
+				directUserUuidsByOuUuid.computeIfAbsent(assignment.getResponsibleOuUuid(), _ -> new HashSet<>()).add(assignment.getUserUuid());
+			}
+		}
+		// Batch-loaded so isOrganisationAttestationDone(Attestation, AttestationRun, AttestationStatusInfo)
+		// doesn't have to lazily load attestation.getOrganisationUserAttestationEntries() per attestation.
+		final Map<Long, Set<String>> approvedUserUuidsByAttestationId;
+		if (attestations.isEmpty()) {
+			approvedUserUuidsByAttestationId = Map.of();
+		} else {
+			approvedUserUuidsByAttestationId = new HashMap<>();
+			for (OrganisationUserAttestationEntryDao.AttestationUserProjection entry : organisationUserAttestationEntryDao.findAttestationUserPairsByAttestationIn(attestations)) {
+				approvedUserUuidsByAttestationId.computeIfAbsent(entry.getAttestationId(), _ -> new HashSet<>()).add(entry.getUserUuid());
+			}
+		}
+		// Batch-loaded so isOrganisationAttestationDone doesn't lazily trigger getUsersForAttestation() per attestation
+		// when AD attestation is enabled. The single query populates both the full AD-user set and the sensitive-only subset.
+		final Map<Long, Set<String>> adUserUuidsByAttestationId;
+		final Map<Long, Set<String>> sensitiveUserUuidsByAttestationId;
+		if (attestationIds.isEmpty()) {
+			adUserUuidsByAttestationId = Map.of();
+			sensitiveUserUuidsByAttestationId = Map.of();
+		} else {
+			adUserUuidsByAttestationId = new HashMap<>();
+			sensitiveUserUuidsByAttestationId = new HashMap<>();
+			for (AttestationUserDao.AttestationIdUserUuidProjection p : attestationUserDao.findUserUuidsByAttestationIdIn(attestationIds)) {
+				adUserUuidsByAttestationId.computeIfAbsent(p.getAttestationId(), _ -> new HashSet<>()).add(p.getUserUuid());
+				if (p.isSensitiveRoles()) {
+					sensitiveUserUuidsByAttestationId.computeIfAbsent(p.getAttestationId(), _ -> new HashSet<>()).add(p.getUserUuid());
+				}
+			}
+		}
+		return new AttestationStatusInfo(withUserAssignments, withOuAssignments, withUserEntries, withRoleEntries, directUserUuidsByOuUuid, approvedUserUuidsByAttestationId, adUserUuidsByAttestationId, sensitiveUserUuidsByAttestationId);
 	}
 
 	@Transactional
@@ -220,6 +356,30 @@ public class OrganisationAttestationService {
 		return getAttestation(attestation, currentUserUuid, undecidedUsersOnly, attestationType);
 	}
 
+	@Transactional(readOnly = true)
+	public UserAttestationDTO getManagerDelegatedAttestationForDelegate(String ouUuid, User user) {
+		List<User> delegatedManagers = managerDelegateAttestationService.getManagedUsersForDelegate(user);
+		if (delegatedManagers.isEmpty()) {
+			return null;
+		}
+
+		OrgUnit ou = orgUnitService.getByUuid(ouUuid);
+		boolean isDelegateForThisOu = ou != null && ou.getManager() != null && delegatedManagers.stream().anyMatch(m -> m.getUuid().equals(ou.getManager().getUuid()));
+		if (!isDelegateForThisOu) {
+			return null;
+		}
+
+		OrganisationAttestationDTO managerDelegatedAttestation = getManagerDelegatedAttestation(ouUuid, user.getUuid(), false);
+		if (managerDelegatedAttestation == null || managerDelegatedAttestation.getUserAttestations() == null || managerDelegatedAttestation.getUserAttestations().isEmpty()) {
+			return null;
+		}
+
+		return managerDelegatedAttestation.getUserAttestations().stream()
+			.filter(ua -> ua.getUserUuid().equals(ou.getManager().getUuid()))
+			.findFirst()
+			.orElse(null);
+	}
+
 	@Transactional
 	public OrganisationAttestationDTO getManagerDelegatedAttestation(final String orgUnitUuid, final String currentUserUuid, final boolean undecidedUsersOnly) {
 		var attestationType = Attestation.AttestationType.MANAGER_DELEGATED_ATTESTATION;
@@ -234,6 +394,7 @@ public class OrganisationAttestationService {
 
 	@Transactional
 	public OrganisationAttestationDTO getAttestation(final Attestation attestation, final String currentUserUuid, final boolean undecidedUsersOnly, Attestation.AttestationType attestationType) {
+		final User currentUser = userService.getByUuid(currentUserUuid);
 		// A verified (completed) attestation is opened read-only via the "eye" on the overview. Filtering to
 		// undecided users only would then yield an empty page, so show all users once it is verified.
 		final boolean undecidedOnly = undecidedUsersOnly && attestation.getVerifiedAt() == null;
@@ -267,7 +428,7 @@ public class OrganisationAttestationService {
 						.roleAssignmentsSinceLastAttestationTotalCount(assignmentsPage.getTotalElements())
 						.orgUnitRoleGroupAssignments(orgUnitRoleGroupAssignments)
 						.orgUnitUserRoleAssignmentsPrItSystem(orgUnitUserRoleAssignmentsPrItSystem)
-						.userAttestations(buildUserAttestations(userAssignments, attestation, undecidedOnly, attestation.getCreatedAt()))
+						.userAttestations(buildUserAttestations(userAssignments, attestation, undecidedOnly, attestation.getCreatedAt(), currentUser))
 						.build()
 		);
 	}
@@ -293,12 +454,14 @@ public class OrganisationAttestationService {
 	@Transactional
 	public void verifyUser(final String orgUnitUuid, final String userUuid, final String performedByUserId, Attestation.AttestationType attestationType) {
 		final User user = userService.getByUserId(performedByUserId);
+		ensureUserManagesOrgUnit(user, orgUnitUuid);
 		if (user.getUuid().equals(userUuid)) {
 			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "User can not verify itself");
 		}
 
 		final Attestation attestation = attestationDao.findFirstByAttestationTypeAndResponsibleOuUuidOrderByDeadlineDesc(
-				Attestation.AttestationType.ORGANISATION_ATTESTATION, orgUnitUuid).orElse(null);
+				attestationType, orgUnitUuid)
+				.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "No active attestation found for OU: " + orgUnitUuid));
 		ensureUserEntryDoesntExist(userUuid, attestation);
         createUserEntry(attestation, userUuid, performedByUserId, null, false, new HashSet<String>(), new HashSet<String>());
 		if (isOrganisationAttestationDone(attestation, attestation.getCreatedAt(), true, user)) {
@@ -309,12 +472,14 @@ public class OrganisationAttestationService {
 	@Transactional
 	public void rejectUser(final String orgUnitUuid, final String userUuid, final String performedByUserId, final String remarks, final List<RoleAssignmentDTO> notApprovedRoleAssignments, Attestation.AttestationType attestationType) {
 		final User performingUser = userService.getByUserId(performedByUserId);
+		ensureUserManagesOrgUnit(performingUser, orgUnitUuid);
 		if (performingUser.getUuid().equals(userUuid)) {
 			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "User can not verify itself");
 		}
 
 		final Attestation attestation = attestationDao.findFirstByAttestationTypeAndResponsibleOuUuidOrderByDeadlineDesc(
-				attestationType, orgUnitUuid).orElse(null);
+				attestationType, orgUnitUuid)
+				.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "No active attestation found for OU: " + orgUnitUuid));
 		ensureUserEntryDoesntExist(userUuid, attestation);
 
         final Set<String> notApprovedUserRoles = getNotApprovedUserRoles(notApprovedRoleAssignments);
@@ -358,12 +523,14 @@ public class OrganisationAttestationService {
 	@Transactional
 	public void requestAdRemoval(final String orgUnitUuid, final String userUuid, final String performedByUserId, Attestation.AttestationType attestationType) {
 		final User performingUser = userService.getByUserId(performedByUserId);
+		ensureUserManagesOrgUnit(performingUser, orgUnitUuid);
 		if (performingUser.getUuid().equals(userUuid)) {
 			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "User can not verify itself");
 		}
 
 		final Attestation attestation = attestationDao.findFirstByAttestationTypeAndResponsibleOuUuidOrderByDeadlineDesc(
-				attestationType, orgUnitUuid).orElse(null);
+				attestationType, orgUnitUuid)
+				.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "No active attestation found for OU: " + orgUnitUuid));
 		ensureUserEntryDoesntExist(userUuid, attestation);
         createUserEntry(attestation, userUuid, performedByUserId, null, true, new HashSet<String>(), new HashSet<String>());
 		if (isOrganisationAttestationDone(attestation, attestation.getCreatedAt(), true, performingUser)) {
@@ -378,8 +545,10 @@ public class OrganisationAttestationService {
 	@Transactional
 	public void acceptOrgUnitRoles(final String orgUnitUuid, final String performedByUserId, Attestation.AttestationType attestationType) {
 		final User performingUser = userService.getByUserId(performedByUserId);
+		ensureUserManagesOrgUnit(performingUser, orgUnitUuid);
 		final Attestation attestation = attestationDao.findFirstByAttestationTypeAndResponsibleOuUuidOrderByDeadlineDesc(
-				attestationType, orgUnitUuid).orElse(null);
+				attestationType, orgUnitUuid)
+				.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "No active attestation found for OU: " + orgUnitUuid));
 		ensureOrgRoleEntryDoesntExist(attestation);
 		attestation.setOrganisationRolesAttestationEntry(
 				organisationRoleAttestationEntryDao.save(OrganisationRoleAttestationEntry.builder()
@@ -404,14 +573,17 @@ public class OrganisationAttestationService {
 
 	@Transactional
 	public void rejectOrgUnitRoles(final String orgUnitUuid, final String performedByUserId, final String remarks, final List<RoleAssignmentDTO> notApprovedRoleAssignments, Attestation.AttestationType attestationType) {
+		final User performingUser = userService.getByUserId(performedByUserId);
+		ensureUserManagesOrgUnit(performingUser, orgUnitUuid);
+
 		final Attestation attestation = attestationDao.findFirstByAttestationTypeAndResponsibleOuUuidOrderByDeadlineDesc(
-				attestationType, orgUnitUuid).orElse(null);
+				attestationType, orgUnitUuid)
+				.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "No active attestation found for OU: " + orgUnitUuid));
 		ensureOrgRoleEntryDoesntExist(attestation);
 
 		final Set<String> notApprovedUserRoles = getNotApprovedUserRoles(notApprovedRoleAssignments);
 		final Set<String> notApprovedRoleGroups = getNotApprovedRoleGoups(notApprovedRoleAssignments);
 
-		final User performingUser = userService.getByUserId(performedByUserId);
 		final String performedByUserUuid = performingUser.getUuid();
 		attestation.setOrganisationRolesAttestationEntry(
 				organisationRoleAttestationEntryDao.save(OrganisationRoleAttestationEntry.builder()
@@ -433,6 +605,37 @@ public class OrganisationAttestationService {
 		});
 	}
 
+	/**
+	 * Only the orgunit's manager, a substitute, a manager delegate, or an attestation admin may act
+	 * on or view its attestation. Throws 403 otherwise.
+	 */
+	public void ensureUserManagesOrgUnit(final User user, final String orgUnitUuid) {
+		if (userRoleService.hasSystemRoleWithIdentifier(user, Constants.ROLE_ADMINISTRATOR_ID)
+				|| userRoleService.hasSystemRoleWithIdentifier(user, Constants.ROLE_ATTESTATION_ADMINISTRATOR_ID)) {
+			return;
+		}
+
+		Set<String> managedOrgUnitUuids = orgUnitService.getByManagerMatchingUser(user)
+				.stream()
+				.map(OrgUnit::getUuid)
+				.collect(Collectors.toSet());
+		if (user.getSubstituteFor() != null) {
+			managedOrgUnitUuids
+					.addAll(user.getSubstituteFor().stream()
+					.map(s -> s.getOrgUnit().getUuid())
+					.collect(Collectors.toSet()));
+		}
+		managerDelegateService.getByDelegate(user).stream()
+				.filter(md -> !md.getManager().isDeleted() && !md.getManager().isDisabled())
+				.flatMap(md -> orgUnitService.getByManagerMatchingUser(md.getManager()).stream())
+				.map(OrgUnit::getUuid)
+				.forEach(managedOrgUnitUuids::add);
+
+		if (!managedOrgUnitUuids.contains(orgUnitUuid)) {
+			throw new ResponseStatusException(HttpStatus.FORBIDDEN, "User not allowed to attest for this orgunit");
+		}
+	}
+
 	private OrganisationAttestationDTO markCurrentUserReadonly(final String currentUserUuid, final OrganisationAttestationDTO organisationAttestationDto) {
 		organisationAttestationDto.getUserAttestations().stream().filter(u -> u.getUserUuid().equals(currentUserUuid)).forEach(u -> u.setReadOnly(true));
 		return organisationAttestationDto;
@@ -445,6 +648,43 @@ public class OrganisationAttestationService {
 		}
 	}
 
+	public boolean isOrganisationAttestationDone(final Attestation attestation, final AttestationRun run, final AttestationStatusInfo statusInfo) {
+		// Pre-loaded in batch: avoids N+1.
+		final Set<String> approvedUserUuids = statusInfo.approvedUserUuidsByAttestationId()
+				.getOrDefault(attestation.getId(), Set.of());
+
+		// Check 1: AD attestation — every user scheduled for AD attestation must have been approved.
+		// Skipped when the AD attestation feature is disabled globally.
+		boolean activeDirectoryAttestationsDone = true;
+		if (settingsService.isADAttestationEnabled()) {
+			Set<String> adUserUuids = statusInfo.adUserUuidsByAttestationId()
+					.getOrDefault(attestation.getId(), Set.of());
+			activeDirectoryAttestationsDone = adUserUuids.stream()
+					.allMatch(approvedUserUuids::contains);
+		}
+
+		// Check 2: OU role assignments — if the OU has any directly-assigned roles (e.g. role groups),
+		// the manager must have submitted a roles-attestation entry confirming them.
+		if (attestation.getOrganisationRolesAttestationEntry() == null
+				&& statusInfo.ouUuidsWithOuAssignments().contains(attestation.getResponsibleOuUuid())) {
+			return false;
+		}
+
+		// Check 3: user role assignments — every user with a DIRECT role assignment in this OU
+		// must have been individually attested by the manager.
+		Set<String> directUserUuids = statusInfo.directUserUuidsByOuUuid()
+				.getOrDefault(attestation.getResponsibleOuUuid(), Set.of());
+		// Sensitive runs only require managers to attest users who themselves have sensitive roles.
+		if ((run.isSensitive() || run.isExtraSensitive()) && attestation.isSensitive()) {
+			Set<String> sensitiveUuids = statusInfo.sensitiveUserUuidsByAttestationId()
+					.getOrDefault(attestation.getId(), Set.of());
+			directUserUuids = directUserUuids.stream()
+					.filter(sensitiveUuids::contains)
+					.collect(Collectors.toSet());
+		}
+		return approvedUserUuids.containsAll(directUserUuids) && activeDirectoryAttestationsDone;
+	}
+
 	private boolean isOrganisationAttestationDone(final Attestation attestation, final LocalDate when, boolean sendSummaryMailIfDone, User sendMailTo) {
 		boolean activeDirectoryAttestationsDone = true;
 		if (settingsService.isADAttestationEnabled()) {
@@ -452,8 +692,8 @@ public class OrganisationAttestationService {
 			activeDirectoryAttestationsDone = attestation.getUsersForAttestation().stream()
 					.allMatch(u -> approvedUsers.contains(u.getUserUuid()));
 		}
-		final List<AttestationOuRoleAssignment> organisationAssignments =
-				ouAssignmentsDao.listValidNotInheritedAssignmentsForOu(attestation.getCreatedAt(), attestation.getResponsibleOuUuid());
+		final List<AttestationOuRoleAssignment> organisationAssignments = ouAssignmentsDao.listValidNotInheritedAssignmentsForOu(attestation.getCreatedAt(), attestation.getResponsibleOuUuid());
+		organisationAssignments.addAll(ouAssignmentsDao.listValidNotInheritedAssignmentsWithExceptedTilesForOu(attestation.getCreatedAt(), attestation.getResponsibleOuUuid()));
 		final List<OrgUnitRoleGroupAssignmentDTO> orgUnitRoleGroupAssignments = orgUnitRoleGroups(organisationAssignments);
 		if (attestation.getOrganisationRolesAttestationEntry() == null && (!orgUnitRoleGroupAssignments.isEmpty() || !organisationAssignments.isEmpty())) {
 			return false;
@@ -677,7 +917,7 @@ public class OrganisationAttestationService {
 				.deadLine(attestationOrganisation.getDeadline())
 				.orgUnitRoleGroupAssignments(orgUnitRoleGroupAssignments)
 				.orgUnitUserRoleAssignmentsPrItSystem(orgUnitUserRoleAssignmentsPrItSystem)
-				.userAttestations(buildUserAttestations(userRoleAssignments, attestationOrganisation, false, when))
+				.userAttestations(buildUserAttestations(userRoleAssignments, attestationOrganisation, false, when, null))
 				.build();
 	}
 
@@ -708,7 +948,7 @@ public class OrganisationAttestationService {
 	}
 	public record UserAttestationContext(String userUuid, String userName, String userId, String roleUuid, String responsibleOuUuid, String roleOuName) {}
 	List<UserAttestationDTO> buildUserAttestations(final List<AttestationUserRoleAssignment> assignments, final Attestation attestation,
-												   boolean undecidedUsersOnly, final LocalDate when) {
+												   boolean undecidedUsersOnly, final LocalDate when, final User currentUser) {
 
 		List<UserAttestationContext> userAttestationContexts = null;
 		Set<String> assignmentsUserUuids = assignments.stream().map(AttestationUserRoleAssignment::getUserUuid).collect(Collectors.toSet());
@@ -754,7 +994,7 @@ public class OrganisationAttestationService {
 							.listValidAssignmentsForUserHandledByItSystemResponsible(when, u.userUuid);
 					// Find assignments that another department is responsible for
 					final List<AttestationUserRoleAssignment> otherDepartmentAssignments =
-						userRoleAssignmentDao.listValidAssignmentsForUserWhereResponsibleOUIsNot(when, u.userUuid, attestation.getResponsibleOuUuid());
+							userRoleAssignmentDao.listValidAssignmentsForUserWhereResponsibleOUIsNot(when, u.userUuid, attestation.getResponsibleOuUuid());
 					// Now group all "other" roles
 					final List<AttestationUserRoleAssignment> otherRoles = Stream.concat(
 									Stream.concat(userRoleAssignments.stream(), otherDepartmentAssignments.stream().filter(a -> a.getRoleGroupId() == null)),
@@ -766,8 +1006,7 @@ public class OrganisationAttestationService {
 					final List<UserRoleItSystemDTO> doNotVerifyUserRolesPrItSystem = userRolesPrItSystem(u.userUuid, otherRoles,
 							a -> !isManagerResponsibleFor(a, attestation.getResponsibleOuUuid()));
 					final List<RoleGroupDTO> doNotVerifyRoleGroups = userRoleGroups(u.userUuid, otherRoleGroups,
-							a -> !isManagerResponsibleFor(a, attestation.getResponsibleOuUuid()),
-							attestationConstraintService::translatePostponedConstraints);
+							a -> !isManagerResponsibleFor(a, attestation.getResponsibleOuUuid()));
 
 					final String userPositions = resolveUserPositions(u.userUuid, attestation.getResponsibleOuUuid());
 
@@ -781,8 +1020,7 @@ public class OrganisationAttestationService {
 							.doNotVerifyRoleGroups(doNotVerifyRoleGroups)
 							.doNotVerifyUserRolesPrItSystem(doNotVerifyUserRolesPrItSystem)
 							.userRolesPrItSystem(userRolesPrItSystem(u.userUuid, userRoleAssignments, a -> isManagerResponsibleFor(a, attestation.getResponsibleOuUuid())))
-							.roleGroups(userRoleGroups(u.userUuid, userRoleGroupAssignments, a -> isManagerResponsibleFor(a, attestation.getResponsibleOuUuid()),
-									attestationConstraintService::translatePostponedConstraints))
+							.roleGroups(userRoleGroups(u.userUuid, userRoleGroupAssignments, a -> isManagerResponsibleFor(a, attestation.getResponsibleOuUuid())))
 							.adRemoval(entry != null && entry.isAdRemoval())
 							.isPrimary(attestationUserService.hasPrimaryPositionIn(u.userUuid, u.roleUuid))
 							.build();
@@ -792,14 +1030,15 @@ public class OrganisationAttestationService {
 
 				// If delegated attestation, filter for delegated managers
 				if (attestation.getAttestationType() == Attestation.AttestationType.MANAGER_DELEGATED_ATTESTATION) {
-					User currentUser = userService.getByUserId(SecurityUtil.getUserId());
+					if (currentUser == null) {
+						throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Acting user not found");
+					}
 					List<String> delegatedForManagersUuid = managerDelegateAttestationService.getManagedUsersForDelegate(currentUser).stream()
 							.map(User::getUuid)
 							.toList();
 					userAttestationDTOs = userAttestationDTOs.stream()
 							.filter(at -> delegatedForManagersUuid.contains(at.getUserUuid()))
 							.toList();
-
 				}
 
 		boolean anyPrimary = userAttestationDTOs.stream().anyMatch(UserAttestationDTO::isPrimary);
@@ -946,7 +1185,9 @@ public class OrganisationAttestationService {
 								  .orElse(Collections.emptyList())
 							    : Collections.emptyList()
 						)
-						.postponedConstraints(attestationConstraintService.translatePostponedConstraints(a.getPostponedConstraints()))
+						.postponedConstraints(a.getPostponedConstraints())
+						.assignedFrom(a.getAssignedFrom())
+						.assignedTo(a.getValidTo())
 						.build())
 				.collect(Collectors.toList());
 	}

@@ -6,9 +6,19 @@ import org.springframework.data.repository.CrudRepository;
 import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDate;
+import java.util.Collection;
 import java.util.List;
+import java.util.Set;
 
 public interface AttestationOuAssignmentsDao extends CrudRepository<AttestationOuRoleAssignment, Long> {
+
+    @Query(nativeQuery = true, value = "SELECT DISTINCT s.ou_uuid FROM attestation_ou_role_assignments s " +
+            "WHERE s.valid_from <= :validAt AND (s.valid_to > :validAt OR s.valid_to IS NULL) " +
+            "AND s.attestation_responsible_collection_id IS NULL AND s.inherited = false " +
+            "AND s.ou_uuid IN :ouUuids")
+    Set<String> findOuUuidsWithValidOuAssignments(@Param("validAt") LocalDate validAt,
+                                                  @Param("ouUuids") Collection<String> ouUuids);
+
 
     @Query(value = "SELECT s FROM AttestationOuRoleAssignment s WHERE s.validFrom <= :validAt AND (s.validTo > :validAt or s.validTo is null) AND s.responsibleCollectionId is null AND s.ouUuid=:ouUuid AND s.inherited=false AND (s.exceptedTitleUuids is null or s.exceptedTitleUuids = '') ")
     List<AttestationOuRoleAssignment> listValidNotInheritedAssignmentsForOu(@Param("validAt") final LocalDate validAt, @Param("ouUuid") final String ouUuid);

@@ -103,7 +103,16 @@ namespace ADSyncService.Properties {
                 return ((string)(this["CreateDeleteFeature_OU"]));
             }
         }
-        
+
+        [global::System.Configuration.ApplicationScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("False")]
+        public bool CreateDeleteFeature_UseBackSyncOU {
+            get {
+                return ((bool)(this["CreateDeleteFeature_UseBackSyncOU"]));
+            }
+        }
+
         [global::System.Configuration.ApplicationScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
         [global::System.Configuration.DefaultSettingValueAttribute("True")]

@@ -19,7 +19,10 @@ public class SystemRoleAssignmentConstraintValueDTO {
 	private String constraintValue;
 	private String constraintIdentifier;
 	private boolean postponed;
-	
+
+	// Read-only info about a value already assigned to the receiver on this exact role - for display only, does not affect the editable constraintValue
+	private String existingValue;
+
 	public SystemRoleAssignmentConstraintValueDTO(SystemRoleAssignmentConstraintValue systemRoleAssignmentConstraintValue) {
 		this.id = systemRoleAssignmentConstraintValue.getId();
 		this.systemRoleAssignment = systemRoleAssignmentConstraintValue.getSystemRoleAssignment();

@@ -76,178 +76,19 @@
 </th:block>
 
 <th:block th:fragment="userUserRoleModalScript" xmlns="http://www.w3.org/1999/xhtml" xmlns:th="http://www.thymeleaf.org">
-	<script th:inline="javascript" type="text/javascript">
-		/*<![CDATA[*/
-
-		var userRoleModalService;
-		var modalAjaxService;
-
-		$(document).ready(function() {
-            userRoleModalService = new UserRoleModalService();
-            modalAjaxService = new ModalAjaxService();
-            /*[+
-    		userRoleModalService.usersUrl = [[@{/rest/users/}]];
-			userRoleModalService.fieldUpdatedMsg = [[#{html.entity.rolegroup.updatedmsg}]];
-			userRoleModalService.fieldNotUpdatedMsg = [[#{html.entity.rolegroup.failedupdatemsg}]];
-			userRoleModalService.page = [[#{page}]];
-			titlesEnabled = [[${@roleCatalogueConfiguration.getTitles().isEnabled()}]];
-			var caseNumberEnabled = [[${caseNumberEnabled}]];
-    		+]*/
-
-            userRoleModalService.init();
-        });
-
-		function UserRoleModalService() {
-			this.init = function(){
-				var modal = $("#modal-positions");
-	            $('.assign_role').click(userRoleModalService.assignRoleClicked);
-
-	      		$('.assign_role_directly').on( "click", function() {
-	            	postponedConstraintsService.validate("assignRoleDirectlyClicked");
-	            });
-
-	      		$('#closeModal').click(userRoleModalService.closeModal);
-
-	      		modal.on('shown.bs.modal', function() {
-	    			$("#assignDirectlyBtn").focus();
-	    		});
-
-			}
-
-			this.closeModal = function() {
-				var modal = $("#modal-positions");
-				modal.modal('hide');
-			}
-
-			this.setManual = function(boolean) {
-				if(boolean) {
-					$("#notifyText").show();
-					$("#notifyTitle").show();
-				}
-				else {
-					$("#notifyText").hide();
-					$("#notifyTitle").hide();
-				}
-
-			}
-
-			this.assignRoleDirectlyClicked = function() {
-				var modal = $("#modal-positions");
-				var roleid = modal.attr("roleid");
-				var userUuid = modal.attr("userUuid");
-				var startDate = $('#startDatePicker').data('date');
-				var stopDate = $('#stopDatePicker').data('date');
-				var dates = "?startDate=" + startDate + "&stopDate=" + stopDate;
-
-				var constraints = postponedConstraintsService.getConstraintList();
-
-				var caseNumberUrlPart = "";
-				if (caseNumberEnabled) {
-					caseNumberUrlPart = '&casenumber=' + $("#addRoleCaseNumber").val();
-				}
-
-				$.ajax({
-	    			   url: userRoleModalService.usersUrl + userUuid + '/addrole/' + roleid + dates + '&ouuuid=' + $("#addRoleOUSelect").val() + caseNumberUrlPart,
-	    			   contentType: 'application/json',
-	    			   headers: {
-	    			      'X-CSRF-TOKEN': token
-	    			   },
-	    			   type: 'post',
-	    			   data : JSON.stringify(constraints),
-	    			   success: function(response) {
-	    				   modalAjaxService.showInfoNotification(userRoleModalService.fieldUpdatedMsg);
-						   userRoleModalService.parentService.loadAddUserRoleFragmentWhenReady();
-	    			   },
-	    			   error: errorHandler(userRoleModalService.fieldNotUpdatedMsg)
-	    		});
-
-				modal.modal('hide');
-
-			}
-
-			this.assignRoleClicked = function() {
-				var modal = $("#modal-positions");
-				var positionUuid = $(this).val();
-				var roleid = modal.attr("roleid");
-				var userUuid = modal.attr("userUuid");
-
-				var startDate = $('#startDatePicker').data('date');
-				var stopDate = $('#stopDatePicker').data('date');
-				var dates = "?startDate=" + startDate + "&stopDate=" + stopDate;
-
-				$.ajax({
-	    			   url: userRoleModalService.usersUrl + 'position/' + positionUuid + '/addrole/' + roleid + dates,
-	    			   contentType: 'application/json',
-	    			   headers: {
-	    			      'X-CSRF-TOKEN': token
-	    			   },
-	    			   type: 'post',
-	    			   success: function(response) {
-	    				   modalAjaxService.showInfoNotification(userRoleModalService.fieldUpdatedMsg);
-						   userRoleModalService.parentService.loadAddUserRoleFragmentWhenReady();
-	    			   },
-	    			   error: errorHandler(userRoleModalService.fieldNotUpdatedMsg)
-	    		});
-
-				modal.modal('hide');
-			}
-
-			this.loadPostponedConstraintsFragment = function (roleId) {
-				$("#postponedConstraintsPlaceholder").empty();
-				$("#editPostponedConstraintsPlaceholder").empty();
-
-				$("#postponedConstraintsPlaceholder").load(baseUrl + "ui/users/manage/postponedconstraints/" + roleId, function () {
-					postponedConstraintsService.init();
-
-					var postponingAllowed = $("#postponingAllowed").val();
-					if (postponingAllowed == "true") {
-						$("#positionTable").hide();
-					}
-					else {
-						$("#positionTable").show();
-					}
-				});
-			}
+	<script type="application/json" th:inline="javascript" id="user-role-modal-config">
+		{
+			"usersUrl": [[@{/rest/users/}]],
+			"uiUrl": [[@{/ui/users/manage/}]],
+			"fieldUpdatedMsg": [[#{html.entity.rolegroup.updatedmsg}]],
+			"fieldNotUpdatedMsg": [[#{html.entity.rolegroup.failedupdatemsg}]],
+			"page": [[#{page}]],
+			"titlesEnabled": [[${@roleCatalogueConfiguration.getTitles().isEnabled()}]],
+			"caseNumberEnabled": [[${caseNumberEnabled}]]
 		}
-
-		// TODO: move these into a utility js file (exists in edit.html for users/orgunits)
-		function ModalAjaxService() {
-
-	        this.getAjaxObject = function(urL, okMsg, errorMsg) {
-	    		return {
-	    			url: urL,
-					method: "POST",
-					headers: {
-						'X-CSRF-TOKEN': token
-					},
-	    			error: function(response) {
-						var msg = (response.responseText != null && response.responseText.length > 0) ? response.responseText : errorMsg;
-						modalAjaxService.showErrorNotification(msg);
-	    			},
-	    			success: function(response) {
-	    				modalAjaxService.showInfoNotification(okMsg);
-	    			}
-	    		};
-	    	}
-
-	        this.showInfoNotification = function(message) {
-				$.notify({
-					message: message,
-					status: 'success',
-					timeout: 2000
-				});
-			}
-
-			this.showErrorNotification = function(message) {
-				$.notify({
-					message: message,
-					status: 'danger',
-					timeout: 4000
-				});
-			}
-		}
-
-		/*]]>*/
-
 	</script>
+	<script th:src="@{/js/service/ModalAjaxService.js}"></script>
+	<script th:src="@{/js/users/service/UserRoleModalService.js}"></script>
+	<script th:src="@{/js/users/fragments/userUserRoleModalInit.js}"></script>
+</th:block>
 </th:block>

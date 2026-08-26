@@ -6,6 +6,7 @@ import dk.digitalidentity.rc.config.model.Audit;
 import dk.digitalidentity.rc.config.model.Customer;
 import dk.digitalidentity.rc.config.model.FrontPageLinkConfig;
 import dk.digitalidentity.rc.config.model.Integrations;
+import dk.digitalidentity.rc.config.model.ManualEffectuationConfig;
 import dk.digitalidentity.rc.config.model.Organisation;
 import dk.digitalidentity.rc.config.model.Scheduled;
 import dk.digitalidentity.rc.config.model.SubstituteManagerAPI;
@@ -22,8 +23,8 @@ import java.util.Objects;
 @Setter
 @ConfigurationProperties(prefix = "rc")
 public class RoleCatalogueConfiguration {
-	private String version = "2026 r3";
-	private String latestVersion = "2026 r3";
+	private String version = "2026 r4";
+	private String latestVersion = "2026 r4";
 
 	private AttestationConfig attestation = new AttestationConfig();
 	private Customer customer = new Customer();
@@ -35,6 +36,7 @@ public class RoleCatalogueConfiguration {
 	private ApiControl apiControl = new ApiControl();
 	private SubstituteManagerAPI substituteManagerAPI = new SubstituteManagerAPI();
 	private FrontPageLinkConfig frontPageLinkConfig = new FrontPageLinkConfig();
+	private ManualEffectuationConfig effectuationConfig = new ManualEffectuationConfig();
 
 	private boolean syncRoleAssignmentOrgUnitOnStartup = false;
 	private boolean removeRolesAssignmentsWithoutOU = false;

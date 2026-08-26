@@ -38,7 +38,7 @@
 										<th class="col-2" th:text="#{requestmodule.html.log.table.header.action}"></th>
 										<th class="col-2" th:text="#{requestmodule.html.log.table.header.rolename}"></th>
 										<th class="col-1" th:text="#{requestmodule.html.log.table.header.itsystem}"></th>
-										<th class="" th:text="#{requestmodule.html.log.table.header.details}"></th>
+										<th class="request-log-details-col" th:text="#{requestmodule.html.log.table.header.details}"></th>
 									</tr>
 									</thead>
 									<tbody>
@@ -49,8 +49,14 @@
 										<td th:text="#{*{action}}"></td>
 										<td th:text="*{roleName}"></td>
 										<td th:text="*{itsystem}"></td>
-										<td th:text="*{details}">
-
+										<td class="request-log-details-col">
+											<div class="request-log-details-cell">
+												<span class="request-log-details-preview" th:text="${#strings.abbreviate(entry.details, 60)}"></span>
+												<em class="fa fa-search show-request-log-details-btn"
+													th:attr="data-details=*{details},data-details-json=*{detailsJson}"
+													th:title="#{requestmodule.html.log.table.details.show}">
+												</em>
+											</div>
 										</td>
 									</tr>
 									</tbody>
@@ -63,24 +69,10 @@
 		</div>
 	</div>
 </div>
+<div th:replace="~{requestmodule/requestLog/fragments/requestLogDetailModal :: requestLogDetailModal}"></div>
 <div th:replace="~{requestmodule/fragments/footer :: scripts(datatables = true)}"></div>
+
 <script th:src="@{/js/rolerequest/requestLog/logs.js}"></script>
-
-<script th:inline="javascript">
-	/*<![CDATA[*/
-	/*[+
-		const detailsUrl = [[@{/ui/request/log}]];
-		const restUrl = [[@{/rest/rolerequest/log}]];
-		const token = $("meta[name='_csrf']").attr("content");
-		let logTableService
-	+]*/
-
-	$(document).ready(function(){
-		logTableService = new RequestLogService()
-	});
-
-	/*]]>*/
-</script>
 
 </body>
 </html>

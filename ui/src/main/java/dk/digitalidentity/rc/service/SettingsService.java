@@ -122,6 +122,19 @@ public class SettingsService {
 		createOrUpdateSetting(Settings.SETTING_ATTESTATIONCHANGE_EMAIL, email);
 	}
 
+	public LocalDateTime getAssignmentHookTimestamp() {
+		Setting setting = settingsDao.findByKey(Settings.SETTING_ASSIGNMENT_HOOK_TIMESTAMP.getKey());
+		if (setting == null) {
+			return LocalDateTime.now().minusHours(24);
+		}
+
+		return LocalDateTime.parse(setting.getValue());
+	}
+
+	public void setAssignmentHookTimestamp(LocalDateTime setting) {
+		createOrUpdateSetting(Settings.SETTING_ASSIGNMENT_HOOK_TIMESTAMP, setting.toString(), false);
+	}
+
 	public Integer getRemoveDirectAssignmentsForDisabled() {
 		Setting setting = settingsDao.findByKey(Settings.SETTING_REMOVE_DIRECT_ASSIGNMENTS_FOR_DISABLED.getKey());
 		if (setting == null || !StringUtils.hasLength(setting.getValue())) {
@@ -723,6 +736,40 @@ public class SettingsService {
 		setKeyEnabled(enabled, Settings.SETTING_ROLEREQUEST_ONLY_RECOMMENDED_ROLES.getKey());
 	}
 
+	public boolean isShowRecommendedRolesTab() {
+		return getKeyOrDefault(Settings.SETTING_ROLEREQUEST_SHOW_RECOMMENDED_TAB.getKey(), true);
+	}
+
+	public void setShowRecommendedRolesTab(boolean enabled) {
+		setKeyEnabled(enabled, Settings.SETTING_ROLEREQUEST_SHOW_RECOMMENDED_TAB.getKey());
+	}
+
+	/**
+	 * Falls back to the deprecated "only recommend roles" flag's inverse when the new key has never been
+	 * explicitly saved, so upgrading customers keep their current behaviour until they open and save the
+	 * settings page again (at which point the new key is always written explicitly, see SettingsController).
+	 */
+	public boolean isShowAllRolesTab() {
+		Setting setting = settingsDao.findByKey(Settings.SETTING_ROLEREQUEST_SHOW_ALL_TAB.getKey());
+		if (setting != null) {
+			return "true".equals(setting.getValue());
+		}
+
+		return !getOnlyRecommendRoles();
+	}
+
+	public void setShowAllRolesTab(boolean enabled) {
+		setKeyEnabled(enabled, Settings.SETTING_ROLEREQUEST_SHOW_ALL_TAB.getKey());
+	}
+
+	public boolean isShowExistingRolesTab() {
+		return getKeyOrDefault(Settings.SETTING_ROLEREQUEST_SHOW_EXISTING_TAB.getKey(), true);
+	}
+
+	public void setShowExistingRolesTab(boolean enabled) {
+		setKeyEnabled(enabled, Settings.SETTING_ROLEREQUEST_SHOW_EXISTING_TAB.getKey());
+	}
+
 
 	@Cacheable(value = "SettingsCache-isAttestationOrgUnitSelectionOptIn")
 	public boolean isAttestationOrgUnitSelectionOptIn() {
@@ -835,6 +882,7 @@ public class SettingsService {
 		settingsDao.deleteAll(existingMappings);
 	}
 
+	// TODO: bad user experience that it is cached, but there might be some reason
 	@Cacheable(value = "SettingsCache-automaticNiveauMappingEnabled")
 	public boolean isAutomaticNiveauMappingEnabled() {
 		return isKeyEnabled(Settings.SETTING_ALLOW_AUTOMATIC_OU_NIVEAU_MAPPING.getKey());

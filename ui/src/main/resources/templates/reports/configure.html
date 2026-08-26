@@ -2,657 +2,226 @@
 <html>
 <head th:replace="~{fragments/header :: header (title=#{html.page.report.full.title})}"></head>
 <body class="layout-fixed">
-	<div class="wrapper">
-		<header th:replace="~{fragments/navbar :: navbar-header(subpage = 'reports')}"></header>
-		<aside th:replace="~{fragments/navbar :: navbar-aside (page = 'report.full', subpage = 'reports')}"></aside>
+<div class="wrapper">
+	<header th:replace="~{fragments/navbar :: navbar-header(subpage = 'reports')}"></header>
+	<aside th:replace="~{fragments/navbar :: navbar-aside (page = 'report.full', subpage = 'reports')}"></aside>
 
-		<section>
-			<div class="content-wrapper">
-				<h3>
-					<span th:text="#{html.page.report.title}"></span>
-				</h3>
+	<section>
+		<div class="content-wrapper">
+			<h3>
+				<span th:text="#{html.page.report.title}"></span>
+			</h3>
 
-				<div class="panel panel-default">
-					<div class="panel-heading"></div>
-					<div class="panel-body">
-						<form id="reportForm" class="form-horizontal" th:object="${reportForm}">
+			<div class="panel panel-default">
+				<div class="panel-heading"></div>
+				<div class="panel-body">
+					<form id="reportForm" class="form-horizontal" th:object="${reportForm}">
 
-							<div class="form-group">
-								<h4 class="col-sm-12" th:text="#{html.page.report.date}"></h4>
-							</div>
+						<div class="form-group">
+							<h4 class="col-sm-12" th:text="#{html.page.report.date}"></h4>
+						</div>
 
-							<div class="form-group">
-								<input id="realDateField" th:field="*{date}" type="hidden">
-								<div style="overflow:hidden;" class="col-sm-offset-3 col-sm-9">
-									<div class="col-md-6">
-										<div id="datePicker"></div>
-									</div>
+						<div class="form-group">
+							<input id="realDateField" th:field="*{date}" type="hidden">
+							<div style="overflow:hidden;" class="col-sm-offset-3 col-sm-9">
+								<div class="col-md-6">
+									<div id="datePicker"></div>
 								</div>
 							</div>
+						</div>
 
-							<hr/>
+						<hr/>
 
-							<div id="filterOptions">
-								<div th:replace="~{reports/fragments/filterOptionsFragment :: filterOptions(allItSystems = ${allItSystems}, allManagers = ${allManagers})}"></div>
-							</div>
+						<div id="filterOptions">
+							<div th:replace="~{reports/fragments/filterOptionsFragment :: filterOptions(allItSystems = ${allItSystems}, allManagers = ${allManagers})}"></div>
+						</div>
 
-							<hr/>
+						<hr/>
 
-							<div class="form-group">
-								<h4 class="col-sm-12" th:text="#{html.page.report.column.text}"></h4>
-							</div>
+						<div class="form-group">
+							<h4 class="col-sm-12" th:text="#{html.page.report.column.text}"></h4>
+						</div>
 
-							<div class="form-group" style="margin-bottom: 20px">
-								<input class="column-choice" id="realShowUsers" th:field="*{showUsers}" type="hidden">
-								<label class="col-sm-3 control-label" th:text="#{html.page.report.column.user}"></label>
-								<div class="col-sm-9">
-									<div class="checkbox c-checkbox">
-										<label>
-											<input id="UserColumnCheckbox" type="checkbox" th:attr="checked=${reportForm.showUsers}" onchange="columnService.columnChoiceTrigger(this, 'ShowUsers')"/>
-											<span class="fa fa-check"></span>
-										</label>
-									</div>
+						<div class="form-group" style="margin-bottom: 20px">
+							<input class="column-choice" id="realShowUsers" th:field="*{showUsers}" type="hidden">
+							<label class="col-sm-3 control-label" th:text="#{html.page.report.column.user}"></label>
+							<div class="col-sm-9">
+								<div class="checkbox c-checkbox">
+									<label>
+										<input id="UserColumnCheckbox" type="checkbox" class="js-column-choice" data-column-name="ShowUsers" th:attr="checked=${reportForm.showUsers}"/>
+										<span class="fa fa-check"></span>
+									</label>
 								</div>
 							</div>
+						</div>
 
-							<div class="form-group" style="margin-bottom: 20px">
-								<input class="column-choice" id="realShowOUs" th:field="*{showOUs}" type="hidden">
-								<label class="col-sm-3 control-label" th:text="#{html.page.report.column.ou}"></label>
-								<div class="col-sm-9">
-									<div class="checkbox c-checkbox">
-										<label>
-											<input id="OUColumnCheckbox" type="checkbox" th:attr="checked=${reportForm.showOUs}" onchange="columnService.columnChoiceTrigger(this, 'ShowOUs')"/>
-											<span class="fa fa-check"></span>
-										</label>
-									</div>
+						<div class="form-group" style="margin-bottom: 20px">
+							<input class="column-choice" id="realShowOUs" th:field="*{showOUs}" type="hidden">
+							<label class="col-sm-3 control-label" th:text="#{html.page.report.column.ou}"></label>
+							<div class="col-sm-9">
+								<div class="checkbox c-checkbox">
+									<label>
+										<input id="OUColumnCheckbox" type="checkbox" class="js-column-choice" data-column-name="ShowOUs" th:attr="checked=${reportForm.showOUs}"/>
+										<span class="fa fa-check"></span>
+									</label>
 								</div>
 							</div>
+						</div>
 
-							<div class="form-group" style="margin-bottom: 20px">
-								<input class="column-choice" id="realShowUserRoles" th:field="*{showUserRoles}" type="hidden">
-								<label class="col-sm-3 control-label" th:text="#{html.page.report.column.userrole}"></label>
-								<div class="col-sm-9">
-									<div class="checkbox c-checkbox">
-										<label>
-											<input id="UserRolesColumnCheckbox" type="checkbox" th:attr="checked=${reportForm.showUserRoles}" onchange="columnService.columnChoiceTrigger(this, 'ShowUserRoles')"/>
-											<span class="fa fa-check"></span>
-										</label>
-									</div>
+						<div class="form-group" style="margin-bottom: 20px">
+							<input class="column-choice" id="realShowUserRoles" th:field="*{showUserRoles}" type="hidden">
+							<label class="col-sm-3 control-label" th:text="#{html.page.report.column.userrole}"></label>
+							<div class="col-sm-9">
+								<div class="checkbox c-checkbox">
+									<label>
+										<input id="UserRolesColumnCheckbox" type="checkbox" class="js-column-choice" data-column-name="ShowUserRoles" th:attr="checked=${reportForm.showUserRoles}"/>
+										<span class="fa fa-check"></span>
+									</label>
 								</div>
 							</div>
+						</div>
 
-							<div class="form-group" style="margin-bottom: 20px">
-								<input class="column-choice" id="realShowNegativeRoles" th:field="*{showNegativeRoles}" type="hidden">
-								<label class="col-sm-3 control-label" th:text="#{html.page.report.column.negativeroles}"></label>
-								<div class="col-sm-9">
-									<div class="checkbox c-checkbox">
-										<label>
-											<input id="NegativeColumnCheckbox" type="checkbox" th:attr="checked=${reportForm.showNegativeRoles}" onchange="columnService.columnChoiceTrigger(this, 'ShowNegativeRoles')"/>
-											<span class="fa fa-check"></span>
-										</label>
-									</div>
+						<div class="form-group" style="margin-bottom: 20px">
+							<input class="column-choice" id="realShowNegativeRoles" th:field="*{showNegativeRoles}" type="hidden">
+							<label class="col-sm-3 control-label" th:text="#{html.page.report.column.negativeroles}"></label>
+							<div class="col-sm-9">
+								<div class="checkbox c-checkbox">
+									<label>
+										<input id="NegativeColumnCheckbox" type="checkbox" class="js-column-choice" data-column-name="ShowNegativeRoles" th:attr="checked=${reportForm.showNegativeRoles}"/>
+										<span class="fa fa-check"></span>
+									</label>
 								</div>
 							</div>
+						</div>
 
-							<div class="form-group" style="margin-bottom: 20px">
-								<input class="column-choice" id="realShowKLE" th:field="*{showKLE}" type="hidden">
-								<label class="col-sm-3 control-label" th:text="#{html.page.report.column.kle}"></label>
-								<div class="col-sm-9">
-									<div class="checkbox c-checkbox">
-										<label>
-											<input id="KLEColumnCheckbox" type="checkbox" th:attr="checked=${reportForm.showKLE}" onchange="columnService.columnChoiceTrigger(this, 'ShowKLE')"/>
-											<span class="fa fa-check"></span>
-										</label>
-									</div>
+						<div class="form-group" style="margin-bottom: 20px">
+							<input class="column-choice" id="realShowKLE" th:field="*{showKLE}" type="hidden">
+							<label class="col-sm-3 control-label" th:text="#{html.page.report.column.kle}"></label>
+							<div class="col-sm-9">
+								<div class="checkbox c-checkbox">
+									<label>
+										<input id="KLEColumnCheckbox" type="checkbox" class="js-column-choice" data-column-name="ShowKLE" th:attr="checked=${reportForm.showKLE}"/>
+										<span class="fa fa-check"></span>
+									</label>
 								</div>
 							</div>
+						</div>
 
-							<div class="form-group" style="margin-bottom: 20px">
-								<input class="column-choice" id="realShowItSystems" th:field="*{showItSystems}" type="hidden">
-								<label class="col-sm-3 control-label" th:text="#{html.page.report.column.itsystem}"></label>
-								<div class="col-sm-9">
-									<div class="checkbox c-checkbox">
-										<label>
-											<input id="ItSystemDataColumnCheckbox" type="checkbox" th:attr="checked=${reportForm.showItSystems}" onchange="columnService.columnChoiceTrigger(this, 'ShowItSystems')"/>
-											<span class="fa fa-check"></span>
-										</label>
-									</div>
+						<div class="form-group" style="margin-bottom: 20px">
+							<input class="column-choice" id="realShowItSystems" th:field="*{showItSystems}" type="hidden">
+							<label class="col-sm-3 control-label" th:text="#{html.page.report.column.itsystem}"></label>
+							<div class="col-sm-9">
+								<div class="checkbox c-checkbox">
+									<label>
+										<input id="ItSystemDataColumnCheckbox" type="checkbox" class="js-column-choice" data-column-name="ShowItSystems" th:attr="checked=${reportForm.showItSystems}"/>
+										<span class="fa fa-check"></span>
+									</label>
 								</div>
 							</div>
+						</div>
 
-							<div class="form-group" style="margin-bottom: 20px">
-								<input class="column-choice" id="realShowInactiveUsers" th:field="*{showInactiveUsers}" type="hidden">
-								<label class="col-sm-3 control-label" th:text="#{html.page.report.column.show.inactive}"></label>
-								<div class="col-sm-9">
-									<div class="checkbox c-checkbox">
-										<label>
-											<input id="ShowInactiveUsersCheckbox" type="checkbox" th:attr="checked=${reportForm.showInactiveUsers}" onchange="columnService.columnChoiceTrigger(this, 'ShowInactiveUsers')"/>
-											<span class="fa fa-check"></span>
-										</label>
-									</div>
+						<div class="form-group" style="margin-bottom: 20px">
+							<input class="column-choice" id="realShowInactiveUsers" th:field="*{showInactiveUsers}" type="hidden">
+							<label class="col-sm-3 control-label" th:text="#{html.page.report.column.show.inactive}"></label>
+							<div class="col-sm-9">
+								<div class="checkbox c-checkbox">
+									<label>
+										<input id="ShowInactiveUsersCheckbox" type="checkbox" class="js-column-choice" data-column-name="ShowInactiveUsers" th:attr="checked=${reportForm.showInactiveUsers}"/>
+										<span class="fa fa-check"></span>
+									</label>
 								</div>
 							</div>
+						</div>
 
-							<div class="form-group" style="margin-bottom: 20px">
-								<input class="column-choice" id="realShowSystemRoles" th:field="*{showSystemRoles}" type="hidden">
-								<label class="col-sm-3 control-label" th:text="#{html.page.report.column.show.systemroles}"></label>
-								<div class="col-sm-9">
-									<div class="checkbox c-checkbox">
-										<label>
-											<input id="ShowSystemRolesCheckbox" type="checkbox" th:attr="checked=${reportForm.showSystemRoles}" onchange="columnService.columnChoiceTrigger(this, 'ShowSystemRoles')"/>
-											<span class="fa fa-check"></span>
-										</label>
-									</div>
+						<div class="form-group" style="margin-bottom: 20px">
+							<input class="column-choice" id="realShowSystemRoles" th:field="*{showSystemRoles}" type="hidden">
+							<label class="col-sm-3 control-label" th:text="#{html.page.report.column.show.systemroles}"></label>
+							<div class="col-sm-9">
+								<div class="checkbox c-checkbox">
+									<label>
+										<input id="ShowSystemRolesCheckbox" type="checkbox" class="js-column-choice" data-column-name="ShowSystemRoles" th:attr="checked=${reportForm.showSystemRoles}"/>
+										<span class="fa fa-check"></span>
+									</label>
 								</div>
 							</div>
+						</div>
 
-							<div class="form-group" style="margin-bottom: 40px">
-								<input class="column-choice" id="realShowOrgUnitAllocations" th:field="*{showOrgUnitAllocations}" type="hidden">
-								<label class="col-sm-3 control-label" th:text="#{html.page.report.column.show.orgUnitAllocations}"></label>
-								<div class="col-sm-9">
-									<div class="checkbox c-checkbox">
-										<label>
-											<input id="ShowOrgUnitAllocationsCheckbox" type="checkbox" th:attr="checked=${reportForm.showOrgUnitAllocations}" onchange="columnService.columnChoiceTrigger(this, 'ShowOrgUnitAllocations')"/>
-											<span class="fa fa-check"></span>
-										</label>
-									</div>
+						<div class="form-group" style="margin-bottom: 40px">
+							<input class="column-choice" id="realShowOrgUnitAllocations" th:field="*{showOrgUnitAllocations}" type="hidden">
+							<label class="col-sm-3 control-label" th:text="#{html.page.report.column.show.orgUnitAllocations}"></label>
+							<div class="col-sm-9">
+								<div class="checkbox c-checkbox">
+									<label>
+										<input id="ShowOrgUnitAllocationsCheckbox" type="checkbox" class="js-column-choice" data-column-name="ShowOrgUnitAllocations" th:attr="checked=${reportForm.showOrgUnitAllocations}"/>
+										<span class="fa fa-check"></span>
+									</label>
 								</div>
 							</div>
+						</div>
 
-							<hr/>
+						<hr/>
 
-							<div class="form-group">
-								<div class="col-sm-offset-1 col-sm-10">
+						<div class="form-group">
+							<div class="col-sm-offset-1 col-sm-10">
 								<input class="btn btn-lg btn-primary" type="submit" th:value="#{html.page.report.generate}" style="width: 250px;" /> &nbsp;&nbsp;
-								<input class="btn btn-lg btn-warning" th:value="#{html.page.report.save.template}" onclick="templateService.openSaveTemplateModal()" style="width: 250px;" />
-								</div>
+								<input class="btn btn-lg btn-warning js-open-save-template-modal" th:value="#{html.page.report.save.template}" style="width: 250px;" />
 							</div>
-						</form>
-					</div>
-				</div>
-			</div>
-		</section>
-	</div>
-
-	<div class="modal fade" id="saveTemplateModal" role="dialog">
-		<div class="modal-dialog">
-
-			<!-- Modal content-->
-			<div class="modal-content">
-				<div class="modal-header">
-					<h4 th:text="#{html.page.report.modal.title}"></h4>
-				</div>
-
-				<div class="modal-body" style="min-height:70px;">
-					<label class="col-sm-2 control-label" th:text="#{html.page.report.modal.name}"></label>
-					<div class="col-sm-10">
-						<input id="templateName" class="form-control"/>
-					</div>
-				</div>
-
-				<div class="modal-footer">
-					<button type="button" class="btn btn-primary" th:text="#{html.control.button.save}" onclick="templateService.saveTemplate()"></button>
-					<button type="button" class="btn btn-danger" th:text="#{html.control.button.cancel}" onclick="templateService.closeSaveTemplate()"></button>
+						</div>
+					</form>
 				</div>
 			</div>
 		</div>
+	</section>
+</div>
+
+<div class="modal fade" id="saveTemplateModal" role="dialog">
+	<div class="modal-dialog">
+
+		<!-- Modal content-->
+		<div class="modal-content">
+			<div class="modal-header">
+				<h4 th:text="#{html.page.report.modal.title}"></h4>
+			</div>
+
+			<div class="modal-body" style="min-height:70px;">
+				<label class="col-sm-2 control-label" th:text="#{html.page.report.modal.name}"></label>
+				<div class="col-sm-10">
+					<input id="templateName" class="form-control"/>
+				</div>
+			</div>
+
+			<div class="modal-footer">
+				<button type="button" class="btn btn-primary js-save-template" th:text="#{html.control.button.save}"></button>
+				<button type="button" class="btn btn-danger js-close-save-template" th:text="#{html.control.button.cancel}"></button>
+			</div>
+		</div>
 	</div>
-
-	<div class="modal-spinner">
-		<i class="fa fa-spinner fa-pulse fa-3x fa-fw"></i>
-		<span class="sr-only">Henter rapport...</span>
-	</div>
-
-	<style>
-		.modal-spinner {
-			display: none;
-			position: fixed;
-			z-index: 1000;
-			top: 0;
-			left: 0;
-			height: 100%;
-			width: 100%;
-			background: rgba( 255, 255, 255, .8 ) 50% 50% no-repeat;
-		}
-
-		.modal-spinner i {
-			color: #4765a0;
-			position: fixed;
-			top: 50%;
-			left: 50%;
-			margin-left: -0.642857145em;
-			margin-top: -0.642857145em;
-		}
-
-		body.loading {
-			overflow: hidden;
-		}
-
-		body.loading .modal-spinner {
-			display: block;
-		}
-
-		/* Override default calendar styling to better show disabled dates */
-		.bootstrap-datetimepicker-widget table td.day:hover,
-		.bootstrap-datetimepicker-widget table td.hour:hover,
-		.bootstrap-datetimepicker-widget table td.minute:hover,
-		.bootstrap-datetimepicker-widget table td.second:hover {
-		    background: #d9d9d9;
-		}
-		.bootstrap-datetimepicker-widget table td.day {
-			background: #f2f2f2;
-		}
-		.bootstrap-datetimepicker-widget table td.active, .bootstrap-datetimepicker-widget table td.active:hover {
-		    background-color: #d9d9d9;
-		    color: black;
-		    text-shadow: 0;
-		}
-		.bootstrap-datetimepicker-widget table td.disabled,
-		.bootstrap-datetimepicker-widget table td.disabled:hover {
-		    background: white;
-		    color: lightgrey;
-		    cursor: not-allowed;
-		}
-	</style>
-
-	<nav th:replace="~{fragments/footer :: footer}"></nav>
-
-	<script th:inline="javascript">
-		/*<![CDATA[*/
-
-		/*[+
-			var url = [[@{/ui/report}]];
-			var resturl = [[@{/rest/report}]];
-			var resturlous = [[@{/rest/ous}]];
-			var fieldUpdatedMsg = [[#{html.page.report.modal.successMsg}]];
-			var fieldNotUpdatedMsg = [[#{html.page.report.modal.failMsg}]];
-			var manager = [[${reportForm.managerFilter}]];
-			var itsystemFilter = [[${reportForm.itsystemFilter}]];
-			var unitFilter = [[${reportForm.unitFilter}]];
-			var templateId = [[${templateId}]];
-
-			var allItSystems = [[${allItSystems}]];
-			var allOrgUnits = [[${allOrgUnits}]];
-		+]*/
-		var token = $("meta[name='_csrf']").attr("content");
-
-		var filterService;
-		var datePickerService;
-		var columnService;
-		var templateService;
-		var reportService;
-
-		$(document).ready(function() {
-			datePickerService = new DatePickerService();
-			datePickerService.init();
-
-			columnService = new ColumnService();
-			columnService.init();
-
-			templateService = new TemplateService();
-			templateService.init();
-
-			reportService = new ReportService();
-			reportService.init();
-
-			filterService = new FilterService();
-		});
-
-		function ReportService() {
-			this.init = function() {
-				$('#reportForm').submit(function(event) {
-					event.preventDefault();
-
-					var request = new XMLHttpRequest();
-					request.open('POST', url + '/download', true);
-					request.setRequestHeader('X-CSRF-TOKEN', token);
-					request.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded; charset=UTF-8');
-					request.responseType = 'blob';
-
-					request.onload = function() {
-						$('body').removeClass('loading');
-
-						if (request.status === 200) {
-							var disposition = request.getResponseHeader('content-disposition');
-							var matches = /"([^"]*)"/.exec(disposition);
-							var filename = (matches != null && matches[1] ? matches[1] : 'report.xls');
-
-							// The actual download
-							var blob = new Blob([request.response], { type: 'application/ms-excel' });
-							var link = document.createElement('a');
-							link.href = window.URL.createObjectURL(blob);
-							link.download = filename;
-
-							document.body.appendChild(link);
-							link.click();
-							document.body.removeChild(link);
-						}
-					};
-
-				    request.send($(this).serialize());
-
-					$('body').addClass('loading');
-				});
-			}
-		}
-
-		function TemplateService() {
-			this.init = function() {
-				$('#saveTemplateModal').on('hidden.bs.modal', function () {
-					$('#templateName').val('');
-				});
-
-				$('#saveTemplateModal').on('shown.bs.modal', function () {
-					$('#templateName').focus();
-				});
-			}
-
-			this.openSaveTemplateModal = function() {
-				$('#saveTemplateModal').modal('show');
-			}
-
-			this.closeSaveTemplate = function() {
-				$('#saveTemplateModal').modal('hide');
-			}
-
-			this.saveTemplate = function() {
-				let unitFilter = []
-				let ous = $('#realOUs').val();
-				if (ous !== '') {
-					unitFilter = ous.split(",");
-				}
-				var dataObj = {
-					"name": $('#templateName').val(),
-					"showUsers": $('#realShowUsers').val(),
-					"showOUs": $('#realShowOUs').val(),
-					"showUserRoles": $('#realShowUserRoles').val(),
-					"showNegativeRoles": $('#realShowNegativeRoles').val(),
-					"showKLE": $('#realShowKLE').val(),
-					"showItSystems": $('#realShowItSystems').val(),
-					"showInactiveUsers": $('#realShowInactiveUsers').val(),
-					"itsystemFilter" : $('#itSystemSelectPicker').val(),
-					"managerFilter": $('#managerSelect').val(),
-					"unitFilter" : unitFilter,
-					"showSystemRoles" : $('#realShowSystemRoles').val()
-				}
-
-				templateService.closeSaveTemplate();
-
-				$.ajax({
-					contentType: 'application/json',
-					url: resturl + "/save-template",
-					method : "POST",
-					headers: {
-						'X-CSRF-TOKEN': token
-					},
-					success: function(response) {
-						$.notify({
-							message: fieldUpdatedMsg
-						}, {
-							status: 'success',
-							autoHideDelay: 4000
-						});
-					},
-					error: errorHandler(fieldNotUpdatedMsg),
-					data: JSON.stringify(dataObj)
-				});
-			}
-		}
-
-		function ColumnService() {
-			this.init = function() {
-	        	$('.column-choice').trigger('change');
-			}
-
-			this.columnChoiceTrigger = function(checkbox, name) {
-				$('#real' + name).val(checkbox.checked);
-			}
-		}
-
-		Date.prototype.addDays = function(days) {
-			var dat = new Date(this.valueOf())
-			dat.setDate(dat.getDate() + days);
-			return dat;
-		}
-
-		function getDates(startDate, stopDate) {
-			var dateArray = new Array();
-			var currentDate = startDate;
-			while (currentDate <= stopDate) {
-				dateArray.push(currentDate)
-				currentDate = currentDate.addDays(1);
-			}
-			return dateArray;
-		}
-
-		function DatePickerService() {
-			this.init = function() {
-				var date2MonthsAgo = new Date(new Date().setMonth(new Date().getMonth()-2));
-				var date6MonthsAgo = new Date(new Date().setMonth(new Date().getMonth()-6));
-				var date12MonthsFromNow = new Date(new Date().setMonth(new Date().getMonth()+12));
-
-				//Enable last two months
-				var enabledDates = getDates( date2MonthsAgo, new Date());
-
-				//Enable 7th, 14th etc. from 4 months prior to 2 months ago
-				var olderDates = getDates(date6MonthsAgo,date2MonthsAgo);
-				for (i = 0; i < olderDates.length; i ++ ) {
-					if (olderDates[i].getDate() != 7
-						&& olderDates[i].getDate() != 14
-						&& olderDates[i].getDate() != 21
-						&& olderDates[i].getDate() != 28) {
-							continue;
-						}
-
-					enabledDates.push(olderDates[i]);
-				}
-			    //Enable future dates
-			    var futureDates = getDates(new Date(),date12MonthsFromNow);
-			    for (i = 0; i < futureDates.length; i ++ ) {
-                    enabledDates.push(futureDates[i]);
-                }
-
-				// Initialize DatePicker
-				$('#datePicker').datetimepicker({
-					inline: true,
-					format: 'YYYY-MM-DD',
-					minDate: moment().subtract(6, 'months'),
-					maxDate: moment().add(12, 'months'),
-					enabledDates: enabledDates,
-					defaultDate: new Date()
-				});
-
-				// On Change event for DatePicker
-	        	$('#datePicker').on('dp.change', function () {
-	        		var date = $('#datePicker').data('date');
-
-	        		//sometimes date is undefined. thanks javascript
-	        		if (date) {
-						// Remember date
-						$('#realDateField').val(date);
-
-						// ajax call to load
-						$("#filterOptions").load(url + "/configure/" + date + "?templateId=" + templateId, function() {
-							datePickerService.getOrgUnits(date);
-							filterService.init();
-						});
-	        		}
-	        	});
-
-	        	$('#datePicker').trigger('dp.change');
-			}
-
-			this.getOrgUnits = function(date) {
-				$.ajax({
-					contentType: 'application/json',
-					url: resturl + "/getous/" + date,
-					method : "POST",
-					headers: {
-						'X-CSRF-TOKEN': token
-					},
-					success: function(response) {
-						window.allOrgUnits = response;
-
-						$('#hierarchy').jstree(true).settings.core.data = response;
-						$('#hierarchy').jstree(true).refresh();
-
-						filterService.refreshRadioButtons();
-						filterService.refreshCheckbox();
-						filterService.units();
-					},
-					error: defaultErrorHandler
-				});
-			}
-		}
-
-		function FilterService() {
-			this.init = function() {
-				filterService.initOptionsFragment();
-				filterService.units();
-				filterService.manager();
-				filterService.itSystem();
-			}
-
-			this.units = function() {
-				if(unitFilter!=null && $("#radioFilter2").prop("disabled") == false){
-					$("#radioFilter2").attr("checked", true).change();
-
-					setTimeout(function(){
-						for (var i = 0; i < unitFilter.length; i++) {
-							$('#hierarchy').jstree("select_node", unitFilter[i]);
-						}
-					}, 100);
-				}
-			}
-
-			this.manager = function() {
-				if(manager!="" && manager!=null && $("#radioFilter3").prop("disabled") == false){
-					$("#radioFilter3").attr("checked", true).change();
-					$("#managerSelect").val(manager);
-					$("#managerSelect").selectpicker('refresh');
-				}
-			}
-
-			this.itSystem = function() {
-				if (itsystemFilter != null && $("#itsystemCheckbox").prop("disabled") == false){
-					$("#itsystemCheckbox").attr("checked", true).change();
-					$("#itSystemSelectPicker").val(itsystemFilter);
-					$("#itSystemSelectPicker").selectpicker('refresh');
-				}
-			}
-
-			this.refreshRadioButtons = function() {
-			    if (allOrgUnits == null || allOrgUnits.length < 1) {
-			    	if( $('#radioFilter2').prop("checked")){
-			    		$('#radioFilter1').prop("checked", true).change();
-			    		$("#orgUnitToggle").hide();
-			    	}
-
-			        $('#radioFilter2').prop('disabled', true);
-			    }
-			    else {
-			    	$('#radioFilter2').prop('disabled', false);
-			    }
-			}
-
-			this.refreshCheckbox = function(){
-				 if (allItSystems == null || allItSystems.length < 1 || templateId == 0) {
-					$('#itsystemCheckbox').prop("checked", false);
-				}
-			}
-
-			this.initOUTree = function() {
-				this.refreshRadioButtons();
-				this.refreshCheckbox();
-
-				$("#hierarchy").jstree({
-					"core": {
-						"data": allOrgUnits,
-						"themes": {
-							"icons": false
-						}
-					},
-					"search" : {
-						"show_only_matches": true,
-						"search_callback": function(str, node) {
-							return (node.text.toUpperCase().startsWith(str.toUpperCase()));
-						}
-					},
-					"checkbox" : {
-						"three_state": false,
-						"cascade" : "down"
-					},
-					"plugins" : [
-						"wholerow", "search", "checkbox"
-					]
-				});
-
-	            // selecting and deselecting in the JSTree
-				$("#hierarchy").on("changed.jstree", function(e, data) {
-	                var ous = $('#hierarchy').jstree('get_selected');
-
-	                // Remember date
-	        		$('#realOUs').val(ous);
-				});
-
-				// searching in the JSTree
-				var to = false;
-				$('#searchField').keyup(function() {
-					if (to) {
-						clearTimeout(to);
-					}
-
-					to = setTimeout(function() {
-						var v = $('#searchField').val();
-
-						$('#hierarchy').jstree(true).search(v);
-					}, 400);
-				});
-			}
-
-			this.initItSystemPicker = function() {
-				$('select.selectpicker').selectpicker({
-					actionsBox: true,
-					deselectAllText: "Fravælg alle",
-					selectAllText: "Vælg alle",
-					iconBase: 'fa',
-					tickIcon: 'fa-check text-success'
-				});
-			}
-
-			this.onRadioChange = function(id) {
-			    // Clean toggles
-			    $('.radio-toggle').hide();
-			    $('#hierarchy').jstree('deselect_all');
-	            $("#managerSelect option:selected").prop("selected", false)
-
-			    $('#' + id).show();
-			}
-
-			this.initOptionsFragment = function() {
-				// Toggle filter it system
-				$('#itsystemCheckbox').change(function () {
-					if (this.checked)  {
-						$('#itsystemToggle').fadeIn('fast');
-						$('#realShowUsers').val(false);
-						$('#realShowUsers').parent().hide();
-					} else {
-						$('#itsystemToggle').fadeOut('fast');
-	                    $('#itSystemSelectPicker').selectpicker('val', '');
-						$('#realShowUsers').val($('#UserColumnCheckbox').prop( "checked"));
-						$('#realShowUsers').parent().show();
-					}
-				});
-				$('#itsystemCheckbox').trigger('change');
-				$('input[name="radioFilter"]').change(function () {
-					filterService.onRadioChange($(this).data("id"));
-				});
-				filterService.initItSystemPicker();
-				filterService.initOUTree();
-			}
-		}
-
-	/*]]>*/
-	</script>
+</div>
+
+<div class="modal-spinner">
+	<i class="fa fa-spinner fa-pulse fa-3x fa-fw"></i>
+	<span class="sr-only">Henter rapport...</span>
+</div>
+
+<link rel="stylesheet" th:href="@{/css/reports/configure.css}" />
+
+<nav th:replace="~{fragments/footer :: footer}"></nav>
+
+<script type="application/json" id="report-full-config" th:inline="javascript">
+	{
+		"url": [[@{/ui/report}]],
+		"restUrl": [[@{/rest/report}]],
+		"restUrlOus": [[@{/rest/ous}]],
+		"fieldUpdatedMsg": [[#{html.page.report.modal.successMsg}]],
+		"fieldNotUpdatedMsg": [[#{html.page.report.modal.failMsg}]],
+		"manager": [[${reportForm.managerFilter}]],
+		"itsystemFilter": [[${reportForm.itsystemFilter}]],
+		"unitFilter": [[${reportForm.unitFilter}]],
+		"templateId": [[${templateId}]],
+		"allItSystems": [[${allItSystems}]],
+		"allOrgUnits": [[${allOrgUnits}]]
+	}
+</script>
+<script th:src="@{/js/reports/configure.js}"></script>
 </body>
 </html>

@@ -9,7 +9,15 @@ import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Handles org unit assignments with excluded users
+ * Handles org unit assignments with excluded users.
+ * <p>
+ * This rule is a pure veto: it answers NEGATIVE for an excluded user and NOT_APPLICABLE otherwise.
+ * Granting is left to the granting rules, so a title filter cannot be bypassed merely because a
+ * user is absent from the exclusion list.
+ * <p>
+ * The veto covers the position-based evaluation. Manager/substitute and function assignments cannot
+ * carry excluded users - the write paths make them mutually exclusive - so those overloads do not
+ * participate.
  */
 @Service
 public class ExcludedUsersRule extends AssignmentRule {
@@ -26,21 +34,24 @@ public class ExcludedUsersRule extends AssignmentRule {
 
 	/**
 	 * Evaluates whether an excluded user assignment applies to a position.
-	 * Excluded user assignments cannot be inherited.
+	 * In practice excepted-user assignments cannot inherit - that combination is rejected on
+	 * every write path - but the scope is read from the assignment rather than assumed.
 	 *
 	 * @return the result indicating if and how the assignment applies
 	 */
 	private AssignmentAppliesResult evaluateExcludedUserAssignment(final OrgUnitAssignment assignment, final Position position, final OrgUnit orgUnit) {
-		return validateAssignmentEligibility(position, orgUnit, false, false) // Excluded users assignments cannot inherit
+		return validateAssignmentEligibility(position, orgUnit, assignment != null && assignment.isInherit(), false)
 			.orElseGet(() -> checkUserExclusion(assignment, position));
 	}
 
 	/**
 	 * Checks if a user is excluded from an assignment.
+	 * <p>
+	 * The exclusion list is a pure veto: it can deselect a user, never grant. The recipients are
+	 * decided by the granting rules, so a title filter cannot be bypassed merely because a user is
+	 * absent from the exclusion list.
 	 *
-	 * @return NEGATIVE if the user is excluded, POSITIVE if not excluded and the exclusion list is
-	 *         the only condition on the assignment, NOT_APPLICABLE if the assignment has no user
-	 *         exclusions or leaves the actual selection to another condition (titel/funktion/leder)
+	 * @return NEGATIVE if the user is excluded, NOT_APPLICABLE otherwise
 	 */
 	private static AssignmentAppliesResult checkUserExclusion(OrgUnitAssignment assignment, Position position) {
 		if (position == null) {
@@ -54,14 +65,7 @@ public class ExcludedUsersRule extends AssignmentRule {
 		}
 		boolean excluded = assignment.getExceptedUsers().stream()
 			.anyMatch(u -> u.getUuid().equalsIgnoreCase(position.getUser().getUuid()));
-		if (excluded) {
-			return AssignmentAppliesResult.NEGATIVE;
-		}
-		// Kombineret med fx et titelfilter er undtagelseslisten kun et fravalg - den må ikke i sig
-		// selv tildele rollen til alle andre i enheden
-		return hasGrantingCondition(assignment)
-			? AssignmentAppliesResult.NOT_APPLICABLE
-			: AssignmentAppliesResult.POSITIVE;
+		return excluded ? AssignmentAppliesResult.NEGATIVE : AssignmentAppliesResult.NOT_APPLICABLE;
 	}
 
 }

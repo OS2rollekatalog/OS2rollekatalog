@@ -7,6 +7,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 
 @Retention(RetentionPolicy.RUNTIME)
 @PreAuthorize("hasRole('ROLE_API_READ_ACCESS')")
+@RequireRoleAnnotation
 public @interface RequireApiReadAccessRole {
 
 }

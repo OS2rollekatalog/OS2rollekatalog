@@ -17,8 +17,11 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -60,6 +63,19 @@ public class UserApiV2 {
 			})
 			.toList();
     }
+
+	@Operation(summary = "Returns which of the given userIds have a user in Role Catalogue.",
+			   description = "Maximum 10000 userIds per request. Scoped to the given domain, or the primary domain if omitted.")
+	@PostMapping(value = "/api/v2/user/existing")
+	public ResponseEntity<Set<String>> getExistingUserIds(@RequestBody final List<String> userIds,
+			@RequestParam(name = "domain", required = false) final String domainArg) {
+		if (userIds.size() > 10_000) {
+			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "userIds list must not exceed 10000 entries");
+		}
+		final Domain domain = domainService.getDomainOrPrimaryOptional(domainArg)
+				.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Domain not found"));
+		return ResponseEntity.ok(userService.getExistingUserIds(userIds, domain));
+	}
 
 	@Operation(summary = "Queue a user for recalculation of current role assignments.")
 	@Transactional

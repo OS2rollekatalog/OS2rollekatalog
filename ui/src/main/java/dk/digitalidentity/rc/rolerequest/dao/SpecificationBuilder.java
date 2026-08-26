@@ -41,7 +41,8 @@ public class SpecificationBuilder<T> {
 	 * AND med en gruppe af OR conditions
 	 * Eksempel: .andOr(spec1, spec2, spec3) -> AND (spec1 OR spec2 OR spec3)
 	 */
-	public SpecificationBuilder<T> andOr(Specification<T>... specs) {
+	@SafeVarargs
+	public final SpecificationBuilder<T> andOr(Specification<T>... specs) {
 		if (specs == null || specs.length == 0) {
 			return this;
 		}

@@ -1,6 +1,8 @@
 package dk.digitalidentity.rc.rolerequest.service;
 
 import dk.digitalidentity.rc.dao.model.ItSystem;
+import dk.digitalidentity.rc.dao.model.ManagerSubstitute;
+import dk.digitalidentity.rc.dao.model.OrgUnit;
 import dk.digitalidentity.rc.dao.model.RoleGroup;
 import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserRole;
@@ -17,9 +19,11 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import static dk.digitalidentity.rc.mockfactory.rolerequest.MockFactory.createItSystem;
+import static dk.digitalidentity.rc.mockfactory.rolerequest.MockFactory.createOrgUnit;
 import static dk.digitalidentity.rc.mockfactory.rolerequest.MockFactory.createRoleGroup;
 import static dk.digitalidentity.rc.mockfactory.rolerequest.MockFactory.createRoleRequest;
 import static dk.digitalidentity.rc.mockfactory.rolerequest.MockFactory.createUser;
@@ -151,6 +155,46 @@ class RequestApproverResolverTest {
 			// Assert
 			assertThat(canApprove).isTrue();
 		}
+
+		@Test
+		@DisplayName("self-approval is still blocked when the requester is a different Java object with the same uuid")
+		void blocksSelfApprovalAcrossDetachedInstancesWithSameUuid() {
+			// Arrange: a detached/refetched User (e.g. loaded fresh in a controller) is a different
+			// reference than the one on the request, but represents the same person. User has no
+			// equals()/hashCode(), so this must be compared by uuid, not by reference.
+			User requesterInstance = createUser("self-uuid");
+			User refetchedSameUser = createUser("self-uuid");
+			ItSystem itSystem = createItSystem("system", List.of());
+			UserRole userRole = createUserRole("role", itSystem, List.of());
+			RoleRequest request = createRoleRequest(requesterInstance, null, userRole);
+			request.setRequester(requesterInstance);
+
+			// Act
+			boolean canApprove = requestApproverResolver.canApprove(request, refetchedSameUser);
+
+			// Assert
+			assertThat(canApprove).isFalse();
+		}
+	}
+
+	@Nested
+	@DisplayName("A deleted user can never approve")
+	class DeletedApprover {
+
+		@Test
+		@DisplayName("canApprove returns false for a deleted approver even if otherwise entitled")
+		void deletedApproverCannotApprove() {
+			User approver = createUser("approver");
+			approver.setDeleted(true);
+			ItSystem itSystem = createItSystem("system", List.of());
+			UserRole userRole = createUserRole("role", itSystem, List.of(ApprovableBy.AUTOMATIC));
+			RoleRequest request = createRoleRequest(createUser("receiver"), null, userRole);
+			request.setApproverOption(List.of(ApprovableBy.AUTOMATIC));
+
+			boolean canApprove = requestApproverResolver.canApprove(request, approver);
+
+			assertThat(canApprove).isFalse();
+		}
 	}
 
 	@Nested
@@ -200,6 +244,179 @@ class RequestApproverResolverTest {
 
 			// Assert: falls back to the live option (AUTOMATIC) so legacy requests keep working.
 			assertThat(canApprove).isTrue();
+		}
+	}
+
+	/**
+	 * determineApprovable() delegates the MANAGERORSUBSTITUTE/AUTHRESPONSIBLE hierarchy walk to
+	 * OrgUnitService.getEffectiveApprover()/isAuthorizationManagerFor(). Those methods are exercised
+	 * against real object graphs in OrgUnitServiceTest, but here we wire a REAL OrgUnitService (not a
+	 * mock returning a canned answer) so this class's own use of the results — the manager/substitute
+	 * comparison, the OU that gates the substitute match — is verified against actual recursive behavior,
+	 * not an assumption about what OrgUnitService does.
+	 */
+	@Nested
+	@DisplayName("determineApprovable — MANAGERORSUBSTITUTE / AUTHRESPONSIBLE against a real OrgUnitService")
+	class DetermineApprovableRealOrgUnitService {
+
+		private final OrgUnitService realOrgUnitService = new OrgUnitService();
+		private RequestApproverResolver resolver;
+
+		private RequestApproverResolver resolverWithRealOrgUnitService() {
+			return new RequestApproverResolver(approverOptionService, requestAuthorizedRoleService, realOrgUnitService, itSystemService, settingsService);
+		}
+
+		@Test
+		@DisplayName("manager of the direct OU can approve")
+		void directManagerCanApprove() {
+			User manager = createUser("manager");
+			manager.setManagerSubstitutes(new ArrayList<>());
+			OrgUnit orgUnit = createOrgUnit("ou-1", null, manager);
+			User receiver = createUser("receiver");
+
+			UserRole userRole = createUserRole("role", createItSystem("system", List.of()), List.of());
+			RoleRequest request = createRoleRequest(receiver, orgUnit, userRole);
+			request.setApproverOption(List.of(ApprovableBy.MANAGERORSUBSTITUTE));
+
+			resolver = resolverWithRealOrgUnitService();
+
+			assertThat(resolver.canApprove(request, manager)).isTrue();
+		}
+
+		@Test
+		@DisplayName("walks up to the parent OU manager when the direct OU's manager is the receiver")
+		void walksToParentWhenDirectManagerIsReceiver() {
+			User receiverAsManager = createUser("receiver-manager");
+			receiverAsManager.setManagerSubstitutes(new ArrayList<>());
+			User parentManager = createUser("parent-manager");
+			parentManager.setManagerSubstitutes(new ArrayList<>());
+			OrgUnit parentOu = createOrgUnit("ou-parent", null, parentManager);
+			OrgUnit childOu = createOrgUnit("ou-child", parentOu, receiverAsManager);
+
+			UserRole userRole = createUserRole("role", createItSystem("system", List.of()), List.of());
+			RoleRequest request = createRoleRequest(receiverAsManager, childOu, userRole);
+			request.setApproverOption(List.of(ApprovableBy.MANAGERORSUBSTITUTE));
+
+			resolver = resolverWithRealOrgUnitService();
+
+			assertThat(resolver.canApprove(request, parentManager)).isTrue();
+			// The receiver themselves must not be treated as their own approver even though
+			// they are literally the child OU's manager.
+			assertThat(resolver.canApprove(request, receiverAsManager)).isFalse();
+		}
+
+		@Test
+		@DisplayName("a substitute registered on the resolved (parent) OU can approve")
+		void substituteOnResolvedOuCanApprove() {
+			User manager = createUser("manager");
+			User substitute = createUser("substitute");
+			OrgUnit orgUnit = createOrgUnit("ou-1", null, manager);
+
+			ManagerSubstitute ms = new ManagerSubstitute();
+			ms.setSubstitute(substitute);
+			ms.setOrgUnit(orgUnit);
+			List<ManagerSubstitute> substitutes = new ArrayList<>();
+			substitutes.add(ms);
+			manager.setManagerSubstitutes(substitutes);
+
+			User receiver = createUser("receiver");
+			UserRole userRole = createUserRole("role", createItSystem("system", List.of()), List.of());
+			RoleRequest request = createRoleRequest(receiver, orgUnit, userRole);
+			request.setApproverOption(List.of(ApprovableBy.MANAGERORSUBSTITUTE));
+
+			resolver = resolverWithRealOrgUnitService();
+
+			assertThat(resolver.canApprove(request, substitute)).isTrue();
+		}
+
+		@Test
+		@DisplayName("a substitute registered on a DIFFERENT OU than the resolved one cannot approve")
+		void substituteOnDifferentOuCannotApprove() {
+			User manager = createUser("manager");
+			User substitute = createUser("substitute");
+			OrgUnit orgUnit = createOrgUnit("ou-1", null, manager);
+			OrgUnit otherOu = createOrgUnit("ou-other", null, manager);
+
+			ManagerSubstitute ms = new ManagerSubstitute();
+			ms.setSubstitute(substitute);
+			ms.setOrgUnit(otherOu);
+			List<ManagerSubstitute> substitutes = new ArrayList<>();
+			substitutes.add(ms);
+			manager.setManagerSubstitutes(substitutes);
+
+			User receiver = createUser("receiver");
+			UserRole userRole = createUserRole("role", createItSystem("system", List.of()), List.of());
+			RoleRequest request = createRoleRequest(receiver, orgUnit, userRole);
+			request.setApproverOption(List.of(ApprovableBy.MANAGERORSUBSTITUTE));
+
+			resolver = resolverWithRealOrgUnitService();
+
+			assertThat(resolver.canApprove(request, substitute)).isFalse();
+		}
+
+		@Test
+		@DisplayName("an unrelated user (neither manager nor substitute) cannot approve")
+		void unrelatedUserCannotApprove() {
+			User manager = createUser("manager");
+			manager.setManagerSubstitutes(new ArrayList<>());
+			User stranger = createUser("stranger");
+			OrgUnit orgUnit = createOrgUnit("ou-1", null, manager);
+
+			User receiver = createUser("receiver");
+			UserRole userRole = createUserRole("role", createItSystem("system", List.of()), List.of());
+			RoleRequest request = createRoleRequest(receiver, orgUnit, userRole);
+			request.setApproverOption(List.of(ApprovableBy.MANAGERORSUBSTITUTE));
+
+			resolver = resolverWithRealOrgUnitService();
+
+			assertThat(resolver.canApprove(request, stranger)).isFalse();
+		}
+
+		@Test
+		@DisplayName("authorization manager on the receiver's OU can approve under AUTHRESPONSIBLE")
+		void authResponsibleCanApprove() {
+			User authManager = createUser("auth-manager");
+			OrgUnit orgUnit = createOrgUnit("ou-1", null);
+			dk.digitalidentity.rc.dao.model.AuthorizationManager am = new dk.digitalidentity.rc.dao.model.AuthorizationManager();
+			am.setUser(authManager);
+			orgUnit.setAuthorizationManagers(List.of(am));
+
+			User receiver = createUser("receiver");
+			dk.digitalidentity.rc.dao.model.Position position = new dk.digitalidentity.rc.dao.model.Position();
+			position.setOrgUnit(orgUnit);
+			receiver.setPositions(List.of(position));
+
+			UserRole userRole = createUserRole("role", createItSystem("system", List.of()), List.of());
+			RoleRequest request = createRoleRequest(receiver, orgUnit, userRole);
+			request.setApproverOption(List.of(ApprovableBy.AUTHRESPONSIBLE));
+
+			resolver = resolverWithRealOrgUnitService();
+
+			assertThat(resolver.canApprove(request, authManager)).isTrue();
+		}
+
+		@Test
+		@DisplayName("user who is authorization manager on an unrelated OU cannot approve under AUTHRESPONSIBLE")
+		void authResponsibleOnUnrelatedOuCannotApprove() {
+			User authManager = createUser("auth-manager");
+			OrgUnit unrelatedOu = createOrgUnit("ou-other", null);
+			dk.digitalidentity.rc.dao.model.AuthorizationManager am = new dk.digitalidentity.rc.dao.model.AuthorizationManager();
+			am.setUser(authManager);
+			unrelatedOu.setAuthorizationManagers(List.of(am));
+
+			OrgUnit orgUnit = createOrgUnit("ou-1", null);
+			User receiver = createUser("receiver");
+			dk.digitalidentity.rc.dao.model.Position position = new dk.digitalidentity.rc.dao.model.Position();
+			position.setOrgUnit(orgUnit);
+			receiver.setPositions(List.of(position));
+
+			UserRole userRole = createUserRole("role", createItSystem("system", List.of()), List.of());
+			RoleRequest request = createRoleRequest(receiver, orgUnit, userRole);
+			request.setApproverOption(List.of(ApprovableBy.AUTHRESPONSIBLE));
+
+			resolver = resolverWithRealOrgUnitService();
+
+			assertThat(resolver.canApprove(request, authManager)).isFalse();
 		}
 	}
 }

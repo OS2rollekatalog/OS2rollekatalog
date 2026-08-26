@@ -5,6 +5,8 @@ import dk.digitalidentity.rc.config.model.Scheduled;
 import dk.digitalidentity.rc.dao.assignment.HistoricItSystemAssignmentDao;
 import dk.digitalidentity.rc.service.SettingsService;
 import dk.digitalidentity.rc.service.assignment.HistoricItSystemAssignmentService;
+import dk.digitalidentity.rc.task.assignment.RepairHistoricItSystemAssignmentCollectionsTask;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

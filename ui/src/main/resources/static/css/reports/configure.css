@@ -1,0 +1,49 @@
+.modal-spinner {
+	display: none;
+	position: fixed;
+	z-index: 1000;
+	top: 0;
+	left: 0;
+	height: 100%;
+	width: 100%;
+	background: rgba( 255, 255, 255, .8 ) 50% 50% no-repeat;
+}
+
+.modal-spinner i {
+	color: #4765a0;
+	position: fixed;
+	top: 50%;
+	left: 50%;
+	margin-left: -0.642857145em;
+	margin-top: -0.642857145em;
+}
+
+body.loading {
+	overflow: hidden;
+}
+
+body.loading .modal-spinner {
+	display: block;
+}
+
+/* Override default calendar styling to better show disabled dates */
+.bootstrap-datetimepicker-widget table td.day:hover,
+.bootstrap-datetimepicker-widget table td.hour:hover,
+.bootstrap-datetimepicker-widget table td.minute:hover,
+.bootstrap-datetimepicker-widget table td.second:hover {
+	background: #d9d9d9;
+}
+.bootstrap-datetimepicker-widget table td.day {
+	background: #f2f2f2;
+}
+.bootstrap-datetimepicker-widget table td.active, .bootstrap-datetimepicker-widget table td.active:hover {
+	background-color: #d9d9d9;
+	color: black;
+	text-shadow: 0;
+}
+.bootstrap-datetimepicker-widget table td.disabled,
+.bootstrap-datetimepicker-widget table td.disabled:hover {
+	background: white;
+	color: lightgrey;
+	cursor: not-allowed;
+}

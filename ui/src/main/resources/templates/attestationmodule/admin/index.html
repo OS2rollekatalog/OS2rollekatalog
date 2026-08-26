@@ -55,117 +55,14 @@
 <div th:replace="~{attestationmodule/fragments/footer :: scripts(datatables = true)}"></div>
 <script th:src="@{/js/service/TabService.js}"></script>
 
-<script th:inline="javascript">
-    /*<![CDATA[*/
-    /*[+
-    const token = $("meta[name='_csrf']").attr("content");
-    let detailsUrl = [[@{/ui/attestation/v2/admin/details}]];
-    let tabContentUrl = [[@{/ui/attestation/v2/admin/run/}]];
-    let runCount = [[${simpleAttestationRuns.size()}]];
-    let tabService;
-    +]*/
-
-    function formatDetails ( rowData ) {
-        let div = $('<div/>')
-            .addClass( 'loading' )
-            .text( 'Henter...' );
-        $.ajax( {
-            url: `${detailsUrl}/${rowData[0]}` ,
-            data: {
-                name: rowData.name
-            },
-            success: function ( data ) {
-                div.html( data )
-                    .removeClass( 'loading' );
-            }
-        } );
-
-        return div;
-    }
-
-    function openCloseDetails (table, e) {
-        let tr = e.target.closest('tr');
-        let row = table.row(tr);
-        if (row.child.isShown()) {
-            row.child.hide();
-        } else {
-            row.child(formatDetails(row.data(), true)).show();
-        }
-        $(tr).toggleClass('dt-hasChild');
-    }
-
-    $(document).ready(function() {
-        initNavTabs()
-
-    });
-
-    function initNavTabs(){
-        tabService = new TabService()
-        const navTabElements = document.querySelectorAll(`.nav-link`)
-
-        //Init the first tab, presuming it has already been loaded with the page
-<!--        if (navTabElements.length > 0) {-->
-<!--            const id = navTabElements[0].getAttribute('run-id')-->
-<!--            initDatatable(id)-->
-<!--        }-->
-
-        for (const navTab of navTabElements){
-            const id = navTab.getAttribute('data-run-id')
-
-            const containerElement = document.getElementById(`ovtab${id}`)
-            const url = `${tabContentUrl}${id}`
-            tabService.initLoadContentOnClick(navTab, containerElement, url, () => initDatatable(id))
-
-        }
-
-        navTabElements[0].click()
-
-    }
-
-    function initDatatable (runId) {
-        let ouTable = $(`#orgUnitTable${runId}`).DataTable({
-                "pageLength" : 25,
-                "responsive" : true,
-                "autoWidth" : false,
-				"stateSave": true,
-                "language" : {
-                    "search" : "Søg",
-                    "lengthMenu" : "_MENU_ rækker per side",
-                    "info" : "Viser _START_ til _END_ af _TOTAL_ rækker",
-                    "zeroRecords" : "Ingen data...",
-                    "infoEmpty" : "",
-                    "infoFiltered" : "(ud af _MAX_ rækker)",
-                    "paginate" : {
-                        "previous" : "Forrige",
-                        "next" : "Næste"
-                    }
-                }
-            });
-            ouTable.on('click', 'td.dt-control', e => openCloseDetails(ouTable, e));
-
-            let itsTable = $(`#itSystemsTable${runId}`).DataTable({
-                "pageLength" : 25,
-                "responsive" : true,
-				"stateSave": true,
-                "autoWidth" : false,
-                "language" : {
-                    "search" : "Søg",
-                    "lengthMenu" : "_MENU_ rækker per side",
-                    "info" : "Viser _START_ til _END_ af _TOTAL_ rækker",
-                    "zeroRecords" : "Ingen data...",
-                    "infoEmpty" : "",
-                    "infoFiltered" : "(ud af _MAX_ rækker)",
-                    "paginate" : {
-                        "previous" : "Forrige",
-                        "next" : "Næste"
-                    }
-                }
-            });
-            itsTable.on('click', 'td.dt-control', e => openCloseDetails(itsTable, e));
-    }
-
-    /*]]>*/
+<script type="application/json" th:inline="javascript" id="attestation-admin-config">
+	{
+		"detailsUrl": [[@{/ui/attestation/v2/admin/details}]],
+		"tabContentUrl": [[@{/ui/attestation/v2/admin/run/}]],
+		"runCount": [[${simpleAttestationRuns.size()}]]
+	}
 </script>
+<script th:src="@{/js/attestationmodule/admin/index.js}"></script>
 
 </body>
 </html>

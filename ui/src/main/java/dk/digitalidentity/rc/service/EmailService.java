@@ -43,7 +43,7 @@ public class EmailService {
 	@Async
 	public void sendMessage(String email, String subject, String message, List<InlineImageDTO> inlineImages, String cc) {
 		if (!configuration.getIntegrations().getEmail().isEnabled()) {
-			log.warn("email server is not configured - not sending emails!");
+			log.warn("email server is not configured - not sending email to: " + email + " with content: " + message);
 			return;
 		}
 

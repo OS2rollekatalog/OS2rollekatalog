@@ -52,7 +52,7 @@
 								<label class="col-sm-3 control-label" th:text="#{html.setting.attestation.scheduled.filter}"></label>
 
 								<div class="col-sm-8">
-									<button type="button" onclick="chooseOU()" class="btn btn-primary" th:text="#{html.setting.pickou}"></button>
+									<button type="button" class="btn btn-primary js-choose-ou-btn" th:text="#{html.setting.pickou}"></button>
 									<a th:replace="~{fragments/help :: help (title=#{html.help.settings.general.excludedOus.title}, content=#{html.help.settings.general.excludedOus.body})}"></a>
 									<br/><br/>
 									<em id="filterZeroTxt" th:style="${(#lists.size(settingsForm.excludedOUs) > 0) ? 'display: none': ''}" th:text="'Ingen enheder fravalgt'"></em>
@@ -162,158 +162,19 @@
 <div th:replace="~{fragments/footer :: footer}"></div>
 <script th:replace="~{fragments/assignDatePicker :: content}"></script>
 
+<link rel="stylesheet" th:href="@{/css/setting/settings.css}" />
 
-<style>
-	.error {
-		color: red;
+<script type="application/json" id="setting-config" th:inline="javascript">
+	{
+		"successMsg": [[#{html.setting.update.msg.success}]],
+		"failedMsg": [[#{html.setting.update.msg.failed}]],
+		"allOUs": [[${allOUs}]],
+		"selectedOUs": [[${settingsForm.excludedOUs}]],
+		"autoNiveauEnabled": [[${settingsForm.autoNiveauEnabled}]],
+		"saved": [[${saved}]]
 	}
-</style>
-
-<script th:inline="javascript">
-		/*<![CDATA[*/
-
-        /*[+
-         var successMsg = [[#{html.setting.update.msg.success}]];
-         var failedMsg = [[#{html.setting.update.msg.failed}]];
-         var allOUs = [[${allOUs}]];
-         var selectedOUs = [[${settingsForm.excludedOUs}]];
-         var autoNiveauEnabled = [[${settingsForm.autoNiveauEnabled}]];
-
-         +]*/
-
-		$("document").ready(function() {
-			var saved = [[${saved}]];
-
-			$("#requestapprove-checkbox").change(function() {
-				$("#requestApproveEnabled").val(this.checked);
-
-				if (this.checked) {
-					$('#requestapprove-single-table-checkbox').prop("disabled", false);
-				} else {
-					$('#requestapprove-single-table-checkbox').prop("disabled", true).prop("checked", false);
-					$("#showSingleTableInRequestApproveEnabled").val(false);
-				}
-			});
-
-			$("#caseNumber-checkbox").change(function() {
-				$("#caseNumberEnabled").val(this.checked);
-			});
-
-			$('#autoNiveau-checkbox').change(function() {
-				$('#autoNiveauEnabled').val(this.checked);
-
-				// Show/hide level mappings section
-				if (this.checked) {
-					$('#level-mappings').show();
-				} else {
-					$('#level-mappings').hide();
-				}
-			});
-
-			if (autoNiveauEnabled) {
-				$('#level-mappings').show();
-			} else {
-				$('#level-mappings').hide();
-			}
-
-			if (typeof saved != "undefined" && saved != null) {
-			    if (saved) {
-                    $.notify({
-                        message: successMsg
-                    },{
-                        status: 'success',
-                        autoHideDelay: 4000
-                    });
-                } else if(!saved) {
-                    $.notify({
-                        message: failedMsg
-                    },{
-                        status: 'warning',
-                        autoHideDelay: 4000
-                    });
-                }
-            }
-
-            // JSTree stuff
-
-	 		$('#modal-ou').on('shown.bs.modal', function() {
-	 			$('#ou-tree-search').focus();
-	 		})
-
-			$("#ou-tree").jstree({
-				"core": {
-					"data": allOUs,
-					"themes": {
-						"icons": false
-					}
-				},
-				"search" : {
-					"show_only_matches": true,
-					"search_callback": function(str, node) {
-						return (node.text.toUpperCase().startsWith(str.toUpperCase()));
-					}
-				},
-				"checkbox" : {
-					"keep_selected_style" : false,
-					"three_state": false,
-					"cascade": "undetermined"
-				},
-				"plugins" : [
-					"checkbox", "search"
-				]
-			});
-
-			// searching in the JSTree
-			var to = false;
-			$('#ou-tree-search').keyup(function() {
-				if (to) {
-					clearTimeout(to);
-				}
-
-				to = setTimeout(function() {
-					var v = $('#ou-tree-search').val();
-
-					$('#ou-tree').jstree(true).search(v);
-				}, 400);
-			});
-
-			// selecting in the JSTree
-			$('#ou-tree').on("ready.jstree", function(e, data) {
-				$('#ou-tree').jstree('select_node', selectedOUs);
-			});
-		});
-
-		function chooseOU() {
- 			$('#modal-ou').modal('show');
- 		}
-
-		function saveOUs(){
-			var codes = $('#ou-tree').jstree('get_selected', true);
-
-			$("#excludedOUs").empty();
-
-			for (var i = 0; i < codes.length; i++) {
-				$("#excludedOUs").append('<option value=\"' + codes[i].id + '\" selected="selected"> ' + codes[i].text + "</option>");
-			}
-
-			$('#filterZeroTxt').hide();
-			$('#filterOneTxt').hide();
-			$('#filterMultiTxt').hide();
-
-			if (codes.length == 0) {
-				$('#filterZeroTxt').show();
-			}
-			else if (codes.length == 1) {
-				$('#filterOneTxt').show();
-			}
-			else {
-				$('#filterMultiTxt').show();
-				$('#filterMultiValue').text(codes.length);
-			}
-
-			$('#modal-ou').modal('hide');
-		}
-		/*]]>*/
-	</script>
+</script>
+<script th:src="@{/js/service/JsTreeService.js}"></script>
+<script th:src="@{/js/setting/settings.js}"></script>
 </body>
 </html>

@@ -9,6 +9,7 @@ import dk.digitalidentity.rc.attestation.service.report.AttestationReportService
 import dk.digitalidentity.rc.dao.model.ItSystem;
 import dk.digitalidentity.rc.dao.model.OrgUnit;
 import dk.digitalidentity.rc.dao.model.User;
+import dk.digitalidentity.rc.security.RequireAnyAttestationEligibleRole;
 import dk.digitalidentity.rc.security.SecurityUtil;
 import dk.digitalidentity.rc.service.ItSystemService;
 import dk.digitalidentity.rc.service.OrgUnitService;
@@ -35,6 +36,7 @@ import java.util.stream.Collectors;
 
 import static dk.digitalidentity.rc.attestation.AttestationConstants.REPORT_LOCK_NAME;
 
+@RequireAnyAttestationEligibleRole
 @RestController
 public class AttestationReportRestController {
 

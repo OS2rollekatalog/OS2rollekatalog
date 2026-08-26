@@ -126,7 +126,9 @@ public class EmailQueueService {
 		List<EmailQueue> queued = emailQueueDao.findByDeliveryTtsBefore(tts);
 		queued.forEach(q -> {
 			q.getAttachments().size();
-			q.getEmailTemplate().getEntityId();
+			if (q.getEmailTemplate() != null) {
+				q.getEmailTemplate().getEntityId();
+			}
 		});
 		
 		return queued;

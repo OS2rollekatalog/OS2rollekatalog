@@ -13,22 +13,11 @@
     <script th:src="@{/webjars/inspinia/2.9.3/js/plugins/sweetalert/sweetalert.min.js}"></script>
     <script th:src="@{/webjars/inspinia/2.9.3/js/plugins/toastr/toastr.min.js}"></script>
     <script th:src="@{/webjars/inspinia/2.9.3/js/plugins/datapicker/bootstrap-datepicker.js}"></script>
-    <script>
-			toastr.options = {
-			  "positionClass": "toast-top-right toastr-buffer"
-			}
-		</script>
+	<script th:src="@{/js/attestationmodule/footer.js}"></script>
 
     <th:block th:if="${checkbox == true}">
         <script th:src="@{/webjars/inspinia/2.9.3/js/plugins/iCheck/icheck.min.js}"></script>
-        <script>
-			$(document).ready(function () {
-				$('.i-checks').iCheck({
-					checkboxClass: 'icheckbox_square-green',
-					radioClass: 'iradio_square-green',
-				});
-			});
-        </script>
+		<script th:src="@{/js/attestationmodule/footer_checkbox.js}"></script>
     </th:block>
 
     <th:block th:if="${datatables == true}">
@@ -57,6 +46,8 @@
         <script th:src="@{/webjars/inspinia/2.9.3/js/plugins/codemirror/mode/javascript/javascript.js}"></script>
         <script th:src="@{/webjars/inspinia/2.9.3/js/plugins/codemirror/mode/xml/xml.js}"></script>
     </th:block>
+
+	<script th:src="@{/js/fragments/HelpPopover.js}"></script>
 </div>
 </body>
 </html>

@@ -1,5 +1,20 @@
 package dk.digitalidentity.rc.controller.mvc;
 
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
+
+import org.springframework.stereotype.Controller;
+import org.springframework.ui.Model;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestMapping;
+
 import dk.digitalidentity.rc.config.Constants;
 import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.AvailableRoleGroupDTO;
@@ -45,22 +60,7 @@ import dk.digitalidentity.rc.service.model.AssignedThrough;
 import dk.digitalidentity.rc.service.model.RoleAssignedToOrgUnitDTO;
 import dk.digitalidentity.rc.service.model.RoleAssignmentType;
 import lombok.RequiredArgsConstructor;
-import org.springframework.stereotype.Controller;
-import org.springframework.ui.Model;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestMapping;
 
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.Set;
-import java.util.stream.Collectors;
-
-@SuppressWarnings("AutoBoxing")
 @RequireControllerPermission(section = Section.ORGUNIT, permission = Permission.READ)
 @RequiredArgsConstructor
 @Controller
@@ -84,11 +84,13 @@ public class OrgUnitController {
 	public String list(Model model) {
 		PermissionConstraint editConstraints = userPermissionContext.getConstraint(permissionEntity, Permission.UPDATE);
 
+		boolean isKleAdmin = SecurityUtil.hasRole(Constants.ROLE_KLE_ADMINISTRATOR);
 		List<OUListForm> allOUs = orgUnitService.getAllCached()
-				.stream()
-				.map(ou -> new OUListForm(ou, (editConstraints.allowsOrgunit(ou.getUuid()))))
-				.sorted(Comparator.comparing(OUListForm::getText))
-				.collect(Collectors.toList());
+			.stream()
+			.map(ou -> new OUListForm(ou, (editConstraints.allowsOrgunit(ou.getUuid())
+				|| isKleAdmin)))
+			.sorted(Comparator.comparing(OUListForm::getText))
+			.toList();
 
 		model.addAttribute("allOUs", allOUs);
 
@@ -572,7 +574,7 @@ public class OrgUnitController {
 
 		List<UserRole> userRoles = userRoleService.getAll().stream()
 			.filter(ur ->
-				!ur.isReadOnly()
+				userRoleService.isAssignableRole(ur) // roles that can never be assigned must not be offered
 					&& !ur.isUserOnly()
 					&& !ur.isAllowPostponing() // filter out roles that allows postponing
 					&& readConstraint.allowsITSystem(ur.getItSystem().getId()) // it system must be in constraints for READ

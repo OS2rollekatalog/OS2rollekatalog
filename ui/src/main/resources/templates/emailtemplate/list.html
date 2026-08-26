@@ -83,13 +83,15 @@
 
 <div th:replace="~{fragments/footer :: footer}"></div>
 
-<div id="emailTemplateConfig"
-	 th:data-rest-url="@{/rest/mailtemplates}"
-	 th:data-msg-toggle-success="#{html.page.email_template.list.toggle.success}"
-	 th:data-msg-toggle-fail="#{html.page.email_template.list.toggle.fail}"
-	 th:data-msg-test-success="#{html.page.email_template.test.success}"
-	 th:data-msg-test-fail="#{html.page.email_template.test.fail}">
-</div>
+<script id="pageConfig" type="application/json" th:inline="javascript">
+	{
+		"restUrl": [[@{/rest/mailtemplates}]],
+		"msgToggleSuccess": [[#{html.page.email_template.list.toggle.success}]],
+		"msgToggleFail": [[#{html.page.email_template.list.toggle.fail}]],
+		"msgTestSuccess": [[#{html.page.email_template.test.success}]],
+		"msgTestFail": [[#{html.page.email_template.test.fail}]]
+	}
+</script>
 
 <script th:src="@{/js/emailtemplate/list.js}"></script>
 </body>

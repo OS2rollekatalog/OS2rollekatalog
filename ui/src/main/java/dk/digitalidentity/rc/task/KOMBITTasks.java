@@ -54,7 +54,7 @@ public class KOMBITTasks {
 	@Scheduled(cron = "${cron.kombit.userroles:#{new java.util.Random().nextInt(59)} 0/2 6-21 * * ?}")
 	public void processUserRolesFromUpdateQueue() {
 		log.debug("Processing user roles from update queue, initialized={}", initialized);
-		if (initialized && !configuration.getIntegrations().getKombit().isReadOnly()) {
+		if (initialized) {
 			kombitService.synchronizeUserRoles();
 		}
 	}

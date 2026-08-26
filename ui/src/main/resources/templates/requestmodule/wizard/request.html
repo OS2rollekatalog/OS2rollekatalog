@@ -38,7 +38,7 @@
 										<tr th:each="employment,iter : ${employments}">
 											<td>
 												<input class="employeeRadioButton"
-													th:checked="${iter.index} == 0 AND ${iter.size} == 1"
+													   th:checked="${iter.index} == 0 AND ${iter.size} == 1"
 													   type="radio" th:value="${employment.id}"
 													   th:id="'employment' + ${employment.id}" name="employmentId"
 													   th:attr="data-ou=${employment.orgUnitName}, data-position=${employment.position}">
@@ -136,52 +136,28 @@
 <div th:replace="~{requestmodule/fragments/footer :: scripts(wizard = true, checkbox = true, datatables = true, jstree = true, datepicker = true)}"></div>
 <script th:replace="~{users/fragments/assign_user_role_postponed_data_constraints :: postponedConstraintsScript}"></script>
 <div th:replace="~{userroles/fragments/constraint_ou_modal :: OUModal}"></div>
-<script th:src="@{/js/rolerequest/wizard.js}"></script>
-<script th:src="@{/js/DatatableService.js}"></script>
 
-<script th:inline="javascript">
-	/*<![CDATA[*/
-	/*[+
-	var baseUrl = [[@{/ui/request/wizard}]];
-	let detailsUrl = [[@{/ui/request/rolegroups}]];
-	let restUrl = [[@{/rest/rolerequest}]];
-
-	var userUuid = [[${userUuid}]];
-	var reasonSetting = [[${reasonSetting}]];
-	var employments = [[${employments}]];
-	var onlyRecommendRoles = [[${onlyRecommendRoles}]];
-	const showCombinedTable = [[${isCombinedEnabled}]];
-	var kleList = [[${kleList}]];
-	var treeOUs = [[${treeOUs}]];
-	var userRoleText = [[#{html.navbar.jobroles}]];
-	var roleGroupText = [[#{html.navbar.rolegroups}]];
-	let datatableService;
-	+]*/
-
-	var token = $("meta[name='_csrf']").attr("content");
-
-	var chosenEmploymentId;
-	var chosenEmploymentChanged = false;
-	var chosenRolesDTOs = [];
-	var chosenUserRoleIds = [];
-	var chosenRoleGroupIds = [];
-	var requestService, roleFragmentService, roleGroupService, userRoleService, expandableRoleGroupTableService, constraintService, networkService;
-	$(document).ready(function(){
-		requestService = new RequestService();
-		roleFragmentService = new RoleFragmentService();
-		roleGroupService = new RoleGroupService();
-		userRoleService = new UserRoleService();
-		constraintService = new ConstraintService();
-		networkService = new NetworkService(token);
-		expandableRoleGroupTableService = new ExpandableRoleGroupTableService();
-		datatableService = new DatatableService();
-
-		requestService.init();
-
-	});
-
-	/*]]>*/
+<script type="application/json" id="wizard-config" th:inline="javascript">
+	{
+		"baseUrl": [[@{/ui/request/wizard}]],
+		"detailsUrl": [[@{/ui/request/rolegroups}]],
+		"restUrl": [[@{/rest/rolerequest}]],
+		"userUuid": [[${userUuid}]],
+		"reasonSetting": [[${reasonSetting}]],
+		"employments": [[${employments}]],
+		"showRecommendedTab": [[${showRecommendedTab}]],
+		"showAllTab": [[${showAllTab}]],
+		"showExistingTab": [[${showExistingTab}]],
+		"showCombinedTable": [[${isCombinedEnabled}]],
+		"kleList": [[${kleList}]],
+		"treeOUs": [[${treeOUs}]],
+		"userRoleText": [[#{html.navbar.jobroles}]],
+		"roleGroupText": [[#{html.navbar.rolegroups}]]
+	}
 </script>
+<script th:src="@{/js/DatatableService.js}"></script>
+<script th:src="@{/js/rolerequest/wizard.js}"></script>
+<script th:src="@{/js/rolerequest/wizard-bootstrap.js}"></script>
 
 </body>
 </html>

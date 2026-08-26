@@ -1,5 +1,14 @@
 package dk.digitalidentity.rc.dao.model.assignment;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.Comparator;
+import java.util.HashSet;
+import java.util.Objects;
+import java.util.Set;
+
+import org.hibernate.proxy.HibernateProxy;
+
 import dk.digitalidentity.rc.dao.model.ItSystem;
 import dk.digitalidentity.rc.dao.model.OrgUnit;
 import dk.digitalidentity.rc.dao.model.RoleGroup;
@@ -11,7 +20,6 @@ import jakarta.annotation.Nullable;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.Transient;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -21,16 +29,9 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
+import jakarta.persistence.Transient;
 import lombok.Getter;
 import lombok.Setter;
-import org.hibernate.proxy.HibernateProxy;
-
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.util.Comparator;
-import java.util.HashSet;
-import java.util.Objects;
-import java.util.Set;
 
 @Entity
 @Table(name = "current_assignment", indexes = {
@@ -78,10 +79,10 @@ public class CurrentAssignment {
 	@Column
 	private String assignedBy;
 
-	@Column
+	@Column(nullable = false)
 	private boolean manager;
 
-	@Column
+	@Column(nullable = false)
 	private boolean substitutes;
 
 	@ManyToOne(fetch = FetchType.LAZY, cascade = {CascadeType.MERGE, CascadeType.REFRESH})
@@ -137,7 +138,6 @@ public class CurrentAssignment {
 		return roleGroup != null && userRole == null;
 	}
 
-	@SuppressWarnings("Convert2MethodRef")
 	public String generateRecordHash() {
 		HashUtil.HashBuilder builder = HashUtil.builder()
 			.add(user.getUuid())

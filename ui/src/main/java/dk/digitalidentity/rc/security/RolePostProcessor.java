@@ -185,7 +185,7 @@ public class RolePostProcessor implements SamlLoginPostProcessor {
 		List<ManagerDelegate> byDelegate = managerDelegateService.getByDelegate(user);
 		if (!byDelegate.isEmpty()) {
 			isDelegate = true;
-			authorities.add(new SamlGrantedAuthority(Constants.ROLE_MANAGER_SUBSTITUDE));
+			authorities.add(new SamlGrantedAuthority(Constants.ROLE_MANAGER_SUBSTITUTE));
 
 			// Add delegate OUs
 			byDelegate.stream()
@@ -302,5 +302,8 @@ public class RolePostProcessor implements SamlLoginPostProcessor {
 			authorities.add(new SamlGrantedAuthority(Constants.ROLE_IT_SYSTEM_RESPONSIBLE));
 		}
 
+		if (!itSystemService.findBySystemOwner(user).isEmpty()) {
+			authorities.add(new SamlGrantedAuthority(Constants.ROLE_MANUAL_EFFECTUATION_SYSTEM_OWNER));
+		}
 	}
 }

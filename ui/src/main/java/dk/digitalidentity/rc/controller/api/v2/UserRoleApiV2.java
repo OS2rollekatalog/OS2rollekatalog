@@ -4,6 +4,7 @@ import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
 import dk.digitalidentity.rc.controller.api.exception.BadRequestException;
 import dk.digitalidentity.rc.controller.api.mapper.RoleMapper;
 import dk.digitalidentity.rc.controller.api.mapper.UserMapper;
+import dk.digitalidentity.rc.controller.api.model.AssignmentDetailAM;
 import dk.digitalidentity.rc.controller.api.model.ExceptionResponseAM;
 import dk.digitalidentity.rc.controller.api.model.OrgUnitShallowAM;
 import dk.digitalidentity.rc.controller.api.model.SystemRoleAssignmentAM;
@@ -22,6 +23,7 @@ import dk.digitalidentity.rc.dao.model.assignment.CurrentAssignment;
 import dk.digitalidentity.rc.dao.model.enums.ConstraintValueType;
 import dk.digitalidentity.rc.rolerequest.model.enums.ApprovableBy;
 import dk.digitalidentity.rc.rolerequest.model.enums.RequestableBy;
+import dk.digitalidentity.rc.rolerequest.service.ApproverOptionService;
 import dk.digitalidentity.rc.security.RequireApiReadAccessRole;
 import dk.digitalidentity.rc.security.RequireApiRoleManagementRole;
 import dk.digitalidentity.rc.service.ConstraintTypeService;
@@ -84,6 +86,7 @@ public class UserRoleApiV2 {
 	private final AssignmentService assignmentService;
 	private final OrgUnitService orgUnitService;
 	private final UserRoleCleanupService userRoleCleanupService;
+	private final ApproverOptionService approverOptionService;
 
 	@ApiResponses(value = {
 			@ApiResponse(responseCode = "200", description = "Returns a list of all userroles."),
@@ -97,9 +100,9 @@ public class UserRoleApiV2 {
 		List<UserRoleAM> result = new ArrayList<>();
 		List<UserRole> userRoles = userRoleService.getAll().stream().filter(role -> !role.getItSystem().isDeleted()).toList();
 		for (UserRole userRole : userRoles) {
-			result.add(RoleMapper.userRoleToApi(userRole));
+			result.add(RoleMapper.userRoleToApi(userRole, approverOptionService));
 		}
-		return new ResponseEntity<>(result,HttpStatus.OK);
+		return new ResponseEntity<>(result, HttpStatus.OK);
 	}
 
 	@ApiResponses(value = {
@@ -114,7 +117,7 @@ public class UserRoleApiV2 {
 	public ResponseEntity<UserRoleAM> getUserRole(@Parameter(description = "The unique ID for userrole.", example="1", required = true) @PathVariable("id") long id) {
 		final UserRole userRole = userRoleService.getOptionalById(id)
 				.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
-		return new ResponseEntity<>(RoleMapper.userRoleToApi(userRole),HttpStatus.OK);
+		return new ResponseEntity<>(RoleMapper.userRoleToApi(userRole, approverOptionService), HttpStatus.OK);
 	}
 
 	@ApiResponses(value = {
@@ -142,7 +145,37 @@ public class UserRoleApiV2 {
 		final List<UserAM2> result = users.stream()
 				.map(UserMapper::toApi)
 				.collect(Collectors.toList());
-		return new ResponseEntity<>(result,HttpStatus.OK);
+		return new ResponseEntity<>(result, HttpStatus.OK);
+	}
+
+	@ApiResponses(value = {
+			@ApiResponse(responseCode = "200", description = "All assignments of the specified userrole"),
+			@ApiResponse(responseCode = "404", description = "Userrole not found", content =
+					{ @Content(mediaType = "application/json", schema = @Schema(implementation = ExceptionResponseAM.class)) }),
+			@ApiResponse(responseCode = "500", description = "Internal Server Error", content =
+					{ @Content(mediaType = "application/json", schema = @Schema(implementation = ExceptionResponseAM.class)) })
+	})
+	@Operation(summary = "Get all assignments of a given userrole",
+			description = "Returns one entry per assignment of the userrole, including which org unit it was assigned on "
+					+ "and whether it was assigned directly, via an org unit, via a title or via a rolegroup. Use this to "
+					+ "find out where a userrole is assigned - unlike /users it does not collapse the result to one entry "
+					+ "per user, so a user holding the same userrole from two sources appears twice. Deleted and disabled "
+					+ "users are included, unlike on /users.")
+	@Transactional(readOnly = true)
+	@GetMapping("/api/v2/userrole/{id}/assignments")
+	public ResponseEntity<List<AssignmentDetailAM>> getAssignmentsByUserRoleId(@Parameter(description = "Unique ID for the userrole.", example = "1") @PathVariable("id") long id) {
+		final UserRole userRole = userRoleService.getOptionalById(id)
+				.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
+
+		final Set<CurrentAssignment> assignments = assignmentService.getActiveByUserRoleWithDetails(userRole);
+
+		final List<AssignmentDetailAM> result = assignments.stream()
+				.map(assignment -> RoleMapper.currentAssignmentToDetailApi(assignment,
+						assignmentService.getAssignedThrough(assignment),
+						assignmentService.getAssignmentType(assignment)))
+				.collect(Collectors.toList());
+
+		return new ResponseEntity<>(RoleMapper.sortAssignmentDetails(result), HttpStatus.OK);
 	}
 
 	@ApiResponses(value = {
@@ -224,7 +257,7 @@ public class UserRoleApiV2 {
 		}
 		userRoleDTO.getSystemRoleAssignments().stream()
 				.map(systemRoleAssignmentApiDTO -> systemRoleService.getOptionalById(systemRoleAssignmentApiDTO.getSystemRoleId())
-                        .orElseThrow(() -> new BadRequestException("System role not found")))
+						.orElseThrow(() -> new BadRequestException("System role not found")))
 				.forEach(s -> {
 					if (s.getItSystem().getId() != itSystem.getId()) {
 						throw new BadRequestException("Can only add system roles from same it-system");

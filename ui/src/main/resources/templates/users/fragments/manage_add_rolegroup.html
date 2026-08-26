@@ -3,7 +3,7 @@
 			section=${T(dk.digitalidentity.rc.security.permission.Section)}">
 	<fieldset>
 		<div class="form-group">
-			<button class="btn btn-lg btn-primary" style="margin-bottom: 20px;" th:text="#{html.control.button.back}" onclick="rolesService.loadRolesFragment()"></button>
+			<button class="js-back-to-roles btn btn-lg btn-primary" style="margin-bottom: 20px;" th:text="#{html.control.button.back}"></button>
 		</div>
 		<div class="form-group">
 			<div class="table-responsive">
@@ -24,11 +24,7 @@
 							</td>
 							<td class="preformat" th:text="${roleGroup.description}"></td>
 							<td>
-								<a
-									th:if="${roleGroup.assignable}"
-									href="#"
-									onclick="rolesService.addRoleGroup(this); return false;"
-									th:attr="data-rolegroupid=${roleGroup.id}, data-name=${roleGroup.name}">
+								<a th:if="${roleGroup.assignable}" href="#" class="js-add-role-group-row" th:attr="data-rolegroupid=${roleGroup.id}, data-name=${roleGroup.name}">
 									<em class="fa fa-plus"></em>
 								</a>
 							</td>

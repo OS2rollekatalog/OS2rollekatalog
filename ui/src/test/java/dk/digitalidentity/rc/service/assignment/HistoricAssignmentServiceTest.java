@@ -57,6 +57,7 @@ class HistoricAssignmentServiceTest {
 			service.createFromCurrentAssignments(Set.of(ca1, ca2));
 
 			// ---- Then ---- //
+			@SuppressWarnings("unchecked")
 			ArgumentCaptor<List<HistoricAssignment>> captor = ArgumentCaptor.forClass(List.class);
 			verify(historicAssignmentDao).saveAll(captor.capture());
 
@@ -70,6 +71,7 @@ class HistoricAssignmentServiceTest {
 			service.createFromCurrentAssignments(Set.of());
 
 			// ---- Then ---- //
+			@SuppressWarnings("unchecked")
 			ArgumentCaptor<List<HistoricAssignment>> captor = ArgumentCaptor.forClass(List.class);
 			verify(historicAssignmentDao).saveAll(captor.capture());
 
@@ -108,6 +110,7 @@ class HistoricAssignmentServiceTest {
 			service.updateValidToFor(Set.of(ca1, ca2), LocalDateTime.now());
 
 			// ---- Then ---- //
+			@SuppressWarnings("unchecked")
 			ArgumentCaptor<Set<String>> hashCaptor = ArgumentCaptor.forClass(Set.class);
 			verify(historicAssignmentDao).updateValidToByRecordHashIn(hashCaptor.capture(), any());
 
@@ -156,6 +159,7 @@ class HistoricAssignmentServiceTest {
 			service.getActiveAtDateAndItSystems(date, itSystemIds);
 
 			// ---- Then ---- //
+			@SuppressWarnings("unchecked")
 			ArgumentCaptor<Collection<Long>> idsCaptor = ArgumentCaptor.forClass(Collection.class);
 			verify(historicAssignmentDao).findActiveAtDateAndItSystemIdIn(any(), any(), idsCaptor.capture());
 

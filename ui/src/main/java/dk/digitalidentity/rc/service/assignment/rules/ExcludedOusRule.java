@@ -17,6 +17,12 @@ import java.util.stream.Collectors;
 /**
  * Handles org unit assignments with excluded child OUs.
  * A user is excluded if their position's OU is, or is under, one of the excepted OUs.
+ * <p>
+ * This rule is a pure veto: it answers NEGATIVE for an excepted org unit and NOT_APPLICABLE
+ * otherwise. Granting comes from {@link OrgUnitAssignmentRule}, which honours inheritance.
+ * <p>
+ * The veto covers the position-based evaluation. If the assignment is also a manager assignment it
+ * is evaluated through the manager overload as well, where the veto does not participate.
  */
 @Service
 @RequiredArgsConstructor
@@ -36,10 +42,16 @@ public class ExcludedOusRule extends AssignmentRule {
 	}
 
 	private AssignmentAppliesResult evaluateExcludedOuAssignment(final OrgUnitAssignment assignment, final Position position, final OrgUnit orgUnit) {
-		return validateAssignmentEligibility(position, orgUnit, true, false)
+		return validateAssignmentEligibility(position, orgUnit, assignment.isInherit(), false)
 			.orElseGet(() -> checkOuExclusion(assignment, position));
 	}
 
+	/**
+	 * The excepted org units are a pure veto: they can deselect a sub org unit, never grant.
+	 * Granting itself comes from {@link OrgUnitAssignmentRule}, which honours inheritance.
+	 *
+	 * @return NEGATIVE if the position is in or under an excepted org unit, NOT_APPLICABLE otherwise
+	 */
 	private AssignmentAppliesResult checkOuExclusion(final OrgUnitAssignment assignment, final Position position) {
 		if (!assignment.isContainsExceptedOus()) {
 			return AssignmentAppliesResult.NOT_APPLICABLE;
@@ -57,13 +69,6 @@ public class ExcludedOusRule extends AssignmentRule {
 		List<String> ancestorUuids = orgUnitDao.findAllAncestorUuids(position.getOrgUnit().getUuid());
 		boolean excluded = ancestorUuids.stream().anyMatch(exceptedUuids::contains);
 
-		if (excluded) {
-			return AssignmentAppliesResult.NEGATIVE;
-		}
-		// Som for undtagne brugere: er der også et titel-/funktions-/lederfilter, er de undtagne
-		// enheder kun et fravalg og må ikke tildele rollen til alle øvrige enheder
-		return hasGrantingCondition(assignment)
-			? AssignmentAppliesResult.NOT_APPLICABLE
-			: AssignmentAppliesResult.POSITIVE;
+		return excluded ? AssignmentAppliesResult.NEGATIVE : AssignmentAppliesResult.NOT_APPLICABLE;
 	}
 }

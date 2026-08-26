@@ -1,10 +1,40 @@
 package dk.digitalidentity.rc.controller.rest;
 
+import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.Set;
+import java.util.function.Predicate;
+import java.util.stream.Collectors;
+
+import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.server.ResponseStatusException;
+
 import dk.digitalidentity.rc.config.Constants;
 import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.KleViewModel;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.OUAssignStatus;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.TitleListForm;
+import dk.digitalidentity.rc.controller.rest.model.BulkRemoveAssignmentRequestDTO;
 import dk.digitalidentity.rc.controller.rest.model.StringArrayWrapper;
 import dk.digitalidentity.rc.dao.model.AuthorizationManager;
 import dk.digitalidentity.rc.dao.model.Function;
@@ -39,35 +69,7 @@ import dk.digitalidentity.rc.service.UserService;
 import dk.digitalidentity.rc.service.model.RoleAssignmentType;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
-import org.springframework.transaction.annotation.Transactional;
-import org.springframework.format.annotation.DateTimeFormat;
-import org.springframework.util.StringUtils;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.ResponseBody;
-import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.server.ResponseStatusException;
 
-import java.time.LocalDate;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Objects;
-import java.util.Set;
-import java.util.function.Predicate;
-import java.util.stream.Collectors;
-
-@SuppressWarnings("AutoBoxing")
 @Slf4j
 @RequiredArgsConstructor
 @RequireControllerPermission(section = Section.ORGUNIT, permission = Permission.READ)
@@ -190,12 +192,13 @@ public class OrgUnitRestController {
 			@RequestBody StringArrayWrapper payload) {
 		OrgUnit ou = orgUnitService.getByUuid(uuid);
 		UserRole role = userRoleService.getById(roleId);
-		if (ou == null || role == null || role.isReadOnly()) {
-			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+		if (ou == null || role == null) {
+			return new ResponseEntity<>("Enheden eller jobfunktionsrollen kunne ikke findes", HttpStatus.BAD_REQUEST);
 		}
 
-		if (role.getItSystem().getSystemType() == ItSystemType.AD && role.getItSystem().isReadonly()) {
-			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+		Optional<String> blockedReason = userRoleService.assignmentBlockedReason(role);
+		if (blockedReason.isPresent()) {
+			return new ResponseEntity<>(blockedReason.get(), HttpStatus.BAD_REQUEST);
 		}
 
 		PermissionConstraint assignConstraint = userPermissionContext.getConstraint(Section.ORGUNIT, Permission.ASSIGN);
@@ -235,7 +238,7 @@ public class OrgUnitRestController {
 
 	@RequirePermission(section = Section.ORGUNIT, permission = Permission.ASSIGN)
 	@PostMapping(value = "/rest/ous/editrole/{uuid}/{assignmentId}")
-	public ResponseEntity<OUAssignStatus> editUserRoleAssignment(@PathVariable("uuid") String uuid,
+	public ResponseEntity<?> editUserRoleAssignment(@PathVariable("uuid") String uuid,
 			@PathVariable("assignmentId") long assignmentId,
 			@RequestParam(name = "inherit", required = false, defaultValue = "false") boolean inherit,
 			@RequestParam(name = "startDate", required = false) String startDateStr,
@@ -246,16 +249,17 @@ public class OrgUnitRestController {
 			@RequestBody StringArrayWrapper payload) {
 		OrgUnit ou = orgUnitService.getByUuid(uuid);
 		if (ou == null) {
-			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+			return new ResponseEntity<>("Enheden kunne ikke findes", HttpStatus.BAD_REQUEST);
 		}
 
 		OrgUnitUserRoleAssignment assignment = ou.getUserRoleAssignments().stream().filter(ura -> ura.getId() == assignmentId).findAny().orElse(null);
 		if (assignment == null) {
-			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+			return new ResponseEntity<>("Tildelingen kunne ikke findes", HttpStatus.BAD_REQUEST);
 		}
 
-		if (assignment.getUserRole().isReadOnly() || (assignment.getUserRole().getItSystem().getSystemType() == ItSystemType.AD && assignment.getUserRole().getItSystem().isReadonly())) {
-			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+		Optional<String> blockedReason = userRoleService.assignmentBlockedReason(assignment.getUserRole());
+		if (blockedReason.isPresent()) {
+			return new ResponseEntity<>(blockedReason.get(), HttpStatus.BAD_REQUEST);
 		}
 
 		if (!accessConstraintService.isAssignmentAllowed(ou, assignment.getUserRole())) {
@@ -322,6 +326,47 @@ public class OrgUnitRestController {
 	}
 
 	@RequirePermission(section = Section.ORGUNIT, permission = Permission.ASSIGN)
+	@PostMapping(value = "/rest/ous/{uuid}/bulkremoveassignments")
+	@ResponseBody
+	public ResponseEntity<?> bulkRemoveAssignmentsFromOrgUnit(@PathVariable("uuid") String uuid, @RequestBody BulkRemoveAssignmentRequestDTO request) {
+		OrgUnit ou = orgUnitService.getByUuid(uuid);
+		if (ou == null) {
+			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+		}
+
+		if (request.getAssignments() == null || request.getAssignments().isEmpty()) {
+			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+		}
+
+		boolean anyRemoved = false;
+		for (BulkRemoveAssignmentRequestDTO.AssignmentToRemoveDTO assignmentToRemove : request.getAssignments()) {
+			if (assignmentToRemove.getType() == RoleAssignmentType.USERROLE) {
+				if (!accessConstraintService.isUserRoleAssignmentAllowed(ou, assignmentToRemove.getAssignmentId())) {
+					throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Ikke tilladt");
+				}
+
+				if (orgUnitService.removeUserRoleAssignment(ou, assignmentToRemove.getAssignmentId())) {
+					anyRemoved = true;
+				}
+			} else if (assignmentToRemove.getType() == RoleAssignmentType.ROLEGROUP) {
+				if (!accessConstraintService.isUserRoleGroupAssignmentAllowed(ou, assignmentToRemove.getAssignmentId())) {
+					throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Ikke tilladt");
+				}
+
+				if (orgUnitService.removeRoleGroupAssignment(ou, assignmentToRemove.getAssignmentId())) {
+					anyRemoved = true;
+				}
+			}
+		}
+
+		if (anyRemoved) {
+			orgUnitService.save(ou);
+		}
+
+		return new ResponseEntity<>(HttpStatus.OK);
+	}
+
+	@RequirePermission(section = Section.ORGUNIT, permission = Permission.ASSIGN)
 	@PostMapping(value = "/rest/ous/removerole/{uuid}/{roleid}")
 	public ResponseEntity<String> removeRoleAsync(@PathVariable("uuid") String uuid, @PathVariable("roleid") long roleId) {
 		// TODO Add access check!!
@@ -329,11 +374,12 @@ public class OrgUnitRestController {
 		UserRole role = userRoleService.getById(roleId);
 
 		if (ou == null || role == null) {
-			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+			return new ResponseEntity<>("Enheden eller jobfunktionsrollen kunne ikke findes", HttpStatus.BAD_REQUEST);
 		}
 
-		if (role.getItSystem().getSystemType() == ItSystemType.AD && role.getItSystem().isReadonly()) {
-			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+		Optional<String> blockedReason = userRoleService.assignmentBlockedReason(role);
+		if (blockedReason.isPresent()) {
+			return new ResponseEntity<>(blockedReason.get(), HttpStatus.BAD_REQUEST);
 		}
 
 		if (ou.getUserRoleAssignments().stream().anyMatch(a -> a.getUserRole().getId() == role.getId())) {
@@ -834,21 +880,22 @@ public class OrgUnitRestController {
 
 		if (payload == null) {
 			log.warn("Payload is null");
-			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+			return new ResponseEntity<>("Kaldet mangler data", HttpStatus.BAD_REQUEST);
 		}
 		OrgUnit ou = orgUnitService.getByUuid(uuid);
 		if (ou == null) {
 			log.warn("Ou not found on uuid: {}", uuid);
-			return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+			return new ResponseEntity<>("Enheden kunne ikke findes", HttpStatus.NOT_FOUND);
 		}
 		UserRole userRole = userRoleService.getById(roleId);
-		if (userRole == null || userRole.isReadOnly()) {
+		if (userRole == null) {
 			log.warn("UserRole not found on id: {}", roleId);
-			return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+			return new ResponseEntity<>("Jobfunktionsrollen kunne ikke findes", HttpStatus.NOT_FOUND);
 		}
 
-		if (userRole.getItSystem().getSystemType() == ItSystemType.AD && userRole.getItSystem().isReadonly()) {
-			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+		Optional<String> blockedReason = userRoleService.assignmentBlockedReason(userRole);
+		if (blockedReason.isPresent()) {
+			return new ResponseEntity<>(blockedReason.get(), HttpStatus.BAD_REQUEST);
 		}
 
 		if (!accessConstraintService.isAssignmentAllowed(ou, userRole)) {
@@ -857,7 +904,7 @@ public class OrgUnitRestController {
 
 		if (stopDate != null && startDate != null && !startDate.isBefore(stopDate)) {
 			log.warn("Stopdate is before startdate: {} - {}", startDate, stopDate);
-			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+			return new ResponseEntity<>("Slutdatoen skal ligge efter startdatoen", HttpStatus.BAD_REQUEST);
 		}
 
 		orgUnitService.addUserRoleWithInheritAndExceptedOus(ou, userRole, startDate, stopDate,
@@ -890,8 +937,7 @@ public class OrgUnitRestController {
 				&& (rga.getUserRole().getItSystem().getSystemType() == ItSystemType.AD || rga.getUserRole().getItSystem().isReadonly()));
 
 		if (containsAdOrReadOnlyRole) {
-			log.warn("Rolegroup contains AD-Group, cannot assign");
-			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+			return new ResponseEntity<>("Rollebuketten indeholder en jobfunktionsrolle fra et AD-it-system eller et skrivebeskyttet it-system og kan derfor ikke tildeles med arv", HttpStatus.BAD_REQUEST);
 		}
 
 		if (!accessConstraintService.isAssignmentAllowed(ou, roleGroup)) {
@@ -920,17 +966,18 @@ public class OrgUnitRestController {
 			@RequestBody StringArrayWrapper payload) {
 		OrgUnit ou = orgUnitService.getByUuid(uuid);
 		if (ou == null) {
-			return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+			return new ResponseEntity<>("Enheden kunne ikke findes", HttpStatus.NOT_FOUND);
 		}
 
 		OrgUnitUserRoleAssignment assignment = ou.getUserRoleAssignments().stream()
 				.filter(ura -> ura.getId() == assignmentId).findAny().orElse(null);
 		if (assignment == null) {
-			return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+			return new ResponseEntity<>("Tildelingen kunne ikke findes", HttpStatus.NOT_FOUND);
 		}
 
-		if (assignment.getUserRole().isReadOnly() || (assignment.getUserRole().getItSystem().getSystemType() == ItSystemType.AD && assignment.getUserRole().getItSystem().isReadonly())) {
-			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+		Optional<String> blockedReason = userRoleService.assignmentBlockedReason(assignment.getUserRole());
+		if (blockedReason.isPresent()) {
+			return new ResponseEntity<>(blockedReason.get(), HttpStatus.BAD_REQUEST);
 		}
 
 		if (!accessConstraintService.isAssignmentAllowed(ou, assignment.getUserRole())) {
@@ -939,7 +986,7 @@ public class OrgUnitRestController {
 
 		if (stopDate != null && startDate != null && !startDate.isBefore(stopDate)) {
 			log.warn("Stopdate is before startdate: {} - {}", startDate, stopDate);
-			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+			return new ResponseEntity<>("Slutdatoen skal ligge efter startdatoen", HttpStatus.BAD_REQUEST);
 		}
 
 		if (orgUnitService.updateUserRoleWithInheritAndExceptedOus(assignment, startDate, stopDate,

@@ -1,37 +1,37 @@
 package dk.digitalidentity.rc.controller.rest;
 
-import com.fasterxml.jackson.annotation.JsonFormat;
-import dk.digitalidentity.rc.dao.model.User;
-import dk.digitalidentity.rc.security.SecurityUtil;
-import dk.digitalidentity.rc.security.permission.Permission;
-import dk.digitalidentity.rc.security.permission.Section;
-import dk.digitalidentity.rc.security.permission.RequireControllerPermission;
-import dk.digitalidentity.rc.security.permission.RequirePermission;
-import dk.digitalidentity.rc.service.ManagerDelegateService;
-import dk.digitalidentity.rc.service.OrgUnitService;
-import dk.digitalidentity.rc.service.UserService;
-import jakarta.annotation.Nullable;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
+
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.time.LocalDate;
-import java.util.ArrayList;
-import java.util.List;
+import com.fasterxml.jackson.annotation.JsonFormat;
+
+import dk.digitalidentity.rc.dao.model.User;
+import dk.digitalidentity.rc.security.SecurityUtil;
+import dk.digitalidentity.rc.security.permission.Permission;
+import dk.digitalidentity.rc.security.permission.RequireControllerPermission;
+import dk.digitalidentity.rc.security.permission.RequirePermission;
+import dk.digitalidentity.rc.security.permission.Section;
+import dk.digitalidentity.rc.service.ManagerDelegateService;
+import dk.digitalidentity.rc.service.OrgUnitService;
+import dk.digitalidentity.rc.service.UserService;
+import jakarta.annotation.Nullable;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 @RequireControllerPermission(section = Section.MANAGER, permission = Permission.READ)
 @Slf4j
 @RequiredArgsConstructor
 @RestController
-@RequestMapping("rest/managerdelegate")
 public class ManagerDelegateRestController {
 	private final UserService userService;
 	private final OrgUnitService orgUnitService;
@@ -40,7 +40,7 @@ public class ManagerDelegateRestController {
 	public record Select2ItemDTO(String id, String text){}
 	public record Select2DTO(List<Select2ItemDTO> results) {}
 
-	@GetMapping("managers")
+	@GetMapping("/rest/managerdelegate/managers")
 	public ResponseEntity<?> searchManager(@RequestParam(required = false) String search) {
 
 		boolean isAdmin = SecurityUtil.hasDirectAdminRole();
@@ -67,7 +67,7 @@ public class ManagerDelegateRestController {
 		return ResponseEntity.ok( new Select2DTO(users.stream().map(u -> new Select2ItemDTO(u.getUuid(), u.getName()+" ("+u.getUserId()+")")).toList()));
 	}
 
-	@GetMapping("users")
+	@GetMapping("/rest/managerdelegate/users")
 	public ResponseEntity<?> searchUsers(@RequestParam(required = false) String search) {
 
 		List<User> foundManagers = new ArrayList<>();
@@ -82,8 +82,9 @@ public class ManagerDelegateRestController {
 	}
 
 	public record CreateManagerDelegateDTO (String managerUuid, String delegateUuid, @JsonFormat(pattern = "dd-MM-yyyy") LocalDate fromDate, @Nullable @JsonFormat(pattern = "dd-MM-yyyy") LocalDate toDate, boolean indefinitely) {}
+
 	@RequirePermission(section = Section.MANAGER, permission = Permission.READ)
-	@PostMapping("create")
+	@PostMapping("/rest/managerdelegate/create")
 	public ResponseEntity<?> createManagerDelegate(@RequestBody CreateManagerDelegateDTO createDTO) {
 
 		managerDelegateService.upsert(null, createDTO.managerUuid, createDTO.delegateUuid, createDTO.fromDate, createDTO.toDate, createDTO.indefinitely);
@@ -92,7 +93,7 @@ public class ManagerDelegateRestController {
 	}
 
 	@RequirePermission(section = Section.MANAGER, permission = Permission.DELETE)
-	@DeleteMapping("delete/{id}")
+	@DeleteMapping("/rest/managerdelegate/delete/{id}")
 	public ResponseEntity<?> deleteManagerDelegate(@PathVariable long id) {
 
 		managerDelegateService.delete(id);
@@ -101,8 +102,9 @@ public class ManagerDelegateRestController {
 	}
 
 	public record UpdateManagerDelegateDTO(Long id, String managerUuid, String delegateUuid, @JsonFormat(pattern = "dd-MM-yyyy") LocalDate fromDate, @JsonFormat(pattern = "dd-MM-yyyy") LocalDate toDate, boolean indefinitely) {}
+
 	@RequirePermission(section = Section.MANAGER, permission = Permission.UPDATE)
-	@PostMapping("update")
+	@PostMapping("/rest/managerdelegate/update")
 	public ResponseEntity<?> updateManagerDelegate(@RequestBody UpdateManagerDelegateDTO updateDTO) {
 
 		managerDelegateService.upsert(updateDTO.id, updateDTO.managerUuid, updateDTO.delegateUuid, updateDTO.fromDate, updateDTO.toDate, updateDTO.indefinitely);

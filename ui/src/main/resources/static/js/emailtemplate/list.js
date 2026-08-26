@@ -1,5 +1,5 @@
 document.addEventListener('DOMContentLoaded', function () {
-    const config = document.getElementById('emailTemplateConfig').dataset;
+    const config = JSON.parse(document.getElementById('pageConfig').textContent);
     const restUrl = config.restUrl;
     const msgToggleSuccess = config.msgToggleSuccess;
     const msgToggleFail = config.msgToggleFail;

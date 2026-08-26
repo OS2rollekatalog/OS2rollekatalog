@@ -10,7 +10,6 @@ public class Kombit {
 
 	@FeatureDocumentation(name = "KOMBIT PROD Integration", description = "Integration til KOMBITs Administrationsmodul (produktion)")
 	private boolean enabled = false;
-	private boolean readOnly = false;
 	
 	private String url = "https://admin.serviceplatformen.dk/stsadmin/xapi";
 	private String domain;

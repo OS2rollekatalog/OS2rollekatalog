@@ -2,9 +2,11 @@ package dk.digitalidentity.rc.service;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -122,7 +124,7 @@ public class PostponedConstraintService {
     /**
      * Dispatches to the appropriate display value resolver based on the constraint's UI type (REGEX, COMBO_SINGLE, or COMBO_MULTI).
      */
-    private String resolveConstraintDisplayValue(CurrentAssignmentPostponedConstraint postponedConstraint) {
+    public String resolveConstraintDisplayValue(CurrentAssignmentPostponedConstraint postponedConstraint) {
 		return switch (postponedConstraint.getConstraintTypeUIType()) {
 			case ConstraintUIType.REGEX -> resolveRegexConstraintDisplayValue(postponedConstraint);
 			case ConstraintUIType.COMBO_SINGLE -> resolveComboSingleDisplayValue(postponedConstraint);
@@ -151,14 +153,17 @@ public class PostponedConstraintService {
 
 	/** Resolves a list of OU UUIDs to a comma-separated string of OrgUnit names. */
 	private StringBuilder getOuString(CurrentAssignmentPostponedConstraint postponedConstraint) {
+		Map<String, String> namesByUuid = orgUnitService.getByUuidIn(postponedConstraint.getValue()).stream()
+			.collect(Collectors.toMap(OrgUnit::getUuid, OrgUnit::getName));
+
 		StringBuilder ouString = new StringBuilder();
 		for (String ouUuid : postponedConstraint.getValue()) {
-			OrgUnit ou = orgUnitService.getByUuid(ouUuid);
-			if (ou != null) {
+			String name = namesByUuid.get(ouUuid);
+			if (name != null) {
 				if (!ouString.isEmpty()) {
 					ouString.append(", ");
 				}
-				ouString.append(ou.getName());
+				ouString.append(name);
 			}
 		}
 		return ouString;
@@ -166,14 +171,18 @@ public class PostponedConstraintService {
 
 	/** Resolves a list of IT system IDs to a comma-separated string of ItSystem names. */
 	private StringBuilder getItSystemsString(CurrentAssignmentPostponedConstraint postponedConstraint) {
+		List<Long> ids = postponedConstraint.getValue().stream().map(Long::parseLong).toList();
+		Map<Long, String> namesById = itSystemService.findAllByIdIn(ids).stream()
+			.collect(Collectors.toMap(ItSystem::getId, ItSystem::getName));
+
 		StringBuilder itSystemsString = new StringBuilder();
 		for (String id : postponedConstraint.getValue()) {
-			ItSystem itSystem = itSystemService.getById(Integer.parseInt(id));
-			if (itSystem != null) {
+			String name = namesById.get(Long.parseLong(id));
+			if (name != null) {
 				if (!itSystemsString.isEmpty()) {
 					itSystemsString.append(", ");
 				}
-				itSystemsString.append(itSystem.getName());
+				itSystemsString.append(name);
 			}
 		}
 		return itSystemsString;

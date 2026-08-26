@@ -160,6 +160,7 @@ namespace ADSyncService
             configuration.createDeleteFeatureOU = Properties.Settings.Default.CreateDeleteFeature_OU;
             configuration.createDeleteFeatureCreateEnabled = Properties.Settings.Default.CreateDeleteFeature_CreateEnabled;
             configuration.createDeleteFeatureDeleteEnabled = Properties.Settings.Default.CreateDeleteFeature_DeleteEnabled;
+            configuration.createDeleteFeatureUseBackSyncOU = Properties.Settings.Default.CreateDeleteFeature_UseBackSyncOU;
 
             configuration.membershipSyncFeatureCprAttribute = Properties.Settings.Default.MembershipSyncFeature_CprAttribute;
             configuration.membershipSyncFeatureAttributeMap = ConvertToList(Properties.Settings.Default.MembershipSyncFeature_AttributeMap);
@@ -199,6 +200,40 @@ namespace ADSyncService
             configuration.includeNotesInDescription = Properties.Settings.Default.IncludeNotesInDescription;
 
             localConfiguration = configuration;
+        }
+
+        // returns the OU distinguished name configured in BackSync for the given it-system (by numeric id), or null if none is configured
+        public string GetBackSyncOU(long itSystemId)
+        {
+            List<string> ous = GetConfiguration().backSyncFeatureOUs;
+            if (ous == null)
+            {
+                return null;
+            }
+
+            string itSystemIdString = itSystemId.ToString();
+            foreach (string ouRaw in ous)
+            {
+                var ou = ouRaw.Replace("&amp;", "&");
+                string[] tokens = ou.Split(';');
+                if (tokens.Length != 2)
+                {
+                    continue;
+                }
+
+                if (tokens[0].Equals(itSystemIdString))
+                {
+                    string ouDn = tokens[1];
+                    if (ouDn.EndsWith("*"))
+                    {
+                        ouDn = ouDn.Substring(0, ouDn.Length - 1);
+                    }
+
+                    return ouDn;
+                }
+            }
+
+            return null;
         }
 
         public List<string> ConvertToList(StringCollection stringCollection)

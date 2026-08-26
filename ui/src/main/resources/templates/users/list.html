@@ -11,7 +11,7 @@
 				<div class="panel panel-default">
 					<div class="panel-heading"></div>
 					<div class="panel-body">
-						<button sec:authorize="hasRole('ROLE_ADMINISTRATOR')" th:if="${@roleCatalogueConfiguration.getIntegrations().getKspcics().isEnabled() == true}" onclick="userService.runCics();" class="btn btn-primary" style="margin-bottom: 20px;" th:text="#{html.page.users.list.loadCics.btn}"></button>
+						<button sec:authorize="hasRole('ROLE_ADMINISTRATOR')" th:if="${@roleCatalogueConfiguration.getIntegrations().getKspcics().isEnabled() == true}" class="js-run-cics btn btn-primary" style="margin-bottom: 20px;" th:text="#{html.page.users.list.loadCics.btn}"></button>
 						<div class="table-responsive">
 							<table id="listTable" class="table table-striped table-hover">
 								<thead>
@@ -47,180 +47,21 @@
 
 	<nav th:replace="~{fragments/footer :: footer}"></nav>
 
-	<script th:inline="javascript">
-		/*<![CDATA[*/
-			var token = $("meta[name='_csrf']").attr("content");
-
-			/*[+
-				var baseUrl = [[@{/}]];
-				var restUrl = [[@{/rest/users/}]];
-				var searchTxt = [[#{html.datatables.search}]];
-				var dropdownTxt = [[#{html.datatables.dropdown}]];
-				var infoDefaultTxt = [[#{html.datatables.info.default}]];
-				var infoEmptyTxt = [[#{html.datatables.info.empty}]];
-				var infoLoadingTxt = [[#{html.datatables.info.loading}]];
-				var infoFilteredTxt = [[#{html.datatables.info.filtered}]]; 
-				var cicsErrorMsg = [[#{html.default.message.error}]];
-				var cicsSuccessMsg = [[#{html.page.users.list.loadCics.success}]];
-				var multipleDomains = [[${multipleDomains}]];
-			+]*/
-			
-			var userService;
-			$(document).ready(function() {
-				this.userService = new UserService();
-
-				// Setup - add a text input to each footer cell
-				$('#listTable tfoot th[class="input-filter"]').each( function () {
-					$(this).html('<input type="text" class="form-control input-sm" placeholder="Søg" />');
-				});
-
-				var table = $('#listTable').DataTable({
-					'destroy': true,
-					'stateSave': true,
-					'ajax': {
-						'contentType': 'application/json',
-						'url': restUrl + 'list',
-						'type': 'POST',
-						headers: {
-							'X-CSRF-TOKEN': token
-						},
-						'data': function(d) {
-						 	return JSON.stringify(d);
-						}
-					},
-					'serverSide' : true,
-					'columns': [
-						{ 
-							data: "name",
-							orderable: true,
-							searchable: true,
-							render: function (data, type, row, meta) {
-								if (row.disabled == true) {
-									return data + '<span style="margin-left:5px;" class="badge badge-warning">Deaktiveret</span>';
-								}
-								return data;
-							}
-						},
-						{ 
-							data: "userId",
-							orderable: true,
-							searchable: true
-						},
-						{
-							data: "domain",
-							orderable: true,
-							searchable: true
-						},
-						{ 
-							data: "title",
-							orderable: true,
-							searchable: true,
-							render: function (data, type, row, meta) {
-							    if (data == null) {
-							        return null;
-							    }
-							    
-								var titles = data.split(";");
-								var result = "";
-								titles.forEach(function(title) {
-									result += title + '</br>';
-								});
-								//the titles minus the last </br>
-								return result.substring(0, result.length - 5);
-							}
-						},
-						{
-							data: "allowedActions",
-							orderable: false,
-							searchable: false,
-							render: function (data, type, row, meta) {
-								if (type === 'display') {
-									const id = row.uuid;
-									let html = ''
-									html += data.readable ? '<a href="' + baseUrl + 'ui/users/view/' + id + '"><em class="fa fa-fw fa-search"></em></a>' : '';
-									html += data.editable ? '<a href="' + baseUrl + 'ui/users/manage/' + id + '"><em class="fa fa-fw fa-pencil"></em></a>' : '';
-									return html;
-								}
-								return data;
-							}
-						}
-					],
-					'paging':   true,
-					'ordering': true,
-					'info':	 true,
-					'pageLength': 25,
-					'language': {
-						"search": searchTxt,
-						"lengthMenu": dropdownTxt,
-						"info": infoDefaultTxt,
-						"zeroRecords": infoEmptyTxt,
-						"infoEmpty": "",
-						"infoFiltered": infoFilteredTxt
-					},
-					initComplete: function ()
-					{
-						var r = $('#listTable tfoot tr');
-						r.find('th').each(function(){
-							$(this).css('padding', 8);
-						});
-						$('#listTable thead').append(r);
-						$('#search_0').css('text-align', 'center');
-					}
-				});
-				
-			    // Restore state
-			    var state = table.state.loaded();
-			    if (state) {
-			      table.columns().eq(0).each(function(colIdx) {
-			        var colSearch = state.columns[colIdx].search;
-			        
-			        if (colSearch.search) {
-			          $('input', table.column(colIdx).footer()).val(colSearch.search);
-			        }
-			      });
-
-			      table.draw();
-			    }
-				
-				//Apply the search
-				$.each($('.input-filter', table.table().footer()), function () {
-					var column = table.column($(this).index());
-					$('input', this).on('keyup change', function () {
-						if (column.search() !== this.value) {
-							column
-								.search(this.value)
-								.draw();
-						}
-					});
-				});
-
-				// if only one domain, don't show the domain column
-				if (!multipleDomains) {
-					var column = table.column(2);
-					column.visible(false);
-				}
-			});
-			
-			function UserService() {
-				this.runCics = function() {
-					$.ajax({
-						url: restUrl + "loadcics",
-						method: "POST",
-						headers: {
-							'X-CSRF-TOKEN': token
-						},
-						error: errorHandler(cicsErrorMsg),
-						success: function(response) {
-							$.notify({
-								message: cicsSuccessMsg,
-								status: 'success',
-								timeout: 4000
-							});
-						}
-					});
-				}
-			}
-		/*]]>*/
+	<script type="application/json" th:inline="javascript" id="users-list-config">
+		{
+			"baseUrl": [[@{/}]],
+			"restUrl": [[@{/rest/users/}]],
+			"searchTxt": [[#{html.datatables.search}]],
+			"dropdownTxt": [[#{html.datatables.dropdown}]],
+			"infoDefaultTxt": [[#{html.datatables.info.default}]],
+			"infoEmptyTxt": [[#{html.datatables.info.empty}]],
+			"infoLoadingTxt": [[#{html.datatables.info.loading}]],
+			"infoFilteredTxt": [[#{html.datatables.info.filtered}]],
+			"cicsErrorMsg": [[#{html.default.message.error}]],
+			"cicsSuccessMsg": [[#{html.page.users.list.loadCics.success}]],
+			"multipleDomains": [[${multipleDomains}]]
+		}
 	</script>
+	<script th:src="@{/js/users/list.js}"></script>
 </body>
 </html>

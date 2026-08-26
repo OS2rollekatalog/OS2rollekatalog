@@ -24,6 +24,7 @@ import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserRole;
 import dk.digitalidentity.rc.dao.model.assignment.CurrentAssignment;
 import dk.digitalidentity.rc.dao.model.assignment.CurrentAssignmentSmallProjection;
+import dk.digitalidentity.rc.dao.model.assignment.UserRoleMemberCountProjection;
 
 import org.hibernate.Hibernate;
 import lombok.RequiredArgsConstructor;
@@ -94,6 +95,10 @@ public class CurrentAssignmentService {
 
 	public boolean hasRoleDirectly(String userUuid, Long userRoleId) {
 		return currentAssignmentDao.existsByUser_UuidAndUserRole_IdAndRoleGroupNullAndOrgUnitNullAndTitleNull(userUuid, userRoleId);
+	}
+
+	public boolean hasRoleGroupDirectly(String userUuid, Long roleGroupId) {
+		return currentAssignmentDao.existsByUser_UuidAndRoleGroup_IdAndOrgUnitNullAndTitleNull(userUuid, roleGroupId);
 	}
 
 	public boolean hasUserRole(User user, UserRole userRole) {
@@ -230,13 +235,12 @@ public class CurrentAssignmentService {
 		return currentAssignmentDao.findActiveAssignedThroughRoleGroup(roleGroup, LocalDate.now());
 	}
 
-	@Transactional
-	public void deleteAllForRoleGroup(RoleGroup roleGroup) {
-		Set<CurrentAssignment> toDelete = currentAssignmentDao.findByRoleGroup(roleGroup);
-		if (!toDelete.isEmpty()) {
-			historicAssignmentService.updateValidToFor(toDelete, LocalDateTime.now());
-			currentAssignmentDao.deleteAllById(toDelete.stream().map(CurrentAssignment::getId).toList());
-		}
+	public Set<CurrentAssignment> findActiveByRoleGroupWithDetails(RoleGroup roleGroup) {
+		return currentAssignmentDao.findActiveAssignedThroughRoleGroupWithDetails(roleGroup, LocalDate.now());
+	}
+
+	public Set<CurrentAssignment> findActiveByUserRoleWithDetails(UserRole userRole) {
+		return currentAssignmentDao.findActiveAssignedWithDetails(userRole, LocalDate.now());
 	}
 
 	public Set<CurrentAssignment> findActiveAssignmentsForItSystem(ItSystem itSystem) {
@@ -245,6 +249,10 @@ public class CurrentAssignmentService {
 
 	public Set<CurrentAssignment> findActiveAssignmentsForItSystems(List<ItSystem> itSystems) {
 		return currentAssignmentDao.findActiveAssignmentsForItSystems(itSystems, LocalDate.now());
+	}
+
+	public Set<CurrentAssignment> findActiveAssignmentsForUsersAndItSystems(Collection<User> users, Collection<ItSystem> itSystems) {
+		return currentAssignmentDao.findActiveAssignmentsForUsersAndItSystems(users, itSystems, LocalDate.now());
 	}
 
 	public Set<CurrentAssignment> findByUserRoleDirectlyAssignedOrFromRoleGroupIncludingInactive(UserRole userRole) {
@@ -274,4 +282,9 @@ public class CurrentAssignmentService {
 	public Set<CurrentAssignment> findByStartDateAndItSystem(LocalDate startDate, ItSystem itSystem) {
 		return currentAssignmentDao.findByStartDateAndItSystem(startDate, itSystem);
 	}
+
+	public List<UserRoleMemberCountProjection> countDirectUserRoleHoldersAmong(Collection<String> userUuids) {
+		return currentAssignmentDao.countDirectUserRoleHoldersAmong(userUuids, LocalDate.now());
+	}
+
 }

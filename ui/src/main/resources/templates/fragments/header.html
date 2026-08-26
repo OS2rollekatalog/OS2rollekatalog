@@ -18,7 +18,6 @@
 	<link rel="stylesheet" th:href="@{/webjars/angle/3.7.5/css/app.css}" id="maincss" />
 	<link rel="stylesheet" th:href="@{/css/angle-theme-overrides.css}" />
 	<link rel="stylesheet" th:href="@{/css/datatables-fix.css}" />
-	<link rel="stylesheet" th:href="@{/css/styles.css}" />
 	<link rel="stylesheet" th:href="@{/css/queue-drain-overlay.css}" />
 	<link rel="stylesheet" th:href="@{/css/bootstrap-select.min.css}" />
 	<link rel="stylesheet" th:href="@{/webjars/Eonasdan-bootstrap-datetimepicker/4.17.47/css/bootstrap-datetimepicker.css}" />
@@ -26,27 +25,7 @@
 
 	<link rel="stylesheet" th:href="@{/vendor/select2/css/select2.min.css}" />
 
-	<script th:src="@{/js/errors.js}"></script>
-	<script th:src="@{/js/service/NetworkService.js}"></script>
-	<script th:src="@{/js/service/QueueDrainService.js}"></script>
-
-	<style>
-		.table > tbody > tr > td {
-			vertical-align: top !important;
-		}
-		
-		/* for this to work the all parent elements must have overflow: visible; */
-		.sticky {
-			position: sticky;
-			position: -webkit-sticky;
-			z-index: 100;
-			top: 55px;
-		}
-		
-		.layout-fixed .wrapper {
-			overflow: visible;
-		}
-	</style>
+	<link rel="stylesheet" th:href="@{/css/styles.css}" />
 </head>
 <body>
 

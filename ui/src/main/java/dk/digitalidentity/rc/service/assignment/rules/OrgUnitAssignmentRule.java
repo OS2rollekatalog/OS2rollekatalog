@@ -4,7 +4,6 @@ import dk.digitalidentity.rc.dao.model.OrgUnit;
 import dk.digitalidentity.rc.dao.model.OrgUnitAssignment;
 import dk.digitalidentity.rc.dao.model.Position;
 import dk.digitalidentity.rc.dao.model.User;
-import dk.digitalidentity.rc.dao.model.enums.ContainsTitles;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -40,31 +39,17 @@ public class OrgUnitAssignmentRule extends AssignmentRule {
 
 	/**
 	 * Checks if the assignment is an unconditional organizational unit assignment.
-	 * An unconditional assignment has no specific requirements (titles, functions, managers,
-	 * substitutes, or excluded users) and applies to all eligible positions in the org unit.
+	 * An unconditional assignment carries no granting condition of its own (titles, functions,
+	 * manager or substitutes) and therefore applies to all eligible positions in the org unit.
+	 * Excluded users and excluded org units do not make an assignment conditional - they are
+	 * vetoes applied on top by {@link ExcludedUsersRule} and {@link ExcludedOusRule}.
 	 *
-	 * @return POSITIVE if the assignment has no specific conditions, NOT_APPLICABLE if it does
+	 * @return POSITIVE if the assignment carries no granting condition, NOT_APPLICABLE if it does
 	 */
 	private static AssignmentAppliesResult checkUnconditionalAssignment(final OrgUnitAssignment assignment) {
-		if (hasSpecificConditions(assignment)) {
-			return AssignmentAppliesResult.NOT_APPLICABLE;
-		}
-		return AssignmentAppliesResult.POSITIVE;
-	}
-
-	/**
-	 * Determines if an assignment has specific conditions that require specialized handling.
-	 *
-	 * @return true if the assignment has specific conditions (excluded users, titles, functions,
-	 *         manager, or substitute requirements), false otherwise
-	 */
-	private static boolean hasSpecificConditions(final OrgUnitAssignment assignment) {
-		return assignment.isContainsExceptedUsers()
-			|| assignment.getContainsTitles() != ContainsTitles.NO
-			|| assignment.isManager()
-			|| assignment.isSubstitutes()
-			|| assignment.isContainsFunctions()
-			|| assignment.isContainsExceptedOus();
+		return assignment.hasGrantingCondition()
+			? AssignmentAppliesResult.NOT_APPLICABLE
+			: AssignmentAppliesResult.POSITIVE;
 	}
 
 }

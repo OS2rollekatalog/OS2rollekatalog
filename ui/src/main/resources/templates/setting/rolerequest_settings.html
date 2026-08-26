@@ -11,7 +11,9 @@
             <h3 th:text="#{html.setting.rolerequest.title}"></h3>
             <form id="setting-form" class="form-horizontal" method="post" th:action="@{/ui/settings/rolerequest}"
                   th:object="${settingsForm}">
-				<input type="hidden" th:field="*{onlyRecommendRoles}" />
+				<input type="hidden" th:field="*{showRecommendedRolesTab}" />
+				<input type="hidden" th:field="*{showAllRolesTab}" />
+				<input type="hidden" th:field="*{showExistingRolesTab}" />
 				<input type="hidden" th:field="*{showSingleTableInRequestApproveEnabled}" />
 				<input type="hidden" th:field="*{allowSelfApproval}" />
 				<div class="panel panel-default" style="padding-left: 20px; padding-right: 20px;">
@@ -42,7 +44,7 @@
 										<th:block th:unless="${requestOpt.name() == 'INHERIT'}">
 											<input th:id="${'request_'+ requestOpt}" class="i-checks requesterSetting" type="checkbox"
 												   th:value="${requestOpt}" name="approver" style="width:3rem;"
-												   th:field="*{requestableByList}" th:data-id="${requestOpt}" onchange="onRequesterCheckBoxClick(this)">
+												   th:field="*{requestableByList}" th:data-id="${requestOpt}">
 											<label th:for="${'request_'+ requestOpt}" style="margin-bottom: 0"
 												   th:text="#{__${requestOpt.message}__}"></label>
 										</th:block>
@@ -73,15 +75,47 @@
 						<fieldset>
 							<div class="form-group">
 								<label class="col-sm-3 control-label pt-1"
-									   th:text="#{html.setting.rolerequest.request.onlyRecommendRoles.label}"
+									   th:text="#{html.setting.rolerequest.request.showRecommendedTab.label}"
 									   style="padding-top:0px;"></label>
 								<div class="col-sm-8 row">
 									<div class="checkbox c-checkbox">
 										<label>
-											<input id="onlyRecommendRolesCheckbox" type="checkbox" th:attr="checked=${settingsForm.onlyRecommendRoles}" />
+											<input id="showRecommendedTabCheckbox" type="checkbox" th:attr="checked=${settingsForm.showRecommendedRolesTab}" />
 											<span class="fa fa-check"></span>
 										</label>
-										<a th:replace="~{fragments/help :: help (title=#{html.setting.rolerequest.request.onlyRecommendRoles.label}, content=#{html.setting.rolerequest.request.onlyRecommendRoles.explainer})}"></a>
+										<a th:replace="~{fragments/help :: help (title=#{html.setting.rolerequest.request.showRecommendedTab.label}, content=#{html.setting.rolerequest.request.showRecommendedTab.explainer})}"></a>
+									</div>
+								</div>
+							</div>
+						</fieldset>
+						<fieldset>
+							<div class="form-group">
+								<label class="col-sm-3 control-label pt-1"
+									   th:text="#{html.setting.rolerequest.request.showAllTab.label}"
+									   style="padding-top:0px;"></label>
+								<div class="col-sm-8 row">
+									<div class="checkbox c-checkbox">
+										<label>
+											<input id="showAllTabCheckbox" type="checkbox" th:attr="checked=${settingsForm.showAllRolesTab}" />
+											<span class="fa fa-check"></span>
+										</label>
+										<a th:replace="~{fragments/help :: help (title=#{html.setting.rolerequest.request.showAllTab.label}, content=#{html.setting.rolerequest.request.showAllTab.explainer})}"></a>
+									</div>
+								</div>
+							</div>
+						</fieldset>
+						<fieldset>
+							<div class="form-group">
+								<label class="col-sm-3 control-label pt-1"
+									   th:text="#{html.setting.rolerequest.request.showExistingTab.label}"
+									   style="padding-top:0px;"></label>
+								<div class="col-sm-8 row">
+									<div class="checkbox c-checkbox">
+										<label>
+											<input id="showExistingTabCheckbox" type="checkbox" th:attr="checked=${settingsForm.showExistingRolesTab}" />
+											<span class="fa fa-check"></span>
+										</label>
+										<a th:replace="~{fragments/help :: help (title=#{html.setting.rolerequest.request.showExistingTab.label}, content=#{html.setting.rolerequest.request.showExistingTab.explainer})}"></a>
 									</div>
 								</div>
 							</div>
@@ -135,7 +169,7 @@
 										<th:block th:unless="${approverOpt.name() == 'INHERIT'}">
 											<input th:id="${'approver_'+ approverOpt}" class="i-checks approverSetting" type="checkbox"
 												   th:value="${approverOpt}" name="approver" style="width:3rem;"
-												   th:field="*{approvableByList}" th:data-id="${approverOpt}" onchange="onApproverCheckboxClick(this)">
+												   th:field="*{approvableByList}" th:data-id="${approverOpt}">
 											<label th:for="${'approver_'+ approverOpt}" style="margin-bottom: 0"
 												   th:text="#{__${approverOpt.message}__}"></label>
 											<div th:if="#{__${approverOpt.message}__} != ''" class="font-weight-light" style="margin-left: 32px; margin-bottom: 10px" th:text="#{__${approverOpt.message}__}"></div>
@@ -147,7 +181,6 @@
 																<input class="checkbox-email"
 																	   th:data-name="${approverOpt.name}"
 																	   type="checkbox"
-																	   onchange="onEmailCheckboxClick(this)"
 																	   th:checked="${settingsForm.alternativeEmails != null && settingsForm.alternativeEmails.containsKey(approverOpt) && !#strings.isEmpty(settingsForm.alternativeEmails.get(approverOpt))}" />
 																<span class="fa fa-check"></span>
 															</label>
@@ -245,22 +278,15 @@
 <script th:replace="~{fragments/assignDatePicker :: content}"></script>
 
 
-<style>
-    .error {
-        color: red;
-    }
-</style>
+<link rel="stylesheet" th:href="@{/css/setting/settings.css}" />
 
-<script th:inline="javascript">
-	/*<![CDATA[*/
-	/*[+
-		var token = $("meta[name='_csrf']").attr("content");
-		var deleteURL = [[@{/rest/rolerequest/constraint/delete}]];
-		var createURL = [[@{/rest/rolerequest/constraint/create}]];
-	 +]*/
-    /*]]>*/
-
+<script type="application/json" id="rolerequest-settings-config" th:inline="javascript">
+	{
+		"deleteURL": [[@{/rest/rolerequest/constraint/delete}]],
+		"createURL": [[@{/rest/rolerequest/constraint/create}]]
+	}
 </script>
+<script th:src="@{/js/service/SweetAlertService.js}"></script>
 <script th:src="@{/js/rolerequest/settings.js}"></script>
 <link rel="stylesheet" th:href="@{/css/rolerequestsettings.css}" />
 </body>

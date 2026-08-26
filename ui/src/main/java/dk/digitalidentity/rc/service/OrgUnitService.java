@@ -595,6 +595,13 @@ public class OrgUnitService {
 			throw new BadRequestException("inherit cannot be combined with ExceptedUserScope - excepted-user assignments cannot inherit to sub org units.");
 		}
 
+		// excepted org units only mean something on an inheriting assignment
+		if (!inherit && assignment.isContainsExceptedOus()) {
+			assignment.setExceptedOus(new ArrayList<>());
+			assignment.setContainsExceptedOus(false);
+			modified = true;
+		}
+
 		if (assignment.isInherit() != inherit) {
 			assignment.setInherit(inherit);
 			modified = true;
@@ -865,6 +872,13 @@ public class OrgUnitService {
 		// inherit is only possible if no excepted users
 		if (inherit && assignment.isContainsExceptedUsers()) {
 			throw new BadRequestException("inherit cannot be combined with ExceptedUserScope - excepted-user assignments cannot inherit to sub org units.");
+		}
+
+		// excepted org units only mean something on an inheriting assignment
+		if (!inherit && assignment.isContainsExceptedOus()) {
+			assignment.setExceptedOus(new ArrayList<>());
+			assignment.setContainsExceptedOus(false);
+			modified = true;
 		}
 
 		if (assignment.isInherit() != inherit) {
@@ -1364,10 +1378,12 @@ public class OrgUnitService {
 		return new ManagerRequestScope(orgUnits, subManagerUserUuids);
 	}
 
+	/**
+	 * Note that canEdit is left at its default (false) on the returned assignments. Deciding who may
+	 * edit/delete an assignment requires the callers permission constraints, so the caller sets it.
+	 */
 	public List<OrgUnitWithRole2> getActiveOrgUnitsWithRoleGroup(RoleGroup roleGroup) {
 		List<OrgUnitWithRole2> result = new ArrayList<>();
-
-		boolean canEdit = SecurityUtil.getRoles().contains(Constants.ROLE_ADMINISTRATOR);
 
 		for (OrgUnitRoleGroupAssignment assignment : orgUnitRoleGroupAssignmentDao.findByRoleGroup(roleGroup)) {
 			if (!isActiveAndIncluded(assignment.getOrgUnit())) {
@@ -1377,7 +1393,6 @@ public class OrgUnitService {
 			mapping.setOuName(assignment.getOrgUnit().getName());
 			mapping.setOuUuid(assignment.getOrgUnit().getUuid());
 			mapping.setAssignment(RoleAssignedToOrgUnitDTO.fromRoleGroupAssignment(assignment));
-			mapping.getAssignment().setCanEdit(canEdit);
 
 			result.add(mapping);
 		}
@@ -1385,10 +1400,12 @@ public class OrgUnitService {
 		return result;
 	}
 
+	/**
+	 * Note that canEdit is left at its default (false) on the returned assignments. Deciding who may
+	 * edit/delete an assignment requires the callers permission constraints, so the caller sets it.
+	 */
 	public List<OrgUnitWithRole2> getActiveOrgUnitsWithUserRole(UserRole userRole) {
 		List<OrgUnitWithRole2> result = new ArrayList<>();
-
-		boolean canEdit = SecurityUtil.getRoles().contains(Constants.ROLE_ADMINISTRATOR);
 
 		for (OrgUnitUserRoleAssignment assignment : orgUnitUserRoleAssignmentDao.findByUserRole(userRole)) {
 			if (!isActiveAndIncluded(assignment.getOrgUnit())) {
@@ -1398,7 +1415,6 @@ public class OrgUnitService {
 			mapping.setOuName(assignment.getOrgUnit().getName());
 			mapping.setOuUuid(assignment.getOrgUnit().getUuid());
 			mapping.setAssignment(RoleAssignedToOrgUnitDTO.fromUserRoleAssignment(assignment));
-			mapping.getAssignment().setCanEdit(canEdit);
 
 			result.add(mapping);
 		}

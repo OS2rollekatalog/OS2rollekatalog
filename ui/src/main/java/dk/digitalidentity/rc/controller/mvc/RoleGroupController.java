@@ -50,6 +50,7 @@ import dk.digitalidentity.rc.service.OrgUnitService;
 import dk.digitalidentity.rc.service.RoleGroupService;
 import dk.digitalidentity.rc.service.SettingsService;
 import dk.digitalidentity.rc.service.TitleService;
+import dk.digitalidentity.rc.service.UserRoleService;
 import dk.digitalidentity.rc.service.UserService;
 import dk.digitalidentity.rc.service.assignment.AssignmentService;
 import dk.digitalidentity.rc.service.model.AssignedThrough;
@@ -76,6 +77,8 @@ public class RoleGroupController {
 	private final FunctionService functionService;
     private final SettingsService settingsService;
 	private final AssignmentService assignmentService;
+	// a role group has no IT system of its own, so whether it may be assigned is derived from the user roles it contains
+	private final UserRoleService userRoleService;
 
 	private static final Section permissionEntity = Section.ROLE_GROUP;
 
@@ -155,6 +158,7 @@ public class RoleGroupController {
 
 		model.addAttribute("treeOUs", ouListForms);
 		model.addAttribute("selectedFilterOUs", selectedOus);
+		model.addAttribute("caseNumberEnabled", settingsService.isCaseNumberEnabled());
 
 		return "rolegroups/edit";
 	}
@@ -225,9 +229,12 @@ public class RoleGroupController {
 		if (group == null) {
 			return "redirect:../list";
 		}
-		boolean canEdit = SecurityUtil.getRoles().contains(Constants.ROLE_ADMINISTRATOR);
 		Map<Permission, PermissionConstraint> constraintMap = userPermissionContext.getConstraintsPerPermission(permissionEntity);
 		PermissionConstraint readConstraint = constraintMap.get(Permission.READ);
+		// the assign gate must follow Section.USER, matching what the backend endpoint requires, not permissionEntity
+		PermissionConstraint assignConstraint = userPermissionContext.getConstraint(Section.USER, Permission.ASSIGN);
+		// the group itself does not change per row, so the decision is made once and combined with each row below
+		boolean groupAssignable = userRoleService.isRoleGroupAssignable(group, true, assignConstraint);
 
 		Set<CurrentAssignment> assignments = assignmentService.getActiveByRoleGroup(group);
 		Set<CurrentAssignment> uniqueAssignments = assignmentService.getUniqueRoleGroupAssignments(assignments);
@@ -236,7 +243,10 @@ public class RoleGroupController {
 			.map(assignment -> {
 				AssignedThrough assignedThrough = assignmentService.getAssignedThroughForRoleGroup(assignment);
 				UserWithRole userWithRole = UserWithRole.fromCurrentAssignment(assignment, assignedThrough, RoleAssignmentType.ROLEGROUP);
-				userWithRole.getAssignment().setCanEdit(canEdit && assignedThrough.equals(AssignedThrough.DIRECT));
+				// Editing/deleting follows the same permission as creating the assignment does, so a role
+				// assigner may maintain what it is allowed to create. Only direct assignments can be edited.
+				boolean isDirectAssignment = AssignedThrough.DIRECT.equals(assignedThrough) || AssignedThrough.POSITION.equals(assignedThrough);
+				userWithRole.getAssignment().setCanEdit(groupAssignable && isDirectAssignment);
 				return userWithRole;
 			})
 			.filter(uwr -> readConstraint.allowsOrgunit(uwr.getAssignment().getOrgUnitUuid()))
@@ -306,9 +316,24 @@ public class RoleGroupController {
 
 		Map<Permission, PermissionConstraint> constraintMap = userPermissionContext.getConstraintsPerPermission(permissionEntity);
 		PermissionConstraint readConstraint = constraintMap.get(Permission.READ);
+		// the assign gate must follow Section.ORGUNIT, matching what the backend endpoint requires, not permissionEntity
+		PermissionConstraint assignConstraint = userPermissionContext.getConstraint(Section.ORGUNIT, Permission.ASSIGN);
+
+		boolean isAdmin = SecurityUtil.getRoles().contains(Constants.ROLE_ADMINISTRATOR);
+		// the group itself does not change per row, so the decision is made once and combined with each row below
+		boolean groupAssignable = userRoleService.isRoleGroupAssignable(group, true, assignConstraint);
 
 		List<OrgUnitWithRole2> orgUnitsWithRole = orgUnitService.getActiveOrgUnitsWithRoleGroup(group).stream()
 				.filter(ouwr -> readConstraint.allowsOrgunit(ouwr.getOuUuid()))
+				.map(ouwr -> {
+					// Editing/deleting follows the same permission as creating the assignment does, so a role
+					// assigner may maintain what it is allowed to create. The backend checks both the IT systems
+					// and the org unit (AccessConstraintService.isAssignmentAllowed), so both are gated here.
+					boolean isDirectAssignment = AssignedThrough.DIRECT.equals(ouwr.getAssignment().getAssignedThrough());
+					ouwr.getAssignment().setCanEdit(groupAssignable && isDirectAssignment
+							&& (isAdmin || assignConstraint.allowsOrgunit(ouwr.getOuUuid())));
+					return ouwr;
+				})
 				.toList();
 		model.addAttribute("orgUnitMapping", orgUnitsWithRole);
 		model.addAttribute("showEdit", showEdit);
@@ -344,6 +369,8 @@ public class RoleGroupController {
 			model.addAttribute("positions", user.getPositions());
 			model.addAttribute("possibleOrgUnits", orgUnitService.getOrgUnitsForUser(user));
 		}
+
+		model.addAttribute("caseNumberEnabled", settingsService.isCaseNumberEnabled());
 
 		return "users/fragments/user_role_group_modal :: userRoleGroupModal";
 

@@ -35,4 +35,7 @@ public class UserUserRoleAssignmentAM {
     
     @Schema(description = "Which type of assignment is this")
     private AssignedThrough assignedThrough;
+
+    @Schema(description = "True if the assignment is through a manager position")
+    private Boolean manager;
 }

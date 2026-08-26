@@ -6,6 +6,8 @@ import dk.digitalidentity.rc.controller.mvc.viewmodel.KleViewModel;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.SelectOUDTO;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.UserAssignStatus;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.UserRoleDTO;
+import dk.digitalidentity.rc.controller.rest.model.BulkAddRoleRequestDTO;
+import dk.digitalidentity.rc.controller.rest.model.BulkRemoveAssignmentRequestDTO;
 import dk.digitalidentity.rc.controller.rest.model.ItemPermissionDTO;
 import dk.digitalidentity.rc.controller.rest.model.PostponedConstraintDTO;
 import dk.digitalidentity.rc.dao.model.ConstraintType;
@@ -19,11 +21,10 @@ import dk.digitalidentity.rc.dao.model.UserRole;
 import dk.digitalidentity.rc.dao.model.UserRoleGroupAssignment;
 import dk.digitalidentity.rc.dao.model.UserUserRoleAssignment;
 import dk.digitalidentity.rc.dao.model.assignment.CurrentAssignment;
-import dk.digitalidentity.rc.dao.model.enums.ItSystemType;
 import dk.digitalidentity.rc.dao.model.enums.KleType;
+import dk.digitalidentity.rc.security.AccessConstraintService;
 import dk.digitalidentity.rc.security.RequireKleAdministratorRole;
 import dk.digitalidentity.rc.security.RequireRequesterOrAssignerRole;
-import dk.digitalidentity.rc.security.RequireKleAdministratorRole;
 import dk.digitalidentity.rc.security.permission.Permission;
 import dk.digitalidentity.rc.security.permission.PermissionConstraint;
 import dk.digitalidentity.rc.security.permission.RequireControllerPermission;
@@ -65,12 +66,14 @@ import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -90,6 +93,7 @@ public class UserRestController {
 	private final OrgUnitService orgUnitService;
 	private final PostponedConstraintService postponedConstraintService;
 	private final AssignmentService assignmentService;
+	private final AccessConstraintService accessConstraintService;
 
 	private static final Section permissionEntity = Section.USER;
 	private final UserPermissionContext userPermissionContext;
@@ -166,11 +170,12 @@ public class UserRestController {
 		UserRole role = userRoleService.getById(roleId);
 		User user = userService.getByUuid(userUuid);
 		if (user == null || role == null) {
-			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+			return new ResponseEntity<>("Brugeren eller jobfunktionsrollen kunne ikke findes", HttpStatus.BAD_REQUEST);
 		}
 
-		if (role.isReadOnly() || (role.getItSystem().getSystemType() == ItSystemType.AD && role.getItSystem().isReadonly())) {
-			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+		Optional<String> blockedReason = userRoleService.assignmentBlockedReason(role);
+		if (blockedReason.isPresent()) {
+			return new ResponseEntity<>(blockedReason.get(), HttpStatus.BAD_REQUEST);
 		}
 
 		try {
@@ -201,12 +206,17 @@ public class UserRestController {
 		UserRole userRole = userRoleService.getById(roleId);
 		OrgUnit orgUnit = orgUnitService.getByUuid(orgUnitUuid);
 
-		if (user == null || userRole == null || userRole.isReadOnly()) {
-			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+		if (user == null || userRole == null) {
+			return new ResponseEntity<>("Brugeren eller jobfunktionsrollen kunne ikke findes", HttpStatus.BAD_REQUEST);
 		}
 
-		if (userRole.getItSystem().getSystemType() == ItSystemType.AD && userRole.getItSystem().isReadonly()) {
-			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+		Optional<String> blockedReason = userRoleService.assignmentBlockedReason(userRole);
+		if (blockedReason.isPresent()) {
+			return new ResponseEntity<>(blockedReason.get(), HttpStatus.BAD_REQUEST);
+		}
+
+		if (!accessConstraintService.isAssignmentAllowed(user, userRole)) {
+			return new ResponseEntity<>("Du har ikke rettigheder til at tildele denne rolle til denne bruger", HttpStatus.FORBIDDEN);
 		}
 
 		LocalDate startDate = null, stopDate = null;
@@ -256,6 +266,178 @@ public class UserRestController {
 		return new ResponseEntity<>(HttpStatus.OK);
 	}
 
+	public record BulkAddRoleFailureDTO(String userUuid, String message) { }
+	public record BulkAddRoleResultDTO(List<String> succeededUserUuids, List<BulkAddRoleFailureDTO> failures) { }
+
+	@RequirePermission(section = Section.USER, permission = Permission.ASSIGN)
+	@PostMapping(value = "/rest/users/bulkaddrole/{roleId}")
+	@ResponseBody
+	public ResponseEntity<?> bulkAddRoleToUsers(@PathVariable("roleId") long roleId, @RequestBody BulkAddRoleRequestDTO request) {
+		UserRole userRole = userRoleService.getById(roleId);
+		if (userRole == null) {
+			return new ResponseEntity<>("Jobfunktionsrollen kunne ikke findes", HttpStatus.BAD_REQUEST);
+		}
+
+		Optional<String> blockedReason = userRoleService.assignmentBlockedReason(userRole);
+		if (blockedReason.isPresent()) {
+			return new ResponseEntity<>(blockedReason.get(), HttpStatus.BAD_REQUEST);
+		}
+
+		if (request.getUserAssignments() == null || request.getUserAssignments().isEmpty()) {
+			return new ResponseEntity<>("Der er ikke valgt nogen brugere", HttpStatus.BAD_REQUEST);
+		}
+
+		LocalDate startDate = null, stopDate = null;
+		if (StringUtils.hasLength(request.getStartDate())) {
+			try {
+				startDate = LocalDate.parse(request.getStartDate());
+			} catch (Exception ex) {
+				log.warn("Invalid startdate string: " + request.getStartDate());
+			}
+		}
+		if (StringUtils.hasLength(request.getStopDate())) {
+			try {
+				stopDate = LocalDate.parse(request.getStopDate());
+			} catch (Exception ex) {
+				log.warn("Invalid stopdate string: " + request.getStopDate());
+			}
+		}
+
+		List<PostponedConstraint> postponedConstraintTemplates = new ArrayList<>();
+		if (request.getPostponedConstraints() != null) {
+			for (PostponedConstraintDTO postponedConstraintDTO : request.getPostponedConstraints()) {
+				SystemRole systemRole = systemRoleService.getById(postponedConstraintDTO.getSystemRoleId());
+				if (systemRole == null) {
+					return new ResponseEntity<>("En eller flere systemroller til udskudte dataafgrænsninger kan ikke findes", HttpStatus.BAD_REQUEST);
+				}
+
+				ConstraintType constraintType = constraintTypeService.getByUuid(postponedConstraintDTO.getConstraintTypeUuid());
+				if (constraintType == null) {
+					return new ResponseEntity<>("En eller flere afgrænsningstyper til udskudte dataafgrænsninger kan ikke findes", HttpStatus.BAD_REQUEST);
+				}
+
+				PostponedConstraint template = new PostponedConstraint();
+				template.setConstraintType(constraintType);
+				template.setSystemRole(systemRole);
+				template.setValue(postponedConstraintDTO.getValue());
+
+				postponedConstraintTemplates.add(template);
+			}
+		}
+
+		List<String> succeeded = new ArrayList<>();
+		List<BulkAddRoleFailureDTO> failures = new ArrayList<>();
+		List<User> usersToSave = new ArrayList<>();
+
+		final UserRole role = userRole;
+		final LocalDate finalStartDate = startDate;
+		final LocalDate finalStopDate = stopDate;
+
+		userService.runWithBatchedRecalculation(() -> {
+			for (BulkAddRoleRequestDTO.UserAssignmentDTO userAssignment : request.getUserAssignments()) {
+				User user = userService.getByUuid(userAssignment.getUserUuid());
+				if (user == null) {
+					failures.add(new BulkAddRoleFailureDTO(userAssignment.getUserUuid(), "Bruger blev ikke fundet"));
+					continue;
+				}
+
+				if (!accessConstraintService.isAssignmentAllowed(user, role)) {
+					failures.add(new BulkAddRoleFailureDTO(userAssignment.getUserUuid(), "Du har ikke rettigheder til at tildele denne rolle til denne bruger"));
+					continue;
+				}
+
+				OrgUnit orgUnit = orgUnitService.getByUuid(userAssignment.getOrgUnitUuid());
+
+				List<PostponedConstraint> postponedConstraints = new ArrayList<>();
+				for (PostponedConstraint template : postponedConstraintTemplates) {
+					PostponedConstraint postponedConstraint = new PostponedConstraint();
+					postponedConstraint.setConstraintType(template.getConstraintType());
+					postponedConstraint.setSystemRole(template.getSystemRole());
+					postponedConstraint.setValue(template.getValue());
+
+					postponedConstraints.add(postponedConstraint);
+				}
+
+				try {
+					userService.addUserRole(user, role, finalStartDate, finalStopDate, postponedConstraints, orgUnit, false, request.getCaseNumber());
+				} catch (SecurityException ex) {
+					failures.add(new BulkAddRoleFailureDTO(userAssignment.getUserUuid(), ex.getMessage()));
+					continue;
+				}
+
+				usersToSave.add(user);
+				succeeded.add(userAssignment.getUserUuid());
+			}
+		});
+
+		userService.save(usersToSave);
+
+		return new ResponseEntity<>(new BulkAddRoleResultDTO(succeeded, failures), HttpStatus.OK);
+	}
+
+	@RequirePermission(section = Section.USER, permission = Permission.ASSIGN)
+	@PostMapping(value = "/rest/users/bulkaddrolegroup/{roleGroupId}")
+	@ResponseBody
+	public ResponseEntity<?> bulkAddRoleGroupToUsers(@PathVariable("roleGroupId") long roleGroupId, @RequestBody BulkAddRoleRequestDTO request) {
+		RoleGroup roleGroup = roleGroupService.getById(roleGroupId);
+		if (roleGroup == null) {
+			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+		}
+
+		if (request.getUserAssignments() == null || request.getUserAssignments().isEmpty()) {
+			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+		}
+
+		LocalDate startDate = null, stopDate = null;
+		if (StringUtils.hasLength(request.getStartDate())) {
+			try {
+				startDate = LocalDate.parse(request.getStartDate());
+			} catch (Exception ex) {
+				log.warn("Invalid startdate string: " + request.getStartDate());
+			}
+		}
+		if (StringUtils.hasLength(request.getStopDate())) {
+			try {
+				stopDate = LocalDate.parse(request.getStopDate());
+			} catch (Exception ex) {
+				log.warn("Invalid stopdate string: " + request.getStopDate());
+			}
+		}
+
+		List<String> succeeded = new ArrayList<>();
+		List<BulkAddRoleFailureDTO> failures = new ArrayList<>();
+		List<User> usersToSave = new ArrayList<>();
+
+		final LocalDate finalStartDate = startDate;
+		final LocalDate finalStopDate = stopDate;
+
+		userService.runWithBatchedRecalculation(() -> {
+			for (BulkAddRoleRequestDTO.UserAssignmentDTO userAssignment : request.getUserAssignments()) {
+				User user = userService.getByUuid(userAssignment.getUserUuid());
+				if (user == null) {
+					failures.add(new BulkAddRoleFailureDTO(userAssignment.getUserUuid(), "Bruger blev ikke fundet"));
+					continue;
+				}
+
+				if (!accessConstraintService.isAssignmentAllowed(user, roleGroup)) {
+					failures.add(new BulkAddRoleFailureDTO(userAssignment.getUserUuid(), "Du har ikke rettigheder til at tildele denne rollegruppe til denne bruger"));
+					continue;
+				}
+
+				OrgUnit orgUnit = orgUnitService.getByUuid(userAssignment.getOrgUnitUuid());
+
+				userService.addRoleGroup(user, roleGroup, finalStartDate, finalStopDate, orgUnit, request.getCaseNumber());
+
+				usersToSave.add(user);
+				succeeded.add(userAssignment.getUserUuid());
+			}
+		});
+
+		userService.save(usersToSave);
+
+		return new ResponseEntity<>(new BulkAddRoleResultDTO(succeeded, failures), HttpStatus.OK);
+	}
+
 	@RequirePermission(section = Section.USER, permission = Permission.ASSIGN)
 	@PostMapping(value = "/rest/users/{uuid}/removegroup/{groupid}")
 	public ResponseEntity<String> removeGroupFromUser(@PathVariable("uuid") String userUuid, @PathVariable("groupid") long groupId) {
@@ -299,6 +481,61 @@ public class UserRestController {
 	}
 
 	@RequirePermission(section = Section.USER, permission = Permission.ASSIGN)
+	@PostMapping(value = "/rest/users/{uuid}/bulkremoveassignments")
+	@ResponseBody
+	public ResponseEntity<?> bulkRemoveAssignmentsFromUser(@PathVariable("uuid") String userUuid, @RequestBody BulkRemoveAssignmentRequestDTO request) {
+		User user = userService.getByUuid(userUuid);
+		if (user == null) {
+			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+		}
+
+		if (request.getAssignments() == null || request.getAssignments().isEmpty()) {
+			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+		}
+
+		int removedCount = 0;
+		for (BulkRemoveAssignmentRequestDTO.AssignmentToRemoveDTO assignmentToRemove : request.getAssignments()) {
+			long assignmentId = assignmentToRemove.getAssignmentId();
+
+			if (assignmentToRemove.getType() == RoleAssignmentType.USERROLE) {
+				UserRole userRole = user.getUserRoleAssignments().stream()
+					.filter(ura -> ura.getId() == assignmentId)
+					.findAny()
+					.map(UserUserRoleAssignment::getUserRole)
+					.orElse(null);
+
+				if (userRole == null || !accessConstraintService.isAssignmentAllowed(user, userRole)) {
+					throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Du har ikke rettigheder til at fjerne denne rolle");
+				}
+
+				if (userService.removeUserRoleAssignment(user, assignmentId)) {
+					removedCount++;
+				}
+			} else if (assignmentToRemove.getType() == RoleAssignmentType.ROLEGROUP) {
+				RoleGroup roleGroup = user.getRoleGroupAssignments().stream()
+					.filter(ura -> ura.getId() == assignmentId)
+					.findAny()
+					.map(UserRoleGroupAssignment::getRoleGroup)
+					.orElse(null);
+
+				if (roleGroup == null || !accessConstraintService.isAssignmentAllowed(user, roleGroup)) {
+					throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Du har ikke rettigheder til at fjerne denne rollegruppe");
+				}
+
+				if (userService.removeRoleGroupAssignment(user, assignmentId)) {
+					removedCount++;
+				}
+			}
+		}
+
+		if (removedCount > 0) {
+			userService.save(user);
+		}
+
+		return new ResponseEntity<>(HttpStatus.OK);
+	}
+
+	@RequirePermission(section = Section.USER, permission = Permission.ASSIGN)
 	@PostMapping(value = "/rest/users/{uuid}/editassignment/{type}/{assignedThrough}/{assignmentId}")
 	@ResponseBody
 	public ResponseEntity<String> editAssignment(@PathVariable("uuid") String userUuid,
@@ -314,7 +551,7 @@ public class UserRestController {
 		User user = userService.getByUuid(userUuid);
 
 		if (user == null) {
-			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+			return new ResponseEntity<>("Brugeren kunne ikke findes", HttpStatus.BAD_REQUEST);
 		}
 
 		LocalDate startDate = null, stopDate = null;
@@ -343,12 +580,13 @@ public class UserRestController {
 			if (type == RoleAssignmentType.USERROLE) {
 				UserUserRoleAssignment userRoleAssignment = user.getUserRoleAssignments().stream().filter(ura -> ura.getId() == assignmentId).findAny().orElse(null);
 
-				if (userRoleAssignment == null || userRoleAssignment.getUserRole().isReadOnly()) {
-					return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+				if (userRoleAssignment == null) {
+					return new ResponseEntity<>("Tildelingen kunne ikke findes", HttpStatus.BAD_REQUEST);
 				}
 
-				if (userRoleAssignment.getUserRole().getItSystem().getSystemType() == ItSystemType.AD && userRoleAssignment.getUserRole().getItSystem().isReadonly()) {
-					return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+				Optional<String> blockedReason = userRoleService.assignmentBlockedReason(userRoleAssignment.getUserRole());
+				if (blockedReason.isPresent()) {
+					return new ResponseEntity<>(blockedReason.get(), HttpStatus.BAD_REQUEST);
 				}
 
 				List<PostponedConstraint> postponedConstraintsForAssignment = new ArrayList<>();
@@ -382,7 +620,7 @@ public class UserRestController {
 				UserRoleGroupAssignment roleGroupAssignment = user.getRoleGroupAssignments().stream().filter(rga -> rga.getId() == assignmentId).findAny().orElse(null);
 
 				if (roleGroupAssignment == null) {
-					return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+					return new ResponseEntity<>("Tildelingen kunne ikke findes", HttpStatus.BAD_REQUEST);
 				}
 
 				userService.editRoleGroupAssignment(user, roleGroupAssignment, startDate, stopDate, orgUnit, caseNumber);
@@ -406,6 +644,10 @@ public class UserRestController {
 
 		if (user == null || group == null) {
 			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+		}
+
+		if (!accessConstraintService.isAssignmentAllowed(user, group)) {
+			return new ResponseEntity<>("Du har ikke rettigheder til at tildele denne rollegruppe til denne bruger", HttpStatus.FORBIDDEN);
 		}
 
 		LocalDate startDate = null, stopDate = null;
@@ -635,6 +877,10 @@ public class UserRestController {
 			throw new IllegalArgumentException("No userrole with id: " + roleId);
 		}
 
+		if (accessConstraintService.filterUserRolesUserCanAssign(List.of(role)).isEmpty()) {
+			throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Du har ikke rettigheder til at tildele denne rolle");
+		}
+
 		Set<CurrentAssignment> assignments = assignmentService.getActiveByUserRole(role);
 		return getAvailableUsersOutput(input, assignments);
 	}
@@ -654,6 +900,10 @@ public class UserRestController {
 			throw new IllegalArgumentException("No rolegroup with id: " + roleId);
 		}
 
+		if (accessConstraintService.filterRoleGroupsUserCanAssign(List.of(roleGroup)).isEmpty()) {
+			throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Du har ikke rettigheder til at tildele denne rollegruppe");
+		}
+
 		Set<CurrentAssignment> assignments = assignmentService.getActiveByRoleGroup(roleGroup);
 		return getAvailableUsersOutput(input, assignments);
 	}
@@ -669,7 +919,10 @@ public class UserRestController {
 		DataTablesInput input,
 		Set<CurrentAssignment> assignments) {
 
-		DataTablesOutput<User> usersFromDb = userService.getAllAsDatatableOutput(input);
+		PermissionConstraint assignConstraint = userPermissionContext.getConstraint(permissionEntity, Permission.ASSIGN);
+		Set<String> constrainedOUUuids = assignConstraint != null ? assignConstraint.getConstrainedOUUuids() : Set.of();
+
+		DataTablesOutput<User> usersFromDb = userService.getAllAsDatatableOutput(input, constrainedOUUuids);
 
 		List<String> alreadyAssignedUUIDs = assignments.stream()
 			.map(assignment -> assignment.getUser().getUuid())

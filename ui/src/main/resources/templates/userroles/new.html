@@ -5,7 +5,7 @@
 	<div class="wrapper">
 		<header th:replace="~{fragments/navbar :: navbar-header(subpage = 'roles')}"></header>
 		<aside th:replace="~{fragments/navbar :: navbar-aside (page = 'userroles.new', subpage = 'roles')}"></aside>
- 
+
 		<section>
 			<div class="content-wrapper">
 				<h3>
@@ -17,7 +17,7 @@
 
 				<div class="panel panel-default">
 					<div class="panel-heading"></div>
-					<div class="panel-body">					
+					<div class="panel-body">
 						<form class="form-horizontal" th:object="${role}" method="post" th:action="@{/ui/userroles/new}">
 							<fieldset>
 								<div th:class="${#fields.hasErrors('name')} ? 'form-group has-error' : 'form-group'">
@@ -67,7 +67,7 @@
 									</div>
 								</div>
 							</fieldset>
-							
+
 							<fieldset id="checkboxRow" hidden>
 								<div class="form-group">
 									<label class="col-sm-2 control-label" th:text="#{html.page.userroles.new.custom_identifier}"></label>
@@ -81,7 +81,7 @@
 									</div>
 								</div>
 							</fieldset>
-							
+
 							<fieldset id="identifierRow" th:hidden="${#strings.isEmpty(role.identifier)}">
 								<div class="form-group">
 									<div>
@@ -92,7 +92,7 @@
 									</div>
 								</div>
 							</fieldset>
-							
+
 							<fieldset id="allowPostponingRow">
 								<div class="form-group">
 									<label class="col-sm-2 control-label" th:text="#{html.page.userroles.new.allow_postponing}"></label>
@@ -115,7 +115,7 @@
 										<textarea th:field="*{description}" class="form-control" th:placeholder="#{html.entity.userrole.description.placeholder}"></textarea>
 					                </div>
 									<a th:replace="~{fragments/help :: help (title=#{html.entity.userrole.description}, content=#{html.entity.userrole.description.help})}"></a>
-						        </div>	
+						        </div>
 							</fieldset>
 
 							<fieldset>
@@ -134,57 +134,12 @@
     </div>
 
     <nav th:replace="~{fragments/footer :: footer}"></nav>
-    
-	<script th:inline="javascript">
-		/*<![CDATA[*/
-			
-		/*[+
-			var identifier = [[${role.identifier}]];
-		+]*/
-			
-		var identifierService;
-		$(document).ready(function() {
-			$('[rel=popover]').popover();
-			
-			identifierService = new IdentifierService();
-			identifierService.addChangeListeners();
-			identifierService.selectChange();
-		});
-		
-		function IdentifierService() {
-			
-			this.addChangeListeners = function() {
-				$("#itSystem").change(this.selectChange);
-				$("#checkbox").change(this.checkboxChange);
-			}
-			
-			this.selectChange = function() {
-				var type = $("#itSystem").find(':selected').attr('data-type');
-				
-				if (type != 'AD' && type != 'NEMLOGIN') {
-					$('#checkboxRow').attr("hidden", false);
-				}
-				else{
-					$('#checkboxRow').attr("hidden", true);
-					$('#checkbox').attr("checked", false);
-					$('#identifierRow').attr("hidden", true);
-					$('#identifier').val("");
-				}
-			}
-			
-			this.checkboxChange = function() {
-				var checked = this.checked;
-				
-				if (checked){
-					$('#identifierRow').attr("hidden", false);
-				}else{
-					$('#identifierRow').attr("hidden", true);
-					$('#identifier').val("");
-				}
-			}
-			
+
+	<script type="application/json" th:inline="javascript" id="userrole-new-config">
+		{
+			"identifier": [[${role.identifier}]]
 		}
-		/*]]>*/
-    </script>
+	</script>
+	<script th:src="@{/js/userroles/new.js}"></script>
 </body>
 </html>

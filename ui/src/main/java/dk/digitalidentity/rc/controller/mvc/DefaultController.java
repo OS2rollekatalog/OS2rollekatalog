@@ -2,6 +2,7 @@ package dk.digitalidentity.rc.controller.mvc;
 
 import dk.digitalidentity.rc.config.Constants;
 import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
+import dk.digitalidentity.rc.security.RequireNoRole;
 import dk.digitalidentity.rc.security.SecurityUtil;
 import dk.digitalidentity.rc.security.permission.Permission;
 import dk.digitalidentity.rc.security.permission.Section;
@@ -44,6 +45,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 @Controller
+@RequireNoRole
 @PropertySource("classpath:git.properties")
 public class DefaultController implements ErrorController {
 	private ErrorAttributes errorAttributes = new DefaultErrorAttributes();

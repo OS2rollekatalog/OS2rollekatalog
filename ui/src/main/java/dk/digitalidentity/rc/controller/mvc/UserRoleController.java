@@ -158,6 +158,7 @@ public class UserRoleController {
 
 		model.addAttribute("hideRolegroups", hideRolegroups);
 		model.addAttribute("allowPostponing", role.isAllowPostponing());
+		model.addAttribute("caseNumberEnabled", settingsService.isCaseNumberEnabled());
 
 		return "userroles/view";
 	}
@@ -169,10 +170,14 @@ public class UserRoleController {
 			return "redirect:../list";
 		}
 
-		boolean canEdit = SecurityUtil.getRoles().contains(Constants.ROLE_ADMINISTRATOR);
+		boolean isAdmin = SecurityUtil.getRoles().contains(Constants.ROLE_ADMINISTRATOR);
 		boolean isInternalRCRole =Constants.ROLE_CATALOGUE_IDENTIFIER.equals(role.getItSystem().getIdentifier());
-		boolean canAssign = (SecurityUtil.getRoles().contains(Constants.ROLE_ADMINISTRATOR) // must either be admin...
+		boolean canAssign = userRoleService.isAssignableRole(role) // the role must be assignable at all - see UserRestController.addRoleToUser
+			&& (isAdmin // must either be admin...
 			||	(!isInternalRCRole && userPermissionContext.hasPermission(Section.USER, Permission.ASSIGN))); // ... or have assigning permission AND role cannot be from rolecatalogue
+		PermissionConstraint assignConstraint = userPermissionContext.getConstraint(Section.USER, Permission.ASSIGN);
+		// the role itself does not change per row, so the decision is made once and combined with each row below
+		boolean roleAssignable = userRoleService.isUserRoleAssignable(role, true, assignConstraint);
 
 		Set<CurrentAssignment> assignments = assignmentService.getActiveByUserRole(role);
 
@@ -181,9 +186,10 @@ public class UserRoleController {
 				AssignedThrough assignedThrough = assignmentService.getAssignedThrough(assignment);
 				UserWithRole userWithRole = UserWithRole.fromCurrentAssignment(assignment, assignedThrough, RoleAssignmentType.USERROLE);
 
-				// Only direct assignments can be edited (and only by admins)
+				// Editing/deleting follows the same permission as creating the assignment does, so a role
+				// assigner may maintain what it is allowed to create. Only direct assignments can be edited.
 				boolean isDirectAssignment = assignedThrough.equals(AssignedThrough.DIRECT);
-				userWithRole.getAssignment().setCanEdit(canEdit && isDirectAssignment);
+				userWithRole.getAssignment().setCanEdit(roleAssignable && isDirectAssignment);
 
 				return userWithRole;
 			})
@@ -209,7 +215,7 @@ public class UserRoleController {
 		return "userroles/fragments/manage_add_users :: addUsers";
 	}
 
-	record OrgunitWithRoleAssignedDTO(String ouUuid, String ouName, RoleAssignedToOrgUnitDTO assignment, boolean changeable){}
+	record OrgunitWithRoleAssignedDTO(String ouUuid, String ouName, RoleAssignedToOrgUnitDTO assignment){}
 	@GetMapping(value = "/ui/userroles/{id}/assignedOrgUnitsFragment")
 	public String assignedOrgUnitsFragment(Model model, @PathVariable("id") long userRoleId, @RequestParam(name = "showEdit", required = false, defaultValue = "false") boolean showEdit) {
 		UserRole role = userRoleService.getById(userRoleId);
@@ -220,14 +226,27 @@ public class UserRoleController {
 		PermissionConstraint assignConstraint = userPermissionContext.getConstraint(Section.ORGUNIT, Permission.ASSIGN);
 		PermissionConstraint readConstraint = userPermissionContext.getConstraint(Section.ORGUNIT, Permission.READ);
 
+		boolean isAdmin = SecurityUtil.getRoles().contains(Constants.ROLE_ADMINISTRATOR);
+		boolean isInternalRCRole =Constants.ROLE_CATALOGUE_IDENTIFIER.equals(role.getItSystem().getIdentifier());
+		// the role itself does not change per row, so the decision is made once and combined with each row below
+		boolean roleAssignable = userRoleService.isUserRoleAssignable(role, true, assignConstraint);
+
 		List<OrgunitWithRoleAssignedDTO> orgUnitsWithRole = orgUnitService.getActiveOrgUnitsWithUserRole(role).stream()
 			.filter(ouwr -> readConstraint.allowsOrgunit(ouwr.getOuUuid()))
-			.map(o -> new OrgunitWithRoleAssignedDTO(o.ouUuid, o.ouName, o.assignment, assignConstraint.allowsOrgunit(o.ouUuid)))
+			.map(o -> {
+				// Editing/deleting follows the same permission as creating the assignment does, so a role
+				// assigner may maintain what it is allowed to create. The backend checks both the IT system
+				// and the org unit (AccessConstraintService.isAssignmentAllowed), so both are gated here.
+				boolean isDirectAssignment = AssignedThrough.DIRECT.equals(o.assignment.getAssignedThrough());
+				o.assignment.setCanEdit(roleAssignable && isDirectAssignment
+						&& (isAdmin || assignConstraint.allowsOrgunit(o.ouUuid)));
+				return new OrgunitWithRoleAssignedDTO(o.ouUuid, o.ouName, o.assignment);
+			})
 			.toList();
 
-		boolean isInternalRCRole =Constants.ROLE_CATALOGUE_IDENTIFIER.equals(role.getItSystem().getIdentifier());
-		boolean canAssign = !role.isUserOnly() &&
-			(SecurityUtil.getRoles().contains(Constants.ROLE_ADMINISTRATOR) // must either be admin...
+		boolean canAssign = !role.isUserOnly()
+			&& userRoleService.isAssignableRole(role) // the role must be assignable at all - see OrgUnitRestController.addRole
+			&& (isAdmin // must either be admin...
 				|| (!isInternalRCRole && userPermissionContext.hasPermission(Section.ORGUNIT, Permission.ASSIGN))); // ... or have assigning permission AND role cannot be from rolecatalogue
 
 		model.addAttribute("orgUnitMapping", orgUnitsWithRole);
@@ -419,7 +438,7 @@ public class UserRoleController {
 		if (role == null || role.isReadOnly()) {
 			return "redirect:../list";
 		}
-
+		
 		boolean constraintsAllowAccess = userPermissionContext.getConstraint(permissionEntity, Permission.UPDATE).allowsITSystem(role.getItSystem().getId());
 		if (!constraintsAllowAccess) {
 			return "redirect:../list";
@@ -692,7 +711,6 @@ public class UserRoleController {
 		role.setRoleAssignmentAttestationByAttestationResponsible(roleToCopy.isRoleAssignmentAttestationByAttestationResponsible());
 		role.setReadOnly(roleToCopy.isReadOnly());
 		role.setOuFilterEnabled(roleToCopy.isOuFilterEnabled());
-		role.setDelegatedFromCvr(roleToCopy.getDelegatedFromCvr());
 		role.setContactEmail(roleToCopy.getContactEmail());
 		role.setAdvisEmail(roleToCopy.getAdvisEmail());
 		role.setAllowPostponing(roleToCopy.isAllowPostponing());

@@ -32,4 +32,18 @@ public interface OrgUnitAssignment {
 
 	void setContainsExceptedOus(boolean containsExceptedOus);
 
+	/**
+	 * True when the assignment designates its own recipients: selected titles, functions or
+	 * manager/substitute.
+	 * <p>
+	 * Exclusion lists do not count. "Everyone except these" designates nobody, it deselects, so an
+	 * assignment carrying exclusions is still an assignment to the entire org unit.
+	 */
+	default boolean hasGrantingCondition() {
+		return (getContainsTitles() != null && getContainsTitles() != ContainsTitles.NO)
+			|| isContainsFunctions()
+			|| isManager()
+			|| isSubstitutes();
+	}
+
 }

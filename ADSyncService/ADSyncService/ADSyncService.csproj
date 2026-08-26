@@ -300,7 +300,7 @@
       <Version>3.4.1</Version>
     </PackageReference>
     <PackageReference Include="log4net">
-      <Version>2.0.15</Version>
+      <Version>3.3.2</Version>
     </PackageReference>
     <PackageReference Include="Microsoft.Data.Sqlite">
       <Version>9.0.4</Version>

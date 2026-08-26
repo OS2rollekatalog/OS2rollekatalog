@@ -71,6 +71,7 @@ public class PendingADUpdateService {
 			PendingADGroupOperation operation = new PendingADGroupOperation();
 			operation.setActive(true);
 			operation.setItSystemIdentifier(systemRole.getItSystem().getIdentifier());
+			operation.setItSystemId(systemRole.getItSystem().getId());
 			operation.setSystemRoleId(systemRole.getId());
 			operation.setSystemRoleIdentifier(systemRole.getIdentifier());
 			operation.setTimestamp(new Date());

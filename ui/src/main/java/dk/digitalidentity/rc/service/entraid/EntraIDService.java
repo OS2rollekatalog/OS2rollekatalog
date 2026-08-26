@@ -9,6 +9,7 @@ import com.microsoft.graph.models.ReferenceCreate;
 import com.microsoft.graph.models.User;
 import com.microsoft.graph.models.UserCollectionResponse;
 import com.microsoft.graph.serviceclient.GraphServiceClient;
+import com.microsoft.kiota.ApiException;
 import com.microsoft.kiota.RequestInformation;
 import com.microsoft.kiota.serialization.AdditionalDataHolder;
 import com.microsoft.kiota.serialization.Parsable;
@@ -176,7 +177,7 @@ public class EntraIDService {
 
 			List<UserRole> userRoles = userRoleService.getByItSystem(itSystem);
 
-			handleSystemRoles(systemRoles, groups, itSystem);
+			handleSystemRoles(systemRoles, groups, itSystem, client);
 			handleUserRoles(itSystem, userRoles, groups, dbUsers, client, tenant);
 		}
 	}
@@ -365,7 +366,7 @@ public class EntraIDService {
 		return users;
 	}
 
-	private void handleSystemRoles(List<SystemRole> systemRoles, List<Group> groups, ItSystem itSystem) {
+	private void handleSystemRoles(List<SystemRole> systemRoles, List<Group> groups, ItSystem itSystem, GraphServiceClient client) {
 		// check for updates and deletes
 		for (SystemRole systemRole : systemRoles) {
 			Group match = groups.stream().filter(g -> g.getId().equals(systemRole.getIdentifier())).findAny().orElse(null);
@@ -388,6 +389,11 @@ public class EntraIDService {
 				if (changes) {
 					systemRoleService.save(systemRole);
 				}
+			} else if (groupStillExistsInAzure(client, systemRole.getIdentifier())) {
+				// The group was absent from getRCGroups' result, but a direct lookup proves it still
+				// exists - it was just missed by the eventually-consistent $search. Never delete here,
+				// or a stale/missed search result would silently remove a live systemRole and userRole.
+				log.info("SystemRole {} was not in the search result, but its group {} still exists in Azure - keeping it", systemRole.getName(), systemRole.getIdentifier());
 			} else {
 				log.info("Removing " + systemRole.getName() + " from " + itSystem.getName());
 				systemRoleService.delete(systemRole);
@@ -603,20 +609,71 @@ public class EntraIDService {
 		});
 	}
 
+	// only these fields are read off a Group anywhere in this service, so $select keeps the
+	// deserialized payload tiny - the default groups list returns ~60 properties per group, which
+	// adds up fast when a tenant has thousands of groups and we fetch them every membershipSync.
+	private static final String[] GROUP_SELECT = new String[]{"id", "displayName", "description"};
+
 	@SneakyThrows
 	public List<Group> getRCGroups(GraphServiceClient client, EntraIDTenant tenant) {
-		final List<Group> allGroups = iterateResource(client, GroupCollectionResponse::createFromDiscriminatorValue,
-			() -> client.groups().get(),
+		// $search narrows the tenant's groups down to candidate RC groups server-side, so we no longer
+		// pull every group (e.g. 7000+) into memory just to discard almost all of them.
+		final String safeKey = tenant.getRoleCatalogKey().replace("\\", "").replace("\"", "").replace(":", "");
+		final String searchTerm = "\"description:" + safeKey + "\"";
+
+		final List<Group> candidateGroups = iterateResource(client, GroupCollectionResponse::createFromDiscriminatorValue,
+			() -> client.groups().get(requestConfiguration -> {
+				requestConfiguration.queryParameters.select = GROUP_SELECT;
+				requestConfiguration.queryParameters.search = searchTerm;
+				requestConfiguration.queryParameters.count = true;
+				requestConfiguration.headers.add("ConsistencyLevel", "eventual");
+			}),
 			requestInformation -> {
 				log.debug("Preparing to get next group page");
+				// Query params ($select/$search/$count) already travel in the @odata.nextLink, so they
+				// must not be re-added here. Only the ConsistencyLevel header must be re-applied to every
+				// subsequent page request - headers do not survive the nextLink - or Graph rejects the
+				// advanced query.
+				requestInformation.headers.add("ConsistencyLevel", "eventual");
 				return requestInformation;
 			}
 		);
 
-		log.info("Found {} total groups in Azure", allGroups.size());
-		List<Group> filteredGroups = allGroups.stream().filter(g -> g.getDescription() != null && g.getDescription().contains(tenant.getRoleCatalogKey())).toList();
+		log.info("Found {} candidate groups in Azure (server-side filtered on description)", candidateGroups.size());
+		List<Group> filteredGroups = candidateGroups.stream().filter(g -> g.getDescription() != null && g.getDescription().contains(tenant.getRoleCatalogKey())).toList();
 		log.info("{} of those groups are RC groups", filteredGroups.size());
 		return filteredGroups;
+	}
+
+	/**
+	 * Confirms a single group still exists in Azure via a direct (strongly consistent) lookup. Used as a
+	 * safety net before deleting a systemRole whose group was missing from the eventually-consistent
+	 * $search result in {@link #getRCGroups}. On any non-404 error we assume the group still exists, so a
+	 * transient Graph failure can never cause us to delete a live role.
+	 */
+	private boolean groupStillExistsInAzure(GraphServiceClient client, String groupId) {
+		if (groupId == null) {
+			// A null identifier means corrupt/incomplete data, not a confirmed-gone group. Deleting the
+			// role on the back of that would break the fail-open contract, so keep the role and warn.
+			log.warn("SystemRole has null group identifier; keeping the role and skipping the deletion guard");
+			return true;
+		}
+		try {
+			Group group = client.groups().byGroupId(groupId).get(requestConfiguration -> {
+				requestConfiguration.queryParameters.select = GROUP_SELECT;
+			});
+			return group != null && group.getId() != null;
+		} catch (Exception e) {
+			// Only a confirmed 404 means the group is really gone. Any other failure - transport error,
+			// throttling, token refresh, an error wrapped in a non-ApiException RuntimeException - must
+			// NOT abort the surrounding backSync loop, and must leave the role in place. Returning true
+			// keeps the role; we never delete on the back of a failed verification.
+			if (e instanceof ApiException apiException && apiException.getResponseStatusCode() == 404) {
+				return false; // confirmed gone
+			}
+			log.warn("Could not verify whether group {} still exists before deleting its systemRole; keeping the role to be safe", groupId, e);
+			return true;
+		}
 	}
 
 	public List<User> getAllAzureUsers(GraphServiceClient client, EntraIDTenant tenant) throws ReflectiveOperationException {

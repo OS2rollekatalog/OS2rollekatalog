@@ -30,12 +30,15 @@ public class RequestApproverResolver {
 	private final SettingsService settingsService;
 
 	public boolean canApprove(RoleRequest request, User approver) {
+		if (approver == null || approver.isDeleted()) {
+			return false;
+		}
 		// As a rule a user may not approve a request they themselves created. The municipality can
 		// opt out of this restriction via a setting (e.g. to support decentralised approval where an
 		// authorized approver requests on behalf of others and approves it themselves). When the setting
 		// is enabled the self-approval block is lifted, but the regular approver-permission checks below
 		// still apply, so the user must otherwise be entitled to approve the request.
-		if (Objects.equals(request.getRequester(), approver) && !settingsService.isAllowSelfApprovalEnabled()) {
+		if (sameUser(request.getRequester(), approver) && !settingsService.isAllowSelfApprovalEnabled()) {
 			return false;
 		}
 		final List<ApprovableBy> options = effectiveOptions(request);
@@ -180,9 +183,9 @@ public class RequestApproverResolver {
 				User manager = effectiveApprover.manager();
 				OrgUnit resolvedOu = effectiveApprover.orgUnit();
 				boolean isSub = manager.getManagerSubstitutes().stream()
-					.anyMatch(ms -> Objects.equals(ms.getSubstitute(), approver)
+					.anyMatch(ms -> sameUser(ms.getSubstitute(), approver)
 						&& ms.getOrgUnit() != null && Objects.equals(ms.getOrgUnit().getUuid(), resolvedOu.getUuid()));
-				if (Objects.equals(manager, approver) || isSub) {
+				if (sameUser(manager, approver) || isSub) {
 					return true;
 				}
 			}
@@ -193,5 +196,9 @@ public class RequestApproverResolver {
 		}
 
 		return false;
+	}
+
+	private static boolean sameUser(User a, User b) {
+		return a != null && b != null && a.getUuid() != null && a.getUuid().equals(b.getUuid());
 	}
 }

@@ -154,6 +154,7 @@ public class UserApiV2Test extends AbstractApiTest {
 					fieldWithPath("[].userRole.systemRoleAssignments[].constraintValues").type(JsonFieldType.ARRAY).description("Constraint values").optional(),
 					fieldWithPath("[].userRole.requesterPermission").type(JsonFieldType.ARRAY).description("Requester permission").optional(),
 					fieldWithPath("[].userRole.approverPermission").type(JsonFieldType.ARRAY).description("Approver permission").optional(),
+					fieldWithPath("[].userRole.approverPermissionInherited").type(JsonFieldType.BOOLEAN).description("Whether approver permission is inherited"),
 					fieldWithPath("[].userRole.contactEmail").type(JsonFieldType.STRING).description("Contact email (performer) for the user role").optional(),
 					fieldWithPath("[].userRole.advisEmail").type(JsonFieldType.STRING).description("Contact email (notification only) for the user role").optional(),
 					fieldWithPath("[].userRole.ouFilterEnabled").type(JsonFieldType.BOOLEAN).description("Whether OU filter is enabled"),
@@ -167,7 +168,8 @@ public class UserApiV2Test extends AbstractApiTest {
 					fieldWithPath("[].assignedThroughTitle").type(JsonFieldType.OBJECT).description("Title through which role was assigned").optional(),
 					fieldWithPath("[].assignedThroughTitle.uuid").type(JsonFieldType.STRING).description("UUID of the title").optional(),
 					fieldWithPath("[].assignedThroughTitle.name").type(JsonFieldType.STRING).description("Name of the title").optional(),
-					fieldWithPath("[].assignedThrough").type(JsonFieldType.STRING).description("How the role was assigned (e.g., DIRECT, POSITION, ROLEGROUP, TITLE)")
+					fieldWithPath("[].assignedThrough").type(JsonFieldType.STRING).description("How the role was assigned (e.g., DIRECT, POSITION, ROLEGROUP, TITLE)"),
+					fieldWithPath("[].manager").type(JsonFieldType.BOOLEAN).description("True if the assignment is through a manager position").optional()
 				)
 			))
 			.andReturn();

@@ -1,9 +1,42 @@
 package dk.digitalidentity.rc.service.nemlogin;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
+import java.util.stream.Collectors;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.EnableCaching;
+import org.springframework.context.annotation.Lazy;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.ResponseEntity;
+import org.springframework.scheduling.annotation.EnableScheduling;
+import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
+import org.springframework.web.client.RestClient;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
+
 import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
 import dk.digitalidentity.rc.dao.model.ConstraintType;
 import dk.digitalidentity.rc.dao.model.ConstraintTypeSupport;
+import dk.digitalidentity.rc.dao.model.DirtyNemLoginUser;
 import dk.digitalidentity.rc.dao.model.ItSystem;
 import dk.digitalidentity.rc.dao.model.PNumber;
 import dk.digitalidentity.rc.dao.model.PostponedConstraint;
@@ -28,7 +61,6 @@ import dk.digitalidentity.rc.service.SettingsService;
 import dk.digitalidentity.rc.service.SystemRoleService;
 import dk.digitalidentity.rc.service.UserRoleService;
 import dk.digitalidentity.rc.service.UserService;
-import dk.digitalidentity.rc.service.assignment.AssignmentService;
 import dk.digitalidentity.rc.service.nemlogin.model.AssignedRole;
 import dk.digitalidentity.rc.service.nemlogin.model.NemLoginAllRolesResponse;
 import dk.digitalidentity.rc.service.nemlogin.model.NemLoginRole;
@@ -36,35 +68,6 @@ import dk.digitalidentity.rc.service.nemlogin.model.NemLoginUserProfile;
 import dk.digitalidentity.rc.service.nemlogin.model.Scope;
 import dk.digitalidentity.rc.service.nemlogin.model.TokenResponse;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.cache.annotation.CacheEvict;
-import org.springframework.cache.annotation.Cacheable;
-import org.springframework.cache.annotation.EnableCaching;
-import org.springframework.context.annotation.Lazy;
-import org.springframework.http.HttpMethod;
-import org.springframework.http.ResponseEntity;
-import org.springframework.scheduling.annotation.EnableScheduling;
-import org.springframework.scheduling.annotation.Scheduled;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-import org.springframework.util.StringUtils;
-import org.springframework.web.client.RestClient;
-
-import java.time.LocalDate;
-import java.time.ZoneId;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Set;
-import java.util.stream.Collectors;
 
 @EnableCaching
 @EnableScheduling
@@ -103,32 +106,18 @@ public class NemLoginService {
 	private ConstraintTypeService constraintTypeService;
 
 	@Autowired
-	private AssignmentService assignmentService;
+	private DirtyNemLoginUserService dirtyNemLoginUserService;
 
-	public void syncUserRoleAssignments(User user) {
+	public void addUserToQueue(User user) {
 		if (!StringUtils.hasLength(user.getNemloginUuid()) || user.isDeleted()) {
 			return;
 		}
 
-		List<ItSystem> itSystems = itSystemService.getBySystemType(ItSystemType.NEMLOGIN);
-		if (itSystems == null || itSystems.size() != 1) {
-			log.error("Could not find a unique NemLog-in it-system (either 0 or > 1 was found!)");
-			return;
-		}
-		ItSystem itSystem = itSystems.get(0);
+		DirtyNemLoginUser dirty = new DirtyNemLoginUser();
+		dirty.setUser(user);
+		dirty.setTimestamp(LocalDateTime.now());
 
-		Set<String> systemRoleIdentifiers = systemRoleService.findByItSystem(itSystem).stream()
-			.map(SystemRole::getIdentifier)
-			.collect(Collectors.toSet());
-
-		Set<CurrentAssignment> assignments = assignmentService.getByUserAndItSystemsWithRoleDetails(user, Collections.singletonList(itSystem));
-
-		try {
-			log.info("Checking for NemLog-in role modifications on user with uuid: {}", user.getUuid());
-			syncNemLoginRolesForUser(user, assignments, itSystem, systemRoleIdentifiers);
-		} catch (Exception ex) {
-			log.error("Failed to process NemLog-in role modifications on user with uuid: {}", user.getUuid(), ex);
-		}
+		dirtyNemLoginUserService.save(dirty);
 	}
 
 	@Transactional
@@ -587,6 +576,57 @@ public class NemLoginService {
 		log.info("Done synchronizing NemLog-in roles");
 	}
 
+	// This is called from NemLoginUpdateTask and does a periodic sync of data from OS2rollekatalog to NemLog-in
+	// - synchronize any dirty user's roles (flagged as such by NemLoginUpdaterHook)
+	public void updateUserRoleAssignments() {
+		List<ItSystem> itSystems = itSystemService.getBySystemType(ItSystemType.NEMLOGIN);
+		if (itSystems == null || itSystems.size() != 1) {
+			log.error("Could not find a unique NemLog-in it-system (either 0 or > 1 was found!)");
+			return;
+		}
+		ItSystem itSystem = itSystems.get(0);
+
+		Map<DirtyNemLoginUser, Set<CurrentAssignment>> dirtyUsers = dirtyNemLoginUserService.findAll(Collections.singletonList(itSystem));
+		if (dirtyUsers.isEmpty()) {
+			return;
+		}
+
+		List<DirtyNemLoginUser> processed = new ArrayList<>();
+		Set<String> seen = new HashSet<>();
+
+		Set<String> systemRoleIdentifiers = systemRoleService.findByItSystem(itSystem).stream().map(sr -> sr.getIdentifier()).collect(Collectors.toSet());
+
+		for (DirtyNemLoginUser dirtyUser : dirtyUsers.keySet()) {
+			if (!seen.contains(dirtyUser.getUser().getUuid())) {
+				log.info("Checking for NemLog-in role modifications on user with uuid: " + dirtyUser.getUser().getUuid());
+
+				try {
+					// ensure we only process each of these once
+					seen.add(dirtyUser.getUser().getUuid());
+
+					if (dirtyUser.getUser().getNemloginUuid() != null && !dirtyUser.getUser().isDeleted()) {
+						syncNemLoginRolesForUser(dirtyUser.getUser(), dirtyUsers.get(dirtyUser), itSystem, systemRoleIdentifiers);
+					}
+
+					processed.add(dirtyUser);
+					processed.addAll(dirtyUsers.keySet().stream().filter(d -> d.getUser().getUuid().equals(dirtyUser.getUser().getUuid())).collect(Collectors.toList()));
+				}
+				catch (Exception ex) {
+					log.error("Failed to process NemLog-in role modifications on user with uuid: " + dirtyUser.getUser().getUuid(), ex);
+
+					// if it failed, we do not flag it as processed
+					continue;
+				}
+			}
+		}
+
+		// cleanup queue
+		dirtyNemLoginUserService.deleteAll(processed);
+
+		log.info("DirtyNemLoginUser synchronization completed");
+	}
+
+	
 	public void fullRoleSync() {
 		log.info("Running full NemLog-In role sync");
 

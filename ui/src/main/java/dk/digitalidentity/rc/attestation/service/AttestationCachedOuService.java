@@ -14,7 +14,6 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
-import java.util.Optional;
 
 import static dk.digitalidentity.rc.attestation.AttestationConstants.CACHE_PREFIX;
 
@@ -45,12 +44,6 @@ public class AttestationCachedOuService {
             return null;
         }
         return foundOU.getOuManagerUuid();
-    }
-
-    @Cacheable(value = CACHE_PREFIX + "OuName")
-    public Optional<String> ouNameFromUuidCached(final String ouUuid) {
-        return orgUnitDao.findById(ouUuid)
-                .map(OrgUnit::getName);
     }
 
     @Transactional

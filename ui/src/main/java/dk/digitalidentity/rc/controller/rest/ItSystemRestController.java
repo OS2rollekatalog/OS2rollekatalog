@@ -29,6 +29,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
 import dk.digitalidentity.rc.config.Constants;
+import dk.digitalidentity.rc.controller.rest.model.ManualEffectuationDTO;
 import dk.digitalidentity.rc.controller.rest.model.OUFilterDTO;
 import dk.digitalidentity.rc.dao.model.ItSystem;
 import dk.digitalidentity.rc.dao.model.KitosITSystem;
@@ -117,6 +118,7 @@ public class ItSystemRestController {
 			PendingADGroupOperation operation = new PendingADGroupOperation();
 			operation.setActive(false);
 			operation.setItSystemIdentifier(systemRole.getItSystem().getIdentifier());
+			operation.setItSystemId(systemRole.getItSystem().getId());
 			operation.setSystemRoleId(null);
 			operation.setSystemRoleIdentifier(systemRole.getIdentifier());
 			operation.setTimestamp(new Date());
@@ -544,6 +546,20 @@ public class ItSystemRestController {
 		return new ResponseEntity<>(HttpStatus.OK);
 	}
 
+	@PostMapping(value = "/rest/itsystem/manualeffectuation")
+	@RequirePermission(section = Section.IT_SYSTEM, permission = Permission.UPDATE)
+	public ResponseEntity<String> editItSystemManualEffectuation(@RequestBody ManualEffectuationDTO dto) {
+		ItSystem itSystem = itSystemService.getById(dto.getId());
+		if (itSystem == null || itSystem.getSystemType() != ItSystemType.MANUAL) {
+			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+		}
+
+		itSystem.setManualEffectuationEnabled(dto.isManualEffectuationEnabled());
+		itSystemService.save(itSystem);
+
+		return new ResponseEntity<>(HttpStatus.OK);
+	}
+
 	@PostMapping(value = "/rest/itsystem/requester")
 	@RequirePermission(section = Section.IT_SYSTEM, permission = Permission.UPDATE)
 	public ResponseEntity<String> requesterChange(@RequestParam("id") long id,
@@ -557,7 +573,7 @@ public class ItSystemRestController {
 			Arrays.asList(requesterPermissionsArray) : Collections.emptyList();
 
 		if (requesterPermissions.isEmpty()) {
-			itSystem.setRequesterPermission(List.of(RequestableBy.INHERIT));
+			itSystem.setRequesterPermission(List.of(RequestableBy.NONE));
 		} else {
 			List<RequestableBy> requestableBy = new ArrayList<>();
 			for (String requesterPermission : requesterPermissions) {
@@ -588,7 +604,8 @@ public class ItSystemRestController {
 			Arrays.asList(approverPermissionsArray) : Collections.emptyList();
 
 		if (approverPermissions.isEmpty()) {
-			itSystem.setApproverPermission(null);
+			// null round-trips through the converter as INHERIT after a reload; save the empty list directly
+			itSystem.setApproverPermission(List.of());
 		} else {
 			List<ApprovableBy> approvableBy = new ArrayList<>();
 			for (String approverPermission : approverPermissions) {

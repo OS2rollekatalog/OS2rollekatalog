@@ -52,12 +52,13 @@ public class RequestLogInterceptor {
 	 */
 	@Around("requestLoggableMethods(requestLoggable) && requestIdParameter(requestId)")
 	public void interceptParameterRequest(ProceedingJoinPoint joinPoint, RequestLoggable requestLoggable, Long requestId) throws Throwable {
-		//Get relevant request
 		RoleRequest request = rolerequestService.getRoleRequestById(requestId).orElse(null);
 		if (request == null) {
 			log.error("Did not log request. No request found with this id: {}", requestId);
 			throw new IllegalArgumentException("Request not found, could not log request");
 		}
+
+		joinPoint.proceed();
 
 		String details = switch (requestLoggable.logEvent()) {
 			case REQUEST, REMOVE -> request.getReason();
@@ -65,10 +66,6 @@ public class RequestLogInterceptor {
 			case null, default -> "";
 		};
 
-		//execute the intercepted method
-		joinPoint.proceed();
-
-		//Only logs if the intercepted method did not throw an exception
 		requestLogger.logRequest(requestLoggable.logEvent(), request, details);
 	}
 

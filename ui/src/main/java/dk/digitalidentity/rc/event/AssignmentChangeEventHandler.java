@@ -1,18 +1,13 @@
 package dk.digitalidentity.rc.event;
 
-import java.time.Instant;
-import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Set;
 
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
-import dk.digitalidentity.rc.dao.model.User;
-import dk.digitalidentity.simple_queue.BulkQueueMessage;
 import dk.digitalidentity.simple_queue.QueueMessage;
 import dk.digitalidentity.simple_queue.SimpleMessageHandler;
 import dk.digitalidentity.simple_queue.json.JsonSimpleMessage;
@@ -22,17 +17,11 @@ import jakarta.persistence.PersistenceContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-import static dk.digitalidentity.rc.event.UserAssignmentsChangedEventHandler.USER_ASSIGNMENTS_CHANGED_QUEUE_IDENTIFIER;
-
 @Slf4j
 @RequiredArgsConstructor
 @Component
 public class AssignmentChangeEventHandler implements SimpleMessageHandler {
-
-	private static final long QUEUE_PRIORITY = 1L;
-
 	private final AssignmentChangeEventHandlerService assignmentChangeEventHandlerService;
-	private final ApplicationEventPublisher eventPublisher;
 
 	@PersistenceContext
 	private EntityManager entityManager;
@@ -71,6 +60,7 @@ public class AssignmentChangeEventHandler implements SimpleMessageHandler {
 			log.warn("Received assignment update message with missing userUuid, skipping");
 			return true;
 		}
+		
 		assignmentChangeEventHandlerService.updateUsers(Set.of(message.getUserUuid()));
 		return true;
 	}
@@ -86,23 +76,7 @@ public class AssignmentChangeEventHandler implements SimpleMessageHandler {
 			userUuids.add(message.getUserUuid());
 		}
 
-		final List<User> changedUsers = assignmentChangeEventHandlerService.updateUsers(userUuids);
-		if (!changedUsers.isEmpty()) {
-			eventPublisher.publishEvent(BulkQueueMessage.builder()
-				.messages(changedUsers.stream()
-					.map(u -> QueueMessage.builder()
-						.queue(USER_ASSIGNMENTS_CHANGED_QUEUE_IDENTIFIER)
-						.messageId(u.getUuid())
-						.priority(QUEUE_PRIORITY)
-						.dequeueTime(Instant.now())
-						.body(JsonSimpleMessage.toJson(UpdateUserAssignmentsMessage.builder()
-							.userUuid(u.getUuid())
-							.timestamp(LocalDateTime.now())
-							.build()))
-						.build())
-					.toList())
-				.build());
-		}
+		assignmentChangeEventHandlerService.updateUsers(userUuids);
 		return true;
 	}
 

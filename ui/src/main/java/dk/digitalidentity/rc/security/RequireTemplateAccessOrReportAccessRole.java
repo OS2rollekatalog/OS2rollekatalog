@@ -7,6 +7,7 @@ import java.lang.annotation.RetentionPolicy;
 
 @Retention(RetentionPolicy.RUNTIME)
 @PreAuthorize("hasRole('ROLE_TEMPLATE_ACCESS') or hasRole('ROLE_REPORT_ACCESS')")
+@RequireRoleAnnotation
 public @interface RequireTemplateAccessOrReportAccessRole {
 
 }

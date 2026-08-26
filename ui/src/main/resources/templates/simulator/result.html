@@ -5,7 +5,7 @@
 	<div class="wrapper">
 		<header th:replace="~{fragments/navbar :: navbar-header}"></header>
 		<aside th:replace="~{fragments/navbar :: navbar-aside}"></aside>
- 
+
 		<section>
 			<div class="content-wrapper">
 				<h3>
@@ -45,12 +45,6 @@
 	<nav th:replace="~{fragments/footer :: footer}"></nav>
 	<div th:replace="~{fragments/codeMirror}"></div>
 
-	<script th:inline="javascript">
-		/*<![CDATA[*/
-		$(document).ready(function() {
-			$('[rel=popover]').popover();
-		});
-		/*]]>*/
-	</script>
+	<script th:src="@{/js/simulate/simulate.js}"></script>
 </body>
 </html>

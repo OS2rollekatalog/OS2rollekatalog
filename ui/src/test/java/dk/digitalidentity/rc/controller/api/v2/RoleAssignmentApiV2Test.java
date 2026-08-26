@@ -33,6 +33,7 @@ import static org.springframework.restdocs.headers.HeaderDocumentation.requestHe
 import static org.springframework.restdocs.mockmvc.MockMvcRestDocumentation.document;
 import static org.springframework.restdocs.mockmvc.RestDocumentationRequestBuilders.*;
 import static org.springframework.restdocs.operation.preprocess.Preprocessors.preprocessRequest;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.restdocs.operation.preprocess.Preprocessors.preprocessResponse;
 import static org.springframework.restdocs.operation.preprocess.Preprocessors.prettyPrint;
 import static org.springframework.restdocs.request.RequestDocumentation.parameterWithName;
@@ -161,7 +162,9 @@ public class RoleAssignmentApiV2Test extends AbstractApiTest {
 				.header("ApiKey", API_KEY)
 				.contentType(MediaType.APPLICATION_JSON)
 				.content(requestBody))
-			.andExpect(status().isNotFound());
+			.andExpect(status().isNotFound())
+			.andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+			.andExpect(jsonPath("$.status").value(404));
 	}
 
 	/**
@@ -188,7 +191,9 @@ public class RoleAssignmentApiV2Test extends AbstractApiTest {
 				.header("ApiKey", API_KEY)
 				.contentType(MediaType.APPLICATION_JSON)
 				.content(requestBody))
-			.andExpect(status().isNotFound());
+			.andExpect(status().isNotFound())
+			.andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+			.andExpect(jsonPath("$.status").value(404));
 	}
 
 	/**

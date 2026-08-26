@@ -80,7 +80,8 @@ public class SeleniumTest {
         }
     }
 
-    @Container
+    @SuppressWarnings({ "deprecation", "resource" })
+	@Container
     public BrowserWebDriverContainer<?> seleniumContainer =
             new BrowserWebDriverContainer<>()
                     .withNetwork(TestContainersConfiguration.NETWORK)
@@ -125,7 +126,8 @@ public class SeleniumTest {
                 .until(d -> d.getCurrentUrl().startsWith(url));
     }
 
-    private void initDriver() {
+    @SuppressWarnings("deprecation")
+	private void initDriver() {
         ChromeOptions options = new ChromeOptions();
         options.addArguments("window-size=1024,768");
         options.addArguments("--disable-dev-shm-usage");

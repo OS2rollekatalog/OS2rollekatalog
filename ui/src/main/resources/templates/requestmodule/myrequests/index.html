@@ -65,9 +65,9 @@
 													<td class="col-sm-2" th:text="#{${request.status}}"></td>
 													<td th:text="${request.approver}"></td>
 													<td style="width: 160px;">
-														<button th:if="${request.cancelable}" class="btn btn-danger"
-																th:text="#{requestmodule.html.cancelRequest}"
-																th:attr="onclick='requestService.onRequestCancel('+${request.id}+');'"></button>
+														<button th:if="${request.cancelable}" class="btn btn-danger js-cancel-request"
+																th:attr="data-request-id=${request.id}"
+																th:text="#{requestmodule.html.cancelRequest}"></button>
 													</td>
 												</tr>
 												</tbody>
@@ -86,25 +86,15 @@
 </div>
 
 <div th:replace="~{requestmodule/fragments/footer :: scripts(datatables = true)}"></div>
-<script th:src="@{/js/rolerequest/myrequests/myrequests.js}"></script>
-
-<script th:inline="javascript">
-	/*<![CDATA[*/
-	/*[+
-		const token = $("meta[name='_csrf']").attr("content");
-		const uiUrl = [[@{/ui/request/myrequests}]];
-		const restUrl = [[@{/rest/rolerequest}]];
-		let requestService, dataTableService
-	+]*/
-
-
-	$(document).ready(function(){
-		requestService = new RequestService()
-		dataTableService = new DataTableService()
-	});
-
-	/*]]>*/
+<script type="application/json" id="myrequests-config">
+	{
+		"uiUrl": "[[@{/ui/request/myrequests}]]",
+		"restUrl": "[[@{/rest/rolerequest}]]"
+	}
 </script>
+<script th:src="@{/js/service/SweetAlertService.js}"></script>
+<script th:src="@{/js/DatatableService.js}"></script>
+<script th:src="@{/js/rolerequest/myrequests/myrequests.js}"></script>
 
 </body>
 </html>

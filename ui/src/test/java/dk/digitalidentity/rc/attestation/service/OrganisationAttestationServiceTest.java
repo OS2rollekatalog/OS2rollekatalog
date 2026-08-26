@@ -22,6 +22,7 @@ import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.enums.EmailTemplateType;
 import dk.digitalidentity.rc.service.EmailQueueService;
 import dk.digitalidentity.rc.service.EmailTemplateService;
+import dk.digitalidentity.rc.service.ManagerDelegateService;
 import dk.digitalidentity.rc.service.ManagerSubstituteService;
 import dk.digitalidentity.rc.service.OrgUnitService;
 import dk.digitalidentity.rc.service.RoleGroupService;
@@ -57,7 +58,6 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -88,6 +88,9 @@ class OrganisationAttestationServiceTest {
 
 	@Mock
 	private ManagerSubstituteService managerSubstituteService;
+
+	@Mock
+	private ManagerDelegateService managerDelegateService;
 
 	@Mock
 	private UserService userService;
@@ -122,9 +125,6 @@ class OrganisationAttestationServiceTest {
 	@Mock
 	private RoleGroupService roleGroupService;
 
-	@Mock
-	private AttestationConstraintService attestationConstraintService;
-
 	@InjectMocks
 	private OrganisationAttestationService organisationAttestationService;
 
@@ -135,7 +135,6 @@ class OrganisationAttestationServiceTest {
 	void setUp() {
 		performingUser = createUser(PERFORMER_USER_UUID, PERFORMER_USER_ID, "Performing User", "performer@example.com");
 		summaryEmailTemplate = createDisabledEmailTemplate(EmailTemplateType.ATTESTATION_SUMMARY);
-		lenient().when(attestationConstraintService.translatePostponedConstraints(any())).thenAnswer(invocation -> invocation.getArgument(0));
 	}
 
 	@Nested
@@ -161,6 +160,8 @@ class OrganisationAttestationServiceTest {
 			// Arrange
 			Attestation attestation = createOrganisationAttestation(1L, "attestation-uuid", OU_UUID, "Test OU");
 			when(userService.getByUserId(PERFORMER_USER_ID)).thenReturn(performingUser);
+			when(orgUnitService.getByManagerMatchingUser(performingUser))
+					.thenReturn(List.of(createOrgUnit(OU_UUID, "Test OU")));
 			when(attestationDao.findFirstByAttestationTypeAndResponsibleOuUuidOrderByDeadlineDesc(
 					Attestation.AttestationType.ORGANISATION_ATTESTATION, OU_UUID))
 					.thenReturn(Optional.of(attestation));
@@ -215,6 +216,8 @@ class OrganisationAttestationServiceTest {
 			User targetUser = createUser(USER_UUID, "target-user-id", "Target User");
 
 			when(userService.getByUserId(PERFORMER_USER_ID)).thenReturn(performingUser);
+			when(orgUnitService.getByManagerMatchingUser(performingUser))
+					.thenReturn(List.of(createOrgUnit(OU_UUID, "Test OU")));
 			when(attestationDao.findFirstByAttestationTypeAndResponsibleOuUuidOrderByDeadlineDesc(
 					Attestation.AttestationType.ORGANISATION_ATTESTATION, OU_UUID))
 					.thenReturn(Optional.of(attestation));
@@ -248,6 +251,8 @@ class OrganisationAttestationServiceTest {
 			Attestation attestation = createOrganisationAttestation(1L, "attestation-uuid", OU_UUID, "Test OU");
 
 			when(userService.getByUserId(PERFORMER_USER_ID)).thenReturn(performingUser);
+			when(orgUnitService.getByManagerMatchingUser(performingUser))
+					.thenReturn(List.of(createOrgUnit(OU_UUID, "Test OU")));
 			when(attestationDao.findFirstByAttestationTypeAndResponsibleOuUuidOrderByDeadlineDesc(
 					Attestation.AttestationType.ORGANISATION_ATTESTATION, OU_UUID))
 					.thenReturn(Optional.of(attestation));
@@ -296,6 +301,8 @@ class OrganisationAttestationServiceTest {
 			User targetUser = createUser(USER_UUID, "target-user-id", "Target User");
 
 			when(userService.getByUserId(PERFORMER_USER_ID)).thenReturn(performingUser);
+			when(orgUnitService.getByManagerMatchingUser(performingUser))
+					.thenReturn(List.of(createOrgUnit(OU_UUID, "Test OU")));
 			when(attestationDao.findFirstByAttestationTypeAndResponsibleOuUuidOrderByDeadlineDesc(
 					Attestation.AttestationType.ORGANISATION_ATTESTATION, OU_UUID))
 					.thenReturn(Optional.of(attestation));
@@ -337,6 +344,8 @@ class OrganisationAttestationServiceTest {
 			Attestation attestation = createOrganisationAttestation(1L, "attestation-uuid", OU_UUID, "Test OU");
 
 			when(userService.getByUserId(PERFORMER_USER_ID)).thenReturn(performingUser);
+			when(orgUnitService.getByManagerMatchingUser(performingUser))
+					.thenReturn(List.of(createOrgUnit(OU_UUID, "Test OU")));
 			when(attestationDao.findFirstByAttestationTypeAndResponsibleOuUuidOrderByDeadlineDesc(
 					Attestation.AttestationType.ORGANISATION_ATTESTATION, OU_UUID))
 					.thenReturn(Optional.of(attestation));
@@ -373,6 +382,8 @@ class OrganisationAttestationServiceTest {
 			attestation.setOrganisationRolesAttestationEntry(existingEntry);
 
 			when(userService.getByUserId(PERFORMER_USER_ID)).thenReturn(performingUser);
+			when(orgUnitService.getByManagerMatchingUser(performingUser))
+					.thenReturn(List.of(createOrgUnit(OU_UUID, "Test OU")));
 			when(attestationDao.findFirstByAttestationTypeAndResponsibleOuUuidOrderByDeadlineDesc(
 					Attestation.AttestationType.ORGANISATION_ATTESTATION, OU_UUID))
 					.thenReturn(Optional.of(attestation));
@@ -398,6 +409,7 @@ class OrganisationAttestationServiceTest {
 			OrgUnit orgUnit = createOrgUnit(OU_UUID, "Test OU");
 
 			when(userService.getByUserId(PERFORMER_USER_ID)).thenReturn(performingUser);
+			when(orgUnitService.getByManagerMatchingUser(performingUser)).thenReturn(List.of(orgUnit));
 			when(attestationDao.findFirstByAttestationTypeAndResponsibleOuUuidOrderByDeadlineDesc(
 					Attestation.AttestationType.ORGANISATION_ATTESTATION, OU_UUID))
 					.thenReturn(Optional.of(attestation));
@@ -683,7 +695,7 @@ class OrganisationAttestationServiceTest {
 
 			// ---- When ---- //
 			var result = organisationAttestationService.buildUserAttestations(
-				List.of(inheritedFromParentOu()), attestation, false, when);
+				List.of(inheritedFromParentOu()), attestation, false, when, null);
 
 			// ---- Then ---- //
 			assertEquals(1, result.size());
@@ -712,7 +724,7 @@ class OrganisationAttestationServiceTest {
 
 			// ---- When ---- //
 			var result = organisationAttestationService.buildUserAttestations(
-				List.of(inheritedFromParentOu()), attestation, false, when);
+				List.of(inheritedFromParentOu()), attestation, false, when, null);
 
 			// ---- Then ---- //
 			assertEquals("Test Position", result.get(0).getPosition());
@@ -735,7 +747,7 @@ class OrganisationAttestationServiceTest {
 
 			// ---- When ---- //
 			var result = organisationAttestationService.buildUserAttestations(
-				List.of(inheritedFromParentOu()), attestation, false, when);
+				List.of(inheritedFromParentOu()), attestation, false, when, null);
 
 			// ---- Then ---- //
 			assertEquals("Test Position (Other OU)", result.get(0).getPosition());
@@ -766,7 +778,7 @@ class OrganisationAttestationServiceTest {
 				.thenReturn(Collections.emptyList());
 
 			// ---- When ---- //
-			var result = organisationAttestationService.buildUserAttestations(List.of(direct), attestation, false, when);
+			var result = organisationAttestationService.buildUserAttestations(List.of(direct), attestation, false, when, null);
 
 			// ---- Then ---- //
 			assertEquals(1, result.size());
@@ -801,7 +813,7 @@ class OrganisationAttestationServiceTest {
 
 			// ---- When ---- //
 			var result = organisationAttestationService.buildUserAttestations(
-				List.of(inheritedFromParentOu()), attestation, false, when);
+				List.of(inheritedFromParentOu()), attestation, false, when, null);
 
 			// ---- Then ---- //
 			assertEquals(1, result.size());

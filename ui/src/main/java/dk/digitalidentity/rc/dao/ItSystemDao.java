@@ -36,6 +36,7 @@ public interface ItSystemDao extends CrudRepository<ItSystem, Long> {
 	List<ItSystem> findByDeletedTrue();
 	List<ItSystem> findByAttestationResponsibles_User(User user);
 	List<ItSystem> findByAttestationResponsibles_UserOrSystemOwners_User(User attestationUser, User systemOwnerUser);
+	List<ItSystem> findBySystemOwners_User(User user);
 	List<ItSystem> findByKitosITSystemNotNull();
 
 	List<ItSystem> findByIdInAndDeletedFalse(Collection<Long> ids);

@@ -73,142 +73,16 @@
 </th:block>
 
 <th:block th:fragment="userRoleGroupModalScript" xmlns="http://www.w3.org/1999/xhtml" xmlns:th="http://www.thymeleaf.org">
-	<script th:inline="javascript" type="text/javascript">
-		/*<![CDATA[*/
-
-		var roleGroupModalService;
-		var modalRGAjaxService;
-
-		$(document).ready(function() {
-			roleGroupModalService = new RoleGroupModalService();
-
-    		/*[+
-    		roleGroupModalService.usersUrl = [[@{/rest/users/}]];
-			roleGroupModalService.fieldUpdatedMsg = [[#{html.entity.rolegroup.updatedmsg}]];
-			roleGroupModalService.fieldNotUpdatedMsg = [[#{html.entity.rolegroup.failedupdatemsg}]];
-			roleGroupModalService.page = [[#{page}]];
-    		+]*/
-
-    		modalRGAjaxService = new ModalRGAjaxService();
-			roleGroupModalService.init();
-		});
-
-		function RoleGroupModalService() {
-			this.init = function(){
-				var modalGroups = $("#modal-groups");
-
-				$('.assign_group').click(roleGroupModalService.assignGroupClicked);
-	    		$('.assign_group_directly').click(roleGroupModalService.assignGroupDirectlyClicked);
-	    		$('#closeRoleGroupModal').click(roleGroupModalService.closeModal);
-
-	    		modalGroups.on('shown.bs.modal', function() {
-	    			$("#assignDirectlyRGBtn").focus();
-	    		});
-			}
-
-			this.closeModal = function() {
-				var modal = $("#modal-groups");
-				modal.modal('hide');
-			}
-
-			this.assignGroupDirectlyClicked = function() {
-				var modalGroups = $("#modal-groups");
-				var roleid = modalGroups.attr("rolegroupid");
-				var userUuid = modalGroups.attr("userUuid");
-
-				var startDate = $('#groupStartDatePicker').data('date');
-				var stopDate = $('#groupStopDatePicker').data('date');
-				var dates = "?startDate=" + startDate + "&stopDate=" + stopDate;
-
-				var caseNumberUrlPart = "";
-				if (caseNumberEnabled) {
-					caseNumberUrlPart = '&casenumber=' + $("#addRoleGroupCaseNumber").val();
-				}
-
-				$.ajax({
-	    			   url: roleGroupModalService.usersUrl + userUuid + '/addgroup/' + roleid + dates + '&ouuuid=' + $("#addRoleOUSelect").val() + caseNumberUrlPart,
-	    			   contentType: 'application/json',
-	    			   headers: {
-	    			      'X-CSRF-TOKEN': token
-	    			   },
-	    			   type: 'post',
-	    			   success: function(response) {
-	    				   modalRGAjaxService.showInfoNotification(roleGroupModalService.fieldUpdatedMsg);
-	    				   rolesService.loadAddRoleGroupFragmentWhenReady();
-	    			   },
-	    			   error: errorHandler(roleGroupModalService.fieldNotUpdatedMsg)
-	    		});
-
-				modalGroups.modal('hide');
-			}
-
-			this.assignGroupClicked = function() {
-				var modalGroups = $("#modal-groups");
-				var positionUuid = $(this).val();
-				var roleid = modalGroups.attr("rolegroupid");
-				var userUuid = modalGroups.attr("userUuid");
-
-				var startDate = $('#groupStartDatePicker').data('date');
-				var stopDate = $('#groupStopDatePicker').data('date');
-				var dates = "?startDate=" + startDate + "&stopDate=" + stopDate;
-
-				$.ajax({
-	    			   url: roleGroupModalService.usersUrl + 'position/' + positionUuid + '/addgroup/' + roleid + dates,
-	    			   contentType: 'application/json',
-	    			   headers: {
-	    			      'X-CSRF-TOKEN': token
-	    			   },
-	    			   type: 'post',
-	    			   success: function(response) {
-	    				   modalRGAjaxService.showInfoNotification(roleGroupModalService.fieldUpdatedMsg);
-	    				   rolesService.loadAddRoleGroupFragmentWhenReady();
-	    			   },
-	    			   error: errorHandler(roleGroupModalService.fieldNotUpdatedMsg)
-	    		});
-
-				modalGroups.modal('hide');
-			}
+	<script type="application/json" th:inline="javascript" id="role-group-modal-config">
+		{
+			"usersUrl": [[@{/rest/users/}]],
+			"fieldUpdatedMsg": [[#{html.entity.rolegroup.updatedmsg}]],
+			"fieldNotUpdatedMsg": [[#{html.entity.rolegroup.failedupdatemsg}]],
+			"caseNumberEnabled": [[${caseNumberEnabled}]],
+			"page": [[#{page}]]
 		}
-
-		// TODO: move these into a utility js file (exists in edit.html for users/orgunits)
-		function ModalRGAjaxService() {
-
-	        this.getAjaxObject = function(urL, okMsg, errorMsg) {
-	    		return {
-	    			url: urL,
-					method: "POST",
-					headers: {
-						'X-CSRF-TOKEN': token
-					},
-	    			error: function(response) {
-						var msg = (response.responseText != null && response.responseText.length > 0) ? response.responseText : errorMsg;
-						modalRGAjaxService.showErrorNotification(msg);
-	    			},
-	    			success: function(response) {
-	    				modalRGAjaxService.showInfoNotification(okMsg);
-	    			}
-	    		};
-	    	}
-
-
-	        this.showInfoNotification = function(message) {
-				$.notify({
-					message: message,
-					status: 'success',
-					timeout: 2000
-				});
-			}
-
-			this.showErrorNotification = function(message) {
-				$.notify({
-					message: message,
-					status: 'danger',
-					timeout: 4000
-				});
-			}
-		}
-
-		/*]]>*/
-
 	</script>
+	<script th:src="@{/js/service/ModalAjaxService.js}"></script>
+	<script th:src="@{/js/users/service/RoleGroupModalService.js}"></script>
+	<script th:src="@{/js/users/fragments/userRoleGroupModalInit.js}"></script>
 </th:block>

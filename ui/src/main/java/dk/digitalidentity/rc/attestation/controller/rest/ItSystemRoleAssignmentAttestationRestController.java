@@ -2,6 +2,7 @@ package dk.digitalidentity.rc.attestation.controller.rest;
 
 import dk.digitalidentity.rc.attestation.model.dto.RoleAssignmentDTO;
 import dk.digitalidentity.rc.attestation.service.ItSystemUsersAttestationService;
+import dk.digitalidentity.rc.security.RequireItSystemResponsibleOrAttestationAdminRole;
 import dk.digitalidentity.rc.security.SecurityUtil;
 import io.micrometer.core.annotation.Timed;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -14,6 +15,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 
+@RequireItSystemResponsibleOrAttestationAdminRole
 @RestController
 public class ItSystemRoleAssignmentAttestationRestController {
 	@Autowired

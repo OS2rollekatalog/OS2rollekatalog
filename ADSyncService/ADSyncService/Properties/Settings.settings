@@ -29,6 +29,9 @@
     <Setting Name="CreateDeleteFeature_OU" Type="System.String" Scope="Application">
       <Value Profile="(Default)">OU=groups,DC=digitalidentity,DC=dk</Value>
     </Setting>
+    <Setting Name="CreateDeleteFeature_UseBackSyncOU" Type="System.Boolean" Scope="Application">
+      <Value Profile="(Default)">False</Value>
+    </Setting>
     <Setting Name="MembershipSyncFeature_Enabled" Type="System.Boolean" Scope="Application">
       <Value Profile="(Default)">True</Value>
     </Setting>

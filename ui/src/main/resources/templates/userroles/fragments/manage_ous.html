@@ -1,6 +1,6 @@
 <th:block th:fragment="ous" xmlns="http://www.w3.org/1999/xhtml" xmlns:th="http://www.thymeleaf.org">
 	<th:block th:if="${assignmentAddingAllowed == true}">
-		<a href="#" id="addUserRoleAssignment" class="btn btn-lg btn-primary" style="width:auto;" th:text="#{html.page.role.add.orgunit}" onclick="orgUnitService.loadAddUserRoleFragment()"></a>
+		<a href="#" id="addUserRoleAssignment" class="btn btn-lg btn-primary js-add-ou-role" style="width:auto;" th:text="#{html.page.role.add.orgunit}"></a>
 	</th:block>
 
 	<table id="listTableOus" class="table table-striped table-hover listTable">
@@ -47,12 +47,12 @@
 				<a
 					href="#"
 					th:if="${mapping.assignment.canEdit}"
-					onclick="orgUnitService.editRoleAssignment(this)">
+					class="js-edit-ou-assignment">
 					<em class="fa fa-pencil"></em></a>
 				<a
 					href="#"
 					th:if="${mapping.assignment.canEdit}"
-					onclick="orgUnitService.deleteRoleAssignment(this)">
+					class="js-delete-ou-assignment">
 					<em class="fa fa-times"></em>
 				</a>
 			</td>

@@ -19,7 +19,9 @@ public class RoleRequestSettingsDTO {
 	private List<ApprovableBy> approvableByList;
 	private List<RequestableBy> requestableByList;
 	private Set<RequestConstraintDTO> constraints = new HashSet<>();
-	private boolean onlyRecommendRoles;
+	private boolean showRecommendedRolesTab;
+	private boolean showAllRolesTab;
+	private boolean showExistingRolesTab;
 	private Map<ApprovableBy, String> alternativeEmails;
 	private boolean showSingleTableInRequestApproveEnabled;
 	private boolean allowSelfApproval;

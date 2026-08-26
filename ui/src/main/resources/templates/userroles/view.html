@@ -52,8 +52,7 @@
                                 <label class="col-sm-2 control-label"
                                        th:text="#{html.entity.userrole.description}"></label>
                                 <div class="col-sm-8">
-                                    <textarea th:field="*{description}" class="form-control"
-                                              disabled="disabled"></textarea>
+                                    <div class="form-control preformat preformat-display" th:text="*{description}"></div>
                                 </div>
                             </div>
                         </fieldset>
@@ -303,7 +302,7 @@
                                     <tbody>
                                     <tr th:each="rolegroup : *{roleGroups}">
                                         <td th:text="${rolegroup.name}"></td>
-                                        <td th:utext="${rolegroup.description}"></td>
+                                        <td class="preformat" th:text="${rolegroup.description}"></td>
                                     </tr>
                                     </tbody>
                                 </table>
@@ -322,21 +321,8 @@
     </section>
 </div>
 
-<style>
-    .table .checkbox {
-        margin-left: 10px;
-        width: auto;
-    }
-
-    .nav.nav-tabs > li.disabled {
-        pointer-events: none;
-
-        a {
-            color: silver;
-        }
-    }
-
-</style>
+<link rel="stylesheet" th:href="@{/css/userroles/view.css}" />
+<link rel="stylesheet" th:href="@{/css/bulk-assign-roles.css}" />
 
 <div id="userUserRoleModal"></div>
 <div id="ouUserRoleModal"></div>
@@ -344,6 +330,10 @@
 <div th:replace="~{users/fragments/postponed_constraint_kle_modal :: postponedConstraintsKLEModal}"></div>
 <div th:replace="~{users/fragments/user_user_role_modal :: userUserRoleModal}"></div>
 <div th:replace="~{users/fragments/role_assignment_edit_modal :: roleAssignmentEditModal}"></div>
+<div th:replace="~{users/fragments/bulk_assign_user_role_modal :: bulkAssignUserRoleModal}"></div>
+<div th:replace="~{users/fragments/bulk_assign_user_role_users_modal :: bulkAssignUserRoleUsersModal}"></div>
+<div th:replace="~{users/fragments/bulk_assign_user_role_orgunits_modal :: bulkAssignUserRoleOrgUnitsModal}"></div>
+<div th:replace="~{users/fragments/bulk_assign_user_role_constraints_modal :: bulkAssignUserRoleConstraintsModal}"></div>
 <nav th:replace="~{fragments/footer :: footer}"></nav>
 
 <script th:replace="~{fragments/datatables :: datatables}"></script>
@@ -352,364 +342,37 @@
 <script th:replace="~{users/fragments/user_user_role_modal :: userUserRoleModalScript(page='userrole')}"></script>
 <script th:replace="~{ous/fragments/ou_roles_modal :: ouRolesModalScript(titlesEnabled=${titlesEnabled})}"></script>
 <script th:replace="~{users/fragments/assign_user_role_postponed_data_constraints :: postponedConstraintsScript}"></script>
+<script th:replace="~{users/fragments/bulk_assign_user_role_modal :: bulkAssignUserRoleModalScript}"></script>
 <script th:src="@{/js/DatatableService.js}"></script>
 
-<script th:inline="javascript">
-    /*<![CDATA[*/
-
-    /*[+
-        var UIUrl = [[@{/ui/userroles/}]];
-        var baseUrl = [[@{/}]];
-        var restUrl = [[@{/rest/userroles/}]];
-        var userRestUrl = [[@{/rest/users/}]];
-        var ouRestUrl = [[@{/rest/ous/}]];
-        var roleId = [[${role.id}]];
-
-        //Delete role assignment swal
-        var deleteRoleAssignmentTitleTxt = [[#{html.page.manage.roles.delete.title}]];
-        var deleteRoleAssignmentBodyTxt = [[#{html.page.manage.roles.delete.body}]];
-        var deleteRoleAssignmentErrorMessage = [[#{html.page.manage.roles.delete.error}]];
-
-        var deleteAssignmentConfirmTxt = [[#{html.control.button.yes}]];
-        var deleteAssignmentCancelTxt = [[#{html.control.button.cancel}]];
-
-        var txtQueueSpinner = [[#{html.common.queue.spinner.working}]];
-
-        var titlesEnabled = [[${titlesEnabled}]];
-        var roleName = [[${role.name}]];
-
-        var infoMessage = [[${infoMessage}]];
-        var errorMessage = [[${errorMessage}]];
-
-        var deleteRoleAssignmentSuccessMessage = [[#{html.page.manage.roles.delete.success}]];
-    +]*/
-
-    var token = $("meta[name='_csrf']").attr("content");
-    var userService = new UserService();
-    var orgUnitService = new OrgUnitService();
-    var notificationService = new NotificationService();
-    var modal = $("#modal-positions");
-
-    $("document").ready(function() {
-        userService.loadRolesFragment();
-        userRoleModalService.parentService = userService;
-        userRoleEditModalService.parentService = userService;
-
-        orgUnitService.loadRolesFragment();
-
-        if (infoMessage != null) {
-            notificationService.showInfoNotification(infoMessage);
-        }
-
-        if (errorMessage != null) {
-            notificationService.showErrorNotification(errorMessage);
-        }
-
-        $('#emailTemplateMessage').summernote({
-            "height": 320,
-            "toolbar": [],
-            maximumImageFileSize: 100*1024, // 100 KB
-            callbacks: {
-                onImageUploadError: function(msg) {
-                    swal({
-                        title: swalImageTitle,
-                        text: swalImageText,
-                        confirmButtonColor : "#4765a0",
-                        confirmButtonText : swalImageOk
-                    });
-                }
-            },
-            dialogsInBody: true
-        });
-
-        $('#emailTemplateMessage').summernote('disable');
-
-		$("#requesterSettingsSelect, #approverSettingsSelect").select2({
-			placeholder: "",
-			allowClear: false,
-			multiple: true
-		});
-    });
-
-    function UserService() {
-        this.loadRolesFragment = function () {
-            new QueueDrainService('#users_menu', { message: txtQueueSpinner }).watch(function () {
-                $("#users_menu").load(UIUrl + roleId + "/assignedUsersFragment?showEdit=true", function () {
-                    fragShowDataTableFun('#listTableUsers', 0);
-                });
-            });
-        }
-
-        // Alias used by the shared user_user_role_modal after a role is added.
-        this.loadRolesFragmentWhenReady = this.loadRolesFragment;
-
-        this.loadAddUserRoleFragment = function () {
-            $("#users_menu").load(UIUrl + roleId + "/availableUsersFragment", function () {
-                const columnDefOptions = [
-                    {
-                        targets: [0],
-                        data: 'name',
-                        render: (data, type, row, meta) => {
-                            if (type === 'display') {
-                                let html = '<div>'
-                                html += '<div>'
-                                html += `<span>${data}</span>`
-                                html += row.disabled ? `<span class="badge badge-warning">Deaktiveret</span>` : ''
-                                html += '</div>'
-                                html += row.isAlreadyAssigned ? `<div style="font-size: smaller; color: red;">Tildelt</div>` : ''
-                                html += '</div>'
-                                return html
-                            } else { return data; }
-                        }
-                    },
-                    {
-                        targets: [1],
-                        data: 'userId',
-                    },
-                    {
-                        targets: [2],
-                        data: 'positions',
-                        render: (data, type, row, meta) => {
-                            let html = '<ul style="list-style: none;">'
-                            for (const position of data) {
-                                html += `<li>${position.name} i ${position.orgUnit.name}</li>`
-                            }
-                            html += '</ul>'
-                            return html
-                        },
-                    },
-                    {
-                        targets: [3],
-                        data: 'uuid',
-                        orderable: false,
-                        searchable:false,
-                        sortable:false,
-                        render: (data, type, row, meta) => {
-                            return data ? `<a href="#"onclick="userService.addUserRoleByUuid('${data}')"><em class="fa fa-plus"></em></a>` : null;
-                        },
-                    }
-                ]
-
-                const table = new DatatableService().initDefaultServersideTable('#listTableUsersAdd', `${userRestUrl}available/${roleId}`, columnDefOptions)
-
-                //focus the search field
-                const searchInput = table.table().container().querySelector('.dataTables_filter input')
-                searchInput.focus()
-            });
-        }
-
-        // Alias used by the shared user_user_role_modal after a role is added.
-        this.loadAddUserRoleFragmentWhenReady = this.loadAddUserRoleFragment;
-
-        this.deleteRoleAssignment = function(elem) {
-            var parent = elem.parentElement;
-            var assignmentId = parent.dataset.assignmentid;
-            var user = parent.dataset.user;
-            var type = parent.dataset.type;
-            var roleName = parent.dataset.name;
-
-            var endpoint = userRestUrl + user + '/removeassignment/USERROLE/DIRECT/' + assignmentId;
-
-            var titleTxt = deleteRoleAssignmentTitleTxt + '"' + roleName + '"';
-            var bodyTxt = deleteRoleAssignmentBodyTxt;
-
-            swal({
-                html: true,
-                title : titleTxt,
-                text : bodyTxt,
-                type : "warning",
-                showCancelButton : true,
-                confirmButtonColor : "#DD6B55",
-                confirmButtonText : deleteAssignmentConfirmTxt,
-                cancelButtonText : deleteAssignmentCancelTxt,
-                closeOnConfirm : true,
-                closeOnCancel : true
-            },
-            function (isConfirm) {
-                if (isConfirm) {
-                    $.ajax({
-                        url: endpoint,
-                        method: "POST",
-                        headers: {
-                            'X-CSRF-TOKEN': token
-                        },
-                        error: errorHandler(deleteRoleAssignmentErrorMessage),
-                        success: function(response) {
-                            userService.loadRolesFragment();
-
-                            notificationService.showInfoNotification(deleteRoleAssignmentSuccessMessage);
-                        }
-                    });
-                }
-            });
-        }
-
-        this.editRoleAssignment = function (elem) {
-            let parent = elem.parentElement;
-            let assignmentId = parent.dataset.assignmentid;
-            let startDate = parent.dataset.startdate;
-            let stopDate = parent.dataset.stopdate;
-            let user = parent.dataset.user;
-            let caseNumber = parent.dataset.casenumber;
-            let type = 'USERROLE';
-            let orgUnit = parent.dataset.ouuuid;
-            let roleName = parent.dataset.name;
-
-            // fetch possible orgUnits and call service
-            $.ajax({
-                method: "GET",
-                url: userRestUrl + user + "/orgunits",
-                success: function (response) {
-                    userRoleEditModalService.showModal(user, startDate, stopDate, type, assignmentId, 'DIRECT', orgUnit, response, caseNumber, roleName);
-                    userRoleEditModalService.loadPostponedConstraintsFragment(assignmentId, type, user);
-                },
-                error: defaultErrorHandler
-            });
-        }
-
-        this.addUserRoleByUuid = function (uuid) {
-            var user = uuid;
-            $("#userUserRoleModal").load(UIUrl + "fragments/" + user, function(){
-                var modal = $("#modal-positions");
-                datePickerService.init();
-                userRoleModalService.init();
-                userRoleModalService.parentService = userService;
-
-                modal.modal({
-                    backdrop: 'static',
-                    keyboard: false
-                });
-
-                userRoleModalService.loadPostponedConstraintsFragment(roleId);
-                $('#stopDatePicker').data("DateTimePicker").clear();
-                $('#startDatePicker').data("DateTimePicker").clear();
-                $('#startDatePicker').data("DateTimePicker").date(new Date());
-                $("#assignUserRoleName").text(roleName);
-
-                modal.attr("roleid", roleId);
-                modal.attr("userUuid", user);
-            });
-        }
-    }
-
-    function OrgUnitService() {
-        this.loadRolesFragment = function () {
-            $("#ous_menu").load(UIUrl + roleId + "/assignedOrgUnitsFragment?showEdit=true", function () {
-                fragShowDataTableFun('#listTableOus', 0);
-            });
-        }
-
-        this.loadAddUserRoleFragment = function () {
-            $("#ous_menu").load(UIUrl + roleId + "/availableOrgUnitsFragment", function () {
-                fragShowDataTableFun('#listTableOusAdd', 0);
-            });
-        }
-
-        this.deleteRoleAssignment = function(elem) {
-            var parent = elem.parentElement;
-            var assignmentId = parent.dataset.assignmentid;
-            var type = parent.dataset.type;
-            var ou = parent.dataset.orgunit;
-            var roleName = parent.dataset.name;
-
-            var endpoint = ouRestUrl + ou + '/removeassignment/USERROLE/' + assignmentId;
-
-            var titleTxt = deleteRoleAssignmentTitleTxt + '"' + roleName + '"';
-            var bodyTxt = deleteRoleAssignmentBodyTxt;
-
-            swal({
-                html: true,
-                title : titleTxt,
-                text : bodyTxt,
-                type : "warning",
-                showCancelButton : true,
-                confirmButtonColor : "#DD6B55",
-                confirmButtonText : deleteAssignmentConfirmTxt,
-                cancelButtonText : deleteAssignmentCancelTxt,
-                closeOnConfirm : true,
-                closeOnCancel : true
-            },
-            function (isConfirm) {
-                if (isConfirm) {
-                    $.ajax({
-                        url: endpoint,
-                        method: "POST",
-                        headers: {
-                            'X-CSRF-TOKEN': token
-                        },
-                        error: errorHandler(deleteRoleAssignmentErrorMessage),
-                        success: function(response) {
-                            orgUnitService.loadRolesFragment();
-
-                            notificationService.showInfoNotification(deleteRoleAssignmentSuccessMessage);
-                        }
-                    });
-                }
-            });
-        }
-
-        this.editRoleAssignment = function (elem) {
-            var parent = elem.parentElement;
-            var startDate = parent.dataset.startdate;
-            var stopDate = parent.dataset.stopdate;
-            var assignmentType = parent.dataset.assignmenttype;
-            var assignmentId = parent.dataset.assignmentid;
-            var ou = parent.dataset.orgunit;
-
-            $("#ouUserRoleEditModal").load(UIUrl + "fragments/ou/" + ou + "?edit=true", function() {
-                datePickerService.init();
-                commonService.init();
-
-                ouRolesEditModalService.assignmentId = assignmentId;
-                ouRolesEditModalService.ouUuid = ou;
-                ouRolesEditModalService.inherit = (assignmentType == -2);
-                ouRolesEditModalService.roleType = 'role'; // UserRole
-                ouRolesEditModalService.roleId = roleId;
-
-                ouRolesEditModalService.showAssignModal(titlesEnabled, startDate, stopDate, assignmentType, assignmentId, roleName);
-            });
-        }
-
-        this.addRoleAssignment = function (elem) {
-            ouRolesModalService.roleType = 'role';
-            ouRolesModalService.roleId = roleId;
-            ouRolesModalService.ouUuid = elem.dataset.orgunit;
-
-            $("#ouUserRoleModal").load(UIUrl + "fragments/ou/" + ouRolesModalService.ouUuid, function() {
-                datePickerService.init();
-                commonService.init();
-
-                ouRolesModalService.showAssignModal(titlesEnabled, null, null, roleName);
-            });
-        }
-    }
-
-    function NotificationService() {
-        this.showInfoNotification = function(message) {
-            $.notify({
-                message: message,
-                status: 'success',
-                timeout: 2000
-            });
-        }
-
-        this.showWarnNotification = function(message) {
-            $.notify({
-                message: message,
-                status: 'warning',
-                timeout: 3000
-            });
-        }
-
-        this.showErrorNotification = function(message) {
-            $.notify({
-                message: message,
-                status: 'danger',
-                timeout: 4000
-            });
-        }
-    }
-    /*]]>*/
+<script type="application/json" th:inline="javascript" id="userrole-view-config">
+	{
+		"uiUrl": [[@{/ui/userroles/}]],
+		"baseUrl": [[@{/}]],
+		"restUrl": [[@{/rest/userroles/}]],
+		"userRestUrl": [[@{/rest/users/}]],
+		"ouRestUrl": [[@{/rest/ous/}]],
+		"roleId": [[${role.id}]],
+		"roleName": [[${role.name}]],
+		"deleteRoleAssignmentTitleTxt": [[#{html.page.manage.roles.delete.title}]],
+		"deleteRoleAssignmentBodyTxt": [[#{html.page.manage.roles.delete.body}]],
+		"deleteRoleAssignmentErrorMessage": [[#{html.page.manage.roles.delete.error}]],
+		"deleteRoleAssignmentSuccessMessage": [[#{html.page.manage.roles.delete.success}]],
+		"deleteAssignmentConfirmTxt": [[#{html.control.button.yes}]],
+		"deleteAssignmentCancelTxt": [[#{html.control.button.cancel}]],
+		"txtQueueSpinner": [[#{html.common.queue.spinner.working}]],
+		"titlesEnabled": [[${titlesEnabled}]],
+		"infoMessage": [[${infoMessage}]],
+		"errorMessage": [[${errorMessage}]],
+		"swalImageOk": [[#{html.button.ok}]],
+		"swalImageTitle": [[#{html.page.email_template.swal.image.title}]],
+		"swalImageText": [[#{html.page.email_template.swal.image.text}]]
+	}
 </script>
+<script th:src="@{/js/service/SweetAlertService.js}"></script>
+<script th:src="@{/js/service/Select2Service.js}"></script>
+<script th:src="@{/js/service/NotificationService.js}"></script>
+<script th:src="@{/js/userroles/view.js}"></script>
+
 </body>
 </html>

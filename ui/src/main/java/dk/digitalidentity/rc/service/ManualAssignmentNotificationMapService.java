@@ -5,6 +5,7 @@ import dk.digitalidentity.rc.dao.model.ManualAssignmentNotificationMap;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Set;
 
@@ -19,6 +20,10 @@ public class ManualAssignmentNotificationMapService {
 
 	public List<ManualAssignmentNotificationMap> getForUser(long domainId, String userUserId) {
 		return manualAssignmentNotificationMapDao.findByDomainIdAndUserUserId(domainId, userUserId);
+	}
+
+	public List<ManualAssignmentNotificationMap> getForUsers(Collection<Long> domainIds, Collection<String> userIds) {
+		return manualAssignmentNotificationMapDao.findByDomainIdInAndUserUserIdIn(domainIds, userIds);
 	}
 
 	public ManualAssignmentNotificationMap save(ManualAssignmentNotificationMap map) {

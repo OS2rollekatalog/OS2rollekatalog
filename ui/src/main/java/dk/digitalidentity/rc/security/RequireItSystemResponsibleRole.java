@@ -7,6 +7,7 @@ import java.lang.annotation.RetentionPolicy;
 
 @Retention(RetentionPolicy.RUNTIME)
 @PreAuthorize("hasRole('ROLE_IT_SYSTEM_RESPONSIBLE')")
+@RequireRoleAnnotation
 public @interface RequireItSystemResponsibleRole {
 
 }

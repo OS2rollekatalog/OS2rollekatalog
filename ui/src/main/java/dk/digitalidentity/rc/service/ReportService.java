@@ -4,6 +4,7 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
@@ -19,7 +20,7 @@ import dk.digitalidentity.rc.dao.model.assignment.HistoricAssignment;
 import dk.digitalidentity.rc.dao.model.assignment.HistoricExceptedAssignment;
 import dk.digitalidentity.rc.service.assignment.HistoricAssignmentService;
 import dk.digitalidentity.rc.service.assignment.HistoricExceptedAssignmentService;
-import dk.digitalidentity.rc.util.PostponedConstraintsFormatter;
+import dk.digitalidentity.rc.service.model.AssignedThrough;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -28,13 +29,14 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import dk.digitalidentity.rc.attestation.service.temporal.TemporalDao;
+import dk.digitalidentity.rc.controller.mvc.viewmodel.OuRoleAssignmentReportRow;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.ReportForm;
 import dk.digitalidentity.rc.dao.history.model.GenericRoleAssignment;
 import dk.digitalidentity.rc.dao.history.model.HistoryItSystem;
 import dk.digitalidentity.rc.dao.history.model.HistoryKleAssignment;
 import dk.digitalidentity.rc.dao.history.model.HistoryOU;
 import dk.digitalidentity.rc.dao.history.model.HistoryOUKleAssignment;
-import dk.digitalidentity.rc.dao.history.model.HistoryOURoleAssignment;
 import dk.digitalidentity.rc.dao.history.model.HistoryOUUser;
 import dk.digitalidentity.rc.dao.history.model.HistorySystemRole;
 import dk.digitalidentity.rc.dao.history.model.HistoryTitle;
@@ -68,6 +70,12 @@ public class ReportService {
 	@Autowired
 	private HistoricExceptedAssignmentService historicExceptedAssignmentService;
 
+	@Autowired
+	private TemporalDao temporalDao;
+
+	@Autowired
+	private OuRoleAssignmentReportMapper ouRoleAssignmentReportMapper;
+
 	@PersistenceContext
 	private EntityManager entityManager;
 
@@ -76,6 +84,11 @@ public class ReportService {
 	@org.springframework.context.annotation.Lazy
 	private ReportService self;
 
+	private record HistoricUserRoleAssignmentKey(
+		String userUuid, Long userRoleId, AssignedThrough assignedThroughType,
+		String assignedThroughOUUuid, String assignedThroughTitleUuid, Long assignedThroughRoleGroupId,
+		LocalDate startDate, LocalDate stopDate) {}
+
 	/**
 	 * Streams user-role assignment report entries directly from the database, applying all filters inline.
 	 * Avoids materialising the full assignment list in memory.
@@ -83,7 +96,8 @@ public class ReportService {
 	 * @param queryDate       Date used for the DB query (capped at today)
 	 * @param displayDate     Date used for start/stop-date filtering
 	 * @param allowedUserUuids If non-null, only assignments for these user UUIDs are included (OU filter)
-	 * @param allowedOuUuids  If non-null, only assignments with a responsibleOU in this set (or null responsibleOU) are included
+	 * @param allowedDisplayOuUuids If non-null, only rows whose displayed OU (assignedThroughOUUuid, or position OU) is in this set are included — the org-unit filter (reportForm.getOrgUnits())
+	 * @param allowedResponsibleOuUuids If non-null, only assignments with a responsibleOU in this set (or null responsibleOU) are included — the manager filter (reportForm.getManager())
 	 * @param itSystemIds     If non-null/non-empty, only assignments for these IT systems are fetched from DB
 	 */
 	@Transactional(readOnly = true)
@@ -91,7 +105,8 @@ public class ReportService {
 		LocalDate queryDate,
 		LocalDate displayDate,
 		Set<String> allowedUserUuids,
-		Set<String> allowedOuUuids,
+		Set<String> allowedDisplayOuUuids,
+		Set<String> allowedResponsibleOuUuids,
 		Collection<Long> itSystemIds,
 		Map<String, HistoryUser> users,
 		Map<String, HistoryOU> orgUnits,
@@ -135,6 +150,11 @@ public class ReportService {
 			users, orgUnits, orgUnitService.getAllCached(),
 			userRoleIdWeight, userItSystemMaxWeight, constraintsByAssignmentId);
 
+		// Collapses duplicate HistoricAssignment rows for the same conceptual grant that differ only in
+		// responsibleOU (e.g. manager of one OU + substitute for another OU, both inheriting a role from
+		// a common ancestor OU)
+		Set<HistoricUserRoleAssignmentKey> seenAssignments = new HashSet<>();
+
 		// Second pass: stream full entities from DB and emit report entries
 		try (var stream = (itSystemIds != null && !itSystemIds.isEmpty())
 				? historicAssignmentService.streamActiveAtDateAndItSystems(queryDate, itSystemIds)
@@ -144,7 +164,10 @@ public class ReportService {
 				try {
 					if (!shouldIncludeByDate(displayDate, ha.getStartDate(), ha.getStopDate(), "HistoricAssignment", ha.getUserRoleId())) return;
 					if (allowedUserUuids != null && !allowedUserUuids.contains(ha.getUserUuid())) return;
-					if (allowedOuUuids != null && ha.getResponsibleOUUuid() != null && !allowedOuUuids.contains(ha.getResponsibleOUUuid())) return;
+					if (allowedResponsibleOuUuids != null && ha.getResponsibleOUUuid() != null
+						&& !allowedResponsibleOuUuids.contains(ha.getResponsibleOUUuid())) {
+						return;
+					}
 
 					HistoryUser user = ctx.users.get(ha.getUserUuid());
 					if (user == null) {
@@ -153,15 +176,23 @@ public class ReportService {
 					}
 					if (!showInactiveUsers && !user.isUserActive()) return;
 
+					HistoricUserRoleAssignmentKey key = new HistoricUserRoleAssignmentKey(
+						ha.getUserUuid(), ha.getUserRoleId(), ha.getAssignedThroughType(),
+						ha.getAssignedThroughOUUuid(), ha.getAssignedThroughTitleUuid(), ha.getAssignedThroughRoleGroupId(),
+						ha.getStartDate(), ha.getStopDate());
+					if (!seenAssignments.add(key)) {
+						return;
+					}
+
 					if (onlyResponsibleOU) {
-						streamReportEntry(ha, user, ctx, locale, consumer);
+						streamReportEntry(ha, user, allowedDisplayOuUuids, ctx, locale, consumer);
 					} else {
 						List<HistoryOU> positions = ctx.userPositionsMap.get(ha.getUserUuid());
 						if (positions == null || positions.isEmpty()) {
-							streamReportEntry(ha, user, ctx, locale, consumer);
+							streamReportEntry(ha, user, allowedDisplayOuUuids, ctx, locale, consumer);
 						} else {
 							for (HistoryOU position : positions) {
-								streamReportEntry(ha, user, position, ctx, locale, consumer);
+								streamReportEntry(ha, user, position, allowedDisplayOuUuids, ctx, locale, consumer);
 							}
 						}
 					}
@@ -175,13 +206,17 @@ public class ReportService {
 
 	/**
 	 * Streams negative (excepted) user-role assignment report entries directly from the database.
+	 *
+	 * @param allowedDisplayOuUuids If non-null, only rows whose displayed OU (exceptionOuUuid) is in this set are included
+	 * @param allowedResponsibleOuUuids If non-null, only assignments with a responsibleOU in this set (or null responsibleOU) are included
 	 */
 	@Transactional(readOnly = true)
 	public void streamNegativeUserRoleAssignmentReportEntries(
 		LocalDate queryDate,
 		LocalDate displayDate,
 		Set<String> allowedUserUuids,
-		Set<String> allowedOuUuids,
+		Set<String> allowedDisplayOuUuids,
+		Set<String> allowedResponsibleOuUuids,
 		Collection<Long> itSystemIds,
 		Map<String, HistoryUser> users,
 		Map<String, HistoryOU> orgUnits,
@@ -197,7 +232,14 @@ public class ReportService {
 				try {
 					if (!shouldIncludeByDate(displayDate, hea.getStartDate(), hea.getStopDate(), "HistoricExceptedAssignment", hea.getExceptionUserRoleId())) return;
 					if (allowedUserUuids != null && !allowedUserUuids.contains(hea.getExceptionUserUuid())) return;
-					if (allowedOuUuids != null && hea.getResponsibleOUUuid() != null && !allowedOuUuids.contains(hea.getResponsibleOUUuid())) return;
+					if (allowedResponsibleOuUuids != null && hea.getResponsibleOUUuid() != null
+						&& !allowedResponsibleOuUuids.contains(hea.getResponsibleOUUuid())) {
+						return;
+					}
+					if (allowedDisplayOuUuids != null && hea.getExceptionOuUuid() != null
+						&& !allowedDisplayOuUuids.contains(hea.getExceptionOuUuid())) {
+						return;
+					}
 
 					HistoryUser user = users.get(hea.getExceptionUserUuid());
 					if (user == null) {
@@ -207,14 +249,12 @@ public class ReportService {
 					if (!showInactiveUsers && !user.isUserActive()) return;
 
 					String assignedThroughStr = buildExceptedAssignmentThroughString(hea, locale);
-					String orgUnitName = hea.getResponsibleOUName();
-					String orgUnitUUID = hea.getResponsibleOUUuid();
-					if (hea.getResponsibleOUUuid() != null) {
-						HistoryOU ou = orgUnits.get(hea.getResponsibleOUUuid());
-						if (ou != null) {
-							orgUnitName = ou.getOuName();
-							orgUnitUUID = ou.getOuUuid();
-						}
+					String orgUnitName = hea.getExceptionOuName() != null ? hea.getExceptionOuName() : hea.getResponsibleOUName();
+					String orgUnitUUID = hea.getExceptionOuUuid() != null ? hea.getExceptionOuUuid() : hea.getResponsibleOUUuid();
+					HistoryOU ou = orgUnits.get(orgUnitUUID);
+					if (ou != null) {
+						orgUnitName = ou.getOuName();
+						orgUnitUUID = ou.getOuUuid();
 					}
 
 					UserRoleAssignmentReportEntry row = new UserRoleAssignmentReportEntry();
@@ -242,19 +282,12 @@ public class ReportService {
 	}
 
 	/**
-	 * Resolves the display OU for the report entry.
-	 * <p>
-	 * responsibleOUUuid is intentionally redirected to the nearest parent with a different manager
-	 * (so managers don't attest their own access) — correct for attestation routing, but wrong as
-	 * the display OU in the report. Instead we use the actual assignment OU:
-	 * <ul>
-	 *   <li>ORGUNIT/TITLE: assignedThroughOUUuid — the OU the role was assigned on</li>
-	 *   <li>DIRECT/ROLEGROUP: one row per position OU (mirrors 2026r1 behaviour)</li>
-	 * </ul>
+	 * Resolves the display OU for the report entry, and applies the org-unit filter against it.
 	 */
 	private void streamReportEntry(
 		HistoricAssignment ha,
 		HistoryUser user,
+		Set<String> allowedDisplayOuUuids,
 		StreamingReportContext ctx,
 		Locale locale,
 		Consumer<UserRoleAssignmentReportEntry> consumer) {
@@ -263,14 +296,14 @@ public class ReportService {
 			HistoryOU ou = ctx.orgUnits.get(ha.getAssignedThroughOUUuid());
 			String name = ou != null ? ou.getOuName() : ha.getAssignedThroughOUName();
 			String uuid = ou != null ? ou.getOuUuid() : ha.getAssignedThroughOUUuid();
-			streamReportEntryInternal(ha, user, name, uuid, ctx, locale, consumer);
+			streamReportEntryInternal(ha, user, name, uuid, allowedDisplayOuUuids, ctx, locale, consumer);
 		} else {
 			List<HistoryOU> positions = ctx.userPositionsMap.get(ha.getUserUuid());
 			if (positions == null || positions.isEmpty()) {
-				streamReportEntryInternal(ha, user, null, null, ctx, locale, consumer);
+				streamReportEntryInternal(ha, user, null, null, allowedDisplayOuUuids, ctx, locale, consumer);
 			} else {
 				for (HistoryOU position : positions) {
-					streamReportEntryInternal(ha, user, position.getOuName(), position.getOuUuid(), ctx, locale, consumer);
+					streamReportEntryInternal(ha, user, position.getOuName(), position.getOuUuid(), allowedDisplayOuUuids, ctx, locale, consumer);
 				}
 			}
 		}
@@ -281,11 +314,12 @@ public class ReportService {
 		HistoricAssignment ha,
 		HistoryUser user,
 		HistoryOU position,
+		Set<String> allowedDisplayOuUuids,
 		StreamingReportContext ctx,
 		Locale locale,
 		Consumer<UserRoleAssignmentReportEntry> consumer) {
 
-		streamReportEntryInternal(ha, user, position.getOuName(), position.getOuUuid(), ctx, locale, consumer);
+		streamReportEntryInternal(ha, user, position.getOuName(), position.getOuUuid(), allowedDisplayOuUuids, ctx, locale, consumer);
 	}
 
 	private void streamReportEntryInternal(
@@ -293,9 +327,15 @@ public class ReportService {
 		HistoryUser user,
 		String orgUnitName,
 		String orgUnitUUID,
+		Set<String> allowedDisplayOuUuids,
 		StreamingReportContext ctx,
 		Locale locale,
 		Consumer<UserRoleAssignmentReportEntry> consumer) {
+
+		if (allowedDisplayOuUuids != null && (orgUnitUUID == null
+			|| !allowedDisplayOuUuids.contains(orgUnitUUID))) {
+			return;
+		}
 
 		String assignedThroughStr = buildAssignedThroughString(historicAssignment, locale);
 		String postponedConstraints = buildPostponedConstraintsString(historicAssignment.getId(), ctx);
@@ -368,6 +408,9 @@ public class ReportService {
 		return assignedThroughStr;
 	}
 
+	private static final java.util.regex.Pattern UUID_PATTERN =
+		java.util.regex.Pattern.compile("[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}");
+
 	/**
 	 * Builds a human-readable string of postponed constraints for a report row.
 	 * Organisation constraint values (UUIDs) are resolved to display names via the context.
@@ -379,10 +422,30 @@ public class ReportService {
 			return "";
 		}
 
-		return constraints.stream()
-				.map(row -> PostponedConstraintsFormatter.formatConstraintOnePerLine((String) row[1], (List<String>) row[2],
-						uuid -> ctx.orgUnitNamesByUuid.getOrDefault(uuid, uuid)))
-				.collect(Collectors.joining("\n"));
+		StringBuilder sb = new StringBuilder();
+		for (Object[] row : constraints) {
+			String constraintName = (String) row[1];
+			List<String> constraintValues = (List<String>) row[2];
+
+			if (constraintValues == null || constraintValues.isEmpty()) {
+				sb.append(constraintName).append("\n");
+				continue;
+			}
+
+			for (String constraintValue : constraintValues) {
+				if (constraintValue != null && UUID_PATTERN.matcher(constraintValue).matches()) {
+					// Organisation constraint: resolve UUID to display name
+					String ouName = ctx.orgUnitNamesByUuid.get(constraintValue);
+					sb.append(constraintName).append(": ")
+					  .append(ouName != null ? ouName : constraintValue)
+					  .append("\n");
+				} else {
+					sb.append(constraintName).append(": ").append(constraintValue).append("\n");
+				}
+			}
+		}
+
+		return sb.toString().trim();
 	}
 
 	private String buildExceptedAssignmentThroughString(HistoricExceptedAssignment historicExceptedAssignment, Locale locale) {
@@ -429,7 +492,7 @@ public class ReportService {
 		Map<String, HistoryUser> users = historyService.getUsers(localDate);
 		Map<String, List<HistoryKleAssignment>> userKleAssignments = historyService.getKleAssignments(localDate);
 		Map<String, List<HistoryOUKleAssignment>> ouKleAssignments = historyService.getOUKleAssignments(localDate);
-		Map<String, List<HistoryOURoleAssignment>> ouRoleAssignments;
+		Map<String, List<OuRoleAssignmentReportRow>> ouRoleAssignments;
 
 		List<HistoryOUUser> historyOUUsers = orgUnits
 			.entrySet()
@@ -438,16 +501,18 @@ public class ReportService {
 			.collect(Collectors.toList());
 
 		// Filter on ItSystems if specified
-		if (itSystemFilter != null && itSystemFilter.size() > 0) {
+		if (itSystemFilter != null && !itSystemFilter.isEmpty()) {
 			itSystems = itSystems
 				.stream()
 				.filter(itSystem -> itSystemFilter.contains(itSystem.getItSystemId()))
 				.collect(Collectors.toList());
 
-			ouRoleAssignments = historyService.getOURoleAssignments(localDate, itSystemFilter);
+			ouRoleAssignments = ouRoleAssignmentReportMapper.toReportRowsByOuUuid(
+				temporalDao.listHistoricOuAssignmentsByDateAndItSystems(localDate, itSystemFilter), allOrgUnits);
 		}
 		else {
-			ouRoleAssignments = historyService.getOURoleAssignments(localDate);
+			ouRoleAssignments = ouRoleAssignmentReportMapper.toReportRowsByOuUuid(
+				temporalDao.listHistoricOuAssignmentsByDate(localDate), allOrgUnits);
 		}
 
 		// add systemRoles based on itSystems after filter

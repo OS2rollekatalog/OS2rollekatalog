@@ -1,0 +1,1 @@
+CREATE INDEX idx_historic_assignments_updated_at ON historic_assignment (updated_at);

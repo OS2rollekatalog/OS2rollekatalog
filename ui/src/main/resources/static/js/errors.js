@@ -1,11 +1,18 @@
 
 
+// $.notify interpolates its message straight into an HTML string (see notify.js in angle-webjar),
+// so anything coming from the server must be escaped. Error bodies can carry names from the database -
+// a role name or IT system name - and those are set by administrators, by the API and by AD/DMP sync.
+function escapeNotificationHtml(text) {
+    return $("<div>").text(text).html();
+}
+
 function errorHandler(fallbackMessage) {
     return function (response) {
         if (response.responseText !== null && response.responseText !== undefined && response.responseText.startsWith("{")) {
             let responseObj = JSON.parse(response.responseText);
             $.notify({
-                message: responseObj.error,
+                message: escapeNotificationHtml(responseObj.error),
                 status: 'danger',
                 timeout: 4000
             });
@@ -13,7 +20,7 @@ function errorHandler(fallbackMessage) {
         }
         if (response.responseText != null && response.responseText !== "") {
             $.notify({
-                message: response.responseText,
+                message: escapeNotificationHtml(response.responseText),
                 status: 'danger',
                 timeout: 4000
             });

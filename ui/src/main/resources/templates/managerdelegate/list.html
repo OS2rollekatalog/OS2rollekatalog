@@ -63,42 +63,16 @@ section=${T(dk.digitalidentity.rc.security.permission.Section)}">
 
 <nav th:replace="~{fragments/footer :: footer}"></nav>
 <script th:replace="~{fragments/datatables :: datatables}"></script>
+<script id="managerdelegate-config" type="application/json" th:inline="javascript">
+	{
+		"uiUrl": [[@{/ui/managerdelegate}]],
+		"restUrl": [[@{/rest/managerdelegate}]]
+	}
+</script>
+<script th:src="@{/js/service/SweetAlertService.js}"></script>
 <script th:src="@{/js/service/DatePickerService.js}"></script>
 <script th:src="@{/js/service/Select2Service.js}"></script>
-<script th:src="@{/js/service/NetworkService.js}"></script>
 <script th:src="@{/js/managerdelegate/ManagerDelegateCrudService.js}"></script>
-<script th:inline="javascript">
-    /*<![CDATA[*/
-
-    /*[+
-        const uiURL = [[@{/ui/managerdelegate}]];
-        const restURL = [[@{/rest/managerdelegate}]];
-        const token = $("meta[name='_csrf']").attr("content");
-
-    +]*/
-
-    document.addEventListener('DOMContentLoaded', () => {
-        const managerDelegateCrudService = new ManagerDelegateCrudService()
-
-        const createButton = document.getElementById('createModalBtn')
-        createButton.addEventListener('click', () => managerDelegateCrudService.loadCreateModal())
-
-        //Event delegation for action buttons
-        const table = document.getElementById('listTable')
-        table.addEventListener('click', (event) => {
-            const editbtn = event.target.closest('.editbtn')
-            const deletebtn = event.target.closest('.deletebtn')
-            if (editbtn) {
-                const managerDelegateId = editbtn.dataset.id
-                managerDelegateCrudService.loadEditModal(managerDelegateId)
-            } else if (deletebtn) {
-                const managerDelegateId = deletebtn.dataset.id
-                managerDelegateCrudService.deleteManagerDelegate(managerDelegateId)
-            }
-
-        })
-    })
-
-</script>
+<script th:src="@{/js/managerdelegate/list.js}"></script>
 </body>
 </html>

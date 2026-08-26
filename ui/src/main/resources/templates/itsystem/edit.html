@@ -65,6 +65,113 @@
 									</div>
 								</div>
 							</fieldset>
+
+							<fieldset th:if="${#strings.toString(itsystem.systemType)} == 'MANUAL'">
+								<div class="form-group">
+									<label class="col-sm-2 col-xs-12 control-label" th:text="#{html.entity.itsystem.manualEffectuationEnabled}"></label>
+									<div class="col-sm-1 col-xs-1">
+										<div class="checkbox c-checkbox" style="display:inline-block;">
+											<label>
+												<input id="manualEffectuationEnabled-checkbox" type="checkbox"
+													   th:attr="checked=${itsystem.manualEffectuationEnabled}"/>
+												<span class="fa fa-check"></span>
+											</label>
+										</div>
+										<em class="icon-question" data-toggle="popover" data-trigger="click" data-placement="top" data-container="body" style="margin-left: 5px;" th:attr="data-content=#{html.entity.itsystem.manualEffectuationEnabled.help}"></em>
+									</div>
+								</div>
+							</fieldset>
+
+							<fieldset id="manualWelcomeEmailFieldset" th:if="${#strings.toString(itsystem.systemType)} == 'MANUAL'" th:style="${itsystem.manualEffectuationEnabled} ? '' : 'display:none;'">
+								<div class="form-group">
+									<label class="col-sm-2 col-xs-12 control-label" th:text="#{html.entity.itsystem.manualWelcomeEmail}"></label>
+									<div class="col-sm-8 col-xs-11">
+										<a role="button" id="manualWelcomeEmailToggle" data-toggle="collapse" href="#manualWelcomeEmailCollapse"
+										   aria-expanded="false" aria-controls="manualWelcomeEmailCollapse">
+											<em id="manualWelcomeEmailCaret" class="fa fa-caret-right"></em>&nbsp;
+											<span th:text="#{html.entity.itsystem.manualWelcomeEmail.edit}"></span>
+										</a>
+									</div>
+								</div>
+
+								<div id="manualWelcomeEmailCollapse" class="collapse">
+									<div class="form-group" style="margin-top: 20px;">
+										<div class="col-sm-offset-2 col-sm-8">
+											<ul class="nav nav-tabs" role="tablist">
+												<li role="presentation" class="active">
+													<a href="#manualEffectuationEmailTab-ASSIGN" aria-controls="manualEffectuationEmailTab-ASSIGN" role="tab" data-toggle="tab" class="manualEffectuationEmailTab-link" data-operation="ASSIGN" th:text="#{html.entity.itsystem.manualWelcomeEmail.operation.tildel}"></a>
+												</li>
+												<li role="presentation">
+													<a href="#manualEffectuationEmailTab-REMOVE" aria-controls="manualEffectuationEmailTab-REMOVE" role="tab" data-toggle="tab" class="manualEffectuationEmailTab-link" data-operation="REMOVE" th:text="#{html.entity.itsystem.manualWelcomeEmail.operation.fjern}"></a>
+												</li>
+											</ul>
+										</div>
+									</div>
+
+									<div class="form-group" style="margin-top: 20px;">
+										<label class="col-sm-2 col-xs-12 control-label" th:text="#{html.entity.itsystem.manualWelcomeEmail.enabled}"></label>
+										<div class="col-sm-1 col-xs-1">
+											<div class="checkbox c-checkbox" style="display:inline-block;">
+												<label>
+													<input id="manualWelcomeEmailTemplateEnabled-checkbox" type="checkbox"/>
+													<span class="fa fa-check"></span>
+												</label>
+											</div>
+											<em class="icon-question" data-toggle="popover" data-trigger="click" data-placement="top" data-container="body" style="margin-left: 5px;" th:attr="data-content=#{html.entity.itsystem.manualWelcomeEmail.enabled.help}"></em>
+										</div>
+									</div>
+
+									<div class="form-group" style="margin-top: 20px;">
+										<label class="col-sm-2 col-xs-12 control-label" th:text="#{html.entity.email_template.name}"></label>
+										<div class="col-sm-8 col-xs-11">
+											<input id="manualWelcomeEmailTemplateTitle" class="form-control"/>
+										</div>
+									</div>
+
+									<div class="form-group" style="margin-top: 20px;">
+										<label class="col-sm-2 col-xs-12 control-label" th:text="#{html.entity.email_template.message}"></label>
+										<div class="col-sm-8 col-xs-11">
+											<textarea id="manualWelcomeEmailTemplateMessage" rows="10" class="mb-0 preformat" style="width:100%;"></textarea>
+										</div>
+									</div>
+
+									<div class="form-group" style="margin-top: 20px;">
+										<label class="col-sm-2 col-xs-12 control-label" th:text="#{html.entity.email_template.notes}"></label>
+										<div class="col-sm-8 col-xs-11">
+											<textarea id="manualWelcomeEmailTemplateNotes" rows="3" class="mb-0 form-control" style="width:100%;"></textarea>
+										</div>
+									</div>
+
+									<div class="form-group" style="margin-top: 20px;">
+										<div class="col-sm-offset-2 col-sm-10">
+											<button type="button" style="margin-right: 5px;" class="btn btn-primary" id="manualWelcomeEmailTemplateSave" th:text="#{html.control.button.save}"></button>
+											<button type="button" style="margin-right: 5px;" class="btn btn-warning" id="manualWelcomeEmailTemplateTest" th:text="#{html.page.email_template.test}"></button>
+										</div>
+									</div>
+
+									<div class="form-group" style="margin-top: 20px;">
+										<div class="col-sm-offset-2 col-sm-8">
+											<h4 th:text="#{html.entity.email_template.placeholders}"></h4>
+											<p th:text="#{html.entity.email_template.placeholders.intro}"></p>
+											<table class="table">
+												<thead>
+												<tr>
+													<th th:text="#{html.entity.email_template.placeholders.placeholder}" style="width: 250px;"/>
+													<th th:text="#{html.entity.email_template.placeholders.description}"/>
+												</tr>
+												</thead>
+												<tbody>
+												<tr th:each="placeholder : ${T(dk.digitalidentity.rc.service.ManualWelcomeEmailTemplateService).PLACEHOLDERS}">
+													<td th:text="${placeholder.placeholder}"/>
+													<td class="preformat" th:text="#{${placeholder.description}}"/>
+												</tr>
+												</tbody>
+											</table>
+										</div>
+									</div>
+								</div>
+							</fieldset>
+
                         <fieldset>
                             <div class="form-group">
                                 <label class="col-sm-2 control-label"
@@ -268,9 +375,9 @@
                             <div class="form-group">
                                 <label class="col-sm-2 control-label" th:text="#{html.control.operations}"></label>
                                 <div class="col-sm-8">
-                                    <a id="addAdRoleBtn" class="btn btn-lg btn-primary"
-                                       th:text="#{html.page.itsystem.action.new.systemrole.ad}" onclick="newAdRole();"
-                                       th:disabled="${!@permissionCheck.isAllowed(section.IT_SYSTEM, permission.UPDATE)}"></a>
+									<a id="addAdRoleBtn" class="btn btn-lg btn-primary js-open-ad-role-modal"
+									   th:text="#{html.page.itsystem.action.new.systemrole.ad}"
+									   th:disabled="${!@permissionCheck.isAllowed(section.IT_SYSTEM, permission.UPDATE)}"></a>
                                 </div>
                             </div>
                         </fieldset>
@@ -375,9 +482,8 @@
                             <div class="form-group">
                                 <label class="col-sm-2 control-label" th:text="#{html.control.operations}"></label>
                                 <div class="col-sm-8">
-                                    <a id="newSamlRoleBtn" class="btn btn-lg btn-primary"
-                                       th:text="#{html.page.itsystem.action.new.systemrole.saml}"
-                                       onclick="newSamlRole();"></a>
+									<a id="newSamlRoleBtn" class="btn btn-lg btn-primary js-open-saml-role-modal"
+									   th:text="#{html.page.itsystem.action.new.systemrole.saml}"></a>
                                 </div>
                             </div>
                         </fieldset>
@@ -386,9 +492,8 @@
                             <div class="form-group">
                                 <label class="col-sm-2 control-label" th:text="#{html.control.operations}"></label>
                                 <div class="col-sm-8">
-                                    <a class="btn btn-lg btn-primary"
-                                       th:text="#{html.page.itsystem.action.new.systemrole.manual}"
-                                       onclick="newSamlRole();"></a>
+									<a class="btn btn-lg btn-primary js-open-saml-role-modal"
+									   th:text="#{html.page.itsystem.action.new.systemrole.manual}"></a>
                                 </div>
                             </div>
                         </fieldset>
@@ -410,7 +515,7 @@
                         <div class="tab-content">
                             <div id="systemRole_menu" class="tab-pane fade in active">
                                 <div style="margin-bottom:20px;">
-                                    <div th:disabled="${!@permissionCheck.isAllowed(section.USER_ROLE, permission.CREATE)}" class="btn btn-lg btn-primary" style="width:auto;" onclick="convertSystemRolesToUserRoles();">
+                                    <div th:disabled="${!@permissionCheck.isAllowed(section.USER_ROLE, permission.CREATE)}" class="btn btn-lg btn-primary js-convert-system-roles" style="width:auto;">
                                        <span th:text="#{html.page.itsystem.pane.systemroles.convert}"></span>
                                     </div>
                                 </div>
@@ -445,9 +550,9 @@
                                                 <a th:if="${@permissionCheck.isAllowed(section.USER_ROLE, permission.READ)}"
 												   th:href="@{/ui/systemrole/{id}/userroles(id=${systemRole.id})}"><em class="fa fa-list"></em></a>
 												<a th:if="${@permissionCheck.isAllowed(section.IT_SYSTEM, permission.UPDATE)}"
-												   href="#" onclick="editAdRole(this);" th:attr="data-id=${systemRole.id}"><em class="fa fa-pencil"></em></a>
+												   href="#" class="js-edit-ad-role" th:attr="data-id=${systemRole.id}"><em class="fa fa-pencil"></em></a>
                                                 <a th:if="${@permissionCheck.isAllowed(section.IT_SYSTEM, permission.DELETE)}"
-												   href="#" onclick="openConfirmDeleteDialog(this);" th:attr="data-id=${systemRole.id}"><em class="fa fa-remove"></em></a>
+												   href="#" class="js-delete-system-role" th:attr="data-id=${systemRole.id}"><em class="fa fa-remove"></em></a>
                                             </td>
                                         </tr>
                                         </tbody>
@@ -458,7 +563,7 @@
                             <div id="userRole_menu" class="tab-pane fade">
 								<div style="margin-bottom:20px;"
 									 th:with="attestationIntervalYearly=${@settingsService.getScheduledAttestationInterval() == T(dk.digitalidentity.rc.dao.model.enums.CheckupIntervalEnum).YEARLY}">
-									<div id="removeUnusedRolesBtn" class="btn btn-lg btn-primary" style="width:auto;" onclick="removeUnusedUserRoles();" th:disabled="${!@permissionCheck.isAllowed(section.USER_ROLE, permission.DELETE)}">
+									<div id="removeUnusedRolesBtn" class="btn btn-lg btn-primary js-remove-unused-roles" style="width:auto;" th:disabled="${!@permissionCheck.isAllowed(section.USER_ROLE, permission.DELETE)}">
 										<span th:text="#{html.page.itsystem.pane.userroles.delete}"></span>
 									</div>
 
@@ -609,8 +714,8 @@
                         <div class="tab-content">
                             <div id="systemRole_menu" class="tab-pane fade in active">
                                 <div style="margin-bottom:20px;">
-                                    <div class="btn btn-lg btn-primary" style="width:auto;"
-                                         onclick="convertSystemRolesToUserRoles();" th:disabled="${!@permissionCheck.isAllowed(section.USER_ROLE, permission.CREATE)}">
+                                    <div class="btn btn-lg btn-primary js-convert-system-roles" style="width:auto;"
+										 th:disabled="${!@permissionCheck.isAllowed(section.USER_ROLE, permission.CREATE)}">
 										<span th:text="#{html.page.itsystem.pane.systemroles.convert}"></span>
 									</div>
                                 </div>
@@ -640,12 +745,12 @@
                                             th:text="${systemRole.weight}"></td>
 										<td th:text="${systemRole.maximumAssignments}"></td>
                                         <td>
-                                            <a href="#" onclick="openConfirmDeleteDialog(this);"
+                                            <a href="#" class="js-delete-system-role"
                                                th:attr="data-id=${systemRole.id}"><em
                                                     class="fa fa-remove operationsCol"></em></a>
-                                            <a href="#" onclick="editSamlRole(this);"
-                                               th:attr="data-id=${systemRole.id}"><em
-                                                    class="fa fa-pencil operationsCol"></em></a>
+											<a href="#" class="js-edit-saml-role" th:attr="data-id=${systemRole.id}">
+												<em class="fa fa-pencil operationsCol"></em>
+											</a>
                                             <a th:href="@{/ui/systemrole/{id}/userroles(id=${systemRole.id})}"><em
                                                     class="fa fa-list"></em></a>
                                         </td>
@@ -656,9 +761,7 @@
                             <div id="userRole_menu" class="tab-pane fade">
 								<div style="margin-bottom:20px;"
 									 th:with="attestationIntervalYearly=${@settingsService.getScheduledAttestationInterval() == T(dk.digitalidentity.rc.dao.model.enums.CheckupIntervalEnum).YEARLY}">
-									<div class="btn btn-lg btn-primary" style="width:auto;"
-										 onclick="removeUnusedUserRoles();"><span
-										th:text="#{html.page.itsystem.pane.userroles.delete}"></span></div>
+									<div class="btn btn-lg btn-primary js-remove-unused-roles" style="width:auto;"><span th:text="#{html.page.itsystem.pane.userroles.delete}"></span></div>
 
 									<div class="btn-group">
 										<button type="button" style="width: auto !important;" class="btn btn-primary btn-lg dropdown-toggle" data-toggle="dropdown">
@@ -811,8 +914,7 @@
                             <div id="systemRole_menu" class="tab-pane fade in active">
                                 <div style="margin-bottom:20px;"
                                      th:if="${#strings.toString(itsystem.systemType)} != 'KSPCICS'">
-                                    <div class="btn btn-lg btn-primary" style="width:auto;"
-                                         onclick="convertSystemRolesToUserRoles();"
+                                    <div class="btn btn-lg btn-primary js-convert-system-roles" style="width:auto;"
 										 th:disabled="${!@permissionCheck.isAllowed(section.USER_ROLE, permission.CREATE)}">
 										<span th:text="#{html.page.itsystem.pane.systemroles.convert}"></span>
 									</div>
@@ -845,9 +947,7 @@
 								<div style="margin-bottom:20px;"
 									 th:with="attestationIntervalYearly=${@settingsService.getScheduledAttestationInterval() == T(dk.digitalidentity.rc.dao.model.enums.CheckupIntervalEnum).YEARLY}">
 									<th:block th:if="${#strings.toString(itsystem.systemType)} != 'KSPCICS'">
-										<div class="btn btn-lg btn-primary" style="width:auto;"
-											 onclick="removeUnusedUserRoles();"><span
-											th:text="#{html.page.itsystem.pane.userroles.delete}"></span></div>
+										<div class="btn btn-lg btn-primary js-remove-unused-roles" style="width:auto;"><span th:text="#{html.page.itsystem.pane.userroles.delete}"></span></div>
 									</th:block>
 
 									<div class="btn-group">
@@ -1277,7 +1377,6 @@
 
 <!-- ou filter modal-->
 <div th:replace="~{itsystem/fragments/ouFilterModal :: ou_filter_modal}"></div>
-<script th:src="@{/js/service/RequestApproveService.js}"></script>
 
 <nav th:replace="~{fragments/footer :: footer}"></nav>
 <script th:replace="~{fragments/datatables :: datatables}"></script>
@@ -1298,1126 +1397,77 @@
     }
 </style>
 
-<script th:inline="javascript">
-    /*<![CDATA[*/
-  var token = $("meta[name='_csrf']").attr("content");
-  let currentTable;
-  var ouFilterService, itSystemService;
-  /*[+
-  var itSystemType = [[${#strings.toString(itsystem.systemType)}]];
-  var readonly = [[${itsystem.readonly}]];
-  var userRoleUrl = [[@{/rest/userroles/}]];
-  var allOUs = [[${allOUs}]];
-  var selectedOUs = [[${selectedOUs}]];
-  var restUrl = [[@{/rest/itsystem/}]];
-  var ouFilterEnabledUrl = [[@{/rest/itsystem/ouFilterEnabled}]];
-  var fieldUpdatedMsg = [[#{html.entity.itsystem.updatedMsg}]];
-  var fieldNotUpdatedMsg = [[#{html.entity.itsystem.notUpdatedMsg}]];
-  var fieldNotUpdatedMsgOUFilter = [[#{html.entity.itsystem.notUpdatedMsgOUFilter}]];
-  var fieldNotUpdatedNotesMsg = [[#{html.entity.itsystem.notUpdatedNotesMsg}]];
-  var fieldNotUpdatedEmailMsg = [[#{html.entity.itsystem.notUpdatedEmailMsg}]];
-  var attestationResponsibleUrl = [[@{/rest/itsystem/attestationResponsible}]];
-  var systemOwnerUrl = [[@{/rest/itsystem/systemOwner}]];
-  var itsystemId = [[${itsystem.id}]];
-  var requesterChangeURL = [[@{/rest/itsystem/requester/}]];
-  var approverChangeURL = [[@{/rest/itsystem/approver/}]];
-  var itsystemType = [[${itsystem.systemType}]];
-  +]*/
-
-  $("document").ready(function() {
-     $('[data-toggle="popover"]').popover({
-         container: 'body'
-     });
-     ouFilterService = new OUFilterService();
-     ouFilterService.init();
-     itSystemService = new ITSystemService();
-	 requestApproveService = new RequestApproveService();
-
-     /*[+
-     var url = [[@{/ui/itsystem/edit/}]] + itsystemId;
-     var nameUrl = [[@{/rest/itsystem/name}]];
-     var emailUrl = [[@{/rest/itsystem/email}]];
-     var advisEmailUrl = [[@{/rest/itsystem/advisemail}]];
-     var notificationEmailUrl = [[@{/rest/itsystem/notificationemail}]];
-					var kitosITSystemUrl = [[@{/rest/itsystem/kitositsystem}]];
-     var pausedUrl = [[@{/rest/itsystem/paused}]];
-     var readonlyUrl = [[@{/rest/itsystem/readonly}]];
-     var canEditThroughApiUrl = [[@{/rest/itsystem/canEditThroughApi}]];
-     var accessBlockedUrl = [[@{/rest/itsystem/accessBlocked}]];
-     var apiManagedRoleAssignmentsUrl = [[@{/rest/itsystem/apiManagedRoleAssignments}]];
-     var hiddenUrl = [[@{/rest/itsystem/hidden}]];
-     var attExemptUrl = [[@{/rest/itsystem/attestationExempt}]];
-     var notesUrl = [[@{/rest/itsystem/notes}]];
-     var subscribedToUrl = [[@{/rest/itsystem/subscribedTo}]];
-     var subscribedToMaster = [[${itsystem.subscribedTo != null}]];
-     var roleAssignmentAttestationByAttestationResponsibleUrl = [[@{/rest/itsystem/userroles/}]];
-     +]*/
-
-     $("#name").change(handleChangeOnInput);
-     $("#email").change(handleChangeOnInputEmail);
-     $("#advisEmail").change(handleChangeOnInputAdvisEmail);
-     $("#notificationEmail").change(handleChangeOnInputNotificationEmail);
-     $("#notes").change(handleChangeOnInputNotes);
-     $("#paused-checkbox").change(handleChangeOnPaused);
-     $("#readonly-checkbox").change(handleChangeOnReadOnly);
-     $("#canEditThroughApi-checkbox").change(handleChangeOnCanEditThroughApi);
-     $('#hidden-checkbox').change(handleChangeOnHidden);
-     $('#att-exempt-checkbox').change(handleChangeAttExempt);
-     $('#accessBlocked-checkbox').change(handleChangeOnAccessBlocked);
-     $('#apiManagedRoleAssignments-checkbox').change(handleChangeOnApiManagedRoleAssignmentsUrl);
-     $('#subscribedToCheckbox').change(toggleDisabledCheckbox);
-     $('#requesterSettingsSelect').change(handleChangeOnITSystemRequesterPermission);
-     $('#approverSettingsSelect').change(handleChangeOnITsystemApproverPermission);
-     $('#subscribedTo').change(handleChangeOnSubscribedTo);
-     $('.useronly-checkbox').change(handleUserroleChange);
-     $('.sensitive-checkbox').change(handleUserroleChange);
-     $('.extra-sensitive-checkbox').change(handleUserroleChange);
-     $(".roleAssignmentAttestationByAttestationResponsible-checkbox").change(handleUserroleChange);
-     initPersonSelect2("#attestationResponsibleSelect", attestationResponsibleUrl, itsystemId);
-     initPersonSelect2("#systemOwnerSelect", systemOwnerUrl, itsystemId);
-			$("#kitosItSystemSelector").change(handleChangeOnKitosITSystem);
-
-			$("#kitosItSystemSelector").select2({
-				placeholder: "",
-				allowClear: true
-			});
-
-     //assign relevant listeners again on page change
-     $('.userRoleTable').on('draw.dt', function() {
-         $('.useronly-checkbox').off('change');
-         $('.useronly-checkbox').change(handleUserroleChange);
-
-         $('.sensitive-checkbox').off('change');
-         $('.sensitive-checkbox').change(handleUserroleChange);
-
-         $('.extra-sensitive-checkbox').off('change');
-         $('.extra-sensitive-checkbox').change(handleUserroleChange);
-
-         $(".roleAssignmentAttestationByAttestationResponsible-checkbox").off('change');
-         $(".roleAssignmentAttestationByAttestationResponsible-checkbox").change(handleUserroleChange);
-
-		 // re-initialize on DataTables page change
-         initRoleRequestApproveSelects();
-     });
-	  $("#requesterSettingsSelect, #approverSettingsSelect").select2({
-		  placeholder: "",
-		  allowClear: true,
-		  multiple: true
-	  });
-     if (subscribedToMaster) {
-         $('#subscribedTo').show();
-         $('.operationsCol').addClass('subscribed');
-
-         $('#addRoleButtonField').hide();
-         $('#name').prop('readonly', true);
-     }
-     else {
-         $('#subscribedTo').hide();
-     }
-
-     if ($(".error").length > 0) {
-         if (itSystemType == "AD") {
-             $("#modal-ad-systemrole").modal('show');
-         }
-
-         if (itSystemType == "MANUAL" || itSystemType == "SAML" || itSystemType == "KOMBIT") {
-             $("#modal-saml-systemrole").modal('show');
-         }
-     }
-
-     initRoleRequestApproveSelects();
-
-     // Initialize column toggle for userRole table
-	 let userRoleTableEl = $('.userRoleTable');
-	 if (userRoleTableEl.length > 0) {
-		let dropdown = userRoleTableEl.closest('.tab-pane').find('.dropdown-menu');
-		let table = userRoleTableEl.DataTable();
-
-		// Map data-col-name to data-cid for compatibility with dataTablesToggleColumn
-		dropdown.find('[data-col-name]').each(function() {
-			let colName = $(this).data('col-name');
-			let column = table.column(function(idx, data, node) {
-				return $(node).data('col-name') === colName;
-			});
-			if (column.length) {
-				$(this).data('cid', column.index());
-			}
-		});
-
-		currentTable = table;
-		dataTablesRefreshIcons(dropdown);
-	 }
-
-	 $(document).on('click', '.dropdown-menu [data-col-name]', function(e) {
-		e.stopPropagation();
-		e.preventDefault();
-		currentTable = $(this).closest('.tab-pane').find('.userRoleTable').DataTable();
-		dataTablesToggleColumn(this);
-		initRoleRequestApproveSelects();
-	 });
-
-	  function handleChangeOnITSystemRequesterPermission() {
-		  const requesterSelect = document.getElementById('requesterSettingsSelect')
-		  requestApproveService.handleRequesterRestrictions();
-		  const newRequesters = [];
-		  for (let key in requesterSelect.selectedOptions) {
-			  if (requesterSelect.selectedOptions[key].value !== undefined) {
-				  newRequesters.push(requesterSelect.selectedOptions[key].value);
-			  }
-		  }
-		  $.ajax({
-			  url: requesterChangeURL,
-			  method: 'POST',
-			  data: {
-				  'requesterPermissions[]': newRequesters, // Note the [] suffix
-				  'id': itsystemId
-			  },
-			  headers: {
-				  'X-CSRF-TOKEN': token
-			  },
-			  error: errorHandler(fieldNotUpdatedMsg),
-			  success: function(response) {
-				  $.notify({
-					  message: fieldUpdatedMsg
-				  }, {
-					  status: 'success',
-					  autoHideDelay: 2000
-				  });
-			  }
-		  });
-	  }
-
-	  function handleChangeOnITsystemApproverPermission() {
-		  const approverselect = document.getElementById('approverSettingsSelect');
-		  requestApproveService.handleApproverRestrictions();
-
-		  const newApprovers = [];
-		  for (let key in approverselect.selectedOptions) {
-			  if (approverselect.selectedOptions[key].value !== undefined) {
-				  newApprovers.push(approverselect.selectedOptions[key].value);
-			  }
-		  }
-
-		  $.ajax({
-			  url: approverChangeURL,
-			  method: 'POST',
-			  data: {
-				  'approverPermissions': newApprovers, // Changed: use newApprovers array, not the DOM element
-				  'id': itsystemId
-			  },
-			  headers: {
-				  'X-CSRF-TOKEN': token
-			  },
-			  error: errorHandler(fieldNotUpdatedMsg),
-			  success: function(response) {
-				  $.notify({
-					  message: fieldUpdatedMsg
-				  }, {
-					  status: 'success',
-					  autoHideDelay: 2000
-				  });
-			  }
-		  });
-	  }
-
-     function handleChangeOnInput() {
-         var objName = $("#name").val();
-
-         $.ajax({
-             url: nameUrl,
-             method: 'POST',
-             data: {
-                 'name': objName,
-                 'id': itsystemId
-             },
-             headers: {
-                 'X-CSRF-TOKEN': token
-             },
-             error: errorHandler(fieldNotUpdatedMsg),
-             success: function(response) {
-                 $.notify({
-                     message: fieldUpdatedMsg
-                 },{
-                     status: 'success',
-                     autoHideDelay: 2000
-                 });
-             }
-         });
-     }
-
-     function handleChangeOnInputEmail() {
-         var objEmail = $("#email").val();
-
-         $.ajax({
-             url: emailUrl,
-             method: 'POST',
-             data: {
-                 'email': objEmail,
-                 'id': itsystemId
-             },
-             headers: {
-                 'X-CSRF-TOKEN': token
-             },
-             error: function(response) {
-                 $("#emailValidationFail").show();
-                 errorHandler(fieldNotUpdatedEmailMsg)(response);
-             },
-             success: function(response) {
-                 $("#emailValidationFail").hide();
-                 $.notify({
-                     message: fieldUpdatedMsg
-                 },{
-                     status: 'success',
-                     autoHideDelay: 2000
-                 });
-             }
-         });
-     }
-
-     function handleChangeOnInputAdvisEmail() {
-         var objAdvisEmail = $("#advisEmail").val();
-
-         $.ajax({
-             url: advisEmailUrl,
-             method: 'POST',
-             data: {
-                 'email': objAdvisEmail,
-                 'id': itsystemId
-             },
-             headers: {
-                 'X-CSRF-TOKEN': token
-             },
-             error: function(response) {
-                 $("#advisEmailValidationFail").show();
-                 errorHandler(fieldNotUpdatedEmailMsg)(response);
-             },
-             success: function(response) {
-                 $("#advisEmailValidationFail").hide();
-                 $.notify({
-                     message: fieldUpdatedMsg
-                 },{
-                     status: 'success',
-                     autoHideDelay: 2000
-                 });
-             }
-         });
-     }
-
-     function handleChangeOnInputNotificationEmail() {
-         var objNotificationEmail = $("#notificationEmail").val();
-
-         $.ajax({
-             url: notificationEmailUrl,
-             method: 'POST',
-             data: {
-                 'email': objNotificationEmail,
-                 'id': itsystemId
-             },
-             headers: {
-                 'X-CSRF-TOKEN': token
-             },
-             error: errorHandler(fieldNotUpdatedMsg),
-             success: function(response) {
-                 $.notify({
-                     message: fieldUpdatedMsg
-                 },{
-                     status: 'success',
-                     autoHideDelay: 2000
-                 });
-             }
-         });
-     }
-
-			function handleChangeOnKitosITSystem() {
-				var kitosITSystem = $("#kitosItSystemSelector").val();
-
-				$.ajax({
-					url: kitosITSystemUrl,
-					method: 'POST',
-					data: {
-						'kitosITSystemId': kitosITSystem,
-						'id': itsystemId
-					},
-					headers: {
-						'X-CSRF-TOKEN': token
-					},
-					error: errorHandler(fieldNotUpdatedMsg),
-					success: function(response) {
-						$.notify({
-							message: fieldUpdatedMsg
-						},{
-							status: 'success',
-							autoHideDelay: 2000
-						});
-
-						setTimeout( ()=> location.reload(), 1000)
-					}
-				});
-			}
-
-     function handleChangeOnPaused() {
-         var objPaused = $("#paused-checkbox").is(":checked");
-
-         $.ajax({
-             url: pausedUrl,
-             method: 'POST',
-             data: {
-                 'paused': objPaused,
-                 'id': itsystemId
-             },
-             headers: {
-                 'X-CSRF-TOKEN': token
-             },
-             error: errorHandler(fieldNotUpdatedMsg + ""),
-             success: function(response) {
-                 $.notify({
-                     message: fieldUpdatedMsg
-                 },{
-                     status: 'success',
-                     autoHideDelay: 2000
-                 });
-             }
-         });
-     }
-
-     function handleChangeOnReadOnly() {
-         var objReadonly = $("#readonly-checkbox").is(":checked");
-
-         $.ajax({
-             url: readonlyUrl,
-             method: 'POST',
-             data: {
-                 'readonly': objReadonly,
-                 'id': itsystemId
-             },
-             headers: {
-                 'X-CSRF-TOKEN': token
-             },
-             error: errorHandler(fieldNotUpdatedMsg + ""),
-             success: function(response) {
-                 readonly = objReadonly;
-                 toggleAddAdRoleBtnDisabled(objReadonly);
-                 toggleConvertSystemRolesToUserRolesBtnDisabled(objReadonly);
-                 toggleRemoveUnusedRolesBtnDisabled(objReadonly);
-                 $.notify({
-                     message: fieldUpdatedMsg
-                 },{
-                     status: 'success',
-                     autoHideDelay: 2000
-                 });
-						setTimeout( ()=> location.reload(), 1000)
-             }
-         });
-     }
-
-     function toggleAddAdRoleBtnDisabled(objReadonly) {
-         if (objReadonly) {
-             $("#addAdRoleBtn").attr("disabled", true);
-         } else {
-             $("#addAdRoleBtn").removeAttr("disabled");
-         }
-     }
-
-     function toggleConvertSystemRolesToUserRolesBtnDisabled(objReadonly) {
-         if (objReadonly) {
-             $("#convertSystemRolesToUserRolesBtn").attr("disabled", true);
-         } else {
-             $("#convertSystemRolesToUserRolesBtn").removeAttr("disabled");
-         }
-     }
-
-     function toggleRemoveUnusedRolesBtnDisabled(objReadonly) {
-         if (objReadonly) {
-             $("#removeUnusedRolesBtn").attr("disabled", true);
-         } else {
-             $("#removeUnusedRolesBtn").removeAttr("disabled");
-         }
-     }
-
-     function handleChangeOnCanEditThroughApi() {
-         var objCanEditApi = $("#canEditThroughApi-checkbox").is(":checked");
-
-         $.ajax({
-             url: canEditThroughApiUrl,
-             method: 'POST',
-             data: {
-                 'canEditThroughApi': objCanEditApi,
-                 'id': itsystemId
-             },
-             headers: {
-                 'X-CSRF-TOKEN': token
-             },
-             error: errorHandler(fieldNotUpdatedMsg),
-             success: function(response) {
-                 $.notify({
-                     message: fieldUpdatedMsg
-                 },{
-                     status: 'success',
-                     autoHideDelay: 2000
-                 });
-             }
-         });
-     }
-
-     function handleChangeAttExempt() {
-         var objAttExempt = $("#att-exempt-checkbox").is(":checked");
-         $.ajax({
-             url: attExemptUrl,
-             method: 'POST',
-             data: {
-                 'attestationExempt': objAttExempt,
-                 'id': itsystemId
-             },
-             headers: {
-                 'X-CSRF-TOKEN': token
-             },
-             error: errorHandler(fieldNotUpdatedMsg),
-             success: function(response) {
-                 $.notify({
-                     message: fieldUpdatedMsg
-                 },{
-                     status: 'success',
-                     autoHideDelay: 2000
-                 });
-             }
-         });
-     }
-
-     function handleChangeOnHidden() {
-         var objHidden = $("#hidden-checkbox").is(":checked");
-
-         $.ajax({
-             url: hiddenUrl,
-             method: 'POST',
-             data: {
-                 'hidden': objHidden,
-                 'id': itsystemId
-             },
-             headers: {
-                 'X-CSRF-TOKEN': token
-             },
-             error: errorHandler(fieldNotUpdatedMsg),
-             success: function(response) {
-                 $.notify({
-                     message: fieldUpdatedMsg
-                 },{
-                     status: 'success',
-                     autoHideDelay: 2000
-                 });
-             }
-         });
-     }
-
-     function handleChangeOnApiManagedRoleAssignmentsUrl() {
-         var checkboxValue = $("#apiManagedRoleAssignments-checkbox").is(":checked");
-
-         $.ajax({
-             url: apiManagedRoleAssignmentsUrl,
-             method: 'POST',
-             data: {
-                 'apiManagedRoleAssignments': checkboxValue,
-                 'id': itsystemId
-             },
-             headers: {
-                 'X-CSRF-TOKEN': token
-             },
-             error: errorHandler(fieldNotUpdatedMsg),
-             success: function(response) {
-                 $.notify({
-                     message: fieldUpdatedMsg
-                 },{
-                     status: 'success',
-                     autoHideDelay: 2000
-                 });
-             }
-         });
-     }
-
-     function handleChangeOnAccessBlocked() {
-         var objAccessBlocked = $("#accessBlocked-checkbox").is(":checked");
-
-         if (objAccessBlocked == true) {
-             /*[+
-						var titleTxt = [[#{html.section.itsystem.access_blocked.confirm.title}]];
-						var bodyTxt =  [[#{html.section.itsystem.access_blocked.confirm.body}]];
-             var cancelTxt =  [[#{html.control.button.cancel}]];
-             var confirmTxt = [[#{html.control.button.yes}]];
-             +]*/
-
-             swal({
-                 html: true,
-                 title : titleTxt,
-                 text : bodyTxt,
-                 type : "warning",
-                 showCancelButton : true,
-                 confirmButtonColor : "#DD6B55",
-                 confirmButtonText : confirmTxt,
-                 cancelButtonText : cancelTxt,
-                 closeOnConfirm : true,
-                 closeOnCancel : true
-             },
-             function (isConfirm) {
-                 if (isConfirm) {
-                     blockAccess(objAccessBlocked);
-                 }
-                 else {
-                     $("#accessBlocked-checkbox").attr("checked", false);
-                 }
-             }
-            );
-         }
-         else {
-             blockAccess(objAccessBlocked);
-         }
-    }
-
-    function blockAccess(objAccessBlocked) {
-     $.ajax({
-         url: accessBlockedUrl,
-         method: 'POST',
-         data: {
-             'accessBlocked': objAccessBlocked,
-             'id': itsystemId
-         },
-         headers: {
-             'X-CSRF-TOKEN': token
-         },
-         error: errorHandler(fieldNotUpdatedMsg),
-         success: function(response) {
-             $.notify({
-                 message: fieldUpdatedMsg
-             },{
-                 status: 'success',
-                 autoHideDelay: 2000
-             });
-         }
-     });
-    }
-
-
- function handleChangeOnInputNotes() {
-     var objNotes = $("#notes").val();
-     $.ajax({
-         url: notesUrl,
-         method: 'POST',
-         data: {
-             'notes': objNotes,
-             'id': itsystemId
-         },
-         headers: {
-             'X-CSRF-TOKEN': token
-         },
-         error: errorHandler(fieldNotUpdatedNotesMsg),
-         success: function(response) {
-             $.notify({
-                 message: fieldUpdatedMsg
-             },{
-                 status: 'success',
-                 autoHideDelay: 2000
-             });
-         }
-     });
- }
-
-  function handleChangeOnSubscribedTo() {
-     var subscribedTo = $("#subscribedToCheckbox").is(":checked");
-     var objItSystemMaster = $("#subscribedTo").val();
-
-     var optionId = $("#subscribedTo").children(":selected").attr("id");
-     if ("defaultOption" == optionId || !subscribedTo) {
-         // dirty workaround for submitting null values
-         objItSystemMaster = "null";
-     }
-
-     $.ajax({
-         url: subscribedToUrl,
-         method: 'POST',
-         data: {
-             'masterId': objItSystemMaster,
-             'id': itsystemId
-         },
-         headers: {
-             'X-CSRF-TOKEN': token
-         },
-         error: errorHandler(fieldNotUpdatedMsg),
-         success: function(response) {
-             $.notify({
-                 message: fieldUpdatedMsg
-             },{
-                 status: 'success',
-                 autoHideDelay: 2000
-             });
-         }
-     });
- }
-
- function toggleDisabledCheckbox() {
-     $('#subscribedTo').toggle();
-     $('.operationsCol').toggleClass('subscribed');
-     $('#addRoleButtonField').toggle();
-     $('#name').is('[readonly]') ? $('#name').prop('readonly', false) : $('#name').prop('readonly', true);
-
-     handleChangeOnSubscribedTo();
- }
-
- $("#universalFieldSet").hide();
-
- $("#adGroupType").on('change', function() {
-     if ($("#adGroupType").val() != 'NONE') {
-         $("#universalFieldSet").show();
-     }
-     else {
-         $("#universalFieldSet").hide();
-     }
- });
-
- $("#universalCheckbox").on('change', function() {
-     $("#universalValue").val($('#universalCheckbox').val());
- });
-
-	$('#modal-convert-systemroles').on('show.bs.modal', function() {
-		// Reset to NAME_AND_DESCRIPTION as default
-    	$("#linkTypeNameAndDescription").prop('checked', true);
-	});
-
-});
-
-    function initPersonSelect2(selector, saveUrl, itsystemId) {
-        /*[+
-        var personSearchUrl = [[@{/rest/manager/substitute/search/person}]];
-        +]*/
-        $(selector).select2({
-            placeholder: "",
-            allowClear: true,
-            multiple: true,
-            ajax: {
-                url: personSearchUrl,
-                dataType: 'json',
-                delay: 250,
-                data: function(params) {
-                    return { query: params.term || '' };
-                },
-                processResults: function(data) {
-                    return {
-                        results: (data.suggestions || []).map(function(s) {
-                            return { id: s.data, text: s.value };
-                        })
-                    };
-                },
-                cache: true
-            }
-        });
-        $(selector).on('change', function() {
-            var uuids = $(selector).val() || [];
-            $.ajax({
-                url: saveUrl,
-                method: 'POST',
-                data: {
-                    'id': itsystemId,
-                    'uuids': uuids
-                },
-                traditional: true,
-                headers: { 'X-CSRF-TOKEN': token },
-                error: errorHandler(fieldNotUpdatedMsg),
-                success: function() {
-                    $.notify({ message: fieldUpdatedMsg }, { status: 'success', autoHideDelay: 2000 });
-                }
-            });
-        });
-    }
-
-    function newAdRole() {
-        if (readonly) {
-            return;
-        }
-        $("#adSystemRoleId").val("0");
-
-        $("#modal-ad-systemrole").modal("show");
-
-        $("#adSystemRoleName").val("");
-        $("#adSystemRoleIdentifier").val("");
-        $("#adSystemRoleIdentifier").prop("readonly", false);
-        $("#adSystemRoleDescription").val("");
-        $("#adSystemRoleWeight").val("1");
-        $("#adSystemRoleMaximumAssignments").val("");
-
-		$("#adGroupType").val("NONE");
-		$("#universalFieldSet").hide();
-		$("#adSystemRoleName").focus();
-    }
-
-    function editAdRole(roleRow) {
-        var id = $(roleRow).data("id");
-        var tds = $(roleRow).parent().parent().find("td");
-
-        $("#adSystemRoleId").val(id);
-        $("#adSystemRoleName").val(tds.get(0).innerHTML);
-        $("#adSystemRoleIdentifier").val(tds.get(1).innerHTML);
-        $("#adSystemRoleIdentifier").prop("readonly", true);
-        $("#adSystemRoleDescription").val(tds.get(2).innerHTML);
-        $("#adSystemRoleWeight").val(tds.get(4).innerHTML);
-        $("#adSystemRoleMaximumAssignments").val(tds.get(5).innerHTML);
-        $("#createanduniversalfieldset").hide();
-
-        $("#modal-ad-systemrole").modal("show");
-
-        $("#adGroupType").val("NONE");
-    }
-
-
- function newSamlRole() {
-     $("#samlSystemRoleId").val("0");
-
-     $("#modal-saml-systemrole").modal("show");
-
-     $("#samlSystemRoleName").val("");
-     $("#samlSystemRoleIdentifier").val("");
-     $("#samlSystemRoleIdentifier").prop("readonly", false);
-     $("#samlSystemRoleDescription").val("");
-     $("#samlSystemRoleWeight").val("1");
-     $("#samlSystemRoleMaximumAssignments").val("");
-
-     $("#samlSystemRoleName").focus();
-
-	 $("#adGroupType").val("NONE");
-	 $("#universalFieldSet").hide();
- }
-
- function editSamlRole(roleRow) {
-     var id = $(roleRow).data("id");
-     var tds = $(roleRow).parent().parent().find("td");
-
-     $("#samlSystemRoleId").val(id);
-     $("#samlSystemRoleName").val(tds.get(0).innerHTML);
-     $("#samlSystemRoleIdentifier").val(tds.get(1).innerHTML);
-     $("#samlSystemRoleIdentifier").prop("readonly", true);
-     $("#samlSystemRoleDescription").val(tds.get(2).innerHTML);
-
-     if (itsystemType == "SAML") {
-     	$("#samlSystemRoleWeight").val(tds.get(4).innerHTML);
-     	$("#samlSystemRoleMaximumAssignments").val(tds.get(5).innerHTML);
-     } else {
-     	$("#samlSystemRoleMaximumAssignments").val(tds.get(4).innerHTML);
-     }
-
-     $("#modal-saml-systemrole").modal("show");
- }
-
- function openConfirmDeleteDialog(roleRow) {
-     var itsystemId = $("#id").val();
-     var id = $(roleRow).data('id');
-
-     /*[+
-     var url = [[@{/ui/itsystem/edit/}]] + itsystemId;
-     var deleteURI = [[@{/rest/systemrole/delete/}]] + id
-				var titleTxt = [[#{html.entity.itsystem.role.delete.confirm.title}]];
-				var bodyTxt = [[#{html.entity.itsystem.role.delete.confirm.body}]];
-     var cancelTxt = [[#{html.control.button.cancel}]];
-     var confirmTxt = [[#{html.control.button.delete}]];
-     var errorMsg = [[#{html.default.message.error}]];
-				var roleNotDeletedMsg = [[#{html.entity.itsystem.rolenotdeletedmsg}]];
-     +]*/
-
-     swal({
-         html: true,
-         title : titleTxt,
-         text : bodyTxt,
-         type : "warning",
-         showCancelButton : true,
-         confirmButtonColor : "#DD6B55",
-         confirmButtonText : confirmTxt,
-         cancelButtonText : cancelTxt,
-         closeOnConfirm : true,
-         closeOnCancel : true
-     },
-     function (isConfirm) {
-         if (isConfirm) {
-             $.ajax({
-                 type: "POST",
-                 headers: {
-                     'X-CSRF-TOKEN': token,
-                 },
-                 url: deleteURI,
-                 success: function() {
-                     window.location.href = url;
-                 },
-                 error: errorHandler(roleNotDeletedMsg)
-             });
-         }
-     }
- );
- }
-
- function removeUnusedUserRoles() {
-     /*[+
-     var deleteURI = [[@{/rest/itsystem/userrole/unused/{itsystem}(itsystem=${itsystem.id})}]];
-     var unusedCount = [[${unusedCount}]];
-	 var titleTxt = [[#{html.entity.itsystem.unused.userrole.delete.confirm.title}]];
-	 var bodyTxt = [[#{html.entity.itsystem.unused.userrole.delete.confirm.body(${unusedCount})}]];
-	 var norolesBodyText = [[#{html.entity.itsystem.unused.userrole.delete.confirm.norolesbody}]];
-     var cancelTxt = [[#{html.control.button.cancel}]];
-     var confirmTxt = [[#{html.control.button.delete}]];
-				var rolesNotDeletedMsg = [[#{html.section.itsystem.rolesnotdeletedmsg}]];
-     +]*/
-
-     if (readonly) {
-         return;
-     }
-
-     swal({
-         html: true,
-         title : titleTxt,
-         text : (unusedCount > 0) ? bodyTxt : norolesBodyText,
-         type : "warning",
-         showCancelButton : true,
-         showConfirmButton: (unusedCount > 0),
-         confirmButtonColor : "#DD6B55",
-         confirmButtonText : confirmTxt,
-         cancelButtonText : cancelTxt,
-         closeOnConfirm : true,
-         closeOnCancel : true
-     },
-     function (isConfirm) {
-         if (isConfirm) {
-             $.ajax({
-                 type: "POST",
-                 headers: {
-                     'X-CSRF-TOKEN': token,
-                 },
-                 url: deleteURI,
-                 success: function() {
-                     location.reload(true);
-                 },
-                 error: errorHandler(rolesNotDeletedMsg)
-             })
-         }
-     }
- );
- }
-
- function convertSystemRolesToUserRoles() {
-			const objReadonly = $("#readonly-checkbox").is(":checked");
-			if (!objReadonly) {
-     $("#modal-convert-systemroles").modal("show");
- }
+<script id="itsystem-edit-config" type="application/json" th:inline="javascript">
+	{
+		"itSystemId": [[${itsystem.id}]],
+		"itSystemType": [[${#strings.toString(itsystem.systemType)}]],
+		"readonly": [[${itsystem.readonly}]],
+		"subscribedToMaster": [[${itsystem.subscribedTo != null}]],
+		"unusedCount": [[${unusedCount}]],
+		"allOUs": [[${allOUs}]],
+		"selectedOUs": [[${selectedOUs}]],
+		"urls": {
+			"editPageBase": [[@{/ui/itsystem/edit/}]],
+			"userRole": [[@{/rest/userroles/}]],
+			"restItSystem": [[@{/rest/itsystem/}]],
+			"ouFilterEnabled": [[@{/rest/itsystem/ouFilterEnabled}]],
+			"attestationResponsible": [[@{/rest/itsystem/attestationResponsible}]],
+			"systemOwner": [[@{/rest/itsystem/systemOwner}]],
+			"requesterChange": [[@{/rest/itsystem/requester/}]],
+			"approverChange": [[@{/rest/itsystem/approver/}]],
+			"name": [[@{/rest/itsystem/name}]],
+			"email": [[@{/rest/itsystem/email}]],
+			"advisEmail": [[@{/rest/itsystem/advisemail}]],
+			"manualEffectuation": [[@{/rest/itsystem/manualeffectuation}]],
+			"manualWelcomeEmail": [[@{/rest/itsystem/manualwelcomeemail}]],
+			"manualWelcomeEmailGet": [[@{/rest/itsystem/{id}/manualwelcomeemail(id=${itsystem.id})}]],
+			"notificationEmail": [[@{/rest/itsystem/notificationemail}]],
+			"kitosItSystem": [[@{/rest/itsystem/kitositsystem}]],
+			"paused": [[@{/rest/itsystem/paused}]],
+			"readonly": [[@{/rest/itsystem/readonly}]],
+			"canEditThroughApi": [[@{/rest/itsystem/canEditThroughApi}]],
+			"accessBlocked": [[@{/rest/itsystem/accessBlocked}]],
+			"apiManagedRoleAssignments": [[@{/rest/itsystem/apiManagedRoleAssignments}]],
+			"hidden": [[@{/rest/itsystem/hidden}]],
+			"attestationExempt": [[@{/rest/itsystem/attestationExempt}]],
+			"notes": [[@{/rest/itsystem/notes}]],
+			"subscribedTo": [[@{/rest/itsystem/subscribedTo}]],
+			"roleAssignmentAttestationByAttestationResponsible": [[@{/rest/itsystem/userroles/}]],
+			"personSearch": [[@{/rest/manager/substitute/search/person}]],
+			"systemRoleDeleteBase": [[@{/rest/systemrole/delete/}]],
+			"unusedUserRoleDelete": [[@{/rest/itsystem/userrole/unused/{itsystem}(itsystem=${itsystem.id})}]]
+		},
+		"messages": {
+			"fieldUpdated": [[#{html.entity.itsystem.updatedMsg}]],
+			"fieldNotUpdated": [[#{html.entity.itsystem.notUpdatedMsg}]],
+			"fieldNotUpdatedOUFilter": [[#{html.entity.itsystem.notUpdatedMsgOUFilter}]],
+			"fieldNotUpdatedNotes": [[#{html.entity.itsystem.notUpdatedNotesMsg}]],
+			"fieldNotUpdatedEmail": [[#{html.entity.itsystem.notUpdatedEmailMsg}]],
+			"accessBlockedConfirmTitle": [[#{html.section.itsystem.access_blocked.confirm.title}]],
+			"accessBlockedConfirmBody": [[#{html.section.itsystem.access_blocked.confirm.body}]],
+			"cancel": [[#{html.control.button.cancel}]],
+			"yes": [[#{html.control.button.yes}]],
+			"delete": [[#{html.control.button.delete}]],
+			"deleteRoleConfirmTitle": [[#{html.entity.itsystem.role.delete.confirm.title}]],
+			"deleteRoleConfirmBody": [[#{html.entity.itsystem.role.delete.confirm.body}]],
+			"defaultError": [[#{html.default.message.error}]],
+			"roleNotDeleted": [[#{html.entity.itsystem.rolenotdeletedmsg}]],
+			"unusedRolesConfirmTitle": [[#{html.entity.itsystem.unused.userrole.delete.confirm.title}]],
+			"unusedRolesConfirmBody": [[#{html.entity.itsystem.unused.userrole.delete.confirm.body(${unusedCount})}]],
+			"unusedRolesNoRolesBody": [[#{html.entity.itsystem.unused.userrole.delete.confirm.norolesbody}]],
+			"rolesNotDeleted": [[#{html.section.itsystem.rolesnotdeletedmsg}]],
+			"emailTemplateSuccess": [[#{html.page.email_template.success}]],
+			"emailTemplateFailure": [[#{html.page.email_template.failure}]],
+			"swalImageOk": [[#{html.button.ok}]],
+			"swalImageTitle": [[#{html.page.email_template.swal.image.title}]],
+			"swalImageText": [[#{html.page.email_template.swal.image.text}]]
 		}
-
- function handleUserroleChange() {
-     var roleId = String(this.dataset.roleid);
-     var fieldName = String(this.dataset.fieldname);
-     var updateUrl = userRoleUrl + "flag/" + roleId + "/" + fieldName;
-
-     if (this.checked) {
-         updateUrl = updateUrl + "?active=true";
-     }
-     else {
-         updateUrl = updateUrl + "?active=false";
-     }
-
-     $.ajax({
-         url: updateUrl,
-         method: "POST",
-         headers: {
-             'X-CSRF-TOKEN': token
-         },
-         error: defaultErrorHandler,
-         success: function(response) {
-             $.notify({
-                 message: fieldUpdatedMsg
-             },{
-                 status: 'success',
-                 autoHideDelay: 4000
-             });
-         }
-     });
- }
-
- function initRoleRequestApproveSelects() {
-    // Destroy existing select2 instances to avoid duplicates
-    $('.requester-role-select.select2-hidden-accessible').select2('destroy');
-    $('.approver-role-select.select2-hidden-accessible').select2('destroy');
-
-    $('.requester-role-select').select2({
-        placeholder: '',
-        allowClear: true,
-        width: '100%'
-    });
-
-    $('.approver-role-select').select2({
-        placeholder: '',
-        allowClear: true,
-        width: '100%'
-    });
-
-    // Unbind first to avoid duplicate handlers
-    $('.requester-role-select').off('change.requestApprove');
-    $('.approver-role-select').off('change.requestApprove');
-
-    $('.requester-role-select').on('change.requestApprove', function() {
-        let roleId = this.dataset.roleid;
-        let selected = $(this).val() || [];
-
-        $.ajax({
-            url: userRoleUrl + roleId + '/requester',
-            method: 'POST',
-            contentType: 'application/json',
-            data: JSON.stringify({ requesterPermission: selected }),
-            headers: { 'X-CSRF-TOKEN': token },
-            success: function() {
-                $.notify({ message: fieldUpdatedMsg }, { status: 'success', autoHideDelay: 2000 });
-            },
-            error: errorHandler(fieldNotUpdatedMsg)
-        });
-    });
-
-    $('.approver-role-select').on('change.requestApprove', function() {
-        let roleId = this.dataset.roleid;
-        let selected = $(this).val() || [];
-
-        $.ajax({
-            url: userRoleUrl + roleId + '/approver',
-            method: 'POST',
-            contentType: 'application/json',
-            data: JSON.stringify({ approverPermission: selected }),
-            headers: { 'X-CSRF-TOKEN': token },
-            success: function() {
-                $.notify({ message: fieldUpdatedMsg }, { status: 'success', autoHideDelay: 2000 });
-            },
-            error: errorHandler(fieldNotUpdatedMsg)
-        });
-    });
- }
-
- function OUFilterService() {
-     this.init = function() {
-         $("#ouFilterEnabled-checkbox").change(ouFilterService.handleOUFilterCheckbox)
-         $("#ouFilterBtn").click(ouFilterService.handleOUFilterBtnClick);
-         $("#oufilterSave").click(ouFilterService.saveOUs);
-
-         $('#modal-ou-filter').on('shown.bs.modal', function() {
-             $('#ou-tree-search').focus();
-         })
-
-         ouFilterService.toggleOUFilter();
-
-         // JSTree stuff
-
-         $('#modal-ou-filter').on('shown.bs.modal', function () {
-            $('#ou-filter-tree-search').focus();
-         });
-
-		 $("#ou-filter-tree").jstree({
-			"core": {
-				"data": allOUs,
-				"themes": {
-					"icons": false
-				}
-			},
-			"search" : {
-				"show_only_matches": true,
-				"search_callback": function(str, node) {
-					return (node.text.toUpperCase().startsWith(str.toUpperCase()));
-				}
-			},
-			"checkbox" : {
-				"keep_selected_style" : false,
-				"three_state": false,
-				"cascade": "undefined"
-			},
-			"plugins" : [
-				"checkbox", "search"
-			]
-		 });
-
-		 // searching in the JSTree
-		 var to = false;
-		 $('#ou-filter-tree-search').keyup(function() {
-			if (to) {
-				clearTimeout(to);
-			}
-
-			to = setTimeout(function() {
-				var v = $('#ou-filter-tree-search').val();
-
-				$('#ou-filter-tree').jstree(true).search(v);
-			}, 400);
-		 });
-
-		 // selecting in the JSTree
-		 $('#ou-filter-tree').on("ready.jstree", function(e, data) {
-			$('#ou-filter-tree').jstree('select_node', selectedOUs);
-		 });
-     }
-
-     this.handleOUFilterBtnClick = function() {
-         $("#modal-ou-filter").modal("show");
-     }
-
-     this.handleOUFilterCheckbox = function(initial) {
-         var checked = $("#ouFilterEnabled-checkbox").prop("checked");
-
-         $.ajax({
-             url: ouFilterEnabledUrl,
-             method: 'POST',
-             data: {
-                 'ouFilterEnabled': checked,
-                 'id': itsystemId
-             },
-             headers: {
-                 'X-CSRF-TOKEN': token
-             },
-             error: errorHandler(fieldNotUpdatedMsgOUFilter),
-             success: function(response) {
-                 $.notify({
-                     message: fieldUpdatedMsg
-                 },{
-                     status: 'success',
-                     autoHideDelay: 2000
-                 });
-             }
-         });
-
-         ouFilterService.toggleOUFilter();
-     }
-
-     this.toggleOUFilter = function() {
-         var checked = $("#ouFilterEnabled-checkbox").prop("checked");
-
-         // hide/ show
-         if (checked) {
-             $(ouFilterButtonField).show();
-         } else {
-             $(ouFilterButtonField).hide();
-         }
-     }
-
-     this.saveOUs = function() {
-         var selected = $('#ou-filter-tree').jstree(true).get_selected();
-         $.ajax({
-             url: restUrl + "oufilter",
-             method: "POST",
-             headers: {
-                 'X-CSRF-TOKEN': token,
-                 'Content-Type': 'application/json'
-             },
-             data: JSON.stringify({
-                 'id': itsystemId,
-                 'selectedOUs': selected
-             }),
-             error: defaultErrorHandler,
-             success: function(response) {
-                 $("#modal-ou-filter").modal("hide");
-                 location.reload();
-             }
-         });
-     }
- }
-
-
- function ITSystemService() {
- }
-
- /*]]>*/
+	}
 </script>
+<script th:src="@{/js/service/RequestApproveService.js}"></script>
+<script th:src="@{/js/service/JsTreeService.js}"></script>
+<script th:src="@{/js/service/SweetAlertService.js}"></script>
+<script th:src="@{/js/service/Select2Service.js}"></script>
+<script th:src="@{/js/itsystem/edit.js}"></script>
 </body>
 </html>

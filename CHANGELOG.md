@@ -1,11 +1,29 @@
-Unreleased
-- Rettelse: En jobfunktionsrolle eller rollebuket, der var tildelt en enhed på udvalgte titler OG samtidig havde undtagne brugere, blev givet til alle i enheden, som ikke stod på undtagelseslisten - uanset titel. Undtagelseslisten fungerede altså som en selvstændig tildeling frem for kun som et fravalg. Titelfilteret respekteres nu, også når der er undtagne brugere på tildelingen. Samme rettelse er lavet for undtagne enheder ved nedarvede tildelinger
+2026.08.24 - Release 2026r4
+- [ROL-433](https://os2web.atlassian.net/browse/ROL-433) Flyt javascript til selvstændige filer
+- [ROL-458](https://os2web.atlassian.net/browse/ROL-458) Understøttelse af fuldført oprettelse/tildeling i Simple It-systemer
+- [ROL-474](https://os2web.atlassian.net/browse/ROL-474) Tildeling af rolle til flere brugere på samme tid
+- [ROL-540](https://os2web.atlassian.net/browse/ROL-540) Anmod/Godkend Log
+- [ROL-541](https://os2web.atlassian.net/browse/ROL-541) Udvidelse af CreateDelete-funktionalitet: Benyt It-systemets opsatte BackSync OU'er
+- [ROL-543](https://os2web.atlassian.net/browse/ROL-543) Tekstredigering i beskrivelsesfelt knyttet til jobfunktionsroller og rollebuketter
+- [ROL-544](https://os2web.atlassian.net/browse/ROL-544) Muligheden for, ved udskudte dataafgrænsninger, at gruppere valget af udskudt dataafgrænsning
+- [ROL-549](https://os2web.atlassian.net/browse/ROL-549) ADSyncService - generelle indstillinger - AD Noter
+- [ROL-552](https://os2web.atlassian.net/browse/ROL-552) Ny valgmulighed for visning af roller ved anmodning til medarbejder
+- [ROL-553](https://os2web.atlassian.net/browse/ROL-553) Anmod / Godkend modulet – udskudt dataafgrænsning
+- [ROL-559](https://os2web.atlassian.net/browse/ROL-559) Tilføjelse til notifikationsmail til tildeler
+- [ROL-564](https://os2web.atlassian.net/browse/ROL-564) Anmod/ godkend - Begrundelsesfelt medtages i mail information
+- [ROL-572](https://os2web.atlassian.net/browse/ROL-572) Opdatering af brugermanualen
+
+
+Øvrige fejlrettelser og mindre forbedringer:
+- Rettelse: Stavefejl ("adgant" i stedet for "adgang") i beskrivelsen på systemrollerne "Rolletildeler - Enheder" og "Rolletildeler - Brugere". Teksten rettes automatisk på eksisterende installationer
+- Rettelse: En jobfunktionsrolle eller rollebuket, der var tildelt en enhed på udvalgte titler OG samtidig havde undtagne brugere, blev givet til alle i enheden, som ikke stod på undtagelseslisten - uanset titel. Undtagelseslisten fungerede altså som en selvstændig tildeling frem for kun som et fravalg. Titelfilteret respekteres nu, også når der er undtagne brugere på tildelingen. Undtagne brugere og undtagne enheder kan nu kun fravælge, aldrig tildele, og nedarvning afgøres af tildelingens eget nedarvnings-flag. Eksisterende tildelinger, hvor flaget ikke svarede til den hidtidige adfærd (nedarvning sat sammen med undtagne brugere, eller undtagne enheder uden nedarvning), normaliseres af en migrering, så ingen bruger mister eller får rettigheder ved opgraderingen
 - Rettelse: Rapporten "Rolleopbygning: Alle systemer" kunne ikke hentes (browseren viste ERR_INVALID_RESPONSE), hvis blot ét it-system ikke havde en attestering af rolleopbygning i rapportperioden. Sådanne it-systemer medtages nu korrekt med status "Ikke attesteret". Samtidig viser kolonnen "Ansvarlig bruger" nu navne i stedet for UUID'er
 - Rettelse: Excel-rapporter med dataafgrænsninger gav en fejl (NullPointerException) i stedet for at blive dannet, når en dataafgrænsning af typen VALUE manglede en værdi (fx en udskudt afgrænsning). Tomme værdier håndteres nu uden at vælte rapporten
 - Rettelse: Rettigheder fjernet i kataloget blev ikke altid fjernet i AD/KSP-CICS, fordi dirty-markeringen var hensigts-baseret og afkoblet fra den faktiske medlemskabsberegning. Markeringen drives nu af et RoleMembershipChanged-event udledt af CurrentAssignment-deltaet, så også fjernelser via arv/rollebuket fanges (#83)
 - Rettelse: Når en rollebuket blev fjernet fra en enhed med nedarvning, blev kun enhedens egne brugere sat til genberegning — ikke brugere i de nedarvede underenheder. De beholdt derfor rollerne (også i fx OS2faktor) indtil en anden ændring eller en fuld genberegning udløste opdateringen. Var tildelingen nedarvet, genberegnes brugerne i underenhederne nu straks
 - Rettelse: Funktions-API'et (POST /api/v2/function og /api/v2/function/sync) kasserede et medsendt UUID ved oprettelse og genererede sit eget. Kildesystemet skulle derfor vedligeholde en mapping mellem egne og Rollekatalogets UUID'er, og en omdøbning blev til en deaktivering + nyoprettelse, hvor de jobfunktionsroller, kommunen havde sat op på funktionen, mistede deres tilknytning. Et medsendt UUID gemmes nu som funktionens identitet, og der genereres kun et, når kaldet ikke selv angiver et. Oprettelse opdaterer samtidig navnet på en funktion, den genkender, i stedet for at kvittere med det gamle navn
 - Rettelse: Læse-API'et returnerede itSystemName som null på "roller for bruger" (/api/read/user/{uuid}/roles), "roller for enhed" (/api/read/ous/{uuid}/roles) og "jobfunktionsroller pr. it-system" (/api/read/userroles/itsystems), fordi den automatiske objekt-mapning ikke længere fladede itSystem.name ud til itSystemName. Felterne udfyldes nu eksplicit
+- Rettelse: Jobfunktionsroller i et skrivebeskyttet AD-it-system blev tilbudt i tildelingslisterne, selv om de aldrig kan tildeles - Rollekataloget skriver aldrig til sådanne it-systemer. Tildelingen fejlede med en tom HTTP 400 uden nogen forklaring. Rollerne tilbydes ikke længere, og afviste tildelinger svarer nu med en forklaring, som brugerfladen viser
 
 2026.06.15 - Release 2026r3
 - [ROL-450](https://os2web.atlassian.net/browse/ROL-450) Rapport over rollebuketter / opmærkede rettigheder på enhed/stilling
@@ -294,4 +312,12 @@ Unreleased
 - [ROL-182](https://os2web.atlassian.net/browse/ROL-182) - Udarbejdelse af en liste over alle eksisterende API'er inkl. endpoints
 - [ROL-183](https://os2web.atlassian.net/browse/ROL-183) - Versionsnummer på nye releases
 - [ROL-189](https://os2web.atlassian.net/browse/ROL-189) - Mulighed for at aktivere/deaktivere Advis'er
+
+## [Unreleased]
+
+### Added
+- [ROL-474](https://os2web.atlassian.net/browse/ROL-474) Tildeling af rolle til flere brugere på samme tid
+- [ROL-544](https://os2web.atlassian.net/browse/ROL-544) Muligheden for, ved udskudte dataafgrænsninger, at gruppere valget af udskudt dataafgrænsning
+- [ROL-552](https://os2web.atlassian.net/browse/ROL-552) Ny valgmulighed for visning af roller ved anmodning til medarbejder
+- [ROL-559](https://os2web.atlassian.net/browse/ROL-559) Tilføjelse til notifikationsmail til tildeler
 

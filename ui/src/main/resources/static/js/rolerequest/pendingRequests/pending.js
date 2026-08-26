@@ -1,22 +1,43 @@
-document.addEventListener('DOMContentLoaded', ()=> {
+let config = {}
+
+document.addEventListener('DOMContentLoaded', () => {
+    config = JSON.parse(document.getElementById('pending-requests-config').textContent)
+    // Read the CSRF token from the meta tag, same as before, and expose it
+    // globally so other services on the page (and this file) can use it
+    window.token = $("meta[name='_csrf']").attr('content')
+    window.datatableService = window.datatableService || new DatatableService()
+
     const pendingRequestService = new PendingRequestService()
+    initDenyButtons()
 })
+
+// Delegated listener since it's consistent with the rest of the table's
+// interactions, even though these particular rows are static
+function initDenyButtons() {
+    document.addEventListener('click', (event) => {
+        const button = event.target.closest('.js-deny-btn')
+        if (!button) {
+            return
+        }
+
+        onDenyPressed(button.dataset.requestid)
+    })
+}
 
 class PendingRequestService {
     #TABLEID = `pendingRequestTable`
+    #CHILDROWCLASS = `childrow_contents`
     #table
 
     constructor () {
         this.#table = this.initTable()
+        this.initRowSelection()
 		this.initApproveButtons();
 		this.initAssignButtons();
     }
 
-	// The handlers below are delegated from the table, not bound to the buttons. DataTables keeps
-	// only the current page in the document, so binding directly would leave every row on every
-	// other page without a handler - the buttons would silently do nothing.
 	initApproveButtons() {
-		$(`#${this.#TABLEID}`).on('click', '.approveBtn', async function () {
+		$('.approveBtn').on('click', async function () {
 			const requestId = $(this).data('requestid');
 			const isChooseAnotherEndDate = $(this).data('chooseanotherenddate');
 			const assignedTo = $(this).data('assignedname');
@@ -52,55 +73,85 @@ class PendingRequestService {
 	}
 
 	initAssignButtons() {
-		$(`#${this.#TABLEID}`).on('click', '.assignBtn', function() {
+		$('.assignBtn').on('click', function() {
 			const requestId = $(this).data('requestid');
 			onAssignPressed(requestId, $(this));
 		})
 	}
 
     initTable() {
-        // 8 = Gyldighedsperiode and 11 = Godkendes af were already non-sortable before this change.
-        // 12 = Handlinger is new here: it holds nothing but button labels that are the same on every
-        // row, so sorting on it looked like a random shuffle.
-        const NON_SORTABLE_COLUMNS = [8, 11, 12];
-        // 7 = Anmodningsdato, sorted on the data-order attribute rendered by the server
-        const DEFAULT_ORDER = [[7, "desc"]];
-
         return $(`#${this.#TABLEID}`).DataTable({
             pageLength : 25,
+            responsive: true,
             autoWidth : false,
             stateSave: true,
-            order : DEFAULT_ORDER,
+            order : [[7, "desc"]],
             columnDefs : [
-            	{ "orderable" : false, "targets" : NON_SORTABLE_COLUMNS }
+            	{ "orderable" : false, "targets" : [8, 11] },
+                {width: "4rem", targets: [0]},
+                {
+                	targets: [7],
+					render: (data, type, row, meta) => {
+						if (type === 'sort') {
+							const dataArray = data.split('-')
+							return dataArray[2]+dataArray[1]+dataArray[0]
+						} else {
+						return data;}
+					}
+                }
             ],
-            stateLoadParams: (settings, data) => {
-                // a sort saved before these columns became non-sortable would otherwise survive in
-                // localStorage for hours and keep the table looking randomly ordered
-                // this runs during DataTable() construction, so anything thrown here aborts the whole
-                // init and leaves a raw table with no controls - stay defensive about the saved shape
-                if (Array.isArray(data.order)) {
-                    data.order = data.order.filter(entry => Array.isArray(entry) && !NON_SORTABLE_COLUMNS.includes(entry[0]));
-                }
-                if (!Array.isArray(data.order) || data.order.length === 0) {
-                    data.order = DEFAULT_ORDER.map(entry => [...entry]);
-                }
-            },
-            language : {
-                search : "Søg",
-                lengthMenu : "_MENU_ rækker per side",
-                info : "Viser _START_ til _END_ af _TOTAL_ rækker",
-                zeroRecords : "Ingen data...",
-                infoEmpty : "",
-                infoFiltered : "(ud af _MAX_ rækker)",
-                paginate : {
-                    "previous" : "Forrige",
-                    "next" : "Næste"
-                }
-            }
+            language : window.datatableService.defaultLanguageOptions
         })
     }
 
+    initRowSelection() {
+        this.#table.on('click', 'td.dt-control', (e) => {
+            let row = e.target.closest('tr');
+
+            const id = row.id.split('_')[0];
+            this.onRowClicked(row, id)
+        });
+    }
+
+    onRowClicked(rowElement, dataId) {
+        if (!rowElement || !dataId) {
+            console.error("missing element or Id for clicked row", "rowelement: "+rowElement, "data id: "+dataId);
+        }
+
+        $(rowElement).toggleClass('dt-hasChild');
+
+        let row = this.#table.row(rowElement);
+
+        if (row.child.isShown()) {
+            // This row is already open - close it
+            row.child.hide();
+        } else {
+            // Open this row
+            row.child(this.fetchRowDetails(dataId)).show();
+        }
+
+    }
+
+    fetchRowDetails(requestId ) {
+		let div = $('<div/>')
+		.addClass( 'loading' )
+		.text( 'Henter...' );
+
+		$.ajax( {
+			url: `${config.detailsUrl}/${requestId}`,
+			success: function ( data ) {
+				div
+				.html( data )
+				.removeClass( 'loading' );
+			},
+			error: (error)=>{
+				console.error(error)
+				toastr.warning("Der er sket en fejl. Se consollen for detaljer");
+			}
+		} );
+
+		return div;
+	}
 }
 
 function showDateModal(headerText, labelText, cancelText, saveText) {
@@ -118,7 +169,7 @@ async function onApprovePressed(requestId, isChooseAnotherEndDate=false) {
 	if (isChooseAnotherEndDate) {
 
 		// Remove any existing modal first
-		showDateModal(swalHeaderText, swalNewDateText, cancelText, saveText);
+		showDateModal(config.swalHeaderText, config.swalNewDateText, config.cancelText, config.saveText);
 
 		$('#confirmDateBtn').on('click', function() {
 			let newDate = $('#modalDateInput').val();
@@ -132,7 +183,7 @@ async function onApprovePressed(requestId, isChooseAnotherEndDate=false) {
 
 			$.ajax({
 				method: "POST",
-				url: `${restUrl}/${requestId}/approve`,
+				url: `${config.restUrl}/${requestId}/approve`,
 				headers: {
 					"content-type": "application/json",
 					'X-CSRF-TOKEN': token
@@ -146,7 +197,7 @@ async function onApprovePressed(requestId, isChooseAnotherEndDate=false) {
 
 		return;
 	}
-    const response = await fetch(`${restUrl}/${requestId}/approve`, {
+    const response = await fetch(`${config.restUrl}/${requestId}/approve`, {
         method: "POST",
         headers: {
             'X-CSRF-TOKEN': token
@@ -179,7 +230,7 @@ async function onDenyPressed(requestId) {
     async function (reason) {
        // User clicked confirm
        if (reason !== false) {
-          const url = `${restUrl}/${requestId}/deny`;
+          const url = `${config.restUrl}/${requestId}/deny`;
 
           const response = await fetch(url, {
              method: 'POST',
@@ -235,7 +286,7 @@ async function onAssignPressed(requestId, buttonElement) {
 }
 
 async function performAssignment(requestId, buttonElement) {
-	const response = await fetch(`${restUrl}/tag/request/${requestId}`, {
+	const response = await fetch(`${config.restUrl}/tag/request/${requestId}`, {
 		method: "POST",
 		headers: {
 			'X-CSRF-TOKEN': token
@@ -253,19 +304,11 @@ async function performAssignment(requestId, buttonElement) {
 		return;
 	}
 
-	// Update the UI without reloading. A reload re-runs the whole query and re-renders every row
-	// just to change one cell, and it throws away the scroll position on the way.
+	// Update the UI without reloading
 	const currentUserName = document.getElementById("pending-request-data")?.dataset.currentUserName;
 	const row = buttonElement.closest('tr');
 	row.find('.treatedByResponsibleField').text(currentUserName);
 	row.find('.approveBtn').data('assignedto', currentUserName);
-	// the "already claimed" guards read assignedname off the buttons, so keep it in sync
-	row.find('.assignBtn, .approveBtn').data('assignedname', currentUserName);
-	// Let DataTables re-read the row, otherwise sorting and searching keep using the old value.
-	// draw('page') repaints the current page only - draw(false) would re-sort and re-filter, which
-	// moves the row out from under the cursor when the table is sorted on or filtered by the
-	// responsible column. invalidate() has already dropped the cached sort and filter data, so the
-	// next real sort or search still picks up the new value.
-	$('#pendingRequestTable').DataTable().row(row).invalidate('dom').draw('page');
 	toastr.success("Anmodningen er nu tildelt dig");
+	window.location.reload();
 }

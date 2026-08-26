@@ -3,93 +3,52 @@
 <head th:replace="~{fragments/header :: header (title=#{html.featureDocumentation.title})}"></head>
 <body>
 <div class="wrapper">
-    <header th:replace="~{fragments/navbar :: navbar-header(subpage = 'administration')}"></header>
-    <aside th:replace="~{fragments/navbar :: navbar-aside (page = 'featureDocumentation', subpage = 'administration')}"></aside>
+	<header th:replace="~{fragments/navbar :: navbar-header(subpage = 'administration')}"></header>
+	<aside th:replace="~{fragments/navbar :: navbar-aside (page = 'featureDocumentation', subpage = 'administration')}"></aside>
 
-    <section>
-        <div class="content-wrapper">
+	<section>
+		<div class="content-wrapper">
 			<h3 th:utext="#{html.featureDocumentation.title}"></h3>
 			<div class="panel panel-default" style="padding-left: 20px; padding-right: 20px;">
 				<div class="panel-body">
 					<div class="table-responsive">
-						<table id="listTable" class="table table-striped table-hover listTable">
+						<table id="listTable" class="table table-striped table-hover">
 							<thead>
-								<tr>
-									<th class="col-md-1" th:text="#{html.featureDocumentation.list.enabled}"></th>
-									<th class="col-md-3" th:text="#{html.featureDocumentation.list.name}"></th>
-									<th class="col-md-8" th:text="#{html.featureDocumentation.list.description}"></th>
-								</tr>
+							<tr>
+								<th class="col-md-1" th:text="#{html.featureDocumentation.list.enabled}"></th>
+								<th class="col-md-3" th:text="#{html.featureDocumentation.list.name}"></th>
+								<th class="col-md-8" th:text="#{html.featureDocumentation.list.description}"></th>
+							</tr>
 							</thead>
-				
+
 							<tbody>
-								<tr th:each="feature : ${features}">
-									<td style="text-align: center;">
-										<em th:if="${feature.enabled}" class="fa fa-check"></em>
-									</td>
-									<td th:text="${feature.name}"></td>
-									<td class="preformat" th:text="${feature.description}"></td>
-								</tr>
+							<tr th:each="feature : ${features}">
+								<td style="text-align: center;">
+									<em th:if="${feature.enabled}" class="fa fa-check"></em>
+								</td>
+								<td th:text="${feature.name}"></td>
+								<td class="preformat" th:text="${feature.description}"></td>
+							</tr>
 							</tbody>
 						</table>
 					</div>
 				</div>
 			</div>
 		</div>
-    </section>
+	</section>
 </div>
 
 <style>
 	.table .checkbox {
-		margin-left: 10px;
-		width: auto;
+	   margin-left: 10px;
+	   width: auto;
 	}
 </style>
 
 <div th:replace="~{fragments/footer :: footer}"></div>
 
-<script th:inline="javascript">
-		/*<![CDATA[*/
+<div th:replace="~{fragments/datatables :: datatables}"></div>
 
-        /*[+
-        	var searchTxt = [[#{html.datatables.search}]];
-   			var dropdownTxt = [[#{html.datatables.dropdown}]];
-   			var infoDefaultTxt = [[#{html.datatables.info.default}]];
-   			var infoEmptyTxt = [[#{html.datatables.info.empty}]];
-   			var infoFilteredTxt = [[#{html.datatables.info.filtered}]];
-			var prevTxt = [[#{html.datatables.prev}]];
-			var nextTxt = [[#{html.datatables.next}]];
-         +]*/
-
-		$("document").ready(function() {
-			$("#listTable").DataTable({
-		        'paging':   true,
-		        'ordering': true,
-		        'order': [
-		        	[ 1, 'asc' ]
-		        ],
-		        "columnDefs": [
-		            { "targets": [0], "orderable": false }
-		        ],
-		        "autoWidth": false,
-		        'info':     true,
-	            'stateSave': true,
-				"pageLength": 100,
-		        "language": {
-		            "search":       searchTxt,
-		            "lengthMenu":   dropdownTxt,
-		            "info":         infoDefaultTxt,
-		            "zeroRecords":  infoEmptyTxt,
-		            "infoEmpty":    "",
-		            "infoFiltered": infoFilteredTxt,
-					"paginate": {
-						"next": nextTxt,
-						"previous": prevTxt
-					}
-		        }
-		    });
-		});
-		
-		/*]]>*/
-	</script>
+<script th:src="@{/js/feature_documentation/list.js}"></script>
 </body>
 </html>

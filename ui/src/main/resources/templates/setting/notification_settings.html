@@ -41,7 +41,7 @@
 				<fieldset>
 					<div class="form-group">
 						<div class="col-md-offset-2 col-md-8">
-							<button onclick="settingService.submitForm(); return false;" class="btn btn-primary btn-block" th:text="#{html.control.button.save}"></button>
+							<button class="btn btn-primary btn-block js-save-settings-btn" th:text="#{html.control.button.save}"></button>
 						</div>
 					</div>
 				</fieldset>
@@ -52,103 +52,18 @@
 
 <div th:replace="~{fragments/footer :: footer}"></div>
 
-<script th:inline="javascript">
-		/*<![CDATA[*/
-
-        /*[+
-			 var successMsg = [[#{html.setting.update.msg.success}]];
-			 var failedMsg = [[#{html.setting.update.msg.failed}]];
-	
-			 var ajaxUrl = [[@{/rest/admin/notifications/settings}]]
-			 var deleteDeselectedNotificationsHeader = [[#{html.setting.notification.swal.header}]];
-			 var deleteDeselectedNotificationsText = [[#{html.setting.notification.swal.text}]];
-			 var btnYes = [[#{html.setting.notification.swal.btn.yes}]];
-			 var btnNo = [[#{html.setting.notification.swal.btn.no}]];
-		 +]*/
-
-		var modifications = false;
-
-		var settingService;
-		$("document").ready(function() {
-			settingService = new SettingService();
-			settingService.init();
-		});
-
-		var token = $("meta[name='_csrf']").attr("content");
-		
-		function SettingService() {
-			
-			this.init = function() {
-				$('.notificationtypeCbx').change(function() {
-					settingService.handleCheckbox(this, $(this).data("id"));
-				});
-			}
-
-			this.submitForm = function() {
-				if (modifications) {
-					var checkboxes = $('.notificationtypeCbx');
-					var notificationTypes = {};
-					for (var i = 0; i < checkboxes.length; i++) {
-						var key = $(checkboxes[i]).data('id')
-						var value = $('#' + key).val();
-	
-						notificationTypes[key] = value;
-					} 
-	
-					swal({
-						html : true,
-						title : deleteDeselectedNotificationsHeader,
-						text : deleteDeselectedNotificationsText,
-						type : "warning",
-						showCancelButton : true,
-						confirmButtonColor : "#DD6B55",
-						confirmButtonText : btnYes,
-						cancelButtonText : btnNo,
-						closeOnConfirm : true,
-						closeOnCancel : true
-					},
-					function(isConfirm) {
-						modifications = false;
-
-						$.ajax({
-							method : "POST",
-							url: ajaxUrl,
-							headers: {
-								'X-CSRF-TOKEN': token
-							},
-							contentType: "application/json",
-							data: JSON.stringify({
-								'deleteAlreadyCreated': isConfirm,
-								'notificationTypes': notificationTypes
-							})
-						}).done(function (data) {''
-							$.notify({
-								message: successMsg
-							},{
-								status: 'success',
-								autoHideDelay: 4000
-							});
-						}).fail(errorHandler(failedMsg));
-					});
-				}
-				else {
-					$.notify({
-						message: successMsg
-					},{
-						status: 'success',
-						autoHideDelay: 4000
-					});
-				}
-			}
-
-			this.handleCheckbox = function (obj, id) {
-				var checked = $(obj).prop('checked');
-				$('#' + id).val(checked);
-				
-				modifications = true;
-			}
-		}
-		/*]]>*/
-	</script>
+<script type="application/json" id="notification-setting-config" th:inline="javascript">
+	{
+		"successMsg": [[#{html.setting.update.msg.success}]],
+		"failedMsg": [[#{html.setting.update.msg.failed}]],
+		"ajaxUrl": [[@{/rest/admin/notifications/settings}]],
+		"deleteDeselectedNotificationsHeader": [[#{html.setting.notification.swal.header}]],
+		"deleteDeselectedNotificationsText": [[#{html.setting.notification.swal.text}]],
+		"btnYes": [[#{html.setting.notification.swal.btn.yes}]],
+		"btnNo": [[#{html.setting.notification.swal.btn.no}]]
+	}
+</script>
+<script th:src="@{/js/service/SweetAlertService.js}"></script>
+<script th:src="@{/js/setting/notification_settings.js}"></script>
 </body>
 </html>

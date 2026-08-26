@@ -65,6 +65,7 @@ public class DataBootstrap implements ApplicationListener<ApplicationReadyEvent>
 		currentVersion = applyVersion(4, this::seedV4, currentVersion);
 		currentVersion = applyVersion(5, this::seedV5, currentVersion);
 		currentVersion = applyVersion(6, this::seedV6, currentVersion);
+		currentVersion = applyVersion(7, this::seedV7, currentVersion);
 		setCurrentVersion(currentVersion);
 	}
 
@@ -281,14 +282,14 @@ public class DataBootstrap implements ApplicationListener<ApplicationReadyEvent>
 		SystemRoleTemplate ouAssignerTemplate = new SystemRoleTemplate(
 				"Rolletildeler - Enheder",
 				Constants.ROLE_OU_ASSIGNER_ID,
-				"Denne rolle giver adgant til at tildele og fjerne jobfunktionsroller og rollebuketter til enheder",
+				"Denne rolle giver adgang til at tildele og fjerne jobfunktionsroller og rollebuketter til enheder",
 				List.of(systemConstraintTypeSupport, ouConstraintTypeSupport));
 
 		SystemRole ouAssigner = systemRoleService.createForRoleCatalogue(ouAssignerTemplate.title, ouAssignerTemplate.constantId, ouAssignerTemplate.description, roleCatalogue);
 		ouAssigner.getSupportedConstraintTypes().addAll(ouAssignerTemplate.supportedConstraintTypes);
 
 		userAssigner.setName("Rolletildeler - Brugere");
-		userAssigner.setDescription("Denne rolle giver adgant til at tildele og fjerne jobfunktionsroller og rollebuketter til brugere");
+		userAssigner.setDescription("Denne rolle giver adgang til at tildele og fjerne jobfunktionsroller og rollebuketter til brugere");
 		systemRoleService.saveAll(List.of(ouAssigner, userAssigner));
 
 		// find all assignments to old role
@@ -354,6 +355,22 @@ public class DataBootstrap implements ApplicationListener<ApplicationReadyEvent>
 	private void seedV6() {
 		// Recalculate all users to populate the new manager/substitutes columns on current_assignment
 		userService.queueAllForRecalculation();
+	}
+
+	private void seedV7() {
+		// fix a spelling error ("adgant") in the descriptions seeded on the two assigner system roles
+		ItSystem roleCatalogue = itSystemService.findByIdentifier(Constants.ROLE_CATALOGUE_IDENTIFIER).stream().findFirst()
+				.orElseThrow();
+
+		for (String identifier : List.of(Constants.ROLE_OU_ASSIGNER_ID, Constants.ROLE_USER_ASSIGNER_ID)) {
+			SystemRole systemRole = systemRoleService.getFirstByIdentifierAndItSystemId(identifier, roleCatalogue.getId());
+			if (systemRole == null || systemRole.getDescription() == null || !systemRole.getDescription().contains("adgant")) {
+				continue;
+			}
+
+			systemRole.setDescription(systemRole.getDescription().replace("adgant", "adgang"));
+			systemRoleService.save(systemRole);
+		}
 	}
 
 }

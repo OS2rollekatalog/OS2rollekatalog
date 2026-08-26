@@ -179,102 +179,18 @@
 
 <div th:replace="~{fragments/footer :: footer}"></div>
 
-<script th:inline="javascript">
-	/*<![CDATA[*/
-
-	/*[+
-		var restUrl = [[@{/rest/mailtemplates}]];
-		var listUrl = [[@{/ui/admin/mailtemplates}]];
-		var msgSuccess = [[#{html.page.email_template.success}]];
-		var msgFail = [[#{html.page.email_template.failure}]];
-
-		var swalImageOk = [[#{html.button.ok}]];
-		var swalImageTitle = [[#{html.page.email_template.swal.image.title}]];
-		var swalImageText = [[#{html.page.email_template.swal.image.text}]];
-	+]*/
-
-		var token = $("meta[name='_csrf']").attr("content");
-
-		$(document).ready(function () {
-			// the message is edited with the full WYSIWYG editor (pictures, links). the repeating parts
-			// are content-only fragments - their list structure (<ul>/<li>) is applied by the renderer -
-			// so they get a reduced toolbar (codeview still lets a technical admin edit the raw html).
-			$('textarea[name="message"]').summernote({
-				"height": 320,
-				"toolbar": [
-					[ "font", [ "bold", "italic", "underline" ]],
-					[ "para", [ "ul", "ol" ]],
-					[ "insert", [ "picture", "link" ]],
-					[ "view", [ "codeview" ] ]
-				],
-				maximumImageFileSize: 100*1024,
-				callbacks: {
-					onImageUploadError: function(msg) {
-						swal({
-							title: swalImageTitle,
-							text: swalImageText,
-							confirmButtonColor : "#4765a0",
-							confirmButtonText : swalImageOk
-						});
-					}
-				},
-				dialogsInBody: true
-			});
-
-			$('textarea[name="repeatingPart"], textarea[name="nestedRepeatingPart"]').summernote({
-				"height": 150,
-				"toolbar": [
-					[ "font", [ "bold", "italic", "underline" ]],
-					[ "view", [ "codeview" ] ]
-				],
-				dialogsInBody: true
-			});
-
-			$('#checkboxEnabled').on('change', function() {
-				$("input[name=enabled]").val(this.checked);
-			});
-
-			$('#buttonSubmit').on('click', function() {
-				var data = getFormData($('#templateForm'));
-				save(data, false);
-			});
-
-			$('#buttonTest').on('click', function() {
-				var data = getFormData($('#templateForm'));
-				save(data, true);
-			});
-		});
-
-		function getFormData(oForm) {
-			var unindexed_array = oForm.serializeArray();
-			var indexed_array = {};
-
-			$.map(unindexed_array, function(n, i){
-				indexed_array[n['name']] = n['value'];
-			});
-
-			return indexed_array;
-		}
-
-		function save(payload, tryEmail) {
-			$.ajax({
-				method : "POST",
-				url: restUrl + "?tryEmail=" + tryEmail,
-				headers: {
-					"content-type": "application/json",
-					'X-CSRF-TOKEN': token
-				},
-				data: JSON.stringify(payload)
-			}).done(function(data) {
-				if (data != '') {
-					$.notify({ message: data }, { status: 'success', autoHideDelay: 2000 });
-				} else {
-					$.notify({ message: msgSuccess }, { status: 'success', autoHideDelay: 2000 });
-				}
-			}).fail(errorHandler(msgFail));
-		}
-
-	/*]]>*/
+<script id="pageConfig" type="application/json" th:inline="javascript">
+	{
+		"restUrl": [[@{/rest/mailtemplates}]],
+		"listUrl": [[@{/ui/admin/mailtemplates}]],
+		"msgSuccess": [[#{html.page.email_template.success}]],
+		"msgFail": [[#{html.page.email_template.failure}]],
+		"swalImageOk": [[#{html.button.ok}]],
+		"swalImageTitle": [[#{html.page.email_template.swal.image.title}]],
+		"swalImageText": [[#{html.page.email_template.swal.image.text}]]
+	}
 </script>
+
+<script th:src="@{/js/emailtemplate/edit.js}"></script>
 </body>
 </html>

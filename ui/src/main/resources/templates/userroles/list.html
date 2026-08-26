@@ -44,331 +44,56 @@
 	</section>
 </div>
 
-<style>
-	.center-row {
-		text-align: center;
-	}
-</style>
+<link rel="stylesheet" th:href="@{/css/userroles/list.css}" />
+
 <nav th:replace="~{fragments/footer :: footer}"></nav>
 
 <script th:replace="~{fragments/datatables :: datatables}"></script>
 <script type="module" th:src="@{/js/datatable/extension.js}"></script>
-<script th:inline="javascript">
-	/*<![CDATA[*/
-
-var token = $("meta[name='_csrf']").attr("content");
-
-/*[+
-var baseUrl = [[@{/}]];
-var searchTxt = [[#{html.datatables.search}]];
-var dropdownTxt = [[#{html.datatables.dropdown}]];
-var infoDefaultTxt = [[#{html.datatables.info.default}]];
-var infoEmptyTxt = [[#{html.datatables.info.empty}]];
-var infoLoadingTxt = [[#{html.datatables.info.loading}]];
-var infoFilteredTxt = [[#{html.datatables.info.filtered}]];
-var ajaxUrl = [[@{/rest/userroles/list}]];
-
-var titleSyncing = [[#{html.entity.userrole.syncing}]];
-var titleFailed = [[#{html.entity.userrole.sync.failed}]];
-var titleNlFailed = [[#{html.entity.userrole.nlsync.failed}]];
-
-var requestApproveEnabled = [[${@settingsService.isRequestApproveEnabled()}]];
-var requestableBy = {
-	INHERIT: [[#{html.enum.sttings.requestableby.inherit}]],
-	NONE: [[#{html.enum.sttings.requestableby.none}]],
-	MANAGERORSUBSTITUTE: [[#{html.enum.sttings.requestableby.manager}]],
-	AUTHRESPONSIBLE: [[#{html.enum.sttings.requestableby.authresponsible}]],
-	AUTHORIZED: [[#{html.enum.sttings.requestableby.authorized}]],
-	EMPLOYEE: [[#{html.enum.sttings.requestableby.employee}]],
-	ADMIN: [[#{html.enum.sttings.requestableby.admin}]]
-}
-var approvableBy = {
-	INHERIT: [[#{html.enum.sttings.approvableby.inherit}]],
-	AUTOMATIC: [[#{html.enum.sttings.approvableby.automatic}]],
-	AUTHRESPONSIBLE: [[#{html.enum.sttings.approvableby.authresponsible}]],
-	MANAGERORSUBSTITUTE: [[#{html.enum.sttings.approvableby.manager}]],
-	AUTHORIZED: [[#{html.enum.sttings.approvableby.authorized}]],
-	ADMINISTRATOR: [[#{html.enum.sttings.approvableby.admin}]],
-	SYSTEMRESPONSIBLE: [[#{html.enum.sttings.approvableby.systemresponsible}]]
-}
-
-+]*/
-
-// This method replaces occurence of {0} with text from parameter
-String.prototype.format = function () {
-		var args = [].slice.call(arguments);
-		return this.replace(/(\{\d+\})/g, function (a) {
-				return args[+(a.substr(1,a.length-2))||0];
-		});
-};
-
-$("document").ready(function() {
-
-	// Setup - add a text input to each footer cell
-	$('#listTable tfoot th[class="input-filter"]').each( function () {
-		$(this).html('<input type="text" class="form-control input-sm" placeholder="Søg" />');
-	});
-
-	var table = $('#listTable').DataTable({
-		'destroy': true,
-		'stateSave': true,
-		'stateLoadCallback': function(settings) {
-			try {
-				var data = JSON.parse(localStorage.getItem('DataTables_' + settings.sInstance));
-
-				if (data && data.columns) {
-					// Force correct visibility for columns 3 and 4 (requester/approver permission)
-					data.columns[3].visible = requestApproveEnabled;
-					data.columns[4].visible = requestApproveEnabled;
-				}
-
-				return data;
-			} catch (e) {
-				return null;
-			}
+<script type="application/json" th:inline="javascript" id="userroles-list-config">
+	{
+		"baseUrl": [[@{/}]],
+		"searchTxt": [[#{html.datatables.search}]],
+		"dropdownTxt": [[#{html.datatables.dropdown}]],
+		"infoDefaultTxt": [[#{html.datatables.info.default}]],
+		"infoEmptyTxt": [[#{html.datatables.info.empty}]],
+		"infoLoadingTxt": [[#{html.datatables.info.loading}]],
+		"infoFilteredTxt": [[#{html.datatables.info.filtered}]],
+		"ajaxUrl": [[@{/rest/userroles/list}]],
+		"titleSyncing": [[#{html.entity.userrole.syncing}]],
+		"titleFailed": [[#{html.entity.userrole.sync.failed}]],
+		"titleNlFailed": [[#{html.entity.userrole.nlsync.failed}]],
+		"requestApproveEnabled": [[${@settingsService.isRequestApproveEnabled()}]],
+		"requestableBy": {
+			"INHERIT": [[#{html.enum.sttings.requestableby.inherit}]],
+			"NONE": [[#{html.enum.sttings.requestableby.none}]],
+			"MANAGERORSUBSTITUTE": [[#{html.enum.sttings.requestableby.manager}]],
+			"AUTHRESPONSIBLE": [[#{html.enum.sttings.requestableby.authresponsible}]],
+			"AUTHORIZED": [[#{html.enum.sttings.requestableby.authorized}]],
+			"EMPLOYEE": [[#{html.enum.sttings.requestableby.employee}]],
+			"ADMIN": [[#{html.enum.sttings.requestableby.admin}]]
 		},
-		'stateSaveCallback': function(settings, data) {
-			// Always save current requestApproveEnabled state
-			if (data.columns) {
-				data.columns[3].visible = requestApproveEnabled;
-				data.columns[4].visible = requestApproveEnabled;
-			}
-			localStorage.setItem('DataTables_' + settings.sInstance, JSON.stringify(data));
+		"approvableBy": {
+			"INHERIT": [[#{html.enum.sttings.approvableby.inherit}]],
+			"AUTOMATIC": [[#{html.enum.sttings.approvableby.automatic}]],
+			"AUTHRESPONSIBLE": [[#{html.enum.sttings.approvableby.authresponsible}]],
+			"MANAGERORSUBSTITUTE": [[#{html.enum.sttings.approvableby.manager}]],
+			"AUTHORIZED": [[#{html.enum.sttings.approvableby.authorized}]],
+			"ADMINISTRATOR": [[#{html.enum.sttings.approvableby.admin}]],
+			"SYSTEMRESPONSIBLE": [[#{html.enum.sttings.approvableby.systemresponsible}]]
 		},
-		'ajax': {
-			'contentType': 'application/json',
-			'url': ajaxUrl,
-			'type': 'POST',
-			headers: {
-				'X-CSRF-TOKEN': token
-			},
-			'data': function(d) {
-				 return JSON.stringify(d);
-			}
-		},
-		'serverSide' : true,
-		'columns': [
-			{
-				data: "name",
-				orderable: true,
-				searchable: true,
-				render: function (data, type, row, meta) {
-					var result = '';
-
-					if (row.pendingSync == true && row.syncFailed == false) {
-						result += '<em class="fa fa-refresh" title="'+ titleSyncing + '"></em> ';
-					}
-
-					if (row.pendingSync == true && row.syncFailed == true) {
-						result += '<em class="fa fa-exclamation-triangle" style="color: red;" title="' + titleFailed + '"></em> ';
-					}
-
-					result += "<span>" + data + "</span>";
-
-					// Add AD group badges
-					if (row.adGroupNames && row.adGroupNames.length > 0) {
-						row.adGroupNames.forEach(function(groupName) {
-							result += ' <span class="badge badge-success" title="AD Gruppe">AD gruppe: ' + groupName + '</span>';
-						});
-					}
-
-					return result;
-				}
-			},
-			{
-				data: "itSystemName",
-				orderable: true,
-				searchable: true
-			},
-			{
-				data: "description",
-				orderable: true,
-				searchable: true,
-				className: "preformat"
-			},
-			{
-				data: "effectiveRequesterPermission",
-				orderable: true,
-				searchable: true,
-				visible: requestApproveEnabled,
-				render: function(data, type, row, meta) {
-					if (!requestApproveEnabled) {
-						return "";
-					}
-					if (type === "display") {
-						if (data) {
-							return data
-								.map(function(p) {
-									return requestableBy[p.trim()] || p.trim();
-								})
-								.join(', ');
-						}
-						return requestableBy.INHERIT;
-					}
-					return data;
-				}
-			},
-			{
-				data: "effectiveApproverPermission",
-				orderable: true,
-				searchable: true,
-				visible: requestApproveEnabled,
-				render: function(data, type, row, meta) {
-					if (!requestApproveEnabled) {
-						return "";
-					}
-					if (type === "display") {
-						if (data) {
-							return data
-								.map(function(p) {
-									return approvableBy[p.trim()] || p.trim();
-								})
-								.join(', ');
-						}
-						return approvableBy.INHERIT;
-					}
-					return data;
-				}
-			},
-			{
-				data: "allowedActions",
-				orderable: false,
-				searchable: false,
-				render: function (data, type, row, meta) {
-					if (type === 'display') {
-						const id = row.uuid;
-						let html = ''
-						html += data.readable ? '<a href="' + baseUrl +'ui/userroles/view/' + row.id + '"><em class="fa fa-search"></em></a>' : '';
-						html += data.editable ? '<a href="' + baseUrl +'ui/userroles/edit/' + row.id + '"><em class="fa fa-pencil"></em></a>' : '';
-						html += data.deletable ? '<a href="#" class="openConfirmDeleteDialog" data-id="'+row.id+'"><em class="fa fa-trash"></em></a>' : '';
-						html += data.duplicateable ? '<a href="' + baseUrl +'ui/userroles/copy/' + row.id + '" data-id="'+row.id+'"><em class="fa fa-clone"></em></a>' : '';
-						return html;
-					}
-					return data;
-				}
-			}
-		],
-		'paging':   true,
-		'ordering': true,
-		'info':	 true,
-		'pageLength': 25,
-		'language': {
-			"search": searchTxt,
-			"lengthMenu": dropdownTxt,
-			"info": infoDefaultTxt,
-			"zeroRecords": infoEmptyTxt,
-			"infoEmpty": "",
-			"infoFiltered": infoFilteredTxt
-		},
-		initComplete: function ()
-		{
-			var r = $('#listTable tfoot tr');
-			r.find('th').each(function(){
-				$(this).css('padding', 8);
-			});
-			$('#listTable thead').append(r);
-			$('#search_0').css('text-align', 'center');
-		}
-	});
-
-	// Restore state
-	var state = table.state.loaded();
-	if (state) {
-	  table.columns().eq(0).each(function(colIdx) {
-		var colSearch = state.columns[colIdx].search;
-
-		if (colSearch.search) {
-		  $('input', table.column(colIdx).footer()).val(colSearch.search);
-		}
-	  });
-
-	  table.draw();
+		"tryDeleteUrl": [[@{/rest/userroles/trydelete/}]],
+		"deleteUrl": [[@{/rest/userroles/delete/}]],
+		"listUrl": [[@{/ui/userroles/list}]],
+		"titleTxt": [[#{html.entity.userrole.delete.confirm.title}]],
+		"bodyTxt": [[#{html.entity.userrole.delete.confirm.body}]],
+		"bodyTxtAdditional": [[#{html.entity.userrole.delete.confirm.body.additional}]],
+		"cancelTxt": [[#{html.control.button.cancel}]],
+		"confirmTxt": [[#{html.control.button.delete}]],
+		"errorMsg": [[#{html.default.message.error}]]
 	}
-
-	//Apply the search
-	$.each($('.input-filter', table.table().footer()), function () {
-		var column = table.column($(this).index());
-		$('input', this).on('keyup change', function () {
-			if (column.search() !== this.value) {
-				column
-					.search(this.value)
-					.draw();
-			}
-		});
-	});
-
-	$(document.body).on('click', '.openConfirmDeleteDialog', function(e) {
-		e.preventDefault();
-
-		var id = $(this).data('id');
-
-		/*[+
-			var tryDeleteURI = [[@{/rest/userroles/trydelete/}]] + id;
-			var deleteURI = [[@{/rest/userroles/delete/}]] + id
-			var url = [[@{/ui/userroles/delete/}]] + id
-			var urlList = [[@{/ui/userroles/list}]]
-			var titleTxt = [[#{html.entity.userrole.delete.confirm.title}]];
-			var bodyTxt = [[#{html.entity.userrole.delete.confirm.body}]];
-			var bodyTxtAdditional = [[#{html.entity.userrole.delete.confirm.body.additional}]];
-			var cancelTxt = [[#{html.control.button.cancel}]];
-			var confirmTxt = [[#{html.control.button.delete}]];
-			var errorMsg = [[#{html.default.message.error}]];
-		+]*/
-
-		function getAjaxObject(urL) {
-				return {
-					url: urL,
-					cache: false,
-					error: errorHandler(errorMsg),
-					success: successCallback
-			}
-		};
-
-		function successCallback(result){
-			if (result.success==false) {
-				var ous = "Enheder: " + result.ous;
-				var users = "Brugere: " + result.users;
-				var rolegroups = "Rollebuketter: " + result.roleGroups;
-				bodyTxt = bodyTxtAdditional.format(ous, users, rolegroups);
-			}
-
-			swal({
-				html: true,
-				title : titleTxt,
-				text : bodyTxt,
-				type : "warning",
-				showCancelButton : true,
-				confirmButtonColor : "#DD6B55",
-				confirmButtonText : confirmTxt,
-				cancelButtonText : cancelTxt,
-				closeOnConfirm : true,
-				closeOnCancel : true
-			},
-				function (isConfirm) {
-					if (isConfirm) {
-						$.ajax({
-							method: "POST",
-							headers: {
-								'X-CSRF-TOKEN': token
-							},
-							url: deleteURI,
-							success: function() {
-								window.location.href = urlList;
-							},
-							error: defaultErrorHandler
-						});
-					}
-				}
-			);
-		}
-
-		$.ajax(getAjaxObject(tryDeleteURI));
-
-		});
-	});
-
-
-		/*]]>*/
 </script>
+<script th:src="@{/js/service/SweetAlertService.js}"></script>
+<script th:src="@{/js/userroles/list.js}"></script>
 </body>
 </html>

@@ -143,8 +143,8 @@ class ExcludedOusRuleTest {
 		}
 
 		@Test
-		@DisplayName("should return POSITIVE when position is in a non-excepted sibling OU")
-		void shouldReturnPositiveWhenPositionInNonExceptedOu() {
+		@DisplayName("should return NOT_APPLICABLE when position is in a non-excepted sibling OU - the veto never grants")
+		void shouldReturnNotApplicableWhenPositionInNonExceptedOu() {
 			OrgUnit exceptedOu = createOrgUnit("excepted-ou-uuid", assignedOrgUnit);
 			OrgUnit siblingOu = createOrgUnit("sibling-ou-uuid", assignedOrgUnit);
 			Position position = createPosition(siblingOu, testTitle, testUser, false);
@@ -153,7 +153,8 @@ class ExcludedOusRuleTest {
 
 			AssignmentAppliesResult result = rule.applies(assignment, testUser, position, assignedOrgUnit);
 
-			assertThat(result).isEqualTo(AssignmentAppliesResult.POSITIVE);
+			// granting is OrgUnitAssignmentRule's job, see ExceptedOusEvaluationTest
+			assertThat(result).isEqualTo(AssignmentAppliesResult.NOT_APPLICABLE);
 		}
 
 		@Test

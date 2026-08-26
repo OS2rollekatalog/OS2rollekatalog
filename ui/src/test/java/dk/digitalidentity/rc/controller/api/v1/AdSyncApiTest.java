@@ -88,6 +88,7 @@ public class AdSyncApiTest extends AbstractApiTest {
 		operation.setSystemRoleId(1L);
 		operation.setSystemRoleIdentifier("TestIdentifier");
 		operation.setItSystemIdentifier("TestIdentifierAgain");
+		operation.setItSystemId(adSystem.getId());
 		operation.setActive(true);
 		operation.setAdGroupType(ADGroupType.NONE);
 		operation.setDomain(domain);
@@ -136,6 +137,7 @@ public class AdSyncApiTest extends AbstractApiTest {
 					fieldWithPath("operations[].domain.id").type(JsonFieldType.NUMBER).description("Domain ID").optional(),
 					fieldWithPath("operations[].domain.name").type(JsonFieldType.STRING).description("Domain name").optional(),
 					fieldWithPath("operations[].itSystemIdentifier").type(JsonFieldType.STRING).description("IT system identifier").optional(),
+					fieldWithPath("operations[].itSystemId").type(JsonFieldType.NUMBER).description("Internal ID of the IT system the system role belongs to").optional(),
 					fieldWithPath("operations[].systemRoleIdentifier").type(JsonFieldType.STRING).description("System role identifier").optional(),
 					fieldWithPath("operations[].universal").type(JsonFieldType.BOOLEAN).description("Whether the operation is universal").optional(),
 					fieldWithPath("operations[].description").type(JsonFieldType.STRING).description("The role description").optional(),
@@ -185,6 +187,7 @@ public class AdSyncApiTest extends AbstractApiTest {
 					fieldWithPath("operations[].domain.id").type(JsonFieldType.NUMBER).description("Domain ID").optional(),
 					fieldWithPath("operations[].domain.name").type(JsonFieldType.STRING).description("Domain name").optional(),
 					fieldWithPath("operations[].itSystemIdentifier").type(JsonFieldType.STRING).description("IT system identifier").optional(),
+					fieldWithPath("operations[].itSystemId").type(JsonFieldType.NUMBER).description("Internal ID of the IT system the system role belongs to").optional(),
 					fieldWithPath("operations[].systemRoleIdentifier").type(JsonFieldType.STRING).description("System role identifier").optional(),
 					fieldWithPath("operations[].universal").type(JsonFieldType.BOOLEAN).description("Whether the operation is universal").optional(),
 					fieldWithPath("operations[].description").type(JsonFieldType.STRING).description("The role description").optional(),

@@ -66,6 +66,9 @@ public class UserRoleView {
 	private boolean readOnly;
 
 	@Column
+	private boolean itSystemReadonly;
+
+	@Column
 	private String orgUnitFilterUuids;
 
 	@Column

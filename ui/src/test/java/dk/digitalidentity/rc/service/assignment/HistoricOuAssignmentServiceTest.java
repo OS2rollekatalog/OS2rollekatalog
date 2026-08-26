@@ -666,6 +666,7 @@ class HistoricOuAssignmentServiceTest {
 			service.recordRoleGroupAdded(ou, assignment);
 
 			// ---- Then ---- //
+			@SuppressWarnings("unchecked")
 			ArgumentCaptor<List<HistoricOuAssignment>> captor = ArgumentCaptor.forClass(List.class);
 			verify(historicOuAssignmentDao).saveAll(captor.capture());
 
@@ -716,6 +717,7 @@ class HistoricOuAssignmentServiceTest {
 			service.recordRoleGroupUpdatedSaveNew(ou, assignment);
 
 			// ---- Then ---- //
+			@SuppressWarnings("unchecked")
 			ArgumentCaptor<List<HistoricOuAssignment>> captor = ArgumentCaptor.forClass(List.class);
 			verify(historicOuAssignmentDao).saveAll(captor.capture());
 
@@ -773,6 +775,7 @@ class HistoricOuAssignmentServiceTest {
 			service.recordUserRoleAddedToRoleGroup(roleGroup, userRole);
 
 			// ---- Then ---- //
+			@SuppressWarnings("unchecked")
 			ArgumentCaptor<List<HistoricOuAssignment>> captor = ArgumentCaptor.forClass(List.class);
 			verify(historicOuAssignmentDao).saveAll(captor.capture());
 

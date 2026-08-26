@@ -16,6 +16,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.util.StringUtils;
+import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.RestClient;
 
@@ -305,6 +306,13 @@ public class DMPStub {
 			log.info("Deleted user " + userId);
 		}
 		catch (Exception ex) {
+			if (ex instanceof HttpClientErrorException httpException) {
+				if (httpException.getStatusCode().value() == 404) {
+					log.warn("Failed to delete user " + userId + " using dmpApi - return value was 404");
+					return true;
+				}
+			}
+
 			log.error("Failed to delete user " + userId + " using dmpApi", ex);
 
 			return false;

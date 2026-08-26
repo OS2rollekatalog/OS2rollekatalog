@@ -3,6 +3,10 @@
 	color: #1ab394 !important;
 }
 
+.preformat {
+	white-space: pre-line;
+}
+
 .wizard > .content > .body ul {
     list-style: none !important;
 }
@@ -41,21 +45,6 @@ html.dark table.dataTable tr.dt-hasChild td.dt-control:before,
 }
 
 
-/* sticky action column so buttons are always reachable without horizontal scroll */
-#pendingRequestTable th:last-child,
-#pendingRequestTable td:last-child {
-    position: sticky;
-    right: 0;
-    background-color: #ffffff;
-    box-shadow: -2px 0 4px rgba(0, 0, 0, 0.1);
-}
-#pendingRequestTable tbody tr:nth-of-type(odd) td:last-child {
-    background-color: #f2f2f2;
-}
-#pendingRequestTable tbody tr:hover td:last-child {
-    background-color: #ececec;
-}
-
 /* hack for wizard auto height: https://github.com/rstaib/jquery-steps/issues/8#issuecomment-368114763 */
 .wizard .content {
     min-height: 100px;
@@ -68,4 +57,55 @@ html.dark table.dataTable tr.dt-hasChild td.dt-control:before,
 }
 .wizard .content .body.current {
     position: relative;
+}
+
+ul.pagination {
+	float:right;
+}
+
+.toastr-buffer {
+	margin-top:60px;
+}
+
+.request-log-detail-table {
+	margin-bottom: 0;
+}
+.request-log-detail-table td {
+	vertical-align: top;
+	word-break: break-word;
+	white-space: pre-line;
+}
+.request-log-detail-table .request-log-detail-label {
+	width: 35%;
+	font-weight: 600;
+	color: #676a6c;
+	white-space: nowrap;
+}
+
+.request-log-detail-fallback {
+	margin: 0;
+	white-space: pre-line;
+}
+.request-log-detail-fallback:empty {
+	display: none;
+}
+
+.request-log-details-col {
+	width: 20%;
+}
+.request-log-details-cell {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+.request-log-details-preview {
+	flex: 1 1 auto;
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+.request-log-details-cell .show-request-log-details-btn {
+	flex: 0 0 auto;
+	cursor: pointer;
 }

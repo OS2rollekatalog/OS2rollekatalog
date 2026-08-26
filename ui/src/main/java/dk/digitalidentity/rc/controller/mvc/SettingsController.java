@@ -71,7 +71,9 @@ public class SettingsController {
 
         RoleRequestSettingsDTO settingsForm = new RoleRequestSettingsDTO();
         settingsForm.setReasonSetting(settingsService.getRolerequestReason());
-        settingsForm.setOnlyRecommendRoles(settingsService.getOnlyRecommendRoles());
+        settingsForm.setShowRecommendedRolesTab(settingsService.isShowRecommendedRolesTab());
+        settingsForm.setShowAllRolesTab(settingsService.isShowAllRolesTab());
+        settingsForm.setShowExistingRolesTab(settingsService.isShowExistingRolesTab());
 		settingsForm.setAlternativeEmails(settingsService.getRoleRequestApproverEmails());
 		settingsForm.setApprovableByList(settingsService.getRolerequestApprover());
 		settingsForm.setRequestableByList(settingsService.getRolerequestRequester());
@@ -184,12 +186,21 @@ public class SettingsController {
             return "setting/attestation_settings";
         }
 
+        if (!settingsForm.isShowRecommendedRolesTab() && !settingsForm.isShowAllRolesTab() && !settingsForm.isShowExistingRolesTab()) {
+            bindingResult.reject("rolerequest.settings.noTabsSelected", "Mindst én visning skal være aktiveret");
+            model.addAttribute(bindingResult.getAllErrors());
+            log.warn("Bad settingsform - no tabs selected for role request wizard");
+            return "setting/rolerequest_settings";
+        }
+
         settingsService.setRolerequestRequester(settingsForm.getRequestableByList());
         settingsService.setRolerequestApprover(settingsForm.getApprovableByList());
         settingsService.setShowSingleTableInRequestApproveEnabled(settingsForm.isShowSingleTableInRequestApproveEnabled());
         settingsService.setAllowSelfApprovalEnabled(settingsForm.isAllowSelfApproval());
         settingsService.setRolerequestReason(settingsForm.getReasonSetting());
-        settingsService.setOnlyRecommendRoles(settingsForm.isOnlyRecommendRoles());
+        settingsService.setShowRecommendedRolesTab(settingsForm.isShowRecommendedRolesTab());
+        settingsService.setShowAllRolesTab(settingsForm.isShowAllRolesTab());
+        settingsService.setShowExistingRolesTab(settingsForm.isShowExistingRolesTab());
 		settingsService.setRoleRequestApproverEmails(settingsForm.getAlternativeEmails());
 		settingsService.setRequestApproveServicedeskEmail(settingsForm.getServicedeskEmail());
         redirectAttributes.addFlashAttribute("saved", true);

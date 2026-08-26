@@ -256,11 +256,11 @@ public class EmailTemplateService {
 					break;
 				case APPROVED_MANUAL_ROLE_REQUEST_USER:
 					title = "Du har fået tildelt en rolle";
-					message = "Kære {modtager}\n<br/>\n<br/>\n{anmoderType} har anmodet om rollen {rolle} til dig. Den er tildelt fra {startdato} til {stopdato}.";
+					message = "Kære {modtager}\n<br/>\n<br/>\n{anmoderType} har anmodet om rollen {rolle} til dig. Den er tildelt fra {startdato} til {stopdato}.\n<br/>\n<br/>\n{begrundelse}";
 					break;
 				case APPROVED_MANUAL_ROLE_REQUEST_MANAGER:
 					title = "En anmodning om en rolle er godkendt";
-					message = "Kære {modtager}\n<br/>\n<br/>\nAnmodningen fra {anmoder} om rollen {rolle}, i systemet {itsystem}, til brugeren {bruger}, er nu godkendt af {anmoderType}.";
+					message = "Kære {modtager}\n<br/>\n<br/>\nAnmodningen fra {anmoder} om rollen {rolle}, i systemet {itsystem}, til brugeren {bruger}, er nu godkendt af {anmoderType}.\n<br/>\n<br/>\n{begrundelse}";
 					break;
 				case USER_WITH_MANUAL_ITSYSTEM_DELETED:
 					title = "En bruger med manuelle roller er blevet nedlagt";
@@ -280,6 +280,10 @@ public class EmailTemplateService {
 					title = "For mange tildelinger af systemrolle";
 					message = "Systemrollen {rolle} fra IT-systemet {itsystem} har overskredet grænsen for maksimalt antal tildelinger.\n<br/>\n<br/>Nuværende antal: {antal}\n<br/>Maksimalt tilladt: {maksimum}";
 					break;
+				case MANUAL_ITSYSTEM_ASSIGNMENT_PENDING:
+					title = "Afventende rolletildelinger i {itsystem}";
+					message = "Kære {modtager}\n<br/>\n<br/>\nDer er {antal} afventende rolletildeling(er), der skal effektueres i det simple it-system {itsystem}.\n<br/>\n<br/>\nDu kan se og markere opgaverne som udført her: {link}";
+					break;
 				// the default content of the four contact templates must produce output identical to the
 				// previously hardcoded mails (html.email.manual.*) - some municipalities parse these mails with robots.
 				// the <ul>/<li> list structure is owned by the renderer (see RepeatingPartDescriptor), so it is
@@ -289,7 +293,7 @@ public class EmailTemplateService {
 					title = "Rettighedsændringer i {itsystem}";
 					message = "<!DOCTYPE html><html><body><h4>Bestilling af rettighedsændringer</h4><p>Der er ændringer til nedenstående brugeres rettigheder i {itsystem}. Gå venligst til det relevante rettighedsstyringssystem for {itsystem}, og foretag den tilsvarende ændring derinde.</p>{brugere}</body></html>";
 					repeatingPart = "<b>{bruger}</b><br/>Brugernavn: {brugernavn}<br/>Enhed: {enhed}<br/>Uuid: {PersonUuid}{ændringer}";
-					nestedRepeatingPart = "{handling} rolle: {rolle} ({rollebeskrivelse}), {handlet} af {tildeler}";
+					nestedRepeatingPart = "{handling} rolle: {rolle} ({rollebeskrivelse}), {handlet} af {tildeler}{afgrænsninger}";
 					enabled = (type == EmailTemplateType.MANUAL_SYSTEM_CONTACT_PERFORMER);
 					break;
 				case MANUAL_ROLE_CONTACT_PERFORMER:

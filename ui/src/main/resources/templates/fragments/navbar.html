@@ -14,8 +14,7 @@
 	</header>
 
 	<header th:fragment="navbar-header" class="topnavbar-wrapper"
-			th:with="permission=${T(dk.digitalidentity.rc.security.permission.Permission)},
-section=${T(dk.digitalidentity.rc.security.permission.Section)}">
+			th:with="permission=${T(dk.digitalidentity.rc.security.permission.Permission)}, section=${T(dk.digitalidentity.rc.security.permission.Section)}">
 		<nav role="navigation" class="navbar topnavbar">
 			<div class="navbar-header">
 				<a th:href="@{/}" class="navbar-brand">
@@ -251,6 +250,19 @@ userRead=${@permissionCheck.isAllowed(section.USER,permission.READ)}"
 									</a>
 								</li>
 							</th:block>
+						</th:block>
+
+						<th:block th:if="${isAdmin == true or isManualEffectuationSystemOwnerAnywhere == true}">
+							<li class="nav-heading">
+								<span th:text="#{html.navbar.tasks}"></span>
+							</li>
+
+							<li th:class="${page == 'manualeffectuation'} ? 'active' : ''">
+								<a th:href="@{/ui/manualeffectuation}">
+									<em class="fa fa-check-square-o"></em>
+									<span th:text="#{html.navbar.tasks.manualeffectuation}"></span>
+								</a>
+							</li>
 						</th:block>
 
 						<li class="nav-heading">

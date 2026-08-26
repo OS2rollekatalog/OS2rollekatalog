@@ -89,7 +89,7 @@ class ManagerDelegateAttestationServiceTest {
         when(ouAssignmentsDao.listValidNotInheritedAssignmentsForOu(any(), any())).thenReturn(Collections.emptyList());
         when(organisationAttestationService.orgUnitRoleGroups(any())).thenReturn(Collections.emptyList());
         when(organisationAttestationService.orgUnitUserRolesPrItSystem(any(), any())).thenReturn(Collections.emptyList());
-        when(organisationAttestationService.buildUserAttestations(any(), any(), any(boolean.class), any())).thenReturn(Collections.emptyList());
+        when(organisationAttestationService.buildUserAttestations(any(), any(), any(boolean.class), any(), any())).thenReturn(Collections.emptyList());
         when(orgUnitService.getManagerName(any())).thenReturn(java.util.Optional.empty());
     }
 
@@ -114,7 +114,7 @@ class ManagerDelegateAttestationServiceTest {
 
             // ---- When ---- //
             // delegatedManagers contains only managerM — attN should be excluded
-            var result = service.listOrganisationsForAttestation(run, List.of(managerM));
+            var result = service.listOrganisationsForAttestation(run, List.of(managerM), makeUser("delegate-uuid", "Delegate"));
 
             // ---- Then ---- //
             assertThat(result).hasSize(1);
@@ -136,7 +136,7 @@ class ManagerDelegateAttestationServiceTest {
             stubToShallowOrganisationDtoHelpers();
 
             // ---- When ---- //
-            var result = service.listOrganisationsForAttestation(run, List.of(managerM));
+            var result = service.listOrganisationsForAttestation(run, List.of(managerM), makeUser("delegate-uuid", "Delegate"));
 
             // ---- Then ---- //
             // managerN is not in delegatedManagers — attN must be excluded
@@ -158,7 +158,7 @@ class ManagerDelegateAttestationServiceTest {
             stubToShallowOrganisationDtoHelpers();
 
             // ---- When ---- //
-            var result = service.listOrganisationsForAttestation(run, List.of(managerM));
+            var result = service.listOrganisationsForAttestation(run, List.of(managerM), makeUser("delegate-uuid", "Delegate"));
 
             // ---- Then ---- //
             assertThat(result).hasSize(1);
@@ -183,7 +183,7 @@ class ManagerDelegateAttestationServiceTest {
             when(orgUnitDao.findByActiveTrueAndManagerNotNullAndUuidIn(any())).thenReturn(Collections.emptyList());
 
             // ---- When ---- //
-            var result = service.listOrganisationsForAttestation(run, List.of(managerM));
+            var result = service.listOrganisationsForAttestation(run, List.of(managerM), makeUser("delegate-uuid", "Delegate"));
 
             // ---- Then ---- //
             assertThat(result).isEmpty();

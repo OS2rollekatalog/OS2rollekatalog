@@ -39,7 +39,7 @@
                                         <tr th:each="orgUnit : ${orgUnits}">
                                             <td th:text="${orgUnit.name}"></td>
                                             <td th:text="${orgUnit.path}"></td>
-                                            <td style="text-align: center;"><a onclick="return downloadReport(this)" th:href="@{${'/rest/attestation/v2/reports/download/orgunits/' + orgUnit.uuid}}"><em style="color: #212529" class="fa fa-download"></em></a></td>
+                                            <td style="text-align: center;"><a class="js-download-report" th:href="@{${'/rest/attestation/v2/reports/download/orgunits/' + orgUnit.uuid}}"><em style="color: #212529" class="fa fa-download"></em></a></td>
                                         </tr>
                                     </tbody>
                                 </table>
@@ -58,7 +58,7 @@
                                     <tbody>
                                         <tr th:each="system : ${itSystems}">
                                             <td th:text="${system.name}"></td>
-                                            <td style="text-align: center;"><a onclick="return downloadReport(this)" th:href="@{${'/rest/attestation/v2/reports/download/itsystems/' + system.id}}"><em style="color: #212529" class="fa fa-download"></em></a></td>
+                                            <td style="text-align: center;"><a class="js-download-report" th:href="@{${'/rest/attestation/v2/reports/download/itsystems/' + system.id}}"><em style="color: #212529" class="fa fa-download"></em></a></td>
                                         </tr>
                                     </tbody>
                                 </table>
@@ -77,11 +77,11 @@
                                     <tbody>
                                     <tr>
                                         <td th:text="#{attestationmodule.html.reports.all.name}"></td>
-                                        <td style="text-align: center; width: 80px"><a onclick="return downloadReport(this)" th:href="@{${'/rest/attestation/v2/reports/download/all'}}"><em style="color: #212529" class="fa fa-download"></em></a></td>
+                                        <td style="text-align: center; width: 80px"><a class="js-download-report" th:href="@{${'/rest/attestation/v2/reports/download/all'}}"><em style="color: #212529" class="fa fa-download"></em></a></td>
                                     </tr>
 									<tr>
 										<td th:text="#{attestationmodule.html.reports.roles.all.name}"></td>
-										<td style="text-align: center; width: 80px"><a onclick="return downloadReport(this)" th:href="@{${'/rest/attestation/v2/reports/download/roles/all'}}"><em style="color: #212529" class="fa fa-download"></em></a></td>
+										<td style="text-align: center; width: 80px"><a class="js-download-report" th:href="@{${'/rest/attestation/v2/reports/download/roles/all'}}"><em style="color: #212529" class="fa fa-download"></em></a></td>
 									</tr>
                                     </tbody>
                                 </table>
@@ -113,7 +113,7 @@
                                         <td style="text-align: center;">
                                             <em th:if="${run.extraSensitive}" class="fa fa-check"></em>
                                         </td>
-                                        <td style="text-align: center;"><a onclick="return downloadReport(this)" th:href="@{${'/rest/attestation/v2/reports/download/audit/' + run.id}}"><em style="color: #212529" class="fa fa-download"></em></a></td>
+                                        <td style="text-align: center;"><a class="js-download-report" th:href="@{${'/rest/attestation/v2/reports/download/audit/' + run.id}}"><em style="color: #212529" class="fa fa-download"></em></a></td>
                                     </tr>
                                     </tbody>
                                 </table>
@@ -129,131 +129,13 @@
 
 <div th:replace="~{attestationmodule/fragments/footer :: scripts(datatables = true)}"></div>
 
-<script th:inline="javascript">
-    /*<![CDATA[*/
-    /*[+
-        let preflightUrl = [[@{/rest/attestation/v2/reports}]];
-    +]*/
-        let currentDate = null;
-        Date.prototype.addHours = function(h) {
-            this.setTime(this.getTime() + (h*60*60*1000));
-            return this;
-        }
-        function downloadReport(source) {
-            let url = "";
-            if (currentDate != null) {
-                // toISOString converts to UTC so make sure to add some hours first, so we don`t get a day before.
-                url = source.href.split('?')[0] + "?since=" + encodeURIComponent(currentDate.addHours(12).toISOString().split('T')[0]);
-            } else {
-                url = source.href;
-            }
-            const response = confirm("Download af rapporter kan tage flere minutter, og der kan kun hentes en rapport af gangen.\nForsæt?");
-            if (response) {
-                $.ajax({
-                    url: preflightUrl,
-                    xhrFields: {
-                        responseType: 'blob'
-                    },
-                    success: function (data) {
-                        window.location = url;
-                    },
-                    error: function(response) {
-                        toastr.warning('Rapport modulet er optaget');
-                    },
-                });
-            }
-            return false;
-        }
-		$(document).ready(function(){
-            $('#datepickerDiv').datepicker()
-                .on('changeDate', function(e) {
-                    currentDate = e.date;
-                });
-			$('#orgUnitTable').DataTable({
-                "columnDefs": [
-                    { "orderable": false, "targets": 2 }
-                ],
-				"pageLength" : 25,
-                "responsive" : true,
-                "autoWidth" : false,
-                "language" : {
-                    "search" : "Søg",
-                    "lengthMenu" : "_MENU_ rækker per side",
-                    "info" : "Viser _START_ til _END_ af _TOTAL_ rækker",
-                    "zeroRecords" : "Ingen data...",
-                    "infoEmpty" : "",
-                    "infoFiltered" : "(ud af _MAX_ rækker)",
-                    "paginate" : {
-                        "previous" : "Forrige",
-                        "next" : "Næste"
-                    }
-                }
-			});
-			$('#itSystemTable').DataTable({
-                "columnDefs": [
-                    { "orderable": false, "targets": 1 }
-                ],
-				"pageLength" : 25,
-                "responsive" : true,
-                "autoWidth" : false,
-                "language" : {
-                    "search" : "Søg",
-                    "lengthMenu" : "_MENU_ rækker per side",
-                    "info" : "Viser _START_ til _END_ af _TOTAL_ rækker",
-                    "zeroRecords" : "Ingen data...",
-                    "infoEmpty" : "",
-                    "infoFiltered" : "(ud af _MAX_ rækker)",
-                    "paginate" : {
-                        "previous" : "Forrige",
-                        "next" : "Næste"
-                    }
-                }
-			});
-			$('#allRolesTable').DataTable({
-                "searching": false,
-                "ordering": false,
-                "paging": false,
-                "responsive" : true,
-                "autoWidth" : false
-			});
-
-			$.fn.dataTable.ext.type.order['date-dk-pre'] = function(d) {
-				if (!d || d === '') return 0;
-				// Parse dansk datoformat dd/MM-YYYY
-				const parts = d.match(/(\d{2})\/(\d{2})-(\d{4})/);
-				if (!parts) return 0;
-
-				const day = parseInt(parts[1], 10);
-				const month = parseInt(parts[2], 10);
-				const year = parseInt(parts[3], 10);
-				// Returner timestamp for korrekt sortering
-				return new Date(year, month - 1, day).getTime();
-			};
-			$('#auditTable').DataTable({
-                "columnDefs": [
-                    { "orderable": false, "targets": 4 },
-					{ "type": "date-dk", "targets": [0] }
-                ],
-				"order": [ [ 0, "desc" ] ],
-				"pageLength" : 25,
-                "responsive" : true,
-                "autoWidth" : false,
-                "language" : {
-                    "search" : "Søg",
-                    "lengthMenu" : "_MENU_ rækker per side",
-                    "info" : "Viser _START_ til _END_ af _TOTAL_ rækker",
-                    "zeroRecords" : "Ingen data...",
-                    "infoEmpty" : "",
-                    "infoFiltered" : "(ud af _MAX_ rækker)",
-                    "paginate" : {
-                        "previous" : "Forrige",
-                        "next" : "Næste"
-                    }
-                }
-			});
-		});
-    /*]]>*/
-	</script>
+<script type="application/json" id="reports-config" th:inline="javascript">
+	{
+		"preflightUrl": [[@{/rest/attestation/v2/reports}]]
+	}
+</script>
+<script th:src="@{/js/DatatableService.js}"></script>
+<script th:src="@{/js/attestationmodule/reports/reports.js}"></script>
 
 </body>
 </html>

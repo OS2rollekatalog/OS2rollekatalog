@@ -128,8 +128,12 @@ namespace ADSyncService
                                 g.Uuid = groupPrincipal.Guid.ToString().ToLower();
                                 g.Name = getNameAttribute(dir, nameAttribute);
 
+                                // if AD's description field is used as the role name, it must not be duplicated into the description
+                                bool descriptionUsedAsName = string.Equals(nameAttribute, "description", StringComparison.OrdinalIgnoreCase);
 
-                                string description = groupPrincipal.Description != null ? groupPrincipal.Description : "";
+                                string description = descriptionUsedAsName
+                                    ? ""
+                                    : (groupPrincipal.Description != null ? groupPrincipal.Description : "");
                                 if (remoteConfigurationService.GetConfiguration().includeNotesInDescription)
                                 {
                                     string notes = dir.Properties["info"]?.Value?.ToString() ?? "";
@@ -273,14 +277,36 @@ namespace ADSyncService
             }
         }
 
-        public void CreateGroup(string systemRoleIdentifier, string itSystemIdentifier, string adGroupType, bool universel, string description)
+        // resolves the OU to use for create/delete of AD-groups for the given it-system:
+        // uses the OU configured in BackSync for the it-system (if the feature is enabled and one is configured),
+        // otherwise falls back to the "normal" CreateDelete OU (OU=<itSystemIdentifier>,<createDeleteFeatureOU>)
+        // note: BackSync OUs are configured by the it-system's numeric id, not its string identifier
+        private string GetGroupContextPath(string itSystemIdentifier, long? itSystemId, out bool isBackSyncOU)
         {
-            string groupOU = remoteConfigurationService.GetConfiguration().createDeleteFeatureOU;
-            string contextPath = "OU=" + itSystemIdentifier + "," + groupOU;
-
-            // make sure contextPath exists
-            if (!DirectoryEntry.Exists("LDAP://" + contextPath))
+            if (itSystemId.HasValue && remoteConfigurationService.GetConfiguration().createDeleteFeatureUseBackSyncOU)
             {
+                string backSyncOU = remoteConfigurationService.GetBackSyncOU(itSystemId.Value);
+                if (backSyncOU != null)
+                {
+                    isBackSyncOU = true;
+                    return backSyncOU;
+                }
+            }
+
+            isBackSyncOU = false;
+            string groupOU = remoteConfigurationService.GetConfiguration().createDeleteFeatureOU;
+            return "OU=" + itSystemIdentifier + "," + groupOU;
+        }
+
+        public void CreateGroup(string systemRoleIdentifier, string itSystemIdentifier, long? itSystemId, string adGroupType, bool universel, string description)
+        {
+            string contextPath = GetGroupContextPath(itSystemIdentifier, itSystemId, out bool isBackSyncOU);
+
+            // make sure contextPath exists - only applicable to the "normal" CreateDelete OU layout,
+            // as the BackSync OU is expected to already exist (validated when the configuration is loaded)
+            if (!isBackSyncOU && !DirectoryEntry.Exists("LDAP://" + contextPath))
+            {
+                string groupOU = remoteConfigurationService.GetConfiguration().createDeleteFeatureOU;
                 using (var de = new DirectoryEntry("LDAP://" + groupOU))
                 {
                     using (DirectoryEntry child = de.Children.Add("OU=" + itSystemIdentifier, "OrganizationalUnit"))
@@ -375,10 +401,9 @@ namespace ADSyncService
             return false;
         }
 
-        public void DeleteGroup(string systemRoleIdentifier, string itSystemIdentifier)
+        public void DeleteGroup(string systemRoleIdentifier, string itSystemIdentifier, long? itSystemId)
         {
-            string groupOU = remoteConfigurationService.GetConfiguration().createDeleteFeatureOU;
-            string contextPath = "OU=" + itSystemIdentifier + "," + groupOU;
+            string contextPath = GetGroupContextPath(itSystemIdentifier, itSystemId, out _);
 
             using (PrincipalContext context = new PrincipalContext(ContextType.Domain, null, contextPath))
             {

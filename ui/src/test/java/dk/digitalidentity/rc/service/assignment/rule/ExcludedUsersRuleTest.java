@@ -171,8 +171,8 @@ class ExcludedUsersRuleTest {
 		}
 
 		@Test
-		@DisplayName("should return POSITIVE when user is not in excluded list")
-		void shouldReturnPositiveWhenUserIsNotExcluded() {
+		@DisplayName("should return NOT_APPLICABLE when user is not in excluded list - the veto never grants")
+		void shouldReturnNotApplicableWhenUserIsNotExcluded() {
 			// Given
 			User otherUser = createUser("other-user-uuid");
 			OrgUnitUserRoleAssignment assignment = createExcludedUsersAssignment(true, List.of(otherUser), testOrgUnit);
@@ -180,8 +180,8 @@ class ExcludedUsersRuleTest {
 			// When
 			AssignmentAppliesResult result = rule.applies(assignment, testUser, testPosition, testOrgUnit);
 
-			// Then
-			assertThat(result).isEqualTo(AssignmentAppliesResult.POSITIVE);
+			// Then - granting is OrgUnitAssignmentRule's job, see ExceptedUsersEvaluationTest
+			assertThat(result).isEqualTo(AssignmentAppliesResult.NOT_APPLICABLE);
 		}
 
 		@Test

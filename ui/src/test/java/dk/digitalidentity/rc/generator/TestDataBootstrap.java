@@ -274,14 +274,14 @@ public class TestDataBootstrap {
 		SystemRoleTemplate ouAssignerTemplate = new SystemRoleTemplate(
 			"Rolletildeler - Enheder",
 			Constants.ROLE_OU_ASSIGNER_ID,
-			"Denne rolle giver adgant til at tildele og fjerne jobfunktionsroller og rollebuketter til enheder",
+			"Denne rolle giver adgang til at tildele og fjerne jobfunktionsroller og rollebuketter til enheder",
 			List.of(systemConstraintTypeSupport, ouConstraintTypeSupport));
 
 		SystemRole ouAssigner = systemRoleService.createForRoleCatalogue(ouAssignerTemplate.title, ouAssignerTemplate.constantId, ouAssignerTemplate.description, roleCatalogue);
 		ouAssigner.getSupportedConstraintTypes().addAll(ouAssignerTemplate.supportedConstraintTypes);
 
 		userAssigner.setName("Rolletildeler - Brugere");
-		userAssigner.setDescription("Denne rolle giver adgant til at tildele og fjerne jobfunktionsroller og rollebuketter til brugere");
+		userAssigner.setDescription("Denne rolle giver adgang til at tildele og fjerne jobfunktionsroller og rollebuketter til brugere");
 		systemRoleService.saveAll(List.of(ouAssigner, userAssigner));
 
 		// find all assignments to old role
@@ -330,10 +330,6 @@ public class TestDataBootstrap {
 		}
 	}
 
-	private void seedV3() {
-		userService.queueAllForRecalculation();
-	}
-
 	// For integration tests we need to have atleast the test user being processed manually. This code is only run when during test profile
 	private void seedV4() {
 		User rolunittest01 = userService.getAll().stream().filter(user -> user.getUserId().startsWith("rolunittest01")).findFirst().orElseThrow(() -> new RuntimeException("Test user not found"));
@@ -341,9 +337,4 @@ public class TestDataBootstrap {
 			assignmentChangeEventHandlerService.updateUsers(Set.of(rolunittest01.getUuid()));
 		}
 	}
-
-
-
-
-
 }

@@ -7,6 +7,7 @@ import java.lang.annotation.RetentionPolicy;
 
 @Retention(RetentionPolicy.RUNTIME)
 @PreAuthorize("hasRole('ROLE_REQUESTER') or hasRole('ROLE_USER_ASSIGNER')or hasRole('ROLE_OU_ASSIGNER')or hasRole('ROLE_OU_ASSIGNER')")
+@RequireRoleAnnotation
 public @interface RequireRequesterOrAssignerRole {
 
 }

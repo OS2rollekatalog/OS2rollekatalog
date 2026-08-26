@@ -7,6 +7,7 @@ import dk.digitalidentity.rc.dao.model.OrgUnit;
 import dk.digitalidentity.rc.dao.model.RoleGroup;
 import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserRole;
+import dk.digitalidentity.rc.rolerequest.log.RequestPersister;
 import dk.digitalidentity.rc.rolerequest.model.entity.RoleRequest;
 import dk.digitalidentity.rc.rolerequest.model.enums.ApprovableBy;
 import dk.digitalidentity.rc.rolerequest.model.enums.RequestableBy;
@@ -16,6 +17,8 @@ import dk.digitalidentity.rc.service.ItSystemService;
 import dk.digitalidentity.rc.service.OrgUnitService;
 import dk.digitalidentity.rc.service.UserRoleService;
 import dk.digitalidentity.rc.service.UserService;
+import dk.digitalidentity.rc.service.assignment.AssignmentService;
+import dk.digitalidentity.rc.service.assignment.CurrentAssignmentService;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -29,6 +32,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 import org.springframework.context.MessageSource;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.List;
@@ -42,6 +46,7 @@ import static dk.digitalidentity.rc.mockfactory.rolerequest.MockFactory.createRo
 import static dk.digitalidentity.rc.mockfactory.rolerequest.MockFactory.createUser;
 import static dk.digitalidentity.rc.mockfactory.rolerequest.MockFactory.createUserRole;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
@@ -70,6 +75,18 @@ class RequestServiceTest {
 	@Mock
 	private MessageSource messageSource;
 
+	@Mock
+	private AssignmentService assignmentService;
+
+	@Mock
+	private CurrentAssignmentService currentAssignmentService;
+
+	@Mock
+	private RequestPersister requestPersister;
+
+	@Mock
+	private AdministratorRoleCache administratorRoleCache;
+
 	@InjectMocks
 	private RequestService requestService;
 
@@ -90,15 +107,27 @@ class RequestServiceTest {
 		securityUtilMock.close();
 	}
 
+	/**
+	 * Stubs the given user as holding the Administrator role, via the direct
+	 * {@code CurrentAssignment}-backed lookup that replaced {@code SecurityUtil.hasDirectAdminRole()}.
+	 */
+	private void mockAdmin(User user) {
+		UserRole adminRole = mock(UserRole.class);
+		when(administratorRoleCache.get()).thenReturn(adminRole);
+		when(assignmentService.hasUserRole(user, adminRole)).thenReturn(true);
+	}
+
 	@Nested
 	@DisplayName("canRequest for UserRole")
 	class CanRequestUserRole {
 
+		private User requestingUser;
 		private User receivingUser;
 		private OrgUnit receiversOrgUnit;
 
 		@BeforeEach
 		void setUpCommonEntities() {
+			requestingUser = createUser("requester-uuid");
 			receivingUser = createUser("receiver-uuid");
 			receiversOrgUnit = createOrgUnit("orgunit-uuid", null);
 		}
@@ -107,14 +136,12 @@ class RequestServiceTest {
 		@DisplayName("ReadOnly cannot be requested")
 		void readOnlyCannotBeRequested() {
 			// Arrange
-			securityUtilMock.when(SecurityUtil::hasDirectAdminRole).thenReturn(false);
-
 			ItSystem itSystem = createItSystem("it-system-uuid", List.of(), List.of());
 			UserRole role = createUserRole("role-uuid", itSystem, List.of(), List.of());
 			role.setReadOnly(true);
 
 			// Act
-			boolean result = requestService.canRequest(role, receivingUser, receiversOrgUnit, List.of(RequestableBy.NONE));
+			boolean result = requestService.canRequest(requestingUser, role, receivingUser, receiversOrgUnit, List.of(RequestableBy.NONE));
 
 			// Assert
 			assertThat(result).isFalse();
@@ -126,7 +153,7 @@ class RequestServiceTest {
 
 			@BeforeEach
 			void setUpAdmin() {
-				securityUtilMock.when(SecurityUtil::hasDirectAdminRole).thenReturn(true);
+				mockAdmin(requestingUser);
 			}
 
 			@Test
@@ -137,7 +164,7 @@ class RequestServiceTest {
 				UserRole role = createUserRole("role-uuid", itSystem, List.of(), List.of(RequestableBy.NONE));
 
 				// Act
-				boolean result = requestService.canRequest(role, receivingUser, receiversOrgUnit, List.of(RequestableBy.NONE));
+				boolean result = requestService.canRequest(requestingUser, role, receivingUser, receiversOrgUnit, List.of(RequestableBy.NONE));
 
 				// Assert
 				assertThat(result).isFalse();
@@ -155,7 +182,7 @@ class RequestServiceTest {
 				OrgUnit differentOrgUnit = createOrgUnit("different-orgunit-uuid", null);
 
 				// Act
-				boolean result = requestService.canRequest(role, receivingUser, differentOrgUnit, List.of(RequestableBy.ADMIN));
+				boolean result = requestService.canRequest(requestingUser, role, receivingUser, differentOrgUnit, List.of(RequestableBy.ADMIN));
 
 				// Assert
 				assertThat(result).isTrue();
@@ -170,7 +197,7 @@ class RequestServiceTest {
 				role.setReadOnly(true);
 
 				// Act
-				boolean result = requestService.canRequest(role, receivingUser, receiversOrgUnit, List.of(RequestableBy.ADMIN));
+				boolean result = requestService.canRequest(requestingUser, role, receivingUser, receiversOrgUnit, List.of(RequestableBy.ADMIN));
 
 				// Assert
 				assertThat(result).isFalse();
@@ -183,9 +210,6 @@ class RequestServiceTest {
 
 			@BeforeEach
 			void setUpNonAdmin() {
-				securityUtilMock.when(SecurityUtil::hasDirectAdminRole).thenReturn(false);
-				securityUtilMock.when(() -> SecurityUtil.hasRole(any())).thenReturn(false);
-				securityUtilMock.when(SecurityUtil::getUserId).thenReturn("requester-user-id");
 			}
 
 			@Test
@@ -195,10 +219,9 @@ class RequestServiceTest {
 				ItSystem itSystem = createItSystem("it-system-uuid", List.of(), List.of(RequestableBy.NONE));
 				UserRole role = createUserRole("role-uuid", itSystem, List.of(), List.of(RequestableBy.EMPLOYEE));
 
-				when(userService.getOptionalByUserId("requester-user-id")).thenReturn(Optional.of(receivingUser));
 
 				// Act
-				boolean result = requestService.canRequest(role, receivingUser, receiversOrgUnit, List.of(RequestableBy.NONE));
+				boolean result = requestService.canRequest(receivingUser, role, receivingUser, receiversOrgUnit, List.of(RequestableBy.NONE));
 
 				// Assert
 				assertThat(result).isTrue();
@@ -212,7 +235,7 @@ class RequestServiceTest {
 				UserRole role = createUserRole("role-uuid", itSystem, List.of(), List.of(RequestableBy.NONE));
 
 				// Act
-				boolean result = requestService.canRequest(role, receivingUser, receiversOrgUnit, List.of(RequestableBy.EMPLOYEE));
+				boolean result = requestService.canRequest(requestingUser, role, receivingUser, receiversOrgUnit, List.of(RequestableBy.EMPLOYEE));
 
 				// Assert
 				assertThat(result).isFalse();
@@ -225,23 +248,19 @@ class RequestServiceTest {
 
 			@BeforeEach
 			void setUpNonAdmin() {
-				securityUtilMock.when(SecurityUtil::hasDirectAdminRole).thenReturn(false);
-				securityUtilMock.when(() -> SecurityUtil.hasRole(any())).thenReturn(false);
 			}
 
 			@Test
 			@DisplayName("Inherits IT system permission when role is set to INHERIT")
 			void inheritsItSystemPermission() {
 				// Arrange
-				securityUtilMock.when(SecurityUtil::getUserId).thenReturn("requester-user-id");
 
 				ItSystem itSystem = createItSystem("it-system-uuid", List.of(), List.of(RequestableBy.EMPLOYEE));
 				UserRole role = createUserRole("role-uuid", itSystem, List.of(), List.of(RequestableBy.INHERIT));
 
-				when(userService.getOptionalByUserId("requester-user-id")).thenReturn(Optional.of(receivingUser));
 
 				// Act
-				boolean result = requestService.canRequest(role, receivingUser, receiversOrgUnit, List.of(RequestableBy.NONE));
+				boolean result = requestService.canRequest(receivingUser, role, receivingUser, receiversOrgUnit, List.of(RequestableBy.NONE));
 
 				// Assert
 				assertThat(result).isTrue();
@@ -255,7 +274,7 @@ class RequestServiceTest {
 				UserRole role = createUserRole("role-uuid", itSystem, List.of(), List.of(RequestableBy.INHERIT));
 
 				// Act
-				boolean result = requestService.canRequest(role, receivingUser, receiversOrgUnit, List.of(RequestableBy.EMPLOYEE));
+				boolean result = requestService.canRequest(requestingUser, role, receivingUser, receiversOrgUnit, List.of(RequestableBy.EMPLOYEE));
 
 				// Assert
 				assertThat(result).isFalse();
@@ -268,24 +287,19 @@ class RequestServiceTest {
 
 			@BeforeEach
 			void setUpNonAdmin() {
-				securityUtilMock.when(SecurityUtil::hasDirectAdminRole).thenReturn(false);
-				securityUtilMock.when(() -> SecurityUtil.hasRole(any())).thenReturn(false);
-				securityUtilMock.when(SecurityUtil::getUserId).thenReturn("requester-user-id");
 			}
 
 			@Test
 			@DisplayName("Falls back to global permission when both role and IT system are INHERIT")
 			void fallsBackToGlobalPermission() {
 				// Arrange
-				securityUtilMock.when(SecurityUtil::getUserId).thenReturn("requester-user-id");
 
 				ItSystem itSystem = createItSystem("it-system-uuid", List.of(), List.of(RequestableBy.INHERIT));
 				UserRole role = createUserRole("role-uuid", itSystem, List.of(), List.of(RequestableBy.INHERIT));
 
-				when(userService.getOptionalByUserId("requester-user-id")).thenReturn(Optional.of(receivingUser));
 
 				// Act
-				boolean result = requestService.canRequest(role, receivingUser, receiversOrgUnit, List.of(RequestableBy.EMPLOYEE));
+				boolean result = requestService.canRequest(receivingUser, role, receivingUser, receiversOrgUnit, List.of(RequestableBy.EMPLOYEE));
 
 				// Assert
 				assertThat(result).isTrue();
@@ -299,7 +313,7 @@ class RequestServiceTest {
 				UserRole role = createUserRole("role-uuid", itSystem, List.of(), List.of(RequestableBy.INHERIT));
 
 				// Act
-				boolean result = requestService.canRequest(role, receivingUser, receiversOrgUnit, List.of(RequestableBy.NONE));
+				boolean result = requestService.canRequest(requestingUser, role, receivingUser, receiversOrgUnit, List.of(RequestableBy.NONE));
 
 				// Assert
 				assertThat(result).isFalse();
@@ -312,8 +326,6 @@ class RequestServiceTest {
 
 			@BeforeEach
 			void setUpNonAdmin() {
-				securityUtilMock.when(SecurityUtil::hasDirectAdminRole).thenReturn(false);
-				securityUtilMock.when(() -> SecurityUtil.hasRole(any())).thenReturn(false);
 			}
 
 			@Test
@@ -324,7 +336,7 @@ class RequestServiceTest {
 				UserRole role = createUserRole("role-uuid", itSystem, List.of(), List.of(RequestableBy.NONE));
 
 				// Act
-				boolean result = requestService.canRequest(role, receivingUser, receiversOrgUnit, List.of(RequestableBy.EMPLOYEE));
+				boolean result = requestService.canRequest(requestingUser, role, receivingUser, receiversOrgUnit, List.of(RequestableBy.EMPLOYEE));
 
 				// Assert
 				assertThat(result).isFalse();
@@ -338,7 +350,7 @@ class RequestServiceTest {
 				UserRole role = createUserRole("role-uuid", itSystem, List.of(), List.of(RequestableBy.INHERIT));
 
 				// Act
-				boolean result = requestService.canRequest(role, receivingUser, receiversOrgUnit, List.of(RequestableBy.EMPLOYEE));
+				boolean result = requestService.canRequest(requestingUser, role, receivingUser, receiversOrgUnit, List.of(RequestableBy.EMPLOYEE));
 
 				// Assert
 				assertThat(result).isFalse();
@@ -352,7 +364,7 @@ class RequestServiceTest {
 				UserRole role = createUserRole("role-uuid", itSystem, List.of(), List.of(RequestableBy.INHERIT));
 
 				// Act
-				boolean result = requestService.canRequest(role, receivingUser, receiversOrgUnit, List.of(RequestableBy.NONE));
+				boolean result = requestService.canRequest(requestingUser, role, receivingUser, receiversOrgUnit, List.of(RequestableBy.NONE));
 
 				// Assert
 				assertThat(result).isFalse();
@@ -367,8 +379,6 @@ class RequestServiceTest {
 
 			@BeforeEach
 			void setUpNonAdminAndAllowedOrgUnit() {
-				securityUtilMock.when(SecurityUtil::hasDirectAdminRole).thenReturn(false);
-				securityUtilMock.when(() -> SecurityUtil.hasRole(any())).thenReturn(false);
 				allowedOrgUnit = createOrgUnit("allowed-orgunit-uuid", null);
 			}
 
@@ -385,7 +395,7 @@ class RequestServiceTest {
 				OrgUnit differentOrgUnit = createOrgUnit("different-orgunit-uuid", null);
 
 				// Act
-				boolean result = requestService.canRequest(role, receivingUser, differentOrgUnit, List.of(RequestableBy.EMPLOYEE));
+				boolean result = requestService.canRequest(receivingUser, role, receivingUser, differentOrgUnit, List.of(RequestableBy.EMPLOYEE));
 
 				// Assert
 				assertThat(result).isFalse();
@@ -395,7 +405,6 @@ class RequestServiceTest {
 			@DisplayName("Allows access when IT system has enabled orgUnit filter and user's orgUnit is in list")
 			void allowsWhenItSystemOrgUnitFilterIncludesUser() {
 				// Arrange
-				securityUtilMock.when(SecurityUtil::getUserId).thenReturn("requester-user-id");
 
 				ItSystem itSystem = createItSystem("it-system-uuid", List.of(), List.of(RequestableBy.EMPLOYEE));
 				itSystem.setOuFilterEnabled(true);
@@ -403,10 +412,9 @@ class RequestServiceTest {
 				when(itSystemService.getOUFilterUuidsWithChildren(itSystem)).thenReturn(List.of("allowed-orgunit-uuid"));
 
 				UserRole role = createUserRole("role-uuid", itSystem, List.of(), List.of(RequestableBy.EMPLOYEE));
-				when(userService.getOptionalByUserId("requester-user-id")).thenReturn(Optional.of(receivingUser));
 
 				// Act
-				boolean result = requestService.canRequest(role, receivingUser, allowedOrgUnit, List.of(RequestableBy.EMPLOYEE));
+				boolean result = requestService.canRequest(receivingUser, role, receivingUser, allowedOrgUnit, List.of(RequestableBy.EMPLOYEE));
 
 				// Assert
 				assertThat(result).isTrue();
@@ -426,7 +434,7 @@ class RequestServiceTest {
 				OrgUnit differentOrgUnit = createOrgUnit("different-orgunit-uuid", null);
 
 				// Act
-				boolean result = requestService.canRequest(role, receivingUser, differentOrgUnit, List.of(RequestableBy.EMPLOYEE));
+				boolean result = requestService.canRequest(receivingUser, role, receivingUser, differentOrgUnit, List.of(RequestableBy.EMPLOYEE));
 
 				// Assert
 				assertThat(result).isFalse();
@@ -444,7 +452,7 @@ class RequestServiceTest {
 				UserRole role = createUserRole("role-uuid", itSystem, List.of(), List.of(RequestableBy.EMPLOYEE));
 
 				// Act
-				boolean result = requestService.canRequest(role, receivingUser, null, List.of(RequestableBy.EMPLOYEE));
+				boolean result = requestService.canRequest(receivingUser, role, receivingUser, null, List.of(RequestableBy.EMPLOYEE));
 
 				// Assert
 				assertThat(result).isFalse();
@@ -462,7 +470,7 @@ class RequestServiceTest {
 				when(userRoleService.getOUFilterUuidsWithChildren(role)).thenReturn(List.of("allowed-orgunit-uuid"));
 
 				// Act
-				boolean result = requestService.canRequest(role, receivingUser, null, List.of(RequestableBy.EMPLOYEE));
+				boolean result = requestService.canRequest(receivingUser, role, receivingUser, null, List.of(RequestableBy.EMPLOYEE));
 
 				// Assert
 				assertThat(result).isFalse();
@@ -475,18 +483,16 @@ class RequestServiceTest {
 				// over after disabling the filter). canRequest must ignore the filter entirely. This is
 				// the exact contract the "all roles" datatable view must mirror, otherwise the role
 				// shows under "Recommended" but disappears from "All" (see R__view_datatables_userroles.sql).
-				securityUtilMock.when(SecurityUtil::getUserId).thenReturn("requester-user-id");
 
 				ItSystem itSystem = createItSystem("it-system-uuid", List.of(), List.of(RequestableBy.EMPLOYEE));
 				UserRole role = createUserRole("role-uuid", itSystem, List.of(), List.of(RequestableBy.EMPLOYEE));
 				role.setOuFilterEnabled(false);
 				role.setOrgUnitFilterOrgUnits(List.of(allowedOrgUnit)); // stale rows left behind
-				when(userService.getOptionalByUserId("requester-user-id")).thenReturn(Optional.of(receivingUser));
 
 				OrgUnit differentOrgUnit = createOrgUnit("different-orgunit-uuid", null);
 
 				// Act - requesting for self, receiver sits in an OU that is NOT in the stale filter
-				boolean result = requestService.canRequest(role, receivingUser, differentOrgUnit, List.of(RequestableBy.EMPLOYEE));
+				boolean result = requestService.canRequest(receivingUser, role, receivingUser, differentOrgUnit, List.of(RequestableBy.EMPLOYEE));
 
 				// Assert
 				assertThat(result).isTrue();
@@ -496,18 +502,16 @@ class RequestServiceTest {
 			@DisplayName("Ignores IT system orgUnit filter when it is disabled, even if stale filter OUs remain")
 			void ignoresItSystemOrgUnitFilterWhenDisabledDespiteStaleFilterOus() {
 				// Arrange - same as above but the stale filter sits on the IT system.
-				securityUtilMock.when(SecurityUtil::getUserId).thenReturn("requester-user-id");
 
 				ItSystem itSystem = createItSystem("it-system-uuid", List.of(), List.of(RequestableBy.EMPLOYEE));
 				itSystem.setOuFilterEnabled(false);
 				itSystem.setOrgUnitFilterOrgUnits(List.of(allowedOrgUnit)); // stale rows left behind
 				UserRole role = createUserRole("role-uuid", itSystem, List.of(), List.of(RequestableBy.EMPLOYEE));
-				when(userService.getOptionalByUserId("requester-user-id")).thenReturn(Optional.of(receivingUser));
 
 				OrgUnit differentOrgUnit = createOrgUnit("different-orgunit-uuid", null);
 
 				// Act
-				boolean result = requestService.canRequest(role, receivingUser, differentOrgUnit, List.of(RequestableBy.EMPLOYEE));
+				boolean result = requestService.canRequest(receivingUser, role, receivingUser, differentOrgUnit, List.of(RequestableBy.EMPLOYEE));
 
 				// Assert
 				assertThat(result).isTrue();
@@ -523,16 +527,12 @@ class RequestServiceTest {
 
 			@BeforeEach
 			void setUpAuthorizedUser() {
-				securityUtilMock.when(SecurityUtil::hasDirectAdminRole).thenReturn(false);
-				securityUtilMock.when(() -> SecurityUtil.hasRole(Constants.ROLE_REQUESTAUTHORIZED)).thenReturn(true);
-				securityUtilMock.when(SecurityUtil::getUserId).thenReturn("requester-user-id");
-
 				requestingUser = createUser("requester-uuid");
+				when(userRoleService.hasSystemRoleWithIdentifier(requestingUser, Constants.ROLE_REQUESTAUTHORIZED)).thenReturn(true);
+
 				ItSystem itSystem = createItSystem("it-system-uuid", List.of(), List.of(RequestableBy.AUTHORIZED));
 				itSystem.setId(1L);
 				role = createUserRole("role-uuid", itSystem, List.of(), List.of(RequestableBy.AUTHORIZED));
-
-				when(userService.getByUserId("requester-user-id")).thenReturn(requestingUser);
 			}
 
 			@Test
@@ -547,7 +547,7 @@ class RequestServiceTest {
 								RequestAuthorizedRoleService.LimitedToType.ALL, Set.of()));
 
 				// Act
-				boolean result = requestService.canRequest(role, receivingUser, receiversOrgUnit, List.of(RequestableBy.NONE));
+				boolean result = requestService.canRequest(requestingUser, role, receivingUser, receiversOrgUnit, List.of(RequestableBy.NONE));
 
 				// Assert
 				assertThat(result).isTrue();
@@ -565,7 +565,7 @@ class RequestServiceTest {
 								RequestAuthorizedRoleService.LimitedToType.ALL, Set.of()));
 
 				// Act
-				boolean result = requestService.canRequest(role, receivingUser, receiversOrgUnit, List.of(RequestableBy.NONE));
+				boolean result = requestService.canRequest(requestingUser, role, receivingUser, receiversOrgUnit, List.of(RequestableBy.NONE));
 
 				// Assert
 				assertThat(result).isTrue();
@@ -581,10 +581,9 @@ class RequestServiceTest {
 				when(requestAuthorizedRoleService.accessibleItsSystems(requestingUser))
 						.thenReturn(new RequestAuthorizedRoleService.LimitedToItSystems(
 								RequestAuthorizedRoleService.LimitedToType.ALL, Set.of()));
-				when(userService.getOptionalByUserId("requester-user-id")).thenReturn(Optional.ofNullable(requestingUser));
 
 				// Act
-				boolean result = requestService.canRequest(role, receivingUser, receiversOrgUnit, List.of(RequestableBy.NONE));
+				boolean result = requestService.canRequest(requestingUser, role, receivingUser, receiversOrgUnit, List.of(RequestableBy.NONE));
 
 				// Assert
 				assertThat(result).isFalse();
@@ -600,10 +599,9 @@ class RequestServiceTest {
 				when(requestAuthorizedRoleService.accessibleItsSystems(requestingUser))
 						.thenReturn(new RequestAuthorizedRoleService.LimitedToItSystems(
 								RequestAuthorizedRoleService.LimitedToType.CONSTRAINED, Set.of(999L)));
-				when(userService.getOptionalByUserId("requester-user-id")).thenReturn(Optional.ofNullable(requestingUser));
 
 				// Act
-				boolean result = requestService.canRequest(role, receivingUser, receiversOrgUnit, List.of(RequestableBy.NONE));
+				boolean result = requestService.canRequest(requestingUser, role, receivingUser, receiversOrgUnit, List.of(RequestableBy.NONE));
 
 				// Assert
 				assertThat(result).isFalse();
@@ -618,8 +616,6 @@ class RequestServiceTest {
 
 			@BeforeEach
 			void setUpNonAdmin() {
-				securityUtilMock.when(SecurityUtil::hasDirectAdminRole).thenReturn(false);
-				securityUtilMock.when(() -> SecurityUtil.hasRole(any())).thenReturn(false);
 
 				ItSystem itSystem = createItSystem("it-system-uuid", List.of(), List.of(RequestableBy.MANAGERORSUBSTITUTE));
 				role = createUserRole("role-uuid", itSystem, List.of(), List.of(RequestableBy.MANAGERORSUBSTITUTE));
@@ -629,16 +625,14 @@ class RequestServiceTest {
 			@DisplayName("Returns true when user is manager of receiver and permission is MANAGERORSUBSTITUTE")
 			void returnsTrueWhenManagerOfReceiver() {
 				// Arrange
-				securityUtilMock.when(SecurityUtil::getUserId).thenReturn("manager-user-id");
 
 				User managerUser = createUser("manager-uuid");
 				managerUser.setUserId("manager-user-id");
 
-				when(userService.getOptionalByUserId("manager-user-id")).thenReturn(Optional.of(managerUser));
 				when(userService.isManagerOrSubstituteManagerFor(managerUser, receivingUser)).thenReturn(true);
 
 				// Act
-				boolean result = requestService.canRequest(role, receivingUser, receiversOrgUnit, List.of(RequestableBy.NONE));
+				boolean result = requestService.canRequest(managerUser, role, receivingUser, receiversOrgUnit, List.of(RequestableBy.NONE));
 
 				// Assert
 				assertThat(result).isTrue();
@@ -648,17 +642,15 @@ class RequestServiceTest {
 			@DisplayName("Returns false when user is not manager of receiver")
 			void returnsFalseWhenNotManagerOfReceiver() {
 				// Arrange
-				securityUtilMock.when(SecurityUtil::getUserId).thenReturn("non-manager-user-id");
 
 				User nonManagerUser = createUser("non-manager-uuid");
 				nonManagerUser.setUserId("non-manager-user-id");
 
-				when(userService.getOptionalByUserId("non-manager-user-id")).thenReturn(Optional.of(nonManagerUser));
 				when(userService.isManagerOrSubstituteManagerFor(nonManagerUser, receivingUser)).thenReturn(false);
 				when(orgUnitService.isAuthorizationManagerFor(nonManagerUser, receivingUser)).thenReturn(false);
 
 				// Act
-				boolean result = requestService.canRequest(role, receivingUser, receiversOrgUnit, List.of(RequestableBy.NONE));
+				boolean result = requestService.canRequest(nonManagerUser, role, receivingUser, receiversOrgUnit, List.of(RequestableBy.NONE));
 
 				// Assert
 				assertThat(result).isFalse();
@@ -673,8 +665,6 @@ class RequestServiceTest {
 
 			@BeforeEach
 			void setUpNonAdmin() {
-				securityUtilMock.when(SecurityUtil::hasDirectAdminRole).thenReturn(false);
-				securityUtilMock.when(() -> SecurityUtil.hasRole(any())).thenReturn(false);
 
 				ItSystem itSystem = createItSystem("it-system-uuid", List.of(), List.of(RequestableBy.AUTHRESPONSIBLE));
 				role = createUserRole("role-uuid", itSystem, List.of(), List.of(RequestableBy.AUTHRESPONSIBLE));
@@ -684,17 +674,15 @@ class RequestServiceTest {
 			@DisplayName("Returns true when user is AuthorizationResponsible and permission is AUTHRESPONSIBLE")
 			void returnsTrueWhenAuthResponsible() {
 				// Arrange
-				securityUtilMock.when(SecurityUtil::getUserId).thenReturn("auth-resp-user-id");
 
 				User authRespUser = createUser("auth-resp-uuid");
 				authRespUser.setUserId("auth-resp-user-id");
 
-				when(userService.getOptionalByUserId("auth-resp-user-id")).thenReturn(Optional.of(authRespUser));
 				when(userService.isManagerOrSubstituteManagerFor(authRespUser, receivingUser)).thenReturn(false);
 				when(orgUnitService.isAuthorizationManagerFor(authRespUser, receivingUser)).thenReturn(true);
 
 				// Act
-				boolean result = requestService.canRequest(role, receivingUser, receiversOrgUnit, List.of(RequestableBy.NONE));
+				boolean result = requestService.canRequest(authRespUser, role, receivingUser, receiversOrgUnit, List.of(RequestableBy.NONE));
 
 				// Assert
 				assertThat(result).isTrue();
@@ -704,17 +692,15 @@ class RequestServiceTest {
 			@DisplayName("Returns false when user is not AuthorizationResponsible")
 			void returnsFalseWhenNotAuthResponsible() {
 				// Arrange
-				securityUtilMock.when(SecurityUtil::getUserId).thenReturn("regular-user-id");
 
 				User regularUser = createUser("regular-uuid");
 				regularUser.setUserId("regular-user-id");
 
-				when(userService.getOptionalByUserId("regular-user-id")).thenReturn(Optional.of(regularUser));
 				when(userService.isManagerOrSubstituteManagerFor(regularUser, receivingUser)).thenReturn(false);
 				when(orgUnitService.isAuthorizationManagerFor(regularUser, receivingUser)).thenReturn(false);
 
 				// Act
-				boolean result = requestService.canRequest(role, receivingUser, receiversOrgUnit, List.of(RequestableBy.NONE));
+				boolean result = requestService.canRequest(regularUser, role, receivingUser, receiversOrgUnit, List.of(RequestableBy.NONE));
 
 				// Assert
 				assertThat(result).isFalse();
@@ -732,9 +718,6 @@ class RequestServiceTest {
 
 		@BeforeEach
 		void setUp() {
-			securityUtilMock.when(SecurityUtil::hasDirectAdminRole).thenReturn(false);
-			securityUtilMock.when(() -> SecurityUtil.hasRole(any())).thenReturn(false);
-			securityUtilMock.when(SecurityUtil::getUserId).thenReturn("substitute-user-id");
 
 			receivingUser = createUser("receiver-uuid");
 			filteredOrgUnit = createOrgUnit("filtered-orgunit-uuid", null);
@@ -754,16 +737,16 @@ class RequestServiceTest {
 
 			User substitute = createUser("substitute-uuid");
 			substitute.setUserId("substitute-user-id");
-			when(userService.getOptionalByUserId("substitute-user-id")).thenReturn(Optional.of(substitute));
 			when(userService.isManagerOrSubstituteManagerFor(substitute, receivingUser)).thenReturn(true);
 
 			when(orgUnitService.getOrgUnitsForUser(receivingUser)).thenReturn(List.of(receiverOrgUnit));
+			when(currentAssignmentService.hasRoleDirectly(receivingUser.getUuid(), role.getId())).thenReturn(true);
 
 			// A direct assignment carries no org unit, so the request-side check with a null OU denies it ...
-			assertThat(requestService.canRequest(role, receivingUser, null, List.of(RequestableBy.MANAGERORSUBSTITUTE))).isFalse();
+			assertThat(requestService.canRequest(substitute, role, receivingUser, null, List.of(RequestableBy.MANAGERORSUBSTITUTE))).isFalse();
 
 			// Act - ... but removal evaluates the filter against the receiver's actual unit and allows it.
-			boolean result = requestService.canRequestRemoval(role, receivingUser, List.of(RequestableBy.MANAGERORSUBSTITUTE));
+			boolean result = requestService.canRequestRemoval(substitute, role, receivingUser, List.of(RequestableBy.MANAGERORSUBSTITUTE));
 
 			// Assert
 			assertThat(result).isTrue();
@@ -780,14 +763,14 @@ class RequestServiceTest {
 
 			User substitute = createUser("substitute-uuid");
 			substitute.setUserId("substitute-user-id");
-			when(userService.getOptionalByUserId("substitute-user-id")).thenReturn(Optional.of(substitute));
 			when(userService.isManagerOrSubstituteManagerFor(substitute, receivingUser)).thenReturn(true);
 
 			OrgUnit unrelatedOrgUnit = createOrgUnit("unrelated-orgunit-uuid", null);
 			when(orgUnitService.getOrgUnitsForUser(receivingUser)).thenReturn(List.of(unrelatedOrgUnit));
+			when(currentAssignmentService.hasRoleDirectly(receivingUser.getUuid(), role.getId())).thenReturn(true);
 
 			// Act - the OU filter does not gate removals, so the substitute may still request removal.
-			boolean result = requestService.canRequestRemoval(role, receivingUser, List.of(RequestableBy.MANAGERORSUBSTITUTE));
+			boolean result = requestService.canRequestRemoval(substitute, role, receivingUser, List.of(RequestableBy.MANAGERORSUBSTITUTE));
 
 			// Assert
 			assertThat(result).isTrue();
@@ -802,13 +785,13 @@ class RequestServiceTest {
 
 			User substitute = createUser("substitute-uuid");
 			substitute.setUserId("substitute-user-id");
-			when(userService.getOptionalByUserId("substitute-user-id")).thenReturn(Optional.of(substitute));
 			when(userService.isManagerOrSubstituteManagerFor(substitute, receivingUser)).thenReturn(true);
 
 			when(orgUnitService.getOrgUnitsForUser(receivingUser)).thenReturn(List.of());
+			when(currentAssignmentService.hasRoleDirectly(receivingUser.getUuid(), role.getId())).thenReturn(true);
 
 			// Act
-			boolean result = requestService.canRequestRemoval(role, receivingUser, List.of(RequestableBy.MANAGERORSUBSTITUTE));
+			boolean result = requestService.canRequestRemoval(substitute, role, receivingUser, List.of(RequestableBy.MANAGERORSUBSTITUTE));
 
 			// Assert
 			assertThat(result).isTrue();
@@ -826,16 +809,53 @@ class RequestServiceTest {
 
 			User substitute = createUser("substitute-uuid");
 			substitute.setUserId("substitute-user-id");
-			when(userService.getOptionalByUserId("substitute-user-id")).thenReturn(Optional.of(substitute));
 			when(userService.isManagerOrSubstituteManagerFor(substitute, receivingUser)).thenReturn(true);
 
 			when(orgUnitService.getOrgUnitsForUser(receivingUser)).thenReturn(List.of(receiverOrgUnit));
+			when(currentAssignmentService.hasRoleGroupDirectly(receivingUser.getUuid(), roleGroup.getId())).thenReturn(true);
 
 			// Act
-			boolean result = requestService.canRequestRemoval(substitute, roleGroup, receivingUser);
+			boolean result = requestService.canRequestRemoval(
+				substitute, roleGroup, receivingUser, List.of(RequestableBy.MANAGERORSUBSTITUTE));
 
 			// Assert
 			assertThat(result).isTrue();
+		}
+
+		@Test
+		@DisplayName("UserRole: removal is denied when the receiver only holds the role through inheritance, not directly")
+		void deniesUserRoleRemovalWhenOnlyInherited() {
+			// Arrange
+			ItSystem itSystem = createItSystem("it-system-uuid", List.of(), List.of(RequestableBy.MANAGERORSUBSTITUTE));
+			UserRole role = createUserRole("role-uuid", itSystem, List.of(), List.of(RequestableBy.MANAGERORSUBSTITUTE));
+
+			User substitute = createUser("substitute-uuid");
+			substitute.setUserId("substitute-user-id");
+
+			when(currentAssignmentService.hasRoleDirectly(receivingUser.getUuid(), role.getId())).thenReturn(false);
+
+			// Act + Assert - the receiver holds the role only via inheritance, so removal must be denied.
+			assertThatThrownBy(() ->
+				requestService.canRequestRemoval(substitute, role, receivingUser, List.of(RequestableBy.MANAGERORSUBSTITUTE)))
+				.isInstanceOf(AccessDeniedException.class);
+		}
+
+		@Test
+		@DisplayName("RoleGroup: removal is denied when the receiver only holds the role group through inheritance, not directly")
+		void deniesRoleGroupRemovalWhenOnlyInherited() {
+			// Arrange
+			UserRole userRole = createUserRole("role-uuid", createItSystem("it-system-uuid", List.of()), List.of());
+			RoleGroup roleGroup = createRoleGroup(1L, List.of(userRole), List.of(), List.of(RequestableBy.MANAGERORSUBSTITUTE));
+
+			User substitute = createUser("substitute-uuid");
+			substitute.setUserId("substitute-user-id");
+
+			when(currentAssignmentService.hasRoleGroupDirectly(receivingUser.getUuid(), roleGroup.getId())).thenReturn(false);
+
+			// Act + Assert - the receiver holds the role group only via inheritance, so removal must be denied.
+			assertThatThrownBy(() ->
+				requestService.canRequestRemoval(substitute, roleGroup, receivingUser, List.of(RequestableBy.MANAGERORSUBSTITUTE)))
+				.isInstanceOf(AccessDeniedException.class);
 		}
 	}
 
@@ -861,8 +881,7 @@ class RequestServiceTest {
 
 			@BeforeEach
 			void setUpAdmin() {
-				securityUtilMock.when(SecurityUtil::hasDirectAdminRole).thenReturn(true);
-				securityUtilMock.when(SecurityUtil::getUserId).thenReturn("requester-user-id");
+				mockAdmin(requestingUser);
 			}
 
 			@Test
@@ -1102,15 +1121,12 @@ class RequestServiceTest {
 
 			@BeforeEach
 			void setUpAuthorizedUser() {
-				securityUtilMock.when(SecurityUtil::hasDirectAdminRole).thenReturn(false);
-				securityUtilMock.when(() -> SecurityUtil.hasRole(Constants.ROLE_REQUESTAUTHORIZED)).thenReturn(true);
-				securityUtilMock.when(SecurityUtil::getUserId).thenReturn("requester-user-id");
+				when(userRoleService.hasSystemRoleWithIdentifier(requestingUser, Constants.ROLE_REQUESTAUTHORIZED)).thenReturn(true);
 
 				ItSystem itSystem = createItSystem("it-system-uuid", List.of(), List.of());
 				itSystem.setId(1L);
 				UserRole userRole = createUserRole("role-uuid", itSystem, List.of(), List.of());
 				roleGroup = createRoleGroup(1L, List.of(userRole), List.of(), List.of(RequestableBy.AUTHORIZED));
-
 			}
 
 			@Test

@@ -1,83 +1,103 @@
+// SubstituteListService handles the manager substitute list page:
+// listing, creating, editing and deleting manager substitutes.
 class SubstituteListService {
-    self //reference to this class
-    modalContainer //reference to the modal container for editing/creating
-    networkService
-
-    constructor() {
-        this.self = this
+    constructor(config) {
+        this.uiUrl = config.uiUrl
+        this.restUrl = config.restUrl
         this.networkService = new NetworkService()
         this.modalContainer = document.getElementById('SubstituteListmodalContainer')
-        this.#initButtons()
+        this.initButtons()
     }
 
-    #initButtons() {
-        this.#initEditDelegation()
-        this.#initDeleteDelegation()
-        this.#initCreateButton()
-
+    initButtons() {
+        this.initEditDelegation()
+        this.initDeleteDelegation()
+        this.initCreateButton()
+        this.initModalActionDelegation()
     }
 
-    #initCreateButton() {
-            const createButton = document.getElementById('createManagerSubstituteButton')
-            createButton.addEventListener('click' , async (event)=> {
-                // fetch modal
-                const url =`${uiUrl}/create`
-                await this.networkService.GetFragment(url, this.modalContainer)
-                //init modal functionality
-                this.initAutocomplete()
-                this.#initManagerSelect()
-                //show modal
-                $(`#createModal`).modal('show')
-            })
+    initCreateButton() {
+        const createButton = document.getElementById('createManagerSubstituteButton')
+        if (!createButton) {
+            return
+        }
+        createButton.addEventListener('click', async (event) => {
+            // fetch modal
+            const url = `${this.uiUrl}/create`
+            await this.networkService.GetFragment(url, this.modalContainer)
+            // init modal functionality
+            this.initAutocomplete()
+            this.initManagerSelect()
+            // show modal
+            $(`#createModal`).modal('show')
+        })
     }
 
-    #initEditDelegation() {
-        //event delegation
+    initEditDelegation() {
+        // event delegation
         const container = document.getElementById('listTable')
-        this.#delegateEvent(container, 'onEditButton', 'click', async (onEditButton)=> {
+        this.delegateEvent(container, 'onEditButton', 'click', async (onEditButton) => {
             const id = onEditButton.getAttribute('data-id')
-            const url =`${uiUrl}/${id}/edit`
+            const url = `${this.uiUrl}/${id}/edit`
 
             // fetch and open create modal
             await this.networkService.GetFragment(url, this.modalContainer)
             $(`#editModal`).modal('show')
             this.initAutocomplete()
-        }
-    )}
-
-    #initDeleteDelegation() {
-        //event delegation
-        const self = this;
-        const container = document.getElementById('listTable')
-        this.#delegateEvent(container, 'onDeleteButton', 'click', (onDeleteButton)=> {
-            const tr = onDeleteButton.closest('tr')
-            const tdElements =  tr.querySelectorAll('td')
-
-            //show confirmation, then fetch delete
-            swal({
-                html: true,
-                title : `Er du sikker?`,
-                text : `Du er ved at slette ${tdElements[1].textContent} som stedfortræder for ${tdElements[2].textContent} i afdelingen ${tdElements[3].textContent}?`,
-                type : "warning",
-                showCancelButton : true,
-                confirmButtonColor : "#DD6B55",
-                confirmButtonText : "Slet",
-                cancelButtonText : "Fortryd",
-                closeOnConfirm : true,
-                closeOnCancel : true
-            },
-            function(confirmed) {
-                if (!confirmed) { return;}
-                const id = onDeleteButton.getAttribute('data-id')
-                self.onDeleteManagerSubstitute(id)
-                location.reload()
-            });
         })
     }
 
+    initDeleteDelegation() {
+        // event delegation
+        const self = this
+        const container = document.getElementById('listTable')
+        this.delegateEvent(container, 'onDeleteButton', 'click', (onDeleteButton) => {
+            const tr = onDeleteButton.closest('tr')
+            const tdElements = tr.querySelectorAll('td')
 
-    async onCreateManagerSubstitute(){
-        //get values from fields
+            // show confirmation, then fetch delete
+            swal({
+                html: true,
+                title: `Er du sikker?`,
+                text: `Du er ved at slette ${tdElements[1].textContent} som stedfortræder for ${tdElements[2].textContent} i afdelingen ${tdElements[3].textContent}?`,
+                type: "warning",
+                showCancelButton: true,
+                confirmButtonColor: "#DD6B55",
+                confirmButtonText: "Slet",
+                cancelButtonText: "Fortryd",
+                closeOnConfirm: true,
+                closeOnCancel: true
+            },
+            function (confirmed) {
+                if (!confirmed) {
+                    return
+                }
+                const id = onDeleteButton.getAttribute('data-id')
+                self.onDeleteManagerSubstitute(id)
+                location.reload()
+            })
+        })
+    }
+
+    initModalActionDelegation() {
+        this.delegateEvent(this.modalContainer, 'js-create-save', 'click', () => {
+            this.onCreateManagerSubstitute()
+        })
+
+        this.delegateEvent(this.modalContainer, 'js-edit-save', 'click', (target) => {
+            const id = target.getAttribute('data-id')
+            this.onEditManagerSubstitute(id)
+        })
+
+        this.modalContainer.addEventListener('click', (event) => {
+            if (event.target && event.target.classList.contains('js-search-person')) {
+                event.preventDefault()
+            }
+        })
+    }
+
+    async onCreateManagerSubstitute() {
+        // get values from fields
         const managerField = document.getElementById('managerSelection')
         const substituteField = document.getElementById('selectedSubstituteUuid')
         const ouField = document.getElementById('selectedOrgUnit')
@@ -89,53 +109,53 @@ class SubstituteListService {
             },
             substitute: {
                 uuid: substituteField.value,
-                name:'',
-                userId:'',
-                orgUnitUuid:'',
-                orgUnitName:'',
-                managerUuid:'',
-                managerUserId:''
+                name: '',
+                userId: '',
+                orgUnitUuid: '',
+                orgUnitName: '',
+                managerUuid: '',
+                managerUserId: ''
             },
             orgUnitUUIDs: [...ouField.selectedOptions].map(option => option.value)
         }
 
-        //validate
+        // validate
         let errors = 0
         if (!data.manager || !data.manager.uuid) {
-            this.#showError('selectedManagerError')
+            this.showError('selectedManagerError')
             errors++
         } else {
-            this.#hideError('selectedManagerError')
+            this.hideError('selectedManagerError')
         }
         if (!data.substitute || !data.substitute.uuid) {
-            this.#showError('selectedSubstituteError')
+            this.showError('selectedSubstituteError')
             errors++
         } else {
-            this.#hideError('selectedSubstituteError')
+            this.hideError('selectedSubstituteError')
         }
         if (!data.orgUnitUUIDs || data.orgUnitUUIDs.length < 1) {
-            this.#showError('selectedOrgUnitError')
+            this.showError('selectedOrgUnitError')
             errors++
         } else {
-            this.#hideError('selectedOrgUnitError')
+            this.hideError('selectedOrgUnitError')
         }
-        if(errors > 0) {
-            return;
+        if (errors > 0) {
+            return
         }
 
-        //post to server
+        // post to server
         const url = `/rest/manager/substitute/add`
         this.networkService.Post(url, data)
-            .then(_ => location.reload());
+            .then(_ => location.reload())
     }
 
     async onDeleteManagerSubstitute(id) {
-        const url = `${restUrl}/${id}/delete`
+        const url = `${this.restUrl}/${id}/delete`
         this.networkService.Delete(url)
     }
 
     async onEditManagerSubstitute(id) {
-        //get values from fields
+        // get values from fields
         const managerField = document.getElementById('managerSelection')
         const substituteField = document.getElementById('selectedSubstituteUuid')
         const ouField = document.getElementById('selectedOrgUnit')
@@ -146,32 +166,32 @@ class SubstituteListService {
             orgUnitUuid: [...ouField.selectedOptions][0].value
         }
 
-        //validate
+        // validate
         let errors = 0
-        if (!data.managerUuid ) {
-            this.#showError('selectedManagerError')
+        if (!data.managerUuid) {
+            this.showError('selectedManagerError')
             errors++
         } else {
-            this.#hideError('selectedManagerError')
+            this.hideError('selectedManagerError')
         }
         if (!data.substituteUuid) {
-            this.#showError('selectedSubstituteError')
+            this.showError('selectedSubstituteError')
             errors++
         } else {
-                    this.#hideError('selectedSubstituteError')
-                }
-        if (!data.orgUnitUuid) {
-            this.#showError('selectedOrgUnitError')
-            errors++
-        } else {
-            this.#hideError('selectedOrgUnitError')
+            this.hideError('selectedSubstituteError')
         }
-        if(errors > 0) {
-            return;
+        if (!data.orgUnitUuid) {
+            this.showError('selectedOrgUnitError')
+            errors++
+        } else {
+            this.hideError('selectedOrgUnitError')
+        }
+        if (errors > 0) {
+            return
         }
 
-        //post to server
-        const url = `${restUrl}/${id}/edit`
+        // post to server
+        const url = `${this.restUrl}/${id}/edit`
         this.networkService.Put(url, data)
 
         location.reload()
@@ -184,76 +204,83 @@ class SubstituteListService {
     * Note: Does not work with click on inner elements, only direct clicks
     * @param {HTMLElement} container
     * @param {String} triggerClass
-    * @param {String eventType
+    * @param {String} eventType
     * @param {Function} action
     */
-    #delegateEvent(container, triggerClass, eventType, action) {
-        container.addEventListener(eventType, (event)=> {
+    delegateEvent(container, triggerClass, eventType, action) {
+        container.addEventListener(eventType, (event) => {
             const target = event.target
-            if (target && target.classList.contains(triggerClass)){
+            if (target && target.classList.contains(triggerClass)) {
                 action(target)
             }
         })
     }
 
-    #initManagerSelect() {
+    initManagerSelect() {
         const managerSelect = document.getElementById('managerSelection')
-        managerSelect.addEventListener('change', ()=> this.#onManagerSelected(managerSelect))
+        managerSelect.addEventListener('change', () => this.onManagerSelected(managerSelect))
     }
 
-    #onManagerSelected(managerSelect) {
+    onManagerSelected(managerSelect) {
         const selectedValue = managerSelect.selectedOptions[0].value
-        if (!selectedValue) {return;}
+        if (!selectedValue) {
+            return
+        }
         const ouSelect = document.getElementById('selectedOrgUnit')
-        const url = `${uiUrl}/manager/${managerSelect.value}/orgunit/options`
+        const url = `${this.uiUrl}/manager/${managerSelect.value}/orgunit/options`
         this.networkService.GetFragment(url, ouSelect)
         ouSelect.disabled = false
     }
 
-    #showError(id){
+    showError(id) {
         const errormessage = document.getElementById(id)
-        errormessage.style.display = 'flex';
+        errormessage.style.display = 'flex'
     }
 
-    #hideError(id){
+    hideError(id) {
         const errormessage = document.getElementById(id)
-        errormessage.style.display = 'none';
+        errormessage.style.display = 'none'
     }
 
     initAutocomplete() {
-        const searchField = $("#search_person");
+        const searchField = $("#search_person")
 
         searchField.autocomplete({
             serviceUrl: "/rest/manager/substitute/search/person",
-            onSelect: function(suggestion) {
-                $(this).val(suggestion.value);
-
-                $("#selectedSubstituteUuid").val(suggestion.data);
+            onSelect: function (suggestion) {
+                $(this).val(suggestion.value)
+                $("#selectedSubstituteUuid").val(suggestion.data)
             },
             preventBadQueries: true,
             triggerSelectOnValidInput: false,
-            transformResult: function(response) {
+            transformResult: function (response) {
                 // filter results to not show manager
-                const responseObject = $.parseJSON(response);
-                if (!responseObject || responseObject == null) {
+                const responseObject = $.parseJSON(response)
+                if (!responseObject || responseObject === null) {
                     return {
                         suggestions: []
                     }
                 }
 
-                const filteredSuggestions = responseObject.suggestions.filter(
-                    function (item) {
-                        const managerSelect = document.getElementById('managerSelection')
-                        const managerUuid = managerSelect.selectedOptions[0].value
-                        return item.data !== managerUuid
-                    });
+                const filteredSuggestions = responseObject.suggestions.filter(function (item) {
+                    const managerSelect = document.getElementById('managerSelection')
+                    const managerUuid = managerSelect.selectedOptions[0].value
+                    return item.data !== managerUuid
+                })
 
-                    return {
-                        suggestions: filteredSuggestions
-                    };
+                return {
+                    suggestions: filteredSuggestions
                 }
-            });
-            searchField.select();
-            searchField.focus();
-        };
+            }
+        })
+        searchField.select()
+        searchField.focus()
     }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    window.token = $("meta[name='_csrf']").attr("content")
+
+    const config = JSON.parse(document.getElementById('substitute-list-config').textContent)
+    window.substituteListService = new SubstituteListService(config)
+})

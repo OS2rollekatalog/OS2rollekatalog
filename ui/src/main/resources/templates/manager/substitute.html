@@ -10,7 +10,7 @@
 			<div class="content-wrapper">
 				<h3>
 					<span th:text="#{html.page.manager.substitute.title}"></span>
-					<button type="button" class="btn btn-lg btn-primary" style="float: right;" onclick="managerService.openSubstituteModal()" th:if="${@roleCatalogueConfiguration.substituteManagerAPI.enabled == false and canEdit == true}" th:text="#{html.page.manager.substitute.btn.add}"></button>
+					<button type="button" class="btn btn-lg btn-primary js-open-substitute-modal" style="float: right;" th:if="${@roleCatalogueConfiguration.substituteManagerAPI.enabled == false and canEdit == true}" th:text="#{html.page.manager.substitute.btn.add}"></button>
 				</h3>
 
 				<div class="panel panel-default">
@@ -29,7 +29,7 @@
 										<th class="col-md-1" th:text="#{html.control.operations}" data-orderable="false"></th>
 									</tr>
 								</thead>
-			
+
 								<tbody>
 									<tr th:each="mapping : ${substitutes}">
 										<td th:text="${mapping.substitute.name}"></td>
@@ -38,9 +38,9 @@
 										<td th:text="${mapping.orgUnit.name}"></td>
 										<td>
 											<a th:if="${@roleCatalogueConfiguration.substituteManagerAPI.enabled == false and canEdit == true}"
-											th:title="#{html.page.manager.substitute.remove}"
-											th:attr="data-assignmentId=${mapping.id}"
-											onclick="managerService.removeSubstitute(this)"><em class="fa-fw fa fa-times"></em></a>
+											   th:title="#{html.page.manager.substitute.remove}"
+											   th:attr="data-assignmentId=${mapping.id}"
+											   class="js-remove-substitute"><em class="fa-fw fa fa-times"></em></a>
 										</td>
 									</tr>
 								</tbody>
@@ -71,7 +71,7 @@
 						<input id="selectedSubstituteUuid" hidden>
 						<div class="form-group">
 							<label class="col-lg-2 control-label" th:text="#{html.page.manager.substitute}"></label>
-							<input style="margin-left: 10px; width: 500px; display: inline-block;" class="col-lg-8 form-control" id="search_person" onclick="return false;" />
+							<input style="margin-left: 10px; width: 500px; display: inline-block;" class="col-lg-8 form-control" id="search_person" />
 							<p id="selectedSubstituteError" style="display:none" class="text-danger col-lg-8 col-lg-offset-2" th:text="#{html.page.manager.substitute.modal.select.substitute.error}"></p>
 						</div>
 						<div class="form-group">
@@ -85,7 +85,7 @@
 				</div>
 
 				<div class="modal-footer">
-					<button type="button" class="btn btn-primary" onclick="managerService.addSubstitute()" th:text="#{html.control.button.save}"></button>
+					<button type="button" class="btn btn-primary js-add-substitute" th:text="#{html.control.button.save}"></button>
 					<button type="button" class="btn btn-danger" data-dismiss="modal" th:text="#{html.control.button.cancel}"></button>
 				</div>
 			</div>
@@ -95,163 +95,21 @@
 	<nav th:replace="~{fragments/footer :: footer}"></nav>
 	<script th:replace="~{fragments/datatables :: datatables}"></script>
 
-	<style>
-		.autocomplete-suggestions { border: 1px solid #999; background: #FFF; overflow: auto; width: 500px !important; }
-		.autocomplete-suggestion { padding: 2px 5px; white-space: nowrap; overflow: hidden; }
-		.autocomplete-selected { background: #F0F0F0; }
-		.autocomplete-suggestions strong { font-weight: normal; color: #3399FF; }
-		.autocomplete-group { padding: 2px 5px; }
-		.autocomplete-group strong { display: block; border-bottom: 1px solid #000; }
-	</style>
+	<link rel="stylesheet" th:href="@{/css/manager/substitute.css}" />
 
-	<script th:inline="javascript">
-		/*<![CDATA[*/
-
-		/*[+
-			var restUrl = [[@{/rest/manager/substitute}]];
-		
-			var msgAssignFailure = [[#{html.page.manager.substitute.assign.failure}]];
-			
-			var managerUuid = [[${managerUuid}]];
-		+]*/
-		var token = $("meta[name='_csrf']").attr("content");
-
-		var autoCompleteService;
-		var managerService;
-		$(document).ready(function() {
-			autoCompleteService = new AutoCompleteService();
-			autoCompleteService.init();
-			managerService = new ManagerService();
-		});
-
-		function AutoCompleteService() {
-			this.init = function() {
-				var searchField = $("#search_person");
-
-				searchField.autocomplete({
-					serviceUrl: restUrl + "/search/person",
-					onSelect: function(suggestion) {
-						$(this).val(suggestion.value);
-
-						$("#selectedSubstituteUuid").val(suggestion.data);
-					},
-					preventBadQueries: true,
-					triggerSelectOnValidInput: false,
-					transformResult: function(response) {
-						// filter results to not show manager
-						var responseObject = $.parseJSON(response);
-						if (!responseObject || responseObject == null) {
-							return {
-								suggestions: []
-							}
-						}
-						
-						var filteredSuggestions = responseObject.suggestions.filter(
-							function (item) {
-								return item.data !== managerUuid
-						});
-
-						return {
-							suggestions: filteredSuggestions 
-						};
-					}
-				});
-				searchField.select();
-				searchField.focus();
-			};
-
+	<script id="manager-substitute-config" type="application/json" th:inline="javascript">
+		{
+			"restUrl": [[@{/rest/manager/substitute}]],
+			"managerUuid": [[${managerUuid}]],
+			"assignFailureMessage": [[#{html.page.manager.substitute.assign.failure}]],
+			"genericErrorMessage": [[#{html.default.message.error}]],
+			"removeConfirmTitle": [[#{html.page.manager.substitute.modal.remove.title}]],
+			"removeConfirmText": [[#{html.page.manager.substitute.modal.remove.text}]],
+			"cancelButtonText": [[#{html.control.button.cancel}]],
+			"confirmButtonText": [[#{html.control.button.delete}]]
 		}
-		
-		function ManagerService() {
-			
-			this.openSubstituteModal = function() {
-				$("#addSubstituteModal").modal("show");
-				$("#selectedSubstituteError").hide();
-				$("#selectedSubstituteUuid").val(null);
-				$("#search_person").val(null);
-			}
-
-			this.removeSubstitute = function(elem) {
-				var assignmentId = elem.dataset.assignmentid;
-				
-				/*[+
-					var titleTxt = [[#{html.page.manager.substitute.modal.remove.title}]];
-					var bodyTxt = [[#{html.page.manager.substitute.modal.remove.text}]];
-					var cancelTxt = [[#{html.control.button.cancel}]];
-					var confirmTxt = [[#{html.control.button.delete}]];
-					var errorMsg = [[#{html.default.message.error}]];
-				+]*/
-
-				swal({
-						html: true,
-						title : titleTxt,
-						text : bodyTxt,
-						type : "warning",
-						showCancelButton : true,
-						confirmButtonColor : "#DD6B55",
-						confirmButtonText : confirmTxt,
-						cancelButtonText : cancelTxt,
-						closeOnConfirm : true,
-						closeOnCancel : true
-					},
-					function (isConfirm) {
-						if (isConfirm) {
-							$.ajax({
-								type: "POST",
-								url: restUrl + "/remove",
-								contentType: "application/json; charset=utf-8",
-								headers: {
-									'X-CSRF-TOKEN': token,
-								},
-								data: JSON.stringify({
-									id : assignmentId
-								}),
-								success: function() {
-									location.reload(true);
-								},
-								error: errorHandler(errorMsg)
-							});
-						}
-					}
-				);
-			}
-			
-			this.addSubstitute = function() {
-				var substituteUuid = $("#selectedSubstituteUuid").val();
-				var orgUnitUuids = $("#selectedOrgUnit").val();
-
-				if (!substituteUuid || substituteUuid == null || substituteUuid === "") {
-					$("#selectedSubstituteError").show();
-					return;
-				}
-				
-				if (!orgUnitUuids || orgUnitUuids == null || orgUnitUuids.length === 0) {
-					$("#selectedOrgUnitError").show();
-					return;
-				}
-				
-				$.ajax({
-					method : "POST",
-					url: restUrl + "/add",
-					contentType: "application/json; charset=utf-8",
-					headers: {
-						'X-CSRF-TOKEN': token
-					},
-					data: JSON.stringify({
-						substitute: { uuid: substituteUuid },
-						orgUnitUUIDs: orgUnitUuids,
-						manager: { uuid: managerUuid }
-					})
-				}).done(function (data) {
-					location.reload(true);
-				}).fail(function (jqXHR, textStatus, errorThrown) {
-					$("#addSubstituteModal").modal("hide");
-					errorHandler(msgAssignFailure)(jqXHR);
-				});
-			};
-		}
-
-	/*]]>*/
 	</script>
+	<script th:src="@{/js/service/SweetAlertService.js}"></script>
+	<script th:src="@{/js/manager/substitute.js}"></script>
 </body>
 </html>

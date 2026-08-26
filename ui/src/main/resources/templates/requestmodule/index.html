@@ -69,10 +69,9 @@
 																  th:text="' - '+ #{requestmodule.html.pending.remove}"></span>
 														</td>
 														<td>
-															<button th:if="${roleGroup.removable}"
-																	class="btn btn-danger"
-																	th:text="#{requestmodule.html.requestRemoval}"
-																	th:attr="onclick='roleGroupService.onRoleGroupRemoval('+${roleGroup.assignmentId}+');'"></button>
+															<button th:if="${roleGroup.removable}" class="btn btn-danger js-remove-rolegroup"
+																	th:attr="data-role-id=${roleGroup.id}"
+																	th:text="#{requestmodule.html.requestRemoval}"></button>
 														</td>
 													</tr>
 													<!--pending rolegroup requests-->
@@ -85,10 +84,9 @@
 															<span th:text="#{${roleGroup.status}}"></span>
 														</td>
 														<td>
-															<button th:if="${roleGroup.cancelable}"
-																	class="btn btn-danger"
-																	th:text="#{requestmodule.html.cancelRequest}"
-																	th:attr="onclick='requestService.onRequestCancel('+${roleGroup.requestId}+');'"></button>
+															<button th:if="${roleGroup.cancelable}" class="btn btn-danger js-cancel-request"
+																	th:attr="data-request-id=${roleGroup.requestId}"
+																	th:text="#{requestmodule.html.cancelRequest}"></button>
 														</td>
 													</tr>
 													</tbody>
@@ -125,9 +123,9 @@
 															  th:text="' - '+ #{requestmodule.html.pending.remove}"></span>
 													</td>
 													<td>
-														<button th:if="${userRole.removable}" class="btn btn-danger"
-																th:text="#{requestmodule.html.requestRemoval}"
-																th:attr="onclick='userRoleService.onUserRoleRemoval('+${userRole.assignmentId}+');'"></button>
+														<button th:if="${userRole.removable}" class="btn btn-danger js-remove-userrole"
+																th:attr="data-role-id=${userRole.id}"
+																th:text="#{requestmodule.html.requestRemoval}"></button>
 													</td>
 												</tr>
 												<!--												Pending userrole requests-->
@@ -139,9 +137,9 @@
 														<span th:text="#{${userRole.status}}"></span>
 													</td>
 													<td>
-														<button th:if="${userRole.cancelable}" class="btn btn-danger"
-																th:text="#{requestmodule.html.cancelRequest}"
-																th:attr="onclick='requestService.onRequestCancel('+${userRole.requestId}+');'"></button>
+														<button th:if="${userRole.cancelable}" class="btn btn-danger js-cancel-request"
+																th:attr="data-request-id=${userRole.requestId}"
+																th:text="#{requestmodule.html.cancelRequest}"></button>
 													</td>
 												</tr>
 												</tbody>
@@ -159,42 +157,16 @@
 </div>
 <div th:replace="~{requestmodule/fragments/request_removal_modal :: requestRemovalModal}"></div>
 <div th:replace="~{requestmodule/fragments/footer :: scripts(datatables = true)}"></div>
-<script th:src="@{/js/rolerequest/index.js}"></script>
-
-<script th:inline="javascript">
-	/*<![CDATA[*/
-	/*[+
-		const detailsUrl = [[@{/ui/request/rolegroups}]];
-		const restUrl = [[@{/rest/rolerequest}]];
-		const token = $("meta[name='_csrf']").attr("content");
-		const reasonRequirement = [[${reasonRequirement}]];
-		let tabService
-	+]*/
-
-	var roleGroupService, userRoleService, expandableRoleGroupTableService, requestService;
-	$(document).ready(function(){
-		roleGroupService = new RoleGroupService();
-		roleGroupService.init();
-
-		userRoleService = new UserRoleService();
-		userRoleService.init();
-
-		requestService = new RequestService()
-
-		expandableRoleGroupTableService = new ExpandableRoleGroupTableService();
-
-		tabService = new TabService('rolerequest_my_rights')
-		tabService.restoreTab()
-
-		const navLinks = document.querySelectorAll('a.nav-link')
-		for (const link of navLinks) {
-			link.addEventListener('click', ()=> tabService.rememberTab(link.href.split('#')[1] ))
-		}
-
-	});
-
-	/*]]>*/
+<script type="application/json" id="index-config">
+	{
+		"detailsUrl": "[[@{/ui/request/rolegroups}]]",
+		"restUrl": "[[@{/rest/rolerequest}]]",
+		"reasonRequirement": "[[${reasonRequirement}]]"
+	}
 </script>
+<script th:src="@{/js/service/SweetAlertService.js}"></script>
+<script th:src="@{/js//DatatableService.js}"></script>
+<script th:src="@{/js/rolerequest/index.js}"></script>
 
 </body>
 </html>

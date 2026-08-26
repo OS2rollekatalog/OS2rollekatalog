@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html>
 <body>
-	<div th:fragment="footer">	
-		<script th:src="@{/webjars/modernizr/2.8.3/modernizr.min.js}"></script>		
+	<div th:fragment="footer">
+		<script th:src="@{/webjars/modernizr/2.8.3/modernizr.min.js}"></script>
 		<script th:src="@{/webjars/jquery/2.2.4/jquery.min.js}"></script>
 		<script th:src="@{/webjars/bootstrap/3.3.7/js/bootstrap.min.js}"></script>
 		<script th:src="@{/webjars/angle/3.7.5/js/jquery.storageapi.js}"></script>
@@ -17,15 +17,17 @@
 		<script th:src="@{/js/bootstrap-select.min.js}"></script>
 		<script th:src="@{/webjars/momentjs/2.10.3/min/moment-with-locales.min.js}"></script>
 		<script th:src="@{/webjars/summernote/0.8.10/summernote.js}"></script>
-		<script>
-			// has to happen before datepicker script is loaded
-			moment.locale('da');
-		</script>
+		<script th:src="@{/js/footer.js}"></script>
 
 		<script th:src="@{/webjars/jQuery-Autocomplete/1.4.10/jquery.autocomplete.min.js}"></script>
 		<script th:src="@{/webjars/Eonasdan-bootstrap-datetimepicker/4.17.47/js/bootstrap-datetimepicker.js}"></script>
 
 		<script th:src="@{/vendor/select2/js/select2.min.js}"></script>
+
+		<script th:src="@{/js/errors.js}"></script>
+		<script th:src="@{/js/service/NetworkService.js}"></script>
+		<script th:src="@{/js/service/QueueDrainService.js}"></script>
+		<script th:src="@{/js/fragments/HelpPopover.js}"></script>
 	</div>
 </body>
 </html>

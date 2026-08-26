@@ -14,6 +14,7 @@ import dk.digitalidentity.rc.attestation.model.dto.RoleAssignmentDTO;
 import dk.digitalidentity.rc.attestation.service.ItSystemUsersAttestationService;
 import dk.digitalidentity.rc.dao.model.ItSystem;
 import dk.digitalidentity.rc.dao.model.User;
+import dk.digitalidentity.rc.security.RequireItSystemResponsibleOrAttestationAdminRole;
 import dk.digitalidentity.rc.security.SecurityUtil;
 import dk.digitalidentity.rc.service.ItSystemService;
 import dk.digitalidentity.rc.service.SettingsService;
@@ -22,6 +23,7 @@ import io.micrometer.core.annotation.Timed;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
+@RequireItSystemResponsibleOrAttestationAdminRole
 @Controller
 public class ItSystemRoleAssignmentAttestationController {
 

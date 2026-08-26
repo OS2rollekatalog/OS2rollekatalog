@@ -24,7 +24,9 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
 import dk.digitalidentity.rc.controller.api.mapper.RoleGroupMapper;
+import dk.digitalidentity.rc.controller.api.mapper.RoleMapper;
 import dk.digitalidentity.rc.controller.api.mapper.UserMapper;
+import dk.digitalidentity.rc.controller.api.model.AssignmentDetailAM;
 import dk.digitalidentity.rc.controller.api.model.ExceptionResponseAM;
 import dk.digitalidentity.rc.controller.api.model.RoleGroupAM;
 import dk.digitalidentity.rc.controller.api.model.UserAM2;
@@ -37,7 +39,6 @@ import dk.digitalidentity.rc.security.RequireApiRoleManagementRole;
 import dk.digitalidentity.rc.service.RoleGroupService;
 import dk.digitalidentity.rc.service.UserRoleService;
 import dk.digitalidentity.rc.service.assignment.AssignmentService;
-import dk.digitalidentity.rc.service.assignment.CurrentAssignmentService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -57,7 +58,6 @@ public class UserRoleGroupApiV2 {
     private final RoleGroupService roleGroupService;
     private final UserRoleService userRoleService;
     private final AssignmentService assignmentService;
-    private final CurrentAssignmentService currentAssignmentService;
 
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Returns all existing rolegroups. Can be empty list."),
@@ -102,7 +102,6 @@ public class UserRoleGroupApiV2 {
     public ResponseEntity<?> deleteRoleGroup(@PathVariable final long id) {
         final RoleGroup roleGroup = roleGroupService.getOptionalById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
-        currentAssignmentService.deleteAllForRoleGroup(roleGroup);
         roleGroupService.delete(roleGroup);
         return new ResponseEntity<>(HttpStatus.NO_CONTENT);
     }
@@ -179,6 +178,40 @@ public class UserRoleGroupApiV2 {
 
 		return new ResponseEntity<>(result, HttpStatus.OK);
 	}
+
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Returns all assignments of the rolegroup. Can be empty list."),
+            @ApiResponse(responseCode = "404", description = "RoleGroup not found", content =
+                    { @Content(mediaType = "application/json", schema = @Schema(implementation = ExceptionResponseAM.class)) }),
+            @ApiResponse(responseCode = "500", description = "Internal Server Error", content =
+                    { @Content(mediaType = "application/json", schema = @Schema(implementation = ExceptionResponseAM.class)) })
+    })
+    @Operation(summary = "Get all assignments of a given rolegroup",
+            description = "Returns one entry per assignment of the rolegroup, including which org unit it was assigned on "
+                    + "and whether it was assigned directly or via an org unit. Use this to find out where a rolegroup is "
+                    + "assigned - unlike /users it does not collapse the result to one entry per user. "
+                    + "Note that assignedThrough is never TITLE here: a rolegroup restricted to titles on an org unit is "
+                    + "reported as ORG_UNIT, because the title restriction is not carried onto the calculated rows for "
+                    + "rolegroups. Deleted and disabled users are included, as on /users.")
+    @Transactional(readOnly = true)
+    @GetMapping("/api/v2/rolegroup/{id}/assignments")
+    public ResponseEntity<List<AssignmentDetailAM>> getAssignmentsByRoleGroupId(@PathVariable long id) {
+        final RoleGroup roleGroup = roleGroupService.getOptionalById(id)
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
+
+        final Set<CurrentAssignment> assignments = assignmentService.getActiveByRoleGroupWithDetails(roleGroup);
+
+        // Uden denne fås en række pr. jobfunktionsrolle i buketten. Vi vil have én pr. tildeling.
+        final Set<CurrentAssignment> uniqueAssignments = assignmentService.getUniqueRoleGroupAssignments(assignments);
+
+        final List<AssignmentDetailAM> result = uniqueAssignments.stream()
+            .map(assignment -> RoleMapper.currentAssignmentToDetailApi(assignment,
+                assignmentService.getAssignedThroughForRoleGroup(assignment),
+                assignmentService.getAssignmentType(assignment)))
+            .collect(Collectors.toList());
+
+        return new ResponseEntity<>(RoleMapper.sortAssignmentDetails(result), HttpStatus.OK);
+    }
 
     private RoleGroup setRoleGroupProperties(final RoleGroupAM userRoleGroupRecord, final RoleGroup target) {
         final Set<Long> currentUserRoleIds = target.getUserRoleAssignments() != null

@@ -1,0 +1,14 @@
+li.picker-switch.accordion-toggle > table span.fa-trash {
+    text-decoration: none;
+    color: black;
+}
+
+.c-checkbox input.active[type=checkbox]:checked + span {
+    border-color: #5d9cec;
+    background-color: #5d9cec;
+}
+
+.c-checkbox input.inactive[type=checkbox]:checked + span {
+    border-color: #fb3;
+    background-color: #fb3;
+}

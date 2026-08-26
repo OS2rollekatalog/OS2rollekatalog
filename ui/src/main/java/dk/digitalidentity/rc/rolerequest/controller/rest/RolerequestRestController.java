@@ -4,7 +4,6 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Set;
@@ -12,7 +11,6 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.MessageSource;
 import org.springframework.data.jpa.datatables.mapping.DataTablesInput;
 import org.springframework.data.jpa.datatables.mapping.DataTablesOutput;
 import org.springframework.http.HttpStatus;
@@ -23,7 +21,6 @@ import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
@@ -33,17 +30,12 @@ import dk.digitalidentity.rc.dao.PNumberDao;
 import dk.digitalidentity.rc.dao.SENumberDao;
 import dk.digitalidentity.rc.dao.model.ConstraintType;
 import dk.digitalidentity.rc.dao.model.OrgUnit;
-import dk.digitalidentity.rc.dao.model.RoleGroup;
 import dk.digitalidentity.rc.dao.model.SystemRole;
 import dk.digitalidentity.rc.dao.model.User;
-import dk.digitalidentity.rc.dao.model.UserRole;
-import dk.digitalidentity.rc.dao.model.UserRoleGroupAssignment;
-import dk.digitalidentity.rc.dao.model.UserUserRoleAssignment;
 import dk.digitalidentity.rc.dao.model.assignment.CurrentAssignment;
 import dk.digitalidentity.rc.dao.model.enums.ConstraintUIType;
 import dk.digitalidentity.rc.dao.model.enums.RequestAction;
 import dk.digitalidentity.rc.dao.model.enums.RequestApproveStatus;
-import dk.digitalidentity.rc.rolerequest.log.RequestAuditLogger;
 import dk.digitalidentity.rc.rolerequest.log.RequestLogEvent;
 import dk.digitalidentity.rc.rolerequest.log.RequestLoggable;
 import dk.digitalidentity.rc.rolerequest.model.dto.RequestConstraintDTO;
@@ -51,24 +43,22 @@ import dk.digitalidentity.rc.rolerequest.model.entity.RequestPostponedConstraint
 import dk.digitalidentity.rc.rolerequest.model.entity.RoleRequest;
 import dk.digitalidentity.rc.rolerequest.model.enums.ApprovableBy;
 import dk.digitalidentity.rc.rolerequest.model.enums.RequestableBy;
-import dk.digitalidentity.rc.rolerequest.service.ApproverOptionService;
 import dk.digitalidentity.rc.rolerequest.service.RequestConstraintService;
 import dk.digitalidentity.rc.rolerequest.service.RequestService;
+import dk.digitalidentity.rc.security.RequireNoRole;
 import dk.digitalidentity.rc.security.SecurityUtil;
 import dk.digitalidentity.rc.service.ConstraintTypeService;
 import dk.digitalidentity.rc.service.PositionService;
-import dk.digitalidentity.rc.service.RoleGroupService;
 import dk.digitalidentity.rc.service.SettingsService;
 import dk.digitalidentity.rc.service.SystemRoleService;
-import dk.digitalidentity.rc.service.UserRoleService;
 import dk.digitalidentity.rc.service.UserService;
 import dk.digitalidentity.rc.service.assignment.AssignmentService;
 import dk.digitalidentity.rc.service.model.AssignedThrough;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
+@RequireNoRole
 @RestController
-@RequestMapping("rest/rolerequest")
 public class RolerequestRestController {
 
 	@Autowired
@@ -81,12 +71,6 @@ public class RolerequestRestController {
 	private PositionService positionService;
 
 	@Autowired
-	private UserRoleService userRoleService;
-
-	@Autowired
-	private RoleGroupService roleGroupService;
-
-	@Autowired
 	private ConstraintTypeService constraintTypeService;
 
 	@Autowired
@@ -94,15 +78,6 @@ public class RolerequestRestController {
 
 	@Autowired
 	private SettingsService settingsService;
-
-	@Autowired
-	private ApproverOptionService approverOptionService;
-
-	@Autowired
-	private RequestAuditLogger requestLogger;
-
-	@Autowired
-	private MessageSource messageSource;
 
 	@Autowired
 	private AssignmentService assignmentService;
@@ -116,7 +91,7 @@ public class RolerequestRestController {
 	@Autowired
 	private RequestConstraintService requestConstraintService;
 
-	@PostMapping("/constraint/create")
+	@PostMapping("/rest/rolerequest/constraint/create")
 	public ResponseEntity<?> createConstraint(@RequestBody RequestConstraintDTO constraintDTO) {
 		dk.digitalidentity.rc.rolerequest.model.entity.RequestConstraint constraint = requestConstraintService.save(
 			dk.digitalidentity.rc.rolerequest.model.entity.RequestConstraint.builder()
@@ -129,7 +104,7 @@ public class RolerequestRestController {
 			.build(), HttpStatus.OK);
 	}
 
-	@DeleteMapping("/constraint/delete")
+	@DeleteMapping("/rest/rolerequest/constraint/delete")
 	public ResponseEntity<?> deleteConstraints(@RequestParam List<Long> constraintIds) {
 		constraintIds.forEach(requestConstraintService::deleteConstraint);
 
@@ -137,25 +112,23 @@ public class RolerequestRestController {
 	}
 
 	@RequestLoggable(logEvent = RequestLogEvent.APPROVE)
-	@PostMapping("/{requestId}/approve")
-	public ResponseEntity<?> approveRequest(@PathVariable long requestId, @RequestBody(required = false) LocalDate newEndDate) {
+	@PostMapping("/rest/rolerequest/{requestId}/approve")
+	public ResponseEntity<String> approveRequest(@PathVariable long requestId, @RequestBody(required = false) LocalDate newEndDate) {
 		RoleRequest request = requestService.getRoleRequestById(requestId)
 			.orElseThrow();
 
 		if (!requestService.canApprove(request)) {
-			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "User not allowed to deny this request");
+			return ResponseEntity.badRequest().body("User not allowed to approve this request");
 		}
 		if (newEndDate != null) {
 			request.setEndDate(newEndDate);
 			requestService.saveNoLog(request);
 		}
 
-		requestService.approveRequest(request);
-
-		return new ResponseEntity<>(HttpStatus.OK);
+		return requestService.approveRequest(request);
 	}
 
-	@PostMapping("/tag/request/{requestId}")
+	@PostMapping("/rest/rolerequest/tag/request/{requestId}")
 	public ResponseEntity<?> assignRequest(@PathVariable long requestId) {
 		String userId = SecurityUtil.getUserId();
 		requestService.assignRequestToUser(requestId, userId);
@@ -163,18 +136,16 @@ public class RolerequestRestController {
 	}
 
 	@RequestLoggable(logEvent = RequestLogEvent.DENY)
-	@PostMapping("/{requestId}/deny")
+	@PostMapping("/rest/rolerequest/{requestId}/deny")
 	public ResponseEntity<?> denyRequest(@PathVariable long requestId, @RequestBody(required = false) String reason) {
 		RoleRequest request = requestService.getRoleRequestById(requestId)
 			.orElseThrow();
 
 		if (!requestService.canApprove(request)) {
-			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "User not allowed to deny this request");
+			return ResponseEntity.badRequest().body("User not allowed to deny this request");
 		}
 
-		requestService.rejectRequest(request, reason);
-
-		return new ResponseEntity<>(HttpStatus.OK);
+		return requestService.rejectRequest(request, reason);
 	}
 
 	private record RequestDTO(String userUuid, Long positionId, List<Long> userRoles, List<Long> roleGroups,
@@ -188,7 +159,7 @@ public class RolerequestRestController {
 	private record RoleConstraint(Long systemRoleId, String typeUuid, String value) {
 	}
 
-	@PostMapping("/wizard/save")
+	@PostMapping("/rest/rolerequest/wizard/save")
 	public ResponseEntity<?> saveRequest(@RequestBody RequestDTO requestDTO) {
 		UUID groupUuid = UUID.randomUUID();
 
@@ -196,17 +167,6 @@ public class RolerequestRestController {
 		User requester = userService.getByUserId(SecurityUtil.getUserId());
 		if (requester == null) {
 			throw new NoSuchElementException("Logged in user does not exist");
-		}
-
-		if (requestDTO.startDate() != null && requestDTO.stopDate() != null) {
-			if (requestDTO.startDate().isAfter(requestDTO.stopDate())) {
-				throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-					"Start date must be before or equal to stop date");
-			}
-			if (requestDTO.stopDate.isBefore(LocalDate.now())) {
-				throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-					"Stop date cannot be set in the past");
-			}
 		}
 
 		User receiver = userService.getOptionalByUuid(requestDTO.userUuid).orElseThrow(() -> new NoSuchElementException("receiving user does not exist"));
@@ -232,18 +192,8 @@ public class RolerequestRestController {
 
 		//Create requests for UserRoles
 		for (Long userRoleId : requestDTO.userRoles) {
-			final UserRole userRole = userRoleService.getOptionalById(userRoleId)
-				.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Could not find requested user role"));
-			final RoleRequest request = toBasicRoleRequest(receiver, requester, requestDTO.reason, orgUnit, groupUuid,
-				approverOptionService.getInheritedApproverOption(userRole), requestDTO.startDate, requestDTO.stopDate);
-			request.setUserRole(userRole);
-
-			//check if allowed to request
-			List<RequestableBy> globalRequesterSetting = settingsService.getRolerequestRequester();
-			if (!requestService.canRequest(request.getUserRole(), receiver, orgUnit, globalRequesterSetting)) {
-				log.error("User {} did not have permission to request the userrole: {}", requester.getUserId(), userRole.getName());
-				throw new ResponseStatusException(HttpStatus.FORBIDDEN, "User not allowed to request this");
-			}
+			final RoleRequest request = requestService.createRoleRequest(requester, receiver, orgUnit, groupUuid,
+				requestDTO.reason, userRoleId, null, requestDTO.startDate, requestDTO.stopDate, RequestAction.ADD);
 
 			//Map the constraints to RequestPostponedConstraints and set them for the request
 			request.setRequestPostponedConstraints(
@@ -269,45 +219,19 @@ public class RolerequestRestController {
 
 		//Create requests for Rolegroups
 		for (Long roleGroupId : requestDTO.roleGroups) {
-			RoleGroup roleGroup = roleGroupService.getOptionalById(roleGroupId)
-				.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Could not find requested role group"));
-			RoleRequest request = toBasicRoleRequest(receiver, requester, requestDTO.reason, orgUnit, groupUuid,
-				approverOptionService.getInheritedApproverOption(roleGroup), requestDTO.startDate, requestDTO.stopDate);
-			request.setRoleGroup(roleGroup);
-
-			//check if allowed to request
-			if (!requestService.canRequest(requester, request.getRoleGroup(), receiver, orgUnit)) {
-				log.warn("User did not have permission to request one of the requested rolegroups");
-				throw new ResponseStatusException(HttpStatus.FORBIDDEN, "User not allowed to request this");
-			}
+			RoleRequest request = requestService.createRoleRequest(requester, receiver, orgUnit, groupUuid,
+				requestDTO.reason, null, roleGroupId, requestDTO.startDate, requestDTO.stopDate, RequestAction.ADD);
 
 			requestGroup.add(request);
 		}
 
-		//Save all new requests
-		for (RoleRequest request : requestGroup) {
-			requestService.saveNewRequestWithLog(request);
-		}
-
-
-		//Handle automatic approval of those with the corresponding setting
-		requestGroup.stream()
-			.filter(request -> request.getUserRole() == null ?
-				approverOptionService.getInheritedApproverOption(request.getRoleGroup()).contains(ApprovableBy.AUTOMATIC)
-				: approverOptionService.getInheritedApproverOption(request.getUserRole()).contains(ApprovableBy.AUTOMATIC)
-			)
-			.forEach((request) -> {
-				requestService.approveRequest(request);
-				//Manually log automatic approval
-				requestLogger.logRequest(RequestLogEvent.APPROVE, request, messageSource.getMessage("requestmodule.log.event.request.automaticapprove", null, Locale.getDefault()));
-			});
-
+		requestService.saveRequestGroupWithLogAndAutoApprove(requestGroup, requester);
 
 		return new ResponseEntity<>(HttpStatus.OK);
 	}
 
 	private record RemoveRequestDTO(String userUuid, List<Long> userRoles, List<Long> roleGroups, String reason) {}
-	@PostMapping("/remove/wizard/save")
+	@PostMapping("/rest/rolerequest/remove/wizard/save")
 	public ResponseEntity<?> saveRemoveRequestFromWizard(@RequestBody RemoveRequestDTO requestDTO) {
 		//Find users
 		User requester = userService.getByUserId(SecurityUtil.getUserId());
@@ -319,25 +243,30 @@ public class RolerequestRestController {
 
 		UUID groupUuid = UUID.randomUUID();
 
-		for (Long userRoleAssignmentId : requestDTO.userRoles) {
-			handleCreateRemovalRequest(requester, receiver, userRoleAssignmentId, null, requestDTO.reason, groupUuid);
+		List<RoleRequest> requestGroup = new ArrayList<>();
+		for (Long userRoleId : requestDTO.userRoles) {
+			requestGroup.add(requestService.createRoleRequest(
+				requester, receiver, null, groupUuid, requestDTO.reason, userRoleId, null, null, null, RequestAction.REMOVE));
 		}
 
-		for (Long roleGroupAssignmentId : requestDTO.roleGroups) {
-			handleCreateRemovalRequest(requester, receiver, null, roleGroupAssignmentId, requestDTO.reason, groupUuid);
+		for (Long roleGroupId : requestDTO.roleGroups) {
+			requestGroup.add(requestService.createRoleRequest(
+				requester, receiver, null, groupUuid, requestDTO.reason, null, roleGroupId, null, null, RequestAction.REMOVE));
 		}
+
+		requestService.saveRequestGroupWithLogAndAutoApprove(requestGroup, requester);
 
 		return new ResponseEntity<>(HttpStatus.OK);
 	}
 
 	@RequestLoggable(logEvent = RequestLogEvent.CANCEL)
-	@DeleteMapping("{id}/cancel")
+	@DeleteMapping("/rest/rolerequest/{id}/cancel")
 	public ResponseEntity<?> cancelRequest(@PathVariable Long id) {
 		User loggedInUser = userService.getByUserId(SecurityUtil.getUserId());
 		RoleRequest request = requestService.getRoleRequestById(id)
 			.orElseThrow();
 		List<RequestableBy> globalRequesterSetting = settingsService.getRolerequestRequester();
-		if (request.getUserRole() != null && !requestService.canRequest(request.getUserRole(), loggedInUser, request.getOrgUnit(), globalRequesterSetting)) {
+		if (request.getUserRole() != null && !requestService.canRequest(loggedInUser, request.getUserRole(), loggedInUser, request.getOrgUnit(), globalRequesterSetting)) {
 			throw new SecurityException("User not allowed to cancel this request");
 		} else if (request.getRoleGroup() != null && !requestService.canRequest(loggedInUser, request.getRoleGroup(), loggedInUser, request.getOrgUnit())) {
 			throw new SecurityException("User not allowed to cancel this request");
@@ -349,10 +278,10 @@ public class RolerequestRestController {
 	}
 
 
-	private record RemovalRequestDTO(Long userRoleAssignmentId, Long roleGroupAssignmentId, String reason) {
+	private record RemovalRequestDTO(Long userRoleId, Long roleGroupId, String reason) {
 	}
 
-	@PostMapping("remove")
+	@PostMapping("/rest/rolerequest/remove")
 	public ResponseEntity<?> removeRequestForSelf(@RequestBody RemovalRequestDTO removalRequestDTO) {
 		//find current user
 		User loggedInUser = userService.getByUserId(SecurityUtil.getUserId());
@@ -360,7 +289,19 @@ public class RolerequestRestController {
 			throw new NoSuchElementException("Logged in user does not exist");
 		}
 
-		handleCreateRemovalRequest(loggedInUser, loggedInUser, removalRequestDTO.userRoleAssignmentId, removalRequestDTO.roleGroupAssignmentId, removalRequestDTO.reason, UUID.randomUUID());
+		List<RoleRequest> requestGroup = new ArrayList<>();
+		UUID groupUuid = UUID.randomUUID();
+		if (removalRequestDTO.userRoleId != null) {
+			requestGroup.add(requestService.createRoleRequest(
+				loggedInUser, loggedInUser, null, groupUuid, removalRequestDTO.reason,
+				removalRequestDTO.userRoleId, null, null, null, RequestAction.REMOVE));
+		}
+		if (removalRequestDTO.roleGroupId != null) {
+			requestGroup.add(requestService.createRoleRequest(
+				loggedInUser, loggedInUser, null, groupUuid, removalRequestDTO.reason,
+				null, removalRequestDTO.roleGroupId, null, null, RequestAction.REMOVE));
+		}
+		requestService.saveRequestGroupWithLogAndAutoApprove(requestGroup, loggedInUser);
 
 		return new ResponseEntity<>(HttpStatus.OK);
 	}
@@ -382,9 +323,9 @@ public class RolerequestRestController {
 			.build();
 	}
 
-	record EmployeeDTO(String uuid, String userId, String name, Set<String> positions, boolean hasRoles, boolean canRequestRemoval) {
+	record EmployeeDTO(String uuid, String userId, String name, Set<String> positions, boolean hasRoles, boolean canRequestRemoval, boolean disabled) {
 	}
-	@PostMapping("employees")
+	@PostMapping("/rest/rolerequest/employees")
 	@Transactional(readOnly = true)
 	public DataTablesOutput<EmployeeDTO> getEmployeesDatatable(@RequestBody DataTablesInput input)  {
 		User loggedInUser = userService.getByUserId(SecurityUtil.getUserId());
@@ -402,7 +343,8 @@ public class RolerequestRestController {
 					.map(p -> p.getName() + " i " + p.getOrgUnit().getName())
 					.collect(Collectors.toSet()),
 				!(user.getUserRoleAssignments().isEmpty() && user.getRoleGroupAssignments().isEmpty()),
-				calculateCanRequestRemoval(loggedInUser, user)
+				calculateCanRequestRemoval(loggedInUser, user),
+				user.isDisabled()
 			))
 			.toList();
 
@@ -417,87 +359,20 @@ public class RolerequestRestController {
 				continue;
 			}
 			if (assignment.getRoleGroup() != null) {
-				if (requestService.canRequestRemoval(requester, assignment.getRoleGroup(), user)) {
+				if (requestService.canRequestRemoval(
+						requester, assignment.getRoleGroup(), user, settingsService.getRolerequestRequester())) {
 					return true;
 				}
 			} else if (assignment.getUserRole() != null) {
 				// userRole is @Nullable on CurrentAssignment (roleGroup-only / orphaned cache rows carry no userRole),
 				// so skip rows without one rather than dereferencing null in canRequestRemoval()
-				if (requestService.canRequestRemoval(assignment.getUserRole(), user, settingsService.getRolerequestRequester())) {
+				if (requestService.canRequestRemoval(requester, assignment.getUserRole(), user, settingsService.getRolerequestRequester())) {
 					return true;
 				}
 			}
 		}
 
 		return false;
-	}
-
-	private RoleRequest handleCreateRemovalRequest(User requester, User receiver, Long userRoleAssignmentId, Long roleGroupAssignmentId, String reason, UUID groupUuid) {
-
-		// set userrole-specifics
-		OrgUnit orgUnit = null;
-		List<ApprovableBy> approverOption = null;
-		UserRole userRole;
-		if (userRoleAssignmentId != null) {
-			UserUserRoleAssignment assignment = receiver.getUserRoleAssignments().stream()
-				.filter(u -> u.getId() == userRoleAssignmentId).findFirst()
-				.orElseThrow(() -> new NoSuchElementException("receiving user does not have the userUserRoleAssignment with id " + userRoleAssignmentId));
-			userRole = assignment.getUserRole();
-			approverOption = approverOptionService.getInheritedApproverOption(userRole);
-
-			// check if allowed to request removal (OU filter does not gate removals).
-			// Authority is evaluated against the receiver (whose assignment is being removed), not the requester.
-			List<RequestableBy> globalRequesterSetting = settingsService.getRolerequestRequester();
-			if (!requestService.canRequestRemoval(userRole, receiver, globalRequesterSetting)) {
-				throw new SecurityException("User not allowed to request this");
-			}
-
-			orgUnit = assignment.getOrgUnit();
-		} else {
-			userRole = null;
-		}
-
-		// set rolegroup specifics
-		RoleGroup roleGroup;
-		if (roleGroupAssignmentId != null) {
-			UserRoleGroupAssignment assignment = receiver.getRoleGroupAssignments().stream()
-				.filter(r -> r.getId() == roleGroupAssignmentId).findFirst()
-				.orElseThrow(() -> new NoSuchElementException("receiving user does not have the userRoleGroupAssignment with id " + roleGroupAssignmentId));
-			roleGroup = assignment.getRoleGroup();
-			approverOption = approverOptionService.getInheritedApproverOption(roleGroup);
-
-			// check if allowed to request removal (OU filter does not gate removals).
-			// Authority is evaluated against the receiver (whose assignment is being removed), not the requester.
-			if (!requestService.canRequestRemoval(requester, roleGroup, receiver)) {
-				throw new SecurityException("User not allowed to request this");
-			}
-
-			orgUnit = assignment.getOrgUnit();
-
-		} else {
-			roleGroup = null;
-		}
-
-		// create 'remove' request
-		RoleRequest request = toBasicRoleRequest(receiver, requester, reason, orgUnit, groupUuid, approverOption, null, null);
-		request.setUserRole(userRole);
-		request.setRoleGroup(roleGroup);
-		request.setRequestAction(RequestAction.REMOVE);
-
-		request = requestService.saveRemoveRequestWithLog(request);
-
-		// handle automatic approval if enabled
-		boolean automaticApproval = request.getUserRole() == null ?
-			approverOptionService.getInheritedApproverOption(request.getRoleGroup()).contains(ApprovableBy.AUTOMATIC)
-			: approverOptionService.getInheritedApproverOption(request.getUserRole()).contains(ApprovableBy.AUTOMATIC);
-
-		if (automaticApproval) {
-			requestService.approveRequest(request);
-			// manually log automatic approval
-			requestLogger.logRequest(RequestLogEvent.APPROVE, request, messageSource.getMessage("requestmodule.log.event.request.automaticapprove", null, Locale.getDefault()));
-		}
-
-		return request;
 	}
 
 	private Map<String, String> buildConstraintLabelMap(List<RoleConstraint> constraints, Map<String, ConstraintType> constraintTypeMap) {

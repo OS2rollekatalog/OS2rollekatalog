@@ -1,17 +1,22 @@
 package dk.digitalidentity.rc.service;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.HexFormat;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.function.Function;
@@ -36,10 +41,12 @@ import dk.digitalidentity.rc.dao.model.ManualAssignmentNotificationMap;
 import dk.digitalidentity.rc.dao.model.ManualNotificationPendingUser;
 import dk.digitalidentity.rc.dao.model.OrgUnit;
 import dk.digitalidentity.rc.dao.model.Position;
+import dk.digitalidentity.rc.dao.model.SystemRoleAssignment;
 import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserRole;
 import dk.digitalidentity.rc.dao.model.UserRoleEmailTemplate;
 import dk.digitalidentity.rc.dao.model.assignment.CurrentAssignment;
+import dk.digitalidentity.rc.dao.model.assignment.CurrentAssignmentPostponedConstraint;
 import dk.digitalidentity.rc.dao.model.enums.EmailTemplatePlaceholder;
 import dk.digitalidentity.rc.dao.model.enums.EmailTemplateType;
 import dk.digitalidentity.rc.dao.model.enums.ItSystemType;
@@ -90,6 +97,9 @@ public class ManualRolesService {
 	@Autowired
 	private ManualNotificationPendingUserDao manualNotificationPendingUserDao;
 
+	@Autowired
+	private PostponedConstraintService postponedConstraintService;
+
 	@PersistenceContext
 	private EntityManager entityManager;
 
@@ -98,7 +108,7 @@ public class ManualRolesService {
 			Arrays.asList(ItSystemType.MANUAL, ItSystemType.AD, ItSystemType.SAML, ItSystemType.KOMBIT, ItSystemType.KSPCICS);
 
 	public record UserInformationDTO(User user, String ouName) {}
-	public record UserRoleInformationDTO(UserRole userRole, String responsible) {}
+	public record UserRoleInformationDTO(UserRole userRole, String responsible, List<CurrentAssignmentPostponedConstraint> postponedConstraints) {}
 
 	@Transactional
 	public void notifyServicedesk() {
@@ -170,12 +180,10 @@ public class ManualRolesService {
 
 		LocalDateTime firstRun = settingsService.getFirstManualITSystemRun();
 
-		// deleted users are skipped here (getOptionalByUuid filters deleted=false) — the nightly sweep
+		// deleted users are skipped here (getAllByUuidIn filters deleted=false) — the nightly sweep
 		// handles their cleanup; their pending row is deleted below regardless to avoid build-up
-		List<User> users = pending.stream()
-			.map(p -> userService.getOptionalByUuid(p.getUserUuid()))
-			.flatMap(Optional::stream)
-			.toList();
+		Set<String> uuids = pending.stream().map(ManualNotificationPendingUser::getUserUuid).collect(Collectors.toSet());
+		List<User> users = userService.getAllActiveByUuidIn(uuids);
 
 		if (!users.isEmpty()) {
 			processUsers(users, firstRun);
@@ -195,13 +203,17 @@ public class ManualRolesService {
 
 		List<ItSystem> manualItSystems = itSystemService.getBySystemTypeIn(NOTIFICATION_IT_SYSTEM_TYPES);
 
-		// gather each user's active assignments in the manual systems + their notification-map rows once
-		Set<CurrentAssignment> allCurrentAssignments = new HashSet<>();
-		List<ManualAssignmentNotificationMap> allLastSyncMaps = new ArrayList<>();
-		for (User user : users) {
-			allCurrentAssignments.addAll(assignmentService.getByUserAndItSystems(user, manualItSystems));
-			allLastSyncMaps.addAll(manualAssignmentNotificationMapService.getForUser(user.getDomain().getId(), user.getUserId()));
-		}
+		// single query scoped to the pending users + manual it-systems
+		Set<CurrentAssignment> allCurrentAssignments = assignmentService.getActiveAssignmentsByUsersAndItSystems(users, manualItSystems);
+
+		// single query for all notification-map rows for the pending users;
+		// filter in-memory to guard against domainId×userId cross-product false positives
+		Set<Long> domainIds = users.stream().map(u -> u.getDomain().getId()).collect(Collectors.toSet());
+		Set<String> userIds = users.stream().map(User::getUserId).collect(Collectors.toSet());
+		List<ManualAssignmentNotificationMap> allLastSyncMaps = manualAssignmentNotificationMapService.getForUsers(domainIds, userIds)
+			.stream()
+			.filter(m -> userMap.containsKey(m.getDomainId() + "!" + m.getUserUserId()))
+			.toList();
 
 		// determine which it-systems the batch touches: either a current assignment or an existing map row
 		Map<Long, ItSystem> relevantItSystems = new HashMap<>();
@@ -222,8 +234,13 @@ public class ManualRolesService {
 			.filter(a -> a.getItSystem() != null)
 			.collect(Collectors.groupingBy(a -> a.getItSystem().getId()));
 
+		// single query for all user roles across all relevant it-systems
+		Map<Long, Map<Long, UserRole>> userRolesByItSystem = userRoleService.getByItSystems(relevantItSystems.values()).stream()
+			.collect(Collectors.groupingBy(ur -> ur.getItSystem().getId(),
+				Collectors.toMap(UserRole::getId, Function.identity())));
+
 		for (ItSystem itSystem : relevantItSystems.values()) {
-			Map<Long, UserRole> userRoleMap = userRoleService.getByItSystem(itSystem).stream().collect(Collectors.toMap(UserRole::getId, Function.identity()));
+			Map<Long, UserRole> userRoleMap = userRolesByItSystem.getOrDefault(itSystem.getId(), Collections.emptyMap());
 
 			if (!hasContactEmail(itSystem, userRoleMap)) {
 				log.debug("Skipping it-system without contact email(s) : " + itSystem.getName() + " / " + itSystem.getId());
@@ -277,8 +294,16 @@ public class ManualRolesService {
 		Map<String, List<CurrentAssignment>> currentAssignmentsMap = currentAssignments.stream().collect(Collectors.groupingBy(c -> c.getUser().getDomain().getId() + "!" + c.getUser().getUserId()));
 		Map<String, List<ManualAssignmentNotificationMap>> lastSyncAssignmentsMap = manualAssignmentNotificationMaps.stream().collect(Collectors.groupingBy(m -> m.getDomainId() + "!" + m.getUserUserId()));
 
-		detectAddedRoles(userMap, currentAssignmentsMap, lastSyncAssignmentsMap, userRoleMap, toAddMap, toAddUserRoleMap);
+		List<ManualAssignmentNotificationMap> mapsToSave = new ArrayList<>();
+		List<ManualAssignmentNotificationMap> mapsToDelete = new ArrayList<>();
+		detectAddedRoles(userMap, currentAssignmentsMap, lastSyncAssignmentsMap, userRoleMap, toAddMap, toAddUserRoleMap, mapsToSave, mapsToDelete);
 		detectRemovedRoles(userMap, lastSyncAssignmentsMap, currentAssignmentsMap, userRoleMap, toRemoveMap, toRemoveUserRoleMap);
+		if (!mapsToDelete.isEmpty()) {
+			manualAssignmentNotificationMapDao.deleteAll(mapsToDelete);
+		}
+		if (!mapsToSave.isEmpty()) {
+			manualAssignmentNotificationMapDao.saveAll(mapsToSave);
+		}
 
 		String[] itEmailAddresses = splitAddresses(itSystem.getEmail());
 		String[] itAdvisAddresses = splitAddresses(itSystem.getAdvisEmail());
@@ -480,8 +505,34 @@ public class ManualRolesService {
 		values.put(EmailTemplatePlaceholder.ROLE_NAME, legacyNullSafe(dto.userRole().getName()));
 		values.put(EmailTemplatePlaceholder.ROLE_DESCRIPTION_PLACEHOLDER, legacyNullSafe(dto.userRole().getDescription()));
 		values.put(EmailTemplatePlaceholder.ASSIGNED_BY_PLACEHOLDER, legacyNullSafe(dto.responsible()));
+		values.put(EmailTemplatePlaceholder.CONSTRAINT_VALUES_PLACEHOLDER, formatConstraints(dto.userRole(), dto.postponedConstraints()));
 
 		return new EmailTemplateRenderer.Row(values);
+	}
+
+	private String formatConstraints(UserRole userRole, Collection<CurrentAssignmentPostponedConstraint> constraints) {
+		if (constraints == null || constraints.isEmpty()) {
+			return "";
+		}
+
+		List<SystemRoleAssignment> systemRoleAssignments = userRole.getSystemRoleAssignments();
+		Map<Long, String> systemRoleNameById = systemRoleAssignments == null ? Collections.emptyMap() : systemRoleAssignments.stream()
+			.collect(Collectors.toMap(sra -> sra.getSystemRole().getId(), sra -> sra.getSystemRole().getName(), (a, _) -> a));
+
+		Map<Long, List<CurrentAssignmentPostponedConstraint>> bySystemRole = constraints.stream()
+			.sorted(Comparator.comparing(CurrentAssignmentPostponedConstraint::getConstraintTypeName))
+			.collect(Collectors.groupingBy(CurrentAssignmentPostponedConstraint::getSystemRoleId, LinkedHashMap::new, Collectors.toList()));
+
+		StringBuilder sb = new StringBuilder(", afgrænset til");
+		for (Long systemRoleId : bySystemRole.keySet().stream().sorted().toList()) {
+			sb.append("<br>Systemrolle: ").append(legacyNullSafe(systemRoleNameById.get(systemRoleId)));
+
+			for (CurrentAssignmentPostponedConstraint c : bySystemRole.get(systemRoleId)) {
+				sb.append("<br>&nbsp;&nbsp;").append(c.getConstraintTypeName()).append(": ").append(postponedConstraintService.resolveConstraintDisplayValue(c));
+			}
+		}
+
+		return sb.toString();
 	}
 
 	private EmailTemplateRenderer.Row buildRoleUserRow(User user, boolean added) {
@@ -550,12 +601,12 @@ public class ManualRolesService {
 		UserInformationDTO userInfo = new UserInformationDTO(user, assignment.getOrgUnitName() != null ? assignment.getOrgUnitName() : "");
 
 		List<UserRoleInformationDTO> usersRoles = toRemoveMap.computeIfAbsent(userInfo, _ -> new ArrayList<>());
-		UserRoleInformationDTO userRoleInformationDTO = new UserRoleInformationDTO(userRole, assignment.getAssignedBy());
+		UserRoleInformationDTO userRoleInformationDTO = new UserRoleInformationDTO(userRole, assignment.getAssignedBy(), new ArrayList<>());
 		usersRoles.add(userRoleInformationDTO);
 		toRemoveUserRoleMap.computeIfAbsent(userRole, _ -> new ArrayList<>()).add(user);
 	}
 
-	private void detectAddedRoles(Map<String, User> userMap, Map<String, List<CurrentAssignment>> currentAssignmentsMap, Map<String, List<ManualAssignmentNotificationMap>> lastSyncAssignmentsMap, Map<Long, UserRole> userRoleMap, Map<UserInformationDTO, List<UserRoleInformationDTO>> toAddMap, Map<UserRole, List<User>> toAddUserRoleMap) {
+	private void detectAddedRoles(Map<String, User> userMap, Map<String, List<CurrentAssignment>> currentAssignmentsMap, Map<String, List<ManualAssignmentNotificationMap>> lastSyncAssignmentsMap, Map<Long, UserRole> userRoleMap, Map<UserInformationDTO, List<UserRoleInformationDTO>> toAddMap, Map<UserRole, List<User>> toAddUserRoleMap, List<ManualAssignmentNotificationMap> mapsToSave, List<ManualAssignmentNotificationMap> mapsToDelete) {
 		for (String domainAndUserId : currentAssignmentsMap.keySet()) {
 			List<CurrentAssignment> currentActiveAssignmentsForUser = currentAssignmentsMap.get(domainAndUserId);
 			List<ManualAssignmentNotificationMap> lastSyncAssignmentsForUser = lastSyncAssignmentsMap.get(domainAndUserId);
@@ -567,18 +618,52 @@ public class ManualRolesService {
 			currentActiveAssignmentsForUser = currentActiveAssignmentsForUser.stream().filter(StreamExtensions.distinctByKey(a -> a.getUserRole().getId())).collect(Collectors.toList());
 
 			// compare with yesterday
+			// Build a set of (roleId, fingerprint) pairs that are already recorded.
+			// A stored null fingerprint is a legacy row from before V1_361: treat it as matching on roleId
+			// alone and silently upgrade it to the current fingerprint on first sight.
+			Set<String> knownPairs = lastSyncAssignmentsForUser.stream()
+				.map(a -> a.getUserRoleId() + "!" + a.getConstraintFingerprint())
+				.collect(Collectors.toCollection(HashSet::new));
+
 			for (CurrentAssignment assignment : currentActiveAssignmentsForUser) {
-				boolean existedYesterday = lastSyncAssignmentsForUser.stream().anyMatch(a -> Objects.equals(a.getUserRoleId(), assignment.getUserRole().getId()));
+				String currentFingerprint = buildConstraintFingerprint(assignment.getPostponedConstraints());
+				String currentPair = assignment.getUserRole().getId() + "!" + currentFingerprint;
 
-				if (!existedYesterday) {
+				// legacy row: stored fingerprint is null but roleId matches — upgrade silently, no mail
+				List<ManualAssignmentNotificationMap> finalLastSyncAssignmentsForUser = lastSyncAssignmentsForUser;
+				boolean isLegacyRow = currentFingerprint != null
+					&& knownPairs.contains(assignment.getUserRole().getId() + "!null");
+				if (isLegacyRow) {
+					lastSyncAssignmentsForUser.stream()
+						.filter(a -> Objects.equals(a.getUserRoleId(), assignment.getUserRole().getId()) && a.getConstraintFingerprint() == null)
+						.findFirst()
+						.ifPresent(legacy -> {
+							legacy.setConstraintFingerprint(currentFingerprint);
+							mapsToSave.add(legacy);
+							knownPairs.remove(legacy.getUserRoleId() + "!null");
+							knownPairs.add(currentPair);
+						});
+					continue;
+				}
 
-					addRole(userMap, userRoleMap, toAddMap, toAddUserRoleMap, domainAndUserId, assignment, lastSyncAssignmentsForUser);
+				if (!knownPairs.contains(currentPair)) {
+					// role existed but constraints changed: delete all stale rows for this roleId, then re-add
+					List<ManualAssignmentNotificationMap> staleRows = lastSyncAssignmentsForUser.stream()
+						.filter(a -> Objects.equals(a.getUserRoleId(), assignment.getUserRole().getId()))
+						.toList();
+					staleRows.forEach(stale -> {
+						mapsToDelete.add(stale);
+						finalLastSyncAssignmentsForUser.remove(stale);
+						knownPairs.remove(stale.getUserRoleId() + "!" + stale.getConstraintFingerprint());
+					});
+					addRole(userMap, userRoleMap, toAddMap, toAddUserRoleMap, domainAndUserId, assignment, lastSyncAssignmentsForUser, mapsToSave);
+					knownPairs.add(currentPair);
 				}
 			}
 		}
 	}
 
-	private void addRole(Map<String, User> userMap, Map<Long, UserRole> userRoleMap, Map<UserInformationDTO, List<UserRoleInformationDTO>> toAddMap, Map<UserRole, List<User>> toAddUserRoleMap, String domainAndUserId, CurrentAssignment assignment, List<ManualAssignmentNotificationMap> lastSyncAssignmentsForUser) {
+	private void addRole(Map<String, User> userMap, Map<Long, UserRole> userRoleMap, Map<UserInformationDTO, List<UserRoleInformationDTO>> toAddMap, Map<UserRole, List<User>> toAddUserRoleMap, String domainAndUserId, CurrentAssignment assignment, List<ManualAssignmentNotificationMap> lastSyncAssignmentsForUser, List<ManualAssignmentNotificationMap> mapsToSave) {
 		UserRole userRole = userRoleMap.get(assignment.getUserRole().getId());
 		if (userRole == null) {
 			log.warn("Unknown userRole: " + assignment.getUserRole().getId());
@@ -593,14 +678,14 @@ public class ManualRolesService {
 
 		String infoMsg = "role " + assignment.getUserRole().getId() + " has been assigned to " + domainAndUserId;
 		UserInformationDTO userInfo = new UserInformationDTO(user, assignment.getResponsibleOrgUnit() != null ? assignment.getResponsibleOrgUnit().getName() : "<ukendt enhed>");
-		UserRoleInformationDTO userRoleInformationDTO = new UserRoleInformationDTO(userRole, assignment.getAssignedBy());
+		UserRoleInformationDTO userRoleInformationDTO = new UserRoleInformationDTO(userRole, assignment.getAssignedBy(), new ArrayList<>(assignment.getPostponedConstraints()));
 		List<UserRoleInformationDTO> usersRoles = toAddMap.computeIfAbsent(userInfo, _ -> new ArrayList<>());
 		log.info(infoMsg);
 		usersRoles.add(userRoleInformationDTO);
 		toAddUserRoleMap.computeIfAbsent(userRole, _ -> new ArrayList<>()).add(user);
 
 		ManualAssignmentNotificationMap notificationMap = createManualAssignmentNotificationMap(assignment, user);
-		notificationMap = manualAssignmentNotificationMapService.save(notificationMap);
+		mapsToSave.add(notificationMap);
 		lastSyncAssignmentsForUser.add(notificationMap);
 	}
 
@@ -611,7 +696,25 @@ public class ManualRolesService {
 		notificationMap.setDomainId(user.getDomain().getId());
 		notificationMap.setOrgUnitName(assignment.getResponsibleOrgUnit() != null ? assignment.getResponsibleOrgUnit().getName() : null);
 		notificationMap.setAssignedBy(assignment.getAssignedBy());
+		notificationMap.setConstraintFingerprint(buildConstraintFingerprint(assignment.getPostponedConstraints()));
 		return notificationMap;
+	}
+
+	private static String buildConstraintFingerprint(Collection<CurrentAssignmentPostponedConstraint> constraints) {
+		if (constraints == null || constraints.isEmpty()) {
+			return null;
+		}
+		String canonical = constraints.stream()
+			.sorted(Comparator.comparingLong(CurrentAssignmentPostponedConstraint::getSystemRoleId)
+				.thenComparing(CurrentAssignmentPostponedConstraint::getConstraintTypeEntityId))
+			.map(c -> c.getSystemRoleId() + ":" + c.getConstraintTypeEntityId() + "=" + String.join(",", c.getValue()))
+			.collect(Collectors.joining("|"));
+		try {
+			byte[] hash = MessageDigest.getInstance("SHA-256").digest(canonical.getBytes(StandardCharsets.UTF_8));
+			return HexFormat.of().formatHex(hash);
+		} catch (NoSuchAlgorithmException e) {
+			throw new IllegalStateException("SHA-256 not available", e);
+		}
 	}
 
 	private void notifyManagerActionRequired(User user, UserRole userRole) {

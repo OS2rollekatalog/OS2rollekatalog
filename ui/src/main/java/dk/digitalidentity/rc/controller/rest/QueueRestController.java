@@ -15,12 +15,14 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import dk.digitalidentity.rc.security.RequireNoRole;
 import dk.digitalidentity.simple_queue.service.QueueService;
 import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
 
 @RestController
 @RequiredArgsConstructor
+@RequireNoRole
 public class QueueRestController {
 
 	public static final String SINCE_HEADER = "X-Queue-Drain-Since";

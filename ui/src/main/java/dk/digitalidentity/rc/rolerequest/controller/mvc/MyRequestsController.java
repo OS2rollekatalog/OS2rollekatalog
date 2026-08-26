@@ -1,19 +1,5 @@
 package dk.digitalidentity.rc.rolerequest.controller.mvc;
 
-import dk.digitalidentity.rc.dao.model.User;
-import dk.digitalidentity.rc.dao.model.enums.RequestApproveStatus;
-import dk.digitalidentity.rc.rolerequest.model.entity.RoleRequest;
-import dk.digitalidentity.rc.rolerequest.service.ApproverOptionService;
-import dk.digitalidentity.rc.rolerequest.service.RequestService;
-import dk.digitalidentity.rc.security.SecurityUtil;
-import dk.digitalidentity.rc.service.UserService;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Controller;
-import org.springframework.ui.Model;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -22,9 +8,24 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Controller;
+import org.springframework.ui.Model;
+import org.springframework.web.bind.annotation.GetMapping;
+
+import dk.digitalidentity.rc.dao.model.User;
+import dk.digitalidentity.rc.dao.model.enums.RequestApproveStatus;
+import dk.digitalidentity.rc.rolerequest.model.entity.RoleRequest;
+import dk.digitalidentity.rc.rolerequest.service.ApproverOptionService;
+import dk.digitalidentity.rc.rolerequest.service.RequestService;
+import dk.digitalidentity.rc.security.RequireNoRole;
+import dk.digitalidentity.rc.security.SecurityUtil;
+import dk.digitalidentity.rc.service.UserService;
+import lombok.extern.slf4j.Slf4j;
+
 @Slf4j
+@RequireNoRole
 @Controller
-@RequestMapping("/ui/request/myrequests")
 public class MyRequestsController {
 
 	private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("dd/MM/yyyy");
@@ -46,7 +47,7 @@ public class MyRequestsController {
 							   long rolegroupCount, List<PendingRequest> requests, String status, String timeFrame) {
 	}
 
-	@GetMapping
+	@GetMapping("/ui/request/myrequests")
 	public String myRequestList(Model model) {
 		User user = userService.getByUserId(SecurityUtil.getUserId());
 

@@ -1,0 +1,8 @@
+.jstree-default .jstree-anchor {
+   width: calc(100% - 24px);
+}
+.jstree-default .jstree-anchor em.fa.fa-fw {
+   width: 50px;
+   height: 24px;
+   line-height: 24px;
+}

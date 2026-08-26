@@ -66,140 +66,20 @@
 <nav th:replace="~{fragments/footer :: footer}"></nav>
 
 <script th:replace="~{fragments/datatables :: datatables}"></script>
-<script th:inline="javascript">
-	/*<![CDATA[*/
-
-	// This method replaces occurence of {0} with text from parameter
-	String.prototype.format = function () {
-			var args = [].slice.call(arguments);
-			return this.replace(/(\{\d+\})/g, function (a) {
-					return args[+(a.substr(1,a.length-2))||0];
-			});
-	};
-
-	$("document").ready(function() {
-		// 1. Setup - add a text input to each footer cell
-		$('#listTable tfoot th').each( function () {
-			if ($(this).hasClass('input-filter')) {
-				$(this).html('<input type="text" class="form-control input-sm" placeholder="Søg" />');
-			}
-		});
-
-		var table = $('#listTable').DataTable();
-
-		// 2. move search boxes to top
-		var r = $('#listTable tfoot tr');
-		r.find('th').each(function(){
-			$(this).css('padding', 8);
-		});
-		$('#listTable thead').append(r);
-		$('#search_0').css('text-align', 'center');
-
-		// 2.5 Restore state
-		var state = table.state.loaded();
-		if (state) {
-		  table.columns().eq(0).each(function(colIdx) {
-			var colSearch = state.columns[colIdx].search;
-
-			if (colSearch.search) {
-			  $('input', table.column(colIdx).footer()).val(colSearch.search);
-			}
-		  });
-
-		  table.draw();
-		}
-
-		// 3. Apply the search
-		$.each($('.input-filter', table.table().header()), function () {
-			var column = table.column($(this).index());
-
-			$('input', this).on('keyup change', function () {
-				if (column.search() !== this.value) {
-					column
-						.search(this.value)
-						.draw();
-				}
-			});
-		});
-
-		$(document.body).on('click', '.openConfirmDeleteDialog', function(e) {
-			e.preventDefault();
-
-			var id = $(this).data('id');
-
-			/*[+
-				var tryDeleteURI = [[@{/rest/rolegroups/trydelete/}]] + id;
-				var url = [[@{/ui/rolegroups/list}]];
-				var deleteURI = [[@{/rest/rolegroups/delete/}]] + id;
-				var titleTxt = [[#{html.entity.rolegroup.delete.confirm.title}]];
-				var bodyTxt = [[#{html.entity.rolegroup.delete.confirm.body}]];
-				var bodyTxtAdditional = [[#{html.entity.rolegroup.delete.confirm.body.additional}]];
-				var cancelTxt = [[#{html.control.button.cancel}]];
-				var confirmTxt = [[#{html.control.button.delete}]];
-				var errorMsg = [[#{html.default.message.error}]];
-			+]*/
-			var token = $("meta[name='_csrf']").attr("content");
-
-			function getAjaxObject(urL) {
-				return {
-					url : urL,
-					cache : false,
-					error : errorCallback,
-					success : successCallback
-				}
-			}
-
-			function successCallback(result) {
-				if (result.success==false) {
-					var ous = "Enheder: " + result.ous;;
-					var users = "Brugere: " + result.users;
-
-					bodyTxt = bodyTxtAdditional.format(ous, users);
-				}
-
-				swal({
-					html: true,
-					title : titleTxt,
-					text : bodyTxt,
-					type : "warning",
-					showCancelButton : true,
-					confirmButtonColor : "#DD6B55",
-					confirmButtonText : confirmTxt,
-					cancelButtonText : cancelTxt,
-					closeOnConfirm : true,
-					closeOnCancel : true
-				},
-				function(isConfirm) {
-					if (isConfirm) {
-						$.ajax({
-							type: "POST",
-							url: deleteURI,
-							headers: {
-								'X-CSRF-TOKEN': token
-							},
-							success:
-								function(){	window.location.href = url;},
-							error: defaultErrorHandler
-						});
-
-					}
-				});
-			}
-
-			function errorCallback(result) {
-				$.notify({
-					message : errorMsg
-				},
-				{
-					status : 'danger',
-					autoHideDelay : 4000
-				});
-			}
-
-			$.ajax(getAjaxObject(tryDeleteURI));
-		});
-	});
-	/*]]>*/
+<script type="application/json" th:inline="javascript" id="rolegroups-list-config">
+	{
+		"tryDeleteUrl": [[@{/rest/rolegroups/trydelete/}]],
+		"listUrl": [[@{/ui/rolegroups/list}]],
+		"deleteUrl": [[@{/rest/rolegroups/delete/}]],
+		"titleTxt": [[#{html.entity.rolegroup.delete.confirm.title}]],
+		"bodyTxt": [[#{html.entity.rolegroup.delete.confirm.body}]],
+		"bodyTxtAdditional": [[#{html.entity.rolegroup.delete.confirm.body.additional}]],
+		"cancelTxt": [[#{html.control.button.cancel}]],
+		"confirmTxt": [[#{html.control.button.delete}]],
+		"errorMsg": [[#{html.default.message.error}]]
+	}
 </script>
+<script th:src="@{/js/service/SweetAlertService.js}"></script>
+<script th:src="@{/js/rolegroups/list.js}"></script>
 </body>
 </html>

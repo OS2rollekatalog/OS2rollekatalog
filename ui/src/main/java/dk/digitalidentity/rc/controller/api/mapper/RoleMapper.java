@@ -3,10 +3,12 @@ package dk.digitalidentity.rc.controller.api.mapper;
 import static dk.digitalidentity.rc.controller.api.mapper.TitleMapper.titleToApi;
 
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import dk.digitalidentity.rc.controller.api.model.AssignmentDetailAM;
 import dk.digitalidentity.rc.controller.api.model.ConstraintTypeAM;
 import dk.digitalidentity.rc.controller.api.model.ConstraintTypeSupportAM;
 import dk.digitalidentity.rc.controller.api.model.PostponedConstraintAM;
@@ -23,7 +25,10 @@ import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserRole;
 import dk.digitalidentity.rc.dao.model.assignment.CurrentAssignment;
 import dk.digitalidentity.rc.dao.model.assignment.CurrentAssignmentPostponedConstraint;
+import dk.digitalidentity.rc.rolerequest.model.enums.ApprovableBy;
 import dk.digitalidentity.rc.rolerequest.model.enums.RequestableBy;
+import dk.digitalidentity.rc.rolerequest.service.ApproverOptionService;
+import dk.digitalidentity.rc.service.assignment.model.AssignmentType;
 import dk.digitalidentity.rc.service.model.AssignedThrough;
 
 public abstract class RoleMapper {
@@ -36,7 +41,46 @@ public abstract class RoleMapper {
 			.assignedThroughTitle(titleToApi(assignment.getTitle()))
 			.assignedThrough(assignedThroughToApi(assignedThrough))
 			.postponedConstraints(currentAssignmentPostponedConstraintsToApi(assignment.getPostponedConstraints()))
+			.manager(assignment.isManager())
 			.build();
+	}
+
+	/**
+	 * Mapper en beregnet tildeling til det udvidede format, hvor tildelingens egen enhed er med.
+	 * <p>
+	 * {@link #currentAssignmentToApi} kan ikke bruges til dette: den har kun responsibleOrgUnit,
+	 * ikke enheden tildelingen er foretaget på.
+	 *
+	 * @param assignment      den beregnede tildeling
+	 * @param assignedThrough oprindelsen, fundet med getAssignedThrough eller getAssignedThroughForRoleGroup
+	 * @param assignmentType  hvilken tabel assignmentId peger i, fundet med getAssignmentType
+	 */
+	public static AssignmentDetailAM currentAssignmentToDetailApi(final CurrentAssignment assignment,
+																 final AssignedThrough assignedThrough,
+																 final AssignmentType assignmentType) {
+		return AssignmentDetailAM.builder()
+			.user(UserMapper.toShallowApi(assignment.getUser()))
+			.orgUnit(OrgUnitMapper.toShallowApi(assignment.getOrgUnit()))
+			.responsibleOrgUnit(OrgUnitMapper.toShallowApi(assignment.getResponsibleOrgUnit()))
+			.assignedThroughTitle(titleToApi(assignment.getTitle()))
+			.roleGroup(assignment.getRoleGroup() != null ? RoleGroupMapper.toShallowApi(assignment.getRoleGroup()) : null)
+			.assignedThrough(assignedThroughToApi(assignedThrough))
+			.assignmentId(assignment.getAssignmentId())
+			.assignmentType(assignmentType)
+			.startDate(assignment.getStartDate())
+			.stopDate(assignment.getStopDate())
+			.build();
+	}
+
+	/**
+	 * Sorterer et svar deterministisk. Nødvendig fordi deduplikeringen af
+	 * rollegruppe-tildelinger returnerer en HashSet og dermed taber queryens rækkefølge.
+	 */
+	public static List<AssignmentDetailAM> sortAssignmentDetails(final List<AssignmentDetailAM> assignments) {
+		return assignments.stream()
+			.sorted(Comparator.comparing((AssignmentDetailAM a) -> a.getUser().getUserId(), Comparator.nullsLast(Comparator.naturalOrder()))
+				.thenComparingLong(AssignmentDetailAM::getAssignmentId))
+			.toList();
 	}
 
 	private static List<PostponedConstraintAM> currentAssignmentPostponedConstraintsToApi(
@@ -80,6 +124,21 @@ public abstract class RoleMapper {
 	}
 
     public static UserRoleAM userRoleToApi(final UserRole userRole) {
+        return userRoleToApi(userRole, userRole.getApproverPermission());
+    }
+
+    /**
+     * Resolves the approver permission's INHERIT value (via {@link ApproverOptionService#getInheritedApproverOption(UserRole)})
+     * before serializing, so that external API consumers receive a concrete approver type instead of
+     * the unresolved "INHERIT" placeholder, which only has meaning within the Role Catalog itself.
+     */
+    public static UserRoleAM userRoleToApi(final UserRole userRole, final ApproverOptionService approverOptionService) {
+        return userRoleToApi(userRole, approverOptionService.getInheritedApproverOption(userRole));
+    }
+
+    private static UserRoleAM userRoleToApi(final UserRole userRole, final List<ApprovableBy> approverPermission) {
+        // intentionally checked against the raw unresolved list — the flag tells consumers whether the value was inherited, not what it resolved to
+        boolean approverPermissionInherited = userRole.getApproverPermission().contains(ApprovableBy.INHERIT);
         return UserRoleAM.builder()
                 .id(userRole.getId())
                 .name(userRole.getName())
@@ -87,7 +146,7 @@ public abstract class RoleMapper {
                 .delegatedFromCvr(userRole.getDelegatedFromCvr())
                 .description(userRole.getDescription())
                 .userOnly(userRole.isUserOnly())
-                .canRequest(!userRole.getRequesterPermission().contains(RequestableBy.NONE))
+                .canRequest(!RequestableBy.isNoneOrEmpty(userRole.getRequesterPermission()))
                 .sensitiveRole(userRole.isSensitiveRole())
                 .itSystemId(userRole.getItSystem().getId())
                 .systemRoleAssignments(userRole.getSystemRoleAssignments() != null
@@ -103,7 +162,8 @@ public abstract class RoleMapper {
 				.extraSensitiveRole(userRole.isExtraSensitiveRole())
 				.allowPostponing(userRole.isAllowPostponing())
                 .requesterPermission(userRole.getRequesterPermission())
-                .approverPermission(userRole.getApproverPermission())
+                .approverPermission(approverPermission)
+                .approverPermissionInherited(approverPermissionInherited)
                 .build();
     }
 

@@ -2,125 +2,99 @@
 <html xmlns:th="http://www.thymeleaf.org">
 <head th:replace="~{fragments/header :: header}"></head>
 <body class="layout-fixed">
-	<div class="wrapper">
-		<header th:replace="~{fragments/navbar :: navbar-header (subpage = 'administration')}"></header>
-		<aside th:replace="~{fragments/navbar :: navbar-aside (page = 'clients.new', subpage = 'administration')}"></aside>
+<div class="wrapper">
+	<header th:replace="~{fragments/navbar :: navbar-header (subpage = 'administration')}"></header>
+	<aside th:replace="~{fragments/navbar :: navbar-aside (page = 'clients.new', subpage = 'administration')}"></aside>
 
-		<section>
-			<div class="content-wrapper">
-				<h3 th:text="#{html.client.new.headline}"></h3>
+	<section>
+		<div class="content-wrapper">
+			<h3 th:text="#{html.client.new.headline}"></h3>
 
-				<div class="panel panel-default">
-					<div class="panel-heading"></div>
-					<div class="panel-body">
-						<div class="row">
-							<div class="col-lg-12">
-								<form class="form-horizontal" id="client-form" th:action="@{/ui/client/new}" method="post" th:object="${client}">
-									<div class="form-group">
-										<label class="col-sm-2 control-label" th:text="#{html.client.name}"></label>
-										<div class="col-sm-8">
-											<input th:field="*{name}" class="form-control" autofocus="autofocus" />
-											<div th:if="${#fields.hasErrors('name')}"
-												 th:errors="*{name}"
-												 class="error">
-											</div>
+			<div class="panel panel-default">
+				<div class="panel-heading"></div>
+				<div class="panel-body">
+					<div class="row">
+						<div class="col-lg-12">
+							<form class="form-horizontal" id="client-form" th:action="@{/ui/client/new}" method="post" th:object="${client}">
+								<div class="form-group">
+									<label class="col-sm-2 control-label" th:text="#{html.client.name}"></label>
+									<div class="col-sm-8">
+										<input th:field="*{name}" class="form-control" autofocus="autofocus" />
+										<div th:if="${#fields.hasErrors('name')}"
+											 th:errors="*{name}"
+											 class="error">
 										</div>
 									</div>
+								</div>
 
-									<div class="form-group">
-										<label class="col-sm-2 control-label" th:text="#{html.client.apiKey}"></label>
-										<div class="col-sm-8">
-											<input th:field="*{apiKey}" class="form-control"/>
-											<div th:if="${#fields.hasErrors('apiKey')}"
-												 th:errors="*{apiKey}"
-												 class="error">
-											</div>
+								<div class="form-group">
+									<label class="col-sm-2 control-label" th:text="#{html.client.apiKey}"></label>
+									<div class="col-sm-8">
+										<input th:field="*{apiKey}" class="form-control"/>
+										<div th:if="${#fields.hasErrors('apiKey')}"
+											 th:errors="*{apiKey}"
+											 class="error">
 										</div>
 									</div>
+								</div>
 
-									<div class="form-group">
-										<label class="col-sm-2 control-label" th:text="#{html.client.access}"></label>
-										<div class="col-sm-8">
-											<select class="form-control m-b" th:field="*{accessRole}">
-												<option th:each="accessRole : ${accessRoles}" th:value="${accessRole}" th:text="#{${accessRole.messageId}}"></option>
-											</select>
-											<div th:if="${#fields.hasErrors('accessRole')}"
-												 th:errors="*{accessRole}"
-												 class="error">
-											</div>
+								<div class="form-group">
+									<label class="col-sm-2 control-label" th:text="#{html.client.access}"></label>
+									<div class="col-sm-8">
+										<select class="form-control m-b" th:field="*{accessRole}">
+											<option th:each="accessRole : ${accessRoles}" th:value="${accessRole}" th:text="#{${accessRole.messageId}}"></option>
+										</select>
+										<div th:if="${#fields.hasErrors('accessRole')}"
+											 th:errors="*{accessRole}"
+											 class="error">
 										</div>
 									</div>
+								</div>
 
-									<div class="form-group">
-										<label class="col-sm-2 control-label" th:text="#{html.client.integration}"></label>
-										<div class="col-sm-8">
-											<select class="form-control m-b" th:field="*{integration}" id="integrationSelect">
-												<option th:each="integration : ${T(dk.digitalidentity.rc.dao.model.enums.ClientIntegrationType).values()}" th:value="${integration}" th:text="#{${integration.getMessage()}}"></option>
-											</select>
-											<div th:if="${#fields.hasErrors('integration')}"
-												 th:errors="*{integration}"
-												 class="error">
-											</div>
+								<div class="form-group">
+									<label class="col-sm-2 control-label" th:text="#{html.client.integration}"></label>
+									<div class="col-sm-8">
+										<select class="form-control m-b" th:field="*{integration}" id="integrationSelect">
+											<option th:each="integration : ${T(dk.digitalidentity.rc.dao.model.enums.ClientIntegrationType).values()}" th:value="${integration}" th:text="#{${integration.getMessage()}}"></option>
+										</select>
+										<div th:if="${#fields.hasErrors('integration')}"
+											 th:errors="*{integration}"
+											 class="error">
 										</div>
 									</div>
+								</div>
 
-									<div class="form-group" id="adSyncServiceDomain" style="display: none;">
-										<label class="col-sm-2 control-label" th:text="#{html.client.domain}"></label>
-										<div class="col-sm-8">
-											<select class="form-control m-b" th:field="*{domain}">
-												<option value="">Vælg domæne</option>
-												<option th:each="domain : ${domains}" th:value="${domain.name}" th:text="${domain.name}"></option>
-											</select>
-											<div th:if="${#fields.hasErrors('domain')}"
-												 th:errors="*{domain}"
-												 class="error">
-											</div>
+								<div class="form-group" id="adSyncServiceDomain" style="display: none;">
+									<label class="col-sm-2 control-label" th:text="#{html.client.domain}"></label>
+									<div class="col-sm-8">
+										<select class="form-control m-b" th:field="*{domain}">
+											<option value="">Vælg domæne</option>
+											<option th:each="domain : ${domains}" th:value="${domain.name}" th:text="${domain.name}"></option>
+										</select>
+										<div th:if="${#fields.hasErrors('domain')}"
+											 th:errors="*{domain}"
+											 class="error">
 										</div>
 									</div>
+								</div>
 
-									<div class="form-group">
-										<div class="col-sm-offset-2 col-sm-10">
-											<button type="submit" style="margin-right: 5px;" class="btn btn-lg btn-primary col-xs-2"  th:text="#{html.control.button.save}"></button>
-											<a th:href="@{/ui/client/list}" style="margin-right: 5px;" class="btn btn-lg btn-danger col-xs-2" th:text="#{html.control.button.cancel}"></a>
-										</div>
+								<div class="form-group">
+									<div class="col-sm-offset-2 col-sm-10">
+										<button type="submit" style="margin-right: 5px;" class="btn btn-lg btn-primary col-xs-2"  th:text="#{html.control.button.save}"></button>
+										<a th:href="@{/ui/client/list}" style="margin-right: 5px;" class="btn btn-lg btn-danger col-xs-2" th:text="#{html.control.button.cancel}"></a>
 									</div>
-								</form>
-							</div>
+								</div>
+							</form>
 						</div>
 					</div>
 				</div>
 			</div>
-		</section>
-	</div>
+		</div>
+	</section>
+</div>
 
-    <div th:replace="~{fragments/footer :: footer}"></div>
+<div th:replace="~{fragments/footer :: footer}"></div>
 
-	<script th:inline="javascript">
-		/*<![CDATA[*/
-
-        /*[+
-
-        +]*/
-
-            var token = $("meta[name='_csrf']").attr("content");
-
-            $(document).ready(function () {
-				$("#integrationSelect").change(toggleAdSyncServiceDomain);
-				toggleAdSyncServiceDomain();
-
-            });
-
-            function toggleAdSyncServiceDomain() {
-            	var adSyncServiceDomain = $("#adSyncServiceDomain");
-				var integrationField = $("#integrationSelect");
-				if (integrationField.val() === 'AD_SYNC_SERVICE') {
-					adSyncServiceDomain.css("display", "block");
-				} else {
-					adSyncServiceDomain.css("display", "none");
-				}
-			}
-
-        /*]]>*/
-	</script>
+<script src="/js/client/form.js"></script>
 </body>
 </html>

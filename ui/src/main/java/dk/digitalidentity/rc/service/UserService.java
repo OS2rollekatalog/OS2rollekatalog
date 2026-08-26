@@ -1,5 +1,41 @@
 package dk.digitalidentity.rc.service;
 
+import static dk.digitalidentity.rc.event.AssignmentChangeEventHandler.ASSIGNMENT_UPDATE_QUEUE_IDENTIFIER;
+
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.util.ArrayList;
+import java.util.Base64;
+import java.util.Calendar;
+import java.util.Comparator;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.Set;
+import java.util.function.Consumer;
+import java.util.stream.Collectors;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.EnableCaching;
+import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.data.jpa.datatables.mapping.DataTablesInput;
+import org.springframework.data.jpa.datatables.mapping.DataTablesOutput;
+import org.springframework.data.jpa.domain.Specification;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.RowMapper;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.ui.Model;
+import org.springframework.util.StringUtils;
+
 import dk.digitalidentity.rc.config.Constants;
 import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
 import dk.digitalidentity.rc.controller.mvc.datatables.dao.DatatablesUserDao;
@@ -42,49 +78,16 @@ import dk.digitalidentity.rc.service.model.Constraint;
 import dk.digitalidentity.rc.service.model.KleAssignment;
 import dk.digitalidentity.rc.service.model.Privilege;
 import dk.digitalidentity.rc.service.model.PrivilegeGroup;
-import dk.digitalidentity.rc.util.IdentifierGenerator;
 import dk.digitalidentity.rc.util.ConstraintValueUtil;
+import dk.digitalidentity.rc.util.IdentifierGenerator;
 import dk.digitalidentity.rc.util.OrganisationConstraintUtil;
 import dk.digitalidentity.rc.util.StreamExtensions;
 import dk.digitalidentity.simple_queue.BulkQueueMessage;
 import dk.digitalidentity.simple_queue.QueueMessage;
 import dk.digitalidentity.simple_queue.json.JsonSimpleMessage;
 import dk.digitalidentity.simple_queue.service.QueueService;
+import jakarta.persistence.criteria.Join;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.cache.annotation.EnableCaching;
-import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.data.jpa.datatables.mapping.DataTablesInput;
-import org.springframework.data.jpa.datatables.mapping.DataTablesOutput;
-import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.jdbc.core.RowMapper;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Propagation;
-import org.springframework.transaction.annotation.Transactional;
-import org.springframework.ui.Model;
-import org.springframework.util.StringUtils;
-
-import java.time.Instant;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.ZoneId;
-import java.util.ArrayList;
-import java.util.Base64;
-import java.util.Calendar;
-import java.util.Comparator;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.Set;
-import java.util.function.Consumer;
-import java.util.stream.Collectors;
-
-import static dk.digitalidentity.rc.event.AssignmentChangeEventHandler.ASSIGNMENT_UPDATE_QUEUE_IDENTIFIER;
 
 // TODO IMPORTANT: Do not add get role assignment methods to this service - use assignmentService
 @Slf4j
@@ -189,6 +192,12 @@ public class UserService {
 		return userDao.findByUserIdAndDomainAndDeletedFalse(userId, domain).orElse(null);
 	}
 
+	public Set<String> getExistingUserIds(List<String> userIds, Domain domain) {
+		return userDao.findByUserIdInAndDomainAndDeletedFalse(userIds, domain).stream()
+			.map(User::getUserId)
+			.collect(Collectors.toSet());
+	}
+
 	public Optional<User> getByUserIdOrExtUuid(final String userId, final String extUuid, final Domain domain) {
 		final User user = getByUserId(userId, domain);
 		if (user == null) {
@@ -223,6 +232,25 @@ public class UserService {
 		return datatablesUserDao.findAll(input, DatatablesUserDao.isDeletedFalse());
 	}
 
+	// constrainedOUUuids: null means no constraint (full access), empty set means no access at all
+	public DataTablesOutput<User> getAllAsDatatableOutput(DataTablesInput input, Set<String> constrainedOUUuids) {
+		if (constrainedOUUuids == null) {
+			return getAllAsDatatableOutput(input);
+		}
+
+		if (constrainedOUUuids.isEmpty()) {
+			return datatablesUserDao.findAll(input, Specification.allOf(DatatablesUserDao.isDeletedFalse(), (_, _, criteriaBuilder) -> criteriaBuilder.disjunction()));
+		}
+
+		Specification<User> inConstrainedOrgUnits = (root, query, _) -> {
+			query.distinct(true);
+			Join<User, Position> position = root.join("positions");
+			return position.get("orgUnit").get("uuid").in(constrainedOUUuids);
+		};
+
+		return datatablesUserDao.findAll(input, Specification.allOf(DatatablesUserDao.isDeletedFalse(), inConstrainedOrgUnits));
+	}
+
 	@SuppressWarnings("deprecation")
 	public List<User> getAllIncludingInactive(Domain domain) {
 		return userDao.findByDomain(domain);
@@ -247,6 +275,10 @@ public class UserService {
 
 	public List<User> getAllByUuidIn(Set<String> uuids) {
 		return userDao.findByUuidIn(uuids);
+	}
+
+	public List<User> getAllActiveByUuidIn(Set<String> uuids) {
+		return userDao.findByUuidInAndDeletedFalse(uuids);
 	}
 
 
@@ -1119,6 +1151,14 @@ public class UserService {
 				throw new RuntimeException("POSTPONED constraints should never call getKLEConstraint method");
 			case SELECTED_INHERITED:
 				throw new RuntimeException("SELECTED_INHERITED constraints should never call getKLEConstraint method");
+			case INHERITED_FROM_MANAGER_ROLE:
+				throw new RuntimeException("INHERITED_FROM_MANAGER_ROLE constraints should never call getKLEConstraint method");
+			case EXTENDED_INHERITED_FROM_MANAGER_ROLE:
+				throw new RuntimeException("EXTENDED_INHERITED_FROM_MANAGER_ROLE constraints should never call getKLEConstraint method");
+			case INHERITED_FROM_FUNCTIONS:
+				throw new RuntimeException("INHERITED_FROM_FUNCTIONS constraints should never call getKLEConstraint method");
+			case EXTENDED_INHERITED_FROM_FUNCTIONS:
+				throw new RuntimeException("EXTENDED_INHERITED_FROM_FUNCTIONS constraints should never call getKLEConstraint method");
 			case INHERITED:
 				kleSet.addAll(kleService.getKleAssignments(user, KleType.PERFORMING, true).stream().map(KleAssignment::getCode).collect(Collectors.toList()));
 				break;
@@ -1464,11 +1504,8 @@ public class UserService {
 	}
 
 	public boolean isManagerOrSubstituteManagerFor(User currentUser, User subject) {
-		if (!SecurityUtil.hasRole(Constants.ROLE_MANAGER) && !SecurityUtil.hasRole(Constants.ROLE_SUBSTITUTE)) {
-			return false;
-		}
 		return subject.getPositions().stream()
-			.anyMatch(p -> managerSubstituteService.isManagerForOrgUnit(p.getOrgUnit()) || managerSubstituteService.isSubstituteforOrgUnit(currentUser, p.getOrgUnit()))
+			.anyMatch(p -> managerSubstituteService.isManagerForOrgUnit(currentUser, p.getOrgUnit()) || managerSubstituteService.isSubstituteforOrgUnit(currentUser, p.getOrgUnit()))
 			|| isEffectiveManagerOrSubstituteFor(currentUser, subject);
 	}
 

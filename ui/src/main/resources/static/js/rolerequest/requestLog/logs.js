@@ -40,3 +40,52 @@ class RequestLogService{
         })
     }
 }
+
+document.addEventListener("DOMContentLoaded", () => {
+    // Expose token globally, since other shared scripts/services expect a global `token`
+    window.token = document.querySelector("meta[name='_csrf']").getAttribute("content");
+
+    window.logTableService = new RequestLogService();
+
+    $(document).on("click", ".show-request-log-details-btn", function () {
+        const detailsJson = $(this).attr("data-details-json");
+        const list = $("#requestLogDetailModalList");
+        const fallback = $("#requestLogDetailModalFallback");
+
+        list.empty();
+        fallback.text("");
+
+        const entries = parseDetailsJson(detailsJson);
+        if (entries) {
+            entries.forEach((entry) => {
+                list.append(buildRequestLogDetailRow(entry.label, entry.value));
+            });
+        } else {
+            fallback.text($(this).attr("data-details"));
+        }
+
+        $("#requestLogDetailModal").modal("show");
+    });
+});
+
+function parseDetailsJson(detailsJson) {
+    if (!detailsJson) {
+        return null;
+    }
+    try {
+        return JSON.parse(detailsJson);
+    } catch (error) {
+        return null;
+    }
+}
+
+function buildRequestLogDetailRow(label, value) {
+    const template = document.getElementById("requestLogDetailRowTemplate");
+    const clone = document.importNode(template.content, true);
+    const $row = $(clone);
+
+    $row.find(".request-log-detail-label").text(label);
+    $row.find(".request-log-detail-value").text(value);
+
+    return $row;
+}

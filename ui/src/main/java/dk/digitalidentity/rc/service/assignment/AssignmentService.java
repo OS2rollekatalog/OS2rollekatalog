@@ -14,13 +14,16 @@ import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import dk.digitalidentity.rc.dao.OrgUnitDao;
 import dk.digitalidentity.rc.dao.model.ItSystem;
+import dk.digitalidentity.rc.dao.model.OrgUnit;
 import dk.digitalidentity.rc.dao.model.RoleGroup;
 import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserRole;
 import dk.digitalidentity.rc.dao.model.assignment.CurrentAssignment;
 import dk.digitalidentity.rc.dao.model.assignment.CurrentAssignmentSmallProjection;
 import dk.digitalidentity.rc.dao.model.assignment.CurrentExceptedAssignment;
+import dk.digitalidentity.rc.dao.model.assignment.UserRoleMemberCountProjection;
 import dk.digitalidentity.rc.service.ItSystemService;
 import dk.digitalidentity.rc.service.assignment.model.AssignmentType;
 import dk.digitalidentity.rc.service.model.AssignedThrough;
@@ -33,6 +36,7 @@ public class AssignmentService {
 	private final CurrentAssignmentService currentAssignmentService;
 	private final CurrentExceptedAssignmentService currentExceptedAssignmentService;
 	private final ItSystemService itSystemService;
+	private final OrgUnitDao orgUnitDao;
 
 	/**
 	 * Checks if a user has the given role directly assigned
@@ -133,8 +137,6 @@ public class AssignmentService {
 
 	/**
 	 * Returns true if the user has the specified role
-	 * @param userUuid the users uuid
-	 * @param userRoleId the userroles id
 	 * @return true if the user is assigned the role, false otherwise
 	 */
 	public boolean hasUserRole(User user, UserRole userRole) {
@@ -292,7 +294,7 @@ public class AssignmentService {
 	public Set<CurrentAssignment> getActiveByUserRoleDirectlyAssignedOrFromRoleGroup(UserRole userRole) {
 		return currentAssignmentService.findActiveByUserRoleDirectlyAssignedOrFromRoleGroup(userRole);
 	}
-	
+
 	/**
 	 * Finds all active assignments for the given userRoles
 	 * @param userRoles the collection of userRoles
@@ -301,7 +303,7 @@ public class AssignmentService {
 	public Set<CurrentAssignment> getActiveByUserRoles(Set<UserRole> userRoles) {
 		return currentAssignmentService.findActiveByUserRoles(userRoles);
 	}
-	
+
 	public Set<CurrentAssignmentSmallProjection> getActiveByUserRolesAsProjection(Set<UserRole> userRoles) {
 		return currentAssignmentService.findActiveByUserRolesAsProjection(userRoles);
 	}
@@ -314,7 +316,7 @@ public class AssignmentService {
 	public Set<CurrentAssignment> getActiveByUserRole(UserRole userRole) {
 		return getActiveByUserRole(userRole, null);
 	}
-	
+
 	/**
 	 * Returns active assignments for a userRole (where startDate is null or not in the future), applying the consumer inside a readonly transaction
 	 * @param userRole the userRole
@@ -324,11 +326,11 @@ public class AssignmentService {
 	@Transactional(readOnly = true)
 	public Set<CurrentAssignment> getActiveByUserRole(UserRole userRole, Consumer<CurrentAssignment> consumer) {
 		Set<CurrentAssignment> assignments = currentAssignmentService.findActiveByUserRole(userRole);
-		
+
 		if (consumer != null) {
 			assignments.forEach(consumer);
 		}
-		
+
 		return assignments;
 	}
 
@@ -339,6 +341,28 @@ public class AssignmentService {
 	 */
 	public Set<CurrentAssignment> getActiveByRoleGroup(RoleGroup roleGroup) {
 		return currentAssignmentService.findActiveByRoleGroup(roleGroup);
+	}
+
+	/**
+	 * Returns active assignments for a roleGroup with the associations needed for an API response
+	 * (user, orgUnit, responsibleOrgUnit, title, roleGroup) fetched in the same query.
+	 * @param roleGroup the roleGroup
+	 * @return a set of active CurrentAssignments
+	 */
+	@Transactional(readOnly = true)
+	public Set<CurrentAssignment> getActiveByRoleGroupWithDetails(RoleGroup roleGroup) {
+		return currentAssignmentService.findActiveByRoleGroupWithDetails(roleGroup);
+	}
+
+	/**
+	 * Returns active assignments for a userRole with the associations needed for an API response
+	 * (user, orgUnit, responsibleOrgUnit, title, roleGroup) fetched in the same query.
+	 * @param userRole the userRole
+	 * @return a set of active CurrentAssignments
+	 */
+	@Transactional(readOnly = true)
+	public Set<CurrentAssignment> getActiveByUserRoleWithDetails(UserRole userRole) {
+		return currentAssignmentService.findActiveByUserRoleWithDetails(userRole);
 	}
 
 	/**
@@ -370,6 +394,10 @@ public class AssignmentService {
 		return currentAssignmentService.findActiveAssignmentsForItSystems(itSystems);
 	}
 
+	public Set<CurrentAssignment> getActiveAssignmentsByUsersAndItSystems(Collection<User> users, List<ItSystem> itSystems) {
+		return currentAssignmentService.findActiveAssignmentsForUsersAndItSystems(users, itSystems);
+	}
+
 	/**
 	 * Returns unique userRole ids for all assigned userRoles (no matter assingment type)
 	 * @return a set of userRole ids
@@ -394,6 +422,23 @@ public class AssignmentService {
 	 */
 	public Set<CurrentAssignment> findByStartDateTodayAndItSystem(ItSystem itSystem) {
 		return currentAssignmentService.findByStartDateAndItSystem(LocalDate.now(), itSystem);
+	}
+
+	/**
+	 * For each UserRole held directly by at least one member of the given OrgUnit, counts how many
+	 * of that OrgUnit's members hold it directly. "Directly" includes roles assigned straight to the
+	 * user as well as roles gained through a directly-assigned RoleGroup, but excludes roles inherited
+	 * via an OrgUnit or Title assignment rule.
+	 * @param orgUnit the OrgUnit whose members to consider
+	 * @param includeDescendants if true, also includes members of all descendant OrgUnits
+	 * @return a list of (userRoleId, memberCount) pairs, one per directly-held UserRole
+	 */
+	public List<UserRoleMemberCountProjection> getDirectUserRoleMemberCounts(OrgUnit orgUnit, boolean includeDescendants) {
+		Set<String> memberUuids = includeDescendants
+			? orgUnitDao.findUserUuidsByOrgUnitAndDescendants(orgUnit.getUuid())
+			: orgUnitDao.findUserUuidsByOrgUnit(orgUnit.getUuid());
+
+		return currentAssignmentService.countDirectUserRoleHoldersAmong(memberUuids);
 	}
 
 	// helper methods bellow:
@@ -493,6 +538,46 @@ public class AssignmentService {
 		}
 	}
 
+	record UserRoleAssignmentKey(String userUuid, long assignmentId, long roleId,
+			AssignedThrough assignedThrough, String assignedThroughName,
+			LocalDate startDate, LocalDate stopDate, boolean manager, boolean substitutes) {}
+	/**
+	 * Groups user-role assignments by conceptual grant, returning one CurrentAssignment per unique
+	 * combination of user, assignmentId, roleId, assignedThrough(+name), dates, and manager/substitutes flags.
+	 * Collapses duplicate rows that differ only by responsibleOrgUnit (see manager/substitute assignment calculator).
+	 * Only includes assignments that have a userRole.
+	 * @param assignments the assignments to deduplicate
+	 * @return a set with one assignment per unique user-role grant
+	 */
+	public Set<CurrentAssignment> getUniqueUserRoleAssignments(Set<CurrentAssignment> assignments) {
+		Map<UserRoleAssignmentKey, CurrentAssignment> uniqueAssignments = new HashMap<>();
+
+		for (CurrentAssignment assignment : assignments) {
+			if (assignment.getUserRole() == null) {
+				continue;
+			}
+
+			AssignedThrough assignedThrough = getAssignedThrough(assignment);
+			UserRoleAssignmentKey key = new UserRoleAssignmentKey(
+				assignment.getUser().getUuid(),
+				// assignmentId can in theory be the same for different assignments, since they originate from different tables.
+				// Low collision chance (only when ALL the other key fields are also the same)
+				assignment.getAssignmentId(),
+				assignment.getUserRole().getId(),
+				assignedThrough,
+				getAssignedThroughName(assignment, assignedThrough),
+				assignment.getStartDate(),
+				assignment.getStopDate(),
+				assignment.isManager(),
+				assignment.isSubstitutes()
+			);
+
+			uniqueAssignments.putIfAbsent(key, assignment);
+		}
+
+		return new HashSet<>(uniqueAssignments.values());
+	}
+
 	record RoleGroupKey(String userUuid, long assignmentId, AssignmentType assignmentType, long roleGroupId) {}
 	/**
 	 * Groups assignments by roleGroup assignment, returning one CurrentAssignment per unique
@@ -559,12 +644,12 @@ public class AssignmentService {
 	 * Gathers all role assignments for a user into a flat list of DTOs.
 	 * Includes user roles, deduplicated role groups, excepted (negative) user roles, and excepted role groups.
 	 */
-	public List<RoleAssignedToUserDTO> getAssignmentsForUser(User user, Set<CurrentAssignment> currentAssignments) {
+	public List<RoleAssignedToUserDTO>  getAssignmentsForUser(User user, Set<CurrentAssignment> currentAssignments) {
 
-		// add all userRoles (no matter how they are assigned - also roleGroups)
+		// add all userRoles (no matter how they are assigned - also roleGroups), deduplicated
 		// skip roleGroup-only rows (empty role groups have no userRole); they are surfaced by the roleGroup pass below
-		List<RoleAssignedToUserDTO> assignmentDTOs = new ArrayList<>(currentAssignments.stream()
-			.filter(a -> a.getUserRole() != null)
+		Set<CurrentAssignment> userRoleAssignments = getUniqueUserRoleAssignments(currentAssignments);
+		List<RoleAssignedToUserDTO> assignmentDTOs = new ArrayList<>(userRoleAssignments.stream()
 			.map(a -> RoleAssignedToUserDTO.fromCurrentAssignmentUserRole(a, getAssignedThrough(a)))
 			.toList());
 

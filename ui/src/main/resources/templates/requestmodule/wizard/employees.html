@@ -44,34 +44,20 @@
 <div th:replace="~{requestmodule/fragments/request_removal_modal :: requestRemovalModal}"></div>
 
 <div th:replace="~{requestmodule/fragments/footer :: scripts(datatables = true)}"></div>
-<script th:src="@{/js/rolerequest/employees.js}"></script>
-<script th:src="@{/js/rolerequest/index.js}"></script>
-<script th:src="@{/js/DatatableService.js}"></script>
-
-<script th:inline="javascript">
-    /*<![CDATA[*/
-    /*[+
-    	const detailsUrl = [[@{/ui/request/rolegroups}]];
-        var userDetailsUrl = [[@{/ui/request/users}]]
-		const restUrl = [[@{/rest/rolerequest}]];
-		const tableUrl = [[@{/rest/rolerequest/employees}]];
-		const reasonRequirement = [[${reasonRequirement}]];
-    +]*/
-
-    var token = $("meta[name='_csrf']").attr("content");
-    var employeeService, requestService, datatableService, expandableRoleGroupTableService;
-    $(document).ready(function(){
-        datatableService = new DatatableService();
-        expandableRoleGroupTableService = new ExpandableRoleGroupTableService();
-
-        employeeService = new EmployeeService();
-        employeeService.init();
-
-        requestService = new RequestService();
-    });
-
-    /*]]>*/
+<script type="application/json" id="employees-config" th:inline="javascript">
+	{
+		"detailsUrl": [[@{/ui/request/rolegroups}]],
+		"userDetailsUrl": [[@{/ui/request/users}]],
+		"restUrl": [[@{/rest/rolerequest}]],
+		"tableUrl": [[@{/rest/rolerequest/employees}]],
+		"reasonRequirement": [[${reasonRequirement}]]
+	}
 </script>
+<script th:src="@{/js/DatatableService.js}"></script>
+<script th:src="@{/js/service/SweetAlertService.js}"></script>
+<script th:src="@{/js/rolerequest/employees.js}"></script>
+<script th:src="@{/js/rolerequest/employees-bootstrap.js}"></script>
+
 
 </body>
 </html>

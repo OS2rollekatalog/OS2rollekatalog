@@ -1,11 +1,9 @@
 package dk.digitalidentity.rc.service.assignment.rules;
 
 import dk.digitalidentity.rc.dao.model.OrgUnit;
-import dk.digitalidentity.rc.dao.model.OrgUnitAssignment;
 import dk.digitalidentity.rc.dao.model.Position;
 import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserOUFunction;
-import dk.digitalidentity.rc.dao.model.enums.ContainsTitles;
 
 import java.util.Optional;
 
@@ -64,27 +62,6 @@ public abstract class AssignmentRule {
 			return Optional.of(AssignmentAppliesResult.NOT_APPLICABLE);
 		}
 		return Optional.empty();
-	}
-
-	/**
-	 * True when the assignment carries a condition that in itself decides who gets the role
-	 * (titler, funktioner, leder/stedfortræder).
-	 * <p>
-	 * Undtagelses-reglerne (undtagne brugere og undtagne enheder) må kun fravælge, aldrig tildele,
-	 * når en sådan betingelse er sat. Ellers ville fx "tildelt på titel med undtagne brugere" give
-	 * rollen til alle i enheden, der ikke står på undtagelseslisten - uanset titel - fordi
-	 * {@link AssignmentRuleEvaluator} tager POSITIVE fra en vilkårlig regel som et ja.
-	 *
-	 * @return true hvis tildelingen selv udpeger modtagerne, false hvis den gælder alle i enheden
-	 */
-	static boolean hasGrantingCondition(final OrgUnitAssignment assignment) {
-		if (assignment == null) {
-			return false;
-		}
-		return (assignment.getContainsTitles() != null && assignment.getContainsTitles() != ContainsTitles.NO)
-			|| assignment.isContainsFunctions()
-			|| assignment.isManager()
-			|| assignment.isSubstitutes();
 	}
 
 	static boolean isCurrentOu(final Position position, final OrgUnit orgUnit) {

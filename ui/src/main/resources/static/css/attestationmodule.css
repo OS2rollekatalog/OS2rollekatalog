@@ -87,3 +87,11 @@ html.dark table.dataTable tr.dt-hasChild td.dt-control:before,
     border-left-color: transparent;
 }
 
+ul.pagination {
+	float:right;
+}
+
+.toastr-buffer {
+	margin-top:60px;
+}
+

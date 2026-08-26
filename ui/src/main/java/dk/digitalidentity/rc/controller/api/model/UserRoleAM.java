@@ -64,5 +64,8 @@ public class UserRoleAM {
     private List<RequestableBy> requesterPermission;
     @Column
     private List<ApprovableBy> approverPermission;
+    @Schema(description = "True when approverPermission's underlying setting is INHERIT - i.e. the role does not " +
+            "define its own approver and the value shown was resolved from the IT-system or global default instead.")
+    private Boolean approverPermissionInherited;
 
 }

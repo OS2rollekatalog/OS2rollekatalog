@@ -26,7 +26,7 @@
                     <li sec:authorize="hasRole('ROLE_ADMINISTRATOR') or hasRole('ROLE_ATTESTATION_ADMINISTRATOR')">
                         <a role="button" th:href="@{/ui/attestation/v2/admin}" th:class="${page == 'admin'} ? 'navActive' : ''" th:text="#{attestationmodule.topbar.admin}"></a>
                     </li>
-                    <li>
+                    <li sec:authorize="hasRole('ROLE_ADMINISTRATOR') or hasRole('ROLE_ATTESTATION_ADMINISTRATOR') or hasRole('ROLE_MANAGER') or hasRole('ROLE_SUBSTITUTE') or hasRole('ROLE_IT_SYSTEM_RESPONSIBLE') or hasRole('ROLE_MANAGER_SUBSTITUTE')">
                         <a role="button" th:href="@{/ui/attestation/v2/reports}" th:class="${page == 'reports'} ? 'navActive' : ''" th:text="#{attestationmodule.topbar.reports}"></a>
                     </li>
                 </th:block>

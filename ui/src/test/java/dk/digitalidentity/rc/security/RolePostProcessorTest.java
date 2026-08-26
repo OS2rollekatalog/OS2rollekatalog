@@ -688,7 +688,7 @@ class RolePostProcessorTest {
 			void delegatesAreMarked() {
 				// Arrange
 				List<String> acceptedAuthorities = List.of(
-					Constants.ROLE_MANAGER_SUBSTITUDE
+					Constants.ROLE_MANAGER_SUBSTITUTE
 				);
 
 				User manager = new User();

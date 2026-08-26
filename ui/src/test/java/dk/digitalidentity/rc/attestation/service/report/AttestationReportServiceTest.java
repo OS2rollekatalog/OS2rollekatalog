@@ -1,5 +1,17 @@
 package dk.digitalidentity.rc.attestation.service.report;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
 import dk.digitalidentity.rc.attestation.dao.AttestationDao;
 import dk.digitalidentity.rc.attestation.dao.AttestationResponsibleCollectionDao;
 import dk.digitalidentity.rc.attestation.dao.AttestationUserRoleAssignmentDao;
@@ -12,12 +24,17 @@ import dk.digitalidentity.rc.attestation.model.entity.Attestation;
 import dk.digitalidentity.rc.attestation.model.entity.AttestationResponsibleCollection;
 import dk.digitalidentity.rc.attestation.model.entity.temporal.AssignedThroughType;
 import dk.digitalidentity.rc.attestation.service.AttestationCachedUserService;
-import dk.digitalidentity.rc.attestation.service.AttestationConstraintService;
 import dk.digitalidentity.rc.dao.model.ItSystem;
 import dk.digitalidentity.rc.dao.model.UserRole;
 import dk.digitalidentity.rc.service.ItSystemService;
 import dk.digitalidentity.rc.service.UserRoleService;
 import jakarta.persistence.EntityManager;
+import java.time.LocalDate;
+import java.util.Collections;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -26,27 +43,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-
-import java.time.LocalDate;
-import java.time.ZonedDateTime;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
-import java.util.Optional;
-
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyList;
-import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("Attestation Report Service Tests")
@@ -60,9 +56,6 @@ class AttestationReportServiceTest {
 
 	@Mock
 	private AttestationReportContextService attestationReportContextService;
-
-	@Mock
-	private AttestationConstraintService attestationConstraintService;
 
 	@Mock
 	private ItSystemService itSystemService;
@@ -413,16 +406,5 @@ class AttestationReportServiceTest {
 				LocalDate.now().minusDays(30), // assignedFrom
 				null                           // postponedConstraints
 		);
-	}
-
-	private Attestation createAttestation(Long id, ZonedDateTime verifiedAt) {
-		Attestation attestation = new Attestation();
-		attestation.setId(id);
-		attestation.setCreatedAt(LocalDate.now());
-		attestation.setVerifiedAt(verifiedAt);
-		attestation.setItSystemUserAttestationEntries(new HashSet<>());
-		attestation.setOrganisationUserAttestationEntries(new HashSet<>());
-		attestation.setItSystemOrganisationAttestationEntries(new HashSet<>());
-		return attestation;
 	}
 }

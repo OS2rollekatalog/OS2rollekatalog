@@ -24,7 +24,7 @@ public abstract class RoleGroupMapper {
                 .name(roleGroup.getName())
                 .description(roleGroup.getDescription())
                 .userOnly(roleGroup.isUserOnly())
-                .canRequest(!roleGroup.getRequesterPermission().contains(RequestableBy.NONE))
+                .canRequest(!RequestableBy.isNoneOrEmpty(roleGroup.getRequesterPermission()))
 
                 .userRoles(roleGroup.getUserRoleAssignments() != null
                         ? roleGroup.getUserRoleAssignments().stream()

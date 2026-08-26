@@ -52,6 +52,14 @@
     white-space: pre-line;
 }
 
+.preformat-display {
+    height: auto;
+}
+
+.autosize-textarea {
+    overflow-y: hidden;
+}
+
 .ouParent {
 	color: gray;
 	font-size: smaller;
@@ -82,4 +90,20 @@ li.bold {
 	background-color: yellow;
 	color: black;
 	font-size: 75%;
+}
+
+.table > tbody > tr > td {
+	vertical-align: top !important;
+}
+
+/* for this to work the all parent elements must have overflow: visible; */
+.sticky {
+	position: sticky;
+	position: -webkit-sticky;
+	z-index: 100;
+	top: 55px;
+}
+
+.layout-fixed .wrapper {
+	overflow: visible;
 }

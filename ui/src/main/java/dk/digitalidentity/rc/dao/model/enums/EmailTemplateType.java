@@ -60,7 +60,8 @@ public enum EmailTemplateType {
 	MANUAL_SYSTEM_CONTACT_PERFORMER("html.enum.email.message.type.manual_system_contact_performer", false, false, false, Category.CONTACT, ContactStructure.SYSTEM_PLACEHOLDERS, ContactStructure.SYSTEM_REPEATING_PART),
 	MANUAL_SYSTEM_CONTACT_ADVIS("html.enum.email.message.type.manual_system_contact_advis", false, false, false, Category.CONTACT, ContactStructure.SYSTEM_PLACEHOLDERS, ContactStructure.SYSTEM_REPEATING_PART),
 	MANUAL_ROLE_CONTACT_PERFORMER("html.enum.email.message.type.manual_role_contact_performer", false, false, false, Category.CONTACT, ContactStructure.ROLE_PLACEHOLDERS, ContactStructure.ROLE_REPEATING_PART),
-	MANUAL_ROLE_CONTACT_ADVIS("html.enum.email.message.type.manual_role_contact_advis", false, false, false, Category.CONTACT, ContactStructure.ROLE_PLACEHOLDERS, ContactStructure.ROLE_REPEATING_PART);
+	MANUAL_ROLE_CONTACT_ADVIS("html.enum.email.message.type.manual_role_contact_advis", false, false, false, Category.CONTACT, ContactStructure.ROLE_PLACEHOLDERS, ContactStructure.ROLE_REPEATING_PART),
+	MANUAL_ITSYSTEM_ASSIGNMENT_PENDING("html.enum.email.message.type.manual_itsystem_assignment_pending", false, false, false, Category.MANUAL_ASSIGNMENT_EFFECTUATION, Arrays.asList(EmailTemplatePlaceholder.RECEIVER_PLACEHOLDER, EmailTemplatePlaceholder.ITSYSTEM_PLACEHOLDER, EmailTemplatePlaceholder.COUNT_PLACEHOLDER, EmailTemplatePlaceholder.TASK_LINK_PLACEHOLDER));
 
 	private final String message;
 	private final boolean attestation;
@@ -106,6 +107,7 @@ public enum EmailTemplateType {
 		public static final String PENDING_REQUESTS = "Afventende anmodninger";
 		public static final String GENERAL = "Generel";
 		public static final String CONTACT = "Kontakt e-mails";
+		public static final String MANUAL_ASSIGNMENT_EFFECTUATION = "Effektuering af rolletildeling";
 
 		private Category() {
 		}

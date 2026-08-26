@@ -323,6 +323,10 @@ public class ItSystemService {
 		return filterDeleted(itSystemDao.findByIdentifier(identifier));
 	}
 
+	public List<ItSystem> findBySystemOwner(User user) {
+		return filterDeleted(itSystemDao.findBySystemOwners_User(user));
+	}
+
 	public List<ItSystem> findAllForAttestation() {
 		return itSystemDao.findByDeletedFalseAndAttestationExemptFalse();
 	}

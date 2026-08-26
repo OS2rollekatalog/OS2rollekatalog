@@ -28,7 +28,7 @@ namespace ADSyncService
                         {
                             if (createGroupsEnabled)
                             {
-                                adStub.CreateGroup(operation.systemRoleIdentifier, operation.itSystemIdentifier, operation.adGroupType, operation.universal, operation.description);
+                                adStub.CreateGroup(operation.systemRoleIdentifier, operation.itSystemIdentifier, operation.itSystemId, operation.adGroupType, operation.universal, operation.description);
                             }
                             else
                             {
@@ -39,7 +39,7 @@ namespace ADSyncService
                         {
                             if (deleteGroupsEnabled)
                             {
-                                adStub.DeleteGroup(operation.systemRoleIdentifier, operation.itSystemIdentifier);
+                                adStub.DeleteGroup(operation.systemRoleIdentifier, operation.itSystemIdentifier, operation.itSystemId);
                             }
                             else
                             {

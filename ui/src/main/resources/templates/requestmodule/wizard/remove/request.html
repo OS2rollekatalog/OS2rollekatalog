@@ -55,7 +55,7 @@
 																<input th:if="${userRole.removable}"
 																	   type="checkbox"
 																	   class="i-checks userRolesCheckbox"
-																	   th:value="${userRole.assignmentId}"
+																	   th:value="${userRole.id}"
 																	   th:data-name="${userRole.name}"
 																	   th:data-itsystem="${userRole.itSystemName}">
 															</td>
@@ -88,7 +88,7 @@
 																<input th:if="${roleGroup.removable}"
 																	   type="checkbox"
 																	   class="i-checks roleGroupsCheckbox"
-																	   th:value="${roleGroup.assignmentId}"
+																	   th:value="${roleGroup.id}"
 																	   th:data-name="${roleGroup.name}">
 															</td>
 															<td th:text="${roleGroup.name}"></td>
@@ -113,38 +113,38 @@
 												</tr>
 												</thead>
 												<tbody>
-													<tr th:each="userRole : ${userRoles}">
-														<td></td>
-														<td>
-															<input th:if="${userRole.removable}"
-																   type="checkbox"
-																   class="i-checks combinedCheckbox"
-																   th:value="${userRole.assignmentId}"
-																   th:data-name="${userRole.name}"
-																   th:data-itsystem="${userRole.itSystemName}"
-																   data-type="userRole">
-														</td>
-														<td th:text="#{requestmodule.html.request.remove.roles.userRoles}"></td>
-														<td th:text="${userRole.itSystemName}"></td>
-														<td th:text="${userRole.name}"></td>
-														<td class="preformat" th:text="${userRole.description}"></td>
-													</tr>
+												<tr th:each="userRole : ${userRoles}">
+													<td></td>
+													<td>
+														<input th:if="${userRole.removable}"
+															   type="checkbox"
+															   class="i-checks combinedCheckbox"
+															   th:value="${userRole.id}"
+															   th:data-name="${userRole.name}"
+															   th:data-itsystem="${userRole.itSystemName}"
+															   data-type="userRole">
+													</td>
+													<td th:text="#{requestmodule.html.request.remove.roles.userRoles}"></td>
+													<td th:text="${userRole.itSystemName}"></td>
+													<td th:text="${userRole.name}"></td>
+													<td class="preformat" th:text="${userRole.description}"></td>
+												</tr>
 
-													<tr th:each="roleGroup : ${roleGroups}">
-														<td class="dt-control" th:data-rolegroup-id="${roleGroup.id}"></td>
-														<td>
-															<input th:if="${roleGroup.removable}"
-																   type="checkbox"
-																   class="i-checks combinedCheckbox"
-																   th:value="${roleGroup.assignmentId}"
-																   th:data-name="${roleGroup.name}"
-																   data-type="roleGroup">
-														</td>
-														<td th:text="#{requestmodule.html.request.remove.roles.roleGroups}"></td>
-														<td>-</td>
-														<td th:text="${roleGroup.name}"></td>
-														<td class="preformat" th:text="${roleGroup.description}"></td>
-													</tr>
+												<tr th:each="roleGroup : ${roleGroups}">
+													<td class="dt-control" th:data-rolegroup-id="${roleGroup.id}"></td>
+													<td>
+														<input th:if="${roleGroup.removable}"
+															   type="checkbox"
+															   class="i-checks combinedCheckbox"
+															   th:value="${roleGroup.id}"
+															   th:data-name="${roleGroup.name}"
+															   data-type="roleGroup">
+													</td>
+													<td th:text="#{requestmodule.html.request.remove.roles.roleGroups}"></td>
+													<td>-</td>
+													<td th:text="${roleGroup.name}"></td>
+													<td class="preformat" th:text="${roleGroup.description}"></td>
+												</tr>
 												</tbody>
 											</table>
 										</div>
@@ -193,48 +193,24 @@
 	</div>
 </div>
 
-<script>
-	window.skipAutoICheckInit = true;
-</script>
 <div th:replace="~{requestmodule/fragments/footer :: scripts(wizard = true, checkbox = true, datatables = true, jstree = true)}"></div>
+<script type="application/json" id="remove-wizard-config" th:inline="javascript">
+	{
+		"baseUrl": [[@{/ui/request/remove/wizard}]],
+		"detailsUrl": [[@{/ui/request/rolegroups}]],
+		"restUrl": [[@{/rest/rolerequest/remove}]],
+		"userUuid": [[${userUuid}]],
+		"isCombinedEnabled": [[${isCombinedEnabled}]],
+		"reasonSetting": [[${reasonSetting}]],
+		"userRoleText": [[#{html.navbar.jobroles}]],
+		"roleGroupText": [[#{html.navbar.rolegroups}]],
+		"skipAutoICheckInit": true
+	}
+</script>
+<script th:src="@{/js/rolerequest/remove-wizard-bootstrap-early.js}"></script>
 <script th:src="@{/js/rolerequest/remove-wizard.js}"></script>
 <script th:src="@{/js/DatatableService.js}"></script>
-
-<script th:inline="javascript">
-	/*<![CDATA[*/
-	/*[+
-	let baseUrl = [[@{/ui/request/remove/wizard}]];
-	let detailsUrl = [[@{/ui/request/rolegroups}]];
-	let restUrl = [[@{/rest/rolerequest/remove}]];
-
-	let userUuid = [[${userUuid}]];
-	let isCombinedEnabled = [[${isCombinedEnabled}]];
-	let reasonSetting = [[${reasonSetting}]];
-
-	const userRoleText = [[#{html.navbar.jobroles}]];
-	const roleGroupText = [[#{html.navbar.rolegroups}]];
-	+]*/
-
-	const token = $("meta[name='_csrf']").attr("content");
-
-	let chosenRolesDTOs = [];
-	let chosenUserRoleIds = [];
-	let chosenRoleGroupIds = [];
-	let requestService, roleService, expandableRoleGroupTableService, datatableService, roleGroupService, userRoleService, combinedService;
-	$(document).ready(function(){
-		requestService = new RequestService();
-		roleService = new RoleService();
-		expandableRoleGroupTableService = new ExpandableRoleGroupTableService();
-		roleGroupService = new RoleGroupService();
-		userRoleService = new UserRoleService();
-		datatableService = new DatatableService();
-		combinedService = new CombinedRoleService();
-
-		requestService.init();
-	});
-
-	/*]]>*/
-</script>
+<script th:src="@{/js/rolerequest/remove-wizard-bootstrap.js}"></script>
 
 </body>
 </html>

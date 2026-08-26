@@ -5,7 +5,7 @@
 	<div class="wrapper">
 		<header th:replace="~{fragments/navbar :: navbar-header}"></header>
 		<aside th:replace="~{fragments/navbar :: navbar-aside}"></aside>
- 
+
 		<section>
 			<div class="content-wrapper">
 				<h3>
@@ -50,7 +50,7 @@
 											<option th:each="type : ${T(dk.digitalidentity.rc.controller.dao.model.enums.LoginType).values()}" th:value="${type}" th:text="#{__${type.getMessage()}__}"></option>
 										</select>
 									</div>
-								</div>	
+								</div>
 							</fieldset>
 
 							<fieldset>
@@ -69,13 +69,6 @@
 
 	<nav th:replace="~{fragments/footer :: footer}"></nav>
 
-	<script th:inline="javascript">
-		/*<![CDATA[*/
-		$(document).ready(function() {
-			$('[rel=popover]').popover();
-
-		});
-		/*]]>*/
-	</script>
+	<script th:src="@{/js/simulate/simulate.js}"></script>
 </body>
 </html>

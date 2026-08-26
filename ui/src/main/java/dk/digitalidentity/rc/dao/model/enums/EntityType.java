@@ -5,6 +5,7 @@ import dk.digitalidentity.rc.dao.model.EmailTemplate;
 import dk.digitalidentity.rc.dao.model.FrontPageLink;
 import dk.digitalidentity.rc.dao.model.ItSystem;
 import dk.digitalidentity.rc.dao.model.KLEMapping;
+import dk.digitalidentity.rc.dao.model.ManualAssignmentEffectuation;
 import dk.digitalidentity.rc.dao.model.OrgUnit;
 import dk.digitalidentity.rc.dao.model.Position;
 import dk.digitalidentity.rc.dao.model.RoleGroup;
@@ -33,7 +34,8 @@ public enum EntityType {
 	SETTING("enum.entitytype.setting"),
 	FRONT_PAGE_LINK("enum.entitytype.frontpagelink"),
 	EMAIL_TEMPLATE("enum.entitytype.emailtemplate"),
-	CLIENT("enum.entitytype.client");
+	CLIENT("enum.entitytype.client"),
+	MANUAL_EFFECTUATION("enum.entitytype.manualeffectuation");
 
 	private EntityType(String message) {
 		this.message = message;
@@ -92,17 +94,20 @@ public enum EntityType {
 				throw new IllegalArgumentException("Unknown KLEMapping type: " + mapping.getAssignmentType());
 			}
 		}
-		if (object instanceof Setting) {
+		else if (object instanceof Setting) {
 			return SETTING;
 		}
-		if (object instanceof FrontPageLink) {
+		else if (object instanceof FrontPageLink) {
 			return FRONT_PAGE_LINK;
 		}
-		if (object instanceof EmailTemplate) {
+		else if (object instanceof EmailTemplate) {
 			return EMAIL_TEMPLATE;
 		}
-		if (object instanceof Client) {
+		else if (object instanceof Client) {
 			return CLIENT;
+		}
+		else if (object instanceof ManualAssignmentEffectuation) {
+			return MANUAL_EFFECTUATION;
 		}
 		else {
 			throw new IllegalArgumentException("Unknown object type: " + object.getClass().getName());

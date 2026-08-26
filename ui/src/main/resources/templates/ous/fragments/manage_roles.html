@@ -6,18 +6,23 @@
 			</button>
 
 			<ul class="dropdown-menu" role="menu" id="dataTableDropdown">
-				<li><a href="#" data-cid="0" onclick="return dataTablesToggleColumn(this);"><em class="fa fa-fw"></em><span th:text="#{html.page.ous.manage.assignment.name}"></span></a></li>
-				<li><a href="#" data-cid="1" onclick="return dataTablesToggleColumn(this);"><em class="fa fa-fw"></em><span th:text="#{html.enum.assignmenttype}"></span></a></li>
-				<li><a href="#" data-cid="2" onclick="return dataTablesToggleColumn(this);"><em class="fa fa-fw"></em><span th:text="#{html.page.ous.manage.assignment.assignmentType}"></span></a></li>
-				<li><a href="#" data-cid="3" onclick="return dataTablesToggleColumn(this);"><em class="fa fa-fw"></em><span th:text="#{html.word.validity}"></span></a></li>
-				<li><a href="#" data-cid="4" onclick="return dataTablesToggleColumn(this);"><em class="fa fa-fw"></em><span th:text="#{html.page.ous.manage.assignment.itsystem}"></span></a></li>
-				<li><a href="#" data-cid="5" onclick="return dataTablesToggleColumn(this);"><em class="fa fa-fw"></em><span th:text="#{html.page.users.manage.assignment.description}"></span></a></li>
-				<li th:if="${@settingsService.isCaseNumberEnabled()}"><a href="#" data-cid="6" onclick="return dataTablesToggleColumn(this);"><em class="fa fa-fw"></em><span th:text="#{html.page.users.manage.assignment.caseNumber}"></span></a></li>
+				<li><a href="#" data-cid="0" class="js-toggle-column"><em class="fa fa-fw"></em><span th:text="#{html.page.ous.manage.assignment.name}"></span></a></li>
+				<li><a href="#" data-cid="1" class="js-toggle-column"><em class="fa fa-fw"></em><span th:text="#{html.enum.assignmenttype}"></span></a></li>
+				<li><a href="#" data-cid="2" class="js-toggle-column"><em class="fa fa-fw"></em><span th:text="#{html.page.ous.manage.assignment.assignmentType}"></span></a></li>
+				<li><a href="#" data-cid="3" class="js-toggle-column"><em class="fa fa-fw"></em><span th:text="#{html.word.validity}"></span></a></li>
+				<li><a href="#" data-cid="4" class="js-toggle-column"><em class="fa fa-fw"></em><span th:text="#{html.page.ous.manage.assignment.itsystem}"></span></a></li>
+				<li><a href="#" data-cid="5" class="js-toggle-column"><em class="fa fa-fw"></em><span th:text="#{html.page.users.manage.assignment.description}"></span></a></li>
+				<li th:if="${@settingsService.isCaseNumberEnabled()}"><a href="#" data-cid="6" class="js-toggle-column"><em class="fa fa-fw"></em><span th:text="#{html.page.users.manage.assignment.caseNumber}"></span></a></li>
 			</ul>
 		</div>
 		<th:block th:if="${canAssign}">
-			<a href="#" id="addUserRoleAssignment" class="btn btn-lg btn-primary" style="width:auto;" th:text="#{html.page.users.manage.roles.add.userrole}" onclick="rolesService.loadAddUserRoleFragment()"></a>
-			<a href="#" id="addRoleGroupAssignment" class="btn btn-lg btn-primary" th:text="#{html.page.users.manage.roles.add.rolegroup}" onclick="rolesService.loadAddRoleGroupFragment()"></a>
+			<a href="#" id="addUserRoleAssignment" class="btn btn-lg btn-primary js-load-add-user-role" style="width:auto;" th:text="#{html.page.users.manage.roles.add.userrole}"></a>
+			<a href="#" id="addRoleGroupAssignment" class="btn btn-lg btn-primary js-load-add-role-group" th:text="#{html.page.users.manage.roles.add.rolegroup}"></a>
+			<a href="#" id="toggleBulkRemoveRoles" class="js-toggle-bulk-remove-roles btn btn-lg btn-primary" style="width:auto;" th:text="#{html.page.roles.bulk.remove.select.btn}"></a>
+			<button id="bulkRemoveRolesSubmitBtn" type="button" class="js-bulk-remove-roles-submit btn btn-lg btn-danger" style="width:auto; display:none;" disabled="disabled">
+				<span th:text="#{html.page.roles.bulk.remove.submit.btn}"></span>
+				<span id="bulkRemoveRolesSelectedCount"></span>
+			</button>
 		</th:block>
 
 		<div class="form-group" style="margin-top:10px;">
@@ -82,14 +87,19 @@
 								<a
 									href="#"
 									th:if="${canAssign && assignment.canEdit}"
-									onclick="rolesService.editRoleAssignment(this)">
-									<em class="fa fa-pencil"></em></a>
+									class="js-edit-role-assignment">
+									<em class="fa fa-pencil"></em>
+								</a>
 								<a
 									href="#"
 									th:if="${canAssign && assignment.canEdit}"
-									onclick="rolesService.deleteRoleAssignment(this)">
+									class="js-delete-role-assignment">
 									<em class="fa fa-times"></em>
 								</a>
+								<label class="c-checkbox" th:if="${canAssign && assignment.canEdit}" style="display:none; vertical-align:middle; margin-bottom:0;">
+									<input type="checkbox" class="js-bulk-remove-role-checkbox"/>
+									<span class="fa fa-check"></span>
+								</label>
 							</td>
 						</tr>
 					</tbody>

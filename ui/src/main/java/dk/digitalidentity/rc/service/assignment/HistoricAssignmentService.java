@@ -156,4 +156,8 @@ public class HistoricAssignmentService {
 	public List<HistoricAssignment> findValidGroupByResponsibleOuUuidAndSensitiveRole(LocalDate when) {
 		return historicAssignmentDao.findValidGroupByResponsibleOuUuidAndSensitiveRole(when.plusDays(1).atStartOfDay());
 	}
+
+	public List<HistoricAssignment> findByUpdatedAtAfter(LocalDateTime tts) {
+		return historicAssignmentDao.findByUpdatedAtAfter(tts);
+	}
 }

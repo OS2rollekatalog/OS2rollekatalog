@@ -13,7 +13,8 @@ public class TestContainersConfiguration {
 
     public static final Network NETWORK = Network.newNetwork();
 
-    @Bean
+    @SuppressWarnings("deprecation")
+	@Bean
     @ServiceConnection
     @RestartScope
     public MariaDBContainer<?> mariaDBContainer() {

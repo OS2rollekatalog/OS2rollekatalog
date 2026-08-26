@@ -1,11 +1,11 @@
 package dk.digitalidentity.rc.task;
 
-import dk.digitalidentity.rc.service.FrontPageLinkService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
+import dk.digitalidentity.rc.service.FrontPageLinkService;
 import dk.digitalidentity.rc.service.SettingsService;
 
 // just use this task to run cacheEvicts - pick the right method to put it into (5, 15, 30, etc minutes)
@@ -16,6 +16,7 @@ public class CacheEvictTask {
 
 	@Autowired
 	private SettingsService settingsService;
+	
 	@Autowired
 	private FrontPageLinkService  frontPageLinkService;
 
@@ -31,6 +32,6 @@ public class CacheEvictTask {
 
 	@Scheduled(fixedDelay = 30 * 60 * 1000)
 	public void runEvery30Minutes() {
-		;
+
 	}
 }

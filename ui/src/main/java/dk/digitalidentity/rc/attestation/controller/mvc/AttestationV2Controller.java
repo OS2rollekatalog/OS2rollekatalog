@@ -102,7 +102,7 @@ public class AttestationV2Controller {
 		final List<User> delegateFor = managerDelegateAttestationService.getManagedUsersForDelegate(user);
 		final List<AttestationOverviewDTO> managerDelegateAttestations = new ArrayList<>(
 				managerDelegateAttestationService.buildOrgUnitsOverviews(
-						managerDelegateAttestationService.listOrganisationsForAttestation(run, delegateFor), user, false));
+						managerDelegateAttestationService.listOrganisationsForAttestation(run, delegateFor, user), user, false));
 
 		model.addAttribute("runId", runId);
 		model.addAttribute("orgUnits", orgsForAttestation);

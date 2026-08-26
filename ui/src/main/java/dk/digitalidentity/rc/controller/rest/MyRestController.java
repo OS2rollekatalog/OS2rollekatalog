@@ -1,5 +1,6 @@
 package dk.digitalidentity.rc.controller.rest;
 
+import dk.digitalidentity.rc.security.RequireNoRole;
 import dk.digitalidentity.rc.controller.rest.model.UserHistoryDTOWrapper;
 import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.security.SecurityUtil;
@@ -17,6 +18,7 @@ import java.util.Locale;
 
 @Slf4j
 @RestController
+@RequireNoRole
 public class MyRestController {
 
 	@Autowired

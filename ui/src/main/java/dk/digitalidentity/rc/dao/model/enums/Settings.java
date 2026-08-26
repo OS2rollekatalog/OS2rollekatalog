@@ -35,6 +35,9 @@ public enum Settings {
 	SETTING_ROLEREQUEST_APPROVER_EMAIL("rolerequestemail", null),
 	SETTING_ROLEREQUEST_REASON("requestreason", null),
 	SETTING_ROLEREQUEST_ONLY_RECOMMENDED_ROLES("onlyrecommendedroles", null),
+	SETTING_ROLEREQUEST_SHOW_RECOMMENDED_TAB("showRecommendedRolesTab", "html.setting.rolerequest.request.showRecommendedTab.label"),
+	SETTING_ROLEREQUEST_SHOW_ALL_TAB("showAllRolesTab", "html.setting.rolerequest.request.showAllTab.label"),
+	SETTING_ROLEREQUEST_SHOW_EXISTING_TAB("showExistingRolesTab", "html.setting.rolerequest.request.showExistingTab.label"),
     SETTING_ROLEREQUEST_ALLOW_SELF_APPROVAL("rolerequestAllowSelfApproval", "html.setting.rolerequest.allowSelfApproval.label"),
     SETTING_CASE_NUMBER_ENABLED("caseNumberEnabled", "html.setting.caseNumber.enabled"),
     SETTING_EXCLUDED_OUS("ExcludedOUs", "html.setting.pickou"),
@@ -43,7 +46,8 @@ public enum Settings {
 	SETTING_REMOVE_DIRECT_ASSIGNMENTS_FOR_DISABLED("RemoveDirectAssignmentsForDisabled", "html.setting.direct.affiliations.duration"),
 	SETTING_FIRST_MANUAL_IT_SYSTEM_RUN("firstManualItSystemRun",null),
 	SETTING_HISTORIC_IT_SYSTEM_ASSIGNMENT_COLLECTION_REPAIR_PERFORMED("HistoricItSystemAssignmentCollectionRepairPerformed", null),
-	SETTING_ATTESTATION_RESPONSIBLE_COLLECTION_RECONCILE_PERFORMED("AttestationResponsibleCollectionReconcilePerformed", null);
+	SETTING_ATTESTATION_RESPONSIBLE_COLLECTION_RECONCILE_PERFORMED("AttestationResponsibleCollectionReconcilePerformed", null),
+	SETTING_ASSIGNMENT_HOOK_TIMESTAMP("AssignmentHookTimestamp", null);
 
     private String key;
     private String message;

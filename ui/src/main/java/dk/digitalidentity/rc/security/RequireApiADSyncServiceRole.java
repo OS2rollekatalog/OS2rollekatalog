@@ -7,6 +7,7 @@ import java.lang.annotation.RetentionPolicy;
 
 @Retention(RetentionPolicy.RUNTIME)
 @PreAuthorize("hasRole('ROLE_API_AD_SYNC_SERVICE')")
+@RequireRoleAnnotation
 public @interface RequireApiADSyncServiceRole {
 
 }

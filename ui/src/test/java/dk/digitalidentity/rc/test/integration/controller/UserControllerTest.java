@@ -114,6 +114,7 @@ class UserControllerTest extends BaseIntegrationTest {
 
 			// Assert
 			ModelAndView mav = result.getModelAndView();
+			@SuppressWarnings("unchecked")
 			List<RoleAssignedToUserDTO> assignments = (List<RoleAssignedToUserDTO>) mav.getModel().get(assignmentsModelName);
 
 
@@ -139,6 +140,7 @@ class UserControllerTest extends BaseIntegrationTest {
 
 			// Assert
 			ModelAndView mav = result.getModelAndView();
+			@SuppressWarnings("unchecked")
 			List<RoleAssignedToUserDTO> assignments = (List<RoleAssignedToUserDTO>) mav.getModel().get(assignmentsModelName);
 
 
@@ -181,6 +183,7 @@ class UserControllerTest extends BaseIntegrationTest {
 
 			// Assert
 			ModelAndView mav = result.getModelAndView();
+			@SuppressWarnings("unchecked")
 			List<RoleAssignedToUserDTO> assignments = (List<RoleAssignedToUserDTO>) mav.getModel().get(assignmentsModelName);
 
 
@@ -206,6 +209,7 @@ class UserControllerTest extends BaseIntegrationTest {
 
 			// Assert
 			ModelAndView mav = result.getModelAndView();
+			@SuppressWarnings("unchecked")
 			List<RoleAssignedToUserDTO> assignments = (List<RoleAssignedToUserDTO>) mav.getModel().get(assignmentsModelName);
 
 
@@ -234,6 +238,7 @@ class UserControllerTest extends BaseIntegrationTest {
 
 			// Assert
 			ModelAndView mav = result.getModelAndView();
+			@SuppressWarnings("unchecked")
 			List<RoleAssignedToUserDTO> assignments = (List<RoleAssignedToUserDTO>) mav.getModel().get(assignmentsModelName);
 
 
@@ -263,6 +268,7 @@ class UserControllerTest extends BaseIntegrationTest {
 
 			// Assert
 			ModelAndView mav = result.getModelAndView();
+			@SuppressWarnings("unchecked")
 			List<RoleAssignedToUserDTO> assignments = (List<RoleAssignedToUserDTO>) mav.getModel().get(assignmentsModelName);
 
 
@@ -301,6 +307,7 @@ class UserControllerTest extends BaseIntegrationTest {
 
 			// Assert
 			ModelAndView mav = result.getModelAndView();
+			@SuppressWarnings("unchecked")
 			List<RoleAssignedToUserDTO> assignments = (List<RoleAssignedToUserDTO>) mav.getModel().get(assignmentsModelName);
 
 
@@ -339,6 +346,7 @@ class UserControllerTest extends BaseIntegrationTest {
 
 			// Assert
 			ModelAndView mav = result.getModelAndView();
+			@SuppressWarnings("unchecked")
 			List<RoleAssignedToUserDTO> assignments = (List<RoleAssignedToUserDTO>) mav.getModel().get(assignmentsModelName);
 
 
@@ -379,6 +387,7 @@ class UserControllerTest extends BaseIntegrationTest {
 
 			// Assert
 			ModelAndView mav = result.getModelAndView();
+			@SuppressWarnings("unchecked")
 			List<RoleAssignedToUserDTO> assignments = (List<RoleAssignedToUserDTO>) mav.getModel().get(assignmentsModelName);
 
 

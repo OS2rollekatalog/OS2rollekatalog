@@ -3,9 +3,11 @@ package dk.digitalidentity.rc.rolerequest.service;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -20,6 +22,7 @@ import dk.digitalidentity.rc.dao.model.AuthorizationManager;
 import dk.digitalidentity.rc.dao.model.EmailTemplate;
 import dk.digitalidentity.rc.dao.model.ItSystem;
 import dk.digitalidentity.rc.dao.model.OrgUnit;
+import dk.digitalidentity.rc.dao.model.Position;
 import dk.digitalidentity.rc.dao.model.RoleGroupUserRoleAssignment;
 import dk.digitalidentity.rc.dao.model.SystemRole;
 import dk.digitalidentity.rc.dao.model.User;
@@ -35,6 +38,7 @@ import dk.digitalidentity.rc.rolerequest.model.enums.ApprovableBy;
 import dk.digitalidentity.rc.service.EmailQueueService;
 import dk.digitalidentity.rc.service.EmailTemplateService;
 import dk.digitalidentity.rc.service.ItSystemService;
+import dk.digitalidentity.rc.service.ManagerSubstituteService;
 import dk.digitalidentity.rc.service.OrgUnitService;
 import dk.digitalidentity.rc.service.SettingsService;
 import dk.digitalidentity.rc.service.SystemRoleService;
@@ -57,6 +61,7 @@ public class RequestNotifierService {
 	private final ItSystemService itSystemService;
 	private final AssignmentService assignmentService;
 	private final RequestApproverResolver requestApproverResolver;
+	private final ManagerSubstituteService managerSubstituteService;
 
 	@Transactional
 	public void sendMailToRoleAssignerOnce() {
@@ -171,7 +176,7 @@ public class RequestNotifierService {
 		EnumMap<EmailTemplatePlaceholder, String> placeholderData = new EnumMap<>(EmailTemplatePlaceholder.class);
 		placeholderData.put(EmailTemplatePlaceholder.RECEIVER_PLACEHOLDER, receiver.getName());
 		placeholderData.put(EmailTemplatePlaceholder.ROLE_NAME, roleName);
-		placeholderData.put(EmailTemplatePlaceholder.REQUEST_REASON, reason);
+		placeholderData.put(EmailTemplatePlaceholder.REQUEST_REASON, formatReason(reason));
 		placeholderData.put(EmailTemplatePlaceholder.ITSYSTEM_PLACEHOLDER, itSystemName);
 		placeholderData.put(EmailTemplatePlaceholder.START_DATE,
 			startDate != null ? startDate.format(dateFormatter) : LocalDate.now().format(dateFormatter));
@@ -224,7 +229,7 @@ public class RequestNotifierService {
 		placeholderData.put(EmailTemplatePlaceholder.REQUEST_OPERATION_PLACEHOLDER,
 			action);
 		placeholderData.put(EmailTemplatePlaceholder.REQUEST_REASON,
-			reason != null ? reason : "");
+			formatReason(reason));
 		placeholderData.put(EmailTemplatePlaceholder.ITSYSTEM_PLACEHOLDER,
 			request.getUserRole() != null && request.getUserRole().getItSystem() != null ? request.getUserRole().getItSystem().getName() : "");
 		placeholderData.put(EmailTemplatePlaceholder.REQUESTER_TYPE_PLACEHOLDER,
@@ -269,6 +274,10 @@ public class RequestNotifierService {
 		}
 	}
 
+	private static String formatReason(String reason) {
+		return StringUtils.hasLength(reason) ? "Begrundelse: " + reason : "";
+	}
+
 	private static String replaceTemplateWith(String original, EmailTemplatePlaceholder template, String value) {
 		return original.replace(template.getPlaceholder(), value);
 	}
@@ -283,7 +292,7 @@ public class RequestNotifierService {
 
 	private Map<String, String> getEmailsToSendTo(RoleRequest request) {
 		Map<ApprovableBy, String> roleRequestApproverEmails = settingsService.getRoleRequestApproverEmails();
-		Map<String, String> mailsToSendTo = new HashMap<>();
+		Map<String, String> mailsToSendTo = new LinkedHashMap<>();
 
 		for (ApprovableBy approvableBy : requestApproverResolver.resolveEffectiveOptions(request)) {
 			// First check if there's a global email for THIS specific approver option
@@ -303,12 +312,23 @@ public class RequestNotifierService {
 					log.warn("INHERIT not fully resolved for request id:{}", request.getId());
 				}
 				case AUTHRESPONSIBLE -> {
-					OrgUnit orgUnit = request.getOrgUnit();
-					if (orgUnit != null && orgUnit.getAuthorizationManagers() != null && !orgUnit.getAuthorizationManagers().isEmpty()) {
-						for (AuthorizationManager manager : orgUnit.getAuthorizationManagers()) {
-							User authorizationManager = manager.getUser();
-							if (authorizationManager != null && authorizationManager.getEmail() != null) {
-								mailsToSendTo.put(authorizationManager.getEmail(), authorizationManager.getName());
+					// Enumerate from receiver.getPositions() -> OrgUnit -> authorization managers,
+					// matching exactly the resolution canApprove() -> isAuthorizationManagerFor() uses.
+					// Enumerating from request.getOrgUnit() instead would silently drop the real approver
+					// whenever the receiver's position OU differs from the request's OU (multiple employments).
+					User receiver = request.getReceiver();
+					if (receiver != null && receiver.getPositions() != null) {
+						for (Position position : receiver.getPositions()) {
+							OrgUnit positionOrgUnit = position.getOrgUnit();
+							if (positionOrgUnit == null || positionOrgUnit.getAuthorizationManagers() == null) {
+								continue;
+							}
+							for (AuthorizationManager manager : positionOrgUnit.getAuthorizationManagers()) {
+								User authorizationManager = manager.getUser();
+								if (authorizationManager != null && !authorizationManager.isDeleted() && authorizationManager.getEmail() != null
+										&& requestApproverResolver.canApprove(request, authorizationManager)) {
+									mailsToSendTo.put(authorizationManager.getEmail(), authorizationManager.getName());
+								}
 							}
 						}
 					}
@@ -316,14 +336,22 @@ public class RequestNotifierService {
 				case MANAGERORSUBSTITUTE -> {
 					OrgUnit orgUnit = request.getOrgUnit();
 					if (orgUnit != null) {
-						Map<String, String> emails = orgUnitService.getManagerAndSubstituteEmail(orgUnit, false);
-						// Anmoderen kan ikke godkende sin egen anmodning — undgå at sende mailen
-						// til dem hvis de selv er manager på OU'en. Stedfortrædere er fortsat med.
-						User requester = request.getRequester();
-						if (requester != null && StringUtils.hasLength(requester.getEmail())) {
-							emails.remove(requester.getEmail());
+						// Resolve candidates the same way canApprove()/determineApprovable() does — walking to the
+						// parent OU via getEffectiveApprover — then filter through canApprove itself so who gets
+						// notified always matches who can actually approve (incl. requester/receiver exclusion).
+						OrgUnitService.EffectiveApprover effectiveApprover = orgUnitService.getEffectiveApprover(orgUnit, request.getReceiver());
+						if (effectiveApprover != null) {
+							List<User> candidates = new ArrayList<>();
+							candidates.add(effectiveApprover.manager());
+							candidates.addAll(managerSubstituteService.getSubstitutesForOrgUnit(effectiveApprover.orgUnit()));
+
+							for (User candidate : candidates) {
+								if (candidate != null && !candidate.isDeleted() && StringUtils.hasLength(candidate.getEmail())
+										&& requestApproverResolver.canApprove(request, candidate)) {
+									mailsToSendTo.put(candidate.getEmail(), candidate.getName());
+								}
+							}
 						}
-						mailsToSendTo.putAll(emails);
 					}
 				}
 				case AUTHORIZED -> {
@@ -347,9 +375,19 @@ public class RequestNotifierService {
 
 		if (mailsToSendTo.size() > 10) {
 			log.warn("Size of list of emails to send request approve email to has exceeded the 10 limit: {}", mailsToSendTo.size());
-			return mailsToSendTo.entrySet().stream()
-				.limit(10)
-				.collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+			// Preserve insertion order rather than sorting by email — the settings-configured global
+			// approver email is inserted first (see "First check if there's a global email" above) and
+			// must take precedence over the 10-cap, not get truncated away by alphabetical sorting.
+			// Built manually rather than via Collectors.toMap, which throws NPE on null values (some
+			// entries here intentionally have a null display name).
+			Map<String, String> capped = new LinkedHashMap<>();
+			for (Map.Entry<String, String> entry : mailsToSendTo.entrySet()) {
+				if (capped.size() >= 10) {
+					break;
+				}
+				capped.put(entry.getKey(), entry.getValue());
+			}
+			return capped;
 		}
 
 		// Step 4: Fallback to global servicedesk email since no one else seems to be able to approve of this request
@@ -373,7 +411,9 @@ public class RequestNotifierService {
 			.map(CurrentAssignment::getUser)
 			.filter(user -> isPermittedAccessToOuAndItSystem(requestApprove, user))
 			.filter(user -> user.getEmail() != null)
-			.collect(Collectors.toMap(User::getEmail, User::getName, (name1, _) -> name1));
+			.filter(user -> requestApproverResolver.canApprove(requestApprove, user))
+			.sorted(Comparator.comparing(User::getEmail))
+			.collect(Collectors.toMap(User::getEmail, User::getName, (name1, _) -> name1, LinkedHashMap::new));
 	}
 
 	private void addSystemResponsibleEmail(RoleRequest request, ItSystem itSystem, Map<String, String> mailsToSendTo) {

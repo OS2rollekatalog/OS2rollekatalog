@@ -14,6 +14,7 @@ public class ADConfigurationJSON {
 	private String createDeleteFeatureOU;
 	private boolean createDeleteFeatureCreateEnabled;
 	private boolean createDeleteFeatureDeleteEnabled;
+	private boolean createDeleteFeatureUseBackSyncOU;
 
 	// membership sync settings
 	private String membershipSyncFeatureCprAttribute;

@@ -1,5 +1,25 @@
 package dk.digitalidentity.rc.rolerequest.controller.rest;
 
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Objects;
+import java.util.Set;
+import java.util.stream.Collectors;
+
+import org.springframework.data.jpa.datatables.mapping.DataTablesInput;
+import org.springframework.data.jpa.datatables.mapping.DataTablesOutput;
+import org.springframework.http.HttpStatus;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.server.ResponseStatusException;
+
 import dk.digitalidentity.rc.controller.mvc.datatables.dao.model.CombinedRoleView;
 import dk.digitalidentity.rc.controller.mvc.datatables.dao.model.UserRoleView;
 import dk.digitalidentity.rc.dao.model.OrgUnit;
@@ -17,36 +37,17 @@ import dk.digitalidentity.rc.rolerequest.service.ApproverOptionService;
 import dk.digitalidentity.rc.rolerequest.service.OrgUnitRoleCacheService;
 import dk.digitalidentity.rc.rolerequest.service.RequestService;
 import dk.digitalidentity.rc.security.SecurityUtil;
+import dk.digitalidentity.rc.security.RequireNoRole;
 import dk.digitalidentity.rc.service.SettingsService;
 import dk.digitalidentity.rc.service.UserRoleService;
 import dk.digitalidentity.rc.service.UserService;
 import dk.digitalidentity.rc.service.assignment.AssignmentService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.jpa.datatables.mapping.DataTablesInput;
-import org.springframework.data.jpa.datatables.mapping.DataTablesOutput;
-import org.springframework.http.HttpStatus;
-import org.springframework.security.core.userdetails.UsernameNotFoundException;
-import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.server.ResponseStatusException;
-
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Objects;
-import java.util.Set;
-import java.util.stream.Collectors;
 
 @Slf4j
+@RequireNoRole
 @RestController
-@RequestMapping("rest/rolerequest/wizard")
 @RequiredArgsConstructor
 public class WizardRestController {
 	private final UserService userService;
@@ -65,7 +66,82 @@ public class WizardRestController {
 	}
 
 	@Transactional(readOnly = true)
-	@GetMapping("recommendedrolegroups/{receiverId}")
+	@GetMapping("/rest/rolerequest/wizard/existingroles/{receiverId}")
+	public List<CombinedRoleDTO> existingRoles(@PathVariable final String receiverId) {
+		final User requestForUser = userService.getOptionalByUuid(receiverId)
+			.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User with uuid " + receiverId + " not found"));
+
+		final Set<CurrentAssignment> assignments = assignmentService.getByUserIncludingInactive(requestForUser);
+
+		final List<CombinedRoleDTO> result = new ArrayList<>();
+		final Set<Long> userRoleIdsInRoleGroups = new HashSet<>();
+		final Set<Long> seenRoleGroupIds = new HashSet<>();
+
+		for (CurrentAssignment assignment : assignments) {
+			if (assignment.getRoleGroup() == null) {
+				continue;
+			}
+
+			final RoleGroup roleGroup = assignment.getRoleGroup();
+			if (!seenRoleGroupIds.add(roleGroup.getId())) {
+				continue;
+			}
+
+			String roleWithinRoleGroup = "";
+			if (roleGroup.getUserRoleAssignments() != null) {
+				userRoleIdsInRoleGroups.addAll(
+					roleGroup.getUserRoleAssignments().stream()
+						.map(rgAssignment -> rgAssignment.getUserRole().getId())
+						.collect(Collectors.toSet())
+				);
+
+				roleWithinRoleGroup = roleGroup.getUserRoleAssignments().stream()
+					.map(rgAssignment -> rgAssignment.getUserRole().getName())
+					.collect(Collectors.joining(", "));
+			}
+
+			result.add(new CombinedRoleDTO(
+				roleGroup.getId(),
+				"roleGroup",
+				null,
+				roleGroup.getName(),
+				roleGroup.getDescription(),
+				approverOptionService.getApproverOptionsAsString(approverOptionService.getInheritedApproverOption(roleGroup)),
+				true,
+				false,
+				roleWithinRoleGroup
+			));
+		}
+
+		final Set<Long> seenUserRoleIds = new HashSet<>();
+		for (CurrentAssignment assignment : assignments) {
+			if (assignment.getUserRole() == null) {
+				continue;
+			}
+
+			final UserRole userRole = assignment.getUserRole();
+			if (userRoleIdsInRoleGroups.contains(userRole.getId()) || !seenUserRoleIds.add(userRole.getId())) {
+				continue;
+			}
+
+			result.add(new CombinedRoleDTO(
+				userRole.getId(),
+				"userRole",
+				userRole.getItSystem().getName(),
+				userRole.getName(),
+				userRole.getDescription(),
+				approverOptionService.getApproverOptionsAsString(approverOptionService.getInheritedApproverOption(userRole)),
+				true,
+				hasPostponedConstraints(userRole.getId()),
+				""
+			));
+		}
+
+		return result;
+	}
+
+	@Transactional(readOnly = true)
+	@GetMapping("/rest/rolerequest/wizard/recommendedrolegroups/{receiverId}")
 	public List<RoleGroupDTO> recommendedRoleGroups(@PathVariable final String receiverId,
 													@RequestParam long position, @RequestParam boolean hideAlreadyAssigned) {
 		final User requestForUser = userService.getOptionalByUuid(receiverId)
@@ -94,10 +170,11 @@ public class WizardRestController {
 	}
 
 	@Transactional(readOnly = true)
-	@GetMapping("recommendeduserroles/{receiverId}")
+	@GetMapping("/rest/rolerequest/wizard/recommendeduserroles/{receiverId}")
 	public List<UserRoleDTO> recommendedUserRoles(@PathVariable final String receiverId,
 		@RequestParam long position,
 		@RequestParam boolean hideAlreadyAssigned) {
+		final User loggedInUser = userService.getByUserId(SecurityUtil.getUserId());
 		final User requestForUser = userService.getOptionalByUuid(receiverId)
 			.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User with uuid " + receiverId + " not found"));
 		final Position matchPosition = requestForUser.getPositions().stream().filter(p -> Objects.equals(p.getId(), position)).findAny()
@@ -116,7 +193,7 @@ public class WizardRestController {
 		for (OrgUnitUserRoleCache recommendedUserRole : recommendedUserRoles) {
 			final UserRole currentUserRole = recommendedUserRole.getUserRole();
 			if (!(hideAlreadyAssigned && assignedUserRoleIds.contains(currentUserRole.getId()))
-				&& rolerequestService.canRequest(currentUserRole, requestForUser, orgUnit, settingsService.getRolerequestRequester())) {
+				&& rolerequestService.canRequest(loggedInUser, currentUserRole, requestForUser, orgUnit, settingsService.getRolerequestRequester())) {
 				recommendedUserRolesDTOs.add(
 					new UserRoleDTO(
 						currentUserRole.getId(),
@@ -134,7 +211,7 @@ public class WizardRestController {
 	}
 
 	@Transactional(readOnly = true)
-	@PostMapping("alluserroles/{receiverId}")
+	@PostMapping("/rest/rolerequest/wizard/alluserroles/{receiverId}")
 	public DataTablesOutput<UserRoleDTO> allUserRolesFragment(@RequestBody DataTablesInput input, @PathVariable String receiverId, @RequestParam long position, @RequestParam boolean hideAlreadyAssigned)  {
 		final User requestingUser = userService.getOptionalByUserId(SecurityUtil.getUserId())
 			.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User with id " + SecurityUtil.getUserId() + " not found"));
@@ -171,7 +248,7 @@ public class WizardRestController {
 	}
 
 	@Transactional(readOnly = true)
-	@PostMapping("allcombined/{receiverId}")
+	@PostMapping("/rest/rolerequest/wizard/allcombined/{receiverId}")
 	public DataTablesOutput<CombinedRoleDTO> allCombinedFragment(
 		@RequestBody DataTablesInput input,
 		@PathVariable String receiverId,
@@ -231,7 +308,7 @@ public class WizardRestController {
 	}
 
 	@Transactional(readOnly = true)
-	@GetMapping("recommendedcombined/{receiverId}")
+	@GetMapping("/rest/rolerequest/wizard/recommendedcombined/{receiverId}")
 	public List<CombinedRoleDTO> recommendedCombined(
 		@PathVariable final String receiverId,
 		@RequestParam long position,
@@ -315,7 +392,7 @@ public class WizardRestController {
 			boolean isAlreadyAssigned = assignedUserRoleIds.contains(currentUserRole.getId());
 
 			if (!(hideAlreadyAssigned && isAlreadyAssigned)
-				&& rolerequestService.canRequest(currentUserRole, requestForUser, orgUnit, settingsService.getRolerequestRequester())) {
+				&& rolerequestService.canRequest(requestingUser, currentUserRole, requestForUser, orgUnit, settingsService.getRolerequestRequester())) {
 				combinedRoles.add(
 					new CombinedRoleDTO(
 						currentUserRole.getId(),
@@ -336,7 +413,7 @@ public class WizardRestController {
 	}
 
 	@Transactional(readOnly = true)
-	@GetMapping("allrolegroups/{receiverId}")
+	@GetMapping("/rest/rolerequest/wizard/allrolegroups/{receiverId}")
 	public List<RoleGroupDTO> allRoleGroupsFragment(@PathVariable String receiverId,
 													@RequestParam long position,
 													@RequestParam boolean hideAlreadyAssigned) {

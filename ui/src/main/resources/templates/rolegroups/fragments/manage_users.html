@@ -2,7 +2,8 @@
 		  th:with="permission=${T(dk.digitalidentity.rc.security.permission.Permission)},
 			section=${T(dk.digitalidentity.rc.security.permission.Section)}">
 	<th:block th:if="${@permissionCheck.isAllowed(section.USER, permission.ASSIGN) && showEdit == true}">
-		<a href="#" id="addUserRoleAssignment" class="btn btn-lg btn-primary" style="width:auto;" th:text="#{html.page.role.add.user}" onclick="userService.loadAddUserRoleFragment()"></a>
+		<a href="#" id="addUserRoleAssignment" class="btn btn-lg btn-primary js-add-user-role" style="width:auto;" th:text="#{html.page.role.add.user}"></a>
+		<a href="#" id="addMultipleUserRoleAssignment" class="btn btn-lg btn-primary js-add-user-role-multiple" style="width:auto;" th:text="#{html.page.role.add.user.multiple}"></a>
 	</th:block>
 
 	<table id="listTableUsers" class="table table-striped table-hover listTable">
@@ -42,17 +43,8 @@
 			</td>
 
 			<td th:if="${showEdit == true}" th:attr="data-assignmentid=${mapping.assignment.assignmentId}, data-user=${mapping.user.uuid}, data-startDate=${mapping.assignment.startDate}, data-stopDate=${mapping.assignment.stopDate}, data-name=${mapping.assignment.name}, data-ouuuid=${mapping.assignment.orgUnitUuid}, data-casenumber=${mapping.assignment.caseNumber}">
-				<a
-					href="#"
-					th:if="${mapping.assignment.canEdit}"
-					onclick="userService.editRoleAssignment(this)">
-					<em class="fa fa-pencil"></em></a>
-				<a
-					href="#"
-					th:if="${mapping.assignment.canEdit}"
-					onclick="userService.deleteRoleAssignment(this)">
-					<em class="fa fa-times"></em>
-				</a>
+				<a href="#" class="js-edit-user-assignment" th:if="${mapping.assignment.canEdit}"><em class="fa fa-pencil"></em></a>
+				<a href="#" class="js-delete-user-assignment" th:if="${mapping.assignment.canEdit}"><em class="fa fa-times"></em></a>
 			</td>
 
 			<td th:unless="${showEdit == true}">&nbsp;</td>

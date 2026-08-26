@@ -10,6 +10,7 @@ import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
 import org.aspectj.lang.annotation.Before;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.ApplicationEventPublisher;
 
 import dk.digitalidentity.rc.dao.model.OrgUnit;
 import dk.digitalidentity.rc.dao.model.OrgUnitRoleGroupAssignment;
@@ -21,12 +22,18 @@ import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserRole;
 import dk.digitalidentity.rc.dao.model.UserRoleGroupAssignment;
 import dk.digitalidentity.rc.dao.model.UserUserRoleAssignment;
+import dk.digitalidentity.rc.dao.model.assignment.UserRoleModifiedEvent;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 @Aspect
 public class RoleChangeInterceptor {
 
+	@Autowired(required = false)
+	private List<RoleChangeHook> hooks = List.of();
+
 	@Autowired
-	private List<RoleChangeHook> hooks;
+    private ApplicationEventPublisher eventPublisher;
 
 	// UserService
 
@@ -274,12 +281,36 @@ public class RoleChangeInterceptor {
 		for (RoleChangeHook hook : hooks) {
 			hook.interceptAddSystemRoleAssignmentOnUserRole(userRole, systemRoleAssignment);
 		}
+		
+		switch (userRole.getItSystem().getSystemType()) {
+			case SAML:
+			case KOMBIT:
+				break;
+			case AD:
+			case KSPCICS:
+			case MANUAL:
+			case NEMLOGIN:
+				eventPublisher.publishEvent(new UserRoleModifiedEvent(userRole.getId()));
+				break;
+		}
 	}
 
 	@Before("execution(* dk.digitalidentity.rc.service.UserRoleService.removeSystemRoleAssignment(dk.digitalidentity.rc.dao.model.UserRole, dk.digitalidentity.rc.dao.model.SystemRoleAssignment)) && args(userRole, systemRoleAssignment)")
 	public void interceptRemoveSystemRoleAssignmentOnUserRole(UserRole userRole, SystemRoleAssignment systemRoleAssignment) {
 		for (RoleChangeHook hook : hooks) {
 			hook.interceptRemoveSystemRoleAssignmentOnUserRole(userRole, systemRoleAssignment);
+		}
+		
+		switch (userRole.getItSystem().getSystemType()) {
+			case SAML:
+			case KOMBIT:
+				break;
+			case AD:
+			case KSPCICS:
+			case MANUAL:
+			case NEMLOGIN:
+				eventPublisher.publishEvent(new UserRoleModifiedEvent(userRole.getId()));
+				break;
 		}
 	}
 

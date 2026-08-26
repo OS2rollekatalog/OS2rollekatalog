@@ -16,7 +16,6 @@ import org.springframework.stereotype.Controller;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
 
 import dk.digitalidentity.rc.config.Constants;
 import dk.digitalidentity.rc.dao.model.ItSystem;
@@ -27,14 +26,15 @@ import dk.digitalidentity.rc.rolerequest.model.entity.RoleRequest;
 import dk.digitalidentity.rc.rolerequest.service.ApproverOptionService;
 import dk.digitalidentity.rc.rolerequest.service.RequestService;
 import dk.digitalidentity.rc.security.SecurityUtil;
+import dk.digitalidentity.rc.security.RequireNoRole;
 import dk.digitalidentity.rc.service.ItSystemService;
 import dk.digitalidentity.rc.service.OrgUnitService;
 import dk.digitalidentity.rc.service.UserService;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
+@RequireNoRole
 @Controller
-@RequestMapping("/ui/request/pending")
 public class PendingRequestController {
 
     @Autowired
@@ -52,18 +52,11 @@ public class PendingRequestController {
 	@Autowired
 	private ApproverOptionService approverOptionService;
 
-	/**
-	 * @param requestDate     the request timestamp formatted for display
-	 * @param requestDateSort the same timestamp as a sortable key, exposed as data-order on the
-	 *                        table cell so the client sorts on full precision instead of on the
-	 *                        day-granularity display string
-	 */
     record PendingRequestListItem(long id, String receiver, String employment, String action, String requester, String roleName,
-								  String itSystem, String description, String constraints, String requestDate, String requestDateSort,
-								  String reason, String timeFrame, String assignedTo, String approver) {
+								  String itSystem, String description, String constraints, String requestDate, String reason, String timeFrame, String assignedTo, String approver) {
     }
 
-	@GetMapping
+	@GetMapping("/ui/request/pending")
 	@Transactional(readOnly = true)
 	public String pendingApprovalRequestList(Model model) {
 		List<RoleRequest> pendingRequests = rolerequestService.getPendingApprovableRequests();
@@ -99,8 +92,7 @@ public class PendingRequestController {
 			.collect(Collectors.toMap(ItSystem::getId, i -> i));
 
 		DateFormat formatter = new SimpleDateFormat("dd-MM-yyyy");
-		DateFormat sortFormatter = new SimpleDateFormat("yyyyMMddHHmmss");
-        List<PendingRequestListItem> pendingApprovalRequests = pendingRequests.stream().map(request -> new PendingRequestListItem(
+        List<PendingRequestListItem> pendingApprovalRequests = rolerequestService.getPendingApprovableRequests().stream().map(request -> new PendingRequestListItem(
             request.getId(),
             request.getReceiver().getName() + " (" + request.getReceiver().getUserId() + ")",
             formatEmployment(request.getReceiver()),
@@ -111,7 +103,6 @@ public class PendingRequestController {
             request.getUserRole() == null ? request.getRoleGroup().getDescription() : request.getUserRole().getDescription(),
 			formatConstraints(request.getRequestPostponedConstraints(), ouMap, itSystemMap),
             formatter.format(request.getRequestTimestamp()),
-            sortFormatter.format(request.getRequestTimestamp()),
             request.getReason(),
 			formatTimeFrame(request.getStartDate(), request.getEndDate()),
 			request.getAssignedTo(),

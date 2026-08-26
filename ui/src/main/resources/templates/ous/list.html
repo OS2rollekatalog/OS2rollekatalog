@@ -46,99 +46,15 @@
 
 	<nav th:replace="~{fragments/footer :: footer}"></nav>
 
-	<style>
-		div .affix {
-			position: fixed;
-			right: 0;
-			padding-left: 50px;
-			margin-left: -30px;
-			margin-right: -30px;
-			padding-right: 126.1px;
-		}
+	<link rel="stylesheet" th:href="@{/css/ous/list.css}" />
 
-		a#ouEditLink.disabled > span {
-			background-color: grey;
-			cursor: not-allowed;
-		}
-	</style>
-
-	<script th:inline="javascript">
-		/*<![CDATA[*/
-		/*[+
-		    var url = [[@{/ui/ous/}]];
-		    
-			var allOUs = [[${allOUs}]];
-		+]*/
-
-		// polyfill for IE
-		if (!String.prototype.startsWith) {
-			String.prototype.startsWith = function(searchString, position) {
-				position = position || 0;
-				return this.substr(position, searchString.length) === searchString;
-			};
-		}
-		
-		//hierarchy
-		$("document").ready(function() {
-			$("#sidebar").affix({
-				offset: {
-					top: 0
-				}
-			});
-			
-			$("#hierarchy").jstree({
-				"core": {
-					"data": allOUs,
-					"themes": {
-						"icons": false
-					}
-				},
-				"search" : {
-					"show_only_matches": true,
-					"search_callback": function(str, node) {
-						return (node.text.toUpperCase().includes(str.toUpperCase()));
-					}
-				},
-				"sort": function(a, b) {
-			        a1 = this.get_node(a);
-			        b1 = this.get_node(b);
-
-		            return (a1.text > b1.text) ? 1 : -1;
-				},
-				"plugins" : [
-					"sort", "state", "wholerow", "search"
-				]
-			});
-
-			// selecting in the JSTree
-			$("#hierarchy").on("select_node.jstree", function(e, data) {
-				$("#ouName").text(data.node.text);
-				const editButton = document.getElementById("ouEditLink");
-				if (editButton && data.node.original.editable === false) {
-					editButton.href =  url + "view/" + data.node.id
-					editButton.children[0].textContent = "Vis"
-				} else if (editButton) {
-					editButton.href = url + "manage/" + data.node.id
-					editButton.children[0].textContent = "Rediger"
-				}
-			});
-			
-			// searching in the JSTree
-			var to = false;
-			$('#searchField').keyup(function() {
-				if (to) {
-					clearTimeout(to);
-				}
-
-				to = setTimeout(function() {
-					var v = $('#searchField').val();
-
-					$('#hierarchy').jstree(true).search(v);
-				}, 400);
-			});
-		});
-
-		/*]]>*/
-	</script>
+	<script id="ous-list-config" type="application/json" th:inline="javascript">
+		   {
+			  "url": [[@{/ui/ous/}]],
+			  "allOUs": [[${allOUs}]]
+		   }
+		</script>
+	<script th:src="@{/js/service/JsTreeService.js}"></script>
+	<script th:src="@{/js/ous/list.js}"></script>
 </body>
 </html>

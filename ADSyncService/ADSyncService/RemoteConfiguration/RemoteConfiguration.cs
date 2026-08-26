@@ -9,6 +9,7 @@ namespace ADSyncService
         public string createDeleteFeatureOU { get; set; }
         public bool createDeleteFeatureCreateEnabled { get; set; }
         public bool createDeleteFeatureDeleteEnabled { get; set; }
+        public bool createDeleteFeatureUseBackSyncOU { get; set; }
 
         public string membershipSyncFeatureCprAttribute { get; set; }
         public List<string> membershipSyncFeatureAttributeMap { get; set; }

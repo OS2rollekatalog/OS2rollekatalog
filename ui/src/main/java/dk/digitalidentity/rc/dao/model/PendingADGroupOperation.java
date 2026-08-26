@@ -45,6 +45,9 @@ public class PendingADGroupOperation {
 	@Column
 	private String itSystemIdentifier;
 
+	@Column
+	private Long itSystemId;
+
 	// active = 1 is CREATE
 	// active = 0 is DELETE
 	@Column

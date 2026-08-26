@@ -7,153 +7,63 @@
 	<aside th:replace="~{fragments/navbar :: navbar-aside (page = 'report.custom', subpage = 'reports')}"></aside>
 
 	<section>
-			<div class="content-wrapper">
-				<h3>
-					<span th:text="#{html.report.users_with_duplicate_userrole_assignments}"></span>
-					<button sec:authorize="hasAnyRole('ROLE_USER_ASSIGNER', 'ROLE_OU_ASSIGNER')" class="btn btn-primary btn-lg" style="float: right;" th:text="#{html.page.report.duplicate.remove}" onclick="deleteDuplicates();"></button>
-				</h3>
+		<div class="content-wrapper">
+			<h3>
+				<span th:text="#{html.report.users_with_duplicate_userrole_assignments}"></span>
+				<button sec:authorize="hasAnyRole('ROLE_USER_ASSIGNER', 'ROLE_OU_ASSIGNER')" class="btn btn-primary btn-lg js-delete-duplicates" style="float: right;" th:text="#{html.page.report.duplicate.remove}"></button>
+			</h3>
 
-				<div class="panel panel-default" id="cleanup-panel">
-					<div class="panel-heading"></div>
-					<div class="panel-body">
-						<!-- Rækkerne renderes klientside fra et inline JSON-array (deferRender),
-						     så browseren ikke bygger DOM for alle rækker på én gang. -->
-						<table id="duplicateTable" class="table table-responsive table-striped">
-							<thead>
-								<tr>
-									<th class="col-md-2" th:text="#{html.entity.user.name}"></th>
-									<th class="col-md-2" th:text="#{html.entity.user.userId}"></th>
-									<th class="col-md-2" th:text="#{html.entity.userrole.type}"></th>
-									<th class="col-md-2" th:text="#{html.entity.itsystem}"></th>
-									<th class="col-md-3" th:text="#{html.page.report.duplicate.via}"></th>
-									<th class="col-md-1" th:text="#{html.control.operations}"></th>
-								</tr>
-							</thead>
-							<tbody></tbody>
-						</table>
-					</div>
+			<div class="panel panel-default" id="cleanup-panel">
+				<div class="panel-heading"></div>
+				<div class="panel-body">
+					<!-- Rækkerne renderes klientside fra et inline JSON-array (deferRender),
+						 så browseren ikke bygger DOM for alle rækker på én gang. -->
+					<table id="duplicateTable" class="table table-responsive table-striped">
+						<thead>
+						<tr>
+							<th class="col-md-2" th:text="#{html.entity.user.name}"></th>
+							<th class="col-md-2" th:text="#{html.entity.user.userId}"></th>
+							<th class="col-md-2" th:text="#{html.entity.userrole.type}"></th>
+							<th class="col-md-2" th:text="#{html.entity.itsystem}"></th>
+							<th class="col-md-3" th:text="#{html.page.report.duplicate.via}"></th>
+							<th class="col-md-1" th:text="#{html.control.operations}"></th>
+						</tr>
+						</thead>
+						<tbody></tbody>
+					</table>
 				</div>
 			</div>
+		</div>
 	</section>
 </div>
 
 <nav th:replace="~{fragments/footer :: footer}"></nav>
 
-<script th:inline="javascript">
-	/*<![CDATA[*/
-		/*[+
-			var url = [[@{/rest/users/cleanupDuplicateRoleAssignments}]];
-
-			var txtTitle = [[#{html.page.report.duplicate.remove}]];
-			var txtBody = [[#{html.page.report.duplicate.remove.text}]];
-			var txtOrderConfirmed = [[#{html.page.report.duplicate.remove.confirmMessage}]];
-			var txtCleanupFailed = [[#{html.page.report.duplicate.remove.failedMessage}]];
-			var txtCleanupSucceeded = [[#{html.page.report.duplicate.remove.successMessage}]];
-			var txtQueueSpinner = [[#{html.common.queue.spinner.working}]];
-			var btnNo = [[#{html.control.button.no}]];
-			var btnYes = [[#{html.control.button.yes}]];
-
-			var searchTxt = [[#{html.datatables.search}]];
-			var dropdownTxt = [[#{html.datatables.dropdown}]];
-			var infoDefaultTxt = [[#{html.datatables.info.default}]];
-			var infoEmptyTxt = [[#{html.datatables.info.empty}]];
-			var infoFilteredTxt = [[#{html.datatables.info.filtered}]];
-			var prevTxt = [[#{html.datatables.prev}]];
-			var nextTxt = [[#{html.datatables.next}]];
-		+]*/
-
-		var token = $("meta[name='_csrf']").attr("content");
-
-		// Inline data-array — renderes on-demand af DataTables (deferRender)
-		var rows = /*[[${rows}]]*/ [];
-		var canEdit = /*[[${canEdit}]]*/ false;
-		var manageUrlBase = /*[[@{/ui/users/manage/}]]*/ '/ui/users/manage/';
-
-		$(document).ready(function() {
-			$('#duplicateTable').DataTable({
-				'paging':   true,
-				'ordering': true,
-				'order':    [ [0, 'asc'] ],
-				'info':     true,
-				'deferRender': true,
-				'pageLength': 100,
-				'autoWidth': false,
-				'data': rows,
-				'columns': [
-					{ 'data': 'name' },
-					{ 'data': 'userId' },
-					{ 'data': 'roleName' },
-					{ 'data': 'itSystemName' },
-					{ 'data': 'message' },
-					{
-						'data': 'uuid',
-						'orderable': false,
-						'searchable': false,
-						'render': function (data) {
-							if (!canEdit || !data) {
-								return '';
-							}
-							return '<a href="' + manageUrlBase + encodeURIComponent(data) + '"><em class="fa fa-pencil"></em></a>';
-						}
-					}
-				],
-				'language': {
-					'search':       searchTxt,
-					'lengthMenu':   dropdownTxt,
-					'info':         infoDefaultTxt,
-					'zeroRecords':  infoEmptyTxt,
-					'infoEmpty':    '',
-					'infoFiltered': infoFilteredTxt,
-					'paginate': {
-						'next': nextTxt,
-						'previous': prevTxt
-					}
-				}
-			});
-		});
-
-		function deleteDuplicates() {
-            swal({
-					html: true,
-					title : txtTitle,
-					text : txtBody,
-					type : "warning",
-					showCancelButton : true,
-					confirmButtonColor : "#DD6B55",
-					confirmButtonText : btnYes,
-					cancelButtonText : btnNo,
-					closeOnConfirm : true,
-					closeOnCancel : true
-				},
-				function (isConfirm) {
-					if (isConfirm) {
-			            $.notify({ message: txtOrderConfirmed },{ status: 'success', autoHideDelay: 4000 });
-
-						var spinner = new QueueDrainService('#cleanup-panel', { message: txtQueueSpinner });
-						spinner.show();
-
-						$.ajax({
-							url: url,
-							method: "POST",
-							headers: {
-								'X-CSRF-TOKEN': token
-							},
-							error: function() {
-								spinner.stop();
-								errorHandler(txtCleanupFailed).apply(this, arguments);
-							},
-							success : function(response) {
-								$.notify({ message: txtCleanupSucceeded },{ status: 'success', autoHideDelay: 4000 });
-								spinner.watch(function () {
-									location.reload(true);
-								});
-							}
-						});
-	                }
-				}
-			);
-		}
-	/*]]>*/
+<script type="application/json" id="duplicate-userrole-config" th:inline="javascript">
+	{
+		"url": [[@{/rest/users/cleanupDuplicateRoleAssignments}]],
+		"txtTitle": [[#{html.page.report.duplicate.remove}]],
+		"txtBody": [[#{html.page.report.duplicate.remove.text}]],
+		"txtOrderConfirmed": [[#{html.page.report.duplicate.remove.confirmMessage}]],
+		"txtCleanupFailed": [[#{html.page.report.duplicate.remove.failedMessage}]],
+		"txtCleanupSucceeded": [[#{html.page.report.duplicate.remove.successMessage}]],
+		"txtQueueSpinner": [[#{html.common.queue.spinner.working}]],
+		"btnNo": [[#{html.control.button.no}]],
+		"btnYes": [[#{html.control.button.yes}]],
+		"searchTxt": [[#{html.datatables.search}]],
+		"dropdownTxt": [[#{html.datatables.dropdown}]],
+		"infoDefaultTxt": [[#{html.datatables.info.default}]],
+		"infoEmptyTxt": [[#{html.datatables.info.empty}]],
+		"infoFilteredTxt": [[#{html.datatables.info.filtered}]],
+		"prevTxt": [[#{html.datatables.prev}]],
+		"nextTxt": [[#{html.datatables.next}]],
+		"rows": [[${rows}]],
+		"canEdit": [[${canEdit}]],
+		"manageUrlBase": [[@{/ui/users/manage/}]]
+	}
 </script>
+<script th:src="@{/js/service/SweetAlertService.js}"></script>
+<script th:src="@{/js/reports/custom/service/DuplicateCleanupService.js}"></script>
+<script th:src="@{/js/reports/custom/users_with_duplicate_userrole_assignments.js}"></script>
 </body>
 </html>

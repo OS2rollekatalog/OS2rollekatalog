@@ -4,6 +4,7 @@ import dk.digitalidentity.rc.attestation.dao.AttestationResponsibleCollectionDao
 import dk.digitalidentity.rc.config.RoleCatalogueConfiguration;
 import dk.digitalidentity.rc.service.ItSystemService;
 import dk.digitalidentity.rc.service.SettingsService;
+import dk.digitalidentity.rc.task.assignment.RepairHistoricItSystemAssignmentCollectionsTask;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.EnableScheduling;

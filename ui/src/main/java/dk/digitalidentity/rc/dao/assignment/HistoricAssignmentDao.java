@@ -19,7 +19,7 @@ public interface HistoricAssignmentDao extends JpaRepository<HistoricAssignment,
 	Set<HistoricAssignment> findAllByRecordHashIn(Collection<String> recordHashes);
 
 	@org.springframework.data.jpa.repository.Modifying
-	@org.springframework.data.jpa.repository.Query("UPDATE HistoricAssignment ha SET ha.validTo = :validTo WHERE ha.recordHash IN :recordHashes AND ha.validTo IS NULL")
+	@org.springframework.data.jpa.repository.Query("UPDATE HistoricAssignment ha SET ha.validTo = :validTo, ha.updatedAt = CURRENT_TIMESTAMP WHERE ha.recordHash IN :recordHashes AND ha.validTo IS NULL")
 	void updateValidToByRecordHashIn(@org.springframework.data.repository.query.Param("recordHashes") Collection<String> recordHashes,
 	                                 @org.springframework.data.repository.query.Param("validTo") java.time.LocalDateTime validTo);
 
@@ -34,7 +34,7 @@ public interface HistoricAssignmentDao extends JpaRepository<HistoricAssignment,
 	@org.springframework.data.jpa.repository.Query(nativeQuery = true, value =
 		"UPDATE historic_assignment ha " +
 		"JOIN user_roles ur ON ur.id = ha.user_role_id " +
-		"SET ha.responsible_collection_id = :collectionId, ha.responsible_ou_uuid = NULL, ha.responsible_ou_name = NULL " +
+		"SET ha.responsible_collection_id = :collectionId, ha.responsible_ou_uuid = NULL, ha.responsible_ou_name = NULL, ha.updated_at = CURRENT_TIMESTAMP " +
 		"WHERE ha.it_system_id = :itSystemId AND ha.valid_to IS NULL AND ur.role_assignment_attestation_by_attestation_responsible = true")
 	void backfillResponsibleCollectionId(@org.springframework.data.repository.query.Param("itSystemId") Long itSystemId,
 	                                     @org.springframework.data.repository.query.Param("collectionId") Long collectionId);
@@ -282,4 +282,7 @@ public interface HistoricAssignmentDao extends JpaRepository<HistoricAssignment,
 
 	/** Fetch full entities for the given IDs. Used for paginated DTO projection. */
 	List<HistoricAssignment> findByIdIn(List<Long> ids);
+
+	/** Fetch full entities for that has been updated after the given timestamp */
+	List<HistoricAssignment> findByUpdatedAtAfter(LocalDateTime tts);
 }

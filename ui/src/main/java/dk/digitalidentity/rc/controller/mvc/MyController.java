@@ -5,6 +5,7 @@ import dk.digitalidentity.rc.dao.model.assignment.CurrentAssignment;
 import dk.digitalidentity.rc.service.UserService;
 import dk.digitalidentity.rc.service.assignment.AssignmentService;
 import dk.digitalidentity.rc.service.model.RoleAssignedToUserDTO;
+import dk.digitalidentity.rc.security.RequireNoRole;
 import dk.digitalidentity.rc.security.SecurityUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -19,6 +20,7 @@ import java.util.Set;
 @RequiredArgsConstructor
 @Slf4j
 @Controller
+@RequireNoRole
 public class MyController {
 	private final AssignmentService assignmentService;
 	private final UserService userService;

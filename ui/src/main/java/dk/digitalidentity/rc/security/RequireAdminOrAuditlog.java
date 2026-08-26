@@ -7,5 +7,6 @@ import java.lang.annotation.RetentionPolicy;
 
 @Retention(RetentionPolicy.RUNTIME)
 @PreAuthorize("hasRole('ROLE_ADMINISTRATOR') or hasRole('ROLE_AUDITLOG')")
+@RequireRoleAnnotation
 public @interface RequireAdminOrAuditlog {
 }

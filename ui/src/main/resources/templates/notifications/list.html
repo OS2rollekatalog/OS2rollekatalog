@@ -63,282 +63,42 @@
 	</div>
 
 	<nav th:replace="~{fragments/footer :: footer}"></nav>
-	<script th:inline="javascript">
-		/*<![CDATA[*/
 
-		/*[+
-			var searchTxt = [[#{html.datatables.search}]];
-			var dropdownTxt = [[#{html.datatables.dropdown}]];
-			var infoDefaultTxt = [[#{html.datatables.info.default}]];
-			var infoEmptyTxt = [[#{html.datatables.info.empty}]];
-			var infoFilteredTxt = [[#{html.datatables.info.filtered}]];
-			var prevTxt = [[#{html.datatables.prev}]];
-			var nextTxt = [[#{html.datatables.next}]];
-
-			var activateTitle = [[#{html.entity.notification.activate.title}]];
-			var activateText = [[#{html.entity.notification.activate.text}]];
-
-			var discardTitle = [[#{html.entity.notification.discard.title}]];
-			var discardText = [[#{html.entity.notification.discard.text}]];
-
-			var assignTitle = [[#{html.entity.notification.assign.title}]];
-			var assignText = [[#{html.entity.notification.assign.text}]];
-
-			var deassignTitle = [[#{html.entity.notification.deassign.title}]];
-			var deassignText = [[#{html.entity.notification.deassign.text}]];
-
-			var reassignTitle = [[#{html.entity.notification.reassign.title}]];
-			var reassignText = [[#{html.entity.notification.reassign.text}]];
-			var reassignYesBtn = [[#{html.entity.notification.reassign.yes}]];
-			var reassignNoBtn = [[#{html.entity.notification.reassign.no}]];
-
-			var changeStatusButtonConfirm = [[#{html.control.button.yes}]];
-			var changeStatusButtonCancel = [[#{html.control.button.no}]];
-
-			var typesMap = [[${typesMap}]];
-			var url = [[@{/ui/}]];
-			var ajaxUrl = [[@{/rest/notifications/list}]];
-			var changeStatusUrl = [[@{/rest/notifications/changeStatus}]];
-			var flipAssignUrl = [[@{/rest/notifications/flipAssign/}]];
-
-			var changeStatusErrorMsg = [[#{html.setting.update.msg.failed}]];
-
-			var userUuid = [[${userUuid}]];
-		+]*/
-
-		var token = $("meta[name='_csrf']").attr("content");
-		var notificationService;
-		var currentTable;
-		$(document).ready(function() {
-			notificationService = new NotificationService();
-
-			// find potential saved search
-			var datatableState = localStorage.getItem('DataTables_listTable_/ui/notifications/list');
-			if (datatableState == null) {
-				notificationService.loadDataTables(false, "");
-			} else {
-				var asObject = JSON.parse(datatableState);
-				var searchFor = asObject.columns[2].search.search;
-				notificationService.loadDataTables(false, searchFor);
-			}
-
-			$('input[type=radio][name=showInactive]').change(function() {
-				var selectedValue = $("#notificationTypeSelect").val();
-				if (this.value == 'true') {
-					notificationService.loadDataTables(true, selectedValue);
-				}
-				else {
-					notificationService.loadDataTables(false, selectedValue);
-				}
-			});
-		});
-
-		function NotificationService() {
-			this.flipAssign = function(id, status, currentUuid) {
-				var title = assignTitle;
-				var text = assignText;
-				var yesBtn = changeStatusButtonConfirm;
-				var noBtn = changeStatusButtonCancel;
-				var reassign = false;
-
-				// overwrite default messages of already assigned
-				if (currentUuid != '') {
-					if (currentUuid == userUuid) {
-						title = deassignTitle;
-						text = deassignText;
-					}
-					else {
-						title = reassignTitle;
-						text = reassignText;
-						yesBtn = reassignYesBtn;
-						noBtn = reassignNoBtn;
-						reassign = true;
-					}
-				}
-
-				swal({
-					html : true,
-					title : title,
-					text : text,
-					showCancelButton : true,
-					confirmButtonColor : "#4765a0",
-					confirmButtonText : yesBtn,
-					cancelButtonText : noBtn,
-					closeOnConfirm : true,
-					closeOnCancel : true
-				},
-				function(isConfirm) {
-					if (isConfirm || reassign) {
-						$.ajax({
-							url: flipAssignUrl + id,
-							headers: {
-								'X-CSRF-TOKEN': token,
-								'confirm': isConfirm
-							},
-							type: 'post',
-							contentType: 'application/json',
-							data: '',
-							success: function(data, textStatus, jQxhr) {
-								var selectedValue = $("#notificationTypeSelect").val();
-								notificationService.loadDataTables(status, selectedValue);
-							},
-							error: errorHandler(changeStatusErrorMsg)
-						});
-					}
-				});
-			}
-
-			this.loadDataTables = function(showInactive, selectedValue) {
-				currentTable = $('.listTable').DataTable({
-					'destroy': true,
-					'stateSave': true,
-					'ajax': {
-						'contentType': 'application/json',
-						'url': ajaxUrl,
-						'type': 'POST',
-						headers: {
-							'X-CSRF-TOKEN': token,
-							'show-inactive': showInactive
-						},
-						'data': function(d) {
-						 	return JSON.stringify(d);
-						}
-					},
-					'serverSide' : true,
-					'columns' : [
-						{
-							data : 'active',
-							orderable: false,
-							searchable: true,
-							visible: false
-						},
-						{
-							data : 'created'
-						},
-						{
-							data : 'notificationType',
-							render: function (data, type, row, meta){
-								return typesMap[data];
-							}
-						},
-						{
-							data : 'affectedEntityName',
-							orderable: true,
-							searchable: true,
-							render: function (data, type, row, meta) {
-								if (type === 'display') {
-									if (row.affectedEntityName == null || row.affectedEntityType == null || row.affectedEntityUuid == null) {
-										return '';
-									} else {
-										let html = row.affectedEntityName
-										html += row.canReadAffectedEntity ? ' <a href=' + url + row.affectedEntityType.toLowerCase() + '/manage/' + row.affectedEntityUuid + '><em class="fa fa-fw fa-external-link"></em></a>' :''
-										return html;
-									}
-								}
-								return data || '';
-							}
-						},
-						{
-							data : 'adminName',
-							render: function (data, type, row, meta) {
-								if (type === 'display' && row.allowedActions.editable) {
-									return '<a onclick="notificationService.flipAssign(' + row.id + ',' + !row.active + ',\'' + ((row.adminUuid) ? row.adminUuid : '') + '\');"><em class="fa fa-fw fa-user"></em></a>' +
-											((row.adminName) ? row.adminName + '<br/><em style="font-size: smaller;">' + row.lastUpdated + '</em>' : '');
-								}
-								return data || '';
-							}
-						},
-						{
-							data : 'allowedActions',
-							orderable: false,
-							searchable: false,
-							render: function (data, type, row, meta) {
-								if (type === 'display') {
-									let html = ''
-									html += data.readable ? '<a href=' + url + 'report/notifications/view/' + row.id + '><em class="fa fa-fw fa-search"></em></a>' : '';
-									html += data.editable ? '<a href="#" onClick="notificationService.changeStatus'+ '(' + row.id + ',' + !row.active + ')' +'"><em class="fa fa-fw fa-' + (row.active ? 'times' : 'repeat') + '"></em></a>' : '';
-									return html;
-
-								}
-								return data;
-							}
-						}
-					],
-					'paging':   true,
-					'ordering': true,
-					'info':	 true,
-					'pageLength': 25,
-					'language': {
-						"search":	   searchTxt,
-						"lengthMenu":   dropdownTxt,
-						"info":		 infoDefaultTxt,
-						"zeroRecords":  infoEmptyTxt,
-						"infoEmpty":	"",
-						"infoFiltered": infoFilteredTxt,
-						"paginate": {
-							"next": nextTxt,
-							"previous": prevTxt
-						}
-					},
-					initComplete: function () {
-						this.api().columns([2]).every(function() {
-							var column = this;
-							var select = $('<select class="ui-state-default" id="notificationTypeSelect"><option value="">Vis alle</option></select>')
-								.appendTo($(column.footer()).empty())
-								.on('change', function() {
-									column.search($(this).val(), false, true).draw();
-								}
-							);
-
-							for (var key in typesMap) {
-								select.append('<option value="' + key + '">' + typesMap[key] + '</option>');
-							}
-
-							if (selectedValue != null) {
-								$("#notificationTypeSelect").val(selectedValue);
-							}
-
-						});
-					}
-				});
-			}
-
-			this.changeStatus = function(id, status){
-				swal({
-					html : true,
-					title : status ? activateTitle : discardTitle,
-					text : status ? activateText : discardText,
-					type : "warning",
-					showCancelButton : true,
-					confirmButtonColor : "#DD6B55",
-					confirmButtonText : changeStatusButtonConfirm,
-					cancelButtonText : changeStatusButtonCancel,
-					closeOnConfirm : true,
-					closeOnCancel : true
-				},
-				function(isConfirm) {
-					if (isConfirm) {
-						$.ajax({
-							url: changeStatusUrl,
-							headers: {
-								'X-CSRF-TOKEN': token,
-								'id' : id,
-								'status': status
-							},
-							type: 'post',
-							contentType: 'application/json',
-							data: '',
-							success: function(data, textStatus, jQxhr) {
-								var selectedValue = $("#notificationTypeSelect").val();
-								notificationService.loadDataTables(status, selectedValue);
-							},
-							error: errorHandler(changeStatusErrorMsg)
-						});
-					}
-				});
-			}
+	<script id="notifications-list-config" type="application/json" th:inline="javascript">
+		{
+			"searchTxt": [[#{html.datatables.search}]],
+			"dropdownTxt": [[#{html.datatables.dropdown}]],
+			"infoDefaultTxt": [[#{html.datatables.info.default}]],
+			"infoEmptyTxt": [[#{html.datatables.info.empty}]],
+			"infoFilteredTxt": [[#{html.datatables.info.filtered}]],
+			"prevTxt": [[#{html.datatables.prev}]],
+			"nextTxt": [[#{html.datatables.next}]],
+			"activateTitle": [[#{html.entity.notification.activate.title}]],
+			"activateText": [[#{html.entity.notification.activate.text}]],
+			"discardTitle": [[#{html.entity.notification.discard.title}]],
+			"discardText": [[#{html.entity.notification.discard.text}]],
+			"assignTitle": [[#{html.entity.notification.assign.title}]],
+			"assignText": [[#{html.entity.notification.assign.text}]],
+			"deassignTitle": [[#{html.entity.notification.deassign.title}]],
+			"deassignText": [[#{html.entity.notification.deassign.text}]],
+			"reassignTitle": [[#{html.entity.notification.reassign.title}]],
+			"reassignText": [[#{html.entity.notification.reassign.text}]],
+			"reassignYesBtn": [[#{html.entity.notification.reassign.yes}]],
+			"reassignNoBtn": [[#{html.entity.notification.reassign.no}]],
+			"changeStatusButtonConfirm": [[#{html.control.button.yes}]],
+			"changeStatusButtonCancel": [[#{html.control.button.no}]],
+			"typesMap": [[${typesMap}]],
+			"url": [[@{/ui/}]],
+			"ajaxUrl": [[@{/rest/notifications/list}]],
+			"changeStatusUrl": [[@{/rest/notifications/changeStatus}]],
+			"flipAssignUrl": [[@{/rest/notifications/flipAssign/}]],
+			"changeStatusErrorMsg": [[#{html.setting.update.msg.failed}]],
+			"userUuid": [[${userUuid}]]
 		}
-		/*]]>*/
 	</script>
+
+	<script th:src="@{/js/DatatableService.js}"></script>
+	<script th:src="@{/js/service/SweetAlertService.js}"></script>
+	<script th:src="@{/js/notifications/list.js}"></script>
 </body>
 </html>

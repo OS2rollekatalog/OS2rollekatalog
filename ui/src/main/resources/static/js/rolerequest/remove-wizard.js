@@ -1,34 +1,40 @@
-function RequestService() {
-    this.init = function() {
+/**
+ * Drives the removal-request wizard's steps: role selection, reason, and
+ * final confirmation & submission.
+ */
+class RequestService {
+    constructor(config, state, roleService) {
+        this.config = config;
+        this.state = state;
+        this.roleService = roleService;
+    }
+
+    init() {
         $("#requestWizard").steps({
             autoFocus: true,
             headerTag: "h2",
             bodyTag: "section",
             transitionEffect: "slideLeft",
-            onStepChanging: function (event, currentIndex, newIndex)
-            {
-                // always allow previous action
-                if (currentIndex > newIndex)
-                    {
+            onStepChanging: (event, currentIndex, newIndex) => {
+                // Always allow the "previous" action
+                if (currentIndex > newIndex) {
                     return true;
                 }
 
-                // forbid next action if no chosen roles
-                if (currentIndex === 0 && chosenRolesDTOs.length === 0)
-                    {
+                // Forbid "next" if no roles have been chosen
+                if (currentIndex === 0 && this.state.chosenRolesDTOs.length === 0) {
                     return false;
                 }
 
-                // forbid next if no reason and reasonSetting is OBLIGATORY
-                if (currentIndex === 1 && $("#reason").val() === "" && reasonSetting == "OBLIGATORY") {
-                    return false
+                // Forbid "next" if no reason given and reasonSetting is OBLIGATORY
+                if (currentIndex === 1 && $("#reason").val() === "" && this.config.reasonSetting === "OBLIGATORY") {
+                    return false;
                 }
 
                 return true;
             },
-            onStepChanged: function (event, currentIndex, priorIndex)
-            {
-                if (reasonSetting == "NONE") {
+            onStepChanged: (event, currentIndex, priorIndex) => {
+                if (this.config.reasonSetting === "NONE") {
                     if (currentIndex === 1) {
                         if (priorIndex === 2) {
                             $("#requestWizard").steps("previous");
@@ -39,11 +45,11 @@ function RequestService() {
                 }
 
                 if (currentIndex === 2) {
-                    // remove existing rows if any
+                    // Remove existing rows, if any
                     $("#confirmRolesTable tbody").empty();
 
-                    // for chosenRolesDTOs add row
-                    chosenRolesDTOs.forEach(function(role) {
+                    // Add a row for each chosen role
+                    this.state.chosenRolesDTOs.forEach((role) => {
                         const rowHtml = `
                             <tr>
                                 <td>${role.type}</td>
@@ -58,41 +64,38 @@ function RequestService() {
                     $("#confirmReason").text(reason);
                 }
             },
-            onInit: function (event, currentIndex)
-			{
-				roleService.init();
-			},
-            onFinishing: function (event, currentIndex) {
+            onInit: (event, currentIndex) => {
+                this.roleService.init();
+            },
+            onFinishing: (event, currentIndex) => {
                 const reason = $("#reason").val();
-                if (chosenRolesDTOs.length === 0 || reason === "" && reasonSetting == "OBLIGATORY") {
+                if (this.state.chosenRolesDTOs.length === 0 || (reason === "" && this.config.reasonSetting === "OBLIGATORY")) {
                     return false;
                 }
 
                 return true;
             },
-            onFinished: function (event, currentIndex)
-            {
+            onFinished: (event, currentIndex) => {
                 const request = {
-                    userUuid: userUuid,
-                    userRoles: chosenUserRoleIds,
-                    roleGroups: chosenRoleGroupIds,
+                    userUuid: this.config.userUuid,
+                    userRoles: this.state.chosenUserRoleIds,
+                    roleGroups: this.state.chosenRoleGroupIds,
                     reason: $("#reason").val()
                 };
 
-                $.ajax( {
-                    url: `${restUrl}/wizard/save`,
+                $.ajax({
+                    url: `${this.config.restUrl}/wizard/save`,
                     contentType: 'application/json',
                     method: 'POST',
                     headers: {
-                        'X-CSRF-TOKEN': token
+                        'X-CSRF-TOKEN': window.token
                     },
                     data: JSON.stringify(request),
-                    success: function ( data ) {
-
+                    success: () => {
                         window.location = "/ui/request/myrequests";
                     },
                     error: defaultErrorHandler
-                } );
+                });
             },
             labels: {
                 cancel: "Annuller",
@@ -107,349 +110,371 @@ function RequestService() {
     }
 }
 
-function RoleService() {
-    this.init = function() {
-		if (!isCombinedEnabled) {
-			this.initRoleGroupsTable();
-			this.initUserRolesTable();
-		}
-		else {
-			this.initCombinedTable();
-		}
-	};
-
-    this.initCheckboxes = function(checkboxClass) {
-    	$('.' + checkboxClass).iCheck({
-			checkboxClass: 'icheckbox_square-green',
-			radioClass: 'iradio_square-green',
-		});
+/**
+ * Initializes the role tables shown on the removal wizard's first step,
+ * either as separate user-role / role-group tables or as a single combined
+ * table, depending on config.isCombinedEnabled.
+ */
+class RoleService {
+    constructor(config, state, roleGroupService, userRoleService, combinedService) {
+        this.config = config;
+        this.state = state;
+        this.roleGroupService = roleGroupService;
+        this.userRoleService = userRoleService;
+        this.combinedService = combinedService;
     }
 
-	this.initRoleGroupsTable = async () => {
-		const tableId = 'roleGroupTable'
-		const checkboxClass = 'roleGroupsCheckbox'
+    init() {
+        if (!this.config.isCombinedEnabled) {
+            this.initRoleGroupsTable();
+            this.initUserRolesTable();
+        } else {
+            this.initCombinedTable();
+        }
+    }
+
+    initCheckboxes(checkboxClass) {
+        $('.' + checkboxClass).iCheck({
+            checkboxClass: 'icheckbox_square-green',
+            radioClass: 'iradio_square-green'
+        });
+    }
+
+    async initRoleGroupsTable() {
+        const tableId = 'roleGroupTable';
+        const checkboxClass = 'roleGroupsCheckbox';
+        this.initCheckboxes(checkboxClass);
+        const table = this.roleGroupService.initRoleGroups(tableId);
+        this.roleGroupService.initRoleGroupSelection(checkboxClass);
+
+        table.on('draw', () => {
+            this.roleGroupService.initRoleGroupSelection(checkboxClass);
+
+            $('.' + checkboxClass).each((index, element) => {
+                const id = element.value;
+                if (!this.state.chosenRoleGroupIds.includes(id)) {
+                    $(element).iCheck('uncheck');
+                } else {
+                    $(element).iCheck('check');
+                }
+            });
+        });
+        table.on('click', 'td.dt-control', (e) => this.roleGroupService.openCloseDetails(table, e));
+    }
+
+	async initUserRolesTable() {
+		const tableId = 'userRoleTable';
+		const checkboxClass = 'userRolesCheckbox';
 		this.initCheckboxes(checkboxClass);
-		const table = roleGroupService.initRoleGroups(tableId);
-		roleGroupService.initRoleGroupSelection(checkboxClass);
-		table.on('draw', ()=> {
-			roleGroupService.initRoleGroupSelection(checkboxClass);
+		const table = this.userRoleService.initUserRoles(tableId);
+		this.userRoleService.initUserRoleSelection(checkboxClass);
 
-			$('.'+checkboxClass).each(function () {
-				const id = this.value;
-				if (!chosenRoleGroupIds.includes(id)) {
-					$(this).iCheck('uncheck');
-				} else {
-					$(this).iCheck('check');
-				}
-			});
-		})
-		table.on('click', 'td.dt-control', e => roleGroupService.openCloseDetails(table, e));
+		table.on('draw', () => {
+			this.userRoleService.initUserRoleSelection(checkboxClass);
+		});
 	}
 
-	this.initUserRolesTable = async () => {
-		const tableId = 'userRoleTable'
-		const checkboxClass = 'userRolesCheckbox'
-		this.initCheckboxes(checkboxClass);
-		const table = userRoleService.initUserRoles(tableId);
-		userRoleService.initUserRoleSelection(checkboxClass)
-		table.on( 'draw', function () {
-			$('.'+checkboxClass).each(function () {
-				const id = this.value;
-				if (!chosenUserRoleIds.includes(id)) {
-					if (this.checked) {}
-				}
-			})
-			userRoleService.initUserRoleSelection(checkboxClass)
-		})
-	}
+    async initCombinedTable() {
+        const tableId = 'combinedRolesTable';
+        const checkboxClass = 'combinedCheckbox';
 
-	this.initCombinedTable = async () => {
-		const tableId = 'combinedRolesTable';
-		const checkboxClass = 'combinedCheckbox';
-
-		combinedService.initCheckboxes(checkboxClass);
-
-		combinedService.initCombinedTable(tableId, checkboxClass);
-		combinedService.initCombinedSelection(checkboxClass);
-	}
+        this.combinedService.initCheckboxes(checkboxClass);
+        this.combinedService.initCombinedTable(tableId, checkboxClass);
+        this.combinedService.initCombinedSelection(checkboxClass);
+    }
 }
 
-function RoleGroupService() {
-	this.initRoleGroups = function(tableId) {
-		let rgTable = $(`#` + tableId).DataTable({
-			"pageLength" : 25,
-			"responsive" : true,
-			"autoWidth" : false,
-			"columnDefs" : [{ "orderable" : false, "targets" : [0,1] }],
-			"order": [
-				[ 2, "desc" ]
-			],
-			"language" : datatableService.defaultLanguageOptions
-		});
-		return rgTable;
-	}
+/**
+ * Handles the role-group table (non-combined view) and role-group selection
+ * state for the removal wizard.
+ */
+class RoleGroupService {
+    constructor(config, state, datatableService, expandableRoleGroupTableService) {
+        this.config = config;
+        this.state = state;
+        this.datatableService = datatableService;
+        this.expandableRoleGroupTableService = expandableRoleGroupTableService;
+    }
 
-	this.openCloseDetails = function(table, e) {
-		let tr = e.target.closest('tr');
-		let row = table.row(tr);
-		if (row.child.isShown()) {
-			row.child.hide();
-		} else {
-			row.child(roleGroupService.formatDetails(row.data(), true)).show();
-		}
-		$(tr).toggleClass('dt-hasChild');
-	}
-
-	this.formatDetails = function ( rowData ) {
-		const id = rowData[0];
-		const url = `${detailsUrl}/${id}/userroles`;
-
-		let div = $('<div/>')
-			.addClass( 'loading' )
-			.text( 'Henter...' );
-		$.ajax( {
-			url: url,
-			success: function ( data ) {
-				div.html( data )
-					.removeClass( 'loading' );
-
-				expandableRoleGroupTableService.initUserRoleTable();
-			}
-		} );
-
-		return div;
-	}
-
-    this.initRoleGroupSelection = (checkboxClass)=> {
-        $('.' + checkboxClass).off();
-
-        $('.' + checkboxClass).on('ifChecked', function (event) {
-            const checkbox = event.target
-            roleGroupService.check(checkbox)
-        })
-
-        $('.' + checkboxClass).on('ifUnchecked', function (event) {
-            const checkbox = event.target
-            roleGroupService.uncheck(checkbox)
+    initRoleGroups(tableId) {
+        return $(`#${tableId}`).DataTable({
+            pageLength: 25,
+            responsive: true,
+            autoWidth: false,
+            columnDefs: [{ orderable: false, targets: [0, 1] }],
+            order: [[2, "desc"]],
+            language: this.datatableService.defaultLanguageOptions
         });
     }
 
-    this.check = (checkbox)=> {
-        const id = checkbox.value;
-        const name = checkbox.dataset.name;
-        const approver = checkbox.dataset.approver;
-        const type = roleGroupText;
-
-        if (!chosenRoleGroupIds.includes(id)) {
-            chosenRoleGroupIds.push(id);
+    openCloseDetails(table, e) {
+        const tr = e.target.closest('tr');
+        const row = table.row(tr);
+        if (row.child.isShown()) {
+            row.child.hide();
+        } else {
+            row.child(this.formatDetails(row.data())).show();
         }
+        $(tr).toggleClass('dt-hasChild');
+    }
 
-        const exists = chosenRolesDTOs.some(function(dto) {
-            return dto.id === id && dto.type === type;
+    formatDetails(rowData) {
+        const id = rowData[0];
+        const url = `${this.config.detailsUrl}/${id}/userroles`;
+
+        const div = $('<div/>')
+            .addClass('loading')
+            .text('Henter...');
+
+        $.ajax({
+            url,
+            success: (data) => {
+                div.html(data).removeClass('loading');
+                this.expandableRoleGroupTableService.initUserRoleTable();
+            }
         });
 
+        return div;
+    }
+
+    initRoleGroupSelection(checkboxClass) {
+        $('.' + checkboxClass).off();
+
+        $('.' + checkboxClass).on('ifChecked', (event) => {
+            this.check(event.target);
+        });
+
+        $('.' + checkboxClass).on('ifUnchecked', (event) => {
+            this.uncheck(event.target);
+        });
+    }
+
+    check(checkbox) {
+        const id = checkbox.value;
+        const name = checkbox.dataset.name;
+        const type = this.config.roleGroupText;
+
+        if (!this.state.chosenRoleGroupIds.includes(id)) {
+            this.state.chosenRoleGroupIds.push(id);
+        }
+
+        const exists = this.state.chosenRolesDTOs.some((dto) => dto.id === id && dto.type === type);
+
         if (!exists) {
-            chosenRolesDTOs.push({
-                id: id,
-                name: name,
+            this.state.chosenRolesDTOs.push({
+                id,
+                name,
                 itSystem: "",
-                type: type
+                type
             });
         }
     }
 
-    this.uncheck = (checkbox)=> {
+    uncheck(checkbox) {
         const id = checkbox.value;
-        const type = roleGroupText;
+        const type = this.config.roleGroupText;
 
-        const idIndex = chosenRoleGroupIds.indexOf(id);
+        const idIndex = this.state.chosenRoleGroupIds.indexOf(id);
         if (idIndex !== -1) {
-            chosenRoleGroupIds.splice(idIndex, 1);
+            this.state.chosenRoleGroupIds.splice(idIndex, 1);
         }
 
-        chosenRolesDTOs = chosenRolesDTOs.filter(function(dto) {
-            return !(dto.id === id && dto.type === type);
+        this.state.chosenRolesDTOs = this.state.chosenRolesDTOs.filter((dto) => !(dto.id === id && dto.type === type));
+    }
+}
+
+/**
+ * Handles the combined (user roles + role groups in one table) view for the
+ * removal wizard, used when config.isCombinedEnabled is true.
+ */
+class CombinedRoleService {
+    constructor(config, state, datatableService, roleGroupService, userRoleService, expandableRoleGroupTableService) {
+        this.config = config;
+        this.state = state;
+        this.datatableService = datatableService;
+        this.roleGroupService = roleGroupService;
+        this.userRoleService = userRoleService;
+        this.expandableRoleGroupTableService = expandableRoleGroupTableService;
+    }
+
+    initCombinedSelection(checkboxClass) {
+        $('.' + checkboxClass).off('ifChecked ifUnchecked');
+
+        $('.' + checkboxClass).on('ifChecked', (event) => {
+            const checkbox = event.target;
+            const type = $(checkbox).data('type');
+            const hasConstraints = $(checkbox).data('has-constraints');
+
+            if (type === 'userRole' && hasConstraints === 'true') {
+                const id = checkbox.value;
+                // NOTE: pre-existing bug, kept unchanged - see notes below.
+                window.constraintService.loadModal(id, checkbox);
+            } else if (type === 'userRole') {
+                this.userRoleService.check(checkbox);
+            } else if (type === 'roleGroup') {
+                this.roleGroupService.check(checkbox);
+            }
+        });
+
+        $('.' + checkboxClass).on('ifUnchecked', (event) => {
+            const checkbox = event.target;
+            const type = $(checkbox).data('type');
+
+            if (type === 'userRole') {
+                this.userRoleService.uncheck(checkbox);
+            } else if (type === 'roleGroup') {
+                this.roleGroupService.uncheck(checkbox);
+            }
+        });
+    }
+
+    initCombinedTable(tableId, checkboxClass) {
+        const table = $(`#${tableId}`).DataTable({
+            pageLength: 25,
+            responsive: true,
+            autoWidth: false,
+            columnDefs: [
+                { orderable: false, targets: [0, 1] },
+                { searchable: false, targets: [0, 1] }
+            ],
+            order: [
+                [2, "asc"],
+                [4, "asc"]
+            ],
+            language: this.datatableService.defaultLanguageOptions
+        });
+
+        table.on('draw', () => {
+            this.initCombinedSelection(checkboxClass);
+
+            $('.' + checkboxClass).each((index, element) => {
+                const id = element.value;
+                const type = $(element).data('type');
+
+                let isChecked = false;
+                if (type === 'userRole') {
+                    isChecked = this.state.chosenUserRoleIds.includes(id);
+                } else if (type === 'roleGroup') {
+                    isChecked = this.state.chosenRoleGroupIds.includes(id);
+                }
+
+                if (isChecked) {
+                    $(element).iCheck('check');
+                } else {
+                    $(element).iCheck('uncheck');
+                }
+            });
+        });
+
+        table.on('click', 'td.dt-control', (e) => {
+            const tr = $(e.target).closest('tr');
+            const row = table.row(tr);
+            const roleGroupId = $(e.target).data('rolegroup-id');
+
+            if (row.child.isShown()) {
+                row.child.hide();
+                $(tr).removeClass('dt-hasChild');
+            } else {
+                const url = `${this.config.detailsUrl}/${roleGroupId}/userroles`;
+
+                const div = $('<div/>')
+                    .addClass('loading')
+                    .text('Henter...');
+
+                row.child(div).show();
+                $(tr).addClass('dt-hasChild');
+
+                $.ajax({
+                    url,
+                    success: (data) => {
+                        div.html(data).removeClass('loading');
+                        this.expandableRoleGroupTableService.initUserRoleTable();
+                    }
+                });
+            }
+        });
+    }
+
+    initCheckboxes(checkboxClass) {
+        $('.' + checkboxClass).iCheck({
+            checkboxClass: 'icheckbox_square-green',
+            radioClass: 'iradio_square-green'
         });
     }
 }
 
-function CombinedRoleService() {
-	this.initCombinedSelection = function(checkboxClass) {
-		$('.' + checkboxClass).off('ifChecked ifUnchecked');
+/**
+ * Handles the user-role table (non-combined view) and user-role selection
+ * state for the removal wizard.
+ */
+class UserRoleService {
+    constructor(config, state, datatableService) {
+        this.config = config;
+        this.state = state;
+        this.datatableService = datatableService;
+    }
 
-		$('.' + checkboxClass).on('ifChecked', function(event) {
-			const checkbox = event.target;
-			const type = $(checkbox).data('type');
-			const hasConstraints = $(checkbox).data('has-constraints');
+    initUserRoles(tableId) {
+        return $(`#${tableId}`).DataTable({
+            pageLength: 25,
+            responsive: true,
+            autoWidth: false,
+            order: [[0, "desc"]],
+            language: this.datatableService.defaultLanguageOptions
+        });
+    }
 
-			if (type === 'userRole' && hasConstraints === 'true') {
-				const id = checkbox.value;
-				constraintService.loadModal(id, checkbox);
-			} else if (type === 'userRole') {
-				userRoleService.check(checkbox);
-			} else if (type === 'roleGroup') {
-				roleGroupService.check(checkbox);
-			}
-		});
-
-		$('.' + checkboxClass).on('ifUnchecked', function(event) {
-			const checkbox = event.target;
-			const type = $(checkbox).data('type');
-
-			if (type === 'userRole') {
-				userRoleService.uncheck(checkbox);
-			} else if (type === 'roleGroup') {
-				roleGroupService.uncheck(checkbox);
-			}
-		});
-	}
-
-	this.initCombinedTable = function (tableId, checkboxClass) {
-		const table = $(`#${tableId}`).DataTable({
-			"pageLength": 25,
-			"responsive": true,
-			"autoWidth": false,
-			"columnDefs": [
-				{ "orderable": false, "targets": [0, 1] },
-				{ "searchable": false, "targets": [0, 1] }
-			],
-			"order": [
-				[2, "asc"],
-				[4, "asc"]
-			],
-			"language": datatableService.defaultLanguageOptions
-		});
-
-		table.on('draw', () => {
-			combinedService.initCombinedSelection(checkboxClass);
-
-			$('.' + checkboxClass).each(function () {
-				const id = this.value;
-				const type = $(this).data('type');
-
-				let isChecked = false;
-				if (type === 'userRole') {
-					isChecked = chosenUserRoleIds.includes(id);
-				} else if (type === 'roleGroup') {
-					isChecked = chosenRoleGroupIds.includes(id);
-				}
-
-				if (isChecked) {
-					$(this).iCheck('check');
-				} else {
-					$(this).iCheck('uncheck');
-				}
-			});
-		});
-
-		table.on('click', 'td.dt-control', function(e) {
-			const tr = $(e.target).closest('tr');
-			const row = table.row(tr);
-			const roleGroupId = $(e.target).data('rolegroup-id');
-
-			if (row.child.isShown()) {
-				row.child.hide();
-				$(tr).removeClass('dt-hasChild');
-			} else {
-				const url = `${detailsUrl}/${roleGroupId}/userroles`;
-
-				let div = $('<div/>')
-					.addClass('loading')
-					.text('Henter...');
-
-				row.child(div).show();
-				$(tr).addClass('dt-hasChild');
-
-				$.ajax({
-					url: url,
-					success: function (data) {
-						div.html(data)
-							.removeClass('loading');
-
-						expandableRoleGroupTableService.initUserRoleTable();
-					}
-				});
-			}
-		});
-	}
-	this.initCheckboxes = function(checkboxClass) {
-		$('.' + checkboxClass).iCheck({
-			checkboxClass: 'icheckbox_square-green',
-			radioClass: 'iradio_square-green',
-		});
-	}
-}
-
-function UserRoleService() {
-    this.initUserRoles = function(tableId) {
-		let urTable = $(`#` + tableId).DataTable({
-			"pageLength" : 25,
-			"responsive" : true,
-			"autoWidth" : false,
-			"order": [
-				[ 0, "desc" ]
-			],
-			"language" : datatableService.defaultLanguageOptions
-		});
-
-	    return urTable;
-	}
-
-    this.initUserRoleSelection = (checkboxClass)=> {
+    initUserRoleSelection(checkboxClass) {
         $('.' + checkboxClass).off();
 
-        $('.' + checkboxClass).on('ifChecked', function (event) {
-            const checkbox = event.target
-            const hasConstraints = checkbox.dataset.hasConstraints
+        $('.' + checkboxClass).on('ifChecked', (event) => {
+            const checkbox = event.target;
+            const hasConstraints = checkbox.dataset.hasConstraints;
             if (hasConstraints === 'true') {
                 const id = checkbox.value;
-                constraintService.loadModal(id, checkbox)
+                // NOTE: pre-existing bug, kept unchanged - see notes below.
+                window.constraintService.loadModal(id, checkbox);
             } else {
-                userRoleService.check(checkbox)
+                this.check(checkbox);
             }
-        })
+        });
 
-        $('.' + checkboxClass).on('ifUnchecked', function (event) {
-            const checkbox = event.target
-            userRoleService.uncheck(checkbox)
+        $('.' + checkboxClass).on('ifUnchecked', (event) => {
+            this.uncheck(event.target);
         });
     }
 
-    this.check = (checkBox) =>{
+    check(checkBox) {
         const id = checkBox.value;
         const name = checkBox.dataset.name;
         const itSystem = checkBox.dataset.itsystem;
-        const type = userRoleText;
+        const type = this.config.userRoleText;
 
-        if (!chosenUserRoleIds.includes(id)) {
-            chosenUserRoleIds.push(id);
+        if (!this.state.chosenUserRoleIds.includes(id)) {
+            this.state.chosenUserRoleIds.push(id);
         }
 
-        const exists = chosenRolesDTOs.some(function(dto) {
-            return dto.id === id && dto.type === type;
-        });
+        const exists = this.state.chosenRolesDTOs.some((dto) => dto.id === id && dto.type === type);
 
         if (!exists) {
-            chosenRolesDTOs.push({
-                id: id,
-                name: name,
-                itSystem: itSystem,
-                type: type
+            this.state.chosenRolesDTOs.push({
+                id,
+                name,
+                itSystem,
+                type
             });
         }
     }
 
-    this.uncheck =(checkBox) =>{
+    uncheck(checkBox) {
         const id = checkBox.value;
-        const type = userRoleText;
+        const type = this.config.userRoleText;
 
-        const idIndex = chosenUserRoleIds.indexOf(id);
+        const idIndex = this.state.chosenUserRoleIds.indexOf(id);
         if (idIndex !== -1) {
-            chosenUserRoleIds.splice(idIndex, 1);
+            this.state.chosenUserRoleIds.splice(idIndex, 1);
         }
 
-        chosenRolesDTOs = chosenRolesDTOs.filter(function(dto) {
-            return !(dto.id === id && dto.type === type);
-        });
+        this.state.chosenRolesDTOs = this.state.chosenRolesDTOs.filter((dto) => !(dto.id === id && dto.type === type));
     }
 }

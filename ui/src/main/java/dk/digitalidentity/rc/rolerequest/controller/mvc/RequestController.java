@@ -1,5 +1,22 @@
 package dk.digitalidentity.rc.rolerequest.controller.mvc;
 
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
+
+import org.springframework.http.HttpStatus;
+import org.springframework.stereotype.Controller;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.ui.Model;
+import org.springframework.util.StringUtils;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.server.ResponseStatusException;
+
 import dk.digitalidentity.rc.controller.mvc.viewmodel.OUListForm;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.SystemRoleAssignmentConstraintValueDTO;
 import dk.digitalidentity.rc.controller.mvc.viewmodel.SystemRoleAssignmentDTO;
@@ -18,9 +35,11 @@ import dk.digitalidentity.rc.rolerequest.service.RequestAuthorizedRoleService;
 import dk.digitalidentity.rc.rolerequest.service.RequestConstraintService;
 import dk.digitalidentity.rc.rolerequest.service.RequestService;
 import dk.digitalidentity.rc.security.SecurityUtil;
+import dk.digitalidentity.rc.security.RequireNoRole;
 import dk.digitalidentity.rc.service.ManagerSubstituteService;
 import dk.digitalidentity.rc.service.OrgUnitService;
 import dk.digitalidentity.rc.service.PNumberService;
+import dk.digitalidentity.rc.service.PostponedConstraintService;
 import dk.digitalidentity.rc.service.SENumberService;
 import dk.digitalidentity.rc.service.Select2Service;
 import dk.digitalidentity.rc.service.SettingsService;
@@ -30,27 +49,11 @@ import dk.digitalidentity.rc.service.assignment.AssignmentService;
 import dk.digitalidentity.rc.service.model.AssignedThrough;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.HttpStatus;
-import org.springframework.stereotype.Controller;
-import org.springframework.transaction.annotation.Transactional;
-import org.springframework.ui.Model;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.server.ResponseStatusException;
-
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.stream.Collectors;
 
 @RequiredArgsConstructor
 @Slf4j
+@RequireNoRole
 @Controller
-@RequestMapping("/ui/request")
 public class RequestController {
 	private final UserService userService;
 	private final SettingsService settingsService;
@@ -65,6 +68,7 @@ public class RequestController {
 	private final ManagerSubstituteService managerSubstituteService;
 	private final RequestService requestService;
 	private final AssignmentService assignmentService;
+	private final PostponedConstraintService postponedConstraintService;
 
 	record RoleGroupListEntry(long id, long assignmentId, String name, String description, String status,
 							  String assignedThroughName, boolean removable, boolean pendingRemoval) {
@@ -78,7 +82,7 @@ public class RequestController {
 						  String status, boolean cancelable) {
 	}
 
-	@GetMapping
+	@GetMapping("/ui/request")
 	public String index(Model model) {
 		if (!settingsService.isRequestApproveEnabled()) {
 			return "redirect:/error";
@@ -101,7 +105,8 @@ public class RequestController {
 			final AssignedThrough assignedThrough = assignmentService.getAssignedThroughForRoleGroup(currentAssignment);
 			boolean requestRemovalPossible = assignedThrough.equals(AssignedThrough.DIRECT)
 				&& !removalPending
-				&& rolerequestService.canRequestRemoval(user, currentAssignment.getRoleGroup(), user);
+				&& rolerequestService.canRequestRemoval(
+					user, currentAssignment.getRoleGroup(), user, settingsService.getRolerequestRequester());
 
 			roleGroups.add(new RoleGroupListEntry(
 				currentAssignment.getRoleGroup().getId(),
@@ -139,7 +144,7 @@ public class RequestController {
 			if (currentAssignment.getRoleGroup() != null) {
 				continue;
 			}
-			
+
 			// empty assignments (no roles) CAN happen, so check for these
 			if (currentAssignment.getUserRole() == null) {
 				continue;
@@ -151,7 +156,7 @@ public class RequestController {
 			List<RequestableBy> globalRequesterSetting = settingsService.getRolerequestRequester();
 			boolean requestRemovalPossible = assignedThrough.equals(AssignedThrough.DIRECT)
 				&& !removalPending
-				&& rolerequestService.canRequestRemoval(userRole, user, globalRequesterSetting);
+				&& rolerequestService.canRequestRemoval(user, userRole, user, globalRequesterSetting);
 
 			userRoles.add(new UserRoleListEntry(userRole.getId(),
 				currentAssignment.getAssignmentId(),
@@ -193,7 +198,7 @@ public class RequestController {
 	record RequestEmployee(String uuid, String userId, String name, Set<String> positions, boolean hasRoles) {
 	}
 
-	@GetMapping(value = "employees")
+	@GetMapping("/ui/request/employees")
 	public String requestForEmployee(Model model) {
 		if (!settingsService.isRequestApproveEnabled()) {
 			return "redirect:/error";
@@ -208,7 +213,8 @@ public class RequestController {
 	}
 
 	record RoleForUser(long id, long assignmentId, String itSystemName, String name, String description, boolean removable) {}
-	@GetMapping(value = "remove/wizard")
+
+	@GetMapping("/ui/request/remove/wizard")
 	@Transactional(readOnly = true)
 	public String requestRemoveWizard(Model model, @RequestParam(required = false) String uuid) {
 		if (!settingsService.isRequestApproveEnabled()) {
@@ -239,7 +245,8 @@ public class RequestController {
 				// ROLEGROUP for them, so a directly-assigned role group would otherwise never be removable here.
 				final AssignedThrough assignedThrough = assignmentService.getAssignedThroughForRoleGroup(assignment);
 				boolean requestRemovalPossible = assignedThrough.equals(AssignedThrough.DIRECT)
-					&& rolerequestService.canRequestRemoval(loggedInUser, roleGroup, requestForUser);
+					&& rolerequestService.canRequestRemoval(
+						loggedInUser, roleGroup, requestForUser, settingsService.getRolerequestRequester());
 
 				// if already stored, only overwrite when the new assignment is DIRECT and the stored one
 				// wasn't, so a DIRECT (removable) assignment is never shadowed by an indirect one (e.g.
@@ -252,7 +259,7 @@ public class RequestController {
 				final AssignedThrough assignedThrough = assignmentService.getAssignedThrough(assignment);
 				final UserRole userRole = assignment.getUserRole();
 				boolean requestRemovalPossible = assignedThrough.equals(AssignedThrough.DIRECT)
-					&& rolerequestService.canRequestRemoval(userRole, requestForUser, settingsService.getRolerequestRequester());
+					&& rolerequestService.canRequestRemoval(loggedInUser, userRole, requestForUser, settingsService.getRolerequestRequester());
 				userRoles.add(new RoleForUser(userRole.getId(), assignment.getAssignmentId(), userRole.getItSystem().getName(), userRole.getName(), userRole.getDescription(), requestRemovalPossible));
 			}
 		}
@@ -270,7 +277,7 @@ public class RequestController {
 	record PositionDTO(long id, String position, String orgUnitName) {
 	}
 
-	@GetMapping(value = "wizard")
+	@GetMapping("/ui/request/wizard")
 	public String requestWizard(Model model, @RequestParam(required = false) String uuid) {
 		if (!settingsService.isRequestApproveEnabled()) {
 			return "redirect:/error";
@@ -311,9 +318,14 @@ public class RequestController {
 			model.addAttribute("userUuid", requestForUser.getUuid());
 			model.addAttribute("titleAddition", " til " + requestForUser.getEntityName());
 		}
-		model.addAttribute("isCombinedEnabled", settingsService.isShowSingleTableInRequestApproveEnabled());
+		boolean showRecommendedTab = settingsService.isShowRecommendedRolesTab();
+		boolean showAllTab = settingsService.isShowAllRolesTab();
+		boolean showExistingTab = settingsService.isShowExistingRolesTab();
+		model.addAttribute("showRecommendedTab", showRecommendedTab);
+		model.addAttribute("showAllTab", showAllTab);
+		model.addAttribute("showExistingTab", showExistingTab);
+		model.addAttribute("isCombinedEnabled", settingsService.isShowSingleTableInRequestApproveEnabled() && showRecommendedTab && showAllTab);
 		model.addAttribute("reasonSetting", settingsService.getRolerequestReason());
-		model.addAttribute("onlyRecommendRoles", settingsService.getOnlyRecommendRoles());
 
 		List<OUListForm> allOUs = orgUnitService.getAllCached()
 			.stream()
@@ -325,7 +337,7 @@ public class RequestController {
 		return "requestmodule/wizard/request";
 	}
 
-	@GetMapping(value = "wizard/roles")
+	@GetMapping("/ui/request/wizard/roles")
 	public String requestWizardRoles(Model model, @RequestParam String user, @RequestParam long position) {
 		if (!settingsService.isRequestApproveEnabled()) {
 			throw new IllegalArgumentException("Request/Approve module is not enabled");
@@ -349,13 +361,19 @@ public class RequestController {
 			return "requestmodule/error";
 		}
 
-		model.addAttribute("onlyRecommendRoles", settingsService.getOnlyRecommendRoles());
-		model.addAttribute("showCombinedTable", settingsService.isShowSingleTableInRequestApproveEnabled());
+		boolean showRecommendedTab = settingsService.isShowRecommendedRolesTab();
+		boolean showAllTab = settingsService.isShowAllRolesTab();
+		boolean showExistingTab = settingsService.isShowExistingRolesTab();
+		model.addAttribute("showRecommendedTab", showRecommendedTab);
+		model.addAttribute("showAllTab", showAllTab);
+		model.addAttribute("showExistingTab", showExistingTab);
+		model.addAttribute("showCombinedTable", settingsService.isShowSingleTableInRequestApproveEnabled() && showRecommendedTab && showAllTab);
 		return "requestmodule/wizard/fragments/roles :: rolesForWizard";
 	}
 
-	@GetMapping(value = "wizard/constraintfragment")
-	public String userroleConstraintModal(Model model, @RequestParam long roleId) {
+	@GetMapping("/ui/request/wizard/constraintfragment")
+	@Transactional(readOnly = true)
+	public String userroleConstraintModal(Model model, @RequestParam long roleId, @RequestParam(required = false) String userUuid) {
 		List<SystemRoleAssignmentDTO> systemRoleAssignmentsDTOs = new ArrayList<>();
 
 		UserRole role = userRoleService.getById(roleId);
@@ -372,12 +390,44 @@ public class RequestController {
 		//Get restricted values
 		List<String> globalConstraints = constraintService.getAllConstraints().stream().map(RequestConstraint::getValue).toList();
 
+		// If the receiver already has this exact role assigned (possibly several times, each with its own constraint values),
+		// resolve every assignment's postponed constraints separately so no distinct value is dropped, then merge them for display
+		List<SystemRoleAssignmentDTO> existingPostponedConstraintDisplayValues = new ArrayList<>();
+		if (role.isAllowPostponing() && userUuid != null) {
+			User existingAssignmentUser = userService.getOptionalByUuid(userUuid).orElse(null);
+			if (existingAssignmentUser != null) {
+				Set<CurrentAssignment> currentAssignments = assignmentService.getByUserRoleAndUserIncludingInactive(role, existingAssignmentUser);
+				for (CurrentAssignment currentAssignment : currentAssignments) {
+					existingPostponedConstraintDisplayValues.addAll(
+						postponedConstraintService.resolvePostponedConstraintDisplayValues(role, currentAssignment.getPostponedConstraints()));
+				}
+			}
+		}
+
 		if (role.isAllowPostponing()) {
 			systemRoleAssignmentsDTOs = role.getSystemRoleAssignments().stream().map(systemRoleAssignment -> {
 					List<SystemRoleAssignmentConstraintValueDTO> postponedConstraintValues = systemRoleAssignment.getConstraintValues().stream()
 						.filter(constraintValue ->
 							constraintValue.isPostponed() && !globalConstraints.contains(constraintValue.getConstraintValue()) // Filter value if it contains a global constraint
-						).map(SystemRoleAssignmentConstraintValueDTO::new)
+						).map(constraintValue -> {
+							SystemRoleAssignmentConstraintValueDTO dto = new SystemRoleAssignmentConstraintValueDTO(constraintValue);
+
+							// Collect the resolved value from every existing assignment (there can be several, each with a different value for this constraint type)
+							List<String> existingValues = existingPostponedConstraintDisplayValues.stream()
+								.filter(existingSystemRoleAssignment -> existingSystemRoleAssignment.getSystemRole().getId() == systemRoleAssignment.getSystemRole().getId())
+								.flatMap(existingSystemRoleAssignment -> existingSystemRoleAssignment.getPostponedConstraints().stream())
+								.filter(existingConstraint -> existingConstraint.getConstraintType().getUuid().equals(constraintValue.getConstraintType().getUuid()))
+								.map(SystemRoleAssignmentConstraintValueDTO::getConstraintValue)
+								.filter(StringUtils::hasLength)
+								.distinct()
+								.toList();
+
+							if (!existingValues.isEmpty()) {
+								dto.setExistingValue(String.join(", ", existingValues));
+							}
+
+							return dto;
+						})
 						.toList();
 
 					SystemRoleAssignmentDTO systemRoleAssignmentDTO = new SystemRoleAssignmentDTO();

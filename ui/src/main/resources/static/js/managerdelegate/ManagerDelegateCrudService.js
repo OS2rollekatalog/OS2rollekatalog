@@ -1,19 +1,26 @@
-let datePickerService, select2Service, networkService;
-let indefinitelyState = false;
-
+/**
+ * Handles create/edit/delete flows for manager delegates, including
+ * loading the modal fragments and wiring up their form controls.
+ */
 class ManagerDelegateCrudService {
+    uiUrl
+    restUrl
+    networkService
+    sweetAlertService
     datePickerService
-    select2Service;
-    indefinitelyState = false;
+    select2Service
+    indefinitelyState = false
 
-    constructor() {
-        networkService = new NetworkService()
+    constructor(uiUrl, restUrl) {
+        this.uiUrl = uiUrl
+        this.restUrl = restUrl
+        this.networkService = new NetworkService()
+        this.sweetAlertService = new SweetAlertService()
     }
 
     async loadCreateModal() {
         const modalContainer = document.getElementById('modalContainer')
-
-        const ok = await networkService.GetFragment(`${uiURL}/create`, modalContainer)
+        const ok = await this.networkService.GetFragment(`${this.uiUrl}/create`, modalContainer)
 
         if (ok) {
             this.initModal(false)
@@ -23,11 +30,11 @@ class ManagerDelegateCrudService {
 
     async loadEditModal(id) {
         if (!id) {
-            return;
+            return
         }
-        const modalContainer = document.getElementById('modalContainer')
 
-        const ok = await networkService.GetFragment(`${uiURL}/edit?id=${id}`, modalContainer)
+        const modalContainer = document.getElementById('modalContainer')
+        const ok = await this.networkService.GetFragment(`${this.uiUrl}/edit?id=${id}`, modalContainer)
 
         if (ok) {
             this.initModal(true)
@@ -35,156 +42,147 @@ class ManagerDelegateCrudService {
         }
     }
 
+    async deleteManagerDelegate(id) {
+        this.sweetAlertService.confirm(
+            'Slet personlig godkender',
+            'Du er ved at slette denne personlige godkender. Vil du fortsætte?',
+            'Fortsæt',
+            'Fortryd',
+            async () => {
+                const url = `${this.restUrl}/delete/${id}`
+                await this.networkService.Delete(url)
+                location.reload()
+            }
+        )
+    }
+
     initModal(editMode) {
-        datePickerService = new DatePickerService()
-        select2Service = new Select2Service()
-        datePickerService.initDatePicker('fromDateInputContainer')
-        datePickerService.initDatePicker('toDateInputContainer')
-        datePickerService.initToAndFromConnection('fromDateInputContainer', 'toDateInputContainer')
+        this.datePickerService = new DatePickerService()
+        this.select2Service = new Select2Service()
 
-        select2Service.initServerSideSelect('#delegateInput', `${restURL}/users`)
-        select2Service.initServerSideSelect('#managerInput', `${restURL}/managers`)
+        this.datePickerService.initDatePicker('fromDateInputContainer')
+        this.datePickerService.initDatePicker('toDateInputContainer')
+        this.datePickerService.initToAndFromConnection('fromDateInputContainer', 'toDateInputContainer')
 
-        this.#initIndefinitelyCheckbox()
+        this.select2Service.initServerSideSelect('#delegateInput', `${this.restUrl}/users`)
+        this.select2Service.initServerSideSelect('#managerInput', `${this.restUrl}/managers`)
+
+        this.initIndefinitelyCheckbox()
 
         if (editMode) {
-            //Initialization specific to editmode
-            const initialFromValue = document.getElementById('fromDateInput').dataset.val
-            const initialToValue = document.getElementById('toDateInput').dataset.val
-            const fromValueAsDate =new Date(moment(initialFromValue, 'DD-MM-YYYY'))
-            const toValueAsDate = new Date(moment(initialToValue, 'DD-MM-YYYY'))
-
-            datePickerService.setDate('fromDateInputContainer', fromValueAsDate)
-            if (initialToValue) {
-                datePickerService.setDate('toDateInputContainer',toValueAsDate)
-            }
-
-            datePickerService.disable('fromDateInputContainer')
-
-            const editConfirmBtn = document.getElementById('editManagerDelegateBtn')
-            editConfirmBtn.addEventListener('click', async ()=> {
-                const data = this.collectModalInputValues()
-                data.id = document.getElementById('managerDelegateId').value
-                if (data && data.id) {
-                    const url = `${restURL}/update`
-                    const ok = await networkService.Post(url, data)
-                    if (ok) {
-                        // $('#editManagerModal').modal('hide')
-                        location.reload()
-                    }
-                }
-            })
+            this.initEditMode()
         } else {
-            //Initialization specific to create mode
-            const today = new Date()
-            const todayPlus14 = new Date(new Date().setDate(today.getDate()+14))
-            datePickerService.setDate('fromDateInputContainer', today)
-            datePickerService.setDate('toDateInputContainer', todayPlus14)
-            datePickerService.setMinDate('fromDateInputContainer', today)
-
-            const createConfirmBtn = document.getElementById('createManagerDelegateBtn')
-            createConfirmBtn.addEventListener('click', async ()=> {
-                const data = this.collectModalInputValues()
-                if (data) {
-                    const url = `${restURL}/create`
-                    const ok = await networkService.Post(url, data)
-                    if (ok) {
-                        // $('#createManagerModal').modal('hide')
-                        location.reload()
-                    }
-                }
-            })
+            this.initCreateMode()
         }
     }
 
-    #initIndefinitelyCheckbox() {
+    initEditMode() {
+        const initialFromValue = document.getElementById('fromDateInput').dataset.val
+        const initialToValue = document.getElementById('toDateInput').dataset.val
+        const fromValueAsDate = new Date(moment(initialFromValue, 'DD-MM-YYYY'))
+        const toValueAsDate = new Date(moment(initialToValue, 'DD-MM-YYYY'))
+
+        this.datePickerService.setDate('fromDateInputContainer', fromValueAsDate)
+        if (initialToValue) {
+            this.datePickerService.setDate('toDateInputContainer', toValueAsDate)
+        }
+
+        this.datePickerService.disable('fromDateInputContainer')
+
+        const editConfirmBtn = document.getElementById('editManagerDelegateBtn')
+        editConfirmBtn.addEventListener('click', async () => {
+            const data = this.collectModalInputValues()
+            if (!data) {
+                return
+            }
+            data.id = document.getElementById('managerDelegateId').value
+
+            const url = `${this.restUrl}/update`
+            const ok = await this.networkService.Post(url, data)
+            if (ok) {
+                location.reload()
+            }
+        })
+    }
+
+    initCreateMode() {
+        const today = new Date()
+        const todayPlus14 = new Date(new Date().setDate(today.getDate() + 14))
+
+        this.datePickerService.setDate('fromDateInputContainer', today)
+        this.datePickerService.setDate('toDateInputContainer', todayPlus14)
+        this.datePickerService.setMinDate('fromDateInputContainer', today)
+
+        const createConfirmBtn = document.getElementById('createManagerDelegateBtn')
+        createConfirmBtn.addEventListener('click', async () => {
+            const data = this.collectModalInputValues()
+            if (!data) {
+                return
+            }
+
+            const url = `${this.restUrl}/create`
+            const ok = await this.networkService.Post(url, data)
+            if (ok) {
+                location.reload()
+            }
+        })
+    }
+
+    initIndefinitelyCheckbox() {
         const indefinitelyCheckbox = document.getElementById('indefinitelyCheckbox')
         indefinitelyCheckbox.addEventListener('click', () => {
-            indefinitelyState = indefinitelyCheckbox.checked === true
-            if (indefinitelyState) {
-                datePickerService.disable('toDateInputContainer')
+            this.indefinitelyState = indefinitelyCheckbox.checked === true
+            if (this.indefinitelyState) {
+                this.datePickerService.disable('toDateInputContainer')
             } else {
-                datePickerService.enable('toDateInputContainer')
+                this.datePickerService.enable('toDateInputContainer')
             }
         })
     }
 
     collectModalInputValues() {
-        //gather values
-        const managerUuidElement = document.getElementById('managerInput')
-        const managerUuid = managerUuidElement.value
-        const delegateUuidElement = document.getElementById('delegateInput')
-        const delegateUuid = delegateUuidElement.value
-        const fromDateElement = document.getElementById('fromDateInput')
-        const fromDate = fromDateElement.value
-        const toDateElement = document.getElementById('toDateInput')
-        const toDate = toDateElement.value
+        const managerUuid = document.getElementById('managerInput').value
+        const delegateUuid = document.getElementById('delegateInput').value
+        const fromDate = document.getElementById('fromDateInput').value
+        const toDate = document.getElementById('toDateInput').value
         const indefinitely = document.getElementById('indefinitelyCheckbox').checked
 
-        //validation
-         const warnings = {
-            'managerWarning': false,
-            'delegateWarning':false,
-            'fromWarning':false,
-            'toWarning':false,
-         }
+        const warnings = {
+            managerWarning: false,
+            delegateWarning: false,
+            fromWarning: false,
+            toWarning: false
+        }
 
         if (!managerUuid) {
-            warnings['managerWarning'] = true
+            warnings.managerWarning = true
         }
         if (!delegateUuid) {
-            warnings['delegateWarning'] = true
+            warnings.delegateWarning = true
         }
-        if(!fromDate) {
-            warnings['fromWarning'] = true
+        if (!fromDate) {
+            warnings.fromWarning = true
         }
-        if(indefinitely && !toDate) {
-            warnings['toWarning'] = true
+        if (!indefinitely && !toDate) {
+            warnings.toWarning = true
         }
 
-        for (let [key, value] of Object.entries(warnings)) {
-            //set warning visibility
+        for (const [key, value] of Object.entries(warnings)) {
             const warningElement = document.getElementById(key)
-            warningElement.hidden = !value;
+            warningElement.hidden = !value
         }
 
-        const errors = Object.values(warnings).filter(e => e === true).length>0
-        if (errors) {
-            //returns null if any validation errors is present
-            return null;
+        const hasErrors = Object.values(warnings).some((warning) => warning === true)
+        if (hasErrors) {
+            return null
         }
 
         return {
-            managerUuid:managerUuid,
-            delegateUuid:delegateUuid,
-            fromDate:fromDate,
+            managerUuid,
+            delegateUuid,
+            fromDate,
             toDate: indefinitely ? null : toDate,
-            indefinitely:indefinitely
+            indefinitely
         }
-    }
-
-    async deleteManagerDelegate(id)  {
-
-        swal({
-                html : true,
-                title : "Slet personlig godkender",
-                text : "Du er ved at slette denne personlige godkender. Vil du fortsætte?",
-                type : "warning",
-                showCancelButton : true,
-                confirmButtonColor : "#DD6B55",
-                confirmButtonText : "Fortsæt",
-                cancelButtonText : "Fortryd",
-                closeOnConfirm : true,
-                closeOnCancel : true
-            },
-            async function(isConfirm) {
-                if (isConfirm) {
-                    const url = `${restURL}/delete/${id}`
-                    await networkService.Delete(url)
-                    location.reload()
-                }
-            });
-
-
     }
 }

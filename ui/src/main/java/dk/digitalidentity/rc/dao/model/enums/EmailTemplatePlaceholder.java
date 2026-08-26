@@ -35,7 +35,10 @@ public enum EmailTemplatePlaceholder {
 	ACTION_PLACEHOLDER("{handling}", "html.enum.placeholders.description.action"),
 	ACTION_PAST_PLACEHOLDER("{handlet}", "html.enum.placeholders.description.action_past"),
 	ASSIGNED_BY_PLACEHOLDER("{tildeler}", "html.enum.placeholders.description.assigned_by"),
-	ROLE_DESCRIPTION_PLACEHOLDER("{rollebeskrivelse}", "html.enum.placeholders.description.role_description", true);
+	ROLE_DESCRIPTION_PLACEHOLDER("{rollebeskrivelse}", "html.enum.placeholders.description.role_description", true),
+	CONSTRAINT_VALUES_PLACEHOLDER("{afgrænsninger}", "html.enum.placeholders.description.constraint_values"),
+	TASK_LINK_PLACEHOLDER("{link}", "html.enum.placeholders.description.task_link"),
+	COMMENT_PLACEHOLDER("{supplerende_kommentar}", "html.enum.placeholders.description.comment");
 
 	private final String placeholder;
 	private final String description;

@@ -181,8 +181,10 @@ public class UserRoleRestController {
 			return new ResponseEntity<>("Ukendt Jobfunktionsrolle", HttpStatus.BAD_REQUEST);
 		}
 
-		if (requesterChangeRequest.requesterPermission == null || requesterChangeRequest.requesterPermission.isEmpty()) {
+		if (requesterChangeRequest.requesterPermission == null) {
 			role.setRequesterPermission(List.of(RequestableBy.INHERIT));
+		} else if (requesterChangeRequest.requesterPermission.isEmpty()) {
+			role.setRequesterPermission(List.of(RequestableBy.NONE));
 		} else {
 			role.setRequesterPermission(requesterChangeRequest.requesterPermission);
 		}

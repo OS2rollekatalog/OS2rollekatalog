@@ -13,6 +13,7 @@ import dk.digitalidentity.rc.controller.api.model.OrgUnitRoleGroupAssignmentAM;
 import dk.digitalidentity.rc.controller.api.model.OrgUnitUserRoleAssignmentAM;
 import dk.digitalidentity.rc.controller.api.model.PostponedConstraintAM;
 import dk.digitalidentity.rc.controller.api.model.TitleShallowAM;
+import dk.digitalidentity.rc.controller.api.model.UserRoleMemberCountAM;
 import dk.digitalidentity.rc.controller.api.model.UserShallowAM;
 import dk.digitalidentity.rc.controller.api.model.assignmentscopes.AssignmentScopeAM;
 import dk.digitalidentity.rc.controller.api.model.assignmentscopes.ExceptedUserScopeAM;
@@ -39,6 +40,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -121,7 +123,7 @@ public class RoleAssignmentApiV2 {
 
 			Domain foundDomain = domainService.getDomainOrPrimary(body.domain);
 			if (foundDomain == null) {
-				return new ResponseEntity<>("Failed to find domain with name " + body.domain, HttpStatus.NOT_FOUND);
+				throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Failed to find domain with name " + body.domain);
 			}
 
 			User user = userService.getByUserId(userUuid, foundDomain);
@@ -133,9 +135,9 @@ public class RoleAssignmentApiV2 {
 		UserRole userRole = userRoleService.getById(userRoleId);
 
 		if (users.size() == 0) {
-			return new ResponseEntity<>(ErrorMessage.USER_NOT_FOUND, HttpStatus.NOT_FOUND);
+			throw new ResponseStatusException(HttpStatus.NOT_FOUND, ErrorMessage.USER_NOT_FOUND);
 		} else if (userRole == null) {
-			return new ResponseEntity<>(ErrorMessage.USER_ROLE_NOT_FOUND, HttpStatus.NOT_FOUND);
+			throw new ResponseStatusException(HttpStatus.NOT_FOUND, ErrorMessage.USER_ROLE_NOT_FOUND);
 		}
 
 		List<PostponedConstraint> resultConstaints = new ArrayList<>();
@@ -293,6 +295,20 @@ public class RoleAssignmentApiV2 {
 		final OrgUnit orgUnit = orgUnitService.getOptionalByUuid(orgUnitUuid)
 			.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "OrgUnit not found"));
 		return new ResponseEntity<>(AssignmentMapper.roleGroupAssignmentsToAM(orgUnit.getRoleGroupAssignments()), HttpStatus.OK);
+	}
+
+	@Transactional(readOnly = true)
+	@Operation(summary = "Get, for each UserRole directly assigned to members of an OrgUnit, how many members hold it.")
+	@GetMapping(value = "organisation/{orgUnitUuid}/assignment/userrole/counts")
+	public ResponseEntity<List<UserRoleMemberCountAM>> getUserRoleMemberCounts(@PathVariable final String orgUnitUuid,
+			@RequestParam(name = "includeDescendants", required = false, defaultValue = "false") final boolean includeDescendants) {
+		final OrgUnit orgUnit = orgUnitService.getOptionalByUuid(orgUnitUuid)
+			.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "OrgUnit not found"));
+		final List<UserRoleMemberCountAM> counts = assignmentService.getDirectUserRoleMemberCounts(orgUnit, includeDescendants).stream()
+			.filter(p -> p.getUserRoleId() != null && p.getMemberCount() != null)
+			.map(p -> UserRoleMemberCountAM.builder().userRoleId(p.getUserRoleId()).memberCount(p.getMemberCount()).build())
+			.toList();
+		return new ResponseEntity<>(counts, HttpStatus.OK);
 	}
 
 	private static void validateScopes(final BaseOrgUnitAssignmentAM assignmentAM) {

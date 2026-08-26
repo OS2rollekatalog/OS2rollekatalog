@@ -5,6 +5,9 @@ import dk.digitalidentity.rc.dao.model.RoleGroupUserRoleAssignment;
 import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.assignment.CurrentAssignment;
 import dk.digitalidentity.rc.rolerequest.controller.mvc.enums.RoleType;
+import dk.digitalidentity.rc.rolerequest.service.RequestService;
+import dk.digitalidentity.rc.security.RequireNoRole;
+import dk.digitalidentity.rc.security.SecurityUtil;
 import dk.digitalidentity.rc.service.RoleGroupService;
 import dk.digitalidentity.rc.service.SettingsService;
 import dk.digitalidentity.rc.service.UserService;
@@ -26,6 +29,7 @@ import java.util.Locale;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+@RequireNoRole
 @Controller
 public class RequestRoleListController {
 
@@ -42,6 +46,9 @@ public class RequestRoleListController {
 
 	@Autowired
 	private AssignmentService assignmentService;
+
+	@Autowired
+	private RequestService requestService;
 
 	record RoleGroupUserRole(String itSystemName, String name, String description) {}
 	@GetMapping(value = "/ui/request/rolegroups/{roleGroupId}/userroles")
@@ -71,6 +78,12 @@ public class RequestRoleListController {
 		}
 
 		User user = userService.getOptionalByUuid(uuid).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User with uuid " + uuid + " not found"));
+
+		User loggedInUser = userService.getByUserId(SecurityUtil.getUserId());
+		if (loggedInUser == null || !requestService.canRequestFor(loggedInUser, user)) {
+			throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Not allowed to view roles for this user");
+		}
+
 		List<RoleForUser> userRoles = new ArrayList<>();
 		List<RoleForUser> roleGroups = new ArrayList<>();
 

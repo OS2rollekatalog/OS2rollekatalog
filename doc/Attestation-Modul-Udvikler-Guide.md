@@ -531,7 +531,7 @@ rc.attestation.escalationReminderDaysAfterDeadline = 5
 * `ROLE_MANAGER`
 * `ROLE_SUBSTITUTE`
 * `ROLE_IT_SYSTEM_RESPONSIBLE`
-* `ROLE_MANAGER_SUBSTITUDE` (delegate)
+* `ROLE_MANAGER_SUBSTITUTE` (delegate)
 
 ## 7. Kodelandkort
 

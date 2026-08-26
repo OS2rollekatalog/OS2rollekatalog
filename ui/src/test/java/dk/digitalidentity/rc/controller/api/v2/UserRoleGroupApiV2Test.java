@@ -2,10 +2,14 @@ package dk.digitalidentity.rc.controller.api.v2;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import dk.digitalidentity.rc.dao.model.OrgUnit;
+import dk.digitalidentity.rc.dao.model.Position;
 import dk.digitalidentity.rc.dao.model.RoleGroup;
+import dk.digitalidentity.rc.dao.model.Title;
 import dk.digitalidentity.rc.dao.model.User;
 import dk.digitalidentity.rc.dao.model.UserRole;
 import dk.digitalidentity.rc.dao.model.enums.AccessRole;
+import dk.digitalidentity.rc.service.OrgUnitService;
 import dk.digitalidentity.rc.service.RoleGroupService;
 import dk.digitalidentity.rc.service.UserRoleService;
 import dk.digitalidentity.rc.service.UserService;
@@ -21,6 +25,7 @@ import org.springframework.restdocs.payload.JsonFieldType;
 import org.springframework.test.web.servlet.MvcResult;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 
@@ -68,6 +73,9 @@ public class UserRoleGroupApiV2Test extends AbstractApiTest {
 
 	@Autowired
 	private CurrentAssignmentService currentAssignmentService;
+
+	@Autowired
+	private OrgUnitService orgUnitService;
 
 	@Override
 	protected List<String> getRequiredApiRoles() {
@@ -549,5 +557,217 @@ public class UserRoleGroupApiV2Test extends AbstractApiTest {
 		this.mockMvc.perform(delete("/api/v2/rolegroup/{id}", 999999)
 				.header("ApiKey", API_KEY))
 			.andExpect(status().isNotFound());
+	}
+
+	/**
+	 * Tests that a role group assigned directly to a user is reported as DIRECT with no org unit.
+	 *
+	 * @throws Exception if HTTP request fails or test data is missing
+	 */
+	@Test
+	@DisplayName("Should report role group assigned directly to user as DIRECT")
+	void testGetAssignmentsByRoleGroup_directToUser() throws Exception {
+		User user = userService.getByUserId(username);
+		RoleGroup roleGroup = firstRoleGroup();
+
+		userService.addRoleGroup(user, roleGroup, null, null, null, null);
+		recalculateFor(username);
+
+		JsonNode entry = singleEntryForUser(roleGroup, username, "rolegroup-v2-assignments");
+
+		assertThat(entry.path("assignedThrough").asText()).isEqualTo("DIRECT");
+		assertThat(entry.hasNonNull("orgUnit")).as("orgUnit should not be set for a direct assignment").isFalse();
+		assertThat(entry.path("assignmentId").asLong()).isPositive();
+		assertThat(entry.path("assignmentType").asText()).isEqualTo("USER_ROLE_GROUP");
+		assertThat(entry.path("roleGroup").path("id").asLong())
+			.as("roleGroup is always the requested one on this endpoint")
+			.isEqualTo(roleGroup.getId());
+	}
+
+	/**
+	 * Tests that a role group assigned to an org unit is reported as ORG_UNIT with the org unit
+	 * the assignment was made on - the field that {@code /users} does not expose.
+	 *
+	 * @throws Exception if HTTP request fails or test data is missing
+	 */
+	@Test
+	@DisplayName("Should report role group assigned to org unit as ORG_UNIT with the org unit set")
+	void testGetAssignmentsByRoleGroup_viaOrgUnit() throws Exception {
+		User user = userService.getByUserId(username);
+		OrgUnit orgUnit = user.getPositions().stream()
+			.map(Position::getOrgUnit)
+			.findFirst()
+			.orElseThrow(() -> new RuntimeException("Test user has no position"));
+		RoleGroup roleGroup = firstRoleGroup();
+
+		orgUnitService.addRoleGroup(orgUnit, roleGroup, false, null, null, new HashSet<>(), new HashSet<>());
+		recalculateFor(username);
+
+		JsonNode entry = singleEntryForUser(roleGroup, username, null);
+
+		assertThat(entry.path("assignedThrough").asText()).isEqualTo("ORG_UNIT");
+		assertThat(entry.path("orgUnit").path("uuid").asText()).isEqualTo(orgUnit.getUuid());
+		assertThat(entry.path("assignmentType").asText()).isEqualTo("OU_ROLE_GROUP");
+		assertThat(entry.hasNonNull("responsibleOrgUnit"))
+			.as("an org unit assignment should carry a responsible org unit")
+			.isTrue();
+	}
+
+	/**
+	 * Pins the current behaviour for a role group restricted to a title on an org unit: it is
+	 * reported as ORG_UNIT with no title, NOT as TITLE.
+	 * <p>
+	 * This is not what you would expect from the assignment itself, but it is what the calculated
+	 * rows can express. {@code CurrentAssignment.title} is only ever set by the
+	 * {@code OrgUnitUserRoleAssignment} overload of {@code CurrentAssignmentMapper.toCurrentAssignment};
+	 * the {@code OrgUnitRoleGroupAssignment} overload takes no title parameter, so role group rows
+	 * always have a null title and {@code getAssignedThroughForRoleGroup} can never return TITLE.
+	 * The same blind spot exists in the GUI. Tracked in issue #111 - when that is fixed, this test
+	 * should flip to asserting TITLE.
+	 * </p>
+	 * <p>
+	 * Uses "fnur" rather than the default test user, because "fnur" is the bootstrapped user whose
+	 * positions have titles.
+	 * </p>
+	 *
+	 * @throws Exception if HTTP request fails or test data is missing
+	 */
+	@Test
+	@DisplayName("Should report role group restricted to a title as ORG_UNIT, since title is not carried onto rolegroup rows")
+	void testGetAssignmentsByRoleGroup_titleRestrictionReportedAsOrgUnit() throws Exception {
+		final String titledUserId = "fnur";
+		User user = userService.getByUserId(titledUserId);
+		Position position = user.getPositions().stream()
+			.filter(p -> p.getTitle() != null)
+			.findFirst()
+			.orElseThrow(() -> new RuntimeException("User fnur has no position with a title"));
+		Title title = position.getTitle();
+		RoleGroup roleGroup = firstRoleGroup();
+
+		orgUnitService.addRoleGroup(position.getOrgUnit(), roleGroup, false, null, null,
+			new HashSet<>(), new HashSet<>(List.of(title.getUuid())));
+		recalculateFor(titledUserId);
+
+		JsonNode entry = singleEntryForUser(roleGroup, titledUserId, null);
+
+		// The title restriction did apply - fnur got the role group through it - but the origin
+		// is reported as the org unit, and the title is absent.
+		assertThat(entry.path("assignedThrough").asText()).isEqualTo("ORG_UNIT");
+		assertThat(entry.path("orgUnit").path("uuid").asText()).isEqualTo(position.getOrgUnit().getUuid());
+		assertThat(entry.hasNonNull("assignedThroughTitle"))
+			.as("title is not carried onto calculated rolegroup rows")
+			.isFalse();
+		assertThat(entry.path("assignmentType").asText()).isEqualTo("OU_ROLE_GROUP");
+	}
+
+	/**
+	 * Tests that the response holds one entry per assignment, not one per user role in the group.
+	 * <p>
+	 * The bootstrapped role group contains more than one user role, which produces several
+	 * CurrentAssignment rows for a single assignment. Without deduplication the endpoint would
+	 * report the same assignment repeatedly.
+	 * </p>
+	 *
+	 * @throws Exception if HTTP request fails or test data is missing
+	 */
+	@Test
+	@DisplayName("Should return one entry per assignment, not per user role in the group")
+	void testGetAssignmentsByRoleGroup_oneEntryPerAssignment() throws Exception {
+		User user = userService.getByUserId(username);
+		RoleGroup roleGroup = firstRoleGroup();
+		assertThat(roleGroup.getUserRoleAssignments())
+			.as("This test needs a role group with more than one user role")
+			.hasSizeGreaterThan(1);
+
+		userService.addRoleGroup(user, roleGroup, null, null, null, null);
+		recalculateFor(username);
+
+		assertThat(entriesForUser(getAssignments(roleGroup, null), username))
+			.as("Expected exactly one entry for %s despite %d user roles in the group",
+				username, roleGroup.getUserRoleAssignments().size())
+			.hasSize(1);
+	}
+
+	/**
+	 * Tests that requesting assignments for a non-existent role group returns 404.
+	 *
+	 * @throws Exception if HTTP request fails
+	 */
+	@Test
+	@DisplayName("Should return 404 when getting assignments for non-existent role group")
+	void testGetAssignmentsByRoleGroup_NotFound() throws Exception {
+		this.mockMvc.perform(get("/api/v2/rolegroup/{id}/assignments", 999999)
+				.header("ApiKey", API_KEY))
+			.andExpect(status().isNotFound());
+	}
+
+	private RoleGroup firstRoleGroup() {
+		return roleGroupService.getAll().stream()
+			.findFirst()
+			.orElseThrow(() -> new RuntimeException("No role group found"));
+	}
+
+	/**
+	 * Recalculates and persists current assignments for a user, so the endpoint has data to read.
+	 */
+	private void recalculateFor(String userId) {
+		entityManager.flush();
+		entityManager.clear();
+
+		User user = userService.getByUserId(userId);
+		var assignments = calculator.calculateAllAssignmentsForUser(user);
+		currentAssignmentService.saveAllForUsers(Map.of(user, assignments.getLeft()));
+
+		entityManager.flush();
+		entityManager.clear();
+	}
+
+	/**
+	 * Calls the assignments endpoint. When documentationId is non-null, REST documentation is generated.
+	 */
+	private JsonNode getAssignments(RoleGroup roleGroup, String documentationId) throws Exception {
+		var actions = this.mockMvc.perform(get("/api/v2/rolegroup/{id}/assignments", roleGroup.getId())
+				.header("ApiKey", API_KEY))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$").isArray())
+			.andExpect(jsonPath("$").isNotEmpty());
+
+		if (documentationId != null) {
+			actions = actions.andDo(document(documentationId,
+				preprocessResponse(prettyPrint()),
+				requestHeaders(
+					headerWithName("ApiKey").description("Secret key required to call API")
+				),
+				pathParameters(
+					parameterWithName("id").description("Unique ID of the role group")
+				)
+			));
+		}
+
+		MvcResult result = actions.andReturn();
+		return new ObjectMapper().readTree(result.getResponse().getContentAsString());
+	}
+
+	private static List<JsonNode> entriesForUser(JsonNode responseArray, String userId) {
+		List<JsonNode> entries = new ArrayList<>();
+		for (JsonNode entry : responseArray) {
+			if (entry.path("user").path("userId").asText().equals(userId)) {
+				entries.add(entry);
+			}
+		}
+		return entries;
+	}
+
+	/**
+	 * Returns the one entry for the given user, failing if there is not exactly one.
+	 * <p>
+	 * Asserting the count matters: the response has no guaranteed uniqueness per user, so silently
+	 * picking the first match would let an assertion pass against an arbitrary row.
+	 * </p>
+	 */
+	private JsonNode singleEntryForUser(RoleGroup roleGroup, String userId, String documentationId) throws Exception {
+		List<JsonNode> entries = entriesForUser(getAssignments(roleGroup, documentationId), userId);
+		assertThat(entries).as("Expected exactly one assignment for %s", userId).hasSize(1);
+		return entries.getFirst();
 	}
 }

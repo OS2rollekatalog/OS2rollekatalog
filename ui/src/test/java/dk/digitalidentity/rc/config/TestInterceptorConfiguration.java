@@ -11,11 +11,26 @@ import org.springframework.context.annotation.Primary;
 import org.springframework.context.annotation.Profile;
 
 import dk.digitalidentity.rc.interceptor.KOMBITHookInterceptor;
+import dk.digitalidentity.rc.interceptor.RoleChangeHook;
 import dk.digitalidentity.rc.interceptor.RoleChangeInterceptor;
 
 @TestConfiguration
 @Profile("test")
 public class TestInterceptorConfiguration {
+
+	/**
+	 * The real roleChangeInterceptor bean below is mocked (never actually constructed with a real
+	 * List<RoleChangeHook> autowired in), but Spring still needs at least one RoleChangeHook bean to
+	 * exist in this profile: some other bean elsewhere in the context graph resolves the real,
+	 * non-mocked RoleChangeInterceptor bean definition as part of building ITS dependency chain, which
+	 * fails with "No qualifying bean of type List<RoleChangeHook>" if the list would otherwise be
+	 * empty in the test profile (every production RoleChangeHook implementation is @Profile("!test")).
+	 */
+	@Bean
+	@Profile("test")
+	public RoleChangeHook noOpRoleChangeHook() {
+		return mock(RoleChangeHook.class);
+	}
 
 	@Bean
 	@Primary

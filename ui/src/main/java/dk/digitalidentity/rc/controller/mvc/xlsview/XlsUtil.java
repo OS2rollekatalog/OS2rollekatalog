@@ -27,7 +27,7 @@ import lombok.extern.slf4j.Slf4j;
 @Component
 public class XlsUtil {
 	private static XlsUtil instance;
-	
+
 	@Autowired
 	private MessageSource messageSource;
 
@@ -39,14 +39,14 @@ public class XlsUtil {
 
 	@Autowired
 	private OrganisationConstraintUtil organisationConstraintUtil;
-	
+
 	@PostConstruct
 	public void init() {
 		if (instance == null) {
 			instance = this;
 		}
 	}
-	
+
 	// TODO: actually not used by the ReportXlsView anymore, but used by UI instead
 	public String stringifyAssignment(SystemRoleAssignment assignment, boolean html) {
 		StringBuilder builder = new StringBuilder();
@@ -71,6 +71,12 @@ public class XlsUtil {
 								break;
 							case EXTENDED_INHERITED:
 								value = instance.messageSource.getMessage("html.constraint.kle.extended", null, locale);
+								break;
+							case INHERITED_FROM_MANAGER_ROLE:
+							case EXTENDED_INHERITED_FROM_MANAGER_ROLE:
+							case INHERITED_FROM_FUNCTIONS:
+							case EXTENDED_INHERITED_FROM_FUNCTIONS:
+								log.warn("An unusable constraint was used on KLE: " + constraintValue.getConstraintType());
 								break;
 							case INHERITED:
 								value = instance.messageSource.getMessage("html.constraint.kle.inherited", null, locale);
@@ -139,7 +145,7 @@ public class XlsUtil {
 								value = "udskudt";
 								break;
 							case SELECTED_INHERITED:
-							case VALUE:								
+							case VALUE:
 								values = new ArrayList<>();
 								constraintValues = constraintValue.getConstraintValueType().equals(ConstraintValueType.VALUE) ? (constraintValue.getConstraintValue() == null ? new String[0] : constraintValue.getConstraintValue().split(",")) : organisationConstraintUtil.getOrganisationConstraintUuids(constraintValue.getConstraintValue()).toArray(String[]::new);
 								for (String uuid : constraintValues) {
@@ -151,7 +157,7 @@ public class XlsUtil {
 										values.add(orgUnit.getName());
 									}
 								}
-								value = values.stream().collect(Collectors.joining(", "));								
+								value = values.stream().collect(Collectors.joining(", "));
 								break;
 						}
 						break;
@@ -247,7 +253,7 @@ public class XlsUtil {
 											if (value.length() > 0) {
 												value += ",";
 											}
-											
+
 											value += valueEntry.getConstraintValue();
 										}
 									}
@@ -264,7 +270,7 @@ public class XlsUtil {
 						}
 						break;
 				}
-				
+
 				if (html) {
 					builder.append("<li><b>" + name + "</b>: " + value + "</li>");
 				}

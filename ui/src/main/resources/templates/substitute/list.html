@@ -60,30 +60,15 @@ section=${T(dk.digitalidentity.rc.security.permission.Section)}">
 
 <nav th:replace="~{fragments/footer :: footer}"></nav>
 
-<style>
-  .autocomplete-suggestions { border: 1px solid #999; background: #FFF; overflow: auto; width: 500px !important; }
-  .autocomplete-suggestion { padding: 2px 5px; white-space: nowrap; overflow: hidden; }
-  .autocomplete-selected { background: #F0F0F0; }
-  .autocomplete-suggestions strong { font-weight: normal; color: #3399FF; }
-  .autocomplete-group { padding: 2px 5px; }
-  .autocomplete-group strong { display: block; border-bottom: 1px solid #000; }
-</style>
+<link rel="stylesheet" th:href="@{/css/substitute/list.css}" />
+
 <script th:replace="~{fragments/datatables :: datatables}"></script>
-<script th:src="@{/js/substitute/list.js}"></script>
-<script th:inline="javascript">
-  /*<![CDATA[*/
-    /*[+
-      let uiUrl = [[@{/ui/management/substitute}]]
-      let restUrl = [[@{/rest/management/substitute}]]
-      let substituteListService;
-    +]*/
-    var token = $("meta[name='_csrf']").attr("content");
-
-    document.addEventListener('DOMContentLoaded', ()=>{
-      substituteListService = new SubstituteListService()
-
-    })
-  /*]]>*/
+<script type="application/json" id="substitute-list-config" th:inline="javascript">
+	{
+		"uiUrl": [[@{/ui/management/substitute}]],
+		"restUrl": [[@{/rest/management/substitute}]]
+	}
 </script>
+<script th:src="@{/js/substitute/list.js}"></script>
 </body>
 </html>

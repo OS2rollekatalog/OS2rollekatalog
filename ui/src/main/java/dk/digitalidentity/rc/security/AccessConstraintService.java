@@ -461,8 +461,9 @@ public class AccessConstraintService {
 						break;
 					}
 					case VALUE:
-					case SELECTED_INHERITED:
-						ouUuids.addAll(organisationConstraintUtil.getOrganisationConstraintUuids(constraintValue.getConstraintValue()));
+						for (String uuid : constraintValue.getConstraintValue().split(",")) {
+							ouUuids.add(uuid);
+						}
 
 						break;
 					default:

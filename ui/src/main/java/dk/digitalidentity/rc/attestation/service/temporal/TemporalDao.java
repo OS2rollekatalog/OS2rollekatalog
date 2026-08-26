@@ -57,7 +57,39 @@ public class TemporalDao {
      * maps directly into {@link HistoricOuAssignment} objects.
      */
     public List<HistoricOuAssignment> listHistoricOuAssignmentsByDate(final LocalDate when) {
-        String sql = """
+        final String sql = HISTORIC_OU_ASSIGNMENT_SELECT + """
+            WHERE hoa.valid_from <= ? AND (hoa.valid_to IS NULL OR hoa.valid_to > ?)
+            ORDER BY hoa.id
+        """;
+
+        // Includes all active assignments, including those that are only active during part of this date
+        return jdbcTemplate.query(sql, historicOuAssignmentExtractor(),
+                when.plusDays(1).atStartOfDay(), when.atStartOfDay());
+    }
+
+    /**
+     * As {@link #listHistoricOuAssignmentsByDate(LocalDate)}, but restricted to the given IT-systems.
+     * An empty {@code itSystemIds} yields an empty result.
+     */
+    public List<HistoricOuAssignment> listHistoricOuAssignmentsByDateAndItSystems(final LocalDate when, final List<Long> itSystemIds) {
+        if (itSystemIds == null || itSystemIds.isEmpty()) {
+            return new ArrayList<>();
+        }
+        final String sql = HISTORIC_OU_ASSIGNMENT_SELECT + """
+            WHERE hoa.valid_from <= :end AND (hoa.valid_to IS NULL OR hoa.valid_to > :start)
+              AND hoa.it_system_id IN (:itSystemIds)
+            ORDER BY hoa.id
+        """;
+
+        final MapSqlParameterSource parameters = new MapSqlParameterSource()
+                .addValue("end", when.plusDays(1).atStartOfDay())
+                .addValue("start", when.atStartOfDay())
+                .addValue("itSystemIds", itSystemIds);
+
+        return namedParameterJdbcTemplate.query(sql, parameters, historicOuAssignmentExtractor());
+    }
+
+    private static final String HISTORIC_OU_ASSIGNMENT_SELECT = """
             SELECT
                 hoa.id AS assignment_id,
                 hoa.ou_uuid,
@@ -81,16 +113,19 @@ public class TemporalDao {
                 hoa.applies_only_to_manager,
                 hoa.applies_also_to_substitutes,
                 hoa.assigned_when,
+                hoa.assigned_by_user_id,
+                hoa.assigned_by_name,
+                hoa.start_date,
+                hoa.stop_date,
                 e.id AS exclusion_id,
                 e.exclusion_type,
                 e.uuids AS exclusion_uuids
             FROM historic_ou_assignment hoa
             LEFT JOIN historic_ou_assignment_exclusion e ON e.historic_ou_assignment_id = hoa.id
-            WHERE hoa.valid_from <= ? AND (hoa.valid_to IS NULL OR hoa.valid_to > ?)
-            ORDER BY hoa.id
         """;
 
-        return jdbcTemplate.query(sql, rs -> {
+    private static org.springframework.jdbc.core.ResultSetExtractor<List<HistoricOuAssignment>> historicOuAssignmentExtractor() {
+        return rs -> {
             Map<Long, HistoricOuAssignment> map = new LinkedHashMap<>();
             while (rs.next()) {
                 long assignmentId = rs.getLong("assignment_id");
@@ -98,10 +133,8 @@ public class TemporalDao {
                 if (assignment == null) {
                     String throughType = rs.getString("assigned_through_type");
                     java.sql.Timestamp assignedWhen = rs.getTimestamp("assigned_when");
-                    Long roleRoleGroupId = rs.getLong("role_role_group_id");
-                    if (rs.wasNull()) roleRoleGroupId = null;
-                    Long responsibleCollectionId = rs.getLong("responsible_collection_id");
-                    if (rs.wasNull()) responsibleCollectionId = null;
+                    java.sql.Date startDate = rs.getDate("start_date");
+                    java.sql.Date stopDate = rs.getDate("stop_date");
 
                     assignment = HistoricOuAssignment.builder()
                         .id(assignmentId)
@@ -112,12 +145,12 @@ public class TemporalDao {
                         .roleId(rs.getLong("role_id"))
                         .roleName(rs.getString("role_name"))
                         .roleDescription(rs.getString("role_description"))
-                        .roleRoleGroupId(roleRoleGroupId)
+                        .roleRoleGroupId(nullableLong(rs, "role_role_group_id"))
                         .roleRoleGroupName(rs.getString("role_role_group_name"))
                         .roleGroupDescription(rs.getString("role_group_description"))
                         .sensitiveRole(rs.getBoolean("sensitive_role"))
                         .extraSensitiveRole(rs.getBoolean("extra_sensitive_role"))
-                        .responsibleCollectionId(responsibleCollectionId)
+                        .responsibleCollectionId(nullableLong(rs, "responsible_collection_id"))
                         .itSystemAttestationExempt(rs.getBoolean("it_system_attestation_exempt"))
                         .assignedThroughType(throughType != null ? AssignedThrough.valueOf(throughType) : null)
                         .assignedThroughUuid(rs.getString("assigned_through_uuid"))
@@ -126,6 +159,10 @@ public class TemporalDao {
                         .appliesOnlyToManager(rs.getBoolean("applies_only_to_manager"))
                         .appliesAlsoToSubstitutes(rs.getBoolean("applies_also_to_substitutes"))
                         .assignedWhen(assignedWhen != null ? assignedWhen.toLocalDateTime() : null)
+                        .assignedByUserId(rs.getString("assigned_by_user_id"))
+                        .assignedByName(rs.getString("assigned_by_name"))
+                        .startDate(startDate != null ? startDate.toLocalDate() : null)
+                        .stopDate(stopDate != null ? stopDate.toLocalDate() : null)
                         .exclusions(new ArrayList<>())
                         .build();
                     map.put(assignmentId, assignment);
@@ -145,7 +182,7 @@ public class TemporalDao {
                 }
             }
             return new ArrayList<>(map.values());
-        }, when.plusDays(1).atStartOfDay(), when.atStartOfDay()); // Includes all active assignments, including those that are only active during part of this date
+        };
     }
 
     /**

@@ -61,55 +61,6 @@
 </div>
 
 <nav th:replace="~{fragments/footer :: footer}"></nav>
-<script th:inline="javascript">
-		/*<![CDATA[*/
-
-		/*[+
-			var searchTxt = [[#{html.datatables.search}]];
-			var dropdownTxt = [[#{html.datatables.dropdown}]];
-			var infoDefaultTxt = [[#{html.datatables.info.default}]];
-			var infoEmptyTxt = [[#{html.datatables.info.empty}]];
-			var infoFilteredTxt = [[#{html.datatables.info.filtered}]];
-			var prevTxt = [[#{html.datatables.prev}]];
-			var nextTxt = [[#{html.datatables.next}]];
-		+]*/
-
-		var token = $("meta[name='_csrf']").attr("content");
-		var attestationService;
-		$(document).ready(function() {
-			attestationService = new AttestationService();
-
-			attestationService.init();
-		});
-
-		function AttestationService() {
-			/*[+
-			var fastforwardTitle = [[#{html.page.attestation.fastforward.title}]];
-			var fastforwardText = [[#{html.page.attestation.fastforward.text}]];
-			var yesBtnTxt = [[#{html.control.button.yes}]];
-			var cancelBtnTxt = [[#{html.control.button.no}]];
-			+]*/
-
-			this.init = function() {
-				var table = $('#listTable').DataTable({
-					"pageLength" : 25,
-					"responsive" : true,
-					'language': {
-						"search":       searchTxt,
-						"lengthMenu":   dropdownTxt,
-						"info":         infoDefaultTxt,
-						"zeroRecords":  infoEmptyTxt,
-						"infoEmpty":    "",
-						"infoFiltered": infoFilteredTxt,
-						"paginate": {
-							"next": nextTxt,
-							"previous": prevTxt
-						}
-					}
-				});
-			}
-		}
-		/*]]>*/
-	</script>
+<th:block th:replace="~{fragments/datatables :: datatables}"></th:block>
 </body>
 </html>

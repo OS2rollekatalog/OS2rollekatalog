@@ -7,108 +7,64 @@
 	<aside th:replace="~{fragments/navbar :: navbar-aside (page = 'report.custom', subpage = 'reports')}"></aside>
 
 	<section>
-			<div class="content-wrapper">
-				<h3>
-					<span th:text="#{html.report.users_with_duplicate_rolegroup_assignments}"></span>
-					<button sec:authorize="hasAnyRole('ROLE_USER_ASSIGNER', 'ROLE_OU_ASSIGNER')" class="btn btn-primary btn-lg" style="float: right;" th:text="#{html.page.report.duplicate.remove}" onclick="deleteDuplicates();"></button>
-				</h3>
+		<div class="content-wrapper">
+			<h3>
+				<span th:text="#{html.report.users_with_duplicate_rolegroup_assignments}"></span>
+				<button sec:authorize="hasAnyRole('ROLE_USER_ASSIGNER', 'ROLE_OU_ASSIGNER')" class="btn btn-primary btn-lg js-delete-duplicates" style="float: right;" th:text="#{html.page.report.duplicate.remove}"></button>
+			</h3>
 
-				<div class="panel panel-default" id="cleanup-panel">
-					<div class="panel-heading"></div>
-					<div class="panel-body">
-						<table class="listTable table table-responsive table-striped">
-							<thead>
-								<tr>
-									<th class="col-md-3" th:text="#{html.entity.user.name}"></th>
-									<th class="col-md-3" th:text="#{html.entity.user.userId}"></th>
-									<th class="col-md-2" th:text="#{html.entity.rolegroup.type}"></th>
-									<th class="col-md-3" th:text="#{html.page.report.duplicate.via}"></th>
-									<th class="col-md-1" th:text="#{html.control.operations}"></th>
-								</tr>
-							</thead>
+			<div class="panel panel-default" id="cleanup-panel">
+				<div class="panel-heading"></div>
+				<div class="panel-body">
+					<table class="listTable table table-responsive table-striped">
+						<thead>
+						<tr>
+							<th class="col-md-3" th:text="#{html.entity.user.name}"></th>
+							<th class="col-md-3" th:text="#{html.entity.user.userId}"></th>
+							<th class="col-md-2" th:text="#{html.entity.rolegroup.type}"></th>
+							<th class="col-md-3" th:text="#{html.page.report.duplicate.via}"></th>
+							<th class="col-md-1" th:text="#{html.control.operations}"></th>
+						</tr>
+						</thead>
 
-							<tbody>
-								<tr th:each="user : ${users}">
-									<td th:text="${user.name}"></td>
-									<td th:text="${user.userId}"></td>
-									<td th:text="${user.roleGroup.name}"></td>
-									<td th:text="${user.message}"></td>
-									<td>
-										<th:block sec:authorize="hasAnyRole('ROLE_USER_ASSIGNER', 'ROLE_OU_ASSIGNER')">
-											<a th:href="@{/ui/users/edit/{uuid}(uuid=${user.uuid})}"><em class="fa fa-pencil"></em></a>
-										</th:block>
-									</td>
-								</tr>
-							</tbody>
-						</table>
-					</div>
+						<tbody>
+						<tr th:each="user : ${users}">
+							<td th:text="${user.name}"></td>
+							<td th:text="${user.userId}"></td>
+							<td th:text="${user.roleGroup.name}"></td>
+							<td th:text="${user.message}"></td>
+							<td>
+								<th:block sec:authorize="hasAnyRole('ROLE_USER_ASSIGNER', 'ROLE_OU_ASSIGNER')">
+									<a th:href="@{/ui/users/edit/{uuid}(uuid=${user.uuid})}"><em class="fa fa-pencil"></em></a>
+								</th:block>
+							</td>
+						</tr>
+						</tbody>
+					</table>
 				</div>
 			</div>
+		</div>
 	</section>
 </div>
 
 <nav th:replace="~{fragments/footer :: footer}"></nav>
 <script th:replace="~{fragments/datatables :: datatables}"></script>
 
-<script th:inline="javascript">
-	/*<![CDATA[*/
-		/*[+
-			var url = [[@{/rest/users/cleanupDuplicateRoleGroupAssignments}]];
-			
-			var txtTitle = [[#{html.page.report.duplicate.remove}]];
-			var txtBody = [[#{html.page.report.duplicate.remove.text}]];
-			var txtOrderConfirmed = [[#{html.page.report.duplicate.remove.confirmMessage}]];
-			var txtCleanupFailed = [[#{html.page.report.duplicate.remove.failedMessage}]];
-			var txtCleanupSucceeded = [[#{html.page.report.duplicate.remove.successMessage}]];
-			var txtQueueSpinner = [[#{html.common.queue.spinner.working}]];
-			var btnNo = [[#{html.control.button.no}]];
-			var btnYes = [[#{html.control.button.yes}]];
-		+]*/
-
-		var token = $("meta[name='_csrf']").attr("content");
-	
-		function deleteDuplicates() {
-            swal({
-					html: true,
-					title : txtTitle,
-					text : txtBody,
-					type : "warning",
-					showCancelButton : true,
-					confirmButtonColor : "#DD6B55",
-					confirmButtonText : btnYes,
-					cancelButtonText : btnNo,
-					closeOnConfirm : true,
-					closeOnCancel : true
-				},
-				function (isConfirm) {
-					if (isConfirm) {
-			            $.notify({ message: txtOrderConfirmed },{ status: 'success', autoHideDelay: 4000 });
-
-						var spinner = new QueueDrainService('#cleanup-panel', { message: txtQueueSpinner });
-						spinner.show();
-
-						$.ajax({
-							url: url,
-							method: "POST",
-							headers: {
-								'X-CSRF-TOKEN': token
-							},
-							error: function() {
-								spinner.stop();
-								errorHandler(txtCleanupFailed).apply(this, arguments);
-							},
-							success : function(response) {
-								$.notify({ message: txtCleanupSucceeded },{ status: 'success', autoHideDelay: 4000 });
-								spinner.watch(function () {
-									location.reload(true);
-								});
-							}
-						});
-	                }
-				}
-			);
-		}
-	/*]]>*/
+<script type="application/json" id="duplicate-rolegroup-config" th:inline="javascript">
+	{
+		"url": [[@{/rest/users/cleanupDuplicateRoleGroupAssignments}]],
+		"txtTitle": [[#{html.page.report.duplicate.remove}]],
+		"txtBody": [[#{html.page.report.duplicate.remove.text}]],
+		"txtOrderConfirmed": [[#{html.page.report.duplicate.remove.confirmMessage}]],
+		"txtCleanupFailed": [[#{html.page.report.duplicate.remove.failedMessage}]],
+		"txtCleanupSucceeded": [[#{html.page.report.duplicate.remove.successMessage}]],
+		"txtQueueSpinner": [[#{html.common.queue.spinner.working}]],
+		"btnNo": [[#{html.control.button.no}]],
+		"btnYes": [[#{html.control.button.yes}]]
+	}
 </script>
+<script th:src="@{/js/service/SweetAlertService.js}"></script>
+<script th:src="@{/js/reports/custom/service/DuplicateCleanupService.js}"></script>
+<script th:src="@{/js/reports/custom/users_with_duplicate_rolegroup_assignments.js}"></script>
 </body>
 </html>

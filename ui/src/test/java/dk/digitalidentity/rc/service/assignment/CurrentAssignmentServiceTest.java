@@ -71,6 +71,7 @@ class CurrentAssignmentServiceTest {
 			currentAssignmentService.saveAllForUsers(Map.of(testUser, Set.of(newAssignmentNonExisting, newAssignmentExisting)));
 
 			// ---- Then ---- //
+			@SuppressWarnings("unchecked")
 			ArgumentCaptor<List<Long>> deleteCaptor = ArgumentCaptor.forClass(List.class);
 
 			// verify method is called
@@ -97,6 +98,7 @@ class CurrentAssignmentServiceTest {
 			currentAssignmentService.saveAllForUsers(Map.of(testUser, Set.of(newAssignmentNonExisting, newAssignmentExisting)));
 
 			// ---- Then ---- //
+			@SuppressWarnings("unchecked")
 			ArgumentCaptor<Set<CurrentAssignment>> saveCaptor = ArgumentCaptor.forClass(Set.class);
 
 			// verify method is called
@@ -129,6 +131,7 @@ class CurrentAssignmentServiceTest {
 			currentAssignmentService.saveAllForUsers(Map.of(testUser, Set.of(newAssignmentNonExisting, newAssignmentExisting)));
 
 			// ---- Then ---- //
+			@SuppressWarnings("unchecked")
 			ArgumentCaptor<Set<CurrentAssignment>> deletedCaptor = ArgumentCaptor.forClass(Set.class);
 
 			// verify method is called
@@ -161,6 +164,7 @@ class CurrentAssignmentServiceTest {
 			currentAssignmentService.saveAllForUsers(Map.of(testUser, Set.of(newAssignmentNonExisting, newAssignmentExisting)));
 
 			// ---- Then ---- //
+			@SuppressWarnings("unchecked")
 			ArgumentCaptor<Set<CurrentAssignment>> createdCaptor = ArgumentCaptor.forClass(Set.class);
 
 			// verify method is called
@@ -206,12 +210,14 @@ class CurrentAssignmentServiceTest {
 			currentAssignmentService.saveAllForUsers(Map.of(userA, Set.of(newA), userB, Set.of(newB)));
 
 			// ---- Then ---- //
+			@SuppressWarnings("unchecked")
 			ArgumentCaptor<List<Long>> deleteCaptor = ArgumentCaptor.forClass(List.class);
 			verify(currentAssignmentDao).deleteAllById(deleteCaptor.capture());
 
 			// only userA's old assignment should be deleted, not userB's unchanged one
 			assertThat(deleteCaptor.getValue()).containsExactly(1L);
 
+			@SuppressWarnings("unchecked")
 			ArgumentCaptor<Set<CurrentAssignment>> saveCaptor = ArgumentCaptor.forClass(Set.class);
 			verify(currentAssignmentDao).saveAll(saveCaptor.capture());
 

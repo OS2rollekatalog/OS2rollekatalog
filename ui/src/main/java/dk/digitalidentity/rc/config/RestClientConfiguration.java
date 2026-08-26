@@ -2,7 +2,6 @@ package dk.digitalidentity.rc.config;
 
 import java.io.IOException;
 import java.net.URI;
-import java.security.cert.X509Certificate;
 import java.time.Duration;
 
 import javax.net.ssl.SSLContext;
@@ -12,13 +11,12 @@ import org.apache.hc.client5.http.cookie.StandardCookieSpec;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
 import org.apache.hc.client5.http.impl.classic.HttpClients;
 import org.apache.hc.client5.http.impl.io.PoolingHttpClientConnectionManagerBuilder;
+import org.apache.hc.client5.http.ssl.DefaultClientTlsStrategy;
 import org.apache.hc.client5.http.ssl.DefaultHostnameVerifier;
-import org.apache.hc.client5.http.ssl.NoopHostnameVerifier;
-import org.apache.hc.client5.http.ssl.SSLConnectionSocketFactoryBuilder;
+import org.apache.hc.client5.http.ssl.TlsSocketStrategy;
 import org.apache.hc.core5.http.io.SocketConfig;
-import org.apache.hc.core5.http.ssl.TLS;
+import org.apache.hc.core5.reactor.ssl.SSLBufferMode;
 import org.apache.hc.core5.ssl.SSLContextBuilder;
-import org.apache.hc.core5.ssl.TrustStrategy;
 import org.apache.hc.core5.util.Timeout;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
@@ -27,8 +25,8 @@ import org.springframework.context.annotation.Lazy;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.client.ClientHttpResponse;
 import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;
+import org.springframework.http.converter.xml.JacksonXmlHttpMessageConverter;
 import org.springframework.http.converter.xml.Jaxb2RootElementHttpMessageConverter;
-import org.springframework.http.converter.xml.MappingJackson2XmlHttpMessageConverter;
 import org.springframework.util.ResourceUtils;
 import org.springframework.util.StringUtils;
 import org.springframework.web.client.ResponseErrorHandler;
@@ -62,14 +60,18 @@ public class RestClientConfiguration {
 		requestFactory.setReadTimeout(Duration.ofMinutes(3));
 		requestFactory.setHttpClient(httpClient);
 
-		// Configure message converters for XML handling
+		// configure message converters for XML handling
 		return RestClient.builder()
 			.requestFactory(requestFactory)
-			.messageConverters(converters -> {
-				converters.removeIf(converter ->
-					converter.getClass().equals(MappingJackson2XmlHttpMessageConverter.class)
-				);
-				converters.add(new Jaxb2RootElementHttpMessageConverter());
+			.configureMessageConverters(conf -> {
+				// touching configureMessageConverters at all suppresses the builder's own
+				// registerDefaults(), so we have to ask for the defaults explicitly - without
+				// this the converter list ends up holding only the Jaxb2 converter added below
+				conf.registerDefaults();
+				conf.configureMessageConvertersList(converters -> {
+					converters.removeIf(converter -> converter.getClass().equals(JacksonXmlHttpMessageConverter.class));
+					converters.add(new Jaxb2RootElementHttpMessageConverter());
+				});
 			})
 			.build();
 	}
@@ -77,8 +79,6 @@ public class RestClientConfiguration {
 	@Lazy(true) // we need to ensure this is LAZY due to CRaC
 	@Bean(name = "kspCicsRestClient")
 	public RestClient kspCicsRestClient() throws Exception {
-		final TrustStrategy acceptingTrustStrategy = (X509Certificate[] _, String _) -> true;
-
 		final PoolingHttpClientConnectionManagerBuilder managerBuilder = PoolingHttpClientConnectionManagerBuilder.create();
 
 		if (configuration.getIntegrations().getKspcics().isEnabled()) {
@@ -87,15 +87,11 @@ public class RestClientConfiguration {
 					ResourceUtils.getFile(configuration.getIntegrations().getKspcics().getKeystoreLocation()),
 					configuration.getIntegrations().getKspcics().getKeystorePassword().toCharArray(),
 					configuration.getIntegrations().getKspcics().getKeystorePassword().toCharArray())
-				.loadTrustMaterial(acceptingTrustStrategy)
 				.build();
 
-			managerBuilder.setSSLSocketFactory(
-				SSLConnectionSocketFactoryBuilder.create()
-					.setSslContext(sslContext)
-					.setHostnameVerifier(NoopHostnameVerifier.INSTANCE)
-					.build()
-			);
+		    final TlsSocketStrategy tlsSocketStrategy = new DefaultClientTlsStrategy(sslContext);
+
+		    managerBuilder.setTlsSocketStrategy(tlsSocketStrategy);
 		}
 
 		managerBuilder.setDefaultSocketConfig(
@@ -133,8 +129,6 @@ public class RestClientConfiguration {
 	@Lazy(true) // we need to ensure this is lazy due to CRaC
 	@Bean(name = "kombitRestClient")
 	public RestClient kombitRestClient() throws Exception {
-		final TrustStrategy acceptingTrustStrategy = (X509Certificate[] _, String _) -> true;
-
 		final PoolingHttpClientConnectionManagerBuilder managerBuilder = PoolingHttpClientConnectionManagerBuilder.create();
 
 		if (configuration.getIntegrations().getKombit().isEnabled() &&
@@ -144,18 +138,17 @@ public class RestClientConfiguration {
 					ResourceUtils.getFile(configuration.getIntegrations().getKombit().getKeystoreLocation()),
 					configuration.getIntegrations().getKombit().getKeystorePassword().toCharArray(),
 					configuration.getIntegrations().getKombit().getKeystorePassword().toCharArray())
-				.loadTrustMaterial(acceptingTrustStrategy)
 				.build();
 
-			// Use special Kombit socket factory with specific ciphers and TLS versions
-			managerBuilder.setSSLSocketFactory(
-				SSLConnectionSocketFactoryBuilder.create()
-					.setCiphers("TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384", "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256")
-					.setSslContext(sslContext)
-					.setHostnameVerifier(new DefaultHostnameVerifier())
-					.setTlsVersions(TLS.V_1_2, TLS.V_1_3)
-					.build()
-			);
+		    final TlsSocketStrategy tlsSocketStrategy = new DefaultClientTlsStrategy(
+		    	sslContext,
+		    	new String[] { "TLSv1.2", "TLSv1.3" },
+		    	new String[] { "TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384", "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256" },
+		    	SSLBufferMode.STATIC,
+		    	new DefaultHostnameVerifier()
+		    );
+
+		    managerBuilder.setTlsSocketStrategy(tlsSocketStrategy);
 		}
 
 		managerBuilder.setDefaultSocketConfig(
@@ -181,8 +174,6 @@ public class RestClientConfiguration {
 	@Lazy(true) // we need to ensure this is lazy due to CRaC
 	@Bean(name = "kombitTestRestClient")
 	public RestClient kombitTestRestClient() throws Exception {
-		final TrustStrategy acceptingTrustStrategy = (X509Certificate[] _, String _) -> true;
-
 		final PoolingHttpClientConnectionManagerBuilder managerBuilder = PoolingHttpClientConnectionManagerBuilder.create();
 
 		if (configuration.getIntegrations().getKombit().isTestEnabled() &&
@@ -192,18 +183,18 @@ public class RestClientConfiguration {
 					ResourceUtils.getFile(configuration.getIntegrations().getKombit().getTestKeystoreLocation()),
 					configuration.getIntegrations().getKombit().getTestKeystorePassword().toCharArray(),
 					configuration.getIntegrations().getKombit().getTestKeystorePassword().toCharArray())
-				.loadTrustMaterial(acceptingTrustStrategy)
 				.build();
 
-			// Use special Kombit socket factory with specific ciphers and TLS versions
-			managerBuilder.setSSLSocketFactory(
-				SSLConnectionSocketFactoryBuilder.create()
-					.setCiphers("TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384", "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256")
-					.setSslContext(sslContext)
-					.setHostnameVerifier(new DefaultHostnameVerifier())
-					.setTlsVersions(TLS.V_1_2, TLS.V_1_3)
-					.build()
-			);
+			
+		    final TlsSocketStrategy tlsSocketStrategy = new DefaultClientTlsStrategy(
+		    	sslContext,
+		    	new String[] { "TLSv1.2", "TLSv1.3" },
+		    	new String[] { "TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384", "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256" },
+		    	SSLBufferMode.STATIC,
+		    	new DefaultHostnameVerifier()
+		    );
+
+		    managerBuilder.setTlsSocketStrategy(tlsSocketStrategy);
 		}
 
 		managerBuilder.setDefaultSocketConfig(
@@ -229,8 +220,6 @@ public class RestClientConfiguration {
 	@Lazy(true) // we need to ensure this is lazy due to CRaC
 	@Bean(name = "nemLoginRestClient")
 	public RestClient nemLoginRestClient() throws Exception {
-		final TrustStrategy acceptingTrustStrategy = (X509Certificate[] _, String _) -> true;
-
 		final PoolingHttpClientConnectionManagerBuilder managerBuilder = PoolingHttpClientConnectionManagerBuilder.create();
 
 		if (configuration.getIntegrations().getNemLogin().isEnabled() &&
@@ -241,15 +230,13 @@ public class RestClientConfiguration {
 					ResourceUtils.getFile(configuration.getIntegrations().getNemLogin().getKeystoreLocation()),
 					configuration.getIntegrations().getNemLogin().getKeystorePassword().toCharArray(),
 					configuration.getIntegrations().getNemLogin().getKeystorePassword().toCharArray())
-				.loadTrustMaterial(acceptingTrustStrategy)
 				.build();
 
-			managerBuilder.setSSLSocketFactory(
-				SSLConnectionSocketFactoryBuilder.create()
-					.setSslContext(sslContext)
-					.setHostnameVerifier(NoopHostnameVerifier.INSTANCE)
-					.build()
-			);
+		    final TlsSocketStrategy tlsSocketStrategy = new DefaultClientTlsStrategy(
+		    	sslContext
+		    );
+
+		    managerBuilder.setTlsSocketStrategy(tlsSocketStrategy);
 		}
 
 		managerBuilder.setDefaultSocketConfig(

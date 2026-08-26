@@ -36,4 +36,7 @@ public class ManualAssignmentNotificationMap {
 
 	@Column
 	private String assignedBy;
+
+	@Column(length = 64)
+	private String constraintFingerprint;
 }

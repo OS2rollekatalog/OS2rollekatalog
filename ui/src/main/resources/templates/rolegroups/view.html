@@ -33,7 +33,7 @@ section=${T(dk.digitalidentity.rc.security.permission.Section)}">
 								<div class="form-group">
 									<label class="col-sm-2 control-label" th:text="#{html.entity.rolegroup.description}"></label>
 									<div class="col-sm-8">
-										<textarea th:field="${rolegroup.description}" class="form-control" disabled="disabled"></textarea>
+										<div class="form-control preformat preformat-display" th:text="${rolegroup.description}"></div>
 									</div>
 								</div>
 							</fieldset>
@@ -128,120 +128,30 @@ section=${T(dk.digitalidentity.rc.security.permission.Section)}">
 	    </section>
     </div>
 
-	<div id="userRoleGroupModal"></div>
-	<div id="ouRoleGroupModal"></div>
-	<div id="ouRoleGroupEditModal"></div>
-	<div th:replace="~{users/fragments/role_assignment_edit_modal :: roleAssignmentEditModal}"></div>
 	<nav th:replace="~{fragments/footer :: footer}"></nav>
 
 	<script th:replace="~{fragments/datatables :: datatables(orderColumnValue=1)}"></script>
 	<script th:replace="~{fragments/assignDatePicker :: content}"></script>
 
-	<script th:replace="~{users/fragments/role_assignment_edit_modal :: roleAssignmentEditModalScript(missingPostponedConstraintService = true)}"></script>
-	<script th:replace="~{users/fragments/user_role_group_modal :: userRoleGroupModalScript}"></script>
-
-	<script th:inline="javascript">
-		/*<![CDATA[*/
-
-		/*[+
-			var url = [[@{/rest/rolegroups/}]];
-			var roleId = [[${rolegroup.id}]];
-			var fieldUpdatedMsg = [[#{html.entity.rolegroup.updatedmsg}]];
-			var fieldNotUpdatedMsg = [[#{html.entity.rolegroup.failedupdatemsg}]];
-
-			var UIUrl = [[@{/ui/rolegroups/}]];
-			var userRestUrl = [[@{/rest/users/}]];
-			var ouRestUrl = [[@{/rest/ous/}]];
-
-			//Delete role assignment swal
-			var deleteRoleAssignmentTitleTxt = [[#{html.page.manage.roles.delete.title}]];
-			var deleteRoleAssignmentBodyTxt = [[#{html.page.manage.roles.delete.body}]];
-			var deleteRoleAssignmentErrorMessage = [[#{html.page.manage.roles.delete.error}]];
-
-			var deleteAssignmentConfirmTxt = [[#{html.control.button.yes}]];
-			var deleteAssignmentCancelTxt = [[#{html.control.button.cancel}]];
-
-			var txtQueueSpinner = [[#{html.common.queue.spinner.working}]];
-
-			var titlesEnabled = [[${titlesEnabled}]];
-			var roleId = [[${rolegroup.id}]];
-
-			var infoMessage = [[${infoMessage}]];
-			var errorMessage = [[${errorMessage}]];
-		+]*/
-
-		var token = $("meta[name='_csrf']").attr("content");
-
-		var userService = new UserService();
-		var orgUnitService = new OrgUnitService();
-		var notificationService = new NotificationService();
-
-		$("document").ready(function() {
-			userService.loadRolesFragment();
-			orgUnitService.loadRolesFragment();
-
-			if (infoMessage != null) {
-				notificationService.showInfoNotification(infoMessage);
-			}
-
-			if (errorMessage != null) {
-				notificationService.showErrorNotification(errorMessage);
-			}
-
-			$("#requesterSettingsSelect, #approverSettingsSelect").select2({
-				placeholder: "",
-				allowClear: false,
-				multiple: true
-			});
-		});
-
-		function UserService() {
-			this.loadRolesFragment = function () {
-				new QueueDrainService('#users_menu', { message: txtQueueSpinner }).watch(function () {
-					$("#users_menu").load(UIUrl + roleId + "/assignedUsersFragmentView", function () {
-						fragShowDataTableFun('#listTableUsers', 0);
-					});
-				});
-			}
-
-			// Alias used by the shared user_user_role_modal after a role is added.
-			this.loadRolesFragmentWhenReady = this.loadRolesFragment;
+	<script type="application/json" th:inline="javascript" id="rolegroup-view-config">
+		{
+			"url": [[@{/rest/rolegroups/}]],
+			"uiUrl": [[@{/ui/rolegroups/}]],
+			"userRestUrl": [[@{/rest/users/}]],
+			"ouRestUrl": [[@{/rest/ous/}]],
+			"roleId": [[${rolegroup.id}]],
+			"fieldUpdatedMsg": [[#{html.entity.rolegroup.updatedmsg}]],
+			"fieldNotUpdatedMsg": [[#{html.entity.rolegroup.failedupdatemsg}]],
+			"deleteAssignmentConfirmTxt": [[#{html.control.button.yes}]],
+			"deleteAssignmentCancelTxt": [[#{html.control.button.cancel}]],
+			"txtQueueSpinner": [[#{html.common.queue.spinner.working}]],
+			"titlesEnabled": [[${titlesEnabled}]],
+			"infoMessage": [[${infoMessage}]],
+			"errorMessage": [[${errorMessage}]]
 		}
-
-		function OrgUnitService() {
-			this.loadRolesFragment = function () {
-				$("#ous_menu").load(UIUrl + roleId + "/assignedOrgUnitsFragment", function () {
-					fragShowDataTableFun('#listTableOus', 0);
-				});
-			}
-		}
-
-		function NotificationService() {
-			this.showInfoNotification = function(message) {
-				$.notify({
-					message: message,
-					status: 'success',
-					timeout: 2000
-				});
-			}
-
-			this.showWarnNotification = function(message) {
-				$.notify({
-					message: message,
-					status: 'warning',
-					timeout: 3000
-				});
-			}
-
-			this.showErrorNotification = function(message) {
-				$.notify({
-					message: message,
-					status: 'danger',
-					timeout: 4000
-				});
-			}
-		}
-		/*]]>*/
 	</script>
+	<script th:src="@{/js/service/Select2Service.js}"></script>
+	<script th:src="@{/js/service/NotificationService.js}"></script>
+	<script th:src="@{/js/rolegroups/view.js}"></script>
 </body>
 </html>

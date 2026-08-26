@@ -20,7 +20,6 @@ import dk.digitalidentity.rc.attestation.model.entity.OrganisationRoleAttestatio
 import dk.digitalidentity.rc.attestation.model.entity.OrganisationUserAttestationEntry;
 import dk.digitalidentity.rc.attestation.model.entity.temporal.AssignedThroughType;
 import dk.digitalidentity.rc.attestation.service.AttestationCachedUserService;
-import dk.digitalidentity.rc.attestation.service.AttestationConstraintService;
 import dk.digitalidentity.rc.dao.model.ItSystem;
 import dk.digitalidentity.rc.dao.model.OrgUnit;
 import dk.digitalidentity.rc.dao.model.User;
@@ -88,9 +87,6 @@ public class AttestationReportService {
 
 	@Autowired
 	private AttestationResponsibleCollectionDao attestationResponsibleCollectionDao;
-
-	@Autowired
-	private AttestationConstraintService attestationConstraintService;
 
 	@PersistenceContext
 	private EntityManager entityManager;
@@ -236,7 +232,7 @@ public class AttestationReportService {
 				.verifiedByName(verificationInformation.verifiedByName)
 				.roleGroupName(assignment.getRoleGroupName())
 				.userRoleName(assignment.getUserRoleName())
-				.postponedConstraints(attestationConstraintService.translatePostponedConstraints(assignment.getPostponedConstraints()))
+				.postponedConstraints(assignment.getPostponedConstraints())
 				.remark(verificationInformation.remark)
 				.userName(assignment.getUserName())
 				.userUserId(assignment.getUserId())

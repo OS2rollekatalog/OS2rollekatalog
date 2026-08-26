@@ -1,0 +1,34 @@
+<th:block th:fragment="bulkAssignUserRoleOrgUnitsModal" xmlns="http://www.w3.org/1999/xhtml" xmlns:th="http://www.thymeleaf.org">
+	<div class="modal fade" id="modal-bulk-assign-orgunits" role="dialog">
+	    <div class="modal-dialog modal-lg bulk-assign-users-dialog">
+	        <!-- Modal content-->
+	        <div class="modal-content bulk-assign-users-content">
+	            <div class="modal-header">
+	                <h4 th:text="#{html.page.user.assign.multiple.orgunits.title}"></h4>
+					<p id="bulkAssignOrgUnitsRoleName"></p>
+	            </div>
+
+	            <div class="modal-body bulk-assign-users-body">
+					<div class="table-responsive">
+						<table id="listTableBulkAssignOrgUnits" class="table table-striped table-hover">
+							<thead>
+							<tr>
+								<th th:text="#{html.entity.user.name}"></th>
+								<th th:text="#{html.word.orgUnit}"></th>
+							</tr>
+							</thead>
+							<tbody id="bulkAssignOrgUnitsTableBody">
+							</tbody>
+						</table>
+					</div>
+	            </div>
+
+	            <div class="modal-footer">
+					<button type="button" class="btn btn-default" id="bulkAssignOrgUnitsBackBtn" th:text="#{html.control.button.back}"></button>
+					<button id="bulkAssignFinishBtn" class="btn btn-primary" th:text="#{html.page.user.assign.multiple.finish.btn}"></button>
+	                <button type="button" class="btn btn-danger" id="closeBulkAssignOrgUnitsModal" th:text="#{html.control.button.cancel}"></button>
+	            </div>
+	        </div>
+	    </div>
+	</div>
+</th:block>

@@ -15,9 +15,10 @@ public class Constants {
 	public static final String ROLE_REQUESTER = "ROLE_REQUESTER";
 	public static final String ROLE_MANAGER = "ROLE_MANAGER";
 	public static final String ROLE_SUBSTITUTE = "ROLE_SUBSTITUTE";
-	public static final String ROLE_MANAGER_SUBSTITUDE = "ROLE_MANAGER_SUBSTITUDE";
+	public static final String ROLE_MANAGER_SUBSTITUTE = "ROLE_MANAGER_SUBSTITUTE";
 	public static final String ROLE_TEMPLATE_ACCESS = "ROLE_TEMPLATE_ACCESS";
 	public static final String ROLE_IT_SYSTEM_RESPONSIBLE = "ROLE_IT_SYSTEM_RESPONSIBLE";
+	public static final String ROLE_MANUAL_EFFECTUATION_SYSTEM_OWNER = "ROLE_MANUAL_EFFECTUATION_SYSTEM_OWNER";
 	public static final String ROLE_AUDITLOG = "ROLE_AUDITLOG";
 
 

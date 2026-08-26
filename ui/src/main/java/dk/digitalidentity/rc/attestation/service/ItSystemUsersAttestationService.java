@@ -97,9 +97,6 @@ public class ItSystemUsersAttestationService {
 	@Autowired
 	private FunctionDao functionDao;
 
-	@Autowired
-	private AttestationConstraintService attestationConstraintService;
-
     @Transactional
     public void finishOutstandingAttestations() {
         // Only consider attestations that are less than a month old
@@ -196,6 +193,7 @@ public class ItSystemUsersAttestationService {
                 .verifiedAt(attestation.getVerifiedAt() != null ? attestation.getVerifiedAt().toLocalDate() : null)
                 .itSystemId(attestation.getItSystemId())
                 .itSystemName(attestation.getItSystemName())
+				.attestationUuid(attestation.getUuid())
                 .users(buildUserAttestations(attestation, userRoleAssignments, undecidedOnly))
                 .orgUnits(buildOrgUnitAttestations(attestation, ouRoleAssignments))
                 .build();
@@ -429,7 +427,7 @@ public class ItSystemUsersAttestationService {
                                             .assignedThrough(a.getAssignedThroughType() != null
                                                     ? AssignedThroughAttestation.valueOf(a.getAssignedThroughType().name())
                                                     : null)
-											.postponedConstraints(attestationConstraintService.translatePostponedConstraints(a.getPostponedConstraints()))
+											.postponedConstraints(a.getPostponedConstraints())
                                             .build())
                                     .collect(Collectors.toList())
                             )

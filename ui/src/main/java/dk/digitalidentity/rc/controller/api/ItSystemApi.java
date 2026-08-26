@@ -259,7 +259,10 @@ public class ItSystemApi {
 			}
 
 			// create 1:1 user role
-			var toBeCreated = systemRoles.stream().filter(sr -> userRoles.stream().noneMatch(ur -> Objects.equals(ur.getIdentifier(), sr.getIdentifier()))).collect(Collectors.toList());
+			var toBeCreated = systemRoles.stream()
+					.filter(sr -> !systemRoleService.isInUse(sr, userRoles))
+					.collect(Collectors.toList());
+
 			for (SystemRole systemRole : toBeCreated) {
 				UserRole userRole = new UserRole();
 				userRole.setItSystem(itSystem);

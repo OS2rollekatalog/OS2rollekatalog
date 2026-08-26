@@ -1,0 +1,23 @@
+<th:block th:fragment="bulkAssignUserRoleConstraintsModal" xmlns="http://www.w3.org/1999/xhtml" xmlns:th="http://www.thymeleaf.org">
+	<div class="modal fade" id="modal-bulk-assign-constraints" role="dialog">
+	    <div class="modal-dialog">
+	        <!-- Modal content-->
+	        <div class="modal-content">
+	            <div class="modal-header">
+	                <h4 th:text="#{html.page.user.assign.userrole.constraints.header}"></h4>
+					<p id="bulkAssignConstraintsRoleName"></p>
+	            </div>
+
+	            <div class="modal-body" style="overflow-y: initial !important;">
+	                <div id="bulkAssignPostponedConstraintsPlaceholder"></div>
+	            </div>
+
+	            <div class="modal-footer">
+					<button type="button" class="btn btn-default" id="bulkAssignConstraintsBackBtn" th:text="#{html.control.button.back}"></button>
+					<button id="bulkAssignSubmitBtn" class="btn btn-primary bulk_assign_role" th:text="#{html.page.user.assign.multiple.finish.btn}"></button>
+	                <button type="button" class="btn btn-danger" id="closeBulkAssignConstraintsModal" th:text="#{html.control.button.cancel}"></button>
+	            </div>
+	        </div>
+	    </div>
+	</div>
+</th:block>

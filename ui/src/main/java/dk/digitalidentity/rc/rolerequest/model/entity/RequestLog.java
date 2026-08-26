@@ -40,10 +40,16 @@ public class RequestLog {
 	private String actingUsername;
 
 	@Column
+	private String actingUserId;
+
+	@Column
 	private String targetUserUuid;
 
 	@Column
 	private String targetUsername;
+
+	@Column
+	private String targetUserId;
 
 	@NotNull
 	@Column
@@ -64,4 +70,7 @@ public class RequestLog {
 
 	@Column
 	private String details;
+
+	@Column
+	private String detailsJson;
 }

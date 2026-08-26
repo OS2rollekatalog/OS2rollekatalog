@@ -24,6 +24,7 @@
                                    class="table table-striped table-bordered table-hover">
                                 <thead>
                                 <tr >
+                                    <!-- <th></th> -->
                                     <th th:text="#{requestmodule.html.pending.table.header.reciever}"></th>
                                     <th th:text="#{requestmodule.html.pending.table.header.action}"></th>
                                     <th th:text="#{requestmodule.html.pending.table.header.requester}"></th>
@@ -41,7 +42,8 @@
                                 </thead>
 
                                 <tbody>
-                                <tr th:each="request : ${pendingRequests}" th:id="${request.id+'_pending_request'}">
+                                <tr th:each="request : ${pendingRequests}" th:id="${request.id+'_pending_request'}" class="dt-control">
+                                    <!-- <td class="dt-control"></td> -->
                                     <td>
                                         <span th:text="${request.receiver}"
                                               th:title="${request.employment}"
@@ -53,10 +55,7 @@
                                     <td th:text="${request.itSystem}"></td>
                                     <td class="preformat" th:text="${request.description}"></td>
                                     <td th:text="${request.constraints}"></td>
-                                    <!-- data-order carries the full timestamp so the column does not sort on the dd-MM-yyyy
-                                         text. DataTables only detects it on the first row of the tbody, and only while the
-                                         column has no data/render override in pending.js - do not remove either. -->
-                                    <td th:text="${request.requestDate}" th:attr="data-order=${request.requestDateSort}"></td>
+                                    <td th:text="${request.requestDate}"></td>
                                     <td th:text="${request.timeFrame}"></td>
                                     <td th:text="${request.reason}"></td>
                                     <td class="treatedByResponsibleField" th:text="${request.assignedTo}"></td>
@@ -76,7 +75,7 @@
 												th:data-requestid="${request.id}" th:data-chooseanotherenddate="${true}"
 												th:data-assignedto="${request.assignedTo}"
 												th:text="#{requestmodule.html.pending.table.details.approve.time}"></button>
-										<button class="btn btn-danger" style="width: 100%; margin-top: 5px;" th:attr="onclick='onDenyPressed('+${request.id}+');'" th:text="#{requestmodule.html.pending.table.details.deny}"></button>
+										<button class="btn btn-danger js-deny-btn" style="width: 100%; margin-top: 5px;" th:data-requestid="${request.id}" th:text="#{requestmodule.html.pending.table.details.deny}"></button>
 									</td>
                                 </tr>
                                 </tbody>
@@ -123,18 +122,17 @@
 	 style="display: none;">
 </div>
 
-<script th:inline="javascript">
-    /*<![CDATA[*/
-    /*[+
-       var token = $("meta[name='_csrf']").attr("content");
-        let restUrl = [[@{/rest/rolerequest}]];
-        let cancelText = [[#{requestmodule.html.pending.table.details.approve.time.cancel}]];
-        let saveText = [[#{requestmodule.html.pending.table.details.approve.time.save}]];
-        let swalHeaderText = [[#{requestmodule.html.pending.table.details.approve.time}]];
-        let swalNewDateText = [[#{requestmodule.html.pending.table.details.approve.time.new}]];
-    +]*/
-    /*]]>*/
+<script type="application/json" th:inline="javascript" id="pending-requests-config">
+	{
+		"detailsUrl": [[@{/ui/request/pending/details}]],
+		"restUrl": [[@{/rest/rolerequest}]],
+		"cancelText": [[#{requestmodule.html.pending.table.details.approve.time.cancel}]],
+		"saveText": [[#{requestmodule.html.pending.table.details.approve.time.save}]],
+		"swalHeaderText": [[#{requestmodule.html.pending.table.details.approve.time}]],
+		"swalNewDateText": [[#{requestmodule.html.pending.table.details.approve.time.new}]]
+	}
 </script>
+<script th:src="@{/js/DatatableService.js}"></script>
 <script th:src="@{/js/rolerequest/pendingRequests/pending.js}"></script>
 </body>
 </html>

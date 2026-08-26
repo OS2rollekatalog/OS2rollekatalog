@@ -325,7 +325,9 @@ public class ItSystemApiV2 {
 								s.setDescription(systemRoleAM.getDescription());
 							}
 							if (systemRoleAM.getWeight() != null) {
-								s.setWeight(systemRoleAM.getWeight());
+								// Route the weight change through changeWeight so the it-system's AD groups
+								// are re-synced when the weight actually changes (issue #81).
+								systemRoleService.changeWeight(s, systemRoleAM.getWeight());
 							}
 						},
 						() -> {

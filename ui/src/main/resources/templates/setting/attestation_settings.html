@@ -186,7 +186,7 @@
 									<label class="col-sm-3 control-label" th:text="#{html.setting.attestation.scheduled.filter.optout}"></label>
 
 									<div class="col-sm-8">
-										<button type="button" onclick="chooseOU()" class="btn btn-primary" th:text="#{html.setting.attestation.scheduled.pickou.optout}"></button>
+										<button type="button" class="btn btn-primary js-choose-ou-btn" th:text="#{html.setting.attestation.scheduled.pickou.optout}"></button>
 										<a th:replace="~{fragments/help :: help (title=#{html.help.settings.attestation.excludeOus.title}, content=#{html.help.settings.attestation.excludeOus.body})}"></a>
 										<br/><br/>
 										<em id="filterZeroTxt" th:style="${(#lists.size(attestationSettingsForm.scheduledAttestationFilter) > 0) ? 'display: none': ''}" th:text="'Ingen enheder fravalgt'"></em>
@@ -201,7 +201,7 @@
 									<label class="col-sm-3 control-label" th:text="#{html.setting.attestation.scheduled.filter.optin}"></label>
 
 									<div class="col-sm-8">
-										<button type="button" onclick="chooseOU()" class="btn btn-primary" th:text="#{html.setting.attestation.scheduled.pickou.optin}"></button>
+										<button type="button" class="btn btn-primary js-choose-ou-btn" th:text="#{html.setting.attestation.scheduled.pickou.optin}"></button>
 										<a th:replace="~{fragments/help :: help (title=#{html.help.settings.attestation.includeOus.title}, content=#{html.help.settings.attestation.includeOus.body})}"></a>
 										<br/><br/>
 										<em id="optInZeroTxt" th:style="${(#lists.size(attestationSettingsForm.scheduledAttestationOptedInOrgUnits) > 0) ? 'display: none': ''}" th:text="'Ingen enheder tilvalgt'"></em>
@@ -237,271 +237,21 @@
 <div th:replace="~{fragments/footer :: footer}"></div>
 <script th:replace="~{fragments/assignDatePicker :: content}"></script>
 
+<link rel="stylesheet" th:href="@{/css/setting/settings.css}" />
 
-<style>
-	.error {
-		color: red;
+<script type="application/json" id="attestation-setting-config" th:inline="javascript">
+	{
+		"allOUs": [[${allOUs}]],
+		"selectedOUs": [[${selectedOUs}]],
+		"optedInOuSelection": [[${optedInOuSelection}]],
+		"optIn": [[${attestationSettingsForm.isOrgUnitOptIn}]],
+		"successMsg": [[#{html.setting.update.msg.success}]],
+		"failedMsg": [[#{html.setting.update.msg.failed}]],
+		"firstAttestationDate": [[${attestationSettingsForm.firstAttestationDate}]],
+		"saved": [[${saved}]]
 	}
-</style>
-
-<script th:inline="javascript">
-		/*<![CDATA[*/
-
-        /*[+
-		 var allOUs = [[${allOUs}]];
-         const selectedOUs = [[${selectedOUs}]];
-         const optedInOuSelection = [[${optedInOuSelection}]];
-         let optIn = [[${attestationSettingsForm.isOrgUnitOptIn}]];
-         var successMsg = [[#{html.setting.update.msg.success}]];
-         var failedMsg = [[#{html.setting.update.msg.failed}]];
-         var firstAttestationDate = [[${attestationSettingsForm.firstAttestationDate}]];
-         +]*/
-
-		let excemptedOusState = selectedOUs
-		let optedInOusState = optedInOuSelection
-
- 		function chooseOU() {
- 			$('#modal-ou').modal('show');
- 		}
-
-		 function createSelectedOptionsFor ( elementSelector, idArray) {
-			 const optedInOrgunitJQueryElement = $(elementSelector)
-			 optedInOrgunitJQueryElement.empty();
-
-			 const selectedOusAsOptions = []
-			 for (var i = 0; i < idArray.length; i++) {
-				 selectedOusAsOptions.push('<option value=\"'+idArray[i]+'\" selected="selected"></option>"');
-			 }
-			 optedInOrgunitJQueryElement.append(selectedOusAsOptions);
-		 }
-
-		 function setOrgunitSelectionTextMessages() {
-			let length = excemptedOusState.length
-			 if (optIn) {
-				 length = optedInOusState.length
-			 }
-
-			 $('#filterZeroTxt').hide();
-			 $('#filterOneTxt').hide();
-			 $('#filterMultiTxt').hide();
-			 $('#optInZeroTxt').hide();
-			 $('#optInOneTxt').hide();
-			 $('#optInMultiTxt').hide();
-
-			 if (length == 0) {
-				 $('#filterZeroTxt').show();
-				 $('#optInZeroTxt').show();
-			 }
-			 else if (length == 1) {
-				 $('#filterOneTxt').show();
-				 $('#optInOneTxt').show();
-			 }
-			 else {
-				 $('#filterMultiTxt').show();
-				 $('#optInMultiTxt').show();
-				 $('#filterMultiValue').text(length);
-				 $('#optInMultiValue').text(length);
-			 }
-		 }
-
-		 function hideOUModal(){
-			 $('#modal-ou').modal('hide');
-		 }
-
-		function saveOUs(){
-
-			if(optIn) {
-				setOptinTreeStateFromSelection()
-				createSelectedOptionsFor("#scheduledAttestationOptedInOrgUnits", optedInOusState)
-			} else {
-				setExcemptedTreeStateFromSelection()
-				createSelectedOptionsFor("#scheduledAttestationFilter", excemptedOusState)
-			}
-
-			setOrgunitSelectionTextMessages()
-
-			hideOUModal()
-		}
-
-		function recoverOptinTreeState() {
-			$('#ou-tree').jstree('deselect_node', allOUs);
-			$('#ou-tree').jstree('select_node', optedInOusState);
-		}
-
-		function recoverExcemptedTreeState() {
-			$('#ou-tree').jstree('deselect_node', allOUs);
-			$('#ou-tree').jstree('select_node', excemptedOusState);
-		}
-
-		function setOptinTreeStateFromSelection() {
-			optedInOusState = $('#ou-tree').jstree('get_selected')
-		}
-
-		function setExcemptedTreeStateFromSelection() {
-			excemptedOusState = $('#ou-tree').jstree('get_selected')
-		}
-
-		function onOptInCheckboxChange(optInCheckElement) {
-			const checked = optInCheckElement.checked
-			const optInSectionElement = document.getElementById('opt-in-section')
-			const outOutSectionElement = document.getElementById('opt-out-section')
-			if (checked) {
-				optIn = true
-				optInSectionElement.style.display = 'flex'
-				outOutSectionElement.style.display = 'none'
-
-				recoverOptinTreeState()
-				setOrgunitSelectionTextMessages()
-			} else {
-				optIn = false
-				optInSectionElement.style.display = 'none'
-				outOutSectionElement.style.display = 'flex'
-
-				recoverExcemptedTreeState()
-				setOrgunitSelectionTextMessages()
-			}
-		}
-
-		$("document").ready(function() {
-			var saved = [[${saved}]];
-
-			//Change opt in/out sections on checkbox click
-			const optInCheckElement = document.getElementById('ou-optin-checkbox')
-			optInCheckElement.addEventListener('click', (event)=> {
-				onOptInCheckboxChange(optInCheckElement)
-			})
-
-			$("#scheduled-attestation-checkbox").change(function() {
-				$("#scheduledAttestationEnabled").val(this.checked);
-
-				if (this.checked) {
-					$("#scheduledAttestationSubsettings").show();
-				}
-				else {
-					$("#scheduledAttestationSubsettings").hide();
-				}
-			});
-
-			if ($("#scheduledAttestationEnabled").val() == "true") {
-				$("#scheduledAttestationSubsettings").show();
-			}
-
-			$("#dont-send-mail-to-manager-checkbox").change(function() {
-				$("#dontSendMailToManager").val(this.checked);
-			});
-
-			$("#attestation-ad-checkbox").change(function() {
-				$("#adAttestationEnabled").val(this.checked);
-			});
-
-			$("#attestation-changes-checkbox").change(function() {
-				$("#changeRequestsEnabled").val(this.checked);
-			});
-
-			$("#description-required-checkbox").change(function() {
-				$("#descriptionRequired").val(this.checked);
-
-				$("#hide-description-checkbox").prop('checked', false);
-				$("#hideDescription").val(false);
-				if (this.checked) {
-					$("#hideDescriptionSection").hide();
-				} else {
-					$("#hideDescriptionSection").show();
-				}
-			});
-
-			$("#hide-description-checkbox").change(function() {
-				$("#hideDescription").val(this.checked);
-			});
-
-			if ($("#description-required-checkbox").prop('checked')) {
-				$("#hideDescriptionSection").hide();
-			} else {
-				$("#hideDescriptionSection").show();
-			}
-
-			if (typeof saved != "undefined" && saved != null) {
-			    if (saved) {
-                    $.notify({
-                        message: successMsg
-                    },{
-                        status: 'success',
-                        autoHideDelay: 4000
-                    });
-                } else if(!saved) {
-                    $.notify({
-                        message: failedMsg
-                    },{
-                        status: 'warning',
-                        autoHideDelay: 4000
-                    });
-                }
-            }
-
-			// JSTree stuff
-
-	 		$('#modal-ou').on('shown.bs.modal', function() {
-	 			$('#ou-tree-search').focus();
-	 		})
-
-			$("#ou-tree").jstree({
-				"core": {
-					"data": allOUs,
-					"themes": {
-						"icons": false
-					}
-				},
-				"search" : {
-					"show_only_matches": true,
-					"search_callback": function(str, node) {
-						return (node.text.toUpperCase().startsWith(str.toUpperCase()));
-					}
-				},
-				"checkbox" : {
-					"keep_selected_style" : false,
-					"three_state": false,
-					"cascade": "undetermined"
-				},
-				"plugins" : [
-					"checkbox", "search"
-				]
-			});
-
-			// searching in the JSTree
-			var to = false;
-			$('#ou-tree-search').keyup(function() {
-				if (to) {
-					clearTimeout(to);
-				}
-
-				to = setTimeout(function() {
-					var v = $('#ou-tree-search').val();
-
-					$('#ou-tree').jstree(true).search(v);
-				}, 400);
-			});
-
-			// selecting in the JSTree
-			$('#ou-tree').on("ready.jstree", function(e, data) {
-				if (optIn) {
-					recoverOptinTreeState();
-				} else {
-					recoverExcemptedTreeState();
-				}
-			});
-
-			// init datepicker
-			$('#attestationStartDate').data("DateTimePicker").date(new Date(firstAttestationDate));
-			$("#attestationStartDate").on("dp.change", function (e) {
-				if (!$('#attestationStartDate').data('date')) {
-					$('#attestationStartDate').data("DateTimePicker").date(firstAttestationDate);
-				}
-
-				$("#firstAttestationDate").val($('#attestationStartDate').data('date'));
-			});
-		});
-
-		/*]]>*/
-	</script>
+</script>
+<script th:src="@{/js/service/JsTreeService.js}"></script>
+<script th:src="@{/js/setting/attestation_settings.js}"></script>
 </body>
 </html>

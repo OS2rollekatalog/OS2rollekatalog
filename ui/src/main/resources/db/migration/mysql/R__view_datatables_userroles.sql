@@ -91,6 +91,9 @@ CREATE OR REPLACE VIEW view_datatables_userroles AS (
         IF(pku.failed IS NULL, FALSE, pku.failed) AS sync_failed,
         ur.delegated_from_cvr AS delegated_from_cvr,
         ur.read_only AS read_only,
+        -- exposed so the assignment lists can filter out roles in read-only AD it systems, which
+        -- are never provisioned and therefore cannot be assigned - see UserRoleService.assignmentBlockedReason
+        its.readonly AS it_system_readonly,
         -- Only expose the OU filter when it is actually enabled. The join tables can retain
         -- stale OUs after the filter is disabled (e.g. via the API), and the requestability
         -- checks in Java (RequestService.orgUnitFilterAllows) ignore the filter unless

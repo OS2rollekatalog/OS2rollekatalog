@@ -14,9 +14,9 @@ import java.util.Collections;
 
 public interface UserDatatableDao extends DataTablesRepository<User, String> {
 
-	static Specification<User> notDeletedOrDisabled() {
+	static Specification<User> notDeleted() {
 		return (root, _, builder) ->
-			builder.and(builder.isFalse(root.get("deleted")), builder.isFalse(root.get("disabled")));
+			builder.isFalse(root.get("deleted"));
 	}
 
 	static Specification<User> requesterPositionOrgUnitIn(Collection<OrgUnit> orgUnits) {
@@ -35,7 +35,7 @@ public interface UserDatatableDao extends DataTablesRepository<User, String> {
 				scopePredicate = builder.or(scopePredicate, root.get("uuid").in(userUuids));
 			}
 
-			return builder.and(scopePredicate, notDeletedOrDisabled().toPredicate(root, query, builder));
+			return builder.and(scopePredicate, notDeleted().toPredicate(root, query, builder));
 		};
 	}
 }

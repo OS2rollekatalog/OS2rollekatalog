@@ -14,10 +14,12 @@ import org.springframework.web.bind.annotation.RestController;
 import dk.digitalidentity.rc.attestation.model.dto.RoleAssignmentDTO;
 import dk.digitalidentity.rc.attestation.model.entity.Attestation;
 import dk.digitalidentity.rc.attestation.service.OrganisationAttestationService;
+import dk.digitalidentity.rc.security.RequireSubstituteOrManagerOrAttestationAdminRole;
 import dk.digitalidentity.rc.security.SecurityUtil;
 import dk.digitalidentity.rc.service.SettingsService;
 import io.micrometer.core.annotation.Timed;
 
+@RequireSubstituteOrManagerOrAttestationAdminRole
 @RestController
 public class OrgUnitAttestationRestController {
 

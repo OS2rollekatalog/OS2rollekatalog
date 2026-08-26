@@ -284,7 +284,7 @@ public class ItSystemController {
 		systemRoleForm.setItSystemId(itSystem.getId());
 
 		List<SystemRoleViewModel> systemRoles = systemRoleService.getByItSystem(itSystem).stream()
-				.map(sr -> new SystemRoleViewModel(sr, systemRoleService.isInUse(sr)))
+				.map(sr -> new SystemRoleViewModel(sr, systemRoleService.isInUse(sr, null)))
 				.collect(Collectors.toList());
 
 		model.addAttribute("itsystem", itSystem);
@@ -336,7 +336,7 @@ public class ItSystemController {
 		systemRoleForm.setItSystemId(itSystem.getId());
 
 		List<SystemRoleViewModel> systemRoles = systemRoleService.getByItSystem(itSystem).stream()
-				.map(sr -> new SystemRoleViewModel(sr, systemRoleService.isInUse(sr)))
+				.map(sr -> new SystemRoleViewModel(sr, systemRoleService.isInUse(sr, null)))
 				.collect(Collectors.toList());
 
 		ConvertSystemRolesForm convertSystemRolesForm = new ConvertSystemRolesForm();
@@ -417,7 +417,7 @@ public class ItSystemController {
 
 		if (bindingResult.hasErrors()) {
 			List<SystemRoleViewModel> systemRoles = systemRoleService.getByItSystem(itSystem).stream()
-					.map(sr -> new SystemRoleViewModel(sr, systemRoleService.isInUse(sr)))
+					.map(sr -> new SystemRoleViewModel(sr, systemRoleService.isInUse(sr, null)))
 					.collect(Collectors.toList());
 
 			ConvertSystemRolesForm convertSystemRolesForm = new ConvertSystemRolesForm();
@@ -475,7 +475,8 @@ public class ItSystemController {
 		}
 
 		SystemRole systemRole = new SystemRole();
-		if (systemRoleForm.getId() > 0) {
+		boolean existingSystemRole = systemRoleForm.getId() > 0;
+		if (existingSystemRole) {
 			systemRole = systemRoleService.getById(systemRoleForm.getId());
 
 			// only name, description and maximumAssignments can be edited on existing system roles
@@ -493,11 +494,21 @@ public class ItSystemController {
 			systemRole.setMaximumAssignments(systemRoleForm.getMaximumAssignments());
 		}
 
-		if (itSystem.getSystemType().equals(ItSystemType.AD) || itSystem.getSystemType().equals(ItSystemType.SAML)) {
+		boolean weightEditable = itSystem.getSystemType().equals(ItSystemType.AD) || itSystem.getSystemType().equals(ItSystemType.SAML);
+
+		// A new system role has no assignments yet, so its weight can be set directly before the first save.
+		if (weightEditable && !existingSystemRole) {
 			systemRole.setWeight(systemRoleForm.getWeight());
 		}
 
 		systemRole = systemRoleService.save(systemRole);
+
+		// Changing the weight on an existing system role must re-sync the affected AD groups (issue #81);
+		// changeWeight flags the it-system for an AD membership re-sync when the weight actually changes.
+		if (weightEditable && existingSystemRole) {
+			systemRole = systemRoleService.changeWeight(systemRole, systemRoleForm.getWeight());
+		}
+
 		pendingADUpdateService.addSystemRole(systemRole, systemRoleForm.getAdGroupType(), systemRoleForm.isUniversal());
 
 		return "redirect:";
@@ -520,7 +531,7 @@ public class ItSystemController {
 		}
 
 		List<SystemRole> systemRoles = systemRoleService.getByItSystem(itSystem).stream()
-				.filter(sr -> !systemRoleService.isInUse(sr))
+				.filter(sr -> !systemRoleService.isInUse(sr, null))
 				.toList();
 
 		for (SystemRole systemRole : systemRoles) {

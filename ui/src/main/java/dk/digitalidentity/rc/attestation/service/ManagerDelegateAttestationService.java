@@ -78,8 +78,32 @@ public class ManagerDelegateAttestationService {
 				.toList();
 	}
 
+	@Transactional(readOnly = true)
+	public List<Attestation> listDelegateAttestationEntities(final AttestationRun run, final List<User> delegatedManagers) {
+		if (delegatedManagers.isEmpty()) {
+			return List.of();
+		}
+		entityManager.setFlushMode(FlushModeType.COMMIT);
+		final Set<String> delegatedManagerUuids = delegatedManagers.stream()
+				.map(User::getUuid)
+				.collect(Collectors.toSet());
+		final List<Attestation> delegatedAttestations = run.getAttestations().stream()
+				.filter(a -> a.getAttestationType() == Attestation.AttestationType.MANAGER_DELEGATED_ATTESTATION)
+				.toList();
+		if (delegatedAttestations.isEmpty()) {
+			return List.of();
+		}
+		final Map<String, String> managerUuidByOuUuid = orgUnitDao
+				.findByActiveTrueAndManagerNotNullAndUuidIn(delegatedAttestations.stream().map(Attestation::getResponsibleOuUuid).toList())
+				.stream()
+				.collect(Collectors.toMap(OrgUnitManagerUuid::getUuid, p -> p.getManager().getUuid()));
+		return delegatedAttestations.stream()
+				.filter(a -> delegatedManagerUuids.contains(managerUuidByOuUuid.get(a.getResponsibleOuUuid())))
+				.toList();
+	}
+
 	@Transactional
-	public List<ManagerDelegateOrganisationAttestationDTO> listOrganisationsForAttestation(final AttestationRun run, final List<User> delegatedManagers) {
+	public List<ManagerDelegateOrganisationAttestationDTO> listOrganisationsForAttestation(final AttestationRun run, final List<User> delegatedManagers, final User delegate) {
 		entityManager.setFlushMode(FlushModeType.COMMIT);
 
 		final Set<String> delegatedManagerUuids = delegatedManagers.stream()
@@ -98,14 +122,14 @@ public class ManagerDelegateAttestationService {
 
 		return delegatedAttestations.stream()
 				.filter(a -> delegatedManagerUuids.contains(managerUuidByOuUuid.get(a.getResponsibleOuUuid())))
-				.map(a -> toShallowOrganisationDto(a.getCreatedAt(), a, delegatedManagers))
+				.map(a -> toShallowOrganisationDto(a.getCreatedAt(), a, delegatedManagers, delegate))
 				.toList();
 	}
 
 	/**
 	 * Convert to {@link OrganisationAttestationDTO} will only include user assignments, not organisation level assignments
 	 */
-	ManagerDelegateOrganisationAttestationDTO toShallowOrganisationDto(final LocalDate when, final Attestation attestationOrganisation, List<User> delegatedManagers) {
+	ManagerDelegateOrganisationAttestationDTO toShallowOrganisationDto(final LocalDate when, final Attestation attestationOrganisation, List<User> delegatedManagers, final User delegate) {
 		List<String> delegatedManagerUuids = delegatedManagers.stream().map(User::getUuid).toList();
 
 		final List<AttestationUserRoleAssignment> userRoleAssignments = userRoleAssignmentDao
@@ -125,7 +149,7 @@ public class ManagerDelegateAttestationService {
 				.orgUnitUserRoleAssignmentsPrItSystem(orgUnitUserRoleAssignmentsPrItSystem)
 				.verifiedAt(attestationOrganisation.getVerifiedAt() != null ? attestationOrganisation.getVerifiedAt().toLocalDate() : null)
 				.performedBy(performedBy)
-				.userAttestations(organisationAttestationService.buildUserAttestations(userRoleAssignments, attestationOrganisation, false, when).stream()
+				.userAttestations(organisationAttestationService.buildUserAttestations(userRoleAssignments, attestationOrganisation, false, when, delegate).stream()
 						.filter(ua -> delegatedManagerUuids.contains(ua.getUserUuid()))
 						.toList())
 				.build();

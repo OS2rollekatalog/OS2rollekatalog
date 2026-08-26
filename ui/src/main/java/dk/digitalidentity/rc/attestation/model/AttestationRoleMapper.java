@@ -8,7 +8,6 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Predicate;
-import java.util.function.UnaryOperator;
 import java.util.stream.Collectors;
 
 import dk.digitalidentity.rc.attestation.model.dto.ItSystemAttestationDTO;
@@ -26,8 +25,7 @@ import dk.digitalidentity.rc.attestation.model.entity.temporal.AttestationUserRo
 public class AttestationRoleMapper {
 
     public static List<RoleGroupDTO> userRoleGroups(final String userUuid, final List<AttestationUserRoleAssignment> userRoleAssignments,
-                                                    final Predicate<AttestationUserRoleAssignment> assignmentPredicate,
-                                                    final UnaryOperator<String> postponedConstraintsTranslator) {
+                                                    final Predicate<AttestationUserRoleAssignment> assignmentPredicate) {
         final List<AttestationUserRoleAssignment> allUserAssignmentsWithGroups = userRoleAssignments.stream()
                 .filter(r -> r.getRoleGroupId() != null)
                 .filter(r -> Objects.equals(r.getUserUuid(), userUuid))
@@ -45,7 +43,7 @@ public class AttestationRoleMapper {
                         .assignedThroughName(r.getAssignedThroughName())
                         .userRoles(allUserAssignmentsWithGroups.stream()
                                 .filter(r2 -> Objects.equals(r2.getRoleGroupId(), r.getRoleGroupId()))
-                                .map(r2 -> mapToUserRoleDto(r2, postponedConstraintsTranslator))
+                                .map(AttestationRoleMapper::mapToUserRoleDto)
                                 .collect(Collectors.toList())
                         )
                         .inherited(r.isInherited())
@@ -53,7 +51,7 @@ public class AttestationRoleMapper {
                 .collect(Collectors.toList());
     }
 
-    private static UserRoleDTO mapToUserRoleDto(final AttestationUserRoleAssignment r, final UnaryOperator<String> postponedConstraintsTranslator) {
+    private static UserRoleDTO mapToUserRoleDto(AttestationUserRoleAssignment r) {
         return UserRoleDTO.builder()
                 .roleId(r.getUserRoleId())
                 .roleName(r.getUserRoleName())
@@ -63,7 +61,7 @@ public class AttestationRoleMapper {
                         ? AssignedThroughAttestation.valueOf(r.getAssignedThroughType().name())
                         : null)
                 .assignedThroughName(r.getAssignedThroughName())
-                .postponedConstraints(postponedConstraintsTranslator.apply(r.getPostponedConstraints()))
+                .postponedConstraints(r.getPostponedConstraints())
                 .build();
     }
 

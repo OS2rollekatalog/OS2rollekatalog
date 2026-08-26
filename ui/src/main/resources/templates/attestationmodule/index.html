@@ -42,59 +42,16 @@
         </div>
     </div>
 
-    <div th:replace="~{attestationmodule/fragments/footer :: scripts(datatables = true)}"></div>
-    <script th:src="@{/js/service/TabService.js}"></script>
+	<div th:replace="~{attestationmodule/fragments/footer :: scripts(datatables = true)}"></div>
+	<script th:src="@{/js/DatatableService.js}"></script>
+	<script th:src="@{/js/service/TabService.js}"></script>
 
-    <script th:inline="javascript">
-        /*<![CDATA[*/
-        /*[+
-        const token = $("meta[name='_csrf']").attr("content");
-        let tabContentUrl = [[@{/ui/attestation/v2/run/}]];
-        let tabService;
-        +]*/
-
-        $(document).ready(function() {
-            initNavTabs();
-        });
-
-        function initNavTabs() {
-            tabService = new TabService();
-            const navTabElements = document.querySelectorAll('.nav-link');
-
-            for (const navTab of navTabElements) {
-                const id = navTab.getAttribute('data-run-id');
-                const containerElement = document.getElementById(`ovtab${id}`);
-                const url = `${tabContentUrl}${id}`;
-                tabService.initLoadContentOnClick(navTab, containerElement, url, () => initDatatable(id));
-            }
-
-            if (navTabElements.length > 0) {
-                navTabElements[0].click();
-            }
-        }
-
-        function initDatatable(runId) {
-            $('.dashboardTable_' + runId).DataTable({
-                "bSort": false,
-                "paging": false,
-                "responsive": true,
-                "dom": "<'row'<'col-sm-12'tr>>",
-                "language": {
-                    "search": "Søg",
-                    "lengthMenu": "_MENU_ rækker per side",
-                    "info": "Viser _START_ til _END_ af _TOTAL_ rækker",
-                    "zeroRecords": "Ingen data...",
-                    "infoEmpty": "",
-                    "infoFiltered": "(ud af _MAX_ rækker)",
-                    "paginate": {
-                        "previous": "Forrige",
-                        "next": "Næste"
-                    }
-                }
-            });
-        }
-        /*]]>*/
-    </script>
+	<script type="application/json" th:inline="javascript" id="attestation-dashboard-config">
+		{
+			"tabContentUrl": [[@{/ui/attestation/v2/run/}]]
+		}
+	</script>
+	<script th:src="@{/js/attestationmodule/index.js}"></script>
 
 </body>
 </html>

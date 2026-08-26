@@ -16,7 +16,7 @@
 					<div class="panel-heading">
 						<h4 th:text="#{html.setting.kombit.general}"></h4>
 					</div>
-	
+
 					<div class="panel-body">
 						<fieldset>
 							<div class="form-group">
@@ -49,41 +49,13 @@
 
 <div th:replace="~{fragments/footer :: footer}"></div>
 
-<script th:inline="javascript">
-		/*<![CDATA[*/
-
-		/*[+
-		 var successMsg = [[#{html.setting.update.msg.success}]];
-		 var failedMsg = [[#{html.setting.update.msg.failed}]];
-		 +]*/
-
-		$("document").ready(function() {
-			var saved = [[${saved}]];
-			
-			if (typeof saved != "undefined" && saved != null) {
-				if (saved) {
-					$.notify({
-						message: successMsg
-					},{
-						status: 'success',
-						autoHideDelay: 4000
-					});
-				} else if(!saved) {
-					$.notify({
-						message: failedMsg
-					},{
-						status: 'warning',
-						autoHideDelay: 4000
-					});
-				}
-			}
-			
-			$("#itsystemshidden-checkbox").change(function() {
-				$("#itSystemsHiddenByDefault").val(this.checked);
-			});
-		});
-		
-		/*]]>*/
-	</script>
+<script type="application/json" id="kombit-setting-config" th:inline="javascript">
+	{
+		"successMsg": [[#{html.setting.update.msg.success}]],
+		"failedMsg": [[#{html.setting.update.msg.failed}]],
+		"saved": [[${saved}]]
+	}
+</script>
+<script th:src="@{/js/setting_kombit/settings.js}"></script>
 </body>
 </html>

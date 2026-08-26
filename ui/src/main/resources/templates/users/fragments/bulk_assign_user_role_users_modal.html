@@ -1,0 +1,36 @@
+<th:block th:fragment="bulkAssignUserRoleUsersModal" xmlns="http://www.w3.org/1999/xhtml" xmlns:th="http://www.thymeleaf.org">
+	<div class="modal fade" id="modal-bulk-assign-users" role="dialog">
+	    <div class="modal-dialog modal-lg bulk-assign-users-dialog">
+	        <!-- Modal content-->
+	        <div class="modal-content bulk-assign-users-content">
+	            <div class="modal-header">
+	                <h4 th:text="#{html.page.user.assign.multiple.selectusers.title}"></h4>
+	            </div>
+
+	            <div class="modal-body bulk-assign-users-body">
+					<div class="table-responsive">
+						<table id="listTableBulkAssignUsers" class="table table-striped table-hover listTable">
+							<thead>
+							<tr>
+								<th class="col-md-1"></th>
+								<th class="col-md-3" th:text="#{html.entity.user.name}"></th>
+								<th class="col-md-2" th:text="#{html.entity.user.userId}"></th>
+								<th class="col-md-6" th:text="#{html.entity.user.positions}"></th>
+							</tr>
+							</thead>
+							<tbody>
+							</tbody>
+						</table>
+					</div>
+	            </div>
+
+	            <div class="modal-footer">
+					<span id="bulkAssignSelectedCount" style="margin-right: 10px;"></span>
+					<button type="button" class="btn btn-default" id="bulkAssignUsersBackBtn" th:text="#{html.control.button.back}"></button>
+					<button id="bulkAssignUsersNextBtn" class="btn btn-primary" th:text="#{html.page.user.assign.multiple.assign.btn}" disabled="disabled"></button>
+	                <button type="button" class="btn btn-danger" id="closeBulkAssignUsersModal" th:text="#{html.control.button.cancel}"></button>
+	            </div>
+	        </div>
+	    </div>
+	</div>
+</th:block>
